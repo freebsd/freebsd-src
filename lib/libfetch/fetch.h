@@ -31,7 +31,7 @@
 #ifndef _FETCH_H_INCLUDED
 #define _FETCH_H_INCLUDED
 
-#define _LIBFETCH_VER "libfetch/2.0"
+#define _LIBFETCH_VER "libfetch/2.1"
 
 #define URL_SCHEMELEN 16
 #define URL_USERLEN 256
@@ -60,6 +60,15 @@ struct url_ent {
 	char		 name[PATH_MAX];
 	struct url_stat	 stat;
 };
+
+#ifdef _SYS_QUEUE_H_
+struct http_header {
+	const char	*name;
+	const char	*value;
+	TAILQ_ENTRY(http_header)	headers;
+};
+TAILQ_HEAD(http_headers, http_header);
+#endif
 
 /* Recognized schemes */
 #define SCHEME_FTP	"ftp"
@@ -105,6 +114,12 @@ int		 fetchStatHTTP(struct url *, struct url_stat *, const char *);
 struct url_ent	*fetchListHTTP(struct url *, const char *);
 FILE		*fetchReqHTTP(struct url *, const char *, const char *,
 		    const char *, const char *);
+#ifdef _SYS_QUEUE_H_
+FILE		*fetchXReqHTTP(struct url *, struct url_stat *, const char *,
+		    const char *, const struct http_headers *,
+		    struct http_headers *, FILE *);
+void		 fetchFreeResHeaders(struct http_headers *);
+#endif
 
 /* FTP-specific functions */
 FILE		*fetchXGetFTP(struct url *, struct url_stat *, const char *);

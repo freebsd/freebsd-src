@@ -62,7 +62,9 @@
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 
 #include <ctype.h>
@@ -1560,18 +1562,23 @@ http_print_html(FILE *out, FILE *in)
 	free(line);
 }
 
+static bool
+has_header(const struct http_headers *hdrs, const char *name)
+{
+	struct http_header *hdr;
+
+	if (hdrs == NULL)
+		return (false);
+	TAILQ_FOREACH(hdr, hdrs, headers)
+		if (strcasecmp(hdr->name, name) == 0)
+			return (true);
+	return (false);
+}
+
 
 /*****************************************************************************
  * Core
  */
-
-FILE *
-http_request(struct url *URL, const char *op, struct url_stat *us,
-	struct url *purl, const char *flags)
-{
-
-	return (http_request_body(URL, op, us, purl, flags, NULL, NULL));
-}
 
 /*
  * Send a request and process the reply
@@ -1579,10 +1586,11 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
  * XXX This function is way too long, the do..while loop should be split
  * XXX off into a separate function.
  */
-FILE *
+static FILE *
 http_request_body(struct url *URL, const char *op, struct url_stat *us,
-	struct url *purl, const char *flags, const char *content_type,
-	const char *body)
+	struct url *purl, const char *flags,
+	const struct http_headers *req_headers,
+	struct http_headers *res_headers, FILE *body)
 {
 	char timebuf[80];
 	char hbuf[MAXHOSTNAMELEN + 7], *host;
@@ -1599,7 +1607,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 	http_headerbuf_t headerbuf;
 	http_auth_challenges_t server_challenges;
 	http_auth_challenges_t proxy_challenges;
-	size_t body_len;
+	bool body_chunked;
 
 	/* The following calls don't allocate anything */
 	init_http_headerbuf(&headerbuf);
@@ -1610,6 +1618,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 	noredirect = CHECK_FLAG('A');
 	verbose = CHECK_FLAG('v');
 	ims = CHECK_FLAG('i');
+	body_chunked = CHECK_FLAG('C');
 
 	if (direct && purl) {
 		fetchFreeURL(purl);
@@ -1745,7 +1754,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 		if ((p = getenv("HTTP_ACCEPT")) != NULL) {
 			if (*p != '\0')
 				http_cmd(conn, "Accept: %s", p);
-		} else {
+		} else if (!has_header(req_headers, "Accept")) {
 			http_cmd(conn, "Accept: */*");
 		}
 		if ((p = getenv("HTTP_REFERER")) != NULL && *p != '\0') {
@@ -1759,7 +1768,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 			/* no User-Agent if defined but empty */
 			if  (*p != '\0')
 				http_cmd(conn, "User-Agent: %s", p);
-		} else {
+		} else if (!has_header(req_headers, "User-Agent")) {
 			/* default User-Agent */
 			http_cmd(conn, "User-Agent: %s " _LIBFETCH_VER,
 			    getprogname());
@@ -1767,18 +1776,81 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 		if (url->offset > 0)
 			http_cmd(conn, "Range: bytes=%lld-", (long long)url->offset);
 		http_cmd(conn, "Connection: close");
+		if (req_headers != NULL) {
+			struct http_header *hdr;
 
-		if (body) {
-			body_len = strlen(body);
-			http_cmd(conn, "Content-Length: %zu", body_len);
-			if (content_type != NULL)
-				http_cmd(conn, "Content-Type: %s", content_type);
+			TAILQ_FOREACH(hdr, req_headers, headers)
+				http_cmd(conn, "%s: %s", hdr->name, hdr->value);
+		}
+
+		if (body != NULL) {
+			off_t body_len;
+
+			/* Add a Content-Length header if possible. */
+			if (!body_chunked) {
+				struct stat st;
+				int fd;
+
+				if ((fd = fileno(body)) != -1) {
+					if (fstat(fd, &st) == 0 &&
+					    S_ISREG(st.st_mode))
+						body_len = st.st_size;
+					else
+						body_chunked = true;
+				} else if (fseek(body, 0, SEEK_END) == 0) {
+					/*
+					 * Try fseek+ftell for fmemopen streams.
+					 * We assume we are not in the middle.
+					 */
+					if ((body_len = ftello(body)) < 0)
+						body_chunked = true;
+					fseek(body, 0, SEEK_SET);
+				} else
+					body_chunked = true;
+			}
+			if (body_chunked)
+				http_cmd(conn, "Transfer-Encoding: chunked");
+			else
+				http_cmd(conn, "Content-Length: %lld",
+				    (long long)body_len);
 		}
 
 		http_cmd(conn, "");
 
-		if (body)
-			fetch_write(conn, body, body_len);
+		if (body != NULL) {
+#define CHUNK_SIZE 4096
+			char buf[CHUNK_SIZE];
+			char chunk_size[32]; /* enough for hex + CRLF */
+			struct iovec chunk[3];
+			size_t len;
+			int hdrlen, iovcnt;
+
+			while ((len = fread(buf, 1, CHUNK_SIZE, body)) > 0) {
+				if (body_chunked) {
+					hdrlen = snprintf(chunk_size,
+					    sizeof(chunk_size), "%zx\r\n", len);
+					chunk[0].iov_base = chunk_size;
+					chunk[0].iov_len = hdrlen;
+					chunk[1].iov_base = buf;
+					chunk[1].iov_len = len;
+					chunk[2].iov_base =
+					    __DECONST(char *, "\r\n");
+					chunk[2].iov_len = 2;
+					iovcnt = 3;
+					len += hdrlen + 2;
+				} else {
+					chunk[0].iov_base = buf;
+					chunk[0].iov_len = len;
+					iovcnt = 1;
+				}
+				if (fetch_writev(conn, chunk, iovcnt)
+				    != (ssize_t)len)
+					goto ouch;
+			}
+			if (body_chunked &&
+			    fetch_write(conn, "0\r\n\r\n", 5) != 5)
+				goto ouch;
+		}
 
 		/*
 		 * Force the queued request to be dispatched.  Normally, one
@@ -1942,6 +2014,26 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 				/* ignore */
 				break;
 			}
+			if (res_headers != NULL && h > hdr_end) {
+				struct http_header *hdr;
+				char *sep;
+
+				if ((hdr = malloc(sizeof(*hdr))) == NULL ||
+				    (hdr->name = strdup(headerbuf.buf))
+				    == NULL) {
+					fetch_syserr();
+					goto ouch;
+				}
+				sep = strchr(hdr->name, ':');
+				if (sep == NULL) {
+					DEBUGF("missing delimiter in header\n");
+					goto ouch;
+				}
+				*sep = '\0';
+				hdr->value = sep + 1;
+				hdr->value += strspn(hdr->value, " \t");
+				TAILQ_INSERT_TAIL(res_headers, hdr, headers);
+			}
 		} while (h > hdr_end);
 
 		/* we need to provide authentication */
@@ -2077,6 +2169,13 @@ ouch:
 	return (NULL);
 }
 
+FILE *
+http_request(struct url *URL, const char *op, struct url_stat *us,
+	struct url *purl, const char *flags)
+{
+	return (http_request_body(URL, op, us, purl, flags, NULL, NULL, NULL));
+}
+
 
 /*****************************************************************************
  * Entry points
@@ -2142,7 +2241,56 @@ FILE *
 fetchReqHTTP(struct url *URL, const char *method, const char *flags,
 	const char *content_type, const char *body)
 {
+	struct http_headers headers;
+	struct http_header hdr;
+	FILE *b, *f;
 
-	return (http_request_body(URL, method, NULL, http_get_proxy(URL, flags),
-	    flags, content_type, body));
+	TAILQ_INIT(&headers);
+	if (content_type != NULL) {
+		hdr.name = "Content-Type";
+		hdr.value = content_type;
+		TAILQ_INSERT_TAIL(&headers, &hdr, headers);
+	}
+	if (body == NULL)
+		b = NULL;
+	else if ((b = fmemopen(__DECONST(char *, body), strlen(body), "r"))
+	    == NULL) {
+		fetch_syserr();
+		return (NULL);
+	}
+	f = http_request_body(URL, method, NULL, http_get_proxy(URL, flags),
+	    flags, &headers, NULL, b);
+	if (b != NULL)
+		fclose(b);
+	return (f);
+}
+
+/*
+ * Arbitrary HTTP verb stat and content requests with additional headers
+ */
+FILE *
+fetchXReqHTTP(struct url *URL, struct url_stat *us, const char *method,
+	const char *flags, const struct http_headers *req_headers,
+	struct http_headers *res_headers, FILE *body)
+{
+	return (http_request_body(URL, method, us, http_get_proxy(URL, flags),
+	    flags, req_headers, res_headers, body));
+}
+
+/*
+ * Free response headers
+ */
+void
+fetchFreeResHeaders(struct http_headers *headers)
+{
+	struct http_header *h1, *h2;
+
+	h1 = TAILQ_FIRST(headers);
+	while (h1 != NULL) {
+		h2 = TAILQ_NEXT(h1, headers);
+		free(__DECONST(char *, h1->name));
+		free(h1);
+		h1 = h2;
+	}
+	TAILQ_INIT(headers);
 }
