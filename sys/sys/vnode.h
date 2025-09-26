@@ -717,6 +717,7 @@ int	speedup_syncer(void);
 int	vn_vptocnp(struct vnode **vp, char *buf, size_t *buflen);
 int	vn_getcwd(char *buf, char **retbuf, size_t *buflen);
 int	vn_fullpath(struct vnode *vp, char **retbuf, char **freebuf);
+int	vn_fullpath_jail(struct vnode *vp, char **retbuf, char **freebuf);
 int	vn_fullpath_global(struct vnode *vp, char **retbuf, char **freebuf);
 int	vn_fullpath_hardlink(struct vnode *vp, struct vnode *dvp,
 	    const char *hdrl_name, size_t hrdl_name_length, char **retbuf,
