@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
+ * Copyright (c) 2025 Mateusz Piotrowski <0mp@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,53 +35,97 @@
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/uio.h>
+#include <sys/types.h>
 
 #include <geom/geom.h>
 
 #define	G_ZERO_CLASS_NAME	"ZERO"
 
-static int	g_zero_clear_sysctl(SYSCTL_HANDLER_ARGS);
+static int	g_zero_byte_sysctl(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, zero, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GEOM_ZERO stuff");
 static int g_zero_clear = 1;
-SYSCTL_PROC(_kern_geom_zero, OID_AUTO, clear,
-    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, &g_zero_clear, 0,
-    g_zero_clear_sysctl, "I",
+SYSCTL_INT(_kern_geom_zero, OID_AUTO, clear,
+    CTLFLAG_RWTUN, &g_zero_clear, 0,
     "Clear read data buffer");
 static int g_zero_byte = 0;
-SYSCTL_INT(_kern_geom_zero, OID_AUTO, byte, CTLFLAG_RWTUN, &g_zero_byte, 0,
+static uint8_t g_zero_buffer[PAGE_SIZE];
+SYSCTL_PROC(_kern_geom_zero, OID_AUTO, byte,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, &g_zero_byte, 0,
+    g_zero_byte_sysctl, "I",
     "Byte (octet) value to clear the buffers with");
 
 static struct g_provider *gpp;
 
 static int
-g_zero_clear_sysctl(SYSCTL_HANDLER_ARGS)
+g_zero_byte_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 
-	error = sysctl_handle_int(oidp, &g_zero_clear, 0, req);
+	// XXX: Confirm that this is called on module load as well.
+	// XXX: Shouldn't we lock here to avoid changing the byte value if the
+	// driver is in the process of handling I/O?
+	error = sysctl_handle_int(oidp, &g_zero_byte, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-	if (gpp == NULL)
-		return (ENXIO);
-	if (g_zero_clear)
-		gpp->flags &= ~G_PF_ACCEPT_UNMAPPED;
-	else
-		gpp->flags |= G_PF_ACCEPT_UNMAPPED;
+	memset(g_zero_buffer, g_zero_byte, PAGE_SIZE);
 	return (0);
 }
 
 static void
+g_zero_fill_pages(struct bio *bp)
+{
+	struct iovec aiovec;
+	struct uio auio;
+	size_t length;
+	vm_offset_t offset;
+
+	aiovec.iov_base = g_zero_buffer;
+	aiovec.iov_len = PAGE_SIZE;
+	auio.uio_iov = &aiovec;
+	auio.uio_iovcnt = 1;
+	auio.uio_offset = 0;
+	auio.uio_segflg = UIO_SYSSPACE;
+	auio.uio_rw = UIO_WRITE;
+	auio.uio_td = curthread;
+
+	/*
+	 * To handle the unmapped I/O request, we need to fill the pages in the
+	 * bp->bio_ma array with the g_zero_byte value. However, instead of
+	 * setting every byte individually, we use uiomove_fromphys() to fill a
+	 * page at a time with g_zero_buffer.
+	 */
+	bp->bio_resid = bp->bio_length;
+	offset = bp->bio_ma_offset & PAGE_MASK;
+	for (int i = 0; i < bp->bio_ma_n && bp->bio_resid > 0; i++) {
+		length = MIN(PAGE_SIZE - offset, bp->bio_resid);
+		auio.uio_resid = length;
+
+		(void)uiomove_fromphys(&bp->bio_ma[i], offset, length, &auio);
+
+		offset = 0;
+		bp->bio_resid -= length;
+	}
+}
+
+
+static void
 g_zero_start(struct bio *bp)
 {
-	int error = ENXIO;
+	int error;
 
 	switch (bp->bio_cmd) {
 	case BIO_READ:
-		if (g_zero_clear && (bp->bio_flags & BIO_UNMAPPED) == 0)
-			memset(bp->bio_data, g_zero_byte, bp->bio_length);
+		if (g_zero_clear) {
+			if ((bp->bio_flags & BIO_UNMAPPED) != 0)
+				g_zero_fill_pages(bp);
+			else
+				memset(bp->bio_data, g_zero_byte,
+				    bp->bio_length);
+		}
 		/* FALLTHROUGH */
 	case BIO_DELETE:
 	case BIO_WRITE:
@@ -106,9 +151,8 @@ g_zero_init(struct g_class *mp)
 	gp->start = g_zero_start;
 	gp->access = g_std_access;
 	gpp = pp = g_new_providerf(gp, "%s", gp->name);
-	pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
-	if (!g_zero_clear)
-		pp->flags |= G_PF_ACCEPT_UNMAPPED;
+	pp->flags |= G_PF_ACCEPT_UNMAPPED | G_PF_DIRECT_SEND |
+	    G_PF_DIRECT_RECEIVE;
 	pp->mediasize = 1152921504606846976LLU;
 	pp->sectorsize = 512;
 	g_error_provider(pp, 0);
