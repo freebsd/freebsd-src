@@ -195,6 +195,7 @@ static void	acpi_system_eventhandler_wakeup(void *arg,
 static enum power_stype	acpi_sstate_to_stype(int sstate);
 static int	acpi_sname_to_sstate(const char *sname);
 static const char	*acpi_sstate_to_sname(int sstate);
+static int	acpi_suspend_state_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_stype_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_debug_objects_sysctl(SYSCTL_HANDLER_ARGS);
@@ -616,6 +617,11 @@ acpi_attach(device_t dev)
 	&sc->acpi_lid_switch_stype, 0, acpi_stype_sysctl, "A",
 	"Lid ACPI sleep state. Set to s2idle or s2mem if you want to suspend "
 	"your laptop when close the lid.");
+    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "suspend_state", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	NULL, 0, acpi_suspend_state_sysctl, "A",
+	"Current ACPI suspend state. This sysctl is deprecated; you probably "
+	"want to use kern.power.suspend instead.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "standby_state",
 	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
@@ -4352,6 +4358,32 @@ acpi_supported_sleep_state_sysctl(SYSCTL_HANDLER_ARGS)
     return (error);
 }
 
+static int
+acpi_suspend_state_sysctl(SYSCTL_HANDLER_ARGS)
+{
+    char name[10];
+    int err;
+    struct acpi_softc *sc = oidp->oid_arg1;
+    enum power_stype new_stype;
+    enum power_stype old_stype = power_suspend_stype;
+    int old_sstate = acpi_stype_to_sstate(sc, old_stype);
+    int new_sstate;
+
+    strlcpy(name, acpi_sstate_to_sname(old_sstate), sizeof(name));
+    err = sysctl_handle_string(oidp, name, sizeof(name), req);
+    if (err != 0 || req->newptr == NULL)
+	return (err);
+
+    new_sstate = acpi_sname_to_sstate(name);
+    if (new_sstate < 0)
+	return (EINVAL);
+    new_stype = acpi_sstate_to_stype(new_sstate);
+    if (acpi_supported_stypes[new_stype] == false)
+	return (EOPNOTSUPP);
+    if (new_stype != old_stype)
+	power_suspend_stype = new_stype;
+    return (err);
+}
 
 static int
 acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS)
