@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 7, 2023
+.Dd September 27, 2025
 .Dt FETCH 3
 .Os
 .Sh NAME
@@ -51,7 +51,9 @@
 .Nm fetchPutHTTP ,
 .Nm fetchStatHTTP ,
 .Nm fetchListHTTP ,
+.Nm fetchXReqHTTP ,
 .Nm fetchReqHTTP ,
+.Nm fetchFreeResFields ,
 .Nm fetchXGetFTP ,
 .Nm fetchGetFTP ,
 .Nm fetchPutFTP ,
@@ -62,6 +64,7 @@
 .Lb libfetch
 .Sh SYNOPSIS
 .In sys/param.h
+.In sys/queue.h
 .In stdio.h
 .In fetch.h
 .Ft struct url *
@@ -111,7 +114,11 @@
 .Ft struct url_ent *
 .Fn fetchListHTTP "struct url *u" "const char *flags"
 .Ft FILE *
+.Fn fetchXReqHTTP "struct url *u" "struct url_stat *us" "const char *method" "const char *flags" "const struct http_fields *req_headers" "const struct http_fields *req_trailers" "struct http_fields *res_headers" "struct http_fields *res_trailers" "FILE *body"
+.Ft FILE *
 .Fn fetchReqHTTP "struct url *u" "const char *method" "const char *flags" "const char *content_type" "const char *body"
+.Ft void
+.Fn fetchFreeResFields "struct http_fields *fields"
 .Ft FILE *
 .Fn fetchXGetFTP "struct url *u" "struct url_stat *us" "const char *flags"
 .Ft FILE *
@@ -357,7 +364,8 @@ and password "anonymous@<hostname>".
 The
 .Fn fetchXGetHTTP ,
 .Fn fetchGetHTTP ,
-.Fn fetchPutHTTP
+.Fn fetchPutHTTP ,
+.Fn fetchXReqHTTP ,
 and
 .Fn fetchReqHTTP
 functions implement the HTTP/1.1 protocol.
@@ -389,7 +397,18 @@ will send a conditional
 HTTP header to only fetch the content if it is newer than
 .Va ims_time .
 .Pp
-The function
+If the
+.Ql C
+(chunked) flag is specified,
+.Fn fetchXReqHTTP
+and
+.Fn fetchReqHTTP
+will send the provided body content as a chunk-encoded stream even if a size can
+be predetermined.
+.Pp
+The functions
+.Fn fetchXReqHTTP
+and
 .Fn fetchReqHTTP
 can be used to make requests with an arbitrary HTTP verb,
 including POST, DELETE, CONNECT, OPTIONS, TRACE or PATCH.
@@ -401,10 +420,32 @@ and
 .Fa body
 to the content.
 .Pp
-Since there seems to be no good way of implementing the HTTP PUT
-method in a manner consistent with the rest of the
-.Nm fetch
-library,
+In addition to returning
+.Vt "struct url_stat"
+information,
+.Fn fetchXReqHTTP
+also accepts optional lists of arbitrary additional fields to send,
+optional lists to be filled with all response fields received,
+and an optional
+.Vt "FILE"
+stream to send as the body.
+The response fields lists should be freed with
+.Fn fetchFreeResFields .
+The
+.Vt http_field
+and
+.Vt http_fields
+structures are defined as follows in
+.In fetch.h :
+.Bd -literal
+struct http_field {
+    const char *name;
+    const char *value;
+    TAILQ_ENTRY(http_field) fields;
+};
+TAILQ_HEAD(http_fields, http_field);
+.Ed
+.Pp
 .Fn fetchPutHTTP
 is currently unimplemented.
 .Sh HTTPS SCHEME
