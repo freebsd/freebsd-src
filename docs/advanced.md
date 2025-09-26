@@ -286,7 +286,7 @@ For example:
 ```c++
 TEST(SkipTest, DoesSkip) {
   GTEST_SKIP() << "Skipping single test";
-  EXPECT_EQ(0, 1);  // Won't fail; it won't be executed
+  FAIL();  // Won't fail; it won't be executed
 }
 
 class SkipFixture : public ::testing::Test {
@@ -298,7 +298,7 @@ class SkipFixture : public ::testing::Test {
 
 // Tests for SkipFixture won't be executed.
 TEST_F(SkipFixture, SkipsOneTest) {
-  EXPECT_EQ(5, 7);  // Won't fail
+  FAIL();  // Won't fail; it won't be executed
 }
 ```
 
@@ -405,6 +405,51 @@ EXPECT_TRUE(IsCorrectPointIntVector(point_ints))
 For more details regarding `AbslStringify()` and its integration with other
 libraries, see go/abslstringify.
 
+## Regular Expression Syntax
+
+When built with Bazel and using Abseil, GoogleTest uses the
+[RE2](https://github.com/google/re2/wiki/Syntax) syntax. Otherwise, for POSIX
+systems (Linux, Cygwin, Mac), GoogleTest uses the
+[POSIX extended regular expression](https://pubs.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap09.html#tag_09_04)
+syntax. To learn about POSIX syntax, you may want to read this
+[Wikipedia entry](https://en.wikipedia.org/wiki/Regular_expression#POSIX_extended).
+
+On Windows, GoogleTest uses its own simple regular expression implementation. It
+lacks many features. For example, we don't support union (`"x|y"`), grouping
+(`"(xy)"`), brackets (`"[xy]"`), and repetition count (`"x{5,7}"`), among
+others. Below is what we do support (`A` denotes a literal character, period
+(`.`), or a single `\\ ` escape sequence; `x` and `y` denote regular
+expressions.):
+
+Expression | Meaning
+---------- | --------------------------------------------------------------
+`c`        | matches any literal character `c`
+`\\d`      | matches any decimal digit
+`\\D`      | matches any character that's not a decimal digit
+`\\f`      | matches `\f`
+`\\n`      | matches `\n`
+`\\r`      | matches `\r`
+`\\s`      | matches any ASCII whitespace, including `\n`
+`\\S`      | matches any character that's not a whitespace
+`\\t`      | matches `\t`
+`\\v`      | matches `\v`
+`\\w`      | matches any letter, `_`, or decimal digit
+`\\W`      | matches any character that `\\w` doesn't match
+`\\c`      | matches any literal character `c`, which must be a punctuation
+`.`        | matches any single character except `\n`
+`A?`       | matches 0 or 1 occurrences of `A`
+`A*`       | matches 0 or many occurrences of `A`
+`A+`       | matches 1 or many occurrences of `A`
+`^`        | matches the beginning of a string (not that of each line)
+`$`        | matches the end of a string (not that of each line)
+`xy`       | matches `x` followed by `y`
+
+To help you determine which capability is available on your system, GoogleTest
+defines macros to govern which regular expression it is using. The macros are:
+`GTEST_USES_SIMPLE_RE=1` or `GTEST_USES_POSIX_RE=1`. If you want your death
+tests to work in all cases, you can either `#if` on these macros or use the more
+limited syntax only.
+
 ## Death Tests
 
 In many applications, there are assertions that can cause application failure if
@@ -416,7 +461,7 @@ corruption, security holes, or worse. Hence it is vitally important to test that
 such assertion statements work as expected.
 
 Since these precondition checks cause the processes to die, we call such tests
-_death tests_. More generally, any test that checks that a program terminates
+*death tests*. More generally, any test that checks that a program terminates
 (except by throwing an exception) in an expected fashion is also a death test.
 
 Note that if a piece of code throws an exception, we don't consider it "death"
@@ -462,6 +507,12 @@ verifies that:
     exit with exit code 0, and
 *   calling `KillProcess()` kills the process with signal `SIGKILL`.
 
+{: .callout .warning}
+Warning: If your death test contains mocks and is expecting a specific exit
+code, then you must allow the mock objects to be leaked via `Mock::AllowLeak`.
+This is because the mock leak detector will exit with its own error code if it
+detects a leak.
+
 The test function body may contain other assertions and statements as well, if
 necessary.
 
@@ -502,51 +553,6 @@ TEST_F(FooDeathTest, DoesThat) {
   // death test
 }
 ```
-
-### Regular Expression Syntax
-
-When built with Bazel and using Abseil, GoogleTest uses the
-[RE2](https://github.com/google/re2/wiki/Syntax) syntax. Otherwise, for POSIX
-systems (Linux, Cygwin, Mac), GoogleTest uses the
-[POSIX extended regular expression](https://www.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap09.html#tag_09_04)
-syntax. To learn about POSIX syntax, you may want to read this
-[Wikipedia entry](https://en.wikipedia.org/wiki/Regular_expression#POSIX_extended).
-
-On Windows, GoogleTest uses its own simple regular expression implementation. It
-lacks many features. For example, we don't support union (`"x|y"`), grouping
-(`"(xy)"`), brackets (`"[xy]"`), and repetition count (`"x{5,7}"`), among
-others. Below is what we do support (`A` denotes a literal character, period
-(`.`), or a single `\\ ` escape sequence; `x` and `y` denote regular
-expressions.):
-
-Expression | Meaning
----------- | --------------------------------------------------------------
-`c`        | matches any literal character `c`
-`\\d`      | matches any decimal digit
-`\\D`      | matches any character that's not a decimal digit
-`\\f`      | matches `\f`
-`\\n`      | matches `\n`
-`\\r`      | matches `\r`
-`\\s`      | matches any ASCII whitespace, including `\n`
-`\\S`      | matches any character that's not a whitespace
-`\\t`      | matches `\t`
-`\\v`      | matches `\v`
-`\\w`      | matches any letter, `_`, or decimal digit
-`\\W`      | matches any character that `\\w` doesn't match
-`\\c`      | matches any literal character `c`, which must be a punctuation
-`.`        | matches any single character except `\n`
-`A?`       | matches 0 or 1 occurrences of `A`
-`A*`       | matches 0 or many occurrences of `A`
-`A+`       | matches 1 or many occurrences of `A`
-`^`        | matches the beginning of a string (not that of each line)
-`$`        | matches the end of a string (not that of each line)
-`xy`       | matches `x` followed by `y`
-
-To help you determine which capability is available on your system, GoogleTest
-defines macros to govern which regular expression it is using. The macros are:
-`GTEST_USES_SIMPLE_RE=1` or `GTEST_USES_POSIX_RE=1`. If you want your death
-tests to work in all cases, you can either `#if` on these macros or use the more
-limited syntax only.
 
 ### How It Works
 
@@ -727,7 +733,7 @@ Some tips on using `SCOPED_TRACE`:
 ### Propagating Fatal Failures
 
 A common pitfall when using `ASSERT_*` and `FAIL*` is not understanding that
-when they fail they only abort the _current function_, not the entire test. For
+when they fail they only abort the *current function*, not the entire test. For
 example, the following test will segfault:
 
 ```c++
@@ -1923,6 +1929,20 @@ the `--gtest_also_run_disabled_tests` flag or set the
 You can combine this with the `--gtest_filter` flag to further select which
 disabled tests to run.
 
+### Enforcing Having At Least One Test Case
+
+A not uncommon programmer mistake is to write a test program that has no test
+case linked in. This can happen, for example, when you put test case definitions
+in a library and the library is not marked as "always link".
+
+To catch such mistakes, run the test program with the
+`--gtest_fail_if_no_test_linked` flag or set the `GTEST_FAIL_IF_NO_TEST_LINKED`
+environment variable to a value other than `0`. Now the program will fail if no
+test case is linked in.
+
+Note that *any* test case linked in makes the program valid for the purpose of
+this check. In particular, even a disabled test case suffices.
+
 ### Repeating the Tests
 
 Once in a while you'll run into a test whose result is hit-or-miss. Perhaps it
@@ -2382,7 +2402,7 @@ IMPORTANT: The exact format of the JSON document is subject to change.
 
 #### Detecting Test Premature Exit
 
-Google Test implements the _premature-exit-file_ protocol for test runners to
+Google Test implements the *premature-exit-file* protocol for test runners to
 catch any kind of unexpected exits of test programs. Upon start, Google Test
 creates the file which will be automatically deleted after all work has been
 finished. Then, the test runner can check if this file exists. In case the file
