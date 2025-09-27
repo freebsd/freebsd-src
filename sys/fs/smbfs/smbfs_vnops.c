@@ -1174,7 +1174,7 @@ smbfs_lookup(struct vop_lookup_args *ap)
 		if (error)
 			goto out;
 		if (isdot) {
-			VREF(dvp);
+			vref(dvp);
 			*vpp = dvp;
 			goto out;
 		}

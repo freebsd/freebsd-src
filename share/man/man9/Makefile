@@ -2475,8 +2475,7 @@ MLINKS+=VOP_RDWR.9 VOP_READ.9 \
 	VOP_RDWR.9 VOP_WRITE.9
 MLINKS+=VOP_REMOVE.9 VOP_RMDIR.9
 MLINKS+=VNET.9 VIMAGE.9
-MLINKS+=vref.9 VREF.9 \
-	vref.9 vrefl.9
+MLINKS+=vref.9 vrefl.9
 MLINKS+=vrele.9 vput.9 \
 	vrele.9 vunref.9
 MLINKS+=vslock.9 vsunlock.9

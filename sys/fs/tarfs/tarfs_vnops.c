@@ -256,7 +256,7 @@ tarfs_lookup(struct vop_cachedlookup_args *ap)
 		if (error != 0)
 			return (error);
 	} else if (cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.') {
-		VREF(dvp);
+		vref(dvp);
 		*vpp = dvp;
 #ifdef TARFS_DEBUG
 	} else if (dirnode == dirnode->tmp->root &&

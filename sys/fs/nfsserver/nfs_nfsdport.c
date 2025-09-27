@@ -675,7 +675,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 	}
 	if (islocked)
 		NFSVOPUNLOCK(dp);
-	VREF(dp);
+	vref(dp);
 	*retdirp = dp;
 	if (NFSVNO_EXRDONLY(exp))
 		cnp->cn_flags |= RDONLY;
@@ -697,7 +697,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 				goto out;
 			}
 			dp = rootvnode;
-			VREF(dp);
+			vref(dp);
 		}
 	} else if ((nfsrv_enable_crossmntpt == 0 && NFSVNO_EXPORTED(exp)) ||
 	    (nd->nd_flag & ND_NFSV4) == 0) {
@@ -814,7 +814,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 		if (cnp->cn_pnbuf[0] == '/') {
 			vrele(ndp->ni_dvp);
 			ndp->ni_dvp = ndp->ni_rootdir;
-			VREF(ndp->ni_dvp);
+			vref(ndp->ni_dvp);
 		}
 		ndp->ni_startdir = ndp->ni_dvp;
 		ndp->ni_dvp = NULL;

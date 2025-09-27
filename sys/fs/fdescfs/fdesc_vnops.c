@@ -301,7 +301,7 @@ fdesc_lookup(struct vop_lookup_args *ap)
 
 	if (cnp->cn_namelen == 1 && *pname == '.') {
 		*vpp = dvp;
-		VREF(dvp);
+		vref(dvp);
 		return (0);
 	}
 

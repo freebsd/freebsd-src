@@ -886,7 +886,7 @@ mqfs_lookupx(struct vop_cachedlookup_args *ap)
 			return (EINVAL);
 		pn = pd;
 		*vpp = dvp;
-		VREF(dvp);
+		vref(dvp);
 		return (0);
 	}
 
@@ -921,7 +921,7 @@ mqfs_lookupx(struct vop_cachedlookup_args *ap)
 				return (error);
 			}
 			if (*vpp == dvp) {
-				VREF(dvp);
+				vref(dvp);
 				*vpp = dvp;
 				mqnode_release(pn);
 				return (0);
