@@ -89,10 +89,12 @@ local function main()
 	local all_libcompats = assert(arg[4])
 	-- ABI of repository
 	local ABI = assert(arg[5])
+	-- pkgdb to use
+	local PKGDB = assert(arg[6])
 
 	local pkg = "pkg -o ASSUME_ALWAYS_YES=yes -o IGNORE_OSVERSION=yes " ..
 	    "-o ABI=" .. ABI .. " " ..
-	    "-o INSTALL_AS_USER=1 -o PKG_DBDIR=./pkgdb -R " .. repo_dir .. " "
+	    "-o INSTALL_AS_USER=1 -o PKG_DBDIR=" .. PKGDB .. " -R " .. repo_dir .. " "
 
 	assert(os.execute(pkg .. "update"))
 
