@@ -10,6 +10,7 @@ echo "1..48"
 trap restore_settings EXIT INT TERM
 
 sysctl security.mac.portacl.suser_exempt=1 >/dev/null
+sysctl security.mac.portacl.enabled=1 >/dev/null
 
 bind_test ok ok uid root tcp 77
 bind_test ok ok uid root tcp 7777
