@@ -1992,6 +1992,10 @@ check_proc(void)
 	/*
 	 * Only grant privileges if requested by the right executable.
 	 *
+	 * As MAC/do configuration is per-jail, in order to avoid confused
+	 * deputy situations in chroots (privileged or unprivileged), make sure
+	 * to check the path from the current jail's root.
+	 *
 	 * XXXOC: We may want to base this check on a tunable path and/or
 	 * a specific MAC label.  Going even further, e.g., envisioning to
 	 * completely replace the path check with the latter, we would need to
@@ -2003,7 +2007,7 @@ check_proc(void)
 	 * setting a MAC label per file (perhaps via additions to mtree(1)).  So
 	 * this probably isn't going to happen overnight, if ever.
 	 */
-	if (vn_fullpath(curproc->p_textvp, &path, &to_free) != 0)
+	if (vn_fullpath_jail(curproc->p_textvp, &path, &to_free) != 0)
 		return (EPERM);
 	error = strcmp(path, "/usr/bin/mdo") == 0 ? 0 : EPERM;
 	free(to_free, M_TEMP);
