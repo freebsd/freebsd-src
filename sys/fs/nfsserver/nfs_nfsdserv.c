@@ -342,7 +342,7 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 				    (vp->v_vflag & VV_ROOT) != 0 &&
 				    vp != rootvnode) {
 					tvp = mp->mnt_vnodecovered;
-					VREF(tvp);
+					vref(tvp);
 					at_root = 1;
 				} else
 					at_root = 0;
@@ -1766,7 +1766,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 
 		/* If this is the same file handle, just VREF() the vnode. */
 		if (!NFSBCMP(tfh.nfsrvfh_data, &fh, NFSX_MYFH)) {
-			VREF(dp);
+			vref(dp);
 			tdp = dp;
 			tnes = *exp;
 			tdirfor_ret = nfsvno_getattr(tdp, &tdirfor, nd, p, 1,

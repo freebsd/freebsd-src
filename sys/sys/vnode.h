@@ -451,8 +451,6 @@ extern int		vttoif_tab[];
 #define	VS_SKIP_UNMOUNT	0x0001	/* vfs_write_suspend: fail if the
 				   filesystem is being unmounted */
 
-#define	VREF(vp)	vref(vp)
-
 #ifdef DIAGNOSTIC
 #define	VATTR_NULL(vap)	vattr_null(vap)
 #else

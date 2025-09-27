@@ -905,7 +905,7 @@ abortit:
 		error = ext2_checkpath(ip, dp, tcnp->cn_cred);
 		if (error)
 			goto out;
-		VREF(tdvp);
+		vref(tdvp);
 		error = vfs_relookup(tdvp, &tvp, tcnp, true);
 		if (error)
 			goto out;
@@ -1031,7 +1031,7 @@ abortit:
 	 */
 	fcnp->cn_flags &= ~MODMASK;
 	fcnp->cn_flags |= LOCKPARENT | LOCKLEAF;
-	VREF(fdvp);
+	vref(fdvp);
 	error = vfs_relookup(fdvp, &fvp, fcnp, true);
 	if (error == 0)
 		vrele(fdvp);

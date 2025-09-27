@@ -4363,7 +4363,7 @@ unionread:
 		struct vnode *tvp = vp;
 
 		vp = vp->v_mount->mnt_vnodecovered;
-		VREF(vp);
+		vref(vp);
 		fp->f_vnode = vp;
 		foffset = 0;
 		vput(tvp);

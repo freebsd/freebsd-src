@@ -494,7 +494,7 @@ null_lookup(struct vop_lookup_args *ap)
 	if ((error == 0 || error == EJUSTRETURN) && lvp != NULL) {
 		if (ldvp == lvp) {
 			*ap->a_vpp = dvp;
-			VREF(dvp);
+			vref(dvp);
 			vrele(lvp);
 		} else {
 			error = null_nodeget(mp, lvp, &vp);
@@ -665,7 +665,7 @@ null_remove(struct vop_remove_args *ap)
 	vp = ap->a_vp;
 	if (vrefcnt(vp) > 1) {
 		lvp = NULLVPTOLOWERVP(vp);
-		VREF(lvp);
+		vref(lvp);
 		vreleit = 1;
 	} else
 		vreleit = 0;

@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250917: VREF macro removed
+OLD_FILES+=usr/share/man/man9/VREF.9.gz
+
 # 20250917: Remove a miscapitalized manual
 OLD_FILES+=usr/share/man/man9/vnet.9.gz
 OLD_FILES+=usr/share/man/man9/vimage.9.gz

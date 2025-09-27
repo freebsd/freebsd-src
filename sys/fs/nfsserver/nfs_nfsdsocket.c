@@ -1110,7 +1110,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 				if (vp != savevp) {
 					if (savevp)
 						vrele(savevp);
-					VREF(vp);
+					vref(vp);
 					savevp = vp;
 					savevpnes = vpnes;
 					save_fsid = cur_fsid;
@@ -1155,7 +1155,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 						    nfsvno_testexp(nd,
 						    &savevpnes);
 					if (nd->nd_repstat == 0) {
-						VREF(savevp);
+						vref(savevp);
 						vrele(vp);
 						vp = savevp;
 						vpnes = savevpnes;
@@ -1235,7 +1235,7 @@ tryagain:
 					break;
 				}
 			}
-			VREF(vp);
+			vref(vp);
 			if (nfsv4_opflag[op].modifyfs)
 				vn_start_write(vp, &temp_mp, V_WAIT);
 			error = (*(nfsrv4_ops1[op]))(nd, isdgram, vp,
@@ -1279,8 +1279,8 @@ tryagain:
 			if (nfsv4_opflag[op].modifyfs)
 				vn_start_write(savevp, &temp_mp, V_WAIT);
 			if (NFSVOPLOCK(savevp, LK_EXCLUSIVE) == 0) {
-				VREF(vp);
-				VREF(savevp);
+				vref(vp);
+				vref(savevp);
 				error = (*(nfsrv4_ops2[op]))(nd, isdgram,
 				    savevp, vp, &savevpnes, &vpnes);
 			} else
@@ -1301,7 +1301,7 @@ tryagain:
 							lktype = LK_SHARED;
 					}
 					if (NFSVOPLOCK(vp, lktype) == 0)
-						VREF(vp);
+						vref(vp);
 					else
 						nd->nd_repstat = NFSERR_PERM;
 				} else {

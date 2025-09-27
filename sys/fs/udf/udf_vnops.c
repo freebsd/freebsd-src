@@ -1226,7 +1226,7 @@ lookloop:
 		if (flags & ISDOTDOT) {
 			error = vn_vget_ino(dvp, id, lkflags, &tdp);
 		} else if (node->hash_id == id) {
-			VREF(dvp);	/* we want ourself, ie "." */
+			vref(dvp);	/* we want ourself, ie "." */
 			/*
 			 * When we lookup "." we still can be asked to lock it
 			 * differently.

@@ -4387,7 +4387,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				attr_ok = true;
 				if (NFSRV_CMPFH(nfhp->nfh_fh, nfhp->nfh_len,
 				    dnp->n_fhp->nfh_fh, dnp->n_fhp->nfh_len)) {
-				    VREF(vp);
+				    vref(vp);
 				    newvp = vp;
 				    unlocknewvp = 0;
 				    free(nfhp, M_NFSFH);
