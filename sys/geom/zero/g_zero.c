@@ -46,11 +46,11 @@ static SYSCTL_NODE(_kern_geom, OID_AUTO, zero, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GEOM_ZERO stuff");
 static int g_zero_clear = 1;
 SYSCTL_PROC(_kern_geom_zero, OID_AUTO, clear,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, &g_zero_clear, 0,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, &g_zero_clear, 0,
     g_zero_clear_sysctl, "I",
     "Clear read data buffer");
 static int g_zero_byte = 0;
-SYSCTL_INT(_kern_geom_zero, OID_AUTO, byte, CTLFLAG_RW, &g_zero_byte, 0,
+SYSCTL_INT(_kern_geom_zero, OID_AUTO, byte, CTLFLAG_RWTUN, &g_zero_byte, 0,
     "Byte (octet) value to clear the buffers with");
 
 static struct g_provider *gpp;
