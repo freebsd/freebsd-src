@@ -14,9 +14,7 @@
 
 /*LINTLIBRARY*/
 
-#include "namespace.h"
 #include "private.h"
-#include "un-namespace.h"
 #include <stdio.h>
 
 enum { STD_ASCTIME_BUF_SIZE = 26 };
