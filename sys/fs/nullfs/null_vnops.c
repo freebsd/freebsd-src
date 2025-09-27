@@ -306,7 +306,7 @@ null_bypass(struct vop_generic_args *ap)
 	 * with the modified argument structure.
 	 */
 	if (vps_p[0] != NULL && *vps_p[0] != NULL) {
-		error = VCALL(ap);
+		error = ap->a_desc->vdesc_call(ap);
 	} else {
 		printf("null_bypass: no map for %s\n", descp->vdesc_name);
 		error = EINVAL;
