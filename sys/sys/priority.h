@@ -136,10 +136,10 @@
 #endif
 
 struct priority {
-	u_char	pri_class;	/* Scheduling class. */
-	u_char	pri_level;	/* Normal priority level. */
-	u_char	pri_native;	/* Priority before propagation. */
-	u_char	pri_user;	/* User priority based on p_cpu and p_nice. */
+	unsigned char pri_class;	/* Scheduling class. */
+	unsigned char pri_level;	/* Normal priority level. */
+	unsigned char pri_native;	/* Priority before propagation. */
+	unsigned char pri_user;		/* User priority based on p_cpu and p_nice. */
 };
 
 #endif	/* !_SYS_PRIORITY_H_ */
