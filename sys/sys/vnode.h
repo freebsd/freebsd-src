@@ -459,8 +459,6 @@ extern int		vttoif_tab[];
 #define	VATTR_NULL(vap)	(*(vap) = va_null)	/* initialize a vattr */
 #endif /* DIAGNOSTIC */
 
-#define	NULLVP	((struct vnode *)NULL)
-
 /*
  * Global vnode data.
  */

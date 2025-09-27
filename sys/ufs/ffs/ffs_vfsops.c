@@ -1112,7 +1112,7 @@ ffs_mountfs(struct vnode *odevvp, struct mount *mp, struct thread *td)
 	ump->um_bptrtodb = fs->fs_fsbtodb;
 	ump->um_seqinc = fs->fs_frag;
 	for (i = 0; i < MAXQUOTAS; i++)
-		ump->um_quotas[i] = NULLVP;
+		ump->um_quotas[i] = NULL;
 #ifdef UFS_EXTATTR
 	ufs_extattr_uepm_init(&ump->um_extattr);
 #endif

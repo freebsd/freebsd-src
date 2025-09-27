@@ -467,7 +467,7 @@ chkdquot(struct inode *ip)
 
 	UFS_LOCK(ump);
 	for (i = 0; i < MAXQUOTAS; i++) {
-		if (ump->um_quotas[i] == NULLVP ||
+		if (ump->um_quotas[i] == NULL ||
 		    (ump->um_qflags[i] & (QTF_OPENING|QTF_CLOSING)))
 			continue;
 		if (ip->i_dquot[i] == NODQUOT) {
@@ -594,12 +594,12 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname,
 	ump->um_cred[type] = crhold(td->td_ucred);
 	ump->um_btime[type] = MAX_DQ_TIME;
 	ump->um_itime[type] = MAX_IQ_TIME;
-	if (dqget(NULLVP, 0, ump, type, &dq) == 0) {
+	if (dqget(NULL, 0, ump, type, &dq) == 0) {
 		if (dq->dq_btime > 0)
 			ump->um_btime[type] = dq->dq_btime;
 		if (dq->dq_itime > 0)
 			ump->um_itime[type] = dq->dq_itime;
-		dqrele(NULLVP, dq);
+		dqrele(NULL, dq);
 	}
 	/*
 	 * Search vnodes associated with this mount point,
@@ -655,7 +655,7 @@ quotaoff1(struct thread *td, struct mount *mp, int type)
 	UFS_LOCK(ump);
 	KASSERT((ump->um_qflags[type] & QTF_CLOSING) != 0,
 		("quotaoff1: flags are invalid"));
-	if ((qvp = ump->um_quotas[type]) == NULLVP) {
+	if ((qvp = ump->um_quotas[type]) == NULL) {
 		UFS_UNLOCK(ump);
 		return (0);
 	}
@@ -692,7 +692,7 @@ again:
 	 * access to the closed vnode from dqget/dqsync
 	 */
 	UFS_LOCK(ump);
-	ump->um_quotas[type] = NULLVP;
+	ump->um_quotas[type] = NULL;
 	ump->um_cred[type] = NOCRED;
 	UFS_UNLOCK(ump);
 
@@ -750,7 +750,7 @@ quotaoff_inchange(struct thread *td, struct mount *mp, int type)
 	UFS_LOCK(ump);
 	ump->um_qflags[type] &= ~QTF_CLOSING;
 	for (i = 0; i < MAXQUOTAS; i++)
-		if (ump->um_quotas[i] != NULLVP)
+		if (ump->um_quotas[i] != NULL)
 			break;
 	if (i == MAXQUOTAS) {
 		MNT_ILOCK(mp);
@@ -820,11 +820,11 @@ _getquota(struct thread *td, struct mount *mp, uint64_t id, int type,
 	}
 
 	dq = NODQUOT;
-	error = dqget(NULLVP, id, VFSTOUFS(mp), type, &dq);
+	error = dqget(NULL, id, VFSTOUFS(mp), type, &dq);
 	if (error)
 		return (error);
 	*dqb = dq->dq_dqb;
-	dqrele(NULLVP, dq);
+	dqrele(NULL, dq);
 	return (error);
 }
 
@@ -850,7 +850,7 @@ _setquota(struct thread *td, struct mount *mp, uint64_t id, int type,
 	ndq = NODQUOT;
 	ump = VFSTOUFS(mp);
 
-	error = dqget(NULLVP, id, ump, type, &ndq);
+	error = dqget(NULL, id, ump, type, &ndq);
 	if (error)
 		return (error);
 	dq = ndq;
@@ -887,7 +887,7 @@ _setquota(struct thread *td, struct mount *mp, uint64_t id, int type,
 		dq->dq_flags &= ~DQ_FAKE;
 	dq->dq_flags |= DQ_MOD;
 	DQI_UNLOCK(dq);
-	dqrele(NULLVP, dq);
+	dqrele(NULL, dq);
 	return (0);
 }
 
@@ -913,7 +913,7 @@ _setuse(struct thread *td, struct mount *mp, uint64_t id, int type,
 	ump = VFSTOUFS(mp);
 	ndq = NODQUOT;
 
-	error = dqget(NULLVP, id, ump, type, &ndq);
+	error = dqget(NULL, id, ump, type, &ndq);
 	if (error)
 		return (error);
 	dq = ndq;
@@ -937,7 +937,7 @@ _setuse(struct thread *td, struct mount *mp, uint64_t id, int type,
 		dq->dq_flags &= ~DQ_INODS;
 	dq->dq_flags |= DQ_MOD;
 	DQI_UNLOCK(dq);
-	dqrele(NULLVP, dq);
+	dqrele(NULL, dq);
 	return (0);
 }
 
@@ -1038,7 +1038,7 @@ getquotasize(struct thread *td, struct mount *mp, uint64_t id, int type,
 	int bitsize;
 
 	UFS_LOCK(ump);
-	if (ump->um_quotas[type] == NULLVP ||
+	if (ump->um_quotas[type] == NULL ||
 	    (ump->um_qflags[type] & QTF_CLOSING)) {
 		UFS_UNLOCK(ump);
 		return (EINVAL);
@@ -1067,7 +1067,7 @@ qsync(struct mount *mp)
 	 * If not, simply return.
 	 */
 	for (i = 0; i < MAXQUOTAS; i++)
-		if (ump->um_quotas[i] != NULLVP)
+		if (ump->um_quotas[i] != NULL)
 			break;
 	if (i == MAXQUOTAS)
 		return (0);
@@ -1114,7 +1114,7 @@ qsyncvp(struct vnode *vp)
 	 * If not, simply return.
 	 */
 	for (i = 0; i < MAXQUOTAS; i++)
-		if (ump->um_quotas[i] != NULLVP)
+		if (ump->um_quotas[i] != NULL)
 			break;
 	if (i == MAXQUOTAS)
 		return (0);
@@ -1278,10 +1278,10 @@ dqget(struct vnode *vp, uint64_t id, struct ufsmount *ump, int type,
 	struct uio auio;
 	int dqvplocked, error;
 
-	if (vp != NULLVP)
+	if (vp != NULL)
 		ASSERT_VOP_ELOCKED(vp, "dqget");
 
-	if (vp != NULLVP && *dqp != NODQUOT) {
+	if (vp != NULL && *dqp != NODQUOT) {
 		return (0);
 	}
 
@@ -1293,7 +1293,7 @@ dqget(struct vnode *vp, uint64_t id, struct ufsmount *ump, int type,
 
 	UFS_LOCK(ump);
 	dqvp = ump->um_quotas[type];
-	if (dqvp == NULLVP || (ump->um_qflags[type] & QTF_CLOSING)) {
+	if (dqvp == NULL || (ump->um_qflags[type] & QTF_CLOSING)) {
 		*dqp = NODQUOT;
 		UFS_UNLOCK(ump);
 		return (EINVAL);
@@ -1561,7 +1561,7 @@ dqsync(struct vnode *vp, struct dquot *dq)
 	if ((ump = dq->dq_ump) == NULL)
 		return (0);
 	UFS_LOCK(ump);
-	if ((dqvp = ump->um_quotas[dq->dq_type]) == NULLVP) {
+	if ((dqvp = ump->um_quotas[dq->dq_type]) == NULL) {
 		if (vp == NULL) {
 			UFS_UNLOCK(ump);
 			return (0);

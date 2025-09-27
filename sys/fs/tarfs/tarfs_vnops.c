@@ -231,7 +231,7 @@ tarfs_lookup(struct vop_cachedlookup_args *ap)
 	vpp = ap->a_vpp;
 	cnp = ap->a_cnp;
 
-	*vpp = NULLVP;
+	*vpp = NULL;
 	dirnode = VP_TO_TARFS_NODE(dvp);
 	parent = dirnode->parent;
 	tmp = dirnode->tmp;
@@ -585,7 +585,7 @@ tarfs_reclaim(struct vop_reclaim_args *ap)
 	vfs_hash_remove(vp);
 
 	TARFS_NODE_LOCK(tnp);
-	tnp->vnode = NULLVP;
+	tnp->vnode = NULL;
 	vp->v_data = NULL;
 	TARFS_NODE_UNLOCK(tnp);
 

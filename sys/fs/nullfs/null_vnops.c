@@ -273,9 +273,9 @@ null_bypass(struct vop_generic_args *ap)
 		 * are of our type.  Check for and don't map any
 		 * that aren't.  (We must always map first vp or vclean fails.)
 		 */
-		if (i != 0 && (*this_vp_p == NULLVP ||
-		    (*this_vp_p)->v_op != &null_vnodeops)) {
-			old_vps[i] = NULLVP;
+		if (i != 0 && (*this_vp_p == NULL ||
+			       (*this_vp_p)->v_op != &null_vnodeops)) {
+			old_vps[i] = NULL;
 		} else {
 			old_vps[i] = *this_vp_p;
 			*(vps_p[i]) = NULLVPTOLOWERVP(*this_vp_p);
@@ -336,7 +336,7 @@ null_bypass(struct vop_generic_args *ap)
 			 * must move lock ownership from lower to
 			 * upper (reclaimed) vnode.
 			 */
-			if (lvp != NULLVP) {
+			if (lvp != NULL) {
 				null_copy_inotify(old_vps[i], lvp,
 				    VIRF_INOTIFY);
 				null_copy_inotify(old_vps[i], lvp,

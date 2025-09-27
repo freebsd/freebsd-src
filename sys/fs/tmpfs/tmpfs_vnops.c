@@ -98,7 +98,7 @@ tmpfs_lookup1(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 
 	/* Caller assumes responsibility for ensuring access (VEXEC). */
 	dnode = VP_TO_TMPFS_DIR(dvp);
-	*vpp = NULLVP;
+	*vpp = NULL;
 
 	/* We cannot be requesting the parent directory of the root node. */
 	MPASS(IMPLIES(dnode->tn_type == VDIR &&
@@ -222,7 +222,7 @@ out:
 	 * locked.
 	 */
 	if (error == 0) {
-		MPASS(*vpp != NULLVP);
+		MPASS(*vpp != NULL);
 		ASSERT_VOP_LOCKED(*vpp, __func__);
 	} else {
 		MPASS(*vpp == NULL);

@@ -266,7 +266,7 @@ vfs_mountroot_devfs(struct thread *td, struct mount **mpp)
 		if (vfsp == NULL)
 			return (ENOENT);
 
-		mp = vfs_mount_alloc(NULLVP, vfsp, "/dev", td->td_ucred);
+		mp = vfs_mount_alloc(NULL, vfsp, "/dev", td->td_ucred);
 
 		error = VFS_MOUNT(mp);
 		KASSERT(error == 0, ("VFS_MOUNT(devfs) failed %d", error));

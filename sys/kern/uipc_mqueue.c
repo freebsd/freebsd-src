@@ -867,7 +867,7 @@ mqfs_lookupx(struct vop_cachedlookup_args *ap)
 	pd = VTON(dvp);
 	pn = NULL;
 	mqfs = pd->mn_info;
-	*vpp = NULLVP;
+	*vpp = NULL;
 
 	if (dvp->v_type != VDIR)
 		return (ENOTDIR);
