@@ -344,7 +344,7 @@ ucode_intel_load_rv(void *arg)
 
 	d = arg;
 	if (PCPU_GET(cpuid) == d->cpu)
-		d->ret = ucode_intel_load(d->ptr, true, NULL, NULL);
+		d->ret = ucode_intel_load(d->ptr, SAFE, NULL, NULL);
 }
 
 static int
