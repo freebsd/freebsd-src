@@ -20,6 +20,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "tzdir.h"
+
 #include <atf-c.h>
 
 static const struct tzcase {
@@ -62,9 +64,9 @@ debug(const char *fmt, ...)
 static void
 change_tz(const char *tzn)
 {
-	static const char *zfn = "/usr/share/zoneinfo";
-	static const char *tfn = "root/etc/.localtime";
-	static const char *dfn = "root/etc/localtime";
+	static const char *zfn = TZDIR;
+	static const char *tfn = "root" TZDEFAULT ".tmp";
+	static const char *dfn = "root" TZDEFAULT;
 	ssize_t clen;
 	int zfd, sfd, dfd;
 
@@ -94,6 +96,50 @@ test_tz(const char *expect)
 	len = strftime(buf, sizeof(buf), "%z (%Z)", tm);
 	ATF_REQUIRE(len > 0);
 	ATF_CHECK_STREQ(expect, buf);
+}
+
+ATF_TC(tz_default);
+ATF_TC_HEAD(tz_default, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test default zone");
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+ATF_TC_BODY(tz_default, tc)
+{
+	/* prepare chroot with no /etc/localtime */
+	ATF_REQUIRE_EQ(0, mkdir("root", 0755));
+	ATF_REQUIRE_EQ(0, mkdir("root/etc", 0755));
+	/* enter chroot */
+	ATF_REQUIRE_EQ(0, chroot("root"));
+	ATF_REQUIRE_EQ(0, chdir("/"));
+	/* check timezone */
+	unsetenv("TZ");
+	test_tz("+0000 (UTC)");
+}
+
+ATF_TC(tz_invalid_file);
+ATF_TC_HEAD(tz_invalid_file, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test invalid zone file");
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+ATF_TC_BODY(tz_invalid_file, tc)
+{
+	static const char *dfn = "root/etc/localtime";
+	int fd;
+
+	/* prepare chroot with bogus /etc/localtime */
+	ATF_REQUIRE_EQ(0, mkdir("root", 0755));
+	ATF_REQUIRE_EQ(0, mkdir("root/etc", 0755));
+	ATF_REQUIRE((fd = open(dfn, O_RDWR | O_CREAT, 0644)) >= 0);
+	ATF_REQUIRE_EQ(8, write(fd, "invalid\n", 8));
+	ATF_REQUIRE_EQ(0, close(fd));
+	/* enter chroot */
+	ATF_REQUIRE_EQ(0, chroot("root"));
+	ATF_REQUIRE_EQ(0, chdir("/"));
+	/* check timezone */
+	unsetenv("TZ");
+	test_tz("+0000 (-00)");
 }
 
 ATF_TC(thin_jail);
@@ -327,10 +373,38 @@ ATF_TC_HEAD(tz_env, tc)
 }
 ATF_TC_BODY(tz_env, tc)
 {
-	const struct tzcase *tzcase;
+	char path[MAXPATHLEN];
+	const struct tzcase *tzcase = tzcases;
+	int len;
 
+	/* relative path */
 	for (tzcase = tzcases; tzcase->tzfn != NULL; tzcase++)
 		test_tz_env(tzcase->tzfn, tzcase->expect);
+	/* absolute path */
+	for (tzcase = tzcases; tzcase->tzfn != NULL; tzcase++) {
+		len = snprintf(path, sizeof(path), "%s/%s", TZDIR, tzcase->tzfn);
+		ATF_REQUIRE(len > 0 && (size_t)len < sizeof(path));
+		test_tz_env(path, tzcase->expect);
+	}
+	/* absolute path with additional slashes */
+	for (tzcase = tzcases; tzcase->tzfn != NULL; tzcase++) {
+		len = snprintf(path, sizeof(path), "%s/////%s", TZDIR, tzcase->tzfn);
+		ATF_REQUIRE(len > 0 && (size_t)len < sizeof(path));
+		test_tz_env(path, tzcase->expect);
+	}
+}
+
+
+ATF_TC(tz_invalid_env);
+ATF_TC_HEAD(tz_invalid_env, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test invalid TZ value");
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+ATF_TC_BODY(tz_invalid_env, tc)
+{
+	test_tz_env("invalid", "+0000 (-00)");
+	test_tz_env(":invalid", "+0000 (-00)");
 }
 
 ATF_TC(setugid);
@@ -367,23 +441,23 @@ ATF_TC_HEAD(tz_env_setugid, tc)
 }
 ATF_TC_BODY(tz_env_setugid, tc)
 {
-	const struct tzcase *tzcase = tzcases;
-
 	ATF_REQUIRE_EQ(0, seteuid(UID_NOBODY));
 	ATF_REQUIRE(issetugid());
-	for (tzcase = tzcases; tzcase->tzfn != NULL; tzcase++)
-		test_tz_env(tzcase->tzfn, tzcase->expect);
+	ATF_TC_BODY_NAME(tz_env)(tc);
 }
 
 ATF_TP_ADD_TCS(tp)
 {
 	debugging = !getenv("__RUNNING_INSIDE_ATF_RUN") &&
 	    isatty(STDERR_FILENO);
+	ATF_TP_ADD_TC(tp, tz_default);
+	ATF_TP_ADD_TC(tp, tz_invalid_file);
 	ATF_TP_ADD_TC(tp, thin_jail);
 #ifdef DETECT_TZ_CHANGES
 	ATF_TP_ADD_TC(tp, detect_tz_changes);
 #endif /* DETECT_TZ_CHANGES */
 	ATF_TP_ADD_TC(tp, tz_env);
+	ATF_TP_ADD_TC(tp, tz_invalid_env);
 	ATF_TP_ADD_TC(tp, setugid);
 	ATF_TP_ADD_TC(tp, tz_env_setugid);
 	return (atf_no_error());
