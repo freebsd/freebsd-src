@@ -7,9 +7,7 @@
 
 /*LINTLIBRARY*/
 
-#include "namespace.h"
 #include "private.h"	/* for time_t and TYPE_SIGNED */
-#include "un-namespace.h"
 
 /* Return -X as a double.  Using this avoids casting to 'double'.  */
 static double
