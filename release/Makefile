@@ -133,7 +133,7 @@ CLEANFILES+=	${I}.xz
 .if defined(WITH_DVD) && !empty(WITH_DVD)
 CLEANFILES+=	pkg-stage
 .endif
-CLEANDIRS=	dist pkgdb pkgbase-repo pkgbase-repo-conf ftp disc1 disc1-disc1 disc1-memstick bootonly bootonly-bootonly bootonly-memstick dvd
+CLEANDIRS=	dist pkgdb-dvd pkgdb-disc1 pkgbase-repo pkgbase-repo-conf ftp disc1 disc1-disc1 disc1-memstick bootonly bootonly-bootonly bootonly-memstick dvd
 beforeclean:
 	chflags -R noschg .
 .include <bsd.obj.mk>
@@ -220,7 +220,7 @@ disc1: ${PKGBASE_REPO}
 	${.CURDIR}/scripts/pkgbase-stage.lua disc \
 	    ${.OBJDIR}/pkgbase-repo/${PKG_ABI}/latest \
 	    ${.TARGET}/usr/freebsd-packages/offline \
-	    "${_ALL_libcompats}" ${PKG_ABI}
+	    "${_ALL_libcompats}" ${PKG_ABI} ${.OBJDIR}/pkgdb-disc1
 	cp ${.CURDIR}/scripts/FreeBSD-base-offline.conf \
 		${.TARGET}/usr/freebsd-packages/repos/
 	mtree -c -p ${.TARGET}/usr/freebsd-packages | \
@@ -318,7 +318,7 @@ dvd: ${PKGBASE_REPO}
 	${.CURDIR}/scripts/pkgbase-stage.lua dvd \
 	    ${.OBJDIR}/pkgbase-repo/${PKG_ABI}/latest \
 	    ${.TARGET}/usr/freebsd-packages/offline \
-	    "${_ALL_libcompats}" ${PKG_ABI}
+	    "${_ALL_libcompats}" ${PKG_ABI} ${.OBJDIR}/pkgdb-dvd
 	cp ${.CURDIR}/scripts/FreeBSD-base-offline.conf \
 		${.TARGET}/usr/freebsd-packages/repos/
 	mtree -c -p ${.TARGET}/usr/freebsd-packages | \
