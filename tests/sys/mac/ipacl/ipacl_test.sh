@@ -40,6 +40,9 @@ ipacl_v4_body()
 {
 	ipacl_test_init
 
+	prev_ipacl_ipv4="$(sysctl -n security.mac.ipacl.ipv4)"
+	prev_ipacl_rules="$(sysctl -n security.mac.ipacl.rules)"
+
 	epairA=$(vnet_mkepair)
 	epairB=$(vnet_mkepair)
 	epairC=$(vnet_mkepair)
@@ -130,8 +133,9 @@ ipacl_v4_body()
 	atf_check -s not-exit:0 -e ignore \
 	    jexec A ifconfig ${epairA}b 203.0.113.1/24 up
 
-	# Reset rules OID.
-	sysctl security.mac.ipacl.rules=
+	# Reset sysctls.
+	sysctl security.mac.ipacl.rules="${prev_ipacl_rules}"
+	sysctl security.mac.ipacl.ipv4="${prev_ipacl_ipv4}"
 }
 
 ipacl_v4_cleanup()
@@ -150,6 +154,9 @@ ipacl_v6_head()
 ipacl_v6_body()
 {
 	ipacl_test_init
+
+	prev_ipacl_ipv6="$(sysctl -n security.mac.ipacl.ipv6)"
+	prev_ipacl_rules="$(sysctl -n security.mac.ipacl.rules)"
 
 	epairA=$(vnet_mkepair)
 	epairB=$(vnet_mkepair)
@@ -265,8 +272,9 @@ ipacl_v6_body()
 	atf_check -s not-exit:0 -e ignore jexec A ifconfig \
 	    ${epairA}b inet6 2001:db8::abcd/32 up
 
-	# Reset rules OID.
-	sysctl security.mac.ipacl.rules=
+	# Reset sysctls.
+	sysctl security.mac.ipacl.rules="${prev_ipacl_rules}"
+	sysctl security.mac.ipacl.ipv6="${prev_ipacl_ipv6}"
 }
 
 ipacl_v6_cleanup()
