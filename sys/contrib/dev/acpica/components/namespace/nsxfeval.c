@@ -820,7 +820,6 @@ UnlockAndExit:
 
 ACPI_EXPORT_SYMBOL (AcpiWalkNamespace)
 
-
 /*******************************************************************************
  *
  * FUNCTION:    AcpiNsGetDeviceCallback
