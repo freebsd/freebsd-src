@@ -139,6 +139,58 @@ local function splitlist(list)
 	return ret
 end
 
+local function splitlines(s)
+	local ret = {}
+
+	for line in string.gmatch(s, "[^\n]+") do
+		ret[#ret + 1] = line
+	end
+
+	return ret
+end
+
+local function getgroups()
+	local ret = {}
+
+	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
+	local cmd = "pw "
+	if root then
+		cmd = cmd .. "-R " .. root .. " "
+	end
+
+	local f = io.popen(cmd .. "groupshow -a 2> /dev/null | cut -d: -f1")
+	local groups = f:read("*a")
+	f:close()
+
+	return splitlines(groups)
+end
+
+local function checkgroup(group)
+	local groups = getgroups()
+
+	for _, group2chk in ipairs(groups) do
+		if group == group2chk then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function purge_group(groups)
+	local ret = {}
+
+	for _, group in ipairs(groups) do
+		if checkgroup(group) then
+			ret[#ret + 1] = group
+		else
+			warnmsg("ignoring non-existent group '" .. group .. "'")
+		end
+	end
+
+	return ret
+end
+
 local function adduser(pwd)
 	if (type(pwd) ~= "table") then
 		warnmsg("Argument should be a table")
@@ -164,7 +216,14 @@ local function adduser(pwd)
 	local extraargs = ""
 	if pwd.groups then
 		local list = splitlist(pwd.groups)
-		extraargs = " -G " .. table.concat(list, ",")
+		-- pw complains if the group does not exist, so if the user
+		-- specifies one that cannot be found, nuageinit will generate
+		-- an exception and exit, unlike cloud-init, which only issues
+		-- a warning but creates the user anyway.
+		list = purge_group(list)
+		if #list > 0 then
+			extraargs = " -G " .. table.concat(list, ",")
+		end
 	end
 	-- pw will automatically create a group named after the username
 	-- do not add a -g option in this case
