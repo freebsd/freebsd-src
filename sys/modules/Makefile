@@ -395,6 +395,7 @@ SUBDIR=	\
 	sysvipc \
 	tarfs \
 	tcp \
+	${_thunderbolt} \
 	${_ti} \
 	tmpfs \
 	${_toecore} \
@@ -923,6 +924,10 @@ _nvram+=	powermac_nvram
 .if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "aarch64"
 _bcm283x_clkman=  bcm283x_clkman
 _bcm283x_pwm=  bcm283x_pwm
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64"
+_thunderbolt=	thunderbolt
 .endif
 
 .if !(${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 110000)
