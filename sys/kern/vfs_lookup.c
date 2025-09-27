@@ -1121,7 +1121,7 @@ vfs_lookup(struct nameidata *ndp)
 
 	cnp->cn_lkflags = LK_SHARED;
 	dp = ndp->ni_startdir;
-	ndp->ni_startdir = NULLVP;
+	ndp->ni_startdir = NULL;
 
 	/*
 	 * Leading slashes, if any, are supposed to be skipped by the caller.

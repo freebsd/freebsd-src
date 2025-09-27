@@ -119,7 +119,7 @@ null_hashget_locked(struct mount *mp, struct vnode *lowervp)
 			return (vp);
 		}
 	}
-	return (NULLVP);
+	return (NULL);
 }
 
 struct vnode *
@@ -130,7 +130,7 @@ null_hashget(struct mount *mp, struct vnode *lowervp)
 
 	hd = NULL_NHASH(lowervp);
 	if (LIST_EMPTY(hd))
-		return (NULLVP);
+		return (NULL);
 
 	rw_rlock(&null_hash_lock);
 	vp = null_hashget_locked(mp, lowervp);
@@ -298,7 +298,7 @@ null_checkvp(struct vnode *vp, char *fil, int lno)
 		panic("null_checkvp");
 	}
 #endif
-	if (a->null_lowervp == NULLVP) {
+	if (a->null_lowervp == NULL) {
 		/* Should never happen */
 		panic("null_checkvp %p", vp);
 	}
