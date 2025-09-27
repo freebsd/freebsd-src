@@ -27,7 +27,7 @@
 .\"
 .\" From: $OpenBSD: mktemp.1,v 1.8 1998/03/19 06:13:37 millert Exp $
 .\"
-.Dd August 4, 2022
+.Dd September 27, 2025
 .Dt MKTEMP 1
 .Os
 .Sh NAME
@@ -185,6 +185,13 @@ but still introduces a race condition.
 Use of this
 option is not encouraged.
 .El
+.Sh ENVIRONMENT
+.Bl -tag -width TMPDIR
+.It Ev TMPDIR
+The directory in which to store temporary files.
+Refer to
+.Xr environ 7 .
+.El
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
@@ -200,7 +207,8 @@ TMPFILE=`mktemp /tmp/${tempfoo}.XXXXXXXXXX` || exit 1
 echo "program output" >> $TMPFILE
 .Ed
 .Pp
-To allow the use of $TMPDIR:
+To allow the use of
+.Ev TMPDIR :
 .Bd -literal -offset indent
 tempfoo=`basename $0`
 TMPFILE=`mktemp -t ${tempfoo}` || exit 1
