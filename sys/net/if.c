@@ -5116,6 +5116,12 @@ if_getvnet(if_t ifp)
 	return (ifp->if_vnet);
 }
 
+struct vnet *
+if_gethomevnet(if_t ifp)
+{
+  return (ifp->if_home_vnet);
+}
+
 void *
 if_getafdata(if_t ifp, int af)
 {

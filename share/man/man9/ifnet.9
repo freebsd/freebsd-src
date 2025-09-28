@@ -253,6 +253,8 @@
 .Fn if_getlladdr "const if_t ifp"
 .Ft struct vnet *
 .Fn if_getvnet "const if_t ifp"
+.Ft struct vnet *
+.Fn if_gethomevnet "const if_t ifp"
 .Ft void *
 .Fn if_gethandle "u_char"
 .Ft void
@@ -514,6 +516,12 @@ or
 .It Fn if_getvnet
 .Pq Vt "struct vnet *"
 A pointer to the virtual network stack instance.
+This is initialized by
+.Fn if_attach .
+.It Fn if_gethomevnet
+.Pq Vt "struct vnet *"
+A pointer to the parent virtual network stack,
+where this struct ifnet originates from.
 This is initialized by
 .Fn if_attach .
 .It Fn if_gethandle
