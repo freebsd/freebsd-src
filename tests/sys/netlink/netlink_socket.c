@@ -211,9 +211,22 @@ ATF_TC_BODY(sizes, tc)
 		.msg_controllen = sizeof(cbuf),
 	};
 	ssize_t ss;
-	int fd, size, rsize;
+	int fd, size, msize, rsize;
 
-	fd = fullsocket();
+	/*
+	 * Create a socket with NMSGS messages in the receive buffer.
+	 */
+#define	NMSGS 5
+	ATF_REQUIRE((fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_ROUTE)) != -1);
+	ATF_REQUIRE(send(fd, &hdr, sizeof(hdr), 0) == sizeof(hdr));
+	ATF_REQUIRE(recv(fd, buf, sizeof(hdr), MSG_WAITALL | MSG_PEEK) ==
+	    sizeof(hdr));
+	ATF_REQUIRE(ioctl(fd, FIONREAD, &msize) != -1);
+	for (u_int i = 0; i < NMSGS; i++)
+		ATF_REQUIRE(send(fd, &hdr, sizeof(hdr), 0) == sizeof(hdr));
+	do {
+		ATF_REQUIRE(ioctl(fd, FIONREAD, &rsize) != -1);
+	} while (rsize < msize * (NMSGS + 1));
 
 	/*
 	 * Set NETLINK_MSG_INFO, so that later cmsg_check will check that any
@@ -264,6 +277,7 @@ ATF_TC_BODY(sizes, tc)
 		.iov_len = sizeof(buf) < rsize ? sizeof(buf) : rsize,
 	};
 	ss = recvmsg(fd, &msg, 0);
+	ATF_REQUIRE(ss > hdr.nlmsg_len);
 	ATF_REQUIRE(ss > NLMSG_LARGE * 9 || ss == rsize);
 	cmsg_check(&msg);
 }
