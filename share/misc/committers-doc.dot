@@ -106,6 +106,7 @@ rene [label="Rene Ladan\nrene@FreeBSD.org\n2008/11/03"]
 ryusuke [label="Ryusuke Suzuki\nryusuke@FreeBSD.org\n2009/12/21"]
 salvadore [label="Lorenzo Salvadore\nsalvadore@FreeBSD.org\n2023/03/20"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/03/25"]
+vladlen [label="Vladlen Popolitov\nvladlen@FreeBSD.org\n2025/09/09"]
 ygy [label="Guangyuan Yang\nygy@FreeBSD.org\n2017/09/18"]
 ziaee [label="Alexander Ziaee\nziaee@FreeBSD.org\n2024/12/30"]
 
@@ -208,6 +209,7 @@ marck -> pluknet
 marck -> taras
 
 maxim -> taras
+maxim -> vladlen
 
 mheinen -> jkois
 
