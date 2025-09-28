@@ -30,18 +30,6 @@ local core = require("core")
 
 local cli = {}
 
-if not pager then
-	-- shim for the pager module that just doesn't do it.
-	-- XXX Remove after 12.2 goes EoL.
-	pager = {
-		open = function() end,
-		close = function() end,
-		output = function(str)
-			printc(str)
-		end,
-	}
-end
-
 -- Internal function
 -- Parses arguments to boot and returns two values: kernel_name, argstr
 -- Defaults to nil and "" respectively.
