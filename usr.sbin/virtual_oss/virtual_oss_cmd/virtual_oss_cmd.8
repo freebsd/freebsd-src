@@ -1,0 +1,103 @@
+.\"
+.\" Copyright (c) 2021-2022 Hans Petter Selasky <hselasky@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.Dd February 12, 2025
+.Dt VIRTUAL_OSS_CMD 8
+.Os
+.Sh NAME
+.Nm virtual_oss_cmd
+.Nd modify a running
+.Xr virtual_oss 8
+instance's options
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+.Nm
+pass additional command line arguments to a running
+.Xr virtual_oss 8
+instance via its control device.
+Supported command line arguments:
+.Bl -tag -width indent
+.It Fl E Ar xxx
+.It Fl F Ar xxx
+.It Fl G Ar xxx
+.It Fl L Ar xxx
+.It Fl M Ar xxx
+.It Fl O Ar xxx
+.It Fl P Ar xxx
+.It Fl R Ar xxx
+.It Fl a Ar xxx
+.It Fl b Ar xxx
+.It Fl c Ar xxx
+.It Fl d Ar xxx
+.It Fl e Ar xxx
+.It Fl f Ar xxx
+.It Fl l Ar xxx
+.It Fl m Ar xxx
+.It Fl p Ar xxx
+.It Fl s Ar xxx
+.It Fl w Ar xxx
+.El
+.Pp
+Refer to
+.Xr virtual_oss 8
+for a detailed description of the command line arguments.
+.Sh EXAMPLES
+To change the recording device:
+.Bd -literal -offset indent
+virtual_oss_cmd /dev/vdsp.ctl -R /dev/dsp4
+
+.Ed
+To change the playback device:
+.Bd -literal -offset indent
+virtual_oss_cmd /dev/vdsp.ctl -P /dev/dsp4
+
+.Ed
+To enable recording:
+.Bd -literal -offset indent
+virtual_oss_cmd /dev/vdsp.ctl -E 1
+
+.Ed
+To disable recording:
+.Bd -literal -offset indent
+virtual_oss_cmd /dev/vdsp.ctl -E 0
+
+.Ed
+To create a new DSP device on the fly:
+.Bd -literal -offset indent
+virtual_oss_cmd /dev/vdsp.ctl -b 16 -c 2 -d dsp.new
+
+.Ed
+To show system information:
+.Bd -literal -offset indent
+virtual_oss_cmd /dev/vdsp.ctl
+
+.Ed
+.Sh SEE ALSO
+.Xr virtual_oss 8
+.Sh AUTHORS
+.Nm
+was written by
+.An Hans Petter Selasky hselasky@freebsd.org .

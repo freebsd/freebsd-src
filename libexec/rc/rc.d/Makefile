@@ -75,6 +75,7 @@ CONFS=	DAEMON \
 	ugidfw \
 	var \
 	var_run \
+	virtual_oss \
 	watchdogd
 
 CONFGROUPS+=		DEVD

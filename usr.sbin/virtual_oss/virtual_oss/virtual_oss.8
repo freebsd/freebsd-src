@@ -1,0 +1,355 @@
+.\"
+.\" Copyright (c) 2017-2022 Hans Petter Selasky <hselasky@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.Dd September 3, 2024
+.Dt VIRTUAL_OSS 8
+.Os
+.Sh NAME
+.Nm virtual_oss
+.Nd daemon to multiplex and demultiplex an OSS device
+.Sh SYNOPSIS
+.Nm
+.Op Fl h
+.Sh DESCRIPTION
+.Nm
+is an audio mixing application that multiplexes and demultiplexes a
+single OSS device into multiple customizable OSS compatible devices
+using character devices from userspace.
+These devices can be used to record played back audio and mix the individual
+channels in multiple ways.
+.Pp
+.Nm
+requires the
+.Xr cuse 3
+kernel module.
+To load the driver as a module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Pp
+       cuse_load="YES"
+.Pp
+All channel numbers start at zero.
+Left channel is zero and right channel is one.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl B
+Run program in background.
+.It Fl S
+Enable automatic DSP rate resampling.
+.It Fl Q Ar quality
+Set resampling quality: 0=best, 1=medium and 2=fastest (default).
+.It Fl b Ar bits
+Set sample depth to
+.Fa bits
+for the subsequent commands.
+Valid values are 8, 16, 24 and 32.
+.It Fl r Ar rate
+Set default sample-rate for the subsequent commands.
+.It Fl s Ar value
+Set default buffer size to
+.Fa value .
+If the argument is suffixed by "ms" it is interpreted as milliseconds.
+Else the argument gives number of samples.
+The buffer size specified is per channel.
+If there are multiple channels, the total buffer size will be larger.
+.It Fl i Ar priority
+Set real-time priority to
+.Fa priority .
+Refer to
+.Xr rtprio 1
+for more information.
+.It Fl a Ar log2_amp
+Set the default DSP output and input device amplification to
+.Fa log2_amp .
+The specified amplification is logarithmic.
+Valid values range from -63 to 63 inclusivly.
+The device input amplification gets set to minus
+.Fa log2_amp
+and the device output amplification gets set to
+.Fa log2_amp .
+.It Fl a Ar i,log2_amp
+Set the default DSP input device amplification to
+.Fa log2_amp .
+The specified amplification is logarithmic.
+Valid values range from -63 to 63 inclusivly.
+.It Fl a Ar o,log2_amp
+Set default DSP output device amplification to
+.Fa log2_amp .
+The specified amplification is logarithmic.
+Valid values range from -63 to 63 inclusivly.
+.It Fl p Ar polarity
+Set default polarity of DSP device.
+A value of zero means normal polarity.
+A value of one means negative polarity.
+.It Fl e Ar rx_mute,tx_mute
+Set default mute state of DSP device.
+A value of zero means unmuted.
+A value of one means muted.
+.It Fl m Ar rx_ch,tx_ch,....
+Set default channel mapping of DSP device, as a comma separated list of
+integers.
+The first integer selects the receive channel, the second value selects the
+transmit channel and then it repeats.
+A value of zero indicates the first receive or transmit channel.
+.It Fl C Ar num
+Set the maximum number of mix channels to
+.Fa num .
+.It Fl c Ar num
+Set mix channels for the subsequent commands.
+.It Fl M Ar type,src_ch,dst_ch,pol,mute,log2_gain
+Add a monitoring filter.
+The filter consists of a list of comma separated arguments.
+The first argument indicates the type of monitoring filter:
+.Bl -tag -width indent
+.It i
+Feedback one mix input channel into another mix output channel, for remote
+feedback.
+.It o
+Add one mix output channel into another mix output channel, for creating a mix
+of multiple output channels.
+.It x
+Feedback one mix output channel into another mix input channel, for local
+feedback.
+.El
+The second argument gives the source mix channel.
+The third argument gives the destination mix channel.
+The fourth argument gives the polarity, default is zero.
+The fifth argument gives the mute state, default is one or muted.
+The sixth argument gives the amplitude, default is zero or no gain.
+.It Fl t Ar devname
+Set control device name.
+.It Fl P Ar devname
+Set playback DSP device only.
+Specifying /dev/null is magic and means no playback device.
+Specifying a
+.Xr sndio 7
+device descriptor prefixed by "/dev/sndio/" is also magic, and will use a sndio
+backend rather than an OSS device.
+.It Fl O Ar devname
+Set playback DSP device only which acts as a master device.
+This option is used in conjunction with -R /dev/null .
+.It Fl R Ar devname
+Set recording DSP device only.
+Specifying /dev/null is magic and means no recording device.
+.It Fl f Ar devname
+Set both playback and recording DSP device
+.It Fl w Ar name
+Create a WAV file format compatible companion device by given name.
+This option should be specified before the -d and -l options.
+.It Fl d Ar name
+Create an OSS device by given name.
+.It Fl l Ar name
+Create a loopback OSS device by given name.
+.It Fl L Ar name
+Create a loopback OSS device which acts as a master device.
+This option is used in conjunction with -f /dev/null .
+.It Fl F Ar size
+Set receive filter size in number of samples or <milliseconds>ms for the next
+device to be created.
+.It Fl G Ar size
+Set transmit filter size in number of samples or <milliseconds>ms for the next
+device to be created.
+.It Fl D Ar file
+Write process ID of virtual_oss to file.
+.It Fl g Ar knee,attack,decay
+Enable device compressor in receive direction.
+See description of -x option.
+.It Fl x Ar knee,attack,decay
+Enable output compressor and set knee, attack and decay.
+Knee is in the range 0..255, while attack and decay are between 0 and 62.
+Samples having an absolute value lower than the knee are transmitted
+unchanged.
+Sample values over the knee are lowered "a little bit".
+You can think about attack and decay as a measure of how fast or slow the
+gain of the compressor will work.
+It is advised that attack is low, so it reacts fast once too high
+sample values appear.
+It is also advised that the decay value is higher than the attack value so
+that the gain reduction is gradually removed.
+The reasoning behind this is that the compressor should react almost
+immediately when high volume signals arrive to protect the hardware,
+but it slowly changes gain when there are no loud signals to avoid
+distorting the signal.
+The default values are 85,3,20 .
+.It Fl E Ar enable_recording
+If the value passed is non-zero, recording is enabled.
+Else recording is disabled.
+This can be used to synchronize multiple recording streams.
+.It Fl h
+Show usage and all available options.
+.El
+.Sh EXAMPLES
+Split a 2-channel OSS compatible sound device into multiple subdevices:
+.Bd -literal -offset indent
+virtual_oss \\
+	-S \\
+	-c 2 -r 48000 -b 16 -s 4ms -f /dev/dspX \\
+	-a 0 -b 16 -c 2 -m 0,0,1,1 -d vdsp.zyn \\
+	-a 0 -b 16 -c 2 -m 0,0,1,1 -d vdsp.fld \\
+	-a 0 -b 16 -c 2 -m 0,0,1,1 -d dsp \\
+	-a 0 -b 16 -c 2 -m 0,0,1,1 -w vdsp.jack.wav -d vdsp.jack \\
+	-a 0 -b 16 -c 2 -m 0,0,1,1 -w vdsp.rec.wav -l vdsp.rec \\
+	-M i,0,0,0,1,0 \\
+	-M i,0,0,0,1,0 \\
+	-M i,0,0,0,1,0 \\
+	-M i,0,0,0,1,0 \\
+	-t vdsp.ctl
+.Ed
+.Pp
+Split an 8-channel 24-bit OSS compatible sound device into multiple subdevices:
+.Bd -literal -offset indent
+sysctl dev.pcm.X.rec.vchanformat=s24le:7.1
+sysctl dev.pcm.X.rec.vchanrate=48000
+sysctl dev.pcm.X.play.vchanformat=s24le:7.1
+sysctl dev.pcm.X.play.vchanrate=48000
+sysctl dev.pcm.X.bitperfect=1
+
+mixer vol.volume=1 pcm.volume=1
+
+virtual_oss \\
+	-S \\
+	-i 8 \\
+	-x 85,3,20 \\
+	-C 16 -c 8 -r 48000 -b 32 -s 4ms -f /dev/dspX \\
+	-a 12 -b 16 -c 2 -m 0,4,1,5 -d dsp \\
+	-a 12 -b 16 -c 2 -m 8,8,9,9 -d vdsp \\
+	-a 13 -b 16 -c 2 -m 10,10,11,11 -d vdsp.fld \\
+	-a 0 -b 32 -c 4 -m 4,2,5,3,6,4,7,5 -d vdsp.jack \\
+	-a -3 -b 32 -c 2 -m 14,14,15,15 -d vdsp.zyn \\
+	-e 0,1 \\
+	-a 0 -b 32 -c 8 -m 0,8,1,9,2,8,3,9,4,8,5,9,6,8,7,9 -w vdsp.rec.mic.wav -d vdsp.rec.mic \\
+	-a 0 -b 32 -c 2 -m 0,8,1,9 -w vdsp.rec.master.wav -d vdsp.master.mic \\
+	-a 0 -b 32 -c 2 -m 10,10,11,11 -w vdsp.rec.fld.wav -l vdsp.rec.fld \\
+	-a 0 -b 32 -c 2 -m 12,12,13,13 -w vdsp.rec.jack.wav -l vdsp.rec.jack \\
+	-a 0 -b 32 -c 2 -m 14,14,15,15 -w vdsp.rec.zyn.wav -l vdsp.rec.zyn \\
+	-M o,8,0,0,0,0 \\
+	-M o,9,1,0,0,0 \\
+	-M o,10,0,0,0,0 \\
+	-M o,11,1,0,0,0 \\
+	-M o,12,0,0,0,0 \\
+	-M o,13,1,0,0,0 \\
+	-M o,14,0,0,0,0 \\
+	-M o,15,1,0,0,0 \\
+	-M i,14,14,0,1,0 \\
+	-M i,15,15,0,1,0 \\
+	-M x,8,0,0,1,0 \\
+	-M x,8,1,0,1,0 \\
+	-t vdsp.ctl
+
+.Ed
+.Pp
+Create a secondary audio device sending its output audio into both
+input and output channels of the main DSP device.
+.Bd -literal -offset indent
+virtual_oss \\
+	-C 4 -c 2 \\
+	-r 48000 \\
+	-b 24 \\
+	-s 4ms \\
+	-f /dev/dsp3 \\
+	-c 2 \\
+	-d dsp \\
+	-m 2,2,3,3 \\
+	-d dsp.speech \\
+	-M o,2,0,0,0,0 \\
+	-M o,3,1,0,0,0 \\
+	-M x,2,0,0,0,0 \\
+	-M x,3,1,0,0,0
+.Ed
+.Pp
+Connect to a bluetooth audio headset, playback only:
+.Bd -literal -offset indent
+virtual_oss \\
+	-C 2 -c 2 -r 48000 -b 16 -s 4ms \\
+	-R /dev/null -P /dev/bluetooth/xx:xx:xx:xx:xx:xx -d dsp
+.Ed
+.Pp
+Connect to a bluetooth audio headset, playback and recording:
+.Bd -literal -offset indent
+virtual_oss \\
+	-C 2 -c 2 -r 48000 -b 16 -s 4ms \\
+	-f /dev/bluetooth/xx:xx:xx:xx:xx:xx -d dsp
+.Ed
+.Pp
+Create recording device which outputs a WAV-formatted file:
+.Bd -literal -offset indent
+virtual_oss \\
+	-C 2 -c 2 -r 48000 -b 16 -s 4ms \\
+	-f /dev/dspX -w dsp.wav -d dsp
+.Ed
+.Pp
+Create a device named dsp.virtual which mix the samples written by all
+clients and outputs the result for further processing into
+dsp.virtual_out:
+.Bd -literal -offset indent
+virtual_oss \\
+	-S -Q 0 -b 16 -c 2 -r 96000 -s 100ms -i 20 \\
+	-f /dev/null -d dsp.virtual -L dsp.virtual_out
+.Ed
+.Pp
+Create a playback-only audio device which sends its output to a remote
+.Xr sndio 7
+server:
+.Bd -literal -offset indent
+virtual_oss \\
+	-b 16 -c 2 -r 44100 -s 50ms \\
+	-R /dev/null -O /dev/sndio/snd@remotehost/0 -d dsp
+.Ed
+.Pp
+Create a full-duplex audio device exchanging audio using the default
+.Xr sndio 7
+server:
+.Bd -literal -offset indent
+virtual_oss -S -b 16 -C 2 -c 2 -r 48000 -s 4ms \\
+	-f /dev/sndio/default -d dsp
+.Ed
+.Pp
+How to set intel based CPUs in performance mode:
+.Bd -literal -offset indent
+sysctl -aN | fgrep dev.hwpstate | fgrep epp | \
+while read OID
+do
+sysctl ${OID}=0
+done
+
+sysctl kern.sched.preempt_thresh=224
+.Ed
+.Sh NOTES
+All character devices are created using the 0666 mode which gives
+everyone in the system access.
+.Sh SEE ALSO
+.Xr cuse 3 ,
+.Xr sound 4 ,
+.Xr loader.conf 5 ,
+.Xr sndio 7 ,
+.Xr mixer 8 ,
+.Xr sysctl 8 ,
+.Xr virtual_bt_speaker 8 ,
+.Xr virtual_equalizer 8 ,
+.Xr virtual_oss_cmd 8
+.Sh AUTHORS
+.Nm
+was written by
+.An Hans Petter Selasky hselasky@freebsd.org .
