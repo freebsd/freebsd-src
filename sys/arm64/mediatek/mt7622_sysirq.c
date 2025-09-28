@@ -181,6 +181,50 @@ mt7622_sysirq_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 }
 
 static int
+mt7622_sysirq_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct mt7622_sysirq_sc *sc;
+
+	sc = device_get_softc(dev);
+	data = mt7622_sysirq_convert_map_data(sc, data);
+	if (data == NULL)
+		return (EINVAL);
+
+	return (PIC_TEARDOWN_INTR(sc->parent, isrc, res, data));
+}
+
+static void
+mt7622_sysirq_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct mt7622_sysirq_sc *sc;
+
+	sc = device_get_softc(dev);
+
+	PIC_PRE_ITHREAD(sc->parent, isrc);
+}
+
+static void
+mt7622_sysirq_post_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct mt7622_sysirq_sc *sc;
+
+	sc = device_get_softc(dev);
+
+	PIC_POST_ITHREAD(sc->parent, isrc);
+}
+
+static void
+mt7622_sysirq_post_filter(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct mt7622_sysirq_sc *sc;
+
+	sc = device_get_softc(dev);
+
+	PIC_POST_FILTER(sc->parent, isrc);
+}
+
+static int
 mt7622_sysirq_probe(device_t dev)
 {
     if (!ofw_bus_status_okay(dev))
@@ -270,18 +314,23 @@ mt7622_sysirq_detach(device_t dev)
 }
 
 static device_method_t mt7622_sysirq_methods[] = {
-        DEVMETHOD(device_probe, mt7622_sysirq_probe),
-        DEVMETHOD(device_attach, mt7622_sysirq_attach),
-        DEVMETHOD(device_detach, mt7622_sysirq_detach),
+	DEVMETHOD(device_probe,		mt7622_sysirq_probe),
+	DEVMETHOD(device_attach,	mt7622_sysirq_attach),
+	DEVMETHOD(device_detach,	mt7622_sysirq_detach),
 
-        DEVMETHOD(pic_activate_intr, mt7622_sysirq_activate_intr),
-        DEVMETHOD(pic_disable_intr,	mt7622_sysirq_disable_intr),
-        DEVMETHOD(pic_enable_intr,	mt7622_sysirq_enable_intr),
-        DEVMETHOD(pic_map_intr,		mt7622_sysirq_map_intr),
-        DEVMETHOD(pic_deactivate_intr,	mt7622_sysirq_deactivate_intr),
-        DEVMETHOD(pic_setup_intr,	mt7622_sysirq_setup_intr),
+	/* Interrupt controller interface */
+	DEVMETHOD(pic_activate_intr,	mt7622_sysirq_activate_intr),
+	DEVMETHOD(pic_disable_intr,	mt7622_sysirq_disable_intr),
+	DEVMETHOD(pic_enable_intr,	mt7622_sysirq_enable_intr),
+	DEVMETHOD(pic_map_intr,		mt7622_sysirq_map_intr),
+	DEVMETHOD(pic_deactivate_intr,	mt7622_sysirq_deactivate_intr),
+	DEVMETHOD(pic_setup_intr,	mt7622_sysirq_setup_intr),
+	DEVMETHOD(pic_teardown_intr,	mt7622_sysirq_teardown_intr),
+	DEVMETHOD(pic_pre_ithread,	mt7622_sysirq_pre_ithread),
+	DEVMETHOD(pic_post_ithread,	mt7622_sysirq_post_ithread),
+	DEVMETHOD(pic_post_filter,	mt7622_sysirq_post_filter),
 
-        DEVMETHOD_END
+	DEVMETHOD_END
 };
 
 static DEFINE_CLASS_0(mt7622_sysirq, mt7622_sysirq_driver, mt7622_sysirq_methods,
