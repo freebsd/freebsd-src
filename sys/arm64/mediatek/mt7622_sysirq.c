@@ -95,7 +95,7 @@ mt7622_sysirq_convert_map_data(struct mt7622_sysirq_sc *sc,
     sc->parent_map_data->ncells = 3;
     sc->parent_map_data->cells[0] = 0;
     sc->parent_map_data->cells[1] = daf->cells[1];
-    sc->parent_map_data->cells[2] = daf->cells[2];
+    sc->parent_map_data->cells[2] = IRQ_TYPE_LEVEL_HIGH;
 
     return ((struct intr_map_data *)sc->parent_map_data);
 }
