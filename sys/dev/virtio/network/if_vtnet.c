@@ -1343,14 +1343,22 @@ vtnet_ioctl_ifcap(struct vtnet_softc *sc, struct ifreq *ifr)
 
 	VTNET_CORE_LOCK_ASSERT(sc);
 
-	if (mask & IFCAP_TXCSUM)
+	if (mask & IFCAP_TXCSUM) {
 		if_togglecapenable(ifp, IFCAP_TXCSUM);
-	if (mask & IFCAP_TXCSUM_IPV6)
+		if_togglehwassist(ifp, VTNET_CSUM_OFFLOAD);
+	}
+	if (mask & IFCAP_TXCSUM_IPV6) {
 		if_togglecapenable(ifp, IFCAP_TXCSUM_IPV6);
-	if (mask & IFCAP_TSO4)
+		if_togglehwassist(ifp, VTNET_CSUM_OFFLOAD_IPV6);
+	}
+	if (mask & IFCAP_TSO4) {
 		if_togglecapenable(ifp, IFCAP_TSO4);
-	if (mask & IFCAP_TSO6)
+		if_togglehwassist(ifp, IFCAP_TSO4);
+	}
+	if (mask & IFCAP_TSO6) {
 		if_togglecapenable(ifp, IFCAP_TSO6);
+		if_togglehwassist(ifp, IFCAP_TSO6);
+	}
 
 	if (mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_LRO)) {
 		/*
