@@ -35,3 +35,7 @@ the UEFI firmware from a running system:
 
 * efitable(8) can dump UEFI tables.
 EOD
+
+annotations {
+	set = minimal
+}
