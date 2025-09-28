@@ -12,6 +12,16 @@ device iic
 device iicbus
 device iicbb
 
+# eth switch
+device 		etherswitch
+device 		miibus
+device 		mdio
+
+# MMC/SD/SDIO Card slot support
+device		sdhci		# SD controller
+device		mmc		# mmc/sd bus
+device		mmcsd		# mmc/sd flash cards
+
 options         FDT
 # DTBs
 makeoptions     MODULES_EXTRA+="dtb/mediatek"
