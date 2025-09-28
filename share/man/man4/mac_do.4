@@ -94,8 +94,10 @@ i.e., one of the literal strings
 or
 .Ql gid .
 .Li Aq id
-must be the numerical ID of a user or group, and is matched with the current
-process real ID of the corresponding type.
+must be the numerical ID of a user or group and is matched against the current
+process real ID of the corresponding type, and on type
+.Ql gid
+additionally against the supplementary groups.
 .Ss Rule's Ao to Ac Part
 The second part of a rule,
 .Li Aq to ,
@@ -377,8 +379,8 @@ Same as the first example, but lifting any constraints on groups, allowing the
 process to become part of any groups it sees fit.
 .El
 .Pp
-Here are several examples of single rules matching processes having a real group
-ID of 10001:
+Here are several examples of single rules matching processes having 10001 as
+their real group IDs or in their supplementary groups:
 .Bl -tag -width indent
 .It Li gid=10001>uid=0
 Makes 10001 a more powerful
