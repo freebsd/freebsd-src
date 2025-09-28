@@ -610,6 +610,10 @@ __rpc_taddr2uaddr_af(int af, const struct netbuf *nbuf)
 			return NULL;
 		break;
 #endif
+	case AF_NETLINK:
+		if (asprintf(&ret, "%s", (char *)nbuf->buf) < 0)
+			return NULL;
+		break;
 	case AF_LOCAL:
 		sun = nbuf->buf;
 		if (asprintf(&ret, "%.*s", (int)(sun->sun_len -
