@@ -672,13 +672,16 @@ tzloadbody(char const *name, struct state *sp, char tzloadflags,
 	if ((tzloadflags & TZLOAD_FROMENV) && strcmp(name, TZDEFAULT) == 0)
           tzloadflags &= ~TZLOAD_FROMENV;
 	relname = name;
-	if (strncmp(relname, TZDIR "/", strlen(TZDIR) + 1) == 0)
+	if (strncmp(relname, TZDIR "/", strlen(TZDIR) + 1) == 0) {
 	  relname += strlen(TZDIR) + 1;
+	  while (*relname == '/')
+	    relname++;
+	}
 	dd = open(TZDIR, O_DIRECTORY | O_RDONLY);
 	if ((tzloadflags & TZLOAD_FROMENV) && issetugid()) {
 	  if (dd < 0)
 	    return errno;
-	  if (fstatat(dd, name, &sb, AT_RESOLVE_BENEATH) < 0) {
+	  if (fstatat(dd, relname, &sb, AT_RESOLVE_BENEATH) < 0) {
 	    fid = -1;
 	  } else if (!S_ISREG(sb.st_mode)) {
 	    fid = -1;
