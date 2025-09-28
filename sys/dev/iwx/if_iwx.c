@@ -7323,97 +7323,107 @@ iwx_rs_init(struct iwx_softc *sc, struct iwx_node *in)
 		return iwx_rs_init_v3(sc, in);
 }
 
-static void
-iwx_rs_update(struct iwx_softc *sc, struct iwx_tlc_update_notif *notif)
+
+/**
+ * @brief Turn the given TX rate control notification into an ieee80211_node_txrate
+ *
+ * This populates the given txrate node with the TX rate control notification.
+ *
+ * @param sc driver softc
+ * @param notif firmware notification
+ * @param ni ieee80211_node update
+ * @returns true if updated, false if not
+ */
+static bool
+iwx_rs_update_node_txrate(struct iwx_softc *sc,
+    const struct iwx_tlc_update_notif *notif, struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-	struct ieee80211_node *ni = (void *)vap->iv_bss;
+	/* XXX TODO: create an inline function in if_iwxreg.h? */
+	static int cck_idx_to_rate[] = { 2, 4, 11, 22, 2, 2, 2, 2 };
+	static int ofdm_idx_to_rate[] = { 12, 18, 24, 36, 48, 72, 96, 108 };
 
-	struct ieee80211_rateset *rs = &ni->ni_rates;
 	uint32_t rate_n_flags;
-	uint8_t plcp, rval;
-	int i, cmd_ver, rate_n_flags_ver2 = 0;
+	uint32_t type;
 
-	if (notif->sta_id != IWX_STATION_ID ||
-	    (le32toh(notif->flags) & IWX_TLC_NOTIF_FLAG_RATE) == 0)
-		return;
-
+	/* Extract the rate and command version */
 	rate_n_flags = le32toh(notif->rate);
+
+	if (sc->sc_rate_n_flags_version != 2) {
+		net80211_ic_printf(ic,
+		    "%s: unsupported rate_n_flags version (%d)\n",
+		    __func__,
+		    sc->sc_rate_n_flags_version);
+		return (false);
+	}
 
 	if (sc->sc_debug & IWX_DEBUG_TXRATE)
 		print_ratenflags(__func__, __LINE__,
 		    rate_n_flags, sc->sc_rate_n_flags_version);
 
-	cmd_ver = iwx_lookup_notif_ver(sc, IWX_DATA_PATH_GROUP,
-	    IWX_TLC_MNG_UPDATE_NOTIF);
-	if (cmd_ver != IWX_FW_CMD_VER_UNKNOWN && cmd_ver >= 3)
-		rate_n_flags_ver2 = 1;
-
-	if (rate_n_flags_ver2) {
-		uint32_t mod_type = (rate_n_flags & IWX_RATE_MCS_MOD_TYPE_MSK);
-		if (mod_type == IWX_RATE_MCS_HT_MSK) {
-
-			ieee80211_node_set_txrate_dot11rate(ni,
-				IWX_RATE_HT_MCS_INDEX(rate_n_flags) |
-				IEEE80211_RATE_MCS);
-			IWX_DPRINTF(sc, IWX_DEBUG_TXRATE,
-			    "%s:%d new MCS: %d rate_n_flags: %x\n",
-			    __func__, __LINE__,
-			    ieee80211_node_get_txrate_dot11rate(ni) & ~IEEE80211_RATE_MCS,
-			    rate_n_flags);
-			return;
-		}
-	} else {
-		if (rate_n_flags & IWX_RATE_MCS_HT_MSK_V1) {
-			ieee80211_node_set_txrate_dot11rate(ni,
-			    rate_n_flags & (IWX_RATE_HT_MCS_RATE_CODE_MSK_V1 |
-			    IWX_RATE_HT_MCS_NSS_MSK_V1));
-
-			IWX_DPRINTF(sc, IWX_DEBUG_TXRATE,
-			    "%s:%d new MCS idx: %d rate_n_flags: %x\n",
-			    __func__, __LINE__,
-			    ieee80211_node_get_txrate_dot11rate(ni), rate_n_flags);
-			return;
-		}
+	type = (rate_n_flags & IWX_RATE_MCS_MOD_TYPE_MSK);
+	switch (type) {
+	case IWX_RATE_MCS_CCK_MSK:
+		ieee80211_node_set_txrate_dot11rate(ni,
+		    cck_idx_to_rate[rate_n_flags & IWX_RATE_LEGACY_RATE_MSK]);
+		return (true);
+	case IWX_RATE_MCS_LEGACY_OFDM_MSK:
+		ieee80211_node_set_txrate_dot11rate(ni,
+		    ofdm_idx_to_rate[rate_n_flags & IWX_RATE_LEGACY_RATE_MSK]);
+		return (true);
+	case IWX_RATE_MCS_HT_MSK:
+		/*
+		 * TODO: the current API doesn't include channel width
+		 * and other flags, so we can't accurately store them yet!
+		 *
+		 * channel width: (flags & IWX_RATE_MCS_CHAN_WIDTH_MSK)
+		 *    >> IWX_RATE_MCS_CHAN_WIDTH_POS)
+		 * LDPC: (flags & (1 << 16))
+		 */
+		ieee80211_node_set_txrate_ht_mcsrate(ni,
+		    IWX_RATE_HT_MCS_INDEX(rate_n_flags));
+		return (true);
+	case IWX_RATE_MCS_VHT_MSK:
+		/* TODO: same comment on channel width, etc above */
+		ieee80211_node_set_txrate_vht_rate(ni,
+		    IWX_RATE_VHT_MCS_CODE(rate_n_flags),
+		    IWX_RATE_VHT_MCS_NSS(rate_n_flags));
+		return (true);
+	default:
+		net80211_ic_printf(ic,
+		    "%s: unsupported chosen rate type in "
+		    "IWX_RATE_MCS_MOD_TYPE (%d)\n", __func__,
+		    type >> IWX_RATE_MCS_MOD_TYPE_POS);
+		return (false);
 	}
 
-	if (rate_n_flags_ver2) {
-		const struct ieee80211_rateset *rs;
-		uint32_t ridx = (rate_n_flags & IWX_RATE_LEGACY_RATE_MSK);
-		if (rate_n_flags & IWX_RATE_MCS_LEGACY_OFDM_MSK)
-			rs = &ieee80211_std_rateset_11a;
-		else
-			rs = &ieee80211_std_rateset_11b;
-		if (ridx < rs->rs_nrates)
-			rval = (rs->rs_rates[ridx] & IEEE80211_RATE_VAL);
-		else
-			rval = 0;
-	} else {
-		plcp = (rate_n_flags & IWX_RATE_LEGACY_RATE_MSK_V1);
+	/* Default: if we get here, we didn't successfully update anything */
+	return (false);
+}
 
-		rval = 0;
-		for (i = IWX_RATE_1M_INDEX; i < nitems(iwx_rates); i++) {
-			if (iwx_rates[i].plcp == plcp) {
-				rval = iwx_rates[i].rate;
-				break;
-			}
-		}
-	}
+/**
+ * @brief Process a firmware rate control update and update net80211.
+ *
+ * Since firmware is doing rate control, this just needs to update
+ * the txrate in the ieee80211_node entry.
+ */
+static void
+iwx_rs_update(struct iwx_softc *sc, struct iwx_tlc_update_notif *notif)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	/* XXX TODO: get a node ref! */
+	struct ieee80211_node *ni = (void *)vap->iv_bss;
 
-	if (rval) {
-		uint8_t rv;
-		for (i = 0; i < rs->rs_nrates; i++) {
-			rv = rs->rs_rates[i] & IEEE80211_RATE_VAL;
-			if (rv == rval) {
-				ieee80211_node_set_txrate_dot11rate(ni, i);
-				break;
-			}
-		}
-		IWX_DPRINTF(sc, IWX_DEBUG_TXRATE,
-		    "%s:%d new rate %d\n", __func__, __LINE__,
-		    ieee80211_node_get_txrate_dot11rate(ni));
-	}
+	/*
+	 * For now the iwx driver only supports a single vdev with a single
+	 * node; it doesn't yet support ibss/hostap/multiple vdevs.
+	 */
+	if (notif->sta_id != IWX_STATION_ID ||
+	    (le32toh(notif->flags) & IWX_TLC_NOTIF_FLAG_RATE) == 0)
+		return;
+
+	iwx_rs_update_node_txrate(sc, notif, ni);
 }
 
 static int
