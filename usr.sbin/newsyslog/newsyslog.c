@@ -2615,7 +2615,7 @@ age_old_log(const char *file)
 		mtime = sb.st_mtime;
 	}
 
-	return ((int)(ptimeget_secs(timenow) - mtime + 1800) / 3600);
+	return ((int)(ptimeget_secs(timenow) - mtime + 180) / 3600);
 }
 
 /* Skip Over Blanks */
