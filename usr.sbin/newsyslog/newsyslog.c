@@ -241,6 +241,7 @@ static int norotate = 0;	/* Don't rotate */
 static int nosignal;		/* Do not send any signals */
 static int enforcepid = 0;	/* If PID file does not exist or empty, do nothing */
 static int force = 0;		/* Force the trim no matter what */
+static int defsignal = SIGHUP;	/* -I Signal to send by default */
 static int rotatereq = 0;	/* -R = Always rotate the file(s) as given */
 				/*    on the command (this also requires   */
 				/*    that a list of files *are* given on  */
@@ -455,7 +456,7 @@ init_entry(const char *fname, struct conf_entry *src_entry)
 		tempwork->permissions = 0;
 		tempwork->flags = 0;
 		tempwork->compress = COMPRESS_NONE;
-		tempwork->sig = SIGHUP;
+		tempwork->sig = defsignal;
 		tempwork->def_cfg = 0;
 	}
 
@@ -700,7 +701,7 @@ parse_args(int argc, char **argv)
 	hostname_shortlen = strcspn(hostname, ".");
 
 	/* Parse command line options. */
-	while ((ch = getopt(argc, argv, "a:d:f:nrst:vCD:FNPR:S:")) != -1)
+	while ((ch = getopt(argc, argv, "a:d:f:nrst:vCD:FI:NPR:S:")) != -1)
 		switch (ch) {
 		case 'a':
 			archtodir++;
@@ -747,6 +748,10 @@ parse_args(int argc, char **argv)
 			/* NOTREACHED */
 		case 'F':
 			force++;
+			break;
+		case 'I':
+			if (str2sig(optarg, &defsignal) != 0)
+				usage();
 			break;
 		case 'N':
 			norotate++;
@@ -846,7 +851,7 @@ usage(void)
 
 	fprintf(stderr,
 	    "usage: newsyslog [-CFNPnrsv] [-a directory] [-d directory] [-f config_file]\n"
-	    "                 [-S pidfile] [-t timefmt] [[-R tagname] file ...]\n");
+	    "                 [-I signal] [-S pidfile] [-t timefmt] [[-R tagname] file ...]\n");
 	exit(1);
 }
 
@@ -1481,7 +1486,7 @@ no_trimat:
 			*parse = '\0';
 		}
 
-		working->sig = SIGHUP;
+		working->sig = defsignal;
 		if (q && *q) {
 got_sig:
 			if (str2sig(q, &working->sig) != 0) {
