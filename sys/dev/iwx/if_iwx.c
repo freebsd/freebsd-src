@@ -5501,6 +5501,9 @@ iwx_tx_fill_cmd(struct iwx_softc *sc, struct iwx_node *in,
 		/* for non-data, use the lowest supported rate */
 		ridx = min_ridx;
 		*flags |= IWX_TX_FLAGS_CMD_RATE;
+	} else if (ni->ni_flags & IEEE80211_NODE_VHT) {
+		/* TODO: VHT - the ridx / rate array doesn't have VHT rates yet */
+		ridx = iwx_min_basic_rate(ic);
 	} else if (ni->ni_flags & IEEE80211_NODE_HT) {
 		ridx = iwx_mcs2ridx[ieee80211_node_get_txrate_dot11rate(ni)
 		    & ~IEEE80211_RATE_MCS];
