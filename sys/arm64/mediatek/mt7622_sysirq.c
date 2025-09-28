@@ -38,6 +38,8 @@
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <dt-bindings/interrupt-controller/irq.h>
+
 #include "pic_if.h"
 
 static struct ofw_compat_data compat_data[] = {
@@ -80,7 +82,7 @@ mt7622_sysirq_convert_map_data(struct mt7622_sysirq_sc *sc,
     device_printf(sc->dev,"%s: irq %d flags 0x%x\n", __func__, irq, flags);
 
     // sysirq support controllable irq inverter for each GIC SPI interrupt.
-    if (flags & 0xa) {
+    if (flags & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_EDGE_FALLING)) {
         int reg = (irq / 32) * 4;
         int bit = irq % 32;
         uint32_t val;
