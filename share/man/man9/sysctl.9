@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 1, 2020
+.Dd September 28, 2025
 .Dt SYSCTL 9
 .Os
 .Sh NAME
@@ -863,14 +863,14 @@ flags to be set indicating the read and write disposition of the sysctl:
 .It Dv CTLFLAG_RD
 This is a read-only sysctl.
 .It Dv CTLFLAG_RDTUN
-This is a read-only sysctl and tunable which is tried fetched once
+This is a read-only sysctl and tunable which is fetched once
 from the system environment early during module load or system boot.
 .It Dv CTLFLAG_WR
 This is a writable sysctl.
 .It Dv CTLFLAG_RW
 This sysctl is readable and writable.
 .It Dv CTLFLAG_RWTUN
-This is a readable and writeable sysctl and tunable which is tried
+This is a readable and writeable sysctl and tunable which is
 fetched once from the system environment early during module load or
 system boot.
 .It Dv CTLFLAG_NOFETCH
@@ -907,7 +907,7 @@ This sysctl can be written to by processes in
 When iterating the sysctl name space, do not list this sysctl.
 .It Dv CTLFLAG_TUN
 Advisory flag that a system tunable also exists for this variable.
-The initial sysctl value is tried fetched once from the system
+The initial sysctl value is fetched once from the system
 environment early during module load or system boot.
 .It Dv CTLFLAG_DYN
 Dynamically created OIDs automatically get this flag set.
