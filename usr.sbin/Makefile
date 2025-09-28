@@ -128,6 +128,7 @@ SUBDIR.${MK_BSNMP}+=	bsnmpd
 .if ${MK_CAROOT} != "no"
 SUBDIR.${MK_OPENSSL}+=	certctl
 .endif
+SUBDIR.${MK_CUSE}+=	virtual_oss
 SUBDIR.${MK_CXGBETOOL}+=	cxgbetool
 SUBDIR.${MK_EFI}+=	efivar efidp efibootmgr efitable efiwake
 .if ${MK_OPENSSL} != "no"

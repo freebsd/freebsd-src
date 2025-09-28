@@ -212,6 +212,10 @@ CCD=		ccd
 CCDPACKAGE=	ccdconfig
 .endif
 
+.if ${MK_CUSE} != "no"
+CONFS+=		virtual_oss
+.endif
+
 .if ${MK_KERBEROS_SUPPORT} != "no"
 CONFGROUPS+=	GSSD
 GSSD=		gssd
