@@ -6,6 +6,6 @@ SRCS=		bt_speaker.c
 CFLAGS+= 	-I${SRCTOP}/usr.sbin/virtual_oss/virtual_oss \
 		-I${SRCTOP}/lib/virtual_oss/bt
 
-LDFLAGS+= 	-L${LIBDIR} -lm -lbluetooth -lsdp
+LDFLAGS+= 	-lm -lbluetooth -lsdp
 
 .include <bsd.prog.mk>
