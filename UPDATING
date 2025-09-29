@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20251001:
+	The deprecated ftpd(8) has been removed.  Users who still need ftpd
+	can install the ftp/freebsd-ftpd port.  pkgbase users should remove
+	the orphaned FreeBSD-ftpd package.
+
 20250929:
 	Both drm-kmod and nividia-drm ports had to be updated to either no
 	longer conflict on LinuxKPI vs. native PCI changes and/or to keep
