@@ -86,19 +86,6 @@
 #include <unistd.h>
 #include <netdb.h>
 
-#ifndef HAVE_MD5
-# include "../dst/md5.h"
-#else
-# ifdef SOLARIS2
-#  include <sys/md5.h>
-# elif _LIBC
-# include <md5.h>
-# endif
-#endif
-#ifndef _MD5_H_
-# define _MD5_H_ 1	/*%< make sure we do not include rsaref md5.h file */
-#endif
-
 #include "un-namespace.h"
 
 #include "port_after.h"
@@ -184,8 +171,6 @@ __res_vinit(res_state statp, int preinit) {
 		statp->options = RES_DEFAULT;
 	}
 
-	statp->_rnd = malloc(16);
-	res_rndinit(statp);
 	statp->id = res_nrandomid(statp);
 
 	memset(u, 0, sizeof(u));
@@ -733,48 +718,18 @@ net_mask(struct in_addr in)		/*!< XXX - should really use system's version of th
 }
 #endif
 
-static u_char srnd[16];
-
 void
-res_rndinit(res_state statp)
+freebsd15_res_rndinit(res_state statp)
 {
-	struct timeval now;
-	u_int32_t u32;
-	u_int16_t u16;
-	u_char *rnd = statp->_rnd == NULL ? srnd : statp->_rnd;
-
-	gettimeofday(&now, NULL);
-	u32 = now.tv_sec;
-	memcpy(rnd, &u32, 4);
-	u32 = now.tv_usec;
-	memcpy(rnd + 4, &u32, 4);
-	u32 += now.tv_sec;
-	memcpy(rnd + 8, &u32, 4);
-	u16 = getpid();
-	memcpy(rnd + 12, &u16, 2);
+	(void)statp;
 }
+__sym_compat(__res_rndinit, freebsd15_res_rndinit, FBSD_1.4);
 
 u_int
 res_nrandomid(res_state statp) {
-	struct timeval now;
-	u_int16_t u16;
-	MD5_CTX ctx;
-	u_char *rnd = statp->_rnd == NULL ? srnd : statp->_rnd;
+	(void) statp;
 
-	gettimeofday(&now, NULL);
-	u16 = (u_int16_t) (now.tv_sec ^ now.tv_usec);
-	memcpy(rnd + 14, &u16, 2);
-#ifndef HAVE_MD5
-	MD5_Init(&ctx);
-	MD5_Update(&ctx, rnd, 16);
-	MD5_Final(rnd, &ctx);
-#else
-	MD5Init(&ctx);
-	MD5Update(&ctx, rnd, 16);
-	MD5Final(rnd, &ctx);
-#endif
-	memcpy(&u16, rnd + 14, 2);
-	return ((u_int) u16);
+	return ((u_int)(arc4random() & 0xffff));
 }
 
 /*%
@@ -807,10 +762,6 @@ res_ndestroy(res_state statp) {
 	if (statp->_u._ext.ext != NULL) {
 		free(statp->_u._ext.ext);
 		statp->_u._ext.ext = NULL;
-	}
-	if (statp->_rnd != NULL) {
-		free(statp->_rnd);
-		statp->_rnd = NULL;
 	}
 	statp->options &= ~RES_INIT;
 }
