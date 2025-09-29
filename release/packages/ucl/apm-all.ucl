@@ -27,3 +27,7 @@ This package provides apm(8), a utility which can be used to monitor the APM
 state and change the system power mode, and the /etc/rc.d/apm service which
 can enable and disable APM at system startup and shutdown.
 EOD
+
+annotations {
+	set = "optional"
+}

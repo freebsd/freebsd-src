@@ -26,5 +26,5 @@ Some useful graphics data related to the "Beastie" mascot are also provided.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

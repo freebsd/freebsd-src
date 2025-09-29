@@ -34,3 +34,7 @@ ACPI implementation in the kernel:
 * acpidump(8) dumps the system's raw ACPI data.
 * iasl(8) is the Intel ACPI compiler/decompiler
 EOD
+
+annotations {
+	set = "optional"
+}

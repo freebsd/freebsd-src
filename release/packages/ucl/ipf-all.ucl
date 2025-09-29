@@ -27,5 +27,5 @@ of configuring IP Filter are also provided in /usr/share/examples/ipfilter.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

@@ -6,5 +6,5 @@ system RSS configuration and interacting with RSS aware sockets.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

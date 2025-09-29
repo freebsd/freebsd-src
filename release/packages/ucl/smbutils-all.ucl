@@ -26,3 +26,7 @@ Message Block (SMB) protocol, sometimes called CIFS.
 This facility only supports SMB version 1, which is strongly deprecated
 and not supported by most SMB servers.
 EOD
+
+annotations {
+	set = optional
+}

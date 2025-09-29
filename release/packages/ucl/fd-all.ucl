@@ -26,3 +26,7 @@ by the fdc(4) driver:
 * fdformat(8) is used to format disks.
 * fdread(1) and fdwrite(1) read and write data to or from floppy disks.
 EOD
+
+annotations {
+	set = "optional"
+}

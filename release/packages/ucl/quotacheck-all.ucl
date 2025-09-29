@@ -43,5 +43,5 @@ latter only occurs if an active file system is checked).
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

@@ -54,5 +54,5 @@ TAP-compliant test programs can also be executed through kyua.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "devel"
 }

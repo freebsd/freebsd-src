@@ -46,5 +46,5 @@ and, in addition to select(2) and poll(2) also support timers.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

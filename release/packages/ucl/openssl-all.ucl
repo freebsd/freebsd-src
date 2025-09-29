@@ -37,5 +37,5 @@ protocol, which was commonly used prior to the standardisation of TLS.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

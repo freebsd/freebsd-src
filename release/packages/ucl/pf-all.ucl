@@ -34,5 +34,5 @@ Several example pf rulesets are also provided in /usr/share/examples/pf.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

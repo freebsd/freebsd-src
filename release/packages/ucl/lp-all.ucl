@@ -29,5 +29,5 @@ Some sample lp filters for common printers are also provided in
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

@@ -7,5 +7,5 @@ applications implementing the milter interface.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

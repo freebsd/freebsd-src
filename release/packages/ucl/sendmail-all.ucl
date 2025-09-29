@@ -34,5 +34,5 @@ not receive) mail over SMTP.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

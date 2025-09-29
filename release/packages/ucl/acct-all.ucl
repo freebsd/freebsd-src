@@ -31,5 +31,5 @@ system provided in the $PKG_NAME_PREFIX-audit package for that.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

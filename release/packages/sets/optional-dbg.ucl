@@ -16,17 +16,16 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-comment = "Games"
+comment = "Optional software debug symbols (metapackage)"
 
 desc = <<EOD
-Games distributed with the system:
-
-* pom(6) displays the current phase of the moon.
-* grdc(6) displays an LED-style digital clock.
-* caesar(6) and rot13(6) implement a trivial (and easily broken) text
-  encryption system called a Caesar cipher.
+This metapackage installs debugging symbols for optional software
+which is not part of the minimal set.
 EOD
 
-annotations {
-	set = "optional,optional-jail"
+deps {
+	"set-minimal-dbg" {
+		version = "${VERSION}"
+		origin = "base"
+	},
 }

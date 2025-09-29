@@ -33,3 +33,7 @@ The mlx5tool utility is provided for management of the Connect-X4, 5 and
 6 network adapters in the aspects not covered by the generic ifconfig(8)
 command, mostly related to the PCIe attachment and internal card working.
 EOD
+
+annotations {
+	set = "optional"
+}

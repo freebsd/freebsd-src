@@ -29,5 +29,5 @@ In most situations, the Secure Shell protocol is preferred over TELNET.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }
