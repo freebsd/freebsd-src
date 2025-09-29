@@ -2524,11 +2524,7 @@ restart_lld(struct adapter *sc)
 				}
 				if (sc->traceq < 0 && IS_MAIN_VI(vi)) {
 					sc->traceq = sc->sge.rxq[vi->first_rxq].iq.abs_id;
-					t4_write_reg(sc, is_t4(sc) ?
-					    A_MPS_TRC_RSS_CONTROL :
-					    A_MPS_T5_TRC_RSS_CONTROL,
-					    V_RSSCONTROL(pi->tx_chan) |
-					    V_QUEUENUMBER(sc->traceq));
+					t4_set_trace_rss_control(sc, pi->tx_chan, sc->traceq);
 					pi->flags |= HAS_TRACEQ;
 				}
 
@@ -6756,9 +6752,7 @@ cxgbe_init_synchronized(struct vi_info *vi)
 	 */
 	if (sc->traceq < 0 && IS_MAIN_VI(vi)) {
 		sc->traceq = sc->sge.rxq[vi->first_rxq].iq.abs_id;
-		t4_write_reg(sc, is_t4(sc) ?  A_MPS_TRC_RSS_CONTROL :
-		    A_MPS_T5_TRC_RSS_CONTROL, V_RSSCONTROL(pi->tx_chan) |
-		    V_QUEUENUMBER(sc->traceq));
+		t4_set_trace_rss_control(sc, pi->tx_chan, sc->traceq);
 		pi->flags |= HAS_TRACEQ;
 	}
 
