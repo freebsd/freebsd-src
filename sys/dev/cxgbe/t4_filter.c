@@ -1397,11 +1397,19 @@ set_tcb_field(struct adapter *sc, u_int tid, uint16_t word, uint64_t mask,
 		return (ENOMEM);
 	bzero(req, sizeof(*req));
 	INIT_TP_WR_MIT_CPL(req, CPL_SET_TCB_FIELD, tid);
-	if (no_reply == 0) {
-		req->reply_ctrl = htobe16(V_QUEUENO(sc->sge.fwq.abs_id) |
-		    V_NO_REPLY(0));
-	} else
-		req->reply_ctrl = htobe16(V_NO_REPLY(1));
+	if (no_reply) {
+		req->reply_ctrl = htobe16(F_NO_REPLY);
+	} else {
+		const int qid = sc->sge.fwq.abs_id;
+
+		if (chip_id(sc) >= CHELSIO_T7) {
+			req->reply_ctrl = htobe16(V_T7_QUEUENO(qid) |
+			    V_T7_REPLY_CHAN(0) | V_NO_REPLY(0));
+		} else {
+			req->reply_ctrl = htobe16(V_QUEUENO(qid) |
+			    V_REPLY_CHAN(0) | V_NO_REPLY(0));
+		}
+	}
 	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(CPL_COOKIE_HASHFILTER));
 	req->mask = htobe64(mask);
 	req->val = htobe64(val);
