@@ -241,6 +241,45 @@ static driver_t vcc_driver = {
 	sizeof(struct vi_info)
 };
 
+/* T7+ bus driver interface */
+static int ch_probe(device_t);
+static device_method_t ch_methods[] = {
+	DEVMETHOD(device_probe,		ch_probe),
+	DEVMETHOD(device_attach,	t4_attach),
+	DEVMETHOD(device_detach,	t4_detach),
+	DEVMETHOD(device_suspend,	t4_suspend),
+	DEVMETHOD(device_resume,	t4_resume),
+
+	DEVMETHOD(bus_child_location,	t4_child_location),
+	DEVMETHOD(bus_reset_prepare, 	t4_reset_prepare),
+	DEVMETHOD(bus_reset_post, 	t4_reset_post),
+
+	DEVMETHOD(t4_is_main_ready,	t4_ready),
+	DEVMETHOD(t4_read_port_device,	t4_read_port_device),
+
+	DEVMETHOD_END
+};
+static driver_t ch_driver = {
+	"chnex",
+	ch_methods,
+	sizeof(struct adapter)
+};
+
+
+/* T7+ port (che) interface */
+static driver_t che_driver = {
+	"che",
+	cxgbe_methods,
+	sizeof(struct port_info)
+};
+
+/* T7+ VI (vche) interface */
+static driver_t vche_driver = {
+	"vche",
+	vcxgbe_methods,
+	sizeof(struct vi_info)
+};
+
 /* ifnet interface */
 static void cxgbe_init(void *);
 static int cxgbe_ioctl(if_t, unsigned long, caddr_t);
@@ -960,6 +999,29 @@ struct {
 	{0x6485, "Custom T6240-SO"},
 	{0x6486, "Custom T6225-SO-CR"},
 	{0x6487, "Custom T6225-CR"},
+}, t7_pciids[] = {
+	{0xd000, "Chelsio Terminator 7 FPGA"},	/* T7 PE12K FPGA */
+	{0x7400, "Chelsio T72200-DBG"},		/* 2 x 200G, debug */
+	{0x7401, "Chelsio T7250"},		/* 2 x 10/25/50G, 1 mem */
+	{0x7402, "Chelsio S7250"},		/* 2 x 10/25/50G, nomem */
+	{0x7403, "Chelsio T7450"},		/* 4 x 10/25/50G, 1 mem */
+	{0x7404, "Chelsio S7450"},		/* 4 x 10/25/50G, nomem */
+	{0x7405, "Chelsio T72200"},		/* 2 x 40/100/200G, 1 mem */
+	{0x7406, "Chelsio S72200"},		/* 2 x 40/100/200G, nomem */
+	{0x7407, "Chelsio T72200-FH"},		/* 2 x 40/100/200G, 2 mem */
+	{0x7408, "Chelsio S71400"},		/* 1 x 400G, nomem */
+	{0x7409, "Chelsio S7210-BT"},		/* 2 x 10GBASE-T, nomem */
+	{0x740a, "Chelsio T7450-RC"},		/* 4 x 10/25/50G, 1 mem, RC */
+	{0x740b, "Chelsio T72200-RC"},		/* 2 x 40/100/200G, 1 mem, RC */
+	{0x740c, "Chelsio T72200-FH-RC"},	/* 2 x 40/100/200G, 2 mem, RC */
+	{0x740d, "Chelsio S72200-OCP3"},	/* 2 x 40/100/200G OCP3 */
+	{0x740e, "Chelsio S7450-OCP3"},		/* 4 x 1/20/25/50G OCP3 */
+	{0x740f, "Chelsio S7410-BT-OCP3"},	/* 4 x 10GBASE-T OCP3 */
+	{0x7410, "Chelsio S7210-BT-A"},		/* 2 x 10GBASE-T */
+	{0x7411, "Chelsio T7_MAYRA_7"},		/* Motherboard */
+
+	/* Custom */
+	{0x7480, "Custom T7"},
 };
 
 #ifdef TCP_OFFLOAD
@@ -1042,6 +1104,31 @@ t6_probe(device_t dev)
 	return (ENXIO);
 }
 
+static int
+ch_probe(device_t dev)
+{
+	int i;
+	uint16_t v = pci_get_vendor(dev);
+	uint16_t d = pci_get_device(dev);
+	uint8_t f = pci_get_function(dev);
+
+	if (v != PCI_VENDOR_ID_CHELSIO)
+		return (ENXIO);
+
+	/* Attach only to PF0 of the FPGA */
+	if (d == 0xd000 && f != 0)
+		return (ENXIO);
+
+	for (i = 0; i < nitems(t7_pciids); i++) {
+		if (d == t7_pciids[i].device) {
+			device_set_desc(dev, t7_pciids[i].desc);
+			return (BUS_PROBE_DEFAULT);
+		}
+	}
+
+	return (ENXIO);
+}
+
 static void
 t5_attribute_workaround(device_t dev)
 {
@@ -1091,6 +1178,13 @@ static const struct devnames devnames[] = {
 		.pf03_drv_name = "t6iov",
 		.vf_nexus_name = "t6vf",
 		.vf_ifnet_name = "ccv"
+	}, {
+		.nexus_name = "chnex",
+		.ifnet_name = "che",
+		.vi_ifnet_name = "vche",
+		.pf03_drv_name = "chiov",
+		.vf_nexus_name = "chvf",
+		.vf_ifnet_name = "chev"
 	}
 };
 
@@ -1100,12 +1194,13 @@ t4_init_devnames(struct adapter *sc)
 	int id;
 
 	id = chip_id(sc);
-	if (id >= CHELSIO_T4 && id - CHELSIO_T4 < nitems(devnames))
-		sc->names = &devnames[id - CHELSIO_T4];
-	else {
+	if (id < CHELSIO_T4) {
 		device_printf(sc->dev, "chip id %d is not supported.\n", id);
 		sc->names = NULL;
-	}
+	} else if (id - CHELSIO_T4 < nitems(devnames))
+		sc->names = &devnames[id - CHELSIO_T4];
+	else
+		sc->names = &devnames[nitems(devnames) - 1];
 }
 
 static int
@@ -4712,6 +4807,22 @@ struct fw_info {
 			.intfver_iscsi = FW_INTFVER(T6, ISCSI),
 			.intfver_fcoepdu = FW_INTFVER(T6, FCOEPDU),
 			.intfver_fcoe = FW_INTFVER(T6, FCOE),
+		},
+	}, {
+		.chip = CHELSIO_T7,
+		.kld_name = "t7fw_cfg",
+		.fw_mod_name = "t7fw",
+		.fw_h = {
+			.chip = FW_HDR_CHIP_T7,
+			.fw_ver = htobe32(FW_VERSION(T7)),
+			.intfver_nic = FW_INTFVER(T7, NIC),
+			.intfver_vnic = FW_INTFVER(T7, VNIC),
+			.intfver_ofld = FW_INTFVER(T7, OFLD),
+			.intfver_ri = FW_INTFVER(T7, RI),
+			.intfver_iscsipdu = FW_INTFVER(T7, ISCSIPDU),
+			.intfver_iscsi = FW_INTFVER(T7, ISCSI),
+			.intfver_fcoepdu = FW_INTFVER(T7, FCOEPDU),
+			.intfver_fcoe = FW_INTFVER(T7, FCOE),
 		},
 	}
 };
@@ -13387,6 +13498,14 @@ MODULE_DEPEND(t6nex, firmware, 1, 1, 1);
 MODULE_DEPEND(t6nex, netmap, 1, 1, 1);
 #endif /* DEV_NETMAP */
 
+DRIVER_MODULE(chnex, pci, ch_driver, mod_event, 0);
+MODULE_VERSION(chnex, 1);
+MODULE_DEPEND(chnex, crypto, 1, 1, 1);
+MODULE_DEPEND(chnex, firmware, 1, 1, 1);
+#ifdef DEV_NETMAP
+MODULE_DEPEND(chnex, netmap, 1, 1, 1);
+#endif /* DEV_NETMAP */
+
 DRIVER_MODULE(cxgbe, t4nex, cxgbe_driver, 0, 0);
 MODULE_VERSION(cxgbe, 1);
 
@@ -13396,6 +13515,9 @@ MODULE_VERSION(cxl, 1);
 DRIVER_MODULE(cc, t6nex, cc_driver, 0, 0);
 MODULE_VERSION(cc, 1);
 
+DRIVER_MODULE(che, chnex, che_driver, 0, 0);
+MODULE_VERSION(che, 1);
+
 DRIVER_MODULE(vcxgbe, cxgbe, vcxgbe_driver, 0, 0);
 MODULE_VERSION(vcxgbe, 1);
 
@@ -13404,3 +13526,6 @@ MODULE_VERSION(vcxl, 1);
 
 DRIVER_MODULE(vcc, cc, vcc_driver, 0, 0);
 MODULE_VERSION(vcc, 1);
+
+DRIVER_MODULE(vche, che, vche_driver, 0, 0);
+MODULE_VERSION(vche, 1);

@@ -29,7 +29,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd November 10, 2022
+.Dd September 29, 2025
 .Dt CXGBE 4
 .Os
 .Sh NAME
@@ -73,6 +73,7 @@ driver uses different names for devices based on the associated ASIC:
 .It T4 Ta cxgbe Ta t4nex Ta vcxgbe
 .It T5 Ta cxl Ta t5nex Ta vcxl
 .It T6 Ta cc Ta t6nex Ta vcc
+.It T7 Ta che Ta chnex Ta vche
 .El
 .Pp
 Loader tunables with the hw.cxgbe prefix apply to all cards.
@@ -416,6 +417,8 @@ Support for T6 cards first appeared in
 .Fx 11.1
 and
 .Fx 12.0 .
+Support for T7 cards first appeared in
+.Fx 15.0 .
 .Sh AUTHORS
 .An -nosplit
 The
