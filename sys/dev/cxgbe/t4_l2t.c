@@ -119,7 +119,7 @@ find_or_alloc_l2e(struct l2t_data *d, uint16_t vlan, uint8_t port, uint8_t *dmac
 				first_free = e;
 		} else if (e->state == L2T_STATE_SWITCHING &&
 		    memcmp(e->dmac, dmac, ETHER_ADDR_LEN) == 0 &&
-		    e->vlan == vlan && e->lport == port)
+		    e->vlan == vlan && e->hw_port == port)
 			return (e);	/* Found existing entry that matches. */
 	}
 
@@ -156,7 +156,7 @@ mk_write_l2e(struct adapter *sc, struct l2t_entry *e, int sync, int reply,
 	INIT_TP_WR(req, 0);
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_L2T_WRITE_REQ, idx |
 	    V_SYNC_WR(sync) | V_TID_QID(e->iqid)));
-	req->params = htons(V_L2T_W_PORT(e->lport) | V_L2T_W_NOREPLY(!reply));
+	req->params = htons(V_L2T_W_PORT(e->hw_port) | V_L2T_W_NOREPLY(!reply));
 	req->l2t_idx = htons(idx);
 	req->vlan = htons(e->vlan);
 	memcpy(req->dst_mac, e->dmac, sizeof(req->dst_mac));
@@ -227,7 +227,7 @@ t4_l2t_alloc_tls(struct adapter *sc, struct sge_txq *txq, void *dst,
 		e = &d->l2tab[i];
 		if (e->state != L2T_STATE_TLS)
 			continue;
-		if (e->vlan == vlan && e->lport == port &&
+		if (e->vlan == vlan && e->hw_port == port &&
 		    e->wrq == (struct sge_wrq *)txq &&
 		    memcmp(e->dmac, eth_addr, ETHER_ADDR_LEN) == 0) {
 			if (atomic_fetchadd_int(&e->refcnt, 1) == 0) {
@@ -263,7 +263,7 @@ t4_l2t_alloc_tls(struct adapter *sc, struct sge_txq *txq, void *dst,
 	/* Initialize the entry. */
 	e->state = L2T_STATE_TLS;
 	e->vlan = vlan;
-	e->lport = port;
+	e->hw_port = port;
 	e->iqid = sc->sge.fwq.abs_id;
 	e->wrq = (struct sge_wrq *)txq;
 	memcpy(e->dmac, eth_addr, ETHER_ADDR_LEN);
@@ -303,7 +303,7 @@ t4_l2t_alloc_switching(struct adapter *sc, uint16_t vlan, uint8_t port,
 			e->iqid = sc->sge.fwq.abs_id;
 			e->state = L2T_STATE_SWITCHING;
 			e->vlan = vlan;
-			e->lport = port;
+			e->hw_port = port;
 			memcpy(e->dmac, eth_addr, ETHER_ADDR_LEN);
 			atomic_store_rel_int(&e->refcnt, 1);
 			atomic_subtract_int(&d->nfree, 1);
@@ -313,7 +313,7 @@ t4_l2t_alloc_switching(struct adapter *sc, uint16_t vlan, uint8_t port,
 				e = NULL;
 		} else {
 			MPASS(e->vlan == vlan);
-			MPASS(e->lport == port);
+			MPASS(e->hw_port == port);
 			atomic_add_int(&e->refcnt, 1);
 		}
 	}
@@ -488,7 +488,7 @@ sysctl_l2t(SYSCTL_HANDLER_ARGS)
 			   " %u %2u   %c   %5u %s",
 			   e->idx, ip, e->dmac[0], e->dmac[1], e->dmac[2],
 			   e->dmac[3], e->dmac[4], e->dmac[5],
-			   e->vlan & 0xfff, vlan_prio(e), e->lport,
+			   e->vlan & 0xfff, vlan_prio(e), e->hw_port,
 			   l2e_state(e), atomic_load_acq_int(&e->refcnt),
 			   e->ifp ? if_name(e->ifp) : "-");
 skip:
