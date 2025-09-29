@@ -85,6 +85,8 @@
 #include "misc.h"
 #include "servconf.h"
 #include "monitor.h"
+#include "blacklist_client.h"
+
 #ifdef GSSAPI
 #include "ssh-gss.h"
 #endif
@@ -353,16 +355,24 @@ monitor_child_preauth(struct ssh *ssh, struct monitor *pmonitor)
 			}
 		}
 		if (authctxt->failures > options.max_authtries) {
+			BLACKLIST_NOTIFY(ssh, BLACKLIST_AUTH_FAIL,
+			    "Too many authentication attempts");
 			/* Shouldn't happen */
 			fatal_f("privsep child made too many authentication "
 			    "attempts");
 		}
 	}
 
-	if (!authctxt->valid)
+	if (!authctxt->valid) {
+		BLACKLIST_NOTIFY(ssh, BLACKLIST_AUTH_FAIL,
+		    "Authenticated invalid user");
 		fatal_f("authenticated invalid user");
-	if (strcmp(auth_method, "unknown") == 0)
+	}
+	if (strcmp(auth_method, "unknown") == 0) {
+		BLACKLIST_NOTIFY(ssh, BLACKLIST_AUTH_FAIL,
+		    "Authentication method name unknown");
 		fatal_f("authentication method name unknown");
+	}
 
 	debug_f("user %s authenticated by privileged process", authctxt->user);
 	auth_attempted = 0;
