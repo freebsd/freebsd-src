@@ -6,13 +6,6 @@ CONFSDIR=	/etc/newsyslog.conf.d
 CONFGROUPS=	CONFS
 CONFS=
 
-.if ${MK_FTP} != "no"
-CONFGROUPS+=	FTP
-FTP+=		ftp.conf
-FTPPACKAGE=	ftpd
-FTPDIR=		/etc/newsyslog.conf.d
-.endif
-
 .if ${MK_LPR} != "no"
 CONFGROUPS+=	LP
 LP+=		lpr.conf

@@ -2045,21 +2045,14 @@ OLD_FILES+=usr/share/man/man8/phttpget.8.gz
 .endif
 
 .if ${MK_FTP} == no
-OLD_FILES+=etc/ftpusers
-OLD_FILES+=etc/newsyslog.conf.d/ftp.conf
 OLD_FILES+=etc/pam.d/ftp
 OLD_FILES+=etc/pam.d/ftpd
-OLD_FILES+=etc/rc.d/ftpd
-OLD_FILES+=etc/syslog.d/ftp.conf
 OLD_FILES+=usr/bin/ftp
 OLD_FILES+=usr/bin/gate-ftp
 OLD_FILES+=usr/bin/pftp
-OLD_FILES+=usr/libexec/ftpd
 OLD_FILES+=usr/share/man/man1/ftp.1.gz
 OLD_FILES+=usr/share/man/man1/gate-ftp.1.gz
 OLD_FILES+=usr/share/man/man1/pftp.1.gz
-OLD_FILES+=usr/share/man/man5/ftpchroot.5.gz
-OLD_FILES+=usr/share/man/man8/ftpd.8.gz
 .endif
 
 .if ${MK_GAMES} == no

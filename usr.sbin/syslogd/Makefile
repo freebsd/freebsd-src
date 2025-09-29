@@ -29,12 +29,6 @@ CFLAGS+= -DINET6
 
 SYSLOGD_D=
 SYSLOGD_DDIR=	/etc/syslog.d
-.if ${MK_FTP} != "no"
-CONFGROUPS+=	FTP
-FTP+=		ftp.conf
-FTPDIR=		/etc/syslog.d
-FTPPACKAGE=	ftpd
-.endif
 
 .if ${MK_LPR} != "no"
 CONFGROUPS+=	LP

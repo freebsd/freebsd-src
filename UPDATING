@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250929:
+	The deprecated ftpd(8) has been removed.  Users who still need ftpd
+	can install the ftp/freebsd-ftpd port.  pkgbase users should remove
+	the orphaned FreeBSD-ftpd package.
+
 20250923:
 	Several changes which affect pkgbase users (only):
 
