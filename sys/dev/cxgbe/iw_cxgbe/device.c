@@ -132,26 +132,21 @@ c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->stats.rqt.total = sc->vres.rq.size;
 	rdev->stats.qid.total = sc->vres.qp.size;
 
-	rc = c4iw_init_resource(rdev, c4iw_num_stags(rdev), T4_MAX_NUM_PD);
+	rc = c4iw_init_resource(rdev, T4_MAX_NUM_PD);
 	if (rc) {
 		device_printf(sc->dev, "error %d initializing resources\n", rc);
 		goto err1;
 	}
-	rc = c4iw_pblpool_create(rdev);
-	if (rc) {
-		device_printf(sc->dev, "error %d initializing pbl pool\n", rc);
-		goto err2;
-	}
 	rc = c4iw_rqtpool_create(rdev);
 	if (rc) {
 		device_printf(sc->dev, "error %d initializing rqt pool\n", rc);
-		goto err3;
+		goto err2;
 	}
 	rdev->status_page = (struct t4_dev_status_page *)
 				__get_free_page(GFP_KERNEL);
 	if (!rdev->status_page) {
 		rc = -ENOMEM;
-		goto err4;
+		goto err3;
 	}
 	rdev->status_page->qp_start = sc->vres.qp.start;
 	rdev->status_page->qp_size = sc->vres.qp.size;
@@ -168,15 +163,13 @@ c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->free_workq = create_singlethread_workqueue("iw_cxgb4_free");
 	if (!rdev->free_workq) {
 		rc = -ENOMEM;
-		goto err5;
+		goto err4;
 	}
 	return (0);
-err5:
-	free_page((unsigned long)rdev->status_page);
 err4:
-	c4iw_rqtpool_destroy(rdev);
+	free_page((unsigned long)rdev->status_page);
 err3:
-	c4iw_pblpool_destroy(rdev);
+	c4iw_rqtpool_destroy(rdev);
 err2:
 	c4iw_destroy_resource(&rdev->resource);
 err1:
@@ -186,7 +179,6 @@ err1:
 static void c4iw_rdev_close(struct c4iw_rdev *rdev)
 {
 	free_page((unsigned long)rdev->status_page);
-	c4iw_pblpool_destroy(rdev);
 	c4iw_rqtpool_destroy(rdev);
 	c4iw_destroy_resource(&rdev->resource);
 }

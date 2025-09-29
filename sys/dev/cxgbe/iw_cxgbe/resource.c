@@ -59,13 +59,9 @@ static int c4iw_init_qid_table(struct c4iw_rdev *rdev)
 }
 
 /* nr_* must be power of 2 */
-int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_tpt, u32 nr_pdid)
+int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_pdid)
 {
 	int err = 0;
-	err = c4iw_id_table_alloc(&rdev->resource.tpt_table, 0, nr_tpt, 1,
-					C4IW_ID_TABLE_F_RANDOM);
-	if (err)
-		goto tpt_err;
 	err = c4iw_init_qid_table(rdev);
 	if (err)
 		goto qid_err;
@@ -77,8 +73,6 @@ int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_tpt, u32 nr_pdid)
  pdid_err:
 	c4iw_id_table_free(&rdev->resource.qid_table);
  qid_err:
-	c4iw_id_table_free(&rdev->resource.tpt_table);
- tpt_err:
 	return -ENOMEM;
 }
 
@@ -243,7 +237,6 @@ void c4iw_put_qpid(struct c4iw_rdev *rdev, u32 qid,
 
 void c4iw_destroy_resource(struct c4iw_resource *rscp)
 {
-	c4iw_id_table_free(&rscp->tpt_table);
 	c4iw_id_table_free(&rscp->qid_table);
 	c4iw_id_table_free(&rscp->pdid_table);
 }
@@ -254,12 +247,9 @@ void c4iw_destroy_resource(struct c4iw_resource *rscp)
 
 u32 c4iw_pblpool_alloc(struct c4iw_rdev *rdev, int size)
 {
-	unsigned long addr;
+	u32 addr;
 
-	vmem_xalloc(rdev->pbl_arena, roundup(size, (1 << MIN_PBL_SHIFT)),
-			4, 0, 0, VMEM_ADDR_MIN, VMEM_ADDR_MAX,
-			M_FIRSTFIT|M_NOWAIT, &addr);
-	CTR3(KTR_IW_CXGBE, "%s addr 0x%x size %d", __func__, (u32)addr, size);
+	addr = t4_pblpool_alloc(rdev->adap, size);
 	mutex_lock(&rdev->stats.lock);
 	if (addr) {
 		rdev->stats.pbl.cur += roundup(size, 1 << MIN_PBL_SHIFT);
@@ -268,33 +258,15 @@ u32 c4iw_pblpool_alloc(struct c4iw_rdev *rdev, int size)
 	} else
 		rdev->stats.pbl.fail++;
 	mutex_unlock(&rdev->stats.lock);
-	return (u32)addr;
+	return addr;
 }
 
 void c4iw_pblpool_free(struct c4iw_rdev *rdev, u32 addr, int size)
 {
-	CTR3(KTR_IW_CXGBE, "%s addr 0x%x size %d", __func__, addr, size);
 	mutex_lock(&rdev->stats.lock);
 	rdev->stats.pbl.cur -= roundup(size, 1 << MIN_PBL_SHIFT);
 	mutex_unlock(&rdev->stats.lock);
-	vmem_xfree(rdev->pbl_arena, addr, roundup(size,(1 << MIN_PBL_SHIFT)));
-}
-
-int c4iw_pblpool_create(struct c4iw_rdev *rdev)
-{
-	rdev->pbl_arena = vmem_create("PBL_MEM_POOL",
-					rdev->adap->vres.pbl.start,
-					rdev->adap->vres.pbl.size,
-					1, 0, M_FIRSTFIT| M_NOWAIT);
-	if (!rdev->pbl_arena)
-		return -ENOMEM;
-
-	return 0;
-}
-
-void c4iw_pblpool_destroy(struct c4iw_rdev *rdev)
-{
-	vmem_destroy(rdev->pbl_arena);
+	t4_pblpool_free(rdev->adap, addr, size);
 }
 
 /* RQT Memory Manager. */

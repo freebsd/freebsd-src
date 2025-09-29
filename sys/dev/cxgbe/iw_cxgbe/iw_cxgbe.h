@@ -99,7 +99,6 @@ struct c4iw_id_table {
 };
 
 struct c4iw_resource {
-	struct c4iw_id_table tpt_table;
 	struct c4iw_id_table qid_table;
 	struct c4iw_id_table pdid_table;
 };
@@ -904,11 +903,9 @@ int c4iw_ep_redirect(void *ctx, struct dst_entry *old, struct dst_entry *new,
 		     struct l2t_entry *l2t);
 u32 c4iw_get_resource(struct c4iw_id_table *id_table);
 void c4iw_put_resource(struct c4iw_id_table *id_table, u32 entry);
-int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_tpt, u32 nr_pdid);
+int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_pdid);
 int c4iw_init_ctrl_qp(struct c4iw_rdev *rdev);
-int c4iw_pblpool_create(struct c4iw_rdev *rdev);
 int c4iw_rqtpool_create(struct c4iw_rdev *rdev);
-void c4iw_pblpool_destroy(struct c4iw_rdev *rdev);
 void c4iw_rqtpool_destroy(struct c4iw_rdev *rdev);
 void c4iw_destroy_resource(struct c4iw_resource *rscp);
 int c4iw_destroy_ctrl_qp(struct c4iw_rdev *rdev);

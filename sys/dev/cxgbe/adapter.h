@@ -971,6 +971,9 @@ struct adapter {
 	vmem_t *key_map;
 	struct tls_tunables tlst;
 
+	vmem_t *pbl_arena;
+	vmem_t *stag_arena;
+
 	uint8_t doorbells;
 	int offload_map;	/* port_id's with IFCAP_TOE enabled */
 	int bt_map;		/* hw_port's that are BASE-T */
@@ -1548,6 +1551,27 @@ int t4_hashfilter_ao_rpl(struct sge_iq *, const struct rss_header *, struct mbuf
 int t4_hashfilter_tcb_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
 int t4_del_hashfilter_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
 void free_hftid_hash(struct tid_info *);
+
+/* t4_tpt.c */
+#define T4_STAG_UNSET 0xffffffff
+#define	T4_WRITE_MEM_DMA_LEN						\
+	roundup2(sizeof(struct ulp_mem_io) + sizeof(struct ulptx_sgl), 16)
+#define T4_ULPTX_MIN_IO 32
+#define T4_MAX_INLINE_SIZE 96
+#define	T4_WRITE_MEM_INLINE_LEN(len)					\
+	roundup2(sizeof(struct ulp_mem_io) + sizeof(struct ulptx_idata) + \
+	    roundup((len), T4_ULPTX_MIN_IO), 16)
+
+uint32_t t4_pblpool_alloc(struct adapter *, int);
+void t4_pblpool_free(struct adapter *, uint32_t, int);
+uint32_t t4_stag_alloc(struct adapter *, int);
+void t4_stag_free(struct adapter *, uint32_t, int);
+void t4_init_tpt(struct adapter *);
+void t4_free_tpt(struct adapter *);
+void t4_write_mem_dma_wr(struct adapter *, void *, int, int, uint32_t,
+    uint32_t, vm_paddr_t, uint64_t);
+void t4_write_mem_inline_wr(struct adapter *, void *, int, int, uint32_t,
+    uint32_t, void *, uint64_t);
 
 static inline struct wrqe *
 alloc_wrqe(int wr_len, struct sge_wrq *wrq)

@@ -1655,6 +1655,7 @@ t4_attach(device_t dev)
 	if (sc->vres.key.size != 0)
 		sc->key_map = vmem_create("T4TLS key map", sc->vres.key.start,
 		    sc->vres.key.size, 32, 0, M_FIRSTFIT | M_WAITOK);
+	t4_init_tpt(sc);
 
 	/*
 	 * Second pass over the ports.  This time we know the number of rx and
@@ -1956,6 +1957,7 @@ t4_detach_common(device_t dev)
 #endif
 	if (sc->key_map)
 		vmem_destroy(sc->key_map);
+	t4_free_tpt(sc);
 #ifdef INET6
 	t4_destroy_clip_table(sc);
 #endif
