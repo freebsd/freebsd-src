@@ -437,10 +437,16 @@ t4_tls_key_info_size(const struct ktls_session *tls)
 int
 t4_tls_proto_ver(const struct ktls_session *tls)
 {
-	if (tls->params.tls_vminor == TLS_MINOR_VER_ONE)
+	switch (tls->params.tls_vminor) {
+	case TLS_MINOR_VER_ONE:
 		return (SCMD_PROTO_VERSION_TLS_1_1);
-	else
+	case TLS_MINOR_VER_TWO:
 		return (SCMD_PROTO_VERSION_TLS_1_2);
+	case TLS_MINOR_VER_THREE:
+		return (SCMD_PROTO_VERSION_TLS_1_3);
+	default:
+		__assert_unreachable();
+	}
 }
 
 int
@@ -488,6 +494,17 @@ t4_tls_hmac_ctrl(const struct ktls_session *tls)
 		return (SCMD_HMAC_CTRL_NOP);
 	default:
 		return (SCMD_HMAC_CTRL_NOP);
+	}
+}
+
+static int
+tls_seqnum_ctrl(const struct ktls_session *tls)
+{
+	switch (tls->params.tls_vminor) {
+	case TLS_MINOR_VER_THREE:
+		return (0);
+	default:
+		return (3);
 	}
 }
 
@@ -557,7 +574,7 @@ t4_tls_key_ctx(const struct ktls_session *tls, int direction,
 
 		kctx->u.rxhdr.authmode_to_rxvalid =
 		    V_TLS_KEYCTX_TX_WR_AUTHMODE(t4_tls_auth_mode(tls)) |
-		    V_TLS_KEYCTX_TX_WR_SEQNUMCTRL(3) |
+		    V_TLS_KEYCTX_TX_WR_SEQNUMCTRL(tls_seqnum_ctrl(tls)) |
 		    V_TLS_KEYCTX_TX_WR_RXVALID(1);
 
 		kctx->u.rxhdr.ivpresent_to_rxmk_size =
@@ -607,7 +624,8 @@ t4_tls_key_ctx(const struct ktls_session *tls, int direction,
 		_Static_assert(offsetof(struct tx_keyctx_hdr, txsalt) ==
 		    offsetof(struct rx_keyctx_hdr, rxsalt),
 		    "salt offset mismatch");
-		memcpy(kctx->u.txhdr.txsalt, tls->params.iv, SALT_SIZE);
+		memcpy(kctx->u.txhdr.txsalt, tls->params.iv,
+		    tls->params.iv_len);
 		t4_init_gmac_hash(tls->params.cipher_key,
 		    tls->params.cipher_key_len, hash);
 	} else {
