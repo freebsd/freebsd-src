@@ -37,6 +37,7 @@
 #define CHELSIO_T4		0x4
 #define CHELSIO_T5		0x5
 #define CHELSIO_T6		0x6
+#define CHELSIO_T7		0x7
 
 /* We code the Chelsio T4 Family "Chip Code" as a tuple:
  *
@@ -65,6 +66,10 @@ enum chip_type {
 	T6_A0 = CHELSIO_CHIP_CODE(CHELSIO_T6, 0),
 	T6_FIRST_REV	= T6_A0,
 	T6_LAST_REV	= T6_A0,
+
+	T7_A1 = CHELSIO_CHIP_CODE(CHELSIO_T7, 1),
+	T7_FIRST_REV	= T7_A1,
+	T7_LAST_REV	= T7_A1,
 };
 
 static inline int is_t4(enum chip_type chip)
@@ -80,6 +85,11 @@ static inline int is_t5(enum chip_type chip)
 static inline int is_t6(enum chip_type chip)
 {
 	return (CHELSIO_CHIP_VERSION(chip) == CHELSIO_T6);
+}
+
+static inline int is_t7(enum chip_type chip)
+{
+	return (CHELSIO_CHIP_VERSION(chip) == CHELSIO_T7);
 }
 
 #endif /* __T4_CHIP_TYPE_H__ */
