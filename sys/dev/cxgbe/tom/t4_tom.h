@@ -586,4 +586,10 @@ int tls_tx_key(struct toepcb *);
 void tls_uninit_toep(struct toepcb *);
 int tls_alloc_ktls(struct toepcb *, struct ktls_session *, int);
 
+/* t4_tpt.c */
+uint32_t t4_pblpool_alloc(struct adapter *, int);
+void t4_pblpool_free(struct adapter *, uint32_t, int);
+int t4_pblpool_create(struct adapter *);
+void t4_pblpool_destroy(struct adapter *);
+
 #endif
