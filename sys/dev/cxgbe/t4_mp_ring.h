@@ -62,6 +62,7 @@ int mp_ring_alloc(struct mp_ring **, int, void *, ring_drain_t,
     ring_can_drain_t, struct malloc_type *, struct mtx *, int);
 void mp_ring_free(struct mp_ring *);
 int mp_ring_enqueue(struct mp_ring *, void **, int, int);
+int mp_ring_enqueue_only(struct mp_ring *, void **, int);
 void mp_ring_check_drainage(struct mp_ring *, int);
 void mp_ring_reset_stats(struct mp_ring *);
 bool mp_ring_is_idle(struct mp_ring *);
