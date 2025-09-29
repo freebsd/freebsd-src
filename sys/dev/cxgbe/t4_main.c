@@ -10976,6 +10976,7 @@ sysctl_pm_stats(SYSCTL_HANDLER_ARGS)
 	int rc, i;
 	uint32_t tx_cnt[MAX_PM_NSTATS], rx_cnt[MAX_PM_NSTATS];
 	uint64_t tx_cyc[MAX_PM_NSTATS], rx_cyc[MAX_PM_NSTATS];
+	uint32_t stats[T7_PM_RX_CACHE_NSTATS];
 	static const char *tx_stats[MAX_PM_NSTATS] = {
 		"Read:", "Write bypass:", "Write mem:", "Bypass + mem:",
 		"Tx FIFO wait", NULL, "Tx latency"
@@ -10992,12 +10993,14 @@ sysctl_pm_stats(SYSCTL_HANDLER_ARGS)
 	else {
 		t4_pmtx_get_stats(sc, tx_cnt, tx_cyc);
 		t4_pmrx_get_stats(sc, rx_cnt, rx_cyc);
+		if (chip_id(sc) >= CHELSIO_T7)
+			t4_pmrx_cache_get_stats(sc, stats);
 	}
 	mtx_unlock(&sc->reg_lock);
 	if (rc != 0)
 		return (rc);
 
-	sb = sbuf_new_for_sysctl(NULL, NULL, 256, req);
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
 	if (sb == NULL)
 		return (ENOMEM);
 
@@ -11030,6 +11033,61 @@ sysctl_pm_stats(SYSCTL_HANDLER_ARGS)
 		    tx_cyc[i]);
 		sbuf_printf(sb, "\n%-13s %10u %20ju", rx_stats[i], rx_cnt[i],
 		    rx_cyc[i]);
+	}
+
+	if (chip_id(sc) >= CHELSIO_T7) {
+		i = 0;
+		sbuf_printf(sb, "\n\nPM RX Cache Stats\n");
+		sbuf_printf(sb, "%-40s    %u\n", "ReqWrite", stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "ReqReadInv", stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "ReqReadNoInv", stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Write Split Request",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n",
+			   "Normal Read Split (Read Invalidate)", stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n",
+			   "Feedback Read Split (Read NoInvalidate)",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Write Hit", stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Normal Read Hit",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Feedback Read Hit",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Normal Read Hit Full Avail",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Normal Read Hit Full UnAvail",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n",
+			   "Normal Read Hit Partial Avail",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "FB Read Hit Full Avail",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "FB Read Hit Full UnAvail",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "FB Read Hit Partial Avail",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Normal Read Full Free",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n",
+			   "Normal Read Part-avail Mul-Regions",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n",
+			   "FB Read Part-avail Mul-Regions",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Write Miss FL Used",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Write Miss LRU Used",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n",
+			   "Write Miss LRU-Multiple Evict", stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n",
+			   "Write Hit Increasing Islands", stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n",
+			   "Normal Read Island Read split", stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Write Overflow Eviction",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u", "Read Overflow Eviction",
+			   stats[i++]);
 	}
 
 	rc = sbuf_finish(sb);
