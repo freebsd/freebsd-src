@@ -12,6 +12,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250929:
+	Both drm-kmod and nividia-drm ports had to be updated to either no
+	longer conflict on LinuxKPI vs. native PCI changes and/or to keep
+	working after some LinuxKPI PCI adjustments which were previously
+	hidden behind native PCI.
+	Bump __FreeBSD_version so users will pick up updated packages.
+
 20250924:
 	Several changes which affect pkgbase users (only):
 
