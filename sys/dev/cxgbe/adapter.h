@@ -412,6 +412,23 @@ enum {
 	NUM_CPL_COOKIES = 8	/* Limited by M_COOKIE.  Do not increase. */
 };
 
+/*
+ * Crypto replies use the low bit in the 64-bit cookie of CPL_FW6_PLD as a
+ * CPL cookie to identify the sender/receiver.
+ */
+enum {
+	CPL_FW6_COOKIE_CCR = 0,
+
+	NUM_CPL_FW6_COOKIES = 2	/* Low bits of cookie value. */
+};
+
+_Static_assert(powerof2(NUM_CPL_FW6_COOKIES),
+    "NUM_CPL_FW6_COOKIES must be a power of 2");
+
+#define	CPL_FW6_COOKIE_MASK	(NUM_CPL_FW6_COOKIES - 1)
+
+#define	CPL_FW6_PLD_COOKIE(cpl)	(be64toh((cpl)->data[1]) & ~CPL_FW6_COOKIE_MASK)
+
 struct sge_iq;
 struct rss_header;
 typedef int (*cpl_handler_t)(struct sge_iq *, const struct rss_header *,
