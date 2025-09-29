@@ -1232,10 +1232,7 @@ select_ntuple(struct vi_info *vi, struct l2t_entry *e)
 		    tp->vnic_shift;
 	}
 
-	if (is_t4(sc))
-		return (htobe32((uint32_t)ntuple));
-	else
-		return (htobe64(V_FILTER_TUPLE(ntuple)));
+	return (ntuple);
 }
 
 /*
