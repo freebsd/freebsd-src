@@ -52,7 +52,7 @@
   <div>
     <h1>
       The Expat XML Parser
-      <small>Release 2.7.2</small>
+      <small>Release 2.7.3</small>
     </h1>
   </div>
 <div class="content">
@@ -2137,8 +2137,8 @@ XML_Size XMLCALL
 XML_GetCurrentColumnNumber(XML_Parser p);
 </pre>
 <div class="fcndef">
-Return the offset, from the beginning of the current line, of
-the position.
+Return the <em>offset</em>, from the beginning of the current line, of
+the position.  The first column is reported as <code>0</code>.
 </div>
 
 <h4 id="XML_GetCurrentByteCount">XML_GetCurrentByteCount</h4>
@@ -2200,7 +2200,10 @@ XML_SetBillionLaughsAttackProtectionMaximumAmplification(XML_Parser p,
     returns <code>XML_TRUE</code> upon success and <code>XML_FALSE</code> upon error.
   </p>
 
-  <p>The amplification factor is calculated as ..</p>
+  <p>
+    Once the <a href="#XML_SetBillionLaughsAttackProtectionActivationThreshold">threshold for activation</a> is reached,
+    the amplification factor is calculated as ..
+  </p>
   <pre>amplification := (direct + indirect) / direct</pre>
   <p>
     .. while parsing, whereas
@@ -2317,7 +2320,10 @@ XML_SetAllocTrackerMaximumAmplification(XML_Parser p,
     </li>
   </ul>
 
-  <p>The amplification factor is calculated as ..</p>
+  <p>
+    Once the <a href="#XML_SetAllocTrackerActivationThreshold">threshold for activation</a> is reached,
+    the amplification factor is calculated as ..
+  </p>
   <pre>amplification := allocated / direct</pre>
   <p>
     .. while parsing, whereas
@@ -2339,7 +2345,7 @@ XML_SetAllocTrackerMaximumAmplification(XML_Parser p,
 
   <p>
     <strong>Note:</strong>
-    Amplifications factors greater than 100 can been observed near the start of parsing
+    Amplifications factors greater than <code>100.0</code> can been observed near the start of parsing
     even with benign files in practice.
 
     So if you do reduce the maximum allowed amplification,

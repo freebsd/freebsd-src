@@ -96,8 +96,8 @@ reportError(XML_Parser parser, const XML_Char *filename) {
     ftprintf(stdout,
              T("%s") T(":%") T(XML_FMT_INT_MOD) T("u") T(":%")
                  T(XML_FMT_INT_MOD) T("u") T(": %s\n"),
-             filename, XML_GetErrorLineNumber(parser),
-             XML_GetErrorColumnNumber(parser), message);
+             filename, XML_GetCurrentLineNumber(parser),
+             XML_GetCurrentColumnNumber(parser), message);
   else
     ftprintf(stderr, T("%s: (unknown message %u)\n"), filename,
              (unsigned int)code);

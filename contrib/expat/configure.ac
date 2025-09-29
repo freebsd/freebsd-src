@@ -24,6 +24,7 @@ dnl   Copyright (c) 2019      Kishore Kunche <kishore.kunche@intel.com>
 dnl   Copyright (c) 2020      Jeffrey Walton <noloader@gmail.com>
 dnl   Copyright (c) 2024      Ferenc Géczi <ferenc.gm@gmail.com>
 dnl   Copyright (c) 2024      Dag-Erling Smørgrav <des@des.dev>
+dnl   Copyright (c) 2025      Matthew Fernandez <matthew.fernandez@gmail.com>
 dnl   Licensed under the MIT license:
 dnl
 dnl   Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -85,7 +86,7 @@ dnl If the API changes incompatibly set LIBAGE back to 0
 dnl
 
 LIBCURRENT=12  # sync
-LIBREVISION=0  # with
+LIBREVISION=1  # with
 LIBAGE=11      # CMakeLists.txt!
 
 AC_CONFIG_HEADERS([expat_config.h])
@@ -95,7 +96,6 @@ AH_BOTTOM([#endif // ndef EXPAT_CONFIG_H])
 
 AM_PROG_AR
 AC_PROG_INSTALL
-AC_PROG_LN_S
 AC_PROG_MAKE_SET
 
 LT_PREREQ([2.4])
