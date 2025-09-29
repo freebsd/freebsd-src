@@ -494,8 +494,15 @@ send_get_tcb(struct adapter *sc, u_int tid)
 	bzero(cpl, sizeof(*cpl));
 	INIT_TP_WR(cpl, tid);
 	OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_GET_TCB, tid));
-	cpl->reply_ctrl = htobe16(V_REPLY_CHAN(0) |
-	    V_QUEUENO(sc->sge.ofld_rxq[0].iq.cntxt_id));
+	if (chip_id(sc) >= CHELSIO_T7) {
+		cpl->reply_ctrl =
+		    htobe16(V_T7_QUEUENO(sc->sge.ofld_rxq[0].iq.cntxt_id) |
+			V_T7_REPLY_CHAN(0) | V_NO_REPLY(0));
+	} else {
+		cpl->reply_ctrl =
+		    htobe16(V_QUEUENO(sc->sge.ofld_rxq[0].iq.cntxt_id) |
+			V_REPLY_CHAN(0) | V_NO_REPLY(0));
+	}
 	cpl->cookie = 0xff;
 	commit_wrq_wr(&sc->sge.ctrlq[0], cpl, &cookie);
 
