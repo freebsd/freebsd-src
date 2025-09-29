@@ -229,7 +229,12 @@ struct iw_tunables {
 
 struct tls_tunables {
 	int inline_keys;
-	int combo_wrs;
+	union {
+		/* T6 only. */
+		int combo_wrs;
+		/* T7 only. */
+		int short_records;
+	};
 };
 
 #ifdef TCP_OFFLOAD

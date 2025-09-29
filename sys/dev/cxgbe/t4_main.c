@@ -761,6 +761,10 @@ SYSCTL_INT(_hw_cxgbe_tls, OID_AUTO, inline_keys, CTLFLAG_RDTUN,
 static int t4_tls_combo_wrs = 0;
 SYSCTL_INT(_hw_cxgbe_tls, OID_AUTO, combo_wrs, CTLFLAG_RDTUN, &t4_tls_combo_wrs,
     0, "Attempt to combine TCB field updates with TLS record work requests.");
+
+static int t4_tls_short_records = 1;
+SYSCTL_INT(_hw_cxgbe_tls, OID_AUTO, short_records, CTLFLAG_RDTUN,
+    &t4_tls_short_records, 0, "Use cipher-only mode for short records.");
 #endif
 
 /* Functions used by VIs to obtain unique MAC addresses for each VI. */
@@ -3515,7 +3519,7 @@ cxgbe_snd_tag_alloc(if_t ifp, union if_snd_tag_alloc_params *params,
 		if (is_t6(vi->pi->adapter))
 			error = t6_tls_tag_alloc(ifp, params, pt);
 		else
-			error = EOPNOTSUPP;
+			error = t7_tls_tag_alloc(ifp, params, pt);
 		break;
 	}
 #endif
@@ -6132,9 +6136,11 @@ set_params__post_init(struct adapter *sc)
 #ifdef KERN_TLS
 	if (is_ktls(sc)) {
 		sc->tlst.inline_keys = t4_tls_inline_keys;
-		sc->tlst.combo_wrs = t4_tls_combo_wrs;
-		if (t4_kern_tls != 0 && is_t6(sc))
+		if (t4_kern_tls != 0 && is_t6(sc)) {
+			sc->tlst.combo_wrs = t4_tls_combo_wrs;
 			t6_config_kern_tls(sc, true);
+		} else
+			sc->tlst.short_records = t4_tls_short_records;
 	}
 #endif
 	return (0);
@@ -8107,6 +8113,10 @@ t4_sysctls(struct adapter *sc)
 			    CTLFLAG_RW, &sc->tlst.combo_wrs, 0, "Attempt to "
 			    "combine TCB field updates with TLS record work "
 			    "requests.");
+		else
+			SYSCTL_ADD_INT(ctx, children, OID_AUTO, "short_records",
+			    CTLFLAG_RW, &sc->tlst.short_records, 0,
+			    "Use cipher-only mode for short records.");
 	}
 #endif
 
