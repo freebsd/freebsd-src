@@ -677,7 +677,7 @@ tzloadbody(char const *name, struct state *sp, char tzloadflags,
 	  while (*relname == '/')
 	    relname++;
 	}
-	dd = open(TZDIR, O_DIRECTORY | O_RDONLY);
+	dd = open(TZDIR, O_DIRECTORY | O_SEARCH | O_CLOEXEC);
 	if ((tzloadflags & TZLOAD_FROMENV) && issetugid()) {
 	  if (dd < 0)
 	    return errno;
@@ -687,14 +687,14 @@ tzloadbody(char const *name, struct state *sp, char tzloadflags,
 	    fid = -1;
 	    errno = EINVAL;
 	  } else {
-	    fid = openat(dd, relname, O_RDONLY | O_BINARY, AT_RESOLVE_BENEATH);
+	    fid = openat(dd, relname, O_RDONLY | O_CLOEXEC | O_RESOLVE_BENEATH);
 	  }
 	} else {
 	  if (dd < 0) {
 	    relname = name;
 	    dd = AT_FDCWD;
 	  }
-	  fid = openat(dd, relname, O_RDONLY | O_BINARY, 0);
+	  fid = openat(dd, relname, O_RDONLY | O_CLOEXEC);
 	}
 	if (dd != AT_FDCWD && dd >= 0) {
 	  serrno = errno;
