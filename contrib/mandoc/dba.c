@@ -1,6 +1,6 @@
-/*	$Id: dba.c,v 1.10 2017/02/17 14:43:54 schwarze Exp $ */
+/* $Id: dba.c,v 1.11 2025/09/24 13:13:30 schwarze Exp $ */
 /*
- * Copyright (c) 2016, 2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2016, 2017, 2025 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -318,7 +318,8 @@ compare_names(const void *vp1, const void *vp2)
 	cp1 = *(const char * const *)vp1;
 	cp2 = *(const char * const *)vp2;
 	return (diff = *cp2 - *cp1) ? diff :
-	    strcasecmp(cp1 + 1, cp2 + 1);
+	    (diff = strcasecmp(cp1 + 1, cp2 + 1)) ? diff :
+	    strcmp(cp1 + 1, cp2 + 1);
 }
 
 static int
