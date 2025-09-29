@@ -74,6 +74,7 @@ struct tlspcb {
 
 	int tx_key_addr;
 	bool inline_key;
+	bool tls13;
 	unsigned char enc_mode;
 
 	struct tls_scmd scmd0;
@@ -131,14 +132,14 @@ t7_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 	struct vi_info *vi;
 	struct inpcb *inp;
 	struct sge_txq *txq;
-	int error, explicit_iv_size, keyid, mac_first;
+	int error, iv_size, keyid, mac_first;
 
 	tls = params->tls.tls;
 
-	/* Only TLS 1.1 and TLS 1.2 are currently supported. */
+	/* TLS 1.1 through TLS 1.3 are currently supported. */
 	if (tls->params.tls_vmajor != TLS_MAJOR_VER_ONE ||
 	    tls->params.tls_vminor < TLS_MINOR_VER_ONE ||
-	    tls->params.tls_vminor > TLS_MINOR_VER_TWO)
+	    tls->params.tls_vminor > TLS_MINOR_VER_THREE)
 		return (EPROTONOSUPPORT);
 
 	/* Sanity check values in *tls. */
@@ -161,12 +162,10 @@ t7_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 		default:
 			return (EPROTONOSUPPORT);
 		}
-		explicit_iv_size = AES_BLOCK_LEN;
+		iv_size = AES_BLOCK_LEN;
 		mac_first = 1;
 		break;
 	case CRYPTO_AES_NIST_GCM_16:
-		if (tls->params.iv_len != SALT_SIZE)
-			return (EINVAL);
 		switch (tls->params.cipher_key_len) {
 		case 128 / 8:
 		case 192 / 8:
@@ -175,7 +174,13 @@ t7_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 		default:
 			return (EINVAL);
 		}
-		explicit_iv_size = 8;
+
+		/*
+		 * The IV size for TLS 1.2 is the explicit IV in the
+		 * record header.  For TLS 1.3 it is the size of the
+		 * sequence number.
+		 */
+		iv_size = 8;
 		mac_first = 0;
 		break;
 	default:
@@ -186,6 +191,7 @@ t7_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 	sc = vi->adapter;
 
 	tlsp = alloc_tlspcb(ifp, vi, M_WAITOK);
+	tlsp->tls13 = tls->params.tls_vminor == TLS_MINOR_VER_THREE;
 
 	if (sc->tlst.inline_keys)
 		keyid = -1;
@@ -224,14 +230,19 @@ t7_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 	tlsp->tx_key_info_size = t4_tls_key_info_size(tls);
 
 	/* The SCMD fields used when encrypting a full TLS record. */
-	tlsp->scmd0.seqno_numivs = htobe32(V_SCMD_SEQ_NO_CTRL(3) |
+	if (tlsp->tls13)
+		tlsp->scmd0.seqno_numivs = V_SCMD_SEQ_NO_CTRL(0);
+	else
+		tlsp->scmd0.seqno_numivs = V_SCMD_SEQ_NO_CTRL(3);
+	tlsp->scmd0.seqno_numivs |=
 	    V_SCMD_PROTO_VERSION(t4_tls_proto_ver(tls)) |
 	    V_SCMD_ENC_DEC_CTRL(SCMD_ENCDECCTRL_ENCRYPT) |
 	    V_SCMD_CIPH_AUTH_SEQ_CTRL((mac_first == 0)) |
 	    V_SCMD_CIPH_MODE(tlsp->enc_mode) |
 	    V_SCMD_AUTH_MODE(t4_tls_auth_mode(tls)) |
 	    V_SCMD_HMAC_CTRL(t4_tls_hmac_ctrl(tls)) |
-	    V_SCMD_IV_SIZE(explicit_iv_size / 2) | V_SCMD_NUM_IVS(1));
+	    V_SCMD_IV_SIZE(iv_size / 2) | V_SCMD_NUM_IVS(1);
+	tlsp->scmd0.seqno_numivs = htobe32(tlsp->scmd0.seqno_numivs);
 
 	tlsp->scmd0.ivgen_hdrlen = V_SCMD_IV_GEN_CTRL(0) |
 	    V_SCMD_TLS_FRAG_ENABLE(0);
@@ -390,7 +401,7 @@ ktls_is_short_record(struct tlspcb *tlsp, struct mbuf *m_tls,
     u_int *leading_waste, u_int *trailing_waste)
 {
 	const struct tls_record_layer *hdr;
-	u_int new_tlen, rlen;
+	u_int new_tlen, trailer_len, rlen;
 
 	MPASS(tlen > m_tls->m_epg_hdrlen);
 
@@ -398,12 +409,21 @@ ktls_is_short_record(struct tlspcb *tlsp, struct mbuf *m_tls,
 	rlen = TLS_HEADER_LENGTH + ntohs(hdr->tls_length);
 
 	/*
+	 * For TLS 1.3 treat the inner record type stored as the first
+	 * byte of the trailer as part of the payload rather than part
+	 * of the trailer.
+	 */
+	trailer_len = m_tls->m_epg_trllen;
+	if (tlsp->tls13)
+		trailer_len--;
+
+	/*
 	 * Default to sending the full record as input to the crypto
 	 * engine and relying on SplitMode to drop any waste.
 	 */
 	*header_len = m_tls->m_epg_hdrlen;
 	*offset = 0;
-	*plen = rlen - (m_tls->m_epg_hdrlen + m_tls->m_epg_trllen);
+	*plen = rlen - (m_tls->m_epg_hdrlen + trailer_len);
 	*leading_waste = mtod(m_tls, vm_offset_t);
 	*trailing_waste = rlen - tlen;
 	if (!tlsp->sc->tlst.short_records)
@@ -420,7 +440,7 @@ ktls_is_short_record(struct tlspcb *tlsp, struct mbuf *m_tls,
 		 */
 		new_tlen = TLS_HEADER_LENGTH +
 		    roundup2(tlen - TLS_HEADER_LENGTH, AES_BLOCK_LEN);
-		if (rlen - new_tlen < m_tls->m_epg_trllen)
+		if (rlen - new_tlen < trailer_len)
 			return (false);
 
 		*trailing_waste = new_tlen - tlen;
@@ -431,7 +451,7 @@ ktls_is_short_record(struct tlspcb *tlsp, struct mbuf *m_tls,
 		 * the end overlaps with the trailer.  Otherwise, we
 		 * can use AES-CTR to encrypt a partial PDU.
 		 */
-		if (rlen - tlen < m_tls->m_epg_trllen)
+		if (rlen - tlen < trailer_len)
 			return (false);
 
 		/*
@@ -512,11 +532,14 @@ ktls_wr_len(struct tlspcb *tlsp, struct mbuf *m, struct mbuf *m_tls,
 	/*
 	 * Headers (including the TLS header) are always sent as
 	 * immediate data.  Short records include a raw AES IV as
-	 * immediate data.
+	 * immediate data.  TLS 1.3 non-short records include a
+	 * placeholder for the sequence number as immediate data.
 	 */
 	imm_len = m->m_len + header_len;
 	if (short_record)
 		imm_len += AES_BLOCK_LEN;
+	else if (tlsp->tls13)
+		imm_len += sizeof(uint64_t);
 	wr_len += roundup2(imm_len, 16);
 
 	/* TLS record payload via DSGL. */
@@ -1044,6 +1067,8 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	imm_len = m->m_len + header_len;
 	if (short_record)
 		imm_len += AES_BLOCK_LEN;
+	else if (tlsp->tls13)
+		imm_len += sizeof(uint64_t);
 	wr_len += roundup2(imm_len, 16);
 	wr_len += ktls_sgl_size(nsegs);
 
@@ -1141,15 +1166,25 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		txq->kern_tls_short++;
 	} else {
 		/*
-		 * AAD is TLS header.  IV is after AAD.  The cipher region
-		 * starts after the IV.  See comments in ccr_authenc() and
-		 * ccr_gmac() in t4_crypto.c regarding cipher and auth
-		 * start/stop values.
+		 * AAD is TLS header.  IV is after AAD for TLS < 1.3.
+		 * For TLS 1.3, a placeholder for the TLS sequence
+		 * number is provided as an IV before the AAD.  The
+		 * cipher region starts after the AAD and IV.  See
+		 * comments in ccr_authenc() and ccr_gmac() in
+		 * t4_crypto.c regarding cipher and auth start/stop
+		 * values.
 		 */
-		aad_start = 1;
-		aad_stop = TLS_HEADER_LENGTH;
-		iv_offset = TLS_HEADER_LENGTH + 1;
-		cipher_start = m_tls->m_epg_hdrlen + 1;
+		if (tlsp->tls13) {
+			iv_offset = 1;
+			aad_start = 1 + sizeof(uint64_t);
+			aad_stop = sizeof(uint64_t) + TLS_HEADER_LENGTH;
+			cipher_start = aad_stop + 1;
+		} else {
+			aad_start = 1;
+			aad_stop = TLS_HEADER_LENGTH;
+			iv_offset = TLS_HEADER_LENGTH + 1;
+			cipher_start = m_tls->m_epg_hdrlen + 1;
+		}
 		if (tlsp->enc_mode == SCMD_CIPH_MODE_AES_GCM) {
 			cipher_stop = 0;
 			auth_start = cipher_start;
@@ -1162,7 +1197,8 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 			auth_insert = 0;
 		}
 
-		sec_pdu->pldlen = htobe32(m_tls->m_epg_hdrlen + plen);
+		sec_pdu->pldlen = htobe32((tlsp->tls13 ? sizeof(uint64_t) : 0) +
+		    m_tls->m_epg_hdrlen + plen);
 
 		/* These two flits are actually a CPL_TLS_TX_SCMD_FMT. */
 		sec_pdu->seqno_numivs = tlsp->scmd0.seqno_numivs;
@@ -1256,6 +1292,15 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		newtcp->th_flags = tcp->th_flags & ~(TH_PUSH | TH_FIN);
 	out += m->m_len;
 
+	/*
+	 * Insert placeholder for sequence number as IV for TLS 1.3
+	 * non-short records.
+	 */
+	if (tlsp->tls13 && !short_record) {
+		memset(out, 0, sizeof(uint64_t));
+		out += sizeof(uint64_t);
+	}
+
 	/* Populate the TLS header */
 	memcpy(out, m_tls->m_epg_hdr, header_len);
 	out += header_len;
@@ -1265,7 +1310,15 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		iv = out;
 		if (tlsp->enc_mode == SCMD_CIPH_MODE_AES_GCM) {
 			memcpy(iv, tlsp->keyctx.u.txhdr.txsalt, SALT_SIZE);
-			memcpy(iv + 4, hdr + 1, 8);
+			if (tlsp->tls13) {
+				uint64_t value;
+
+				value = be64dec(tlsp->keyctx.u.txhdr.txsalt +
+				    4);
+				value ^= m_tls->m_epg_seqno;
+				be64enc(iv + 4, value);
+			} else
+				memcpy(iv + 4, hdr + 1, 8);
 			be32enc(iv + 12, 2 + offset / AES_BLOCK_LEN);
 		} else
 			memcpy(iv, hdr + 1, AES_BLOCK_LEN);
