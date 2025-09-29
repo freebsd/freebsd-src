@@ -120,6 +120,10 @@ struct t4_i2c_data {
 #define T4_FILTER_MAC_IDX	0x2000	/* MPS MAC address match index */
 #define T4_FILTER_MPS_HIT_TYPE	0x4000	/* MPS match type */
 #define T4_FILTER_IP_FRAGMENT	0x8000	/* IP fragment */
+#define T4_FILTER_IPSECIDX	0x10000
+#define T4_FILTER_ROCE		0x20000
+#define T4_FILTER_SYNONLY	0x40000
+#define T4_FILTER_TCPFLAGS	0x80000
 /*
  * T4_FILTER_VNIC's real meaning depends on the ingress config.
  */
@@ -200,6 +204,10 @@ struct t4_filter_tuple {
 	uint32_t vlan_vld:1;	/* VLAN valid */
 	uint32_t ovlan_vld:1;	/* outer VLAN tag valid, value in "vnic" */
 	uint32_t pfvf_vld:1;	/* VNIC id (PF/VF) valid, value in "vnic" */
+	uint32_t roce:1;
+	uint32_t synonly:1;
+	uint32_t tcpflags:6;
+	uint32_t ipsecidx:12;
 };
 
 struct t4_filter_specification {
