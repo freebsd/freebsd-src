@@ -1047,6 +1047,7 @@ user(char *name)
 		    (checkuser(_PATH_FTPUSERS, name, 1, NULL, &ecode) ||
 		    (ecode != 0 && ecode != ENOENT))) {
 			reply(530, "User %s access denied.", name);
+			BLACKLIST_NOTIFY(BLACKLIST_AUTH_FAIL, STDIN_FILENO, "Access denied");
 			if (logging)
 				syslog(LOG_NOTICE,
 				    "FTP LOGIN REFUSED FROM %s, %s",
