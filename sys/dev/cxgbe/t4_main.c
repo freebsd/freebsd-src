@@ -870,6 +870,7 @@ static int sysctl_linkdnrc(SYSCTL_HANDLER_ARGS);
 static int sysctl_meminfo(SYSCTL_HANDLER_ARGS);
 static int sysctl_mps_tcam(SYSCTL_HANDLER_ARGS);
 static int sysctl_mps_tcam_t6(SYSCTL_HANDLER_ARGS);
+static int sysctl_mps_tcam_t7(SYSCTL_HANDLER_ARGS);
 static int sysctl_path_mtus(SYSCTL_HANDLER_ARGS);
 static int sysctl_pm_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_rdma_stats(SYSCTL_HANDLER_ARGS);
@@ -7904,7 +7905,8 @@ t4_sysctls(struct adapter *sc)
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "mps_tcam",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    chip_id(sc) <= CHELSIO_T5 ? sysctl_mps_tcam : sysctl_mps_tcam_t6,
+	    chip_id(sc) >= CHELSIO_T7 ? sysctl_mps_tcam_t7 :
+	    (chip_id(sc) >= CHELSIO_T6 ? sysctl_mps_tcam_t6 : sysctl_mps_tcam),
 	    "A", "MPS TCAM entries");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "path_mtus",
@@ -10560,7 +10562,7 @@ sysctl_mps_tcam_t6(SYSCTL_HANDLER_ARGS)
 	struct sbuf *sb;
 	int rc, i;
 
-	MPASS(chip_id(sc) > CHELSIO_T5);
+	MPASS(chip_id(sc) == CHELSIO_T6);
 
 	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
 	if (sb == NULL)
@@ -10569,7 +10571,7 @@ sysctl_mps_tcam_t6(SYSCTL_HANDLER_ARGS)
 	sbuf_printf(sb, "Idx  Ethernet address     Mask       VNI   Mask"
 	    "   IVLAN Vld DIP_Hit   Lookup  Port Vld Ports PF  VF"
 	    "                           Replication"
-	    "                                    P0 P1 P2 P3  ML\n");
+	    "                                    P0 P1 P2 P3  ML");
 
 	rc = 0;
 	for (i = 0; i < sc->chip_params->mps_tcam_size; i++) {
@@ -10677,6 +10679,206 @@ sysctl_mps_tcam_t6(SYSCTL_HANDLER_ARGS)
 			    cls_lo & F_T6_VF_VALID ? G_T6_VF(cls_lo) : -1);
 		}
 
+
+		if (cls_lo & F_T6_REPLICATE) {
+			struct fw_ldst_cmd ldst_cmd;
+
+			memset(&ldst_cmd, 0, sizeof(ldst_cmd));
+			ldst_cmd.op_to_addrspace =
+			    htobe32(V_FW_CMD_OP(FW_LDST_CMD) |
+				F_FW_CMD_REQUEST | F_FW_CMD_READ |
+				V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_MPS));
+			ldst_cmd.cycles_to_len16 = htobe32(FW_LEN16(ldst_cmd));
+			ldst_cmd.u.mps.rplc.fid_idx =
+			    htobe16(V_FW_LDST_CMD_FID(FW_LDST_MPS_RPLC) |
+				V_FW_LDST_CMD_IDX(i));
+
+			rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK,
+			    "t6mps");
+			if (rc)
+				break;
+			if (hw_off_limits(sc))
+				rc = ENXIO;
+			else
+				rc = -t4_wr_mbox(sc, sc->mbox, &ldst_cmd,
+				    sizeof(ldst_cmd), &ldst_cmd);
+			end_synchronized_op(sc, 0);
+			if (rc != 0)
+				break;
+			else {
+				sbuf_printf(sb, " %08x %08x %08x %08x"
+				    " %08x %08x %08x %08x",
+				    be32toh(ldst_cmd.u.mps.rplc.rplc255_224),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc223_192),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc191_160),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc159_128),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc127_96),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc95_64),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc63_32),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc31_0));
+			}
+		} else
+			sbuf_printf(sb, "%72s", "");
+
+		sbuf_printf(sb, "%4u%3u%3u%3u %#x",
+		    G_T6_SRAM_PRIO0(cls_lo), G_T6_SRAM_PRIO1(cls_lo),
+		    G_T6_SRAM_PRIO2(cls_lo), G_T6_SRAM_PRIO3(cls_lo),
+		    (cls_lo >> S_T6_MULTILISTEN0) & 0xf);
+	}
+
+	if (rc)
+		(void) sbuf_finish(sb);
+	else
+		rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (rc);
+}
+
+static int
+sysctl_mps_tcam_t7(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct sbuf *sb;
+	int rc, i;
+
+	MPASS(chip_id(sc) >= CHELSIO_T7);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	sbuf_printf(sb, "Idx  Ethernet address     Mask       VNI   Mask"
+	    "   IVLAN Vld DIP_Hit   Lookup  Port Vld Ports PF  VF"
+	    "                           Replication"
+	    "                                    P0 P1 P2 P3  ML");
+
+	rc = 0;
+	for (i = 0; i < sc->chip_params->mps_tcam_size; i++) {
+		uint8_t dip_hit, vlan_vld, lookup_type, port_num;
+		uint16_t ivlan;
+		uint64_t tcamx, tcamy, val, mask;
+		uint32_t cls_lo, cls_hi, ctl, data2, vnix, vniy;
+		uint8_t addr[ETHER_ADDR_LEN];
+
+		/* Read tcamy */
+		ctl = (V_CTLREQID(1) | V_CTLCMDTYPE(0) | V_CTLXYBITSEL(0));
+		if (chip_rev(sc) == 0) {
+			if (i < 256)
+				ctl |= V_CTLTCAMINDEX(i) | V_T7_CTLTCAMSEL(0);
+			else
+				ctl |= V_CTLTCAMINDEX(i - 256) | V_T7_CTLTCAMSEL(1);
+		} else {
+#if 0
+			ctl = (V_CTLREQID(1) | V_CTLCMDTYPE(0) | V_CTLXYBITSEL(0));
+#endif
+			if (i < 512)
+				ctl |= V_CTLTCAMINDEX(i) | V_T7_CTLTCAMSEL(0);
+			else if (i < 1024)
+				ctl |= V_CTLTCAMINDEX(i - 512) | V_T7_CTLTCAMSEL(1);
+			else
+				ctl |= V_CTLTCAMINDEX(i - 1024) | V_T7_CTLTCAMSEL(2);
+		}
+
+		mtx_lock(&sc->reg_lock);
+		if (hw_off_limits(sc))
+			rc = ENXIO;
+		else {
+			t4_write_reg(sc, A_MPS_CLS_TCAM_DATA2_CTL, ctl);
+			val = t4_read_reg(sc, A_MPS_CLS_TCAM0_RDATA1_REQ_ID1);
+			tcamy = G_DMACH(val) << 32;
+			tcamy |= t4_read_reg(sc, A_MPS_CLS_TCAM0_RDATA0_REQ_ID1);
+			data2 = t4_read_reg(sc, A_MPS_CLS_TCAM0_RDATA2_REQ_ID1);
+		}
+		mtx_unlock(&sc->reg_lock);
+		if (rc != 0)
+			break;
+
+		lookup_type = G_DATALKPTYPE(data2);
+		port_num = G_DATAPORTNUM(data2);
+		if (lookup_type && lookup_type != M_DATALKPTYPE) {
+			/* Inner header VNI */
+			vniy = (((data2 & F_DATAVIDH2) |
+			    G_DATAVIDH1(data2)) << 16) | G_VIDL(val);
+			dip_hit = data2 & F_DATADIPHIT;
+			vlan_vld = 0;
+		} else {
+			vniy = 0;
+			dip_hit = 0;
+			vlan_vld = data2 & F_DATAVIDH2;
+			ivlan = G_VIDL(val);
+		}
+
+		ctl |= V_CTLXYBITSEL(1);
+		mtx_lock(&sc->reg_lock);
+		if (hw_off_limits(sc))
+			rc = ENXIO;
+		else {
+			t4_write_reg(sc, A_MPS_CLS_TCAM_DATA2_CTL, ctl);
+			val = t4_read_reg(sc, A_MPS_CLS_TCAM0_RDATA1_REQ_ID1);
+			tcamx = G_DMACH(val) << 32;
+			tcamx |= t4_read_reg(sc, A_MPS_CLS_TCAM0_RDATA0_REQ_ID1);
+			data2 = t4_read_reg(sc, A_MPS_CLS_TCAM0_RDATA2_REQ_ID1);
+		}
+		mtx_unlock(&sc->reg_lock);
+		if (rc != 0)
+			break;
+
+		if (lookup_type && lookup_type != M_DATALKPTYPE) {
+			/* Inner header VNI mask */
+			vnix = (((data2 & F_DATAVIDH2) |
+			    G_DATAVIDH1(data2)) << 16) | G_VIDL(val);
+		} else
+			vnix = 0;
+
+		if (tcamx & tcamy)
+			continue;
+		tcamxy2valmask(tcamx, tcamy, addr, &mask);
+
+		mtx_lock(&sc->reg_lock);
+		if (hw_off_limits(sc))
+			rc = ENXIO;
+		else {
+			if (chip_rev(sc) == 0) {
+				cls_lo = t4_read_reg(sc, MPS_CLS_SRAM_L(i));
+				cls_hi = t4_read_reg(sc, MPS_CLS_SRAM_H(i));
+			} else {
+				t4_write_reg(sc, A_MPS_CLS_SRAM_H,
+				    V_SRAMWRN(0) | V_SRAMINDEX(i));
+				cls_lo = t4_read_reg(sc, A_MPS_CLS_SRAM_L);
+				cls_hi = t4_read_reg(sc, A_MPS_CLS_SRAM_H);
+			}
+		}
+		mtx_unlock(&sc->reg_lock);
+		if (rc != 0)
+			break;
+
+		if (lookup_type && lookup_type != M_DATALKPTYPE) {
+			sbuf_printf(sb, "\n%3u %02x:%02x:%02x:%02x:%02x:%02x "
+			    "%012jx %06x %06x    -    -   %3c"
+			    "        I  %4x   %3c   %#x%4u%4d", i, addr[0],
+			    addr[1], addr[2], addr[3], addr[4], addr[5],
+			    (uintmax_t)mask, vniy, vnix, dip_hit ? 'Y' : 'N',
+			    port_num, cls_lo & F_T6_SRAM_VLD ? 'Y' : 'N',
+			    G_PORTMAP(cls_hi), G_T6_PF(cls_lo),
+			    cls_lo & F_T6_VF_VALID ? G_T6_VF(cls_lo) : -1);
+		} else {
+			sbuf_printf(sb, "\n%3u %02x:%02x:%02x:%02x:%02x:%02x "
+			    "%012jx    -       -   ", i, addr[0], addr[1],
+			    addr[2], addr[3], addr[4], addr[5],
+			    (uintmax_t)mask);
+
+			if (vlan_vld)
+				sbuf_printf(sb, "%4u   Y     ", ivlan);
+			else
+				sbuf_printf(sb, "  -    N     ");
+
+			sbuf_printf(sb, "-      %3c  %4x   %3c   %#x%4u%4d",
+			    lookup_type ? 'I' : 'O', port_num,
+			    cls_lo & F_T6_SRAM_VLD ? 'Y' : 'N',
+			    G_PORTMAP(cls_hi), G_T6_PF(cls_lo),
+			    cls_lo & F_T6_VF_VALID ? G_T6_VF(cls_lo) : -1);
+		}
 
 		if (cls_lo & F_T6_REPLICATE) {
 			struct fw_ldst_cmd ldst_cmd;
