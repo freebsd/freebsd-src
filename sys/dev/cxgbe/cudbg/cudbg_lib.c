@@ -1294,6 +1294,7 @@ static int collect_macstats(struct cudbg_init *pdbg_init,
 
 	mac_stats_buff->port_count = n;
 	for (i = 0; i <  mac_stats_buff->port_count; i++)
+		/* Incorrect, should use hport instead of i */
 		t4_get_port_stats(padap, i, &mac_stats_buff->stats[i]);
 
 	rc = write_compression_hdr(&scratch_buff, dbg_buff);
