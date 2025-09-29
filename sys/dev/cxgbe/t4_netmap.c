@@ -276,7 +276,7 @@ free_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
 static int
 alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq)
 {
-	int rc, cntxt_id;
+	int rc, cntxt_id, cong_map;
 	__be32 v;
 	struct adapter *sc = vi->adapter;
 	struct port_info *pi = vi->pi;
@@ -284,7 +284,6 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq)
 	struct netmap_adapter *na = NA(vi->ifp);
 	struct fw_iq_cmd c;
 	const int cong_drop = nm_cong_drop;
-	const int cong_map = pi->rx_e_chan_map;
 
 	MPASS(na != NULL);
 	MPASS(nm_rxq->iq_desc != NULL);
@@ -321,6 +320,10 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq)
 	c.iqsize = htobe16(vi->qsize_rxq);
 	c.iqaddr = htobe64(nm_rxq->iq_ba);
 	if (cong_drop != -1) {
+		if (chip_id(sc) >= CHELSIO_T7)
+			cong_map = 1 << pi->hw_port;
+		else
+			cong_map = pi->rx_e_chan_map;
 		c.iqns_to_fl0congen = htobe32(F_FW_IQ_CMD_IQFLINTCONGEN |
 		    V_FW_IQ_CMD_FL0CNGCHMAP(cong_map) | F_FW_IQ_CMD_FL0CONGCIF |
 		    F_FW_IQ_CMD_FL0CONGEN);

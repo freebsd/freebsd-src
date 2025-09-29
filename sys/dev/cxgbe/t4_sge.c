@@ -3586,7 +3586,13 @@ alloc_iq_fl_hwq(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl)
 	c.iqaddr = htobe64(iq->ba);
 	c.iqns_to_fl0congen = htobe32(V_FW_IQ_CMD_IQTYPE(iq->qtype));
 	if (iq->cong_drop != -1) {
-		cong_map = iq->qtype == IQ_ETH ? pi->rx_e_chan_map : 0;
+		if (iq->qtype == IQ_ETH) {
+			if (chip_id(sc) >= CHELSIO_T7)
+				cong_map = 1 << pi->hw_port;
+			else
+				cong_map = pi->rx_e_chan_map;
+		} else
+			cong_map = 0;
 		c.iqns_to_fl0congen |= htobe32(F_FW_IQ_CMD_IQFLINTCONGEN);
 	}
 
@@ -3939,14 +3945,19 @@ t4_sge_set_conm_context(struct adapter *sc, int cntxt_id, int cong_drop,
 	param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
 	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
 	    V_FW_PARAMS_PARAM_YZ(cntxt_id);
-	val = V_CONMCTXT_CNGTPMODE(cong_mode);
-	if (cong_mode == X_CONMCTXT_CNGTPMODE_CHANNEL ||
-	    cong_mode == X_CONMCTXT_CNGTPMODE_BOTH) {
-		for (i = 0, ch_map = 0; i < 4; i++) {
-			if (cong_map & (1 << i))
-				ch_map |= 1 << (i << cng_ch_bits_log);
+	if (chip_id(sc) >= CHELSIO_T7) {
+		val = V_T7_DMAQ_CONM_CTXT_CNGTPMODE(cong_mode) |
+		    V_T7_DMAQ_CONM_CTXT_CH_VEC(cong_map);
+	} else {
+		val = V_CONMCTXT_CNGTPMODE(cong_mode);
+		if (cong_mode == X_CONMCTXT_CNGTPMODE_CHANNEL ||
+		    cong_mode == X_CONMCTXT_CNGTPMODE_BOTH) {
+			for (i = 0, ch_map = 0; i < 4; i++) {
+				if (cong_map & (1 << i))
+					ch_map |= 1 << (i << cng_ch_bits_log);
+			}
+			val |= V_CONMCTXT_CNGCHMAP(ch_map);
 		}
-		val |= V_CONMCTXT_CNGCHMAP(ch_map);
 	}
 	rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
 	if (rc != 0) {
