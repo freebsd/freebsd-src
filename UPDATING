@@ -28,6 +28,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20250929:
+	Both drm-kmod and nividia-drm ports had to be updated to either no
+	longer conflict on LinuxKPI vs. native PCI changes and/or to keep
+	working after some LinuxKPI PCI adjustments which were previously
+	hidden behind native PCI.
+	Bump __FreeBSD_version 1600001 so users will pick up updated packages.
+
+20250929:
 	The deprecated ftpd(8) has been removed.  Users who still need ftpd
 	can install the ftp/freebsd-ftpd port.  pkgbase users should remove
 	the orphaned FreeBSD-ftpd package.
