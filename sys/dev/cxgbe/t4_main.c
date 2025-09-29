@@ -609,6 +609,10 @@ static int t4_switchcaps_allowed = FW_CAPS_CONFIG_SWITCH_INGRESS |
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, switchcaps_allowed, CTLFLAG_RDTUN,
     &t4_switchcaps_allowed, 0, "Default switch capabilities");
 
+static int t4_nvmecaps_allowed = 0;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nvmecaps_allowed, CTLFLAG_RDTUN,
+    &t4_nvmecaps_allowed, 0, "Default NVMe capabilities");
+
 #ifdef RATELIMIT
 static int t4_niccaps_allowed = FW_CAPS_CONFIG_NIC |
 	FW_CAPS_CONFIG_NIC_HASHFILTER | FW_CAPS_CONFIG_NIC_ETHOFLD;
@@ -2254,6 +2258,7 @@ struct adapter_pre_reset_state {
 	uint16_t nbmcaps;
 	uint16_t linkcaps;
 	uint16_t switchcaps;
+	uint16_t nvmecaps;
 	uint16_t niccaps;
 	uint16_t toecaps;
 	uint16_t rdmacaps;
@@ -2285,6 +2290,7 @@ save_caps_and_params(struct adapter *sc, struct adapter_pre_reset_state *o)
 	o->nbmcaps =  sc->nbmcaps;
 	o->linkcaps = sc->linkcaps;
 	o->switchcaps = sc->switchcaps;
+	o->nvmecaps = sc->nvmecaps;
 	o->niccaps = sc->niccaps;
 	o->toecaps = sc->toecaps;
 	o->rdmacaps = sc->rdmacaps;
@@ -2323,6 +2329,7 @@ compare_caps_and_params(struct adapter *sc, struct adapter_pre_reset_state *o)
 	COMPARE_CAPS(nbm);
 	COMPARE_CAPS(link);
 	COMPARE_CAPS(switch);
+	COMPARE_CAPS(nvme);
 	COMPARE_CAPS(nic);
 	COMPARE_CAPS(toe);
 	COMPARE_CAPS(rdma);
@@ -5232,6 +5239,7 @@ struct caps_allowed {
 	uint16_t nbmcaps;
 	uint16_t linkcaps;
 	uint16_t switchcaps;
+	uint16_t nvmecaps;
 	uint16_t niccaps;
 	uint16_t toecaps;
 	uint16_t rdmacaps;
@@ -5335,6 +5343,7 @@ apply_cfg_and_initialize(struct adapter *sc, char *cfg_file,
 	LIMIT_CAPS(nbm);
 	LIMIT_CAPS(link);
 	LIMIT_CAPS(switch);
+	LIMIT_CAPS(nvme);
 	LIMIT_CAPS(nic);
 	LIMIT_CAPS(toe);
 	LIMIT_CAPS(rdma);
@@ -5400,6 +5409,7 @@ partition_resources(struct adapter *sc)
 	COPY_CAPS(nbm);
 	COPY_CAPS(link);
 	COPY_CAPS(switch);
+	COPY_CAPS(nvme);
 	COPY_CAPS(nic);
 	COPY_CAPS(toe);
 	COPY_CAPS(rdma);
@@ -5726,6 +5736,7 @@ get_params__post_init(struct adapter *sc)
 	READ_CAPS(nbmcaps);
 	READ_CAPS(linkcaps);
 	READ_CAPS(switchcaps);
+	READ_CAPS(nvmecaps);
 	READ_CAPS(niccaps);
 	READ_CAPS(toecaps);
 	READ_CAPS(rdmacaps);
@@ -7612,17 +7623,18 @@ static char *caps_decoder[] = {
 	"\20\001INGRESS\002EGRESS",			/* 2: switch */
 	"\20\001NIC\002VM\003IDS\004UM\005UM_ISGL"	/* 3: NIC */
 	    "\006HASHFILTER\007ETHOFLD",
-	"\20\001TOE",					/* 4: TOE */
-	"\20\001RDDP\002RDMAC",				/* 5: RDMA */
+	"\20\001TOE\002SENDPATH",			/* 4: TOE */
+	"\20\001RDDP\002RDMAC\003ROCEv2",		/* 5: RDMA */
 	"\20\001INITIATOR_PDU\002TARGET_PDU"		/* 6: iSCSI */
 	    "\003INITIATOR_CNXOFLD\004TARGET_CNXOFLD"
 	    "\005INITIATOR_SSNOFLD\006TARGET_SSNOFLD"
 	    "\007T10DIF"
 	    "\010INITIATOR_CMDOFLD\011TARGET_CMDOFLD",
 	"\20\001LOOKASIDE\002TLSKEYS\003IPSEC_INLINE"	/* 7: Crypto */
-	    "\004TLS_HW",
+	    "\004TLS_HW,\005TOE_IPSEC",
 	"\20\001INITIATOR\002TARGET\003CTRL_OFLD"	/* 8: FCoE */
 		    "\004PO_INITIATOR\005PO_TARGET",
+	"\20\001NVMe_TCP",				/* 9: NVMe */
 };
 
 void
@@ -7727,6 +7739,7 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_CAP(nbmcaps, 0, "NBM");
 	SYSCTL_CAP(linkcaps, 1, "link");
 	SYSCTL_CAP(switchcaps, 2, "switch");
+	SYSCTL_CAP(nvmecaps, 9, "NVMe");
 	SYSCTL_CAP(niccaps, 3, "NIC");
 	SYSCTL_CAP(toecaps, 4, "TCP offload");
 	SYSCTL_CAP(rdmacaps, 5, "RDMA");
