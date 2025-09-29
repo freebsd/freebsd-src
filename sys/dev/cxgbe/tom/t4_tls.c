@@ -207,7 +207,7 @@ int
 tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 {
 	struct adapter *sc = td_adapter(toep->td);
-	int error, explicit_iv_size, mac_first;
+	int error, iv_size, mac_first;
 
 	if (!can_tls_offload(sc))
 		return (EINVAL);
@@ -228,6 +228,26 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 		}
 	}
 
+	/* TLS 1.1 through TLS 1.3 are currently supported. */
+	if (tls->params.tls_vmajor != TLS_MAJOR_VER_ONE ||
+	    tls->params.tls_vminor < TLS_MINOR_VER_ONE ||
+	    tls->params.tls_vminor > TLS_MINOR_VER_THREE) {
+		return (EPROTONOSUPPORT);
+	}
+
+	/* TLS 1.3 is only supported on T7+. */
+	if (tls->params.tls_vminor == TLS_MINOR_VER_THREE) {
+		if (is_t6(sc)) {
+			return (EPROTONOSUPPORT);
+		}
+
+		/* Only TX for TLS 1.3 for now. */
+		if (direction == KTLS_RX) {
+			return (EPROTONOSUPPORT);
+		}
+	}
+
+	/* Sanity check values in *tls. */
 	switch (tls->params.cipher_algorithm) {
 	case CRYPTO_AES_CBC:
 		/* XXX: Explicitly ignore any provided IV. */
@@ -247,13 +267,10 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 		default:
 			return (EPROTONOSUPPORT);
 		}
-		explicit_iv_size = AES_BLOCK_LEN;
+		iv_size = AES_BLOCK_LEN;
 		mac_first = 1;
 		break;
 	case CRYPTO_AES_NIST_GCM_16:
-		if (tls->params.iv_len != SALT_SIZE) {
-			return (EINVAL);
-		}
 		switch (tls->params.cipher_key_len) {
 		case 128 / 8:
 		case 192 / 8:
@@ -262,17 +279,16 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 		default:
 			return (EINVAL);
 		}
-		explicit_iv_size = 8;
+
+		/*
+		 * The IV size for TLS 1.2 is the explicit IV in the
+		 * record header.  For TLS 1.3 it is the size of the
+		 * sequence number.
+		 */
+		iv_size = 8;
 		mac_first = 0;
 		break;
 	default:
-		return (EPROTONOSUPPORT);
-	}
-
-	/* Only TLS 1.1 and TLS 1.2 are currently supported. */
-	if (tls->params.tls_vmajor != TLS_MAJOR_VER_ONE ||
-	    tls->params.tls_vminor < TLS_MINOR_VER_ONE ||
-	    tls->params.tls_vminor > TLS_MINOR_VER_TWO) {
 		return (EPROTONOSUPPORT);
 	}
 
@@ -290,6 +306,7 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 		return (error);
 
 	if (direction == KTLS_TX) {
+		toep->tls.tls13 = tls->params.tls_vminor == TLS_MINOR_VER_THREE;
 		toep->tls.scmd0.seqno_numivs =
 			(V_SCMD_SEQ_NO_CTRL(3) |
 			 V_SCMD_PROTO_VERSION(t4_tls_proto_ver(tls)) |
@@ -298,14 +315,14 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 			 V_SCMD_CIPH_MODE(t4_tls_cipher_mode(tls)) |
 			 V_SCMD_AUTH_MODE(t4_tls_auth_mode(tls)) |
 			 V_SCMD_HMAC_CTRL(t4_tls_hmac_ctrl(tls)) |
-			 V_SCMD_IV_SIZE(explicit_iv_size / 2));
+			 V_SCMD_IV_SIZE(iv_size / 2));
 
 		toep->tls.scmd0.ivgen_hdrlen =
 			(V_SCMD_IV_GEN_CTRL(1) |
 			 V_SCMD_KEY_CTX_INLINE(0) |
 			 V_SCMD_TLS_FRAG_ENABLE(1));
 
-		toep->tls.iv_len = explicit_iv_size;
+		toep->tls.iv_len = iv_size;
 		toep->tls.frag_size = tls->params.max_frame_len;
 		toep->tls.fcplenmax = get_tp_plen_max(tls);
 		toep->tls.expn_per_ulp = tls->params.tls_hlen +
@@ -352,7 +369,8 @@ tls_uninit_toep(struct toepcb *toep)
 
 static void
 write_tlstx_wr(struct fw_tlstx_data_wr *txwr, struct toepcb *toep,
-    unsigned int plen, unsigned int expn, uint8_t credits, int shove)
+    unsigned int plen, unsigned int expn, uint8_t credits, int shove,
+    int num_ivs)
 {
 	struct tls_ofld_info *tls_ofld = &toep->tls;
 	unsigned int len = plen + expn;
@@ -365,7 +383,7 @@ write_tlstx_wr(struct fw_tlstx_data_wr *txwr, struct toepcb *toep,
 	txwr->plen = htobe32(len);
 	txwr->lsodisable_to_flags = htobe32(V_TX_ULP_MODE(ULP_MODE_TLS) |
 	    V_TX_URG(0) | /* F_T6_TX_FORCE | */ V_TX_SHOVE(shove));
-	txwr->ctxloc_to_exp = htobe32(V_FW_TLSTX_DATA_WR_NUMIVS(1) |
+	txwr->ctxloc_to_exp = htobe32(V_FW_TLSTX_DATA_WR_NUMIVS(num_ivs) |
 	    V_FW_TLSTX_DATA_WR_EXP(expn) |
 	    V_FW_TLSTX_DATA_WR_CTXLOC(TLS_SFO_WR_CONTEXTLOC_DDR) |
 	    V_FW_TLSTX_DATA_WR_IVDSGL(0) |
@@ -381,20 +399,20 @@ write_tlstx_wr(struct fw_tlstx_data_wr *txwr, struct toepcb *toep,
 
 static void
 write_tlstx_cpl(struct cpl_tx_tls_sfo *cpl, struct toepcb *toep,
-    struct tls_hdr *tls_hdr, unsigned int plen, uint64_t seqno)
+    struct tls_hdr *tls_hdr, unsigned int plen, uint8_t rec_type,
+    uint64_t seqno)
 {
 	struct tls_ofld_info *tls_ofld = &toep->tls;
 	int data_type, seglen;
 
 	seglen = plen;
-	data_type = tls_content_type(tls_hdr->type);
+	data_type = tls_content_type(rec_type);
 	cpl->op_to_seg_len = htobe32(V_CPL_TX_TLS_SFO_OPCODE(CPL_TX_TLS_SFO) |
 	    V_CPL_TX_TLS_SFO_DATA_TYPE(data_type) |
 	    V_CPL_TX_TLS_SFO_CPL_LEN(2) | V_CPL_TX_TLS_SFO_SEG_LEN(seglen));
 	cpl->pld_len = htobe32(plen);
 	if (data_type == CPL_TX_TLS_SFO_TYPE_CUSTOM)
-		cpl->type_protover = htobe32(
-		    V_CPL_TX_TLS_SFO_TYPE(tls_hdr->type));
+		cpl->type_protover = htobe32(V_CPL_TX_TLS_SFO_TYPE(rec_type));
 	cpl->seqno_numivs = htobe32(tls_ofld->scmd0.seqno_numivs |
 	    V_SCMD_NUM_IVS(1));
 	cpl->ivgen_hdrlen = htobe32(tls_ofld->scmd0.ivgen_hdrlen);
@@ -498,6 +516,7 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 	int tls_size, tx_credits, shove, sowwakeup;
 	struct ofld_tx_sdesc *txsd;
 	char *buf;
+	bool tls13;
 
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
@@ -533,6 +552,7 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 		return;
 	}
 
+	tls13 = toep->tls.tls13;
 	txsd = &toep->txsd[toep->txsd_pidx];
 	for (;;) {
 		tx_credits = min(toep->tx_credits, MAX_OFLD_TX_CREDITS);
@@ -599,9 +619,11 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 		    sizeof(struct cpl_tx_tls_sfo) +
 		    sizeof(struct ulptx_idata) + sizeof(struct ulptx_sc_memrd);
 
-		/* Explicit IVs for AES-CBC and AES-GCM are <= 16. */
-		MPASS(toep->tls.iv_len <= AES_BLOCK_LEN);
-		wr_len += AES_BLOCK_LEN;
+		if (!tls13) {
+			/* Explicit IVs for AES-CBC and AES-GCM are <= 16. */
+			MPASS(toep->tls.iv_len <= AES_BLOCK_LEN);
+			wr_len += AES_BLOCK_LEN;
+		}
 
 		/* Account for SGL in work request length. */
 		nsegs = count_ext_pgs_segs(m);
@@ -671,8 +693,10 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 		expn_size = m->m_epg_hdrlen +
 		    m->m_epg_trllen;
 		tls_size = m->m_len - expn_size;
-		write_tlstx_wr(txwr, toep, tls_size, expn_size, credits, shove);
-		write_tlstx_cpl(cpl, toep, thdr, tls_size, m->m_epg_seqno);
+		write_tlstx_wr(txwr, toep, tls_size, expn_size, credits, shove,
+		    tls13 ? 0 : 1);
+		write_tlstx_cpl(cpl, toep, thdr, tls_size,
+		    tls13 ? m->m_epg_record_type : thdr->type, m->m_epg_seqno);
 
 		idata = (struct ulptx_idata *)(cpl + 1);
 		idata->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_NOOP));
@@ -683,10 +707,12 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 		    V_ULPTX_LEN16(toep->tls.tx_key_info_size >> 4));
 		memrd->addr = htobe32(toep->tls.tx_key_addr >> 5);
 
-		/* Copy IV. */
 		buf = (char *)(memrd + 1);
-		memcpy(buf, thdr + 1, toep->tls.iv_len);
-		buf += AES_BLOCK_LEN;
+		if (!tls13) {
+			/* Copy IV. */
+			memcpy(buf, thdr + 1, toep->tls.iv_len);
+			buf += AES_BLOCK_LEN;
+		}
 
 		write_ktlstx_sgl(buf, m, nsegs);
 
