@@ -113,6 +113,7 @@ struct conn_params {
 	int8_t mtu_idx;
 	int8_t ulp_mode;
 	int8_t tx_align;
+	int8_t ctrlq_idx;	/* ctrlq = &sc->sge.ctrlq[ctrlq_idx] */
 	int16_t txq_idx;	/* ofld_txq = &sc->sge.ofld_txq[txq_idx] */
 	int16_t rxq_idx;	/* ofld_rxq = &sc->sge.ofld_rxq[rxq_idx] */
 	int16_t l2t_idx;
@@ -477,6 +478,7 @@ int select_rcv_wscale(void);
 void init_conn_params(struct vi_info *, struct offload_settings *,
     struct in_conninfo *, struct socket *, const struct tcp_options *, int16_t,
     struct conn_params *cp);
+void update_tid_qid_sel(struct vi_info *, struct conn_params *, int);
 __be64 calc_options0(struct vi_info *, struct conn_params *);
 __be32 calc_options2(struct vi_info *, struct conn_params *);
 uint64_t select_ntuple(struct vi_info *, struct l2t_entry *);

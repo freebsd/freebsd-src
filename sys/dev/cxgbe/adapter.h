@@ -1,8 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2011 Chelsio Communications, Inc.
- * All rights reserved.
+ * Copyright (c) 2011, 2025 Chelsio Communications.
  * Written by: Navdeep Parhar <np@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -770,6 +769,16 @@ struct sge_ofld_txq {
 	counter_u64_t tx_toe_tls_octets;
 } __aligned(CACHE_LINE_SIZE);
 
+static inline int
+ofld_txq_group(int val, int mask)
+{
+	const uint32_t ngroup = 1 << bitcount32(mask);
+	const int mshift = ffs(mask) - 1;
+	const uint32_t gmask = ngroup - 1;
+
+	return (val >> mshift & gmask);
+}
+
 #define INVALID_NM_RXQ_CNTXT_ID ((uint16_t)(-1))
 struct sge_nm_rxq {
 	/* Items used by the driver rx ithread are in this cacheline. */
@@ -837,6 +846,7 @@ struct sge_nm_txq {
 } __aligned(CACHE_LINE_SIZE);
 
 struct sge {
+	int nctrlq;	/* total # of control queues */
 	int nrxq;	/* total # of Ethernet rx queues */
 	int ntxq;	/* total # of Ethernet tx queues */
 	int nofldrxq;	/* total # of TOE rx queues */
