@@ -4051,7 +4051,7 @@ setup_memwin(struct adapter *sc)
 	const struct memwin_init *mw_init;
 	struct memwin *mw;
 	int i;
-	uint32_t bar0;
+	uint32_t bar0, reg;
 
 	if (is_t4(sc)) {
 		/*
@@ -4079,9 +4079,10 @@ setup_memwin(struct adapter *sc)
 			mw->mw_aperture = mw_init->aperture;
 			mw->mw_curpos = 0;
 		}
-		t4_write_reg(sc,
-		    PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, i),
-		    (mw->mw_base + bar0) | V_BIR(0) |
+		reg = chip_id(sc) > CHELSIO_T6 ?
+		    PCIE_MEM_ACCESS_T7_REG(A_T7_PCIE_MEM_ACCESS_BASE_WIN, i) :
+		    PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, i);
+		t4_write_reg(sc, reg, (mw->mw_base + bar0) | V_BIR(0) |
 		    V_WINDOW(ilog2(mw->mw_aperture) - 10));
 		rw_wlock(&mw->mw_lock);
 		position_memwin(sc, i, mw->mw_curpos);
@@ -4089,7 +4090,7 @@ setup_memwin(struct adapter *sc)
 	}
 
 	/* flush */
-	t4_read_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, 2));
+	t4_read_reg(sc, reg);
 }
 
 /*
@@ -4102,8 +4103,7 @@ static void
 position_memwin(struct adapter *sc, int idx, uint32_t addr)
 {
 	struct memwin *mw;
-	uint32_t pf;
-	uint32_t reg;
+	uint32_t pf, reg, val;
 
 	MPASS(idx >= 0 && idx < NUM_MEMWIN);
 	mw = &sc->memwin[idx];
@@ -4116,8 +4116,14 @@ position_memwin(struct adapter *sc, int idx, uint32_t addr)
 		pf = V_PFNUM(sc->pf);
 		mw->mw_curpos = addr & ~0x7f;	/* start must be 128B aligned */
 	}
-	reg = PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, idx);
-	t4_write_reg(sc, reg, mw->mw_curpos | pf);
+	if (chip_id(sc) > CHELSIO_T6) {
+		reg = PCIE_MEM_ACCESS_T7_REG(A_PCIE_MEM_ACCESS_OFFSET0, idx);
+		val = (mw->mw_curpos >> X_T7_MEMOFST_SHIFT) | pf;
+	} else {
+		reg = PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, idx);
+		val = mw->mw_curpos | pf;
+	}
+	t4_write_reg(sc, reg, val);
 	t4_read_reg(sc, reg);	/* flush */
 }
 
@@ -13013,7 +13019,9 @@ t4_dump_mem(struct adapter *sc, u_int addr, u_int len)
 {
 	uint32_t base, j, off, pf, reg, save, win_pos;
 
-	reg = PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, 2);
+	reg = chip_id(sc) > CHELSIO_T6 ?
+	    PCIE_MEM_ACCESS_T7_REG(A_PCIE_MEM_ACCESS_OFFSET0, 2) :
+	    PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, 2);
 	save = t4_read_reg(sc, reg);
 	base = sc->memwin[2].mw_base;
 
@@ -13025,6 +13033,8 @@ t4_dump_mem(struct adapter *sc, u_int addr, u_int len)
 		win_pos = addr & ~0x7f;	/* start must be 128B aligned */
 	}
 	off = addr - win_pos;
+	if (chip_id(sc) > CHELSIO_T6)
+		win_pos >>= X_T7_MEMOFST_SHIFT;
 	t4_write_reg(sc, reg, win_pos | pf);
 	t4_read_reg(sc, reg);
 
