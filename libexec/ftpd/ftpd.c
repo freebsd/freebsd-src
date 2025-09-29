@@ -1425,6 +1425,7 @@ skip:
 				*remote_ip = 0;
 		remote_ip[sizeof(remote_ip) - 1] = 0;
 		if (!auth_hostok(lc, remotehost, remote_ip)) {
+			BLACKLIST_NOTIFY(BLACKLIST_AUTH_FAIL, STDIN_FILENO, "Permission denied");
 			syslog(LOG_INFO|LOG_AUTH,
 			    "FTP LOGIN FAILED (HOST) as %s: permission denied.",
 			    pw->pw_name);
