@@ -57,8 +57,9 @@
 static int	 A_flag;	/*    -A: do not follow 302 redirects */
 static int	 a_flag;	/*    -a: auto retry */
 static off_t	 B_size;	/*    -B: buffer size */
-static int	 b_flag;	/*!   -b: workaround TCP bug */
-static char    *c_dirname;	/*    -c: remote directory */
+static int	 C_flag;	/*    -C: force HTTP request chunk-encoding */
+static char	*c_dirname;	/*    -c: remote directory */
+static char	*D_filename;	/*    -D: HTTP request body content file */
 static int	 d_flag;	/*    -d: direct connection */
 static int	 F_flag;	/*    -F: restart without checking mtime  */
 static char	*f_filename;	/*    -f: file to fetch */
@@ -128,7 +129,9 @@ static struct option longopts[] =
 	{ "no-redirect", no_argument, NULL, 'A' },
 	{ "retry", no_argument, NULL, 'a' },
 	{ "buffer-size", required_argument, NULL, 'B' },
+	{ "chunked", no_argument, NULL, 'C' },
 	/* -c not mapped, since it's deprecated */
+	{ "data", required_argument, NULL, 'D' },
 	{ "direct", no_argument, NULL, 'd' },
 	{ "force-restart", no_argument, NULL, 'F' },
 	/* -f not mapped, since it's deprecated */
@@ -431,9 +434,36 @@ query_auth(struct url *URL)
 static FILE *
 invoke(struct url *url, struct url_stat *us, const char *flags, bool is_http)
 {
-	if (is_http)
-		return (fetchXReqHTTP(url, us, method ? method : "GET", flags,
-		    &headers, NULL, NULL, NULL, NULL));
+	static bool rewind_stdin = false;
+	FILE *body, *f;
+
+	if (is_http) {
+		if (D_filename == NULL)
+			body = NULL;
+		else if (strcmp(D_filename, "-") == 0) {
+			if (rewind_stdin) {
+				if (fseek(stdin, 0, SEEK_SET) == 0)
+					clearerr(stdin);
+				else {
+					snprintf(fetchLastErrString,
+					    MAXERRSTRING, "cannot rewind: "
+					    "stdin is not seekable");
+					return (NULL);
+				}
+			}
+			rewind_stdin = true;
+			body = stdin;
+		} else if ((body = fopen(D_filename, "r")) == NULL) {
+			snprintf(fetchLastErrString, MAXERRSTRING, "%s: %s",
+			    D_filename, strerror(errno));
+			return (NULL);
+		}
+		f = fetchXReqHTTP(url, us, method ? method : "GET", flags,
+		    &headers, NULL, NULL, NULL, body);
+		if (body != NULL && body != stdin)
+			fclose(body);
+		return (f);
+	}
 	return (fetchXGet(url, us, flags));
 }
 
@@ -522,6 +552,8 @@ fetch(char *URL, const char *path, bool *is_http)
 			strcat(flags, "d");
 		if (A_flag)
 			strcat(flags, "A");
+		if (C_flag)
+			strcat(flags, "C");
 		timeout = T_secs ? T_secs : http_timeout;
 		if (i_flag) {
 			if (stat(i_filename, &sb)) {
@@ -923,15 +955,15 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: fetch [-146AadFlMmnPpqRrsUv] [-B bytes] [--bind-address=host]",
+"usage: fetch [-146AaCdFlMmnPpqRrsUv] [-B bytes] [--bind-address=host]",
 "       [--ca-cert=file] [--ca-path=dir] [--cert=file] [--crl=file]",
-"       [-H header] [-i file] [--key=file] [-N file] [--no-passive]",
+"       [-D file] [-H header] [-i file] [--key=file] [-N file] [--no-passive]",
 "       [--no-proxy=list] [--no-sslv3] [--no-tlsv1] [--no-verify-hostname]",
 "       [--no-verify-peer] [-o file] [--referer=URL] [-S bytes] [-T seconds]",
 "       [--user-agent=agent-string] [-w seconds] [-X method] URL ...",
-"       fetch [-146AadFlMmnPpqRrsUv] [-B bytes] [--bind-address=host]",
+"       fetch [-146AaCdFlMmnPpqRrsUv] [-B bytes] [--bind-address=host]",
 "       [--ca-cert=file] [--ca-path=dir] [--cert=file] [--crl=file]",
-"       [-H header] [-i file] [--key=file] [-N file] [--no-passive]",
+"       [-D file] [-H header] [-i file] [--key=file] [-N file] [--no-passive]",
 "       [--no-proxy=list] [--no-sslv3] [--no-tlsv1] [--no-verify-hostname]",
 "       [--no-verify-peer] [-o file] [--referer=URL] [-S bytes] [-T seconds]",
 "       [--user-agent=agent-string] [-w seconds] [-X method] -h host -f file",
@@ -954,7 +986,7 @@ main(int argc, char *argv[])
 
 
 	while ((c = getopt_long(argc, argv,
-	    "146AaB:bc:dFf:H:h:i:lMmN:nPpo:qRrS:sT:tUvw:X:",
+	    "146AaB:bCc:D:dFf:H:h:i:lMmN:nPpo:qRrS:sT:tUvw:X:",
 	    longopts, NULL)) != -1)
 		switch (c) {
 		case '1':
@@ -979,10 +1011,15 @@ main(int argc, char *argv[])
 			break;
 		case 'b':
 			warnx("warning: the -b option is deprecated");
-			b_flag = 1;
+			break;
+		case 'C':
+			C_flag = 1;
 			break;
 		case 'c':
 			c_dirname = optarg;
+			break;
+		case 'D':
+			D_filename = optarg;
 			break;
 		case 'd':
 			d_flag = 1;
