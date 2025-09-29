@@ -305,7 +305,6 @@ failed:
 }
 
 void
-
 mp_ring_free(struct mp_ring *r)
 {
 	int i;
@@ -469,6 +468,86 @@ mp_ring_enqueue(struct mp_ring *r, void **items, int n, int budget)
 	drain_ring(r, budget);
 	mtx_unlock(r->cons_lock);
 
+	return (0);
+}
+
+/*
+ * Enqueue n items but never drain the ring.  Can be called
+ * to enqueue new items while draining the ring.
+ *
+ * Returns an errno.
+ */
+int
+mp_ring_enqueue_only(struct mp_ring *r, void **items, int n)
+{
+	union ring_state os, ns;
+	uint16_t pidx_start, pidx_stop;
+	int i;
+
+	MPASS(items != NULL);
+	MPASS(n > 0);
+
+	/*
+	 * Reserve room for the new items.  Our reservation, if successful, is
+	 * from 'pidx_start' to 'pidx_stop'.
+	 */
+	os.state = atomic_load_64(&r->state);
+
+	/* Should only be used from the drain callback. */
+	MPASS(os.flags == BUSY || os.flags == TOO_BUSY ||
+	    os.flags == TAKING_OVER);
+
+	for (;;) {
+		if (__predict_false(space_available(r, os) < n)) {
+			/* Not enough room in the ring. */
+			counter_u64_add(r->dropped, n);
+			return (ENOBUFS);
+		}
+
+		/* There is room in the ring. */
+
+		ns.state = os.state;
+		ns.pidx_head = increment_idx(r, os.pidx_head, n);
+		critical_enter();
+		if (atomic_fcmpset_64(&r->state, &os.state, ns.state))
+			break;
+		critical_exit();
+		cpu_spinwait();
+	};
+
+	pidx_start = os.pidx_head;
+	pidx_stop = ns.pidx_head;
+
+	/*
+	 * Wait for other producers who got in ahead of us to enqueue their
+	 * items, one producer at a time.  It is our turn when the ring's
+	 * pidx_tail reaches the beginning of our reservation (pidx_start).
+	 */
+	while (ns.pidx_tail != pidx_start) {
+		cpu_spinwait();
+		ns.state = atomic_load_64(&r->state);
+	}
+
+	/* Now it is our turn to fill up the area we reserved earlier. */
+	i = pidx_start;
+	do {
+		r->items[i] = *items++;
+		if (__predict_false(++i == r->size))
+			i = 0;
+	} while (i != pidx_stop);
+
+	/*
+	 * Update the ring's pidx_tail.  The release style atomic guarantees
+	 * that the items are visible to any thread that sees the updated pidx.
+	 */
+	os.state = atomic_load_64(&r->state);
+	do {
+		ns.state = os.state;
+		ns.pidx_tail = pidx_stop;
+	} while (atomic_fcmpset_rel_64(&r->state, &os.state, ns.state) == 0);
+	critical_exit();
+
+	counter_u64_add(r->not_consumer, 1);
 	return (0);
 }
 
