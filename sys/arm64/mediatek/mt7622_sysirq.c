@@ -38,6 +38,8 @@
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <dt-bindings/interrupt-controller/irq.h>
+
 #include "pic_if.h"
 
 static struct ofw_compat_data compat_data[] = {
@@ -57,9 +59,10 @@ struct mt7622_sysirq_sc {
 
 static struct intr_map_data *
 mt7622_sysirq_convert_map_data(struct mt7622_sysirq_sc *sc,
-                                struct intr_map_data *data)
+                               struct intr_map_data *data)
 {
     struct intr_map_data_fdt *daf;
+    int irq;
 
     daf = (struct intr_map_data_fdt *)data;
 
@@ -71,36 +74,38 @@ mt7622_sysirq_convert_map_data(struct mt7622_sysirq_sc *sc,
     if (daf->cells[0] != 0)
         return (NULL);
 
-    int irq = daf->cells[1];
-    int flags = daf->cells[2];
+    irq = daf->cells[1];
 
-    KASSERT(daf->cells[0] == 0, ("sysirq: bad interrupt parent"));
-    KASSERT(irq >= 0 && irq < sc->nirq, ("sysirq: irq out of range"));
+    if (daf->ncells != 3) {
+        device_printf(sc->dev, "sysirq: %s: bad ncells=%d\n",
+                      __func__, daf->ncells);
+        return (NULL);
+    }
 
-    device_printf(sc->dev,"%s: irq %d flags 0x%x\n", __func__, irq, flags);
+    if (daf->cells[0] != 0) { /* 0 == GIC_SPI */
+        device_printf(sc->dev, "sysirq: %s: non-SPI parent (%d) not supported\n",
+                      __func__, daf->cells[0]);
+        return (NULL);
+    }
 
-    // sysirq support controllable irq inverter for each GIC SPI interrupt.
-    if (flags & 0xa) {
-        int reg = (irq / 32) * 4;
-        int bit = irq % 32;
-        uint32_t val;
-
-        val = bus_read_4(sc->res, reg);
-        val |= (1U << bit);
-        bus_write_4(sc->res, reg, val);
+    if (irq < 0 || irq >= sc->nirq) {
+        device_printf(sc->dev, "sysirq: %s: irq %d out of range [0..%d)\n",
+                      __func__, irq, sc->nirq);
+        return (NULL);
     }
 
     sc->parent_map_data->ncells = 3;
     sc->parent_map_data->cells[0] = 0;
     sc->parent_map_data->cells[1] = daf->cells[1];
-    sc->parent_map_data->cells[2] = daf->cells[2];
+    /* sysirq support controllable irq inverter for each GIC SPI interrupt. */
+    sc->parent_map_data->cells[2] = IRQ_TYPE_LEVEL_HIGH;
 
     return ((struct intr_map_data *)sc->parent_map_data);
 }
 
 static int
 mt7622_sysirq_activate_intr(device_t dev, struct intr_irqsrc *isrc,
-                             struct resource *res, struct intr_map_data *data)
+                            struct resource *res, struct intr_map_data *data)
 {
     struct mt7622_sysirq_sc *sc;
 
@@ -130,7 +135,7 @@ mt7622_sysirq_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 
 static int
 mt7622_sysirq_map_intr(device_t dev, struct intr_map_data *data,
-                        struct intr_irqsrc **isrcp)
+                       struct intr_irqsrc **isrcp)
 {
     struct mt7622_sysirq_sc *sc;
     int ret;
@@ -151,7 +156,7 @@ mt7622_sysirq_map_intr(device_t dev, struct intr_map_data *data,
 
 static int
 mt7622_sysirq_deactivate_intr(device_t dev, struct intr_irqsrc *isrc,
-                               struct resource *res, struct intr_map_data *data)
+                              struct resource *res, struct intr_map_data *data)
 {
     struct mt7622_sysirq_sc *sc;
 
@@ -166,16 +171,82 @@ mt7622_sysirq_deactivate_intr(device_t dev, struct intr_irqsrc *isrc,
 
 static int
 mt7622_sysirq_setup_intr(device_t dev, struct intr_irqsrc *isrc,
-                          struct resource *res, struct intr_map_data *data)
+                         struct resource *res, struct intr_map_data *data)
 {
-    struct mt7622_sysirq_sc *sc;;
+    struct mt7622_sysirq_sc *sc;
+    struct intr_map_data_fdt *daf;
+    uint32_t reg, val;
+    int irq, bit;
 
     sc = device_get_softc(dev);
     data = mt7622_sysirq_convert_map_data(sc, data);
     if (data == NULL)
         return (EINVAL);
 
+    daf = (struct intr_map_data_fdt *)data;
+    irq = daf->cells[1];
+    reg = (irq / 32) * 4;
+    bit = irq % 32;
+    val = bus_read_4(sc->res, reg);
+    val |= (1U << bit);
+    bus_write_4(sc->res, reg, val);
+
     return (PIC_SETUP_INTR(sc->parent, isrc, res, data));
+}
+
+static int
+mt7622_sysirq_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
+                            struct resource *res, struct intr_map_data *data)
+{
+    struct mt7622_sysirq_sc *sc;
+    struct intr_map_data_fdt *daf;
+    uint32_t reg, val;
+    int irq, bit;
+
+    sc = device_get_softc(dev);
+    data = mt7622_sysirq_convert_map_data(sc, data);
+    if (data == NULL)
+        return (EINVAL);
+
+    daf = (struct intr_map_data_fdt *)data;
+    irq = daf->cells[1];
+    reg = (irq / 32) * 4;
+    bit = irq % 32;
+    val = bus_read_4(sc->res, reg);
+    val &= ~(1U << bit);
+    bus_write_4(sc->res, reg, val);
+
+    return (PIC_TEARDOWN_INTR(sc->parent, isrc, res, data));
+}
+
+static void
+mt7622_sysirq_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+    struct mt7622_sysirq_sc *sc;
+
+    sc = device_get_softc(dev);
+
+    PIC_PRE_ITHREAD(sc->parent, isrc);
+}
+
+static void
+mt7622_sysirq_post_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+    struct mt7622_sysirq_sc *sc;
+
+    sc = device_get_softc(dev);
+
+    PIC_POST_ITHREAD(sc->parent, isrc);
+}
+
+static void
+mt7622_sysirq_post_filter(device_t dev, struct intr_irqsrc *isrc)
+{
+    struct mt7622_sysirq_sc *sc;
+
+    sc = device_get_softc(dev);
+
+    PIC_POST_FILTER(sc->parent, isrc);
 }
 
 static int
@@ -268,16 +339,21 @@ mt7622_sysirq_detach(device_t dev)
 }
 
 static device_method_t mt7622_sysirq_methods[] = {
-        DEVMETHOD(device_probe, mt7622_sysirq_probe),
-        DEVMETHOD(device_attach, mt7622_sysirq_attach),
-        DEVMETHOD(device_detach, mt7622_sysirq_detach),
+        DEVMETHOD(device_probe,		mt7622_sysirq_probe),
+        DEVMETHOD(device_attach,	mt7622_sysirq_attach),
+        DEVMETHOD(device_detach,	mt7622_sysirq_detach),
 
-        DEVMETHOD(pic_activate_intr, mt7622_sysirq_activate_intr),
+        /* Interrupt controller interface */
+        DEVMETHOD(pic_activate_intr,	mt7622_sysirq_activate_intr),
         DEVMETHOD(pic_disable_intr,	mt7622_sysirq_disable_intr),
         DEVMETHOD(pic_enable_intr,	mt7622_sysirq_enable_intr),
         DEVMETHOD(pic_map_intr,		mt7622_sysirq_map_intr),
         DEVMETHOD(pic_deactivate_intr,	mt7622_sysirq_deactivate_intr),
         DEVMETHOD(pic_setup_intr,	mt7622_sysirq_setup_intr),
+        DEVMETHOD(pic_teardown_intr,	mt7622_sysirq_teardown_intr),
+        DEVMETHOD(pic_pre_ithread,	mt7622_sysirq_pre_ithread),
+        DEVMETHOD(pic_post_ithread,	mt7622_sysirq_post_ithread),
+        DEVMETHOD(pic_post_filter,	mt7622_sysirq_post_filter),
 
         DEVMETHOD_END
 };
