@@ -1,4 +1,4 @@
-/* $Id: term_ps.c,v 1.94 2025/07/18 15:47:18 schwarze Exp $ */
+/* $Id: term_ps.c,v 1.95 2025/09/26 12:17:12 schwarze Exp $ */
 /*
  * Copyright (c) 2014-2017, 2020, 2025 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
@@ -1222,6 +1222,8 @@ ps_endline(struct termp *p)
 
 	ps_plast(p);
 	ps_pclose(p);
+	p->viscol = 0;
+	p->minbl = 0;
 
 	/*
 	 * If we're in the margin, don't try to recalculate our current
@@ -1235,8 +1237,6 @@ ps_endline(struct termp *p)
 	/* Left-justify. */
 
 	p->ps->pscol = p->ps->left;
-	p->viscol = 0;
-	p->minbl = 0;
 
 	/* If we haven't printed anything, return. */
 

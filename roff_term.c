@@ -1,4 +1,4 @@
-/* $Id: roff_term.c,v 1.26 2025/07/16 14:33:08 schwarze Exp $ */
+/* $Id: roff_term.c,v 1.27 2025/08/21 15:38:51 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2014, 2015, 2017-2021, 2025
  *               Ingo Schwarze <schwarze@openbsd.org>
@@ -165,6 +165,7 @@ roff_term_pre_po(ROFF_TERM_ARGS)
 	static int	 polast;  /* Previously requested. */
 	static int	 po;      /* Currently requested. */
 	static int	 pouse;   /* Currently used. */
+	int		 pomin;   /* Minimum to be used. */
 	int		 pomax;   /* Maximum to be used. */
 	int		 ponew;   /* Newly requested. */
 
@@ -186,9 +187,9 @@ roff_term_pre_po(ROFF_TERM_ARGS)
 	po = ponew;
 
 	/* Truncate to the range [-offset, 60], remember, and apply it. */
+	pomin = -p->tcol->offset;
 	pomax = term_len(p, 60);
-	pouse = po >= pomax ? pomax :
-	    po < -(int)p->tcol->offset ? -p->tcol->offset : po;
+	pouse = po > pomax ? pomax : po < pomin ? pomin : po;
 	p->tcol->offset += pouse;
 }
 
