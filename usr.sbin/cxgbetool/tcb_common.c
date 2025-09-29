@@ -59,6 +59,15 @@ extern void t6_display_tcb_aux_2(_TCBVAR *tvp,int aux);
 extern void t6_display_tcb_aux_3(_TCBVAR *tvp,int aux);
 extern void t6_display_tcb_aux_4(_TCBVAR *tvp,int aux);
 
+extern _TCBVAR g_tcb_info7[];
+extern _TCBVAR g_scb_info7[];
+extern _TCBVAR g_fcb_info7[];
+extern void t7_display_tcb_aux_0(_TCBVAR *tvp,int aux);
+extern void t7_display_tcb_aux_1(_TCBVAR *tvp,int aux);
+extern void t7_display_tcb_aux_2(_TCBVAR *tvp,int aux);
+extern void t7_display_tcb_aux_3(_TCBVAR *tvp,int aux);
+extern void t7_display_tcb_aux_4(_TCBVAR *tvp,int aux);
+
 /***:-----------------------------------------------------------------------
  ***: globals
  ***:-----------------------------------------------------------------------
@@ -437,7 +446,13 @@ display_tcb_compressed(_TCBVAR *tvp,int aux)
     if      (1==aux) t6_display_tcb_aux_1(tvp,aux);
     else if (2==aux) t6_display_tcb_aux_2(tvp,aux);
     else if (3==aux) t6_display_tcb_aux_3(tvp,aux);
-    else if (4==aux) t6_display_tcb_aux_4(tvp,aux); 
+    else if (4==aux) t6_display_tcb_aux_4(tvp,aux);
+  } else if (g_tN==7) {
+    t7_display_tcb_aux_0(tvp,aux);
+    if      (1==aux) t7_display_tcb_aux_1(tvp,aux);
+    else if (2==aux) t7_display_tcb_aux_2(tvp,aux);
+    else if (3==aux) t7_display_tcb_aux_3(tvp,aux);
+    else if (4==aux) t7_display_tcb_aux_4(tvp,aux);
   }
 }
 
@@ -691,6 +706,11 @@ set_tcb_info(unsigned int tidtype, unsigned int cardtype)
         g_tcb_info = g_tcb_info6;
         g_scb_info = g_scb_info6;
         g_fcb_info = g_fcb_info6;
+    }
+    else if (7 == g_tN) {
+        g_tcb_info = g_tcb_info7;
+        g_scb_info = g_scb_info7;
+        g_fcb_info = g_fcb_info7;
     }
 }
 
