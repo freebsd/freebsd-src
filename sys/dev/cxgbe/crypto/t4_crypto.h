@@ -139,6 +139,7 @@ struct phys_sge_pairs {
 #define SCMD_PROTO_VERSION_TLS_1_2 0
 #define SCMD_PROTO_VERSION_TLS_1_1 1
 #define SCMD_PROTO_VERSION_GENERIC 4
+#define SCMD_PROTO_VERSION_TLS_1_3 8
 
 #define SCMD_CIPH_MODE_NOP               0
 #define SCMD_CIPH_MODE_AES_CBC           1
