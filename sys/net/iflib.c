@@ -142,7 +142,9 @@ struct iflib_ctx;
 static void iru_init(if_rxd_update_t iru, iflib_rxq_t rxq, uint8_t flid);
 static void iflib_timer(void *arg);
 static void iflib_tqg_detach(if_ctx_t ctx);
+#ifndef ALTQ
 static int  iflib_simple_transmit(if_t ifp, struct mbuf *m);
+#endif
 
 typedef struct iflib_filter_info {
 	driver_filter_t *ifi_filter;
@@ -7117,7 +7119,7 @@ iflib_debugnet_poll(if_t ifp, int count)
 }
 #endif /* DEBUGNET */
 
-
+#ifndef ALTQ
 static inline iflib_txq_t
 iflib_simple_select_queue(if_ctx_t ctx, struct mbuf *m)
 {
@@ -7166,3 +7168,4 @@ iflib_simple_transmit(if_t ifp, struct mbuf *m)
 
 	return (error);
 }
+#endif
