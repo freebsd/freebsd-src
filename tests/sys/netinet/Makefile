@@ -48,7 +48,7 @@ TEST_METADATA.forward+=	required_programs="python"	\
 TEST_METADATA.output+=	required_programs="python"
 TEST_METADATA.redirect+= required_programs="python"
 
-PROGS=	udp_dontroute tcp_user_cookie multicast-send
+PROGS=	udp_dontroute tcp_user_cookie multicast-send multicast-receive
 
 ${PACKAGE}FILES+=		redirect.py
 
