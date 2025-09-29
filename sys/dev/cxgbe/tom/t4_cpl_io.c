@@ -127,8 +127,9 @@ send_flowc_wr(struct toepcb *toep, struct tcpcb *tp)
 	paramidx = 0;
 
 	FLOWC_PARAM(PFNVFN, pfvf);
-	FLOWC_PARAM(CH, pi->tx_chan);
-	FLOWC_PARAM(PORT, pi->tx_chan);
+	/* Firmware expects hw port and will translate to channel itself. */
+	FLOWC_PARAM(CH, pi->hw_port);
+	FLOWC_PARAM(PORT, pi->hw_port);
 	FLOWC_PARAM(IQID, toep->ofld_rxq->iq.abs_id);
 	FLOWC_PARAM(SNDBUF, toep->params.sndbuf);
 	if (tp) {

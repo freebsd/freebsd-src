@@ -8964,7 +8964,7 @@ static void handle_port_info(struct port_info *pi, const struct fw_port_cmd *p,
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.op_to_portid = cpu_to_be32(V_FW_CMD_OP(FW_PORT_CMD) |
 	    F_FW_CMD_REQUEST | F_FW_CMD_READ |
-	    V_FW_PORT_CMD_PORTID(pi->tx_chan));
+	    V_FW_PORT_CMD_PORTID(pi->hw_port));
 	action = sc->params.port_caps32 ? FW_PORT_ACTION_GET_PORT_INFO32 :
 	    FW_PORT_ACTION_GET_PORT_INFO;
 	cmd.action_to_len16 = cpu_to_be32(V_FW_PORT_CMD_ACTION(action) |
@@ -8996,16 +8996,12 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 	    (action == FW_PORT_ACTION_GET_PORT_INFO ||
 	    action == FW_PORT_ACTION_GET_PORT_INFO32)) {
 		/* link/module state change message */
-		int i;
-		int chan = G_FW_PORT_CMD_PORTID(be32_to_cpu(p->op_to_portid));
-		struct port_info *pi = NULL;
+		int hw_port = G_FW_PORT_CMD_PORTID(be32_to_cpu(p->op_to_portid));
+		int port_id = adap->port_map[hw_port];
+		struct port_info *pi;
 
-		for_each_port(adap, i) {
-			pi = adap2pinfo(adap, i);
-			if (pi->tx_chan == chan)
-				break;
-		}
-
+		MPASS(port_id >= 0 && port_id < adap->params.nports);
+		pi = adap->port[port_id];
 		PORT_LOCK(pi);
 		handle_port_info(pi, p, action, &mod_changed, &link_changed);
 		PORT_UNLOCK(pi);

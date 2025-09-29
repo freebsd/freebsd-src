@@ -477,6 +477,7 @@ struct sge_eq {
 	uint8_t doorbells;
 	uint8_t port_id;	/* port_id of the port associated with the eq */
 	uint8_t tx_chan;	/* tx channel used by the eq */
+	uint8_t hw_port;	/* hw port used by the eq */
 	struct mtx eq_lock;
 
 	struct tx_desc *desc;	/* KVA of descriptor ring */
@@ -937,7 +938,8 @@ struct adapter {
 
 	struct taskqueue *tq[MAX_NPORTS];	/* General purpose taskqueues */
 	struct port_info *port[MAX_NPORTS];
-	uint8_t chan_map[MAX_NCHAN];		/* channel -> port */
+	uint8_t chan_map[MAX_NCHAN];		/* tx_chan -> port_id */
+	uint8_t port_map[MAX_NPORTS];		/* hw_port -> port_id */
 
 	CXGBE_LIST_HEAD(, clip_entry) *clip_table;
 	TAILQ_HEAD(, clip_entry) clip_pending;	/* these need hw update. */
@@ -961,7 +963,7 @@ struct adapter {
 
 	uint8_t doorbells;
 	int offload_map;	/* port_id's with IFCAP_TOE enabled */
-	int bt_map;		/* tx_chan's with BASE-T */
+	int bt_map;		/* hw_port's that are BASE-T */
 	int active_ulds;	/* ULDs activated on this adapter */
 	int flags;
 	int debug_flags;

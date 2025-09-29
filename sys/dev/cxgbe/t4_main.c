@@ -1277,6 +1277,7 @@ t4_attach(device_t dev)
 		goto done; /* error message displayed already */
 
 	memset(sc->chan_map, 0xff, sizeof(sc->chan_map));
+	memset(sc->port_map, 0xff, sizeof(sc->port_map));
 
 	/* Prepare the adapter for operation. */
 	buf = malloc(PAGE_SIZE, M_CXGBE, M_ZERO | M_WAITOK);
@@ -1407,14 +1408,15 @@ t4_attach(device_t dev)
 		}
 
 		if (is_bt(pi->port_type))
-			setbit(&sc->bt_map, pi->tx_chan);
+			setbit(&sc->bt_map, pi->hw_port);
 		else
-			MPASS(!isset(&sc->bt_map, pi->tx_chan));
+			MPASS(!isset(&sc->bt_map, pi->hw_port));
 
 		snprintf(pi->lockname, sizeof(pi->lockname), "%sp%d",
 		    device_get_nameunit(dev), i);
 		mtx_init(&pi->pi_lock, pi->lockname, 0, MTX_DEF);
 		sc->chan_map[pi->tx_chan] = i;
+		sc->port_map[pi->hw_port] = i;
 
 		/*
 		 * The MPS counter for FCS errors doesn't work correctly on the
@@ -3684,7 +3686,7 @@ alloc_extra_vi(struct adapter *sc, struct port_info *pi, struct vi_info *vi)
 	    ("%s: VI %s doesn't have a MAC func", __func__,
 	    device_get_nameunit(vi->dev)));
 	func = vi_mac_funcs[index];
-	rc = t4_alloc_vi_func(sc, sc->mbox, pi->tx_chan, sc->pf, 0, 1,
+	rc = t4_alloc_vi_func(sc, sc->mbox, pi->hw_port, sc->pf, 0, 1,
 	    vi->hw_addr, &vi->rss_size, &vi->vfvld, &vi->vin, func, 0);
 	if (rc < 0) {
 		CH_ERR(vi, "failed to allocate virtual interface %d"
@@ -6220,7 +6222,7 @@ apply_link_config(struct port_info *pi)
 		MPASS(lc->pcaps & FW_PORT_CAP32_FEC_BASER_RS);
 #endif
 	if (!(sc->flags & IS_VF)) {
-		rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
+		rc = -t4_link_l1cfg(sc, sc->mbox, pi->hw_port, lc);
 		if (rc != 0) {
 			device_printf(pi->dev, "l1cfg failed: %d\n", rc);
 			return (rc);
@@ -8452,14 +8454,14 @@ sysctl_tx_vm_wr(SYSCTL_HANDLER_ARGS)
 			vi->flags |= TX_USES_VM_WR;
 			if_sethwtsomaxsegcount(vi->ifp, TX_SGL_SEGS_VM_TSO);
 			ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT_XT) |
-			    V_TXPKT_INTF(pi->tx_chan));
+			    V_TXPKT_INTF(pi->hw_port));
 			if (!(sc->flags & IS_VF))
 				npkt--;
 		} else {
 			vi->flags &= ~TX_USES_VM_WR;
 			if_sethwtsomaxsegcount(vi->ifp, TX_SGL_SEGS_TSO);
 			ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT_XT) |
-			    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(sc->pf) |
+			    V_TXPKT_INTF(pi->hw_port) | V_TXPKT_PF(sc->pf) |
 			    V_TXPKT_VF(vi->vin) | V_TXPKT_VF_VLD(vi->vfvld));
 		}
 		for_each_txq(vi, i, txq) {
