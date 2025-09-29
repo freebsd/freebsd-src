@@ -1185,7 +1185,7 @@ vclient_ioctl_oss(struct cuse_dev *pdev, int fflags __unused,
 		strlcpy(data.audioinfo.name, pvc->profile->oss_name,
 		    sizeof(data.audioinfo.name));
 		snprintf(data.audioinfo.devnode, sizeof(data.audioinfo.devnode),
-		    _PATH_DEV "%s", pvc->profile->oss_name);
+		    "/dev/%s", pvc->profile->oss_name);
 		data.audioinfo.caps = DSP_CAP_INPUT | DSP_CAP_OUTPUT;
 		data.audioinfo.iformats = VSUPPORTED_AFMT;
 		data.audioinfo.oformats = VSUPPORTED_AFMT;
@@ -2275,7 +2275,7 @@ parse_options(int narg, char **pparg, int is_main)
 			if (voss_ctl_device[0])
 				return ("-t parameter may only be used once");
 
-			strncpy(voss_ctl_device, optarg, sizeof(voss_ctl_device));
+			strlcpy(voss_ctl_device, optarg, sizeof(voss_ctl_device));
 			break;
 		case 'm':
 			ptr = optarg;
@@ -2529,7 +2529,7 @@ main(int argc, char **argv)
 {
 	const char *ptrerr;
 	struct sigaction sa;
-	struct cuse_dev *pdev;
+	struct cuse_dev *pdev = NULL;
 
 	TAILQ_INIT(&virtual_profile_client_head);
 	TAILQ_INIT(&virtual_profile_loopback_head);

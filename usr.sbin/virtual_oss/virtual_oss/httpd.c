@@ -147,8 +147,9 @@ done:
 }
 
 static uint16_t
-voss_ipv4_csum(const uint16_t *ptr, size_t count)
+voss_ipv4_csum(const void *vptr, size_t count)
 {
+	const uint16_t *ptr = vptr;
 	uint32_t sum = 0;
 
 	while (count--)
@@ -161,9 +162,11 @@ voss_ipv4_csum(const uint16_t *ptr, size_t count)
 }
 
 static uint16_t
-voss_udp_csum(uint32_t sum, const uint16_t *hdr, size_t count,
+voss_udp_csum(uint32_t sum, const void *vhdr, size_t count,
     const uint16_t *ptr, size_t length)
 {
+	const uint16_t *hdr = vhdr;
+
 	while (count--)
 		sum += *hdr++;
 
@@ -233,8 +236,7 @@ voss_httpd_send_rtp_sub(vclient_t *pvc, int fd, void *ptr, size_t len, uint32_t 
 	pvc->profile->http.rtp_seqnum++;
 	pvc->profile->http.rtp_ts += len / (2 * pvc->channels);
 
-	if (writev(fd, iov, 2) < 0)
-		;
+	(void)writev(fd, iov, 2);
 }
 
 static void
