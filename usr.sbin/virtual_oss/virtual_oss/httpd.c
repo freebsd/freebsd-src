@@ -483,7 +483,7 @@ voss_httpd_handle_connection(vclient_t *pvc, int fd, const struct sockaddr_in *s
 		} else if (page < 0 && strstr(line, "GET /stream.m3u") == line) {
 			page = 2;
 		} else if (strstr(line, "Range: bytes=") == line &&
-		    sscanf(line, "Range: bytes=%zu-%zu", &r_start, &r_end) >= 1) {
+		    sscanf(line, "Range: bytes=%ju-%ju", &r_start, &r_end) >= 1) {
 			is_partial = true;
 		}
 	}
