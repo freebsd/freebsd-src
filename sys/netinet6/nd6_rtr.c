@@ -1243,9 +1243,8 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 
 		/* No suitable LL address, get the ifid directly */
 		if (ifid_addr == NULL) {
-			struct in6_addr taddr;
-			ifa = ifa_alloc(sizeof(taddr), M_WAITOK);
-			if (ifa) {
+			ifa = ifa_alloc(sizeof(struct in6_ifaddr), M_NOWAIT);
+			if (ifa != NULL) {
 				ib = (struct in6_ifaddr *)ifa;
 				ifid_addr = &ib->ia_addr.sin6_addr;
 				if(in6_get_ifid(ifp, NULL, ifid_addr) != 0) {
