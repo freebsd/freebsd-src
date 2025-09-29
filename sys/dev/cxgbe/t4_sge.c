@@ -4875,13 +4875,29 @@ add_txq_sysctls(struct vi_info *vi, struct sysctl_ctx_list *ctx,
 			    "# of NIC TLS FIN-only packets transmitted");
 		} else {
 			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
+			    "kern_tls_ghash_received", CTLFLAG_RD,
+			    &txq->kern_tls_ghash_received,
+			    "# of NIC TLS GHASHes received");
+			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
+			    "kern_tls_ghash_requested", CTLFLAG_RD,
+			    &txq->kern_tls_ghash_requested,
+			    "# of NIC TLS GHASHes requested");
+			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
 			    "kern_tls_lso", CTLFLAG_RD,
 			    &txq->kern_tls_lso,
 			    "# of NIC TLS records transmitted using LSO");
 			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
+			    "kern_tls_partial_ghash", CTLFLAG_RD,
+			    &txq->kern_tls_partial_ghash,
+			    "# of NIC TLS records encrypted using a partial GHASH");
+			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
 			    "kern_tls_splitmode", CTLFLAG_RD,
 			    &txq->kern_tls_splitmode,
 			    "# of NIC TLS records using SplitMode");
+			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
+			    "kern_tls_trailer", CTLFLAG_RD,
+			    &txq->kern_tls_trailer,
+			    "# of NIC TLS trailer-only packets transmitted");
 		}
 		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_cbc",
 		    CTLFLAG_RD, &txq->kern_tls_cbc,

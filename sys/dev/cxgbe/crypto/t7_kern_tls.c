@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include "common/common.h"
 #include "common/t4_regs.h"
@@ -78,19 +80,38 @@ struct tlspcb {
 	unsigned char enc_mode;
 
 	struct tls_scmd scmd0;
+	struct tls_scmd scmd0_partial;
 	struct tls_scmd scmd0_short;
 
 	unsigned int tx_key_info_size;
 
 	uint16_t prev_mss;
 
-	/* Only used outside of setup and teardown when using inline keys. */
+	/* Fields used for GCM records using GHASH state. */
+	uint16_t ghash_offset;
+	uint64_t ghash_tls_seqno;
+	char ghash[AES_GMAC_HASH_LEN];
+	bool ghash_valid;
+	bool ghash_pending;
+	bool ghash_lcb;
+	bool queue_mbufs;
+	uint8_t rx_chid;
+	uint16_t rx_qid;
+	struct mbufq pending_mbufs;
+
+	/*
+	 * Only used outside of setup and teardown when using inline
+	 * keys or for partial GCM mode.
+	 */
 	struct tls_keyctx keyctx;
 };
 
 static void t7_tls_tag_free(struct m_snd_tag *mst);
 static int ktls_setup_keys(struct tlspcb *tlsp,
     const struct ktls_session *tls, struct sge_txq *txq);
+
+static void *zero_buffer;
+static vm_paddr_t zero_buffer_pa;
 
 static const struct if_snd_tag_sw t7_tls_tag_sw = {
 	.snd_tag_free = t7_tls_tag_free,
@@ -118,6 +139,10 @@ alloc_tlspcb(struct ifnet *ifp, struct vi_info *vi, int flags)
 	tlsp->vi = vi;
 	tlsp->sc = sc;
 	tlsp->tx_key_addr = -1;
+	tlsp->ghash_offset = -1;
+	tlsp->rx_chid = pi->rx_chan;
+	tlsp->rx_qid = sc->sge.rxq[pi->vi->first_rxq].iq.abs_id;
+	mbufq_init(&tlsp->pending_mbufs, INT_MAX);
 
 	return (tlsp);
 }
@@ -191,6 +216,16 @@ t7_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 	sc = vi->adapter;
 
 	tlsp = alloc_tlspcb(ifp, vi, M_WAITOK);
+
+	/*
+	 * Pointers with the low bit set in the pointer can't
+	 * be stored as the cookie in the CPL_FW6_PLD reply.
+	 */
+	if (((uintptr_t)tlsp & CPL_FW6_COOKIE_MASK) != 0) {
+		error = EINVAL;
+		goto failed;
+	}
+
 	tlsp->tls13 = tls->params.tls_vminor == TLS_MINOR_VER_THREE;
 
 	if (sc->tlst.inline_keys)
@@ -250,7 +285,7 @@ t7_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 		tlsp->scmd0.ivgen_hdrlen |= V_SCMD_KEY_CTX_INLINE(1);
 
 	/*
-	 * The SCMD fields used when encrypting a partial TLS record
+	 * The SCMD fields used when encrypting a short TLS record
 	 * (no trailer and possibly a truncated payload).
 	 */
 	tlsp->scmd0_short.seqno_numivs = V_SCMD_SEQ_NO_CTRL(0) |
@@ -273,6 +308,25 @@ t7_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 	    V_SCMD_TLS_FRAG_ENABLE(0) | V_SCMD_AADIVDROP(1);
 	if (tlsp->inline_key)
 		tlsp->scmd0_short.ivgen_hdrlen |= V_SCMD_KEY_CTX_INLINE(1);
+
+	/*
+	 * The SCMD fields used when encrypting a short TLS record
+	 * using a partial GHASH.
+	 */
+	tlsp->scmd0_partial.seqno_numivs = V_SCMD_SEQ_NO_CTRL(0) |
+	    V_SCMD_PROTO_VERSION(SCMD_PROTO_VERSION_GENERIC) |
+	    V_SCMD_ENC_DEC_CTRL(SCMD_ENCDECCTRL_ENCRYPT) |
+	    V_SCMD_CIPH_AUTH_SEQ_CTRL((mac_first == 0)) |
+	    V_SCMD_CIPH_MODE(tlsp->enc_mode) |
+	    V_SCMD_AUTH_MODE(t4_tls_auth_mode(tls)) |
+	    V_SCMD_HMAC_CTRL(t4_tls_hmac_ctrl(tls)) |
+	    V_SCMD_IV_SIZE(AES_BLOCK_LEN / 2) | V_SCMD_NUM_IVS(1);
+	tlsp->scmd0_partial.seqno_numivs =
+	    htobe32(tlsp->scmd0_partial.seqno_numivs);
+
+	tlsp->scmd0_partial.ivgen_hdrlen = V_SCMD_IV_GEN_CTRL(0) |
+	    V_SCMD_TLS_FRAG_ENABLE(0) | V_SCMD_AADIVDROP(1) |
+	    V_SCMD_KEY_CTX_INLINE(1);
 
 	TXQ_LOCK(txq);
 	if (tlsp->enc_mode == SCMD_CIPH_MODE_AES_GCM)
@@ -340,7 +394,7 @@ ktls_setup_keys(struct tlspcb *tlsp, const struct ktls_session *tls,
 }
 
 static u_int
-ktls_base_wr_size(struct tlspcb *tlsp)
+ktls_base_wr_size(struct tlspcb *tlsp, bool inline_key)
 {
 	u_int wr_len;
 
@@ -348,7 +402,7 @@ ktls_base_wr_size(struct tlspcb *tlsp)
 	wr_len += sizeof(struct ulp_txpkt);	// 8
 	wr_len += sizeof(struct ulptx_idata);	// 8
 	wr_len += sizeof(struct cpl_tx_sec_pdu);// 32
-	if (tlsp->inline_key)
+	if (inline_key)
 		wr_len += tlsp->tx_key_info_size;
 	else {
 		wr_len += sizeof(struct ulptx_sc_memrd);// 8
@@ -396,17 +450,14 @@ ktls_sgl_size(u_int nsegs)
  * *trailing_waste - amount of crypto output to drop from the end
  */
 static bool
-ktls_is_short_record(struct tlspcb *tlsp, struct mbuf *m_tls,
-    u_int tlen, u_int *header_len, u_int *offset, u_int *plen,
-    u_int *leading_waste, u_int *trailing_waste)
+ktls_is_short_record(struct tlspcb *tlsp, struct mbuf *m_tls, u_int tlen,
+    u_int rlen, u_int *header_len, u_int *offset, u_int *plen,
+    u_int *leading_waste, u_int *trailing_waste, bool send_partial_ghash,
+    bool request_ghash)
 {
-	const struct tls_record_layer *hdr;
-	u_int new_tlen, trailer_len, rlen;
+	u_int new_tlen, trailer_len;
 
 	MPASS(tlen > m_tls->m_epg_hdrlen);
-
-	hdr = (void *)m_tls->m_epg_hdr;
-	rlen = TLS_HEADER_LENGTH + ntohs(hdr->tls_length);
 
 	/*
 	 * For TLS 1.3 treat the inner record type stored as the first
@@ -446,30 +497,63 @@ ktls_is_short_record(struct tlspcb *tlsp, struct mbuf *m_tls,
 		*trailing_waste = new_tlen - tlen;
 		*plen = new_tlen - m_tls->m_epg_hdrlen;
 	} else {
-		/*
-		 * For AES-GCM we have to send the full record if
-		 * the end overlaps with the trailer.  Otherwise, we
-		 * can use AES-CTR to encrypt a partial PDU.
-		 */
-		if (rlen - tlen < trailer_len)
-			return (false);
+		if (rlen - tlen < trailer_len ||
+		    (rlen - tlen == trailer_len && request_ghash)) {
+			/*
+			 * For AES-GCM we have to send the full record
+			 * if the end overlaps with the trailer and a
+			 * partial GHASH isn't being sent.
+			 */
+			if (!send_partial_ghash)
+				return (false);
+
+			/*
+			 * Will need to treat any excess trailer bytes as
+			 * trailing waste.  *trailing_waste is already
+			 * correct.
+			 */
+		} else {
+			/*
+			 * We can use AES-CTR or AES-GCM in partial GHASH
+			 * mode to encrypt a partial PDU.
+			 *
+			 * The last block can be partially encrypted
+			 * without any trailing waste.
+			 */
+			*trailing_waste = 0;
+			*plen = tlen - m_tls->m_epg_hdrlen;
+		}
 
 		/*
-		 * The last record can be partially encrypted via
-		 * AES-CTR without any trailing waste.
+		 * If this request starts at the first byte of the
+		 * payload (so the previous request sent the full TLS
+		 * header as a tunnel packet) and a partial GHASH is
+		 * being requested, the full TLS header must be sent
+		 * as input for the GHASH.
 		 */
-		*trailing_waste = 0;
-		*plen = tlen - m_tls->m_epg_hdrlen;
+		if (mtod(m_tls, vm_offset_t) == m_tls->m_epg_hdrlen &&
+		    request_ghash)
+			return (true);
 
 		/*
-		 * In addition, with AES-CTR, we can minimize leading
-		 * waste by starting encryption at the start of the
-		 * closest AES block.
+		 * In addition, we can minimize leading waste by
+		 * starting encryption at the start of the closest AES
+		 * block.
 		 */
 		if (mtod(m_tls, vm_offset_t) >= m_tls->m_epg_hdrlen) {
 			*header_len = 0;
-			*offset = rounddown2(mtod(m_tls, vm_offset_t) -
-			    m_tls->m_epg_hdrlen, AES_BLOCK_LEN);
+			*offset = mtod(m_tls, vm_offset_t) -
+			    m_tls->m_epg_hdrlen;
+			if (*offset >= *plen)
+				*offset = *plen;
+			else
+				*offset = rounddown2(*offset, AES_BLOCK_LEN);
+
+			/*
+			 * If the request is just bytes from the trailer,
+			 * trim the offset to the end of the payload.
+			 */
+			*offset = min(*offset, *plen);
 			*plen -= *offset;
 			*leading_waste -= (m_tls->m_epg_hdrlen + *offset);
 		}
@@ -477,12 +561,22 @@ ktls_is_short_record(struct tlspcb *tlsp, struct mbuf *m_tls,
 	return (true);
 }
 
+/* Size of the AES-GCM TLS AAD for a given connection. */
+static int
+ktls_gcm_aad_len(struct tlspcb *tlsp)
+{
+	return (tlsp->tls13 ? sizeof(struct tls_aead_data_13) :
+	    sizeof(struct tls_aead_data));
+}
+
 static int
 ktls_wr_len(struct tlspcb *tlsp, struct mbuf *m, struct mbuf *m_tls,
     int *nsegsp)
 {
-	u_int header_len, imm_len, offset, plen, tlen, wr_len;
+	const struct tls_record_layer *hdr;
+	u_int header_len, imm_len, offset, plen, rlen, tlen, wr_len;
 	u_int leading_waste, trailing_waste;
+	bool inline_key, last_ghash_frag, request_ghash, send_partial_ghash;
 	bool short_record;
 
 	M_ASSERTEXTPG(m_tls);
@@ -512,11 +606,61 @@ ktls_wr_len(struct tlspcb *tlsp, struct mbuf *m, struct mbuf *m_tls,
 		return (wr_len);
 	}
 
-	short_record = ktls_is_short_record(tlsp, m_tls, tlen, &header_len,
-	    &offset, &plen, &leading_waste, &trailing_waste);
+	hdr = (void *)m_tls->m_epg_hdr;
+	rlen = TLS_HEADER_LENGTH + ntohs(hdr->tls_length);
+
+	/*
+	 * See if this request might make use of GHASH state.  This
+	 * errs on the side of over-budgeting the WR size.
+	 */
+	last_ghash_frag = false;
+	request_ghash = false;
+	send_partial_ghash = false;
+	if (tlsp->enc_mode == SCMD_CIPH_MODE_AES_GCM &&
+	    tlsp->sc->tlst.partial_ghash && tlsp->sc->tlst.short_records) {
+		u_int trailer_len;
+
+		trailer_len = m_tls->m_epg_trllen;
+		if (tlsp->tls13)
+			trailer_len--;
+		KASSERT(trailer_len == AES_GMAC_HASH_LEN,
+		    ("invalid trailer length for AES-GCM"));
+
+		/* Is this the start of a TLS record? */
+		if (mtod(m_tls, vm_offset_t) <= m_tls->m_epg_hdrlen) {
+			/*
+			 * Might use partial GHASH if this doesn't
+			 * send the full record.
+			 */
+			if (tlen < rlen) {
+				if (tlen < (rlen - trailer_len))
+					send_partial_ghash = true;
+				request_ghash = true;
+			}
+		} else {
+			send_partial_ghash = true;
+			if (tlen < rlen)
+				request_ghash = true;
+			if (tlen >= (rlen - trailer_len))
+				last_ghash_frag = true;
+		}
+	}
+
+	/*
+	 * Assume not sending partial GHASH for this call to get the
+	 * larger size.
+	 */
+	short_record = ktls_is_short_record(tlsp, m_tls, tlen, rlen,
+	    &header_len, &offset, &plen, &leading_waste, &trailing_waste,
+	    false, request_ghash);
+
+	inline_key = send_partial_ghash || tlsp->inline_key;
 
 	/* Calculate the size of the work request. */
-	wr_len = ktls_base_wr_size(tlsp);
+	wr_len = ktls_base_wr_size(tlsp, inline_key);
+
+	if (send_partial_ghash)
+		wr_len += AES_GMAC_HASH_LEN;
 
 	if (leading_waste != 0 || trailing_waste != 0) {
 		/*
@@ -534,21 +678,90 @@ ktls_wr_len(struct tlspcb *tlsp, struct mbuf *m, struct mbuf *m_tls,
 	 * immediate data.  Short records include a raw AES IV as
 	 * immediate data.  TLS 1.3 non-short records include a
 	 * placeholder for the sequence number as immediate data.
+	 * Short records using a partial hash may also need to send
+	 * TLS AAD.  If a partial hash might be sent, assume a short
+	 * record to get the larger size.
 	 */
 	imm_len = m->m_len + header_len;
-	if (short_record)
+	if (short_record || send_partial_ghash) {
 		imm_len += AES_BLOCK_LEN;
-	else if (tlsp->tls13)
+		if (send_partial_ghash && header_len != 0)
+			imm_len += ktls_gcm_aad_len(tlsp);
+	} else if (tlsp->tls13)
 		imm_len += sizeof(uint64_t);
 	wr_len += roundup2(imm_len, 16);
 
-	/* TLS record payload via DSGL. */
+	/*
+	 * TLS record payload via DSGL.  For partial GCM mode we
+	 * might need an extra SG entry for a placeholder.
+	 */
 	*nsegsp = sglist_count_mbuf_epg(m_tls, m_tls->m_epg_hdrlen + offset,
 	    plen);
-	wr_len += ktls_sgl_size(*nsegsp);
+	wr_len += ktls_sgl_size(*nsegsp + (last_ghash_frag ? 1 : 0));
+
+	if (request_ghash) {
+		/* AES-GCM records might return a partial hash. */
+		wr_len += sizeof(struct ulp_txpkt);
+		wr_len += sizeof(struct ulptx_idata);
+		wr_len += sizeof(struct cpl_tx_tls_ack);
+		wr_len += sizeof(struct rss_header) +
+		    sizeof(struct cpl_fw6_pld);
+		wr_len += AES_GMAC_HASH_LEN;
+	}
 
 	wr_len = roundup2(wr_len, 16);
 	return (wr_len);
+}
+
+/* Queue the next pending packet. */
+static void
+ktls_queue_next_packet(struct tlspcb *tlsp, bool enqueue_only)
+{
+#ifdef KTR
+	struct ether_header *eh;
+	struct tcphdr *tcp;
+	tcp_seq tcp_seqno;
+#endif
+	struct mbuf *m;
+	void *items[1];
+	int rc;
+
+	TXQ_LOCK_ASSERT_OWNED(tlsp->txq);
+	KASSERT(tlsp->queue_mbufs, ("%s: mbufs not being queued for %p",
+	    __func__, tlsp));
+	for (;;) {
+		m = mbufq_dequeue(&tlsp->pending_mbufs);
+		if (m == NULL) {
+			tlsp->queue_mbufs = false;
+			return;
+		}
+
+#ifdef KTR
+		eh = mtod(m, struct ether_header *);
+		tcp = (struct tcphdr *)((char *)eh + m->m_pkthdr.l2hlen +
+		    m->m_pkthdr.l3hlen);
+		tcp_seqno = ntohl(tcp->th_seq);
+#ifdef VERBOSE_TRACES
+		CTR(KTR_CXGBE, "%s: pkt len %d TCP seq %u", __func__,
+		    m->m_pkthdr.len, tcp_seqno);
+#endif
+#endif
+
+		items[0] = m;
+		if (enqueue_only)
+			rc = mp_ring_enqueue_only(tlsp->txq->r, items, 1);
+		else {
+			TXQ_UNLOCK(tlsp->txq);
+			rc = mp_ring_enqueue(tlsp->txq->r, items, 1, 256);
+			TXQ_LOCK(tlsp->txq);
+		}
+		if (__predict_true(rc == 0))
+			return;
+
+		CTR(KTR_CXGBE, "%s: pkt len %d TCP seq %u dropped", __func__,
+		    m->m_pkthdr.len, tcp_seqno);
+		m_freem(m);
+	}
 }
 
 int
@@ -561,7 +774,7 @@ t7_ktls_parse_pkt(struct mbuf *m)
 	struct tcphdr *tcp;
 	struct mbuf *m_tls;
 	void *items[1];
-	int nsegs;
+	int error, nsegs;
 	u_int wr_len, tot_len;
 	uint16_t eh_type;
 
@@ -664,14 +877,42 @@ t7_ktls_parse_pkt(struct mbuf *m)
 	}
 
 	MPASS(tot_len != 0);
-
 	set_mbuf_len16(m, tot_len / 16);
+
+	if (tlsp->enc_mode == SCMD_CIPH_MODE_AES_GCM) {
+		/* Defer packets beyond what has been sent so far. */
+		TXQ_LOCK(tlsp->txq);
+		if (tlsp->queue_mbufs) {
+			error = mbufq_enqueue(&tlsp->pending_mbufs, m);
+			if (error == 0) {
+#ifdef VERBOSE_TRACES
+				CTR(KTR_CXGBE,
+				    "%s: %p len16 %d nsegs %d TCP seq %u deferred",
+				    __func__, tlsp, mbuf_len16(m),
+				    mbuf_nsegs(m), ntohl(tcp->th_seq));
+#endif
+			}
+			TXQ_UNLOCK(tlsp->txq);
+			return (error);
+		}
+		tlsp->queue_mbufs = true;
+		TXQ_UNLOCK(tlsp->txq);
+	}
+
 #ifdef VERBOSE_TRACES
 	CTR(KTR_CXGBE, "%s: %p len16 %d nsegs %d", __func__, tlsp,
 	    mbuf_len16(m), mbuf_nsegs(m));
 #endif
 	items[0] = m;
-	return (mp_ring_enqueue(tlsp->txq->r, items, 1, 256));
+	error = mp_ring_enqueue(tlsp->txq->r, items, 1, 256);
+	if (__predict_false(error != 0)) {
+		if (tlsp->enc_mode == SCMD_CIPH_MODE_AES_GCM) {
+			TXQ_LOCK(tlsp->txq);
+			ktls_queue_next_packet(tlsp, false);
+			TXQ_UNLOCK(tlsp->txq);
+		}
+	}
+	return (error);
 }
 
 static inline bool
@@ -742,6 +983,47 @@ write_lso_cpl(void *cpl, struct mbuf *m0, uint16_t mss, uint16_t eh_type,
 }
 
 static inline void *
+write_tx_tls_ack(void *dst, u_int rx_chid, u_int hash_len, bool ghash_lcb)
+{
+	struct cpl_tx_tls_ack *cpl;
+	uint32_t flags;
+
+	flags = ghash_lcb ? F_CPL_TX_TLS_ACK_LCB : F_CPL_TX_TLS_ACK_PHASH;
+	cpl = dst;
+	cpl->op_to_Rsvd2 = htobe32(V_CPL_TX_TLS_ACK_OPCODE(CPL_TX_TLS_ACK) |
+	    V_T7_CPL_TX_TLS_ACK_RXCHID(rx_chid) | F_CPL_TX_TLS_ACK_ULPTXLPBK |
+	    flags);
+
+	/* 32 == AckEncCpl, 16 == LCB */
+	cpl->PldLen = htobe32(V_CPL_TX_TLS_ACK_PLDLEN(32 + 16 + hash_len));
+	cpl->Rsvd3 = 0;
+
+	return (cpl + 1);
+}
+
+static inline void *
+write_fw6_pld(void *dst, u_int rx_chid, u_int rx_qid, u_int hash_len,
+    uint64_t cookie)
+{
+	struct rss_header *rss;
+	struct cpl_fw6_pld *cpl;
+
+	rss = dst;
+	memset(rss, 0, sizeof(*rss));
+	rss->opcode = CPL_FW6_PLD;
+	rss->qid = htobe16(rx_qid);
+	rss->channel = rx_chid;
+
+	cpl = (void *)(rss + 1);
+	memset(cpl, 0, sizeof(*cpl));
+	cpl->opcode = CPL_FW6_PLD;
+	cpl->len = htobe16(hash_len);
+	cpl->data[1] = htobe64(cookie);
+
+	return (cpl + 1);
+}
+
+static inline void *
 write_split_mode_rx_phys(void *dst, struct mbuf *m, struct mbuf *m_tls,
     u_int crypto_hdr_len, u_int leading_waste, u_int trailing_waste)
 {
@@ -790,7 +1072,7 @@ write_split_mode_rx_phys(void *dst, struct mbuf *m, struct mbuf *m_tls,
  * If the SGL ends on an address that is not 16 byte aligned, this function will
  * add a 0 filled flit at the end.
  */
-static void
+static void *
 write_gl_to_buf(struct sglist *gl, caddr_t to)
 {
 	struct sglist_seg *seg;
@@ -829,10 +1111,11 @@ write_gl_to_buf(struct sglist *gl, caddr_t to)
 	}
 
 	MPASS((((uintptr_t)flitp) & 0xf) == 0);
+	return (flitp);
 }
 
 static inline void
-copy_to_txd(struct sge_eq *eq, caddr_t from, caddr_t *to, int len)
+copy_to_txd(struct sge_eq *eq, const char *from, caddr_t *to, int len)
 {
 
 	MPASS((uintptr_t)(*to) >= (uintptr_t)&eq->desc[0]);
@@ -857,8 +1140,8 @@ copy_to_txd(struct sge_eq *eq, caddr_t from, caddr_t *to, int len)
 
 static int
 ktls_write_tunnel_packet(struct sge_txq *txq, void *dst, struct mbuf *m,
-    struct mbuf *m_tls, u_int available, tcp_seq tcp_seqno, u_int pidx,
-    uint16_t eh_type)
+    const void *src, u_int len, u_int available, tcp_seq tcp_seqno, u_int pidx,
+    uint16_t eh_type, bool last_wr)
 {
 	struct tx_sdesc *txsd;
 	struct fw_eth_tx_pkt_wr *wr;
@@ -874,14 +1157,8 @@ ktls_write_tunnel_packet(struct sge_txq *txq, void *dst, struct mbuf *m,
 	TXQ_LOCK_ASSERT_OWNED(txq);
 	M_ASSERTPKTHDR(m);
 
-	/* Locate the template TLS header. */
-	M_ASSERTEXTPG(m_tls);
-
-	/* This should always be the last TLS record in a chain. */
-	MPASS(m_tls->m_next == NULL);
-
 	wr = dst;
-	pktlen = m->m_len + m_tls->m_len;
+	pktlen = m->m_len + len;
 	ctrl = sizeof(struct cpl_tx_pkt_core) + pktlen;
 	len16 = howmany(sizeof(struct fw_eth_tx_pkt_wr) + ctrl, 16);
 	ndesc = tx_len16_to_desc(len16);
@@ -938,17 +1215,17 @@ ktls_write_tunnel_packet(struct sge_txq *txq, void *dst, struct mbuf *m,
 	copy_to_txd(&txq->eq, (caddr_t)(tcp + 1), &out, m->m_len -
 	    (m->m_pkthdr.l2hlen + m->m_pkthdr.l3hlen + sizeof(*tcp)));
 
-	/* Copy the subset of the TLS header requested. */
-	copy_to_txd(&txq->eq, (char *)m_tls->m_epg_hdr +
-	    mtod(m_tls, vm_offset_t), &out, m_tls->m_len);
+	/* Copy the payload data. */
+	copy_to_txd(&txq->eq, src, &out, len);
 	txq->imm_wrs++;
 
 	txq->txpkt_wrs++;
 
-	txq->kern_tls_header++;
-
 	txsd = &txq->sdesc[pidx];
-	txsd->m = m;
+	if (last_wr)
+		txsd->m = m;
+	else
+		txsd->m = NULL;
 	txsd->desc_used = ndesc;
 
 	return (ndesc);
@@ -976,14 +1253,20 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	u_int aad_start, aad_stop;
 	u_int auth_start, auth_stop, auth_insert;
 	u_int cipher_start, cipher_stop, iv_offset;
-	u_int header_len, imm_len, ndesc, nsegs, offset, plen, tlen, wr_len;
+	u_int header_len, offset, plen, rlen, tlen;
+	u_int imm_len, ndesc, nsegs, txpkt_lens[2], wr_len;
 	u_int cpl_len, crypto_hdr_len, post_key_context_len;
 	u_int leading_waste, trailing_waste;
 	u_short ip_len;
-	bool last_wr, need_lso, short_record, split_mode, using_scratch;
+	bool inline_key, ghash_lcb, last_ghash_frag, last_wr, need_lso;
+	bool request_ghash, send_partial_ghash, short_record, split_mode;
+	bool using_scratch;
 
 	MPASS(tlsp->txq == txq);
 	M_ASSERTEXTPG(m_tls);
+
+	/* Final work request for this mbuf chain? */
+	last_wr = (m_tls->m_next == NULL);
 
 	/*
 	 * The relative offset of the last byte to send from the TLS
@@ -999,12 +1282,20 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		CTR(KTR_CXGBE, "%s: %p header-only TLS record %u", __func__,
 		    tlsp, (u_int)m_tls->m_epg_seqno);
 #endif
-		return (ktls_write_tunnel_packet(txq, dst, m, m_tls, available,
-		    tcp_seqno, pidx, eh_type));
+		/* This should always be the last TLS record in a chain. */
+		MPASS(last_wr);
+
+		txq->kern_tls_header++;
+
+		return (ktls_write_tunnel_packet(txq, dst, m,
+		    (char *)m_tls->m_epg_hdr + mtod(m_tls, vm_offset_t),
+		    m_tls->m_len, available, tcp_seqno, pidx, eh_type,
+		    last_wr));
 	}
 
 	/* Locate the TLS header. */
 	hdr = (void *)m_tls->m_epg_hdr;
+	rlen = TLS_HEADER_LENGTH + ntohs(hdr->tls_length);
 
 #ifdef VERBOSE_TRACES
 	CTR(KTR_CXGBE, "%s: offset %lu len %u TCP seq %u TLS record %u",
@@ -1012,18 +1303,153 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	    (u_int)m_tls->m_epg_seqno);
 #endif
 
-	short_record = ktls_is_short_record(tlsp, m_tls, tlen, &header_len,
-	    &offset, &plen, &leading_waste, &trailing_waste);
+	/* Should this request make use of GHASH state? */
+	ghash_lcb = false;
+	last_ghash_frag = false;
+	request_ghash = false;
+	send_partial_ghash = false;
+	if (tlsp->enc_mode == SCMD_CIPH_MODE_AES_GCM &&
+	    tlsp->sc->tlst.partial_ghash && tlsp->sc->tlst.short_records) {
+		u_int trailer_len;
+
+		trailer_len = m_tls->m_epg_trllen;
+		if (tlsp->tls13)
+			trailer_len--;
+		KASSERT(trailer_len == AES_GMAC_HASH_LEN,
+		    ("invalid trailer length for AES-GCM"));
+
+		/* Is this the start of a TLS record? */
+		if (mtod(m_tls, vm_offset_t) <= m_tls->m_epg_hdrlen) {
+			/*
+			 * If this is the very first TLS record or
+			 * if this is a newer TLS record, request a partial
+			 * hash, but not if we are going to send the whole
+			 * thing.
+			 */
+			if ((tlsp->ghash_tls_seqno == 0 ||
+			    tlsp->ghash_tls_seqno < m_tls->m_epg_seqno) &&
+			    tlen < rlen) {
+				/*
+				 * If we are only missing part or all
+				 * of the trailer, send a normal full
+				 * record but request the hash.
+				 * Otherwise, use partial GHASH mode.
+				 */
+				if (tlen >= (rlen - trailer_len))
+					ghash_lcb = true;
+				else
+					send_partial_ghash = true;
+				request_ghash = true;
+				tlsp->ghash_tls_seqno = m_tls->m_epg_seqno;
+			}
+		} else if (tlsp->ghash_tls_seqno == m_tls->m_epg_seqno &&
+		    tlsp->ghash_valid) {
+			/*
+			 * Compute the offset of the first AES block as
+			 * is done in ktls_is_short_record.
+			 */
+			if (rlen - tlen < trailer_len)
+				plen = rlen - (m_tls->m_epg_hdrlen +
+				    trailer_len);
+			else
+				plen = tlen - m_tls->m_epg_hdrlen;
+			offset = mtod(m_tls, vm_offset_t) - m_tls->m_epg_hdrlen;
+			if (offset >= plen)
+				offset = plen;
+			else
+				offset = rounddown2(offset, AES_BLOCK_LEN);
+			if (tlsp->ghash_offset == offset) {
+				if (offset == plen) {
+					/*
+					 * Send a partial trailer as a
+					 * tunnelled packet as
+					 * immediate data.
+					 */
+#ifdef VERBOSE_TRACES
+					CTR(KTR_CXGBE,
+					    "%s: %p trailer-only TLS record %u",
+					    __func__, tlsp,
+					    (u_int)m_tls->m_epg_seqno);
+#endif
+
+					txq->kern_tls_trailer++;
+
+					offset = mtod(m_tls, vm_offset_t) -
+					    (m_tls->m_epg_hdrlen + plen);
+					KASSERT(offset <= AES_GMAC_HASH_LEN,
+					    ("offset outside of trailer"));
+					return (ktls_write_tunnel_packet(txq,
+					    dst, m, tlsp->ghash + offset,
+					    m_tls->m_len, available, tcp_seqno,
+					    pidx, eh_type, last_wr));
+				}
+
+				/*
+				 * If this request sends the end of
+				 * the payload, it is the last
+				 * fragment.
+				 */
+				if (tlen >= (rlen - trailer_len)) {
+					last_ghash_frag = true;
+					ghash_lcb = true;
+				}
+
+				/*
+				 * Only use partial GCM mode (rather
+				 * than an AES-CTR short record) if
+				 * there is input auth data to pass to
+				 * the GHASH.  That is true so long as
+				 * there is at least one full block of
+				 * payload data, or if the remaining
+				 * payload data is the final partial
+				 * block.
+				 */
+				if (plen - offset >= GMAC_BLOCK_LEN ||
+				    last_ghash_frag) {
+					send_partial_ghash = true;
+
+					/*
+					 * If not sending the complete
+					 * end of the record, this is
+					 * a middle request so needs
+					 * to request an updated
+					 * partial hash.
+					 */
+					if (tlen < rlen)
+						request_ghash = true;
+				}
+			}
+		}
+	}
+
+	short_record = ktls_is_short_record(tlsp, m_tls, tlen, rlen,
+	    &header_len, &offset, &plen, &leading_waste, &trailing_waste,
+	    send_partial_ghash, request_ghash);
+
 	if (short_record) {
 #ifdef VERBOSE_TRACES
 		CTR(KTR_CXGBE,
 		    "%s: %p short TLS record %u hdr %u offs %u plen %u",
 		    __func__, tlsp, (u_int)m_tls->m_epg_seqno, header_len,
 		    offset, plen);
+		if (send_partial_ghash) {
+			if (header_len != 0)
+				CTR(KTR_CXGBE, "%s: %p sending initial GHASH",
+				    __func__, tlsp);
+			else
+				CTR(KTR_CXGBE, "%s: %p sending partial GHASH for offset %u%s",
+				    __func__, tlsp, tlsp->ghash_offset,
+				    last_ghash_frag ? ", last_frag" : "");
+		}
 #endif
+		KASSERT(send_partial_ghash || !request_ghash,
+		    ("requesting but not sending partial hash for short record"));
+	} else {
+		KASSERT(!send_partial_ghash,
+		    ("sending partial hash with full record"));
 	}
 
-	if ((short_record || trailing_waste != 0) && m_tls->m_next == NULL &&
+	if (tlen < rlen && m_tls->m_next == NULL &&
 	    (tcp->th_flags & TH_FIN) != 0) {
 		txq->kern_tls_fin_short++;
 #ifdef INVARIANTS
@@ -1031,21 +1457,28 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 #endif
 	}
 
-	/* Use cached value for first record in chain. */
-	if (m->m_next == m_tls)
+	/*
+	 * Use cached value for first record in chain if not using
+	 * partial GCM mode. ktls_parse_pkt() calculates nsegs based
+	 * on send_partial_ghash being false.
+	 */
+	if (m->m_next == m_tls && !send_partial_ghash)
 		nsegs = mbuf_nsegs(m);
 	else
 		nsegs = sglist_count_mbuf_epg(m_tls,
 		    m_tls->m_epg_hdrlen + offset, plen);
 
-	/* Final work request for this mbuf chain? */
-	last_wr = (m_tls->m_next == NULL);
-
 	/* Determine if we need an LSO header. */
 	need_lso = (m_tls->m_len > mss);
 
 	/* Calculate the size of the TLS work request. */
-	wr_len = ktls_base_wr_size(tlsp);
+	inline_key = send_partial_ghash || tlsp->inline_key;
+	wr_len = ktls_base_wr_size(tlsp, inline_key);
+
+	if (send_partial_ghash) {
+		/* Inline key context includes partial hash in OPAD. */
+		wr_len += AES_GMAC_HASH_LEN;
+	}
 
 	/*
 	 * SplitMode is required if there is any thing we need to trim
@@ -1065,14 +1498,33 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		wr_len += sizeof(struct cpl_tx_pkt_lso_core);
 
 	imm_len = m->m_len + header_len;
-	if (short_record)
+	if (short_record) {
 		imm_len += AES_BLOCK_LEN;
-	else if (tlsp->tls13)
+		if (send_partial_ghash && header_len != 0)
+			imm_len += ktls_gcm_aad_len(tlsp);
+	} else if (tlsp->tls13)
 		imm_len += sizeof(uint64_t);
 	wr_len += roundup2(imm_len, 16);
-	wr_len += ktls_sgl_size(nsegs);
-
+	wr_len += ktls_sgl_size(nsegs + (last_ghash_frag ? 1 : 0));
 	wr_len = roundup2(wr_len, 16);
+	txpkt_lens[0] = wr_len - sizeof(*wr);
+
+	if (request_ghash) {
+		/*
+		 * Requesting the hash entails a second ULP_TX_PKT
+		 * containing CPL_TX_TLS_ACK, CPL_FW6_PLD, and space
+		 * for the hash.
+		 */
+		txpkt_lens[1] = sizeof(struct ulp_txpkt);
+		txpkt_lens[1] += sizeof(struct ulptx_idata);
+		txpkt_lens[1] += sizeof(struct cpl_tx_tls_ack);
+		txpkt_lens[1] += sizeof(struct rss_header) +
+		    sizeof(struct cpl_fw6_pld);
+		txpkt_lens[1] += AES_GMAC_HASH_LEN;
+		wr_len += txpkt_lens[1];
+	} else
+		txpkt_lens[1] = 0;
+
 	ndesc = howmany(wr_len, EQ_ESIZE);
 	MPASS(ndesc <= available);
 
@@ -1098,8 +1550,9 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	    V_ULP_TXPKT_DATAMODIFY(0) |
 	    V_T7_ULP_TXPKT_CHANNELID(tlsp->vi->pi->port_id) |
 	    V_ULP_TXPKT_DEST(0) |
+	    V_ULP_TXPKT_CMDMORE(request_ghash ? 1 : 0) |
 	    V_ULP_TXPKT_FID(txq->eq.cntxt_id) | V_ULP_TXPKT_RO(1));
-	txpkt->len = htobe32(howmany(wr_len - sizeof(*wr), 16));
+	txpkt->len = htobe32(howmany(txpkt_lens[0], 16));
 
 	/* ULPTX_IDATA sub-command */
 	idata = (void *)(txpkt + 1);
@@ -1121,8 +1574,13 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		cpl_len += sizeof(struct cpl_t7_rx_phys_dsgl);
 	post_key_context_len = cpl_len + imm_len;
 
-	if (tlsp->inline_key)
+	if (inline_key) {
 		idata->len += tlsp->tx_key_info_size + post_key_context_len;
+		if (send_partial_ghash) {
+			/* Partial GHASH in key context. */
+			idata->len += AES_GMAC_HASH_LEN;
+		}
+	}
 	idata->len = htobe32(idata->len);
 
 	/* CPL_TX_SEC_PDU */
@@ -1134,12 +1592,70 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	 */
 	crypto_hdr_len = m->m_len;
 
-	/*
-	 * For short records, the TLS header is counted as header data
-	 * in SCMD0 and the IV is next, followed by a cipher region for
-	 * the payload.
-	 */
-	if (short_record) {
+	if (send_partial_ghash) {
+		/*
+		 * For short records using a partial hash, the TLS
+		 * header is counted as header data in SCMD0.  TLS AAD
+		 * is next (if AAD is present) followed by the AES-CTR
+		 * IV.  Last is the cipher region for the payload.
+		 */
+		if (header_len != 0) {
+			aad_start = 1;
+			aad_stop = ktls_gcm_aad_len(tlsp);
+		} else {
+			aad_start = 0;
+			aad_stop = 0;
+		}
+		iv_offset = aad_stop + 1;
+		cipher_start = iv_offset + AES_BLOCK_LEN;
+		cipher_stop = 0;
+		if (last_ghash_frag) {
+			auth_start = cipher_start;
+			auth_stop = AES_GMAC_HASH_LEN;
+			auth_insert = auth_stop;
+		} else if (plen < GMAC_BLOCK_LEN) {
+			/*
+			 * A request that sends part of the first AES
+			 * block will only have AAD.
+			 */
+			KASSERT(header_len != 0,
+			    ("%s: partial GHASH with no auth", __func__));
+			auth_start = 0;
+			auth_stop = 0;
+			auth_insert = 0;
+		} else {
+			auth_start = cipher_start;
+			auth_stop = plen % GMAC_BLOCK_LEN;
+			auth_insert = 0;
+		}
+
+		sec_pdu->pldlen = htobe32(aad_stop + AES_BLOCK_LEN + plen +
+		    (last_ghash_frag ? AES_GMAC_HASH_LEN : 0));
+
+		/*
+		 * For short records, the TLS header is treated as
+		 * header data.
+		 */
+		crypto_hdr_len += header_len;
+
+		/* These two flits are actually a CPL_TLS_TX_SCMD_FMT. */
+		sec_pdu->seqno_numivs = tlsp->scmd0_partial.seqno_numivs;
+		sec_pdu->ivgen_hdrlen = tlsp->scmd0_partial.ivgen_hdrlen;
+		if (last_ghash_frag)
+			sec_pdu->ivgen_hdrlen |= V_SCMD_LAST_FRAG(1);
+		else
+			sec_pdu->ivgen_hdrlen |= V_SCMD_MORE_FRAGS(1);
+		sec_pdu->ivgen_hdrlen = htobe32(sec_pdu->ivgen_hdrlen |
+		    V_SCMD_HDR_LEN(crypto_hdr_len));
+
+		txq->kern_tls_partial_ghash++;
+	} else if (short_record) {
+		/*
+		 * For short records without a partial hash, the TLS
+		 * header is counted as header data in SCMD0 and the
+		 * IV is next, followed by a cipher region for the
+		 * payload.
+		 */
 		aad_start = 0;
 		aad_stop = 0;
 		iv_offset = 1;
@@ -1213,7 +1729,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	sec_pdu->op_ivinsrtofst = htobe32(
 	    V_CPL_TX_SEC_PDU_OPCODE(CPL_TX_SEC_PDU) |
 	    V_CPL_TX_SEC_PDU_CPLLEN(cpl_len / 8) |
-	    V_CPL_TX_SEC_PDU_PLACEHOLDER(0) |
+	    V_CPL_TX_SEC_PDU_PLACEHOLDER(send_partial_ghash ? 1 : 0) |
 	    V_CPL_TX_SEC_PDU_IVINSRTOFST(iv_offset));
 	sec_pdu->aadstart_cipherstop_hi = htobe32(
 	    V_CPL_TX_SEC_PDU_AADSTART(aad_start) |
@@ -1226,13 +1742,37 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	    V_CPL_TX_SEC_PDU_AUTHSTOP(auth_stop) |
 	    V_CPL_TX_SEC_PDU_AUTHINSERT(auth_insert));
 
-	sec_pdu->scmd1 = htobe64(m_tls->m_epg_seqno);
+	if (send_partial_ghash && last_ghash_frag) {
+		uint64_t aad_len, cipher_len;
+
+		aad_len = ktls_gcm_aad_len(tlsp);
+		cipher_len = rlen - (m_tls->m_epg_hdrlen + AES_GMAC_HASH_LEN);
+		sec_pdu->scmd1 = htobe64(aad_len << 44 | cipher_len);
+	} else
+		sec_pdu->scmd1 = htobe64(m_tls->m_epg_seqno);
 
 	/* Key context */
 	out = (void *)(sec_pdu + 1);
-	if (tlsp->inline_key) {
+	if (inline_key) {
 		memcpy(out, &tlsp->keyctx, tlsp->tx_key_info_size);
+		if (send_partial_ghash) {
+			struct tls_keyctx *keyctx = (void *)out;
+
+			keyctx->u.txhdr.ctxlen++;
+			keyctx->u.txhdr.dualck_to_txvalid &= ~htobe16(
+			    V_KEY_CONTEXT_MK_SIZE(M_KEY_CONTEXT_MK_SIZE));
+			keyctx->u.txhdr.dualck_to_txvalid |= htobe16(
+			    F_KEY_CONTEXT_OPAD_PRESENT |
+			    V_KEY_CONTEXT_MK_SIZE(0));
+		}
 		out += tlsp->tx_key_info_size;
+		if (send_partial_ghash) {
+			if (header_len != 0)
+				memset(out, 0, AES_GMAC_HASH_LEN);
+			else
+				memcpy(out, tlsp->ghash, AES_GMAC_HASH_LEN);
+			out += AES_GMAC_HASH_LEN;
+		}
 	} else {
 		/* ULPTX_SC_MEMRD to read key context. */
 		memrd = (void *)out;
@@ -1252,8 +1792,11 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 
 	/* CPL_RX_PHYS_DSGL */
 	if (split_mode) {
-		out = write_split_mode_rx_phys(out, m, m_tls, cpl_len -
-		    sizeof(struct cpl_t7_rx_phys_dsgl) + m->m_len,
+		crypto_hdr_len = sizeof(struct cpl_tx_pkt_core);
+		if (need_lso)
+			crypto_hdr_len += sizeof(struct cpl_tx_pkt_lso_core);
+		crypto_hdr_len += m->m_len;
+		out = write_split_mode_rx_phys(out, m, m_tls, crypto_hdr_len,
 		    leading_waste, trailing_waste);
 	}
 
@@ -1305,6 +1848,33 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	memcpy(out, m_tls->m_epg_hdr, header_len);
 	out += header_len;
 
+	/* TLS AAD for short records using a partial hash. */
+	if (send_partial_ghash && header_len != 0) {
+		if (tlsp->tls13) {
+			struct tls_aead_data_13 ad;
+
+			ad.type = hdr->tls_type;
+			ad.tls_vmajor = hdr->tls_vmajor;
+			ad.tls_vminor = hdr->tls_vminor;
+			ad.tls_length = hdr->tls_length;
+			memcpy(out, &ad, sizeof(ad));
+			out += sizeof(ad);
+		} else {
+			struct tls_aead_data ad;
+			uint16_t cipher_len;
+
+			cipher_len = rlen -
+			    (m_tls->m_epg_hdrlen + AES_GMAC_HASH_LEN);
+			ad.seq = htobe64(m_tls->m_epg_seqno);
+			ad.type = hdr->tls_type;
+			ad.tls_vmajor = hdr->tls_vmajor;
+			ad.tls_vminor = hdr->tls_vminor;
+			ad.tls_length = htons(cipher_len);
+			memcpy(out, &ad, sizeof(ad));
+			out += sizeof(ad);
+		}
+	}
+
 	/* AES IV for a short record. */
 	if (short_record) {
 		iv = out;
@@ -1319,7 +1889,10 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 				be64enc(iv + 4, value);
 			} else
 				memcpy(iv + 4, hdr + 1, 8);
-			be32enc(iv + 12, 2 + offset / AES_BLOCK_LEN);
+			if (send_partial_ghash)
+				be32enc(iv + 12, 1 + offset / AES_BLOCK_LEN);
+			else
+				be32enc(iv + 12, 2 + offset / AES_BLOCK_LEN);
 		} else
 			memcpy(iv, hdr + 1, AES_BLOCK_LEN);
 		out += AES_BLOCK_LEN;
@@ -1353,7 +1926,65 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		panic("%s: failed to append sglist", __func__);
 #endif
 	}
-	write_gl_to_buf(txq->gl, out);
+	if (last_ghash_frag) {
+		if (sglist_append_phys(txq->gl, zero_buffer_pa,
+		    AES_GMAC_HASH_LEN) != 0) {
+#ifdef INVARIANTS
+			panic("%s: failed to append sglist (2)", __func__);
+#endif
+		}
+	}
+	out = write_gl_to_buf(txq->gl, out);
+
+	if (request_ghash) {
+		/* ULP_TXPKT */
+		txpkt = (void *)out;
+		txpkt->cmd_dest = htobe32(V_ULPTX_CMD(ULP_TX_PKT) |
+		    V_ULP_TXPKT_DATAMODIFY(0) |
+		    V_T7_ULP_TXPKT_CHANNELID(tlsp->vi->pi->port_id) |
+		    V_ULP_TXPKT_DEST(0) |
+		    V_ULP_TXPKT_FID(txq->eq.cntxt_id) | V_ULP_TXPKT_RO(1));
+		txpkt->len = htobe32(howmany(txpkt_lens[1], 16));
+
+		/* ULPTX_IDATA sub-command */
+		idata = (void *)(txpkt + 1);
+		idata->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM) |
+		    V_ULP_TX_SC_MORE(0));
+		idata->len = sizeof(struct cpl_tx_tls_ack);
+		idata->len += sizeof(struct rss_header) +
+		    sizeof(struct cpl_fw6_pld);
+		idata->len += AES_GMAC_HASH_LEN;
+		idata->len = htobe32(idata->len);
+		out = (void *)(idata + 1);
+
+		/* CPL_TX_TLS_ACK */
+		out = write_tx_tls_ack(out, tlsp->rx_chid, AES_GMAC_HASH_LEN,
+		    ghash_lcb);
+
+		/* CPL_FW6_PLD */
+		out = write_fw6_pld(out, tlsp->rx_chid, tlsp->rx_qid,
+		    AES_GMAC_HASH_LEN, (uintptr_t)tlsp | CPL_FW6_COOKIE_KTLS);
+
+		/* Space for partial hash. */
+		memset(out, 0, AES_GMAC_HASH_LEN);
+		out += AES_GMAC_HASH_LEN;
+
+		tlsp->ghash_pending = true;
+		tlsp->ghash_valid = false;
+		tlsp->ghash_lcb = ghash_lcb;
+		if (last_ghash_frag)
+			tlsp->ghash_offset = offset + plen;
+		else
+			tlsp->ghash_offset = rounddown2(offset + plen,
+			    GMAC_BLOCK_LEN);
+#ifdef VERBOSE_TRACES
+		CTR(KTR_CXGBE, "%s: %p requesting GHASH for offset %u",
+		    __func__, tlsp, tlsp->ghash_offset);
+#endif
+		m_snd_tag_ref(&tlsp->com);
+
+		txq->kern_tls_ghash_requested++;
+	}
 
 	if (using_scratch) {
 		out = dst;
@@ -1374,7 +2005,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		txsd->m = m;
 	else
 		txsd->m = NULL;
-	txsd->desc_used = howmany(wr_len, EQ_ESIZE);
+	txsd->desc_used = ndesc;
 
 	return (ndesc);
 }
@@ -1392,6 +2023,7 @@ t7_ktls_write_wr(struct sge_txq *txq, void *dst, struct mbuf *m,
 	u_int ndesc, pidx, totdesc;
 	uint16_t eh_type, mss;
 
+	TXQ_LOCK_ASSERT_OWNED(txq);
 	M_ASSERTPKTHDR(m);
 	MPASS(m->m_pkthdr.snd_tag != NULL);
 	tlsp = mst_to_tls(m->m_pkthdr.snd_tag);
@@ -1425,6 +2057,7 @@ t7_ktls_write_wr(struct sge_txq *txq, void *dst, struct mbuf *m,
 	CTR(KTR_CXGBE, "%s: pkt len %d TCP seq %u", __func__, m->m_pkthdr.len,
 	    tcp_seqno);
 #endif
+	KASSERT(!tlsp->ghash_pending, ("%s: GHASH pending for send", __func__));
 
 	/*
 	 * Iterate over each TLS record constructing a work request
@@ -1441,6 +2074,13 @@ t7_ktls_write_wr(struct sge_txq *txq, void *dst, struct mbuf *m,
 
 		tcp_seqno += m_tls->m_len;
 	}
+
+	/*
+	 * Queue another packet if this was a GCM request that didn't
+	 * request a GHASH response.
+	 */
+	if (tlsp->enc_mode == SCMD_CIPH_MODE_AES_GCM && !tlsp->ghash_pending)
+		ktls_queue_next_packet(tlsp, true);
 
 	MPASS(totdesc <= available);
 	return (totdesc);
@@ -1460,7 +2100,65 @@ t7_tls_tag_free(struct m_snd_tag *mst)
 	if (tlsp->tx_key_addr >= 0)
 		t4_free_tls_keyid(sc, tlsp->tx_key_addr);
 
+	KASSERT(mbufq_len(&tlsp->pending_mbufs) == 0,
+	    ("%s: pending mbufs", __func__));
+
 	zfree(tlsp, M_CXGBE);
+}
+
+static int
+ktls_fw6_pld(struct sge_iq *iq, const struct rss_header *rss,
+    struct mbuf *m)
+{
+	const struct cpl_fw6_pld *cpl;
+	struct tlspcb *tlsp;
+	const void *ghash;
+
+	if (m != NULL)
+		cpl = mtod(m, const void *);
+	else
+		cpl = (const void *)(rss + 1);
+
+	tlsp = (struct tlspcb *)(uintptr_t)CPL_FW6_PLD_COOKIE(cpl);
+	KASSERT(cpl->data[0] == 0, ("%s: error status returned", __func__));
+
+	TXQ_LOCK(tlsp->txq);
+#ifdef VERBOSE_TRACES
+	CTR(KTR_CXGBE, "%s: %p received GHASH for offset %u%s", __func__, tlsp,
+	    tlsp->ghash_offset, tlsp->ghash_lcb ? " in LCB" : "");
+#endif
+	if (tlsp->ghash_lcb)
+		ghash = &cpl->data[2];
+	else
+		ghash = cpl + 1;
+	memcpy(tlsp->ghash, ghash, AES_GMAC_HASH_LEN);
+	tlsp->ghash_valid = true;
+	tlsp->ghash_pending = false;
+	tlsp->txq->kern_tls_ghash_received++;
+
+	ktls_queue_next_packet(tlsp, false);
+	TXQ_UNLOCK(tlsp->txq);
+
+	m_snd_tag_rele(&tlsp->com);
+	m_freem(m);
+	return (0);
+}
+
+void
+t7_ktls_modload(void)
+{
+	zero_buffer = malloc_aligned(AES_GMAC_HASH_LEN, AES_GMAC_HASH_LEN,
+	    M_CXGBE, M_ZERO | M_WAITOK);
+	zero_buffer_pa = vtophys(zero_buffer);
+	t4_register_shared_cpl_handler(CPL_FW6_PLD, ktls_fw6_pld,
+	    CPL_FW6_COOKIE_KTLS);
+}
+
+void
+t7_ktls_modunload(void)
+{
+	free(zero_buffer, M_CXGBE);
+	t4_register_shared_cpl_handler(CPL_FW6_PLD, NULL, CPL_FW6_COOKIE_KTLS);
 }
 
 #else
@@ -1483,6 +2181,16 @@ t7_ktls_write_wr(struct sge_txq *txq, void *dst, struct mbuf *m,
     u_int available)
 {
 	panic("can't happen");
+}
+
+void
+t7_ktls_modload(void)
+{
+}
+
+void
+t7_ktls_modunload(void)
+{
 }
 
 #endif

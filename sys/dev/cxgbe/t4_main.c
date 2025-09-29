@@ -765,6 +765,10 @@ SYSCTL_INT(_hw_cxgbe_tls, OID_AUTO, combo_wrs, CTLFLAG_RDTUN, &t4_tls_combo_wrs,
 static int t4_tls_short_records = 1;
 SYSCTL_INT(_hw_cxgbe_tls, OID_AUTO, short_records, CTLFLAG_RDTUN,
     &t4_tls_short_records, 0, "Use cipher-only mode for short records.");
+
+static int t4_tls_partial_ghash = 1;
+SYSCTL_INT(_hw_cxgbe_tls, OID_AUTO, partial_ghash, CTLFLAG_RDTUN,
+    &t4_tls_partial_ghash, 0, "Use partial GHASH for AES-GCM records.");
 #endif
 
 /* Functions used by VIs to obtain unique MAC addresses for each VI. */
@@ -6139,8 +6143,10 @@ set_params__post_init(struct adapter *sc)
 		if (t4_kern_tls != 0 && is_t6(sc)) {
 			sc->tlst.combo_wrs = t4_tls_combo_wrs;
 			t6_config_kern_tls(sc, true);
-		} else
+		} else {
 			sc->tlst.short_records = t4_tls_short_records;
+			sc->tlst.partial_ghash = t4_tls_partial_ghash;
+		}
 	}
 #endif
 	return (0);
@@ -8113,10 +8119,14 @@ t4_sysctls(struct adapter *sc)
 			    CTLFLAG_RW, &sc->tlst.combo_wrs, 0, "Attempt to "
 			    "combine TCB field updates with TLS record work "
 			    "requests.");
-		else
+		else {
 			SYSCTL_ADD_INT(ctx, children, OID_AUTO, "short_records",
 			    CTLFLAG_RW, &sc->tlst.short_records, 0,
 			    "Use cipher-only mode for short records.");
+			SYSCTL_ADD_INT(ctx, children, OID_AUTO, "partial_ghash",
+			    CTLFLAG_RW, &sc->tlst.partial_ghash, 0,
+			    "Use partial GHASH for AES-GCM records.");
+		}
 	}
 #endif
 
@@ -12949,12 +12959,21 @@ clear_stats(struct adapter *sc, u_int port_id)
 				txq->kern_tls_full = 0;
 				txq->kern_tls_octets = 0;
 				txq->kern_tls_waste = 0;
-				txq->kern_tls_options = 0;
 				txq->kern_tls_header = 0;
-				txq->kern_tls_fin = 0;
 				txq->kern_tls_fin_short = 0;
 				txq->kern_tls_cbc = 0;
 				txq->kern_tls_gcm = 0;
+				if (is_t6(sc)) {
+					txq->kern_tls_options = 0;
+					txq->kern_tls_fin = 0;
+				} else {
+					txq->kern_tls_ghash_received = 0;
+					txq->kern_tls_ghash_requested = 0;
+					txq->kern_tls_lso = 0;
+					txq->kern_tls_partial_ghash = 0;
+					txq->kern_tls_splitmode = 0;
+					txq->kern_tls_trailer = 0;
+				}
 				mp_ring_reset_stats(txq->r);
 			}
 
@@ -14122,6 +14141,7 @@ mod_event(module_t mod, int cmd, void *arg)
 #endif
 #ifdef KERN_TLS
 			t6_ktls_modload();
+			t7_ktls_modload();
 #endif
 			t4_tracer_modload();
 			tweak_tunables();
@@ -14185,6 +14205,7 @@ mod_event(module_t mod, int cmd, void *arg)
 				    vxlan_stop_evtag);
 				t4_tracer_modunload();
 #ifdef KERN_TLS
+				t7_ktls_modunload();
 				t6_ktls_modunload();
 #endif
 #ifdef INET6

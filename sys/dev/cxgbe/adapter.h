@@ -418,6 +418,7 @@ enum {
  */
 enum {
 	CPL_FW6_COOKIE_CCR = 0,
+	CPL_FW6_COOKIE_KTLS,
 
 	NUM_CPL_FW6_COOKIES = 2	/* Low bits of cookie value. */
 };
@@ -669,8 +670,12 @@ struct sge_txq {
 		};
 		struct {
 			/* T7 only. */
+			uint64_t kern_tls_ghash_received;
+			uint64_t kern_tls_ghash_requested;
 			uint64_t kern_tls_lso;
+			uint64_t kern_tls_partial_ghash;
 			uint64_t kern_tls_splitmode;
+			uint64_t kern_tls_trailer;
 		};
 	};
 
@@ -1456,6 +1461,8 @@ int t6_ktls_write_wr(struct sge_txq *, void *, struct mbuf *, u_int);
 /* t7_kern_tls.c */
 int t7_tls_tag_alloc(struct ifnet *, union if_snd_tag_alloc_params *,
     struct m_snd_tag **);
+void t7_ktls_modload(void);
+void t7_ktls_modunload(void);
 int t7_ktls_parse_pkt(struct mbuf *);
 int t7_ktls_write_wr(struct sge_txq *, void *, struct mbuf *, u_int);
 #endif
