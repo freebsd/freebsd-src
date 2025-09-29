@@ -1201,6 +1201,8 @@ main(int ac, char **av)
 	ssh_signal(SIGCHLD, SIG_DFL);
 	ssh_signal(SIGINT, SIG_DFL);
 
+	BLACKLIST_INIT();
+
 	/*
 	 * Register our connection.  This turns encryption off because we do
 	 * not have a key.
@@ -1277,8 +1279,10 @@ main(int ac, char **av)
 	}
 
 	if ((r = kex_exchange_identification(ssh, -1,
-	    options.version_addendum)) != 0)
+	    options.version_addendum)) != 0) {
+		BLACKLIST_NOTIFY(ssh, BLACKLIST_AUTH_FAIL, "Banner exchange");
 		sshpkt_fatal(ssh, r, "banner exchange");
+	}
 
 	ssh_packet_set_nonblocking(ssh);
 
@@ -1297,8 +1301,6 @@ main(int ac, char **av)
 	if ((loginmsg = sshbuf_new()) == NULL)
 		fatal("sshbuf_new loginmsg failed");
 	auth_debug_reset();
-
-	BLACKLIST_INIT();
 
 	if (privsep_preauth(ssh) != 1)
 		fatal("privsep_preauth failed");
@@ -1425,7 +1427,10 @@ cleanup_exit(int i)
 		audit_event(the_active_state, SSH_CONNECTION_ABANDON);
 #endif
 	/* Override default fatal exit value when auth was attempted */
-	if (i == 255 && auth_attempted)
+	if (i == 255 && auth_attempted) {
+		BLACKLIST_NOTIFY(the_active_state, BLACKLIST_AUTH_FAIL,
+		    "Fatal exit");
 		_exit(EXIT_AUTH_ATTEMPTED);
+	}
 	_exit(i);
 }

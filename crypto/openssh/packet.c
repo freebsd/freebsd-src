@@ -96,7 +96,6 @@
 #include "packet.h"
 #include "ssherr.h"
 #include "sshbuf.h"
-#include "blacklist_client.h"
 
 #ifdef PACKET_DEBUG
 #define DBG(x) x
@@ -2022,7 +2021,6 @@ sshpkt_vfatal(struct ssh *ssh, int r, const char *fmt, va_list ap)
 	case SSH_ERR_NO_KEX_ALG_MATCH:
 	case SSH_ERR_NO_HOSTKEY_ALG_MATCH:
 		if (ssh->kex && ssh->kex->failed_choice) {
-			BLACKLIST_NOTIFY(ssh, BLACKLIST_AUTH_FAIL, "ssh");
 			ssh_packet_clear_keys(ssh);
 			errno = oerrno;
 			logdie("Unable to negotiate with %s: %s. "
