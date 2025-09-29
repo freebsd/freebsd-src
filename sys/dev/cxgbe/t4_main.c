@@ -10030,16 +10030,16 @@ sysctl_linkdnrc(SYSCTL_HANDLER_ARGS)
 }
 
 struct mem_desc {
-	u_int base;
-	u_int limit;
+	uint64_t base;
+	uint64_t limit;
 	u_int idx;
 };
 
 static int
 mem_desc_cmp(const void *a, const void *b)
 {
-	const u_int v1 = ((const struct mem_desc *)a)->base;
-	const u_int v2 = ((const struct mem_desc *)b)->base;
+	const uint64_t v1 = ((const struct mem_desc *)a)->base;
+	const uint64_t v2 = ((const struct mem_desc *)b)->base;
 
 	if (v1 < v2)
 		return (-1);
@@ -10050,10 +10050,9 @@ mem_desc_cmp(const void *a, const void *b)
 }
 
 static void
-mem_region_show(struct sbuf *sb, const char *name, unsigned int from,
-    unsigned int to)
+mem_region_show(struct sbuf *sb, const char *name, uint64_t from, uint64_t to)
 {
-	unsigned int size;
+	uintmax_t size;
 
 	if (from == to)
 		return;
@@ -10062,8 +10061,12 @@ mem_region_show(struct sbuf *sb, const char *name, unsigned int from,
 	if (size == 0)
 		return;
 
-	/* XXX: need humanize_number(3) in libkern for a more readable 'size' */
-	sbuf_printf(sb, "%-15s %#x-%#x [%u]\n", name, from, to, size);
+	if (from > UINT32_MAX || to > UINT32_MAX)
+		sbuf_printf(sb, "%-18s 0x%012jx-0x%012jx [%ju]\n", name,
+		    (uintmax_t)from, (uintmax_t)to, size);
+	else
+		sbuf_printf(sb, "%-18s 0x%08jx-0x%08jx [%ju]\n", name,
+		    (uintmax_t)from, (uintmax_t)to, size);
 }
 
 static int
@@ -10071,7 +10074,7 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 {
 	struct adapter *sc = arg1;
 	struct sbuf *sb;
-	int rc, i, n;
+	int rc, i, n, nchan;
 	uint32_t lo, hi, used, free, alloc;
 	static const char *memory[] = {
 		"EDC0:", "EDC1:", "MC:", "MC0:", "MC1:", "HMA:"
@@ -10082,12 +10085,14 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 		"Tx payload:", "Rx payload:", "LE hash:", "iSCSI region:",
 		"TDDP region:", "TPT region:", "STAG region:", "RQ region:",
 		"RQUDP region:", "PBL region:", "TXPBL region:",
-		"TLSKey region:", "DBVFIFO region:", "ULPRX state:",
-		"ULPTX state:", "On-chip queues:",
+		"TLSKey region:", "RRQ region:", "NVMe STAG region:",
+		"NVMe RQ region:", "NVMe RXPBL region:", "NVMe TPT region:",
+		"NVMe TXPBL region:", "DBVFIFO region:", "ULPRX state:",
+		"ULPTX state:", "RoCE RRQ region:", "On-chip queues:",
 	};
 	struct mem_desc avail[4];
 	struct mem_desc mem[nitems(region) + 3];	/* up to 3 holes */
-	struct mem_desc *md = mem;
+	struct mem_desc *md;
 
 	rc = sysctl_wire_old_buffer(req, 0);
 	if (rc != 0)
@@ -10113,36 +10118,91 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	lo = t4_read_reg(sc, A_MA_TARGET_MEM_ENABLE);
 	if (lo & F_EDRAM0_ENABLE) {
 		hi = t4_read_reg(sc, A_MA_EDRAM0_BAR);
-		avail[i].base = G_EDRAM0_BASE(hi) << 20;
-		avail[i].limit = avail[i].base + (G_EDRAM0_SIZE(hi) << 20);
+		if (chip_id(sc) >= CHELSIO_T7) {
+			avail[i].base = (uint64_t)G_T7_EDRAM0_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_T7_EDRAM0_SIZE(hi) << 20);
+		} else {
+			avail[i].base = (uint64_t)G_EDRAM0_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_EDRAM0_SIZE(hi) << 20);
+		}
 		avail[i].idx = 0;
 		i++;
 	}
 	if (lo & F_EDRAM1_ENABLE) {
 		hi = t4_read_reg(sc, A_MA_EDRAM1_BAR);
-		avail[i].base = G_EDRAM1_BASE(hi) << 20;
-		avail[i].limit = avail[i].base + (G_EDRAM1_SIZE(hi) << 20);
+		if (chip_id(sc) >= CHELSIO_T7) {
+			avail[i].base = (uint64_t)G_T7_EDRAM1_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_T7_EDRAM1_SIZE(hi) << 20);
+		} else {
+			avail[i].base = (uint64_t)G_EDRAM1_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_EDRAM1_SIZE(hi) << 20);
+		}
 		avail[i].idx = 1;
 		i++;
 	}
 	if (lo & F_EXT_MEM_ENABLE) {
-		hi = t4_read_reg(sc, A_MA_EXT_MEMORY_BAR);
-		avail[i].base = G_EXT_MEM_BASE(hi) << 20;
-		avail[i].limit = avail[i].base + (G_EXT_MEM_SIZE(hi) << 20);
-		avail[i].idx = is_t5(sc) ? 3 : 2;	/* Call it MC0 for T5 */
+		switch (chip_id(sc)) {
+		case CHELSIO_T4:
+		case CHELSIO_T6:
+			hi = t4_read_reg(sc, A_MA_EXT_MEMORY_BAR);
+			avail[i].base = (uint64_t)G_EXT_MEM_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_EXT_MEM_SIZE(hi) << 20);
+			avail[i].idx = 2;
+			break;
+		case CHELSIO_T5:
+			hi = t4_read_reg(sc, A_MA_EXT_MEMORY0_BAR);
+			avail[i].base = (uint64_t)G_EXT_MEM0_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_EXT_MEM0_SIZE(hi) << 20);
+			avail[i].idx = 3;	/* Call it MC0 for T5 */
+			break;
+		default:
+			hi = t4_read_reg(sc, A_MA_EXT_MEMORY0_BAR);
+			avail[i].base = (uint64_t)G_T7_EXT_MEM0_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_T7_EXT_MEM0_SIZE(hi) << 20);
+			avail[i].idx = 3;	/* Call it MC0 for T7+ */
+			break;
+		}
 		i++;
 	}
-	if (is_t5(sc) && lo & F_EXT_MEM1_ENABLE) {
+	if (lo & F_EXT_MEM1_ENABLE && !(lo & F_MC_SPLIT)) {
+		/* Only T5 and T7+ have 2 MCs. */
+		MPASS(is_t5(sc) || chip_id(sc) >= CHELSIO_T7);
+
 		hi = t4_read_reg(sc, A_MA_EXT_MEMORY1_BAR);
-		avail[i].base = G_EXT_MEM1_BASE(hi) << 20;
-		avail[i].limit = avail[i].base + (G_EXT_MEM1_SIZE(hi) << 20);
+		if (chip_id(sc) >= CHELSIO_T7) {
+			avail[i].base = (uint64_t)G_T7_EXT_MEM1_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_T7_EXT_MEM1_SIZE(hi) << 20);
+		} else {
+			avail[i].base = (uint64_t)G_EXT_MEM1_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_EXT_MEM1_SIZE(hi) << 20);
+		}
 		avail[i].idx = 4;
 		i++;
 	}
-	if (is_t6(sc) && lo & F_HMA_MUX) {
-		hi = t4_read_reg(sc, A_MA_EXT_MEMORY1_BAR);
-		avail[i].base = G_EXT_MEM1_BASE(hi) << 20;
-		avail[i].limit = avail[i].base + (G_EXT_MEM1_SIZE(hi) << 20);
+	if (lo & F_HMA_MUX) {
+		/* Only T6+ have HMA. */
+		MPASS(chip_id(sc) >= CHELSIO_T6);
+
+		if (chip_id(sc) >= CHELSIO_T7) {
+			hi = t4_read_reg(sc, A_MA_HOST_MEMORY_BAR);
+			avail[i].base = (uint64_t)G_HMATARGETBASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_T7_HMA_SIZE(hi) << 20);
+		} else {
+			hi = t4_read_reg(sc, A_MA_EXT_MEMORY1_BAR);
+			avail[i].base = G_EXT_MEM1_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_EXT_MEM1_SIZE(hi) << 20);
+		}
 		avail[i].idx = 5;
 		i++;
 	}
@@ -10151,6 +10211,7 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 		goto done;
 	qsort(avail, i, sizeof(struct mem_desc), mem_desc_cmp);
 
+	md = &mem[0];
 	(md++)->base = t4_read_reg(sc, A_SGE_DBQ_CTXT_BADDR);
 	(md++)->base = t4_read_reg(sc, A_SGE_IMSG_CTXT_BADDR);
 	(md++)->base = t4_read_reg(sc, A_SGE_FLM_CACHE_BADDR);
@@ -10186,22 +10247,52 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	}
 	md++;
 
-#define ulp_region(reg) \
-	md->base = t4_read_reg(sc, A_ULP_ ## reg ## _LLIMIT);\
-	(md++)->limit = t4_read_reg(sc, A_ULP_ ## reg ## _ULIMIT)
+#define ulp_region(reg) do {\
+		const u_int shift = chip_id(sc) >= CHELSIO_T7 ? 4 : 0; \
+		md->base = (uint64_t)t4_read_reg(sc, A_ULP_ ## reg ## _LLIMIT) << shift; \
+		md->limit = (uint64_t)t4_read_reg(sc, A_ULP_ ## reg ## _ULIMIT) << shift; \
+		md->limit += (1 << shift) - 1; \
+		md++; \
+	} while (0)
+
+#define	hide_ulp_region() do { \
+		md->base = 0; \
+		md->idx = nitems(region); \
+		md++; \
+	} while (0)
 
 	ulp_region(RX_ISCSI);
 	ulp_region(RX_TDDP);
 	ulp_region(TX_TPT);
 	ulp_region(RX_STAG);
 	ulp_region(RX_RQ);
-	ulp_region(RX_RQUDP);
+	if (chip_id(sc) < CHELSIO_T7)
+		ulp_region(RX_RQUDP);
+	else
+		hide_ulp_region();
 	ulp_region(RX_PBL);
 	ulp_region(TX_PBL);
-	if (sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS) {
+	if (chip_id(sc) >= CHELSIO_T6)
 		ulp_region(RX_TLS_KEY);
+	else
+		hide_ulp_region();
+	if (chip_id(sc) >= CHELSIO_T7) {
+		ulp_region(RX_RRQ);
+		ulp_region(RX_NVME_TCP_STAG);
+		ulp_region(RX_NVME_TCP_RQ);
+		ulp_region(RX_NVME_TCP_PBL);
+		ulp_region(TX_NVME_TCP_TPT);
+		ulp_region(TX_NVME_TCP_PBL);
+	} else {
+		hide_ulp_region();
+		hide_ulp_region();
+		hide_ulp_region();
+		hide_ulp_region();
+		hide_ulp_region();
+		hide_ulp_region();
 	}
 #undef ulp_region
+#undef hide_ulp_region
 
 	md->base = 0;
 	if (is_t4(sc))
@@ -10230,6 +10321,15 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	md++;
 	md->base = t4_read_reg(sc, A_ULP_TX_ERR_TABLE_BASE);
 	md->limit = 0;
+	md++;
+
+	if (chip_id(sc) >= CHELSIO_T7) {
+		t4_tp_pio_read(sc, &lo, 1, A_TP_ROCE_RRQ_BASE, false);
+		md->base = lo;
+	} else {
+		md->base = 0;
+		md->idx = nitems(region);
+	}
 	md++;
 
 	md->base = sc->vres.ocq.start;
@@ -10264,31 +10364,41 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 				mem[i].limit);
 	}
 
-	sbuf_printf(sb, "\n");
 	lo = t4_read_reg(sc, A_CIM_SDRAM_BASE_ADDR);
 	hi = t4_read_reg(sc, A_CIM_SDRAM_ADDR_SIZE) + lo - 1;
-	mem_region_show(sb, "uP RAM:", lo, hi);
+	if (hi != lo  - 1) {
+		sbuf_printf(sb, "\n");
+		mem_region_show(sb, "uP RAM:", lo, hi);
+	}
 
 	lo = t4_read_reg(sc, A_CIM_EXTMEM2_BASE_ADDR);
 	hi = t4_read_reg(sc, A_CIM_EXTMEM2_ADDR_SIZE) + lo - 1;
-	mem_region_show(sb, "uP Extmem2:", lo, hi);
+	if (hi != lo  - 1)
+		mem_region_show(sb, "uP Extmem2:", lo, hi);
 
 	lo = t4_read_reg(sc, A_TP_PMM_RX_MAX_PAGE);
-	for (i = 0, free = 0; i < 2; i++)
+	if (chip_id(sc) >= CHELSIO_T7)
+		nchan = 1 << G_T7_PMRXNUMCHN(lo);
+	else
+		nchan = lo & F_PMRXNUMCHN ? 2 : 1;
+	for (i = 0, free = 0; i < nchan; i++)
 		free += G_FREERXPAGECOUNT(t4_read_reg(sc, A_TP_FLM_FREE_RX_CNT));
 	sbuf_printf(sb, "\n%u Rx pages (%u free) of size %uKiB for %u channels\n",
 		   G_PMRXMAXPAGE(lo), free,
-		   t4_read_reg(sc, A_TP_PMM_RX_PAGE_SIZE) >> 10,
-		   (lo & F_PMRXNUMCHN) ? 2 : 1);
+		   t4_read_reg(sc, A_TP_PMM_RX_PAGE_SIZE) >> 10, nchan);
 
 	lo = t4_read_reg(sc, A_TP_PMM_TX_MAX_PAGE);
 	hi = t4_read_reg(sc, A_TP_PMM_TX_PAGE_SIZE);
-	for (i = 0, free = 0; i < 4; i++)
+	if (chip_id(sc) >= CHELSIO_T7)
+		nchan = 1 << G_T7_PMTXNUMCHN(lo);
+	else
+		nchan = 1 << G_PMTXNUMCHN(lo);
+	for (i = 0, free = 0; i < nchan; i++)
 		free += G_FREETXPAGECOUNT(t4_read_reg(sc, A_TP_FLM_FREE_TX_CNT));
 	sbuf_printf(sb, "%u Tx pages (%u free) of size %u%ciB for %u channels\n",
 		   G_PMTXMAXPAGE(lo), free,
 		   hi >= (1 << 20) ? (hi >> 20) : (hi >> 10),
-		   hi >= (1 << 20) ? 'M' : 'K', 1 << G_PMTXNUMCHN(lo));
+		   hi >= (1 << 20) ? 'M' : 'K', nchan);
 	sbuf_printf(sb, "%u p-structs (%u free)\n",
 		   t4_read_reg(sc, A_TP_CMM_MM_MAX_PSTRUCT),
 		   G_FREEPSTRUCTCOUNT(t4_read_reg(sc, A_TP_FLM_FREE_PS_CNT)));
@@ -10305,7 +10415,7 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 			used = G_USED(lo);
 			alloc = G_ALLOC(lo);
 		}
-		/* For T6 these are MAC buffer groups */
+		/* For T6+ these are MAC buffer groups */
 		sbuf_printf(sb, "\nPort %d using %u pages out of %u allocated",
 		    i, used, alloc);
 	}
@@ -10321,7 +10431,7 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 			used = G_USED(lo);
 			alloc = G_ALLOC(lo);
 		}
-		/* For T6 these are MAC buffer groups */
+		/* For T6+ these are MAC buffer groups */
 		sbuf_printf(sb,
 		    "\nLoopback %d using %u pages out of %u allocated",
 		    i, used, alloc);
