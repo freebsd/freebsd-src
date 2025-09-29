@@ -54,7 +54,11 @@ extern pthread_cond_t atomic_cv;
 	(AFMT_U8 | AFMT_S8)
 
 #define	VMAX_CHAN 64
-#define	VMAX_STRING 64	/* characters */
+/*
+ * XXX 32 - strlen("/dev") to not exceed OSS_DEVNODE_SIZE in soundcard.h. Also
+ * silences GCC warnings.
+ */
+#define	VMAX_STRING 27
 
 #define	VTYPE_OSS_DAT 0
 #define	VTYPE_WAV_HDR 1
