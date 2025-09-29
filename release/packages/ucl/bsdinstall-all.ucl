@@ -37,5 +37,5 @@ images and jails.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

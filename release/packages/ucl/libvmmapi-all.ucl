@@ -23,5 +23,5 @@ libvmmapi provides an interface for applications to access the vmm(4) driver.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

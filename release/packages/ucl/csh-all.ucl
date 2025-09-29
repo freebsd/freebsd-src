@@ -40,5 +40,5 @@ a history mechanism, job control, and a C-like syntax.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

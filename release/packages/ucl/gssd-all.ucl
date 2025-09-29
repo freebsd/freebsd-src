@@ -30,5 +30,5 @@ This daemon is required when using Kerberos authentication with NFS.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

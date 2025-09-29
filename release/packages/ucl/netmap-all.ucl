@@ -29,5 +29,5 @@ with netmap, and valectl(8), a utility to manage vale(4) network switches.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

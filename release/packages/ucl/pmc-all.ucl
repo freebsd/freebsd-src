@@ -12,5 +12,5 @@ command-line access to the facilities provided by libpmc.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

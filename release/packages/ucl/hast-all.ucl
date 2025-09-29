@@ -23,3 +23,7 @@ The Highly Available Storage daemon, hastd(8), provides replication of block
 storage devices between two machines on a network.  HAST can be used by itself
 or as part of an HA cluster to provide redundant cluster storage.
 EOD
+
+annotations {
+	set = "optional"
+}

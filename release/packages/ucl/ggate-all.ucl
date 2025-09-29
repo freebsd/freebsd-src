@@ -30,3 +30,7 @@ such as iSCSI.
 This package provides the ggated(8) server used to export devices, and
 the ggatec(8) client used to access them.
 EOD
+
+annotations {
+	set = "optional"
+}

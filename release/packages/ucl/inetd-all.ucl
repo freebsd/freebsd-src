@@ -25,5 +25,5 @@ built-in servers for basic services are also provided.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

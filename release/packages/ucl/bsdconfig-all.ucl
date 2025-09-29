@@ -27,5 +27,5 @@ the rc.conf(5) configuration.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

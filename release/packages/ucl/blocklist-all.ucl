@@ -28,5 +28,5 @@ only daemons which have had blacklist support added will work.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

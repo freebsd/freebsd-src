@@ -35,5 +35,5 @@ userspace.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

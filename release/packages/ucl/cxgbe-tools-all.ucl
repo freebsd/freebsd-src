@@ -25,3 +25,7 @@ state of the interface, loading firmware, and configuring features such
 as the hardware packet filter, Quality-of-Service (QoS) scheduler, and
 TCP offload engine.
 EOD
+
+annotations {
+	set = "optional"
+}

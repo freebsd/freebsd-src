@@ -35,3 +35,7 @@ DTrace scripts to coalesce trace output by date/time, process info, and
 [optionally] probe-specific data.  dwatch also includes a set of pre-defined
 profiles for tracing common system operations.
 EOD
+
+annotations {
+	set = "optional"
+}

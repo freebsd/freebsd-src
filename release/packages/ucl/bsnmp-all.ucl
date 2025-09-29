@@ -42,5 +42,5 @@ bsnmpd can be used in unexpected ways.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

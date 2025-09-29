@@ -26,5 +26,5 @@ helper process to allow restricted access to system and network resources.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

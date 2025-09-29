@@ -4,5 +4,5 @@ The libcompiler_rt library from LLVM.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

@@ -43,5 +43,5 @@ RPCSEC_GSS security mechanism.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

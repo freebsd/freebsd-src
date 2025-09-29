@@ -34,5 +34,5 @@ such as gzip and bzip2.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

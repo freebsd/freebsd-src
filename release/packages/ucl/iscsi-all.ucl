@@ -24,3 +24,7 @@ network.  This package provides iscsid(8), the userland component of the iSCSI
 initiator, the iscsictl(8) utility used to monitor and configure the initiator,
 and rc(8) services to configure the initiator during system startup.
 EOD
+
+annotations {
+	set = "optional"
+}

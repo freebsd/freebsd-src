@@ -48,5 +48,5 @@ the $PKG_NAME_PREFIX-sendmail package instead.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

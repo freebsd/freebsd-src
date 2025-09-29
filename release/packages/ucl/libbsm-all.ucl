@@ -36,5 +36,5 @@ of new audit records and streams.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

@@ -24,3 +24,7 @@ network devices, including the /etc/rc.d/bluetooth service which manages
 the Bluetooth stack when Bluetooth devices are attached or removed, and
 the rfcomm_pppd(8) daemon which manages PPP connections over Bluetooth.
 EOD
+
+annotations {
+	set = "optional"
+}

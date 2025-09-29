@@ -28,5 +28,5 @@ or IRC protocols.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

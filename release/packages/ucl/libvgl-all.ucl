@@ -47,5 +47,5 @@ on different virtual consoles.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

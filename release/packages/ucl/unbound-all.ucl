@@ -31,5 +31,5 @@ EOD
 licenses = [ BSD4CLAUSE ]
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }
