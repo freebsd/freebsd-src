@@ -424,9 +424,13 @@ alloc_nm_txq_hwq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
 	    F_FW_CMD_WRITE | F_FW_CMD_EXEC | V_FW_EQ_ETH_CMD_PFN(sc->pf) |
 	    V_FW_EQ_ETH_CMD_VFN(0));
 	c.alloc_to_len16 = htobe32(F_FW_EQ_ETH_CMD_EQSTART | FW_LEN16(c));
-	if (nm_txq->cntxt_id == INVALID_NM_TXQ_CNTXT_ID)
-		c.alloc_to_len16 |= htobe32(F_FW_EQ_ETH_CMD_ALLOC);
-	else
+	if (nm_txq->cntxt_id == INVALID_NM_TXQ_CNTXT_ID) {
+		const int core = sc->params.ncores > 1 ?
+		    nm_txq->nid % sc->params.ncores : 0;
+
+		c.alloc_to_len16 |= htobe32(F_FW_EQ_ETH_CMD_ALLOC |
+		    V_FW_EQ_ETH_CMD_COREGROUP(core));
+	} else
 		c.eqid_pkd = htobe32(V_FW_EQ_ETH_CMD_EQID(nm_txq->cntxt_id));
 	c.autoequiqe_to_viid = htobe32(F_FW_EQ_ETH_CMD_AUTOEQUIQE |
 	    F_FW_EQ_ETH_CMD_AUTOEQUEQE | V_FW_EQ_ETH_CMD_VIID(vi->viid));

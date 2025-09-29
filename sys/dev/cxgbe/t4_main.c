@@ -1,8 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2011 Chelsio Communications, Inc.
- * All rights reserved.
+ * Copyright (c) 2011, 2025 Chelsio Communications.
  * Written by: Navdeep Parhar <np@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -859,11 +858,13 @@ static int sysctl_vdd(SYSCTL_HANDLER_ARGS);
 static int sysctl_reset_sensor(SYSCTL_HANDLER_ARGS);
 static int sysctl_loadavg(SYSCTL_HANDLER_ARGS);
 static int sysctl_cctrl(SYSCTL_HANDLER_ARGS);
-static int sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS);
+static int sysctl_cim_ibq(SYSCTL_HANDLER_ARGS);
+static int sysctl_cim_obq(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_ma_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_pif_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_qcfg(SYSCTL_HANDLER_ARGS);
+static int sysctl_cim_qcfg_t7(SYSCTL_HANDLER_ARGS);
 static int sysctl_cpl_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_ddp_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tid_stats(SYSCTL_HANDLER_ARGS);
@@ -1569,6 +1570,7 @@ t4_attach(device_t dev)
 	sc->intr_count = iaq.nirq;
 
 	s = &sc->sge;
+	s->nctrlq = max(sc->params.nports, sc->params.ncores);
 	s->nrxq = nports * iaq.nrxq;
 	s->ntxq = nports * iaq.ntxq;
 	if (num_vis > 1) {
@@ -1623,7 +1625,7 @@ t4_attach(device_t dev)
 	MPASS(s->niq <= s->iqmap_sz);
 	MPASS(s->neq <= s->eqmap_sz);
 
-	s->ctrlq = malloc(nports * sizeof(struct sge_wrq), M_CXGBE,
+	s->ctrlq = malloc(s->nctrlq * sizeof(struct sge_wrq), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 	s->rxq = malloc(s->nrxq * sizeof(struct sge_rxq), M_CXGBE,
 	    M_ZERO | M_WAITOK);
@@ -4564,8 +4566,27 @@ calculate_iaq(struct adapter *sc, struct intrs_and_queues *iaq, int itype,
 	iaq->nrxq_vi = t4_nrxq_vi;
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 	if (is_offload(sc) || is_ethoffload(sc)) {
-		iaq->nofldtxq = t4_nofldtxq;
-		iaq->nofldtxq_vi = t4_nofldtxq_vi;
+		if (sc->params.tid_qid_sel_mask == 0) {
+			iaq->nofldtxq = t4_nofldtxq;
+			iaq->nofldtxq_vi = t4_nofldtxq_vi;
+		} else {
+			iaq->nofldtxq = roundup(t4_nofldtxq, sc->params.ncores);
+			iaq->nofldtxq_vi = roundup(t4_nofldtxq_vi,
+			    sc->params.ncores);
+			if (iaq->nofldtxq != t4_nofldtxq)
+				device_printf(sc->dev,
+				    "nofldtxq updated (%d -> %d) for correct"
+				    " operation with %d firmware cores.\n",
+				    t4_nofldtxq, iaq->nofldtxq,
+				    sc->params.ncores);
+			if (iaq->num_vis > 1 &&
+			    iaq->nofldtxq_vi != t4_nofldtxq_vi)
+				device_printf(sc->dev,
+				    "nofldtxq_vi updated (%d -> %d) for correct"
+				    " operation with %d firmware cores.\n",
+				    t4_nofldtxq_vi, iaq->nofldtxq_vi,
+				    sc->params.ncores);
+		}
 	}
 #endif
 #ifdef TCP_OFFLOAD
@@ -4666,6 +4687,10 @@ calculate_iaq(struct adapter *sc, struct intrs_and_queues *iaq, int itype,
 	if (iaq->nofldrxq > 0) {
 		iaq->nofldrxq = 1;
 		iaq->nofldtxq = 1;
+		if (sc->params.tid_qid_sel_mask == 0)
+			iaq->nofldtxq = 1;
+		else
+			iaq->nofldtxq = sc->params.ncores;
 	}
 	iaq->nnmtxq = 0;
 	iaq->nnmrxq = 0;
@@ -4678,9 +4703,10 @@ done:
 	MPASS(iaq->nirq > 0);
 	MPASS(iaq->nrxq > 0);
 	MPASS(iaq->ntxq > 0);
-	if (itype == INTR_MSI) {
+	if (itype == INTR_MSI)
 		MPASS(powerof2(iaq->nirq));
-	}
+	if (sc->params.tid_qid_sel_mask != 0)
+		MPASS(iaq->nofldtxq % sc->params.ncores == 0);
 }
 
 static int
@@ -5638,6 +5664,14 @@ get_params__post_init(struct adapter *sc)
 			sc->rawf_base = val[0];
 			sc->nrawf = val[1] - val[0] + 1;
 		}
+	}
+
+	if (sc->params.ncores > 1) {
+		MPASS(chip_id(sc) >= CHELSIO_T7);
+
+		param[0] = FW_PARAM_DEV(TID_QID_SEL_MASK);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
+		sc->params.tid_qid_sel_mask = rc == 0 ? val[0] : 0;
 	}
 
 	/*
@@ -7622,6 +7656,150 @@ vi_tick(void *arg)
 	callout_schedule(&vi->tick, hz);
 }
 
+/* CIM inbound queues */
+static const char *t4_ibq[CIM_NUM_IBQ] = {
+	"ibq_tp0", "ibq_tp1", "ibq_ulp", "ibq_sge0", "ibq_sge1", "ibq_ncsi"
+};
+static const char *t7_ibq[CIM_NUM_IBQ_T7] = {
+	"ibq_tp0", "ibq_tp1", "ibq_tp2", "ibq_tp3", "ibq_ulp", "ibq_sge0",
+	"ibq_sge1", "ibq_ncsi", NULL, "ibq_ipc1", "ibq_ipc2", "ibq_ipc3",
+	"ibq_ipc4", "ibq_ipc5", "ibq_ipc6", "ibq_ipc7"
+};
+static const char *t7_ibq_sec[] = {
+	"ibq_tp0", "ibq_tp1", "ibq_tp2", "ibq_tp3", "ibq_ulp", "ibq_sge0",
+	NULL, NULL, NULL, "ibq_ipc0"
+};
+
+/* CIM outbound queues */
+static const char *t4_obq[CIM_NUM_OBQ_T5] = {
+	"obq_ulp0", "obq_ulp1", "obq_ulp2", "obq_ulp3", "obq_sge", "obq_ncsi",
+	"obq_sge_rx_q0", "obq_sge_rx_q1" /* These two are T5/T6 only */
+};
+static const char *t7_obq[CIM_NUM_OBQ_T7] = {
+	"obq_ulp0", "obq_ulp1", "obq_ulp2", "obq_ulp3", "obq_sge", "obq_ncsi",
+	"obq_sge_rx_q0", NULL, NULL, "obq_ipc1", "obq_ipc2", "obq_ipc3",
+	"obq_ipc4", "obq_ipc5", "obq_ipc6", "obq_ipc7"
+};
+static const char *t7_obq_sec[] = {
+	"obq_ulp0", "obq_ulp1", "obq_ulp2", "obq_ulp3", "obq_sge", NULL,
+	"obq_sge_rx_q0", NULL, NULL, "obq_ipc0"
+};
+
+static void
+cim_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
+    struct sysctl_oid_list *c0)
+{
+	struct sysctl_oid *oid;
+	struct sysctl_oid_list *children1;
+	int i, j, qcount;
+	char s[16];
+	const char **qname;
+
+	oid = SYSCTL_ADD_NODE(ctx, c0, OID_AUTO, "cim",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "CIM block");
+	c0 = SYSCTL_CHILDREN(oid);
+
+	SYSCTL_ADD_U8(ctx, c0, OID_AUTO, "ncores", CTLFLAG_RD, NULL,
+	    sc->params.ncores, "# of active CIM cores");
+
+	for (i = 0; i < sc->params.ncores; i++) {
+		snprintf(s, sizeof(s), "%u", i);
+		oid = SYSCTL_ADD_NODE(ctx, c0, OID_AUTO, s,
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "CIM core");
+		children1 = SYSCTL_CHILDREN(oid);
+
+		/*
+		 * CTLFLAG_SKIP because the misc.devlog sysctl already displays
+		 * the log for all cores.  Use this sysctl to get the log for a
+		 * particular core only.
+		 */
+		SYSCTL_ADD_PROC(ctx, children1, OID_AUTO, "devlog",
+		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_SKIP,
+		    sc, i, sysctl_devlog, "A", "firmware's device log");
+
+		SYSCTL_ADD_PROC(ctx, children1, OID_AUTO, "loadavg",
+		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, i,
+		    sysctl_loadavg, "A",
+		    "microprocessor load averages (select firmwares only)");
+
+		SYSCTL_ADD_PROC(ctx, children1, OID_AUTO, "qcfg",
+		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, i,
+		    chip_id(sc) > CHELSIO_T6 ? sysctl_cim_qcfg_t7 : sysctl_cim_qcfg,
+		    "A", "Queue configuration");
+
+		SYSCTL_ADD_PROC(ctx, children1, OID_AUTO, "la",
+		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, i,
+		    sysctl_cim_la, "A", "Logic analyzer");
+
+		SYSCTL_ADD_PROC(ctx, children1, OID_AUTO, "ma_la",
+		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, i,
+		    sysctl_cim_ma_la, "A", "CIM MA logic analyzer");
+
+		SYSCTL_ADD_PROC(ctx, children1, OID_AUTO, "pif_la",
+		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, i,
+		    sysctl_cim_pif_la, "A", "CIM PIF logic analyzer");
+
+		/* IBQs */
+		switch (chip_id(sc)) {
+		case CHELSIO_T4:
+		case CHELSIO_T5:
+		case CHELSIO_T6:
+			qname = &t4_ibq[0];
+			qcount = nitems(t4_ibq);
+			break;
+		case CHELSIO_T7:
+		default:
+			if (i == 0) {
+				qname = &t7_ibq[0];
+				qcount = nitems(t7_ibq);
+			} else {
+				qname = &t7_ibq_sec[0];
+				qcount = nitems(t7_ibq_sec);
+			}
+			break;
+		}
+		MPASS(qcount <= sc->chip_params->cim_num_ibq);
+		for (j = 0; j < qcount; j++) {
+			if (qname[j] == NULL)
+				continue;
+			SYSCTL_ADD_PROC(ctx, children1, OID_AUTO, qname[j],
+			    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
+			    (i << 16) | j, sysctl_cim_ibq, "A", NULL);
+		}
+
+		/* OBQs */
+		switch (chip_id(sc)) {
+		case CHELSIO_T4:
+			qname = t4_obq;
+			qcount = CIM_NUM_OBQ;
+			break;
+		case CHELSIO_T5:
+		case CHELSIO_T6:
+			qname = t4_obq;
+			qcount = nitems(t4_obq);
+			break;
+		case CHELSIO_T7:
+		default:
+			if (i == 0) {
+				qname = t7_obq;
+				qcount = nitems(t7_obq);
+			} else {
+				qname = t7_obq_sec;
+				qcount = nitems(t7_obq_sec);
+			}
+			break;
+		}
+		MPASS(qcount <= sc->chip_params->cim_num_obq);
+		for (j = 0; j < qcount; j++) {
+			if (qname[j] == NULL)
+				continue;
+			SYSCTL_ADD_PROC(ctx, children1, OID_AUTO, qname[j],
+			    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
+			    (i << 16) | j, sysctl_cim_obq, "A", NULL);
+		}
+	}
+}
+
 /*
  * Should match fw_caps_config_<foo> enums in t4fw_interface.h
  */
@@ -7766,11 +7944,6 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
 	    sysctl_reset_sensor, "I", "reset the chip's temperature sensor.");
 
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "loadavg",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    sysctl_loadavg, "A",
-	    "microprocessor load averages (debug firmwares only)");
-
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "core_vdd",
 	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0, sysctl_vdd,
 	    "I", "core Vdd (in mV)");
@@ -7802,81 +7975,7 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 	    sysctl_cctrl, "A", "congestion control");
 
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ibq_tp0",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    sysctl_cim_ibq_obq, "A", "CIM IBQ 0 (TP0)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ibq_tp1",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 1,
-	    sysctl_cim_ibq_obq, "A", "CIM IBQ 1 (TP1)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ibq_ulp",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 2,
-	    sysctl_cim_ibq_obq, "A", "CIM IBQ 2 (ULP)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ibq_sge0",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 3,
-	    sysctl_cim_ibq_obq, "A", "CIM IBQ 3 (SGE0)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ibq_sge1",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 4,
-	    sysctl_cim_ibq_obq, "A", "CIM IBQ 4 (SGE1)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ibq_ncsi",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 5,
-	    sysctl_cim_ibq_obq, "A", "CIM IBQ 5 (NCSI)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_la",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    sysctl_cim_la, "A", "CIM logic analyzer");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ma_la",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    sysctl_cim_ma_la, "A", "CIM MA logic analyzer");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_ulp0",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
-	    0 + CIM_NUM_IBQ, sysctl_cim_ibq_obq, "A", "CIM OBQ 0 (ULP0)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_ulp1",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
-	    1 + CIM_NUM_IBQ, sysctl_cim_ibq_obq, "A", "CIM OBQ 1 (ULP1)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_ulp2",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
-	    2 + CIM_NUM_IBQ, sysctl_cim_ibq_obq, "A", "CIM OBQ 2 (ULP2)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_ulp3",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
-	    3 + CIM_NUM_IBQ, sysctl_cim_ibq_obq, "A", "CIM OBQ 3 (ULP3)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_sge",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
-	    4 + CIM_NUM_IBQ, sysctl_cim_ibq_obq, "A", "CIM OBQ 4 (SGE)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_ncsi",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
-	    5 + CIM_NUM_IBQ, sysctl_cim_ibq_obq, "A", "CIM OBQ 5 (NCSI)");
-
-	if (chip_id(sc) > CHELSIO_T4) {
-		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_sge0_rx",
-		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
-		    6 + CIM_NUM_IBQ, sysctl_cim_ibq_obq, "A",
-		    "CIM OBQ 6 (SGE0-RX)");
-
-		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_sge1_rx",
-		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
-		    7 + CIM_NUM_IBQ, sysctl_cim_ibq_obq, "A",
-		    "CIM OBQ 7 (SGE1-RX)");
-	}
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_pif_la",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    sysctl_cim_pif_la, "A", "CIM PIF logic analyzer");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_qcfg",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    sysctl_cim_qcfg, "A", "CIM queue configuration");
+	cim_sysctls(sc, ctx, children);
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cpl_stats",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
@@ -7891,8 +7990,8 @@ t4_sysctls(struct adapter *sc)
 	    sysctl_tid_stats, "A", "tid stats");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "devlog",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    sysctl_devlog, "A", "firmware's device log");
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, -1,
+	    sysctl_devlog, "A", "firmware's device log (all cores)");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "fcoe_stats",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
@@ -9207,6 +9306,10 @@ sysctl_loadavg(SYSCTL_HANDLER_ARGS)
 	struct sbuf *sb;
 	int rc;
 	uint32_t param, val;
+	uint8_t coreid = (uint8_t)arg2;
+
+	KASSERT(coreid < sc->params.ncores,
+	    ("%s: bad coreid %u\n", __func__, coreid));
 
 	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4lavg");
 	if (rc)
@@ -9215,7 +9318,8 @@ sysctl_loadavg(SYSCTL_HANDLER_ARGS)
 		rc = ENXIO;
 	else {
 		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
-		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_LOAD);
+		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_LOAD) |
+		    V_FW_PARAMS_PARAM_Y(coreid);
 		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
 	}
 	end_synchronized_op(sc, 0);
@@ -9281,50 +9385,30 @@ done:
 	return (rc);
 }
 
-static const char *qname[CIM_NUM_IBQ + CIM_NUM_OBQ_T5] = {
-	"TP0", "TP1", "ULP", "SGE0", "SGE1", "NC-SI",	/* ibq's */
-	"ULP0", "ULP1", "ULP2", "ULP3", "SGE", "NC-SI",	/* obq's */
-	"SGE0-RX", "SGE1-RX"	/* additional obq's (T5 onwards) */
-};
-
 static int
-sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS)
+sysctl_cim_ibq(SYSCTL_HANDLER_ARGS)
 {
 	struct adapter *sc = arg1;
 	struct sbuf *sb;
-	int rc, i, n, qid = arg2;
+	int rc, i, n, qid, coreid;
 	uint32_t *buf, *p;
-	char *qtype;
-	u_int cim_num_obq = sc->chip_params->cim_num_obq;
 
-	KASSERT(qid >= 0 && qid < CIM_NUM_IBQ + cim_num_obq,
-	    ("%s: bad qid %d\n", __func__, qid));
+	qid = arg2 & 0xffff;
+	coreid = arg2 >> 16;
 
-	if (qid < CIM_NUM_IBQ) {
-		/* inbound queue */
-		qtype = "IBQ";
-		n = 4 * CIM_IBQ_SIZE;
-		buf = malloc(n * sizeof(uint32_t), M_CXGBE, M_ZERO | M_WAITOK);
-		mtx_lock(&sc->reg_lock);
-		if (hw_off_limits(sc))
-			rc = -ENXIO;
-		else
-			rc = t4_read_cim_ibq(sc, qid, buf, n);
-		mtx_unlock(&sc->reg_lock);
-	} else {
-		/* outbound queue */
-		qtype = "OBQ";
-		qid -= CIM_NUM_IBQ;
-		n = 4 * cim_num_obq * CIM_OBQ_SIZE;
-		buf = malloc(n * sizeof(uint32_t), M_CXGBE, M_ZERO | M_WAITOK);
-		mtx_lock(&sc->reg_lock);
-		if (hw_off_limits(sc))
-			rc = -ENXIO;
-		else
-			rc = t4_read_cim_obq(sc, qid, buf, n);
-		mtx_unlock(&sc->reg_lock);
-	}
+	KASSERT(qid >= 0 && qid < sc->chip_params->cim_num_ibq,
+	    ("%s: bad ibq qid %d\n", __func__, qid));
+	KASSERT(coreid >= 0 && coreid < sc->params.ncores,
+	    ("%s: bad coreid %d\n", __func__, coreid));
 
+	n = 4 * CIM_IBQ_SIZE;
+	buf = malloc(n * sizeof(uint32_t), M_CXGBE, M_ZERO | M_WAITOK);
+	mtx_lock(&sc->reg_lock);
+	if (hw_off_limits(sc))
+		rc = -ENXIO;
+	else
+		rc = t4_read_cim_ibq_core(sc, coreid, qid, buf, n);
+	mtx_unlock(&sc->reg_lock);
 	if (rc < 0) {
 		rc = -rc;
 		goto done;
@@ -9336,12 +9420,58 @@ sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS)
 		rc = ENOMEM;
 		goto done;
 	}
-
-	sbuf_printf(sb, "%s%d %s", qtype , qid, qname[arg2]);
 	for (i = 0, p = buf; i < n; i += 16, p += 4)
 		sbuf_printf(sb, "\n%#06x: %08x %08x %08x %08x", i, p[0], p[1],
 		    p[2], p[3]);
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+done:
+	free(buf, M_CXGBE);
+	return (rc);
+}
 
+static int
+sysctl_cim_obq(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct sbuf *sb;
+	int rc, i, n, qid, coreid;
+	uint32_t *buf, *p;
+
+	qid = arg2 & 0xffff;
+	coreid = arg2 >> 16;
+
+	KASSERT(qid >= 0 && qid < sc->chip_params->cim_num_obq,
+	    ("%s: bad obq qid %d\n", __func__, qid));
+	KASSERT(coreid >= 0 && coreid < sc->params.ncores,
+	    ("%s: bad coreid %d\n", __func__, coreid));
+
+	n = 6 * CIM_OBQ_SIZE * 4;
+	buf = malloc(n * sizeof(uint32_t), M_CXGBE, M_ZERO | M_WAITOK);
+	mtx_lock(&sc->reg_lock);
+	if (hw_off_limits(sc))
+		rc = -ENXIO;
+	else
+		rc = t4_read_cim_obq_core(sc, coreid, qid, buf, n);
+	mtx_unlock(&sc->reg_lock);
+	if (rc < 0) {
+		rc = -rc;
+		goto done;
+	}
+	n = rc * sizeof(uint32_t);	/* rc has # of words actually read */
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		goto done;
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, PAGE_SIZE, req);
+	if (sb == NULL) {
+		rc = ENOMEM;
+		goto done;
+	}
+	for (i = 0, p = buf; i < n; i += 16, p += 4)
+		sbuf_printf(sb, "\n%#06x: %08x %08x %08x %08x", i, p[0], p[1],
+		    p[2], p[3]);
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
 done:
@@ -9412,7 +9542,7 @@ sbuf_cim_la6(struct adapter *sc, struct sbuf *sb, uint32_t *buf, uint32_t cfg)
 }
 
 static int
-sbuf_cim_la(struct adapter *sc, struct sbuf *sb, int flags)
+sbuf_cim_la(struct adapter *sc, int coreid, struct sbuf *sb, int flags)
 {
 	uint32_t cfg, *buf;
 	int rc;
@@ -9427,9 +9557,10 @@ sbuf_cim_la(struct adapter *sc, struct sbuf *sb, int flags)
 	if (hw_off_limits(sc))
 		rc = ENXIO;
 	else {
-		rc = -t4_cim_read(sc, A_UP_UP_DBG_LA_CFG, 1, &cfg);
+		rc = -t4_cim_read_core(sc, 1, coreid, A_UP_UP_DBG_LA_CFG, 1,
+		    &cfg);
 		if (rc == 0)
-			rc = -t4_cim_read_la(sc, buf, NULL);
+			rc = -t4_cim_read_la_core(sc, coreid, buf, NULL);
 	}
 	mtx_unlock(&sc->reg_lock);
 	if (rc == 0) {
@@ -9446,6 +9577,7 @@ static int
 sysctl_cim_la(SYSCTL_HANDLER_ARGS)
 {
 	struct adapter *sc = arg1;
+	int coreid = arg2;
 	struct sbuf *sb;
 	int rc;
 
@@ -9453,7 +9585,7 @@ sysctl_cim_la(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	rc = sbuf_cim_la(sc, sb, M_WAITOK);
+	rc = sbuf_cim_la(sc, coreid, sb, M_WAITOK);
 	if (rc == 0)
 		rc = sbuf_finish(sb);
 	sbuf_delete(sb);
@@ -9490,7 +9622,7 @@ dump_cimla(struct adapter *sc)
 		    device_get_nameunit(sc->dev));
 		return;
 	}
-	rc = sbuf_cim_la(sc, &sb, M_WAITOK);
+	rc = sbuf_cim_la(sc, 0, &sb, M_WAITOK);
 	if (rc == 0) {
 		rc = sbuf_finish(&sb);
 		if (rc == 0) {
@@ -9614,6 +9746,13 @@ sysctl_cim_qcfg(SYSCTL_HANDLER_ARGS)
 	uint32_t obq_wr[2 * CIM_NUM_OBQ_T5], *wr = obq_wr;
 	uint32_t stat[4 * (CIM_NUM_IBQ + CIM_NUM_OBQ_T5)], *p = stat;
 	u_int cim_num_obq, ibq_rdaddr, obq_rdaddr, nq;
+	static const char *qname[CIM_NUM_IBQ + CIM_NUM_OBQ_T5] = {
+		"TP0", "TP1", "ULP", "SGE0", "SGE1", "NC-SI",	/* ibq's */
+		"ULP0", "ULP1", "ULP2", "ULP3", "SGE", "NC-SI",	/* obq's */
+		"SGE0-RX", "SGE1-RX"	/* additional obq's (T5 onwards) */
+	};
+
+	MPASS(chip_id(sc) < CHELSIO_T7);
 
 	cim_num_obq = sc->chip_params->cim_num_obq;
 	if (is_t4(sc)) {
@@ -9662,6 +9801,104 @@ sysctl_cim_qcfg(SYSCTL_HANDLER_ARGS)
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
 
+	return (rc);
+}
+
+static int
+sysctl_cim_qcfg_t7(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	u_int coreid = arg2;
+	struct sbuf *sb;
+	int rc, i;
+	u_int addr;
+	uint16_t base[CIM_NUM_IBQ_T7 + CIM_NUM_OBQ_T7];
+	uint16_t size[CIM_NUM_IBQ_T7 + CIM_NUM_OBQ_T7];
+	uint16_t thres[CIM_NUM_IBQ_T7];
+	uint32_t obq_wr[2 * CIM_NUM_OBQ_T7], *wr = obq_wr;
+	uint32_t stat[4 * (CIM_NUM_IBQ_T7 + CIM_NUM_OBQ_T7)], *p = stat;
+	static const char * const qname_ibq_t7[] = {
+		"TP0", "TP1", "TP2", "TP3", "ULP", "SGE0", "SGE1", "NC-SI",
+		"RSVD", "IPC1", "IPC2", "IPC3", "IPC4", "IPC5", "IPC6", "IPC7",
+	};
+	static const char * const qname_obq_t7[] = {
+		"ULP0", "ULP1", "ULP2", "ULP3", "SGE", "NC-SI", "SGE0-RX",
+		"RSVD", "RSVD", "IPC1", "IPC2", "IPC3", "IPC4", "IPC5",
+		"IPC6", "IPC7"
+	};
+	static const char * const qname_ibq_sec_t7[] = {
+		"TP0", "TP1", "TP2", "TP3", "ULP", "SGE0", "RSVD", "RSVD",
+		"RSVD", "IPC0", "RSVD", "RSVD", "RSVD", "RSVD",	"RSVD", "RSVD",
+	};
+	static const char * const qname_obq_sec_t7[] = {
+		"ULP0", "ULP1", "ULP2", "ULP3", "SGE", "RSVD", "SGE0-RX",
+		"RSVD", "RSVD", "IPC0", "RSVD", "RSVD", "RSVD", "RSVD",
+		"RSVD", "RSVD",
+	};
+
+	MPASS(chip_id(sc) >= CHELSIO_T7);
+
+	mtx_lock(&sc->reg_lock);
+	if (hw_off_limits(sc))
+		rc = ENXIO;
+	else {
+		rc = -t4_cim_read_core(sc, 1, coreid,
+		    A_T7_UP_IBQ_0_SHADOW_RDADDR, 4 * CIM_NUM_IBQ_T7, stat);
+		if (rc != 0)
+			goto unlock;
+
+		rc = -t4_cim_read_core(sc, 1, coreid,
+		    A_T7_UP_OBQ_0_SHADOW_RDADDR, 4 * CIM_NUM_OBQ_T7,
+		    &stat[4 * CIM_NUM_IBQ_T7]);
+		if (rc != 0)
+			goto unlock;
+
+		addr = A_T7_UP_OBQ_0_SHADOW_REALADDR;
+		for (i = 0; i < CIM_NUM_OBQ_T7 * 2; i++, addr += 8) {
+			rc = -t4_cim_read_core(sc, 1, coreid, addr, 1,
+			    &obq_wr[i]);
+			if (rc != 0)
+				goto unlock;
+		}
+		t4_read_cimq_cfg_core(sc, coreid, base, size, thres);
+	}
+unlock:
+	mtx_unlock(&sc->reg_lock);
+	if (rc)
+		return (rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, PAGE_SIZE, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	sbuf_printf(sb,
+	    "  Queue  Base  Size Thres  RdPtr WrPtr  SOP  EOP Avail");
+
+	for (i = 0; i < CIM_NUM_IBQ_T7; i++, p += 4) {
+		if (!size[i])
+			continue;
+
+		sbuf_printf(sb, "\n%7s %5x %5u %5u %6x  %4x %4u %4u %5u",
+		    coreid == 0 ? qname_ibq_t7[i] : qname_ibq_sec_t7[i],
+		    base[i], size[i], thres[i], G_IBQRDADDR(p[0]) & 0xfff,
+		    G_IBQWRADDR(p[1]) & 0xfff, G_QUESOPCNT(p[3]),
+		    G_QUEEOPCNT(p[3]), G_T7_QUEREMFLITS(p[2]) * 16);
+	}
+
+	for ( ; i < CIM_NUM_IBQ_T7 + CIM_NUM_OBQ_T7; i++, p += 4, wr += 2) {
+		if (!size[i])
+			continue;
+
+		sbuf_printf(sb, "\n%7s %5x %5u %12x  %4x %4u %4u %5u",
+		    coreid == 0 ? qname_obq_t7[i - CIM_NUM_IBQ_T7] :
+		    qname_obq_sec_t7[i - CIM_NUM_IBQ_T7],
+		    base[i], size[i], G_QUERDADDR(p[0]) & 0xfff,
+		    wr[0] << 1, G_QUESOPCNT(p[3]), G_QUEEOPCNT(p[3]),
+		    G_T7_QUEREMFLITS(p[2]) * 16);
+	}
+
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
 	return (rc);
 }
 
@@ -9807,18 +10044,25 @@ static const char * const devlog_facility_strings[] = {
 };
 
 static int
-sbuf_devlog(struct adapter *sc, struct sbuf *sb, int flags)
+sbuf_devlog(struct adapter *sc, int coreid, struct sbuf *sb, int flags)
 {
 	int i, j, rc, nentries, first = 0;
 	struct devlog_params *dparams = &sc->params.devlog;
 	struct fw_devlog_e *buf, *e;
+	uint32_t addr, size;
 	uint64_t ftstamp = UINT64_MAX;
+
+	KASSERT(coreid >= 0 && coreid < sc->params.ncores,
+	    ("%s: bad coreid %d\n", __func__, coreid));
 
 	if (dparams->addr == 0)
 		return (ENXIO);
 
+	size = dparams->size / sc->params.ncores;
+	addr = dparams->addr + coreid * size;
+
 	MPASS(flags == M_WAITOK || flags == M_NOWAIT);
-	buf = malloc(dparams->size, M_CXGBE, M_ZERO | flags);
+	buf = malloc(size, M_CXGBE, M_ZERO | flags);
 	if (buf == NULL)
 		return (ENOMEM);
 
@@ -9826,13 +10070,12 @@ sbuf_devlog(struct adapter *sc, struct sbuf *sb, int flags)
 	if (hw_off_limits(sc))
 		rc = ENXIO;
 	else
-		rc = read_via_memwin(sc, 1, dparams->addr, (void *)buf,
-		    dparams->size);
+		rc = read_via_memwin(sc, 1, addr, (void *)buf, size);
 	mtx_unlock(&sc->reg_lock);
 	if (rc != 0)
 		goto done;
 
-	nentries = dparams->size / sizeof(struct fw_devlog_e);
+	nentries = size / sizeof(struct fw_devlog_e);
 	for (i = 0; i < nentries; i++) {
 		e = &buf[i];
 
@@ -9884,14 +10127,24 @@ static int
 sysctl_devlog(SYSCTL_HANDLER_ARGS)
 {
 	struct adapter *sc = arg1;
-	int rc;
+	int rc, i, coreid = arg2;
 	struct sbuf *sb;
 
 	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
 	if (sb == NULL)
 		return (ENOMEM);
-
-	rc = sbuf_devlog(sc, sb, M_WAITOK);
+	if (coreid == -1) {
+		/* -1 means all cores */
+		for (i = rc = 0; i < sc->params.ncores && rc == 0; i++) {
+			if (sc->params.ncores > 0)
+				sbuf_printf(sb, "=== CIM core %u ===\n", i);
+			rc = sbuf_devlog(sc, i, sb, M_WAITOK);
+		}
+	} else {
+		KASSERT(coreid >= 0 && coreid < sc->params.ncores,
+		    ("%s: bad coreid %d\n", __func__, coreid));
+		rc = sbuf_devlog(sc, coreid, sb, M_WAITOK);
+	}
 	if (rc == 0)
 		rc = sbuf_finish(sb);
 	sbuf_delete(sb);
@@ -9901,7 +10154,7 @@ sysctl_devlog(SYSCTL_HANDLER_ARGS)
 static void
 dump_devlog(struct adapter *sc)
 {
-	int rc;
+	int rc, i;
 	struct sbuf sb;
 
 	if (sbuf_new(&sb, NULL, 4096, SBUF_AUTOEXTEND) != &sb) {
@@ -9909,13 +10162,15 @@ dump_devlog(struct adapter *sc)
 		    device_get_nameunit(sc->dev));
 		return;
 	}
-	rc = sbuf_devlog(sc, &sb, M_WAITOK);
+	for (i = rc = 0; i < sc->params.ncores && rc == 0; i++) {
+		if (sc->params.ncores > 0)
+			sbuf_printf(&sb, "=== CIM core %u ===\n", i);
+		rc = sbuf_devlog(sc, i, &sb, M_WAITOK);
+	}
 	if (rc == 0) {
-		rc = sbuf_finish(&sb);
-		if (rc == 0) {
-			log(LOG_DEBUG, "%s: device log follows.\n%s",
-			    device_get_nameunit(sc->dev), sbuf_data(&sb));
-		}
+		sbuf_finish(&sb);
+		log(LOG_DEBUG, "%s: device log follows.\n%s",
+		    device_get_nameunit(sc->dev), sbuf_data(&sb));
 	}
 	sbuf_delete(&sb);
 }

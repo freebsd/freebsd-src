@@ -182,7 +182,7 @@ init_toepcb(struct vi_info *vi, struct toepcb *toep)
 	}
 	toep->ofld_txq = &sc->sge.ofld_txq[cp->txq_idx];
 	toep->ofld_rxq = &sc->sge.ofld_rxq[cp->rxq_idx];
-	toep->ctrlq = &sc->sge.ctrlq[pi->port_id];
+	toep->ctrlq = &sc->sge.ctrlq[cp->ctrlq_idx];
 
 	tls_init_toep(toep);
 	MPASS(ulp_mode(toep) != ULP_MODE_TCPDDP);
@@ -1326,6 +1326,9 @@ init_conn_params(struct vi_info *vi , struct offload_settings *s,
 	 */
 	cp->mtu_idx = find_best_mtu_idx(sc, inc, s);
 
+	/* Control queue. */
+	cp->ctrlq_idx = vi->pi->port_id;
+
 	/* Tx queue for this connection. */
 	if (s->txq == QUEUE_RANDOM)
 		q_idx = arc4random();
@@ -1436,6 +1439,32 @@ init_conn_params(struct vi_info *vi , struct offload_settings *s,
 
 	/* This will be initialized on ESTABLISHED. */
 	cp->emss = 0;
+}
+
+void
+update_tid_qid_sel(struct vi_info *vi, struct conn_params *cp, int tid)
+{
+	struct adapter *sc = vi->adapter;
+	const int mask = sc->params.tid_qid_sel_mask;
+	struct sge_ofld_txq *ofld_txq = &sc->sge.ofld_txq[cp->txq_idx];
+	uint32_t ngroup;
+	int g, nqpg;
+
+	cp->ctrlq_idx = ofld_txq_group(tid, mask);
+	CTR(KTR_CXGBE, "tid %u is on core %u", tid, cp->ctrlq_idx);
+	if ((ofld_txq->wrq.eq.cntxt_id & mask) == (tid & mask))
+		return;
+
+	ngroup = 1 << bitcount32(mask);
+	MPASS(vi->nofldtxq % ngroup == 0);
+	g = ofld_txq_group(tid, mask);
+	nqpg = vi->nofldtxq / ngroup;
+	cp->txq_idx = vi->first_ofld_txq + g * nqpg + arc4random() % nqpg;
+#ifdef INVARIANTS
+	MPASS(cp->txq_idx < vi->first_ofld_txq + vi->nofldtxq);
+	ofld_txq = &sc->sge.ofld_txq[cp->txq_idx];
+	MPASS((ofld_txq->wrq.eq.cntxt_id & mask) == (tid & mask));
+#endif
 }
 
 int
