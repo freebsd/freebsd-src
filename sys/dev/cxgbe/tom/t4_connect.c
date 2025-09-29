@@ -89,6 +89,12 @@ do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
 	INP_WLOCK(inp);
 	toep->tid = tid;
 	insert_tid(sc, tid, toep, inp->inp_vflag & INP_IPV6 ? 2 : 1);
+	if (sc->params.tid_qid_sel_mask != 0) {
+		update_tid_qid_sel(toep->vi, &toep->params, tid);
+		toep->ofld_txq = &sc->sge.ofld_txq[toep->params.txq_idx];
+		toep->ctrlq = &sc->sge.ctrlq[toep->params.ctrlq_idx];
+	}
+
 	if (inp->inp_flags & INP_DROPPED) {
 
 		/* socket closed by the kernel before hw told us it connected */

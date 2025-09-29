@@ -1508,6 +1508,8 @@ found:
 
 	init_conn_params(vi, &settings, &inc, so, &cpl->tcpopt, e->idx,
 	    &synqe->params);
+	if (sc->params.tid_qid_sel_mask != 0)
+		update_tid_qid_sel(vi, &synqe->params, tid);
 
 	/*
 	 * If all goes well t4_syncache_respond will get called during

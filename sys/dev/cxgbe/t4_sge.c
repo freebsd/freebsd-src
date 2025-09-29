@@ -1,8 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2011 Chelsio Communications, Inc.
- * All rights reserved.
+ * Copyright (c) 2011, 2025 Chelsio Communications.
  * Written by: Navdeep Parhar <np@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -259,17 +258,20 @@ static void free_ofld_rxq(struct vi_info *, struct sge_ofld_rxq *);
 static void add_ofld_rxq_sysctls(struct sysctl_ctx_list *, struct sysctl_oid *,
     struct sge_ofld_rxq *);
 #endif
-static int ctrl_eq_alloc(struct adapter *, struct sge_eq *);
-static int eth_eq_alloc(struct adapter *, struct vi_info *, struct sge_eq *);
+static int ctrl_eq_alloc(struct adapter *, struct sge_eq *, int);
+static int eth_eq_alloc(struct adapter *, struct vi_info *, struct sge_eq *,
+    int);
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
-static int ofld_eq_alloc(struct adapter *, struct vi_info *, struct sge_eq *);
+static int ofld_eq_alloc(struct adapter *, struct vi_info *, struct sge_eq *,
+    int);
 #endif
 static int alloc_eq(struct adapter *, struct sge_eq *, struct sysctl_ctx_list *,
     struct sysctl_oid *);
 static void free_eq(struct adapter *, struct sge_eq *);
 static void add_eq_sysctls(struct adapter *, struct sysctl_ctx_list *,
     struct sysctl_oid *, struct sge_eq *);
-static int alloc_eq_hwq(struct adapter *, struct vi_info *, struct sge_eq *);
+static int alloc_eq_hwq(struct adapter *, struct vi_info *, struct sge_eq *,
+    int);
 static int free_eq_hwq(struct adapter *, struct vi_info *, struct sge_eq *);
 static int alloc_wrq(struct adapter *, struct vi_info *, struct sge_wrq *,
     struct sysctl_ctx_list *, struct sysctl_oid *);
@@ -1064,9 +1066,9 @@ t4_setup_adapter_queues(struct adapter *sc)
 	 */
 
 	/*
-	 * Control queues, one per port.
+	 * Control queues.  At least one per port and per internal core.
 	 */
-	for_each_port(sc, i) {
+	for (i = 0; i < sc->sge.nctrlq; i++) {
 		rc = alloc_ctrlq(sc, i);
 		if (rc != 0)
 			return (rc);
@@ -1087,7 +1089,7 @@ t4_teardown_adapter_queues(struct adapter *sc)
 
 	if (sc->sge.ctrlq != NULL) {
 		MPASS(!(sc->flags & IS_VF));	/* VFs don't allocate ctrlq. */
-		for_each_port(sc, i)
+		for (i = 0; i < sc->sge.nctrlq; i++)
 			free_ctrlq(sc, i);
 	}
 	free_fwq(sc);
@@ -3849,7 +3851,7 @@ alloc_ctrlq(struct adapter *sc, int idx)
 	struct sysctl_oid *oid;
 	struct sge_wrq *ctrlq = &sc->sge.ctrlq[idx];
 
-	MPASS(idx < sc->params.nports);
+	MPASS(idx < sc->sge.nctrlq);
 
 	if (!(ctrlq->eq.flags & EQ_SW_ALLOCATED)) {
 		MPASS(!(ctrlq->eq.flags & EQ_HW_ALLOCATED));
@@ -3861,8 +3863,8 @@ alloc_ctrlq(struct adapter *sc, int idx)
 
 		snprintf(name, sizeof(name), "%s ctrlq%d",
 		    device_get_nameunit(sc->dev), idx);
-		init_eq(sc, &ctrlq->eq, EQ_CTRL, CTRL_EQ_QSIZE, idx,
-		    &sc->sge.fwq, name);
+		init_eq(sc, &ctrlq->eq, EQ_CTRL, CTRL_EQ_QSIZE,
+		    idx % sc->params.nports, &sc->sge.fwq, name);
 		rc = alloc_wrq(sc, NULL, ctrlq, &sc->ctx, oid);
 		if (rc != 0) {
 			CH_ERR(sc, "failed to allocate ctrlq%d: %d\n", idx, rc);
@@ -3877,7 +3879,7 @@ alloc_ctrlq(struct adapter *sc, int idx)
 		MPASS(ctrlq->nwr_pending == 0);
 		MPASS(ctrlq->ndesc_needed == 0);
 
-		rc = alloc_eq_hwq(sc, NULL, &ctrlq->eq);
+		rc = alloc_eq_hwq(sc, NULL, &ctrlq->eq, idx);
 		if (rc != 0) {
 			CH_ERR(sc, "failed to create hw ctrlq%d: %d\n", idx, rc);
 			return (rc);
@@ -4265,18 +4267,20 @@ qsize_to_fthresh(int qsize)
 }
 
 static int
-ctrl_eq_alloc(struct adapter *sc, struct sge_eq *eq)
+ctrl_eq_alloc(struct adapter *sc, struct sge_eq *eq, int idx)
 {
-	int rc, cntxt_id;
+	int rc, cntxt_id, core;
 	struct fw_eq_ctrl_cmd c;
 	int qsize = eq->sidx + sc->params.sge.spg_len / EQ_ESIZE;
 
+	core = sc->params.tid_qid_sel_mask != 0 ? idx % sc->params.ncores : 0;
 	bzero(&c, sizeof(c));
 
 	c.op_to_vfn = htobe32(V_FW_CMD_OP(FW_EQ_CTRL_CMD) | F_FW_CMD_REQUEST |
 	    F_FW_CMD_WRITE | F_FW_CMD_EXEC | V_FW_EQ_CTRL_CMD_PFN(sc->pf) |
 	    V_FW_EQ_CTRL_CMD_VFN(0));
 	c.alloc_to_len16 = htobe32(F_FW_EQ_CTRL_CMD_ALLOC |
+	    V_FW_EQ_CTRL_CMD_COREGROUP(core) |
 	    F_FW_EQ_CTRL_CMD_EQSTART | FW_LEN16(c));
 	c.cmpliqid_eqid = htonl(V_FW_EQ_CTRL_CMD_CMPLIQID(eq->iqid));
 	c.physeqid_pkd = htobe32(0);
@@ -4311,18 +4315,20 @@ ctrl_eq_alloc(struct adapter *sc, struct sge_eq *eq)
 }
 
 static int
-eth_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
+eth_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq, int idx)
 {
-	int rc, cntxt_id;
+	int rc, cntxt_id, core;
 	struct fw_eq_eth_cmd c;
 	int qsize = eq->sidx + sc->params.sge.spg_len / EQ_ESIZE;
 
+	core = sc->params.ncores > 1 ? idx % sc->params.ncores : 0;
 	bzero(&c, sizeof(c));
 
 	c.op_to_vfn = htobe32(V_FW_CMD_OP(FW_EQ_ETH_CMD) | F_FW_CMD_REQUEST |
 	    F_FW_CMD_WRITE | F_FW_CMD_EXEC | V_FW_EQ_ETH_CMD_PFN(sc->pf) |
 	    V_FW_EQ_ETH_CMD_VFN(0));
 	c.alloc_to_len16 = htobe32(F_FW_EQ_ETH_CMD_ALLOC |
+	    V_FW_EQ_ETH_CMD_COREGROUP(core) |
 	    F_FW_EQ_ETH_CMD_EQSTART | FW_LEN16(c));
 	c.autoequiqe_to_viid = htobe32(F_FW_EQ_ETH_CMD_AUTOEQUIQE |
 	    F_FW_EQ_ETH_CMD_AUTOEQUEQE | V_FW_EQ_ETH_CMD_VIID(vi->viid));
@@ -4356,12 +4362,32 @@ eth_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 }
 
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
-static int
-ofld_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
+/*
+ * ncores	number of uP cores.
+ * nq		number of queues for this VI
+ * idx		queue index
+ */
+static inline int
+qidx_to_core(int ncores, int nq, int idx)
 {
-	int rc, cntxt_id;
+	MPASS(nq % ncores == 0);
+	MPASS(idx >= 0 && idx < nq);
+
+	return (idx * ncores / nq);
+}
+
+static int
+ofld_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq,
+    int idx)
+{
+	int rc, cntxt_id, core;
 	struct fw_eq_ofld_cmd c;
 	int qsize = eq->sidx + sc->params.sge.spg_len / EQ_ESIZE;
+
+	if (sc->params.tid_qid_sel_mask != 0)
+		core = qidx_to_core(sc->params.ncores, vi->nofldtxq, idx);
+	else
+		core = 0;
 
 	bzero(&c, sizeof(c));
 
@@ -4369,6 +4395,7 @@ ofld_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 	    F_FW_CMD_WRITE | F_FW_CMD_EXEC | V_FW_EQ_OFLD_CMD_PFN(sc->pf) |
 	    V_FW_EQ_OFLD_CMD_VFN(0));
 	c.alloc_to_len16 = htonl(F_FW_EQ_OFLD_CMD_ALLOC |
+	    V_FW_EQ_OFLD_CMD_COREGROUP(core) |
 	    F_FW_EQ_OFLD_CMD_EQSTART | FW_LEN16(c));
 	c.fetchszm_to_iqid =
 		htonl(V_FW_EQ_OFLD_CMD_HOSTFCMODE(X_HOSTFCMODE_STATUS_PAGE) |
@@ -4461,7 +4488,7 @@ add_eq_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
 }
 
 static int
-alloc_eq_hwq(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
+alloc_eq_hwq(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq, int idx)
 {
 	int rc;
 
@@ -4476,16 +4503,16 @@ alloc_eq_hwq(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 
 	switch (eq->type) {
 	case EQ_CTRL:
-		rc = ctrl_eq_alloc(sc, eq);
+		rc = ctrl_eq_alloc(sc, eq, idx);
 		break;
 
 	case EQ_ETH:
-		rc = eth_eq_alloc(sc, vi, eq);
+		rc = eth_eq_alloc(sc, vi, eq, idx);
 		break;
 
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 	case EQ_OFLD:
-		rc = ofld_eq_alloc(sc, vi, eq);
+		rc = ofld_eq_alloc(sc, vi, eq, idx);
 		break;
 #endif
 
@@ -4665,7 +4692,7 @@ failed:
 
 	if (!(eq->flags & EQ_HW_ALLOCATED)) {
 		MPASS(eq->flags & EQ_SW_ALLOCATED);
-		rc = alloc_eq_hwq(sc, vi, eq);
+		rc = alloc_eq_hwq(sc, vi, eq, idx);
 		if (rc != 0) {
 			CH_ERR(vi, "failed to create hw txq%d: %d\n", idx, rc);
 			return (rc);
@@ -4881,7 +4908,7 @@ alloc_ofld_txq(struct vi_info *vi, struct sge_ofld_txq *ofld_txq, int idx)
 		MPASS(eq->flags & EQ_SW_ALLOCATED);
 		MPASS(ofld_txq->wrq.nwr_pending == 0);
 		MPASS(ofld_txq->wrq.ndesc_needed == 0);
-		rc = alloc_eq_hwq(sc, vi, eq);
+		rc = alloc_eq_hwq(sc, vi, eq, idx);
 		if (rc != 0) {
 			CH_ERR(vi, "failed to create hw ofld_txq%d: %d\n", idx,
 			    rc);
