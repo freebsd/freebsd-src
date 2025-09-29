@@ -1091,33 +1091,60 @@ out:
 }
 
 /*
- * Send a work request setting multiple TCB fields to enable
- * ULP_MODE_TLS.
+ * Send a work request setting one or more TCB fields to partially or
+ * fully enable ULP_MODE_TLS.
+ *
+ * - If resid == 0, the socket buffer ends at a record boundary
+ *   (either empty or contains one or more complete records).  Switch
+ *   to ULP_MODE_TLS (if not already) and enable TLS decryption.
+ *
+ * - If resid != 0, the socket buffer contains a partial record.  In
+ *   this case, switch to ULP_MODE_TLS partially and configure the TCB
+ *   to pass along the remaining resid bytes undecrypted.  Once they
+ *   arrive, this is called again with resid == 0 and enables TLS
+ *   decryption.
  */
 static void
-tls_update_tcb(struct adapter *sc, struct toepcb *toep, uint64_t seqno)
+tls_update_tcb(struct adapter *sc, struct toepcb *toep, uint64_t seqno,
+    size_t resid)
 {
 	struct mbuf *m;
 	struct work_request_hdr *wrh;
 	struct ulp_txpkt *ulpmc;
 	int fields, key_offset, len;
 
-	KASSERT(ulp_mode(toep) == ULP_MODE_NONE,
-	    ("%s: tid %d already ULP_MODE_TLS", __func__, toep->tid));
+	/*
+	 * If we are already in ULP_MODE_TLS, then we should now be at
+	 * a record boundary and ready to finish enabling TLS RX.
+	 */
+	KASSERT(resid == 0 || ulp_mode(toep) == ULP_MODE_NONE,
+	    ("%s: tid %d needs %zu more data but already ULP_MODE_TLS",
+	    __func__, toep->tid, resid));
 
 	fields = 0;
+	if (ulp_mode(toep) == ULP_MODE_NONE) {
+		/* 2 writes for the overlay region */
+		fields += 2;
+	}
 
-	/* 2 writes for the overlay region */
-	fields += 2;
+	if (resid == 0) {
+		/* W_TCB_TLS_SEQ */
+		fields++;
 
-	/* W_TCB_TLS_SEQ */
-	fields++;
+		/* W_TCB_ULP_RAW */
+		fields++;
+	} else {
+		/* W_TCB_PDU_LEN */
+		fields++;
 
-	/* W_TCB_ULP_RAW */
-	fields++;
+		/* W_TCB_ULP_RAW */
+		fields++;
+	}
 
-	/* W_TCB_ULP_TYPE */
-	fields ++;
+	if (ulp_mode(toep) == ULP_MODE_NONE) {
+		/* W_TCB_ULP_TYPE */
+		fields ++;
+	}
 
 	/* W_TCB_T_FLAGS */
 	fields++;
@@ -1136,43 +1163,78 @@ tls_update_tcb(struct adapter *sc, struct toepcb *toep, uint64_t seqno)
 	INIT_ULPTX_WRH(wrh, len, 1, toep->tid);	/* atomic */
 	ulpmc = (struct ulp_txpkt *)(wrh + 1);
 
-	/*
-	 * Clear the TLS overlay region: 1023:832.
-	 *
-	 * Words 26/27 are always set to zero.  Words 28/29
-	 * contain seqno and are set when enabling TLS
-	 * decryption.  Word 30 is zero and Word 31 contains
-	 * the keyid.
-	 */
-	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, 26,
-	    0xffffffffffffffff, 0);
+	if (ulp_mode(toep) == ULP_MODE_NONE) {
+		/*
+		 * Clear the TLS overlay region: 1023:832.
+		 *
+		 * Words 26/27 are always set to zero.  Words 28/29
+		 * contain seqno and are set when enabling TLS
+		 * decryption.  Word 30 is zero and Word 31 contains
+		 * the keyid.
+		 */
+		ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, 26,
+		    0xffffffffffffffff, 0);
 
-	/*
-	 * RX key tags are an index into the key portion of MA
-	 * memory stored as an offset from the base address in
-	 * units of 64 bytes.
-	 */
-	key_offset = toep->tls.rx_key_addr - sc->vres.key.start;
-	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, 30,
-	    0xffffffffffffffff,
-	    (uint64_t)V_TCB_RX_TLS_KEY_TAG(key_offset / 64) << 32);
+		/*
+		 * RX key tags are an index into the key portion of MA
+		 * memory stored as an offset from the base address in
+		 * units of 64 bytes.
+		 */
+		key_offset = toep->tls.rx_key_addr - sc->vres.key.start;
+		ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, 30,
+		    0xffffffffffffffff,
+		    (uint64_t)V_TCB_RX_TLS_KEY_TAG(key_offset / 64) << 32);
+	}
 
-	CTR3(KTR_CXGBE, "%s: tid %d enable TLS seqno %lu", __func__,
-	    toep->tid, seqno);
-	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_RX_TLS_SEQ,
-	    V_TCB_RX_TLS_SEQ(M_TCB_RX_TLS_SEQ), V_TCB_RX_TLS_SEQ(seqno));
-	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_ULP_RAW,
-	    V_TCB_ULP_RAW(M_TCB_ULP_RAW),
-	    V_TCB_ULP_RAW((V_TF_TLS_KEY_SIZE(3) | V_TF_TLS_CONTROL(1) |
-	    V_TF_TLS_ACTIVE(1) | V_TF_TLS_ENABLE(1))));
+	if (resid == 0) {
+		/*
+		 * The socket buffer is empty or only contains
+		 * complete TLS records: Set the sequence number and
+		 * enable TLS decryption.
+		 */
+		CTR3(KTR_CXGBE, "%s: tid %d enable TLS seqno %lu", __func__,
+		    toep->tid, seqno);
+		ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid,
+		    W_TCB_RX_TLS_SEQ, V_TCB_RX_TLS_SEQ(M_TCB_RX_TLS_SEQ),
+		    V_TCB_RX_TLS_SEQ(seqno));
+		ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid,
+		    W_TCB_ULP_RAW, V_TCB_ULP_RAW(M_TCB_ULP_RAW),
+		    V_TCB_ULP_RAW((V_TF_TLS_KEY_SIZE(3) | V_TF_TLS_CONTROL(1) |
+		    V_TF_TLS_ACTIVE(1) | V_TF_TLS_ENABLE(1))));
 
-	toep->flags &= ~TPF_TLS_STARTING;
-	toep->flags |= TPF_TLS_RECEIVE;
+		toep->flags &= ~TPF_TLS_STARTING;
+		toep->flags |= TPF_TLS_RECEIVE;
+	} else {
+		/*
+		 * The socket buffer ends with a partial record with a
+		 * full header and needs at least 6 bytes.
+		 *
+		 * Set PDU length.  This is treating the 'resid' bytes
+		 * as a TLS PDU, so the first 5 bytes are a fake
+		 * header and the rest are the PDU length.
+		 */
+		ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid,
+		    W_TCB_PDU_LEN, V_TCB_PDU_LEN(M_TCB_PDU_LEN),
+		    V_TCB_PDU_LEN(resid - sizeof(struct tls_hdr)));
+		CTR3(KTR_CXGBE, "%s: tid %d setting PDU_LEN to %zu",
+		    __func__, toep->tid, resid - sizeof(struct tls_hdr));
 
-	/* Set the ULP mode to ULP_MODE_TLS. */
-	toep->params.ulp_mode = ULP_MODE_TLS;
-	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_ULP_TYPE,
-	    V_TCB_ULP_TYPE(M_TCB_ULP_TYPE), V_TCB_ULP_TYPE(ULP_MODE_TLS));
+		/* Clear all bits in ULP_RAW except for ENABLE. */
+		ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid,
+		    W_TCB_ULP_RAW, V_TCB_ULP_RAW(M_TCB_ULP_RAW),
+		    V_TCB_ULP_RAW(V_TF_TLS_ENABLE(1)));
+
+		/* Wait for 'resid' bytes to be delivered as CPL_RX_DATA. */
+		toep->tls.rx_resid = resid;
+	}
+
+	if (ulp_mode(toep) == ULP_MODE_NONE) {
+		/* Set the ULP mode to ULP_MODE_TLS. */
+		toep->params.ulp_mode = ULP_MODE_TLS;
+		ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid,
+		    W_TCB_ULP_TYPE, V_TCB_ULP_TYPE(M_TCB_ULP_TYPE),
+		    V_TCB_ULP_TYPE(ULP_MODE_TLS));
+	}
 
 	/* Clear TF_RX_QUIESCE. */
 	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_T_FLAGS,
@@ -1205,7 +1267,8 @@ tls_check_rx_sockbuf(struct adapter *sc, struct toepcb *toep,
 	 * size of a TLS record, re-enable receive and pause again once
 	 * we get more data to try again.
 	 */
-	if (!have_header || resid != 0) {
+	if (!have_header || (resid != 0 && (resid < sizeof(struct tls_hdr) ||
+	    is_t6(sc)))) {
 		CTR(KTR_CXGBE, "%s: tid %d waiting for more data", __func__,
 		    toep->tid);
 		toep->flags &= ~TPF_TLS_RX_QUIESCED;
@@ -1213,7 +1276,7 @@ tls_check_rx_sockbuf(struct adapter *sc, struct toepcb *toep,
 		return;
 	}
 
-	tls_update_tcb(sc, toep, seqno);
+	tls_update_tcb(sc, toep, seqno, resid);
 }
 
 void
