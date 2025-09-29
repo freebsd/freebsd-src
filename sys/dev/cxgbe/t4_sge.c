@@ -3414,6 +3414,7 @@ init_eq(struct adapter *sc, struct sge_eq *eq, int eqtype, int qsize,
 	eq->type = eqtype;
 	eq->port_id = port_id;
 	eq->tx_chan = sc->port[port_id]->tx_chan;
+	eq->hw_port = sc->port[port_id]->hw_port;
 	eq->iq = iq;
 	eq->sidx = qsize - sc->params.sge.spg_len / EQ_ESIZE;
 	strlcpy(eq->lockname, name, sizeof(eq->lockname));
@@ -3577,7 +3578,7 @@ alloc_iq_fl_hwq(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl)
 	    V_FW_IQ_CMD_TYPE(FW_IQ_TYPE_FL_INT_CAP) |
 	    V_FW_IQ_CMD_VIID(vi->viid) |
 	    V_FW_IQ_CMD_IQANUD(X_UPDATEDELIVERY_INTERRUPT));
-	c.iqdroprss_to_iqesize = htobe16(V_FW_IQ_CMD_IQPCIECH(pi->tx_chan) |
+	c.iqdroprss_to_iqesize = htobe16(V_FW_IQ_CMD_IQPCIECH(pi->hw_port) |
 	    F_FW_IQ_CMD_IQGTSMODE |
 	    V_FW_IQ_CMD_IQINTCNTTHRESH(iq->intr_pktc_idx) |
 	    V_FW_IQ_CMD_IQESIZE(ilog2(IQ_ESIZE) - 4));
@@ -4270,7 +4271,7 @@ ctrl_eq_alloc(struct adapter *sc, struct sge_eq *eq)
 	c.physeqid_pkd = htobe32(0);
 	c.fetchszm_to_iqid =
 	    htobe32(V_FW_EQ_CTRL_CMD_HOSTFCMODE(X_HOSTFCMODE_STATUS_PAGE) |
-		V_FW_EQ_CTRL_CMD_PCIECHN(eq->tx_chan) |
+		V_FW_EQ_CTRL_CMD_PCIECHN(eq->hw_port) |
 		F_FW_EQ_CTRL_CMD_FETCHRO | V_FW_EQ_CTRL_CMD_IQID(eq->iqid));
 	c.dcaen_to_eqsize =
 	    htobe32(V_FW_EQ_CTRL_CMD_FBMIN(chip_id(sc) <= CHELSIO_T5 ?
@@ -4282,8 +4283,8 @@ ctrl_eq_alloc(struct adapter *sc, struct sge_eq *eq)
 
 	rc = -t4_wr_mbox(sc, sc->mbox, &c, sizeof(c), &c);
 	if (rc != 0) {
-		CH_ERR(sc, "failed to create hw ctrlq for tx_chan %d: %d\n",
-		    eq->tx_chan, rc);
+		CH_ERR(sc, "failed to create hw ctrlq for port %d: %d\n",
+		    eq->port_id, rc);
 		return (rc);
 	}
 
@@ -4316,7 +4317,7 @@ eth_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 	    F_FW_EQ_ETH_CMD_AUTOEQUEQE | V_FW_EQ_ETH_CMD_VIID(vi->viid));
 	c.fetchszm_to_iqid =
 	    htobe32(V_FW_EQ_ETH_CMD_HOSTFCMODE(X_HOSTFCMODE_NONE) |
-		V_FW_EQ_ETH_CMD_PCIECHN(eq->tx_chan) | F_FW_EQ_ETH_CMD_FETCHRO |
+		V_FW_EQ_ETH_CMD_PCIECHN(eq->hw_port) | F_FW_EQ_ETH_CMD_FETCHRO |
 		V_FW_EQ_ETH_CMD_IQID(eq->iqid));
 	c.dcaen_to_eqsize =
 	    htobe32(V_FW_EQ_ETH_CMD_FBMIN(chip_id(sc) <= CHELSIO_T5 ?
@@ -4360,7 +4361,7 @@ ofld_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 	    F_FW_EQ_OFLD_CMD_EQSTART | FW_LEN16(c));
 	c.fetchszm_to_iqid =
 		htonl(V_FW_EQ_OFLD_CMD_HOSTFCMODE(X_HOSTFCMODE_STATUS_PAGE) |
-		    V_FW_EQ_OFLD_CMD_PCIECHN(eq->tx_chan) |
+		    V_FW_EQ_OFLD_CMD_PCIECHN(eq->hw_port) |
 		    F_FW_EQ_OFLD_CMD_FETCHRO | V_FW_EQ_OFLD_CMD_IQID(eq->iqid));
 	c.dcaen_to_eqsize =
 	    htobe32(V_FW_EQ_OFLD_CMD_FBMIN(chip_id(sc) <= CHELSIO_T5 ?
@@ -4678,10 +4679,10 @@ failed:
 
 		if (vi->flags & TX_USES_VM_WR)
 			txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT_XT) |
-			    V_TXPKT_INTF(pi->tx_chan));
+			    V_TXPKT_INTF(pi->hw_port));
 		else
 			txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT_XT) |
-			    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(sc->pf) |
+			    V_TXPKT_INTF(pi->hw_port) | V_TXPKT_PF(sc->pf) |
 			    V_TXPKT_VF(vi->vin) | V_TXPKT_VF_VLD(vi->vfvld));
 
 		txq->tc_idx = -1;
@@ -6583,10 +6584,11 @@ send_etid_flowc_wr(struct cxgbe_rate_tag *cst, struct port_info *pi,
 	    V_FW_WR_FLOWID(cst->etid));
 	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_PFNVFN;
 	flowc->mnemval[0].val = htobe32(pfvf);
+	/* Firmware expects hw port and will translate to channel itself. */
 	flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
-	flowc->mnemval[1].val = htobe32(pi->tx_chan);
+	flowc->mnemval[1].val = htobe32(pi->hw_port);
 	flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
-	flowc->mnemval[2].val = htobe32(pi->tx_chan);
+	flowc->mnemval[2].val = htobe32(pi->hw_port);
 	flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
 	flowc->mnemval[3].val = htobe32(cst->iqid);
 	flowc->mnemval[4].mnemonic = FW_FLOWC_MNEM_EOSTATE;

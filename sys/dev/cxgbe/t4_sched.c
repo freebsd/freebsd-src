@@ -272,7 +272,7 @@ update_tx_sched(void *context, int pending)
 			}
 			rc = -t4_sched_params(sc, FW_SCHED_TYPE_PKTSCHED,
 			    FW_SCHED_PARAMS_LEVEL_CL_RL, tc->mode, tc->rateunit,
-			    tc->ratemode, pi->tx_chan, j, 0, tc->maxrate, 0,
+			    tc->ratemode, pi->hw_port, j, 0, tc->maxrate, 0,
 			    tc->pktsize, tc->burstsize, 1);
 			end_synchronized_op(sc, 0);
 
@@ -291,7 +291,7 @@ update_tx_sched(void *context, int pending)
 			    "params: mode %d, rateunit %d, ratemode %d, "
 			    "channel %d, minrate %d, maxrate %d, pktsize %d, "
 			    "burstsize %d\n", j, rc, tc->mode, tc->rateunit,
-			    tc->ratemode, pi->tx_chan, 0, tc->maxrate,
+			    tc->ratemode, pi->hw_port, 0, tc->maxrate,
 			    tc->pktsize, tc->burstsize);
 		}
 	}
@@ -839,7 +839,7 @@ failed:
 	cst->tx_total = cst->tx_credits;
 	cst->plen = 0;
 	cst->ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT_XT) |
-	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(sc->pf) |
+	    V_TXPKT_INTF(pi->hw_port) | V_TXPKT_PF(sc->pf) |
 	    V_TXPKT_VF(vi->vin) | V_TXPKT_VF_VLD(vi->vfvld));
 
 	/*
