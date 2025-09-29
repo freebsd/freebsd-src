@@ -21,11 +21,19 @@ comment = "Base system (metapackage)"
 vital = true
 
 desc = <<EOD
-This metapackage installs all packages which are part of the base system.
+This metapackage installs all packages which are part of the base system,
+excluding 32-bit compatibility libraries, tests, debugging symbols, and
+source code.
+
+This is equivalent to installing the legacy "base.txz" distribution set.
 EOD
 
 deps {
 	"set-minimal" {
+		version = "${VERSION}"
+		origin = "base"
+	},
+	"set-optional" {
 		version = "${VERSION}"
 		origin = "base"
 	},

@@ -34,5 +34,5 @@ be necessary depending on the NFS configuration.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

@@ -42,5 +42,5 @@ which can be used to run simple virtual machines.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

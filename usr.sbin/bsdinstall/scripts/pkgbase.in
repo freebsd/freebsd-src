@@ -79,7 +79,8 @@ local function select_components(components, options)
 	local descriptions = {
 		["kernel-dbg"] = "Debug symbols for the kernel",
 		["devel"] = "C/C++ compilers and related utilities",
-		["base"] = "The complete base system (includes devel)",
+		["optional"] = "Optional software (excluding compilers)",
+		["base"] = "The complete base system (includes devel and optional)",
 		["src"] = "System source tree",
 		["tests"] = "Test suite",
 		["lib32"] = "32-bit compatibility libraries",

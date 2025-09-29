@@ -24,5 +24,5 @@ files.  This library is not intended for use outside of the base system.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

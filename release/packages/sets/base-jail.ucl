@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-comment = "Base jail system (metapackage)"
+comment = "Base system for jails (metapackage)"
 
 vital = true
 
@@ -27,6 +27,10 @@ EOD
 
 deps {
 	"set-minimal-jail" {
+		version = "${VERSION}"
+		origin = "base"
+	},
+	"set-optional-jail" {
 		version = "${VERSION}"
 		origin = "base"
 	},

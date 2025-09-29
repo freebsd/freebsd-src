@@ -26,5 +26,5 @@ rpc.rusersd, and rpc.rwalld.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

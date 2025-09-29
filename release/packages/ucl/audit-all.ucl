@@ -44,5 +44,5 @@ used to manage the auditing system and work with audit data.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

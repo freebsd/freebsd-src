@@ -29,5 +29,5 @@ manages the Kerberos database and issues tickets to Kerberos users.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

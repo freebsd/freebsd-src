@@ -25,5 +25,5 @@ network functionality.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

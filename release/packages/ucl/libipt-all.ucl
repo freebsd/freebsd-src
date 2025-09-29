@@ -6,5 +6,5 @@ or it can be partially or fully integrated into your tool.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

@@ -26,5 +26,5 @@ utilities and a sample Makefile for building the YP database.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

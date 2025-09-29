@@ -29,5 +29,5 @@ managing this, as well as the management utility automount(8).
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

@@ -24,3 +24,7 @@ IEEE Std 802.11 wireless network interface configured in Access Point (AP)
 mode.  hostapd can authenticate clients itself via 802.11i (WPA), or via
 802.1X (EAP) using an external RADIUS server.
 EOD
+
+annotations {
+	set = "optional"
+}

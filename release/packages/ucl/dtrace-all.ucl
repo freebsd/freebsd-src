@@ -27,3 +27,7 @@ This package provides the dtrace(1) utility for executing DTrace scripts written
 in the D language, the utilities lockstat(1) and plockstat(1), and several
 example D scripts installed in /usr/share/dtrace.
 EOD
+
+annotations {
+	set = "optional"
+}

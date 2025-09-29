@@ -34,5 +34,5 @@ sometimes called Kerberos V.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

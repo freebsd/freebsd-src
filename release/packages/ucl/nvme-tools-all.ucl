@@ -23,3 +23,7 @@ This package provides the nvmecontrol(8) utility, which is used to monitor
 and configure NVMe devices connected to the local system, and to discover
 and connect to remote NVMe over Fabrics (NVMe-oF) targets.
 EOD
+
+annotations {
+	set = optional
+}

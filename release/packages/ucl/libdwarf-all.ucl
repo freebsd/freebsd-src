@@ -34,5 +34,5 @@ information accessible through this API is defined by the DWARF standard.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

@@ -29,3 +29,7 @@ to the system:
 * moused(8) can be used to interface with a mouse and provide a graphical
   mouse cursor on the video console.
 EOD
+
+annotations {
+	set = "optional"
+}

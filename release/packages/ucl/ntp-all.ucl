@@ -39,5 +39,5 @@ A periodic(8) script to monitor the status of the NTP daemon is also provided.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }

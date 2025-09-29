@@ -25,5 +25,5 @@ support for lambda expressions and closures.
 EOD
 
 annotations {
-	set = "base,base-jail"
+	set = "optional,optional-jail"
 }
