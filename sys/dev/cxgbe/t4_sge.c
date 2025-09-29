@@ -350,6 +350,7 @@ cpl_handler_t l2t_write_rpl_handlers[NUM_CPL_COOKIES];
 cpl_handler_t act_open_rpl_handlers[NUM_CPL_COOKIES];
 cpl_handler_t abort_rpl_rss_handlers[NUM_CPL_COOKIES];
 cpl_handler_t fw4_ack_handlers[NUM_CPL_COOKIES];
+cpl_handler_t fw6_pld_handlers[NUM_CPL_FW6_COOKIES];
 
 void
 t4_register_an_handler(an_handler_t h)
@@ -479,6 +480,21 @@ fw4_ack_handler(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	return (fw4_ack_handlers[cookie](iq, rss, m));
 }
 
+static int
+fw6_pld_handler(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
+{
+	const struct cpl_fw6_pld *cpl;
+	uint64_t cookie;
+
+	if (m != NULL)
+		cpl = mtod(m, const void *);
+	else
+		cpl = (const void *)(rss + 1);
+	cookie = be64toh(cpl->data[1]) & CPL_FW6_COOKIE_MASK;
+
+	return (fw6_pld_handlers[cookie](iq, rss, m));
+}
+
 static void
 t4_init_shared_cpl_handlers(void)
 {
@@ -488,6 +504,7 @@ t4_init_shared_cpl_handlers(void)
 	t4_register_cpl_handler(CPL_ACT_OPEN_RPL, act_open_rpl_handler);
 	t4_register_cpl_handler(CPL_ABORT_RPL_RSS, abort_rpl_rss_handler);
 	t4_register_cpl_handler(CPL_FW4_ACK, fw4_ack_handler);
+	t4_register_cpl_handler(CPL_FW6_PLD, fw6_pld_handler);
 }
 
 void
@@ -496,8 +513,12 @@ t4_register_shared_cpl_handler(int opcode, cpl_handler_t h, int cookie)
 	uintptr_t *loc;
 
 	MPASS(opcode < nitems(t4_cpl_handler));
-	MPASS(cookie > CPL_COOKIE_RESERVED);
-	MPASS(cookie < NUM_CPL_COOKIES);
+	if (opcode == CPL_FW6_PLD) {
+		MPASS(cookie < NUM_CPL_FW6_COOKIES);
+	} else {
+		MPASS(cookie > CPL_COOKIE_RESERVED);
+		MPASS(cookie < NUM_CPL_COOKIES);
+	}
 	MPASS(t4_cpl_handler[opcode] != NULL);
 
 	switch (opcode) {
@@ -515,6 +536,9 @@ t4_register_shared_cpl_handler(int opcode, cpl_handler_t h, int cookie)
 		break;
 	case CPL_FW4_ACK:
 		loc = (uintptr_t *)&fw4_ack_handlers[cookie];
+		break;
+	case CPL_FW6_PLD:
+		loc = (uintptr_t *)&fw6_pld_handlers[cookie];
 		break;
 	default:
 		MPASS(0);
