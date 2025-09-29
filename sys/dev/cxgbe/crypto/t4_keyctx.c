@@ -665,6 +665,10 @@ t4_write_tlskey_wr(const struct ktls_session *tls, int direction, int tid,
 	kwr->reneg_to_write_rx = V_KEY_GET_LOC(direction == KTLS_TX ?
 	    KEY_WRITE_TX : KEY_WRITE_RX);
 
+	/* We don't need to use V_T7_ULP_MEMIO_DATA_LEN in this routine. */
+	_Static_assert(V_T7_ULP_MEMIO_DATA_LEN(TLS_KEY_CONTEXT_SZ >> 5) ==
+	    V_ULP_MEMIO_DATA_LEN(TLS_KEY_CONTEXT_SZ >> 5), "datalen mismatch");
+
 	/* master command */
 	kwr->cmd = htobe32(V_ULPTX_CMD(ULP_TX_MEM_WRITE) |
 	    V_T5_ULP_MEMIO_ORDER(1) | V_T5_ULP_MEMIO_IMM(1));

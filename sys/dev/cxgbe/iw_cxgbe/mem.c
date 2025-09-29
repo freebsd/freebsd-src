@@ -86,7 +86,10 @@ _c4iw_write_mem_dma_aligned(struct c4iw_rdev *rdev, u32 addr, u32 len,
 	ulpmc->cmd = cpu_to_be32(V_ULPTX_CMD(ULP_TX_MEM_WRITE) |
 			       V_T5_ULP_MEMIO_ORDER(1) |
 			V_T5_ULP_MEMIO_FID(sc->sge.ofld_rxq[0].iq.abs_id));
-	ulpmc->dlen = cpu_to_be32(V_ULP_MEMIO_DATA_LEN(len>>5));
+	if (chip_id(sc) >= CHELSIO_T7)
+		ulpmc->dlen = cpu_to_be32(V_T7_ULP_MEMIO_DATA_LEN(len>>5));
+	else
+		ulpmc->dlen = cpu_to_be32(V_ULP_MEMIO_DATA_LEN(len>>5));
 	ulpmc->len16 = cpu_to_be32(DIV_ROUND_UP(wr_len-sizeof(ulpmc->wr), 16));
 	ulpmc->lock_addr = cpu_to_be32(V_ULP_MEMIO_ADDR(addr));
 
@@ -149,8 +152,12 @@ _c4iw_write_mem_inline(struct c4iw_rdev *rdev, u32 addr, u32 len, void *data)
 				       V_FW_WR_LEN16(DIV_ROUND_UP(wr_len, 16)));
 
 		ulpmc->cmd = cmd;
-		ulpmc->dlen = cpu_to_be32(V_ULP_MEMIO_DATA_LEN(
-		    DIV_ROUND_UP(copy_len, T4_ULPTX_MIN_IO)));
+		if (chip_id(sc) >= CHELSIO_T7)
+			ulpmc->dlen = cpu_to_be32(V_T7_ULP_MEMIO_DATA_LEN(
+			    DIV_ROUND_UP(copy_len, T4_ULPTX_MIN_IO)));
+		else
+			ulpmc->dlen = cpu_to_be32(V_ULP_MEMIO_DATA_LEN(
+			    DIV_ROUND_UP(copy_len, T4_ULPTX_MIN_IO)));
 		ulpmc->len16 = cpu_to_be32(DIV_ROUND_UP(wr_len-sizeof(ulpmc->wr),
 						      16));
 		ulpmc->lock_addr = cpu_to_be32(V_ULP_MEMIO_ADDR(addr + i * 3));
