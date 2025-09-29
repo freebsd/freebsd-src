@@ -990,6 +990,7 @@ struct adapter {
 	uint16_t nbmcaps;
 	uint16_t linkcaps;
 	uint16_t switchcaps;
+	uint16_t nvmecaps;
 	uint16_t niccaps;
 	uint16_t toecaps;
 	uint16_t rdmacaps;
