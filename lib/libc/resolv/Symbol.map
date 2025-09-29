@@ -103,6 +103,5 @@ FBSD_1.0 {
 };
 
 FBSD_1.4 {
-	__res_rndinit;
 	__res_nrandomid;
 };
