@@ -24,10 +24,12 @@
 
 #include <atf-c.h>
 
-static const struct tzcase {
+struct tzcase {
 	const char *tzfn;
 	const char *expect;
-} tzcases[] = {
+};
+
+static const struct tzcase tzcases[] = {
 	/*
 	 * A handful of time zones and the expected result of
 	 * strftime("%z (%Z)", tm) when that time zone is active
@@ -43,7 +45,8 @@ static const struct tzcase {
 	{ "UTC",		"+0000 (UTC)"	},
 	{ 0 },
 };
-
+static const struct tzcase utc = { "UTC", "+0000 (UTC)" };
+static const struct tzcase invalid = { "invalid", "+0000 (-00)" };
 static const time_t then = 1751328000; /* 2025-07-01 00:00:00 UTC */
 
 static bool debugging;
@@ -139,7 +142,7 @@ ATF_TC_BODY(tz_invalid_file, tc)
 	ATF_REQUIRE_EQ(0, chdir("/"));
 	/* check timezone */
 	unsetenv("TZ");
-	test_tz("+0000 (-00)");
+	test_tz(invalid.expect);
 }
 
 ATF_TC(thin_jail);
@@ -366,12 +369,8 @@ test_tz_env(const char *tzval, const char *expect)
 	test_tz(expect);
 }
 
-ATF_TC(tz_env);
-ATF_TC_HEAD(tz_env, tc)
-{
-	atf_tc_set_md_var(tc, "descr", "Test TZ environment variable");
-}
-ATF_TC_BODY(tz_env, tc)
+static void
+tz_env_common(void)
 {
 	char path[MAXPATHLEN];
 	const struct tzcase *tzcase = tzcases;
@@ -394,6 +393,18 @@ ATF_TC_BODY(tz_env, tc)
 	}
 }
 
+ATF_TC(tz_env);
+ATF_TC_HEAD(tz_env, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test TZ environment variable");
+}
+ATF_TC_BODY(tz_env, tc)
+{
+	tz_env_common();
+	/* escape from TZDIR is permitted when not setugid */
+	test_tz_env("../zoneinfo/UTC", utc.expect);
+}
+
 
 ATF_TC(tz_invalid_env);
 ATF_TC_HEAD(tz_invalid_env, tc)
@@ -403,8 +414,8 @@ ATF_TC_HEAD(tz_invalid_env, tc)
 }
 ATF_TC_BODY(tz_invalid_env, tc)
 {
-	test_tz_env("invalid", "+0000 (-00)");
-	test_tz_env(":invalid", "+0000 (-00)");
+	test_tz_env("invalid", invalid.expect);
+	test_tz_env(":invalid", invalid.expect);
 }
 
 ATF_TC(setugid);
@@ -443,7 +454,9 @@ ATF_TC_BODY(tz_env_setugid, tc)
 {
 	ATF_REQUIRE_EQ(0, seteuid(UID_NOBODY));
 	ATF_REQUIRE(issetugid());
-	ATF_TC_BODY_NAME(tz_env)(tc);
+	tz_env_common();
+	/* escape from TZDIR is not permitted when setugid */
+	test_tz_env("../zoneinfo/UTC", invalid.expect);
 }
 
 ATF_TP_ADD_TCS(tp)
