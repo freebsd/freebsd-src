@@ -485,6 +485,7 @@ uint64_t select_ntuple(struct vi_info *, struct l2t_entry *);
 int negative_advice(int);
 int add_tid_to_history(struct adapter *, u_int);
 struct adapter *find_offload_adapter(struct socket *);
+void send_txdataplen_max_flowc_wr(struct adapter *, struct toepcb *, int);
 void t4_pcb_detach(struct toedev *, struct tcpcb *);
 
 /* t4_connect.c */
