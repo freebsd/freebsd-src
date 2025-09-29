@@ -2266,6 +2266,54 @@ t4_aio_queue_tom(struct socket *so, struct kaiocb *job)
 		return (0);
 }
 
+/*
+ * Request/response structure used to find out the adapter offloading
+ * a socket.
+ */
+struct find_offload_adapter_data {
+	struct socket *so;
+	struct adapter *sc;	/* result */
+};
+
+static void
+find_offload_adapter_cb(struct adapter *sc, void *arg)
+{
+	struct find_offload_adapter_data *fa = arg;
+	struct socket *so = fa->so;
+	struct tom_data *td = sc->tom_softc;
+	struct tcpcb *tp;
+	struct inpcb *inp;
+
+	/* Non-TCP were filtered out earlier. */
+	MPASS(so->so_proto->pr_protocol == IPPROTO_TCP);
+
+	if (fa->sc != NULL)
+		return;	/* Found already. */
+
+	if (td == NULL)
+		return;	/* TOE not enabled on this adapter. */
+
+	inp = sotoinpcb(so);
+	INP_WLOCK(inp);
+	if ((inp->inp_flags & INP_DROPPED) == 0) {
+		tp = intotcpcb(inp);
+		if (tp->t_flags & TF_TOE && tp->tod == &td->tod)
+			fa->sc = sc;	/* Found. */
+	}
+	INP_WUNLOCK(inp);
+}
+
+struct adapter *
+find_offload_adapter(struct socket *so)
+{
+	struct find_offload_adapter_data fa;
+
+	fa.sc = NULL;
+	fa.so = so;
+	t4_iterate(find_offload_adapter_cb, &fa);
+	return (fa.sc);
+}
+
 static int
 t4_tom_mod_load(void)
 {

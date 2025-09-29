@@ -484,6 +484,7 @@ __be32 calc_options2(struct vi_info *, struct conn_params *);
 uint64_t select_ntuple(struct vi_info *, struct l2t_entry *);
 int negative_advice(int);
 int add_tid_to_history(struct adapter *, u_int);
+struct adapter *find_offload_adapter(struct socket *);
 void t4_pcb_detach(struct toedev *, struct tcpcb *);
 
 /* t4_connect.c */
