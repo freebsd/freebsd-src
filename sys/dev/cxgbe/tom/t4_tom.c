@@ -1221,7 +1221,7 @@ select_ntuple(struct vi_info *vi, struct l2t_entry *e)
 		ntuple |= (uint64_t)(F_FT_VLAN_VLD | e->vlan) << tp->vlan_shift;
 
 	if (tp->port_shift >= 0)
-		ntuple |= (uint64_t)e->lport << tp->port_shift;
+		ntuple |= (uint64_t)e->hw_port << tp->port_shift;
 
 	if (tp->protocol_shift >= 0)
 		ntuple |= (uint64_t)IPPROTO_TCP << tp->protocol_shift;

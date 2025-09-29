@@ -319,7 +319,7 @@ struct port_info {
 	char lockname[16];
 	unsigned long flags;
 
-	uint8_t  lport;		/* associated offload logical port */
+	uint8_t  hw_port;	/* associated hardware port idx */
 	int8_t   mdio_addr;
 	uint8_t  port_type;
 	uint8_t  mod_type;

@@ -71,7 +71,7 @@ struct l2t_entry {
 	volatile int refcnt;		/* entry reference count */
 	uint16_t hash;			/* hash bucket the entry is on */
 	uint8_t ipv6;			/* entry is for an IPv6 address */
-	uint8_t lport;			/* associated offload logical port */
+	uint8_t hw_port;		/* associated hardware port idx */
 	uint8_t dmac[ETHER_ADDR_LEN];	/* next hop's MAC address */
 };
 

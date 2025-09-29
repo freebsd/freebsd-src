@@ -9818,11 +9818,11 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 		} while ((adap->params.portvec & (1 << j)) == 0);
 	}
 
+	p->hw_port = j;
 	p->tx_chan = t4_get_tx_c_chan(adap, j);
 	p->rx_chan = t4_get_rx_c_chan(adap, j);
 	p->mps_bg_map = t4_get_mps_bg_map(adap, j);
 	p->rx_e_chan_map = t4_get_rx_e_chan_map(adap, j);
-	p->lport = j;
 
 	if (!(adap->flags & IS_VF) ||
 	    adap->params.vfres.r_caps & FW_CMD_CAP_PORT) {
