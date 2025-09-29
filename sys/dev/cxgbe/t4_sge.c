@@ -5419,7 +5419,8 @@ write_tnl_lso_cpl(void *cpl, struct mbuf *m0)
 			m0->m_pkthdr.l3hlen + m0->m_pkthdr.l4hlen +
 			m0->m_pkthdr.l5hlen) |
 		    V_CPL_TX_TNL_LSO_TNLTYPE(TX_TNL_TYPE_VXLAN));
-	tnl_lso->r1 = 0;
+	tnl_lso->ipsecen_to_rocev2 = 0;
+	tnl_lso->roce_eth = 0;
 
 	/* Inner headers. */
 	ctrl = V_CPL_TX_TNL_LSO_ETHHDRLEN(

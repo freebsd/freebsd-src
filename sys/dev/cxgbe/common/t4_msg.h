@@ -1,8 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2011, 2016 Chelsio Communications, Inc.
- * All rights reserved.
+ * Copyright (c) 2011, 2016, 2025 Chelsio Communications.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,7 +29,7 @@
 #ifndef T4_MSG_H
 #define T4_MSG_H
 
-enum {
+enum cpl_opcodes {
 	CPL_PASS_OPEN_REQ     = 0x1,
 	CPL_PASS_ACCEPT_RPL   = 0x2,
 	CPL_ACT_OPEN_REQ      = 0x3,
@@ -68,13 +67,16 @@ enum {
 	CPL_PEER_CLOSE        = 0x26,
 	CPL_RTE_DELETE_RPL    = 0x27,
 	CPL_RTE_WRITE_RPL     = 0x28,
+	CPL_ROCE_FW_NOTIFY    = 0x28,
 	CPL_RX_URG_PKT        = 0x29,
 	CPL_TAG_WRITE_RPL     = 0x2A,
+	CPL_RDMA_ASYNC_EVENT  = 0x2A,
 	CPL_ABORT_REQ_RSS     = 0x2B,
 	CPL_RX_URG_NOTIFY     = 0x2C,
 	CPL_ABORT_RPL_RSS     = 0x2D,
 	CPL_SMT_WRITE_RPL     = 0x2E,
 	CPL_TX_DATA_ACK       = 0x2F,
+	CPL_RDMA_INV_REQ      = 0x2F,
 
 	CPL_RX_PHYS_ADDR      = 0x30,
 	CPL_PCMD_READ_RPL     = 0x31,
@@ -107,19 +109,30 @@ enum {
 	CPL_RX_DATA_DIF       = 0x4B,
 	CPL_ERR_NOTIFY	      = 0x4D,
 	CPL_RX_TLS_CMP        = 0x4E,
+	CPL_T6_TX_DATA_ACK    = 0x4F,
 
 	CPL_RDMA_READ_REQ     = 0x60,
 	CPL_RX_ISCSI_DIF      = 0x60,
+	CPL_RDMA_CQE_EXT      = 0x61,
+	CPL_RDMA_CQE_FW_EXT   = 0x62,
+	CPL_RDMA_CQE_ERR_EXT  = 0x63,
+	CPL_TX_DATA_ACK_XT    = 0x64,
+	CPL_ROCE_CQE          = 0x68,
+	CPL_ROCE_CQE_FW       = 0x69,
+	CPL_ROCE_CQE_ERR      = 0x6A,
+
+	CPL_SACK_REQ          = 0x70,
 
 	CPL_SET_LE_REQ        = 0x80,
 	CPL_PASS_OPEN_REQ6    = 0x81,
 	CPL_ACT_OPEN_REQ6     = 0x83,
 	CPL_TX_TLS_PDU        = 0x88,
 	CPL_TX_TLS_SFO        = 0x89,
-
 	CPL_TX_SEC_PDU        = 0x8A,
 	CPL_TX_TLS_ACK        = 0x8B,
+	CPL_RCB_UPD           = 0x8C,
 
+	CPL_SGE_FLR_FLUSH     = 0xA0,
 	CPL_RDMA_TERMINATE    = 0xA2,
 	CPL_RDMA_WRITE        = 0xA4,
 	CPL_SGE_EGR_UPDATE    = 0xA5,
@@ -138,15 +151,27 @@ enum {
 	CPL_TLS_DATA          = 0xB1,
 	CPL_ISCSI_DATA        = 0xB2,
 	CPL_FCOE_DATA         = 0xB3,
+	CPL_NVMT_DATA         = 0xB4,
+	CPL_NVMT_CMP          = 0xB5,
+	CPL_NVMT_CMP_IMM      = 0xB6,
+	CPL_NVMT_CMP_SRQ      = 0xB7,
+	CPL_ROCE_ACK_NAK_REQ  = 0xBC,
+	CPL_ROCE_ACK_NAK      = 0xBD,
 
 	CPL_FW4_MSG           = 0xC0,
 	CPL_FW4_PLD           = 0xC1,
+	CPL_RDMA_CQE_SRQ      = 0xC2,
+	CPL_ACCELERATOR_ACK   = 0xC4,
 	CPL_FW4_ACK           = 0xC3,
+	CPL_RX_PKT_IPSEC      = 0xC6,
 	CPL_SRQ_TABLE_RPL     = 0xCC,
+	CPL_TX_DATA_REQ       = 0xCF,
+
 	CPL_RX_PHYS_DSGL      = 0xD0,
 
 	CPL_FW6_MSG           = 0xE0,
 	CPL_FW6_PLD           = 0xE1,
+	CPL_ACCELERATOR_HDR   = 0xE8,
 	CPL_TX_TNL_LSO        = 0xEC,
 	CPL_TX_PKT_LSO        = 0xED,
 	CPL_TX_PKT_XT         = 0xEE,
@@ -233,6 +258,8 @@ enum {
 	ULP_MODE_TCPDDP        = 5,
 	ULP_MODE_FCOE          = 6,
 	ULP_MODE_TLS           = 8,
+	ULP_MODE_RDMA_V2       = 10,
+	ULP_MODE_NVMET         = 11,
 };
 
 enum {
@@ -325,9 +352,14 @@ union opcode_tid {
 #define OPCODE_TID(cmd) ((cmd)->ot.opcode_tid)
 
 /* extract the TID from a CPL command */
-#define GET_TID(cmd) (G_TID(ntohl(OPCODE_TID(cmd))))
+#define GET_TID(cmd) (G_TID(be32toh(OPCODE_TID(cmd))))
 #define GET_OPCODE(cmd) ((cmd)->ot.opcode)
 
+
+/*
+ * Note that this driver splits the 14b opaque atid into an 11b atid and a 3b
+ * cookie that is used to demux replies for shared CPLs.
+ */
 /* partitioning of TID fields that also carry a queue id */
 #define S_TID_TID    0
 #define M_TID_TID    0x7ff
@@ -717,7 +749,7 @@ struct cpl_pass_establish {
 struct cpl_pass_accept_req {
 	RSS_HDR
 	union opcode_tid ot;
-	__be16 rsvd;
+	__be16 ipsecen_outiphdrlen;
 	__be16 len;
 	__be32 hdr_len;
 	__be16 vlan;
@@ -775,6 +807,155 @@ struct cpl_pass_accept_req {
 #define V_SYN_INTF(x) ((x) << S_SYN_INTF)
 #define G_SYN_INTF(x) (((x) >> S_SYN_INTF) & M_SYN_INTF)
 
+struct cpl_t7_pass_accept_req {
+	RSS_HDR
+	union opcode_tid ot;
+	__be16 ipsecen_to_outiphdrlen;
+	__be16 length;
+	__be32 ethhdrlen_to_rxchannel;
+	__be16 vlantag;
+	__be16 interface_to_mac_ix;
+	__be32 tos_ptid;
+	__be16 tcpmss;
+	__u8   tcpwsc;
+	__u8   tcptmstp_to_tcpunkn;
+};
+
+#define S_CPL_T7_PASS_ACCEPT_REQ_IPSECEN	12
+#define M_CPL_T7_PASS_ACCEPT_REQ_IPSECEN	0x1
+#define V_CPL_T7_PASS_ACCEPT_REQ_IPSECEN(x)	\
+    ((x) << S_CPL_T7_PASS_ACCEPT_REQ_IPSECEN)
+#define G_CPL_T7_PASS_ACCEPT_REQ_IPSECEN(x)	\
+    (((x) >> S_CPL_T7_PASS_ACCEPT_REQ_IPSECEN) & \
+     M_CPL_T7_PASS_ACCEPT_REQ_IPSECEN)
+#define F_CPL_PASS_T7_ACCEPT_REQ_IPSECEN	\
+    V_CPL_T7_PASS_ACCEPT_REQ_IPSECEN(1U)
+
+#define S_CPL_T7_PASS_ACCEPT_REQ_IPSECTYPE	10
+#define M_CPL_T7_PASS_ACCEPT_REQ_IPSECTYPE	0x3
+#define V_CPL_T7_PASS_ACCEPT_REQ_IPSECTYPE(x)	\
+    ((x) << S_CPL_T7_PASS_ACCEPT_REQ_IPSECTYPE)
+#define G_CPL_T7_PASS_ACCEPT_REQ_IPSECTYPE(x)	\
+    (((x) >> S_CPL_T7_PASS_ACCEPT_REQ_IPSECTYPE) & \
+     M_CPL_T7_PASS_ACCEPT_REQ_IPSECTYPE)
+
+#define S_CPL_T7_PASS_ACCEPT_REQ_OUTIPHDRLEN	0
+#define M_CPL_T7_PASS_ACCEPT_REQ_OUTIPHDRLEN	0x3ff
+#define V_CPL_T7_PASS_ACCEPT_REQ_OUTIPHDRLEN(x) \
+    ((x) << S_CPL_T7_PASS_ACCEPT_REQ_OUTIPHDRLEN)
+#define G_CPL_T7_PASS_ACCEPT_REQ_OUTIPHDRLEN(x) \
+    (((x) >> S_CPL_T7_PASS_ACCEPT_REQ_OUTIPHDRLEN) & \
+     M_CPL_T7_PASS_ACCEPT_REQ_OUTIPHDRLEN)
+
+#define S_CPL_T7_PASS_ACCEPT_REQ_ETHHDRLEN	24
+#define M_CPL_T7_PASS_ACCEPT_REQ_ETHHDRLEN	0xff
+#define V_CPL_T7_PASS_ACCEPT_REQ_ETHHDRLEN(x)	\
+    ((x) << S_CPL_T7_PASS_ACCEPT_REQ_ETHHDRLEN)
+#define G_CPL_T7_PASS_ACCEPT_REQ_ETHHDRLEN(x)	\
+    (((x) >> S_CPL_T7_PASS_ACCEPT_REQ_ETHHDRLEN) & \
+     M_CPL_T7_PASS_ACCEPT_REQ_ETHHDRLEN)
+
+#define S_CPL_T7_PASS_ACCEPT_REQ_IPHDRLEN	14
+#define M_CPL_T7_PASS_ACCEPT_REQ_IPHDRLEN	0x3ff
+#define V_CPL_T7_PASS_ACCEPT_REQ_IPHDRLEN(x)	\
+    ((x) << S_CPL_T7_PASS_ACCEPT_REQ_IPHDRLEN)
+#define G_CPL_T7_PASS_ACCEPT_REQ_IPHDRLEN(x)	\
+    (((x) >> S_CPL_T7_PASS_ACCEPT_REQ_IPHDRLEN) & \
+     M_CPL_T7_PASS_ACCEPT_REQ_IPHDRLEN)
+
+#define S_CPL_T7_PASS_ACCEPT_REQ_TCPHDRLEN	8
+#define M_CPL_T7_PASS_ACCEPT_REQ_TCPHDRLEN	0x3f
+#define V_CPL_T7_PASS_ACCEPT_REQ_TCPHDRLEN(x)	\
+    ((x) << S_CPL_T7_PASS_ACCEPT_REQ_TCPHDRLEN)
+#define G_CPL_T7_PASS_ACCEPT_REQ_TCPHDRLEN(x)	\
+    (((x) >> S_CPL_T7_PASS_ACCEPT_REQ_TCPHDRLEN) & \
+     M_CPL_T7_PASS_ACCEPT_REQ_TCPHDRLEN)
+
+#define S_CPL_T7_PASS_ACCEPT_REQ_RXCHANNEL	0
+#define M_CPL_T7_PASS_ACCEPT_REQ_RXCHANNEL	0xf
+#define V_CPL_T7_PASS_ACCEPT_REQ_RXCHANNEL(x)	\
+    ((x) << S_CPL_T7_PASS_ACCEPT_REQ_RXCHANNEL)
+#define G_CPL_T7_PASS_ACCEPT_REQ_RXCHANNEL(x)	\
+    (((x) >> S_CPL_T7_PASS_ACCEPT_REQ_RXCHANNEL) & \
+     M_CPL_T7_PASS_ACCEPT_REQ_RXCHANNEL)
+
+#define S_CPL_T7_PASS_ACCEPT_REQ_INTERFACE	12
+#define M_CPL_T7_PASS_ACCEPT_REQ_INTERFACE	0xf
+#define V_CPL_T7_PASS_ACCEPT_REQ_INTERFACE(x)	\
+    ((x) << S_CPL_T7_PASS_ACCEPT_REQ_INTERFACE)
+#define G_CPL_T7_PASS_ACCEPT_REQ_INTERFACE(x)	\
+    (((x) >> S_CPL_T7_PASS_ACCEPT_REQ_INTERFACE) & \
+     M_CPL_T7_PASS_ACCEPT_REQ_INTERFACE)
+
+#define S_CPL_T7_PASS_ACCEPT_REQ_MAC_MATCH	9
+#define M_CPL_T7_PASS_ACCEPT_REQ_MAC_MATCH	0x1
+#define V_CPL_T7_PASS_ACCEPT_REQ_MAC_MATCH(x)	\
+    ((x) << S_CPL_T7_PASS_ACCEPT_REQ_MAC_MATCH)
+#define G_CPL_T7_PASS_ACCEPT_REQ_MAC_MATCH(x)	\
+    (((x) >> S_CPL_T7_PASS_ACCEPT_REQ_MAC_MATCH) & \
+     M_CPL_T7_PASS_ACCEPT_REQ_MAC_MATCH)
+#define F_CPL_T7_PASS_ACCEPT_REQ_MAC_MATCH	\
+    V_CPL_T7_PASS_ACCEPT_REQ_MAC_MATCH(1U)
+
+#define S_CPL_T7_PASS_ACCEPT_REQ_MAC_IX		0
+#define M_CPL_T7_PASS_ACCEPT_REQ_MAC_IX		0x1ff
+#define V_CPL_T7_PASS_ACCEPT_REQ_MAC_IX(x)	\
+    ((x) << S_CPL_T7_PASS_ACCEPT_REQ_MAC_IX)
+#define G_CPL_T7_PASS_ACCEPT_REQ_MAC_IX(x)	\
+    (((x) >> S_CPL_T7_PASS_ACCEPT_REQ_MAC_IX) & M_CPL_T7_PASS_ACCEPT_REQ_MAC_IX)
+
+#define S_CPL_T7_PASS_ACCEPT_REQ_TOS	24
+#define M_CPL_T7_PASS_ACCEPT_REQ_TOS	0xff
+#define V_CPL_T7_PASS_ACCEPT_REQ_TOS(x)	((x) << S_CPL_T7_PASS_ACCEPT_REQ_TOS)
+#define G_CPL_T7_PASS_ACCEPT_REQ_TOS(x)	\
+    (((x) >> S_CPL_T7_PASS_ACCEPT_REQ_TOS) & M_CPL_T7_PASS_ACCEPT_REQ_TOS)
+
+#define S_CPL_T7_PASS_ACCEPT_REQ_PTID		0
+#define M_CPL_T7_PASS_ACCEPT_REQ_PTID		0xffffff
+#define V_CPL_T7_PASS_ACCEPT_REQ_PTID(x)	\
+    ((x) << S_CPL_T7_PASS_ACCEPT_REQ_PTID)
+#define G_CPL_T7_PASS_ACCEPT_REQ_PTID(x)	\
+    (((x) >> S_CPL_T7_PASS_ACCEPT_REQ_PTID) & M_CPL_T7_PASS_ACCEPT_REQ_PTID)
+
+#define S_CPL_T7_PASS_ACCEPT_REQ_TCPTMSTP	7
+#define M_CPL_T7_PASS_ACCEPT_REQ_TCPTMSTP	0x1
+#define V_CPL_T7_PASS_ACCEPT_REQ_TCPTMSTP(x)	\
+    ((x) << S_CPL_T7_PASS_ACCEPT_REQ_TCPTMSTP)
+#define G_CPL_T7_PASS_ACCEPT_REQ_TCPTMSTP(x)	\
+    (((x) >> S_CPL_T7_PASS_ACCEPT_REQ_TCPTMSTP) & \
+     M_CPL_T7_PASS_ACCEPT_REQ_TCPTMSTP)
+#define F_CPL_T7_PASS_ACCEPT_REQ_TCPTMSTP	\
+    V_CPL_T7_PASS_ACCEPT_REQ_TCPTMSTP(1U)
+
+#define S_CPL_T7_PASS_ACCEPT_REQ_TCPSACK	6
+#define M_CPL_T7_PASS_ACCEPT_REQ_TCPSACK	0x1
+#define V_CPL_T7_PASS_ACCEPT_REQ_TCPSACK(x)	\
+    ((x) << S_CPL_T7_PASS_ACCEPT_REQ_TCPSACK)
+#define G_CPL_T7_PASS_ACCEPT_REQ_TCPSACK(x)	\
+    (((x) >> S_CPL_T7_PASS_ACCEPT_REQ_TCPSACK) & \
+     M_CPL_T7_PASS_ACCEPT_REQ_TCPSACK)
+#define F_CPL_T7_PASS_ACCEPT_REQ_TCPSACK	\
+    V_CPL_T7_PASS_ACCEPT_REQ_TCPSACK(1U)
+
+#define S_CPL_T7_PASS_ACCEPT_REQ_TCPECN		5
+#define M_CPL_T7_PASS_ACCEPT_REQ_TCPECN		0x1
+#define V_CPL_T7_PASS_ACCEPT_REQ_TCPECN(x)	\
+    ((x) << S_CPL_T7_PASS_ACCEPT_REQ_TCPECN)
+#define G_CPL_T7_PASS_ACCEPT_REQ_TCPECN(x)	\
+    (((x) >> S_CPL_T7_PASS_ACCEPT_REQ_TCPECN) & M_CPL_T7_PASS_ACCEPT_REQ_TCPECN)
+#define F_CPL_T7_PASS_ACCEPT_REQ_TCPECN		\
+    V_CPL_T7_PASS_ACCEPT_REQ_TCPECN(1U)
+
+#define S_CPL_T7_PASS_ACCEPT_REQ_TCPUNKN	4
+#define M_CPL_T7_PASS_ACCEPT_REQ_TCPUNKN	0x1
+#define V_CPL_T7_PASS_ACCEPT_REQ_TCPUNKN(x)	\
+    ((x) << S_CPL_T7_PASS_ACCEPT_REQ_TCPUNKN)
+#define G_CPL_T7_PASS_ACCEPT_REQ_TCPUNKN(x)	\
+    (((x) >> S_CPL_T7_PASS_ACCEPT_REQ_TCPUNKN) & \
+     M_CPL_T7_PASS_ACCEPT_REQ_TCPUNKN)
+#define F_CPL_T7_PASS_ACCEPT_REQ_TCPUNKN	\
+    V_CPL_T7_PASS_ACCEPT_REQ_TCPUNKN(1U)
+
 struct cpl_pass_accept_rpl {
 	WR_HDR;
 	union opcode_tid ot;
@@ -810,6 +991,7 @@ struct cpl_act_open_req {
 #define M_FILTER_TUPLE	0xFFFFFFFFFF
 #define V_FILTER_TUPLE(x) ((x) << S_FILTER_TUPLE)
 #define G_FILTER_TUPLE(x) (((x) >> S_FILTER_TUPLE) & M_FILTER_TUPLE)
+
 struct cpl_t5_act_open_req {
 	WR_HDR;
 	union opcode_tid ot;
@@ -843,6 +1025,26 @@ struct cpl_t6_act_open_req {
 #define V_AOPEN_FCOEMASK(x)	((x) << S_AOPEN_FCOEMASK)
 #define F_AOPEN_FCOEMASK	V_AOPEN_FCOEMASK(1U)
 
+struct cpl_t7_act_open_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__be16 local_port;
+	__be16 peer_port;
+	__be32 local_ip;
+	__be32 peer_ip;
+	__be64 opt0;
+	__be32 iss;
+	__be32 opt2;
+	__be64 params;
+	__be32 rsvd2;
+	__be32 opt3;
+};
+
+#define S_T7_FILTER_TUPLE	1
+#define M_T7_FILTER_TUPLE	0x7FFFFFFFFFFFFFFFULL
+#define V_T7_FILTER_TUPLE(x)	((x) << S_T7_FILTER_TUPLE)
+#define G_T7_FILTER_TUPLE(x)	(((x) >> S_T7_FILTER_TUPLE) & M_T7_FILTER_TUPLE)
+
 struct cpl_act_open_req6 {
 	WR_HDR;
 	union opcode_tid ot;
@@ -873,6 +1075,23 @@ struct cpl_t5_act_open_req6 {
 };
 
 struct cpl_t6_act_open_req6 {
+	WR_HDR;
+	union opcode_tid ot;
+	__be16 local_port;
+	__be16 peer_port;
+	__be64 local_ip_hi;
+	__be64 local_ip_lo;
+	__be64 peer_ip_hi;
+	__be64 peer_ip_lo;
+	__be64 opt0;
+	__be32 iss;
+	__be32 opt2;
+	__be64 params;
+	__be32 rsvd2;
+	__be32 opt3;
+};
+
+struct cpl_t7_act_open_req6 {
 	WR_HDR;
 	union opcode_tid ot;
 	__be16 local_port;
@@ -921,8 +1140,7 @@ struct cpl_get_tcb {
 	WR_HDR;
 	union opcode_tid ot;
 	__be16 reply_ctrl;
-	__u8 rsvd;
-	__u8 cookie;
+	__be16 cookie;
 };
 
 /* cpl_get_tcb.reply_ctrl fields */
@@ -931,9 +1149,19 @@ struct cpl_get_tcb {
 #define V_QUEUENO(x) ((x) << S_QUEUENO)
 #define G_QUEUENO(x) (((x) >> S_QUEUENO) & M_QUEUENO)
 
+#define S_T7_QUEUENO    0
+#define M_T7_QUEUENO    0xFFF
+#define V_T7_QUEUENO(x) ((x) << S_T7_QUEUENO)
+#define G_T7_QUEUENO(x) (((x) >> S_T7_QUEUENO) & M_T7_QUEUENO)
+
 #define S_REPLY_CHAN    14
 #define V_REPLY_CHAN(x) ((x) << S_REPLY_CHAN)
 #define F_REPLY_CHAN    V_REPLY_CHAN(1U)
+
+#define S_T7_REPLY_CHAN		12
+#define M_T7_REPLY_CHAN		0x7
+#define V_T7_REPLY_CHAN(x)	((x) << S_T7_REPLY_CHAN)
+#define G_T7_REPLY_CHAN(x)	(((x) >> S_T7_REPLY_CHAN) & M_T7_REPLY_CHAN)
 
 #define S_NO_REPLY    15
 #define V_NO_REPLY(x) ((x) << S_NO_REPLY)
@@ -1017,6 +1245,40 @@ struct cpl_close_listsvr_req {
 #define S_LISTSVR_IPV6    14
 #define V_LISTSVR_IPV6(x) ((x) << S_LISTSVR_IPV6)
 #define F_LISTSVR_IPV6    V_LISTSVR_IPV6(1U)
+
+struct cpl_t7_close_listsvr_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__be16 noreply_to_queue;
+	__be16 r2;
+};
+
+#define S_CPL_T7_CLOSE_LISTSVR_REQ_NOREPLY	15
+#define M_CPL_T7_CLOSE_LISTSVR_REQ_NOREPLY	0x1
+#define V_CPL_T7_CLOSE_LISTSVR_REQ_NOREPLY(x)	\
+    ((x) << S_CPL_T7_CLOSE_LISTSVR_REQ_NOREPLY)
+#define G_CPL_T7_CLOSE_LISTSVR_REQ_NOREPLY(x)	\
+    (((x) >> S_CPL_T7_CLOSE_LISTSVR_REQ_NOREPLY) & \
+     M_CPL_T7_CLOSE_LISTSVR_REQ_NOREPLY)
+#define F_CPL_T7_CLOSE_LISTSVR_REQ_NOREPLY	\
+    V_CPL_T7_CLOSE_LISTSVR_REQ_NOREPLY(1U)
+
+#define S_CPL_T7_CLOSE_LISTSVR_REQ_IPV6		14
+#define M_CPL_T7_CLOSE_LISTSVR_REQ_IPV6		0x1
+#define V_CPL_T7_CLOSE_LISTSVR_REQ_IPV6(x)	\
+    ((x) << S_CPL_T7_CLOSE_LISTSVR_REQ_IPV6)
+#define G_CPL_T7_CLOSE_LISTSVR_REQ_IPV6(x)	\
+    (((x) >> S_CPL_T7_CLOSE_LISTSVR_REQ_IPV6) & M_CPL_T7_CLOSE_LISTSVR_REQ_IPV6)
+#define F_CPL_T7_CLOSE_LISTSVR_REQ_IPV6		\
+    V_CPL_T7_CLOSE_LISTSVR_REQ_IPV6(1U)
+
+#define S_CPL_T7_CLOSE_LISTSVR_REQ_QUEUE	0
+#define M_CPL_T7_CLOSE_LISTSVR_REQ_QUEUE	0xfff
+#define V_CPL_T7_CLOSE_LISTSVR_REQ_QUEUE(x)	\
+    ((x) << S_CPL_T7_CLOSE_LISTSVR_REQ_QUEUE)
+#define G_CPL_T7_CLOSE_LISTSVR_REQ_QUEUE(x)	\
+    (((x) >> S_CPL_T7_CLOSE_LISTSVR_REQ_QUEUE) & \
+     M_CPL_T7_CLOSE_LISTSVR_REQ_QUEUE)
 
 struct cpl_close_listsvr_rpl {
 	RSS_HDR
@@ -1250,6 +1512,71 @@ struct cpl_tx_data_ack {
 	__be32 snd_una;
 };
 
+struct cpl_tx_data_ack_xt {
+	RSS_HDR
+	union opcode_tid ot;
+	__be32 snd_una;
+	__be32 snd_end;
+	__be32 snd_nxt;
+	__be32 snd_adv;
+	__be16 rttvar;
+	__be16 srtt;
+	__be32 extinfoh[2];
+	__be32 extinfol[2];
+};
+
+struct cpl_tx_data_req {
+	RSS_HDR
+	union opcode_tid ot;
+	__be32 snd_una;
+	__be32 snd_end;
+	__be32 snd_nxt;
+	__be32 snd_adv;
+	__be16 rttvar;
+	__be16 srtt;
+};
+
+#define S_CPL_TX_DATA_REQ_TID		0
+#define M_CPL_TX_DATA_REQ_TID		0xffffff
+#define V_CPL_TX_DATA_REQ_TID(x)	((x) << S_CPL_TX_DATA_REQ_TID)
+#define G_CPL_TX_DATA_REQ_TID(x)	\
+    (((x) >> S_CPL_TX_DATA_REQ_TID) & M_CPL_TX_DATA_REQ_TID)
+
+struct cpl_sack_req {
+	RSS_HDR
+	union opcode_tid ot;
+	__be32 snd_una;
+	__be32 snd_end;
+	__be32 snd_nxt;
+	__be32 snd_adv;
+	__be16 rttvar;
+	__be16 srtt;
+	__be32 block1[2];
+	__be32 block2[2];
+	__be32 block3[2];
+};
+
+struct cpl_sge_flr_flush {
+	RSS_HDR
+	union opcode_tid ot;
+	__be32 cookievalue_cookiesel;
+};
+
+#define S_CPL_SGE_FLR_FLUSH_COOKIEVALUE	4
+#define M_CPL_SGE_FLR_FLUSH_COOKIEVALUE	0x3ff
+#define V_CPL_SGE_FLR_FLUSH_COOKIEVALUE(x) \
+    ((x) << S_CPL_SGE_FLR_FLUSH_COOKIEVALUE)
+#define G_CPL_SGE_FLR_FLUSH_COOKIEVALUE(x) \
+    (((x) >> S_CPL_SGE_FLR_FLUSH_COOKIEVALUE) & \
+     M_CPL_SGE_FLR_FLUSH_COOKIEVALUE)
+
+#define S_CPL_SGE_FLR_FLUSH_COOKIESEL	0
+#define M_CPL_SGE_FLR_FLUSH_COOKIESEL	0xf
+#define V_CPL_SGE_FLR_FLUSH_COOKIESEL(x) \
+    ((x) << S_CPL_SGE_FLR_FLUSH_COOKIESEL)
+#define G_CPL_SGE_FLR_FLUSH_COOKIESEL(x) \
+    (((x) >> S_CPL_SGE_FLR_FLUSH_COOKIESEL) & M_CPL_SGE_FLR_FLUSH_COOKIESEL)
+
 struct cpl_wr_ack {  /* XXX */
 	RSS_HDR
 	union opcode_tid ot;
@@ -1270,8 +1597,6 @@ struct cpl_tx_pkt {
 	WR_HDR;
 	struct cpl_tx_pkt_core c;
 };
-
-#define cpl_tx_pkt_xt cpl_tx_pkt
 
 /* cpl_tx_pkt_core.ctrl0 fields */
 #define S_TXPKT_VF    0
@@ -1403,6 +1728,261 @@ struct cpl_tx_pkt {
 #define S_TXPKT_L4CSUM_DIS    63
 #define V_TXPKT_L4CSUM_DIS(x) ((__u64)(x) << S_TXPKT_L4CSUM_DIS)
 #define F_TXPKT_L4CSUM_DIS    V_TXPKT_L4CSUM_DIS(1ULL)
+
+struct cpl_tx_pkt_xt {
+	WR_HDR;
+	__be32 ctrl0;
+	__be16 pack;
+	__be16 len;
+	__be32 ctrl1;
+	__be32 ctrl2;
+};
+
+/* cpl_tx_pkt_xt.core.ctrl0 fields */
+#define S_CPL_TX_PKT_XT_OPCODE		24
+#define M_CPL_TX_PKT_XT_OPCODE		0xff
+#define V_CPL_TX_PKT_XT_OPCODE(x)	((x) << S_CPL_TX_PKT_XT_OPCODE)
+#define G_CPL_TX_PKT_XT_OPCODE(x)	\
+    (((x) >> S_CPL_TX_PKT_XT_OPCODE) & M_CPL_TX_PKT_XT_OPCODE)
+
+#define S_CPL_TX_PKT_XT_TIMESTAMP	23
+#define M_CPL_TX_PKT_XT_TIMESTAMP	0x1
+#define V_CPL_TX_PKT_XT_TIMESTAMP(x)	((x) << S_CPL_TX_PKT_XT_TIMESTAMP)
+#define G_CPL_TX_PKT_XT_TIMESTAMP(x)	\
+    (((x) >> S_CPL_TX_PKT_XT_TIMESTAMP) & M_CPL_TX_PKT_XT_TIMESTAMP)
+#define F_CPL_TX_PKT_XT_TIMESTAMP	V_CPL_TX_PKT_XT_TIMESTAMP(1U)
+
+#define S_CPL_TX_PKT_XT_STATDISABLE	22
+#define M_CPL_TX_PKT_XT_STATDISABLE	0x1
+#define V_CPL_TX_PKT_XT_STATDISABLE(x)	((x) << S_CPL_TX_PKT_XT_STATDISABLE)
+#define G_CPL_TX_PKT_XT_STATDISABLE(x)	\
+    (((x) >> S_CPL_TX_PKT_XT_STATDISABLE) & M_CPL_TX_PKT_XT_STATDISABLE)
+#define F_CPL_TX_PKT_XT_STATDISABLE	V_CPL_TX_PKT_XT_STATDISABLE(1U)
+
+#define S_CPL_TX_PKT_XT_FCSDIS		21
+#define M_CPL_TX_PKT_XT_FCSDIS		0x1
+#define V_CPL_TX_PKT_XT_FCSDIS(x)	((x) << S_CPL_TX_PKT_XT_FCSDIS)
+#define G_CPL_TX_PKT_XT_FCSDIS(x)	\
+    (((x) >> S_CPL_TX_PKT_XT_FCSDIS) & M_CPL_TX_PKT_XT_FCSDIS)
+#define F_CPL_TX_PKT_XT_FCSDIS		V_CPL_TX_PKT_XT_FCSDIS(1U)
+
+#define S_CPL_TX_PKT_XT_STATSPECIAL	20
+#define M_CPL_TX_PKT_XT_STATSPECIAL	0x1
+#define V_CPL_TX_PKT_XT_STATSPECIAL(x)	((x) << S_CPL_TX_PKT_XT_STATSPECIAL)
+#define G_CPL_TX_PKT_XT_STATSPECIAL(x)	\
+    (((x) >> S_CPL_TX_PKT_XT_STATSPECIAL) & M_CPL_TX_PKT_XT_STATSPECIAL)
+#define F_CPL_TX_PKT_XT_STATSPECIAL	V_CPL_TX_PKT_XT_STATSPECIAL(1U)
+
+#define S_CPL_TX_PKT_XT_INTERFACE	16
+#define M_CPL_TX_PKT_XT_INTERFACE	0xf
+#define V_CPL_TX_PKT_XT_INTERFACE(x)	((x) << S_CPL_TX_PKT_XT_INTERFACE)
+#define G_CPL_TX_PKT_XT_INTERFACE(x)	\
+    (((x) >> S_CPL_TX_PKT_XT_INTERFACE) & M_CPL_TX_PKT_XT_INTERFACE)
+
+#define S_CPL_TX_PKT_XT_OVLAN		15
+#define M_CPL_TX_PKT_XT_OVLAN		0x1
+#define V_CPL_TX_PKT_XT_OVLAN(x)	((x) << S_CPL_TX_PKT_XT_OVLAN)
+#define G_CPL_TX_PKT_XT_OVLAN(x)	\
+    (((x) >> S_CPL_TX_PKT_XT_OVLAN) & M_CPL_TX_PKT_XT_OVLAN)
+#define F_CPL_TX_PKT_XT_OVLAN		V_CPL_TX_PKT_XT_OVLAN(1U)
+
+#define S_CPL_TX_PKT_XT_OVLANIDX	12
+#define M_CPL_TX_PKT_XT_OVLANIDX	0x7
+#define V_CPL_TX_PKT_XT_OVLANIDX(x)	((x) << S_CPL_TX_PKT_XT_OVLANIDX)
+#define G_CPL_TX_PKT_XT_OVLANIDX(x)	\
+    (((x) >> S_CPL_TX_PKT_XT_OVLANIDX) & M_CPL_TX_PKT_XT_OVLANIDX)
+
+#define S_CPL_TX_PKT_XT_VFVALID		11
+#define M_CPL_TX_PKT_XT_VFVALID		0x1
+#define V_CPL_TX_PKT_XT_VFVALID(x)	((x) << S_CPL_TX_PKT_XT_VFVALID)
+#define G_CPL_TX_PKT_XT_VFVALID(x)	\
+    (((x) >> S_CPL_TX_PKT_XT_VFVALID) & M_CPL_TX_PKT_XT_VFVALID)
+#define F_CPL_TX_PKT_XT_VFVALID		V_CPL_TX_PKT_XT_VFVALID(1U)
+
+#define S_CPL_TX_PKT_XT_PF		8
+#define M_CPL_TX_PKT_XT_PF		0x7
+#define V_CPL_TX_PKT_XT_PF(x)		((x) << S_CPL_TX_PKT_XT_PF)
+#define G_CPL_TX_PKT_XT_PF(x)		\
+    (((x) >> S_CPL_TX_PKT_XT_PF) & M_CPL_TX_PKT_XT_PF)
+
+#define S_CPL_TX_PKT_XT_VF		0
+#define M_CPL_TX_PKT_XT_VF		0xff
+#define V_CPL_TX_PKT_XT_VF(x)		((x) << S_CPL_TX_PKT_XT_VF)
+#define G_CPL_TX_PKT_XT_VF(x)		\
+    (((x) >> S_CPL_TX_PKT_XT_VF) & M_CPL_TX_PKT_XT_VF)
+
+/* cpl_tx_pkt_xt.core.ctrl1 fields */
+#define S_CPL_TX_PKT_XT_L4CHKDISABLE	31
+#define M_CPL_TX_PKT_XT_L4CHKDISABLE	0x1
+#define V_CPL_TX_PKT_XT_L4CHKDISABLE(x)	((x) << S_CPL_TX_PKT_XT_L4CHKDISABLE)
+#define G_CPL_TX_PKT_XT_L4CHKDISABLE(x)	\
+    (((x) >> S_CPL_TX_PKT_XT_L4CHKDISABLE) & M_CPL_TX_PKT_XT_L4CHKDISABLE)
+#define F_CPL_TX_PKT_XT_L4CHKDISABLE	V_CPL_TX_PKT_XT_L4CHKDISABLE(1U)
+
+#define S_CPL_TX_PKT_XT_L3CHKDISABLE	30
+#define M_CPL_TX_PKT_XT_L3CHKDISABLE	0x1
+#define V_CPL_TX_PKT_XT_L3CHKDISABLE(x)	((x) << S_CPL_TX_PKT_XT_L3CHKDISABLE)
+#define G_CPL_TX_PKT_XT_L3CHKDISABLE(x)	\
+    (((x) >> S_CPL_TX_PKT_XT_L3CHKDISABLE) & M_CPL_TX_PKT_XT_L3CHKDISABLE)
+#define F_CPL_TX_PKT_XT_L3CHKDISABLE	V_CPL_TX_PKT_XT_L3CHKDISABLE(1U)
+
+#define S_CPL_TX_PKT_XT_OUTL4CHKEN	29
+#define M_CPL_TX_PKT_XT_OUTL4CHKEN	0x1
+#define V_CPL_TX_PKT_XT_OUTL4CHKEN(x)	((x) << S_CPL_TX_PKT_XT_OUTL4CHKEN)
+#define G_CPL_TX_PKT_XT_OUTL4CHKEN(x)	\
+    (((x) >> S_CPL_TX_PKT_XT_OUTL4CHKEN) & M_CPL_TX_PKT_XT_OUTL4CHKEN)
+#define F_CPL_TX_PKT_XT_OUTL4CHKEN	V_CPL_TX_PKT_XT_OUTL4CHKEN(1U)
+
+#define S_CPL_TX_PKT_XT_IVLAN		28
+#define M_CPL_TX_PKT_XT_IVLAN		0x1
+#define V_CPL_TX_PKT_XT_IVLAN(x)	((x) << S_CPL_TX_PKT_XT_IVLAN)
+#define G_CPL_TX_PKT_XT_IVLAN(x)	\
+    (((x) >> S_CPL_TX_PKT_XT_IVLAN) & M_CPL_TX_PKT_XT_IVLAN)
+#define F_CPL_TX_PKT_XT_IVLAN		V_CPL_TX_PKT_XT_IVLAN(1U)
+
+#define S_CPL_TX_PKT_XT_IVLANTAG	12
+#define M_CPL_TX_PKT_XT_IVLANTAG	0xffff
+#define V_CPL_TX_PKT_XT_IVLANTAG(x)	((x) << S_CPL_TX_PKT_XT_IVLANTAG)
+#define G_CPL_TX_PKT_XT_IVLANTAG(x)	\
+    (((x) >> S_CPL_TX_PKT_XT_IVLANTAG) & M_CPL_TX_PKT_XT_IVLANTAG)
+
+#define S_CPL_TX_PKT_XT_CHKTYPE		8
+#define M_CPL_TX_PKT_XT_CHKTYPE		0xf
+#define V_CPL_TX_PKT_XT_CHKTYPE(x)	((x) << S_CPL_TX_PKT_XT_CHKTYPE)
+#define G_CPL_TX_PKT_XT_CHKTYPE(x)	\
+    (((x) >> S_CPL_TX_PKT_XT_CHKTYPE) & M_CPL_TX_PKT_XT_CHKTYPE)
+
+#define S_CPL_TX_PKT_XT_CHKINSRTOFFSET_HI 0
+#define M_CPL_TX_PKT_XT_CHKINSRTOFFSET_HI 0xff
+#define V_CPL_TX_PKT_XT_CHKINSRTOFFSET_HI(x) \
+    ((x) << S_CPL_TX_PKT_XT_CHKINSRTOFFSET_HI)
+#define G_CPL_TX_PKT_XT_CHKINSRTOFFSET_HI(x) \
+    (((x) >> S_CPL_TX_PKT_XT_CHKINSRTOFFSET_HI) & \
+     M_CPL_TX_PKT_XT_CHKINSRTOFFSET_HI)
+
+#define S_CPL_TX_PKT_XT_ETHHDRLEN	0
+#define M_CPL_TX_PKT_XT_ETHHDRLEN	0xff
+#define V_CPL_TX_PKT_XT_ETHHDRLEN(x)	((x) << S_CPL_TX_PKT_XT_ETHHDRLEN)
+#define G_CPL_TX_PKT_XT_ETHHDRLEN(x)	\
+    (((x) >> S_CPL_TX_PKT_XT_ETHHDRLEN) & M_CPL_TX_PKT_XT_ETHHDRLEN)
+
+#define S_CPL_TX_PKT_XT_ROCECHKINSMODE	6
+#define M_CPL_TX_PKT_XT_ROCECHKINSMODE	0x3
+#define V_CPL_TX_PKT_XT_ROCECHKINSMODE(x) \
+    ((x) << S_CPL_TX_PKT_XT_ROCECHKINSMODE)
+#define G_CPL_TX_PKT_XT_ROCECHKINSMODE(x) \
+    (((x) >> S_CPL_TX_PKT_XT_ROCECHKINSMODE) & M_CPL_TX_PKT_XT_ROCECHKINSMODE)
+
+#define S_CPL_TX_PKT_XT_ROCEIPHDRLEN_HI    0
+#define M_CPL_TX_PKT_XT_ROCEIPHDRLEN_HI    0x3f
+#define V_CPL_TX_PKT_XT_ROCEIPHDRLEN_HI(x) \
+    ((x) << S_CPL_TX_PKT_XT_ROCEIPHDRLEN_HI)
+#define G_CPL_TX_PKT_XT_ROCEIPHDRLEN_HI(x) \
+    (((x) >> S_CPL_TX_PKT_XT_ROCEIPHDRLEN_HI) & \
+     M_CPL_TX_PKT_XT_ROCEIPHDRLEN_HI)
+
+#define S_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO    30
+#define M_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO    0x3
+#define V_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO(x) \
+    ((x) << S_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO)
+#define G_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO(x) \
+    (((x) >> S_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO) & \
+     M_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO)
+
+/* cpl_tx_pkt_xt.core.ctrl2 fields */
+#define S_CPL_TX_PKT_XT_CHKINSRTOFFSET_LO 30
+#define M_CPL_TX_PKT_XT_CHKINSRTOFFSET_LO 0x3
+#define V_CPL_TX_PKT_XT_CHKINSRTOFFSET_LO(x) \
+    ((x) << S_CPL_TX_PKT_XT_CHKINSRTOFFSET_LO)
+#define G_CPL_TX_PKT_XT_CHKINSRTOFFSET_LO(x) \
+    (((x) >> S_CPL_TX_PKT_XT_CHKINSRTOFFSET_LO) & \
+     M_CPL_TX_PKT_XT_CHKINSRTOFFSET_LO)
+
+#define S_CPL_TX_PKT_XT_CHKSTARTOFFSET	20
+#define M_CPL_TX_PKT_XT_CHKSTARTOFFSET	0x3ff
+#define V_CPL_TX_PKT_XT_CHKSTARTOFFSET(x) \
+    ((x) << S_CPL_TX_PKT_XT_CHKSTARTOFFSET)
+#define G_CPL_TX_PKT_XT_CHKSTARTOFFSET(x) \
+    (((x) >> S_CPL_TX_PKT_XT_CHKSTARTOFFSET) & M_CPL_TX_PKT_XT_CHKSTARTOFFSET)
+
+#define S_CPL_TX_PKT_XT_IPHDRLEN	20
+#define M_CPL_TX_PKT_XT_IPHDRLEN	0xfff
+#define V_CPL_TX_PKT_XT_IPHDRLEN(x)	((x) << S_CPL_TX_PKT_XT_IPHDRLEN)
+#define G_CPL_TX_PKT_XT_IPHDRLEN(x)	\
+    (((x) >> S_CPL_TX_PKT_XT_IPHDRLEN) & M_CPL_TX_PKT_XT_IPHDRLEN)
+
+#define S_CPL_TX_PKT_XT_ROCECHKSTARTOFFSET 20
+#define M_CPL_TX_PKT_XT_ROCECHKSTARTOFFSET 0x3ff
+#define V_CPL_TX_PKT_XT_ROCECHKSTARTOFFSET(x) \
+    ((x) << S_CPL_TX_PKT_XT_ROCECHKSTARTOFFSET)
+#define G_CPL_TX_PKT_XT_ROCECHKSTARTOFFSET(x) \
+    (((x) >> S_CPL_TX_PKT_XT_ROCECHKSTARTOFFSET) & \
+     M_CPL_TX_PKT_XT_ROCECHKSTARTOFFSET)
+
+#define S_CPL_TX_PKT_XT_CHKSTOPOFFSET	12
+#define M_CPL_TX_PKT_XT_CHKSTOPOFFSET	0xff
+#define V_CPL_TX_PKT_XT_CHKSTOPOFFSET(x) \
+    ((x) << S_CPL_TX_PKT_XT_CHKSTOPOFFSET)
+#define G_CPL_TX_PKT_XT_CHKSTOPOFFSET(x) \
+    (((x) >> S_CPL_TX_PKT_XT_CHKSTOPOFFSET) & M_CPL_TX_PKT_XT_CHKSTOPOFFSET)
+
+#define S_CPL_TX_PKT_XT_IPSECIDX	0
+#define M_CPL_TX_PKT_XT_IPSECIDX	0xfff
+#define V_CPL_TX_PKT_XT_IPSECIDX(x)	((x) << S_CPL_TX_PKT_XT_IPSECIDX)
+#define G_CPL_TX_PKT_XT_IPSECIDX(x)	\
+    (((x) >> S_CPL_TX_PKT_XT_IPSECIDX) & M_CPL_TX_PKT_XT_IPSECIDX)
+
+#define S_CPL_TX_TNL_LSO_BTH_OPCODE             24
+#define M_CPL_TX_TNL_LSO_BTH_OPCODE             0xff
+#define V_CPL_TX_TNL_LSO_BTH_OPCODE(x)  ((x) << S_CPL_TX_TNL_LSO_BTH_OPCODE)
+#define G_CPL_TX_TNL_LSO_BTH_OPCODE(x)  \
+                (((x) >> S_CPL_TX_TNL_LSO_BTH_OPCODE) & \
+                 M_CPL_TX_TNL_LSO_BTH_OPCODE)
+
+#define S_CPL_TX_TNL_LSO_TCPSEQOFFSET_PSN               0
+#define M_CPL_TX_TNL_LSO_TCPSEQOFFSET_PSN               0xffffff
+#define V_CPL_TX_TNL_LSO_TCPSEQOFFSET_PSN(x)    \
+                ((x) << S_CPL_TX_TNL_LSO_TCPSEQOFFSET_PSN)
+#define G_CPL_TX_TNL_LSO_TCPSEQOFFSET_PSN(x)    \
+                (((x) >> S_CPL_TX_TNL_LSO_TCPSEQOFFSET_PSN) & \
+                 M_CPL_TX_TNL_LSO_TCPSEQOFFSET_PSN)
+
+#define S_CPL_TX_TNL_LSO_MSS_TVER               8
+#define M_CPL_TX_TNL_LSO_MSS_TVER               0xf
+#define V_CPL_TX_TNL_LSO_MSS_TVER(x)    ((x) << S_CPL_TX_TNL_LSO_MSS_TVER)
+#define G_CPL_TX_TNL_LSO_MSS_TVER(x)            \
+    (((x) >> S_CPL_TX_TNL_LSO_MSS_TVER) & M_CPL_TX_TNL_LSO_MSS_TVER)
+
+#define S_CPL_TX_TNL_LSO_MSS_M          7
+#define M_CPL_TX_TNL_LSO_MSS_M          0x1
+#define V_CPL_TX_TNL_LSO_MSS_M(x)       ((x) << S_CPL_TX_TNL_LSO_MSS_M)
+#define G_CPL_TX_TNL_LSO_MSS_M(x)               \
+    (((x) >> S_CPL_TX_TNL_LSO_MSS_M) & M_CPL_TX_TNL_LSO_MSS_M)
+
+#define S_CPL_TX_TNL_LSO_MSS_PMTU               4
+#define M_CPL_TX_TNL_LSO_MSS_PMTU               0x7
+#define V_CPL_TX_TNL_LSO_MSS_PMTU(x)    ((x) << S_CPL_TX_TNL_LSO_MSS_PMTU)
+#define G_CPL_TX_TNL_LSO_MSS_PMTU(x)            \
+    (((x) >> S_CPL_TX_TNL_LSO_MSS_PMTU) & M_CPL_TX_TNL_LSO_MSS_PMTU)
+
+#define S_CPL_TX_TNL_LSO_MSS_RR_MSN_INCR                3
+#define M_CPL_TX_TNL_LSO_MSS_RR_MSN_INCR                0x1
+#define V_CPL_TX_TNL_LSO_MSS_RR_MSN_INCR(x)     \
+        ((x) << S_CPL_TX_TNL_LSO_MSS_RR_MSN_INCR)
+#define G_CPL_TX_TNL_LSO_MSS_RR_MSN_INCR(x)             \
+    (((x) >> S_CPL_TX_TNL_LSO_MSS_RR_MSN_INCR) & M_CPL_TX_TNL_LSO_MSS_RR_MSN_INCR)
+
+#define S_CPL_TX_TNL_LSO_MSS_ACKREQ             1
+#define M_CPL_TX_TNL_LSO_MSS_ACKREQ             0x3
+#define V_CPL_TX_TNL_LSO_MSS_ACKREQ(x)  ((x) << S_CPL_TX_TNL_LSO_MSS_ACKREQ)
+#define G_CPL_TX_TNL_LSO_MSS_ACKREQ(x)          \
+    (((x) >> S_CPL_TX_TNL_LSO_MSS_ACKREQ) & M_CPL_TX_TNL_LSO_MSS_ACKREQ)
+
+#define S_CPL_TX_TNL_LSO_MSS_SE         0
+#define M_CPL_TX_TNL_LSO_MSS_SE         0x1
+#define V_CPL_TX_TNL_LSO_MSS_SE(x)      ((x) << S_CPL_TX_TNL_LSO_MSS_SE)
+#define G_CPL_TX_TNL_LSO_MSS_SE(x)              \
+    (((x) >> S_CPL_TX_TNL_LSO_MSS_SE) & M_CPL_TX_TNL_LSO_MSS_SE)
 
 struct cpl_tx_pkt_lso_core {
 	__be32 lso_ctrl;
@@ -1599,6 +2179,100 @@ struct cpl_tx_data_iso {
 #define G_CPL_TX_DATA_ISO_SEGLEN_OFFSET(x)	\
     (((x) >> S_CPL_TX_DATA_ISO_SEGLEN_OFFSET) & \
      M_CPL_TX_DATA_ISO_SEGLEN_OFFSET)
+
+struct cpl_t7_tx_data_iso {
+	__be32 op_to_scsi;
+	__u8   nvme_tcp_pkd;
+	__u8   ahs;
+	__be16 mpdu;
+	__be32 burst;
+	__be32 size;
+	__be32 num_pi_bytes_seglen_offset;
+	__be32 datasn_offset;
+	__be32 buffer_offset;
+	__be32 reserved3;
+};
+
+#define S_CPL_T7_TX_DATA_ISO_OPCODE	24
+#define M_CPL_T7_TX_DATA_ISO_OPCODE	0xff
+#define V_CPL_T7_TX_DATA_ISO_OPCODE(x)	((x) << S_CPL_T7_TX_DATA_ISO_OPCODE)
+#define G_CPL_T7_TX_DATA_ISO_OPCODE(x)	\
+    (((x) >> S_CPL_T7_TX_DATA_ISO_OPCODE) & M_CPL_T7_TX_DATA_ISO_OPCODE)
+
+#define S_CPL_T7_TX_DATA_ISO_FIRST	23
+#define M_CPL_T7_TX_DATA_ISO_FIRST	0x1
+#define V_CPL_T7_TX_DATA_ISO_FIRST(x)	((x) << S_CPL_T7_TX_DATA_ISO_FIRST)
+#define G_CPL_T7_TX_DATA_ISO_FIRST(x)	\
+    (((x) >> S_CPL_T7_TX_DATA_ISO_FIRST) & M_CPL_T7_TX_DATA_ISO_FIRST)
+#define F_CPL_T7_TX_DATA_ISO_FIRST	V_CPL_T7_TX_DATA_ISO_FIRST(1U)
+
+#define S_CPL_T7_TX_DATA_ISO_LAST	22
+#define M_CPL_T7_TX_DATA_ISO_LAST	0x1
+#define V_CPL_T7_TX_DATA_ISO_LAST(x)	((x) << S_CPL_T7_TX_DATA_ISO_LAST)
+#define G_CPL_T7_TX_DATA_ISO_LAST(x)	\
+    (((x) >> S_CPL_T7_TX_DATA_ISO_LAST) & M_CPL_T7_TX_DATA_ISO_LAST)
+#define F_CPL_T7_TX_DATA_ISO_LAST	V_CPL_T7_TX_DATA_ISO_LAST(1U)
+
+#define S_CPL_T7_TX_DATA_ISO_CPLHDRLEN		21
+#define M_CPL_T7_TX_DATA_ISO_CPLHDRLEN		0x1
+#define V_CPL_T7_TX_DATA_ISO_CPLHDRLEN(x)	\
+    ((x) << S_CPL_T7_TX_DATA_ISO_CPLHDRLEN)
+#define G_CPL_T7_TX_DATA_ISO_CPLHDRLEN(x)	\
+    (((x) >> S_CPL_T7_TX_DATA_ISO_CPLHDRLEN) & M_CPL_T7_TX_DATA_ISO_CPLHDRLEN)
+#define F_CPL_T7_TX_DATA_ISO_CPLHDRLEN	V_CPL_T7_TX_DATA_ISO_CPLHDRLEN(1U)
+
+#define S_CPL_T7_TX_DATA_ISO_HDRCRC	20
+#define M_CPL_T7_TX_DATA_ISO_HDRCRC	0x1
+#define V_CPL_T7_TX_DATA_ISO_HDRCRC(x)	((x) << S_CPL_T7_TX_DATA_ISO_HDRCRC)
+#define G_CPL_T7_TX_DATA_ISO_HDRCRC(x)	\
+    (((x) >> S_CPL_T7_TX_DATA_ISO_HDRCRC) & M_CPL_T7_TX_DATA_ISO_HDRCRC)
+#define F_CPL_T7_TX_DATA_ISO_HDRCRC	V_CPL_T7_TX_DATA_ISO_HDRCRC(1U)
+
+#define S_CPL_T7_TX_DATA_ISO_PLDCRC	19
+#define M_CPL_T7_TX_DATA_ISO_PLDCRC	0x1
+#define V_CPL_T7_TX_DATA_ISO_PLDCRC(x)	((x) << S_CPL_T7_TX_DATA_ISO_PLDCRC)
+#define G_CPL_T7_TX_DATA_ISO_PLDCRC(x)	\
+    (((x) >> S_CPL_T7_TX_DATA_ISO_PLDCRC) & M_CPL_T7_TX_DATA_ISO_PLDCRC)
+#define F_CPL_T7_TX_DATA_ISO_PLDCRC	V_CPL_T7_TX_DATA_ISO_PLDCRC(1U)
+
+#define S_CPL_T7_TX_DATA_ISO_IMMEDIATE		18
+#define M_CPL_T7_TX_DATA_ISO_IMMEDIATE		0x1
+#define V_CPL_T7_TX_DATA_ISO_IMMEDIATE(x)	\
+    ((x) << S_CPL_T7_TX_DATA_ISO_IMMEDIATE)
+#define G_CPL_T7_TX_DATA_ISO_IMMEDIATE(x)	\
+    (((x) >> S_CPL_T7_TX_DATA_ISO_IMMEDIATE) & M_CPL_T7_TX_DATA_ISO_IMMEDIATE)
+#define F_CPL_T7_TX_DATA_ISO_IMMEDIATE		\
+    V_CPL_T7_TX_DATA_ISO_IMMEDIATE(1U)
+
+#define S_CPL_T7_TX_DATA_ISO_SCSI	16
+#define M_CPL_T7_TX_DATA_ISO_SCSI	0x3
+#define V_CPL_T7_TX_DATA_ISO_SCSI(x)	((x) << S_CPL_T7_TX_DATA_ISO_SCSI)
+#define G_CPL_T7_TX_DATA_ISO_SCSI(x)	\
+    (((x) >> S_CPL_T7_TX_DATA_ISO_SCSI) & M_CPL_T7_TX_DATA_ISO_SCSI)
+
+#define S_CPL_T7_TX_DATA_ISO_NVME_TCP		0
+#define M_CPL_T7_TX_DATA_ISO_NVME_TCP		0x1
+#define V_CPL_T7_TX_DATA_ISO_NVME_TCP(x)	\
+    ((x) << S_CPL_T7_TX_DATA_ISO_NVME_TCP)
+#define G_CPL_T7_TX_DATA_ISO_NVME_TCP(x)	\
+    (((x) >> S_CPL_T7_TX_DATA_ISO_NVME_TCP) & M_CPL_T7_TX_DATA_ISO_NVME_TCP)
+#define F_CPL_T7_TX_DATA_ISO_NVME_TCP		\
+    V_CPL_T7_TX_DATA_ISO_NVME_TCP(1U)
+
+#define S_CPL_T7_TX_DATA_ISO_NUMPIBYTES		24
+#define M_CPL_T7_TX_DATA_ISO_NUMPIBYTES		0xff
+#define V_CPL_T7_TX_DATA_ISO_NUMPIBYTES(x)	\
+    ((x) << S_CPL_T7_TX_DATA_ISO_NUMPIBYTES)
+#define G_CPL_T7_TX_DATA_ISO_NUMPIBYTES(x)	\
+    (((x) >> S_CPL_T7_TX_DATA_ISO_NUMPIBYTES) & M_CPL_T7_TX_DATA_ISO_NUMPIBYTES)
+
+#define S_CPL_T7_TX_DATA_ISO_DATASEGLENOFFSET	0
+#define M_CPL_T7_TX_DATA_ISO_DATASEGLENOFFSET	0xffffff
+#define V_CPL_T7_TX_DATA_ISO_DATASEGLENOFFSET(x) \
+    ((x) << S_CPL_T7_TX_DATA_ISO_DATASEGLENOFFSET)
+#define G_CPL_T7_TX_DATA_ISO_DATASEGLENOFFSET(x) \
+    (((x) >> S_CPL_T7_TX_DATA_ISO_DATASEGLENOFFSET) & \
+     M_CPL_T7_TX_DATA_ISO_DATASEGLENOFFSET)
 
 struct cpl_iscsi_hdr {
 	RSS_HDR
@@ -2324,6 +2998,18 @@ struct cpl_l2t_write_req {
 #define V_L2T_W_NOREPLY(x) ((x) << S_L2T_W_NOREPLY)
 #define F_L2T_W_NOREPLY    V_L2T_W_NOREPLY(1U)
 
+
+/* cpl_l2t_write_req.vlan fields */
+#define S_L2T_VLANTAG    0
+#define M_L2T_VLANTAG    0xFFF
+#define V_L2T_VLANTAG(x) ((x) << S_L2T_VLANTAG)
+#define G_L2T_VLANTAG(x) (((x) >> S_L2T_VLANTAG) & M_L2T_VLANTAG)
+
+#define S_L2T_VLANPRIO    13
+#define M_L2T_VLANPRIO    0x7
+#define V_L2T_VLANPRIO(x) ((x) << S_L2T_VLANPRIO)
+#define G_L2T_VLANPRIO(x) (((x) >> S_L2T_VLANPRIO) & M_L2T_VLANPRIO)
+
 #define CPL_L2T_VLAN_NONE 0xfff
 
 struct cpl_l2t_write_rpl {
@@ -2399,6 +3085,175 @@ struct cpl_srq_table_rpl {
 #define M_SRQT_IDX    0xF
 #define V_SRQT_IDX(x) ((x) << S_SRQT_IDX)
 #define G_SRQT_IDX(x) (((x) >> S_SRQT_IDX) & M_SRQT_IDX)
+
+struct cpl_t7_srq_table_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 noreply_to_index;
+	__be16 srqlimit_pkd;
+	__be16 cqid;
+	__be16 xdid;
+	__be16 pdid;
+	__be32 quelen_quebase;
+	__be32 curmsn_maxmsn;
+};
+
+#define S_CPL_T7_SRQ_TABLE_REQ_NOREPLY		31
+#define M_CPL_T7_SRQ_TABLE_REQ_NOREPLY		0x1
+#define V_CPL_T7_SRQ_TABLE_REQ_NOREPLY(x)	\
+    ((x) << S_CPL_T7_SRQ_TABLE_REQ_NOREPLY)
+#define G_CPL_T7_SRQ_TABLE_REQ_NOREPLY(x)	\
+    (((x) >> S_CPL_T7_SRQ_TABLE_REQ_NOREPLY) & M_CPL_T7_SRQ_TABLE_REQ_NOREPLY)
+#define F_CPL_T7_SRQ_TABLE_REQ_NOREPLY		\
+    V_CPL_T7_SRQ_TABLE_REQ_NOREPLY(1U)
+
+#define S_CPL_T7_SRQ_TABLE_REQ_WRITE	30
+#define M_CPL_T7_SRQ_TABLE_REQ_WRITE	0x1
+#define V_CPL_T7_SRQ_TABLE_REQ_WRITE(x)	((x) << S_CPL_T7_SRQ_TABLE_REQ_WRITE)
+#define G_CPL_T7_SRQ_TABLE_REQ_WRITE(x)	\
+    (((x) >> S_CPL_T7_SRQ_TABLE_REQ_WRITE) & M_CPL_T7_SRQ_TABLE_REQ_WRITE)
+#define F_CPL_T7_SRQ_TABLE_REQ_WRITE	V_CPL_T7_SRQ_TABLE_REQ_WRITE(1U)
+
+#define S_CPL_T7_SRQ_TABLE_REQ_INCR	28
+#define M_CPL_T7_SRQ_TABLE_REQ_INCR	0x3
+#define V_CPL_T7_SRQ_TABLE_REQ_INCR(x)	((x) << S_CPL_T7_SRQ_TABLE_REQ_INCR)
+#define G_CPL_T7_SRQ_TABLE_REQ_INCR(x)	\
+    (((x) >> S_CPL_T7_SRQ_TABLE_REQ_INCR) & M_CPL_T7_SRQ_TABLE_REQ_INCR)
+
+#define S_CPL_T7_SRQ_TABLE_REQ_OVER	24
+#define M_CPL_T7_SRQ_TABLE_REQ_OVER	0xf
+#define V_CPL_T7_SRQ_TABLE_REQ_OVER(x)	((x) << S_CPL_T7_SRQ_TABLE_REQ_OVER)
+#define G_CPL_T7_SRQ_TABLE_REQ_OVER(x)	\
+    (((x) >> S_CPL_T7_SRQ_TABLE_REQ_OVER) & M_CPL_T7_SRQ_TABLE_REQ_OVER)
+
+#define S_CPL_T7_SRQ_TABLE_REQ_LIMITUPD		23
+#define M_CPL_T7_SRQ_TABLE_REQ_LIMITUPD		0x1
+#define V_CPL_T7_SRQ_TABLE_REQ_LIMITUPD(x)	\
+    ((x) << S_CPL_T7_SRQ_TABLE_REQ_LIMITUPD)
+#define G_CPL_T7_SRQ_TABLE_REQ_LIMITUPD(x)	\
+    (((x) >> S_CPL_T7_SRQ_TABLE_REQ_LIMITUPD) & M_CPL_T7_SRQ_TABLE_REQ_LIMITUPD)
+#define F_CPL_T7_SRQ_TABLE_REQ_LIMITUPD	V_CPL_T7_SRQ_TABLE_REQ_LIMITUPD(1U)
+
+#define S_CPL_T7_SRQ_TABLE_REQ_INDEX	0
+#define M_CPL_T7_SRQ_TABLE_REQ_INDEX	0x3ff
+#define V_CPL_T7_SRQ_TABLE_REQ_INDEX(x)	((x) << S_CPL_T7_SRQ_TABLE_REQ_INDEX)
+#define G_CPL_T7_SRQ_TABLE_REQ_INDEX(x)	\
+    (((x) >> S_CPL_T7_SRQ_TABLE_REQ_INDEX) & M_CPL_T7_SRQ_TABLE_REQ_INDEX)
+
+#define S_CPL_T7_SRQ_TABLE_REQ_SRQLIMIT		0
+#define M_CPL_T7_SRQ_TABLE_REQ_SRQLIMIT		0x3f
+#define V_CPL_T7_SRQ_TABLE_REQ_SRQLIMIT(x)	\
+    ((x) << S_CPL_T7_SRQ_TABLE_REQ_SRQLIMIT)
+#define G_CPL_T7_SRQ_TABLE_REQ_SRQLIMIT(x)	\
+    (((x) >> S_CPL_T7_SRQ_TABLE_REQ_SRQLIMIT) & M_CPL_T7_SRQ_TABLE_REQ_SRQLIMIT)
+
+#define S_CPL_T7_SRQ_TABLE_REQ_QUELEN		28
+#define M_CPL_T7_SRQ_TABLE_REQ_QUELEN		0xf
+#define V_CPL_T7_SRQ_TABLE_REQ_QUELEN(x)	\
+    ((x) << S_CPL_T7_SRQ_TABLE_REQ_QUELEN)
+#define G_CPL_T7_SRQ_TABLE_REQ_QUELEN(x)	\
+    (((x) >> S_CPL_T7_SRQ_TABLE_REQ_QUELEN) & M_CPL_T7_SRQ_TABLE_REQ_QUELEN)
+
+#define S_CPL_T7_SRQ_TABLE_REQ_QUEBASE		0
+#define M_CPL_T7_SRQ_TABLE_REQ_QUEBASE		0x3ffffff
+#define V_CPL_T7_SRQ_TABLE_REQ_QUEBASE(x)	\
+    ((x) << S_CPL_T7_SRQ_TABLE_REQ_QUEBASE)
+#define G_CPL_T7_SRQ_TABLE_REQ_QUEBASE(x)	\
+    (((x) >> S_CPL_T7_SRQ_TABLE_REQ_QUEBASE) & M_CPL_T7_SRQ_TABLE_REQ_QUEBASE)
+
+#define S_CPL_T7_SRQ_TABLE_REQ_CURMSN		16
+#define M_CPL_T7_SRQ_TABLE_REQ_CURMSN		0xffff
+#define V_CPL_T7_SRQ_TABLE_REQ_CURMSN(x)	\
+    ((x) << S_CPL_T7_SRQ_TABLE_REQ_CURMSN)
+#define G_CPL_T7_SRQ_TABLE_REQ_CURMSN(x)	\
+    (((x) >> S_CPL_T7_SRQ_TABLE_REQ_CURMSN) & M_CPL_T7_SRQ_TABLE_REQ_CURMSN)
+
+#define S_CPL_T7_SRQ_TABLE_REQ_MAXMSN		0
+#define M_CPL_T7_SRQ_TABLE_REQ_MAXMSN		0xffff
+#define V_CPL_T7_SRQ_TABLE_REQ_MAXMSN(x)	\
+    ((x) << S_CPL_T7_SRQ_TABLE_REQ_MAXMSN)
+#define G_CPL_T7_SRQ_TABLE_REQ_MAXMSN(x)	\
+    (((x) >> S_CPL_T7_SRQ_TABLE_REQ_MAXMSN) & M_CPL_T7_SRQ_TABLE_REQ_MAXMSN)
+
+struct cpl_t7_srq_table_rpl {
+	RSS_HDR
+	union opcode_tid ot;
+	__be32 status_index;
+	__be16 srqlimit_pkd;
+	__be16 cqid;
+	__be16 xdid;
+	__be16 pdid;
+	__be32 quelen_quebase;
+	__be32 curmsn_maxmsn;
+};
+
+#define S_CPL_T7_SRQ_TABLE_RPL_STATUS		24
+#define M_CPL_T7_SRQ_TABLE_RPL_STATUS		0xff
+#define V_CPL_T7_SRQ_TABLE_RPL_STATUS(x)	\
+    ((x) << S_CPL_T7_SRQ_TABLE_RPL_STATUS)
+#define G_CPL_T7_SRQ_TABLE_RPL_STATUS(x)	\
+    (((x) >> S_CPL_T7_SRQ_TABLE_RPL_STATUS) & M_CPL_T7_SRQ_TABLE_RPL_STATUS)
+
+#define S_CPL_T7_SRQ_TABLE_RPL_INDEX	0
+#define M_CPL_T7_SRQ_TABLE_RPL_INDEX	0x3ff
+#define V_CPL_T7_SRQ_TABLE_RPL_INDEX(x)	((x) << S_CPL_T7_SRQ_TABLE_RPL_INDEX)
+#define G_CPL_T7_SRQ_TABLE_RPL_INDEX(x)	\
+    (((x) >> S_CPL_T7_SRQ_TABLE_RPL_INDEX) & M_CPL_T7_SRQ_TABLE_RPL_INDEX)
+
+#define S_CPL_T7_SRQ_TABLE_RPL_SRQLIMIT		0
+#define M_CPL_T7_SRQ_TABLE_RPL_SRQLIMIT		0x3f
+#define V_CPL_T7_SRQ_TABLE_RPL_SRQLIMIT(x)	\
+    ((x) << S_CPL_T7_SRQ_TABLE_RPL_SRQLIMIT)
+#define G_CPL_T7_SRQ_TABLE_RPL_SRQLIMIT(x)	\
+    (((x) >> S_CPL_T7_SRQ_TABLE_RPL_SRQLIMIT) & M_CPL_T7_SRQ_TABLE_RPL_SRQLIMIT)
+
+#define S_CPL_T7_SRQ_TABLE_RPL_QUELEN		28
+#define M_CPL_T7_SRQ_TABLE_RPL_QUELEN		0xf
+#define V_CPL_T7_SRQ_TABLE_RPL_QUELEN(x)	\
+    ((x) << S_CPL_T7_SRQ_TABLE_RPL_QUELEN)
+#define G_CPL_T7_SRQ_TABLE_RPL_QUELEN(x)	\
+    (((x) >> S_CPL_T7_SRQ_TABLE_RPL_QUELEN) & M_CPL_T7_SRQ_TABLE_RPL_QUELEN)
+
+#define S_CPL_T7_SRQ_TABLE_RPL_QUEBASE		0
+#define M_CPL_T7_SRQ_TABLE_RPL_QUEBASE		0x3ffffff
+#define V_CPL_T7_SRQ_TABLE_RPL_QUEBASE(x)	\
+    ((x) << S_CPL_T7_SRQ_TABLE_RPL_QUEBASE)
+#define G_CPL_T7_SRQ_TABLE_RPL_QUEBASE(x)	\
+    (((x) >> S_CPL_T7_SRQ_TABLE_RPL_QUEBASE) & M_CPL_T7_SRQ_TABLE_RPL_QUEBASE)
+
+#define S_CPL_T7_SRQ_TABLE_RPL_CURMSN		16
+#define M_CPL_T7_SRQ_TABLE_RPL_CURMSN		0xffff
+#define V_CPL_T7_SRQ_TABLE_RPL_CURMSN(x)	\
+    ((x) << S_CPL_T7_SRQ_TABLE_RPL_CURMSN)
+#define G_CPL_T7_SRQ_TABLE_RPL_CURMSN(x)	\
+    (((x) >> S_CPL_T7_SRQ_TABLE_RPL_CURMSN) & M_CPL_T7_SRQ_TABLE_RPL_CURMSN)
+
+#define S_CPL_T7_SRQ_TABLE_RPL_MAXMSN		0
+#define M_CPL_T7_SRQ_TABLE_RPL_MAXMSN		0xffff
+#define V_CPL_T7_SRQ_TABLE_RPL_MAXMSN(x)	\
+    ((x) << S_CPL_T7_SRQ_TABLE_RPL_MAXMSN)
+#define G_CPL_T7_SRQ_TABLE_RPL_MAXMSN(x)	\
+    (((x) >> S_CPL_T7_SRQ_TABLE_RPL_MAXMSN) & M_CPL_T7_SRQ_TABLE_RPL_MAXMSN)
+
+struct cpl_rdma_async_event {
+	RSS_HDR
+	union opcode_tid ot;
+	__be32 EventInfo;
+};
+
+#define S_CPL_RDMA_ASYNC_EVENT_EVENTTYPE 16
+#define M_CPL_RDMA_ASYNC_EVENT_EVENTTYPE 0xf
+#define V_CPL_RDMA_ASYNC_EVENT_EVENTTYPE(x) \
+    ((x) << S_CPL_RDMA_ASYNC_EVENT_EVENTTYPE)
+#define G_CPL_RDMA_ASYNC_EVENT_EVENTTYPE(x) \
+    (((x) >> S_CPL_RDMA_ASYNC_EVENT_EVENTTYPE) & \
+     M_CPL_RDMA_ASYNC_EVENT_EVENTTYPE)
+
+#define S_CPL_RDMA_ASYNC_EVENT_INDEX	0
+#define M_CPL_RDMA_ASYNC_EVENT_INDEX	0xffff
+#define V_CPL_RDMA_ASYNC_EVENT_INDEX(x)	((x) << S_CPL_RDMA_ASYNC_EVENT_INDEX)
+#define G_CPL_RDMA_ASYNC_EVENT_INDEX(x)	\
+    (((x) >> S_CPL_RDMA_ASYNC_EVENT_INDEX) & M_CPL_RDMA_ASYNC_EVENT_INDEX)
 
 struct cpl_smt_write_req {
 	WR_HDR;
@@ -2478,6 +3333,118 @@ struct cpl_smt_read_rpl {
 #define S_SMTW_VF_VLD    11
 #define V_SMTW_VF_VLD(x) ((x) << S_SMTW_VF_VLD)
 #define F_SMTW_VF_VLD    V_SMTW_VF_VLD(1U)
+
+struct cpl_t7_smt_write_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 noreply_to_mtu;
+	union smt_write_req {
+		struct smt_write_req_pfvf {
+			__be64 tagvalue;
+			__be32 pfvf_smac_hi;
+			__be32 smac_lo;
+			__be64 tagext;
+		} pfvf;
+		struct smt_write_req_ipv4 {
+			__be32 srcipv4;
+			__be32 destipv4;
+		} ipv4;
+		struct smt_write_req_ipv6 {
+			__be64 ipv6ms;
+			__be64 ipv6ls;
+		} ipv6;
+	} u;
+};
+
+#define S_CPL_T7_SMT_WRITE_REQ_NOREPLY		31
+#define M_CPL_T7_SMT_WRITE_REQ_NOREPLY		0x1
+#define V_CPL_T7_SMT_WRITE_REQ_NOREPLY(x)	\
+    ((x) << S_CPL_T7_SMT_WRITE_REQ_NOREPLY)
+#define G_CPL_T7_SMT_WRITE_REQ_NOREPLY(x)	\
+    (((x) >> S_CPL_T7_SMT_WRITE_REQ_NOREPLY) & M_CPL_T7_SMT_WRITE_REQ_NOREPLY)
+#define F_CPL_T7_SMT_WRITE_REQ_NOREPLY		\
+    V_CPL_T7_SMT_WRITE_REQ_NOREPLY(1U)
+
+#define S_CPL_T7_SMT_WRITE_REQ_TAGINSERT	30
+#define M_CPL_T7_SMT_WRITE_REQ_TAGINSERT	0x1
+#define V_CPL_T7_SMT_WRITE_REQ_TAGINSERT(x)	\
+    ((x) << S_CPL_T7_SMT_WRITE_REQ_TAGINSERT)
+#define G_CPL_T7_SMT_WRITE_REQ_TAGINSERT(x)	\
+    (((x) >> S_CPL_T7_SMT_WRITE_REQ_TAGINSERT) & \
+     M_CPL_T7_SMT_WRITE_REQ_TAGINSERT)
+#define F_CPL_T7_SMT_WRITE_REQ_TAGINSERT	\
+    V_CPL_T7_SMT_WRITE_REQ_TAGINSERT(1U)
+
+#define S_CPL_T7_SMT_WRITE_REQ_TAGTYPE		28
+#define M_CPL_T7_SMT_WRITE_REQ_TAGTYPE		0x3
+#define V_CPL_T7_SMT_WRITE_REQ_TAGTYPE(x)	\
+    ((x) << S_CPL_T7_SMT_WRITE_REQ_TAGTYPE)
+#define G_CPL_T7_SMT_WRITE_REQ_TAGTYPE(x)	\
+    (((x) >> S_CPL_T7_SMT_WRITE_REQ_TAGTYPE) & M_CPL_T7_SMT_WRITE_REQ_TAGTYPE)
+
+#define S_CPL_T7_SMT_WRITE_REQ_INDEX	20
+#define M_CPL_T7_SMT_WRITE_REQ_INDEX	0xff
+#define V_CPL_T7_SMT_WRITE_REQ_INDEX(x)	((x) << S_CPL_T7_SMT_WRITE_REQ_INDEX)
+#define G_CPL_T7_SMT_WRITE_REQ_INDEX(x)	\
+    (((x) >> S_CPL_T7_SMT_WRITE_REQ_INDEX) & M_CPL_T7_SMT_WRITE_REQ_INDEX)
+
+#define S_CPL_T7_SMT_WRITE_REQ_OVLAN	16
+#define M_CPL_T7_SMT_WRITE_REQ_OVLAN	0xf
+#define V_CPL_T7_SMT_WRITE_REQ_OVLAN(x)	((x) << S_CPL_T7_SMT_WRITE_REQ_OVLAN)
+#define G_CPL_T7_SMT_WRITE_REQ_OVLAN(x)	\
+    (((x) >> S_CPL_T7_SMT_WRITE_REQ_OVLAN) & M_CPL_T7_SMT_WRITE_REQ_OVLAN)
+
+#define S_CPL_T7_SMT_WRITE_REQ_IPSEC	14
+#define M_CPL_T7_SMT_WRITE_REQ_IPSEC	0x1
+#define V_CPL_T7_SMT_WRITE_REQ_IPSEC(x)	((x) << S_CPL_T7_SMT_WRITE_REQ_IPSEC)
+#define G_CPL_T7_SMT_WRITE_REQ_IPSEC(x)	\
+    (((x) >> S_CPL_T7_SMT_WRITE_REQ_IPSEC) & M_CPL_T7_SMT_WRITE_REQ_IPSEC)
+#define F_CPL_T7_SMT_WRITE_REQ_IPSEC	V_CPL_T7_SMT_WRITE_REQ_IPSEC(1U)
+
+#define S_CPL_T7_SMT_WRITE_REQ_MTU	0
+#define M_CPL_T7_SMT_WRITE_REQ_MTU	0x3fff
+#define V_CPL_T7_SMT_WRITE_REQ_MTU(x)	((x) << S_CPL_T7_SMT_WRITE_REQ_MTU)
+#define G_CPL_T7_SMT_WRITE_REQ_MTU(x)	\
+    (((x) >> S_CPL_T7_SMT_WRITE_REQ_MTU) & M_CPL_T7_SMT_WRITE_REQ_MTU)
+
+#define S_CPL_T7_SMT_WRITE_REQ_PFVF	16
+#define M_CPL_T7_SMT_WRITE_REQ_PFVF	0xfff
+#define V_CPL_T7_SMT_WRITE_REQ_PFVF(x)	((x) << S_CPL_T7_SMT_WRITE_REQ_PFVF)
+#define G_CPL_T7_SMT_WRITE_REQ_PFVF(x)	\
+    (((x) >> S_CPL_T7_SMT_WRITE_REQ_PFVF) & M_CPL_T7_SMT_WRITE_REQ_PFVF)
+
+#define S_CPL_T7_SMT_WRITE_REQ_SMAC_HI		0
+#define M_CPL_T7_SMT_WRITE_REQ_SMAC_HI		0xffff
+#define V_CPL_T7_SMT_WRITE_REQ_SMAC_HI(x)	\
+    ((x) << S_CPL_T7_SMT_WRITE_REQ_SMAC_HI)
+#define G_CPL_T7_SMT_WRITE_REQ_SMAC_HI(x)	\
+    (((x) >> S_CPL_T7_SMT_WRITE_REQ_SMAC_HI) & M_CPL_T7_SMT_WRITE_REQ_SMAC_HI)
+
+struct cpl_t7_smt_read_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 index_to_ipsecidx;
+};
+
+#define S_CPL_T7_SMT_READ_REQ_INDEX	20
+#define M_CPL_T7_SMT_READ_REQ_INDEX	0xff
+#define V_CPL_T7_SMT_READ_REQ_INDEX(x)	((x) << S_CPL_T7_SMT_READ_REQ_INDEX)
+#define G_CPL_T7_SMT_READ_REQ_INDEX(x)	\
+    (((x) >> S_CPL_SMT_READ_REQ_INDEX) & M_CPL_T7_SMT_READ_REQ_INDEX)
+
+#define S_CPL_T7_SMT_READ_REQ_IPSEC	14
+#define M_CPL_T7_SMT_READ_REQ_IPSEC	0x1
+#define V_CPL_T7_SMT_READ_REQ_IPSEC(x)	((x) << S_CPL_T7_SMT_READ_REQ_IPSEC)
+#define G_CPL_T7_SMT_READ_REQ_IPSEC(x)	\
+    (((x) >> S_CPL_T7_SMT_READ_REQ_IPSEC) & M_CPL_T7_SMT_READ_REQ_IPSEC)
+#define F_CPL_T7_SMT_READ_REQ_IPSEC	V_CPL_T7_SMT_READ_REQ_IPSEC(1U)
+
+#define S_CPL_T7_SMT_READ_REQ_IPSECIDX		0
+#define M_CPL_T7_SMT_READ_REQ_IPSECIDX		0x1fff
+#define V_CPL_T7_SMT_READ_REQ_IPSECIDX(x)	\
+    ((x) << S_CPL_T7_SMT_READ_REQ_IPSECIDX)
+#define G_CPL_T7_SMT_READ_REQ_IPSECIDX(x)	\
+    (((x) >> S_CPL_T7_SMT_READ_REQ_IPSECIDX) & M_CPL_T7_SMT_READ_REQ_IPSECIDX)
 
 struct cpl_tag_write_req {
 	WR_HDR;
@@ -2611,12 +3578,756 @@ struct cpl_pkt_notify {
 #define V_NTFY_T5_ETHHDR_LEN(x) ((x) << S_NTFY_T5_ETHHDR_LEN)
 #define G_NTFY_T5_ETHHDR_LEN(x) (((x) >> S_NTFY_T5_ETHHDR_LEN) & M_NTFY_T5_ETHHDR_LEN)
 
+struct cpl_t7_pkt_notify {
+	RSS_HDR
+	union opcode_tid ot;
+	__be16 r1;
+	__be16 length;
+	__be32 ethhdrlen_to_macindex;
+	__be32 lineinfo;
+};
+
+#define S_CPL_T7_PKT_NOTIFY_ETHHDRLEN		24
+#define M_CPL_T7_PKT_NOTIFY_ETHHDRLEN		0xff
+#define V_CPL_T7_PKT_NOTIFY_ETHHDRLEN(x)	\
+    ((x) << S_CPL_T7_PKT_NOTIFY_ETHHDRLEN)
+#define G_CPL_T7_PKT_NOTIFY_ETHHDRLEN(x)	\
+    (((x) >> S_CPL_T7_PKT_NOTIFY_ETHHDRLEN) & M_CPL_T7_PKT_NOTIFY_ETHHDRLEN)
+
+#define S_CPL_T7_PKT_NOTIFY_IPHDRLEN	18
+#define M_CPL_T7_PKT_NOTIFY_IPHDRLEN	0x3f
+#define V_CPL_T7_PKT_NOTIFY_IPHDRLEN(x)	((x) << S_CPL_T7_PKT_NOTIFY_IPHDRLEN)
+#define G_CPL_T7_PKT_NOTIFY_IPHDRLEN(x)	\
+    (((x) >> S_CPL_T7_PKT_NOTIFY_IPHDRLEN) & M_CPL_T7_PKT_NOTIFY_IPHDRLEN)
+
+#define S_CPL_T7_PKT_NOTIFY_TCPHDRLEN		14
+#define M_CPL_T7_PKT_NOTIFY_TCPHDRLEN		0xf
+#define V_CPL_T7_PKT_NOTIFY_TCPHDRLEN(x)	\
+    ((x) << S_CPL_T7_PKT_NOTIFY_TCPHDRLEN)
+#define G_CPL_T7_PKT_NOTIFY_TCPHDRLEN(x)	\
+    (((x) >> S_CPL_T7_PKT_NOTIFY_TCPHDRLEN) & M_CPL_T7_PKT_NOTIFY_TCPHDRLEN)
+
+#define S_CPL_T7_PKT_NOTIFY_INTERFACE		10
+#define M_CPL_T7_PKT_NOTIFY_INTERFACE		0xf
+#define V_CPL_T7_PKT_NOTIFY_INTERFACE(x)	\
+    ((x) << S_CPL_T7_PKT_NOTIFY_INTERFACE)
+#define G_CPL_T7_PKT_NOTIFY_INTERFACE(x)	\
+    (((x) >> S_CPL_T7_PKT_NOTIFY_INTERFACE) & M_CPL_T7_PKT_NOTIFY_INTERFACE)
+
+#define S_CPL_T7_PKT_NOTIFY_MACINDEX	0
+#define M_CPL_T7_PKT_NOTIFY_MACINDEX	0x1ff
+#define V_CPL_T7_PKT_NOTIFY_MACINDEX(x)	((x) << S_CPL_T7_PKT_NOTIFY_MACINDEX)
+#define G_CPL_T7_PKT_NOTIFY_MACINDEX(x)	\
+    (((x) >> S_CPL_T7_PKT_NOTIFY_MACINDEX) & M_CPL_T7_PKT_NOTIFY_MACINDEX)
+
+struct cpl_rdma_cqe {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 tid_flitcnt;
+	__be32 qpid_to_wr_type;
+	__be32 length;
+	__be32 tag;
+	__be32 msn;
+};
+
+#define S_CPL_RDMA_CQE_RSSCTRL		16
+#define M_CPL_RDMA_CQE_RSSCTRL		0xff
+#define V_CPL_RDMA_CQE_RSSCTRL(x)	((x) << S_CPL_RDMA_CQE_RSSCTRL)
+#define G_CPL_RDMA_CQE_RSSCTRL(x)	\
+    (((x) >> S_CPL_RDMA_CQE_RSSCTRL) & M_CPL_RDMA_CQE_RSSCTRL)
+
+#define S_CPL_RDMA_CQE_CQID	0
+#define M_CPL_RDMA_CQE_CQID	0xffff
+#define V_CPL_RDMA_CQE_CQID(x)	((x) << S_CPL_RDMA_CQE_CQID)
+#define G_CPL_RDMA_CQE_CQID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_CQID) & M_CPL_RDMA_CQE_CQID)
+
+#define S_CPL_RDMA_CQE_TID	8
+#define M_CPL_RDMA_CQE_TID	0xfffff
+#define V_CPL_RDMA_CQE_TID(x)	((x) << S_CPL_RDMA_CQE_TID)
+#define G_CPL_RDMA_CQE_TID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_TID) & M_CPL_RDMA_CQE_TID)
+
+#define S_CPL_RDMA_CQE_FLITCNT		0
+#define M_CPL_RDMA_CQE_FLITCNT		0xff
+#define V_CPL_RDMA_CQE_FLITCNT(x)	((x) << S_CPL_RDMA_CQE_FLITCNT)
+#define G_CPL_RDMA_CQE_FLITCNT(x)	\
+    (((x) >> S_CPL_RDMA_CQE_FLITCNT) & M_CPL_RDMA_CQE_FLITCNT)
+
+#define S_CPL_RDMA_CQE_QPID		12
+#define M_CPL_RDMA_CQE_QPID		0xfffff
+#define V_CPL_RDMA_CQE_QPID(x)		((x) << S_CPL_RDMA_CQE_QPID)
+#define G_CPL_RDMA_CQE_QPID(x)		\
+    (((x) >> S_CPL_RDMA_CQE_QPID) & M_CPL_RDMA_CQE_QPID)
+
+#define S_CPL_RDMA_CQE_GENERATION_BIT	10
+#define M_CPL_RDMA_CQE_GENERATION_BIT	0x1
+#define V_CPL_RDMA_CQE_GENERATION_BIT(x) \
+    ((x) << S_CPL_RDMA_CQE_GENERATION_BIT)
+#define G_CPL_RDMA_CQE_GENERATION_BIT(x) \
+    (((x) >> S_CPL_RDMA_CQE_GENERATION_BIT) & M_CPL_RDMA_CQE_GENERATION_BIT)
+#define F_CPL_RDMA_CQE_GENERATION_BIT	V_CPL_RDMA_CQE_GENERATION_BIT(1U)
+
+#define S_CPL_RDMA_CQE_STATUS		5
+#define M_CPL_RDMA_CQE_STATUS		0x1f
+#define V_CPL_RDMA_CQE_STATUS(x)	((x) << S_CPL_RDMA_CQE_STATUS)
+#define G_CPL_RDMA_CQE_STATUS(x)	\
+    (((x) >> S_CPL_RDMA_CQE_STATUS) & M_CPL_RDMA_CQE_STATUS)
+
+#define S_CPL_RDMA_CQE_CQE_TYPE		4
+#define M_CPL_RDMA_CQE_CQE_TYPE		0x1
+#define V_CPL_RDMA_CQE_CQE_TYPE(x)	((x) << S_CPL_RDMA_CQE_CQE_TYPE)
+#define G_CPL_RDMA_CQE_CQE_TYPE(x)	\
+    (((x) >> S_CPL_RDMA_CQE_CQE_TYPE) & M_CPL_RDMA_CQE_CQE_TYPE)
+#define F_CPL_RDMA_CQE_CQE_TYPE		V_CPL_RDMA_CQE_CQE_TYPE(1U)
+
+#define S_CPL_RDMA_CQE_WR_TYPE		0
+#define M_CPL_RDMA_CQE_WR_TYPE		0xf
+#define V_CPL_RDMA_CQE_WR_TYPE(x)	((x) << S_CPL_RDMA_CQE_WR_TYPE)
+#define G_CPL_RDMA_CQE_WR_TYPE(x)	\
+    (((x) >> S_CPL_RDMA_CQE_WR_TYPE) & M_CPL_RDMA_CQE_WR_TYPE)
+
+struct cpl_rdma_cqe_srq {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 tid_flitcnt;
+	__be32 qpid_to_wr_type;
+	__be32 length;
+	__be32 tag;
+	__be32 msn;
+	__be32 r3;
+	__be32 rqe;
+};
+
+#define S_CPL_RDMA_CQE_SRQ_OPCODE	24
+#define M_CPL_RDMA_CQE_SRQ_OPCODE	0xff
+#define V_CPL_RDMA_CQE_SRQ_OPCODE(x)	((x) << S_CPL_RDMA_CQE_SRQ_OPCODE)
+#define G_CPL_RDMA_CQE_SRQ_OPCODE(x)	\
+    (((x) >> S_CPL_RDMA_CQE_SRQ_OPCODE) & M_CPL_RDMA_CQE_SRQ_OPCODE)
+
+#define S_CPL_RDMA_CQE_SRQ_RSSCTRL	16
+#define M_CPL_RDMA_CQE_SRQ_RSSCTRL	0xff
+#define V_CPL_RDMA_CQE_SRQ_RSSCTRL(x)	((x) << S_CPL_RDMA_CQE_SRQ_RSSCTRL)
+#define G_CPL_RDMA_CQE_SRQ_RSSCTRL(x)	\
+    (((x) >> S_CPL_RDMA_CQE_SRQ_RSSCTRL) & M_CPL_RDMA_CQE_SRQ_RSSCTRL)
+
+#define S_CPL_RDMA_CQE_SRQ_CQID		0
+#define M_CPL_RDMA_CQE_SRQ_CQID		0xffff
+#define V_CPL_RDMA_CQE_SRQ_CQID(x)	((x) << S_CPL_RDMA_CQE_SRQ_CQID)
+#define G_CPL_RDMA_CQE_SRQ_CQID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_SRQ_CQID) & M_CPL_RDMA_CQE_SRQ_CQID)
+
+#define S_CPL_RDMA_CQE_SRQ_TID		8
+#define M_CPL_RDMA_CQE_SRQ_TID		0xfffff
+#define V_CPL_RDMA_CQE_SRQ_TID(x)	((x) << S_CPL_RDMA_CQE_SRQ_TID)
+#define G_CPL_RDMA_CQE_SRQ_TID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_SRQ_TID) & M_CPL_RDMA_CQE_SRQ_TID)
+
+#define S_CPL_RDMA_CQE_SRQ_FLITCNT	0
+#define M_CPL_RDMA_CQE_SRQ_FLITCNT	0xff
+#define V_CPL_RDMA_CQE_SRQ_FLITCNT(x)	((x) << S_CPL_RDMA_CQE_SRQ_FLITCNT)
+#define G_CPL_RDMA_CQE_SRQ_FLITCNT(x)	\
+    (((x) >> S_CPL_RDMA_CQE_SRQ_FLITCNT) & M_CPL_RDMA_CQE_SRQ_FLITCNT)
+
+#define S_CPL_RDMA_CQE_SRQ_QPID		12
+#define M_CPL_RDMA_CQE_SRQ_QPID		0xfffff
+#define V_CPL_RDMA_CQE_SRQ_QPID(x)	((x) << S_CPL_RDMA_CQE_SRQ_QPID)
+#define G_CPL_RDMA_CQE_SRQ_QPID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_SRQ_QPID) & M_CPL_RDMA_CQE_SRQ_QPID)
+
+#define S_CPL_RDMA_CQE_SRQ_GENERATION_BIT 10
+#define M_CPL_RDMA_CQE_SRQ_GENERATION_BIT 0x1
+#define V_CPL_RDMA_CQE_SRQ_GENERATION_BIT(x) \
+    ((x) << S_CPL_RDMA_CQE_SRQ_GENERATION_BIT)
+#define G_CPL_RDMA_CQE_SRQ_GENERATION_BIT(x) \
+    (((x) >> S_CPL_RDMA_CQE_SRQ_GENERATION_BIT) & \
+     M_CPL_RDMA_CQE_SRQ_GENERATION_BIT)
+#define F_CPL_RDMA_CQE_SRQ_GENERATION_BIT \
+    V_CPL_RDMA_CQE_SRQ_GENERATION_BIT(1U)
+
+#define S_CPL_RDMA_CQE_SRQ_STATUS	5
+#define M_CPL_RDMA_CQE_SRQ_STATUS	0x1f
+#define V_CPL_RDMA_CQE_SRQ_STATUS(x)	((x) << S_CPL_RDMA_CQE_SRQ_STATUS)
+#define G_CPL_RDMA_CQE_SRQ_STATUS(x)	\
+    (((x) >> S_CPL_RDMA_CQE_SRQ_STATUS) & M_CPL_RDMA_CQE_SRQ_STATUS)
+
+#define S_CPL_RDMA_CQE_SRQ_CQE_TYPE	4
+#define M_CPL_RDMA_CQE_SRQ_CQE_TYPE	0x1
+#define V_CPL_RDMA_CQE_SRQ_CQE_TYPE(x)	((x) << S_CPL_RDMA_CQE_SRQ_CQE_TYPE)
+#define G_CPL_RDMA_CQE_SRQ_CQE_TYPE(x)	\
+    (((x) >> S_CPL_RDMA_CQE_SRQ_CQE_TYPE) & M_CPL_RDMA_CQE_SRQ_CQE_TYPE)
+#define F_CPL_RDMA_CQE_SRQ_CQE_TYPE	V_CPL_RDMA_CQE_SRQ_CQE_TYPE(1U)
+
+#define S_CPL_RDMA_CQE_SRQ_WR_TYPE	0
+#define M_CPL_RDMA_CQE_SRQ_WR_TYPE	0xf
+#define V_CPL_RDMA_CQE_SRQ_WR_TYPE(x)	((x) << S_CPL_RDMA_CQE_SRQ_WR_TYPE)
+#define G_CPL_RDMA_CQE_SRQ_WR_TYPE(x)	\
+    (((x) >> S_CPL_RDMA_CQE_SRQ_WR_TYPE) & M_CPL_RDMA_CQE_SRQ_WR_TYPE)
+
+struct cpl_rdma_cqe_read_rsp {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 tid_flitcnt;
+	__be32 qpid_to_wr_type;
+	__be32 length;
+	__be32 tag;
+	__be32 msn;
+};
+
+#define S_CPL_RDMA_CQE_READ_RSP_RSSCTRL	16
+#define M_CPL_RDMA_CQE_READ_RSP_RSSCTRL	0xff
+#define V_CPL_RDMA_CQE_READ_RSP_RSSCTRL(x) \
+    ((x) << S_CPL_RDMA_CQE_READ_RSP_RSSCTRL)
+#define G_CPL_RDMA_CQE_READ_RSP_RSSCTRL(x) \
+    (((x) >> S_CPL_RDMA_CQE_READ_RSP_RSSCTRL) & \
+     M_CPL_RDMA_CQE_READ_RSP_RSSCTRL)
+
+#define S_CPL_RDMA_CQE_READ_RSP_CQID	0
+#define M_CPL_RDMA_CQE_READ_RSP_CQID	0xffff
+#define V_CPL_RDMA_CQE_READ_RSP_CQID(x)	((x) << S_CPL_RDMA_CQE_READ_RSP_CQID)
+#define G_CPL_RDMA_CQE_READ_RSP_CQID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_READ_RSP_CQID) & M_CPL_RDMA_CQE_READ_RSP_CQID)
+
+#define S_CPL_RDMA_CQE_READ_RSP_TID	8
+#define M_CPL_RDMA_CQE_READ_RSP_TID	0xfffff
+#define V_CPL_RDMA_CQE_READ_RSP_TID(x)	((x) << S_CPL_RDMA_CQE_READ_RSP_TID)
+#define G_CPL_RDMA_CQE_READ_RSP_TID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_READ_RSP_TID) & M_CPL_RDMA_CQE_READ_RSP_TID)
+
+#define S_CPL_RDMA_CQE_READ_RSP_FLITCNT	0
+#define M_CPL_RDMA_CQE_READ_RSP_FLITCNT	0xff
+#define V_CPL_RDMA_CQE_READ_RSP_FLITCNT(x) \
+    ((x) << S_CPL_RDMA_CQE_READ_RSP_FLITCNT)
+#define G_CPL_RDMA_CQE_READ_RSP_FLITCNT(x) \
+    (((x) >> S_CPL_RDMA_CQE_READ_RSP_FLITCNT) & \
+     M_CPL_RDMA_CQE_READ_RSP_FLITCNT)
+
+#define S_CPL_RDMA_CQE_READ_RSP_QPID	12
+#define M_CPL_RDMA_CQE_READ_RSP_QPID	0xfffff
+#define V_CPL_RDMA_CQE_READ_RSP_QPID(x)	((x) << S_CPL_RDMA_CQE_READ_RSP_QPID)
+#define G_CPL_RDMA_CQE_READ_RSP_QPID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_READ_RSP_QPID) & M_CPL_RDMA_CQE_READ_RSP_QPID)
+
+#define S_CPL_RDMA_CQE_READ_RSP_GENERATION_BIT 10
+#define M_CPL_RDMA_CQE_READ_RSP_GENERATION_BIT 0x1
+#define V_CPL_RDMA_CQE_READ_RSP_GENERATION_BIT(x) \
+    ((x) << S_CPL_RDMA_CQE_READ_RSP_GENERATION_BIT)
+#define G_CPL_RDMA_CQE_READ_RSP_GENERATION_BIT(x) \
+    (((x) >> S_CPL_RDMA_CQE_READ_RSP_GENERATION_BIT) & \
+     M_CPL_RDMA_CQE_READ_RSP_GENERATION_BIT)
+#define F_CPL_RDMA_CQE_READ_RSP_GENERATION_BIT \
+    V_CPL_RDMA_CQE_READ_RSP_GENERATION_BIT(1U)
+
+#define S_CPL_RDMA_CQE_READ_RSP_STATUS	5
+#define M_CPL_RDMA_CQE_READ_RSP_STATUS	0x1f
+#define V_CPL_RDMA_CQE_READ_RSP_STATUS(x) \
+    ((x) << S_CPL_RDMA_CQE_READ_RSP_STATUS)
+#define G_CPL_RDMA_CQE_READ_RSP_STATUS(x) \
+    (((x) >> S_CPL_RDMA_CQE_READ_RSP_STATUS) & M_CPL_RDMA_CQE_READ_RSP_STATUS)
+
+#define S_CPL_RDMA_CQE_READ_RSP_CQE_TYPE 4
+#define M_CPL_RDMA_CQE_READ_RSP_CQE_TYPE 0x1
+#define V_CPL_RDMA_CQE_READ_RSP_CQE_TYPE(x) \
+    ((x) << S_CPL_RDMA_CQE_READ_RSP_CQE_TYPE)
+#define G_CPL_RDMA_CQE_READ_RSP_CQE_TYPE(x) \
+    (((x) >> S_CPL_RDMA_CQE_READ_RSP_CQE_TYPE) & \
+     M_CPL_RDMA_CQE_READ_RSP_CQE_TYPE)
+#define F_CPL_RDMA_CQE_READ_RSP_CQE_TYPE V_CPL_RDMA_CQE_READ_RSP_CQE_TYPE(1U)
+
+#define S_CPL_RDMA_CQE_READ_RSP_WR_TYPE	0
+#define M_CPL_RDMA_CQE_READ_RSP_WR_TYPE	0xf
+#define V_CPL_RDMA_CQE_READ_RSP_WR_TYPE(x) \
+    ((x) << S_CPL_RDMA_CQE_READ_RSP_WR_TYPE)
+#define G_CPL_RDMA_CQE_READ_RSP_WR_TYPE(x) \
+    (((x) >> S_CPL_RDMA_CQE_READ_RSP_WR_TYPE) & \
+     M_CPL_RDMA_CQE_READ_RSP_WR_TYPE)
+
+struct cpl_rdma_cqe_err {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 tid_flitcnt;
+	__be32 qpid_to_wr_type;
+	__be32 length;
+	__be32 tag;
+	__be32 msn;
+};
+
+#define S_CPL_RDMA_CQE_ERR_RSSCTRL	16
+#define M_CPL_RDMA_CQE_ERR_RSSCTRL	0xff
+#define V_CPL_RDMA_CQE_ERR_RSSCTRL(x)	((x) << S_CPL_RDMA_CQE_ERR_RSSCTRL)
+#define G_CPL_RDMA_CQE_ERR_RSSCTRL(x)	\
+    (((x) >> S_CPL_RDMA_CQE_ERR_RSSCTRL) & M_CPL_RDMA_CQE_ERR_RSSCTRL)
+
+#define S_CPL_RDMA_CQE_ERR_CQID		0
+#define M_CPL_RDMA_CQE_ERR_CQID		0xffff
+#define V_CPL_RDMA_CQE_ERR_CQID(x)	((x) << S_CPL_RDMA_CQE_ERR_CQID)
+#define G_CPL_RDMA_CQE_ERR_CQID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_ERR_CQID) & M_CPL_RDMA_CQE_ERR_CQID)
+
+#define S_CPL_RDMA_CQE_ERR_TID		8
+#define M_CPL_RDMA_CQE_ERR_TID		0xfffff
+#define V_CPL_RDMA_CQE_ERR_TID(x)	((x) << S_CPL_RDMA_CQE_ERR_TID)
+#define G_CPL_RDMA_CQE_ERR_TID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_ERR_TID) & M_CPL_RDMA_CQE_ERR_TID)
+
+#define S_CPL_RDMA_CQE_ERR_FLITCNT	0
+#define M_CPL_RDMA_CQE_ERR_FLITCNT	0xff
+#define V_CPL_RDMA_CQE_ERR_FLITCNT(x)	((x) << S_CPL_RDMA_CQE_ERR_FLITCNT)
+#define G_CPL_RDMA_CQE_ERR_FLITCNT(x)	\
+    (((x) >> S_CPL_RDMA_CQE_ERR_FLITCNT) & M_CPL_RDMA_CQE_ERR_FLITCNT)
+
+#define S_CPL_RDMA_CQE_ERR_QPID		12
+#define M_CPL_RDMA_CQE_ERR_QPID		0xfffff
+#define V_CPL_RDMA_CQE_ERR_QPID(x)	((x) << S_CPL_RDMA_CQE_ERR_QPID)
+#define G_CPL_RDMA_CQE_ERR_QPID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_ERR_QPID) & M_CPL_RDMA_CQE_ERR_QPID)
+
+#define S_CPL_RDMA_CQE_ERR_GENERATION_BIT 10
+#define M_CPL_RDMA_CQE_ERR_GENERATION_BIT 0x1
+#define V_CPL_RDMA_CQE_ERR_GENERATION_BIT(x) \
+    ((x) << S_CPL_RDMA_CQE_ERR_GENERATION_BIT)
+#define G_CPL_RDMA_CQE_ERR_GENERATION_BIT(x) \
+    (((x) >> S_CPL_RDMA_CQE_ERR_GENERATION_BIT) & \
+     M_CPL_RDMA_CQE_ERR_GENERATION_BIT)
+#define F_CPL_RDMA_CQE_ERR_GENERATION_BIT \
+    V_CPL_RDMA_CQE_ERR_GENERATION_BIT(1U)
+
+#define S_CPL_RDMA_CQE_ERR_STATUS	5
+#define M_CPL_RDMA_CQE_ERR_STATUS	0x1f
+#define V_CPL_RDMA_CQE_ERR_STATUS(x)	((x) << S_CPL_RDMA_CQE_ERR_STATUS)
+#define G_CPL_RDMA_CQE_ERR_STATUS(x)	\
+    (((x) >> S_CPL_RDMA_CQE_ERR_STATUS) & M_CPL_RDMA_CQE_ERR_STATUS)
+
+#define S_CPL_RDMA_CQE_ERR_CQE_TYPE	4
+#define M_CPL_RDMA_CQE_ERR_CQE_TYPE	0x1
+#define V_CPL_RDMA_CQE_ERR_CQE_TYPE(x)	((x) << S_CPL_RDMA_CQE_ERR_CQE_TYPE)
+#define G_CPL_RDMA_CQE_ERR_CQE_TYPE(x)	\
+    (((x) >> S_CPL_RDMA_CQE_ERR_CQE_TYPE) & M_CPL_RDMA_CQE_ERR_CQE_TYPE)
+#define F_CPL_RDMA_CQE_ERR_CQE_TYPE	V_CPL_RDMA_CQE_ERR_CQE_TYPE(1U)
+
+#define S_CPL_RDMA_CQE_ERR_WR_TYPE	0
+#define M_CPL_RDMA_CQE_ERR_WR_TYPE	0xf
+#define V_CPL_RDMA_CQE_ERR_WR_TYPE(x)	((x) << S_CPL_RDMA_CQE_ERR_WR_TYPE)
+#define G_CPL_RDMA_CQE_ERR_WR_TYPE(x)	\
+    (((x) >> S_CPL_RDMA_CQE_ERR_WR_TYPE) & M_CPL_RDMA_CQE_ERR_WR_TYPE)
+
+struct cpl_rdma_read_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__be16 srq_pkd;
+	__be16 length;
+};
+
+#define S_CPL_RDMA_READ_REQ_SRQ		0
+#define M_CPL_RDMA_READ_REQ_SRQ		0xfff
+#define V_CPL_RDMA_READ_REQ_SRQ(x)	((x) << S_CPL_RDMA_READ_REQ_SRQ)
+#define G_CPL_RDMA_READ_REQ_SRQ(x)	\
+    (((x) >> S_CPL_RDMA_READ_REQ_SRQ) & M_CPL_RDMA_READ_REQ_SRQ)
+
 struct cpl_rdma_terminate {
 	RSS_HDR
 	union opcode_tid ot;
 	__be16 rsvd;
 	__be16 len;
 };
+
+struct cpl_rdma_atomic_req {
+	RSS_HDR
+	union opcode_tid ot;
+	__be16 opcode_srq;
+	__be16 length;
+};
+
+#define S_CPL_RDMA_ATOMIC_REQ_OPCODE	12
+#define M_CPL_RDMA_ATOMIC_REQ_OPCODE	0xf
+#define V_CPL_RDMA_ATOMIC_REQ_OPCODE(x)	((x) << S_CPL_RDMA_ATOMIC_REQ_OPCODE)
+#define G_CPL_RDMA_ATOMIC_REQ_OPCODE(x)	\
+    (((x) >> S_CPL_RDMA_ATOMIC_REQ_OPCODE) & M_CPL_RDMA_ATOMIC_REQ_OPCODE)
+
+#define S_CPL_RDMA_ATOMIC_REQ_SRQ	0
+#define M_CPL_RDMA_ATOMIC_REQ_SRQ	0xfff
+#define V_CPL_RDMA_ATOMIC_REQ_SRQ(x)	((x) << S_CPL_RDMA_ATOMIC_REQ_SRQ)
+#define G_CPL_RDMA_ATOMIC_REQ_SRQ(x)	\
+    (((x) >> S_CPL_RDMA_ATOMIC_REQ_SRQ) & M_CPL_RDMA_ATOMIC_REQ_SRQ)
+
+struct cpl_rdma_atomic_rpl {
+	RSS_HDR
+	union opcode_tid ot;
+	__be16 opcode_srq;
+	__be16 length;
+};
+
+#define S_CPL_RDMA_ATOMIC_RPL_OPCODE	12
+#define M_CPL_RDMA_ATOMIC_RPL_OPCODE	0xf
+#define V_CPL_RDMA_ATOMIC_RPL_OPCODE(x)	((x) << S_CPL_RDMA_ATOMIC_RPL_OPCODE)
+#define G_CPL_RDMA_ATOMIC_RPL_OPCODE(x)	\
+    (((x) >> S_CPL_RDMA_ATOMIC_RPL_OPCODE) & M_CPL_RDMA_ATOMIC_RPL_OPCODE)
+
+#define S_CPL_RDMA_ATOMIC_RPL_SRQ	0
+#define M_CPL_RDMA_ATOMIC_RPL_SRQ	0xfff
+#define V_CPL_RDMA_ATOMIC_RPL_SRQ(x)	((x) << S_CPL_RDMA_ATOMIC_RPL_SRQ)
+#define G_CPL_RDMA_ATOMIC_RPL_SRQ(x)	\
+    (((x) >> S_CPL_RDMA_ATOMIC_RPL_SRQ) & M_CPL_RDMA_ATOMIC_RPL_SRQ)
+
+struct cpl_rdma_imm_data {
+	RSS_HDR
+	union opcode_tid ot;
+	__be16 r;
+	__be16 Length;
+};
+
+struct cpl_rdma_imm_data_se {
+	RSS_HDR
+	union opcode_tid ot;
+	__be16 r;
+	__be16 Length;
+};
+
+struct cpl_rdma_inv_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 stag;
+	__be32 cqid_pdid_hi;
+	__be32 pdid_lo_qpid;
+};
+
+#define S_CPL_RDMA_INV_REQ_CQID		8
+#define M_CPL_RDMA_INV_REQ_CQID		0xfffff
+#define V_CPL_RDMA_INV_REQ_CQID(x)	((x) << S_CPL_RDMA_INV_REQ_CQID)
+#define G_CPL_RDMA_INV_REQ_CQID(x)	\
+    (((x) >> S_CPL_RDMA_INV_REQ_CQID) & M_CPL_RDMA_INV_REQ_CQID)
+
+#define S_CPL_RDMA_INV_REQ_PDID_HI	0
+#define M_CPL_RDMA_INV_REQ_PDID_HI	0xff
+#define V_CPL_RDMA_INV_REQ_PDID_HI(x)	((x) << S_CPL_RDMA_INV_REQ_PDID_HI)
+#define G_CPL_RDMA_INV_REQ_PDID_HI(x)	\
+    (((x) >> S_CPL_RDMA_INV_REQ_PDID_HI) & M_CPL_RDMA_INV_REQ_PDID_HI)
+
+#define S_CPL_RDMA_INV_REQ_PDID_LO	20
+#define M_CPL_RDMA_INV_REQ_PDID_LO	0xfff
+#define V_CPL_RDMA_INV_REQ_PDID_LO(x)	((x) << S_CPL_RDMA_INV_REQ_PDID_LO)
+#define G_CPL_RDMA_INV_REQ_PDID_LO(x)	\
+    (((x) >> S_CPL_RDMA_INV_REQ_PDID_LO) & M_CPL_RDMA_INV_REQ_PDID_LO)
+
+#define S_CPL_RDMA_INV_REQ_QPID		0
+#define M_CPL_RDMA_INV_REQ_QPID		0xfffff
+#define V_CPL_RDMA_INV_REQ_QPID(x)	((x) << S_CPL_RDMA_INV_REQ_QPID)
+#define G_CPL_RDMA_INV_REQ_QPID(x)	\
+    (((x) >> S_CPL_RDMA_INV_REQ_QPID) & M_CPL_RDMA_INV_REQ_QPID)
+
+struct cpl_rdma_cqe_ext {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 tid_flitcnt;
+	__be32 qpid_to_wr_type;
+	__be32 length;
+	__be32 tag;
+	__be32 msn;
+	__be32 se_to_srq;
+	__be32 rqe;
+	__be32 extinfoms[2];
+	__be32 extinfols[2];
+};
+
+#define S_CPL_RDMA_CQE_EXT_RSSCTRL	16
+#define M_CPL_RDMA_CQE_EXT_RSSCTRL	0xff
+#define V_CPL_RDMA_CQE_EXT_RSSCTRL(x)	((x) << S_CPL_RDMA_CQE_EXT_RSSCTRL)
+#define G_CPL_RDMA_CQE_EXT_RSSCTRL(x)	\
+    (((x) >> S_CPL_RDMA_CQE_EXT_RSSCTRL) & M_CPL_RDMA_CQE_EXT_RSSCTRL)
+
+#define S_CPL_RDMA_CQE_EXT_CQID		0
+#define M_CPL_RDMA_CQE_EXT_CQID		0xffff
+#define V_CPL_RDMA_CQE_EXT_CQID(x)	((x) << S_CPL_RDMA_CQE_EXT_CQID)
+#define G_CPL_RDMA_CQE_EXT_CQID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_EXT_CQID) & M_CPL_RDMA_CQE_EXT_CQID)
+
+#define S_CPL_RDMA_CQE_EXT_TID		8
+#define M_CPL_RDMA_CQE_EXT_TID		0xfffff
+#define V_CPL_RDMA_CQE_EXT_TID(x)	((x) << S_CPL_RDMA_CQE_EXT_TID)
+#define G_CPL_RDMA_CQE_EXT_TID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_EXT_TID) & M_CPL_RDMA_CQE_EXT_TID)
+
+#define S_CPL_RDMA_CQE_EXT_FLITCNT	0
+#define M_CPL_RDMA_CQE_EXT_FLITCNT	0xff
+#define V_CPL_RDMA_CQE_EXT_FLITCNT(x)	((x) << S_CPL_RDMA_CQE_EXT_FLITCNT)
+#define G_CPL_RDMA_CQE_EXT_FLITCNT(x)	\
+    (((x) >> S_CPL_RDMA_CQE_EXT_FLITCNT) & M_CPL_RDMA_CQE_EXT_FLITCNT)
+
+#define S_CPL_RDMA_CQE_EXT_QPID		12
+#define M_CPL_RDMA_CQE_EXT_QPID		0xfffff
+#define V_CPL_RDMA_CQE_EXT_QPID(x)	((x) << S_CPL_RDMA_CQE_EXT_QPID)
+#define G_CPL_RDMA_CQE_EXT_QPID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_EXT_QPID) & M_CPL_RDMA_CQE_EXT_QPID)
+
+#define S_CPL_RDMA_CQE_EXT_EXTMODE	11
+#define M_CPL_RDMA_CQE_EXT_EXTMODE	0x1
+#define V_CPL_RDMA_CQE_EXT_EXTMODE(x)	((x) << S_CPL_RDMA_CQE_EXT_EXTMODE)
+#define G_CPL_RDMA_CQE_EXT_EXTMODE(x)	\
+    (((x) >> S_CPL_RDMA_CQE_EXT_EXTMODE) & M_CPL_RDMA_CQE_EXT_EXTMODE)
+#define F_CPL_RDMA_CQE_EXT_EXTMODE	V_CPL_RDMA_CQE_EXT_EXTMODE(1U)
+
+#define S_CPL_RDMA_CQE_EXT_GENERATION_BIT 10
+#define M_CPL_RDMA_CQE_EXT_GENERATION_BIT 0x1
+#define V_CPL_RDMA_CQE_EXT_GENERATION_BIT(x) \
+    ((x) << S_CPL_RDMA_CQE_EXT_GENERATION_BIT)
+#define G_CPL_RDMA_CQE_EXT_GENERATION_BIT(x) \
+    (((x) >> S_CPL_RDMA_CQE_EXT_GENERATION_BIT) & \
+     M_CPL_RDMA_CQE_EXT_GENERATION_BIT)
+#define F_CPL_RDMA_CQE_EXT_GENERATION_BIT \
+    V_CPL_RDMA_CQE_EXT_GENERATION_BIT(1U)
+
+#define S_CPL_RDMA_CQE_EXT_STATUS	5
+#define M_CPL_RDMA_CQE_EXT_STATUS	0x1f
+#define V_CPL_RDMA_CQE_EXT_STATUS(x)	((x) << S_CPL_RDMA_CQE_EXT_STATUS)
+#define G_CPL_RDMA_CQE_EXT_STATUS(x)	\
+    (((x) >> S_CPL_RDMA_CQE_EXT_STATUS) & M_CPL_RDMA_CQE_EXT_STATUS)
+
+#define S_CPL_RDMA_CQE_EXT_CQE_TYPE	4
+#define M_CPL_RDMA_CQE_EXT_CQE_TYPE	0x1
+#define V_CPL_RDMA_CQE_EXT_CQE_TYPE(x)	((x) << S_CPL_RDMA_CQE_EXT_CQE_TYPE)
+#define G_CPL_RDMA_CQE_EXT_CQE_TYPE(x)	\
+    (((x) >> S_CPL_RDMA_CQE_EXT_CQE_TYPE) & M_CPL_RDMA_CQE_EXT_CQE_TYPE)
+#define F_CPL_RDMA_CQE_EXT_CQE_TYPE	V_CPL_RDMA_CQE_EXT_CQE_TYPE(1U)
+
+#define S_CPL_RDMA_CQE_EXT_WR_TYPE	0
+#define M_CPL_RDMA_CQE_EXT_WR_TYPE	0xf
+#define V_CPL_RDMA_CQE_EXT_WR_TYPE(x)	((x) << S_CPL_RDMA_CQE_EXT_WR_TYPE)
+#define G_CPL_RDMA_CQE_EXT_WR_TYPE(x)	\
+    (((x) >> S_CPL_RDMA_CQE_EXT_WR_TYPE) & M_CPL_RDMA_CQE_EXT_WR_TYPE)
+
+#define S_CPL_RDMA_CQE_EXT_SE		31
+#define M_CPL_RDMA_CQE_EXT_SE		0x1
+#define V_CPL_RDMA_CQE_EXT_SE(x)	((x) << S_CPL_RDMA_CQE_EXT_SE)
+#define G_CPL_RDMA_CQE_EXT_SE(x)	\
+    (((x) >> S_CPL_RDMA_CQE_EXT_SE) & M_CPL_RDMA_CQE_EXT_SE)
+#define F_CPL_RDMA_CQE_EXT_SE		V_CPL_RDMA_CQE_EXT_SE(1U)
+
+#define S_CPL_RDMA_CQE_EXT_WR_TYPE_EXT	24
+#define M_CPL_RDMA_CQE_EXT_WR_TYPE_EXT	0x7f
+#define V_CPL_RDMA_CQE_EXT_WR_TYPE_EXT(x) \
+    ((x) << S_CPL_RDMA_CQE_EXT_WR_TYPE_EXT)
+#define G_CPL_RDMA_CQE_EXT_WR_TYPE_EXT(x) \
+    (((x) >> S_CPL_RDMA_CQE_EXT_WR_TYPE_EXT) & M_CPL_RDMA_CQE_EXT_WR_TYPE_EXT)
+
+#define S_CPL_RDMA_CQE_EXT_SRQ		0
+#define M_CPL_RDMA_CQE_EXT_SRQ		0xfff
+#define V_CPL_RDMA_CQE_EXT_SRQ(x)	((x) << S_CPL_RDMA_CQE_EXT_SRQ)
+#define G_CPL_RDMA_CQE_EXT_SRQ(x)	\
+    (((x) >> S_CPL_RDMA_CQE_EXT_SRQ) & M_CPL_RDMA_CQE_EXT_SRQ)
+
+struct cpl_rdma_cqe_fw_ext {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 tid_flitcnt;
+	__be32 qpid_to_wr_type;
+	__be32 length;
+	__be32 tag;
+	__be32 msn;
+	__be32 se_to_srq;
+	__be32 rqe;
+	__be32 extinfoms[2];
+	__be32 extinfols[2];
+};
+
+#define S_CPL_RDMA_CQE_FW_EXT_RSSCTRL	16
+#define M_CPL_RDMA_CQE_FW_EXT_RSSCTRL	0xff
+#define V_CPL_RDMA_CQE_FW_EXT_RSSCTRL(x) \
+    ((x) << S_CPL_RDMA_CQE_FW_EXT_RSSCTRL)
+#define G_CPL_RDMA_CQE_FW_EXT_RSSCTRL(x) \
+    (((x) >> S_CPL_RDMA_CQE_FW_EXT_RSSCTRL) & M_CPL_RDMA_CQE_FW_EXT_RSSCTRL)
+
+#define S_CPL_RDMA_CQE_FW_EXT_CQID	0
+#define M_CPL_RDMA_CQE_FW_EXT_CQID	0xffff
+#define V_CPL_RDMA_CQE_FW_EXT_CQID(x)	((x) << S_CPL_RDMA_CQE_FW_EXT_CQID)
+#define G_CPL_RDMA_CQE_FW_EXT_CQID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_FW_EXT_CQID) & M_CPL_RDMA_CQE_FW_EXT_CQID)
+
+#define S_CPL_RDMA_CQE_FW_EXT_TID	8
+#define M_CPL_RDMA_CQE_FW_EXT_TID	0xfffff
+#define V_CPL_RDMA_CQE_FW_EXT_TID(x)	((x) << S_CPL_RDMA_CQE_FW_EXT_TID)
+#define G_CPL_RDMA_CQE_FW_EXT_TID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_FW_EXT_TID) & M_CPL_RDMA_CQE_FW_EXT_TID)
+
+#define S_CPL_RDMA_CQE_FW_EXT_FLITCNT	0
+#define M_CPL_RDMA_CQE_FW_EXT_FLITCNT	0xff
+#define V_CPL_RDMA_CQE_FW_EXT_FLITCNT(x) \
+    ((x) << S_CPL_RDMA_CQE_FW_EXT_FLITCNT)
+#define G_CPL_RDMA_CQE_FW_EXT_FLITCNT(x) \
+    (((x) >> S_CPL_RDMA_CQE_FW_EXT_FLITCNT) & M_CPL_RDMA_CQE_FW_EXT_FLITCNT)
+
+#define S_CPL_RDMA_CQE_FW_EXT_QPID	12
+#define M_CPL_RDMA_CQE_FW_EXT_QPID	0xfffff
+#define V_CPL_RDMA_CQE_FW_EXT_QPID(x)	((x) << S_CPL_RDMA_CQE_FW_EXT_QPID)
+#define G_CPL_RDMA_CQE_FW_EXT_QPID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_FW_EXT_QPID) & M_CPL_RDMA_CQE_FW_EXT_QPID)
+
+#define S_CPL_RDMA_CQE_FW_EXT_EXTMODE	11
+#define M_CPL_RDMA_CQE_FW_EXT_EXTMODE	0x1
+#define V_CPL_RDMA_CQE_FW_EXT_EXTMODE(x) \
+    ((x) << S_CPL_RDMA_CQE_FW_EXT_EXTMODE)
+#define G_CPL_RDMA_CQE_FW_EXT_EXTMODE(x) \
+    (((x) >> S_CPL_RDMA_CQE_FW_EXT_EXTMODE) & M_CPL_RDMA_CQE_FW_EXT_EXTMODE)
+#define F_CPL_RDMA_CQE_FW_EXT_EXTMODE	V_CPL_RDMA_CQE_FW_EXT_EXTMODE(1U)
+
+#define S_CPL_RDMA_CQE_FW_EXT_GENERATION_BIT 10
+#define M_CPL_RDMA_CQE_FW_EXT_GENERATION_BIT 0x1
+#define V_CPL_RDMA_CQE_FW_EXT_GENERATION_BIT(x) \
+    ((x) << S_CPL_RDMA_CQE_FW_EXT_GENERATION_BIT)
+#define G_CPL_RDMA_CQE_FW_EXT_GENERATION_BIT(x) \
+    (((x) >> S_CPL_RDMA_CQE_FW_EXT_GENERATION_BIT) & \
+     M_CPL_RDMA_CQE_FW_EXT_GENERATION_BIT)
+#define F_CPL_RDMA_CQE_FW_EXT_GENERATION_BIT \
+    V_CPL_RDMA_CQE_FW_EXT_GENERATION_BIT(1U)
+
+#define S_CPL_RDMA_CQE_FW_EXT_STATUS	5
+#define M_CPL_RDMA_CQE_FW_EXT_STATUS	0x1f
+#define V_CPL_RDMA_CQE_FW_EXT_STATUS(x)	((x) << S_CPL_RDMA_CQE_FW_EXT_STATUS)
+#define G_CPL_RDMA_CQE_FW_EXT_STATUS(x)	\
+    (((x) >> S_CPL_RDMA_CQE_FW_EXT_STATUS) & M_CPL_RDMA_CQE_FW_EXT_STATUS)
+
+#define S_CPL_RDMA_CQE_FW_EXT_CQE_TYPE	4
+#define M_CPL_RDMA_CQE_FW_EXT_CQE_TYPE	0x1
+#define V_CPL_RDMA_CQE_FW_EXT_CQE_TYPE(x) \
+    ((x) << S_CPL_RDMA_CQE_FW_EXT_CQE_TYPE)
+#define G_CPL_RDMA_CQE_FW_EXT_CQE_TYPE(x) \
+    (((x) >> S_CPL_RDMA_CQE_FW_EXT_CQE_TYPE) & M_CPL_RDMA_CQE_FW_EXT_CQE_TYPE)
+#define F_CPL_RDMA_CQE_FW_EXT_CQE_TYPE	V_CPL_RDMA_CQE_FW_EXT_CQE_TYPE(1U)
+
+#define S_CPL_RDMA_CQE_FW_EXT_WR_TYPE	0
+#define M_CPL_RDMA_CQE_FW_EXT_WR_TYPE	0xf
+#define V_CPL_RDMA_CQE_FW_EXT_WR_TYPE(x) \
+    ((x) << S_CPL_RDMA_CQE_FW_EXT_WR_TYPE)
+#define G_CPL_RDMA_CQE_FW_EXT_WR_TYPE(x) \
+    (((x) >> S_CPL_RDMA_CQE_FW_EXT_WR_TYPE) & M_CPL_RDMA_CQE_FW_EXT_WR_TYPE)
+
+#define S_CPL_RDMA_CQE_FW_EXT_SE	31
+#define M_CPL_RDMA_CQE_FW_EXT_SE	0x1
+#define V_CPL_RDMA_CQE_FW_EXT_SE(x)	((x) << S_CPL_RDMA_CQE_FW_EXT_SE)
+#define G_CPL_RDMA_CQE_FW_EXT_SE(x)	\
+    (((x) >> S_CPL_RDMA_CQE_FW_EXT_SE) & M_CPL_RDMA_CQE_FW_EXT_SE)
+#define F_CPL_RDMA_CQE_FW_EXT_SE	V_CPL_RDMA_CQE_FW_EXT_SE(1U)
+
+#define S_CPL_RDMA_CQE_FW_EXT_WR_TYPE_EXT 24
+#define M_CPL_RDMA_CQE_FW_EXT_WR_TYPE_EXT 0x7f
+#define V_CPL_RDMA_CQE_FW_EXT_WR_TYPE_EXT(x) \
+    ((x) << S_CPL_RDMA_CQE_FW_EXT_WR_TYPE_EXT)
+#define G_CPL_RDMA_CQE_FW_EXT_WR_TYPE_EXT(x) \
+    (((x) >> S_CPL_RDMA_CQE_FW_EXT_WR_TYPE_EXT) & \
+     M_CPL_RDMA_CQE_FW_EXT_WR_TYPE_EXT)
+
+#define S_CPL_RDMA_CQE_FW_EXT_SRQ	0
+#define M_CPL_RDMA_CQE_FW_EXT_SRQ	0xfff
+#define V_CPL_RDMA_CQE_FW_EXT_SRQ(x)	((x) << S_CPL_RDMA_CQE_FW_EXT_SRQ)
+#define G_CPL_RDMA_CQE_FW_EXT_SRQ(x)	\
+    (((x) >> S_CPL_RDMA_CQE_FW_EXT_SRQ) & M_CPL_RDMA_CQE_FW_EXT_SRQ)
+
+struct cpl_rdma_cqe_err_ext {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 tid_flitcnt;
+	__be32 qpid_to_wr_type;
+	__be32 length;
+	__be32 tag;
+	__be32 msn;
+	__be32 se_to_srq;
+	__be32 rqe;
+	__be32 extinfoms[2];
+	__be32 extinfols[2];
+};
+
+#define S_CPL_RDMA_CQE_ERR_EXT_RSSCTRL	16
+#define M_CPL_RDMA_CQE_ERR_EXT_RSSCTRL	0xff
+#define V_CPL_RDMA_CQE_ERR_EXT_RSSCTRL(x) \
+    ((x) << S_CPL_RDMA_CQE_ERR_EXT_RSSCTRL)
+#define G_CPL_RDMA_CQE_ERR_EXT_RSSCTRL(x) \
+    (((x) >> S_CPL_RDMA_CQE_ERR_EXT_RSSCTRL) & M_CPL_RDMA_CQE_ERR_EXT_RSSCTRL)
+
+#define S_CPL_RDMA_CQE_ERR_EXT_CQID	0
+#define M_CPL_RDMA_CQE_ERR_EXT_CQID	0xffff
+#define V_CPL_RDMA_CQE_ERR_EXT_CQID(x)	((x) << S_CPL_RDMA_CQE_ERR_EXT_CQID)
+#define G_CPL_RDMA_CQE_ERR_EXT_CQID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_ERR_EXT_CQID) & M_CPL_RDMA_CQE_ERR_EXT_CQID)
+
+#define S_CPL_RDMA_CQE_ERR_EXT_TID	8
+#define M_CPL_RDMA_CQE_ERR_EXT_TID	0xfffff
+#define V_CPL_RDMA_CQE_ERR_EXT_TID(x)	((x) << S_CPL_RDMA_CQE_ERR_EXT_TID)
+#define G_CPL_RDMA_CQE_ERR_EXT_TID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_ERR_EXT_TID) & M_CPL_RDMA_CQE_ERR_EXT_TID)
+
+#define S_CPL_RDMA_CQE_ERR_EXT_FLITCNT	0
+#define M_CPL_RDMA_CQE_ERR_EXT_FLITCNT	0xff
+#define V_CPL_RDMA_CQE_ERR_EXT_FLITCNT(x) \
+    ((x) << S_CPL_RDMA_CQE_ERR_EXT_FLITCNT)
+#define G_CPL_RDMA_CQE_ERR_EXT_FLITCNT(x) \
+    (((x) >> S_CPL_RDMA_CQE_ERR_EXT_FLITCNT) & M_CPL_RDMA_CQE_ERR_EXT_FLITCNT)
+
+#define S_CPL_RDMA_CQE_ERR_EXT_QPID	12
+#define M_CPL_RDMA_CQE_ERR_EXT_QPID	0xfffff
+#define V_CPL_RDMA_CQE_ERR_EXT_QPID(x)	((x) << S_CPL_RDMA_CQE_ERR_EXT_QPID)
+#define G_CPL_RDMA_CQE_ERR_EXT_QPID(x)	\
+    (((x) >> S_CPL_RDMA_CQE_ERR_EXT_QPID) & M_CPL_RDMA_CQE_ERR_EXT_QPID)
+
+#define S_CPL_RDMA_CQE_ERR_EXT_EXTMODE	11
+#define M_CPL_RDMA_CQE_ERR_EXT_EXTMODE	0x1
+#define V_CPL_RDMA_CQE_ERR_EXT_EXTMODE(x) \
+    ((x) << S_CPL_RDMA_CQE_ERR_EXT_EXTMODE)
+#define G_CPL_RDMA_CQE_ERR_EXT_EXTMODE(x) \
+    (((x) >> S_CPL_RDMA_CQE_ERR_EXT_EXTMODE) & M_CPL_RDMA_CQE_ERR_EXT_EXTMODE)
+#define F_CPL_RDMA_CQE_ERR_EXT_EXTMODE	V_CPL_RDMA_CQE_ERR_EXT_EXTMODE(1U)
+
+#define S_CPL_RDMA_CQE_ERR_EXT_GENERATION_BIT 10
+#define M_CPL_RDMA_CQE_ERR_EXT_GENERATION_BIT 0x1
+#define V_CPL_RDMA_CQE_ERR_EXT_GENERATION_BIT(x) \
+    ((x) << S_CPL_RDMA_CQE_ERR_EXT_GENERATION_BIT)
+#define G_CPL_RDMA_CQE_ERR_EXT_GENERATION_BIT(x) \
+    (((x) >> S_CPL_RDMA_CQE_ERR_EXT_GENERATION_BIT) & \
+     M_CPL_RDMA_CQE_ERR_EXT_GENERATION_BIT)
+#define F_CPL_RDMA_CQE_ERR_EXT_GENERATION_BIT \
+    V_CPL_RDMA_CQE_ERR_EXT_GENERATION_BIT(1U)
+
+#define S_CPL_RDMA_CQE_ERR_EXT_STATUS	5
+#define M_CPL_RDMA_CQE_ERR_EXT_STATUS	0x1f
+#define V_CPL_RDMA_CQE_ERR_EXT_STATUS(x) \
+    ((x) << S_CPL_RDMA_CQE_ERR_EXT_STATUS)
+#define G_CPL_RDMA_CQE_ERR_EXT_STATUS(x) \
+    (((x) >> S_CPL_RDMA_CQE_ERR_EXT_STATUS) & M_CPL_RDMA_CQE_ERR_EXT_STATUS)
+
+#define S_CPL_RDMA_CQE_ERR_EXT_CQE_TYPE	4
+#define M_CPL_RDMA_CQE_ERR_EXT_CQE_TYPE	0x1
+#define V_CPL_RDMA_CQE_ERR_EXT_CQE_TYPE(x) \
+    ((x) << S_CPL_RDMA_CQE_ERR_EXT_CQE_TYPE)
+#define G_CPL_RDMA_CQE_ERR_EXT_CQE_TYPE(x) \
+    (((x) >> S_CPL_RDMA_CQE_ERR_EXT_CQE_TYPE) & \
+     M_CPL_RDMA_CQE_ERR_EXT_CQE_TYPE)
+#define F_CPL_RDMA_CQE_ERR_EXT_CQE_TYPE	V_CPL_RDMA_CQE_ERR_EXT_CQE_TYPE(1U)
+
+#define S_CPL_RDMA_CQE_ERR_EXT_WR_TYPE	0
+#define M_CPL_RDMA_CQE_ERR_EXT_WR_TYPE	0xf
+#define V_CPL_RDMA_CQE_ERR_EXT_WR_TYPE(x) \
+    ((x) << S_CPL_RDMA_CQE_ERR_EXT_WR_TYPE)
+#define G_CPL_RDMA_CQE_ERR_EXT_WR_TYPE(x) \
+    (((x) >> S_CPL_RDMA_CQE_ERR_EXT_WR_TYPE) & M_CPL_RDMA_CQE_ERR_EXT_WR_TYPE)
+
+#define S_CPL_RDMA_CQE_ERR_EXT_SE	31
+#define M_CPL_RDMA_CQE_ERR_EXT_SE	0x1
+#define V_CPL_RDMA_CQE_ERR_EXT_SE(x)	((x) << S_CPL_RDMA_CQE_ERR_EXT_SE)
+#define G_CPL_RDMA_CQE_ERR_EXT_SE(x)	\
+    (((x) >> S_CPL_RDMA_CQE_ERR_EXT_SE) & M_CPL_RDMA_CQE_ERR_EXT_SE)
+#define F_CPL_RDMA_CQE_ERR_EXT_SE	V_CPL_RDMA_CQE_ERR_EXT_SE(1U)
+
+#define S_CPL_RDMA_CQE_ERR_EXT_WR_TYPE_EXT 24
+#define M_CPL_RDMA_CQE_ERR_EXT_WR_TYPE_EXT 0x7f
+#define V_CPL_RDMA_CQE_ERR_EXT_WR_TYPE_EXT(x) \
+    ((x) << S_CPL_RDMA_CQE_ERR_EXT_WR_TYPE_EXT)
+#define G_CPL_RDMA_CQE_ERR_EXT_WR_TYPE_EXT(x) \
+    (((x) >> S_CPL_RDMA_CQE_ERR_EXT_WR_TYPE_EXT) & \
+     M_CPL_RDMA_CQE_ERR_EXT_WR_TYPE_EXT)
+
+#define S_CPL_RDMA_CQE_ERR_EXT_SRQ	0
+#define M_CPL_RDMA_CQE_ERR_EXT_SRQ	0xfff
+#define V_CPL_RDMA_CQE_ERR_EXT_SRQ(x)	((x) << S_CPL_RDMA_CQE_ERR_EXT_SRQ)
+#define G_CPL_RDMA_CQE_ERR_EXT_SRQ(x)	\
+    (((x) >> S_CPL_RDMA_CQE_ERR_EXT_SRQ) & M_CPL_RDMA_CQE_ERR_EXT_SRQ)
 
 struct cpl_set_le_req {
 	WR_HDR;
@@ -2630,6 +4341,13 @@ struct cpl_set_le_req {
 };
 
 /* cpl_set_le_req.reply_ctrl additional fields */
+#define S_LE_REQ_RXCHANNEL      14
+#define M_LE_REQ_RXCHANNEL      0x1
+#define V_LE_REQ_RXCHANNEL(x)   ((x) << S_LE_REQ_RXCHANNEL)
+#define G_LE_REQ_RXCHANNEL(x)   \
+    (((x) >> S_LE_REQ_RXCHANNEL) & M_LE_REQ_RXCHANNEL)
+#define F_LE_REQ_RXCHANNEL      V_LE_REQ_RXCHANNEL(1U)
+
 #define S_LE_REQ_IP6    13
 #define V_LE_REQ_IP6(x) ((x) << S_LE_REQ_IP6)
 #define F_LE_REQ_IP6    V_LE_REQ_IP6(1U)
@@ -2658,6 +4376,80 @@ struct cpl_set_le_req {
 #define M_LE_REQCMD    0xF
 #define V_LE_REQCMD(x) ((x) << S_LE_REQCMD)
 #define G_LE_REQCMD(x) (((x) >> S_LE_REQCMD) & M_LE_REQCMD)
+
+struct cpl_t7_set_le_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 noreply_to_channel;
+	__be32 mask1[2];
+	__be32 mask0[2];
+	__be32 value1[2];
+	__be32 value0[2];
+};
+
+#define S_CPL_T7_SET_LE_REQ_INDEX	0
+#define M_CPL_T7_SET_LE_REQ_INDEX	0xffffff
+#define V_CPL_T7_SET_LE_REQ_INDEX(x)	((x) << S_CPL_T7_SET_LE_REQ_INDEX)
+#define G_CPL_T7_SET_LE_REQ_INDEX(x)	\
+    (((x) >> S_CPL_T7_SET_LE_REQ_INDEX) & M_CPL_T7_SET_LE_REQ_INDEX)
+
+#define S_CPL_T7_SET_LE_REQ_NOREPLY	31
+#define M_CPL_T7_SET_LE_REQ_NOREPLY	0x1
+#define V_CPL_T7_SET_LE_REQ_NOREPLY(x)	((x) << S_CPL_T7_SET_LE_REQ_NOREPLY)
+#define G_CPL_T7_SET_LE_REQ_NOREPLY(x)	\
+    (((x) >> S_CPL_T7_SET_LE_REQ_NOREPLY) & M_CPL_T7_SET_LE_REQ_NOREPLY)
+#define F_CPL_T7_SET_LE_REQ_NOREPLY	V_CPL_T7_SET_LE_REQ_NOREPLY(1U)
+
+#define S_CPL_T7_SET_LE_REQ_RXCHANNEL		28
+#define M_CPL_T7_SET_LE_REQ_RXCHANNEL		0x7
+#define V_CPL_T7_SET_LE_REQ_RXCHANNEL(x)	\
+    ((x) << S_CPL_T7_SET_LE_REQ_RXCHANNEL)
+#define G_CPL_T7_SET_LE_REQ_RXCHANNEL(x)	\
+    (((x) >> S_CPL_T7_SET_LE_REQ_RXCHANNEL) & M_CPL_T7_SET_LE_REQ_RXCHANNEL)
+
+#define S_CPL_T7_SET_LE_REQ_QUEUE	16
+#define M_CPL_T7_SET_LE_REQ_QUEUE	0xfff
+#define V_CPL_T7_SET_LE_REQ_QUEUE(x)	((x) << S_CPL_T7_SET_LE_REQ_QUEUE)
+#define G_CPL_T7_SET_LE_REQ_QUEUE(x)	\
+    (((x) >> S_CPL_T7_SET_LE_REQ_QUEUE) & M_CPL_T7_SET_LE_REQ_QUEUE)
+
+#define S_CPL_T7_SET_LE_REQ_REQCMD	12
+#define M_CPL_T7_SET_LE_REQ_REQCMD	0xf
+#define V_CPL_T7_SET_LE_REQ_REQCMD(x)	((x) << S_CPL_T7_SET_LE_REQ_REQCMD)
+#define G_CPL_T7_SET_LE_REQ_REQCMD(x)	\
+    (((x) >> S_CPL_T7_SET_LE_REQ_REQCMD) & M_CPL_T7_SET_LE_REQ_REQCMD)
+
+#define S_CPL_T7_SET_LE_REQ_REQSIZE	9
+#define M_CPL_T7_SET_LE_REQ_REQSIZE	0x7
+#define V_CPL_T7_SET_LE_REQ_REQSIZE(x)	((x) << S_CPL_T7_SET_LE_REQ_REQSIZE)
+#define G_CPL_T7_SET_LE_REQ_REQSIZE(x)	\
+    (((x) >> S_CPL_T7_SET_LE_REQ_REQSIZE) & M_CPL_T7_SET_LE_REQ_REQSIZE)
+
+#define S_CPL_T7_SET_LE_REQ_MORE	8
+#define M_CPL_T7_SET_LE_REQ_MORE	0x1
+#define V_CPL_T7_SET_LE_REQ_MORE(x)	((x) << S_CPL_T7_SET_LE_REQ_MORE)
+#define G_CPL_T7_SET_LE_REQ_MORE(x)	\
+    (((x) >> S_CPL_T7_SET_LE_REQ_MORE) & M_CPL_T7_SET_LE_REQ_MORE)
+#define F_CPL_T7_SET_LE_REQ_MORE	V_CPL_T7_SET_LE_REQ_MORE(1U)
+
+#define S_CPL_T7_SET_LE_REQ_OFFSET	5
+#define M_CPL_T7_SET_LE_REQ_OFFSET	0x7
+#define V_CPL_T7_SET_LE_REQ_OFFSET(x)	((x) << S_CPL_T7_SET_LE_REQ_OFFSET)
+#define G_CPL_T7_SET_LE_REQ_OFFSET(x)	\
+    (((x) >> S_CPL_T7_SET_LE_REQ_OFFSET) & M_CPL_T7_SET_LE_REQ_OFFSET)
+
+#define S_CPL_T7_SET_LE_REQ_REQTYPE	4
+#define M_CPL_T7_SET_LE_REQ_REQTYPE	0x1
+#define V_CPL_T7_SET_LE_REQ_REQTYPE(x)	((x) << S_CPL_T7_SET_LE_REQ_REQTYPE)
+#define G_CPL_T7_SET_LE_REQ_REQTYPE(x)	\
+    (((x) >> S_CPL_T7_SET_LE_REQ_REQTYPE) & M_CPL_T7_SET_LE_REQ_REQTYPE)
+#define F_CPL_T7_SET_LE_REQ_REQTYPE	V_CPL_T7_SET_LE_REQ_REQTYPE(1U)
+
+#define S_CPL_T7_SET_LE_REQ_CHANNEL	0
+#define M_CPL_T7_SET_LE_REQ_CHANNEL	0x3
+#define V_CPL_T7_SET_LE_REQ_CHANNEL(x)	((x) << S_CPL_T7_SET_LE_REQ_CHANNEL)
+#define G_CPL_T7_SET_LE_REQ_CHANNEL(x)	\
+    (((x) >> S_CPL_T7_SET_LE_REQ_CHANNEL) & M_CPL_T7_SET_LE_REQ_CHANNEL)
 
 struct cpl_set_le_rpl {
 	RSS_HDR
@@ -2710,6 +4502,7 @@ enum {
 	FW_TYPE_WRERR_RPL = 5,
 	FW_TYPE_PI_ERR = 6,
 	FW_TYPE_TLS_KEY = 7,
+	FW_TYPE_IPSEC_SA = 8,
 };
 
 struct cpl_fw2_pld {
@@ -2811,6 +4604,8 @@ enum {
 	FW6_TYPE_RSSCPL		= FW_TYPE_RSSCPL,
 	FW6_TYPE_WRERR_RPL	= FW_TYPE_WRERR_RPL,
 	FW6_TYPE_PI_ERR		= FW_TYPE_PI_ERR,
+	FW6_TYPE_TLS_KEY	= FW_TYPE_TLS_KEY,
+	FW6_TYPE_IPSEC_SA	= FW_TYPE_IPSEC_SA,
 	NUM_FW6_TYPES
 };
 
@@ -2932,6 +4727,10 @@ struct ulp_mem_io {
 #define M_ULP_MEMIO_DATA_LEN    0x1F
 #define V_ULP_MEMIO_DATA_LEN(x) ((x) << S_ULP_MEMIO_DATA_LEN)
 
+#define S_T7_ULP_MEMIO_DATA_LEN    0
+#define M_T7_ULP_MEMIO_DATA_LEN    0x7FF
+#define V_T7_ULP_MEMIO_DATA_LEN(x) ((x) << S_T7_ULP_MEMIO_DATA_LEN)
+
 /* ULP_TXPKT field values */
 enum {
 	ULP_TXPKT_DEST_TP = 0,
@@ -2960,10 +4759,24 @@ struct ulp_txpkt {
 	(((x) >> S_ULP_TXPKT_CHANNELID) & M_ULP_TXPKT_CHANNELID)
 #define F_ULP_TXPKT_CHANNELID        V_ULP_TXPKT_CHANNELID(1U)
 
+#define S_T7_ULP_TXPKT_CHANNELID        22
+#define M_T7_ULP_TXPKT_CHANNELID        0x3
+#define V_T7_ULP_TXPKT_CHANNELID(x)     ((x) << S_T7_ULP_TXPKT_CHANNELID)
+#define G_T7_ULP_TXPKT_CHANNELID(x)     \
+	(((x) >> S_T7_ULP_TXPKT_CHANNELID) & M_T7_ULP_TXPKT_CHANNELID)
+#define F_T7_ULP_TXPKT_CHANNELID        V_T7_ULP_TXPKT_CHANNELID(1U)
+
 /* ulp_txpkt.cmd_dest fields */
 #define S_ULP_TXPKT_DEST    16
 #define M_ULP_TXPKT_DEST    0x3
 #define V_ULP_TXPKT_DEST(x) ((x) << S_ULP_TXPKT_DEST)
+
+#define S_ULP_TXPKT_CMDMORE		15
+#define M_ULP_TXPKT_CMDMORE		0x1
+#define V_ULP_TXPKT_CMDMORE(x)	((x) << S_ULP_TXPKT_CMDMORE)
+#define G_ULP_TXPKT_CMDMORE(x)	\
+    (((x) >> S_ULP_TXPKT_CMDMORE) & M_ULP_TXPKT_CMDMORE)
+#define F_ULP_TXPKT_CMDMORE	V_ULP_TXPKT_CMDMORE(1U)
 
 #define S_ULP_TXPKT_FID	    4
 #define M_ULP_TXPKT_FID     0x7ff
@@ -2978,13 +4791,15 @@ enum cpl_tx_tnl_lso_type {
 	TX_TNL_TYPE_NVGRE,
 	TX_TNL_TYPE_VXLAN,
 	TX_TNL_TYPE_GENEVE,
+	TX_TNL_TYPE_IPSEC,
 };
 
 struct cpl_tx_tnl_lso {
 	__be32 op_to_IpIdSplitOut;
 	__be16 IpIdOffsetOut;
 	__be16 UdpLenSetOut_to_TnlHdrLen;
-	__be64 r1;
+	__be32 ipsecen_to_rocev2;
+	__be32 roce_eth;
 	__be32 Flow_to_TcpHdrLen;
 	__be16 IpIdOffset;
 	__be16 IpIdSplit_to_Mss;
@@ -3098,6 +4913,68 @@ struct cpl_tx_tnl_lso {
 #define G_CPL_TX_TNL_LSO_TNLHDRLEN(x)	\
     (((x) >> S_CPL_TX_TNL_LSO_TNLHDRLEN) & M_CPL_TX_TNL_LSO_TNLHDRLEN)
 
+#define S_CPL_TX_TNL_LSO_IPSECEN	31
+#define M_CPL_TX_TNL_LSO_IPSECEN	0x1
+#define V_CPL_TX_TNL_LSO_IPSECEN(x)	((x) << S_CPL_TX_TNL_LSO_IPSECEN)
+#define G_CPL_TX_TNL_LSO_IPSECEN(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_IPSECEN) & M_CPL_TX_TNL_LSO_IPSECEN)
+#define F_CPL_TX_TNL_LSO_IPSECEN	V_CPL_TX_TNL_LSO_IPSECEN(1U)
+
+#define S_CPL_TX_TNL_LSO_ENCAPDIS	30
+#define M_CPL_TX_TNL_LSO_ENCAPDIS	0x1
+#define V_CPL_TX_TNL_LSO_ENCAPDIS(x)	((x) << S_CPL_TX_TNL_LSO_ENCAPDIS)
+#define G_CPL_TX_TNL_LSO_ENCAPDIS(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_ENCAPDIS) & M_CPL_TX_TNL_LSO_ENCAPDIS)
+#define F_CPL_TX_TNL_LSO_ENCAPDIS	V_CPL_TX_TNL_LSO_ENCAPDIS(1U)
+
+#define S_CPL_TX_TNL_LSO_IPSECMODE	29
+#define M_CPL_TX_TNL_LSO_IPSECMODE	0x1
+#define V_CPL_TX_TNL_LSO_IPSECMODE(x)	((x) << S_CPL_TX_TNL_LSO_IPSECMODE)
+#define G_CPL_TX_TNL_LSO_IPSECMODE(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_IPSECMODE) & M_CPL_TX_TNL_LSO_IPSECMODE)
+#define F_CPL_TX_TNL_LSO_IPSECMODE	V_CPL_TX_TNL_LSO_IPSECMODE(1U)
+
+#define S_CPL_TX_TNL_LSO_IPSECTNLIPV6	28
+#define M_CPL_TX_TNL_LSO_IPSECTNLIPV6	0x1
+#define V_CPL_TX_TNL_LSO_IPSECTNLIPV6(x) \
+    ((x) << S_CPL_TX_TNL_LSO_IPSECTNLIPV6)
+#define G_CPL_TX_TNL_LSO_IPSECTNLIPV6(x) \
+    (((x) >> S_CPL_TX_TNL_LSO_IPSECTNLIPV6) & M_CPL_TX_TNL_LSO_IPSECTNLIPV6)
+#define F_CPL_TX_TNL_LSO_IPSECTNLIPV6	V_CPL_TX_TNL_LSO_IPSECTNLIPV6(1U)
+
+#define S_CPL_TX_TNL_LSO_IPSECTNLIPHDRLEN 20
+#define M_CPL_TX_TNL_LSO_IPSECTNLIPHDRLEN 0xff
+#define V_CPL_TX_TNL_LSO_IPSECTNLIPHDRLEN(x) \
+    ((x) << S_CPL_TX_TNL_LSO_IPSECTNLIPHDRLEN)
+#define G_CPL_TX_TNL_LSO_IPSECTNLIPHDRLEN(x) \
+    (((x) >> S_CPL_TX_TNL_LSO_IPSECTNLIPHDRLEN) & \
+     M_CPL_TX_TNL_LSO_IPSECTNLIPHDRLEN)
+
+#define S_CPL_TX_TNL_LSO_IPSECTNLIPIDSPLIT 19
+#define M_CPL_TX_TNL_LSO_IPSECTNLIPIDSPLIT 0x1
+#define V_CPL_TX_TNL_LSO_IPSECTNLIPIDSPLIT(x) \
+    ((x) << S_CPL_TX_TNL_LSO_IPSECTNLIPIDSPLIT)
+#define G_CPL_TX_TNL_LSO_IPSECTNLIPIDSPLIT(x) \
+    (((x) >> S_CPL_TX_TNL_LSO_IPSECTNLIPIDSPLIT) & \
+     M_CPL_TX_TNL_LSO_IPSECTNLIPIDSPLIT)
+#define F_CPL_TX_TNL_LSO_IPSECTNLIPIDSPLIT \
+    V_CPL_TX_TNL_LSO_IPSECTNLIPIDSPLIT(1U)
+
+#define S_CPL_TX_TNL_LSO_ROCEV2		18
+#define M_CPL_TX_TNL_LSO_ROCEV2		0x1
+#define V_CPL_TX_TNL_LSO_ROCEV2(x)	((x) << S_CPL_TX_TNL_LSO_ROCEV2)
+#define G_CPL_TX_TNL_LSO_ROCEV2(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_ROCEV2) & M_CPL_TX_TNL_LSO_ROCEV2)
+#define F_CPL_TX_TNL_LSO_ROCEV2		V_CPL_TX_TNL_LSO_ROCEV2(1U)
+
+#define S_CPL_TX_TNL_LSO_UDPCHKUPDOUT	17
+#define M_CPL_TX_TNL_LSO_UDPCHKUPDOUT	0x1
+#define V_CPL_TX_TNL_LSO_UDPCHKUPDOUT(x) \
+    ((x) << S_CPL_TX_TNL_LSO_UDPCHKUPDOUT)
+#define G_CPL_TX_TNL_LSO_UDPCHKUPDOUT(x) \
+    (((x) >> S_CPL_TX_TNL_LSO_UDPCHKUPDOUT) & M_CPL_TX_TNL_LSO_UDPCHKUPDOUT)
+#define F_CPL_TX_TNL_LSO_UDPCHKUPDOUT	V_CPL_TX_TNL_LSO_UDPCHKUPDOUT(1U)
+
 #define S_CPL_TX_TNL_LSO_FLOW		21
 #define M_CPL_TX_TNL_LSO_FLOW		0x1
 #define V_CPL_TX_TNL_LSO_FLOW(x)	((x) << S_CPL_TX_TNL_LSO_FLOW)
@@ -3180,6 +5057,12 @@ struct cpl_rx_mps_pkt {
 #define G_CPL_RX_MPS_PKT_TYPE(x)        \
 	(((x) >> S_CPL_RX_MPS_PKT_TYPE) & M_CPL_RX_MPS_PKT_TYPE)
 
+#define S_CPL_RX_MPS_PKT_LENGTH     0
+#define M_CPL_RX_MPS_PKT_LENGTH     0xffff
+#define V_CPL_RX_MPS_PKT_LENGTH(x)  ((x) << S_CPL_RX_MPS_PKT_LENGTH)
+#define G_CPL_RX_MPS_PKT_LENGTH(x)  \
+    (((x) >> S_CPL_RX_MPS_PKT_LENGTH) & M_CPL_RX_MPS_PKT_LENGTH)
+
 /*
  * Values for CPL_RX_MPS_PKT_TYPE, a bit-wise orthogonal field.
  */
@@ -3187,6 +5070,88 @@ struct cpl_rx_mps_pkt {
 #define X_CPL_RX_MPS_PKT_TYPE_PPP	(1 << 1)
 #define X_CPL_RX_MPS_PKT_TYPE_QFC	(1 << 2)
 #define X_CPL_RX_MPS_PKT_TYPE_PTP	(1 << 3)
+
+struct cpl_t7_rx_mps_pkt {
+	RSS_HDR
+	union opcode_tid ot;
+	__be32 length_pkd;
+};
+
+#define S_CPL_T7_RX_MPS_PKT_TYPE	20
+#define M_CPL_T7_RX_MPS_PKT_TYPE	0xf
+#define V_CPL_T7_RX_MPS_PKT_TYPE(x)	((x) << S_CPL_T7_RX_MPS_PKT_TYPE)
+#define G_CPL_T7_RX_MPS_PKT_TYPE(x)	\
+    (((x) >> S_CPL_T7_RX_MPS_PKT_TYPE) & M_CPL_T7_RX_MPS_PKT_TYPE)
+
+#define S_CPL_T7_RX_MPS_PKT_INTERFACE		16
+#define M_CPL_T7_RX_MPS_PKT_INTERFACE		0xf
+#define V_CPL_T7_RX_MPS_PKT_INTERFACE(x)	\
+    ((x) << S_CPL_T7_RX_MPS_PKT_INTERFACE)
+#define G_CPL_T7_RX_MPS_PKT_INTERFACE(x)	\
+    (((x) >> S_CPL_T7_RX_MPS_PKT_INTERFACE) & M_CPL_T7_RX_MPS_PKT_INTERFACE)
+
+#define S_CPL_T7_RX_MPS_PKT_TRUNCATED		7
+#define M_CPL_T7_RX_MPS_PKT_TRUNCATED		0x1
+#define V_CPL_T7_RX_MPS_PKT_TRUNCATED(x)	\
+    ((x) << S_CPL_T7_RX_MPS_PKT_TRUNCATED)
+#define G_CPL_T7_RX_MPS_PKT_TRUNCATED(x)	\
+    (((x) >> S_CPL_T7_RX_MPS_PKT_TRUNCATED) & M_CPL_T7_RX_MPS_PKT_TRUNCATED)
+#define F_CPL_T7_RX_MPS_PKT_TRUNCATED	V_CPL_T7_RX_MPS_PKT_TRUNCATED(1U)
+
+#define S_CPL_T7_RX_MPS_PKT_PKTERR	6
+#define M_CPL_T7_RX_MPS_PKT_PKTERR	0x1
+#define V_CPL_T7_RX_MPS_PKT_PKTERR(x)	((x) << S_CPL_T7_RX_MPS_PKT_PKTERR)
+#define G_CPL_T7_RX_MPS_PKT_PKTERR(x)	\
+    (((x) >> S_CPL_T7_RX_MPS_PKT_PKTERR) & M_CPL_T7_RX_MPS_PKT_PKTERR)
+#define F_CPL_T7_RX_MPS_PKT_PKTERR	V_CPL_T7_RX_MPS_PKT_PKTERR(1U)
+
+#define S_CPL_T7_RX_MPS_PKT_LENGTH	0
+#define M_CPL_T7_RX_MPS_PKT_LENGTH	0xffff
+#define V_CPL_T7_RX_MPS_PKT_LENGTH(x)	((x) << S_CPL_T7_RX_MPS_PKT_LENGTH)
+#define G_CPL_T7_RX_MPS_PKT_LENGTH(x)	\
+    (((x) >> S_CPL_T7_RX_MPS_PKT_LENGTH) & M_CPL_T7_RX_MPS_PKT_LENGTH)
+
+struct cpl_tx_tls_pdu {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 pldlen_pkd;
+	__be32 customtype_customprotover;
+	__be32 r2_lo;
+	__be32 scmd0[2];
+	__be32 scmd1[2];
+};
+
+#define S_CPL_TX_TLS_PDU_DATATYPE	20
+#define M_CPL_TX_TLS_PDU_DATATYPE	0xf
+#define V_CPL_TX_TLS_PDU_DATATYPE(x)	((x) << S_CPL_TX_TLS_PDU_DATATYPE)
+#define G_CPL_TX_TLS_PDU_DATATYPE(x)	\
+    (((x) >> S_CPL_TX_TLS_PDU_DATATYPE) & M_CPL_TX_TLS_PDU_DATATYPE)
+
+#define S_CPL_TX_TLS_PDU_CPLLEN		16
+#define M_CPL_TX_TLS_PDU_CPLLEN		0xf
+#define V_CPL_TX_TLS_PDU_CPLLEN(x)	((x) << S_CPL_TX_TLS_PDU_CPLLEN)
+#define G_CPL_TX_TLS_PDU_CPLLEN(x)	\
+    (((x) >> S_CPL_TX_TLS_PDU_CPLLEN) & M_CPL_TX_TLS_PDU_CPLLEN)
+
+#define S_CPL_TX_TLS_PDU_PLDLEN		0
+#define M_CPL_TX_TLS_PDU_PLDLEN		0xfffff
+#define V_CPL_TX_TLS_PDU_PLDLEN(x)	((x) << S_CPL_TX_TLS_PDU_PLDLEN)
+#define G_CPL_TX_TLS_PDU_PLDLEN(x)	\
+    (((x) >> S_CPL_TX_TLS_PDU_PLDLEN) & M_CPL_TX_TLS_PDU_PLDLEN)
+
+#define S_CPL_TX_TLS_PDU_CUSTOMTYPE	24
+#define M_CPL_TX_TLS_PDU_CUSTOMTYPE	0xff
+#define V_CPL_TX_TLS_PDU_CUSTOMTYPE(x)	((x) << S_CPL_TX_TLS_PDU_CUSTOMTYPE)
+#define G_CPL_TX_TLS_PDU_CUSTOMTYPE(x)	\
+    (((x) >> S_CPL_TX_TLS_PDU_CUSTOMTYPE) & M_CPL_TX_TLS_PDU_CUSTOMTYPE)
+
+#define S_CPL_TX_TLS_PDU_CUSTOMPROTOVER	8
+#define M_CPL_TX_TLS_PDU_CUSTOMPROTOVER	0xffff
+#define V_CPL_TX_TLS_PDU_CUSTOMPROTOVER(x) \
+    ((x) << S_CPL_TX_TLS_PDU_CUSTOMPROTOVER)
+#define G_CPL_TX_TLS_PDU_CUSTOMPROTOVER(x) \
+    (((x) >> S_CPL_TX_TLS_PDU_CUSTOMPROTOVER) & \
+     M_CPL_TX_TLS_PDU_CUSTOMPROTOVER)
 
 struct cpl_tx_tls_sfo {
 	__be32 op_to_seg_len;
@@ -3222,6 +5187,12 @@ struct cpl_tx_tls_sfo {
 #define V_CPL_TX_TLS_SFO_SEG_LEN(x)     ((x) << S_CPL_TX_TLS_SFO_SEG_LEN)
 #define G_CPL_TX_TLS_SFO_SEG_LEN(x)     \
 	(((x) >> S_CPL_TX_TLS_SFO_SEG_LEN) & M_CPL_TX_TLS_SFO_SEG_LEN)
+
+#define S_CPL_TX_TLS_SFO_PLDLEN		0
+#define M_CPL_TX_TLS_SFO_PLDLEN		0xfffff
+#define V_CPL_TX_TLS_SFO_PLDLEN(x)	((x) << S_CPL_TX_TLS_SFO_PLDLEN)
+#define G_CPL_TX_TLS_SFO_PLDLEN(x)	\
+    (((x) >> S_CPL_TX_TLS_SFO_PLDLEN) & M_CPL_TX_TLS_SFO_PLDLEN)
 
 #define S_CPL_TX_TLS_SFO_TYPE           24
 #define M_CPL_TX_TLS_SFO_TYPE           0xff
@@ -3454,6 +5425,119 @@ struct cpl_rx_tls_cmp {
 #define G_SCMD_HDR_LEN(x)   \
 	(((x) >> S_SCMD_HDR_LEN) & M_SCMD_HDR_LEN)
 
+struct cpl_rx_pkt_ipsec {
+	RSS_HDR
+	union opcode_tid ot;
+	__be16 vlan;
+	__be16 length;
+	__be32 rxchannel_to_ethhdrlen;
+	__be32 iphdrlen_to_rxerror;
+	__be64 timestamp;
+};
+
+#define S_CPL_RX_PKT_IPSEC_OPCODE	24
+#define M_CPL_RX_PKT_IPSEC_OPCODE	0xff
+#define V_CPL_RX_PKT_IPSEC_OPCODE(x)	((x) << S_CPL_RX_PKT_IPSEC_OPCODE)
+#define G_CPL_RX_PKT_IPSEC_OPCODE(x)	\
+    (((x) >> S_CPL_RX_PKT_IPSEC_OPCODE) & M_CPL_RX_PKT_IPSEC_OPCODE)
+
+#define S_CPL_RX_PKT_IPSEC_IPFRAG	23
+#define M_CPL_RX_PKT_IPSEC_IPFRAG	0x1
+#define V_CPL_RX_PKT_IPSEC_IPFRAG(x)	((x) << S_CPL_RX_PKT_IPSEC_IPFRAG)
+#define G_CPL_RX_PKT_IPSEC_IPFRAG(x)	\
+    (((x) >> S_CPL_RX_PKT_IPSEC_IPFRAG) & M_CPL_RX_PKT_IPSEC_IPFRAG)
+#define F_CPL_RX_PKT_IPSEC_IPFRAG	V_CPL_RX_PKT_IPSEC_IPFRAG(1U)
+
+#define S_CPL_RX_PKT_IPSEC_VLAN_EX	22
+#define M_CPL_RX_PKT_IPSEC_VLAN_EX	0x1
+#define V_CPL_RX_PKT_IPSEC_VLAN_EX(x)	((x) << S_CPL_RX_PKT_IPSEC_VLAN_EX)
+#define G_CPL_RX_PKT_IPSEC_VLAN_EX(x)	\
+    (((x) >> S_CPL_RX_PKT_IPSEC_VLAN_EX) & M_CPL_RX_PKT_IPSEC_VLAN_EX)
+#define F_CPL_RX_PKT_IPSEC_VLAN_EX	V_CPL_RX_PKT_IPSEC_VLAN_EX(1U)
+
+#define S_CPL_RX_PKT_IPSEC_IPMI		21
+#define M_CPL_RX_PKT_IPSEC_IPMI		0x1
+#define V_CPL_RX_PKT_IPSEC_IPMI(x)	((x) << S_CPL_RX_PKT_IPSEC_IPMI)
+#define G_CPL_RX_PKT_IPSEC_IPMI(x)	\
+    (((x) >> S_CPL_RX_PKT_IPSEC_IPMI) & M_CPL_RX_PKT_IPSEC_IPMI)
+#define F_CPL_RX_PKT_IPSEC_IPMI		V_CPL_RX_PKT_IPSEC_IPMI(1U)
+
+#define S_CPL_RX_PKT_IPSEC_INTERFACE	16
+#define M_CPL_RX_PKT_IPSEC_INTERFACE	0xf
+#define V_CPL_RX_PKT_IPSEC_INTERFACE(x)	((x) << S_CPL_RX_PKT_IPSEC_INTERFACE)
+#define G_CPL_RX_PKT_IPSEC_INTERFACE(x)	\
+    (((x) >> S_CPL_RX_PKT_IPSEC_INTERFACE) & M_CPL_RX_PKT_IPSEC_INTERFACE)
+
+#define S_CPL_RX_PKT_IPSEC_IPSECEXTERR	12
+#define M_CPL_RX_PKT_IPSEC_IPSECEXTERR	0xf
+#define V_CPL_RX_PKT_IPSEC_IPSECEXTERR(x) \
+    ((x) << S_CPL_RX_PKT_IPSEC_IPSECEXTERR)
+#define G_CPL_RX_PKT_IPSEC_IPSECEXTERR(x) \
+    (((x) >> S_CPL_RX_PKT_IPSEC_IPSECEXTERR) & M_CPL_RX_PKT_IPSEC_IPSECEXTERR)
+
+#define S_CPL_RX_PKT_IPSEC_IPSECTYPE	10
+#define M_CPL_RX_PKT_IPSEC_IPSECTYPE	0x3
+#define V_CPL_RX_PKT_IPSEC_IPSECTYPE(x)	((x) << S_CPL_RX_PKT_IPSEC_IPSECTYPE)
+#define G_CPL_RX_PKT_IPSEC_IPSECTYPE(x)	\
+    (((x) >> S_CPL_RX_PKT_IPSEC_IPSECTYPE) & M_CPL_RX_PKT_IPSEC_IPSECTYPE)
+
+#define S_CPL_RX_PKT_IPSEC_OUTIPHDRLEN	0
+#define M_CPL_RX_PKT_IPSEC_OUTIPHDRLEN	0x3ff
+#define V_CPL_RX_PKT_IPSEC_OUTIPHDRLEN(x) \
+    ((x) << S_CPL_RX_PKT_IPSEC_OUTIPHDRLEN)
+#define G_CPL_RX_PKT_IPSEC_OUTIPHDRLEN(x) \
+    (((x) >> S_CPL_RX_PKT_IPSEC_OUTIPHDRLEN) & M_CPL_RX_PKT_IPSEC_OUTIPHDRLEN)
+
+#define S_CPL_RX_PKT_IPSEC_RXCHANNEL	28
+#define M_CPL_RX_PKT_IPSEC_RXCHANNEL	0xf
+#define V_CPL_RX_PKT_IPSEC_RXCHANNEL(x)	((x) << S_CPL_RX_PKT_IPSEC_RXCHANNEL)
+#define G_CPL_RX_PKT_IPSEC_RXCHANNEL(x)	\
+    (((x) >> S_CPL_RX_PKT_IPSEC_RXCHANNEL) & M_CPL_RX_PKT_IPSEC_RXCHANNEL)
+
+#define S_CPL_RX_PKT_IPSEC_FLAGS	20
+#define M_CPL_RX_PKT_IPSEC_FLAGS	0xff
+#define V_CPL_RX_PKT_IPSEC_FLAGS(x)	((x) << S_CPL_RX_PKT_IPSEC_FLAGS)
+#define G_CPL_RX_PKT_IPSEC_FLAGS(x)	\
+    (((x) >> S_CPL_RX_PKT_IPSEC_FLAGS) & M_CPL_RX_PKT_IPSEC_FLAGS)
+
+#define S_CPL_RX_PKT_IPSEC_MACMATCHTYPE	17
+#define M_CPL_RX_PKT_IPSEC_MACMATCHTYPE	0x7
+#define V_CPL_RX_PKT_IPSEC_MACMATCHTYPE(x) \
+    ((x) << S_CPL_RX_PKT_IPSEC_MACMATCHTYPE)
+#define G_CPL_RX_PKT_IPSEC_MACMATCHTYPE(x) \
+    (((x) >> S_CPL_RX_PKT_IPSEC_MACMATCHTYPE) & \
+     M_CPL_RX_PKT_IPSEC_MACMATCHTYPE)
+
+#define S_CPL_RX_PKT_IPSEC_MACINDEX	8
+#define M_CPL_RX_PKT_IPSEC_MACINDEX	0x1ff
+#define V_CPL_RX_PKT_IPSEC_MACINDEX(x)	((x) << S_CPL_RX_PKT_IPSEC_MACINDEX)
+#define G_CPL_RX_PKT_IPSEC_MACINDEX(x)	\
+    (((x) >> S_CPL_RX_PKT_IPSEC_MACINDEX) & M_CPL_RX_PKT_IPSEC_MACINDEX)
+
+#define S_CPL_RX_PKT_IPSEC_ETHHDRLEN	0
+#define M_CPL_RX_PKT_IPSEC_ETHHDRLEN	0xff
+#define V_CPL_RX_PKT_IPSEC_ETHHDRLEN(x)	((x) << S_CPL_RX_PKT_IPSEC_ETHHDRLEN)
+#define G_CPL_RX_PKT_IPSEC_ETHHDRLEN(x)	\
+    (((x) >> S_CPL_RX_PKT_IPSEC_ETHHDRLEN) & M_CPL_RX_PKT_IPSEC_ETHHDRLEN)
+
+#define S_CPL_RX_PKT_IPSEC_IPHDRLEN	22
+#define M_CPL_RX_PKT_IPSEC_IPHDRLEN	0x3ff
+#define V_CPL_RX_PKT_IPSEC_IPHDRLEN(x)	((x) << S_CPL_RX_PKT_IPSEC_IPHDRLEN)
+#define G_CPL_RX_PKT_IPSEC_IPHDRLEN(x)	\
+    (((x) >> S_CPL_RX_PKT_IPSEC_IPHDRLEN) & M_CPL_RX_PKT_IPSEC_IPHDRLEN)
+
+#define S_CPL_RX_PKT_IPSEC_TCPHDRLEN	16
+#define M_CPL_RX_PKT_IPSEC_TCPHDRLEN	0x3f
+#define V_CPL_RX_PKT_IPSEC_TCPHDRLEN(x)	((x) << S_CPL_RX_PKT_IPSEC_TCPHDRLEN)
+#define G_CPL_RX_PKT_IPSEC_TCPHDRLEN(x)	\
+    (((x) >> S_CPL_RX_PKT_IPSEC_TCPHDRLEN) & M_CPL_RX_PKT_IPSEC_TCPHDRLEN)
+
+#define S_CPL_RX_PKT_IPSEC_RXERROR	0
+#define M_CPL_RX_PKT_IPSEC_RXERROR	0xffff
+#define V_CPL_RX_PKT_IPSEC_RXERROR(x)	((x) << S_CPL_RX_PKT_IPSEC_RXERROR)
+#define G_CPL_RX_PKT_IPSEC_RXERROR(x)	\
+    (((x) >> S_CPL_RX_PKT_IPSEC_RXERROR) & M_CPL_RX_PKT_IPSEC_RXERROR)
+
 struct cpl_tx_sec_pdu {
 	__be32 op_ivinsrtofst;
 	__be32 pldlen;
@@ -3478,6 +5562,13 @@ struct cpl_tx_sec_pdu {
 (((x) >> S_CPL_TX_SEC_PDU_RXCHID) & M_CPL_TX_SEC_PDU_RXCHID)
 #define F_CPL_TX_SEC_PDU_RXCHID  V_CPL_TX_SEC_PDU_RXCHID(1U)
 
+#define S_T7_CPL_TX_SEC_PDU_RXCHID  22
+#define M_T7_CPL_TX_SEC_PDU_RXCHID  0x3
+#define V_T7_CPL_TX_SEC_PDU_RXCHID(x)   ((x) << S_T7_CPL_TX_SEC_PDU_RXCHID)
+#define G_T7_CPL_TX_SEC_PDU_RXCHID(x)   \
+(((x) >> S_T7_CPL_TX_SEC_PDU_RXCHID) & M_T7_CPL_TX_SEC_PDU_RXCHID)
+#define F_T7_CPL_TX_SEC_PDU_RXCHID  V_T7_CPL_TX_SEC_PDU_RXCHID(1U)
+
 /* Ack Follows */
 #define S_CPL_TX_SEC_PDU_ACKFOLLOWS  21
 #define M_CPL_TX_SEC_PDU_ACKFOLLOWS  0x1
@@ -3501,6 +5592,13 @@ struct cpl_tx_sec_pdu {
 #define G_CPL_TX_SEC_PDU_CPLLEN(x)  \
 	(((x) >> S_CPL_TX_SEC_PDU_CPLLEN) & M_CPL_TX_SEC_PDU_CPLLEN)
 
+#define S_CPL_TX_SEC_PDU_ACKNEXT	15
+#define M_CPL_TX_SEC_PDU_ACKNEXT	0x1
+#define V_CPL_TX_SEC_PDU_ACKNEXT(x)	((x) << S_CPL_TX_SEC_PDU_ACKNEXT)
+#define G_CPL_TX_SEC_PDU_ACKNEXT(x)	\
+    (((x) >> S_CPL_TX_SEC_PDU_ACKNEXT) & M_CPL_TX_SEC_PDU_ACKNEXT)
+#define F_CPL_TX_SEC_PDU_ACKNEXT	V_CPL_TX_SEC_PDU_ACKNEXT(1U)
+
 /* PlaceHolder */
 #define S_CPL_TX_SEC_PDU_PLACEHOLDER    10
 #define M_CPL_TX_SEC_PDU_PLACEHOLDER    0x1
@@ -3516,6 +5614,12 @@ struct cpl_tx_sec_pdu {
 #define G_CPL_TX_SEC_PDU_IVINSRTOFST(x) \
 	(((x) >> S_CPL_TX_SEC_PDU_IVINSRTOFST) & \
 	 M_CPL_TX_SEC_PDU_IVINSRTOFST)
+
+#define S_CPL_TX_SEC_PDU_PLDLEN		0
+#define M_CPL_TX_SEC_PDU_PLDLEN		0xfffff
+#define V_CPL_TX_SEC_PDU_PLDLEN(x)	((x) << S_CPL_TX_SEC_PDU_PLDLEN)
+#define G_CPL_TX_SEC_PDU_PLDLEN(x)	\
+    (((x) >> S_CPL_TX_SEC_PDU_PLDLEN) & M_CPL_TX_SEC_PDU_PLDLEN)
 
 /* AadStartOffset: Offset in bytes for AAD start from
  * the first byte following
@@ -3666,6 +5770,62 @@ struct cpl_rx_phys_dsgl {
 	(((x) >> S_CPL_RX_PHYS_DSGL_NOOFSGENTR) & \
 	 M_CPL_RX_PHYS_DSGL_NOOFSGENTR)
 
+struct cpl_t7_rx_phys_dsgl {
+	RSS_HDR
+	union opcode_tid ot;
+	__be32 PhysAddrFields_lo_to_NumSGE;
+	__be32 RSSCopy[2];
+};
+
+#define S_CPL_T7_RX_PHYS_DSGL_PHYSADDRFIELDS_HI 0
+#define M_CPL_T7_RX_PHYS_DSGL_PHYSADDRFIELDS_HI 0xffffff
+#define V_CPL_T7_RX_PHYS_DSGL_PHYSADDRFIELDS_HI(x) \
+    ((x) << S_CPL_T7_RX_PHYS_DSGL_PHYSADDRFIELDS_HI)
+#define G_CPL_T7_RX_PHYS_DSGL_PHYSADDRFIELDS_HI(x) \
+    (((x) >> S_CPL_T7_RX_PHYS_DSGL_PHYSADDRFIELDS_HI) & \
+     M_CPL_T7_RX_PHYS_DSGL_PHYSADDRFIELDS_HI)
+
+#define S_CPL_T7_RX_PHYS_DSGL_PHYSADDRFIELDS_LO 16
+#define M_CPL_T7_RX_PHYS_DSGL_PHYSADDRFIELDS_LO 0xffff
+#define V_CPL_T7_RX_PHYS_DSGL_PHYSADDRFIELDS_LO(x) \
+    ((x) << S_CPL_T7_RX_PHYS_DSGL_PHYSADDRFIELDS_LO)
+#define G_CPL_T7_RX_PHYS_DSGL_PHYSADDRFIELDS_LO(x) \
+    (((x) >> S_CPL_T7_RX_PHYS_DSGL_PHYSADDRFIELDS_LO) & \
+     M_CPL_T7_RX_PHYS_DSGL_PHYSADDRFIELDS_LO)
+
+#define S_CPL_T7_RX_PHYS_DSGL_NUMSGEERR		11
+#define M_CPL_T7_RX_PHYS_DSGL_NUMSGEERR		0x1
+#define V_CPL_T7_RX_PHYS_DSGL_NUMSGEERR(x)	\
+    ((x) << S_CPL_T7_RX_PHYS_DSGL_NUMSGEERR)
+#define G_CPL_T7_RX_PHYS_DSGL_NUMSGEERR(x)	\
+    (((x) >> S_CPL_T7_RX_PHYS_DSGL_NUMSGEERR) & M_CPL_T7_RX_PHYS_DSGL_NUMSGEERR)
+#define F_CPL_T7_RX_PHYS_DSGL_NUMSGEERR	V_CPL_T7_RX_PHYS_DSGL_NUMSGEERR(1U)
+
+#define S_CPL_T7_RX_PHYS_DSGL_FIXEDSGEMODE	10
+#define M_CPL_T7_RX_PHYS_DSGL_FIXEDSGEMODE	0x1
+#define V_CPL_T7_RX_PHYS_DSGL_FIXEDSGEMODE(x)	\
+    ((x) << S_CPL_T7_RX_PHYS_DSGL_FIXEDSGEMODE)
+#define G_CPL_T7_RX_PHYS_DSGL_FIXEDSGEMODE(x)	\
+    (((x) >> S_CPL_T7_RX_PHYS_DSGL_FIXEDSGEMODE) & \
+     M_CPL_T7_RX_PHYS_DSGL_FIXEDSGEMODE)
+#define F_CPL_T7_RX_PHYS_DSGL_FIXEDSGEMODE	\
+    V_CPL_T7_RX_PHYS_DSGL_FIXEDSGEMODE(1U)
+
+#define S_CPL_T7_RX_PHYS_DSGL_SPLITMODE		9
+#define M_CPL_T7_RX_PHYS_DSGL_SPLITMODE		0x1
+#define V_CPL_T7_RX_PHYS_DSGL_SPLITMODE(x)	\
+    ((x) << S_CPL_T7_RX_PHYS_DSGL_SPLITMODE)
+#define G_CPL_T7_RX_PHYS_DSGL_SPLITMODE(x)	\
+    (((x) >> S_CPL_T7_RX_PHYS_DSGL_SPLITMODE) & M_CPL_T7_RX_PHYS_DSGL_SPLITMODE)
+#define F_CPL_T7_RX_PHYS_DSGL_SPLITMODE		\
+    V_CPL_T7_RX_PHYS_DSGL_SPLITMODE(1U)
+
+#define S_CPL_T7_RX_PHYS_DSGL_NUMSGE	0
+#define M_CPL_T7_RX_PHYS_DSGL_NUMSGE	0x1ff
+#define V_CPL_T7_RX_PHYS_DSGL_NUMSGE(x)	((x) << S_CPL_T7_RX_PHYS_DSGL_NUMSGE)
+#define G_CPL_T7_RX_PHYS_DSGL_NUMSGE(x)	\
+    (((x) >> S_CPL_T7_RX_PHYS_DSGL_NUMSGE) & M_CPL_T7_RX_PHYS_DSGL_NUMSGE)
+
 /* CPL_TX_TLS_ACK */
 struct cpl_tx_tls_ack {
         __be32 op_to_Rsvd2;
@@ -3679,12 +5839,11 @@ struct cpl_tx_tls_ack {
 #define G_CPL_TX_TLS_ACK_OPCODE(x)      \
     (((x) >> S_CPL_TX_TLS_ACK_OPCODE) & M_CPL_TX_TLS_ACK_OPCODE)
 
-#define S_CPL_TX_TLS_ACK_RSVD1          23
-#define M_CPL_TX_TLS_ACK_RSVD1          0x1
-#define V_CPL_TX_TLS_ACK_RSVD1(x)       ((x) << S_CPL_TX_TLS_ACK_RSVD1)
-#define G_CPL_TX_TLS_ACK_RSVD1(x)       \
-    (((x) >> S_CPL_TX_TLS_ACK_RSVD1) & M_CPL_TX_TLS_ACK_RSVD1)
-#define F_CPL_TX_TLS_ACK_RSVD1  V_CPL_TX_TLS_ACK_RSVD1(1U)
+#define S_T7_CPL_TX_TLS_ACK_RXCHID		22
+#define M_T7_CPL_TX_TLS_ACK_RXCHID		0x3
+#define V_T7_CPL_TX_TLS_ACK_RXCHID(x)	((x) << S_T7_CPL_TX_TLS_ACK_RXCHID)
+#define G_T7_CPL_TX_TLS_ACK_RXCHID(x)	\
+    (((x) >> S_T7_CPL_TX_TLS_ACK_RXCHID) & M_T7_CPL_TX_TLS_ACK_RXCHID)
 
 #define S_CPL_TX_TLS_ACK_RXCHID         22
 #define M_CPL_TX_TLS_ACK_RXCHID         0x1
@@ -3739,5 +5898,823 @@ struct cpl_tx_tls_ack {
 #define V_CPL_TX_TLS_ACK_RSVD2(x)       ((x) << S_CPL_TX_TLS_ACK_RSVD2)
 #define G_CPL_TX_TLS_ACK_RSVD2(x)       \
     (((x) >> S_CPL_TX_TLS_ACK_RSVD2) & M_CPL_TX_TLS_ACK_RSVD2)
+
+#define S_CPL_TX_TLS_ACK_PLDLEN		0
+#define M_CPL_TX_TLS_ACK_PLDLEN		0xfffff
+#define V_CPL_TX_TLS_ACK_PLDLEN(x)	((x) << S_CPL_TX_TLS_ACK_PLDLEN)
+#define G_CPL_TX_TLS_ACK_PLDLEN(x)	\
+    (((x) >> S_CPL_TX_TLS_ACK_PLDLEN) & M_CPL_TX_TLS_ACK_PLDLEN)
+
+struct cpl_rcb_upd {
+	__be32 op_to_tid;
+	__be32 opcode_psn;
+	__u8   nodata_to_cnprepclr;
+	__u8   r0;
+	__be16 wrptr;
+	__be32 length;
+};
+
+#define S_CPL_RCB_UPD_OPCODE		24
+#define M_CPL_RCB_UPD_OPCODE		0xff
+#define V_CPL_RCB_UPD_OPCODE(x)		((x) << S_CPL_RCB_UPD_OPCODE)
+#define G_CPL_RCB_UPD_OPCODE(x)		\
+    (((x) >> S_CPL_RCB_UPD_OPCODE) & M_CPL_RCB_UPD_OPCODE)
+
+#define S_CPL_RCB_UPD_TID		0
+#define M_CPL_RCB_UPD_TID		0xffffff
+#define V_CPL_RCB_UPD_TID(x)		((x) << S_CPL_RCB_UPD_TID)
+#define G_CPL_RCB_UPD_TID(x)		\
+    (((x) >> S_CPL_RCB_UPD_TID) & M_CPL_RCB_UPD_TID)
+
+#define S_CPL_RCB_UPD_OPCODE		24
+#define M_CPL_RCB_UPD_OPCODE		0xff
+#define V_CPL_RCB_UPD_OPCODE(x)		((x) << S_CPL_RCB_UPD_OPCODE)
+#define G_CPL_RCB_UPD_OPCODE(x)		\
+    (((x) >> S_CPL_RCB_UPD_OPCODE) & M_CPL_RCB_UPD_OPCODE)
+
+#define S_CPL_RCB_UPD_PSN		0
+#define M_CPL_RCB_UPD_PSN		0xffffff
+#define V_CPL_RCB_UPD_PSN(x)		((x) << S_CPL_RCB_UPD_PSN)
+#define G_CPL_RCB_UPD_PSN(x)		\
+    (((x) >> S_CPL_RCB_UPD_PSN) & M_CPL_RCB_UPD_PSN)
+
+#define S_CPL_RCB_UPD_NODATA		7
+#define M_CPL_RCB_UPD_NODATA		0x1
+#define V_CPL_RCB_UPD_NODATA(x)		((x) << S_CPL_RCB_UPD_NODATA)
+#define G_CPL_RCB_UPD_NODATA(x)		\
+    (((x) >> S_CPL_RCB_UPD_NODATA) & M_CPL_RCB_UPD_NODATA)
+#define F_CPL_RCB_UPD_NODATA		V_CPL_RCB_UPD_NODATA(1U)
+
+#define S_CPL_RCB_UPD_RTTSTAMP		6
+#define M_CPL_RCB_UPD_RTTSTAMP		0x1
+#define V_CPL_RCB_UPD_RTTSTAMP(x)	((x) << S_CPL_RCB_UPD_RTTSTAMP)
+#define G_CPL_RCB_UPD_RTTSTAMP(x)	\
+    (((x) >> S_CPL_RCB_UPD_RTTSTAMP) & M_CPL_RCB_UPD_RTTSTAMP)
+#define F_CPL_RCB_UPD_RTTSTAMP		V_CPL_RCB_UPD_RTTSTAMP(1U)
+
+#define S_CPL_RCB_UPD_ECNREPCLR		5
+#define M_CPL_RCB_UPD_ECNREPCLR		0x1
+#define V_CPL_RCB_UPD_ECNREPCLR(x)	((x) << S_CPL_RCB_UPD_ECNREPCLR)
+#define G_CPL_RCB_UPD_ECNREPCLR(x)	\
+    (((x) >> S_CPL_RCB_UPD_ECNREPCLR) & M_CPL_RCB_UPD_ECNREPCLR)
+#define F_CPL_RCB_UPD_ECNREPCLR		V_CPL_RCB_UPD_ECNREPCLR(1U)
+
+#define S_CPL_RCB_UPD_NAKSEQCLR		4
+#define M_CPL_RCB_UPD_NAKSEQCLR		0x1
+#define V_CPL_RCB_UPD_NAKSEQCLR(x)	((x) << S_CPL_RCB_UPD_NAKSEQCLR)
+#define G_CPL_RCB_UPD_NAKSEQCLR(x)	\
+    (((x) >> S_CPL_RCB_UPD_NAKSEQCLR) & M_CPL_RCB_UPD_NAKSEQCLR)
+#define F_CPL_RCB_UPD_NAKSEQCLR		V_CPL_RCB_UPD_NAKSEQCLR(1U)
+
+#define S_CPL_RCB_UPD_QPERRSET		3
+#define M_CPL_RCB_UPD_QPERRSET		0x1
+#define V_CPL_RCB_UPD_QPERRSET(x)	((x) << S_CPL_RCB_UPD_QPERRSET)
+#define G_CPL_RCB_UPD_QPERRSET(x)	\
+    (((x) >> S_CPL_RCB_UPD_QPERRSET) & M_CPL_RCB_UPD_QPERRSET)
+#define F_CPL_RCB_UPD_QPERRSET		V_CPL_RCB_UPD_QPERRSET(1U)
+
+#define S_CPL_RCB_UPD_RRQUPDEN		2
+#define M_CPL_RCB_UPD_RRQUPDEN		0x1
+#define V_CPL_RCB_UPD_RRQUPDEN(x)	((x) << S_CPL_RCB_UPD_RRQUPDEN)
+#define G_CPL_RCB_UPD_RRQUPDEN(x)	\
+    (((x) >> S_CPL_RCB_UPD_RRQUPDEN) & M_CPL_RCB_UPD_RRQUPDEN)
+#define F_CPL_RCB_UPD_RRQUPDEN		V_CPL_RCB_UPD_RRQUPDEN(1U)
+
+#define S_CPL_RCB_UPD_RQUPDEN		1
+#define M_CPL_RCB_UPD_RQUPDEN		0x1
+#define V_CPL_RCB_UPD_RQUPDEN(x)	((x) << S_CPL_RCB_UPD_RQUPDEN)
+#define G_CPL_RCB_UPD_RQUPDEN(x)	\
+    (((x) >> S_CPL_RCB_UPD_RQUPDEN) & M_CPL_RCB_UPD_RQUPDEN)
+#define F_CPL_RCB_UPD_RQUPDEN		V_CPL_RCB_UPD_RQUPDEN(1U)
+
+#define S_CPL_RCB_UPD_CNPREPCLR		0
+#define M_CPL_RCB_UPD_CNPREPCLR		0x1
+#define V_CPL_RCB_UPD_CNPREPCLR(x)	((x) << S_CPL_RCB_UPD_CNPREPCLR)
+#define G_CPL_RCB_UPD_CNPREPCLR(x)	\
+    (((x) >> S_CPL_RCB_UPD_CNPREPCLR) & M_CPL_RCB_UPD_CNPREPCLR)
+#define F_CPL_RCB_UPD_CNPREPCLR		V_CPL_RCB_UPD_CNPREPCLR(1U)
+
+#define S_CPL_RCB_UPD_RSPNAKSEQCLR	7
+#define M_CPL_RCB_UPD_RSPNAKSEQCLR	0x1
+#define V_CPL_RCB_UPD_RSPNAKSEQCLR(x)	((x) << S_CPL_RCB_UPD_RSPNAKSEQCLR)
+#define G_CPL_RCB_UPD_RSPNAKSEQCLR(x)	\
+    (((x) >> S_CPL_RCB_UPD_RSPNAKSEQCLR) & M_CPL_RCB_UPD_RSPNAKSEQCLR)
+#define F_CPL_RCB_UPD_RSPNAKSEQCLR	V_CPL_RCB_UPD_RSPNAKSEQCLR(1U)
+
+struct cpl_roce_fw_notify {
+	RSS_HDR
+	union opcode_tid ot;
+	__be32 type_pkd;
+};
+
+#define S_CPL_ROCE_FW_NOTIFY_OPCODE	24
+#define M_CPL_ROCE_FW_NOTIFY_OPCODE	0xff
+#define V_CPL_ROCE_FW_NOTIFY_OPCODE(x)	((x) << S_CPL_ROCE_FW_NOTIFY_OPCODE)
+#define G_CPL_ROCE_FW_NOTIFY_OPCODE(x)	\
+    (((x) >> S_CPL_ROCE_FW_NOTIFY_OPCODE) & M_CPL_ROCE_FW_NOTIFY_OPCODE)
+
+#define S_CPL_ROCE_FW_NOTIFY_TID	0
+#define M_CPL_ROCE_FW_NOTIFY_TID	0xffffff
+#define V_CPL_ROCE_FW_NOTIFY_TID(x)	((x) << S_CPL_ROCE_FW_NOTIFY_TID)
+#define G_CPL_ROCE_FW_NOTIFY_TID(x)	\
+    (((x) >> S_CPL_ROCE_FW_NOTIFY_TID) & M_CPL_ROCE_FW_NOTIFY_TID)
+
+#define S_CPL_ROCE_FW_NOTIFY_TYPE	28
+#define M_CPL_ROCE_FW_NOTIFY_TYPE	0xf
+#define V_CPL_ROCE_FW_NOTIFY_TYPE(x)	((x) << S_CPL_ROCE_FW_NOTIFY_TYPE)
+#define G_CPL_ROCE_FW_NOTIFY_TYPE(x)	\
+    (((x) >> S_CPL_ROCE_FW_NOTIFY_TYPE) & M_CPL_ROCE_FW_NOTIFY_TYPE)
+
+struct cpl_roce_ack_nak_req {
+	RSS_HDR
+	union opcode_tid ot;
+	__be16 type_to_opcode;
+	__be16 length;
+	__be32 psn_msn_hi;
+	__be32 msn_lo_pkd;
+};
+
+#define S_CPL_ROCE_ACK_NAK_REQ_OPCODE	24
+#define M_CPL_ROCE_ACK_NAK_REQ_OPCODE	0xff
+#define V_CPL_ROCE_ACK_NAK_REQ_OPCODE(x) \
+    ((x) << S_CPL_ROCE_ACK_NAK_REQ_OPCODE)
+#define G_CPL_ROCE_ACK_NAK_REQ_OPCODE(x) \
+    (((x) >> S_CPL_ROCE_ACK_NAK_REQ_OPCODE) & M_CPL_ROCE_ACK_NAK_REQ_OPCODE)
+
+#define S_CPL_ROCE_ACK_NAK_REQ_TID	0
+#define M_CPL_ROCE_ACK_NAK_REQ_TID	0xffffff
+#define V_CPL_ROCE_ACK_NAK_REQ_TID(x)	((x) << S_CPL_ROCE_ACK_NAK_REQ_TID)
+#define G_CPL_ROCE_ACK_NAK_REQ_TID(x)	\
+    (((x) >> S_CPL_ROCE_ACK_NAK_REQ_TID) & M_CPL_ROCE_ACK_NAK_REQ_TID)
+
+#define S_CPL_ROCE_ACK_NAK_REQ_TYPE	12
+#define M_CPL_ROCE_ACK_NAK_REQ_TYPE	0xf
+#define V_CPL_ROCE_ACK_NAK_REQ_TYPE(x)	((x) << S_CPL_ROCE_ACK_NAK_REQ_TYPE)
+#define G_CPL_ROCE_ACK_NAK_REQ_TYPE(x)	\
+    (((x) >> S_CPL_ROCE_ACK_NAK_REQ_TYPE) & M_CPL_ROCE_ACK_NAK_REQ_TYPE)
+
+#define S_CPL_ROCE_ACK_NAK_REQ_STATUS	8
+#define M_CPL_ROCE_ACK_NAK_REQ_STATUS	0xf
+#define V_CPL_ROCE_ACK_NAK_REQ_STATUS(x) \
+    ((x) << S_CPL_ROCE_ACK_NAK_REQ_STATUS)
+#define G_CPL_ROCE_ACK_NAK_REQ_STATUS(x) \
+    (((x) >> S_CPL_ROCE_ACK_NAK_REQ_STATUS) & M_CPL_ROCE_ACK_NAK_REQ_STATUS)
+
+#define S_CPL_ROCE_ACK_NAK_REQ_WIRE_OPCODE	0
+#define M_CPL_ROCE_ACK_NAK_REQ_WIRE_OPCODE	0xff
+#define V_CPL_ROCE_ACK_NAK_REQ_WIRE_OPCODE(x) \
+    ((x) << S_CPL_ROCE_ACK_NAK_REQ_WIRE_OPCODE)
+#define G_CPL_ROCE_ACK_NAK_REQ_WIRE_OPCODE(x) \
+    (((x) >> S_CPL_ROCE_ACK_NAK_REQ_WIRE_OPCODE) & M_CPL_ROCE_ACK_NAK_REQ_WIRE_OPCODE)
+
+#define S_CPL_ROCE_ACK_NAK_REQ_PSN	8
+#define M_CPL_ROCE_ACK_NAK_REQ_PSN	0xffffff
+#define V_CPL_ROCE_ACK_NAK_REQ_PSN(x)	((x) << S_CPL_ROCE_ACK_NAK_REQ_PSN)
+#define G_CPL_ROCE_ACK_NAK_REQ_PSN(x)	\
+    (((x) >> S_CPL_ROCE_ACK_NAK_REQ_PSN) & M_CPL_ROCE_ACK_NAK_REQ_PSN)
+
+#define S_CPL_ROCE_ACK_NAK_REQ_MSN_HI	0
+#define M_CPL_ROCE_ACK_NAK_REQ_MSN_HI	0xff
+#define V_CPL_ROCE_ACK_NAK_REQ_MSN_HI(x) \
+    ((x) << S_CPL_ROCE_ACK_NAK_REQ_MSN_HI)
+#define G_CPL_ROCE_ACK_NAK_REQ_MSN_HI(x) \
+    (((x) >> S_CPL_ROCE_ACK_NAK_REQ_MSN_HI) & M_CPL_ROCE_ACK_NAK_REQ_MSN_HI)
+
+#define S_CPL_ROCE_ACK_NAK_REQ_MSN_LO	16
+#define M_CPL_ROCE_ACK_NAK_REQ_MSN_LO	0xffff
+#define V_CPL_ROCE_ACK_NAK_REQ_MSN_LO(x) \
+    ((x) << S_CPL_ROCE_ACK_NAK_REQ_MSN_LO)
+#define G_CPL_ROCE_ACK_NAK_REQ_MSN_LO(x) \
+    (((x) >> S_CPL_ROCE_ACK_NAK_REQ_MSN_LO) & M_CPL_ROCE_ACK_NAK_REQ_MSN_LO)
+
+struct cpl_roce_ack_nak {
+	RSS_HDR
+	union opcode_tid ot;
+	__be16 type_to_opcode;
+	__be16 length;
+	__be32 psn_rtt_hi;
+	__be32 rtt_lo_to_rttbad;
+};
+
+#define S_CPL_ROCE_ACK_NAK_OPCODE	24
+#define M_CPL_ROCE_ACK_NAK_OPCODE	0xff
+#define V_CPL_ROCE_ACK_NAK_OPCODE(x)	((x) << S_CPL_ROCE_ACK_NAK_OPCODE)
+#define G_CPL_ROCE_ACK_NAK_OPCODE(x)	\
+    (((x) >> S_CPL_ROCE_ACK_NAK_OPCODE) & M_CPL_ROCE_ACK_NAK_OPCODE)
+
+#define S_CPL_ROCE_ACK_NAK_TID		0
+#define M_CPL_ROCE_ACK_NAK_TID		0xffffff
+#define V_CPL_ROCE_ACK_NAK_TID(x)	((x) << S_CPL_ROCE_ACK_NAK_TID)
+#define G_CPL_ROCE_ACK_NAK_TID(x)	\
+    (((x) >> S_CPL_ROCE_ACK_NAK_TID) & M_CPL_ROCE_ACK_NAK_TID)
+
+#define S_CPL_ROCE_ACK_NAK_TYPE		12
+#define M_CPL_ROCE_ACK_NAK_TYPE		0xf
+#define V_CPL_ROCE_ACK_NAK_TYPE(x)	((x) << S_CPL_ROCE_ACK_NAK_TYPE)
+#define G_CPL_ROCE_ACK_NAK_TYPE(x)	\
+    (((x) >> S_CPL_ROCE_ACK_NAK_TYPE) & M_CPL_ROCE_ACK_NAK_TYPE)
+
+#define S_CPL_ROCE_ACK_NAK_STATUS	8
+#define M_CPL_ROCE_ACK_NAK_STATUS	0xf
+#define V_CPL_ROCE_ACK_NAK_STATUS(x)	((x) << S_CPL_ROCE_ACK_NAK_STATUS)
+#define G_CPL_ROCE_ACK_NAK_STATUS(x)	\
+    (((x) >> S_CPL_ROCE_ACK_NAK_STATUS) & M_CPL_ROCE_ACK_NAK_STATUS)
+
+#define S_CPL_ROCE_ACK_NAK_WIRE_OPCODE	0
+#define M_CPL_ROCE_ACK_NAK_WIRE_OPCODE	0xff
+#define V_CPL_ROCE_ACK_NAK_WIRE_OPCODE(x)	((x) << S_CPL_ROCE_ACK_NAK_WIRE_OPCODE)
+#define G_CPL_ROCE_ACK_NAK_WIRE_OPCODE(x)	\
+    (((x) >> S_CPL_ROCE_ACK_NAK_WIRE_OPCODE) & M_CPL_ROCE_ACK_NAK_WIRE_OPCODE)
+
+#define S_CPL_ROCE_ACK_NAK_PSN		8
+#define M_CPL_ROCE_ACK_NAK_PSN		0xffffff
+#define V_CPL_ROCE_ACK_NAK_PSN(x)	((x) << S_CPL_ROCE_ACK_NAK_PSN)
+#define G_CPL_ROCE_ACK_NAK_PSN(x)	\
+    (((x) >> S_CPL_ROCE_ACK_NAK_PSN) & M_CPL_ROCE_ACK_NAK_PSN)
+
+#define S_CPL_ROCE_ACK_NAK_RTT_HI	0
+#define M_CPL_ROCE_ACK_NAK_RTT_HI	0xff
+#define V_CPL_ROCE_ACK_NAK_RTT_HI(x)	((x) << S_CPL_ROCE_ACK_NAK_RTT_HI)
+#define G_CPL_ROCE_ACK_NAK_RTT_HI(x)	\
+    (((x) >> S_CPL_ROCE_ACK_NAK_RTT_HI) & M_CPL_ROCE_ACK_NAK_RTT_HI)
+
+#define S_CPL_ROCE_ACK_NAK_RTT_LO	24
+#define M_CPL_ROCE_ACK_NAK_RTT_LO	0xff
+#define V_CPL_ROCE_ACK_NAK_RTT_LO(x)	((x) << S_CPL_ROCE_ACK_NAK_RTT_LO)
+#define G_CPL_ROCE_ACK_NAK_RTT_LO(x)	\
+    (((x) >> S_CPL_ROCE_ACK_NAK_RTT_LO) & M_CPL_ROCE_ACK_NAK_RTT_LO)
+
+#define S_CPL_ROCE_ACK_NAK_RTTVALID	23
+#define M_CPL_ROCE_ACK_NAK_RTTVALID	0x1
+#define V_CPL_ROCE_ACK_NAK_RTTVALID(x)	((x) << S_CPL_ROCE_ACK_NAK_RTTVALID)
+#define G_CPL_ROCE_ACK_NAK_RTTVALID(x)	\
+    (((x) >> S_CPL_ROCE_ACK_NAK_RTTVALID) & M_CPL_ROCE_ACK_NAK_RTTVALID)
+#define F_CPL_ROCE_ACK_NAK_RTTVALID	V_CPL_ROCE_ACK_NAK_RTTVALID(1U)
+
+#define S_CPL_ROCE_ACK_NAK_RTTBAD	22
+#define M_CPL_ROCE_ACK_NAK_RTTBAD	0x1
+#define V_CPL_ROCE_ACK_NAK_RTTBAD(x)	((x) << S_CPL_ROCE_ACK_NAK_RTTBAD)
+#define G_CPL_ROCE_ACK_NAK_RTTBAD(x)	\
+    (((x) >> S_CPL_ROCE_ACK_NAK_RTTBAD) & M_CPL_ROCE_ACK_NAK_RTTBAD)
+#define F_CPL_ROCE_ACK_NAK_RTTBAD	V_CPL_ROCE_ACK_NAK_RTTBAD(1U)
+
+struct cpl_roce_cqe {
+	__be16 op_rssctrl;
+	__be16 cqid;
+	__be32 tid_flitcnt;
+	__be32 qpid_to_wr_type;
+	__be32 length;
+	__be32 tag;
+	__be32 msn;
+	__be32 se_to_srq;
+	__be32 rqe;
+	__be32 extinfoms[2];
+	__be32 extinfols[2];
+};
+
+#define S_CPL_ROCE_CQE_OPCODE		8
+#define M_CPL_ROCE_CQE_OPCODE		0xff
+#define V_CPL_ROCE_CQE_OPCODE(x)	((x) << S_CPL_ROCE_CQE_OPCODE)
+#define G_CPL_ROCE_CQE_OPCODE(x)	\
+    (((x) >> S_CPL_ROCE_CQE_OPCODE) & M_CPL_ROCE_CQE_OPCODE)
+
+#define S_CPL_ROCE_CQE_RSSCTRL		0
+#define M_CPL_ROCE_CQE_RSSCTRL		0xff
+#define V_CPL_ROCE_CQE_RSSCTRL(x)	((x) << S_CPL_ROCE_CQE_RSSCTRL)
+#define G_CPL_ROCE_CQE_RSSCTRL(x)	\
+    (((x) >> S_CPL_ROCE_CQE_RSSCTRL) & M_CPL_ROCE_CQE_RSSCTRL)
+
+#define S_CPL_ROCE_CQE_TID		8
+#define M_CPL_ROCE_CQE_TID		0xfffff
+#define V_CPL_ROCE_CQE_TID(x)		((x) << S_CPL_ROCE_CQE_TID)
+#define G_CPL_ROCE_CQE_TID(x)		\
+    (((x) >> S_CPL_ROCE_CQE_TID) & M_CPL_ROCE_CQE_TID)
+
+#define S_CPL_ROCE_CQE_FLITCNT		0
+#define M_CPL_ROCE_CQE_FLITCNT		0xff
+#define V_CPL_ROCE_CQE_FLITCNT(x)	((x) << S_CPL_ROCE_CQE_FLITCNT)
+#define G_CPL_ROCE_CQE_FLITCNT(x)	\
+    (((x) >> S_CPL_ROCE_CQE_FLITCNT) & M_CPL_ROCE_CQE_FLITCNT)
+
+#define S_CPL_ROCE_CQE_QPID		12
+#define M_CPL_ROCE_CQE_QPID		0xfffff
+#define V_CPL_ROCE_CQE_QPID(x)		((x) << S_CPL_ROCE_CQE_QPID)
+#define G_CPL_ROCE_CQE_QPID(x)		\
+    (((x) >> S_CPL_ROCE_CQE_QPID) & M_CPL_ROCE_CQE_QPID)
+
+#define S_CPL_ROCE_CQE_EXTMODE		11
+#define M_CPL_ROCE_CQE_EXTMODE		0x1
+#define V_CPL_ROCE_CQE_EXTMODE(x)	((x) << S_CPL_ROCE_CQE_EXTMODE)
+#define G_CPL_ROCE_CQE_EXTMODE(x)	\
+    (((x) >> S_CPL_ROCE_CQE_EXTMODE) & M_CPL_ROCE_CQE_EXTMODE)
+#define F_CPL_ROCE_CQE_EXTMODE		V_CPL_ROCE_CQE_EXTMODE(1U)
+
+#define S_CPL_ROCE_CQE_GENERATION_BIT	10
+#define M_CPL_ROCE_CQE_GENERATION_BIT	0x1
+#define V_CPL_ROCE_CQE_GENERATION_BIT(x) \
+    ((x) << S_CPL_ROCE_CQE_GENERATION_BIT)
+#define G_CPL_ROCE_CQE_GENERATION_BIT(x) \
+    (((x) >> S_CPL_ROCE_CQE_GENERATION_BIT) & M_CPL_ROCE_CQE_GENERATION_BIT)
+#define F_CPL_ROCE_CQE_GENERATION_BIT	V_CPL_ROCE_CQE_GENERATION_BIT(1U)
+
+#define S_CPL_ROCE_CQE_STATUS		5
+#define M_CPL_ROCE_CQE_STATUS		0x1f
+#define V_CPL_ROCE_CQE_STATUS(x)	((x) << S_CPL_ROCE_CQE_STATUS)
+#define G_CPL_ROCE_CQE_STATUS(x)	\
+    (((x) >> S_CPL_ROCE_CQE_STATUS) & M_CPL_ROCE_CQE_STATUS)
+
+#define S_CPL_ROCE_CQE_CQE_TYPE		4
+#define M_CPL_ROCE_CQE_CQE_TYPE		0x1
+#define V_CPL_ROCE_CQE_CQE_TYPE(x)	((x) << S_CPL_ROCE_CQE_CQE_TYPE)
+#define G_CPL_ROCE_CQE_CQE_TYPE(x)	\
+    (((x) >> S_CPL_ROCE_CQE_CQE_TYPE) & M_CPL_ROCE_CQE_CQE_TYPE)
+#define F_CPL_ROCE_CQE_CQE_TYPE		V_CPL_ROCE_CQE_CQE_TYPE(1U)
+
+#define S_CPL_ROCE_CQE_WR_TYPE		0
+#define M_CPL_ROCE_CQE_WR_TYPE		0xf
+#define V_CPL_ROCE_CQE_WR_TYPE(x)	((x) << S_CPL_ROCE_CQE_WR_TYPE)
+#define G_CPL_ROCE_CQE_WR_TYPE(x)	\
+    (((x) >> S_CPL_ROCE_CQE_WR_TYPE) & M_CPL_ROCE_CQE_WR_TYPE)
+
+#define S_CPL_ROCE_CQE_SE		31
+#define M_CPL_ROCE_CQE_SE		0x1
+#define V_CPL_ROCE_CQE_SE(x)		((x) << S_CPL_ROCE_CQE_SE)
+#define G_CPL_ROCE_CQE_SE(x)		\
+    (((x) >> S_CPL_ROCE_CQE_SE) & M_CPL_ROCE_CQE_SE)
+#define F_CPL_ROCE_CQE_SE		V_CPL_ROCE_CQE_SE(1U)
+
+#define S_CPL_ROCE_CQE_WR_TYPE_EXT	24
+#define M_CPL_ROCE_CQE_WR_TYPE_EXT	0x7f
+#define V_CPL_ROCE_CQE_WR_TYPE_EXT(x)	((x) << S_CPL_ROCE_CQE_WR_TYPE_EXT)
+#define G_CPL_ROCE_CQE_WR_TYPE_EXT(x)	\
+    (((x) >> S_CPL_ROCE_CQE_WR_TYPE_EXT) & M_CPL_ROCE_CQE_WR_TYPE_EXT)
+
+#define S_CPL_ROCE_CQE_SRQ		0
+#define M_CPL_ROCE_CQE_SRQ		0xfff
+#define V_CPL_ROCE_CQE_SRQ(x)		((x) << S_CPL_ROCE_CQE_SRQ)
+#define G_CPL_ROCE_CQE_SRQ(x)		\
+    (((x) >> S_CPL_ROCE_CQE_SRQ) & M_CPL_ROCE_CQE_SRQ)
+
+struct cpl_roce_cqe_fw {
+	__be32 op_to_cqid;
+	__be32 tid_flitcnt;
+	__be32 qpid_to_wr_type;
+	__be32 length;
+	__be32 tag;
+	__be32 msn;
+	__be32 se_to_srq;
+	__be32 rqe;
+	__be32 extinfoms[2];
+	__be32 extinfols[2];
+};
+
+#define S_CPL_ROCE_CQE_FW_OPCODE	24
+#define M_CPL_ROCE_CQE_FW_OPCODE	0xff
+#define V_CPL_ROCE_CQE_FW_OPCODE(x)	((x) << S_CPL_ROCE_CQE_FW_OPCODE)
+#define G_CPL_ROCE_CQE_FW_OPCODE(x)	\
+    (((x) >> S_CPL_ROCE_CQE_FW_OPCODE) & M_CPL_ROCE_CQE_FW_OPCODE)
+
+#define S_CPL_ROCE_CQE_FW_RSSCTRL	16
+#define M_CPL_ROCE_CQE_FW_RSSCTRL	0xff
+#define V_CPL_ROCE_CQE_FW_RSSCTRL(x)	((x) << S_CPL_ROCE_CQE_FW_RSSCTRL)
+#define G_CPL_ROCE_CQE_FW_RSSCTRL(x)	\
+    (((x) >> S_CPL_ROCE_CQE_FW_RSSCTRL) & M_CPL_ROCE_CQE_FW_RSSCTRL)
+
+#define S_CPL_ROCE_CQE_FW_CQID		0
+#define M_CPL_ROCE_CQE_FW_CQID		0xffff
+#define V_CPL_ROCE_CQE_FW_CQID(x)	((x) << S_CPL_ROCE_CQE_FW_CQID)
+#define G_CPL_ROCE_CQE_FW_CQID(x)	\
+    (((x) >> S_CPL_ROCE_CQE_FW_CQID) & M_CPL_ROCE_CQE_FW_CQID)
+
+#define S_CPL_ROCE_CQE_FW_TID		8
+#define M_CPL_ROCE_CQE_FW_TID		0xfffff
+#define V_CPL_ROCE_CQE_FW_TID(x)	((x) << S_CPL_ROCE_CQE_FW_TID)
+#define G_CPL_ROCE_CQE_FW_TID(x)	\
+    (((x) >> S_CPL_ROCE_CQE_FW_TID) & M_CPL_ROCE_CQE_FW_TID)
+
+#define S_CPL_ROCE_CQE_FW_FLITCNT	0
+#define M_CPL_ROCE_CQE_FW_FLITCNT	0xff
+#define V_CPL_ROCE_CQE_FW_FLITCNT(x)	((x) << S_CPL_ROCE_CQE_FW_FLITCNT)
+#define G_CPL_ROCE_CQE_FW_FLITCNT(x)	\
+    (((x) >> S_CPL_ROCE_CQE_FW_FLITCNT) & M_CPL_ROCE_CQE_FW_FLITCNT)
+
+#define S_CPL_ROCE_CQE_FW_QPID		12
+#define M_CPL_ROCE_CQE_FW_QPID		0xfffff
+#define V_CPL_ROCE_CQE_FW_QPID(x)	((x) << S_CPL_ROCE_CQE_FW_QPID)
+#define G_CPL_ROCE_CQE_FW_QPID(x)	\
+    (((x) >> S_CPL_ROCE_CQE_FW_QPID) & M_CPL_ROCE_CQE_FW_QPID)
+
+#define S_CPL_ROCE_CQE_FW_EXTMODE	11
+#define M_CPL_ROCE_CQE_FW_EXTMODE	0x1
+#define V_CPL_ROCE_CQE_FW_EXTMODE(x)	((x) << S_CPL_ROCE_CQE_FW_EXTMODE)
+#define G_CPL_ROCE_CQE_FW_EXTMODE(x)	\
+    (((x) >> S_CPL_ROCE_CQE_FW_EXTMODE) & M_CPL_ROCE_CQE_FW_EXTMODE)
+#define F_CPL_ROCE_CQE_FW_EXTMODE	V_CPL_ROCE_CQE_FW_EXTMODE(1U)
+
+#define S_CPL_ROCE_CQE_FW_GENERATION_BIT 10
+#define M_CPL_ROCE_CQE_FW_GENERATION_BIT 0x1
+#define V_CPL_ROCE_CQE_FW_GENERATION_BIT(x) \
+    ((x) << S_CPL_ROCE_CQE_FW_GENERATION_BIT)
+#define G_CPL_ROCE_CQE_FW_GENERATION_BIT(x) \
+    (((x) >> S_CPL_ROCE_CQE_FW_GENERATION_BIT) & \
+     M_CPL_ROCE_CQE_FW_GENERATION_BIT)
+#define F_CPL_ROCE_CQE_FW_GENERATION_BIT V_CPL_ROCE_CQE_FW_GENERATION_BIT(1U)
+
+#define S_CPL_ROCE_CQE_FW_STATUS	5
+#define M_CPL_ROCE_CQE_FW_STATUS	0x1f
+#define V_CPL_ROCE_CQE_FW_STATUS(x)	((x) << S_CPL_ROCE_CQE_FW_STATUS)
+#define G_CPL_ROCE_CQE_FW_STATUS(x)	\
+    (((x) >> S_CPL_ROCE_CQE_FW_STATUS) & M_CPL_ROCE_CQE_FW_STATUS)
+
+#define S_CPL_ROCE_CQE_FW_CQE_TYPE	4
+#define M_CPL_ROCE_CQE_FW_CQE_TYPE	0x1
+#define V_CPL_ROCE_CQE_FW_CQE_TYPE(x)	((x) << S_CPL_ROCE_CQE_FW_CQE_TYPE)
+#define G_CPL_ROCE_CQE_FW_CQE_TYPE(x)	\
+    (((x) >> S_CPL_ROCE_CQE_FW_CQE_TYPE) & M_CPL_ROCE_CQE_FW_CQE_TYPE)
+#define F_CPL_ROCE_CQE_FW_CQE_TYPE	V_CPL_ROCE_CQE_FW_CQE_TYPE(1U)
+
+#define S_CPL_ROCE_CQE_FW_WR_TYPE	0
+#define M_CPL_ROCE_CQE_FW_WR_TYPE	0xf
+#define V_CPL_ROCE_CQE_FW_WR_TYPE(x)	((x) << S_CPL_ROCE_CQE_FW_WR_TYPE)
+#define G_CPL_ROCE_CQE_FW_WR_TYPE(x)	\
+    (((x) >> S_CPL_ROCE_CQE_FW_WR_TYPE) & M_CPL_ROCE_CQE_FW_WR_TYPE)
+
+#define S_CPL_ROCE_CQE_FW_SE		31
+#define M_CPL_ROCE_CQE_FW_SE		0x1
+#define V_CPL_ROCE_CQE_FW_SE(x)		((x) << S_CPL_ROCE_CQE_FW_SE)
+#define G_CPL_ROCE_CQE_FW_SE(x)		\
+    (((x) >> S_CPL_ROCE_CQE_FW_SE) & M_CPL_ROCE_CQE_FW_SE)
+#define F_CPL_ROCE_CQE_FW_SE		V_CPL_ROCE_CQE_FW_SE(1U)
+
+#define S_CPL_ROCE_CQE_FW_WR_TYPE_EXT	24
+#define M_CPL_ROCE_CQE_FW_WR_TYPE_EXT	0x7f
+#define V_CPL_ROCE_CQE_FW_WR_TYPE_EXT(x) \
+    ((x) << S_CPL_ROCE_CQE_FW_WR_TYPE_EXT)
+#define G_CPL_ROCE_CQE_FW_WR_TYPE_EXT(x) \
+    (((x) >> S_CPL_ROCE_CQE_FW_WR_TYPE_EXT) & M_CPL_ROCE_CQE_FW_WR_TYPE_EXT)
+
+#define S_CPL_ROCE_CQE_FW_SRQ		0
+#define M_CPL_ROCE_CQE_FW_SRQ		0xfff
+#define V_CPL_ROCE_CQE_FW_SRQ(x)	((x) << S_CPL_ROCE_CQE_FW_SRQ)
+#define G_CPL_ROCE_CQE_FW_SRQ(x)	\
+    (((x) >> S_CPL_ROCE_CQE_FW_SRQ) & M_CPL_ROCE_CQE_FW_SRQ)
+
+struct cpl_roce_cqe_err {
+	__be32 op_to_CQID;
+	__be32 Tid_FlitCnt;
+	__be32 QPID_to_WR_type;
+	__be32 Length;
+	__be32 TAG;
+	__be32 MSN;
+	__be32 SE_to_SRQ;
+	__be32 RQE;
+	__be32 ExtInfoMS[2];
+	__be32 ExtInfoLS[2];
+};
+
+#define S_CPL_ROCE_CQE_ERR_OPCODE	24
+#define M_CPL_ROCE_CQE_ERR_OPCODE	0xff
+#define V_CPL_ROCE_CQE_ERR_OPCODE(x)	((x) << S_CPL_ROCE_CQE_ERR_OPCODE)
+#define G_CPL_ROCE_CQE_ERR_OPCODE(x)	\
+    (((x) >> S_CPL_ROCE_CQE_ERR_OPCODE) & M_CPL_ROCE_CQE_ERR_OPCODE)
+
+#define S_CPL_ROCE_CQE_ERR_RSSCTRL	16
+#define M_CPL_ROCE_CQE_ERR_RSSCTRL	0xff
+#define V_CPL_ROCE_CQE_ERR_RSSCTRL(x)	((x) << S_CPL_ROCE_CQE_ERR_RSSCTRL)
+#define G_CPL_ROCE_CQE_ERR_RSSCTRL(x)	\
+    (((x) >> S_CPL_ROCE_CQE_ERR_RSSCTRL) & M_CPL_ROCE_CQE_ERR_RSSCTRL)
+
+#define S_CPL_ROCE_CQE_ERR_CQID		0
+#define M_CPL_ROCE_CQE_ERR_CQID		0xffff
+#define V_CPL_ROCE_CQE_ERR_CQID(x)	((x) << S_CPL_ROCE_CQE_ERR_CQID)
+#define G_CPL_ROCE_CQE_ERR_CQID(x)	\
+    (((x) >> S_CPL_ROCE_CQE_ERR_CQID) & M_CPL_ROCE_CQE_ERR_CQID)
+
+#define S_CPL_ROCE_CQE_ERR_TID		8
+#define M_CPL_ROCE_CQE_ERR_TID		0xfffff
+#define V_CPL_ROCE_CQE_ERR_TID(x)	((x) << S_CPL_ROCE_CQE_ERR_TID)
+#define G_CPL_ROCE_CQE_ERR_TID(x)	\
+    (((x) >> S_CPL_ROCE_CQE_ERR_TID) & M_CPL_ROCE_CQE_ERR_TID)
+
+#define S_CPL_ROCE_CQE_ERR_FLITCNT	0
+#define M_CPL_ROCE_CQE_ERR_FLITCNT	0xff
+#define V_CPL_ROCE_CQE_ERR_FLITCNT(x)	((x) << S_CPL_ROCE_CQE_ERR_FLITCNT)
+#define G_CPL_ROCE_CQE_ERR_FLITCNT(x)	\
+    (((x) >> S_CPL_ROCE_CQE_ERR_FLITCNT) & M_CPL_ROCE_CQE_ERR_FLITCNT)
+
+#define S_CPL_ROCE_CQE_ERR_QPID		12
+#define M_CPL_ROCE_CQE_ERR_QPID		0xfffff
+#define V_CPL_ROCE_CQE_ERR_QPID(x)	((x) << S_CPL_ROCE_CQE_ERR_QPID)
+#define G_CPL_ROCE_CQE_ERR_QPID(x)	\
+    (((x) >> S_CPL_ROCE_CQE_ERR_QPID) & M_CPL_ROCE_CQE_ERR_QPID)
+
+#define S_CPL_ROCE_CQE_ERR_EXTMODE	11
+#define M_CPL_ROCE_CQE_ERR_EXTMODE	0x1
+#define V_CPL_ROCE_CQE_ERR_EXTMODE(x)	((x) << S_CPL_ROCE_CQE_ERR_EXTMODE)
+#define G_CPL_ROCE_CQE_ERR_EXTMODE(x)	\
+    (((x) >> S_CPL_ROCE_CQE_ERR_EXTMODE) & M_CPL_ROCE_CQE_ERR_EXTMODE)
+#define F_CPL_ROCE_CQE_ERR_EXTMODE	V_CPL_ROCE_CQE_ERR_EXTMODE(1U)
+
+#define S_CPL_ROCE_CQE_ERR_GENERATION_BIT 10
+#define M_CPL_ROCE_CQE_ERR_GENERATION_BIT 0x1
+#define V_CPL_ROCE_CQE_ERR_GENERATION_BIT(x) \
+    ((x) << S_CPL_ROCE_CQE_ERR_GENERATION_BIT)
+#define G_CPL_ROCE_CQE_ERR_GENERATION_BIT(x) \
+    (((x) >> S_CPL_ROCE_CQE_ERR_GENERATION_BIT) & \
+     M_CPL_ROCE_CQE_ERR_GENERATION_BIT)
+#define F_CPL_ROCE_CQE_ERR_GENERATION_BIT \
+    V_CPL_ROCE_CQE_ERR_GENERATION_BIT(1U)
+
+#define S_CPL_ROCE_CQE_ERR_STATUS	5
+#define M_CPL_ROCE_CQE_ERR_STATUS	0x1f
+#define V_CPL_ROCE_CQE_ERR_STATUS(x)	((x) << S_CPL_ROCE_CQE_ERR_STATUS)
+#define G_CPL_ROCE_CQE_ERR_STATUS(x)	\
+    (((x) >> S_CPL_ROCE_CQE_ERR_STATUS) & M_CPL_ROCE_CQE_ERR_STATUS)
+
+#define S_CPL_ROCE_CQE_ERR_CQE_TYPE	4
+#define M_CPL_ROCE_CQE_ERR_CQE_TYPE	0x1
+#define V_CPL_ROCE_CQE_ERR_CQE_TYPE(x)	((x) << S_CPL_ROCE_CQE_ERR_CQE_TYPE)
+#define G_CPL_ROCE_CQE_ERR_CQE_TYPE(x)	\
+    (((x) >> S_CPL_ROCE_CQE_ERR_CQE_TYPE) & M_CPL_ROCE_CQE_ERR_CQE_TYPE)
+#define F_CPL_ROCE_CQE_ERR_CQE_TYPE	V_CPL_ROCE_CQE_ERR_CQE_TYPE(1U)
+
+#define S_CPL_ROCE_CQE_ERR_WR_TYPE	0
+#define M_CPL_ROCE_CQE_ERR_WR_TYPE	0xf
+#define V_CPL_ROCE_CQE_ERR_WR_TYPE(x)	((x) << S_CPL_ROCE_CQE_ERR_WR_TYPE)
+#define G_CPL_ROCE_CQE_ERR_WR_TYPE(x)	\
+    (((x) >> S_CPL_ROCE_CQE_ERR_WR_TYPE) & M_CPL_ROCE_CQE_ERR_WR_TYPE)
+
+#define S_CPL_ROCE_CQE_ERR_SE		31
+#define M_CPL_ROCE_CQE_ERR_SE		0x1
+#define V_CPL_ROCE_CQE_ERR_SE(x)	((x) << S_CPL_ROCE_CQE_ERR_SE)
+#define G_CPL_ROCE_CQE_ERR_SE(x)	\
+    (((x) >> S_CPL_ROCE_CQE_ERR_SE) & M_CPL_ROCE_CQE_ERR_SE)
+#define F_CPL_ROCE_CQE_ERR_SE		V_CPL_ROCE_CQE_ERR_SE(1U)
+
+#define S_CPL_ROCE_CQE_ERR_WR_TYPE_EXT	24
+#define M_CPL_ROCE_CQE_ERR_WR_TYPE_EXT	0x7f
+#define V_CPL_ROCE_CQE_ERR_WR_TYPE_EXT(x) \
+    ((x) << S_CPL_ROCE_CQE_ERR_WR_TYPE_EXT)
+#define G_CPL_ROCE_CQE_ERR_WR_TYPE_EXT(x) \
+    (((x) >> S_CPL_ROCE_CQE_ERR_WR_TYPE_EXT) & M_CPL_ROCE_CQE_ERR_WR_TYPE_EXT)
+
+#define S_CPL_ROCE_CQE_ERR_SRQ		0
+#define M_CPL_ROCE_CQE_ERR_SRQ		0xfff
+#define V_CPL_ROCE_CQE_ERR_SRQ(x)	((x) << S_CPL_ROCE_CQE_ERR_SRQ)
+#define G_CPL_ROCE_CQE_ERR_SRQ(x)	\
+    (((x) >> S_CPL_ROCE_CQE_ERR_SRQ) & M_CPL_ROCE_CQE_ERR_SRQ)
+
+struct cpl_accelerator_hdr {
+	__be16 op_accelerator_id;
+	__be16 rxchid_payload_to_inner_cpl_length_ack;
+	__be32 inner_cpl_length_payload_status_loc;
+};
+
+#define S_CPL_ACCELERATOR_HDR_OPCODE	8
+#define M_CPL_ACCELERATOR_HDR_OPCODE	0xff
+#define V_CPL_ACCELERATOR_HDR_OPCODE(x)	((x) << S_CPL_ACCELERATOR_HDR_OPCODE)
+#define G_CPL_ACCELERATOR_HDR_OPCODE(x)	\
+    (((x) >> S_CPL_ACCELERATOR_HDR_OPCODE) & M_CPL_ACCELERATOR_HDR_OPCODE)
+
+#define S_CPL_ACCELERATOR_HDR_ACCELERATOR_ID 0
+#define M_CPL_ACCELERATOR_HDR_ACCELERATOR_ID 0xff
+#define V_CPL_ACCELERATOR_HDR_ACCELERATOR_ID(x) \
+    ((x) << S_CPL_ACCELERATOR_HDR_ACCELERATOR_ID)
+#define G_CPL_ACCELERATOR_HDR_ACCELERATOR_ID(x) \
+    (((x) >> S_CPL_ACCELERATOR_HDR_ACCELERATOR_ID) & \
+     M_CPL_ACCELERATOR_HDR_ACCELERATOR_ID)
+
+#define S_CPL_ACCELERATOR_HDR_RXCHID_PAYLOAD 14
+#define M_CPL_ACCELERATOR_HDR_RXCHID_PAYLOAD 0x3
+#define V_CPL_ACCELERATOR_HDR_RXCHID_PAYLOAD(x) \
+    ((x) << S_CPL_ACCELERATOR_HDR_RXCHID_PAYLOAD)
+#define G_CPL_ACCELERATOR_HDR_RXCHID_PAYLOAD(x) \
+    (((x) >> S_CPL_ACCELERATOR_HDR_RXCHID_PAYLOAD) & \
+     M_CPL_ACCELERATOR_HDR_RXCHID_PAYLOAD)
+
+#define S_CPL_ACCELERATOR_HDR_DESTID_PAYLOAD 12
+#define M_CPL_ACCELERATOR_HDR_DESTID_PAYLOAD 0x3
+#define V_CPL_ACCELERATOR_HDR_DESTID_PAYLOAD(x) \
+    ((x) << S_CPL_ACCELERATOR_HDR_DESTID_PAYLOAD)
+#define G_CPL_ACCELERATOR_HDR_DESTID_PAYLOAD(x) \
+    (((x) >> S_CPL_ACCELERATOR_HDR_DESTID_PAYLOAD) & \
+     M_CPL_ACCELERATOR_HDR_DESTID_PAYLOAD)
+
+#define S_CPL_ACCELERATOR_HDR_RXCHID_ACK 10
+#define M_CPL_ACCELERATOR_HDR_RXCHID_ACK 0x3
+#define V_CPL_ACCELERATOR_HDR_RXCHID_ACK(x) \
+    ((x) << S_CPL_ACCELERATOR_HDR_RXCHID_ACK)
+#define G_CPL_ACCELERATOR_HDR_RXCHID_ACK(x) \
+    (((x) >> S_CPL_ACCELERATOR_HDR_RXCHID_ACK) & \
+     M_CPL_ACCELERATOR_HDR_RXCHID_ACK)
+
+#define S_CPL_ACCELERATOR_HDR_DESTID_ACK 8
+#define M_CPL_ACCELERATOR_HDR_DESTID_ACK 0x3
+#define V_CPL_ACCELERATOR_HDR_DESTID_ACK(x) \
+    ((x) << S_CPL_ACCELERATOR_HDR_DESTID_ACK)
+#define G_CPL_ACCELERATOR_HDR_DESTID_ACK(x) \
+    (((x) >> S_CPL_ACCELERATOR_HDR_DESTID_ACK) & \
+     M_CPL_ACCELERATOR_HDR_DESTID_ACK)
+
+#define S_CPL_ACCELERATOR_HDR_INNER_CPL_LENGTH_ACK 0
+#define M_CPL_ACCELERATOR_HDR_INNER_CPL_LENGTH_ACK 0xff
+#define V_CPL_ACCELERATOR_HDR_INNER_CPL_LENGTH_ACK(x) \
+    ((x) << S_CPL_ACCELERATOR_HDR_INNER_CPL_LENGTH_ACK)
+#define G_CPL_ACCELERATOR_HDR_INNER_CPL_LENGTH_ACK(x) \
+    (((x) >> S_CPL_ACCELERATOR_HDR_INNER_CPL_LENGTH_ACK) & \
+     M_CPL_ACCELERATOR_HDR_INNER_CPL_LENGTH_ACK)
+
+#define S_CPL_ACCELERATOR_HDR_INNER_CPL_LENGTH_PAYLOAD 24
+#define M_CPL_ACCELERATOR_HDR_INNER_CPL_LENGTH_PAYLOAD 0xff
+#define V_CPL_ACCELERATOR_HDR_INNER_CPL_LENGTH_PAYLOAD(x) \
+    ((x) << S_CPL_ACCELERATOR_HDR_INNER_CPL_LENGTH_PAYLOAD)
+#define G_CPL_ACCELERATOR_HDR_INNER_CPL_LENGTH_PAYLOAD(x) \
+    (((x) >> S_CPL_ACCELERATOR_HDR_INNER_CPL_LENGTH_PAYLOAD) & \
+     M_CPL_ACCELERATOR_HDR_INNER_CPL_LENGTH_PAYLOAD)
+
+#define S_CPL_ACCELERATOR_HDR_STATUS_LOC 22
+#define M_CPL_ACCELERATOR_HDR_STATUS_LOC 0x3
+#define V_CPL_ACCELERATOR_HDR_STATUS_LOC(x) \
+    ((x) << S_CPL_ACCELERATOR_HDR_STATUS_LOC)
+#define G_CPL_ACCELERATOR_HDR_STATUS_LOC(x) \
+    (((x) >> S_CPL_ACCELERATOR_HDR_STATUS_LOC) & \
+     M_CPL_ACCELERATOR_HDR_STATUS_LOC)
+
+struct cpl_accelerator_ack {
+	RSS_HDR
+	__be16 op_accelerator_id;
+	__be16 r0;
+	__be32 status;
+	__be64 r1;
+	__be64 r2;
+};
+
+#define S_CPL_ACCELERATOR_ACK_OPCODE	8
+#define M_CPL_ACCELERATOR_ACK_OPCODE	0xff
+#define V_CPL_ACCELERATOR_ACK_OPCODE(x)	((x) << S_CPL_ACCELERATOR_ACK_OPCODE)
+#define G_CPL_ACCELERATOR_ACK_OPCODE(x)	\
+    (((x) >> S_CPL_ACCELERATOR_ACK_OPCODE) & M_CPL_ACCELERATOR_ACK_OPCODE)
+
+#define S_CPL_ACCELERATOR_ACK_ACCELERATOR_ID 0
+#define M_CPL_ACCELERATOR_ACK_ACCELERATOR_ID 0xff
+#define V_CPL_ACCELERATOR_ACK_ACCELERATOR_ID(x) \
+    ((x) << S_CPL_ACCELERATOR_ACK_ACCELERATOR_ID)
+#define G_CPL_ACCELERATOR_ACK_ACCELERATOR_ID(x) \
+    (((x) >> S_CPL_ACCELERATOR_ACK_ACCELERATOR_ID) & \
+     M_CPL_ACCELERATOR_ACK_ACCELERATOR_ID)
+
+struct cpl_nvmt_data {
+	RSS_HDR
+	union opcode_tid ot;
+	__be16 r0;
+	__be16 length;
+	__be32 seq;
+	__be32 status_pkd;
+};
+
+#define S_CPL_NVMT_DATA_OPCODE		24
+#define M_CPL_NVMT_DATA_OPCODE		0xff
+#define V_CPL_NVMT_DATA_OPCODE(x)	((x) << S_CPL_NVMT_DATA_OPCODE)
+#define G_CPL_NVMT_DATA_OPCODE(x)	\
+    (((x) >> S_CPL_NVMT_DATA_OPCODE) & M_CPL_NVMT_DATA_OPCODE)
+
+#define S_CPL_NVMT_DATA_TID		0
+#define M_CPL_NVMT_DATA_TID		0xffffff
+#define V_CPL_NVMT_DATA_TID(x)		((x) << S_CPL_NVMT_DATA_TID)
+#define G_CPL_NVMT_DATA_TID(x)		\
+    (((x) >> S_CPL_NVMT_DATA_TID) & M_CPL_NVMT_DATA_TID)
+
+#define S_CPL_NVMT_DATA_STATUS		0
+#define M_CPL_NVMT_DATA_STATUS		0xff
+#define V_CPL_NVMT_DATA_STATUS(x)	((x) << S_CPL_NVMT_DATA_STATUS)
+#define G_CPL_NVMT_DATA_STATUS(x)	\
+    (((x) >> S_CPL_NVMT_DATA_STATUS) & M_CPL_NVMT_DATA_STATUS)
+
+struct cpl_nvmt_cmp {
+	RSS_HDR
+	union opcode_tid ot;
+	__be16 crch;
+	__be16 length;
+	__be32 seq;
+	__u8   t10status;
+	__u8   status;
+	__be16 crcl;
+};
+
+#define S_CPL_NVMT_CMP_OPCODE		24
+#define M_CPL_NVMT_CMP_OPCODE		0xff
+#define V_CPL_NVMT_CMP_OPCODE(x)	((x) << S_CPL_NVMT_CMP_OPCODE)
+#define G_CPL_NVMT_CMP_OPCODE(x)	\
+    (((x) >> S_CPL_NVMT_CMP_OPCODE) & M_CPL_NVMT_CMP_OPCODE)
+
+#define S_CPL_NVMT_CMP_TID		0
+#define M_CPL_NVMT_CMP_TID		0xffffff
+#define V_CPL_NVMT_CMP_TID(x)		((x) << S_CPL_NVMT_CMP_TID)
+#define G_CPL_NVMT_CMP_TID(x)		\
+    (((x) >> S_CPL_NVMT_CMP_TID) & M_CPL_NVMT_CMP_TID)
+
+struct cpl_nvmt_cmp_imm {
+	__be32 op_to_cqid;
+	__be32 generation_bit_to_oprqinc;
+	__be32 seq;
+	__be16 crch;
+	__be16 length;
+	__be16 crcl;
+	__u8   t10status;
+	__u8   status;
+	__be32 r1;
+};
+
+#define S_CPL_NVMT_CMP_IMM_OPCODE	24
+#define M_CPL_NVMT_CMP_IMM_OPCODE	0xff
+#define V_CPL_NVMT_CMP_IMM_OPCODE(x)	((x) << S_CPL_NVMT_CMP_IMM_OPCODE)
+#define G_CPL_NVMT_CMP_IMM_OPCODE(x)	\
+    (((x) >> S_CPL_NVMT_CMP_IMM_OPCODE) & M_CPL_NVMT_CMP_IMM_OPCODE)
+
+#define S_CPL_NVMT_CMP_IMM_RSSCTRL	16
+#define M_CPL_NVMT_CMP_IMM_RSSCTRL	0xff
+#define V_CPL_NVMT_CMP_IMM_RSSCTRL(x)	((x) << S_CPL_NVMT_CMP_IMM_RSSCTRL)
+#define G_CPL_NVMT_CMP_IMM_RSSCTRL(x)	\
+    (((x) >> S_CPL_NVMT_CMP_IMM_RSSCTRL) & M_CPL_NVMT_CMP_IMM_RSSCTRL)
+
+#define S_CPL_NVMT_CMP_IMM_CQID		0
+#define M_CPL_NVMT_CMP_IMM_CQID		0xffff
+#define V_CPL_NVMT_CMP_IMM_CQID(x)	((x) << S_CPL_NVMT_CMP_IMM_CQID)
+#define G_CPL_NVMT_CMP_IMM_CQID(x)	\
+    (((x) >> S_CPL_NVMT_CMP_IMM_CQID) & M_CPL_NVMT_CMP_IMM_CQID)
+
+#define S_CPL_NVMT_CMP_IMM_GENERATION_BIT 31
+#define M_CPL_NVMT_CMP_IMM_GENERATION_BIT 0x1
+#define V_CPL_NVMT_CMP_IMM_GENERATION_BIT(x) \
+    ((x) << S_CPL_NVMT_CMP_IMM_GENERATION_BIT)
+#define G_CPL_NVMT_CMP_IMM_GENERATION_BIT(x) \
+    (((x) >> S_CPL_NVMT_CMP_IMM_GENERATION_BIT) & \
+     M_CPL_NVMT_CMP_IMM_GENERATION_BIT)
+#define F_CPL_NVMT_CMP_IMM_GENERATION_BIT \
+    V_CPL_NVMT_CMP_IMM_GENERATION_BIT(1U)
+
+#define S_CPL_NVMT_CMP_IMM_TID		8
+#define M_CPL_NVMT_CMP_IMM_TID		0xfffff
+#define V_CPL_NVMT_CMP_IMM_TID(x)	((x) << S_CPL_NVMT_CMP_IMM_TID)
+#define G_CPL_NVMT_CMP_IMM_TID(x)	\
+    (((x) >> S_CPL_NVMT_CMP_IMM_TID) & M_CPL_NVMT_CMP_IMM_TID)
+
+#define S_CPL_NVMT_CMP_IMM_OPRQINC	0
+#define M_CPL_NVMT_CMP_IMM_OPRQINC	0xff
+#define V_CPL_NVMT_CMP_IMM_OPRQINC(x)	((x) << S_CPL_NVMT_CMP_IMM_OPRQINC)
+#define G_CPL_NVMT_CMP_IMM_OPRQINC(x)	\
+    (((x) >> S_CPL_NVMT_CMP_IMM_OPRQINC) & M_CPL_NVMT_CMP_IMM_OPRQINC)
+
+struct cpl_nvmt_cmp_srq {
+	__be32 op_to_cqid;
+	__be32 generation_bit_to_oprqinc;
+	__be32 seq;
+	__be16 crch;
+	__be16 length;
+	__be16 crcl;
+	__u8   t10status;
+	__u8   status;
+	__be32 rqe;
+};
+
+#define S_CPL_NVMT_CMP_SRQ_OPCODE	24
+#define M_CPL_NVMT_CMP_SRQ_OPCODE	0xff
+#define V_CPL_NVMT_CMP_SRQ_OPCODE(x)	((x) << S_CPL_NVMT_CMP_SRQ_OPCODE)
+#define G_CPL_NVMT_CMP_SRQ_OPCODE(x)	\
+    (((x) >> S_CPL_NVMT_CMP_SRQ_OPCODE) & M_CPL_NVMT_CMP_SRQ_OPCODE)
+
+#define S_CPL_NVMT_CMP_SRQ_RSSCTRL	16
+#define M_CPL_NVMT_CMP_SRQ_RSSCTRL	0xff
+#define V_CPL_NVMT_CMP_SRQ_RSSCTRL(x)	((x) << S_CPL_NVMT_CMP_SRQ_RSSCTRL)
+#define G_CPL_NVMT_CMP_SRQ_RSSCTRL(x)	\
+    (((x) >> S_CPL_NVMT_CMP_SRQ_RSSCTRL) & M_CPL_NVMT_CMP_SRQ_RSSCTRL)
+
+#define S_CPL_NVMT_CMP_SRQ_CQID		0
+#define M_CPL_NVMT_CMP_SRQ_CQID		0xffff
+#define V_CPL_NVMT_CMP_SRQ_CQID(x)	((x) << S_CPL_NVMT_CMP_SRQ_CQID)
+#define G_CPL_NVMT_CMP_SRQ_CQID(x)	\
+    (((x) >> S_CPL_NVMT_CMP_SRQ_CQID) & M_CPL_NVMT_CMP_SRQ_CQID)
+
+#define S_CPL_NVMT_CMP_SRQ_GENERATION_BIT 31
+#define M_CPL_NVMT_CMP_SRQ_GENERATION_BIT 0x1
+#define V_CPL_NVMT_CMP_SRQ_GENERATION_BIT(x) \
+    ((x) << S_CPL_NVMT_CMP_SRQ_GENERATION_BIT)
+#define G_CPL_NVMT_CMP_SRQ_GENERATION_BIT(x) \
+    (((x) >> S_CPL_NVMT_CMP_SRQ_GENERATION_BIT) & \
+     M_CPL_NVMT_CMP_SRQ_GENERATION_BIT)
+#define F_CPL_NVMT_CMP_SRQ_GENERATION_BIT \
+    V_CPL_NVMT_CMP_SRQ_GENERATION_BIT(1U)
+
+#define S_CPL_NVMT_CMP_SRQ_TID		8
+#define M_CPL_NVMT_CMP_SRQ_TID		0xfffff
+#define V_CPL_NVMT_CMP_SRQ_TID(x)	((x) << S_CPL_NVMT_CMP_SRQ_TID)
+#define G_CPL_NVMT_CMP_SRQ_TID(x)	\
+    (((x) >> S_CPL_NVMT_CMP_SRQ_TID) & M_CPL_NVMT_CMP_SRQ_TID)
+
+#define S_CPL_NVMT_CMP_SRQ_OPRQINC	0
+#define M_CPL_NVMT_CMP_SRQ_OPRQINC	0xff
+#define V_CPL_NVMT_CMP_SRQ_OPRQINC(x)	((x) << S_CPL_NVMT_CMP_SRQ_OPRQINC)
+#define G_CPL_NVMT_CMP_SRQ_OPRQINC(x)	\
+    (((x) >> S_CPL_NVMT_CMP_SRQ_OPRQINC) & M_CPL_NVMT_CMP_SRQ_OPRQINC)
 
 #endif  /* T4_MSG_H */

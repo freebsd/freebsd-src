@@ -1,8 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2011 Chelsio Communications, Inc.
- * All rights reserved.
+ * Copyright (c) 2011, 2025 Chelsio Communications.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,6 +30,15 @@
 #define __CHELSIO_COMMON_H
 
 #include "t4_hw.h"
+
+#define GLBL_INTR_MASK (F_CIM | F_MPS | F_PL | F_PCIE | F_MC0 | F_EDC0 | \
+		F_EDC1 | F_LE | F_TP | F_MA | F_PM_TX | F_PM_RX | F_ULP_RX | \
+		F_CPL_SWITCH | F_SGE | F_ULP_TX | F_SF)
+
+#define GLBL_T7_INTR_MASK (F_CIM | F_MPS | F_PL | F_T7_PCIE | F_T7_MC0 | \
+			   F_T7_EDC0 | F_T7_EDC1 | F_T7_LE | F_T7_TP | \
+			   F_T7_MA | F_T7_PM_TX | F_T7_PM_RX | F_T7_ULP_RX | \
+			   F_T7_CPL_SWITCH | F_T7_SGE | F_T7_ULP_TX | F_SF)
 
 enum {
 	MAX_NPORTS     = 4,     /* max # of ports */
@@ -75,6 +83,18 @@ enum {
 	 */
 	FEC_AUTO      = 1 << 5,
 	FEC_MODULE    = 1 << 6,	/* FEC suggested by the cable/transceiver. */
+};
+
+enum {
+	ULP_T10DIF_ISCSI = 1 << 0,
+	ULP_T10DIF_FCOE = 1 << 1
+};
+
+enum {
+	ULP_CRYPTO_LOOKASIDE  = 1 << 0,
+	ULP_CRYPTO_INLINE_TLS = 1 << 1,
+	ULP_CRYPTO_INLINE_IPSEC = 1 << 2,
+	ULP_CRYPTO_OFLD_OVER_IPSEC_INLINE = 1 << 4
 };
 
 enum t4_bar2_qtype { T4_BAR2_QTYPE_EGRESS, T4_BAR2_QTYPE_INGRESS };
@@ -230,6 +250,15 @@ struct tp_cpl_stats {
 struct tp_rdma_stats {
 	u32 rqe_dfr_pkt;
 	u32 rqe_dfr_mod;
+	u32 pkts_in[MAX_NCHAN];
+	u64 bytes_in[MAX_NCHAN];
+	/*
+	 * When reading rdma stats, the address difference b/w RDMA_IN and
+	 * RDMA_OUT is 4*u32, to read both at once, added padding
+	 */
+	u32 padding[4];
+	u32 pkts_out[MAX_NCHAN];
+	u64 bytes_out[MAX_NCHAN];
 };
 
 struct sge_params {
@@ -259,7 +288,10 @@ struct tp_params {
 	uint32_t max_rx_pdu;
 	uint32_t max_tx_pdu;
 	bool rx_pkt_encap;
+	uint8_t lb_mode;
+	uint8_t lb_nchan;
 
+	int8_t ipsecidx_shift;
 	int8_t fcoe_shift;
 	int8_t port_shift;
 	int8_t vnic_shift;
@@ -270,6 +302,9 @@ struct tp_params {
 	int8_t macmatch_shift;
 	int8_t matchtype_shift;
 	int8_t frag_shift;
+	int8_t roce_shift;
+	int8_t synonly_shift;
+	int8_t tcpflags_shift;
 };
 
 /* Use same modulation queue as the tx channel. */
@@ -283,6 +318,22 @@ struct vpd_params {
 	u8 pn[PN_LEN + 1];
 	u8 na[MACADDR_LEN + 1];
 	u8 md[MD_LEN + 1];
+};
+
+/*
+ * Maximum resources provisioned for a PCI PF.
+ */
+struct pf_resources {
+	unsigned int nvi;		/* N virtual interfaces */
+	unsigned int neq;		/* N egress Qs */
+	unsigned int nethctrl;		/* N egress ETH or CTRL Qs */
+	unsigned int niqflint;		/* N ingress Qs/w free list(s) & intr */
+	unsigned int niq;		/* N ingress Qs */
+	unsigned int tc;		/* PCI-E traffic class */
+	unsigned int pmask;		/* port access rights mask */
+	unsigned int nexactf;		/* N exact MPS filters */
+	unsigned int r_caps;		/* read capabilities */
+	unsigned int wx_caps;		/* write/execute capabilities */
 };
 
 struct pci_params {
@@ -308,8 +359,11 @@ struct chip_params {
 	u8 pm_stats_cnt;
 	u8 cng_ch_bits_log;		/* congestion channel map bits width */
 	u8 nsched_cls;
+	u8 cim_num_ibq;
 	u8 cim_num_obq;
-	u8 filter_opt_len;
+	u8 filter_opt_len;		/* number of bits for optional fields */
+	u8 filter_num_opt;		/* number of optional fields */
+	u8 sge_ctxt_size;
 	u16 mps_rplc_size;
 	u16 vfcount;
 	u32 sge_fl_db;
@@ -360,6 +414,7 @@ struct adapter_params {
 	struct sge_params sge;
 	struct tp_params  tp;		/* PF-only */
 	struct vpd_params vpd;
+	struct pf_resources pfres;	/* PF-only */
 	struct pci_params pci;
 	struct devlog_params devlog;	/* PF-only */
 	struct rss_params rss;		/* VF-only */
@@ -399,12 +454,13 @@ struct adapter_params {
 	unsigned int ofldq_wr_cred;
 	unsigned int eo_wr_cred;
 
-	unsigned int max_ordird_qp;
-	unsigned int max_ird_adapter;
+	unsigned int max_ordird_qp;	  /* Max read depth per RDMA QP */
+	unsigned int max_ird_adapter;	  /* Max read depth per adapter */
 
 	/* These values are for all ports (8b/port, upto 4 ports) */
 	uint32_t mps_bg_map;	/* MPS rx buffer group map */
 	uint32_t tp_ch_map;	/* TPCHMAP from firmware */
+	uint32_t tx_tp_ch_map;	/* TX_TPCHMAP from firmware */
 
 	bool ulptx_memwrite_dsgl;	/* use of T5 DSGL allowed */
 	bool fr_nsmr_tpte_wr_support;	/* FW support for FR_NSMR_TPTE_WR */
@@ -412,11 +468,15 @@ struct adapter_params {
 	bool viid_smt_extn_support;	/* FW returns vin, vfvld & smt index? */
 	unsigned int max_pkts_per_eth_tx_pkts_wr;
 	uint8_t nsched_cls;		/* # of usable sched classes per port */
+
+	uint8_t ncores;
+	uint32_t tid_qid_sel_mask;	/* TID based QID selection mask */
 };
 
 #define CHELSIO_T4		0x4
 #define CHELSIO_T5		0x5
 #define CHELSIO_T6		0x6
+#define CHELSIO_T7		0x7
 
 /*
  * State needed to monitor the forward progress of SGE Ingress DMA activities
@@ -509,10 +569,11 @@ static inline int is_hashfilter(const struct adapter *adap)
 
 static inline int is_ktls(const struct adapter *adap)
 {
-	return adap->cryptocaps & FW_CAPS_CONFIG_TLS_HW;
+	return adap->cryptocaps & FW_CAPS_CONFIG_TLS_HW ||
+	    adap->params.chipid == CHELSIO_T7;
 }
 
-static inline int chip_id(struct adapter *adap)
+static inline int chip_id(const struct adapter *adap)
 {
 	return adap->params.chipid;
 }
@@ -535,6 +596,11 @@ static inline int is_t5(struct adapter *adap)
 static inline int is_t6(struct adapter *adap)
 {
 	return adap->params.chipid == CHELSIO_T6;
+}
+
+static inline int is_t7(struct adapter *adap)
+{
+	return adap->params.chipid == CHELSIO_T7;
 }
 
 static inline int is_fpga(struct adapter *adap)
@@ -641,7 +707,7 @@ int t4_load_bootcfg(struct adapter *adapter, const u8 *cfg_data, unsigned int si
 int t4_load_boot(struct adapter *adap, u8 *boot_data,
                  unsigned int boot_addr, unsigned int size);
 int t4_flash_erase_sectors(struct adapter *adapter, int start, int end);
-int t4_flash_cfg_addr(struct adapter *adapter);
+int t4_flash_cfg_addr(struct adapter *adapter, unsigned int *lenp);
 int t4_load_cfg(struct adapter *adapter, const u8 *cfg_data, unsigned int size);
 int t4_get_fw_version(struct adapter *adapter, u32 *vers);
 int t4_get_fw_hdr(struct adapter *adapter, struct fw_hdr *hdr);
@@ -655,9 +721,10 @@ int t4_init_hw(struct adapter *adapter, u32 fw_params);
 const struct chip_params *t4_get_chip_params(int chipid);
 int t4_prep_adapter(struct adapter *adapter, u32 *buf);
 int t4_shutdown_adapter(struct adapter *adapter);
-int t4_init_devlog_params(struct adapter *adapter, int fw_attach);
+int t4_init_devlog_ncores_params(struct adapter *adapter, int fw_attach);
 int t4_init_sge_params(struct adapter *adapter);
 int t4_init_tp_params(struct adapter *adap);
+int t4_filter_field_width(const struct adapter *adap, int filter_field);
 int t4_filter_field_shift(const struct adapter *adap, int filter_sel);
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id);
 void t4_fatal_err(struct adapter *adapter, bool fw_error);
@@ -665,6 +732,7 @@ int t4_set_trace_filter(struct adapter *adapter, const struct trace_params *tp,
 			int filter_index, int enable);
 void t4_get_trace_filter(struct adapter *adapter, struct trace_params *tp,
 			 int filter_index, int *enabled);
+void t4_set_trace_rss_control(struct adapter *adap, u8 chan, u16 qid);
 int t4_config_rss_range(struct adapter *adapter, int mbox, unsigned int viid,
 			int start, int n, const u16 *rspq, unsigned int nrspq);
 int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
@@ -691,19 +759,60 @@ void t4_write_rss_pf_mask(struct adapter *adapter, u32 pfmask, bool sleep_ok);
 int t4_mps_set_active_ports(struct adapter *adap, unsigned int port_mask);
 void t4_pmtx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[]);
 void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[]);
-void t4_read_cimq_cfg(struct adapter *adap, u16 *base, u16 *size, u16 *thres);
-int t4_read_cim_ibq(struct adapter *adap, unsigned int qid, u32 *data, size_t n);
-int t4_read_cim_obq(struct adapter *adap, unsigned int qid, u32 *data, size_t n);
-int t4_cim_read(struct adapter *adap, unsigned int addr, unsigned int n,
-		unsigned int *valp);
-int t4_cim_write(struct adapter *adap, unsigned int addr, unsigned int n,
-		 const unsigned int *valp);
-int t4_cim_ctl_read(struct adapter *adap, unsigned int addr, unsigned int n,
-		    unsigned int *valp);
-int t4_cim_read_la(struct adapter *adap, u32 *la_buf, unsigned int *wrptr);
+void t4_pmrx_cache_get_stats(struct adapter *adap, u32 stats[]);
+void t4_read_cimq_cfg_core(struct adapter *adap, u8 coreid, u16 *base,
+			   u16 *size, u16 *thres);
+int t4_read_cim_ibq_core(struct adapter *adap, u8 coreid, u32 qid, u32 *data,
+			 size_t n);
+int t4_read_cim_obq_core(struct adapter *adap, u8 coreid, u32 qid, u32 *data,
+			 size_t n);
+int t4_cim_read_core(struct adapter *adap, u8 group, u8 coreid,
+		     unsigned int addr, unsigned int n,
+		     unsigned int *valp);
+int t4_cim_write_core(struct adapter *adap, u8 group, u8 coreid,
+		      unsigned int addr, unsigned int n,
+		      const unsigned int *valp);
+int t4_cim_read_la_core(struct adapter *adap, u8 coreid, u32 *la_buf,
+			u32 *wrptr);
 void t4_cim_read_pif_la(struct adapter *adap, u32 *pif_req, u32 *pif_rsp,
 		unsigned int *pif_req_wrptr, unsigned int *pif_rsp_wrptr);
 void t4_cim_read_ma_la(struct adapter *adap, u32 *ma_req, u32 *ma_rsp);
+
+static inline void t4_read_cimq_cfg(struct adapter *adap, u16 *base, u16 *size,
+    				    u16 *thres)
+{
+	t4_read_cimq_cfg_core(adap, 0, base, size, thres);
+}
+
+static inline int t4_read_cim_ibq(struct adapter *adap, u32 qid, u32 *data,
+			          size_t n)
+{
+	return t4_read_cim_ibq_core(adap, 0, qid, data, n);
+}
+
+static inline int t4_read_cim_obq(struct adapter *adap, u32 qid, u32 *data,
+			          size_t n)
+{
+	return t4_read_cim_obq_core(adap, 0, qid, data, n);
+}
+
+static inline int t4_cim_read(struct adapter *adap, unsigned int addr,
+			      unsigned int n, unsigned int *valp)
+{
+	return t4_cim_read_core(adap, 0, 0, addr, n, valp);
+}
+
+static inline int t4_cim_write(struct adapter *adap, unsigned int addr,
+			       unsigned int n, unsigned int *valp)
+{
+	return t4_cim_write_core(adap, 0, 0, addr, n, valp);
+}
+
+static inline int t4_cim_read_la(struct adapter *adap, u32 *la_buf, u32 *wrptr)
+{
+	return t4_cim_read_la_core(adap, 0, la_buf, wrptr);
+}
+
 int t4_get_flash_params(struct adapter *adapter);
 
 u32 t4_read_pcie_cfg4(struct adapter *adap, int reg, int drv_fw_attach);
@@ -919,6 +1028,8 @@ int t4_configure_ringbb(struct adapter *adap);
 int t4_configure_add_smac(struct adapter *adap);
 int t4_set_vlan_acl(struct adapter *adap, unsigned int mbox, unsigned int vf,
 		    u16 vlan);
+int t4_flash_loc_start(struct adapter *adap, enum t4_flash_loc loc,
+    unsigned int *lenp);
 
 static inline int t4vf_query_params(struct adapter *adapter,
 				    unsigned int nparams, const u32 *params,
@@ -969,8 +1080,8 @@ port_top_speed(const struct port_info *pi)
     sizeof(struct ulptx_idata) + sizeof(struct cpl_set_tcb_field_core))
 
 static inline void *
-mk_set_tcb_field_ulp(struct adapter *sc, void *cur, int tid, uint16_t word,
-    uint64_t mask, uint64_t val)
+mk_set_tcb_field_ulp_with_rpl(struct adapter *sc, void *cur, int tid,
+    uint16_t word, uint64_t mask, uint64_t val, const int qid)
 {
 	struct ulp_txpkt *ulpmc;
 	struct ulptx_idata *ulpsc;
@@ -989,8 +1100,21 @@ mk_set_tcb_field_ulp(struct adapter *sc, void *cur, int tid, uint16_t word,
 
 	req = (struct cpl_set_tcb_field_core *)(ulpsc + 1);
 	OPCODE_TID(req) = htobe32(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
-	req->reply_ctrl = htobe16(F_NO_REPLY);
-	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(0));
+
+	if (qid == -1) {
+		req->reply_ctrl = htobe16(F_NO_REPLY);
+		req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(0));
+	} else {
+		if (chip_id(sc) >= CHELSIO_T7) {
+			req->reply_ctrl = htobe16(V_T7_QUEUENO(qid) |
+			    V_T7_REPLY_CHAN(0) | V_NO_REPLY(0));
+		} else {
+			req->reply_ctrl = htobe16(V_QUEUENO(qid) |
+			    V_REPLY_CHAN(0) | V_NO_REPLY(0));
+		}
+		req->word_cookie = htobe16(V_WORD(word) |
+		    V_COOKIE(CPL_COOKIE_TOM));
+	}
 	req->mask = htobe64(mask);
 	req->val = htobe64(val);
 
@@ -1005,5 +1129,12 @@ mk_set_tcb_field_ulp(struct adapter *sc, void *cur, int tid, uint16_t word,
 	ulpsc->len = htobe32(0);
 
 	return (ulpsc + 1);
+}
+
+static inline void *
+mk_set_tcb_field_ulp(struct adapter *sc, void *cur, int tid, uint16_t word,
+    uint64_t mask, uint64_t val)
+{
+	return (mk_set_tcb_field_ulp_with_rpl(sc, cur, tid, word, mask, val, -1));
 }
 #endif /* __CHELSIO_COMMON_H */

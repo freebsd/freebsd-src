@@ -1159,8 +1159,8 @@ tls_update_tcb(struct adapter *sc, struct toepcb *toep, uint64_t seqno)
 
 	CTR3(KTR_CXGBE, "%s: tid %d enable TLS seqno %lu", __func__,
 	    toep->tid, seqno);
-	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_TLS_SEQ,
-	    V_TCB_TLS_SEQ(M_TCB_TLS_SEQ), V_TCB_TLS_SEQ(seqno));
+	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_RX_TLS_SEQ,
+	    V_TCB_RX_TLS_SEQ(M_TCB_RX_TLS_SEQ), V_TCB_RX_TLS_SEQ(seqno));
 	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_ULP_RAW,
 	    V_TCB_ULP_RAW(M_TCB_ULP_RAW),
 	    V_TCB_ULP_RAW((V_TF_TLS_KEY_SIZE(3) | V_TF_TLS_CONTROL(1) |

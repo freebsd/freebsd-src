@@ -1519,6 +1519,30 @@ t6fw.fw			optional cxgbe					\
 	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
 	no-obj no-implicit-rule						\
 	clean		"t6fw.fw"
+t7fw_cfg.c		optional cxgbe					\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk t7fw_cfg.fw:t7fw_cfg t7fw_cfg_uwire.fw:t7fw_cfg_uwire -mt7fw_cfg -c${.TARGET}" \
+	no-ctfconvert no-implicit-rule before-depend local		\
+	clean		"t7fw_cfg.c"
+t7fw_cfg.fwo		optional cxgbe					\
+	dependency	"t7fw_cfg.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"t7fw_cfg.fwo"
+t7fw_cfg.fw		optional cxgbe					\
+	dependency	"$S/dev/cxgbe/firmware/t7fw_cfg.txt"		\
+	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
+	no-obj no-implicit-rule						\
+	clean		"t7fw_cfg.fw"
+t7fw_cfg_uwire.fwo	optional cxgbe					\
+	dependency	"t7fw_cfg_uwire.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"t7fw_cfg_uwire.fwo"
+t7fw_cfg_uwire.fw	optional cxgbe					\
+	dependency	"$S/dev/cxgbe/firmware/t7fw_cfg_uwire.txt"	\
+	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
+	no-obj no-implicit-rule						\
+	clean		"t7fw_cfg_uwire.fw"
 dev/cxgbe/crypto/t4_crypto.c	optional ccr \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cyapa/cyapa.c		optional cyapa iicbus
