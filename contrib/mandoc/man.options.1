@@ -1,4 +1,4 @@
-.\" $Id: man.options.1,v 1.8 2025/06/30 00:11:06 schwarze Exp $
+.\" $Id: man.options.1,v 1.9 2025/08/28 13:46:57 schwarze Exp $
 .\"
 .\" Copyright (c) 2017, 2025 Ingo Schwarze <schwarze@openbsd.org>
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: June 30 2025 $
+.Dd $Mdocdate: August 28 2025 $
 .Dt MAN.OPTIONS 1
 .Os
 .Sh NAME
@@ -39,8 +39,17 @@
 .de At5
 .At V Pq January 1983 \\$1
 ..
+.de At8
+.No Version 8 At Pq February 1985 \\$1
+..
 .de Bx43
 .Bx 4.3 Pq June 1986 \\$1
+..
+.de At9
+.No Version 9 At Pq September 1986 \\$1
+..
+.de At10
+.No Version 10 At Pq October 1989 \\$1
 ..
 .\" option was present in groff-1.01 as contained in 4.3BSD-Net/2
 .\" and no mention of it could be found in the ChangeLog,
@@ -49,7 +58,7 @@
 .No probably before groff-0.4 Pq before July 14, 1990 \\$1
 ..
 .de Eaton
-.No Eaton Pq before July 7, 1993; 1990/91? \\$1
+.No Eaton Pq before July 7, 1993; 1990/91?\& \\$1
 ..
 .\" man-1.5e was released on July 11, 1998.
 .de man15e
@@ -399,6 +408,12 @@ do not feed out paper nor stop phototypesetter
 .br
 .Nm troff :
 .At7
+.Pp
+.Bq superseded by Fl l
+interpret arguments as file names
+.br
+.Nm man :
+.At10
 .It Fl G
 preprocess with
 .Xr grap 1
@@ -549,6 +564,7 @@ mode
 .br
 .Nm man :
 .Bx4 ,
+.At10 ,
 .Eaton ;
 .No POSIX , Ox , Fx , Nx , No man-db , man-1.6 , illumos , Solaris 9-11
 .br
@@ -720,7 +736,9 @@ specify a page number for the first page
 output mode
 .br
 .Nm man :
-.At7
+.At7 ,
+.At8 ,
+.At10
 .Pp
 do not create the
 .Xr whatis 1
@@ -851,6 +869,12 @@ invoke the simultaneous input-output mode of the .rd request
 .br
 .Nm nroff , troff :
 .At7
+.Pp
+quick mode: prefer preformatted page if available
+.br
+.Nm man :
+.At8 ,
+.At10
 .Pp
 issue no warnings
 .br
@@ -1046,6 +1070,8 @@ output mode
 .Bx 2 Pq May 10, 1979 ,
 .At3 ,
 .At5 ,
+.At8 ,
+.At10 ,
 .Eaton ;
 .Fx , No man-db , man-1.6 , illumos , Solaris 9-11
 .br
@@ -1162,6 +1188,7 @@ list pathnames
 .At7 ,
 .At3 ,
 .At5 ,
+.At8 ,
 .Eaton ;
 .Ox , Fx , Nx , No man-db , man-1.6
 .br

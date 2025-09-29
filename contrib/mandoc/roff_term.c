@@ -1,4 +1,4 @@
-/* $Id: roff_term.c,v 1.26 2025/07/16 14:33:08 schwarze Exp $ */
+/* $Id: roff_term.c,v 1.27 2025/08/21 15:38:51 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2014, 2015, 2017-2021, 2025
  *               Ingo Schwarze <schwarze@openbsd.org>
