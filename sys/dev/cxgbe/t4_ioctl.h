@@ -64,6 +64,7 @@ enum {
 	T4_SET_FILTER_MASK,		/* set filter mask (hashfilter mode) */
 	T4_HOLD_CLIP_ADDR,		/* add ref on an IP in the CLIP */
 	T4_RELEASE_CLIP_ADDR,		/* remove ref from an IP in the CLIP */
+	T4_GET_SGE_CTXT,		/* get SGE context for a queue */
 };
 
 struct t4_reg {
@@ -322,6 +323,7 @@ struct t4_sched_queue {
 };
 
 #define T4_SGE_CONTEXT_SIZE 24
+#define T7_SGE_CONTEXT_SIZE 28
 enum {
 	SGE_CONTEXT_EGRESS,
 	SGE_CONTEXT_INGRESS,
@@ -333,6 +335,12 @@ struct t4_sge_context {
 	uint32_t mem_id;
 	uint32_t cid;
 	uint32_t data[T4_SGE_CONTEXT_SIZE / 4];
+};
+
+struct t4_sge_ctxt {
+	uint32_t mem_id;
+	uint32_t cid;
+	uint32_t data[T7_SGE_CONTEXT_SIZE / 4];
 };
 
 struct t4_mem_range {
@@ -444,4 +452,5 @@ struct t4_clip_addr {
 #define CHELSIO_T4_SET_FILTER_MASK _IOW('f', T4_SET_FILTER_MASK, uint32_t)
 #define CHELSIO_T4_HOLD_CLIP_ADDR _IOW('f', T4_HOLD_CLIP_ADDR, struct t4_clip_addr)
 #define CHELSIO_T4_RELEASE_CLIP_ADDR _IOW('f', T4_RELEASE_CLIP_ADDR, struct t4_clip_addr)
+#define CHELSIO_T4_GET_SGE_CTXT _IOWR('f', T4_GET_SGE_CTXT, struct t4_sge_ctxt)
 #endif

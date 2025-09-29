@@ -895,7 +895,7 @@ static int sysctl_tp_backoff(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_tmr_idx_ofld(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_pktc_idx_ofld(SYSCTL_HANDLER_ARGS);
 #endif
-static int get_sge_context(struct adapter *, struct t4_sge_context *);
+static int get_sge_context(struct adapter *, int, uint32_t, int, uint32_t *);
 static int load_fw(struct adapter *, struct t4_data *);
 static int load_cfg(struct adapter *, struct t4_data *);
 static int load_boot(struct adapter *, struct t4_bootrom *);
@@ -12100,15 +12100,17 @@ sysctl_holdoff_pktc_idx_ofld(SYSCTL_HANDLER_ARGS)
 #endif
 
 static int
-get_sge_context(struct adapter *sc, struct t4_sge_context *cntxt)
+get_sge_context(struct adapter *sc, int mem_id, uint32_t cid, int len,
+    uint32_t *data)
 {
 	int rc;
 
-	if (cntxt->cid > M_CTXTQID)
+	if (len < sc->chip_params->sge_ctxt_size)
+		return (ENOBUFS);
+	if (cid > M_CTXTQID)
 		return (EINVAL);
-
-	if (cntxt->mem_id != CTXT_EGRESS && cntxt->mem_id != CTXT_INGRESS &&
-	    cntxt->mem_id != CTXT_FLM && cntxt->mem_id != CTXT_CNM)
+	if (mem_id != CTXT_EGRESS && mem_id != CTXT_INGRESS &&
+	    mem_id != CTXT_FLM && mem_id != CTXT_CNM)
 		return (EINVAL);
 
 	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4ctxt");
@@ -12121,8 +12123,7 @@ get_sge_context(struct adapter *sc, struct t4_sge_context *cntxt)
 	}
 
 	if (sc->flags & FW_OK) {
-		rc = -t4_sge_ctxt_rd(sc, sc->mbox, cntxt->cid, cntxt->mem_id,
-		    &cntxt->data[0]);
+		rc = -t4_sge_ctxt_rd(sc, sc->mbox, cid, mem_id, data);
 		if (rc == 0)
 			goto done;
 	}
@@ -12131,7 +12132,7 @@ get_sge_context(struct adapter *sc, struct t4_sge_context *cntxt)
 	 * Read via firmware failed or wasn't even attempted.  Read directly via
 	 * the backdoor.
 	 */
-	rc = -t4_sge_ctxt_rd_bd(sc, cntxt->cid, cntxt->mem_id, &cntxt->data[0]);
+	rc = -t4_sge_ctxt_rd_bd(sc, cid, mem_id, data);
 done:
 	end_synchronized_op(sc, 0);
 	return (rc);
@@ -12895,9 +12896,13 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 	case CHELSIO_T4_DEL_FILTER:
 		rc = del_filter(sc, (struct t4_filter *)data);
 		break;
-	case CHELSIO_T4_GET_SGE_CONTEXT:
-		rc = get_sge_context(sc, (struct t4_sge_context *)data);
+	case CHELSIO_T4_GET_SGE_CONTEXT: {
+		struct t4_sge_context *ctxt = (struct t4_sge_context *)data;
+
+		rc = get_sge_context(sc, ctxt->mem_id, ctxt->cid,
+		    sizeof(ctxt->data), &ctxt->data[0]);
 		break;
+	}
 	case CHELSIO_T4_LOAD_FW:
 		rc = load_fw(sc, (struct t4_data *)data);
 		break;
@@ -12943,6 +12948,13 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 	case CHELSIO_T4_RELEASE_CLIP_ADDR:
 		rc = release_clip_addr(sc, (struct t4_clip_addr *)data);
 		break;
+	case CHELSIO_T4_GET_SGE_CTXT: {
+		struct t4_sge_ctxt *ctxt = (struct t4_sge_ctxt *)data;
+
+		rc = get_sge_context(sc, ctxt->mem_id, ctxt->cid,
+		    sizeof(ctxt->data), &ctxt->data[0]);
+		break;
+	}
 	default:
 		rc = ENOTTY;
 	}
