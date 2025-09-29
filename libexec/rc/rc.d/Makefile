@@ -216,12 +216,6 @@ CCD=		ccd
 CCDPACKAGE=	ccdconfig
 .endif
 
-.if ${MK_FTP} != "no"
-CONFGROUPS+=	FTPD
-FTPD=		ftpd
-FTPDPACKAGE=	ftpd
-.endif
-
 .if ${MK_KERBEROS_SUPPORT} != "no"
 CONFGROUPS+=	GSSD
 GSSD=		gssd
