@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2011 Chelsio Communications, Inc.
- * All rights reserved.
+ * Copyright (c) 2011, 2025 Chelsio Communications.
  * Written by: Navdeep Parhar <np@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -92,6 +91,7 @@ struct field_desc {
 #include "reg_defs_t4.c"
 #include "reg_defs_t5.c"
 #include "reg_defs_t6.c"
+#include "reg_defs_t7.c"
 #include "reg_defs_t4vf.c"
 
 static void
@@ -436,6 +436,48 @@ dump_regs_t6(int argc, const char *argv[], const uint32_t *regs)
 }
 #undef T6_MODREGS
 
+#define T7_MODREGS(name) { #name, t7_##name##_regs }
+static int
+dump_regs_t7(int argc, const char *argv[], const uint32_t *regs)
+{
+	static struct mod_regs t7_mod[] = {
+		T7_MODREGS(sge),
+		{ "pci", t7_pcie_regs },
+		T7_MODREGS(dbg),
+		{ "mc0", t7_mc_t70_regs },
+		T7_MODREGS(ma),
+		{ "edc0", t7_edc_t60_regs },
+		{ "edc1", t7_edc_t61_regs },
+		T7_MODREGS(cim),
+		T7_MODREGS(tp),
+		{ "ulprx", t7_ulp_rx_regs },
+		{ "ulptx", t7_ulp_tx_regs },
+		{ "pmrx", t7_pm_rx_regs },
+		{ "pmtx", t7_pm_tx_regs },
+		T7_MODREGS(mps),
+		{ "cplsw", t7_cpl_switch_regs },
+		T7_MODREGS(smb),
+		{ "i2c", t7_i2cm_regs },
+		T7_MODREGS(mi),
+		T7_MODREGS(uart),
+		T7_MODREGS(pmu),
+		T7_MODREGS(sf),
+		T7_MODREGS(pl),
+		T7_MODREGS(le),
+		T7_MODREGS(ncsi),
+		{ "mac", t7_mac_t7_regs },
+		{ "hma", t7_hma_t6_regs },
+		{ "crypto0", t7_crypto_0_regs },
+		{ "crypto1", t7_crypto_1_regs },
+		{ "cryptokey", t7_crypto_key_regs },
+		T7_MODREGS(arm),
+		T7_MODREGS(gcache),
+	};
+
+	return dump_regs_table(argc, argv, regs, t7_mod, nitems(t7_mod));
+}
+#undef T7_MODREGS
+
 static int
 dump_regs_t4vf(int argc, const char *argv[], const uint32_t *regs)
 {
@@ -479,6 +521,20 @@ dump_regs_t6vf(int argc, const char *argv[], const uint32_t *regs)
 }
 
 static int
+dump_regs_t7vf(int argc, const char *argv[], const uint32_t *regs)
+{
+	static struct mod_regs t7vf_mod[] = {
+		{ "sge", t5vf_sge_regs },
+		{ "mps", t4vf_mps_regs },
+		{ "pl", t7vf_pl_regs },
+		{ "mbdata", t4vf_mbdata_regs },
+		{ "cim", t4vf_cim_regs },
+	};
+
+	return dump_regs_table(argc, argv, regs, t7vf_mod, nitems(t7vf_mod));
+}
+
+static int
 dump_regs(int argc, const char *argv[])
 {
 	int vers, revision, rc;
@@ -515,6 +571,11 @@ dump_regs(int argc, const char *argv[])
 			rc = dump_regs_t6vf(argc, argv, regs.data);
 		else
 			rc = dump_regs_t6(argc, argv, regs.data);
+	} else if (vers == 7) {
+		if (revision == 0x3f)
+			rc =  dump_regs_t7vf(argc, argv, regs.data);
+		else
+			rc =  dump_regs_t7(argc, argv, regs.data);
 	} else {
 		warnx("%s (type %d, rev %d) is not a known card.",
 		    g.nexus, vers, revision);
@@ -1492,7 +1553,180 @@ show_struct(const uint32_t *words, int nwords, const struct field_desc *fd)
 #define FIELD1(name, start) FIELD(name, start, start)
 
 static void
-show_t5t6_ctxt(const struct t4_sge_context *p, int vers)
+show_t7_ctxt(const struct t4_sge_ctxt *p)
+{
+	static struct field_desc egress_t7[] = {
+		FIELD("uPToken_4k:", 197, 198),
+		FIELD("WrLength_5:", 196, 196),
+		FIELD("CpuId:", 193, 195),
+		FIELD("PCIeDataChannel_1:", 192, 192),
+		FIELD("DCA_ST:", 181, 191),
+		FIELD("StatusPgNS:", 180, 180),
+		FIELD("StatusPgRO:", 179, 179),
+		FIELD("FetchNS:", 178, 178),
+		FIELD("FetchRO:", 177, 177),
+		FIELD("Valid:", 176, 176),
+		FIELD("ReschedulePending_1:", 175, 175),
+		FIELD("PCIeDataChannel:", 174, 174),
+		FIELD("StatusPgTPHintEn:", 173, 173),
+		FIELD("StatusPgTPHint:", 171, 172),
+		FIELD("FetchTPHintEn:", 170, 170),
+		FIELD("FetchTPHint:", 168, 169),
+		FIELD("FCThreshOverride:", 167, 167),
+		{ "WRLength:", 162, 166, 9, 0, 1 },
+		FIELD("WRLengthKnown:", 161, 161),
+		FIELD("ReschedulePending:", 160, 160),
+		FIELD("TimerIx:", 157, 159),
+		FIELD("FetchBurstMin:", 156, 156),
+		FIELD("FLMPacking:", 155, 155),
+		FIELD("FetchBurstMax:", 153, 154),
+		FIELD("uPToken:", 133, 152),
+		FIELD("uPTokenEn:", 132, 132),
+		FIELD("UserModeIO:", 131, 131),
+		FIELD("uPFLCredits:", 123, 130),
+		FIELD("uPFLCreditEn:", 122, 122),
+		FIELD("FID:", 111, 121),
+		FIELD("HostFCMode:", 109, 110),
+		FIELD("HostFCOwner:", 108, 108),
+		{ "CIDXFlushThresh:", 105, 107, 0, 0, 1 },
+		FIELD("CIDX:", 89, 104),
+		FIELD("PIDX:", 73, 88),
+		{ "BaseAddress:", 18, 72, 9, 1 },
+		FIELD("QueueSize:", 2, 17),
+		FIELD("QueueType:", 1, 1),
+		FIELD("FetchSizeMode:", 0, 0),
+		{ NULL }
+	};
+	static struct field_desc fl_t7[] = {
+		FIELD("FLMcontextID_4k:", 197, 198),
+		FIELD("CpuId:", 193, 195),
+		FIELD("PCIeDataChannel_1:", 192, 192),
+		FIELD("DCA_ST:", 181, 191),
+		FIELD("StatusPgNS:", 180, 180),
+		FIELD("StatusPgRO:", 179, 179),
+		FIELD("FetchNS:", 178, 178),
+		FIELD("FetchRO:", 177, 177),
+		FIELD("Valid:", 176, 176),
+		FIELD("PCIeDataChannel:", 174, 175),
+		FIELD("StatusPgTPHintEn:", 173, 173),
+		FIELD("StatusPgTPHint:", 171, 172),
+		FIELD("FetchTPHintEn:", 170, 170),
+		FIELD("FetchTPHint:", 168, 169),
+		FIELD("FCThreshOverride:", 167, 167),
+		FIELD("ReschedulePending:", 160, 160),
+		FIELD("OnChipQueue:", 159, 159),
+		FIELD("FetchSizeMode:", 158, 158),
+		{ "FetchBurstMin:", 156, 157, 4, 0, 1 },
+		FIELD("FLMPacking:", 155, 155),
+		FIELD("FetchBurstMax:", 153, 154),
+		FIELD("FLMcongMode:", 152, 152),
+		FIELD("MaxuPFLCredits:", 144, 151),
+		FIELD("FLMcontextID:", 133, 143),
+		FIELD("uPTokenEn:", 132, 132),
+		FIELD("UserModeIO:", 131, 131),
+		FIELD("uPFLCredits:", 123, 130),
+		FIELD("uPFLCreditEn:", 122, 122),
+		FIELD("FID:", 111, 121),
+		FIELD("HostFCMode:", 109, 110),
+		FIELD("HostFCOwner:", 108, 108),
+		{ "CIDXFlushThresh:", 105, 107, 0, 0, 1 },
+		FIELD("CIDX:", 89, 104),
+		FIELD("PIDX:", 73, 88),
+		{ "BaseAddress:", 18, 72, 9, 1 },
+		FIELD("QueueSize:", 2, 17),
+		FIELD("QueueType:", 1, 1),
+		FIELD("CachePriority:", 0, 0),
+		{ NULL }
+	};
+	static struct field_desc ingress_t7[] = {
+		FIELD("Fid:", 171, 182),
+		FIELD("InterruptIDX4K:", 170, 170),
+		FIELD("CoalEn:", 169, 169),
+		FIELD("CoalAbort:", 168, 168),
+		FIELD("CoalCntr:", 161, 167),
+		FIELD("CoalCompTimerStatus:", 160, 160),
+		FIELD("CoalCompCntrStatus:", 159, 159),
+		FIELD("SP_NS:", 158, 158),
+		FIELD("SP_RO:", 157, 157),
+		FIELD("SP_TPHintEn:", 156, 156),
+		FIELD("SP_TPHint:", 154, 155),
+		FIELD("DCA_ST:", 143, 153),
+		FIELD("ISCSICoalescing:", 142, 142),
+		FIELD("Queue_Valid:", 141, 141),
+		FIELD("TimerPending:", 140, 140),
+		FIELD("DropRSS:", 139, 139),
+		FIELD("PCIeChannel:", 137, 138),
+		FIELD("SEInterruptArmed:", 136, 136),
+		FIELD("CongestionMgtEnable:", 135, 135),
+		FIELD("NoSnoop:", 134, 134),
+		FIELD("RelaxedOrdering:", 133, 133),
+		FIELD("GTSmode:", 132, 132),
+		FIELD("TPHintEn:", 131, 131),
+		FIELD("TPHint:", 129, 130),
+		FIELD("UpdateScheduling:", 128, 128),
+		FIELD("UpdateDelivery:", 126, 127),
+		FIELD("InterruptSent:", 125, 125),
+		FIELD("InterruptIDX:", 114, 124),
+		FIELD("InterruptDestination:", 113, 113),
+		FIELD("InterruptArmed:", 112, 112),
+		FIELD("RxIntCounter:", 106, 111),
+		FIELD("RxIntCounterThreshold:", 104, 105),
+		FIELD("Generation:", 103, 103),
+		{ "BaseAddress:", 48, 102, 9, 1 },
+		FIELD("PIDX:", 32, 47),
+		FIELD("CIDX:", 16, 31),
+		{ "QueueSize:", 4, 15, 4, 0 },
+		{ "QueueEntrySize:", 2, 3, 4, 0, 1 },
+		FIELD("QueueEntryOverride:", 1, 1),
+		FIELD("CachePriority:", 0, 0),
+		{ NULL }
+	};
+	static struct field_desc flm_t7[] = {
+		FIELD("MidCongEn:", 154, 154),
+		FIELD("FlPtr:", 90, 153),
+		FIELD("Valid:", 89, 89),
+		FIELD("SplitLenMode:", 87, 88),
+		FIELD("TPHintEn:", 86, 86),
+		FIELD("TPHint:", 84, 85),
+		FIELD("NoSnoop:", 83, 83),
+		FIELD("RelaxedOrdering:", 82, 82),
+		FIELD("DCA_ST:", 71, 81),
+		FIELD("EQid:", 54, 70),
+		FIELD("SplitEn:", 52, 53),
+		FIELD("PadEn:", 51, 51),
+		FIELD("PackEn:", 50, 50),
+		FIELD("Cache_Lock :", 49, 49),
+		FIELD("CongDrop:", 48, 48),
+		FIELD("Inflifght:", 47, 47),
+		FIELD("CongEn:", 46, 46),
+		FIELD("CongMode:", 45, 45),
+		FIELD("PackOffset:", 20, 39),
+		FIELD("CIDX:", 8, 15),
+		FIELD("PIDX:", 0, 7),
+		{ NULL }
+	};
+	static struct field_desc conm_t7[] = {
+		FIELD("CngMPSEnable:", 37, 37),
+		FIELD("CngTPMode:", 35, 36),
+		FIELD("CngDBPHdr:", 34, 34),
+		FIELD("CngDBPData:", 33, 33),
+		FIELD("CngIMSG:", 32, 32),
+		{ "CngChMap:", 0, 31, 0, 1, 0 },
+		{ NULL }
+	};
+
+	if (p->mem_id == SGE_CONTEXT_EGRESS)
+		show_struct(p->data, 7, (p->data[0] & 2) ? fl_t7 : egress_t7);
+	else if (p->mem_id == SGE_CONTEXT_FLM)
+		show_struct(p->data, 5, flm_t7);
+	else if (p->mem_id == SGE_CONTEXT_INGRESS)
+		show_struct(p->data, 6, ingress_t7);
+	else if (p->mem_id == SGE_CONTEXT_CNM)
+		show_struct(p->data, 2, conm_t7);
+}
+
+static void
+show_t5t6_ctxt(const struct t4_sge_ctxt *p, int vers)
 {
 	static struct field_desc egress_t5[] = {
 		FIELD("DCA_ST:", 181, 191),
@@ -1743,7 +1977,7 @@ show_t5t6_ctxt(const struct t4_sge_context *p, int vers)
 }
 
 static void
-show_t4_ctxt(const struct t4_sge_context *p)
+show_t4_ctxt(const struct t4_sge_ctxt *p)
 {
 	static struct field_desc egress_t4[] = {
 		FIELD1("StatusPgNS:", 180),
@@ -1887,7 +2121,7 @@ get_sge_context(int argc, const char *argv[])
 	int rc;
 	char *p;
 	long cid;
-	struct t4_sge_context cntxt = {0};
+	struct t4_sge_ctxt cntxt = {0};
 
 	if (argc != 2) {
 		warnx("sge_context: incorrect number of arguments.");
@@ -1915,14 +2149,21 @@ get_sge_context(int argc, const char *argv[])
 	}
 	cntxt.cid = cid;
 
-	rc = doit(CHELSIO_T4_GET_SGE_CONTEXT, &cntxt);
+	rc = doit(CHELSIO_T4_GET_SGE_CTXT, &cntxt);
 	if (rc != 0)
 		return (rc);
 
-	if (g.chip_id == 4)
+	switch (g.chip_id) {
+	case 4:
 		show_t4_ctxt(&cntxt);
-	else
+		break;
+	case 5:
+	case 6:
 		show_t5t6_ctxt(&cntxt, g.chip_id);
+		break;
+	default:
+		show_t7_ctxt(&cntxt);
+	}
 
 	return (0);
 }

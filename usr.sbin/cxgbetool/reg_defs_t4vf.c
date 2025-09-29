@@ -122,6 +122,21 @@ struct reg_info t6vf_pl_regs[] = {
 	{ NULL, 0, 0 }
 };
 
+struct reg_info t7vf_pl_regs[] = {
+	{ "PL_WHOAMI",				0x200, 0 },
+		{ "PortxMap", 24, 3 },
+		{ "SourceBus", 16, 2 },
+		{ "SourcePF", 9, 3 },
+		{ "IsVF", 8, 1 },
+		{ "VFID", 0, 8 },
+	{ "PL_VF_REV",				0x204, 0 },
+		{ "ChipID", 4, 4 },
+		{ "Rev", 0, 4 },
+	{ "PL_VF_REVISION",			0x208, 0 },
+
+	{ NULL, 0, 0 }
+};
+
 struct reg_info t4vf_cim_regs[] = {
 	/*
 	 * Note: the Mailbox Control register has read side-effects so
