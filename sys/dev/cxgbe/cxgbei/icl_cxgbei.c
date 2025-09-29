@@ -989,48 +989,6 @@ is_memfree(struct adapter *sc)
 	return (true);
 }
 
-/* XXXNP: move this to t4_tom. */
-static void
-send_iscsi_flowc_wr(struct adapter *sc, struct toepcb *toep, int maxlen)
-{
-	struct wrqe *wr;
-	struct fw_flowc_wr *flowc;
-	const u_int nparams = 1;
-	u_int flowclen;
-	struct ofld_tx_sdesc *txsd = &toep->txsd[toep->txsd_pidx];
-
-	flowclen = sizeof(*flowc) + nparams * sizeof(struct fw_flowc_mnemval);
-
-	wr = alloc_wrqe(roundup2(flowclen, 16), &toep->ofld_txq->wrq);
-	if (wr == NULL) {
-		/* XXX */
-		panic("%s: allocation failure.", __func__);
-	}
-	flowc = wrtod(wr);
-	memset(flowc, 0, wr->wr_len);
-
-	flowc->op_to_nparams = htobe32(V_FW_WR_OP(FW_FLOWC_WR) |
-	    V_FW_FLOWC_WR_NPARAMS(nparams));
-	flowc->flowid_len16 = htonl(V_FW_WR_LEN16(howmany(flowclen, 16)) |
-	    V_FW_WR_FLOWID(toep->tid));
-
-	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_TXDATAPLEN_MAX;
-	flowc->mnemval[0].val = htobe32(maxlen);
-
-	KASSERT(howmany(flowclen, 16) <= MAX_OFLD_TX_SDESC_CREDITS,
-	    ("%s: tx_credits %u too large", __func__, howmany(flowclen, 16)));
-	txsd->tx_credits = howmany(flowclen, 16);
-	txsd->plen = 0;
-	KASSERT(toep->tx_credits >= txsd->tx_credits && toep->txsd_avail > 0,
-	    ("%s: not enough credits (%d)", __func__, toep->tx_credits));
-	toep->tx_credits -= txsd->tx_credits;
-	if (__predict_false(++toep->txsd_pidx == toep->txsd_total))
-		toep->txsd_pidx = 0;
-	toep->txsd_avail--;
-
-	t4_wrq_tx(sc, wr);
-}
-
 static void
 set_ulp_mode_iscsi(struct adapter *sc, struct toepcb *toep, u_int ulp_submode)
 {
@@ -1164,7 +1122,7 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 	toep->params.ulp_mode = ULP_MODE_ISCSI;
 	toep->ulpcb = icc;
 
-	send_iscsi_flowc_wr(icc->sc, toep,
+	send_txdataplen_max_flowc_wr(icc->sc, toep,
 	    roundup(max_iso_pdus * max_tx_pdu_len, tp->t_maxseg));
 	set_ulp_mode_iscsi(icc->sc, toep, icc->ulp_submode);
 	INP_WUNLOCK(inp);
