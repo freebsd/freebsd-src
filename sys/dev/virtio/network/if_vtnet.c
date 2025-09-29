@@ -281,7 +281,7 @@ static int vtnet_tso_disable = 0;
 SYSCTL_INT(_hw_vtnet, OID_AUTO, tso_disable, CTLFLAG_RDTUN,
     &vtnet_tso_disable, 0, "Disables TSO");
 
-static int vtnet_lro_disable = 0;
+static int vtnet_lro_disable = 1;
 SYSCTL_INT(_hw_vtnet, OID_AUTO, lro_disable, CTLFLAG_RDTUN,
     &vtnet_lro_disable, 0, "Disables hardware LRO");
 
