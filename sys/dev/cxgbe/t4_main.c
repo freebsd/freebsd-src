@@ -1310,7 +1310,7 @@ t4_attach(device_t dev)
 	 * will work even in "recovery mode".
 	 */
 	setup_memwin(sc);
-	if (t4_init_devlog_params(sc, 0) == 0)
+	if (t4_init_devlog_ncores_params(sc, 0) == 0)
 		fixup_devlog_params(sc);
 	make_dev_args_init(&mda);
 	mda.mda_devsw = &t4_cdevsw;
@@ -5034,7 +5034,7 @@ done:
 
 static int
 copy_cfg_file_to_card(struct adapter *sc, char *cfg_file,
-    uint32_t mtype, uint32_t moff)
+    uint32_t mtype, uint32_t moff, u_int maxlen)
 {
 	struct fw_info *fw_info;
 	const struct firmware *dcfg, *rcfg = NULL;
@@ -5086,10 +5086,10 @@ copy_cfg_file_to_card(struct adapter *sc, char *cfg_file,
 		cflen = rcfg->datasize & ~3;
 	}
 
-	if (cflen > FLASH_CFG_MAX_SIZE) {
+	if (cflen > maxlen) {
 		device_printf(sc->dev,
 		    "config file too long (%d, max allowed is %d).\n",
-		    cflen, FLASH_CFG_MAX_SIZE);
+		    cflen, maxlen);
 		rc = EINVAL;
 		goto done;
 	}
@@ -5141,6 +5141,8 @@ apply_cfg_and_initialize(struct adapter *sc, char *cfg_file,
 	int rc;
 	struct fw_caps_config_cmd caps;
 	uint32_t mtype, moff, finicsum, cfcsum, param, val;
+	unsigned int maxlen = 0;
+	const int cfg_addr = t4_flash_cfg_addr(sc, &maxlen);
 
 	rc = -t4_fw_reset(sc, sc->mbox, F_PIORSTMODE | F_PIORST);
 	if (rc != 0) {
@@ -5157,7 +5159,7 @@ apply_cfg_and_initialize(struct adapter *sc, char *cfg_file,
 		caps.cfvalid_to_len16 = htobe32(FW_LEN16(caps));
 	} else if (strncmp(cfg_file, FLASH_CF, sizeof(t4_cfg_file)) == 0) {
 		mtype = FW_MEMTYPE_FLASH;
-		moff = t4_flash_cfg_addr(sc);
+		moff = cfg_addr;
 		caps.cfvalid_to_len16 = htobe32(F_FW_CAPS_CONFIG_CMD_CFVALID |
 		    V_FW_CAPS_CONFIG_CMD_MEMTYPE_CF(mtype) |
 		    V_FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(moff >> 16) |
@@ -5181,7 +5183,7 @@ apply_cfg_and_initialize(struct adapter *sc, char *cfg_file,
 		    V_FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(moff >> 16) |
 		    FW_LEN16(caps));
 
-		rc = copy_cfg_file_to_card(sc, cfg_file, mtype, moff);
+		rc = copy_cfg_file_to_card(sc, cfg_file, mtype, moff, maxlen);
 		if (rc != 0) {
 			device_printf(sc->dev,
 			    "failed to upload config file to card: %d.\n", rc);
@@ -5356,7 +5358,7 @@ get_params__pre_init(struct adapter *sc)
 	sc->params.vpd.cclk = val[1];
 
 	/* Read device log parameters. */
-	rc = -t4_init_devlog_params(sc, 1);
+	rc = -t4_init_devlog_ncores_params(sc, 1);
 	if (rc == 0)
 		fixup_devlog_params(sc);
 	else {

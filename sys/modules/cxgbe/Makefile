@@ -1,6 +1,3 @@
-#
-#
-
 SYSDIR?=${SRCTOP}/sys
 .include "${SYSDIR}/conf/kern.opts.mk"
 
@@ -13,6 +10,7 @@ SUBDIR+=	if_ccv
 SUBDIR+=	t4_firmware
 SUBDIR+=	t5_firmware
 SUBDIR+=	t6_firmware
+SUBDIR+=	t7_firmware
 SUBDIR+=	${_tom}
 SUBDIR+=	${_iw_cxgbe}
 SUBDIR+=	${_cxgbei}
