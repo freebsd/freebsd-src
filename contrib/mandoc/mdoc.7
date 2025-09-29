@@ -1,4 +1,4 @@
-.\" $Id: mdoc.7,v 1.299 2025/06/13 16:18:28 schwarze Exp $
+.\" $Id: mdoc.7,v 1.300 2025/08/19 14:08:59 schwarze Exp $
 .\"
 .\" Copyright (c) 2010-2021, 2024, 2025 Ingo Schwarze <schwarze@openbsd.org>
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: June 13 2025 $
+.Dd $Mdocdate: August 19 2025 $
 .Dt MDOC 7
 .Os
 .Sh NAME
@@ -979,7 +979,7 @@ Unless the
 .Fl compact
 argument is specified, list entries are separated by vertical space.
 .Pp
-A list must specify one of the following list types:
+The following list types are commonly used:
 .Bl -tag -width 12n -offset indent
 .It Fl bullet
 No item heads can be specified, but a bullet will be printed at the head
@@ -994,7 +994,14 @@ The
 .Fl width
 argument has no effect; instead, the string length of each argument
 specifies the width of one column.
-If the first line of the body of a
+The width specification for the last column does not affect formatting.
+.Pp
+For two-column lists, using
+.Fl tag
+often results in simpler code, identical terminal output, and better HTML
+output, especially when the first column contains short identifiers.
+.Pp
+For compatibility with legacy documents, if the first line of the body of a
 .Fl column
 list is not an
 .Ic \&It
@@ -1016,7 +1023,7 @@ Like
 except that item heads are not parsed for macro invocations.
 Most often used in the
 .Em DIAGNOSTICS
-section with error constants in the item heads.
+section with error messages in the item heads.
 .It Fl enum
 A numbered list.
 No item heads can be specified.
@@ -1024,6 +1031,17 @@ Formatted like
 .Fl bullet ,
 except that ordinal numbers are used in place of bullets,
 starting at 1.
+.It Fl tag
+Item bodies are indented according to the
+.Fl width
+argument.
+When an item head fits inside the indentation, the item body follows
+this head on the same output line.
+Otherwise, the body starts on the output line following the head.
+.El
+.Pp
+The following list types are rarely useful:
+.Bl -tag -width 12n -offset indent
 .It Fl hang
 Like
 .Fl tag ,
@@ -1050,13 +1068,6 @@ Item bodies start on the line following item heads and are not indented.
 The
 .Fl width
 argument is ignored.
-.It Fl tag
-Item bodies are indented according to the
-.Fl width
-argument.
-When an item head fits inside the indentation, the item body follows
-this head on the same output line.
-Otherwise, the body starts on the output line following the head.
 .El
 .Pp
 Lists may be nested within lists and displays.
