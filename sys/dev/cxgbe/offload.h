@@ -230,10 +230,15 @@ struct iw_tunables {
 struct tls_tunables {
 	int inline_keys;
 	union {
-		/* T6 only. */
-		int combo_wrs;
-		/* T7 only. */
-		int short_records;
+		struct {
+			/* T6 only. */
+			int combo_wrs;
+		};
+		struct {
+			/* T7 only. */
+			int short_records;
+			int partial_ghash;
+		};
 	};
 };
 
