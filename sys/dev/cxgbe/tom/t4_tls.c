@@ -240,11 +240,6 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 		if (is_t6(sc)) {
 			return (EPROTONOSUPPORT);
 		}
-
-		/* Only TX for TLS 1.3 for now. */
-		if (direction == KTLS_RX) {
-			return (EPROTONOSUPPORT);
-		}
 	}
 
 	/* Sanity check values in *tls. */
@@ -305,8 +300,8 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 	if (error)
 		return (error);
 
+	toep->tls.tls13 = tls->params.tls_vminor == TLS_MINOR_VER_THREE;
 	if (direction == KTLS_TX) {
-		toep->tls.tls13 = tls->params.tls_vminor == TLS_MINOR_VER_THREE;
 		toep->tls.scmd0.seqno_numivs =
 			(V_SCMD_SEQ_NO_CTRL(3) |
 			 V_SCMD_PROTO_VERSION(t4_tls_proto_ver(tls)) |
@@ -834,8 +829,8 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct sockbuf *sb;
 	struct mbuf *tls_data;
 	struct tls_get_record *tgr;
-	struct mbuf *control;
-	int pdu_length, trailer_len;
+	struct mbuf *control, *n;
+	int pdu_length, resid, trailer_len;
 #if defined(KTR) || defined(INVARIANTS)
 	int len;
 #endif
@@ -883,7 +878,9 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	/*
 	 * The payload of this CPL is the TLS header followed by
-	 * additional fields.
+	 * additional fields.  For TLS 1.3 the type field holds the
+	 * inner record type and the length field has been updated to
+	 * strip the inner record type, padding, and MAC.
 	 */
 	KASSERT(m->m_len >= sizeof(*tls_hdr_pkt),
 	    ("%s: payload too small", __func__));
@@ -895,7 +892,14 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		    ("%s: sequence mismatch", __func__));
 	}
 
-	/* Report decryption errors as EBADMSG. */
+	/*
+	 * Report decryption errors as EBADMSG.
+	 *
+	 * XXX: To support rekeying for TLS 1.3 this will eventually
+	 * have to be updated to recrypt the data with the old key and
+	 * then decrypt with the new key.  Punt for now as KTLS
+	 * doesn't yet support rekeying.
+	 */
 	if ((tls_hdr_pkt->res_to_mac_error & M_TLSRX_HDR_PKT_ERROR) != 0) {
 		CTR4(KTR_CXGBE, "%s: tid %u TLS error %#x ddp_vld %#x",
 		    __func__, toep->tid, tls_hdr_pkt->res_to_mac_error,
@@ -911,6 +915,33 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		CURVNET_RESTORE();
 
 		return (0);
+	}
+
+	/* For TLS 1.3 trim the header and trailer. */
+	if (toep->tls.tls13) {
+		KASSERT(tls_data != NULL, ("%s: TLS 1.3 record without data",
+		    __func__));
+		MPASS(tls_data->m_pkthdr.len == pdu_length);
+		m_adj(tls_data, sizeof(struct tls_record_layer));
+		if (tls_data->m_pkthdr.len > be16toh(tls_hdr_pkt->length))
+			tls_data->m_pkthdr.len = be16toh(tls_hdr_pkt->length);
+		resid = tls_data->m_pkthdr.len;
+		if (resid == 0) {
+			m_freem(tls_data);
+			tls_data = NULL;
+		} else {
+			for (n = tls_data;; n = n->m_next) {
+				if (n->m_len < resid) {
+					resid -= n->m_len;
+					continue;
+				}
+
+				n->m_len = resid;
+				m_freem(n->m_next);
+				n->m_next = NULL;
+				break;
+			}
+		}
 	}
 
 	/* Handle data received after the socket is closed. */
