@@ -640,12 +640,22 @@ struct sge_txq {
 	uint64_t kern_tls_full;
 	uint64_t kern_tls_octets;
 	uint64_t kern_tls_waste;
-	uint64_t kern_tls_options;
 	uint64_t kern_tls_header;
-	uint64_t kern_tls_fin;
 	uint64_t kern_tls_fin_short;
 	uint64_t kern_tls_cbc;
 	uint64_t kern_tls_gcm;
+	union {
+		struct {
+			/* T6 only. */
+			uint64_t kern_tls_options;
+			uint64_t kern_tls_fin;
+		};
+		struct {
+			/* T7 only. */
+			uint64_t kern_tls_lso;
+			uint64_t kern_tls_splitmode;
+		};
+	};
 
 	/* stats for not-that-common events */
 
@@ -1425,6 +1435,12 @@ void t6_ktls_modunload(void);
 int t6_ktls_try(if_t, struct socket *, struct ktls_session *);
 int t6_ktls_parse_pkt(struct mbuf *);
 int t6_ktls_write_wr(struct sge_txq *, void *, struct mbuf *, u_int);
+
+/* t7_kern_tls.c */
+int t7_tls_tag_alloc(struct ifnet *, union if_snd_tag_alloc_params *,
+    struct m_snd_tag **);
+int t7_ktls_parse_pkt(struct mbuf *);
+int t7_ktls_write_wr(struct sge_txq *, void *, struct mbuf *, u_int);
 #endif
 
 /* t4_keyctx.c */

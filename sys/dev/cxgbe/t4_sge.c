@@ -2703,9 +2703,14 @@ restart:
 #endif
 #ifdef KERN_TLS
 	if (mst != NULL && mst->sw->type == IF_SND_TAG_TYPE_TLS) {
+		struct vi_info *vi = if_getsoftc(mst->ifp);
+
 		cflags |= MC_TLS;
 		set_mbuf_cflags(m0, cflags);
-		rc = t6_ktls_parse_pkt(m0);
+		if (is_t6(vi->pi->adapter))
+			rc = t6_ktls_parse_pkt(m0);
+		else
+			rc = t7_ktls_parse_pkt(m0);
 		if (rc != 0)
 			goto fail;
 		return (EINPROGRESS);
@@ -3275,7 +3280,10 @@ skip_coalescing:
 #ifdef KERN_TLS
 		} else if (mbuf_cflags(m0) & MC_TLS) {
 			ETHER_BPF_MTAP(ifp, m0);
-			n = t6_ktls_write_wr(txq, wr, m0, avail);
+			if (is_t6(sc))
+				n = t6_ktls_write_wr(txq, wr, m0, avail);
+			else
+				n = t7_ktls_write_wr(txq, wr, m0, avail);
 #endif
 		} else {
 			ETHER_BPF_MTAP(ifp, m0);
@@ -4827,18 +4835,30 @@ add_txq_sysctls(struct vi_info *vi, struct sysctl_ctx_list *ctx,
 		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_waste",
 		    CTLFLAG_RD, &txq->kern_tls_waste,
 		    "# of octets DMAd but not transmitted in NIC TLS records");
-		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_options",
-		    CTLFLAG_RD, &txq->kern_tls_options,
-		    "# of NIC TLS options-only packets transmitted");
 		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_header",
 		    CTLFLAG_RD, &txq->kern_tls_header,
 		    "# of NIC TLS header-only packets transmitted");
-		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_fin",
-		    CTLFLAG_RD, &txq->kern_tls_fin,
-		    "# of NIC TLS FIN-only packets transmitted");
 		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_fin_short",
 		    CTLFLAG_RD, &txq->kern_tls_fin_short,
 		    "# of NIC TLS padded FIN packets on short TLS records");
+		if (is_t6(sc)) {
+			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
+			    "kern_tls_options", CTLFLAG_RD,
+			    &txq->kern_tls_options,
+			    "# of NIC TLS options-only packets transmitted");
+			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
+			    "kern_tls_fin", CTLFLAG_RD, &txq->kern_tls_fin,
+			    "# of NIC TLS FIN-only packets transmitted");
+		} else {
+			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
+			    "kern_tls_lso", CTLFLAG_RD,
+			    &txq->kern_tls_lso,
+			    "# of NIC TLS records transmitted using LSO");
+			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
+			    "kern_tls_splitmode", CTLFLAG_RD,
+			    &txq->kern_tls_splitmode,
+			    "# of NIC TLS records using SplitMode");
+		}
 		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_cbc",
 		    CTLFLAG_RD, &txq->kern_tls_cbc,
 		    "# of NIC TLS sessions using AES-CBC");

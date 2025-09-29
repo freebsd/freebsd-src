@@ -23,6 +23,7 @@ SRCS+=	t4_hw.c
 SRCS+=	t4_if.c t4_if.h
 SRCS+=	t4_iov.c
 SRCS.KERN_TLS+=	t6_kern_tls.c
+SRCS.KERN_TLS+=	t7_kern_tls.c
 SRCS+=	t4_keyctx.c
 SRCS+=	t4_l2t.c
 SRCS+=	t4_main.c
