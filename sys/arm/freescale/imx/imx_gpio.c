@@ -918,6 +918,10 @@ static device_method_t imx51_gpio_methods[] = {
 	DEVMETHOD(device_detach,	imx51_gpio_detach),
 
 #ifdef INTRNG
+	/* Bus interface */
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	gpio_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	gpio_pic_enable_intr),
