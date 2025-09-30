@@ -17,6 +17,10 @@ repodir="$1"; shift
 # generate-set-ucl.lua.
 UCL_VARS="$@"
 
+# Nothing is explicitly added to set-base, so it wouldn't get built unless
+# we list it here.
+SETS="base base-dbg base-jail base-jail-dbg"
+
 for pkg in "$repodir"/*.pkg; do
 	# If the package name doesn't containing a '-', then it's
 	# probably data.pkg or packagesite.pkg, which are not real
