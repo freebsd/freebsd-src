@@ -26,6 +26,7 @@
 
 #ifndef	__MTKSWITCHVAR_H__
 #define	__MTKSWITCHVAR_H__
+#define	MT7531
 
 typedef enum {
 	MTK_SWITCH_NONE,
@@ -35,6 +36,7 @@ typedef enum {
 	MTK_SWITCH_MT7620,
 	MTK_SWITCH_MT7621,
 	MTK_SWITCH_MT7628,
+	MTK_SWITCH_MT7531,
 } mtk_switch_type;
 
 #define	MTK_IS_SWITCH(_sc, _type)		\
@@ -42,7 +44,12 @@ typedef enum {
 
 #define	MTKSWITCH_MAX_PORTS	7
 #define MTKSWITCH_MAX_PHYS	7
+#ifndef MT7531
 #define	MTKSWITCH_CPU_PORT	6
+#else
+#define	MTKSWITCH_CPU_PORT	5
+#define	MTKSWITCH_NUM_VLANS	4096
+#endif
 
 #define	MTKSWITCH_LINK_UP	(1<<0)
 #define	MTKSWITCH_SPEED_MASK	(3<<1)
@@ -56,13 +63,18 @@ typedef enum {
 struct mtkswitch_softc {
 	struct mtx	sc_mtx;
 	device_t	sc_dev;
+#ifdef	MT7531
+	phandle_t	node;
+#endif
 	struct resource *sc_res;
 	int		numphys;
 	uint32_t	phymap;
 	int		numports;
 	uint32_t	portmap;
 	int		cpuport;
+#ifndef	MT7531
 	uint32_t	valid_vlans;
+#endif
 	mtk_switch_type	sc_switchtype;
 	char		*ifname[MTKSWITCH_MAX_PHYS];
 	device_t	miibus[MTKSWITCH_MAX_PHYS];
@@ -70,6 +82,9 @@ struct mtkswitch_softc {
 	struct callout	callout_tick;
 	etherswitch_info_t info;
 
+#ifdef	MT7531
+	int		vlans[MTKSWITCH_NUM_VLANS];
+#endif
 	uint32_t	vlan_mode;
 
 	struct {
@@ -125,6 +140,7 @@ struct mtkswitch_softc {
 #define	MTKSWITCH_TRYLOCK(_sc)			\
 	    mtx_trylock(&(_sc)->sc_mtx)
 
+#ifndef	MT7531
 #define	MTKSWITCH_READ(_sc, _reg)		\
 	    bus_read_4((_sc)->sc_res, (_reg))
 #define MTKSWITCH_WRITE(_sc, _reg, _val)	\
@@ -132,8 +148,10 @@ struct mtkswitch_softc {
 #define	MTKSWITCH_MOD(_sc, _reg, _clr, _set)	\
 	    MTKSWITCH_WRITE((_sc), (_reg),	\
 	        ((MTKSWITCH_READ((_sc), (_reg)) & ~(_clr)) | (_set))
+#endif
 
 #define	MTKSWITCH_REG32(addr)	((addr) & ~(0x3))
+#ifndef	MT7531
 #define	MTKSWITCH_IS_HI16(addr)	(((addr) & 0x3) > 0x1)
 #define	MTKSWITCH_HI16(x)	(((x) >> 16) & 0xffff)
 #define	MTKSWITCH_LO16(x)	((x) & 0xffff)
@@ -141,6 +159,7 @@ struct mtkswitch_softc {
 #define	MTKSWITCH_TO_LO16(x)	((x) & 0xffff)
 #define	MTKSWITCH_HI16_MSK	0xffff0000
 #define MTKSWITCH_LO16_MSK	0x0000ffff
+#endif
 
 #if defined(DEBUG)
 #define	DPRINTF(dev, args...)	device_printf(dev, args)
@@ -156,7 +175,12 @@ struct mtkswitch_softc {
 #define	DEBUG_INCRVAR(var)
 #endif
 
+#ifndef	MT7531
 extern void mtk_attach_switch_rt3050(struct mtkswitch_softc *);
 extern void mtk_attach_switch_mt7620(struct mtkswitch_softc *);
+#else
+extern void mtk_attach_switch_mt7631(struct mtkswitch_softc *);
+extern int mt7531_sysctl_attach(struct mtkswitch_softc *sc);
+#endif
 
 #endif	/* __MTKSWITCHVAR_H__ */

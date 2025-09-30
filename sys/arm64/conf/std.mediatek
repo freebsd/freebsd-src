@@ -13,7 +13,8 @@ device iicbus
 device iicbb
 
 # eth switch
-device 		etherswitch
+device		etherswitch     # Enable etherswitch support
+device		mtkswitch       # Enable mediatek 7531 switch
 device 		miibus
 device 		mdio
 

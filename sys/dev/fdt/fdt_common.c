@@ -338,6 +338,27 @@ fdt_regsize(phandle_t node, u_long *base, u_long *size)
 	return (0);
 }
 
+boolean_t
+fdt_find_ethernet_prop_switch(phandle_t ethernet, phandle_t node)
+{
+	boolean_t ret;
+	phandle_t child, switch_handle, switch_eth;
+	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
+		if (OF_getencprop(child, "ethernet", (void*)&switch_handle,
+		    sizeof(switch_handle)) > 0){
+			if (switch_handle > 0) {
+				switch_eth = OF_node_from_xref(switch_handle);
+				if (switch_eth == ethernet)
+					return (true);
+			}
+		}
+		ret = fdt_find_ethernet_prop_switch(ethernet, child);
+		if (ret != 0)
+			return (ret);
+	}
+	return (false);
+}
+
 int
 fdt_get_phyaddr(phandle_t node, device_t dev, int *phy_addr, void **phy_sc)
 {

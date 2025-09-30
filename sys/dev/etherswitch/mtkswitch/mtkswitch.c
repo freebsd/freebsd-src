@@ -71,6 +71,7 @@ static int mtkswitch_ifmedia_upd(if_t ifp);
 static void mtkswitch_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr);
 static void mtkswitch_tick(void *arg);
 
+#ifndef MT7531
 static const struct ofw_compat_data compat_data[] = {
 	{ "ralink,rt3050-esw",		MTK_SWITCH_RT3050 },
 	{ "ralink,rt3352-esw",		MTK_SWITCH_RT3352 },
@@ -82,10 +83,20 @@ static const struct ofw_compat_data compat_data[] = {
 	/* Sentinel */
 	{ NULL,				MTK_SWITCH_NONE }
 };
+#else
+
+static void
+mtkswitch_identify(driver_t *driver, device_t parent)
+{
+	if (device_find_child(parent, "mtkswitch", -1) == NULL)
+		BUS_ADD_CHILD(parent, 0, "mtkswitch", -1);
+}
+#endif
 
 static int
 mtkswitch_probe(device_t dev)
 {
+#ifndef MT7531
 	struct mtkswitch_softc *sc;
 	mtk_switch_type switch_type;
 
@@ -103,6 +114,23 @@ mtkswitch_probe(device_t dev)
 	device_set_desc(dev, "MTK Switch Driver");
 
 	return (0);
+#else
+	phandle_t switch_node;
+
+	switch_node = ofw_bus_find_compatible(OF_finddevice("/"),
+	    "mediatek,mt7531");
+
+	if (switch_node == MTK_SWITCH_NONE) {
+		return (ENXIO);
+	}
+
+	if (bootverbose)
+		device_printf(dev, "Found switch_node: 0x%x\n", switch_node);
+
+	device_set_desc(dev, "MTK Switch Driver");
+
+	return (BUS_PROBE_DEFAULT);
+#endif
 }
 
 static int
@@ -165,7 +193,11 @@ mtkswitch_attach(device_t dev)
 {
 	struct mtkswitch_softc *sc;
 	int err = 0;
+#ifndef MT7531
 	int port, rid;
+#else
+	int port;
+#endif
 
 	sc = device_get_softc(dev);
 
@@ -176,6 +208,7 @@ mtkswitch_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	/* Attach switch related functions */
+#ifndef MT7531
 	if (sc->sc_switchtype == MTK_SWITCH_NONE) {
 		device_printf(dev, "Unknown switch type\n");
 		return (ENXIO);
@@ -186,7 +219,11 @@ mtkswitch_attach(device_t dev)
 		mtk_attach_switch_mt7620(sc);
 	else
 		mtk_attach_switch_rt3050(sc);
+#else
+	mtk_attach_switch_mt7631(sc);
+#endif
 
+#ifndef MT7531
 	/* Allocate resources */
 	rid = 0;
 	sc->sc_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
@@ -195,6 +232,7 @@ mtkswitch_attach(device_t dev)
 		device_printf(dev, "could not map memory\n");
 		return (ENXIO);
 	}
+#endif
 
 	mtx_init(&sc->sc_mtx, "mtkswitch", NULL, MTX_DEF);
 
@@ -232,7 +270,9 @@ mtkswitch_attach(device_t dev)
 		return (err);
 
 	bus_identify_children(dev);
+#ifndef MT7531
 	bus_enumerate_hinted_children(dev);
+#endif
 	bus_attach_children(dev);
 
 	callout_init_mtx(&sc->callout_tick, &sc->sc_mtx, 0);
@@ -241,6 +281,9 @@ mtkswitch_attach(device_t dev)
 	mtkswitch_tick(sc);
 	MTKSWITCH_UNLOCK(sc);
 
+#ifdef MT7531
+	mt7531_sysctl_attach(sc);
+#endif
 	return (0);
 }
 
@@ -479,7 +522,7 @@ mtkswitch_setport(device_t dev, etherswitch_port_t *p)
 	sc = device_get_softc(dev);
 	if (p->es_port < 0 || p->es_port > sc->info.es_nports)
 		return (ENXIO);
-        
+
 	/* Port flags. */ 
 	if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q) {
 		err = sc->hal.mtkswitch_port_vlan_setup(sc, p);
@@ -591,6 +634,26 @@ mtkswitch_readphy(device_t dev, int phy, int reg)
 	return (sc->hal.mtkswitch_phy_read(dev, phy, reg));
 }
 
+#ifdef MT7531
+static int
+mtkswitch_readphy_mii(device_t dev, int phy, int reg)
+{
+	struct mtkswitch_softc *sc = device_get_softc(dev);
+
+	return (sc->hal.mtkswitch_phy_read(dev, phy, reg));
+}
+
+#if 0
+static int
+mtkswitch_readphy_mdio(device_t dev, int phy, int reg)
+{
+	struct mtkswitch_softc *sc = device_get_softc(dev);
+
+	return (sc->hal.mtkswitch_phy_read(dev, phy, reg));
+}
+#endif
+#endif
+
 static int
 mtkswitch_writephy(device_t dev, int phy, int reg, int val)
 {
@@ -598,6 +661,26 @@ mtkswitch_writephy(device_t dev, int phy, int reg, int val)
 
 	return (sc->hal.mtkswitch_phy_write(dev, phy, reg, val));
 }
+
+#ifdef MT7531
+static int
+mtkswitch_writephy_mii(device_t dev, int phy, int reg, int val)
+{
+	struct mtkswitch_softc *sc = device_get_softc(dev);
+
+	return (sc->hal.mtkswitch_phy_write(dev, phy, reg, val));
+}
+
+#if 0
+static int
+mtkswitch_writephy_mdio(device_t dev, int phy, int reg, int val)
+{
+	struct mtkswitch_softc *sc = device_get_softc(dev);
+
+	return (sc->hal.mtkswitch_phy_write(dev, phy, reg, val));
+}
+#endif
+#endif
 
 static int
 mtkswitch_readreg(device_t dev, int addr)
@@ -617,6 +700,9 @@ mtkswitch_writereg(device_t dev, int addr, int value)
 
 static device_method_t mtkswitch_methods[] = {
 	/* Device interface */
+#ifdef MT7531
+	DEVMETHOD(device_identify,	mtkswitch_identify),
+#endif
 	DEVMETHOD(device_probe,		mtkswitch_probe),
 	DEVMETHOD(device_attach,	mtkswitch_attach),
 	DEVMETHOD(device_detach,	mtkswitch_detach),
@@ -625,13 +711,25 @@ static device_method_t mtkswitch_methods[] = {
 	DEVMETHOD(bus_add_child,	device_add_child_ordered),
 
 	/* MII interface */
+#ifndef MT7531
 	DEVMETHOD(miibus_readreg,	mtkswitch_readphy),
 	DEVMETHOD(miibus_writereg,	mtkswitch_writephy),
+#else
+	DEVMETHOD(miibus_readreg,	mtkswitch_readphy_mii),
+	DEVMETHOD(miibus_writereg,	mtkswitch_writephy_mii),
+#endif
 	DEVMETHOD(miibus_statchg,	mtkswitch_statchg),
 
 	/* MDIO interface */
+#ifndef MT7531
 	DEVMETHOD(mdio_readreg,		mtkswitch_readphy),
 	DEVMETHOD(mdio_writereg,	mtkswitch_writephy),
+#else
+#if 0
+	DEVMETHOD(mdio_readreg,		mtkswitch_readphy_mdio),
+	DEVMETHOD(mdio_writereg,	mtkswitch_writephy_mdio),
+#endif
+#endif
 
 	/* ehterswitch interface */
 	DEVMETHOD(etherswitch_lock,	mtkswitch_lock),
@@ -654,6 +752,7 @@ static device_method_t mtkswitch_methods[] = {
 DEFINE_CLASS_0(mtkswitch, mtkswitch_driver, mtkswitch_methods,
     sizeof(struct mtkswitch_softc));
 
+#ifndef MT7531
 DRIVER_MODULE(mtkswitch, simplebus, mtkswitch_driver, 0, 0);
 DRIVER_MODULE(miibus, mtkswitch, miibus_driver, 0, 0);
 DRIVER_MODULE(mdio, mtkswitch, mdio_driver, 0, 0);
@@ -661,3 +760,10 @@ DRIVER_MODULE(etherswitch, mtkswitch, etherswitch_driver, 0, 0);
 MODULE_VERSION(mtkswitch, 1);
 MODULE_DEPEND(mtkswitch, miibus, 1, 1, 1);
 MODULE_DEPEND(mtkswitch, etherswitch, 1, 1, 1);
+#else
+DRIVER_MODULE(mtkswitch, mdio, mtkswitch_driver, 0, 0);
+DRIVER_MODULE(miibus, mtkswitch, miibus_driver, 0, 0);
+DRIVER_MODULE(etherswitch, mtkswitch, etherswitch_driver, 0, 0);
+MODULE_VERSION(mtkswitch, 1);
+MODULE_DEPEND(mtkswitch, mdio, 1, 1, 1);
+#endif
