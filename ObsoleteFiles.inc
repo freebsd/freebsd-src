@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20251001: test helper sendto-IP_MULTICAST_IF renamed
+OLD_FILES+=usr/tests/sys/netinet/sendto-IP_MULTICAST_IF
+
 # 20250930: Rename wlanstats to wlanstat
 OLD_FILES+=usr/sbin/wlanstats
 OLD_FILES+=usr/share/man/man8/wlanstats.8.gz
