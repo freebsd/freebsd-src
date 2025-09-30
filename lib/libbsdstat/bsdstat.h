@@ -76,7 +76,7 @@ struct fmt {
  * classes derived from it are useful.
  */
 struct bsdstat {
-	const char *name;		/* statistics name, e.g. wlanstats */
+	const char *name;		/* statistics name, e.g. wlanstat */
 	const struct fmt *stats;	/* statistics in class */
 	int nstats;			/* number of stats */
 #define	FMTS_IS_STAT	0x80	/* the following two bytes are the stat id */
