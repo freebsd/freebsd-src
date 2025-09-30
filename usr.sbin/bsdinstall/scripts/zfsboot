@@ -760,6 +760,7 @@ zfs_create_diskpart()
 {
 	local funcname=zfs_create_diskpart
 	local disk="$1" index="$2"
+	local efibootpart
 
 	# Check arguments
 	if [ ! "$disk" ]; then
@@ -867,18 +868,22 @@ zfs_create_diskpart()
 			             $disk || return $FAILURE
 
 			# We'll configure the ESP in bootconfig
-			if [ -z "$efibootpart" ]; then
-				efibootpart="/dev/gpt/efiboot$index"
-				f_dprintf "$funcname: configuring ESP at [%s]" \
-				          "${efibootpart}"
+			# Note: This will always be p1
+			efibootpart="/dev/gpt/efiboot$index"
+			f_dprintf "$funcname: configuring ESP at [%s]" \
+			          "${efibootpart}"
 
-				f_eval_catch $funcname newfs_msdos "$NEWFS_ESP"\
-				             "$efibootpart" \
-				             || return $FAILURE
+			f_eval_catch $funcname newfs_msdos "$NEWFS_ESP"\
+			             "$efibootpart" \
+			             || return $FAILURE
+			if [ $index -eq 0 ]; then
 				f_eval_catch $funcname printf "$PRINTF_FSTAB" \
-					     $efibootpart /boot/efi msdosfs \
-				             rw 2 2 "$BSDINSTALL_TMPETC/fstab" \
-				             || return $FAILURE
+					$efibootpart /boot/efi msdosfs \
+					rw 2 2 "$BSDINSTALL_TMPETC/fstab" \
+					|| return $FAILURE
+			else
+				# Record the extra ones
+				echo "${efibootpart}" >> ${TMPDIR:-"/tmp"}/bsdinstall-esps
 			fi
 		fi
 
@@ -1021,7 +1026,6 @@ zfs_create_boot()
 	local isswapmirror
 	local bootpart targetpart swappart # Set by zfs_create_diskpart() below
 	local create_options
-	local efibootpart
 
 	#
 	# Pedantic checks; should never be seen
