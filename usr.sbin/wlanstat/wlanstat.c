@@ -52,7 +52,7 @@
 
 #include "../../sys/net80211/ieee80211_ioctl.h"
 
-#include "wlanstats.h"
+#include "wlanstat.h"
 
 #ifndef IEEE80211_ADDR_COPY
 #define	IEEE80211_ADDR_COPY(dst, src)	memcpy(dst, src, IEEE80211_ADDR_LEN)
@@ -61,7 +61,7 @@
 
 #define	AFTER(prev)	((prev)+1)
 
-static const struct fmt wlanstats[] = {
+static const struct fmt wlanstat[] = {
 #define	S_RX_BADVERSION		0
 	{ 5,  "rx_badversion",	"bvers",	"rx frame with bad version" },
 #define	S_RX_TOOSHORT		AFTER(S_RX_BADVERSION)
@@ -1032,14 +1032,14 @@ wlan_get_totstat(struct bsdstat *sf, int s, char b[], size_t bs)
 BSDSTAT_DEFINE_BOUNCE(wlanstatfoo)
 
 struct wlanstatfoo *
-wlanstats_new(const char *ifname, const char *fmtstring)
+wlanstat_new(const char *ifname, const char *fmtstring)
 {
 	struct wlanstatfoo_p *wf;
 
 	wf = calloc(1, sizeof(struct wlanstatfoo_p));
 	if (wf != NULL) {
-		bsdstat_init(&wf->base.base, "wlanstats", wlanstats,
-		    nitems(wlanstats));
+		bsdstat_init(&wf->base.base, "wlanstat", wlanstat,
+		    nitems(wlanstat));
 		/* override base methods */
 		wf->base.base.collect_cur = wlan_collect_cur;
 		wf->base.base.collect_tot = wlan_collect_tot;

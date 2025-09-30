@@ -28,7 +28,7 @@
  */
 
 /*
- * wlanstats [-i interface]
+ * wlanstat [-i interface]
  * (default interface is wlan0).
  */
 
@@ -45,7 +45,7 @@
 #include <strings.h>
 #include <unistd.h>
 
-#include "wlanstats.h"
+#include "wlanstat.h"
 
 static struct {
 	const char *tag;
@@ -158,7 +158,7 @@ static void
 usage(void)
 {
 
-	printf("wlanstats: [-h] [-i ifname] [-l] [-m station_MAC_address] [-o fmt] [interval]\n");
+	printf("wlanstat: [-h] [-i ifname] [-l] [-m station_MAC_address] [-o fmt] [interval]\n");
 }
 
 int
@@ -176,7 +176,7 @@ main(int argc, char *argv[])
 	ifname = getenv("WLAN");
 	if (ifname == NULL)
 		ifname = "wlan0";
-	wf = wlanstats_new(ifname, getfmt("default"));
+	wf = wlanstat_new(ifname, getfmt("default"));
 #if 0
 	while ((c = getopt(argc, argv, "ahi:lm:o:")) != -1) {
 #else
