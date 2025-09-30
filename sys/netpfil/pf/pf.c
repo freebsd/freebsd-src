@@ -5939,36 +5939,41 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 		ctx.nat_pool = &(ctx.nr->rdr);
 	}
 
-	ruleset = &pf_main_ruleset;
-	rv = pf_match_rule(&ctx, ruleset, match_rules);
-	if (rv == PF_TEST_FAIL) {
-		/*
-		 * Reason has been set in pf_match_rule() already.
-		 */
-		goto cleanup;
-	}
+	if (ctx.nr && ctx.nr->natpass) {
+		r = ctx.nr;
+		ruleset = *ctx.rsm;
+	} else {
+		ruleset = &pf_main_ruleset;
+		rv = pf_match_rule(&ctx, ruleset, match_rules);
+		if (rv == PF_TEST_FAIL) {
+			/*
+			 * Reason has been set in pf_match_rule() already.
+			 */
+			goto cleanup;
+		}
 
-	r = *ctx.rm;			/* matching rule */
-	ctx.a = *ctx.am;		/* rule that defines an anchor containing 'r' */
-	ruleset = *ctx.rsm;		/* ruleset of the anchor defined by the rule 'a' */
-	ctx.aruleset = ctx.arsm;	/* ruleset of the 'a' rule itself */
+		r = *ctx.rm;			/* matching rule */
+		ctx.a = *ctx.am;		/* rule that defines an anchor containing 'r' */
+		ruleset = *ctx.rsm;		/* ruleset of the anchor defined by the rule 'a' */
+		ctx.aruleset = ctx.arsm;	/* ruleset of the 'a' rule itself */
+
+		/* apply actions for last matching pass/block rule */
+		pf_rule_to_actions(r, &pd->act);
+		transerror = pf_rule_apply_nat(&ctx, r);
+		switch (transerror) {
+		case PFRES_MATCH:
+			/* Translation action found in rule and applied successfully */
+		case PFRES_MAX:
+			/* No translation action found in rule */
+			break;
+		default:
+			/* Translation action found in rule but failed to apply */
+			REASON_SET(&ctx.reason, transerror);
+			goto cleanup;
+		}
+	}
 
 	REASON_SET(&ctx.reason, PFRES_MATCH);
-
-	/* apply actions for last matching pass/block rule */
-	pf_rule_to_actions(r, &pd->act);
-	transerror = pf_rule_apply_nat(&ctx, r);
-	switch (transerror) {
-	case PFRES_MATCH:
-		/* Translation action found in rule and applied successfully */
-	case PFRES_MAX:
-		/* No translation action found in rule */
-		break;
-	default:
-		/* Translation action found in rule but failed to apply */
-		REASON_SET(&ctx.reason, transerror);
-		goto cleanup;
-	}
 
 	if (r->log) {
 		if (ctx.rewrite)
