@@ -281,8 +281,66 @@ srcport_pass_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "natpass" "cleanup"
+natpass_head()
+{
+	atf_set descr 'Test rdr pass'
+	atf_set require.user root
+}
+
+natpass_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	epair_link=$(vnet_mkepair)
+
+	ifconfig ${epair}a 192.0.2.2/24 up
+
+	vnet_mkjail alcatraz ${epair}b ${epair_link}a
+	jexec alcatraz ifconfig lo0 inet 127.0.0.1/8 up
+	jexec alcatraz ifconfig ${epair}b inet 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair_link}a 198.51.100.1/24 up
+	jexec alcatraz sysctl net.inet.ip.forwarding=1
+
+	vnet_mkjail srv ${epair_link}b
+	jexec srv ifconfig ${epair_link}b inet 198.51.100.2/24 up
+	jexec srv route add default 198.51.100.1
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.1
+	atf_check -s exit:0 -o ignore \
+	    jexec alcatraz ping -c 1 198.51.100.2
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+	    "rdr pass on ${epair}b proto udp from any to 192.0.2.1 port 80 -> 198.51.100.2" \
+	    "nat on ${epair}b inet from 198.51.100.0/24 to any -> 192.0.2.1" \
+	    "block in proto udp from any to any port 80" \
+	    "pass in proto icmp"
+
+	echo "foo" | jexec srv nc -u -l 80 &
+	sleep 1 # Give the above a moment to start
+
+	out=$(echo 1 | nc -u -w 1 192.0.2.1 80)
+	echo "out ${out}"
+	if [ "${out}" != "foo" ];
+	then
+		jexec alcatraz pfctl -sn -vv
+		jexec alcatraz pfctl -ss -vv
+		atf_fail "rdr failed"
+	fi
+}
+
+natpass_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
+	atf_add_test_case "natpass"
 	atf_add_test_case "tcp_v6_compat"
 	atf_add_test_case "tcp_v6_pass"
 	atf_add_test_case "srcport_compat"

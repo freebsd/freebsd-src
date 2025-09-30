@@ -838,7 +838,7 @@ dummynet_mask_body()
 	jexec gw dnctl pipe 1 config delay 100 mask src-ip 0xffffff00
 	jexec gw pfctl -e
 	pft_set_rules gw \
-	    "nat pass on ${epair_srv}b inet from 192.0.2.0/24 to any -> (${epair_srv}b)" \
+	    "nat on ${epair_srv}b inet from 192.0.2.0/24 to any -> (${epair_srv}b)" \
 	    "pass out dnpipe 1"
 
 	atf_check -s exit:0 -o ignore \
