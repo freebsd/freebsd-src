@@ -1321,6 +1321,10 @@ static device_method_t bcm_gpio_methods[] = {
 	DEVMETHOD(device_attach,	bcm_gpio_attach),
 	DEVMETHOD(device_detach,	bcm_gpio_detach),
 
+	/* Bus interface */
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
 	/* GPIO protocol */
 	DEVMETHOD(gpio_get_bus,		bcm_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max,		bcm_gpio_pin_max),

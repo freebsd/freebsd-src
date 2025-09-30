@@ -558,8 +558,7 @@ static device_method_t pl061_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	/* GPIO protocol */
 	DEVMETHOD(gpio_get_bus,		pl061_get_bus),
