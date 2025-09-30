@@ -1,9 +1,8 @@
-#
-#
+PACKAGE=	audit
+LIB_PACKAGE=
 
-PACKAGE=	lib${LIB}
-OPENBSMDIR=		${SRCTOP}/contrib/openbsm
-_LIBBSMDIR=		${OPENBSMDIR}/libbsm
+OPENBSMDIR=	${SRCTOP}/contrib/openbsm
+_LIBBSMDIR=	${OPENBSMDIR}/libbsm
 
 LIB=		bsm
 SHLIB_MAJOR=	3
