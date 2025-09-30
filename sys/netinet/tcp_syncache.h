@@ -67,6 +67,8 @@ struct syncache {
 	u_int8_t	sc_requested_s_scale:4,
 			sc_requested_r_scale:4;
 	u_int16_t	sc_flags;
+	u_int32_t	sc_challenge_ack_cnt;	/* chall. ACKs sent in epoch */
+	sbintime_t	sc_challenge_ack_end;	/* End of chall. ack epoch */
 #if defined(TCP_OFFLOAD)
 	struct toedev	*sc_tod;		/* entry added by this TOE */
 	void		*sc_todctx;		/* TOE driver context */

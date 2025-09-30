@@ -122,6 +122,7 @@ static void	 syncache_drop(struct syncache *, struct syncache_head *);
 static void	 syncache_free(struct syncache *);
 static void	 syncache_insert(struct syncache *, struct syncache_head *);
 static int	 syncache_respond(struct syncache *, const struct mbuf *, int);
+static int	 syncache_send_challenge_ack(struct syncache *, struct mbuf *);
 static struct	 socket *syncache_socket(struct syncache *, struct socket *,
 		    struct mbuf *m);
 static void	 syncache_timeout(struct syncache *sc, struct syncache_head *sch,
@@ -694,10 +695,7 @@ syncache_chkrst(struct in_conninfo *inc, struct tcphdr *th, struct mbuf *m,
 				    "sending challenge ACK\n",
 				    s, __func__,
 				    th->th_seq, sc->sc_irs + 1, sc->sc_wnd);
-			if (syncache_respond(sc, m, TH_ACK) == 0) {
-				TCPSTAT_INC(tcps_sndacks);
-				TCPSTAT_INC(tcps_sndtotal);
-			} else {
+			if (syncache_send_challenge_ack(sc, m) != 0) {
 				syncache_drop(sc, sch);
 				TCPSTAT_INC(tcps_sc_dropped);
 			}
@@ -962,6 +960,10 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	 */
 	if (sc->sc_rxmits > 1)
 		tp->snd_cwnd = 1;
+
+	/* Copy over the challenge ACK state. */
+	tp->t_challenge_ack_end = sc->sc_challenge_ack_end;
+	tp->t_challenge_ack_cnt = sc->sc_challenge_ack_cnt;
 
 #ifdef TCP_OFFLOAD
 	/*
@@ -2050,6 +2052,24 @@ syncache_respond(struct syncache *sc, const struct mbuf *m0, int flags)
 		error = ip_output(m, sc->sc_ipopts, NULL, 0, NULL, NULL);
 	}
 #endif
+	return (error);
+}
+
+static int
+syncache_send_challenge_ack(struct syncache *sc, struct mbuf *m)
+{
+	int error;
+
+	if (tcp_challenge_ack_check(&sc->sc_challenge_ack_end,
+	    &sc->sc_challenge_ack_cnt)) {
+		error = syncache_respond(sc, m, TH_ACK);
+		if (error == 0) {
+			TCPSTAT_INC(tcps_sndacks);
+			TCPSTAT_INC(tcps_sndtotal);
+		}
+	} else {
+		error = 0;
+	}
 	return (error);
 }
 
