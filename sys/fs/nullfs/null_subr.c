@@ -41,8 +41,13 @@
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
+#include <sys/smr.h>
 
 #include <fs/nullfs/null.h>
+
+#include <vm/uma.h>
+
+VFS_SMR_DECLARE;
 
 /*
  * Null layer cache:
@@ -54,12 +59,12 @@
 
 #define	NULL_NHASH(vp) (&null_node_hashtbl[vfs_hash_index(vp) & null_hash_mask])
 
-static LIST_HEAD(null_node_hashhead, null_node) *null_node_hashtbl;
+static CK_LIST_HEAD(null_node_hashhead, null_node) *null_node_hashtbl;
 static struct rwlock null_hash_lock;
 static u_long null_hash_mask;
 
 static MALLOC_DEFINE(M_NULLFSHASH, "nullfs_hash", "NULLFS hash table");
-MALLOC_DEFINE(M_NULLFSNODE, "nullfs_node", "NULLFS vnode private part");
+uma_zone_t __read_mostly null_node_zone;
 
 static void null_hashins(struct mount *, struct null_node *);
 
@@ -73,6 +78,10 @@ nullfs_init(struct vfsconf *vfsp)
 	null_node_hashtbl = hashinit(desiredvnodes, M_NULLFSHASH,
 	    &null_hash_mask);
 	rw_init(&null_hash_lock, "nullhs");
+	null_node_zone = uma_zcreate("nullfs node", sizeof(struct null_node),
+	    NULL, NULL, NULL, NULL, 0, UMA_ZONE_ZINIT);
+	VFS_SMR_ZONE_SET(null_node_zone);
+
 	return (0);
 }
 
@@ -80,6 +89,7 @@ int
 nullfs_uninit(struct vfsconf *vfsp)
 {
 
+	uma_zdestroy(null_node_zone);
 	rw_destroy(&null_hash_lock);
 	hashdestroy(null_node_hashtbl, M_NULLFSHASH, null_hash_mask);
 	return (0);
@@ -106,7 +116,7 @@ null_hashget_locked(struct mount *mp, struct vnode *lowervp)
 	 * reference count (but NOT the lower vnode's VREF counter).
 	 */
 	hd = NULL_NHASH(lowervp);
-	LIST_FOREACH(a, hd, null_hash) {
+	CK_LIST_FOREACH(a, hd, null_hash) {
 		if (a->null_lowervp != lowervp)
 			continue;
 		/*
@@ -129,17 +139,34 @@ struct vnode *
 null_hashget(struct mount *mp, struct vnode *lowervp)
 {
 	struct null_node_hashhead *hd;
+	struct null_node *a;
 	struct vnode *vp;
+	enum vgetstate vs;
 
+	ASSERT_VOP_LOCKED(lowervp, "null_hashget");
+	rw_assert(&null_hash_lock, RA_UNLOCKED);
+
+	vfs_smr_enter();
 	hd = NULL_NHASH(lowervp);
-	if (LIST_EMPTY(hd))
-		return (NULL);
-
-	rw_rlock(&null_hash_lock);
-	vp = null_hashget_locked(mp, lowervp);
-	rw_runlock(&null_hash_lock);
-
-	return (vp);
+	CK_LIST_FOREACH(a, hd, null_hash) {
+		if (a->null_lowervp != lowervp)
+			continue;
+		/*
+		 * See null_hashget_locked as to why the nullfs vnode can't be
+		 * doomed here.
+		 */
+		vp = NULLTOV(a);
+		VNPASS(!VN_IS_DOOMED(vp), vp);
+		if (vp->v_mount != mp)
+			continue;
+		vs = vget_prep_smr(vp);
+		vfs_smr_exit();
+		VNPASS(vs != VGET_NONE, vp);
+		vget_finish_ref(vp, vs);
+		return (vp);
+	}
+	vfs_smr_exit();
+	return (NULL);
 }
 
 static void
@@ -154,7 +181,7 @@ null_hashins(struct mount *mp, struct null_node *xp)
 
 	hd = NULL_NHASH(xp->null_lowervp);
 #ifdef INVARIANTS
-	LIST_FOREACH(oxp, hd, null_hash) {
+	CK_LIST_FOREACH(oxp, hd, null_hash) {
 		if (oxp->null_lowervp == xp->null_lowervp &&
 		    NULLTOV(oxp)->v_mount == mp) {
 			VNASSERT(0, NULLTOV(oxp),
@@ -162,7 +189,7 @@ null_hashins(struct mount *mp, struct null_node *xp)
 		}
 	}
 #endif
-	LIST_INSERT_HEAD(hd, xp, null_hash);
+	CK_LIST_INSERT_HEAD(hd, xp, null_hash);
 }
 
 static void
@@ -177,7 +204,7 @@ null_destroy_proto(struct vnode *vp, void *xp)
 	VI_UNLOCK(vp);
 	vgone(vp);
 	vput(vp);
-	free(xp, M_NULLFSNODE);
+	uma_zfree_smr(null_node_zone, xp);
 }
 
 /*
@@ -211,12 +238,12 @@ null_nodeget(struct mount *mp, struct vnode *lowervp, struct vnode **vpp)
 	 * Note that duplicate can only appear in hash if the lowervp is
 	 * locked LK_SHARED.
 	 */
-	xp = malloc(sizeof(struct null_node), M_NULLFSNODE, M_WAITOK);
+	xp = uma_zalloc_smr(null_node_zone, M_WAITOK);
 
 	error = getnewvnode("nullfs", mp, &null_vnodeops, &vp);
 	if (error) {
 		vput(lowervp);
-		free(xp, M_NULLFSNODE);
+		uma_zfree_smr(null_node_zone, xp);
 		return (error);
 	}
 
@@ -264,8 +291,8 @@ null_nodeget(struct mount *mp, struct vnode *lowervp, struct vnode **vpp)
 		return (error);
 	}
 
-	null_hashins(mp, xp);
 	vn_set_state(vp, VSTATE_CONSTRUCTED);
+	null_hashins(mp, xp);
 	rw_wunlock(&null_hash_lock);
 	*vpp = vp;
 
@@ -280,7 +307,7 @@ null_hashrem(struct null_node *xp)
 {
 
 	rw_wlock(&null_hash_lock);
-	LIST_REMOVE(xp, null_hash);
+	CK_LIST_REMOVE(xp, null_hash);
 	rw_wunlock(&null_hash_lock);
 }
 

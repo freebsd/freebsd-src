@@ -965,7 +965,7 @@ null_reclaim(struct vop_reclaim_args *ap)
 		vunref(lowervp);
 	else
 		vput(lowervp);
-	free(xp, M_NULLFSNODE);
+	uma_zfree_smr(null_node_zone, xp);
 
 	return (0);
 }
