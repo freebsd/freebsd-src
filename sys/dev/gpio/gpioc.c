@@ -704,7 +704,7 @@ gpioc_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	 * npins isn't a horrible fifo size for that either.
 	 */
 	priv->numevents = priv->sc->sc_npins * 2;
-	priv->events = malloc(priv->numevents * sizeof(struct gpio_event_detail),
+	priv->events = malloc(priv->numevents * sizeof(struct gpioc_pin_event),
 	    M_GPIOC, M_WAITOK | M_ZERO);
 
 	priv->evidx_head = priv->evidx_tail = 0;
@@ -925,7 +925,7 @@ gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 			free(priv->events, M_GPIOC);
 			priv->numevents = evcfg->gp_fifo_size;
 			priv->events = malloc(priv->numevents *
-			    sizeof(struct gpio_event_detail), M_GPIOC,
+			    sizeof(struct gpioc_pin_event), M_GPIOC,
 			    M_WAITOK | M_ZERO);
 			priv->evidx_head = priv->evidx_tail = 0;
 		}
