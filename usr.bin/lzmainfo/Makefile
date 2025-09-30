@@ -1,3 +1,5 @@
+PACKAGE=xz
+
 PROG=	lzmainfo
 
 XZDIR=	${SRCTOP}/contrib/xz/src
