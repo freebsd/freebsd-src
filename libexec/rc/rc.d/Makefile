@@ -75,7 +75,6 @@ CONFS=	DAEMON \
 	ugidfw \
 	var \
 	var_run \
-	virtual_oss \
 	watchdogd
 
 CONFGROUPS+=		DEVD
@@ -214,6 +213,12 @@ BSNMPPACKAGE=	bsnmp
 CONFGROUPS+=	CCD
 CCD=		ccd
 CCDPACKAGE=	ccdconfig
+.endif
+
+.if ${MK_CUSE} != "no"
+CONFGROUPS+=	VOSS
+VOSS=		virtual_oss
+VOSSPACKAGE=	virtual_oss
 .endif
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
