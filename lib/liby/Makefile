@@ -1,4 +1,4 @@
-PACKAGE=lib${LIB}
+PACKAGE=toolchain
 LIB=	y
 SRCS=	main.c yyerror.c
 NO_PIC=
