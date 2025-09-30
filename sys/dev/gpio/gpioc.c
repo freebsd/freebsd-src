@@ -902,7 +902,7 @@ gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 		tmp = NULL;
 		if (evcfg->gp_report_type == GPIO_EVENT_REPORT_DETAIL &&
 		    priv->numevents < evcfg->gp_fifo_size) {
-			tmp = malloc(priv->numevents *
+			tmp = malloc(evcfg->gp_fifo_size *
 			    sizeof(struct gpioc_pin_event), M_GPIOC,
 			    M_WAITOK | M_ZERO);
 		}
