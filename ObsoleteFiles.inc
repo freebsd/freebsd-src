@@ -51,6 +51,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250930: Rename wlanstats to wlanstat
+OLD_FILES+=usr/sbin/wlanstats
+OLD_FILES+=usr/share/man/man8/wlanstats.8.gz
+
 # 20250929: Remove ftpd(8)
 OLD_FILES+=etc/rc.d/ftpd
 OLD_FILES+=usr/libexec/ftpd

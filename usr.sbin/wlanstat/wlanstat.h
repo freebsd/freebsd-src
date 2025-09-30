@@ -27,8 +27,8 @@
  * THE POSSIBILITY OF SUCH DAMAGES.
  */
 
-#ifndef _WLANSTATS_H_
-#define	_WLANSTATS_H_
+#ifndef _WLANSTAT_H_
+#define	_WLANSTAT_H_
 
 #include "bsdstat.h"
 
@@ -50,5 +50,5 @@ struct wlanstatfoo {
 	void (*setstamac)(struct wlanstatfoo *, const uint8_t mac[]);
 };
 
-struct wlanstatfoo *wlanstats_new(const char *ifname, const char *fmtstring);
-#endif /* _WLANSTATS_H_ */
+struct wlanstatfoo *wlanstat_new(const char *ifname, const char *fmtstring);
+#endif /* _WLANSTAT_H_ */
