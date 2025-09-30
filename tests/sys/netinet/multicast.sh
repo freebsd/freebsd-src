@@ -47,7 +47,8 @@ IP_MULTICAST_IF_body()
 	jexec mjail ifconfig ${epair}a up
 	jexec mjail ifconfig ${epair}a 192.0.2.1/24
 	atf_check -s exit:0 -o empty \
-	    jexec mjail $(atf_get_srcdir)/sendto-IP_MULTICAST_IF 192.0.2.1
+	    jexec mjail $(atf_get_srcdir)/multicast-send \
+	    0.0.0.0 0 233.252.0.1 6676 192.0.2.1 hello
 }
 
 IP_MULTICAST_IF_cleanup()
