@@ -793,6 +793,7 @@ gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 	struct gpio_access_32 *a32;
 	struct gpio_config_32 *c32;
 	struct gpio_event_config *evcfg;
+	struct gpioc_pin_event *tmp;
 	uint32_t caps, intrflags;
 
 	switch (cmd) {
@@ -908,27 +909,35 @@ gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 		res = devfs_get_cdevpriv((void **)&priv);
 		if (res != 0)
 			break;
-		/* If any pins have been configured, changes aren't allowed. */
-		if (!SLIST_EMPTY(&priv->pins)) {
-			res = EINVAL;
-			break;
-		}
 		if (evcfg->gp_report_type != GPIO_EVENT_REPORT_DETAIL &&
 		    evcfg->gp_report_type != GPIO_EVENT_REPORT_SUMMARY) {
 			res = EINVAL;
 			break;
 		}
-		priv->report_option = evcfg->gp_report_type;
 		/* Reallocate the events buffer if the user wants it bigger. */
-		if (priv->report_option == GPIO_EVENT_REPORT_DETAIL &&
+		tmp = NULL;
+		if (evcfg->gp_report_type == GPIO_EVENT_REPORT_DETAIL &&
 		    priv->numevents < evcfg->gp_fifo_size) {
-			free(priv->events, M_GPIOC);
-			priv->numevents = evcfg->gp_fifo_size;
-			priv->events = malloc(priv->numevents *
+			tmp = malloc(priv->numevents *
 			    sizeof(struct gpioc_pin_event), M_GPIOC,
 			    M_WAITOK | M_ZERO);
+		}
+		mtx_lock(&priv->mtx);
+		/* If any pins have been configured, changes aren't allowed. */
+		if (!SLIST_EMPTY(&priv->pins)) {
+			mtx_unlock(&priv->mtx);
+			free(tmp, M_GPIOC);
+			res = EINVAL;
+			break;
+		}
+		if (tmp != NULL) {
+			free(priv->events, M_GPIOC);
+			priv->events = tmp;
+			priv->numevents = evcfg->gp_fifo_size;
 			priv->evidx_head = priv->evidx_tail = 0;
 		}
+		priv->report_option = evcfg->gp_report_type;
+		mtx_unlock(&priv->mtx);
 		break;
 	case FIONBIO:
 		/*
