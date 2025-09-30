@@ -21,7 +21,7 @@
  * text is licensed under the CDDL.
  */
 
-comment = "Compact C Type Format (CTF) utilities"
+comment = "Compact C Type Format (CTF)"
 
 desc = <<EOD
 The Compact C Type Format (CTF) is a method of encoding type information for C
@@ -29,7 +29,8 @@ programs inside ELF objects.  Compared to the common DWARF debug symbol format,
 CTF is intended specifically for runtime program analyzers such as DTrace.
 
 This package provides the ctfconvert(1), ctfdump(1) and ctfmerge(1) utilities
-which are used to work with CTF data.
+which are used to work with CTF data, and the libctf library which allows
+application to access CTF debugging information programatically.
 EOD
 
 licenses = [ "CDDL-1.0" ]

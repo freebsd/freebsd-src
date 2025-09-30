@@ -3,7 +3,7 @@
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/tools/ctf/common
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/tools/ctf/cvt
 
-PACKAGE=	ctf-tools
+PACKAGE=	ctf
 PROG=		ctfconvert
 SRCS=		alist.c \
 		ctf.c \
