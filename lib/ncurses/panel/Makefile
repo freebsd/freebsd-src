@@ -3,7 +3,6 @@
 
 SRCDIR=	${NCURSES_DIR}/panel
 
-PACKAGE=	clibs
 LIB=	panelw
 SHLIB_MAJOR=	6
 
