@@ -63,6 +63,24 @@ dialog_uefi_entryname()
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 }
 
+# Copy to the normal FreeBSD location. Also copy to the default location if it
+# doesn't exist. This covers setups where UEFI NV variables can't be set and
+# some buggy firmware, while preserving complex UEFI setups for multiple booting
+# (rEFInd, etc).
+uefi_copy_loader()
+{
+    local ldr=$1
+    local freebsd_dir=$2
+    local default_dir=$3
+    local dest=$4
+
+    mkdir -p "${freebsd_dir}" "${default_dir}"
+    cp "${ldr}" "${freebsd_dir}"
+    if [ ! -f "${default_dir}/${dest}" ]; then
+	cp "${ldr}" "${default_dir}/${dest}"
+    fi
+}
+
 update_uefi_bootentry()
 {
 	nentries=$(efibootmgr | grep -c "${EFI_LABEL_NAME}$")
@@ -113,6 +131,7 @@ if [ -n "$(awk '{if ($2=="/boot/efi") printf("%s\n",$1);}' $PATH_FSTAB)" ]; then
 	    *)		die "Unsupported arch $(uname -m) for UEFI install"
 	esac
 
+	# Support the weird 32-bit firmware loading 64-bit kernels
 	if [ `sysctl -n machdep.efi_arch` == i386 ]; then
 		ARCHBOOTNAME=ia32
 		file=loader_ia32.efi
@@ -120,31 +139,31 @@ if [ -n "$(awk '{if ($2=="/boot/efi") printf("%s\n",$1);}' $PATH_FSTAB)" ]; then
 		file=loader.efi
 	fi
 
-	BOOTDIR="/efi/boot"
-	BOOTNAME="${BOOTDIR}/boot${ARCHBOOTNAME}.efi"
-	FREEBSD_BOOTDIR="/efi/freebsd"
-	FREEBSD_BOOTNAME="${FREEBSD_BOOTDIR}/${file}"
+	# Copy the boot loader
 	mntpt="$BSDINSTALL_CHROOT/boot/efi"
-
 	f_dprintf "Installing ${file} onto ESP"
-	mkdir -p "${mntpt}/${FREEBSD_BOOTDIR}" "${mntpt}/${BOOTDIR}"
-	cp "$BSDINSTALL_CHROOT/boot/${file}" "${mntpt}/${FREEBSD_BOOTNAME}"
+	uefi_copy_loader "$BSDINSTALL_CHROOT/boot/${file}" \
+		"${mntpt}/efi/freebsd" "${mntpt}/efi/boot" \
+		boot${ARCHBOOTNAME}.efi
 
-	#
-	# UEFI defines a way to specifically select what to boot
-	# (which we do via efibootmgr). However, if we booted from an ia32
-	# UEFI environment, we wouldn't have access to efirt. In addition,
-	# virtual environments often times lack support for the NV variables
-	# efibootmgr sets, and some UEFI implementations have features that
-	# interfere with the setting of these variables. To combat that, we
-	# install the default removable media boot file if it doesn't exist.
-	# We don't install it all the time since that can interfere with other
-	# installations on the drive (like rEFInd).
-	#
-	if [ ! -f "${mntpt}/${BOOTNAME}" ]; then
-		cp "$BSDINSTALL_CHROOT/boot/${file}" "${mntpt}/${BOOTNAME}"
+	# zfsboot records the extra esp partitions it creates to -esps.  These
+	# are newfs'd at the time of creation. We don't support installing ufs
+	# over gmirror, so we only do this for ZFS.
+	esps=${TMPDIR:-"/tmp"}/bsdinstall-esps
+	if [ -f "$esps" ]; then
+		mntpt=$(mktemp -d -t bsdinstall-esp)
+		for dev in $(cat $esps); do
+			f_dprintf "Installing ${file} onto redundant ESP ${dev}"
+			mount -t msdos "$dev" "$mntpt"
+			uefi_copy_loader "$BSDINSTALL_CHROOT/boot/${file}" \
+				"${mntpt}/efi/freebsd" "${mntpt}/efi/boot" \
+				boot${ARCHBOOTNAME}.efi
+			umount "$mntpt"
+		done
+		rmdir "${mntpt}"
 	fi
 
+	# Try to set the UEFI NV BootXXXX variables to recod the boot location
 	if [ "$BSDINSTALL_CONFIGCURRENT" ] && [ "$ARCHBOOTNAME" != ia32 ]; then
 		update_uefi_bootentry
 	fi
