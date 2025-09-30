@@ -37,6 +37,9 @@
 
 #define	NULLM_CACHE	0x0001
 
+#include <sys/ck.h>
+#include <vm/uma.h>
+
 struct null_mount {
 	struct mount	*nullm_vfs;
 	struct vnode	*nullm_lowerrootvp;	/* Ref to lower root vnode */
@@ -50,7 +53,7 @@ struct null_mount {
  * A cache of vnode references
  */
 struct null_node {
-	LIST_ENTRY(null_node)	null_hash;	/* Hash list */
+	CK_LIST_ENTRY(null_node) null_hash;	/* Hash list */
 	struct vnode	        *null_lowervp;	/* VREFed once */
 	struct vnode		*null_vnode;	/* Back pointer */
 	u_int			null_flags;
@@ -79,9 +82,7 @@ struct vnode *null_checkvp(struct vnode *vp, char *fil, int lno);
 
 extern struct vop_vector null_vnodeops;
 
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_NULLFSNODE);
-#endif
+extern uma_zone_t null_node_zone;
 
 #ifdef NULLFS_DEBUG
 #define NULLFSDEBUG(format, args...) printf(format ,## args)
