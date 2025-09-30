@@ -12,6 +12,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250930:
+	14.2-RELEASE-p7	EN-25:18.freebsd-update
+			SA-25:08.openssl
+
+	Fix freebsd-update(8) installing libraries in incorrect order. [EN-25:18.freebsd-update]
+
+	Fix multiple vulnerabilities in OpenSSL. [SA-25:08.openssl]
+
 20250916:
 	14.2-RELEASE-p6	EN-25:15.arm64
 
