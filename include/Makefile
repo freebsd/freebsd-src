@@ -94,14 +94,14 @@ BSM=		audit.h \
 		audit_fcntl.h \
 		audit_kevents.h \
 		audit_socket_type.h
-BSMPACKAGE=	libbsm
+BSMPACKAGE=	audit
 BSMDIR=		${INCLUDEDIR}/bsm
 
 .PATH: ${SRCTOP}/sys/security
 SECAUDIT=	audit/audit.h \
 		audit/audit_ioctl.h \
 		audit/audit_private.h
-SECAUDITPACKAGE=	libbsm
+SECAUDITPACKAGE=	audit
 SECAUDITDIR=	${INCLUDEDIR}/security/audit
 
 .PATH:	${SRCTOP}/sys/cam
