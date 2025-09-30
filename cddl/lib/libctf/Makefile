@@ -2,6 +2,8 @@
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libctf/common
 .PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/ctf
 
+PACKAGE=	ctf
+LIB_PACKAGE=
 LIB=		ctf
 SRCS=		ctf_create.c \
 		ctf_decl.c \
