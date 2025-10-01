@@ -164,50 +164,49 @@ start:
 			}
 		}
 	}
-	else if (chunk->remain >= 2 && *p == '/') {
-		if (p[1] == '*') {
-			beg = p;
-			ucl_chunk_skipc (chunk, p);
-			comments_nested ++;
-			ucl_chunk_skipc (chunk, p);
-
-			while (p < chunk->end) {
-				if (*p == '"' && *(p - 1) != '\\') {
-					quoted = !quoted;
-				}
-
-				if (!quoted) {
-					if (*p == '*') {
-						ucl_chunk_skipc (chunk, p);
-						if (chunk->remain > 0 && *p == '/') {
-							comments_nested --;
-							if (comments_nested == 0) {
-								if (parser->flags & UCL_PARSER_SAVE_COMMENTS) {
-									ucl_save_comment (parser, beg, p - beg + 1);
-									beg = NULL;
-								}
-
-								ucl_chunk_skipc (chunk, p);
-								goto start;
-							}
-						}
-						ucl_chunk_skipc (chunk, p);
-					}
-					else if (p[0] == '/' && chunk->remain >= 2 && p[1] == '*') {
-						comments_nested ++;
-						ucl_chunk_skipc (chunk, p);
-						ucl_chunk_skipc (chunk, p);
-						continue;
-					}
-				}
-
+	else if (chunk->remain >= 2 && *p == '/' && p[1] == '*') {
+		beg = p;
+		comments_nested ++;
+		ucl_chunk_skipc (chunk, p);
+		ucl_chunk_skipc (chunk, p);
+		while (p < chunk->end) {
+			if (*p == '"' && *(p - 1) != '\\') {
+				/* begin or end double-quoted string */
+				quoted = !quoted;
 				ucl_chunk_skipc (chunk, p);
 			}
-			if (comments_nested != 0) {
-				ucl_set_err (parser, UCL_ENESTED,
-						"unfinished multiline comment", &parser->err);
-				return false;
+			else if (quoted) {
+				/* quoted character */
+				ucl_chunk_skipc (chunk, p);
 			}
+			else if (chunk->remain >= 2 && *p == '*' && p[1] == '/') {
+				/* end of comment */
+				ucl_chunk_skipc (chunk, p);
+				ucl_chunk_skipc (chunk, p);
+				comments_nested --;
+				if (comments_nested == 0) {
+					if (parser->flags & UCL_PARSER_SAVE_COMMENTS) {
+						ucl_save_comment (parser, beg, p - beg + 1);
+						beg = NULL;
+					}
+					goto start;
+				}
+			}
+			else if (chunk->remain >= 2 && *p == '/' && p[1] == '*') {
+				/* start of nested comment */
+				comments_nested ++;
+				ucl_chunk_skipc (chunk, p);
+				ucl_chunk_skipc (chunk, p);
+			}
+			else {
+				/* anything else */
+				ucl_chunk_skipc (chunk, p);
+			}
+		}
+		if (comments_nested != 0) {
+			ucl_set_err (parser, UCL_ENESTED,
+			    "unfinished multiline comment", &parser->err);
+			return false;
 		}
 	}
 
