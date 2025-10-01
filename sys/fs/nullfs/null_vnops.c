@@ -174,6 +174,8 @@
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/proc.h>
+#include <sys/smr.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/stat.h>
@@ -184,6 +186,8 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/vnode_pager.h>
+
+VFS_SMR_DECLARE;
 
 static int null_bug_bypass = 0;   /* for debugging: enables bypass printf'ing */
 SYSCTL_INT(_debug, OID_AUTO, nullfs_bug_bypass, CTLFLAG_RW, 
@@ -768,75 +772,107 @@ null_rmdir(struct vop_rmdir_args *ap)
 }
 
 /*
- * We need to process our own vnode lock and then clear the
- * interlock flag as it applies only to our vnode, not the
- * vnodes below us on the stack.
+ * We need to process our own vnode lock and then clear the interlock flag as
+ * it applies only to our vnode, not the vnodes below us on the stack.
+ *
+ * We have to hold the vnode here to solve a potential reclaim race.  If we're
+ * forcibly vgone'd while we still have refs, a thread could be sleeping inside
+ * the lowervp's vop_lock routine.  When we vgone we will drop our last ref to
+ * the lowervp, which would allow it to be reclaimed.  The lowervp could then
+ * be recycled, in which case it is not legal to be sleeping in its VOP.  We
+ * prevent it from being recycled by holding the vnode here.
  */
+static struct vnode *
+null_lock_prep_with_smr(struct vop_lock1_args *ap)
+{
+	struct null_node *nn;
+	struct vnode *lvp;
+
+	vfs_smr_enter();
+
+	lvp = NULL;
+
+	nn = VTONULL_SMR(ap->a_vp);
+	if (__predict_true(nn != NULL)) {
+		lvp = nn->null_lowervp;
+		if (lvp != NULL && !vhold_smr(lvp))
+			lvp = NULL;
+	}
+
+	vfs_smr_exit();
+	return (lvp);
+}
+
+static struct vnode *
+null_lock_prep_with_interlock(struct vop_lock1_args *ap)
+{
+	struct null_node *nn;
+	struct vnode *lvp;
+
+	ASSERT_VI_LOCKED(ap->a_vp, __func__);
+
+	ap->a_flags &= ~LK_INTERLOCK;
+
+	lvp = NULL;
+
+	nn = VTONULL(ap->a_vp);
+	if (__predict_true(nn != NULL)) {
+		lvp = nn->null_lowervp;
+		if (lvp != NULL)
+			vholdnz(lvp);
+	}
+	VI_UNLOCK(ap->a_vp);
+	return (lvp);
+}
+
 static int
 null_lock(struct vop_lock1_args *ap)
 {
-	struct vnode *vp = ap->a_vp;
-	int flags;
-	struct null_node *nn;
 	struct vnode *lvp;
-	int error;
+	int error, flags;
 
-	if ((ap->a_flags & LK_INTERLOCK) == 0)
-		VI_LOCK(vp);
-	else
-		ap->a_flags &= ~LK_INTERLOCK;
-	flags = ap->a_flags;
-	nn = VTONULL(vp);
-	/*
-	 * If we're still active we must ask the lower layer to
-	 * lock as ffs has special lock considerations in its
-	 * vop lock.
-	 */
-	if (nn != NULL && (lvp = NULLVPTOLOWERVP(vp)) != NULL) {
-		/*
-		 * We have to hold the vnode here to solve a potential
-		 * reclaim race.  If we're forcibly vgone'd while we
-		 * still have refs, a thread could be sleeping inside
-		 * the lowervp's vop_lock routine.  When we vgone we will
-		 * drop our last ref to the lowervp, which would allow it
-		 * to be reclaimed.  The lowervp could then be recycled,
-		 * in which case it is not legal to be sleeping in its VOP.
-		 * We prevent it from being recycled by holding the vnode
-		 * here.
-		 */
-		vholdnz(lvp);
-		VI_UNLOCK(vp);
-		error = VOP_LOCK(lvp, flags);
-
-		/*
-		 * We might have slept to get the lock and someone might have
-		 * clean our vnode already, switching vnode lock from one in
-		 * lowervp to v_lock in our own vnode structure.  Handle this
-		 * case by reacquiring correct lock in requested mode.
-		 */
-		if (VTONULL(vp) == NULL && error == 0) {
-			ap->a_flags &= ~LK_TYPE_MASK;
-			switch (flags & LK_TYPE_MASK) {
-			case LK_SHARED:
-				ap->a_flags |= LK_SHARED;
-				break;
-			case LK_UPGRADE:
-			case LK_EXCLUSIVE:
-				ap->a_flags |= LK_EXCLUSIVE;
-				break;
-			default:
-				panic("Unsupported lock request %d\n",
-				    ap->a_flags);
-			}
-			VOP_UNLOCK(lvp);
-			error = vop_stdlock(ap);
+	if (__predict_true((ap->a_flags & LK_INTERLOCK) == 0)) {
+		lvp = null_lock_prep_with_smr(ap);
+		if (__predict_false(lvp == NULL)) {
+			VI_LOCK(ap->a_vp);
+			lvp = null_lock_prep_with_interlock(ap);
 		}
-		vdrop(lvp);
 	} else {
-		VI_UNLOCK(vp);
-		error = vop_stdlock(ap);
+		lvp = null_lock_prep_with_interlock(ap);
 	}
 
+	ASSERT_VI_UNLOCKED(ap->a_vp, __func__);
+
+	if (__predict_false(lvp == NULL))
+		return (vop_stdlock(ap));
+
+	VNPASS(lvp->v_holdcnt > 0, lvp);
+	error = VOP_LOCK(lvp, ap->a_flags);
+	/*
+	 * We might have slept to get the lock and someone might have
+	 * clean our vnode already, switching vnode lock from one in
+	 * lowervp to v_lock in our own vnode structure.  Handle this
+	 * case by reacquiring correct lock in requested mode.
+	 */
+	if (VTONULL(ap->a_vp) == NULL && error == 0) {
+		flags = ap->a_flags;
+		ap->a_flags &= ~LK_TYPE_MASK;
+		switch (flags & LK_TYPE_MASK) {
+		case LK_SHARED:
+			ap->a_flags |= LK_SHARED;
+			break;
+		case LK_UPGRADE:
+		case LK_EXCLUSIVE:
+			ap->a_flags |= LK_EXCLUSIVE;
+			break;
+		default:
+			panic("Unsupported lock request %d\n",
+			    flags);
+		}
+		VOP_UNLOCK(lvp);
+		error = vop_stdlock(ap);
+	}
+	vdrop(lvp);
 	return (error);
 }
 

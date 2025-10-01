@@ -64,6 +64,7 @@ struct null_node {
 
 #define	MOUNTTONULLMOUNT(mp) ((struct null_mount *)((mp)->mnt_data))
 #define	VTONULL(vp) ((struct null_node *)(vp)->v_data)
+#define	VTONULL_SMR(vp) ((struct null_node *)vn_load_v_data_smr(vp))
 #define	NULLTOV(xp) ((xp)->null_vnode)
 
 int nullfs_init(struct vfsconf *vfsp);
