@@ -1114,7 +1114,7 @@ isab_attach(device_t dev)
 {
 	device_t child;
 
-	child = device_add_child(dev, "isa", 0);
+	child = device_add_child(dev, "isa", DEVICE_UNIT_ANY);
 	if (child == NULL)
 		return (ENXIO);
 	bus_attach_children(dev);
