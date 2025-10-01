@@ -1,0 +1,15 @@
+/*
+ * SPDX-License-Identifier: ISC
+ */
+
+comment = "GNU 3-way file comparison and merge utility"
+
+desc = <<EOD
+Compares three files line by line, optionally merging them.
+EOD
+
+licenses = [ "GPL-2.0-or-later" ]
+
+annotations {
+	set = "optional,optional-jail"
+}
