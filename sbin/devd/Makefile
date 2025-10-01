@@ -4,7 +4,7 @@ WARNS?= 6
 PACKAGE=devd
 CONFGROUPS=	CONFS DEVD
 CONFS=	devd.conf
-DEVD=	devmatch.conf
+DEVD=	devmatch.conf snd.conf
 DEVDDIR=	/etc/devd
 .if ${MK_ACPI} != "no"
 DEVD+=	asus.conf
@@ -50,11 +50,6 @@ CONFGROUPS+=		NVME
 NVMEDIR=		${DEVDDIR}
 NVME+=			nvmf.conf
 NVMEPACKAGE=		nvme-tools
-
-CONFGROUPS+=	SND
-SNDDIR=		${DEVDDIR}
-SND+=		snd.conf
-SNDPACKAGE=	snd
 
 .if ${MK_USB} != "no"
 DEVD+=	uath.conf ulpt.conf
