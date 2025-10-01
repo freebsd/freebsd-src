@@ -840,11 +840,6 @@ null_lock(struct vop_lock1_args *ap)
 	return (error);
 }
 
-/*
- * We need to process our own vnode unlock and then clear the
- * interlock flag as it applies only to our vnode, not the
- * vnodes below us on the stack.
- */
 static int
 null_unlock(struct vop_unlock_args *ap)
 {
@@ -853,11 +848,20 @@ null_unlock(struct vop_unlock_args *ap)
 	struct vnode *lvp;
 	int error;
 
+	/*
+	 * Contrary to null_lock, we don't need to hold the vnode around
+	 * unlock.
+	 *
+	 * We hold the lock, which means we can't be racing against vgone.
+	 *
+	 * At the same time VOP_UNLOCK promises to not touch anything after
+	 * it finishes unlock, just like we don't.
+	 *
+	 * vop_stdunlock for a doomed vnode matches doomed locking in null_lock.
+	 */
 	nn = VTONULL(vp);
 	if (nn != NULL && (lvp = NULLVPTOLOWERVP(vp)) != NULL) {
-		vholdnz(lvp);
 		error = VOP_UNLOCK(lvp);
-		vdrop(lvp);
 	} else {
 		error = vop_stdunlock(ap);
 	}
