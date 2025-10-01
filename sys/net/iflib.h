@@ -272,7 +272,7 @@ struct if_shared_ctx {
 	int isc_ntxqs;			/* # of tx queues per tx qset - usually 1 */
 	int isc_nrxqs;			/* # of rx queues per rx qset - intel 1, chelsio 2, broadcom 3 */
 	int __spare0__;
-	int isc_tx_reclaim_thresh;
+	int __spare1__;
 	int isc_flags;
 };
 
