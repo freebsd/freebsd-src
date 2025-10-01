@@ -1260,6 +1260,35 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 				return (-1);  /* Do not send RST */
 			}
 		}
+
+		/*
+		 * SEG.ACK validation:
+		 * SEG.ACK must match our initial send sequence number + 1.
+		 */
+		if (th->th_ack != sc->sc_iss + 1) {
+			SCH_UNLOCK(sch);
+			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
+				log(LOG_DEBUG, "%s; %s: ACK %u != ISS+1 %u, "
+				    "segment rejected\n",
+				    s, __func__, th->th_ack, sc->sc_iss + 1);
+			goto failed;
+		}
+
+		/*
+		 * SEG.SEQ validation:
+		 * The SEG.SEQ must be in the window starting at our
+		 * initial receive sequence number + 1.
+		 */
+		if (SEQ_LEQ(th->th_seq, sc->sc_irs) ||
+		    SEQ_GT(th->th_seq, sc->sc_irs + sc->sc_wnd)) {
+			SCH_UNLOCK(sch);
+			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
+				log(LOG_DEBUG, "%s; %s: SEQ %u != IRS+1 %u, "
+				    "segment rejected\n",
+				    s, __func__, th->th_seq, sc->sc_irs + 1);
+			goto failed;
+		}
+
 		TAILQ_REMOVE(&sch->sch_bucket, sc, sc_hash);
 		sch->sch_length--;
 #ifdef TCP_OFFLOAD
@@ -1270,29 +1299,6 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		}
 #endif
 		SCH_UNLOCK(sch);
-	}
-
-	/*
-	 * Segment validation:
-	 * ACK must match our initial sequence number + 1 (the SYN|ACK).
-	 */
-	if (th->th_ack != sc->sc_iss + 1) {
-		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
-			log(LOG_DEBUG, "%s; %s: ACK %u != ISS+1 %u, segment "
-			    "rejected\n", s, __func__, th->th_ack, sc->sc_iss);
-		goto failed;
-	}
-
-	/*
-	 * The SEQ must fall in the window starting at the received
-	 * initial receive sequence number + 1 (the SYN).
-	 */
-	if (SEQ_LEQ(th->th_seq, sc->sc_irs) ||
-	    SEQ_GT(th->th_seq, sc->sc_irs + sc->sc_wnd)) {
-		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
-			log(LOG_DEBUG, "%s; %s: SEQ %u != IRS+1 %u, segment "
-			    "rejected\n", s, __func__, th->th_seq, sc->sc_irs);
-		goto failed;
 	}
 
 	*lsop = syncache_socket(sc, *lsop, m);
