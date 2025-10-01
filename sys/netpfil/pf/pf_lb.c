@@ -974,6 +974,7 @@ pf_get_transaddr(struct pf_test_ctx *ctx, struct pf_krule *r,
 {
 	struct pf_pdesc	*pd = ctx->pd;
 	struct pf_addr	*naddr;
+	int		 idx;
 	uint16_t	*nportp;
 	uint16_t	 low, high;
 	u_short		 reason;
@@ -988,8 +989,19 @@ pf_get_transaddr(struct pf_test_ctx *ctx, struct pf_krule *r,
 			return (PFRES_MEMORY);
 	}
 
-	naddr = &ctx->nk->addr[1];
-	nportp = &ctx->nk->port[1];
+	switch (nat_action) {
+	case PF_NAT:
+		idx = pd->sidx;
+		break;
+	case PF_BINAT:
+		idx = 1;
+		break;
+	case PF_RDR:
+		idx = pd->didx;
+		break;
+	}
+	naddr = &ctx->nk->addr[idx];
+	nportp = &ctx->nk->port[idx];
 
 	switch (nat_action) {
 	case PF_NAT:
