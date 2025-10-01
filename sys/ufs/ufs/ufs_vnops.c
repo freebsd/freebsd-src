@@ -2592,8 +2592,12 @@ ufs_print(
 
 	printf("\tnlink=%d, effnlink=%d, size=%jd", ip->i_nlink,
 	    ip->i_effnlink, (intmax_t)ip->i_size);
-	if (I_IS_UFS2(ip))
-		printf(", extsize %d", ip->i_din2->di_extsize);
+	if (I_IS_UFS2(ip)) {
+		if (ip->i_din2 == NULL)
+			printf(", dinode=NULL (fields omitted)");
+		else
+			printf(", extsize=%d", ip->i_din2->di_extsize);
+	}
 	printf("\n\tgeneration=%jx, uid=%d, gid=%d, flags=0x%b\n",
 	    (uintmax_t)ip->i_gen, ip->i_uid, ip->i_gid,
 	    (uint32_t)ip->i_flags, PRINT_INODE_FLAGS);
