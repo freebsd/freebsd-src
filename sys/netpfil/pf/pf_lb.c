@@ -73,7 +73,7 @@ VNET_DEFINE_STATIC(int, pf_rdr_srcport_rewrite_tries) = 16;
 
 static uint64_t		 pf_hash(struct pf_addr *, struct pf_addr *,
 			    struct pf_poolhashkey *, sa_family_t);
-struct pf_krule		*pf_match_translation(int, struct pf_test_ctx *);
+static struct pf_krule	*pf_match_translation(int, struct pf_test_ctx *);
 static enum pf_test_status pf_step_into_translation_anchor(int, struct pf_test_ctx *,
 			    struct pf_krule *);
 static int		 pf_get_sport(struct pf_pdesc *, struct pf_krule *,
@@ -273,7 +273,7 @@ pf_step_into_translation_anchor(int rs_num, struct pf_test_ctx *ctx, struct pf_k
 	return (rv);
 }
 
-struct pf_krule *
+static struct pf_krule *
 pf_match_translation(int rs_num, struct pf_test_ctx *ctx)
 {
 	enum pf_test_status rv;
