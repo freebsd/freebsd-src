@@ -96,7 +96,7 @@ null_hashget_locked(struct mount *mp, struct vnode *lowervp)
 	struct null_node *a;
 	struct vnode *vp;
 
-	ASSERT_VOP_LOCKED(lowervp, "null_hashget");
+	ASSERT_VOP_LOCKED(lowervp, __func__);
 	rw_assert(&null_hash_lock, RA_LOCKED);
 
 	/*
@@ -107,17 +107,20 @@ null_hashget_locked(struct mount *mp, struct vnode *lowervp)
 	 */
 	hd = NULL_NHASH(lowervp);
 	LIST_FOREACH(a, hd, null_hash) {
-		if (a->null_lowervp == lowervp && NULLTOV(a)->v_mount == mp) {
-			/*
-			 * Since we have the lower node locked the nullfs
-			 * node can not be in the process of recycling.  If
-			 * it had been recycled before we grabed the lower
-			 * lock it would not have been found on the hash.
-			 */
-			vp = NULLTOV(a);
-			vref(vp);
-			return (vp);
-		}
+		if (a->null_lowervp != lowervp)
+			continue;
+		/*
+		 * Since we have the lower node locked the nullfs
+		 * node can not be in the process of recycling.  If
+		 * it had been recycled before we grabed the lower
+		 * lock it would not have been found on the hash.
+		 */
+		vp = NULLTOV(a);
+		VNPASS(!VN_IS_DOOMED(vp), vp);
+		if (vp->v_mount != mp)
+			continue;
+		vref(vp);
+		return (vp);
 	}
 	return (NULL);
 }
