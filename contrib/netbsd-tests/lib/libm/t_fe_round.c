@@ -80,15 +80,15 @@ ATF_TC_BODY(fe_round, tc)
 		received = lrint(values[i].input);
 		ATF_CHECK_MSG(
 		    (labs(received - values[i].expected) < EPSILON),
-		    "lrint rounding wrong, difference too large\n"
-		    "input: %f (index %d): got %ld, expected %ld\n",
+		    "lrint rounding wrong, difference too large. "
+		    "input: %f (index %d): got %ld, expected %ld",
 		    values[i].input, i, received, values[i].expected);
 
 		/* Do we get the same rounding mode out? */
 		ATF_CHECK_MSG(
 		    (fegetround() == values[i].round_mode),
-		    "Didn't get the same rounding mode out!\n"
-		    "(index %d) fed in %d rounding mode, got %d out\n",
+		    "Didn't get the same rounding mode out!. "
+		    "(index %d) fed in %d rounding mode, got %d out",
 		    i, values[i].round_mode, fegetround());
 	}
 }
@@ -109,15 +109,15 @@ ATF_TC_BODY(fe_nearbyint, tc)
 		received = nearbyint(values[i].input);
 		ATF_CHECK_MSG(
 		    (fabs(received - values[i].expected) < EPSILON),
-		    "nearbyint rounding wrong, difference too large\n"
-		    "input: %f (index %d): got %f, expected %ld\n",
+		    "nearbyint rounding wrong, difference too large. "
+		    "input: %f (index %d): got %f, expected %ld",
 		    values[i].input, i, received, values[i].expected);
 
 		/* Do we get the same rounding mode out? */
 		ATF_CHECK_MSG(
 		    (fegetround() == values[i].round_mode),
-		    "Didn't get the same rounding mode out!\n"
-		    "(index %d) fed in %d rounding mode, got %d out\n",
+		    "Didn't get the same rounding mode out! "
+		    "(index %d) fed in %d rounding mode, got %d out",
 		    i, values[i].round_mode, fegetround());
 	}
 }
@@ -151,8 +151,8 @@ ATF_TC_BODY(fe_nextafter, tc)
 		}
 		ATF_CHECK_MSG(
 			res && (fabs(received - values2[i].expected) < EPSILON),
-			"nextafter() rounding wrong, difference too large\n"
-			"input: %f (index %d): got %f, expected %f, res %d\n",
+			"nextafter() rounding wrong, difference too large. "
+			"input: %f (index %d): got %f, expected %f, res %d",
 			values2[i].input, i, received, values2[i].expected, res);
 	}
 }
@@ -177,8 +177,8 @@ ATF_TC_BODY(fe_nexttoward, tc)
 		}
 		ATF_CHECK_MSG(
 			res && (fabs(received - values2[i].expected) < EPSILON),
-			"nexttoward() rounding wrong, difference too large\n"
-			"input: %f (index %d): got %f, expected %f, res %d\n",
+			"nexttoward() rounding wrong, difference too large. "
+			"input: %f (index %d): got %f, expected %f, res %d",
 			values2[i].input, i, received, values2[i].expected, res);
 	}
 }
