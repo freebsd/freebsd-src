@@ -129,6 +129,27 @@ proc_realparent(struct proc *child)
 	return (parent);
 }
 
+static void
+reaper_clear(struct proc *p, struct proc *rp)
+{
+	struct proc *p1;
+	bool clear;
+
+	sx_assert(&proctree_lock, SX_XLOCKED);
+	LIST_REMOVE(p, p_reapsibling);
+	if (p->p_reapsubtree == 1)
+		return;
+	clear = true;
+	LIST_FOREACH(p1, &rp->p_reaplist, p_reapsibling) {
+		if (p1->p_reapsubtree == p->p_reapsubtree) {
+			clear = false;
+			break;
+		}
+	}
+	if (clear)
+		proc_id_clear(PROC_ID_REAP, p->p_reapsubtree);
+}
+
 void
 reaper_abandon_children(struct proc *p, bool exiting)
 {
@@ -140,7 +161,7 @@ reaper_abandon_children(struct proc *p, bool exiting)
 		return;
 	p1 = p->p_reaper;
 	LIST_FOREACH_SAFE(p2, &p->p_reaplist, p_reapsibling, ptmp) {
-		LIST_REMOVE(p2, p_reapsibling);
+		reaper_clear(p2, p);
 		p2->p_reaper = p1;
 		p2->p_reapsubtree = p->p_reapsubtree;
 		LIST_INSERT_HEAD(&p1->p_reaplist, p2, p_reapsibling);
@@ -152,27 +173,6 @@ reaper_abandon_children(struct proc *p, bool exiting)
 	}
 	KASSERT(LIST_EMPTY(&p->p_reaplist), ("p_reaplist not empty"));
 	p->p_treeflag &= ~P_TREE_REAPER;
-}
-
-static void
-reaper_clear(struct proc *p)
-{
-	struct proc *p1;
-	bool clear;
-
-	sx_assert(&proctree_lock, SX_LOCKED);
-	LIST_REMOVE(p, p_reapsibling);
-	if (p->p_reapsubtree == 1)
-		return;
-	clear = true;
-	LIST_FOREACH(p1, &p->p_reaper->p_reaplist, p_reapsibling) {
-		if (p1->p_reapsubtree == p->p_reapsubtree) {
-			clear = false;
-			break;
-		}
-	}
-	if (clear)
-		proc_id_clear(PROC_ID_REAP, p->p_reapsubtree);
 }
 
 void
@@ -974,7 +974,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	sx_xunlock(PIDHASHLOCK(p->p_pid));
 	LIST_REMOVE(p, p_sibling);
 	reaper_abandon_children(p, true);
-	reaper_clear(p);
+	reaper_clear(p, p->p_reaper);
 	PROC_LOCK(p);
 	proc_clear_orphan(p);
 	PROC_UNLOCK(p);
