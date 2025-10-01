@@ -204,6 +204,7 @@ wd_valid_act(int act)
 	return true;
 }
 
+#ifdef	COMPAT_FREEBSD14
 static int
 wd_ioctl_patpat(caddr_t data)
 {
@@ -223,6 +224,7 @@ wd_ioctl_patpat(caddr_t data)
 
 	return (wdog_kern_pat(u));
 }
+#endif
 
 static int
 wd_get_time_left(struct thread *td, time_t *remainp)
