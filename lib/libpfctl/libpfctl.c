@@ -561,6 +561,10 @@ pfctl_free_status(struct pfctl_status *status)
 		free(c->name);
 		free(c);
 	}
+	TAILQ_FOREACH_SAFE(c, &status->ncounters, entry, tmp) {
+		free(c->name);
+		free(c);
+	}
 
 	free(status);
 }
