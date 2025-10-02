@@ -1201,7 +1201,6 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 */
 		if (sc->sc_flags & SCF_TIMESTAMP && to->to_flags & TOF_TS &&
 		    TSTMP_LT(to->to_tsval, sc->sc_tsreflect)) {
-			SCH_UNLOCK(sch);
 			if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
 				log(LOG_DEBUG,
 				    "%s; %s: SEG.TSval %u < TS.Recent %u, "
@@ -1209,6 +1208,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 				    to->to_tsval, sc->sc_tsreflect);
 				free(s, M_TCPLOG);
 			}
+			SCH_UNLOCK(sch);
 			return (-1);  /* Do not send RST */
 		}
 
@@ -1280,11 +1280,11 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 * SEG.ACK must match our initial send sequence number + 1.
 		 */
 		if (th->th_ack != sc->sc_iss + 1) {
-			SCH_UNLOCK(sch);
 			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
 				log(LOG_DEBUG, "%s; %s: ACK %u != ISS+1 %u, "
 				    "segment rejected\n",
 				    s, __func__, th->th_ack, sc->sc_iss + 1);
+			SCH_UNLOCK(sch);
 			goto failed;
 		}
 
