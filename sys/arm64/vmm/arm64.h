@@ -87,6 +87,7 @@ struct hypctx {
 	uint64_t	pmevcntr_el0[31];
 	uint64_t	pmevtyper_el0[31];
 
+	uint64_t	dbgclaimset_el1;
 	uint64_t	dbgbcr_el1[16];	/* Debug Breakpoint Control Registers */
 	uint64_t	dbgbvr_el1[16];	/* Debug Breakpoint Value Registers */
 	uint64_t	dbgwcr_el1[16];	/* Debug Watchpoint Control Registers */
