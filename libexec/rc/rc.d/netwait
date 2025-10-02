@@ -2,12 +2,14 @@
 #
 # PROVIDE: netwait
 # REQUIRE: devd ipfw pf routing
-# KEYWORD: nojail
 #
-# The netwait script helps handle two situations:
+# The netwait script helps handle three situations:
 #  - Systems with USB or other late-attaching network hardware which
 #    is initialized by devd events.  The script waits for all the
 #    interfaces named in the netwait_if list to appear.
+#  - Systems with IPv6 addresses, especially jails, where we need to
+#    wait for DAD to complete before starting daemons, as they will
+#    otherwise fail to bind to IN6ADDR_ANY.
 #  - Systems with statically-configured IP addresses in rc.conf(5).
 #    The IP addresses in the netwait_ip list are pinged.  The script
 #    waits for any single IP in the list to respond to the ping.  If your
@@ -29,28 +31,38 @@ netwait_start()
 {
 	local ip rc count output link wait_if got_if any_error
 
-	if [ -z "${netwait_if}" ] && [ -z "${netwait_ip}" ]; then
-		err 1 "No interface or IP addresses listed, nothing to wait for"
+	if [ -z "${netwait_if}" ] && [ -z "${netwait_ip}" ] &&
+	   ! checkyesno netwait_dad ; then
+		err 1 "Nothing to wait for"
 	fi
 
-	if [ ${netwait_timeout} -lt 1 ]; then
+	if ! [ "${netwait_if_timeout:=0}" -ge 1 ]; then
+		err 1 "netwait_if_timeout must be >= 1"
+	fi
+	if ! check_kern_features inet6; then
+		netwait_dad="NO"
+	elif ! [ "${netwait_dad_timeout:=0}" -ge 1 ]; then
+		netwait_dad_timeout=$(($(sysctl -n net.inet6.ip6.dad_count)+1))
+	fi
+	if ! [ "${netwait_timeout:=0}" -ge 1 ]; then
 		err 1 "netwait_timeout must be >= 1"
 	fi
 
+	any_error=false
+
 	if [ -n "${netwait_if}" ]; then
-		any_error=0
 		for wait_if in ${netwait_if}; do
 			echo -n "Waiting for ${wait_if}"
 			link=""
-			got_if=0
+			got_if=false
 			count=1
-			# Handle SIGINT (Ctrl-C); force abort of while() loop
+			# Handle SIGINT (Ctrl-C); force abort of while loop
 			trap break SIGINT
 			while [ ${count} -le ${netwait_if_timeout} ]; do
 				if output=`/sbin/ifconfig ${wait_if} 2>/dev/null`; then
-					if [ ${got_if} -eq 0 ]; then
+					if ! ${got_if}; then
 						echo -n ", interface present"
-						got_if=1
+						got_if=true
 					fi
 					link=`expr "${output}" : '.*[[:blank:]]status: \(no carrier\)'`
 					if [ -z "${link}" ]; then
@@ -63,22 +75,45 @@ netwait_start()
 			done
 			# Restore default SIGINT handler
 			trap - SIGINT
-			if [ ${got_if} -eq 0 ]; then
+			if ! ${got_if}; then
 				echo ", wait failed: interface never appeared."
-				any_error=1
+				any_error=true
 			elif [ -n "${link}" ]; then
 				echo ", wait failed: interface still has no link."
-				any_error=1
+				any_error=true
 			fi
 		done
-		if [ ${any_error} -eq 1 ]; then
-		    warn "Continuing with startup, but be aware you may not have "
-		    warn "a fully functional networking layer at this point."
-		fi
 	fi
 	
+	if checkyesno netwait_dad; then
+		got_dad=false
+		# Handle SIGINT (Ctrl-C); force abort of while loop
+		trap break SIGINT
+
+		echo -n "Waiting for DAD to complete"
+		count=1
+		while [ ${count} -le ${netwait_dad_timeout} ]; do
+			if ! ifconfig | grep -q 'inet6.*tentative'; then
+				echo ', done.'
+				got_dad=true
+				break
+			fi
+			sleep 1
+			count=$((count+1))
+		done
+
+		# Restore default SIGINT handler
+		trap - SIGINT
+
+		if ! ${got_dad}; then
+			echo ', timed out.'
+			any_error=true
+		fi
+	fi
+
 	if [ -n "${netwait_ip}" ]; then
-		# Handle SIGINT (Ctrl-C); force abort of for() loop
+		got_ip=false
+		# Handle SIGINT (Ctrl-C); force abort of for loop
 		trap break SIGINT
 
 		for ip in ${netwait_ip}; do
@@ -90,11 +125,9 @@ netwait_start()
 				rc=$?
 
 				if [ $rc -eq 0 ]; then
-					# Restore default SIGINT handler
-					trap - SIGINT
-
 					echo ', got response.'
-					return
+					got_ip=false
+					break 2
 				fi
 				count=$((count+1))
 			done
@@ -104,10 +137,15 @@ netwait_start()
 		# Restore default SIGINT handler
 		trap - SIGINT
 
-		warn "Exhausted IP list.  Continuing with startup, but be aware you may"
-		warn "not have a fully functional networking layer at this point."
+		if ! ${got_ip}; then
+			any_error=true
+		fi
 	fi
 
+	if ${any_error}; then
+		warn "Continuing with startup, but be aware you may not have "
+		warn "a fully functional networking layer at this point."
+	fi
 }
 
 load_rc_config $name
