@@ -16,16 +16,11 @@
  */
 
 #include <errno.h>
+#include <stdckdint.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
-
-/*
- * This is sqrt(SIZE_MAX+1), as s1*s2 <= SIZE_MAX
- * if both s1 < MUL_NO_OVERFLOW and s2 < MUL_NO_OVERFLOW
- */
-#define MUL_NO_OVERFLOW ((size_t)1 << (sizeof(size_t) * 4))
 
 void *recallocarray(void *, size_t, size_t, size_t);
 
@@ -38,19 +33,15 @@ recallocarray(void *ptr, size_t oldnmemb, size_t newnmemb, size_t size)
 	if (ptr == NULL)
 		return calloc(newnmemb, size);
 
-	if ((newnmemb >= MUL_NO_OVERFLOW || size >= MUL_NO_OVERFLOW) &&
-	    newnmemb > 0 && SIZE_MAX / newnmemb < size) {
+	if (ckd_mul(&newsize, newnmemb, size)) {
 		errno = ENOMEM;
 		return NULL;
 	}
-	newsize = newnmemb * size;
 
-	if ((oldnmemb >= MUL_NO_OVERFLOW || size >= MUL_NO_OVERFLOW) &&
-	    oldnmemb > 0 && SIZE_MAX / oldnmemb < size) {
+	if (ckd_mul(&oldsize, oldnmemb, size)) {
 		errno = EINVAL;
 		return NULL;
 	}
-	oldsize = oldnmemb * size;
 	
 	/*
 	 * Don't bother too much if we're shrinking just a bit,
