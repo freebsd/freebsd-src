@@ -100,10 +100,12 @@ reset_vm_el01_regs(void *vcpu)
 	el2ctx->pmcr_el0 |= PMCR_LC;
 	set_arch_unknown(el2ctx->pmccntr_el0);
 	set_arch_unknown(el2ctx->pmccfiltr_el0);
+	set_arch_unknown(el2ctx->pmuserenr_el0);
+	set_arch_unknown(el2ctx->pmselr_el0);
+	set_arch_unknown(el2ctx->pmxevcntr_el0);
 	set_arch_unknown(el2ctx->pmcntenset_el0);
 	set_arch_unknown(el2ctx->pmintenset_el1);
 	set_arch_unknown(el2ctx->pmovsset_el0);
-	set_arch_unknown(el2ctx->pmuserenr_el0);
 	memset(el2ctx->pmevcntr_el0, 0, sizeof(el2ctx->pmevcntr_el0));
 	memset(el2ctx->pmevtyper_el0, 0, sizeof(el2ctx->pmevtyper_el0));
 }
