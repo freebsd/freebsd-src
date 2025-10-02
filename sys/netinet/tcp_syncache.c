@@ -1259,6 +1259,23 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		}
 
 		/*
+		 * SEG.SEQ validation:
+		 * The SEG.SEQ must be in the window starting at our
+		 * initial receive sequence number + 1.
+		 */
+		if (SEQ_LEQ(th->th_seq, sc->sc_irs) ||
+		    SEQ_GT(th->th_seq, sc->sc_irs + sc->sc_wnd)) {
+			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
+				log(LOG_DEBUG, "%s; %s: SEQ %u != IRS+1 %u, "
+				    "sending challenge ACK\n",
+				    s, __func__, th->th_seq, sc->sc_irs + 1);
+			syncache_send_challenge_ack(sc, m);
+			SCH_UNLOCK(sch);
+			free(s, M_TCPLOG);
+			return (-1);  /* Do not send RST */;
+		}
+
+		/*
 		 * SEG.ACK validation:
 		 * SEG.ACK must match our initial send sequence number + 1.
 		 */
@@ -1268,21 +1285,6 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 				log(LOG_DEBUG, "%s; %s: ACK %u != ISS+1 %u, "
 				    "segment rejected\n",
 				    s, __func__, th->th_ack, sc->sc_iss + 1);
-			goto failed;
-		}
-
-		/*
-		 * SEG.SEQ validation:
-		 * The SEG.SEQ must be in the window starting at our
-		 * initial receive sequence number + 1.
-		 */
-		if (SEQ_LEQ(th->th_seq, sc->sc_irs) ||
-		    SEQ_GT(th->th_seq, sc->sc_irs + sc->sc_wnd)) {
-			SCH_UNLOCK(sch);
-			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
-				log(LOG_DEBUG, "%s; %s: SEQ %u != IRS+1 %u, "
-				    "segment rejected\n",
-				    s, __func__, th->th_seq, sc->sc_irs + 1);
 			goto failed;
 		}
 
