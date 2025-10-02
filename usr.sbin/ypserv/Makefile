@@ -41,7 +41,10 @@ FILESNAME= Makefile.dist
 FILESDIR= /var/yp
 SCRIPTS= ypinit.sh
 
-.if !exists(${DESTDIR}${FILESDIR}/Makefile)
+# If NO_ROOT is defined, we are doing a stage install and always need to
+# install the symlink, otherwise, don't overwrite the user's existing
+# symlink.
+.if defined(NO_ROOT) || !exists(${DESTDIR}${FILESDIR}/Makefile)
 SYMLINKS= ${FILESNAME} ${FILESDIR}/Makefile
 .endif
 
