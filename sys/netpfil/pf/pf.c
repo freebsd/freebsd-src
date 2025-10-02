@@ -10446,28 +10446,28 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 			    __func__);
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
-			return (-1);
+			return (PF_DROP);
 		}
 
 		h = mtod(pd->m, struct ip *);
 		if (pd->m->m_pkthdr.len < ntohs(h->ip_len)) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
-			return (-1);
+			return (PF_DROP);
 		}
 
 		if (pf_normalize_ip(reason, pd) != PF_PASS) {
 			/* We do IP header normalization and packet reassembly here */
 			*m0 = pd->m;
 			*action = PF_DROP;
-			return (-1);
+			return (PF_DROP);
 		}
 		*m0 = pd->m;
 		h = mtod(pd->m, struct ip *);
 
 		if (pf_walk_header(pd, h, reason) != PF_PASS) {
 			*action = PF_DROP;
-			return (-1);
+			return (PF_DROP);
 		}
 
 		pd->src = (struct pf_addr *)&h->ip_src;
@@ -10497,7 +10497,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 			     ", pullup failed", __func__);
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
-			return (-1);
+			return (PF_DROP);
 		}
 
 		h = mtod(pd->m, struct ip6_hdr *);
@@ -10505,7 +10505,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		    sizeof(struct ip6_hdr) + ntohs(h->ip6_plen)) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
-			return (-1);
+			return (PF_DROP);
 		}
 
 		/*
@@ -10514,12 +10514,12 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		 */
 		if (htons(h->ip6_plen) == 0) {
 			*action = PF_DROP;
-			return (-1);
+			return (PF_DROP);
 		}
 
 		if (pf_walk_header6(pd, h, reason) != PF_PASS) {
 			*action = PF_DROP;
-			return (-1);
+			return (PF_DROP);
 		}
 
 		h = mtod(pd->m, struct ip6_hdr *);
@@ -10541,13 +10541,13 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		    PF_PASS) {
 			*m0 = pd->m;
 			*action = PF_DROP;
-			return (-1);
+			return (PF_DROP);
 		}
 		*m0 = pd->m;
 		if (pd->m == NULL) {
 			/* packet sits in reassembly queue, no error */
 			*action = PF_PASS;
-			return (-1);
+			return (PF_DROP);
 		}
 
 		/* Update pointers into the packet. */
@@ -10559,7 +10559,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 
 		if (pf_walk_header6(pd, h, reason) != PF_PASS) {
 			*action = PF_DROP;
-			return (-1);
+			return (PF_DROP);
 		}
 
 		if (m_tag_find(pd->m, PACKET_TAG_PF_REASSEMBLED, NULL) != NULL) {
@@ -10589,7 +10589,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 			reason, af)) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
-			return (-1);
+			return (PF_DROP);
 		}
 		pd->hdrlen = sizeof(*th);
 		pd->p_len = pd->tot_len - pd->off - (th->th_off << 2);
@@ -10605,7 +10605,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 			reason, af)) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
-			return (-1);
+			return (PF_DROP);
 		}
 		pd->hdrlen = sizeof(*uh);
 		if (uh->uh_dport == 0 ||
@@ -10613,7 +10613,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		    ntohs(uh->uh_ulen) < sizeof(struct udphdr)) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
-			return (-1);
+			return (PF_DROP);
 		}
 		pd->sport = &uh->uh_sport;
 		pd->dport = &uh->uh_dport;
@@ -10625,7 +10625,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		    reason, af)) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
-			return (-1);
+			return (PF_DROP);
 		}
 		pd->hdrlen = sizeof(pd->hdr.sctp);
 		pd->p_len = pd->tot_len - pd->off;
@@ -10635,7 +10635,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		if (pd->hdr.sctp.src_port == 0 || pd->hdr.sctp.dest_port == 0) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
-			return (-1);
+			return (PF_DROP);
 		}
 
 		/*
@@ -10650,7 +10650,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		if (pf_scan_sctp(pd) != PF_PASS) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
-			return (-1);
+			return (PF_DROP);
 		}
 		break;
 	}
@@ -10659,7 +10659,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 			reason, af)) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
-			return (-1);
+			return (PF_DROP);
 		}
 		pd->pcksum = &pd->hdr.icmp.icmp_cksum;
 		pd->hdrlen = ICMP_MINLEN;
@@ -10673,7 +10673,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 			reason, af)) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
-			return (-1);
+			return (PF_DROP);
 		}
 		/* ICMP headers we look further into to match state */
 		switch (pd->hdr.icmp6.icmp6_type) {
@@ -10699,7 +10699,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 			reason, af)) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
-			return (-1);
+			return (PF_DROP);
 		}
 		pd->hdrlen = icmp_hlen;
 		pd->pcksum = &pd->hdr.icmp6.icmp6_cksum;
@@ -10722,7 +10722,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 
 	MPASS(pd->pcksum != NULL);
 
-	return (0);
+	return (PF_PASS);
 }
 
 static __inline void
@@ -10984,7 +10984,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 	PF_RULES_RLOCK();
 
 	if (pf_setup_pdesc(af, dir, &pd, m0, &action, &reason,
-		kif, default_actions) == -1) {
+		kif, default_actions) != PF_PASS) {
 		if (action != PF_PASS)
 			pd.act.log |= PF_LOG_FORCE;
 		goto done;
