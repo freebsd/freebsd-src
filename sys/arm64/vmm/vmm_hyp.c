@@ -108,6 +108,8 @@ vmm_hyp_reg_store(struct hypctx *hypctx, struct hyp *hyp, bool guest)
 		}
 	}
 
+	hypctx->dbgclaimset_el1 = READ_SPECIALREG(dbgclaimset_el1);
+
 	dfr0 = READ_SPECIALREG(id_aa64dfr0_el1);
 	switch (ID_AA64DFR0_BRPs_VAL(dfr0) - 1) {
 #define	STORE_DBG_BRP(x)						\
@@ -389,6 +391,9 @@ vmm_hyp_reg_restore(struct hypctx *hypctx, struct hyp *hyp, bool guest)
 		break;
 #undef LOAD_PMU
 	}
+
+	WRITE_SPECIALREG(dbgclaimclr_el1, ~0ul);
+	WRITE_SPECIALREG(dbgclaimclr_el1, hypctx->dbgclaimset_el1);
 
 	dfr0 = READ_SPECIALREG(id_aa64dfr0_el1);
 	switch (ID_AA64DFR0_BRPs_VAL(dfr0) - 1) {
