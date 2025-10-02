@@ -117,7 +117,7 @@ local function select_components(components, options)
 		-- are only offered if no_kernel is set.
 		if component ~= "pkg" and
 		   not component:match("^minimal") and
-		   not component:match("%-dbg$") and
+		   not (component:match("%-dbg$") and component ~= "kernel-dbg") and
 		   not (component == "kernels") and
 		   not (not options.no_kernel and component:match("%-jail$")) then
 			table.insert(sorted_components, component)
