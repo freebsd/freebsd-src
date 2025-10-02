@@ -589,6 +589,7 @@ MAN=	aac.4 \
 	tdfx.4 \
 	termios.4 \
 	textdump.4 \
+	thunderbolt.4 \
 	ti.4 \
 	timecounters.4 \
 	tmpfs.4 \
