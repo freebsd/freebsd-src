@@ -1,0 +1,4 @@
+include GENERIC
+ident   GENERIC-PAGE16K
+
+options	OS_PAGE_SHIFT=14

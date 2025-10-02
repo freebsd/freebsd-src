@@ -86,7 +86,7 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 	uint32_t pc_pad[4];						\
 	uint8_t	pc_mds_tmp[64];						\
 	u_int	pc_ipi_bitmap;						\
-	char	__pad[3518]
+	char	__pad[3518 + PAGE_SIZE - 4096]
 
 #ifdef _KERNEL
 
