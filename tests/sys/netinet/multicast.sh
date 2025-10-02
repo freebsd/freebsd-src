@@ -105,6 +105,7 @@ IP_ADD_MEMBERSHIP_ip_mreqn_body()
 	    jexec mjail1 $(atf_get_srcdir)/multicast-send \
 	    0.0.0.0 6676 233.252.0.1 6676 ${epair2}a hello
 	atf_check -s exit:0 sh -c "wait $pid; exit $?"
+	atf_check -s exit:0 -o inline:"192.0.3.1:6676 hello\n" cat out
 }
 IP_ADD_MEMBERSHIP_ip_mreqn_cleanup()
 {
@@ -138,6 +139,7 @@ MCAST_JOIN_GROUP_body()
 	    jexec mjail1 $(atf_get_srcdir)/multicast-send \
 	    0.0.0.0 6676 233.252.0.1 6676 ${epair2}a hello
 	atf_check -s exit:0 sh -c "wait $pid; exit $?"
+	atf_check -s exit:0 -o inline:"192.0.3.1:6676 hello\n" cat out
 }
 MCAST_JOIN_GROUP_cleanup()
 {
