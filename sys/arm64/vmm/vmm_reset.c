@@ -145,7 +145,8 @@ reset_vm_el2_regs(void *vcpu)
 	/* Set the Extended Hypervisor Configuration Register */
 	el2ctx->hcrx_el2 = 0;
 	/* TODO: Trap all extensions we don't support */
-	el2ctx->mdcr_el2 = 0;
+	el2ctx->mdcr_el2 = MDCR_EL2_TDOSA | MDCR_EL2_TDRA | MDCR_EL2_TPMS |
+	    MDCR_EL2_TTRF;
 	/* PMCR_EL0.N is read from MDCR_EL2.HPMN */
 	el2ctx->mdcr_el2 |= (el2ctx->pmcr_el0 & PMCR_N_MASK) >> PMCR_N_SHIFT;
 
