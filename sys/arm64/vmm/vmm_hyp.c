@@ -338,11 +338,11 @@ vmm_hyp_reg_restore(struct hypctx *hypctx, struct hyp *hyp, bool guest,
 	WRITE_SPECIALREG(pmccntr_el0, hypctx->pmccntr_el0);
 	WRITE_SPECIALREG(pmccfiltr_el0, hypctx->pmccfiltr_el0);
 	/* Clear all events/interrupts then enable them */
-	WRITE_SPECIALREG(pmcntenclr_el0, 0xfffffffful);
+	WRITE_SPECIALREG(pmcntenclr_el0, ~0ul);
 	WRITE_SPECIALREG(pmcntenset_el0, hypctx->pmcntenset_el0);
-	WRITE_SPECIALREG(pmintenclr_el1, 0xfffffffful);
+	WRITE_SPECIALREG(pmintenclr_el1, ~0ul);
 	WRITE_SPECIALREG(pmintenset_el1, hypctx->pmintenset_el1);
-	WRITE_SPECIALREG(pmovsclr_el0, 0xfffffffful);
+	WRITE_SPECIALREG(pmovsclr_el0, ~0ul);
 	WRITE_SPECIALREG(pmovsset_el0, hypctx->pmovsset_el0);
 
 	switch ((hypctx->pmcr_el0 & PMCR_N_MASK) >> PMCR_N_SHIFT) {
