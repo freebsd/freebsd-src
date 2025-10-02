@@ -183,9 +183,9 @@ On all supported architectures:
 Integers are represented in two's complement.
 Alignment of integer and pointer types is natural, that is,
 the address of the variable must be congruent to zero modulo the type size.
-Most ILP32 ABIs, except
-.Dv arm ,
-require only 4-byte alignment for 64-bit integers.
+The sole exception is that
+.Dv i386
+requires only 4-byte alignment for 64-bit integers.
 .Pp
 Machine-dependent type sizes:
 .Bl -column -offset indent "Architecture" "void *" "long double" "time_t"
