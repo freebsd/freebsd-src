@@ -314,6 +314,8 @@ int	 radixsort(const unsigned char **, int, const unsigned char *,
 	    unsigned);
 void	*reallocarray(void *, size_t, size_t) __result_use_check
 	    __alloc_size2(2, 3);
+void	*recallocarray(void *, size_t, size_t, size_t) __result_use_check
+	    __alloc_size2(3, 4);
 void	*reallocf(void *, size_t) __result_use_check __alloc_size(2);
 int	 rpmatch(const char *);
 char	*secure_getenv(const char *);

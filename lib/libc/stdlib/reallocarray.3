@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 1, 2015
+.Dd October 2, 2025
 .Dt REALLOCARRAY 3
 .Os
 .Sh NAME
@@ -38,6 +38,8 @@
 .In stdlib.h
 .Ft void *
 .Fn reallocarray "void *ptr" "size_t nmemb" "size_t size"
+.Ft void *
+.Fn recallocarray "void *ptr" "size_t oldnmeb" "size_t nmemb" size_t size"
 .Sh DESCRIPTION
 The
 .Fn reallocarray
@@ -52,6 +54,33 @@ and checks for integer overflow in the calculation
 .Fa nmemb
 *
 .Fa size .
+.Pp
+The
+.Fn recallocarray
+function is similar to the
+.Fn reallocarray
+function
+except it ensures newly allocated memory is cleared similar to
+.Fn calloc .
+If
+.Fa ptr
+is
+.Dv NULL ,
+.Fa oldnmemb
+is ignored and the call	is equivalent to
+.Fn calloc .
+If
+.Fa ptr
+is not
+.Dv NULL ,
+.Fa oldnmemb
+must be a value such that
+.Fa oldnmemb
+*
+.Fa size
+is the size of the earlier allocation that returned
+.Fa ptr ,
+otherwise the behaviour is undefined.
 .Sh RETURN VALUES
 The
 .Fn reallocarray
@@ -142,3 +171,9 @@ function first appeared in
 .Ox 5.6
 and
 .Fx 11.0 .
+The
+.Fn recallocarray
+function first appeared in
+.Ox 6.1
+and
+.Fx 15.1 .

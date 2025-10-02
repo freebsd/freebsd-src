@@ -10,7 +10,7 @@ MISRCS+=C99_Exit.c a64l.c abort.c abs.c atexit.c atof.c atoi.c atol.c atoll.c \
 	insque.c l64a.c labs.c ldiv.c llabs.c lldiv.c lsearch.c \
 	merge.c mergesort_b.c ptsname.c qsort.c qsort_r.c qsort_r_compat.c \
 	qsort_s.c quick_exit.c radixsort.c rand.c \
-	random.c reallocarray.c reallocf.c realpath.c remque.c \
+	random.c reallocarray.c reallocf.c realpath.c recallocarray.c remque.c \
 	set_constraint_handler_s.c strfmon.c strtoimax.c \
 	strtol.c strtold.c strtoll.c strtoq.c strtoul.c strtonum.c strtoull.c \
 	strtoumax.c strtouq.c system.c tdelete.c tfind.c tsearch.c twalk.c
@@ -76,6 +76,7 @@ MLINKS+=random.3 initstate.3 \
 	random.3 srandom.3 \
 	random.3 srandomdev.3
 MLINKS+=radixsort.3 sradixsort.3
+MLINKS+=reallocarray.3 recallocarray.3
 MLINKS+=set_constraint_handler_s.3 abort_handler_s.3
 MLINKS+=set_constraint_handler_s.3 ignore_handler_s.3
 MLINKS+=strfmon.3 strfmon_l.3
