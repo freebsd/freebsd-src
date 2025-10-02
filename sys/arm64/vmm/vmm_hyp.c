@@ -180,10 +180,13 @@ vmm_hyp_reg_store(struct hypctx *hypctx, struct hyp *hyp, bool guest,
 	hypctx->pmcr_el0 = READ_SPECIALREG(pmcr_el0);
 	hypctx->pmccntr_el0 = READ_SPECIALREG(pmccntr_el0);
 	hypctx->pmccfiltr_el0 = READ_SPECIALREG(pmccfiltr_el0);
+	hypctx->pmuserenr_el0 = READ_SPECIALREG(pmuserenr_el0);
+	hypctx->pmselr_el0 = READ_SPECIALREG(pmselr_el0);
+	hypctx->pmxevcntr_el0 = READ_SPECIALREG(pmxevcntr_el0);
 	hypctx->pmcntenset_el0 = READ_SPECIALREG(pmcntenset_el0);
 	hypctx->pmintenset_el1 = READ_SPECIALREG(pmintenset_el1);
 	hypctx->pmovsset_el0 = READ_SPECIALREG(pmovsset_el0);
-	hypctx->pmuserenr_el0 = READ_SPECIALREG(pmuserenr_el0);
+
 	switch ((hypctx->pmcr_el0 & PMCR_N_MASK) >> PMCR_N_SHIFT) {
 #define	STORE_PMU(x)							\
 	case (x + 1):							\
@@ -337,6 +340,9 @@ vmm_hyp_reg_restore(struct hypctx *hypctx, struct hyp *hyp, bool guest,
 	WRITE_SPECIALREG(pmcr_el0, hypctx->pmcr_el0);
 	WRITE_SPECIALREG(pmccntr_el0, hypctx->pmccntr_el0);
 	WRITE_SPECIALREG(pmccfiltr_el0, hypctx->pmccfiltr_el0);
+	WRITE_SPECIALREG(pmuserenr_el0, hypctx->pmuserenr_el0);
+	WRITE_SPECIALREG(pmselr_el0, hypctx->pmselr_el0);
+	WRITE_SPECIALREG(pmxevcntr_el0, hypctx->pmxevcntr_el0);
 	/* Clear all events/interrupts then enable them */
 	WRITE_SPECIALREG(pmcntenclr_el0, ~0ul);
 	WRITE_SPECIALREG(pmcntenset_el0, hypctx->pmcntenset_el0);
