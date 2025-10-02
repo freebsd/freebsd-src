@@ -128,9 +128,19 @@ If
 is defined (and non-empty), mail is
 sent to the user so named.
 If
+.Ev MAILCC
+is defined (and non-empty), mail is carbon copied to the user(s) so named.
+.Ev MAILBCC
+is defined (and non-empty),
+mail is blind carbon copied to the user(s) so named.
+If
 .Ev MAILFROM
 is defined (and non-empty), its value will be used as the from address.
 .Ev MAILTO
+,
+.Ev MAILCC
+and
+.Ev MAILBCC
 may also be used to direct mail to multiple recipients
 by separating recipient users with a comma.
 If
@@ -298,7 +308,9 @@ is started or the crontab entry is reloaded.
 SHELL=/bin/sh
 # mail any output to `paul', no matter whose crontab this is
 MAILTO=paul
-#
+# CC and BCC mail to `lakshmikanth@example.com' and 'paul@example.com'
+MAILCC=lakshmikanth@example.com,paul@example.com
+MAILBCC=peter@example.com
 # run five minutes after midnight, every day
 5 0 * * *       $HOME/bin/daily.job >> $HOME/tmp/out 2>&1
 # run at 2:15pm on the first of every month -- output mailed to paul
