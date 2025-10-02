@@ -580,7 +580,9 @@ getspace(size_t blk)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: tcopy [-cvx] [-s maxblk] [src [dest]]\n");
+	fprintf(stderr,
+            "usage: tcopy [-crvx] [-l logfile] [-s maxblk] [src [dest]]\n"
+        );
 	exit(1);
 }
 
