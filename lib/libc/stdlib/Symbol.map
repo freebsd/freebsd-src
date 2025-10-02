@@ -131,6 +131,10 @@ FBSD_1.8 {
 	getenv_r;
 };
 
+FBSD_1.9 {
+	recallocarray;
+};
+
 FBSDprivate_1.0 {
 	__system;
 	_system;
