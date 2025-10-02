@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20251002:
+	Audio-related utilities including mixer(8) and virtual_oss(8) have
+	moved to the new FreeBSD-sound package.  If you have set-optional or
+	set-base installed this package will be installed automatically,
+	otherwise you should install it manually if you need these utilities.
+
 20250929:
 	Both drm-kmod and nividia-drm ports had to be updated to either no
 	longer conflict on LinuxKPI vs. native PCI changes and/or to keep

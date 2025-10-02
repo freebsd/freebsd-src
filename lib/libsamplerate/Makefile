@@ -1,5 +1,7 @@
 .PATH:		${SRCTOP}/contrib/libsamplerate
 
+PACKAGE=	sound
+
 LIB=		samplerate
 PRIVATELIB=
 

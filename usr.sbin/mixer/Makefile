@@ -1,5 +1,7 @@
 .include <src.opts.mk>
 
+PACKAGE=	sound
+
 PROG=		mixer
 SRCS=		${PROG}.c
 MAN=		${PROG}.8

@@ -4,7 +4,7 @@ WARNS?= 6
 PACKAGE=devd
 CONFGROUPS=	CONFS DEVD
 CONFS=	devd.conf
-DEVD=	devmatch.conf snd.conf
+DEVD=	devmatch.conf
 DEVDDIR=	/etc/devd
 .if ${MK_ACPI} != "no"
 DEVD+=	asus.conf
@@ -31,6 +31,11 @@ CONFGROUPS+=		CONSOLE
 CONSOLEDIR=		${DEVDDIR}
 CONSOLE+=		moused.conf syscons.conf
 CONSOLEPACKAGE=		console-tools
+
+CONFGROUPS+=		SND
+SNDDIR=			${DEVDDIR}
+SND=			snd.conf
+SNDPACKAGE=		sound
 
 .if ${MK_BLUETOOTH} != "no"
 CONFGROUPS+=		BLUETOOTH
