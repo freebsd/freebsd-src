@@ -43,7 +43,6 @@ SRCS+=	u2f.c
 SRCS+=	util.c
 
 SRCS+=	openbsd-compat/freezero.c
-SRCS+=	openbsd-compat/recallocarray.c
 
 CFLAGS+= -I ${DIST}/src -I${SRCTOP}/contrib/libcbor/src -I${.CURDIR}/../libcbor
 CFLAGS+= -D_FIDO_INTERNAL
