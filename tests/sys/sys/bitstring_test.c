@@ -559,14 +559,13 @@ BITSTRING_TC_DEFINE(bit_nclear)
 			bit_nclear(bitstr, i, j);
 
 			bit_ffc(bitstr, nbits, &found_clear_bit);
-			ATF_REQUIRE_MSG(
-			    found_clear_bit == i,
+			ATF_REQUIRE_INTEQ_MSG(i, found_clear_bit,
 			    "bit_nclear_%d_%d_%d%s: Failed with result %d",
 			    nbits, i, j, memloc, found_clear_bit);
 
 			bit_ffs_at(bitstr, i, nbits, &found_set_bit);
-			ATF_REQUIRE_MSG(
-			    (j + 1 < nbits) ? found_set_bit == j + 1 : -1,
+			ATF_REQUIRE_INTEQ_MSG((j + 1 < nbits) ? j + 1 : -1,
+			    found_set_bit,
 			    "bit_nset_%d_%d_%d%s: Failed with result %d",
 			    nbits, i, j, memloc, found_set_bit);
 		}
@@ -586,14 +585,13 @@ BITSTRING_TC_DEFINE(bit_nset)
 			bit_nset(bitstr, i, j);
 
 			bit_ffs(bitstr, nbits, &found_set_bit);
-			ATF_REQUIRE_MSG(
-			    found_set_bit == i,
+			ATF_REQUIRE_INTEQ_MSG(i, found_set_bit,
 			    "bit_nset_%d_%d_%d%s: Failed with result %d",
 			    nbits, i, j, memloc, found_set_bit);
 
 			bit_ffc_at(bitstr, i, nbits, &found_clear_bit);
-			ATF_REQUIRE_MSG(
-			    (j + 1 < nbits) ? found_clear_bit == j + 1 : -1,
+			ATF_REQUIRE_INTEQ_MSG((j + 1 < nbits) ? j + 1 : -1,
+			    found_clear_bit,
 			    "bit_nset_%d_%d_%d%s: Failed with result %d",
 			    nbits, i, j, memloc, found_clear_bit);
 		}
