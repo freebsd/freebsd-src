@@ -3364,7 +3364,7 @@ pf_change_ap(struct pf_pdesc *pd, struct pf_addr *a, u_int16_t *p,
 	u_int16_t	po;
 	uint8_t		u = pd->virtual_proto == IPPROTO_UDP;
 
-	MPASS(pd->pcksum);
+	MPASS(pd->pcksum != NULL);
 	if (pd->af == AF_INET) {
 		MPASS(pd->ip_sum);
 	}
@@ -7634,6 +7634,7 @@ again:
 				nj->pd.m = j->pd.m;
 				nj->op = j->op;
 
+				MPASS(nj->pd.pcksum);
 				TAILQ_INSERT_TAIL(&pd->sctp_multihome_jobs, nj, next);
 			}
 			PF_SCTP_ENDPOINTS_UNLOCK();
@@ -7753,6 +7754,7 @@ pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op)
 			job->pd.m = pd->m;
 			job->op = op;
 
+			MPASS(job->pd.pcksum);
 			TAILQ_INSERT_TAIL(&pd->sctp_multihome_jobs, job, next);
 			break;
 		}
@@ -7786,6 +7788,7 @@ pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op)
 			job->pd.m = pd->m;
 			job->op = op;
 
+			MPASS(job->pd.pcksum);
 			TAILQ_INSERT_TAIL(&pd->sctp_multihome_jobs, job, next);
 			break;
 		}
@@ -10634,17 +10637,21 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 			REASON_SET(reason, PFRES_SHORT);
 			return (-1);
 		}
+
+		/*
+		 * Placeholder. The SCTP checksum is 32-bits, but
+		 * pf_test_state() expects to update a 16-bit checksum.
+		 * Provide a dummy value which we'll subsequently ignore.
+		 * Do this before pf_scan_sctp() so any jobs we enqueue
+		 * have a pcksum set.
+		 */
+		pd->pcksum = &pd->sctp_dummy_sum;
+
 		if (pf_scan_sctp(pd) != PF_PASS) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
 			return (-1);
 		}
-		/*
-		 * Placeholder. The SCTP checksum is 32-bits, but
-		 * pf_test_state() expects to update a 16-bit checksum.
-		 * Provide a dummy value which we'll subsequently ignore.
-		 */
-		pd->pcksum = &pd->sctp_dummy_sum;
 		break;
 	}
 	case IPPROTO_ICMP: {
