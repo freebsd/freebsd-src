@@ -82,7 +82,7 @@ PKG_ENV+=	ASSUME_ALWAYS_YES=yes
 PKG_ARGS+=	-o METALOG=METALOG
 PKG_ARGS+=	-r ${.TARGET}
 PKG_REPO_ARGS=	-o REPOS_DIR=${.CURDIR}/pkg_repos
-PKGBASE_REPO_ARGS=-o REPOS_DIR=${.OBJDIR}/pkgbase-repo-conf
+PKGBASE_REPO_ARGS=-o REPOS_DIR=${.OBJDIR}/pkgbase-repo-dir
 # Pass -f to make sure pkg writes to the METALOG even if the package
 # is already installed from a previous build
 PKG_INSTALL=	env ${PKG_ENV} ${PKG_CMD} ${PKG_ARGS} ${PKG_REPO_ARGS} install -f
@@ -277,7 +277,7 @@ disc1: ${PKGBASE_REPO_DIR}
 	echo "./etc/rc.local type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
 	touch ${.TARGET}
 
-bootonly:
+bootonly: ${PKGBASE_REPO_DIR}
 # Install system
 	mkdir -p ${.TARGET}
 	( cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
@@ -296,7 +296,12 @@ bootonly:
 	echo "./usr/freebsd-dist/MANIFEST type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
 .endif
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
-	${PKG_INSTALL} pkg || true
+.if !defined(NOPKGBASE) || empty(NOPKGBASE)
+	${PKGBASE_INSTALL} pkg
+	${PKGBASE_CLEAN}
+.else
+	${PKG_INSTALL} pkg
+.endif
 	${PKG_INSTALL} wifi-firmware-iwlwifi-kmod wifi-firmware-rtw88-kmod || true
 	${PKG_CLEAN} || true
 .endif
