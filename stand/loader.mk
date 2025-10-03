@@ -89,7 +89,7 @@ SRCS+=	interp_lua.c
 .include "${BOOTSRC}/lua.mk"
 LDR_INTERP=	${LIBLUA}
 LDR_INTERP32=	${LIBLUA32}
-CFLAGS.interp_lua.c= -DLUA_PATH=\"${LUAPATH}\" -I${FLUASRC}/modules
+CFLAGS.interp_lua.c= -DLUA_PATH=\"${LUAPATH}\" -I${FLUASRC}/lfs
 .elif ${LOADER_INTERP} == "4th"
 SRCS+=	interp_forth.c
 .include "${BOOTSRC}/ficl.mk"
