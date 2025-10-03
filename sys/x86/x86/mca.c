@@ -133,6 +133,7 @@ static struct taskqueue *mca_tq;
 static struct task mca_resize_task;
 static struct timeout_task mca_scan_task;
 static struct mtx mca_lock;
+static bool mca_startup_done = false;
 
 /* Statistics on number of MCA events by type, updated atomically. */
 static uint64_t mca_stats[MCA_T_COUNT];
@@ -1025,7 +1026,7 @@ mca_process_records(enum scan_mode mode)
 	mtx_unlock_spin(&mca_lock);
 	if (mode == POLLED)
 		mca_resize_freelist();
-	else if (!cold)
+	else if (mca_startup_done)
 		taskqueue_enqueue(mca_tq, &mca_resize_task);
 }
 
@@ -1097,7 +1098,7 @@ sysctl_mca_maxcount(SYSCTL_HANDLER_ARGS)
 			doresize = true;
 		}
 	mtx_unlock_spin(&mca_lock);
-	if (doresize && !cold)
+	if (doresize && mca_startup_done)
 		taskqueue_enqueue(mca_tq, &mca_resize_task);
 	return (error);
 }
@@ -1115,6 +1116,7 @@ mca_startup(void *dummy)
 	taskqueue_start_threads(&mca_tq, 1, PI_SWI(SWI_TQ), "mca taskq");
 	taskqueue_enqueue_timeout_sbt(mca_tq, &mca_scan_task,
 	    mca_ticks * SBT_1S, 0, C_PREL(1));
+	mca_startup_done = true;
 }
 SYSINIT(mca_startup, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, mca_startup, NULL);
 
