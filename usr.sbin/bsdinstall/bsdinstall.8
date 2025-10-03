@@ -244,7 +244,7 @@ Extracts the distributions listed in
 .Ev DISTRIBUTIONS
 into
 .Ev BSDINSTALL_CHROOT .
-.It Cm pkgbase Op Fl --no-kernel
+.It Cm pkgbase Op Fl --jail
 Fetch and install base system packages to
 .Ev BSDINSTALL_CHROOT .
 Packages are fetched according to repository configuration in
@@ -253,8 +253,10 @@ if set, or
 .Lk pkg.freebsd.org
 otherwise.
 If the
-.Fl --no-kernel
-option is passed, no kernel is installed.
+.Fl --jail
+option is passed, no kernel is installed, and the
+.Dq jail
+variant of each package set will be selected where applicable.
 .It Cm firmware
 executes
 .Xr fwget 8
