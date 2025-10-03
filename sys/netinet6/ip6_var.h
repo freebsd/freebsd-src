@@ -403,6 +403,8 @@ int	in6_selectsrc_socket(struct sockaddr_in6 *, struct ip6_pktopts *,
     struct inpcb *, struct ucred *, int, struct in6_addr *, int *);
 int	in6_selectsrc_addr(uint32_t, const struct in6_addr *,
     uint32_t, struct ifnet *, struct in6_addr *, int *);
+int	in6_selectsrc_nbr(uint32_t, const struct in6_addr *,
+    struct ip6_moptions *, struct ifnet *, struct in6_addr *);
 int in6_selectroute(struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
 	struct nhop_object **, u_int, uint32_t);
