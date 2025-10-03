@@ -217,10 +217,7 @@ echo
 
 file=`mktemp /tmp/crashinfo.XXXXXX`
 if [ $? -eq 0 ]; then
-	scriptdir=/usr/libexec/kgdb
-
 	echo "bt -full" >> $file
-	echo "source ${scriptdir}/acttrace.py" >> $file
 	echo "acttrace" >> $file
 	echo "quit" >> $file
 	${GDB%gdb}kgdb -q $KERNEL $VMCORE < $file
