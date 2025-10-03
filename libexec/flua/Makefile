@@ -9,7 +9,11 @@
 FLUA_MODULES+=	lfbsd
 FLUA_MODULES+=	lfs
 FLUA_MODULES+=	libhash
+.ifndef BOOTSTRAPPING
+# Bootstrap flua can't usefully do anything with libjail anyways, because it
+# can't assume it's being run on a system that even supports jails.
 FLUA_MODULES+=	libjail
+.endif
 FLUA_MODULES+=	libucl
 FLUA_MODULES+=	liblyaml
 FLUA_MODULES+=	lposix
