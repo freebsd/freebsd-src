@@ -186,10 +186,8 @@ ATF_TC_BODY(regcomp_too_big, tc)
 	int e;
 	struct rlimit limit;
 
-#if defined(__i386__)
 	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/237450");
-#endif
+		atf_tc_skip("https://bugs.freebsd.org/259971");
 
 	limit.rlim_cur = limit.rlim_max = 256 * 1024 * 1024;
 	ATF_REQUIRE(setrlimit(RLIMIT_VMEM, &limit) != -1);
