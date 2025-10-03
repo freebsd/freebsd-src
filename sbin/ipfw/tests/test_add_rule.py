@@ -36,6 +36,7 @@ from atf_python.sys.netpfil.ipfw.insns import InsnProb
 from atf_python.sys.netpfil.ipfw.insns import InsnProto
 from atf_python.sys.netpfil.ipfw.insns import InsnReject
 from atf_python.sys.netpfil.ipfw.insns import InsnTable
+from atf_python.sys.netpfil.ipfw.insns import InsnU32
 from atf_python.sys.netpfil.ipfw.insns import IpFwOpcode
 from atf_python.sys.netpfil.ipfw.ioctl import CTlv
 from atf_python.sys.netpfil.ipfw.ioctl import CTlvRule
@@ -152,8 +153,8 @@ class TestAddRule(BaseTest):
                             NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=2, name="BBB"),
                         ],
                         "insns": [
-                            InsnTable(IpFwOpcode.O_IP_SRC_LOOKUP, arg1=1),
-                            InsnTable(IpFwOpcode.O_IP_DST_LOOKUP, arg1=2),
+                            InsnU32(IpFwOpcode.O_IP_SRC_LOOKUP, u32=1),
+                            InsnU32(IpFwOpcode.O_IP_DST_LOOKUP, u32=2),
                             InsnEmpty(IpFwOpcode.O_ACCEPT),
                         ],
                     },
@@ -182,7 +183,7 @@ class TestAddRule(BaseTest):
                         ],
                         "insns": [
                             InsnIp(IpFwOpcode.O_IP_DST, ip="1.2.3.4"),
-                            Insn(IpFwOpcode.O_EXTERNAL_ACTION, arg1=1),
+                            InsnU32(IpFwOpcode.O_EXTERNAL_ACTION, u32=1),
                             Insn(IpFwOpcode.O_EXTERNAL_DATA, arg1=123),
                         ],
                     },
@@ -199,8 +200,8 @@ class TestAddRule(BaseTest):
                         ],
                         "insns": [
                             InsnIp(IpFwOpcode.O_IP_DST, ip="1.2.3.4"),
-                            Insn(IpFwOpcode.O_EXTERNAL_ACTION, arg1=1),
-                            Insn(IpFwOpcode.O_EXTERNAL_INSTANCE, arg1=2),
+                            InsnU32(IpFwOpcode.O_EXTERNAL_ACTION, u32=1),
+                            InsnU32(IpFwOpcode.O_EXTERNAL_INSTANCE, u32=2),
                         ],
                     },
                 },
@@ -227,7 +228,7 @@ class TestAddRule(BaseTest):
                         ],
                         "insns": [
                             InsnComment(comment="test comment"),
-                            Insn(IpFwOpcode.O_CHECK_STATE, arg1=1),
+                            InsnU32(IpFwOpcode.O_CHECK_STATE, u32=1),
                         ],
                     },
                 },
@@ -241,9 +242,9 @@ class TestAddRule(BaseTest):
                             NTlv(IpFwTlvType.IPFW_TLV_STATE_NAME, idx=1, name="OUT"),
                         ],
                         "insns": [
-                            Insn(IpFwOpcode.O_PROBE_STATE, arg1=1),
+                            InsnU32(IpFwOpcode.O_PROBE_STATE, u32=1),
                             Insn(IpFwOpcode.O_PROTO, arg1=6),
-                            Insn(IpFwOpcode.O_KEEP_STATE, arg1=1),
+                            InsnU32(IpFwOpcode.O_KEEP_STATE, u32=1),
                             InsnEmpty(IpFwOpcode.O_ACCEPT),
                         ],
                     },
@@ -259,7 +260,7 @@ class TestAddRule(BaseTest):
                         ],
                         "insns": [
                             Insn(IpFwOpcode.O_PROTO, arg1=6),
-                            Insn(IpFwOpcode.O_KEEP_STATE, arg1=1),
+                            InsnU32(IpFwOpcode.O_KEEP_STATE, u32=1),
                             InsnEmpty(IpFwOpcode.O_ACCEPT),
                         ],
                     },
@@ -370,7 +371,7 @@ class TestAddRule(BaseTest):
             ),
             pytest.param(("pipe 42", Insn(IpFwOpcode.O_PIPE, arg1=42)), id="pipe_42"),
             pytest.param(
-                ("skipto 42", Insn(IpFwOpcode.O_SKIPTO, arg1=42)), id="skipto_42"
+                ("skipto 42", InsnU32(IpFwOpcode.O_SKIPTO, u32=42)), id="skipto_42"
             ),
             pytest.param(
                 ("netgraph 42", Insn(IpFwOpcode.O_NETGRAPH, arg1=42)), id="netgraph_42"
@@ -386,7 +387,7 @@ class TestAddRule(BaseTest):
             ),
             pytest.param(("tee 42", Insn(IpFwOpcode.O_TEE, arg1=42)), id="tee_42"),
             pytest.param(
-                ("call 420", Insn(IpFwOpcode.O_CALLRETURN, arg1=420)), id="call_420"
+                ("call 420", InsnU32(IpFwOpcode.O_CALLRETURN, u32=420)), id="call_420"
             ),
             # TOK_FORWARD
             pytest.param(
@@ -400,7 +401,7 @@ class TestAddRule(BaseTest):
             ),
             pytest.param(("reass", InsnEmpty(IpFwOpcode.O_REASS)), id="reass"),
             pytest.param(
-                ("return", InsnEmpty(IpFwOpcode.O_CALLRETURN, is_not=True)), id="return"
+                ("return", InsnU32(IpFwOpcode.O_CALLRETURN, is_not=True)), id="return"
             ),
         ],
     )

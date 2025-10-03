@@ -510,7 +510,7 @@ class InsnIp6(Insn):
 
 insn_attrs = prepare_attrs_map(
     [
-        AttrDescr(IpFwOpcode.O_CHECK_STATE, Insn),
+        AttrDescr(IpFwOpcode.O_CHECK_STATE, InsnU32),
         AttrDescr(IpFwOpcode.O_ACCEPT, InsnEmpty),
         AttrDescr(IpFwOpcode.O_COUNT, InsnEmpty),
 
@@ -521,16 +521,19 @@ insn_attrs = prepare_attrs_map(
         AttrDescr(IpFwOpcode.O_COUNT, InsnEmpty),
         AttrDescr(IpFwOpcode.O_QUEUE, Insn),
         AttrDescr(IpFwOpcode.O_PIPE, Insn),
-        AttrDescr(IpFwOpcode.O_SKIPTO, Insn),
+        AttrDescr(IpFwOpcode.O_SKIPTO, InsnU32),
         AttrDescr(IpFwOpcode.O_NETGRAPH, Insn),
         AttrDescr(IpFwOpcode.O_NGTEE, Insn),
         AttrDescr(IpFwOpcode.O_DIVERT, Insn),
         AttrDescr(IpFwOpcode.O_TEE, Insn),
-        AttrDescr(IpFwOpcode.O_CALLRETURN, Insn),
+        AttrDescr(IpFwOpcode.O_CALLRETURN, InsnU32),
         AttrDescr(IpFwOpcode.O_SETFIB, Insn),
         AttrDescr(IpFwOpcode.O_SETDSCP, Insn),
         AttrDescr(IpFwOpcode.O_REASS, InsnEmpty),
-        AttrDescr(IpFwOpcode.O_SETMARK, Insn),
+        AttrDescr(IpFwOpcode.O_SETMARK, InsnU32),
+
+        AttrDescr(IpFwOpcode.O_EXTERNAL_ACTION, InsnU32),
+        AttrDescr(IpFwOpcode.O_EXTERNAL_INSTANCE, InsnU32),
 
 
 
@@ -545,11 +548,11 @@ insn_attrs = prepare_attrs_map(
         AttrDescr(IpFwOpcode.O_IP_DST, InsnIp),
         AttrDescr(IpFwOpcode.O_IP6_DST, InsnIp6),
         AttrDescr(IpFwOpcode.O_IP6_SRC, InsnIp6),
-        AttrDescr(IpFwOpcode.O_IP_SRC_LOOKUP, InsnTable),
-        AttrDescr(IpFwOpcode.O_IP_DST_LOOKUP, InsnTable),
+        AttrDescr(IpFwOpcode.O_IP_SRC_LOOKUP, InsnU32),
+        AttrDescr(IpFwOpcode.O_IP_DST_LOOKUP, InsnU32),
         AttrDescr(IpFwOpcode.O_IP_SRCPORT, InsnPorts),
         AttrDescr(IpFwOpcode.O_IP_DSTPORT, InsnPorts),
-        AttrDescr(IpFwOpcode.O_PROBE_STATE, Insn),
-        AttrDescr(IpFwOpcode.O_KEEP_STATE, Insn),
+        AttrDescr(IpFwOpcode.O_PROBE_STATE, InsnU32),
+        AttrDescr(IpFwOpcode.O_KEEP_STATE, InsnU32),
     ]
 )
