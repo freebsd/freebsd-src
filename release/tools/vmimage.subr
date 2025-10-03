@@ -95,6 +95,9 @@ vm_install_base() {
 		pkg_cmd="pkg --rootdir ${DESTDIR} --repo-conf-dir ${PKGBASE_REPO_DIR}
 			-o ASSUME_ALWAYS_YES=yes -o IGNORE_OSVERSION=yes
 			-o ABI=${PKG_ABI} -o INSTALL_AS_USER=yes "
+		if -n "${NO_ROOT}" ]; then
+			pkg_cmd="$pkg_cmd -o METALOG=METALOG"
+		fi
 		$pkg_cmd update
 		selected=$($pkg_cmd rquery -U -r FreeBSD-base %n | \
 			vm_filter_base_packages | vm_extra_filter_base_packages)
