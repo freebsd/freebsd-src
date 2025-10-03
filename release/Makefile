@@ -132,6 +132,9 @@ RELEASE_TARGETS+= mini-memstick.img
 IMAGES+=	memstick.img
 IMAGES+=	mini-memstick.img
 .endif
+.if !defined(NOPKGBASE) || empty(NOPKGBASE)
+RELEASE_TARGETS+= pkgbase-repo.tar
+.endif
 
 CLEANFILES=	packagesystem *.txz MANIFEST release ${IMAGES}
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
@@ -142,7 +145,7 @@ CLEANFILES+=	${I}.xz
 .if defined(WITH_DVD) && !empty(WITH_DVD)
 CLEANFILES+=	pkg-stage
 .endif
-CLEANDIRS=	dist pkgdb-dvd pkgdb-disc1 pkgbase-repo pkgbase-repo-dir ftp disc1 disc1-disc1 disc1-memstick bootonly bootonly-bootonly bootonly-memstick dvd
+CLEANDIRS=	dist pkgdb-dvd pkgdb-disc1 pkgbase-repo pkgbase-repo-dir ftp disc1 disc1-disc1 disc1-memstick bootonly bootonly-bootonly bootonly-memstick dvd pkgbase-repo.tar
 beforeclean:
 	chflags -R noschg .
 .include <bsd.obj.mk>
@@ -212,6 +215,9 @@ pkgbase-repo:
 	mkdir -p /tmp/ports /tmp/distfiles
 	( ${IMAKE} -C ${WORLDDIR} packages REPODIR=${.OBJDIR}/pkgbase-repo \
 	    INCLUDE_PKG_IN_PKGBASE_REPO=YES BOOTSTRAP_PKG_FROM_PORTS=YES )
+
+pkgbase-repo.tar: pkgbase-repo
+	tar -cf pkgbase-repo.tar -C pkgbase-repo .
 
 pkgbase-repo-dir: pkgbase-repo
 	mkdir -p pkgbase-repo-dir
@@ -456,6 +462,12 @@ release-install:
 .endfor
 	( cd ${DESTDIR} && sha512 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA512 )
 	( cd ${DESTDIR} && sha256 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA256 )
+.endif
+.if !defined (NOPKGBASE) || empty(NOPKGBASE)
+	mkdir -p ${DESTDIR}/pkgbase
+	cp -p pkgbase-repo.tar ${DESTDIR}/pkgbase/
+	( cd ${DESTDIR}/pkgbase && sha256 pkgbase-repo.tar > CHECKSUM.SHA256 )
+	( cd ${DESTDIR}/pkgbase && sha512 pkgbase-repo.tar > CHECKSUM.SHA512 )
 .endif
 
 .include "${.CURDIR}/Makefile.inc1"
