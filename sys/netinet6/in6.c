@@ -2604,8 +2604,6 @@ in6_domifattach(struct ifnet *ifp)
 	COUNTER_ARRAY_ALLOC(ext->icmp6_ifstat,
 	    sizeof(struct icmp6_ifstat) / sizeof(uint64_t), M_WAITOK);
 
-	ext->dad_failures = counter_u64_alloc(M_WAITOK);
-
 	ext->nd_ifinfo = nd6_ifattach(ifp);
 	ext->scope6_id = scope6_ifattach(ifp);
 	ext->lltable = in6_lltattach(ifp);
@@ -2641,7 +2639,6 @@ in6_domifdetach(struct ifnet *ifp, void *aux)
 	COUNTER_ARRAY_FREE(ext->icmp6_ifstat,
 	    sizeof(struct icmp6_ifstat) / sizeof(uint64_t));
 	free(ext->icmp6_ifstat, M_IFADDR);
-	counter_u64_free(ext->dad_failures);
 	free(ext, M_IFADDR);
 }
 

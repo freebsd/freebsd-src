@@ -167,7 +167,7 @@ VNET_DEFINE(int, ip6_rr_prune) = 5;	/* router renumbering prefix
 					 * walk list every 5 sec. */
 VNET_DEFINE(int, ip6_mcast_pmtu) = 0;	/* enable pMTU discovery for multicast? */
 VNET_DEFINE(int, ip6_v6only) = 1;
-VNET_DEFINE(int, ip6_stableaddr_maxretries) = IP6_IDGEN_RETRIES;
+VNET_DEFINE(u_int, ip6_stableaddr_maxretries) = IP6_IDGEN_RETRIES;
 
 #ifdef IPSTEALTH
 VNET_DEFINE(int, ip6stealth) = 0;
@@ -317,7 +317,7 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_USETEMPADDR, use_tempaddr,
 SYSCTL_BOOL(_net_inet6_ip6, IPV6CTL_USESTABLEADDR, use_stableaddr,
 	CTLFLAG_VNET | CTLFLAG_RWTUN, &VNET_NAME(ip6_use_stableaddr), 0,
 	"Create RFC7217 semantically opaque address for autoconfigured addresses (default for new interfaces)");
-SYSCTL_INT(_net_inet6_ip6, IPV6CTL_STABLEADDR_MAXRETRIES, stableaddr_maxretries,
+SYSCTL_UINT(_net_inet6_ip6, IPV6CTL_STABLEADDR_MAXRETRIES, stableaddr_maxretries,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_stableaddr_maxretries), IP6_IDGEN_RETRIES,
 	"RFC7217 semantically opaque address DAD max retries");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_STABLEADDR_NETIFSRC, stableaddr_netifsource,
