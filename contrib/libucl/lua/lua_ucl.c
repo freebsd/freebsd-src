@@ -30,6 +30,8 @@
 #include "lua_ucl.h"
 #include <strings.h>
 
+#include "bootstrap.h"
+
 /***
  * @module ucl
  * This lua module allows to parse objects from strings and to store data into
@@ -1571,3 +1573,5 @@ ucl_object_toclosure (const ucl_object_t *obj)
 
 	return (struct ucl_lua_funcdata*)obj->value.ud;
 }
+
+FLUA_MODULE(ucl);

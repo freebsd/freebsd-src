@@ -1,7 +1,6 @@
 SHLIB_NAME=	linker.so
 
-SRCS+=		linker.c
-
 MAN=	freebsd.sys.linker.3lua
 
+.include "Makefile.inc"
 .include <bsd.lib.mk>
