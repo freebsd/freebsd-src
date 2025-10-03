@@ -1,4 +1,6 @@
 .\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2008 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
@@ -22,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 25, 2020
+.Dd October 3, 2025
 .Dt SDHCI 4
 .Os
 .Sh NAME
@@ -56,21 +58,28 @@ detaches it on card removing.
 .Sh HARDWARE
 The
 .Nm
-driver supports different specification compatible chips.
-The following chips have been verified to work:
+driver supports the SD Host Controller Specification.
+When attaching via the PCI bus,
+the controller is automatically configured.
+Many SoC chips provide a SDHCI controller directly mapped to I/O memory.
+For those, the controller may be configured using
+.Xr fdt 4
+or
+.Xr acpi 4
+methods, supplied by your board's vendor.
 .Pp
-.Bl -bullet -compact
-.It
-ENE CB712
-.It
-ENE CB714
-.It
-RICOH R5C822
-.It
-RICOH R5CE823
-.It
-TI PCIXX21/XX11/XX12
-.El
+Unlike most other drivers that support a generic standard,
+.Nm
+requires a large number of quirks to cope with hardware bugs,
+proprietary registers and poorly specified power management.
+While many chipsets from
+Intel, Xilinx, Rockchip, Frescale, Ricoh, and TI have these entries,
+suboptimal performance may result when using some controllers.
+Quirks and custom configuration are most often required
+when the device is configured via
+.Xr fdt 4
+or
+.Xr acpi 4 .
 .Sh SEE ALSO
 .Xr mmc 4 ,
 .Xr mmcsd 4
@@ -79,8 +88,3 @@ TI PCIXX21/XX11/XX12
 .Re
 .Sh AUTHORS
 .An Alexander Motin Aq Mt mav@FreeBSD.org
-.Sh BUGS
-Many of existing SD controller chips have some nonstandard requirements,
-proprietary registers and hardware bugs, requiring additional handling.
-ENE chips are handled to work fine, while some revisions of RICOH and TI
-controllers still do not see cards without some additional initialization.
