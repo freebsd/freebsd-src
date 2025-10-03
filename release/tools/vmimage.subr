@@ -250,9 +250,16 @@ vm_emulation_cleanup() {
 }
 
 vm_extra_pkg_rmcache() {
-	if [ -e ${DESTDIR}/usr/local/sbin/pkg ]; then
-		chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
-			/usr/local/sbin/pkg clean -y -a
+	if [ -n "${NO_ROOT}" ]; then
+		${PKG_CMD} \
+		    -o ASSUME_ALWAYS_YES=yes \
+		    -r ${DESTDIR} \
+		    clean -y -a
+	else
+		if [ -e ${DESTDIR}/usr/local/sbin/pkg ]; then
+			chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
+			    /usr/local/sbin/pkg clean -y -a
+		fi
 	fi
 
 	return 0
