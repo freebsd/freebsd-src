@@ -1640,18 +1640,31 @@ carp_iamatch(struct ifaddr *ifa, uint8_t **enaddr)
 static void
 carp_send_na(struct carp_softc *sc)
 {
-	static struct in6_addr mcast = IN6ADDR_LINKLOCAL_ALLNODES_INIT;
 	struct ifaddr *ifa;
-	struct in6_addr *in6;
+	int flags;
 
+	/*
+	 * Sending Unsolicited Neighbor Advertisements
+	 *
+	 * If the node is a router, we MUST set the Router flag to one.
+	 * We set Override flag to one and send link-layer address option,
+	 * thus neighboring nodes will install the new link-layer address.
+	 */
+	flags = ND_NA_FLAG_OVERRIDE;
+	if (V_ip6_forwarding)
+		flags |= ND_NA_FLAG_ROUTER;
 	CARP_FOREACH_IFA(sc, ifa) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
-
-		in6 = IFA_IN6(ifa);
-		nd6_na_output(sc->sc_carpdev, &mcast, in6,
-		    ND_NA_FLAG_OVERRIDE, 1, NULL);
-		DELAY(1000);	/* XXX */
+		/*
+		 * We use unspecified address as destination here to avoid
+		 * scope initialization for each call.
+		 * nd6_na_output() will use all nodes multicast address if
+		 * destinaion address is unspecified.
+		 */
+		nd6_na_output(sc->sc_carpdev, &in6addr_any, IFA_IN6(ifa),
+		    flags, ND6_NA_OPT_LLA | ND6_NA_CARP_MASTER, NULL);
+		DELAY(1000);	/* RetransTimer */
 	}
 }
 

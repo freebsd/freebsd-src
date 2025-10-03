@@ -132,8 +132,8 @@ static int in6_selectif(struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct ifnet **,
 	struct ifnet *, u_int);
 static int in6_selectsrc(uint32_t, struct sockaddr_in6 *,
-	struct ip6_pktopts *, struct inpcb *, struct ucred *,
-	struct ifnet **, struct in6_addr *);
+	struct ip6_pktopts *, struct ip6_moptions *, struct inpcb *,
+	struct ucred *, struct ifnet **, struct in6_addr *);
 
 static struct in6_addrpolicy *lookup_addrsel_policy(struct sockaddr_in6 *);
 
@@ -173,8 +173,8 @@ static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
 
 static int
 in6_selectsrc(uint32_t fibnum, struct sockaddr_in6 *dstsock,
-    struct ip6_pktopts *opts, struct inpcb *inp, struct ucred *cred,
-    struct ifnet **ifpp, struct in6_addr *srcp)
+    struct ip6_pktopts *opts, struct ip6_moptions *mopts, struct inpcb *inp,
+    struct ucred *cred, struct ifnet **ifpp, struct in6_addr *srcp)
 {
 	struct rm_priotracker in6_ifa_tracker;
 	struct in6_addr dst, tmp;
@@ -186,7 +186,6 @@ in6_selectsrc(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 	u_int32_t odstzone;
 	int prefer_tempaddr;
 	int error;
-	struct ip6_moptions *mopts;
 
 	NET_EPOCH_ASSERT();
 	KASSERT(srcp != NULL, ("%s: srcp is NULL", __func__));
@@ -203,13 +202,6 @@ in6_selectsrc(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 		if (*ifpp != NULL)
 			oifp = *ifpp;
 		*ifpp = NULL;
-	}
-
-	if (inp != NULL) {
-		INP_LOCK_ASSERT(inp);
-		mopts = inp->in6p_moptions;
-	} else {
-		mopts = NULL;
 	}
 
 	/*
@@ -552,10 +544,13 @@ in6_selectsrc_socket(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	uint32_t fibnum;
 	int error;
 
+	INP_LOCK_ASSERT(inp);
+
 	fibnum = inp->inp_inc.inc_fibnum;
 	retifp = NULL;
 
-	error = in6_selectsrc(fibnum, dstsock, opts, inp, cred, &retifp, srcp);
+	error = in6_selectsrc(fibnum, dstsock, opts, inp->in6p_moptions,
+	    inp, cred, &retifp, srcp);
 	if (error != 0)
 		return (error);
 
@@ -583,7 +578,7 @@ in6_selectsrc_socket(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
  * Stores selected address to @srcp.
  * Returns 0 on success.
  *
- * Used by non-socket based consumers (ND code mostly)
+ * Used by non-socket based consumers
  */
 int
 in6_selectsrc_addr(uint32_t fibnum, const struct in6_addr *dst,
@@ -602,10 +597,39 @@ in6_selectsrc_addr(uint32_t fibnum, const struct in6_addr *dst,
 	dst_sa.sin6_scope_id = scopeid;
 	sa6_embedscope(&dst_sa, 0);
 
-	error = in6_selectsrc(fibnum, &dst_sa, NULL, NULL, NULL, &retifp, srcp);
+	error = in6_selectsrc(fibnum, &dst_sa, NULL, NULL,
+	    NULL, NULL, &retifp, srcp);
 	if (hlim != NULL)
 		*hlim = in6_selecthlim(NULL, retifp);
 
+	return (error);
+}
+
+/*
+ * Select source address based on @fibnum, @dst and @mopts.
+ * Stores selected address to @srcp.
+ * Returns 0 on success.
+ *
+ * Used by non-socket based consumers (ND code mostly)
+ */
+int
+in6_selectsrc_nbr(uint32_t fibnum, const struct in6_addr *dst,
+    struct ip6_moptions *mopts, struct ifnet *ifp, struct in6_addr *srcp)
+{
+	struct sockaddr_in6 dst_sa;
+	struct ifnet *retifp;
+	int error;
+
+	retifp = ifp;
+	bzero(&dst_sa, sizeof(dst_sa));
+	dst_sa.sin6_family = AF_INET6;
+	dst_sa.sin6_len = sizeof(dst_sa);
+	dst_sa.sin6_addr = *dst;
+	dst_sa.sin6_scope_id = ntohs(in6_getscope(dst));
+	sa6_embedscope(&dst_sa, 0);
+
+	error = in6_selectsrc(fibnum, &dst_sa, NULL, mopts,
+	    NULL, NULL, &retifp, srcp);
 	return (error);
 }
 
