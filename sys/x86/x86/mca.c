@@ -131,6 +131,7 @@ static STAILQ_HEAD(, mca_internal) mca_pending;
 static int mca_ticks = 300;
 static struct taskqueue *mca_tq;
 static struct task mca_resize_task;
+static struct task mca_postscan_task;
 static struct timeout_task mca_scan_task;
 static struct mtx mca_lock;
 static bool mca_startup_done = false;
@@ -1017,6 +1018,16 @@ mca_process_records(enum scan_mode mode)
 {
 	struct mca_internal *mca;
 
+	/*
+	 * If in an interrupt context, defer the post-scan activities to a
+	 * task queue.
+	 */
+	if (mode != POLLED) {
+		if (mca_startup_done)
+			taskqueue_enqueue(mca_tq, &mca_postscan_task);
+		return;
+	}
+
 	mtx_lock_spin(&mca_lock);
 	while ((mca = STAILQ_FIRST(&mca_pending)) != NULL) {
 		STAILQ_REMOVE_HEAD(&mca_pending, link);
@@ -1024,10 +1035,19 @@ mca_process_records(enum scan_mode mode)
 		mca_store_record(mca);
 	}
 	mtx_unlock_spin(&mca_lock);
-	if (mode == POLLED)
-		mca_resize_freelist();
-	else if (mca_startup_done)
-		taskqueue_enqueue(mca_tq, &mca_resize_task);
+	mca_resize_freelist();
+}
+
+/*
+ * Emit log entries and resize the free list. This is intended to be called
+ * from a task queue to handle work which does not need to be done (or cannot
+ * be done) in an interrupt context.
+ */
+static void
+mca_postscan(void *context __unused, int pending __unused)
+{
+
+	mca_process_records(POLLED);
 }
 
 /*
@@ -1110,13 +1130,16 @@ mca_startup(void *dummy)
 	if (mca_banks <= 0)
 		return;
 
-	/* CMCIs during boot may have claimed items from the freelist. */
-	mca_resize_freelist();
-
 	taskqueue_start_threads(&mca_tq, 1, PI_SWI(SWI_TQ), "mca taskq");
 	taskqueue_enqueue_timeout_sbt(mca_tq, &mca_scan_task,
 	    mca_ticks * SBT_1S, 0, C_PREL(1));
 	mca_startup_done = true;
+
+	/*
+	 * CMCIs during boot may have recorded entries. Conduct the post-scan
+	 * activities now.
+	 */
+	mca_postscan(NULL, 0);
 }
 SYSINIT(mca_startup, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, mca_startup, NULL);
 
@@ -1176,6 +1199,7 @@ mca_setup(uint64_t mcg_cap)
 	TIMEOUT_TASK_INIT(mca_tq, &mca_scan_task, 0, mca_scan_cpus, NULL);
 	STAILQ_INIT(&mca_freelist);
 	TASK_INIT(&mca_resize_task, 0, mca_resize, NULL);
+	TASK_INIT(&mca_postscan_task, 0, mca_postscan, NULL);
 	mca_resize_freelist();
 	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "count", CTLFLAG_RD, (int *)(uintptr_t)&mca_count, 0,
@@ -1578,6 +1602,9 @@ mca_intr(void)
 
 		panic("Unrecoverable machine check exception");
 	}
+
+	if (count)
+		mca_process_records(MCE);
 
 	/* Clear MCIP. */
 	wrmsr(MSR_MCG_STATUS, mcg_status & ~MCG_STATUS_MCIP);
