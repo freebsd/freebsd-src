@@ -142,8 +142,10 @@ static void
 usage(const char *why)
 {
 
-	warnx("error: %s", why);
-	fputc('\n', stderr);
+	if (why != NULL) {
+		warnx("error: %s", why);
+		fputc('\n', stderr);
+	}
 	fprintf(stderr, "usage: %s <options>\n", getprogname());
 
 	fprintf(stderr, "    options:\n");
@@ -171,19 +173,19 @@ usage(const char *why)
 	print_schemes(1);
 	fputc('\n', stderr);
 	fprintf(stderr, "    partition specification:\n");
-	fprintf(stderr, "\t<t>[/<l>]::<size>[:[+]<offset>]\t-  "
+	fprintf(stderr, "\t<type>[/<label>]::<size>[:[+]<offset>]\t-  "
 	    "empty partition of given size and\n\t\t\t\t\t"
 	    "   optional relative or absolute offset\n");
-	fprintf(stderr, "\t<t>[/<l>]:=<file>[:[+]offset]\t-  partition "
+	fprintf(stderr, "\t<type>[/<label>]:=<file>[:[+]offset]\t-  partition "
 	    "content and size are\n\t\t\t\t\t"
 	    "   determined by the named file and\n"
 	    "\t\t\t\t\t   optional relative or absolute offset\n");
-	fprintf(stderr, "\t<t>[/<l>]:-<cmd>\t\t-  partition content and size "
+	fprintf(stderr, "\t<type>[/<label>]:-<cmd>\t\t-  partition content and size "
 	    "are taken\n\t\t\t\t\t   from the output of the command to run\n");
 	fprintf(stderr, "\t-\t\t\t\t-  unused partition entry\n");
 	fprintf(stderr, "\t    where:\n");
-	fprintf(stderr, "\t\t<t>\t-  scheme neutral partition type\n");
-	fprintf(stderr, "\t\t<l>\t-  optional scheme-dependent partition "
+	fprintf(stderr, "\t\t<type>\t-  scheme neutral partition type\n");
+	fprintf(stderr, "\t\t<label>\t-  optional scheme-dependent partition "
 	    "label\n");
 
 	exit(EX_USAGE);
@@ -564,7 +566,7 @@ main(int argc, char *argv[])
 
 	bcfd = -1;
 	outfd = 1;	/* Write to stdout by default */
-	while ((c = getopt_long(argc, argv, "a:b:c:C:f:o:p:s:t:vyH:P:S:T:",
+	while ((c = getopt_long(argc, argv, "a:b:c:C:f:ho:p:s:t:vyH:P:S:T:",
 	    longopts, NULL)) != -1) {
 		switch (c) {
 		case 'a':	/* ACTIVE PARTITION, if supported */
@@ -595,6 +597,9 @@ main(int argc, char *argv[])
 			error = format_select(optarg);
 			if (error)
 				errc(EX_DATAERR, error, "format");
+			break;
+		case 'h':	/* HELP */
+			usage(NULL);
 			break;
 		case 'o':	/* OUTPUT FILE */
 			if (outfd != 1)
