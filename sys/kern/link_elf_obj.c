@@ -70,6 +70,7 @@
 
 typedef struct {
 	void		*addr;
+	void		*origaddr; /* Used by debuggers. */
 	Elf_Off		size;
 	int		flags;	/* Section flags. */
 	int		sec;	/* Original section number. */
@@ -492,7 +493,8 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 		case SHT_FINI_ARRAY:
 			if (shdr[i].sh_addr == 0)
 				break;
-			ef->progtab[pb].addr = (void *)shdr[i].sh_addr;
+			ef->progtab[pb].addr = ef->progtab[pb].origaddr =
+			    (void *)shdr[i].sh_addr;
 			if (shdr[i].sh_type == SHT_PROGBITS)
 				ef->progtab[pb].name = "<<PROGBITS>>";
 #ifdef __amd64__
@@ -1088,6 +1090,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 				ef->progtab[pb].name = "<<NOBITS>>";
 			if (ef->progtab[pb].name != NULL && 
 			    !strcmp(ef->progtab[pb].name, DPCPU_SETNAME)) {
+				ef->progtab[pb].origaddr =
+				    (void *)(uintptr_t)mapbase;
 				ef->progtab[pb].addr =
 				    dpcpu_alloc(shdr[i].sh_size);
 				if (ef->progtab[pb].addr == NULL) {
@@ -1101,6 +1105,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 #ifdef VIMAGE
 			else if (ef->progtab[pb].name != NULL &&
 			    !strcmp(ef->progtab[pb].name, VNET_SETNAME)) {
+				ef->progtab[pb].origaddr =
+				    (void *)(uintptr_t)mapbase;
 				ef->progtab[pb].addr =
 				    vnet_data_alloc(shdr[i].sh_size);
 				if (ef->progtab[pb].addr == NULL) {

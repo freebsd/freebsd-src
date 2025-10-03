@@ -518,9 +518,15 @@ link_elf_init(void* arg)
 	(void)link_elf_link_common_finish(linker_kernel_file);
 	linker_kernel_file->flags |= LINKER_FILE_LINKED;
 	TAILQ_INIT(&set_pcpu_list);
+	ef->pcpu_start = DPCPU_START;
+	ef->pcpu_stop = DPCPU_STOP;
+	ef->pcpu_base = DPCPU_START;
 #ifdef VIMAGE
 	TAILQ_INIT(&set_vnet_list);
 	vnet_save_init((void *)VNET_START, VNET_STOP - VNET_START);
+	ef->vnet_start = VNET_START;
+	ef->vnet_stop = VNET_STOP;
+	ef->vnet_base = VNET_START;
 #endif
 }
 
