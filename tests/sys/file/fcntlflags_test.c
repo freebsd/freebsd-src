@@ -24,6 +24,7 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/filio.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -95,12 +96,38 @@ ATF_TC_BODY(exec_only_sh, tc)
 	basic_tests("/bin/sh", O_EXEC, "O_EXEC");
 }
 
+ATF_TC_WITHOUT_HEAD(fioasync_dev_null);
+ATF_TC_BODY(fioasync_dev_null, tc)
+{
+	int fd, flags1, flags2, val;
+
+	fd = open("/dev/null", O_RDONLY);
+	ATF_REQUIRE_MSG(fd != -1, "open(\"/dev/null\") failed: %s",
+	    strerror(errno));
+
+	flags1 = fcntl(fd, F_GETFL);
+	ATF_REQUIRE_MSG(flags1 != -1, "fcntl(F_GETFL) (1) failed: %s",
+	    strerror(errno));
+	ATF_REQUIRE((flags1 & O_ASYNC) == 0);
+
+	val = 1;
+	ATF_REQUIRE_ERRNO(EINVAL, ioctl(fd, FIOASYNC, &val) == -1);
+
+	flags2 = fcntl(fd, F_GETFL);
+	ATF_REQUIRE_MSG(flags2 != -1, "fcntl(F_GETFL) (2) failed: %s",
+	    strerror(errno));
+	ATF_REQUIRE_INTEQ(flags1, flags2);
+
+	(void)close(fd);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, read_only_null);
 	ATF_TP_ADD_TC(tp, write_only_null);
 	ATF_TP_ADD_TC(tp, read_write_null);
 	ATF_TP_ADD_TC(tp, exec_only_sh);
+	ATF_TP_ADD_TC(tp, fioasync_dev_null);
 
 	return (atf_no_error());
 }
