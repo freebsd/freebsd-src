@@ -1764,7 +1764,7 @@ acpi_handle_ivrs_ivhd_devs(ACPI_IVRS_DE_HEADER *d, char *de)
 			d8b = (ACPI_IVRS_DEVICE8B *)db;
 			len = sizeof(*d8b);
 			printf("\t\tDev Type=%#x Id=%#06x",
-			    d8a->Header.Type, d8a->Header.Id);
+			    d8b->Header.Type, d8b->Header.Id);
 			acpi_handle_ivrs_ivhd_dte(d8b->Header.DataSetting);
 			printf("\t\t");
 			acpi_handle_ivrs_ivhd_edte(d8b->ExtendedData);
@@ -1774,7 +1774,7 @@ acpi_handle_ivrs_ivhd_devs(ACPI_IVRS_DE_HEADER *d, char *de)
 			d4 = (ACPI_IVRS_DEVICE4 *)(db + sizeof(*d8b));
 			len = sizeof(*d8b) + sizeof(*d4);
 			printf("\t\tDev Type=%#x Id=%#06x-%#06x",
-			    d8a->Header.Type, d8a->Header.Id, d4->Header.Id);
+			    d8b->Header.Type, d8b->Header.Id, d4->Header.Id);
 			acpi_handle_ivrs_ivhd_dte(d8b->Header.DataSetting);
 			acpi_handle_ivrs_ivhd_edte(d8b->ExtendedData);
 		} else if (d->Type == ACPI_IVRS_TYPE_SPECIAL) {
