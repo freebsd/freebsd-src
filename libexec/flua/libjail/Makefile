@@ -1,9 +1,6 @@
 SHLIB_NAME=	jail.so
 
-SRCS+=		lua_jail.c
-
-LIBADD+=	jail
-
 MAN=	jail.3lua
 
+.include "Makefile.inc"
 .include <bsd.lib.mk>
