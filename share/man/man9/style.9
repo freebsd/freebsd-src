@@ -446,14 +446,6 @@ Functions that are used locally in more than one module go into a
 separate header file, e.g.,
 .Qq Pa extern.h .
 .Pp
-In general code can be considered
-.Dq "new code"
-when it makes up about 50% or more of the file(s) involved.
-This is enough
-to break precedents in the existing code and use the current
-.Nm
-guidelines.
-.Pp
 The kernel has a name associated with parameter types, e.g., in the kernel
 use:
 .Bd -literal
@@ -877,20 +869,6 @@ That is, without regard to whether an option takes arguments or not.
 The alphabetical ordering should take into account the case ordering
 shown above.
 .Pp
-New core kernel code should be reasonably compliant with the
-.Nm
-guides.
-The guidelines for third-party maintained modules and device drivers are more
-relaxed but at a minimum should be internally consistent with their style.
-.Pp
-Stylistic changes (including whitespace changes) are hard on the source
-repository and are to be avoided without good reason.
-Code that is approximately
-.Fx
-KNF
-.Nm
-compliant in the repository must not diverge from compliance.
-.Pp
 Whenever possible, code should be run through a code checker
 (e.g., various static analyzers or
 .Nm cc Fl Wall )
@@ -917,6 +895,36 @@ Only use the annotation for the entire if statement,
 rather than individual clauses.
 Do not add these annotations without empirical evidence of the likelihood of the
 branch.
+.Pp
+New core kernel code should be compliant with the
+.Nm
+guides.
+The guidelines for third-party maintained modules and device drivers are more
+relaxed.
+Their code is expected to at least be internally consistent with their style.
+.Pp
+Stylistic changes, including whitespace ones, complicate the work of downstream
+consumers and may impair developers' ability to trace the history of some
+changes.
+Such standalone must be avoided, and should not span unrelated directories as
+this increases the chances of conflicts when merging to stable and release
+branches (MFCs).
+On the other hand, when a significant portion, usually about a half, of some
+logical unit of code, be it a function, group of functions, file or group of
+files, is going to be modified, developers are encouraged to amend the style of
+the whole unit as described in this document.
+In this case, style changes to otherwise unmodified code should be committed
+separately.
+Style-only commits should be added to the file
+.Pa .git-blame-ignore-revs
+at the top of the source repository to hide them from
+.Ql git blame .
+Comments in this file indicate how to use it.
+Code that is approximately
+.Fx
+KNF
+.Nm
+compliant in the repository must not diverge from compliance.
 .Ss C++
 KNF style was originally defined as a style for C.
 C++ introduces several new idioms which do not have an existing corollary
