@@ -74,6 +74,8 @@
 #include <netinet/icmp6.h>
 #include <netinet6/scope6_var.h>
 
+#include <machine/atomic.h>
+
 static struct nd_defrouter *defrtrlist_update(struct nd_defrouter *);
 static int prelist_update(struct nd_prefixctl *, struct nd_defrouter *,
     struct mbuf *, int);
@@ -1756,7 +1758,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 		 * to fail and no further retries should happen.
 		 */
 		if (ND_IFINFO(ifp)->flags & ND6_IFF_STABLEADDR &&
-		    counter_u64_fetch(DAD_FAILURES(ifp)) <= V_ip6_stableaddr_maxretries &&
+		    atomic_load_int(&DAD_FAILURES(ifp)) <= V_ip6_stableaddr_maxretries &&
 		    ifa6->ia6_flags & (IN6_IFF_DUPLICATED | IN6_IFF_TEMPORARY))
 			continue;
 

@@ -106,7 +106,7 @@ struct in6_ifextra {
 	struct scope6_id *scope6_id;
 	struct lltable *lltable;
 	struct mld_ifsoftc *mld_ifinfo;
-	counter_u64_t dad_failures;	/* DAD failures when using RFC 7217 stable addresses */
+	u_int dad_failures;	/* DAD failures when using RFC 7217 stable addresses */
 };
 
 #define	LLTABLE6(ifp)	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->lltable)

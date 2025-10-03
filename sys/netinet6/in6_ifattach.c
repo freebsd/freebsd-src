@@ -44,7 +44,6 @@
 #include <sys/rmlock.h>
 #include <sys/syslog.h>
 #include <sys/md5.h>
-#include <crypto/sha2/sha256.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -71,6 +70,9 @@
 #include <netinet6/nd6.h>
 #include <netinet6/mld6_var.h>
 #include <netinet6/scope6_var.h>
+
+#include <crypto/sha2/sha256.h>
+#include <machine/atomic.h>
 
 #ifdef IP6_AUTO_LINKLOCAL
 VNET_DEFINE(int, ip6_auto_linklocal) = IP6_AUTO_LINKLOCAL;
@@ -377,7 +379,7 @@ in6_get_stableifid(struct ifnet *ifp, struct in6_addr *in6, int prefixlen)
 	}
 	hostuuid_len = strlen(hostuuid);
 
-	dad_failures = counter_u64_fetch(DAD_FAILURES(ifp));
+	dad_failures = atomic_load_int(&DAD_FAILURES(ifp));
 
 	/*
 	 * RFC 7217 section 7

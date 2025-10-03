@@ -77,6 +77,8 @@
 #include <netinet/ip_carp.h>
 #include <netinet6/send.h>
 
+#include <machine/atomic.h>
+
 #define SDL(s) ((struct sockaddr_dl *)s)
 
 struct dadq;
@@ -1460,7 +1462,7 @@ nd6_dad_timer(void *arg)
 			if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) == 0) {
 				ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
 				if ((ND_IFINFO(ifp)->flags & ND6_IFF_STABLEADDR) && !(ia->ia6_flags & IN6_IFF_TEMPORARY))
-					counter_u64_zero(DAD_FAILURES(ifp));
+					atomic_store_int(&DAD_FAILURES(ifp), 0);
 			}
 
 			nd6log((LOG_DEBUG,
@@ -1509,10 +1511,10 @@ nd6_dad_duplicated(struct ifaddr *ifa, struct dadq *dp)
 	 * More addresses will be generated as long as retries are not exhausted.
 	 */
 	if ((ND_IFINFO(ifp)->flags & ND6_IFF_STABLEADDR) && !(ia->ia6_flags & IN6_IFF_TEMPORARY)) {
-		uint64_t dad_failures = counter_u64_fetch(DAD_FAILURES(ifp));
+		u_int dad_failures = atomic_load_int(&DAD_FAILURES(ifp));
 
 		if (dad_failures <= V_ip6_stableaddr_maxretries) {
-			counter_u64_add(DAD_FAILURES(ifp), 1);
+			atomic_add_int(&DAD_FAILURES(ifp), 1);
 			/* if retries exhausted, output an informative error message */
 			if (dad_failures == V_ip6_stableaddr_maxretries)
 				log(LOG_ERR, "%s: manual intervention required, consider disabling \"stableaddr\" on the interface"

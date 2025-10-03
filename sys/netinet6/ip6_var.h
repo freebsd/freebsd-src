@@ -344,7 +344,7 @@ VNET_DECLARE(bool, ip6_use_stableaddr);	/* Whether to use stable address generat
 #define	V_ip6_use_stableaddr		VNET(ip6_use_stableaddr)
 
 #define IP6_IDGEN_RETRIES		3 /* RFC 7217 section 7 default max retries */
-VNET_DECLARE(int, ip6_stableaddr_maxretries);
+VNET_DECLARE(u_int, ip6_stableaddr_maxretries);
 #define	V_ip6_stableaddr_maxretries	VNET(ip6_stableaddr_maxretries)
 
 #define IP6_STABLEADDR_NETIFSRC_NAME	0
