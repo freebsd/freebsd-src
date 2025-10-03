@@ -32,7 +32,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd March 28, 2025
+.Dd October 3, 2025
 .Dt ICE 4
 .Os
 .Sh NAME
@@ -96,7 +96,7 @@ Intel\(rg Ethernet Connection E830\-XXV
 .El
 .Pp
 For questions related to hardware requirements, refer to the documentation
-supplied with your adapter.
+supplied with the adapter.
 .Pp
 Support for Jumbo Frames is provided via the interface MTU setting.
 Selecting an MTU larger than 1500 bytes with the
@@ -144,17 +144,16 @@ See the
 .Dq Intel\(rg Ethernet Adapters and Devices User Guide
 for more details on DDP and Safe Mode.
 .Pp
-If you encounter issues with the DDP package file, you may need to download
-an updated driver or
+If issues are encountered with the DDP package file, an updated driver or
 .Sy ice_ddp
-module.
+module may need to be downloaded.
 See the log messages for more information.
 .Pp
-You cannot update the DDP package if any PF drivers are already loaded.
+The DDP package cannot be updated if any PF drivers are already loaded.
 To overwrite a package, unload all PFs and then reload the driver with the
 new package.
 .Pp
-You can only use one DDP package per driver, even if you have more than one
+Only one DDP package can be used per driver, even if more than one
 device installed that uses the driver.
 .Pp
 Only the first loaded PF per device can download a package for that device.
@@ -174,9 +173,9 @@ each jumbo packet.
 This should help to avoid buffer starvation issues when allocating receive
 packets.
 .Pp
-Packet loss may have a greater impact on throughput when you use jumbo
-frames.
-If you observe a drop in performance after enabling jumbo frames, enabling
+Packet loss may have a greater impact on throughput when jumbo frames are in
+use.
+If a drop in performance is observed after enabling jumbo frames, enabling
 flow control may mitigate the issue.
 .Ss Remote Direct Memory Access
 Remote Direct Memory Access, or RDMA, allows a network device to transfer data
@@ -194,14 +193,14 @@ operating in multiport mode with more than 4 ports.
 For detailed installation and configuration information for RDMA, see
 .Xr irdma 4 .
 .Ss RDMA Monitoring
-For debugging/testing purposes, you can use sysctl to set up a mirroring
+For debugging/testing purposes, a sysctl can be used to set up a mirroring
 interface on a port.
 The interface can receive mirrored RDMA traffic for packet
 analysis tools like
 .Xr tcpdump 1 .
 This mirroring may impact performance.
 .Pp
-To use RDMA monitoring, you may need to reserve more MSI\-X interrupts.
+To use RDMA monitoring, more MSI\-X interrupts may need to be reserved.
 Before the
 .Nm
 driver loads, configure the following tunable provided by
@@ -210,7 +209,7 @@ driver loads, configure the following tunable provided by
 dev.ice.<interface #>.iflib.use_extra_msix_vectors=4
 .Ed
 .Pp
-You may need to adjust the number of extra MSI\-X interrupt vectors.
+The number of extra MSI\-X interrupt vectors may need to be adjusted.
 .Pp
 To create/delete the interface:
 .Bd -literal -offset indent
@@ -286,7 +285,7 @@ To enable/disable priority flow control in software\-based DCBX mode:
 sysctl dev.ice.<interface #>.pfc=1 (or 0 to disable)
 .Ed
 .Pp
-Enhanced Transmission Selection (ETS) allows you to assign bandwidth to certain
+Enhanced Transmission Selection (ETS) allows bandwidth to be assigned to certain
 TCs, to help ensure traffic reliability.
 To view the assigned ETS configuration, use the following:
 .Bd -literal -offset indent
@@ -320,7 +319,7 @@ Use the following sysctl to enable or disable L3 QoS:
 sysctl dev.ice.<interface #>.pfc_mode=1 (or 0 to disable)
 .Ed
 .Pp
-If you disable L3 QoS mode, it returns to L2 QoS mode.
+If the L3 QoS mode is disabled, it returns to L2 QoS mode.
 .Pp
 To map a DSCP value to a traffic class, separate the values by commas.
 For example, to map DSCPs 0\-3 and DSCP 8 to DCB TCs 0\-3 and 4, respectively:
@@ -339,7 +338,7 @@ sysctl dev.ice.<interface #>.dscp2tc_map
 .Pp
 L3 QoS mode is not available when FW\-LLDP is enabled.
 .Pp
-You also cannot enable FW\-LLDP if L3 QoS mode is active.
+FW\-LLDP cannot be enabled if L3 QoS mode is active.
 .Pp
 Disable FW\-LLDP before switching to L3 QoS mode.
 .Pp
@@ -365,11 +364,11 @@ To check the current LLDP setting:
 sysctl dev.ice.<interface #>.fw_lldp_agent
 .Ed
 .Pp
-You must enable the UEFI HII LLDP Agent attribute for this setting
+The UEFI HII LLDP Agent attribute must be enabled for this setting
 to take effect.
 If the
 .Dq LLDP AGENT
-attribute is set to disabled, you cannot enable the FW\-LLDP Agent from the
+attribute is set to disabled, the FW\-LLDP Agent cannot be enabled from the
 driver.
 .Ss Link\-Level Flow Control (LFC)
 Ethernet Flow Control (IEEE 802.3x) can be configured with sysctl to enable
@@ -426,11 +425,11 @@ provide a stable link without FEC.
 .Pp
 For devices to benefit from this feature, link partners must have FEC enabled.
 .Pp
-If you enable the sysctl
-.Em allow_no_fec_modules_in_auto
-Auto FEC negotiation will include
+If the
+.Va allow_no_fec_modules_in_auto
+sysctl is enabled Auto FEC negotiation will include
 .Dq No FEC
-in case your link partner does not have FEC enabled or is not FEC capable:
+in case the link partner does not have FEC enabled or is not FEC capable:
 .Bd -literal -offset indent
 sysctl dev.ice.<interface #>.allow_no_fec_modules_in_auto=1
 .Ed
@@ -453,16 +452,16 @@ To see the valid FEC modes for the link:
 sysctl \-d dev.ice.<interface #>.requested_fec
 .Ed
 .Ss Speed and Duplex Configuration
-You cannot set duplex or autonegotiation settings.
+The speed and duplex settings cannot be hard set.
 .Pp
-To have your device change the speeds it will use in auto-negotiation or
+To have the device change the speeds it will use in auto-negotiation or
 force link with:
 .Bd -literal -offset indent
 sysctl dev.ice.<interface #>.advertise_speed=<mask>
 .Ed
 .Pp
 Supported speeds will vary by device.
-Depending on the speeds your device supports, valid bits used in a speed mask
+Depending on the speeds the device supports, valid bits used in a speed mask
 could include:
 .Bd -literal -offset indent
 0x0 \- Auto
@@ -503,13 +502,13 @@ At a high level, to capture a firmware log:
 .It
 Set the configuration for the firmware log.
 .It
-Perform the necessary steps to generate the issue you are trying to debug.
+Perform the necessary steps to reproduce the issue.
 .It
 Capture the firmware log.
 .It
 Stop capturing the firmware log.
 .It
-Reset your firmware log settings as needed.
+Reset the firmware log settings as needed.
 .It
 Work with Customer Support to debug the issue.
 .El
@@ -593,8 +592,8 @@ PF Registration (Bit 30)
 Module Version (Bit 31)
 .El
 .Pp
-You can change the verbosity level of the firmware logs.
-You can set only one log level per module, and each level includes the
+The verbosity level of the firmware logs can be modified.
+It is possible to set only one log level per module, and each level includes the
 verbosity levels lower than it.
 For instance, setting the level to
 .Dq normal
@@ -650,8 +649,8 @@ dmesg > log_output
 NOTE: Logging a large number of modules or too high of a verbosity level will
 add extraneous messages to dmesg and could hinder debug efforts.
 .Ss Debug Dump
-Intel\(rg Ethernet 800 Series devices support debug dump, which allows you to
-obtain runtime register values from the firmware for
+Intel\(rg Ethernet 800 Series devices support debug dump, which allows
+gathering of runtime register values from the firmware for
 .Dq clusters
 of events and then write the results to a single dump file, for debugging
 complicated issues in the field.
@@ -664,7 +663,7 @@ stateless snapshot of the whole device.
 .Pp
 NOTE: Like with firmware logs, the contents of the debug dump are not
 human\-readable.
-You must work with Customer Support to decode the file.
+Work with Customer Support to decode the file.
 .Pp
 Debug dump is per device, not per PF.
 .Pp
@@ -727,20 +726,19 @@ sysctl dev.ice.0.debug.dump.clusters=0
 .Pp
 NOTE: Using 0 will skip Manageability Transactions data.
 .Pp
-If you don't specify a cluster, the driver will dump all clusters to a
+If a single cluster is not specified, the driver will dump all clusters to a
 single file.
 Issue the debug dump command, using the following:
 .Bd -literal -offset indent
 sysctl \-b dev.ice.<interface #>.debug.dump.dump=1 > dump.bin
 .Ed
 .Pp
-NOTE: The driver will not receive the command if you do not write
-.Dq 1
-to the sysctl.
+NOTE: The driver will not receive the command if the sysctl is not set to
+.Dq 1 .
 .Pp
 Replace
 .Dq dump.bin
-above with the file name you want to use.
+above with the preferred file name.
 .Pp
 To clear the
 .Va clusters
@@ -754,7 +752,7 @@ The ice driver supports the ability to obtain the values of the PHY registers
 from Intel(R) Ethernet 810 Series devices in order to debug link and
 connection issues during runtime.
 .Pp
-The driver allows you to obtain information about:
+The driver provides information about:
 .Bl -bullet
 .It
 Rx and Tx Equalization parameters
@@ -768,12 +766,12 @@ sysctl dev.ice.<interface #>.debug.phy_statistics
 .Ed
 .Pp
 NOTE: The contents of the registers are not human\-readable.
-Like with firmware logs and debug dump, you must work with Customer Support
+Like with firmware logs and debug dump, work with Customer Support
 to decode the file.
 .Ss Transmit Balancing
-Some Intel(R) Ethernet 800 Series devices allow you to enable a transmit
+Some Intel(R) Ethernet 800 Series devices allow for enabling a transmit
 balancing feature to improve transmit performance under certain conditions.
-When the feature is enabled, you should experience more consistent transmit
+When enabled, the feature should provide more consistent transmit
 performance across queues and/or PFs and VFs.
 .Pp
 By default, transmit balancing is disabled in the NVM.
@@ -794,7 +792,7 @@ configures the device accordingly.
 .Pp
 NOTE: The user selection for transmit balancing in EPCT or HII is persistent
 across reboots.
-You must reboot the system for the selected setting to take effect.
+The system must be rebooted for the selected setting to take effect.
 .Pp
 This setting is device wide.
 .Pp
@@ -811,7 +809,7 @@ sysctl dev.ice.<interface #>.temp
 may have a low number of network memory buffers (mbufs) by default.
 If the number of mbufs available is too low, it may cause the driver to fail
 to initialize and/or cause the system to become unresponsive.
-You can check to see if the system is mbuf\-starved by running
+Check to see if the system is mbuf\-starved by running
 .Ic netstat Fl m .
 Increase the number of mbufs by editing the lines below in
 .Pa /etc/sysctl.conf :
@@ -823,7 +821,7 @@ kern.ipc.nmbjumbo16
 kern.ipc.nmbufs
 .Ed
 .Pp
-The amount of memory that you allocate is system specific, and may require some
+The amount of memory that should be allocated is system specific, and may require some
 trial and error.
 Also, increasing the following in
 .Pa /etc/sysctl.conf
@@ -918,8 +916,8 @@ link partner's switch ports.
 Some PCIe x8 slots are actually configured as x4 slots.
 These slots have insufficient bandwidth for full line rate with dual port and
 quad port devices.
-In addition, if you put a PCIe v4.0 or v3.0\-capable adapter into a PCIe v2.x
-slot, you cannot get full bandwidth.
+In addition, if a PCIe v4.0 or v3.0\-capable adapter is placed into a PCIe v2.x
+slot, full bandwidth will not be possible.
 .Pp
 The driver detects this situation and writes the following message in the
 system log:
@@ -930,7 +928,7 @@ Please move the device to a different PCI\-e link with more lanes and/or
 higher transfer rate.
 .Ed
 .Pp
-If this error occurs, moving your adapter to a true PCIe x8 or x16 slot will
+If this error occurs, moving the adapter to a true PCIe x8 or x16 slot will
 resolve the issue.
 For best performance, install devices in the following PCI slots:
 .Bl -bullet
