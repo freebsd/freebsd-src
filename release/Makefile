@@ -116,7 +116,10 @@ DISTRIBUTIONS+= ports.txz
 DISTRIBUTIONS+= src.txz
 .endif
 
-RELEASE_TARGETS= ftp
+RELEASE_TARGETS=
+.if !defined(NODISTSETS) || empty(NODISTSETS)
+RELEASE_TARGETS+= ftp
+.endif
 IMAGES=
 .if exists(${.CURDIR}/${TARGET}/mkisoimages.sh)
 RELEASE_TARGETS+= cdrom
@@ -452,7 +455,9 @@ release-install:
 .if defined(DESTDIR) && !empty(DESTDIR)
 	mkdir -p ${DESTDIR}
 .endif
+.if !defined(NODISTSETS) || empty(NODISTSETS)
 	cp -a ftp ${DESTDIR}/
+.endif
 .if !empty(IMAGES)
 .for I in ${IMAGES}
 	cp -p ${I} ${DESTDIR}/${OSRELEASE}-${I}
