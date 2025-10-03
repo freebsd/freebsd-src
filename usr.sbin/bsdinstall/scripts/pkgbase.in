@@ -80,7 +80,9 @@ local function select_components(components, options)
 		["kernel-dbg"] = "Debug symbols for the kernel",
 		["devel"] = "C/C++ compilers and related utilities",
 		["optional"] = "Optional software (excluding compilers)",
+		["optional-jail"] = "Optional software (excluding compilers)",
 		["base"] = "The complete base system (includes devel and optional)",
+		["base-jail"] = "The complete base system (includes devel and optional)",
 		["src"] = "System source tree",
 		["tests"] = "Test suite",
 		["lib32"] = "32-bit compatibility libraries",
@@ -91,6 +93,7 @@ local function select_components(components, options)
 	-- by default.
 	local defaults = {
 		["base"] = "on",
+		["base-jail"] = "on",
 		["kernel-dbg"] = "on",
 	}
 	-- Enable compat sets by default.
@@ -101,40 +104,66 @@ local function select_components(components, options)
 	-- Sorting the components is necessary to ensure that the ordering is
 	-- consistent in the UI.
 	local sorted_components = {}
+
+	-- Determine which components we want to offer the user.
+	local show_component = function (component)
+		-- "pkg" is always installed if present.
+		if component == "pkg" then return false end
+
+		-- Don't include individual "-dbg" components, because those
+		-- are handled via the "debug" component, except for kernel-dbg
+		-- which is always shown for non-jail installations.
+		if component == "kernel-dbg" then
+			return (not options.jail)
+		end
+		if component:match("%-dbg$") then return false end
+
+		-- Some sets have "-jail" variants which are jail-specific
+		-- variants of the base set.
+
+		if options.jail and components[component.."-jail"] then
+			-- If we're installing in a jail, and this component
+			-- has a jail variant, hide it.
+			return false
+		end
+
+		if not options.jail and component:match("%-jail$") then
+			-- Otherwise if we're not installing in a jail, and
+			-- this is a jail variant, hide it.
+			return false
+		end
+
+		-- "minimal(-jail)" is always installed if present.
+		if component == "minimal" or component == "minimal-jail" then
+			return false
+		end
+
+		-- "kernel" (the generic kernel) and "kernels" (the set) are
+		-- never offered; we always install the kernel for a non-jail
+		-- installation.
+		if component == "kernel" or component == "kernels" then
+			return false
+		end
+
+		-- If we didn't find a reason to hide this component, show it.
+		return true
+	end
+
 	for component, _ in pairs(components) do
-		-- Decide which sets we want to offer to the user:
-		--
-		-- "minimal" is not offered since it's always included, as is
-		-- "pkg" if it's present.
-		--
-		-- "-dbg" sets are never offered, because those are handled
-		-- via the "debug" component.
-		--
-		-- "kernels" is never offered because we only want one kernel,
-		-- which is handled separately.
-		--
-		-- Sets whose name ends in "-jail" are intended for jails, and
-		-- are only offered if no_kernel is set.
-		if component ~= "pkg" and
-		   not component:match("^minimal") and
-		   not (component:match("%-dbg$") and component ~= "kernel-dbg") and
-		   not (component == "kernels") and
-		   not (not options.no_kernel and component:match("%-jail$")) then
+		if show_component(component) then
 			table.insert(sorted_components, component)
 		end
 	end
+
 	table.sort(sorted_components)
 
 	local checklist_items = {}
 	for _, component in ipairs(sorted_components) do
-		if component ~= "kernel" and not
-		    (component == "kernel-dbg" and options.no_kernel) then
-			local description = descriptions[component] or ""
-			local default = defaults[component] or "off"
-			table.insert(checklist_items, component)
-			table.insert(checklist_items, description)
-			table.insert(checklist_items, default)
-		end
+		local description = descriptions[component] or ""
+		local default = defaults[component] or "off"
+		table.insert(checklist_items, component)
+		table.insert(checklist_items, description)
+		table.insert(checklist_items, default)
 	end
 
 	local bsddialog_args = {
@@ -162,7 +191,12 @@ local function select_components(components, options)
 	-- to work.  The base set depends on minimal, but it's fine to install
 	-- both, and this way the user can remove the base set without pkg
 	-- autoremove then trying to remove minimal.
-	local selected = {"minimal"}
+	local selected = {}
+	if options.jail then
+		table.insert(selected, "minimal-jail")
+	else
+		table.insert(selected, "minimal")
+	end
 
 	-- If pkg is available, always install it so the user can manage the
 	-- installed system.  This is optional, because a repository built
@@ -171,7 +205,7 @@ local function select_components(components, options)
 		table.insert(selected, "pkg")
 	end
 
-	if not options.no_kernel then
+	if not options.jail then
 		table.insert(selected, "kernel")
 	end
 
@@ -264,8 +298,8 @@ end
 local function parse_options()
 	local options = {}
 	for _, a in ipairs(arg) do
-		if a == "--no-kernel" then
-			options.no_kernel = true
+		if a == "--jail" then
+			options.jail = true
 		else
 			io.stderr:write("Error: unknown option " .. a .. "\n")
 			os.exit(1)

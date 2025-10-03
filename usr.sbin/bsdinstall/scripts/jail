@@ -183,7 +183,7 @@ if [ ! "$nonInteractive" == "YES" ]; then
 fi
 
 if [ "$PKGBASE" == yes ]; then
-	bsdinstall pkgbase --no-kernel || error "Installation of base system packages failed"
+	bsdinstall pkgbase --jail || error "Installation of base system packages failed"
 else
 	distbase
 fi
