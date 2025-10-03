@@ -171,6 +171,10 @@ struct	in6_ndifreq {
 #define NDPRF_ONLINK		0x1
 #define NDPRF_DETACHED		0x2
 
+/* ND6 NA output flags */
+#define	ND6_NA_OPT_LLA		0x01
+#define	ND6_NA_CARP_MASTER	0x02
+
 /* protocol constants */
 #define MAX_RTR_SOLICITATION_DELAY	1	/* 1sec */
 #define RTR_SOLICITATION_INTERVAL	4	/* 4sec */
