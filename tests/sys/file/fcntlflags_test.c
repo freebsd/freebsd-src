@@ -24,11 +24,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
+
+#include <atf-c.h>
 
 /*
  * O_ACCMODE is currently defined incorrectly. This is what it should be.
@@ -36,73 +37,70 @@
  */
 #define CORRECT_O_ACCMODE (O_ACCMODE | O_EXEC)
 
-static int testnum;
-
 static void
-subtests(const char *path, int omode, const char *omodetext)
+basic_tests(const char *path, int omode, const char *omodetext)
 {
 	int fd, flags1, flags2, flags3;
 
 	fd = open(path, omode);
-	if (fd == -1)
-		printf("not ok %d - open(\"%s\", %s) failed\n",
-		    testnum++, path, omodetext);
-	else
-		printf("ok %d - open(\"%s\", %s) succeeded\n",
-		    testnum++, path, omodetext);
+	ATF_REQUIRE_MSG(fd != -1, "open(\"%s\", %s) failed: %s", path,
+	    omodetext, strerror(errno));
+
 	flags1 = fcntl(fd, F_GETFL);
-	if (flags1 == -1)
-		printf("not ok %d - fcntl(F_GETFL) failed\n", testnum++);
-	else if ((flags1 & CORRECT_O_ACCMODE) == omode)
-		printf("ok %d - fcntl(F_GETFL) gave correct result\n",
-		    testnum++);
-	else
-		printf("not ok %d - fcntl(F_GETFL) gave incorrect result "
-		    "(%#x & %#x != %#x)\n",
-		    testnum++, flags1, CORRECT_O_ACCMODE, omode);
-	if (fcntl(fd, F_SETFL, flags1) == -1)
-		printf("not ok %d - fcntl(F_SETFL) same flags failed\n",
-		    testnum++);
-	else
-		printf("ok %d - fcntl(F_SETFL) same flags succeeded\n",
-		    testnum++);
+	ATF_REQUIRE_MSG(flags1 != -1, "fcntl(F_GETFL) (1) failed: %s",
+	    strerror(errno));
+	ATF_REQUIRE_INTEQ(omode, flags1 & CORRECT_O_ACCMODE);
+	ATF_REQUIRE((flags1 & O_NONBLOCK) == 0);
+
+	ATF_REQUIRE_MSG(fcntl(fd, F_SETFL, flags1) != -1,
+	    "fcntl(F_SETFL) same flags failed: %s", strerror(errno));
+
 	flags2 = fcntl(fd, F_GETFL);
-	if (flags2 == -1)
-		printf("not ok %d - fcntl(F_GETFL) failed\n", testnum++);
-	else if (flags2 == flags1)
-		printf("ok %d - fcntl(F_GETFL) gave same result\n",
-		    testnum++);
-	else
-		printf("not ok %d - fcntl(F_SETFL) caused fcntl(F_GETFL) to "
-		    "change from %#x to %#x\n",
-		    testnum++, flags1, flags2);
-	if (fcntl(fd, F_SETFL, flags2 | O_NONBLOCK) == -1)
-		printf("not ok %d - fcntl(F_SETFL) O_NONBLOCK failed\n",
-		    testnum++);
-	else
-		printf("ok %d - fcntl(F_SETFL) O_NONBLOCK succeeded\n",
-		    testnum++);
+	ATF_REQUIRE_MSG(flags2 != -1, "fcntl(F_GETFL) (2) failed: %s",
+	    strerror(errno));
+	ATF_REQUIRE_INTEQ(flags1, flags2);
+
+	ATF_REQUIRE_MSG(fcntl(fd, F_SETFL, flags2 | O_NONBLOCK) != -1,
+	    "fcntl(F_SETFL) O_NONBLOCK failed: %s", strerror(errno));
+
 	flags3 = fcntl(fd, F_GETFL);
-	if (flags3 == -1)
-		printf("not ok %d - fcntl(F_GETFL) failed\n", testnum++);
-	else if (flags3 == (flags2 | O_NONBLOCK))
-		printf("ok %d - fcntl(F_GETFL) gave expected result\n",
-		    testnum++);
-	else
-		printf("not ok %d - fcntl(F_SETFL) gave unexpected result "
-		    "(%#x != %#x)\n",
-		    testnum++, flags3, flags2 | O_NONBLOCK);
+	ATF_REQUIRE_MSG(flags3 != -1, "fcntl(F_GETFL) (3) failed: %s",
+	    strerror(errno));
+	ATF_REQUIRE_INTEQ(flags2 | O_NONBLOCK, flags3);
+
 	(void)close(fd);
 }
 
-int
-main(int argc __unused, char **argv __unused)
+ATF_TC_WITHOUT_HEAD(read_only_null);
+ATF_TC_BODY(read_only_null, tc)
 {
-	printf("1..24\n");
-	testnum = 1;
-	subtests("/dev/null", O_RDONLY, "O_RDONLY");
-	subtests("/dev/null", O_WRONLY, "O_WRONLY");
-	subtests("/dev/null", O_RDWR, "O_RDWR");
-	subtests("/bin/sh", O_EXEC, "O_EXEC");
-	return (0);
+	basic_tests("/dev/null", O_RDONLY, "O_RDONLY");
+}
+
+ATF_TC_WITHOUT_HEAD(write_only_null);
+ATF_TC_BODY(write_only_null, tc)
+{
+	basic_tests("/dev/null", O_WRONLY, "O_WRONLY");
+}
+
+ATF_TC_WITHOUT_HEAD(read_write_null);
+ATF_TC_BODY(read_write_null, tc)
+{
+	basic_tests("/dev/null", O_RDWR, "O_RDWR");
+}
+
+ATF_TC_WITHOUT_HEAD(exec_only_sh);
+ATF_TC_BODY(exec_only_sh, tc)
+{
+	basic_tests("/bin/sh", O_EXEC, "O_EXEC");
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+	ATF_TP_ADD_TC(tp, read_only_null);
+	ATF_TP_ADD_TC(tp, write_only_null);
+	ATF_TP_ADD_TC(tp, read_write_null);
+	ATF_TP_ADD_TC(tp, exec_only_sh);
+
+	return (atf_no_error());
 }
