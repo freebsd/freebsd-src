@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 30, 2025
+.Dd October 1, 2025
 .Dt FTS 3
 .Os
 .Sh NAME
@@ -376,7 +376,44 @@ The
 .Fa fts_name
 field is always
 .Dv NUL Ns -terminated .
-.Sh FTS_OPEN
+.Ss Thread Safety
+The
+.Nm
+functions can safely be used in multi-threaded programs provided no
+two threads access the same
+.Vt FTS
+or
+.Vt FTSENT
+structure simultaneously.
+However, unless the
+.Dv FTS_NOCHDIR
+flag was passed to
+.Fn fts_open
+or
+.Fn fts_open_b ,
+calls to
+.Fn fts_read
+and
+.Fn fts_children
+may change the current working directory, which will affect all
+threads.
+Conversely, changing the current working directory either during or
+between calls to
+.Fn fts_read
+or
+.Fn fts_children
+(even in a single-thread program) may cause
+.Nm
+to malfunction unless the
+.Dv FTS_NOCHDIR
+flag was passed to
+.Fn fts_open
+or
+.Fn fts_open_b
+and all paths in
+.Va path_argv
+were absolute.
+.Ss Fn fts_open
 The
 .Fn fts_open
 function takes a pointer to an array of character pointers naming one
@@ -545,7 +582,7 @@ the directory traversal order is in the order listed in
 .Fa path_argv
 for the root paths, and in the order listed in the directory for
 everything else.
-.Sh FTS_OPEN_B
+.Ss Fn fts_open_b
 The
 .Fn fts_open_b
 function is identical to
@@ -554,7 +591,7 @@ except that it takes a block pointer instead of a function pointer.
 The block is copied before
 .Fn fts_open_b
 returns, so the original can safely go out of scope or be released.
-.Sh FTS_READ
+.Ss Fn fts_read
 The
 .Fn fts_read
 function returns a pointer to an
@@ -605,7 +642,7 @@ after the
 structure has been returned by the function
 .Fn fts_read
 in post-order.
-.Sh FTS_CHILDREN
+.Ss Fn fts_children
 The
 .Fn fts_children
 function returns a pointer to an
@@ -679,7 +716,7 @@ and
 .Fa fts_namelen
 fields.
 .El
-.Sh FTS_SET
+.Ss Fn fts_set
 The function
 .Fn fts_set
 allows the user application to determine further processing for the
@@ -749,7 +786,7 @@ The file may be one of those most recently returned by either
 or
 .Fn fts_read .
 .El
-.Sh FTS_CLOSE
+.Ss Fn fts_close
 The
 .Fn fts_close
 function closes a file hierarchy stream
