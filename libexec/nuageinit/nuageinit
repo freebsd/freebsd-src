@@ -6,6 +6,7 @@
 -- Copyright(c) 2025 Jesús Daniel Colmenares Oviedo <dtxdf@FreeBSD.org>
 
 local nuage = require("nuage")
+local lfs = require("lfs")
 local ucl = require("ucl")
 local yaml = require("lyaml")
 
