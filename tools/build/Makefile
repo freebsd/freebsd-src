@@ -497,7 +497,6 @@ INSTALLDIR_LIST= \
 	usr/include/casper \
 	usr/include/openssl \
 	usr/include/private/ucl \
-	usr/include/private/yaml \
 	usr/include/private/zstd \
 	usr/lib \
 	usr/libdata/pkgconfig \

@@ -1,35 +1,10 @@
 .include <src.lua.mk>
 
-# New flua modules should be added here rather than to SUBDIR so that we can do
-# the right thing for both bootstrap flua and target flua.  The former does not
-# do any shared libs, so we just build them all straight into flua itself rather
-# than mucking about with the infrastructure to make them linkable -- thus, why
-# these are all structured to have a Makefile that describes what we want
-# *installed*, and a Makefile.inc that describes what we need to *build*.
-FLUA_MODULES+=	libhash
-FLUA_MODULES+=	libjail
-FLUA_MODULES+=	libucl
-FLUA_MODULES+=	liblyaml
-
-.ifdef BOOTSTRAPPING
-FLUA_MODULES+=	libfreebsd/sys/linker
-FLUA_MODULES+=	libfreebsd/kenv
-CFLAGS+=	-I${.CURDIR} -DBOOTSTRAPPING
-
-SHAREDIR=	${WORLDTMP}/legacy/usr/share/flua
-FLUA_PATH=	${SHAREDIR}/?.lua;${SHAREDIR}/?/init.lua
-CFLAGS+=	-DBOOTSTRAP_FLUA_PATH=\"${FLUA_PATH:Q}\"
-
-.for mod in ${FLUA_MODULES}
-.include "${mod}/Makefile.inc"
-.endfor
-
-.else
-
-FLUA_MODULES+=	libfreebsd
-SUBDIR+=	${FLUA_MODULES}
-
-.endif
+SUBDIR+=	libfreebsd
+SUBDIR+=	libhash
+SUBDIR+=	libjail
+SUBDIR+=	libucl
+SUBDIR+=	liblyaml
 
 LUASRC?=	${SRCTOP}/contrib/lua/src
 .PATH: ${LUASRC}
@@ -39,7 +14,7 @@ WARNS?=	3
 
 CWARNFLAGS.gcc+=	-Wno-format-nonliteral
 
-LIBADD+=	lua
+LIBADD=	lua
 
 # Entry point
 SRCS+=	lua.c
