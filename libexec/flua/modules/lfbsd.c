@@ -40,8 +40,6 @@
 #include "lauxlib.h"
 #include "lfbsd.h"
 
-#include "bootstrap.h"
-
 #define	FBSD_PROCESSHANDLE	"fbsd_process_t*"
 
 struct fbsd_process {
@@ -285,5 +283,3 @@ luaopen_fbsd(lua_State *L)
 
 	return (1);
 }
-
-FLUA_MODULE(fbsd);

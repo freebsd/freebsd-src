@@ -24,7 +24,7 @@ SRCS+=	lauxlib.c lbaselib.c lstrlib.c loadlib.c
 SRCS+=	lerrno.c lpager.c lstd.c lutils.c
 SRCS+=	gfx_utils.c
 
-.PATH:	${FLUASRC}/lfs
+.PATH:	${FLUASRC}/modules
 SRCS+=	lfs.c
 .PATH:	${FLUALIB}/libhash
 SRCS+=	lhash.c
