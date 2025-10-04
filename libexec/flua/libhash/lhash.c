@@ -178,4 +178,6 @@ luaopen_hash(lua_State *L)
 	return 1;
 }
 
+#ifndef _STANDALONE
 FLUA_MODULE(hash);
+#endif

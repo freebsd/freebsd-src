@@ -6,6 +6,8 @@
 # than mucking about with the infrastructure to make them linkable -- thus, why
 # these are all structured to have a Makefile that describes what we want
 # *installed*, and a Makefile.inc that describes what we need to *build*.
+FLUA_MODULES+=	lfbsd
+FLUA_MODULES+=	lfs
 FLUA_MODULES+=	libhash
 .ifndef BOOTSTRAPPING
 # Bootstrap flua can't usefully do anything with libjail anyways, because it
@@ -14,6 +16,7 @@ FLUA_MODULES+=	libjail
 .endif
 FLUA_MODULES+=	libucl
 FLUA_MODULES+=	liblyaml
+FLUA_MODULES+=	lposix
 
 .ifdef BOOTSTRAPPING
 # libfreebsd is generally omitted from the bootstrap flua because its
@@ -52,7 +55,6 @@ SRCS+=	lua.c
 # FreeBSD Extensions
 .PATH: ${.CURDIR}/modules
 SRCS+=	linit_flua.c
-SRCS+=	lfs.c lposix.c lfbsd.c
 
 CFLAGS+=	-I${SRCTOP}/lib/liblua -I${.CURDIR}/modules -I${LUASRC}
 CFLAGS+=	-DLUA_PROGNAME="\"${PROG}\""

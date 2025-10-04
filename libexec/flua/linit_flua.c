@@ -33,9 +33,6 @@
 
 #include "lualib.h"
 #include "lauxlib.h"
-#include "lfs.h"
-#include "lposix.h"
-#include "lfbsd.h"
 
 #include "bootstrap.h"
 
@@ -57,10 +54,6 @@ static const luaL_Reg loadedlibs[] = {
 #if defined(LUA_COMPAT_BITLIB)
   {LUA_BITLIBNAME, luaopen_bit32},
 #endif
-  /* FreeBSD Extensions */
-  {"lfs", luaopen_lfs},
-  {"posix", luaopen_posix},
-  {"fbsd", luaopen_fbsd},
   {NULL, NULL}
 };
 

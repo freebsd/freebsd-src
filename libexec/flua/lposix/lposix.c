@@ -21,6 +21,8 @@
 #include "lauxlib.h"
 #include "lposix.h"
 
+#include "bootstrap.h"
+
 static void
 enforce_max_args(lua_State *L, int max)
 {
@@ -697,3 +699,6 @@ luaopen_posix(lua_State *L)
 
 	return (1);
 }
+
+/* Only this one needed in our bootstrap set, it will load the others. */
+FLUA_MODULE(posix);
