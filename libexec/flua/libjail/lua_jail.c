@@ -38,8 +38,6 @@
 #include <lauxlib.h>
 #include <lualib.h>
 
-#include "bootstrap.h"
-
 #define	JAIL_METATABLE "jail iterator metatable"
 
 /*
@@ -718,5 +716,3 @@ luaopen_jail(lua_State *L)
 
 	return (1);
 }
-
-FLUA_MODULE(jail);

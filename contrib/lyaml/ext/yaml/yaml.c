@@ -35,8 +35,6 @@
 
 #include "lyaml.h"
 
-#include "bootstrap.h"
-
 #define MYNAME		"yaml"
 #define MYVERSION	MYNAME " library for " LUA_VERSION " / " VERSION
 
@@ -66,5 +64,3 @@ luaopen_yaml (lua_State *L)
 
    return 1;
 }
-
-FLUA_MODULE(yaml);

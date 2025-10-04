@@ -11,8 +11,6 @@
 #include <sha256.h>
 #include <string.h>
 
-#include "bootstrap.h"
-
 #define SHA256_META "SHA256 meta table"
 #define SHA256_DIGEST_LEN 32
 
@@ -177,5 +175,3 @@ luaopen_hash(lua_State *L)
 
 	return 1;
 }
-
-FLUA_MODULE(hash);
