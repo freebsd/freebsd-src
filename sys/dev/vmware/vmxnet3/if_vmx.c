@@ -2056,7 +2056,12 @@ vmxnet3_update_admin_status(if_ctx_t ctx)
 	struct vmxnet3_softc *sc;
 
 	sc = iflib_get_softc(ctx);
-	if (sc->vmx_ds->event != 0)
+	/*
+	 * iflib may invoke this routine before vmxnet3_attach_post() has
+	 * run, which is before the top level shared data area is
+	 * initialized and the device made aware of it.
+	 */
+	if (sc->vmx_ds != NULL && sc->vmx_ds->event != 0)
 		vmxnet3_evintr(sc);
 
 	vmxnet3_refresh_host_stats(sc);
