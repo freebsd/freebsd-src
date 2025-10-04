@@ -108,7 +108,7 @@ CFLAGS+= -DWEAK_REFS
 CFLAGS.skein_block.c+= -DSKEIN_LOOP=995
 .PATH: ${.CURDIR}/${MACHINE_ARCH} ${SRCTOP}/sys/crypto/sha2
 .PATH: ${SRCTOP}/sys/crypto/skein ${SRCTOP}/sys/crypto/skein/${MACHINE_ARCH}
-.PATH: ${SRCTOP}/sys/kern
+.PATH: ${SRCTOP}/sys/crypto
 
 USE_ASM_SOURCES?=1
 .if defined(BOOTSTRAPPING) || ${MK_MACHDEP_OPTIMIZATIONS} == no
