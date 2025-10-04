@@ -374,6 +374,7 @@ mac_policy_getlabeled(struct mac_policy_conf *mpc)
 	MPC_FLAG(mount_init_label, MPC_OBJECT_MOUNT);
 	MPC_FLAG(posixsem_init_label, MPC_OBJECT_POSIXSEM);
 	MPC_FLAG(posixshm_init_label, MPC_OBJECT_POSIXSHM);
+	MPC_FLAG(prison_init_label, MPC_OBJECT_PRISON);
 	MPC_FLAG(sysvmsg_init_label, MPC_OBJECT_SYSVMSG);
 	MPC_FLAG(sysvmsq_init_label, MPC_OBJECT_SYSVMSQ);
 	MPC_FLAG(sysvsem_init_label, MPC_OBJECT_SYSVSEM);

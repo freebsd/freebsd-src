@@ -198,6 +198,7 @@ struct prison {
 	struct prison_ip  *pr_addrs[PR_FAMILY_MAX];	/* (p,n) IPs of jail */
 	struct prison_racct *pr_prison_racct;		/* (c) racct jail proxy */
 	struct knlist	*pr_klist;			/* (m) attached knotes */
+	struct label	*pr_label;			/* (m) MAC label */
 	LIST_HEAD(, jaildesc) pr_descs;			/* (a) attached descriptors */
 	void		*pr_sparep;
 	int		 pr_childcount;			/* (a) number of child jails */

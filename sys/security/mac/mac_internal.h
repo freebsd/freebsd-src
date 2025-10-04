@@ -177,6 +177,7 @@ struct label {
 #define	MPC_OBJECT_SYSVSHM		0x0000000000020000
 #define	MPC_OBJECT_SYNCACHE		0x0000000000040000
 #define	MPC_OBJECT_IP6Q			0x0000000000080000
+#define	MPC_OBJECT_PRISON		0x0000000000100000
 
 /*
  * MAC Framework global variables.
@@ -251,6 +252,14 @@ void	mac_pipe_copy_label(struct label *src, struct label *dest);
 int	mac_pipe_externalize_label(struct label *label, char *elements,
 	    char *outbuf, size_t outbuflen);
 int	mac_pipe_internalize_label(struct label *label, char *string);
+
+int	mac_prison_check_relabel(struct ucred *cred, struct prison *pr,
+	    struct label *newlabel);
+int	mac_prison_externalize_label(struct label *label, char *elements,
+	    char *outbuf, size_t outbuflen);
+int	mac_prison_internalize_label(struct label *label, char *string);
+void	mac_prison_relabel(struct ucred *cred, struct prison *pr,
+	    struct label *newlabel);
 
 int	mac_socket_label_set(struct ucred *cred, struct socket *so,
 	    struct label *label);

@@ -275,8 +275,17 @@ prison0_init(void)
 	uint8_t *file, *data;
 	size_t size;
 	char buf[sizeof(prison0.pr_hostuuid)];
+#ifdef MAC
+	int error __diagused;
+#endif
 	bool valid;
 
+#ifdef MAC
+	error = mac_prison_init(&prison0, M_WAITOK);
+	MPASS(error == 0);
+
+	mtx_unlock(&prison0.pr_mtx);
+#endif
 	prison0.pr_cpuset = cpuset_ref(thread0.td_cpuset);
 	prison0.pr_osreldate = osreldate;
 	strlcpy(prison0.pr_osrelease, osrelease, sizeof(prison0.pr_osrelease));
@@ -1828,7 +1837,14 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		if (error)
 			goto done_deref;
 
+#ifdef MAC
+		error = mac_prison_init(pr, M_WAITOK);
+		MPASS(error == 0);
+
+		mtx_assert(&pr->pr_mtx, MA_OWNED);
+#else
 		mtx_lock(&pr->pr_mtx);
+#endif
 		drflags |= PD_LOCKED;
 	} else {
 		/*
@@ -3540,6 +3556,16 @@ prison_deref(struct prison *pr, int flags)
 					KASSERT(
 					    refcount_load(&prison0.pr_ref) != 0,
 					    ("prison0 pr_ref=0"));
+#ifdef MAC
+					/*
+					 * The MAC framework will call into any
+					 * policies that want to hook
+					 * prison_destroy_label, so ideally we
+					 * call this prior to any final state
+					 * invalidation to be safe.
+					 */
+					mac_prison_destroy(pr);
+#endif
 					pr->pr_state = PRISON_STATE_INVALID;
 					TAILQ_REMOVE(&allprison, pr, pr_list);
 					LIST_REMOVE(pr, pr_sibling);
