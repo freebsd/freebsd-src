@@ -49,6 +49,7 @@
 . ../default.cfg
 
 D=$diskimage
+backup=/tmp/fuzz.sh.diskimage.`date +%Y%m%dT%H%M%S`.gz
 
 tst() {
    rm -f $D
@@ -62,6 +63,7 @@ tst() {
 
    for i in `jot 50`; do
       ./fuzz -n 50 $D
+      gzip < $D > $backup
       if fsck -f -y /dev/md$mdstart 2>&1 | egrep "^[A-Z]" > /dev/null; then
          if fsck -f -y /dev/md$mdstart 2>&1 | egrep "^[A-Z]" > /dev/null; then
             if fsck -f -y /dev/md$mdstart 2>&1 | egrep "^[A-Z]" > /dev/null; then
@@ -73,7 +75,7 @@ tst() {
       sync;sync;sync
       if mount /dev/md$mdstart $mntpoint; then
          ls -l $mntpoint > /dev/null
-         find $mntpoint  -exec dd if={} of=/dev/null bs=1m count=3 \; > /dev/null 2>&1
+         find $mntpoint  -type f -exec dd if={} of=/dev/null bs=1m count=3 \; > /dev/null 2>&1
          umount $mntpoint
       else
          echo "Giving up at loop $i"
@@ -96,7 +98,7 @@ for j in `jot 10`; do
    date '+%T'
    tst
 done
-rm -f fuzz
+rm -f fuzz $backup
 
 exit
 
