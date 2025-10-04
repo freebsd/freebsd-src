@@ -63,9 +63,11 @@ STAGE_TARGETS+=		oci-images-stage
 OCI_DIR=		${TLD}/OCI-IMAGES/${REVISION}-${BRANCH}/${TARGET_ARCH}
 .endif
 
+.if !defined(EMBEDDED) || empty(EMBEDDED)
 .if !defined(NOPKGBASE) || empty(NOPKGBASE)
 STAGE_TARGETS+=		pkgbase-repo-stage
 PKGBASE_DIR=		${TLD}/PKGBASE-REPOS/${REVISION}-${BRANCH}/${TARGET_ARCH}
+.endif
 .endif
 
 CLEANFILES+=		${STAGE_TARGETS}
