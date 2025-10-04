@@ -66,8 +66,9 @@
 #ifdef _STANDALONE
 #include "lstd.h"
 #include "lutils.h"
-#include "bootstrap.h"
 #endif
+
+#include "bootstrap.h"
 
 #ifndef nitems
 #define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
@@ -446,3 +447,7 @@ luaopen_lfs(lua_State *L)
 #endif
 	return 1;
 }
+
+#ifndef _STANDALONE
+FLUA_MODULE(lfs);
+#endif
