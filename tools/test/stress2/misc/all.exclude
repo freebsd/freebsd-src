@@ -25,6 +25,7 @@ gnop13.sh		https://people.freebsd.org/~pho/stress/log/log0386.txt		20221113
 gnop7.sh		Waiting for patch commit					20190820
 gnop8.sh		Waiting for patch commit					20201214
 gnop9.sh		Waiting for patch commit					20201214
+graid1_3.sh		Hang seen							20250915
 graid1_8.sh		Known issue							20170909
 graid1_9.sh		panic: Bad effnlink						20180212
 lockf5.sh		Spinning threads seen						20160718
@@ -74,10 +75,13 @@ syzkaller67.sh		panic: ASan: Invalid access, 8-byte read at ...			20230621
 syzkaller80.sh		panic								20250711
 syzkaller81.sh		panic								20250711
 syzkaller82.sh		panic: m_apply, length > size of mbuf chain			20250724
+syzkaller84.sh		panic: Assertion !(sb->sb_state & SBS_CANTRCVMORE)		20250810
+syzkaller85.sh		panic: Assertion uio->uio_resid < 0 failed			20250928
+syzkaller86.sh		Fatal trap 12: page fault while in kernel mode			20251001
+write2.sh		panic: sndbuf_acquire: count 255 > free 0			20251003
 quota3.sh		https://people.freebsd.org/~pho/stress/log/log0604.txt		20250728
 quota6.sh		https://people.freebsd.org/~pho/stress/log/log0456.txt		20240707
 truss3.sh		WiP								20200915
-zfs18.sh		https://people.freebsd.org/~pho/stress/log/log0560.txt		20241118
 zfs9.sh			panic: sacked_bytes < 0						20250711
 
 # Test not to run for other reasons:
