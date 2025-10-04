@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2014 Pedro Souza <pedrosouza@freebsd.org>
+ * Copyright (c) 2014 Ed Maste <emaste@freebsd.org>
+ * Copyright (c) 2025 Kayla Powell <kpowkitty@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,21 +25,45 @@
  * SUCH DAMAGE.
  */
 
-#include <lua.h>
+#include <machine/_inttypes.h>
+#include <efi.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include "acpi_detect.h"
 
-int	luaopen_gfx(lua_State *);
-int	luaopen_loader(lua_State *);
-int	luaopen_io(lua_State *);
-int	luaopen_pager(lua_State *);
+/* For ACPI rsdp discovery. */
+EFI_GUID acpi = ACPI_TABLE_GUID;
+EFI_GUID acpi20 = ACPI_20_TABLE_GUID;
+ACPI_TABLE_RSDP *rsdp;
 
-#include <sys/linker_set.h>
+void
+acpi_detect(void)
+{
+	char buf[24];
+	int revision;
 
-typedef void lua_init_md_t(lua_State *);
-typedef void(*lua_acpi_registration_fn)(lua_State *L);
-extern lua_acpi_registration_fn lua_acpi_register;
-#define _LUA_COMPILE_SET Xlua_compile_set
-#define LUA_COMPILE_SET(func)	\
-	DATA_SET(_LUA_COMPILE_SET, func)
-#define LUA_FOREACH_SET(s) \
-	SET_FOREACH((s), _LUA_COMPILE_SET)
-SET_DECLARE(_LUA_COMPILE_SET, lua_init_md_t);
+	feature_enable(FEATURE_EARLY_ACPI);
+	if ((rsdp = efi_get_table(&acpi20)) == NULL)
+		if ((rsdp = efi_get_table(&acpi)) == NULL)
+			return;
+
+	sprintf(buf, "0x%016"PRIxPTR, (uintptr_t)rsdp);
+	setenv("acpi.rsdp", buf, 1);
+	revision = rsdp->Revision;
+	if (revision == 0)
+		revision = 1;
+	sprintf(buf, "%d", revision);
+	setenv("acpi.revision", buf, 1);
+	strncpy(buf, rsdp->OemId, sizeof(rsdp->OemId));
+	buf[sizeof(rsdp->OemId)] = '\0';
+	setenv("acpi.oem", buf, 1);
+	sprintf(buf, "0x%016x", rsdp->RsdtPhysicalAddress);
+	setenv("acpi.rsdt", buf, 1);
+	if (revision >= 2) {
+		/* XXX extended checksum? */
+		sprintf(buf, "0x%016llx",
+		    (unsigned long long)rsdp->XsdtPhysicalAddress);
+		setenv("acpi.xsdt", buf, 1);
+		sprintf(buf, "%d", rsdp->Length);
+		setenv("acpi.xsdt_length", buf, 1);
+	}
+}
