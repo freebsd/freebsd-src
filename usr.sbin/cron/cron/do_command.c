@@ -82,7 +82,7 @@ child_process(entry *e, user *u)
 {
 	int stdin_pipe[2], stdout_pipe[2];
 	char *input_data;
-	const char *usernm, *mailto, *mailfrom;
+	const char *usernm, *mailto, *mailfrom, *mailcc, *mailbcc;
 	PID_T jobpid, stdinjob, mailpid;
 	FILE *mail;
 	int bytes = 1;
@@ -104,6 +104,8 @@ child_process(entry *e, user *u)
 	 */
 	usernm = env_get("LOGNAME", e->envp);
 	mailto = env_get("MAILTO", e->envp);
+	mailcc = env_get("MAILCC", e->envp);
+	mailbcc = env_get("MAILBCC", e->envp);
 	mailfrom = env_get("MAILFROM", e->envp);
 
 #ifdef PAM
@@ -547,6 +549,8 @@ child_process(entry *e, user *u)
 					fprintf(mail, "From: Cron Daemon <%s>\n",
 					    mailfrom);
 				fprintf(mail, "To: %s\n", mailto);
+				fprintf(mail, "CC: %s\n", mailcc);
+				fprintf(mail, "BCC: %s\n", mailbcc);
 				fprintf(mail, "Subject: Cron <%s@%s> %s\n",
 					usernm, first_word(hostname, "."),
 					e->cmd);
