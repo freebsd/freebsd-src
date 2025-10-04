@@ -1,5 +1,5 @@
 SHLIB_NAME=	kenv.so
-SRCS+=		kenv.c
 MAN=		freebsd.kenv.3lua
 
+.include "Makefile.inc"
 .include <bsd.lib.mk>

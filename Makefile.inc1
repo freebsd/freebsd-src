@@ -2548,6 +2548,10 @@ ${_bt}-usr.sbin/kldxref: ${_bt_libelf_depend} ${_bt_libkldelf_depend}
 .if ${BOOTSTRAPPING} < 1300059
 ${_bt}-libexec/flua: ${_bt}-lib/liblua
 _flua= lib/liblua libexec/flua
+.if ${BOOTSTRAPPING} == 0
+_flua+= lib/libmd lib/libucl lib/libyaml
+${_bt}-libexec/flua: ${_bt}-lib/libmd ${_bt}-lib/libucl ${_bt}-lib/libyaml
+.endif # BOOTSTRAPPING == 0
 .endif
 
 # r245440 mtree -N support added
