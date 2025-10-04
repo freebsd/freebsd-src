@@ -8,6 +8,13 @@ PKG_ABI=$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)
 unset PKG_VERSION
 unset MAKEFLAGS
 unset PKGBASE
+# Ports interprets CROSS_TOOLCHAIN differently from src, and having this set
+# breaks the package-pkg build.  For now, forcibly unset this and hope ports
+# can find a working compiler.
+if [ -n "$CROSS_TOOLCHAIN" ]; then
+	printf >&2 '%s: WARNING: CROSS_TOOLCHAIN will be ignored for the pkg build.\n' "$0"
+	unset CROSS_TOOLCHAIN
+fi
 export WRKDIRPREFIX=/tmp/ports.${TARGET}
 export DISTDIR=/tmp/distfiles
 export WRKDIR=$(make -C ${PORTSDIR}/ports-mgmt/pkg I_DONT_CARE_IF_MY_BUILDS_TARGET_THE_WRONG_RELEASE=YES -V WRKDIR)
