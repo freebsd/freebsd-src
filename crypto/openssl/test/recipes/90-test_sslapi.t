@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -45,7 +45,10 @@ ok(run(test(["sslapitest", srctop_dir("test", "certs"),
              srctop_file("test",
                          "recipes",
                          "90-test_sslapi_data",
-                         "dhparams.pem")])),
+                         "dhparams.pem"),
+             srctop_dir("test",
+                        "recipes",
+                        "90-test_sslapi_data")])),
              "running sslapitest");
 
 SKIP: {
@@ -62,7 +65,10 @@ SKIP: {
                  srctop_file("test",
                              "recipes",
                              "90-test_sslapi_data",
-                             "dhparams.pem")])),
+                             "dhparams.pem"),
+                 srctop_dir("test",
+                            "recipes",
+                            "90-test_sslapi_data")])),
                  "running sslapitest with default fips config");
 
     run(test(["fips_version_test", "-config", $provconf, ">=3.1.0"]),
@@ -140,7 +146,10 @@ SKIP: {
                     srctop_file("test",
                                 "recipes",
                                 "90-test_sslapi_data",
-                                "dhparams.pem")])),
+                                "dhparams.pem"),
+                    srctop_dir("test",
+                               "recipes",
+                               "90-test_sslapi_data")])),
        "running sslapitest with modified fips config");
 }
 
