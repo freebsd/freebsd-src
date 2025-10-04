@@ -246,10 +246,10 @@ void	_thread_lock(struct thread *);
 })
 
 /*
- * Lock a spin mutex.  For spinlocks, we handle recursion inline (it
- * turns out that function calls can be significantly expensive on
- * some architectures).  Since spin locks are not _too_ common,
- * inlining this code is not too big a deal.
+ * Lock a spin mutex.
+ *
+ * FIXME: spinlock_enter is a function call, defeating the point of inlining in
+ * this.
  */
 #ifdef SMP
 #define __mtx_lock_spin(mp, tid, opts, file, line) __extension__ ({	\
@@ -317,10 +317,10 @@ void	_thread_lock(struct thread *);
 })
 
 /*
- * Unlock a spin mutex.  For spinlocks, we can handle everything
- * inline, as it's pretty simple and a function call would be too
- * expensive (at least on some architectures).  Since spin locks are
- * not _too_ common, inlining this code is not too big a deal.
+ * Unlock a spin mutex.
+ *
+ * FIXME: spinlock_exit is a function call, defeating the point of inlining in
+ * this.
  *
  * Since we always perform a spinlock_enter() when attempting to acquire a
  * spin lock, we need to always perform a matching spinlock_exit() when
