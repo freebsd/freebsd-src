@@ -16,7 +16,6 @@ FLUA_MODULES+=	libjail
 .endif
 FLUA_MODULES+=	libucl
 FLUA_MODULES+=	liblyaml
-FLUA_MODULES+=	lposix
 
 .ifdef BOOTSTRAPPING
 # libfreebsd is generally omitted from the bootstrap flua because its
@@ -55,6 +54,7 @@ SRCS+=	lua.c
 # FreeBSD Extensions
 .PATH: ${.CURDIR}/modules
 SRCS+=	linit_flua.c
+SRCS+=	lposix.c
 
 CFLAGS+=	-I${SRCTOP}/lib/liblua -I${.CURDIR}/modules -I${LUASRC}
 CFLAGS+=	-DLUA_PROGNAME="\"${PROG}\""
