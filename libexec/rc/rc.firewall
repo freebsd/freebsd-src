@@ -547,7 +547,16 @@ case ${firewall_type} in
 	;;
 *)
 	if [ -r "${firewall_type}" ]; then
-		${fwcmd} ${firewall_flags} ${firewall_type}
+		if [ -f "${firewall_type}" ]; then
+			${fwcmd} ${firewall_flags} ${firewall_type}
+		else
+		if [ -d "${firewall_type}" ]; then
+			for fwfile in `rcorder $firewall_type/*`
+			do
+				ipfw -q $fwfile;
+			done
+			fi
+		fi
 	fi
 	;;
 esac
