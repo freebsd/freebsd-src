@@ -191,6 +191,7 @@ SRCS+=		sha256c.c sha512c.c
 
 .PATH: ${SYSDIR}/crypto
 SRCS+=		md5c.c
+CFLAGS.md5c.c+= -DSTANDALONE_SMALL
 
 .if ${DO32:U0} == 0
 MAN=libsa.3
