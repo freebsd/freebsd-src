@@ -54,8 +54,10 @@
 	if ((ptr) != NULL)						\
 		perror(ptr);						\
 	fprintf(stderr, ##x);						\
-	remove(tbfl);							\
-	remove(tofl);							\
+	if (tbfl != NULL)						\
+		remove(tbfl);						\
+	if (tofl != NULL)						\
+		remove(tofl);						\
 	exit(EXIT_FAILURE);						\
 } while (0)
 
@@ -692,7 +694,7 @@ int
 main(int argc, char *argv[])
 {
 	char buffer[LNBUFF], fname[FNBUFF];
-	char *tbfl, *tofl, *tmpdir;
+	char *tbfl = NULL, *tofl = NULL, *tmpdir;
 	char tmpf[MAXPATHLEN * 2 + 50];
 	float limit;
 	char *bin, *exec, *kfile, *ofile;
