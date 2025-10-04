@@ -256,6 +256,7 @@ vm_extra_pkg_rmcache() {
 	if [ -n "${NO_ROOT}" ]; then
 		${PKG_CMD} \
 		    -o ASSUME_ALWAYS_YES=yes \
+		    -o INSTALL_AS_USER=yes \
 		    -r ${DESTDIR} \
 		    clean -y -a
 	else
