@@ -681,6 +681,8 @@ crypto/curve25519.c		optional crypto \
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include -I$S/crypto/libsodium"
 crypto/des/des_ecb.c		optional netsmb
 crypto/des/des_setkey.c		optional netsmb
+crypto/md4c.c			optional netsmb
+crypto/md5c.c			standard
 crypto/openssl/ossl.c		optional ossl
 crypto/openssl/ossl_aes.c	optional ossl
 crypto/openssl/ossl_chacha20.c	optional ossl
@@ -3896,8 +3898,6 @@ kern/kern_vnodedumper.c		standard
 kern/kern_xxx.c			standard
 kern/link_elf.c			standard
 kern/linker_if.m		standard
-kern/md4c.c			optional netsmb
-kern/md5c.c			standard
 kern/p1003_1b.c			standard
 kern/posix4_mib.c		standard
 kern/sched_4bsd.c		optional sched_4bsd
