@@ -38,6 +38,8 @@
 
 #include <config.h>
 
+#include <heimbase.h>
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -66,5 +68,10 @@
 
 #define HDB_DEFAULT_DB HDB_DB_DIR "/heimdal"
 #define HDB_DB_FORMAT_ENTRY "hdb/db-format"
+
+/* Test for strong key etypes accepted by MIT's KDC. */
+#define	mit_strong_etype(t)				\
+	    ((t) == ETYPE_AES128_CTS_HMAC_SHA1_96 ||	\
+	    (t) == ETYPE_AES256_CTS_HMAC_SHA1_96)
 
 #endif /* __HDB_LOCL_H__ */

@@ -9,6 +9,17 @@ extern "C" {
 #endif
 
 krb5_error_code
+entry2mit_string_int (
+	krb5_context /*context*/,
+	krb5_storage */*sp*/,
+	hdb_entry */*ent*/);
+
+krb5_error_code
+hdb_add_current_keys_to_history (
+	krb5_context /*context*/,
+	hdb_entry */*entry*/);
+
+krb5_error_code
 hdb_add_master_key (
 	krb5_context /*context*/,
 	krb5_keyblock */*key*/,
@@ -347,6 +358,13 @@ hdb_seal_keys_mkey (
 	hdb_master_key /*mkey*/);
 
 krb5_error_code
+hdb_set_last_modified_by (
+	krb5_context /*context*/,
+	hdb_entry */*entry*/,
+	krb5_principal /*modby*/,
+	time_t /*modtime*/);
+
+krb5_error_code
 hdb_set_master_key (
 	krb5_context /*context*/,
 	HDB */*db*/,
@@ -383,6 +401,13 @@ krb5_error_code
 hdb_unseal_keys (
 	krb5_context /*context*/,
 	HDB */*db*/,
+	hdb_entry */*ent*/);
+
+krb5_error_code
+hdb_unseal_keys_kvno (
+	krb5_context /*context*/,
+	HDB */*db*/,
+	krb5_kvno /*kvno*/,
 	hdb_entry */*ent*/);
 
 krb5_error_code
