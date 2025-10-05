@@ -36,13 +36,15 @@ netwait_start()
 		err 1 "Nothing to wait for"
 	fi
 
-	if ! [ "${netwait_if_timeout}" -ge 1 ]; then
+	if ! [ "${netwait_if_timeout:=0}" -ge 1 ]; then
 		err 1 "netwait_if_timeout must be >= 1"
 	fi
-	if ! [ "${netwait_dad_timeout}" -ge 1 ]; then
-		err 1 "netwait_dad_timeout must be >= 1"
+	if ! check_kern_features inet6; then
+		netwait_dad="NO"
+	elif ! [ "${netwait_dad_timeout:=0}" -ge 1 ]; then
+		netwait_dad_timeout=$(($(sysctl -n net.inet6.ip6.dad_count)+1))
 	fi
-	if ! [ "${netwait_timeout}" -ge 1 ]; then
+	if ! [ "${netwait_timeout:=0}" -ge 1 ]; then
 		err 1 "netwait_timeout must be >= 1"
 	fi
 
