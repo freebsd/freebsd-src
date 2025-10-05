@@ -221,10 +221,6 @@ void	_thread_lock(struct thread *);
 #define _mtx_release_lock(mp, tid)					\
 	atomic_cmpset_rel_ptr(&(mp)->mtx_lock, (tid), MTX_UNOWNED)
 
-/* Release mtx_lock quickly, assuming we own it. */
-#define _mtx_release_lock_quick(mp)					\
-	atomic_store_rel_ptr(&(mp)->mtx_lock, MTX_UNOWNED)
-
 #define	_mtx_release_lock_fetch(mp, vp)					\
 	atomic_fcmpset_rel_ptr(&(mp)->mtx_lock, (vp), MTX_UNOWNED)
 
@@ -332,7 +328,7 @@ void	_thread_lock(struct thread *);
 		(mp)->mtx_recurse--;					\
 	else {								\
 		LOCKSTAT_PROFILE_RELEASE_SPIN_LOCK(spin__release, mp);	\
-		_mtx_release_lock_quick((mp));				\
+		atomic_store_rel_ptr(&(mp)->mtx_lock, MTX_UNOWNED);	\
 	}								\
 	spinlock_exit();						\
 })
