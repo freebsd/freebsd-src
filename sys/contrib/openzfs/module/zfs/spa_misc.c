@@ -510,7 +510,7 @@ spa_config_tryenter(spa_t *spa, int locks, const void *tag, krw_t rw)
 
 static void
 spa_config_enter_impl(spa_t *spa, int locks, const void *tag, krw_t rw,
-    int mmp_flag)
+    int priority_flag)
 {
 	(void) tag;
 	int wlocks_held = 0;
@@ -526,7 +526,7 @@ spa_config_enter_impl(spa_t *spa, int locks, const void *tag, krw_t rw,
 		mutex_enter(&scl->scl_lock);
 		if (rw == RW_READER) {
 			while (scl->scl_writer ||
-			    (!mmp_flag && scl->scl_write_wanted)) {
+			    (!priority_flag && scl->scl_write_wanted)) {
 				cv_wait(&scl->scl_cv, &scl->scl_lock);
 			}
 		} else {
@@ -551,7 +551,7 @@ spa_config_enter(spa_t *spa, int locks, const void *tag, krw_t rw)
 }
 
 /*
- * The spa_config_enter_mmp() allows the mmp thread to cut in front of
+ * The spa_config_enter_priority() allows the mmp thread to cut in front of
  * outstanding write lock requests. This is needed since the mmp updates are
  * time sensitive and failure to service them promptly will result in a
  * suspended pool. This pool suspension has been seen in practice when there is
@@ -560,7 +560,7 @@ spa_config_enter(spa_t *spa, int locks, const void *tag, krw_t rw)
  */
 
 void
-spa_config_enter_mmp(spa_t *spa, int locks, const void *tag, krw_t rw)
+spa_config_enter_priority(spa_t *spa, int locks, const void *tag, krw_t rw)
 {
 	spa_config_enter_impl(spa, locks, tag, rw, 1);
 }
@@ -806,6 +806,7 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 	spa->spa_min_ashift = INT_MAX;
 	spa->spa_max_ashift = 0;
 	spa->spa_min_alloc = INT_MAX;
+	spa->spa_max_alloc = 0;
 	spa->spa_gcd_alloc = INT_MAX;
 
 	/* Reset cached value */
@@ -1862,6 +1863,19 @@ spa_get_worst_case_asize(spa_t *spa, uint64_t lsize)
 	if (lsize == 0)
 		return (0);	/* No inflation needed */
 	return (MAX(lsize, 1 << spa->spa_max_ashift) * spa_asize_inflation);
+}
+
+/*
+ * Return the range of minimum allocation sizes for the normal allocation
+ * class. This can be used by external consumers of the DMU to estimate
+ * potential wasted capacity when setting the recordsize for an object.
+ * This is mainly for dRAID pools which always pad to a full stripe width.
+ */
+void
+spa_get_min_alloc_range(spa_t *spa, uint64_t *min_alloc, uint64_t *max_alloc)
+{
+	*min_alloc = spa->spa_min_alloc;
+	*max_alloc = spa->spa_max_alloc;
 }
 
 /*
@@ -3085,6 +3099,7 @@ EXPORT_SYMBOL(spa_version);
 EXPORT_SYMBOL(spa_state);
 EXPORT_SYMBOL(spa_load_state);
 EXPORT_SYMBOL(spa_freeze_txg);
+EXPORT_SYMBOL(spa_get_min_alloc_range); /* for Lustre */
 EXPORT_SYMBOL(spa_get_dspace);
 EXPORT_SYMBOL(spa_update_dspace);
 EXPORT_SYMBOL(spa_deflate);

@@ -168,10 +168,10 @@ tags = ['functional', 'cli_root', 'zinject']
 tests = ['zdb_002_pos', 'zdb_003_pos', 'zdb_004_pos', 'zdb_005_pos',
     'zdb_006_pos', 'zdb_args_neg', 'zdb_args_pos',
     'zdb_block_size_histogram', 'zdb_checksum', 'zdb_decompress',
-    'zdb_display_block', 'zdb_encrypted', 'zdb_label_checksum',
-    'zdb_object_range_neg', 'zdb_object_range_pos', 'zdb_objset_id',
-    'zdb_decompress_zstd', 'zdb_recover', 'zdb_recover_2', 'zdb_backup',
-    'zdb_tunables']
+    'zdb_display_block', 'zdb_encrypted', 'zdb_encrypted_raw',
+    'zdb_label_checksum', 'zdb_object_range_neg', 'zdb_object_range_pos',
+    'zdb_objset_id', 'zdb_decompress_zstd', 'zdb_recover', 'zdb_recover_2',
+    'zdb_backup', 'zdb_tunables']
 pre =
 post =
 tags = ['functional', 'cli_root', 'zdb']
@@ -395,8 +395,9 @@ tags = ['functional', 'cli_root', 'zpool']
 [tests/functional/cli_root/zpool_add]
 tests = ['zpool_add_001_pos', 'zpool_add_002_pos', 'zpool_add_003_pos',
     'zpool_add_004_pos', 'zpool_add_006_pos', 'zpool_add_007_neg',
-    'zpool_add_008_neg', 'zpool_add_009_neg', 'zpool_add_010_pos',
-    'add-o_ashift', 'add_prop_ashift', 'zpool_add_dryrun_output']
+    'zpool_add_008_neg', 'zpool_add_009_neg', 'zpool_add_warn_create',
+    'zpool_add_warn_degraded', 'zpool_add_warn_removal', 'add-o_ashift',
+    'add_prop_ashift', 'zpool_add_dryrun_output']
 tags = ['functional', 'cli_root', 'zpool_add']
 
 [tests/functional/cli_root/zpool_attach]
@@ -489,6 +490,10 @@ tests = ['zpool_import_001_pos', 'zpool_import_002_pos',
     'zpool_import_parallel_neg', 'zpool_import_parallel_admin']
 tags = ['functional', 'cli_root', 'zpool_import']
 timeout = 1200
+
+[tests/functional/cli_root/zpool_iostat]
+tests = ['zpool_iostat_interval_all', 'zpool_iostat_interval_some']
+tags = ['functional', 'cli_root', 'zpool_iostat']
 
 [tests/functional/cli_root/zpool_labelclear]
 tests = ['zpool_labelclear_active', 'zpool_labelclear_exported',
@@ -1085,7 +1090,8 @@ tags = ['functional', 'write_dirs']
 [tests/functional/xattr]
 tests = ['xattr_001_pos', 'xattr_002_neg', 'xattr_003_neg', 'xattr_004_pos',
     'xattr_005_pos', 'xattr_006_pos', 'xattr_007_neg',
-    'xattr_011_pos', 'xattr_012_pos', 'xattr_013_pos', 'xattr_compat']
+    'xattr_011_pos', 'xattr_012_pos', 'xattr_013_pos', 'xattr_014_pos',
+    'xattr_compat']
 tags = ['functional', 'xattr']
 
 [tests/functional/zvol/zvol_ENOSPC]

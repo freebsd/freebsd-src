@@ -914,7 +914,11 @@ zfs_do_clone(int argc, char **argv)
 			log_history = B_FALSE;
 		}
 
-		ret = zfs_mount_and_share(g_zfs, argv[1], ZFS_TYPE_DATASET);
+		/*
+		 * Dataset cloned successfully, mount/share failures are
+		 * non-fatal.
+		 */
+		(void) zfs_mount_and_share(g_zfs, argv[1], ZFS_TYPE_DATASET);
 	}
 
 	zfs_close(zhp);
@@ -930,18 +934,14 @@ usage:
 }
 
 /*
- * Return a default volblocksize for the pool which always uses more than
- * half of the data sectors.  This primarily applies to dRAID which always
- * writes full stripe widths.
+ * Calculate the minimum allocation size based on the top-level vdevs.
  */
 static uint64_t
-default_volblocksize(zpool_handle_t *zhp, nvlist_t *props)
+calculate_volblocksize(nvlist_t *config)
 {
-	uint64_t volblocksize, asize = SPA_MINBLOCKSIZE;
+	uint64_t asize = SPA_MINBLOCKSIZE;
 	nvlist_t *tree, **vdevs;
 	uint_t nvdevs;
-
-	nvlist_t *config = zpool_get_config(zhp, NULL);
 
 	if (nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE, &tree) != 0 ||
 	    nvlist_lookup_nvlist_array(tree, ZPOOL_CONFIG_CHILDREN,
@@ -972,6 +972,24 @@ default_volblocksize(zpool_handle_t *zhp, nvlist_t *props)
 			asize = MAX(asize, 1ULL << ashift);
 		}
 	}
+
+	return (asize);
+}
+
+/*
+ * Return a default volblocksize for the pool which always uses more than
+ * half of the data sectors.  This primarily applies to dRAID which always
+ * writes full stripe widths.
+ */
+static uint64_t
+default_volblocksize(zpool_handle_t *zhp, nvlist_t *props)
+{
+	uint64_t volblocksize, asize = SPA_MINBLOCKSIZE;
+
+	nvlist_t *config = zpool_get_config(zhp, NULL);
+
+	if (nvlist_lookup_uint64(config, ZPOOL_CONFIG_MAX_ALLOC, &asize) != 0)
+		asize = calculate_volblocksize(config);
 
 	/*
 	 * Calculate the target volblocksize such that more than half
@@ -1319,7 +1337,9 @@ zfs_do_create(int argc, char **argv)
 		goto error;
 	}
 
-	ret = zfs_mount_and_share(g_zfs, argv[0], ZFS_TYPE_DATASET);
+	/* Dataset created successfully, mount/share failures are non-fatal */
+	ret = 0;
+	(void) zfs_mount_and_share(g_zfs, argv[0], ZFS_TYPE_DATASET);
 error:
 	nvlist_free(props);
 	return (ret);
