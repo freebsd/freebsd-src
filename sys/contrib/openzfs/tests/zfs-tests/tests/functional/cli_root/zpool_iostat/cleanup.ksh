@@ -22,23 +22,9 @@
 #
 
 #
-# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
-# Use is subject to license terms.
+# Copyright (c) 2025, Klara, Inc.
 #
-
 #
-# Copyright (c) 2013 by Delphix. All rights reserved.
-#
-
-#
-# Copyright (c) 2016 by Jinshan Xiong. No rights reserved.
-#
-
-. $STF_SUITE/tests/functional/upgrade/upgrade_common.kshlib
-
-verify_runnable "global"
-
-# create a pool without any features
-log_must truncate -s $MINVDEVSIZE $TMPDEV
+. $STF_SUITE/include/libtest.shlib
 
 log_pass

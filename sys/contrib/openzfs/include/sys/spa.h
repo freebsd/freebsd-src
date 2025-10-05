@@ -1030,7 +1030,7 @@ extern void spa_import_progress_set_notes_nolog(spa_t *spa,
 extern int spa_config_tryenter(spa_t *spa, int locks, const void *tag,
     krw_t rw);
 extern void spa_config_enter(spa_t *spa, int locks, const void *tag, krw_t rw);
-extern void spa_config_enter_mmp(spa_t *spa, int locks, const void *tag,
+extern void spa_config_enter_priority(spa_t *spa, int locks, const void *tag,
     krw_t rw);
 extern void spa_config_exit(spa_t *spa, int locks, const void *tag);
 extern int spa_config_held(spa_t *spa, int locks, krw_t rw);
@@ -1084,6 +1084,7 @@ extern pool_state_t spa_state(spa_t *spa);
 extern spa_load_state_t spa_load_state(spa_t *spa);
 extern uint64_t spa_freeze_txg(spa_t *spa);
 extern uint64_t spa_get_worst_case_asize(spa_t *spa, uint64_t lsize);
+extern void spa_get_min_alloc_range(spa_t *spa, uint64_t *min, uint64_t *max);
 extern uint64_t spa_get_dspace(spa_t *spa);
 extern uint64_t spa_get_checkpoint_space(spa_t *spa);
 extern uint64_t spa_get_slop_space(spa_t *spa);
