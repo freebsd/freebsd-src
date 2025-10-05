@@ -4,6 +4,7 @@ HEIMDAL_HDB_1.0 {
 	global:
 		encode_hdb_keyset;
 		hdb_add_master_key;
+		hdb_add_current_keys_to_history;
 		hdb_check_db_format;
 		hdb_clear_extension;
 		hdb_clear_master_key;
@@ -57,6 +58,7 @@ HEIMDAL_HDB_1.0 {
 		hdb_seal_key_mkey;
 		hdb_seal_keys;
 		hdb_seal_keys_mkey;
+                hdb_set_last_modified_by;
 		hdb_set_master_key;
 		hdb_set_master_keyfile;
 		hdb_unlock;
@@ -70,6 +72,10 @@ HEIMDAL_HDB_1.0 {
 		length_hdb_keyset;
 		hdb_interface_version;
 		initialize_hdb_error_table_r;
+
+                # MIT KDB related entries
+                _hdb_mdb_value2entry;
+                _hdb_mit_dump2mitdb_entry;
 
 		hdb_kt_ops;
 
