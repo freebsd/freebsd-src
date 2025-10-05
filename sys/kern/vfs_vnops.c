@@ -767,9 +767,12 @@ file_v_lock(struct file *fp, short lock_bit, short lock_wait_bit)
 
 	flagsp = &fp->f_vflags;
 	state = atomic_load_16(flagsp);
-	if ((state & lock_bit) == 0 &&
-	    atomic_cmpset_acq_16(flagsp, state, state | lock_bit))
-		return;
+	for (;;) {
+		if ((state & lock_bit) != 0)
+			break;
+		if (atomic_fcmpset_acq_16(flagsp, &state, state | lock_bit))
+			return;
+	}
 
 	sleepq_lock(flagsp);
 	state = atomic_load_16(flagsp);
@@ -803,9 +806,12 @@ file_v_unlock(struct file *fp, short lock_bit, short lock_wait_bit)
 
 	flagsp = &fp->f_vflags;
 	state = atomic_load_16(flagsp);
-	if ((state & lock_wait_bit) == 0 &&
-	    atomic_cmpset_rel_16(flagsp, state, state & ~lock_bit))
-		return;
+	for (;;) {
+		if ((state & lock_wait_bit) != 0)
+			break;
+		if (atomic_fcmpset_rel_16(flagsp, &state, state & ~lock_bit))
+			return;
+	}
 
 	sleepq_lock(flagsp);
 	MPASS((*flagsp & lock_bit) != 0);
