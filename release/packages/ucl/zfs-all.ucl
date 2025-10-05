@@ -39,7 +39,7 @@ This package provides the zfs(8) and zpool(8) utilities used to manage
 ZFS filesystems, the zfsd(8) self-healing daemon, and several other
 utilities, as well as the runtime libraries used internally by ZFS
 itself, and the libzfs_core library providing a stable interface for
-managing ZFS programatically.
+managing ZFS programmatically.
 EOD
 
 licenses = [ "CDDL-1.0" ]

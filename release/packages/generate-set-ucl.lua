@@ -1,7 +1,7 @@
 #!/usr/libexec/flua
 
 --[[ usage:
-generare-set-ucl.lua <template> [<variablename> <variablevalue>]
+generate-set-ucl.lua <template> [<variablename> <variablevalue>]
 
 Generate the UCL for a set metapackage.  The variables provided will be
 substituted as UCL variables.
