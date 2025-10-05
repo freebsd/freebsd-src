@@ -32,7 +32,7 @@ utilities used to check the consistency of an existing filesystem after
 an unclean shutdown or panic.
 
 The libufs library is also provided, which allows applications to access
-UFS filesystems programatically.
+UFS filesystems programmatically.
 EOD
 
 annotations {

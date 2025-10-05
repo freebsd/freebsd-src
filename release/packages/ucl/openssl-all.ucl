@@ -26,7 +26,7 @@ protocols such as HTTP, SMTP and DNS.
 
 OpenSSL provides openssl(1), a command-line utility used for testing TLS
 clients and servers, managing certificate used in TLS authentication, and
-performing various miscallenous cryptographic operations.
+performing various miscellaneous cryptographic operations.
 
 Also provided are two libraries, libcrypto and libssl, which can be used by
 applications to provide generic cryptographic functionality, and to implement
