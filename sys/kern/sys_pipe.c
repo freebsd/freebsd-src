@@ -567,7 +567,7 @@ pipespace_new(struct pipe *cpipe, int size)
 	static int curfail = 0;
 	static struct timeval lastfail;
 
-	KASSERT(!mtx_owned(PIPE_MTX(cpipe)), ("pipespace: pipe mutex locked"));
+	PIPE_LOCK_ASSERT(cpipe, MA_NOTOWNED);
 	KASSERT(!(cpipe->pipe_state & PIPE_DIRECTW),
 		("pipespace: resize of direct writes not allowed"));
 retry:
@@ -1679,8 +1679,7 @@ static void
 pipe_free_kmem(struct pipe *cpipe)
 {
 
-	KASSERT(!mtx_owned(PIPE_MTX(cpipe)),
-	    ("pipe_free_kmem: pipe mutex locked"));
+	PIPE_LOCK_ASSERT(cpipe, MA_NOTOWNED);
 
 	if (cpipe->pipe_buffer.buffer != NULL) {
 		atomic_subtract_long(&amountpipekva, cpipe->pipe_buffer.size);
