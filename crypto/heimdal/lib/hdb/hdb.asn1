@@ -87,6 +87,14 @@ HDB-Ext-Aliases ::= SEQUENCE {
 	aliases[1]		SEQUENCE OF Principal -- all names, inc primary
 }
 
+hdb_keyset ::= SEQUENCE {
+	kvno[0]		INTEGER (0..4294967295),
+	replace-time[1]	KerberosTime,	-- time this key was replaced
+	keys[2]		SEQUENCE OF Key
+}
+
+HDB-Ext-KeySet ::= SEQUENCE OF hdb_keyset
+
 
 HDB-extension ::= SEQUENCE {
         mandatory[0]    BOOLEAN,        -- kdc MUST understand this extension,
@@ -102,17 +110,13 @@ HDB-extension ::= SEQUENCE {
 		aliases[6]			HDB-Ext-Aliases,
 		last-pw-change[7]		KerberosTime,
 	        pkinit-cert[8]  		HDB-Ext-PKINIT-cert,
+	        hist-keys[9]			HDB-Ext-KeySet,
 		...
 	},
 	...
 }
 
 HDB-extensions ::= SEQUENCE OF HDB-extension
-
-hdb_keyset ::= SEQUENCE {
-	kvno[1]		INTEGER (0..4294967295),
-	keys[0]		SEQUENCE OF Key
-}
 
 hdb_entry ::= SEQUENCE {
 	principal[0]	Principal  OPTIONAL, -- this is optional only 
