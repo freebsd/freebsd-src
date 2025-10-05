@@ -12,6 +12,11 @@ MAN+=	catclose.3 catgets.3 catopen.3
 #       for translators.
 
 NLSNAME=	libc
+# We don't want libc's NLS catalogues to be installed in the clibs package.
+# Put them in locales instead, since anyone interested in NLS will have
+# that installed.
+NLSPACKAGE=	locales
+
 NLS+=	be_BY.UTF-8
 NLS+=	ca_ES.ISO8859-1
 NLS+=	de_DE.ISO8859-1

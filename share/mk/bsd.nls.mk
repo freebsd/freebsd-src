@@ -1,6 +1,8 @@
 #
-# This include file <bsd.nls.mk> handles building and installing Native
-# Language Support (NLS) catalogs
+# Handle building and installing Native Language Support (NLS) catalogs.
+# This is implemented using a <bsd.files.mk> files group called "NLS",
+# so any per-group options that bsd.files.mk supports can be used here
+# with the prefix "NLS".
 #
 # +++ variables +++
 #
@@ -17,6 +19,9 @@
 # NLSMODE	National Language Support files mode. [${NOBINMODE}]
 #
 # NLSOWN	National Language Support files owner. [${SHAREOWN}]
+#
+# NLSPACKAGE	Package to install the NLS files in.
+#		[${PACKAGE}, or "utilities" if not set]
 
 .if !target(__<bsd.init.mk>__)
 .error bsd.nls.mk cannot be included directly.
