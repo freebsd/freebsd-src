@@ -33,7 +33,7 @@
  * Copyright (c) 2017, Intel Corporation.
  * Copyright (c) 2019, loli10K <ezomori.nozomu@gmail.com>
  * Copyright (c) 2021, Colm Buckley <colm@tuatha.org>
- * Copyright (c) 2021, 2023, Klara Inc.
+ * Copyright (c) 2021, 2023, 2025, Klara, Inc.
  * Copyright (c) 2021, 2025 Hewlett Packard Enterprise Development LP.
  */
 
@@ -456,7 +456,7 @@ get_usage(zpool_help_t idx)
 		    "<pool> <vdev> ...\n"));
 	case HELP_ATTACH:
 		return (gettext("\tattach [-fsw] [-o property=value] "
-		    "<pool> <device> <new-device>\n"));
+		    "<pool> <vdev> <new-device>\n"));
 	case HELP_CLEAR:
 		return (gettext("\tclear [[--power]|[-nF]] <pool> [device]\n"));
 	case HELP_CREATE:
@@ -5761,24 +5761,6 @@ children:
 	return (ret);
 }
 
-static int
-refresh_iostat(zpool_handle_t *zhp, void *data)
-{
-	iostat_cbdata_t *cb = data;
-	boolean_t missing;
-
-	/*
-	 * If the pool has disappeared, remove it from the list and continue.
-	 */
-	if (zpool_refresh_stats(zhp, &missing) != 0)
-		return (-1);
-
-	if (missing)
-		pool_list_remove(cb->cb_list, zhp);
-
-	return (0);
-}
-
 /*
  * Callback to print out the iostats for the given pool.
  */
@@ -6359,15 +6341,14 @@ get_namewidth_iostat(zpool_handle_t *zhp, void *data)
  * This command can be tricky because we want to be able to deal with pool
  * creation/destruction as well as vdev configuration changes.  The bulk of this
  * processing is handled by the pool_list_* routines in zpool_iter.c.  We rely
- * on pool_list_update() to detect the addition of new pools.  Configuration
- * changes are all handled within libzfs.
+ * on pool_list_refresh() to detect the addition and removal of pools.
+ * Configuration changes are all handled within libzfs.
  */
 int
 zpool_do_iostat(int argc, char **argv)
 {
 	int c;
 	int ret;
-	int npools;
 	float interval = 0;
 	unsigned long count = 0;
 	zpool_list_t *list;
@@ -6618,25 +6599,30 @@ zpool_do_iostat(int argc, char **argv)
 		return (1);
 	}
 
+	int last_npools = 0;
 	for (;;) {
-		if ((npools = pool_list_count(list)) == 0)
+		/*
+		 * Refresh all pools in list, adding or removing pools as
+		 * necessary.
+		 */
+		int npools = pool_list_refresh(list);
+		if (npools == 0) {
 			(void) fprintf(stderr, gettext("no pools available\n"));
-		else {
+		} else {
+			/*
+			 * If the list of pools has changed since last time
+			 * around, reset the iteration count to force the
+			 * header to be redisplayed.
+			 */
+			if (last_npools != npools)
+				cb.cb_iteration = 0;
+
 			/*
 			 * If this is the first iteration and -y was supplied
 			 * we skip any printing.
 			 */
 			boolean_t skip = (omit_since_boot &&
 			    cb.cb_iteration == 0);
-
-			/*
-			 * Refresh all statistics.  This is done as an
-			 * explicit step before calculating the maximum name
-			 * width, so that any * configuration changes are
-			 * properly accounted for.
-			 */
-			(void) pool_list_iter(list, B_FALSE, refresh_iostat,
-			    &cb);
 
 			/*
 			 * Iterate over all pools to determine the maximum width
@@ -6728,6 +6714,8 @@ zpool_do_iostat(int argc, char **argv)
 
 		(void) fflush(stdout);
 		(void) fsleep(interval);
+
+		last_npools = npools;
 	}
 
 	pool_list_free(list);
@@ -7644,7 +7632,7 @@ zpool_do_replace(int argc, char **argv)
 }
 
 /*
- * zpool attach [-fsw] [-o property=value] <pool> <device>|<vdev> <new_device>
+ * zpool attach [-fsw] [-o property=value] <pool> <vdev> <new_device>
  *
  *	-f	Force attach, even if <new_device> appears to be in use.
  *	-s	Use sequential instead of healing reconstruction for resilver.
@@ -7652,9 +7640,9 @@ zpool_do_replace(int argc, char **argv)
  *	-w	Wait for resilvering (mirror) or expansion (raidz) to complete
  *		before returning.
  *
- * Attach <new_device> to a <device> or <vdev>, where the vdev can be of type
- * mirror or raidz. If <device> is not part of a mirror, then <device> will
- * be transformed into a mirror of <device> and <new_device>. When a mirror
+ * Attach <new_device> to a <vdev>, where the vdev can be of type
+ * device, mirror or raidz. If <vdev> is not part of a mirror, then <vdev> will
+ * be transformed into a mirror of <vdev> and <new_device>. When a mirror
  * is involved, <new_device> will begin life with a DTL of [0, now], and will
  * immediately begin to resilver itself. For the raidz case, a expansion will
  * commence and reflow the raidz data across all the disks including the
