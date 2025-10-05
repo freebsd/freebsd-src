@@ -864,10 +864,6 @@ foffset_lock(struct file *fp, int flags)
 		    FILE_V_FOFFSET_LOCK_WAITING);
 	}
 
-	/*
-	 * According to McKusick the vn lock was protecting f_offset here.
-	 * It is now protected by the FOFFSET_LOCKED flag.
-	 */
 	return (atomic_load_long(&fp->f_offset));
 }
 
