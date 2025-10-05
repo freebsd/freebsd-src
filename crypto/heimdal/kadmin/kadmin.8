@@ -31,7 +31,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd Feb  22, 2007
+.Dd October 5, 2025
 .Dt KADMIN 8
 .Os HEIMDAL
 .Sh NAME
@@ -286,14 +286,39 @@ When running in local mode, the following commands can also be used:
 .Pp
 .Nm dump
 .Op Fl d | Fl Fl decrypt
+.Op Fl f Ns Ar format | Fl Fl format= Ns Ar format
 .Op Ar dump-file
 .Bd -ragged -offset indent
 Writes the database in
-.Dq human readable
+.Dq machine readable text
 form to the specified file, or standard out. If the database is
 encrypted, the dump will also have encrypted keys, unless
 .Fl Fl decrypt
 is used.
+.Pp
+If
+.Fl Fl format=MIT
+is used then the dump will be in MIT format.
+This option may be used if you require that all principal
+passwords be changed after loading the dump into an MIT KDC database.
+.Pp
+If
+.Fl Fl format=<keytab-file>
+is used, the
+.Dq <keytab-file>
+should hold the master key for the
+MIT KDC (usually a file called /var/db/krb5kdc/.k5.YOUR.REALM).
+This will cause the keys to be re-encrypted in the MIT master
+key as well as doing the dump in MIT format.
+When this dump is loaded into the MIT KDC's database,
+the principals that had at least one strong encryption type
+key should work and any keytabs for those principals should still work.
+The principcals with only weak encryption keys will require a
+.Dq change_password
+be done on the MIT KDC to get them working.
+The
+.Fl Fl decrypt
+flag is meaningless for this case.
 .Ed
 .Pp
 .Nm init
