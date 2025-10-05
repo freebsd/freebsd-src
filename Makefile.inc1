@@ -522,6 +522,8 @@ BUILDENV_SHELL?=${SHELL}
 BUILDENV_SHELL?=/bin/sh
 .endif
 
+.if !defined(_MKSHOWCONFIG)
+
 .if !defined(GIT_CMD) || empty(GIT_CMD)
 . for _P in /usr/bin /usr/local/bin
 .  if exists(${_P}/git)
@@ -582,6 +584,7 @@ EXTRA_REVISION=	p${_BRANCH:C/.*-p([0-9]+$)/\1/}
 .if !defined(PKG_VERSION)
 PKG_VERSION:=	${_PKG_REVISION}${EXTRA_REVISION:C/[[:space:]]//g}
 .endif
+
 .endif	# !defined(_MKSHOWCONFIG)
 
 .if make(*package*)
