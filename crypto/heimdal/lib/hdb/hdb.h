@@ -99,7 +99,7 @@ typedef struct hdb_entry_ex {
  * query the backend database when talking about principals.
  */
 
-typedef struct HDB{
+typedef struct HDB {
     void *hdb_db;
     void *hdb_dbc; /** don't use, only for DB3 */
     char *hdb_name;
@@ -256,6 +256,8 @@ typedef struct HDB{
      * Check if s4u2self is allowed from this client to this server
      */
     krb5_error_code (*hdb_check_s4u2self)(krb5_context, struct HDB *, hdb_entry_ex *, krb5_const_principal);
+    int hdb_mit_key_set;
+    hdb_master_key hdb_mit_key;
 }HDB;
 
 #define HDB_INTERFACE_VERSION	7
@@ -264,6 +266,17 @@ struct hdb_so_method {
     int version;
     const char *prefix;
     krb5_error_code (*create)(krb5_context, HDB **, const char *filename);
+};
+
+/* dump entry format, for hdb_print_entry() */
+typedef enum hdb_dump_format {
+    HDB_DUMP_HEIMDAL = 0,
+    HDB_DUMP_MIT = 1,
+} hdb_dump_format_t;
+
+struct hdb_print_entry_arg {
+    FILE *out;
+    hdb_dump_format_t fmt;
 };
 
 typedef krb5_error_code (*hdb_foreach_func_t)(krb5_context, HDB*,

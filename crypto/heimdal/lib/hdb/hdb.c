@@ -168,13 +168,14 @@ hdb_unlock(int fd)
 void
 hdb_free_entry(krb5_context context, hdb_entry_ex *ent)
 {
-    size_t i;
+    Key *k;
+    int i;
 
     if (ent->free_entry)
 	(*ent->free_entry)(context, ent);
 
-    for(i = 0; i < ent->entry.keys.len; ++i) {
-	Key *k = &ent->entry.keys.val[i];
+    for(i = 0; i < ent->entry.keys.len; i++) {
+	k = &ent->entry.keys.val[i];
 
 	memset (k->key.keyvalue.data, 0, k->key.keyvalue.length);
     }

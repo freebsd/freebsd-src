@@ -58,6 +58,10 @@ change(void *server_handle,
     if(ret)
 	goto out;
 
+    ret = hdb_add_current_keys_to_history(context->context, &ent.entry);
+    if (ret)
+	goto out;
+
     if (context->db->hdb_capability_flags & HDB_CAP_F_HANDLE_PASSWORDS) {
 	ret = context->db->hdb_password(context->context, context->db,
 					&ent, password, cond);
@@ -170,6 +174,9 @@ kadm5_s_chpass_principal_with_key(void *server_handle,
 				      HDB_F_GET_ANY|HDB_F_ADMIN_DATA, &ent);
     if(ret)
 	goto out;
+    ret = hdb_add_current_keys_to_history(context->context, &ent.entry);
+    if (ret)
+        goto out2;
     ret = _kadm5_set_keys2(context, &ent.entry, n_key_data, key_data);
     if(ret)
 	goto out2;
