@@ -869,7 +869,7 @@ _thread_lock(struct thread *td)
 		WITNESS_LOCK(&m->lock_object, LOP_EXCLUSIVE, file, line);
 		return;
 	}
-	_mtx_release_lock_quick(m);
+	atomic_store_rel_ptr(&m->mtx_lock, MTX_UNOWNED);
 slowpath_unlocked:
 	spinlock_exit();
 slowpath_noirq:
@@ -959,7 +959,7 @@ retry:
 		}
 		if (m == td->td_lock)
 			break;
-		_mtx_release_lock_quick(m);
+		atomic_store_rel_ptr(&m->mtx_lock, MTX_UNOWNED);
 	}
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
@@ -1071,7 +1071,7 @@ __mtx_unlock_sleep(volatile uintptr_t *c, uintptr_t v)
 	 * can be removed from the hash list if it is empty.
 	 */
 	turnstile_chain_lock(&m->lock_object);
-	_mtx_release_lock_quick(m);
+	atomic_store_rel_ptr(&m->mtx_lock, MTX_UNOWNED);
 	ts = turnstile_lookup(&m->lock_object);
 	MPASS(ts != NULL);
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
