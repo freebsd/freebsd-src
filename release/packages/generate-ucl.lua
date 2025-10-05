@@ -1,7 +1,7 @@
 #!/usr/libexec/flua
 
 --[[ usage:
-generare-ucl.lua [<variablename> <variablevalue>]... <sourceucl> <destucl>
+generate-ucl.lua [<variablename> <variablevalue>]... <sourceucl> <destucl>
 
 Build a package's UCL configuration by loading the template UCL file
 <sourceucl>, replacing any $VARIABLES in the UCL based on the provided

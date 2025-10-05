@@ -21,7 +21,7 @@ comment = "LZMA2 data compression"
 desc = <<EOD
 xz compresses data using the LZMA2 data compression algorithm.  This package
 provides the front-end xz(1) utility, and the liblzma library which allows
-applications to use this functionality programatically.
+applications to use this functionality programmatically.
 EOD
 
 annotations {
