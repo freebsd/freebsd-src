@@ -36,12 +36,12 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/rwlock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
-#include <sys/vnode.h>
+#include <sys/rwlock.h>
 #include <sys/smr.h>
+#include <sys/vnode.h>
 
 #include <fs/nullfs/null.h>
 
@@ -143,7 +143,7 @@ null_hashget(struct mount *mp, struct vnode *lowervp)
 	struct vnode *vp;
 	enum vgetstate vs;
 
-	ASSERT_VOP_LOCKED(lowervp, "null_hashget");
+	ASSERT_VOP_LOCKED(lowervp, __func__);
 	rw_assert(&null_hash_lock, RA_UNLOCKED);
 
 	vfs_smr_enter();
