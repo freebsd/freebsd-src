@@ -2842,6 +2842,15 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_mkesdb} \
     ${_zic} \
     ${LOCAL_BSTOOL_DIRS}
+# We don't enforce any particular uniqueness of targets in the above list; it
+# may be the case that different bootstrap tools may have shared dependencies
+# at different BOOTSTRAPPING points, so we don't object to them using their own
+# conditionals and duplicating them into their ${_foo} variable to ease future
+# maintenance if we purge some entries.  These target names are purposefully
+# unique and this is the only place that should be generating commands for them,
+# but the target may have been defined earlier to express dependencies -- thus,
+# we specifically want commands() here.
+.if !commands(${_bt}-${_tool})
 ${_bt}-${_tool}: ${_bt}-links .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
@@ -2851,8 +2860,8 @@ ${_bt}-${_tool}: ${_bt}-links .PHONY .MAKE
 		fi; \
 		${MAKE} DIRPRFX=${_tool}/ all; \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${WORLDTMP}/legacy install
-
 bootstrap-tools: ${_bt}-${_tool}
+.endif
 .endfor
 .if target(${_bt}-lib/libmd)
 # If we are bootstrapping libmd (e.g. when building on macOS/Linux) add the
