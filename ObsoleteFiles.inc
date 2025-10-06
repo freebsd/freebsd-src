@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20251006: Remove libnss_tacplus.a (it never should have been installed)
+OLD_FILES+=usr/lib/libnss_tacplus.a
+
 # 20251003: kgdb python scripts moved
 OLD_FILES+=usr/libexec/kgdb/acttrace.py
 OLD_DIRS+=usr/libexec/kgdb
