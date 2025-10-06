@@ -263,10 +263,10 @@
 } while (0)
 
 #define SCTP_INP_LOCK_CONTENDED(_inp)					\
-	((_inp)->inp_mtx.mtx_lock & MTX_CONTESTED)
+	((_inp)->inp_mtx.mtx_lock & MTX_WAITERS)
 
 #define SCTP_INP_READ_CONTENDED(_inp)					\
-	((_inp)->inp_rdata_mtx.mtx_lock & MTX_CONTESTED)
+	((_inp)->inp_rdata_mtx.mtx_lock & MTX_WAITERS)
 
 #ifdef SCTP_LOCK_LOGGING
 #define SCTP_INP_RLOCK(_inp)	do { 					\
@@ -337,7 +337,7 @@
 } while (0)
 
 #define SCTP_ASOC_CREATE_LOCK_CONTENDED(_inp)				\
-	((_inp)->inp_create_mtx.mtx_lock & MTX_CONTESTED)
+	((_inp)->inp_create_mtx.mtx_lock & MTX_WAITERS)
 
 /*
  * For the majority of things (once we have found the association) we will
