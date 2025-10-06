@@ -3,7 +3,7 @@ SRCS=		${LIB}.c
 SHLIB_MAJOR=	1
 SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 LIBADD=		tacplus
-MK_INSTALLIB=	no
+MK_INSTALLLIB=	no
 MAN=		${LIB}.8
 
 .include <bsd.lib.mk>
