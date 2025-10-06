@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20251006: Remove libnss_tacplus.a (it never should have been installed)
+OLD_FILES+=usr/lib/libnss_tacplus.a
+
 # 20250812: Remove a bogus manlink
 OLD_FILES+=usr/share/man/man3/quota_statfs.3.gz
 
