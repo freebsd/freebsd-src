@@ -573,8 +573,8 @@ ahci_pci_attach(device_t dev)
 			ctlr->r_msix_table = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 			    &ctlr->r_msix_tab_rid, RF_ACTIVE);
 			if (ctlr->r_msix_table == NULL) {
-				ahci_free_mem(dev);
-				return (ENXIO);
+				msix_count = 0;
+				goto no_msix;
 			}
 		}
 
@@ -589,12 +589,12 @@ ahci_pci_attach(device_t dev)
 			ctlr->r_msix_pba = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 			    &ctlr->r_msix_pba_rid, RF_ACTIVE);
 			if (ctlr->r_msix_pba == NULL) {
-				ahci_free_mem(dev);
-				return (ENXIO);
+				msix_count = 0;
 			}
 		}
 	}
 
+no_msix:
 	pci_enable_busmaster(dev);
 	/* Reset controller */
 	if ((error = ahci_pci_ctlr_reset(dev)) != 0) {
