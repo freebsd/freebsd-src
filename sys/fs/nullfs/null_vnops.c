@@ -788,9 +788,9 @@ null_lock_prep_with_smr(struct vop_lock1_args *ap)
 	struct null_node *nn;
 	struct vnode *lvp;
 
-	vfs_smr_enter();
-
 	lvp = NULL;
+
+	vfs_smr_enter();
 
 	nn = VTONULL_SMR(ap->a_vp);
 	if (__predict_true(nn != NULL)) {
@@ -855,6 +855,8 @@ null_lock(struct vop_lock1_args *ap)
 	 * case by reacquiring correct lock in requested mode.
 	 */
 	if (VTONULL(ap->a_vp) == NULL && error == 0) {
+		VOP_UNLOCK(lvp);
+
 		flags = ap->a_flags;
 		ap->a_flags &= ~LK_TYPE_MASK;
 		switch (flags & LK_TYPE_MASK) {
@@ -869,7 +871,6 @@ null_lock(struct vop_lock1_args *ap)
 			panic("Unsupported lock request %d\n",
 			    flags);
 		}
-		VOP_UNLOCK(lvp);
 		error = vop_stdlock(ap);
 	}
 	vdrop(lvp);
