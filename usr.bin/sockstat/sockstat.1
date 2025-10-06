@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 15, 2024
+.Dd October 7, 2025
 .Dt SOCKSTAT 1
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Nd list open sockets
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46CcfIiLlnqSsUuvw
+.Op Fl 46bCcfIiLlnqSsUuvw
 .Op Fl j Ar jail
 .Op Fl p Ar ports
 .Op Fl P Ar protocols
@@ -54,6 +54,9 @@ Show
 Show
 .Dv AF_INET6
 (IPv6) sockets.
+.It Fl b
+Show the BBLog state of the socket.
+This is currently only implemented for TCP.
 .It Fl C
 Display the congestion control module, if applicable.
 This is currently only implemented for TCP.
@@ -195,6 +198,10 @@ is specified (only for SCTP).
 The connection state if
 .Fl s
 is specified (only for SCTP or TCP).
+.It Li BBLOG STATE
+The BBLog state if
+.Fl b
+is specified (only for TCP).
 .It Li STACK
 The protocol stack if
 .Fl S

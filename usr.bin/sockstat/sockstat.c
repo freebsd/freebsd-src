@@ -52,6 +52,7 @@
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_var.h>
+#include <netinet/tcp_log_buf.h>
 #include <arpa/inet.h>
 
 #include <capsicum_helpers.h>
@@ -81,6 +82,7 @@
 
 static int	 opt_4;		/* Show IPv4 sockets */
 static int	 opt_6;		/* Show IPv6 sockets */
+static bool	 opt_b;		/* Show BBLog state */
 static int	 opt_C;		/* Show congestion control */
 static int	 opt_c;		/* Show connected sockets */
 static int	 opt_f;		/* Show FIB numbers */
@@ -143,6 +145,7 @@ struct sock {
 	int proto;
 	int state;
 	int fibnum;
+	int bblog_state;
 	const char *protoname;
 	char stack[TCP_FUNCTION_NAME_LEN_MAX];
 	char cc[TCP_CA_NAME_MAX];
@@ -797,6 +800,7 @@ gather_inet(int proto)
 		sock->vflag = xip->inp_vflag;
 		if (proto == IPPROTO_TCP) {
 			sock->state = xtp->t_state;
+			sock->bblog_state = xtp->t_logstate;
 			memcpy(sock->stack, xtp->xt_stack,
 			    TCP_FUNCTION_NAME_LEN_MAX);
 			memcpy(sock->cc, xtp->xt_cc, TCP_CA_NAME_MAX);
@@ -1105,6 +1109,37 @@ sctp_path_state(int state)
 	}
 }
 
+static const char *
+bblog_state(int state)
+{
+	switch (state) {
+	case TCP_LOG_STATE_OFF:
+		return "OFF";
+		break;
+	case TCP_LOG_STATE_TAIL:
+		return "TAIL";
+		break;
+	case TCP_LOG_STATE_HEAD:
+		return "HEAD";
+		break;
+	case TCP_LOG_STATE_HEAD_AUTO:
+		return "HEAD_AUTO";
+		break;
+	case TCP_LOG_STATE_CONTINUAL:
+		return "CONTINUAL";
+		break;
+	case TCP_LOG_STATE_TAIL_AUTO:
+		return "TAIL_AUTO";
+		break;
+	case TCP_LOG_VIA_BBPOINTS:
+		return "BBPOINTS";
+		break;
+	default:
+		return "UNKNOWN";
+		break;
+	}
+}
+
 static void
 displaysock(struct sock *s, int pos)
 {
@@ -1299,6 +1334,16 @@ displaysock(struct sock *s, int pos)
 				}
 				offset += 13;
 			}
+			if (opt_b) {
+				if (s->proto == IPPROTO_TCP) {
+					do
+						pos += xprintf(" ");
+					while (pos < offset);
+					pos += xprintf("%s",
+					    bblog_state(s->bblog_state));
+				}
+				offset += 13;
+			}
 			if (opt_S) {
 				if (s->proto == IPPROTO_TCP) {
 					do
@@ -1359,6 +1404,8 @@ display(void)
 			printf(" %-12s", "PATH STATE");
 			printf(" %-12s", "CONN STATE");
 		}
+		if (opt_b)
+			printf(" %-12s", "BBLOG STATE");
 		if (opt_S)
 			printf(" %-*.*s", TCP_FUNCTION_NAME_LEN_MAX,
 			    TCP_FUNCTION_NAME_LEN_MAX, "STACK");
@@ -1477,7 +1524,7 @@ static void
 usage(void)
 {
 	errx(1,
-    "usage: sockstat [-46CcfIiLlnqSsUuvw] [-j jid] [-p ports] [-P protocols]");
+    "usage: sockstat [-46bCcfIiLlnqSsUuvw] [-j jid] [-p ports] [-P protocols]");
 }
 
 int
@@ -1491,13 +1538,16 @@ main(int argc, char *argv[])
 	int o, i;
 
 	opt_j = -1;
-	while ((o = getopt(argc, argv, "46CcfIij:Llnp:P:qSsUuvw")) != -1)
+	while ((o = getopt(argc, argv, "46bCcfIij:Llnp:P:qSsUuvw")) != -1)
 		switch (o) {
 		case '4':
 			opt_4 = 1;
 			break;
 		case '6':
 			opt_6 = 1;
+			break;
+		case 'b':
+			opt_b = true;
 			break;
 		case 'C':
 			opt_C = 1;
