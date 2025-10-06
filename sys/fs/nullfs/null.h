@@ -53,7 +53,7 @@ struct null_mount {
  * A cache of vnode references
  */
 struct null_node {
-	CK_LIST_ENTRY(null_node) null_hash;	/* Hash list */
+	CK_SLIST_ENTRY(null_node) null_hash;	/* Hash list */
 	struct vnode	        *null_lowervp;	/* VREFed once */
 	struct vnode		*null_vnode;	/* Back pointer */
 	u_int			null_flags;
