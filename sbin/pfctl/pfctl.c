@@ -2183,6 +2183,7 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pfctl_rule *r, int depth)
 {
 	u_int8_t		rs_num = pf_get_ruleset_number(r->action);
 	char			*name;
+	uint32_t		ticket;
 	char			anchor[PF_ANCHOR_NAME_SIZE];
 	int			len = strlen(path);
 	int			error;
@@ -2192,7 +2193,9 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pfctl_rule *r, int depth)
 	if ((pf->opts & PF_OPT_NOACTION) == 0) {
 		if (pf->trans == NULL)
 			errx(1, "pfctl_load_rule: no transaction");
-		pf->anchor->ruleset.tticket = pfctl_get_ticket(pf->trans, rs_num, path);
+		ticket = pfctl_get_ticket(pf->trans, rs_num, path);
+		if (rs_num == PF_RULESET_FILTER)
+			 pf->anchor->ruleset.tticket = ticket;
 	}
 	if (strlcpy(anchor, path, sizeof(anchor)) >= sizeof(anchor))
 		errx(1, "pfctl_load_rule: strlcpy");
@@ -2225,7 +2228,7 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pfctl_rule *r, int depth)
 			return (1);
 		if (pfctl_add_pool(pf, &r->route, PF_RT))
 			return (1);
-		error = pfctl_add_rule_h(pf->h, r, anchor, name, pf->anchor->ruleset.tticket,
+		error = pfctl_add_rule_h(pf->h, r, anchor, name, ticket,
 		    pf->paddr.ticket);
 		switch (error) {
 		case 0:
