@@ -39,18 +39,28 @@
 .Nm ice
 .Nd Intel Ethernet 800 Series Driver
 .Sh SYNOPSIS
-To compile this driver into the kernel, place the following lines in your
-kernel configuration file:
-.Bd -literal -offset indent
 .Cd device iflib
 .Cd device ice
-.Ed
 .Pp
-To load the driver as a module at boot time, place the following lines in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-if_ice_load="YES"
-.Ed
+.Cd if_ice_load
+.Cd hw.ice.enable_health_events
+.Cd hw.ice.irdma
+.Cd hw.ice.irdma_max_msix
+.Cd hw.ice.debug.enable_tx_fc_filter
+.Cd hw.ice.debug.enable_tx_lldp_filter
+.Cd hw.ice.debug.ice_tx_balance_en
+.Pp
+In
+.Xr sysctl.conf 5
+or
+.Xr loader.conf 5 :
+.Cd dev.ice.#.current_speed
+.Cd dev.ice.#.fw_version
+.Cd dev.ice.#.ddp_version
+.Cd dev.ice.#.pba_number
+.Cd dev.ice.#.hw.mac.*
 .Sh DESCRIPTION
 .Ss Features
 The
