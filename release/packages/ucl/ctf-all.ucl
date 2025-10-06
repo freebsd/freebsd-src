@@ -30,7 +30,7 @@ CTF is intended specifically for runtime program analyzers such as DTrace.
 
 This package provides the ctfconvert(1), ctfdump(1) and ctfmerge(1) utilities
 which are used to work with CTF data, and the libctf library which allows
-application to access CTF debugging information programmatically.
+applications to access CTF debugging information programmatically.
 EOD
 
 licenses = [ "CDDL-1.0" ]
