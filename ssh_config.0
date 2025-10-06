@@ -266,13 +266,13 @@ DESCRIPTION
 
              direct-tcpip, direct-streamlocal@openssh.com
                      Open TCP or Unix socket (respectively) connections that
-                     have been established from a ssh(1) local forwarding,
+                     have been established from an ssh(1) local forwarding,
                      i.e. LocalForward or DynamicForward.
 
              forwarded-tcpip, forwarded-streamlocal@openssh.com
                      Open TCP or Unix socket (respectively) connections that
-                     have been established to a sshd(8) listening on behalf of
-                     a ssh(1) remote forwarding, i.e. RemoteForward.
+                     have been established to an sshd(8) listening on behalf
+                     of an ssh(1) remote forwarding, i.e. RemoteForward.
 
              session
                      The interactive main session, including shell session,
@@ -729,18 +729,18 @@ DESCRIPTION
              from the system configuration file.  Include directive may appear
              inside a Match or Host block to perform conditional inclusion.
 
-     IPQoS   Specifies the IPv4 type-of-service or DSCP class for connections.
-             Accepted values are af11, af12, af13, af21, af22, af23, af31,
-             af32, af33, af41, af42, af43, cs0, cs1, cs2, cs3, cs4, cs5, cs6,
-             cs7, ef, le, lowdelay, throughput, reliability, a numeric value,
-             or none to use the operating system default.  This option may
-             take one or two arguments, separated by whitespace.  If one
-             argument is specified, it is used as the packet class
-             unconditionally.  If two values are specified, the first is
-             automatically selected for interactive sessions and the second
-             for non-interactive sessions.  The default is af21 (Low-Latency
-             Data) for interactive sessions and cs1 (Lower Effort) for non-
-             interactive sessions.
+     IPQoS   Specifies the Differentiated Services Field Codepoint (DSCP)
+             value for connections.  Accepted values are af11, af12, af13,
+             af21, af22, af23, af31, af32, af33, af41, af42, af43, cs0, cs1,
+             cs2, cs3, cs4, cs5, cs6, cs7, ef, le, a numeric value, or none to
+             use the operating system default.  This option may take one or
+             two arguments, separated by whitespace.  If one argument is
+             specified, it is used as the packet class unconditionally.  If
+             two values are specified, the first is automatically selected for
+             interactive sessions and the second for non-interactive sessions.
+             The default is ef (Expedited Forwarding) for interactive sessions
+             and none (the operating system default) for non-interactive
+             sessions.
 
      KbdInteractiveAuthentication
              Specifies whether to use keyboard-interactive authentication.
@@ -979,8 +979,8 @@ DESCRIPTION
              Specifies one or more jump proxies as either [user@]host[:port]
              or an ssh URI.  Multiple proxies may be separated by comma
              characters and will be visited sequentially.  Setting this option
-             will cause ssh(1) to connect to the target host by first making a
-             ssh(1) connection to the specified ProxyJump host and then
+             will cause ssh(1) to connect to the target host by first making
+             an ssh(1) connection to the specified ProxyJump host and then
              establishing a TCP forwarding to the ultimate target from there.
              Setting the host to none disables this option entirely.
 
@@ -1034,6 +1034,14 @@ DESCRIPTION
              authentication while respectively disabling or enabling the
              OpenSSH host-bound authentication protocol extension required for
              restricted ssh-agent(1) forwarding.
+
+     RefuseConnection
+             Allows a connection to be refused by the configuration file.  If
+             this option is specified, then ssh(1) will terminate immediately
+             before attempting to connect to the remote host, display an error
+             message that contains the argument to this keyword and return a
+             non-zero exit status.  This option may be useful to express
+             reminders or warnings to the user via ssh_config.
 
      RekeyLimit
              Specifies the maximum amount of data that may be transmitted or
@@ -1348,6 +1356,15 @@ DESCRIPTION
              printed at login and only the fingerprint string will be printed
              for unknown host keys.
 
+     WarnWeakCrypto
+             controls whether the user is warned when the cryptographic
+             algorithms negotiated for the connection are weak or otherwise
+             recommended against.  Warnings may be disabled by turning off a
+             specific warning or by disabling all warnings.  Warnings about
+             connections that don't use a post-quantum key exchange may be
+             disabled using the no-pq-kex flag.  no will disable all warnings.
+             The default, equivalent to yes, is to enable all warnings.
+
      XAuthLocation
              Specifies the full pathname of the xauth(1) program.  The default
              is /usr/X11R6/bin/xauth.
@@ -1472,4 +1489,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.6                      March 3, 2025                     OpenBSD 7.6
+OpenBSD 7.7                     October 4, 2025                    OpenBSD 7.7

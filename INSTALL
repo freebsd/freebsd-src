@@ -245,7 +245,7 @@ manually using the following commands:
 
     ssh-keygen -t [type] -f /etc/ssh/ssh_host_key -N ""
 
-for each of the types you wish to generate (rsa, dsa or ecdsa) or
+for each of the types you wish to generate (rsa, ed25519 or ecdsa) or
 
     ssh-keygen -A
 

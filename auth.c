@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.c,v 1.162 2024/09/15 01:18:26 djm Exp $ */
+/* $OpenBSD: auth.c,v 1.163 2025/09/15 04:39:15 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -35,9 +35,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
-#ifdef HAVE_PATHS_H
-# include <paths.h>
-#endif
+#include <paths.h>
 #include <pwd.h>
 #ifdef HAVE_LOGIN_H
 #include <login.h>
@@ -758,6 +756,7 @@ auth_activate_options(struct ssh *ssh, struct sshauthopt *opts)
 		error("Inconsistent authentication options: %s", emsg);
 		return -1;
 	}
+	sshauthopt_free(old);
 	return 0;
 }
 

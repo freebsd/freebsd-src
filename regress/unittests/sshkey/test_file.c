@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_file.c,v 1.12 2024/08/15 00:52:23 djm Exp $ */
+/* 	$OpenBSD: test_file.c,v 1.13 2025/05/06 06:05:48 djm Exp $ */
 /*
  * Regress test for sshkey.h key management API
  *
@@ -11,9 +11,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
-#ifdef HAVE_STDINT_H
 #include <stdint.h>
-#endif
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -21,7 +19,6 @@
 #ifdef WITH_OPENSSL
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
-#include <openssl/dsa.h>
 #include <openssl/objects.h>
 #ifdef OPENSSL_HAS_NISTP256
 # include <openssl/ec.h>
@@ -164,99 +161,6 @@ sshkey_file_tests(void)
 	TEST_DONE();
 
 	sshkey_free(k1);
-
-#ifdef WITH_DSA
-	TEST_START("parse DSA from private");
-	buf = load_file("dsa_1");
-	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k1, NULL), 0);
-	sshbuf_free(buf);
-	ASSERT_PTR_NE(k1, NULL);
-	a = load_bignum("dsa_1.param.g");
-	b = load_bignum("dsa_1.param.priv");
-	c = load_bignum("dsa_1.param.pub");
-	ASSERT_BIGNUM_EQ(dsa_g(k1), a);
-	ASSERT_BIGNUM_EQ(dsa_priv_key(k1), b);
-	ASSERT_BIGNUM_EQ(dsa_pub_key(k1), c);
-	BN_free(a);
-	BN_free(b);
-	BN_free(c);
-	TEST_DONE();
-
-	TEST_START("parse DSA from private w/ passphrase");
-	buf = load_file("dsa_1_pw");
-	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf,
-	    (const char *)sshbuf_ptr(pw), &k2, NULL), 0);
-	sshbuf_free(buf);
-	ASSERT_PTR_NE(k2, NULL);
-	ASSERT_INT_EQ(sshkey_equal(k1, k2), 1);
-	sshkey_free(k2);
-	TEST_DONE();
-
-	TEST_START("parse DSA from new-format");
-	buf = load_file("dsa_n");
-	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k2, NULL), 0);
-	sshbuf_free(buf);
-	ASSERT_PTR_NE(k2, NULL);
-	ASSERT_INT_EQ(sshkey_equal(k1, k2), 1);
-	sshkey_free(k2);
-	TEST_DONE();
-
-	TEST_START("parse DSA from new-format w/ passphrase");
-	buf = load_file("dsa_n_pw");
-	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf,
-	    (const char *)sshbuf_ptr(pw), &k2, NULL), 0);
-	sshbuf_free(buf);
-	ASSERT_PTR_NE(k2, NULL);
-	ASSERT_INT_EQ(sshkey_equal(k1, k2), 1);
-	sshkey_free(k2);
-	TEST_DONE();
-
-	TEST_START("load DSA from public");
-	ASSERT_INT_EQ(sshkey_load_public(test_data_file("dsa_1.pub"), &k2,
-	    NULL), 0);
-	ASSERT_PTR_NE(k2, NULL);
-	ASSERT_INT_EQ(sshkey_equal(k1, k2), 1);
-	sshkey_free(k2);
-	TEST_DONE();
-
-	TEST_START("load DSA cert");
-	ASSERT_INT_EQ(sshkey_load_cert(test_data_file("dsa_1"), &k2), 0);
-	ASSERT_PTR_NE(k2, NULL);
-	ASSERT_INT_EQ(k2->type, KEY_DSA_CERT);
-	ASSERT_INT_EQ(sshkey_equal(k1, k2), 0);
-	ASSERT_INT_EQ(sshkey_equal_public(k1, k2), 1);
-	TEST_DONE();
-
-	TEST_START("DSA key hex fingerprint");
-	buf = load_text_file("dsa_1.fp");
-	cp = sshkey_fingerprint(k1, SSH_DIGEST_SHA256, SSH_FP_BASE64);
-	ASSERT_PTR_NE(cp, NULL);
-	ASSERT_STRING_EQ(cp, (const char *)sshbuf_ptr(buf));
-	sshbuf_free(buf);
-	free(cp);
-	TEST_DONE();
-
-	TEST_START("DSA cert hex fingerprint");
-	buf = load_text_file("dsa_1-cert.fp");
-	cp = sshkey_fingerprint(k2, SSH_DIGEST_SHA256, SSH_FP_BASE64);
-	ASSERT_PTR_NE(cp, NULL);
-	ASSERT_STRING_EQ(cp, (const char *)sshbuf_ptr(buf));
-	sshbuf_free(buf);
-	free(cp);
-	sshkey_free(k2);
-	TEST_DONE();
-
-	TEST_START("DSA key bubblebabble fingerprint");
-	buf = load_text_file("dsa_1.fp.bb");
-	cp = sshkey_fingerprint(k1, SSH_DIGEST_SHA1, SSH_FP_BUBBLEBABBLE);
-	ASSERT_PTR_NE(cp, NULL);
-	ASSERT_STRING_EQ(cp, (const char *)sshbuf_ptr(buf));
-	sshbuf_free(buf);
-	free(cp);
-	TEST_DONE();
-
-	sshkey_free(k1);
-#endif
 
 #ifdef OPENSSL_HAS_ECC
 	TEST_START("parse ECDSA from private");

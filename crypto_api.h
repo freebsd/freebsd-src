@@ -10,9 +10,7 @@
 
 #include "includes.h"
 
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
+#include <stdint.h>
 #include <stdlib.h>
 
 typedef int8_t crypto_int8;

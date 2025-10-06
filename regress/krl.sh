@@ -1,4 +1,4 @@
-#	$OpenBSD: krl.sh,v 1.12 2023/01/16 04:11:29 djm Exp $
+#	$OpenBSD: krl.sh,v 1.13 2025/05/06 06:05:48 djm Exp $
 #	Placed in the Public Domain.
 
 tid="key revocation lists"
@@ -11,7 +11,6 @@ for t in $SSH_KEYTYPES; do
 	case "$t" in
 		ecdsa*)		ktype2=ecdsa ;;
 		ssh-rsa)	ktype3=rsa ;;
-		ssh-dss)	ktype4=dsa ;;
 		sk-ssh-ed25519@openssh.com)		ktype5=ed25519-sk ;;
 		sk-ecdsa-sha2-nistp256@openssh.com)	ktype6=ecdsa-sk ;;
 	esac

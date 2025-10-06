@@ -4,7 +4,7 @@ NAME
      ssh-add M-bM-^@M-^S adds private key identities to the OpenSSH authentication agent
 
 SYNOPSIS
-     ssh-add [-CcDdKkLlqvXx] [-E fingerprint_hash] [-H hostkey_file]
+     ssh-add [-CcDdKkLlNqvXx] [-E fingerprint_hash] [-H hostkey_file]
              [-h destination_constraint] [-S provider] [-t life] [file ...]
      ssh-add -s pkcs11 [-Cv] [certificate ...]
      ssh-add -e pkcs11
@@ -120,6 +120,12 @@ DESCRIPTION
      -l      Lists fingerprints of all identities currently represented by the
              agent.
 
+     -N      When adding certificates, by default ssh-add will request that
+             the agent automatically delete the certificate shortly after the
+             certificate's expiry date.  This flag suppresses this behaviour
+             and does not specify a lifetime for certificates added to an
+             agent.
+
      -q      Be quiet after a successful operation.
 
      -S provider
@@ -206,4 +212,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.6                      June 17, 2024                     OpenBSD 7.6
+OpenBSD 7.7                   September 11, 2025                   OpenBSD 7.7

@@ -1,4 +1,4 @@
-name: Upstream self-hosted
+name: OpenBSD
 
 on:
   push:
@@ -11,7 +11,6 @@ jobs:
     if: github.repository == 'openssh/openssh-portable-selfhosted'
     runs-on: ${{ matrix.host }}
     env:
-      DEBUG_ACTIONS: true
       EPHEMERAL: true
       HOST:  ${{ matrix.host }}
       TARGET_HOST: ${{ matrix.target }}
@@ -23,11 +22,11 @@ jobs:
         host:
           - libvirt
         target: [ obsdsnap, obsdsnap-i386 ]
-        config: [ default, without-openssl, ubsan ]
+        config: [ default, without-openssl ]  # TODO: restore 'ubsan' once fixed
         include:
           - { host: libvirt-arm64, target: obsdsnap-arm64, config: default }
           - { host: libvirt-arm64, target: obsdsnap-arm64, config: without-openssl }
-          - { host: libvirt-arm64, target: obsdsnap-arm64, config: ubsan }
+          # - { host: libvirt-arm64, target: obsdsnap-arm64, config: ubsan }
     steps:
     - name: unmount stale workspace
       run: fusermount -u ${GITHUB_WORKSPACE} || true
@@ -43,7 +42,9 @@ jobs:
       run: sshfs_mount
       working-directory: ${{ runner.temp }}
     - name: update source
-      run: vmrun "cd /usr/src && cvs up -dPA usr.bin/ssh regress/usr.bin/ssh"
+      run: vmrun "cd /usr/src && cvs -q up -dPA usr.bin/ssh regress/usr.bin/ssh usr.bin/nc"
+    - name: update netcat
+      run: vmrun "cd /usr/src/usr.bin/nc && make clean all && sudo make install"
     - name: make clean
       run: vmrun "cd /usr/src/usr.bin/ssh && make obj && make clean && cd /usr/src/regress/usr.bin/ssh && make obj && make clean && sudo chmod -R g-w /usr/src /usr/obj"
     - name: make

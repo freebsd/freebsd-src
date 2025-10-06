@@ -1,4 +1,4 @@
-#	$OpenBSD: hostbased.sh,v 1.4 2022/12/07 11:45:43 dtucker Exp $
+#	$OpenBSD: hostbased.sh,v 1.5 2025/05/06 06:05:48 djm Exp $
 #	Placed in the Public Domain.
 
 # This test requires external setup and thus is skipped unless
@@ -43,7 +43,6 @@ for key in `${SUDO} ${SSHD} -T | awk '$1=="hostkey"{print $2}'`; do
 	521*ECDSA*)	algos="$algos ecdsa-sha2-nistp521" ;;
 	*RSA*)		algos="$algos ssh-rsa rsa-sha2-256 rsa-sha2-512" ;;
 	*ED25519*)	algos="$algos ssh-ed25519" ;;
-	*DSA*)		algos="$algos ssh-dss" ;;
 	*) verbose "unknown host key type $key" ;;
 	esac
 done

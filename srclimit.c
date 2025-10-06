@@ -119,7 +119,7 @@ srclimit_init(int max, int persource, int ipv4len, int ipv6len,
 	debug("%s: max connections %d, per source %d, masks %d,%d", __func__,
 	    max, persource, ipv4len, ipv6len);
 	if (max <= 0)
-		fatal("%s: invalid number of sockets: %d", __func__, max);
+		fatal_f("invalid number of sockets: %d", max);
 	children = xcalloc(max_children, sizeof(*children));
 	for (i = 0; i < max_children; i++)
 		children[i].id = -1;
@@ -136,7 +136,7 @@ srclimit_check_allow(int sock, int id)
 	if (max_persource == INT_MAX)	/* no limit */
 		return 1;
 
-	debug("%s: sock %d id %d limit %d", __func__, sock, id, max_persource);
+	debug_f("sock %d id %d limit %d", sock, id, max_persource);
 	if (srclimit_peer_addr(sock, &xa) != 0)
 		return 1;
 	bits = xa.af == AF_INET ? ipv4_masklen : ipv6_masklen;
@@ -154,14 +154,14 @@ srclimit_check_allow(int sock, int id)
 		}
 	}
 	if (addr_ntop(&xa, xas, sizeof(xas)) != 0) {
-		debug3("%s: addr ntop failed", __func__);
+		debug3_f("addr ntop failed");
 		return 1;
 	}
 	debug3("%s: new unauthenticated connection from %s/%d, at %d of %d",
 	    __func__, xas, bits, count, max_persource);
 
 	if (first_unused == max_children) { /* no free slot found */
-		debug3("%s: no free slot", __func__);
+		debug3_f("no free slot");
 		return 0;
 	}
 	if (first_unused < 0 || first_unused >= max_children)
@@ -185,7 +185,7 @@ srclimit_done(int id)
 	if (max_persource == INT_MAX)	/* no limit */
 		return;
 
-	debug("%s: id %d", __func__, id);
+	debug_f("id %d", id);
 	/* Clear corresponding state entry. */
 	for (i = 0; i < max_children; i++) {
 		if (children[i].id == id) {
@@ -427,7 +427,9 @@ srclimit_penalise(struct xaddr *addr, int penalty_type)
 			penalty->active = 1;
 		if (RB_INSERT(penalties_by_expiry, by_expiry, penalty) != NULL)
 			fatal_f("internal error: %s penalty tables corrupt", t);
-		verbose_f("%s: new %s %s penalty of %d seconds for %s", t,
+		do_log2_f(penalty->active ?
+		    SYSLOG_LEVEL_INFO : SYSLOG_LEVEL_VERBOSE,
+		    "%s: new %s %s penalty of %d seconds for %s", t,
 		    addrnetmask, penalty->active ? "active" : "deferred",
 		    penalty_secs, reason);
 		if (++(*npenaltiesp) > (size_t)max_sources)
@@ -446,7 +448,7 @@ srclimit_penalise(struct xaddr *addr, int penalty_type)
 		existing->expiry = now + penalty_cfg.penalty_max;
 	if (existing->expiry - now > penalty_cfg.penalty_min &&
 	    !existing->active) {
-		verbose_f("%s: activating %s penalty of %lld seconds for %s",
+		logit_f("%s: activating %s penalty of %lld seconds for %s",
 		    addrnetmask, t, (long long)(existing->expiry - now),
 		    reason);
 		existing->active = 1;

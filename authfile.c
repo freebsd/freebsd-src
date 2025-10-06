@@ -1,4 +1,4 @@
-/* $OpenBSD: authfile.c,v 1.145 2024/09/22 12:56:21 jsg Exp $ */
+/* $OpenBSD: authfile.c,v 1.147 2025/08/29 03:50:38 djm Exp $ */
 /*
  * Copyright (c) 2000, 2013 Markus Friedl.  All rights reserved.
  *
@@ -131,8 +131,6 @@ sshkey_load_private_type(int type, const char *filename, const char *passphrase,
 		goto out;
 
 	r = sshkey_load_private_type_fd(fd, type, passphrase, keyp, commentp);
-	if (r == 0 && keyp && *keyp)
-		r = sshkey_set_filename(*keyp, filename);
  out:
 	close(fd);
 	return r;
@@ -183,8 +181,6 @@ sshkey_load_pubkey_from_private(const char *filename, struct sshkey **pubkeyp)
 	if ((r = sshbuf_load_fd(fd, &buffer)) != 0 ||
 	    (r = sshkey_parse_pubkey_from_private_fileblob_type(buffer,
 	    KEY_UNSPEC, &pubkey)) != 0)
-		goto out;
-	if ((r = sshkey_set_filename(pubkey, filename)) != 0)
 		goto out;
 	/* success */
 	if (pubkeyp != NULL) {
@@ -328,11 +324,9 @@ sshkey_load_private_cert(int type, const char *filename, const char *passphrase,
 	switch (type) {
 #ifdef WITH_OPENSSL
 	case KEY_RSA:
-	case KEY_DSA:
 	case KEY_ECDSA:
 #endif /* WITH_OPENSSL */
 	case KEY_ED25519:
-	case KEY_XMSS:
 	case KEY_UNSPEC:
 		break;
 	default:

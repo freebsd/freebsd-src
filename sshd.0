@@ -306,7 +306,7 @@ AUTHORIZED_KEYS FILE FORMAT
              The command originally supplied by the client is available in the
              SSH_ORIGINAL_COMMAND environment variable.  Note that this option
              applies to shell, command or subsystem execution.  Also note that
-             this command may be superseded by a sshd_config(5) ForceCommand
+             this command may be superseded by an sshd_config(5) ForceCommand
              directive.
 
              If a command is specified and a forced-command is embedded in a
@@ -684,4 +684,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 7.6                   September 15, 2024                   OpenBSD 7.6
+OpenBSD 7.7                     October 4, 2025                    OpenBSD 7.7

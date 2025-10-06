@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.234 2024/11/27 13:00:23 djm Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.236 2025/10/04 21:41:35 naddy Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: November 27 2024 $
+.Dd $Mdocdate: October 4 2025 $
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -600,7 +600,7 @@ When used in combination with
 .Fl s
 or
 .Fl Y Cm sign ,
-this option indicates that a CA key resides in a
+this option indicates that a CA key resides in an
 .Xr ssh-agent 1 .
 See the
 .Sx CERTIFICATES
@@ -878,9 +878,6 @@ Write the last line processed to the specified file while performing DH
 candidate screening.
 This will be used to skip lines in the input file that have already been
 processed if the job is restarted.
-.It Ic memory Ns = Ns Ar mbytes
-Specify the amount of memory to use (in megabytes) when generating
-candidate moduli for DH-GEX.
 .It Ic start Ns = Ns Ar hex-value
 Specify start point (in hex) when generating candidate moduli for DH-GEX.
 .It Ic generator Ns = Ns Ar value
@@ -927,7 +924,7 @@ to
 .Pp
 .Dl $ ssh-keygen -s ca_key.pub -D libpkcs11.so -I key_id user_key.pub
 .Pp
-Similarly, it is possible for the CA key to be hosted in a
+Similarly, it is possible for the CA key to be hosted in an
 .Xr ssh-agent 1 .
 This is indicated by the
 .Fl U
@@ -1189,7 +1186,7 @@ Revokes the specified key by including its SHA256 hash in the KRL.
 KRLs that revoke keys by SHA256 hash are not supported by OpenSSH versions
 prior to 7.9.
 .It Cm hash : Ar fingerprint
-Revokes a key using a fingerprint hash, as obtained from a
+Revokes a key using a fingerprint hash, as obtained from an
 .Xr sshd 8
 authentication log message or the
 .Nm

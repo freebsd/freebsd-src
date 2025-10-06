@@ -77,11 +77,17 @@ main(void)
 		fail("utimensat", 0, 0);
 
 	if (stat(TMPFILE, &sb) == -1)
-		fail("stat", 0, 0 );
+		fail("stat", 0, 0);
+#if 0
+	/*
+	 * This test only works on filesystems mounted 'noatime', otherwise the
+	 * stat() above resets atime. Skip by default.
+	 */
 	if (sb.st_atime != 12345678)
-		fail("st_atime", 0, 0 );
+		fail("st_atime", 0, 0);
+#endif
 	if (sb.st_mtime != 34567890)
-		fail("st_mtime", 0, 0 );
+		fail("st_mtime", 0, 0);
 #if 0
 	/*
 	 * Results expected to be rounded to the nearest microsecond.

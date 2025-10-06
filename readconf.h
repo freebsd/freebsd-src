@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.h,v 1.159 2025/02/15 01:48:30 djm Exp $ */
+/* $OpenBSD: readconf.h,v 1.161 2025/08/11 10:55:38 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -49,8 +49,8 @@ typedef struct {
 	int     strict_host_key_checking;	/* Strict host key checking. */
 	int     compression;	/* Compress packets in both directions. */
 	int     tcp_keep_alive;	/* Set SO_KEEPALIVE. */
-	int	ip_qos_interactive;	/* IP ToS/DSCP/class for interactive */
-	int	ip_qos_bulk;		/* IP ToS/DSCP/class for bulk traffic */
+	int	ip_qos_interactive;	/* DSCP value for interactive */
+	int	ip_qos_bulk;		/* DSCP value for bulk traffic */
 	SyslogFacility log_facility;	/* Facility for system logging. */
 	LogLevel log_level;	/* Level for logging. */
 	u_int	num_log_verbose;	/* Verbose log overrides */
@@ -67,6 +67,7 @@ typedef struct {
 	char   *macs;		/* SSH2 macs in order of preference. */
 	char   *hostkeyalgorithms;	/* SSH2 server key types in order of preference. */
 	char   *kex_algorithms;	/* SSH2 kex methods in order of preference. */
+	int	kex_algorithms_set; /* KexAlgorithms was set by the user */
 	char   *ca_sign_algorithms;	/* Allowed CA signature algorithms */
 	char   *hostname;	/* Real host to connect. */
 	char   *tag;		/* Configuration tag name. */
@@ -180,6 +181,7 @@ typedef struct {
 	int	required_rsa_size;	/* minimum size of RSA keys */
 	int	enable_escape_commandline;	/* ~C commandline */
 	int	obscure_keystroke_timing_interval;
+	int	warn_weak_crypto;
 
 	char	**channel_timeouts;	/* inactivity timeout by channel type */
 	u_int	num_channel_timeouts;

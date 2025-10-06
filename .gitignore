@@ -6,6 +6,7 @@ config.log
 config.status
 openbsd-compat/Makefile
 openbsd-compat/regress/Makefile
+openbsd-compat/include
 openssh.xml
 opensshd.init
 survey.sh

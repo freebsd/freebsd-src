@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd-session.c,v 1.12 2025/03/12 22:43:44 djm Exp $ */
+/* $OpenBSD: sshd-session.c,v 1.16 2025/09/25 06:45:50 djm Exp $ */
 /*
  * SSH2 implementation:
  * Privilege Separation:
@@ -32,12 +32,8 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#ifdef HAVE_SYS_STAT_H
-# include <sys/stat.h>
-#endif
-#ifdef HAVE_SYS_TIME_H
-# include <sys/time.h>
-#endif
+#include <sys/stat.h>
+#include <sys/time.h>
 #include "openbsd-compat/sys-tree.h"
 #include "openbsd-compat/sys-queue.h"
 #include <sys/wait.h>
@@ -45,9 +41,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
-#ifdef HAVE_PATHS_H
-# include <paths.h>
-#endif
+#include <paths.h>
 #include <pwd.h>
 #include <grp.h>
 #include <signal.h>
@@ -290,7 +284,7 @@ reseed_prngs(void)
 	RAND_seed(rnd, sizeof(rnd));
 	/* give libcrypto a chance to notice the PID change */
 	if ((RAND_bytes((u_char *)rnd, 1)) != 1)
-		fatal("%s: RAND_bytes failed", __func__);
+		fatal_f("RAND_bytes failed");
 #endif
 
 	explicit_bzero(rnd, sizeof(rnd));
@@ -336,7 +330,7 @@ pack_hostkeys(void)
 static int
 privsep_preauth(struct ssh *ssh)
 {
-	int status, r;
+	int r;
 	pid_t pid;
 
 	/* Set up unprivileged child process to deal with network data */
@@ -358,23 +352,7 @@ privsep_preauth(struct ssh *ssh)
 			}
 		}
 		monitor_child_preauth(ssh, pmonitor);
-
-		/* Wait for the child's exit status */
-		while (waitpid(pid, &status, 0) == -1) {
-			if (errno == EINTR)
-				continue;
-			pmonitor->m_pid = -1;
-			fatal_f("waitpid: %s", strerror(errno));
-		}
 		privsep_is_preauth = 0;
-		pmonitor->m_pid = -1;
-		if (WIFEXITED(status)) {
-			if (WEXITSTATUS(status) != 0)
-				fatal_f("preauth child exited with status %d",
-				    WEXITSTATUS(status));
-		} else if (WIFSIGNALED(status))
-			fatal_f("preauth child terminated by signal %d",
-			    WTERMSIG(status));
 		return 1;
 	} else {
 		/* child */
@@ -485,12 +463,10 @@ get_hostkey_by_type(int type, int nid, int need_private, struct ssh *ssh)
 	for (i = 0; i < options.num_host_key_files; i++) {
 		switch (type) {
 		case KEY_RSA_CERT:
-		case KEY_DSA_CERT:
 		case KEY_ECDSA_CERT:
 		case KEY_ED25519_CERT:
 		case KEY_ECDSA_SK_CERT:
 		case KEY_ED25519_SK_CERT:
-		case KEY_XMSS_CERT:
 			key = sensitive_data.host_certificates[i];
 			break;
 		default:
@@ -1208,6 +1184,8 @@ main(int ac, char **av)
 		fatal("Unable to create connection");
 	the_active_state = ssh;
 	ssh_packet_set_server(ssh);
+	ssh_packet_set_qos(ssh, options.ip_qos_interactive,
+	    options.ip_qos_bulk);
 
 	check_ip_options(ssh);
 

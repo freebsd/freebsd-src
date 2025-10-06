@@ -1,12 +1,14 @@
 #!/bin/sh
 
-# Copyright (c) 1999-2024 Philip Hands <phil@hands.com>
+# Copyright (c) 1999-2025 Philip Hands <phil@hands.com>
+#               2025 Denis Ovsienko <denis@ovsienko.info>
+#               2024 Frank Fischer <f.fischer@freifunk-nordhessen.de>
 #               2021 Carlos Rodríguez Gili <carlos.rodriguez-gili@upc.edu>
 #               2020 Matthias Blümel <blaimi@blaimi.de>
 #               2017 Sebastien Boyron <seb@boyron.eu>
 #               2013 Martin Kletzander <mkletzan@redhat.com>
 #               2010 Adeodato =?iso-8859-1?Q?Sim=F3?= <asp16@alu.ua.es>
-#               2010 Eric Moret <eric.moret@gmail.com>
+#               2010 Eric Moret
 #               2009 Xr <xr@i-jeuxvideo.com>
 #               2007 Justin Pryzby <justinpryzby@users.sourceforge.net>
 #               2004 Reini Urban <rurban@x-ray.at>
@@ -284,14 +286,17 @@ installkeys_sh() {
   #    the -z `tail ...` checks for a trailing newline. The echo adds one if was missing
   #    the cat adds the keys we're getting via STDIN
   #    and if available restorecon is used to restore the SELinux context
-  # OpenWrt has a special case for root only.
-  INSTALLKEYS_SH=$(tr '\t\n' ' ' <<-EOF
+  # OpenWrt has a special case for root/UID:0.  Haiku is also special.
+  INSTALLKEYS_SH=$(tr -s '\t\n' ' ' <<-EOF
 	$SET_X
 	cd;
 	umask 077;
 	AUTH_KEY_FILE="${TARGET_PATH}";
-	[ -f /etc/openwrt_release ] && [ "\$LOGNAME" = "root" ] &&
+	[ -f /etc/openwrt_release ] &&
+		{ [ "\$LOGNAME" = "root" ] || [ "\$(id -u)" = "0" ]; } &&
 		AUTH_KEY_FILE=/etc/dropbear/authorized_keys;
+	[ "\`uname -s\`" = "Haiku" ] &&
+		AUTH_KEY_FILE=config/settings/ssh/authorized_keys;
 	AUTH_KEY_DIR=\`dirname "\${AUTH_KEY_FILE}"\`;
 	mkdir -p "\${AUTH_KEY_DIR}" &&
 		{ [ -z "\`tail -1c "\${AUTH_KEY_FILE}" 2>/dev/null\`" ] ||

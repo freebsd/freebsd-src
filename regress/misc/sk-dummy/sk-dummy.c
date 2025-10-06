@@ -1,3 +1,4 @@
+/* $OpenBSD: sk-dummy.c,v 1.16 2025/06/17 01:24:32 djm Exp $ */
 /*
  * Copyright (c) 2019 Markus Friedl
  *
@@ -16,9 +17,7 @@
 
 #include "includes.h"
 
-#ifdef HAVE_STDINT_H
 #include <stdint.h>
-#endif
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -263,7 +262,7 @@ sk_enroll(uint32_t alg, const uint8_t *challenge, size_t challenge_len,
 		break;
 	default:
 		skdebug(__func__, "unsupported key type %d", alg);
-		return -1;
+		goto out;
 	}
 	/* Have to return something here */
 	if ((response->signature = calloc(1, 1)) == NULL) {
@@ -520,7 +519,7 @@ sk_sign(uint32_t alg, const uint8_t *data, size_t datalen,
 		break;
 	default:
 		skdebug(__func__, "unsupported key type %d", alg);
-		return -1;
+		goto out;
 	}
 	*sign_response = response;
 	response = NULL;

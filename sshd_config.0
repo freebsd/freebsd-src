@@ -254,13 +254,13 @@ DESCRIPTION
 
              direct-tcpip, direct-streamlocal@openssh.com
                      Open TCP or Unix socket (respectively) connections that
-                     have been established from a ssh(1) local forwarding,
+                     have been established from an ssh(1) local forwarding,
                      i.e. LocalForward or DynamicForward.
 
              forwarded-tcpip, forwarded-streamlocal@openssh.com
                      Open TCP or Unix socket (respectively) connections that
-                     have been established to a sshd(8) listening on behalf of
-                     a ssh(1) remote forwarding, i.e. RemoteForward.
+                     have been established to an sshd(8) listening on behalf
+                     of an ssh(1) remote forwarding, i.e. RemoteForward.
 
              session
                      The interactive main session, including shell session,
@@ -577,18 +577,18 @@ DESCRIPTION
              directive may appear inside a Match block to perform conditional
              inclusion.
 
-     IPQoS   Specifies the IPv4 type-of-service or DSCP class for the
-             connection.  Accepted values are af11, af12, af13, af21, af22,
-             af23, af31, af32, af33, af41, af42, af43, cs0, cs1, cs2, cs3,
-             cs4, cs5, cs6, cs7, ef, le, lowdelay, throughput, reliability, a
-             numeric value, or none to use the operating system default.  This
-             option may take one or two arguments, separated by whitespace.
-             If one argument is specified, it is used as the packet class
-             unconditionally.  If two values are specified, the first is
-             automatically selected for interactive sessions and the second
-             for non-interactive sessions.  The default is af21 (Low-Latency
-             Data) for interactive sessions and cs1 (Lower Effort) for non-
-             interactive sessions.
+     IPQoS   Specifies the Differentiated Services Field Codepoint (DSCP)
+             value for the connection.  Accepted values are af11, af12, af13,
+             af21, af22, af23, af31, af32, af33, af41, af42, af43, cs0, cs1,
+             cs2, cs3, cs4, cs5, cs6, cs7, ef, le, a numeric value, or none to
+             use the operating system default.  This option may take one or
+             two arguments, separated by whitespace.  If one argument is
+             specified, it is used as the packet class unconditionally.  If
+             two values are specified, the first is automatically selected for
+             interactive sessions and the second for non-interactive sessions.
+             The default is ef (Expedited Forwarding) for interactive sessions
+             and none (the operating system default) for non-interactive
+             sessions.
 
      KbdInteractiveAuthentication
              Specifies whether to allow keyboard-interactive authentication.
@@ -1416,4 +1416,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 7.6                    February 15, 2025                   OpenBSD 7.6
+OpenBSD 7.7                     October 4, 2025                    OpenBSD 7.7

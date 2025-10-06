@@ -34,7 +34,7 @@ DESCRIPTION
      -c      Request certificates from target hosts instead of plain keys.
 
      -D      Print keys found as SSHFP DNS records.  The default is to print
-             keys in a format usable as a ssh(1) known_hosts file.
+             keys in a format usable as an ssh(1) known_hosts file.
 
      -f file
              Read hosts or M-bM-^@M-^\addrlist namelistM-bM-^@M-^] pairs from file, one per line.
@@ -120,4 +120,4 @@ AUTHORS
      Davison <wayned@users.sourceforge.net> added support for protocol version
      2.
 
-OpenBSD 7.6                      June 17, 2024                     OpenBSD 7.6
+OpenBSD 7.7                     October 4, 2025                    OpenBSD 7.7

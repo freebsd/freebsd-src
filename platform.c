@@ -183,17 +183,26 @@ platform_locked_account(struct passwd *pw)
 	/* check for locked account */
 	if (passwd && *passwd) {
 #ifdef LOCKED_PASSWD_STRING
-		if (strcmp(passwd, LOCKED_PASSWD_STRING) == 0)
+		if (strcmp(passwd, LOCKED_PASSWD_STRING) == 0) {
+			debug3_f("password matches locked string '%s'",
+			    LOCKED_PASSWD_STRING);
 			locked = 1;
+		}
 #endif
 #ifdef LOCKED_PASSWD_PREFIX
 		if (strncmp(passwd, LOCKED_PASSWD_PREFIX,
-		    strlen(LOCKED_PASSWD_PREFIX)) == 0)
+		    strlen(LOCKED_PASSWD_PREFIX)) == 0) {
+			debug3_f("password matches locked prefix '%s'",
+			    LOCKED_PASSWD_PREFIX);
 			locked = 1;
+		}
 #endif
 #ifdef LOCKED_PASSWD_SUBSTR
-		if (strstr(passwd, LOCKED_PASSWD_SUBSTR))
+		if (strstr(passwd, LOCKED_PASSWD_SUBSTR)) {
+			debug3_f("password matches locked substring '%s'",
+			   LOCKED_PASSWD_SUBSTR);
 			locked = 1;
+		}
 #endif
 	}
 #ifdef USE_LIBIAF

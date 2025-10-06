@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-agent.1,v 1.82 2025/02/09 18:24:08 schwarze Exp $
+.\" $OpenBSD: ssh-agent.1,v 1.86 2025/10/04 21:41:35 naddy Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: February 9 2025 $
+.Dd $Mdocdate: October 4 2025 $
 .Dt SSH-AGENT 1
 .Os
 .Sh NAME
@@ -43,13 +43,14 @@
 .Sh SYNOPSIS
 .Nm ssh-agent
 .Op Fl c | s
-.Op Fl \&Dd
+.Op Fl \&DdTU
 .Op Fl a Ar bind_address
 .Op Fl E Ar fingerprint_hash
 .Op Fl O Ar option
 .Op Fl P Ar allowed_providers
 .Op Fl t Ar life
 .Nm ssh-agent
+.Op Fl TU
 .Op Fl a Ar bind_address
 .Op Fl E Ar fingerprint_hash
 .Op Fl O Ar option
@@ -59,6 +60,8 @@
 .Nm ssh-agent
 .Op Fl c | s
 .Fl k
+.Nm ssh-agent
+.Fl u
 .Sh DESCRIPTION
 .Nm
 is a program to hold private keys used for public key authentication.
@@ -74,8 +77,8 @@ Bind the agent to the
 .Ux Ns -domain
 socket
 .Ar bind_address .
-The default is
-.Pa $TMPDIR/ssh-XXXXXXXXXX/agent.\*(Ltppid\*(Gt .
+The default is to create a socket at a random path matching
+.Pa $HOME/.ssh/agent/s.* .
 .It Fl c
 Generate C-shell commands on standard output.
 This is the default if
@@ -136,9 +139,9 @@ By default,
 refuses signature requests for FIDO keys where the key application string
 does not start with
 .Dq ssh:
-and when the data to be signed does not appear to be a
+and when the data to be signed does not appear to be an
 .Xr ssh 1
-user authentication request or a
+user authentication request or an
 .Xr ssh-keygen 1
 signature.
 The default behaviour prevents forwarded access to a FIDO key from also
@@ -173,6 +176,11 @@ Generate Bourne shell commands on standard output.
 This is the default if
 .Ev SHELL
 does not look like it's a csh style of shell.
+.It Fl T
+Bind the agent socket in a randomised subdirectory of the form
+.Pa $TMPDIR/ssh-XXXXXXXXXX/agent.\*(Ltppid\*(Gt ,
+instead of the default behaviour of using a randomised name matching
+.Pa $HOME/.ssh/agent/s.* .
 .It Fl t Ar life
 Set a default value for the maximum lifetime of identities added to the agent.
 The lifetime may be specified in seconds or in a time format specified in
@@ -181,6 +189,20 @@ A lifetime specified for an identity with
 .Xr ssh-add 1
 overrides this value.
 Without this option the default maximum lifetime is forever.
+.It Fl U
+Instructs
+.Nm
+not to clean up stale agent sockets under
+.Pa $HOME/.ssh/agent/ .
+.It Fl u
+Instructs
+.Nm
+to only clean up stale agent sockets under
+.Pa $HOME/.ssh/agent/
+and then exit immediately.
+If this option is given twice,
+.Nm
+will delete stale agent sockets regardless of the host name that created them.
 .It Ar command Op Ar arg ...
 If a command (and optional arguments) is given,
 this is executed as a subprocess of the agent.
@@ -286,7 +308,7 @@ but is easily abused by root or another instance of the same user.
 .El
 .Sh FILES
 .Bl -tag -width Ds
-.It Pa $TMPDIR/ssh-XXXXXXXXXX/agent.<ppid>
+.It Pa $HOME/.ssh/agent/s.*
 .Ux Ns -domain
 sockets used to contain the connection to the authentication agent.
 These sockets should only be readable by the owner.

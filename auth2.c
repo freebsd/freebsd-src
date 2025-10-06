@@ -145,7 +145,7 @@ userauth_send_banner(struct ssh *ssh, const char *msg)
 	    (r = sshpkt_put_cstring(ssh, "")) != 0 ||	/* language, unused */
 	    (r = sshpkt_send(ssh)) != 0)
 		fatal_fr(r, "send packet");
-	debug("%s: sent", __func__);
+	debug_f("sent");
 }
 
 static void

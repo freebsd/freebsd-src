@@ -30,10 +30,12 @@ ssh-copy-id:
 Phil Hands' <phil@hands.com> shell script to automate the process of adding
 your public key to a remote machine's ~/.ssh/authorized_keys file.
 
-gnome-ssh-askpass[12]:
+gnome-ssh-askpass[1234]:
 
-A GNOME and Gtk2 passphrase requesters. Use "make gnome-ssh-askpass1" or
-"make gnome-ssh-askpass2" to build.
+Graphical passhrase requesters. Use "make gnome-ssh-askpass1" to build
+a variant for ancient GNOME desktop, "make gnome-ssh-askpass2"
+for a GTK 2-based one, "make gnome-ssh-askpass3" for a GTK 3-based one,
+or "make gnome-ssh-askpass4" for a version for modern GNOME.
 
 sshd.pam.generic:
 

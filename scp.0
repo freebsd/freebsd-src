@@ -11,7 +11,7 @@ SYNOPSIS
 DESCRIPTION
      scp copies files between hosts on a network.
 
-     scp uses the SFTP protocol over a ssh(1) connection for data transfer,
+     scp uses the SFTP protocol over an ssh(1) connection for data transfer,
      and uses the same authentication and provides the same security as a
      login session.
 
@@ -30,11 +30,11 @@ DESCRIPTION
      The options are as follows:
 
      -3      Copies between two remote hosts are transferred through the local
-             host.  Without this option the data is copied directly between
-             the two remote hosts.  Note that, when using the legacy SCP
-             protocol (via the -O flag), this option selects batch mode for
-             the second host as scp cannot ask for passwords or passphrases
-             for both hosts.  This mode is the default.
+             host.  This mode is the default, but see also the -R option for
+             copying data directly between two remote hosts.  Note that when
+             using the legacy SCP protocol (via the -O flag), this option
+             selects batch mode for the second host as scp cannot ask for
+             passwords or passphrases for both hosts.
 
      -4      Forces scp to use IPv4 addresses only.
 
@@ -203,10 +203,12 @@ DESCRIPTION
      -q      Quiet mode: disables the progress meter as well as warning and
              diagnostic messages from ssh(1).
 
-     -R      Copies between two remote hosts are performed by connecting to
-             the origin host and executing scp there.  This requires that scp
-             running on the origin host can authenticate to the destination
-             host without requiring a password.
+     -R      Copies between two remote hosts are transferred through the local
+             host by default.  This option instead copies between two remote
+             hosts by connecting to the origin host and executing scp there.
+             This requires that scp running on the origin host can
+             authenticate to the destination host without requiring a
+             password.
 
      -r      Recursively copy entire directories.  Note that scp follows
              symbolic links encountered in the tree traversal.
@@ -268,4 +270,4 @@ CAVEATS
      requires careful quoting of any characters that have special meaning to
      the remote shell, such as quote characters.
 
-OpenBSD 7.6                    December 6, 2024                    OpenBSD 7.6
+OpenBSD 7.7                     October 4, 2025                    OpenBSD 7.7

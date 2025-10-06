@@ -1,4 +1,4 @@
-#	$OpenBSD: sshsig.sh,v 1.15 2023/10/12 03:51:08 djm Exp $
+#	$OpenBSD: sshsig.sh,v 1.16 2025/09/11 07:23:32 djm Exp $
 #	Placed in the Public Domain.
 
 tid="sshsig"
@@ -255,7 +255,7 @@ for t in $SIGNKEYS; do
 	# Check signing keys using ssh-agent.
 	trace "$tid: key type $t prepare agent"
 	${SSHADD} -D >/dev/null 2>&1 # Remove all previously-loaded keys.
-	${SSHADD} ${privkey} > /dev/null 2>&1 || fail "ssh-add failed"
+	${SSHADD} -N ${privkey} > /dev/null 2>&1 || fail "ssh-add failed"
 
 	# Move private key to ensure agent key is used
 	mv ${privkey} ${privkey}.tmp

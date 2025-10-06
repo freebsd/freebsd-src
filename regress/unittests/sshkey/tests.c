@@ -1,4 +1,4 @@
-/* 	$OpenBSD: tests.c,v 1.1 2014/06/24 01:14:18 djm Exp $ */
+/* 	$OpenBSD: tests.c,v 1.2 2025/04/15 04:00:42 djm Exp $ */
 /*
  * Regress test for sshbuf.h buffer API
  *
@@ -12,6 +12,7 @@
 void sshkey_tests(void);
 void sshkey_file_tests(void);
 void sshkey_fuzz_tests(void);
+void sshkey_benchmarks(void);
 
 void
 tests(void)
@@ -19,4 +20,11 @@ tests(void)
 	sshkey_tests();
 	sshkey_file_tests();
 	sshkey_fuzz_tests();
+}
+
+void
+benchmarks(void)
+{
+	printf("\n");
+	sshkey_benchmarks();
 }

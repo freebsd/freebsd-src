@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.198 2024/10/24 03:14:37 djm Exp $ */
+/* $OpenBSD: misc.c,v 1.208 2025/09/25 06:33:19 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005-2020 Damien Miller.  All rights reserved.
@@ -30,21 +30,13 @@
 #include <sys/un.h>
 
 #include <limits.h>
-#ifdef HAVE_LIBGEN_H
-# include <libgen.h>
-#endif
-#ifdef HAVE_POLL_H
+#include <libgen.h>
 #include <poll.h>
-#endif
-#ifdef HAVE_NLIST_H
 #include <nlist.h>
-#endif
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -60,11 +52,9 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
-#ifdef HAVE_PATHS_H
-# include <paths.h>
+#include <paths.h>
 #include <pwd.h>
 #include <grp.h>
-#endif
 #ifdef SSH_TUN_OPENBSD
 #include <net/if.h>
 #endif
@@ -101,10 +91,13 @@ rtrim(char *s)
 
 	if ((i = strlen(s)) == 0)
 		return;
-	for (i--; i > 0; i--) {
+	do {
+		i--;
 		if (isspace((unsigned char)s[i]))
 			s[i] = '\0';
-	}
+		else
+			break;
+	} while (i > 0);
 }
 
 /*
@@ -297,6 +290,10 @@ set_sock_tos(int fd, int tos)
 #ifndef IP_TOS_IS_BROKEN
 	int af;
 
+	if (tos < 0 || tos == INT_MAX) {
+		debug_f("invalid TOS %d", tos);
+		return;
+	}
 	switch ((af = get_sock_af(fd))) {
 	case -1:
 		/* assume not a socket */
@@ -483,7 +480,7 @@ strdelim_internal(char **s, int split_equals)
 }
 
 /*
- * Return next token in configuration line; splts on whitespace or a
+ * Return next token in configuration line; splits on whitespace or a
  * single '=' character.
  */
 char *
@@ -493,7 +490,7 @@ strdelim(char **s)
 }
 
 /*
- * Return next token in configuration line; splts on whitespace only.
+ * Return next token in configuration line; splits on whitespace only.
  */
 char *
 strdelimw(char **s)
@@ -509,7 +506,7 @@ pwcopy(struct passwd *pw)
 	copy->pw_name = xstrdup(pw->pw_name);
 	copy->pw_passwd = xstrdup(pw->pw_passwd == NULL ? "*" : pw->pw_passwd);
 #ifdef HAVE_STRUCT_PASSWD_PW_GECOS
-	copy->pw_gecos = xstrdup(pw->pw_gecos);
+	copy->pw_gecos = xstrdup(pw->pw_gecos == NULL ? "" : pw->pw_gecos);
 #endif
 	copy->pw_uid = pw->pw_uid;
 	copy->pw_gid = pw->pw_gid;
@@ -520,11 +517,30 @@ pwcopy(struct passwd *pw)
 	copy->pw_change = pw->pw_change;
 #endif
 #ifdef HAVE_STRUCT_PASSWD_PW_CLASS
-	copy->pw_class = xstrdup(pw->pw_class);
+	copy->pw_class = xstrdup(pw->pw_class == NULL ? "" : pw->pw_class);
 #endif
-	copy->pw_dir = xstrdup(pw->pw_dir);
-	copy->pw_shell = xstrdup(pw->pw_shell);
+	copy->pw_dir = xstrdup(pw->pw_dir == NULL ? "" : pw->pw_dir);
+	copy->pw_shell = xstrdup(pw->pw_shell == NULL ? "" : pw->pw_shell);
 	return copy;
+}
+
+void
+pwfree(struct passwd *pw)
+{
+	if (pw == NULL)
+		return;
+	free(pw->pw_name);
+	freezero(pw->pw_passwd,
+	    pw->pw_passwd == NULL ? 0 : strlen(pw->pw_passwd));
+#ifdef HAVE_STRUCT_PASSWD_PW_GECOS
+	free(pw->pw_gecos);
+#endif
+#ifdef HAVE_STRUCT_PASSWD_PW_CLASS
+	free(pw->pw_class);
+#endif
+	free(pw->pw_dir);
+	free(pw->pw_shell);
+	freezero(pw, sizeof(*pw));
 }
 
 /*
@@ -990,7 +1006,7 @@ urldecode(const char *src)
 	size_t srclen;
 
 	if ((srclen = strlen(src)) >= SIZE_MAX)
-		fatal_f("input too large");
+		return NULL;
 	ret = xmalloc(srclen + 1);
 	for (dst = ret; *src != '\0'; src++) {
 		switch (*src) {
@@ -998,9 +1014,10 @@ urldecode(const char *src)
 			*dst++ = ' ';
 			break;
 		case '%':
+			/* note: don't allow \0 characters */
 			if (!isxdigit((unsigned char)src[1]) ||
 			    !isxdigit((unsigned char)src[2]) ||
-			    (ch = hexchar(src + 1)) == -1) {
+			    (ch = hexchar(src + 1)) == -1 || ch == 0) {
 				free(ret);
 				return NULL;
 			}
@@ -1885,9 +1902,9 @@ static const struct {
 	{ "cs7", IPTOS_DSCP_CS7 },
 	{ "ef", IPTOS_DSCP_EF },
 	{ "le", IPTOS_DSCP_LE },
-	{ "lowdelay", IPTOS_LOWDELAY },
-	{ "throughput", IPTOS_THROUGHPUT },
-	{ "reliability", IPTOS_RELIABILITY },
+	{ "lowdelay", INT_MIN },	/* deprecated */
+	{ "throughput", INT_MIN },	/* deprecated */
+	{ "reliability", INT_MIN },	/* deprecated */
 	{ NULL, -1 }
 };
 
@@ -1982,7 +1999,7 @@ sock_set_v6only(int s)
 #if defined(IPV6_V6ONLY) && !defined(__OpenBSD__)
 	int on = 1;
 
-	debug3("%s: set socket %d IPV6_V6ONLY", __func__, s);
+	debug3_f("set socket %d IPV6_V6ONLY", s);
 	if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) == -1)
 		error("setsockopt IPV6_V6ONLY: %s", strerror(errno));
 #endif
@@ -2254,7 +2271,7 @@ int
 safe_path(const char *name, struct stat *stp, const char *pw_dir,
     uid_t uid, char *err, size_t errlen)
 {
-	char buf[PATH_MAX], homedir[PATH_MAX];
+	char buf[PATH_MAX], buf2[PATH_MAX], homedir[PATH_MAX];
 	char *cp;
 	int comparehome = 0;
 	struct stat st;
@@ -2280,7 +2297,12 @@ safe_path(const char *name, struct stat *stp, const char *pw_dir,
 
 	/* for each component of the canonical path, walking upwards */
 	for (;;) {
-		if ((cp = dirname(buf)) == NULL) {
+		/*
+		 * POSIX allows dirname to modify its argument and return a
+		 * pointer into it, so make a copy to avoid overlapping strlcpy.
+		 */
+		strlcpy(buf2, buf, sizeof(buf2));
+		if ((cp = dirname(buf2)) == NULL) {
 			snprintf(err, errlen, "dirname() failed");
 			return -1;
 		}
@@ -2535,8 +2557,10 @@ format_absolute_time(uint64_t t, char *buf, size_t len)
 	time_t tt = t > SSH_TIME_T_MAX ? SSH_TIME_T_MAX : t;
 	struct tm tm;
 
-	localtime_r(&tt, &tm);
-	strftime(buf, len, "%Y-%m-%dT%H:%M:%S", &tm);
+	if (localtime_r(&tt, &tm) == NULL)
+		strlcpy(buf, "UNKNOWN-TIME", len);
+	else
+		strftime(buf, len, "%Y-%m-%dT%H:%M:%S", &tm);
 }
 
 /*
@@ -3058,7 +3082,7 @@ ptimeout_isset(struct timespec *pt)
 int
 lib_contains_symbol(const char *path, const char *s)
 {
-#ifdef HAVE_NLIST_H
+#ifdef HAVE_NLIST
 	struct nlist nl[2];
 	int ret = -1, r;
 
@@ -3078,7 +3102,7 @@ lib_contains_symbol(const char *path, const char *s)
  out:
 	free(nl[0].n_name);
 	return ret;
-#else /* HAVE_NLIST_H */
+#else /* HAVE_NLIST */
 	int fd, ret = -1;
 	struct stat st;
 	void *m = NULL;
@@ -3120,7 +3144,7 @@ lib_contains_symbol(const char *path, const char *s)
 		munmap(m, sz);
 	close(fd);
 	return ret;
-#endif /* HAVE_NLIST_H */
+#endif /* HAVE_NLIST */
 }
 
 int
@@ -3137,4 +3161,19 @@ signal_is_crash(int sig)
 		return 1;
 	}
 	return 0;
+}
+
+char *
+get_homedir(void)
+{
+	char *cp;
+	struct passwd *pw;
+
+	if ((cp = getenv("HOME")) != NULL && *cp != '\0')
+		return xstrdup(cp);
+
+	if ((pw = getpwuid(getuid())) != NULL && *pw->pw_dir != '\0')
+		return xstrdup(pw->pw_dir);
+
+	return NULL;
 }

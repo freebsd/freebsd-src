@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile.inc,v 1.16 2024/01/11 01:45:58 djm Exp $
+#	$OpenBSD: Makefile.inc,v 1.18 2025/05/06 06:05:48 djm Exp $
 
 .include <bsd.own.mk>
 .include <bsd.obj.mk>
@@ -7,6 +7,9 @@
 UNITTEST_FAST?= no	# Skip slow tests (e.g. less intensive fuzzing).
 UNITTEST_SLOW?= no	# Include slower tests (e.g. more intensive fuzzing).
 UNITTEST_VERBOSE?= no	# Verbose test output (inc. per-test names).
+UNITTEST_BENCHMARK?= no	# Run unit tests in benchmarking mode.
+UNITTEST_BENCH_DETAIL?=no # Detailed benchmark statistics.
+UNITTEST_BENCH_ONLY?=	# Run only these benchmarks
 
 MALLOC_OPTIONS?=	CFGJRSUX
 TEST_ENV?=		MALLOC_OPTIONS=${MALLOC_OPTIONS}
@@ -14,10 +17,6 @@ TEST_ENV?=		MALLOC_OPTIONS=${MALLOC_OPTIONS}
 # XXX detect from ssh binary?
 OPENSSL?=	yes
 DSAKEY?=	yes
-
-.if (${DSAKEY:L} == "yes")
-CFLAGS+=	-DWITH_DSA
-.endif
 
 .if (${OPENSSL:L} == "yes")
 CFLAGS+=	-DWITH_OPENSSL
@@ -69,8 +68,8 @@ DPADD+=${.CURDIR}/../test_helper/libtest_helper.a
 
 .PATH: ${.CURDIR}/${SSHREL}
 
-LDADD+= -lutil
-DPADD+= ${LIBUTIL}
+LDADD+= -lutil -lm
+DPADD+= ${LIBUTIL} ${LIBM}
 
 .if (${OPENSSL:L} == "yes")
 LDADD+= -lcrypto
@@ -82,11 +81,21 @@ DPADD+= ${LIBFIDO2} ${LIBCBOR} ${LIBUSBHID}
 
 UNITTEST_ARGS?=
 
-.if (${UNITTEST_VERBOSE:L} != "no")
+.if (${UNITTEST_VERBOSE:L:R} != "no")
 UNITTEST_ARGS+= -v
 .endif
-.if (${UNITTEST_FAST:L} != "no")
+.if (${UNITTEST_FAST:L:R} != "no")
 UNITTEST_ARGS+= -f
-.elif (${UNITTEST_SLOW:L} != "no")
+.elif (${UNITTEST_SLOW:L:R} != "no")
 UNITTEST_ARGS+= -F
+.endif
+
+.if (${UNITTEST_BENCHMARK:L:R} != "no")
+UNITTEST_ARGS+= -b
+.endif
+.if (${UNITTEST_BENCH_DETAIL:L:R} != "no")
+UNITTEST_ARGS+= -B
+.endif
+.if (${UNITTEST_BENCH_ONLY:L} != "")
+UNITTEST_ARGS+= -O "${UNITTEST_BENCH_ONLY}"
 .endif

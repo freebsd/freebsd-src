@@ -54,7 +54,7 @@ ssh_sandbox_init(struct monitor *monitor)
 {
 	struct ssh_sandbox *box;
 
-	debug3("%s: preparing capsicum sandbox", __func__);
+	debug3_f("preparing capsicum sandbox");
 	box = xcalloc(1, sizeof(*box));
 	box->m_recvfd = monitor->m_recvfd;
 	box->m_log_sendfd = monitor->m_log_sendfd;
@@ -97,13 +97,13 @@ ssh_sandbox_child(struct ssh_sandbox *box)
 	cap_rights_init(&rights, CAP_READ, CAP_WRITE);
 	if (cap_rights_limit(box->m_recvfd, &rights) < 0 &&
 	    errno != ENOSYS)
-		fatal("%s: failed to limit the network socket", __func__);
+		fatal_f("failed to limit the network socket");
 	cap_rights_init(&rights, CAP_WRITE);
 	if (cap_rights_limit(box->m_log_sendfd, &rights) < 0 &&
 	    errno != ENOSYS)
-		fatal("%s: failed to limit the logging socket", __func__);
+		fatal_f("failed to limit the logging socket");
 	if (cap_enter() < 0 && errno != ENOSYS)
-		fatal("%s: failed to enter capability mode", __func__);
+		fatal_f("failed to enter capability mode");
 
 }
 

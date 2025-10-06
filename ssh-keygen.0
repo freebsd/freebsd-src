@@ -329,7 +329,7 @@ DESCRIPTION
              RSA keys).
 
      -U      When used in combination with -s or -Y sign, this option
-             indicates that a CA key resides in a ssh-agent(1).  See the
+             indicates that a CA key resides in an ssh-agent(1).  See the
              CERTIFICATES section for more information.
 
      -u      Update a KRL.  When specified with -k, keys listed via the
@@ -528,10 +528,6 @@ MODULI GENERATION
              lines in the input file that have already been processed if the
              job is restarted.
 
-     memory=mbytes
-             Specify the amount of memory to use (in megabytes) when
-             generating candidate moduli for DH-GEX.
-
      start=hex-value
              Specify start point (in hex) when generating candidate moduli for
              DH-GEX.
@@ -569,7 +565,7 @@ CERTIFICATES
 
            $ ssh-keygen -s ca_key.pub -D libpkcs11.so -I key_id user_key.pub
 
-     Similarly, it is possible for the CA key to be hosted in a ssh-agent(1).
+     Similarly, it is possible for the CA key to be hosted in an ssh-agent(1).
      This is indicated by the -U flag and, again, the CA key must be
      identified by its public half.
 
@@ -782,7 +778,7 @@ KEY REVOCATION LISTS
              OpenSSH versions prior to 7.9.
 
      hash: fingerprint
-             Revokes a key using a fingerprint hash, as obtained from a
+             Revokes a key using a fingerprint hash, as obtained from an
              sshd(8) authentication log message or the ssh-keygen -l flag.
              Only SHA256 fingerprints are supported here and resultant KRLs
              are not supported by OpenSSH versions prior to 7.9.
@@ -905,4 +901,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.6                    November 27, 2024                   OpenBSD 7.6
+OpenBSD 7.7                     October 4, 2025                    OpenBSD 7.7
