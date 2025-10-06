@@ -1293,7 +1293,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 				    s, __func__, th->th_ack, sc->sc_iss + 1);
 			SCH_UNLOCK(sch);
 			free(s, M_TCPLOG);
-			return (0);  /* Do send RST, do not free sc. */;
+			return (0);  /* Do send RST, do not free sc. */
 		}
 
 		TAILQ_REMOVE(&sch->sch_bucket, sc, sc_hash);
