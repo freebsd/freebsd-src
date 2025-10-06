@@ -51,6 +51,7 @@
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_var.h>
+#include <netinet/tcp_log_buf.h>
 #include <arpa/inet.h>
 
 #include <capsicum_helpers.h>
@@ -84,6 +85,7 @@
 static bool	 opt_4;		/* Show IPv4 sockets */
 static bool	 opt_6;		/* Show IPv6 sockets */
 static bool	 opt_A;		/* Show kernel address of pcb */
+static bool	 opt_b;		/* Show BBLog state */
 static bool	 opt_C;		/* Show congestion control */
 static bool	 opt_c;		/* Show connected sockets */
 static bool	 opt_f;		/* Show FIB numbers */
@@ -141,6 +143,7 @@ struct sock {
 	int proto;
 	int state;
 	int fibnum;
+	int bblog_state;
 	const char *protoname;
 	char stack[TCP_FUNCTION_NAME_LEN_MAX];
 	char cc[TCP_CA_NAME_MAX];
@@ -738,6 +741,7 @@ gather_inet(int proto)
 		sock->vflag = xip->inp_vflag;
 		if (proto == IPPROTO_TCP) {
 			sock->state = xtp->t_state;
+			sock->bblog_state = xtp->t_logstate;
 			memcpy(sock->stack, xtp->xt_stack,
 			    TCP_FUNCTION_NAME_LEN_MAX);
 			memcpy(sock->cc, xtp->xt_cc, TCP_CA_NAME_MAX);
@@ -1056,6 +1060,37 @@ sctp_path_state(int state)
 	}
 }
 
+static const char *
+bblog_state(int state)
+{
+	switch (state) {
+	case TCP_LOG_STATE_OFF:
+		return "OFF";
+		break;
+	case TCP_LOG_STATE_TAIL:
+		return "TAIL";
+		break;
+	case TCP_LOG_STATE_HEAD:
+		return "HEAD";
+		break;
+	case TCP_LOG_STATE_HEAD_AUTO:
+		return "HEAD_AUTO";
+		break;
+	case TCP_LOG_STATE_CONTINUAL:
+		return "CONTINUAL";
+		break;
+	case TCP_LOG_STATE_TAIL_AUTO:
+		return "TAIL_AUTO";
+		break;
+	case TCP_LOG_VIA_BBPOINTS:
+		return "BBPOINTS";
+		break;
+	default:
+		return "UNKNOWN";
+		break;
+	}
+}
+
 static int
 format_unix_faddr(struct addr *faddr, char *buf, size_t bufsize) {
 	#define SAFEBUF  (buf == NULL ? NULL : buf + pos)
@@ -1143,6 +1178,7 @@ struct col_widths {
 	int encaps;
 	int path_state;
 	int conn_state;
+	int bblog_state;
 	int stack;
 	int cc;
 };
@@ -1485,6 +1521,15 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 					xo_emit(" {:conn-state/%-*s}",
 						cw->conn_state, "??");
 			}
+			if (opt_b) {
+				if (s->proto == IPPROTO_TCP)
+					xo_emit(" {:bblog-state/%-*s}",
+						cw->bblog_state,
+						bblog_state(s->bblog_state));
+				else if (!is_xo_style_encoding)
+					xo_emit(" {:bblog-state/%-*s}",
+						cw->bblog_state, "??");
+			}
 			if (opt_S) {
 				if (s->proto == IPPROTO_TCP)
 					xo_emit(" {:stack/%-*s}",
@@ -1544,6 +1589,7 @@ display(void)
 			.encaps = strlen("ENCAPS"),
 			.path_state = strlen("PATH STATE"),
 			.conn_state = strlen("CONN STATE"),
+			.bblog_state = strlen("BBLOG STATE"),
 			.stack = strlen("STACK"),
 			.cc = strlen("CC"),
 		};
@@ -1576,6 +1622,8 @@ display(void)
 			xo_emit(" {T:/%-*s}", cw.path_state, "PATH STATE");
 			xo_emit(" {T:/%-*s}", cw.conn_state, "CONN STATE");
 		}
+		if (opt_b)
+			xo_emit(" {T:/%-*s}", cw.bblog_state, "BBLOG STATE");
 		if (opt_S)
 			xo_emit(" {T:/%-*s}", cw.stack, "STACK");
 		if (opt_C)
@@ -1706,7 +1754,7 @@ static void
 usage(void)
 {
 	xo_error(
-"usage: sockstat [--libxo ...] [-46ACcfIiLlnqSsUuvw] [-j jid] [-p ports]\n"
+"usage: sockstat [--libxo ...] [-46AbCcfIiLlnqSsUuvw] [-j jid] [-p ports]\n"
 "                [-P protocols]\n");
 	exit(1);
 }
@@ -1728,7 +1776,7 @@ main(int argc, char *argv[])
 		xo_get_style(NULL) != XO_STYLE_HTML)
 		is_xo_style_encoding = true;
 	opt_j = -1;
-	while ((o = getopt(argc, argv, "46ACcfIij:Llnp:P:qSsUuvw")) != -1)
+	while ((o = getopt(argc, argv, "46AbCcfIij:Llnp:P:qSsUuvw")) != -1)
 		switch (o) {
 		case '4':
 			opt_4 = true;
@@ -1738,6 +1786,9 @@ main(int argc, char *argv[])
 			break;
 		case 'A':
 			opt_A = true;
+			break;
+		case 'b':
+			opt_b = true;
 			break;
 		case 'C':
 			opt_C = true;
