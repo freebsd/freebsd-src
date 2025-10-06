@@ -181,7 +181,7 @@ null_hashins(struct mount *mp, struct null_node *xp)
 
 	hd = NULL_NHASH(xp->null_lowervp);
 #ifdef INVARIANTS
-	CK_LIST_FOREACH(oxp, hd, null_hash) {
+	CK_SLIST_FOREACH(oxp, hd, null_hash) {
 		if (oxp->null_lowervp == xp->null_lowervp &&
 		    NULLTOV(oxp)->v_mount == mp) {
 			VNASSERT(0, NULLTOV(oxp),
