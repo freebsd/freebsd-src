@@ -59,7 +59,7 @@ VFS_SMR_DECLARE;
 
 #define	NULL_NHASH(vp) (&null_node_hashtbl[vfs_hash_index(vp) & null_hash_mask])
 
-static CK_LIST_HEAD(null_node_hashhead, null_node) *null_node_hashtbl;
+static CK_SLIST_HEAD(null_node_hashhead, null_node) *null_node_hashtbl;
 static struct rwlock null_hash_lock;
 static u_long null_hash_mask;
 
@@ -116,7 +116,7 @@ null_hashget_locked(struct mount *mp, struct vnode *lowervp)
 	 * reference count (but NOT the lower vnode's VREF counter).
 	 */
 	hd = NULL_NHASH(lowervp);
-	CK_LIST_FOREACH(a, hd, null_hash) {
+	CK_SLIST_FOREACH(a, hd, null_hash) {
 		if (a->null_lowervp != lowervp)
 			continue;
 		/*
@@ -148,7 +148,7 @@ null_hashget(struct mount *mp, struct vnode *lowervp)
 
 	vfs_smr_enter();
 	hd = NULL_NHASH(lowervp);
-	CK_LIST_FOREACH(a, hd, null_hash) {
+	CK_SLIST_FOREACH(a, hd, null_hash) {
 		if (a->null_lowervp != lowervp)
 			continue;
 		/*
@@ -189,7 +189,7 @@ null_hashins(struct mount *mp, struct null_node *xp)
 		}
 	}
 #endif
-	CK_LIST_INSERT_HEAD(hd, xp, null_hash);
+	CK_SLIST_INSERT_HEAD(hd, xp, null_hash);
 }
 
 static void
@@ -305,9 +305,11 @@ null_nodeget(struct mount *mp, struct vnode *lowervp, struct vnode **vpp)
 void
 null_hashrem(struct null_node *xp)
 {
+	struct null_node_hashhead *hd;
 
+	hd = NULL_NHASH(xp->null_lowervp);
 	rw_wlock(&null_hash_lock);
-	CK_LIST_REMOVE(xp, null_hash);
+	CK_SLIST_REMOVE(hd, xp, null_node, null_hash);
 	rw_wunlock(&null_hash_lock);
 }
 
