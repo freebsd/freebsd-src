@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20251006: Remove libnss_tacplus.a (it never should have been installed)
+OLD_FILES+=usr/lib/libnss_tacplus.a
+
 # 20250930: Rename wlanstats to wlanstat
 OLD_FILES+=usr/sbin/wlanstats
 OLD_FILES+=usr/share/man/man8/wlanstats.8.gz
