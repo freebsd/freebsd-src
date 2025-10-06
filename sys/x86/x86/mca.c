@@ -796,9 +796,9 @@ mca_record_entry(enum scan_mode mode, const struct mca_record *record)
 		mtx_lock_spin(&mca_lock);
 		rec = STAILQ_FIRST(&mca_freelist);
 		if (rec == NULL) {
+			mtx_unlock_spin(&mca_lock);
 			printf("MCA: Unable to allocate space for an event.\n");
 			mca_log(record);
-			mtx_unlock_spin(&mca_lock);
 			return;
 		}
 		STAILQ_REMOVE_HEAD(&mca_freelist, link);
@@ -1017,6 +1017,7 @@ static void
 mca_process_records(enum scan_mode mode)
 {
 	struct mca_internal *mca;
+	STAILQ_HEAD(, mca_internal) tmplist;
 
 	/*
 	 * If in an interrupt context, defer the post-scan activities to a
@@ -1028,10 +1029,21 @@ mca_process_records(enum scan_mode mode)
 		return;
 	}
 
+	/*
+	 * Copy the pending list to the stack so we can drop the spin lock
+	 * while we are emitting logs.
+	 */
+	STAILQ_INIT(&tmplist);
 	mtx_lock_spin(&mca_lock);
-	while ((mca = STAILQ_FIRST(&mca_pending)) != NULL) {
-		STAILQ_REMOVE_HEAD(&mca_pending, link);
+	STAILQ_SWAP(&mca_pending, &tmplist, mca_internal);
+	mtx_unlock_spin(&mca_lock);
+
+	STAILQ_FOREACH(mca, &tmplist, link)
 		mca_log(&mca->rec);
+
+	mtx_lock_spin(&mca_lock);
+	while ((mca = STAILQ_FIRST(&tmplist)) != NULL) {
+		STAILQ_REMOVE_HEAD(&tmplist, link);
 		mca_store_record(mca);
 	}
 	mtx_unlock_spin(&mca_lock);
