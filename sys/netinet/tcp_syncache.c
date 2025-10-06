@@ -1279,7 +1279,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			syncache_send_challenge_ack(sc, m);
 			SCH_UNLOCK(sch);
 			free(s, M_TCPLOG);
-			return (-1);  /* Do not send RST */;
+			return (-1);  /* Do not send RST */
 		}
 
 		/*
