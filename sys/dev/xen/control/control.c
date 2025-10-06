@@ -91,6 +91,7 @@
 #include <sys/smp.h>
 #include <sys/eventhandler.h>
 #include <sys/timetc.h>
+#include <sys/power.h>
 
 #include <geom/geom.h>
 
@@ -175,12 +176,12 @@ xctrl_suspend(void)
 	cpuset_t cpu_suspend_map;
 #endif
 
-	EVENTHANDLER_INVOKE(power_suspend_early);
+	EVENTHANDLER_INVOKE(power_suspend_early, POWER_STYPE_SUSPEND_TO_MEM);
 	xs_lock();
 	stop_all_proc();
 	xs_unlock();
 	suspend_all_fs();
-	EVENTHANDLER_INVOKE(power_suspend);
+	EVENTHANDLER_INVOKE(power_suspend, POWER_STYPE_SUSPEND_TO_MEM);
 
 #ifdef EARLY_AP_STARTUP
 	MPASS(mp_ncpus == 1 || smp_started);
@@ -297,7 +298,7 @@ xctrl_suspend(void)
 	resume_all_fs();
 	resume_all_proc();
 
-	EVENTHANDLER_INVOKE(power_resume);
+	EVENTHANDLER_INVOKE(power_resume, POWER_STYPE_SUSPEND_TO_MEM);
 
 	if (bootverbose)
 		printf("System resumed after suspension\n");

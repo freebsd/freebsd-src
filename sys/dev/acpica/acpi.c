@@ -3468,10 +3468,10 @@ acpi_EnterSleepState(struct acpi_softc *sc, enum power_stype stype)
 	return_ACPI_STATUS (AE_OK);
     }
 
-    EVENTHANDLER_INVOKE(power_suspend_early);
+    EVENTHANDLER_INVOKE(power_suspend_early, stype);
     stop_all_proc();
     suspend_all_fs();
-    EVENTHANDLER_INVOKE(power_suspend);
+    EVENTHANDLER_INVOKE(power_suspend, stype);
 
 #ifdef EARLY_AP_STARTUP
     MPASS(mp_ncpus == 1 || smp_started);
@@ -3632,7 +3632,7 @@ backout:
     resume_all_fs();
     resume_all_proc();
 
-    EVENTHANDLER_INVOKE(power_resume);
+    EVENTHANDLER_INVOKE(power_resume, stype);
 
     /* Allow another sleep request after a while. */
     callout_schedule(&acpi_sleep_timer, hz * ACPI_MINIMUM_AWAKETIME);
