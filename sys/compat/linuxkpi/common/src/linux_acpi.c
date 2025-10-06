@@ -33,6 +33,7 @@
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
+#include <sys/power.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
@@ -118,7 +119,8 @@ acpi_evaluate_dsm(ACPI_HANDLE ObjHandle, const guid_t *guid,
 }
 
 static void
-linux_handle_power_suspend_event(void *arg __unused)
+linux_handle_power_suspend_event(void *arg __unused,
+    enum power_stype stype __unused)
 {
 	/*
 	 * Only support S3 for now.
@@ -131,7 +133,8 @@ linux_handle_power_suspend_event(void *arg __unused)
 }
 
 static void
-linux_handle_power_resume_event(void *arg __unused)
+linux_handle_power_resume_event(void *arg __unused,
+    enum power_stype stype __unused)
 {
 	linux_acpi_target_sleep_state = ACPI_STATE_S0;
 	pm_suspend_target_state = PM_SUSPEND_ON;
