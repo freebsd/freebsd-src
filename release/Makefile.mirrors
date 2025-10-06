@@ -382,16 +382,16 @@ pkgbase-repo-stage:
 	mkdir -p ${PKGBASE_DIR}/Latest
 	mkdir -p ${PKGBASE_DIR}/${BUILDDATE}
 	cd ${RELEASEDIR}/pkgbase && \
-		mv pkgbase-repo.tar pkgbase-repo-${SNAP_SUFFIX}.tar
-	cp -p ${RELEASEDIR}/pkgbase/pkgbase-repo-${SNAP_SUFFIX}.tar \
-		${PKGBASE_DIR}/${BUILDDATE}/pkgbase-repo-${SNAP_SUFFIX}.tar
+		mv pkgbase-repo.tar ${OSRELEASE}-pkgbase-repo-${SNAP_SUFFIX}.tar
+	cp -p ${RELEASEDIR}/pkgbase/${OSRELEASE}-pkgbase-repo-${SNAP_SUFFIX}.tar \
+		${PKGBASE_DIR}/${BUILDDATE}/${OSRELEASE}-pkgbase-repo-${SNAP_SUFFIX}.tar
 	cd ${PKGBASE_DIR}/Latest && \
-		ln -s ../${BUILDDATE}/pkgbase-repo-${SNAP_SUFFIX}.tar \
-		pkgbase-repo.tar
+		ln -s ../${BUILDDATE}/${OSRELEASE}-pkgbase-repo-${SNAP_SUFFIX}.tar \
+		${OSRELEASE}-pkgbase-repo.tar
 	cd ${RELEASEDIR}/pkgbase && rm -f CHECKSUM.*
 . for CHECKSUM in ${CHECKSUM_FILES}
 	cd ${RELEASEDIR}/pkgbase && \
-		${CHECKSUM:tl} pkgbase-repo-*.tar > CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
+		${CHECKSUM:tl} ${OSRELEASE}-pkgbase-repo-*.tar > CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
 	cp -p ${RELEASEDIR}/pkgbase/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX} \
 		${PKGBASE_DIR}/${BUILDDATE}/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
 	cd ${PKGBASE_DIR}/Latest && \
@@ -403,10 +403,14 @@ pkgbase-repo-stage:
 	rm -rf ${PKGBASE_DIR}/Latest
 . endif
 	mkdir -p ${PKGBASE_DIR}/Latest
-	cp -p ${RELEASEDIR}/pkgbase/pkgbase-repo.tar \
-		${PKGBASE_DIR}/Latest/pkgbase-repo.tar
+	cd ${RELEASEDIR}/pkgbase && \
+		mv pkgbase-repo.tar ${OSRELEASE}-pkgbase-repo.tar
+	cp -p ${RELEASEDIR}/pkgbase/${OSRELEASE}-pkgbase-repo.tar \
+		${PKGBASE_DIR}/Latest/${OSRELEASE}-pkgbase-repo.tar
 . endfor
 . for CHECKSUM in ${CHECKSUM_FILES}
+	cd ${RELEASEDIR}/pkgbase && \
+		${CHECKSUM:tl} ${OSRELEASE}-pkgbase-repo.tar > CHECKSUM.${CHECKSUM}
 	cp -p ${RELEASEDIR}/pkgbase/CHECKSUM.${CHECKSUM} \
 		${PKGBASE_DIR}/Latest/CHECKSUM.${CHECKSUM}
 . endfor
