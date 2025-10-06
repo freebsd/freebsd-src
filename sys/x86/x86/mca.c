@@ -46,6 +46,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
@@ -136,11 +137,39 @@ static struct timeout_task mca_scan_task;
 static struct mtx mca_lock;
 static bool mca_startup_done = false;
 
-/* Statistics on number of MCA events by type, updated atomically. */
+/* Static buffer to compose messages while in an interrupt context. */
+static char mca_msg_buf[1024];
+static struct mtx mca_msg_buf_lock;
+
+/* Statistics on number of MCA events by type, updated with the mca_lock. */
 static uint64_t mca_stats[MCA_T_COUNT];
 SYSCTL_OPAQUE(_hw_mca, OID_AUTO, stats, CTLFLAG_RD | CTLFLAG_SKIP,
     mca_stats, MCA_T_COUNT * sizeof(mca_stats[0]),
     "S", "Array of MCA events by type");
+
+/* Variables to track and control message rate limiting. */
+static struct timeval mca_last_log_time;
+static struct timeval mca_log_interval;
+static int mca_log_skipped;
+
+static int
+sysctl_mca_log_interval(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	u_int val;
+
+	val = mca_log_interval.tv_sec;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	mca_log_interval.tv_sec = val;
+	return (0);
+}
+SYSCTL_PROC(_hw_mca, OID_AUTO, log_interval,
+    CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, &mca_log_interval, 0,
+    sysctl_mca_log_interval, "IU",
+    "Minimum number of seconds between logging correctable MCAs"
+    " (0 = no limit)");
 
 static unsigned int
 mca_ia32_ctl_reg(int bank)
@@ -437,98 +466,111 @@ mca_mute(const struct mca_record *rec)
 
 /* Dump details about a single machine check. */
 static void
-mca_log(const struct mca_record *rec)
+mca_log(enum scan_mode mode, const struct mca_record *rec)
 {
+	int error, numskipped;
 	uint16_t mca_error;
 	enum mca_stat_types event_type;
+	struct sbuf sb;
+	bool uncor, using_shared_buf;
 
 	if (mca_mute(rec))
 		return;
 
-	if (!log_corrected && (rec->mr_status & MC_STATUS_UC) == 0 &&
-	    (!tes_supported(rec->mr_mcg_cap) ||
+	uncor = (rec->mr_status & MC_STATUS_UC) != 0;
+
+	if (!log_corrected && !uncor && (!tes_supported(rec->mr_mcg_cap) ||
 	    ((rec->mr_status & MC_STATUS_TES_STATUS) >> 53) != 0x2))
 		return;
 
-	printf("MCA: Bank %d, Status 0x%016llx\n", rec->mr_bank,
-	    (long long)rec->mr_status);
-	printf("MCA: Global Cap 0x%016llx, Status 0x%016llx\n",
-	    (long long)rec->mr_mcg_cap, (long long)rec->mr_mcg_status);
-	printf("MCA: Vendor \"%s\", ID 0x%x, APIC ID %d\n", cpu_vendor,
-	    rec->mr_cpu_id, rec->mr_apic_id);
-	printf("MCA: CPU %d ", rec->mr_cpu);
-	if (rec->mr_status & MC_STATUS_UC)
-		printf("UNCOR ");
+	/* Try to use an allocated buffer when not in an interrupt context. */
+	if (mode == POLLED && sbuf_new(&sb, NULL, 512, SBUF_AUTOEXTEND) != NULL)
+		using_shared_buf = false;
 	else {
-		printf("COR ");
+		using_shared_buf = true;
+		mtx_lock_spin(&mca_msg_buf_lock);
+		sbuf_new(&sb, mca_msg_buf, sizeof(mca_msg_buf), SBUF_FIXEDLEN);
+	}
+
+	sbuf_printf(&sb, "MCA: Bank %d, Status 0x%016llx\n", rec->mr_bank,
+	    (long long)rec->mr_status);
+	sbuf_printf(&sb, "MCA: Global Cap 0x%016llx, Status 0x%016llx\n",
+	    (long long)rec->mr_mcg_cap, (long long)rec->mr_mcg_status);
+	sbuf_printf(&sb, "MCA: Vendor \"%s\", ID 0x%x, APIC ID %d\n",
+	    cpu_vendor, rec->mr_cpu_id, rec->mr_apic_id);
+	sbuf_printf(&sb, "MCA: CPU %d ", rec->mr_cpu);
+	if (rec->mr_status & MC_STATUS_UC)
+		sbuf_printf(&sb, "UNCOR ");
+	else {
+		sbuf_printf(&sb, "COR ");
 		if (cmci_supported(rec->mr_mcg_cap))
-			printf("(%lld) ", ((long long)rec->mr_status &
+			sbuf_printf(&sb, "(%lld) ", ((long long)rec->mr_status &
 			    MC_STATUS_COR_COUNT) >> 38);
 		if (tes_supported(rec->mr_mcg_cap)) {
 			switch ((rec->mr_status & MC_STATUS_TES_STATUS) >> 53) {
 			case 0x1:
-				printf("(Green) ");
+				sbuf_printf(&sb, "(Green) ");
 				break;
 			case 0x2:
-				printf("(Yellow) ");
+				sbuf_printf(&sb, "(Yellow) ");
 				break;
 			}
 		}
 	}
 	if (rec->mr_status & MC_STATUS_EN)
-		printf("EN ");
+		sbuf_printf(&sb, "EN ");
 	if (rec->mr_status & MC_STATUS_PCC)
-		printf("PCC ");
+		sbuf_printf(&sb, "PCC ");
 	if (ser_supported(rec->mr_mcg_cap)) {
 		if (rec->mr_status & MC_STATUS_S)
-			printf("S ");
+			sbuf_printf(&sb, "S ");
 		if (rec->mr_status & MC_STATUS_AR)
-			printf("AR ");
+			sbuf_printf(&sb, "AR ");
 	}
 	if (rec->mr_status & MC_STATUS_OVER)
-		printf("OVER ");
+		sbuf_printf(&sb, "OVER ");
 	mca_error = rec->mr_status & MC_STATUS_MCA_ERROR;
 	event_type = MCA_T_COUNT;
 	switch (mca_error) {
 		/* Simple error codes. */
 	case 0x0000:
-		printf("no error");
+		sbuf_printf(&sb, "no error");
 		event_type = MCA_T_NONE;
 		break;
 	case 0x0001:
-		printf("unclassified error");
+		sbuf_printf(&sb, "unclassified error");
 		event_type = MCA_T_UNCLASSIFIED;
 		break;
 	case 0x0002:
-		printf("ucode ROM parity error");
+		sbuf_printf(&sb, "ucode ROM parity error");
 		event_type = MCA_T_UCODE_ROM_PARITY;
 		break;
 	case 0x0003:
-		printf("external error");
+		sbuf_printf(&sb, "external error");
 		event_type = MCA_T_EXTERNAL;
 		break;
 	case 0x0004:
-		printf("FRC error");
+		sbuf_printf(&sb, "FRC error");
 		event_type = MCA_T_FRC;
 		break;
 	case 0x0005:
-		printf("internal parity error");
+		sbuf_printf(&sb, "internal parity error");
 		event_type = MCA_T_INTERNAL_PARITY;
 		break;
 	case 0x0006:
-		printf("SMM handler code access violation");
+		sbuf_printf(&sb, "SMM handler code access violation");
 		event_type = MCA_T_SMM_HANDLER;
 		break;
 	case 0x0400:
-		printf("internal timer error");
+		sbuf_printf(&sb, "internal timer error");
 		event_type = MCA_T_INTERNAL_TIMER;
 		break;
 	case 0x0e0b:
-		printf("generic I/O error");
+		sbuf_printf(&sb, "generic I/O error");
 		event_type = MCA_T_GENERIC_IO;
 		if (rec->mr_cpu_vendor_id == CPU_VENDOR_INTEL &&
 		    (rec->mr_status & MC_STATUS_MISCV)) {
-			printf(" (pci%d:%d:%d:%d)",
+			sbuf_printf(&sb, " (pci%d:%d:%d:%d)",
 			    (int)((rec->mr_misc & MC_MISC_PCIE_SEG) >> 32),
 			    (int)((rec->mr_misc & MC_MISC_PCIE_BUS) >> 24),
 			    (int)((rec->mr_misc & MC_MISC_PCIE_SLOT) >> 19),
@@ -537,7 +579,8 @@ mca_log(const struct mca_record *rec)
 		break;
 	default:
 		if ((mca_error & 0xfc00) == 0x0400) {
-			printf("internal error %x", mca_error & 0x03ff);
+			sbuf_printf(&sb, "internal error %x",
+			    mca_error & 0x03ff);
 			event_type = MCA_T_INTERNAL;
 			break;
 		}
@@ -546,14 +589,16 @@ mca_log(const struct mca_record *rec)
 
 		/* Memory hierarchy error. */
 		if ((mca_error & 0xeffc) == 0x000c) {
-			printf("%s memory error", mca_error_level(mca_error));
+			sbuf_printf(&sb, "%s memory error",
+			    mca_error_level(mca_error));
 			event_type = MCA_T_MEMORY;
 			break;
 		}
 
 		/* TLB error. */
 		if ((mca_error & 0xeff0) == 0x0010) {
-			printf("%sTLB %s error", mca_error_ttype(mca_error),
+			sbuf_printf(&sb, "%sTLB %s error",
+			    mca_error_ttype(mca_error),
 			    mca_error_level(mca_error));
 			event_type = MCA_T_TLB;
 			break;
@@ -561,19 +606,19 @@ mca_log(const struct mca_record *rec)
 
 		/* Memory controller error. */
 		if ((mca_error & 0xef80) == 0x0080) {
-			printf("%s channel ", mca_error_mmtype(mca_error,
-			    &event_type));
+			sbuf_printf(&sb, "%s channel ",
+			    mca_error_mmtype(mca_error, &event_type));
 			if ((mca_error & 0x000f) != 0x000f)
-				printf("%d", mca_error & 0x000f);
+				sbuf_printf(&sb, "%d", mca_error & 0x000f);
 			else
-				printf("??");
-			printf(" memory error");
+				sbuf_printf(&sb, "??");
+			sbuf_printf(&sb, " memory error");
 			break;
 		}
 
 		/* Cache error. */
 		if ((mca_error & 0xef00) == 0x0100) {
-			printf("%sCACHE %s %s error",
+			sbuf_printf(&sb, "%sCACHE %s %s error",
 			    mca_error_ttype(mca_error),
 			    mca_error_level(mca_error),
 			    mca_error_request(mca_error));
@@ -583,77 +628,114 @@ mca_log(const struct mca_record *rec)
 
 		/* Extended memory error. */
 		if ((mca_error & 0xef80) == 0x0280) {
-			printf("%s channel ", mca_error_mmtype(mca_error,
-			    &event_type));
+			sbuf_printf(&sb, "%s channel ",
+			    mca_error_mmtype(mca_error, &event_type));
 			if ((mca_error & 0x000f) != 0x000f)
-				printf("%d", mca_error & 0x000f);
+				sbuf_printf(&sb, "%d", mca_error & 0x000f);
 			else
-				printf("??");
-			printf(" extended memory error");
+				sbuf_printf(&sb, "??");
+			sbuf_printf(&sb, " extended memory error");
 			break;
 		}
 
 		/* Bus and/or Interconnect error. */
 		if ((mca_error & 0xe800) == 0x0800) {
-			printf("BUS%s ", mca_error_level(mca_error));
+			sbuf_printf(&sb, "BUS%s ", mca_error_level(mca_error));
 			event_type = MCA_T_BUS;
 			switch ((mca_error & 0x0600) >> 9) {
 			case 0:
-				printf("Source");
+				sbuf_printf(&sb, "Source");
 				break;
 			case 1:
-				printf("Responder");
+				sbuf_printf(&sb, "Responder");
 				break;
 			case 2:
-				printf("Observer");
+				sbuf_printf(&sb, "Observer");
 				break;
 			default:
-				printf("???");
+				sbuf_printf(&sb, "???");
 				break;
 			}
-			printf(" %s ", mca_error_request(mca_error));
+			sbuf_printf(&sb, " %s ", mca_error_request(mca_error));
 			switch ((mca_error & 0x000c) >> 2) {
 			case 0:
-				printf("Memory");
+				sbuf_printf(&sb, "Memory");
 				break;
 			case 2:
-				printf("I/O");
+				sbuf_printf(&sb, "I/O");
 				break;
 			case 3:
-				printf("Other");
+				sbuf_printf(&sb, "Other");
 				break;
 			default:
-				printf("???");
+				sbuf_printf(&sb, "???");
 				break;
 			}
 			if (mca_error & 0x0100)
-				printf(" timed out");
+				sbuf_printf(&sb, " timed out");
 			break;
 		}
 
-		printf("unknown error %x", mca_error);
+		sbuf_printf(&sb, "unknown error %x", mca_error);
 		event_type = MCA_T_UNKNOWN;
 		break;
 	}
-	printf("\n");
+	sbuf_printf(&sb, "\n");
 	if (rec->mr_status & MC_STATUS_ADDRV) {
-		printf("MCA: Address 0x%llx", (long long)rec->mr_addr);
+		sbuf_printf(&sb, "MCA: Address 0x%llx",
+		    (long long)rec->mr_addr);
 		if (ser_supported(rec->mr_mcg_cap) &&
 		    (rec->mr_status & MC_STATUS_MISCV)) {
-			printf(" (Mode: %s, LSB: %d)",
+			sbuf_printf(&sb, " (Mode: %s, LSB: %d)",
 			    mca_addres_mode(rec->mr_misc),
 			    (int)(rec->mr_misc & MC_MISC_RA_LSB));
 		}
-		printf("\n");
+		sbuf_printf(&sb, "\n");
 	}
 	if (rec->mr_status & MC_STATUS_MISCV)
-		printf("MCA: Misc 0x%llx\n", (long long)rec->mr_misc);
+		sbuf_printf(&sb, "MCA: Misc 0x%llx\n", (long long)rec->mr_misc);
+
 	if (event_type < 0 || event_type >= MCA_T_COUNT) {
 		KASSERT(0, ("%s: invalid event type (%d)", __func__,
 		    event_type));
 		event_type = MCA_T_UNKNOWN;
 	}
-	atomic_add_64(&mca_stats[event_type], 1);
+	if (!uncor) {
+		/*
+		 * Update statistics and check the rate limit for
+		 * correctable errors. The rate limit is only applied
+		 * after the system records a reasonable number of errors
+		 * of the same type. The goal is to reduce the impact of
+		 * the system seeing and attempting to log a burst of
+		 * similar errors, which (especially when printed to the
+		 * console) can be expensive.
+		 */
+		mtx_lock_spin(&mca_lock);
+		mca_stats[event_type]++;
+		if (mca_log_interval.tv_sec > 0 && mca_stats[event_type] > 50 &&
+		    ratecheck(&mca_last_log_time, &mca_log_interval) == 0) {
+			mca_log_skipped++;
+			mtx_unlock_spin(&mca_lock);
+			goto done;
+		}
+		numskipped = mca_log_skipped;
+		mca_log_skipped = 0;
+		mtx_unlock_spin(&mca_lock);
+		if (numskipped > 0)
+			printf("MCA: %d events skipped due to rate limit\n",
+			    numskipped);
+	}
+
+	error = sbuf_finish(&sb);
+	if (error)
+		printf("MCA: error logging message (sbuf error %d)\n", error);
+	else
+		sbuf_putbuf(&sb);
+
+done:
+	sbuf_delete(&sb);
+	if (using_shared_buf)
+		mtx_unlock_spin(&mca_msg_buf_lock);
 }
 
 static bool
@@ -798,7 +880,7 @@ mca_record_entry(enum scan_mode mode, const struct mca_record *record)
 		if (rec == NULL) {
 			mtx_unlock_spin(&mca_lock);
 			printf("MCA: Unable to allocate space for an event.\n");
-			mca_log(record);
+			mca_log(mode, record);
 			return;
 		}
 		STAILQ_REMOVE_HEAD(&mca_freelist, link);
@@ -955,7 +1037,7 @@ mca_scan(enum scan_mode mode, bool *recoverablep)
 			if (*recoverablep)
 				mca_record_entry(mode, &rec);
 			else
-				mca_log(&rec);
+				mca_log(mode, &rec);
 		}
 
 #ifdef DEV_APIC
@@ -1039,7 +1121,7 @@ mca_process_records(enum scan_mode mode)
 	mtx_unlock_spin(&mca_lock);
 
 	STAILQ_FOREACH(mca, &tmplist, link)
-		mca_log(&mca->rec);
+		mca_log(mode, &mca->rec);
 
 	mtx_lock_spin(&mca_lock);
 	while ((mca = STAILQ_FIRST(&tmplist)) != NULL) {
@@ -1204,6 +1286,7 @@ mca_setup(uint64_t mcg_cap)
 
 	mca_banks = mcg_cap & MCG_CAP_COUNT;
 	mtx_init(&mca_lock, "mca", NULL, MTX_SPIN);
+	mtx_init(&mca_msg_buf_lock, "mca_msg_buf", NULL, MTX_SPIN);
 	STAILQ_INIT(&mca_records);
 	STAILQ_INIT(&mca_pending);
 	mca_tq = taskqueue_create_fast("mca", M_WAITOK,
