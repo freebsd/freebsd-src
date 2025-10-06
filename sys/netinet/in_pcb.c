@@ -2665,10 +2665,13 @@ in_pcbinshash(struct inpcb *inp)
 	    INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_porthashmask)];
 
 	/*
-	 * Add entry to load balance group.
-	 * Only do this if SO_REUSEPORT_LB is set.
+	 * Ignore SO_REUSEPORT_LB if the socket is connected.  Really this case
+	 * should be an error, but for UDP sockets it is not, and some
+	 * applications erroneously set it on connected UDP sockets, so we can't
+	 * change this without breaking compatibility.
 	 */
-	if ((inp->inp_socket->so_options & SO_REUSEPORT_LB) != 0) {
+	if (!connected &&
+	    (inp->inp_socket->so_options & SO_REUSEPORT_LB) != 0) {
 		int error = in_pcbinslbgrouphash(inp, M_NODOM);
 		if (error != 0)
 			return (error);
@@ -2769,6 +2772,10 @@ in_pcbrehash(struct inpcb *inp)
 		    inp->inp_fport, pcbinfo->ipi_hashmask);
 		connected = !in_nullhost(inp->inp_faddr);
 	}
+
+	/* See the comment in in_pcbinshash(). */
+	if (connected && (inp->inp_flags & INP_INLBGROUP) != 0)
+		in_pcbremlbgrouphash(inp);
 
 	/*
 	 * When rehashing, the caller must ensure that either the new or the old
