@@ -3585,6 +3585,12 @@ main(int argc, char *argv[])
 	}
 
 	if (clearopt != NULL) {
+		int	 mnr;
+
+		/* Check if anchor exists. */
+		if ((pfctl_get_rulesets(pfh, anchorname, &mnr)) == ENOENT)
+			errx(1, "No such anchor %s", anchorname);
+
 		switch (*clearopt) {
 		case 'e':
 			pfctl_flush_eth_rules(dev, opts, anchorname);
