@@ -466,28 +466,6 @@ ahci_ata_probe(device_t dev)
 }
 
 static int
-ahci_pci_read_msix_bars(device_t dev, uint8_t *table_bar, uint8_t *pba_bar)
-{
-	int cap_offset = 0, ret;
-	uint32_t val;
-
-	if ((table_bar == NULL) || (pba_bar == NULL))
-		return (EINVAL);
-
-	ret = pci_find_cap(dev, PCIY_MSIX, &cap_offset);
-	if (ret != 0)
-		return (EINVAL);
-
-	val = pci_read_config(dev, cap_offset + PCIR_MSIX_TABLE, 4);
-	*table_bar = PCIR_BAR(val & PCIM_MSIX_BIR_MASK);
-
-	val = pci_read_config(dev, cap_offset + PCIR_MSIX_PBA, 4);
-	*pba_bar = PCIR_BAR(val & PCIM_MSIX_BIR_MASK);
-
-	return (0);
-}
-
-static int
 ahci_pci_attach(device_t dev)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
@@ -495,7 +473,6 @@ ahci_pci_attach(device_t dev)
 	uint32_t devid = pci_get_devid(dev);
 	uint8_t revid = pci_get_revid(dev);
 	int msi_count, msix_count;
-	uint8_t table_bar = 0, pba_bar = 0;
 	uint32_t caps, pi;
 
 	msi_count = pci_msi_count(dev);
@@ -583,20 +560,11 @@ ahci_pci_attach(device_t dev)
 	if (ctlr->quirks & AHCI_Q_NOMSIX)
 		msix_count = 0;
 
-	/* Read MSI-x BAR IDs if supported */
-	if (msix_count > 0) {
-		error = ahci_pci_read_msix_bars(dev, &table_bar, &pba_bar);
-		if (error == 0) {
-			ctlr->r_msix_tab_rid = table_bar;
-			ctlr->r_msix_pba_rid = pba_bar;
-		} else {
-			/* Failed to read BARs, disable MSI-x */
-			msix_count = 0;
-		}
-	}
-
 	/* Allocate resources for MSI-x table and PBA */
 	if (msix_count > 0) {
+		ctlr->r_msix_tab_rid = pci_msix_table_bar(dev);
+		ctlr->r_msix_pba_rid = pci_msix_pba_bar(dev);
+
 		/*
 		 * Allocate new MSI-x table only if not
 		 * allocated before.
