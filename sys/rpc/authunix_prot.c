@@ -64,7 +64,7 @@ bool_t
 xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 {
 	uint32_t namelen;
-	uint32_t ngroups, i;
+	uint32_t supp_ngroups, i;
 	uint32_t junk;
 	char hostbuf[MAXHOSTNAMELEN];
 
@@ -101,14 +101,19 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 		return (FALSE);
 
 	if (xdrs->x_op == XDR_ENCODE) {
-		ngroups = cred->cr_ngroups - 1;
-		if (ngroups > NGRPS)
-			ngroups = NGRPS;
+		/*
+		 * Note that this is a `struct xucred`, which maintains its
+		 * historical layout of preserving the egid in cr_ngroups and
+		 * cr_groups[0] == egid.
+		 */
+		supp_ngroups = cred->cr_ngroups - 1;
+		if (supp_ngroups > NGRPS)
+			supp_ngroups = NGRPS;
 	}
 
-	if (!xdr_uint32_t(xdrs, &ngroups))
+	if (!xdr_uint32_t(xdrs, &supp_ngroups))
 		return (FALSE);
-	for (i = 0; i < ngroups; i++) {
+	for (i = 0; i < supp_ngroups; i++) {
 		if (i < ngroups_max) {
 			if (!xdr_uint32_t(xdrs, &cred->cr_groups[i + 1]))
 				return (FALSE);
@@ -119,10 +124,10 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 	}
 
 	if (xdrs->x_op == XDR_DECODE) {
-		if (ngroups > ngroups_max)
+		if (supp_ngroups > ngroups_max)
 			cred->cr_ngroups = ngroups_max + 1;
 		else
-			cred->cr_ngroups = ngroups + 1;
+			cred->cr_ngroups = supp_ngroups + 1;
 	}
 
 	return (TRUE);

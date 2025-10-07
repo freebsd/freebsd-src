@@ -69,7 +69,7 @@ _svcauth_unix(struct svc_req *rqst, struct rpc_msg *msg)
 	uint32_t time;
 	struct xucred *xcr;
 	u_int auth_len;
-	size_t str_len, gid_len;
+	size_t str_len, supp_ngroups;
 	u_int i;
 
 	xcr = rqst->rq_clntcred;
@@ -88,29 +88,34 @@ _svcauth_unix(struct svc_req *rqst, struct rpc_msg *msg)
 		buf += str_len / sizeof (int32_t);
 		xcr->cr_uid = IXDR_GET_UINT32(buf);
 		xcr->cr_gid = IXDR_GET_UINT32(buf);
-		gid_len = (size_t)IXDR_GET_UINT32(buf);
-		if (gid_len > NGRPS) {
+		supp_ngroups = (size_t)IXDR_GET_UINT32(buf);
+		if (supp_ngroups > NGRPS) {
 			stat = AUTH_BADCRED;
 			goto done;
 		}
-		for (i = 0; i < gid_len; i++) {
+		for (i = 0; i < supp_ngroups; i++) {
+			/*
+			 * Note that this is a `struct xucred`, which maintains
+			 * its historical layout of preserving the egid in
+			 * cr_ngroups and cr_groups[0] == egid.
+			 */
 			if (i + 1 < XU_NGROUPS)
 				xcr->cr_groups[i + 1] = IXDR_GET_INT32(buf);
 			else
 				buf++;
 		}
-		if (gid_len + 1 > XU_NGROUPS)
+		if (supp_ngroups + 1 > XU_NGROUPS)
 			xcr->cr_ngroups = XU_NGROUPS;
 		else
-			xcr->cr_ngroups = gid_len + 1;
+			xcr->cr_ngroups = supp_ngroups + 1;
 
 		/*
 		 * five is the smallest unix credentials structure -
 		 * timestamp, hostname len (0), uid, gid, and gids len (0).
 		 */
-		if ((5 + gid_len) * BYTES_PER_XDR_UNIT + str_len > auth_len) {
+		if ((5 + supp_ngroups) * BYTES_PER_XDR_UNIT + str_len > auth_len) {
 			(void) printf("bad auth_len gid %ld str %ld auth %u\n",
-			    (long)gid_len, (long)str_len, auth_len);
+			    (long)supp_ngroups, (long)str_len, auth_len);
 			stat = AUTH_BADCRED;
 			goto done;
 		}
