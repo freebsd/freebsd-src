@@ -358,6 +358,10 @@ __END_DECLS
 #define RPCSEC_GSS	6		/* RPCSEC_GSS */
 #define	AUTH_TLS	7		/* Initiate RPC-over-TLS */
 
+/* RFC 5531's prescribed limits for variable-lenth arrays. */
+#define AUTH_SYS_MAX_HOSTNAME	255
+#define AUTH_SYS_MAX_GROUPS	16	/* Supplementary groups. */
+
 /*
  * Pseudo auth flavors for RPCSEC_GSS.
  */
