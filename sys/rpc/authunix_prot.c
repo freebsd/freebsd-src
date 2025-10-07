@@ -30,7 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * authunix_prot.c
  * XDR for UNIX style authentication parameters for RPC
@@ -40,8 +39,7 @@
 
 #include <sys/param.h>
 #include <sys/jail.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
+#include <sys/libkern.h>
 #include <sys/ucred.h>
 
 #include <rpc/types.h>
@@ -70,12 +68,10 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 		namelen = strlen(hostbuf);
 		if (namelen > AUTH_SYS_MAX_HOSTNAME)
 			namelen = AUTH_SYS_MAX_HOSTNAME;
-	} else {
+	} else
 		namelen = 0;
-	}
 
-	if (!xdr_uint32_t(xdrs, time)
-	    || !xdr_uint32_t(xdrs, &namelen))
+	if (!xdr_uint32_t(xdrs, time) || !xdr_uint32_t(xdrs, &namelen))
 		return (FALSE);
 
 	/*
