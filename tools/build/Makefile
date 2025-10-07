@@ -85,6 +85,10 @@ INCS+=		stdlib.h
 SRCS+=		reallocarray.c
 .endif
 
+.if !exists(${HOST_INCLUDE_ROOT}/stdckdint.h)
+INCS+=		stdckdint.h
+.endif
+
 .if exists(${HOST_INCLUDE_ROOT}/sys/stat.h)
 _WITH_UTIMENS!= grep -c utimensat ${HOST_INCLUDE_ROOT}/sys/stat.h || true
 .else
