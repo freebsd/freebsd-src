@@ -48,10 +48,13 @@
 #ifdef HAVE_NGTCP2
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
-#ifdef HAVE_NGTCP2_NGTCP2_CRYPTO_QUICTLS_H
+#ifdef HAVE_NGTCP2_NGTCP2_CRYPTO_OSSL_H
+#include <ngtcp2/ngtcp2_crypto_ossl.h>
+#elif defined(HAVE_NGTCP2_NGTCP2_CRYPTO_QUICTLS_H)
 #include <ngtcp2/ngtcp2_crypto_quictls.h>
-#else
+#elif defined(HAVE_NGTCP2_NGTCP2_CRYPTO_OPENSSL_H)
 #include <ngtcp2/ngtcp2_crypto_openssl.h>
+#define MAKE_QUIC_METHOD 1
 #endif
 #include <openssl/ssl.h>
 #include <openssl/rand.h>
@@ -107,9 +110,13 @@ struct doq_client_data {
 	SSL_CTX* ctx;
 	/** SSL object */
 	SSL* ssl;
-#ifdef HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_CLIENT_CONTEXT
+#if defined(USE_NGTCP2_CRYPTO_OSSL) || defined(HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_CLIENT_CONTEXT)
 	/** the connection reference for ngtcp2_conn and userdata in ssl */
 	struct ngtcp2_crypto_conn_ref conn_ref;
+#endif
+#ifdef USE_NGTCP2_CRYPTO_OSSL
+	/** the per-connection state for ngtcp2_crypto_ossl */
+	struct ngtcp2_crypto_ossl_ctx* ossl_ctx;
 #endif
 	/** the quic version to use */
 	uint32_t quic_version;
@@ -197,11 +204,12 @@ struct doq_client_stream {
 	int query_is_done;
 };
 
-#ifndef HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_CLIENT_CONTEXT
+#ifdef MAKE_QUIC_METHOD
 /** the quic method struct, must remain valid during the QUIC connection. */
 static SSL_QUIC_METHOD quic_method;
 #endif
 
+#if defined(USE_NGTCP2_CRYPTO_OSSL) || defined(HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_CLIENT_CONTEXT)
 /** Get the connection ngtcp2_conn from the ssl app data
  * ngtcp2_crypto_conn_ref */
 static ngtcp2_conn* conn_ref_get_conn(ngtcp2_crypto_conn_ref* conn_ref)
@@ -210,11 +218,12 @@ static ngtcp2_conn* conn_ref_get_conn(ngtcp2_crypto_conn_ref* conn_ref)
 		conn_ref->user_data;
 	return data->conn;
 }
+#endif
 
 static void
 set_app_data(SSL* ssl, struct doq_client_data* data)
 {
-#ifdef HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_CLIENT_CONTEXT
+#if defined(USE_NGTCP2_CRYPTO_OSSL) || defined(HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_CLIENT_CONTEXT)
 	data->conn_ref.get_conn = &conn_ref_get_conn;
 	data->conn_ref.user_data = data;
 	SSL_set_app_data(ssl, &data->conn_ref);
@@ -227,7 +236,7 @@ static struct doq_client_data*
 get_app_data(SSL* ssl)
 {
 	struct doq_client_data* data;
-#ifdef HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_CLIENT_CONTEXT
+#if defined(USE_NGTCP2_CRYPTO_OSSL) || defined(HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_CLIENT_CONTEXT)
 	data = (struct doq_client_data*)((struct ngtcp2_crypto_conn_ref*)
 		SSL_get_app_data(ssl))->user_data;
 #else
@@ -893,7 +902,7 @@ handshake_completed(ngtcp2_conn* ATTR_UNUSED(conn), void* user_data)
 			verbose(1, "early data was accepted by the server");
 		}
 	}
-#ifdef HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_CLIENT_CONTEXT
+#if defined(USE_NGTCP2_CRYPTO_OSSL) || defined(HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_CLIENT_CONTEXT)
 	if(data->transport_file) {
 		early_data_write_transport(data);
 	}
@@ -1207,7 +1216,7 @@ early_data_write_transport(struct doq_client_data* data)
 #endif
 }
 
-#ifndef HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_CLIENT_CONTEXT
+#ifdef MAKE_QUIC_METHOD
 /** applicatation rx key callback, this is where the rx key is set,
  * and streams can be opened, like http3 unidirectional streams, like
  * the http3 control and http3 qpack encode and decoder streams. */
@@ -1317,7 +1326,7 @@ send_alert(SSL *ssl, enum ssl_encryption_level_t ATTR_UNUSED(level),
 	data->tls_alert = alert;
 	return 1;
 }
-#endif /* HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_CLIENT_CONTEXT */
+#endif /* MAKE_QUIC_METHOD */
 
 /** new session callback. We can write it to file for resumption later. */
 static int
@@ -1357,7 +1366,7 @@ ctx_client_setup(void)
 		log_err("ngtcp2_crypto_quictls_configure_client_context failed");
 		exit(1);
 	}
-#else
+#elif defined(MAKE_QUIC_METHOD)
 	memset(&quic_method, 0, sizeof(quic_method));
 	quic_method.set_encryption_secrets = &set_encryption_secrets;
 	quic_method.add_handshake_data = &add_handshake_data;
@@ -1373,22 +1382,39 @@ ctx_client_setup(void)
 static SSL*
 ssl_client_setup(struct doq_client_data* data)
 {
+#ifdef USE_NGTCP2_CRYPTO_OSSL
+	int ret;
+#endif
 	SSL* ssl = SSL_new(data->ctx);
 	if(!ssl) {
 		log_crypto_err("Could not SSL_new");
 		exit(1);
 	}
+#ifdef USE_NGTCP2_CRYPTO_OSSL
+	if((ret=ngtcp2_crypto_ossl_ctx_new(&data->ossl_ctx, NULL)) != 0) {
+		log_err("ngtcp2_crypto_ossl_ctx_new failed: %s",
+			ngtcp2_strerror(ret));
+		exit(1);
+	}
+	ngtcp2_crypto_ossl_ctx_set_ssl(data->ossl_ctx, ssl);
+	if(ngtcp2_crypto_ossl_configure_client_session(ssl) != 0) {
+		log_err("ngtcp2_crypto_ossl_configure_client_session failed");
+		exit(1);
+	}
+#endif
 	set_app_data(ssl, data);
 	SSL_set_connect_state(ssl);
 	if(!SSL_set_fd(ssl, data->fd)) {
 		log_crypto_err("Could not SSL_set_fd");
 		exit(1);
 	}
+#ifndef USE_NGTCP2_CRYPTO_OSSL
 	if((data->quic_version & 0xff000000) == 0xff000000) {
 		SSL_set_quic_use_legacy_codepoint(ssl, 1);
 	} else {
 		SSL_set_quic_use_legacy_codepoint(ssl, 0);
 	}
+#endif
 	SSL_set_alpn_protos(ssl, (const unsigned char *)"\x03""doq", 4);
 	/* send the SNI host name */
 	SSL_set_tlsext_host_name(ssl, "localhost");
@@ -2072,7 +2098,11 @@ early_data_setup_session(struct doq_client_data* data)
 		SSL_SESSION_free(session);
 		return 0;
 	}
+#ifdef USE_NGTCP2_CRYPTO_OSSL
+	SSL_set_quic_tls_early_data_enabled(data->ssl, 1);
+#else
 	SSL_set_quic_early_data_enabled(data->ssl, 1);
+#endif
 	SSL_SESSION_free(session);
 	return 1;
 }
@@ -2221,6 +2251,15 @@ create_doq_client_data(const char* svr, int port, struct ub_event_base* base,
 	data = calloc(1, sizeof(*data));
 	if(!data) fatal_exit("calloc failed: out of memory");
 	data->base = base;
+#ifdef USE_NGTCP2_CRYPTO_OSSL
+	/* Initialize the ossl crypto, it is harmless to call twice,
+	 * and this is before use of doq connections. */
+	if(ngtcp2_crypto_ossl_init() != 0)
+		fatal_exit("ngtcp2_crypto_oss_init failed");
+#elif defined(HAVE_NGTCP2_CRYPTO_QUICTLS_INIT)
+	if(ngtcp2_crypto_quictls_init() != 0)
+		fatal_exit("ngtcp2_crypto_quictls_init failed");
+#endif
 	data->rnd = ub_initstate(NULL);
 	if(!data->rnd) fatal_exit("ub_initstate failed: out of memory");
 	data->svr = svr;
@@ -2255,7 +2294,11 @@ create_doq_client_data(const char* svr, int port, struct ub_event_base* base,
 		SSL_CTX_sess_set_new_cb(data->ctx, new_session_cb);
 	}
 	data->ssl = ssl_client_setup(data);
+#ifdef USE_NGTCP2_CRYPTO_OSSL
+	ngtcp2_conn_set_tls_native_handle(data->conn, data->ossl_ctx);
+#else
 	ngtcp2_conn_set_tls_native_handle(data->conn, data->ssl);
+#endif
 	if(data->early_data_enabled)
 		early_data_setup(data);
 
@@ -2301,8 +2344,14 @@ delete_doq_client_data(struct doq_client_data* data)
 		}
 	}
 #endif
-	ngtcp2_conn_del(data->conn);
+	/* Remove the app data from ngtcp2 before SSL_free of conn->ssl,
+	 * because the ngtcp2 conn is deleted. */
+	SSL_set_app_data(data->ssl, NULL);
 	SSL_free(data->ssl);
+#ifdef USE_NGTCP2_CRYPTO_OSSL
+	ngtcp2_crypto_ossl_ctx_del(data->ossl_ctx);
+#endif
+	ngtcp2_conn_del(data->conn);
 	sldns_buffer_free(data->pkt_buf);
 	sldns_buffer_free(data->blocked_pkt);
 	if(data->fd != -1)

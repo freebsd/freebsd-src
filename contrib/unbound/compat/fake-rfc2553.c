@@ -57,7 +57,7 @@ int getnameinfo(const struct sockaddr *sa, size_t ATTR_UNUSED(salen), char *host
 	}
 
 	if (host != NULL) {
-		if (flags & NI_NUMERICHOST) {
+		if ((flags & NI_NUMERICHOST)) {
 			if (strlcpy(host, inet_ntoa(sin->sin_addr),
 			    hostlen) >= hostlen)
 				return (EAI_MEMORY);
@@ -168,7 +168,7 @@ getaddrinfo(const char *hostname, const char *servname,
 			port = 0;
 	}
 
-	if (hints && hints->ai_flags & AI_PASSIVE) {
+	if (hints && (hints->ai_flags & AI_PASSIVE)) {
 		addr = htonl(0x00000000);
 		if (hostname && inet_aton(hostname, &in) != 0)
 			addr = in.s_addr;
@@ -193,7 +193,7 @@ getaddrinfo(const char *hostname, const char *servname,
 	}
 	
 	/* Don't try DNS if AI_NUMERICHOST is set */
-	if (hints && hints->ai_flags & AI_NUMERICHOST)
+	if (hints && (hints->ai_flags & AI_NUMERICHOST))
 		return (EAI_NONAME);
 	
 	hp = gethostbyname(hostname);

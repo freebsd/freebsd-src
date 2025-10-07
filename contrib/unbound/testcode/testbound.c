@@ -293,6 +293,16 @@ setup_config(FILE* in, int* lineno, int* pass_argc, char* pass_argv[])
 			fclose(cfg);
 			return;
 		}
+		if(strncmp(parse, "fake-sha1: yes", 14) == 0) {
+			/* Allow the use of SHA1 signatures for the test,
+			 * in case that OpenSSL disallows use of RSASHA1
+			 * with rh-allow-sha1-signatures disabled. */
+#ifndef UB_ON_WINDOWS
+			setenv("OPENSSL_ENABLE_SHA1_SIGNATURES", "1", 0);
+#else
+			_putenv("OPENSSL_ENABLE_SHA1_SIGNATURES=1");
+#endif
+		}
 		fputs(line, cfg);
 	}
 	fatal_exit("No CONFIG_END in input file");
@@ -333,6 +343,35 @@ static void remove_configfile(void)
 	cfgfiles = NULL;
 }
 
+/** perform the playback on the playback_file with the args. */
+static int
+perform_playback(char* playback_file, int pass_argc, char** pass_argv)
+{
+	struct replay_scenario* scen = NULL;
+	int c, res;
+
+	/* setup test environment */
+	scen = setup_playback(playback_file, &pass_argc, pass_argv);
+	/* init fake event backend */
+	fake_event_init(scen);
+
+	pass_argv[pass_argc] = NULL;
+	echo_cmdline(pass_argc, pass_argv);
+
+	/* run the normal daemon */
+	res = daemon_main(pass_argc, pass_argv);
+
+	fake_event_cleanup();
+	for(c=1; c<pass_argc; c++)
+		free(pass_argv[c]);
+	return res;
+}
+
+/* For fuzzing the main routine is replaced with
+ * LLVMFuzzerTestOneInput. */
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+#define main dummy_main
+#endif
 /**
  * Main fake event test program. Setup, teardown and report errors.
  * @param argc: arg count.
@@ -348,7 +387,6 @@ main(int argc, char* argv[])
 	char* playback_file = NULL;
 	int init_optind = optind;
 	char* init_optarg = optarg;
-	struct replay_scenario* scen = NULL;
 
 	/* we do not want the test to depend on the timezone */
 	(void)putenv("TZ=UTC");
@@ -456,24 +494,11 @@ main(int argc, char* argv[])
 	if(atexit(&remove_configfile) != 0)
 		fatal_exit("atexit() failed: %s", strerror(errno));
 
-	/* setup test environment */
-	scen = setup_playback(playback_file, &pass_argc, pass_argv);
-	/* init fake event backend */
-	fake_event_init(scen);
-
-	pass_argv[pass_argc] = NULL;
-	echo_cmdline(pass_argc, pass_argv);
-
 	/* reset getopt processing */
 	optind = init_optind;
 	optarg = init_optarg;
 
-	/* run the normal daemon */
-	res = daemon_main(pass_argc, pass_argv);
-
-	fake_event_cleanup();
-	for(c=1; c<pass_argc; c++)
-		free(pass_argv[c]);
+	res = perform_playback(playback_file, pass_argc, pass_argv);
 	if(res == 0) {
 		log_info("Testbound Exit Success\n");
 		/* remove configfile from here, the atexit() is for when
@@ -492,6 +517,101 @@ main(int argc, char* argv[])
 	}
 	return res;
 }
+
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+static int delete_file(const char *pathname) {
+  int ret = unlink(pathname);
+  free((void *)pathname);
+  return ret;
+}
+
+static char *buf_to_file(const uint8_t *buf, size_t size) {
+  int fd;
+  size_t pos;
+  char *pathname = strdup("/tmp/fuzz-XXXXXX");
+  if (pathname == NULL)
+    return NULL;
+
+  fd = mkstemp(pathname);
+  if (fd == -1) {
+    log_err("mkstemp of file %s failed: %s", pathname, strerror(errno));
+    free(pathname);
+    return NULL;
+  }
+  pos = 0;
+  while (pos < size) {
+    int nbytes = write(fd, &buf[pos], size - pos);
+    if (nbytes <= 0) {
+      if (nbytes == -1 && errno == EINTR)
+             continue;
+      log_err("write to file %s failed: %s", pathname, strerror(errno));
+      goto err;
+    }
+    pos += nbytes;
+  }
+
+  if (close(fd) == -1) {
+    log_err("close of file %s failed: %s", pathname, strerror(errno));
+    goto err;
+  }
+
+  return pathname;
+err:
+  delete_file(pathname);
+  return NULL;
+}
+
+/* based on main() above, but with: hard-coded passed args, file created from fuzz input */
+int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
+{
+       int c, res;
+       int pass_argc = 0;
+       char* pass_argv[MAXARG];
+       char* playback_file = NULL;
+
+       /* we do not want the test to depend on the timezone */
+       (void)putenv("TZ=UTC");
+       memset(pass_argv, 0, sizeof(pass_argv));
+#ifdef HAVE_SYSTEMD
+       /* we do not want the test to use systemd daemon startup notification*/
+       (void)unsetenv("NOTIFY_SOCKET");
+#endif /* HAVE_SYSTEMD */
+
+       checklock_start();
+       log_init(NULL, 0, NULL);
+       /* determine commandline options for the daemon */
+       pass_argc = 1;
+       pass_argv[0] = "unbound";
+       add_opts("-d", &pass_argc, pass_argv);
+
+       playback_file = buf_to_file(Data, Size);
+       if (playback_file) {
+               log_info("Start of %s testbound program.", PACKAGE_STRING);
+
+               res = perform_playback(playback_file, pass_argc, pass_argv);
+               if(res == 0) {
+                       log_info("Testbound Exit Success\n");
+                       /* remove configfile from here, the atexit() is for when
+                        * there is a crash to remove the tmpdir file.
+                        * This one removes the file while alloc and log locks are
+                        * still valid, and can be logged (for memory calculation),
+                        * it leaves the ptr NULL so the atexit does nothing. */
+                       remove_configfile();
+#ifdef HAVE_PTHREAD
+                       /* dlopen frees its thread state (dlopen of gost engine) */
+                       pthread_exit(NULL);
+#endif
+               }
+
+               delete_file(playback_file);
+       }
+
+       if(log_get_lock()) {
+               lock_basic_destroy((lock_basic_type*)log_get_lock());
+       }
+       return res;
+}
+#endif /* FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION */
 
 /* fake remote control */
 struct listen_port* daemon_remote_open_ports(struct config_file* 

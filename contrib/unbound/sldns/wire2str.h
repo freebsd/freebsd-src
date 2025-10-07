@@ -262,7 +262,7 @@ int sldns_wire2str_rdata_unknown_scan(uint8_t** data, size_t* data_len,
  * @param pkt: packet for decompression, if NULL no decompression.
  * @param pktlen: length of packet buffer.
  * @param comprloop: inout bool, that is set true if compression loop failure
- * 	happens.  Pass in 0, if passsed in as true, a lower bound is set
+ * 	happens.  Pass in 0, if passed in as true, a lower bound is set
  * 	on compression loops to stop arbitrary long packet parse times.
  * 	This is meant so you can set it to 0 at the start of a list of dnames,
  * 	and then scan all of them in sequence, if a loop happens, it becomes

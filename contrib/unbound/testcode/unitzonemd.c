@@ -267,6 +267,7 @@ static void zonemd_verify_test(char* zname, char* zfile, char* tastr,
 	env.cfg = config_create();
 	if(!env.cfg)
 		fatal_exit("out of memory");
+	config_auto_slab_values(env.cfg);
 	env.now = &now;
 	env.cfg->val_date_override = cfg_convert_timeval(date_override);
 	if(!env.cfg->val_date_override)
