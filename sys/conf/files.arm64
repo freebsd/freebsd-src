@@ -813,8 +813,8 @@ arm64/mediatek/mt7622_ahci.c		    	optional fdt soc_mediatek
 arm64/mediatek/mt7531_switch.c		    	optional fdt etherswitch mt7531_switch soc_mediatek
 arm64/mediatek/mt7622_eth.c			optional fdt mt7622_eth soc_mediatek
 arm64/mediatek/mt_mmc.c			            optional mmc fdt soc_mediatek
-arm64/mediatek/mt7622_eth.c				    optional eth
-dev/etherswitch/mtkswitch/mtkswitch.c		optional mtkswitch
-dev/etherswitch/mtkswitch/mtkswitch_mt7531.c	optional mtkswitch
+arm64/mediatek/mt7622_eth.c				    optional eth soc_mediatek
+dev/etherswitch/mtkswitch/mtkswitch.c		optional mtkswitc
+dev/etherswitch/mtkswitch/mtkswitch_mt7531.c	optional mtkswitch soc_mediatek
 #arm64/mediatek/mt_xhci.c			optional xhci fdt
 arm64/mediatek/mt7622_rng.c                     optional fdt soc_mediatek
