@@ -28,7 +28,7 @@
 
 atf_check_same_file()
 {
-	atf_check_equal "$(stat -f %d,%i "$1")" "$(stat -f %d,%i "$2")"
+	atf_check test "$1" -ef "$2"
 }
 
 atf_check_symlink_to()
