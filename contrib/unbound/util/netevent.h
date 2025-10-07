@@ -238,6 +238,8 @@ struct comm_point {
 	/** linked list of free tcp_handlers to use for new queries.
 	    For tcp_accept the first entry, for tcp_handlers the next one. */
 	struct comm_point* tcp_free;
+	/** Whether this struct is in its parent's tcp_free list */
+	int is_in_tcp_free;
 
 	/* -------- SSL TCP DNS ------- */
 	/** the SSL object with rw bio (owned) or for commaccept ctx ref */
@@ -937,6 +939,8 @@ struct http2_session {
 	/** comm point containing buffer used to build answer in worker or
 	 * module */
 	struct comm_point* c;
+	/** count the number of consecutive reads on the session */
+	uint32_t reads_count;
 	/** session is instructed to get dropped (comm port will be closed) */
 	int is_drop;
 	/** postpone dropping the session, can be used to prevent dropping

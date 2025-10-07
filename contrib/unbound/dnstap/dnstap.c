@@ -542,7 +542,7 @@ dt_msg_send_outside_query(struct dt_env *env,
 	qflags = sldns_buffer_read_u16_at(qmsg, 2);
 
 	/* type */
-	if (qflags & BIT_RD) {
+	if ((qflags & BIT_RD)) {
 		if (!env->log_forwarder_query_messages)
 			return;
 		dt_msg_init(env, &dm, DNSTAP__MESSAGE__TYPE__FORWARDER_QUERY);
@@ -599,7 +599,7 @@ dt_msg_send_outside_response(struct dt_env *env,
 	qflags = ntohs(qflags);
 
 	/* type */
-	if (qflags & BIT_RD) {
+	if ((qflags & BIT_RD)) {
 		if (!env->log_forwarder_response_messages)
 			return;
 		dt_msg_init(env, &dm, DNSTAP__MESSAGE__TYPE__FORWARDER_RESPONSE);

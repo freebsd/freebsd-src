@@ -38,11 +38,17 @@
 ;   - `LockPersonality=yes` locks down the personality system call so that the
 ;     kernel execution domain may not be changed from the default.
 ;
+;   - With /etc/systemd/network/*.network a setting to make sure the network
+;     is not considered online too early, can reduce network unreachable
+;     errors on server start:
+;     [Link]
+;     RequiredForOnline=routable
 ;
 [Unit]
 Description=Validating, recursive, and caching DNS resolver
 Documentation=man:unbound(8)
 After=network-online.target
+Wants=network-online.target
 Before=nss-lookup.target
 
 [Install]

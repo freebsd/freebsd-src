@@ -138,8 +138,8 @@ modstack_config(struct module_stack* stack, const char* module_conf)
 			if(strchr(s, ' ')) *(strchr(s, ' ')) = 0;
 			if(strchr(s, '\t')) *(strchr(s, '\t')) = 0;
 			log_err("Unknown value in module-config, module: '%s'."
-				" This module is not present (not compiled in),"
-				" See the list of linked modules with unbound -V", s);
+				" This module is not present (not compiled in);"
+				" see the list of linked modules with unbound -V", s);
 			return 0;
 		}
 	}

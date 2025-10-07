@@ -954,7 +954,7 @@ server_tcp_mss: VAR_TCP_MSS STRING_ARG
 	{
 		OUTYY(("P(server_tcp_mss:%s)\n", $2));
 		if(atoi($2) == 0 && strcmp($2, "0") != 0)
-				yyerror("number expected");
+			yyerror("number expected");
 		else cfg_parser->cfg->tcp_mss = atoi($2);
 		free($2);
 	}
@@ -1168,11 +1168,13 @@ server_http_endpoint: VAR_HTTP_ENDPOINT STRING_ARG
 		free(cfg_parser->cfg->http_endpoint);
 		if($2 && $2[0] != '/') {
 			cfg_parser->cfg->http_endpoint = malloc(strlen($2)+2);
-			if(!cfg_parser->cfg->http_endpoint)
+			if(cfg_parser->cfg->http_endpoint) {
+				cfg_parser->cfg->http_endpoint[0] = '/';
+				memmove(cfg_parser->cfg->http_endpoint+1, $2,
+					strlen($2)+1);
+			} else {
 				yyerror("out of memory");
-			cfg_parser->cfg->http_endpoint[0] = '/';
-			memmove(cfg_parser->cfg->http_endpoint+1, $2,
-				strlen($2)+1);
+			}
 			free($2);
 		} else {
 			cfg_parser->cfg->http_endpoint = $2;

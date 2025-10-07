@@ -857,7 +857,7 @@ rrinternal_parse_rdata(sldns_buffer* strbuf, char* token, size_t token_len,
 		while (rdata_len && *rdata != 0) {
 			uint8_t label_len;
 
-			if (*rdata & 0xC0)
+			if ((*rdata & 0xC0))
 				return LDNS_WIREPARSE_ERR_OK;
 
 			label_len = *rdata + 1;

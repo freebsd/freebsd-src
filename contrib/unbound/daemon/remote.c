@@ -101,6 +101,10 @@
 #ifdef USE_CACHEDB
 #include "cachedb/cachedb.h"
 #endif
+#ifdef CLIENT_SUBNET
+#include "edns-subnet/subnetmod.h"
+#include "edns-subnet/addrtree.h"
+#endif
 
 #ifdef HAVE_SYS_TYPES_H
 #  include <sys/types.h>
@@ -1148,6 +1152,8 @@ print_ext(RES* ssl, struct ub_stats_info* s, int inhibit_zero)
 		(unsigned long)s->svr.ans_bogus)) return 0;
 	if(!ssl_printf(ssl, "num.rrset.bogus"SQ"%lu\n",
 		(unsigned long)s->svr.rrset_bogus)) return 0;
+	if(!ssl_printf(ssl, "num.valops"SQ"%lu\n",
+		(unsigned long)s->svr.val_ops)) return 0;
 	if(!ssl_printf(ssl, "num.query.aggressive.NOERROR"SQ"%lu\n",
 		(unsigned long)s->svr.num_neg_cache_noerror)) return 0;
 	if(!ssl_printf(ssl, "num.query.aggressive.NXDOMAIN"SQ"%lu\n",
@@ -1576,7 +1582,7 @@ do_view_zone_add(RES* ssl, struct worker* worker, char* arg)
 		}
 		if(!v->isfirst) {
 			/* Global local-zone is not used for this view,
-			 * therefore add defaults to this view-specic
+			 * therefore add defaults to this view-specific
 			 * local-zone. */
 			struct config_file lz_cfg;
 			memset(&lz_cfg, 0, sizeof(lz_cfg));
@@ -1738,6 +1744,334 @@ do_view_datas_remove(struct daemon_remote* rc, RES* ssl, struct worker* worker,
 	}
 	lock_rw_unlock(&v->lock);
 	(void)ssl_printf(ssl, "removed %d datas\n", num);
+}
+
+/** information for the domain search */
+struct cache_lookup_info {
+	/** The connection to print on. */
+	RES* ssl;
+	/** The worker. */
+	struct worker* worker;
+	/** The domain, in wireformat. */
+	uint8_t* nm;
+	/** The length of nm. */
+	size_t nmlen;
+};
+
+#ifdef CLIENT_SUBNET
+static void addrtree_traverse_visit_node(struct addrnode* n, addrkey_t* addr,
+	size_t addr_size, int is_ipv6, time_t now, struct query_info* q,
+	void (*func)(struct query_info*, struct reply_info*, addrkey_t*,
+		size_t, int, addrlen_t, int, time_t, void*), void* arg);
+
+/** Lookup in subnet addrtree */
+static void
+cache_lookup_subnet_addrnode(struct query_info* q, struct reply_info* d,
+	addrkey_t* addr, size_t addr_size, int is_ipv6, addrlen_t scope,
+	int only_match_scope_zero, time_t ttl, void* arg)
+{
+	size_t i;
+	char s[65535], tp[32], cl[32], rc[32], fg[32], astr[64];
+	struct cache_lookup_info* inf = (struct cache_lookup_info*)arg;
+	if(is_ipv6) {
+		if(addr_size < 16 || inet_ntop(AF_INET6, addr, astr,
+			sizeof(astr)) == NULL)
+			snprintf(astr, sizeof(astr), "(inet6ntoperror)");
+	} else {
+		if(addr_size < 4 || inet_ntop(AF_INET, addr, astr,
+			sizeof(astr)) == NULL)
+			snprintf(astr, sizeof(astr), "(inetntoperror)");
+	}
+	sldns_wire2str_dname_buf(q->qname, q->qname_len, s, sizeof(s));
+	sldns_wire2str_type_buf(q->qtype, tp, sizeof(tp));
+	sldns_wire2str_class_buf(q->qclass, cl, sizeof(cl));
+	sldns_wire2str_rcode_buf(FLAGS_GET_RCODE(d->flags),
+		rc, sizeof(rc));
+	snprintf(fg, sizeof(fg), "%s%s%s%s%s%s%s%s",
+		((d->flags&BIT_QR)?" QR":""),
+		((d->flags&BIT_AA)?" AA":""),
+		((d->flags&BIT_TC)?" TC":""),
+		((d->flags&BIT_RD)?" RD":""),
+		((d->flags&BIT_RA)?" RA":""),
+		((d->flags&BIT_Z)?" Z":""),
+		((d->flags&BIT_AD)?" AD":""),
+		((d->flags&BIT_CD)?" CD":""));
+	if(!rrset_array_lock(d->ref, d->rrset_count,
+		*inf->worker->env.now)) {
+		/* rrsets have timed out or do not exist */
+		return;
+	}
+	if(!ssl_printf(inf->ssl, "subnet %s/%d%s %s %s %s " ARG_LL "d\n", astr,
+		(int)scope, (only_match_scope_zero?" scope_zero":""),
+		s, cl, tp, (long long)(ttl-*inf->worker->env.now))) {
+		rrset_array_unlock(d->ref, d->rrset_count);
+		return;
+	}
+	ssl_printf(inf->ssl,
+		"subnet msg %s %s %s%s %s %d %d " ARG_LL "d %d %u %u %u %d %s\n",
+		s, cl, tp, fg, rc,
+		(int)d->flags, (int)d->qdcount,
+		(long long)(d->ttl-*inf->worker->env.now),
+		(int)d->security,
+		(unsigned)d->an_numrrsets,
+		(unsigned)d->ns_numrrsets,
+		(unsigned)d->ar_numrrsets,
+		(int)d->reason_bogus,
+		d->reason_bogus_str?d->reason_bogus_str:"");
+	for(i=0; i<d->rrset_count; i++) {
+		struct ub_packed_rrset_key* rk = d->rrsets[i];
+		struct packed_rrset_data* rd = (struct packed_rrset_data*)rk->entry.data;
+		size_t j;
+		for(j=0; j<rd->count + rd->rrsig_count; j++) {
+			if(!packed_rr_to_string(rk, j,
+				*inf->worker->env.now, s, sizeof(s))) {
+				ssl_printf(inf->ssl, "BADRR\n");
+			} else {
+				ssl_printf(inf->ssl, "%s", s);
+			}
+		}
+	}
+	rrset_array_unlock(d->ref, d->rrset_count);
+	ssl_printf(inf->ssl, "\n");
+}
+
+/** Visit an edge in subnet addrtree traverse */
+static void
+addrtree_traverse_visit_edge(struct addredge* edge, addrkey_t* addr,
+	size_t addr_size, int is_ipv6, time_t now, struct query_info* q,
+	void (*func)(struct query_info*, struct reply_info*, addrkey_t*,
+		size_t, int, addrlen_t, int, time_t, void*), void* arg)
+{
+	size_t n;
+	addrlen_t addrlen;
+	if(!edge || !edge->node)
+		return;
+	addrlen = edge->len;
+	/* ceil() */
+	n = (size_t)((addrlen / KEYWIDTH) + ((addrlen % KEYWIDTH != 0)?1:0));
+	if(n > addr_size)
+		n = addr_size;
+	memset(addr, 0, addr_size);
+	memcpy(addr, edge->str, n);
+	addrtree_traverse_visit_node(edge->node, addr, addr_size, is_ipv6,
+		now, q, func, arg);
+}
+
+/** Visit a node in subnet addrtree traverse */
+static void
+addrtree_traverse_visit_node(struct addrnode* n, addrkey_t* addr,
+	size_t addr_size, int is_ipv6, time_t now, struct query_info* q,
+	void (*func)(struct query_info*, struct reply_info*, addrkey_t*,
+		size_t, int, addrlen_t, int, time_t, void*), void* arg)
+{
+	/* If this node has data, and not expired. */
+	if(n->elem && n->ttl >= now) {
+		func(q, (struct reply_info*)n->elem, addr, addr_size, is_ipv6,
+			n->scope, n->only_match_scope_zero, n->ttl, arg);
+	}
+	/* Traverse edges. */
+	addrtree_traverse_visit_edge(n->edge[0], addr, addr_size, is_ipv6,
+		now, q, func, arg);
+	addrtree_traverse_visit_edge(n->edge[1], addr, addr_size, is_ipv6,
+		now, q, func, arg);
+}
+
+/** Traverse subnet addrtree */
+static void
+addrtree_traverse(struct addrtree* tree, int is_ipv6, time_t now,
+	struct query_info* q,
+	void (*func)(struct query_info*, struct reply_info*, addrkey_t*,
+		size_t, int, addrlen_t, int, time_t, void*), void* arg)
+{
+	uint8_t addr[16]; /* Large enough for IPv4 and IPv6. */
+	memset(addr, 0, sizeof(addr));
+	addrtree_traverse_visit_node(tree->root, (addrkey_t*)addr,
+		sizeof(addr), is_ipv6, now, q, func, arg);
+}
+
+/** Lookup cache_lookup for subnet content. */
+static void
+cache_lookup_subnet_msg(struct lruhash_entry* e, void* arg)
+{
+	struct cache_lookup_info* inf = (struct cache_lookup_info*)arg;
+	struct msgreply_entry *k = (struct msgreply_entry*)e->key;
+	struct subnet_msg_cache_data* d =
+		(struct subnet_msg_cache_data*)e->data;
+	if(!dname_subdomain_c(k->key.qname, inf->nm))
+		return;
+
+	if(d->tree4) {
+		addrtree_traverse(d->tree4, 0, *inf->worker->env.now, &k->key,
+			&cache_lookup_subnet_addrnode, inf);
+	}
+	if(d->tree6) {
+		addrtree_traverse(d->tree6, 1, *inf->worker->env.now, &k->key,
+			&cache_lookup_subnet_addrnode, inf);
+	}
+}
+#endif /* CLIENT_SUBNET */
+
+static void
+cache_lookup_rrset(struct lruhash_entry* e, void* arg)
+{
+	struct cache_lookup_info* inf = (struct cache_lookup_info*)arg;
+	struct ub_packed_rrset_key* k = (struct ub_packed_rrset_key*)e->key;
+	struct packed_rrset_data* d = (struct packed_rrset_data*)e->data;
+	if(*inf->worker->env.now < d->ttl &&
+		k->id != 0 && /* not deleted */
+		dname_subdomain_c(k->rk.dname, inf->nm)) {
+		size_t i;
+		for(i=0; i<d->count + d->rrsig_count; i++) {
+			char s[65535];
+			if(!packed_rr_to_string(k, i, *inf->worker->env.now,
+				s, sizeof(s))) {
+				ssl_printf(inf->ssl, "BADRR\n");
+				return;
+			}
+			ssl_printf(inf->ssl, "%s", s);
+		}
+		ssl_printf(inf->ssl, "\n");
+	}
+}
+
+static void
+cache_lookup_msg(struct lruhash_entry* e, void* arg)
+{
+	struct cache_lookup_info* inf = (struct cache_lookup_info*)arg;
+	struct msgreply_entry* k = (struct msgreply_entry*)e->key;
+	struct reply_info* d = (struct reply_info*)e->data;
+	if(*inf->worker->env.now < d->ttl &&
+		dname_subdomain_c(k->key.qname, inf->nm)) {
+		size_t i;
+		char s[65535], tp[32], cl[32], rc[32], fg[32];
+		sldns_wire2str_dname_buf(k->key.qname, k->key.qname_len,
+			s, sizeof(s));
+		sldns_wire2str_type_buf(k->key.qtype, tp, sizeof(tp));
+		sldns_wire2str_class_buf(k->key.qclass, cl, sizeof(cl));
+		sldns_wire2str_rcode_buf(FLAGS_GET_RCODE(d->flags),
+			rc, sizeof(rc));
+		snprintf(fg, sizeof(fg), "%s%s%s%s%s%s%s%s",
+			((d->flags&BIT_QR)?" QR":""),
+			((d->flags&BIT_AA)?" AA":""),
+			((d->flags&BIT_TC)?" TC":""),
+			((d->flags&BIT_RD)?" RD":""),
+			((d->flags&BIT_RA)?" RA":""),
+			((d->flags&BIT_Z)?" Z":""),
+			((d->flags&BIT_AD)?" AD":""),
+			((d->flags&BIT_CD)?" CD":""));
+		if(!rrset_array_lock(d->ref, d->rrset_count,
+			*inf->worker->env.now)) {
+			/* rrsets have timed out or do not exist */
+			return;
+		}
+		ssl_printf(inf->ssl,
+			"msg %s %s %s%s %s %d %d " ARG_LL "d %d %u %u %u %d %s\n",
+			s, cl, tp, fg, rc,
+			(int)d->flags, (int)d->qdcount,
+			(long long)(d->ttl-*inf->worker->env.now),
+			(int)d->security,
+			(unsigned)d->an_numrrsets,
+			(unsigned)d->ns_numrrsets,
+			(unsigned)d->ar_numrrsets,
+			(int)d->reason_bogus,
+			d->reason_bogus_str?d->reason_bogus_str:"");
+		for(i=0; i<d->rrset_count; i++) {
+			struct ub_packed_rrset_key* rk = d->rrsets[i];
+			struct packed_rrset_data* rd = (struct packed_rrset_data*)rk->entry.data;
+			size_t j;
+			for(j=0; j<rd->count + rd->rrsig_count; j++) {
+				if(!packed_rr_to_string(rk, j,
+					*inf->worker->env.now, s, sizeof(s))) {
+					rrset_array_unlock(d->ref, d->rrset_count);
+					ssl_printf(inf->ssl, "BADRR\n");
+					return;
+				}
+				ssl_printf(inf->ssl, "%s", s);
+			}
+		}
+		rrset_array_unlock(d->ref, d->rrset_count);
+		ssl_printf(inf->ssl, "\n");
+	}
+}
+
+/** perform cache search for domain */
+static void
+do_cache_lookup_domain(RES* ssl, struct worker* worker, uint8_t* nm,
+	size_t nmlen)
+{
+#ifdef CLIENT_SUBNET
+	int m;
+	struct subnet_env* sn_env = NULL;
+#endif /* CLIENT_SUBNET */
+	struct cache_lookup_info inf;
+	inf.ssl = ssl;
+	inf.worker = worker;
+	inf.nm = nm;
+	inf.nmlen = nmlen;
+
+#ifdef CLIENT_SUBNET
+	m = modstack_find(worker->env.modstack, "subnetcache");
+	if(m != -1) sn_env = (struct subnet_env*)worker->env.modinfo[m];
+	if(sn_env) {
+		lock_rw_rdlock(&sn_env->biglock);
+		slabhash_traverse(sn_env->subnet_msg_cache, 0,
+			&cache_lookup_subnet_msg, &inf);
+		lock_rw_unlock(&sn_env->biglock);
+	}
+#endif /* CLIENT_SUBNET */
+
+	slabhash_traverse(&worker->env.rrset_cache->table, 0,
+		&cache_lookup_rrset, &inf);
+	slabhash_traverse(worker->env.msg_cache, 0, &cache_lookup_msg, &inf);
+}
+
+/** cache lookup of domain */
+static void
+do_cache_lookup(RES* ssl, struct worker* worker, char* arg)
+{
+	uint8_t nm[LDNS_MAX_DOMAINLEN+1];
+	size_t nmlen;
+	int status;
+	char* s = arg, *next = NULL;
+	int allow_long = 0;
+
+	if(arg[0] == '+' && arg[1] == 't' && (arg[2]==' ' || arg[2]=='\t')) {
+		allow_long = 1;
+		s = arg+2;
+	}
+
+	/* Find the commandline arguments of domains. */
+	while(s && *s != 0) {
+		s = skipwhite(s);
+		if(*s == 0)
+			break;
+		if(strchr(s, ' ') || strchr(s, '\t')) {
+			char* sp = strchr(s, ' ');
+			if(strchr(s, '\t') != 0 && strchr(s, '\t') < sp)
+				sp = strchr(s, '\t');
+			*sp = 0;
+			next = sp+1;
+		} else {
+			next = NULL;
+		}
+
+		nmlen = sizeof(nm);
+		status = sldns_str2wire_dname_buf(s, nm, &nmlen);
+		if(status != 0) {
+			ssl_printf(ssl, "error cannot parse name %s at %d: %s\n", s,
+				LDNS_WIREPARSE_OFFSET(status),
+				sldns_get_errorstr_parse(status));
+			return;
+		}
+		if(!allow_long && dname_count_labels(nm) < 3) {
+			ssl_printf(ssl, "error name too short: '%s'. Need example.com. or longer, short names take very long, use +t to allow them.\n", s);
+			return;
+		}
+
+		do_cache_lookup_domain(ssl, worker, nm, nmlen);
+
+		s = next;
+	}
 }
 
 /** cache lookup of nameservers */
@@ -2887,10 +3221,13 @@ do_auth_zone_reload(RES* ssl, struct worker* worker, char* arg)
 			(void)ssl_printf(ssl, "error: no SOA in zone after read %s\n", arg);
 			return;
 		}
-		if(xfr->have_zone)
+		if(xfr->have_zone) {
 			xfr->lease_time = *worker->env.now;
+			xfr->soa_zone_acquired = *worker->env.now;
+		}
 		lock_basic_unlock(&xfr->lock);
 	}
+	z->soa_zone_acquired = *worker->env.now;
 
 	auth_zone_verify_zonemd(z, &worker->env, &worker->env.mesh->mods,
 		&reason, 0, 0);
@@ -3039,7 +3376,7 @@ static void
 do_list_auth_zones(RES* ssl, struct auth_zones* az)
 {
 	struct auth_zone* z;
-	char buf[LDNS_MAX_DOMAINLEN], buf2[256];
+	char buf[LDNS_MAX_DOMAINLEN], buf2[256], buf3[256];
 	lock_rw_rdlock(&az->lock);
 	RBTREE_FOR(z, struct auth_zone*, &az->ztree) {
 		lock_rw_rdlock(&z->lock);
@@ -3048,18 +3385,41 @@ do_list_auth_zones(RES* ssl, struct auth_zones* az)
 			snprintf(buf2, sizeof(buf2), "expired");
 		else {
 			uint32_t serial = 0;
-			if(auth_zone_get_serial(z, &serial))
+			if(auth_zone_get_serial(z, &serial)) {
 				snprintf(buf2, sizeof(buf2), "serial %u",
 					(unsigned)serial);
-			else	snprintf(buf2, sizeof(buf2), "no serial");
+				if(z->soa_zone_acquired != 0) {
+#if defined(HAVE_STRFTIME) && defined(HAVE_LOCALTIME_R)
+					char tmbuf[32];
+					struct tm tm;
+					struct tm *tm_p;
+					tm_p = localtime_r(
+						&z->soa_zone_acquired, &tm);
+					if(!strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%dT%H:%M:%S", tm_p))
+						snprintf(tmbuf, sizeof(tmbuf), "strftime-err-%u", (unsigned)z->soa_zone_acquired);
+					snprintf(buf3, sizeof(buf3),
+						"\t since %u %s",
+						(unsigned)z->soa_zone_acquired,
+						tmbuf);
+#else
+					snprintf(buf3, sizeof(buf3),
+						"\t since %u",
+						(unsigned)z->soa_zone_acquired);
+#endif
+				} else {
+					buf3[0]=0;
+				}
+			} else	{
+				snprintf(buf2, sizeof(buf2), "no serial");
+				buf3[0]=0;
+			}
 		}
-		if(!ssl_printf(ssl, "%s\t%s\n", buf, buf2)) {
+		lock_rw_unlock(&z->lock);
+		if(!ssl_printf(ssl, "%s\t%s%s\n", buf, buf2, buf3)) {
 			/* failure to print */
-			lock_rw_unlock(&z->lock);
 			lock_rw_unlock(&az->lock);
 			return;
 		}
-		lock_rw_unlock(&z->lock);
 	}
 	lock_rw_unlock(&az->lock);
 }
@@ -3502,6 +3862,30 @@ do_print_cookie_secrets(RES* ssl, struct worker* worker) {
 	explicit_bzero(secret_hex, sizeof(secret_hex));
 }
 
+/** check that there is no argument after a command that takes no arguments. */
+static int
+cmd_no_args(RES* ssl, char* cmd, char* p)
+{
+	if(p && *p != 0) {
+		/* cmd contains the command that is called at the start,
+		 * with space or tab after it. */
+		char* c = cmd;
+		if(strchr(c, ' ') && strchr(c, '\t')) {
+			if(strchr(c, ' ') < strchr(c, '\t'))
+				*strchr(c, ' ')=0;
+			else	*strchr(c, '\t')=0;
+		} else if(strchr(c, ' ')) {
+			*strchr(c, ' ')=0;
+		} else if(strchr(c, '\t')) {
+			*strchr(c, '\t')=0;
+		}
+		(void)ssl_printf(ssl, "error command %s takes no arguments,"
+			" have '%s'\n", c, p);
+		return 1;
+	}
+	return 0;
+}
+
 /** check for name with end-of-string, space or tab after it */
 static int
 cmdcmp(char* p, const char* cmd, size_t len)
@@ -3517,27 +3901,41 @@ execute_cmd(struct daemon_remote* rc, struct rc_state* s, RES* ssl, char* cmd,
 	char* p = skipwhite(cmd);
 	/* compare command */
 	if(cmdcmp(p, "stop", 4)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+4)))
+			return;
 		do_stop(ssl, worker);
 		return;
 	} else if(cmdcmp(p, "reload_keep_cache", 17)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+17)))
+			return;
 		do_reload(ssl, worker, 1);
 		return;
 	} else if(cmdcmp(p, "reload", 6)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+6)))
+			return;
 		do_reload(ssl, worker, 0);
 		return;
 	} else if(cmdcmp(p, "fast_reload", 11)) {
 		do_fast_reload(ssl, worker, s, skipwhite(p+11));
 		return;
 	} else if(cmdcmp(p, "stats_noreset", 13)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+13)))
+			return;
 		do_stats(ssl, worker, 0);
 		return;
 	} else if(cmdcmp(p, "stats", 5)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+5)))
+			return;
 		do_stats(ssl, worker, 1);
 		return;
 	} else if(cmdcmp(p, "status", 6)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+6)))
+			return;
 		do_status(ssl, worker);
 		return;
 	} else if(cmdcmp(p, "dump_cache", 10)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+10)))
+			return;
 #ifdef THREADS_DISABLED
 		if(worker->daemon->num > 1) {
 			(void)ssl_printf(ssl, "dump_cache/load_cache is not "
@@ -3548,6 +3946,8 @@ execute_cmd(struct daemon_remote* rc, struct rc_state* s, RES* ssl, char* cmd,
 		(void)dump_cache(ssl, worker);
 		return;
 	} else if(cmdcmp(p, "load_cache", 10)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+10)))
+			return;
 #ifdef THREADS_DISABLED
 		if(worker->daemon->num > 1) {
 			/* The warning can't be printed when stdin is sending
@@ -3558,18 +3958,28 @@ execute_cmd(struct daemon_remote* rc, struct rc_state* s, RES* ssl, char* cmd,
 		if(load_cache(ssl, worker)) send_ok(ssl);
 		return;
 	} else if(cmdcmp(p, "list_forwards", 13)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+13)))
+			return;
 		do_list_forwards(ssl, worker);
 		return;
 	} else if(cmdcmp(p, "list_stubs", 10)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+10)))
+			return;
 		do_list_stubs(ssl, worker);
 		return;
 	} else if(cmdcmp(p, "list_insecure", 13)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+13)))
+			return;
 		do_insecure_list(ssl, worker);
 		return;
 	} else if(cmdcmp(p, "list_local_zones", 16)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+16)))
+			return;
 		do_list_local_zones(ssl, worker->daemon->local_zones);
 		return;
 	} else if(cmdcmp(p, "list_local_data", 15)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+15)))
+			return;
 		do_list_local_data(ssl, worker, worker->daemon->local_zones);
 		return;
 	} else if(cmdcmp(p, "view_list_local_zones", 21)) {
@@ -3585,6 +3995,8 @@ execute_cmd(struct daemon_remote* rc, struct rc_state* s, RES* ssl, char* cmd,
 		do_ip_ratelimit_list(ssl, worker, p+17);
 		return;
 	} else if(cmdcmp(p, "list_auth_zones", 15)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+15)))
+			return;
 		do_list_auth_zones(ssl, worker->env.auth_zones);
 		return;
 	} else if(cmdcmp(p, "auth_zone_reload", 16)) {
@@ -3605,13 +4017,20 @@ execute_cmd(struct daemon_remote* rc, struct rc_state* s, RES* ssl, char* cmd,
 		return;
 	} else if(cmdcmp(p, "flush_stats", 11)) {
 		/* must always distribute this cmd */
+		if(cmd_no_args(ssl, p, skipwhite(p+11)))
+			return;
 		if(rc) distribute_cmd(rc, ssl, cmd);
 		do_flush_stats(ssl, worker);
 		return;
 	} else if(cmdcmp(p, "flush_requestlist", 17)) {
 		/* must always distribute this cmd */
+		if(cmd_no_args(ssl, p, skipwhite(p+17)))
+			return;
 		if(rc) distribute_cmd(rc, ssl, cmd);
 		do_flush_requestlist(ssl, worker);
+		return;
+	} else if(cmdcmp(p, "cache_lookup", 12)) {
+		do_cache_lookup(ssl, worker, skipwhite(p+12));
 		return;
 	} else if(cmdcmp(p, "lookup", 6)) {
 		do_lookup(ssl, worker, skipwhite(p+6));
@@ -3620,15 +4039,23 @@ execute_cmd(struct daemon_remote* rc, struct rc_state* s, RES* ssl, char* cmd,
 	 * Each line needs to be distributed if THREADS_DISABLED.
 	 */
 	} else if(cmdcmp(p, "local_zones_remove", 18)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+18)))
+			return;
 		do_zones_remove(rc, ssl, worker);
 		return;
 	} else if(cmdcmp(p, "local_zones", 11)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+11)))
+			return;
 		do_zones_add(rc, ssl, worker);
 		return;
 	} else if(cmdcmp(p, "local_datas_remove", 18)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+18)))
+			return;
 		do_datas_remove(rc, ssl, worker);
 		return;
 	} else if(cmdcmp(p, "local_datas", 11)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+11)))
+			return;
 		do_datas_add(rc, ssl, worker);
 		return;
 	} else if(cmdcmp(p, "view_local_datas_remove", 23)){
@@ -3638,6 +4065,8 @@ execute_cmd(struct daemon_remote* rc, struct rc_state* s, RES* ssl, char* cmd,
 		do_view_datas_add(rc, ssl, worker, skipwhite(p+16));
 		return;
 	} else if(cmdcmp(p, "print_cookie_secrets", 20)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+20)))
+			return;
 		do_print_cookie_secrets(ssl, worker);
 		return;
 	}
@@ -3687,10 +4116,16 @@ execute_cmd(struct daemon_remote* rc, struct rc_state* s, RES* ssl, char* cmd,
 	} else if(cmdcmp(p, "flush", 5)) {
 		do_flush_name(ssl, worker, skipwhite(p+5));
 	} else if(cmdcmp(p, "dump_requestlist", 16)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+16)))
+			return;
 		do_dump_requestlist(ssl, worker);
 	} else if(cmdcmp(p, "dump_infra", 10)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+10)))
+			return;
 		do_dump_infra(ssl, worker);
 	} else if(cmdcmp(p, "log_reopen", 10)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+10)))
+			return;
 		do_log_reopen(ssl, worker);
 	} else if(cmdcmp(p, "set_option", 10)) {
 		do_set_option(ssl, worker, skipwhite(p+10));
@@ -3707,8 +4142,12 @@ execute_cmd(struct daemon_remote* rc, struct rc_state* s, RES* ssl, char* cmd,
 	} else if(cmdcmp(p, "add_cookie_secret", 17)) {
 		do_add_cookie_secret(ssl, worker, skipwhite(p+17));
 	} else if(cmdcmp(p, "drop_cookie_secret", 18)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+18)))
+			return;
 		do_drop_cookie_secret(ssl, worker);
 	} else if(cmdcmp(p, "activate_cookie_secret", 22)) {
+		if(cmd_no_args(ssl, p, skipwhite(p+22)))
+			return;
 		do_activate_cookie_secret(ssl, worker);
 	} else {
 		(void)ssl_printf(ssl, "error unknown command '%s'\n", p);
@@ -4348,37 +4787,45 @@ fr_check_tag_defines(struct fast_reload_thread* fr, struct config_file* newcfg)
 	return 1;
 }
 
-/** fast reload thread, check if config item has changed, if not add to
- * the explanatory string. */
+/** fast reload thread, add incompatible option to the explanatory string */
 static void
-fr_check_changed_cfg(int cmp, const char* desc, char* str, size_t len)
+fr_add_incompatible_option(const char* desc, char* str, size_t len)
 {
-	if(cmp) {
-		size_t slen = strlen(str);
-		size_t desclen = strlen(desc);
-		if(slen == 0) {
-			snprintf(str, len, "%s", desc);
-			return;
-		}
-		if(len - slen < desclen+2)
-			return; /* It does not fit */
-		snprintf(str+slen, len-slen, " %s", desc);
+	size_t slen = strlen(str);
+	size_t desclen = strlen(desc);
+	if(slen == 0) {
+		snprintf(str, len, "%s", desc);
+		return;
 	}
+	if(len - slen < desclen+2)
+		return; /* It does not fit */
+	snprintf(str+slen, len-slen, " %s", desc);
 }
+
+/** fast reload thread, check if config item has changed; thus incompatible */
+#define FR_CHECK_CHANGED_CFG(desc, var, str)				\
+do {									\
+	if(cfg->var != newcfg->var) {					\
+		fr_add_incompatible_option(desc, str, sizeof(str));	\
+	}								\
+} while(0);
 
 /** fast reload thread, check if config string has changed, checks NULLs. */
-static void
-fr_check_changed_cfg_str(char* cmp1, char* cmp2, const char* desc, char* str,
-	size_t len)
-{
-	if((!cmp1 && cmp2) ||
-		(cmp1 && !cmp2) ||
-		(cmp1 && cmp2 && strcmp(cmp1, cmp2) != 0)) {
-		fr_check_changed_cfg(1, desc, str, len);
-	}
-}
+#define FR_CHECK_CHANGED_CFG_STR(desc, var, str)			\
+do {									\
+	if((!cfg->var && newcfg->var) ||				\
+		(cfg->var && !newcfg->var) ||				\
+		(cfg->var && newcfg->var				\
+		&& strcmp(cfg->var, newcfg->var) != 0)) {		\
+		fr_add_incompatible_option(desc, str, sizeof(str));	\
+	}								\
+} while(0);
 
 /** fast reload thread, check if config strlist has changed. */
+#define FR_CHECK_CHANGED_CFG_STRLIST(desc, var, str) do {		\
+	fr_check_changed_cfg_strlist(cfg->var, newcfg->var, desc, str,	\
+		sizeof(str));						\
+	} while(0);
 static void
 fr_check_changed_cfg_strlist(struct config_strlist* cmp1,
 	struct config_strlist* cmp2, const char* desc, char* str, size_t len)
@@ -4389,18 +4836,22 @@ fr_check_changed_cfg_strlist(struct config_strlist* cmp1,
 			(p1->str && !p2->str) ||
 			(p1->str && p2->str && strcmp(p1->str, p2->str) != 0)) {
 			/* The strlist is different. */
-			fr_check_changed_cfg(1, desc, str, len);
+			fr_add_incompatible_option(desc, str, len);
 			return;
 		}
 		p1 = p1->next;
 		p2 = p2->next;
 	}
 	if((!p1 && p2) || (p1 && !p2)) {
-		fr_check_changed_cfg(1, desc, str, len);
+		fr_add_incompatible_option(desc, str, len);
 	}
 }
 
 /** fast reload thread, check if config str2list has changed. */
+#define FR_CHECK_CHANGED_CFG_STR2LIST(desc, var, buff) do {		\
+	fr_check_changed_cfg_str2list(cfg->var, newcfg->var, desc, buff,\
+		sizeof(buff));						\
+	} while(0);
 static void
 fr_check_changed_cfg_str2list(struct config_str2list* cmp1,
 	struct config_str2list* cmp2, const char* desc, char* str, size_t len)
@@ -4411,7 +4862,7 @@ fr_check_changed_cfg_str2list(struct config_str2list* cmp1,
 			(p1->str && !p2->str) ||
 			(p1->str && p2->str && strcmp(p1->str, p2->str) != 0)) {
 			/* The str2list is different. */
-			fr_check_changed_cfg(1, desc, str, len);
+			fr_add_incompatible_option(desc, str, len);
 			return;
 		}
 		if((!p1->str2 && p2->str2) ||
@@ -4419,14 +4870,14 @@ fr_check_changed_cfg_str2list(struct config_str2list* cmp1,
 			(p1->str2 && p2->str2 &&
 			strcmp(p1->str2, p2->str2) != 0)) {
 			/* The str2list is different. */
-			fr_check_changed_cfg(1, desc, str, len);
+			fr_add_incompatible_option(desc, str, len);
 			return;
 		}
 		p1 = p1->next;
 		p2 = p2->next;
 	}
 	if((!p1 && p2) || (p1 && !p2)) {
-		fr_check_changed_cfg(1, desc, str, len);
+		fr_add_incompatible_option(desc, str, len);
 	}
 }
 
@@ -4440,98 +4891,54 @@ fr_check_compat_cfg(struct fast_reload_thread* fr, struct config_file* newcfg)
 	changed_str[0]=0;
 
 	/* Find incompatible options, and if so, print an error. */
-	fr_check_changed_cfg(cfg->num_threads != newcfg->num_threads,
-		"num-threads", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->do_ip4 != newcfg->do_ip4,
-		"do-ip4", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->do_ip6 != newcfg->do_ip6,
-		"do-ip6", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->do_udp != newcfg->do_udp,
-		"do-udp", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->do_tcp != newcfg->do_tcp,
-		"do-tcp", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->port != newcfg->port,
-		"port", changed_str, sizeof(changed_str));
+	FR_CHECK_CHANGED_CFG("num-threads", num_threads, changed_str);
+	FR_CHECK_CHANGED_CFG("do-ip4", do_ip4, changed_str);
+	FR_CHECK_CHANGED_CFG("do-ip6", do_ip6, changed_str);
+	FR_CHECK_CHANGED_CFG("do-udp", do_udp, changed_str);
+	FR_CHECK_CHANGED_CFG("do-tcp", do_tcp, changed_str);
+	FR_CHECK_CHANGED_CFG("port", port, changed_str);
 	/* But cfg->outgoing_num_ports has been changed at startup,
 	 * possibly to reduce it, so do not check it here. */
-	fr_check_changed_cfg(cfg->outgoing_num_tcp != newcfg->outgoing_num_tcp,
-		"outgoing-num-tcp", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->incoming_num_tcp != newcfg->incoming_num_tcp,
-		"incoming-num-tcp", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->num_out_ifs != newcfg->num_out_ifs,
-		"outgoing-interface", changed_str, sizeof(changed_str));
+	FR_CHECK_CHANGED_CFG("outgoing-num-tcp", outgoing_num_tcp, changed_str);
+	FR_CHECK_CHANGED_CFG("incoming-num-tcp", incoming_num_tcp, changed_str);
+	FR_CHECK_CHANGED_CFG("outgoing-interface", num_out_ifs, changed_str);
 	if(cfg->num_out_ifs == newcfg->num_out_ifs) {
 		for(i=0; i<cfg->num_out_ifs; i++)
-			fr_check_changed_cfg(strcmp(cfg->out_ifs[i],
-				newcfg->out_ifs[i]) != 0, "outgoing-interface",
-				changed_str, sizeof(changed_str));
+			FR_CHECK_CHANGED_CFG_STR("outgoing-interface",
+				out_ifs[i], changed_str);
 	}
-	fr_check_changed_cfg(cfg->num_ifs != newcfg->num_ifs,
-		"interface", changed_str, sizeof(changed_str));
+	FR_CHECK_CHANGED_CFG("interface", num_ifs, changed_str);
 	if(cfg->num_ifs == newcfg->num_ifs) {
 		for(i=0; i<cfg->num_ifs; i++)
-			fr_check_changed_cfg(strcmp(cfg->ifs[i],
-				newcfg->ifs[i]) != 0, "interface",
-				changed_str, sizeof(changed_str));
+			FR_CHECK_CHANGED_CFG_STR("interface",
+				ifs[i], changed_str);
 	}
-	fr_check_changed_cfg(cfg->if_automatic != newcfg->if_automatic,
-		"interface-automatic", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->so_rcvbuf != newcfg->so_rcvbuf,
-		"so-rcvbuf", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->so_sndbuf != newcfg->so_sndbuf,
-		"so-sndbuf", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->so_reuseport != newcfg->so_reuseport,
-		"so-reuseport", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->ip_transparent != newcfg->ip_transparent,
-		"ip-transparent", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->ip_freebind != newcfg->ip_freebind,
-		"ip-freebind", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->udp_connect != newcfg->udp_connect,
-		"udp-connect", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->msg_buffer_size != newcfg->msg_buffer_size,
-		"msg-buffer-size", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->do_tcp_keepalive != newcfg->do_tcp_keepalive,
-		"edns-tcp-keepalive", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(
-		cfg->tcp_keepalive_timeout != newcfg->tcp_keepalive_timeout,
-		"edns-tcp-keepalive-timeout", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->tcp_idle_timeout != newcfg->tcp_idle_timeout,
-		"tcp-idle-timeout", changed_str, sizeof(changed_str));
+	FR_CHECK_CHANGED_CFG("interface-automatic", if_automatic, changed_str);
+	FR_CHECK_CHANGED_CFG("so-rcvbuf", so_rcvbuf, changed_str);
+	FR_CHECK_CHANGED_CFG("so-sndbuf", so_sndbuf, changed_str);
+	FR_CHECK_CHANGED_CFG("so-reuseport", so_reuseport, changed_str);
+	FR_CHECK_CHANGED_CFG("ip-transparent", ip_transparent, changed_str);
+	FR_CHECK_CHANGED_CFG("ip-freebind", ip_freebind, changed_str);
+	FR_CHECK_CHANGED_CFG("udp-connect", udp_connect, changed_str);
+	FR_CHECK_CHANGED_CFG("msg-buffer-size", msg_buffer_size, changed_str);
+	FR_CHECK_CHANGED_CFG("edns-tcp-keepalive", do_tcp_keepalive, changed_str);
+	FR_CHECK_CHANGED_CFG("edns-tcp-keepalive-timeout", tcp_keepalive_timeout, changed_str);
+	FR_CHECK_CHANGED_CFG("tcp-idle-timeout", tcp_idle_timeout, changed_str);
 	/* Not changed, only if DoH is used, it is then stored in commpoints,
 	 * as well as used from cfg. */
-	fr_check_changed_cfg(
-		cfg->harden_large_queries != newcfg->harden_large_queries,
-		"harden-large-queries", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->http_max_streams != newcfg->http_max_streams,
-		"http-max-streams", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg_str(cfg->http_endpoint, newcfg->http_endpoint,
-		"http-endpoint", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(
-		cfg->http_notls_downstream != newcfg->http_notls_downstream,
-		"http_notls_downstream", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->https_port != newcfg->https_port,
-		"https-port", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->ssl_port != newcfg->ssl_port,
-		"tls-port", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg_str(cfg->ssl_service_key, newcfg->ssl_service_key,
-		"tls-service-key", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg_str(cfg->ssl_service_pem, newcfg->ssl_service_pem,
-		"tls-service-pem", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg_str(cfg->tls_cert_bundle, newcfg->tls_cert_bundle,
-		"tls-cert-bundle", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg_strlist(cfg->proxy_protocol_port,
-		newcfg->proxy_protocol_port, "proxy-protocol-port",
-		changed_str, sizeof(changed_str));
-	fr_check_changed_cfg_strlist(cfg->tls_additional_port,
-		newcfg->tls_additional_port, "tls-additional-port",
-		changed_str, sizeof(changed_str));
-	fr_check_changed_cfg_str(cfg->if_automatic_ports,
-		newcfg->if_automatic_ports, "interface-automatic-ports",
-		changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->udp_upstream_without_downstream !=
-		newcfg->udp_upstream_without_downstream,
-		"udp-upstream-without-downstream", changed_str,
-		sizeof(changed_str));
+	FR_CHECK_CHANGED_CFG("harden-large-queries", harden_large_queries, changed_str);
+	FR_CHECK_CHANGED_CFG("http-max-streams", http_max_streams, changed_str);
+	FR_CHECK_CHANGED_CFG_STR("http-endpoint", http_endpoint, changed_str);
+	FR_CHECK_CHANGED_CFG("http_notls_downstream", http_notls_downstream, changed_str);
+	FR_CHECK_CHANGED_CFG("https-port", https_port, changed_str);
+	FR_CHECK_CHANGED_CFG("tls-port", ssl_port, changed_str);
+	FR_CHECK_CHANGED_CFG_STR("tls-service-key", ssl_service_key, changed_str);
+	FR_CHECK_CHANGED_CFG_STR("tls-service-pem", ssl_service_pem, changed_str);
+	FR_CHECK_CHANGED_CFG_STR("tls-cert-bundle", tls_cert_bundle, changed_str);
+	FR_CHECK_CHANGED_CFG_STRLIST("proxy-protocol-port", proxy_protocol_port, changed_str);
+	FR_CHECK_CHANGED_CFG_STRLIST("tls-additional-port", tls_additional_port, changed_str);
+	FR_CHECK_CHANGED_CFG_STR("interface-automatic-ports", if_automatic_ports, changed_str);
+	FR_CHECK_CHANGED_CFG("udp-upstream-without-downstream", udp_upstream_without_downstream, changed_str);
 
 	if(changed_str[0] != 0) {
 		/* The new config changes some items that do not work with
@@ -4549,7 +4956,7 @@ fr_check_compat_cfg(struct fast_reload_thread* fr, struct config_file* newcfg)
 
 /** fast reload thread, check nopause config items */
 static int
-fr_check_nopause_cfg(struct fast_reload_thread* fr, struct config_file* newcfg)
+fr_check_nopause_compat_cfg(struct fast_reload_thread* fr, struct config_file* newcfg)
 {
 	char changed_str[1024];
 	struct config_file* cfg = fr->worker->env.cfg;
@@ -4558,94 +4965,43 @@ fr_check_nopause_cfg(struct fast_reload_thread* fr, struct config_file* newcfg)
 	changed_str[0]=0;
 
 	/* Check for iter_env. */
-	fr_check_changed_cfg(
-		cfg->outbound_msg_retry != newcfg->outbound_msg_retry,
-		"outbound-msg-retry", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->max_sent_count != newcfg->max_sent_count,
-		"max-sent-count", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(
-		cfg->max_query_restarts != newcfg->max_query_restarts,
-		"max-query-restarts", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(strcmp(cfg->target_fetch_policy,
-		newcfg->target_fetch_policy) != 0,
-		"target-fetch-policy", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(
-		cfg->donotquery_localhost != newcfg->donotquery_localhost,
-		"do-not-query-localhost", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg_strlist(cfg->donotqueryaddrs,
-		newcfg->donotqueryaddrs, "do-not-query-localhost",
-		changed_str, sizeof(changed_str));
-	fr_check_changed_cfg_strlist(cfg->private_address,
-		newcfg->private_address, "private-address",
-		changed_str, sizeof(changed_str));
-	fr_check_changed_cfg_strlist(cfg->private_domain,
-		newcfg->private_domain, "private-domain",
-		changed_str, sizeof(changed_str));
-	fr_check_changed_cfg_strlist(cfg->caps_whitelist,
-		newcfg->caps_whitelist, "caps-exempt",
-		changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->do_nat64 != newcfg->do_nat64,
-		"do-nat64", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg_str(cfg->nat64_prefix, newcfg->nat64_prefix,
-		"nat64-prefix", changed_str, sizeof(changed_str));
+	FR_CHECK_CHANGED_CFG("outbound-msg-retry", outbound_msg_retry, changed_str);
+	FR_CHECK_CHANGED_CFG("max-sent-count", max_sent_count, changed_str);
+	FR_CHECK_CHANGED_CFG("max-query-restarts", max_query_restarts, changed_str);
+	FR_CHECK_CHANGED_CFG_STR("target-fetch-policy", target_fetch_policy, changed_str);
+	FR_CHECK_CHANGED_CFG("do-not-query-localhost", donotquery_localhost, changed_str);
+	FR_CHECK_CHANGED_CFG_STRLIST("do-not-query-address", donotqueryaddrs, changed_str);
+	FR_CHECK_CHANGED_CFG_STRLIST("private-address", private_address, changed_str);
+	FR_CHECK_CHANGED_CFG_STRLIST("private-domain", private_domain, changed_str);
+	FR_CHECK_CHANGED_CFG_STRLIST("caps-exempt", caps_whitelist, changed_str);
+	FR_CHECK_CHANGED_CFG("do-nat64", do_nat64, changed_str);
+	FR_CHECK_CHANGED_CFG_STR("nat64-prefix", nat64_prefix, changed_str);
 
 	/* Check for val_env. */
-	fr_check_changed_cfg(cfg->bogus_ttl != newcfg->bogus_ttl,
-		"val-bogus-ttl", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(
-		cfg->val_date_override != newcfg->val_date_override,
-		"val-date-override", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->val_sig_skew_min != newcfg->val_sig_skew_min,
-		"val-sig-skew-min", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->val_sig_skew_max != newcfg->val_sig_skew_max,
-		"val-sig-skew-max", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(cfg->val_max_restart != newcfg->val_max_restart,
-		"val-max-restart", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(strcmp(cfg->val_nsec3_key_iterations,
-		newcfg->val_nsec3_key_iterations) != 0,
-		"val-nsec3-keysize-iterations", changed_str,
-		sizeof(changed_str));
+	FR_CHECK_CHANGED_CFG("val-bogus-ttl", bogus_ttl, changed_str);
+	FR_CHECK_CHANGED_CFG("val-date-override", val_date_override, changed_str);
+	FR_CHECK_CHANGED_CFG("val-sig-skew-min", val_sig_skew_min, changed_str);
+	FR_CHECK_CHANGED_CFG("val-sig-skew-max", val_sig_skew_max, changed_str);
+	FR_CHECK_CHANGED_CFG("val-max-restart", val_max_restart, changed_str);
+	FR_CHECK_CHANGED_CFG_STR("val-nsec3-keysize-iterations",
+		val_nsec3_key_iterations, changed_str);
 
 	/* Check for infra. */
-	fr_check_changed_cfg(cfg->host_ttl != newcfg->host_ttl,
-		"infra-host-ttl", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(
-		cfg->infra_keep_probing != newcfg->infra_keep_probing,
-		"infra-keep-probing", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(
-		cfg->ratelimit != newcfg->ratelimit,
-		"ratelimit", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(
-		cfg->ip_ratelimit != newcfg->ip_ratelimit,
-		"ip-ratelimit", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(
-		cfg->ip_ratelimit_cookie != newcfg->ip_ratelimit_cookie,
-		"ip-ratelimit-cookie", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg_str2list(cfg->wait_limit_netblock,
-		newcfg->wait_limit_netblock, "wait-limit-netblock",
-		changed_str, sizeof(changed_str));
-	fr_check_changed_cfg_str2list(cfg->wait_limit_cookie_netblock,
-		newcfg->wait_limit_cookie_netblock,
-		"wait-limit-cookie-netblock", changed_str,
-		sizeof(changed_str));
-	fr_check_changed_cfg_str2list(cfg->ratelimit_below_domain,
-		newcfg->ratelimit_below_domain, "ratelimit-below-domain",
-		changed_str, sizeof(changed_str));
-	fr_check_changed_cfg_str2list(cfg->ratelimit_for_domain,
-		newcfg->ratelimit_for_domain, "ratelimit-for-domain",
-		changed_str, sizeof(changed_str));
+	FR_CHECK_CHANGED_CFG("infra-host-ttl", host_ttl, changed_str);
+	FR_CHECK_CHANGED_CFG("infra-keep-probing", infra_keep_probing, changed_str);
+	FR_CHECK_CHANGED_CFG("ratelimit", ratelimit, changed_str);
+	FR_CHECK_CHANGED_CFG("ip-ratelimit", ip_ratelimit, changed_str);
+	FR_CHECK_CHANGED_CFG("ip-ratelimit-cookie", ip_ratelimit_cookie, changed_str);
+	FR_CHECK_CHANGED_CFG_STR2LIST("wait-limit-netblock", wait_limit_netblock, changed_str);
+	FR_CHECK_CHANGED_CFG_STR2LIST("wait-limit-cookie-netblock", wait_limit_cookie_netblock, changed_str);
+	FR_CHECK_CHANGED_CFG_STR2LIST("ratelimit-below-domain", ratelimit_below_domain, changed_str);
+	FR_CHECK_CHANGED_CFG_STR2LIST("ratelimit-for-domain", ratelimit_for_domain, changed_str);
 
 	/* Check for dnstap. */
-	fr_check_changed_cfg(
-		cfg->dnstap_send_identity != newcfg->dnstap_send_identity,
-		"dnstap-send-identity", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg(
-		cfg->dnstap_send_version != newcfg->dnstap_send_version,
-		"dnstap-send-version", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg_str(cfg->dnstap_identity, newcfg->dnstap_identity,
-		"dnstap-identity", changed_str, sizeof(changed_str));
-	fr_check_changed_cfg_str(cfg->dnstap_version, newcfg->dnstap_version,
-		"dnstap-version", changed_str, sizeof(changed_str));
+	FR_CHECK_CHANGED_CFG("dnstap-send-identity", dnstap_send_identity, changed_str);
+	FR_CHECK_CHANGED_CFG("dnstap-send-version", dnstap_send_version, changed_str);
+	FR_CHECK_CHANGED_CFG_STR("dnstap-identity", dnstap_identity, changed_str);
+	FR_CHECK_CHANGED_CFG_STR("dnstap-version", dnstap_version, changed_str);
 
 	if(changed_str[0] != 0) {
 		/* The new config changes some items that need a pause,
@@ -5507,7 +5863,7 @@ fr_atomic_copy_cfg(struct config_file* oldcfg, struct config_file* cfg,
 	COPY_VAR_ptr(tls_cert_bundle);
 	COPY_VAR_int(tls_win_cert);
 	COPY_VAR_ptr(tls_additional_port);
-	/* The first is used to walk throught the list but last is
+	/* The first is used to walk through the list but last is
 	 * only used during config read. */
 	COPY_VAR_ptr(tls_session_ticket_keys.first);
 	COPY_VAR_ptr(tls_session_ticket_keys.last);
@@ -5694,7 +6050,7 @@ fr_atomic_copy_cfg(struct config_file* oldcfg, struct config_file* cfg,
 	   tagname, num_tags
 	*/
 	COPY_VAR_int(remote_control_enable);
-	/* The first is used to walk throught the list but last is
+	/* The first is used to walk through the list but last is
 	 * only used during config read. */
 	COPY_VAR_ptr(control_ifs.first);
 	COPY_VAR_ptr(control_ifs.last);
@@ -6193,7 +6549,7 @@ fr_load_config(struct fast_reload_thread* fr, struct timeval* time_read,
 		config_delete(newcfg);
 		return 0;
 	}
-	if(!fr_check_nopause_cfg(fr, newcfg)) {
+	if(!fr_check_nopause_compat_cfg(fr, newcfg)) {
 		config_delete(newcfg);
 		return 0;
 	}
@@ -7131,6 +7487,7 @@ fr_worker_auth_add(struct worker* worker, struct fast_reload_auth_change* item,
 			xfr->serial = 0;
 		}
 	}
+	auth_zone_pickup_initial_zone(item->new_z, &worker->env);
 	lock_rw_unlock(&item->new_z->lock);
 	lock_rw_unlock(&worker->env.auth_zones->lock);
 	lock_rw_unlock(&worker->daemon->fast_reload_thread->old_auth_zones->lock);
@@ -7257,7 +7614,7 @@ void
 fast_reload_worker_pickup_changes(struct worker* worker)
 {
 	/* The pickup of changes is called when the fast reload has
-	 * a syncronized moment, and all the threads are paused and the
+	 * a synchronized moment, and all the threads are paused and the
 	 * reload has been applied. Then the worker can pick up the new
 	 * changes and store them in worker-specific structs.
 	 * The pickup is also called when there is no pause, and then

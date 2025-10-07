@@ -116,7 +116,7 @@ struct addredge {
 	addrlen_t len;
 	/** child node this edge is connected to */
 	struct addrnode *node;
-	/** Parent node this ege is connected to */
+	/** Parent node this edge is connected to */
 	struct addrnode *parent_node;
 	/** Index of this edge in parent_node */
 	int parent_index;

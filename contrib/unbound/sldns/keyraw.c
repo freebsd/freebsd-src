@@ -124,7 +124,7 @@ uint16_t sldns_calc_keytag_raw(uint8_t* key, size_t keysize)
 		size_t i;
 		uint32_t ac32 = 0;
 		for (i = 0; i < keysize; ++i) {
-			ac32 += (i & 1) ? key[i] : key[i] << 8;
+			ac32 += ((i & 1)) ? key[i] : key[i] << 8;
 		}
 		ac32 += (ac32 >> 16) & 0xFFFF;
 		return (uint16_t) (ac32 & 0xFFFF);
@@ -272,7 +272,7 @@ sldns_key_buf2dsa_raw(unsigned char* key, size_t len)
 		return NULL;
 	}
 	if (!DSA_set0_key(dsa, Y, NULL)) {
-		/* QPG attached, cleaned up by DSA_fre() */
+		/* QPG attached, cleaned up by DSA_free() */
 		DSA_free(dsa);
 		BN_free(Y);
 		return NULL;

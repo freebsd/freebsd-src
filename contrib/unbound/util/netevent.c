@@ -1083,6 +1083,11 @@ comm_point_udp_ancil_callback(int fd, short event, void* arg)
 			} else if( cmsg->cmsg_level == SOL_SOCKET &&
 				cmsg->cmsg_type == SO_TIMESTAMP) {
 				memmove(&rep.c->recv_tv, CMSG_DATA(cmsg), sizeof(struct timeval));
+#elif defined(SO_TIMESTAMP) && defined(SCM_TIMESTAMP)
+			} else if( cmsg->cmsg_level == SOL_SOCKET &&
+				cmsg->cmsg_type == SCM_TIMESTAMP) {
+				/* FreeBSD and also Linux. */
+				memmove(&rep.c->recv_tv, CMSG_DATA(cmsg), sizeof(struct timeval));
 #endif /* HAVE_LINUX_NET_TSTAMP_H */
 			}
 		}
@@ -3213,6 +3218,9 @@ comm_point_tcp_accept_callback(int fd, short event, void* arg)
 	}
 	/* accept incoming connection. */
 	c_hdl = c->tcp_free;
+	/* Should not happen: inconsistent tcp_free state in
+	 * accept_callback. */
+	log_assert(c_hdl->is_in_tcp_free);
 	/* clear leftover flags from previous use, and then set the
 	 * correct event base for the event structure for libevent */
 	ub_event_free(c_hdl->ev->ev);
@@ -3287,10 +3295,15 @@ comm_point_tcp_accept_callback(int fd, short event, void* arg)
 #endif
 	}
 
+	/* Paranoia: Check that the state has not changed from above: */
+	/* Should not happen: tcp_free state changed within accept_callback. */
+	log_assert(c_hdl == c->tcp_free);
+	log_assert(c_hdl->is_in_tcp_free);
 	/* grab the tcp handler buffers */
 	c->cur_tcp_count++;
 	c->tcp_free = c_hdl->tcp_free;
 	c_hdl->tcp_free = NULL;
+	c_hdl->is_in_tcp_free = 0;
 	if(!c->tcp_free) {
 		/* stop accepting incoming queries for now. */
 		comm_point_stop_listening(c);
@@ -3311,12 +3324,14 @@ reclaim_tcp_handler(struct comm_point* c)
 #endif
 	}
 	comm_point_close(c);
-	if(c->tcp_parent) {
-		if(c != c->tcp_parent->tcp_free) {
-			c->tcp_parent->cur_tcp_count--;
-			c->tcp_free = c->tcp_parent->tcp_free;
-			c->tcp_parent->tcp_free = c;
-		}
+	if(c->tcp_parent && !c->is_in_tcp_free) {
+		/* Should not happen: bad tcp_free state in reclaim_tcp. */
+		log_assert(c->tcp_free == NULL);
+		log_assert(c->tcp_parent->cur_tcp_count > 0);
+		c->tcp_parent->cur_tcp_count--;
+		c->tcp_free = c->tcp_parent->tcp_free;
+		c->tcp_parent->tcp_free = c;
+		c->is_in_tcp_free = 1;
 		if(!c->tcp_free) {
 			/* re-enable listening on accept socket */
 			comm_point_start_listening(c->tcp_parent, -1, -1);
@@ -4630,7 +4645,7 @@ comm_point_tcp_handle_callback(int fd, short event, void* arg)
 	}
 #endif
 
-	if(event&UB_EV_TIMEOUT) {
+	if((event&UB_EV_TIMEOUT)) {
 		verbose(VERB_QUERY, "tcp took too long, dropped");
 		reclaim_tcp_handler(c);
 		if(!c->tcp_do_close) {
@@ -4640,7 +4655,7 @@ comm_point_tcp_handle_callback(int fd, short event, void* arg)
 		}
 		return;
 	}
-	if(event&UB_EV_READ
+	if((event&UB_EV_READ)
 #ifdef USE_MSG_FASTOPEN
 		&& !(c->tcp_do_fastopen && (event&UB_EV_WRITE))
 #endif
@@ -4665,7 +4680,7 @@ comm_point_tcp_handle_callback(int fd, short event, void* arg)
 			tcp_more_read_again(fd, c);
 		return;
 	}
-	if(event&UB_EV_WRITE) {
+	if((event&UB_EV_WRITE)) {
 		int has_tcpq = (c->tcp_req_info != NULL);
 		int* morewrite = c->tcp_more_write_again;
 		if(!comm_point_tcp_handle_write(fd, c)) {
@@ -4702,12 +4717,14 @@ reclaim_http_handler(struct comm_point* c)
 #endif
 	}
 	comm_point_close(c);
-	if(c->tcp_parent) {
-		if(c != c->tcp_parent->tcp_free) {
-			c->tcp_parent->cur_tcp_count--;
-			c->tcp_free = c->tcp_parent->tcp_free;
-			c->tcp_parent->tcp_free = c;
-		}
+	if(c->tcp_parent && !c->is_in_tcp_free) {
+		/* Should not happen: bad tcp_free state in reclaim_http. */
+		log_assert(c->tcp_free == NULL);
+		log_assert(c->tcp_parent->cur_tcp_count > 0);
+		c->tcp_parent->cur_tcp_count--;
+		c->tcp_free = c->tcp_parent->tcp_free;
+		c->tcp_parent->tcp_free = c;
+		c->is_in_tcp_free = 1;
 		if(!c->tcp_free) {
 			/* re-enable listening on accept socket */
 			comm_point_start_listening(c->tcp_parent, -1, -1);
@@ -5144,6 +5161,15 @@ ssize_t http2_recv_cb(nghttp2_session* ATTR_UNUSED(session), uint8_t* buf,
 
 	log_assert(h2_session->c->type == comm_http);
 	log_assert(h2_session->c->h2_session);
+	if(++h2_session->reads_count > h2_session->c->http2_max_streams) {
+		/* We are somewhat arbitrarily capping the amount of
+		 * consecutive reads on the HTTP2 session to the number of max
+		 * allowed streams.
+		 * When we reach the cap, error out with NGHTTP2_ERR_WOULDBLOCK
+		 * to signal nghttp2_session_recv() to stop reading for now. */
+		h2_session->reads_count = 0;
+		return NGHTTP2_ERR_WOULDBLOCK;
+	}
 
 #ifdef HAVE_SSL
 	if(h2_session->c->ssl) {
@@ -5177,7 +5203,7 @@ ssize_t http2_recv_cb(nghttp2_session* ATTR_UNUSED(session), uint8_t* buf,
 	}
 #endif /* HAVE_SSL */
 
-	ret = recv(h2_session->c->fd, buf, len, MSG_DONTWAIT);
+	ret = recv(h2_session->c->fd, (void*)buf, len, MSG_DONTWAIT);
 	if(ret == 0) {
 		return NGHTTP2_ERR_EOF;
 	} else if(ret < 0) {
@@ -5505,7 +5531,7 @@ ssize_t http2_send_cb(nghttp2_session* ATTR_UNUSED(session), const uint8_t* buf,
 	}
 #endif /* HAVE_SSL */
 
-	ret = send(h2_session->c->fd, buf, len, 0);
+	ret = send(h2_session->c->fd, (void*)buf, len, 0);
 	if(ret == 0) {
 		return NGHTTP2_ERR_CALLBACK_FAILURE;
 	} else if(ret < 0) {
@@ -5648,7 +5674,7 @@ comm_point_http_handle_callback(int fd, short event, void* arg)
 	log_assert(c->type == comm_http);
 	ub_comm_base_now(c->ev->base);
 
-	if(event&UB_EV_TIMEOUT) {
+	if((event&UB_EV_TIMEOUT)) {
 		verbose(VERB_QUERY, "http took too long, dropped");
 		reclaim_http_handler(c);
 		if(!c->tcp_do_close) {
@@ -5658,7 +5684,7 @@ comm_point_http_handle_callback(int fd, short event, void* arg)
 		}
 		return;
 	}
-	if(event&UB_EV_READ) {
+	if((event&UB_EV_READ)) {
 		if(!comm_point_http_handle_read(fd, c)) {
 			reclaim_http_handler(c);
 			if(!c->tcp_do_close) {
@@ -5670,7 +5696,7 @@ comm_point_http_handle_callback(int fd, short event, void* arg)
 		}
 		return;
 	}
-	if(event&UB_EV_WRITE) {
+	if((event&UB_EV_WRITE)) {
 		if(!comm_point_http_handle_write(fd, c)) {
 			reclaim_http_handler(c);
 			if(!c->tcp_do_close) {
@@ -5691,7 +5717,7 @@ void comm_point_local_handle_callback(int fd, short event, void* arg)
 	log_assert(c->type == comm_local);
 	ub_comm_base_now(c->ev->base);
 
-	if(event&UB_EV_READ) {
+	if((event&UB_EV_READ)) {
 		if(!comm_point_tcp_handle_read(fd, c, 1)) {
 			fptr_ok(fptr_whitelist_comm_point(c->callback));
 			(void)(*c->callback)(c, c->cb_arg, NETEVENT_CLOSED,
@@ -5710,7 +5736,7 @@ void comm_point_raw_handle_callback(int ATTR_UNUSED(fd),
 	log_assert(c->type == comm_raw);
 	ub_comm_base_now(c->ev->base);
 
-	if(event&UB_EV_TIMEOUT)
+	if((event&UB_EV_TIMEOUT))
 		err = NETEVENT_TIMEOUT;
 	fptr_ok(fptr_whitelist_comm_point_raw(c->callback));
 	(void)(*c->callback)(c, c->cb_arg, err, NULL);
@@ -5743,6 +5769,7 @@ comm_point_create_udp(struct comm_base *base, int fd, sldns_buffer* buffer,
 	c->cur_tcp_count = 0;
 	c->tcp_handlers = NULL;
 	c->tcp_free = NULL;
+	c->is_in_tcp_free = 0;
 	c->type = comm_udp;
 	c->tcp_do_close = 0;
 	c->do_not_close = 0;
@@ -5807,6 +5834,7 @@ comm_point_create_udp_ancil(struct comm_base *base, int fd,
 	c->cur_tcp_count = 0;
 	c->tcp_handlers = NULL;
 	c->tcp_free = NULL;
+	c->is_in_tcp_free = 0;
 	c->type = comm_udp;
 	c->tcp_do_close = 0;
 	c->do_not_close = 0;
@@ -5874,6 +5902,7 @@ comm_point_create_doq(struct comm_base *base, int fd, sldns_buffer* buffer,
 	c->cur_tcp_count = 0;
 	c->tcp_handlers = NULL;
 	c->tcp_free = NULL;
+	c->is_in_tcp_free = 0;
 	c->type = comm_doq;
 	c->tcp_do_close = 0;
 	c->do_not_close = 0;
@@ -5974,6 +6003,7 @@ comm_point_create_tcp_handler(struct comm_base *base,
 	c->cur_tcp_count = 0;
 	c->tcp_handlers = NULL;
 	c->tcp_free = NULL;
+	c->is_in_tcp_free = 0;
 	c->type = comm_tcp;
 	c->tcp_do_close = 0;
 	c->do_not_close = 0;
@@ -6011,6 +6041,7 @@ comm_point_create_tcp_handler(struct comm_base *base,
 	/* add to parent free list */
 	c->tcp_free = parent->tcp_free;
 	parent->tcp_free = c;
+	c->is_in_tcp_free = 1;
 	/* ub_event stuff */
 	evbits = UB_EV_PERSIST | UB_EV_READ | UB_EV_TIMEOUT;
 	c->ev->ev = ub_event_new(base->eb->base, c->fd, evbits,
@@ -6073,6 +6104,7 @@ comm_point_create_http_handler(struct comm_base *base,
 	c->cur_tcp_count = 0;
 	c->tcp_handlers = NULL;
 	c->tcp_free = NULL;
+	c->is_in_tcp_free = 0;
 	c->type = comm_http;
 	c->tcp_do_close = 1;
 	c->do_not_close = 0;
@@ -6131,6 +6163,7 @@ comm_point_create_http_handler(struct comm_base *base,
 	/* add to parent free list */
 	c->tcp_free = parent->tcp_free;
 	parent->tcp_free = c;
+	c->is_in_tcp_free = 1;
 	/* ub_event stuff */
 	evbits = UB_EV_PERSIST | UB_EV_READ | UB_EV_TIMEOUT;
 	c->ev->ev = ub_event_new(base->eb->base, c->fd, evbits,
@@ -6192,6 +6225,7 @@ comm_point_create_tcp(struct comm_base *base, int fd, int num,
 		return NULL;
 	}
 	c->tcp_free = NULL;
+	c->is_in_tcp_free = 0;
 	c->type = comm_tcp_accept;
 	c->tcp_do_close = 0;
 	c->do_not_close = 0;
@@ -6286,6 +6320,7 @@ comm_point_create_tcp_out(struct comm_base *base, size_t bufsize,
 	c->cur_tcp_count = 0;
 	c->tcp_handlers = NULL;
 	c->tcp_free = NULL;
+	c->is_in_tcp_free = 0;
 	c->type = comm_tcp;
 	c->tcp_do_close = 0;
 	c->do_not_close = 0;
@@ -6350,6 +6385,7 @@ comm_point_create_http_out(struct comm_base *base, size_t bufsize,
 	c->cur_tcp_count = 0;
 	c->tcp_handlers = NULL;
 	c->tcp_free = NULL;
+	c->is_in_tcp_free = 0;
 	c->type = comm_http;
 	c->tcp_do_close = 0;
 	c->do_not_close = 0;
@@ -6420,6 +6456,7 @@ comm_point_create_local(struct comm_base *base, int fd, size_t bufsize,
 	c->cur_tcp_count = 0;
 	c->tcp_handlers = NULL;
 	c->tcp_free = NULL;
+	c->is_in_tcp_free = 0;
 	c->type = comm_local;
 	c->tcp_do_close = 0;
 	c->do_not_close = 1;
@@ -6483,6 +6520,7 @@ comm_point_create_raw(struct comm_base* base, int fd, int writing,
 	c->cur_tcp_count = 0;
 	c->tcp_handlers = NULL;
 	c->tcp_free = NULL;
+	c->is_in_tcp_free = 0;
 	c->type = comm_raw;
 	c->tcp_do_close = 0;
 	c->do_not_close = 1;

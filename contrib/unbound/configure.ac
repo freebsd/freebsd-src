@@ -11,15 +11,15 @@ sinclude(dnscrypt/dnscrypt.m4)
 
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
-m4_define([VERSION_MINOR],[23])
-m4_define([VERSION_MICRO],[1])
+m4_define([VERSION_MINOR],[24])
+m4_define([VERSION_MICRO],[0])
 AC_INIT([unbound],m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]),[unbound-bugs@nlnetlabs.nl or https://github.com/NLnetLabs/unbound/issues],[unbound])
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
 LIBUNBOUND_CURRENT=9
-LIBUNBOUND_REVISION=32
+LIBUNBOUND_REVISION=33
 LIBUNBOUND_AGE=1
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
@@ -119,6 +119,7 @@ LIBUNBOUND_AGE=1
 # 1.22.0 had 9:30:1
 # 1.23.0 had 9:31:1
 # 1.23.1 had 9:32:1
+# 1.24.0 had 9:33:1
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -996,7 +997,7 @@ else
 	AC_MSG_RESULT([no])
 fi
 AC_CHECK_HEADERS([openssl/conf.h openssl/engine.h openssl/bn.h openssl/dh.h openssl/dsa.h openssl/rsa.h openssl/core_names.h openssl/param_build.h],,, [AC_INCLUDES_DEFAULT])
-AC_CHECK_FUNCS([OPENSSL_config EVP_sha1 EVP_sha256 EVP_sha512 FIPS_mode EVP_default_properties_is_fips_enabled EVP_MD_CTX_new OpenSSL_add_all_digests OPENSSL_init_crypto EVP_cleanup ENGINE_cleanup ERR_load_crypto_strings CRYPTO_cleanup_all_ex_data ERR_free_strings RAND_cleanup DSA_SIG_set0 EVP_dss1 EVP_DigestVerify EVP_aes_256_cbc EVP_EncryptInit_ex HMAC_Init_ex CRYPTO_THREADID_set_callback EVP_MAC_CTX_set_params OSSL_PARAM_BLD_new BIO_set_callback_ex SSL_CTX_set_tmp_ecdh])
+AC_CHECK_FUNCS([OPENSSL_config EVP_sha1 EVP_sha256 EVP_sha512 FIPS_mode EVP_default_properties_is_fips_enabled EVP_MD_CTX_new OpenSSL_add_all_digests OPENSSL_init_crypto EVP_cleanup ENGINE_cleanup ERR_load_crypto_strings CRYPTO_cleanup_all_ex_data ERR_free_strings RAND_cleanup DSA_SIG_set0 EVP_dss1 EVP_DigestVerify EVP_aes_256_cbc EVP_EncryptInit_ex HMAC_Init_ex CRYPTO_THREADID_set_callback EVP_MAC_CTX_set_params OSSL_PARAM_BLD_new BIO_set_callback_ex])
 
 # these check_funcs need -lssl
 BAKLIBS="$LIBS"
@@ -1004,7 +1005,7 @@ LIBS="-lssl $LIBS"
 AC_CHECK_FUNCS([OPENSSL_init_ssl SSL_CTX_set_security_level SSL_set1_host SSL_get0_peername X509_VERIFY_PARAM_set1_host SSL_CTX_set_ciphersuites SSL_CTX_set_tlsext_ticket_key_evp_cb SSL_CTX_set_alpn_select_cb SSL_get0_alpn_selected SSL_CTX_set_alpn_protos SSL_get1_peer_certificate])
 LIBS="$BAKLIBS"
 
-AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto], [], [], [
+AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto,SSL_CTX_set_tmp_ecdh], [], [], [
 AC_INCLUDES_DEFAULT
 #ifdef HAVE_OPENSSL_ERR_H
 #include <openssl/err.h>
@@ -1610,17 +1611,29 @@ if test x_$withval = x_yes -o x_$withval != x_no; then
     if test x_$found_libngtcp2 != x_yes; then
 	AC_MSG_ERROR([Could not find libngtcp2, ngtcp2.h])
     fi
-    AC_CHECK_HEADERS([ngtcp2/ngtcp2.h ngtcp2/ngtcp2_crypto_openssl.h ngtcp2/ngtcp2_crypto_quictls.h],,, [AC_INCLUDES_DEFAULT])
+    AC_CHECK_HEADERS([ngtcp2/ngtcp2.h ngtcp2/ngtcp2_crypto_ossl.h ngtcp2/ngtcp2_crypto_openssl.h ngtcp2/ngtcp2_crypto_quictls.h],,, [AC_INCLUDES_DEFAULT])
     AC_CHECK_DECLS([ngtcp2_conn_server_new], [], [], [AC_INCLUDES_DEFAULT
     #include <ngtcp2/ngtcp2.h>
     ])
     AC_CHECK_DECLS([ngtcp2_crypto_encrypt_cb], [], [], [AC_INCLUDES_DEFAULT
     #include <ngtcp2/ngtcp2_crypto.h>
     ])
-    AC_CHECK_LIB([ngtcp2_crypto_openssl], [ngtcp2_crypto_encrypt_cb], [ LIBS="$LIBS -lngtcp2_crypto_openssl" ])
-    AC_CHECK_LIB([ngtcp2_crypto_quictls], [ngtcp2_crypto_encrypt_cb], [ LIBS="$LIBS -lngtcp2_crypto_quictls" ])
-    AC_CHECK_FUNCS([ngtcp2_crypto_encrypt_cb ngtcp2_ccerr_default ngtcp2_conn_in_closing_period ngtcp2_conn_in_draining_period ngtcp2_conn_get_max_local_streams_uni ngtcp2_crypto_quictls_from_ossl_encryption_level ngtcp2_crypto_quictls_configure_server_context ngtcp2_crypto_quictls_configure_client_context ngtcp2_conn_get_num_scid ngtcp2_conn_tls_early_data_rejected ngtcp2_conn_encode_0rtt_transport_params])
+    AC_CHECK_LIB([ngtcp2_crypto_ossl], [ngtcp2_crypto_encrypt_cb], [
+	LIBS="$LIBS -lngtcp2_crypto_ossl"
+	AC_DEFINE(USE_NGTCP2_CRYPTO_OSSL, 1, [Define this to use ngtcp2_crypto_ossl.])
+    ], [
+        AC_CHECK_LIB([ngtcp2_crypto_openssl], [ngtcp2_crypto_encrypt_cb], [ LIBS="$LIBS -lngtcp2_crypto_openssl" ], [
+            AC_CHECK_LIB([ngtcp2_crypto_quictls], [ngtcp2_crypto_encrypt_cb], [ LIBS="$LIBS -lngtcp2_crypto_quictls" ])
+	])
+    ])
+    AC_CHECK_FUNCS([ngtcp2_crypto_encrypt_cb ngtcp2_ccerr_default ngtcp2_conn_in_closing_period ngtcp2_conn_in_draining_period ngtcp2_conn_get_max_local_streams_uni ngtcp2_crypto_quictls_from_ossl_encryption_level ngtcp2_crypto_quictls_configure_server_context ngtcp2_crypto_quictls_configure_client_context ngtcp2_crypto_quictls_init ngtcp2_conn_get_num_scid ngtcp2_conn_tls_early_data_rejected ngtcp2_conn_encode_0rtt_transport_params])
+
+    # these check_funcs need -lssl
+    BAKLIBS="$LIBS"
+    LIBS="-lssl $LIBS"
     AC_CHECK_FUNCS([SSL_is_quic], [], [AC_MSG_ERROR([No QUIC support detected in OpenSSL. Need OpenSSL version with QUIC support to enable DNS over QUIC with libngtcp2.])])
+    LIBS="$BAKLIBS"
+
     AC_CHECK_TYPES([struct ngtcp2_version_cid, ngtcp2_encryption_level],,,[AC_INCLUDES_DEFAULT
     #include <ngtcp2/ngtcp2.h>
     ])
