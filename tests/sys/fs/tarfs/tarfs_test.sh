@@ -67,9 +67,9 @@ tarfs_basic_body() {
 	mktar "${tarball}"
 	atf_check mount -rt tarfs "${tarball}" "${mnt}"
 	atf_check -o match:"^${tarball} on ${mnt} \(tarfs," mount
-	atf_check_equal "$(stat -f%d,%i "${mnt}"/sparse_file)" "$(stat -f%d,%i "${mnt}"/hard_link)"
-	atf_check_equal "$(stat -f%d,%i "${mnt}"/sparse_file)" "$(stat -L -f%d,%i "${mnt}"/short_link)"
-	atf_check_equal "$(stat -f%d,%i "${mnt}"/sparse_file)" "$(stat -L -f%d,%i "${mnt}"/long_link)"
+	atf_check test "${mnt}"/sparse_file -ef "${mnt}"/hard_link
+	atf_check test "${mnt}"/sparse_file -ef "${mnt}"/short_link
+	atf_check test "${mnt}"/sparse_file -ef "${mnt}"/long_link
 	atf_check -o inline:"${sum}\n" sha256 -q "${mnt}"/sparse_file
 	atf_check -o inline:"2,40755\n" stat -f%l,%p "${mnt}"/directory
 	atf_check -o inline:"1,100644\n" stat -f%l,%p "${mnt}"/file
