@@ -1057,14 +1057,14 @@ snl_init_writer(struct snl_state *ss, struct snl_writer *nw)
 {
 	nw->size = SNL_WRITER_BUFFER_SIZE;
 	nw->base = (char *)snl_allocz(ss, nw->size);
-	if (nw->base == NULL) {
+	if (__predict_false(nw->base == NULL)) {
 		nw->error = true;
 		nw->size = 0;
-	}
+	} else
+		nw->error = false;
 
 	nw->offset = 0;
 	nw->hdr = NULL;
-	nw->error = false;
 	nw->ss = ss;
 }
 
