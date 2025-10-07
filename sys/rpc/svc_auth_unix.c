@@ -45,8 +45,6 @@ static char *sccsid = "@(#)svc_auth_unix.c	2.3 88/08/01 4.0 RPCSRC";
  */
 
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/ucred.h>
 
@@ -135,7 +133,7 @@ _svcauth_unix(struct svc_req *rqst, struct rpc_msg *msg)
 				buf++;
 		}
 		xcr->cr_ngroups = MIN(supp_ngroups + 1, XU_NGROUPS);
-	} else if (! xdr_authunix_parms(&xdrs, &time, xcr))
+	} else if (!xdr_authunix_parms(&xdrs, &time, xcr))
 		goto badcred;
 
 	rqst->rq_verf = _null_auth;
