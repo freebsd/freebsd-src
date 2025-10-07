@@ -365,7 +365,7 @@ compress_any_dname(uint8_t* dname, sldns_buffer* pkt, int labs,
 
 /** return true if type needs domain name compression in rdata */
 static const sldns_rr_descriptor*
-type_rdata_compressable(struct ub_packed_rrset_key* key)
+type_rdata_compressible(struct ub_packed_rrset_key* key)
 {
 	uint16_t t = ntohs(key->rk.type);
 	if(sldns_rr_descript(t) && 
@@ -486,7 +486,7 @@ packed_rrset_encode(struct ub_packed_rrset_key* key, sldns_buffer* pkt,
 		adjust = SERVE_ORIGINAL_TTL ? data->ttl_add : timenow;
 
 	if(do_data) {
-		const sldns_rr_descriptor* c = type_rdata_compressable(key);
+		const sldns_rr_descriptor* c = type_rdata_compressible(key);
 		for(i=0; i<data->count; i++) {
 			/* rrset roundrobin */
 			j = (i + rr_offset) % data->count;
@@ -1021,7 +1021,7 @@ reply_info_answer_encode(struct query_info* qinf, struct reply_info* rep,
 		flags |= BIT_AA;
 		flags &= ~BIT_AD;
 	}
-	log_assert(flags & BIT_QR); /* QR bit must be on in our replies */
+	log_assert((flags & BIT_QR)); /* QR bit must be on in our replies */
 	if(udpsize < LDNS_HEADER_SIZE)
 		return 0;
 	/* currently edns does not change during calculations;

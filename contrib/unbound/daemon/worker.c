@@ -1707,6 +1707,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 			repinfo->client_addrlen, edns.cookie_valid,
 			c->buffer)) {
 			worker->stats.num_queries_ip_ratelimited++;
+			regional_free_all(worker->scratchpad);
 			comm_point_drop_reply(repinfo);
 			return 0;
 		}
@@ -1818,8 +1819,9 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		goto send_reply;
 	}
 	if(worker->env.auth_zones &&
-		auth_zones_answer(worker->env.auth_zones, &worker->env,
-		&qinfo, &edns, repinfo, c->buffer, worker->scratchpad)) {
+		auth_zones_downstream_answer(worker->env.auth_zones,
+		&worker->env, &qinfo, &edns, repinfo, c->buffer,
+		worker->scratchpad)) {
 		regional_free_all(worker->scratchpad);
 		if(sldns_buffer_limit(c->buffer) == 0) {
 			comm_point_drop_reply(repinfo);
@@ -1872,20 +1874,11 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	/* If we've found a local alias, replace the qname with the alias
 	 * target before resolving it. */
 	if(qinfo.local_alias) {
-		struct ub_packed_rrset_key* rrset = qinfo.local_alias->rrset;
-		struct packed_rrset_data* d = rrset->entry.data;
-
-		/* Sanity check: our current implementation only supports
-		 * a single CNAME RRset as a local alias. */
-		if(qinfo.local_alias->next ||
-			rrset->rk.type != htons(LDNS_RR_TYPE_CNAME) ||
-			d->count != 1) {
-			log_err("assumption failure: unexpected local alias");
+		if(!local_alias_shallow_copy_qname(qinfo.local_alias, &qinfo.qname,
+			&qinfo.qname_len)) {
 			regional_free_all(worker->scratchpad);
 			return 0; /* drop it */
 		}
-		qinfo.qname = d->rr_data[0] + 2;
-		qinfo.qname_len = d->rr_len[0] - 2;
 	}
 
 	/* If we may apply IP-based actions to the answer, build the client

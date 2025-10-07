@@ -18,10 +18,41 @@ AC_DEFUN([dt_DNSTAP],
         [opt_dnstap_socket_path="$1"])
 
     if test "x$opt_dnstap" != "xno"; then
-        AC_PATH_PROG([PROTOC_C], [protoc-c])
-        if test -z "$PROTOC_C"; then
-          AC_MSG_ERROR([The protoc-c program was not found. Please install protobuf-c!])
-        fi
+	AC_PATH_PROG([PROTOC], [protoc])
+	# 'protoc-c' is deprecated. We use 'protoc' instead. If it can not be
+	# found, try 'protoc-c'.
+	if test -z "$PROTOC"; then
+	    AC_PATH_PROG([PROTOC_C], [protoc-c])
+	else
+	    PROTOC_C="$PROTOC"
+	fi
+	if test -z "$PROTOC_C"; then
+	  AC_MSG_ERROR([[The protoc or protoc-c program was not found. It is needed for dnstap, use --disable-dnstap, or install protobuf-c to provide protoc or protoc-c]])
+	fi
+
+	# Check for protoc-gen-c plugin
+	AC_PATH_PROG([PROTOC_GEN_C], [protoc-gen-c])
+	if test -z "$PROTOC_GEN_C"; then
+	  AC_MSG_ERROR([[The protoc-gen-c plugin was not found. It is needed for dnstap, use --disable-dnstap, or install protobuf-c-compiler to provide protoc-gen-c]])
+	fi
+
+	# Test that protoc-gen-c actually works
+	AC_MSG_CHECKING([if protoc-gen-c plugin works])
+	cat > conftest.proto << EOF
+syntax = "proto2";
+message TestMessage {
+  optional string test_field = 1;
+}
+EOF
+	if $PROTOC_C --c_out=. conftest.proto >/dev/null 2>&1; then
+	  AC_MSG_RESULT([yes])
+	  rm -f conftest.proto conftest.pb-c.c conftest.pb-c.h
+	else
+	  AC_MSG_RESULT([no])
+	  rm -f conftest.proto conftest.pb-c.c conftest.pb-c.h
+	  AC_MSG_ERROR([[The protoc-gen-c plugin is not working properly. Please ensure protobuf-c-compiler is properly installed]])
+	fi
+
         AC_ARG_WITH([protobuf-c],
             AS_HELP_STRING([--with-protobuf-c=path], [Path where protobuf-c is installed, for dnstap]),
             [

@@ -967,6 +967,17 @@ struct config_file* config_create(void);
 struct config_file* config_create_forlib(void);
 
 /**
+ * If _slabs values are not explicitly configured, 0 value, put them in a
+ * pow2 value close to the number of threads used.
+ * Starts at the current default 4.
+ * If num_threads is in between two pow2 values, 1/3 of the way stays with
+ * the lower pow2 value.
+ * Exported for unit testing.
+ * @param config: where the _slabs values reside.
+ */
+void config_auto_slab_values(struct config_file* config);
+
+/**
  * Read the config file from the specified filename.
  * @param config: where options are stored into, must be freshly created.
  * @param filename: name of configfile. If NULL nothing is done.
