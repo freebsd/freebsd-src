@@ -12,6 +12,11 @@ device iic
 device iicbus
 device iicbb
 
+# Ethernet, BPF and bridge support
+device          eth
+device          bpf
+device          if_bridge
+
 # eth switch
 device		etherswitch     # Enable etherswitch support
 device		mtkswitch       # Enable mediatek 7531 switch
