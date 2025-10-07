@@ -651,6 +651,33 @@ vmm_reg_wi(struct vcpu *vcpu, uint64_t wval, void *arg)
 	return (0);
 }
 
+static int
+vmm_write_oslar_el1(struct vcpu *vcpu, uint64_t wval, void *arg)
+{
+	struct hypctx *hypctx;
+
+	hypctx = vcpu_get_cookie(vcpu);
+	/* All other fields are RES0 & we don't do anything with this */
+	/* TODO: Disable access to other debug state when locked */
+	hypctx->dbg_oslock = (wval & OSLAR_OSLK) == OSLAR_OSLK;
+	return (0);
+}
+
+static int
+vmm_read_oslsr_el1(struct vcpu *vcpu, uint64_t *rval, void *arg)
+{
+	struct hypctx *hypctx;
+	uint64_t val;
+
+	hypctx = vcpu_get_cookie(vcpu);
+	val = OSLSR_OSLM_1;
+	if (hypctx->dbg_oslock)
+		val |= OSLSR_OSLK;
+	*rval = val;
+
+	return (0);
+}
+
 static const struct vmm_special_reg vmm_special_regs[] = {
 #define	SPECIAL_REG(_reg, _read, _write)				\
 	{								\
@@ -707,6 +734,13 @@ static const struct vmm_special_reg vmm_special_regs[] = {
 	SPECIAL_REG(CNTP_TVAL_EL0, vtimer_phys_tval_read,
 	    vtimer_phys_tval_write),
 	SPECIAL_REG(CNTPCT_EL0, vtimer_phys_cnt_read, vtimer_phys_cnt_write),
+
+	/* Debug registers */
+	SPECIAL_REG(DBGPRCR_EL1, vmm_reg_raz, vmm_reg_wi),
+	SPECIAL_REG(OSDLR_EL1, vmm_reg_raz, vmm_reg_wi),
+	/* TODO: Exceptions on invalid access */
+	SPECIAL_REG(OSLAR_EL1, vmm_reg_raz, vmm_write_oslar_el1),
+	SPECIAL_REG(OSLSR_EL1, vmm_read_oslsr_el1, vmm_reg_wi),
 #undef SPECIAL_REG
 };
 
