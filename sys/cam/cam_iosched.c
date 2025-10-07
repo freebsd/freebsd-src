@@ -864,7 +864,6 @@ cam_iosched_iop_stats_init(struct cam_iosched_softc *isc, struct iop_stats *ios)
 	ios->ema = 0;
 	ios->emvar = 0;
 	ios->bad_latency = SBT_1S / 2;	/* Default to 500ms */
-	ios->max_lat = 0;
 	ios->softc = isc;
 	cam_iosched_limiter_init(ios);
 }
