@@ -54,9 +54,6 @@ static char *sccsid = "@(#)authunix_prot.c	2.1 88/07/29 4.0 RPCSRC";
 
 #include <rpc/rpc_com.h>
 
-/* gids compose part of a credential; there may not be more than 16 of them */
-#define NGRPS 16
-
 /*
  * XDR for unix authentication parameters.
  */
@@ -69,13 +66,10 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 	char hostbuf[MAXHOSTNAMELEN];
 
 	if (xdrs->x_op == XDR_ENCODE) {
-		/*
-		 * Restrict name length to 255 according to RFC 1057.
-		 */
 		getcredhostname(NULL, hostbuf, sizeof(hostbuf));
 		namelen = strlen(hostbuf);
-		if (namelen > 255)
-			namelen = 255;
+		if (namelen > AUTH_SYS_MAX_HOSTNAME)
+			namelen = AUTH_SYS_MAX_HOSTNAME;
 	} else {
 		namelen = 0;
 	}
@@ -91,6 +85,8 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 		if (!xdr_opaque(xdrs, hostbuf, namelen))
 			return (FALSE);
 	} else {
+		if (namelen > AUTH_SYS_MAX_HOSTNAME)
+			return (FALSE);
 		xdr_setpos(xdrs, xdr_getpos(xdrs) + RNDUP(namelen));
 	}
 
@@ -116,11 +112,28 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 		 */
 		MPASS(cred->cr_ngroups <= XU_NGROUPS);
 		supp_ngroups = cred->cr_ngroups - 1;
-		if (supp_ngroups > NGRPS)
-			supp_ngroups = NGRPS;
+		if (supp_ngroups > AUTH_SYS_MAX_GROUPS)
+			/* With current values, this should never execute. */
+			supp_ngroups = AUTH_SYS_MAX_GROUPS;
 	}
 
 	if (!xdr_uint32_t(xdrs, &supp_ngroups))
+		return (FALSE);
+
+	/*
+	 * Because we cannot store more than XU_NGROUPS in total (16 at time of
+	 * this writing), for now we choose to be strict with respect to RFC
+	 * 5531's maximum number of supplementary groups (AUTH_SYS_MAX_GROUPS).
+	 * That would also be an accidental DoS prevention measure if the
+	 * request handling code didn't try to reassemble it in full without any
+	 * size limits.  Although AUTH_SYS_MAX_GROUPS and XU_NGROUPS are equal,
+	 * since the latter includes the "effective" GID, we cannot store the
+	 * last group of a message with exactly AUTH_SYS_MAX_GROUPS
+	 * supplementary groups.  We accept such messages so as not to violate
+	 * the protocol, silently dropping the last group on the floor.
+	 */
+
+	if (xdrs->x_op != XDR_ENCODE && supp_ngroups > AUTH_SYS_MAX_GROUPS)
 		return (FALSE);
 
 	junk = 0;
