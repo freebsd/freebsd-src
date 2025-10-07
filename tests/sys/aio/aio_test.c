@@ -775,7 +775,7 @@ ATF_TC_BODY(pipe_waitcomplete, tc)
 	aio_pipe_test(waitcomplete, NULL);
 }
 
-#define	MD_LEN		GLOBAL_MAX
+#define	DEVICE_IO_LEN	GLOBAL_MAX
 #define	MDUNIT_LINK	"mdunit_link"
 
 static int
@@ -794,7 +794,7 @@ aio_md_setup(void)
 	mdio.md_version = MDIOVERSION;
 	mdio.md_type = MD_MALLOC;
 	mdio.md_options = MD_AUTOUNIT | MD_COMPRESS;
-	mdio.md_mediasize = GLOBAL_MAX;
+	mdio.md_mediasize = 1024 * 1024;  /* 1 MB, enough for max_buf_aio up to 2047 */
 	mdio.md_sectorsize = 512;
 	strlcpy(buf, __func__, sizeof(buf));
 	mdio.md_label = buf;
@@ -856,7 +856,7 @@ aio_md_test(completion comp, struct sigevent *sev, bool vectored)
 	int fd;
 
 	fd = aio_md_setup();
-	aio_context_init(&ac, fd, fd, MD_LEN);
+	aio_context_init(&ac, fd, fd, DEVICE_IO_LEN);
 	if (vectored) {
 		aio_writev_test(&ac, comp, sev);
 		aio_readv_test(&ac, comp, sev);
@@ -1846,7 +1846,9 @@ ATF_TC_BODY(vectored_big_iovcnt, tc)
 		atf_tc_fail("aio failed: %s", strerror(errno));
 
 	if (len != buflen)
-		atf_tc_fail("aio short write (%jd)", (intmax_t)len);
+		atf_tc_fail("aio short write: got %jd, expected: %jd "
+			"(max_buf_aio=%d, iovcnt=%zu)",
+			(intmax_t)len, (intmax_t)buflen, max_buf_aio, aio.aio_iovcnt);
 
 	bzero(&aio, sizeof(aio));
 	aio.aio_fildes = fd;
@@ -1995,7 +1997,7 @@ aio_zvol_test(completion comp, struct sigevent *sev, bool vectored,
 	int fd;
 
 	fd = aio_zvol_setup(unique);
-	aio_context_init(&ac, fd, fd, MD_LEN);
+	aio_context_init(&ac, fd, fd, DEVICE_IO_LEN);
 	if (vectored) {
 		aio_writev_test(&ac, comp, sev);
 		aio_readv_test(&ac, comp, sev);
