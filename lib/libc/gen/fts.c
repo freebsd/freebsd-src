@@ -106,7 +106,6 @@ struct _fts_private {
  * This assumption only holds for UFS-like filesystems that implement
  * links and directories this way, so we must punt for others.
  */
-
 static const char *ufslike_filesystems[] = {
 	"ufs",
 	"zfs",
@@ -679,7 +678,6 @@ fts_children(FTS *sp, int instr)
 void *
 (fts_get_clientptr)(FTS *sp)
 {
-
 	return (fts_get_clientptr(sp));
 }
 
@@ -696,7 +694,6 @@ FTS *
 void
 fts_set_clientptr(FTS *sp, void *clientptr)
 {
-
 	sp->fts_clientptr = clientptr;
 }
 
