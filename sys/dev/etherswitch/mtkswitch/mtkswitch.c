@@ -746,6 +746,11 @@ static device_method_t mtkswitch_methods[] = {
 	DEVMETHOD(etherswitch_getconf,	mtkswitch_getconf),
 	DEVMETHOD(etherswitch_setconf,	mtkswitch_setconf),
 
+#ifdef MT7531
+	DEVMETHOD(etherswitch_fetch_table,      mt7531_atu_fetch_table),
+	DEVMETHOD(etherswitch_fetch_table_entry,	mt7531_atu_fetch_table_entry),
+#endif
+	
 	DEVMETHOD_END
 };
 

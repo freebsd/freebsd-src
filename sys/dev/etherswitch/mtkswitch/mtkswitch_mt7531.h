@@ -1,30 +1,30 @@
 /*-
- * Copyright (c) 2023 Priit Trees.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * $FreeBSD$
- */
+* Copyright (c) 2023 Priit Trees.
+* All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions
+* are met:
+* 1. Redistributions of source code must retain the above copyright
+*    notice, this list of conditions and the following disclaimer.
+* 2. Redistributions in binary form must reproduce the above copyright
+*    notice, this list of conditions and the following disclaimer in the
+*    documentation and/or other materials provided with the distribution.
+*
+* THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+* ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+* ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+* FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+* OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+* HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+* LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+* SUCH DAMAGE.
+*
+* $FreeBSD$
+*/
 
 #ifndef	__MTKSWITCH_MT7631_H__
 #define	__MTKSWITCH_MT7631_H__
@@ -97,11 +97,11 @@
 #define         MT7531_PMCR_FORCE_SPX	(1u<<30)
 #define         MT7531_PMCR_FORCE_LINK	(1u<<31)
 #define		MT7631_PMCR_FORCE_MODE	(MT7531_PMCR_FORCE_TX_FC | \
-		    MT7531_PMCR_FORCE_RX_FC | MT7531_PMCR_FORCE_DPX | \
-		    MT7531_PMCR_FORCE_SPX | MT7531_PMCR_FORCE_LINK)
+		   MT7531_PMCR_FORCE_RX_FC | MT7531_PMCR_FORCE_DPX | \
+		   MT7531_PMCR_FORCE_SPX | MT7531_PMCR_FORCE_LINK)
 #define		PMCR_CFG_DEFAULT	(PMCR_BACKPR_EN | PMCR_BKOFF_EN | \
-		    PMCR_MAC_RX_EN | PMCR_MAC_TX_EN | PMCR_IPG_CFG_RND |  \
-		    PMCR_FORCE_RX_FC | PMCR_FORCE_TX_FC)
+		   PMCR_MAC_RX_EN | PMCR_MAC_TX_EN | PMCR_IPG_CFG_RND |  \
+		   PMCR_FORCE_RX_FC | PMCR_FORCE_TX_FC)
 
 #define	MTKSWITCH_PMSR(x)	MTKSWITCH_PORTREG(0x3008, (x))
 #define		PMSR_MAC_LINK_STS	(1u<<0)
@@ -160,4 +160,20 @@
 #define MT7531_ANA_PLLGP_CR2		0x78b0
 #define MT7531_ANA_PLLGP_CR5		0x78bc
 
+#define	MT7531_ATC	0x80
+#define			MT7531_AC_CMD_RD	0x00
+#define			MT7531_AC_CMD_RW	0x01
+#define			MT7531_AC_CMD_CLN	0x02
+#define			MT7531_AC_CMD_SSC	0x04
+#define			MT7531_AC_CMD_NSC	0x05
+
+#define			MT7531_ATC_ADDR_INVLD	(1u<<12)
+#define			MT7531_ATC_SRCH_HIT	(1u<<13)
+#define			MT7531_ATC_SRCH_END	(1u<<14)
+#define			MT7531_ATC_BUSY		(1u<<15)
+#define	MT7531_TSRA1	0x84
+#define	MT7531_TSRA2	0x88
+#define	MT7531_TSRD	0x8C
+
 #endif	/* __MTKSWITCH_MT7531_H__ */
+
