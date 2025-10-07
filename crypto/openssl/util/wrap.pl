@@ -9,7 +9,7 @@ use File::Spec::Functions;
 BEGIN {
     # This method corresponds exactly to 'use OpenSSL::Util',
     # but allows us to use a platform specific file spec.
-    require '/usr/home/ngie/git/freebsd-src/crypto/openssl/util/perl/OpenSSL/Util.pm';
+    require '/usr/home/ngie/git/freebsd-src/worktree/main/crypto/openssl/util/perl/OpenSSL/Util.pm';
     OpenSSL::Util->import();
 }
 
@@ -53,14 +53,14 @@ my $unix_shlib_wrap = catfile($there, 'util/shlib_wrap.sh');
 my $std_openssl_conf_include;
 
 if ($ARGV[0] eq '-fips') {
-    $std_openssl_conf = '/usr/home/ngie/git/freebsd-src/crypto/openssl/test/fips-and-base.cnf';
+    $std_openssl_conf = '/usr/home/ngie/git/freebsd-src/worktree/main/crypto/openssl/test/fips-and-base.cnf';
     shift;
 
     $std_openssl_conf_include = catdir($there, 'providers');
 }
 
 if ($ARGV[0] eq '-jitter') {
-    $std_openssl_conf = '/usr/home/ngie/git/freebsd-src/crypto/openssl/test/default-and-jitter.cnf';
+    $std_openssl_conf = '/usr/home/ngie/git/freebsd-src/worktree/main/crypto/openssl/test/default-and-jitter.cnf';
     shift;
 
     $std_openssl_conf_include = catdir($there, 'providers');
