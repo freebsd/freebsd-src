@@ -54,9 +54,6 @@ static char *sccsid = "@(#)svc_auth_unix.c	2.3 88/08/01 4.0 RPCSRC";
 
 #include <rpc/rpc_com.h>
 
-#define MAX_MACHINE_NAME	255
-#define NGRPS			16
-
 /*
  * Unix longhand authenticator
  */
@@ -80,7 +77,7 @@ _svcauth_unix(struct svc_req *rqst, struct rpc_msg *msg)
 	if (buf != NULL) {
 		time = IXDR_GET_UINT32(buf);
 		str_len = (size_t)IXDR_GET_UINT32(buf);
-		if (str_len > MAX_MACHINE_NAME) {
+		if (str_len > AUTH_SYS_MAX_HOSTNAME) {
 			stat = AUTH_BADCRED;
 			goto done;
 		}
@@ -89,7 +86,7 @@ _svcauth_unix(struct svc_req *rqst, struct rpc_msg *msg)
 		xcr->cr_uid = IXDR_GET_UINT32(buf);
 		xcr->cr_gid = IXDR_GET_UINT32(buf);
 		supp_ngroups = (size_t)IXDR_GET_UINT32(buf);
-		if (supp_ngroups > NGRPS) {
+		if (supp_ngroups > AUTH_SYS_MAX_GROUPS) {
 			stat = AUTH_BADCRED;
 			goto done;
 		}
