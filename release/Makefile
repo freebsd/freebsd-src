@@ -448,9 +448,7 @@ release:	real-release vm-release cloudware-release oci-release
 release-done:
 	touch release
 
-real-release:
-	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj
-	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${RELEASE_TARGETS}
+real-release: obj .WAIT ${RELEASE_TARGETS}
 
 install:	release-install vm-install oci-install .WAIT cloud-install
 
