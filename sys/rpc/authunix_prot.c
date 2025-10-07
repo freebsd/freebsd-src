@@ -79,7 +79,6 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 	} else {
 		namelen = 0;
 	}
-	junk = 0;
 
 	if (!xdr_uint32_t(xdrs, time)
 	    || !xdr_uint32_t(xdrs, &namelen))
@@ -97,15 +96,25 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 
 	if (!xdr_uint32_t(xdrs, &cred->cr_uid))
 		return (FALSE);
+
+	/*
+	 * Safety check: The protocol needs at least one group (access to
+	 * 'cr_gid', decrementation of 'cr_ngroups' below).
+	 */
+	if (xdrs->x_op == XDR_ENCODE && cred->cr_ngroups == 0)
+		return (FALSE);
 	if (!xdr_uint32_t(xdrs, &cred->cr_gid))
 		return (FALSE);
 
 	if (xdrs->x_op == XDR_ENCODE) {
 		/*
-		 * Note that this is a `struct xucred`, which maintains its
-		 * historical layout of preserving the egid in cr_ngroups and
-		 * cr_groups[0] == egid.
+		 * Note that this is a 'struct xucred', which still has the
+		 * historical layout where the effective GID is in cr_groups[0]
+		 * and is accounted in 'cr_ngroups'.  We substract 1 to obtain
+		 * the number of "supplementary" groups, passed in the AUTH_SYS
+		 * credentials variable-length array called gids[] in RFC 5531.
 		 */
+		MPASS(cred->cr_ngroups <= XU_NGROUPS);
 		supp_ngroups = cred->cr_ngroups - 1;
 		if (supp_ngroups > NGRPS)
 			supp_ngroups = NGRPS;
@@ -113,22 +122,15 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 
 	if (!xdr_uint32_t(xdrs, &supp_ngroups))
 		return (FALSE);
-	for (i = 0; i < supp_ngroups; i++) {
-		if (i < ngroups_max) {
-			if (!xdr_uint32_t(xdrs, &cred->cr_groups[i + 1]))
-				return (FALSE);
-		} else {
-			if (!xdr_uint32_t(xdrs, &junk))
-				return (FALSE);
-		}
-	}
 
-	if (xdrs->x_op == XDR_DECODE) {
-		if (supp_ngroups > ngroups_max)
-			cred->cr_ngroups = ngroups_max + 1;
-		else
-			cred->cr_ngroups = supp_ngroups + 1;
-	}
+	junk = 0;
+	for (i = 0; i < supp_ngroups; ++i)
+		if (!xdr_uint32_t(xdrs, i < XU_NGROUPS - 1 ?
+		    &cred->cr_groups[i + 1] : &junk))
+			return (FALSE);
+
+	if (xdrs->x_op != XDR_ENCODE)
+		cred->cr_ngroups = MIN(supp_ngroups + 1, XU_NGROUPS);
 
 	return (TRUE);
 }
