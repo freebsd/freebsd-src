@@ -131,6 +131,7 @@ void infra_test(void)
 	unit_show_feature("infra cache");
 	unit_assert(ipstrtoaddr("127.0.0.1", 53, &one, &onelen));
 
+	config_auto_slab_values(cfg);
 	slab = infra_create(cfg);
 	/* insert new record */
 	unit_assert( infra_host(slab, &one, onelen, zone, zonelen, now,
