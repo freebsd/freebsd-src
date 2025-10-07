@@ -923,10 +923,14 @@ pkt_snip_edns_option(uint8_t* pkt, size_t len, sldns_edns_option code,
 	if(!pkt_find_edns_opt(&opt_position, &remaining)) return 0;
 	if(remaining < 8) return -1; /* malformed */
 	rdlen = sldns_read_uint16(opt_position+6);
+	if(remaining < ((size_t)rdlen)+8)
+		return -1; /* malformed */
 	rdata = opt_position + 8;
 	while(rdlen > 0) {
 		if(rdlen < 4) return -1; /* malformed */
 		optlen = sldns_read_uint16(rdata+2);
+		if((size_t)rdlen < 4+((size_t)optlen))
+			return -1; /* malformed */
 		if(sldns_read_uint16(rdata) == code) {
 			/* save data to buf for caller inspection */
 			memmove(buf, rdata+4, optlen);
@@ -1134,8 +1138,9 @@ static void lowercase_dname(uint8_t** p, size_t* remain)
 	while(**p != 0) {
 		/* compressed? */
 		if((**p & 0xc0) == 0xc0) {
-			*p += 2;
-			*remain -= 2;
+			llen = *remain < 2 ? (unsigned int)*remain : 2;
+			*p += llen;
+			*remain -= llen;
 			return;
 		}
 		llen = (unsigned int)**p;
@@ -1178,6 +1183,12 @@ static void lowercase_rdata(uint8_t** p, size_t* remain,
 			uint8_t len;
 			if(rdataremain == 0) return;
 			len = **p;
+			if(rdataremain < ((size_t)len)+1) {
+				/* malformed LDNS_RDF_TYPE_STR, skip remainder */
+				*p += rdataremain;
+				*remain -= rdatalen;
+				return;
+			}
 			*p += len+1;
 			rdataremain -= len+1;
 		} else {
@@ -1206,6 +1217,12 @@ static void lowercase_rdata(uint8_t** p, size_t* remain,
 				len = 16;
 				break;
 			default: error("bad rdf type in lowercase %d", (int)f);
+			}
+			if (rdataremain < (size_t)len) {
+				/* malformed RDF, skip remainder */
+				*p += rdataremain;
+				*remain -= rdatalen;
+				return;
 			}
 			*p += len;
 			rdataremain -= len;

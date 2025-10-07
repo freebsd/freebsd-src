@@ -6,6 +6,7 @@ server:
 	val-override-date: "20070916134226"
 	target-fetch-policy: "0 0 0 0 0"
 	qname-minimisation: "no"
+	ede: yes
 
 stub-zone:
 	name: "."
@@ -201,6 +202,28 @@ STEP 10 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all
 REPLY QR RD RA DO NOERROR
+SECTION QUESTION
+www.sub.example.com. IN A
+SECTION ANSWER
+www.sub.example.com. 	3600	IN	A	11.11.11.11
+www.sub.example.com.    3600    IN      RRSIG   A 5 4 3600 20070926134150 20070829134150 30899 sub.example.com. 0DqqRfRtm7VSEQ4mmBbzrKRqQAay3JAE8DPDGmjtokrrjN9F1G/HxozDV7bjdIh2EChlQea8FPwf/GepJMUVxg== ;{id = 30899}
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+; Check cached response with CD bit
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY RD CD DO
+SECTION QUESTION
+www.sub.example.com. IN A
+ENTRY_END
+
+; a bug here would return EDE=6 (default from validator)
+STEP 21 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA CD DO NOERROR
 SECTION QUESTION
 www.sub.example.com. IN A
 SECTION ANSWER

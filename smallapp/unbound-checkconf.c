@@ -294,7 +294,8 @@ view_and_respipchecks(struct config_file* cfg)
 {
 	struct views* views = NULL;
 	struct respip_set* respip = NULL;
-	int ignored = 0;
+	int have_view_respip_cfg = 0;
+	int use_response_ip = 0;
 	if(!(views = views_create()))
 		fatal_exit("Could not create views: out of memory");
 	if(!(respip = respip_set_create()))
@@ -303,8 +304,11 @@ view_and_respipchecks(struct config_file* cfg)
 		fatal_exit("Could not set up views");
 	if(!respip_global_apply_cfg(respip, cfg))
 		fatal_exit("Could not setup respip set");
-	if(!respip_views_apply_cfg(views, cfg, &ignored))
+	if(!respip_views_apply_cfg(views, cfg, &have_view_respip_cfg))
 		fatal_exit("Could not setup per-view respip sets");
+	use_response_ip = !respip_set_is_empty(respip) || have_view_respip_cfg;
+	if(use_response_ip && !strstr(cfg->module_conf, "respip"))
+		fatal_exit("response-ip options require respip module");
 	acl_view_tag_checks(cfg, views);
 	views_delete(views);
 	respip_set_delete(respip);
@@ -447,6 +451,39 @@ ifautomaticportschecks(char* ifautomaticports)
 		if(extraport == 0 && now == after)
 			fatal_exit("interface-automatic-ports: parse error at position %d in '%s'", (int)(now-ifautomaticports)+1, ifautomaticports);
 		now = after;
+	}
+}
+
+/** check control interface strings */
+static void
+controlinterfacechecks(struct config_file* cfg)
+{
+	struct config_strlist* p;
+	for(p = cfg->control_ifs.first; p; p = p->next) {
+		struct sockaddr_storage a;
+		socklen_t alen;
+		char** rcif = NULL;
+		int i, num_rcif = 0;
+		/* See if it is a local socket, starts with a '/'. */
+		if(p->str && p->str[0] == '/')
+			continue;
+		if(!resolve_interface_names(&p->str, 1, NULL, &rcif,
+			&num_rcif)) {
+			fatal_exit("could not resolve interface names, for control-interface: %s",
+				p->str);
+		}
+		for(i=0; i<num_rcif; i++) {
+			if(!extstrtoaddr(rcif[i], &a, &alen,
+				cfg->control_port)) {
+				if(strcmp(p->str, rcif[i])!=0)
+					fatal_exit("cannot parse control-interface address '%s' from the control-interface specified as '%s'",
+						rcif[i], p->str);
+				else
+					fatal_exit("cannot parse control-interface specified as '%s'",
+						p->str);
+			}
+		}
+		config_del_strarray(rcif, num_rcif);
 	}
 }
 
@@ -636,8 +673,10 @@ check_modules_exist(const char* module_conf)
 				}
 				n[j] = s[j];
 			}
-			fatal_exit("module_conf lists module '%s' but that "
-				"module is not available.", n);
+			fatal_exit("Unknown value in module-config, module: "
+				"'%s'. This module is not present (not "
+				"compiled in); see the list of linked modules "
+				"with unbound -V", n);
 		}
 		s += strlen(names[i]);
 	}
@@ -926,6 +965,8 @@ morechecks(struct config_file* cfg)
 			fatal_exit("control-cert-file: \"%s\" does not exist",
 				cfg->control_cert_file);
 	}
+	if(cfg->remote_control_enable)
+		controlinterfacechecks(cfg);
 
 	donotquerylocalhostcheck(cfg);
 	localzonechecks(cfg);
@@ -966,6 +1007,8 @@ check_auth(struct config_file* cfg)
 	if(!az || !auth_zones_apply_cfg(az, cfg, 0, &is_rpz, NULL, NULL)) {
 		fatal_exit("Could not setup authority zones");
 	}
+	if(is_rpz && !strstr(cfg->module_conf, "respip"))
+		fatal_exit("RPZ requires the respip module");
 	auth_zones_delete(az);
 }
 

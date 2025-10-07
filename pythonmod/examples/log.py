@@ -38,12 +38,14 @@ import os
 def dataHex(data, prefix=""):
     """Converts binary string data to display representation form"""
     res = ""
-    for i in range(0, (len(data)+15)/16):
+    for i in range(0, int((len(data)+15)/16)):
         res += "%s0x%02X | " % (prefix, i*16)
-        d = map(lambda x:ord(x), data[i*16:i*16+17])
+        d = map(lambda x:x, data[i*16:i*16+17])
+        count=0
         for ch in d:
             res += "%02X " % ch
-        for i in range(0,17-len(d)):
+            count+=1
+        for i in range(0,17-count):
             res += "   "
         res += "| "
         for ch in d:
@@ -60,31 +62,31 @@ def logDnsMsg(qstate):
     r  = qstate.return_msg.rep
     q  = qstate.return_msg.qinfo
 
-    print "-"*100
+    print("-"*100)
     print("Query: %s, type: %s (%d), class: %s (%d) " % (
             qstate.qinfo.qname_str, qstate.qinfo.qtype_str, qstate.qinfo.qtype,
             qstate.qinfo.qclass_str, qstate.qinfo.qclass))
-    print "-"*100
-    print "Return    reply :: flags: %04X, QDcount: %d, Security:%d, TTL=%d" % (r.flags, r.qdcount, r.security, r.ttl)
-    print "          qinfo :: qname: %s %s, qtype: %s, qclass: %s" % (str(q.qname_list), q.qname_str, q.qtype_str, q.qclass_str)
+    print("-"*100)
+    print("Return    reply :: flags: %04X, QDcount: %d, Security:%d, TTL=%d" % (r.flags, r.qdcount, r.security, r.ttl))
+    print("          qinfo :: qname: %s %s, qtype: %s, qclass: %s" % (str(q.qname_list), q.qname_str, q.qtype_str, q.qclass_str))
 
     if (r):
-        print "Reply:"
+        print("Reply:")
         for i in range(0, r.rrset_count):
             rr = r.rrsets[i]
 
             rk = rr.rk
-            print i,":",rk.dname_list, rk.dname_str, "flags: %04X" % rk.flags,
-            print "type:",rk.type_str,"(%d)" % ntohs(rk.type), "class:",rk.rrset_class_str,"(%d)" % ntohs(rk.rrset_class)
+            print(i,":",rk.dname_list, rk.dname_str, "flags: %04X" % rk.flags,)
+            print("type:",rk.type_str,"(%d)" % ntohs(rk.type), "class:",rk.rrset_class_str,"(%d)" % ntohs(rk.rrset_class))
 
             d = rr.entry.data
             for j in range(0,d.count+d.rrsig_count):
-                print "  ",j,":","TTL=",d.rr_ttl[j],
-                if (j >= d.count): print "rrsig",
-                print 
-                print dataHex(d.rr_data[j],"       ")
+                print("  ",j,":","TTL=",d.rr_ttl[j],)
+                if (j >= d.count): print("rrsig",)
+                print()
+                print(dataHex(d.rr_data[j],"       "))
 
-    print "-"*100
+    print("-"*100)
 
 def init(id, cfg):
    log_info("pythonmod: init called, module id is %d port: %d script: %s" % (id, cfg.port, mod_env['script']))

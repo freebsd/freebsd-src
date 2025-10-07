@@ -795,7 +795,7 @@ macro_expand(rbtree_type* store, struct replay_runtime* runtime, char** text)
 	char buf[10240];
 	char* at = *text;
 	size_t len = macro_length(at);
-	int dofunc = 0;
+	int tries = 0, dofunc = 0;
 	char* arithstart = NULL;
 	if(len >= sizeof(buf))
 		return NULL; /* too long */
@@ -834,6 +834,8 @@ macro_expand(rbtree_type* store, struct replay_runtime* runtime, char** text)
 	/* actual macro text expansion */
 	while(*at) {
 		size_t remain = sizeof(buf)-strlen(buf);
+		if(tries++ > 10000)
+			return NULL; /* looks like got into an infinite loop, bail out */
 		if(strncmp(at, "${", 2) == 0) {
 			at = do_macro_recursion(store, runtime, at, remain);
 		} else if(*at == '$') {

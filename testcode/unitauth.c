@@ -670,6 +670,7 @@ authtest_addzone(struct auth_zones* az, const char* name, char* fname)
 	auth_zone_set_zonefile(z, fname);
 	z->for_upstream = 1;
 	cfg = config_create();
+	config_auto_slab_values(cfg);
 	free(cfg->chrootdir);
 	cfg->chrootdir = NULL;
 

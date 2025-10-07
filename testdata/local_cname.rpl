@@ -11,6 +11,7 @@ server:
 	# Use a fixed and faked date for DNSSEC validation to avoid run-time
 	# re-signing test signatures.
 	val-override-date: "20161001003725"
+	fake-sha1: yes
 
 	define-tag: "cname cname2 nx servfail sec ambiguous"
 	access-control-tag: 127.0.0.1/32 "cname cname2 nx servfail sec"
@@ -56,6 +57,14 @@ server:
 	local-zone: synth.cname redirect
 	local-data: "synth.cname. IN CNAME *.from.resolution."
 
+	# CNAME is pointing to a downstream auth zone
+	local-zone: authdown.example.net. redirect
+	local-data: "authdown.example.net. IN CNAME downstream.zone."
+
+	# CNAME is pointing to an upstream auth zone
+	local-zone: authup.example.net. redirect
+	local-data: "authup.example.net. IN CNAME upstream.zone."
+
 	### template zone and tag intended to be used for tests with CNAME and
 	### other data.
 	##local-zone: ambiguous.example.com redirect
@@ -66,14 +75,45 @@ server:
 	##@TAGDATA1@
 	##@TAGDATA2@
 
-
-
         target-fetch-policy: "0 0 0 0 0"
 
 # send the queries to the test server (see the 10.0.10.3 entries below)
 forward-zone:
 	name: "."
 	forward-addr: 10.0.10.3
+
+auth-zone:
+	name: "downstream.zone."
+	for-downstream: yes
+	for-upstream: no
+	fallback-enabled: no
+	## this line generates zonefile: \n"/tmp/xxx.downstream.zone"\n
+	zonefile:
+TEMPFILE_NAME downstream.zone
+	## this is the inline file /tmp/xxx.downstream.zone
+	## the tempfiles are deleted when the testrun is over.
+TEMPFILE_CONTENTS downstream.zone
+$ORIGIN downstream.zone.
+@	3600	IN	SOA	a b 1 2 3 4 5
+@		IN	TXT "hello from downstream auth zone"
+TEMPFILE_END
+
+server: domain-insecure: upstream.zone.
+auth-zone:
+	name: "upstream.zone."
+	for-downstream: no
+	for-upstream: yes
+	fallback-enabled: no
+	## this line generates zonefile: \n"/tmp/xxx.upstream.zone"\n
+	zonefile:
+TEMPFILE_NAME upstream.zone
+	## this is the inline file /tmp/xxx.upstream.zone
+	## the tempfiles are deleted when the testrun is over.
+TEMPFILE_CONTENTS upstream.zone
+$ORIGIN upstream.zone.
+@	3600	IN	SOA	a b 1 2 3 4 5
+@		IN	TXT "hello from upstream auth zone"
+TEMPFILE_END
 CONFIG_END
 
 ; short one-line description of scenario:
@@ -524,5 +564,44 @@ SECTION AUTHORITY
 SECTION ADDITIONAL
 ENTRY_END
 
+STEP 290 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+authdown.example.net. IN TXT
+ENTRY_END
+
+STEP 300 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR AA RD RA DO NOERROR
+SECTION QUESTION
+authdown.example.net. IN TXT
+SECTION ANSWER
+authdown.example.net. IN CNAME downstream.zone.
+downstream.zone. IN TXT "hello from downstream auth zone"
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+STEP 310 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+authup.example.net. IN TXT
+ENTRY_END
+
+STEP 320 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR AA RD RA DO NOERROR
+SECTION QUESTION
+authup.example.net. IN TXT
+SECTION ANSWER
+authup.example.net. IN CNAME upstream.zone.
+upstream.zone. IN TXT "hello from upstream auth zone"
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
 
 SCENARIO_END

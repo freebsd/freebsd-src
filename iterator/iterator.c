@@ -2152,6 +2152,7 @@ processLastResort(struct module_qstate* qstate, struct iter_qstate* iq,
 		verbose(VERB_QUERY, "configured stub or forward servers failed -- returning SERVFAIL");
 		return error_response_cache(qstate, id, LDNS_RCODE_SERVFAIL);
 	}
+	iq->dp->fallback_to_parent_side_NS = 1;
 	if(qstate->env->cfg->harden_unverified_glue) {
 		if(!cache_fill_missing(qstate->env, iq->qchase.qclass,
 			qstate->region, iq->dp, PACKED_RRSET_UNVERIFIED_GLUE))
@@ -2180,6 +2181,10 @@ processLastResort(struct module_qstate* qstate, struct iter_qstate* iq,
 					a->lame, a->tls_auth_name, -1, NULL);
 			}
 			lock_rw_unlock(&qstate->env->hints->lock);
+			/* copy over some configuration since we update the
+			 * delegation point in place */
+			iq->dp->tcp_upstream = dp->tcp_upstream;
+			iq->dp->ssl_upstream = dp->ssl_upstream;
 		}
 		iq->dp->has_parent_side_NS = 1;
 	} else if(!iq->dp->has_parent_side_NS) {
@@ -2768,7 +2773,8 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 	}
 	/* if the mesh query list is full, then do not waste cpu and sockets to
 	 * fetch promiscuous targets. They can be looked up when needed. */
-	if(can_do_promisc && !mesh_jostle_exceeded(qstate->env->mesh)) {
+	if(!iq->dp->fallback_to_parent_side_NS && can_do_promisc
+		&& !mesh_jostle_exceeded(qstate->env->mesh)) {
 		tf_policy = ie->target_fetch_policy[iq->depth];
 	}
 
@@ -3247,13 +3253,19 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		}
 	}
 	if(type == RESPONSE_TYPE_CNAME &&
-		iq->qchase.qtype == LDNS_RR_TYPE_CNAME &&
+		(iq->qchase.qtype == LDNS_RR_TYPE_CNAME ||
+		  iq->qchase.qtype == LDNS_RR_TYPE_ANY) &&
 		iq->minimisation_state == MINIMISE_STATE &&
 		query_dname_compare(iq->qchase.qname, iq->qinfo_out.qname) == 0) {
 		/* The minimised query for full QTYPE and hidden QTYPE can be
 		 * classified as CNAME response type, even when the original
 		 * QTYPE=CNAME. This should be treated as answer response type.
 		 */
+		/* For QTYPE=ANY, it is also considered the response, that
+		 * is what the classifier would say, if it saw qtype ANY,
+		 * and this same response was returned for that. The response
+		 * can already be treated as such an answer, without having
+		 * to send another query with a new qtype. */
 		type = RESPONSE_TYPE_ANSWER;
 	}
 
@@ -3510,6 +3522,15 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 			iq->num_target_queries = 0;
 			return processDSNSFind(qstate, iq, id);
 		}
+		if(iq->minimisation_state == MINIMISE_STATE &&
+			query_dname_compare(iq->qchase.qname,
+			iq->qinfo_out.qname) != 0) {
+			verbose(VERB_ALGO, "continue query minimisation, "
+				"downwards, after CNAME response for "
+				"intermediate label");
+			/* continue query minimisation, downwards */
+			return next_state(iq, QUERYTARGETS_STATE);
+		}
 		/* Process the CNAME response. */
 		if(!handle_cname_response(qstate, iq, iq->response, 
 			&sname, &snamelen)) {
@@ -3572,10 +3593,7 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		iq->auth_zone_response = 0;
 		iq->sent_count = 0;
 		iq->dp_target_count = 0;
-		if(iq->minimisation_state != MINIMISE_STATE)
-			/* Only count as query restart when it is not an extra
-			 * query as result of qname minimisation. */
-			iq->query_restart_count++;
+		iq->query_restart_count++;
 		if(qstate->env->cfg->qname_minimisation)
 			iq->minimisation_state = INIT_MINIMISE_STATE;
 
@@ -4147,7 +4165,7 @@ processFinished(struct module_qstate* qstate, struct iter_qstate* iq,
 		/* store message with the finished prepended items,
 		 * but only if we did recursion. The nonrecursion referral
 		 * from cache does not need to be stored in the msg cache. */
-		if(!qstate->no_cache_store && qstate->query_flags&BIT_RD) {
+		if(!qstate->no_cache_store && (qstate->query_flags&BIT_RD)) {
 			iter_dns_store(qstate->env, &qstate->qinfo, 
 				iq->response->rep, 0, qstate->prefetch_leeway,
 				iq->dp&&iq->dp->has_parent_side_NS,

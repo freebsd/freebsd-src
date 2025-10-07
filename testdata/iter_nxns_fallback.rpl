@@ -49,7 +49,7 @@ RANGE_BEGIN 0 100
 		ADJUST copy_id copy_query
 		REPLY QR NOERROR
 		SECTION QUESTION
-			nonexistant.com. IN A
+			nonexistent.com. IN A
 		SECTION AUTHORITY
 			com.	IN NS	a.gtld-servers.net.
 		SECTION ADDITIONAL
@@ -89,9 +89,9 @@ RANGE_BEGIN 0 100
 		ADJUST copy_id copy_query
 		REPLY QR NOERROR
 		SECTION QUESTION
-			nonexistant.com. IN A
+			nonexistent.com. IN A
 		SECTION AUTHORITY
-			nonexistant.com. IN NS	ns.example.com.
+			nonexistent.com. IN NS	ns.example.com.
 		SECTION ADDITIONAL
 			ns.example.com.	 10 IN A	1.2.3.4
 	ENTRY_END
@@ -107,18 +107,18 @@ RANGE_BEGIN 0 100
 		SECTION QUESTION
 			example.com. IN NS
 		SECTION ANSWER
-			example.com.    IN NS   ns1.nonexistant.com.
-			example.com.    IN NS   ns2.nonexistant.com.
-			example.com.    IN NS   ns3.nonexistant.com.
-			example.com.    IN NS   ns4.nonexistant.com.
-			example.com.    IN NS   ns5.nonexistant.com.
-			example.com.    IN NS   ns6.nonexistant.com.
-			example.com.    IN NS   ns7.nonexistant.com.
-			example.com.    IN NS   ns8.nonexistant.com.
-			example.com.    IN NS   ns9.nonexistant.com.
-			example.com.    IN NS   ns10.nonexistant.com.
-			example.com.    IN NS   ns11.nonexistant.com.
-			example.com.    IN NS   ns12.nonexistant.com.
+			example.com.    IN NS   ns1.nonexistent.com.
+			example.com.    IN NS   ns2.nonexistent.com.
+			example.com.    IN NS   ns3.nonexistent.com.
+			example.com.    IN NS   ns4.nonexistent.com.
+			example.com.    IN NS   ns5.nonexistent.com.
+			example.com.    IN NS   ns6.nonexistent.com.
+			example.com.    IN NS   ns7.nonexistent.com.
+			example.com.    IN NS   ns8.nonexistent.com.
+			example.com.    IN NS   ns9.nonexistent.com.
+			example.com.    IN NS   ns10.nonexistent.com.
+			example.com.    IN NS   ns11.nonexistent.com.
+			example.com.    IN NS   ns12.nonexistent.com.
 	ENTRY_END
 
 	ENTRY_BEGIN
@@ -146,7 +146,7 @@ RANGE_BEGIN 0 100
 		ADJUST copy_id copy_query
 		REPLY QR NXDOMAIN
 		SECTION QUESTION
-			nonexistant.com. IN A
+			nonexistent.com. IN A
 	ENTRY_END
 
 	ENTRY_BEGIN
@@ -158,18 +158,18 @@ RANGE_BEGIN 0 100
 		SECTION ANSWER
 			a.example.com. IN A	10.20.30.40
 		SECTION AUTHORITY
-			example.com.    IN NS   ns1.nonexistant.com.
-			example.com.    IN NS   ns2.nonexistant.com.
-			example.com.    IN NS   ns3.nonexistant.com.
-			example.com.    IN NS   ns4.nonexistant.com.
-			example.com.    IN NS   ns5.nonexistant.com.
-			example.com.    IN NS   ns6.nonexistant.com.
-			example.com.    IN NS   ns7.nonexistant.com.
-			example.com.    IN NS   ns8.nonexistant.com.
-			example.com.    IN NS   ns9.nonexistant.com.
-			example.com.    IN NS   ns10.nonexistant.com.
-			example.com.    IN NS   ns11.nonexistant.com.
-			example.com.    IN NS   ns12.nonexistant.com.
+			example.com.    IN NS   ns1.nonexistent.com.
+			example.com.    IN NS   ns2.nonexistent.com.
+			example.com.    IN NS   ns3.nonexistent.com.
+			example.com.    IN NS   ns4.nonexistent.com.
+			example.com.    IN NS   ns5.nonexistent.com.
+			example.com.    IN NS   ns6.nonexistent.com.
+			example.com.    IN NS   ns7.nonexistent.com.
+			example.com.    IN NS   ns8.nonexistent.com.
+			example.com.    IN NS   ns9.nonexistent.com.
+			example.com.    IN NS   ns10.nonexistent.com.
+			example.com.    IN NS   ns11.nonexistent.com.
+			example.com.    IN NS   ns12.nonexistent.com.
 	ENTRY_END
 
 	ENTRY_BEGIN
@@ -181,18 +181,18 @@ RANGE_BEGIN 0 100
 		SECTION ANSWER
 			b.example.com. IN A	10.20.30.40
 		SECTION AUTHORITY
-			example.com.    IN NS   ns1.nonexistant.com.
-			example.com.    IN NS   ns2.nonexistant.com.
-			example.com.    IN NS   ns3.nonexistant.com.
-			example.com.    IN NS   ns4.nonexistant.com.
-			example.com.    IN NS   ns5.nonexistant.com.
-			example.com.    IN NS   ns6.nonexistant.com.
-			example.com.    IN NS   ns7.nonexistant.com.
-			example.com.    IN NS   ns8.nonexistant.com.
-			example.com.    IN NS   ns9.nonexistant.com.
-			example.com.    IN NS   ns10.nonexistant.com.
-			example.com.    IN NS   ns11.nonexistant.com.
-			example.com.    IN NS   ns12.nonexistant.com.
+			example.com.    IN NS   ns1.nonexistent.com.
+			example.com.    IN NS   ns2.nonexistent.com.
+			example.com.    IN NS   ns3.nonexistent.com.
+			example.com.    IN NS   ns4.nonexistent.com.
+			example.com.    IN NS   ns5.nonexistent.com.
+			example.com.    IN NS   ns6.nonexistent.com.
+			example.com.    IN NS   ns7.nonexistent.com.
+			example.com.    IN NS   ns8.nonexistent.com.
+			example.com.    IN NS   ns9.nonexistent.com.
+			example.com.    IN NS   ns10.nonexistent.com.
+			example.com.    IN NS   ns11.nonexistent.com.
+			example.com.    IN NS   ns12.nonexistent.com.
 	ENTRY_END
 
 	ENTRY_BEGIN
@@ -204,18 +204,18 @@ RANGE_BEGIN 0 100
 		SECTION ANSWER
 			c.example.com. IN A	10.20.30.40
 		SECTION AUTHORITY
-			example.com.    IN NS   ns1.nonexistant.com.
-			example.com.    IN NS   ns2.nonexistant.com.
-			example.com.    IN NS   ns3.nonexistant.com.
-			example.com.    IN NS   ns4.nonexistant.com.
-			example.com.    IN NS   ns5.nonexistant.com.
-			example.com.    IN NS   ns6.nonexistant.com.
-			example.com.    IN NS   ns7.nonexistant.com.
-			example.com.    IN NS   ns8.nonexistant.com.
-			example.com.    IN NS   ns9.nonexistant.com.
-			example.com.    IN NS   ns10.nonexistant.com.
-			example.com.    IN NS   ns11.nonexistant.com.
-			example.com.    IN NS   ns12.nonexistant.com.
+			example.com.    IN NS   ns1.nonexistent.com.
+			example.com.    IN NS   ns2.nonexistent.com.
+			example.com.    IN NS   ns3.nonexistent.com.
+			example.com.    IN NS   ns4.nonexistent.com.
+			example.com.    IN NS   ns5.nonexistent.com.
+			example.com.    IN NS   ns6.nonexistent.com.
+			example.com.    IN NS   ns7.nonexistent.com.
+			example.com.    IN NS   ns8.nonexistent.com.
+			example.com.    IN NS   ns9.nonexistent.com.
+			example.com.    IN NS   ns10.nonexistent.com.
+			example.com.    IN NS   ns11.nonexistent.com.
+			example.com.    IN NS   ns12.nonexistent.com.
 	ENTRY_END
 
 	ENTRY_BEGIN
@@ -227,18 +227,18 @@ RANGE_BEGIN 0 100
 		SECTION ANSWER
 			d.example.com. IN A	10.20.30.40
 		SECTION AUTHORITY
-			example.com.    IN NS   ns1.nonexistant.com.
-			example.com.    IN NS   ns2.nonexistant.com.
-			example.com.    IN NS   ns3.nonexistant.com.
-			example.com.    IN NS   ns4.nonexistant.com.
-			example.com.    IN NS   ns5.nonexistant.com.
-			example.com.    IN NS   ns6.nonexistant.com.
-			example.com.    IN NS   ns7.nonexistant.com.
-			example.com.    IN NS   ns8.nonexistant.com.
-			example.com.    IN NS   ns9.nonexistant.com.
-			example.com.    IN NS   ns10.nonexistant.com.
-			example.com.    IN NS   ns11.nonexistant.com.
-			example.com.    IN NS   ns12.nonexistant.com.
+			example.com.    IN NS   ns1.nonexistent.com.
+			example.com.    IN NS   ns2.nonexistent.com.
+			example.com.    IN NS   ns3.nonexistent.com.
+			example.com.    IN NS   ns4.nonexistent.com.
+			example.com.    IN NS   ns5.nonexistent.com.
+			example.com.    IN NS   ns6.nonexistent.com.
+			example.com.    IN NS   ns7.nonexistent.com.
+			example.com.    IN NS   ns8.nonexistent.com.
+			example.com.    IN NS   ns9.nonexistent.com.
+			example.com.    IN NS   ns10.nonexistent.com.
+			example.com.    IN NS   ns11.nonexistent.com.
+			example.com.    IN NS   ns12.nonexistent.com.
 	ENTRY_END
 RANGE_END
 
@@ -259,18 +259,18 @@ a.example.com.	IN A
 SECTION ANSWER
 a.example.com.	IN A	10.20.30.40
 SECTION AUTHORITY
-example.com.    IN NS   ns1.nonexistant.com.
-example.com.    IN NS   ns2.nonexistant.com.
-example.com.    IN NS   ns3.nonexistant.com.
-example.com.    IN NS   ns4.nonexistant.com.
-example.com.    IN NS   ns5.nonexistant.com.
-example.com.    IN NS   ns6.nonexistant.com.
-example.com.    IN NS   ns7.nonexistant.com.
-example.com.    IN NS   ns8.nonexistant.com.
-example.com.    IN NS   ns9.nonexistant.com.
-example.com.    IN NS   ns10.nonexistant.com.
-example.com.    IN NS   ns11.nonexistant.com.
-example.com.    IN NS   ns12.nonexistant.com.
+example.com.    IN NS   ns1.nonexistent.com.
+example.com.    IN NS   ns2.nonexistent.com.
+example.com.    IN NS   ns3.nonexistent.com.
+example.com.    IN NS   ns4.nonexistent.com.
+example.com.    IN NS   ns5.nonexistent.com.
+example.com.    IN NS   ns6.nonexistent.com.
+example.com.    IN NS   ns7.nonexistent.com.
+example.com.    IN NS   ns8.nonexistent.com.
+example.com.    IN NS   ns9.nonexistent.com.
+example.com.    IN NS   ns10.nonexistent.com.
+example.com.    IN NS   ns11.nonexistent.com.
+example.com.    IN NS   ns12.nonexistent.com.
 ENTRY_END
 
 ; The child side nameservers are now known to Unbound
@@ -293,18 +293,18 @@ b.example.com.	IN A
 SECTION ANSWER
 b.example.com.	IN A	10.20.30.40
 SECTION AUTHORITY
-example.com.    IN NS   ns1.nonexistant.com.
-example.com.    IN NS   ns2.nonexistant.com.
-example.com.    IN NS   ns3.nonexistant.com.
-example.com.    IN NS   ns4.nonexistant.com.
-example.com.    IN NS   ns5.nonexistant.com.
-example.com.    IN NS   ns6.nonexistant.com.
-example.com.    IN NS   ns7.nonexistant.com.
-example.com.    IN NS   ns8.nonexistant.com.
-example.com.    IN NS   ns9.nonexistant.com.
-example.com.    IN NS   ns10.nonexistant.com.
-example.com.    IN NS   ns11.nonexistant.com.
-example.com.    IN NS   ns12.nonexistant.com.
+example.com.    IN NS   ns1.nonexistent.com.
+example.com.    IN NS   ns2.nonexistent.com.
+example.com.    IN NS   ns3.nonexistent.com.
+example.com.    IN NS   ns4.nonexistent.com.
+example.com.    IN NS   ns5.nonexistent.com.
+example.com.    IN NS   ns6.nonexistent.com.
+example.com.    IN NS   ns7.nonexistent.com.
+example.com.    IN NS   ns8.nonexistent.com.
+example.com.    IN NS   ns9.nonexistent.com.
+example.com.    IN NS   ns10.nonexistent.com.
+example.com.    IN NS   ns11.nonexistent.com.
+example.com.    IN NS   ns12.nonexistent.com.
 ENTRY_END
 
 ; Query a third time, this will get the cached NXDOMAINs (no NX counter for
@@ -330,18 +330,18 @@ c.example.com.	IN A
 SECTION ANSWER
 c.example.com.	IN A	10.20.30.40
 SECTION AUTHORITY
-example.com.    IN NS   ns1.nonexistant.com.
-example.com.    IN NS   ns2.nonexistant.com.
-example.com.    IN NS   ns3.nonexistant.com.
-example.com.    IN NS   ns4.nonexistant.com.
-example.com.    IN NS   ns5.nonexistant.com.
-example.com.    IN NS   ns6.nonexistant.com.
-example.com.    IN NS   ns7.nonexistant.com.
-example.com.    IN NS   ns8.nonexistant.com.
-example.com.    IN NS   ns9.nonexistant.com.
-example.com.    IN NS   ns10.nonexistant.com.
-example.com.    IN NS   ns11.nonexistant.com.
-example.com.    IN NS   ns12.nonexistant.com.
+example.com.    IN NS   ns1.nonexistent.com.
+example.com.    IN NS   ns2.nonexistent.com.
+example.com.    IN NS   ns3.nonexistent.com.
+example.com.    IN NS   ns4.nonexistent.com.
+example.com.    IN NS   ns5.nonexistent.com.
+example.com.    IN NS   ns6.nonexistent.com.
+example.com.    IN NS   ns7.nonexistent.com.
+example.com.    IN NS   ns8.nonexistent.com.
+example.com.    IN NS   ns9.nonexistent.com.
+example.com.    IN NS   ns10.nonexistent.com.
+example.com.    IN NS   ns11.nonexistent.com.
+example.com.    IN NS   ns12.nonexistent.com.
 ENTRY_END
 
 ; Allow for the nameserver glue to expire
@@ -365,18 +365,18 @@ d.example.com.	IN A
 SECTION ANSWER
 d.example.com.	IN A	10.20.30.40
 SECTION AUTHORITY
-example.com.    IN NS   ns1.nonexistant.com.
-example.com.    IN NS   ns2.nonexistant.com.
-example.com.    IN NS   ns3.nonexistant.com.
-example.com.    IN NS   ns4.nonexistant.com.
-example.com.    IN NS   ns5.nonexistant.com.
-example.com.    IN NS   ns6.nonexistant.com.
-example.com.    IN NS   ns7.nonexistant.com.
-example.com.    IN NS   ns8.nonexistant.com.
-example.com.    IN NS   ns9.nonexistant.com.
-example.com.    IN NS   ns10.nonexistant.com.
-example.com.    IN NS   ns11.nonexistant.com.
-example.com.    IN NS   ns12.nonexistant.com.
+example.com.    IN NS   ns1.nonexistent.com.
+example.com.    IN NS   ns2.nonexistent.com.
+example.com.    IN NS   ns3.nonexistent.com.
+example.com.    IN NS   ns4.nonexistent.com.
+example.com.    IN NS   ns5.nonexistent.com.
+example.com.    IN NS   ns6.nonexistent.com.
+example.com.    IN NS   ns7.nonexistent.com.
+example.com.    IN NS   ns8.nonexistent.com.
+example.com.    IN NS   ns9.nonexistent.com.
+example.com.    IN NS   ns10.nonexistent.com.
+example.com.    IN NS   ns11.nonexistent.com.
+example.com.    IN NS   ns12.nonexistent.com.
 ENTRY_END
 
 SCENARIO_END

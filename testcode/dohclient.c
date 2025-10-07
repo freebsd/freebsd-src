@@ -388,7 +388,7 @@ static int http2_frame_recv_cb(nghttp2_session *session,
 	}
 	if(((frame->hd.type != NGHTTP2_DATA &&
 		frame->hd.type != NGHTTP2_HEADERS) ||
-		frame->hd.flags & NGHTTP2_FLAG_END_STREAM) &&
+		(frame->hd.flags & NGHTTP2_FLAG_END_STREAM)) &&
 			h2_stream->res_status == 200) {
 			char* pktstr;
 			sldns_buffer_flip(h2_stream->buf);

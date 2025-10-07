@@ -273,6 +273,7 @@ server_stats_compile(struct worker* worker, struct ub_stats_info* s, int reset)
 	/* add in the values from the mesh */
 	s->svr.ans_secure += (long long)worker->env.mesh->ans_secure;
 	s->svr.ans_bogus += (long long)worker->env.mesh->ans_bogus;
+	s->svr.val_ops += (long long)worker->env.mesh->val_ops;
 	s->svr.ans_rcode_nodata += (long long)worker->env.mesh->ans_nodata;
 	s->svr.ans_expired += (long long)worker->env.mesh->ans_expired;
 	for(i=0; i<UB_STATS_RCODE_NUM; i++)
@@ -495,6 +496,7 @@ void server_stats_add(struct ub_stats_info* total, struct ub_stats_info* a)
 		total->svr.ans_rcode_nodata += a->svr.ans_rcode_nodata;
 		total->svr.ans_secure += a->svr.ans_secure;
 		total->svr.ans_bogus += a->svr.ans_bogus;
+		total->svr.val_ops += a->svr.val_ops;
 		total->svr.unwanted_replies += a->svr.unwanted_replies;
 		total->svr.unwanted_queries += a->svr.unwanted_queries;
 		total->svr.tcp_accept_usage += a->svr.tcp_accept_usage;

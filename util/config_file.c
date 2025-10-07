@@ -155,7 +155,7 @@ config_create(void)
 #  else
 	/* libevent can use many sockets */
 	cfg->outgoing_num_ports = 4096;
-	cfg->num_queries_per_thread = 1024;
+	cfg->num_queries_per_thread = 2048;
 #  endif
 	cfg->outgoing_num_tcp = 10;
 	cfg->incoming_num_tcp = 10;
@@ -169,10 +169,10 @@ config_create(void)
 	cfg->edns_buffer_size = 1232; /* from DNS flagday recommendation */
 	cfg->msg_buffer_size = 65552; /* 64 k + a small margin */
 	cfg->msg_cache_size = 4 * 1024 * 1024;
-	cfg->msg_cache_slabs = 4;
+	cfg->msg_cache_slabs = 0;
 	cfg->jostle_time = 200;
 	cfg->rrset_cache_size = 4 * 1024 * 1024;
-	cfg->rrset_cache_slabs = 4;
+	cfg->rrset_cache_slabs = 0;
 	cfg->host_ttl = 900;
 	cfg->bogus_ttl = 60;
 	cfg->min_ttl = 0;
@@ -182,7 +182,7 @@ config_create(void)
 	cfg->prefetch = 0;
 	cfg->prefetch_key = 0;
 	cfg->deny_any = 0;
-	cfg->infra_cache_slabs = 4;
+	cfg->infra_cache_slabs = 0;
 	cfg->infra_cache_numhosts = 10000;
 	cfg->infra_cache_min_rtt = 50;
 	cfg->infra_cache_max_rtt = 120000;
@@ -210,7 +210,7 @@ config_create(void)
 	cfg->if_automatic = 0;
 	cfg->if_automatic_ports = NULL;
 	cfg->so_rcvbuf = 0;
-	cfg->so_sndbuf = 0;
+	cfg->so_sndbuf = 4*1024*1024;
 	cfg->so_reuseport = REUSEPORT_DEFAULT;
 	cfg->ip_transparent = 0;
 	cfg->ip_freebind = 0;
@@ -291,7 +291,7 @@ config_create(void)
 	cfg->keep_missing = 366*24*3600; /* one year plus a little leeway */
 	cfg->permit_small_holddown = 0;
 	cfg->key_cache_size = 4 * 1024 * 1024;
-	cfg->key_cache_slabs = 4;
+	cfg->key_cache_slabs = 0;
 	cfg->neg_cache_size = 1 * 1024 * 1024;
 	cfg->local_zones = NULL;
 	cfg->local_zones_nodefault = NULL;
@@ -341,8 +341,8 @@ config_create(void)
 	cfg->ip_ratelimit_cookie = 0;
 	cfg->ip_ratelimit = 0;
 	cfg->ratelimit = 0;
-	cfg->ip_ratelimit_slabs = 4;
-	cfg->ratelimit_slabs = 4;
+	cfg->ip_ratelimit_slabs = 0;
+	cfg->ratelimit_slabs = 0;
 	cfg->ip_ratelimit_size = 4*1024*1024;
 	cfg->ratelimit_size = 4*1024*1024;
 	cfg->ratelimit_for_domain = NULL;
@@ -367,9 +367,9 @@ config_create(void)
 	cfg->dnscrypt_provider_cert_rotated = NULL;
 	cfg->dnscrypt_secret_key = NULL;
 	cfg->dnscrypt_shared_secret_cache_size = 4*1024*1024;
-	cfg->dnscrypt_shared_secret_cache_slabs = 4;
+	cfg->dnscrypt_shared_secret_cache_slabs = 0;
 	cfg->dnscrypt_nonce_cache_size = 4*1024*1024;
-	cfg->dnscrypt_nonce_cache_slabs = 4;
+	cfg->dnscrypt_nonce_cache_slabs = 0;
 	cfg->pad_responses = 1;
 	cfg->pad_responses_block_size = 468; /* from RFC8467 */
 	cfg->pad_queries = 1;
@@ -454,6 +454,11 @@ struct config_file* config_create_forlib(void)
 	cfg->val_log_squelch = 1;
 	cfg->minimal_responses = 0;
 	cfg->harden_short_bufsize = 1;
+	/* Need to explicitly define the slabs from their 0 default value */
+	cfg->ip_ratelimit_slabs = 1;
+	cfg->ratelimit_slabs = 1;
+	cfg->dnscrypt_shared_secret_cache_slabs = 1;
+	cfg->dnscrypt_nonce_cache_slabs = 1;
 	return cfg;
 }
 
@@ -1448,6 +1453,41 @@ create_cfg_parser(struct config_file* cfg, char* filename, const char* chroot)
 	init_cfg_parse();
 }
 
+void
+config_auto_slab_values(struct config_file* cfg)
+{
+#define SET_AUTO_SLAB(var, name, val)						\
+do {										\
+	if(cfg->var == 0) {							\
+		cfg->var = val;							\
+		verbose(VERB_QUERY, "setting "name": %lu", (unsigned long)val);	\
+	}									\
+} while(0);
+#ifdef THREADS_DISABLED
+	size_t pow_2_threads = 1;
+#else
+	size_t pow_2_threads = 4;  /* pow2 start */
+	while (pow_2_threads < (size_t)(cfg->num_threads?cfg->num_threads:1) &&
+		/* 1/3 of the distance to the next pow2 value stays with the
+		 * lower value */
+		(size_t)cfg->num_threads > pow_2_threads + (pow_2_threads - 1)/3) {
+		pow_2_threads <<= 1;
+	}
+	log_assert((pow_2_threads & (pow_2_threads - 1)) == 0); /* powerof2? */
+#endif /* THREADS_DISABLED */
+
+	SET_AUTO_SLAB(msg_cache_slabs, "msg-cache-slabs", pow_2_threads);
+	SET_AUTO_SLAB(rrset_cache_slabs, "rrset-cache-slabs", pow_2_threads);
+	SET_AUTO_SLAB(infra_cache_slabs, "infra-cache-slabs", pow_2_threads);
+	SET_AUTO_SLAB(key_cache_slabs, "key-cache-slabs", pow_2_threads);
+	SET_AUTO_SLAB(ip_ratelimit_slabs, "ip-ratelimit-slabs", pow_2_threads);
+	SET_AUTO_SLAB(ratelimit_slabs, "ratelimit-slabs", pow_2_threads);
+	SET_AUTO_SLAB(dnscrypt_shared_secret_cache_slabs,
+		"dnscrypt-shared-secret-cache-slabs", pow_2_threads);
+	SET_AUTO_SLAB(dnscrypt_nonce_cache_slabs,
+		"dnscrypt-nonce-cache-slabs", pow_2_threads);
+}
+
 int
 config_read(struct config_file* cfg, const char* filename, const char* chroot)
 {
@@ -1512,6 +1552,7 @@ config_read(struct config_file* cfg, const char* filename, const char* chroot)
 			}
 		}
 		globfree(&g);
+		config_auto_slab_values(cfg);
 		return 1;
 	}
 #endif /* HAVE_GLOB */
@@ -1535,6 +1576,7 @@ config_read(struct config_file* cfg, const char* filename, const char* chroot)
 		return 0;
 	}
 
+	config_auto_slab_values(cfg);
 	return 1;
 }
 

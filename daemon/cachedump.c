@@ -62,60 +62,212 @@
 #include "sldns/wire2str.h"
 #include "sldns/str2wire.h"
 
+static void spool_txt_printf(struct config_strlist_head* txt,
+	const char* format, ...) ATTR_FORMAT(printf, 2, 3);
+
+/** Append to strlist at end, and log error if out of memory. */
+static void
+spool_txt_string(struct config_strlist_head* txt, char* str)
+{
+	if(!cfg_strlist_append(txt, strdup(str))) {
+		log_err("out of memory in spool text");
+	}
+}
+
+/** Spool txt to spool list. */
+static void
+spool_txt_vmsg(struct config_strlist_head* txt, const char* format,
+	va_list args)
+{
+	char msg[65535];
+	vsnprintf(msg, sizeof(msg), format, args);
+	spool_txt_string(txt, msg);
+}
+
+/** Print item to spool list. On alloc failure the list is as before. */
+static void
+spool_txt_printf(struct config_strlist_head* txt, const char* format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	spool_txt_vmsg(txt, format, args);
+	va_end(args);
+}
+
 /** dump one rrset zonefile line */
-static int
-dump_rrset_line(RES* ssl, struct ub_packed_rrset_key* k, time_t now, size_t i)
+static void
+dump_rrset_line(struct config_strlist_head* txt, struct ub_packed_rrset_key* k,
+	time_t now, size_t i)
 {
 	char s[65535];
 	if(!packed_rr_to_string(k, i, now, s, sizeof(s))) {
-		return ssl_printf(ssl, "BADRR\n");
+		spool_txt_string(txt, "BADRR\n");
+		return;
 	}
-	return ssl_printf(ssl, "%s", s);
+	spool_txt_string(txt, s);
 }
 
 /** dump rrset key and data info */
-static int
-dump_rrset(RES* ssl, struct ub_packed_rrset_key* k, 
+static void
+dump_rrset(struct config_strlist_head* txt, struct ub_packed_rrset_key* k,
 	struct packed_rrset_data* d, time_t now)
 {
 	size_t i;
 	/* rd lock held by caller */
-	if(!k || !d) return 1;
-	if(k->id == 0) return 1; /* deleted */
-	if(d->ttl < now) return 1; /* expired */
+	if(!k || !d) return;
+	if(k->id == 0) return; /* deleted */
+	if(d->ttl < now) return; /* expired */
 
 	/* meta line */
-	if(!ssl_printf(ssl, ";rrset%s " ARG_LL "d %u %u %d %d\n",
+	spool_txt_printf(txt, ";rrset%s " ARG_LL "d %u %u %d %d\n",
 		(k->rk.flags & PACKED_RRSET_NSEC_AT_APEX)?" nsec_apex":"",
 		(long long)(d->ttl - now),
 		(unsigned)d->count, (unsigned)d->rrsig_count,
 		(int)d->trust, (int)d->security
-		)) 
-		return 0;
+		);
 	for(i=0; i<d->count + d->rrsig_count; i++) {
-		if(!dump_rrset_line(ssl, k, now, i))
+		dump_rrset_line(txt, k, now, i);
+	}
+}
+
+/** Spool strlist to the output. */
+static int
+spool_strlist(RES* ssl, struct config_strlist* list)
+{
+	struct config_strlist* s;
+	for(s=list; s; s=s->next) {
+		if(!ssl_printf(ssl, "%s", s->str))
 			return 0;
 	}
 	return 1;
 }
 
-/** dump lruhash rrset cache */
+/** dump lruhash cache and call callback for every item. */
 static int
-dump_rrset_lruhash(RES* ssl, struct lruhash* h, time_t now)
+dump_lruhash(struct lruhash* table,
+	void (*func)(struct lruhash_entry*, struct config_strlist_head*, void*),
+	RES* ssl, void* arg)
 {
-	struct lruhash_entry* e;
-	/* lruhash already locked by caller */
-	/* walk in order of lru; best first */
-	for(e=h->lru_start; e; e = e->lru_next) {
-		lock_rw_rdlock(&e->lock);
-		if(!dump_rrset(ssl, (struct ub_packed_rrset_key*)e->key,
-			(struct packed_rrset_data*)e->data, now)) {
-			lock_rw_unlock(&e->lock);
+	int just_started = 1;
+	int not_done = 1;
+	hashvalue_type hash;
+	size_t num = 0; /* number of entries processed. */
+	size_t max = 2; /* number of entries after which it unlocks. */
+	struct config_strlist_head txt; /* Text strings spooled. */
+	memset(&txt, 0, sizeof(txt));
+
+	while(not_done) {
+		size_t i; /* hash bin. */
+		/* Process a number of items. */
+		num = 0;
+		lock_quick_lock(&table->lock);
+		if(just_started) {
+			i = 0;
+		} else {
+			i = hash&table->size_mask;
+		}
+		while(num < max) {
+			/* Process bin. */
+			int found = 0;
+			size_t num_bin = 0;
+			struct lruhash_bin* bin = &table->array[i];
+			struct lruhash_entry* e;
+			lock_quick_lock(&bin->lock);
+			for(e = bin->overflow_list; e; e = e->overflow_next) {
+				/* Entry e is locked by the func. */
+				func(e, &txt, arg);
+				num_bin++;
+			}
+			lock_quick_unlock(&bin->lock);
+			/* This addition of bin number of entries may take
+			 * it over the max. */
+			num += num_bin;
+
+			/* Move to next bin. */
+			/* Find one with an entry, with a  hash value, so we
+			 * can continue from the hash value. The hash value
+			 * can be indexed also if the array changes size. */
+			i++;
+			while(i < table->size) {
+				bin = &table->array[i];
+				lock_quick_lock(&bin->lock);
+				if(bin->overflow_list) {
+					hash = bin->overflow_list->hash;
+					lock_quick_unlock(&bin->lock);
+					found = 1;
+					just_started = 0;
+					break;
+				}
+				lock_quick_unlock(&bin->lock);
+				i++;
+			}
+			if(!found) {
+				not_done = 0;
+				break;
+			}
+		}
+		lock_quick_unlock(&table->lock);
+		/* Print the spooled items, that are collected while the
+		 * locks are locked. The print happens while they are not
+		 * locked. */
+		if(txt.first) {
+			if(!spool_strlist(ssl, txt.first)) {
+				config_delstrlist(txt.first);
+				return 0;
+			}
+			config_delstrlist(txt.first);
+			memset(&txt, 0, sizeof(txt));
+		}
+	}
+	/* Print the final spooled items. */
+	if(txt.first) {
+		if(!spool_strlist(ssl, txt.first)) {
+			config_delstrlist(txt.first);
 			return 0;
 		}
-		lock_rw_unlock(&e->lock);
+		config_delstrlist(txt.first);
 	}
 	return 1;
+}
+
+/** dump slabhash cache and call callback for every item. */
+static int
+dump_slabhash(struct slabhash* sh,
+	void (*func)(struct lruhash_entry*, struct config_strlist_head*, void*),
+	RES* ssl, void* arg)
+{
+	/* Process a number of items at a time, then unlock the cache,
+	 * so that ordinary processing can continue. Keep an iteration marker
+	 * to continue the loop. That means the cache can change, items
+	 * could be inserted and deleted. And, for example, the hash table
+	 * can grow. */
+	size_t slab;
+	for(slab=0; slab<sh->size; slab++) {
+		if(!dump_lruhash(sh->array[slab], func, ssl, arg))
+			return 0;
+	}
+	return 1;
+}
+
+/** Struct for dump information. */
+struct dump_info {
+	/** The worker. */
+	struct worker* worker;
+	/** The printout connection. */
+	RES* ssl;
+};
+
+/** Dump the rrset cache entry */
+static void
+dump_rrset_entry(struct lruhash_entry* e, struct config_strlist_head* txt,
+	void* arg)
+{
+	struct dump_info* dump_info = (struct dump_info*)arg;
+	lock_rw_rdlock(&e->lock);
+	dump_rrset(txt, (struct ub_packed_rrset_key*)e->key,
+		(struct packed_rrset_data*)e->data,
+		*dump_info->worker->env.now);
+	lock_rw_unlock(&e->lock);
 }
 
 /** dump rrset cache */
@@ -123,23 +275,18 @@ static int
 dump_rrset_cache(RES* ssl, struct worker* worker)
 {
 	struct rrset_cache* r = worker->env.rrset_cache;
-	size_t slab;
+	struct dump_info dump_info;
+	dump_info.worker = worker;
+	dump_info.ssl = ssl;
 	if(!ssl_printf(ssl, "START_RRSET_CACHE\n")) return 0;
-	for(slab=0; slab<r->table.size; slab++) {
-		lock_quick_lock(&r->table.array[slab]->lock);
-		if(!dump_rrset_lruhash(ssl, r->table.array[slab],
-			*worker->env.now)) {
-			lock_quick_unlock(&r->table.array[slab]->lock);
-			return 0;
-		}
-		lock_quick_unlock(&r->table.array[slab]->lock);
-	}
+	if(!dump_slabhash(&r->table, &dump_rrset_entry, ssl, &dump_info))
+		return 0;
 	return ssl_printf(ssl, "END_RRSET_CACHE\n");
 }
 
 /** dump message to rrset reference */
-static int
-dump_msg_ref(RES* ssl, struct ub_packed_rrset_key* k)
+static void
+dump_msg_ref(struct config_strlist_head* txt, struct ub_packed_rrset_key* k)
 {
 	char* nm, *tp, *cl;
 	nm = sldns_wire2str_dname(k->rk.dname, k->rk.dname_len);
@@ -149,30 +296,25 @@ dump_msg_ref(RES* ssl, struct ub_packed_rrset_key* k)
 		free(nm);
 		free(tp);
 		free(cl);
-		return ssl_printf(ssl, "BADREF\n");
+		spool_txt_string(txt, "BADREF\n");
+		return;
 	}
-	if(!ssl_printf(ssl, "%s %s %s %d\n", nm, cl, tp, (int)k->rk.flags)) {
-		free(nm);
-		free(tp);
-		free(cl);
-		return 0;
-	}
+	spool_txt_printf(txt, "%s %s %s %d\n", nm, cl, tp, (int)k->rk.flags);
 	free(nm);
 	free(tp);
 	free(cl);
-
-	return 1;
 }
 
 /** dump message entry */
-static int
-dump_msg(RES* ssl, struct query_info* k, struct reply_info* d, time_t now)
+static void
+dump_msg(struct config_strlist_head* txt, struct query_info* k,
+	struct reply_info* d, time_t now)
 {
 	size_t i;
 	char* nm, *tp, *cl;
-	if(!k || !d) return 1;
-	if(d->ttl < now) return 1; /* expired */
-	
+	if(!k || !d) return;
+	if(d->ttl < now) return; /* expired */
+
 	nm = sldns_wire2str_dname(k->qname, k->qname_len);
 	tp = sldns_wire2str_type(k->qtype);
 	cl = sldns_wire2str_class(k->qclass);
@@ -180,45 +322,35 @@ dump_msg(RES* ssl, struct query_info* k, struct reply_info* d, time_t now)
 		free(nm);
 		free(tp);
 		free(cl);
-		return 1; /* skip this entry */
+		return; /* skip this entry */
 	}
 	if(!rrset_array_lock(d->ref, d->rrset_count, now)) {
 		/* rrsets have timed out or do not exist */
 		free(nm);
 		free(tp);
 		free(cl);
-		return 1; /* skip this entry */
+		return; /* skip this entry */
 	}
-	
+
 	/* meta line */
-	if(!ssl_printf(ssl, "msg %s %s %s %d %d " ARG_LL "d %d %u %u %u %d %s\n",
-			nm, cl, tp,
-			(int)d->flags, (int)d->qdcount, 
-			(long long)(d->ttl-now), (int)d->security,
-			(unsigned)d->an_numrrsets,
-			(unsigned)d->ns_numrrsets,
-			(unsigned)d->ar_numrrsets,
-			(int)d->reason_bogus,
-			d->reason_bogus_str?d->reason_bogus_str:"")) {
-		free(nm);
-		free(tp);
-		free(cl);
-		rrset_array_unlock(d->ref, d->rrset_count);
-		return 0;
-	}
+	spool_txt_printf(txt,
+		"msg %s %s %s %d %d " ARG_LL "d %d %u %u %u %d %s\n",
+		nm, cl, tp,
+		(int)d->flags, (int)d->qdcount,
+		(long long)(d->ttl-now), (int)d->security,
+		(unsigned)d->an_numrrsets,
+		(unsigned)d->ns_numrrsets,
+		(unsigned)d->ar_numrrsets,
+		(int)d->reason_bogus,
+		d->reason_bogus_str?d->reason_bogus_str:"");
 	free(nm);
 	free(tp);
 	free(cl);
 	
 	for(i=0; i<d->rrset_count; i++) {
-		if(!dump_msg_ref(ssl, d->rrsets[i])) {
-			rrset_array_unlock(d->ref, d->rrset_count);
-			return 0;
-		}
+		dump_msg_ref(txt, d->rrsets[i]);
 	}
 	rrset_array_unlock(d->ref, d->rrset_count);
-
-	return 1;
 }
 
 /** copy msg to worker pad */
@@ -247,49 +379,40 @@ copy_msg(struct regional* region, struct lruhash_entry* e,
 	return (*k)->qname != NULL;
 }
 
-/** dump lruhash msg cache */
-static int
-dump_msg_lruhash(RES* ssl, struct worker* worker, struct lruhash* h)
+/** Dump the msg entry. */
+static void
+dump_msg_entry(struct lruhash_entry* e, struct config_strlist_head* txt,
+	void* arg)
 {
-	struct lruhash_entry* e;
+	struct dump_info* dump_info = (struct dump_info*)arg;
 	struct query_info* k;
 	struct reply_info* d;
 
-	/* lruhash already locked by caller */
-	/* walk in order of lru; best first */
-	for(e=h->lru_start; e; e = e->lru_next) {
-		regional_free_all(worker->scratchpad);
-		lock_rw_rdlock(&e->lock);
-		/* make copy of rrset in worker buffer */
-		if(!copy_msg(worker->scratchpad, e, &k, &d)) {
-			lock_rw_unlock(&e->lock);
-			return 0;
-		}
+	regional_free_all(dump_info->worker->scratchpad);
+	/* Make copy of rrset in worker buffer. */
+	lock_rw_rdlock(&e->lock);
+	if(!copy_msg(dump_info->worker->scratchpad, e, &k, &d)) {
 		lock_rw_unlock(&e->lock);
-		/* release lock so we can lookup the rrset references 
-		 * in the rrset cache */
-		if(!dump_msg(ssl, k, d, *worker->env.now)) {
-			return 0;
-		}
+		log_err("out of memory in dump_msg_entry");
+		return;
 	}
-	return 1;
+	lock_rw_unlock(&e->lock);
+	/* Release lock so we can lookup the rrset references
+	 * in the rrset cache. */
+	dump_msg(txt, k, d, *dump_info->worker->env.now);
 }
 
 /** dump msg cache */
 static int
 dump_msg_cache(RES* ssl, struct worker* worker)
 {
-	struct slabhash* sh = worker->env.msg_cache;
-	size_t slab;
+	struct dump_info dump_info;
+	dump_info.worker = worker;
+	dump_info.ssl = ssl;
 	if(!ssl_printf(ssl, "START_MSG_CACHE\n")) return 0;
-	for(slab=0; slab<sh->size; slab++) {
-		lock_quick_lock(&sh->array[slab]->lock);
-		if(!dump_msg_lruhash(ssl, worker, sh->array[slab])) {
-			lock_quick_unlock(&sh->array[slab]->lock);
-			return 0;
-		}
-		lock_quick_unlock(&sh->array[slab]->lock);
-	}
+	if(!dump_slabhash(worker->env.msg_cache, &dump_msg_entry, ssl,
+		&dump_info))
+		return 0;
 	return ssl_printf(ssl, "END_MSG_CACHE\n");
 }
 
@@ -811,12 +934,18 @@ print_dp_main(RES* ssl, struct delegpt* dp, struct dns_msg* msg)
 		struct ub_packed_rrset_key* k = msg->rep->rrsets[i];
 		struct packed_rrset_data* d = 
 			(struct packed_rrset_data*)k->entry.data;
+		struct config_strlist_head txt;
+		memset(&txt, 0, sizeof(txt));
 		if(d->security == sec_status_bogus) {
 			if(!ssl_printf(ssl, "Address is BOGUS:\n"))
 				return;
 		}
-		if(!dump_rrset(ssl, k, d, 0))
+		dump_rrset(&txt, k, d, 0);
+		if(!spool_strlist(ssl, txt.first)) {
+			config_delstrlist(txt.first);
 			return;
+		}
+		config_delstrlist(txt.first);
 	    }
 	delegpt_count_ns(dp, &n_ns, &n_miss);
 	delegpt_count_addr(dp, &n_addr, &n_res, &n_avail);

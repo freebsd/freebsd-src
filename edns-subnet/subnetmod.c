@@ -154,6 +154,21 @@ int ecs_whitelist_check(struct query_info* qinfo,
 		return 1;
 	sn_env = (struct subnet_env*)qstate->env->modinfo[id];
 
+	if(sq->is_subquery_nonsubnet) {
+		if(sq->is_subquery_scopezero) {
+			/* Check if the result can be stored in the global cache,
+			 * this is okay if the address and name are not configured
+			 * as subnet address and subnet zone. */
+			if(!ecs_is_whitelisted(sn_env->whitelist,
+				addr, addrlen, qinfo->qname, qinfo->qname_len,
+				qinfo->qclass)) {
+				verbose(VERB_ALGO, "subnet store subquery global, name and addr have no subnet treatment.");
+				qstate->no_cache_store = 0;
+			}
+		}
+		return 1;
+	}
+
 	/* Cache by default, might be disabled after parsing EDNS option
 	 * received from nameserver. */
 	if(!iter_stub_fwd_no_cache(qstate, &qstate->qinfo, NULL, NULL, NULL, 0)
@@ -234,13 +249,13 @@ subnetmod_init(struct module_env *env, int id)
 		HASH_DEFAULT_STARTARRAY, env->cfg->msg_cache_size,
 		msg_cache_sizefunc, query_info_compare, query_entry_delete,
 		subnet_data_delete, NULL);
-	slabhash_setmarkdel(sn_env->subnet_msg_cache, &subnet_markdel);
 	if(!sn_env->subnet_msg_cache) {
 		log_err("subnetcache: could not create cache");
 		free(sn_env);
 		env->modinfo[id] = NULL;
 		return 0;
 	}
+	slabhash_setmarkdel(sn_env->subnet_msg_cache, &subnet_markdel);
 	/* whitelist for edns subnet capable servers */
 	sn_env->whitelist = ecs_whitelist_create();
 	if(!sn_env->whitelist ||
@@ -527,11 +542,12 @@ common_prefix(uint8_t *a, uint8_t *b, uint8_t net)
 /**
  * Create sub request that looks up the query.
  * @param qstate: query state
+ * @param id: module id.
  * @param sq: subnet qstate
  * @return false on failure.
  */
 static int
-generate_sub_request(struct module_qstate *qstate, struct subnet_qstate* sq)
+generate_sub_request(struct module_qstate *qstate, int id, struct subnet_qstate* sq)
 {
 	struct module_qstate* subq = NULL;
 	uint16_t qflags = 0; /* OPCODE QUERY, no flags */
@@ -557,10 +573,22 @@ generate_sub_request(struct module_qstate *qstate, struct subnet_qstate* sq)
 	}
 	if(subq) {
 		/* It is possible to access the subquery module state. */
+		struct subnet_qstate* subsq;
+		if(!subnet_new_qstate(subq, id)) {
+			verbose(VERB_ALGO, "Could not allocate new subnet qstate");
+			return 0;
+		}
+		subsq = (struct subnet_qstate*)subq->minfo[id];
+		subsq->is_subquery_nonsubnet = 1;
+
+		/* When the client asks 0.0.0.0/0 and the name is not treated
+		 * as subnet, it is to be stored in the global cache.
+		 * Store that the client asked for that, if so. */
 		if(sq->ecs_client_in.subnet_source_mask == 0 &&
 			edns_opt_list_find(qstate->edns_opts_front_in,
 				qstate->env->cfg->client_subnet_opcode)) {
 			subq->no_cache_store = 1;
+			subsq->is_subquery_scopezero = 1;
 		}
 	}
 	return 1;
@@ -569,17 +597,18 @@ generate_sub_request(struct module_qstate *qstate, struct subnet_qstate* sq)
 /**
  * Perform the query without subnet
  * @param qstate: query state
+ * @param id: module id.
  * @param sq: subnet qstate
  * @return module state
  */
 static enum module_ext_state
-generate_lookup_without_subnet(struct module_qstate *qstate,
+generate_lookup_without_subnet(struct module_qstate *qstate, int id,
 	struct subnet_qstate* sq)
 {
 	verbose(VERB_ALGO, "subnetcache: make subquery to look up without subnet");
-	if(!generate_sub_request(qstate, sq)) {
+	if(!generate_sub_request(qstate, id, sq)) {
 		verbose(VERB_ALGO, "Could not generate sub query");
-		qstate->return_rcode = LDNS_RCODE_FORMERR;
+		qstate->return_rcode = LDNS_RCODE_SERVFAIL;
 		qstate->return_msg = NULL;
 		return module_finished;
 	}
@@ -622,7 +651,7 @@ eval_response(struct module_qstate *qstate, int id, struct subnet_qstate *sq)
 		 * is still useful to put it in the edns subnet cache for
 		 * when a client explicitly asks for subnet specific answer. */
 		verbose(VERB_QUERY, "subnetcache: Authority indicates no support");
-		return generate_lookup_without_subnet(qstate, sq);
+		return generate_lookup_without_subnet(qstate, id, sq);
 	}
 
 	/* Purposefully there was no sent subnet, and there is consequently
@@ -654,7 +683,7 @@ eval_response(struct module_qstate *qstate, int id, struct subnet_qstate *sq)
 			qstate->env->cfg->client_subnet_opcode);
 		sq->subnet_sent = 0;
 		sq->subnet_sent_no_subnet = 0;
-		return generate_lookup_without_subnet(qstate, sq);
+		return generate_lookup_without_subnet(qstate, id, sq);
 	}
 
 	lock_rw_wrlock(&sne->biglock);
@@ -945,7 +974,7 @@ subnetmod_operate(struct module_qstate *qstate, enum module_ev event,
 				/* aggregated this deaggregated state */
 				qstate->ext_state[id] =
 					generate_lookup_without_subnet(
-					qstate, sq);
+					qstate, id, sq);
 				return;
 			}
 			verbose(VERB_ALGO, "subnetcache: pass to next module");
@@ -993,7 +1022,7 @@ subnetmod_operate(struct module_qstate *qstate, enum module_ev event,
 				qstate->env->cfg->client_subnet_opcode)) {
 			/* client asked for resolution without edns subnet */
 			qstate->ext_state[id] = generate_lookup_without_subnet(
-				qstate, sq);
+				qstate, id, sq);
 			return;
 		}
 		
