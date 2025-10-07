@@ -375,6 +375,11 @@ ATF_TC_BODY(concurrent_add, tc)
 
 		usleep(20000);
 	}
+
+	for (size_t j = nitems(threads); j > 0; j--) {
+		ATF_REQUIRE(pthread_cancel(threads[j - 1]) == 0);
+		ATF_REQUIRE(pthread_join(threads[j - 1], NULL) == 0);
+	}
 }
 
 /*
