@@ -2180,6 +2180,7 @@
 #define	OSLAR_EL1_CRn			1
 #define	OSLAR_EL1_CRm			0
 #define	OSLAR_EL1_op2			4
+#define	OSLAR_OSLK			(0x1ul << 0)
 
 /* OSLSR_EL1 */
 #define	OSLSR_EL1_op0			2
@@ -2187,6 +2188,10 @@
 #define	OSLSR_EL1_CRn			1
 #define	OSLSR_EL1_CRm			1
 #define	OSLSR_EL1_op2			4
+#define	OSLSR_OSLM_1			(0x1ul << 3)
+#define	OSLSR_nTT			(0x1ul << 2)
+#define	OSLSR_OSLK			(0x1ul << 1)
+#define	OSLSR_OSLM_0			(0x1ul << 0)
 
 /* PAR_EL1 - Physical Address Register */
 #define	PAR_F_SHIFT		0
