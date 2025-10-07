@@ -317,6 +317,11 @@ int netblockstrtoaddr(const char* str, int port, struct sockaddr_storage* addr,
 			log_err("cannot parse netblock: '%s'", str);
 			return 0;
 		}
+		if(*net < 0) {
+			log_err("netblock value %d is negative in: '%s'",
+				*net, str);
+			return 0;
+		}
 		strlcpy(buf, str, sizeof(buf));
 		s = strchr(buf, '/');
 		if(s) *s = 0;
@@ -429,6 +434,8 @@ int netblockdnametoaddr(uint8_t* dname, size_t dnamelen,
 	buff[nlablen] = '\0';
 	*net = atoi(buff);
 	if(*net == 0 && strcmp(buff, "0") != 0)
+		return 0;
+	if(*net < 0)
 		return 0;
 	dname += nlablen;
 	dname++;
@@ -797,7 +804,7 @@ addr_mask(struct sockaddr_storage* addr, socklen_t len, int net)
 		s = (uint8_t*)&((struct sockaddr_in*)addr)->sin_addr;
 		max = 32;
 	}
-	if(net >= max)
+	if(net >= max || net < 0)
 		return;
 	for(i=net/8+1; i<max/8; i++) {
 		s[i] = 0;
@@ -1028,7 +1035,7 @@ void log_crypto_err_code(const char* str, unsigned long err)
 }
 
 #ifdef HAVE_SSL
-/** Print crypt erro with SSL_get_error want code and err_get_error code */
+/** Print crypt error with SSL_get_error want code and err_get_error code */
 static void log_crypto_err_io_code_arg(const char* str, int r,
 	unsigned long err, int err_present)
 {
@@ -1252,6 +1259,14 @@ listen_sslctx_setup(void* ctxt)
 		return 0;
 	}
 #endif
+#if defined(SSL_OP_NO_TLSv1_2) && defined(SSL_OP_NO_TLSv1_3)
+	/* if we have tls 1.3 disable 1.2 */
+	if((SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1_2) & SSL_OP_NO_TLSv1_2)
+		!= SSL_OP_NO_TLSv1_2){
+		log_crypto_err("could not set SSL_OP_NO_TLSv1_2");
+		return 0;
+	}
+#endif
 #if defined(SSL_OP_NO_RENEGOTIATION)
 	/* disable client renegotiation */
 	if((SSL_CTX_set_options(ctx, SSL_OP_NO_RENEGOTIATION) &
@@ -1305,7 +1320,7 @@ listen_sslctx_setup_2(void* ctxt)
 	if(!SSL_CTX_set_ecdh_auto(ctx,1)) {
 		log_crypto_err("Error in SSL_CTX_ecdh_auto, not enabling ECDHE");
 	}
-#elif defined(USE_ECDSA) && defined(HAVE_SSL_CTX_SET_TMP_ECDH)
+#elif defined(USE_ECDSA) && HAVE_DECL_SSL_CTX_SET_TMP_ECDH
 	if(1) {
 		EC_KEY *ecdh = EC_KEY_new_by_curve_name (NID_X9_62_prime256v1);
 		if (!ecdh) {

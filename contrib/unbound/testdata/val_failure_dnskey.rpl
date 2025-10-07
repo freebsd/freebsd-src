@@ -17,7 +17,7 @@ stub-zone:
 	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
 CONFIG_END
 
-SCENARIO_BEGIN Test validator with failure for chaing of trust lookup.
+SCENARIO_BEGIN Test validator with failure for chain of trust lookup.
 ; The error message that is created, also for EDE is more extensive.
 
 ; K.ROOT-SERVERS.NET.

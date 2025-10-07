@@ -117,7 +117,7 @@ uint16_t calc_edns_field_size(struct edns_data* edns);
 uint16_t calc_edns_option_size(struct edns_data* edns, uint16_t code);
 
 /**
- * Calculate the size of the EDE option(s) in packet. Also calculate seperately
+ * Calculate the size of the EDE option(s) in packet. Also calculate separately
  * the size of the EXTRA-TEXT field(s) in case we can trim them to fit.
  * In this case include any LDNS_EDE_OTHER options in their entirety since they
  * are useless without extra text.
