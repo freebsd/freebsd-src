@@ -1288,8 +1288,8 @@ in6_addifaddr(struct ifnet *ifp, struct in6_aliasreq *ifra, struct in6_ifaddr *i
 	 */
 	bzero(&pr0, sizeof(pr0));
 	pr0.ndpr_ifp = ifp;
-	pr0.ndpr_plen = in6_mask2len(&ifra->ifra_prefixmask.sin6_addr,
-	    NULL);
+	pr0.ndpr_plen = ia->ia_plen =
+	    in6_mask2len(&ifra->ifra_prefixmask.sin6_addr, NULL);
 	if (pr0.ndpr_plen == 128) {
 		/* we don't need to install a host route. */
 		goto aifaddr_out;
@@ -1483,16 +1483,16 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	 * positive reference.
 	 */
 	remove_lle = 0;
-	if (ia->ia6_ndpr == NULL) {
-		nd6log((LOG_NOTICE,
-		    "in6_unlink_ifa: autoconf'ed address "
-		    "%s has no prefix\n", ip6_sprintf(ip6buf, IA6_IN6(ia))));
-	} else {
+	if (ia->ia6_ndpr != NULL) {
 		ia->ia6_ndpr->ndpr_addrcnt--;
 		/* Do not delete lles within prefix if refcont != 0 */
 		if (ia->ia6_ndpr->ndpr_addrcnt == 0)
 			remove_lle = 1;
 		ia->ia6_ndpr = NULL;
+	} else if (ia->ia_plen < 128) {
+		nd6log((LOG_NOTICE,
+		    "in6_unlink_ifa: autoconf'ed address "
+		    "%s has no prefix\n", ip6_sprintf(ip6buf, IA6_IN6(ia))));
 	}
 
 	nd6_rem_ifa_lle(ia, remove_lle);
