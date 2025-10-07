@@ -341,6 +341,7 @@ follow_create_body()
 	rm -f infile
 	tail -F infile > outfile &
 	pid=$!
+	sleep 0.1
 	seq 1 5 >infile
 	sleep 2
 	atf_check cmp infile outfile
@@ -360,6 +361,7 @@ follow_rename_body()
 	seq 1 3 > infile
 	tail -F infile > outfile &
 	pid=$!
+	sleep 0.1
 	seq 4 5 > infile_new
 	atf_check mv infile infile_old
 	atf_check mv infile_new infile
