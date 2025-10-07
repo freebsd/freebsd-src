@@ -50,6 +50,7 @@
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
 #include <machine/intr_machdep.h>
@@ -135,6 +136,11 @@ SYSCTL_INT(_hw_mca, OID_AUTO, fake_bank, CTLFLAG_RW,
     &fake_bank, 0,
     "Bank to use for artificial MCAs (testing purpose only)");
 #endif
+
+static bool mca_uselog = false;
+SYSCTL_BOOL(_hw_mca, OID_AUTO, uselog, CTLFLAG_RWTUN, &mca_uselog, 0,
+    "Should the system send non-fatal machine check errors to the log "
+    "(instead of the console)?");
 
 static STAILQ_HEAD(, mca_internal) mca_freelist;
 static int mca_freecount;
@@ -477,7 +483,7 @@ mca_mute(const struct mca_record *rec)
 
 /* Dump details about a single machine check. */
 static void
-mca_log(enum scan_mode mode, const struct mca_record *rec)
+mca_log(enum scan_mode mode, const struct mca_record *rec, bool fatal)
 {
 	int error, numskipped;
 	uint16_t mca_error;
@@ -711,7 +717,8 @@ mca_log(enum scan_mode mode, const struct mca_record *rec)
 		    event_type));
 		event_type = MCA_T_UNKNOWN;
 	}
-	if (!uncor) {
+	numskipped = 0;
+	if (!fatal && !uncor) {
 		/*
 		 * Update statistics and check the rate limit for
 		 * correctable errors. The rate limit is only applied
@@ -732,16 +739,30 @@ mca_log(enum scan_mode mode, const struct mca_record *rec)
 		numskipped = mca_log_skipped;
 		mca_log_skipped = 0;
 		mtx_unlock_spin(&mca_lock);
-		if (numskipped > 0)
-			printf("MCA: %d events skipped due to rate limit\n",
-			    numskipped);
 	}
 
 	error = sbuf_finish(&sb);
-	if (error)
-		printf("MCA: error logging message (sbuf error %d)\n", error);
-	else
-		sbuf_putbuf(&sb);
+	if (fatal || !mca_uselog) {
+		if (numskipped > 0)
+			printf("MCA: %d events skipped due to rate limit\n",
+			    numskipped);
+		if (error)
+			printf("MCA: error logging message (sbuf error %d)\n",
+			    error);
+		else
+			sbuf_putbuf(&sb);
+	} else {
+		if (numskipped > 0)
+			log(LOG_ERR,
+			    "MCA: %d events skipped due to rate limit\n",
+			    numskipped);
+		if (error)
+			log(LOG_ERR,
+			    "MCA: error logging message (sbuf error %d)\n",
+			    error);
+		else
+			log(uncor ? LOG_CRIT : LOG_ERR, "%s", sbuf_data(&sb));
+	}
 
 done:
 	sbuf_delete(&sb);
@@ -907,7 +928,7 @@ mca_record_entry(enum scan_mode mode, const struct mca_record *record)
 		if (rec == NULL) {
 			mtx_unlock_spin(&mca_lock);
 			printf("MCA: Unable to allocate space for an event.\n");
-			mca_log(mode, record);
+			mca_log(mode, record, false);
 			return;
 		}
 		STAILQ_REMOVE_HEAD(&mca_freelist, link);
@@ -1064,7 +1085,7 @@ mca_scan(enum scan_mode mode, bool *recoverablep)
 			if (*recoverablep)
 				mca_record_entry(mode, &rec);
 			else
-				mca_log(mode, &rec);
+				mca_log(mode, &rec, true);
 		}
 
 #ifdef DEV_APIC
@@ -1148,7 +1169,7 @@ mca_process_records(enum scan_mode mode)
 	mtx_unlock_spin(&mca_lock);
 
 	STAILQ_FOREACH(mca, &tmplist, link)
-		mca_log(mode, &mca->rec);
+		mca_log(mode, &mca->rec, false);
 
 	mtx_lock_spin(&mca_lock);
 	while ((mca = STAILQ_FIRST(&tmplist)) != NULL) {
