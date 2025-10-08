@@ -31,11 +31,11 @@
 
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_types.h>
 #include <sys/_types_interrupt.h>
 #include <sys/ck.h>
 #include <sys/param.h>
 #include <sys/queue.h>
-#include <sys/types.h>
 
 struct intr_event;
 struct intr_thread;
@@ -56,7 +56,7 @@ struct intr_handler {
 	struct intr_event *ih_event;	/* Event we are connected to. */
 	int		 ih_need;	/* Needs service. */
 	CK_SLIST_ENTRY(intr_handler) ih_next; /* Next handler for this event. */
-	u_char		 ih_pri;	/* Priority of this handler. */
+	unsigned char	 ih_pri;	/* Priority of this handler. */
 };
 
 /* Interrupt handle flags kept in ih_flags */
@@ -125,7 +125,7 @@ struct intr_event {
 	int		ie_count;	/* Loop counter. */
 	int		ie_warncnt;	/* Rate-check interrupt storm warns. */
 	struct timeval	ie_warntm;
-	u_int		ie_irq;		/* Physical irq number if !SOFT. */
+	unsigned int	ie_irq;		/* Physical irq number if !SOFT. */
 	int		ie_cpu;		/* CPU this event is bound to. */
 	volatile int	ie_phase;	/* Switched to establish a barrier. */
 	volatile int	ie_active[2];	/* Filters in ISR context. */
@@ -161,7 +161,7 @@ struct proc;
 extern struct	intr_event *clk_intr_event;
 
 /* Counts and names for statistics (defined in MD code). */
-extern u_long 	*intrcnt;	/* counts for each device and stray */
+extern unsigned long 	*intrcnt;	/* counts for each device and stray */
 extern char 	*intrnames;	/* string table containing device names */
 extern size_t	sintrcnt;	/* size of intrcnt table */
 extern size_t	sintrnames;	/* size of intrnames table */
@@ -169,10 +169,10 @@ extern size_t	sintrnames;	/* size of intrnames table */
 #ifdef DDB
 void	db_dump_intr_event(struct intr_event *ie, int handlers);
 #endif
-u_char	intr_priority(enum intr_type flags);
+unsigned char	intr_priority(enum intr_type flags);
 int	intr_event_add_handler(struct intr_event *ie, const char *name,
-	    driver_filter_t filter, driver_intr_t handler, void *arg,
-	    u_char pri, enum intr_type flags, void **cookiep);
+	    driver_filter_t filter, driver_intr_t handler, void *arg, 
+	    unsigned char pri, enum intr_type flags, void **cookiep);
 int	intr_event_bind(struct intr_event *ie, int cpu);
 int	intr_event_bind_irqonly(struct intr_event *ie, int cpu);
 int	intr_event_bind_ithread(struct intr_event *ie, int cpu);
@@ -180,7 +180,7 @@ struct _cpuset;
 int	intr_event_bind_ithread_cpuset(struct intr_event *ie,
 	    struct _cpuset *mask);
 int	intr_event_create(struct intr_event **event, void *source,
-	    int flags, u_int irq, void (*pre_ithread)(void *),
+	    int flags, unsigned int irq, void (*pre_ithread)(void *),
 	    void (*post_ithread)(void *), void (*post_filter)(void *),
 	    int (*assign_cpu)(void *, int), const char *fmt, ...)
 	    __printflike(9, 10);
