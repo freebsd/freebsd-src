@@ -1,6 +1,4 @@
 SYSDIR?=${SRCTOP}/sys
-.include "${SYSDIR}/conf/kern.opts.mk"
-
 .PATH: ${SYSDIR}/net ${SYSDIR}/netinet ${SYSDIR}/netinet6
 
 KMOD=	if_gif
