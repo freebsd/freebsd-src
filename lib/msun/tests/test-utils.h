@@ -144,21 +144,20 @@ fpequal_tol(long double x, long double y, long double tol,
 	return (ret);
 }
 
-#define CHECK_FPEQUAL(x, y) CHECK_FPEQUAL_CS(x, y, true)
-
-#define CHECK_FPEQUAL_CS(x, y, checksign) do {					\
+#define _fpequal_cs(atf_variant, x, y, checksign) do {				\
 	long double _x = x;							\
 	long double _y = y;							\
-	ATF_CHECK_MSG(fpequal_cs(_x, _y, checksign),				\
+	ATF_##atf_variant##_MSG(fpequal_cs(_x, _y, checksign),			\
 	    "%s (%.25Lg) ~= %s (%.25Lg)", #x, _x, #y, _y);			\
 } while (0)
 
-#define CHECK_FPEQUAL_TOL(x, y, tol, flags) do {				\
+#define _fpequal_tol(atf_variant, x, y, tol, flags) do {			\
 	long double _x = x;							\
 	long double _y = y;							\
 	bool eq = fpequal_tol(_x, _y, tol, flags);				\
 	long double _diff = eq ? 0.0L : fabsl(_x - _y);				\
-	ATF_CHECK_MSG(eq, "%s (%.25Lg) ~= %s (%.25Lg), diff=%Lg, maxdiff=%Lg,",	\
+	ATF_##atf_variant##_MSG(eq,						\
+	    "%s (%.25Lg) ~= %s (%.25Lg), diff=%Lg, maxdiff=%Lg,",		\
 	    #x, _x, #y, _y, _diff, fabsl(_y * tol));				\
 } while (0)
 
@@ -170,32 +169,48 @@ cfpequal(long double complex d1, long double complex d2)
 	    fpequal_cs(cimagl(d1), cimagl(d2), true));
 }
 
-#define CHECK_CFPEQUAL_CS(x, y, checksign) do {					\
+#define _cfpequal_cs(atf_variant, x, y, checksign) do {				\
 	long double _x = x;							\
 	long double _y = y;							\
 	bool equal_cs =								\
 	    fpequal_cs(creal(_x), creal(_y), (checksign & CS_REAL) != 0) &&	\
 	    fpequal_cs(cimag(_x), cimag(_y), (checksign & CS_IMAG) != 0);	\
-	ATF_CHECK_MSG(equal_cs, "%s (%Lg + %Lg I) ~=  %s (%Lg + %Lg I)",	\
+	ATF_##atf_variant##_MSG(equal_cs,					\
+	    "%s (%Lg + %Lg I) ~=  %s (%Lg + %Lg I)",				\
 	    #x, creall(_x), cimagl(_x), #y, creall(_y), cimagl(_y));		\
 } while (0)
 
-#define CHECK_CFPEQUAL_TOL(x, y, tol, flags) do {				\
+#define _cfpequal_tol(atf_variant, x, y, tol, flags) do {			\
 	long double _x = x;							\
 	long double _y = y;							\
 	bool equal_tol = (fpequal_tol(creal(_x), creal(_y), tol, flags) &&	\
 	    fpequal_tol(cimag(_x), cimag(_y), tol, flags));			\
-	ATF_CHECK_MSG(equal_tol, "%s (%Lg + %Lg I) ~=  %s (%Lg + %Lg I)",	\
+	ATF_##atf_variant##_MSG(equal_tol,					\
+	    "%s (%Lg + %Lg I) ~=  %s (%Lg + %Lg I)",				\
 	    #x, creall(_x), cimagl(_x), #y, creall(_y), cimagl(_y));		\
 } while (0)
 
-#define CHECK_FP_EXCEPTIONS(excepts, exceptmask)		\
-	ATF_CHECK_EQ_MSG((excepts), fetestexcept(exceptmask),	\
-	    "unexpected exception flags: got %#x not %#x",	\
+#define _fp_exceptions(atf_variant, excepts, exceptmask) 		\
+	ATF_##atf_variant##_EQ_MSG((excepts), fetestexcept(exceptmask),	\
+	    "unexpected exception flags: got %#x not %#x",		\
 	    fetestexcept(exceptmask), (excepts))
-#define CHECK_FP_EXCEPTIONS_MSG(excepts, exceptmask, fmt, ...)	\
-	ATF_CHECK_EQ_MSG((excepts), fetestexcept(exceptmask),	\
+#define _fp_exceptions_msg(atf_variant, excepts, exceptmask, fmt, ...)	\
+	ATF_##atf_variant##_EQ_MSG((excepts), fetestexcept(exceptmask),	\
 	    "unexpected exception flags: got %#x not %#x " fmt,	\
 	    fetestexcept(exceptmask), (excepts), __VA_ARGS__)
+
+#define CHECK_FP_EXCEPTIONS(excepts, exceptmask) _fp_exceptions(CHECK, excepts, exceptmask)
+#define CHECK_FP_EXCEPTIONS_MSG(excepts, exceptmask, fmt, ...) _fp_exceptions_msg(CHECK, excepts, exceptmask, fmt, __VA_ARGS__)
+#define CHECK_CFPEQUAL_TOL(x, y, tol, flags) _cfpequal_tol(CHECK, x, y, tol, flags)
+#define CHECK_CFPEQUAL_CS(x, y, checksign) _cfpequal_cs(CHECK, x, y, checksign)
+#define CHECK_FPEQUAL(x, y) _fpequal_cs(CHECK, x, y, true)
+#define CHECK_FPEQUAL_TOL(x, y, tol, flags) _fpequal_tol(CHECK, x, y, tol, flags)
+
+#define REQUIRE_FP_EXCEPTIONS(excepts, exceptmask) _fp_exceptions(REQUIRE, excepts, exceptmask)
+#define REQUIRE_FP_EXCEPTIONS_MSG(excepts, exceptmask, fmt, ...) _fp_exceptions_msg(REQUIRE, excepts, exceptmask, fmt, __VA_ARGS__)
+#define REQUIRE_CFPEQUAL_TOL(x, y, tol, flags) _cfpequal_tol(REQUIRE, x, y, tol, flags)
+#define REQUIRE_CFPEQUAL_CS(x, y, checksign) _cfpequal_cs(REQUIRE, x, y, checksign)
+#define REQUIRE_FPEQUAL(x, y) _fpequal_cs(REQUIRE, x, y, true)
+#define REQUIRE_FPEQUAL_TOL(x, y, tol, flags) _fpequal_tol(REQUIRE, x, y, tol, flags)
 
 #endif /* _TEST_UTILS_H_ */
