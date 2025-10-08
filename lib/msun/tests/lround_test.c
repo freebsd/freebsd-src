@@ -65,6 +65,9 @@
 ATF_TC_WITHOUT_HEAD(main);
 ATF_TC_BODY(main, tc)
 {
+#if defined(__powerpc64__)
+	atf_tc_expect_fail("https://bugs.freebsd.org/290099");
+#endif
 	testall(0.0, 0, 0);
 	testall(0.25, 0, FE_INEXACT);
 	testall(0.5, 1, FE_INEXACT);

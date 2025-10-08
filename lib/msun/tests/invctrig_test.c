@@ -124,6 +124,9 @@ c3pi = 9.42477796076937971538793014983850839L;
 ATF_TC_WITHOUT_HEAD(zero);
 ATF_TC_BODY(zero, tc)
 {
+#if defined(__riscv)
+	atf_tc_expect_death("https://bugs.freebsd.org/290099");
+#endif
 	long double complex zero = CMPLXL(0.0, 0.0);
 
 	testall_tol(cacosh, zero, CMPLXL(0.0, pi / 2), 1);
@@ -144,6 +147,9 @@ ATF_TC_BODY(zero, tc)
 ATF_TC_WITHOUT_HEAD(nan);
 ATF_TC_BODY(nan, tc)
 {
+#if defined(__riscv)
+	atf_tc_expect_death("https://bugs.freebsd.org/290099");
+#endif
 	long double complex nan_nan = CMPLXL(NAN, NAN);
 	long double complex z;
 
@@ -223,6 +229,9 @@ ATF_TC_BODY(nan, tc)
 ATF_TC_WITHOUT_HEAD(inf);
 ATF_TC_BODY(inf, tc)
 {
+#if defined(__riscv)
+	atf_tc_expect_death("https://bugs.freebsd.org/290099");
+#endif
 	long double complex z;
 
 	/*
@@ -270,6 +279,9 @@ ATF_TC_BODY(inf, tc)
 ATF_TC_WITHOUT_HEAD(axes);
 ATF_TC_BODY(axes, tc)
 {
+#if defined(__riscv)
+	atf_tc_expect_death("https://bugs.freebsd.org/290099");
+#endif
 	static const long double nums[] = {
 		-2, -1, -0.5, 0.5, 1, 2
 	};
@@ -307,6 +319,9 @@ ATF_TC_BODY(axes, tc)
 ATF_TC_WITHOUT_HEAD(small);
 ATF_TC_BODY(small, tc)
 {
+#if defined(__riscv)
+	atf_tc_expect_death("https://bugs.freebsd.org/290099");
+#endif
 	/*
 	 * z =  0.75 + i 0.25
 	 *     acos(z) = Pi/4 - i ln(2)/2
