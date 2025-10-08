@@ -1,4 +1,10 @@
 #!/usr/libexec/flua
+--
+-- Copyright (c) 2024-2025 Baptiste Daroussin <bapt@FreeBSD.org>
+-- Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+--
+-- SPDX-License-Identifier: BSD-2-Clause
+--
 
 --[[ usage:
 generate-ucl.lua [<variablename> <variablevalue>]... <sourceucl> <destucl>
