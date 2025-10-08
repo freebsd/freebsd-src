@@ -175,7 +175,7 @@ TGTS=	all all-man buildenv buildenvvars buildetc buildkernel buildworld \
 	create-packages-world create-packages-kernel \
 	create-packages-kernel-repo create-packages-world-repo \
 	create-packages-source create-packages \
-	update-packages packages installconfig real-packages real-update-packages \
+	installconfig real-packages real-update-packages \
 	sign-packages package-pkg print-dir test-system-compiler test-system-linker \
 	test-includes
 
@@ -520,6 +520,9 @@ kernels: .PHONY
 
 worlds: .PHONY
 	@cd ${.CURDIR}; ${SUB_MAKE} UNIVERSE_TARGET=buildworld universe
+
+packages update-packages: .PHONY
+	${_+_}@cd ${.CURDIR}; ${_MAKE} DISTDIR=/ ${.TARGET}
 
 #
 # universe
