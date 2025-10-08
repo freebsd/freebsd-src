@@ -20,6 +20,5 @@ deps {
 	# devd uses /bin/sh to invoke hooks.
 	"runtime" {
 		version = "${VERSION}"
-		origin = "base"
 	},
 }

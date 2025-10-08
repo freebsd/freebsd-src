@@ -31,14 +31,11 @@ EOD
 deps {
 	"set-minimal" {
 		version = "${VERSION}"
-		origin = "base"
 	},
 	"set-optional" {
 		version = "${VERSION}"
-		origin = "base"
 	},
 	"set-devel" {
 		version = "${VERSION}"
-		origin = "base"
 	}
 }
