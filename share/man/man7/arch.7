@@ -48,11 +48,10 @@ and later, unless otherwise noted.
 .Fx
 uses a flat address space.
 Variables of types
-.Vt unsigned long ,
-.Vt uintptr_t ,
+.Vt unsigned long
 and
 .Vt size_t
-and pointers all have the same representation.
+have the same representation.
 .Pp
 In order to maximize compatibility with future pointer integrity mechanisms,
 manipulations of pointers as integers should be performed via
@@ -127,14 +126,17 @@ All supported ABIs can be divided into two groups:
 .Bl -tag -width "Dv ILP32"
 .It Dv ILP32
 .Vt int ,
+.Vt intptr_t ,
 .Vt long ,
+and
 .Vt void *
 types machine representations all have 4-byte size.
 .It Dv LP64
 .Vt int
 type machine representation uses 4 bytes,
 while
-.Vt long
+.Vt intptr_t ,
+.Vt long ,
 and
 .Vt void *
 are 8 bytes.
@@ -174,7 +176,6 @@ On all supported architectures:
 .It Sy Type Ta Sy Size
 .It short Ta 2
 .It int Ta 4
-.It long Ta sizeof(void*)
 .It long long Ta 8
 .It float Ta 4
 .It double Ta 8
@@ -188,17 +189,17 @@ The sole exception is that
 requires only 4-byte alignment for 64-bit integers.
 .Pp
 Machine-dependent type sizes:
-.Bl -column -offset indent "Architecture" "void *" "long double" "time_t"
-.It Sy Architecture Ta Sy void * Ta Sy long double Ta Sy time_t
-.It aarch64     Ta 8 Ta 16 Ta 8
-.It amd64       Ta 8 Ta 16 Ta 8
-.It armv7       Ta 4 Ta  8 Ta 8
-.It i386        Ta 4 Ta 12 Ta 4
-.It powerpc     Ta 4 Ta  8 Ta 8
-.It powerpcspe  Ta 4 Ta  8 Ta 8
-.It powerpc64   Ta 8 Ta  8 Ta 8
-.It powerpc64le Ta 8 Ta  8 Ta 8
-.It riscv64     Ta 8 Ta 16 Ta 8
+.Bl -column -offset indent "Architecture" "long" "void *" "long double" "time_t"
+.It Sy Architecture Ta Sy long Ta Sy void * Ta Sy long double Ta Sy time_t
+.It aarch64     Ta 8 Ta  8 Ta 16 Ta 8
+.It amd64       Ta 8 Ta  8 Ta 16 Ta 8
+.It armv7       Ta 4 Ta  4 Ta  8 Ta 8
+.It i386        Ta 4 Ta  4 Ta 12 Ta 4
+.It powerpc     Ta 4 Ta  4 Ta  8 Ta 8
+.It powerpcspe  Ta 4 Ta  4 Ta  8 Ta 8
+.It powerpc64   Ta 8 Ta  8 Ta  8 Ta 8
+.It powerpc64le Ta 8 Ta  8 Ta  8 Ta 8
+.It riscv64     Ta 8 Ta  8 Ta 16 Ta 8
 .El
 .Pp
 .Sy time_t
