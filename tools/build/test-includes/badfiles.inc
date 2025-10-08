@@ -68,7 +68,6 @@ BADHDRS= \
 	sys/libkern.h \
 	sys/link_aout.h \
 	sys/lock.h \
-	sys/lock_profile.h \
 	sys/lockf.h \
 	sys/lockmgr.h \
 	sys/loginclass.h \
@@ -97,7 +96,6 @@ BADHDRS= \
 	sys/rman.h \
 	sys/rmlock.h \
 	sys/runq.h \
-	sys/rwlock.h \
 	sys/sbuf.h \
 	sys/sf_buf.h \
 	sys/sglist.h \
