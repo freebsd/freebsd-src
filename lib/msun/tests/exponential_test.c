@@ -159,6 +159,9 @@ ATF_TC_BODY(exp2l, tc)
 ATF_TC_WITHOUT_HEAD(generic);
 ATF_TC_BODY(generic, tc)
 {
+#if defined(__aarch64__) || defined(__riscv)
+	atf_tc_expect_fail("https://bugs.freebsd.org/290099");
+#endif
 	run_generic_tests();
 }
 
