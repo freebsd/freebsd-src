@@ -80,6 +80,16 @@ struct vnode *null_checkvp(struct vnode *vp, char *fil, int lno);
 #endif
 
 extern struct vop_vector null_vnodeops;
+extern struct vop_vector null_vnodeops_no_unp_bypass;
+
+static inline bool
+null_is_nullfs_vnode(struct vnode *vp)
+{
+	const struct vop_vector *op;
+
+	op = vp->v_op;
+	return (op == &null_vnodeops);
+}
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_NULLFSNODE);
