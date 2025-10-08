@@ -26,6 +26,17 @@
 # SUCH DAMAGE.
 #
 
+atf_test_case no_cycles
+no_cycles_head()
+{
+	atf_set "descr" "Verify that /etc/rc.d/* contains no cycles"
+}
+
+no_cycles_body()
+{
+	atf_check -e empty -o ignore rcorder /etc/rc.d/*
+}
+
 atf_test_case oomprotect_all
 oomprotect_all_head()
 {
@@ -130,6 +141,7 @@ EOF
 
 atf_init_test_cases()
 {
+	atf_add_test_case no_cycles
 	atf_add_test_case oomprotect_all
 	atf_add_test_case oomprotect_yes
 	atf_add_test_case wait_for_pids_progress
