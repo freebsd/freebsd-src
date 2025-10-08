@@ -58,12 +58,25 @@ manipulations of pointers as integers should be performed via
 .Vt uintptr_t
 or
 .Vt intptr_t
-and no other types.
-In particular,
-.Vt long
+and no other types as these types are the only integer types where the
+C standard guarantees that a pointer may be cast to it and then cast back
+to the original type.
+On CHERI systems,
+.Vt uintptr_t
 and
-.Vt ptrdiff_t
-should be avoided.
+.Vt intptr_t
+are defined as
+.Vt __uintcap_t
+and
+.Vt __intcap_t
+which represent capabilities that can be manipulated by integer operations.
+Pointers should not be cast to
+.Vt long ,
+.Vt ptrdiff_t ,
+or
+.Vt size_t
+if they will later be cast back to a pointer that is expected to be
+dereferencable as they remain bare integer types on all architectures.
 .Pp
 On some architectures, e.g.,
 AIM variants of
@@ -84,11 +97,13 @@ release to support each architecture.
 .Bl -column -offset indent "Architecture" "Initial Release"
 .It Sy Architecture Ta Sy Initial Release
 .It aarch64     Ta 11.0
+.It aarch64c    Ta 16.0 (planned)
 .It amd64       Ta 5.1
 .It armv7       Ta 12.0
 .It powerpc64   Ta 9.0
 .It powerpc64le Ta 13.0
 .It riscv64     Ta 12.0
+.It riscv64c    Ta 16.0 (planned)
 .El
 .Pp
 Discontinued architectures are shown in the following table.
@@ -122,8 +137,8 @@ architectures use some variant of the ELF (see
 .Xr elf 5 )
 .Sy Application Binary Interface
 (ABI) for the machine processor.
-All supported ABIs can be divided into two groups:
-.Bl -tag -width "Dv ILP32"
+Supported ABIs can be divided into three main groups:
+.Bl -tag -width "Dv L64PC128"
 .It Dv ILP32
 .Vt int ,
 .Vt intptr_t ,
@@ -140,6 +155,15 @@ while
 and
 .Vt void *
 are 8 bytes.
+.It Dv L64PC128
+.Vt int
+type machine representation uses 4 bytes.
+.Vt long
+type machine representation uses 8 bytes.
+.Vt intptr_t
+and
+.Vt void *
+are 16 byte capabilities.
 .El
 .Pp
 Some machines support more than one
@@ -171,6 +195,18 @@ Binaries targeting
 and earlier are no longer supported by
 .Fx .
 .Pp
+Architectures with 128-bit capabilities support both a
+.Dq native
+.Dv L64PC128
+execution environment and a
+.Dv LP64
+environment:
+.Bl -column -offset indent "aarch64c" "LP64 counterpart"
+.It Sy L64PC128    Ta Sy LP64 counterpart
+.It Dv aarch64c    Ta Dv aarch64
+.It Dv riscv64c    Ta Dv riscv64
+.El
+.Pp
 On all supported architectures:
 .Bl -column -offset indent "long long" "Size"
 .It Sy Type Ta Sy Size
@@ -192,6 +228,7 @@ Machine-dependent type sizes:
 .Bl -column -offset indent "Architecture" "long" "void *" "long double" "time_t"
 .It Sy Architecture Ta Sy long Ta Sy void * Ta Sy long double Ta Sy time_t
 .It aarch64     Ta 8 Ta  8 Ta 16 Ta 8
+.It aarch64c    Ta 8 Ta 16 Ta 16 Ta 8
 .It amd64       Ta 8 Ta  8 Ta 16 Ta 8
 .It armv7       Ta 4 Ta  4 Ta  8 Ta 8
 .It i386        Ta 4 Ta  4 Ta 12 Ta 4
@@ -200,6 +237,7 @@ Machine-dependent type sizes:
 .It powerpc64   Ta 8 Ta  8 Ta  8 Ta 8
 .It powerpc64le Ta 8 Ta  8 Ta  8 Ta 8
 .It riscv64     Ta 8 Ta  8 Ta 16 Ta 8
+.It riscv64c    Ta 8 Ta 16 Ta 16 Ta 8
 .El
 .Pp
 .Sy time_t
@@ -208,6 +246,7 @@ is 8 bytes on all supported architectures except i386.
 .Bl -column -offset indent "Architecture" "Endianness" "char Signedness"
 .It Sy Architecture Ta Sy Endianness Ta Sy char Signedness
 .It aarch64     Ta little Ta unsigned
+.It aarch64c    Ta little Ta unsigned
 .It amd64       Ta little Ta   signed
 .It armv7       Ta little Ta unsigned
 .It i386        Ta little Ta   signed
@@ -216,11 +255,13 @@ is 8 bytes on all supported architectures except i386.
 .It powerpc64   Ta big    Ta unsigned
 .It powerpc64le Ta little Ta unsigned
 .It riscv64     Ta little Ta   signed
+.It riscv64c    Ta little Ta   signed
 .El
 .Ss Page Size
 .Bl -column -offset indent "Architecture" "Page Sizes"
 .It Sy Architecture Ta Sy Page Sizes
 .It aarch64     Ta 4K, 64K, 2M, 1G
+.It aarch64c    Ta 4K, 64K, 2M, 1G
 .It amd64       Ta 4K, 2M, 1G
 .It armv7       Ta 4K, 1M
 .It i386        Ta 4K, 2M (PAE), 4M
@@ -229,11 +270,13 @@ is 8 bytes on all supported architectures except i386.
 .It powerpc64   Ta 4K
 .It powerpc64le Ta 4K
 .It riscv64     Ta 4K, 2M, 1G
+.It riscv64c    Ta 4K, 2M, 1G
 .El
 .Ss User Address Space Layout
 .Bl -column -offset indent "riscv64 (Sv48)" "0x0001000000000000" "NNNU"
 .It Sy Architecture Ta Sy Maximum Address Ta Sy Address Space Size
 .It aarch64        Ta 0x0001000000000000 Ta 256TiB
+.It aarch64c       Ta 0x0001000000000000 Ta 256TiB
 .It amd64 (LA48)   Ta 0x0000800000000000 Ta 128TiB
 .It amd64 (LA57)   Ta 0x0100000000000000 Ta 64PiB
 .It armv7          Ta 0xbfc00000         Ta 3GiB
@@ -243,7 +286,9 @@ is 8 bytes on all supported architectures except i386.
 .It powerpc64      Ta 0x000fffffc0000000 Ta 4PiB
 .It powerpc64le    Ta 0x000fffffc0000000 Ta 4PiB
 .It riscv64 (Sv39) Ta 0x0000004000000000 Ta 256GiB
+.It riscv64c (Sv39) Ta 0x0000004000000000 Ta 256GiB
 .It riscv64 (Sv48) Ta 0x0000800000000000 Ta 128TiB
+.It riscv64c (Sv48) Ta 0x0000800000000000 Ta 128TiB
 .El
 .Pp
 The layout of a process' address space can be queried via the
@@ -288,6 +333,7 @@ currently supports Sv39 and Sv48 and defaults to using Sv39.
 .Bl -column -offset indent "Architecture" "float, double" "long double"
 .It Sy Architecture Ta Sy float, double Ta Sy long double
 .It aarch64     Ta hard Ta soft, quad precision
+.It aarch64c    Ta hard Ta soft, quad precision
 .It amd64       Ta hard Ta hard, 80 bit
 .It armv7       Ta hard Ta hard, double precision
 .It i386        Ta hard Ta hard, 80 bit
@@ -296,6 +342,7 @@ currently supports Sv39 and Sv48 and defaults to using Sv39.
 .It powerpc64   Ta hard Ta hard, double precision
 .It powerpc64le Ta hard Ta hard, double precision
 .It riscv64     Ta hard Ta hard, quad precision
+.It riscv64c    Ta hard Ta hard, quad precision
 .El
 .Ss Default Tool Chain
 .Fx
@@ -322,12 +369,12 @@ when referring to the kernel, interfaces dependent on a specific type of kernel
 or similar things like boot sequences.
 .Bl -column -offset indent "Dv MACHINE" "Dv MACHINE_CPUARCH" "Dv MACHINE_ARCH"
 .It Dv MACHINE Ta Dv MACHINE_CPUARCH Ta Dv MACHINE_ARCH
-.It arm64 Ta aarch64 Ta aarch64
+.It arm64 Ta aarch64 Ta aarch64, aarch64c
 .It amd64 Ta amd64 Ta amd64
 .It arm Ta arm Ta armv7
 .It i386 Ta i386 Ta i386
 .It powerpc Ta powerpc Ta powerpc, powerpcspe, powerpc64, powerpc64le
-.It riscv Ta riscv Ta riscv64
+.It riscv Ta riscv Ta riscv64, riscv64c
 .El
 .Ss Predefined Macros
 The compiler provides a number of predefined macros.
@@ -348,6 +395,7 @@ Common type size and endianness macros:
 .It Dv __SIZEOF_SIZE_T__ Ta size in bytes of size_t
 .It Dv __LP64__ Ta 64-bit (8-byte) long and pointer, 32-bit (4-byte) int
 .It Dv __ILP32__ Ta 32-bit (4-byte) int, long and pointer
+.It Dv __CHERI__ Ta 128-bit (16-byte) capability pointer, 64-bit (8-byte) long
 .It Dv BYTE_ORDER Ta Either Dv BIG_ENDIAN or Dv LITTLE_ENDIAN .
 .El
 .Pp
@@ -373,6 +421,7 @@ Architecture-specific macros:
 .Bl -column -offset indent "Architecture" "Predefined macros"
 .It Sy Architecture Ta Sy Predefined macros
 .It aarch64     Ta Dv __aarch64__
+.It aarch64c    Ta Dv __aarch64__ , Dv __CHERI__
 .It amd64       Ta Dv __amd64__ , Dv __x86_64__
 .It armv7       Ta Dv __arm__ , Dv __ARM_ARCH >= 7
 .It i386        Ta Dv __i386__
@@ -381,6 +430,7 @@ Architecture-specific macros:
 .It powerpc64   Ta Dv __powerpc__ , Dv __powerpc64__
 .It powerpc64le Ta Dv __powerpc__ , Dv __powerpc64__
 .It riscv64     Ta Dv __riscv , Dv __riscv_xlen == 64
+.It riscv64c    Ta Dv __riscv , Dv __riscv_xlen == 64 , Dv __CHERI__
 .El
 .Pp
 Compilers may define additional variants of architecture-specific macros.
