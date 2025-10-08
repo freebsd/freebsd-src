@@ -92,7 +92,9 @@
 ATF_TC_WITHOUT_HEAD(generic_tests);
 ATF_TC_BODY(generic_tests, tc)
 {
-
+#if defined(__aarch64__) || defined(__riscv)
+	atf_tc_expect_fail("https://bugs.freebsd.org/290099");
+#endif
 	/* log(1) == 0, no exceptions raised */
 	testall0(1.0, 0.0, ALL_STD_EXCEPT, 0);
 	testall1(0.0, 0.0, ALL_STD_EXCEPT, 0);
@@ -179,6 +181,9 @@ ATF_TC_BODY(roundingmode_tests, tc)
 ATF_TC_WITHOUT_HEAD(accuracy_tests);
 ATF_TC_BODY(accuracy_tests, tc)
 {
+#if defined(__riscv)
+	atf_tc_expect_death("https://bugs.freebsd.org/290099");
+#endif
 	static const struct {
 		float x;
 		long double log2x;
@@ -248,7 +253,9 @@ ATF_TC_BODY(log1p_accuracy_tests, tc)
 	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
 		atf_tc_expect_fail("https://bugs.freebsd.org/253984");
 #endif
-
+#if defined(__riscv)
+	atf_tc_expect_death("https://bugs.freebsd.org/290099");
+#endif
 	test_tol(log1pf, 0x0.333333p0F,
 		 1.82321546859847114303367992804596800640e-1L, FLT_ULP());
 	test_tol(log1p, 0x0.3333333333333p0,
