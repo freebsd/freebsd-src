@@ -253,6 +253,9 @@ Creativity, no.
 __EOF__
 	nc -l $addr $port >out &
 
+	# Give the background nc time to start
+	sleep 1
+
 	atf_check nc -N $addr $port < in
 
 	atf_check -o file:in cat out
