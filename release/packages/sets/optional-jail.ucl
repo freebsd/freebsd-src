@@ -29,6 +29,5 @@ EOD
 deps {
 	"set-minimal-jail" {
 		version = "${VERSION}"
-		origin = "base"
 	},
 }

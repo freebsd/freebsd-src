@@ -26,6 +26,5 @@ EOD
 deps {
 	"set-minimal-dbg" {
 		version = "${VERSION}"
-		origin = "base"
 	},
 }

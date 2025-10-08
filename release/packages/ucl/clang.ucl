@@ -1,11 +1,9 @@
 deps {
 	"lld" {
 		version = "${VERSION}"
-		origin = "base"
 	}
 
 	"libcompiler_rt-dev" {
 		version = "${VERSION}"
-		origin = "base"
 	}
 }
