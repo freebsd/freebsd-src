@@ -1,6 +1,5 @@
 PACKAGE=	tests
-SYSDIR?=${SRCTOP}/sys
-.PATH: ${SYSDIR}/tests
+.PATH: ${SRCTOP}/sys/tests
 
 KMOD=	ktest
 SRCS=	ktest.c
