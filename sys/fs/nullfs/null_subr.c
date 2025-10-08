@@ -210,7 +210,9 @@ null_nodeget(struct mount *mp, struct vnode *lowervp, struct vnode **vpp)
 	 */
 	xp = malloc(sizeof(struct null_node), M_NULLFSNODE, M_WAITOK);
 
-	error = getnewvnode("nullfs", mp, &null_vnodeops, &vp);
+	error = getnewvnode("nullfs", mp, (MOUNTTONULLMOUNT(mp)->nullm_flags &
+	    NULLM_NOUNPBYPASS) != 0 ? &null_vnodeops_no_unp_bypass :
+	    &null_vnodeops, &vp);
 	if (error) {
 		vput(lowervp);
 		free(xp, M_NULLFSNODE);
