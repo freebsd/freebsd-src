@@ -116,7 +116,7 @@ nullfs_mount(struct mount *mp)
 	/*
 	 * Unlock lower node to avoid possible deadlock.
 	 */
-	if (mp->mnt_vnodecovered->v_op == &null_vnodeops &&
+	if (null_is_nullfs_vnode(mp->mnt_vnodecovered) &&
 	    VOP_ISLOCKED(mp->mnt_vnodecovered) == LK_EXCLUSIVE) {
 		VOP_UNLOCK(mp->mnt_vnodecovered);
 		isvnunlocked = true;
@@ -150,7 +150,7 @@ nullfs_mount(struct mount *mp)
 	/*
 	 * Check multi null mount to avoid `lock against myself' panic.
 	 */
-	if (mp->mnt_vnodecovered->v_op == &null_vnodeops) {
+	if (null_is_nullfs_vnode(mp->mnt_vnodecovered)) {
 		nn = VTONULL(mp->mnt_vnodecovered);
 		if (nn == NULL || lowerrootvp == nn->null_lowervp) {
 			NULLFSDEBUG("nullfs_mount: multi null mount?\n");
