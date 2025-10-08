@@ -97,10 +97,37 @@ system call also creates a new kernel event queue, and additionally takes
 a
 .Fa flags
 argument, which is a bitwise-inclusive OR of the following flags:
-.Bl -tag -width "KQUEUE_CLOEXEC"
+.Bl -tag -width "KQUEUE_CPONFORK"
 .It Dv KQUEUE_CLOEXEC
 The returned file descriptor is automatically closed on
 .Xr execve 2
+.It Dv KQUEUE_CPONFORK
+When this flag is set, the created kqueue is copied into
+the child process on
+.Xr fork 2
+calls.
+The kqueue descriptor index of the new kqueue will be inherited by the child,
+that is, the numeric value of the descriptor will remain the same.
+.Pp
+Copying is deep, that is, each registered event in the original kqueue is
+copied (and not shared) into the new kqueue.
+This is contrary to how other descriptor types are handled upon
+.Xr fork 2 ,
+where the copied file descriptor references the same file object
+as the source descriptor (shallow copy).
+.Pp
+By default, in other words, when the flag is not set, kqueues from
+the parent are not copied on fork to the child process.
+The corresponding file descriptor indeces are unused in the child.
+.Pp
+Registered events that reference file descriptors which are not
+duplicated on fork, are not copied into the new kqueue.
+For instance, if the event references a file descriptor opened with the
+.Dv O_CLOEXEC
+flag set, it is not copied.
+Similarly, if event references a kqueue opened without the
+.Dv KQUEUE_CPONFORK
+flag, the event is not copied.
 .El
 .Pp
 The
