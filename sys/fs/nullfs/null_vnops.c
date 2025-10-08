@@ -1192,3 +1192,11 @@ struct vop_vector null_vnodeops = {
 	.vop_copy_file_range =	VOP_PANIC,
 };
 VFS_VOP_VECTOR_REGISTER(null_vnodeops);
+
+struct vop_vector null_vnodeops_no_unp_bypass = {
+	.vop_default =		&null_vnodeops,
+	.vop_unp_bind =		vop_stdunp_bind,
+	.vop_unp_connect =	vop_stdunp_connect,
+	.vop_unp_detach =	vop_stdunp_detach,
+};
+VFS_VOP_VECTOR_REGISTER(null_vnodeops_no_unp_bypass);

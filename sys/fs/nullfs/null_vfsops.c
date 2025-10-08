@@ -91,6 +91,8 @@ nullfs_mount(struct mount *mp)
 	bool isvnunlocked;
 	static const char cache_opt_name[] = "cache";
 	static const char nocache_opt_name[] = "nocache";
+	static const char unixbypass_opt_name[] = "unixbypass";
+	static const char nounixbypass_opt_name[] = "nounixbypass";
 
 	NULLFSDEBUG("nullfs_mount(mp = %p)\n", (void *)mp);
 
@@ -224,6 +226,13 @@ nullfs_mount(struct mount *mp)
 	if ((xmp->nullm_flags & NULLM_CACHE) != 0) {
 		vfs_register_for_notification(xmp->nullm_vfs, mp,
 		    &xmp->notify_node);
+	}
+
+	if (vfs_getopt(mp->mnt_optnew, unixbypass_opt_name, NULL, NULL) == 0) {
+		;
+	} else if (vfs_getopt(mp->mnt_optnew, nounixbypass_opt_name, NULL,
+	    NULL) == 0) {
+		xmp->nullm_flags |= NULLM_NOUNPBYPASS;
 	}
 
 	if (lowerrootvp == mp->mnt_vnodecovered) {
