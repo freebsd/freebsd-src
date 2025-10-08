@@ -278,7 +278,7 @@ null_bypass(struct vop_generic_args *ap)
 		 * that aren't.  (We must always map first vp or vclean fails.)
 		 */
 		if (i != 0 && (*this_vp_p == NULL ||
-			       (*this_vp_p)->v_op != &null_vnodeops)) {
+		    !null_is_nullfs_vnode(*this_vp_p))) {
 			old_vps[i] = NULL;
 		} else {
 			old_vps[i] = *this_vp_p;
