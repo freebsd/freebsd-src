@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 15, 2025
+.Dd October 8, 2025
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -705,8 +705,8 @@ The super-user is enabled by default.
 Allow privileged processes in the jail to manipulate filesystem extended
 attributes in the system namespace.
 .It Va allow.adjtime
-Allow privileged processes in the jail to slowly adjusting global operating system
-time.
+Allow privileged processes in the jail to slowly adjusting global operating
+system time.
 For example through utilities like
 .Xr ntpd 8 .
 .It Va allow.settime
@@ -1009,7 +1009,7 @@ jail is removed.
 .It Va ip4.addr
 In addition to the IP addresses that are passed to the kernel, an
 interface, netmask and additional parameters (as supported by
-.Xr ifconfig 8 Ns )
+.Xr ifconfig 8 )
 may also be specified, in the form
 .Dq Ar interface Ns | Ns Ar ip-address Ns / Ns Ar netmask param ... .
 If an interface is given before the IP address, an alias for the address
@@ -1023,11 +1023,12 @@ adding the IP alias.
 .It Va ip6.addr
 In addition to the IP addresses that are passed to the kernel,
 an interface, prefix and additional parameters (as supported by
-.Xr ifconfig 8 Ns )
+.Xr ifconfig 8 )
 may also be specified, in the form
 .Dq Ar interface Ns | Ns Ar ip-address Ns / Ns Ar prefix param ... .
 .It Va vnet.interface
-A list of network interfaces to give to a vnet-enabled jail after is it created.
+A comma separated list of network interfaces to give to a vnet-enabled jail
+after is it created.
 The interfaces will automatically be released when the jail is removed.
 .It Va zfs.dataset
 A list of ZFS datasets to be attached to the jail.
