@@ -340,12 +340,33 @@ cc -x c -dM -E /dev/null
 .Ed
 .Pp
 Common type size and endianness macros:
-.Bl -column -offset indent "BYTE_ORDER" "Meaning"
+.Bl -column -offset indent "__SIZEOF_POINTER__" "Meaning"
 .It Sy Macro Ta Sy Meaning
+.It Dv __SIZEOF_LONG__ Ta size in bytes of long
+.It Dv __SIZEOF_POINTER__ Ta size in bytes of intptr_t and pointers
+.It Dv __SIZEOF_SIZE_T__ Ta size in bytes of size_t
 .It Dv __LP64__ Ta 64-bit (8-byte) long and pointer, 32-bit (4-byte) int
 .It Dv __ILP32__ Ta 32-bit (4-byte) int, long and pointer
 .It Dv BYTE_ORDER Ta Either Dv BIG_ENDIAN or Dv LITTLE_ENDIAN .
 .El
+.Pp
+Because systems were historically either
+.Dv __ILP32__
+or
+.Dv __LP64__
+it has been common for programmers to test only one and assume the other
+one in an else branch.
+With the arrival of CHERI architectures, this is no longer the case.
+.Dv __SIZEOF_*__
+macros should be used instead.
+New uses of
+.Dv __ILP32__
+and
+.Dv __LP64__
+should be avoided.
+Compilers for CHERI targets do not define
+.Dv __LP64__
+as their pointers are 128-bit capabilities.
 .Pp
 Architecture-specific macros:
 .Bl -column -offset indent "Architecture" "Predefined macros"
