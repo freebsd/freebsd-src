@@ -2,9 +2,6 @@
 # Compile netmap as a module, useful if you want a netmap bridge
 # or loadable drivers.
 
-.include <bsd.own.mk> # FreeBSD 10 and earlier
-# .include "${SYSDIR}/conf/kern.opts.mk"
-
 .PATH: ${.CURDIR}/../../dev/netmap
 .PATH.h: ${.CURDIR}/../../net
 CFLAGS += -I${.CURDIR}/../../ -D INET -D VIMAGE

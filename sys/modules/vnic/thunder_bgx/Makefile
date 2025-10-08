@@ -1,6 +1,3 @@
-SYSDIR?=${SRCTOP}/sys
-.include "${SYSDIR}/conf/kern.opts.mk"
-
 S=	${SRCTOP}/sys
 
 .PATH: $S/dev/vnic

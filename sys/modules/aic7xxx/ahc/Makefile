@@ -1,6 +1,4 @@
 SYSDIR?=${SRCTOP}/sys
-.include "${SYSDIR}/conf/kern.opts.mk"
-
 .PATH:	${SYSDIR}/dev/aic7xxx
 KMOD=	ahc
 SUBDIR+= ahc_isa ahc_pci
