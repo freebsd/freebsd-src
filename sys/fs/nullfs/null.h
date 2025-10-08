@@ -39,6 +39,7 @@
 #include <vm/uma.h>
 
 #define	NULLM_CACHE		0x0001
+#define	NULLM_NOUNPBYPASS	0x0002
 
 struct null_mount {
 	struct mount	*nullm_vfs;
@@ -90,7 +91,7 @@ null_is_nullfs_vnode(struct vnode *vp)
 	const struct vop_vector *op;
 
 	op = vp->v_op;
-	return (op == &null_vnodeops);
+	return (op == &null_vnodeops || op == &null_vnodeops_no_unp_bypass);
 }
 
 extern uma_zone_t null_node_zone;
