@@ -22,6 +22,14 @@ buildconfig: ${${group}}
 all: buildconfig
 .  endif
 
+# Take groups from both CONFGROUPS and CONFGROUPS.yes, to allow syntax like
+# CONFGROUPS.${MK_FOO}=FOO.  Sort and uniq the list of groups in case of
+# duplicates.
+.if defined(CONFGROUPS) || defined(CONFGROUPS.yes)
+CONFGROUPS:=${CONFGROUPS} ${CONFGROUPS.yes}
+CONFGROUPS:=${CONFGROUPS:O:u}
+.endif
+
 .  for group in ${CONFGROUPS}
 .    if defined(${group}) && !empty(${group})
 
