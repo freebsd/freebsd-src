@@ -119,7 +119,7 @@ pw_update(struct passwd * pwd, char const * user)
 	 */
 	if (pw_mkdb(pw != NULL ? pw->pw_name : NULL) == -1) {
 		pw_fini();
-		err(1, "pw_mkdb()");
+		errx(1, "pw_mkdb()");
 	}
 	free(pw);
 	pw_fini();
