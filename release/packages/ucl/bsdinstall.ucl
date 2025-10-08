@@ -20,6 +20,5 @@ deps {
 	# bsdinstall is written in shell script, so it needs /bin/sh
 	"runtime" {
 		version = "${VERSION}"
-		origin = "base"
 	},
 }

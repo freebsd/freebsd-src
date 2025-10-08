@@ -1,7 +1,6 @@
 deps {
 	"certctl": {
 		version = "${VERSION}"
-		origin = "base"
 	}
 }
 scripts: {

@@ -28,14 +28,11 @@ EOD
 deps {
 	"set-minimal-jail" {
 		version = "${VERSION}"
-		origin = "base"
 	},
 	"set-optional-jail" {
 		version = "${VERSION}"
-		origin = "base"
 	},
 	"set-devel" {
 		version = "${VERSION}"
-		origin = "base"
 	}
 }

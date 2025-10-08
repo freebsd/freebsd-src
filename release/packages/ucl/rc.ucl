@@ -19,7 +19,6 @@
 deps {
 	"runtime": {
 		version = "${VERSION}"
-		origin = "base"
 	}
 }
 

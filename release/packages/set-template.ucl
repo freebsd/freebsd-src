@@ -4,7 +4,7 @@
 
 name = "${PKG_NAME_PREFIX}-set-${PKGNAME}"
 prefix = "/"
-origin = "base"
+origin = "base/${PKG_NAME_PREFIX}-set-${PKGNAME}"
 categories = [ base ]
 version = "${VERSION}"
 maintainer = "${PKG_MAINTAINER}"

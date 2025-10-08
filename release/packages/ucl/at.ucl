@@ -20,13 +20,11 @@ deps {
 	# atrun relies on cron to work.
 	"cron" {
 		version = "${VERSION}"
-		origin = "base"
 	},
 
 	# at(1) passes the command to /bin/sh
 	"runtime" {
 		version = "${VERSION}"
-		origin = "base"
 	},
 }
 

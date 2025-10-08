@@ -28,6 +28,5 @@ EOD
 deps {
 	"set-minimal" {
 		version = "${VERSION}"
-		origin = "base"
 	},
 }
