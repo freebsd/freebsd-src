@@ -463,13 +463,13 @@ static __inline void
 nvme_completion_poll(struct nvme_completion_poll_status *status)
 {
 	int timeout = ticks + 10 * hz;
-	sbintime_t delta_t = SBT_1US;
+	sbintime_t delta = SBT_1US;
 
 	while (!atomic_load_acq_int(&status->done)) {
 		if (timeout - ticks < 0)
 			panic("NVME polled command failed to complete within 10s.");
-		pause_sbt("nvme", delta_t, 0, C_PREL(1));
-		delta_t = min(SBT_1MS, delta_t * 3 / 2);
+		pause_sbt("nvme", delta, 0, C_PREL(1));
+		delta = min(SBT_1MS, delta + delta / 2);
 	}
 }
 
