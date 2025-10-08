@@ -302,6 +302,9 @@ ATF_TC_HEAD(test_axes, tc)
 }
 ATF_TC_BODY(test_axes, tc)
 {
+#if defined(__riscv)
+	atf_tc_expect_death("https://bugs.freebsd.org/290099");
+#endif
 	static const long double nums[] = {
 	    M_PI / 4, M_PI / 2, 3 * M_PI / 4,
 	    5 * M_PI / 4, 3 * M_PI / 2, 7 * M_PI / 4,
@@ -365,6 +368,9 @@ ATF_TC_HEAD(test_small_inputs, tc)
 }
 ATF_TC_BODY(test_small_inputs, tc)
 {
+#if defined(__riscv)
+	atf_tc_expect_death("https://bugs.freebsd.org/290099");
+#endif
 	/*
 	 * z =  0.5 + i Pi/4
 	 *     sinh(z) = (sinh(0.5) + i cosh(0.5)) * sqrt(2)/2
@@ -432,6 +438,9 @@ ATF_TC_HEAD(test_large_inputs, tc)
 }
 ATF_TC_BODY(test_large_inputs, tc)
 {
+#if defined(__riscv)
+	atf_tc_expect_death("https://bugs.freebsd.org/290099");
+#endif
 	long double complex z;
 
 	/* tanh() uses a threshold around x=22, so check both sides. */
