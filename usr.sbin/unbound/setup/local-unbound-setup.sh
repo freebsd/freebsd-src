@@ -261,6 +261,7 @@ gen_unbound_conf() {
 	if [ "${use_tls}" = "yes" ] ; then
 		echo "        tls-system-cert: yes"
 	fi
+	echo "        so-sndbuf: 0"
 	echo ""
 	if [ -f "${forward_conf}" ] ; then
 		echo "include: ${forward_conf}"
