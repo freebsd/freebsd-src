@@ -17,3 +17,7 @@ curses interface, and is also backward compatible with traditional BSD curses.
 This package ships with a limited termcap database, but it is designed to use
 a terminfo database provided by ports, such as in misc/terminfo-db.
 EOD
+
+annotations {
+	set = "minimal,minimal-jail"
+}
