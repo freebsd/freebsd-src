@@ -35,7 +35,7 @@
 .\"
 .\"     @(#)getgrouplist.3	8.1 (Berkeley) 6/9/93
 .\"
-.Dd August 29, 2025
+.Dd October 9, 2025
 .Dt GETGROUPLIST 3
 .Os
 .Sh NAME
@@ -50,30 +50,37 @@
 .Sh DESCRIPTION
 The
 .Fn getgrouplist
-function reads through the group database to retrieve the supplementary groups
-for the user specified in
-.Fa name ,
+function retrieves from the group database the supplementary groups for the user
+specified in
+.Fa name
 and returns the effective group list, whose first group is the value of
 .Fa basegid
-and the others are the retrieved supplementary groups.
+and the others are the supplementary groups.
 .Fa basegid
-typically is the user's group number from the password database.
+typically is the user's initial numerical group ID from the password database.
 .Pp
 The effective group list is returned in the array pointed to by
 .Fa groups .
-The caller specifies the size of the
+The caller specifies the length of the
 .Fa groups
 array in the integer pointed to by
-.Fa ngroups ;
-the actual number of groups found is returned in
+.Fa ngroups .
+The number of groups of the effective group list, which may be greater than the
+.Fa groups
+array's length, is returned through
 .Fa ngroups .
 .Sh RETURN VALUES
 The
 .Fn getgrouplist
-function
-returns 0 on success and \-1 if the size of the group list is too small to
-hold all the user's groups.
-Here, the group array will be filled with as many groups as will fit.
+function returns 0 on success and \-1 if the length of the group list is too
+small to hold all the user's groups.
+In the latter case, the
+.Fa groups
+array is filled with as many groups as possible from the start of the effective
+group list, and the length pointed to by
+.Fa ngroups
+is set to the full length of the latter, thus to a value strictly greater than
+before the call.
 .Sh FILES
 .Bl -tag -width /etc/group -compact
 .It Pa /etc/group
