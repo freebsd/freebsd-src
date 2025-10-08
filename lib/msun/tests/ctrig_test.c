@@ -323,9 +323,9 @@ ATF_TC_BODY(test_axes, tc)
 
 		test_odd_tol(csinhf, z, CMPLXL(sinhf(nums[i]), 0), FLT_ULP());
 		test_even_tol(ccoshf, z, CMPLXL(coshf(nums[i]), 0), FLT_ULP());
-		printf("%a %a\n", creal(z), cimag(z));
-		printf("%a %a\n", creal(ctanhf(z)), cimag(ctanhf(z)));
-		printf("%a\n", nextafterf(tanhf(nums[i]), INFINITY));
+		debug("%a %a\n", creal(z), cimag(z));
+		debug("%a %a\n", creal(ctanhf(z)), cimag(ctanhf(z)));
+		debug("%a\n", nextafterf(tanhf(nums[i]), INFINITY));
 		test_odd_tol(ctanhf, z, CMPLXL(tanhf(nums[i]), 0),
 			     1.3 * FLT_ULP());
 		test_odd_tol(csinf, z, CMPLXL(sinf(nums[i]),
