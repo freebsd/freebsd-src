@@ -38,9 +38,11 @@
 #include <sys/_mutex.h>
 
 #ifdef _KERNEL
-#include <sys/pcpu.h>
+#include <sys/lock.h>
 #include <sys/lock_profile.h>
 #include <sys/lockstat.h>
+#include <sys/pcpu.h>
+
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 
@@ -406,9 +408,6 @@ struct mtx *mtx_pool_alloc(struct mtx_pool *pool);
  */
 extern struct mtx_pool *mtxpool_sleep;
 
-#ifndef LOCK_DEBUG
-#error LOCK_DEBUG not defined, include <sys/lock.h> before <sys/mutex.h>
-#endif
 #if LOCK_DEBUG > 0 || defined(MUTEX_NOINLINE)
 #define	mtx_lock_flags_(m, opts, file, line)				\
 	_mtx_lock_flags((m), (opts), (file), (line))
