@@ -1,7 +1,3 @@
-
-.include <bsd.init.mk>
-# Grab all the options for a kernel build. For backwards compat, we need to
-# do this after bsd.own.mk.
 .include "kern.opts.mk"
 
 DTC?=		dtc
