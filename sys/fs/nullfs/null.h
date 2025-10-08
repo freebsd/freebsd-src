@@ -35,10 +35,10 @@
 #ifndef	FS_NULL_H
 #define	FS_NULL_H
 
-#define	NULLM_CACHE	0x0001
-
 #include <sys/ck.h>
 #include <vm/uma.h>
+
+#define	NULLM_CACHE		0x0001
 
 struct null_mount {
 	struct mount	*nullm_vfs;
