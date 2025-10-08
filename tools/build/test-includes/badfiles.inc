@@ -99,7 +99,6 @@ BADHDRS= \
 	sys/rmlock.h \
 	sys/rtprio.h \
 	sys/runq.h \
-	sys/rwlock.h \
 	sys/sbuf.h \
 	sys/sf_buf.h \
 	sys/sglist.h \
