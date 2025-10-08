@@ -30,6 +30,9 @@
 
 #include <sys/_types.h>
 #include <sys/_lock.h>
+
+#include <sys/cdefs.h>
+
 #include <machine/param.h>
 
 /*
