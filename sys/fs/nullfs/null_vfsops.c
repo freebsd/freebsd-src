@@ -85,6 +85,8 @@ nullfs_mount(struct mount *mp)
 	char *target;
 	int error, len;
 	bool isvnunlocked;
+	static const char cache_opt_name[] = "cache";
+	static const char nocache_opt_name[] = "nocache";
 
 	NULLFSDEBUG("nullfs_mount(mp = %p)\n", (void *)mp);
 
@@ -205,9 +207,10 @@ nullfs_mount(struct mount *mp)
 		MNT_IUNLOCK(mp);
 	}
 
-	if (vfs_getopt(mp->mnt_optnew, "cache", NULL, NULL) == 0) {
+	if (vfs_getopt(mp->mnt_optnew, cache_opt_name, NULL, NULL) == 0) {
 		xmp->nullm_flags |= NULLM_CACHE;
-	} else if (vfs_getopt(mp->mnt_optnew, "nocache", NULL, NULL) == 0) {
+	} else if (vfs_getopt(mp->mnt_optnew, nocache_opt_name, NULL,
+	    NULL) == 0) {
 		;
 	} else if (null_cache_vnodes &&
 	    (xmp->nullm_vfs->mnt_kern_flag & MNTK_NULL_NOCACHE) == 0) {
