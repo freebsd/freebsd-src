@@ -72,20 +72,23 @@ ATF_TC_HEAD(fe_round, tc)
 
 ATF_TC_BODY(fe_round, tc)
 {
+#if defined(__riscv)
+	atf_tc_expect_fail("https://bugs.freebsd.org/290099");
+#endif
 	long int received;
 
 	for (unsigned int i = 0; i < __arraycount(values); i++) {
 		fesetround(values[i].round_mode);
 
 		received = lrint(values[i].input);
-		ATF_CHECK_MSG(
+		ATF_REQUIRE_MSG(
 		    (labs(received - values[i].expected) < EPSILON),
 		    "lrint rounding wrong, difference too large. "
 		    "input: %f (index %d): got %ld, expected %ld",
 		    values[i].input, i, received, values[i].expected);
 
 		/* Do we get the same rounding mode out? */
-		ATF_CHECK_MSG(
+		ATF_REQUIRE_MSG(
 		    (fegetround() == values[i].round_mode),
 		    "Didn't get the same rounding mode out!. "
 		    "(index %d) fed in %d rounding mode, got %d out",
