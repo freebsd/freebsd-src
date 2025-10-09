@@ -163,6 +163,13 @@ param_set_arc_int(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+static void
+warn_deprecated_sysctl(const char *old, const char *new)
+{
+	printf("WARNING: sysctl vfs.zfs.%s is deprecated. Use vfs.zfs.%s instead.\n",
+	    old, new);
+}
+
 int
 param_set_arc_max(SYSCTL_HANDLER_ARGS)
 {
@@ -185,13 +192,16 @@ param_set_arc_max(SYSCTL_HANDLER_ARGS)
 	if (val != 0)
 		zfs_arc_max = arc_c_max;
 
+	if (arg2 != 0)
+		warn_deprecated_sysctl("arc_max", "arc.max");
+
 	return (0);
 }
 
 /* BEGIN CSTYLED */
 SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_max,
 	CTLTYPE_ULONG | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
-	NULL, 0, param_set_arc_max, "LU",
+	NULL, 1, param_set_arc_max, "LU",
 	"Maximum ARC size in bytes (LEGACY)");
 /* END CSTYLED */
 
@@ -216,13 +226,16 @@ param_set_arc_min(SYSCTL_HANDLER_ARGS)
 	if (val != 0)
 		zfs_arc_min = arc_c_min;
 
+	if (arg2 != 0)
+		warn_deprecated_sysctl("arc_min", "arc.min");
+
 	return (0);
 }
 
 /* BEGIN CSTYLED */
 SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_min,
 	CTLTYPE_ULONG | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
-	NULL, 0, param_set_arc_min, "LU",
+	NULL, 1, param_set_arc_min, "LU",
 	"Minimum ARC size in bytes (LEGACY)");
 /* END CSTYLED */
 
@@ -246,6 +259,9 @@ param_set_arc_free_target(SYSCTL_HANDLER_ARGS)
 
 	zfs_arc_free_target = val;
 
+	if (arg2 != 0)
+		warn_deprecated_sysctl("arc_free_target", "arc.free_target");
+
 	return (0);
 }
 
@@ -256,7 +272,7 @@ param_set_arc_free_target(SYSCTL_HANDLER_ARGS)
 /* BEGIN CSTYLED */
 SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_free_target,
 	CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	NULL, 0, param_set_arc_free_target, "IU",
+	NULL, 1, param_set_arc_free_target, "IU",
 	"Desired number of free pages below which ARC triggers reclaim"
 	" (LEGACY)");
 /* END CSTYLED */
@@ -276,13 +292,16 @@ param_set_arc_no_grow_shift(SYSCTL_HANDLER_ARGS)
 
 	arc_no_grow_shift = val;
 
+	if (arg2 != 0)
+		warn_deprecated_sysctl("arc_no_grow_shift", "arc.no_grow_shift");
+
 	return (0);
 }
 
 /* BEGIN CSTYLED */
 SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_no_grow_shift,
 	CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
-	NULL, 0, param_set_arc_no_grow_shift, "I",
+	NULL, 1, param_set_arc_no_grow_shift, "I",
 	"log2(fraction of ARC which must be free to allow growing) (LEGACY)");
 /* END CSTYLED */
 
@@ -775,13 +794,16 @@ param_set_min_auto_ashift(SYSCTL_HANDLER_ARGS)
 
 	zfs_vdev_min_auto_ashift = val;
 
+	if (arg2 != 0)
+		warn_deprecated_sysctl("min_auto_ashift",
+		    "vdev.min_auto_ashift");
+
 	return (0);
 }
 
 /* BEGIN CSTYLED */
 SYSCTL_PROC(_vfs_zfs, OID_AUTO, min_auto_ashift,
-	CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
-	&zfs_vdev_min_auto_ashift, sizeof (zfs_vdev_min_auto_ashift),
+	CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, NULL, 1,
 	param_set_min_auto_ashift, "IU",
 	"Min ashift used when creating new top-level vdev. (LEGACY)");
 /* END CSTYLED */
@@ -802,13 +824,16 @@ param_set_max_auto_ashift(SYSCTL_HANDLER_ARGS)
 
 	zfs_vdev_max_auto_ashift = val;
 
+	if (arg2 != 0)
+		warn_deprecated_sysctl("max_auto_ashift",
+		    "vdev.max_auto_ashift");
+
 	return (0);
 }
 
 /* BEGIN CSTYLED */
 SYSCTL_PROC(_vfs_zfs, OID_AUTO, max_auto_ashift,
-	CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
-	&zfs_vdev_max_auto_ashift, sizeof (zfs_vdev_max_auto_ashift),
+	CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, NULL, 1,
 	param_set_max_auto_ashift, "IU",
 	"Max ashift used when optimizing for logical -> physical sector size on"
 	" new top-level vdevs. (LEGACY)");
