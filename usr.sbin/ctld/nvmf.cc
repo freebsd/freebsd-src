@@ -34,11 +34,8 @@
 
 struct nvmf_io_portal final : public nvmf_portal {
 	nvmf_io_portal(struct portal_group *pg, const char *listen,
-	    portal_protocol protocol, freebsd::addrinfo_up ai,
-	    const struct nvmf_association_params &aparams,
-	    nvmf_association_up na) :
-		nvmf_portal(pg, listen, protocol, std::move(ai), aparams,
-		    std::move(na)) {}
+	    portal_protocol protocol, freebsd::addrinfo_up ai) :
+		nvmf_portal(pg, listen, protocol, std::move(ai)) {}
 
 	void handle_connection(freebsd::fd_up fd, const char *host,
 	    const struct sockaddr *client_sa) override;
@@ -63,8 +60,6 @@ struct nvmf_transport_group final : public portal_group {
 	    override;
 
 private:
-	struct nvmf_association_params init_aparams(portal_protocol protocol);
-
 	static uint16_t last_port_id;
 };
 
@@ -143,48 +138,55 @@ parse_number(const nvlist_t *nvl, const char *key, uint64_t def, uint64_t minv,
 	return def;
 }
 
-struct nvmf_association_params
-nvmf_transport_group::init_aparams(portal_protocol protocol)
+bool
+nvmf_portal::prepare()
 {
-	struct nvmf_association_params params;
-	memset(&params, 0, sizeof(params));
+	memset(&p_aparams, 0, sizeof(p_aparams));
 
 	/* Options shared between discovery and I/O associations. */
-	const nvlist_t *nvl = pg_options.get();
-	params.tcp.header_digests = parse_bool(nvl, "HDGST", false);
-	params.tcp.data_digests = parse_bool(nvl, "DDGST", false);
-	uint64_t value = parse_number(nvl, "MAXH2CDATA", DEFAULT_MAXH2CDATA,
-	    4096, UINT32_MAX);
+	freebsd::nvlist_up nvl = portal_group()->options();
+	p_aparams.tcp.header_digests = parse_bool(nvl.get(), "HDGST", false);
+	p_aparams.tcp.data_digests = parse_bool(nvl.get(), "DDGST", false);
+	uint64_t value = parse_number(nvl.get(), "MAXH2CDATA",
+	    DEFAULT_MAXH2CDATA, 4096, UINT32_MAX);
 	if (value % 4 != 0) {
 		log_warnx("Invalid value \"%ju\" for option MAXH2CDATA",
 		    (uintmax_t)value);
 		value = DEFAULT_MAXH2CDATA;
 	}
-	params.tcp.maxh2cdata = value;
+	p_aparams.tcp.maxh2cdata = value;
 
-	switch (protocol) {
+	switch (protocol()) {
 	case portal_protocol::NVME_TCP:
-		params.sq_flow_control = parse_bool(nvl, "SQFC", false);
-		params.dynamic_controller_model = true;
-		params.max_admin_qsize = parse_number(nvl, "max_admin_qsize",
-		    NVME_MAX_ADMIN_ENTRIES, NVME_MIN_ADMIN_ENTRIES,
-		    NVME_MAX_ADMIN_ENTRIES);
-		params.max_io_qsize = parse_number(nvl, "max_io_qsize",
+		p_aparams.sq_flow_control = parse_bool(nvl.get(), "SQFC",
+		    false);
+		p_aparams.dynamic_controller_model = true;
+		p_aparams.max_admin_qsize = parse_number(nvl.get(),
+		    "max_admin_qsize", NVME_MAX_ADMIN_ENTRIES,
+		    NVME_MIN_ADMIN_ENTRIES, NVME_MAX_ADMIN_ENTRIES);
+		p_aparams.max_io_qsize = parse_number(nvl.get(), "max_io_qsize",
 		    NVME_MAX_IO_ENTRIES, NVME_MIN_IO_ENTRIES,
 		    NVME_MAX_IO_ENTRIES);
-		params.tcp.pda = 0;
+		p_aparams.tcp.pda = 0;
 		break;
 	case portal_protocol::NVME_DISCOVERY_TCP:
-		params.sq_flow_control = false;
-		params.dynamic_controller_model = true;
-		params.max_admin_qsize = NVME_MAX_ADMIN_ENTRIES;
-		params.tcp.pda = 0;
+		p_aparams.sq_flow_control = false;
+		p_aparams.dynamic_controller_model = true;
+		p_aparams.max_admin_qsize = NVME_MAX_ADMIN_ENTRIES;
+		p_aparams.tcp.pda = 0;
 		break;
 	default:
 		__assert_unreachable();
 	}
 
-	return params;
+	p_association.reset(nvmf_allocate_association(NVMF_TRTYPE_TCP, true,
+	    &p_aparams));
+	if (!p_association) {
+		log_warn("Failed to create NVMe controller association");
+		return false;
+	}
+
+	return true;
 }
 
 portal_group_up
@@ -209,15 +211,12 @@ bool
 nvmf_transport_group::add_portal(const char *value, portal_protocol protocol)
 {
 	freebsd::addrinfo_up ai;
-	enum nvmf_trtype trtype;
 
 	switch (protocol) {
 	case portal_protocol::NVME_TCP:
-		trtype = NVMF_TRTYPE_TCP;
 		ai = parse_addr_port(value, "4420");
 		break;
 	case portal_protocol::NVME_DISCOVERY_TCP:
-		trtype = NVMF_TRTYPE_TCP;
 		ai = parse_addr_port(value, "8009");
 		break;
 	default:
@@ -230,14 +229,6 @@ nvmf_transport_group::add_portal(const char *value, portal_protocol protocol)
 		return false;
 	}
 
-	struct nvmf_association_params aparams = init_aparams(protocol);
-	nvmf_association_up association(nvmf_allocate_association(trtype, true,
-	    &aparams));
-	if (!association) {
-		log_warn("Failed to create NVMe controller association");
-		return false;
-	}
-
 	/*
 	 * XXX: getaddrinfo(3) may return multiple addresses; we should turn
 	 *	those into multiple portals.
@@ -246,10 +237,10 @@ nvmf_transport_group::add_portal(const char *value, portal_protocol protocol)
 	portal_up portal;
 	if (protocol == portal_protocol::NVME_DISCOVERY_TCP) {
 		portal = std::make_unique<nvmf_discovery_portal>(this, value,
-		    protocol, std::move(ai), aparams, std::move(association));
+		    protocol, std::move(ai));
 	} else {
 		portal = std::make_unique<nvmf_io_portal>(this, value,
-		    protocol, std::move(ai), aparams, std::move(association));
+		    protocol, std::move(ai));
 		need_tcp_transport = true;
 	}
 
