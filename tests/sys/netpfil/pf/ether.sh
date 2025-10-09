@@ -287,6 +287,7 @@ captive_body()
 	# Run the echo server only on the gw, so we know we've redirectly
 	# correctly if we get an echo message.
 	jexec gw /usr/sbin/inetd -p ${PWD}/echo_inetd.pid $(atf_get_srcdir)/echo_inetd.conf
+	sleep 1
 
 	# Confirm that we're getting redirected
 	atf_check -s exit:0 -o match:"^foo$" -x "echo foo | nc -N 198.51.100.2 7"
@@ -305,6 +306,7 @@ captive_body()
 
 	# Start a server in srv
 	jexec srv /usr/sbin/inetd -p ${PWD}/echo_inetd.pid $(atf_get_srcdir)/echo_inetd.conf
+	sleep 1
 
 	# And now we can talk to that one.
 	atf_check -s exit:0 -o match:"^foo$" -x "echo foo | nc -N 198.51.100.2 7"
@@ -364,6 +366,7 @@ captive_long_body()
 
 	jexec gw /usr/sbin/inetd -p ${PWD}/gw.pid $(atf_get_srcdir)/echo_inetd.conf
 	jexec srv /usr/sbin/inetd -p ${PWD}/srv.pid $(atf_get_srcdir)/daytime_inetd.conf
+	sleep p1
 
 	echo foo | nc -N 198.51.100.2 13
 
