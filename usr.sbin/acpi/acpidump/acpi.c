@@ -1913,16 +1913,19 @@ acpi_handle_ivrs_ivmd_type(ACPI_IVRS_MEMORY *addr)
 static void
 acpi_handle_ivrs_ivmd(ACPI_IVRS_MEMORY *addr)
 {
+	UINT16 x16;
+
 	printf("\tMem Type=%#x(%s) ",
 	    addr->Header.Type, acpi_handle_ivrs_ivmd_type(addr));
 	switch (addr->Header.Type) {
 	case ACPI_IVRS_TYPE_MEMORY2:
-		printf("Id=%#06x PCISeg=%#x ", addr->Header.DeviceId,
-		    *(UINT16 *)&addr->Reserved);
+		memcpy(&x16, &addr->Reserved, sizeof(x16));
+		printf("Id=%#06x PCISeg=%#x ", addr->Header.DeviceId, x16);
 		break;
 	case ACPI_IVRS_TYPE_MEMORY3:
+		memcpy(&x16, &addr->Reserved, sizeof(x16));
 		printf("Id=%#06x-%#06x PCISeg=%#x", addr->Header.DeviceId,
-		    addr->AuxData, *(UINT16 *)&addr->Reserved);
+		    addr->AuxData, x16);
 		break;
 	}
 	printf("Start=%#18jx Length=%#jx Flags=",
