@@ -74,10 +74,15 @@ vm_base_packages_list() {
 	# Output a list of package sets equivalent to what we get from
 	# "installworld installkernel distribution", aka. the full base
 	# system.
-	for S in base lib32 kernels; do
+	for S in base kernels; do
 		echo FreeBSD-set-$S
 		echo FreeBSD-set-$S-dbg
 	done
+	case ${TARGET_ARCH} in
+	amd64 | aarch64 | powerpc64)
+		echo FreeBSD-set-lib32
+		echo FreeBSD-set-lib32-dbg
+	esac
 	echo FreeBSD-set-tests
 }
 
