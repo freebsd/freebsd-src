@@ -151,6 +151,7 @@ struct portal {
 		p_protocol(protocol) {}
 	virtual ~portal() = default;
 
+	virtual bool prepare() { return true; }
 	bool reuse_socket(portal &oldp);
 	bool init_socket();
 	virtual bool init_socket_options(int s __unused) { return true; }
