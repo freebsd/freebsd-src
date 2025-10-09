@@ -6,6 +6,7 @@
 OUTPUT =  bsddialog
 SOURCES = bsddialog.c util_builders.c util_cli.c util_theme.c
 OBJECTS = ${SOURCES:.c=.o}
+PREFIX = /usr/local
 
 .if defined(DEBUG)
 CFLAGS += -g
@@ -21,7 +22,13 @@ LDFLAGS += -ltinfow -Wl,-rpath=${LIBPATH} -L${LIBPATH} -lbsddialog
 INSTALL = install
 RM = rm -f
 
-all : ${OUTPUT}
+all: ${OUTPUT}
+
+install: all
+	${INSTALL} -m 0755 ${OUTPUT} ${DESTDIR}${PREFIX}/bin/${OUTPUT}
+
+uninstall:
+	${RM} ${DESTDIR}${PREFIX}/bin/${OUTPUT}
 
 ${OUTPUT}: ${OBJECTS}
 	${CC} ${LDFLAGS} ${OBJECTS} -o ${.PREFIX}
@@ -31,3 +38,5 @@ ${OUTPUT}: ${OBJECTS}
 
 clean:
 	${RM} ${OUTPUT} *.o *~ *.core *.gz
+
+.PHONY: all install uninstall clean

@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021-2024 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2025 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -69,19 +69,19 @@ static int message_size_position(struct dialog *d, int *htext)
 	return (0);
 }
 
-static int message_draw(struct dialog *d, struct scroll *s)
+static int message_draw(struct dialog *d, bool redraw, struct scroll *s)
 {
 	int unused;
 
-	if (d->built) {
+	if (redraw) { /* redraw: RESIZE or F1 */
 		hide_dialog(d);
 		refresh(); /* Important for decreasing screen */
 	}
 	if (message_size_position(d, &s->htext) != 0)
 		return (BSDDIALOG_ERROR);
-	if (draw_dialog(d) != 0)
+	if (draw_dialog(d) != 0) /* doupdate() in main loop */
 		return (BSDDIALOG_ERROR);
-	if (d->built)
+	if (redraw)
 		refresh(); /* Important to fix grey lines expanding screen */
 
 	s->printrows = d->h - BORDER - HBUTTONS - BORDER;
@@ -106,7 +106,7 @@ do_message(struct bsddialog_conf *conf, const char *text, int rows, int cols,
 		return (BSDDIALOG_ERROR);
 	set_buttons(&d, true, oklabel, cancellabel);
 	s.htext = -1;
-	if (message_draw(&d, &s) != 0)
+	if (message_draw(&d, false, &s) != 0)
 		return (BSDDIALOG_ERROR);
 
 	loop = true;
@@ -170,12 +170,12 @@ do_message(struct bsddialog_conf *conf, const char *text, int rows, int cols,
 				break;
 			if (f1help_dialog(d.conf) != 0)
 				return (BSDDIALOG_ERROR);
-			if (message_draw(&d, &s) != 0)
+			if (message_draw(&d, true, &s) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
 		case KEY_CTRL('l'):
 		case KEY_RESIZE:
-			if (message_draw(&d, &s) != 0)
+			if (message_draw(&d, true, &s) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
 		default:
