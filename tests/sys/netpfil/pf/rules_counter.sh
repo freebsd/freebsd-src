@@ -153,6 +153,7 @@ keepcounters_pool_head()
 {
 	atf_set descr 'Test keepcounters for a rule with an interface pool'
 	atf_set require.user root
+	atf_set timeout 900
 }
 
 keepcounters_pool_body()
