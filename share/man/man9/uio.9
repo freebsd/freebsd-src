@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd March 11, 2017
+.Dd October 22, 2025
 .Dt UIO 9
 .Os
 .Sh NAME
@@ -107,10 +107,14 @@ The I/O vector points into the kernel address space.
 Do not copy, already in object.
 .El
 .It Va uio_rw
-The direction of the desired transfer, either
-.Dv UIO_READ
-or
-.Dv UIO_WRITE .
+The direction of the desired transfer.
+The supported flags are:
+.Bl -tag -width "UIO_WRITE"
+.It Dv UIO_READ
+Transfer data from the buffers into the I/O vectors.
+.It Dv UIO_WRITE
+Transfer data from the I/O vectors into the buffers.
+.El
 .It Va uio_td
 The pointer to a
 .Vt "struct thread"
