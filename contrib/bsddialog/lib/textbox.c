@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021-2024 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2025 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -101,17 +101,17 @@ static int textbox_size_position(struct dialog *d, struct scrolltext *st)
 	return (0);
 }
 
-static int textbox_draw(struct dialog *d, struct scrolltext *st)
+static int textbox_draw(struct dialog *d, bool redraw, struct scrolltext *st)
 {
-	if (d->built) {
+	if (redraw) {
 		hide_dialog(d);
 		refresh(); /* Important for decreasing screen */
 	}
 	if (textbox_size_position(d, st) != 0)
 		return (BSDDIALOG_ERROR);
-	if (draw_dialog(d) != 0)
+	if (draw_dialog(d) != 0) /* wrefresh() and prefresh() in main loop */
 		return (BSDDIALOG_ERROR);
-	if (d->built)
+	if (redraw)
 		refresh(); /* Important to fix grey lines expanding screen */
 
 	st->ys = d->y + 1;
@@ -175,7 +175,7 @@ bsddialog_textbox(struct bsddialog_conf *conf, const char *file, int rows,
 	fclose(fp);
 	set_tabsize(defaulttablen); /* reset because it is curses global */
 
-	if (textbox_draw(&d, &st) != 0)
+	if (textbox_draw(&d, false, &st) != 0)
 		return (BSDDIALOG_ERROR);
 
 	loop = true;
@@ -254,12 +254,12 @@ bsddialog_textbox(struct bsddialog_conf *conf, const char *file, int rows,
 				break;
 			if (f1help_dialog(conf) != 0)
 				return (BSDDIALOG_ERROR);
-			if (textbox_draw(&d, &st) != 0)
+			if (textbox_draw(&d, true, &st) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
 		case KEY_CTRL('l'):
 		case KEY_RESIZE:
-			if (textbox_draw(&d, &st) != 0)
+			if (textbox_draw(&d, true, &st) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
 		}

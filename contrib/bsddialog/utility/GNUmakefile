@@ -6,6 +6,7 @@
 OUTPUT =  bsddialog
 SOURCES = bsddialog.c util_builders.c util_cli.c util_theme.c
 OBJECTS = $(SOURCES:.c=.o)
+PREFIX = /usr/local
 
 ifneq ($(ENABLEDEBUG),)
 CFLAGS += -g
@@ -20,7 +21,13 @@ endif
 
 RM = rm -f
 
-all : $(OUTPUT)
+all: $(OUTPUT)
+
+install: all
+	${INSTALL} -m 0755 ${OUTPUT} ${DESTDIR}${PREFIX}/bin/${OUTPUT}
+
+uninstall:
+	${RM} ${DESTDIR}${PREFIX}/bin/${OUTPUT}
 
 $(OUTPUT): $(OBJECTS)
 	$(CC) $^ -o $@ $(LDFLAGS)
@@ -31,3 +38,5 @@ $(OUTPUT): $(OBJECTS)
 
 clean:
 	$(RM) $(OUTPUT) *.o *~
+
+.PHONY: all install uninstall clean

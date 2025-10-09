@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2022-2024 Alfonso Sabato Siciliano
+ * Copyright (c) 2022-2025 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -296,20 +296,20 @@ print_calendar(struct bsddialog_conf *conf, WINDOW *win, int yy, int mm, int dd,
 }
 
 static int
-calendar_redraw(struct dialog *d, WINDOW *yy_win, WINDOW *mm_win,
+calendar_draw(struct dialog *d, bool redraw, WINDOW *yy_win, WINDOW *mm_win,
     WINDOW *dd_win)
 {
 	int ycal, xcal;
 
-	if (d->built) {
+	if (redraw) {
 		hide_dialog(d);
 		refresh(); /* Important for decreasing screen */
 	}
 	if (dialog_size_position(d, MINHCAL, MINWCAL, NULL) != 0)
 		return (BSDDIALOG_ERROR);
-	if (draw_dialog(d) != 0)
+	if (draw_dialog(d) != 0) /* doupdate in main loop */
 		return (BSDDIALOG_ERROR);
-	if (d->built)
+	if (redraw)
 		refresh(); /* Important to fix grey lines expanding screen */
 	TEXTPAD(d, MINHCAL + HBUTTONS);
 
@@ -354,7 +354,7 @@ bsddialog_calendar(struct bsddialog_conf *conf, const char *text, int rows,
 	if ((dd_win = newwin(1, 1, 1, 1)) == NULL)
 		RETURN_ERROR("Cannot build WINDOW for dd");
 	wbkgd(dd_win, t.dialog.color);
-	if (calendar_redraw(&d, yy_win, mm_win, dd_win) != 0)
+	if (calendar_draw(&d, false, yy_win, mm_win, dd_win) != 0)
 		return (BSDDIALOG_ERROR);
 
 	sel = -1;
@@ -503,12 +503,12 @@ bsddialog_calendar(struct bsddialog_conf *conf, const char *text, int rows,
 				break;
 			if (f1help_dialog(conf) != 0)
 				return (BSDDIALOG_ERROR);
-			if (calendar_redraw(&d, yy_win, mm_win, dd_win) != 0)
+			if (calendar_draw(&d, true, yy_win, mm_win, dd_win) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
 		case KEY_CTRL('l'):
 		case KEY_RESIZE:
-			if (calendar_redraw(&d, yy_win, mm_win, dd_win) != 0)
+			if (calendar_draw(&d, true, yy_win, mm_win, dd_win) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
 		default:
@@ -533,11 +533,11 @@ bsddialog_calendar(struct bsddialog_conf *conf, const char *text, int rows,
 	return (retval);
 }
 
-static int datebox_redraw(struct dialog *d, struct dateitem *di)
+static int datebox_draw(struct dialog *d, bool redraw, struct dateitem *di)
 {
 	int y, x;
 
-	if (d->built) {
+	if (redraw) {
 		hide_dialog(d);
 		refresh(); /* Important for decreasing screen */
 	}
@@ -545,7 +545,7 @@ static int datebox_redraw(struct dialog *d, struct dateitem *di)
 		return (BSDDIALOG_ERROR);
 	if (draw_dialog(d) != 0)
 		return (BSDDIALOG_ERROR);
-	if (d->built)
+	if (redraw)
 		refresh(); /* Important to fix grey lines expanding screen */
 	TEXTPAD(d, 3 /*windows*/ + HBUTTONS);
 
@@ -624,7 +624,7 @@ bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
 	set_buttons(&d, true, OK_LABEL, CANCEL_LABEL);
 	if (build_dateitem(conf->date.format, &yy, &mm, &dd, di) != 0)
 		return (BSDDIALOG_ERROR);
-	if (datebox_redraw(&d, di) != 0)
+	if (datebox_draw(&d, false, di) != 0)
 		return (BSDDIALOG_ERROR);
 
 	sel = -1;
@@ -716,12 +716,12 @@ bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
 				break;
 			if (f1help_dialog(conf) != 0)
 				return (BSDDIALOG_ERROR);
-			if (datebox_redraw(&d, di) != 0)
+			if (datebox_draw(&d, true, di) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
 		case KEY_CTRL('l'):
 		case KEY_RESIZE:
-			if (datebox_redraw(&d, di) != 0)
+			if (datebox_draw(&d, true, di) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
 		default:

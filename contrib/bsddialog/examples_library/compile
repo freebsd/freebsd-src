@@ -8,14 +8,16 @@
 # worldwide. This software is distributed without any warranty, see:
 #     <http://creativecommons.org/publicdomain/zero/1.0/>.
 
+set -x
+
 libpath=../lib
 examples="menu checklist radiolist mixedlist theme infobox yesno msgbox \
-	datebox form timebox rangebox pause calendar gauge mixedgauge"
+datebox form timebox rangebox pause calendar gauge mixedgauge textbox"
 
 rm -f $examples
 
 for e in $examples
 do
-	cc -g -Wall -Wextra -I$libpath ${e}.c -o $e -L$libpath -lbsddialog \
-	-Wl,-rpath=$libpath
+	cc -g -Wall -Wextra -I$libpath ${e}.c -o $e \
+	-Wl,-rpath=$libpath -L$libpath -lbsddialog
 done

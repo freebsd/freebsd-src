@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021-2024 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2025 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -391,7 +391,7 @@ drawitem(struct bsddialog_conf *conf, struct privatemenu *m, int y, bool focus)
 			attron(t.menu.bottomdesccolor);
 			addstr(pritem->bottomdesc);
 			attroff(t.menu.bottomdesccolor);
-			refresh();
+			wnoutrefresh(stdscr);
 		}
 	}
 }
@@ -454,18 +454,18 @@ static int menu_size_position(struct dialog *d, struct privatemenu *m)
 	return (0);
 }
 
-static int mixedlist_redraw(struct dialog *d, struct privatemenu *m)
+static int mixedlist_draw(struct dialog *d, bool redraw, struct privatemenu *m)
 {
-	if (d->built) {
+	if (redraw) {
 		hide_dialog(d);
 		refresh(); /* Important for decreasing screen */
 	}
 	m->menurows = m->apimenurows;
 	if (menu_size_position(d, m) != 0)
 		return (BSDDIALOG_ERROR);
-	if (draw_dialog(d) != 0)
+	if (draw_dialog(d) != 0) /* doupdate() in main loop */
 		return (BSDDIALOG_ERROR);
-	if (d->built)
+	if (redraw)
 		refresh(); /* Important to fix grey lines expanding screen */
 	TEXTPAD(d, 2/*bmenu*/ + m->menurows + HBUTTONS);
 
@@ -532,7 +532,7 @@ do_mixedlist(struct bsddialog_conf *conf, const char *text, int rows, int cols,
 		drawitem(d.conf, &m, m.sel, true);
 	m.ypad = 0;
 	m.apimenurows = menurows;
-	if (mixedlist_redraw(&d, &m) != 0)
+	if (mixedlist_draw(&d, false, &m) != 0)
 		return (BSDDIALOG_ERROR);
 
 	changeitem = false;
@@ -575,12 +575,12 @@ do_mixedlist(struct bsddialog_conf *conf, const char *text, int rows, int cols,
 				break;
 			if (f1help_dialog(conf) != 0)
 				return (BSDDIALOG_ERROR);
-			if (mixedlist_redraw(&d, &m) != 0)
+			if (mixedlist_draw(&d, true, &m) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
 		case KEY_CTRL('l'):
 		case KEY_RESIZE:
-			if (mixedlist_redraw(&d, &m) != 0)
+			if (mixedlist_draw(&d, true, &m) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
 		}
