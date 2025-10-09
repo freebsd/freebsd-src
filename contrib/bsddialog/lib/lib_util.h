@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021-2024 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2025 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -62,7 +62,7 @@ extern bool hastermcolors;
 		RETURN_ERROR("*" #p " is NULL");                               \
 } while (0)
 #define CHECK_ARRAY(nitem, a) do {                                             \
-	if (nitem > 0 && a == NULL)                                             \
+	if (nitem > 0 && a == NULL)                                            \
 		RETURN_FMTERROR(#nitem " is %d but *" #a " is NULL", nitem);   \
 } while (0)
 /* widget utils */
