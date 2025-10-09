@@ -90,7 +90,7 @@ See the
 .Xr mount 8
 man page for possible options and their meanings.
 Additionally the following option is supported:
-.Bl -tag -width nocache
+.Bl -tag -width nounixbypass
 .It Cm nocache
 Disable metadata caching in the null layer.
 Some lower-layer file systems may force this option.
@@ -98,6 +98,32 @@ Depending on the access pattern,
 this may result in increased lock contention.
 .It Cm cache
 Force enable metadata caching.
+.It Cm nounixbypass
+Disable bypassing
+.Xr unix 4
+socket files used for
+.Xr bind 2
+and
+.Xr connect 2 ,
+to the lower (mounted-from) filesystem layer.
+.Pp
+The effect is that lower and upper (bypassed) unix sockets
+are separate.
+.It Cm unixbypass
+Enable the bypass of unix socket file to lower filesystem layer.
+This is default.
+.Pp
+The effect is that
+.Xr bind 2
+and
+.Xr connect 2
+operations on a unix socket done from either the upper (nullfs) or lower
+layer path are performed on same unix socket.
+For instance, if a server
+.Xr bind 2
+is done on a socket in the lower layer, then
+.Xr connect 2
+on the socket file accessed via the nullfs mount, connects to the server.
 .El
 .El
 .Pp
