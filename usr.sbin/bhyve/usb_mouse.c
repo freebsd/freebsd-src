@@ -538,7 +538,7 @@ umouse_request(void *scarg, struct usb_data_xfer *xfer)
 			data->bdone += 2;
 		}
 
-		eshort = data->blen > 0;
+		eshort = data != NULL && data->blen > 0;
 		break;
 
 	case UREQ(UR_GET_STATUS, UT_READ_INTERFACE):
@@ -549,7 +549,7 @@ umouse_request(void *scarg, struct usb_data_xfer *xfer)
 			data->blen = len - 2;
 			data->bdone += 2;
 		}
-		eshort = data->blen > 0;
+		eshort = data != NULL && data->blen > 0;
 		break;
 
 	case UREQ(UR_SET_ADDRESS, UT_WRITE_DEVICE):
@@ -634,7 +634,7 @@ umouse_request(void *scarg, struct usb_data_xfer *xfer)
 			data->blen = len - 1;
 			data->bdone += 1;
 		}
-		eshort = data->blen > 0;
+		eshort = data != NULL && data->blen > 0;
 		break;
 
 	case UREQ(UMOUSE_GET_PROTOCOL, UT_READ_CLASS_INTERFACE):
@@ -643,7 +643,7 @@ umouse_request(void *scarg, struct usb_data_xfer *xfer)
 			data->blen = len - 1;
 			data->bdone += 1;
 		}
-		eshort = data->blen > 0;
+		eshort = data != NULL && data->blen > 0;
 		break;
 
 	case UREQ(UMOUSE_SET_REPORT, UT_WRITE_CLASS_INTERFACE):
