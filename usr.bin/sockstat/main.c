@@ -103,6 +103,7 @@ static bool	 opt_u;		/* Show Unix domain sockets */
 static u_int	 opt_v;		/* Verbose mode */
 static bool	 opt_w;		/* Automatically size the columns */
 static bool	 is_xo_style_encoding;
+static bool	 show_path_state = false;
 
 /*
  * Default protocols to use if no -P was defined.
@@ -584,6 +585,7 @@ gather_sctp(void)
 				     !(local_all_loopback ||
 				     foreign_all_loopback))) {
 					RB_INSERT(socks_t, &socks, sock);
+					show_path_state = true;
 				} else {
 					free_socket(sock);
 				}
@@ -1485,7 +1487,7 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 			} else if (!is_xo_style_encoding)
 				xo_emit(" {:encaps/%*s}", cw->encaps, "??");
 		}
-		if (opt_s) {
+		if (opt_s && show_path_state) {
 			if (faddr != NULL &&
 			    s->proto == IPPROTO_SCTP &&
 			    s->state != SCTP_CLOSED &&
@@ -1632,7 +1634,9 @@ display(void)
 		if (opt_U)
 			xo_emit(" {T:/%*s}", cw.encaps, "ENCAPS");
 		if (opt_s) {
-			xo_emit(" {T:/%-*s}", cw.path_state, "PATH STATE");
+			if (show_path_state)
+				xo_emit(" {T:/%-*s}", cw.path_state,
+				    "PATH STATE");
 			xo_emit(" {T:/%-*s}", cw.conn_state, "CONN STATE");
 		}
 		if (opt_b)
