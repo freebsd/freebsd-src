@@ -1545,18 +1545,30 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 				else if (!is_xo_style_encoding)
 					xo_emit(" {:cc/%-*s}", cw->cc, "??");
 			}
+		} else if (!is_xo_style_encoding) {
+			if (opt_s)
+				xo_emit(" {:conn-state/%-*s}", cw->conn_state,
+				    "??");
+			if (opt_b)
+				xo_emit(" {:bblog-state/%-*s}", cw->bblog_state,
+				    "??");
+			if (opt_S)
+				xo_emit(" {:stack/%-*s}", cw->stack, "??");
+			if (opt_C)
+				xo_emit(" {:cc/%-*s}", cw->cc, "??");
 		}
 		if (laddr != NULL)
 			laddr = laddr->next;
 		if (faddr != NULL)
 			faddr = faddr->next;
+		xo_emit("\n");
 		if (!is_xo_style_encoding && (laddr != NULL || faddr != NULL))
 			xo_emit("{:user/%-*s} {:command/%-*s} {:pid/%*s}"
-			    " {:fd/%*s}", cw->user, "??", cw->command, "??",
-			    cw->pid, "??", cw->fd, "??");
+			    " {:fd/%*s} {:proto/%-*s}", cw->user, "??",
+			    cw->command, "??", cw->pid, "??", cw->fd, "??",
+			    cw->proto, "??");
 		first = false;
 	}
-	xo_emit("\n");
 }
 
 static void
