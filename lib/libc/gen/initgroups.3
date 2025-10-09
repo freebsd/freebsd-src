@@ -70,9 +70,9 @@ The
 .Fn initgroups
 function may fail and set
 .Va errno
-to any of the errors specified for the library function
-.Xr setgroups 2 .
-It may also return:
+to any of the errors specified for the
+.Xr setgroups 2
+system call, or to:
 .Bl -tag -width Er
 .It Bq Er ENOMEM
 The
