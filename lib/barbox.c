@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021-2024 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2025 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -371,7 +371,7 @@ bsddialog_progressview (struct bsddialog_conf *conf, const char *text, int rows,
 	unsigned int i, mainperc, totaltodo;
 	float readforsec;
 	const char **minilabels;
-	time_t tstart, told, tnew, refresh;
+	time_t tstart, told, tnew, trefresh;
 
 	if ((minilabels = calloc(nminibar, sizeof(char*))) == NULL)
 		RETURN_ERROR("Cannot allocate memory for minilabels");
@@ -385,7 +385,7 @@ bsddialog_progressview (struct bsddialog_conf *conf, const char *text, int rows,
 		minipercs[i] = minibar[i].status;
 	}
 
-	refresh = pvconf->refresh == 0 ? 0 : pvconf->refresh - 1;
+	trefresh = pvconf->refresh == 0 ? 0 : pvconf->refresh - 1;
 	retval = BSDDIALOG_OK;
 	i = 0;
 	update = true;
@@ -398,7 +398,7 @@ bsddialog_progressview (struct bsddialog_conf *conf, const char *text, int rows,
 			mainperc = (bsddialog_total_progview * 100) / totaltodo;
 
 		time(&tnew);
-		if (update || tnew > told + refresh) {
+		if (update || tnew > told + trefresh) {
 			retval = do_mixedgauge(conf, text, rows, cols, mainperc,
 			    nminibar, minilabels, minipercs, true);
 			if (retval == BSDDIALOG_ERROR)
@@ -440,17 +440,18 @@ bsddialog_progressview (struct bsddialog_conf *conf, const char *text, int rows,
 	return (retval);
 }
 
-static int rangebox_redraw(struct dialog *d, struct bar *b, int *bigchange)
+static int
+rangebox_redraw(struct dialog *d, bool redraw, struct bar *b, int *bigchange)
 {
-	if (d->built) {
+	if (redraw) {
 		hide_dialog(d);
 		refresh(); /* Important for decreasing screen */
 	}
 	if (dialog_size_position(d, HBOX, MIN_WBOX, NULL) != 0)
 		return (BSDDIALOG_ERROR);
-	if (draw_dialog(d) != 0)
+	if (draw_dialog(d) != 0) /* doupdate() in main loop */
 		return (BSDDIALOG_ERROR);
-	if (d->built)
+	if (redraw)
 		refresh(); /* Important to fix grey lines expanding screen */
 	TEXTPAD(d, HBOX + HBUTTONS);
 
@@ -490,7 +491,7 @@ bsddialog_rangebox(struct bsddialog_conf *conf, const char *text, int rows,
 		RETURN_ERROR("Cannot build WINDOW bar");
 	b.y = b.x = 1;
 	b.fmt = "%d";
-	if (rangebox_redraw(&d, &b, &bigchange) != 0)
+	if (rangebox_redraw(&d, false, &b, &bigchange) != 0)
 		return (BSDDIALOG_ERROR);
 
 	loop = true;
@@ -568,12 +569,12 @@ bsddialog_rangebox(struct bsddialog_conf *conf, const char *text, int rows,
 				break;
 			if (f1help_dialog(conf) != 0)
 				return (BSDDIALOG_ERROR);
-			if (rangebox_redraw(&d, &b, &bigchange) != 0)
+			if (rangebox_redraw(&d, true, &b, &bigchange) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
 		case KEY_CTRL('l'):
 		case KEY_RESIZE:
-			if (rangebox_redraw(&d, &b, &bigchange) != 0)
+			if (rangebox_redraw(&d, true, &b, &bigchange) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
 		default:
@@ -594,17 +595,17 @@ bsddialog_rangebox(struct bsddialog_conf *conf, const char *text, int rows,
 	return (retval);
 }
 
-static int pause_redraw(struct dialog *d, struct bar *b)
+static int pause_redraw(struct dialog *d, bool redraw, struct bar *b)
 {
-	if (d->built) {
+	if (redraw) {
 		hide_dialog(d);
 		refresh(); /* Important for decreasing screen */
 	}
 	if (dialog_size_position(d, HBOX, MIN_WBOX, NULL) != 0)
 		return (BSDDIALOG_ERROR);
-	if (draw_dialog(d) != 0)
+	if (draw_dialog(d) != 0) /* doupdate() in main loop */
 		return (BSDDIALOG_ERROR);
-	if (d->built)
+	if (redraw)
 		refresh(); /* Important to fix grey lines expanding screen */
 	TEXTPAD(d, HBOX + HBUTTONS);
 
@@ -633,7 +634,7 @@ bsddialog_pause(struct bsddialog_conf *conf, const char *text, int rows,
 		RETURN_ERROR("Cannot build WINDOW bar");
 	b.y = b.x = 1;
 	b.fmt = "%d";
-	if (pause_redraw(&d, &b) != 0)
+	if (pause_redraw(&d, false, &b) != 0)
 		return (BSDDIALOG_ERROR);
 
 	tout = *seconds;
@@ -687,12 +688,12 @@ bsddialog_pause(struct bsddialog_conf *conf, const char *text, int rows,
 				break;
 			if (f1help_dialog(conf) != 0)
 				return (BSDDIALOG_ERROR);
-			if (pause_redraw(&d, &b) != 0)
+			if (pause_redraw(&d, true, &b) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
 		case KEY_CTRL('l'):
 		case KEY_RESIZE:
-			if (pause_redraw(&d, &b) != 0)
+			if (pause_redraw(&d, true, &b) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
 		default:

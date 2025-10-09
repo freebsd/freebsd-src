@@ -1,11 +1,57 @@
-2024-07-01 1.0.4
+2025-06-22 Version 1.0.5
+
+	Manual:
+	* fix: "User-friendly documentation for alternate screen"
+	  https://bugs.freebsd.org/285459.
+	  Improve bsddialog.1: --alternate-screen and --normal-screen.
+
+	NetBSD (tested on amd64) refactoring, no function changes:
+	* https://gitlab.com/alfix/bsddialog/-/merge_requests/4
+	  lib: include <stdarg.h> in lib_util.c.
+	* https://gitlab.com/alfix/bsddialog/-/merge_requests/5
+	  a call to curses' refresh() is performed, while a local
+	  variable is also called refresh.
+	* Makefiles: add install and uninstall targets (both GND and BSD)
+	  https://gitlab.com/alfix/bsddialog/-/merge_requests/3
+
+	MacOS (tested on amd64) refactoring, no function changes:
+	* https://gitlab.com/alfix/bsddialog/-/merge_requests/6
+	  utility: replace u_int with unsigned int.
+
+	Library:
+	* fix: useless refreshes, https://gitlab.com/alfix/bsddialog/-/issues/8:
+	  "It takes lot of time when running over a 115200 UART".
+	  Not fixed for bsddialog_gauge() because it has to be rewritten.
+	* change: bsddialog_backtitle() does not update the screen so the
+	  backtitle is not printed. To use if a dialog is built later.
+	  Rationale: see "115200 UART" problem above.
+	* add: bsddialog_backtitle_rf() to print a top title refreshing the
+	  screen like bsddialog_backtitle() was previously.
+	* change: forms, ENTER is also a navigation keys in forms fields.
+	  Request: https://bugs.freebsd.org/287592
+	  If conf.button.always_active is true the form is closes immediatly.
+
+	Library and implicitly utility:
+	* fix: textbox buttons returned values (was always OK).
+	  Thanks to https://reviews.freebsd.org/D48668.
+	* change: TAB is a navigation keys in forms. Previously it directly
+	  switched form-fields <-> buttons.
+	  Request: https://bugs.freebsd.org/287592
+
+	Utility:
+	* change: forms, ENTER is a also navigation keys in forms fields.
+	  Previously it directly closed the form except with --switch-buttons
+	  Request: https://bugs.freebsd.org/287592
+
+
+2024-07-01 Version 1.0.4
 
 	Utility internal refactoring (no functional change):
 	* change: rename an internal constant to avoid a future conflict
 	    because FreeBSD is changing headers files for _FORTIFY_SOURCE.
 	    Reported and fixed by Kyle Evans.
 
-2024-05-27 1.0.3
+2024-05-27 Version 1.0.3
 
 	Utility:
 	change: --form and --mixedform do not print field value to output fd if
