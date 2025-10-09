@@ -629,6 +629,7 @@ nfsuserdsrv(struct svc_req *rqstp, SVCXPRT *transp)
 					syslog(LOG_ERR,
 					    "Group list of user '%s' too big",
 					    pwd->pw_name);
+					ngroup = NGROUPS;
 				}
 				nid.nid_ngroup = ngroup;
 				nid.nid_grps = grps;
