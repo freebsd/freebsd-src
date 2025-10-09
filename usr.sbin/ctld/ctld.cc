@@ -814,6 +814,11 @@ portal_group::open_sockets(struct conf &oldconf)
 	}
 
 	for (portal_up &portal : pg_portals) {
+		if (!portal->prepare()) {
+			cumulated_error++;
+			continue;
+		}
+
 		/*
 		 * Try to find already open portal and reuse the
 		 * listening socket.  We don't care about what portal
