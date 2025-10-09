@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Pedro Souza <pedrosouza@freebsd.org>
+ * Copyright (c) 2025 Kayla Powell <kpowkitty@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,21 +24,41 @@
  * SUCH DAMAGE.
  */
 
-#include <lua.h>
+#include <efi.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <acpi_detect.h>
 
-int	luaopen_gfx(lua_State *);
-int	luaopen_loader(lua_State *);
-int	luaopen_io(lua_State *);
-int	luaopen_pager(lua_State *);
+void *
+AcpiOsAllocate(ACPI_SIZE Size)
+{
+	return (malloc(Size));
+}
 
-#include <sys/linker_set.h>
+void
+AcpiOsFree(void *Memory)
+{
+	free(Memory);
+}
 
-typedef void lua_init_md_t(lua_State *);
-typedef void(*lua_acpi_registration_fn)(lua_State *L);
-extern lua_acpi_registration_fn lua_acpi_register;
-#define _LUA_COMPILE_SET Xlua_compile_set
-#define LUA_COMPILE_SET(func)	\
-	DATA_SET(_LUA_COMPILE_SET, func)
-#define LUA_FOREACH_SET(s) \
-	SET_FOREACH((s), _LUA_COMPILE_SET)
-SET_DECLARE(_LUA_COMPILE_SET, lua_init_md_t);
+void *
+AcpiOsMapMemory(ACPI_PHYSICAL_ADDRESS PhysicalAddress, ACPI_SIZE Length)
+{
+	return (void *)(PhysicalAddress);
+}
+
+void
+AcpiOsUnmapMemory(void *LogicalAddress, ACPI_SIZE Length)
+{
+	/* No-op as we never mapped any memory. */
+}
+
+ACPI_PHYSICAL_ADDRESS
+AcpiOsGetRootPointer (
+    void)
+{
+	if (!rsdp) {
+		return (0);
+	}
+
+	return (ACPI_PHYSICAL_ADDRESS)(uintptr_t)(rsdp);
+}

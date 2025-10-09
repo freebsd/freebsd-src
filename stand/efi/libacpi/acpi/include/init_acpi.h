@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Pedro Souza <pedrosouza@freebsd.org>
+ * Copyright (c) 2025 Kayla Powell <kpowkitty@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,21 +24,17 @@
  * SUCH DAMAGE.
  */
 
-#include <lua.h>
+#ifndef INIT_ACPI_H
+#define INIT_ACPI_H
 
-int	luaopen_gfx(lua_State *);
-int	luaopen_loader(lua_State *);
-int	luaopen_io(lua_State *);
-int	luaopen_pager(lua_State *);
+#include <efi.h>
+#include <efilib.h>
+#include <contrib/dev/acpica/include/acpi.h>
 
-#include <sys/linker_set.h>
+#define ACPI_LOADER 0x00020000
 
-typedef void lua_init_md_t(lua_State *);
-typedef void(*lua_acpi_registration_fn)(lua_State *L);
-extern lua_acpi_registration_fn lua_acpi_register;
-#define _LUA_COMPILE_SET Xlua_compile_set
-#define LUA_COMPILE_SET(func)	\
-	DATA_SET(_LUA_COMPILE_SET, func)
-#define LUA_FOREACH_SET(s) \
-	SET_FOREACH((s), _LUA_COMPILE_SET)
-SET_DECLARE(_LUA_COMPILE_SET, lua_init_md_t);
+ACPI_STATUS acpi_Startup(void);
+int init_acpi(void);
+int acpi_is_initialized(void);
+
+#endif /* ACPI_H */
