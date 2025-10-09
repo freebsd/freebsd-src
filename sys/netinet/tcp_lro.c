@@ -1475,10 +1475,11 @@ tcp_lro_queue_mbuf(struct lro_ctrl *lc, struct mbuf *mb)
  	}
 
 	/* create sequence number */
-	lc->lro_mbuf_data[lc->lro_mbuf_count].seq =
-	    (((uint64_t)M_HASHTYPE_GET(mb)) << 56) |
-	    (((uint64_t)mb->m_pkthdr.flowid) << 24) |
-	    ((uint64_t)lc->lro_mbuf_count);
+	lc->lro_mbuf_data[lc->lro_mbuf_count].seq = lc->lro_mbuf_count;
+	if (M_HASHTYPE_ISHASH(mb))
+		lc->lro_mbuf_data[lc->lro_mbuf_count].seq |=
+		    (((uint64_t)M_HASHTYPE_GET(mb)) << 56) |
+		    (((uint64_t)mb->m_pkthdr.flowid) << 24);
 
 	/* enter mbuf */
 	lc->lro_mbuf_data[lc->lro_mbuf_count].mb = mb;
