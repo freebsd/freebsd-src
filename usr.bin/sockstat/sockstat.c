@@ -99,6 +99,7 @@ static int	 opt_U;		/* Show remote UDP encapsulation port number */
 static int	 opt_u;		/* Show Unix domain sockets */
 static int	 opt_v;		/* Verbose mode */
 static int	 opt_w;		/* Wide print area for addresses */
+static bool	 show_path_state = false;
 
 /*
  * Default protocols to use if no -P was defined.
@@ -519,6 +520,7 @@ gather_sctp(void)
 				    ((xinpcb->flags & SCTP_PCB_FLAGS_UDPTYPE) ||
 				     (xstcb->last == 1))) {
 					RB_INSERT(socks_t, &socks, sock);
+					show_path_state = true;
 				} else {
 					free_socket(sock);
 				}
@@ -1296,7 +1298,7 @@ displaysock(struct sock *s, int pos)
 			}
 			offset += 7;
 		}
-		if (opt_s) {
+		if (opt_s && show_path_state) {
 			if (faddr != NULL &&
 			    s->proto == IPPROTO_SCTP &&
 			    s->state != SCTP_CLOSED &&
@@ -1401,7 +1403,8 @@ display(void)
 		if (opt_U)
 			printf(" %-6s", "ENCAPS");
 		if (opt_s) {
-			printf(" %-12s", "PATH STATE");
+			if (show_path_state)
+				printf(" %-12s", "PATH STATE");
 			printf(" %-12s", "CONN STATE");
 		}
 		if (opt_b)
