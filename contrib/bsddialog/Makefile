@@ -4,7 +4,7 @@
 # Written in 2023 by Alfonso Sabato Siciliano
 
 OUTPUT = bsddialog
-export VERSION=1.0.4
+export VERSION=1.0.5
 .CURDIR ?= ${CURDIR}
 LIBPATH = ${.CURDIR}/lib
 LIBBSDDIALOG = ${LIBPATH}/libbsddialog.so
@@ -22,7 +22,15 @@ DEBUG ?=
 export ENABLEDEBUG=${DEBUG}
 ###################
 
-all : ${OUTPUT}
+all: ${OUTPUT}
+
+install: all
+	${MAKE} -C ${LIBPATH} install
+	${MAKE} -C ${UTILITYPATH} install
+
+uninstall:
+	${MAKE} -C ${UTILITYPATH} uninstall
+	${MAKE} -C ${LIBPATH} uninstall
 
 ${OUTPUT}: ${LIBBSDDIALOG}
 	${MAKE} -C ${UTILITYPATH} LIBPATH=${LIBPATH}
@@ -36,3 +44,4 @@ clean:
 	${MAKE} -C ${UTILITYPATH} clean
 	${RM} ${OUTPUT} *.core
 
+.PHONY: all install uninstall clean

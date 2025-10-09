@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2021-2024 Alfonso Sabato Siciliano
+.\" Copyright (c) 2021-2025 Alfonso Sabato Siciliano
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 25, 2024
+.Dd June 22, 2025
 .Dt BSDDIALOG 1
 .Os
 .Sh NAME
@@ -80,7 +80,14 @@ The following options can change the default behavior of the utility and are
 common to some dialog.
 .Bl -tag -width Ds
 .It Fl Fl alternate-screen
-If available set alternate screen mode, see
+Set alternate screen mode if the terminal and
+.Xr curses 3
+provide it.
+If enabled bsddialog draws to the alternate screen and restores the main screen
+after exit.
+See
+.Dq smcup
+in
 .Xr terminfo 5 .
 .It Fl Fl ascii-lines
 Ascii characters to draw lines.
@@ -291,7 +298,11 @@ Set an exit code value for the
 .Dq Ok
 button.
 .It Fl Fl normal-screen
-If available set normal screen mode, see
+Set normal screen mode.
+bsddialog does not restore the previous screen after exit.
+See
+.Dq rmcup
+in
 .Xr terminfo 5 .
 .It Fl Fl output-fd Ar fd
 Print input from user interface to the specified file descriptor.
@@ -737,7 +748,7 @@ Right1 generic button.
 .It 10
 Right2 generic button.
 .It 11
-Right2 generic button.
+Right3 generic button.
 .El
 .Sh EXAMPLES
 Backtitle, title and message:
