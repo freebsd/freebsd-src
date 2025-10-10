@@ -64,6 +64,7 @@ main(int argc, char *argv[])
 	char *end, *s;
 	double timeout;
 	long pid;
+	pid_t mypid;
 	int i, kq, n, nleft, opt, status;
 	bool oflag, tflag, verbose;
 
@@ -137,6 +138,7 @@ main(int argc, char *argv[])
 		err(EX_OSERR, "malloc");
 	}
 	nleft = 0;
+	mypid = getpid();
 	for (n = 0; n < argc; n++) {
 		s = argv[n];
 		/* Undocumented Solaris compat */
@@ -149,7 +151,7 @@ main(int argc, char *argv[])
 			warnx("%s: bad process id", s);
 			continue;
 		}
-		if (pid == getpid()) {
+		if (pid == mypid) {
 			warnx("%s: skipping my own pid", s);
 			continue;
 		}
