@@ -213,6 +213,16 @@ vm_extra_install_packages() {
 			    install -y -r ${PKG_REPO_NAME} $pkg
 		done
 		metalog_add_data ./var/db/pkg/local.sqlite
+
+		# Add some database files which are created by pkg triggers;
+		# at some point in the future the tools which create these
+		# files should probably learn how to record them in METALOG
+		# (which would simplify no-root installworld as well).
+		metalog_add_data ./etc/login.conf.db
+		metalog_add_data ./etc/passwd
+		metalog_add_data ./etc/pwd.db
+		metalog_add_data ./etc/spwd.db 600
+		metalog_add_data ./var/db/services.db
 	else
 		if [ -n "${WITHOUT_QEMU}" ]; then
 			return 0
