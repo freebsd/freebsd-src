@@ -274,6 +274,7 @@ vcpu_cleanup(struct vcpu *vcpu, bool destroy)
 		vmm_stat_free(vcpu->stats);
 		fpu_save_area_free(vcpu->guestfpu);
 		vcpu_lock_destroy(vcpu);
+		free(vcpu, M_VMM);
 	}
 }
 
@@ -585,8 +586,6 @@ vm_cleanup(struct vm *vm, bool destroy)
 		vmmops_vmspace_free(vm->vmspace);
 		vm->vmspace = NULL;
 
-		for (i = 0; i < vm->maxcpus; i++)
-			free(vm->vcpu[i], M_VMM);
 		free(vm->vcpu, M_VMM);
 		sx_destroy(&vm->vcpus_init_lock);
 	}
