@@ -474,6 +474,7 @@ no_addrs_random_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "nat_pass" "cleanup"
 nat_pass_head()
 {
 	atf_set descr 'IPv4 NAT on pass rule'
@@ -505,6 +506,7 @@ nat_pass_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "nat_match" "cleanup"
 nat_match_head()
 {
 	atf_set descr 'IPv4 NAT on match rule'
@@ -644,6 +646,7 @@ map_e_pass_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "binat_compat" "cleanup"
 binat_compat_head()
 {
 	atf_set descr 'IPv4 BINAT with nat ruleset'
@@ -710,6 +713,7 @@ binat_compat_cleanup()
 	kill $(cat ${PWD}/inetd_tester.pid)
 }
 
+atf_test_case "binat_match" "cleanup"
 binat_match_head()
 {
 	atf_set descr 'IPv4 BINAT with nat ruleset'
