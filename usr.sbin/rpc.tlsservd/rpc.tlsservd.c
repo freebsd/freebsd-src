@@ -168,7 +168,12 @@ main(int argc, char **argv)
 
 	rpctls_verbose = false;
 	ncpu = (u_int)sysconf(_SC_NPROCESSORS_ONLN);
+#ifdef notnow
 	rpctls_maxthreads = ncpu > 1 ? ncpu / 2 : 1;
+#else
+	/* XXX For now, until fixed properly!! */
+	rpctls_maxthreads = 1;
+#endif
 
 	while ((ch = getopt_long(argc, argv, "2C:D:dhl:N:n:mp:r:uvWw", longopts,
 	    NULL)) != -1) {
@@ -199,6 +204,8 @@ main(int argc, char **argv)
 			if (rpctls_maxthreads < 1 || rpctls_maxthreads > ncpu)
 				errx(1, "maximum threads must be between 1 and "
 				    "number of CPUs (%d)", ncpu);
+			/* XXX For now, until fixed properly!! */
+			rpctls_maxthreads = 1;
 			break;
 		case 'n':
 			hostname[0] = '@';
