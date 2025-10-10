@@ -27,7 +27,7 @@ portinstall-aarch64: portinstall-pkg .PHONY
 	env ASSUME_ALWAYS_YES=yes pkg install sysutils/u-boot-bhyve-arm64
 .endif
 
-ci-runtest-aarch64: ci-buildimage-aarch64 .PHONY
+ci-runtest-aarch64: .PHONY
 	/usr/sbin/bhyvectl --vm=${TEST_VM_NAME} --destroy || true
 	expect -c "set timeout ${TIMEOUT_EXPECT}; \
 		spawn /usr/bin/timeout -k 60 ${TIMEOUT_VM} /usr/sbin/bhyve \
@@ -47,5 +47,5 @@ portinstall-aarch64: portinstall-pkg .PHONY
 	env ASSUME_ALWAYS_YES=yes pkg install sysutils/u-boot-qemu-arm64
 .endif
 
-ci-runtest-aarch64: ci-runtest .PHONY
+ci-runtest-aarch64: ci-runtest-qemu .PHONY
 .endif
