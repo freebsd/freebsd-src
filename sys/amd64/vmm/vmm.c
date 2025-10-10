@@ -201,7 +201,7 @@ vmmops_panic(void)
 }
 
 #define	DEFINE_VMMOPS_IFUNC(ret_type, opname, args)			\
-    DEFINE_IFUNC(static, ret_type, vmmops_##opname, args)		\
+    DEFINE_IFUNC(, ret_type, vmmops_##opname, args)			\
     {									\
     	if (vmm_is_intel())						\
     		return (vmm_ops_intel.opname);				\

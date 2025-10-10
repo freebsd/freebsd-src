@@ -122,29 +122,6 @@ struct hyptrap {
 	uint64_t htinst;
 };
 
-#define	DEFINE_VMMOPS_IFUNC(ret_type, opname, args)	\
-    ret_type vmmops_##opname args;
-
-DEFINE_VMMOPS_IFUNC(int, modinit, (void))
-DEFINE_VMMOPS_IFUNC(int, modcleanup, (void))
-DEFINE_VMMOPS_IFUNC(void *, init, (struct vm *vm, struct pmap *pmap))
-DEFINE_VMMOPS_IFUNC(int, gla2gpa, (void *vcpui, struct vm_guest_paging *paging,
-    uint64_t gla, int prot, uint64_t *gpa, int *is_fault))
-DEFINE_VMMOPS_IFUNC(int, run, (void *vcpui, register_t pc, struct pmap *pmap,
-    struct vm_eventinfo *info))
-DEFINE_VMMOPS_IFUNC(void, cleanup, (void *vmi))
-DEFINE_VMMOPS_IFUNC(void *, vcpu_init, (void *vmi, struct vcpu *vcpu,
-    int vcpu_id))
-DEFINE_VMMOPS_IFUNC(void, vcpu_cleanup, (void *vcpui))
-DEFINE_VMMOPS_IFUNC(int, exception, (void *vcpui, uint64_t scause))
-DEFINE_VMMOPS_IFUNC(int, getreg, (void *vcpui, int num, uint64_t *retval))
-DEFINE_VMMOPS_IFUNC(int, setreg, (void *vcpui, int num, uint64_t val))
-DEFINE_VMMOPS_IFUNC(int, getcap, (void *vcpui, int num, int *retval))
-DEFINE_VMMOPS_IFUNC(int, setcap, (void *vcpui, int num, int val))
-DEFINE_VMMOPS_IFUNC(struct vmspace *, vmspace_alloc, (vm_offset_t min,
-    vm_offset_t max))
-DEFINE_VMMOPS_IFUNC(void, vmspace_free, (struct vmspace *vmspace))
-
 #define	dprintf(fmt, ...)
 
 struct hypctx *riscv_get_active_vcpu(void);
