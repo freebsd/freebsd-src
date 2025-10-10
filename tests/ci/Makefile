@@ -177,7 +177,7 @@ clean: beforeclean .PHONY
 
 cleandir: beforeclean .PHONY
 
-ci-buildworld: .PHONY
+ci-buildworld: ci-checktarget .PHONY
 	@echo "Building world for ${TARGET_ARCH}"
 	${IMAKE} -j${PARALLEL_JOBS} -C ${WORLDDIR} ${METAMODE} \
 		${CROSS_TOOLCHAIN_PARAM} __MAKE_CONF=${MAKECONF} SRCCONF=${SRCCONF} \
@@ -228,7 +228,9 @@ ci-extract-meta: .PHONY
 	rm -rf ${META_TAR} ${META_DIR} ${META_DIROUT}
 .endif
 
-ci-runtest: ci-buildimage-${TARGET_ARCH:tl} portinstall .PHONY
+ci-runtest: ci-create-meta portinstall .WAIT ci-runtest-${TARGET_ARCH:tl} .WAIT ci-extract-meta .PHONY
+
+ci-runtest-qemu: .PHONY
 	timeout -k 60 ${TIMEOUT_VM} ${QEMUBIN} \
 		-machine ${QEMU_MACHINE} \
 		-smp ${QEMU_CPU_COUNT} \
@@ -254,6 +256,6 @@ ci-checktarget: .PHONY
 	@echo "Error: ${TARGET_ARCH} is not supported on ${TYPE} ${REVISION} ${BRANCH}"
 .endif
 
-ci: ci-create-meta ci-checktarget .WAIT ci-runtest-${TARGET_ARCH:tl} .WAIT ci-extract-meta .PHONY
+ci: ci-buildimage-${TARGET_ARCH:tl} .WAIT ci-runtest .PHONY
 
 .include "${RELEASEDIR}/Makefile.inc1"
