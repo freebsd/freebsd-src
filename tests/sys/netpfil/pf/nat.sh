@@ -55,6 +55,9 @@ exhaust_body()
 	jexec echo ifconfig ${epair_echo}b 198.51.100.2/24 up
 	jexec echo /usr/sbin/inetd -p ${PWD}/inetd-echo.pid $(atf_get_srcdir)/echo_inetd.conf
 
+	# Disable checksum offload on one of the interfaces to ensure pf handles that
+	jexec nat ifconfig ${epair_nat}a -txcsum
+
 	# Enable pf!
 	jexec nat pfctl -e
 	pft_set_rules nat \
