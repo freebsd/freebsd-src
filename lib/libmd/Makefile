@@ -117,6 +117,13 @@ USE_ASM_SOURCES:=0
 .endif
 
 .if ${USE_ASM_SOURCES} != 0
+.if exists(${MACHINE_ARCH}/md5block.S)
+SRCS+=	md5block.S
+CFLAGS+= -DMD5_ASM
+.if exists(${MACHINE_ARCH}/md5dispatch.c)
+SRCS+=  md5dispatch.c
+.endif
+.endif
 .if exists(${MACHINE_ARCH}/sha1block.S)
 SRCS+=	sha1block.S
 CFLAGS+= -DSHA1_ASM
