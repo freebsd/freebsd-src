@@ -92,7 +92,6 @@ struct vcpu {
 	struct fpreg	*guestfpu;	/* (a,i) guest fpu state */
 };
 
-#define	vcpu_lock_initialized(v) mtx_initialized(&((v)->mtx))
 #define	vcpu_lock_init(v)	mtx_init(&((v)->mtx), "vcpu lock", 0, MTX_SPIN)
 #define	vcpu_lock_destroy(v)	mtx_destroy(&((v)->mtx))
 #define	vcpu_lock(v)		mtx_lock_spin(&((v)->mtx))
