@@ -1,8 +1,8 @@
 #!/bin/sh
 
 # PROVIDE: virtual_oss
-# REQUIRE: kld ldconfig
-# BEFORE: LOGIN sndiod
+# REQUIRE: NETWORKING kld ldconfig
+# BEFORE: LOGIN
 # KEYWORD: shutdown
 
 . /etc/rc.subr
