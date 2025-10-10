@@ -24,7 +24,7 @@ ci-buildkernel-amd64: ci-buildkernel .PHONY
 ci-buildimage-amd64: ci-buildimage .PHONY
 
 .if ${MACHINE} == "amd64" && ( !defined(USE_QEMU) || empty(USE_QEMU) )
-ci-runtest-amd64: ci-buildimage-amd64 .PHONY
+ci-runtest-amd64: .PHONY
 	/usr/sbin/bhyvectl --vm=${TEST_VM_NAME} --destroy || true
 	expect -c "set timeout ${TIMEOUT_EXPECT}; \
 		spawn /usr/bin/timeout -k 5s 30s /usr/sbin/bhyveload \
@@ -44,5 +44,5 @@ ci-runtest-amd64: ci-buildimage-amd64 .PHONY
 		expect { eof }"
 	/usr/sbin/bhyvectl --vm=${TEST_VM_NAME} --destroy
 .else
-ci-runtest-amd64: ci-runtest .PHONY
+ci-runtest-amd64: ci-runtest-qemu .PHONY
 .endif
