@@ -64,8 +64,8 @@ remainder(double x, double p)
 		if(x>=p_half) x -= p;
 	    }
 	}
-	GET_HIGH_WORD(hx,x);
-	if ((hx&0x7fffffff)==0) hx = 0;
+	EXTRACT_WORDS(hx, lx, x);
+	if (((hx&0x7fffffff)|lx) == 0) hx = 0;
 	SET_HIGH_WORD(x,hx^sx);
 	return x;
 }
