@@ -43,6 +43,7 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
+#include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
@@ -69,6 +70,9 @@
 #include <netpfil/ipfw/dn_aqm.h>
 #endif
 #include <netpfil/ipfw/dn_sched.h>
+
+SDT_PROVIDER_DEFINE(dummynet);
+SDT_PROBE_DEFINE2(dummynet, , , drop, "struct mbuf *", "struct dn_queue *");
 
 /*
  * We keep a private variable for the simulation time, but we could
@@ -545,6 +549,7 @@ dn_enqueue(struct dn_queue *q, struct mbuf* m, int drop)
 
 drop:
 	V_dn_cfg.io_pkt_drop++;
+	SDT_PROBE2(dummynet, , , drop, m, q);
 	q->ni.drops++;
 	ni->drops++;
 	FREE_PKT(m);
@@ -1001,6 +1006,7 @@ done:
 
 dropit:
 	V_dn_cfg.io_pkt_drop++;
+	SDT_PROBE2(dummynet, , , drop, m, q);
 	DN_BH_WUNLOCK();
 	if (m)
 		FREE_PKT(m);
