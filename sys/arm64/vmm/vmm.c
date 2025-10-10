@@ -126,7 +126,6 @@ struct vm {
 	bool		dying;			/* (o) is dying */
 	volatile cpuset_t suspended_cpus; 	/* (i) suspended vcpus */
 	volatile cpuset_t halted_cpus;		/* (x) cpus in a hard halt */
-	struct vmspace	*vmspace;		/* (o) guest's address space */
 	struct vm_mem	mem;			/* (i) guest memory */
 	char		name[VM_MAX_NAMELEN];	/* (o) virtual machine name */
 	struct vcpu	**vcpu;			/* (i) guest vcpus */
@@ -408,7 +407,7 @@ vm_init(struct vm *vm, bool create)
 {
 	int i;
 
-	vm->cookie = vmmops_init(vm, vmspace_pmap(vm->vmspace));
+	vm->cookie = vmmops_init(vm, vmspace_pmap(vm_vmspace(vm)));
 	MPASS(vm->cookie != NULL);
 
 	CPU_ZERO(&vm->active_cpus);
@@ -486,7 +485,7 @@ int
 vm_create(const char *name, struct vm **retvm)
 {
 	struct vm *vm;
-	struct vmspace *vmspace;
+	int error;
 
 	/*
 	 * If vmm.ko could not be successfully initialized then don't attempt
@@ -498,14 +497,13 @@ vm_create(const char *name, struct vm **retvm)
 	if (name == NULL || strlen(name) >= VM_MAX_NAMELEN)
 		return (EINVAL);
 
-	vmspace = vmmops_vmspace_alloc(0, 1ul << 39);
-	if (vmspace == NULL)
-		return (ENOMEM);
-
 	vm = malloc(sizeof(struct vm), M_VMM, M_WAITOK | M_ZERO);
+	error = vm_mem_init(&vm->mem, 0, 1ul << 39);
+	if (error != 0) {
+		free(vm, M_VMM);
+		return (error);
+	}
 	strcpy(vm->name, name);
-	vm->vmspace = vmspace;
-	vm_mem_init(&vm->mem);
 	sx_init(&vm->vcpus_init_lock, "vm vcpus");
 
 	vm->sockets = 1;
@@ -559,7 +557,7 @@ vm_cleanup(struct vm *vm, bool destroy)
 
 	if (destroy) {
 		vm_xlock_memsegs(vm);
-		pmap = vmspace_pmap(vm->vmspace);
+		pmap = vmspace_pmap(vm_vmspace(vm));
 		sched_pin();
 		PCPU_SET(curvmpmap, NULL);
 		sched_unpin();
@@ -582,9 +580,6 @@ vm_cleanup(struct vm *vm, bool destroy)
 	vm_mem_cleanup(vm);
 	if (destroy) {
 		vm_mem_destroy(vm);
-
-		vmmops_vmspace_free(vm->vmspace);
-		vm->vmspace = NULL;
 
 		free(vm->vcpu, M_VMM);
 		sx_destroy(&vm->vcpus_init_lock);
@@ -1089,12 +1084,6 @@ vcpu_notify_event(struct vcpu *vcpu)
 	vcpu_unlock(vcpu);
 }
 
-struct vmspace *
-vm_vmspace(struct vm *vm)
-{
-	return (vm->vmspace);
-}
-
 struct vm_mem *
 vm_mem(struct vm *vm)
 {
@@ -1415,7 +1404,7 @@ vm_handle_paging(struct vcpu *vcpu, bool *retu)
 
 	vme = &vcpu->exitinfo;
 
-	pmap = vmspace_pmap(vcpu->vm->vmspace);
+	pmap = vmspace_pmap(vm_vmspace(vcpu->vm));
 	addr = vme->u.paging.gpa;
 	esr = vme->u.paging.esr;
 
@@ -1432,7 +1421,7 @@ vm_handle_paging(struct vcpu *vcpu, bool *retu)
 		panic("%s: Invalid exception (esr = %lx)", __func__, esr);
 	}
 
-	map = &vm->vmspace->vm_map;
+	map = &vm_vmspace(vm)->vm_map;
 	rv = vm_fault(map, vme->u.paging.gpa, ftype, VM_FAULT_NORMAL, NULL);
 	if (rv != KERN_SUCCESS)
 		return (EFAULT);
@@ -1506,7 +1495,7 @@ vm_run(struct vcpu *vcpu)
 	if (CPU_ISSET(vcpuid, &vm->suspended_cpus))
 		return (EINVAL);
 
-	pmap = vmspace_pmap(vm->vmspace);
+	pmap = vmspace_pmap(vm_vmspace(vm));
 	vme = &vcpu->exitinfo;
 	evinfo.rptr = NULL;
 	evinfo.sptr = &vm->suspend;
