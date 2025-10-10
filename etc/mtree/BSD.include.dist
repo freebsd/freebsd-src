@@ -276,9 +276,7 @@
     ..
     kadm5
     ..
-    kdb5
-    ..
-    krb5
+    krb5                tags=package=kerberos-dev
     ..
     lib80211
     ..
