@@ -2547,6 +2547,9 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 					kvo->kvo_inactive++;
 				else if (vm_page_in_laundry(m))
 					kvo->kvo_laundry++;
+
+				if (vm_page_wired(m))
+					kvo->kvo_wired++;
 			}
 		}
 

@@ -617,7 +617,8 @@ struct kinfo_vmobject {
 	} kvo_type_spec;			/* Type-specific union */
 	uint64_t kvo_me;			/* Uniq handle for anon obj */
 	uint64_t kvo_laundry;			/* Number of laundry pages. */
-	uint64_t _kvo_qspare[5];
+	uint64_t kvo_wired;			/* Number of wired pages. */
+	uint64_t _kvo_qspare[4];
 	uint32_t kvo_swapped;			/* Number of swapped pages */
 	uint32_t kvo_flags;
 	uint32_t _kvo_ispare[6];
