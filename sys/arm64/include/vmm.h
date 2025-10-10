@@ -143,6 +143,37 @@ struct vm_eventinfo {
 	int	*iptr;		/* reqidle cookie */
 };
 
+#define	DECLARE_VMMOPS_FUNC(ret_type, opname, args)			\
+	ret_type vmmops_##opname args
+
+DECLARE_VMMOPS_FUNC(int, modinit, (int ipinum));
+DECLARE_VMMOPS_FUNC(int, modcleanup, (void));
+DECLARE_VMMOPS_FUNC(void *, init, (struct vm *vm, struct pmap *pmap));
+DECLARE_VMMOPS_FUNC(int, gla2gpa, (void *vcpui, struct vm_guest_paging *paging,
+    uint64_t gla, int prot, uint64_t *gpa, int *is_fault));
+DECLARE_VMMOPS_FUNC(int, run, (void *vcpui, register_t pc, struct pmap *pmap,
+    struct vm_eventinfo *info));
+DECLARE_VMMOPS_FUNC(void, cleanup, (void *vmi));
+DECLARE_VMMOPS_FUNC(void *, vcpu_init, (void *vmi, struct vcpu *vcpu,
+    int vcpu_id));
+DECLARE_VMMOPS_FUNC(void, vcpu_cleanup, (void *vcpui));
+DECLARE_VMMOPS_FUNC(int, exception, (void *vcpui, uint64_t esr, uint64_t far));
+DECLARE_VMMOPS_FUNC(int, getreg, (void *vcpui, int num, uint64_t *retval));
+DECLARE_VMMOPS_FUNC(int, setreg, (void *vcpui, int num, uint64_t val));
+DECLARE_VMMOPS_FUNC(int, getcap, (void *vcpui, int num, int *retval));
+DECLARE_VMMOPS_FUNC(int, setcap, (void *vcpui, int num, int val));
+DECLARE_VMMOPS_FUNC(struct vmspace *, vmspace_alloc, (vm_offset_t min,
+    vm_offset_t max));
+DECLARE_VMMOPS_FUNC(void, vmspace_free, (struct vmspace *vmspace));
+#ifdef notyet
+#ifdef BHYVE_SNAPSHOT
+DECLARE_VMMOPS_FUNC(int, snapshot, (void *vmi, struct vm_snapshot_meta *meta));
+DECLARE_VMMOPS_FUNC(int, vcpu_snapshot, (void *vcpui,
+    struct vm_snapshot_meta *meta));
+DECLARE_VMMOPS_FUNC(int, restore_tsc, (void *vcpui, uint64_t now));
+#endif
+#endif
+
 int vm_create(const char *name, struct vm **retvm);
 struct vcpu *vm_alloc_vcpu(struct vm *vm, int vcpuid);
 void vm_disable_vcpu_creation(struct vm *vm);
