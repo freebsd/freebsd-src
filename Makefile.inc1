@@ -2256,7 +2256,7 @@ _default_flavor=	-default
 _debug=-dbg
 . endif
 
-create-dtb-package:
+create-dtb-package:	.PHONY
 	@if [ -f ${KSTAGEDIR}/${DISTDIR}/dtb.plist ]; then \
 	${SRCDIR}/release/packages/generate-ucl.lua \
 		PKGNAME "dtb" \
@@ -2281,9 +2281,12 @@ create-dtb-package:
 		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR} ; \
 	fi
 
-create-kernel-packages:	.PHONY
+create-kernel-packages:	.PHONY create-kernel-flavored-packages create-dtb-package
+create-kernel-flavored-packages:	.PHONY
+.ORDER: create-kernel-flavored-packages create-dtb-package
+
 . for flavor in "" ${_debug}
-create-kernel-packages: create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},} create-dtb-package
+create-kernel-flavored-packages: create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}
 create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap .PHONY
 	@cd ${KSTAGEDIR}/${DISTDIR} ; \
 	${METALOG_SORT_CMD} ${KSTAGEDIR}/kernel.meta | \
