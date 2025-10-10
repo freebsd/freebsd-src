@@ -48,6 +48,7 @@
 #include <x86/apicreg.h>
 
 #include <dev/vmm/vmm_dev.h>
+#include <dev/vmm/vmm_mem.h>
 #include <dev/vmm/vmm_stat.h>
 
 #include "vmm_lapic.h"

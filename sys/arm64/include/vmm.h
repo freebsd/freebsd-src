@@ -263,7 +263,6 @@ vcpu_should_yield(struct vcpu *vcpu)
 
 void *vcpu_stats(struct vcpu *vcpu);
 void vcpu_notify_event(struct vcpu *vcpu);
-struct vmspace *vm_vmspace(struct vm *vm);
 struct vm_mem *vm_mem(struct vm *vm);
 
 enum vm_reg_name vm_segment_name(int seg_encoding);

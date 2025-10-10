@@ -163,7 +163,6 @@ struct vm {
 	void		*rendezvous_arg;	/* (x) [r] rendezvous func/arg */
 	vm_rendezvous_func_t rendezvous_func;
 	struct mtx	rendezvous_mtx;		/* (o) rendezvous lock */
-	struct vmspace	*vmspace;		/* (o) guest's address space */
 	struct vm_mem	mem;			/* (i) [m+v] guest memory */
 	char		name[VM_MAX_NAMELEN+1];	/* (o) virtual machine name */
 	struct vcpu	**vcpu;			/* (o) guest vcpus */
@@ -499,7 +498,7 @@ MODULE_VERSION(vmm, 1);
 static void
 vm_init(struct vm *vm, bool create)
 {
-	vm->cookie = vmmops_init(vm, vmspace_pmap(vm->vmspace));
+	vm->cookie = vmmops_init(vm, vmspace_pmap(vm_vmspace(vm)));
 	vm->iommu = NULL;
 	vm->vioapic = vioapic_init(vm);
 	vm->vhpet = vhpet_init(vm);
@@ -584,7 +583,7 @@ int
 vm_create(const char *name, struct vm **retvm)
 {
 	struct vm *vm;
-	struct vmspace *vmspace;
+	int error;
 
 	/*
 	 * If vmm.ko could not be successfully initialized then don't attempt
@@ -597,14 +596,13 @@ vm_create(const char *name, struct vm **retvm)
 	    VM_MAX_NAMELEN + 1)
 		return (EINVAL);
 
-	vmspace = vmmops_vmspace_alloc(0, VM_MAXUSER_ADDRESS_LA48);
-	if (vmspace == NULL)
-		return (ENOMEM);
-
 	vm = malloc(sizeof(struct vm), M_VM, M_WAITOK | M_ZERO);
+	error = vm_mem_init(&vm->mem, 0, VM_MAXUSER_ADDRESS_LA48);
+	if (error != 0) {
+		free(vm, M_VM);
+		return (error);
+	}
 	strcpy(vm->name, name);
-	vm->vmspace = vmspace;
-	vm_mem_init(&vm->mem);
 	mtx_init(&vm->rendezvous_mtx, "vm rendezvous lock", 0, MTX_DEF);
 	sx_init(&vm->vcpus_init_lock, "vm vcpus");
 	vm->vcpu = malloc(sizeof(*vm->vcpu) * vm_maxcpu, M_VM, M_WAITOK |
@@ -685,9 +683,6 @@ vm_cleanup(struct vm *vm, bool destroy)
 	if (destroy) {
 		vm_mem_destroy(vm);
 
-		vmmops_vmspace_free(vm->vmspace);
-		vm->vmspace = NULL;
-
 		free(vm->vcpu, M_VM);
 		sx_destroy(&vm->vcpus_init_lock);
 		mtx_destroy(&vm->rendezvous_mtx);
@@ -731,7 +726,7 @@ vm_map_mmio(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t hpa)
 {
 	vm_object_t obj;
 
-	if ((obj = vmm_mmio_alloc(vm->vmspace, gpa, len, hpa)) == NULL)
+	if ((obj = vmm_mmio_alloc(vm_vmspace(vm), gpa, len, hpa)) == NULL)
 		return (ENOMEM);
 	else
 		return (0);
@@ -741,19 +736,21 @@ int
 vm_unmap_mmio(struct vm *vm, vm_paddr_t gpa, size_t len)
 {
 
-	vmm_mmio_free(vm->vmspace, gpa, len);
+	vmm_mmio_free(vm_vmspace(vm), gpa, len);
 	return (0);
 }
 
 static int
 vm_iommu_map(struct vm *vm)
 {
+	pmap_t pmap;
 	vm_paddr_t gpa, hpa;
 	struct vm_mem_map *mm;
 	int error, i;
 
 	sx_assert(&vm->mem.mem_segs_lock, SX_LOCKED);
 
+	pmap = vmspace_pmap(vm_vmspace(vm));
 	for (i = 0; i < VM_MAX_MEMMAPS; i++) {
 		if (!vm_memseg_sysmem(vm, i))
 			continue;
@@ -767,7 +764,7 @@ vm_iommu_map(struct vm *vm)
 		mm->flags |= VM_MEMMAP_F_IOMMU;
 
 		for (gpa = mm->gpa; gpa < mm->gpa + mm->len; gpa += PAGE_SIZE) {
-			hpa = pmap_extract(vmspace_pmap(vm->vmspace), gpa);
+			hpa = pmap_extract(pmap, gpa);
 
 			/*
 			 * All mappings in the vmm vmspace must be
@@ -816,7 +813,7 @@ vm_iommu_unmap(struct vm *vm)
 
 		for (gpa = mm->gpa; gpa < mm->gpa + mm->len; gpa += PAGE_SIZE) {
 			KASSERT(vm_page_wired(PHYS_TO_VM_PAGE(pmap_extract(
-			    vmspace_pmap(vm->vmspace), gpa))),
+			    vmspace_pmap(vm_vmspace(vm)), gpa))),
 			    ("vm_iommu_unmap: vm %p gpa %jx not wired",
 			    vm, (uintmax_t)gpa));
 			iommu_remove_mapping(vm->iommu, gpa, PAGE_SIZE);
@@ -1249,7 +1246,7 @@ vm_handle_paging(struct vcpu *vcpu, bool *retu)
 	    ("vm_handle_paging: invalid fault_type %d", ftype));
 
 	if (ftype == VM_PROT_READ || ftype == VM_PROT_WRITE) {
-		rv = pmap_emulate_accessed_dirty(vmspace_pmap(vm->vmspace),
+		rv = pmap_emulate_accessed_dirty(vmspace_pmap(vm_vmspace(vm)),
 		    vme->u.paging.gpa, ftype);
 		if (rv == 0) {
 			VMM_CTR2(vcpu, "%s bit emulation for gpa %#lx",
@@ -1259,7 +1256,7 @@ vm_handle_paging(struct vcpu *vcpu, bool *retu)
 		}
 	}
 
-	map = &vm->vmspace->vm_map;
+	map = &vm_vmspace(vm)->vm_map;
 	rv = vm_fault(map, vme->u.paging.gpa, ftype, VM_FAULT_NORMAL, NULL);
 
 	VMM_CTR3(vcpu, "vm_handle_paging rv = %d, gpa = %#lx, "
@@ -1560,7 +1557,7 @@ vm_run(struct vcpu *vcpu)
 	if (CPU_ISSET(vcpuid, &vm->suspended_cpus))
 		return (EINVAL);
 
-	pmap = vmspace_pmap(vm->vmspace);
+	pmap = vmspace_pmap(vm_vmspace(vm));
 	vme = &vcpu->exitinfo;
 	evinfo.rptr = &vm->rendezvous_req_cpus;
 	evinfo.sptr = &vm->suspend;
@@ -2302,12 +2299,6 @@ vcpu_notify_event(struct vcpu *vcpu, bool lapic_intr)
 	vcpu_unlock(vcpu);
 }
 
-struct vmspace *
-vm_vmspace(struct vm *vm)
-{
-	return (vm->vmspace);
-}
-
 struct vm_mem *
 vm_mem(struct vm *vm)
 {
@@ -2519,7 +2510,7 @@ vm_get_rescnt(struct vcpu *vcpu, struct vmm_stat_type *stat)
 
 	if (vcpu->vcpuid == 0) {
 		vmm_stat_set(vcpu, VMM_MEM_RESIDENT, PAGE_SIZE *
-		    vmspace_resident_count(vcpu->vm->vmspace));
+		    vmspace_resident_count(vm_vmspace(vcpu->vm)));
 	}
 }
 
@@ -2529,7 +2520,7 @@ vm_get_wiredcnt(struct vcpu *vcpu, struct vmm_stat_type *stat)
 
 	if (vcpu->vcpuid == 0) {
 		vmm_stat_set(vcpu, VMM_MEM_WIRED, PAGE_SIZE *
-		    pmap_wired_count(vmspace_pmap(vcpu->vm->vmspace)));
+		    pmap_wired_count(vmspace_pmap(vm_vmspace(vcpu->vm))));
 	}
 }
 
