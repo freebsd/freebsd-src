@@ -407,7 +407,6 @@ pkgbase-repo-stage:
 		mv pkgbase-repo.tar ${OSRELEASE}-pkgbase-repo.tar
 	cp -p ${RELEASEDIR}/pkgbase/${OSRELEASE}-pkgbase-repo.tar \
 		${PKGBASE_DIR}/Latest/${OSRELEASE}-pkgbase-repo.tar
-. endfor
 . for CHECKSUM in ${CHECKSUM_FILES}
 	cd ${RELEASEDIR}/pkgbase && \
 		${CHECKSUM:tl} ${OSRELEASE}-pkgbase-repo.tar > CHECKSUM.${CHECKSUM}
