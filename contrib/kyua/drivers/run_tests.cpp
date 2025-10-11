@@ -209,7 +209,7 @@ finish_test(scheduler::result_handle_ptr result_handle,
     hooks.got_result(
         *test_result_handle->test_program(),
         test_result_handle->test_case_name(),
-        test_result_handle->test_result(),
+        test_result,
         result_handle->end_time() - result_handle->start_time());
 }
 
