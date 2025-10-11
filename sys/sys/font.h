@@ -108,7 +108,7 @@ typedef STAILQ_HEAD(font_list, fontlist) font_list_t;
 
 #define	FONT_HEADER_MAGIC	"VFNT0002"
 struct font_header {
-	uint8_t		fh_magic[8];
+	uint8_t		fh_magic[8] __nonstring;
 	uint8_t		fh_width;
 	uint8_t		fh_height;
 	uint16_t	fh_pad;
