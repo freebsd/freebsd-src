@@ -25,108 +25,16 @@
 #include "fw/dbg.h"
 #include "fw/api/tx.h"
 #include "fw/acpi.h"
+#include "fw/api/tx.h"
 #include "mei/iwl-mei.h"
 #include "internal.h"
 #include "iwl-fh.h"
-#include "iwl-context-info-v2.h"
+#include "pcie/iwl-context-info-v2.h"
+#include "pcie/utils.h"
 
 /* extended range in FW SRAM */
 #define IWL_FW_MEM_EXTENDED_START	0x40000
 #define IWL_FW_MEM_EXTENDED_END		0x57FFF
-
-void iwl_trans_pcie_dump_regs(struct iwl_trans *trans)
-{
-#define PCI_DUMP_SIZE		352
-#define PCI_MEM_DUMP_SIZE	64
-#define PCI_PARENT_DUMP_SIZE	524
-#define PREFIX_LEN		32
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct pci_dev *pdev = trans_pcie->pci_dev;
-	u32 i, pos, alloc_size, *ptr, *buf;
-	char *prefix;
-
-	if (trans_pcie->pcie_dbg_dumped_once)
-		return;
-
-	/* Should be a multiple of 4 */
-	BUILD_BUG_ON(PCI_DUMP_SIZE > 4096 || PCI_DUMP_SIZE & 0x3);
-	BUILD_BUG_ON(PCI_MEM_DUMP_SIZE > 4096 || PCI_MEM_DUMP_SIZE & 0x3);
-	BUILD_BUG_ON(PCI_PARENT_DUMP_SIZE > 4096 || PCI_PARENT_DUMP_SIZE & 0x3);
-
-	/* Alloc a max size buffer */
-	alloc_size = PCI_ERR_ROOT_ERR_SRC +  4 + PREFIX_LEN;
-	alloc_size = max_t(u32, alloc_size, PCI_DUMP_SIZE + PREFIX_LEN);
-	alloc_size = max_t(u32, alloc_size, PCI_MEM_DUMP_SIZE + PREFIX_LEN);
-	alloc_size = max_t(u32, alloc_size, PCI_PARENT_DUMP_SIZE + PREFIX_LEN);
-
-	buf = kmalloc(alloc_size, GFP_ATOMIC);
-	if (!buf)
-		return;
-	prefix = (char *)buf + alloc_size - PREFIX_LEN;
-
-	IWL_ERR(trans, "iwlwifi transaction failed, dumping registers\n");
-
-	/* Print wifi device registers */
-	sprintf(prefix, "iwlwifi %s: ", pci_name(pdev));
-	IWL_ERR(trans, "iwlwifi device config registers:\n");
-	for (i = 0, ptr = buf; i < PCI_DUMP_SIZE; i += 4, ptr++)
-		if (pci_read_config_dword(pdev, i, ptr))
-			goto err_read;
-	print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET, 32, 4, buf, i, 0);
-
-	IWL_ERR(trans, "iwlwifi device memory mapped registers:\n");
-	for (i = 0, ptr = buf; i < PCI_MEM_DUMP_SIZE; i += 4, ptr++)
-		*ptr = iwl_read32(trans, i);
-	print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET, 32, 4, buf, i, 0);
-
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ERR);
-	if (pos) {
-		IWL_ERR(trans, "iwlwifi device AER capability structure:\n");
-		for (i = 0, ptr = buf; i < PCI_ERR_ROOT_COMMAND; i += 4, ptr++)
-			if (pci_read_config_dword(pdev, pos + i, ptr))
-				goto err_read;
-		print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET,
-			       32, 4, buf, i, 0);
-	}
-
-	/* Print parent device registers next */
-	if (!pdev->bus->self)
-		goto out;
-
-	pdev = pdev->bus->self;
-	sprintf(prefix, "iwlwifi %s: ", pci_name(pdev));
-
-	IWL_ERR(trans, "iwlwifi parent port (%s) config registers:\n",
-		pci_name(pdev));
-	for (i = 0, ptr = buf; i < PCI_PARENT_DUMP_SIZE; i += 4, ptr++)
-		if (pci_read_config_dword(pdev, i, ptr))
-			goto err_read;
-	print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET, 32, 4, buf, i, 0);
-
-	/* Print root port AER registers */
-	pos = 0;
-	pdev = pcie_find_root_port(pdev);
-	if (pdev)
-		pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ERR);
-	if (pos) {
-		IWL_ERR(trans, "iwlwifi root port (%s) AER cap structure:\n",
-			pci_name(pdev));
-		sprintf(prefix, "iwlwifi %s: ", pci_name(pdev));
-		for (i = 0, ptr = buf; i <= PCI_ERR_ROOT_ERR_SRC; i += 4, ptr++)
-			if (pci_read_config_dword(pdev, pos + i, ptr))
-				goto err_read;
-		print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET, 32,
-			       4, buf, i, 0);
-	}
-	goto out;
-
-err_read:
-	print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET, 32, 4, buf, i, 0);
-	IWL_ERR(trans, "Read failed at 0x%X\n", i);
-out:
-	trans_pcie->pcie_dbg_dumped_once = 1;
-	kfree(buf);
-}
 
 int iwl_trans_pcie_sw_reset(struct iwl_trans *trans, bool retake_ownership)
 {
@@ -387,8 +295,8 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 	u32 dl_cfg_reg;
 
 	/* Force XTAL ON */
-	__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
-				 CSR_GP_CNTRL_REG_FLAG_XTAL_ON);
+	iwl_trans_set_bit(trans, CSR_GP_CNTRL,
+			  CSR_GP_CNTRL_REG_FLAG_XTAL_ON);
 
 	ret = iwl_trans_pcie_sw_reset(trans, true);
 
@@ -397,8 +305,8 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 
 	if (WARN_ON(ret)) {
 		/* Release XTAL ON request */
-		__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-					   CSR_GP_CNTRL_REG_FLAG_XTAL_ON);
+		iwl_trans_clear_bit(trans, CSR_GP_CNTRL,
+				    CSR_GP_CNTRL_REG_FLAG_XTAL_ON);
 		return;
 	}
 
@@ -449,12 +357,12 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 	iwl_clear_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
 	/* Activates XTAL resources monitor */
-	__iwl_trans_pcie_set_bit(trans, CSR_MONITOR_CFG_REG,
-				 CSR_MONITOR_XTAL_RESOURCES);
+	iwl_trans_set_bit(trans, CSR_MONITOR_CFG_REG,
+			  CSR_MONITOR_XTAL_RESOURCES);
 
 	/* Release XTAL ON request */
-	__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-				   CSR_GP_CNTRL_REG_FLAG_XTAL_ON);
+	iwl_trans_clear_bit(trans, CSR_GP_CNTRL,
+			    CSR_GP_CNTRL_REG_FLAG_XTAL_ON);
 	udelay(10);
 
 	/* Release APMG XTAL */
@@ -473,20 +381,18 @@ void iwl_pcie_apm_stop_master(struct iwl_trans *trans)
 		iwl_set_bit(trans, CSR_GP_CNTRL,
 			    CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_REQ);
 
-		ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
-				   CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_STATUS,
-				   CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_STATUS,
-				   100);
+		ret = iwl_poll_bits(trans, CSR_GP_CNTRL,
+				    CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_STATUS,
+				    100);
 		usleep_range(10000, 20000);
 	} else {
 		iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
 
-		ret = iwl_poll_bit(trans, CSR_RESET,
-				   CSR_RESET_REG_FLAG_MASTER_DISABLED,
-				   CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
+		ret = iwl_poll_bits(trans, CSR_RESET,
+				    CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
 	}
 
-	if (ret < 0)
+	if (ret)
 		IWL_WARN(trans, "Master Disable Timed Out, 100 usec\n");
 
 	IWL_DEBUG_INFO(trans, "stop master\n");
@@ -585,15 +491,14 @@ static int iwl_pcie_set_hw_ready(struct iwl_trans *trans)
 		    CSR_HW_IF_CONFIG_REG_PCI_OWN_SET);
 
 	/* See if we got it */
-	ret = iwl_poll_bit(trans, CSR_HW_IF_CONFIG_REG,
-			   CSR_HW_IF_CONFIG_REG_PCI_OWN_SET,
-			   CSR_HW_IF_CONFIG_REG_PCI_OWN_SET,
-			   HW_READY_TIMEOUT);
+	ret = iwl_poll_bits(trans, CSR_HW_IF_CONFIG_REG,
+			    CSR_HW_IF_CONFIG_REG_PCI_OWN_SET,
+			    HW_READY_TIMEOUT);
 
-	if (ret >= 0)
+	if (!ret)
 		iwl_set_bit(trans, CSR_MBOX_SET_REG, CSR_MBOX_SET_REG_OS_ALIVE);
 
-	IWL_DEBUG_INFO(trans, "hardware%s ready\n", ret < 0 ? " not" : "");
+	IWL_DEBUG_INFO(trans, "hardware%s ready\n", ret ? " not" : "");
 	return ret;
 }
 
@@ -607,7 +512,7 @@ int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 
 	ret = iwl_pcie_set_hw_ready(trans);
 	/* If the card is ready, exit 0 */
-	if (ret >= 0) {
+	if (!ret) {
 		trans->csme_own = false;
 		return 0;
 	}
@@ -625,7 +530,7 @@ int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 
 		do {
 			ret = iwl_pcie_set_hw_ready(trans);
-			if (ret >= 0) {
+			if (!ret) {
 				trans->csme_own = false;
 				return 0;
 			}
@@ -704,7 +609,7 @@ static int iwl_pcie_load_firmware_chunk(struct iwl_trans *trans,
 				 trans_pcie->ucode_write_complete, 5 * HZ);
 	if (!ret) {
 		IWL_ERR(trans, "Failed to load firmware chunk!\n");
-		iwl_trans_pcie_dump_regs(trans);
+		iwl_trans_pcie_dump_regs(trans, trans_pcie->pci_dev);
 		return -ETIMEDOUT;
 	}
 
@@ -1536,30 +1441,41 @@ static int iwl_pcie_d3_handshake(struct iwl_trans *trans, bool suspend)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
 
+	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+		return 0;
+
+	trans_pcie->sx_state = IWL_SX_WAITING;
+
 	if (trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_AX210)
 		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
 				    suspend ? UREG_DOORBELL_TO_ISR6_SUSPEND :
 					      UREG_DOORBELL_TO_ISR6_RESUME);
-	else if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+	else
 		iwl_write32(trans, CSR_IPC_SLEEP_CONTROL,
 			    suspend ? CSR_IPC_SLEEP_CONTROL_SUSPEND :
 				      CSR_IPC_SLEEP_CONTROL_RESUME);
-	else
-		return 0;
 
 	ret = wait_event_timeout(trans_pcie->sx_waitq,
-				 trans_pcie->sx_complete, 2 * HZ);
-
-	/* Invalidate it toward next suspend or resume */
-	trans_pcie->sx_complete = false;
-
+				 trans_pcie->sx_state != IWL_SX_WAITING,
+				 2 * HZ);
 	if (!ret) {
 		IWL_ERR(trans, "Timeout %s D3\n",
 			suspend ? "entering" : "exiting");
-		return -ETIMEDOUT;
+		ret = -ETIMEDOUT;
+	} else {
+		ret = 0;
 	}
 
-	return 0;
+	if (trans_pcie->sx_state == IWL_SX_ERROR) {
+		IWL_ERR(trans, "FW error while %s D3\n",
+			suspend ? "entering" : "exiting");
+		ret = -EIO;
+	}
+
+	/* Invalidate it toward next suspend or resume */
+	trans_pcie->sx_state = IWL_SX_INVALID;
+
+	return ret;
 }
 
 int iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test, bool reset)
@@ -1845,7 +1761,7 @@ static int iwl_pcie_gen2_force_power_gating(struct iwl_trans *trans)
 	return iwl_trans_pcie_sw_reset(trans, true);
 }
 
-static int _iwl_trans_pcie_start_hw(struct iwl_trans *trans)
+int _iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int err;
@@ -2412,7 +2328,7 @@ bool __iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent)
 	}
 
 	/* this bit wakes up the NIC */
-	__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL, write);
+	iwl_trans_set_bit(trans, CSR_GP_CNTRL, write);
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_8000)
 		udelay(2);
 
@@ -2436,8 +2352,8 @@ bool __iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent)
 	 * 5000 series and later (including 1000 series) have non-volatile SRAM,
 	 * and do not save/restore SRAM when power cycling.
 	 */
-	ret = iwl_poll_bit(trans, CSR_GP_CNTRL, poll, mask, 15000);
-	if (unlikely(ret < 0)) {
+	ret = iwl_poll_bits_mask(trans, CSR_GP_CNTRL, poll, mask, 15000);
+	if (unlikely(ret)) {
 		u32 cntrl = iwl_read32(trans, CSR_GP_CNTRL);
 
 		if (silent) {
@@ -2449,7 +2365,7 @@ bool __iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent)
 			  "Timeout waiting for hardware access (CSR_GP_CNTRL 0x%08x)\n",
 			  cntrl);
 
-		iwl_trans_pcie_dump_regs(trans);
+		iwl_trans_pcie_dump_regs(trans, trans_pcie->pci_dev);
 
 		if (iwlwifi_mod_params.remove_when_gone && cntrl == ~0U)
 			iwl_trans_pcie_reset(trans,
@@ -2501,11 +2417,11 @@ iwl_trans_pcie_release_nic_access(struct iwl_trans *trans)
 	if (trans_pcie->cmd_hold_nic_awake)
 		goto out;
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
-		__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-					   CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ);
+		iwl_trans_clear_bit(trans, CSR_GP_CNTRL,
+				    CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ);
 	else
-		__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-					   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+		iwl_trans_clear_bit(trans, CSR_GP_CNTRL,
+				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	/*
 	 * Above we read the CSR_GP_CNTRL register, which will flush
 	 * any previous writes, but we need the write that clears the
@@ -2565,24 +2481,6 @@ int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 	}
 
 	return 0;
-}
-
-int iwl_trans_pcie_write_mem(struct iwl_trans *trans, u32 addr,
-			     const void *buf, int dwords)
-{
-	int offs, ret = 0;
-	const u32 *vals = buf;
-
-	if (iwl_trans_grab_nic_access(trans)) {
-		iwl_write32(trans, HBUS_TARG_MEM_WADDR, addr);
-		for (offs = 0; offs < dwords; offs++)
-			iwl_write32(trans, HBUS_TARG_MEM_WDAT,
-				    vals ? vals[offs] : 0);
-		iwl_trans_release_nic_access(trans);
-	} else {
-		ret = -EBUSY;
-	}
-	return ret;
 }
 
 int iwl_trans_pcie_read_config32(struct iwl_trans *trans, u32 ofs,
@@ -2704,7 +2602,7 @@ void iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans, u32 reg,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	spin_lock_bh(&trans_pcie->reg_lock);
-	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, value);
+	_iwl_trans_set_bits_mask(trans, reg, mask, value);
 	spin_unlock_bh(&trans_pcie->reg_lock);
 }
 
@@ -3786,35 +3684,55 @@ void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
 	iwl_trans_sync_nmi_with_addr(trans, inta_addr, sw_err_bit);
 }
 
-struct iwl_trans *
+static int iwl_trans_pcie_set_txcmd_info(const struct iwl_mac_cfg *mac_cfg,
+					 unsigned int *txcmd_size,
+					 unsigned int *txcmd_align)
+{
+	if (!mac_cfg->gen2) {
+		*txcmd_size = sizeof(struct iwl_tx_cmd_v6);
+		*txcmd_align = sizeof(void *);
+	} else if (mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210) {
+		*txcmd_size = sizeof(struct iwl_tx_cmd_v9);
+		*txcmd_align = 64;
+	} else {
+		*txcmd_size = sizeof(struct iwl_tx_cmd);
+		*txcmd_align = 128;
+	}
+
+	*txcmd_size += sizeof(struct iwl_cmd_header);
+	*txcmd_size += 36; /* biggest possible 802.11 header */
+
+	/* Ensure device TX cmd cannot reach/cross a page boundary in gen2 */
+	if (WARN_ON((mac_cfg->gen2 && *txcmd_size >= *txcmd_align)))
+		return -EINVAL;
+
+	return 0;
+}
+
+static struct iwl_trans *
 iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		     const struct iwl_mac_cfg *mac_cfg,
-		     struct iwl_trans_info *info)
+		     struct iwl_trans_info *info, u8 __iomem *hw_base)
 {
 	struct iwl_trans_pcie *trans_pcie, **priv;
+	unsigned int txcmd_size, txcmd_align;
 	struct iwl_trans *trans;
 	unsigned int bc_tbl_n_entries;
 	int ret, addr_size;
-	u32 bar0;
 
-	/* reassign our BAR 0 if invalid due to possible runtime PM races */
-	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &bar0);
-	if (bar0 == PCI_BASE_ADDRESS_MEM_TYPE_64) {
-		ret = pci_assign_resource(pdev, 0);
-		if (ret)
-			return ERR_PTR(ret);
-	}
-
-	ret = pcim_enable_device(pdev);
+	ret = iwl_trans_pcie_set_txcmd_info(mac_cfg, &txcmd_size,
+					    &txcmd_align);
 	if (ret)
 		return ERR_PTR(ret);
 
 	trans = iwl_trans_alloc(sizeof(struct iwl_trans_pcie), &pdev->dev,
-				mac_cfg);
+				mac_cfg, txcmd_size, txcmd_align);
 	if (!trans)
 		return ERR_PTR(-ENOMEM);
 
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	trans_pcie->hw_base = hw_base;
 
 	/* Initialize the wait queue for commands */
 	init_waitqueue_head(&trans_pcie->wait_command_queue);
@@ -3913,8 +3831,6 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 				       PCIE_LINK_STATE_CLKPM);
 	}
 
-	pci_set_master(pdev);
-
 	addr_size = trans_pcie->txqs.tfd.addr_size;
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(addr_size));
 	if (ret) {
@@ -3926,32 +3842,12 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		}
 	}
 
-	ret = pcim_request_all_regions(pdev, DRV_NAME);
-	if (ret) {
-		dev_err(&pdev->dev, "Requesting all PCI BARs failed.\n");
-		goto out_no_pci;
-	}
-
-	trans_pcie->hw_base = pcim_iomap(pdev, 0, 0);
-	if (!trans_pcie->hw_base) {
-		dev_err(&pdev->dev, "Could not ioremap PCI BAR 0.\n");
-		ret = -ENODEV;
-		goto out_no_pci;
-	}
-
 	/* We disable the RETRY_TIMEOUT register (0x41) to keep
 	 * PCI Tx retries from interfering with C3 CPU state */
 	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
 
 	trans_pcie->pci_dev = pdev;
 	iwl_disable_interrupts(trans);
-
-	info->hw_rev = iwl_read32(trans, CSR_HW_REV);
-	if (info->hw_rev == 0xffffffff) {
-		dev_err(&pdev->dev, "HW_REV=0xFFFFFFFF, PCI issues?\n");
-		ret = -EIO;
-		goto out_no_pci;
-	}
 
 	/*
 	 * In the 8000 HW family the format of the 4 bytes of CSR_HW_REV have
@@ -4046,9 +3942,332 @@ int iwl_trans_pcie_copy_imr(struct iwl_trans *trans,
 				 IMR_D2S_REQUESTED, 5 * HZ);
 	if (!ret || trans_pcie->imr_status == IMR_D2S_ERROR) {
 		IWL_ERR(trans, "Failed to copy IMR Memory chunk!\n");
-		iwl_trans_pcie_dump_regs(trans);
+		iwl_trans_pcie_dump_regs(trans, trans_pcie->pci_dev);
 		return -ETIMEDOUT;
 	}
 	trans_pcie->imr_status = IMR_D2S_IDLE;
 	return 0;
+}
+
+/*
+ * Read rf id and cdb info from prph register and store it
+ */
+static void get_crf_id(struct iwl_trans *iwl_trans,
+		       struct iwl_trans_info *info)
+{
+	u32 sd_reg_ver_addr;
+	u32 hw_wfpm_id;
+	u32 val = 0;
+	u8 step;
+
+	if (iwl_trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+		sd_reg_ver_addr = SD_REG_VER_GEN2;
+	else
+		sd_reg_ver_addr = SD_REG_VER;
+
+	/* Enable access to peripheral registers */
+	val = iwl_read_umac_prph_no_grab(iwl_trans, WFPM_CTRL_REG);
+	val |= WFPM_AUX_CTL_AUX_IF_MAC_OWNER_MSK;
+	iwl_write_umac_prph_no_grab(iwl_trans, WFPM_CTRL_REG, val);
+
+	/* Read crf info */
+	info->hw_crf_id = iwl_read_prph_no_grab(iwl_trans, sd_reg_ver_addr);
+
+	/* Read cnv info */
+	info->hw_cnv_id = iwl_read_prph_no_grab(iwl_trans, CNVI_AUX_MISC_CHIP);
+
+	/* For BZ-W, take B step also when A step is indicated */
+	if (CSR_HW_REV_TYPE(info->hw_rev) == IWL_CFG_MAC_TYPE_BZ_W)
+		step = SILICON_B_STEP;
+
+	/* In BZ, the MAC step must be read from the CNVI aux register */
+	if (CSR_HW_REV_TYPE(info->hw_rev) == IWL_CFG_MAC_TYPE_BZ) {
+		step = CNVI_AUX_MISC_CHIP_MAC_STEP(info->hw_cnv_id);
+
+		/* For BZ-U, take B step also when A step is indicated */
+		if ((CNVI_AUX_MISC_CHIP_PROD_TYPE(info->hw_cnv_id) ==
+		    CNVI_AUX_MISC_CHIP_PROD_TYPE_BZ_U) &&
+		    step == SILICON_A_STEP)
+			step = SILICON_B_STEP;
+	}
+
+	if (CSR_HW_REV_TYPE(info->hw_rev) == IWL_CFG_MAC_TYPE_BZ ||
+	    CSR_HW_REV_TYPE(info->hw_rev) == IWL_CFG_MAC_TYPE_BZ_W) {
+		info->hw_rev_step = step;
+		info->hw_rev |= step;
+	}
+
+	/* Read cdb info (also contains the jacket info if needed in the future */
+	hw_wfpm_id = iwl_read_umac_prph_no_grab(iwl_trans, WFPM_OTP_CFG1_ADDR);
+	IWL_INFO(iwl_trans, "Detected crf-id 0x%x, cnv-id 0x%x wfpm id 0x%x\n",
+		 info->hw_crf_id, info->hw_cnv_id, hw_wfpm_id);
+}
+
+/*
+ * In case that there is no OTP on the NIC, map the rf id and cdb info
+ * from the prph registers.
+ */
+static int map_crf_id(struct iwl_trans *iwl_trans,
+		      struct iwl_trans_info *info)
+{
+	int ret = 0;
+	u32 val = info->hw_crf_id;
+	u32 step_id = REG_CRF_ID_STEP(val);
+	u32 slave_id = REG_CRF_ID_SLAVE(val);
+	u32 jacket_id_cnv = REG_CRF_ID_SLAVE(info->hw_cnv_id);
+	u32 hw_wfpm_id = iwl_read_umac_prph_no_grab(iwl_trans,
+						    WFPM_OTP_CFG1_ADDR);
+	u32 jacket_id_wfpm = WFPM_OTP_CFG1_IS_JACKET(hw_wfpm_id);
+	u32 cdb_id_wfpm = WFPM_OTP_CFG1_IS_CDB(hw_wfpm_id);
+
+	/* Map between crf id to rf id */
+	switch (REG_CRF_ID_TYPE(val)) {
+	case REG_CRF_ID_TYPE_JF_1:
+		info->hw_rf_id = (IWL_CFG_RF_TYPE_JF1 << 12);
+		break;
+	case REG_CRF_ID_TYPE_JF_2:
+		info->hw_rf_id = (IWL_CFG_RF_TYPE_JF2 << 12);
+		break;
+	case REG_CRF_ID_TYPE_HR_NONE_CDB_1X1:
+		info->hw_rf_id = (IWL_CFG_RF_TYPE_HR1 << 12);
+		break;
+	case REG_CRF_ID_TYPE_HR_NONE_CDB:
+		info->hw_rf_id = (IWL_CFG_RF_TYPE_HR2 << 12);
+		break;
+	case REG_CRF_ID_TYPE_HR_CDB:
+		info->hw_rf_id = (IWL_CFG_RF_TYPE_HR2 << 12);
+		break;
+	case REG_CRF_ID_TYPE_GF:
+		info->hw_rf_id = (IWL_CFG_RF_TYPE_GF << 12);
+		break;
+	case REG_CRF_ID_TYPE_FM:
+		info->hw_rf_id = (IWL_CFG_RF_TYPE_FM << 12);
+		break;
+	case REG_CRF_ID_TYPE_WHP:
+		info->hw_rf_id = (IWL_CFG_RF_TYPE_WH << 12);
+		break;
+	case REG_CRF_ID_TYPE_PE:
+		info->hw_rf_id = (IWL_CFG_RF_TYPE_PE << 12);
+		break;
+	default:
+		ret = -EIO;
+		IWL_ERR(iwl_trans,
+			"Can't find a correct rfid for crf id 0x%x\n",
+			REG_CRF_ID_TYPE(val));
+		goto out;
+	}
+
+	/* Set Step-id */
+	info->hw_rf_id |= (step_id << 8);
+
+	/* Set CDB capabilities */
+	if (cdb_id_wfpm || slave_id) {
+		info->hw_rf_id += BIT(28);
+		IWL_INFO(iwl_trans, "Adding cdb to rf id\n");
+	}
+
+	/* Set Jacket capabilities */
+	if (jacket_id_wfpm || jacket_id_cnv) {
+		info->hw_rf_id += BIT(29);
+		IWL_INFO(iwl_trans, "Adding jacket to rf id\n");
+	}
+
+	IWL_INFO(iwl_trans,
+		 "Detected rf-type 0x%x step-id 0x%x slave-id 0x%x from crf id 0x%x\n",
+		 REG_CRF_ID_TYPE(val), step_id, slave_id, info->hw_rf_id);
+	IWL_INFO(iwl_trans,
+		 "Detected cdb-id 0x%x jacket-id 0x%x from wfpm id 0x%x\n",
+		 cdb_id_wfpm, jacket_id_wfpm, hw_wfpm_id);
+	IWL_INFO(iwl_trans, "Detected jacket-id 0x%x from cnvi id 0x%x\n",
+		 jacket_id_cnv, info->hw_cnv_id);
+
+out:
+	return ret;
+}
+
+static void iwl_pcie_recheck_me_status(struct work_struct *wk)
+{
+	struct iwl_trans_pcie *trans_pcie = container_of(wk,
+							 typeof(*trans_pcie),
+							 me_recheck_wk.work);
+	u32 val;
+
+	val = iwl_read32(trans_pcie->trans, CSR_HW_IF_CONFIG_REG);
+	trans_pcie->me_present = !!(val & CSR_HW_IF_CONFIG_REG_IAMT_UP);
+}
+
+static void iwl_pcie_check_me_status(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	u32 val;
+
+	trans_pcie->me_present = -1;
+
+	INIT_DELAYED_WORK(&trans_pcie->me_recheck_wk,
+			  iwl_pcie_recheck_me_status);
+
+	/* we don't have a good way of determining this until BZ */
+	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_BZ)
+		return;
+
+	val = iwl_read_prph(trans, CNVI_SCU_REG_FOR_ECO_1);
+	if (val & CNVI_SCU_REG_FOR_ECO_1_WIAMT_KNOWN) {
+		trans_pcie->me_present =
+			!!(val & CNVI_SCU_REG_FOR_ECO_1_WIAMT_PRESENT);
+		return;
+	}
+
+	val = iwl_read32(trans, CSR_HW_IF_CONFIG_REG);
+	if (val & (CSR_HW_IF_CONFIG_REG_ME_OWN |
+		   CSR_HW_IF_CONFIG_REG_IAMT_UP)) {
+		trans_pcie->me_present = 1;
+		return;
+	}
+
+	/* recheck again later, ME might still be initializing */
+	schedule_delayed_work(&trans_pcie->me_recheck_wk, HZ);
+}
+
+int iwl_pci_gen1_2_probe(struct pci_dev *pdev,
+			 const struct pci_device_id *ent,
+			 const struct iwl_mac_cfg *mac_cfg,
+			 u8 __iomem *hw_base, u32 hw_rev)
+{
+	const struct iwl_dev_info *dev_info;
+	struct iwl_trans_info info = {
+		.hw_id = (pdev->device << 16) + pdev->subsystem_device,
+		.hw_rev = hw_rev,
+	};
+	struct iwl_trans *iwl_trans;
+	struct iwl_trans_pcie *trans_pcie;
+	int ret;
+
+	iwl_trans = iwl_trans_pcie_alloc(pdev, mac_cfg, &info, hw_base);
+	if (IS_ERR(iwl_trans))
+		return PTR_ERR(iwl_trans);
+
+	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(iwl_trans);
+
+	iwl_trans_pcie_check_product_reset_status(pdev);
+	iwl_trans_pcie_check_product_reset_mode(pdev);
+
+	/* set the things we know so far for the grab NIC access */
+	iwl_trans_set_info(iwl_trans, &info);
+
+	/*
+	 * Let's try to grab NIC access early here. Sometimes, NICs may
+	 * fail to initialize, and if that happens it's better if we see
+	 * issues early on (and can reprobe, per the logic inside), than
+	 * first trying to load the firmware etc. and potentially only
+	 * detecting any problems when the first interface is brought up.
+	 */
+	ret = iwl_pcie_prepare_card_hw(iwl_trans);
+	if (!ret) {
+		ret = iwl_finish_nic_init(iwl_trans);
+		if (ret)
+			goto out_free_trans;
+		if (iwl_trans_grab_nic_access(iwl_trans)) {
+			get_crf_id(iwl_trans, &info);
+			/* all good */
+			iwl_trans_release_nic_access(iwl_trans);
+		} else {
+			ret = -EIO;
+			goto out_free_trans;
+		}
+	}
+
+	info.hw_rf_id = iwl_read32(iwl_trans, CSR_HW_RF_ID);
+
+	/*
+	 * The RF_ID is set to zero in blank OTP so read version to
+	 * extract the RF_ID.
+	 * This is relevant only for family 9000 and up.
+	 */
+	if (iwl_trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_9000 &&
+	    !CSR_HW_RFID_TYPE(info.hw_rf_id) && map_crf_id(iwl_trans, &info)) {
+		ret = -EINVAL;
+		goto out_free_trans;
+	}
+
+	IWL_INFO(iwl_trans, "PCI dev %04x/%04x, rev=0x%x, rfid=0x%x\n",
+		 pdev->device, pdev->subsystem_device,
+		 info.hw_rev, info.hw_rf_id);
+
+	dev_info = iwl_pci_find_dev_info(pdev->device, pdev->subsystem_device,
+					 CSR_HW_RFID_TYPE(info.hw_rf_id),
+					 CSR_HW_RFID_IS_CDB(info.hw_rf_id),
+					 IWL_SUBDEVICE_RF_ID(pdev->subsystem_device),
+					 IWL_SUBDEVICE_BW_LIM(pdev->subsystem_device),
+					 !iwl_trans->mac_cfg->integrated);
+	if (dev_info) {
+		iwl_trans->cfg = dev_info->cfg;
+		info.name = dev_info->name;
+	}
+
+#if IS_ENABLED(CONFIG_IWLMVM)
+
+	/*
+	 * special-case 7265D, it has the same PCI IDs.
+	 *
+	 * Note that because we already pass the cfg to the transport above,
+	 * all the parameters that the transport uses must, until that is
+	 * changed, be identical to the ones in the 7265D configuration.
+	 */
+	if (iwl_trans->cfg == &iwl7265_cfg &&
+	    (info.hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_7265D)
+		iwl_trans->cfg = &iwl7265d_cfg;
+#endif
+	if (!iwl_trans->cfg) {
+		pr_err("No config found for PCI dev %04x/%04x, rev=0x%x, rfid=0x%x\n",
+		       pdev->device, pdev->subsystem_device,
+		       info.hw_rev, info.hw_rf_id);
+		ret = -EINVAL;
+		goto out_free_trans;
+	}
+
+	IWL_INFO(iwl_trans, "Detected %s\n", info.name);
+
+	if (iwl_trans->mac_cfg->mq_rx_supported) {
+		if (WARN_ON(!iwl_trans->cfg->num_rbds)) {
+			ret = -EINVAL;
+			goto out_free_trans;
+		}
+		trans_pcie->num_rx_bufs = iwl_trans_get_num_rbds(iwl_trans);
+	} else {
+		trans_pcie->num_rx_bufs = RX_QUEUE_SIZE;
+	}
+
+	if (!iwl_trans->mac_cfg->integrated) {
+		u16 link_status;
+
+		pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &link_status);
+
+		info.pcie_link_speed =
+			u16_get_bits(link_status, PCI_EXP_LNKSTA_CLS);
+	}
+
+	iwl_trans_set_info(iwl_trans, &info);
+
+	pci_set_drvdata(pdev, iwl_trans);
+
+	iwl_pcie_check_me_status(iwl_trans);
+
+	/* try to get ownership so that we'll know if we don't own it */
+	iwl_pcie_prepare_card_hw(iwl_trans);
+
+	iwl_trans->drv = iwl_drv_start(iwl_trans);
+
+	if (IS_ERR(iwl_trans->drv)) {
+		ret = PTR_ERR(iwl_trans->drv);
+		goto out_free_trans;
+	}
+
+	/* register transport layer debugfs here */
+	iwl_trans_pcie_dbgfs_register(iwl_trans);
+
+	return 0;
+
+out_free_trans:
+	iwl_trans_pcie_free(iwl_trans);
+	return ret;
 }

@@ -5,8 +5,8 @@
  */
 #include "iwl-trans.h"
 #include "iwl-prph.h"
-#include "iwl-context-info.h"
-#include "iwl-context-info-v2.h"
+#include "pcie/iwl-context-info.h"
+#include "pcie/iwl-context-info-v2.h"
 #include "internal.h"
 #include "fw/dbg.h"
 
@@ -612,6 +612,11 @@ again:
 		msleep(10);
 		IWL_INFO(trans, "TOP reset successful, reinit now\n");
 		/* now load the firmware again properly */
+		ret = _iwl_trans_pcie_start_hw(trans);
+		if (ret) {
+			IWL_ERR(trans, "failed to start HW after TOP reset\n");
+			goto out;
+		}
 		trans_pcie->prph_scratch->ctrl_cfg.control.control_flags &=
 			~cpu_to_le32(IWL_PRPH_SCRATCH_TOP_RESET);
 		top_reset_done = true;
@@ -626,4 +631,24 @@ again:
 out:
 	mutex_unlock(&trans_pcie->mutex);
 	return ret;
+}
+
+void iwl_trans_pcie_gen2_op_mode_leave(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	mutex_lock(&trans_pcie->mutex);
+
+	/* disable interrupts - don't enable HW RF kill interrupt */
+	iwl_disable_interrupts(trans);
+
+	iwl_pcie_gen2_apm_stop(trans, true);
+
+	iwl_disable_interrupts(trans);
+
+	iwl_pcie_disable_ict(trans);
+
+	mutex_unlock(&trans_pcie->mutex);
+
+	iwl_pcie_synchronize_irqs(trans);
 }

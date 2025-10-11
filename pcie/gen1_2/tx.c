@@ -25,6 +25,8 @@
 #include "iwl-op-mode.h"
 #include "internal.h"
 #include "fw/api/tx.h"
+#include "fw/dbg.h"
+#include "pcie/utils.h"
 
 /*************** DMA-QUEUE-GENERAL-FUNCTIONS  *****
  * DMA services
@@ -203,8 +205,8 @@ static void iwl_pcie_clear_cmd_in_flight(struct iwl_trans *trans)
 	}
 
 	trans_pcie->cmd_hold_nic_awake = false;
-	__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-				   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	iwl_trans_clear_bit(trans, CSR_GP_CNTRL,
+			    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	spin_unlock(&trans_pcie->reg_lock);
 }
 
@@ -494,9 +496,9 @@ void iwl_pcie_tx_start(struct iwl_trans *trans)
 		iwl_read_prph(trans, SCD_SRAM_BASE_ADDR);
 
 	/* reset context data, TX status and translation data */
-	iwl_trans_pcie_write_mem(trans, trans_pcie->scd_base_addr +
-					SCD_CONTEXT_MEM_LOWER_BOUND,
-				 NULL, clear_dwords);
+	iwl_trans_write_mem(trans, trans_pcie->scd_base_addr +
+				   SCD_CONTEXT_MEM_LOWER_BOUND,
+			    NULL, clear_dwords);
 
 	iwl_write_prph(trans, SCD_DRAM_BASE_ADDR,
 		       trans_pcie->txqs.scd_bc_tbls.dma >> 10);
@@ -589,8 +591,8 @@ static void iwl_pcie_tx_stop_fh(struct iwl_trans *trans)
 	}
 
 	/* Wait for DMA channels to be idle */
-	ret = iwl_poll_bit(trans, FH_TSSR_TX_STATUS_REG, mask, mask, 5000);
-	if (ret < 0)
+	ret = iwl_poll_bits(trans, FH_TSSR_TX_STATUS_REG, mask, 5000);
+	if (ret)
 		IWL_ERR(trans,
 			"Failing on timeout while stopping DMA channel %d [0x%08x]\n",
 			ch, iwl_read32(trans, FH_TSSR_TX_STATUS_REG));
@@ -1292,9 +1294,8 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id,
 	if (configure_scd) {
 		iwl_scd_txq_set_inactive(trans, txq_id);
 
-		iwl_trans_pcie_write_mem(trans, stts_addr,
-					 (const void *)zero_val,
-					 ARRAY_SIZE(zero_val));
+		iwl_trans_write_mem(trans, stts_addr, (const void *)zero_val,
+				    ARRAY_SIZE(zero_val));
 	}
 
 	iwl_pcie_txq_unmap(trans, txq_id);
@@ -1638,13 +1639,11 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 	/* If a Tx command is being handled and it isn't in the actual
 	 * command queue then there a command routing bug has been introduced
 	 * in the queue management code. */
-	if (WARN(txq_id != trans->conf.cmd_queue,
-		 "wrong command queue %d (should be %d), sequence 0x%X readp=%d writep=%d\n",
-		 txq_id, trans->conf.cmd_queue, sequence, txq->read_ptr,
-		 txq->write_ptr)) {
-		iwl_print_hex_error(trans, pkt, 32);
+	if (IWL_FW_CHECK(trans, txq_id != trans->conf.cmd_queue,
+			 "wrong command queue %d (should be %d), sequence 0x%X readp=%d writep=%d pkt=%*phN\n",
+			 txq_id, trans->conf.cmd_queue, sequence, txq->read_ptr,
+			 txq->write_ptr, 32, pkt))
 		return;
-	}
 
 	spin_lock_bh(&txq->lock);
 
@@ -1964,7 +1963,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 	 * have in the MPDU by themselves, but that we duplicate into
 	 * all the different MSDUs inside the A-MSDU.
 	 */
-	le16_add_cpu(&tx_cmd->len, -snap_ip_tcp_hdrlen);
+	le16_add_cpu(&tx_cmd->params.len, -snap_ip_tcp_hdrlen);
 
 	tso_start(skb, &tso);
 
@@ -2007,7 +2006,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 		trace_iwlwifi_dev_tx_tb(trans->dev, skb, start_hdr,
 					hdr_tb_phys, hdr_tb_len);
 		/* add this subframe's headers' length to the tx_cmd */
-		le16_add_cpu(&tx_cmd->len, pos_hdr - subf_hdrs_start);
+		le16_add_cpu(&tx_cmd->params.len, pos_hdr - subf_hdrs_start);
 
 		/* prepare the start_hdr for the next subframe */
 		start_hdr = pos_hdr;
@@ -2075,11 +2074,11 @@ static void iwl_txq_gen1_update_byte_cnt_tbl(struct iwl_trans *trans,
 	__le16 bc_ent;
 	struct iwl_device_tx_cmd *dev_cmd = txq->entries[txq->write_ptr].cmd;
 	struct iwl_tx_cmd_v6 *tx_cmd = (void *)dev_cmd->payload;
-	u8 sta_id = tx_cmd->sta_id;
+	u8 sta_id = tx_cmd->params.sta_id;
 
 	scd_bc_tbl = trans_pcie->txqs.scd_bc_tbls.addr;
 
-	sec_ctl = tx_cmd->sec_ctl;
+	sec_ctl = tx_cmd->params.sec_ctl;
 
 	switch (sec_ctl & TX_CMD_SEC_MSK) {
 	case TX_CMD_SEC_CCM:
@@ -2093,7 +2092,8 @@ static void iwl_txq_gen1_update_byte_cnt_tbl(struct iwl_trans *trans,
 		break;
 	}
 
-	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_7000 &&
+	    trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		len = DIV_ROUND_UP(len, 4);
 
 	if (WARN_ON(len > 0xFFF || write_ptr >= TFD_QUEUE_SIZE_MAX))
@@ -2186,10 +2186,10 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	tb0_phys = iwl_txq_get_first_tb_dma(txq, txq->write_ptr);
 	scratch_phys = tb0_phys + sizeof(struct iwl_cmd_header) +
-		       offsetof(struct iwl_tx_cmd_v6, scratch);
+		       offsetof(struct iwl_tx_cmd_v6_params, scratch);
 
-	tx_cmd->dram_lsb_ptr = cpu_to_le32(scratch_phys);
-	tx_cmd->dram_msb_ptr = iwl_get_dma_hi_addr(scratch_phys);
+	tx_cmd->params.dram_lsb_ptr = cpu_to_le32(scratch_phys);
+	tx_cmd->params.dram_msb_ptr = iwl_get_dma_hi_addr(scratch_phys);
 
 	/* Set up first empty entry in queue's array of Tx/cmd buffers */
 	out_meta = &txq->entries[txq->write_ptr].meta;
@@ -2211,7 +2211,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		tb1_len = ALIGN(len, 4);
 		/* Tell NIC about any 2-byte padding after MAC header */
 		if (tb1_len != len)
-			tx_cmd->tx_flags |= cpu_to_le32(TX_CMD_FLG_MH_PAD);
+			tx_cmd->params.tx_flags |= cpu_to_le32(TX_CMD_FLG_MH_PAD);
 	} else {
 		tb1_len = len;
 	}
@@ -2226,7 +2226,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	/* there must be data left over for TB1 or this code must be changed */
 	BUILD_BUG_ON(sizeof(struct iwl_tx_cmd_v6) < IWL_FIRST_TB_SIZE);
 	BUILD_BUG_ON(sizeof(struct iwl_cmd_header) +
-		     offsetofend(struct iwl_tx_cmd_v6, scratch) >
+		     offsetofend(struct iwl_tx_cmd_v6_params, scratch) >
 		     IWL_FIRST_TB_SIZE);
 
 	/* map the data for TB1 */
@@ -2272,7 +2272,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	tfd = iwl_txq_get_tfd(trans, txq, txq->write_ptr);
 	/* Set up entry for this TFD in Tx byte-count array */
-	iwl_txq_gen1_update_byte_cnt_tbl(trans, txq, le16_to_cpu(tx_cmd->len),
+	iwl_txq_gen1_update_byte_cnt_tbl(trans, txq, le16_to_cpu(tx_cmd->params.len),
 					 iwl_txq_gen1_tfd_get_num_tbs(tfd));
 
 	wait_write_ptr = ieee80211_has_morefrags(fc);
@@ -2324,7 +2324,7 @@ static void iwl_txq_gen1_inval_byte_cnt_tbl(struct iwl_trans *trans,
 	WARN_ON(read_ptr >= TFD_QUEUE_SIZE_MAX);
 
 	if (txq_id != trans->conf.cmd_queue)
-		sta_id = tx_cmd->sta_id;
+		sta_id = tx_cmd->params.sta_id;
 
 	bc_ent = cpu_to_le16(1 | (sta_id << 12));
 
