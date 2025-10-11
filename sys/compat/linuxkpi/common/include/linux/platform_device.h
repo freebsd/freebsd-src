@@ -39,7 +39,7 @@ struct platform_device {
 };
 
 struct platform_driver {
-	int				(*remove)(struct platform_device *);
+	void				(*remove)(struct platform_device *);
 	struct device_driver		driver;
 };
 
