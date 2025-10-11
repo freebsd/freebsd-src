@@ -102,7 +102,8 @@ lkpi_80211_mo_get_antenna(struct ieee80211_hw *hw, u32 *txs, u32 *rxs)
 	}
 
 	LKPI_80211_TRACE_MO("hw %p", hw);
-	error = lhw->ops->get_antenna(hw, txs, rxs);
+	LKPI_80211_TRACE_MO("TODO link/radio_idx");
+	error = lhw->ops->get_antenna(hw, 0, txs, rxs);
 
 out:
 	return (error);
@@ -121,7 +122,8 @@ lkpi_80211_mo_set_frag_threshold(struct ieee80211_hw *hw, uint32_t frag_th)
 	}
 
 	LKPI_80211_TRACE_MO("hw %p frag_th %u", hw, frag_th);
-	error = lhw->ops->set_frag_threshold(hw, frag_th);
+	LKPI_80211_TRACE_MO("TODO link/radio_idx");
+	error = lhw->ops->set_frag_threshold(hw, 0, frag_th);
 
 out:
 	return (error);
@@ -140,7 +142,8 @@ lkpi_80211_mo_set_rts_threshold(struct ieee80211_hw *hw, uint32_t rts_th)
 	}
 
 	LKPI_80211_TRACE_MO("hw %p rts_th %u", hw, rts_th);
-	error = lhw->ops->set_rts_threshold(hw, rts_th);
+	LKPI_80211_TRACE_MO("TODO link/radio_idx");
+	error = lhw->ops->set_rts_threshold(hw, 0, rts_th);
 
 out:
 	return (error);
@@ -436,7 +439,8 @@ lkpi_80211_mo_config(struct ieee80211_hw *hw, uint32_t changed)
 	}
 
 	LKPI_80211_TRACE_MO("hw %p changed %u", hw, changed);
-	error = lhw->ops->config(hw, changed);
+	LKPI_80211_TRACE_MO("TODO link/radio_idx");
+	error = lhw->ops->config(hw, 0, changed);
 
 out:
 	return (error);
