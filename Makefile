@@ -22,7 +22,7 @@
 # kernel              - buildkernel + installkernel.
 # kernel-toolchain    - Builds the subset of world necessary to build a kernel
 # kernel-toolchains   - Build kernel-toolchain for all universe targets.
-# doxygen             - Build API documentation of the kernel, needs doxygen.
+# kerneldoc           - Build API documentation of the kernel, needs doxygen, teTeX, and graphviz.
 # checkworld          - Run test suite on installed world.
 # check-old           - List obsolete directories/files/libraries.
 # check-old-dirs      - List obsolete directories.
@@ -159,9 +159,9 @@ TGTS=	all all-man buildenv buildenvvars buildetc buildkernel buildworld \
 	cleanworld cleanuniverse \
 	delete-old delete-old-dirs delete-old-files delete-old-libs \
 	depend distribute distributekernel distributekernel.debug \
-	distributeworld distrib-dirs distribution doxygen \
+	distributeworld distrib-dirs distribution \
 	everything hier hierarchy install installcheck installetc installkernel \
-	installkernel.debug packagekernel packageworld \
+	installkernel.debug kerneldoc packagekernel packageworld \
 	reinstallkernel reinstallkernel.debug \
 	installworld kernel-toolchain libraries maninstall \
 	list-old-dirs list-old-files list-old-libs \
@@ -804,7 +804,7 @@ universe_epilogue: .PHONY
 .MAKE.MODE= normal
 # Normally the things we run from here don't either.
 # Using -DWITH_META_MODE
-# we can buildworld with meta files created which are useful 
+# we can buildworld with meta files created which are useful
 # for debugging, but without any of the rest of a meta mode build.
 MK_DIRDEPS_BUILD= no
 MK_STAGING= no
