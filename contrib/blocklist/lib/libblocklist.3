@@ -106,20 +106,26 @@ The
 .Ar action
 parameter can take these values:
 .Bl -tag -width ".Dv BLOCKLIST_ABUSIVE_BEHAVIOR"
-.It Va BLOCKLIST_BAD_USER
-The sending daemon has determined the username presented for
-authentication is invalid.
-This is considered as one failure count.
-.It Va BLOCKLIST_AUTH_FAIL
+.It Dv BLOCKLIST_AUTH_FAIL
 There was an unsuccessful authentication attempt.
-This is considered as two failure counts together.
-.It Va BLOCKLIST_ABUSIVE_BEHAVIOR
-The sending daemon has detected abusive behavior from the remote system.
-This is considered as a total immediate failure.
-The remote address will be blocked as soon as possible.
-.It Va BLOCKLIST_AUTH_OK
-A valid user successfully authenticated.
-Any entry for the remote address will be removed as soon as possible.
+.It Dv BLOCKLIST_AUTH_OK
+A user successfully authenticated.
+.It Dv BLOCKLIST_ABUSIVE_BEHAVIOR
+The sending daemon has detected abusive behavior
+from the remote system.
+The remote address should
+be blocked as soon as possible.
+.It Dv BLOCKLIST_BAD_USER
+The sending daemon has determined the username
+presented for authentication is invalid.
+The
+.Xr blocklistd 8
+daemon compares the username to a configured list of forbidden
+usernames and
+blocks the address immediately if a forbidden username matches.
+(The
+.Dv BLOCKLIST_BAD_USER
+support is not currently available.)
 .El
 .Pp
 The
