@@ -95,6 +95,9 @@ ATF_TC_BODY(rem2, tc)
 ATF_TC_WITHOUT_HEAD(rem3);
 ATF_TC_BODY(rem3, tc)
 {
+#if defined(__aarch64__) || defined(__riscv) || defined(__powerpc64__)
+	atf_tc_expect_fail("https://bugs.freebsd.org/290099");
+#endif
 	test(0x1.66666cp+120, 0x1p+71, 0.0, 1476395008);
 	testd(-0x1.0000000000003p+0, 0x1.0000000000003p+0, -0.0, -1);
 	testl(-0x1.0000000000003p+0, 0x1.0000000000003p+0, -0.0, -1);
