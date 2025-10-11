@@ -92,6 +92,7 @@ struct device_driver {
 	const struct dev_pm_ops *pm;
 
 	void (*shutdown) (struct device *);
+	void (*coredump) (struct device *);
 };
 
 struct device_type {
