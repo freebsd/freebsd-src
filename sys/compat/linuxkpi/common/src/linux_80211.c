@@ -7833,7 +7833,7 @@ lkpi_wiphy_delayed_work_timer(struct timer_list *tl)
 	struct wiphy_delayed_work *wdwk;
 
 	wdwk = timer_container_of(wdwk, tl, timer);
-        wiphy_work_queue(wdwk->wiphy, &wdwk->work);
+	wiphy_work_queue(wdwk->wiphy, &wdwk->work);
 }
 
 void
@@ -7856,6 +7856,16 @@ linuxkpi_wiphy_delayed_work_cancel(struct wiphy *wiphy,
 {
 	del_timer_sync(&wdwk->timer);
 	wiphy_work_cancel(wiphy, &wdwk->work);
+}
+
+void
+linuxkpi_wiphy_delayed_work_flush(struct wiphy *wiphy,
+    struct wiphy_delayed_work *wdwk)
+{
+	lockdep_assert_held(&wiphy->mtx);
+
+	del_timer_sync(&wdwk->timer);
+	wiphy_work_flush(wiphy, &wdwk->work);
 }
 
 /* -------------------------------------------------------------------------- */
