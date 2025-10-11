@@ -42,7 +42,7 @@
     if (linuxkpi_debug_80211 & D80211_TRACE_MO)				\
 	printf("LKPI_80211_TRACE_MO %s:%d: %d %d %lu: " fmt "\n",	\
 	    __func__, __LINE__, curcpu, curthread->td_tid,		\
-	    jiffies, __VA_ARGS__)
+	    jiffies, ##__VA_ARGS__)
 #else
 #define	LKPI_80211_TRACE_MO(...)	do { } while(0)
 #endif
