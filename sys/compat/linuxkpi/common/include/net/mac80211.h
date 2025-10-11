@@ -956,7 +956,7 @@ struct ieee80211_ops {
 	int  (*start)(struct ieee80211_hw *);
 	void (*stop)(struct ieee80211_hw *, bool);
 
-	int  (*config)(struct ieee80211_hw *, u32);
+	int  (*config)(struct ieee80211_hw *, int, u32);
 	void (*reconfig_complete)(struct ieee80211_hw *, enum ieee80211_reconfig_type);
 
 	void (*prep_add_interface)(struct ieee80211_hw *, enum nl80211_iftype);
@@ -983,7 +983,7 @@ struct ieee80211_ops {
 	void (*flush)(struct ieee80211_hw *, struct ieee80211_vif *, u32, bool);
 	void (*flush_sta)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_sta *);
 
-	int  (*set_frag_threshold)(struct ieee80211_hw *, u32);
+	int  (*set_frag_threshold)(struct ieee80211_hw *, int, u32);
 
 	void (*sync_rx_queues)(struct ieee80211_hw *);
 
@@ -1026,8 +1026,8 @@ struct ieee80211_ops {
 	void (*unassign_vif_chanctx)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_bss_conf *, struct ieee80211_chanctx_conf *);
 	int  (*switch_vif_chanctx)(struct ieee80211_hw *, struct ieee80211_vif_chanctx_switch *, int, enum ieee80211_chanctx_switch_mode);
 
-	int  (*get_antenna)(struct ieee80211_hw *, u32 *, u32 *);
-	int  (*set_antenna)(struct ieee80211_hw *, u32, u32);
+	int  (*get_antenna)(struct ieee80211_hw *, int, u32 *, u32 *);
+	int  (*set_antenna)(struct ieee80211_hw *, int, u32, u32);
 
 	int  (*remain_on_channel)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_channel *, int, enum ieee80211_roc_type);
 	int  (*cancel_remain_on_channel)(struct ieee80211_hw *, struct ieee80211_vif *);
@@ -1038,7 +1038,7 @@ struct ieee80211_ops {
 	void (*bss_info_changed)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_bss_conf *, u64);
         void (*link_info_changed)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_bss_conf *, u64);
 
-	int  (*set_rts_threshold)(struct ieee80211_hw *, u32);
+	int  (*set_rts_threshold)(struct ieee80211_hw *, int, u32);
 	void (*event_callback)(struct ieee80211_hw *, struct ieee80211_vif *, const struct ieee80211_event *);
 	int  (*get_survey)(struct ieee80211_hw *, int, struct survey_info *);
 	int  (*get_ftm_responder_stats)(struct ieee80211_hw *, struct ieee80211_vif *, struct cfg80211_ftm_responder_stats *);
@@ -1048,7 +1048,7 @@ struct ieee80211_ops {
 	void (*offset_tsf)(struct ieee80211_hw *, struct ieee80211_vif *, s64);
 
 	int  (*set_bitrate_mask)(struct ieee80211_hw *, struct ieee80211_vif *, const struct cfg80211_bitrate_mask *);
-	void (*set_coverage_class)(struct ieee80211_hw *, s16);
+	void (*set_coverage_class)(struct ieee80211_hw *, int, s16);
 	int  (*set_tim)(struct ieee80211_hw *, struct ieee80211_sta *, bool);
 
 	int  (*set_key)(struct ieee80211_hw *, enum set_key_cmd, struct ieee80211_vif *, struct ieee80211_sta *, struct ieee80211_key_conf *);
@@ -2406,7 +2406,7 @@ ieee80211_remove_key(struct ieee80211_key_conf *key)
 
 static __inline struct ieee80211_key_conf *
 ieee80211_gtk_rekey_add(struct ieee80211_vif *vif,
-    struct ieee80211_key_conf *key, int link_id)
+    uint16_t keyidx, uint8_t *key, size_t keylen, int link_id)
 {
         TODO();
         return (NULL);
