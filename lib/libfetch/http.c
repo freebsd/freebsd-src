@@ -1863,7 +1863,14 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 				http_cmd(conn, "%s: %s", hdr->name, hdr->value);
 		}
 
-		if (body != NULL) {
+		if (body == NULL) {
+			/*
+			 * Prevent the message from being delimited by
+			 * connection close.  See the comment on setsockopt(2)
+			 * calls below.
+			 */
+			http_cmd(conn, "Content-Length: 0");
+		} else {
 			off_t body_len;
 
 			/* Add a Content-Length header if possible. */
