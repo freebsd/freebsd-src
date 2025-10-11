@@ -1159,6 +1159,9 @@ skb_cow_head(struct sk_buff *skb, unsigned int headroom)
 	return (-1);
 }
 
+/* Misplaced here really but sock comes from skbuff. */
+#define	sk_pacing_shift_update(sock, n)
+
 #define	SKB_WITH_OVERHEAD(_s)						\
 	(_s) - ALIGN(sizeof(struct skb_shared_info), CACHE_LINE_SIZE)
 
