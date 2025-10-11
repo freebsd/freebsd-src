@@ -48,31 +48,11 @@ configure:
 	    enable-sctp \
 	    --openssldir=etc \
 	    --prefix=/usr)
-	@echo "Building configdata.pm for later use."
-	@(cd ${.CURDIR} && \
-	    ${SETENVI} ${WRK_ENV} ${GMAKE} -j ${.MAKE.JOBS} configdata.pm)
-
-	@echo "Populating Makefile.version with release information"
-	@(cd ${LCRYPTO_SRC} && ${SETENVI} ${WRK_ENV} ${PERL} \
-	     ${LCRYPTO_SRC}/freebsd/dump_version_from_configdata.pl > \
-	     ${SRCTOP}/secure/lib/libcrypto/Makefile.version)
 
 all: patch
 	@echo "==> Building generated files (headers, manpages, etc)"
 	@(cd ${.CURDIR} && \
 	     ${SETENVI} ${WRK_ENV} ${GMAKE} -j ${.MAKE.JOBS} build_all_generated)
-
-	# 1. Fix --prefix.
-	#    a. Not sure why --prefix isn't honored properly, even though it's
-	#       passed to Configure; the files might be getting rebuilt
-	#       post-Configure, somehow.
-	# 2. Remove duplicate path in CFLAGS.
-	# 3. Remove duplicate path in includedir(s).
-	@echo "==> Fixing pkgconfig files"
-	@find . -name \*.pc -print -exec sed -i '' -E \
-	    -e 's,^prefix=.+,prefix=/usr,' \
-	    -e 's,[[:space:]]+(\-I)?\$\{prefix\}/\./include[[:space:]]*,,g' \
-	    {} +
 
 	@echo "==> Cleaning / rebuilding ASM"
 	@(cd ${SRCTOP}/secure/lib/libcrypto && \
