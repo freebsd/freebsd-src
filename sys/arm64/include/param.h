@@ -95,6 +95,10 @@
 #define	PAGE_SIZE	(1 << PAGE_SHIFT)
 #define	PAGE_MASK	(PAGE_SIZE - 1)
 
+#define	MINIDUMP_PAGE_SIZE	PAGE_SIZE
+#define	MINIDUMP_PAGE_MASK	PAGE_MASK
+#define	MINIDUMP_PAGE_SHIFT	PAGE_SHIFT
+
 #define	MAXPAGESIZES	4		/* maximum number of supported page sizes */
 
 #ifndef KSTACK_PAGES

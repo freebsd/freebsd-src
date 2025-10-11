@@ -53,6 +53,7 @@
 #include <machine/vmparam.h>
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
+CTASSERT(MINIDUMP_PAGE_SIZE == PAGE_SIZE_PT);
 
 static struct kerneldumpheader kdh;
 
@@ -92,7 +93,8 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 	if (maxdumpsz == 0)	/* seatbelt */
 		maxdumpsz = PAGE_SIZE;
 	error = 0;
-	if ((sz % PAGE_SIZE) != 0) {
+	if ((pa != 0 && (sz % PAGE_SIZE) != 0) ||
+	    (ptr != 0 && (sz % MINIDUMP_PAGE_SIZE) != 0)) {
 		printf("size not page aligned\n");
 		return (EINVAL);
 	}
@@ -157,6 +159,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 
 /* A fake page table page, to avoid having to handle both 4K and 2M pages */
 static pd_entry_t fakepd[NPDEPG];
+CTASSERT(sizeof(fakepd) == MINIDUMP_PAGE_SIZE);
 
 int
 cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
@@ -191,7 +194,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 		 * We always write a page, even if it is zero. Each
 		 * page written corresponds to 1GB of space
 		 */
-		pmapsize += PAGE_SIZE;
+		pmapsize += PAGE_SIZE_PT;
 		ii = pmap_pml4e_index(va);
 		pml4 = (uint64_t *)PHYS_TO_DMAP(KPML4phys) + ii;
 		pdp = (uint64_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
@@ -207,7 +210,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 		if ((pdpe & PG_PS) != 0) {
 			va += NBPDP;
 			pa = pdpe & PG_PS_FRAME;
-			for (n = 0; n < NPDEPG * NPTEPG; n++) {
+			for (n = 0; n < NPDEPG * NPTEPG; n += PAGE_SIZE_PTES) {
 				if (vm_phys_is_dumpable(pa))
 					vm_page_dump_add(state->dump_bitset,
 					    pa);
@@ -226,7 +229,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 			if ((pde & PG_PS) != 0) {
 				/* This is an entire 2M page. */
 				pa = pde & PG_PS_FRAME;
-				for (k = 0; k < NPTEPG; k++) {
+				for (k = 0; k < NPTEPG; k += PAGE_SIZE_PTES) {
 					if (vm_phys_is_dumpable(pa))
 						vm_page_dump_add(
 						    state->dump_bitset, pa);
@@ -241,7 +244,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 				vm_page_dump_add(state->dump_bitset, pa);
 			/* and for each valid page in this 2MB block */
 			pt = (uint64_t *)PHYS_TO_DMAP(pde & PG_FRAME);
-			for (k = 0; k < NPTEPG; k++) {
+			for (k = 0; k < NPTEPG; k += PAGE_SIZE_PTES) {
 				pte = atomic_load_64(&pt[k]);
 				if ((pte & PG_V) == 0)
 					continue;
@@ -256,18 +259,18 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	/* Calculate dump size. */
 	mbp = state->msgbufp;
 	dumpsize = pmapsize;
-	dumpsize += round_page(mbp->msg_size);
-	dumpsize += round_page(sizeof(dump_avail));
-	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
+	dumpsize += roundup2(mbp->msg_size, MINIDUMP_PAGE_SIZE);
+	dumpsize += roundup2(sizeof(dump_avail), MINIDUMP_PAGE_SIZE);
+	dumpsize += roundup2(BITSET_SIZE(vm_page_dump_pages), MINIDUMP_PAGE_SIZE);
 	VM_PAGE_DUMP_FOREACH(state->dump_bitset, pa) {
 		/* Clear out undumpable pages now if needed */
 		if (PHYS_IN_DMAP(pa) && vm_phys_is_dumpable(pa)) {
-			dumpsize += PAGE_SIZE;
+			dumpsize += MINIDUMP_PAGE_SIZE;
 		} else {
 			vm_page_dump_drop(state->dump_bitset, pa);
 		}
 	}
-	dumpsize += PAGE_SIZE;
+	dumpsize += MINIDUMP_PAGE_SIZE;
 
 	wdog_next = progress = dumpsize;
 	dumpsys_pb_init(dumpsize);
@@ -277,12 +280,13 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	strcpy(mdhdr.magic, MINIDUMP_MAGIC);
 	mdhdr.version = MINIDUMP_VERSION;
 	mdhdr.msgbufsize = mbp->msg_size;
-	mdhdr.bitmapsize = round_page(BITSET_SIZE(vm_page_dump_pages));
+	mdhdr.bitmapsize = roundup2(BITSET_SIZE(vm_page_dump_pages),
+	    MINIDUMP_PAGE_SIZE);
 	mdhdr.pmapsize = pmapsize;
 	mdhdr.kernbase = kva_layout.km_low;
 	mdhdr.dmapbase = kva_layout.dmap_low;
 	mdhdr.dmapend = kva_layout.dmap_high;
-	mdhdr.dumpavailsize = round_page(sizeof(dump_avail));
+	mdhdr.dumpavailsize = roundup2(sizeof(dump_avail), MINIDUMP_PAGE_SIZE);
 
 	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_AMD64_VERSION,
 	    dumpsize);
@@ -297,12 +301,13 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	/* Dump my header */
 	bzero(&fakepd, sizeof(fakepd));
 	bcopy(&mdhdr, &fakepd, sizeof(mdhdr));
-	error = blk_write(di, (char *)&fakepd, 0, PAGE_SIZE);
+	error = blk_write(di, (char *)&fakepd, 0, MINIDUMP_PAGE_SIZE);
 	if (error)
 		goto fail;
 
 	/* Dump msgbuf up front */
-	error = blk_write(di, mbp->msg_ptr, 0, round_page(mbp->msg_size));
+	error = blk_write(di, mbp->msg_ptr, 0,
+	    roundup2(mbp->msg_size, MINIDUMP_PAGE_SIZE));
 	if (error)
 		goto fail;
 
@@ -311,13 +316,13 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	    "Large dump_avail not handled");
 	bzero(&fakepd, sizeof(fakepd));
 	memcpy(fakepd, dump_avail, sizeof(dump_avail));
-	error = blk_write(di, (char *)fakepd, 0, PAGE_SIZE);
+	error = blk_write(di, (char *)fakepd, 0, MINIDUMP_PAGE_SIZE);
 	if (error)
 		goto fail;
 
 	/* Dump bitmap */
 	error = blk_write(di, (char *)state->dump_bitset, 0,
-	    round_page(BITSET_SIZE(vm_page_dump_pages)));
+	    roundup2(BITSET_SIZE(vm_page_dump_pages), MINIDUMP_PAGE_SIZE));
 	if (error)
 		goto fail;
 
@@ -331,7 +336,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 
 		/* We always write a page, even if it is zero */
 		if ((pdpe & PG_V) == 0) {
-			error = blk_write(di, (char *)&fakepd, 0, PAGE_SIZE);
+			error = blk_write(di, (char *)&fakepd, 0, PAGE_SIZE_PT);
 			if (error)
 				goto fail;
 			/* flush, in case we reuse fakepd in the same block */
@@ -347,7 +352,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 			fakepd[0] = pdpe;
 			for (j = 1; j < NPDEPG; j++)
 				fakepd[j] = fakepd[j - 1] + NBPDR;
-			error = blk_write(di, (char *)&fakepd, 0, PAGE_SIZE);
+			error = blk_write(di, (char *)&fakepd, 0, PAGE_SIZE_PT);
 			if (error)
 				goto fail;
 			/* flush, in case we reuse fakepd in the same block */
@@ -361,10 +366,10 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 		pa = pdpe & PG_FRAME;
 		if (PHYS_IN_DMAP(pa) && vm_phys_is_dumpable(pa)) {
 			pd = (uint64_t *)PHYS_TO_DMAP(pa);
-			error = blk_write(di, (char *)pd, 0, PAGE_SIZE);
+			error = blk_write(di, (char *)pd, 0, PAGE_SIZE_PT);
 		} else {
 			/* Malformed pa, write the zeroed fakepd. */
-			error = blk_write(di, (char *)&fakepd, 0, PAGE_SIZE);
+			error = blk_write(di, (char *)&fakepd, 0, PAGE_SIZE_PT);
 		}
 		if (error)
 			goto fail;
@@ -375,7 +380,8 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 
 	/* Dump memory chunks */
 	VM_PAGE_DUMP_FOREACH(state->dump_bitset, pa) {
-		error = blk_write(di, 0, pa, PAGE_SIZE);
+		error = blk_write(di, (char *)PHYS_TO_DMAP(pa), 0,
+		    MINIDUMP_PAGE_SIZE);
 		if (error)
 			goto fail;
 	}
