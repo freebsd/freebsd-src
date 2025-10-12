@@ -1,0 +1,7 @@
+# Test braced variable expansion in PS1
+testvar=xyz123
+output=$(testvar=xyz123 PS1='prefix-${testvar}-suffix:' ENV=/dev/null ${SH} +m -i </dev/null 2>&1)
+case $output in
+*xyz123*) exit 0 ;;
+*) echo "Expected 'xyz123' in prompt output"; exit 1 ;;
+esac

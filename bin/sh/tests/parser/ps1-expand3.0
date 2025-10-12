@@ -1,0 +1,8 @@
+# Test special parameter $$ (PID) in PS1
+output=$(PS1='pid:$$:' ENV=/dev/null ${SH} +m -i </dev/null 2>&1)
+# Check that output contains "pid:" followed by a number (not literal $$)
+case $output in
+*pid:\$\$:*) echo "PID not expanded, got literal \$\$"; exit 1 ;;
+*pid:[0-9]*) exit 0 ;;
+*) echo "Expected PID after 'pid:' in output"; exit 1 ;;
+esac
