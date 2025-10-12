@@ -1,4 +1,4 @@
-/*	$NetBSD: support.c,v 1.9 2018/09/18 22:12:19 christos Exp $	*/
+/*	$NetBSD: support.c,v 1.3 2025/02/11 17:48:30 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -32,8 +32,10 @@
 #include "config.h"
 #endif
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: support.c,v 1.9 2018/09/18 22:12:19 christos Exp $");
+#endif
+__RCSID("$NetBSD: support.c,v 1.3 2025/02/11 17:48:30 christos Exp $");
 
 #include <time.h>
 #include <string.h>
@@ -66,7 +68,8 @@ expandm(char *buf, size_t len, const char *fmt)
 }
 
 void
-vdlog(int level __unused, const char *fmt, va_list ap)
+vdlog(int level __unused, struct syslog_data *sd __unused,
+    const char *fmt, va_list ap)
 {
 	char buf[BUFSIZ];
 
@@ -81,7 +84,7 @@ dlog(int level, const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	vdlog(level, fmt, ap);
+	vdlog(level, NULL, fmt, ap);
 	va_end(ap);
 }
 

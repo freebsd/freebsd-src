@@ -7,14 +7,14 @@
 +#include "packet.h"
 +#include "log.h"
 +#include "pfilter.h"
-+#include <blacklist.h>
++#include <blocklist.h>
 +
-+static struct blacklist *blstate;
++static struct blocklist *blstate;
 +
 +void
 +pfilter_init(void)
 +{
-+	blstate = blacklist_open();
++	blstate = blocklist_open();
 +}
 +
 +void
@@ -27,9 +27,9 @@
 +		return;
 +	// XXX: 3?
 + 	fd = packet_connection_is_on_socket() ? packet_get_connection_in() : 3;
-+	(void)blacklist_r(blstate, a, fd, "ssh");
++	(void)blocklist_r(blstate, a, fd, "ssh");
 +	if (a == 0) {
-+		blacklist_close(blstate);
++		blocklist_close(blstate);
 +		blstate = NULL;
 +	}
 +}
@@ -60,8 +60,8 @@ diff -u -u -r1.10 Makefile
  LDADD+=	-lwrap
  DPADD+=	${LIBWRAP}
 +
-+LDADD+=	-lblacklist
-+DPADD+=	${LIBBLACKLIST}
++LDADD+=	-lblocklist
++DPADD+=	${LIBBLOCKLIST}
 diff -ru openssh-7.7p1/auth-pam.c dist/auth-pam.c
 --- openssh-7.7p1/auth-pam.c	2018-04-02 01:38:28.000000000 -0400
 +++ dist/auth-pam.c	2018-05-23 11:56:22.206661484 -0400
