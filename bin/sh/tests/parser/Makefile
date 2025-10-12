@@ -86,6 +86,12 @@ ${PACKAGE}FILES+=	only-redir2.0
 ${PACKAGE}FILES+=	only-redir3.0
 ${PACKAGE}FILES+=	only-redir4.0
 ${PACKAGE}FILES+=	pipe-not1.0
+${PACKAGE}FILES+=	ps1-expand1.0
+${PACKAGE}FILES+=	ps1-expand2.0
+${PACKAGE}FILES+=	ps1-expand3.0
+${PACKAGE}FILES+=	ps1-expand4.0
+${PACKAGE}FILES+=	ps1-expand5.0
+${PACKAGE}FILES+=	ps2-expand1.0
 ${PACKAGE}FILES+=	set-v1.0 set-v1.0.stderr
 ${PACKAGE}FILES+=	var-assign1.0
 
