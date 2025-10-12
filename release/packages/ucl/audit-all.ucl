@@ -39,7 +39,7 @@ The audit facility implements the de facto industry standard BSM API, file
 formats, and command line interface, first found in the Solaris operating
 system.
 
-This packages provides the auditing daemon auditd(8) and various utilities
+This package provides the auditing daemon auditd(8) and various utilities
 used to manage the auditing system and work with audit data.
 EOD
 
