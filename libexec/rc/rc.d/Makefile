@@ -111,9 +111,10 @@ AUTOFS=		automount \
 		automountd \
 		autounmountd
 
-CONFGROUPS.${MK_BLACKLIST}+=	BLOCKLIST
+CONFGROUPS.${MK_BLOCKLIST}+=	BLOCKLIST
 BLOCKLISTPACKAGE=		blocklist
-BLOCKLIST=	blacklistd
+BLOCKLIST=	blacklistd \
+		blocklistd
 
 CONFGROUPS.${MK_BLUETOOTH}+=	BLUETOOTH
 BLUETOOTHPACKAGE=		bluetooth

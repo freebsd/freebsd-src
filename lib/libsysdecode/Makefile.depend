@@ -38,7 +38,7 @@ DIRDEPS = \
 	lib/libarchive \
 	lib/libbe \
 	lib/libbegemot \
-	lib/libblacklist \
+	lib/libblocklist \
 	lib/libblocksruntime \
 	lib/libbluetooth \
 	lib/libbsddialog \

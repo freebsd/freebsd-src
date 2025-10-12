@@ -19,12 +19,14 @@
 comment = "Network blocklist daemon"
 
 desc = <<EOD
-The blacklistd(8) daemon monitors failed access attempts from remote network
+The blocklistd(8) daemon monitors failed access attempts from remote network
 locations and automatically blocks the originating network address using the
 system packet filter.
 
-blacklistd(8) relies on each network daemon to report access attempts, so
-only daemons which have had blacklist support added will work.
+blocklistd(8) relies on each network daemon to report access attempts, so
+only daemons which have had blocklist support added will work.
+
+The blocklistd(8) daemon was previously named blacklistd(8).
 EOD
 
 annotations {

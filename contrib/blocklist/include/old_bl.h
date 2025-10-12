@@ -1,10 +1,8 @@
+/*	$NetBSD: bl.h,v 1.2 2024/08/02 17:11:55 christos Exp $	*/
+
 /*-
- * Copyright (c) 2015 The NetBSD Foundation, Inc.
- * Copyright (c) 2016 The FreeBSD Foundation
+ * Copyright (c) 2014 The NetBSD Foundation, Inc.
  * All rights reserved.
- *
- * Portions of this software were developed by Kurt Lidl
- * under sponsorship from the FreeBSD Foundation.
  *
  * This code is derived from software contributed to The NetBSD Foundation
  * by Christos Zoulas.
@@ -30,68 +28,53 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef _OLD_BL_H
+#define _OLD_BL_H
 
-#include "includes.h"
-
-#include <ctype.h>
-#include <stdarg.h>
 #include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <syslog.h>
-#include <unistd.h>
+#include <stdarg.h>
+#include <sys/param.h>
+#include <sys/socket.h>
+#include "blacklist.h"
 
-#include "ssh.h"
-#include "packet.h"
-#include "log.h"
-#include "misc.h"
-#include "servconf.h"
-#include <blacklist.h>
-#include "blacklist_client.h"
+typedef enum {
+	BL_INVALID,
+	BL_ADD,
+	BL_DELETE,
+	BL_ABUSE,
+	BL_BADUSER
+} bl_type_t;
 
-static struct blacklist *blstate = NULL;
+typedef struct {
+	bl_type_t bi_type;
+	int bi_fd;
+	uid_t bi_uid;
+	gid_t bi_gid;
+	socklen_t bi_slen;
+	struct sockaddr_storage bi_ss;
+	char bi_msg[1024];
+} bl_info_t;
 
-/* import */
-extern ServerOptions options;
+#define bi_cred bi_u._bi_cred
 
-/* internal definition from bl.h */
-struct blacklist *bl_create(bool, char *, void (*)(int, const char *, va_list));
+/* We want the new name */
+#ifndef _PATH_BLSOCK
+#define _PATH_BLSOCK "/var/run/blocklistd.sock"
+#endif
 
-/* impedence match vsyslog() to sshd's internal logging levels */
-void
-im_log(int priority, const char *message, va_list args)
-{
-	LogLevel imlevel;
+__BEGIN_DECLS
 
-	switch (priority) {
-	case LOG_ERR:
-		imlevel = SYSLOG_LEVEL_ERROR;
-		break;
-	case LOG_DEBUG:
-		imlevel = SYSLOG_LEVEL_DEBUG1;
-		break;
-	case LOG_INFO:
-		imlevel = SYSLOG_LEVEL_INFO;
-		break;
-	default:
-		imlevel = SYSLOG_LEVEL_DEBUG2;
-	}
-	do_log2(imlevel, message, args);
-}
+typedef struct blacklist *bl_t;
 
-void
-blacklist_init(void)
-{
+bl_t bl_create(bool, const char *,
+    void (*)(int, struct syslog_data *, const char *, va_list));
+void bl_destroy(bl_t);
+int bl_send(bl_t, bl_type_t, int, const struct sockaddr *, socklen_t,
+    const char *);
+int bl_getfd(bl_t);
+bl_info_t *bl_recv(bl_t);
+bool bl_isconnected(bl_t);
 
-	if (options.use_blacklist)
-		blstate = bl_create(false, NULL, im_log);
-}
+__END_DECLS
 
-void
-blacklist_notify(struct ssh *ssh, int action, const char *msg)
-{
-
-	if (blstate != NULL && ssh_packet_connection_is_on_socket(ssh))
-		(void)blacklist_r(blstate, action,
-		ssh_packet_get_connection_in(ssh), msg);
-}
+#endif /* _OLD_BL_H */

@@ -25,30 +25,22 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
-# 
+#
 #
 
-# PROVIDE: blacklistd
+# PROVIDE: blocklistd
 # REQUIRE: netif pf
 
 . /etc/rc.subr
 
-name="blacklistd"
-desc="The blacklist daemon has been renamed to blocklist"
-rcvar="blacklistd_enable"
+name="blocklistd"
+desc="System blocklist daemon"
+rcvar="blocklistd_enable"
 command="/usr/sbin/${name}"
-required_files="/etc/blacklistd.conf"
-start_precmd="blacklistd_prestart"
+required_files="/etc/blocklistd.conf"
 
 # no svcj options needed
-: ${blacklistd_svcj_options:=""}
-
-blacklistd_prestart()
-{
-	echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
-	echo "@  WARNING: blacklistd has been renamed to blocklistd      @"
-	echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
-}
+: ${blocklistd_svcj_options:=""}
 
 load_rc_config $name
 run_rc_command "$1"

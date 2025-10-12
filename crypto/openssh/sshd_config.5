@@ -2020,20 +2020,20 @@ The default
 is to never expire connections for having no open channels.
 This option may be useful in conjunction with
 .Cm ChannelTimeout .
-.It Cm UseBlacklist
+.It Cm UseBlocklist
 Specifies whether
 .Xr sshd 8
 attempts to send authentication success and failure messages
 to the
-.Xr blacklistd 8
+.Xr blocklistd 8
 daemon.
 The default is
 .Cm no .
-For forward compatibility with an upcoming
-.Xr blacklistd
-rename, the
-.Cm UseBlocklist
-alias can be used instead.
+For backward compatibility with
+.Xr blacklistd 8 ,
+the
+.Cm UseBlacklist
+alias can still be used.
 .It Cm UseDNS
 Specifies whether
 .Xr sshd 8

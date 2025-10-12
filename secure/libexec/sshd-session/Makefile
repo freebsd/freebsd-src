@@ -29,11 +29,11 @@ CFLAGS+= -DUSE_BSM_AUDIT=1 -DHAVE_GETAUDIT_ADDR=1
 LIBADD+=	bsm
 .endif
 
-.if ${MK_BLACKLIST_SUPPORT} != "no"
-CFLAGS+= -DUSE_BLACKLIST=1 -I${SRCTOP}/contrib/blocklist/include
-SRCS+=	blacklist.c
-LIBADD+= blacklist
-LDFLAGS+=-L${LIBBLACKLISTDIR}
+.if ${MK_BLOCKLIST_SUPPORT} != "no"
+CFLAGS+= -DUSE_BLOCKLIST=1 -I${SRCTOP}/contrib/blocklist/include
+SRCS+=	blocklist.c
+LIBADD+= blocklist
+LDFLAGS+=-L${LIBBLOCKLISTDIR}
 .endif
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
