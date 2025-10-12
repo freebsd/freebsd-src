@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([blacklistd],[0.1],[christos@netbsd.com])
+AC_INIT([blocklistd],[0.1],[christos@netbsd.com])
 AM_INIT_AUTOMAKE([subdir-objects foreign])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
@@ -7,9 +7,10 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 
 AC_SUBST(WARNINGS)
+AC_SUBST(LINK_NTOA)
 
 dnl Checks for programs.
-AC_PROG_CC_STDC
+AC_PROG_CC
 AC_USE_SYSTEM_EXTENSIONS
 AM_PROG_CC_C_O
 AC_C_BIGENDIAN
@@ -18,18 +19,19 @@ AC_PROG_LN_S
 LT_INIT([disable-static pic-only])
 gl_VISIBILITY
 dnl Checks for headers
-AC_HEADER_STDC
 AC_HEADER_MAJOR
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(stdint.h fcntl.h stdint.h inttypes.h unistd.h)
 AC_CHECK_HEADERS(sys/un.h sys/socket.h limits.h)
 AC_CHECK_HEADERS(arpa/inet.h getopt.h err.h)
 AC_CHECK_HEADERS(sys/types.h util.h sys/time.h time.h)
-AC_CHECK_HEADERS(netatalk/at.h net/if_dl.h db.h db_185.h)
+AC_CHECK_HEADERS(netatalk/at.h db.h db_185.h)
+AC_CHECK_HEADERS(sys/cdefs.h)
 AC_CHECK_LIB(rt, clock_gettime)
 AC_CHECK_LIB(db, __db185_open)
 AC_CHECK_LIB(util, pidfile)
 AC_CHECK_LIB(util, sockaddr_snprintf)
+AC_SEARCH_LIBS(__xnet_connect, socket)
 
 AH_BOTTOM([
 #ifndef __NetBSD__
@@ -82,7 +84,7 @@ dnl Checks for functions
 AC_CHECK_FUNCS(strerror)
 
 dnl Provide implementation of some required functions if necessary
-AC_REPLACE_FUNCS(strtoi sockaddr_snprintf popenve clock_gettime strlcpy strlcat getprogname fparseln fgetln pidfile)
+AC_REPLACE_FUNCS(strtoi sockaddr_snprintf popenve clock_gettime strlcpy strlcat getprogname fparseln fgetln pidfile vsyslog_r)
 
 dnl See if we are cross-compiling
 AM_CONDITIONAL(IS_CROSS_COMPILE, test "$cross_compiling" = yes)

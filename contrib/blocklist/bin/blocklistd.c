@@ -1,4 +1,4 @@
-/*	$NetBSD: blacklistd.c,v 1.38 2019/02/27 02:20:18 christos Exp $	*/
+/*	$NetBSD: blocklistd.c,v 1.10 2025/03/26 17:09:35 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -31,8 +31,11 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
+
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: blacklistd.c,v 1.38 2019/02/27 02:20:18 christos Exp $");
+#endif
+__RCSID("$NetBSD: blocklistd.c,v 1.10 2025/03/26 17:09:35 christos Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -175,6 +178,8 @@ process(bl_t bl)
 	struct dbinfo dbi;
 	struct timespec ts;
 
+	memset(&dbi, 0, sizeof(dbi));
+	memset(&c, 0, sizeof(c));
 	if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
 		(*lfun)(LOG_ERR, "clock_gettime failed (%m)");
 		return;
@@ -188,10 +193,11 @@ process(bl_t bl)
 	if (getremoteaddress(bi, &rss, &rsl) == -1)
 		goto out;
 
-	if (debug) {
+	if (debug || bi->bi_msg[0]) {
 		sockaddr_snprintf(rbuf, sizeof(rbuf), "%a:%p", (void *)&rss);
-		(*lfun)(LOG_DEBUG, "processing type=%d fd=%d remote=%s msg=%s"
-		    " uid=%lu gid=%lu", bi->bi_type, bi->bi_fd, rbuf,
+		(*lfun)(bi->bi_msg[0] ? LOG_INFO : LOG_DEBUG,
+		    "processing type=%d fd=%d remote=%s msg=%s uid=%lu gid=%lu",
+		    bi->bi_type, bi->bi_fd, rbuf,
 		    bi->bi_msg, (unsigned long)bi->bi_uid,
 		    (unsigned long)bi->bi_gid);
 	}
@@ -216,16 +222,19 @@ process(bl_t bl)
 	switch (bi->bi_type) {
 	case BL_ABUSE:
 		/*
-		 * If the application has signaled abusive behavior,
-		 * set the number of fails to be one less than the
-		 * configured limit.  Fallthrough to the normal BL_ADD
-		 * processing, which will increment the failure count
-		 * to the threshhold, and block the abusive address.
+		 * If the application has signaled abusive behavior, set the
+		 * number of fails to be two less than the configured limit.
+		 * Fall through to the normal BL_ADD and BL_BADUSER processing,
+		 * which will increment the failure count to the threshhold, and
+		 * block the abusive address.
 		 */
 		if (c.c_nfail != -1)
-			dbi.count = c.c_nfail - 1;
+			dbi.count = c.c_nfail - 2;
 		/*FALLTHROUGH*/
 	case BL_ADD:
+		dbi.count++;		/* will become += 2 */
+		/*FALLTHROUGH*/
+	case BL_BADUSER:
 		dbi.count++;
 		dbi.last = ts.tv_sec;
 		if (c.c_nfail != -1 && dbi.count >= c.c_nfail) {
@@ -253,9 +262,6 @@ process(bl_t bl)
 			goto out;
 		dbi.count = 0;
 		dbi.last = 0;
-		break;
-	case BL_BADUSER:
-		/* ignore for now */
 		break;
 	default:
 		(*lfun)(LOG_ERR, "unknown message %d", bi->bi_type);
@@ -334,7 +340,7 @@ static void
 addfd(struct pollfd **pfdp, bl_t **blp, size_t *nfd, size_t *maxfd,
     const char *path)
 {
-	bl_t bl = bl_create(true, path, vflag ? vdlog : vsyslog);
+	bl_t bl = bl_create(true, path, vflag ? vdlog : vsyslog_r);
 	if (bl == NULL || !bl_isconnected(bl))
 		exit(EXIT_FAILURE);
 	if (*nfd >= *maxfd) {
@@ -395,15 +401,25 @@ rules_flush(void)
 static void
 rules_restore(void)
 {
+	DB *db;
 	struct conf c;
 	struct dbinfo dbi;
 	unsigned int f;
 
-	for (f = 1; state_iterate(state, &c, &dbi, f) == 1; f = 0) {
+	db = state_open(dbfile, O_RDONLY, 0);
+	if (db == NULL) {
+		(*lfun)(LOG_ERR, "Can't open `%s' to restore state (%m)",
+			dbfile);
+		return;
+	}
+	for (f = 1; state_iterate(db, &c, &dbi, f) == 1; f = 0) {
 		if (dbi.id[0] == '\0')
 			continue;
 		(void)run_change("add", &c, dbi.id, sizeof(dbi.id));
+		state_put(state, &c, &dbi);
 	}
+	state_close(db);
+	state_sync(state);
 }
 
 int

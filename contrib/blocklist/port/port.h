@@ -1,6 +1,7 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+#include <sys/param.h>
 #include <stdio.h>
 #include <inttypes.h>
 #include <time.h>
@@ -15,6 +16,22 @@
 #define __dead __attribute__((__noreturn__))
 #endif
 
+#ifndef __BEGIN_DECLS
+#define __BEGIN_DECLS
+#endif
+
+#ifndef __END_DECLS
+#define __END_DECLS
+#endif
+
+#ifndef MIN
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#endif
+
+#ifndef MAX
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+#endif
+
 #ifndef __RCSID
 #define __RCSID(a)
 #endif
@@ -25,6 +42,10 @@
 
 #ifndef __arraycount
 #define __arraycount(a) (sizeof(a) / sizeof(a[0]))
+#endif
+
+#ifndef __STRING
+#define __STRING(x)	#x
 #endif
 
 #ifndef HAVE_STRLCPY
@@ -78,9 +99,10 @@ int clock_gettime(int, struct timespec *);
 #define CLOCK_REALTIME 0
 #endif
 
-#if !defined(__FreeBSD__)
-#define _PATH_BLCONF "conf"
-#define _PATH_BLCONTROL "control"
-#define _PATH_BLSOCK "blacklistd.sock"
-#define _PATH_BLSTATE "blacklistd.db"
+#ifndef HAVE_VSYSLOG_R
+#define	SYSLOG_DATA_INIT	{ 0 }
+struct syslog_data {
+        int dummy;
+};
+void vsyslog_r(int, struct syslog_data *, const char *, va_list);
 #endif
