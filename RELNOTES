@@ -10,8 +10,8 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
-5000d023a464, 03da141d59ae:
-	Add a "-f option to "kadmin -l dump" with can be used to
+5000d023a446, 03da141d59ae:
+	Add a "-f" option to "kadmin -l dump" with can be used to
 	dump the Heimdal KDC database in a format that can be loaded
 	into the MIT KDC.
 	See https://wiki.freebsd.org/Kerberos/Heimdal2MIT_KDC_Migration
