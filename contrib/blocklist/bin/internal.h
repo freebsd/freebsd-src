@@ -1,4 +1,4 @@
-/*	$NetBSD: internal.h,v 1.14 2016/04/04 15:52:56 christos Exp $	*/
+/*	$NetBSD: internal.h,v 1.1.1.1 2020/06/15 01:52:53 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -32,13 +32,13 @@
 #define _INTERNAL_H
 
 #ifndef _PATH_BLCONF
-#define	_PATH_BLCONF	"/etc/blacklistd.conf"
+#define	_PATH_BLCONF	"/etc/blocklistd.conf"
 #endif
 #ifndef _PATH_BLCONTROL
-#define	_PATH_BLCONTROL	"/libexec/blacklistd-helper"
+#define	_PATH_BLCONTROL	"/usr/libexec/blocklistd-helper"
 #endif
 #ifndef _PATH_BLSTATE
-#define	_PATH_BLSTATE	"/var/db/blacklistd.db"
+#define	_PATH_BLSTATE	"/var/db/blocklistd.db"
 #endif
 
 extern struct confset rconf, lconf;

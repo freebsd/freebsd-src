@@ -1,12 +1,12 @@
 --- Make.rules.in.orig	2015-05-27 20:25:54.000000000 -0400
 +++ Make.rules.in	2016-01-25 21:48:47.000000000 -0500
 @@ -110,3 +110,8 @@
-
+ 
  FTPWHO_OBJS=ftpwho.o scoreboard.o misc.o
  BUILD_FTPWHO_OBJS=utils/ftpwho.o utils/scoreboard.o utils/misc.o
 +
-+CPPFLAGS+=-DHAVE_BLACKLIST
-+LIBS+=-lblacklist
++CPPFLAGS+=-DHAVE_BLOCKLIST
++LIBS+=-lblocklist
 +OBJS+= pfilter.o
 +BUILD_OBJS+= src/pfilter.o
 --- /dev/null	2016-01-22 17:30:55.000000000 -0500
@@ -84,25 +84,25 @@
 +#include "pfilter.h"
 +#include "conf.h"
 +#include "privs.h"
-+#ifdef HAVE_BLACKLIST
-+#include <blacklist.h>
++#ifdef HAVE_BLOCKLIST
++#include <blocklist.h>
 +#endif
 +
-+static struct blacklist *blstate;
++static struct blocklist *blstate;
 +
 +void
 +pfilter_init(void)
 +{
-+#ifdef HAVE_BLACKLIST
++#ifdef HAVE_BLOCKLIST
 +	if (blstate == NULL)
-+		blstate = blacklist_open();
++		blstate = blocklist_open();
 +#endif
 +}
 +
 +void
 +pfilter_notify(int a)
 +{
-+#ifdef HAVE_BLACKLIST
++#ifdef HAVE_BLOCKLIST
 +	conn_t *c = session.c;
 +	int fd;
 +
@@ -119,6 +119,6 @@
 +		pfilter_init();
 +	if (blstate == NULL)
 +		return;
-+	(void)blacklist_r(blstate, a, fd, "proftpd");
++	(void)blocklist_r(blstate, a, fd, "proftpd");
 +#endif
 +}

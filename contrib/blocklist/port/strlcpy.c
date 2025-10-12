@@ -1,4 +1,4 @@
-/*	$NetBSD: strlcpy.c,v 1.2 2015/01/22 03:48:07 christos Exp $	*/
+/*	$NetBSD: strlcpy.c,v 1.2 2025/02/11 17:48:30 christos Exp $	*/
 /*	$OpenBSD: strlcpy.c,v 1.7 2003/04/12 21:56:39 millert Exp $	*/
 
 /*
@@ -22,9 +22,12 @@
 #include "config.h"
 #endif
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
+#endif
+
 #if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: strlcpy.c,v 1.2 2015/01/22 03:48:07 christos Exp $");
+__RCSID("$NetBSD: strlcpy.c,v 1.2 2025/02/11 17:48:30 christos Exp $");
 #endif /* LIBC_SCCS and not lint */
 
 #ifdef _LIBC
