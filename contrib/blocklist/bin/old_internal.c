@@ -1,10 +1,8 @@
+/*	$NetBSD: internal.c,v 1.2 2025/02/11 17:48:30 christos Exp $	*/
+
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
- * Copyright (c) 2016 The FreeBSD Foundation
  * All rights reserved.
- *
- * Portions of this software were developed by Kurt Lidl
- * under sponsorship from the FreeBSD Foundation.
  *
  * This code is derived from software contributed to The NetBSD Foundation
  * by Christos Zoulas.
@@ -30,32 +28,23 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
-#ifndef BLACKLIST_CLIENT_H
-#define BLACKLIST_CLIENT_H
-
-#ifndef BLACKLIST_API_ENUM
-enum {
-	BLACKLIST_AUTH_OK = 0,
-	BLACKLIST_AUTH_FAIL,
-	BLACKLIST_ABUSIVE_BEHAVIOR,
-	BLACKLIST_BAD_USER
-};
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
-#ifdef USE_BLACKLIST
-void blacklist_init(void);
-void blacklist_notify(struct ssh *, int, const char *);
-
-#define BLACKLIST_INIT() blacklist_init()
-#define BLACKLIST_NOTIFY(ssh,x,msg) blacklist_notify(ssh,x,msg)
-
-#else
-
-#define BLACKLIST_INIT()
-#define BLACKLIST_NOTIFY(ssh,x,msg)
-
+#ifdef HAVE_SYS_CDEFS_H
+#include <sys/cdefs.h>
 #endif
+__RCSID("$NetBSD: internal.c,v 1.2 2025/02/11 17:48:30 christos Exp $");
 
+#include <stdio.h>
+#include <syslog.h>
+#include "conf.h"
+#include "old_internal.h"
 
-#endif /* BLACKLIST_CLIENT_H */
+int debug;
+const char *rulename = "blacklistd";
+const char *controlprog = _PATH_BLCONTROL;
+struct confset lconf, rconf;
+struct ifaddrs *ifas;
+void (*lfun)(int, const char *, ...) = syslog;
