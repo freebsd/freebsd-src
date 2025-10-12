@@ -253,7 +253,7 @@ typedef struct {
 
 	int	refuse_connection;
 
-	int	use_blacklist;
+	int	use_blocklist;
 }       ServerOptions;
 
 /* Information about the incoming connection as used by Match */

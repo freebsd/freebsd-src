@@ -7,10 +7,10 @@ MAN=	fingerd.8
 WARNS?=	2
 WFORMAT=0
 
-.if ${MK_BLACKLIST_SUPPORT} != "no"
-CFLAGS+= -DUSE_BLACKLIST -I${SRCTOP}/contrib/blocklist/include
-LIBADD+= blacklist
-LDFLAGS+=-L${LIBBLACKLISTDIR}
+.if ${MK_BLOCKLIST_SUPPORT} != "no"
+CFLAGS+= -DUSE_BLOCKLIST -I${SRCTOP}/contrib/blocklist/include
+LIBADD+= blocklist
+LDFLAGS+=-L${LIBBLOCKLISTDIR}
 .endif
 
 .include <bsd.prog.mk>
