@@ -1,4 +1,4 @@
-.\" $NetBSD: libblocklist.3,v 1.10 2020/03/30 15:47:15 christos Exp $
+.\" $NetBSD: libblocklist.3,v 1.7 2025/02/05 20:14:30 christos Exp $
 .\"
 .\" Copyright (c) 2015 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -27,23 +27,26 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd March 30, 2020
+.Dd February 5, 2025
 .Dt LIBBLOCKLIST 3
 .Os
 .Sh NAME
 .Nm blocklist_open ,
+.Nm blocklist_open2 ,
 .Nm blocklist_close ,
 .Nm blocklist_r ,
 .Nm blocklist ,
 .Nm blocklist_sa ,
 .Nm blocklist_sa_r
-.Nd Blacklistd notification library
+.Nd Blocklistd notification library
 .Sh LIBRARY
 .Lb libblocklist
 .Sh SYNOPSIS
 .In blocklist.h
 .Ft struct blocklist *
 .Fn blocklist_open "void"
+.Ft struct blocklist *
+.Fn blocklist_open2 "void (*logger)(int, struct syslog_data *, va_list)"
 .Ft void
 .Fn blocklist_close "struct blocklist *cookie"
 .Ft int
@@ -68,6 +71,19 @@ and returns a pointer to it, or
 .Dv NULL
 on failure.
 .Pp
+The function
+.Fn blocklist_open2
+is similar to
+.Fn blocklist_open
+but allows a
+.Fa logger
+to be specified.
+If the
+.Fa logger
+is
+.Dv NULL ,
+then no logging is performed.
+.Pp
 The
 .Fn blocklist_close
 function frees all memory and resources used.
@@ -89,27 +105,21 @@ argument.
 The
 .Ar action
 parameter can take these values:
-.Bl -tag -width ".Va BLOCKLIST_ABUSIVE_BEHAVIOR"
+.Bl -tag -width ".Dv BLOCKLIST_ABUSIVE_BEHAVIOR"
+.It Va BLOCKLIST_BAD_USER
+The sending daemon has determined the username presented for
+authentication is invalid.
+This is considered as one failure count.
 .It Va BLOCKLIST_AUTH_FAIL
 There was an unsuccessful authentication attempt.
-.It Va BLOCKLIST_AUTH_OK
-A user successfully authenticated.
+This is considered as two failure counts together.
 .It Va BLOCKLIST_ABUSIVE_BEHAVIOR
-The sending daemon has detected abusive behavior
-from the remote system.
-The remote address should
-be blocked as soon as possible.
-.It Va BLOCKLIST_BAD_USER
-The sending daemon has determined the username
-presented for authentication is invalid.
-The
-.Xr blocklistd 8
-daemon compares the username to a configured list of forbidden
-usernames and
-blocks the address immediately if a forbidden username matches.
-(The
-.Ar BLOCKLIST_BAD_USER
-support is not currently available.)
+The sending daemon has detected abusive behavior from the remote system.
+This is considered as a total immediate failure.
+The remote address will be blocked as soon as possible.
+.It Va BLOCKLIST_AUTH_OK
+A valid user successfully authenticated.
+Any entry for the remote address will be removed as soon as possible.
 .El
 .Pp
 The

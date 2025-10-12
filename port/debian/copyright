@@ -1,7 +1,16 @@
-/*	$NetBSD: fgetln.c,v 1.1.1.1 2020/06/15 01:52:54 christos Exp $	*/
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: blocklist
+Upstream-Contact: christos@zoulas.com
+Source: https://github.com/zoulasc/blocklist
+Comment:
+ This package contains library that can be used by network daemons to
+ communicate with a packet filter via a daemon to enforce opening and
+ closing ports dynamically based on policy.
 
-/*-
- * Copyright (c) 1998 The NetBSD Foundation, Inc.
+Files: *
+Copyright: 2020 Christos Zoulas
+License: NetBSD
+ * Copyright (c) 2015 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -27,80 +36,3 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- */
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#if !HAVE_FGETLN
-#include <stdlib.h>
-#ifndef HAVE_NBTOOL_CONFIG_H
-/* These headers are required, but included from nbtool_config.h */
-#include <stdio.h>
-#include <unistd.h>
-#include <errno.h>
-#include <string.h>
-#endif
-
-char *
-fgetln(FILE *fp, size_t *len)
-{
-	static char *buf = NULL;
-	static size_t bufsiz = 0;
-	char *ptr;
-
-
-	if (buf == NULL) {
-		bufsiz = BUFSIZ;
-		if ((buf = malloc(bufsiz)) == NULL)
-			return NULL;
-	}
-
-	if (fgets(buf, bufsiz, fp) == NULL)
-		return NULL;
-
-	*len = 0;
-	while ((ptr = strchr(&buf[*len], '\n')) == NULL) {
-		size_t nbufsiz = bufsiz + BUFSIZ;
-		char *nbuf = realloc(buf, nbufsiz);
-
-		if (nbuf == NULL) {
-			int oerrno = errno;
-			free(buf);
-			errno = oerrno;
-			buf = NULL;
-			return NULL;
-		} else
-			buf = nbuf;
-
-		if (fgets(&buf[bufsiz], BUFSIZ, fp) == NULL) {
-			buf[bufsiz] = '\0';
-			*len = strlen(buf);
-			return buf;
-		}
-
-		*len = bufsiz;
-		bufsiz = nbufsiz;
-	}
-
-	*len = (ptr - buf) + 1;
-	return buf;
-}
-
-#endif
-
-#ifdef TEST
-int
-main(int argc, char *argv[])
-{
-	char *p;
-	size_t len;
-
-	while ((p = fgetln(stdin, &len)) != NULL) {
-		(void)printf("%zu %s", len, p);
-		free(p);
-	}
-	return 0;
-}
-#endif

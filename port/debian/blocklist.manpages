@@ -1,0 +1,4 @@
+bin/blocklistctl.8
+bin/blocklistd.8
+bin/blocklistd.conf.5
+lib/libblocklist.3

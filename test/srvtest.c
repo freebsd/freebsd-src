@@ -1,4 +1,4 @@
-/*	$NetBSD: srvtest.c,v 1.9 2015/01/22 05:35:55 christos Exp $	*/
+/*	$NetBSD: srvtest.c,v 1.2 2025/02/11 17:43:16 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -32,8 +32,10 @@
 #include "config.h"
 #endif
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: srvtest.c,v 1.9 2015/01/22 05:35:55 christos Exp $");
+#endif
+__RCSID("$NetBSD: srvtest.c,v 1.2 2025/02/11 17:43:16 christos Exp $");
 
 #include <sys/types.h> 
 #include <sys/socket.h>
@@ -167,7 +169,11 @@ static __dead void
 usage(int c)
 {
 	warnx("Unknown option `%c'", (char)c);
-	fprintf(stderr, "Usage: %s [-u] [-p <num>]\n", getprogname());
+	fprintf(stderr, "Usage: %s [-u] [-p <num>]"
+#ifdef BLDEBUG
+	    " [-s <sockpath>]"
+#endif
+	    "\n", getprogname());
 	exit(EXIT_FAILURE);
 }
 
@@ -182,14 +188,16 @@ main(int argc, char *argv[])
 	struct pollfd pfd[NUMFD];
 	int type = SOCK_STREAM, c;
 	in_port_t port = 6161;
+#ifdef BLDEBUG
+	char *sockpath = "blsock";
+	const char *optstr = "up:s:";
+#else
+	const char *optstr = "up:";
+#endif
 
 	signal(SIGCHLD, SIG_IGN);
 
-#ifdef BLDEBUG
-	b = bl_create(false, "blsock", vsyslog);
-#endif
-
-	while ((c = getopt(argc, argv, "up:")) != -1)
+	while ((c = getopt(argc, argv, optstr)) != -1)
 		switch (c) {
 		case 'u':
 			type = SOCK_DGRAM;
@@ -197,9 +205,19 @@ main(int argc, char *argv[])
 		case 'p':
 			port = (in_port_t)atoi(optarg);
 			break;
+#ifdef BLDEBUG
+		case 's':
+			sockpath = (char *)optarg;
+			break;
+#endif
 		default:
 			usage(c);
 		}
+
+#ifdef BLDEBUG
+	b = bl_create(false, sockpath, vsyslog_r);
+#endif
+
 
 	pfd[0].fd = cr(AF_INET, type, port);
 	pfd[0].events = POLLIN;

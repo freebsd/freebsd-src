@@ -1,13 +1,27 @@
 #
 ACLOCAL_AMFLAGS = -I m4
 lib_LTLIBRARIES = libblocklist.la
-include_HEADERS = ../include/blocklist.h
+include_HEADERS = $(srcdir)/../include/blocklist.h
 
-bin_PROGRAMS = blocklistd blocklistctl srvtest cltest
+exampledir = $(datarootdir)/examples
+example_DATA = $(srcdir)/../etc/blocklistd.conf $(srcdir)/../etc/npf.conf $(srcdir)/../etc/ipf.conf
 
-VPATH = ../bin:../lib:../test:../include
+sbin_PROGRAMS = blocklistd blocklistctl
+noinst_PROGRAMS = srvtest cltest
+libexec_SCRIPTS = $(srcdir)/../libexec/blocklistd-helper
 
-AM_CPPFLAGS = -I../include  -DDOT="."
+man5_MANS = $(srcdir)/../bin/blocklistd.conf.5
+man8_MANS = $(srcdir)/../bin/blocklistd.8 $(srcdir)/../bin/blocklistctl.8
+
+VPATH = $(srcdir)/../port:$(srcdir)/../bin:$(srcdir)/../lib:$(srcdir)/../test:$(srcdir)/../include
+
+AM_CPPFLAGS = -I$(srcdir)/../include  -DDOT="."
+AM_CPPFLAGS += -D_PATH_BLCONF=\"$(sysconfdir)/blocklistd.conf\"
+AM_CPPFLAGS += -D_PATH_BLCONTROL=\"$(libexecdir)/blocklistd-helper\"
+AM_CPPFLAGS += -D_PATH_BLSOCK=\"$(runstatedir)/blocklistd.sock\"
+AM_CPPFLAGS += -D_PATH_BLSTATE=\"$(localstatedir)/db/blocklistd.db\"
+AM_CPPFLAGS += -std=c99 -D_POSIX_C_SOURCE=200809L -D__EXTENSIONS__
+AM_CPPFLAGS += -D__BSD_VISIBLE=1
 AM_CFLAGS = @WARNINGS@
 
 libblocklist_la_SOURCES = bl.c blocklist.c

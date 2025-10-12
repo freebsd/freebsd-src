@@ -1,4 +1,4 @@
-#	$NetBSD: Makefile.inc,v 1.2 2015/01/22 04:20:50 christos Exp $
+#	$NetBSD: Makefile.inc,v 1.3 2025/02/11 17:48:30 christos Exp $
 
 WARNS=6
 .if !defined(LIB)
@@ -7,4 +7,5 @@ DPADD+= ${LIBBLOCKLIST}
 .endif
 CPPFLAGS+= -I${.CURDIR}/../include
 CPPFLAGS+=-DHAVE_STRUCT_SOCKADDR_SA_LEN -DHAVE_UTIL_H -DHAVE_DB_H
+CPPFLAGS+=-DHAVE_SYS_CDEFS_H
 

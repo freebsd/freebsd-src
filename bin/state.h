@@ -1,4 +1,4 @@
-/*	$NetBSD: state.h,v 1.4 2015/01/24 07:46:20 christos Exp $	*/
+/*	$NetBSD: state.h,v 1.1.1.1 2020/06/15 01:52:53 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.

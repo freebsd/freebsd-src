@@ -1,10 +1,10 @@
 #!/bin/sh
 #
-# $NetBSD: blocklistd,v 1.1 2015/01/22 17:49:41 christos Exp $
+# $NetBSD: blocklistd,v 1.2 2021/03/07 00:46:39 christos Exp $
 #
 
 # PROVIDE: blocklistd
-# REQUIRE: npf
+# REQUIRE: npf pf ipfilter
 # BEFORE:  SERVERS
 
 $_rc_subr_loaded . /etc/rc.subr
