@@ -26,12 +26,28 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _SYS_INTERRUPT_H_
+#if !defined(_SYS_INTERRUPT_H_) && defined(_KERNEL)
 #define _SYS_INTERRUPT_H_
 
+#ifndef __MACHINE_INTERRUPT_H__
+#error "sys/interrupt.h included without architecture interrupt header!"
+#endif
+
 #include <sys/_lock.h>
-#include <sys/_mutex.h>
+#include <sys/_types.h>
+#include <sys/_types_interrupt.h>
 #include <sys/ck.h>
+#include <sys/kobj.h>
+#include <sys/mutex.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+
+/*
+ * Common base class for PICs.  All FreeBSD architectures provide this,
+ * so present in this header.
+ */
+
+DECLARE_CLASS(pic_base_class);
 
 struct intr_event;
 struct intr_thread;
@@ -52,7 +68,7 @@ struct intr_handler {
 	struct intr_event *ih_event;	/* Event we are connected to. */
 	int		 ih_need;	/* Needs service. */
 	CK_SLIST_ENTRY(intr_handler) ih_next; /* Next handler for this event. */
-	u_char		 ih_pri;	/* Priority of this handler. */
+	unsigned char	 ih_pri;	/* Priority of this handler. */
 };
 
 /* Interrupt handle flags kept in ih_flags */
@@ -110,18 +126,14 @@ struct intr_event {
 	char		ie_name[MAXCOMLEN + 1]; /* Individual event name. */
 	char		ie_fullname[MAXCOMLEN + 1];
 	struct mtx	ie_lock;
-	void		*ie_source;	/* Cookie used by MD code. */
 	struct intr_thread *ie_thread;	/* Thread we are connected to. */
-	void		(*ie_pre_ithread)(void *);
-	void		(*ie_post_ithread)(void *);
-	void		(*ie_post_filter)(void *);
-	int		(*ie_assign_cpu)(void *, int);
+	struct _device	*ie_pic;
 	int		ie_flags;
 	int		ie_hflags;	/* Cumulative flags of all handlers. */
 	int		ie_count;	/* Loop counter. */
 	int		ie_warncnt;	/* Rate-check interrupt storm warns. */
 	struct timeval	ie_warntm;
-	u_int		ie_irq;		/* Physical irq number if !SOFT. */
+	unsigned int	ie_irq;		/* Physical irq number if !SOFT. */
 	int		ie_cpu;		/* CPU this event is bound to. */
 	volatile int	ie_phase;	/* Switched to establish a barrier. */
 	volatile int	ie_active[2];	/* Filters in ISR context. */
@@ -157,7 +169,7 @@ struct proc;
 extern struct	intr_event *clk_intr_event;
 
 /* Counts and names for statistics (defined in MD code). */
-extern u_long 	*intrcnt;	/* counts for each device and stray */
+extern unsigned long 	*intrcnt;	/* counts for each device and stray */
 extern char 	*intrnames;	/* string table containing device names */
 extern size_t	sintrcnt;	/* size of intrcnt table */
 extern size_t	sintrnames;	/* size of intrnames table */
@@ -165,30 +177,39 @@ extern size_t	sintrnames;	/* size of intrnames table */
 #ifdef DDB
 void	db_dump_intr_event(struct intr_event *ie, int handlers);
 #endif
-u_char	intr_priority(enum intr_type flags);
+unsigned char	intr_priority(enum intr_type flags);
 int	intr_event_add_handler(struct intr_event *ie, const char *name,
 	    driver_filter_t filter, driver_intr_t handler, void *arg, 
-	    u_char pri, enum intr_type flags, void **cookiep);	    
+	    unsigned char pri, enum intr_type flags, void **cookiep);
 int	intr_event_bind(struct intr_event *ie, int cpu);
 int	intr_event_bind_irqonly(struct intr_event *ie, int cpu);
 int	intr_event_bind_ithread(struct intr_event *ie, int cpu);
 struct _cpuset;
 int	intr_event_bind_ithread_cpuset(struct intr_event *ie,
 	    struct _cpuset *mask);
+int	intr_event_initv_(struct intr_event *ie, struct _device *pic, u_int irq,
+	    int flags, const char *fmt, __va_list ap) __printflike(5, 0)
+	    __result_use_check;
+int	intr_event_init_(struct intr_event *ie, struct _device *pic, u_int irq,
+	    int flags, const char *fmt, ...) __printflike(5, 6)
+	    __result_use_check;
 int	intr_event_create(struct intr_event **event, void *source,
-	    int flags, u_int irq, void (*pre_ithread)(void *),
+	    int flags, unsigned int irq, void (*pre_ithread)(void *),
 	    void (*post_ithread)(void *), void (*post_filter)(void *),
 	    int (*assign_cpu)(void *, int), const char *fmt, ...)
 	    __printflike(9, 10);
 int	intr_event_describe_handler(struct intr_event *ie, void *cookie,
 	    const char *descr);
+int	intr_event_shutdown_(struct intr_event *ie) __result_use_check;
+int	intr_event_destroy_(struct intr_event *ie) __result_use_check;
 int	intr_event_destroy(struct intr_event *ie);
+int	intr_event_handle_(struct intr_event *ie, struct trapframe *frame);
 int	intr_event_handle(struct intr_event *ie, struct trapframe *frame);
-int	intr_event_remove_handler(void *cookie);
+int	intr_event_remove_handler_(struct intr_event *ie,
+	    struct intr_handler *handler) __result_use_check;
 int	intr_event_suspend_handler(void *cookie);
 int	intr_event_resume_handler(void *cookie);
 int	intr_getaffinity(int irq, int mode, void *mask);
-void	*intr_handler_source(void *cookie);
 int	intr_setaffinity(int irq, int mode, const void *mask);
 void	_intr_drain(int irq);  /* LinuxKPI only. */
 int	swi_add(struct intr_event **eventp, const char *name,
@@ -196,5 +217,11 @@ int	swi_add(struct intr_event **eventp, const char *name,
 	    void **cookiep);
 void	swi_sched(void *cookie, int flags);
 int	swi_remove(void *cookie);
+
+static inline bool
+intr_event_is_valid(struct intr_event *ie)
+{
+	return (mtx_initialized(&ie->ie_lock));
+}
 
 #endif

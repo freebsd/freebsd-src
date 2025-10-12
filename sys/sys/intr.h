@@ -33,7 +33,19 @@
 #error Need INTRNG for this file
 #endif
 
-#include <machine/intr.h>
+#ifndef __MACHINE_INTERRUPT_H__
+#error "sys/intr.h included without architecture interrupt header!"
+#endif
+
+/* FreeBSD standard interrupt controller interface */
+
+typedef struct intr_irqsrc interrupt_t;
+
+#include <sys/interrupt.h>
+
+/* FreeBSD standard interrupt controller interface */
+
+#include <sys/_cpuset.h>
 
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
@@ -54,7 +66,7 @@ enum intr_map_data_type {
 };
 
 struct intr_map_data {
-	size_t			len;
+	__size_t		len;
 	enum intr_map_data_type	type;
 };
 
@@ -69,27 +81,23 @@ typedef int intr_irq_filter_t(void *arg, struct trapframe *tf);
 #else
 typedef int intr_irq_filter_t(void *arg);
 #endif
-typedef int intr_child_irq_filter_t(void *arg, uintptr_t irq);
-
-#define INTR_ISRC_NAMELEN	(MAXCOMLEN + 1)
+typedef int intr_child_irq_filter_t(void *arg, __uintptr_t irq);
 
 #define INTR_ISRCF_IPI		0x01	/* IPI interrupt */
 #define INTR_ISRCF_PPI		0x02	/* PPI interrupt */
 #define INTR_ISRCF_BOUND	0x04	/* bound to a CPU */
 
 struct intr_pic;
+struct _device;
 
 /* Interrupt source definition. */
 struct intr_irqsrc {
-	device_t		isrc_dev;	/* where isrc is mapped */
-	u_int			isrc_irq;	/* unique identificator */
-	u_int			isrc_flags;
-	char			isrc_name[INTR_ISRC_NAMELEN];
+	struct intr_event	isrc_event;
+	unsigned int		isrc_flags;
 	cpuset_t		isrc_cpu;	/* on which CPUs is enabled */
-	u_int			isrc_index;
-	u_long *		isrc_count;
-	u_int			isrc_handlers;
-	struct intr_event *	isrc_event;
+	unsigned int		isrc_index;
+	unsigned long *		isrc_count;
+	unsigned int		isrc_handlers;
 #ifdef INTR_SOLO
 	intr_irq_filter_t *	isrc_filter;
 	void *			isrc_arg;
@@ -97,73 +105,82 @@ struct intr_irqsrc {
 	/* Used by MSI interrupts to store the iommu details */
 	void *			isrc_iommu;
 };
+_Static_assert(offsetof(struct intr_irqsrc, isrc_event) == 0,
+    ".isrc_event misaligned from structure!");
+
+struct resource;
 
 /* Intr interface for PIC. */
 int intr_isrc_deregister(struct intr_irqsrc *);
-int intr_isrc_register(struct intr_irqsrc *, device_t, u_int, const char *, ...)
-    __printflike(4, 5);
+int intr_isrc_register(struct intr_irqsrc *, struct _device *, unsigned int,
+    const char *, ...) __printflike(4, 5);
 
 #ifdef SMP
-bool intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, u_int cpu);
+bool intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, unsigned int cpu);
 #endif
 
 int intr_isrc_dispatch(struct intr_irqsrc *, struct trapframe *);
-u_int intr_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask);
+unsigned int intr_irq_next_cpu(unsigned int current_cpu, cpuset_t *cpumask);
 
-struct intr_pic *intr_pic_register(device_t, intptr_t);
-int intr_pic_deregister(device_t, intptr_t);
-int intr_pic_claim_root(device_t, intptr_t, intr_irq_filter_t *, void *,
-    uint32_t);
-int intr_pic_add_handler(device_t, struct intr_pic *,
-    intr_child_irq_filter_t *, void *, uintptr_t, uintptr_t);
+struct intr_pic *intr_pic_register(struct _device *, __intptr_t);
+int intr_pic_deregister(struct _device *, __intptr_t);
+int intr_pic_claim_root(struct _device *, __intptr_t, intr_irq_filter_t *,
+    void *, uint32_t);
+int intr_pic_add_handler(struct _device *, struct intr_pic *,
+    intr_child_irq_filter_t *, void *, __uintptr_t, __uintptr_t);
 bool intr_is_per_cpu(struct resource *);
 
-device_t intr_irq_root_device(uint32_t);
+struct _device *intr_irq_root_device(uint32_t);
 
 /* Intr interface for BUS. */
 
-int intr_activate_irq(device_t, struct resource *);
-int intr_deactivate_irq(device_t, struct resource *);
+int intr_activate_irq(struct _device *, struct resource *);
+int intr_deactivate_irq(struct _device *, struct resource *);
 
-int intr_setup_irq(device_t, struct resource *, driver_filter_t, driver_intr_t,
-    void *, int, void **);
-int intr_teardown_irq(device_t, struct resource *, void *);
+int intr_setup_irq(struct _device *, struct resource *, driver_filter_t,
+    driver_intr_t, void *, int, void **);
+int intr_teardown_irq(struct _device *, struct resource *, void *);
 
-int intr_describe_irq(device_t, struct resource *, void *, const char *);
-int intr_child_irq_handler(struct intr_pic *, uintptr_t);
+int intr_describe_irq(struct _device *, struct resource *, void *,
+    const char *);
+int intr_child_irq_handler(struct intr_pic *, __uintptr_t);
 
 /* Intr resources  mapping. */
-struct intr_map_data *intr_alloc_map_data(enum intr_map_data_type, size_t, int);
+struct intr_map_data *intr_alloc_map_data(enum intr_map_data_type,
+    __size_t, int);
 void intr_free_intr_map_data(struct intr_map_data *);
-u_int intr_map_irq(device_t, intptr_t, struct intr_map_data *);
-void intr_unmap_irq(u_int );
-u_int intr_map_clone_irq(u_int );
+unsigned int intr_map_irq(struct _device *, __intptr_t, struct intr_map_data *);
+void intr_unmap_irq(unsigned int);
+unsigned int intr_map_clone_irq(unsigned int);
 
 /* MSI/MSI-X handling */
-int intr_msi_register(device_t, intptr_t);
-int intr_alloc_msi(device_t, device_t, intptr_t, int, int, int *);
-int intr_release_msi(device_t, device_t, intptr_t, int, int *);
-int intr_map_msi(device_t, device_t, intptr_t, int, uint64_t *, uint32_t *);
-int intr_alloc_msix(device_t, device_t, intptr_t, int *);
-int intr_release_msix(device_t, device_t, intptr_t, int);
+int intr_msi_register(struct _device *, __intptr_t);
+int intr_alloc_msi(struct _device *, struct _device *, __intptr_t, int, int,
+    int *);
+int intr_release_msi(struct _device *, struct _device *, __intptr_t, int,
+    int *);
+int intr_map_msi(struct _device *, struct _device *, __intptr_t, int,
+    uint64_t *, uint32_t *);
+int intr_alloc_msix(struct _device *, struct _device *, __intptr_t, int *);
+int intr_release_msix(struct _device *, struct _device *,  __intptr_t, int);
 
 #ifdef SMP
-int intr_bind_irq(device_t, struct resource *, int);
+int intr_bind_irq(struct _device *, struct resource *, int);
 
 void intr_pic_init_secondary(void);
 #endif
 
-extern u_int	intr_nirq;	/* number of IRQs on intrng platforms */
+extern unsigned int	intr_nirq;	/* number of IRQs on intrng platforms */
 
 /* Intr interface for IPIs. */
 #ifdef SMP
 typedef void intr_ipi_handler_t(void *);
 
-int intr_ipi_pic_register(device_t dev, u_int priority);
-void intr_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
-    void *arg);
-void intr_ipi_send(cpuset_t cpus, u_int ipi);
-void intr_ipi_dispatch(u_int ipi);
+int intr_ipi_pic_register(struct _device *dev, unsigned int priority);
+void intr_ipi_setup(unsigned int ipi, const char *name,
+    intr_ipi_handler_t *hand, void *arg);
+void intr_ipi_send(cpuset_t cpus, unsigned int ipi);
+void intr_ipi_dispatch(unsigned int ipi);
 #endif
 
 /* Main interrupt handler called from asm on most archs except riscv. */
