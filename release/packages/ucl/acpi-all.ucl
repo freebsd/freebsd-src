@@ -23,7 +23,7 @@ ACPI is a hardware standard allowing the operating system to monitor various
 hardware devices and system state.  For example, ACPI can report whether the
 system is on AC or battery power.
 
-This packages provides several utilities that can be used to interact with the
+This package provides several utilities that can be used to interact with the
 ACPI implementation in the kernel:
 
 * The /etc/rc.d/power_profile service can be used to change system performance
