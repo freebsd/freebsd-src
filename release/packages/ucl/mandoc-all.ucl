@@ -19,7 +19,7 @@
 comment = "Online manual page reader"
 
 desc = <<EOD
-This packages provides man(1), a utility which can format and display system
+This package provides man(1), a utility which can format and display system
 manual pages, along with the related utilities apropos(1) and makewhatis(8),
 and the mandoc(1) rendering backend.
 EOD
