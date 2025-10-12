@@ -290,6 +290,11 @@ buildfs() {
 		cat ${DESTDIR}/METALOG.pkg >> ${DESTDIR}/METALOG
 	fi
 
+	# Sort METALOG file; makefs produces directories with 000 permissions
+	# if their contents are seen before the directories themselves.
+	env -i LC_COLLATE=C sort -u ${DESTDIR}/METALOG > ${DESTDIR}/METALOG.sorted
+	mv ${DESTDIR}/METALOG.sorted ${DESTDIR}/METALOG
+
 	case "${VMFS}" in
 	ufs)
 		cd ${DESTDIR} && ${MAKEFS} ${MAKEFSARGS} -o label=rootfs -o version=2 -o softupdates=1 \
