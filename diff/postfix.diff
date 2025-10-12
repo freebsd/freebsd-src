@@ -80,3 +80,19 @@ diff -u -r1.6 Makefile
  DPADD+=	${LIBPTLS} ${LIBSSL} ${LIBCRYPTO}
  LDADD+=	${LIBPTLS} -lssl -lcrypto
  
+Index: dist/src/smtpd/smtpd.c
+===================================================================
+RCS file: /cvsroot/src/external/ibm-public/postfix/dist/src/smtpd/smtpd.c,v
+retrieving revision 1.17
+diff -u -u -r1.17 smtpd.c
+--- dist/src/smtpd/smtpd.c	18 Mar 2020 19:05:20 -0000	1.17
++++ dist/src/smtpd/smtpd.c	25 Sep 2020 12:51:52 -0000
+@@ -5795,6 +5795,8 @@
+ 		   || strcmp(state->reason, REASON_LOST_CONNECTION)) {
+ 	    msg_info("%s after %s from %s",
+ 		     state->reason, state->where, state->namaddr);
++	    if (strcmp(state->where, SMTPD_CMD_AUTH) == 0)
++		pfilter_notify(1, vstream_fileno(state->client));
+ 	}
+     }
+ 

@@ -1,4 +1,4 @@
-.\" $NetBSD: blocklistd.8,v 1.23 2020/04/21 13:57:12 christos Exp $
+.\" $NetBSD: blocklistd.8,v 1.8 2025/02/25 22:13:34 christos Exp $
 .\"
 .\" Copyright (c) 2015 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd April 21, 2020
+.Dd February 25, 2025
 .Dt BLOCKLISTD 8
 .Os
 .Sh NAME
@@ -53,17 +53,30 @@ for notifications from other daemons about successful or failed connection
 attempts.
 If no such file is specified, then it only listens to the socket path
 specified by
-.Ar sockspath
+.Ar sockpath
 or if that is not specified to
 .Pa /var/run/blocklistd.sock .
 Each notification contains an (action, port, protocol, address, owner) tuple
 that identifies the remote connection and the action.
-This tuple is consulted against entries in
-.Ar configfile
-with syntax specified in
+This tuple is consulted against entries from the
+.Ar configfile ,
+with the syntax specified in
 .Xr blocklistd.conf 5 .
 If an entry is matched, a state entry is created for that tuple.
 Each entry contains a number of tries limit and a duration.
+.Pp
+If
+.Ar configfile
+is a directory, or a directory exists with the same name as
+.Ar configfile
+with
+.Qq .d
+appended to it, each file in the directory will be read as configuration file.
+If
+.Ar configfile
+exists as a file it will be processed before the contents of the
+.Ar configfile Ns .d
+directory if that also exists.
 .Pp
 The way
 .Nm
@@ -152,7 +165,7 @@ The following options are available:
 .It Fl C Ar controlprog
 Use
 .Ar controlprog
-to communicate with the packet filter, usually
+to communicate with the packet filter, instead of the default, which is
 .Pa /libexec/blocklistd-helper .
 The following arguments are passed to the control program:
 .Bl -tag -width protocol
@@ -161,7 +174,7 @@ The action to perform:
 .Dv add ,
 .Dv rem ,
 or
-.Dv flush
+.Dv flush ;
 to add, remove or flush a firewall rule.
 .It name
 The rule name.
@@ -183,12 +196,16 @@ identifier of the rule to be removed.
 The add command is expected to return the rule identifier string to stdout.
 .El
 .It Fl c Ar configuration
-The name of the configuration file to read, usually
+The name of the configuration file to read.
+The default when
+.Fl c
+is not given is
 .Pa /etc/blocklistd.conf .
 .It Fl D Ar dbfile
 The Berkeley DB file where
 .Nm
-stores its state, usually
+stores its state.
+It defaults to
 .Pa /var/db/blocklistd.db .
 .It Fl d
 Normally,
@@ -203,7 +220,7 @@ are deleted by invoking the control script as:
 .Bd -literal -offset indent
 control flush <rulename>
 .Ed
-.It Fl P Ar sockspathsfile
+.It Fl P Ar sockpathsfile
 A file containing a list of pathnames, one per line that
 .Nm
 will create sockets to listen to.

@@ -1,0 +1,15 @@
+#!/usr/bin/make -f
+
+# Uncomment this to turn on verbose mode.
+# export DH_VERBOSE=1
+
+# This has to be exported to make some magic below work.
+export DH_OPTIONS
+
+%:
+	dh $@ --sourcedirectory=port --with quilt
+
+# https://lintian.debian.org/tags/non-empty-dependency_libs-in-la-file.html
+override_dh_auto_install:
+	dh_auto_install
+	sed -i "/dependency_libs/ s/'.*'/''/" `find . -name '*.la'`

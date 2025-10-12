@@ -1,4 +1,4 @@
-/*	$NetBSD: blocklist.c,v 1.6 2019/11/06 20:50:01 christos Exp $	*/
+/*	$NetBSD: blocklist.c,v 1.4 2025/02/11 17:48:30 christos Exp $	*/
 
 /*-
  * Copyright (c) 2014 The NetBSD Foundation, Inc.
@@ -32,8 +32,10 @@
 #include "config.h"
 #endif
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: blocklist.c,v 1.6 2019/11/06 20:50:01 christos Exp $");
+#endif
+__RCSID("$NetBSD: blocklist.c,v 1.4 2025/02/11 17:48:30 christos Exp $");
 
 #include <stdio.h>
 #include <bl.h>
@@ -98,7 +100,14 @@ blocklist_r(struct blocklist *bl, int action, int rfd, const char *msg)
 
 struct blocklist *
 blocklist_open(void) {
-	return bl_create(false, NULL, vsyslog);
+	return bl_create(false, NULL, vsyslog_r);
+}
+
+struct blocklist *
+blocklist_open2(
+    void (*logger)(int, struct syslog_data *, const char *, va_list))
+{
+	return bl_create(false, NULL, logger);
 }
 
 void

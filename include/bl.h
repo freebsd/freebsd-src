@@ -1,4 +1,4 @@
-/*	$NetBSD: bl.h,v 1.13 2016/03/11 17:16:40 christos Exp $	*/
+/*	$NetBSD: bl.h,v 1.2 2024/08/02 17:11:55 christos Exp $	*/
 
 /*-
  * Copyright (c) 2014 The NetBSD Foundation, Inc.
@@ -65,7 +65,8 @@ __BEGIN_DECLS
 
 typedef struct blocklist *bl_t;
 
-bl_t bl_create(bool, const char *, void (*)(int, const char *, va_list));
+bl_t bl_create(bool, const char *,
+    void (*)(int, struct syslog_data *, const char *, va_list));
 void bl_destroy(bl_t);
 int bl_send(bl_t, bl_type_t, int, const struct sockaddr *, socklen_t,
     const char *);

@@ -1,0 +1,21 @@
+Source: blocklist
+Section: net
+Priority: optional
+Maintainer: Christos Zoulas <christos@zoulas.com>
+Standards-Version: 4.4.1
+Build-Depends: debhelper (>= 10~),
+               dh-exec,
+               dpkg-dev (>= 1.16.1~),
+               libdb-dev,
+               quilt
+
+Package: blocklist
+Architecture: any
+Homepage: https://github.com/zoulasc/blocklist
+Depends: ${misc:Depends},
+         ${shlibs:Depends},
+         libdb5.3
+Description: This package contains library that can be used 
+ by network daemons to communicate with a packet filter via
+ a daemon to enforce opening and closing ports dynamically
+ based on policy.

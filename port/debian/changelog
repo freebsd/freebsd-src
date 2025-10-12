@@ -1,0 +1,6 @@
+blocklist (1.7+nmu1) unstable; urgency=low
+
+  * nmu; import from https://github.com/zoulasc/blocklist
+  * 
+
+ -- Two Sigma Base Platform Engineering <bpeng@twosigma.com>  Tue, 30 Jun 2020 14:40:28 +0000
