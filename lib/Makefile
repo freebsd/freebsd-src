@@ -163,6 +163,7 @@ SUBDIR_DEPEND_virtual_oss= libsamplerate
 
 SUBDIR.${MK_BEARSSL}+=	libbearssl libsecureboot
 SUBDIR.${MK_BLACKLIST}+=libblacklist
+SUBDIR.${MK_BLOCKLIST}+=libblocklist
 SUBDIR.${MK_BLUETOOTH}+=libbluetooth libsdp
 SUBDIR.${MK_BSNMP}+=	libbsnmp
 
