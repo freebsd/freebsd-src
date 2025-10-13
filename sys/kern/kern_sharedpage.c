@@ -130,8 +130,7 @@ shared_page_init(void *dummy __unused)
 	shared_page_mapping = (char *)addr;
 }
 
-SYSINIT(shp, SI_SUB_EXEC, SI_ORDER_FIRST, (sysinit_cfunc_t)shared_page_init,
-    NULL);
+SYSINIT(shp, SI_SUB_EXEC, SI_ORDER_FIRST, shared_page_init, NULL);
 
 /*
  * Push the timehands update to the shared page.
