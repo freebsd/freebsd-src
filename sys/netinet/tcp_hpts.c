@@ -1445,6 +1445,8 @@ no_one:
 	 * more slots (if we did not hit eno-bufs).
 	 */
 	hpts->p_prev_slot = hpts->p_cur_slot;
+	cts_last_run = cts;
+	cts = tcp_get_usecs(&tv);
 	if (!from_callout || (loop_cnt > max_pacer_loops)) {
 		/*
 		 * Something is serious slow we have
@@ -1465,9 +1467,6 @@ no_one:
 		goto no_run;
 	}
 
-	cts_last_run = tcp_pace.cts_last_ran[hpts->p_num];
-	tcp_pace.cts_last_ran[hpts->p_num] = cts = tcp_get_usecs(&tv);
-
 	hpts->p_cur_slot = cts_to_wheel(cts);
 	if (!seen_endpoint) {
 		/* We saw no endpoint but we may be looping */
@@ -1479,6 +1478,7 @@ no_one:
 		goto again;
 	}
 no_run:
+	tcp_pace.cts_last_ran[hpts->p_num] = cts;
 	/*
 	 * Set flag to tell that we are done for
 	 * any slot input that happens during
@@ -1511,9 +1511,8 @@ no_run:
 		 hpts, hpts->p_prev_slot, hpts->p_cur_slot,
 		 cts_last_run, cts, loop_cnt, wrap_loop_cnt));
 
-	if (from_callout && tcp_hpts_different_slots(cts, cts_last_run)){
-		cts_last_run = tcp_pace.cts_last_ran[hpts->p_num];
-		tcp_pace.cts_last_ran[hpts->p_num] = cts = tcp_get_usecs(&tv);
+	if (from_callout && tcp_hpts_different_slots(cts, cts_last_run)) {
+		cts = tcp_get_usecs(&tv);
 		hpts->p_cur_slot = cts_to_wheel(cts);
 		counter_u64_add(hpts_loops, 1);
 		goto again;
