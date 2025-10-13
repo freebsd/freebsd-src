@@ -17,10 +17,6 @@ portinstall-amd64: portinstall-pkg .PHONY
 
 # NOTE: Nothing should be changed below this line unless explicitly required.
 
-ci-buildworld-amd64: ci-buildworld .PHONY
-
-ci-buildkernel-amd64: ci-buildkernel .PHONY
-
 ci-buildimage-amd64: ci-buildimage .PHONY
 
 .if ${MACHINE} == "amd64" && ( !defined(USE_QEMU) || empty(USE_QEMU) )

@@ -177,25 +177,12 @@ clean: beforeclean .PHONY
 
 cleandir: beforeclean .PHONY
 
-ci-buildworld: ci-checktarget .PHONY
-	@echo "Building world for ${TARGET_ARCH}"
-	${IMAKE} -j${PARALLEL_JOBS} -C ${WORLDDIR} ${METAMODE} \
-		${CROSS_TOOLCHAIN_PARAM} __MAKE_CONF=${MAKECONF} SRCCONF=${SRCCONF} \
-		${EXTRA_MAKE_FLAGS} buildworld ${LOG_TARGET}
-
-ci-buildkernel: ci-buildworld-${TARGET_ARCH:tl} .PHONY
-	@echo "Building kernel for ${TARGET_ARCH}"
-	${IMAKE} -j${PARALLEL_JOBS} -C ${WORLDDIR} ${METAMODE} \
-		${CROSS_TOOLCHAIN_PARAM} __MAKE_CONF=${MAKECONF} SRCCONF=${SRCCONF} \
-		${EXTRA_MAKE_FLAGS} KERNCONF=${KERNCONF} \
-		buildkernel ${LOG_TARGET}
-
-ci-buildpkgbase: ci-buildkernel-${TARGET_ARCH:tl} .PHONY
-	@echo "Building pkgbase for ${TARGET_ARCH}"
+ci-buildpkgbase: .PHONY
+	@echo "Building world, kernel, and pkgbase for ${TARGET_ARCH}"
 	${IMAKE} -j${PARALLEL_JOBS} -C ${WORLDDIR} ${METAMODE} \
 		${CROSS_TOOLCHAIN_PARAM} __MAKE_CONF=${MAKECONF} SRCCONF=${SRCCONF} \
 		${EXTRA_MAKE_FLAGS} KERNCONF=${KERNCONF} REPODIR=${PKGBASE_REPO} \
-		update-packages ${LOG_TARGET}
+		buildworld buildkernel update-packages ${LOG_TARGET}
 	mkdir -p ${PKGBASE_REPO_DIR}
 	@printf "FreeBSD-base: { url: "file://%s", enabled: yes }" \
 		${PKGBASE_REPO}/${PKG_ABI}/latest \

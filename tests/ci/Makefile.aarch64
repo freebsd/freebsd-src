@@ -15,10 +15,6 @@ QEMU_MAX_MEM_SIZE=64
 
 # NOTE: Nothing should be changed below this line unless explicitly required.
 
-ci-buildworld-aarch64: ci-buildworld .PHONY
-
-ci-buildkernel-aarch64: ci-buildkernel .PHONY
-
 ci-buildimage-aarch64: ci-buildimage .PHONY
 
 .if ${MACHINE} == "arm64" && ( !defined(USE_QEMU) || empty(USE_QEMU) )

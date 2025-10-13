@@ -20,10 +20,6 @@ portinstall-armv7: portinstall-pkg .PHONY
 
 # NOTE: Nothing should be changed below this line unless explicitly required.
 
-ci-buildworld-armv7: ci-buildworld .PHONY
-
-ci-buildkernel-armv7: ci-buildkernel .PHONY
-
 ci-buildimage-armv7: ci-buildimage .PHONY
 
 ci-runtest-armv7: ci-runtest-qemu .PHONY
