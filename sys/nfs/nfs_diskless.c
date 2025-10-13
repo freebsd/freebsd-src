@@ -428,7 +428,7 @@ decode_nfshandle(char *ev, u_char *fh, int maxfh)
 
 #if !defined(BOOTP_NFSROOT)
 static void
-nfs_rootconf(void)
+nfs_rootconf(void *dummy __unused)
 {
 
 	nfs_setup_diskless();
