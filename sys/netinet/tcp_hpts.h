@@ -35,12 +35,6 @@
 #define HPTS_USEC_IN_MSEC 1000
 
 static inline uint32_t
-tcp_tv_to_hpts_slot(const struct timeval *sv)
-{
-	return ((sv->tv_sec * 100000) + (sv->tv_usec / HPTS_USECS_PER_SLOT));
-}
-
-static inline uint32_t
 tcp_tv_to_usec(const struct timeval *sv)
 {
 	return ((uint32_t) ((sv->tv_sec * HPTS_USEC_IN_SEC) + sv->tv_usec));
@@ -75,8 +69,6 @@ struct hpts_diag {
 	uint32_t maxslots;		/* bbr->delRate x */
 	uint32_t wheel_cts;		/* bbr->rttProp x */
 	int32_t co_ret; 		/* bbr->pkts_out x */
-	uint32_t p_curtick;		/* upper bbr->cur_del_rate */
-	uint32_t p_lasttick;		/* lower bbr->cur_del_rate */
 	uint8_t p_on_min_sleep; 	/* bbr->flex8 x */
 };
 
@@ -149,17 +141,6 @@ static inline int32_t
 get_hpts_min_sleep_time(void)
 {
 	return (tcp_min_hptsi_time + HPTS_USECS_PER_SLOT);
-}
-
-static inline uint32_t
-tcp_gethptstick(struct timeval *sv)
-{
-	struct timeval tv;
-
-	if (sv == NULL)
-		sv = &tv;
-	microuptime(sv);
-	return (tcp_tv_to_hpts_slot(sv));
 }
 
 static inline uint64_t
