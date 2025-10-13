@@ -6804,13 +6804,11 @@ rack_start_hpts_timer (struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 			 * Arrange for the hpts to kick back in after the
 			 * t-o if the t-o does not cause a send.
 			 */
-			(void)tcp_hpts_insert_diag(tp, HPTS_USEC_TO_SLOTS(hpts_timeout),
-						   __LINE__, &diag);
+			tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(hpts_timeout), &diag);
 			rack_log_hpts_diag(rack, us_cts, &diag, &tv);
 			rack_log_to_start(rack, cts, hpts_timeout, slot, 0);
 		} else {
-			(void)tcp_hpts_insert_diag(tp, HPTS_USEC_TO_SLOTS(slot),
-						   __LINE__, &diag);
+			tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(slot), &diag);
 			rack_log_hpts_diag(rack, us_cts, &diag, &tv);
 			rack_log_to_start(rack, cts, hpts_timeout, slot, 1);
 		}
@@ -6824,8 +6822,7 @@ rack_start_hpts_timer (struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 		 * at the start of this block) are good enough.
 		 */
 		rack->r_ctl.rc_hpts_flags &= ~PACE_PKT_OUTPUT;
-		(void)tcp_hpts_insert_diag(tp, HPTS_USEC_TO_SLOTS(hpts_timeout),
-					   __LINE__, &diag);
+		tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(hpts_timeout), &diag);
 		rack_log_hpts_diag(rack, us_cts, &diag, &tv);
 		rack_log_to_start(rack, cts, hpts_timeout, slot, 0);
 	} else {
@@ -8016,7 +8013,7 @@ rack_process_timers(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts, uint8
 		rack->rc_tp->t_flags2 &= ~TF2_DONT_SACK_QUEUE;
 		ret = -3;
 		left = rack->r_ctl.rc_timer_exp - cts;
-		tcp_hpts_insert(tp, HPTS_MS_TO_SLOTS(left));
+		tcp_hpts_insert(tp, HPTS_MS_TO_SLOTS(left), NULL);
 		rack_log_to_processing(rack, cts, ret, left);
 		return (1);
 	}
@@ -14377,8 +14374,7 @@ rack_switch_failed(struct tcpcb *tp)
 		}
 	} else
 		toval = HPTS_USECS_PER_SLOT;
-	(void)tcp_hpts_insert_diag(tp, HPTS_USEC_TO_SLOTS(toval),
-				   __LINE__, &diag);
+	tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(toval), &diag);
 	rack_log_hpts_diag(rack, cts, &diag, &tv);
 }
 
@@ -14973,8 +14969,7 @@ rack_init(struct tcpcb *tp, void **ptr)
 				if (tov) {
 					struct hpts_diag diag;
 
-					(void)tcp_hpts_insert_diag(tp, HPTS_USEC_TO_SLOTS(tov),
-								   __LINE__, &diag);
+					tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(tov), &diag);
 					rack_log_hpts_diag(rack, us_cts, &diag, &rack->r_ctl.act_rcv_time);
 				}
 			}
