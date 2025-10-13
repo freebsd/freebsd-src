@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20251012:
+	Blacklist has been renamed upstream to Blocklist.  If you have it
+	configured, rename all configuration files, firewall anchors or
+	sentinel files to reflect the new nomenclature.  Old setups will
+	continue to work emitting a warning.
+
 20251002:
 	Audio-related utilities including mixer(8) and virtual_oss(8) have
 	moved to the new FreeBSD-sound package.  If you have set-optional or
