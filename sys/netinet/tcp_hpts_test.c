@@ -56,13 +56,8 @@
 /* Custom definitions that take the tcp_hptsi */
 #define tcp_hpts_init(pace, tp) __tcp_hpts_init((pace), (tp))
 #define tcp_hpts_remove(pace, tp) __tcp_hpts_remove((pace), (tp))
-#ifdef INVARIANTS
-#define	tcp_hpts_insert(pace, tp, usecs, diag)	\
-	__tcp_hpts_insert((pace), (tp), (usecs), __LINE__, (diag))
-#else
 #define	tcp_hpts_insert(pace, tp, usecs, diag)	\
 	__tcp_hpts_insert((pace), (tp), (usecs), (diag))
-#endif
 #define tcp_set_hpts(pace, tp) __tcp_set_hpts((pace), (tp))
 
 static MALLOC_DEFINE(M_TCPHPTS, "tcp_hpts_test", "TCP hpts test");

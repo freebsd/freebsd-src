@@ -127,17 +127,10 @@ tcp_in_hpts(struct tcpcb *tp)
  * that INP_WLOCK() or from destroying your TCB where again
  * you should already have the INP_WLOCK().
  */
-#ifdef INVARIANTS
-void __tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t usecs,
-	int32_t line, struct hpts_diag *diag);
-#define	tcp_hpts_insert(tp, usecs, diag)	\
-	__tcp_hpts_insert(tcp_hptsi_pace, (tp), (usecs), __LINE__, (diag))
-#else
 void __tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t usecs,
 	struct hpts_diag *diag);
 #define	tcp_hpts_insert(tp, usecs, diag)	\
 	__tcp_hpts_insert(tcp_hptsi_pace, (tp), (usecs), (diag))
-#endif
 
 void __tcp_set_hpts(struct tcp_hptsi *pace, struct tcpcb *tp);
 #define tcp_set_hpts(tp) __tcp_set_hpts(tcp_hptsi_pace, tp)
