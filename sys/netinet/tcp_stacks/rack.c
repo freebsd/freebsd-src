@@ -250,11 +250,11 @@ static int32_t rack_non_rxt_use_cr = 0; /* does a non-rxt in recovery use the co
 static int32_t rack_persist_min = 250000;	/* 250usec */
 static int32_t rack_persist_max = 2000000;	/* 2 Second in usec's */
 static int32_t rack_honors_hpts_min_to =  1;	/* Do we honor the hpts minimum time out for pacing timers */
-static uint32_t rack_max_reduce = 10;		/* Percent we can reduce slot by */
+static uint32_t rack_max_reduce = 10;		/* Percent we can reduce pacing delay by */
 static int32_t rack_sack_not_required = 1;	/* set to one to allow non-sack to use rack */
 static int32_t rack_limit_time_with_srtt = 0;
 static int32_t rack_autosndbuf_inc = 20;	/* In percentage form */
-static int32_t rack_enobuf_hw_boost_mult = 0;	/* How many times the hw rate we boost slot using time_between */
+static int32_t rack_enobuf_hw_boost_mult = 0;	/* How many times the hw rate we boost pacing delay using time_between */
 static int32_t rack_enobuf_hw_max = 12000;	/* 12 ms in usecs */
 static int32_t rack_enobuf_hw_min = 10000;	/* 10 ms in usecs */
 static int32_t rack_hw_rwnd_factor = 2;		/* How many max_segs the rwnd must be before we hold off sending */
@@ -278,7 +278,7 @@ static int32_t rack_hptsi_segments = 40;
 static int32_t rack_rate_sample_method = USE_RTT_LOW;
 static int32_t rack_pace_every_seg = 0;
 static int32_t rack_delayed_ack_time = 40000;	/* 40ms in usecs */
-static int32_t rack_slot_reduction = 4;
+static int32_t rack_pacing_delay_reduction = 4;
 static int32_t rack_wma_divisor = 8;		/* For WMA calculation */
 static int32_t rack_cwnd_block_ends_measure = 0;
 static int32_t rack_rwnd_block_ends_measure = 0;
@@ -478,7 +478,7 @@ rack_log_alt_to_to_cancel(struct tcp_rack *rack,
     uint16_t flex7, uint8_t mod);
 
 static void
-rack_log_pacing_delay_calc(struct tcp_rack *rack, uint32_t len, uint32_t slot,
+rack_log_pacing_delay_calc(struct tcp_rack *rack, uint32_t len, uint32_t pacing_delay,
    uint64_t bw_est, uint64_t bw, uint64_t len_time, int method, int line,
    struct rack_sendmap *rsm, uint8_t quality);
 static struct rack_sendmap *
@@ -1107,7 +1107,7 @@ rack_init_sysctls(void)
 	SYSCTL_ADD_S32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_pacing),
 	    OID_AUTO, "burst_reduces", CTLFLAG_RW,
-	    &rack_slot_reduction, 4,
+	    &rack_pacing_delay_reduction, 4,
 	    "When doing only burst mitigation what is the reduce divisor");
 	SYSCTL_ADD_S32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_sysctl_root),
@@ -1399,7 +1399,7 @@ rack_init_sysctls(void)
 	    SYSCTL_CHILDREN(rack_timers),
 	    OID_AUTO, "hpts_max_reduce", CTLFLAG_RW,
 	    &rack_max_reduce, 10,
-	    "Max percentage we will reduce slot by for pacing when we are behind");
+	    "Max percentage we will reduce pacing delay by for pacing when we are behind");
 	SYSCTL_ADD_U32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_timers),
 	    OID_AUTO, "persmin", CTLFLAG_RW,
@@ -2700,7 +2700,7 @@ rack_log_retran_reason(struct tcp_rack *rack, struct rack_sendmap *rsm, uint32_t
 }
 
 static void
-rack_log_to_start(struct tcp_rack *rack, uint32_t cts, uint32_t to, int32_t slot, uint8_t which)
+rack_log_to_start(struct tcp_rack *rack, uint32_t cts, uint32_t to, int32_t pacing_delay, uint8_t which)
 {
 	if (tcp_bblogging_on(rack->rc_tp)) {
 		union tcp_log_stackspecific log;
@@ -2710,7 +2710,7 @@ rack_log_to_start(struct tcp_rack *rack, uint32_t cts, uint32_t to, int32_t slot
 		log.u_bbr.flex1 = rack->rc_tp->t_srtt;
 		log.u_bbr.flex2 = to;
 		log.u_bbr.flex3 = rack->r_ctl.rc_hpts_flags;
-		log.u_bbr.flex4 = slot;
+		log.u_bbr.flex4 = pacing_delay;
 		log.u_bbr.flex5 = rack->rc_tp->t_hpts_slot;
 		log.u_bbr.flex6 = rack->rc_tp->t_rxtcur;
 		log.u_bbr.flex7 = rack->rc_in_persist;
@@ -3034,14 +3034,14 @@ rack_log_progress_event(struct tcp_rack *rack, struct tcpcb *tp, uint32_t tick, 
 }
 
 static void
-rack_log_type_bbrsnd(struct tcp_rack *rack, uint32_t len, uint32_t slot, uint32_t cts, struct timeval *tv, int line)
+rack_log_type_bbrsnd(struct tcp_rack *rack, uint32_t len, uint32_t pacing_delay, uint32_t cts, struct timeval *tv, int line)
 {
 	if (rack_verbose_logging && tcp_bblogging_on(rack->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		memset(&log, 0, sizeof(log));
 		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_tp);
-		log.u_bbr.flex1 = slot;
+		log.u_bbr.flex1 = pacing_delay;
 		if (rack->rack_no_prr)
 			log.u_bbr.flex2 = 0;
 		else
@@ -3139,7 +3139,7 @@ rack_log_type_pacing_sizes(struct tcpcb *tp, struct tcp_rack *rack, uint32_t arg
 }
 
 static void
-rack_log_type_just_return(struct tcp_rack *rack, uint32_t cts, uint32_t tlen, uint32_t slot,
+rack_log_type_just_return(struct tcp_rack *rack, uint32_t cts, uint32_t tlen, uint32_t pacing_delay,
 			  uint8_t hpts_calling, int reason, uint32_t cwnd_to_use)
 {
 	if (tcp_bblogging_on(rack->rc_tp)) {
@@ -3148,7 +3148,7 @@ rack_log_type_just_return(struct tcp_rack *rack, uint32_t cts, uint32_t tlen, ui
 
 		memset(&log, 0, sizeof(log));
 		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_tp);
-		log.u_bbr.flex1 = slot;
+		log.u_bbr.flex1 = pacing_delay;
 		log.u_bbr.flex2 = rack->r_ctl.rc_hpts_flags;
 		log.u_bbr.flex4 = reason;
 		if (rack->rack_no_prr)
@@ -6482,7 +6482,7 @@ rack_log_hpts_diag(struct tcp_rack *rack, uint32_t cts,
 		log.u_bbr.flex2 = diag->p_cur_slot;
 		log.u_bbr.flex3 = diag->slot_req;
 		log.u_bbr.flex4 = diag->inp_hptsslot;
-		log.u_bbr.flex5 = diag->slot_remaining;
+		log.u_bbr.flex5 = diag->time_remaining;
 		log.u_bbr.flex6 = diag->need_new_to;
 		log.u_bbr.flex7 = diag->p_hpts_active;
 		log.u_bbr.flex8 = diag->p_on_min_sleep;
@@ -6529,14 +6529,14 @@ rack_log_wakeup(struct tcpcb *tp, struct tcp_rack *rack, struct sockbuf *sb, uin
 
 static void
 rack_start_hpts_timer (struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
-      int32_t slot, uint32_t tot_len_this_send, int sup_rack)
+      int32_t usecs, uint32_t tot_len_this_send, int sup_rack)
 {
 	struct hpts_diag diag;
 	struct inpcb *inp = tptoinpcb(tp);
 	struct timeval tv;
 	uint32_t delayed_ack = 0;
 	uint32_t hpts_timeout;
-	uint32_t entry_slot = slot;
+	uint32_t entry_usecs = usecs;
 	uint8_t stopped;
 	uint32_t left = 0;
 	uint32_t us_cts;
@@ -6557,7 +6557,7 @@ rack_start_hpts_timer (struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 	rack->r_ctl.rc_hpts_flags = 0;
 	us_cts = tcp_get_usecs(&tv);
 	/* Now early/late accounting */
-	rack_log_pacing_delay_calc(rack, entry_slot, slot, 0, 0, 0, 26, __LINE__, NULL, 0);
+	rack_log_pacing_delay_calc(rack, entry_usecs, usecs, 0, 0, 0, 26, __LINE__, NULL, 0);
 	if (rack->r_early && (rack->rc_ack_can_sendout_data == 0)) {
 		/*
 		 * We have a early carry over set,
@@ -6568,7 +6568,7 @@ rack_start_hpts_timer (struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 		 * penalize the next timer for being awoke
 		 * by an ack aka the rc_agg_early (non-paced mode).
 		 */
-		slot += rack->r_ctl.rc_agg_early;
+		usecs += rack->r_ctl.rc_agg_early;
 		rack->r_early = 0;
 		rack->r_ctl.rc_agg_early = 0;
 	}
@@ -6580,29 +6580,29 @@ rack_start_hpts_timer (struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 		 * really depends on what
 		 * the current pacing time is.
 		 */
-		if (rack->r_ctl.rc_agg_delayed >= slot) {
+		if (rack->r_ctl.rc_agg_delayed >= usecs) {
 			/*
 			 * We can't compensate for it all.
 			 * And we have to have some time
 			 * on the clock. We always have a min
-			 * 10 slots (10 x 10 i.e. 100 usecs).
+			 * 10 HPTS timer units (10 x 10 i.e. 100 usecs).
 			 */
-			if (slot <= HPTS_USECS_PER_SLOT) {
+			if (usecs <= HPTS_USECS_PER_SLOT) {
 				/* We gain delay */
-				rack->r_ctl.rc_agg_delayed += (HPTS_USECS_PER_SLOT - slot);
-				slot = HPTS_USECS_PER_SLOT;
+				rack->r_ctl.rc_agg_delayed += (HPTS_USECS_PER_SLOT - usecs);
+				usecs = HPTS_USECS_PER_SLOT;
 			} else {
 				/* We take off some */
-				rack->r_ctl.rc_agg_delayed -= (slot - HPTS_USECS_PER_SLOT);
-				slot = HPTS_USECS_PER_SLOT;
+				rack->r_ctl.rc_agg_delayed -= (usecs - HPTS_USECS_PER_SLOT);
+				usecs = HPTS_USECS_PER_SLOT;
 			}
 		} else {
-			slot -= rack->r_ctl.rc_agg_delayed;
+			usecs -= rack->r_ctl.rc_agg_delayed;
 			rack->r_ctl.rc_agg_delayed = 0;
 			/* Make sure we have 100 useconds at minimum */
-			if (slot < HPTS_USECS_PER_SLOT) {
-				rack->r_ctl.rc_agg_delayed = HPTS_USECS_PER_SLOT - slot;
-				slot = HPTS_USECS_PER_SLOT;
+			if (usecs < HPTS_USECS_PER_SLOT) {
+				rack->r_ctl.rc_agg_delayed = HPTS_USECS_PER_SLOT - usecs;
+				usecs = HPTS_USECS_PER_SLOT;
 			}
 			if (rack->r_ctl.rc_agg_delayed == 0)
 				rack->r_late = 0;
@@ -6611,17 +6611,17 @@ rack_start_hpts_timer (struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 		/* r_use_hpts_min is on and so is DGP */
 		uint32_t max_red;
 
-		max_red = (slot * rack->r_ctl.max_reduction) / 100;
+		max_red = (usecs * rack->r_ctl.max_reduction) / 100;
 		if (max_red >= rack->r_ctl.rc_agg_delayed) {
-			slot -= rack->r_ctl.rc_agg_delayed;
+			usecs -= rack->r_ctl.rc_agg_delayed;
 			rack->r_ctl.rc_agg_delayed = 0;
 		} else {
-			slot -= max_red;
+			usecs -= max_red;
 			rack->r_ctl.rc_agg_delayed -= max_red;
 		}
 	}
 	if ((rack->r_use_hpts_min == 1) &&
-	    (slot > 0) &&
+	    (usecs > 0) &&
 	    (rack->dgp_on == 1)) {
 		/*
 		 * We are enforcing a min pacing timer
@@ -6630,8 +6630,8 @@ rack_start_hpts_timer (struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 		uint32_t min;
 
 		min = get_hpts_min_sleep_time();
-		if (min > slot) {
-			slot = min;
+		if (min > usecs) {
+			usecs = min;
 		}
 	}
 	hpts_timeout = rack_timer_start(tp, rack, cts, sup_rack);
@@ -6649,7 +6649,7 @@ rack_start_hpts_timer (struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 	 * wheel, we resort to a keep-alive timer if its configured.
 	 */
 	if ((hpts_timeout == 0) &&
-	    (slot == 0)) {
+	    (usecs == 0)) {
 		if ((V_tcp_always_keepalive || inp->inp_socket->so_options & SO_KEEPALIVE) &&
 		    (tp->t_state <= TCPS_CLOSING)) {
 			/*
@@ -6706,10 +6706,10 @@ rack_start_hpts_timer (struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 			hpts_timeout = 0x7ffffffe;
 		rack->r_ctl.rc_timer_exp = cts + hpts_timeout;
 	}
-	rack_log_pacing_delay_calc(rack, entry_slot, slot, hpts_timeout, 0, 0, 27, __LINE__, NULL, 0);
+	rack_log_pacing_delay_calc(rack, entry_usecs, usecs, hpts_timeout, 0, 0, 27, __LINE__, NULL, 0);
 	if ((rack->gp_ready == 0) &&
 	    (rack->use_fixed_rate == 0) &&
-	    (hpts_timeout < slot) &&
+	    (hpts_timeout < usecs) &&
 	    (rack->r_ctl.rc_hpts_flags & (PACE_TMR_TLP|PACE_TMR_RXT))) {
 		/*
 		 * We have no good estimate yet for the
@@ -6719,7 +6719,7 @@ rack_start_hpts_timer (struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 		 * pace that long since we know the calculation
 		 * so far is not accurate.
 		 */
-		slot = hpts_timeout;
+		usecs = hpts_timeout;
 	}
 	/**
 	 * Turn off all the flags for queuing by default. The
@@ -6751,11 +6751,11 @@ rack_start_hpts_timer (struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 	 * so LRO can call into us.
 	 */
 	tp->t_flags2 &= ~(TF2_DONT_SACK_QUEUE|TF2_MBUF_QUEUE_READY);
-	if (slot) {
+	if (usecs) {
 		rack->r_ctl.rc_hpts_flags |= PACE_PKT_OUTPUT;
-		rack->r_ctl.rc_last_output_to = us_cts + slot;
+		rack->r_ctl.rc_last_output_to = us_cts + usecs;
 		/*
-		 * A pacing timer (slot) is being set, in
+		 * A pacing timer (usecs microseconds) is being set, in
 		 * such a case we cannot send (we are blocked by
 		 * the timer). So lets tell LRO that it should not
 		 * wake us unless there is a SACK. Note this only
@@ -6796,18 +6796,18 @@ rack_start_hpts_timer (struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 		}
 		if ((rack->use_rack_rr) &&
 		    (rack->r_rr_config < 2) &&
-		    ((hpts_timeout) && (hpts_timeout < slot))) {
+		    ((hpts_timeout) && (hpts_timeout < usecs))) {
 			/*
 			 * Arrange for the hpts to kick back in after the
 			 * t-o if the t-o does not cause a send.
 			 */
-			tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(hpts_timeout), &diag);
+			tcp_hpts_insert(tp, hpts_timeout, &diag);
 			rack_log_hpts_diag(rack, us_cts, &diag, &tv);
-			rack_log_to_start(rack, cts, hpts_timeout, slot, 0);
+			rack_log_to_start(rack, cts, hpts_timeout, usecs, 0);
 		} else {
-			tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(slot), &diag);
+			tcp_hpts_insert(tp, usecs, &diag);
 			rack_log_hpts_diag(rack, us_cts, &diag, &tv);
-			rack_log_to_start(rack, cts, hpts_timeout, slot, 1);
+			rack_log_to_start(rack, cts, hpts_timeout, usecs, 1);
 		}
 	} else if (hpts_timeout) {
 		/*
@@ -6819,21 +6819,21 @@ rack_start_hpts_timer (struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 		 * at the start of this block) are good enough.
 		 */
 		rack->r_ctl.rc_hpts_flags &= ~PACE_PKT_OUTPUT;
-		tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(hpts_timeout), &diag);
+		tcp_hpts_insert(tp, hpts_timeout, &diag);
 		rack_log_hpts_diag(rack, us_cts, &diag, &tv);
-		rack_log_to_start(rack, cts, hpts_timeout, slot, 0);
+		rack_log_to_start(rack, cts, hpts_timeout, usecs, 0);
 	} else {
 		/* No timer starting */
 #ifdef INVARIANTS
 		if (SEQ_GT(tp->snd_max, tp->snd_una)) {
-			panic("tp:%p rack:%p tlts:%d cts:%u slot:%u pto:%u -- no timer started?",
-			    tp, rack, tot_len_this_send, cts, slot, hpts_timeout);
+			panic("tp:%p rack:%p tlts:%d cts:%u usecs:%u pto:%u -- no timer started?",
+			    tp, rack, tot_len_this_send, cts, usecs, hpts_timeout);
 		}
 #endif
 	}
 	rack->rc_tmr_stopped = 0;
-	if (slot)
-		rack_log_type_bbrsnd(rack, tot_len_this_send, slot, us_cts, &tv, __LINE__);
+	if (usecs)
+		rack_log_type_bbrsnd(rack, tot_len_this_send, usecs, us_cts, &tv, __LINE__);
 }
 
 static void
@@ -8010,7 +8010,7 @@ rack_process_timers(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts, uint8
 		rack->rc_tp->t_flags2 &= ~TF2_DONT_SACK_QUEUE;
 		ret = -3;
 		left = rack->r_ctl.rc_timer_exp - cts;
-		tcp_hpts_insert(tp, HPTS_MS_TO_SLOTS(left), NULL);
+		tcp_hpts_insert(tp, left, NULL);
 		rack_log_to_processing(rack, cts, ret, left);
 		return (1);
 	}
@@ -14371,7 +14371,7 @@ rack_switch_failed(struct tcpcb *tp)
 		}
 	} else
 		toval = HPTS_USECS_PER_SLOT;
-	tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(toval), &diag);
+	tcp_hpts_insert(tp, toval, &diag);
 	rack_log_hpts_diag(rack, cts, &diag, &tv);
 }
 
@@ -14966,7 +14966,7 @@ rack_init(struct tcpcb *tp, void **ptr)
 				if (tov) {
 					struct hpts_diag diag;
 
-					tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(tov), &diag);
+					tcp_hpts_insert(tp, tov, &diag);
 					rack_log_hpts_diag(rack, us_cts, &diag, &rack->r_ctl.act_rcv_time);
 				}
 			}
@@ -16359,7 +16359,7 @@ rack_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 	struct rack_sendmap *rsm;
 	int32_t prev_state = 0;
 	int no_output = 0;
-	int slot_remaining = 0;
+	int time_remaining = 0;
 #ifdef TCP_ACCOUNTING
 	int ack_val_set = 0xf;
 #endif
@@ -16408,7 +16408,7 @@ rack_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 		 * could be, if a sack is present, we want to be awoken and
 		 * so should process the packets.
 		 */
-		slot_remaining = rack->r_ctl.rc_last_output_to - us_cts;
+		time_remaining = rack->r_ctl.rc_last_output_to - us_cts;
 		if (rack->rc_tp->t_flags2 & TF2_DONT_SACK_QUEUE) {
 			no_output = 1;
 		} else {
@@ -16428,7 +16428,7 @@ rack_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 			     (*ts_ptr == TCP_LRO_TS_OPTION)))
 				no_output = 1;
 		}
-		if ((no_output == 1) && (slot_remaining < tcp_min_hptsi_time)) {
+		if ((no_output == 1) && (time_remaining < tcp_min_hptsi_time)) {
 			/*
 			 * It is unrealistic to think we can pace in less than
 			 * the minimum granularity of the pacer (def:250usec). So
@@ -16911,10 +16911,10 @@ do_output_now:
 			   (tcp_in_hpts(rack->rc_tp) == 0)) {
 			/*
 			 * We are not in hpts and we had a pacing timer up. Use
-			 * the remaining time (slot_remaining) to restart the timer.
+			 * the remaining time (time_remaining) to restart the timer.
 			 */
-			KASSERT ((slot_remaining != 0), ("slot remaining is zero for rack:%p tp:%p", rack, tp));
-			rack_start_hpts_timer(rack, tp, cts, slot_remaining, 0, 0);
+			KASSERT ((time_remaining != 0), ("slot remaining is zero for rack:%p tp:%p", rack, tp));
+			rack_start_hpts_timer(rack, tp, cts, time_remaining, 0, 0);
 			rack_free_trim(rack);
 		}
 		/* Clear the flag, it may have been cleared by output but we may not have  */
@@ -17094,7 +17094,7 @@ check_it:
 }
 
 static void
-rack_log_pacing_delay_calc (struct tcp_rack *rack, uint32_t len, uint32_t slot,
+rack_log_pacing_delay_calc (struct tcp_rack *rack, uint32_t len, uint32_t pacing_delay,
 			   uint64_t bw_est, uint64_t bw, uint64_t len_time, int method,
 			   int line, struct rack_sendmap *rsm, uint8_t quality)
 {
@@ -17117,7 +17117,7 @@ rack_log_pacing_delay_calc (struct tcp_rack *rack, uint32_t len, uint32_t slot,
 			}
 		}
 		memset(&log, 0, sizeof(log));
-		log.u_bbr.flex1 = slot;
+		log.u_bbr.flex1 = pacing_delay;
 		log.u_bbr.flex2 = len;
 		log.u_bbr.flex3 = rack->r_ctl.rc_pace_min_segs;
 		log.u_bbr.flex4 = rack->r_ctl.rc_pace_max_segs;
@@ -17276,25 +17276,25 @@ rack_arrive_at_discounted_rate(struct tcp_rack *rack, uint64_t window_input, uin
 }
 
 static int32_t
-pace_to_fill_cwnd(struct tcp_rack *rack, int32_t slot, uint32_t len, uint32_t segsiz, int *capped, uint64_t *rate_wanted, uint8_t non_paced)
+pace_to_fill_cwnd(struct tcp_rack *rack, int32_t pacing_delay, uint32_t len, uint32_t segsiz, int *capped, uint64_t *rate_wanted, uint8_t non_paced)
 {
 	uint64_t lentim, fill_bw;
 
 	rack->r_via_fill_cw = 0;
 	if (ctf_flight_size(rack->rc_tp, rack->r_ctl.rc_sacked) > rack->r_ctl.cwnd_to_use)
-		return (slot);
+		return (pacing_delay);
 	if ((ctf_outstanding(rack->rc_tp) + (segsiz-1)) > rack->rc_tp->snd_wnd)
-		return (slot);
+		return (pacing_delay);
 	if (rack->r_ctl.rc_last_us_rtt == 0)
-		return (slot);
+		return (pacing_delay);
 	if (rack->rc_pace_fill_if_rttin_range &&
 	    (rack->r_ctl.rc_last_us_rtt >=
 	     (get_filter_value_small(&rack->r_ctl.rc_gp_min_rtt) * rack->rtt_limit_mul))) {
 		/* The rtt is huge, N * smallest, lets not fill */
-		return (slot);
+		return (pacing_delay);
 	}
 	if (rack->r_ctl.fillcw_cap && *rate_wanted >= rack->r_ctl.fillcw_cap)
-		return (slot);
+		return (pacing_delay);
 	/*
 	 * first lets calculate the b/w based on the last us-rtt
 	 * and the the smallest send window.
@@ -17360,7 +17360,7 @@ at_lt_bw:
 	if (non_paced)
 		*rate_wanted = fill_bw;
 	if ((fill_bw < RACK_MIN_BW) || (fill_bw < *rate_wanted))
-		return (slot);
+		return (pacing_delay);
 	rack->r_via_fill_cw = 1;
 	if (rack->r_rack_hw_rate_caps &&
 	    (rack->r_ctl.crte != NULL)) {
@@ -17415,19 +17415,19 @@ at_lt_bw:
 	lentim = (uint64_t)(len) * (uint64_t)HPTS_USEC_IN_SEC;
 	lentim /= fill_bw;
 	*rate_wanted = fill_bw;
-	if (non_paced || (lentim < slot)) {
-		rack_log_pacing_delay_calc(rack, len, slot, fill_bw,
+	if (non_paced || (lentim < pacing_delay)) {
+		rack_log_pacing_delay_calc(rack, len, pacing_delay, fill_bw,
 					   0, lentim, 12, __LINE__, NULL, 0);
 		return ((int32_t)lentim);
 	} else
-		return (slot);
+		return (pacing_delay);
 }
 
 static int32_t
 rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, struct rack_sendmap *rsm, uint32_t segsiz, int line)
 {
 	uint64_t srtt;
-	int32_t slot = 0;
+	int32_t pacing_delay = 0;
 	int can_start_hw_pacing = 1;
 	int err;
 	int pace_one;
@@ -17475,25 +17475,25 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 		 * cwnd. Which in that case we are just waiting for
 		 * a ACK.
 		 */
-		slot = len / tr_perms;
+		pacing_delay = len / tr_perms;
 		/* Now do we reduce the time so we don't run dry? */
-		if (slot && rack_slot_reduction) {
-			reduce = (slot / rack_slot_reduction);
-			if (reduce < slot) {
-				slot -= reduce;
+		if (pacing_delay && rack_pacing_delay_reduction) {
+			reduce = (pacing_delay / rack_pacing_delay_reduction);
+			if (reduce < pacing_delay) {
+				pacing_delay -= reduce;
 			} else
-				slot = 0;
+				pacing_delay = 0;
 		} else
 			reduce = 0;
-		slot *= HPTS_USEC_IN_MSEC;
+		pacing_delay *= HPTS_USEC_IN_MSEC;
 		if (rack->rc_pace_to_cwnd) {
 			uint64_t rate_wanted = 0;
 
-			slot = pace_to_fill_cwnd(rack, slot, len, segsiz, NULL, &rate_wanted, 1);
+			pacing_delay = pace_to_fill_cwnd(rack, pacing_delay, len, segsiz, NULL, &rate_wanted, 1);
 			rack->rc_ack_can_sendout_data = 1;
-			rack_log_pacing_delay_calc(rack, len, slot, rate_wanted, 0, 0, 14, __LINE__, NULL, 0);
+			rack_log_pacing_delay_calc(rack, len, pacing_delay, rate_wanted, 0, 0, 14, __LINE__, NULL, 0);
 		} else
-			rack_log_pacing_delay_calc(rack, len, slot, tr_perms, reduce, 0, 7, __LINE__, NULL, 0);
+			rack_log_pacing_delay_calc(rack, len, pacing_delay, tr_perms, reduce, 0, 7, __LINE__, NULL, 0);
 		/*******************************************************/
 		/* RRS: We insert non-paced call to stats here for len */
 		/*******************************************************/
@@ -17567,7 +17567,7 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 		segs *= oh;
 		lentim = (uint64_t)(len + segs) * (uint64_t)HPTS_USEC_IN_SEC;
 		res = lentim / rate_wanted;
-		slot = (uint32_t)res;
+		pacing_delay = (uint32_t)res;
 		if (rack_hw_rate_min &&
 		    (rate_wanted < rack_hw_rate_min)) {
 			can_start_hw_pacing = 0;
@@ -17627,7 +17627,7 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 			 * We want to pace at our rate *or* faster to
 			 * fill the cwnd to the max if its not full.
 			 */
-			slot = pace_to_fill_cwnd(rack, slot, (len+segs), segsiz, &capped, &rate_wanted, 0);
+			pacing_delay = pace_to_fill_cwnd(rack, pacing_delay, (len+segs), segsiz, &capped, &rate_wanted, 0);
 			/* Re-check to make sure we are not exceeding our max b/w */
 			if ((rack->r_ctl.crte != NULL) &&
 			    (tcp_hw_highest_rate(rack->r_ctl.crte) < rate_wanted)) {
@@ -17778,15 +17778,15 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 				srtt = rack->rc_tp->t_srtt;
 			else
 				srtt = RACK_INITIAL_RTO * HPTS_USEC_IN_MSEC;	/* its in ms convert */
-			if (srtt < (uint64_t)slot) {
-				rack_log_pacing_delay_calc(rack, srtt, slot, rate_wanted, bw_est, lentim, 99, __LINE__, NULL, 0);
-				slot = srtt;
+			if (srtt < (uint64_t)pacing_delay) {
+				rack_log_pacing_delay_calc(rack, srtt, pacing_delay, rate_wanted, bw_est, lentim, 99, __LINE__, NULL, 0);
+				pacing_delay = srtt;
 			}
 		}
 		/*******************************************************************/
 		/* RRS: We insert paced call to stats here for len and rate_wanted */
 		/*******************************************************************/
-		rack_log_pacing_delay_calc(rack, len, slot, rate_wanted, bw_est, lentim, 2, __LINE__, rsm, 0);
+		rack_log_pacing_delay_calc(rack, len, pacing_delay, rate_wanted, bw_est, lentim, 2, __LINE__, rsm, 0);
 	}
 	if (rack->r_ctl.crte && (rack->r_ctl.crte->rs_num_enobufs > 0)) {
 		/*
@@ -17803,9 +17803,9 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 			hw_boost_delay = rack_enobuf_hw_max;
 		else if (hw_boost_delay < rack_enobuf_hw_min)
 			hw_boost_delay = rack_enobuf_hw_min;
-		slot += hw_boost_delay;
+		pacing_delay += hw_boost_delay;
 	}
-	return (slot);
+	return (pacing_delay);
 }
 
 static void
@@ -18474,7 +18474,7 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	struct tcpopt to;
 	u_char opt[TCP_MAXOLEN];
 	uint32_t hdrlen, optlen;
-	int32_t slot, segsiz, max_val, tso = 0, error = 0, ulen = 0;
+	int32_t pacing_delay, segsiz, max_val, tso = 0, error = 0, ulen = 0;
 	uint16_t flags;
 	uint32_t if_hw_tsomaxsegcount = 0, startseq;
 	uint32_t if_hw_tsomaxsegsize;
@@ -18680,9 +18680,9 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	}
 	if (rack->r_ctl.crte != NULL) {
 		/* See if we can send via the hw queue */
-		slot = rack_check_queue_level(rack, tp, tv, cts, len, segsiz);
+		pacing_delay = rack_check_queue_level(rack, tp, tv, cts, len, segsiz);
 		/* If there is nothing in queue (no pacing time) we can send via the hw queue */
-		if (slot == 0)
+		if (pacing_delay == 0)
 			ip_sendflag = 0;
 	}
 	tcp_set_flags(th, flags);
@@ -18947,20 +18947,20 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 				rack_log_queue_level(tp, rack, len, tv, cts);
 		} else
 			tcp_trace_point(rack->rc_tp, TCP_TP_ENOBUF);
-		slot = ((1 + rack->rc_enobuf) * HPTS_USEC_IN_MSEC);
+		pacing_delay = ((1 + rack->rc_enobuf) * HPTS_USEC_IN_MSEC);
 		if (rack->rc_enobuf < 0x7f)
 			rack->rc_enobuf++;
-		if (slot < (10 * HPTS_USEC_IN_MSEC))
-			slot = 10 * HPTS_USEC_IN_MSEC;
+		if (pacing_delay < (10 * HPTS_USEC_IN_MSEC))
+			pacing_delay = 10 * HPTS_USEC_IN_MSEC;
 		if (rack->r_ctl.crte != NULL) {
 			counter_u64_add(rack_saw_enobuf_hw, 1);
 			tcp_rl_log_enobuf(rack->r_ctl.crte);
 		}
 		counter_u64_add(rack_saw_enobuf, 1);
 	} else {
-		slot = rack_get_pacing_delay(rack, tp, len, NULL, segsiz, __LINE__);
+		pacing_delay = rack_get_pacing_delay(rack, tp, len, NULL, segsiz, __LINE__);
 	}
-	rack_start_hpts_timer(rack, tp, cts, slot, len, 0);
+	rack_start_hpts_timer(rack, tp, cts, pacing_delay, len, 0);
 #ifdef TCP_ACCOUNTING
 	crtsc = get_cyclecount();
 	if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
@@ -19063,7 +19063,7 @@ rack_fast_output(struct tcpcb *tp, struct tcp_rack *rack, uint64_t ts_val,
 #ifdef TCP_ACCOUNTING
 	int cnt_thru = 1;
 #endif
-	int32_t slot, segsiz, len, max_val, tso = 0, sb_offset, error, ulen = 0;
+	int32_t pacing_delay, segsiz, len, max_val, tso = 0, sb_offset, error, ulen = 0;
 	uint16_t flags;
 	uint32_t s_soff;
 	uint32_t if_hw_tsomaxsegcount = 0, startseq;
@@ -19511,8 +19511,8 @@ again:
 	}
 	tp->t_flags &= ~(TF_ACKNOW | TF_DELACK);
 	counter_u64_add(rack_fto_send, 1);
-	slot = rack_get_pacing_delay(rack, tp, *tot_len, NULL, segsiz, __LINE__);
-	rack_start_hpts_timer(rack, tp, cts, slot, *tot_len, 0);
+	pacing_delay = rack_get_pacing_delay(rack, tp, *tot_len, NULL, segsiz, __LINE__);
+	rack_start_hpts_timer(rack, tp, cts, pacing_delay, *tot_len, 0);
 #ifdef TCP_ACCOUNTING
 	crtsc = get_cyclecount();
 	if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
@@ -19699,7 +19699,7 @@ rack_output(struct tcpcb *tp)
 	struct rack_sendmap *rsm = NULL;
 	int32_t tso, mtu;
 	struct tcpopt to;
-	int32_t slot = 0;
+	int32_t pacing_delay = 0;
 	int32_t sup_rack = 0;
 	uint32_t cts, ms_cts, delayed, early;
 	uint32_t add_flag = RACK_SENT_SP;
@@ -20062,7 +20062,7 @@ again:
 		if (rsm == NULL) {
 			if (hpts_calling)
 				/* Retry in a ms */
-				slot = (1 * HPTS_USEC_IN_MSEC);
+				pacing_delay = (1 * HPTS_USEC_IN_MSEC);
 			so = inp->inp_socket;
 			sb = &so->so_snd;
 			goto just_return_nolock;
@@ -20869,7 +20869,7 @@ just_return_nolock:
 		}
 		if (tot_len_this_send > 0) {
 			rack->r_ctl.fsb.recwin = recwin;
-			slot = rack_get_pacing_delay(rack, tp, tot_len_this_send, NULL, segsiz, __LINE__);
+			pacing_delay = rack_get_pacing_delay(rack, tp, tot_len_this_send, NULL, segsiz, __LINE__);
 			if ((error == 0) &&
 			    rack_use_rfo &&
 			    ((flags & (TH_SYN|TH_FIN)) == 0) &&
@@ -21052,8 +21052,8 @@ just_return_nolock:
 			/* Yes lets make sure to move to persist before timer-start */
 			rack_enter_persist(tp, rack, rack->r_ctl.rc_rcvtime, tp->snd_una);
 		}
-		rack_start_hpts_timer(rack, tp, cts, slot, tot_len_this_send, sup_rack);
-		rack_log_type_just_return(rack, cts, tot_len_this_send, slot, hpts_calling, app_limited, cwnd_to_use);
+		rack_start_hpts_timer(rack, tp, cts, pacing_delay, tot_len_this_send, sup_rack);
+		rack_log_type_just_return(rack, cts, tot_len_this_send, pacing_delay, hpts_calling, app_limited, cwnd_to_use);
 	}
 #ifdef NETFLIX_SHARED_CWND
 	if ((sbavail(sb) == 0) &&
@@ -21092,8 +21092,8 @@ send:
 		 * we come around to again, the flag will be clear.
 		 */
 		check_done = 1;
-		slot = rack_check_queue_level(rack, tp, &tv, cts, len, segsiz);
-		if (slot) {
+		pacing_delay = rack_check_queue_level(rack, tp, &tv, cts, len, segsiz);
+		if (pacing_delay) {
 			rack->r_ctl.rc_agg_delayed = 0;
 			rack->r_ctl.rc_agg_early = 0;
 			rack->r_early = 0;
@@ -22350,11 +22350,11 @@ nomore:
 					rack_log_queue_level(tp, rack, len, &tv, cts);
 			} else
 				tcp_trace_point(rack->rc_tp, TCP_TP_ENOBUF);
-			slot = ((1 + rack->rc_enobuf) * HPTS_USEC_IN_MSEC);
+			pacing_delay = ((1 + rack->rc_enobuf) * HPTS_USEC_IN_MSEC);
 			if (rack->rc_enobuf < 0x7f)
 				rack->rc_enobuf++;
-			if (slot < (10 * HPTS_USEC_IN_MSEC))
-				slot = 10 * HPTS_USEC_IN_MSEC;
+			if (pacing_delay < (10 * HPTS_USEC_IN_MSEC))
+				pacing_delay = 10 * HPTS_USEC_IN_MSEC;
 			if (rack->r_ctl.crte != NULL) {
 				counter_u64_add(rack_saw_enobuf_hw, 1);
 				tcp_rl_log_enobuf(rack->r_ctl.crte);
@@ -22381,8 +22381,8 @@ nomore:
 					goto again;
 				}
 			}
-			slot = 10 * HPTS_USEC_IN_MSEC;
-			rack_start_hpts_timer(rack, tp, cts, slot, 0, 0);
+			pacing_delay = 10 * HPTS_USEC_IN_MSEC;
+			rack_start_hpts_timer(rack, tp, cts, pacing_delay, 0, 0);
 #ifdef TCP_ACCOUNTING
 			crtsc = get_cyclecount();
 			if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
@@ -22404,8 +22404,8 @@ nomore:
 			}
 			/* FALLTHROUGH */
 		default:
-			slot = 10 * HPTS_USEC_IN_MSEC;
-			rack_start_hpts_timer(rack, tp, cts, slot, 0, 0);
+			pacing_delay = 10 * HPTS_USEC_IN_MSEC;
+			rack_start_hpts_timer(rack, tp, cts, pacing_delay, 0, 0);
 #ifdef TCP_ACCOUNTING
 			crtsc = get_cyclecount();
 			if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
@@ -22448,18 +22448,18 @@ enobufs:
 		/*
 		 * We don't send again after sending a RST.
 		 */
-		slot = 0;
+		pacing_delay = 0;
 		sendalot = 0;
 		if (error == 0)
 			tcp_log_end_status(tp, TCP_EI_STATUS_SERVER_RST);
-	} else if ((slot == 0) && (sendalot == 0) && tot_len_this_send) {
+	} else if ((pacing_delay == 0) && (sendalot == 0) && tot_len_this_send) {
 		/*
 		 * Get our pacing rate, if an error
 		 * occurred in sending (ENOBUF) we would
 		 * hit the else if with slot preset. Other
 		 * errors return.
 		 */
-		slot = rack_get_pacing_delay(rack, tp, tot_len_this_send, rsm, segsiz, __LINE__);
+		pacing_delay = rack_get_pacing_delay(rack, tp, tot_len_this_send, rsm, segsiz, __LINE__);
 	}
 	/* We have sent clear the flag */
 	rack->r_ent_rec_ns = 0;
@@ -22491,7 +22491,7 @@ enobufs:
 		 */
 		tp->t_flags &= ~(TF_WASCRECOVERY|TF_WASFRECOVERY);
 	}
-	if (slot) {
+	if (pacing_delay) {
 		/* set the rack tcb into the slot N */
 		if ((error == 0) &&
 		    rack_use_rfo &&
@@ -22556,7 +22556,7 @@ skip_all_send:
 	/* Assure when we leave that snd_nxt will point to top */
 	if (SEQ_GT(tp->snd_max, tp->snd_nxt))
 		tp->snd_nxt = tp->snd_max;
-	rack_start_hpts_timer(rack, tp, cts, slot, tot_len_this_send, 0);
+	rack_start_hpts_timer(rack, tp, cts, pacing_delay, tot_len_this_send, 0);
 #ifdef TCP_ACCOUNTING
 	crtsc = get_cyclecount() - ts_val;
 	if (tot_len_this_send) {

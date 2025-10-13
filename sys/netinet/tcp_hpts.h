@@ -28,8 +28,6 @@
 
 /* Number of useconds represented by an hpts slot */
 #define HPTS_USECS_PER_SLOT 10
-#define HPTS_MS_TO_SLOTS(x) ((x * 100) + 1)
-#define HPTS_USEC_TO_SLOTS(x) ((x+9) /10)
 #define HPTS_USEC_IN_SEC 1000000
 #define HPTS_MSEC_IN_SEC 1000
 #define HPTS_USEC_IN_MSEC 1000
@@ -60,7 +58,7 @@ struct hpts_diag {
 	uint32_t p_runningslot;		/* bbr->inflight */
 	uint32_t slot_req;		/* bbr->flex3 x */
 	uint32_t inp_hptsslot;		/* bbr->flex4 x */
-	uint32_t slot_remaining;	/* bbr->flex5 x */
+	uint32_t time_remaining;	/* bbr->flex5 x */
 	uint32_t have_slept;		/* bbr->epoch x */
 	uint32_t hpts_sleep_time;	/* bbr->applimited x */
 	uint32_t yet_to_sleep;		/* bbr->lt_epoch x */
@@ -130,15 +128,15 @@ tcp_in_hpts(struct tcpcb *tp)
  * you should already have the INP_WLOCK().
  */
 #ifdef INVARIANTS
-void __tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t slot,
+void __tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t usecs,
 	int32_t line, struct hpts_diag *diag);
-#define	tcp_hpts_insert(tp, slot, diag)	\
-	__tcp_hpts_insert(tcp_hptsi_pace, (tp), (slot), __LINE__, (diag))
+#define	tcp_hpts_insert(tp, usecs, diag)	\
+	__tcp_hpts_insert(tcp_hptsi_pace, (tp), (usecs), __LINE__, (diag))
 #else
-void __tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t slot,
+void __tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t usecs,
 	struct hpts_diag *diag);
-#define	tcp_hpts_insert(tp, slot, diag)	\
-	__tcp_hpts_insert(tcp_hptsi_pace, (tp), (slot), (diag))
+#define	tcp_hpts_insert(tp, usecs, diag)	\
+	__tcp_hpts_insert(tcp_hptsi_pace, (tp), (usecs), (diag))
 #endif
 
 void __tcp_set_hpts(struct tcp_hptsi *pace, struct tcpcb *tp);

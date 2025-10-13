@@ -39,15 +39,14 @@
  * First, and probably the main thing its used by Rack and BBR, it can
  * be used to call tcp_output() of a transport stack at some time in the future.
  * The normal way this is done is that tcp_output() of the stack schedules
- * itself to be called again by calling tcp_hpts_insert(tcpcb, slot). The
- * slot is the time from now that the stack wants to be called but it
- * must be converted to tcp_hpts's notion of slot. This is done with
- * one of the macros HPTS_MS_TO_SLOTS or HPTS_USEC_TO_SLOTS. So a typical
+ * itself to be called again by calling tcp_hpts_insert(tcpcb, usecs). The
+ * usecs is the time from now that the stack wants to be called and is
+ * passing time directly in microseconds. So a typical
  * call from the tcp_output() routine might look like:
  *
- * tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(550), NULL);
+ * tcp_hpts_insert(tp, 550, NULL);
  *
- * The above would schedule tcp_output() to be called in 550 useconds.
+ * The above would schedule tcp_output() to be called in 550 microseconds.
  * Note that if using this mechanism the stack will want to add near
  * its top a check to prevent unwanted calls (from user land or the
  * arrival of incoming ack's). So it would add something like:
@@ -832,16 +831,16 @@ check_if_slot_would_be_wrong(struct tcp_hpts_entry *hpts, struct tcpcb *tp,
 
 void
 #ifdef INVARIANTS
-__tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t slot,
+__tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t usecs,
 	int32_t line, struct hpts_diag *diag)
 #else
-__tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t slot,
+__tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t usecs,
 	struct hpts_diag *diag)
 #endif
 {
 	struct tcp_hpts_entry *hpts;
 	struct timeval tv;
-	uint32_t wheel_cts, last_slot, need_new_to = 0;
+	uint32_t slot, wheel_cts, last_slot, need_new_to = 0;
 	int32_t wheel_slot, maxslots;
 	bool need_wakeup = false;
 
@@ -850,10 +849,12 @@ __tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t slot,
 	MPASS(!(tp->t_in_hpts == IHPTS_ONQUEUE));
 
 	/*
+	 * Convert microseconds to slots for internal use.
 	 * We now return the next-slot the hpts will be on, beyond its
 	 * current run (if up) or where it was when it stopped if it is
 	 * sleeping.
 	 */
+	slot = HPTS_USEC_TO_SLOTS(usecs);
 	hpts = tcp_hpts_lock(pace, tp);
 	microuptime(&tv);
 	if (diag) {
@@ -929,7 +930,7 @@ __tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t slot,
 		tp->t_hpts_slot = last_slot;
 	}
 	if (diag) {
-		diag->slot_remaining = tp->t_hpts_request;
+		diag->time_remaining = tp->t_hpts_request;
 		diag->inp_hptsslot = tp->t_hpts_slot;
 	}
 #ifdef INVARIANTS
