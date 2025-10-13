@@ -120,7 +120,7 @@
 
 /* the kernel process "vm_pageout"*/
 static void vm_pageout(void);
-static void vm_pageout_init(void);
+static void vm_pageout_init(void *);
 static int vm_pageout_clean(vm_page_t m, int *numpagedout);
 static int vm_pageout_cluster(vm_page_t m);
 static void vm_pageout_mightbe_oom(struct vm_domain *vmd, int page_shortage,
@@ -2333,7 +2333,7 @@ vm_pageout_init_domain(int domain)
 }
 
 static void
-vm_pageout_init(void)
+vm_pageout_init(void *dummy __unused)
 {
 	u_long freecount;
 	int i;
