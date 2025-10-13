@@ -278,7 +278,7 @@ unwind_module_unloaded(struct linker_file *lf)
  * the unwind tables might be stripped, so instead we have to use the
  * _exidx_start/end symbols created by ldscript.arm.
  */
-static int
+static void
 module_info_init(void *arg __unused)
 {
 	struct linker_file thekernel;
@@ -291,8 +291,6 @@ module_info_init(void *arg __unused)
 	thekernel.exidx_addr = CADDR(&_exidx_start);
 	thekernel.exidx_size = UADDR(&_exidx_end) - UADDR(&_exidx_start);
 	populate_module_info(create_module_info(), &thekernel);
-
-	return (0);
 }
 SYSINIT(unwind_init, SI_SUB_KMEM, SI_ORDER_ANY, module_info_init, NULL);
 
