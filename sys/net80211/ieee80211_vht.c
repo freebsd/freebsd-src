@@ -102,7 +102,7 @@ vht_send_action_placeholder(struct ieee80211_node *ni,
 }
 
 static void
-ieee80211_vht_init(void)
+ieee80211_vht_init(void *dummy __unused)
 {
 
 	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_VHT,

@@ -212,7 +212,7 @@ SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, inact,
     "mesh route inactivity timeout (ms)");
 
 static void
-ieee80211_hwmp_init(void)
+ieee80211_hwmp_init(void *dummy __unused)
 {
 	/* Default values as per amendment */
 	ieee80211_hwmp_pathtimeout = msecs_to_ticks(5*1000);
