@@ -1166,7 +1166,7 @@ vnet_ipfw_nat_uninit(const void *arg __unused)
 }
 
 static void
-ipfw_nat_init(void)
+ipfw_nat_init(void *dummy __unused)
 {
 
 	/* init ipfw hooks */
@@ -1183,7 +1183,7 @@ ipfw_nat_init(void)
 }
 
 static void
-ipfw_nat_destroy(void)
+ipfw_nat_destroy(void *dummy __unused)
 {
 
 	EVENTHANDLER_DEREGISTER(ifaddr_event, ifaddr_event_tag);
