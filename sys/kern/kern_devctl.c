@@ -140,7 +140,7 @@ static struct devctlbridge {
 } devctl_notify_hook = { .send_f = NULL };
 
 static void
-devctl_init(void)
+devctl_init(void *dummy __unused)
 {
 	int reserve;
 	uma_zone_t z;
