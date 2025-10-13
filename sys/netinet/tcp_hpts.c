@@ -1486,24 +1486,32 @@ no_run:
 	 */
 	hpts->p_wheel_complete = 1;
 	/*
-	 * Now did we spend too long running input and need to run more?
-	 * Note that if wrap_loop_cnt < 2 then we should have the conditions
-	 * in the KASSERT's true. But if the wheel is behind i.e. wrap_loop_cnt
-	 * is greater than 2, then the condtion most likely are *not* true.
-	 * Also if we are called not from the callout, we don't run the wheel
-	 * multiple times so the slots may not align either.
-	 */
-	KASSERT(((hpts->p_prev_slot == hpts->p_cur_slot) ||
-		 (hpts->p_on_queue_cnt == 0) ||
-		 (wrap_loop_cnt >= 2) || !from_callout),
-		("H:%p p_prev_slot:%u not equal to p_cur_slot:%u", hpts,
-		 hpts->p_prev_slot, hpts->p_cur_slot));
-	KASSERT((!tcp_hpts_different_slots(cts, cts_last_run) ||
-		 (hpts->p_on_queue_cnt == 0) ||
-		 (wrap_loop_cnt >= 2) || !from_callout),
-		("H:%p cts_last_run:%u not close enough to cts:%u", hpts,
-		 cts_last_run, cts));
-	if (from_callout && ((cts - cts_last_run) >= HPTS_USECS_PER_SLOT)) {
+	* If enough time has elapsed that we should be processing the next
+	* slot(s), then we should have kept running and not marked the wheel as
+	* complete.
+	*
+	* But there are several other conditions where we would have stopped
+	* processing, so the prev/cur slots and cts variables won't match.
+	* These conditions are:
+	*
+	* - Calls not from callouts don't run multiple times
+	* - The wheel is empty
+	* - We've processed more than max_pacer_loops times
+	* - We've wrapped more than 2 times
+	*
+	* This assert catches when the logic above has violated this design.
+	*
+	*/
+	KASSERT((!from_callout || (hpts->p_on_queue_cnt == 0) ||
+		 (loop_cnt > max_pacer_loops) || (wrap_loop_cnt >= 2) ||
+		 ((hpts->p_prev_slot == hpts->p_cur_slot) &&
+		  !tcp_hpts_different_slots(cts, cts_last_run))),
+		("H:%p Shouldn't be done! prev_slot:%u, cur_slot:%u, "
+		 "cts_last_run:%u, cts:%u, loop_cnt:%d, wrap_loop_cnt:%d",
+		 hpts, hpts->p_prev_slot, hpts->p_cur_slot,
+		 cts_last_run, cts, loop_cnt, wrap_loop_cnt));
+
+	if (from_callout && tcp_hpts_different_slots(cts, cts_last_run)){
 		cts_last_run = tcp_pace.cts_last_ran[hpts->p_num];
 		tcp_pace.cts_last_ran[hpts->p_num] = cts = tcp_get_usecs(&tv);
 		hpts->p_cur_slot = cts_to_wheel(cts);
