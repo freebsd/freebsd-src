@@ -579,7 +579,7 @@ sysctl_boottrace_reset(SYSCTL_HANDLER_ARGS)
 }
 
 static void
-boottrace_init(void)
+boottrace_init(void *dummy __unused)
 {
 
 	if (!boottrace_enabled)

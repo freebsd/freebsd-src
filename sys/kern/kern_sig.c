@@ -113,7 +113,7 @@ static int	filt_sigattach(struct knote *kn);
 static void	filt_sigdetach(struct knote *kn);
 static int	filt_signal(struct knote *kn, long hint);
 static struct thread *sigtd(struct proc *p, int sig, bool fast_sigblock);
-static void	sigqueue_start(void);
+static void	sigqueue_start(void *);
 static void	sigfastblock_setpend(struct thread *td, bool resched);
 static void	sig_handle_first_stop(struct thread *td, struct proc *p,
     int sig);
@@ -344,7 +344,7 @@ ast_sigsuspend(struct thread *td, int tda __unused)
 }
 
 static void
-sigqueue_start(void)
+sigqueue_start(void *dummy __unused)
 {
 	ksiginfo_zone = uma_zcreate("ksiginfo", sizeof(ksiginfo_t),
 		NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);

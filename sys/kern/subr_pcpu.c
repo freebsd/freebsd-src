@@ -140,7 +140,7 @@ uma_zone_t pcpu_zone_32;
 uma_zone_t pcpu_zone_64;
 
 static void
-pcpu_zones_startup(void)
+pcpu_zones_startup(void *dummy __unused)
 {
 
 	pcpu_zone_4 = uma_zcreate("pcpu-4", 4,

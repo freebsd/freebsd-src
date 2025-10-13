@@ -209,7 +209,7 @@ static struct dict actionnames[] = {
 	{ "throttle", RCTL_ACTION_THROTTLE },
 	{ NULL, -1 }};
 
-static void rctl_init(void);
+static void rctl_init(void *);
 SYSINIT(rctl, SI_SUB_RACCT, SI_ORDER_FIRST, rctl_init, NULL);
 
 static uma_zone_t rctl_rule_zone;
@@ -2175,7 +2175,7 @@ rctl_racct_release(struct racct *racct)
 }
 
 static void
-rctl_init(void)
+rctl_init(void *dummy __unused)
 {
 
 	if (!racct_enable)
