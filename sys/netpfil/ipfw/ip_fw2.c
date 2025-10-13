@@ -3578,11 +3578,9 @@ sysctl_ipfw_tables_sets(SYSCTL_HANDLER_ARGS)
 /*
  * Stuff that must be initialised only on boot or module load
  */
-static int
-ipfw_init(void)
+static void
+ipfw_init(void *dummy __unused)
 {
-	int error = 0;
-
 	/*
  	 * Only print out this stuff the first time around,
 	 * when called from the sysinit code.
@@ -3627,14 +3625,13 @@ ipfw_init(void)
 	ipfw_init_sopt_handler();
 	ipfw_init_obj_rewriter();
 	ipfw_iface_init();
-	return (error);
 }
 
 /*
  * Called for the removal of the last instance only on module unload.
  */
 static void
-ipfw_destroy(void)
+ipfw_destroy(void *dummy __unused)
 {
 
 	ipfw_iface_destroy();
