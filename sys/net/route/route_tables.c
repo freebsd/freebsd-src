@@ -186,7 +186,7 @@ rtables_prison_destructor(void *data)
 }
 
 static void
-rtables_init(void)
+rtables_init(void *dummy __unused)
 {
 	osd_method_t methods[PR_MAXMETHOD] = {
 	    [PR_METHOD_ATTACH] =	rtables_check_proc_fib,
