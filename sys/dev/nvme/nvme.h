@@ -2173,7 +2173,7 @@ void	nvme_namespace_data_swapbytes(struct nvme_namespace_data *s __unused)
 	s->anagrpid = le32toh(s->anagrpid);
 	s->nvmsetid = le16toh(s->nvmsetid);
 	s->endgid = le16toh(s->endgid);
-	for (i = 0; i < 64; i++)
+	for (i = 0; i < nitems(s->lbaf); i++)
 		s->lbaf[i] = le32toh(s->lbaf[i]);
 #endif
 }
