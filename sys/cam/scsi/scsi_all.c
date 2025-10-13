@@ -112,7 +112,7 @@ static void	fetchtableentries(int sense_key, int asc, int ascq,
 				  const struct asc_table_entry **);
 
 #ifdef _KERNEL
-static void	init_scsi_delay(void);
+static void	init_scsi_delay(void *);
 static int	sysctl_scsi_delay(SYSCTL_HANDLER_ARGS);
 static int	set_scsi_delay(int delay);
 #endif
@@ -9379,7 +9379,7 @@ scsi_vpd_supported_page(struct cam_periph *periph, uint8_t page_id)
 }
 
 static void
-init_scsi_delay(void)
+init_scsi_delay(void *dummy __unused)
 {
 	int delay;
 
