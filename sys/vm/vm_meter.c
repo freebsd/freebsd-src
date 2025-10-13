@@ -96,7 +96,7 @@ struct vmmeter __read_mostly vm_cnt = {
 u_long __exclusive_cache_line vm_user_wire_count;
 
 static void
-vmcounter_startup(void)
+vmcounter_startup(void *dummy __unused)
 {
 	counter_u64_t *cnt = (counter_u64_t *)&vm_cnt;
 
