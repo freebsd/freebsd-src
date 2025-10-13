@@ -45,7 +45,7 @@
  * one of the macros HPTS_MS_TO_SLOTS or HPTS_USEC_TO_SLOTS. So a typical
  * call from the tcp_output() routine might look like:
  *
- * tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(550));
+ * tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(550), NULL);
  *
  * The above would schedule tcp_output() to be called in 550 useconds.
  * Note that if using this mechanism the stack will want to add near
@@ -855,12 +855,17 @@ check_if_slot_would_be_wrong(struct tcp_hpts_entry *hpts, struct tcpcb *tp,
 }
 #endif
 
-uint32_t
-tcp_hpts_insert_diag(struct tcpcb *tp, uint32_t slot, int32_t line, struct hpts_diag *diag)
+void
+#ifdef INVARIANTS
+__tcp_hpts_insert(struct tcpcb *tp, uint32_t slot, int32_t line,
+	struct hpts_diag *diag)
+#else
+tcp_hpts_insert(struct tcpcb *tp, uint32_t slot, struct hpts_diag *diag)
+#endif
 {
 	struct tcp_hpts_entry *hpts;
 	struct timeval tv;
-	uint32_t slot_on, wheel_cts, last_slot, need_new_to = 0;
+	uint32_t wheel_cts, last_slot, need_new_to = 0;
 	int32_t wheel_slot, maxslots;
 	bool need_wakeup = false;
 
@@ -912,10 +917,9 @@ tcp_hpts_insert_diag(struct tcpcb *tp, uint32_t slot, int32_t line, struct hpts_
 			hpts->p_direct_wake = 1;
 			tcp_wakehpts(hpts);
 		}
-		slot_on = hpts->p_nxt_slot;
 		HPTS_UNLOCK(hpts);
 
-		return (slot_on);
+		return;
 	}
 	/* Get the current time relative to the wheel */
 	wheel_cts = tcp_tv_to_hpts_slot(&tv);
@@ -1026,10 +1030,7 @@ tcp_hpts_insert_diag(struct tcpcb *tp, uint32_t slot, int32_t line, struct hpts_
 			diag->co_ret = co_ret;
 		}
 	}
-	slot_on = hpts->p_nxt_slot;
 	HPTS_UNLOCK(hpts);
-
-	return (slot_on);
 }
 
 static uint16_t

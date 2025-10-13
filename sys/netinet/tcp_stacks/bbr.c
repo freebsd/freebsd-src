@@ -900,15 +900,13 @@ bbr_start_hpts_timer(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts, int32_
 			tp->t_flags2 &= ~TF2_DONT_SACK_QUEUE;
 		bbr->rc_pacer_started = cts;
 
-		(void)tcp_hpts_insert_diag(tp, HPTS_USEC_TO_SLOTS(slot),
-					   __LINE__, &diag);
+		tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(slot), &diag);
 		bbr->rc_timer_first = 0;
 		bbr->bbr_timer_src = frm;
 		bbr_log_to_start(bbr, cts, hpts_timeout, slot, 1);
 		bbr_log_hpts_diag(bbr, cts, &diag);
 	} else if (hpts_timeout) {
-		(void)tcp_hpts_insert_diag(tp, HPTS_USEC_TO_SLOTS(hpts_timeout),
-					   __LINE__, &diag);
+		tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(hpts_timeout), &diag);
 		/*
 		 * We add the flag here as well if the slot is set,
 		 * since hpts will call in to clear the queue first before
@@ -5205,7 +5203,7 @@ bbr_process_timers(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts, uint8_t 
 		left = bbr->r_ctl.rc_timer_exp - cts;
 		ret = -3;
 		bbr_log_to_processing(bbr, cts, ret, left, hpts_calling);
-		tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(left));
+		tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(left), NULL);
 		return (1);
 	}
 	bbr->rc_tmr_stopped = 0;
@@ -14132,8 +14130,7 @@ bbr_switch_failed(struct tcpcb *tp)
 		}
 	} else
 		toval = HPTS_USECS_PER_SLOT;
-	(void)tcp_hpts_insert_diag(tp, HPTS_USEC_TO_SLOTS(toval),
-				   __LINE__, &diag);
+	tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(toval), &diag);
 	bbr_log_hpts_diag(bbr, cts, &diag);
 }
 
