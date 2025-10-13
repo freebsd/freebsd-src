@@ -9,7 +9,7 @@ MAN=		geom.8
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/core
 CFLAGS+=	-DGEOM_CLASS_DIR=\"${GEOM_CLASS_DIR}\"
 
-LIBADD=		geom util
+LIBADD=		geom util xo
 
 .if defined(RESCUE)
 .PATH:	${SRCTOP}/lib/geom/part \
