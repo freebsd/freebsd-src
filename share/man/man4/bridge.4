@@ -36,7 +36,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd July 28, 2025
+.Dd October 13, 2025
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -272,53 +272,149 @@ by setting the
 node using
 .Xr sysctl 8 .
 .Sh VLAN SUPPORT
-The
-.Nm
-driver has full support for virtual LANs (VLANs).
-The bridge implements independent VLAN learning, i.e. MAC addresses are
-learned on a per-VLAN basis, and the same MAC address may be learned on
-multiple interfaces on different VLANs.
-Incoming frames with an 802.1Q tag will be assigned to the appropriate
-VLAN.
+Virtual LANs (VLANs), defined in the IEEE 802.1Q standard, allow traffic
+on a bridge to be segregated into separate logical networks which cannot
+communicate with each other.
+For example, two interfaces in VLAN 10 would be able to communicate
+with each other, but not with another interface in VLAN 20.
 .Pp
-Traffic sent to or from the host is not assigned to a VLAN by default.
-To allow the host to communicate on a VLAN, configure a
+Each VLAN is identified by a number between 1 and 4094 inclusive.
+By default, all traffic on the bridge is assigned to "VLAN 0",
+a pseudo-VLAN used for historical compatibility.
+When VLANs are in use on a bridge, it is recommended to explicitly
+assign all traffic to a VLAN rather than using VLAN 0.
+.Pp
+The bridge implements Independent VLAN Learning (IVL), meaning that
+host addresses are learned separately for each VLAN, and the same host
+address may exist on several different ports in different VLANs.
+.Pp
+If a
 .Xr vlan 4
-interface on the bridge and (if necessary) assign IP addresses there.
-.Pp
-By default no access control is enabled, so any interface may
-participate in any VLAN.
-.Pp
-VLAN filtering may be enabled on a bridge using the
+interface is configured on an interface which is also an
+.Nm
+member interface, all tagged frames will be processed by the
+.Xr vlan 4
+interface and will not be visible to the bridge.
+This configuration is not recommended and may be unsupported in a
+future release.
+.Ss Tagged and untagged traffic
+Incoming frames on a member interface may be either tagged or untagged.
+Tagged frames contain an 802.1Q header indicating which VLAN the
+frame belongs to, while untagged frames do not.
+When a tagged frame is received, the frame is automatically assigned to
+the VLAN in the tag (subject to any configured VLAN access list),
+while untagged frames are assigned to the interface's configured
+Port VLAN ID (PVID), or to VLAN 0 if no PVID is configured.
+.Ss Assigning interfaces to VLANs
+An interface's PVID may be configured using the
 .Xr ifconfig 8
-.Cm vlanfilter
-option.
-When VLAN filtering is enabled, an interface may only send and receive
-frames based on its configured VLAN access list.
+.Cm ifuntagged
+command:
+.Bd -literal -offset indent
+ifconfig bridge0 ifuntagged ix0 10
+.Ed
 .Pp
-The interface's untagged VLAN ID may be configured using the
-.Xr ifconfig 8
+Or by using the
 .Cm untagged
-option.
-If an untagged VLAN ID is configured, incoming frames will be assigned
-to that VLAN, and the interface may receive outgoing untagged frames
-in that VLAN.
+option to
+.Cm addm :
+.Bd -literal -offset indent
+ifconfig bridge0 addm ix0 untagged 10
+.Ed
 .Pp
-The tagged VLAN access list may be configured using the
-.Cm tagged ,
-.Cm +tagged
-and
-.Cm -tagged
-options to
-.Xr ifconfig 8 .
-An interface may send and receive tagged frames for any VLAN in its
-access list.
+This will assign all untagged traffic received on the interface to the
+specified VLAN, and any traffic transmitted on the interface in this
+VLAN will have its VLAN tag (if present) removed.
+Conversely, any traffic transmitted on the interface in a different
+VLAN will have a tag added, to allow the remote system to assign the
+traffic to the appropriate VLAN.
+.Ss Host communication in a VLAN
+Sometimes it is useful to allow the host itself to communicate in a VLAN,
+for example to provide routing to other hosts in the VLAN.
+To do this, create a
+.Xr vlan 4
+interface on top of the
+.Nm
+interface with the appropriate VLAN tag.
+For example, to allow the host to communicate in VLAN 10:
+.Bd -literal -offset indent
+ifconfig bridge0.10 create inet6 2001:db8::1/64
+.Ed
+.Ss Configuring the VLAN access list (VLAN filtering)
+For historical reasons, the default
+.Nm
+configuration allows all interfaces to send tagged traffic for any VLAN,
+meaning that VLANs do not provide security separation.
+To restrict which interfaces may communicate in which VLANs,
+enable VLAN filtering on the bridge:
+.Bd -literal -offset indent
+ifconfig bridge0 vlanfilter
+.Ed
 .Pp
-The bridge will automatically insert or remove 802.1q tags as needed,
-based on the interface configuration, when forwarding frames between
-interfaces.
-This tag processing is only done for interfaces with VLAN filtering
-enabled.
+This has the following effects on bridge members:
+.Bl -bullet -offset indent
+.It
+No untagged frames will be accepted from a member interface unless
+the interface has a PVID configured.
+.It
+No tagged frames will be accepted from a member interface unless
+the VLAN identifier is present in the interface's VLAN access list.
+.It
+Frames with stacked tags (Q-in-Q) will not be accepted from a
+member interface unless the
+.Cm qinq
+option (see below) has been configured for that member.
+.El
+.Pp
+To configure the VLAN access list, use the
+.Xr ifconfig 8
+.Cm iftagged ,
+.Cm +iftagged
+or
+.Cm -iftagged
+commands.
+For example, to allow an interface to communicate in VLANs 10, 20,
+and any VLAN from 100 to 199:
+.Bd -literal -offset indent
+ifconfig bridge0 iftagged ix0 10,20,100-199
+.Ed
+.Ss IEEE 802.1ad (Q-in-Q) configuration
+IEEE 802.1ad, also called Q-in-Q or
+.Dq tag stacking ,
+allows a single Ethernet frame to contain multiple tags.
+This allows one Ethernet network to transport traffic between endpoints
+using its own VLAN tags without interfering with any pre-existing tags,
+and is often used in service provider networks to provide
+.Dq virtual wire
+Ethernet services.
+.Pp
+When VLAN filtering is enabled,
+.Nm
+does not permit member interfaces to send Q-in-Q frames, because in
+certain configuration this allows
+.Dq VLAN-hopping
+attacks on the bridge.
+For example, consider a bridge with port ix0 configured as a tagged
+port in VLAN 10, and port ix1 configured as untagged in VLAN 10 and
+tagged in VLAN 20.
+If ix0 is allowed to send Q-in-Q frames, then it can send a frame with
+two tags: one for VLAN 10, followed by one for VLAN 20.
+When the bridge forwards the frame to ix1, it will strip the VLAN tag
+for VLAN 10, then forward the frame to ix1 with the tag for VLAN 20
+intact, effectively allowing ix1 to send traffic on VLAN 20 even
+though the bridge configuration should not permit that.
+.Pp
+To permit an interface to send Q-in-Q frames, set the
+.Xr ifconfig 8
+.Cm qinq
+flag on the interface.
+This is only required on the interface which will send Q-in-Q frames,
+not the interface receiving the frames.
+.Pp
+Alternatively, set the
+.Cm defqinq
+flag on the bridge itself to enable Q-in-Q for all newly-added
+interfaces by default.
 .Sh PACKET FILTERING
 Packet filtering can be used with any firewall package that hooks in via the
 .Xr pfil 9
@@ -535,6 +631,36 @@ The above example would also require:
 create_args_wlan0="wlanmode hostap"
 ifconfig_wlan0="up ssid my_ap mode 11g"
 ifconfig_fxp0="up"
+.Ed
+.Pp
+The following will cause a bridge to be created with two VLANs,
+10 and 20, where the
+.Dq Li em
+interfaces can only communicate in their assigned VLANs,
+while
+.Dq Li ix0
+is a trunk port which can communicate in either VLAN:
+.Bd -literal -offset indent
+cloned_interfaces="bridge0"
+ifconfig_bridge0="vlanfilter \e
+	addm em0 untagged 10 \e
+	addm em1 untagged 10 \e
+	addm em2 untagged 20 \e
+	addm em3 untagged 20 \e
+	addm ix0 tagged 10,20"
+ifconfig_em0="up"
+ifconfig_em1="up"
+ifconfig_em2="up"
+ifconfig_em3="up"
+ifconfig_ix0="up"
+.Ed
+.Pp
+The previous example could be extended to allow the host to
+communicate in VLANs 10 and 20:
+.Bd -literal -offset indent
+vlans_bridge0="10 20"
+ifconfig_bridge0_10_ipv6="inet6 2001:db8:0:10::1/64"
+ifconfig_bridge0_20_ipv6="inet6 2001:db8:0:20::1/64"
 .Ed
 .Pp
 Consider a system with two 4-port Ethernet boards.
