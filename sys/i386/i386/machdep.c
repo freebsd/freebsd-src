@@ -1605,7 +1605,7 @@ init386(int first)
 }
 
 static void
-machdep_init_trampoline(void)
+machdep_init_trampoline(void *dummy __unused)
 {
 	struct region_descriptor r_gdt, r_idt;
 	struct i386tss *tss;

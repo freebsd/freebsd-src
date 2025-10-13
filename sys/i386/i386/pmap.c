@@ -720,7 +720,7 @@ __CONCAT(PMTYPE, bootstrap)(vm_paddr_t firstaddr)
 }
 
 static void
-pmap_init_reserved_pages(void)
+pmap_init_reserved_pages(void *dummy __unused)
 {
 	struct pcpu *pc;
 	vm_offset_t pages;
