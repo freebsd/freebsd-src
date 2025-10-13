@@ -587,6 +587,7 @@ unionfs_find_node_status(struct unionfs_node *unp, struct thread *td)
 	struct unionfs_node_status *unsp;
 	pid_t pid;
 
+	MPASS(td != NULL);
 	pid = td->td_proc->p_pid;
 
 	ASSERT_VOP_ELOCKED(UNIONFSTOV(unp), __func__);
@@ -612,6 +613,7 @@ unionfs_get_node_status(struct unionfs_node *unp, struct thread *td,
 	struct unionfs_node_status *unsp;
 	pid_t pid;
 
+	MPASS(td != NULL);
 	pid = td->td_proc->p_pid;
 
 	KASSERT(NULL != unspp, ("%s: NULL status", __func__));

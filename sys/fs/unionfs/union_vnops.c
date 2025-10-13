@@ -814,7 +814,7 @@ unionfs_close(struct vop_close_args *ap)
 	unp = VTOUNIONFS(vp);
 	lvp = unp->un_lowervp;
 	uvp = unp->un_uppervp;
-	unsp = unionfs_find_node_status(unp, td);
+	unsp = (td != NULL) ? unionfs_find_node_status(unp, td) : NULL;
 
 	if (unsp == NULL ||
 	    (unsp->uns_lower_opencnt <= 0 && unsp->uns_upper_opencnt <= 0)) {
