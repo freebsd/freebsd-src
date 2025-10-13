@@ -329,7 +329,7 @@ audit_record_dtor(void *mem, int size, void *arg)
  * call into the BSM assembly code to initialize it.
  */
 static void
-audit_init(void)
+audit_init(void *dummy __unused)
 {
 
 	audit_trail_enabled = 0;
