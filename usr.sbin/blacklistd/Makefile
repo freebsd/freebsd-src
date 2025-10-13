@@ -7,9 +7,7 @@ CONFS=	blacklistd.conf
 PROG=	blacklistd
 SRCS=	blacklistd.c conf.c run.c state.c support.c old_internal.c \
 	sockaddr_snprintf.c pidfile.c strtoi.c popenve.c vsyslog_r.c
-MAN=	blocklistd.8 blocklistd.conf.5
-MLINKS=	blocklistd.8 blacklistd.8 \
-	blocklistd.conf.5 blacklistd.conf.5
+MAN=	blacklistd.8 blacklistd.conf.5
 
 LDFLAGS+=-L${LIBBLACKLISTDIR}
 LIBADD+= blocklist util
