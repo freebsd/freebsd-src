@@ -67,7 +67,7 @@ opensolaris_load(void *dummy)
 SYSINIT(opensolaris_register, SI_SUB_OPENSOLARIS, SI_ORDER_FIRST, opensolaris_load, NULL);
 
 static void
-opensolaris_unload(void)
+opensolaris_unload(void *dummy __unused)
 {
 	mutex_destroy(&cpu_lock);
 }
