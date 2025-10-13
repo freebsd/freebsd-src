@@ -65,6 +65,10 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 	uint32_t junk;
 	char hostbuf[MAXHOSTNAMELEN];
 
+	if (xdrs->x_op == XDR_FREE)
+		/* This function does not allocate auxiliary memory. */
+		return (TRUE);
+
 	if (xdrs->x_op == XDR_ENCODE) {
 		getcredhostname(NULL, hostbuf, sizeof(hostbuf));
 		namelen = strlen(hostbuf);
