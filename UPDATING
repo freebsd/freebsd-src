@@ -291,7 +291,7 @@ and/or ports.
 	Bump _FreeBSD_version to 1400078 to be able to detect this change.
 
 20221212:
-	llvm-objump is now always installed as objdump.  Previously there was
+	llvm-objdump is now always installed as objdump.  Previously there was
 	no /usr/bin/objdump unless the WITH_LLVM_BINUTILS knob was used.
 
 	Some LLVM objdump options have a different output format compared to
