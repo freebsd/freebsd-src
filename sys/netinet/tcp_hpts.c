@@ -798,7 +798,7 @@ max_slots_available(struct tcp_hpts_entry *hpts, uint32_t wheel_slot, uint32_t *
 #ifdef INVARIANTS
 static void
 check_if_slot_would_be_wrong(struct tcp_hpts_entry *hpts, struct tcpcb *tp,
-    uint32_t hptsslot, int line)
+    uint32_t hptsslot)
 {
 	/*
 	 * Sanity checks for the pacer with invariants
@@ -830,13 +830,8 @@ check_if_slot_would_be_wrong(struct tcp_hpts_entry *hpts, struct tcpcb *tp,
 #endif
 
 void
-#ifdef INVARIANTS
-__tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t usecs,
-	int32_t line, struct hpts_diag *diag)
-#else
 __tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t usecs,
 	struct hpts_diag *diag)
-#endif
 {
 	struct tcp_hpts_entry *hpts;
 	struct timeval tv;
@@ -934,7 +929,7 @@ __tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t usecs,
 		diag->inp_hptsslot = tp->t_hpts_slot;
 	}
 #ifdef INVARIANTS
-	check_if_slot_would_be_wrong(hpts, tp, tp->t_hpts_slot, line);
+	check_if_slot_would_be_wrong(hpts, tp, tp->t_hpts_slot);
 #endif
 	if (__predict_true(tp->t_in_hpts != IHPTS_MOVING))
 		tcp_hpts_insert_internal(tp, hpts);
