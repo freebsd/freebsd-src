@@ -57,11 +57,11 @@
 #define tcp_hpts_init(pace, tp) __tcp_hpts_init((pace), (tp))
 #define tcp_hpts_remove(pace, tp) __tcp_hpts_remove((pace), (tp))
 #ifdef INVARIANTS
-#define	tcp_hpts_insert(pace, tp, slot, diag)	\
-	__tcp_hpts_insert((pace), (tp), (slot), __LINE__, (diag))
+#define	tcp_hpts_insert(pace, tp, usecs, diag)	\
+	__tcp_hpts_insert((pace), (tp), (usecs), __LINE__, (diag))
 #else
-#define	tcp_hpts_insert(pace, tp, slot, diag)	\
-	__tcp_hpts_insert((pace), (tp), (slot), (diag))
+#define	tcp_hpts_insert(pace, tp, usecs, diag)	\
+	__tcp_hpts_insert((pace), (tp), (usecs), (diag))
 #endif
 #define tcp_set_hpts(pace, tp) __tcp_set_hpts((pace), (tp))
 
@@ -607,7 +607,7 @@ KTEST_FUNC(tcpcb_insertion)
 	struct tcp_hptsi *pace;
 	struct tcpcb *tp;
 	struct tcp_hpts_entry *hpts;
-	uint32_t slot = 10;
+	uint32_t timeout_usecs = 10;
 
 	test_hpts_init();
 
@@ -623,7 +623,7 @@ KTEST_FUNC(tcpcb_insertion)
 	INP_WLOCK(&tp->t_inpcb);
 	tp->t_flags2 |= TF2_HPTS_CALLS;
 	KTEST_EQUAL(call_counts[CCNT_SWI_SCHED], 0);
-	tcp_hpts_insert(pace, tp, slot, NULL);
+	tcp_hpts_insert(pace, tp, timeout_usecs, NULL);
 	KTEST_EQUAL(tp->t_in_hpts, IHPTS_ONQUEUE);
 	INP_WUNLOCK(&tp->t_inpcb);
 	KTEST_EQUAL(call_counts[CCNT_TCP_OUTPUT], 0);
@@ -635,7 +635,7 @@ KTEST_FUNC(tcpcb_insertion)
 	hpts = pace->rp_ent[tp->t_hpts_cpu];
 	KTEST_EQUAL(hpts->p_on_queue_cnt, 1);
 	KTEST_EQUAL(tp->t_hpts_request, 0);
-	KTEST_EQUAL(tp->t_hpts_slot, slot);
+	KTEST_EQUAL(tp->t_hpts_slot, HPTS_USEC_TO_SLOTS(timeout_usecs));
 	//KTEST_EQUAL(tp->t_hpts_gencnt, 1);
 
 	INP_WLOCK(&tp->t_inpcb);
@@ -686,7 +686,7 @@ KTEST_FUNC(timer_functionality)
 	KTEST_LOG(ctx, "=> tcp_hpts_insert(%p)", tp);
 	INP_WLOCK(&tp->t_inpcb);
 	tp->t_flags2 |= TF2_HPTS_CALLS; /* Mark as needing HPTS processing */
-	tcp_hpts_insert(pace, tp, HPTS_USEC_TO_SLOTS(500), NULL);
+	tcp_hpts_insert(pace, tp, 500, NULL);
 	INP_WUNLOCK(&tp->t_inpcb);
 
 	dump_tcpcb(tp);
@@ -814,7 +814,7 @@ KTEST_FUNC(scalability_tcpcbs)
 		INP_WLOCK(&tcpcbs[i]->t_inpcb);
 		tcpcbs[i]->t_flags2 |= TF2_HPTS_CALLS;
 		/* Insert with varying future timeouts to distribute across slots */
-		tcp_hpts_insert(pace, tcpcbs[i], HPTS_USEC_TO_SLOTS(100 + (i % 1000)), NULL);
+		tcp_hpts_insert(pace, tcpcbs[i], 100 + (i % 1000), NULL);
 		INP_WUNLOCK(&tcpcbs[i]->t_inpcb);
 	}
 
@@ -864,7 +864,7 @@ KTEST_FUNC(wheel_wrap_recovery)
 	struct epoch_tracker et;
 	struct tcp_hptsi *pace;
 	struct tcpcb **tcpcbs;
-	uint32_t i, slot, num_tcpcbs = 500;
+	uint32_t i, timeout_usecs, num_tcpcbs = 500;
 	int32_t slots_ran;
 
 	test_hpts_init();
@@ -883,11 +883,11 @@ KTEST_FUNC(wheel_wrap_recovery)
 		KTEST_NEQUAL(tcpcbs[i], NULL);
 		TP_REMOVE_FROM_HPTS(tcpcbs[i]) = 1;
 
-		slot = (i * NUM_OF_HPTSI_SLOTS) / num_tcpcbs; /* Spread across slots */
+		timeout_usecs = ((i * NUM_OF_HPTSI_SLOTS) / num_tcpcbs) * HPTS_USECS_PER_SLOT; /* Spread across slots */
 
 		INP_WLOCK(&tcpcbs[i]->t_inpcb);
 		tcpcbs[i]->t_flags2 |= TF2_HPTS_CALLS;
-		tcp_hpts_insert(pace, tcpcbs[i], slot, NULL);
+		tcp_hpts_insert(pace, tcpcbs[i], timeout_usecs, NULL);
 		INP_WUNLOCK(&tcpcbs[i]->t_inpcb);
 	}
 
@@ -957,12 +957,12 @@ KTEST_FUNC(tcpcb_moving_state)
 	/* Insert both into the same slot */
 	INP_WLOCK(&tp1->t_inpcb);
 	tp1->t_flags2 |= TF2_HPTS_CALLS;
-	tcp_hpts_insert(pace, tp1, HPTS_USEC_TO_SLOTS(100), NULL);
+	tcp_hpts_insert(pace, tp1, 100, NULL);
 	INP_WUNLOCK(&tp1->t_inpcb);
 
 	INP_WLOCK(&tp2->t_inpcb);
 	tp2->t_flags2 |= TF2_HPTS_CALLS;
-	tcp_hpts_insert(pace, tp2, HPTS_USEC_TO_SLOTS(100), NULL);
+	tcp_hpts_insert(pace, tp2, 100, NULL);
 	INP_WUNLOCK(&tp2->t_inpcb);
 
 	hpts = pace->rp_ent[0];
@@ -1008,8 +1008,8 @@ KTEST_FUNC(deferred_requests)
 	struct tcp_hptsi *pace;
 	struct tcpcb *tp, *tp2;
 	struct tcp_hpts_entry *hpts;
-	uint32_t large_slot = NUM_OF_HPTSI_SLOTS + 5000; /* Beyond wheel capacity */
-	uint32_t huge_slot = NUM_OF_HPTSI_SLOTS * 3; /* 3x wheel capacity */
+	uint32_t large_timeout_usecs = (NUM_OF_HPTSI_SLOTS + 5000) * HPTS_USECS_PER_SLOT; /* Beyond wheel capacity */
+	uint32_t huge_timeout_usecs = (NUM_OF_HPTSI_SLOTS * 3) * HPTS_USECS_PER_SLOT; /* 3x wheel capacity */
 	uint32_t initial_request;
 	int32_t slots_ran;
 
@@ -1025,7 +1025,7 @@ KTEST_FUNC(deferred_requests)
 	/* Insert with a request that exceeds current wheel capacity */
 	INP_WLOCK(&tp->t_inpcb);
 	tp->t_flags2 |= TF2_HPTS_CALLS;
-	tcp_hpts_insert(pace, tp, large_slot, NULL);
+	tcp_hpts_insert(pace, tp, large_timeout_usecs, NULL);
 	INP_WUNLOCK(&tp->t_inpcb);
 
 	/* Verify it was inserted with a deferred request */
@@ -1061,7 +1061,7 @@ KTEST_FUNC(deferred_requests)
 
 	INP_WLOCK(&tp2->t_inpcb);
 	tp2->t_flags2 |= TF2_HPTS_CALLS;
-	tcp_hpts_insert(pace, tp2, huge_slot, NULL);
+	tcp_hpts_insert(pace, tp2, huge_timeout_usecs, NULL);
 	INP_WUNLOCK(&tp2->t_inpcb);
 
 	/* Verify initial deferred request */
@@ -1081,7 +1081,7 @@ KTEST_FUNC(deferred_requests)
 	KTEST_VERIFY(tp2->t_hpts_request > 0);
 	KTEST_EQUAL(tp2->t_in_hpts, IHPTS_ONQUEUE); /* Still queued */
 
-	/* For huge_slot = NUM_OF_HPTSI_SLOTS * 3, we need ~3 cycles to complete.
+	/* For huge_timeout_usecs = NUM_OF_HPTSI_SLOTS * 3 * HPTS_USECS_PER_SLOT, we need ~3 cycles to complete.
 	 * Each cycle can reduce the request by at most NUM_OF_HPTSI_SLOTS. */
 	test_time_usec += NUM_OF_HPTSI_SLOTS * HPTS_USECS_PER_SLOT;
 	HPTS_LOCK(hpts);
@@ -1200,7 +1200,7 @@ KTEST_FUNC(slot_boundary_conditions)
 	KTEST_NEQUAL(tp, NULL);
 	INP_WLOCK(&tp->t_inpcb);
 	tp->t_flags2 |= TF2_HPTS_CALLS;
-	tcp_hpts_insert(pace, tp, 0, NULL); /* Should insert in next available slot */
+	tcp_hpts_insert(pace, tp, 0, NULL); /* Should insert immediately (0 timeout) */
 	INP_WUNLOCK(&tp->t_inpcb);
 	KTEST_EQUAL(tp->t_in_hpts, IHPTS_ONQUEUE);
 	KTEST_VERIFY(tp->t_hpts_slot < NUM_OF_HPTSI_SLOTS);
@@ -1212,7 +1212,7 @@ KTEST_FUNC(slot_boundary_conditions)
 	/* Test insertion at maximum slot value */
 	INP_WLOCK(&tp->t_inpcb);
 	tp->t_flags2 |= TF2_HPTS_CALLS;
-	tcp_hpts_insert(pace, tp, NUM_OF_HPTSI_SLOTS - 1, NULL);
+	tcp_hpts_insert(pace, tp, (NUM_OF_HPTSI_SLOTS - 1) * HPTS_USECS_PER_SLOT, NULL);
 	INP_WUNLOCK(&tp->t_inpcb);
 	KTEST_EQUAL(tp->t_in_hpts, IHPTS_ONQUEUE);
 
@@ -1220,13 +1220,13 @@ KTEST_FUNC(slot_boundary_conditions)
 	tcp_hpts_remove(pace, tp);
 	INP_WUNLOCK(&tp->t_inpcb);
 
-	/* Test very small slot values */
+	/* Test very small timeout values */
 	INP_WLOCK(&tp->t_inpcb);
 	tp->t_flags2 |= TF2_HPTS_CALLS;
 	tcp_hpts_insert(pace, tp, 1, NULL);
 	INP_WUNLOCK(&tp->t_inpcb);
 	KTEST_EQUAL(tp->t_in_hpts, IHPTS_ONQUEUE);
-	KTEST_EQUAL(tp->t_hpts_slot, 1); /* Should be exactly slot 1 */
+	KTEST_EQUAL(tp->t_hpts_slot, HPTS_USEC_TO_SLOTS(1)); /* Should convert 1 usec to slot */
 
 	INP_WLOCK(&tp->t_inpcb);
 	tcp_hpts_remove(pace, tp);
@@ -1269,7 +1269,7 @@ KTEST_FUNC(dynamic_sleep_adjustment)
 		INP_WLOCK(&tcpcbs[i]->t_inpcb);
 		tcpcbs[i]->t_flags2 |= TF2_HPTS_CALLS;
 		TP_REMOVE_FROM_HPTS(tcpcbs[i]) = 1; /* Will be removed after output */
-		tcp_hpts_insert(pace, tcpcbs[i], HPTS_USEC_TO_SLOTS(100), NULL);
+		tcp_hpts_insert(pace, tcpcbs[i], 100, NULL);
 		INP_WUNLOCK(&tcpcbs[i]->t_inpcb);
 	}
 
@@ -1333,13 +1333,13 @@ KTEST_FUNC(concurrent_operations)
 	/* Insert tp1 */
 	INP_WLOCK(&tp1->t_inpcb);
 	tp1->t_flags2 |= TF2_HPTS_CALLS;
-	tcp_hpts_insert(pace, tp1, HPTS_USEC_TO_SLOTS(100), NULL);
+	tcp_hpts_insert(pace, tp1, 100, NULL);
 	INP_WUNLOCK(&tp1->t_inpcb);
 
 	/* Insert tp2 into same slot */
 	INP_WLOCK(&tp2->t_inpcb);
 	tp2->t_flags2 |= TF2_HPTS_CALLS;
-	tcp_hpts_insert(pace, tp2, HPTS_USEC_TO_SLOTS(100), NULL);
+	tcp_hpts_insert(pace, tp2, 100, NULL);
 	INP_WUNLOCK(&tp2->t_inpcb);
 
 	/* Verify both are inserted */
@@ -1415,7 +1415,7 @@ KTEST_FUNC(queued_segments_processing)
 	STAILQ_INSERT_TAIL(&tp->t_inqueue, fake_mbuf, m_stailqpkt);
 
 	INP_WLOCK(&tp->t_inpcb);
-	tcp_hpts_insert(pace, tp, HPTS_USEC_TO_SLOTS(100), NULL);
+	tcp_hpts_insert(pace, tp, 100, NULL);
 	INP_WUNLOCK(&tp->t_inpcb);
 
 	hpts = pace->rp_ent[tp->t_hpts_cpu];
@@ -1549,6 +1549,7 @@ KTEST_FUNC(generation_count_validation)
 	struct tcp_hpts_entry *hpts;
 	struct tcpcb *tp1, *tp2;
 	uint32_t initial_gencnt, slot_to_test = 10;
+	uint32_t timeout_usecs = slot_to_test * HPTS_USECS_PER_SLOT;
 	uint32_t tp2_original_gencnt;
 	int32_t slots_ran;
 
@@ -1570,7 +1571,7 @@ KTEST_FUNC(generation_count_validation)
 
 	INP_WLOCK(&tp1->t_inpcb);
 	tp1->t_flags2 |= TF2_HPTS_CALLS;
-	tcp_hpts_insert(pace, tp1, slot_to_test, NULL);
+	tcp_hpts_insert(pace, tp1, timeout_usecs, NULL);
 	INP_WUNLOCK(&tp1->t_inpcb);
 
 	/* Verify connection stored the generation count */
@@ -1604,7 +1605,7 @@ KTEST_FUNC(generation_count_validation)
 	/* Insert second connection and record its generation count */
 	INP_WLOCK(&tp2->t_inpcb);
 	tp2->t_flags2 |= TF2_HPTS_CALLS;
-	tcp_hpts_insert(pace, tp2, slot_to_test, NULL);
+	tcp_hpts_insert(pace, tp2, timeout_usecs, NULL);
 	INP_WUNLOCK(&tp2->t_inpcb);
 
 	/* Verify connection was inserted successfully */
