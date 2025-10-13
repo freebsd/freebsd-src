@@ -29,6 +29,8 @@
 #include "opt_inet6.h"
 
 #include <sys/param.h>
+#include <sys/bus.h>
+#include <sys/interrupt.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -62,6 +64,7 @@
 #include <netinet/tcp_lro.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_hpts.h>
+#include <netinet/tcp_hpts_internal.h>
 #ifdef TCP_BLACKBOX
 #include <netinet/tcp_log_buf.h>
 #endif

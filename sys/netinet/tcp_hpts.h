@@ -84,13 +84,18 @@ struct hpts_diag {
 
 #ifdef _KERNEL
 
+extern struct tcp_hptsi *tcp_hptsi_pace;
+
 /*
  * The following are the definitions for the kernel HPTS interface for managing
  * the HPTS ring and the TCBs on it.
 */
 
-void tcp_hpts_init(struct tcpcb *);
-void tcp_hpts_remove(struct tcpcb *);
+void __tcp_hpts_init(struct tcp_hptsi *pace, struct tcpcb *);
+#define tcp_hpts_init(tp) __tcp_hpts_init(tcp_hptsi_pace, tp)
+
+void __tcp_hpts_remove(struct tcp_hptsi *pace, struct tcpcb *);
+#define tcp_hpts_remove(tp) __tcp_hpts_remove(tcp_hptsi_pace, tp)
 
 static inline bool
 tcp_in_hpts(struct tcpcb *tp)
@@ -125,15 +130,19 @@ tcp_in_hpts(struct tcpcb *tp)
  * you should already have the INP_WLOCK().
  */
 #ifdef INVARIANTS
-void __tcp_hpts_insert(struct tcpcb *tp, uint32_t slot, int32_t line,
+void __tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t slot,
+	int32_t line, struct hpts_diag *diag);
+#define	tcp_hpts_insert(tp, slot, diag)	\
+	__tcp_hpts_insert(tcp_hptsi_pace, (tp), (slot), __LINE__, (diag))
+#else
+void __tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t slot,
 	struct hpts_diag *diag);
 #define	tcp_hpts_insert(tp, slot, diag)	\
-	__tcp_hpts_insert((tp), (slot), __LINE__, (diag))
-#else
-void tcp_hpts_insert(struct tcpcb *tp, uint32_t slot, struct hpts_diag *diag);
+	__tcp_hpts_insert(tcp_hptsi_pace, (tp), (slot), (diag))
 #endif
 
-void tcp_set_hpts(struct tcpcb *tp);
+void __tcp_set_hpts(struct tcp_hptsi *pace, struct tcpcb *tp);
+#define tcp_set_hpts(tp) __tcp_set_hpts(tcp_hptsi_pace, tp)
 
 extern int32_t tcp_min_hptsi_time;
 
@@ -164,13 +173,6 @@ tcp_get_usecs(struct timeval *tv)
 	microuptime(tv);
 	return (tcp_tv_to_usec(tv));
 }
-
-/*
- * LRO HPTS initialization and uninitialization, only for internal use by the
- * HPTS code.
- */
-void tcp_lro_hpts_init(void);
-void tcp_lro_hpts_uninit(void);
 
 #endif /* _KERNEL */
 #endif /* __tcp_hpts_h__ */

@@ -679,6 +679,7 @@ options 	TCP_OFFLOAD		# TCP offload support.
 options  	TCP_RFC7413		# TCP Fast Open
 
 options  	TCPHPTS
+#options 	TCP_HPTS_KTEST		# Add KTEST support for HPTS
 
 # In order to enable IPSEC you MUST also add device crypto to
 # your kernel configuration
