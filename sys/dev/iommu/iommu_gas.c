@@ -77,7 +77,7 @@ static int iommu_check_free;
 #endif
 
 static void
-intel_gas_init(void)
+intel_gas_init(void *dummy __unused)
 {
 
 	iommu_map_entry_zone = uma_zcreate("IOMMU_MAP_ENTRY",
