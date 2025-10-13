@@ -114,6 +114,8 @@
 #define HTTP_BAD_RANGE		416
 #define HTTP_PROTOCOL_ERROR	999
 
+#define HTTP_SUCCESS(xyz) ((xyz) >= 200 && (xyz) <= 299)
+
 #define HTTP_REDIRECT(xyz) ((xyz) == HTTP_MOVED_PERM \
 			    || (xyz) == HTTP_MOVED_TEMP \
 			    || (xyz) == HTTP_TEMP_REDIRECT \
@@ -1959,8 +1961,6 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 
 		/* get reply */
 		switch (http_get_reply(conn)) {
-		case HTTP_OK:
-		case HTTP_PARTIAL:
 		case HTTP_NOT_MODIFIED:
 			/* fine */
 			break;
@@ -2015,6 +2015,8 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 			goto ouch;
 		default:
 			http_seterr(conn->err);
+			if (HTTP_SUCCESS(conn->err))
+				break;
 			if (!verbose)
 				goto ouch;
 			/* fall through so we can get the full error message */
@@ -2163,9 +2165,8 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 		}
 
 		/* we have a hit or an error */
-		if (conn->err == HTTP_OK
+		if (HTTP_SUCCESS(conn->err)
 		    || conn->err == HTTP_NOT_MODIFIED
-		    || conn->err == HTTP_PARTIAL
 		    || HTTP_ERROR(conn->err))
 			break;
 
