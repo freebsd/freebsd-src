@@ -297,7 +297,7 @@ static u_int		moea64_clear_bit(vm_page_t, uint64_t);
 static void		moea64_kremove(vm_offset_t);
 static void		moea64_syncicache(pmap_t pmap, vm_offset_t va,
 			    vm_paddr_t pa, vm_size_t sz);
-static void		moea64_pmap_init_qpages(void);
+static void		moea64_pmap_init_qpages(void *);
 static void		moea64_remove_locked(pmap_t, vm_offset_t,
 			    vm_offset_t, struct pvo_dlist *);
 
@@ -1284,7 +1284,7 @@ moea64_late_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 }
 
 static void
-moea64_pmap_init_qpages(void)
+moea64_pmap_init_qpages(void *dummy __unused)
 {
 	struct pcpu *pc;
 	int i;

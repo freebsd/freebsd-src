@@ -40,7 +40,8 @@ static int pstate_ids[256];
 static int pstate_freqs[256];
 static int npstates;
 
-static void parse_pstates(void)
+static void
+parse_pstates(void *dummy __unused)
 {
 	phandle_t node;
 
