@@ -259,7 +259,7 @@ static void		dehook_pf_eth(void);
 static void		dehook_pf(void);
 static int		shutdown_pf(void);
 static int		pf_load(void);
-static void		pf_unload(void);
+static void		pf_unload(void *);
 
 static struct cdevsw pf_cdevsw = {
 	.d_ioctl =	pfioctl,
@@ -7082,7 +7082,7 @@ pf_unload_vnet(void)
 }
 
 static void
-pf_unload(void)
+pf_unload(void *dummy __unused)
 {
 
 	sx_xlock(&pf_end_lock);
