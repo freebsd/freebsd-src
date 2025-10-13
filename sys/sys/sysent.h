@@ -343,8 +343,7 @@ void exec_free_abi_mappings(struct proc *p);
 void exec_onexec_old(struct thread *td);
 
 #define INIT_SYSENTVEC(name, sv)					\
-    SYSINIT(name, SI_SUB_EXEC, SI_ORDER_ANY,				\
-	(sysinit_cfunc_t)exec_sysvec_init, sv);
+    SYSINIT(name, SI_SUB_EXEC, SI_ORDER_ANY, exec_sysvec_init, sv)
 
 #endif /* _KERNEL */
 
