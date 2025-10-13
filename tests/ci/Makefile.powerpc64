@@ -18,10 +18,6 @@ portinstall-powerpc64: portinstall-pkg .PHONY
 
 # NOTE: Nothing should be changed below this line unless explicitly required.
 
-ci-buildworld-powerpc64: ci-buildworld .PHONY
-
-ci-buildkernel-powerpc64: ci-buildkernel .PHONY
-
 ci-buildimage-powerpc64: ci-buildimage .PHONY
 
 ci-runtest-powerpc64: ci-runtest-qemu .PHONY
