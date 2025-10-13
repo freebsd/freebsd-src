@@ -104,6 +104,9 @@ MODULE_VERSION(ktest_##_n, 1);						\
 MODULE_DEPEND(ktest_##_n, ktestmod, 1, 1, 1);				\
 MODULE_DEPEND(ktest_##_n, netlink, 1, 1, 1);				\
 
+#define	KTEST_MODULE_DEPEND(_n, _d)		\
+MODULE_DEPEND(ktest_##_n, _d, 1, 1, 1);	\
+
 #endif /* _KERNEL */
 
 /* genetlink definitions */

@@ -30,6 +30,7 @@ ATF_TESTS_SH=	arp \
 
 ATF_TESTS_PYTEST+=	carp.py
 ATF_TESTS_PYTEST+=	igmp.py
+ATF_TESTS_PYTEST+=	tcp_hpts_test.py
 
 LIBADD.so_reuseport_lb_test=	pthread
 LIBADD.udp_bindings=		pthread
