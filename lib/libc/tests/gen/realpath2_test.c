@@ -158,15 +158,8 @@ ATF_TC_BODY(realpath_partial, tc)
 	ATF_REQUIRE_EQ(0, chmod("foo", 000));
 	ATF_REQUIRE_ERRNO(EACCES, realpath("foo/bar/baz", resb) == NULL);
 	len = strnlen(resb, sizeof(resb));
-	ATF_REQUIRE(len > 8 && len < sizeof(resb));
-	/*
-	 * This is arguably wrong.  The problem is not with bar, but with
-	 * foo.  However, since foo exists and is a directory and the only
-	 * reliable way to detect whether a directory is readable is to
-	 * attempt to read it, we do not detect the problem until we try
-	 * to access bar.
-	 */
-	ATF_REQUIRE_STREQ("/foo/bar", resb + len - 8);
+	ATF_REQUIRE(len > 4 && len < sizeof(resb));
+	ATF_REQUIRE_STREQ("/foo", resb + len - 4);
 
 	/* scenario 6: not a directory */
 	ATF_REQUIRE_EQ(0, close(creat("bar", 0644)));
