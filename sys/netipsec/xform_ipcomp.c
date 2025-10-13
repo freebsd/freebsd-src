@@ -750,7 +750,7 @@ static struct xformsw ipcomp_xformsw = {
 };
 
 static void
-ipcomp_attach(void)
+ipcomp_attach(void *dummy __unused)
 {
 
 #ifdef INET
@@ -763,7 +763,7 @@ ipcomp_attach(void)
 }
 
 static void
-ipcomp_detach(void)
+ipcomp_detach(void *dummy __unused)
 {
 
 #ifdef INET
