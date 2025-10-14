@@ -741,7 +741,7 @@ struct proc {
 					       reaper which spawned
 					       our subtree. */
 	uint64_t	p_elf_flags;	/* (x) ELF flags */
-	void		*p_elf_brandinfo; /* (x) Elf_Brandinfo, NULL for
+	const void	*p_elf_brandinfo; /* (x) Elf_Brandinfo, NULL for
 						 non ELF binaries. */
 	sbintime_t	p_umtx_min_timeout;
 /* End area that is copied on creation. */

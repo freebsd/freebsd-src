@@ -179,7 +179,7 @@ freebsd_brand_info_la57_img_compat(const struct image_params *imgp,
 	return (!prefer_uva_la48);
 }
 
-static Elf64_Brandinfo freebsd_brand_info_la48 = {
+static const Elf64_Brandinfo freebsd_brand_info_la48 = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_X86_64,
 	.compat_3_brand	= "FreeBSD",
@@ -190,7 +190,7 @@ static Elf64_Brandinfo freebsd_brand_info_la48 = {
 	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
 };
 
-static Elf64_Brandinfo freebsd_brand_info_la57 = {
+static const Elf64_Brandinfo freebsd_brand_info_la57 = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_X86_64,
 	.compat_3_brand	= "FreeBSD",
@@ -216,7 +216,7 @@ sysinit_register_elf64_brand_entries(void *arg __unused)
 SYSINIT(elf64, SI_SUB_EXEC, SI_ORDER_FIRST,
     sysinit_register_elf64_brand_entries, NULL);
 
-static Elf64_Brandinfo freebsd_brand_oinfo = {
+static const Elf64_Brandinfo freebsd_brand_oinfo = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_X86_64,
 	.compat_3_brand	= "FreeBSD",
@@ -226,11 +226,10 @@ static Elf64_Brandinfo freebsd_brand_oinfo = {
 	.brand_note	= &elf64_freebsd_brandnote,
 	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
-
-SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
+C_SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
     (sysinit_cfunc_t)elf64_insert_brand_entry, &freebsd_brand_oinfo);
 
-static Elf64_Brandinfo kfreebsd_brand_info = {
+static const Elf64_Brandinfo kfreebsd_brand_info = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_X86_64,
 	.compat_3_brand	= "FreeBSD",
@@ -240,8 +239,7 @@ static Elf64_Brandinfo kfreebsd_brand_info = {
 	.brand_note	= &elf64_kfreebsd_brandnote,
 	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE_MANDATORY
 };
-
-SYSINIT(kelf64, SI_SUB_EXEC, SI_ORDER_ANY,
+C_SYSINIT(kelf64, SI_SUB_EXEC, SI_ORDER_ANY,
     (sysinit_cfunc_t)elf64_insert_brand_entry, &kfreebsd_brand_info);
 
 void

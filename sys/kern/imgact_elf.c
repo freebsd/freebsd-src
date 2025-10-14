@@ -92,7 +92,7 @@
 #define	ELF_ABI_ID	__CONCAT(elf, __ELF_WORD_SIZE)
 
 static int __elfN(check_header)(const Elf_Ehdr *hdr);
-static Elf_Brandinfo *__elfN(get_brandinfo)(struct image_params *imgp,
+static const Elf_Brandinfo *__elfN(get_brandinfo)(struct image_params *imgp,
     const char *interp, int32_t *osrel, uint32_t *fctl0);
 static int __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
     u_long *entry);
@@ -104,7 +104,7 @@ static bool __elfN(freebsd_trans_osrel)(const Elf_Note *note,
     int32_t *osrel);
 static bool kfreebsd_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static bool __elfN(check_note)(struct image_params *imgp,
-    Elf_Brandnote *checknote, int32_t *osrel, bool *has_fctl0,
+    const Elf_Brandnote *checknote, int32_t *osrel, bool *has_fctl0,
     uint32_t *fctl0);
 static vm_prot_t __elfN(trans_prot)(Elf_Word);
 static Elf_Word __elfN(untrans_prot)(vm_prot_t);
@@ -227,7 +227,7 @@ SYSCTL_BOOL(ELF_NODE_OID, OID_AUTO, allow_wx,
     CTLFLAG_RWTUN, &__elfN(allow_wx), 0,
     "Allow pages to be mapped simultaneously writable and executable");
 
-static Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
+static const Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
 
 #define	aligned(a, t)	(rounddown2((u_long)(a), sizeof(t)) == (u_long)(a))
 
@@ -286,7 +286,7 @@ kfreebsd_trans_osrel(const Elf_Note *note, int32_t *osrel)
 }
 
 int
-__elfN(insert_brand_entry)(Elf_Brandinfo *entry)
+__elfN(insert_brand_entry)(const Elf_Brandinfo *entry)
 {
 	int i;
 
@@ -305,7 +305,7 @@ __elfN(insert_brand_entry)(Elf_Brandinfo *entry)
 }
 
 int
-__elfN(remove_brand_entry)(Elf_Brandinfo *entry)
+__elfN(remove_brand_entry)(const Elf_Brandinfo *entry)
 {
 	int i;
 
@@ -321,7 +321,7 @@ __elfN(remove_brand_entry)(Elf_Brandinfo *entry)
 }
 
 bool
-__elfN(brand_inuse)(Elf_Brandinfo *entry)
+__elfN(brand_inuse)(const Elf_Brandinfo *entry)
 {
 	struct proc *p;
 	bool rval = false;
@@ -338,12 +338,12 @@ __elfN(brand_inuse)(Elf_Brandinfo *entry)
 	return (rval);
 }
 
-static Elf_Brandinfo *
+static const Elf_Brandinfo *
 __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
     int32_t *osrel, uint32_t *fctl0)
 {
 	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
-	Elf_Brandinfo *bi, *bi_m;
+	const Elf_Brandinfo *bi, *bi_m;
 	bool ret, has_fctl0;
 	int i, interp_name_len;
 
@@ -492,7 +492,7 @@ __elfN(phdr_in_zero_page)(const Elf_Ehdr *hdr)
 static int
 __elfN(check_header)(const Elf_Ehdr *hdr)
 {
-	Elf_Brandinfo *bi;
+	const Elf_Brandinfo *bi;
 	int i;
 
 	if (!IS_ELF(*hdr) ||
@@ -1109,7 +1109,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	struct vmspace *vmspace;
 	vm_map_t map;
 	char *interp;
-	Elf_Brandinfo *brand_info;
+	const Elf_Brandinfo *brand_info;
 	struct sysentvec *sv;
 	u_long addr, baddr, entry, proghdr;
 	u_long maxalign, maxsalign, mapsz, maxv, maxv1, anon_loc;
@@ -1925,7 +1925,7 @@ __elfN(puthdr)(struct thread *td, void *hdr, size_t hdrsize, int numsegs,
 	Elf_Phdr *phdr;
 	Elf_Shdr *shdr;
 	struct phdr_closure phc;
-	Elf_Brandinfo *bi;
+	const Elf_Brandinfo *bi;
 
 	ehdr = (Elf_Ehdr *)hdr;
 	bi = td->td_proc->p_elf_brandinfo;
@@ -2861,7 +2861,7 @@ ret:
 }
 
 struct brandnote_cb_arg {
-	Elf_Brandnote *brandnote;
+	const Elf_Brandnote *brandnote;
 	int32_t *osrel;
 };
 
@@ -2883,7 +2883,7 @@ brandnote_cb(const Elf_Note *note, void *arg0, bool *res)
 	return (true);
 }
 
-static Elf_Note fctl_note = {
+static const Elf_Note fctl_note = {
 	.n_namesz = sizeof(FREEBSD_ABI_VENDOR),
 	.n_descsz = sizeof(uint32_t),
 	.n_type = NT_FREEBSD_FEATURE_CTL,
@@ -2918,7 +2918,7 @@ note_fctl_cb(const Elf_Note *note, void *arg0, bool *res)
  * as for headers.
  */
 static bool
-__elfN(check_note)(struct image_params *imgp, Elf_Brandnote *brandnote,
+__elfN(check_note)(struct image_params *imgp, const Elf_Brandnote *brandnote,
     int32_t *osrel, bool *has_fctl0, uint32_t *fctl0)
 {
 	const Elf_Phdr *phdr;

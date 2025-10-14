@@ -251,7 +251,7 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 		 * set LINUX_BI_FUTEX_REQUEUE bit of Brandinfo flags.
 		 */
 		p = td->td_proc;
-		Elf_Brandinfo *bi = p->p_elf_brandinfo;
+		const Elf_Brandinfo *bi = p->p_elf_brandinfo;
 		if (bi == NULL || ((bi->flags & LINUX_BI_FUTEX_REQUEUE)) == 0)
 			return (EINVAL);
 		args->val3_compare = false;
