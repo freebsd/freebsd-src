@@ -45,7 +45,6 @@ static char *sccsid = "@(#)svc_auth_unix.c	2.3 88/08/01 4.0 RPCSRC";
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/ucred.h>
 
 #include <rpc/rpc.h>
@@ -74,11 +73,8 @@ _svcauth_unix(struct svc_req *rqst, struct rpc_msg *msg)
 		const uint32_t min_len = 5 * BYTES_PER_XDR_UNIT;
 		uint32_t str_len, supp_ngroups;
 
-		if (auth_len < min_len) {
-			(void)printf("AUTH_SYS: Too short credentials (%u)\n",
-			    auth_len);
+		if (auth_len < min_len)
 			goto badcred;
-		}
 		time = IXDR_GET_UINT32(buf);
 		str_len = IXDR_GET_UINT32(buf);
 		if (str_len > AUTH_SYS_MAX_HOSTNAME)
@@ -89,12 +85,8 @@ _svcauth_unix(struct svc_req *rqst, struct rpc_msg *msg)
 		 * 'str_len' (and that it won't cause an overflow in additions
 		 * below) to protect access to the credentials part.
 		 */
-		if (auth_len < min_len + str_len) {
-			(void)printf("AUTH_SYS: Inconsistent credentials and "
-			    "host name lengths (%u, %u)\n",
-			    auth_len, str_len);
+		if (auth_len < min_len + str_len)
 			goto badcred;
-		}
 		buf += str_len / sizeof (int32_t);
 		xcr->cr_uid = IXDR_GET_UINT32(buf);
 		xcr->cr_gid = IXDR_GET_UINT32(buf);
@@ -112,14 +104,8 @@ _svcauth_unix(struct svc_req *rqst, struct rpc_msg *msg)
 		 * read in total.
 		 */
 		if (auth_len < min_len + str_len +
-		    supp_ngroups * BYTES_PER_XDR_UNIT) {
-			(void)printf("AUTH_SYS: Inconsistent lengths "
-			    "(credentials %u, machine name %u, "
-			    "supplementary groups %u)\n",
-			    auth_len, str_len,
-			    supp_ngroups * BYTES_PER_XDR_UNIT);
+		    supp_ngroups * BYTES_PER_XDR_UNIT)
 			goto badcred;
-		}
 
 		/*
 		 * Note that 'xcr' is a 'struct xucred', which still has the
