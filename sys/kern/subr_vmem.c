@@ -194,6 +194,9 @@ static LIST_HEAD(, vmem) vmem_list = LIST_HEAD_INITIALIZER(vmem_list);
 static uma_zone_t vmem_zone;
 
 /* ---- misc */
+#define	VMEM_LIST_LOCK()		mtx_lock(&vmem_list_lock)
+#define	VMEM_LIST_UNLOCK()		mtx_unlock(&vmem_list_lock)
+
 #define	VMEM_CONDVAR_INIT(vm, wchan)	cv_init(&vm->vm_cv, wchan)
 #define	VMEM_CONDVAR_DESTROY(vm)	cv_destroy(&vm->vm_cv)
 #define	VMEM_CONDVAR_WAIT(vm)		cv_wait(&vm->vm_cv, &vm->vm_lock)
@@ -777,7 +780,7 @@ vmem_periodic(void *unused, int pending)
 	vmem_size_t desired;
 	vmem_size_t current;
 
-	mtx_lock(&vmem_list_lock);
+	VMEM_LIST_LOCK();
 	LIST_FOREACH(vm, &vmem_list, vm_alllist) {
 #ifdef DIAGNOSTIC
 		/* Convenient time to verify vmem state. */
@@ -802,7 +805,7 @@ vmem_periodic(void *unused, int pending)
 		 */
 		VMEM_CONDVAR_BROADCAST(vm);
 	}
-	mtx_unlock(&vmem_list_lock);
+	VMEM_LIST_UNLOCK();
 
 	callout_reset(&vmem_periodic_ch, vmem_periodic_interval,
 	    vmem_periodic_kick, NULL);
@@ -1271,9 +1274,9 @@ vmem_init(vmem_t *vm, const char *name, vmem_addr_t base, vmem_size_t size,
 		}
 	}
 
-	mtx_lock(&vmem_list_lock);
+	VMEM_LIST_LOCK();
 	LIST_INSERT_HEAD(&vmem_list, vm, vm_alllist);
-	mtx_unlock(&vmem_list_lock);
+	VMEM_LIST_UNLOCK();
 
 	return vm;
 }
@@ -1301,9 +1304,9 @@ void
 vmem_destroy(vmem_t *vm)
 {
 
-	mtx_lock(&vmem_list_lock);
+	VMEM_LIST_LOCK();
 	LIST_REMOVE(vm, vm_alllist);
-	mtx_unlock(&vmem_list_lock);
+	VMEM_LIST_UNLOCK();
 
 	vmem_destroy1(vm);
 }
