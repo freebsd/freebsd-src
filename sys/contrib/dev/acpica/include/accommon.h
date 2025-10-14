@@ -170,6 +170,9 @@
 #ifndef ACPI_USE_SYSTEM_CLIBRARY
 #include <contrib/dev/acpica/include/acclib.h>             /* C library interfaces */
 #endif /* !ACPI_USE_SYSTEM_CLIBRARY */
+#ifdef _STANDALONE
+#include <stand.h>
+#endif
 
 
 #endif /* __ACCOMMON_H__ */
