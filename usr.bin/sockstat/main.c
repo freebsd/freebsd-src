@@ -1789,9 +1789,11 @@ main(int argc, char *argv[])
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
 		exit(1);
-	if (xo_get_style(NULL) != XO_STYLE_TEXT &&
-		xo_get_style(NULL) != XO_STYLE_HTML)
-		is_xo_style_encoding = true;
+	if (xo_get_style(NULL) != XO_STYLE_TEXT) {
+		show_path_state = true;
+		if (xo_get_style(NULL) != XO_STYLE_HTML)
+			is_xo_style_encoding = true;
+	}
 	opt_j = -1;
 	while ((o = getopt(argc, argv, "46AbCcfIij:Llnp:P:qSsUuvw")) != -1)
 		switch (o) {
