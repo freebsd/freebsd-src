@@ -45,6 +45,15 @@ multicast_vnet_init()
 	jexec mjail2 ifconfig ${epair2}b 192.0.3.2/24
 }
 
+multicast_join()
+{
+	jexec mjail2 $(atf_get_srcdir)/multicast-receive \
+	    $1 233.252.0.1 6676 $2 > out & pid=$!
+	while ! jexec mjail2 ifmcstat | grep -q 233\.252\.0\.1; do
+		sleep 0.01
+	done
+}
+
 atf_test_case "IP_ADD_MEMBERSHIP_ip_mreq" "cleanup"
 IP_ADD_MEMBERSHIP_ip_mreq_head()
 {
@@ -56,8 +65,7 @@ IP_ADD_MEMBERSHIP_ip_mreq_body()
 	multicast_vnet_init
 
 	# join group on interface with IP address 192.0.2.2
-	jexec mjail2 $(atf_get_srcdir)/multicast-receive \
-	    ip_mreq 233.252.0.1 6676 192.0.2.2 > out & pid=$!
+	multicast_join ip_mreq 192.0.2.2
 	atf_check -s exit:0 -o empty \
 	    jexec mjail1 $(atf_get_srcdir)/multicast-send \
 	    0.0.0.0 6676 233.252.0.1 6676 192.0.2.1 hello
@@ -65,8 +73,7 @@ IP_ADD_MEMBERSHIP_ip_mreq_body()
 	atf_check -s exit:0 -o inline:"192.0.2.1:6676 hello\n" cat out
 
 	# join group on interface with IP address 192.0.3.2
-	jexec mjail2 $(atf_get_srcdir)/multicast-receive \
-	    ip_mreq 233.252.0.1 6676 192.0.3.2 > out & pid=$!
+	multicast_join ip_mreq 192.0.3.2
 	atf_check -s exit:0 -o empty \
 	    jexec mjail1 $(atf_get_srcdir)/multicast-send \
 	    0.0.0.0 6676 233.252.0.1 6676 192.0.3.1 hello
@@ -90,8 +97,7 @@ IP_ADD_MEMBERSHIP_ip_mreqn_body()
 	multicast_vnet_init
 
 	# join group on interface epair2
-	jexec mjail2 $(atf_get_srcdir)/multicast-receive \
-	    ip_mreqn 233.252.0.1 6676 ${epair1}b > out & pid=$!
+	multicast_join ip_mreqn ${epair1}b
 	atf_check -s exit:0 -o empty \
 	    jexec mjail1 $(atf_get_srcdir)/multicast-send \
 	    0.0.0.0 6676 233.252.0.1 6676 ${epair1}a hello
@@ -99,8 +105,7 @@ IP_ADD_MEMBERSHIP_ip_mreqn_body()
 	atf_check -s exit:0 -o inline:"192.0.2.1:6676 hello\n" cat out
 
 	# join group on interface epair2
-	jexec mjail2 $(atf_get_srcdir)/multicast-receive \
-	    ip_mreqn 233.252.0.1 6676 ${epair2}b > out & pid=$!
+	multicast_join ip_mreqn ${epair2}b
 	atf_check -s exit:0 -o empty \
 	    jexec mjail1 $(atf_get_srcdir)/multicast-send \
 	    0.0.0.0 6676 233.252.0.1 6676 ${epair2}a hello
@@ -123,9 +128,8 @@ MCAST_JOIN_GROUP_body()
 {
 	multicast_vnet_init
 
-	# join group on interface epair2
-	jexec mjail2 $(atf_get_srcdir)/multicast-receive \
-	    group_req 233.252.0.1 6676 ${epair1}b > out & pid=$!
+	# join group on interface epair1
+	multicast_join group_req ${epair1}b
 	atf_check -s exit:0 -o empty \
 	    jexec mjail1 $(atf_get_srcdir)/multicast-send \
 	    0.0.0.0 6676 233.252.0.1 6676 ${epair1}a hello
@@ -133,8 +137,7 @@ MCAST_JOIN_GROUP_body()
 	atf_check -s exit:0 -o inline:"192.0.2.1:6676 hello\n" cat out
 
 	# join group on interface epair2
-	jexec mjail2 $(atf_get_srcdir)/multicast-receive \
-	    group_req 233.252.0.1 6676 ${epair2}b > out & pid=$!
+	multicast_join group_req ${epair2}b
 	atf_check -s exit:0 -o empty \
 	    jexec mjail1 $(atf_get_srcdir)/multicast-send \
 	    0.0.0.0 6676 233.252.0.1 6676 ${epair2}a hello
