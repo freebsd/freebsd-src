@@ -396,6 +396,7 @@ struct sockproto {
 #define	PF_NETLINK	AF_NETLINK
 #define	PF_INET_SDP	AF_INET_SDP
 #define	PF_INET6_SDP	AF_INET6_SDP
+#define	PF_HYPERV	AF_HYPERV
 #define	PF_DIVERT	AF_DIVERT
 #define	PF_IPFWLOG	AF_IPFWLOG
 
