@@ -65,6 +65,11 @@ TEST_F(BadServer, ShortWrite)
 	out.header.unique = 0;			// Asynchronous notification
 	out.expected_errno = EINVAL;
 	m_mock->write_response(out);
+	/*
+	 * Tell the event loop to quit.  The kernel has already disconnected us
+	 * because of the short write.
+	 */
+	m_mock->m_quit = true;
 }
 
 /*
