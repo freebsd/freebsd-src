@@ -284,7 +284,7 @@ fuse_flush(struct vnode *vp, struct ucred *cred, pid_t pid, int fflag)
 	struct mount *mp = vnode_mount(vp);
 	int err;
 
-	if (fsess_not_impl(vnode_mount(vp), FUSE_FLUSH))
+	if (fsess_not_impl(mp, FUSE_FLUSH))
 		return 0;
 
 	err = fuse_filehandle_getrw(vp, fflag, &fufh, cred, pid);
@@ -292,7 +292,7 @@ fuse_flush(struct vnode *vp, struct ucred *cred, pid_t pid, int fflag)
 		return err;
 
 	if (fufh->fuse_open_flags & FOPEN_NOFLUSH &&
-	    (!fsess_opt_writeback(vnode_mount(vp))))
+	    (!fsess_opt_writeback(mp)))
 		return (0);
 
 	fdisp_init(&fdi, sizeof(*ffi));
