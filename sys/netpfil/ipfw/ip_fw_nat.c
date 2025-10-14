@@ -1000,9 +1000,11 @@ ipfw_nat_del(struct sockopt *sopt)
 {
 	struct cfg_nat *ptr;
 	struct ip_fw_chain *chain = &V_layer3_chain;
-	int i;
+	int error, i;
 
-	sooptcopyin(sopt, &i, sizeof i, sizeof i);
+	error = sooptcopyin(sopt, &i, sizeof i, sizeof i);
+	if (error != 0)
+		return (error);
 	/* XXX validate i */
 	IPFW_UH_WLOCK(chain);
 	ptr = lookup_nat(&chain->nat, i);
@@ -1105,7 +1107,7 @@ ipfw_nat_get_log(struct sockopt *sopt)
 {
 	uint8_t *data;
 	struct cfg_nat *ptr;
-	int i, size;
+	int error, i, size;
 	struct ip_fw_chain *chain;
 	IPFW_RLOCK_TRACKER;
 
@@ -1135,9 +1137,9 @@ ipfw_nat_get_log(struct sockopt *sopt)
 		i += LIBALIAS_BUF_SIZE;
 	}
 	IPFW_RUNLOCK(chain);
-	sooptcopyout(sopt, data, size);
+	error = sooptcopyout(sopt, data, size);
 	free(data, M_IPFW);
-	return(0);
+	return (error);
 }
 
 static int
