@@ -162,7 +162,7 @@ int
 devfs_pathpath(const char *p1, const char *p2)
 {
 
-	for (;;p1++, p2++) {
+	for (;; p1++, p2++) {
 		if (*p1 != *p2) {
 			if (*p1 == '/' && *p2 == '\0')
 				return (1);

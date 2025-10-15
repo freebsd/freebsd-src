@@ -383,7 +383,7 @@ int UDFTransName(
 			int maxFilenameLen;
 			/* Translate extension, and store it in ext. */
 			for(index = 0; index<EXT_SIZE &&
-			    extIndex + index +1 < udfLen; index++ ) {
+			    extIndex + index +1 < udfLen; index++) {
 				current = udfName[extIndex + index + 1];
 				if (IsIllegal(current) ||
 				    !UnicodeIsPrint(current)) {
@@ -432,7 +432,7 @@ int UDFTransName(
 		/* Place a translated extension at end, if found. */
 		if (hasExt) {
 			newName[newIndex++] = PERIOD;
-			for (index = 0;index < localExtIndex ;index++ ) {
+			for (index = 0; index < localExtIndex; index++) {
 				newName[newIndex++] = ext[index];
 			}
 		}

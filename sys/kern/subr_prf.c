@@ -766,7 +766,7 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 				PCHAR(hex2ascii(*up & 0x0f));
 				up++;
 				if (width)
-					for (q=p;*q;q++)
+					for (q = p; *q; q++)
 						PCHAR(*q);
 			}
 			break;

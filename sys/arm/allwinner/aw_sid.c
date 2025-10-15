@@ -297,7 +297,7 @@ aw_sid_attach(device_t dev)
 	/* Register ourself so device can resolve who we are */
 	OF_device_register_xref(OF_xref_from_node(node), dev);
 
-	for (i = 0; i < sc->sid_conf->nfuses ;i++) {\
+	for (i = 0; i < sc->sid_conf->nfuses; i++) {
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 		    OID_AUTO, sc->sid_conf->efuses[i].name,

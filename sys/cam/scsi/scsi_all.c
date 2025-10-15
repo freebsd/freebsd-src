@@ -686,7 +686,7 @@ scsi_op_desc(uint16_t opcode, struct scsi_inquiry_data *inq_data)
 	opmask = 1 << pd_type;
 
 	for (j = 0; j < num_tables; j++) {
-		for (i = 0;i < num_ops[j] && table[j][i].opcode <= opcode; i++){
+		for (i = 0; i < num_ops[j] && table[j][i].opcode <= opcode; i++) {
 			if ((table[j][i].opcode == opcode)
 			 && ((table[j][i].opmask & opmask) != 0))
 				return(table[j][i].desc);

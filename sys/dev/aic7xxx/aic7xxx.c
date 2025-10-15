@@ -5903,8 +5903,8 @@ ahc_abort_scbs(struct ahc_softc *ahc, int target, char channel,
 	}
 
 	if (role != ROLE_TARGET) {
-		for (;i < maxtarget; i++) {
-			for (j = minlun;j < maxlun; j++) {
+		for (; i < maxtarget; i++) {
+			for (j = minlun; j < maxlun; j++) {
 				u_int scbid;
 				u_int tcl;
 
