@@ -1292,7 +1292,7 @@ write_nvme_tx_data_iso(void *dst, u_int ulp_submode, u_int iso_type,
 	cpl->num_pi_bytes_seglen_offset = htonl(0);
 	cpl->datasn_offset = htonl(0);
 	cpl->buffer_offset = htonl(0);
-	cpl->reserved3 = pdo;
+	cpl->pdo_pkd = pdo;
 }
 
 static struct wrqe *

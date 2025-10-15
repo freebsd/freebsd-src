@@ -84,6 +84,41 @@ static inline int t4_wait_op_done(struct adapter *adapter, int reg, u32 mask,
 				   delay, NULL);
 }
 
+ /**
+ *	t7_wait_sram_done - wait until an operation is completed
+ *	@adapter: the adapter performing the operation
+ *	@reg: the register to check for completion
+ *	@result_reg: register that holds the result value 
+ *	@attempts: number of check iterations
+ *	@delay: delay in usecs between iterations
+ *	@valp: where to store the value of the result register at completion time
+ *
+ *	Waits until a specific bit in @reg is cleared, checking up to
+ *	@attempts times.Once the bit is cleared, reads from @result_reg
+ *	and stores the value in @valp if it is not NULL. Returns 0 if the
+ *	operation completes successfully and -EAGAIN if it times out.
+ */
+static int t7_wait_sram_done(struct adapter *adap, int reg, int result_reg,
+			     int attempts, int delay, u32 *valp)
+{
+	while (1) {
+		u32 val = t4_read_reg(adap, reg);
+
+		/* Check if SramStart (bit 19) is cleared */
+		if (!(val & (1 << 19))) {
+			if (valp)
+				*valp  = t4_read_reg(adap, result_reg);
+			return 0;
+		}
+
+		if (--attempts == 0)
+			return -EAGAIN;
+
+		if (delay)
+			udelay(delay);
+	}
+}
+
 /**
  *	t4_set_reg_field - set a register field to a value
  *	@adapter: the adapter to program
@@ -578,14 +613,15 @@ int t4_mc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 		mc_bist_cmd_len_reg = A_MC_BIST_CMD_LEN;
 		mc_bist_status_rdata_reg = A_MC_BIST_STATUS_RDATA;
 		mc_bist_data_pattern_reg = A_MC_BIST_DATA_PATTERN;
-	} else {
+	} else if (chip_id(adap) < CHELSIO_T7) {
 		mc_bist_cmd_reg = MC_REG(A_MC_P_BIST_CMD, idx);
 		mc_bist_cmd_addr_reg = MC_REG(A_MC_P_BIST_CMD_ADDR, idx);
 		mc_bist_cmd_len_reg = MC_REG(A_MC_P_BIST_CMD_LEN, idx);
-		mc_bist_status_rdata_reg = MC_REG(A_MC_P_BIST_STATUS_RDATA,
-						  idx);
-		mc_bist_data_pattern_reg = MC_REG(A_MC_P_BIST_DATA_PATTERN,
-						  idx);
+		mc_bist_status_rdata_reg = MC_REG(A_MC_P_BIST_STATUS_RDATA, idx);
+		mc_bist_data_pattern_reg = MC_REG(A_MC_P_BIST_DATA_PATTERN, idx);
+	} else {
+		/* Need to figure out split mode and the rest. */
+		return (-ENOTSUP);
 	}
 
 	if (t4_read_reg(adap, mc_bist_cmd_reg) & F_START_BIST)
@@ -636,21 +672,13 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 		edc_bist_status_rdata_reg = EDC_REG(A_EDC_BIST_STATUS_RDATA,
 						    idx);
 	} else {
-/*
- * These macro are missing in t4_regs.h file.
- * Added temporarily for testing.
- */
-#define EDC_STRIDE_T5 (EDC_T51_BASE_ADDR - EDC_T50_BASE_ADDR)
-#define EDC_REG_T5(reg, idx) (reg + EDC_STRIDE_T5 * idx)
-		edc_bist_cmd_reg = EDC_REG_T5(A_EDC_H_BIST_CMD, idx);
-		edc_bist_cmd_addr_reg = EDC_REG_T5(A_EDC_H_BIST_CMD_ADDR, idx);
-		edc_bist_cmd_len_reg = EDC_REG_T5(A_EDC_H_BIST_CMD_LEN, idx);
-		edc_bist_cmd_data_pattern = EDC_REG_T5(A_EDC_H_BIST_DATA_PATTERN,
+		edc_bist_cmd_reg = EDC_T5_REG(A_EDC_H_BIST_CMD, idx);
+		edc_bist_cmd_addr_reg = EDC_T5_REG(A_EDC_H_BIST_CMD_ADDR, idx);
+		edc_bist_cmd_len_reg = EDC_T5_REG(A_EDC_H_BIST_CMD_LEN, idx);
+		edc_bist_cmd_data_pattern = EDC_T5_REG(A_EDC_H_BIST_DATA_PATTERN,
 						    idx);
-		edc_bist_status_rdata_reg = EDC_REG_T5(A_EDC_H_BIST_STATUS_RDATA,
+		edc_bist_status_rdata_reg = EDC_T5_REG(A_EDC_H_BIST_STATUS_RDATA,
 						    idx);
-#undef EDC_REG_T5
-#undef EDC_STRIDE_T5
 	}
 
 	if (t4_read_reg(adap, edc_bist_cmd_reg) & F_START_BIST)
@@ -2662,10 +2690,9 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x173c, 0x1760,
 		0x1800, 0x18fc,
 		0x3000, 0x3044,
-		0x3060, 0x3064,
 		0x30a4, 0x30b0,
 		0x30b8, 0x30d8,
-		0x30e0, 0x30fc,
+		0x30e0, 0x30e8,
 		0x3140, 0x357c,
 		0x35a8, 0x35cc,
 		0x35e0, 0x35ec,
@@ -2680,7 +2707,7 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x480c, 0x4814,
 		0x4890, 0x489c,
 		0x48a4, 0x48ac,
-		0x48b8, 0x48c4,
+		0x48b8, 0x48bc,
 		0x4900, 0x4924,
 		0x4ffc, 0x4ffc,
 		0x5500, 0x5624,
@@ -2698,8 +2725,10 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x5a60, 0x5a6c,
 		0x5a80, 0x5a8c,
 		0x5a94, 0x5a9c,
-		0x5b94, 0x5bfc,
-		0x5c10, 0x5e48,
+		0x5b94, 0x5bec,
+		0x5bf8, 0x5bfc,
+		0x5c10, 0x5c40,
+		0x5c4c, 0x5e48,
 		0x5e50, 0x5e94,
 		0x5ea0, 0x5eb0,
 		0x5ec0, 0x5ec0,
@@ -2708,7 +2737,8 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x5ef0, 0x5ef0,
 		0x5f00, 0x5f04,
 		0x5f0c, 0x5f10,
-		0x5f20, 0x5f88,
+		0x5f20, 0x5f78,
+		0x5f84, 0x5f88,
 		0x5f90, 0x5fd8,
 		0x6000, 0x6020,
 		0x6028, 0x6030,
@@ -3084,7 +3114,7 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x38140, 0x38140,
 		0x38150, 0x38154,
 		0x38160, 0x381c4,
-		0x381f0, 0x38204,
+		0x381d0, 0x38204,
 		0x3820c, 0x38214,
 		0x3821c, 0x3822c,
 		0x38244, 0x38244,
@@ -3156,6 +3186,10 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x3a000, 0x3a004,
 		0x3a050, 0x3a084,
 		0x3a090, 0x3a09c,
+		0x3a93c, 0x3a93c,
+		0x3b93c, 0x3b93c,
+		0x3c93c, 0x3c93c,
+		0x3d93c, 0x3d93c,
 		0x3e000, 0x3e020,
 		0x3e03c, 0x3e05c,
 		0x3e100, 0x3e120,
@@ -6439,9 +6473,15 @@ int t4_config_vi_rss(struct adapter *adapter, int mbox, unsigned int viid,
 /* Read an RSS table row */
 static int rd_rss_row(struct adapter *adap, int row, u32 *val)
 {
-	t4_write_reg(adap, A_TP_RSS_LKP_TABLE, 0xfff00000 | row);
-	return t4_wait_op_done_val(adap, A_TP_RSS_LKP_TABLE, F_LKPTBLROWVLD, 1,
-				   5, 0, val);
+	if (chip_id(adap) < CHELSIO_T7) {
+		t4_write_reg(adap, A_TP_RSS_LKP_TABLE, 0xfff00000 | row);
+		return t4_wait_op_done_val(adap, A_TP_RSS_LKP_TABLE,
+					   F_LKPTBLROWVLD, 1, 5, 0, val);
+	} else {
+		t4_write_reg(adap, A_TP_RSS_CONFIG_SRAM, 0xB0000 | row);
+		return t7_wait_sram_done(adap, A_TP_RSS_CONFIG_SRAM,
+					 A_TP_RSS_LKP_TABLE, 5, 0, val);
+	}
 }
 
 /**
@@ -10178,7 +10218,7 @@ const struct chip_params *t4_get_chip_params(int chipid)
 			.vfcount = 256,
 			.sge_fl_db = 0,
 			.sge_ctxt_size = SGE_CTXT_SIZE_T7,
-			.mps_tcam_size = NUM_MPS_T5_CLS_SRAM_L_INSTANCES,
+			.mps_tcam_size = NUM_MPS_T5_CLS_SRAM_L_INSTANCES * 3,
 			.rss_nentries = T7_RSS_NENTRIES,
 			.cim_la_size = CIMLA_SIZE_T6,
 		},
