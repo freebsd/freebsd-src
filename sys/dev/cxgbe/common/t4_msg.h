@@ -30,6 +30,7 @@
 #define T4_MSG_H
 
 enum cpl_opcodes {
+	CPL_TLS_TX_SCMD_FMT   = 0x0,
 	CPL_PASS_OPEN_REQ     = 0x1,
 	CPL_PASS_ACCEPT_RPL   = 0x2,
 	CPL_ACT_OPEN_REQ      = 0x3,
@@ -48,6 +49,8 @@ enum cpl_opcodes {
 	CPL_RTE_READ_REQ      = 0x11,
 	CPL_L2T_WRITE_REQ     = 0x12,
 	CPL_L2T_READ_REQ      = 0x13,
+	CPL_GRE_TABLE_REQ     = 0x1b,
+	CPL_GRE_TABLE_RPL     = 0xbb,
 	CPL_SMT_WRITE_REQ     = 0x14,
 	CPL_SMT_READ_REQ      = 0x15,
 	CPL_TAG_WRITE_REQ     = 0x16,
@@ -130,6 +133,7 @@ enum cpl_opcodes {
 	CPL_TX_TLS_SFO        = 0x89,
 	CPL_TX_SEC_PDU        = 0x8A,
 	CPL_TX_TLS_ACK        = 0x8B,
+    	CPL_TX_QUIC_ENC       = 0x8d,
 	CPL_RCB_UPD           = 0x8C,
 
 	CPL_SGE_FLR_FLUSH     = 0xA0,
@@ -258,6 +262,7 @@ enum {
 	ULP_MODE_TCPDDP        = 5,
 	ULP_MODE_FCOE          = 6,
 	ULP_MODE_TLS           = 8,
+	ULP_MODE_DTLS          = 9,
 	ULP_MODE_RDMA_V2       = 10,
 	ULP_MODE_NVMET         = 11,
 };
@@ -1149,23 +1154,36 @@ struct cpl_get_tcb {
 #define V_QUEUENO(x) ((x) << S_QUEUENO)
 #define G_QUEUENO(x) (((x) >> S_QUEUENO) & M_QUEUENO)
 
-#define S_T7_QUEUENO    0
-#define M_T7_QUEUENO    0xFFF
-#define V_T7_QUEUENO(x) ((x) << S_T7_QUEUENO)
-#define G_T7_QUEUENO(x) (((x) >> S_T7_QUEUENO) & M_T7_QUEUENO)
-
 #define S_REPLY_CHAN    14
 #define V_REPLY_CHAN(x) ((x) << S_REPLY_CHAN)
 #define F_REPLY_CHAN    V_REPLY_CHAN(1U)
+
+#define S_NO_REPLY    15
+#define V_NO_REPLY(x) ((x) << S_NO_REPLY)
+#define F_NO_REPLY    V_NO_REPLY(1U)
+
+struct cpl_t7_get_tcb {
+        WR_HDR;
+        union opcode_tid ot;
+        __be16 rxchan_queue;
+        __be16 cookie_pkd;
+};
 
 #define S_T7_REPLY_CHAN		12
 #define M_T7_REPLY_CHAN		0x7
 #define V_T7_REPLY_CHAN(x)	((x) << S_T7_REPLY_CHAN)
 #define G_T7_REPLY_CHAN(x)	(((x) >> S_T7_REPLY_CHAN) & M_T7_REPLY_CHAN)
 
-#define S_NO_REPLY    15
-#define V_NO_REPLY(x) ((x) << S_NO_REPLY)
-#define F_NO_REPLY    V_NO_REPLY(1U)
+#define S_T7_QUEUENO    0
+#define M_T7_QUEUENO    0xFFF
+#define V_T7_QUEUENO(x) ((x) << S_T7_QUEUENO)
+#define G_T7_QUEUENO(x) (((x) >> S_T7_QUEUENO) & M_T7_QUEUENO)
+
+#define S_CPL_GET_TCB_COOKIE            0
+#define M_CPL_GET_TCB_COOKIE            0xff
+#define V_CPL_GET_TCB_COOKIE(x)         ((x) << S_CPL_GET_TCB_COOKIE)
+#define G_CPL_GET_TCB_COOKIE(x)         \
+    (((x) >> S_CPL_GET_TCB_COOKIE) & M_CPL_GET_TCB_COOKIE)
 
 struct cpl_get_tcb_rpl {
 	RSS_HDR
@@ -1230,6 +1248,16 @@ struct cpl_close_con_rpl {
 	union opcode_tid ot;
 	__u8  rsvd[3];
 	__u8  status;
+	__be32 snd_nxt;
+	__be32 rcv_nxt;
+};
+
+struct cpl_t7_close_con_rpl {
+	RSS_HDR
+	union  opcode_tid ot;
+	__be16 rto;
+	__u8   rsvd;
+	__u8   status;
 	__be32 snd_nxt;
 	__be32 rcv_nxt;
 };
@@ -1340,6 +1368,24 @@ struct cpl_abort_rpl_rss {
 	__u8  status;
 };
 
+struct cpl_t7_abort_rpl_rss {
+        RSS_HDR
+        union  opcode_tid ot;
+        __be32 idx_status;
+};
+
+#define S_CPL_ABORT_RPL_RSS_IDX         8
+#define M_CPL_ABORT_RPL_RSS_IDX         0xffffff
+#define V_CPL_ABORT_RPL_RSS_IDX(x)      ((x) << S_CPL_ABORT_RPL_RSS_IDX)
+#define G_CPL_ABORT_RPL_RSS_IDX(x)      \
+    (((x) >> S_CPL_ABORT_RPL_RSS_IDX) & M_CPL_ABORT_RPL_RSS_IDX)
+
+#define S_CPL_ABORT_RPL_RSS_STATUS      0
+#define M_CPL_ABORT_RPL_RSS_STATUS      0xff
+#define V_CPL_ABORT_RPL_RSS_STATUS(x)   ((x) << S_CPL_ABORT_RPL_RSS_STATUS)
+#define G_CPL_ABORT_RPL_RSS_STATUS(x)   \
+    (((x) >> S_CPL_ABORT_RPL_RSS_STATUS) & M_CPL_ABORT_RPL_RSS_STATUS)
+
 struct cpl_abort_rpl_rss6 {
 	RSS_HDR
 	union opcode_tid ot;
@@ -1443,6 +1489,11 @@ struct cpl_tx_data {
 #define M_TX_ULP_MODE    0x7
 #define V_TX_ULP_MODE(x) ((x) << S_TX_ULP_MODE)
 #define G_TX_ULP_MODE(x) (((x) >> S_TX_ULP_MODE) & M_TX_ULP_MODE)
+
+#define S_T7_TX_ULP_MODE    10
+#define M_T7_TX_ULP_MODE    0xf
+#define V_T7_TX_ULP_MODE(x) ((x) << S_T7_TX_ULP_MODE)
+#define G_T7_TX_ULP_MODE(x) (((x) >> S_T7_TX_ULP_MODE) & M_T7_TX_ULP_MODE)
 
 #define S_TX_FORCE    13
 #define V_TX_FORCE(x) ((x) << S_TX_FORCE)
@@ -1881,14 +1932,6 @@ struct cpl_tx_pkt_xt {
     (((x) >> S_CPL_TX_PKT_XT_ROCEIPHDRLEN_HI) & \
      M_CPL_TX_PKT_XT_ROCEIPHDRLEN_HI)
 
-#define S_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO    30
-#define M_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO    0x3
-#define V_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO(x) \
-    ((x) << S_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO)
-#define G_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO(x) \
-    (((x) >> S_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO) & \
-     M_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO)
-
 /* cpl_tx_pkt_xt.core.ctrl2 fields */
 #define S_CPL_TX_PKT_XT_CHKINSRTOFFSET_LO 30
 #define M_CPL_TX_PKT_XT_CHKINSRTOFFSET_LO 0x3
@@ -1897,6 +1940,14 @@ struct cpl_tx_pkt_xt {
 #define G_CPL_TX_PKT_XT_CHKINSRTOFFSET_LO(x) \
     (((x) >> S_CPL_TX_PKT_XT_CHKINSRTOFFSET_LO) & \
      M_CPL_TX_PKT_XT_CHKINSRTOFFSET_LO)
+
+#define S_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO	30
+#define M_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO	0x3
+#define V_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO(x) \
+    ((x) << S_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO)
+#define G_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO(x) \
+    (((x) >> S_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO) & \
+     M_CPL_TX_PKT_XT_ROCEIPHDRLEN_LO)
 
 #define S_CPL_TX_PKT_XT_CHKSTARTOFFSET	20
 #define M_CPL_TX_PKT_XT_CHKSTARTOFFSET	0x3ff
@@ -2190,7 +2241,8 @@ struct cpl_t7_tx_data_iso {
 	__be32 num_pi_bytes_seglen_offset;
 	__be32 datasn_offset;
 	__be32 buffer_offset;
-	__be32 reserved3;
+	__be32 pdo_pkd;
+	/* encapsulated CPL_TX_DATA follows here */
 };
 
 #define S_CPL_T7_TX_DATA_ISO_OPCODE	24
@@ -2273,6 +2325,12 @@ struct cpl_t7_tx_data_iso {
 #define G_CPL_T7_TX_DATA_ISO_DATASEGLENOFFSET(x) \
     (((x) >> S_CPL_T7_TX_DATA_ISO_DATASEGLENOFFSET) & \
      M_CPL_T7_TX_DATA_ISO_DATASEGLENOFFSET)
+
+#define S_CPL_TX_DATA_ISO_PDO           0
+#define M_CPL_TX_DATA_ISO_PDO           0xff
+#define V_CPL_TX_DATA_ISO_PDO(x)        ((x) << S_CPL_TX_DATA_ISO_PDO)
+#define G_CPL_TX_DATA_ISO_PDO(x)        \
+    (((x) >> S_CPL_TX_DATA_ISO_PDO) & M_CPL_TX_DATA_ISO_PDO)
 
 struct cpl_iscsi_hdr {
 	RSS_HDR
@@ -2418,6 +2476,74 @@ struct cpl_rx_data_ack_core {
 #define S_RX_DACK_CHANGE    31
 #define V_RX_DACK_CHANGE(x) ((x) << S_RX_DACK_CHANGE)
 #define F_RX_DACK_CHANGE    V_RX_DACK_CHANGE(1U)
+
+struct cpl_rx_phys_addr {
+        __be32 RSS[2];
+        __be32 op_to_tid;
+        __be32 pci_rlx_order_to_len;
+        __be64 phys_addr;
+};
+
+#define S_CPL_RX_PHYS_ADDR_OPCODE       24
+#define M_CPL_RX_PHYS_ADDR_OPCODE       0xff
+#define V_CPL_RX_PHYS_ADDR_OPCODE(x)    ((x) << S_CPL_RX_PHYS_ADDR_OPCODE)
+#define G_CPL_RX_PHYS_ADDR_OPCODE(x)    \
+    (((x) >> S_CPL_RX_PHYS_ADDR_OPCODE) & M_CPL_RX_PHYS_ADDR_OPCODE)
+
+#define S_CPL_RX_PHYS_ADDR_ISRDMA       23
+#define M_CPL_RX_PHYS_ADDR_ISRDMA       0x1
+#define V_CPL_RX_PHYS_ADDR_ISRDMA(x)    ((x) << S_CPL_RX_PHYS_ADDR_ISRDMA)
+#define G_CPL_RX_PHYS_ADDR_ISRDMA(x)    \
+    (((x) >> S_CPL_RX_PHYS_ADDR_ISRDMA) & M_CPL_RX_PHYS_ADDR_ISRDMA)
+#define F_CPL_RX_PHYS_ADDR_ISRDMA       V_CPL_RX_PHYS_ADDR_ISRDMA(1U)
+
+#define S_CPL_RX_PHYS_ADDR_TID          0
+#define M_CPL_RX_PHYS_ADDR_TID          0xfffff
+#define V_CPL_RX_PHYS_ADDR_TID(x)       ((x) << S_CPL_RX_PHYS_ADDR_TID)
+#define G_CPL_RX_PHYS_ADDR_TID(x)       \
+    (((x) >> S_CPL_RX_PHYS_ADDR_TID) & M_CPL_RX_PHYS_ADDR_TID)
+
+#define S_CPL_RX_PHYS_ADDR_PCIRLXORDER  31
+#define M_CPL_RX_PHYS_ADDR_PCIRLXORDER  0x1
+#define V_CPL_RX_PHYS_ADDR_PCIRLXORDER(x) \
+    ((x) << S_CPL_RX_PHYS_ADDR_PCIRLXORDER)
+#define G_CPL_RX_PHYS_ADDR_PCIRLXORDER(x) \
+    (((x) >> S_CPL_RX_PHYS_ADDR_PCIRLXORDER) & M_CPL_RX_PHYS_ADDR_PCIRLXORDER)
+#define F_CPL_RX_PHYS_ADDR_PCIRLXORDER  V_CPL_RX_PHYS_ADDR_PCIRLXORDER(1U)
+
+#define S_CPL_RX_PHYS_ADDR_PCINOSNOOP   30
+#define M_CPL_RX_PHYS_ADDR_PCINOSNOOP   0x1
+#define V_CPL_RX_PHYS_ADDR_PCINOSNOOP(x) \
+    ((x) << S_CPL_RX_PHYS_ADDR_PCINOSNOOP)
+#define G_CPL_RX_PHYS_ADDR_PCINOSNOOP(x) \
+    (((x) >> S_CPL_RX_PHYS_ADDR_PCINOSNOOP) & M_CPL_RX_PHYS_ADDR_PCINOSNOOP)
+#define F_CPL_RX_PHYS_ADDR_PCINOSNOOP   V_CPL_RX_PHYS_ADDR_PCINOSNOOP(1U)
+
+#define S_CPL_RX_PHYS_ADDR_PCITPHINTEN  29
+#define M_CPL_RX_PHYS_ADDR_PCITPHINTEN  0x1
+#define V_CPL_RX_PHYS_ADDR_PCITPHINTEN(x) \
+    ((x) << S_CPL_RX_PHYS_ADDR_PCITPHINTEN)
+#define G_CPL_RX_PHYS_ADDR_PCITPHINTEN(x) \
+    (((x) >> S_CPL_RX_PHYS_ADDR_PCITPHINTEN) & M_CPL_RX_PHYS_ADDR_PCITPHINTEN)
+#define F_CPL_RX_PHYS_ADDR_PCITPHINTEN  V_CPL_RX_PHYS_ADDR_PCITPHINTEN(1U)
+
+#define S_CPL_RX_PHYS_ADDR_PCITPHINT    27
+#define M_CPL_RX_PHYS_ADDR_PCITPHINT    0x3
+#define V_CPL_RX_PHYS_ADDR_PCITPHINT(x) ((x) << S_CPL_RX_PHYS_ADDR_PCITPHINT)
+#define G_CPL_RX_PHYS_ADDR_PCITPHINT(x) \
+    (((x) >> S_CPL_RX_PHYS_ADDR_PCITPHINT) & M_CPL_RX_PHYS_ADDR_PCITPHINT)
+
+#define S_CPL_RX_PHYS_ADDR_DCAID        16
+#define M_CPL_RX_PHYS_ADDR_DCAID        0x7ff
+#define V_CPL_RX_PHYS_ADDR_DCAID(x)     ((x) << S_CPL_RX_PHYS_ADDR_DCAID)
+#define G_CPL_RX_PHYS_ADDR_DCAID(x)     \
+    (((x) >> S_CPL_RX_PHYS_ADDR_DCAID) & M_CPL_RX_PHYS_ADDR_DCAID)
+
+#define S_CPL_RX_PHYS_ADDR_LEN          0
+#define M_CPL_RX_PHYS_ADDR_LEN          0xffff
+#define V_CPL_RX_PHYS_ADDR_LEN(x)       ((x) << S_CPL_RX_PHYS_ADDR_LEN)
+#define G_CPL_RX_PHYS_ADDR_LEN(x)       \
+    (((x) >> S_CPL_RX_PHYS_ADDR_LEN) & M_CPL_RX_PHYS_ADDR_LEN)
 
 struct cpl_rx_ddp_complete {
 	RSS_HDR
@@ -4059,13 +4185,6 @@ struct cpl_rdma_cqe_ext {
 #define G_CPL_RDMA_CQE_EXT_QPID(x)	\
     (((x) >> S_CPL_RDMA_CQE_EXT_QPID) & M_CPL_RDMA_CQE_EXT_QPID)
 
-#define S_CPL_RDMA_CQE_EXT_EXTMODE	11
-#define M_CPL_RDMA_CQE_EXT_EXTMODE	0x1
-#define V_CPL_RDMA_CQE_EXT_EXTMODE(x)	((x) << S_CPL_RDMA_CQE_EXT_EXTMODE)
-#define G_CPL_RDMA_CQE_EXT_EXTMODE(x)	\
-    (((x) >> S_CPL_RDMA_CQE_EXT_EXTMODE) & M_CPL_RDMA_CQE_EXT_EXTMODE)
-#define F_CPL_RDMA_CQE_EXT_EXTMODE	V_CPL_RDMA_CQE_EXT_EXTMODE(1U)
-
 #define S_CPL_RDMA_CQE_EXT_GENERATION_BIT 10
 #define M_CPL_RDMA_CQE_EXT_GENERATION_BIT 0x1
 #define V_CPL_RDMA_CQE_EXT_GENERATION_BIT(x) \
@@ -4108,6 +4227,13 @@ struct cpl_rdma_cqe_ext {
     ((x) << S_CPL_RDMA_CQE_EXT_WR_TYPE_EXT)
 #define G_CPL_RDMA_CQE_EXT_WR_TYPE_EXT(x) \
     (((x) >> S_CPL_RDMA_CQE_EXT_WR_TYPE_EXT) & M_CPL_RDMA_CQE_EXT_WR_TYPE_EXT)
+
+#define S_CPL_RDMA_CQE_EXT_EXTMODE	23
+#define M_CPL_RDMA_CQE_EXT_EXTMODE	0x1
+#define V_CPL_RDMA_CQE_EXT_EXTMODE(x)	((x) << S_CPL_RDMA_CQE_EXT_EXTMODE)
+#define G_CPL_RDMA_CQE_EXT_EXTMODE(x)	\
+    (((x) >> S_CPL_RDMA_CQE_EXT_EXTMODE) & M_CPL_RDMA_CQE_EXT_EXTMODE)
+#define F_CPL_RDMA_CQE_EXT_EXTMODE	V_CPL_RDMA_CQE_EXT_EXTMODE(1U)
 
 #define S_CPL_RDMA_CQE_EXT_SRQ		0
 #define M_CPL_RDMA_CQE_EXT_SRQ		0xfff
@@ -4161,14 +4287,6 @@ struct cpl_rdma_cqe_fw_ext {
 #define G_CPL_RDMA_CQE_FW_EXT_QPID(x)	\
     (((x) >> S_CPL_RDMA_CQE_FW_EXT_QPID) & M_CPL_RDMA_CQE_FW_EXT_QPID)
 
-#define S_CPL_RDMA_CQE_FW_EXT_EXTMODE	11
-#define M_CPL_RDMA_CQE_FW_EXT_EXTMODE	0x1
-#define V_CPL_RDMA_CQE_FW_EXT_EXTMODE(x) \
-    ((x) << S_CPL_RDMA_CQE_FW_EXT_EXTMODE)
-#define G_CPL_RDMA_CQE_FW_EXT_EXTMODE(x) \
-    (((x) >> S_CPL_RDMA_CQE_FW_EXT_EXTMODE) & M_CPL_RDMA_CQE_FW_EXT_EXTMODE)
-#define F_CPL_RDMA_CQE_FW_EXT_EXTMODE	V_CPL_RDMA_CQE_FW_EXT_EXTMODE(1U)
-
 #define S_CPL_RDMA_CQE_FW_EXT_GENERATION_BIT 10
 #define M_CPL_RDMA_CQE_FW_EXT_GENERATION_BIT 0x1
 #define V_CPL_RDMA_CQE_FW_EXT_GENERATION_BIT(x) \
@@ -4214,6 +4332,14 @@ struct cpl_rdma_cqe_fw_ext {
 #define G_CPL_RDMA_CQE_FW_EXT_WR_TYPE_EXT(x) \
     (((x) >> S_CPL_RDMA_CQE_FW_EXT_WR_TYPE_EXT) & \
      M_CPL_RDMA_CQE_FW_EXT_WR_TYPE_EXT)
+
+#define S_CPL_RDMA_CQE_FW_EXT_EXTMODE	23
+#define M_CPL_RDMA_CQE_FW_EXT_EXTMODE	0x1
+#define V_CPL_RDMA_CQE_FW_EXT_EXTMODE(x) \
+    ((x) << S_CPL_RDMA_CQE_FW_EXT_EXTMODE)
+#define G_CPL_RDMA_CQE_FW_EXT_EXTMODE(x) \
+    (((x) >> S_CPL_RDMA_CQE_FW_EXT_EXTMODE) & M_CPL_RDMA_CQE_FW_EXT_EXTMODE)
+#define F_CPL_RDMA_CQE_FW_EXT_EXTMODE	V_CPL_RDMA_CQE_FW_EXT_EXTMODE(1U)
 
 #define S_CPL_RDMA_CQE_FW_EXT_SRQ	0
 #define M_CPL_RDMA_CQE_FW_EXT_SRQ	0xfff
@@ -4267,14 +4393,6 @@ struct cpl_rdma_cqe_err_ext {
 #define G_CPL_RDMA_CQE_ERR_EXT_QPID(x)	\
     (((x) >> S_CPL_RDMA_CQE_ERR_EXT_QPID) & M_CPL_RDMA_CQE_ERR_EXT_QPID)
 
-#define S_CPL_RDMA_CQE_ERR_EXT_EXTMODE	11
-#define M_CPL_RDMA_CQE_ERR_EXT_EXTMODE	0x1
-#define V_CPL_RDMA_CQE_ERR_EXT_EXTMODE(x) \
-    ((x) << S_CPL_RDMA_CQE_ERR_EXT_EXTMODE)
-#define G_CPL_RDMA_CQE_ERR_EXT_EXTMODE(x) \
-    (((x) >> S_CPL_RDMA_CQE_ERR_EXT_EXTMODE) & M_CPL_RDMA_CQE_ERR_EXT_EXTMODE)
-#define F_CPL_RDMA_CQE_ERR_EXT_EXTMODE	V_CPL_RDMA_CQE_ERR_EXT_EXTMODE(1U)
-
 #define S_CPL_RDMA_CQE_ERR_EXT_GENERATION_BIT 10
 #define M_CPL_RDMA_CQE_ERR_EXT_GENERATION_BIT 0x1
 #define V_CPL_RDMA_CQE_ERR_EXT_GENERATION_BIT(x) \
@@ -4322,6 +4440,14 @@ struct cpl_rdma_cqe_err_ext {
 #define G_CPL_RDMA_CQE_ERR_EXT_WR_TYPE_EXT(x) \
     (((x) >> S_CPL_RDMA_CQE_ERR_EXT_WR_TYPE_EXT) & \
      M_CPL_RDMA_CQE_ERR_EXT_WR_TYPE_EXT)
+
+#define S_CPL_RDMA_CQE_ERR_EXT_EXTMODE	23
+#define M_CPL_RDMA_CQE_ERR_EXT_EXTMODE	0x1
+#define V_CPL_RDMA_CQE_ERR_EXT_EXTMODE(x) \
+    ((x) << S_CPL_RDMA_CQE_ERR_EXT_EXTMODE)
+#define G_CPL_RDMA_CQE_ERR_EXT_EXTMODE(x) \
+    (((x) >> S_CPL_RDMA_CQE_ERR_EXT_EXTMODE) & M_CPL_RDMA_CQE_ERR_EXT_EXTMODE)
+#define F_CPL_RDMA_CQE_ERR_EXT_EXTMODE	V_CPL_RDMA_CQE_ERR_EXT_EXTMODE(1U)
 
 #define S_CPL_RDMA_CQE_ERR_EXT_SRQ	0
 #define M_CPL_RDMA_CQE_ERR_EXT_SRQ	0xfff
@@ -5039,6 +5165,58 @@ struct cpl_tx_tnl_lso {
 #define V_CPL_TX_TNL_LSO_SIZE(x)	((x) << S_CPL_TX_TNL_LSO_SIZE)
 #define G_CPL_TX_TNL_LSO_SIZE(x)	\
     (((x) >> S_CPL_TX_TNL_LSO_SIZE) & M_CPL_TX_TNL_LSO_SIZE)
+
+#define S_CPL_TX_TNL_LSO_BTH_OPCODE             24
+#define M_CPL_TX_TNL_LSO_BTH_OPCODE             0xff
+#define V_CPL_TX_TNL_LSO_BTH_OPCODE(x)  ((x) << S_CPL_TX_TNL_LSO_BTH_OPCODE)
+#define G_CPL_TX_TNL_LSO_BTH_OPCODE(x)  \
+                (((x) >> S_CPL_TX_TNL_LSO_BTH_OPCODE) & \
+                 M_CPL_TX_TNL_LSO_BTH_OPCODE)
+
+#define S_CPL_TX_TNL_LSO_TCPSEQOFFSET_PSN               0
+#define M_CPL_TX_TNL_LSO_TCPSEQOFFSET_PSN               0xffffff
+#define V_CPL_TX_TNL_LSO_TCPSEQOFFSET_PSN(x)    \
+                ((x) << S_CPL_TX_TNL_LSO_TCPSEQOFFSET_PSN)
+#define G_CPL_TX_TNL_LSO_TCPSEQOFFSET_PSN(x)    \
+                (((x) >> S_CPL_TX_TNL_LSO_TCPSEQOFFSET_PSN) & \
+                 M_CPL_TX_TNL_LSO_TCPSEQOFFSET_PSN)
+
+#define S_CPL_TX_TNL_LSO_MSS_TVER               8
+#define M_CPL_TX_TNL_LSO_MSS_TVER               0xf
+#define V_CPL_TX_TNL_LSO_MSS_TVER(x)    ((x) << S_CPL_TX_TNL_LSO_MSS_TVER)
+#define G_CPL_TX_TNL_LSO_MSS_TVER(x)            \
+    (((x) >> S_CPL_TX_TNL_LSO_MSS_TVER) & M_CPL_TX_TNL_LSO_MSS_TVER)
+
+#define S_CPL_TX_TNL_LSO_MSS_M          7
+#define M_CPL_TX_TNL_LSO_MSS_M          0x1
+#define V_CPL_TX_TNL_LSO_MSS_M(x)       ((x) << S_CPL_TX_TNL_LSO_MSS_M)
+#define G_CPL_TX_TNL_LSO_MSS_M(x)               \
+    (((x) >> S_CPL_TX_TNL_LSO_MSS_M) & M_CPL_TX_TNL_LSO_MSS_M)
+
+#define S_CPL_TX_TNL_LSO_MSS_PMTU               4
+#define M_CPL_TX_TNL_LSO_MSS_PMTU               0x7
+#define V_CPL_TX_TNL_LSO_MSS_PMTU(x)    ((x) << S_CPL_TX_TNL_LSO_MSS_PMTU)
+#define G_CPL_TX_TNL_LSO_MSS_PMTU(x)            \
+    (((x) >> S_CPL_TX_TNL_LSO_MSS_PMTU) & M_CPL_TX_TNL_LSO_MSS_PMTU)
+
+#define S_CPL_TX_TNL_LSO_MSS_RR_MSN_INCR                3
+#define M_CPL_TX_TNL_LSO_MSS_RR_MSN_INCR                0x1
+#define V_CPL_TX_TNL_LSO_MSS_RR_MSN_INCR(x)     \
+        ((x) << S_CPL_TX_TNL_LSO_MSS_RR_MSN_INCR)
+#define G_CPL_TX_TNL_LSO_MSS_RR_MSN_INCR(x)             \
+    (((x) >> S_CPL_TX_TNL_LSO_MSS_RR_MSN_INCR) & M_CPL_TX_TNL_LSO_MSS_RR_MSN_INCR)
+
+#define S_CPL_TX_TNL_LSO_MSS_ACKREQ             1
+#define M_CPL_TX_TNL_LSO_MSS_ACKREQ             0x3
+#define V_CPL_TX_TNL_LSO_MSS_ACKREQ(x)  ((x) << S_CPL_TX_TNL_LSO_MSS_ACKREQ)
+#define G_CPL_TX_TNL_LSO_MSS_ACKREQ(x)          \
+    (((x) >> S_CPL_TX_TNL_LSO_MSS_ACKREQ) & M_CPL_TX_TNL_LSO_MSS_ACKREQ)
+
+#define S_CPL_TX_TNL_LSO_MSS_SE         0
+#define M_CPL_TX_TNL_LSO_MSS_SE         0x1
+#define V_CPL_TX_TNL_LSO_MSS_SE(x)      ((x) << S_CPL_TX_TNL_LSO_MSS_SE)
+#define G_CPL_TX_TNL_LSO_MSS_SE(x)              \
+    (((x) >> S_CPL_TX_TNL_LSO_MSS_SE) & M_CPL_TX_TNL_LSO_MSS_SE)
 
 struct cpl_rx_mps_pkt {
 	__be32 op_to_r1_hi;
@@ -5839,10 +6017,10 @@ struct cpl_tx_tls_ack {
 #define G_CPL_TX_TLS_ACK_OPCODE(x)      \
     (((x) >> S_CPL_TX_TLS_ACK_OPCODE) & M_CPL_TX_TLS_ACK_OPCODE)
 
-#define S_T7_CPL_TX_TLS_ACK_RXCHID		22
-#define M_T7_CPL_TX_TLS_ACK_RXCHID		0x3
-#define V_T7_CPL_TX_TLS_ACK_RXCHID(x)	((x) << S_T7_CPL_TX_TLS_ACK_RXCHID)
-#define G_T7_CPL_TX_TLS_ACK_RXCHID(x)	\
+#define S_T7_CPL_TX_TLS_ACK_RXCHID             22
+#define M_T7_CPL_TX_TLS_ACK_RXCHID             0x3
+#define V_T7_CPL_TX_TLS_ACK_RXCHID(x)  ((x) << S_T7_CPL_TX_TLS_ACK_RXCHID)
+#define G_T7_CPL_TX_TLS_ACK_RXCHID(x)  \
     (((x) >> S_T7_CPL_TX_TLS_ACK_RXCHID) & M_T7_CPL_TX_TLS_ACK_RXCHID)
 
 #define S_CPL_TX_TLS_ACK_RXCHID         22
@@ -5905,11 +6083,245 @@ struct cpl_tx_tls_ack {
 #define G_CPL_TX_TLS_ACK_PLDLEN(x)	\
     (((x) >> S_CPL_TX_TLS_ACK_PLDLEN) & M_CPL_TX_TLS_ACK_PLDLEN)
 
+struct cpl_tx_quic_enc {
+	__be32 op_to_hdrlen;
+	__be32 hdrlen_to_pktlen;
+	__be32 r4[2];
+};
+
+#define S_CPL_TX_QUIC_ENC_OPCODE	24
+#define M_CPL_TX_QUIC_ENC_OPCODE	0xff
+#define V_CPL_TX_QUIC_ENC_OPCODE(x)	((x) << S_CPL_TX_QUIC_ENC_OPCODE)
+#define G_CPL_TX_QUIC_ENC_OPCODE(x)	\
+    (((x) >> S_CPL_TX_QUIC_ENC_OPCODE) & M_CPL_TX_QUIC_ENC_OPCODE)
+
+#define S_CPL_TX_QUIC_ENC_KEYSIZE	22
+#define M_CPL_TX_QUIC_ENC_KEYSIZE	0x3
+#define V_CPL_TX_QUIC_ENC_KEYSIZE(x)	((x) << S_CPL_TX_QUIC_ENC_KEYSIZE)
+#define G_CPL_TX_QUIC_ENC_KEYSIZE(x)	\
+    (((x) >> S_CPL_TX_QUIC_ENC_KEYSIZE) & M_CPL_TX_QUIC_ENC_KEYSIZE)
+
+#define S_CPL_TX_QUIC_ENC_PKTNUMSIZE	20
+#define M_CPL_TX_QUIC_ENC_PKTNUMSIZE	0x3
+#define V_CPL_TX_QUIC_ENC_PKTNUMSIZE(x)	((x) << S_CPL_TX_QUIC_ENC_PKTNUMSIZE)
+#define G_CPL_TX_QUIC_ENC_PKTNUMSIZE(x)	\
+    (((x) >> S_CPL_TX_QUIC_ENC_PKTNUMSIZE) & M_CPL_TX_QUIC_ENC_PKTNUMSIZE)
+
+#define S_CPL_TX_QUIC_ENC_HDRTYPE	19
+#define M_CPL_TX_QUIC_ENC_HDRTYPE	0x1
+#define V_CPL_TX_QUIC_ENC_HDRTYPE(x)	((x) << S_CPL_TX_QUIC_ENC_HDRTYPE)
+#define G_CPL_TX_QUIC_ENC_HDRTYPE(x)	\
+    (((x) >> S_CPL_TX_QUIC_ENC_HDRTYPE) & M_CPL_TX_QUIC_ENC_HDRTYPE)
+#define F_CPL_TX_QUIC_ENC_HDRTYPE	V_CPL_TX_QUIC_ENC_HDRTYPE(1U)
+
+#define S_CPL_TX_QUIC_ENC_HDRSTARTOFFSET 4
+#define M_CPL_TX_QUIC_ENC_HDRSTARTOFFSET 0xfff
+#define V_CPL_TX_QUIC_ENC_HDRSTARTOFFSET(x) \
+    ((x) << S_CPL_TX_QUIC_ENC_HDRSTARTOFFSET)
+#define G_CPL_TX_QUIC_ENC_HDRSTARTOFFSET(x) \
+    (((x) >> S_CPL_TX_QUIC_ENC_HDRSTARTOFFSET) & \
+     M_CPL_TX_QUIC_ENC_HDRSTARTOFFSET)
+
+#define S_CPL_TX_QUIC_ENC_HDRLENGTH_HI	0
+#define M_CPL_TX_QUIC_ENC_HDRLENGTH_HI	0x3
+#define V_CPL_TX_QUIC_ENC_HDRLENGTH_HI(x) \
+    ((x) << S_CPL_TX_QUIC_ENC_HDRLENGTH_HI)
+#define G_CPL_TX_QUIC_ENC_HDRLENGTH_HI(x) \
+    (((x) >> S_CPL_TX_QUIC_ENC_HDRLENGTH_HI) & M_CPL_TX_QUIC_ENC_HDRLENGTH_HI)
+
+#define S_CPL_TX_QUIC_ENC_HDRLENGTH_LO	24
+#define M_CPL_TX_QUIC_ENC_HDRLENGTH_LO	0xff
+#define V_CPL_TX_QUIC_ENC_HDRLENGTH_LO(x) \
+    ((x) << S_CPL_TX_QUIC_ENC_HDRLENGTH_LO)
+#define G_CPL_TX_QUIC_ENC_HDRLENGTH_LO(x) \
+    (((x) >> S_CPL_TX_QUIC_ENC_HDRLENGTH_LO) & M_CPL_TX_QUIC_ENC_HDRLENGTH_LO)
+
+#define S_CPL_TX_QUIC_ENC_NUMPKT	16
+#define M_CPL_TX_QUIC_ENC_NUMPKT	0xff
+#define V_CPL_TX_QUIC_ENC_NUMPKT(x)	((x) << S_CPL_TX_QUIC_ENC_NUMPKT)
+#define G_CPL_TX_QUIC_ENC_NUMPKT(x)	\
+    (((x) >> S_CPL_TX_QUIC_ENC_NUMPKT) & M_CPL_TX_QUIC_ENC_NUMPKT)
+
+#define S_CPL_TX_QUIC_ENC_PKTLEN	0
+#define M_CPL_TX_QUIC_ENC_PKTLEN	0xffff
+#define V_CPL_TX_QUIC_ENC_PKTLEN(x)	((x) << S_CPL_TX_QUIC_ENC_PKTLEN)
+#define G_CPL_TX_QUIC_ENC_PKTLEN(x)	\
+    (((x) >> S_CPL_TX_QUIC_ENC_PKTLEN) & M_CPL_TX_QUIC_ENC_PKTLEN)
+
+struct cpl_tls_tx_scmd_fmt {
+        __be32 op_to_num_ivs;
+        __be32 enb_dbgId_to_hdrlen;
+        __be32 seq_num[2];
+};
+
+#define S_CPL_TLS_TX_SCMD_FMT_OPCODE    31
+#define M_CPL_TLS_TX_SCMD_FMT_OPCODE    0x1
+#define V_CPL_TLS_TX_SCMD_FMT_OPCODE(x) ((x) << S_CPL_TLS_TX_SCMD_FMT_OPCODE)
+#define G_CPL_TLS_TX_SCMD_FMT_OPCODE(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_OPCODE) & M_CPL_TLS_TX_SCMD_FMT_OPCODE)
+#define F_CPL_TLS_TX_SCMD_FMT_OPCODE    V_CPL_TLS_TX_SCMD_FMT_OPCODE(1U)
+
+#define S_CPL_TLS_TX_SCMD_FMT_SEQNUMBERCTRL 29
+#define M_CPL_TLS_TX_SCMD_FMT_SEQNUMBERCTRL 0x3
+#define V_CPL_TLS_TX_SCMD_FMT_SEQNUMBERCTRL(x) \
+    ((x) << S_CPL_TLS_TX_SCMD_FMT_SEQNUMBERCTRL)
+#define G_CPL_TLS_TX_SCMD_FMT_SEQNUMBERCTRL(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_SEQNUMBERCTRL) & \
+     M_CPL_TLS_TX_SCMD_FMT_SEQNUMBERCTRL)
+
+#define S_CPL_TLS_TX_SCMD_FMT_PROTOVERSION 24
+#define M_CPL_TLS_TX_SCMD_FMT_PROTOVERSION 0xf
+#define V_CPL_TLS_TX_SCMD_FMT_PROTOVERSION(x) \
+    ((x) << S_CPL_TLS_TX_SCMD_FMT_PROTOVERSION)
+#define G_CPL_TLS_TX_SCMD_FMT_PROTOVERSION(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_PROTOVERSION) & \
+     M_CPL_TLS_TX_SCMD_FMT_PROTOVERSION)
+
+#define S_CPL_TLS_TX_SCMD_FMT_ENCDECCTRL 23
+#define M_CPL_TLS_TX_SCMD_FMT_ENCDECCTRL 0x1
+#define V_CPL_TLS_TX_SCMD_FMT_ENCDECCTRL(x) \
+    ((x) << S_CPL_TLS_TX_SCMD_FMT_ENCDECCTRL)
+#define G_CPL_TLS_TX_SCMD_FMT_ENCDECCTRL(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_ENCDECCTRL) & \
+     M_CPL_TLS_TX_SCMD_FMT_ENCDECCTRL)
+#define F_CPL_TLS_TX_SCMD_FMT_ENCDECCTRL V_CPL_TLS_TX_SCMD_FMT_ENCDECCTRL(1U)
+
+#define S_CPL_TLS_TX_SCMD_FMT_CIPHAUTHSEQCTRL 22
+#define M_CPL_TLS_TX_SCMD_FMT_CIPHAUTHSEQCTRL 0x1
+#define V_CPL_TLS_TX_SCMD_FMT_CIPHAUTHSEQCTRL(x) \
+    ((x) << S_CPL_TLS_TX_SCMD_FMT_CIPHAUTHSEQCTRL)
+#define G_CPL_TLS_TX_SCMD_FMT_CIPHAUTHSEQCTRL(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_CIPHAUTHSEQCTRL) & \
+     M_CPL_TLS_TX_SCMD_FMT_CIPHAUTHSEQCTRL)
+#define F_CPL_TLS_TX_SCMD_FMT_CIPHAUTHSEQCTRL \
+    V_CPL_TLS_TX_SCMD_FMT_CIPHAUTHSEQCTRL(1U)
+
+#define S_CPL_TLS_TX_SCMD_FMT_CIPHMODE  18
+#define M_CPL_TLS_TX_SCMD_FMT_CIPHMODE  0xf
+#define V_CPL_TLS_TX_SCMD_FMT_CIPHMODE(x) \
+    ((x) << S_CPL_TLS_TX_SCMD_FMT_CIPHMODE)
+#define G_CPL_TLS_TX_SCMD_FMT_CIPHMODE(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_CIPHMODE) & M_CPL_TLS_TX_SCMD_FMT_CIPHMODE)
+
+#define S_CPL_TLS_TX_SCMD_FMT_AUTHMODE  14
+#define M_CPL_TLS_TX_SCMD_FMT_AUTHMODE  0xf
+#define V_CPL_TLS_TX_SCMD_FMT_AUTHMODE(x) \
+    ((x) << S_CPL_TLS_TX_SCMD_FMT_AUTHMODE)
+#define G_CPL_TLS_TX_SCMD_FMT_AUTHMODE(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_AUTHMODE) & M_CPL_TLS_TX_SCMD_FMT_AUTHMODE)
+
+#define S_CPL_TLS_TX_SCMD_FMT_HMACCTRL  11
+#define M_CPL_TLS_TX_SCMD_FMT_HMACCTRL  0x7
+#define V_CPL_TLS_TX_SCMD_FMT_HMACCTRL(x) \
+    ((x) << S_CPL_TLS_TX_SCMD_FMT_HMACCTRL)
+#define G_CPL_TLS_TX_SCMD_FMT_HMACCTRL(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_HMACCTRL) & M_CPL_TLS_TX_SCMD_FMT_HMACCTRL)
+
+#define S_CPL_TLS_TX_SCMD_FMT_IVSIZE    7
+#define M_CPL_TLS_TX_SCMD_FMT_IVSIZE    0xf
+#define V_CPL_TLS_TX_SCMD_FMT_IVSIZE(x) ((x) << S_CPL_TLS_TX_SCMD_FMT_IVSIZE)
+#define G_CPL_TLS_TX_SCMD_FMT_IVSIZE(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_IVSIZE) & M_CPL_TLS_TX_SCMD_FMT_IVSIZE)
+
+#define S_CPL_TLS_TX_SCMD_FMT_NUMIVS    0
+#define M_CPL_TLS_TX_SCMD_FMT_NUMIVS    0x7f
+#define V_CPL_TLS_TX_SCMD_FMT_NUMIVS(x) ((x) << S_CPL_TLS_TX_SCMD_FMT_NUMIVS)
+#define G_CPL_TLS_TX_SCMD_FMT_NUMIVS(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_NUMIVS) & M_CPL_TLS_TX_SCMD_FMT_NUMIVS)
+
+#define S_CPL_TLS_TX_SCMD_FMT_ENBDBGID  31
+#define M_CPL_TLS_TX_SCMD_FMT_ENBDBGID  0x1
+#define V_CPL_TLS_TX_SCMD_FMT_ENBDBGID(x) \
+    ((x) << S_CPL_TLS_TX_SCMD_FMT_ENBDBGID)
+#define G_CPL_TLS_TX_SCMD_FMT_ENBDBGID(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_ENBDBGID) & M_CPL_TLS_TX_SCMD_FMT_ENBDBGID)
+#define F_CPL_TLS_TX_SCMD_FMT_ENBDBGID  V_CPL_TLS_TX_SCMD_FMT_ENBDBGID(1U)
+
+#define S_CPL_TLS_TX_SCMD_FMT_IVGENCTRL 30
+#define M_CPL_TLS_TX_SCMD_FMT_IVGENCTRL 0x1
+#define V_CPL_TLS_TX_SCMD_FMT_IVGENCTRL(x) \
+    ((x) << S_CPL_TLS_TX_SCMD_FMT_IVGENCTRL)
+#define G_CPL_TLS_TX_SCMD_FMT_IVGENCTRL(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_IVGENCTRL) & \
+     M_CPL_TLS_TX_SCMD_FMT_IVGENCTRL)
+
+#define S_CPL_TLS_TX_SCMD_FMT_MOREFRAGS 20
+#define M_CPL_TLS_TX_SCMD_FMT_MOREFRAGS 0x1
+#define V_CPL_TLS_TX_SCMD_FMT_MOREFRAGS(x) \
+    ((x) << S_CPL_TLS_TX_SCMD_FMT_MOREFRAGS)
+#define G_CPL_TLS_TX_SCMD_FMT_MOREFRAGS(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_MOREFRAGS) & \
+     M_CPL_TLS_TX_SCMD_FMT_MOREFRAGS)
+#define F_CPL_TLS_TX_SCMD_FMT_MOREFRAGS V_CPL_TLS_TX_SCMD_FMT_MOREFRAGS(1U)
+
+#define S_CPL_TLS_TX_SCMD_FMT_LASTFRAGS 19
+#define M_CPL_TLS_TX_SCMD_FMT_LASTFRAGS 0x1
+#define V_CPL_TLS_TX_SCMD_FMT_LASTFRAGS(x) \
+    ((x) << S_CPL_TLS_TX_SCMD_FMT_LASTFRAGS)
+#define G_CPL_TLS_TX_SCMD_FMT_LASTFRAGS(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_LASTFRAGS) & \
+     M_CPL_TLS_TX_SCMD_FMT_LASTFRAGS)
+#define F_CPL_TLS_TX_SCMD_FMT_LASTFRAGS V_CPL_TLS_TX_SCMD_FMT_LASTFRAGS(1U)
+
+#define S_CPL_TLS_TX_SCMD_FMT_TLSCOMPPDU 18
+#define M_CPL_TLS_TX_SCMD_FMT_TLSCOMPPDU 0x1
+#define V_CPL_TLS_TX_SCMD_FMT_TLSCOMPPDU(x) \
+    ((x) << S_CPL_TLS_TX_SCMD_FMT_TLSCOMPPDU)
+#define G_CPL_TLS_TX_SCMD_FMT_TLSCOMPPDU(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_TLSCOMPPDU) & \
+     M_CPL_TLS_TX_SCMD_FMT_TLSCOMPPDU)
+#define F_CPL_TLS_TX_SCMD_FMT_TLSCOMPPDU V_CPL_TLS_TX_SCMD_FMT_TLSCOMPPDU(1U)
+
+#define S_CPL_TLS_TX_SCMD_FMT_PAYLOADONLY 17
+#define M_CPL_TLS_TX_SCMD_FMT_PAYLOADONLY 0x1
+#define V_CPL_TLS_TX_SCMD_FMT_PAYLOADONLY(x) \
+    ((x) << S_CPL_TLS_TX_SCMD_FMT_PAYLOADONLY)
+#define G_CPL_TLS_TX_SCMD_FMT_PAYLOADONLY(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_PAYLOADONLY) & \
+     M_CPL_TLS_TX_SCMD_FMT_PAYLOADONLY)
+#define F_CPL_TLS_TX_SCMD_FMT_PAYLOADONLY \
+    V_CPL_TLS_TX_SCMD_FMT_PAYLOADONLY(1U)
+
+#define S_CPL_TLS_TX_SCMD_FMT_TLSFRAGENABLE 16
+#define M_CPL_TLS_TX_SCMD_FMT_TLSFRAGENABLE 0x1
+#define V_CPL_TLS_TX_SCMD_FMT_TLSFRAGENABLE(x) \
+    ((x) << S_CPL_TLS_TX_SCMD_FMT_TLSFRAGENABLE)
+#define G_CPL_TLS_TX_SCMD_FMT_TLSFRAGENABLE(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_TLSFRAGENABLE) & \
+     M_CPL_TLS_TX_SCMD_FMT_TLSFRAGENABLE)
+#define F_CPL_TLS_TX_SCMD_FMT_TLSFRAGENABLE \
+    V_CPL_TLS_TX_SCMD_FMT_TLSFRAGENABLE(1U)
+
+#define S_CPL_TLS_TX_SCMD_FMT_MACONLY   15
+#define M_CPL_TLS_TX_SCMD_FMT_MACONLY   0x1
+#define V_CPL_TLS_TX_SCMD_FMT_MACONLY(x) \
+    ((x) << S_CPL_TLS_TX_SCMD_FMT_MACONLY)
+#define G_CPL_TLS_TX_SCMD_FMT_MACONLY(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_MACONLY) & M_CPL_TLS_TX_SCMD_FMT_MACONLY)
+#define F_CPL_TLS_TX_SCMD_FMT_MACONLY   V_CPL_TLS_TX_SCMD_FMT_MACONLY(1U)
+
+#define S_CPL_TLS_TX_SCMD_FMT_AADIVDROP 14
+#define M_CPL_TLS_TX_SCMD_FMT_AADIVDROP 0x1
+#define V_CPL_TLS_TX_SCMD_FMT_AADIVDROP(x) \
+    ((x) << S_CPL_TLS_TX_SCMD_FMT_AADIVDROP)
+#define G_CPL_TLS_TX_SCMD_FMT_AADIVDROP(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_AADIVDROP) & \
+     M_CPL_TLS_TX_SCMD_FMT_AADIVDROP)
+#define F_CPL_TLS_TX_SCMD_FMT_AADIVDROP V_CPL_TLS_TX_SCMD_FMT_AADIVDROP(1U)
+
+#define S_CPL_TLS_TX_SCMD_FMT_HDRLENGTH 0
+#define M_CPL_TLS_TX_SCMD_FMT_HDRLENGTH 0x3fff
+#define V_CPL_TLS_TX_SCMD_FMT_HDRLENGTH(x) \
+    ((x) << S_CPL_TLS_TX_SCMD_FMT_HDRLENGTH)
+#define G_CPL_TLS_TX_SCMD_FMT_HDRLENGTH(x) \
+    (((x) >> S_CPL_TLS_TX_SCMD_FMT_HDRLENGTH) & \
+     M_CPL_TLS_TX_SCMD_FMT_HDRLENGTH)
+
 struct cpl_rcb_upd {
 	__be32 op_to_tid;
 	__be32 opcode_psn;
 	__u8   nodata_to_cnprepclr;
-	__u8   r0;
+	__u8   rsp_nak_seqclr_pkd;
 	__be16 wrptr;
 	__be32 length;
 };
@@ -6202,13 +6614,6 @@ struct cpl_roce_cqe {
 #define G_CPL_ROCE_CQE_QPID(x)		\
     (((x) >> S_CPL_ROCE_CQE_QPID) & M_CPL_ROCE_CQE_QPID)
 
-#define S_CPL_ROCE_CQE_EXTMODE		11
-#define M_CPL_ROCE_CQE_EXTMODE		0x1
-#define V_CPL_ROCE_CQE_EXTMODE(x)	((x) << S_CPL_ROCE_CQE_EXTMODE)
-#define G_CPL_ROCE_CQE_EXTMODE(x)	\
-    (((x) >> S_CPL_ROCE_CQE_EXTMODE) & M_CPL_ROCE_CQE_EXTMODE)
-#define F_CPL_ROCE_CQE_EXTMODE		V_CPL_ROCE_CQE_EXTMODE(1U)
-
 #define S_CPL_ROCE_CQE_GENERATION_BIT	10
 #define M_CPL_ROCE_CQE_GENERATION_BIT	0x1
 #define V_CPL_ROCE_CQE_GENERATION_BIT(x) \
@@ -6248,6 +6653,13 @@ struct cpl_roce_cqe {
 #define V_CPL_ROCE_CQE_WR_TYPE_EXT(x)	((x) << S_CPL_ROCE_CQE_WR_TYPE_EXT)
 #define G_CPL_ROCE_CQE_WR_TYPE_EXT(x)	\
     (((x) >> S_CPL_ROCE_CQE_WR_TYPE_EXT) & M_CPL_ROCE_CQE_WR_TYPE_EXT)
+
+#define S_CPL_ROCE_CQE_EXTMODE		23
+#define M_CPL_ROCE_CQE_EXTMODE		0x1
+#define V_CPL_ROCE_CQE_EXTMODE(x)	((x) << S_CPL_ROCE_CQE_EXTMODE)
+#define G_CPL_ROCE_CQE_EXTMODE(x)	\
+    (((x) >> S_CPL_ROCE_CQE_EXTMODE) & M_CPL_ROCE_CQE_EXTMODE)
+#define F_CPL_ROCE_CQE_EXTMODE		V_CPL_ROCE_CQE_EXTMODE(1U)
 
 #define S_CPL_ROCE_CQE_SRQ		0
 #define M_CPL_ROCE_CQE_SRQ		0xfff
@@ -6304,13 +6716,6 @@ struct cpl_roce_cqe_fw {
 #define G_CPL_ROCE_CQE_FW_QPID(x)	\
     (((x) >> S_CPL_ROCE_CQE_FW_QPID) & M_CPL_ROCE_CQE_FW_QPID)
 
-#define S_CPL_ROCE_CQE_FW_EXTMODE	11
-#define M_CPL_ROCE_CQE_FW_EXTMODE	0x1
-#define V_CPL_ROCE_CQE_FW_EXTMODE(x)	((x) << S_CPL_ROCE_CQE_FW_EXTMODE)
-#define G_CPL_ROCE_CQE_FW_EXTMODE(x)	\
-    (((x) >> S_CPL_ROCE_CQE_FW_EXTMODE) & M_CPL_ROCE_CQE_FW_EXTMODE)
-#define F_CPL_ROCE_CQE_FW_EXTMODE	V_CPL_ROCE_CQE_FW_EXTMODE(1U)
-
 #define S_CPL_ROCE_CQE_FW_GENERATION_BIT 10
 #define M_CPL_ROCE_CQE_FW_GENERATION_BIT 0x1
 #define V_CPL_ROCE_CQE_FW_GENERATION_BIT(x) \
@@ -6353,6 +6758,14 @@ struct cpl_roce_cqe_fw {
 #define G_CPL_ROCE_CQE_FW_WR_TYPE_EXT(x) \
     (((x) >> S_CPL_ROCE_CQE_FW_WR_TYPE_EXT) & M_CPL_ROCE_CQE_FW_WR_TYPE_EXT)
 
+#define S_CPL_ROCE_CQE_FW_EXTMODE	23
+#define M_CPL_ROCE_CQE_FW_EXTMODE	0x1
+#define V_CPL_ROCE_CQE_FW_EXTMODE(x)	((x) << S_CPL_ROCE_CQE_FW_EXTMODE)
+#define G_CPL_ROCE_CQE_FW_EXTMODE(x)	\
+    (((x) >> S_CPL_ROCE_CQE_FW_EXTMODE) & M_CPL_ROCE_CQE_FW_EXTMODE)
+#define F_CPL_ROCE_CQE_FW_EXTMODE	V_CPL_ROCE_CQE_FW_EXTMODE(1U)
+
+
 #define S_CPL_ROCE_CQE_FW_SRQ		0
 #define M_CPL_ROCE_CQE_FW_SRQ		0xfff
 #define V_CPL_ROCE_CQE_FW_SRQ(x)	((x) << S_CPL_ROCE_CQE_FW_SRQ)
@@ -6360,16 +6773,16 @@ struct cpl_roce_cqe_fw {
     (((x) >> S_CPL_ROCE_CQE_FW_SRQ) & M_CPL_ROCE_CQE_FW_SRQ)
 
 struct cpl_roce_cqe_err {
-	__be32 op_to_CQID;
-	__be32 Tid_FlitCnt;
-	__be32 QPID_to_WR_type;
-	__be32 Length;
-	__be32 TAG;
-	__be32 MSN;
-	__be32 SE_to_SRQ;
-	__be32 RQE;
-	__be32 ExtInfoMS[2];
-	__be32 ExtInfoLS[2];
+	__be32 op_to_cqid;
+	__be32 tid_flitcnt;
+	__be32 qpid_to_wr_type;
+	__be32 length;
+	__be32 tag;
+	__be32 msn;
+	__be32 se_to_srq;
+	__be32 rqe;
+	__be32 extinfoms[2];
+	__be32 extinfols[2];
 };
 
 #define S_CPL_ROCE_CQE_ERR_OPCODE	24
@@ -6407,13 +6820,6 @@ struct cpl_roce_cqe_err {
 #define V_CPL_ROCE_CQE_ERR_QPID(x)	((x) << S_CPL_ROCE_CQE_ERR_QPID)
 #define G_CPL_ROCE_CQE_ERR_QPID(x)	\
     (((x) >> S_CPL_ROCE_CQE_ERR_QPID) & M_CPL_ROCE_CQE_ERR_QPID)
-
-#define S_CPL_ROCE_CQE_ERR_EXTMODE	11
-#define M_CPL_ROCE_CQE_ERR_EXTMODE	0x1
-#define V_CPL_ROCE_CQE_ERR_EXTMODE(x)	((x) << S_CPL_ROCE_CQE_ERR_EXTMODE)
-#define G_CPL_ROCE_CQE_ERR_EXTMODE(x)	\
-    (((x) >> S_CPL_ROCE_CQE_ERR_EXTMODE) & M_CPL_ROCE_CQE_ERR_EXTMODE)
-#define F_CPL_ROCE_CQE_ERR_EXTMODE	V_CPL_ROCE_CQE_ERR_EXTMODE(1U)
 
 #define S_CPL_ROCE_CQE_ERR_GENERATION_BIT 10
 #define M_CPL_ROCE_CQE_ERR_GENERATION_BIT 0x1
@@ -6457,6 +6863,14 @@ struct cpl_roce_cqe_err {
     ((x) << S_CPL_ROCE_CQE_ERR_WR_TYPE_EXT)
 #define G_CPL_ROCE_CQE_ERR_WR_TYPE_EXT(x) \
     (((x) >> S_CPL_ROCE_CQE_ERR_WR_TYPE_EXT) & M_CPL_ROCE_CQE_ERR_WR_TYPE_EXT)
+
+#define S_CPL_ROCE_CQE_ERR_EXTMODE	23
+#define M_CPL_ROCE_CQE_ERR_EXTMODE	0x1
+#define V_CPL_ROCE_CQE_ERR_EXTMODE(x)	((x) << S_CPL_ROCE_CQE_ERR_EXTMODE)
+#define G_CPL_ROCE_CQE_ERR_EXTMODE(x)	\
+    (((x) >> S_CPL_ROCE_CQE_ERR_EXTMODE) & M_CPL_ROCE_CQE_ERR_EXTMODE)
+#define F_CPL_ROCE_CQE_ERR_EXTMODE	V_CPL_ROCE_CQE_ERR_EXTMODE(1U)
+
 
 #define S_CPL_ROCE_CQE_ERR_SRQ		0
 #define M_CPL_ROCE_CQE_ERR_SRQ		0xfff
