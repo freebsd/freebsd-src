@@ -110,7 +110,7 @@ ${PKGCMD} repo ${PKG_REPODIR}
 
 if [ $NO_ROOT ]; then
 	mtree -c -p $ROOTDIR | mtree -C -k type,mode,link,size | \
-	    grep '^./packages/' >> $ROOTDIR/METALOG
+	    grep '^./packages[/ ]' >> $ROOTDIR/METALOG
 fi
 
 # Always exit '0', even if pkg(8) complains about conflicts.
