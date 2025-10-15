@@ -2146,7 +2146,8 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		return (ENOPROTOOPT);
 	}
 
-	if (name == IPV6_NEXTHOP) {
+	switch (name) {
+	case IPV6_NEXTHOP: {
 		len = args->optlen;
 		error = linux_to_bsd_sockaddr(PTRIN(args->optval), &sa, &len);
 		if (error != 0)
@@ -2155,7 +2156,34 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		error = kern_setsockopt(td, args->s, level,
 		    name, sa, UIO_SYSSPACE, len);
 		free(sa, M_SONAME);
-	} else {
+		break;
+	}
+	case MCAST_JOIN_GROUP:
+	case MCAST_LEAVE_GROUP:
+	case MCAST_JOIN_SOURCE_GROUP:
+	case MCAST_LEAVE_SOURCE_GROUP: {
+		struct group_source_req req;
+		size_t size;
+
+		size = (name == MCAST_JOIN_SOURCE_GROUP ||
+		    name == MCAST_LEAVE_SOURCE_GROUP) ?
+		    sizeof(struct group_source_req) : sizeof(struct group_req);
+
+		if ((error = copyin(PTRIN(args->optval), &req, size)))
+			return (error);
+		len = sizeof(struct sockaddr_storage);
+		if ((error = linux_to_bsd_sockaddr(
+		    (struct l_sockaddr *)&req.gsr_group, NULL, &len)))
+			return (error);
+		if (size == sizeof(struct group_source_req) &&
+		    (error = linux_to_bsd_sockaddr(
+		    (struct l_sockaddr *)&req.gsr_source, NULL, &len)))
+			return (error);
+		error = kern_setsockopt(td, args->s, level, name, &req,
+		    UIO_SYSSPACE, size);
+		break;
+	}
+	default:
 		error = kern_setsockopt(td, args->s, level,
 		    name, PTRIN(args->optval), UIO_USERSPACE, args->optlen);
 	}
