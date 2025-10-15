@@ -653,8 +653,8 @@ done:
 	for (i = 0; i < UFS_NDADDR; i++)
 		if (newblks[i] != DIP(ip, i_db[i]))
 			panic("ffs_truncate2: blkno %d newblks %jd != i_db %jd",
-			    i, (intmax_t)newblks[UFS_NDADDR + level],
-			    (intmax_t)DIP(ip, i_ib[level]));
+			    i, (intmax_t)newblks[i],
+			    (intmax_t)DIP(ip, i_db[i]));
 	BO_LOCK(bo);
 	if (length == 0 &&
 	    (fs->fs_magic != FS_UFS2_MAGIC || ip->i_din2->di_extsize == 0) &&
