@@ -1,4 +1,3 @@
-PACKAGE=lib${LIB}
 # Vendor sources and generated files
 LDNSDIR= ${SRCTOP}/contrib/ldns
 UNBOUNDDIR= ${SRCTOP}/contrib/unbound
@@ -6,9 +5,10 @@ UNBOUNDDIR= ${SRCTOP}/contrib/unbound
 # Hold my beer and watch this
 .PATH: ${UNBOUNDDIR} ${UNBOUNDDIR}/cachedb ${UNBOUNDDIR}/dns64 ${UNBOUNDDIR}/iterator ${UNBOUNDDIR}/sldns ${UNBOUNDDIR}/libunbound ${UNBOUNDDIR}/services ${UNBOUNDDIR}/services/cache ${UNBOUNDDIR}/util ${UNBOUNDDIR}/util/data ${UNBOUNDDIR}/respip ${UNBOUNDDIR}/util/storage ${UNBOUNDDIR}/validator 
 
-LIB=	unbound
+PACKAGE=	local-unbound
+
+LIB=		unbound
 PRIVATELIB=
-PACKAGE=	unbound
 
 CFLAGS+= -I${UNBOUNDDIR} -I${LDNSDIR} -I${.OBJDIR} -I${.CURDIR}
 CFLAGS+= -DOPENSSL_API_COMPAT=0x10100000L
