@@ -62,7 +62,7 @@
 #include <sys/_sx.h>
 #include <sys/_task.h>
 
-#define	SB_MAX		(2*1024*1024)	/* default for max chars in sockbuf */
+#define	SB_MAX		(8*1024*1024)	/* default for max chars in sockbuf */
 
 struct ktls_session;
 struct mbuf;
