@@ -27,6 +27,7 @@
 
 #include <tests/ktest.h>
 #include <sys/cdefs.h>
+#include "opt_inet.h"
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
@@ -118,6 +119,8 @@ SYSCTL_INT(_net_inet_tcp_hpts_test, OID_AUTO, exit_on_failure, CTLFLAG_RW,
 		KTEST_LOG(ctx, "PASS: %s", #x); \
 	} \
 } while (0)
+
+#ifdef TCP_HPTS_KTEST
 
 static void
 dump_hpts_entry(struct ktest_test_context *ctx, struct tcp_hpts_entry *hpts)
@@ -1657,6 +1660,23 @@ static const struct ktest_test_info tests[] = {
 	KTEST_INFO(hpts_collision_detection),
 	KTEST_INFO(generation_count_validation),
 };
+
+#else /* TCP_HPTS_KTEST */
+
+/*
+ * Stub to indicate that the TCP HPTS ktest is not enabled.
+ */
+KTEST_FUNC(module_load_without_tests)
+{
+	KTEST_LOG(ctx, "Warning: TCP HPTS ktest is not enabled");
+	return (0);
+}
+
+static const struct ktest_test_info tests[] = {
+	KTEST_INFO(module_load_without_tests),
+};
+
+#endif
 
 KTEST_MODULE_DECLARE(ktest_tcphpts, tests);
 KTEST_MODULE_DEPEND(ktest_tcphpts, tcphpts);
