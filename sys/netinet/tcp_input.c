@@ -219,7 +219,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_auto, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_autorcvbuf), 0,
     "Enable automatic receive buffer sizing");
 
-VNET_DEFINE(int, tcp_autorcvbuf_max) = 2*1024*1024;
+VNET_DEFINE(int, tcp_autorcvbuf_max) = 8*1024*1024;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_max, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_autorcvbuf_max), 0,
     "Max size of automatic receive buffer");
