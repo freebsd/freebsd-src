@@ -79,6 +79,27 @@ IP_ADD_MEMBERSHIP_ip_mreq_body()
 	    0.0.0.0 6676 233.252.0.1 6676 192.0.3.1 hello
 	atf_check -s exit:0 sh -c "wait $pid; exit $?"
 	atf_check -s exit:0 -o inline:"192.0.3.1:6676 hello\n" cat out
+
+	# join group on the first multicast capable interface (epair1a)
+	multicast_join ip_mreq 0.0.0.0
+	atf_check -s exit:0 -o empty \
+	    jexec mjail1 $(atf_get_srcdir)/multicast-send \
+	    0.0.0.0 6676 233.252.0.1 6676 192.0.2.1 hello
+	atf_check -s exit:0 sh -c "wait $pid; exit $?"
+	atf_check -s exit:0 -o inline:"192.0.2.1:6676 hello\n" cat out
+
+	# Set up the receiving jail so that first multicast capable interface
+	# is epair1a and default route points into epair2a.  This will allow us
+	# to exercise both branches of inp_lookup_mcast_ifp().
+	jexec mjail2 route add default 192.0.3.254
+
+	# join group on the interface determined by the route lookup
+	multicast_join ip_mreq 0.0.0.0
+	atf_check -s exit:0 -o empty \
+	    jexec mjail1 $(atf_get_srcdir)/multicast-send \
+	    0.0.0.0 6676 233.252.0.1 6676 192.0.3.1 hello
+	atf_check -s exit:0 sh -c "wait $pid; exit $?"
+	atf_check -s exit:0 -o inline:"192.0.3.1:6676 hello\n" cat out
 }
 IP_ADD_MEMBERSHIP_ip_mreq_cleanup()
 {
@@ -111,6 +132,19 @@ IP_ADD_MEMBERSHIP_ip_mreqn_body()
 	    0.0.0.0 6676 233.252.0.1 6676 ${epair2}a hello
 	atf_check -s exit:0 sh -c "wait $pid; exit $?"
 	atf_check -s exit:0 -o inline:"192.0.3.1:6676 hello\n" cat out
+
+	# try to join group on the interface determined by the route lookup
+	atf_check -s exit:71 -e inline:"multicast-receive: setsockopt: Can't assign requested address\n" \
+	    jexec mjail2 $(atf_get_srcdir)/multicast-receive \
+	    ip_mreqn 233.252.0.1 6676 0
+	# add route and try again
+	jexec mjail2 route add default 192.0.3.254
+        multicast_join ip_mreqn 0
+	atf_check -s exit:0 -o empty \
+	    jexec mjail1 $(atf_get_srcdir)/multicast-send \
+	    0.0.0.0 6676 233.252.0.1 6676 192.0.3.1 hello
+	atf_check -s exit:0 sh -c "wait $pid; exit $?"
+	atf_check -s exit:0 -o inline:"192.0.3.1:6676 hello\n" cat out
 }
 IP_ADD_MEMBERSHIP_ip_mreqn_cleanup()
 {
@@ -141,6 +175,19 @@ MCAST_JOIN_GROUP_body()
 	atf_check -s exit:0 -o empty \
 	    jexec mjail1 $(atf_get_srcdir)/multicast-send \
 	    0.0.0.0 6676 233.252.0.1 6676 ${epair2}a hello
+	atf_check -s exit:0 sh -c "wait $pid; exit $?"
+	atf_check -s exit:0 -o inline:"192.0.3.1:6676 hello\n" cat out
+
+	# try to join group on the interface determined by the route lookup
+	atf_check -s exit:71 -e inline:"multicast-receive: setsockopt: Can't assign requested address\n" \
+	    jexec mjail2 $(atf_get_srcdir)/multicast-receive \
+	    group_req 233.252.0.1 6676 0
+	# add route and try again
+	jexec mjail2 route add default 192.0.3.254
+        multicast_join group_req 0
+	atf_check -s exit:0 -o empty \
+	    jexec mjail1 $(atf_get_srcdir)/multicast-send \
+	    0.0.0.0 6676 233.252.0.1 6676 192.0.3.1 hello
 	atf_check -s exit:0 sh -c "wait $pid; exit $?"
 	atf_check -s exit:0 -o inline:"192.0.3.1:6676 hello\n" cat out
 }

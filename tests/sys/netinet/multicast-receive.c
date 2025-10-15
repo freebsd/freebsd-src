@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <limits.h>
 #include <err.h>
 
@@ -93,8 +94,9 @@ usage:
 			.imr_multiaddr = maddr,
 			.imr_interface = ifaddr,
 		};
-		assert(setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq,
-		    sizeof(mreq)) == 0);
+		if (setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq,
+		    sizeof(mreq)) != 0)
+			err(EX_OSERR, "setsockopt");
 	} else if (strcmp(argv[1], "ip_mreqn") == 0) {
 		/*
 		 * ip_mreqn shall be used with index, but for testing
@@ -105,8 +107,9 @@ usage:
 			.imr_address = index ? (struct in_addr){ 0 } : ifaddr,
 			.imr_ifindex = index ? ifindex : 0,
 		};
-		assert(setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreqn,
-		    sizeof(mreqn)) == 0);
+		if (setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreqn,
+		    sizeof(mreqn)) != 0)
+			err(EX_OSERR, "setsockopt");
 	} else if (strcmp(argv[1], "group_req") == 0) {
 		if (!index)
 			errx(1, "group_req expects index");
@@ -116,8 +119,9 @@ usage:
 		gsa->sin_family = AF_INET;
 		gsa->sin_len = sizeof(struct sockaddr_in);
 		gsa->sin_addr = maddr;
-		assert(setsockopt(s, IPPROTO_IP, MCAST_JOIN_GROUP, &greq,
-		    sizeof(greq)) == 0);
+		if (setsockopt(s, IPPROTO_IP, MCAST_JOIN_GROUP, &greq,
+		    sizeof(greq)) != 0)
+			err(EX_OSERR, "setsockopt");
 	} else
 		goto usage;
 

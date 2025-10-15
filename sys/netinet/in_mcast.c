@@ -159,9 +159,6 @@ static struct ip_moptions *
 static int	inp_get_source_filters(struct inpcb *, struct sockopt *);
 static int	inp_join_group(struct inpcb *, struct sockopt *);
 static int	inp_leave_group(struct inpcb *, struct sockopt *);
-static struct ifnet *
-		inp_lookup_mcast_ifp(const struct inpcb *,
-		    const struct sockaddr_in *, const struct in_addr);
 static int	inp_block_unblock_source(struct inpcb *, struct sockopt *);
 static int	inp_set_multicast_if(struct inpcb *, struct sockopt *);
 static int	inp_set_source_filters(struct inpcb *, struct sockopt *);
@@ -1832,69 +1829,55 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 }
 
 /*
- * Look up the ifnet to use for a multicast group membership,
- * given the IPv4 address of an interface, and the IPv4 group address.
+ * Look up the ifnet to join a multicast group membership via legacy
+ * IP_ADD_MEMBERSHIP or via more modern MCAST_JOIN_GROUP.
  *
- * This routine exists to support legacy multicast applications
- * which do not understand that multicast memberships are scoped to
- * specific physical links in the networking stack, or which need
- * to join link-scope groups before IPv4 addresses are configured.
- *
- * Use this socket's current FIB number for any required FIB lookup.
- * If ina is INADDR_ANY, look up the group address in the unicast FIB,
- * and use its ifp; usually, this points to the default next-hop.
- *
- * If the FIB lookup fails, attempt to use the first non-loopback
- * interface with multicast capability in the system as a
- * last resort. The legacy IPv4 ASM API requires that we do
- * this in order to allow groups to be joined when the routing
- * table has not yet been populated during boot.
- *
- * Returns NULL if no ifp could be found, otherwise return referenced ifp.
- *
- * FUTURE: Implement IPv4 source-address selection.
+ * If the interface index was specified explicitly, just use it.  If the
+ * address was specified (legacy), try to find matching interface.  Else
+ * (index == 0 && no address) do a route lookup.  If that fails for a modern
+ * MCAST_JOIN_GROUP return failure, for legacy IP_ADD_MEMBERSHIP find first
+ * multicast capable interface.
  */
 static struct ifnet *
-inp_lookup_mcast_ifp(const struct inpcb *inp,
-    const struct sockaddr_in *gsin, const struct in_addr ina)
+inp_lookup_mcast_ifp(const struct inpcb *inp, const struct in_addr maddr,
+const struct in_addr *ina, const u_int index)
 {
 	struct ifnet *ifp;
 	struct nhop_object *nh;
 
 	NET_EPOCH_ASSERT();
-	KASSERT(inp != NULL, ("%s: inp must not be NULL", __func__));
-	KASSERT(gsin->sin_family == AF_INET, ("%s: not AF_INET", __func__));
-	KASSERT(IN_MULTICAST(ntohl(gsin->sin_addr.s_addr)),
-	    ("%s: not multicast", __func__));
 
-	ifp = NULL;
-	if (!in_nullhost(ina)) {
-		INADDR_TO_IFP(ina, ifp);
+	if (index != 0)
+		return (ifnet_byindex_ref(index));
+
+	if (ina != NULL && !in_nullhost(*ina)) {
+		INADDR_TO_IFP(*ina, ifp);
 		if (ifp != NULL)
 			if_ref(ifp);
-	} else {
-		nh = fib4_lookup(inp->inp_inc.inc_fibnum, gsin->sin_addr, 0, NHR_NONE, 0);
-		if (nh != NULL) {
-			ifp = nh->nh_ifp;
-			if_ref(ifp);
-		} else {
-			struct in_ifaddr *ia;
-			struct ifnet *mifp;
+		return (ifp);
+	}
 
-			mifp = NULL;
-			CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
-				mifp = ia->ia_ifp;
-				if (!(mifp->if_flags & IFF_LOOPBACK) &&
-				     (mifp->if_flags & IFF_MULTICAST)) {
-					ifp = mifp;
-					if_ref(ifp);
-					break;
-				}
+	nh = fib4_lookup(inp->inp_inc.inc_fibnum, maddr, 0, NHR_NONE, 0);
+	if (nh != NULL) {
+		ifp = nh->nh_ifp;
+		if_ref(ifp);
+		return (ifp);
+	}
+
+	if (ina != NULL) {
+		struct in_ifaddr *ia;
+
+		CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
+			if (!(ia->ia_ifp->if_flags & IFF_LOOPBACK) &&
+			     (ia->ia_ifp->if_flags & IFF_MULTICAST)) {
+				ifp = ia->ia_ifp;
+				if_ref(ifp);
+				return (ifp);
 			}
 		}
 	}
 
-	return (ifp);
+	return (NULL);
 }
 
 /*
@@ -1926,13 +1909,13 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 	switch (sopt->sopt_name) {
 	case IP_ADD_MEMBERSHIP: {
 		struct ip_mreqn mreqn;
+		bool mreq;
 
-		if (sopt->sopt_valsize == sizeof(struct ip_mreqn))
-			error = sooptcopyin(sopt, &mreqn,
-			    sizeof(struct ip_mreqn), sizeof(struct ip_mreqn));
-		else
-			error = sooptcopyin(sopt, &mreqn,
-			    sizeof(struct ip_mreq), sizeof(struct ip_mreq));
+		mreq = (sopt->sopt_valsize != sizeof(struct ip_mreqn));
+
+		error = sooptcopyin(sopt, &mreqn,
+		    mreq ? sizeof(struct ip_mreq) : sizeof(struct ip_mreqn),
+		    mreq ? sizeof(struct ip_mreq) : sizeof(struct ip_mreqn));
 		if (error)
 			return (error);
 
@@ -1943,12 +1926,9 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 			return (EINVAL);
 
 		NET_EPOCH_ENTER(et);
-		if (sopt->sopt_valsize == sizeof(struct ip_mreqn) &&
-		    mreqn.imr_ifindex != 0)
-			ifp = ifnet_byindex_ref(mreqn.imr_ifindex);
-		else
-			ifp = inp_lookup_mcast_ifp(inp, &gsa->sin,
-			    mreqn.imr_address);
+		ifp = inp_lookup_mcast_ifp(inp, mreqn.imr_multiaddr,
+		    mreq ? &mreqn.imr_address : NULL,
+		    mreq ? 0 : mreqn.imr_ifindex);
 		NET_EPOCH_EXIT(et);
 		break;
 	}
@@ -1971,8 +1951,8 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 		ssa->sin.sin_addr = mreqs.imr_sourceaddr;
 
 		NET_EPOCH_ENTER(et);
-		ifp = inp_lookup_mcast_ifp(inp, &gsa->sin,
-		    mreqs.imr_interface);
+		ifp = inp_lookup_mcast_ifp(inp, mreqs.imr_multiaddr,
+		    &mreqs.imr_interface, 0);
 		NET_EPOCH_EXIT(et);
 		CTR3(KTR_IGMPV3, "%s: imr_interface = 0x%08x, ifp = %p",
 		    __func__, ntohl(mreqs.imr_interface.s_addr), ifp);
@@ -2013,7 +1993,8 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 			return (EINVAL);
 
 		NET_EPOCH_ENTER(et);
-		ifp = ifnet_byindex_ref(gsr.gsr_interface);
+		ifp = inp_lookup_mcast_ifp(inp, gsa->sin.sin_addr, NULL,
+		    gsr.gsr_interface);
 		NET_EPOCH_EXIT(et);
 		if (ifp == NULL)
 			return (EADDRNOTAVAIL);
