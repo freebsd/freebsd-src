@@ -546,7 +546,8 @@ label:
 				zonestr[cp - buf] = '\0';
 				tzset();
 				if (0 == strcmp(zonestr, "GMT") ||
-				    0 == strcmp(zonestr, "UTC")) {
+				    0 == strcmp(zonestr, "UTC") ||
+				    0 == strcmp(zonestr, "Z")) {
 				    *GMTp = 1;
 				} else if (0 == strcmp(zonestr, tzname[0])) {
 				    tm->tm_isdst = 0;
