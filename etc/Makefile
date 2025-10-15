@@ -68,7 +68,7 @@ distribution:
 # install the /etc/unbound symlink, otherwise, don't overwrite the user's
 # existing symlink.
 	if [ "${NO_ROOT:Dtrue}" = true -o ! -e ${DESTDIR}/etc/unbound ]; then \
-		${INSTALL_SYMLINK} -Tpackage=unbound ../var/unbound \
+		${INSTALL_SYMLINK} -Tpackage=local-unbound ../var/unbound \
 			${DESTDIR}/etc/unbound; \
 	fi
 .endif
