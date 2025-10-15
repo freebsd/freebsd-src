@@ -578,8 +578,13 @@ bsd_to_linux_sockaddr(const struct sockaddr *sa, struct l_sockaddr **lsa,
 	return (0);
 }
 
+/*
+ * If sap is NULL, then osa points at already copied in linux sockaddr that
+ * should be edited in place.  Otherwise memory is allocated, sockaddr
+ * copied in and returned in *sap.
+ */
 int
-linux_to_bsd_sockaddr(const struct l_sockaddr *osa, struct sockaddr **sap,
+linux_to_bsd_sockaddr(struct l_sockaddr *osa, struct sockaddr **sap,
     socklen_t *len)
 {
 	struct sockaddr *sa;
@@ -609,10 +614,12 @@ linux_to_bsd_sockaddr(const struct l_sockaddr *osa, struct sockaddr **sap,
 	}
 #endif
 
-	kosa = malloc(salen, M_SONAME, M_WAITOK);
-
-	if ((error = copyin(osa, kosa, *len)))
-		goto out;
+	if (sap != NULL) {
+		kosa = malloc(salen, M_SONAME, M_WAITOK);
+		if ((error = copyin(osa, kosa, *len)))
+			goto out;
+	} else
+		kosa = osa;
 
 	bdom = linux_to_bsd_domain(kosa->sa_family);
 	if (bdom == AF_UNKNOWN) {
@@ -686,12 +693,15 @@ linux_to_bsd_sockaddr(const struct l_sockaddr *osa, struct sockaddr **sap,
 	sa->sa_family = bdom;
 	sa->sa_len = salen;
 
-	*sap = sa;
-	*len = salen;
+	if (sap != NULL) {
+		*sap = sa;
+		*len = salen;
+	}
 	return (0);
 
 out:
-	free(kosa, M_SONAME);
+	if (sap != NULL)
+		free(kosa, M_SONAME);
 	return (error);
 }
 
