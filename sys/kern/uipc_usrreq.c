@@ -1559,15 +1559,19 @@ restart:
 				mc_init_m(&cmc, control);
 
 				SOCK_RECVBUF_LOCK(so);
-				MPASS(!(sb->sb_state & SBS_CANTRCVMORE));
-
-				if (__predict_false(cmc.mc_len + sb->sb_ccc +
-				    sb->sb_ctl > sb->sb_hiwat)) {
+				if (__predict_false(
+				    (sb->sb_state & SBS_CANTRCVMORE) ||
+				    cmc.mc_len + sb->sb_ccc + sb->sb_ctl >
+				    sb->sb_hiwat)) {
 					/*
-					 * Too bad, while unp_externalize() was
-					 * failing, the other side had filled
-					 * the buffer and we can't prepend data
-					 * back. Losing data!
+					 * While the lock was dropped and we
+					 * were failing in unp_externalize(),
+					 * the peer could has a) disconnected,
+					 * b) filled the buffer so that we
+					 * can't prepend data back.
+					 * These are two edge conditions that
+					 * we just can't handle, so lose the
+					 * data and return the error.
 					 */
 					SOCK_RECVBUF_UNLOCK(so);
 					SOCK_IO_RECV_UNLOCK(so);
