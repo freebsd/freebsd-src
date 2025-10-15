@@ -294,7 +294,7 @@ SSHPACKAGE=			ssh
 SSH=		sshd
 
 CONFGROUPS.${MK_UNBOUND}+=	UNBOUND
-UNBOUNDPACKAGE=			unbound
+UNBOUNDPACKAGE=			local-unbound
 UNBOUND=	local_unbound
 
 CONFGROUPS.${MK_VI}+=		VI
