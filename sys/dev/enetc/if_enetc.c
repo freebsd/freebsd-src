@@ -848,7 +848,7 @@ enetc_hash_vid(uint16_t vid)
 	bool bit;
 	int i;
 
-	for (i = 0;i < 6;i++) {
+	for (i = 0; i < 6; i++) {
 		bit = vid & BIT(i);
 		bit ^= !!(vid & BIT(i + 6));
 		hash |= bit << i;
@@ -1020,7 +1020,7 @@ enetc_msix_intr_assign(if_ctx_t ctx, int msix)
 		    ENETC_RBICR0_ICEN | ENETC_RBICR0_SET_ICPT(ENETC_RX_INTR_PKT_THR));
 	}
 	vector = 0;
-	for (i = 0;i < sc->tx_num_queues; i++, vector++) {
+	for (i = 0; i < sc->tx_num_queues; i++, vector++) {
 		tx_queue = &sc->tx_queues[i];
 		snprintf(irq_name, sizeof(irq_name), "txq%d", i);
 		iflib_softirq_alloc_generic(ctx, &tx_queue->irq,
@@ -1130,7 +1130,7 @@ enetc_isc_txd_encap(void *data, if_pkt_info_t ipi)
 	}
 
 	/* Now add remaining descriptors. */
-	for (;i < ipi->ipi_nsegs; i++) {
+	for (; i < ipi->ipi_nsegs; i++) {
 		desc = &queue->ring[pidx];
 		bzero(desc, sizeof(*desc));
 		desc->addr = segs[i].ds_addr;

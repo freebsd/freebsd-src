@@ -3266,7 +3266,7 @@ static void sym_init (hcb_p np, int reason)
 	 *  Reinitialize usrwide.
 	 *  Prepare sync negotiation according to actual SCSI bus mode.
 	 */
-	for (i=0;i<SYM_CONF_MAX_TARGET;i++) {
+	for (i = 0; i < SYM_CONF_MAX_TARGET; i++) {
 		tcb_p tp = &np->target[i];
 
 		tp->to_reset  = 0;
@@ -3715,7 +3715,7 @@ static void sym_log_hard_error(hcb_p np, u_short sist, u_char dstat)
 	}
 
         printf ("%s: regdump:", sym_name(np));
-        for (i=0; i<24;i++)
+        for (i = 0; i < 24; i++)
             printf (" %02x", (unsigned)INB_OFF(i));
         printf (".\n");
 
@@ -5527,8 +5527,8 @@ static int sym_show_msg (u_char * msg)
 	u_char i;
 	printf ("%x",*msg);
 	if (*msg==M_EXTENDED) {
-		for (i=1;i<8;i++) {
-			if (i-1>msg[1]) break;
+		for (i = 1; i < 8; i++) {
+			if (i - 1 > msg[1]) break;
 			printf ("-%x",msg[i]);
 		}
 		return (i+1);
@@ -6744,10 +6744,10 @@ restart_test:
 	/*
 	 *  Wait 'til done (with timeout)
 	 */
-	for (i=0; i<SYM_SNOOP_TIMEOUT; i++)
+	for (i = 0; i < SYM_SNOOP_TIMEOUT; i++)
 		if (INB(nc_istat) & (INTF|SIP|DIP))
 			break;
-	if (i>=SYM_SNOOP_TIMEOUT) {
+	if (i >= SYM_SNOOP_TIMEOUT) {
 		printf ("CACHE TEST FAILED: timeout.\n");
 		return (0x20);
 	}

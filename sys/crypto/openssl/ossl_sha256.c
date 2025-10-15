@@ -74,11 +74,11 @@ ossl_sha256_init(void *c_)
         unsigned int  nn;               \
         switch ((c)->md_len)            \
         {   case SHA224_DIGEST_LENGTH:  \
-                for (nn=0;nn<SHA224_DIGEST_LENGTH/4;nn++)       \
+                for (nn=0; nn < SHA224_DIGEST_LENGTH / 4; nn++)	\
                 {   ll=(c)->h[nn]; (void)HOST_l2c(ll,(s));   }  \
                 break;                  \
             case SHA256_DIGEST_LENGTH:  \
-                for (nn=0;nn<SHA256_DIGEST_LENGTH/4;nn++)       \
+                for (nn=0; nn < SHA256_DIGEST_LENGTH / 4; nn++)	\
                 {   ll=(c)->h[nn]; (void)HOST_l2c(ll,(s));   }  \
                 break;                  \
             default:                    \

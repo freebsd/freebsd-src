@@ -415,7 +415,7 @@ sysctl_devstat(SYSCTL_HANDLER_ARGS)
 	if (error != 0)
 		return (error);
 
-	for (;nds != NULL;) {
+	while (nds != NULL) {
 		error = SYSCTL_OUT(req, nds, sizeof(struct devstat));
 		if (error != 0)
 			return (error);

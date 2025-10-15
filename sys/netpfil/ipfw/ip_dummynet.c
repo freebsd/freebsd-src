@@ -1150,7 +1150,7 @@ copy_data_helper(void *_o, void *_arg)
 		    return 0;	/* not a pipe */
 
 		/* see if the object is within one of our ranges */
-		for (;r < lim; r += 2) {
+		for (; r < lim; r += 2) {
 			if (n < r[0] || n > r[1])
 				continue;
 			/* Found a valid entry, copy and we are done */
@@ -1183,7 +1183,7 @@ copy_data_helper(void *_o, void *_arg)
 		if (n >= DN_MAX_ID)
 			return 0;
 		/* see if the object is within one of our ranges */
-		for (;r < lim; r += 2) {
+		for (; r < lim; r += 2) {
 			if (n < r[0] || n > r[1])
 				continue;
 			if (copy_flowset(a, fs, 0))

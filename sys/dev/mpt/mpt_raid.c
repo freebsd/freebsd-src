@@ -830,7 +830,7 @@ mpt_is_raid_volume(struct mpt_softc *mpt, target_id_t tgt)
 	}
 	ioc_vol = mpt->ioc_page2->RaidVolume;
 	ioc_last_vol = ioc_vol + mpt->ioc_page2->NumActiveVolumes;
-	for (;ioc_vol != ioc_last_vol; ioc_vol++) {
+	for (; ioc_vol != ioc_last_vol; ioc_vol++) {
 		if (ioc_vol->VolumeID == tgt) {
 			return (1);
 		}
@@ -1406,7 +1406,7 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 
 	ioc_vol = mpt->ioc_page2->RaidVolume;
 	ioc_last_vol = ioc_vol + mpt->ioc_page2->NumActiveVolumes;
-	for (;ioc_vol != ioc_last_vol; ioc_vol++) {
+	for (; ioc_vol != ioc_last_vol; ioc_vol++) {
 		struct mpt_raid_volume *mpt_vol;
 
 		mpt_vol = mpt->raid_volumes + ioc_vol->VolumePageNumber;

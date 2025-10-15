@@ -311,7 +311,7 @@ attach_fail_4:
     if (sc->cmd_tag)
 	    bus_dma_tag_destroy(sc->cmd_tag);
 attach_fail_3:
-    for(i=0;i<sc->irqs;i++) {
+    for (i = 0; i < sc->irqs; i++) {
         if ( sc->irq_res[i] ){
             if (bus_release_resource(sc->tws_dev,
                  SYS_RES_IRQ, sc->irq_res_id[i], sc->irq_res[i]))
@@ -369,7 +369,7 @@ tws_detach(device_t dev)
     tws_teardown_intr(sc);
 
     /* Release irq resource */
-    for(i=0;i<sc->irqs;i++) {
+    for (i = 0; i < sc->irqs; i++) {
         if ( sc->irq_res[i] ){
             if (bus_release_resource(sc->tws_dev,
                      SYS_RES_IRQ, sc->irq_res_id[i], sc->irq_res[i]))
@@ -402,7 +402,7 @@ tws_detach(device_t dev)
             TWS_TRACE(sc, "bus release mem resource", 0, sc->reg_res_id);
     }
 
-    for ( i=0; i< tws_queue_depth; i++) {
+    for (i = 0; i < tws_queue_depth; i++) {
 	    if (sc->reqs[i].dma_map)
 		    bus_dmamap_destroy(sc->data_tag, sc->reqs[i].dma_map);
 	    callout_drain(&sc->reqs[i].timeout);
@@ -432,7 +432,7 @@ tws_setup_intr(struct tws_softc *sc, int irqs)
 {
     int i, error;
 
-    for(i=0;i<irqs;i++) {
+    for (i = 0; i < irqs; i++) {
         if (!(sc->intr_handle[i])) {
             if ((error = bus_setup_intr(sc->tws_dev, sc->irq_res[i],
                                     INTR_TYPE_CAM | INTR_MPSAFE,
@@ -452,7 +452,7 @@ tws_teardown_intr(struct tws_softc *sc)
 {
     int i;
 
-    for(i=0;i<sc->irqs;i++) {
+    for (i = 0; i < sc->irqs; i++) {
         if (sc->intr_handle[i]) {
             bus_teardown_intr(sc->tws_dev,
                                       sc->irq_res[i], sc->intr_handle[i]);
@@ -669,8 +669,7 @@ tws_init_reqs(struct tws_softc *sc, u_int32_t dma_mem_size)
     bzero(cmd_buf, dma_mem_size);
     TWS_TRACE_DEBUG(sc, "phy cmd", sc->dma_mem_phys, 0);
     mtx_lock(&sc->q_lock);
-    for ( i=0; i< tws_queue_depth; i++)
-    {
+    for (i = 0; i < tws_queue_depth; i++) {
         if (bus_dmamap_create(sc->data_tag, 0, &sc->reqs[i].dma_map)) {
             /* log a ENOMEM failure msg here */
             mtx_unlock(&sc->q_lock);

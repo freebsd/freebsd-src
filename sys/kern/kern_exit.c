@@ -807,7 +807,7 @@ kern_abort2(struct thread *td, const char *why, int nargs, void **uargs)
 	}
 	if (nargs > 0) {
 		sbuf_putc(sb, '(');
-		for (i = 0;i < nargs; i++)
+		for (i = 0; i < nargs; i++)
 			sbuf_printf(sb, "%s%p", i == 0 ? "" : ", ", uargs[i]);
 		sbuf_putc(sb, ')');
 	}

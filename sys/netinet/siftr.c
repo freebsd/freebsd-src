@@ -519,7 +519,7 @@ siftr_pkt_manager_thread(void *arg)
 			if (log_buf != NULL) {
 				alq_post_flags(siftr_alq, log_buf, 0);
 			}
-			for (;cnt > 0; cnt--) {
+			for (; cnt > 0; cnt--) {
 				pkt_node = STAILQ_FIRST(&tmp_pkt_queue);
 				STAILQ_REMOVE_HEAD(&tmp_pkt_queue, nodes);
 				free(pkt_node, M_SIFTR_PKTNODE);

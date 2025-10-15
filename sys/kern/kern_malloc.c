@@ -1302,7 +1302,7 @@ mallocinit(void *dummy)
 #endif
 			    align, UMA_ZONE_MALLOC);
 		}
-		for (;i <= size; i+= KMEM_ZBASE)
+		for (; i <= size; i+= KMEM_ZBASE)
 			kmemsize[i >> KMEM_ZSHIFT] = indx;
 	}
 }
