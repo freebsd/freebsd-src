@@ -1069,6 +1069,21 @@ uipc_stream_sbspace(struct sockbuf *sb)
 	return (min(space, mbspace));
 }
 
+/*
+ * UNIX version of generic sbwait() for writes.  We wait on peer's receive
+ * buffer, using our timeout.
+ */
+static int
+uipc_stream_sbwait(struct socket *so, sbintime_t timeo)
+{
+	struct sockbuf *sb = &so->so_rcv;
+
+	SOCK_RECVBUF_LOCK_ASSERT(so);
+	sb->sb_flags |= SB_WAIT;
+	return (msleep_sbt(&sb->sb_acc, SOCK_RECVBUF_MTX(so), PSOCK | PCATCH,
+	    "sbwait", timeo, 0, 0));
+}
+
 static int
 uipc_sosend_stream_or_seqpacket(struct socket *so, struct sockaddr *addr,
     struct uio *uio0, struct mbuf *m, struct mbuf *c, int flags,
@@ -1203,7 +1218,8 @@ restart:
 				error = EWOULDBLOCK;
 				goto out4;
 			}
-			if ((error = sbwait(so2, SO_RCV)) != 0) {
+			if ((error = uipc_stream_sbwait(so2,
+			    so->so_snd.sb_timeo)) != 0) {
 				SOCK_RECVBUF_UNLOCK(so2);
 				goto out4;
 			} else
@@ -2397,7 +2413,7 @@ uipc_sendfile_wait(struct socket *so, off_t need, int *space)
 		}
 		if (!sockref)
 			soref(so2);
-		error = sbwait(so2, SO_RCV);
+		error = uipc_stream_sbwait(so2, so->so_snd.sb_timeo);
 		if (error == 0 &&
 		    __predict_false(sb->sb_state & SBS_CANTRCVMORE))
 			error = EPIPE;
