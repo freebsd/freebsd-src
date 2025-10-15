@@ -215,6 +215,9 @@ unicast_v4_body()
 
 unicast_v4_cleanup()
 {
+	jexec carp_uni_v4_one killall routed
+	jexec carp_uni_v4_two killall routed
+	jexec carp_uni_v4_three killall routed
 	vnet_cleanup
 }
 
