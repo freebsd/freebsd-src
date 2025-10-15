@@ -1,6 +1,6 @@
 MK_WERROR=	no
 NO_WTHREAD_SAFETY= true
-PACKAGE=	unbound
+PACKAGE=	local-unbound
 
 .for man in ${MAN}
 ${man}: ${UNBOUNDDIR}/doc/${man:S/local-//}

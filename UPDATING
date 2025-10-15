@@ -12,6 +12,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20251015:
+	The "FreeBSD-unbound" package is renamed to "FreeBSD-local-unbound".
+	If you have set-optional or set-base installed, the new package will
+	be installed automatically, otherwise you should manually install the
+	new package and remove the old one.
+
+	This change only affects pkgbase users.
+
 20251001:
 	The deprecated ftpd(8) has been removed.  Users who still need ftpd
 	can install the ftp/freebsd-ftpd port.  pkgbase users should remove
