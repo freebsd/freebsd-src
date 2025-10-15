@@ -2831,7 +2831,7 @@ __elfN(parse_notes)(const struct image_params *imgp, const Elf_Note *checknote,
 		}
 		if ((const char *)note_end - (const char *)note <
 		    sizeof(Elf_Note)) {
-			uprintf("ELF note to short\n");
+			uprintf("ELF note too short\n");
 			goto retf;
 		}
 		if (note->n_namesz != checknote->n_namesz ||
@@ -2839,9 +2839,9 @@ __elfN(parse_notes)(const struct image_params *imgp, const Elf_Note *checknote,
 		    note->n_type != checknote->n_type)
 			goto nextnote;
 		note_name = (const char *)(note + 1);
-		if (note_name + checknote->n_namesz >=
-		    (const char *)note_end || strncmp(note_vendor,
-		    note_name, checknote->n_namesz) != 0)
+		if (note_name + roundup2(note->n_namesz, ELF_NOTE_ROUNDSIZE) +
+		    note->n_descsz >= (const char *)note_end ||
+		    strncmp(note_vendor, note_name, checknote->n_namesz) != 0)
 			goto nextnote;
 
 		if (cb(note, cb_arg, &res))
