@@ -334,10 +334,13 @@ struct {								\
 #define _RB_L				((__uintptr_t)1)
 #define _RB_R				((__uintptr_t)2)
 #define _RB_LR				((__uintptr_t)3)
-#define _RB_BITS(elm)			(*(__uintptr_t *)&elm)
+#define _RB_BITS(elm)			((__uintptr_t)elm)
 #define _RB_BITSUP(elm, field)		_RB_BITS(_RB_UP(elm, field))
-#define _RB_PTR(elm)			(__typeof(elm))			\
-					((__uintptr_t)elm & ~_RB_LR)
+#define _RB_PTR_OP(elm, op, dir)	((__typeof(elm))		\
+					((__uintptr_t)(elm) op (dir)))
+#define _RB_PTR(elm)			_RB_PTR_OP((elm), &, ~_RB_LR)
+#define _RB_MOD_OR(elm, dir)		((elm) = _RB_PTR_OP((elm), |, (dir)))
+#define _RB_MOD_XOR(elm, dir)		((elm) = _RB_PTR_OP((elm), ^, (dir)))
 
 #define RB_PARENT(elm, field)		_RB_PTR(_RB_UP(elm, field))
 #define RB_LEFT(elm, field)		_RB_LINK(elm, _RB_L, field)
@@ -346,8 +349,8 @@ struct {								\
 #define RB_EMPTY(head)			(RB_ROOT(head) == NULL)
 
 #define RB_SET_PARENT(dst, src, field) do {				\
-	_RB_BITSUP(dst, field) = (__uintptr_t)src |			\
-	    (_RB_BITSUP(dst, field) & _RB_LR);				\
+	_RB_UP(dst, field) = (__typeof(src))((__uintptr_t)src |		\
+	    (_RB_BITSUP(dst, field) & _RB_LR));				\
 } while (/*CONSTCOND*/ 0)
 
 #define RB_SET(elm, parent, field) do {					\
@@ -546,12 +549,12 @@ name##_RB_INSERT_COLOR(struct name *head,				\
 		elmdir = RB_RIGHT(parent, field) == elm ? _RB_R : _RB_L; \
 		if (_RB_BITS(gpar) & elmdir) {				\
 			/* shorten the parent-elm edge to rebalance */	\
-			_RB_BITSUP(parent, field) ^= elmdir;		\
+			_RB_MOD_XOR(_RB_UP(parent, field), elmdir);	\
 			return (NULL);					\
 		}							\
 		sibdir = elmdir ^ _RB_LR;				\
 		/* the other edge must change length */			\
-		_RB_BITSUP(parent, field) ^= sibdir;			\
+		_RB_MOD_XOR(_RB_UP(parent, field), sibdir);		\
 		if ((_RB_BITS(gpar) & _RB_LR) == 0) {			\
 			/* both edges now short, retry from parent */	\
 			child = elm;					\
@@ -583,11 +586,14 @@ name##_RB_INSERT_COLOR(struct name *head,				\
 			RB_ROTATE(elm, child, elmdir, field);		\
 			child_up = _RB_UP(child, field);		\
 			if (_RB_BITS(child_up) & sibdir)		\
-				_RB_BITSUP(parent, field) ^= elmdir;	\
+				_RB_MOD_XOR(_RB_UP(parent, field),	\
+				    elmdir); 				\
 			if (_RB_BITS(child_up) & elmdir)		\
-				_RB_BITSUP(elm, field) ^= _RB_LR;	\
+				_RB_MOD_XOR(_RB_UP(elm, field),		\
+				    _RB_LR);				\
 			else						\
-				_RB_BITSUP(elm, field) ^= elmdir;	\
+				_RB_MOD_XOR(_RB_UP(elm, field),		\
+				    elmdir);				\
 			/* if child is a leaf, don't augment elm,	\
 			 * since it is restored to be a leaf again. */	\
 			if ((_RB_BITS(child_up) & _RB_LR) == 0)		\
@@ -656,7 +662,7 @@ name##_RB_REMOVE_COLOR(struct name *head,				\
 		/* the rank of the tree rooted at elm shrank */		\
 		gpar = _RB_UP(parent, field);				\
 		elmdir = RB_RIGHT(parent, field) == elm ? _RB_R : _RB_L; \
-		_RB_BITS(gpar) ^= elmdir;				\
+		_RB_MOD_XOR(gpar, elmdir);				\
 		if (_RB_BITS(gpar) & elmdir) {				\
 			/* lengthen the parent-elm edge to rebalance */	\
 			_RB_UP(parent, field) = gpar;			\
@@ -664,7 +670,7 @@ name##_RB_REMOVE_COLOR(struct name *head,				\
 		}							\
 		if (_RB_BITS(gpar) & _RB_LR) {				\
 			/* shorten other edge, retry from parent */	\
-			_RB_BITS(gpar) ^= _RB_LR;			\
+			_RB_MOD_XOR(gpar, _RB_LR);			\
 			_RB_UP(parent, field) = gpar;			\
 			gpar = _RB_PTR(gpar);				\
 			continue;					\
@@ -672,7 +678,7 @@ name##_RB_REMOVE_COLOR(struct name *head,				\
 		sibdir = elmdir ^ _RB_LR;				\
 		sib = _RB_LINK(parent, sibdir, field);			\
 		up = _RB_UP(sib, field);				\
-		_RB_BITS(up) ^= _RB_LR;					\
+		_RB_MOD_XOR(up, _RB_LR);				\
 		if ((_RB_BITS(up) & _RB_LR) == 0) {			\
 			/* shorten edges descending from sib, retry */	\
 			_RB_UP(sib, field) = up;			\
@@ -703,24 +709,29 @@ name##_RB_REMOVE_COLOR(struct name *head,				\
 			/* elm is a 1-child.  First rotate at elm. */	\
 			RB_ROTATE(sib, elm, sibdir, field);		\
 			up = _RB_UP(elm, field);			\
-			_RB_BITSUP(parent, field) ^=			\
-			    (_RB_BITS(up) & elmdir) ? _RB_LR : elmdir;	\
-			_RB_BITSUP(sib, field) ^=			\
-			    (_RB_BITS(up) & sibdir) ? _RB_LR : sibdir;	\
-			_RB_BITSUP(elm, field) |= _RB_LR;		\
+			_RB_MOD_XOR(_RB_UP(parent, field),		\
+			    (_RB_BITS(up) & elmdir) ? _RB_LR : elmdir);	\
+			_RB_MOD_XOR(_RB_UP(sib, field),			\
+			    (_RB_BITS(up) & sibdir) ? _RB_LR : sibdir);	\
+			_RB_MOD_OR(_RB_UP(elm, field), _RB_LR);		\
 		} else {						\
 			if ((_RB_BITS(up) & elmdir) == 0 &&		\
 			    RB_STRICT_HST && elm != NULL) {		\
 				/* if parent does not become a leaf,	\
 				   do not demote parent yet. */		\
-				_RB_BITSUP(parent, field) ^= sibdir;	\
-				_RB_BITSUP(sib, field) ^= _RB_LR;	\
+				_RB_MOD_XOR(_RB_UP(parent, field),	\
+				    sibdir);				\
+				_RB_MOD_XOR(_RB_UP(sib, field),		\
+				    _RB_LR);				\
 			} else if ((_RB_BITS(up) & elmdir) == 0) {	\
 				/* demote parent. */			\
-				_RB_BITSUP(parent, field) ^= elmdir;	\
-				_RB_BITSUP(sib, field) ^= sibdir;	\
+				_RB_MOD_XOR(_RB_UP(parent, field),	\
+				    elmdir);				\
+				_RB_MOD_XOR(_RB_UP(sib, field),		\
+				    sibdir);				\
 			} else						\
-				_RB_BITSUP(sib, field) ^= sibdir;	\
+				_RB_MOD_XOR(_RB_UP(sib, field),		\
+				    sibdir);				\
 			elm = sib;					\
 		}							\
 									\
