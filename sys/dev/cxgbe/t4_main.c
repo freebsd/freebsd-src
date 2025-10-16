@@ -3652,6 +3652,7 @@ port_mword(struct port_info *pi, uint32_t speed)
 	case FW_PORT_TYPE_SFP28:
 	case FW_PORT_TYPE_SFP56:
 	case FW_PORT_TYPE_QSFP56:
+	case FW_PORT_TYPE_QSFPDD:
 		/* Pluggable transceiver */
 		switch (pi->mod_type) {
 		case FW_PORT_MOD_TYPE_LR:
@@ -3671,6 +3672,8 @@ port_mword(struct port_info *pi, uint32_t speed)
 				return (IFM_100G_LR4);
 			case FW_PORT_CAP32_SPEED_200G:
 				return (IFM_200G_LR4);
+			case FW_PORT_CAP32_SPEED_400G:
+				return (IFM_400G_LR8);
 			}
 			break;
 		case FW_PORT_MOD_TYPE_SR:
@@ -3689,6 +3692,8 @@ port_mword(struct port_info *pi, uint32_t speed)
 				return (IFM_100G_SR4);
 			case FW_PORT_CAP32_SPEED_200G:
 				return (IFM_200G_SR4);
+			case FW_PORT_CAP32_SPEED_400G:
+				return (IFM_400G_SR8);
 			}
 			break;
 		case FW_PORT_MOD_TYPE_ER:
@@ -3712,6 +3717,8 @@ port_mword(struct port_info *pi, uint32_t speed)
 				return (IFM_100G_CR4);
 			case FW_PORT_CAP32_SPEED_200G:
 				return (IFM_200G_CR4_PAM4);
+			case FW_PORT_CAP32_SPEED_400G:
+				return (IFM_400G_CR8);
 			}
 			break;
 		case FW_PORT_MOD_TYPE_LRM:
@@ -3723,10 +3730,12 @@ port_mword(struct port_info *pi, uint32_t speed)
 				return (IFM_100G_DR);
 			if (speed == FW_PORT_CAP32_SPEED_200G)
 				return (IFM_200G_DR4);
+			if (speed == FW_PORT_CAP32_SPEED_400G)
+				return (IFM_400G_DR4);
 			break;
 		case FW_PORT_MOD_TYPE_NA:
 			MPASS(0);	/* Not pluggable? */
-			/* fall throough */
+			/* fall through */
 		case FW_PORT_MOD_TYPE_ERROR:
 		case FW_PORT_MOD_TYPE_UNKNOWN:
 		case FW_PORT_MOD_TYPE_NOTSUPPORTED:
@@ -3735,6 +3744,10 @@ port_mword(struct port_info *pi, uint32_t speed)
 			return (IFM_NONE);
 		}
 		break;
+	case M_FW_PORT_CMD_PTYPE:	/* FW_PORT_TYPE_NONE for old firmware */
+		if (chip_id(pi->adapter) >= CHELSIO_T7)
+			return (IFM_UNKNOWN);
+		/* fall through */
 	case FW_PORT_TYPE_NONE:
 		return (IFM_NONE);
 	}
