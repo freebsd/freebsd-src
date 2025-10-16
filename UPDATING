@@ -27,6 +27,18 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20251016:
+	With the migration to OpenZFS in FreeBSD 13.x a number of ZFS sysctls
+	moved to new locations, but backwards compatibility aliases were
+	provided.  These aliases will be removed in the near future.  Please
+	update /etc/sysctl.conf to reference the new OIDs.  For example,
+
+	        vfs.zfs.min_auto_ashift=12
+
+	needs to be changed to
+
+	        vfs.zfs.vdev.min_auto_ashift=12
+
 20251015:
 	The "FreeBSD-unbound" package is renamed to "FreeBSD-local-unbound".
 	If you have set-optional or set-base installed, the new package will
