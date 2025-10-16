@@ -268,8 +268,10 @@ fi
 if [ -z "$firmware" ]; then
 	case ${platform} in
 	amd64)
-		firmware="${efi_firmware}"
-		firmware_pkg="edk2-bhyve"
+		if [ ${efi_mode} -ne 0 ]; then
+			firmware="${efi_firmware}"
+			firmware_pkg="edk2-bhyve"
+		fi
 		;;
 	arm64)
 		firmware="${uboot_firmware}"
