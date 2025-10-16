@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2002 Murray Stokely <murray@FreeBSD.org>
 .\" All rights reserved.
 .\"
@@ -22,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 11, 2025
+.Dd October 13, 2025
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -136,6 +139,8 @@ configuration file supports the following variables:
 .Bl -tag -width Ev
 .It Va CHROOTDIR
 The directory within which the release will be built.
+Defaults to
+.Pa /scratch .
 .It Va CHROOT_MAKEENV
 Additional
 .Xr make 1
@@ -636,6 +641,7 @@ Typically, one only needs to set
 .El
 .Sh FILES
 .Bl -tag -compact -width Pa
+.It Pa /scratch
 .It Pa /usr/doc/Makefile
 .It Pa /usr/doc/share/mk/doc.project.mk
 .It Pa /usr/ports/Mk/bsd.port.mk
@@ -688,16 +694,10 @@ the Raspberry Pi, exist in the directory corresponding to the
 .Va TARGET
 .Xr make 1
 variable.
-For example, to build an image for the Raspberry Pi:
+For example, to build an image for 64-bit Raspberry Pis:
 .Bd -literal -offset indent
 cd /usr/src/release
-sh release.sh -c arm/RPI-B.conf
-.Ed
-.Pp
-To build an image for the Raspberry Pi 3:
-.Bd -literal -offset indent
-cd /usr/src/release
-sh release.sh -c arm64/RPI3.conf
+sh release.sh -c arm64/RPI.conf
 .Ed
 .Pp
 After running these commands, all prepared release files are available in the
