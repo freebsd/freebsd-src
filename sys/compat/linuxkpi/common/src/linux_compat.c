@@ -1171,12 +1171,14 @@ static const struct filterops linux_dev_kqfiltops_read = {
 	.f_isfd = 1,
 	.f_detach = linux_file_kqfilter_detach,
 	.f_event = linux_file_kqfilter_read_event,
+	.f_copy = knote_triv_copy,
 };
 
 static const struct filterops linux_dev_kqfiltops_write = {
 	.f_isfd = 1,
 	.f_detach = linux_file_kqfilter_detach,
 	.f_event = linux_file_kqfilter_write_event,
+	.f_copy = knote_triv_copy,
 };
 
 static void

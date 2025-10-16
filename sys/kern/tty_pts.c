@@ -491,11 +491,13 @@ static const struct filterops pts_kqops_read = {
 	.f_isfd = 1,
 	.f_detach = pts_kqops_read_detach,
 	.f_event = pts_kqops_read_event,
+	.f_copy = knote_triv_copy,
 };
 static const struct filterops pts_kqops_write = {
 	.f_isfd = 1,
 	.f_detach = pts_kqops_write_detach,
 	.f_event = pts_kqops_write_event,
+	.f_copy = knote_triv_copy,
 };
 
 static int

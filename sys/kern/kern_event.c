@@ -191,11 +191,13 @@ static void	filt_usertouch(struct knote *kn, struct kevent *kev,
 static const struct filterops file_filtops = {
 	.f_isfd = 1,
 	.f_attach = filt_fileattach,
+	.f_copy = knote_triv_copy,
 };
 static const struct filterops kqread_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_kqdetach,
 	.f_event = filt_kqueue,
+	.f_copy = knote_triv_copy,
 };
 /* XXX - move to kern_proc.c?  */
 static const struct filterops proc_filtops = {
@@ -203,12 +205,14 @@ static const struct filterops proc_filtops = {
 	.f_attach = filt_procattach,
 	.f_detach = filt_procdetach,
 	.f_event = filt_proc,
+	.f_copy = knote_triv_copy,
 };
 static const struct filterops jail_filtops = {
 	.f_isfd = 0,
 	.f_attach = filt_jailattach,
 	.f_detach = filt_jaildetach,
 	.f_event = filt_jail,
+	.f_copy = knote_triv_copy,
 };
 static const struct filterops timer_filtops = {
 	.f_isfd = 0,
@@ -223,6 +227,7 @@ static const struct filterops user_filtops = {
 	.f_detach = filt_userdetach,
 	.f_event = filt_user,
 	.f_touch = filt_usertouch,
+	.f_copy = knote_triv_copy,
 };
 
 static uma_zone_t	knote_zone;
@@ -352,6 +357,7 @@ filt_nullattach(struct knote *kn)
 static const struct filterops null_filtops = {
 	.f_isfd = 0,
 	.f_attach = filt_nullattach,
+	.f_copy = knote_triv_copy,
 };
 
 /* XXX - make SYSINIT to add these, and move into respective modules. */
@@ -3130,6 +3136,12 @@ kqueue_fork(struct filedesc *fdp, struct file *fp, struct file **fp1,
 	if (*fp1 == NULL)
 		return (kqueue_fork_alloc(fdp, fp, fp1, td));
 	return (kqueue_fork_copy(fdp, fp, *fp1, p1, td));
+}
+
+int
+knote_triv_copy(struct knote *kn __unused, struct proc *p1 __unused)
+{
+	return (0);
 }
 
 struct knote_status_export_bit {

@@ -348,6 +348,7 @@ struct rwlock;
 
 void	knote(struct knlist *list, long hint, int lockflags);
 void	knote_fork(struct knlist *list, int pid);
+int	knote_triv_copy(struct knote *kn, struct proc *p1);
 struct knlist *knlist_alloc(struct mtx *lock);
 void	knlist_detach(struct knlist *knl);
 void	knlist_add(struct knlist *knl, struct knote *kn, int islocked);

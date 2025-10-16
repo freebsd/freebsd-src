@@ -1121,7 +1121,8 @@ static int cyapafilt(struct knote *, long);
 static const struct filterops cyapa_filtops = {
 	    .f_isfd = 1,
 	    .f_detach = cyapafiltdetach,
-	    .f_event = cyapafilt
+	    .f_event = cyapafilt,
+	    .f_copy = knote_triv_copy,
 };
 
 static int
