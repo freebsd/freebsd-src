@@ -130,6 +130,7 @@ static const struct filterops devctl_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_devctl_detach,
 	.f_event = filt_devctl_read,
+	.f_copy = knote_triv_copy,
 };
 
 static struct cdev *devctl_dev;

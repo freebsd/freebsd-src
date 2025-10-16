@@ -79,6 +79,7 @@ static const struct filterops log_read_filterops = {
 	.f_attach =	NULL,
 	.f_detach =	logkqdetach,
 	.f_event =	logkqread,
+	.f_copy = knote_triv_copy,
 };
 
 static struct logsoftc {

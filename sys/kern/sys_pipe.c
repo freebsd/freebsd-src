@@ -181,20 +181,23 @@ static int	filt_pipedump(struct proc *p, struct knote *kn,
 static const struct filterops pipe_nfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_pipedetach_notsup,
-	.f_event = filt_pipenotsup
+	.f_event = filt_pipenotsup,
 	/* no userdump */
+	.f_copy = knote_triv_copy,
 };
 static const struct filterops pipe_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_pipedetach,
 	.f_event = filt_piperead,
 	.f_userdump = filt_pipedump,
+	.f_copy = knote_triv_copy,
 };
 static const struct filterops pipe_wfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_pipedetach,
 	.f_event = filt_pipewrite,
 	.f_userdump = filt_pipedump,
+	.f_copy = knote_triv_copy,
 };
 
 /*

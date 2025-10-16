@@ -793,6 +793,7 @@ static const struct filterops ti_pruss_kq_read = {
 	.f_isfd = 1,
 	.f_detach = ti_pruss_irq_kqread_detach,
 	.f_event = ti_pruss_irq_kqevent,
+	.f_copy = knote_triv_copy,
 };
 
 static void

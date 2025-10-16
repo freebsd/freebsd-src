@@ -486,6 +486,7 @@ static const struct filterops procdesc_kqops = {
 	.f_isfd = 1,
 	.f_detach = procdesc_kqops_detach,
 	.f_event = procdesc_kqops_event,
+	.f_copy = knote_triv_copy,
 };
 
 static int

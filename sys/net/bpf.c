@@ -253,12 +253,14 @@ static const struct filterops bpfread_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_bpfdetach,
 	.f_event = filt_bpfread,
+	.f_copy = knote_triv_copy,
 };
 
 static const struct filterops bpfwrite_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_bpfdetach,
 	.f_event = filt_bpfwrite,
+	.f_copy = knote_triv_copy,
 };
 
 /*

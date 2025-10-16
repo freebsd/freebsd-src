@@ -126,11 +126,13 @@ static const struct filterops fuse_device_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = fuse_device_filt_detach,
 	.f_event = fuse_device_filt_read,
+	.f_copy = knote_triv_copy,
 };
 
 static const struct filterops fuse_device_wfiltops = {
 	.f_isfd = 1,
 	.f_event = fuse_device_filt_write,
+	.f_copy = knote_triv_copy,
 };
 
 /****************************

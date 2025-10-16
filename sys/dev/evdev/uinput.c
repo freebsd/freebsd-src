@@ -104,6 +104,7 @@ static const struct filterops uinput_filterops = {
 	.f_attach = NULL,
 	.f_detach = uinput_kqdetach,
 	.f_event = uinput_kqread,
+	.f_copy = knote_triv_copy,
 };
 
 struct uinput_cdev_state

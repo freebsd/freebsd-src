@@ -5287,6 +5287,7 @@ static const struct filterops psmfiltops = {
 	.f_isfd = 1,
 	.f_detach = psmfilter_detach,
 	.f_event = psmfilter,
+	.f_copy = knote_triv_copy,
 };
 
 static int

@@ -1231,12 +1231,14 @@ static const struct filterops usb_filtops_write = {
 	.f_isfd = 1,
 	.f_detach = usb_filter_detach,
 	.f_event = usb_filter_write,
+	.f_copy = knote_triv_copy,
 };
 
 static const struct filterops usb_filtops_read = {
 	.f_isfd = 1,
 	.f_detach = usb_filter_detach,
 	.f_event = usb_filter_read,
+	.f_copy = knote_triv_copy,
 };
 
 /* ARGSUSED */

@@ -132,6 +132,7 @@ static struct filterops u2f_filterops_read = {
 	.f_isfd =	1,
 	.f_detach =	u2f_kqdetach,
 	.f_event =	u2f_kqread,
+	.f_copy = knote_triv_copy,
 };
 
 static int

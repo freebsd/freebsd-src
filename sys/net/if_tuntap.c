@@ -261,6 +261,7 @@ static const struct filterops tun_read_filterops = {
 	.f_attach =	NULL,
 	.f_detach =	tunkqdetach,
 	.f_event =	tunkqread,
+	.f_copy =	knote_triv_copy,
 };
 
 static const struct filterops tun_write_filterops = {
@@ -268,6 +269,7 @@ static const struct filterops tun_write_filterops = {
 	.f_attach =	NULL,
 	.f_detach =	tunkqdetach,
 	.f_event =	tunkqwrite,
+	.f_copy =	knote_triv_copy,
 };
 
 static struct tuntap_driver {

@@ -183,6 +183,7 @@ static struct filterops zvol_filterops_vnode = {
 	.f_isfd = 1,
 	.f_detach = zvol_filter_detach,
 	.f_event = zvol_filter_vnode,
+	.f_copy = knote_triv_copy,
 };
 
 extern uint_t zfs_geom_probe_vdev_key;

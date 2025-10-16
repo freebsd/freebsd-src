@@ -1855,11 +1855,13 @@ static const struct filterops uipc_write_filtops = {
 	.f_isfd = 1,
 	.f_detach = uipc_filt_sowdetach,
 	.f_event = uipc_filt_sowrite,
+	.f_copy = knote_triv_copy,
 };
 static const struct filterops uipc_empty_filtops = {
 	.f_isfd = 1,
 	.f_detach = uipc_filt_sowdetach,
 	.f_event = uipc_filt_soempty,
+	.f_copy = knote_triv_copy,
 };
 
 static int

@@ -82,6 +82,7 @@ static const struct filterops gdev_filterops_vnode = {
 	.f_isfd = 1,
 	.f_detach = gdev_filter_detach,
 	.f_event = gdev_filter_vnode,
+	.f_copy = knote_triv_copy,
 };
 
 static struct cdevsw g_dev_cdevsw = {

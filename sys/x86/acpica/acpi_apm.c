@@ -64,6 +64,7 @@ static const struct filterops apm_readfiltops = {
 	.f_isfd = 1,
 	.f_detach = apmreadfiltdetach,
 	.f_event = apmreadfilt,
+	.f_copy = knote_triv_copy,
 };
 
 static struct cdevsw apm_cdevsw = {

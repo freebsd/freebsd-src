@@ -195,12 +195,14 @@ static const struct filterops cuse_client_kqfilter_read_ops = {
 	.f_isfd = 1,
 	.f_detach = cuse_client_kqfilter_read_detach,
 	.f_event = cuse_client_kqfilter_read_event,
+	.f_copy = knote_triv_copy,
 };
 
 static const struct filterops cuse_client_kqfilter_write_ops = {
 	.f_isfd = 1,
 	.f_detach = cuse_client_kqfilter_write_detach,
 	.f_event = cuse_client_kqfilter_write_event,
+	.f_copy = knote_triv_copy,
 };
 
 static d_open_t cuse_client_open;

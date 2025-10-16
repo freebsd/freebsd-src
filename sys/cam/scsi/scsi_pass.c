@@ -206,7 +206,8 @@ static struct cdevsw pass_cdevsw = {
 static const struct filterops passread_filtops = {
 	.f_isfd	=	1,
 	.f_detach =	passreadfiltdetach,
-	.f_event =	passreadfilt
+	.f_event =	passreadfilt,
+	.f_copy =	knote_triv_copy,
 };
 
 static MALLOC_DEFINE(M_SCSIPASS, "scsi_pass", "scsi passthrough buffers");
