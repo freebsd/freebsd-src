@@ -25,10 +25,10 @@ zfs_load="YES"
 vfs.root.mountfrom="zfs:boot/ROOT/root"
 #ZFS optional
 vm.kmem_size="8G"
-vfs.zfs.arc_min="1G"
-vfs.zfs.arc_max="2G"
-vfs.zfs.prefetch_disable="1"
-vfs.zfs.zil_disable=1
+vfs.zfs.arc.min="1G"
+vfs.zfs.arc.max="2G"
+vfs.zfs.prefetch.disable="1"
+vfs.zfs.zil.replay_disable=1
 vfs.zfs.zio.use_uma=0
 #Power savings
 hw.pci.do_power_nodriver=3
