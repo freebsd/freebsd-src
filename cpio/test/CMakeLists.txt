@@ -9,7 +9,7 @@
 IF(ENABLE_CPIO AND ENABLE_TEST)
   SET(bsdcpio_test_SOURCES
     ../cmdline.c
-    ../../libarchive_fe/err.c
+    ../../libarchive_fe/lafe_err.c
     ../../test_utils/test_utils.c
     ../../test_utils/test_main.c
     test.h

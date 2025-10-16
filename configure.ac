@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.8.1])
-m4_define([LIBARCHIVE_VERSION_N],[3008001])
+m4_define([LIBARCHIVE_VERSION_S],[3.8.2])
+m4_define([LIBARCHIVE_VERSION_N],[3008002])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -821,12 +821,15 @@ AC_FUNC_VPRINTF
 # To avoid necessity for including windows.h or special forward declaration
 # workarounds, we use 'void *' for 'struct SECURITY_ATTRIBUTES *'
 AC_CHECK_STDCALL_FUNC([CreateHardLinkA],[const char *, const char *, void *])
-AC_CHECK_FUNCS([arc4random_buf chflags chown chroot ctime_r])
+AC_CHECK_FUNCS([arc4random_buf chflags chown chroot])
+AC_CHECK_FUNCS([closefrom close_range ctime_r])
 AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fdopendir fnmatch fork])
 AC_CHECK_FUNCS([fstat fstatat fstatfs fstatvfs ftruncate])
 AC_CHECK_FUNCS([futimens futimes futimesat])
-AC_CHECK_FUNCS([geteuid getline getpid getgrgid_r getgrnam_r])
-AC_CHECK_FUNCS([getpwnam_r getpwuid_r getvfsbyname gmtime_r])
+AC_CHECK_FUNCS([getegid geteuid getline getpid getresgid getresuid])
+AC_CHECK_FUNCS([getgrgid_r getgrnam_r getpwnam_r getpwuid_r])
+AC_CHECK_FUNCS([getvfsbyname gmtime_r])
+AC_CHECK_FUNCS([issetugid])
 AC_CHECK_FUNCS([lchflags lchmod lchown link linkat localtime_r lstat lutimes])
 AC_CHECK_FUNCS([mbrtowc memmove memset])
 AC_CHECK_FUNCS([mkdir mkfifo mknod mkstemp])
@@ -881,14 +884,6 @@ AC_CHECK_TYPES(struct statfs,,,
 	#include <sys/mount.h>
 	])
 
-# There are several variants of readdir_r around; we only
-# accept the POSIX-compliant version.
-AC_LINK_IFELSE(
- [AC_LANG_PROGRAM([[#include <dirent.h>]],
-                  [[DIR *dir; struct dirent e, *r;
-		    return(readdir_r(dir, &e, &r));]])],
- [AC_DEFINE(HAVE_READDIR_R,1,[Define to 1 if you have a POSIX compatible readdir_r])]
-)
 # dirfd can be either a function or a macro.
 AC_LINK_IFELSE(
  [AC_LANG_PROGRAM([[#include <dirent.h>

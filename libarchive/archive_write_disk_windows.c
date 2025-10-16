@@ -1618,7 +1618,7 @@ restore_entry(struct archive_write_disk *a)
 				(void)clear_nochange_fflags(a);
 			}
 			if ((a->flags & ARCHIVE_EXTRACT_SAFE_WRITES) &&
-				S_ISREG(st_mode)) {
+				S_ISREG(a->mode)) {
 				int fd = la_mktemp(a);
 
 				if (fd == -1) {

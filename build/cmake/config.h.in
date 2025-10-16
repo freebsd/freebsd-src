@@ -405,6 +405,12 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `chroot' function. */
 #cmakedefine HAVE_CHROOT 1
 
+/* Define to 1 if you have the `closefrom' function. */
+#cmakedefine HAVE_CLOSEFROM 1
+
+/* Define to 1 if you have the `close_range' function. */
+#cmakedefine HAVE_CLOSE_RANGE 1
+
 /* Define to 1 if you have the <copyfile.h> header file. */
 #cmakedefine HAVE_COPYFILE_H 1
 
@@ -969,9 +975,6 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the <pwd.h> header file. */
 #cmakedefine HAVE_PWD_H 1
-
-/* Define to 1 if you have the `readdir_r' function. */
-#cmakedefine HAVE_READDIR_R 1
 
 /* Define to 1 if you have the `readlink' function. */
 #cmakedefine HAVE_READLINK 1

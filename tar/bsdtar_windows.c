@@ -24,7 +24,7 @@
 #include <sddl.h>
 
 #include "bsdtar.h"
-#include "err.h"
+#include "lafe_err.h"
 
 /* This may actually not be needed anymore.
  * TODO: Review the error handling for chdir() failures and

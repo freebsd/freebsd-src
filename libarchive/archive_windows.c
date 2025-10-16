@@ -45,6 +45,7 @@
 #if defined(_WIN32) && !defined(__CYGWIN__)
 
 #include "archive_platform.h"
+#include "archive_platform_stat.h"
 #include "archive_private.h"
 #include "archive_entry.h"
 #include "archive_time_private.h"
@@ -313,6 +314,10 @@ __la_open(const char *path, int flags, ...)
 	pmode = va_arg(ap, int);
 	va_end(ap);
 	ws = NULL;
+
+	/* _(w)sopen_s fails if we provide any other modes */
+	pmode = pmode & (_S_IREAD | _S_IWRITE);
+
 	if ((flags & ~O_BINARY) == O_RDONLY) {
 		/*
 		 * When we open a directory, _open function returns
@@ -374,7 +379,7 @@ __la_open(const char *path, int flags, ...)
 		   TODO: Fix mode of new file.  */
 		r = _open(path, flags);
 #else
-		r = _open(path, flags, pmode);
+		_sopen_s(&r, path, flags, _SH_DENYNO, pmode);
 #endif
 		if (r < 0 && errno == EACCES && (flags & O_CREAT) != 0) {
 			/* Simulate other POSIX system action to pass our test suite. */
@@ -395,7 +400,7 @@ __la_open(const char *path, int flags, ...)
 			return (-1);
 		}
 	}
-	r = _wopen(ws, flags, pmode);
+	_wsopen_s(&r, ws, flags, _SH_DENYNO, pmode);
 	if (r < 0 && errno == EACCES && (flags & O_CREAT) != 0) {
 		/* Simulate other POSIX system action to pass our test suite. */
 		attr = GetFileAttributesW(ws);
@@ -407,6 +412,93 @@ __la_open(const char *path, int flags, ...)
 			errno = EACCES;
 	}
 	free(ws);
+	return (r);
+}
+
+int
+__la_wopen(const wchar_t *path, int flags, ...)
+{
+	va_list ap;
+	wchar_t *fullpath;
+	int r, pmode;
+	DWORD attr;
+
+	va_start(ap, flags);
+	pmode = va_arg(ap, int);
+	va_end(ap);
+	fullpath = NULL;
+
+	/* _(w)sopen_s fails if we provide any other modes */
+	pmode = pmode & (_S_IREAD | _S_IWRITE);
+
+	if ((flags & ~O_BINARY) == O_RDONLY) {
+		/*
+		 * When we open a directory, _open function returns
+		 * "Permission denied" error.
+		 */
+		attr = GetFileAttributesW(path);
+#if !defined(WINAPI_FAMILY_PARTITION) || WINAPI_FAMILY_PARTITION (WINAPI_PARTITION_DESKTOP)
+		if (attr == (DWORD)-1 && GetLastError() == ERROR_PATH_NOT_FOUND)
+#endif
+		{
+			fullpath = __la_win_permissive_name_w(path);
+			if (fullpath == NULL) {
+				errno = EINVAL;
+				return (-1);
+			}
+			path = fullpath;
+			attr = GetFileAttributesW(fullpath);
+		}
+		if (attr == (DWORD)-1) {
+			la_dosmaperr(GetLastError());
+			free(fullpath);
+			return (-1);
+		}
+		if (attr & FILE_ATTRIBUTE_DIRECTORY) {
+			HANDLE handle;
+#if !defined(WINAPI_FAMILY_PARTITION) || WINAPI_FAMILY_PARTITION (WINAPI_PARTITION_DESKTOP)
+			if (fullpath != NULL)
+				handle = CreateFileW(fullpath, 0, 0, NULL,
+				    OPEN_EXISTING,
+				    FILE_FLAG_BACKUP_SEMANTICS |
+				    FILE_ATTRIBUTE_READONLY,
+					NULL);
+			else
+				handle = CreateFileW(path, 0, 0, NULL,
+				    OPEN_EXISTING,
+				    FILE_FLAG_BACKUP_SEMANTICS |
+				    FILE_ATTRIBUTE_READONLY,
+					NULL);
+#else /* !WINAPI_PARTITION_DESKTOP */
+			CREATEFILE2_EXTENDED_PARAMETERS createExParams;
+			ZeroMemory(&createExParams, sizeof(createExParams));
+			createExParams.dwSize = sizeof(createExParams);
+			createExParams.dwFileAttributes = FILE_ATTRIBUTE_READONLY;
+			createExParams.dwFileFlags = FILE_FLAG_BACKUP_SEMANTICS;
+			handle = CreateFile2(fullpath, 0, 0,
+				OPEN_EXISTING, &createExParams);
+#endif /* !WINAPI_PARTITION_DESKTOP */
+			free(fullpath);
+			if (handle == INVALID_HANDLE_VALUE) {
+				la_dosmaperr(GetLastError());
+				return (-1);
+			}
+			r = _open_osfhandle((intptr_t)handle, _O_RDONLY);
+			return (r);
+		}
+	}
+	_wsopen_s(&r, path, flags, _SH_DENYNO, pmode);
+	if (r < 0 && errno == EACCES && (flags & O_CREAT) != 0) {
+		/* Simulate other POSIX system action to pass our test suite. */
+		attr = GetFileAttributesW(path);
+		if (attr == (DWORD)-1)
+			la_dosmaperr(GetLastError());
+		else if (attr & FILE_ATTRIBUTE_DIRECTORY)
+			errno = EISDIR;
+		else
+			errno = EACCES;
+	}
+	free(fullpath);
 	return (r);
 }
 
@@ -561,6 +653,8 @@ copy_stat(struct stat *st, struct ustat *us)
 	st->st_mode = us->st_mode;
 	st->st_nlink = us->st_nlink;
 	st->st_size = (off_t)us->st_size;
+	if (st->st_size < 0 || (uint64_t)st->st_size != us->st_size)
+		st->st_size = 0;
 	st->st_uid = us->st_uid;
 	st->st_dev = us->st_dev;
 	st->st_rdev = us->st_rdev;
@@ -630,6 +724,53 @@ __la_stat(const char *path, struct stat *st)
 	return (ret);
 }
 
+static void
+copy_seek_stat(la_seek_stat_t *st, struct ustat *us)
+{
+	st->st_mtime = us->st_mtime;
+	st->st_gid = us->st_gid;
+	st->st_ino = getino(us);
+	st->st_mode = us->st_mode;
+	st->st_nlink = us->st_nlink;
+	st->st_size = (la_seek_t)us->st_size;
+	if (st->st_size < 0 || (uint64_t)st->st_size != us->st_size)
+		st->st_size = -1;
+	st->st_uid = us->st_uid;
+	st->st_dev = us->st_dev;
+	st->st_rdev = us->st_rdev;
+}
+
+int
+__la_seek_fstat(int fd, la_seek_stat_t *st)
+{
+	struct ustat u;
+	int ret;
+
+	ret = __hstat((HANDLE)_get_osfhandle(fd), &u);
+	copy_seek_stat(st, &u);
+	return (ret);
+}
+
+int
+__la_seek_stat(const char *path, la_seek_stat_t *st)
+{
+	HANDLE handle;
+	struct ustat u;
+	int ret;
+
+	handle = la_CreateFile(path, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+		FILE_FLAG_BACKUP_SEMANTICS,
+		NULL);
+	if (handle == INVALID_HANDLE_VALUE) {
+		la_dosmaperr(GetLastError());
+		return (-1);
+	}
+	ret = __hstat(handle, &u);
+	CloseHandle(handle);
+	copy_seek_stat(st, &u);
+	return (ret);
+}
+
 /*
  * This waitpid is limited implementation.
  */
@@ -641,13 +782,14 @@ __la_waitpid(HANDLE child, int *status, int option)
 	(void)option;/* UNUSED */
 	do {
 		if (GetExitCodeProcess(child, &cs) == 0) {
-			CloseHandle(child);
 			la_dosmaperr(GetLastError());
+			CloseHandle(child);
 			*status = 0;
 			return (-1);
 		}
 	} while (cs == STILL_ACTIVE);
 
+	CloseHandle(child);
 	*status = (int)(cs & 0xff);
 	return (0);
 }

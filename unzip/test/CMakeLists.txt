@@ -5,7 +5,7 @@
 ############################################
 IF(ENABLE_UNZIP AND ENABLE_TEST)
   SET(bsdunzip_test_SOURCES
-    ../../libarchive_fe/err.c
+    ../../libarchive_fe/lafe_err.c
     ../../test_utils/test_utils.c
     ../../test_utils/test_main.c
     test.h

@@ -1,4 +1,4 @@
-/* 
+/*
  * Macros for file64 functions
  *
  * Android does not support the macro _FILE_OFFSET_BITS=64
@@ -19,7 +19,6 @@
 #include <sys/vfs.h>
 
 //dirent.h
-#define readdir_r readdir64_r
 #define readdir readdir64
 #define dirent dirent64
 //fcntl.h

@@ -14,6 +14,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_0.c
     test_basic.c
     test_copy.c
+    test_crlf_mtree.c
     test_empty_mtree.c
     test_extract_tar_Z.c
     test_extract_tar_bz2.c

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2024 Tim Kientzle
+ * Copyright (c) 2025 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,27 +24,25 @@
  */
 #include "test.h"
 
-DEFINE_TEST(test_read_filter_gzip_recursive)
+DEFINE_TEST(test_read_format_tar_V_negative_size)
 {
-	const char *name = "test_read_filter_gzip_recursive.gz";
+	/*
+	 * An archive that contains a `V` volume header with a negative body size
+	 *
+	 * This used to lead to an infinite loop:  the tar reader would "advance"
+	 * by the size of the body to skip it, which would in this case end up
+	 * reversing back to the beginning of the same header.
+	 */
+	struct archive_entry *ae;
 	struct archive *a;
+	const char *refname = "test_read_format_tar_V_negative_size.tar";
 
-	if (archive_zlib_version() == NULL) {
-		skipping("zlib not available");
-		return;
-	}
-
+	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	extract_reference_file(name);
-	assertEqualIntA(a, ARCHIVE_FATAL,
-	    archive_read_open_filename(a, name, 200));
-
-	/* Verify that the filter detection worked. */
-	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_GZIP);
-	assertEqualString(archive_filter_name(a, 0), "gzip");
-
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 10240));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

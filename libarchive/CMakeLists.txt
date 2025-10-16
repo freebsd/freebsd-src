@@ -52,6 +52,7 @@ SET(libarchive_SOURCES
   archive_pathmatch.h
   archive_platform.h
   archive_platform_acl.h
+  archive_platform_stat.h
   archive_platform_xattr.h
   archive_ppmd_private.h
   archive_ppmd8.c
@@ -253,6 +254,9 @@ IF(BUILD_SHARED_LIBS)
                         SOVERSION ${SOVERSION}
                         MACHO_COMPATIBILITY_VERSION ${MACHO_COMPATIBILITY_VERSION}
                         MACHO_CURRENT_VERSION ${MACHO_CURRENT_VERSION})
+  IF(WIN32 AND MSVC AND MSVC_USE_STATIC_CRT)
+    SET_PROPERTY(TARGET archive PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+  ENDIF(WIN32 AND MSVC AND MSVC_USE_STATIC_CRT)
 ENDIF(BUILD_SHARED_LIBS)
 
 # archive_static is a static library
@@ -261,14 +265,13 @@ TARGET_INCLUDE_DIRECTORIES(archive_static PUBLIC .)
 TARGET_LINK_LIBRARIES(archive_static ${ADDITIONAL_LIBS})
 SET_TARGET_PROPERTIES(archive_static PROPERTIES COMPILE_DEFINITIONS
   LIBARCHIVE_STATIC)
+IF(WIN32 AND MSVC AND MSVC_USE_STATIC_CRT)
+  SET_PROPERTY(TARGET archive_static PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+ENDIF(WIN32 AND MSVC AND MSVC_USE_STATIC_CRT)
 # On Posix systems, libarchive.so and libarchive.a can co-exist.
 IF(NOT WIN32 OR CYGWIN OR NOT BUILD_SHARED_LIBS)
   SET_TARGET_PROPERTIES(archive_static PROPERTIES OUTPUT_NAME archive)
 ENDIF(NOT WIN32 OR CYGWIN OR NOT BUILD_SHARED_LIBS)
-
-if(NOT DEFINED CMAKE_INSTALL_LIBDIR)
-    set(CMAKE_INSTALL_LIBDIR "lib")
-endif()
 
 IF(ENABLE_INSTALL)
   # How to install the libraries

@@ -132,6 +132,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_pathmatch.h \
 	libarchive/archive_platform.h \
 	libarchive/archive_platform_acl.h \
+	libarchive/archive_platform_stat.h \
 	libarchive/archive_platform_xattr.h \
 	libarchive/archive_ppmd_private.h \
 	libarchive/archive_ppmd7.c \
@@ -525,6 +526,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_rar5.c \
 	libarchive/test/test_read_format_raw.c \
 	libarchive/test/test_read_format_tar.c \
+	libarchive/test/test_read_format_tar_V_negative_size.c \
 	libarchive/test/test_read_format_tar_concatenated.c \
 	libarchive/test/test_read_format_tar_empty_pax.c \
 	libarchive/test/test_read_format_tar_empty_filename.c \
@@ -921,6 +923,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar4_encrypted_filenames.rar.uu \
 	libarchive/test/test_read_format_rar4_solid_encrypted.rar.uu \
 	libarchive/test/test_read_format_rar4_solid_encrypted_filenames.rar.uu \
+	libarchive/test/test_read_format_rar5_only_crypt_exfld.rar.uu \
+	libarchive/test/test_read_format_rar5_unsupported_exfld.rar.uu \
+	libarchive/test/test_read_format_rar5_invalid_hash_valid_htime_exfld.rar.uu \
 	libarchive/test/test_read_format_rar5_encrypted.rar.uu \
 	libarchive/test/test_read_format_rar5_encrypted_filenames.rar.uu \
 	libarchive/test/test_read_format_rar5_solid_encrypted.rar.uu \
@@ -952,6 +957,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_multiple_files.rar.uu \
 	libarchive/test/test_read_format_rar5_multiple_files_solid.rar.uu \
 	libarchive/test/test_read_format_rar5_nonempty_dir_stream.rar.uu \
+	libarchive/test/test_read_format_rar5_dirdata.rar.uu \
 	libarchive/test/test_read_format_rar5_owner.rar.uu \
 	libarchive/test/test_read_format_rar5_readtables_overflow.rar.uu \
 	libarchive/test/test_read_format_rar5_sfx.exe.uu \
@@ -972,6 +978,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_raw.data.gz.uu \
 	libarchive/test/test_read_format_raw.data.Z.uu \
 	libarchive/test/test_read_format_raw.data.uu \
+	libarchive/test/test_read_format_tar_V_negative_size.tar.uu \
 	libarchive/test/test_read_format_tar_concatenated.tar.uu \
 	libarchive/test/test_read_format_tar_empty_filename.tar.uu \
 	libarchive/test/test_read_format_tar_empty_with_gnulabel.tar.uu \
@@ -1058,6 +1065,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_splitted_rar_seek_support_ab.uu \
 	libarchive/test/test_splitted_rar_seek_support_ac.uu \
 	libarchive/test/test_write_disk_appledouble.cpio.gz.uu \
+	libarchive/test/test_write_disk_appledouble_zip.zip.uu \
 	libarchive/test/test_write_disk_hfs_compression.tgz.uu \
 	libarchive/test/test_write_disk_mac_metadata.tar.gz.uu \
 	libarchive/test/test_write_disk_no_hfs_compression.tgz.uu \
@@ -1068,8 +1076,8 @@ libarchive_test_EXTRA_DIST=\
 # Common code for libarchive frontends (cpio, tar)
 #
 libarchive_fe_la_SOURCES= \
-	libarchive_fe/err.c \
-	libarchive_fe/err.h \
+	libarchive_fe/lafe_err.c \
+	libarchive_fe/lafe_err.h \
 	libarchive_fe/lafe_platform.h \
 	libarchive_fe/line_reader.c \
 	libarchive_fe/line_reader.h \
@@ -1140,6 +1148,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_0.c \
 	tar/test/test_basic.c \
 	tar/test/test_copy.c \
+	tar/test/test_crlf_mtree.c \
 	tar/test/test_empty_mtree.c \
 	tar/test/test_extract_tar_Z.c \
 	tar/test/test_extract_tar_bz2.c \

@@ -175,6 +175,12 @@
 /* Define to 1 if you have the `chroot' function. */
 /* #undef HAVE_CHROOT */
 
+/* Define to 1 if you have the `closefrom' function. */
+/* #undef HAVE_CLOSEFROM */
+
+/* Define to 1 if you have the `close_range' function. */
+/* #undef HAVE_CLOSE_RANGE */
+
 /* Define to 1 if you have the <copyfile.h> header file. */
 /* #undef HAVE_COPYFILE_H */
 
@@ -619,9 +625,6 @@
 
 /* Define to 1 if you have the <pwd.h> header file. */
 /* #undef HAVE_PWD_H */
-
-/* Define to 1 if you have a POSIX compatible readdir_r */
-#define HAVE_READDIR_R 1
 
 /* Define to 1 if you have the `readlink' function. */
 /* #undef HAVE_READLINK */

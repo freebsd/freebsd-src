@@ -24,7 +24,7 @@
 #include <sddl.h>
 
 #include "cpio.h"
-#include "err.h"
+#include "lafe_err.h"
 
 #define EPOC_TIME	(116444736000000000ULL)
 
