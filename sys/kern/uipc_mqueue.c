@@ -281,11 +281,13 @@ static const struct filterops mq_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_mqdetach,
 	.f_event = filt_mqread,
+	.f_copy = knote_triv_copy,
 };
 static const struct filterops mq_wfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_mqdetach,
 	.f_event = filt_mqwrite,
+	.f_copy = knote_triv_copy,
 };
 
 /*

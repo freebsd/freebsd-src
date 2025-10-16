@@ -108,6 +108,7 @@ static const struct filterops targread_filtops = {
 	.f_isfd = 1,
 	.f_detach = targreadfiltdetach,
 	.f_event = targreadfilt,
+	.f_copy = knote_triv_copy,
 };
 
 static struct cdevsw targ_cdevsw = {

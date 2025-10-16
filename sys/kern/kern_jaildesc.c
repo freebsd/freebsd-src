@@ -344,6 +344,7 @@ static const struct filterops jaildesc_kqops = {
 	.f_isfd = 1,
 	.f_detach = jaildesc_kqops_detach,
 	.f_event = jaildesc_kqops_event,
+	.f_copy = knote_triv_copy,
 };
 
 static int

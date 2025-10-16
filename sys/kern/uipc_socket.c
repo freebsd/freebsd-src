@@ -191,16 +191,19 @@ static const struct filterops soread_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_sordetach,
 	.f_event = filt_soread,
+	.f_copy = knote_triv_copy,
 };
 static const struct filterops sowrite_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_sowdetach,
 	.f_event = filt_sowrite,
+	.f_copy = knote_triv_copy,
 };
 static const struct filterops soempty_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_sowdetach,
 	.f_event = filt_soempty,
+	.f_copy = knote_triv_copy,
 };
 
 so_gen_t	so_gencnt;	/* generation count for sockets */

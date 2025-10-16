@@ -124,6 +124,7 @@ const struct filterops sig_filtops = {
 	.f_attach = filt_sigattach,
 	.f_detach = filt_sigdetach,
 	.f_event = filt_signal,
+	.f_copy = knote_triv_copy,
 };
 
 static int	kern_forcesigexit = 1;

@@ -243,6 +243,7 @@ static const struct filterops audit_pipe_read_filterops = {
 	.f_attach =	NULL,
 	.f_detach =	audit_pipe_kqdetach,
 	.f_event =	audit_pipe_kqread,
+	.f_copy =	knote_triv_copy,
 };
 
 /*

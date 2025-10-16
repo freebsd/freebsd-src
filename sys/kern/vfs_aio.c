@@ -345,12 +345,14 @@ static const struct filterops aio_filtops = {
 	.f_attach = filt_aioattach,
 	.f_detach = filt_aiodetach,
 	.f_event = filt_aio,
+	.f_copy = knote_triv_copy,
 };
 static const struct filterops lio_filtops = {
 	.f_isfd = 0,
 	.f_attach = filt_lioattach,
 	.f_detach = filt_liodetach,
-	.f_event = filt_lio
+	.f_event = filt_lio,
+	.f_copy = knote_triv_copy,
 };
 
 static eventhandler_tag exit_tag, exec_tag;

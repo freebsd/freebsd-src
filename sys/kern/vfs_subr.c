@@ -6530,6 +6530,7 @@ const struct filterops fs_filtops = {
 	.f_attach = filt_fsattach,
 	.f_detach = filt_fsdetach,
 	.f_event = filt_fsevent,
+	.f_copy = knote_triv_copy,
 };
 
 static int

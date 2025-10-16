@@ -111,6 +111,7 @@ static const struct filterops inotify_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_inotifydetach,
 	.f_event = filt_inotifyevent,
+	.f_copy = knote_triv_copy,
 };
 
 static MALLOC_DEFINE(M_INOTIFY, "inotify", "inotify data structures");
