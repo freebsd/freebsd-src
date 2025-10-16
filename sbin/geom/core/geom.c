@@ -968,7 +968,7 @@ list_one_geom(struct ggeom *gp)
 		xo_emit("{Tc:Providers}\n");
 		n = 1;
 		LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
-			xo_emit("{T:/%u} ", n++);
+			xo_emit("{T:/%u}. ", n++);
 			xo_open_instance("provider");
 			list_one_provider(pp, "   ");
 			xo_close_instance("provider");
@@ -980,7 +980,7 @@ list_one_geom(struct ggeom *gp)
 		xo_emit("{Tc:Consumers}\n");
 		n = 1;
 		LIST_FOREACH(cp, &gp->lg_consumer, lg_consumer) {
-			xo_emit("{T:/%u} ", n++);
+			xo_emit("{T:/%u}. ", n++);
 			xo_open_instance("consumer");
 			list_one_consumer(cp, "   ");
 			xo_close_instance("consumer");
