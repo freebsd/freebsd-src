@@ -1480,17 +1480,33 @@ ixl_if_multi_set(if_ctx_t ctx)
 	struct ixl_pf *pf = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &pf->vsi;
 	struct i40e_hw *hw = vsi->hw;
+	enum i40e_status_code status;
 	int mcnt;
+	if_t ifp = iflib_get_ifp(ctx);
 
 	IOCTL_DEBUGOUT("ixl_if_multi_set: begin");
 
 	/* Delete filters for removed multicast addresses */
 	ixl_del_multi(vsi, false);
 
-	mcnt = min(if_llmaddr_count(iflib_get_ifp(ctx)), MAX_MULTICAST_ADDR);
+	mcnt = min(if_llmaddr_count(ifp), MAX_MULTICAST_ADDR);
 	if (__predict_false(mcnt == MAX_MULTICAST_ADDR)) {
-		i40e_aq_set_vsi_multicast_promiscuous(hw,
+		/* Check if promisc mode is already enabled, if yes return */
+		if (vsi->flags & IXL_FLAGS_MC_PROMISC)
+			return;
+
+		status = i40e_aq_set_vsi_multicast_promiscuous(hw,
 		    vsi->seid, TRUE, NULL);
+		if (status != I40E_SUCCESS)
+			if_printf(ifp, "Failed to enable multicast promiscuous "
+			    "mode, status: %s\n", i40e_stat_str(hw, status));
+		else {
+			if_printf(ifp, "Enabled multicast promiscuous mode\n");
+
+			/* Set the flag to track promiscuous mode */
+			vsi->flags |= IXL_FLAGS_MC_PROMISC;
+		}
+		/* Delete all existing MC filters */
 		ixl_del_multi(vsi, true);
 		return;
 	}
@@ -1693,6 +1709,13 @@ ixl_if_promisc_set(if_ctx_t ctx, int flags)
 		return (err);
 	err = i40e_aq_set_vsi_multicast_promiscuous(hw,
 	    vsi->seid, multi, NULL);
+
+	/* Update the multicast promiscuous flag based on the new state */
+	if (multi)
+		vsi->flags |= IXL_FLAGS_MC_PROMISC;
+	else
+		vsi->flags &= ~IXL_FLAGS_MC_PROMISC;
+
 	return (err);
 }
 
