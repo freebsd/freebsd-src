@@ -88,6 +88,11 @@ nvme_ns_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 		gnsid->nsid = ns->id;
 		break;
 	}
+	case DIOCGIDENT: {
+		uint8_t *sn = arg;
+		nvme_ctrlr_get_ident(ctrlr, sn);
+		break;
+	}
 	case DIOCGMEDIASIZE:
 		*(off_t *)arg = (off_t)nvme_ns_get_size(ns);
 		break;
