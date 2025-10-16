@@ -84,7 +84,7 @@ In my testing, I use loader.conf entries of:
 
 kern.ipc.maxsockets=1000000
 net.inet.tcp.maxtcptw=3000000
-kern.ipc.somaxconn=49152
+kern.ipc.soacceptqueue=49152
 kern.ipc.nmbjumbo16=262144
 kern.ipc.nmbjumbo9=262144
 kern.ipc.nmbjumbop=262144
