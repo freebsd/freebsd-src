@@ -441,19 +441,16 @@ vm_thread_kstack_arena_release(void *arena, vmem_addr_t addr, vmem_size_t size)
  * Create the kernel stack for a new thread.
  */
 static vm_offset_t
-vm_thread_stack_create(struct domainset *ds, int pages)
+vm_thread_stack_create(struct domainset *ds, int pages, int flags)
 {
 	vm_page_t ma[KSTACK_MAX_PAGES];
 	struct vm_domainset_iter di;
-	int req = VM_ALLOC_NORMAL;
-	vm_object_t obj;
+	int req;
 	vm_offset_t ks;
 	int domain, i;
 
-	obj = vm_thread_kstack_size_to_obj(pages);
-	if (vm_ndomains > 1)
-		obj->domain.dr_policy = ds;
-	vm_domainset_iter_page_init(&di, obj, 0, &domain, &req);
+	vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
+	req = malloc2vm_flags(flags);
 	do {
 		/*
 		 * Get a kernel virtual address for this thread's kstack.
@@ -480,7 +477,7 @@ vm_thread_stack_create(struct domainset *ds, int pages)
 			vm_page_valid(ma[i]);
 		pmap_qenter(ks, ma, pages);
 		return (ks);
-	} while (vm_domainset_iter_page(&di, obj, &domain, NULL) == 0);
+	} while (vm_domainset_iter_policy(&di, &domain) == 0);
 
 	return (0);
 }
@@ -532,15 +529,9 @@ vm_thread_new(struct thread *td, int pages)
 	ks = 0;
 	if (pages == kstack_pages && kstack_cache != NULL)
 		ks = (vm_offset_t)uma_zalloc(kstack_cache, M_NOWAIT);
-
-	/*
-	 * Ensure that kstack objects can draw pages from any memory
-	 * domain.  Otherwise a local memory shortage can block a process
-	 * swap-in.
-	 */
 	if (ks == 0)
 		ks = vm_thread_stack_create(DOMAINSET_PREF(PCPU_GET(domain)),
-		    pages);
+		    pages, M_NOWAIT);
 	if (ks == 0)
 		return (0);
 
@@ -660,7 +651,8 @@ kstack_import(void *arg, void **store, int cnt, int domain, int flags)
 		ds = DOMAINSET_PREF(domain);
 
 	for (i = 0; i < cnt; i++) {
-		store[i] = (void *)vm_thread_stack_create(ds, kstack_pages);
+		store[i] = (void *)vm_thread_stack_create(ds, kstack_pages,
+		    flags);
 		if (store[i] == NULL)
 			break;
 	}
