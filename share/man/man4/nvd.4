@@ -31,7 +31,7 @@
 .\"
 .\" Author: Jim Harris <jimharris@FreeBSD.org>
 .\"
-.Dd May 18, 2019
+.Dd October 2, 2025
 .Dt NVD 4
 .Os
 .Sh NAME
@@ -72,6 +72,10 @@ Note that device nodes from the
 driver are not
 .Xr GEOM 4
 disks and cannot be partitioned.
+.Sh HARDWARE
+The
+.Nm
+driver supports NVMe storage devices using NVMe namespaces.
 .Sh CONFIGURATION
 The
 .Nm
