@@ -587,7 +587,16 @@ PKG_VERSION:=	${_PKG_REVISION}${EXTRA_REVISION:C/[[:space:]]//g}
 
 .endif	# !defined(_MKSHOWCONFIG)
 
+PKG_NAME_PREFIX?=	FreeBSD
+PKG_MAINTAINER?=	re@FreeBSD.org
+PKG_WWW?=		https://www.FreeBSD.org
+PKG_WORKERS_COUNT?=	1
+
 .if make(*package*)
+.export PKG_NAME_PREFIX
+.export PKG_MAINTAINER
+.export PKG_WWW
+
 .if !defined(PKG_TIMESTAMP)
 .if !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git)
 SOURCE_DATE_EPOCH!=	${GIT_CMD} -C ${SRCDIR} show -s --format=%ct HEAD
@@ -598,14 +607,6 @@ SOURCE_DATE_EPOCH=	${TIMEEPOCHNOW:gmtime}
 .else
 SOURCE_DATE_EPOCH=	${PKG_TIMESTAMP}
 .endif
-PKG_WORKERS_COUNT?=	1
-
-PKG_NAME_PREFIX?=	FreeBSD
-PKG_MAINTAINER?=	re@FreeBSD.org
-PKG_WWW?=		https://www.FreeBSD.org
-.export PKG_NAME_PREFIX
-.export PKG_MAINTAINER
-.export PKG_WWW
 .endif
 
 .if !defined(_MKSHOWCONFIG)
@@ -1350,6 +1351,28 @@ __installcheck_DESTDIR: .PHONY
 	@echo "ERROR: Please set DESTDIR!"; \
 	false
 .endif
+.endif
+.endif
+
+#
+# Don't allow installworld or installkernel on a pkgbase system.  This avoids
+# accidentally updating a pkgbase system with install{world,kernel}, causing
+# the installed system to become out of date with the package database.
+#
+# Skip the check if DESTDIR is defined on the assumption the user knows what
+# they're doing.  This means the check can be disabled for the running system
+# using DESTDIR=/.
+#
+.if !make(distributeworld) && !defined(DESTDIR)
+_installcheck_world: __installcheck_PKG
+_installcheck_kernel: __installcheck_PKG
+__installcheck_PKG: .PHONY
+.if exists(${LOCALBASE}/sbin/pkg-static)
+	@if ${LOCALBASE}/sbin/pkg-static info -e ${PKG_NAME_PREFIX}-runtime; then \
+		echo >&2 "ERROR: This target should not be used on a system installed from packages." ; \
+		echo >&2 "       To override this check, set DESTDIR=/."; \
+		false; \
+	fi
 .endif
 .endif
 
