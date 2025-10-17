@@ -9,7 +9,7 @@
 .Nd Linux kernel objects file system
 .Sh SYNOPSIS
 .Bd -literal
-linsys		/compat/linux/sys	linsysfs	rw 0 0
+linsysfs		/compat/linux/sys	linsysfs	rw 0 0
 .Ed
 .Sh DESCRIPTION
 The
@@ -66,7 +66,7 @@ The PCI device hierarchy node.
 .Sh EXAMPLES
 The most common usage follows:
 .Pp
-.Dl "mount -t linsysfs linsys /compat/linux/sys"
+.Dl "mount -t linsysfs linsysfs /compat/linux/sys"
 .Pp
 where
 .Pa /compat/linux/sys
