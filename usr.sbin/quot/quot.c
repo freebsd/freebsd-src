@@ -88,11 +88,7 @@ static void	quot(char *, char *);
  * Due to the size of modern disks, we must cast intermediate
  * values to 64 bits to prevent potential overflows.
  */
-#ifdef	COMPAT
-#define	SIZE(n)	(n)
-#else
 #define	SIZE(n) ((int)(((intmax_t)(n) * 512 + blocksize - 1) / blocksize))
-#endif
 
 #define	INOCNT(fs)	((fs)->fs_ipg)
 #define	INOSZ(fs) \
@@ -153,27 +149,13 @@ get_inode(int fd, struct fs *super, ino_t ino)
 	return ((union dinode *)di2);
 }
 
-#ifdef	COMPAT
-#define	actualblocks(fs, dp)	(DIP(fs, dp, di_blocks) / 2)
-#else
 #define	actualblocks(fs, dp)	DIP(fs, dp, di_blocks)
-#endif
 
 static int virtualblocks(struct fs *super, union dinode *dp)
 {
 	off_t nblk, sz;
 
 	sz = DIP(super, dp, di_size);
-#ifdef	COMPAT
-	if (lblkno(super, sz) >= UFS_NDADDR) {
-		nblk = blkroundup(super, sz);
-		if (sz == nblk)
-			nblk += super->fs_bsize;
-	}
-
-	return sz / 1024;
-
-#else	/* COMPAT */
 
 	if (lblkno(super, sz) >= UFS_NDADDR) {
 		nblk = blkroundup(super, sz);
@@ -188,15 +170,11 @@ static int virtualblocks(struct fs *super, union dinode *dp)
 		nblk = fragroundup(super, sz);
 
 	return nblk / 512;
-#endif	/* COMPAT */
 }
 
 static int
 isfree(struct fs *super, union dinode *dp)
 {
-#ifdef	COMPAT
-	return (DIP(super, dp, di_mode) & IFMT) == 0;
-#else	/* COMPAT */
 
 	switch (DIP(super, dp, di_mode) & IFMT) {
 	case IFIFO:
@@ -213,7 +191,6 @@ isfree(struct fs *super, union dinode *dp)
 	default:
 		errx(1, "unknown IFMT 0%o", DIP(super, dp, di_mode) & IFMT);
 	}
-#endif
 }
 
 static struct user {
@@ -324,11 +301,7 @@ uses(uid_t uid, daddr_t blks, time_t act)
 		usr->spc30 += blks;
 }
 
-#ifdef	COMPAT
-#define	FSZCNT	500
-#else
 #define	FSZCNT	512
-#endif
 static struct fsizes {
 	struct fsizes *fsz_next;
 	daddr_t fsz_first, fsz_last;
@@ -360,30 +333,12 @@ dofsizes(int fd, struct fs *super)
 	int i;
 
 	maxino = super->fs_ncg * super->fs_ipg - 1;
-#ifdef	COMPAT
-	if (!(fsizes = (struct fsizes *)malloc(sizeof(struct fsizes))))
-		errx(1, "allocate fsize structure");
-#endif	/* COMPAT */
 	for (inode = 0; inode < maxino; inode++) {
 		if ((dp = get_inode(fd, super, inode)) != NULL &&
-#ifdef	COMPAT
-		    ((DIP(super, dp, di_mode) & IFMT) == IFREG ||
-			(DIP(super, dp, di_mode) & IFMT) == IFDIR)
-#else	/* COMPAT */
 		    !isfree(super, dp)
-#endif	/* COMPAT */
 		    ) {
 			sz = estimate ? virtualblocks(super, dp) :
 			    actualblocks(super, dp);
-#ifdef	COMPAT
-			if (sz >= FSZCNT) {
-				fsizes->fsz_count[FSZCNT-1]++;
-				fsizes->fsz_sz[FSZCNT-1] += sz;
-			} else {
-				fsizes->fsz_count[sz]++;
-				fsizes->fsz_sz[sz] += sz;
-			}
-#else	/* COMPAT */
 			ksz = SIZE(sz);
 			for (fsp = &fsizes; (fp = *fsp); fsp = &fp->fsz_next) {
 				if (ksz < fp->fsz_last)
@@ -403,7 +358,6 @@ dofsizes(int fd, struct fs *super)
 			}
 			fp->fsz_count[ksz % FSZCNT]++;
 			fp->fsz_sz[ksz % FSZCNT] += sz;
-#endif	/* COMPAT */
 		}
 	}
 	sz = 0;
@@ -500,11 +454,7 @@ donames(int fd, struct fs *super)
 static void
 usage(void)
 {
-#ifdef	COMPAT
-	fprintf(stderr, "usage: quot [-cfhnv] [-a | filesystem ...]\n");
-#else	/* COMPAT */
 	fprintf(stderr, "usage: quot [-cfhknv] [-a | filesystem ...]\n");
-#endif	/* COMPAT */
 	exit(1);
 }
 
@@ -551,9 +501,7 @@ main(int argc, char *argv[])
 	int ch, cnt;
 
 	func = douser;
-#ifndef	COMPAT
 	header = getbsize(&headerlen, &blocksize);
-#endif
 	while ((ch = getopt(argc, argv, "acfhknv")) != -1) {
 		switch (ch) {
 		case 'a':
@@ -568,11 +516,9 @@ main(int argc, char *argv[])
 		case 'h':
 			estimate = true;
 			break;
-#ifndef	COMPAT
 		case 'k':
 			blocksize = 1024;
 			break;
-#endif	/* COMPAT */
 		case 'n':
 			func = donames;
 			break;
