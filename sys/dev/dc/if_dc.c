@@ -999,7 +999,7 @@ dc_setfilt_21143(struct dc_softc *sc)
 	else
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
 
-	if_foreach_llmaddr(ifp, dc_hash_maddr_21143, sp);
+	if_foreach_llmaddr(ifp, dc_hash_maddr_21143, sc);
 
 	if (if_getflags(ifp) & IFF_BROADCAST) {
 		h = dc_mchash_le(sc, if_getbroadcastaddr(ifp));
