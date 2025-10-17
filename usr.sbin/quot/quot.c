@@ -55,6 +55,7 @@
 /* some flags of what to do: */
 static char estimate;
 static char count;
+static char noname;
 static char unused;
 static void (*func)(int, struct fs *, char *);
 static long blocksize;
@@ -281,7 +282,7 @@ user(uid_t uid)
 		    usr--) {
 			if (!usr->name) {
 				usr->uid = uid;
-				if (!(pwd = getpwuid(uid))) {
+				if (noname || !(pwd = getpwuid(uid))) {
 					asprintf(&usr->name, "#%u", uid);
 				} else {
 					usr->name = strdup(pwd->pw_name);
@@ -308,7 +309,10 @@ cmpusers(const void *v1, const void *v2)
 	u1 = (const struct user *)v1;
 	u2 = (const struct user *)v2;
 
-	return u2->space - u1->space;
+	return (u2->space > u1->space ? 1 :
+	    u2->space < u1->space ? -1 :
+	    u1->uid > u2->uid ? 1 :
+	    u1->uid < u2->uid ? -1 : 0);
 }
 
 #define	sortusers(users)	(qsort((users),nusers,sizeof(struct user), \
@@ -576,6 +580,9 @@ main(int argc, char *argv[])
 	while (--argc > 0 && **++argv == '-') {
 		while (*++*argv) {
 			switch (**argv) {
+			case 'N':
+				noname = 1;
+				break;
 			case 'n':
 				func = donames;
 				break;
