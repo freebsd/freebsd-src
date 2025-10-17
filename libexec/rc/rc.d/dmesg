@@ -19,7 +19,7 @@ stop_cmd=":"
 do_dmesg()
 {
 	rm -f ${dmesg_file}
-	( umask 022 ; /sbin/dmesg $rc_flags > ${dmesg_file} )
+	( umask "${dmesg_umask}" ; /sbin/dmesg $rc_flags > ${dmesg_file} )
 }
 
 load_rc_config $name
