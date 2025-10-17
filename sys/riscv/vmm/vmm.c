@@ -346,9 +346,9 @@ vm_alloc_vcpu(struct vm *vm, int vcpuid)
 }
 
 void
-vm_slock_vcpus(struct vm *vm)
+vm_lock_vcpus(struct vm *vm)
 {
-	sx_slock(&vm->vcpus_init_lock);
+	sx_xlock(&vm->vcpus_init_lock);
 }
 
 void

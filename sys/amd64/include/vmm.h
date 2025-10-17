@@ -237,7 +237,7 @@ extern u_int vm_maxcpu;			/* maximum virtual cpus */
 int vm_create(const char *name, struct vm **retvm);
 struct vcpu *vm_alloc_vcpu(struct vm *vm, int vcpuid);
 void vm_disable_vcpu_creation(struct vm *vm);
-void vm_slock_vcpus(struct vm *vm);
+void vm_lock_vcpus(struct vm *vm);
 void vm_unlock_vcpus(struct vm *vm);
 void vm_destroy(struct vm *vm);
 int vm_reinit(struct vm *vm);
@@ -362,6 +362,7 @@ enum vcpu_state {
 };
 
 int vcpu_set_state(struct vcpu *vcpu, enum vcpu_state state, bool from_idle);
+int vcpu_set_state_all(struct vm *vm, enum vcpu_state state);
 enum vcpu_state vcpu_get_state(struct vcpu *vcpu, int *hostcpu);
 
 static int __inline
