@@ -97,6 +97,14 @@ manlinksinstall: .PHONY
 
 all-man:
 
+# Take groups from both MANGROUPS and MANGROUPS.yes, to allow syntax like
+# MANGROUPS.${MK_FOO}=FOO.  Sort and uniq the list of groups in case of
+# duplicates.
+.if defined(MANGROUPS) || defined(MANGROUPS.yes)
+MANGROUPS:=${MANGROUPS} ${MANGROUPS.yes}
+MANGROUPS:=${MANGROUPS:O:u}
+.endif
+
 .for __group in ${MANGROUPS}
 
 realmaninstall: realmaninstall-${__group}
