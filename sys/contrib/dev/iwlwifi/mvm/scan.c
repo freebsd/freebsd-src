@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -11,6 +11,7 @@
 #include "mvm.h"
 #include "fw/api/scan.h"
 #include "iwl-io.h"
+#include "iwl-utils.h"
 
 #define IWL_DENSE_EBS_SCAN_RATIO 5
 #define IWL_SPARSE_EBS_SCAN_RATIO 1
@@ -462,11 +463,7 @@ static int iwl_ssid_exist(u8 *ssid, u8 ssid_len, struct iwl_ssid_ie *ssid_list)
 		if (!ssid_list[i].len)
 			break;
 		if (ssid_list[i].len == ssid_len &&
-#if defined(__linux__)
-		    !memcmp(ssid_list->ssid, ssid, ssid_len))
-#elif defined(__FreeBSD__)
 		    !memcmp(ssid_list[i].ssid, ssid, ssid_len))
-#endif
 			return i;
 	}
 	return -1;
@@ -839,7 +836,7 @@ static inline bool iwl_mvm_scan_fits(struct iwl_mvm *mvm, int n_ssids,
 				     int n_channels)
 {
 	return ((n_ssids <= PROBE_OPTION_MAX) &&
-		(n_channels <= mvm->fw->ucode_capa.n_scan_channels) &
+		(n_channels <= mvm->fw->ucode_capa.n_scan_channels) &&
 		(ies->common_ie_len +
 		 ies->len[NL80211_BAND_2GHZ] + ies->len[NL80211_BAND_5GHZ] +
 		 ies->len[NL80211_BAND_6GHZ] <=
@@ -1598,7 +1595,7 @@ iwl_mvm_umac_scan_cfg_channels(struct iwl_mvm *mvm,
 
 	for (i = 0; i < n_channels; i++) {
 		channel_cfg[i].flags = cpu_to_le32(flags);
-		channel_cfg[i].v1.channel_num = channels[i]->hw_value;
+		channel_cfg[i].channel_num = channels[i]->hw_value;
 		if (iwl_mvm_is_scan_ext_chan_supported(mvm)) {
 			enum nl80211_band band = channels[i]->band;
 
@@ -1630,13 +1627,13 @@ iwl_mvm_umac_scan_cfg_channels_v4(struct iwl_mvm *mvm,
 			&cp->channel_config[i];
 
 		cfg->flags = cpu_to_le32(flags);
-		cfg->v2.channel_num = channels[i]->hw_value;
+		cfg->channel_num = channels[i]->hw_value;
 		cfg->v2.band = iwl_mvm_phy_band_from_nl80211(band);
 		cfg->v2.iter_count = 1;
 		cfg->v2.iter_interval = 0;
 
 		iwl_mvm_scan_ch_add_n_aps_override(vif_type,
-						   cfg->v2.channel_num,
+						   cfg->channel_num,
 						   cfg->v2.band, bitmap,
 						   bitmap_n_entries);
 	}
@@ -1660,7 +1657,7 @@ iwl_mvm_umac_scan_cfg_channels_v7(struct iwl_mvm *mvm,
 		u8 iwl_band = iwl_mvm_phy_band_from_nl80211(band);
 
 		cfg->flags = cpu_to_le32(flags | n_aps_flag);
-		cfg->v2.channel_num = channels[i]->hw_value;
+		cfg->channel_num = channels[i]->hw_value;
 		if (cfg80211_channel_is_psc(channels[i]))
 			cfg->flags = 0;
 
@@ -1778,7 +1775,7 @@ iwl_mvm_umac_scan_cfg_channels_v7_6g(struct iwl_mvm *mvm,
 			&cp->channel_config[ch_cnt];
 
 		u32 s_ssid_bitmap = 0, bssid_bitmap = 0, flags = 0;
-		u8 j, k, n_s_ssids = 0, n_bssids = 0;
+		u8 k, n_s_ssids = 0, n_bssids = 0;
 		u8 max_s_ssids, max_bssids;
 		bool force_passive = false, found = false, allow_passive = true,
 		     unsolicited_probe_on_chan = false, psc_no_listen = false;
@@ -1793,7 +1790,7 @@ iwl_mvm_umac_scan_cfg_channels_v7_6g(struct iwl_mvm *mvm,
 		    !params->n_6ghz_params && params->n_ssids)
 			continue;
 
-		cfg->v1.channel_num = params->channels[i]->hw_value;
+		cfg->channel_num = params->channels[i]->hw_value;
 		if (version < 17)
 			cfg->v2.band = PHY_BAND_6;
 		else
@@ -1803,7 +1800,7 @@ iwl_mvm_umac_scan_cfg_channels_v7_6g(struct iwl_mvm *mvm,
 		cfg->v5.iter_count = 1;
 		cfg->v5.iter_interval = 0;
 
-		for (j = 0; j < params->n_6ghz_params; j++) {
+		for (u32 j = 0; j < params->n_6ghz_params; j++) {
 			s8 tmp_psd_20;
 
 			if (!(scan_6ghz_params[j].channel_idx == i))
@@ -1877,7 +1874,7 @@ iwl_mvm_umac_scan_cfg_channels_v7_6g(struct iwl_mvm *mvm,
 		 * SSID.
 		 * TODO: improve this logic
 		 */
-		for (j = 0; j < params->n_6ghz_params; j++) {
+		for (u32 j = 0; j < params->n_6ghz_params; j++) {
 			if (!(scan_6ghz_params[j].channel_idx == i))
 				continue;
 
@@ -2481,7 +2478,7 @@ iwl_mvm_scan_umac_fill_ch_p_v7(struct iwl_mvm *mvm,
 			if (!cfg80211_channel_is_psc(channel))
 				continue;
 
-			cfg->v5.channel_num = channel->hw_value;
+			cfg->channel_num = channel->hw_value;
 			cfg->v5.iter_count = 1;
 			cfg->v5.iter_interval = 0;
 
@@ -3317,12 +3314,22 @@ void iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
 		       mvm->scan_start);
 }
 
-static int iwl_mvm_umac_scan_abort(struct iwl_mvm *mvm, int type)
+static int iwl_mvm_umac_scan_abort(struct iwl_mvm *mvm, int type, bool *wait)
 {
-	struct iwl_umac_scan_abort cmd = {};
+	struct iwl_umac_scan_abort abort_cmd = {};
+	struct iwl_host_cmd cmd = {
+		.id = WIDE_ID(IWL_ALWAYS_LONG_GROUP, SCAN_ABORT_UMAC),
+		.len = { sizeof(abort_cmd), },
+		.data = { &abort_cmd, },
+		.flags = CMD_SEND_IN_RFKILL,
+	};
+
 	int uid, ret;
+	u32 status = IWL_UMAC_SCAN_ABORT_STATUS_NOT_FOUND;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	*wait = true;
 
 	/* We should always get a valid index here, because we already
 	 * checked that this type of scan was running in the generic
@@ -3332,17 +3339,28 @@ static int iwl_mvm_umac_scan_abort(struct iwl_mvm *mvm, int type)
 	if (WARN_ON_ONCE(uid < 0))
 		return uid;
 
-	cmd.uid = cpu_to_le32(uid);
+	abort_cmd.uid = cpu_to_le32(uid);
 
 	IWL_DEBUG_SCAN(mvm, "Sending scan abort, uid %u\n", uid);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm,
-				   WIDE_ID(IWL_ALWAYS_LONG_GROUP, SCAN_ABORT_UMAC),
-				   CMD_SEND_IN_RFKILL, sizeof(cmd), &cmd);
+	ret = iwl_mvm_send_cmd_status(mvm, &cmd, &status);
+
+	IWL_DEBUG_SCAN(mvm, "Scan abort: ret=%d, status=%u\n", ret, status);
 	if (!ret)
 		mvm->scan_uid_status[uid] = type << IWL_MVM_SCAN_STOPPING_SHIFT;
 
-	IWL_DEBUG_SCAN(mvm, "Scan abort: ret=%d\n", ret);
+	/* Handle the case that the FW is no longer familiar with the scan that
+	 * is to be stopped. In such a case, it is expected that the scan
+	 * complete notification was already received but not yet processed.
+	 * In such a case, there is no need to wait for a scan complete
+	 * notification and the flow should continue similar to the case that
+	 * the scan was really aborted.
+	 */
+	if (status == IWL_UMAC_SCAN_ABORT_STATUS_NOT_FOUND) {
+		mvm->scan_uid_status[uid] = type << IWL_MVM_SCAN_STOPPING_SHIFT;
+		*wait = false;
+	}
+
 	return ret;
 }
 
@@ -3352,6 +3370,7 @@ static int iwl_mvm_scan_stop_wait(struct iwl_mvm *mvm, int type)
 	static const u16 scan_done_notif[] = { SCAN_COMPLETE_UMAC,
 					      SCAN_OFFLOAD_COMPLETE, };
 	int ret;
+	bool wait = true;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -3363,7 +3382,7 @@ static int iwl_mvm_scan_stop_wait(struct iwl_mvm *mvm, int type)
 	IWL_DEBUG_SCAN(mvm, "Preparing to stop scan, type %x\n", type);
 
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN))
-		ret = iwl_mvm_umac_scan_abort(mvm, type);
+		ret = iwl_mvm_umac_scan_abort(mvm, type, &wait);
 	else
 		ret = iwl_mvm_lmac_scan_abort(mvm);
 
@@ -3371,6 +3390,10 @@ static int iwl_mvm_scan_stop_wait(struct iwl_mvm *mvm, int type)
 		IWL_DEBUG_SCAN(mvm, "couldn't stop scan type %d\n", type);
 		iwl_remove_notification(&mvm->notif_wait, &wait_scan_done);
 		return ret;
+	} else if (!wait) {
+		IWL_DEBUG_SCAN(mvm, "no need to wait for scan type %d\n", type);
+		iwl_remove_notification(&mvm->notif_wait, &wait_scan_done);
+		return 0;
 	}
 
 	return iwl_wait_notification(&mvm->notif_wait, &wait_scan_done,
@@ -3455,7 +3478,7 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 			 * restart_hw, so do not report if FW is about to be
 			 * restarted.
 			 */
-			if (!mvm->fw_restart)
+			if (!iwlwifi_mod_params.fw_restart)
 				ieee80211_sched_scan_stopped(mvm->hw);
 			mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
 			mvm->scan_uid_status[uid] = 0;
@@ -3506,7 +3529,7 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 		 * restarted.
 		 */
 		if ((mvm->scan_status & IWL_MVM_SCAN_SCHED) &&
-		    !mvm->fw_restart) {
+		    !iwlwifi_mod_params.fw_restart) {
 			ieee80211_sched_scan_stopped(mvm->hw);
 			mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
 		}
@@ -3524,7 +3547,7 @@ int iwl_mvm_scan_stop(struct iwl_mvm *mvm, int type, bool notify)
 	if (!(mvm->scan_status & type))
 		return 0;
 
-	if (!test_bit(STATUS_DEVICE_ENABLED, &mvm->trans->status)) {
+	if (!iwl_trans_device_enabled(mvm->trans)) {
 		ret = 0;
 		goto out;
 	}
@@ -3575,7 +3598,8 @@ static int iwl_mvm_int_mlo_scan_start(struct iwl_mvm *mvm,
 	IWL_DEBUG_SCAN(mvm, "Starting Internal MLO scan: n_channels=%zu\n",
 		       n_channels);
 
-	if (!vif->cfg.assoc || !ieee80211_vif_is_mld(vif))
+	if (!vif->cfg.assoc || !ieee80211_vif_is_mld(vif) ||
+	    hweight16(vif->valid_links) == 1)
 		return -EINVAL;
 
 	size = struct_size(req, channels, n_channels);
@@ -3662,117 +3686,6 @@ static int iwl_mvm_chanidx_from_phy(struct iwl_mvm *mvm,
 	return -EINVAL;
 }
 
-static u32 iwl_mvm_div_by_db(u32 value, u8 db)
-{
-	/*
-	 * 2^32 * 10**(i / 10) for i = [1, 10], skipping 0 and simply stopping
-	 * at 10 dB and looping instead of using a much larger table.
-	 *
-	 * Using 64 bit math is overkill, but means the helper does not require
-	 * a limit on the input range.
-	 */
-	static const u32 db_to_val[] = {
-		0xcb59185e, 0xa1866ba8, 0x804dce7a, 0x65ea59fe, 0x50f44d89,
-		0x404de61f, 0x331426af, 0x2892c18b, 0x203a7e5b, 0x1999999a,
-	};
-
-	while (value && db > 0) {
-		u8 change = min_t(u8, db, ARRAY_SIZE(db_to_val));
-
-		value = (((u64)value) * db_to_val[change - 1]) >> 32;
-
-		db -= change;
-	}
-
-	return value;
-}
-
-VISIBLE_IF_IWLWIFI_KUNIT s8
-iwl_mvm_average_dbm_values(const struct iwl_umac_scan_channel_survey_notif *notif)
-{
-	s8 average_magnitude;
-	u32 average_factor;
-	s8 sum_magnitude = -128;
-	u32 sum_factor = 0;
-	int i, count = 0;
-
-	/*
-	 * To properly average the decibel values (signal values given in dBm)
-	 * we need to do the math in linear space.  Doing a linear average of
-	 * dB (dBm) values is a bit annoying though due to the large range of
-	 * at least -10 to -110 dBm that will not fit into a 32 bit integer.
-	 *
-	 * A 64 bit integer should be sufficient, but then we still have the
-	 * problem that there are no directly usable utility functions
-	 * available.
-	 *
-	 * So, lets not deal with that and instead do much of the calculation
-	 * with a 16.16 fixed point integer along with a base in dBm. 16.16 bit
-	 * gives us plenty of head-room for adding up a few values and even
-	 * doing some math on it. And the tail should be accurate enough too
-	 * (1/2^16 is somewhere around -48 dB, so effectively zero).
-	 *
-	 * i.e. the real value of sum is:
-	 *      sum = sum_factor / 2^16 * 10^(sum_magnitude / 10) mW
-	 *
-	 * However, that does mean we need to be able to bring two values to
-	 * a common base, so we need a helper for that.
-	 *
-	 * Note that this function takes an input with unsigned negative dBm
-	 * values but returns a signed dBm (i.e. a negative value).
-	 */
-
-	for (i = 0; i < ARRAY_SIZE(notif->noise); i++) {
-		s8 val_magnitude;
-		u32 val_factor;
-
-		if (notif->noise[i] == 0xff)
-			continue;
-
-		val_factor = 0x10000;
-		val_magnitude = -notif->noise[i];
-
-		if (val_magnitude <= sum_magnitude) {
-			u8 div_db = sum_magnitude - val_magnitude;
-
-			val_factor = iwl_mvm_div_by_db(val_factor, div_db);
-			val_magnitude = sum_magnitude;
-		} else {
-			u8 div_db = val_magnitude - sum_magnitude;
-
-			sum_factor = iwl_mvm_div_by_db(sum_factor, div_db);
-			sum_magnitude = val_magnitude;
-		}
-
-		sum_factor += val_factor;
-		count++;
-	}
-
-	/* No valid noise measurement, return a very high noise level */
-	if (count == 0)
-		return 0;
-
-	average_magnitude = sum_magnitude;
-	average_factor = sum_factor / count;
-
-	/*
-	 * average_factor will be a number smaller than 1.0 (0x10000) at this
-	 * point. What we need to do now is to adjust average_magnitude so that
-	 * average_factor is between -0.5 dB and 0.5 dB.
-	 *
-	 * Just do -1 dB steps and find the point where
-	 *   -0.5 dB * -i dB = 0x10000 * 10^(-0.5/10) / i dB
-	 *                   = div_by_db(0xe429, i)
-	 * is smaller than average_factor.
-	 */
-	for (i = 0; average_factor < iwl_mvm_div_by_db(0xe429, i); i++) {
-		/* nothing */
-	}
-
-	return average_magnitude - i;
-}
-EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mvm_average_dbm_values);
-
 void iwl_mvm_rx_channel_survey_notif(struct iwl_mvm *mvm,
 				     struct iwl_rx_cmd_buffer *rxb)
 {
@@ -3830,5 +3743,6 @@ void iwl_mvm_rx_channel_survey_notif(struct iwl_mvm *mvm,
 	info->time_busy = le32_to_cpu(notif->busy_time);
 	info->time_rx = le32_to_cpu(notif->rx_time);
 	info->time_tx = le32_to_cpu(notif->tx_time);
-	info->noise = iwl_mvm_average_dbm_values(notif);
+	info->noise =
+		iwl_average_neg_dbm(notif->noise, ARRAY_SIZE(notif->noise));
 }
