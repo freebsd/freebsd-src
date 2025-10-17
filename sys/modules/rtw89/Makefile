@@ -3,7 +3,7 @@ DEVRTW89DIR=	${SRCTOP}/sys/contrib/dev/rtw89
 .PATH: ${DEVRTW89DIR}
 
 WITH_CONFIG_PM=	0
-WITH_DEBUGFS=	1
+WITH_DEBUGFS=	0
 
 KMOD=	if_rtw89
 
@@ -26,6 +26,10 @@ SRCS+=	rtw8852bte.c
 SRCS+=	rtw8922a.c rtw8922a_rfk.c
 SRCS+=	rtw8922ae.c
 
+# USB parts
+#SRCS+=	rtw8851bu.c rtw8852bu.c
+#SRCS+=	usb.c
+
 # CONFIG_RTW89_DEBUG (always on for now)
 SRCS+=	debug.c
 
@@ -39,7 +43,7 @@ SRCS+=	${LINUXKPI_GENSRCS}
 SRCS+=	opt_wlan.h opt_inet6.h opt_inet.h opt_acpi.h
 
 CFLAGS+=	-DKBUILD_MODNAME='"rtw89"'
-CFLAGS+=	-DLINUXKPI_VERSION=61400
+CFLAGS+=	-DLINUXKPI_VERSION=61700
 CFLAGS+=	-DLINUXKPI_WANT_LINUX_ACPI
 
 CFLAGS+=	-I${DEVRTW89DIR}
