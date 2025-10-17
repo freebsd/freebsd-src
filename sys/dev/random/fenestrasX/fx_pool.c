@@ -179,6 +179,9 @@ static const struct fxrng_ent_char {
 	[RANDOM_PURE_RDRAND] = {
 		.entc_cls = &fxrng_hi_pull,
 	},
+	[RANDOM_PURE_RDSEED] = {
+		.entc_cls = &fxrng_hi_pull,
+	},
 	[RANDOM_PURE_NEHEMIAH] = {
 		.entc_cls = &fxrng_hi_pull,
 	},
