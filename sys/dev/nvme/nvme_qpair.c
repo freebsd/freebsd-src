@@ -1094,15 +1094,52 @@ nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 	 * Note that we specified ctrlr->page_size for alignment and max
 	 * segment size when creating the bus dma tags.  So here we can safely
 	 * just transfer each segment to its associated PRP entry.
+	 * 
+	 * According to NVMe specification, PRP entries must be 4-byte aligned.
+	 * Validate and ensure all PRP addresses are properly aligned.
 	 */
+	
+	/* Validate PRP1 alignment - must be 4-byte aligned */
+	if ((seg[0].ds_addr & 3) != 0) {
+		nvme_printf(tr->qpair->ctrlr,
+		    "PRP1 address 0x%jx not 4-byte aligned, failing request\n",
+		    (uintmax_t)seg[0].ds_addr);
+		/* Fail the request with DATA_TRANSFER_ERROR */
+		nvme_qpair_manual_complete_tracker(tr, NVME_SCT_GENERIC,
+		    NVME_SC_DATA_TRANSFER_ERROR, DO_NOT_RETRY, ERROR_PRINT_ALL);
+		return;
+	}
 	tr->req->cmd.prp1 = htole64(seg[0].ds_addr);
 
 	if (nseg == 2) {
+		/* Validate PRP2 alignment - must be 4-byte aligned */
+		if ((seg[1].ds_addr & 3) != 0) {
+			nvme_printf(tr->qpair->ctrlr,
+			    "PRP2 address 0x%jx not 4-byte aligned, failing request\n",
+			    (uintmax_t)seg[1].ds_addr);
+			/* Fail the request with DATA_TRANSFER_ERROR */
+			nvme_qpair_manual_complete_tracker(tr, NVME_SCT_GENERIC,
+			    NVME_SC_DATA_TRANSFER_ERROR, DO_NOT_RETRY, ERROR_PRINT_ALL);
+			return;
+		}
 		tr->req->cmd.prp2 = htole64(seg[1].ds_addr);
 	} else if (nseg > 2) {
 		cur_nseg = 1;
 		tr->req->cmd.prp2 = htole64((uint64_t)tr->prp_bus_addr);
 		while (cur_nseg < nseg) {
+			/*
+			 * Validate PRP list entry alignment - must be 4-byte aligned
+			 * according to NVMe specification.
+			 */
+			if ((seg[cur_nseg].ds_addr & 3) != 0) {
+				nvme_printf(tr->qpair->ctrlr,
+				    "PRP list entry %d address 0x%jx not 4-byte aligned, failing request\n",
+				    cur_nseg - 1, (uintmax_t)seg[cur_nseg].ds_addr);
+				/* Fail the request with DATA_TRANSFER_ERROR */
+				nvme_qpair_manual_complete_tracker(tr, NVME_SCT_GENERIC,
+				    NVME_SC_DATA_TRANSFER_ERROR, DO_NOT_RETRY, ERROR_PRINT_ALL);
+				return;
+			}
 			tr->prp[cur_nseg-1] =
 			    htole64((uint64_t)seg[cur_nseg].ds_addr);
 			cur_nseg++;
