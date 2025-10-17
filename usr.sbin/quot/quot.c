@@ -55,7 +55,6 @@
 /* some flags of what to do: */
 static bool all;
 static bool count;
-static bool estimate;
 static bool unused;
 static void (*func)(int, struct fs *);
 static long blocksize;
@@ -63,7 +62,6 @@ static char *header;
 static int headerlen;
 
 static union dinode *get_inode(int, struct fs *, ino_t);
-static int	virtualblocks(struct fs *, union dinode *);
 static int	isfree(struct fs *, union dinode *);
 static void	inituser(void);
 static void	usrrehash(void);
@@ -149,33 +147,9 @@ get_inode(int fd, struct fs *super, ino_t ino)
 	return ((union dinode *)di2);
 }
 
-#define	actualblocks(fs, dp)	DIP(fs, dp, di_blocks)
-
-static int virtualblocks(struct fs *super, union dinode *dp)
-{
-	off_t nblk, sz;
-
-	sz = DIP(super, dp, di_size);
-
-	if (lblkno(super, sz) >= UFS_NDADDR) {
-		nblk = blkroundup(super, sz);
-		sz = lblkno(super, nblk);
-		sz = (sz - UFS_NDADDR + NINDIR(super) - 1) / NINDIR(super);
-		while (sz > 0) {
-			nblk += sz * super->fs_bsize;
-			/* sz - 1 rounded up */
-			sz = (sz - 1 + NINDIR(super) - 1) / NINDIR(super);
-		}
-	} else
-		nblk = fragroundup(super, sz);
-
-	return nblk / 512;
-}
-
 static int
 isfree(struct fs *super, union dinode *dp)
 {
-
 	switch (DIP(super, dp, di_mode) & IFMT) {
 	case IFIFO:
 	case IFLNK:		/* should check FASTSYMLINK? */
@@ -337,8 +311,7 @@ dofsizes(int fd, struct fs *super)
 		if ((dp = get_inode(fd, super, inode)) != NULL &&
 		    !isfree(super, dp)
 		    ) {
-			sz = estimate ? virtualblocks(super, dp) :
-			    actualblocks(super, dp);
+			sz = DIP(super, dp, di_blocks);
 			ksz = SIZE(sz);
 			for (fsp = &fsizes; (fp = *fsp); fsp = &fp->fsz_next) {
 				if (ksz < fp->fsz_last)
@@ -386,8 +359,7 @@ douser(int fd, struct fs *super)
 		if ((dp = get_inode(fd, super, inode)) != NULL &&
 		    !isfree(super, dp)) {
 			uses(DIP(super, dp, di_uid),
-			    estimate ? virtualblocks(super, dp) :
-				actualblocks(super, dp),
+			    DIP(super, dp, di_blocks),
 			    DIP(super, dp, di_atime));
 		}
 	}
@@ -454,7 +426,7 @@ donames(int fd, struct fs *super)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: quot [-cfhknv] [-a | filesystem ...]\n");
+	fprintf(stderr, "usage: quot [-cfknv] [-a | filesystem ...]\n");
 	exit(1);
 }
 
@@ -514,7 +486,7 @@ main(int argc, char *argv[])
 			count = true;
 			break;
 		case 'h':
-			estimate = true;
+			/* ignored for backward compatibility */
 			break;
 		case 'k':
 			blocksize = 1024;
