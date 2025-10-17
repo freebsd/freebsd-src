@@ -444,7 +444,7 @@ static u8 rtw8723d_iqk_check_tx_failed(struct rtw_dev *rtwdev,
 		rtw_read32(rtwdev, REG_IQK_RES_TX),
 		rtw_read32(rtwdev, REG_IQK_RES_TY));
 	rtw_dbg(rtwdev, RTW_DBG_RFK,
-		"[IQK] 0xe90(before IQK)= 0x%x, 0xe98(afer IQK) = 0x%x\n",
+		"[IQK] 0xe90(before IQK)= 0x%x, 0xe98(after IQK) = 0x%x\n",
 		rtw_read32(rtwdev, 0xe90),
 		rtw_read32(rtwdev, 0xe98));
 
@@ -472,7 +472,7 @@ static u8 rtw8723d_iqk_check_rx_failed(struct rtw_dev *rtwdev,
 		rtw_read32(rtwdev, REG_IQK_RES_RY));
 
 	rtw_dbg(rtwdev, RTW_DBG_RFK,
-		"[IQK] 0xea0(before IQK)= 0x%x, 0xea8(afer IQK) = 0x%x\n",
+		"[IQK] 0xea0(before IQK)= 0x%x, 0xea8(after IQK) = 0x%x\n",
 		rtw_read32(rtwdev, 0xea0),
 		rtw_read32(rtwdev, 0xea8));
 
@@ -1397,6 +1397,7 @@ static const struct rtw_chip_ops rtw8723d_ops = {
 	.query_phy_status	= query_phy_status,
 	.set_channel		= rtw8723d_set_channel,
 	.mac_init		= rtw8723x_mac_init,
+	.mac_postinit		= rtw8723x_mac_postinit,
 	.shutdown		= rtw8723d_shutdown,
 	.read_rf		= rtw_phy_read_rf_sipi,
 	.write_rf		= rtw_phy_write_rf_reg_sipi,
@@ -1404,6 +1405,7 @@ static const struct rtw_chip_ops rtw8723d_ops = {
 	.set_antenna		= NULL,
 	.cfg_ldo25		= rtw8723x_cfg_ldo25,
 	.efuse_grant		= rtw8723x_efuse_grant,
+	.set_ampdu_factor	= NULL,
 	.false_alarm_statistics	= rtw8723x_false_alarm_statistics,
 	.phy_calibration	= rtw8723d_phy_calibration,
 	.cck_pd_set		= rtw8723d_phy_cck_pd_set,
@@ -2115,7 +2117,7 @@ const struct rtw_chip_info rtw8723d_hw_spec = {
 	.ops = &rtw8723d_ops,
 	.id = RTW_CHIP_TYPE_8723D,
 	.fw_name = "rtw88/rtw8723d_fw.bin",
-	.wlan_cpu = RTW_WCPU_11N,
+	.wlan_cpu = RTW_WCPU_8051,
 	.tx_pkt_desc_sz = 40,
 	.tx_buf_desc_sz = 16,
 	.rx_pkt_desc_sz = 24,
