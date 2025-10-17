@@ -280,14 +280,10 @@ user(uid_t uid)
 		    usr--) {
 			if (!usr->name) {
 				usr->uid = uid;
-
 				if (!(pwd = getpwuid(uid))) {
-					if ((usr->name = (char *)malloc(7)))
-						sprintf(usr->name,"#%d",uid);
+					asprintf(&usr->name, "#%u", uid);
 				} else {
-					if ((usr->name = (char *)
-					    malloc(strlen(pwd->pw_name) + 1)))
-						strcpy(usr->name,pwd->pw_name);
+					usr->name = strdup(pwd->pw_name);
 				}
 				if (!usr->name)
 					errx(1, "allocate users");
