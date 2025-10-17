@@ -182,25 +182,25 @@ FILESGROUPS+=	EXAMPLES
 CONFS=		kyua.conf-default
 CONFSDIR=	${KYUA_CONFDIR}
 CONFSNAME=	kyua.conf
-CONFSDIRTAGS=	package=tests
+CONFSDIRTAGS=	package=kyua
 
 DOCS=		AUTHORS CONTRIBUTORS LICENSE
 DOCSDIR=	${KYUA_DOCDIR}
-DOCSTAGS=	package=tests
+DOCSTAGS=	package=kyua
 
 EXAMPLES=	Kyuafile.top kyua.conf
 EXAMPLESDIR=	${KYUA_EGDIR}
-EXAMPLESTAGS=	package=tests
+EXAMPLESTAGS=	package=kyua
 .PATH:		${KYUA_SRCDIR}/examples
 
 MISC=		context.html index.html report.css test_result.html
 MISCDIR=	${KYUA_MISCDIR}
-MISCTAGS=	package=tests
+MISCTAGS=	package=kyua
 .PATH:		${KYUA_SRCDIR}/misc
 
 STORE=		migrate_v1_v2.sql migrate_v2_v3.sql schema_v3.sql
 STOREDIR=	${KYUA_STOREDIR}
-STORETAGS=	package=tests
+STORETAGS=	package=kyua
 .PATH:		${KYUA_SRCDIR}/store
 
 CLEANFILES+=	${MAN}
