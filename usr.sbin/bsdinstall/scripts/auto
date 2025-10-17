@@ -73,7 +73,7 @@ msg_yes="YES"
 # error [$msg]
 #
 # Display generic error message when a script fails. An optional message
-# argument can preceed the generic message. User is given the choice of
+# argument can precede the generic message. User is given the choice of
 # restarting the installer or exiting.
 #
 error()
