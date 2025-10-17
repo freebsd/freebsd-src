@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2018, 2020-2024 Intel Corporation
+ * Copyright (C) 2018, 2020-2025 Intel Corporation
  */
-#ifndef __iwl_context_info_file_gen3_h__
-#define __iwl_context_info_file_gen3_h__
+#ifndef __iwl_context_info_file_v2_h__
+#define __iwl_context_info_file_v2_h__
 
 #include "iwl-context-info.h"
 
@@ -58,6 +58,7 @@ enum iwl_prph_scratch_mtr_format {
  * @IWL_PRPH_SCRATCH_RB_SIZE_EXT_16K: 16kB RB size
  * @IWL_PRPH_SCRATCH_SCU_FORCE_ACTIVE: Indicate fw to set SCU_FORCE_ACTIVE
  *	upon reset.
+ * @IWL_PRPH_SCRATCH_TOP_RESET: request TOP reset
  */
 enum iwl_prph_scratch_flags {
 	IWL_PRPH_SCRATCH_IMR_DEBUG_EN		= BIT(1),
@@ -74,9 +75,24 @@ enum iwl_prph_scratch_flags {
 	IWL_PRPH_SCRATCH_RB_SIZE_EXT_12K	= 9 << 20,
 	IWL_PRPH_SCRATCH_RB_SIZE_EXT_16K	= 10 << 20,
 	IWL_PRPH_SCRATCH_SCU_FORCE_ACTIVE	= BIT(29),
+	IWL_PRPH_SCRATCH_TOP_RESET		= BIT(30),
 };
 
-/*
+/**
+ * enum iwl_prph_scratch_ext_flags - PRPH scratch control ext flags
+ * @IWL_PRPH_SCRATCH_EXT_EXT_FSEQ: external FSEQ image provided
+ * @IWL_PRPH_SCRATCH_EXT_URM_FW: switch to URM mode based on fw setting
+ * @IWL_PRPH_SCRATCH_EXT_URM_PERM: switch to permanent URM mode
+ * @IWL_PRPH_SCRATCH_EXT_32KHZ_CLK_VALID: use external 32 KHz clock
+ */
+enum iwl_prph_scratch_ext_flags {
+	IWL_PRPH_SCRATCH_EXT_EXT_FSEQ		= BIT(0),
+	IWL_PRPH_SCRATCH_EXT_URM_FW		= BIT(4),
+	IWL_PRPH_SCRATCH_EXT_URM_PERM		= BIT(5),
+	IWL_PRPH_SCRATCH_EXT_32KHZ_CLK_VALID	= BIT(8),
+};
+
+/**
  * struct iwl_prph_scratch_version - version structure
  * @mac_id: SKU and revision id
  * @version: prph scratch information version id
@@ -90,17 +106,18 @@ struct iwl_prph_scratch_version {
 	__le16 reserved;
 } __packed; /* PERIPH_SCRATCH_VERSION_S */
 
-/*
+/**
  * struct iwl_prph_scratch_control - control structure
  * @control_flags: context information flags see &enum iwl_prph_scratch_flags
- * @reserved: reserved
+ * @control_flags_ext: context information for extended flags,
+ *	see &enum iwl_prph_scratch_ext_flags
  */
 struct iwl_prph_scratch_control {
 	__le32 control_flags;
-	__le32 reserved;
+	__le32 control_flags_ext;
 } __packed; /* PERIPH_SCRATCH_CONTROL_S */
 
-/*
+/**
  * struct iwl_prph_scratch_pnvm_cfg - PNVM scratch
  * @pnvm_base_addr: PNVM start address
  * @pnvm_size: the size of the PNVM image in bytes
@@ -113,14 +130,15 @@ struct iwl_prph_scratch_pnvm_cfg {
 } __packed; /* PERIPH_SCRATCH_PNVM_CFG_S */
 
 /**
- * struct iwl_prph_scrath_mem_desc_addr_array
+ * struct iwl_prph_scratch_mem_desc_addr_array - DRAM
  * @mem_descs: array of dram addresses.
- * Each address is the beggining of a pnvm payload.
+ * Each address is the beginning of a PNVM payload.
  */
-struct iwl_prph_scrath_mem_desc_addr_array {
+struct iwl_prph_scratch_mem_desc_addr_array {
 	__le64 mem_descs[IPC_DRAM_MAP_ENTRY_NUM_MAX];
 } __packed; /* PERIPH_SCRATCH_MEM_DESC_ADDR_ARRAY_S_VER_1 */
-/*
+
+/**
  * struct iwl_prph_scratch_hwm_cfg - hwm config
  * @hwm_base_addr: hwm start address
  * @hwm_size: hwm size in DWs
@@ -132,7 +150,7 @@ struct iwl_prph_scratch_hwm_cfg {
 	__le32 debug_token_config;
 } __packed; /* PERIPH_SCRATCH_HWM_CFG_S */
 
-/*
+/**
  * struct iwl_prph_scratch_rbd_cfg - RBDs configuration
  * @free_rbd_addr: default queue free RB CB base address
  * @reserved: reserved
@@ -142,10 +160,11 @@ struct iwl_prph_scratch_rbd_cfg {
 	__le32 reserved;
 } __packed; /* PERIPH_SCRATCH_RBD_CFG_S */
 
-/*
+/**
  * struct iwl_prph_scratch_uefi_cfg - prph scratch reduce power table
  * @base_addr: reduce power table address
  * @size: the size of the entire power table image
+ * @reserved: (reserved)
  */
 struct iwl_prph_scratch_uefi_cfg {
 	__le64 base_addr;
@@ -153,7 +172,7 @@ struct iwl_prph_scratch_uefi_cfg {
 	__le32 reserved;
 } __packed; /* PERIPH_SCRATCH_UEFI_CFG_S */
 
-/*
+/**
  * struct iwl_prph_scratch_step_cfg - prph scratch step configuration
  * @mbx_addr_0: [0:7] revision,
  *		[8:15] cnvi_to_cnvr length,
@@ -167,13 +186,14 @@ struct iwl_prph_scratch_step_cfg {
 	__le32 mbx_addr_1;
 } __packed;
 
-/*
+/**
  * struct iwl_prph_scratch_ctrl_cfg - prph scratch ctrl and config
  * @version: version information of context info and HW
  * @control: control flags of FH configurations
  * @pnvm_cfg: ror configuration
  * @hwm_cfg: hwm configuration
  * @rbd_cfg: default RX queue configuration
+ * @reduce_power_cfg: UEFI power reduction table
  * @step_cfg: step configuration
  */
 struct iwl_prph_scratch_ctrl_cfg {
@@ -186,7 +206,20 @@ struct iwl_prph_scratch_ctrl_cfg {
 	struct iwl_prph_scratch_step_cfg step_cfg;
 } __packed; /* PERIPH_SCRATCH_CTRL_CFG_S */
 
-/*
+#define IWL_NUM_DRAM_FSEQ_ENTRIES	8
+
+/**
+ * struct iwl_context_info_dram_fseq - images DRAM map (with fseq)
+ * each entry in the map represents a DRAM chunk of up to 32 KB
+ * @common: UMAC/LMAC/virtual images
+ * @fseq_img: FSEQ image DRAM map
+ */
+struct iwl_context_info_dram_fseq {
+	struct iwl_context_info_dram_nonfseq common;
+	__le64 fseq_img[IWL_NUM_DRAM_FSEQ_ENTRIES];
+} __packed; /* PERIPH_SCRATCH_DRAM_MAP_S */
+
+/**
  * struct iwl_prph_scratch - peripheral scratch mapping
  * @ctrl_cfg: control and configuration of prph scratch
  * @dram: firmware images addresses in DRAM
@@ -199,10 +232,10 @@ struct iwl_prph_scratch {
 	__le32 fseq_override;
 	__le32 step_analog_params;
 	__le32 reserved[8];
-	struct iwl_context_info_dram dram;
+	struct iwl_context_info_dram_fseq dram;
 } __packed; /* PERIPH_SCRATCH_S */
 
-/*
+/**
  * struct iwl_prph_info - peripheral information
  * @boot_stage_mirror: reflects the value in the Boot Stage CSR register
  * @ipc_status_mirror: reflects the value in the IPC Status CSR register
@@ -216,8 +249,8 @@ struct iwl_prph_info {
 	__le32 reserved;
 } __packed; /* PERIPH_INFO_S */
 
-/*
- * struct iwl_context_info_gen3 - device INIT configuration
+/**
+ * struct iwl_context_info_v2 - device INIT configuration
  * @version: version of the context information
  * @size: size of context information in DWs
  * @config: context in which the peripheral would execute - a subset of
@@ -260,7 +293,7 @@ struct iwl_prph_info {
  * @prph_scratch_size: the size of the peripheral scratch structure in DWs
  * @reserved: reserved
  */
-struct iwl_context_info_gen3 {
+struct iwl_context_info_v2 {
 	__le16 version;
 	__le16 size;
 	__le32 config;
@@ -290,22 +323,22 @@ struct iwl_context_info_gen3 {
 	__le32 reserved;
 } __packed; /* IPC_CONTEXT_INFO_S */
 
-int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
-				 const struct fw_img *fw);
-void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans, bool alive);
+int iwl_pcie_ctxt_info_v2_alloc(struct iwl_trans *trans,
+				const struct iwl_fw *fw,
+				const struct fw_img *img);
+void iwl_pcie_ctxt_info_v2_kick(struct iwl_trans *trans);
+void iwl_pcie_ctxt_info_v2_free(struct iwl_trans *trans, bool alive);
 
-int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,
-					   const struct iwl_pnvm_image *pnvm_payloads,
-					   const struct iwl_ucode_capabilities *capa);
-void iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans,
-					   const struct iwl_ucode_capabilities *capa);
+int iwl_trans_pcie_ctx_info_v2_load_pnvm(struct iwl_trans *trans,
+					 const struct iwl_pnvm_image *pnvm_payloads,
+					 const struct iwl_ucode_capabilities *capa);
+void iwl_trans_pcie_ctx_info_v2_set_pnvm(struct iwl_trans *trans,
+					 const struct iwl_ucode_capabilities *capa);
 int
-iwl_trans_pcie_ctx_info_gen3_load_reduce_power(struct iwl_trans *trans,
-					       const struct iwl_pnvm_image *payloads,
-					       const struct iwl_ucode_capabilities *capa);
+iwl_trans_pcie_ctx_info_v2_load_reduce_power(struct iwl_trans *trans,
+					     const struct iwl_pnvm_image *payloads,
+					     const struct iwl_ucode_capabilities *capa);
 void
-iwl_trans_pcie_ctx_info_gen3_set_reduce_power(struct iwl_trans *trans,
-					      const struct iwl_ucode_capabilities *capa);
-int iwl_trans_pcie_ctx_info_gen3_set_step(struct iwl_trans *trans,
-					  u32 mbx_addr_0_step, u32 mbx_addr_1_step);
-#endif /* __iwl_context_info_file_gen3_h__ */
+iwl_trans_pcie_ctx_info_v2_set_reduce_power(struct iwl_trans *trans,
+					    const struct iwl_ucode_capabilities *capa);
+#endif /* __iwl_context_info_file_v2_h__ */
