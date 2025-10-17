@@ -167,9 +167,6 @@ static const struct fxrng_ent_char {
 	[RANDOM_RANDOMDEV] = {
 		.entc_cls = &fxrng_lo_push,
 	},
-	[RANDOM_PURE_OCTEON] = {
-		.entc_cls = &fxrng_hi_push,	/* Could be made pull. */
-	},
 	[RANDOM_PURE_SAFE] = {
 		.entc_cls = &fxrng_hi_push,
 	},
