@@ -117,7 +117,7 @@ end
 
 local function usage(from_branch, to_branch, author)
 	local script_name = arg[0]:match("([^/]+)$")
-	print(script_name .. " [-ah] [-f from_branch] [-t to_branch] [-u user] [-X exclude_file] [path ...]")
+	print(script_name .. " [-ah] [-F git-show-fmt] [-f from_branch] [-t to_branch] [-u user] [-X exclude_file] [path ...]")
 	print()
 	params(from_branch, to_branch, author)
 end
@@ -162,6 +162,7 @@ local function main()
 
 	local do_help = false
 	local exclude_file = nil
+	local gitshowfmt = '%h %s'
 	local i = 1
 	while i <= #arg and arg[i] do
 		local opt = arg[i]
@@ -181,6 +182,9 @@ local function main()
 			i = i + 1
 		elseif opt == "-v" then
 			verbose = verbose + 1
+		elseif opt == "-F" then
+			gitshowfmt = arg[i + 1]
+			i = i + 1
 		elseif opt == "-X" then
 			exclude_file = arg[i + 1]
 			i = i + 1
@@ -217,7 +221,7 @@ local function main()
 
 	-- Print the result
 	for _, hash in ipairs(result_hashes) do
-		print(exec_command("git show --pretty='%h %s' --no-patch " .. hash))
+		print(exec_command("git show --pretty='" .. gitshowfmt .. "' --no-patch " .. hash))
 	end
 end
 
