@@ -42,6 +42,7 @@
 #include <fcntl.h>
 #include <fstab.h>
 #include <libufs.h>
+#include <mntopts.h>
 #include <paths.h>
 #include <pwd.h>
 #include <stdbool.h>
@@ -55,6 +56,7 @@
 /* some flags of what to do: */
 static bool all;
 static bool count;
+static bool noname;
 static bool unused;
 static void (*func)(int, struct fs *);
 static long blocksize;
@@ -227,7 +229,7 @@ user(uid_t uid)
 		for (usr = users + uid % nusers, i = nusers; --i >= 0; usr--) {
 			if (usr->name == NULL) {
 				usr->uid = uid;
-				if ((pwd = getpwuid(uid)) == NULL)
+				if (noname || (pwd = getpwuid(uid)) == NULL)
 					asprintf(&usr->name, "#%u", uid);
 				else
 					usr->name = strdup(pwd->pw_name);
@@ -248,7 +250,10 @@ cmpusers(const void *v1, const void *v2)
 {
 	const struct user *u1 = v1, *u2 = v2;
 
-	return (u2->space - u1->space);
+	return (u2->space > u1->space ? 1 :
+	    u2->space < u1->space ? -1 :
+	    u1->uid > u2->uid ? 1 :
+	    u1->uid < u2->uid ? -1 : 0);
 }
 
 #define	sortusers(users)						\
@@ -469,12 +474,11 @@ int
 main(int argc, char *argv[])
 {
 	struct statfs *mp;
-	struct fstab *fs;
 	int ch, cnt;
 
 	func = douser;
 	header = getbsize(&headerlen, &blocksize);
-	while ((ch = getopt(argc, argv, "acfhknv")) != -1) {
+	while ((ch = getopt(argc, argv, "acfhkNnv")) != -1) {
 		switch (ch) {
 		case 'a':
 			all = true;
@@ -490,6 +494,9 @@ main(int argc, char *argv[])
 			break;
 		case 'k':
 			blocksize = 1024;
+			break;
+		case 'N':
+			noname = true;
 			break;
 		case 'n':
 			func = donames;
@@ -513,8 +520,8 @@ main(int argc, char *argv[])
 				quot(mp->f_mntfromname, mp->f_mntonname);
 	}
 	while (argc-- > 0) {
-		if ((fs = getfsfile(*argv)) != NULL)
-			quot(fs->fs_spec, 0);
+		if ((mp = getmntpoint(*argv)) != NULL)
+			quot(mp->f_mntfromname, mp->f_mntonname);
 		else
 			quot(*argv, 0);
 		argv++;
