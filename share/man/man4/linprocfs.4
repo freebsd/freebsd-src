@@ -9,7 +9,7 @@
 .Nd Linux process file system
 .Sh SYNOPSIS
 .Bd -literal
-linproc		/compat/linux/proc	linprocfs	rw 0 0
+linprocfs		/compat/linux/proc	linprocfs	rw 0 0
 .Ed
 .Sh DESCRIPTION
 The Linux process file system, or
@@ -138,7 +138,7 @@ To mount a
 file system on
 .Pa /compat/linux/proc :
 .Pp
-.Dl "mount -t linprocfs linproc /compat/linux/proc"
+.Dl "mount -t linprocfs linprocfs /compat/linux/proc"
 .Sh SEE ALSO
 .Xr mount 2 ,
 .Xr unmount 2 ,
