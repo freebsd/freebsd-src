@@ -81,7 +81,6 @@ static int get(char *host);
 static int file(char *name);
 static struct rt_msghdr *rtmsg(int cmd,
     struct sockaddr_in *dst, struct sockaddr_dl *sdl);
-static int get_ether_addr(in_addr_t ipaddr, struct ether_addr *hwaddr);
 static int set_rtsock(struct sockaddr_in *dst, struct sockaddr_dl *sdl_m,
     char *host);
 
@@ -143,7 +142,8 @@ main(int argc, char *argv[])
 	if (!func)
 		func = F_GET;
 	if (opts.rifname) {
-		if (func != F_GET && func != F_SET && !(func == F_DELETE && opts.aflag))
+		if (func != F_GET && func != F_SET && func != F_REPLACE &&
+		    !(func == F_DELETE && opts.aflag))
 			xo_errx(1, "-i not applicable to this operation");
 		if ((opts.rifindex = if_nametoindex(opts.rifname)) == 0) {
 			if (errno == ENXIO)
@@ -273,7 +273,6 @@ getaddr(char *host)
 	return (&reply);
 }
 
-int valid_type(int type);
 /*
  * Returns true if the type is a valid one for ARP.
  */
@@ -357,11 +356,14 @@ set(int argc, char **argv)
 	}
 	ea = (struct ether_addr *)LLADDR(&sdl_m);
 	if ((opts.flags & RTF_ANNOUNCE) && !strcmp(eaddr, "auto")) {
-		if (!get_ether_addr(dst->sin_addr.s_addr, ea)) {
+		uint32_t ifindex;
+		if (!get_ifinfo(dst->sin_addr.s_addr, ea, &ifindex)) {
 			xo_warnx("no interface found for %s",
-			       inet_ntoa(dst->sin_addr));
+			    inet_ntoa(dst->sin_addr));
 			return (1);
 		}
+		if (opts.rifindex == 0)
+			opts.rifindex = ifindex;
 		sdl_m.sdl_alen = ETHER_ADDR_LEN;
 	} else {
 		struct ether_addr *ea1 = ether_aton(eaddr);
@@ -375,7 +377,7 @@ set(int argc, char **argv)
 		}
 	}
 #ifndef WITHOUT_NETLINK
-	return (set_nl(opts.rifindex, dst, &sdl_m, host));
+	return (set_nl(dst, &sdl_m, host));
 #else
 	return (set_rtsock(dst, &sdl_m, host));
 #endif
@@ -522,7 +524,7 @@ delete(char *host)
 #ifdef WITHOUT_NETLINK
 	return (delete_rtsock(host));
 #else
-	return (delete_nl(0, host));
+	return (delete_nl(host));
 #endif
 }
 
@@ -819,11 +821,11 @@ doit:
 }
 
 /*
- * get_ether_addr - get the hardware address of an interface on the
- * same subnet as ipaddr.
+ * get_ifinfo - get the hardware address and if_index of an interface
+ * on the same subnet as ipaddr.
  */
-static int
-get_ether_addr(in_addr_t ipaddr, struct ether_addr *hwaddr)
+int
+get_ifinfo(in_addr_t ipaddr, struct ether_addr *hwaddr, uint32_t *pifindex)
 {
 	struct ifaddrs *ifa, *ifd, *ifas = NULL;
 	in_addr_t ina, mask;
@@ -862,7 +864,13 @@ get_ether_addr(in_addr_t ipaddr, struct ether_addr *hwaddr)
 	}
 	if (ifa == NULL)
 		goto done;
-
+	if (pifindex != NULL)
+		*pifindex = if_nametoindex(ifa->ifa_name);
+	if (hwaddr == NULL) {
+		/* ether addr is not required */
+		retval = ETHER_ADDR_LEN;
+		goto done;
+	}
 	/*
 	 * Now scan through again looking for a link-level address
 	 * for this interface.
