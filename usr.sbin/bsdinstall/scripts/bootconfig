@@ -163,7 +163,7 @@ if [ -n "$(awk '{if ($2=="/boot/efi") printf("%s\n",$1);}' $PATH_FSTAB)" ]; then
 		rmdir "${mntpt}"
 	fi
 
-	# Try to set the UEFI NV BootXXXX variables to recod the boot location
+	# Try to set the UEFI NV BootXXXX variables to record the boot location
 	if [ "$BSDINSTALL_CONFIGCURRENT" ] && [ "$ARCHBOOTNAME" != ia32 ]; then
 		update_uefi_bootentry
 	fi

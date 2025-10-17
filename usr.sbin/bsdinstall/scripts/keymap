@@ -216,7 +216,7 @@ while :; do
 	n=$( eval f_dialog_menutag2index_with_help \
 		\"\$menu_choice\" $menu_list )
 
-	# Turn that number ithe name of the keymap struct
+	# Turn that number into the name of the keymap struct
 	k=$( set -- $KEYMAPS; eval echo \"\${$(( $n - 2))}\" )
 
 	# Get actual keymap setting while we update $keymap and $KEYMAPFILE
