@@ -728,6 +728,7 @@ nm_os_extmem_create(unsigned long p, struct nmreq_pools_info *pi, int *perror)
 
 out_rem:
 	vm_map_remove(kernel_map, e->kva, e->kva + e->size);
+	e->obj = NULL; /* reference consumed by vm_map_remove() */
 out_rel:
 	vm_object_deallocate(e->obj);
 	e->obj = NULL;
