@@ -1,7 +1,7 @@
 .PATH: ${SRCTOP}/sys/dev/random
 
-KMOD=	rdrand_rng
-SRCS=	ivy.c
+KMOD=	rdseed_rng
+SRCS=	rdseed.c
 SRCS+=	bus_if.h device_if.h
 
 CFLAGS+= -I${SRCTOP}/sys
