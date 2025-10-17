@@ -290,6 +290,24 @@ buildfs() {
 		cat ${DESTDIR}/METALOG.pkg >> ${DESTDIR}/METALOG
 	fi
 
+	# Check for any directories in the staging tree which weren't
+	# recorded in METALOG, and record them now.  This is a quick hack
+	# to avoid creating unusable VM images and should go away once
+	# the bugs which produce such unlogged directories are gone.
+	grep type=dir ${DESTDIR}/METALOG |
+	    cut -f 1 -d ' ' |
+	    sort -u > ${DESTDIR}/METALOG.dirs
+	( cd ${DESTDIR} && find . -type d ) |
+	    sort |
+	    comm -23 - ${DESTDIR}/METALOG.dirs > ${DESTDIR}/METALOG.missingdirs
+	if [ -s ${DESTDIR}/METALOG.missingdirs ]; then
+		echo "WARNING: Directories exist but were not in METALOG"
+		cat ${DESTDIR}/METALOG.missingdirs
+	fi
+	while read DIR; do
+		metalog_add_data ${DIR}
+	done < ${DESTDIR}/METALOG.missingdirs
+
 	# Sort METALOG file; makefs produces directories with 000 permissions
 	# if their contents are seen before the directories themselves.
 	env -i LC_COLLATE=C sort -u ${DESTDIR}/METALOG > ${DESTDIR}/METALOG.sorted
