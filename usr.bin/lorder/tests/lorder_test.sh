@@ -16,6 +16,7 @@ noargs_body() {
 atf_test_case onearg
 onearg_head() {
 	atf_set descr "One argument"
+	atf_set require.progs "cc"
 }
 onearg_body() {
 	echo "void a(void) { }" >a.c
@@ -28,6 +29,7 @@ onearg_body() {
 atf_test_case dashdash
 dashdash_head() {
 	atf_set descr "One argument"
+	atf_set require.progs "cc"
 }
 dashdash_body() {
 	echo "void a(void) { }" >a.c
@@ -59,6 +61,7 @@ invalid_body() {
 atf_test_case objects
 objects_head() {
 	atf_set descr "Order objects"
+	atf_set require.progs "cc"
 }
 objects_body() {
 	echo "void a(void) { }" >a.c
@@ -77,6 +80,7 @@ objects_body() {
 atf_test_case archives
 archives_head() {
 	atf_set descr "Order archives"
+	atf_set require.progs "cc"
 }
 archives_body() {
 	echo "void a(void) { }" >a.c
