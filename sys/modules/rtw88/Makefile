@@ -27,11 +27,14 @@ SRCS+=	rtw8723d.c rtw8723d_table.c rtw8723de.c		# 11n
 SRCS+=	rtw8821c.c rtw8821c_table.c rtw8821ce.c		# 11ac
 SRCS+=	rtw8822b.c rtw8822b_table.c rtw8822be.c		# 11ac
 SRCS+=	rtw8822c.c rtw8822c_table.c rtw8822ce.c		# 11ac
+SRCS+=	rtw8814a.c rtw8814a_table.c rtw8814ae.c		# 11ac
 
 # USB parts
 #SRCS+=	rtw88xxa.c					# 88xxa common
 #SRCS+=	rtw8812a.c rtw8812a_table.c rtw8812au.c
+#SRCS+=	rtw8814au.c
 #SRCS+=	rtw8821a.c rtw8821a_table.c rtw8821au.c
+#CFLAGS+=	-DCONFIG_RTW88_USB
 
 .if defined(WITH_LEDS) && ${WITH_LEDS} > 0
 CFLAGS+=	-DCONFIG_RTW88_LEDS
@@ -43,7 +46,7 @@ SRCS+=	${LINUXKPI_GENSRCS}
 SRCS+=	opt_wlan.h opt_inet6.h opt_inet.h
 
 CFLAGS+=	-DKBUILD_MODNAME='"rtw88"'
-CFLAGS+=	-DLINUXKPI_VERSION=61400
+CFLAGS+=	-DLINUXKPI_VERSION=61700
 
 CFLAGS+=	-I${DEVRTW88DIR}
 CFLAGS+=	${LINUXKPI_INCLUDES}
