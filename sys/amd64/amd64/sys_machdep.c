@@ -415,6 +415,7 @@ amd64_set_ioperm(struct thread *td, struct i386_ioperm_args *uap)
 	struct amd64tss *tssp;
 	struct system_segment_descriptor *tss_sd;
 	struct pcb *pcb;
+	size_t tss_size;
 	u_int i;
 	int error;
 
@@ -423,7 +424,7 @@ amd64_set_ioperm(struct thread *td, struct i386_ioperm_args *uap)
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
 		return (error);
 	if (uap->start > uap->start + uap->length ||
-	    uap->start + uap->length > IOPAGES * PAGE_SIZE * NBBY)
+	    uap->start + uap->length > IOPERM_BITMAP_BITS)
 		return (EINVAL);
 
 	/*
@@ -434,9 +435,10 @@ amd64_set_ioperm(struct thread *td, struct i386_ioperm_args *uap)
 	 */
 	pcb = td->td_pcb;
 	if (pcb->pcb_tssp == NULL) {
-		tssp = kmem_malloc(ctob(IOPAGES + 1), M_WAITOK);
+		tss_size = PAGE_SIZE_PT + IOPERM_BITMAP_BYTES;
+		tssp = kmem_malloc(tss_size, M_WAITOK);
 		pmap_pti_add_kva((vm_offset_t)tssp, (vm_offset_t)tssp +
-		    ctob(IOPAGES + 1), false);
+		    tss_size, false);
 		iomap = (char *)&tssp[1];
 		memset(iomap, 0xff, IOPERM_BITMAP_SIZE);
 		critical_enter();
@@ -468,7 +470,7 @@ amd64_get_ioperm(struct thread *td, struct i386_ioperm_args *uap)
 	int i, state;
 	char *iomap;
 
-	if (uap->start >= IOPAGES * PAGE_SIZE * NBBY)
+	if (uap->start >= IOPERM_BITMAP_BITS)
 		return (EINVAL);
 	if (td->td_pcb->pcb_tssp == NULL) {
 		uap->length = 0;
@@ -482,7 +484,7 @@ amd64_get_ioperm(struct thread *td, struct i386_ioperm_args *uap)
 	uap->enable = !state;
 	uap->length = 1;
 
-	for (i = uap->start + 1; i < IOPAGES * PAGE_SIZE * NBBY; i++) {
+	for (i = uap->start + 1; i < IOPERM_BITMAP_BITS; i++) {
 		if (state != ((iomap[i >> 3] >> (i & 7)) & 1))
 			break;
 		uap->length++;
