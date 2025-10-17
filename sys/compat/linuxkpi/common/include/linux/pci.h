@@ -832,6 +832,19 @@ lkpi_pci_restore_state(struct pci_dev *pdev)
 #define pci_restore_state(dev)	lkpi_pci_restore_state(dev)
 
 static inline int
+linuxkpi_pci_enable_wake(struct pci_dev *pdev, pci_power_t state, bool ena)
+{
+	/*
+	 * We do not currently support this in device.h either to
+	 * check if the device is allowed to wake up in first place.
+	 */
+	pr_debug("%s: TODO\n", __func__);
+	return (0);
+}
+#define	pci_enable_wake(dev, state, ena)				\
+    linuxkpi_pci_enable_wake(dev, state, ena)
+
+static inline int
 pci_reset_function(struct pci_dev *pdev)
 {
 
