@@ -46,7 +46,8 @@ CFLAGS.clang+=	-Wno-tentative-definition-incomplete-type
 
 NO_WCAST_ALIGN=
 
-CFLAGS.gcc+=	--param max-inline-insns-single=100
+CFLAGS.gcc+=	--param max-inline-insns-single=100 \
+		--param min-pagesize=1024
 
 LD_FLAGS+=${LD_FLAGS_BIN}
 

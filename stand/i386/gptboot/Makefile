@@ -34,7 +34,8 @@ CFLAGS+=-DBOOTPROG=\"gptboot\" \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Wno-pointer-sign
 
-CFLAGS.gcc+=	--param max-inline-insns-single=100
+CFLAGS.gcc+=	--param max-inline-insns-single=100 \
+		--param min-pagesize=1024
 
 LD_FLAGS+=${LD_FLAGS_BIN}
 
