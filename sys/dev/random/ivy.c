@@ -1,6 +1,6 @@
 /*-
+ * Copyright (c) 2013, 2025, David E. O'Brien <deo@NUXI.org>
  * Copyright (c) 2013 The FreeBSD Foundation
- * Copyright (c) 2013 David E. O'Brien <obrien@NUXI.org>
  * Copyright (c) 2012 Konstantin Belousov <kib@FreeBSD.org>
  * All rights reserved.
  *
@@ -48,7 +48,6 @@
 
 #define	RETRY_COUNT	10
 
-static bool has_rdrand, has_rdseed;
 static u_int random_ivy_read(void *, u_int);
 
 static const struct random_source random_ivy = {
@@ -57,13 +56,7 @@ static const struct random_source random_ivy = {
 	.rs_read = random_ivy_read
 };
 
-SYSCTL_NODE(_kern_random, OID_AUTO, rdrand, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "rdrand (ivy) entropy source");
 static bool acquire_independent_seed_samples = false;
-SYSCTL_BOOL(_kern_random_rdrand, OID_AUTO, rdrand_independent_seed,
-    CTLFLAG_RWTUN, &acquire_independent_seed_samples, 0,
-    "If non-zero, use more expensive and slow, but safer, seeded samples "
-    "where RDSEED is not present.");
 
 static bool
 x86_rdrand_store(u_long *buf)
@@ -99,45 +92,6 @@ x86_rdrand_store(u_long *buf)
 	return (true);
 }
 
-static bool
-x86_rdseed_store(u_long *buf)
-{
-	u_long rndval;
-	int retry;
-
-	retry = RETRY_COUNT;
-	__asm __volatile(
-	    "1:\n\t"
-	    "rdseed	%1\n\t"	/* read randomness into rndval */
-	    "jc		2f\n\t" /* CF is set on success, exit retry loop */
-	    "dec	%0\n\t" /* otherwise, retry-- */
-	    "jne	1b\n\t" /* and loop if retries are not exhausted */
-	    "2:"
-	    : "+r" (retry), "=r" (rndval) : : "cc");
-	*buf = rndval;
-	return (retry != 0);
-}
-
-static bool
-x86_unimpl_store(u_long *buf __unused)
-{
-
-	panic("%s called", __func__);
-}
-
-DEFINE_IFUNC(static, bool, x86_rng_store, (u_long *buf))
-{
-	has_rdrand = (cpu_feature2 & CPUID2_RDRAND);
-	has_rdseed = (cpu_stdext_feature & CPUID_STDEXT_RDSEED);
-
-	if (has_rdseed)
-		return (x86_rdseed_store);
-	else if (has_rdrand)
-		return (x86_rdrand_store);
-	else
-		return (x86_unimpl_store);
-}
-
 /* It is required that buf length is a multiple of sizeof(u_long). */
 static u_int
 random_ivy_read(void *buf, u_int c)
@@ -148,7 +102,7 @@ random_ivy_read(void *buf, u_int c)
 	KASSERT(c % sizeof(*b) == 0, ("partial read %d", c));
 	b = buf;
 	for (count = c; count > 0; count -= sizeof(*b)) {
-		if (!x86_rng_store(&rndval))
+		if (!x86_rdrand_store(&rndval))
 			break;
 		*b++ = rndval;
 	}
@@ -158,18 +112,33 @@ random_ivy_read(void *buf, u_int c)
 static int
 rdrand_modevent(module_t mod, int type, void *unused)
 {
+	struct sysctl_ctx_list ctx;
+	struct sysctl_oid *o;
+	bool has_rdrand, has_rdseed;
 	int error = 0;
+
+	has_rdrand = (cpu_feature2 & CPUID2_RDRAND);
+	has_rdseed = (cpu_stdext_feature & CPUID_STDEXT_RDSEED);
 
 	switch (type) {
 	case MOD_LOAD:
-		if (has_rdrand || has_rdseed) {
+		if (has_rdrand && !has_rdseed) {
+			sysctl_ctx_init(&ctx);
+			o = SYSCTL_ADD_NODE(&ctx, SYSCTL_STATIC_CHILDREN(_kern_random),
+			    OID_AUTO, "rdrand", CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+			    "rdrand (ivy) entropy source");
+			SYSCTL_ADD_BOOL(&ctx, SYSCTL_CHILDREN(o), OID_AUTO,
+			    "rdrand_independent_seed", CTLFLAG_RDTUN,
+			    &acquire_independent_seed_samples, 0,
+	"If non-zero, use more expensive and slow, but safer, seeded samples "
+	"where RDSEED is not present.");
 			random_source_register(&random_ivy);
 			printf("random: fast provider: \"%s\"\n", random_ivy.rs_ident);
 		}
 		break;
 
 	case MOD_UNLOAD:
-		if (has_rdrand || has_rdseed)
+		if (has_rdrand && !has_rdseed)
 			random_source_deregister(&random_ivy);
 		break;
 

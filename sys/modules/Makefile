@@ -347,6 +347,7 @@ SUBDIR=	\
 	rc4 \
 	${_rdma} \
 	${_rdrand_rng} \
+	${_rdseed_rng} \
 	re \
 	rl \
 	${_rockchip} \
@@ -820,6 +821,7 @@ _nvram=		nvram
 _padlock=	padlock
 _padlock_rng=	padlock_rng
 _rdrand_rng=	rdrand_rng
+_rdseed_rng=	rdseed_rng
 .endif
 _pchtherm = pchtherm
 _s3=		s3

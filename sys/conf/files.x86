@@ -311,6 +311,7 @@ dev/ntb/test/ntb_tool.c		optional	ntb_tool
 dev/nvram/nvram.c		optional	nvram isa
 dev/random/ivy.c		optional	rdrand_rng !random_loadable
 dev/random/nehemiah.c		optional	padlock_rng !random_loadable
+dev/random/rdseed.c		optional	rdrand_rng !random_loadable
 dev/qat_c2xxx/qat.c		optional	qat_c2xxx
 dev/qat_c2xxx/qat_ae.c		optional	qat_c2xxx
 dev/qat_c2xxx/qat_c2xxx.c	optional	qat_c2xxx
