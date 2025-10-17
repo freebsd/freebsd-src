@@ -486,6 +486,21 @@ netdev_priv(const struct net_device *ndev)
 }
 
 /* -------------------------------------------------------------------------- */
+
+static __inline void
+netif_device_attach(struct net_device *ndev)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
+static __inline void
+netif_device_detach(struct net_device *ndev)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
+
+/* -------------------------------------------------------------------------- */
 /* This is really rtnetlink and probably belongs elsewhere. */
 
 #define	rtnl_lock()		do { } while(0)
