@@ -576,6 +576,7 @@ _mlx5ib=	mlx5ib
     ${MACHINE_CPUARCH} == "i386"
 _ena=		ena
 _gve=		gve
+_igc=		igc
 _iwlwifi=	iwlwifi
 _rtw88=		rtw88
 _rtw89=		rtw89
@@ -743,7 +744,6 @@ _et=		et
 _ftgpio=	ftgpio
 _ftwd=		ftwd
 _exca=		exca
-_igc=		igc
 _io=		io
 _itwd=		itwd
 _ix=		ix
