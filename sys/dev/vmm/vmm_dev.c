@@ -120,18 +120,18 @@ vcpu_unlock_one(struct vcpu *vcpu)
 	vcpu_set_state(vcpu, VCPU_IDLE, false);
 }
 
+#ifndef __amd64__
 static int
-vcpu_lock_all(struct vmmdev_softc *sc)
+vcpu_set_state_all(struct vm *vm, enum vcpu_state newstate)
 {
 	struct vcpu *vcpu;
 	int error;
 	uint16_t i, j, maxcpus;
 
 	error = 0;
-	vm_slock_vcpus(sc->vm);
-	maxcpus = vm_get_maxcpus(sc->vm);
+	maxcpus = vm_get_maxcpus(vm);
 	for (i = 0; i < maxcpus; i++) {
-		vcpu = vm_vcpu(sc->vm, i);
+		vcpu = vm_vcpu(vm, i);
 		if (vcpu == NULL)
 			continue;
 		error = vcpu_lock_one(vcpu);
@@ -141,14 +141,30 @@ vcpu_lock_all(struct vmmdev_softc *sc)
 
 	if (error) {
 		for (j = 0; j < i; j++) {
-			vcpu = vm_vcpu(sc->vm, j);
+			vcpu = vm_vcpu(vm, j);
 			if (vcpu == NULL)
 				continue;
 			vcpu_unlock_one(vcpu);
 		}
-		vm_unlock_vcpus(sc->vm);
 	}
 
+	return (error);
+}
+#endif
+
+static int
+vcpu_lock_all(struct vmmdev_softc *sc)
+{
+	int error;
+
+	/*
+	 * Serialize vcpu_lock_all() callers.  Individual vCPUs are not locked
+	 * in a consistent order so we need to serialize to avoid deadlocks.
+	 */
+	vm_lock_vcpus(sc->vm);
+	error = vcpu_set_state_all(sc->vm, VCPU_FROZEN);
+	if (error != 0)
+		vm_unlock_vcpus(sc->vm);
 	return (error);
 }
 
