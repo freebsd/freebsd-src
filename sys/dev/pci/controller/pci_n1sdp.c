@@ -345,6 +345,17 @@ n1sdp_pcie_write_config(device_t dev, u_int bus, u_int slot,
 	bus_space_write_4(t, h, offset & ~3, data);
 }
 
+static int
+n1sdp_pcie_acpi_request_feature(device_t pcib __unused, device_t dev __unused,
+    enum pci_feature feature __unused)
+{
+	/*
+	 * HotPlug isn't supported on the N1SDP as it causes an interrupt storm
+	 */
+	return (EINVAL);
+}
+
+
 static device_method_t n1sdp_pcie_acpi_methods[] = {
 	DEVMETHOD(device_probe,		n1sdp_pcie_acpi_probe),
 	DEVMETHOD(device_attach,	n1sdp_pcie_acpi_attach),
@@ -352,6 +363,7 @@ static device_method_t n1sdp_pcie_acpi_methods[] = {
 	/* pcib interface */
 	DEVMETHOD(pcib_read_config,	n1sdp_pcie_read_config),
 	DEVMETHOD(pcib_write_config,	n1sdp_pcie_write_config),
+	DEVMETHOD(pcib_request_feature, n1sdp_pcie_acpi_request_feature),
 
 	DEVMETHOD_END
 };
