@@ -2216,6 +2216,67 @@ linprocfs_dosysvipc_shm(PFS_FILL_ARGS)
 	return (0);
 }
 
+static int
+linprocfs_doinotify(const char *sysctl, PFS_FILL_ARGS)
+{
+	size_t size;
+	int error, val;
+
+	if (uio->uio_rw == UIO_READ) {
+		size = sizeof(val);
+		error = kernel_sysctlbyname(curthread,
+		    __DECONST(void *, sysctl), &val, &size, NULL, 0, 0, 0);
+		if (error == 0)
+			sbuf_printf(sb, "%d\n", val);
+	} else {
+		char *endp, *newval;
+		long vall;
+
+		sbuf_trim(sb);
+		sbuf_finish(sb);
+		newval = sbuf_data(sb);
+		vall = strtol(newval, &endp, 10);
+		if (vall < 0 || vall > INT_MAX || endp == newval ||
+		    *endp != '\0')
+			return (EINVAL);
+		val = (int)vall;
+		error = kernel_sysctlbyname(curthread,
+		    __DECONST(void *, sysctl), NULL, NULL,
+		    &val, sizeof(val), 0, 0);
+	}
+	return (error);
+}
+
+/*
+ * Filler function for proc/sys/fs/inotify/max_queued_events
+ */
+static int
+linprocfs_doinotify_max_queued_events(PFS_FILL_ARGS)
+{
+	return (linprocfs_doinotify("vfs.inotify.max_queued_events",
+	    PFS_FILL_ARGNAMES));
+}
+
+/*
+ * Filler function for proc/sys/fs/inotify/max_user_instances
+ */
+static int
+linprocfs_doinotify_max_user_instances(PFS_FILL_ARGS)
+{
+	return (linprocfs_doinotify("vfs.inotify.max_user_instances",
+	    PFS_FILL_ARGNAMES));
+}
+
+/*
+ * Filler function for proc/sys/fs/inotify/max_user_watches
+ */
+static int
+linprocfs_doinotify_max_user_watches(PFS_FILL_ARGS)
+{
+	return (linprocfs_doinotify("vfs.inotify.max_user_watches",
+	    PFS_FILL_ARGNAMES));
+}
+
 /*
  * Filler function for proc/sys/fs/mqueue/msg_default
  */
@@ -2313,9 +2374,7 @@ linprocfs_domqueue_queues_max(PFS_FILL_ARGS)
 static int
 linprocfs_init(PFS_INIT_ARGS)
 {
-	struct pfs_node *root;
-	struct pfs_node *dir;
-	struct pfs_node *sys;
+	struct pfs_node *dir, *fs, *root, *sys;
 
 	root = pi->pi_root;
 
@@ -2466,10 +2525,18 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, PFS_RD);
 
 	/* /proc/sys/fs/... */
-	pfs_create_dir(sys, &dir, "fs", NULL, NULL, NULL, 0);
+	pfs_create_dir(sys, &fs, "fs", NULL, NULL, NULL, 0);
+
+	pfs_create_dir(fs, &dir, "inotify", NULL, NULL, NULL, 0);
+	pfs_create_file(dir, NULL, "max_queued_events",
+	    &linprocfs_doinotify_max_queued_events, NULL, NULL, NULL, PFS_RDWR);
+	pfs_create_file(dir, NULL, "max_user_instances",
+	    &linprocfs_doinotify_max_user_instances, NULL, NULL, NULL, PFS_RDWR);
+	pfs_create_file(dir, NULL, "max_user_watches",
+	    &linprocfs_doinotify_max_user_watches, NULL, NULL, NULL, PFS_RDWR);
 
 	/* /proc/sys/fs/mqueue/... */
-	pfs_create_dir(dir, &dir, "mqueue", NULL, NULL, NULL, 0);
+	pfs_create_dir(fs, &dir, "mqueue", NULL, NULL, NULL, 0);
 	pfs_create_file(dir, NULL, "msg_default",
 	    &linprocfs_domqueue_msg_default, NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, NULL, "msgsize_default",
