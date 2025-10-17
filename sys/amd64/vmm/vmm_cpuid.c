@@ -6,7 +6,7 @@
  *
  * Copyright 2014 Pluribus Networks Inc.
  * Copyright 2018 Joyent, Inc.
- * Copyright 2022 Oxide Computer Company
+ * Copyright 2024 Oxide Computer Company
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -564,10 +564,15 @@ legacy_emulate_cpuid(struct vcpu *vcpu, uint32_t *eax, uint32_t *ebx,
 				break;
 			}
 
-			logical_cpus = MIN(0xfff, logical_cpus - 1);
-			regs[0] = (logical_cpus << 14) | (1 << 8) |
-			    (level << 5) | func;
-			regs[1] = func > 0 ? CACHE_LINE_SIZE - 1 : 0;
+			if (level == 0) {
+				regs[0] = 0;
+				regs[1] = 0;
+			} else {
+				logical_cpus = MIN(0xfff, logical_cpus - 1);
+				regs[0] = (logical_cpus << 14) | (1 << 8) |
+				    (level << 5) | func;
+				regs[1] = func > 0 ? CACHE_LINE_SIZE - 1 : 0;
+			}
 
 			/*
 			 * ecx: Number of cache ways for non-fully
