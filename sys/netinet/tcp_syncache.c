@@ -1056,6 +1056,8 @@ abort:
  *
  * On syncache_socket() success the newly created socket
  * has its underlying inp locked.
+ *
+ * *lsop is updated, if and only if 1 is returned.
  */
 int
 syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
@@ -1103,12 +1105,14 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 				 * a valid syncookie.
 				 */
 				SCH_UNLOCK(sch);
-				if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
+				if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
 					log(LOG_DEBUG, "%s; %s: Spurious ACK, "
 					    "segment rejected "
 					    "(syncookies disabled)\n",
 					    s, __func__);
-				goto failed;
+					free(s, M_TCPLOG);
+				}
+				return (0);
 			}
 			if (sch->sch_last_overflow <
 			    time_uptime - SYNCOOKIE_LIFETIME) {
@@ -1117,12 +1121,14 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 				 * don't even check for a valid syncookie.
 				 */
 				SCH_UNLOCK(sch);
-				if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
+				if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
 					log(LOG_DEBUG, "%s; %s: Spurious ACK, "
 					    "segment rejected "
 					    "(no syncache entry)\n",
 					    s, __func__);
-				goto failed;
+					free(s, M_TCPLOG);
+				}
+				return (0);
 			}
 			SCH_UNLOCK(sch);
 		}
@@ -1135,11 +1141,13 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			sc = &scs;
 			TCPSTAT_INC(tcps_sc_recvcookie);
 		} else {
-			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
+			if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
 				log(LOG_DEBUG, "%s; %s: Segment failed "
 				    "SYNCOOKIE authentication, segment rejected "
 				    "(probably spoofed)\n", s, __func__);
-			goto failed;
+				free(s, M_TCPLOG);
+			}
+			return (0);
 		}
 #if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		/* If received ACK has MD5 signature, check it. */
@@ -1213,9 +1221,9 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 				    "%s; %s: SEG.TSval %u < TS.Recent %u, "
 				    "segment dropped\n", s, __func__,
 				    to->to_tsval, sc->sc_tsreflect);
-				free(s, M_TCPLOG);
 			}
 			SCH_UNLOCK(sch);
+			free(s, M_TCPLOG);
 			return (-1);  /* Do not send RST */
 		}
 
@@ -1232,7 +1240,6 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 				    "expected, segment processed normally\n",
 				    s, __func__);
 				free(s, M_TCPLOG);
-				s = NULL;
 			}
 		}
 
@@ -1319,16 +1326,6 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	if (sc != &scs)
 		syncache_free(sc);
 	return (1);
-failed:
-	if (sc != NULL) {
-		TCPSTATES_DEC(TCPS_SYN_RECEIVED);
-		if (sc != &scs)
-			syncache_free(sc);
-	}
-	if (s != NULL)
-		free(s, M_TCPLOG);
-	*lsop = NULL;
-	return (0);
 }
 
 static struct socket *
