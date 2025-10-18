@@ -1189,10 +1189,11 @@ status_one_geom(struct ggeom *gp, int script, int name_len, int status_len)
 	gotone = len = 0;
 	xo_open_instance("status");
 	LIST_FOREACH(cp, &gp->lg_consumer, lg_consumer) {
+		if (cp->lg_provider == NULL)
+			continue;
+
 		cstate = status_one_consumer(cp, "state");
 		csyncr = status_one_consumer(cp, "synchronized");
-		if (cstate == NULL && csyncr == NULL)
-			continue;
 		if (!gotone || script) {
 			if (!gotone) {
 				xo_emit("{:name/%*s}  {:status/%*s}  ",
@@ -1206,14 +1207,17 @@ status_one_geom(struct ggeom *gp, int script, int name_len, int status_len)
 
 		xo_open_instance("components");
 		if (cstate != NULL && csyncr != NULL) {
-			xo_emit("{P:/%*s}{:compontent} ({:state}, {:synchronized})\n",
+			xo_emit("{P:/%*s}{:component} ({:state}, {:synchronized})\n",
 			len, "", cp->lg_provider->lg_name, cstate, csyncr);
 		} else if (cstate != NULL) {
-			xo_emit("{P:/%*s}{:compontent} ({:state})\n",
+			xo_emit("{P:/%*s}{:component} ({:state})\n",
 			len, "", cp->lg_provider->lg_name, cstate);
-		} else {
-			xo_emit("{P:/%*s}{:compontent} ({:synchronized})\n",
+		} else if (csyncr != NULL) {
+			xo_emit("{P:/%*s}{:component} ({:synchronized})\n",
 			len, "", cp->lg_provider->lg_name, csyncr);
+		} else {
+			xo_emit("{P:/%*s}{:component}\n",
+			len, "", cp->lg_provider->lg_name);
 		}
 		xo_close_instance("components");
 		gotone = 1;
@@ -1224,7 +1228,7 @@ status_one_geom(struct ggeom *gp, int script, int name_len, int status_len)
 		xo_emit("{:name/%*s}  {:status/%*s}  ", name_len, name, status_len, status);
 		xo_open_list("components");
 		xo_open_instance("components");
-		xo_emit("{P:/%*s}{d:compontent}\n", len, "", "N/A");
+		xo_emit("{P:/%*s}{d:component}\n", len, "", "N/A");
 		xo_close_instance("components");
 	}
 	xo_close_list("components");
@@ -1258,11 +1262,11 @@ status_one_geom_prs(struct ggeom *gp, int script, int name_len, int status_len)
 		}
 		gotone = len = 0;
 		LIST_FOREACH(cp, &gp->lg_consumer, lg_consumer) {
-			cstate = status_one_consumer(cp, "state");
-			csyncr = status_one_consumer(cp, "synchronized");
-			if (cstate == NULL && csyncr == NULL)
+			if (cp->lg_provider == NULL)
 				continue;
 
+			cstate = status_one_consumer(cp, "state");
+			csyncr = status_one_consumer(cp, "synchronized");
 			if (!gotone || script) {
 				if (!gotone) {
 					xo_emit("{:name/%*s}  {:status/%*s}  ",
@@ -1276,14 +1280,17 @@ status_one_geom_prs(struct ggeom *gp, int script, int name_len, int status_len)
 
 			xo_open_instance("component");
 			if (cstate != NULL && csyncr != NULL) {
-				xo_emit("{P:/%*s}{:compontent} ({:state}, {:synchronized})\n",
+				xo_emit("{P:/%*s}{:component} ({:state}, {:synchronized})\n",
 				len, "", cp->lg_provider->lg_name, cstate, csyncr);
 			} else if (cstate != NULL) {
-				xo_emit("{P:/%*s}{:compontent} ({:state})\n",
+				xo_emit("{P:/%*s}{:component} ({:state})\n",
 				len, "", cp->lg_provider->lg_name, cstate);
-			} else {
-				xo_emit("{P:/%*s}{:compontent} ({:synchronized})\n",
+			} else if (csyncr != NULL) {
+				xo_emit("{P:/%*s}{:component} ({:synchronized})\n",
 				len, "", cp->lg_provider->lg_name, csyncr);
+			} else {
+				xo_emit("{P:/%*s}{:component}\n",
+				len, "", cp->lg_provider->lg_name);
 			}
 			xo_close_instance("component");
 			gotone = 1;
@@ -1294,7 +1301,7 @@ status_one_geom_prs(struct ggeom *gp, int script, int name_len, int status_len)
 			xo_emit("{:name/%*s}  {:status/%*s}  ", name_len, name, status_len, status);
 			xo_open_list("components");
 			xo_open_instance("components");
-			xo_emit("{P:/%*s}{d:compontent}\n", len, "", "N/A");
+			xo_emit("{P:/%*s}{d:component}\n", len, "", "N/A");
 			xo_close_instance("components");
 		}
 		xo_close_list("components");
