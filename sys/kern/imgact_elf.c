@@ -231,7 +231,7 @@ static const Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
 
 #define	aligned(a, t)	(rounddown2((u_long)(a), sizeof(t)) == (u_long)(a))
 
-Elf_Brandnote __elfN(freebsd_brandnote) = {
+const Elf_Brandnote __elfN(freebsd_brandnote) = {
 	.hdr.n_namesz	= sizeof(FREEBSD_ABI_VENDOR),
 	.hdr.n_descsz	= sizeof(int32_t),
 	.hdr.n_type	= NT_FREEBSD_ABI_TAG,
@@ -254,7 +254,7 @@ __elfN(freebsd_trans_osrel)(const Elf_Note *note, int32_t *osrel)
 
 static int GNU_KFREEBSD_ABI_DESC = 3;
 
-Elf_Brandnote __elfN(kfreebsd_brandnote) = {
+const Elf_Brandnote __elfN(kfreebsd_brandnote) = {
 	.hdr.n_namesz	= sizeof(GNU_ABI_VENDOR),
 	.hdr.n_descsz	= 16,	/* XXX at least 16 */
 	.hdr.n_type	= 1,

@@ -87,7 +87,7 @@ typedef struct {
 	const char *interp_newpath;
 	int flags;
 	const Elf_Brandnote *brand_note;
-	bool		(*header_supported)(const struct image_params *,
+	bool		(*const header_supported)(const struct image_params *,
 	    const int32_t *, const uint32_t *);
 		/* High 8 bits of flags is private to the ABI */
 #define	BI_CAN_EXEC_DYN		0x0001
@@ -132,8 +132,8 @@ bool	__elfN(parse_notes)(const struct image_params *, const Elf_Note *,
 void	__elfN(dump_thread)(struct thread *, void *, size_t *);
 
 extern int __elfN(fallback_brand);
-extern Elf_Brandnote __elfN(freebsd_brandnote);
-extern Elf_Brandnote __elfN(kfreebsd_brandnote);
+extern const Elf_Brandnote __elfN(freebsd_brandnote);
+extern const Elf_Brandnote __elfN(kfreebsd_brandnote);
 #endif /* _KERNEL */
 
 #endif /* !_SYS_IMGACT_ELF_H_ */
