@@ -736,10 +736,6 @@ BCE_NVRAM_WRITE_SUPPORT	opt_bce.h
 SOCKBUF_DEBUG		opt_global.h
 
 
-# options for hifn driver
-HIFN_DEBUG		opt_hifn.h
-HIFN_RNDTEST		opt_hifn.h
-
 # options for safenet driver
 SAFE_DEBUG		opt_safe.h
 SAFE_NO_RNG		opt_safe.h

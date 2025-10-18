@@ -25,7 +25,7 @@
 # SUCH DAMAGE.
 #
 
-PROGS=	cryptocheck cryptostats hifnstats ipsecstats safestats
+PROGS=	cryptocheck cryptostats ipsecstats safestats
 MAN=
 BINDIR?=	/usr/local/bin
 
@@ -33,7 +33,6 @@ BINDIR?=	/usr/local/bin
 LIBADD.cryptocheck+=	crypto util
 
 # cryptostats: dump statistics kept by the core crypto code
-# hifnstats: print statistics kept by the HIFN driver
 # safestats: statistics kept by the SafeNet driver
 # ipsecstats: print statistics kept by fast ipsec
 
