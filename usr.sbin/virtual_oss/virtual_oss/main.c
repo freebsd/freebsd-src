@@ -48,7 +48,6 @@
 
 #include "backend.h"
 #include "int.h"
-#include "utils.h"
 #include "virtual_oss.h"
 
 pthread_mutex_t atomic_mtx;
