@@ -182,7 +182,7 @@ static const struct filterops hidraw_filterops_read = {
 	.f_isfd =	1,
 	.f_detach =	hidraw_kqdetach,
 	.f_event =	hidraw_kqread,
-	.f_copy = knote_triv_copy,
+	.f_copy =	knote_triv_copy,
 };
 
 static void
