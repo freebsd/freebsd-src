@@ -833,6 +833,8 @@
                 ..
                 gpt
                 ..
+                label
+                ..
                 mirror
                 ..
                 multipath
