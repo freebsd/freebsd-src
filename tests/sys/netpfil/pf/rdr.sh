@@ -338,6 +338,56 @@ natpass_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "pr290177" "cleanup"
+pr290177_head()
+{
+	atf_set descr 'Test PR290177'
+	atf_set require.user root
+}
+
+pr290177_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+
+	ifconfig ${epair}a 192.0.2.2/24 up
+	ifconfig ${epair}a inet alias 192.0.2.3/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.1/24 up
+	jexec alcatraz ifconfig lo0 127.0.0.1/8 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.1
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+	    "table <white> { 192.0.2.2 }" \
+	    "no rdr inet proto tcp from <white> to any port 25" \
+	    "rdr pass inet proto tcp from any to any port 25 -> 127.0.0.1 port 2500"
+
+	echo foo | jexec alcatraz nc -N -l 2500 &
+	sleep 1
+
+	reply=$(nc -w 3 -s 192.0.2.2 192.0.2.1 25)
+	if [ "${reply}" == "foo" ]
+	then
+		atf_fail "no rdr rule failed"
+	fi
+	reply=$(nc -w 3 -s 192.0.2.3 192.0.2.1 25)
+	if [ "${reply}" != "foo" ]
+	then
+		atf_fail "rdr rule failed"
+	fi
+}
+
+pr290177_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "natpass"
@@ -345,4 +395,5 @@ atf_init_test_cases()
 	atf_add_test_case "tcp_v6_pass"
 	atf_add_test_case "srcport_compat"
 	atf_add_test_case "srcport_pass"
+	atf_add_test_case "pr290177"
 }
