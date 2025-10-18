@@ -5965,6 +5965,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 		ctx.nat_pool = &(ctx.nr->rdr);
 	}
 
+	*ctx.rm = &V_pf_default_rule;
 	if (ctx.nr && ctx.nr->natpass) {
 		r = ctx.nr;
 		ruleset = *ctx.rsm;

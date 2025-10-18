@@ -216,6 +216,7 @@ pf_match_translation_rule(int rs_num, struct pf_test_ctx *ctx, struct pf_krulese
 				 */
 				ctx->arsm = ctx->aruleset;
 			}
+			break;
 		} else {
 			ctx->a = r;			/* remember anchor */
 			ctx->aruleset = ruleset;	/* and its ruleset */
