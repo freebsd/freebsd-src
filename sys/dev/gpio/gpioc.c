@@ -159,7 +159,7 @@ static const struct filterops gpioc_read_filterops = {
 	.f_detach =	gpioc_kqdetach,
 	.f_event =	gpioc_kqread,
 	.f_touch =	NULL,
-	.f_copy = knote_triv_copy,
+	.f_copy =	knote_triv_copy,
 };
 
 static struct gpioc_pin_event *
