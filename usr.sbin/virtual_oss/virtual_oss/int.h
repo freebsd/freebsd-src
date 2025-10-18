@@ -318,9 +318,6 @@ extern void vclient_rx_equalizer(struct virtual_client *, int64_t *, size_t);
 extern int vclient_eq_alloc(struct virtual_client *);
 extern void vclient_eq_free(struct virtual_client *);
 
-/* Internal utilities */
-extern int bt_speaker_main(int argc, char **argv);
-
 /* Internal compressor */
 extern void voss_compressor(int64_t *, double *, const struct virtual_compressor *,
    const unsigned, const unsigned, const int64_t);
