@@ -135,7 +135,6 @@ SUBDIR=	\
 	gpio \
 	${_gve} \
 	hid \
-	hifn \
 	${_hpt27xx} \
 	${_hptiop} \
 	${_hptmv} \

@@ -173,9 +173,6 @@ static const struct fxrng_ent_char {
 	[RANDOM_PURE_GLXSB] = {
 		.entc_cls = &fxrng_hi_push,
 	},
-	[RANDOM_PURE_HIFN] = {
-		.entc_cls = &fxrng_hi_push,
-	},
 	[RANDOM_PURE_RDRAND] = {
 		.entc_cls = &fxrng_hi_pull,
 	},
