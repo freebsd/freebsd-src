@@ -54,7 +54,7 @@ msg_freebsd_installer="$OSNAME Installer"
 msg_ok="OK"
 msg_please_choose_a_hostname="Please choose a hostname for this machine.\n\nIf you are running on a managed network, please ask\nyour network administrator for an appropriate name."
 msg_set_hostname="Set Hostname"
-
+msg_empty_hostname_warning="The hostname is currently empty. This is not recommended, as many network services rely on a valid hostname. Are you sure you want to continue?"
 #
 # Command strings for various tasks
 #
@@ -97,10 +97,35 @@ f_dialog_title "$msg_set_hostname"
 f_dialog_backtitle "$msg_freebsd_installer"
 
 #
-# Get user input
+# Get user input and Warn if hostname is empty
 #
-HOSTNAME=$( dialog_hostname "$HOSTNAME" )
-[ $? -eq $DIALOG_CANCEL ] && exit 1
+while :; do
+    HOSTNAME=$(dialog_hostname "$HOSTNAME")
+    [ $? -eq $DIALOG_CANCEL ] && exit 1
+
+    if [ -z "$HOSTNAME" ]; then
+	if [ "$USE_XDIALOG" ]; then
+		yes=yes no=no defaultno=defaultno
+		extra_args="--wrap --left"
+	else
+		yes=yes no=no defaultno=defaultno
+		extra_args="--colors --cr-wrap"
+        fi
+
+        $DIALOG \
+		--title "$DIALOG_TITLE" 		\
+		--backtitle "$DIALOG_BACKTITLE" 	\
+		--defaultno 				\
+		--yes-label "$yes" 			\
+		--no-label "$no" 			\
+		$extra_args 				\
+		--yesno "$msg_empty_hostname_warning" 0 0
+
+        [ $? -ne 0 ] && continue
+    fi
+
+    break
+done
 
 #
 # Store the user's choice
