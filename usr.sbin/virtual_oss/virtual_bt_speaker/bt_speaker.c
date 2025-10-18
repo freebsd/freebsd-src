@@ -47,7 +47,6 @@
 
 #include "avdtp_signal.h"
 #include "bt.h"
-#include "utils.h"
 
 static int (*bt_receive_f)(struct bt_config *, void *, int, int);
 static int (*avdtpACPHandlePacket_f)(struct bt_config *cfg);
