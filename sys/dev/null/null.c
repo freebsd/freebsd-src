@@ -62,13 +62,13 @@ static int zero_ev(struct knote *kn, long hint);
 static const struct filterops one_fop = {
 	.f_isfd =	1,
 	.f_event =	one_ev,
-	.f_copy = knote_triv_copy,
+	.f_copy =	knote_triv_copy,
 };
 
 static const struct filterops zero_fop = {
 	.f_isfd =	1,
 	.f_event =	zero_ev,
-	.f_copy = knote_triv_copy,
+	.f_copy =	knote_triv_copy,
 };
 
 static struct cdevsw full_cdevsw = {
