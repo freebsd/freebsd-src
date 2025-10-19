@@ -175,7 +175,7 @@ AcpiEvInstallGpeHandler (
 
 #endif
 
-
+#ifndef _STANDALONE
 /*******************************************************************************
  *
  * FUNCTION:    AcpiInstallNotifyHandler
@@ -517,6 +517,7 @@ UnlockAndExit:
 
 ACPI_EXPORT_SYMBOL (AcpiRemoveNotifyHandler)
 
+#endif /* !_STANDALONE */
 
 /*******************************************************************************
  *
@@ -794,7 +795,7 @@ Cleanup:
 
 ACPI_EXPORT_SYMBOL (AcpiInstallGlobalEventHandler)
 
-
+#ifndef _STANDALONE
 /*******************************************************************************
  *
  * FUNCTION:    AcpiInstallFixedEventHandler
@@ -942,6 +943,7 @@ AcpiRemoveFixedEventHandler (
 
 ACPI_EXPORT_SYMBOL (AcpiRemoveFixedEventHandler)
 
+#endif /* !_STANDALONE */
 
 /*******************************************************************************
  *
