@@ -430,6 +430,8 @@ pkg-stage: dvd
 	mkdir -p ${.OBJDIR}/dvd/packages/repos/
 	cp ${.CURDIR}/scripts/FreeBSD_install_cdrom.conf \
 		${.OBJDIR}/dvd/packages/repos/
+	echo "./packages/repos type=dir uname=root gname=wheel mode=0755" >> dvd/METALOG
+	echo "./packages/repos/FreeBSD_install_cdrom.conf type=file uname=root gname=wheel mode=0644" >> dvd/METALOG
 .endif
 	touch ${.TARGET}
 
