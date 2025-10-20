@@ -22,7 +22,8 @@ REVISION?=	${_REVISION}
 
 .if ${BRANCH} == CURRENT || ${BRANCH} == STABLE
 SUBURL=		base_latest
-.elif ${BRANCH} == RELEASE
+.elif ${BRANCH} == RELEASE || ${BRANCH:C/[0-9]+$//} == BETA || \
+    ${BRANCH:C/[0-9]+$//} == RC
 SUBURL=		base_release_${REVISION:C/[0-9]+\.//}
 .else
 .warning Invalid branch "${BRANCH}"
