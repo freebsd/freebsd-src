@@ -92,16 +92,7 @@ out:
 	return (error);
 }
 
-static struct linux_ioctl_handler sgx_linux_handler = {
-	sgx_linux_ioctl,
-	SGX_LINUX_IOCTL_MIN,
-	SGX_LINUX_IOCTL_MAX,
-};
-
-SYSINIT(sgx_linux_register, SI_SUB_KLD, SI_ORDER_MIDDLE,
-    linux_ioctl_register_handler, &sgx_linux_handler);
-SYSUNINIT(sgx_linux_unregister, SI_SUB_KLD, SI_ORDER_MIDDLE,
-    linux_ioctl_unregister_handler, &sgx_linux_handler);
+LINUX_IOCTL_SET(sgx, SGX_LINUX_IOCTL_MIN, SGX_LINUX_IOCTL_MAX);
 
 static int
 sgx_linux_modevent(module_t mod, int type, void *data)
