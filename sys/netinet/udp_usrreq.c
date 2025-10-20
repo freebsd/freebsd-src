@@ -787,7 +787,8 @@ udplite_ctlinput(struct icmp *icmp)
 static int
 udp_pcblist(SYSCTL_HANDLER_ARGS)
 {
-	struct inpcb_iterator inpi = INP_ALL_ITERATOR(&V_udbinfo,
+	struct inpcbinfo *pcbinfo = udp_get_inpcbinfo(arg2);
+	struct inpcb_iterator inpi = INP_ALL_ITERATOR(pcbinfo,
 	    INPLOOKUP_RLOCKPCB);
 	struct xinpgen xig;
 	struct inpcb *inp;
@@ -799,7 +800,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	if (req->oldptr == 0) {
 		int n;
 
-		n = V_udbinfo.ipi_count;
+		n = pcbinfo->ipi_count;
 		n += imax(n / 8, 10);
 		req->oldidx = 2 * (sizeof xig) + n * sizeof(struct xinpcb);
 		return (0);
@@ -810,8 +811,8 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 
 	bzero(&xig, sizeof(xig));
 	xig.xig_len = sizeof xig;
-	xig.xig_count = V_udbinfo.ipi_count;
-	xig.xig_gen = V_udbinfo.ipi_gencnt;
+	xig.xig_count = pcbinfo->ipi_count;
+	xig.xig_gen = pcbinfo->ipi_gencnt;
 	xig.xig_sogen = so_gencnt;
 	error = SYSCTL_OUT(req, &xig, sizeof xig);
 	if (error)
@@ -838,9 +839,9 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 		 * that something happened while we were processing this
 		 * request, and it might be necessary to retry.
 		 */
-		xig.xig_gen = V_udbinfo.ipi_gencnt;
+		xig.xig_gen = pcbinfo->ipi_gencnt;
 		xig.xig_sogen = so_gencnt;
-		xig.xig_count = V_udbinfo.ipi_count;
+		xig.xig_count = pcbinfo->ipi_count;
 		error = SYSCTL_OUT(req, &xig, sizeof xig);
 	}
 
@@ -848,7 +849,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_net_inet_udp, UDPCTL_PCBLIST, pcblist,
-    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, IPPROTO_UDP,
     udp_pcblist, "S,xinpcb",
     "List of active UDP sockets");
 
