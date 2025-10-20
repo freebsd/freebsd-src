@@ -398,7 +398,7 @@ EXPORT_SYMBOL(vchi_msg_queuev);
  ***********************************************************/
 int32_t vchi_held_msg_release(VCHI_HELD_MSG_T *message)
 {
-	vchiq_release_message((VCHIQ_SERVICE_HANDLE_T)message->service,
+	vchiq_release_message((VCHIQ_SERVICE_HANDLE_T)(size_t)message->service,
 		(VCHIQ_HEADER_T *)message->message);
 
 	return 0;
@@ -444,7 +444,7 @@ int32_t vchi_msg_hold(VCHI_SERVICE_HANDLE_T handle,
 	*msg_size = header->size;
 
 	message_handle->service =
-		(struct opaque_vchi_service_t *)service->handle;
+		(struct opaque_vchi_service_t *)(unsigned long)service->handle;
 	message_handle->message = header;
 
 	return 0;

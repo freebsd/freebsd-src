@@ -184,12 +184,21 @@ enum {
 #if VCHIQ_ENABLE_DEBUG
 
 #define DEBUG_INITIALISE(local) int *debug_ptr = (local)->debug;
+#if defined(__aarch64__)
+#define DEBUG_TRACE(d) \
+	do { debug_ptr[DEBUG_ ## d] = __LINE__; dsb(sy); } while (0)
+#define DEBUG_VALUE(d, v) \
+	do { debug_ptr[DEBUG_ ## d] = (v); dsb(sy); } while (0)
+#define DEBUG_COUNT(d) \
+	do { debug_ptr[DEBUG_ ## d]++; dsb(sy); } while (0)
+#else
 #define DEBUG_TRACE(d) \
 	do { debug_ptr[DEBUG_ ## d] = __LINE__; dsb(); } while (0)
 #define DEBUG_VALUE(d, v) \
 	do { debug_ptr[DEBUG_ ## d] = (v); dsb(); } while (0)
 #define DEBUG_COUNT(d) \
 	do { debug_ptr[DEBUG_ ## d]++; dsb(); } while (0)
+#endif
 
 #else /* VCHIQ_ENABLE_DEBUG */
 
@@ -265,7 +274,7 @@ typedef struct vchiq_bulk_queue_struct {
 typedef struct remote_event_struct {
 	int armed;
 	int fired;
-	struct semaphore *event;
+	uint32_t event;
 } REMOTE_EVENT_T;
 
 typedef struct opaque_platform_state_t *VCHIQ_PLATFORM_STATE_T;
