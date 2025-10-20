@@ -2909,12 +2909,6 @@ prison_remove(struct prison *pr)
 {
 	sx_assert(&allprison_lock, SA_XLOCKED);
 	mtx_assert(&pr->pr_mtx, MA_OWNED);
-	if (!prison_isalive(pr)) {
-		/* Silently ignore already-dying prisons. */
-		mtx_unlock(&pr->pr_mtx);
-		sx_xunlock(&allprison_lock);
-		return;
-	}
 	prison_deref(pr, PD_KILL | PD_DEREF | PD_LOCKED | PD_LIST_XLOCKED);
 }
 
@@ -3461,12 +3455,17 @@ prison_deref(struct prison *pr, int flags)
 			/* Kill the prison and its descendents. */
 			KASSERT(pr != &prison0,
 			    ("prison_deref trying to kill prison0"));
-			if (!(flags & PD_DEREF)) {
-				prison_hold(pr);
-				flags |= PD_DEREF;
+			if (!prison_isalive(pr)) {
+				/* Silently ignore already-dying prisons. */
+				flags &= ~PD_KILL;
+			} else {
+				if (!(flags & PD_DEREF)) {
+					prison_hold(pr);
+					flags |= PD_DEREF;
+				}
+				flags = prison_lock_xlock(pr, flags);
+				prison_deref_kill(pr, &freeprison);
 			}
-			flags = prison_lock_xlock(pr, flags);
-			prison_deref_kill(pr, &freeprison);
 		}
 		if (flags & PD_DEUREF) {
 			/* Drop a user reference. */
