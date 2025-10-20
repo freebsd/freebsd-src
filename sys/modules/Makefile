@@ -173,6 +173,7 @@ SUBDIR=	\
 	iflib \
 	${_igc} \
 	imgact_binmisc \
+	${_imx} \
 	${_intelspi} \
 	${_io} \
 	${_ioat} \
@@ -719,6 +720,10 @@ _enetc=		enetc
 _felix=		felix
 _rockchip=	rockchip
 .endif
+.endif
+
+.if ${MACHINE_CPUARCH} == "arm"
+_imx=		imx
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm" || \
