@@ -1196,7 +1196,9 @@ calculate_sock_column_widths(struct col_widths *cw, struct sock *s)
 	first = true;
 
 	len = strlen(s->protoname);
-	if (s->vflag & (INP_IPV4 | INP_IPV6))
+	if (s->vflag & INP_IPV4)
+		len += 1;
+	if (s->vflag & INP_IPV6)
 		len += 1;
 	cw->proto = MAX(cw->proto, len);
 
