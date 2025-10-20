@@ -42,7 +42,7 @@ LINUX_IOCTL_SET(tdfx, LINUX_IOCTL_TDFX_MIN, LINUX_IOCTL_TDFX_MAX);
  * Linux emulation IOCTL for /dev/tdfx
  */
 static int
-linux_ioctl_tdfx(struct thread *td, struct linux_ioctl_args* args)
+tdfx_linux_ioctl(struct thread *td, struct linux_ioctl_args* args)
 {
    cap_rights_t rights;
    int error = 0;
