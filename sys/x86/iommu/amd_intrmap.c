@@ -223,9 +223,9 @@ static struct amdiommu_ctx *
 amdiommu_ir_find(device_t src, uint16_t *ridp, bool *is_iommu)
 {
 	devclass_t src_class;
-	device_t requester;
 	struct amdiommu_unit *unit;
 	struct amdiommu_ctx *ctx;
+	struct iommu_ctx *ioctx;
 	uint32_t edte;
 	uint16_t rid;
 	uint8_t dte;
@@ -255,10 +255,9 @@ amdiommu_ir_find(device_t src, uint16_t *ridp, bool *is_iommu)
 		error = amdiommu_find_unit(src, &unit, &rid, &dte, &edte,
 		    bootverbose);
 		if (error == 0) {
-			error = iommu_get_requester(src, &requester, &rid);
-			MPASS(error == 0);
-			ctx = amdiommu_get_ctx_for_dev(unit, src,
-			    rid, 0, false /* XXXKIB */, false, dte, edte);
+			ioctx = iommu_instantiate_ctx(AMD2IOMMU(unit), src, false);
+			if (ioctx != NULL)
+				ctx = IOCTX2CTX(ioctx);
 		}
 	}
 	if (ridp != NULL)
