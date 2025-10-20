@@ -29,9 +29,6 @@
 sctp_init()
 {
 	pft_init
-	if ! kldstat -q -m sctp; then
-		atf_skip "This test requires SCTP"
-	fi
 }
 
 atf_test_case "basic_v4" "cleanup"
@@ -39,6 +36,7 @@ basic_v4_head()
 {
 	atf_set descr 'Basic SCTP connection over IPv4 passthrough'
 	atf_set require.user root
+	atf_set require.kmods sctp
 }
 
 basic_v4_body()
@@ -112,6 +110,7 @@ basic_v6_head()
 {
 	atf_set descr 'Basic SCTP connection over IPv6'
 	atf_set require.user root
+	atf_set require.kmods sctp
 }
 
 basic_v6_body()
@@ -186,6 +185,7 @@ reuse_head()
 {
 	atf_set descr 'Test handling dumb clients that reuse source ports'
 	atf_set require.user root
+	atf_set require.kmods sctp
 }
 
 reuse_body()
@@ -244,6 +244,7 @@ abort_v4_head()
 {
 	atf_set descr 'Test sending ABORT messages'
 	atf_set require.user root
+	atf_set require.kmods sctp
 }
 
 abort_v4_body()
@@ -302,6 +303,7 @@ abort_v6_head()
 {
 	atf_set descr 'Test sending ABORT messages over IPv6'
 	atf_set require.user root
+	atf_set require.kmods sctp
 }
 
 abort_v6_body()
@@ -360,6 +362,7 @@ nat_v4_head()
 {
 	atf_set descr 'Test NAT-ing SCTP over IPv4'
 	atf_set require.user root
+	atf_set require.kmods sctp
 }
 
 nat_v4_body()
@@ -412,6 +415,7 @@ nat_v6_head()
 {
 	atf_set descr 'Test NAT-ing SCTP over IPv6'
 	atf_set require.user root
+	atf_set require.kmods sctp
 }
 
 nat_v6_body()
@@ -464,6 +468,7 @@ rdr_v4_head()
 {
 	atf_set descr 'Test rdr SCTP over IPv4'
 	atf_set require.user root
+	atf_set require.kmods sctp
 }
 
 rdr_v4_body()
@@ -531,6 +536,7 @@ pfsync_head()
 {
 	atf_set descr 'Test pfsync-ing SCTP connections'
 	atf_set require.user root
+	atf_set require.kmods carp sctp
 }
 
 pfsync_body()
@@ -563,10 +569,6 @@ pfsync_body()
 	sctp_init
 	pfsynct_init
 	vnet_init_bridge
-	if ! kldstat -q -m carp
-	then
-		atf_skip "This test requires carp"
-	fi
 
 	j="sctp:pfsync"
 
@@ -722,6 +724,7 @@ timeout_head()
 {
 	atf_set descr 'Test setting and retrieving timeout values'
 	atf_set require.user root
+	atf_set require.kmods sctp
 }
 
 timeout_body()
@@ -753,6 +756,7 @@ related_icmp_head()
 {
 	atf_set descr 'Verify that ICMP messages related to an SCTP connection are allowed'
 	atf_set require.user root
+	atf_set require.kmods sctp
 }
 
 related_icmp_body()
