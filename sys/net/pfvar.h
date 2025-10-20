@@ -2435,6 +2435,7 @@ extern struct pf_ksrc_node	*pf_find_src_node(struct pf_addr *,
 				    struct pf_srchash **, pf_sn_types_t, bool);
 extern void			 pf_unlink_src_node(struct pf_ksrc_node *);
 extern u_int			 pf_free_src_nodes(struct pf_ksrc_node_list *);
+extern void			 pf_free_src_node(struct pf_ksrc_node *);
 extern void			 pf_print_state(struct pf_kstate *);
 extern void			 pf_print_flags(uint16_t);
 extern int			 pf_addr_wrap_neq(struct pf_addr_wrap *,
@@ -2521,6 +2522,9 @@ uint16_t	pf_qname2qid(const char *, bool);
 
 void	pfr_initialize(void);
 void	pfr_cleanup(void);
+struct pfr_kentry *
+	pfr_kentry_byaddr(struct pfr_ktable *, struct pf_addr *, sa_family_t,
+	    int);
 int	pfr_match_addr(struct pfr_ktable *, struct pf_addr *, sa_family_t);
 void	pfr_update_stats(struct pfr_ktable *, struct pf_addr *, sa_family_t,
 	    u_int64_t, int, int, int);
