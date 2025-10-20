@@ -17,4 +17,7 @@ device		awg		# Allwinner EMAC Gigabit Ethernet
 
 device		musb		# Mentor Graphics USB OTG controller
 
+# DTBs
+makeoptions	MODULES_EXTRA+="dtb/allwinner"
+
 files		"../allwinner/files.allwinner"
