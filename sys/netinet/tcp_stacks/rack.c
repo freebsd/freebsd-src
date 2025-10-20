@@ -4730,7 +4730,7 @@ rack_make_timely_judgement(struct tcp_rack *rack, uint32_t rtt, int32_t rtt_diff
 	return (timely_says);
 }
 
-static __inline int
+static inline int
 rack_in_gp_window(struct tcpcb *tp, struct rack_sendmap *rsm)
 {
 	if (SEQ_GEQ(rsm->r_start, tp->gput_seq) &&
@@ -4767,7 +4767,7 @@ rack_in_gp_window(struct tcpcb *tp, struct rack_sendmap *rsm)
 	return (0);
 }
 
-static __inline void
+static inline void
 rack_mark_in_gp_win(struct tcpcb *tp, struct rack_sendmap *rsm)
 {
 
@@ -4784,7 +4784,7 @@ rack_mark_in_gp_win(struct tcpcb *tp, struct rack_sendmap *rsm)
 		rsm->r_flags &= ~RACK_IN_GP_WIN;
 }
 
-static __inline void
+static inline void
 rack_clear_gp_marks(struct tcpcb *tp, struct tcp_rack *rack)
 {
 	/* A GP measurement is ending, clear all marks on the send map*/
@@ -4802,7 +4802,7 @@ rack_clear_gp_marks(struct tcpcb *tp, struct tcp_rack *rack)
 }
 
 
-static __inline void
+static inline void
 rack_tend_gp_marks(struct tcpcb *tp, struct tcp_rack *rack)
 {
 	struct rack_sendmap *rsm = NULL;
@@ -7017,7 +7017,7 @@ rack_setup_offset_for_rsm(struct tcp_rack *rack, struct rack_sendmap *src_rsm, s
 	rsm->orig_t_space = M_TRAILINGROOM(rsm->m);
 }
 
-static __inline void
+static inline void
 rack_clone_rsm(struct tcp_rack *rack, struct rack_sendmap *nrsm,
 	       struct rack_sendmap *rsm, uint32_t start)
 {

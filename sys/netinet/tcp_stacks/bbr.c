@@ -477,7 +477,7 @@ bbr_log_rtt_shrinks(struct tcp_bbr *bbr, uint32_t cts, uint32_t applied,
 		    uint16_t set);
 static struct bbr_sendmap *
 bbr_find_lowest_rsm(struct tcp_bbr *bbr);
-static __inline uint32_t
+static inline uint32_t
 bbr_get_rtt(struct tcp_bbr *bbr, int32_t rtt_type);
 static void
 bbr_log_to_start(struct tcp_bbr *bbr, uint32_t cts, uint32_t to, int32_t pacing_delay,
@@ -1841,7 +1841,7 @@ bbr_counter_destroy(void)
 
 }
 
-static __inline void
+static inline void
 bbr_fill_in_logging_data(struct tcp_bbr *bbr, struct tcp_log_bbr *l, uint32_t cts)
 {
 	memset(l, 0, sizeof(union tcp_log_stackspecific));
@@ -4206,7 +4206,7 @@ bbr_calc_thresh_tlp(struct tcpcb *tp, struct tcp_bbr *bbr,
 /*
  * Return one of three RTTs to use (in microseconds).
  */
-static __inline uint32_t
+static inline uint32_t
 bbr_get_rtt(struct tcp_bbr *bbr, int32_t rtt_type)
 {
 	uint32_t f_rtt;
@@ -4370,7 +4370,7 @@ bbr_timeout_rack(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	return (0);
 }
 
-static __inline void
+static inline void
 bbr_clone_rsm(struct tcp_bbr *bbr, struct bbr_sendmap *nrsm, struct bbr_sendmap *rsm, uint32_t start)
 {
 	int idx;
