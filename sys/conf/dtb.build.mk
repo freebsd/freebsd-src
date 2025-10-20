@@ -15,9 +15,10 @@ SYSDIR=	${S}
 .endif
 
 .for _dts in ${DTS}
-# DTB for aarch64 needs to preserve the immediate parent of the .dts, because
-# these DTS are vendored and should be installed into their vendored directory.
-.if ${MACHINE_CPUARCH} == "aarch64"
+# DTBs for aarch64 and riscv need to preserve the immediate parent of the .dts,
+# because these DTS are vendored and should be installed into their vendored
+# directories.
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "riscv"
 DTB+=	${_dts:R:S/$/.dtb/}
 .else
 DTB+=	${_dts:T:R:S/$/.dtb/}
@@ -54,7 +55,7 @@ _dtbinstall:
 # entries in the NO_ROOT case.
 	test -d ${DESTDIR}${DTBDIR} || ${INSTALL} -d -o ${DTBOWN} -g ${DTBGRP} ${DESTDIR}${DTBDIR}
 .for _dtb in ${DTB}
-.if ${MACHINE_CPUARCH} == "aarch64"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "riscv"
 	# :H:T here to grab the vendor component of the DTB path in a way that
 	# allows out-of-tree DTS builds, too.  We make the assumption that
 	# out-of-tree DTS will have a similar directory structure to in-tree,
