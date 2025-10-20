@@ -386,7 +386,7 @@ static void
 user_service_free(void *userdata)
 {
 	USER_SERVICE_T *user_service = userdata;
-	
+
 	_sema_destroy(&user_service->insert_event);
 	_sema_destroy(&user_service->remove_event);
 
@@ -410,7 +410,7 @@ static void close_delivered(USER_SERVICE_T *user_service)
 
 		/* Wake the user-thread blocked in close_ or remove_service */
 		up(&user_service->close_event);
- 
+
 		user_service->close_pending = 0;
 	}
 }
@@ -749,6 +749,7 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 				(size_t)waiter, current->p_pid);
 			args.userdata = &waiter->bulk_waiter;
 		}
+
 		status = vchiq_bulk_transfer
 			(args.handle,
 			 VCHI_MEM_HANDLE_INVALID,
@@ -1093,7 +1094,7 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 	} break;
 
 	case VCHIQ_IOC_LIB_VERSION: {
-		unsigned int lib_version = (unsigned int)arg;
+		size_t lib_version = (size_t)arg;
 
 		if (lib_version < VCHIQ_VERSION_MIN)
 			ret = -EINVAL;
@@ -1155,18 +1156,14 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 	return ret;
 }
 
-static void
-instance_dtr(void *data)
-{
 
-	kfree(data);
-}
 
 /****************************************************************************
 *
 *   vchiq_open
 *
 ***************************************************************************/
+static void instance_dtr(void *data);
 
 static int
 vchiq_open(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
@@ -1206,7 +1203,7 @@ vchiq_open(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 		INIT_LIST_HEAD(&instance->bulk_waiter_list);
 
 		devfs_set_cdevpriv(instance, instance_dtr);
-	} 
+	}
 	else {
 		vchiq_log_error(vchiq_arm_log_level,
 			"Unknown minor device");
@@ -1222,143 +1219,151 @@ vchiq_open(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 *
 ***************************************************************************/
 
+
 static int
-vchiq_close(struct cdev *dev, int flags __unused, int fmt __unused,
-                struct thread *td)
+_vchiq_close_instance(VCHIQ_INSTANCE_T instance)
 {
 	int ret = 0;
-	if (1) {
-		VCHIQ_INSTANCE_T instance;
-		VCHIQ_STATE_T *state = vchiq_get_state();
-		VCHIQ_SERVICE_T *service;
-		int i;
+	VCHIQ_STATE_T *state = vchiq_get_state();
+	VCHIQ_SERVICE_T *service;
+	int i;
 
-		if ((ret = devfs_get_cdevpriv((void**)&instance))) {
-			printf("devfs_get_cdevpriv failed: error %d\n", ret);
-			return (ret);
-		}
+	vchiq_log_info(vchiq_arm_log_level,
+		"vchiq_release: instance=%lx",
+		(unsigned long)instance);
 
-		vchiq_log_info(vchiq_arm_log_level,
-			"vchiq_release: instance=%lx",
-			(unsigned long)instance);
+	if (!state) {
+		ret = -EPERM;
+		goto out;
+	}
 
-		if (!state) {
-			ret = -EPERM;
-			goto out;
-		}
+	/* Ensure videocore is awake to allow termination. */
+	vchiq_use_internal(instance->state, NULL,
+			USE_TYPE_VCHIQ);
 
-		/* Ensure videocore is awake to allow termination. */
-		vchiq_use_internal(instance->state, NULL,
-				USE_TYPE_VCHIQ);
+	lmutex_lock(&instance->completion_mutex);
 
-		lmutex_lock(&instance->completion_mutex);
+	/* Wake the completion thread and ask it to exit */
+	instance->closing = 1;
+	up(&instance->insert_event);
 
-		/* Wake the completion thread and ask it to exit */
-		instance->closing = 1;
-		up(&instance->insert_event);
+	lmutex_unlock(&instance->completion_mutex);
 
-		lmutex_unlock(&instance->completion_mutex);
+	/* Wake the slot handler if the completion queue is full. */
+	up(&instance->remove_event);
 
-		/* Wake the slot handler if the completion queue is full. */
-		up(&instance->remove_event);
+	/* Mark all services for termination... */
+	i = 0;
+	while ((service = next_service_by_instance(state, instance,
+		&i)) !=	NULL) {
+		USER_SERVICE_T *user_service = service->base.userdata;
 
-		/* Mark all services for termination... */
-		i = 0;
-		while ((service = next_service_by_instance(state, instance,
-			&i)) !=	NULL) {
-			USER_SERVICE_T *user_service = service->base.userdata;
+		/* Wake the slot handler if the msg queue is full. */
+		up(&user_service->remove_event);
 
-			/* Wake the slot handler if the msg queue is full. */
-			up(&user_service->remove_event);
+		vchiq_terminate_service_internal(service);
+		unlock_service(service);
+	}
 
-			vchiq_terminate_service_internal(service);
-			unlock_service(service);
-		}
+	/* ...and wait for them to die */
+	i = 0;
+	while ((service = next_service_by_instance(state, instance, &i))
+		!= NULL) {
+		USER_SERVICE_T *user_service = service->base.userdata;
 
-		/* ...and wait for them to die */
-		i = 0;
-		while ((service = next_service_by_instance(state, instance, &i))
-			!= NULL) {
-			USER_SERVICE_T *user_service = service->base.userdata;
+		down(&service->remove_event);
 
-			down(&service->remove_event);
+		BUG_ON(service->srvstate != VCHIQ_SRVSTATE_FREE);
 
-			BUG_ON(service->srvstate != VCHIQ_SRVSTATE_FREE);
+		spin_lock(&msg_queue_spinlock);
 
-			spin_lock(&msg_queue_spinlock);
-
-			while (user_service->msg_remove !=
-				user_service->msg_insert) {
-				VCHIQ_HEADER_T *header = user_service->
-					msg_queue[user_service->msg_remove &
-						(MSG_QUEUE_SIZE - 1)];
-				user_service->msg_remove++;
-				spin_unlock(&msg_queue_spinlock);
-
-				if (header)
-					vchiq_release_message(
-						service->handle,
-						header);
-				spin_lock(&msg_queue_spinlock);
-			}
-
+		while (user_service->msg_remove !=
+			user_service->msg_insert) {
+			VCHIQ_HEADER_T *header = user_service->
+				msg_queue[user_service->msg_remove &
+					(MSG_QUEUE_SIZE - 1)];
+			user_service->msg_remove++;
 			spin_unlock(&msg_queue_spinlock);
 
+			if (header)
+				vchiq_release_message(
+					service->handle,
+					header);
+			spin_lock(&msg_queue_spinlock);
+		}
+
+		spin_unlock(&msg_queue_spinlock);
+
+		unlock_service(service);
+	}
+
+	/* Release any closed services */
+	while (instance->completion_remove !=
+		instance->completion_insert) {
+		VCHIQ_COMPLETION_DATA_T *completion;
+		VCHIQ_SERVICE_T *service;
+		completion = &instance->completions[
+			instance->completion_remove &
+			(MAX_COMPLETIONS - 1)];
+		service = completion->service_userdata;
+		if (completion->reason == VCHIQ_SERVICE_CLOSED)
+		{
+			USER_SERVICE_T *user_service =
+				service->base.userdata;
+
+			/* Wake any blocked user-thread */
+			if (instance->use_close_delivered)
+				up(&user_service->close_event);
+
 			unlock_service(service);
 		}
-
-		/* Release any closed services */
-		while (instance->completion_remove !=
-			instance->completion_insert) {
-			VCHIQ_COMPLETION_DATA_T *completion;
-			VCHIQ_SERVICE_T *service1;
-			completion = &instance->completions[
-				instance->completion_remove &
-				(MAX_COMPLETIONS - 1)];
-			service1 = completion->service_userdata;
-			if (completion->reason == VCHIQ_SERVICE_CLOSED)
-			{
-				USER_SERVICE_T *user_service =
-					service->base.userdata;
-
-				/* Wake any blocked user-thread */
-				if (instance->use_close_delivered)
-					up(&user_service->close_event);
-				unlock_service(service1);
-			}
-			instance->completion_remove++;
-		}
-
-		/* Release the PEER service count. */
-		vchiq_release_internal(instance->state, NULL);
-
-		{
-			struct list_head *pos, *next;
-			list_for_each_safe(pos, next,
-				&instance->bulk_waiter_list) {
-				struct bulk_waiter_node *waiter;
-				waiter = list_entry(pos,
-					struct bulk_waiter_node,
-					list);
-				list_del(pos);
-				vchiq_log_info(vchiq_arm_log_level,
-					"bulk_waiter - cleaned up %x "
-					"for pid %d",
-					(unsigned int)waiter, waiter->pid);
-		                _sema_destroy(&waiter->bulk_waiter.event);
-				kfree(waiter);
-			}
-		}
-
+		instance->completion_remove++;
 	}
-	else {
-		vchiq_log_error(vchiq_arm_log_level,
-			"Unknown minor device");
-		ret = -ENXIO;
+
+	/* Release the PEER service count. */
+	vchiq_release_internal(instance->state, NULL);
+
+	{
+		struct list_head *pos, *next;
+		list_for_each_safe(pos, next,
+			&instance->bulk_waiter_list) {
+			struct bulk_waiter_node *waiter;
+			waiter = list_entry(pos,
+				struct bulk_waiter_node,
+				list);
+			list_del(pos);
+			vchiq_log_info(vchiq_arm_log_level,
+				"bulk_waiter - cleaned up %zx "
+				"for pid %d",
+				(size_t)waiter, waiter->pid);
+			_sema_destroy(&waiter->bulk_waiter.event);
+			kfree(waiter);
+		}
 	}
 
 out:
 	return ret;
+
+}
+
+static void
+instance_dtr(void *data)
+{
+	VCHIQ_INSTANCE_T instance =  data;
+	_vchiq_close_instance(instance);
+	kfree(data);
+}
+
+static int
+vchiq_close(struct cdev *dev, int flags __unused, int fmt __unused,
+                struct thread *td)
+{
+
+	/* XXXMDC it's privdata that tracks opens */
+	/* XXXMDC only get closes when there are no more open fds on a vnode */
+
+	return(0);
+
 }
 
 /****************************************************************************

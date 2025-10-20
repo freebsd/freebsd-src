@@ -65,8 +65,23 @@ MALLOC_DEFINE(M_VCPAGELIST, "vcpagelist", "VideoCore pagelist memory");
 
 #define MAX_FRAGMENTS (VCHIQ_NUM_CURRENT_BULKS * 2)
 
+/*
+ *  XXXMDC
+ * Do this less ad-hoc-y -- e.g.
+ * https://github.com/raspberrypi/linux/commit/c683db8860a80562a2bb5b451d77b3e471d24f36
+ */
+#if defined(__aarch64__)
+int g_cache_line_size = 64;
+#else
 int g_cache_line_size = 32;
+#endif
 static int g_fragment_size;
+
+unsigned int g_long_bulk_space = 0;
+#define VM_PAGE_TO_VC_BULK_PAGE(x) (\
+	g_long_bulk_space ? VM_PAGE_TO_PHYS(x)\
+		 : PHYS_TO_VCBUS(VM_PAGE_TO_PHYS(x))\
+)
 
 typedef struct vchiq_2835_state_struct {
    int inited;
@@ -112,6 +127,54 @@ vchiq_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
 	addr = (bus_addr_t*)arg;
 	*addr = PHYS_TO_VCBUS(segs[0].ds_addr);
 }
+
+#if defined(__aarch64__) /* See comment in free_pagelist */
+static int
+invalidate_cachelines_in_range_of_ppage(
+	vm_page_t p,
+	size_t offset,
+	size_t count
+)
+{
+	if(offset + count > PAGE_SIZE){ return EINVAL; }
+        uint8_t *dst = (uint8_t*)pmap_quick_enter_page(p);
+        if (!dst){
+                return ENOMEM;
+	}
+	cpu_dcache_inv_range((void *)((vm_offset_t)dst + offset), count);
+	pmap_quick_remove_page((vm_offset_t)dst);
+	return 0;
+}
+
+/* XXXMDC bulk instead of loading and invalidating single pages? */
+static void
+invalidate_cachelines_in_range_of_ppage_seq(vm_page_t *p, size_t start,
+    size_t count)
+{
+	if (start >= PAGE_SIZE)
+		goto invalid_input;
+
+#define _NEXT_AT(x,_m) (((x)+((_m)-1)) & ~((_m)-1))   /* for power of two m */
+	size_t offset = _NEXT_AT(start,g_cache_line_size);
+#undef _NEXT_AT
+	count = (offset < start + count) ? count - (offset - start) : 0;
+	offset = offset & (PAGE_SIZE - 1);
+	for (size_t done = 0; count > done;
+	    p++, done += PAGE_SIZE - offset, offset = 0) {
+		size_t in_page = PAGE_SIZE - offset;
+		size_t todo = (count-done > in_page) ? in_page : count-done;
+		int e = invalidate_cachelines_in_range_of_ppage(*p, offset, todo);
+		if (e != 0)
+			goto problem_in_loop;
+	}
+	return;
+
+problem_in_loop:
+invalid_input:
+	WARN_ON(1);
+	return;
+}
+#endif
 
 static int
 copyout_page(vm_page_t p, size_t offset, void *kaddr, size_t size)
@@ -171,7 +234,7 @@ vchiq_platform_init(VCHIQ_STATE_T *state)
 		goto failed_load;
 	}
 
-	WARN_ON(((int)g_slot_mem & (PAGE_SIZE - 1)) != 0);
+	WARN_ON(((size_t)g_slot_mem & (PAGE_SIZE - 1)) != 0);
 
 	vchiq_slot_zero = vchiq_init_slots(g_slot_mem, g_slot_mem_size);
 	if (!vchiq_slot_zero) {
@@ -391,13 +454,14 @@ pagelist_page_free(vm_page_t pp)
 ** from increased speed as a result.
 */
 
+
 static int
 create_pagelist(char __user *buf, size_t count, unsigned short type,
 	struct proc *p, BULKINFO_T *bi)
 {
 	PAGELIST_T *pagelist;
 	vm_page_t* pages;
-	unsigned long *addrs;
+	uint32_t *addrs;
 	unsigned int num_pages, i;
 	vm_offset_t offset;
 	int pagelist_size;
@@ -434,7 +498,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 
 	err = bus_dmamem_alloc(bi->pagelist_dma_tag, (void **)&pagelist,
 	    BUS_DMA_COHERENT | BUS_DMA_WAITOK, &bi->pagelist_dma_map);
-	if (err) {
+	if (err || !pagelist) {
 		vchiq_log_error(vchiq_core_log_level, "Unable to allocate pagelist memory");
 		err = -ENOMEM;
 		goto failed_alloc;
@@ -447,6 +511,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 	if (err) {
 		vchiq_log_error(vchiq_core_log_level, "cannot load DMA map for pagelist memory");
 		err = -ENOMEM;
+		bi->pagelist = pagelist;
 		goto failed_load;
 	}
 
@@ -463,8 +528,9 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 	if (actual_pages != num_pages) {
 		if (actual_pages > 0)
 			vm_page_unhold_pages(pages, actual_pages);
-		free(pagelist, M_VCPAGELIST);
-		return (-ENOMEM);
+		err = -ENOMEM;
+		bi->pagelist = pagelist;
+		goto failed_hold;
 	}
 
 	pagelist->length = count;
@@ -473,27 +539,28 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 
 	/* Group the pages into runs of contiguous pages */
 
-	base_addr = (void *)PHYS_TO_VCBUS(VM_PAGE_TO_PHYS(pages[0]));
+	size_t run_ceil = g_long_bulk_space ? 0x100 : PAGE_SIZE;
+	unsigned int pg_addr_rshift = g_long_bulk_space ? 4 : 0;
+	base_addr = (void *) VM_PAGE_TO_VC_BULK_PAGE(pages[0]);
 	next_addr = base_addr + PAGE_SIZE;
 	addridx = 0;
 	run = 0;
-
+#define _PG_BLOCK(base,run) \
+		((((size_t) (base)) >> pg_addr_rshift) & ~(run_ceil-1)) + (run)
 	for (i = 1; i < num_pages; i++) {
-		addr = (void *)PHYS_TO_VCBUS(VM_PAGE_TO_PHYS(pages[i]));
-		if ((addr == next_addr) && (run < (PAGE_SIZE - 1))) {
+		addr = (void *)VM_PAGE_TO_VC_BULK_PAGE(pages[i]);
+		if ((addr == next_addr) && (run < run_ceil - 1)) {
 			next_addr += PAGE_SIZE;
 			run++;
 		} else {
-			addrs[addridx] = (unsigned long)base_addr + run;
-			addridx++;
+			addrs[addridx++] = (uint32_t) _PG_BLOCK(base_addr,run);
 			base_addr = addr;
 			next_addr = addr + PAGE_SIZE;
 			run = 0;
 		}
 	}
-
-	addrs[addridx] = (unsigned long)base_addr + run;
-	addridx++;
+	addrs[addridx++] = _PG_BLOCK(base_addr, run);
+#undef _PG_BLOCK
 
 	/* Partial cache lines (fragments) require special measures */
 	if ((type == PAGELIST_READ) &&
@@ -514,20 +581,35 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 		WARN_ON(fragments == NULL);
 		g_free_fragments = *(char **) g_free_fragments;
 		up(&g_free_fragments_mutex);
-		pagelist->type =
-			 PAGELIST_READ_WITH_FRAGMENTS + 
-			 (fragments - g_fragments_base)/g_fragment_size;
+		pagelist->type = PAGELIST_READ_WITH_FRAGMENTS
+		     + (fragments - g_fragments_base)/g_fragment_size;
+#if defined(__aarch64__)
+		 bus_dmamap_sync(bcm_slots_dma_tag, bcm_slots_dma_map,
+		     BUS_DMASYNC_PREREAD);
+#endif
 	}
 
+#if defined(__aarch64__)
+	if(type == PAGELIST_READ) {
+		cpu_dcache_wbinv_range(buf, count);
+	} else {
+		cpu_dcache_wb_range(buf, count);
+	}
+	dsb(sy);
+#else
 	pa = pmap_extract(PCPU_GET(curpmap), (vm_offset_t)buf);
 	dcache_wbinv_poc((vm_offset_t)buf, pa, count);
+#endif
 
-	bus_dmamap_sync(bi->pagelist_dma_tag, bi->pagelist_dma_map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(bi->pagelist_dma_tag, bi->pagelist_dma_map,
+	    BUS_DMASYNC_PREWRITE);
 
 	bi->pagelist = pagelist;
 
 	return 0;
 
+failed_hold:
+	bus_dmamap_unload(bi->pagelist_dma_tag,bi->pagelist_dma_map);
 failed_load:
 	bus_dmamem_free(bi->pagelist_dma_tag, bi->pagelist, bi->pagelist_dma_map);
 failed_alloc:
@@ -555,6 +637,24 @@ free_pagelist(BULKINFO_T *bi, int actual)
 		PAGE_SIZE;
 
 	pages = (vm_page_t*)(pagelist->addrs + num_pages);
+
+#if defined(__aarch64__)
+	/*
+         * On arm64, even if the user keeps their end of the bargain
+	 * -- do NOT touch the buffers sent to VC -- but reads around the
+	 * pagelist after the invalidation above, the arm might preemptively
+	 * load (and validate) cache lines for areas inside the page list,
+	 * so we must invalidate them again.
+	 *
+	 * The functional test does it and without this it doesn't pass.
+	 *
+	 * XXXMDC might it be enough to invalidate a couple of pages at
+	 * the ends of the page list?
+	 */
+	if(pagelist->type >= PAGELIST_READ && actual > 0)
+		invalidate_cachelines_in_range_of_ppage_seq(pages,
+		    pagelist->offset, actual);
+#endif
 
 	/* Deal with any partial cache lines (fragments) */
 	if (pagelist->type >= PAGELIST_READ_WITH_FRAGMENTS) {
@@ -592,12 +692,17 @@ free_pagelist(BULKINFO_T *bi, int actual)
 		up(&g_free_fragments_sema);
 	}
 
-	for (i = 0; i < num_pages; i++) {
-		if (pagelist->type != PAGELIST_WRITE) {
+	if (pagelist->type != PAGELIST_WRITE) {
+		for (i = 0; i < num_pages; i++) {
 			vm_page_dirty(pages[i]);
 			pagelist_page_free(pages[i]);
 		}
 	}
+
+#if defined(__aarch64__)
+	/* XXXMDC necessary? */
+	dsb(sy);
+#endif
 
 	bus_dmamap_unload(bi->pagelist_dma_tag, bi->pagelist_dma_map);
 	bus_dmamem_free(bi->pagelist_dma_tag, bi->pagelist, bi->pagelist_dma_map);

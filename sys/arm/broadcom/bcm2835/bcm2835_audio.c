@@ -113,6 +113,12 @@ struct bcm2835_audio_chinfo {
 	uint64_t retrieved_samples;
 	uint64_t underruns;
 	int starved;
+	struct bcm_log_vars {
+		unsigned int bsize ;
+		int slept_for_lack_of_space ;
+	} log_vars;
+#define DEFAULT_LOG_VALUES \
+	((struct bcm_log_vars) { .bsize = 0 , .slept_for_lack_of_space = 0 })
 };
 
 struct bcm2835_audio_info {
@@ -163,6 +169,10 @@ struct bcm2835_audio_info {
 		if(sc->verbose_trace > 2)			\
 			device_printf((sc)->dev, __VA_ARGS__);	\
 	} while(0)
+
+/* Useful for circular buffer calcs */
+#define MOD_DIFF(front,rear,mod) (((mod) + (front) - (rear)) % (mod))
+
 
 static const char *
 dest_description(uint32_t dest)
@@ -237,10 +247,21 @@ bcm2835_audio_callback(void *param, const VCHI_CALLBACK_REASON_T reason, void *m
 			    m.type);
 		}
 	} else if (m.type == VC_AUDIO_MSG_TYPE_COMPLETE) {
-		struct bcm2835_audio_chinfo *ch = m.u.complete.cookie;
+		unsigned int signaled = 0;
+		struct bcm2835_audio_chinfo *ch ;
+#if defined(__aarch64__)
+		ch = (void *) ((((size_t)m.u.complete.callback) << 32)
+		    | ((size_t)m.u.complete.cookie));
+#else
+		ch = (void *) (m.u.complete.cookie);
+#endif
 
 		int count = m.u.complete.count & 0xffff;
 		int perr = (m.u.complete.count & (1U << 30)) != 0;
+
+		BCM2835_LOG_TRACE(sc, "in:: count:0x%x perr:%d\n",
+		    m.u.complete.count, perr);
+
 		ch->callbacks++;
 		if (perr)
 			ch->underruns++;
@@ -264,13 +285,31 @@ bcm2835_audio_callback(void *param, const VCHI_CALLBACK_REASON_T reason, void *m
 					    (uintmax_t)ch->retrieved_samples,
 					    (uintmax_t)ch->submitted_samples);
 				}
-				ch->available_space += count;
-				ch->retrieved_samples += count;
 			}
-			if (perr || (ch->available_space >= VCHIQ_AUDIO_PACKET_SIZE))
-				cv_signal(&sc->worker_cv);
+			ch->available_space += count;
+			ch->retrieved_samples += count;
+			/*
+			 *  XXXMDC
+			 *  Experimental: if VC says it's empty, believe it
+			 *  Has to come after the usual adjustments
+			 */
+			if(perr){
+				ch->available_space = VCHIQ_AUDIO_BUFFER_SIZE;
+				perr = ch->retrieved_samples; // shd be != 0
+			}
+
+			if ((ch->available_space >= 1*VCHIQ_AUDIO_PACKET_SIZE)){
+					cv_signal(&sc->worker_cv);
+				signaled = 1;
+			}
 		}
 		BCM2835_AUDIO_UNLOCK(sc);
+		if(perr){
+			BCM2835_LOG_WARN(sc,
+			    "VC starved; reported %u for a total of %u\n"
+			    "worker %s\n", count, perr,
+			    (signaled ? "signaled": "not signaled"));
+		}
 	} else
 		BCM2835_LOG_WARN(sc, "%s: unknown m.type: %d\n", __func__,
 		    m.type);
@@ -371,6 +410,7 @@ bcm2835_audio_stop(struct bcm2835_audio_chinfo *ch)
 		m.type = VC_AUDIO_MSG_TYPE_STOP;
 		m.u.stop.draining = 0;
 
+		BCM2835_LOG_INFO(sc,"sending stop\n");
 		ret = vchi_msg_queue(sc->vchi_handle,
 		    &m, sizeof m, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
 
@@ -449,18 +489,25 @@ static bool
 bcm2835_audio_buffer_should_sleep(struct bcm2835_audio_chinfo *ch)
 {
 
+	ch->log_vars.slept_for_lack_of_space = 0;
 	if (ch->playback_state != PLAYBACK_PLAYING)
 		return (true);
 
 	/* Not enough data */
-	if (sndbuf_getready(ch->buffer) < VCHIQ_AUDIO_PACKET_SIZE) {
-		printf("starve\n");
+	/* XXXMDC Take unsubmitted stuff into account */
+	if (sndbuf_getready(ch->buffer)
+			- MOD_DIFF(
+				ch->unsubmittedptr,
+				sndbuf_getreadyptr(ch->buffer),
+				ch->buffer->bufsize
+			) < VCHIQ_AUDIO_PACKET_SIZE) {
 		ch->starved++;
 		return (true);
 	}
 
 	/* Not enough free space */
 	if (ch->available_space < VCHIQ_AUDIO_PACKET_SIZE) {
+		ch->log_vars.slept_for_lack_of_space = 1;
 		return (true);
 	}
 
@@ -481,8 +528,13 @@ bcm2835_audio_write_samples(struct bcm2835_audio_chinfo *ch, void *buf, uint32_t
 	m.type = VC_AUDIO_MSG_TYPE_WRITE;
 	m.u.write.count = count;
 	m.u.write.max_packet = VCHIQ_AUDIO_PACKET_SIZE;
-	m.u.write.callback = NULL;
-	m.u.write.cookie = ch;
+#if defined(__aarch64__)
+	m.u.write.callback = (uint32_t)(((size_t) ch) >> 32) & 0xffffffff;
+	m.u.write.cookie = (uint32_t)(((size_t) ch) & 0xffffffff);
+#else
+	m.u.write.callback = (uint32_t) NULL;
+	m.u.write.cookie = (uint32_t) ch;
+#endif
 	m.u.write.silence = 0;
 
 	ret = vchi_msg_queue(sc->vchi_handle,
@@ -529,6 +581,11 @@ bcm2835_audio_worker(void *data)
 		while ((sc->flags_pending == 0) &&
 		    bcm2835_audio_buffer_should_sleep(ch)) {
 			cv_wait_sig(&sc->worker_cv, &sc->lock);
+			if ((sc->flags_pending == 0) &&
+			    (ch->log_vars.slept_for_lack_of_space)) {
+				BCM2835_LOG_TRACE(sc,
+				    "slept for lack of space\n");
+			}
 		}
 		flags = sc->flags_pending;
 		/* Clear pending flags */
@@ -555,16 +612,25 @@ bcm2835_audio_worker(void *data)
 			BCM2835_AUDIO_LOCK(sc);
 			bcm2835_audio_reset_channel(&sc->pch);
 			ch->playback_state = PLAYBACK_IDLE;
+			long sub_total = ch->submitted_samples;
+			long retd = ch->retrieved_samples;
 			BCM2835_AUDIO_UNLOCK(sc);
+			BCM2835_LOG_INFO(sc,
+			    "stopped audio. submitted a total of %lu "
+			    "having been acked %lu\n", sub_total, retd);
 			continue;
 		}
 
 		/* Requested to start playback */
 		if ((flags & AUDIO_PLAY) &&
 		    (ch->playback_state == PLAYBACK_IDLE)) {
+			BCM2835_LOG_INFO(sc, "starting audio\n");
+			unsigned int bsize = ch->buffer->bufsize;
 			BCM2835_AUDIO_LOCK(sc);
 			ch->playback_state = PLAYBACK_PLAYING;
+			ch->log_vars.bsize = bsize;
 			BCM2835_AUDIO_UNLOCK(sc);
+			BCM2835_LOG_INFO(sc, "buffer size is %u\n", bsize);
 			bcm2835_audio_start(ch);
 		}
 
@@ -574,19 +640,65 @@ bcm2835_audio_worker(void *data)
 		if (sndbuf_getready(ch->buffer) == 0)
 			continue;
 
-		count = sndbuf_getready(ch->buffer);
+		uint32_t i_count;
+
+		/* XXXMDC Take unsubmitted stuff into account */
+		count = i_count = sndbuf_getready(ch->buffer)
+		    - MOD_DIFF(ch->unsubmittedptr,
+		     sndbuf_getreadyptr(ch->buffer),
+		     ch->buffer->bufsize);
 		size = ch->buffer->bufsize;
-		readyptr = sndbuf_getreadyptr(ch->buffer);
+		readyptr = ch->unsubmittedptr;
+
+		int size_changed = 0;
+		unsigned int available;
 
 		BCM2835_AUDIO_LOCK(sc);
-		if (readyptr + count > size)
+		if (size != ch->log_vars.bsize) {
+			ch->log_vars.bsize = size;
+			size_changed = 1;
+		}
+		available = ch->available_space;
+		/*
+		 *  XXXMDC
+		 *
+		 *  On arm64, got into situations where
+		 *  readyptr was less than a packet away
+		 *  from the end of the buffer, which led
+		 *  to count being set to 0 and, inexorably, starvation.
+		 *  Code below tries to take that into account.
+		 *  The problem might have been fixed with some of the
+		 *  other changes that were made in the meantime,
+		 *  but for now this works fine.
+		 */
+		if (readyptr + count > size) {
 			count = size - readyptr;
-		count = min(count, ch->available_space);
-		count -= (count % VCHIQ_AUDIO_PACKET_SIZE);
+		}
+		if(count > ch->available_space){
+			count = ch->available_space;
+			count -= (count % VCHIQ_AUDIO_PACKET_SIZE);
+		}else if (count > VCHIQ_AUDIO_PACKET_SIZE){
+			count -= (count % VCHIQ_AUDIO_PACKET_SIZE);
+		}else if (size > count + readyptr) {
+			count = 0;
+		}
 		BCM2835_AUDIO_UNLOCK(sc);
 
-		if (count < VCHIQ_AUDIO_PACKET_SIZE)
+		if (count % VCHIQ_AUDIO_PACKET_SIZE != 0) {
+			BCM2835_LOG_WARN(sc, "count: %u  initial count: %u  "
+			    "size: %u  readyptr: %u  available: %u\n", count,
+			    i_count,size,readyptr,available);
+		}
+		if (size_changed)
+		    BCM2835_LOG_INFO(sc, "bsize changed to %u\n", size);
+
+		if (count == 0) {
+			BCM2835_LOG_WARN(sc,
+			    "not enough room for a packet: count %d,"
+			    " i_count %d, rptr %d, size %d\n",
+			    count, i_count, readyptr, size);
 			continue;
+		}
 
 		buf = ch->buffer->buf + readyptr;
 
@@ -596,8 +708,16 @@ bcm2835_audio_worker(void *data)
 		    ch->buffer->bufsize;
 		ch->available_space -= count;
 		ch->submitted_samples += count;
+		long sub = count;
+		long sub_total = ch->submitted_samples;
+		long retd = ch->retrieved_samples;
 		KASSERT(ch->available_space >= 0, ("ch->available_space == %d\n", ch->available_space));
 		BCM2835_AUDIO_UNLOCK(sc);
+
+		BCM2835_LOG_TRACE(sc,
+		    "submitted %lu for a total of %lu having been acked %lu; "
+		    "rptr %d, had %u available\n", sub, sub_total, retd,
+		    readyptr, available);
 	}
 
 	BCM2835_AUDIO_LOCK(sc);
@@ -649,6 +769,8 @@ bcmchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 		free(buffer, M_DEVBUF);
 		return NULL;
 	}
+
+	ch->log_vars = DEFAULT_LOG_VALUES;
 
 	BCM2835_AUDIO_LOCK(sc);
 	bcm2835_worker_update_params(sc);

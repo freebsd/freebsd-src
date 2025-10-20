@@ -47,7 +47,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
+/* XXXMDC Is this necessary at all? */
+#if defined(__aarch64__)
+#else
 #include <machine/fdt.h>
+#endif
 
 #include "vchiq_arm.h"
 #include "vchiq_2835.h"
@@ -78,13 +82,31 @@ struct bcm_vchiq_softc {
 
 static struct bcm_vchiq_softc *bcm_vchiq_sc = NULL;
 
-#define	BSD_DTB			1
-#define	UPSTREAM_DTB		2
+
+#define CONFIG_INVALID 0
+#define CONFIG_VALID 1 << 0
+#define BSD_REG_ADDRS 1 << 1
+#define LONG_BULK_SPACE 1 << 2
+
+/*
+ * Also controls the use of the standard VC address offset for bulk data DMA
+ * (normal bulks use that offset; bulks for long address spaces use physical
+ * page addresses)
+ */
+extern unsigned int g_long_bulk_space;
+
+
+/*
+ * XXXMDC
+ * The man page for ofw_bus_is_compatible describes ``features''
+ * as ``can be used''. Here we use understand them as ``must be used''
+ */ 
+
 static struct ofw_compat_data compat_data[] = {
-	{"broadcom,bcm2835-vchiq",	BSD_DTB},
-	{"brcm,bcm2835-vchiq",		UPSTREAM_DTB},
-	{"brcm,bcm2711-vchiq",		UPSTREAM_DTB},
-	{NULL,				0}
+	{"broadcom,bcm2835-vchiq",	BSD_REG_ADDRS | CONFIG_VALID},
+	{"brcm,bcm2835-vchiq",		CONFIG_VALID},
+	{"brcm,bcm2711-vchiq",		LONG_BULK_SPACE | CONFIG_VALID},
+	{NULL,				CONFIG_INVALID}
 };
 
 #define	vchiq_read_4(reg)		\
@@ -119,13 +141,23 @@ bcm_vchiq_intr(void *arg)
 void
 remote_event_signal(REMOTE_EVENT_T *event)
 {
-	event->fired = 1;
 
+	wmb();
+
+	event->fired = 1;
 	/* The test on the next line also ensures the write on the previous line
 		has completed */
+	/* UPDATE: not on arm64, it would seem... */
+#if defined(__aarch64__)
+	dsb(sy);
+#endif
 	if (event->armed) {
 		/* trigger vc interrupt */
+#if defined(__aarch64__)
+		dsb(sy);
+#else
 		dsb();
+#endif
 		vchiq_write_4(0x48, 0);
 	}
 }
@@ -134,12 +166,16 @@ static int
 bcm_vchiq_probe(device_t dev)
 {
 
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+	if ((ofw_bus_search_compatible(dev, compat_data)->ocd_data & CONFIG_VALID) == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "BCM2835 VCHIQ");
 	return (BUS_PROBE_DEFAULT);
 }
+
+/* debug_sysctl */
+extern int vchiq_core_log_level;
+extern int vchiq_arm_log_level;
 
 static int
 bcm_vchiq_attach(device_t dev)
@@ -168,14 +204,36 @@ bcm_vchiq_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == UPSTREAM_DTB)
+	uintptr_t dev_compat_d = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	/* XXXMDC: shouldn't happen (checked for in probe)--but, for symmetry */
+	if ((dev_compat_d & CONFIG_VALID) == 0){
+		device_printf(dev, "attempting to attach using invalid config.\n");
+		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->irq_res);
+		return (EINVAL);
+	}
+	if ((dev_compat_d & BSD_REG_ADDRS) == 0)
 		sc->regs_offset = -0x40;
+	if(dev_compat_d & LONG_BULK_SPACE)
+		g_long_bulk_space = 1;
 
 	node = ofw_bus_get_node(dev);
 	if ((OF_getencprop(node, "cache-line-size", &cell, sizeof(cell))) > 0)
 		g_cache_line_size = cell;
 
 	vchiq_core_initialize();
+	
+	/* debug_sysctl */
+        struct sysctl_ctx_list *ctx_l = device_get_sysctl_ctx(dev);
+        struct sysctl_oid *tree_node = device_get_sysctl_tree(dev);
+        struct sysctl_oid_list *tree = SYSCTL_CHILDREN(tree_node);  
+	SYSCTL_ADD_INT(
+		ctx_l, tree, OID_AUTO, "log", CTLFLAG_RW,
+		&vchiq_core_log_level, vchiq_core_log_level, "log level"
+	);
+	SYSCTL_ADD_INT(
+		ctx_l, tree, OID_AUTO, "arm_log", CTLFLAG_RW,
+		&vchiq_arm_log_level, vchiq_arm_log_level, "arm log level"
+	);
 
 	/* Setup and enable the timer */
 	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,

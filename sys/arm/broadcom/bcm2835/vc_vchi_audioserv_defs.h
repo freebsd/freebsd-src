@@ -112,8 +112,8 @@ typedef struct
 typedef struct
 {
 	uint32_t count; /* in bytes */
-	void *callback;
-	void *cookie;
+	uint32_t callback;
+	uint32_t cookie;
 	uint16_t silence;
 	uint16_t max_packet;
 } VC_AUDIO_WRITE_T;
@@ -129,8 +129,8 @@ typedef struct
 typedef struct
 {
 	int32_t count;  /* Success value */
-	void *callback;
-	void *cookie;
+	uint32_t callback;
+	uint32_t cookie;
 } VC_AUDIO_COMPLETE_T;
 
 /* Message header for all messages in HOST->VC direction */
