@@ -12,6 +12,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20251023:
+	Bump __FreeBSD_version to 1500068 for LinuxKPI.  An embedded struct
+	has changed size and might possibly be an issue otherwise.
+
 20251022:
 	15.0-BETA2-p1 SA-25:09.netinet
 
