@@ -50,7 +50,7 @@ ATF_TEST_CASE_BODY(inet_net_inet4)
 
 	struct test_addr {
 		std::string input;
-		unsigned bits;
+		int bits;
 		std::string output;
 	};
 
@@ -134,7 +134,7 @@ ATF_TEST_CASE_BODY(inet_net_inet6)
 
 	struct test_addr {
 		std::string input;
-		unsigned bits;
+		int bits;
 		std::string output;
 	};
 
