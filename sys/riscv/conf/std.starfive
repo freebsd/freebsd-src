@@ -10,4 +10,7 @@ device		eqos
 device		dwmmc
 device		dwmmc_starfive
 
+# DTBs
+makeoptions	MODULES_EXTRA+="dtb/starfive"
+
 files		"../starfive/files.starfive"
