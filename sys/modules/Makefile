@@ -679,6 +679,7 @@ _irdma=		irdma
 .if !empty(OPT_FDT)
 _allwinner=	allwinner
 _if_cgem=	if_cgem
+_sdhci_fdt=	sdhci_fdt
 .endif
 .endif
 
@@ -720,14 +721,6 @@ _rockchip=	rockchip
 
 .if ${MACHINE_CPUARCH} == "arm"
 _imx=		imx
-.endif
-
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm" || \
-    ${MACHINE_CPUARCH} == "riscv"
-.if !empty(OPT_FDT)
-_sdhci_fdt=	sdhci_fdt
-.endif
-_neta=		neta
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
@@ -924,7 +917,8 @@ _nvram+=	powermac_nvram
 
 .if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "aarch64"
 _bcm283x_clkman=  bcm283x_clkman
-_bcm283x_pwm=  bcm283x_pwm
+_bcm283x_pwm=	bcm283x_pwm
+_neta=		neta
 .endif
 
 .if !(${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 110000)
