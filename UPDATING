@@ -27,6 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20251021:
+	Bump __FreeBSD_version to 1600002 for LinuxKPI.  An embedded struct
+	has changed size and might possibly be an issue otherwise.
+
 20251016:
 	With the migration to OpenZFS in FreeBSD 13.x a number of ZFS sysctls
 	moved to new locations, but backwards compatibility aliases were
