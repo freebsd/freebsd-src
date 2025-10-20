@@ -127,4 +127,125 @@ typedef struct {
 #define VCHIQ_IOC_CLOSE_DELIVERED      _IO(VCHIQ_IOC_MAGIC,   17)
 #define VCHIQ_IOC_MAX                  17
 
+
+/*
+ * COMPAT_FREEBSD32
+ */
+
+typedef struct {
+	unsigned int config_size;
+	/*VCHIQ_CONFIG_T * */ uint32_t pconfig;
+} VCHIQ_GET_CONFIG32_T;
+
+typedef struct {
+	unsigned int handle;
+	/*void * */ uint32_t data;
+	unsigned int size;
+	/*void * */ uint32_t userdata;
+	VCHIQ_BULK_MODE_T mode;
+} VCHIQ_QUEUE_BULK_TRANSFER32_T;
+
+typedef struct {
+	unsigned int handle;
+	unsigned int count;
+	const /*VCHIQ_ELEMENT_T * */ uint32_t elements;
+} VCHIQ_QUEUE_MESSAGE32_T;
+
+typedef struct {
+	unsigned int handle;
+	int blocking;
+	unsigned int bufsize;
+	/*void * */ uint32_t buf;
+} VCHIQ_DEQUEUE_MESSAGE32_T;
+
+typedef struct {
+	/*void * */ uint32_t virt_addr;
+	/*size_t*/  uint32_t num_bytes;
+} VCHIQ_DUMP_MEM32_T;
+
+typedef struct {
+	VCHIQ_REASON_T reason;
+	/* VCHIQ_HEADER_T * */ uint32_t header;
+	/* void * */ uint32_t service_userdata;
+	/* void * */ uint32_t bulk_userdata;
+} VCHIQ_COMPLETION_DATA32_T;
+
+typedef struct {
+	unsigned int count;
+	/* VCHIQ_COMPLETION_DATA32_T * */ uint32_t buf;
+	unsigned int msgbufsize;
+	unsigned int msgbufcount; /* IN/OUT */
+	/* void ** */ uint32_t msgbufs;
+} VCHIQ_AWAIT_COMPLETION32_T;
+
+typedef struct vchiq_service_params32_struct {
+	int fourcc;
+	/* VCHIQ_CALLBACK_T */ uint32_t  callback;
+	/*void * */ uint32_t userdata;
+	short version;       /* Increment for non-trivial changes */
+	short version_min;   /* Update for incompatible changes */
+} VCHIQ_SERVICE_PARAMS32_T;
+
+typedef struct {
+	VCHIQ_SERVICE_PARAMS32_T params;
+	int is_open;
+	int is_vchi;
+	unsigned int handle;       /* OUT */
+} VCHIQ_CREATE_SERVICE32_T;
+
+typedef struct {
+	const /*void */ uint32_t data;
+	unsigned int size;
+} VCHIQ_ELEMENT32_T;
+
+
+#define VCHIQ_IOC_GET_CONFIG32 \
+	_IOC_NEWTYPE( \
+		VCHIQ_IOC_GET_CONFIG, \
+		VCHIQ_GET_CONFIG32_T \
+	)
+
+#define VCHIQ_IOC_QUEUE_BULK_TRANSMIT32 \
+	_IOC_NEWTYPE( \
+		VCHIQ_IOC_QUEUE_BULK_TRANSMIT, \
+		VCHIQ_QUEUE_BULK_TRANSFER32_T \
+	)
+
+#define VCHIQ_IOC_QUEUE_BULK_RECEIVE32 \
+	_IOC_NEWTYPE( \
+		VCHIQ_IOC_QUEUE_BULK_RECEIVE, \
+		VCHIQ_QUEUE_BULK_TRANSFER32_T \
+	)
+
+#define VCHIQ_IOC_QUEUE_MESSAGE32 \
+	_IOC_NEWTYPE( \
+		VCHIQ_IOC_QUEUE_MESSAGE, \
+		VCHIQ_QUEUE_MESSAGE32_T \
+	)
+
+#define VCHIQ_IOC_DEQUEUE_MESSAGE32 \
+	_IOC_NEWTYPE( \
+		VCHIQ_IOC_DEQUEUE_MESSAGE, \
+		VCHIQ_DEQUEUE_MESSAGE32_T \
+	)
+
+#define VCHIQ_IOC_DUMP_PHYS_MEM32 \
+	_IOC_NEWTYPE( \
+		VCHIQ_IOC_DUMP_PHYS_MEM, \
+		VCHIQ_DUMP_MEM32_T \
+	)
+
+#define VCHIQ_IOC_AWAIT_COMPLETION32 \
+	_IOC_NEWTYPE( \
+		VCHIQ_IOC_AWAIT_COMPLETION, \
+		VCHIQ_AWAIT_COMPLETION32_T \
+	)
+
+#define VCHIQ_IOC_CREATE_SERVICE32 \
+	_IOC_NEWTYPE( \
+		VCHIQ_IOC_CREATE_SERVICE, \
+		VCHIQ_CREATE_SERVICE32_T \
+	)
+
+
 #endif
