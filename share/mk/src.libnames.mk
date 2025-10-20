@@ -29,6 +29,7 @@ _PRIVATELIBS=	\
 		heimipcs \
 		kldelf \
 		ldns \
+		opencsd \
 		samplerate \
 		sqlite3 \
 		ssh \
