@@ -295,7 +295,6 @@ iommu_instantiate_ctx(struct iommu_unit *unit, device_t dev, bool rmrr)
 		} else {
 			iommu_free_ctx_locked(unit, ctx);
 		}
-		ctx = NULL;
 	}
 	return (ctx);
 }
@@ -303,6 +302,7 @@ iommu_instantiate_ctx(struct iommu_unit *unit, device_t dev, bool rmrr)
 struct iommu_ctx *
 iommu_get_dev_ctx(device_t dev)
 {
+	struct iommu_ctx *ctx;
 	struct iommu_unit *unit;
 
 	unit = iommu_find(dev, bootverbose);
@@ -313,7 +313,10 @@ iommu_get_dev_ctx(device_t dev)
 		return (NULL);
 
 	iommu_unit_pre_instantiate_ctx(unit);
-	return (iommu_instantiate_ctx(unit, dev, false));
+	ctx = iommu_instantiate_ctx(unit, dev, false);
+	if (ctx != NULL && (ctx->flags & IOMMU_CTX_DISABLED) != 0)
+		ctx = NULL;
+	return (ctx);
 }
 
 bus_dma_tag_t
