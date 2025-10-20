@@ -170,6 +170,7 @@ static const struct {
 	{ HDA_NVIDIA_GF119,  "NVIDIA GF119",	0, 0 },
 	{ HDA_NVIDIA_GF110_1, "NVIDIA GF110",	0, HDAC_QUIRK_MSI },
 	{ HDA_NVIDIA_GF110_2, "NVIDIA GF110",	0, HDAC_QUIRK_MSI },
+	{ HDA_ATI_RAVEN,     "ATI Raven",	0, 0 },
 	{ HDA_ATI_SB450,     "ATI SB450",	0, 0 },
 	{ HDA_ATI_SB600,     "ATI SB600",	0, 0 },
 	{ HDA_ATI_RS600,     "ATI RS600",	0, 0 },
