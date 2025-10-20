@@ -67,15 +67,7 @@
 #define	MRSAS_LINUX_IOCTL_MIN  0x4d00
 #define	MRSAS_LINUX_IOCTL_MAX  0x4d01
 
-static linux_ioctl_function_t mrsas_linux_ioctl;
-static struct linux_ioctl_handler mrsas_linux_handler = {mrsas_linux_ioctl,
-	MRSAS_LINUX_IOCTL_MIN,
-MRSAS_LINUX_IOCTL_MAX};
-
-SYSINIT(mrsas_register, SI_SUB_KLD, SI_ORDER_MIDDLE,
-    linux_ioctl_register_handler, &mrsas_linux_handler);
-SYSUNINIT(mrsas_unregister, SI_SUB_KLD, SI_ORDER_MIDDLE,
-    linux_ioctl_unregister_handler, &mrsas_linux_handler);
+LINUX_IOCTL_SET(mrsas, MRSAS_LINUX_IOCTL_MIN, MRSAS_LINUX_IOCTL_MAX);
 
 static struct linux_device_handler mrsas_device_handler =
 {"mrsas", "megaraid_sas", "mrsas0", "megaraid_sas_ioctl_node", -1, 0, 1};
