@@ -178,20 +178,20 @@ static struct user {
 	daddr_t spc60;
 	daddr_t spc90;
 } *users;
-static int nusers;
+static unsigned int nusers;
 
 static void
 inituser(void)
 {
-	int i;
 	struct user *usr;
+	unsigned int i;
 
 	if (nusers == 0) {
 		nusers = 8;
 		if ((users = calloc(nusers, sizeof(*users))) == NULL)
 			errx(1, "allocate users");
 	} else {
-		for (usr = users, i = nusers; --i >= 0; usr++) {
+		for (usr = users, i = nusers; i-- > 0; usr++) {
 			usr->space = usr->spc30 = usr->spc60 = usr->spc90 = 0;
 			usr->count = 0;
 		}
@@ -201,15 +201,15 @@ inituser(void)
 static void
 usrrehash(void)
 {
-	int i;
 	struct user *usr, *usrn;
 	struct user *svusr;
+	unsigned int i;
 
 	svusr = users;
 	nusers *= 2;
 	if ((users = calloc(nusers, sizeof(*users))) == NULL)
 		errx(1, "allocate users");
-	for (usr = svusr, i = nusers / 2; --i >= 0; usr++) {
+	for (usr = svusr, i = nusers / 2; i-- > 0; usr++) {
 		for (usrn = users + usr->uid % nusers; usrn->name; usrn--) {
 			if (usrn <= users)
 				usrn += nusers;
@@ -223,10 +223,10 @@ user(uid_t uid)
 {
 	struct user *usr;
 	struct passwd *pwd;
-	int i;
+	unsigned int i;
 
 	while (1) {
-		for (usr = users + uid % nusers, i = nusers; --i >= 0; usr--) {
+		for (usr = users + uid % nusers, i = nusers; i-- > 0; usr--) {
 			if (usr->name == NULL) {
 				usr->uid = uid;
 				if (noname || (pwd = getpwuid(uid)) == NULL)
@@ -280,7 +280,7 @@ uses(uid_t uid, daddr_t blks, time_t act)
 		usr->spc30 += blks;
 }
 
-#define	FSZCNT	512
+#define	FSZCNT	512U
 static struct fsizes {
 	struct fsizes *fsz_next;
 	daddr_t fsz_first, fsz_last;
@@ -292,10 +292,10 @@ static void
 initfsizes(void)
 {
 	struct fsizes *fp;
-	int i;
+	unsigned int i;
 
 	for (fp = fsizes; fp; fp = fp->fsz_next) {
-		for (i = FSZCNT; --i >= 0;) {
+		for (i = FSZCNT; i-- > 0;) {
 			fp->fsz_count[i] = 0;
 			fp->fsz_sz[i] = 0;
 		}
@@ -309,13 +309,12 @@ dofsizes(int fd, struct fs *super)
 	union dinode *dp;
 	daddr_t sz, ksz;
 	struct fsizes *fp, **fsp;
-	int i;
+	unsigned int i;
 
 	maxino = super->fs_ncg * super->fs_ipg - 1;
 	for (inode = 0; inode < maxino; inode++) {
 		if ((dp = get_inode(fd, super, inode)) != NULL &&
-		    !isfree(super, dp)
-		    ) {
+		    !isfree(super, dp)) {
 			sz = DIP(super, dp, di_blocks);
 			ksz = SIZE(sz);
 			for (fsp = &fsizes; (fp = *fsp); fsp = &fp->fsz_next) {
@@ -329,7 +328,7 @@ dofsizes(int fd, struct fs *super)
 				*fsp = fp;
 				fp->fsz_first = rounddown(ksz, FSZCNT);
 				fp->fsz_last = fp->fsz_first + FSZCNT;
-				for (i = FSZCNT; --i >= 0;) {
+				for (i = FSZCNT; i-- > 0;) {
 					fp->fsz_count[i] = 0;
 					fp->fsz_sz[i] = 0;
 				}
