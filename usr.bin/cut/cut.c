@@ -448,8 +448,8 @@ f_cut(FILE *fp, const char *fname)
 					break;
 				}
 				if (*pos)
-					for (i = 0; i < (int)clen; i++)
-						putchar(p[i - clen]);
+					(void)fwrite(p - clen, 1, clen,
+					    stdout);
 			}
 			if (ch == '\n')
 				break;
