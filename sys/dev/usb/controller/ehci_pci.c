@@ -88,6 +88,7 @@
 #define	PCI_EHCI_VENDORID_NEC		0x1033
 #define	PCI_EHCI_VENDORID_OPTI		0x1045
 #define	PCI_EHCI_VENDORID_PHILIPS	0x1131
+#define	PCI_EHCI_VENDORID_REALTEK	0x10ec
 #define	PCI_EHCI_VENDORID_SIS		0x1039
 #define	PCI_EHCI_VENDORID_NVIDIA	0x12D2
 #define	PCI_EHCI_VENDORID_NVIDIA2	0x10DE
@@ -217,6 +218,9 @@ ehci_pci_match(device_t self)
 
 	case 0x15621131:
 		return "Philips ISP156x USB 2.0 controller";
+
+	case 0x816d10ec:
+		return ("Realtek RTL811x USB 2.0 controller");
 
 	case 0x70021039:
 		return "SiS 968 USB 2.0 controller";
@@ -401,6 +405,9 @@ ehci_pci_attach(device_t self)
 		break;
 	case PCI_EHCI_VENDORID_PHILIPS:
 		sprintf(sc->sc_vendor, "Philips");
+		break;
+	case PCI_EHCI_VENDORID_REALTEK:
+		sprintf(sc->sc_vendor, "Realtek");
 		break;
 	case PCI_EHCI_VENDORID_SIS:
 		sprintf(sc->sc_vendor, "SiS");
