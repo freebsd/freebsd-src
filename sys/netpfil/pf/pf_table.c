@@ -2071,7 +2071,7 @@ pfr_lookup_table(struct pfr_table *tbl)
 	    (struct pfr_ktable *)tbl));
 }
 
-static struct pfr_kentry *
+struct pfr_kentry *
 pfr_kentry_byaddr(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af,
     int exact)
 {

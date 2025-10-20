@@ -588,6 +588,79 @@ mixed_af_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "check_valid" "cleanup"
+check_valid_head()
+{
+	atf_set descr 'Test if source node is invalidated on change in redirection pool'
+	atf_set require.user root
+	atf_set require.progs python3 scapy
+}
+
+check_valid_body()
+{
+	setup_router_server_nat64
+
+	# Clients will connect from another network behind the router.
+	# This allows for using multiple source addresses.
+	jexec router route add -6 ${net_clients_6}::/${net_clients_6_mask} ${net_tester_6_host_tester}
+
+	jexec server1 ifconfig ${epair_server1}b inet6 ${net_server1_6}::42:1/128 alias
+	jexec server1 ifconfig ${epair_server1}b inet6 ${net_server1_6}::42:2/128 alias
+
+	jexec router pfctl -e
+	pft_set_rules router \
+		"set debug loud " \
+		"set state-policy if-bound" \
+		"table <targets> { ${net_server1_6}::42:1 }" \
+		"pass in on ${epair_tester}b \
+			route-to { (${epair_server1}a <targets>) } \
+			sticky-address \
+			proto tcp \
+			keep state"
+
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
+		--sendif ${epair_tester}a --replyif ${epair_tester}a \
+		--fromaddr ${net_clients_6}::1 --to ${host_server_6} \
+		--ping-type=tcp3way --send-sport=4201
+
+	# A source node is created using the original redirection target
+	nodes=$(mktemp) || exit 1
+	jexec router pfctl -qvvsS | normalize_pfctl_s > $nodes
+	node_regexp='2001:db8:44::1 -> 2001:db8:4201::42:1 .* states 1,.* route sticky-address'
+	grep -qE "${node_regexp}" $nodes || atf_fail "Source node not found for '${node_regexp}'"
+
+	# Change contents of the redirection table
+	echo ${net_server1_6}::42:2 | jexec router pfctl -Tr -t targets -f -
+
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
+		--sendif ${epair_tester}a --replyif ${epair_tester}a \
+		--fromaddr ${net_clients_6}::1 --to ${host_server_6} \
+		--ping-type=tcp3way --send-sport=4202
+
+	# The original source node was deleted, a new one was created.
+	# It has 1 states.
+	jexec router pfctl -qvvsS | normalize_pfctl_s > $nodes
+	node_regexp='2001:db8:44::1 -> 2001:db8:4201::42:2 .* states 1,.* route sticky-address'
+	grep -qE "${node_regexp}" $nodes || atf_fail "Source node not found for '${node_regexp}'"
+
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
+		--sendif ${epair_tester}a --replyif ${epair_tester}a \
+		--fromaddr ${net_clients_6}::1 --to ${host_server_6} \
+		--ping-type=tcp3way --send-sport=4203
+
+	# Without redirection table change the source node is reused.
+	# It has 2 states.
+	jexec router pfctl -qvvsS | normalize_pfctl_s > $nodes
+	node_regexp='2001:db8:44::1 -> 2001:db8:4201::42:2 .* states 2,.* route sticky-address'
+	grep -qE "${node_regexp}" $nodes || atf_fail "Source node not found for '${node_regexp}'"
+}
+
+check_valid_cleanup()
+{
+	pft_cleanup
+}
+
+
 atf_init_test_cases()
 {
 	atf_add_test_case "source_track"
@@ -598,4 +671,5 @@ atf_init_test_cases()
 	atf_add_test_case "sn_types_compat"
 	atf_add_test_case "sn_types_pass"
 	atf_add_test_case "mixed_af"
+	atf_add_test_case "check_valid"
 }
