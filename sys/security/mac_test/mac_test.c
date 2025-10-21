@@ -51,6 +51,7 @@
 
 #include <sys/param.h>
 #include <sys/acl.h>
+#include <sys/jail.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ksem.h>
@@ -99,6 +100,7 @@ static SYSCTL_NODE(_security_mac, OID_AUTO, test,
 #define	MAGIC_PIPE	0xdc6c9919
 #define	MAGIC_POSIX_SEM	0x78ae980c
 #define	MAGIC_POSIX_SHM	0x4e853fc9
+#define	MAGIC_PRISON	0x9639acdb
 #define	MAGIC_PROC	0x3b4be98f
 #define	MAGIC_CRED	0x9a5a4987
 #define	MAGIC_VNODE	0x1a67a45c
@@ -1589,6 +1591,151 @@ test_posixshm_init_label(struct label *label)
 
 	LABEL_INIT(label, MAGIC_POSIX_SHM);
 	COUNTER_INC(posixshm_init_label);
+}
+
+COUNTER_DECL(prison_init_label);
+static int
+test_prison_init_label(struct label *label, int flag)
+{
+
+	if (flag & M_WAITOK)
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+		    "test_prison_init_label() at %s:%d", __FILE__,
+		    __LINE__);
+
+	LABEL_INIT(label, MAGIC_PRISON);
+	COUNTER_INC(prison_init_label);
+	return (0);
+}
+
+COUNTER_DECL(prison_destroy_label);
+static void
+test_prison_destroy_label(struct label *label)
+{
+
+	LABEL_DESTROY(label, MAGIC_PRISON);
+	COUNTER_INC(prison_destroy_label);
+}
+
+COUNTER_DECL(prison_externalize_label);
+static int
+test_prison_externalize_label(struct label *label, char *element_name,
+    struct sbuf *sb, int *claimed)
+{
+
+	LABEL_CHECK(label, MAGIC_PRISON);
+	COUNTER_INC(prison_externalize_label);
+
+	return (0);
+}
+
+COUNTER_DECL(prison_internalize_label);
+static int
+test_prison_internalize_label(struct label *label, char *element_name,
+    char *element_data, int *claimed)
+{
+
+	LABEL_CHECK(label, MAGIC_PRISON);
+	COUNTER_INC(prison_internalize_label);
+
+	return (0);
+}
+
+COUNTER_DECL(prison_relabel);
+static void
+test_prison_relabel(struct ucred *cred, struct prison *pr,
+    struct label *prlabel, struct label *newlabel)
+{
+
+	LABEL_CHECK(prlabel, MAGIC_PRISON);
+	LABEL_CHECK(newlabel, MAGIC_PRISON);
+	COUNTER_INC(prison_relabel);
+}
+
+COUNTER_DECL(prison_check_relabel);
+static int
+test_prison_check_relabel(struct ucred *cred, struct prison *pr,
+    struct label *prlabel, struct label *newlabel)
+{
+
+	LABEL_CHECK(prlabel, MAGIC_PRISON);
+	LABEL_CHECK(newlabel, MAGIC_PRISON);
+	COUNTER_INC(prison_check_relabel);
+	return (0);
+}
+
+COUNTER_DECL(prison_check_attach);
+static int
+test_prison_check_attach(struct ucred *cred, struct prison *pr,
+    struct label *prlabel)
+{
+
+	LABEL_CHECK(prlabel, MAGIC_PRISON);
+	COUNTER_INC(prison_check_attach);
+	return (0);
+}
+
+COUNTER_DECL(prison_check_create);
+static int
+test_prison_check_create(struct ucred *cred, struct vfsoptlist *opts, int flags)
+{
+
+	COUNTER_INC(prison_check_create);
+	return (0);
+}
+
+COUNTER_DECL(prison_check_get);
+static int
+test_prison_check_get(struct ucred *cred, struct prison *pr,
+    struct label *prlabel, struct vfsoptlist *opts, int flags)
+{
+
+	LABEL_CHECK(prlabel, MAGIC_PRISON);
+	COUNTER_INC(prison_check_get);
+	return (0);
+}
+
+COUNTER_DECL(prison_check_set);
+static int
+test_prison_check_set(struct ucred *cred, struct prison *pr,
+    struct label *prlabel, struct vfsoptlist *opts, int flags)
+{
+
+	LABEL_CHECK(prlabel, MAGIC_PRISON);
+	COUNTER_INC(prison_check_set);
+	return (0);
+}
+
+COUNTER_DECL(prison_check_remove);
+static int
+test_prison_check_remove(struct ucred *cred, struct prison *pr,
+    struct label *prlabel)
+{
+
+	LABEL_CHECK(prlabel, MAGIC_PRISON);
+	COUNTER_INC(prison_check_remove);
+	return (0);
+}
+
+COUNTER_DECL(prison_created);
+static void
+test_prison_created(struct ucred *cred, struct prison *pr,
+    struct label *prlabel)
+{
+
+	LABEL_CHECK(prlabel, MAGIC_PRISON);
+	COUNTER_INC(prison_created);
+}
+
+COUNTER_DECL(prison_attached);
+static void
+test_prison_attached(struct ucred *cred, struct prison *pr,
+    struct label *prlabel, struct proc *p, struct label *proclabel)
+{
+
+	LABEL_CHECK(prlabel, MAGIC_PRISON);
+	LABEL_CHECK(proclabel, MAGIC_PROC);
+	COUNTER_INC(prison_attached);
 }
 
 COUNTER_DECL(proc_check_debug);
@@ -3207,6 +3354,20 @@ static struct mac_policy_ops test_ops =
 	.mpo_posixshm_create = test_posixshm_create,
 	.mpo_posixshm_destroy_label = test_posixshm_destroy_label,
 	.mpo_posixshm_init_label = test_posixshm_init_label,
+
+	.mpo_prison_init_label = test_prison_init_label,
+	.mpo_prison_destroy_label = test_prison_destroy_label,
+	.mpo_prison_externalize_label = test_prison_externalize_label,
+	.mpo_prison_internalize_label = test_prison_internalize_label,
+	.mpo_prison_relabel = test_prison_relabel,
+	.mpo_prison_check_relabel = test_prison_check_relabel,
+	.mpo_prison_check_attach = test_prison_check_attach,
+	.mpo_prison_check_create = test_prison_check_create,
+	.mpo_prison_check_get = test_prison_check_get,
+	.mpo_prison_check_set = test_prison_check_set,
+	.mpo_prison_check_remove = test_prison_check_remove,
+	.mpo_prison_created = test_prison_created,
+	.mpo_prison_attached = test_prison_attached,
 
 	.mpo_proc_check_debug = test_proc_check_debug,
 	.mpo_proc_check_sched = test_proc_check_sched,

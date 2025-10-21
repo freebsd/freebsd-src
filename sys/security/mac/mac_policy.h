@@ -101,6 +101,7 @@ struct sysctl_req;
 struct thread;
 struct ucred;
 struct vattr;
+struct vfsoptlist;
 struct vnode;
 
 struct in_addr;
@@ -419,6 +420,23 @@ typedef int	(*mpo_prison_internalize_label_t)(struct label *label,
 		    char *element_name, char *element_data, int *claimed);
 typedef void	(*mpo_prison_relabel_t)(struct ucred *cred, struct prison *pr,
 		    struct label *prlabel, struct label *newlabel);
+typedef int	(*mpo_prison_check_attach_t)(struct ucred *cred,
+		    struct prison *pr, struct label *prlabel);
+typedef int	(*mpo_prison_check_create_t)(struct ucred *cred,
+		    struct vfsoptlist *opts, int flags);
+typedef int	(*mpo_prison_check_get_t)(struct ucred *cred,
+		    struct prison *pr, struct label *prlabel,
+		    struct vfsoptlist *opts, int flags);
+typedef int	(*mpo_prison_check_set_t)(struct ucred *cred,
+		    struct prison *pr, struct label *prlabel,
+		    struct vfsoptlist *opts, int flags);
+typedef int	(*mpo_prison_check_remove_t)(struct ucred *cred,
+		    struct prison *pr, struct label *prlabel);
+typedef void	(*mpo_prison_created_t)(struct ucred *cred,
+		    struct prison *pr, struct label *prlabel);
+typedef void	(*mpo_prison_attached_t)(struct ucred *cred,
+		    struct prison *pr, struct label *prlabel, struct proc *p,
+		    struct label *proclabel);
 
 typedef int	(*mpo_priv_check_t)(struct ucred *cred, int priv);
 typedef int	(*mpo_priv_grant_t)(struct ucred *cred, int priv);
@@ -882,6 +900,13 @@ struct mac_policy_ops {
 	mpo_prison_externalize_label_t		mpo_prison_externalize_label;
 	mpo_prison_internalize_label_t		mpo_prison_internalize_label;
 	mpo_prison_relabel_t			mpo_prison_relabel;
+	mpo_prison_check_attach_t		mpo_prison_check_attach;
+	mpo_prison_check_create_t		mpo_prison_check_create;
+	mpo_prison_check_get_t			mpo_prison_check_get;
+	mpo_prison_check_set_t			mpo_prison_check_set;
+	mpo_prison_check_remove_t		mpo_prison_check_remove;
+	mpo_prison_created_t			mpo_prison_created;
+	mpo_prison_attached_t			mpo_prison_attached;
 
 	mpo_priv_check_t			mpo_priv_check;
 	mpo_priv_grant_t			mpo_priv_grant;
