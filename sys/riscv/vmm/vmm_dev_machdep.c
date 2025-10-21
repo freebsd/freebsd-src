@@ -67,18 +67,13 @@ int
 vmmdev_machdep_ioctl(struct vm *vm, struct vcpu *vcpu, u_long cmd, caddr_t data,
     int fflag, struct thread *td)
 {
-	struct vm_run *vmrun;
-	struct vm_aplic_descr *aplic;
-	struct vm_irq *vi;
-	struct vm_exception *vmexc;
-	struct vm_gla2gpa *gg;
-	struct vm_msi *vmsi;
 	int error;
 
 	error = 0;
 	switch (cmd) {
 	case VM_RUN: {
 		struct vm_exit *vme;
+		struct vm_run *vmrun;
 
 		vmrun = (struct vm_run *)data;
 		vme = vm_exitinfo(vcpu);
@@ -90,34 +85,52 @@ vmmdev_machdep_ioctl(struct vm *vm, struct vcpu *vcpu, u_long cmd, caddr_t data,
 		error = copyout(vme, vmrun->vm_exit, sizeof(*vme));
 		break;
 	}
-	case VM_INJECT_EXCEPTION:
+	case VM_INJECT_EXCEPTION: {
+		struct vm_exception *vmexc;
+
 		vmexc = (struct vm_exception *)data;
 		error = vm_inject_exception(vcpu, vmexc->scause);
 		break;
-	case VM_GLA2GPA_NOFAULT:
+	}
+	case VM_GLA2GPA_NOFAULT: {
+		struct vm_gla2gpa *gg;
+
 		gg = (struct vm_gla2gpa *)data;
 		error = vm_gla2gpa_nofault(vcpu, &gg->paging, gg->gla,
 		    gg->prot, &gg->gpa, &gg->fault);
 		KASSERT(error == 0 || error == EFAULT,
 		    ("%s: vm_gla2gpa unknown error %d", __func__, error));
 		break;
-	case VM_ATTACH_APLIC:
+	}
+	case VM_ATTACH_APLIC: {
+		struct vm_aplic_descr *aplic;
+
 		aplic = (struct vm_aplic_descr *)data;
 		error = vm_attach_aplic(vm, aplic);
 		break;
-	case VM_RAISE_MSI:
+	}
+	case VM_RAISE_MSI: {
+		struct vm_msi *vmsi;
+
 		vmsi = (struct vm_msi *)data;
 		error = vm_raise_msi(vm, vmsi->msg, vmsi->addr, vmsi->bus,
 		    vmsi->slot, vmsi->func);
 		break;
-	case VM_ASSERT_IRQ:
+	}
+	case VM_ASSERT_IRQ: {
+		struct vm_irq *vi;
+
 		vi = (struct vm_irq *)data;
 		error = vm_assert_irq(vm, vi->irq);
 		break;
-	case VM_DEASSERT_IRQ:
+	}
+	case VM_DEASSERT_IRQ: {
+		struct vm_irq *vi;
+
 		vi = (struct vm_irq *)data;
 		error = vm_deassert_irq(vm, vi->irq);
 		break;
+	}
 	default:
 		error = ENOTTY;
 		break;

@@ -176,40 +176,13 @@ int
 vmmdev_machdep_ioctl(struct vm *vm, struct vcpu *vcpu, u_long cmd, caddr_t data,
     int fflag, struct thread *td)
 {
-	struct vm_seg_desc *vmsegdesc;
-	struct vm_run *vmrun;
-#ifdef COMPAT_FREEBSD13
-	struct vm_run_13 *vmrun_13;
-#endif
-	struct vm_exception *vmexc;
-	struct vm_lapic_irq *vmirq;
-	struct vm_lapic_msi *vmmsi;
-	struct vm_ioapic_irq *ioapic_irq;
-	struct vm_isa_irq *isa_irq;
-	struct vm_isa_irq_trigger *isa_irq_trigger;
-	struct vm_pptdev *pptdev;
-	struct vm_pptdev_mmio *pptmmio;
-	struct vm_pptdev_msi *pptmsi;
-	struct vm_pptdev_msix *pptmsix;
-	struct vm_x2apic *x2apic;
-	struct vm_gpa_pte *gpapte;
-	struct vm_gla2gpa *gg;
-	struct vm_intinfo *vmii;
-	struct vm_rtc_time *rtctime;
-	struct vm_rtc_data *rtcdata;
-	struct vm_readwrite_kernemu_device *kernemu;
-#ifdef BHYVE_SNAPSHOT
-	struct vm_snapshot_meta *snapshot_meta;
-#ifdef COMPAT_FREEBSD13
-	struct vm_snapshot_meta_13 *snapshot_13;
-#endif
-#endif
 	int error;
 
 	error = 0;
 	switch (cmd) {
 	case VM_RUN: {
 		struct vm_exit *vme;
+		struct vm_run *vmrun;
 
 		vmrun = (struct vm_run *)data;
 		vme = vm_exitinfo(vcpu);
@@ -247,6 +220,7 @@ vmmdev_machdep_ioctl(struct vm *vm, struct vcpu *vcpu, u_long cmd, caddr_t data,
 	case VM_RUN_13: {
 		struct vm_exit *vme;
 		struct vm_exit_13 *vme_13;
+		struct vm_run_13 *vmrun_13;
 
 		vmrun_13 = (struct vm_run_13 *)data;
 		vme_13 = &vmrun_13->vm_exit;
@@ -285,85 +259,123 @@ vmmdev_machdep_ioctl(struct vm *vm, struct vcpu *vcpu, u_long cmd, caddr_t data,
 		break;
 	}
 #endif
-	case VM_PPTDEV_MSI:
+	case VM_PPTDEV_MSI: {
+		struct vm_pptdev_msi *pptmsi;
+
 		pptmsi = (struct vm_pptdev_msi *)data;
-		error = ppt_setup_msi(vm,
-				      pptmsi->bus, pptmsi->slot, pptmsi->func,
-				      pptmsi->addr, pptmsi->msg,
-				      pptmsi->numvec);
+		error = ppt_setup_msi(vm, pptmsi->bus, pptmsi->slot,
+		    pptmsi->func, pptmsi->addr, pptmsi->msg, pptmsi->numvec);
 		break;
-	case VM_PPTDEV_MSIX:
+	}
+	case VM_PPTDEV_MSIX: {
+		struct vm_pptdev_msix *pptmsix;
+
 		pptmsix = (struct vm_pptdev_msix *)data;
-		error = ppt_setup_msix(vm,
-				       pptmsix->bus, pptmsix->slot,
-				       pptmsix->func, pptmsix->idx,
-				       pptmsix->addr, pptmsix->msg,
-				       pptmsix->vector_control);
+		error = ppt_setup_msix(vm, pptmsix->bus, pptmsix->slot,
+		    pptmsix->func, pptmsix->idx, pptmsix->addr, pptmsix->msg,
+		    pptmsix->vector_control);
 		break;
-	case VM_PPTDEV_DISABLE_MSIX:
+	}
+	case VM_PPTDEV_DISABLE_MSIX: {
+		struct vm_pptdev *pptdev;
+
 		pptdev = (struct vm_pptdev *)data;
 		error = ppt_disable_msix(vm, pptdev->bus, pptdev->slot,
-					 pptdev->func);
+		    pptdev->func);
 		break;
-	case VM_MAP_PPTDEV_MMIO:
+	}
+	case VM_MAP_PPTDEV_MMIO: {
+		struct vm_pptdev_mmio *pptmmio;
+
 		pptmmio = (struct vm_pptdev_mmio *)data;
 		error = ppt_map_mmio(vm, pptmmio->bus, pptmmio->slot,
-				     pptmmio->func, pptmmio->gpa, pptmmio->len,
-				     pptmmio->hpa);
+		    pptmmio->func, pptmmio->gpa, pptmmio->len, pptmmio->hpa);
 		break;
-	case VM_UNMAP_PPTDEV_MMIO:
+	}
+	case VM_UNMAP_PPTDEV_MMIO: {
+		struct vm_pptdev_mmio *pptmmio;
+
 		pptmmio = (struct vm_pptdev_mmio *)data;
 		error = ppt_unmap_mmio(vm, pptmmio->bus, pptmmio->slot,
-				       pptmmio->func, pptmmio->gpa, pptmmio->len);
+		    pptmmio->func, pptmmio->gpa, pptmmio->len);
 		break;
-	case VM_BIND_PPTDEV:
+	}
+	case VM_BIND_PPTDEV: {
+		struct vm_pptdev *pptdev;
+
 		pptdev = (struct vm_pptdev *)data;
 		error = vm_assign_pptdev(vm, pptdev->bus, pptdev->slot,
-					 pptdev->func);
+		    pptdev->func);
 		break;
-	case VM_UNBIND_PPTDEV:
+	}
+	case VM_UNBIND_PPTDEV: {
+		struct vm_pptdev *pptdev;
+
 		pptdev = (struct vm_pptdev *)data;
 		error = vm_unassign_pptdev(vm, pptdev->bus, pptdev->slot,
-					   pptdev->func);
+		    pptdev->func);
 		break;
-	case VM_INJECT_EXCEPTION:
+	}
+	case VM_INJECT_EXCEPTION: {
+		struct vm_exception *vmexc;
+
 		vmexc = (struct vm_exception *)data;
 		error = vm_inject_exception(vcpu,
 		    vmexc->vector, vmexc->error_code_valid, vmexc->error_code,
 		    vmexc->restart_instruction);
 		break;
+	}
 	case VM_INJECT_NMI:
 		error = vm_inject_nmi(vcpu);
 		break;
-	case VM_LAPIC_IRQ:
+	case VM_LAPIC_IRQ: {
+		struct vm_lapic_irq *vmirq;
+
 		vmirq = (struct vm_lapic_irq *)data;
 		error = lapic_intr_edge(vcpu, vmirq->vector);
 		break;
-	case VM_LAPIC_LOCAL_IRQ:
+	}
+	case VM_LAPIC_LOCAL_IRQ: {
+		struct vm_lapic_irq *vmirq;
+
 		vmirq = (struct vm_lapic_irq *)data;
 		error = lapic_set_local_intr(vm, vcpu, vmirq->vector);
 		break;
-	case VM_LAPIC_MSI:
+	}
+	case VM_LAPIC_MSI: {
+		struct vm_lapic_msi *vmmsi;
+
 		vmmsi = (struct vm_lapic_msi *)data;
 		error = lapic_intr_msi(vm, vmmsi->addr, vmmsi->msg);
 		break;
-	case VM_IOAPIC_ASSERT_IRQ:
+	}
+	case VM_IOAPIC_ASSERT_IRQ: {
+		struct vm_ioapic_irq *ioapic_irq;
+
 		ioapic_irq = (struct vm_ioapic_irq *)data;
 		error = vioapic_assert_irq(vm, ioapic_irq->irq);
 		break;
-	case VM_IOAPIC_DEASSERT_IRQ:
+	}
+	case VM_IOAPIC_DEASSERT_IRQ: {
+		struct vm_ioapic_irq *ioapic_irq;
+
 		ioapic_irq = (struct vm_ioapic_irq *)data;
 		error = vioapic_deassert_irq(vm, ioapic_irq->irq);
 		break;
-	case VM_IOAPIC_PULSE_IRQ:
+	}
+	case VM_IOAPIC_PULSE_IRQ: {
+		struct vm_ioapic_irq *ioapic_irq;
+
 		ioapic_irq = (struct vm_ioapic_irq *)data;
 		error = vioapic_pulse_irq(vm, ioapic_irq->irq);
 		break;
+	}
 	case VM_IOAPIC_PINCOUNT:
 		*(int *)data = vioapic_pincount(vm);
 		break;
 	case VM_SET_KERNEMU_DEV:
 	case VM_GET_KERNEMU_DEV: {
+		struct vm_readwrite_kernemu_device *kernemu;
 		mem_region_write_t mwrite;
 		mem_region_read_t mread;
 		int size;
@@ -400,60 +412,86 @@ vmmdev_machdep_ioctl(struct vm *vm, struct vcpu *vcpu, u_long cmd, caddr_t data,
 			error = mread(vcpu, kernemu->gpa,
 			    &kernemu->value, size, &arg);
 		break;
-		}
-	case VM_ISA_ASSERT_IRQ:
+	}
+	case VM_ISA_ASSERT_IRQ: {
+		struct vm_isa_irq *isa_irq;
+
 		isa_irq = (struct vm_isa_irq *)data;
 		error = vatpic_assert_irq(vm, isa_irq->atpic_irq);
 		if (error == 0 && isa_irq->ioapic_irq != -1)
 			error = vioapic_assert_irq(vm, isa_irq->ioapic_irq);
 		break;
-	case VM_ISA_DEASSERT_IRQ:
+	}
+	case VM_ISA_DEASSERT_IRQ: {
+		struct vm_isa_irq *isa_irq;
+
 		isa_irq = (struct vm_isa_irq *)data;
 		error = vatpic_deassert_irq(vm, isa_irq->atpic_irq);
 		if (error == 0 && isa_irq->ioapic_irq != -1)
 			error = vioapic_deassert_irq(vm, isa_irq->ioapic_irq);
 		break;
-	case VM_ISA_PULSE_IRQ:
+	}
+	case VM_ISA_PULSE_IRQ: {
+		struct vm_isa_irq *isa_irq;
+
 		isa_irq = (struct vm_isa_irq *)data;
 		error = vatpic_pulse_irq(vm, isa_irq->atpic_irq);
 		if (error == 0 && isa_irq->ioapic_irq != -1)
 			error = vioapic_pulse_irq(vm, isa_irq->ioapic_irq);
 		break;
-	case VM_ISA_SET_IRQ_TRIGGER:
+	}
+	case VM_ISA_SET_IRQ_TRIGGER: {
+		struct vm_isa_irq_trigger *isa_irq_trigger;
+
 		isa_irq_trigger = (struct vm_isa_irq_trigger *)data;
 		error = vatpic_set_irq_trigger(vm,
 		    isa_irq_trigger->atpic_irq, isa_irq_trigger->trigger);
 		break;
-	case VM_SET_SEGMENT_DESCRIPTOR:
+	}
+	case VM_SET_SEGMENT_DESCRIPTOR: {
+		struct vm_seg_desc *vmsegdesc;
+
 		vmsegdesc = (struct vm_seg_desc *)data;
-		error = vm_set_seg_desc(vcpu,
-					vmsegdesc->regnum,
-					&vmsegdesc->desc);
+		error = vm_set_seg_desc(vcpu, vmsegdesc->regnum,
+		    &vmsegdesc->desc);
 		break;
-	case VM_GET_SEGMENT_DESCRIPTOR:
+	}
+	case VM_GET_SEGMENT_DESCRIPTOR: {
+		struct vm_seg_desc *vmsegdesc;
+
 		vmsegdesc = (struct vm_seg_desc *)data;
-		error = vm_get_seg_desc(vcpu,
-					vmsegdesc->regnum,
-					&vmsegdesc->desc);
+		error = vm_get_seg_desc(vcpu, vmsegdesc->regnum,
+		    &vmsegdesc->desc);
 		break;
-	case VM_SET_X2APIC_STATE:
+	}
+	case VM_SET_X2APIC_STATE: {
+		struct vm_x2apic *x2apic;
+
 		x2apic = (struct vm_x2apic *)data;
 		error = vm_set_x2apic_state(vcpu, x2apic->state);
 		break;
-	case VM_GET_X2APIC_STATE:
+	}
+	case VM_GET_X2APIC_STATE: {
+		struct vm_x2apic *x2apic;
+
 		x2apic = (struct vm_x2apic *)data;
 		error = vm_get_x2apic_state(vcpu, &x2apic->state);
 		break;
-	case VM_GET_GPA_PMAP:
+	}
+	case VM_GET_GPA_PMAP: {
+		struct vm_gpa_pte *gpapte;
+
 		gpapte = (struct vm_gpa_pte *)data;
-		pmap_get_mapping(vmspace_pmap(vm_vmspace(vm)),
-				 gpapte->gpa, gpapte->pte, &gpapte->ptenum);
-		error = 0;
+		pmap_get_mapping(vmspace_pmap(vm_vmspace(vm)), gpapte->gpa,
+		    gpapte->pte, &gpapte->ptenum);
 		break;
+	}
 	case VM_GET_HPET_CAPABILITIES:
 		error = vhpet_getcap((struct vm_hpet_cap *)data);
 		break;
 	case VM_GLA2GPA: {
+		struct vm_gla2gpa *gg;
+
 		CTASSERT(PROT_READ == VM_PROT_READ);
 		CTASSERT(PROT_WRITE == VM_PROT_WRITE);
 		CTASSERT(PROT_EXEC == VM_PROT_EXECUTE);
@@ -464,50 +502,76 @@ vmmdev_machdep_ioctl(struct vm *vm, struct vcpu *vcpu, u_long cmd, caddr_t data,
 		    ("%s: vm_gla2gpa unknown error %d", __func__, error));
 		break;
 	}
-	case VM_GLA2GPA_NOFAULT:
+	case VM_GLA2GPA_NOFAULT: {
+		struct vm_gla2gpa *gg;
+
 		gg = (struct vm_gla2gpa *)data;
 		error = vm_gla2gpa_nofault(vcpu, &gg->paging, gg->gla,
 		    gg->prot, &gg->gpa, &gg->fault);
 		KASSERT(error == 0 || error == EFAULT,
 		    ("%s: vm_gla2gpa unknown error %d", __func__, error));
 		break;
-	case VM_SET_INTINFO:
+	}
+	case VM_SET_INTINFO: {
+		struct vm_intinfo *vmii;
+
 		vmii = (struct vm_intinfo *)data;
 		error = vm_exit_intinfo(vcpu, vmii->info1);
 		break;
-	case VM_GET_INTINFO:
+	}
+	case VM_GET_INTINFO: {
+		struct vm_intinfo *vmii;
+
 		vmii = (struct vm_intinfo *)data;
 		error = vm_get_intinfo(vcpu, &vmii->info1, &vmii->info2);
 		break;
-	case VM_RTC_WRITE:
+	}
+	case VM_RTC_WRITE: {
+		struct vm_rtc_data *rtcdata;
+
 		rtcdata = (struct vm_rtc_data *)data;
 		error = vrtc_nvram_write(vm, rtcdata->offset,
 		    rtcdata->value);
 		break;
-	case VM_RTC_READ:
+	}
+	case VM_RTC_READ: {
+		struct vm_rtc_data *rtcdata;
+
 		rtcdata = (struct vm_rtc_data *)data;
 		error = vrtc_nvram_read(vm, rtcdata->offset,
 		    &rtcdata->value);
 		break;
-	case VM_RTC_SETTIME:
+	}
+	case VM_RTC_SETTIME: {
+		struct vm_rtc_time *rtctime;
+
 		rtctime = (struct vm_rtc_time *)data;
 		error = vrtc_set_time(vm, rtctime->secs);
 		break;
-	case VM_RTC_GETTIME:
-		error = 0;
+	}
+	case VM_RTC_GETTIME: {
+		struct vm_rtc_time *rtctime;
+
 		rtctime = (struct vm_rtc_time *)data;
 		rtctime->secs = vrtc_get_time(vm);
 		break;
+	}
 	case VM_RESTART_INSTRUCTION:
 		error = vm_restart_instruction(vcpu);
 		break;
 #ifdef BHYVE_SNAPSHOT
-	case VM_SNAPSHOT_REQ:
+	case VM_SNAPSHOT_REQ: {
+		struct vm_snapshot_meta *snapshot_meta;
+
 		snapshot_meta = (struct vm_snapshot_meta *)data;
 		error = vm_snapshot_req(vm, snapshot_meta);
 		break;
+	}
 #ifdef COMPAT_FREEBSD13
-	case VM_SNAPSHOT_REQ_13:
+	case VM_SNAPSHOT_REQ_13: {
+		struct vm_snapshot_meta *snapshot_meta;
+		struct vm_snapshot_meta_13 *snapshot_13;
+
 		/*
 		 * The old structure just has an additional pointer at
 		 * the start that is ignored.
@@ -517,6 +581,7 @@ vmmdev_machdep_ioctl(struct vm *vm, struct vcpu *vcpu, u_long cmd, caddr_t data,
 		    (struct vm_snapshot_meta *)&snapshot_13->dev_data;
 		error = vm_snapshot_req(vm, snapshot_meta);
 		break;
+	}
 #endif
 	case VM_RESTORE_TIME:
 		error = vm_restore_time(vm);
