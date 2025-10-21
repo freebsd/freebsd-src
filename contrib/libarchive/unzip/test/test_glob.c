@@ -9,6 +9,7 @@
 /* Test that the glob works */
 DEFINE_TEST(test_glob)
 {
+#ifdef HAVE_LIBZ
 	const char *reffile = "test_basic.zip";
 	int r;
 
@@ -22,4 +23,7 @@ DEFINE_TEST(test_glob)
 	assertTextFileContents("contents b\n", "test_basic/b");
 	assertFileNotExists("test_basic/c");
 	assertFileNotExists("test_basic/CAPS");
+#else
+	skipping("zlib not available");
+#endif
 }

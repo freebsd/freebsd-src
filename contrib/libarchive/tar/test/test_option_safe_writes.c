@@ -16,11 +16,12 @@ DEFINE_TEST(test_option_safe_writes)
 	assertMakeFile("d", 0644, "c");
 	assertMakeFile("fs", 0644, "d");
 	assertMakeFile("ds", 0644, "e");
+	assertMakeDir("fd", 0755);
 	assertEqualInt(0, chdir(".."));
 
 	/* Tar files up */
 	assertEqualInt(0,
-	    systemf("%s -c -C in -f t.tar f fh d fs ds "
+	    systemf("%s -c -C in -f t.tar f fh d fs ds fd "
 	    ">pack.out 2>pack.err", testprog));
 
         /* Verify that nothing went to stdout or stderr. */
@@ -32,6 +33,7 @@ DEFINE_TEST(test_option_safe_writes)
 	assertEqualInt(0, chdir("out"));
 	assertMakeFile("f", 0644, "a");
 	assertMakeHardlink("fh", "f");
+	assertMakeFile("fd", 0644, "b");
 	assertMakeDir("d", 0755);
 	if (canSymlink()) {
 		assertMakeSymlink("fs", "f", 0);
@@ -55,4 +57,5 @@ DEFINE_TEST(test_option_safe_writes)
 	assertTextFileContents("c","d");
 	assertTextFileContents("d","fs");
 	assertTextFileContents("e","ds");
+	assertIsDir("fd", 0755);
 }

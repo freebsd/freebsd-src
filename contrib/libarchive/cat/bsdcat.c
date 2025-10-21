@@ -7,6 +7,9 @@
 
 #include "bsdcat_platform.h"
 
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
 #include <stdio.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -22,7 +25,7 @@
 #include <archive_entry.h>
 
 #include "bsdcat.h"
-#include "err.h"
+#include "lafe_err.h"
 
 #define	BYTES_PER_BLOCK	(20*512)
 
@@ -104,6 +107,16 @@ main(int argc, char **argv)
 
 	bsdcat = &bsdcat_storage;
 	memset(bsdcat, 0, sizeof(*bsdcat));
+
+#if defined(HAVE_SIGACTION) && defined(SIGCHLD)
+	{ /* Do not ignore SIGCHLD. */
+		struct sigaction sa;
+		sa.sa_handler = SIG_DFL;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = 0;
+		sigaction(SIGCHLD, &sa, NULL);
+	}
+#endif
 
 	lafe_setprogname(*argv, "bsdcat");
 
