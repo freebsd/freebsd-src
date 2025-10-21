@@ -14,6 +14,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/sx.h>
@@ -469,6 +470,12 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	}
 	if (ioctl == NULL)
 		return (ENOTTY);
+
+	if ((ioctl->flags & VMMDEV_IOCTL_PRIV_CHECK_DRIVER) != 0) {
+		error = priv_check(td, PRIV_DRIVER);
+		if (error != 0)
+			return (error);
+	}
 
 	if ((ioctl->flags & VMMDEV_IOCTL_XLOCK_MEMSEGS) != 0)
 		vm_xlock_memsegs(sc->vm);
