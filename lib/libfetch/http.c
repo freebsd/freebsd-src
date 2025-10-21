@@ -1022,10 +1022,20 @@ http_parse_range(const char *p, off_t *offset, off_t *length, off_t *size)
 	}
 	if (first > last || *p != '/')
 		return (-1);
-	for (len = 0, ++p; *p && isdigit((unsigned char)*p); ++p)
-		len = len * 10 + *p - '0';
-	if (*p || len < last - first + 1)
-		return (-1);
+	++p;
+	if (*p == '*') {
+		if (first == -1)
+			return (-1);
+		++p;
+		if (*p)
+			return (-1);
+		len = -1;
+	} else {
+		for (len = 0; *p && isdigit((unsigned char)*p); ++p)
+			len = len * 10 + *p - '0';
+		if (*p || len < last - first + 1)
+			return (-1);
+	}
 	if (first == -1) {
 		DEBUGF("content range: [*/%lld]\n", (long long)len);
 		*length = 0;
@@ -1855,8 +1865,17 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 			http_cmd(conn, "User-Agent: %s " _LIBFETCH_VER,
 			    getprogname());
 		}
-		if (url->offset > 0)
-			http_cmd(conn, "Range: bytes=%lld-", (long long)url->offset);
+		if (url->offset < 0) {
+			http_cmd(conn, "Range: bytes=%lld",
+			    (long long)url->offset);
+		} else if (url->length > 0) {
+			http_cmd(conn, "Range: bytes=%lld-%lld",
+			    (long long)url->offset,
+			    (long long)(url->offset + url->length - 1));
+		} else if (url->offset > 0) {
+			http_cmd(conn, "Range: bytes=%lld-",
+			    (long long)url->offset);
+		}
 		http_cmd(conn, "Connection: close");
 		if (req_headers != NULL) {
 			struct http_field *hdr;
@@ -2204,16 +2223,12 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 		http_seterr(HTTP_PROTOCOL_ERROR);
 		goto ouch;
 	}
+	/* fall back to Content-Range if no Content-Length */
 	if (clength == -1)
 		clength = length;
-	if (clength != -1)
-		length = offset + clength;
-	if (length != -1 && size != -1 && length != size) {
-		http_seterr(HTTP_PROTOCOL_ERROR);
-		goto ouch;
-	}
-	if (size == -1)
-		size = length;
+	/* set the size of the resource if known */
+	if (size == -1 && length == -1)
+		size = clength;
 
 	/* fill in stats */
 	if (us) {
@@ -2222,7 +2237,8 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 	}
 
 	/* too far? */
-	if (URL->offset > 0 && offset > URL->offset) {
+	if ((URL->offset > 0 && offset > URL->offset) ||
+	    (length != -1 && URL->offset < 0 && length > -URL->offset)) {
 		http_seterr(HTTP_PROTOCOL_ERROR);
 		goto ouch;
 	}
