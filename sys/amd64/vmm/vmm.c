@@ -870,7 +870,7 @@ vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
 int
 vm_get_register(struct vcpu *vcpu, int reg, uint64_t *retval)
 {
-
+	/* Negative values represent VM control structure fields. */
 	if (reg >= VM_REG_LAST)
 		return (EINVAL);
 
@@ -882,6 +882,7 @@ vm_set_register(struct vcpu *vcpu, int reg, uint64_t val)
 {
 	int error;
 
+	/* Negative values represent VM control structure fields. */
 	if (reg >= VM_REG_LAST)
 		return (EINVAL);
 
