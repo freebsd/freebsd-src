@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2007 Joerg Sonnenberger
- * Copyright (c) 2012 Michihiro NAKAJIMA 
+ * Copyright (c) 2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,7 +76,15 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 {
 	pid_t child = -1;
 	int stdin_pipe[2], stdout_pipe[2], tmp;
+
+#if !defined(POSIX_SPAWN_CLOEXEC_DEFAULT) && \
+    (HAVE_FORK || HAVE_VFORK) && \
+    (HAVE_CLOSEFROM || HAVE_CLOSE_RANGE || defined(_SC_OPEN_MAX))
+#undef HAVE_POSIX_SPAWNP
+#endif
+
 #if HAVE_POSIX_SPAWNP
+	posix_spawnattr_t attr;
 	posix_spawn_file_actions_t actions;
 	int r;
 #endif
@@ -107,11 +115,21 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 
 #if HAVE_POSIX_SPAWNP
 
-	r = posix_spawn_file_actions_init(&actions);
+	r = posix_spawnattr_init(&attr);
 	if (r != 0) {
 		errno = r;
 		goto stdout_opened;
 	}
+	r = posix_spawn_file_actions_init(&actions);
+	if (r != 0) {
+		errno = r;
+		goto attr_inited;
+	}
+#ifdef POSIX_SPAWN_CLOEXEC_DEFAULT
+	r = posix_spawnattr_setflags(&attr, POSIX_SPAWN_CLOEXEC_DEFAULT);
+	if (r != 0)
+		goto actions_inited;
+#endif
 	r = posix_spawn_file_actions_addclose(&actions, stdin_pipe[1]);
 	if (r != 0)
 		goto actions_inited;
@@ -136,11 +154,12 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 		if (r != 0)
 			goto actions_inited;
 	}
-	r = posix_spawnp(&child, cmdline->path, &actions, NULL,
+	r = posix_spawnp(&child, cmdline->path, &actions, &attr,
 		cmdline->argv, NULL);
 	if (r != 0)
 		goto actions_inited;
 	posix_spawn_file_actions_destroy(&actions);
+	posix_spawnattr_destroy(&attr);
 
 #else /* HAVE_POSIX_SPAWNP */
 
@@ -162,6 +181,16 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 			_exit(254);
 		if (stdout_pipe[1] != 1 /* stdout */)
 			close(stdout_pipe[1]);
+
+#if HAVE_CLOSEFROM
+		closefrom(3);
+#elif HAVE_CLOSE_RANGE
+		close_range(3, ~0U, 0);
+#elif defined(_SC_OPEN_MAX)
+		for (int i = sysconf(_SC_OPEN_MAX); i > 3;)
+			close(--i);
+#endif
+
 		execvp(cmdline->path, cmdline->argv);
 		_exit(254);
 	}
@@ -183,6 +212,8 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 actions_inited:
 	errno = r;
 	posix_spawn_file_actions_destroy(&actions);
+attr_inited:
+	posix_spawnattr_destroy(&attr);
 #endif
 stdout_opened:
 	close(stdout_pipe[0]);

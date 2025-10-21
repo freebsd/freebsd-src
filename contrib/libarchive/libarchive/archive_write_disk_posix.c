@@ -2204,7 +2204,7 @@ restore_entry(struct archive_write_disk *a)
 				(void)clear_nochange_fflags(a);
 
 			if ((a->flags & ARCHIVE_EXTRACT_SAFE_WRITES) &&
-			    S_ISREG(a->st.st_mode)) {
+			    S_ISREG(a->mode)) {
 				/* Use a temporary file to extract */
 				if ((a->fd = la_mktemp(a)) == -1) {
 					archive_set_error(&a->archive, errno,
@@ -2559,9 +2559,9 @@ _archive_write_disk_close(struct archive *_a)
 			 * for directories. For other file types
 			 * we need to verify via fstat() or lstat()
 			 */
-			if (fd == -1 || p->filetype != AE_IFDIR) {
+			if (fd < 0 || p->filetype != AE_IFDIR) {
 #if HAVE_FSTAT
-				if (fd > 0 && (
+				if (fd >= 0 && (
 				    fstat(fd, &st) != 0 ||
 				    la_verify_filetype(st.st_mode,
 				    p->filetype) == 0)) {
@@ -3930,10 +3930,14 @@ clear_nochange_fflags(struct archive_write_disk *a)
 #ifdef UF_APPEND
 	    | UF_APPEND
 #endif
-#ifdef EXT2_APPEND_FL
+#if defined(FS_APPEND_FL)
+	    | FS_APPEND_FL
+#elif defined(EXT2_APPEND_FL)
 	    | EXT2_APPEND_FL
 #endif
-#ifdef EXT2_IMMUTABLE_FL
+#if defined(FS_IMMUTABLE_FL)
+	    | FS_IMMUTABLE_FL
+#elif defined(EXT2_IMMUTABLE_FL)
 	    | EXT2_IMMUTABLE_FL
 #endif
 	;
@@ -4437,7 +4441,7 @@ fixup_appledouble(struct archive_write_disk *a, const char *pathname)
 	 */
 	fd = open(pathname, O_RDONLY | O_BINARY | O_CLOEXEC);
 	__archive_ensure_cloexec_flag(fd);
-	if (fd == -1) {
+	if (fd < 0) {
 		archive_set_error(&a->archive, errno,
 		    "Failed to open a restoring file");
 		ret = ARCHIVE_WARN;

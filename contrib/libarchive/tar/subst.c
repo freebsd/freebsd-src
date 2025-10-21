@@ -25,7 +25,7 @@
 #define	REG_BASIC 0
 #endif
 
-#include "err.h"
+#include "lafe_err.h"
 
 struct subst_rule {
 	struct subst_rule *next;
