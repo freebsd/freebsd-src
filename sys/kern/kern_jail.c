@@ -1088,6 +1088,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	else {
 		if (!(flags & (JAIL_USE_DESC | JAIL_AT_DESC | JAIL_GET_DESC |
 		    JAIL_OWN_DESC))) {
+			error = EINVAL;
 			vfs_opterror(opts, "unexpected desc");
 			goto done_errmsg;
 		}
@@ -2518,6 +2519,7 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 	} else if (error == 0) {
 		if (!(flags & (JAIL_USE_DESC | JAIL_AT_DESC | JAIL_GET_DESC |
 		    JAIL_OWN_DESC))) {
+			error = EINVAL;
 			vfs_opterror(opts, "unexpected desc");
 			goto done;
 		}
