@@ -210,7 +210,7 @@ freebsd32_fetch_syscall_args(struct thread *td)
 		sa->code = *ap++;
 		nap--;
 	} else if (sa->code == SYS___syscall) {
-		sa->code = ap[1];
+		sa->code = ap[_QUAD_LOWWORD];
 		nap -= 2;
 		ap += 2;
 	}
