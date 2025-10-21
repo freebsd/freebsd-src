@@ -9,6 +9,7 @@
 /* Test d arg - extract to target dir - before zipfile argument */
 DEFINE_TEST(test_d_before_zipfile)
 {
+#ifdef HAVE_LIBZ
 	const char *reffile = "test_basic.zip";
 	int r;
 
@@ -22,11 +23,15 @@ DEFINE_TEST(test_d_before_zipfile)
 	assertTextFileContents("contents b\n", "foobar/test_basic/b");
 	assertTextFileContents("contents c\n", "foobar/test_basic/c");
 	assertTextFileContents("contents CAPS\n", "foobar/test_basic/CAPS");
+#else
+	skipping("zlib not available");
+#endif
 }
 
 /* Test d arg - extract to target dir - after zipfile argument */
 DEFINE_TEST(test_d_after_zipfile)
 {
+#ifdef HAVE_LIBZ
 	const char *reffile = "test_basic.zip";
 	int r;
 
@@ -40,4 +45,7 @@ DEFINE_TEST(test_d_after_zipfile)
 	assertTextFileContents("contents b\n", "foobar/test_basic/b");
 	assertTextFileContents("contents c\n", "foobar/test_basic/c");
 	assertTextFileContents("contents CAPS\n", "foobar/test_basic/CAPS");
+#else
+	skipping("zlib not available");
+#endif
 }

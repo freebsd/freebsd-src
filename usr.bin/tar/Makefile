@@ -2,6 +2,7 @@
 
 _LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
+PACKAGE=	runtime
 PROG=	bsdtar
 BSDTAR_VERSION_STRING!=	sed -n '/define.*ARCHIVE_VERSION_ONLY_STRING/{s,[^0-9.],,gp;q;}' \
 			${_LIBARCHIVEDIR}/libarchive/archive.h
@@ -16,7 +17,7 @@ SRCS=	bsdtar.c	\
 	write.c
 
 .PATH: ${_LIBARCHIVEDIR}/libarchive_fe
-SRCS+=	err.c		\
+SRCS+=	lafe_err.c	\
 	line_reader.c	\
 	passphrase.c
 

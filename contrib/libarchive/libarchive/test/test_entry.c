@@ -880,6 +880,17 @@ DEFINE_TEST(test_entry)
 	if (pst == NULL)
 		return;
 	assertEqualInt(pst->st_uid, 22);
+
+	/* Check behavior with large sizes. */
+	archive_entry_set_size(e, INT64_MAX - 1);
+	assert((pst = archive_entry_stat(e)) != NULL);
+	if (pst == NULL)
+		return;
+	if (sizeof(pst->st_size) < sizeof(int64_t))
+		assertEqualInt(pst->st_size, 0);
+	else
+		assertEqualInt(pst->st_size, INT64_MAX - 1);
+
 	/* We don't need to check high-res fields here. */
 
 	/*
