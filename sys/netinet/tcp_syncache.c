@@ -1168,7 +1168,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		/*
 		 * If listening socket requested TCP digests, check that
 		 * received ACK has signature and it is correct.
-		 * If not, drop the ACK and leave sc entry in th cache,
+		 * If not, drop the ACK and leave sc entry in the cache,
 		 * because SYN was received with correct signature.
 		 */
 		if (sc->sc_flags & SCF_SIGNATURE) {
