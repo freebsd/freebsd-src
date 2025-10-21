@@ -347,8 +347,11 @@ struct ata_params {
 #define ATA_STATUS_BUSY			0x80
 
 /* ATA Error Register */
+/* COMMAND TIMEOUT		0x01 */
 #define ATA_ERROR_ABORT		0x04
 #define ATA_ERROR_ID_NOT_FOUND	0x10
+/* UNCORRECTABLE ERROR		0x40 */
+/* INTERFACE CRC		0x80 */
 
 /* ATA HPA Features */
 #define ATA_HPA_FEAT_MAX_ADDR	0x00
