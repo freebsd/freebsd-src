@@ -656,10 +656,10 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			error = EINVAL;
 			break;
 		}
-		regvals = malloc(sizeof(regvals[0]) * vmregset->count, M_VMMDEV,
-		    M_WAITOK);
-		regnums = malloc(sizeof(regnums[0]) * vmregset->count, M_VMMDEV,
-		    M_WAITOK);
+		regvals = mallocarray(vmregset->count, sizeof(regvals[0]),
+		    M_VMMDEV, M_WAITOK);
+		regnums = mallocarray(vmregset->count, sizeof(regnums[0]),
+		    M_VMMDEV, M_WAITOK);
 		error = copyin(vmregset->regnums, regnums, sizeof(regnums[0]) *
 		    vmregset->count);
 		if (error == 0)
@@ -682,10 +682,10 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			error = EINVAL;
 			break;
 		}
-		regvals = malloc(sizeof(regvals[0]) * vmregset->count, M_VMMDEV,
-		    M_WAITOK);
-		regnums = malloc(sizeof(regnums[0]) * vmregset->count, M_VMMDEV,
-		    M_WAITOK);
+		regvals = mallocarray(vmregset->count, sizeof(regvals[0]),
+		    M_VMMDEV, M_WAITOK);
+		regnums = mallocarray(vmregset->count, sizeof(regnums[0]),
+		    M_VMMDEV, M_WAITOK);
 		error = copyin(vmregset->regnums, regnums, sizeof(regnums[0]) *
 		    vmregset->count);
 		if (error == 0)
