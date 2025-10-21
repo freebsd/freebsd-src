@@ -2534,7 +2534,7 @@ vxlan_encap4(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
 
 	ifp = sc->vxl_ifp;
 	srcaddr = sc->vxl_src_addr.in4.sin_addr;
-	srcport = vxlan_pick_source_port(sc, m);
+	srcport = htons(vxlan_pick_source_port(sc, m));
 	dstaddr = fvxlsa->in4.sin_addr;
 	dstport = fvxlsa->in4.sin_port;
 
@@ -2645,7 +2645,7 @@ vxlan_encap6(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
 
 	ifp = sc->vxl_ifp;
 	srcaddr = &sc->vxl_src_addr.in6.sin6_addr;
-	srcport = vxlan_pick_source_port(sc, m);
+	srcport = htons(vxlan_pick_source_port(sc, m));
 	dstaddr = &fvxlsa->in6.sin6_addr;
 	dstport = fvxlsa->in6.sin6_port;
 
