@@ -69,7 +69,7 @@ local function errmsg(str, prepend)
 end
 
 local function chmod(path, mode)
-	local mode = tonumber(mode, 8)
+	mode = tonumber(mode, 8)
 	local _, err, msg = sys_stat.chmod(path, mode)
 	if err then
 		errmsg("chmod(" .. path .. ", " .. mode .. ") failed: " .. msg)
@@ -150,8 +150,6 @@ local function splitlines(s)
 end
 
 local function getgroups()
-	local ret = {}
-
 	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
 	local cmd = "pw "
 	if root then
@@ -579,7 +577,7 @@ local function settimezone(timezone)
 		root = "/"
 	end
 
-	f, _, rc = os.execute("tzsetup -s -C " .. root .. " " .. timezone)
+	local f, _, rc = os.execute("tzsetup -s -C " .. root .. " " .. timezone)
 
 	if not f then
 		warnmsg("Impossible to configure time zone ( rc = " .. rc .. " )")
