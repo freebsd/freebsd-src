@@ -60,7 +60,7 @@
 #endif
 
 #include "cpio.h"
-#include "err.h"
+#include "lafe_err.h"
 #include "line_reader.h"
 #include "passphrase.h"
 
@@ -124,13 +124,21 @@ main(int argc, char *argv[])
 	cpio->buff_size = sizeof(buff);
 
 
-#if defined(HAVE_SIGACTION) && defined(SIGPIPE)
-	{ /* Ignore SIGPIPE signals. */
+#if defined(HAVE_SIGACTION)
+	{
 		struct sigaction sa;
 		sigemptyset(&sa.sa_mask);
 		sa.sa_flags = 0;
+#ifdef SIGPIPE
+		/* Ignore SIGPIPE signals. */
 		sa.sa_handler = SIG_IGN;
 		sigaction(SIGPIPE, &sa, NULL);
+#endif
+#ifdef SIGCHLD
+		/* Do not ignore SIGCHLD. */
+		sa.sa_handler = SIG_DFL;
+		sigaction(SIGCHLD, &sa, NULL);
+#endif
 	}
 #endif
 

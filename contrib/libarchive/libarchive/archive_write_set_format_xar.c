@@ -689,7 +689,7 @@ write_to_temp(struct archive_write *a, const void *buff, size_t s)
 		ws = write(xar->temp_fd, p, s);
 		if (ws < 0) {
 			archive_set_error(&(a->archive), errno,
-			    "fwrite function failed");
+			    "write function failed");
 			return (ARCHIVE_FATAL);
 		}
 		s -= ws;
@@ -3418,8 +3418,8 @@ static int
 xml_writer_get_final_content_and_length(struct xml_writer *ctx,
     const char **out, size_t *size)
 {
-	*out = (const char*)ctx->bp->content;
-	*size = (size_t)ctx->bp->use;
+	*out = (const char*)xmlBufferContent(ctx->bp);
+	*size = (size_t)xmlBufferLength(ctx->bp);
 	return (0);
 }
 

@@ -3015,8 +3015,8 @@ init_WinZip_AES_decryption(struct archive_read *a)
 		    p, salt_len, 1000, derived_key, key_len * 2 + 2);
 		if (r != 0) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Decryption is unsupported due to lack of "
-			    "crypto library");
+			    r == CRYPTOR_STUB_FUNCTION ? "Decryption is unsupported due "
+				"to lack of crypto library" : "Failed to process passphrase");
 			return (ARCHIVE_FAILED);
 		}
 

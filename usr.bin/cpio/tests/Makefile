@@ -26,7 +26,7 @@ CFLAGS.test_utils.c+=	-Wno-cast-align
 CPIO_SRCS= cmdline.c
 
 .PATH:	${_LIBARCHIVEDIR}/libarchive_fe
-CPIO_SRCS+= err.c
+CPIO_SRCS+= lafe_err.c
 
 .PATH:	${_LIBARCHIVEDIR}/cpio/test
 TESTS_SRCS=	\

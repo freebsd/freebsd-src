@@ -23,7 +23,7 @@ CFLAGS+=	-I${_LIBARCHIVEDIR}/libarchive_fe -I${_LIBARCHIVEDIR}/test_utils
 CFLAGS.test_utils.c+=	-Wno-cast-align
 
 .PATH:	${_LIBARCHIVEDIR}/libarchive_fe
-UNZIP_SRCS+= err.c
+UNZIP_SRCS+= lafe_err.c
 
 .PATH:	${_LIBARCHIVEDIR}/unzip/test
 TESTS_SRCS=	\

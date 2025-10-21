@@ -330,6 +330,7 @@ __archive_write_program_close(struct archive_write_filter *f,
     struct archive_write_program_data *data)
 {
 	int ret, status;
+	pid_t pid;
 	ssize_t bytes_read;
 
 	if (data->child == 0)
@@ -373,14 +374,12 @@ cleanup:
 		close(data->child_stdin);
 	if (data->child_stdout != -1)
 		close(data->child_stdout);
-	while (waitpid(data->child, &status, 0) == -1 && errno == EINTR)
-		continue;
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	CloseHandle(data->child);
-#endif
+	do {
+		pid = waitpid(data->child, &status, 0);
+	} while (pid == -1 && errno == EINTR);
 	data->child = 0;
 
-	if (status != 0) {
+	if (pid < 0 || status != 0) {
 		archive_set_error(f->archive, EIO,
 		    "Error closing program: %s", data->program_name);
 		ret = ARCHIVE_FATAL;

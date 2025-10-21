@@ -166,9 +166,15 @@ DEFINE_TEST(test_write_filter_gzip)
 	assertEqualInt(rbuff[0], 0x1f);
 	assertEqualInt(rbuff[1], 0x8b);
 	assertEqualInt(rbuff[2], 0x08);
-	assertEqualInt(rbuff[3], 0x08);
-	assertEqualInt(rbuff[8], 2); /* RFC 1952 flag for compression level 9 */
-	assertEqualString((const char*)rbuff+10, "testorgfilename");
+	/* RFC 1952 flag for compression level 9 */
+	assertEqualInt(rbuff[8], 2);
+	/* External gzip program might not save filename */
+	if (!use_prog || rbuff[3] == 0x08) {
+		assertEqualInt(rbuff[3], 0x08);
+		assertEqualString((const char*)rbuff+10, "testorgfilename");
+	} else {
+		assertEqualInt(rbuff[3], 0x00);
+	}
 
 	/* Curiously, this test fails; the test data above compresses
 	 * better at default compression than at level 9. */

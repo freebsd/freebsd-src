@@ -686,7 +686,7 @@ write_to_temp(struct archive_write *a, const void *buff, size_t s)
 		ws = write(zip->temp_fd, p, s);
 		if (ws < 0) {
 			archive_set_error(&(a->archive), errno,
-			    "fwrite function failed");
+			    "write function failed");
 			return (ARCHIVE_FATAL);
 		}
 		s -= ws;

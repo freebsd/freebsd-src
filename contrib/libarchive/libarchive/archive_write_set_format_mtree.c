@@ -1927,7 +1927,7 @@ mtree_entry_setup_filenames(struct archive_write *a, struct mtree_entry *file,
 	}
 
 	/*
-	 * Find out the position which points the last position of
+	 * Find out the position which points to the last position of
 	 * path separator('/').
 	 */
 	slash = NULL;
@@ -2024,7 +2024,7 @@ mtree_entry_add_child_tail(struct mtree_entry *parent,
 }
 
 /*
- * Find a entry from a parent entry with the name.
+ * Find an entry from a parent entry with given name.
  */
 static struct mtree_entry *
 mtree_entry_find_child(struct mtree_entry *parent, const char *child_name)
@@ -2148,10 +2148,10 @@ mtree_entry_tree_add(struct archive_write *a, struct mtree_entry **filep)
 
 		/* Find next sub directory. */
 		if (!np->dir_info) {
-			/* NOT Directory! */
+			/* NOT a directory! */
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_MISC,
-			    "`%s' is not directory, we cannot insert `%s' ",
+			    "`%s' is not a directory, we cannot insert `%s' ",
 			    np->pathname.s, file->pathname.s);
 			return (ARCHIVE_FAILED);
 		}
@@ -2243,10 +2243,7 @@ mtree_entry_tree_add(struct archive_write *a, struct mtree_entry **filep)
 	}
 
 same_entry:
-	/*
-	 * We have already has the entry the filename of which is
-	 * the same.
-	 */
+	/* We already have an entry with same filename. */
 	r = mtree_entry_exchange_same_entry(a, np, file);
 	if (r < ARCHIVE_WARN)
 		return (r);
@@ -2264,13 +2261,13 @@ mtree_entry_exchange_same_entry(struct archive_write *a, struct mtree_entry *np,
 
 	if ((np->mode & AE_IFMT) != (file->mode & AE_IFMT)) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Found duplicate entries `%s' and its file type is "
-		    "different",
+		    "Found duplicate entries for `%s' with "
+		    "differing file types.",
 		    np->pathname.s);
 		return (ARCHIVE_FAILED);
 	}
 
-	/* Update the existent mtree entry's attributes by the new one's. */
+	/* Update the existing mtree entry's attributes by the new one's. */
 	archive_string_empty(&np->symlink);
 	archive_string_concat(&np->symlink, &file->symlink);
 	archive_string_empty(&np->uname);

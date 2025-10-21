@@ -27,6 +27,7 @@ TESTS_SRCS=	\
 	test_0.c				\
 	test_basic.c				\
 	test_copy.c				\
+	test_crlf_mtree.c			\
 	test_empty_mtree.c			\
 	test_extract_tar_bz2.c			\
 	test_extract_tar_grz.c			\

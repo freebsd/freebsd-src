@@ -81,8 +81,11 @@ DEFINE_TEST(test_write_filter_gzip_timestamp)
 	archive_entry_free(ae);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
-	failure("Timestamp should be recorded");
-	assert(memcmp(buff + 4, "\x00\x00\x00\x00", 4) != 0);
+	/* External gzip program might not save timestamp */
+	if (!use_prog) {
+		failure("Timestamp should be recorded");
+		assert(memcmp(buff + 4, "\x00\x00\x00\x00", 4) != 0);
+	}
 
 	/* Test2: set "gzip:!timestamp" option. */
 	assert((a = archive_write_new()) != NULL);

@@ -405,7 +405,7 @@ _warc_read(struct archive_read *a, const void **buf, size_t *bsz, int64_t *off)
 		/* it's our lucky day, no work, we can leave early */
 		*buf = NULL;
 		*bsz = 0U;
-		*off = w->cntoff + 4U/*for \r\n\r\n separator*/;
+		*off = w->cntoff;
 		w->unconsumed = 0U;
 		return (ARCHIVE_EOF);
 	}

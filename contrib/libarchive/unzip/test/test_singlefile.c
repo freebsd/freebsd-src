@@ -9,6 +9,7 @@
 /* Ensure single-file zips work */
 DEFINE_TEST(test_singlefile)
 {
+#ifdef HAVE_LIBZ
 	const char *reffile = "test_singlefile.zip";
 	int r;
 
@@ -19,4 +20,7 @@ DEFINE_TEST(test_singlefile)
 	assertEmptyFile("test.err");
 
 	assertTextFileContents("hello\n", "file.txt");
+#else
+	skipping("zlib not available");
+#endif
 }

@@ -16,6 +16,12 @@
 #define ENV_WRITER_OPTIONS	"TAR_WRITER_OPTIONS"
 #define IGNORE_WRONG_MODULE_NAME "__ignore_wrong_module_name__,"
 
+#if defined(_MSC_VER ) && (_MSC_VER < 1927 )	/* Check if compiler pre-dated Visual Studio 2019 Release 16.8 */
+#define ARCHIVE_RESTRICT
+#else
+#define ARCHIVE_RESTRICT restrict
+#endif
+
 struct creation_set;
 /*
  * The internal state for the "bsdtar" program.
@@ -188,7 +194,7 @@ int	edit_pathname(struct bsdtar *, struct archive_entry *);
 void	edit_mtime(struct bsdtar *, struct archive_entry *);
 int	need_report(void);
 int	pathcmp(const char *a, const char *b);
-void	safe_fprintf(FILE * restrict, const char * restrict fmt, ...) __LA_PRINTF(2, 3);
+void	safe_fprintf(FILE * ARCHIVE_RESTRICT, const char * ARCHIVE_RESTRICT fmt, ...) __LA_PRINTF(2, 3);
 void	set_chdir(struct bsdtar *, const char *newdir);
 const char *tar_i64toa(int64_t);
 void	tar_mode_c(struct bsdtar *bsdtar);

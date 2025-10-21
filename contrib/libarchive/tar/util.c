@@ -41,7 +41,7 @@
 #endif
 
 #include "bsdtar.h"
-#include "err.h"
+#include "lafe_err.h"
 #include "passphrase.h"
 
 static size_t	bsdtar_expand_char(char *, size_t, size_t, char);
@@ -682,6 +682,7 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 {
 	char			 tmp[100];
 	size_t			 w;
+	size_t			 sw;
 	const char		*p;
 	const char		*fmt;
 	time_t			 tim;
@@ -769,8 +770,8 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	ltime = localtime(&tim);
 #endif
 	if (ltime)
-		strftime(tmp, sizeof(tmp), fmt, ltime);
-	else
+		sw = strftime(tmp, sizeof(tmp), fmt, ltime);
+	if (!ltime || !sw)
 		sprintf(tmp, "-- -- ----");
 	fprintf(out, " %s ", tmp);
 	safe_fprintf(out, "%s", archive_entry_pathname(entry));

@@ -48,6 +48,7 @@
 #endif
 
 #include "archive.h"
+#include "archive_platform_stat.h"
 
 struct read_fd_data {
 	int	 fd;
@@ -65,12 +66,12 @@ static int64_t	file_skip(struct archive *, void *, int64_t request);
 int
 archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 {
-	struct stat st;
+	la_seek_stat_t st;
 	struct read_fd_data *mine;
 	void *b;
 
 	archive_clear_error(a);
-	if (fstat(fd, &st) != 0) {
+	if (la_seek_fstat(fd, &st) != 0) {
 		archive_set_error(a, errno, "Can't stat fd %d", fd);
 		return (ARCHIVE_FATAL);
 	}
@@ -133,7 +134,7 @@ static int64_t
 file_skip(struct archive *a, void *client_data, int64_t request)
 {
 	struct read_fd_data *mine = (struct read_fd_data *)client_data;
-	off_t skip = (off_t)request;
+	la_seek_t skip = (la_seek_t)request;
 	int64_t old_offset, new_offset;
 	int skip_bits = sizeof(skip) * 8 - 1;  /* off_t is a signed type. */
 
@@ -149,7 +150,8 @@ file_skip(struct archive *a, void *client_data, int64_t request)
 	}
 
 	/* Reduce 'skip' to the next smallest multiple of block_size */
-	skip = (off_t)(((int64_t)skip / mine->block_size) * mine->block_size);
+	skip = (la_seek_t)(((int64_t)skip / mine->block_size) * mine->block_size);
+
 	if (skip == 0)
 		return (0);
 
@@ -185,27 +187,28 @@ static int64_t
 file_seek(struct archive *a, void *client_data, int64_t request, int whence)
 {
 	struct read_fd_data *mine = (struct read_fd_data *)client_data;
-	off_t seek = (off_t)request;
+	la_seek_t seek = (la_seek_t)request;
 	int64_t r;
 	int seek_bits = sizeof(seek) * 8 - 1;  /* off_t is a signed type. */
 
 	/* We use off_t here because lseek() is declared that way. */
 
-	/* Reduce a request that would overflow the 'seek' variable. */
+	/* Do not perform a seek which cannot be fulfilled. */
 	if (sizeof(request) > sizeof(seek)) {
 		const int64_t max_seek =
 		    (((int64_t)1 << (seek_bits - 1)) - 1) * 2 + 1;
 		const int64_t min_seek = ~max_seek;
-		if (request > max_seek)
-			seek = (off_t)max_seek;
-		else if (request < min_seek)
-			seek = (off_t)min_seek;
+		if (request < min_seek || request > max_seek) {
+			errno = EOVERFLOW;
+			goto err;
+		}
 	}
 
 	r = lseek(mine->fd, seek, whence);
 	if (r >= 0)
 		return r;
 
+err:
 	if (errno == ESPIPE) {
 		archive_set_error(a, errno,
 		    "A file descriptor(%d) is not seekable(PIPE)", mine->fd);

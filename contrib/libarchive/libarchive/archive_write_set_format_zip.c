@@ -1856,7 +1856,10 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			}
 			ret = __archive_write_output(a, zip->buf, remainder);
 			if (ret != ARCHIVE_OK)
+			{
+				deflateEnd(&zip->stream.deflate);
 				return (ret);
+			}
 			zip->entry_compressed_written += remainder;
 			zip->written_bytes += remainder;
 			zip->stream.deflate.next_out = zip->buf;
@@ -1898,7 +1901,10 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			}
 			ret = __archive_write_output(a, zip->buf, remainder);
 			if (ret != ARCHIVE_OK)
+			{
+				BZ2_bzCompressEnd(&zip->stream.bzip2);
 				return (ret);
+			}
 			zip->entry_compressed_written += remainder;
 			zip->written_bytes += remainder;
 			zip->stream.bzip2.next_out = (char*)zip->buf;
@@ -1940,13 +1946,17 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			}
 			ret = __archive_write_output(a, zip->buf, remainder);
 			if (ret != ARCHIVE_OK)
+			{
+				ZSTD_freeCStream(zip->stream.zstd.context);
 				return (ret);
+			}
 			zip->entry_compressed_written += remainder;
 			zip->written_bytes += remainder;
-			zip->stream.zstd.out.dst = zip->buf;
 			if (zip->stream.zstd.out.pos != zip->stream.zstd.out.size)
 				finishing = 0;
+			zip->stream.zstd.out.dst = zip->buf;
 			zip->stream.zstd.out.size = zip->len_buf;
+			zip->stream.zstd.out.pos = 0;
 		} while (finishing);
 		ZSTD_freeCStream(zip->stream.zstd.context);
 		break;
@@ -1984,7 +1994,10 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			}
 			ret = __archive_write_output(a, zip->buf, remainder);
 			if (ret != ARCHIVE_OK)
+			{
+				lzma_end(&zip->stream.lzma.context);
 				return (ret);
+			}
 			zip->entry_compressed_written += remainder;
 			zip->written_bytes += remainder;
 			zip->stream.lzma.context.next_out = zip->buf;
@@ -2434,13 +2447,19 @@ init_winzip_aes_encryption(struct archive_write *a)
 		    "Can't generate random number for encryption");
 		return (ARCHIVE_FATAL);
 	}
-	archive_pbkdf2_sha1(passphrase, strlen(passphrase),
+	ret = archive_pbkdf2_sha1(passphrase, strlen(passphrase),
 	    salt, salt_len, 1000, derived_key, key_len * 2 + 2);
+	if (ret != 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    ret == CRYPTOR_STUB_FUNCTION ? "Encryption is unsupported due to "
+			"lack of crypto library" : "Failed to process passphrase");
+		return (ARCHIVE_FAILED);
+	}
 
 	ret = archive_encrypto_aes_ctr_init(&zip->cctx, derived_key, key_len);
 	if (ret != 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Decryption is unsupported due to lack of crypto library");
+		    "Failed to initialize AES CTR mode");
 		return (ARCHIVE_FAILED);
 	}
 	ret = archive_hmac_sha1_init(&zip->hctx, derived_key + key_len,

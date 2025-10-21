@@ -9,6 +9,7 @@
 /* Test p arg - Print to stdout */
 DEFINE_TEST(test_p)
 {
+#ifdef HAVE_LIBZ
 	const char *reffile = "test_basic.zip";
 	int r;
 
@@ -17,4 +18,7 @@ DEFINE_TEST(test_p)
 	assertEqualInt(0, r);
 	assertTextFileContents("contents a\ncontents b\ncontents c\ncontents CAPS\n", "test.out");
 	assertEmptyFile("test.err");
+#else
+	skipping("zlib not available");
+#endif
 }

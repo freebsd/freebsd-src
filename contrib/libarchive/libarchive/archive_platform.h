@@ -183,16 +183,6 @@
 #define	CAN_RESTORE_METADATA_FD
 #endif
 
-/*
- * glibc 2.24 deprecates readdir_r
- * bionic c deprecates readdir_r too
- */
-#if defined(HAVE_READDIR_R) && (!defined(__GLIBC__) || !defined(__GLIBC_MINOR__) || __GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 24)) && (!defined(__ANDROID__))
-#define	USE_READDIR_R	1
-#else
-#undef	USE_READDIR_R
-#endif
-
 /* Set up defaults for internal error codes. */
 #ifndef ARCHIVE_ERRNO_FILE_FORMAT
 #if HAVE_EFTYPE

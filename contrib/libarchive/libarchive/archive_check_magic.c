@@ -30,6 +30,7 @@
 #endif
 
 #include <stdio.h>
+#include <errno.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -54,8 +55,14 @@ errmsg(const char *m)
 
 	while (s > 0) {
 		written = write(2, m, s);
-		if (written <= 0)
+		if (written == 0)
 			return;
+		if (written < 0)
+		{
+			if (errno == EINTR)
+				continue;
+			return;
+		}
 		m += written;
 		s -= written;
 	}

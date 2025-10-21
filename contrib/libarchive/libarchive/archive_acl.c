@@ -270,6 +270,19 @@ acl_new_entry(struct archive_acl *acl,
 {
 	struct archive_acl_entry *ap, *aq;
 
+	/* Reject an invalid type */
+	switch (type) {
+	case ARCHIVE_ENTRY_ACL_TYPE_ACCESS:
+	case ARCHIVE_ENTRY_ACL_TYPE_DEFAULT:
+	case ARCHIVE_ENTRY_ACL_TYPE_ALLOW:
+	case ARCHIVE_ENTRY_ACL_TYPE_DENY:
+	case ARCHIVE_ENTRY_ACL_TYPE_AUDIT:
+	case ARCHIVE_ENTRY_ACL_TYPE_ALARM:
+		break;
+	default:
+		return (NULL);
+	}
+
 	/* Type argument must be a valid NFS4 or POSIX.1e type.
 	 * The type must agree with anything already set and
 	 * the permset must be compatible. */
@@ -822,6 +835,9 @@ append_entry_w(wchar_t **wp, const wchar_t *prefix, int type,
 		wname = NULL;
 		id = -1;
 		break;
+	default:
+		**wp = '\0';
+		break;
 	}
 	*wp += wcslen(*wp);
 	*(*wp)++ = L':';
@@ -878,6 +894,7 @@ append_entry_w(wchar_t **wp, const wchar_t *prefix, int type,
 			wcscpy(*wp, L"alarm");
 			break;
 		default:
+			*(*wp) = L'\0';
 			break;
 		}
 		*wp += wcslen(*wp);
@@ -1057,6 +1074,9 @@ append_entry(char **p, const char *prefix, int type,
 		name = NULL;
 		id = -1;
 		break;
+	default:
+		**p = '\0';
+		break;
 	}
 	*p += strlen(*p);
 	*(*p)++ = ':';
@@ -1111,6 +1131,9 @@ append_entry(char **p, const char *prefix, int type,
 			break;
 		case ARCHIVE_ENTRY_ACL_TYPE_ALARM:
 			strcpy(*p, "alarm");
+			break;
+		default:
+			*(*p) = '\0';
 			break;
 		}
 		*p += strlen(*p);

@@ -391,6 +391,8 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 
 	ZSTD_CCtx_setParameter(data->cstream, ZSTD_c_nbWorkers, data->threads);
 
+	ZSTD_CCtx_setParameter(data->cstream, ZSTD_c_checksumFlag, 1);
+
 #if ZSTD_VERSION_NUMBER >= MINVER_LONG
 	ZSTD_CCtx_setParameter(data->cstream, ZSTD_c_windowLog, data->long_distance);
 #endif

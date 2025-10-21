@@ -11,7 +11,7 @@ BSDCPIO_VERSION_STRING!=	sed -n '/define.*ARCHIVE_VERSION_ONLY_STRING/{s,[^0-9.]
 SRCS=	cpio.c cmdline.c
 
 .PATH:	${_LIBARCHIVEDIR}/libarchive_fe
-SRCS+=	err.c line_reader.c passphrase.c
+SRCS+=	lafe_err.c line_reader.c passphrase.c
 
 CFLAGS+= -DBSDCPIO_VERSION_STRING=\"${BSDCPIO_VERSION_STRING}\"
 CFLAGS+= -DPLATFORM_CONFIG_H=\"${_LIBARCHIVECONFDIR}/config_freebsd.h\"

@@ -21,7 +21,7 @@
 #endif
 
 #include "bsdunzip.h"
-#include "err.h"
+#include "lafe_err.h"
 
 /*
  * Short options for bsdunzip.  Please keep this sorted.

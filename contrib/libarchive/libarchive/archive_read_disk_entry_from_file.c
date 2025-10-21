@@ -338,7 +338,7 @@ setup_mac_metadata(struct archive_read_disk *a,
 	int ret = ARCHIVE_OK;
 	void *buff = NULL;
 	int have_attrs;
-	const char *name, *tempdir;
+	const char *name;
 	struct archive_string tempfile;
 
 	(void)fd; /* UNUSED */
@@ -357,13 +357,11 @@ setup_mac_metadata(struct archive_read_disk *a,
 	if (have_attrs == 0)
 		return (ARCHIVE_OK);
 
-	tempdir = NULL;
-	if (issetugid() == 0)
-		tempdir = getenv("TMPDIR");
-	if (tempdir == NULL)
-		tempdir = _PATH_TMP;
 	archive_string_init(&tempfile);
-	archive_strcpy(&tempfile, tempdir);
+	if (__archive_get_tempdir(&tempfile) != ARCHIVE_OK) {
+		ret = ARCHIVE_WARN;
+		goto cleanup;
+	}
 	archive_strcat(&tempfile, "tar.md.XXXXXX");
 	tempfd = mkstemp(tempfile.s);
 	if (tempfd < 0) {

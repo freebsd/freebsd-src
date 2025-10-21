@@ -80,7 +80,7 @@
 /*
  * ELF format
  */
-#define ELF_HDR_MIN_LEN 0x34
+#define ELF_HDR_MIN_LEN 0x3f
 #define ELF_HDR_EI_CLASS_OFFSET 0x04
 #define ELF_HDR_EI_DATA_OFFSET 0x05
 
@@ -811,6 +811,8 @@ find_elf_data_sec(struct archive_read *a)
 			strtab_size = (*dec32)(
 			    h + e_shstrndx * e_shentsize + 0x14);
 		}
+		if (strtab_size < 6 || strtab_size > SIZE_MAX)
+			break;
 
 		/*
 		 * Read the STRTAB section to find the .data offset
@@ -1391,7 +1393,8 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		 * size to liblzma when using lzma_raw_decoder() liblzma
 		 * could correctly deal with BCJ+LZMA. But unfortunately
 		 * there is no way to do that.
-		 * Discussion about this can be found at XZ Utils forum.
+		 *
+		 * Reference: https://web.archive.org/web/20240405171610/https://www.mail-archive.com/xz-devel@tukaani.org/msg00373.html
 		 */
 		if (coder2 != NULL) {
 			zip->codec2 = coder2->codec;

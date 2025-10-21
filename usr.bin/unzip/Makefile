@@ -12,7 +12,7 @@ BSDUNZIP_VERSION_STRING!= sed -n '/define.*ARCHIVE_VERSION_ONLY_STRING/{s,[^0-9.
 SRCS=	bsdunzip.c
 
 .PATH:	${_LIBARCHIVEDIR}/libarchive_fe
-SRCS+=	cmdline.c err.c passphrase.c
+SRCS+=	cmdline.c lafe_err.c passphrase.c
 
 CFLAGS+= -DBSDUNZIP_VERSION_STRING=\"${BSDUNZIP_VERSION_STRING}\"
 CFLAGS+= -DPLATFORM_CONFIG_H=\"${_LIBARCHIVECONFDIR}/config_freebsd.h\"
