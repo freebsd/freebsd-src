@@ -52,6 +52,7 @@
 #include <sys/acl.h>
 #include <sys/conf.h>
 #include <sys/extattr.h>
+#include <sys/jail.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ksem.h>
@@ -848,6 +849,74 @@ stub_posixshm_check_write(struct ucred *active_cred, struct ucred *file_cred,
 static void
 stub_posixshm_create(struct ucred *cred, struct shmfd *shmfd,
     struct label *shmlabel)
+{
+
+}
+
+static void
+stub_prison_relabel(struct ucred *cred, struct prison *pr,
+    struct label *prlabel, struct label *newlabel)
+{
+
+}
+
+static int
+stub_prison_check_relabel(struct ucred *cred, struct prison *pr,
+    struct label *prlabel, struct label *newlabel)
+{
+
+	return (0);
+}
+
+static int
+stub_prison_check_attach(struct ucred *cred, struct prison *pr,
+    struct label *prlabel)
+{
+
+	return (0);
+}
+
+static int
+stub_prison_check_create(struct ucred *cred, struct vfsoptlist *opts, int flags)
+{
+
+	return (0);
+}
+
+static int
+stub_prison_check_get(struct ucred *cred, struct prison *pr,
+    struct label *prlabel, struct vfsoptlist *opts, int flags)
+{
+
+	return (0);
+}
+
+static int
+stub_prison_check_set(struct ucred *cred, struct prison *pr,
+    struct label *prlabel, struct vfsoptlist *opts, int flags)
+{
+
+	return (0);
+}
+
+static int
+stub_prison_check_remove(struct ucred *cred, struct prison *pr,
+    struct label *prlabel)
+{
+
+	return (0);
+}
+
+static void
+stub_prison_created(struct ucred *cred, struct prison *pr,
+    struct label *prlabel)
+{
+
+}
+
+static void
+stub_prison_attached(struct ucred *cred, struct prison *pr,
+    struct label *prlabel, struct proc *p, struct label *proclabel)
 {
 
 }
@@ -1840,6 +1909,20 @@ static struct mac_policy_ops stub_ops =
 	.mpo_posixshm_create = stub_posixshm_create,
 	.mpo_posixshm_destroy_label = stub_destroy_label,
 	.mpo_posixshm_init_label = stub_init_label,
+
+	.mpo_prison_init_label = stub_init_label_waitcheck,
+	.mpo_prison_destroy_label = stub_destroy_label,
+	.mpo_prison_externalize_label = stub_externalize_label,
+	.mpo_prison_internalize_label = stub_internalize_label,
+	.mpo_prison_relabel = stub_prison_relabel,
+	.mpo_prison_check_relabel = stub_prison_check_relabel,
+	.mpo_prison_check_attach = stub_prison_check_attach,
+	.mpo_prison_check_create = stub_prison_check_create,
+	.mpo_prison_check_get = stub_prison_check_get,
+	.mpo_prison_check_set = stub_prison_check_set,
+	.mpo_prison_check_remove = stub_prison_check_remove,
+	.mpo_prison_created = stub_prison_created,
+	.mpo_prison_attached = stub_prison_attached,
 
 	.mpo_priv_check = stub_priv_check,
 	.mpo_priv_grant = stub_priv_grant,

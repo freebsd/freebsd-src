@@ -86,6 +86,7 @@ struct thread;
 struct timespec;
 struct ucred;
 struct vattr;
+struct vfsoptlist;
 struct vnode;
 struct vop_setlabel_args;
 
@@ -351,6 +352,17 @@ int	mac_prison_init(struct prison *pr, int flag);
 void	mac_prison_relabel(struct ucred *cred, struct prison *pr,
 	    struct label *newlabel);
 void	mac_prison_destroy(struct prison *pr);
+int	mac_prison_check_attach(struct ucred *cred, struct prison *pr);
+int	mac_prison_check_create(struct ucred *cred, struct vfsoptlist *opts,
+	    int flags);
+int	mac_prison_check_get(struct ucred *cred, struct prison *pr,
+	    struct vfsoptlist *opts, int flags);
+int	mac_prison_check_set(struct ucred *cred, struct prison *pr,
+	    struct vfsoptlist *opts, int flags);
+int	mac_prison_check_remove(struct ucred *cred, struct prison *pr);
+void	mac_prison_created(struct ucred *cred, struct prison *pr);
+void	mac_prison_attached(struct ucred *cred, struct prison *pr,
+	    struct proc *p);
 
 int	mac_priv_check_impl(struct ucred *cred, int priv);
 #ifdef MAC
