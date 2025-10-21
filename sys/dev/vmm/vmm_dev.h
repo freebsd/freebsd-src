@@ -44,6 +44,7 @@ struct vmmdev_ioctl {
 #define	VMMDEV_IOCTL_LOCK_ALL_VCPUS	0x08
 #define	VMMDEV_IOCTL_ALLOC_VCPU		0x10
 #define	VMMDEV_IOCTL_MAYBE_ALLOC_VCPU	0x20
+#define	VMMDEV_IOCTL_PRIV_CHECK_DRIVER	0x40
 	int		flags;
 };
 
