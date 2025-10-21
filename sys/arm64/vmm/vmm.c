@@ -1279,8 +1279,7 @@ vcpu_get_state(struct vcpu *vcpu, int *hostcpu)
 int
 vm_get_register(struct vcpu *vcpu, int reg, uint64_t *retval)
 {
-
-	if (reg >= VM_REG_LAST)
+	if (reg < 0 || reg >= VM_REG_LAST)
 		return (EINVAL);
 
 	return (vmmops_getreg(vcpu->cookie, reg, retval));
@@ -1291,7 +1290,7 @@ vm_set_register(struct vcpu *vcpu, int reg, uint64_t val)
 {
 	int error;
 
-	if (reg >= VM_REG_LAST)
+	if (reg < 0 || reg >= VM_REG_LAST)
 		return (EINVAL);
 	error = vmmops_setreg(vcpu->cookie, reg, val);
 	if (error || reg != VM_REG_GUEST_PC)
