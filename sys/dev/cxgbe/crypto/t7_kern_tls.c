@@ -141,7 +141,8 @@ alloc_tlspcb(struct ifnet *ifp, struct vi_info *vi, int flags)
 	tlsp->tx_key_addr = -1;
 	tlsp->ghash_offset = -1;
 	tlsp->rx_chid = pi->rx_chan;
-	tlsp->rx_qid = sc->sge.rxq[pi->vi->first_rxq].iq.abs_id;
+	tlsp->rx_qid = -1;
+	tlsp->txq = NULL;
 	mbufq_init(&tlsp->pending_mbufs, INT_MAX);
 
 	return (tlsp);
@@ -157,7 +158,8 @@ t7_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 	struct vi_info *vi;
 	struct inpcb *inp;
 	struct sge_txq *txq;
-	int error, iv_size, keyid, mac_first;
+	int error, iv_size, keyid, mac_first, qidx;
+	uint32_t flowid;
 
 	tls = params->tls.tls;
 
@@ -250,11 +252,15 @@ t7_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 		goto failed;
 	}
 
-	txq = &sc->sge.txq[vi->first_txq];
 	if (inp->inp_flowtype != M_HASHTYPE_NONE)
-		txq += ((inp->inp_flowid % (vi->ntxq - vi->rsrv_noflowq)) +
-		    vi->rsrv_noflowq);
-	tlsp->txq = txq;
+		flowid = inp->inp_flowid;
+	else
+		flowid = arc4random();
+	qidx = flowid % vi->nrxq + vi->first_rxq;
+	tlsp->rx_qid = sc->sge.rxq[qidx].iq.abs_id;
+	qidx = (flowid % (vi->ntxq - vi->rsrv_noflowq)) + vi->rsrv_noflowq +
+	    vi->first_txq;
+	tlsp->txq = txq = &sc->sge.txq[qidx];
 	INP_RUNLOCK(inp);
 
 	error = ktls_setup_keys(tlsp, tls, txq);
