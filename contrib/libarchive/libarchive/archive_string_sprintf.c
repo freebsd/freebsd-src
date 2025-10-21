@@ -146,7 +146,7 @@ archive_string_vsprintf(struct archive_string *as, const char *fmt,
 			case 'z': s = va_arg(ap, ssize_t); break;
 			default:  s = va_arg(ap, int); break;
 			}
-		        append_int(as, s, 10);
+			append_int(as, s, 10);
 			break;
 		case 's':
 			switch(long_flag) {
