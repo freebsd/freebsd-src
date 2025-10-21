@@ -663,8 +663,16 @@ if not f then
 	os.exit(0)
 end
 local line = f:read("*l")
+if not line or #string.gsub(line, "^%s*(.-)%s*$", "%1") == 0 then
+	f:close()
+	os.exit(0)
+end
 if citype ~= "postnet" then
 	local content = f:read("*a")
+	if not content or #string.gsub(content, "^%s*(.-)%s*$", "%1") == 0 then
+		f:close()
+		os.exit(0)
+	end
 	nuage.mkdir_p(root .. "/var/cache/nuageinit")
 	local tof = assert(io.open(root .. "/var/cache/nuageinit/user_data", "w"))
 	tof:write(line .. "\n" .. content)
