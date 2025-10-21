@@ -57,7 +57,7 @@
 #endif
 
 #include "bsdtar.h"
-#include "err.h"
+#include "lafe_err.h"
 
 struct progress_data {
 	struct bsdtar *bsdtar;

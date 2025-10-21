@@ -36,7 +36,7 @@
 #include <string.h>
 #endif
 
-#include "err.h"
+#include "lafe_err.h"
 
 static void lafe_vwarnc(int, const char *, va_list) __LA_PRINTFLIKE(2, 0);
 

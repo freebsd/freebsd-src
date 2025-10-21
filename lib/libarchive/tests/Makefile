@@ -185,6 +185,7 @@ TESTS_SRCS= \
 	test_read_format_rar_overflow.c		\
 	test_read_format_raw.c			\
 	test_read_format_tar.c			\
+	test_read_format_tar_V_negative_size.c	\
 	test_read_format_tar_concatenated.c	\
 	test_read_format_tar_empty_filename.c	\
 	test_read_format_tar_empty_pax.c	\
@@ -607,6 +608,7 @@ ${PACKAGE}FILES+=	test_read_format_rar5_decode_number_out_of_bounds_read.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_different_solid_window_size.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_different_window_size.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_different_winsize_on_merge.rar.uu
+${PACKAGE}FILES+=	test_read_format_rar5_dirdata.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_distance_overflow.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_encrypted.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_encrypted_filenames.rar.uu
@@ -616,6 +618,7 @@ ${PACKAGE}FILES+=	test_read_format_rar5_extra_field_version.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_fileattr.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_hardlink.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_invalid_dict_reference.rar.uu
+${PACKAGE}FILES+=	test_read_format_rar5_invalid_hash_valid_htime_exfld.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_leftshift1.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_leftshift2.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_multiarchive.part01.rar.uu
@@ -633,6 +636,7 @@ ${PACKAGE}FILES+=	test_read_format_rar5_multiarchive_solid.part04.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_multiple_files.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_multiple_files_solid.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_nonempty_dir_stream.rar.uu
+${PACKAGE}FILES+=	test_read_format_rar5_only_crypt_exfld.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_owner.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_readtables_overflow.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_sfx.exe.uu
@@ -642,12 +646,14 @@ ${PACKAGE}FILES+=	test_read_format_rar5_stored_manyfiles.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_symlink.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_truncated_huff.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_unicode.rar.uu
+${PACKAGE}FILES+=	test_read_format_rar5_unsupported_exfld.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_win32.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_window_buf_and_size_desync.rar.uu
 ${PACKAGE}FILES+=	test_read_format_raw.bufr.uu
 ${PACKAGE}FILES+=	test_read_format_raw.data.Z.uu
 ${PACKAGE}FILES+=	test_read_format_raw.data.gz.uu
 ${PACKAGE}FILES+=	test_read_format_raw.data.uu
+${PACKAGE}FILES+=	test_read_format_tar_V_negative_size.tar.uu
 ${PACKAGE}FILES+=	test_read_format_tar_concatenated.tar.uu
 ${PACKAGE}FILES+=	test_read_format_tar_empty_filename.tar.uu
 ${PACKAGE}FILES+=	test_read_format_tar_empty_with_gnulabel.tar.uu

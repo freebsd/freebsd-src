@@ -39,6 +39,8 @@ DEFINE_TEST(test_archive_parse_date)
 	assertEqualInt(get_date(now, "Jan 1, 1970 UTC"), 0);
 	assertEqualInt(get_date(now, "7:12:18-0530 4 May 1983"), 420900138);
 	assertEqualInt(get_date(now, "2004/01/29 513 mest"), 1075345980);
+	assertEqualInt(get_date(now, "2038-06-01 00:01:02 UTC"),
+	    sizeof(time_t) <= 4 ? -1 : 2158963262);
 	assertEqualInt(get_date(now, "99/02/17 7pm utc"), 919278000);
 	assertEqualInt(get_date(now, "02/17/99 7:11am est"), 919253460);
 	assertEqualInt(get_date(now, "now - 2 hours"),
