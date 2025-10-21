@@ -890,7 +890,7 @@ EOF
 	atf_check -o inline:"plop" cat file1
 	atf_check -o inline:"" cat emptyfile
 	atf_check -o inline:"bla\n" cat file_base64
-	test -f foo && atf_fail "foo creation should have been defered"
+	test -f foo && atf_fail "foo creation should have been deferred"
 	atf_check -o match:"^-rwxr-xr-x.*nobody" ls -l file_base64
 	rm file1 emptyfile file_base64
 	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet

@@ -35,7 +35,7 @@ if str ~= f.content then
 	n.err("Invalid file content")
 end
 
--- the file is overwriten
+-- the file is overwritten
 f.content = "test"
 
 str = addfile_and_getres(f)
