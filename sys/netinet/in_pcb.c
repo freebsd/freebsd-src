@@ -2668,6 +2668,7 @@ in_pcbinshash_internal(struct inpcb *inp, struct mbuf *m)
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct inpcbport *phd;
 	u_int32_t hashkey_faddr;
+	bool connected;
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
@@ -2676,11 +2677,15 @@ in_pcbinshash_internal(struct inpcb *inp, struct mbuf *m)
 	    ("in_pcbinshash: INP_INHASHLIST"));
 
 #ifdef INET6
-	if (inp->inp_vflag & INP_IPV6)
+	if (inp->inp_vflag & INP_IPV6) {
 		hashkey_faddr = INP6_PCBHASHKEY(&inp->in6p_faddr);
-	else
+		connected = !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr);
+	} else
 #endif
-	hashkey_faddr = inp->inp_faddr.s_addr;
+	{
+		hashkey_faddr = inp->inp_faddr.s_addr;
+		connected = inp->inp_faddr.s_addr != INADDR_ANY;
+	}
 
 	pcbhash = &pcbinfo->ipi_hashbase[INP_PCBHASH(hashkey_faddr,
 		 inp->inp_lport, inp->inp_fport, pcbinfo->ipi_hashmask)];
@@ -2689,10 +2694,12 @@ in_pcbinshash_internal(struct inpcb *inp, struct mbuf *m)
 	    INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_porthashmask)];
 
 	/*
-	 * Add entry to load balance group.
-	 * Only do this if SO_REUSEPORT_LB is set.
+	 * Ignore SO_REUSEPORT_LB if the socket is connected.  Really this case
+	 * should be an error, but for UDP sockets it is not, and some
+	 * applications erroneously set it on connected UDP sockets, so we can't
+	 * change this without breaking compatibility.
 	 */
-	if ((inp->inp_flags2 & INP_REUSEPORT_LB) != 0) {
+	if (!connected && (inp->inp_flags2 & INP_REUSEPORT_LB) != 0) {
 		int error = in_pcbinslbgrouphash(inp, M_NODOM);
 		if (error != 0)
 			return (error);
@@ -2761,6 +2768,7 @@ in_pcbrehash_mbuf(struct inpcb *inp, struct mbuf *m)
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct inpcbhead *head;
 	u_int32_t hashkey_faddr;
+	bool connected;
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
@@ -2769,11 +2777,19 @@ in_pcbrehash_mbuf(struct inpcb *inp, struct mbuf *m)
 	    ("in_pcbrehash: !INP_INHASHLIST"));
 
 #ifdef INET6
-	if (inp->inp_vflag & INP_IPV6)
+	if (inp->inp_vflag & INP_IPV6) {
 		hashkey_faddr = INP6_PCBHASHKEY(&inp->in6p_faddr);
-	else
+		connected = !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr);
+	} else
 #endif
-	hashkey_faddr = inp->inp_faddr.s_addr;
+	{
+		hashkey_faddr = inp->inp_faddr.s_addr;
+		connected = inp->inp_faddr.s_addr != INADDR_ANY;
+	}
+
+	/* See the comment in in_pcbinshash(). */
+	if (connected && (inp->inp_flags2 & INP_REUSEPORT_LB) != 0)
+		in_pcbremlbgrouphash(inp);
 
 	head = &pcbinfo->ipi_hashbase[INP_PCBHASH(hashkey_faddr,
 		inp->inp_lport, inp->inp_fport, pcbinfo->ipi_hashmask)];
