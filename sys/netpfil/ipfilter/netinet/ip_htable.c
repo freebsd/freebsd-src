@@ -230,6 +230,8 @@ ipf_htable_stats_get(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 		return (EINVAL);
 	}
 
+	bzero(&stats, sizeof(stats));
+
 	stats.iphs_tables = softh->ipf_htables[op->iplo_unit + 1];
 	stats.iphs_numtables = softh->ipf_nhtables[op->iplo_unit + 1];
 	stats.iphs_numnodes = softh->ipf_nhtnodes[op->iplo_unit + 1];
