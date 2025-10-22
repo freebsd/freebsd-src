@@ -691,6 +691,9 @@
 #define STDC_HEADERS 1
 
 /* Define to 1 if strerror_r returns char *. */
+#ifdef __linux__
+#include <features.h>
+#endif
 #ifdef __GLIBC__
 /* Bootstrapping on GNU/Linux */
 #define STRERROR_R_CHAR_P 1
