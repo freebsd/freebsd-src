@@ -1135,6 +1135,7 @@ struct nfsv3_sattr {
  	NFSATTRBM_RDATTRERROR |						\
  	NFSATTRBM_ACL |							\
  	NFSATTRBM_ACLSUPPORT |						\
+	NFSATTRBM_ARCHIVE |						\
  	NFSATTRBM_CANSETTIME |						\
  	NFSATTRBM_CASEINSENSITIVE |					\
  	NFSATTRBM_CASEPRESERVING |					\
@@ -1217,6 +1218,7 @@ struct nfsv3_sattr {
 #define	NFSATTRBIT_SETABLE0						\
 	(NFSATTRBM_SIZE |						\
 	NFSATTRBM_HIDDEN |						\
+	NFSATTRBM_ARCHIVE |						\
 	NFSATTRBM_ACL)
 #define	NFSATTRBIT_SETABLE1						\
  	(NFSATTRBM_MODE |						\
@@ -1262,6 +1264,7 @@ struct nfsv3_sattr {
  	NFSATTRBM_CHANGE |						\
  	NFSATTRBM_SIZE |						\
  	NFSATTRBM_FSID |						\
+	NFSATTRBM_ARCHIVE |						\
  	NFSATTRBM_FILEID |						\
 	NFSATTRBM_HIDDEN |						\
  	NFSATTRBM_MAXREAD)
@@ -1298,6 +1301,7 @@ struct nfsv3_sattr {
  	NFSATTRBM_CHANGE |						\
  	NFSATTRBM_SIZE |						\
  	NFSATTRBM_FSID |						\
+	NFSATTRBM_ARCHIVE |						\
  	NFSATTRBM_FILEID |						\
 	NFSATTRBM_HIDDEN |						\
  	NFSATTRBM_MAXREAD)

@@ -641,6 +641,7 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 		if ((flags & NFSSATTR_FULL) && vap->va_size != VNOVAL)
 			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_SIZE);
 		if ((flags & NFSSATTR_FULL) && vap->va_flags != VNOVAL) {
+			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_ARCHIVE);
 			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_HIDDEN);
 			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_SYSTEM);
 		}
@@ -1672,9 +1673,17 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			attrsum += NFSX_UNSIGNED;
 			break;
 		case NFSATTRBIT_ARCHIVE:
-			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
-			if (compare && !(*retcmpp))
-				*retcmpp = NFSERR_ATTRNOTSUPP;
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			if (compare) {
+				if (!(*retcmpp) && ((*tl == newnfs_true &&
+				    (nap->na_flags & UF_ARCHIVE) == 0) ||
+				    (*tl == newnfs_false &&
+				     (nap->na_flags & UF_ARCHIVE) != 0)))
+					*retcmpp = NFSERR_NOTSAME;
+			} else if (nap != NULL) {
+				if (*tl == newnfs_true)
+					nap->na_flags |= UF_ARCHIVE;
+			}
 			attrsum += NFSX_UNSIGNED;
 			break;
 		case NFSATTRBIT_CANSETTIME:
@@ -2804,6 +2813,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			if (!has_hiddensystem) {
 			    NFSCLRBIT_ATTRBIT(&attrbits, NFSATTRBIT_HIDDEN);
 			    NFSCLRBIT_ATTRBIT(&attrbits, NFSATTRBIT_SYSTEM);
+			    NFSCLRBIT_ATTRBIT(&attrbits, NFSATTRBIT_ARCHIVE);
 			}
 			if (clone_blksize == 0)
 			    NFSCLRBIT_ATTRBIT(&attrbits,
@@ -2886,6 +2896,14 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 		case NFSATTRBIT_ACLSUPPORT:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 			*tl = txdr_unsigned(NFSV4ACE_SUPTYPES);
+			retnum += NFSX_UNSIGNED;
+			break;
+		case NFSATTRBIT_ARCHIVE:
+			NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+			if ((vap->va_flags & UF_ARCHIVE) != 0)
+				*tl = newnfs_true;
+			else
+				*tl = newnfs_false;
 			retnum += NFSX_UNSIGNED;
 			break;
 		case NFSATTRBIT_CANSETTIME:
