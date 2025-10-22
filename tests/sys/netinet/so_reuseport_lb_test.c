@@ -29,6 +29,8 @@
 
 #include <sys/param.h>
 #include <sys/event.h>
+#include <sys/filio.h>
+#include <sys/ioccom.h>
 #include <sys/socket.h>
 
 #include <netinet/in.h>
@@ -556,6 +558,150 @@ ATF_TC_BODY(connect_bound, tc)
 	close(s);
 }
 
+/*
+ * The kernel erroneously permits calling connect() on a UDP socket with
+ * SO_REUSEPORT_LB set.  Verify that packets sent to the bound address are
+ * dropped unless they come from the connected address.
+ */
+ATF_TC_WITHOUT_HEAD(connect_udp);
+ATF_TC_BODY(connect_udp, tc)
+{
+	struct sockaddr_in sin = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(sin),
+		.sin_addr = { htonl(INADDR_LOOPBACK) },
+	};
+	ssize_t n;
+	int error, len, s1, s2, s3;
+	char ch;
+
+	s1 = socket(PF_INET, SOCK_DGRAM, 0);
+	ATF_REQUIRE(s1 >= 0);
+	s2 = socket(PF_INET, SOCK_DGRAM, 0);
+	ATF_REQUIRE(s2 >= 0);
+	s3 = socket(PF_INET, SOCK_DGRAM, 0);
+	ATF_REQUIRE(s3 >= 0);
+
+	error = setsockopt(s1, SOL_SOCKET, SO_REUSEPORT_LB, (int[]){1},
+	    sizeof(int));
+	ATF_REQUIRE_MSG(error == 0,
+	    "setsockopt(SO_REUSEPORT_LB) failed: %s", strerror(errno));
+	error = bind(s1, (struct sockaddr *)&sin, sizeof(sin));
+	ATF_REQUIRE_MSG(error == 0, "bind() failed: %s", strerror(errno));
+
+	error = bind(s2, (struct sockaddr *)&sin, sizeof(sin));
+	ATF_REQUIRE_MSG(error == 0, "bind() failed: %s", strerror(errno));
+
+	error = bind(s3, (struct sockaddr *)&sin, sizeof(sin));
+	ATF_REQUIRE_MSG(error == 0, "bind() failed: %s", strerror(errno));
+
+	/* Connect to an address not owned by s2. */
+	error = getsockname(s3, (struct sockaddr *)&sin,
+	    (socklen_t[]){sizeof(sin)});
+	ATF_REQUIRE(error == 0);
+	error = connect(s1, (struct sockaddr *)&sin, sizeof(sin));
+	ATF_REQUIRE_MSG(error == 0, "connect() failed: %s", strerror(errno));
+
+	/* Try to send a packet to s1 from s2. */
+	error = getsockname(s1, (struct sockaddr *)&sin,
+	    (socklen_t[]){sizeof(sin)});
+	ATF_REQUIRE(error == 0);
+
+	ch = 42;
+	n = sendto(s2, &ch, sizeof(ch), 0, (struct sockaddr *)&sin,
+	    sizeof(sin));
+	ATF_REQUIRE(n == 1);
+
+	/* Give the packet some time to arrive. */
+	usleep(100000);
+
+	/* s1 is connected to s3 and shouldn't receive from s2. */
+	error = ioctl(s1, FIONREAD, &len);
+	ATF_REQUIRE(error == 0);
+	ATF_REQUIRE_MSG(len == 0, "unexpected data available");
+
+	/* ... but s3 can of course send to s1. */
+	n = sendto(s3, &ch, sizeof(ch), 0, (struct sockaddr *)&sin,
+	    sizeof(sin));
+	ATF_REQUIRE(n == 1);
+	usleep(100000);
+	error = ioctl(s1, FIONREAD, &len);
+	ATF_REQUIRE(error == 0);
+	ATF_REQUIRE_MSG(len == 1, "expected data available");
+}
+
+/*
+ * The kernel erroneously permits calling connect() on a UDP socket with
+ * SO_REUSEPORT_LB set.  Verify that packets sent to the bound address are
+ * dropped unless they come from the connected address.
+ */
+ATF_TC_WITHOUT_HEAD(connect_udp6);
+ATF_TC_BODY(connect_udp6, tc)
+{
+	struct sockaddr_in6 sin6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(sin6),
+		.sin6_addr = IN6ADDR_LOOPBACK_INIT,
+	};
+	ssize_t n;
+	int error, len, s1, s2, s3;
+	char ch;
+
+	s1 = socket(PF_INET6, SOCK_DGRAM, 0);
+	ATF_REQUIRE(s1 >= 0);
+	s2 = socket(PF_INET6, SOCK_DGRAM, 0);
+	ATF_REQUIRE(s2 >= 0);
+	s3 = socket(PF_INET6, SOCK_DGRAM, 0);
+	ATF_REQUIRE(s3 >= 0);
+
+	error = setsockopt(s1, SOL_SOCKET, SO_REUSEPORT_LB, (int[]){1},
+	    sizeof(int));
+	ATF_REQUIRE_MSG(error == 0,
+	    "setsockopt(SO_REUSEPORT_LB) failed: %s", strerror(errno));
+	error = bind(s1, (struct sockaddr *)&sin6, sizeof(sin6));
+	ATF_REQUIRE_MSG(error == 0, "bind() failed: %s", strerror(errno));
+
+	error = bind(s2, (struct sockaddr *)&sin6, sizeof(sin6));
+	ATF_REQUIRE_MSG(error == 0, "bind() failed: %s", strerror(errno));
+
+	error = bind(s3, (struct sockaddr *)&sin6, sizeof(sin6));
+	ATF_REQUIRE_MSG(error == 0, "bind() failed: %s", strerror(errno));
+
+	/* Connect to an address not owned by s2. */
+	error = getsockname(s3, (struct sockaddr *)&sin6,
+	    (socklen_t[]){sizeof(sin6)});
+	ATF_REQUIRE(error == 0);
+	error = connect(s1, (struct sockaddr *)&sin6, sizeof(sin6));
+	ATF_REQUIRE_MSG(error == 0, "connect() failed: %s", strerror(errno));
+
+	/* Try to send a packet to s1 from s2. */
+	error = getsockname(s1, (struct sockaddr *)&sin6,
+	    (socklen_t[]){sizeof(sin6)});
+	ATF_REQUIRE(error == 0);
+
+	ch = 42;
+	n = sendto(s2, &ch, sizeof(ch), 0, (struct sockaddr *)&sin6,
+	    sizeof(sin6));
+	ATF_REQUIRE(n == 1);
+
+	/* Give the packet some time to arrive. */
+	usleep(100000);
+
+	/* s1 is connected to s3 and shouldn't receive from s2. */
+	error = ioctl(s1, FIONREAD, &len);
+	ATF_REQUIRE(error == 0);
+	ATF_REQUIRE_MSG(len == 0, "unexpected data available");
+
+	/* ... but s3 can of course send to s1. */
+	n = sendto(s3, &ch, sizeof(ch), 0, (struct sockaddr *)&sin6,
+	    sizeof(sin6));
+	ATF_REQUIRE(n == 1);
+	usleep(100000);
+	error = ioctl(s1, FIONREAD, &len);
+	ATF_REQUIRE(error == 0);
+	ATF_REQUIRE_MSG(len == 1, "expected data available");
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, basic_ipv4);
@@ -566,6 +712,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, bind_without_listen);
 	ATF_TP_ADD_TC(tp, connect_not_bound);
 	ATF_TP_ADD_TC(tp, connect_bound);
+	ATF_TP_ADD_TC(tp, connect_udp);
+	ATF_TP_ADD_TC(tp, connect_udp6);
 
 	return (atf_no_error());
 }
