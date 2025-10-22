@@ -1,0 +1,182 @@
+.\"
+.\" Copyright (c) 2025 Google Summer of Code
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause(XXX?)
+.\"
+.Dd September 28, 2025
+.Dt ACPI.LUA 8
+.Os
+.Sh NAME
+.Nm acpi.lua
+.Nd ACPI Lua binding module
+.Sh DESCRIPTION
+The ACPI Lua bindings are for utilizing ACPICA
+functionality pre-kernel. They are only available to the
+.Fx
+Lua bootloader, via the
+.Ic loader
+table, and require
+.Ic amd64
+architecture. See
+.Xr loader.lua 8
+for more information on the loader table.
+.Pp
+These bindings are in the 
+.Ic lacpi
+namespace, and are divided between three modules:
+.Bl -tag -width 0n
+.It Sy walk 
+The
+.Ic walk
+module is for walking the ACPI namespace under user specified
+callbacks and passing the information back to the interpreter
+through the Lua stack. Currently, users can walk the entire 
+namespace or start the walk at a user specified
+.Ic handle .
+There is currently only one callback, and it retrieves the
+following into a Lua table.
+.Bl -tag -width 0n
+.It Sy pathname
+The full pathname of the current device node
+.It level
+The level of the current device node
+.It hid
+If applicable, the HID of the current device node
+.It uid
+If applicable, the UID of the current device node
+.El
+.It Sy object 
+The
+.Ic object
+module is for evaluating ACPI objects. It provides
+the ability to
+.Bl -tag -width 0n
+.It Fn get_handle pathname
+Converts a
+.Va pathname
+to its corresponding
+.Ic opaque pointer .
+.It Fn evaluate handle abs_path rel_path args
+Evaluates an ACPI object. The arguments are:
+.Bl -enum
+.It 
+The handle of the node.
+.It 
+The relative pathname to the handle. Optional, and only
+provided if the handle is being provided.
+.It 
+An absolute pathname.
+.It 
+An
+.Va OBJECT_LIST
+for the specified objects
+.El
+.Pp 
+This submodule takes either:
+.Bl -bullet
+.It
+A handle, with an optional relative pathname, plus an 
+optional OBJECT_LIST.
+.It 
+An absolute pathname, plus an optional OBJECT_LIST
+.El
+.El
+.It Sy data
+The
+.Ic data
+module allows users to manipulate data on namespace
+nodes. The interface currently provides the abilities:
+.Bl -tag -width 0n
+.It Fn attach handle ACPI_OBJECT
+Attach data onto a namespace node
+.It Fn detach handle
+Detach data from a namespace node
+.It Fn get handle
+Get data off of a namespace node
+.El
+.El
+.Sh NOTES
+The Lua stack expectations for all places that an ACPI_OBJECT
+is required to be passed over is the same ordering as the
+ACPI_OBJECT structures are defined. Please see
+.Em actypes.h
+for reference. In general, the arguments are passed as:
+.Bl -enum
+.It
+Type = ACPI_TYPE_INTEGER
+.It
+ACPI_OBJECT_TYPE = OBJECT
+.El
+.Pp
+Some examples for passing various ACPI_OBJECTs:
+.Bd -literal
+args = {{ Type = 1, Integer = 42 },
+	{ Type = 2, String = "Tis but a scratch"},
+	{ Type = 3, Buffer = "You liar!"}}
+.Ed
+.Sh EXIT STATUS
+The exit status varies depending on module, and can either
+return ACPI_STATUS to tell Lua it successfully completed
+its request or send back a table with the information
+that Lua requested. 
+.Pp
+On the case of an error, the interface will
+provide up to three (optional) arguments:
+.Bl -tag -width 0n
+.It Sy nil
+To specify a fault
+.It Sy message
+Programmed message depending on the fault.
+.It Sy status
+.Ic ACPI_STATUS
+message translated to user friendly text.
+.El
+.Sh EXAMPLES
+.Bd -literal
+.Sy Retrieving a handle
+  handle = lacpi.object.get_handle("\\\\_SB_.CPUS.C000")
+.Ed
+.Pp
+.Bd -literal
+.Sy Evaluating an object
+  eval = lacpi.object.evaluate(handle, "_STA", nil, nil)
+  print(eval)
+  15
+.Ed
+.Pp
+.Bd -literal
+.Sy Evaluating an object with arguments
+  handle = lacpi.object.get_handle("\\\\_SB_.DMY0")
+  args = {{Type = 1, Integer = 42}}
+  eval = lacpi.object.evaluate(handle, "ECHO", nil, args)
+  print(eval)
+  42
+.Ed
+.Pp
+.Bd -literal
+.Sy Attaching data onto a namespace node
+  f, msg, status = lacpi.data.attach(handle, {Integer = 42})
+  print(f)
+  0
+.Ed
+.Pp
+.Bd -literal
+.Sy Retrieving data from a namespace node
+  f, msg, status = lacpi.data.get(handle)
+  print(f)
+  42
+.Ed
+.Pp
+.Bd -literal
+.Sy Detaching data from a namespace node
+  f, msg, status = lacpi.data.detach(handle)
+  print(f)
+  0
+.Ed
+.Sh SEE ALSO
+.Xr loader.lua 8
+.Sh AUTHORS
+The
+.Nm
+man page was written by
+.An Kayla Powell (AKA Kat) Aq Mt kpowkitty@FreeBSD.org .
