@@ -346,6 +346,12 @@ dummy_attach(device_t dev)
 		return (ENXIO);
 	mixer_init(dev, &dummy_mixer_class, sc);
 
+	/*
+	 * Create an alias so that tests do not need to guess which one is the
+	 * dummy device if there are more devices present in the system.
+	 */
+	make_dev_alias(sc->info.dsp_dev, "dsp.dummy");
+
 	return (0);
 }
 
