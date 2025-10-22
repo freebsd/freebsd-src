@@ -4,6 +4,6 @@ deps {
 	}
 }
 scripts: {
-	post-install = "/usr/sbin/certctl -D${PKG_ROOTDIR}/ rehash"
-	post-uninstall = "/usr/sbin/certctl -D${PKG_ROOTDIR}/ rehash"
+	post-install = "/usr/sbin/certctl -D${PKG_ROOTDIR}/ ${PKG_METALOG:+-U -M $PKG_METALOG} rehash"
+	post-uninstall = "/usr/sbin/certctl -D${PKG_ROOTDIR}/ ${PKG_METALOG:+-U -M $PKG_METALOG} rehash"
 }
