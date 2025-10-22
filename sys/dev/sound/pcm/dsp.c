@@ -83,15 +83,15 @@ static d_mmap_t dsp_mmap;
 static d_mmap_single_t dsp_mmap_single;
 
 struct cdevsw dsp_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	dsp_open,
-	.d_read =	dsp_read,
-	.d_write =	dsp_write,
-	.d_ioctl =	dsp_ioctl,
-	.d_poll =	dsp_poll,
-	.d_mmap =	dsp_mmap,
-	.d_mmap_single = dsp_mmap_single,
-	.d_name =	"dsp",
+	.d_version	= D_VERSION,
+	.d_open		= dsp_open,
+	.d_read		= dsp_read,
+	.d_write	= dsp_write,
+	.d_ioctl	= dsp_ioctl,
+	.d_poll		= dsp_poll,
+	.d_mmap		= dsp_mmap,
+	.d_mmap_single	= dsp_mmap_single,
+	.d_name		= "dsp",
 };
 
 static eventhandler_tag dsp_ehtag = NULL;
