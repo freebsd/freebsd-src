@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20251022:
+	15.0-BETA2-p1 SA-25:09.netinet
+
+	SO_REUSEPORT_LB breaks connect(2) for UDP sockets. [SA-25:09.netinet]
+
 20251015:
 	The "FreeBSD-unbound" package is renamed to "FreeBSD-local-unbound".
 	If you have set-optional or set-base installed, the new package will
