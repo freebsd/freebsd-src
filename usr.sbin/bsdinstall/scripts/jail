@@ -79,7 +79,7 @@ distbase() {
 
 	: ${DISTRIBUTIONS="base.txz"}; export DISTRIBUTIONS
 	if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
-		DISTMENU=`cut -f 4,5,6 $BSDINSTALL_DISTDIR/MANIFEST | grep -v -e ^kernel -e ^base`
+		DISTMENU=$(cut -f 1,5,6 $BSDINSTALL_DISTDIR/MANIFEST | grep -v -e ^kernel -e ^base | sed -E 's/\.txz//g')
 
 		if [ ! "$nonInteractive" == "YES" ]
 		then
