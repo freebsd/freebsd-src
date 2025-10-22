@@ -228,6 +228,8 @@ static ipf_error_entry_t ipf_errors[] = {
 	{	30024,	"object size incorrect for hash table" },
 	{	30025,	"hash table size must be at least 1"},
 	{	30026,	"cannot allocate memory for hash table context" },
+	{	30027,	"hash table larger than maximum allowed" },
+	{	30028,	"hash table multiplication overflow" },
 /* -------------------------------------------------------------------------- */
 	{	40001,	"invalid minor device numebr for log read" },
 	{	40002,	"read size too small" },
