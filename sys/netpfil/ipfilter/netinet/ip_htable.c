@@ -96,6 +96,7 @@ typedef struct ipf_htable_softc_s {
 	u_long		ipf_nhtnodes[LOOKUP_POOL_SZ];
 	iphtable_t	*ipf_htables[LOOKUP_POOL_SZ];
 	iphtent_t	*ipf_node_explist;
+	ipftuneable_t	*ipf_htable_tune;
 } ipf_htable_softc_t;
 
 ipf_lookup_t ipf_htable_backend = {
@@ -122,6 +123,14 @@ ipf_lookup_t ipf_htable_backend = {
 };
 
 
+static ipftuneable_t ipf_htable_tuneables[] = {
+	{ { NULL },
+		NULL,                   0,      0,
+		0,
+		0,      NULL, NULL }
+};
+
+
 /* ------------------------------------------------------------------------ */
 /* Function:    ipf_htable_soft_create                                      */
 /* Returns:     void *   - NULL = failure, else pointer to local context    */
@@ -142,6 +151,18 @@ ipf_htable_soft_create(ipf_main_softc_t *softc)
 
 	bzero((char *)softh, sizeof(*softh));
 
+	softh->ipf_htable_tune = ipf_tune_array_copy(softh,
+						sizeof(ipf_htable_tuneables),
+						ipf_htable_tuneables);
+	if (softh->ipf_htable_tune == NULL) {
+		ipf_htable_soft_destroy(softc, softh);
+		return (NULL);
+	}
+	if (ipf_tune_array_link(softc, softh->ipf_htable_tune) == -1) {
+		ipf_htable_soft_destroy(softc, softh);
+		return (NULL);
+	}
+
 	return (softh);
 }
 
@@ -159,6 +180,12 @@ static void
 ipf_htable_soft_destroy(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_htable_softc_t *softh = arg;
+
+	if (softh->ipf_htable_tune != NULL) {
+		ipf_tune_array_unlink(softc, softh->ipf_htable_tune);
+		KFREES(softh->ipf_htable_tune, sizeof(ipf_htable_tuneables));
+		softh->ipf_htable_tune = NULL;
+	}
 
 	KFREE(softh);
 }
