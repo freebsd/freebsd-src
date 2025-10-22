@@ -1771,6 +1771,7 @@ ipf_nat_getent(ipf_main_softc_t *softc, caddr_t data, int getlock)
 		IPFERROR(60029);
 		return (ENOMEM);
 	}
+	bzero(ipn, ipns.ipn_dsize);
 
 	if (getlock) {
 		READ_ENTER(&softc->ipf_nat);
