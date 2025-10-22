@@ -145,6 +145,18 @@ checkpath_allow_file(const char *path, char *resolved)
 	return (0);
 }
 
+static char *
+prependdevtopath(const char *path, char *buf, u_long buflen)
+{
+	u_long len;
+
+	if ((len = strlen(_PATH_DEV) + strlen(path) + 1) > buflen)
+		return NULL;
+	strncpy(buf, _PATH_DEV, len);
+	strncat(buf, path, len - sizeof(_PATH_DEV));
+	return (buf);
+}
+
 /*
  * Get the mount point information for name. Name may be mount point name
  * or device name (with or without /dev/ preprended).
@@ -153,19 +165,27 @@ struct statfs *
 getmntpoint(const char *name)
 {
 	struct stat devstat, mntdevstat;
-	char device[sizeof(_PATH_DEV) - 1 + MNAMELEN];
-	char *ddevname;
+	char *devname;
 	struct statfs *mntbuf, *statfsp;
-	int i, mntsize, isdev;
-	u_long len;
+	int i, len, isdev, mntsize, mntfromnamesize;
+	char device[sizeof(_PATH_DEV) - 1 + MNAMELEN];
+	u_long devlen;
 
-	if (stat(name, &devstat) != 0)
+	devlen = sizeof(device);
+	/*
+	 * Note that stat(NULL, &statbuf) returns -1 (EBADF) which will
+	 * cause us to return NULL if prependdevtopath() returns NULL.
+	 */
+	if (stat(name, &devstat) != 0 &&
+	    (name[0] != '/' &&
+	     stat(prependdevtopath(name, device, devlen), &devstat) != 0))
 		return (NULL);
 	if (S_ISCHR(devstat.st_mode) || S_ISBLK(devstat.st_mode))
 		isdev = 1;
 	else
 		isdev = 0;
 	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
+	mntfromnamesize = sizeof(statfsp->f_mntfromname);
 	for (i = 0; i < mntsize; i++) {
 		statfsp = &mntbuf[i];
 		if (isdev == 0) {
@@ -173,19 +193,20 @@ getmntpoint(const char *name)
 				continue;
 			return (statfsp);
 		}
-		ddevname = statfsp->f_mntfromname;
-		if (*ddevname != '/') {
-			if ((len = strlen(_PATH_DEV) + strlen(ddevname) + 1) >
-			    sizeof(statfsp->f_mntfromname) ||
-			    len > sizeof(device))
+		devname = statfsp->f_mntfromname;
+		if (*devname == '/') {
+			if (stat(devname, &mntdevstat) != 0)
 				continue;
-			strncpy(device, _PATH_DEV, len);
-			strncat(device, ddevname, len);
-			if (stat(device, &mntdevstat) == 0)
-				strncpy(statfsp->f_mntfromname, device, len);
+		} else {
+			devname = prependdevtopath(devname, device, devlen);
+			if (devname == NULL ||
+			    (len = strlen(devname)) > mntfromnamesize)
+				continue;
+			if (stat(devname, &mntdevstat) != 0)
+				continue;
+			strncpy(statfsp->f_mntfromname, devname, len);
 		}
-		if (stat(ddevname, &mntdevstat) == 0 &&
-		    S_ISCHR(mntdevstat.st_mode) &&
+		if (S_ISCHR(mntdevstat.st_mode) &&
 		    mntdevstat.st_rdev == devstat.st_rdev)
 			return (statfsp);
 	}
