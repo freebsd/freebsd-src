@@ -436,6 +436,7 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 
 	/* For NFSv4, only va_uid and va_flags is used from nva2. */
 	NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_OWNER);
+	NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_ARCHIVE);
 	NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_HIDDEN);
 	NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_SYSTEM);
 	preat_ret = nfsvno_getattr(vp, &nva2, nd, p, 1, &retbits);
@@ -569,8 +570,15 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 		}
 	    }
 	    if (!nd->nd_repstat &&
-		(NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_HIDDEN) ||
+		(NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_ARCHIVE) ||
+		 NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_HIDDEN) ||
 		 NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_SYSTEM))) {
+		if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_ARCHIVE)) {
+		    if ((nva.na_flags & UF_ARCHIVE) != 0)
+			oldflags |= UF_ARCHIVE;
+		    else
+			oldflags &= ~UF_ARCHIVE;
+		}
 		if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_HIDDEN)) {
 		    if ((nva.na_flags & UF_HIDDEN) != 0)
 			oldflags |= UF_HIDDEN;
@@ -588,6 +596,8 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_repstat = nfsvno_setattr(vp, &nva2, nd->nd_cred, p,
 		    exp);
 		if (!nd->nd_repstat) {
+		    if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_ARCHIVE))
+			NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_ARCHIVE);
 		    if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_HIDDEN))
 			NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_HIDDEN);
 		    if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_SYSTEM))
