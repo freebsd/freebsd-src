@@ -97,6 +97,7 @@ typedef struct ipf_htable_softc_s {
 	iphtable_t	*ipf_htables[LOOKUP_POOL_SZ];
 	iphtent_t	*ipf_node_explist;
 	ipftuneable_t	*ipf_htable_tune;
+	u_int		ipf_htable_size_max;
 } ipf_htable_softc_t;
 
 ipf_lookup_t ipf_htable_backend = {
@@ -124,6 +125,10 @@ ipf_lookup_t ipf_htable_backend = {
 
 
 static ipftuneable_t ipf_htable_tuneables[] = {
+	{ { (void *)offsetof(ipf_htable_softc_t, ipf_htable_size_max) },
+		"htable_size_max",	1,	0x7fffffff,
+		stsizeof(ipf_htable_softc_t, ipf_htable_size_max),
+		0,			NULL,	NULL },
 	{ { NULL },
 		NULL,                   0,      0,
 		0,
@@ -205,6 +210,8 @@ ipf_htable_soft_init(ipf_main_softc_t *softc, void *arg)
 	ipf_htable_softc_t *softh = arg;
 
 	bzero((char *)softh, sizeof(*softh));
+
+	softh->ipf_htable_size_max = IPHTABLE_MAX_SIZE;
 
 	return (0);
 }
