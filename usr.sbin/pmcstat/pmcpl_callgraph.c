@@ -362,7 +362,7 @@ pmcpl_cg_process(struct pmcstat_process *pp, struct pmcstat_pmcrecord *pmcr,
 	 * - Find the function that overlaps the return address.
 	 * - If found: use the start address of the function.
 	 *   If not found (say an object's symbol table is not present or
-	 *   is incomplete), round down to th gprof bucket granularity.
+	 *   is incomplete), round down to the gprof bucket granularity.
 	 * - Convert return virtual address to an offset in the image.
 	 * - Look for a child with the same {offset,image} tuple,
 	 *   inserting one if needed.
