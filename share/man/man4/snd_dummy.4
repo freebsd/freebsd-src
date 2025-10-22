@@ -47,8 +47,9 @@ physical sound card.
 It is intended for testing, so that test programs do not need to rely on
 hardware being present in the machine in order to run.
 .Pp
-The driver attaches as a regular PCM device, with two channels (one playback
-and one recording), as well as a mixer.
+The driver attaches as a regular
+.Xr sound 4
+device, with two channels (one playback and one recording), as well as a mixer.
 .Pp
 Playback works by discarding all input, and recording by returning silence
 (zeros).
