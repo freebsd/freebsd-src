@@ -361,6 +361,15 @@ ipf_htable_create(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 		iph->iph_name[sizeof(iph->iph_name) - 1] = '\0';
 	}
 
+	if ((iph->iph_size == 0) ||
+	    (iph->iph_size > softh->ipf_htable_size_max)) {
+		IPFERROR(30027);
+		return (EINVAL);
+	}
+	if (iph->iph_size > ( SIZE_MAX / sizeof(*iph->iph_table))) {
+		IPFERROR(30028);
+		return (EINVAL);
+	}
 	KMALLOCS(iph->iph_table, iphtent_t **,
 		 iph->iph_size * sizeof(*iph->iph_table));
 	if (iph->iph_table == NULL) {
