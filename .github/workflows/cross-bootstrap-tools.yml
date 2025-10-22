@@ -26,13 +26,13 @@ jobs:
             cross-bindir: /usr/lib/llvm-15/bin
             pkgs: bmake libarchive-dev clang-15 lld-15
           - os: ubuntu-24.04
-            compiler: clang-18
-            cross-bindir: /usr/lib/llvm-18/bin
-            pkgs: bmake libarchive-dev clang-18 lld-18
+            compiler: clang-20
+            cross-bindir: /usr/lib/llvm-20/bin
+            pkgs: bmake libarchive-dev clang-20 lld-20
           - os: macos-latest
-            compiler: clang-18
-            cross-toolchain: llvm@18
-            pkgs: bmake libarchive llvm@18
+            compiler: clang-21
+            cross-toolchain: llvm@21
+            pkgs: bmake libarchive llvm@21 lld@21
           - target_arch: amd64
             target: amd64
           - target_arch: aarch64
