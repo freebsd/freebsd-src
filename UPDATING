@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20251022:
+	13.5-RELEASE-p6 SA-25:09.netinet
+
+	SO_REUSEPORT_LB breaks connect(2) for UDP sockets. [SA-25:09.netinet]
+
 20250930:
 	13.5-RELEASE-p5	EN-25:18.freebsd-update
 			SA-25:08.openssl
