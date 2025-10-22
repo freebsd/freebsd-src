@@ -31,7 +31,7 @@ nvmft_printf(struct nvmft_controller *ctrlr, const char *fmt, ...)
 	va_list ap;
 	size_t retval;
 
-	sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
+	sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN | SBUF_INCLUDENUL);
 	sbuf_set_drain(&sb, sbuf_printf_drain, &retval);
 
 	sbuf_printf(&sb, "nvmft%u: ", ctrlr->cntlid);
