@@ -299,8 +299,6 @@
     net80211
     ..
     netgraph
-        atm
-        ..
         bluetooth
             include
             ..
