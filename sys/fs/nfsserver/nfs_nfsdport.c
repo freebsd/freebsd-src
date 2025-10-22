@@ -3193,7 +3193,8 @@ nfsv4_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 		bitpos = NFSATTRBIT_MAX;
 	} else {
 		bitpos = 0;
-		if (NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_HIDDEN) ||
+		if (NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_ARCHIVE) ||
+		    NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_HIDDEN) ||
 		    NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_SYSTEM))
 			nvap->na_flags = 0;
 	}
@@ -3226,9 +3227,11 @@ nfsv4_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 			attrsum += aclsize;
 			break;
 		case NFSATTRBIT_ARCHIVE:
-			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
-			if (!nd->nd_repstat)
-				nd->nd_repstat = NFSERR_ATTRNOTSUPP;
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			if (nd->nd_repstat == 0) {
+				if (*tl == newnfs_true)
+					nvap->na_flags |= UF_ARCHIVE;
+			}
 			attrsum += NFSX_UNSIGNED;
 			break;
 		case NFSATTRBIT_HIDDEN:

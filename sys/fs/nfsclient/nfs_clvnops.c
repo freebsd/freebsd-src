@@ -1081,12 +1081,14 @@ nfs_setattr(struct vop_setattr_args *ap)
 #endif
 
 	/*
-	 * Only setting of UF_HIDDEN and UF_SYSTEM are supported and
+	 * Only setting of UF_ARCHIVE, UF_HIDDEN and UF_SYSTEM are supported and
 	 * only for NFSv4 servers that support them.
 	 */
 	nmp = VFSTONFS(vp->v_mount);
 	if (vap->va_flags != VNOVAL && (!NFSHASNFSV4(nmp) ||
-	    (vap->va_flags & ~(UF_HIDDEN | UF_SYSTEM)) != 0 ||
+	    (vap->va_flags & ~(UF_ARCHIVE | UF_HIDDEN | UF_SYSTEM)) != 0 ||
+	    ((vap->va_flags & UF_ARCHIVE) != 0 &&
+	     !NFSISSET_ATTRBIT(&np->n_vattr.na_suppattr, NFSATTRBIT_ARCHIVE)) ||
 	    ((vap->va_flags & UF_HIDDEN) != 0 &&
 	     !NFSISSET_ATTRBIT(&np->n_vattr.na_suppattr, NFSATTRBIT_HIDDEN)) ||
 	    ((vap->va_flags & UF_SYSTEM) != 0 &&
@@ -4835,6 +4837,8 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 		break;
 	case _PC_HAS_HIDDENSYSTEM:
 		if (NFS_ISV4(vp) && NFSISSET_ATTRBIT(&np->n_vattr.na_suppattr,
+		    NFSATTRBIT_ARCHIVE) &&
+		    NFSISSET_ATTRBIT(&np->n_vattr.na_suppattr,
 		    NFSATTRBIT_HIDDEN) &&
 		    NFSISSET_ATTRBIT(&np->n_vattr.na_suppattr,
 		    NFSATTRBIT_SYSTEM))
