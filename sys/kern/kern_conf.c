@@ -1164,6 +1164,9 @@ destroy_devl(struct cdev *dev)
 		devfs_destroy_cdevpriv(p);
 		mtx_lock(&cdevpriv_mtx);
 	}
+	while (cdp->cdp_fdpriv_dtrc != 0) {
+		msleep(&cdp->cdp_fdpriv_dtrc, &cdevpriv_mtx, 0, "cdfdpc", 0);
+	}
 	mtx_unlock(&cdevpriv_mtx);
 	dev_lock();
 
