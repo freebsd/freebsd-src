@@ -27,9 +27,9 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "UNBOUND-HOST" "1" "Sep 18, 2025" "1.24.0" "Unbound"
+.TH "UNBOUND-HOST" "1" "Oct 22, 2025" "1.24.1" "Unbound"
 .SH NAME
-unbound-host \- Unbound 1.24.0 DNS lookup utility.
+unbound-host \- Unbound 1.24.1 DNS lookup utility.
 .SH SYNOPSIS
 .sp
 \fBunbound\-host\fP [\fB\-C configfile\fP] [\fB\-vdhr46D\fP] [\fB\-c class\fP]

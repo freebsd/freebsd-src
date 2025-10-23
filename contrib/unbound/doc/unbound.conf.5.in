@@ -27,9 +27,9 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "UNBOUND.CONF" "5" "Sep 18, 2025" "1.24.0" "Unbound"
+.TH "UNBOUND.CONF" "5" "Oct 22, 2025" "1.24.1" "Unbound"
 .SH NAME
-unbound.conf \- Unbound 1.24.0 configuration file.
+unbound.conf \- Unbound 1.24.1 configuration file.
 .SH SYNOPSIS
 .sp
 \fBunbound.conf\fP
@@ -3653,6 +3653,15 @@ It is not reset during the resolution.
 When it is exceeded the query is failed and the lookup process stops.
 .sp
 Default: 200
+.UNINDENT
+.INDENT 0.0
+.TP
+.B iter\-scrub\-promiscuous: \fI<yes or no>\fP 
+Should the iterator scrubber remove promiscuous NS from positive answers.
+This protects against poisonous contents, that could affect names in the
+same zone as a spoofed packet.
+.sp
+Default: yes
 .UNINDENT
 .INDENT 0.0
 .TP

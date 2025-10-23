@@ -1,4 +1,4 @@
-/* A Bison parser, made by GNU Bison 3.7.6.  */
+/* A Bison parser, made by GNU Bison 3.8.2.  */
 
 /* Bison interface for Yacc-like parsers in C
 
@@ -427,7 +427,8 @@ extern int yydebug;
     VAR_ITER_SCRUB_CNAME = 628,    /* VAR_ITER_SCRUB_CNAME  */
     VAR_MAX_GLOBAL_QUOTA = 629,    /* VAR_MAX_GLOBAL_QUOTA  */
     VAR_HARDEN_UNVERIFIED_GLUE = 630, /* VAR_HARDEN_UNVERIFIED_GLUE  */
-    VAR_LOG_TIME_ISO = 631         /* VAR_LOG_TIME_ISO  */
+    VAR_LOG_TIME_ISO = 631,        /* VAR_LOG_TIME_ISO  */
+    VAR_ITER_SCRUB_PROMISCUOUS = 632 /* VAR_ITER_SCRUB_PROMISCUOUS  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -810,6 +811,7 @@ extern int yydebug;
 #define VAR_MAX_GLOBAL_QUOTA 629
 #define VAR_HARDEN_UNVERIFIED_GLUE 630
 #define VAR_LOG_TIME_ISO 631
+#define VAR_ITER_SCRUB_PROMISCUOUS 632
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
@@ -819,7 +821,7 @@ union YYSTYPE
 
 	char*	str;
 
-#line 823 "util/configparser.h"
+#line 825 "util/configparser.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -830,6 +832,8 @@ typedef union YYSTYPE YYSTYPE;
 
 extern YYSTYPE yylval;
 
+
 int yyparse (void);
+
 
 #endif /* !YY_YY_UTIL_CONFIGPARSER_H_INCLUDED  */

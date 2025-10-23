@@ -27,9 +27,9 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "UNBOUND" "8" "Sep 18, 2025" "1.24.0" "Unbound"
+.TH "UNBOUND" "8" "Oct 22, 2025" "1.24.1" "Unbound"
 .SH NAME
-unbound \- Unbound DNS validating resolver 1.24.0.
+unbound \- Unbound DNS validating resolver 1.24.1.
 .SH SYNOPSIS
 .sp
 \fBunbound\fP [\fB\-hdpv\fP] [\fB\-c <cfgfile>\fP]

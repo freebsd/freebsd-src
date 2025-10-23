@@ -27,9 +27,9 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "UNBOUND-CONTROL" "8" "Sep 18, 2025" "1.24.0" "Unbound"
+.TH "UNBOUND-CONTROL" "8" "Oct 22, 2025" "1.24.1" "Unbound"
 .SH NAME
-unbound-control \- Unbound 1.24.0 remote server control utility.
+unbound-control \- Unbound 1.24.1 remote server control utility.
 .SH SYNOPSIS
 .sp
 \fBunbound\-control\fP [\fB\-hq\fP] [\fB\-c cfgfile\fP] [\fB\-s server\fP] command
@@ -167,6 +167,7 @@ ipset,
 \fI\%tcp\-reuse\-timeout\fP,
 \fI\%tcp\-auth\-query\-timeout\fP,
 \fI\%delay\-close\fP\&.
+\fI\%iter\-scrub\-promiscuous\fP\&.
 .sp
 It does not work with
 \fI\%interface\fP and
