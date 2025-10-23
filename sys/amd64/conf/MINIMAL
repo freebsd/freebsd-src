@@ -113,7 +113,6 @@ device		uart			# Generic UART driver
 
 # Pseudo devices.
 device		loop			# Network loopback
-device		padlock_rng		# VIA Padlock RNG
 device		rdrand_rng		# Intel Bull Mountain RNG
 device		ether			# Ethernet support
 
