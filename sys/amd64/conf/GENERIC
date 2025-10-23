@@ -309,7 +309,6 @@ device		wpi			# Intel 3945ABG wireless NICs.
 device		crypto			# core crypto support
 device		aesni			# AES-NI OpenCrypto module
 device		loop			# Network loopback
-device		padlock_rng		# VIA Padlock RNG
 device		rdrand_rng		# Intel Bull Mountain RNG
 device		ether			# Ethernet support
 device		vlan			# 802.1Q VLAN support
