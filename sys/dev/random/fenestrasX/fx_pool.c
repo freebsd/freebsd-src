@@ -167,10 +167,7 @@ static const struct fxrng_ent_char {
 	[RANDOM_RANDOMDEV] = {
 		.entc_cls = &fxrng_lo_push,
 	},
-	[RANDOM_PURE_SAFE] = {
-		.entc_cls = &fxrng_hi_push,
-	},
-	[RANDOM_PURE_GLXSB] = {
+	[RANDOM_PURE_TPM] = {
 		.entc_cls = &fxrng_hi_push,
 	},
 	[RANDOM_PURE_RDRAND] = {
@@ -197,9 +194,6 @@ static const struct fxrng_ent_char {
 	[RANDOM_PURE_DARN] = {
 		.entc_cls = &fxrng_hi_pull,
 	},
-	[RANDOM_PURE_TPM] = {
-		.entc_cls = &fxrng_hi_push,
-	},
 	[RANDOM_PURE_VMGENID] = {
 		.entc_cls = &fxrng_hi_push,
 	},
@@ -211,6 +205,12 @@ static const struct fxrng_ent_char {
 	},
 	[RANDOM_PURE_ARM_TRNG] = {
 		.entc_cls = &fxrng_hi_pull,
+	},
+	[RANDOM_PURE_SAFE] = {
+		.entc_cls = &fxrng_hi_push,
+	},
+	[RANDOM_PURE_GLXSB] = {
+		.entc_cls = &fxrng_hi_push,
 	},
 };
 CTASSERT(nitems(fxrng_ent_char) == ENTROPYSOURCE);
