@@ -93,9 +93,12 @@ CHECK_UTYPE(uintptr_t, UINTPTR);
 CHECK_UTYPE(size_t, SIZE);
 
 /* dummy */
+ATF_TC_WITHOUT_HEAD(dummy);
+ATF_TC_BODY(dummy, tc) {}
+
 ATF_TP_ADD_TCS(tp)
 {
-	(void)tp;
+	ATF_TP_ADD_TC(tp, dummy);
 
 	return (atf_no_error());
 }
