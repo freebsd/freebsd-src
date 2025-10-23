@@ -83,7 +83,7 @@ static void inetprint(const char *, struct in_addr *, int, const char *, int,
     const int);
 #endif
 #ifdef INET6
-static int udp_done, tcp_done, sdp_done;
+static int udp_done, udplite_done, tcp_done, sdp_done;
 #endif /* INET6 */
 
 static int
@@ -99,6 +99,9 @@ pcblist_sysctl(int proto, const char *name, char **bufp)
 		break;
 	case IPPROTO_UDP:
 		mibvar = "net.inet.udp.pcblist";
+		break;
+	case IPPROTO_UDPLITE:
+		mibvar = "net.inet.udplite.pcblist";
 		break;
 	default:
 		mibvar = "net.inet.raw.pcblist";
@@ -222,11 +225,18 @@ protopr(u_long off, const char *name, int af1, int proto)
 			udp_done = 1;
 #endif
 		break;
+	case IPPROTO_UDPLITE:
+#ifdef INET6
+		if (udplite_done != 0)
+			return;
+		else
+			udplite_done = 1;
+#endif
+		break;
 	}
 
 	if (!pcblist_sysctl(proto, name, &buf))
 		return;
-
 	if (istcp && (cflag || Cflag)) {
 		fnamelen = strlen("Stack");
 		cnamelen = strlen("CC");
@@ -318,18 +328,18 @@ protopr(u_long off, const char *name, int af1, int proto)
 				    "Proto", "Listen", "Local Address");
 			else if (Tflag)
 				xo_emit((Aflag && !Wflag) ?
-    "{T:/%-5.5s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-18.18s} {T:/%s}" :
+    "{T:/%-9.9s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-18.18s} {T:/%s}" :
 				    ((!Wflag || af1 == AF_INET) ?
-    "{T:/%-5.5s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-22.22s} {T:/%s}" :
-    "{T:/%-5.5s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-45.45s} {T:/%s}"),
+    "{T:/%-9.9s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-22.22s} {T:/%s}" :
+    "{T:/%-9.9s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-45.45s} {T:/%s}"),
 				    "Proto", "Rexmit", "OOORcv", "0-win",
 				    "Local Address", "Foreign Address");
 			else {
 				xo_emit((Aflag && !Wflag) ?
-    "{T:/%-5.5s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-18.18s} {T:/%-18.18s}" :
+    "{T:/%-9.9s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-18.18s} {T:/%-18.18s}" :
 				    ((!Wflag || af1 == AF_INET) ?
-    "{T:/%-5.5s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-22.22s} {T:/%-22.22s}" :
-    "{T:/%-5.5s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-45.45s} {T:/%-45.45s}"),
+    "{T:/%-9.9s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-22.22s} {T:/%-22.22s}" :
+    "{T:/%-9.9s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-45.45s} {T:/%-45.45s}"),
 				    "Proto", "Recv-Q", "Send-Q",
 				    "Local Address", "Foreign Address");
 				if (!xflag && !Rflag)
@@ -382,9 +392,14 @@ protopr(u_long off, const char *name, int af1, int proto)
 		vchar = ((inp->inp_vflag & INP_IPV4) != 0) ?
 		    "4" : "";
 		if (istcp && (tp->t_flags & TF_TOE) != 0)
-			xo_emit("{:protocol/%-3.3s%-2.2s/%s%s} ", "toe", vchar);
-		else
-			xo_emit("{:protocol/%-3.3s%-2.2s/%s%s} ", name, vchar);
+			xo_emit("{:protocol/%-3.3s%-6.6s/%s%s} ", "toe", vchar);
+		else {
+			int len;
+
+			len = max (2, 9 - strlen(name));
+			xo_emit("{:protocol/%.7s%-*.*s/%s%s} ", name, len, len,
+			    vchar);
+		}
 		if (Lflag) {
 			char buf1[33];
 
