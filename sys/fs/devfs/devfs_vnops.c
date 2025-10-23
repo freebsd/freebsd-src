@@ -200,14 +200,25 @@ devfs_foreach_cdevpriv(struct cdev *dev, int (*cb)(void *data, void *arg),
 void
 devfs_destroy_cdevpriv(struct cdev_privdata *p)
 {
+	struct file *fp;
+	struct cdev_priv *cdp;
 
 	mtx_assert(&cdevpriv_mtx, MA_OWNED);
-	KASSERT(p->cdpd_fp->f_cdevpriv == p,
-	    ("devfs_destoy_cdevpriv %p != %p", p->cdpd_fp->f_cdevpriv, p));
-	p->cdpd_fp->f_cdevpriv = NULL;
+	fp = p->cdpd_fp;
+	KASSERT(fp->f_cdevpriv == p,
+	    ("devfs_destoy_cdevpriv %p != %p", fp->f_cdevpriv, p));
+	cdp = cdev2priv((struct cdev *)fp->f_data);
+	cdp->cdp_fdpriv_dtrc++;
+	fp->f_cdevpriv = NULL;
 	LIST_REMOVE(p, cdpd_list);
 	mtx_unlock(&cdevpriv_mtx);
 	(p->cdpd_dtr)(p->cdpd_data);
+	mtx_lock(&cdevpriv_mtx);
+	MPASS(cdp->cdp_fdpriv_dtrc >= 1);
+	cdp->cdp_fdpriv_dtrc--;
+	if (cdp->cdp_fdpriv_dtrc == 0)
+		wakeup(&cdp->cdp_fdpriv_dtrc);
+	mtx_unlock(&cdevpriv_mtx);
 	free(p, M_CDEVPDATA);
 }
 
