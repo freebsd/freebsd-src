@@ -792,6 +792,9 @@ struct config_file {
 	int iter_scrub_cname;
 	/** limit on upstream queries for an incoming query and subqueries. */
 	int max_global_quota;
+	/** Should the iterator scrub promiscuous NS rrsets, from positive
+	 * answers. */
+	int iter_scrub_promiscuous;
 };
 
 /** from cfg username, after daemonize setup performed */
