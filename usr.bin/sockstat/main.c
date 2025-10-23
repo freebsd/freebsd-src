@@ -108,7 +108,8 @@ static bool	 show_path_state = false;
 /*
  * Default protocols to use if no -P was defined.
  */
-static const char *default_protos[] = {"sctp", "tcp", "udp", "divert" };
+static const char *default_protos[] = {"sctp", "tcp", "udp", "udplite",
+    "divert" };
 static size_t	   default_numprotos = nitems(default_protos);
 
 static int	*protos;	/* protocols to use */
@@ -626,6 +627,10 @@ gather_inet(int proto)
 		varname = "net.inet.udp.pcblist";
 		protoname = "udp";
 		break;
+	case IPPROTO_UDPLITE:
+		varname = "net.inet.udplite.pcblist";
+		protoname = "udplite";
+		break;
 	case IPPROTO_DIVERT:
 		varname = "net.inet.divert.pcblist";
 		protoname = "div";
@@ -674,6 +679,7 @@ gather_inet(int proto)
 			protoname = xtp->t_flags & TF_TOE ? "toe" : "tcp";
 			break;
 		case IPPROTO_UDP:
+		case IPPROTO_UDPLITE:
 		case IPPROTO_DIVERT:
 			xip = (struct xinpcb *)xig;
 			if (!check_ksize(xip->xi_len, struct xinpcb))
