@@ -178,6 +178,93 @@ TEST_F(Bmap, default_)
 }
 
 /*
+ * The server returns an error for some reason for FUSE_BMAP.  fusefs should
+ * faithfully report that error up to the caller.
+ */
+TEST_F(Bmap, einval)
+{
+	struct fiobmap2_arg arg;
+	const off_t filesize = 1 << 30;
+	int64_t lbn = 100;
+	const ino_t ino = 42;
+	int fd;
+
+	expect_lookup(RELPATH, 42, filesize);
+	expect_open(ino, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_BMAP &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnErrno(EINVAL)));
+
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	arg.bn = lbn;
+	arg.runp = -1;
+	arg.runb = -1;
+	ASSERT_EQ(-1, ioctl(fd, FIOBMAP2, &arg));
+	EXPECT_EQ(EINVAL, errno);
+
+	leak(fd);
+}
+
+/*
+ * Even if the server returns EINVAL during VOP_BMAP, we should still be able
+ * to successfully read a block.  This is a regression test for
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=264196 .  The bug did not
+ * lie in fusefs, but this is a convenient place for a regression test.
+ */
+TEST_F(Bmap, spurious_einval)
+{
+	const off_t filesize = 4ull << 30;
+	const ino_t ino = 42;
+	int fd, r;
+	char buf[1];
+
+	expect_lookup(RELPATH, 42, filesize);
+	expect_open(ino, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_BMAP &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke(ReturnErrno(EINVAL)));
+	EXPECT_CALL(*m_mock, process(
+	ResultOf([=](auto in) {
+		return (in.header.opcode == FUSE_READ &&
+			in.header.nodeid == ino &&
+			in.body.read.offset == 0 &&
+			in.body.read.size == (uint64_t)m_maxbcachebuf);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto& out) {
+		size_t osize = in.body.read.size;
+
+		assert(osize < sizeof(out.body.bytes));
+		out.header.len = sizeof(struct fuse_out_header) + osize;
+		bzero(out.body.bytes, osize);
+	})));
+
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	/*
+	 * Read the same block multiple times.  On a system affected by PR
+	 * 264196 , the second read will fail.
+	 */
+	r = read(fd, buf, sizeof(buf));
+	EXPECT_EQ(r, 1) << strerror(errno);
+	r = read(fd, buf, sizeof(buf));
+	EXPECT_EQ(r, 1) << strerror(errno);
+	r = read(fd, buf, sizeof(buf));
+	EXPECT_EQ(r, 1) << strerror(errno);
+}
+
+/*
  * VOP_BMAP should not query the server for the file's size, even if its cached
  * attributes have expired.
  * Regression test for https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=256937
