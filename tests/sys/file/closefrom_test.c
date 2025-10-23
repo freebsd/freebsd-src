@@ -148,7 +148,7 @@ main(void)
 
 	/* We'd better start up with fd's 0, 1, and 2 open. */
 	start = devnull();
-	if (start == -1)
+	if (start < 3)
 		fail("open", "bad descriptor %d", start);
 	ok("open");
 
@@ -159,9 +159,9 @@ main(void)
 	ok("highest_fd");
 
 	/* Try to use closefrom() for just closing fd 3. */
-	closefrom(start + 1);
+	closefrom(start);
 	fd = highest_fd();
-	if (fd != start)
+	if (fd != start - 1)
 		fail("closefrom", "highest fd %d", fd);
 	ok("closefrom");
 
@@ -169,7 +169,7 @@ main(void)
 	for (i = 0; i < 16; i++)
 		(void)devnull();
 	fd = highest_fd();
-	if (fd != start + 16)
+	if (fd != start + 15)
 		fail("open 16", "highest fd %d", fd);
 	ok("open 16");
 
