@@ -104,7 +104,8 @@ static bool	 show_path_state = false;
 /*
  * Default protocols to use if no -P was defined.
  */
-static const char *default_protos[] = {"sctp", "tcp", "udp", "divert" };
+static const char *default_protos[] = {"sctp", "tcp", "udp", "udplite",
+    "divert" };
 static size_t	   default_numprotos = nitems(default_protos);
 
 static int	*protos;	/* protocols to use */
@@ -686,6 +687,10 @@ gather_inet(int proto)
 		varname = "net.inet.udp.pcblist";
 		protoname = "udp";
 		break;
+	case IPPROTO_UDPLITE:
+		varname = "net.inet.udplite.pcblist";
+		protoname = "udplite";
+		break;
 	case IPPROTO_DIVERT:
 		varname = "net.inet.divert.pcblist";
 		protoname = "div";
@@ -734,6 +739,7 @@ gather_inet(int proto)
 			protoname = xtp->t_flags & TF_TOE ? "toe" : "tcp";
 			break;
 		case IPPROTO_UDP:
+		case IPPROTO_UDPLITE:
 		case IPPROTO_DIVERT:
 			xip = (struct xinpcb *)xig;
 			if (!check_ksize(xip->xi_len, struct xinpcb))
@@ -1161,7 +1167,7 @@ displaysock(struct sock *s, int pos)
 	faddr = s->faddr;
 	first = 1;
 	while (laddr != NULL || faddr != NULL) {
-		offset = 37;
+		offset = 40;
 		while (pos < offset)
 			pos += xprintf(" ");
 		switch (s->family) {
@@ -1389,7 +1395,7 @@ display(void)
 	int n, pos;
 
 	if (opt_q != 1) {
-		printf("%-8s %-10s %-5s %-3s %-6s %-*s %-*s",
+		printf("%-8s %-10s %-5s %-3s %-9s %-*s %-*s",
 		    "USER", "COMMAND", "PID", "FD", "PROTO",
 		    opt_w ? 45 : 21, "LOCAL ADDRESS",
 		    opt_w ? 45 : 21, "FOREIGN ADDRESS");
