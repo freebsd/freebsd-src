@@ -141,6 +141,7 @@ void	kmod_udpstat_inc(int statnum);
     kmod_udpstat_inc(offsetof(struct udpstat, name) / sizeof(uint64_t))
 
 SYSCTL_DECL(_net_inet_udp);
+SYSCTL_DECL(_net_inet_udplite);
 
 VNET_DECLARE(struct inpcbinfo, udbinfo);
 VNET_DECLARE(struct inpcbinfo, ulitecbinfo);
