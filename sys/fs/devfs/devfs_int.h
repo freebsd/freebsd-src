@@ -67,6 +67,7 @@ struct cdev_priv {
 	void			*cdp_dtr_cb_arg;
 
 	LIST_HEAD(, cdev_privdata) cdp_fdpriv;
+	u_int			cdp_fdpriv_dtrc;
 
 	struct mtx		cdp_threadlock;
 };
