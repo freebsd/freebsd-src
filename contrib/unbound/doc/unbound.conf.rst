@@ -3156,6 +3156,14 @@ These options are part of the **server:** clause.
     Default: 200
 
 
+@@UAHL@unbound.conf@iter-scrub-promiscuous@@: *<yes or no>*
+    Should the iterator scrubber remove promiscuous NS from positive answers.
+    This protects against poisonous contents, that could affect names in the
+    same zone as a spoofed packet.
+
+    Default: yes
+
+
 @@UAHL@unbound.conf@fast-server-permil@@: *<number>*
     Specify how many times out of 1000 to pick from the set of fastest servers.
     0 turns the feature off.

@@ -215,6 +215,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_LOG_DESTADDR VAR_CACHEDB_CHECK_WHEN_SERVE_EXPIRED
 %token VAR_COOKIE_SECRET_FILE VAR_ITER_SCRUB_NS VAR_ITER_SCRUB_CNAME
 %token VAR_MAX_GLOBAL_QUOTA VAR_HARDEN_UNVERIFIED_GLUE VAR_LOG_TIME_ISO
+%token VAR_ITER_SCRUB_PROMISCUOUS
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -356,7 +357,7 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_harden_unknown_additional | server_disable_edns_do |
 	server_log_destaddr | server_cookie_secret_file |
 	server_iter_scrub_ns | server_iter_scrub_cname | server_max_global_quota |
-	server_harden_unverified_glue | server_log_time_iso
+	server_harden_unverified_glue | server_log_time_iso | server_iter_scrub_promiscuous
 	;
 stub_clause: stubstart contents_stub
 	{
@@ -4237,6 +4238,16 @@ server_max_global_quota: VAR_MAX_GLOBAL_QUOTA STRING_ARG
 		if(atoi($2) == 0 && strcmp($2, "0") != 0)
 			yyerror("number expected");
 		else cfg_parser->cfg->max_global_quota = atoi($2);
+		free($2);
+	}
+	;
+server_iter_scrub_promiscuous: VAR_ITER_SCRUB_PROMISCUOUS STRING_ARG
+	{
+		OUTYY(("P(server_iter_scrub_promiscuous:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->iter_scrub_promiscuous =
+			(strcmp($2, "yes")==0);
 		free($2);
 	}
 	;
