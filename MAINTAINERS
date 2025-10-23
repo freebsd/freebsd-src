@@ -111,6 +111,7 @@ sys/xen		royger		Pre-commit review recommended.
 tests			ngie,#test		Pre-commit review requested.
 tools/build	imp	Pre-commit review requested, especially to fix bootstrap issues.
 top(1)		eadler	Pre-commit review requested.
+ufshci(4)	jaeyoon	Pre-commit review requested.
 usr.sbin/bsdconfig	dteske	Pre-commit phabricator review requested.
 usr.sbin/dpv	dteske	Pre-commit review requested. Keep in sync with libdpv.
 usr.sbin/pkg	pkg@	Please coordinate behavior or flag changes with pkg team.
