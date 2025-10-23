@@ -2720,17 +2720,10 @@ libtool_validate_options ()
     # preserve --debug
     test : = "$debug_cmd" || func_append preserve_args " --debug"
 
-    case $host_os in
-      # Solaris2 added to fix http://debbugs.gnu.org/cgi/bugreport.cgi?bug=16452
-      # see also: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=59788
-      cygwin* | mingw* | windows* | pw32* | cegcc* | solaris2* | os2*)
-        # don't eliminate duplications in $postdeps and $predeps
-        opt_duplicate_compiler_generated_deps=:
-        ;;
-      *)
-        opt_duplicate_compiler_generated_deps=$opt_preserve_dup_deps
-        ;;
-    esac
+    # Keeping compiler generated duplicates in $postdeps and $predeps is not
+    # harmful, and is necessary in a majority of systems that use it to satisfy
+    # symbol dependencies.
+    opt_duplicate_compiler_generated_deps=:
 
     $opt_help || {
       # Sanity checks first:

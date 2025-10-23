@@ -169,6 +169,7 @@ There are several commands that the server understands.
     :ref:`tcp-reuse-timeout<unbound.conf.tcp-reuse-timeout>`,
     :ref:`tcp-auth-query-timeout<unbound.conf.tcp-auth-query-timeout>`,
     :ref:`delay-close<unbound.conf.delay-close>`.
+    :ref:`iter-scrub-promiscuous<unbound.conf.iter-scrub-promiscuous>`.
 
     It does not work with
     :ref:`interface<unbound.conf.interface>` and
