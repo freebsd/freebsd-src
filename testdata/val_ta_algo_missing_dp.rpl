@@ -11,6 +11,7 @@ server:
 	fake-sha1: yes
 	trust-anchor-signaling: no
 	minimal-responses: no
+	iter-scrub-promiscuous: no
 
 stub-zone:
 	name: "."

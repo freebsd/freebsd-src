@@ -10,6 +10,7 @@ server:
 	ipsecmod-max-ttl: 200
 	qname-minimisation: "no"
 	minimal-responses: no
+	iter-scrub-promiscuous: no
 
 stub-zone:
 	name: "."

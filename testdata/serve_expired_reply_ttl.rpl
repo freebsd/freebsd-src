@@ -3,6 +3,7 @@ server:
 	module-config: "validator iterator"
 	qname-minimisation: "no"
 	minimal-responses: no
+	iter-scrub-promiscuous: no
 	serve-expired: yes
 	serve-expired-reply-ttl: 123
 	serve-expired-client-timeout: 0

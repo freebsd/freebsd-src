@@ -15,6 +15,7 @@ server:
 	access-control: 127.0.0.0/8 allow_snoop
 	qname-minimisation: "no"
 	minimal-responses: no
+	iter-scrub-promiscuous: no
 	; the size for the edns subnet cache
 	msg-cache-size: 1500
 

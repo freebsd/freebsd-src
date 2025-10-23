@@ -634,6 +634,22 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 					"RRset:", pkt, msg, prev, &rrset);
 				continue;
 			}
+			/* If the NS set is a promiscuous NS set, scrub that
+			 * to remove potential for poisonous contents that
+			 * affects other names in the same zone. Remove
+			 * promiscuous NS sets in positive answers, that
+			 * thus have records in the answer section. Nodata
+			 * and nxdomain promiscuous NS sets have been removed
+			 * already. Since the NS rrset is scrubbed, its
+			 * address records are also not marked to be allowed
+			 * and are removed later. */
+			if(FLAGS_GET_RCODE(msg->flags) == LDNS_RCODE_NOERROR &&
+				msg->an_rrsets != 0 &&
+				env->cfg->iter_scrub_promiscuous) {
+				remove_rrset("normalize: removing promiscuous "
+					"RRset:", pkt, msg, prev, &rrset);
+				continue;
+			}
 			if(nsset == NULL) {
 				nsset = rrset;
 			} else {

@@ -2,6 +2,7 @@
 server:
 	target-fetch-policy: "0 0 0 0 0"
 	minimal-responses: no
+	iter-scrub-promiscuous: no
         tcp-upstream: no
         #tls-upstream:no  # same case but not testable in rpl.
 

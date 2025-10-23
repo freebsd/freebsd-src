@@ -4,6 +4,7 @@ server:
 	qname-minimisation: "no"
 	module-config: "iterator"
 	minimal-responses: no
+	iter-scrub-promiscuous: no
 
 stub-zone:
 	name: "."

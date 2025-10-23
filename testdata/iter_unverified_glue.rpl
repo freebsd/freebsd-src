@@ -3,6 +3,7 @@ server:
 	target-fetch-policy: "0 0 0 0 0"
 	qname-minimisation: no
 	minimal-responses: no
+	iter-scrub-promiscuous: no
 	do-ip6: no
 	harden-unverified-glue: yes
 stub-zone:

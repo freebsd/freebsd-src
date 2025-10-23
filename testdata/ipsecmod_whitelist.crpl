@@ -11,6 +11,7 @@ server:
 	ipsecmod-whitelist: white.example.com
 	qname-minimisation: "no"
 	minimal-responses: no
+	iter-scrub-promiscuous: no
 
 stub-zone:
 	name: "."

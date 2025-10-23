@@ -4,6 +4,7 @@ server:
 	module-config: "validator iterator"
 	qname-minimisation: "no"
 	minimal-responses: no
+	iter-scrub-promiscuous: no
 	serve-original-ttl: yes
 	cache-max-ttl: 1000
 	cache-min-ttl: 20

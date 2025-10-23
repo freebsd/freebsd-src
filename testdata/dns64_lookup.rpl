@@ -7,6 +7,7 @@ server:
 	dns64-ignore-aaaa: ip6ignore.example.com
 	dns64-ignore-aaaa: ip6only.example.com
 	minimal-responses: no
+	iter-scrub-promiscuous: no
 
 stub-zone:
 	name: "."

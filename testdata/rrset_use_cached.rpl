@@ -1,5 +1,6 @@
 server:
 	minimal-responses: no
+	iter-scrub-promiscuous: no
 	serve-expired: yes
 	# The value does not matter, we will not simulate delay.
 	# We do not want only serve-expired because fetches from that

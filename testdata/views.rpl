@@ -3,6 +3,7 @@ server:
 	target-fetch-policy: "0 0 0 0 0"
 	qname-minimisation: "no"
 	minimal-responses: no
+	iter-scrub-promiscuous: no
 
 	access-control: 10.10.10.0/24 allow
 	access-control-view: 10.10.10.10/32 "view1"

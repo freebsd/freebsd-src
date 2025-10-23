@@ -5,6 +5,7 @@ server:
 	fake-sha1: yes
 	trust-anchor-signaling: no
 	minimal-responses: no
+	iter-scrub-promiscuous: no
 stub-zone:
 	name: "."
 	stub-addr: 193.0.14.129         # K.ROOT-SERVERS.NET.

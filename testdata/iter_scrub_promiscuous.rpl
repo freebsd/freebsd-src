@@ -1,0 +1,373 @@
+; config options
+server:
+	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: no
+	iter-scrub-promiscuous: yes
+
+stub-zone:
+	name: "."
+	stub-addr: 1.2.3.0 # ns.root
+CONFIG_END
+
+SCENARIO_BEGIN Test iterator with scrub of promiscuous records
+; The test queries receive spoofed answers. The check queries see if
+; the record is returned by the original server or by a spoofed source.
+; The test domains are pollute1.mesa, pollute2.mesa and pollute3.mesa.
+; The spoofed contents are ns.attacker.mesa and its IPs 5.6.7.8 and 5.6.7.9.
+; The pollute1.mesa NS, ns.pollute2.mesa A, and test3.atkr.pollute3.mesa NS
+; with ns.pollute3.mesa A records are tested for cache placement.
+
+; ns.root
+RANGE_BEGIN 0 400
+	ADDRESS 1.2.3.0
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS NS.ROOT.
+SECTION ADDITIONAL
+NS.ROOT. IN A 1.2.3.0
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+mesa. IN NS
+SECTION AUTHORITY
+mesa. IN NS ns.mesa.
+SECTION ADDITIONAL
+ns.mesa. IN A 1.2.7.7
+ENTRY_END
+RANGE_END
+
+; ns.mesa
+RANGE_BEGIN 0 400
+	ADDRESS 1.2.7.7
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+pollute1.mesa. IN NS
+SECTION AUTHORITY
+pollute1.mesa. IN NS ns.pollute1.mesa.
+SECTION ADDITIONAL
+ns.pollute1.mesa. IN A 1.2.4.1
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+pollute2.mesa. IN NS
+SECTION AUTHORITY
+pollute2.mesa. IN NS ns.pollute2.mesa.
+SECTION ADDITIONAL
+ns.pollute2.mesa. IN A 1.2.4.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+pollute3.mesa. IN NS
+SECTION AUTHORITY
+pollute3.mesa. IN NS ns.pollute3.mesa.
+SECTION ADDITIONAL
+ns.pollute3.mesa. IN A 1.2.4.3
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+attacker.mesa. IN NS
+SECTION AUTHORITY
+attacker.mesa. IN NS ns.attacker.mesa.
+SECTION ADDITIONAL
+ns.attacker.mesa. IN A 5.6.7.8
+ENTRY_END
+RANGE_END
+
+; ns.pollute1.mesa
+RANGE_BEGIN 0 400
+	ADDRESS 1.2.4.1
+
+; This is the spoofed answer that is returned.
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+test1.atkr.pollute1.mesa. IN A
+SECTION ANSWER
+test1.atkr.pollute1.mesa. 86400 IN A 1.2.3.4
+SECTION AUTHORITY
+pollute1.mesa. 86400 IN NS ns.attacker.mesa.
+ENTRY_END
+
+; correct answer for the check query.
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+check.pollute1.mesa. IN A
+SECTION ANSWER
+check.pollute1.mesa. IN A 1.8.9.1
+ENTRY_END
+RANGE_END
+
+; ns.pollute2.mesa
+RANGE_BEGIN 0 400
+	ADDRESS 1.2.4.2
+
+; This is the spoofed answer that is returned.
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+test2.atkr.pollute2.mesa. IN A
+SECTION ANSWER
+test2.atkr.pollute2.mesa. 86400 IN A 1.2.3.4
+SECTION AUTHORITY
+pollute2.mesa. 86400 IN NS ns.pollute2.mesa.
+SECTION ADDITIONAL
+ns.pollute2.mesa. 86400 IN A 5.6.7.8
+ENTRY_END
+
+; correct answer for the check query.
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+check.pollute2.mesa. IN A
+SECTION ANSWER
+check.pollute2.mesa. IN A 1.8.9.2
+ENTRY_END
+RANGE_END
+
+; ns.pollute3.mesa
+RANGE_BEGIN 0 400
+	ADDRESS 1.2.4.3
+
+; This is the spoofed answer that is returned.
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+test3.atkr.pollute3.mesa. IN A
+SECTION ANSWER
+test3.atkr.pollute3.mesa. 86400 IN A 1.2.3.4
+SECTION AUTHORITY
+test3.atkr.pollute3.mesa. 86400 IN NS ns.pollute3.mesa.
+SECTION ADDITIONAL
+ns.pollute3.mesa. 86400 IN A 5.6.7.8
+ENTRY_END
+
+; correct answer for the check query.
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+check.pollute3.mesa. IN A
+SECTION ANSWER
+check.pollute3.mesa. IN A 1.8.9.3
+ENTRY_END
+RANGE_END
+
+; ns.attacker.mesa
+RANGE_BEGIN 0 400
+	ADDRESS 5.6.7.8
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.attacker.mesa. IN A
+SECTION ANSWER
+ns.attacker.mesa. 86400 IN A 5.6.7.8
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.attacker.mesa. IN AAAA
+SECTION AUTHORITY
+attacker.mesa. 3600 IN SOA ns.attacker.mesa. root.attacker.mesa. 4 7200 3600 604800 3600
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.attacker.mesa. IN A
+SECTION ANSWER
+ns.attacker.mesa. 86400 IN A 5.6.7.8
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+check.pollute1.mesa. IN A
+SECTION ANSWER
+check.pollute1.mesa. 86400 IN A 5.6.7.9
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+check.pollute2.mesa. IN A
+SECTION ANSWER
+check.pollute2.mesa. 86400 IN A 5.6.7.9
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+check.pollute3.mesa. IN A
+SECTION ANSWER
+check.pollute3.mesa. 86400 IN A 5.6.7.9
+ENTRY_END
+RANGE_END
+
+; Test query 1
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+test1.atkr.pollute1.mesa. IN A
+ENTRY_END
+
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+test1.atkr.pollute1.mesa. IN A
+SECTION ANSWER
+test1.atkr.pollute1.mesa. 86400 IN A 1.2.3.4
+ENTRY_END
+
+; Test query 2
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+test2.atkr.pollute2.mesa. IN A
+ENTRY_END
+
+STEP 30 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+test2.atkr.pollute2.mesa. IN A
+SECTION ANSWER
+test2.atkr.pollute2.mesa. 86400 IN A 1.2.3.4
+ENTRY_END
+
+; Test query 3
+STEP 40 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+test3.atkr.pollute3.mesa. IN A
+ENTRY_END
+
+STEP 50 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+test3.atkr.pollute3.mesa. IN A
+SECTION ANSWER
+test3.atkr.pollute3.mesa. 86400 IN A 1.2.3.4
+ENTRY_END
+
+; Check the cache contents, for query 1.
+STEP 60 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+check.pollute1.mesa. IN A
+ENTRY_END
+
+STEP 70 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+check.pollute1.mesa. IN A
+SECTION ANSWER
+; good answer
+check.pollute1.mesa. IN A 1.8.9.1
+; bad answer
+;check.pollute1.mesa. IN A 5.6.7.9
+ENTRY_END
+
+; Check the cache contents, for query 2.
+STEP 80 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+check.pollute2.mesa. IN A
+ENTRY_END
+
+STEP 90 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+check.pollute2.mesa. IN A
+SECTION ANSWER
+; good answer
+check.pollute2.mesa. IN A 1.8.9.2
+; bad answer
+;check.pollute2.mesa. IN A 5.6.7.9
+ENTRY_END
+
+; Check the cache contents, for query 3.
+STEP 100 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+check.pollute3.mesa. IN A
+ENTRY_END
+
+STEP 110 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+check.pollute3.mesa. IN A
+SECTION ANSWER
+; good answer
+check.pollute3.mesa. IN A 1.8.9.3
+; bad answer
+;check.pollute3.mesa. IN A 5.6.7.9
+ENTRY_END
+
+SCENARIO_END

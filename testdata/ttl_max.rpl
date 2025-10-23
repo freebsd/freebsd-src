@@ -4,6 +4,7 @@ server:
 	cache-max-ttl: 10
 	qname-minimisation: "no"
 	minimal-responses: no
+	iter-scrub-promiscuous: no
 
 stub-zone:
 	name: "."

@@ -9,6 +9,7 @@ server:
 	qname-minimisation: "no"
 	# test that default value of harden-dnssec-stripped is still yes.
 	fake-sha1: yes
+	iter-scrub-promiscuous: no
 	trust-anchor-signaling: no
 	access-control: 127.0.0.1 allow_snoop
 	module-config: "ipsecmod validator iterator"

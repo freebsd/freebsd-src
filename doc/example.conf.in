@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.24.0.
+# See unbound.conf(5) man page, version 1.24.1.
 #
 # this is a comment.
 
@@ -195,6 +195,10 @@ server:
 
 	# Limit on upstream queries for an incoming query and its recursion.
 	# max-global-quota: 200
+
+	# Should the scrubber remove promiscuous NS from positive answers,
+	# protects against poison attempts.
+	# iter-scrub-promiscuous: yes
 
 	# msec for waiting for an unknown server to reply.  Increase if you
 	# are behind a slow satellite link, to eg. 1128.

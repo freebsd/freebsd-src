@@ -5,6 +5,7 @@ server:
 	qname-minimisation: "no"
 	trust-anchor-signaling: no
 	minimal-responses: no
+	iter-scrub-promiscuous: no
 	disable-edns-do: yes
 
 stub-zone:

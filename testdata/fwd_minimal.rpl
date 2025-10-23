@@ -5,6 +5,7 @@ server:
 	; is fine for that, not removed by minimal-responses.
 	access-control: 127.0.0.1 allow_snoop
 	minimal-responses: yes
+	iter-scrub-promiscuous: no
 forward-zone: name: "." forward-addr: 216.0.0.1
 CONFIG_END
 

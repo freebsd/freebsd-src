@@ -18,6 +18,7 @@ server:
 	ipsecmod-ignore-bogus: yes
 	qname-minimisation: "no"
 	minimal-responses: no
+	iter-scrub-promiscuous: no
 
 stub-zone:
 	name: "."
