@@ -853,6 +853,11 @@ SYSCTL_PROC(_net_inet_udp, UDPCTL_PCBLIST, pcblist,
     udp_pcblist, "S,xinpcb",
     "List of active UDP sockets");
 
+SYSCTL_PROC(_net_inet_udplite, OID_AUTO, pcblist,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, IPPROTO_UDPLITE,
+    udp_pcblist, "S,xinpcb",
+    "List of active UDP-Lite sockets");
+
 #ifdef INET
 static int
 udp_getcred(SYSCTL_HANDLER_ARGS)
