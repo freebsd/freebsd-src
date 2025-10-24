@@ -1582,7 +1582,7 @@ em_if_init(if_ctx_t ctx)
 	E1000_WRITE_REG(&sc->hw, E1000_VET, ETHERTYPE_VLAN);
 
 	/* Clear bad data from Rx FIFOs */
-	if (sc->hw.mac.type >= igb_mac_min)
+	if (sc->hw.mac.type >= igb_mac_min && !sc->vf_ifp)
 		e1000_rx_fifo_flush_base(&sc->hw);
 
 	/* Configure for OS presence */
@@ -1602,7 +1602,9 @@ em_if_init(if_ctx_t ctx)
 
 	/* Don't lose promiscuous settings */
 	em_if_set_promisc(ctx, if_getflags(ifp));
-	e1000_clear_hw_cntrs_base_generic(&sc->hw);
+
+	if (sc->hw.mac.ops.clear_hw_cntrs != NULL)
+		sc->hw.mac.ops.clear_hw_cntrs(&sc->hw);
 
 	/* MSI-X configuration for 82574 */
 	if (sc->hw.mac.type == e1000_82574) {
@@ -2349,7 +2351,7 @@ em_if_stop(if_ctx_t ctx)
 		em_flush_desc_rings(sc);
 
 	e1000_reset_hw(&sc->hw);
-	if (sc->hw.mac.type >= e1000_82544)
+	if (sc->hw.mac.type >= e1000_82544 && !sc->vf_ifp)
 		E1000_WRITE_REG(&sc->hw, E1000_WUFC, 0);
 
 	e1000_led_off(&sc->hw);
@@ -2408,6 +2410,9 @@ em_allocate_pci_resources(if_ctx_t ctx)
 	}
 	sc->osdep.mem_bus_space_tag = rman_get_bustag(sc->memory);
 	sc->osdep.mem_bus_space_handle = rman_get_bushandle(sc->memory);
+#ifdef INVARIANTS
+	sc->osdep.mem_bus_space_size = rman_get_size(sc->memory);
+#endif
 	sc->hw.hw_addr = (u8 *)&sc->osdep.mem_bus_space_handle;
 
 	/* Only older adapters use IO mapping */
@@ -3259,11 +3264,13 @@ em_reset(if_ctx_t ctx)
 
 	/* Issue a global reset */
 	e1000_reset_hw(hw);
-	if (hw->mac.type >= igb_mac_min) {
-		E1000_WRITE_REG(hw, E1000_WUC, 0);
-	} else {
-		E1000_WRITE_REG(hw, E1000_WUFC, 0);
-		em_disable_aspm(sc);
+	if (!sc->vf_ifp) {
+		if (hw->mac.type >= igb_mac_min) {
+			E1000_WRITE_REG(hw, E1000_WUC, 0);
+		} else {
+			E1000_WRITE_REG(hw, E1000_WUFC, 0);
+			em_disable_aspm(sc);
+		}
 	}
 	if (sc->flags & IGB_MEDIA_RESET) {
 		e1000_setup_init_funcs(hw, true);
@@ -3813,7 +3820,7 @@ em_initialize_receive_unit(if_ctx_t ctx)
 			    sc->rx_int_delay.value);
 	}
 
-	if (hw->mac.type >= em_mac_min) {
+	if (hw->mac.type >= em_mac_min && !sc->vf_ifp) {
 		uint32_t rfctl;
 		/* Use extended rx descriptor formats */
 		rfctl = E1000_READ_REG(hw, E1000_RFCTL);
@@ -3833,33 +3840,38 @@ em_initialize_receive_unit(if_ctx_t ctx)
 		E1000_WRITE_REG(hw, E1000_RFCTL, rfctl);
 	}
 
-	/* Set up L3 and L4 csum Rx descriptor offloads */
-	rxcsum = E1000_READ_REG(hw, E1000_RXCSUM);
-	if (if_getcapenable(ifp) & IFCAP_RXCSUM) {
-		rxcsum |= E1000_RXCSUM_TUOFL | E1000_RXCSUM_IPOFL;
-		if (hw->mac.type > e1000_82575)
-			rxcsum |= E1000_RXCSUM_CRCOFL;
-		else if (hw->mac.type < em_mac_min &&
-		    if_getcapenable(ifp) & IFCAP_HWCSUM_IPV6)
-			rxcsum |= E1000_RXCSUM_IPV6OFL;
-	} else {
-		rxcsum &= ~(E1000_RXCSUM_IPOFL | E1000_RXCSUM_TUOFL);
-		if (hw->mac.type > e1000_82575)
-			rxcsum &= ~E1000_RXCSUM_CRCOFL;
-		else if (hw->mac.type < em_mac_min)
-			rxcsum &= ~E1000_RXCSUM_IPV6OFL;
-	}
+	/*
+	 * Set up L3 and L4 csum Rx descriptor offloads only on Physical
+	 * Functions. Virtual Functions have no access to this register.
+	 */
+	if (!sc->vf_ifp) {
+		rxcsum = E1000_READ_REG(hw, E1000_RXCSUM);
+		if (if_getcapenable(ifp) & IFCAP_RXCSUM) {
+			rxcsum |= E1000_RXCSUM_TUOFL | E1000_RXCSUM_IPOFL;
+			if (hw->mac.type > e1000_82575)
+				rxcsum |= E1000_RXCSUM_CRCOFL;
+			else if (hw->mac.type < em_mac_min &&
+			    if_getcapenable(ifp) & IFCAP_HWCSUM_IPV6)
+				rxcsum |= E1000_RXCSUM_IPV6OFL;
+		} else {
+			rxcsum &= ~(E1000_RXCSUM_IPOFL | E1000_RXCSUM_TUOFL);
+			if (hw->mac.type > e1000_82575)
+				rxcsum &= ~E1000_RXCSUM_CRCOFL;
+			else if (hw->mac.type < em_mac_min)
+				rxcsum &= ~E1000_RXCSUM_IPV6OFL;
+		}
 
-	if (sc->rx_num_queues > 1) {
-		/* RSS hash needed in the Rx descriptor */
-		rxcsum |= E1000_RXCSUM_PCSD;
+		if (sc->rx_num_queues > 1) {
+			/* RSS hash needed in the Rx descriptor */
+			rxcsum |= E1000_RXCSUM_PCSD;
 
-		if (hw->mac.type >= igb_mac_min)
-			igb_initialize_rss_mapping(sc);
-		else
-			em_initialize_rss_mapping(sc);
+			if (hw->mac.type >= igb_mac_min)
+				igb_initialize_rss_mapping(sc);
+			else
+				em_initialize_rss_mapping(sc);
+		}
+		E1000_WRITE_REG(hw, E1000_RXCSUM, rxcsum);
 	}
-	E1000_WRITE_REG(hw, E1000_RXCSUM, rxcsum);
 
 	for (i = 0, que = sc->rx_queues; i < sc->rx_num_queues; i++, que++) {
 		struct rx_ring *rxr = &que->rxr;
@@ -4367,6 +4379,8 @@ em_get_wakeup(if_ctx_t ctx)
 	switch (sc->hw.mac.type) {
 	case e1000_82542:
 	case e1000_82543:
+	case e1000_vfadapt:
+	case e1000_vfadapt_i350:
 		break;
 	case e1000_82544:
 		e1000_read_nvm(&sc->hw,
@@ -4412,8 +4426,6 @@ em_get_wakeup(if_ctx_t ctx)
 	case e1000_i354:
 	case e1000_i210:
 	case e1000_i211:
-	case e1000_vfadapt:
-	case e1000_vfadapt_i350:
 		apme_mask = E1000_WUC_APME;
 		sc->has_amt = true;
 		eeprom_data = E1000_READ_REG(&sc->hw, E1000_WUC);
@@ -4469,7 +4481,6 @@ em_get_wakeup(if_ctx_t ctx)
 			global_quad_port_a = 0;
 		break;
 	}
-	return;
 }
 
 
