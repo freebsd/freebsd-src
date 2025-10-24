@@ -1557,11 +1557,11 @@ adasysctlinit(void *context, int pending)
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "unmapped_io", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    &softc->flags, (u_int)ADA_FLAG_UNMAPPEDIO, adabitsysctl, "I",
-	    "Use unmapped I/O. This sysctl is *DEPRECATED*, gone in FreeBSD 15");
+	    "Use unmapped I/O. This sysctl is *DEPRECATED*, gone in FreeBSD 16");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "rotating", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    &softc->flags, (u_int)ADA_FLAG_ROTATING, adabitsysctl, "I",
-	    "Rotating media. This sysctl is *DEPRECATED*, gone in FreeBSD 15");
+	    "Rotating media. This sysctl is *DEPRECATED*, gone in FreeBSD 16");
 
 #ifdef CAM_TEST_FAILURE
 	/*
