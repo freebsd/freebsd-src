@@ -285,7 +285,7 @@ intr_remove_handler(void *cookie)
 	struct intsrc *isrc;
 	int error;
 
-	isrc = intr_handler_source(cookie);
+	isrc = intr_handler_event(cookie)->ie_source;
 	error = intr_event_remove_handler(cookie);
 	if (error == 0) {
 		sx_xlock(&intrsrc_lock);

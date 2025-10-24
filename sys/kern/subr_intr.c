@@ -1176,7 +1176,7 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 		return (0);
 	}
 #endif
-	if (isrc != intr_handler_source(cookie))
+	if (isrc->isrc_event != intr_handler_event(cookie))
 		return (EINVAL);
 
 	error = intr_event_remove_handler(cookie);

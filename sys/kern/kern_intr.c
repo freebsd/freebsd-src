@@ -754,8 +754,8 @@ intr_event_describe_handler(struct intr_event *ie, void *cookie,
  * Return the ie_source field from the intr_event an intr_handler is
  * associated with.
  */
-void *
-intr_handler_source(void *cookie)
+struct intr_event *
+intr_handler_event(void *cookie)
 {
 	struct intr_handler *ih;
 	struct intr_event *ie;
@@ -767,7 +767,7 @@ intr_handler_source(void *cookie)
 	KASSERT(ie != NULL,
 	    ("interrupt handler \"%s\" has a NULL interrupt event",
 	    ih->ih_name));
-	return (ie->ie_source);
+	return (ie);
 }
 
 /*
