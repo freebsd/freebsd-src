@@ -122,18 +122,18 @@ dead_read(struct vop_read_args *ap)
 {
 
 	/*
-	 * Return EOF for tty devices, EIO for others
+	 * Return EOF for tty devices, ENXIO for others
 	 */
-	if ((ap->a_vp->v_vflag & VV_ISTTY) == 0)
-		return (EIO);
-	return (0);
+	if (ap->a_vp->v_vflag & VV_ISTTY)
+		return (0);
+	return (ENXIO);
 }
 
 int
 dead_write(struct vop_write_args *ap)
 {
 
-	return (EIO);
+	return (ENXIO);
 }
 
 int
