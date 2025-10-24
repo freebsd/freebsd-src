@@ -2198,9 +2198,6 @@ compute_space(struct dn_id *cmd, struct copy_args *a)
 	case DN_FS:	/* queue show */
 		x = DN_C_FS | DN_C_QUEUE;
 		break;
-	case DN_GET_COMPAT:	/* compatibility mode */
-		need =  dn_compat_calc_size(); 
-		break;
 	}
 	a->flags = x;
 	if (x & DN_C_SCH) {
@@ -2226,11 +2223,9 @@ compute_space(struct dn_id *cmd, struct copy_args *a)
 }
 
 /*
- * If compat != NULL dummynet_get is called in compatibility mode.
- * *compat will be the pointer to the buffer to pass to ipfw
  */
 int
-dummynet_get(struct sockopt *sopt, void **compat)
+dummynet_get(struct sockopt *sopt)
 {
 	int have, i, need, error;
 	char *start = NULL, *buf;
@@ -2248,37 +2243,28 @@ dummynet_get(struct sockopt *sopt, void **compat)
 
 	cmd = &r.o;
 
-	if (!compat) {
-		/* copy at least an oid, and possibly a full object */
-		error = sooptcopyin(sopt, cmd, sizeof(r), sizeof(*cmd));
+	/* copy at least an oid, and possibly a full object */
+	error = sooptcopyin(sopt, cmd, sizeof(r), sizeof(*cmd));
+	sopt->sopt_valsize = sopt_valsize;
+	if (error)
+		goto done;
+	l = cmd->len;
+#ifdef EMULATE_SYSCTL
+	/* sysctl emulation. */
+	if (cmd->type == DN_SYSCTL_GET)
+		return kesysctl_emu_get(sopt);
+#endif
+	if (l > sizeof(r)) {
+		/* request larger than default, allocate buffer */
+		cmd = malloc(l,  M_DUMMYNET, M_NOWAIT);
+		if (cmd == NULL) {
+			error = ENOMEM;
+			goto done;
+		}
+		error = sooptcopyin(sopt, cmd, l, l);
 		sopt->sopt_valsize = sopt_valsize;
 		if (error)
 			goto done;
-		l = cmd->len;
-#ifdef EMULATE_SYSCTL
-		/* sysctl emulation. */
-		if (cmd->type == DN_SYSCTL_GET)
-			return kesysctl_emu_get(sopt);
-#endif
-		if (l > sizeof(r)) {
-			/* request larger than default, allocate buffer */
-			cmd = malloc(l,  M_DUMMYNET, M_NOWAIT);
-			if (cmd == NULL) {
-				error = ENOMEM;
-				goto done;
-			}
-			error = sooptcopyin(sopt, cmd, l, l);
-			sopt->sopt_valsize = sopt_valsize;
-			if (error)
-				goto done;
-		}
-	} else { /* compatibility */
-		error = 0;
-		cmd->type = DN_CMD_GET;
-		cmd->len = sizeof(struct dn_id);
-		cmd->subtype = DN_GET_COMPAT;
-		// cmd->id = sopt_valsize;
-		D("compatibility mode");
 	}
 
 #ifdef NEW_AQM
@@ -2337,12 +2323,7 @@ dummynet_get(struct sockopt *sopt, void **compat)
 	}
 
 	if (start == NULL) {
-		if (compat) {
-			*compat = NULL;
-			error =  1; // XXX
-		} else {
-			error = sooptcopyout(sopt, cmd, sizeof(*cmd));
-		}
+		error = sooptcopyout(sopt, cmd, sizeof(*cmd));
 		goto done;
 	}
 	ND("have %d:%d sched %d, %d:%d links %d, %d:%d flowsets %d, "
@@ -2355,35 +2336,20 @@ dummynet_get(struct sockopt *sopt, void **compat)
 	sopt->sopt_valsize = sopt_valsize;
 	a.type = cmd->subtype;
 
-	if (compat == NULL) {
-		memcpy(start, cmd, sizeof(*cmd));
-		((struct dn_id*)(start))->len = sizeof(struct dn_id);
-		buf = start + sizeof(*cmd);
-	} else
-		buf = start;
+	memcpy(start, cmd, sizeof(*cmd));
+	((struct dn_id*)(start))->len = sizeof(struct dn_id);
+	buf = start + sizeof(*cmd);
 	a.start = &buf;
 	a.end = start + have;
 	/* start copying other objects */
-	if (compat) {
-		a.type = DN_COMPAT_PIPE;
-		dn_ht_scan(V_dn_cfg.schedhash, copy_data_helper_compat, &a);
-		a.type = DN_COMPAT_QUEUE;
-		dn_ht_scan(V_dn_cfg.fshash, copy_data_helper_compat, &a);
-	} else if (a.type == DN_FS) {
+	if (a.type == DN_FS) {
 		dn_ht_scan(V_dn_cfg.fshash, copy_data_helper, &a);
 	} else {
 		dn_ht_scan(V_dn_cfg.schedhash, copy_data_helper, &a);
 	}
 	DN_BH_WUNLOCK();
 
-	if (compat) {
-		*compat = start;
-		sopt->sopt_valsize = buf - start;
-		/* free() is done by ip_dummynet_compat() */
-		start = NULL; //XXX hack
-	} else {
-		error = sooptcopyout(sopt, start, buf - start);
-	}
+	error = sooptcopyout(sopt, start, buf - start);
 done:
 	if (cmd != &r.o)
 		free(cmd, M_DUMMYNET);
@@ -2519,17 +2485,9 @@ ip_dn_ctl(struct sockopt *sopt)
 		error = EINVAL;
 		break;
 
-	case IP_DUMMYNET_FLUSH:
-	case IP_DUMMYNET_CONFIGURE:
-	case IP_DUMMYNET_DEL:	/* remove a pipe or queue */
-	case IP_DUMMYNET_GET:
-		D("dummynet: compat option %d", sopt->sopt_name);
-		error = ip_dummynet_compat(sopt);
-		break;
-
 	case IP_DUMMYNET3:
 		if (sopt->sopt_dir == SOPT_GET) {
-			error = dummynet_get(sopt, NULL);
+			error = dummynet_get(sopt);
 			break;
 		}
 		l = sopt->sopt_valsize;
