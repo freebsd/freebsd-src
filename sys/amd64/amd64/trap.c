@@ -435,9 +435,9 @@ trap(struct trapframe *frame)
 
 			if ((print_efirt_faults == 1 && cnt == 0) ||
 			    print_efirt_faults == 2) {
-				trap_diag(frame, 0);
 				printf("EFI RT fault %s\n",
 				    traptype_to_msg(type));
+				trap_diag(frame, 0);
 			}
 			frame->tf_rip = (long)curpcb->pcb_onfault;
 			return;
@@ -870,8 +870,8 @@ after_vmfault:
 
 			if ((print_efirt_faults == 1 && cnt == 0) ||
 			    print_efirt_faults == 2) {
-				trap_diag(frame, eva);
 				printf("EFI RT page fault\n");
+				trap_diag(frame, eva);
 			}
 		}
 		frame->tf_rip = (long)curpcb->pcb_onfault;
