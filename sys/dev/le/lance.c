@@ -193,7 +193,7 @@ lance_attach(struct lance_softc *sc)
 	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
 	if_setcapenablebit(ifp, IFCAP_VLAN_MTU, 0);
 
-	gone_in(15, "Warning! le(4) to be removed: no longer needed for "
+	gone_in(16, "Warning! le(4) to be removed: no longer needed for "
 	    "Qemu/MIPS\n");
 }
 
