@@ -1897,7 +1897,6 @@ device		xmphy		# XaQti XMAC II
 #	(hint of prefer_iomap can be done to prefer I/O instead of Mem mapping)
 # gem:  Apple GMAC/Sun ERI/Sun GEM
 # jme:  JMicron JMC260 Fast Ethernet/JMC250 Gigabit Ethernet based adapters.
-# le:   AMD Am7900 LANCE and Am79C9xx PCnet
 # lge:	Support for PCI gigabit ethernet adapters based on the Level 1
 #	LXT1001 NetCellerator chipset. This includes the D-Link DGE-500SX,
 #	SMC TigerCard 1000 (SMC9462SX), and some Addtron cards.
@@ -2008,7 +2007,6 @@ device		cxgb		# Chelsio T3 10 Gigabit Ethernet
 device		cxgb_t3fw	# Chelsio T3 10 Gigabit Ethernet firmware
 device		cxgbe		# Chelsio T4-T6 1/10/25/40/100 Gigabit Ethernet
 device		cxgbev		# Chelsio T4-T6 Virtual Functions
-device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		mxge		# Myricom Myri-10G 10GbE NIC
 device		rge		# Realtek 8125/8126/8127
 device		oce		# Emulex 10GbE (OneConnect Ethernet)
