@@ -266,7 +266,7 @@ main(int argc, char *argv[])
 	struct	dos_partition *partp;
 
 	fprintf(stderr,
-	    "WARNING: fdisk is deprecated and is not available in FreeBSD 15 or later.\n"
+	    "WARNING: fdisk is deprecated and is not available in FreeBSD 16 or later.\n"
 	    "Please use gpart instead.\n\n");
 
 	while ((c = getopt(argc, argv, "BIab:f:ipqstuv1234")) != -1)
