@@ -513,9 +513,12 @@ tcp_timer_persist(struct tcpcb *tp)
 	if (progdrop || (tp->t_rxtshift >= V_tcp_retries &&
 	    (ticks - tp->t_rcvtime >= tcp_maxpersistidle ||
 	     ticks - tp->t_rcvtime >= TCP_REXMTVAL(tp) * tcp_totbackoff))) {
-		if (!progdrop)
+		if (progdrop) {
+			tcp_log_end_status(tp, TCP_EI_STATUS_PROGRESS);
+		} else {
 			TCPSTAT_INC(tcps_persistdrop);
-		tcp_log_end_status(tp, TCP_EI_STATUS_PERSIST_MAX);
+			tcp_log_end_status(tp, TCP_EI_STATUS_PERSIST_MAX);
+		}
 		goto dropit;
 	}
 	/*
