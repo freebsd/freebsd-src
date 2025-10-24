@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260302: Remove obsolete le(4) ethernet driver
+OLD_FILES+=usr/share/man/man4/le.4.gz
+
 # 20260209: Moved allwinner pages to share/man/man4
 OLD_FILES+=usr/share/man/man4/arm/aw_gpio.4.gz
 OLD_FILES+=usr/share/man/man4/arm/aw_mmc.4.gz
