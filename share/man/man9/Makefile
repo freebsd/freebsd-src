@@ -90,6 +90,7 @@ MAN=	accept_filter.9 \
 	DECLARE_MODULE.9 \
 	DEFINE_IFUNC.9 \
 	DELAY.9 \
+	deadfs.9 \
 	devclass.9 \
 	devclass_find.9 \
 	devclass_get_device.9 \
