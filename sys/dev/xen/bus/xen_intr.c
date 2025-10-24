@@ -40,7 +40,6 @@
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/interrupt.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
@@ -50,6 +49,7 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/interrupt.h>
 #include <machine/smp.h>
 
 #include <xen/xen-os.h>

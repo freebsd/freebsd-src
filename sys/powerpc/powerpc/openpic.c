@@ -37,7 +37,7 @@
 #include <sys/smp.h>
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/pio.h>
 #include <machine/resource.h>
@@ -225,7 +225,7 @@ openpic_common_attach(device_t dev, uint32_t node)
  * PIC I/F methods
  */
 
-void
+static void
 openpic_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv __unused)
 {
 	struct openpic_softc *sc;
@@ -260,7 +260,7 @@ openpic_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv __unused)
 	openpic_write(sc, OPENPIC_IDEST(irq), mask);
 }
 
-void
+static void
 openpic_config(device_t dev, u_int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
@@ -280,18 +280,7 @@ openpic_config(device_t dev, u_int irq, enum intr_trigger trig,
 	openpic_write(sc, OPENPIC_SRC_VECTOR(irq), x);
 }
 
-static int
-openpic_intr(void *arg)
-{
-	device_t dev = (device_t)(arg);
-
-	/* XXX Cascaded PICs do not pass non-NULL trapframes! */
-	openpic_dispatch(dev, NULL);
-
-	return (FILTER_HANDLED);
-}
-
-void
+static void
 openpic_dispatch(device_t dev, struct trapframe *tf)
 {
 	struct openpic_softc *sc;
@@ -311,7 +300,18 @@ openpic_dispatch(device_t dev, struct trapframe *tf)
 	}
 }
 
-void
+static int
+openpic_intr(void *arg)
+{
+	device_t dev = (device_t)(arg);
+
+	/* XXX Cascaded PICs do not pass non-NULL trapframes! */
+	openpic_dispatch(dev, NULL);
+
+	return (FILTER_HANDLED);
+}
+
+static void
 openpic_enable(device_t dev, u_int irq, u_int vector, void **priv __unused)
 {
 	struct openpic_softc *sc;
@@ -331,7 +331,7 @@ openpic_enable(device_t dev, u_int irq, u_int vector, void **priv __unused)
 	}
 }
 
-void
+static void
 openpic_eoi(device_t dev, u_int irq __unused, void *priv __unused)
 {
 	struct openpic_softc *sc;
@@ -343,7 +343,7 @@ openpic_eoi(device_t dev, u_int irq __unused, void *priv __unused)
 	openpic_write(sc, OPENPIC_PCPU_EOI(cpuid), 0);
 }
 
-void
+static void
 openpic_ipi(device_t dev, u_int cpu)
 {
 	struct openpic_softc *sc;
@@ -357,7 +357,7 @@ openpic_ipi(device_t dev, u_int cpu)
 	sched_unpin();
 }
 
-void
+static void
 openpic_mask(device_t dev, u_int irq, void *priv __unused)
 {
 	struct openpic_softc *sc;
@@ -375,7 +375,7 @@ openpic_mask(device_t dev, u_int irq, void *priv __unused)
 	}
 }
 
-void
+static void
 openpic_unmask(device_t dev, u_int irq, void *priv __unused)
 {
 	struct openpic_softc *sc;
@@ -393,7 +393,7 @@ openpic_unmask(device_t dev, u_int irq, void *priv __unused)
 	}
 }
 
-int
+static int
 openpic_suspend(device_t dev)
 {
 	struct openpic_softc *sc;
@@ -424,7 +424,7 @@ openpic_suspend(device_t dev)
 	return (0);
 }
 
-int
+static int
 openpic_resume(device_t dev)
 {
     	struct openpic_softc *sc;
@@ -453,3 +453,24 @@ openpic_resume(device_t dev)
 
 	return (0);
 }
+
+static device_method_t openpic_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_suspend,	openpic_suspend),
+	DEVMETHOD(device_resume,	openpic_resume),
+
+	/* PIC interface */
+	DEVMETHOD(pic_bind,		openpic_bind),
+	DEVMETHOD(pic_config,		openpic_config),
+	DEVMETHOD(pic_dispatch,		openpic_dispatch),
+	DEVMETHOD(pic_enable,		openpic_enable),
+	DEVMETHOD(pic_eoi,		openpic_eoi),
+	DEVMETHOD(pic_ipi,		openpic_ipi),
+	DEVMETHOD(pic_mask,		openpic_mask),
+	DEVMETHOD(pic_unmask,		openpic_unmask),
+
+	DEVMETHOD_END
+};
+
+PUBLIC_DEFINE_CLASSN(openpic, openpic_class, openpic_methods,
+    sizeof(struct openpic_softc), pic_hw_class);
