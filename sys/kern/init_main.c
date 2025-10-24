@@ -384,7 +384,7 @@ C_SYSINIT(diagwarn2, SI_SUB_LAST, SI_ORDER_FIFTH,
 
 #if __SIZEOF_LONG__ == 4
 static const char ilp32_warn[] =
-    "WARNING: 32-bit kernels are deprecated and may be removed in FreeBSD 15.0.\n";
+    "WARNING: 32-bit kernels are deprecated and may be removed in FreeBSD 16.0.\n";
 C_SYSINIT(ilp32warn, SI_SUB_COPYRIGHT, SI_ORDER_FIFTH,
     print_caddr_t, ilp32_warn);
 C_SYSINIT(ilp32warn2, SI_SUB_LAST, SI_ORDER_FIFTH,
