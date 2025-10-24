@@ -1119,7 +1119,7 @@ flags_to_rights(int flags, cap_rights_t *rightsp)
 	if (flags & O_TRUNC)
 		cap_rights_set_one(rightsp, CAP_FTRUNCATE);
 
-	if (flags & (O_SYNC | O_FSYNC))
+	if (flags & (O_SYNC | O_FSYNC | O_DSYNC))
 		cap_rights_set_one(rightsp, CAP_FSYNC);
 
 	if (flags & (O_EXLOCK | O_SHLOCK))
