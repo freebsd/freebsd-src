@@ -1,3 +1,5 @@
+PACKAGE=	flua
+
 SHLIBDIR?=	${LIBDIR}/flua
 
 CFLAGS+=	\

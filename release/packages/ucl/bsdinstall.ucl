@@ -21,4 +21,9 @@ deps {
 	"runtime" {
 		version = "${VERSION}"
 	},
+
+	# the pkgbase script requires flua
+	"flua" {
+		version = "${VERSION}"
+	},
 }
