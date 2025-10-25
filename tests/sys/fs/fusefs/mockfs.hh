@@ -360,6 +360,9 @@ class MockFS {
 	/* Tell the daemon to shut down ASAP */
 	bool m_quit;
 
+	/* Tell the daemon that the server might forcibly unmount us */
+	bool m_expect_unmount;
+
 	/* Create a new mockfs and mount it to a tempdir */
 	MockFS(int max_read, int max_readahead, bool allow_other,
 		bool default_permissions, bool push_symlinks_in, bool ro,
