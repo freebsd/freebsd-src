@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20251025:
+	flua(1) has moved to the new FreeBSD-flua package.  If you use flua,
+	you may want to install this package if it's not otherwise installed
+	as a dependency of something else.  This change only affects pkgbase
+	users.
+
 20251021:
 	Bump __FreeBSD_version to 1600002 for LinuxKPI.  An embedded struct
 	has changed size and might possibly be an issue otherwise.
