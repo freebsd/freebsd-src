@@ -1151,8 +1151,14 @@ g_std_done(struct bio *bp)
 	struct bio *bp2;
 
 	bp2 = bp->bio_parent;
-	if (bp2->bio_error == 0)
-		bp2->bio_error = bp->bio_error;
+	if (bp2->bio_error == 0) {
+		if ((bp->bio_flags & BIO_EXTERR) != 0) {
+			bp2->bio_flags |= BIO_EXTERR;
+			bp2->bio_exterr = bp->bio_exterr;
+		} else {
+			bp2->bio_error = bp->bio_error;
+		}
+	}
 	bp2->bio_completed += bp->bio_completed;
 	g_destroy_bio(bp);
 	bp2->bio_inbed++;

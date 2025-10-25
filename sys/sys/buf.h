@@ -37,6 +37,7 @@
 #ifndef _SYS_BUF_H_
 #define	_SYS_BUF_H_
 
+#include <sys/_exterr.h>
 #include <sys/bufobj.h>
 #include <sys/queue.h>
 #include <sys/lock.h>
@@ -98,7 +99,6 @@ struct buf {
 	long		b_bcount;
 	void		*b_caller1;
 	caddr_t		b_data;
-	int		b_error;
 	uint16_t	b_iocmd;	/* BIO_* bio_cmd from bio.h */
 	uint16_t	b_ioflags;	/* BIO_* bio_flags from bio.h */
 	off_t		b_iooffset;
@@ -153,10 +153,12 @@ struct buf {
 #elif defined(BUF_TRACKING)
 	const char	*b_io_tracking;
 #endif
+	struct	kexterr b_exterr;
 	struct	vm_page *b_pages[];
 };
 
 #define b_object	b_bufobj->bo_object
+#define	b_error		b_exterr.error
 
 /*
  * These flags are kept in b_flags.
@@ -389,6 +391,12 @@ struct buf {
 #define	BUF_KERNPROC(bp)						\
 	_lockmgr_disown(&(bp)->b_lock, LOCK_FILE, LOCK_LINE)
 #endif
+
+#define	BUF_EXTERR_FROM_CURTHR(bp)					\
+	bp->b_exterr = curthread->td_kexterr
+
+#define	BUF_EXTERR_TO_CURTHR(bp)					\
+	curthread->td_kexterr = bp->b_exterr
 
 #endif /* _KERNEL */
 
