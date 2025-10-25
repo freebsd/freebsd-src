@@ -42,6 +42,7 @@ NO_PIC=
 
 # Avoid redundancy with the master Makefile.
 MAN=
+MANNODEV=
 INCS=
 MLINKS=
 MK_TESTS=	no

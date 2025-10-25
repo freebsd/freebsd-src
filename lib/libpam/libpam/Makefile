@@ -148,10 +148,10 @@ MAN?=	openpam.3 \
 	pam_strerror.3 \
 	pam_verror.3 \
 	pam_vinfo.3 \
-	pam_vprompt.3 \
-	pam.conf.5
+	pam_vprompt.3
 
-MLINKS?=	pam.conf.5 pam.d.5
+MANNODEV?=	pam.conf.5
+MANNODEVLINKS?=	pam.conf.5 pam.d.5
 
 CFLAGS+= -DLOCALBASE=\"${LOCALBASE:U/usr/local}\"
 CFLAGS+= -I${OPENPAM}/include

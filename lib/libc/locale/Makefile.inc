@@ -46,7 +46,7 @@ MAN+=	btowc.3 \
 	wctrans.3 wctype.3 wcwidth.3 \
 	duplocale.3 freelocale.3 newlocale.3 querylocale.3 uselocale.3 xlocale.3
 
-MAN+=	big5.5 euc.5 gb18030.5 gb2312.5 gbk.5 mskanji.5 utf8.5
+MANNODEV+=	big5.5 euc.5 gb18030.5 gb2312.5 gbk.5 mskanji.5 utf8.5
 
 MLINKS+=btowc.3 wctob.3
 MLINKS+=digittoint.3 digittoint_l.3
