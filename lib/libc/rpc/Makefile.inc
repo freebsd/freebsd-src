@@ -42,12 +42,12 @@ crypt_xdr.c: ${RPCDIR}/crypt.x crypt.h
 
 crypt.h: ${RPCDIR}/crypt.x
 	${RPCGEN} -h -o ${.TARGET} ${RPCDIR}/crypt.x
+
 MAN+=	bindresvport.3 des_crypt.3 getnetconfig.3 getnetpath.3 getrpcent.3 \
 	getrpcport.3 rpc.3 rpc_soc.3 rpc_clnt_auth.3 rpc_clnt_calls.3 \
 	rpc_clnt_create.3 rpc_svc_calls.3 rpc_svc_create.3 rpc_svc_err.3 \
 	rpc_svc_reg.3 rpc_xdr.3 rpcbind.3 publickey.3 rpc_secure.3 \
 	rtime.3
-MAN+=	rpc.5 netconfig.5
 MLINKS+=	bindresvport.3 bindresvport_sa.3 \
 		des_crypt.3 ecb_crypt.3 \
 		des_crypt.3 cbc_crypt.3 \
@@ -177,3 +177,5 @@ MLINKS+=	bindresvport.3 bindresvport_sa.3 \
 		rpc_soc.3 xdr_authunix_parms.3 \
 		rpc_soc.3 xdr_pmap.3 \
 		rpc_soc.3 xdr_pmaplist.3
+
+MANNODEV+=	rpc.5 netconfig.5
