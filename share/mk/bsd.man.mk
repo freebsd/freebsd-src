@@ -61,6 +61,16 @@
 
 MANGROUPS?=	MAN
 
+# MAN_SUBPACKAGE is the subpackage manpages will be installed in.  When
+# MANSPLITPKG is enabled, this is ignored and the subpackage is forced
+# to be "-man", otherwise it defaults to empty so manpages go in the
+# base package.  This can be set to "-dev" for manpages that should go
+# in the -dev package.
+MAN_SUBPACKAGE?=
+
+# The default man package, if not otherwise specified.
+MAN_PACKAGE=	${PACKAGE:Uutilities}
+
 # Backwards compatibility.
 MINSTALL?=	${MANINSTALL}
 
@@ -113,17 +123,19 @@ manlinksinstall: manlinksinstall-${__group}
 ${__group}OWN?=		${MANOWN}
 ${__group}GRP?=		${MANGRP}
 ${__group}MODE?=	${MANMODE}
-${__group}PACKAGE?=	${PACKAGE:Uutilities}
+# If MANSPLITPKG is enabled, ignore the requested man subpackage and put the
+# manpages in -man instead.
+.if ${MK_MANSPLITPKG} == "yes"
+${__group}SUBPACKAGE=	-man
+.else
+${__group}SUBPACKAGE?=	${MAN_SUBPACKAGE}
+.endif
+${__group}PACKAGE?=	${MAN_PACKAGE}${${__group}SUBPACKAGE}
 
 # Tag processing is only done for NO_ROOT installs.
 .if defined(NO_ROOT)
-
 .if !defined(${__group}TAGS) || ! ${${__group}TAGS:Mpackage=*}
-.if ${MK_MANSPLITPKG} == "no" || ${${__group}PACKAGE:M*-man}
-${__group}TAGS+=	package=${${__group}PACKAGE}
-.else
-${__group}TAGS+=	package=${${__group}PACKAGE}-man
-.endif
+${__group}TAGS+=       package=${${__group}PACKAGE}
 .endif
 
 ${__group}TAG_ARGS=	-T ${${__group}TAGS:ts,:[*]}

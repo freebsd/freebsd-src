@@ -1,6 +1,6 @@
 .include <src.opts.mk>
 
-PACKAGE=	kernel-man
+MANPACKAGE=	kernel-man
 
 MAN=	accept_filter.9 \
 	accf_data.9 \

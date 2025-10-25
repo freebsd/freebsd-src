@@ -399,6 +399,7 @@ terminfo.5: MKterminfo.sh terminfo.head Caps
 CLEANFILES+=	terminfo.5
 
 .PATH: ${NCURSES_DIR}/man
+
 MAN=	\
 	curs_addch.3 \
 	curs_addchstr.3 \
@@ -475,8 +476,9 @@ MAN+=	\
 	curs_printw.3 \
 	curs_scanw.3
 
-MAN+=	term.5 terminfo.5 scr_dump.5 user_caps.5
-MAN+=	term.7
+MAN+=	scr_dump.5
+
+MANNODEV=	term.5 term.7 terminfo.5 user_caps.5
 
 CLEANFILES+=	${MAN:M*.3}
 

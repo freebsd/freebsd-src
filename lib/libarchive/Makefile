@@ -184,12 +184,13 @@ MAN=	archive_entry.3					\
 	archive_write_new.3				\
 	archive_write_open.3				\
 	archive_write_set_options.3			\
-	cpio.5						\
 	libarchive.3					\
 	libarchive_changes.3				\
-	libarchive_internals.3				\
-	libarchive-formats.5				\
-	tar.5
+	libarchive_internals.3
+
+MANNODEV=	cpio.5			\
+		libarchive-formats.5	\
+		tar.5
 
 # Symlink the man pages under each function name.
 MLINKS+=	archive_entry.3 archive_entry_clear.3

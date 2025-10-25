@@ -109,10 +109,11 @@ MAN=	pcap.3 \
 	pcap_strerror.3 \
 	pcap_tstamp_type_name_to_val.3 \
 	pcap_tstamp_type_val_to_name.3 \
-	pcap-savefile.5 \
-	pcap-filter.7 \
-	pcap-linktype.7 \
-	pcap-tstamp.7
+	pcap-savefile.5
+
+MANNODEV=	pcap-filter.7 \
+		pcap-linktype.7 \
+		pcap-tstamp.7
 
 MLINKS= \
 	pcap_datalink_val_to_name.3 pcap_datalink_val_to_description.3 \
@@ -129,7 +130,7 @@ MLINKS= \
 	pcap_setnonblock.3 pcap_getnonblock.3
 
 # Our man pages are a special copy from the distdir. See below.
-CLEANFILES+=${MAN}
+CLEANFILES+=${MAN} ${MANNODEV}
 CLEANFILES+=grammar.y scanner.h tokdefs.h
 
 YFLAGS+=-p pcap_
@@ -175,7 +176,7 @@ tokdefs.h: grammar.h .NOMETA
 #
 # Magic to convert the man pages to something non Solarish
 #
-.for _page in ${MAN}
+.for _page in ${MAN} ${MANNODEV}
 ${_page}:
 	if [ -f ${PCAP_DISTDIR}/${_page:S/3$/3pcap/} ]; then		\
 		F=${_page:S/3$/3pcap/}; 				\

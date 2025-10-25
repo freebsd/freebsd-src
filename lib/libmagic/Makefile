@@ -11,7 +11,9 @@ SHLIB_MAJOR=	4
 .if !make(build-tools)
 LIBADD=	z
 .endif
-MAN=	libmagic.3 magic.5
+
+MAN=		libmagic.3
+MANNODEV=	magic.5
 
 SRCS=	apprentice.c apptype.c ascmagic.c buffer.c cdf.c cdf_time.c \
 	compress.c der.c encoding.c fsmagic.c funcs.c is_json.c \
@@ -73,8 +75,8 @@ magic.mgc: mkmagic
 
 FILEVER!= awk '$$1 == "\#define" && $$2 == "VERSION" { print $$3; exit }' \
 			${.CURDIR}/config.h
-CLEANFILES+=	${MAN}
-.for mp in ${MAN}
+CLEANFILES+=	${MAN} ${MANNODEV}
+.for mp in ${MAN} ${MANNODEV}
 ${mp}: ${mp:C/[0-9]/man/}
 	sed -e 's/__FSECTION__/5/g' -e 's/__CSECTION__/1/g' \
 		-e 's/__VERSION__/${FILEVER}/g' \
