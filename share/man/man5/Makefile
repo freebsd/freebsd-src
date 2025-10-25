@@ -43,20 +43,6 @@ MAN=	a.out.5 \
 	style.mdoc.5 \
 	sysctl.conf.5 \
 
-.if ${MK_BLUETOOTH} != "no"
-MAN+=	bluetooth.device.conf.5 \
-	bluetooth.hosts.5 \
-	bluetooth.protocols.5
-.endif
-
-.if ${MK_FREEBSD_UPDATE} != "no"
-MAN+=	freebsd-update.conf.5
-.endif
-
-.if ${MK_HESIOD} != "no"
-MAN+=	hesiod.conf.5
-.endif
-
 MLINKS=	dir.5 dirent.5
 MLINKS+=fs.5 inode.5
 MLINKS+=hosts.equiv.5 rhosts.5
@@ -69,37 +55,46 @@ MANGROUPS+=	ACCT
 ACCT=		acct.5
 ACCTPACKAGE=	acct
 
-MANGROUPS+=	BOOTLOADER
+MANGROUPS.${MK_BLUETOOTH}+=		BLUETOOTH
+BLUETOOTHPACKAGE=			bluetooth
+BLUETOOTH=	bluetooth.device.conf.5 \
+		bluetooth.hosts.5 \
+		bluetooth.protocols.5
+
+MANGROUPS+=				BOOTLOADER
+BOOTLOADERPACKAGE=			bootloader
 BOOTLOADER=	device.hints.5
-BOOTLOADERPACKAGE=bootloader
 
-.if ${MK_TOOLCHAIN} != "no"
-MANGROUPS+=	TOOLCHAIN
+MANGROUPS.${MK_FREEBSD_UPDATE}+=	FREEBSD_UPDATE
+FREEBSD_UPDATE=	freebsd-update.conf.5
+
+MANGROUPS.${MK_HESIOD}+=		HESIOD
+HESIOD=		hesiod.conf.5
+
+MANGROUPS.${MK_TOOLCHAIN}+=		TOOLCHAIN
+TOOLCHAINPACKAGE=			toolchain
 TOOLCHAIN=	ar.5
-TOOLCHAINPACKAGE=toolchain
-.endif
 
-MANGROUPS+=	LP
+MANGROUPS+=				LP
+LPPACKAGE=				lp
 LP=		hosts.lpd.5
-LPPACKAGE=	lp
 
-MANGROUPS+=	PERIODIC
+MANGROUPS+=				PERIODIC
+PERIODICPACKAGE=			periodic
 PERIODIC=	periodic.conf.5
-PERIODICPACKAGE=periodic
 
-.if ${MK_PF} != "no"
-MANGROUPS+=	PF
+MANGROUPS.${MK_PF}+=			PF
+PFPACKAGE=				pf
 PF=		pf.conf.5 \
 		pf.os.5
-PFPACKAGE=	pf
-.endif
 
-MANGROUPS+=	RC
+MANGROUPS+=				RC
+RCPACKAGE=				rc
 RC=		rc.conf.5
 RCLINKS=	rc.conf.5 rc.conf.local.5
-RCPACKAGE=	rc
 
-MANGROUPS+=	RUNTIME
+MANGROUPS+=				RUNTIME
+RUNTIMEPACKAGE=				runtime
 RUNTIME=	devfs.conf.5 \
 		devfs.rules.5 \
 		fstab.5 \
@@ -107,19 +102,18 @@ RUNTIME=	devfs.conf.5 \
 RUNTIMELINKS=	passwd.5 master.passwd.5
 RUNTIMELINKS+=	passwd.5 pwd.db.5
 RUNTIMELINKS+=	passwd.5 spwd.db.5
-RUNTIMEPACKAGE=	runtime
 
-MANGROUPS+=	SMB
+MANGROUPS+=				SMB
+SMBPACKAGE=				smbutils
 SMB=		nsmb.conf.5
-SMBPACKAGE=	smbutils
 
-MANGROUPS+=	SSH
+MANGROUPS.${MK_OPENSSH}+=		SSH
+SSHPACKAGE=				ssh
 SSH=		moduli.5
-SSHPACKAGE=	ssh
 
-MANGROUPS+=	UFS
+MANGROUPS+=				UFS
+UFSPACKAGE=				ufs
 UFS=		fs.5
-UFSPACKAGE=	ufs
 
 # This makes more sense for amd64 and i386 but
 # we decide to install all manpages in all architectures
