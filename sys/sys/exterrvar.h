@@ -69,6 +69,8 @@
 	_EXTERROR_MACRO(__VA_ARGS__, _SET_ERROR2, _SET_ERROR1,		\
 	    _SET_ERROR0)(__VA_ARGS__)
 
+void exterr_clear(struct kexterr *ke);
+int exterr_set_from(const struct kexterr *ke);
 int exterr_set(int eerror, int category, const char *mmsg, uintptr_t pp1,
     uintptr_t pp2, int line);
 int exterr_to_ue(struct thread *td, struct uexterror *ue);
