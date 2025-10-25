@@ -31,6 +31,8 @@
 
 .include "dtb.build.mk"
 
+PACKAGE?=	dtb
+
 .if !target(install) && !target(realinstall)
 all: ${DTB} ${DTBO}
 realinstall: _dtbinstall

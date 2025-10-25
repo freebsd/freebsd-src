@@ -40,12 +40,6 @@
 		for (i in a) {
 			if (a[i] ~ /^package=/) {
 				pkgname=a[i]
-				if ($1 ~ /^\/boot\//) {
-					if (kernel != "" && $1 ~ /^\/boot\/dtb\//)
-						pkgname="dtb"
-					else if ($1 !~ /^\/boot\/firmware\//)
-						pkgname="bootloader"
-				}
 				gsub(/package=/, "", pkgname)
 			} else if (a[i] == "config") {
 				type="config"
