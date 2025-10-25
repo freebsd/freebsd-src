@@ -26,9 +26,11 @@
  * SUCH DAMAGE.
  */
 
+#define	EXTERR_CATEGORY	EXTERR_CAT_GEOMVFS
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
+#include <sys/exterrvar.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -156,10 +158,13 @@ g_vfs_done(struct bio *bip)
 			    " suppressing further ENXIO");
 		}
 	}
-	bp->b_error = bip->bio_error;
 	bp->b_ioflags = bip->bio_flags;
 	if (bip->bio_error)
 		bp->b_ioflags |= BIO_ERROR;
+	if ((bp->b_ioflags & BIO_EXTERR) != 0)
+		bp->b_exterr = bip->bio_exterr;
+	else
+		bp->b_error = bip->bio_error;
 	bp->b_resid = bp->b_bcount - bip->bio_completed;
 	g_destroy_bio(bip);
 
