@@ -433,7 +433,8 @@ MockFS::MockFS(int max_read, int max_readahead, bool allow_other,
 	  m_child_pid(-1),
 	  m_maxwrite(MIN(max_write, max_max_write)),
 	  m_nready(-1),
-	  m_quit(false)
+	  m_quit(false),
+	  m_expect_unmount(false)
 {
 	struct sigaction sa;
 	struct iovec *iov = NULL;
@@ -979,7 +980,7 @@ void MockFS::read_request(mockfs_buf_in &in, ssize_t &res) {
 	}
 	res = read(m_fuse_fd, &in, sizeof(in));
 
-	if (res < 0 && !m_quit) {
+	if (res < 0 && errno != EBADF && !m_quit && !m_expect_unmount) {
 		m_quit = true;
 		FAIL() << "read: " << strerror(errno);
 	}
