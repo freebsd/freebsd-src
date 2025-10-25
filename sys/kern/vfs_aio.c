@@ -2487,7 +2487,7 @@ aio_biowakeup(struct bio *bp)
 	long bcount = bp->bio_bcount;
 	long resid = bp->bio_resid;
 	int opcode, nblks;
-	int bio_error = bp->bio_error;
+	int abio_error = bp->bio_error;
 	uint16_t flags = bp->bio_flags;
 
 	opcode = job->uaiocb.aio_lio_opcode;
@@ -2503,16 +2503,16 @@ aio_biowakeup(struct bio *bp)
 	 * error of whichever failed bio completed last.
 	 */
 	if (flags & BIO_ERROR)
-		atomic_store_int(&job->error, bio_error);
+		atomic_store_int(&job->error, abio_error);
 	if (opcode & LIO_WRITE)
 		atomic_add_int(&job->outblock, nblks);
 	else
 		atomic_add_int(&job->inblock, nblks);
 
 	if (refcount_release(&job->nbio)) {
-		bio_error = atomic_load_int(&job->error);
-		if (bio_error != 0)
-			aio_complete(job, -1, bio_error);
+		abio_error = atomic_load_int(&job->error);
+		if (abio_error != 0)
+			aio_complete(job, -1, abio_error);
 		else
 			aio_complete(job, atomic_load_long(&job->nbytes), 0);
 	}
