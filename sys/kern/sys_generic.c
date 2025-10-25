@@ -2339,3 +2339,22 @@ exterr_set(int eerror, int category, const char *mmsg, uintptr_t pp1,
 	}
 	return (eerror);
 }
+
+int
+exterr_set_from(const struct kexterr *ke)
+{
+	struct thread *td;
+
+	td = curthread;
+	if ((td->td_pflags2 & TDP2_UEXTERR) != 0) {
+		td->td_pflags2 |= TDP2_EXTERR;
+		td->td_kexterr = *ke;
+	}
+	return (td->td_kexterr.error);
+}
+
+void
+exterr_clear(struct kexterr *ke)
+{
+	memset(ke, 0, sizeof(*ke));
+}
