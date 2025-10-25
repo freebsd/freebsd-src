@@ -5802,7 +5802,7 @@ ipfw_add(char *av[])
 		sz = default_off + sizeof(ipfw_obj_ctlv) + tlen + rlen;
 
 		if ((tbuf = calloc(1, sz)) == NULL)
-			err(EX_UNAVAILABLE, "malloc() failed for IP_FW_ADD");
+			err(EX_UNAVAILABLE, "malloc() failed for IP_FW_XADD");
 		op3 = (ip_fw3_opheader *)tbuf;
 		/* Tables first */
 		ctlv = (ipfw_obj_ctlv *)(op3 + 1);
