@@ -16,20 +16,11 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-messages = [
-	{
-		type: upgrade
-		message: <<EOM
-After upgrading local-unbound, the configuration file should be regenerated
-by running "service local_unbound setup" before restarting the service.
-EOM
-	}
-]
-
 deps {
-	# local-unbound uses resolvconf to update resolv.conf and to generate
-	# its forward.conf.
+	# dhclient uses resolvconf to update /etc/resolv.conf in case the
+	# DHCP server returns nameserver addresses.
 	"resolvconf" {
 		version = "${VERSION}"
 	},
 }
+
