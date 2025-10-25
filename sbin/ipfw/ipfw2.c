@@ -648,11 +648,7 @@ do_cmd(int optname, void *optval, uintptr_t optlen)
 	if (ipfw_socket < 0)
 		err(EX_UNAVAILABLE, "socket");
 
-	if (optname == IP_FW_GET ||
-	    optname == IP_FW_ADD || optname == IP_FW3 ||
-	    optname == IP_FW_NAT_GET_CONFIG ||
-	    optname < 0 ||
-	    optname == IP_FW_NAT_GET_LOG) {
+	if (optname == IP_FW3 || optname < 0) {
 		if (optname < 0)
 			optname = -optname;
 		i = getsockopt(ipfw_socket, IPPROTO_IP, optname, optval,
