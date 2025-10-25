@@ -280,7 +280,7 @@ flush)
 		# dynamically determine which anchors exist
 		for anchor in $(/sbin/pfctl -a "$2" -s Anchors 2> /dev/null); do
 			/sbin/pfctl -a "$anchor" -t "port${anchor##*/}" -T flush 2> /dev/null
-			/sbin/pfctl -a "$anchor" -F rules
+			/sbin/pfctl -a "$anchor" -F rules 2> /dev/null
 		done
 		echo OK
 		;;
