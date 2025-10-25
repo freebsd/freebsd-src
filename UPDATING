@@ -12,6 +12,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20251030:
+	flua(1) has moved to the new FreeBSD-flua package.  If you use flua,
+	you may want to install this package if it's not otherwise installed
+	as a dependency of something else.  This change only affects pkgbase
+	users.
+
 20251023:
 	Bump __FreeBSD_version to 1500501 for LinuxKPI.  An embedded struct
 	has changed size and might possibly be an issue otherwise.

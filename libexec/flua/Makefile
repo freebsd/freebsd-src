@@ -1,5 +1,7 @@
 .include <src.lua.mk>
 
+PACKAGE=	flua
+
 SUBDIR+=	libfreebsd
 SUBDIR+=	libhash
 SUBDIR+=	libjail
