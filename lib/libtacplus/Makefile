@@ -29,7 +29,9 @@ INCS=		taclib.h
 CFLAGS+=	-Wall
 LIBADD=		md pam
 SHLIB_MAJOR=	5
-MAN=		libtacplus.3 tacplus.conf.5
+
+MAN=		libtacplus.3
+MANNODEV=	tacplus.conf.5
 
 WARNS?=		2
 

@@ -84,7 +84,6 @@ MAN+=	acl.3				\
 	acl_valid.3			\
 	extattr.3			\
 	mac.3				\
-	mac.conf.5			\
 	mac_free.3			\
 	mac_is_present.3		\
 	mac_get.3			\
@@ -133,5 +132,7 @@ MLINKS+=acl_create_entry.3 acl_create_entry_np.3\
 	mac_set.3 mac_set_proc.3		\
 	mac_text.3 mac_from_text.3		\
 	mac_text.3 mac_to_text.3
+
+MANNODEV+=	mac.conf.5
 
 CLEANFILES+=	subr_acl_nfs4.c

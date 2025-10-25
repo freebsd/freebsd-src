@@ -1,6 +1,7 @@
 .include <src.opts.mk>
 
 PACKAGE=	clibs
+MANSUBPACKAGE=	-dev
 
 MAN=		alloca.3 \
 		arb.3 \
