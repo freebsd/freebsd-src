@@ -200,6 +200,8 @@ g_vfs_strategy(struct bufobj *bo, struct buf *bp)
 		mtx_unlock(&sc->sc_mtx);
 		bp->b_error = ENXIO;
 		bp->b_ioflags |= BIO_ERROR;
+		EXTERROR_KE(&bp->b_exterr, ENXIO,
+		    "orphaned or enxio active");
 		bufdone(bp);
 		return;
 	}
