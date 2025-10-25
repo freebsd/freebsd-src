@@ -3202,6 +3202,9 @@ pfctl_get_ruleset(struct pfctl_handle *h, const char *path, uint32_t nr, struct 
 			continue;
 	}
 
+	rs->nr = nr;
+	strlcpy(rs->path, path, sizeof(rs->path));
+
 	return (e.error);
 }
 
