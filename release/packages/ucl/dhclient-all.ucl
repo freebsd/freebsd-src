@@ -46,5 +46,5 @@ EOD
 licenses = [ "BSD-3-Clause" ]
 
 annotations {
-	set = minimal
+	set = "minimal,minimal-jail"
 }
