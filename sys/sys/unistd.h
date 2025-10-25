@@ -160,6 +160,7 @@
 #define	_PC_XATTR_EXISTS	_PC_HAS_NAMEDATTR	/* Solaris Compatible */
 #define	_PC_HAS_HIDDENSYSTEM	68
 #define	_PC_CLONE_BLKSIZE	69
+#define	_PC_CASE_INSENSITIVE	70
 #endif
 
 /* From OpenSolaris, used by SEEK_DATA/SEEK_HOLE. */
