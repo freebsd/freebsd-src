@@ -1,5 +1,7 @@
 .include <src.lua.mk>
 
+PACKAGE=	flua
+
 # New flua modules should be added here rather than to SUBDIR so that we can do
 # the right thing for both bootstrap flua and target flua.  The former does not
 # do any shared libs, so we just build them all straight into flua itself rather

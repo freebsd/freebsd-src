@@ -16,24 +16,17 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-comment = "cloud-init configuration support"
+comment = "Private Lua implementation"
 
 desc = <<EOD
-nuageinit(7) allows a system to configure itself automatically based on
-information provided by an external source.  This is typically a "cloud"
-server responsible for managing the host, but configuration can also be
-loaded from a local disk or CD-ROM.
+flua(1) is an implementation of Lua for use by the base system.  This facility
+is not intended for general use, and may be modified or removed at any time
+without notice.
 
-nuageinit implements the cloud-init (https://cloud-init.io/) specification.
+Supported versions of Lua for general use are available in the FreeBSD Ports
+Collection.
 EOD
 
-deps {
-	# nuageinit is written in Lua
-	"flua" {
-		version = "${VERSION}"
-	},
-}
-
 annotations {
-	set = minimal
+	set = "optional,optional-jail"
 }
