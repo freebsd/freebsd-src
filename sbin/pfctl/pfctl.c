@@ -3167,10 +3167,7 @@ pfctl_show_eth_anchors(int dev, int opts, char *anchorname)
 	int ret;
 
 	if ((ret = pfctl_get_eth_rulesets_info(dev, &ri, anchorname)) != 0) {
-		if (ret == ENOENT)
-			fprintf(stderr, "Anchor '%s' not found.\n",
-			    anchorname);
-		else
+		if (ret != ENOENT)
 			errc(1, ret, "DIOCGETETHRULESETS");
 		return (-1);
 	}

@@ -157,10 +157,10 @@ deeply_nested_body()
 
 	atf_check -s exit:0 -o \
 	    inline:"  foo\n  foo/bar\n  foo/bar/foobar\n  foo/bar/quux\n  foo/baz\n  foo/qux\n" \
-	    -e ignore jexec alcatraz pfctl -sA
+	    jexec alcatraz pfctl -sA
 
 	atf_check -s exit:0 -o inline:"  foo/bar/foobar\n  foo/bar/quux\n" \
-	    -e ignore jexec alcatraz pfctl -a foo/bar -sA
+	    jexec alcatraz pfctl -a foo/bar -sA
 }
 
 deeply_nested_cleanup()
