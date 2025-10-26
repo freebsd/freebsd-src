@@ -260,8 +260,9 @@ bcm2835_audio_callback(void *param, const VCHI_CALLBACK_REASON_T reason, void *m
 					device_printf(sc->dev, "available_space == %d, count = %d, perr=%d\n",
 					    ch->available_space, count, perr);
 					device_printf(sc->dev,
-					    "retrieved_samples = %lld, submitted_samples = %lld\n",
-					    ch->retrieved_samples, ch->submitted_samples);
+					    "retrieved_samples = %ju, submitted_samples = %ju\n",
+					    (uintmax_t)ch->retrieved_samples,
+					    (uintmax_t)ch->submitted_samples);
 				}
 				ch->available_space += count;
 				ch->retrieved_samples += count;
