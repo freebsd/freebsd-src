@@ -6246,7 +6246,7 @@ check_binat_redirspec(struct node_host *src_host, struct pfctl_rule *r,
 	}
 	if (PF_AZERO(&r->src.addr.v.a.mask, af) ||
 	    PF_AZERO(&(nat_pool->addr.v.a.mask), af)) {
-		yyerror ("source and redir addresess must have "
+		yyerror ("source and redir addresses must have "
 		    "a matching network mask in binat-rule");
 		error++;
 	}
