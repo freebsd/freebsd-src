@@ -59,19 +59,19 @@ Get the size of the cell base on the reg property on the node.
 Return the size or ENOENT if the cell name wasn't found
 .It Fn nvmem_read_cell_by_name "phandle_t node" "const char *name" "void *cell" "size_t buflen"
 Get the cell content based on the name.
-Return 0 on sucess or ENOENT if the cell doesn't exists, ENXIO if no provider device was found,
+Return 0 on success or ENOENT if the cell doesn't exists, ENXIO if no provider device was found,
 EINVAL if the size isn't correct.
 .It Fn nvmem_read_cell_by_idx "phandle_t node" "int idx" "void *cell" "size_t buflen"
 Get the cell content based on the id.
-Return 0 on sucess or ENOENT if the cell doesn't exists, ENXIO if no provider device was found,
+Return 0 on success or ENOENT if the cell doesn't exists, ENXIO if no provider device was found,
 EINVAL if the size isn't correct.
 .It Fn nvmem_write_cell_by_name "phandle_t node" "const char *name" "void *cell" "size_t buflen"
 Write the cell content based on the name.
-Return 0 on sucess or ENOENT if the cell doesn't exists, ENXIO if no provider device was found,
+Return 0 on success or ENOENT if the cell doesn't exists, ENXIO if no provider device was found,
 EINVAL if the size isn't correct.
 .It Fn nvmem_write_cell_by_idx "phandle_t node" "int idx" "void *cell" "size_t buflen"
 Write the cell content based on the id.
-Return 0 on sucess or ENOENT if the cell doesn't exists, ENXIO if no provider device was found,
+Return 0 on success or ENOENT if the cell doesn't exists, ENXIO if no provider device was found,
 EINVAL if the size isn't correct.
 .El
 .Sh DEVICE METHODS
