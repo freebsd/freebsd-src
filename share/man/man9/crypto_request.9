@@ -383,7 +383,7 @@ depending on whether the driver is implemented by software or hardware.
 dispatches the request asynchronously.
 If the driver is inherently synchronous, the request is queued to a taskqueue
 backed by a pool of worker threads.
-This can increase througput by allowing requests from a single producer to be
+This can increase throughput by allowing requests from a single producer to be
 processed in parallel.
 By default the pool is sized to provide one thread for each CPU.
 Worker threads dequeue requests and pass them to the driver asynchronously.
