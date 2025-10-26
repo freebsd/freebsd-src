@@ -204,8 +204,8 @@ vchiq_platform_init(VCHIQ_STATE_T *state)
 	bcm_mbox_write(BCM2835_MBOX_CHAN_VCHIQ, (unsigned int)g_slot_phys);
 
 	vchiq_log_info(vchiq_arm_log_level,
-		"vchiq_init - done (slots %x, phys %x)",
-		(unsigned int)vchiq_slot_zero, g_slot_phys);
+		"vchiq_init - done (slots %zx, phys %zx)",
+		(size_t)vchiq_slot_zero, g_slot_phys);
 
    vchiq_call_connected_callbacks();
 
@@ -451,10 +451,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 	}
 
 	vchiq_log_trace(vchiq_arm_log_level,
-		"create_pagelist - %x (%d bytes @%p)", (unsigned int)pagelist, count, buf);
-
-	if (!pagelist)
-		return -ENOMEM;
+		"create_pagelist - %zx (%zu bytes @%p)", (size_t)pagelist, count, buf);
 
 	addrs = pagelist->addrs;
 	pages = (vm_page_t*)(addrs + num_pages);
@@ -549,7 +546,7 @@ free_pagelist(BULKINFO_T *bi, int actual)
 	pagelist = bi->pagelist;
 
 	vchiq_log_trace(vchiq_arm_log_level,
-		"free_pagelist - %x, %d (%lu bytes @%p)", (unsigned int)pagelist, actual, pagelist->length, bi->buf);
+		"free_pagelist - %zx, %d (%u bytes @%p)", (size_t)pagelist, actual, pagelist->length, bi->buf);
 
 	num_pages =
 		(pagelist->length + pagelist->offset + PAGE_SIZE - 1) /
