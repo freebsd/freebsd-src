@@ -242,6 +242,8 @@ struct label	*mac_cred_label_alloc(void);
 void		 mac_cred_label_free(struct label *label);
 struct label	*mac_pipe_label_alloc(void);
 void		 mac_pipe_label_free(struct label *label);
+struct label	*mac_prison_label_alloc(int flags);
+void		 mac_prison_label_free(struct label *label);
 struct label	*mac_socket_label_alloc(int flag);
 void		 mac_socket_label_free(struct label *label);
 void		 mac_socketpeer_label_free(struct label *label);
@@ -261,8 +263,11 @@ int	mac_pipe_externalize_label(struct label *label, char *elements,
 	    char *outbuf, size_t outbuflen);
 int	mac_pipe_internalize_label(struct label *label, char *string);
 
+int	mac_prison_label_set(struct ucred *cred, struct prison *pr,
+	    struct label *label);
 int	mac_prison_check_relabel(struct ucred *cred, struct prison *pr,
 	    struct label *newlabel);
+void	mac_prison_copy_label(struct label *src, struct label *dest);
 int	mac_prison_externalize_label(struct label *label, char *elements,
 	    char *outbuf, size_t outbuflen);
 int	mac_prison_internalize_label(struct label *label, char *string);

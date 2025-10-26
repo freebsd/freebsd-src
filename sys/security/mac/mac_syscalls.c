@@ -49,6 +49,8 @@
 #include <sys/abi_compat.h>
 #include <sys/capsicum.h>
 #include <sys/fcntl.h>
+#include <sys/jail.h>
+#include <sys/jaildesc.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -339,6 +341,7 @@ sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	struct mac mac;
 	struct vnode *vp;
 	struct pipe *pipe;
+	struct prison *pr;
 	struct socket *so;
 	cap_rights_t rights;
 	int error;
@@ -398,6 +401,25 @@ sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 		error = mac_socket_externalize_label(intlabel, mac.m_string,
 		    buffer, mac.m_buflen);
 		mac_socket_label_free(intlabel);
+		break;
+
+	case DTYPE_JAILDESC:
+		if (!(mac_labeled & MPC_OBJECT_PRISON)) {
+			error = EINVAL;
+			goto out_fdrop;
+		}
+
+		error = jaildesc_get_prison(fp, &pr);
+		if (error != 0)
+			goto out_fdrop;
+
+		intlabel = mac_prison_label_alloc(M_WAITOK);
+		mac_prison_copy_label(pr->pr_label, intlabel);
+		prison_free(pr);
+
+		error = mac_prison_externalize_label(intlabel, mac.m_string,
+		    buffer, mac.m_buflen);
+		mac_prison_label_free(intlabel);
 		break;
 
 	default:
@@ -473,6 +495,7 @@ sys___mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 {
 	struct label *intlabel;
 	struct pipe *pipe;
+	struct prison *pr;
 	struct socket *so;
 	struct file *fp;
 	struct mount *mp;
@@ -546,6 +569,27 @@ sys___mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 			    intlabel);
 		}
 		mac_socket_label_free(intlabel);
+		break;
+
+	case DTYPE_JAILDESC:
+		if (!(mac_labeled & MPC_OBJECT_PRISON)) {
+			error = EINVAL;
+			goto out_fdrop;
+		}
+
+		pr = NULL;
+		intlabel = mac_prison_label_alloc(M_WAITOK);
+		error = mac_prison_internalize_label(intlabel, mac.m_string);
+		if (error == 0)
+			error = jaildesc_get_prison(fp, &pr);
+		if (error == 0) {
+			prison_lock(pr);
+			error = mac_prison_label_set(td->td_ucred, pr,
+			    intlabel);
+			prison_free_locked(pr);
+		}
+
+		mac_prison_label_free(intlabel);
 		break;
 
 	default:
