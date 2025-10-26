@@ -479,7 +479,7 @@ main(int argc, char *argv[])
 		} else
 			r = rtlbt_parse_fwfile_v1(&fw, rom_version);
 		if (r < 0) {
-			rtlbt_err("Parseing firmware file failed");
+			rtlbt_err("Parsing firmware file failed");
 			goto shutdown;
 		}
 
