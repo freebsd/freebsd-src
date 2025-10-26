@@ -78,6 +78,7 @@ struct jaildesc {
 int jaildesc_find(struct thread *td, int fd, struct prison **prp,
     struct ucred **ucredp);
 int jaildesc_alloc(struct thread *td, struct file **fpp, int *fdp, int owning);
+int jaildesc_get_prison(struct file *jd, struct prison **prp);
 void jaildesc_set_prison(struct file *jd, struct prison *pr);
 void jaildesc_prison_cleanup(struct prison *pr);
 void jaildesc_knote(struct prison *pr, long hint);
