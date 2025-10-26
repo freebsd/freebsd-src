@@ -39,6 +39,7 @@ typedef int (*psci_callfn_t)(register_t, register_t, register_t, register_t,
 extern bool psci_present;
 
 int	psci_cpu_on(unsigned long, unsigned long, unsigned long);
+int	psci_cpu_off(void);	/* Operates on caller. */
 void	psci_reset(void);
 int32_t	psci_features(uint32_t);
 int	psci_get_version(void);

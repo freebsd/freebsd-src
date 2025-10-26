@@ -1,10 +1,7 @@
 /*-
- * Copyright (c) 2014 Andrew Turner <andrew@FreeBSD.org>
- * Copyright (c) 2015 The FreeBSD Foundation
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * This software was developed by Andrew Turner under sponsorship from
- * the FreeBSD Foundation.
+ * Copyright (c) 2025 Juniper Networks, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,24 +25,9 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_MACHINE_SMP_H_
-#define	_MACHINE_SMP_H_
+#ifndef	_ARM64_KEXEC_H_
+#define	_ARM64_KEXEC_H_
 
-#include <machine/pcb.h>
+#define KEXEC_MD_PAGES(x) 0
 
-enum {
-	IPI_AST,
-	IPI_PREEMPT,
-	IPI_RENDEZVOUS,
-	IPI_STOP,
-	IPI_STOP_HARD,
-	IPI_HARDCLOCK,
-	IPI_OFF,
-	INTR_IPI_COUNT,
-};
-
-void	ipi_all_but_self(u_int ipi);
-void	ipi_cpu(int cpu, u_int ipi);
-void	ipi_selected(cpuset_t cpus, u_int ipi);
-
-#endif /* !_MACHINE_SMP_H_ */
+#endif	/* _ARM64_KEXEC_H_ */
