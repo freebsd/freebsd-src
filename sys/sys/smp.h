@@ -251,6 +251,7 @@ void	cpu_mp_announce(void);
 int	cpu_mp_probe(void);
 void	cpu_mp_setmaxid(void);
 void	cpu_mp_start(void);
+void	cpu_mp_stop(void);	/* Go back to single-CPU */
 
 void	forward_signal(struct thread *);
 int	restart_cpus(cpuset_t);

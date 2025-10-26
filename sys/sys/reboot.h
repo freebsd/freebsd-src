@@ -61,6 +61,7 @@
 #define	RB_REROOT	0x200000 /* unmount the rootfs and mount it again */
 #define	RB_POWERCYCLE	0x400000 /* Power cycle if possible */
 #define	RB_MUTEMSGS	0x800000 /* start up with console muted after banner */
+#define	RB_KEXEC	0x1000000 /* Boot new kernel using kexec */
 #define	RB_PROBE	0x10000000	/* Probe multiple consoles */
 #define	RB_MULTIPLE	0x20000000	/* use multiple consoles */
 

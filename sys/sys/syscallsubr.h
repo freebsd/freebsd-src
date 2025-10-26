@@ -47,6 +47,7 @@ struct image_args;
 struct jail;
 struct kevent;
 struct kevent_copyops;
+struct kexec_segment;
 struct kld_file_stat;
 struct ksiginfo;
 struct mbuf;
@@ -401,6 +402,8 @@ int	kern_writev(struct thread *td, int fd, struct uio *auio);
 int	kern_socketpair(struct thread *td, int domain, int type, int protocol,
 	    int *rsv);
 int	kern_unmount(struct thread *td, const char *path, int flags);
+int	kern_kexec_load(struct thread *td, u_long entry,
+	    u_long nseg, struct kexec_segment *seg, u_long flags);
 
 /* flags for kern_sigaction */
 #define	KSA_OSIGSET	0x0001	/* uses osigact_t */
