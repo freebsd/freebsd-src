@@ -259,6 +259,7 @@ int	stop_cpus_hard(cpuset_t);
 #if defined(__amd64__) || defined(__i386__)
 int	suspend_cpus(cpuset_t);
 int	resume_cpus(cpuset_t);
+int	offline_cpus(cpuset_t);
 #endif
 
 void	smp_rendezvous_action(void);

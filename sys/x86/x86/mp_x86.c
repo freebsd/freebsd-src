@@ -1696,6 +1696,28 @@ cpususpend_handler(void)
 	CPU_CLR_ATOMIC(cpu, &toresume_cpus);
 }
 
+void
+cpuoff_handler(void)
+{
+	u_int cpu;
+
+	cpu = PCPU_GET(cpuid);
+
+	/* Time to go catatonic.  A reset will be required to leave. */
+	disable_intr();
+	lapic_disable();
+	CPU_SET_ATOMIC(cpu, &suspended_cpus);
+
+	/*
+	 * There technically should be no need for the `while` here, since it
+	 * cannot be interrupted (interrupts are disabled).  Be safe anyway.
+	 * Any interrupt at this point will likely be fatal, as the page tables
+	 * are likely going away shortly.
+	 */
+	while (1)
+		halt();
+}
+
 /*
  * Handle an IPI_SWI by waking delayed SWI thread.
  */
