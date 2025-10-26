@@ -390,8 +390,10 @@ class MockFS {
 	 * @param	parent	Parent directory's inode number
 	 * @param	name	name of dirent to invalidate
 	 * @param	namelen	size of name, including the NUL
+	 * @param	expected_errno The error that write() should return
 	 */
-	int notify_inval_entry(ino_t parent, const char *name, size_t namelen);
+	int notify_inval_entry(ino_t parent, const char *name, size_t namelen,
+			int expected_errno = 0);
 
 	/*
 	 * Send an asynchronous notification to invalidate an inode's cached

@@ -827,10 +827,12 @@ void MockFS::loop() {
 	}
 }
 
-int MockFS::notify_inval_entry(ino_t parent, const char *name, size_t namelen)
+int MockFS::notify_inval_entry(ino_t parent, const char *name, size_t namelen,
+		int expected_errno)
 {
 	std::unique_ptr<mockfs_buf_out> out(new mockfs_buf_out);
 
+	out->expected_errno = expected_errno;
 	out->header.unique = 0;	/* 0 means asynchronous notification */
 	out->header.error = FUSE_NOTIFY_INVAL_ENTRY;
 	out->body.inval_entry.parent = parent;
