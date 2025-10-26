@@ -171,7 +171,7 @@ perftest(const struct cmd *f, int argc, char *argv[])
 		arg_help(argc, argv, f);
 	}
 	if (opt.time == 0) {
-		fprintf(stderr, "No time speciifed\n");
+		fprintf(stderr, "No time specified\n");
 		arg_help(argc, argv, f);
 	}
 	io_test.time = opt.time;
