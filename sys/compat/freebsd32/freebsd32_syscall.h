@@ -517,4 +517,4 @@
 #define	FREEBSD32_SYS_setgroups	596
 #define	FREEBSD32_SYS_jail_attach_jd	597
 #define	FREEBSD32_SYS_jail_remove_jd	598
-#define	FREEBSD32_SYS_MAXSYSCALL	599
+#define	FREEBSD32_SYS_MAXSYSCALL	600
