@@ -537,4 +537,5 @@
 #define	SYS_setgroups	596
 #define	SYS_jail_attach_jd	597
 #define	SYS_jail_remove_jd	598
-#define	SYS_MAXSYSCALL	599
+#define	SYS_kexec_load	599
+#define	SYS_MAXSYSCALL	600

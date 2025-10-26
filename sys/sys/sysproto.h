@@ -1907,6 +1907,12 @@ struct jail_attach_jd_args {
 struct jail_remove_jd_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 };
+struct kexec_load_args {
+	char entry_l_[PADL_(uint64_t)]; uint64_t entry; char entry_r_[PADR_(uint64_t)];
+	char nseg_l_[PADL_(u_long)]; u_long nseg; char nseg_r_[PADR_(u_long)];
+	char segments_l_[PADL_(struct kexec_segment *)]; struct kexec_segment * segments; char segments_r_[PADR_(struct kexec_segment *)];
+	char flags_l_[PADL_(u_long)]; u_long flags; char flags_r_[PADR_(u_long)];
+};
 int	sys__exit(struct thread *, struct _exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);
@@ -2313,6 +2319,7 @@ int	sys_getgroups(struct thread *, struct getgroups_args *);
 int	sys_setgroups(struct thread *, struct setgroups_args *);
 int	sys_jail_attach_jd(struct thread *, struct jail_attach_jd_args *);
 int	sys_jail_remove_jd(struct thread *, struct jail_remove_jd_args *);
+int	sys_kexec_load(struct thread *, struct kexec_load_args *);
 
 #ifdef COMPAT_43
 
@@ -3311,6 +3318,7 @@ int	freebsd14_setgroups(struct thread *, struct freebsd14_setgroups_args *);
 #define	SYS_AUE_setgroups	AUE_SETGROUPS
 #define	SYS_AUE_jail_attach_jd	AUE_JAIL_ATTACH
 #define	SYS_AUE_jail_remove_jd	AUE_JAIL_REMOVE
+#define	SYS_AUE_kexec_load	AUE_NULL
 
 #undef PAD_
 #undef PADL_
