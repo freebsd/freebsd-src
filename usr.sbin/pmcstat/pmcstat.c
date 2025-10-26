@@ -215,7 +215,7 @@ pmcstat_find_targets(const char *spec)
 			SLIST_INSERT_HEAD(&args.pa_targets, pt, pt_next);
 		} else if (rv != REG_NOMATCH) {
 			regerror(rv, &reg, errbuf, sizeof(errbuf));
-			errx(EX_SOFTWARE, "ERROR: Regex evalation failed: %s",
+			errx(EX_SOFTWARE, "ERROR: Regex evaluation failed: %s",
 			    errbuf);
 		}
 	}
