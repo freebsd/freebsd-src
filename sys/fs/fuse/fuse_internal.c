@@ -1063,6 +1063,8 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 	if (!fuse_libabi_geq(data, 7, 28))
 		fsess_set_notimpl(data->mp, FUSE_COPY_FILE_RANGE);
 
+	if (fuse_libabi_geq(data, 7, 33) && (fiio->flags & FUSE_SETXATTR_EXT))
+		data->dataflags |= FSESS_SETXATTR_EXT;
 out:
 	if (err) {
 		fdata_set_dead(data);
@@ -1115,7 +1117,8 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	 */
 	fiii->flags = FUSE_ASYNC_READ | FUSE_POSIX_LOCKS | FUSE_EXPORT_SUPPORT
 		| FUSE_BIG_WRITES | FUSE_WRITEBACK_CACHE
-		| FUSE_NO_OPEN_SUPPORT | FUSE_NO_OPENDIR_SUPPORT;
+		| FUSE_NO_OPEN_SUPPORT | FUSE_NO_OPENDIR_SUPPORT
+		| FUSE_SETXATTR_EXT;
 
 	fuse_insert_callback(fdi.tick, fuse_internal_init_callback);
 	fuse_insert_message(fdi.tick, false);
