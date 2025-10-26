@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 18, 2015
+.Dd October 26, 2025
 .Dt DTRACE_IO 4
 .Os
 .Sh NAME
@@ -84,7 +84,7 @@ The following script shows a per-process breakdown of total I/O by disk device:
 
 io:::start
 {
-        @[args[1]->device_name, execname, pid] = sum(args[0]->bio_bcount);
+        @[args[1]->device_name, execname, pid] = sum(args[0]->bio_length);
 }
 
 END
