@@ -77,6 +77,8 @@ amd64/amd64/fpu.c		standard
 amd64/amd64/gdb_machdep.c	optional	gdb
 amd64/amd64/initcpu.c		standard
 amd64/amd64/io.c		optional	io
+amd64/amd64/kexec_support.c	standard
+amd64/amd64/kexec_tramp.S	standard
 amd64/amd64/locore.S		standard	no-obj
 amd64/amd64/xen-locore.S	optional	xenhvm \
 	compile-with "${NORMAL_S} -g0" \

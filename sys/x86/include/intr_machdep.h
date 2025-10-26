@@ -142,6 +142,7 @@ int	intr_add_handler(struct intsrc *isrc, const char *name,
 int	intr_config_intr(struct intsrc *isrc, enum intr_trigger trig,
     enum intr_polarity pol);
 int	intr_describe(struct intsrc *isrc, void *ih, const char *descr);
+void	intr_disable_all(void);
 void	intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame);
 u_int	intr_next_cpu(int domain);
 struct intsrc *intr_lookup_source(int vector);

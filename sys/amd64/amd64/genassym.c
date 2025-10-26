@@ -57,6 +57,7 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#include <sys/kexec.h>
 #include <sys/proc.h>
 #include <x86/apicreg.h>
 #include <machine/cpu.h>
@@ -65,6 +66,7 @@
 #include <machine/proc.h>
 #include <machine/segments.h>
 #include <machine/efi.h>
+#include <machine/kexec.h>
 
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
@@ -295,3 +297,13 @@ ASSYM(EC_R13, offsetof(struct efirt_callinfo, ec_r13));
 ASSYM(EC_R14, offsetof(struct efirt_callinfo, ec_r14));
 ASSYM(EC_R15, offsetof(struct efirt_callinfo, ec_r15));
 ASSYM(EC_RFLAGS, offsetof(struct efirt_callinfo, ec_rflags));
+
+/* Kexec */
+ASSYM(KEXEC_ENTRY, offsetof(struct kexec_image, entry));
+ASSYM(KEXEC_SEGMENTS, offsetof(struct kexec_image, segments));
+ASSYM(KEXEC_SEGMENT_MAX, KEXEC_SEGMENT_MAX);
+ASSYM(KEXEC_IMAGE_SIZE, sizeof(struct kexec_image));
+ASSYM(KEXEC_STAGED_SEGMENT_SIZE, sizeof(struct kexec_segment_stage));
+ASSYM(KEXEC_SEGMENT_SIZE, offsetof(struct kexec_segment_stage, size));
+ASSYM(KEXEC_SEGMENT_MAP, offsetof(struct kexec_segment_stage, map_buf));
+ASSYM(KEXEC_SEGMENT_TARGET, offsetof(struct kexec_segment_stage, target));
