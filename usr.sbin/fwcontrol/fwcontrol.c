@@ -440,7 +440,7 @@ show_crom(u_int32_t *crom_buf)
 	if (hdr->info_len == 1) {
 		/* minimum ROM */
 		reg = (struct csrreg *)hdr;
-		printf("verndor ID: 0x%06x\n",  reg->val);
+		printf("vendor ID: 0x%06x\n",  reg->val);
 		return;
 	}
 	printf("info_len=%d crc_len=%d crc=0x%04x",
