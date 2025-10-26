@@ -30,7 +30,7 @@
 #include <security/mac/mac_internal.h>
 #include <security/mac/mac_policy.h>
 
-static void
+void
 mac_prison_label_free(struct label *label)
 {
 	if (label == NULL)
@@ -40,7 +40,7 @@ mac_prison_label_free(struct label *label)
 	mac_labelzone_free(label);
 }
 
-static struct label *
+struct label *
 mac_prison_label_alloc(int flag)
 {
 	struct label *label;
@@ -98,6 +98,13 @@ mac_prison_destroy(struct prison *pr)
 	pr->pr_label = NULL;
 }
 
+void
+mac_prison_copy_label(struct label *src, struct label *dest)
+{
+
+	MAC_POLICY_PERFORM_NOSLEEP(prison_copy_label, src, dest);
+}
+
 int
 mac_prison_externalize_label(struct label *label, char *elements,
     char *outbuf, size_t outbuflen)
@@ -124,6 +131,23 @@ mac_prison_relabel(struct ucred *cred, struct prison *pr,
 	mtx_assert(&pr->pr_mtx, MA_OWNED);
 	MAC_POLICY_PERFORM_NOSLEEP(prison_relabel, cred, pr, pr->pr_label,
 	    newlabel);
+}
+
+int
+mac_prison_label_set(struct ucred *cred, struct prison *pr,
+    struct label *label)
+{
+	int error;
+
+	mtx_assert(&pr->pr_mtx, MA_OWNED);
+
+	error = mac_prison_check_relabel(cred, pr, label);
+	if (error)
+		return (error);
+
+	mac_prison_relabel(cred, pr, label);
+
+	return (0);
 }
 
 MAC_CHECK_PROBE_DEFINE4(prison_check_relabel, "struct ucred *",

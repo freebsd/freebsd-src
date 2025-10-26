@@ -1617,6 +1617,16 @@ test_prison_destroy_label(struct label *label)
 	COUNTER_INC(prison_destroy_label);
 }
 
+COUNTER_DECL(prison_copy_label);
+static void
+test_prison_copy_label(struct label *src, struct label *dest)
+{
+
+	LABEL_CHECK(src, MAGIC_PRISON);
+	LABEL_CHECK(dest, MAGIC_PRISON);
+	COUNTER_INC(prison_copy_label);
+}
+
 COUNTER_DECL(prison_externalize_label);
 static int
 test_prison_externalize_label(struct label *label, char *element_name,
@@ -3357,6 +3367,7 @@ static struct mac_policy_ops test_ops =
 
 	.mpo_prison_init_label = test_prison_init_label,
 	.mpo_prison_destroy_label = test_prison_destroy_label,
+	.mpo_prison_copy_label = test_prison_copy_label,
 	.mpo_prison_externalize_label = test_prison_externalize_label,
 	.mpo_prison_internalize_label = test_prison_internalize_label,
 	.mpo_prison_relabel = test_prison_relabel,

@@ -1912,6 +1912,7 @@ static struct mac_policy_ops stub_ops =
 
 	.mpo_prison_init_label = stub_init_label_waitcheck,
 	.mpo_prison_destroy_label = stub_destroy_label,
+	.mpo_prison_copy_label = stub_copy_label,
 	.mpo_prison_externalize_label = stub_externalize_label,
 	.mpo_prison_internalize_label = stub_internalize_label,
 	.mpo_prison_relabel = stub_prison_relabel,

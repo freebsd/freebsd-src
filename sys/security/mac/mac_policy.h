@@ -414,6 +414,8 @@ typedef int	(*mpo_prison_check_relabel_t)(struct ucred *cred,
 		    struct prison *pr, struct label *prlabel,
 		    struct label *newlabel);
 typedef void	(*mpo_prison_destroy_label_t)(struct label *label);
+typedef void	(*mpo_prison_copy_label_t)(struct label *src,
+		    struct label *dest);
 typedef int	(*mpo_prison_externalize_label_t)(struct label *label,
 		    char *element_name, struct sbuf *sb, int *claimed);
 typedef int	(*mpo_prison_internalize_label_t)(struct label *label,
@@ -897,6 +899,7 @@ struct mac_policy_ops {
 	mpo_prison_init_label_t			mpo_prison_init_label;
 	mpo_prison_check_relabel_t		mpo_prison_check_relabel;
 	mpo_prison_destroy_label_t		mpo_prison_destroy_label;
+	mpo_prison_copy_label_t			mpo_prison_copy_label;
 	mpo_prison_externalize_label_t		mpo_prison_externalize_label;
 	mpo_prison_internalize_label_t		mpo_prison_internalize_label;
 	mpo_prison_relabel_t			mpo_prison_relabel;
