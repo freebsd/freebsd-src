@@ -132,6 +132,7 @@ struct bcm2835_audio_info {
 
 	uint32_t flags_pending;
 
+	int verbose_trace;
 	/* Worker thread state */
 	int worker_state;
 };
@@ -139,6 +140,29 @@ struct bcm2835_audio_info {
 #define BCM2835_AUDIO_LOCK(sc)		mtx_lock(&(sc)->lock)
 #define BCM2835_AUDIO_LOCKED(sc)	mtx_assert(&(sc)->lock, MA_OWNED)
 #define BCM2835_AUDIO_UNLOCK(sc)	mtx_unlock(&(sc)->lock)
+
+#define BCM2835_LOG_ERROR(sc,...)				\
+	do {							\
+		device_printf((sc)->dev, __VA_ARGS__);		\
+	} while(0)
+
+#define BCM2835_LOG_INFO(sc,...)				\
+	do {							\
+		if (sc->verbose_trace > 0)			\
+			device_printf((sc)->dev, __VA_ARGS__);	\
+	} while(0)
+
+#define BCM2835_LOG_WARN(sc,...) \
+	do {							\
+		if (sc->verbose_trace > 1)			\
+			device_printf((sc)->dev, __VA_ARGS__);	\
+	} while(0)
+
+#define BCM2835_LOG_TRACE(sc,...)				\
+	do {							\
+		if(sc->verbose_trace > 2)			\
+			device_printf((sc)->dev, __VA_ARGS__);	\
+	} while(0)
 
 static const char *
 dest_description(uint32_t dest)
@@ -247,7 +271,8 @@ bcm2835_audio_callback(void *param, const VCHI_CALLBACK_REASON_T reason, void *m
 		}
 		BCM2835_AUDIO_UNLOCK(sc);
 	} else
-		printf("%s: unknown m.type: %d\n", __func__, m.type);
+		BCM2835_LOG_WARN(sc, "%s: unknown m.type: %d\n", __func__,
+		    m.type);
 }
 
 /* VCHIQ stuff */
@@ -259,13 +284,13 @@ bcm2835_audio_init(struct bcm2835_audio_info *sc)
 	/* Initialize and create a VCHI connection */
 	status = vchi_initialise(&sc->vchi_instance);
 	if (status != 0) {
-		printf("vchi_initialise failed: %d\n", status);
+		BCM2835_LOG_ERROR(sc, "vchi_initialise failed: %d\n", status);
 		return;
 	}
 
 	status = vchi_connect(NULL, 0, sc->vchi_instance);
 	if (status != 0) {
-		printf("vchi_connect failed: %d\n", status);
+		BCM2835_LOG_ERROR(sc, "vchi_connect failed: %d\n", status);
 		return;
 	}
 
@@ -297,7 +322,8 @@ bcm2835_audio_release(struct bcm2835_audio_info *sc)
 	if (sc->vchi_handle != VCHIQ_SERVICE_HANDLE_INVALID) {
 		success = vchi_service_close(sc->vchi_handle);
 		if (success != 0)
-			printf("vchi_service_close failed: %d\n", success);
+			BCM2835_LOG_ERROR(sc, "vchi_service_close failed: %d\n",
+			    success);
 		vchi_service_release(sc->vchi_handle);
 		sc->vchi_handle = VCHIQ_SERVICE_HANDLE_INVALID;
 	}
@@ -327,7 +353,9 @@ bcm2835_audio_start(struct bcm2835_audio_chinfo *ch)
 		    &m, sizeof m, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
 
 		if (ret != 0)
-			printf("%s: vchi_msg_queue failed (err %d)\n", __func__, ret);
+			BCM2835_LOG_ERROR(sc,
+			    "%s: vchi_msg_queue failed (err %d)\n", __func__,
+			    ret);
 	}
 }
 
@@ -346,7 +374,9 @@ bcm2835_audio_stop(struct bcm2835_audio_chinfo *ch)
 		    &m, sizeof m, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
 
 		if (ret != 0)
-			printf("%s: vchi_msg_queue failed (err %d)\n", __func__, ret);
+			BCM2835_LOG_ERROR(sc,
+			    "%s: vchi_msg_queue failed (err %d)\n", __func__,
+			    ret);
 	}
 }
 
@@ -362,7 +392,9 @@ bcm2835_audio_open(struct bcm2835_audio_info *sc)
 		    &m, sizeof m, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
 
 		if (ret != 0)
-			printf("%s: vchi_msg_queue failed (err %d)\n", __func__, ret);
+			BCM2835_LOG_ERROR(sc,
+			    "%s: vchi_msg_queue failed (err %d)\n", __func__,
+			    ret);
 	}
 }
 
@@ -384,7 +416,9 @@ bcm2835_audio_update_controls(struct bcm2835_audio_info *sc, uint32_t volume, ui
 		    &m, sizeof m, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
 
 		if (ret != 0)
-			printf("%s: vchi_msg_queue failed (err %d)\n", __func__, ret);
+			BCM2835_LOG_ERROR(sc,
+			    "%s: vchi_msg_queue failed (err %d)\n", __func__,
+			    ret);
 	}
 }
 
@@ -404,7 +438,9 @@ bcm2835_audio_update_params(struct bcm2835_audio_info *sc, uint32_t fmt, uint32_
 		    &m, sizeof m, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
 
 		if (ret != 0)
-			printf("%s: vchi_msg_queue failed (err %d)\n", __func__, ret);
+			BCM2835_LOG_ERROR(sc,
+			    "%s: vchi_msg_queue failed (err %d)\n", __func__,
+			    ret);
 	}
 }
 
@@ -452,14 +488,15 @@ bcm2835_audio_write_samples(struct bcm2835_audio_chinfo *ch, void *buf, uint32_t
 	    &m, sizeof m, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
 
 	if (ret != 0)
-		printf("%s: vchi_msg_queue failed (err %d)\n", __func__, ret);
+		BCM2835_LOG_ERROR(sc, "%s: vchi_msg_queue failed (err %d)\n",
+		    __func__, ret);
 
 	while (count > 0) {
 		int bytes = MIN((int)m.u.write.max_packet, (int)count);
 		ret = vchi_msg_queue(sc->vchi_handle,
 		    buf, bytes, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
 		if (ret != 0)
-			printf("%s: vchi_msg_queue failed: %d\n",
+			BCM2835_LOG_ERROR(sc, "%s: vchi_msg_queue failed: %d\n",
 			    __func__, ret);
 		buf = (char *)buf + bytes;
 		count -= bytes;
@@ -577,7 +614,8 @@ bcm2835_audio_create_worker(struct bcm2835_audio_info *sc)
 	sc->worker_state = WORKER_RUNNING;
 	if (kproc_create(bcm2835_audio_worker, (void*)sc, &newp, 0, 0,
 	    "bcm2835_audio_worker") != 0) {
-		printf("failed to create bcm2835_audio_worker\n");
+		BCM2835_LOG_ERROR(sc,
+		    "failed to create bcm2835_audio_worker\n");
 	}
 }
 
@@ -830,6 +868,9 @@ vchi_audio_sysctl_init(struct bcm2835_audio_info *sc)
 	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "starved",
 			CTLFLAG_RD, &sc->pch.starved,
 			sc->pch.starved, "number of starved conditions");
+	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "trace",
+			CTLFLAG_RW, &sc->verbose_trace,
+			sc->verbose_trace, "enable tracing of transfers");
 }
 
 static void
@@ -861,6 +902,7 @@ bcm2835_audio_delayed_init(void *xsc)
 	bcm2835_audio_open(sc);
 	sc->volume = 75;
 	sc->dest = DEST_AUTO;
+	sc->verbose_trace = 0;
 
     	if (mixer_init(sc->dev, &bcmmixer_class, sc)) {
 		device_printf(sc->dev, "mixer_init failed\n");
