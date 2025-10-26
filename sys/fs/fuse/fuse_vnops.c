@@ -2777,7 +2777,7 @@ fuse_vnop_setextattr(struct vop_setextattr_args *ap)
 	    strlen(ap->a_name) + 1;
 
 	/* older FUSE servers  use a smaller fuse_setxattr_in struct*/
-	if (fuse_libabi_geq(fuse_get_mpdata(mp), 7, 33))
+	if (fuse_get_mpdata(mp)->dataflags & FSESS_SETXATTR_EXT)
 		struct_size = sizeof(*set_xattr_in);
 
 	fdisp_init(&fdi, len + struct_size + uio->uio_resid);
@@ -2786,7 +2786,7 @@ fuse_vnop_setextattr(struct vop_setextattr_args *ap)
 	set_xattr_in = fdi.indata;
 	set_xattr_in->size = uio->uio_resid;
 
-	if (fuse_libabi_geq(fuse_get_mpdata(mp), 7, 33)) {
+	if (fuse_get_mpdata(mp)->dataflags & FSESS_SETXATTR_EXT) {
 		set_xattr_in->setxattr_flags = 0;
 		set_xattr_in->padding = 0;
 	}
