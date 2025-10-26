@@ -325,6 +325,19 @@ mp_virtdone:
 
 	b	init_secondary
 LEND(mpentry_common)
+
+ENTRY(mp_cpu_spinloop)
+0:
+	wfe
+	ldr	x0, mp_cpu_spin_table_release_addr
+	cbz	x0, 0b
+	blr	x0
+	.globl mp_cpu_spin_table_release_addr
+mp_cpu_spin_table_release_addr:
+	.quad	0
+	.globl mp_cpu_spinloop_end
+mp_cpu_spinloop_end:
+END(mp_cpu_spinloop)
 #endif
 
 /*
@@ -475,6 +488,29 @@ LENTRY(enter_kernel_el)
 	eret
 LEND(enter_kernel_el)
 
+/* Turn off the MMU.  Install ttbr0 from the bootstrap page table, and go there.
+ * Does not return.
+ * - x0 - target address to jump to after stopping the MMU.
+ * - x1 - kernel load address
+ */
+ENTRY(stop_mmu)
+	mov	x16, x0	/* Save target. */
+	ldr	x2, =(1f - KERNBASE)
+	add	x17, x1, x2
+	ldr	x3, =(pagetable_l0_ttbr0_bootstrap - KERNBASE)
+	add	x1, x1, x3
+	msr	ttbr0_el1, x1
+	isb
+	br	x17
+1:
+	BTI_J
+	mrs	x0, sctlr_el1
+	bic	x0, x0, SCTLR_M
+	bic	x0, x0, SCTLR_C
+	msr	sctlr_el1, x0
+	isb
+	br	x16
+END(stop_mmu)
 /*
  * Get the physical address the kernel was loaded at.
  */
@@ -1094,12 +1130,19 @@ tcr:
 	    TCR_SH0_IS | TCR_ORGN0_WBWA | TCR_IRGN0_WBWA)
 LEND(start_mmu)
 
+ENTRY(switch_stack)
+	mov	sp, x0
+	mov 	x16, x1
+	br	x16
+END(switch_stack)
+
 ENTRY(abort)
 	b abort
 END(abort)
 
 .bss
 	.align	PAGE_SHIFT
+	.globl	initstack_end
 initstack:
 	.space	BOOT_STACK_SIZE
 initstack_end:
@@ -1116,6 +1159,7 @@ initstack_end:
 	 *           L0 for user
 	 */
 	.globl pagetable_l0_ttbr1
+	.globl pagetable_l0_ttbr0_bootstrap
 pagetable:
 pagetable_l3_ttbr1:
 	.space	(PAGE_SIZE * L3_PAGE_COUNT)

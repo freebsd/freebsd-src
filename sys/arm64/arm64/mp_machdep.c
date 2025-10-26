@@ -60,6 +60,7 @@
 #include <machine/debug_monitor.h>
 #include <machine/intr.h>
 #include <machine/smp.h>
+#include <machine/vmparam.h>
 #ifdef VFP
 #include <machine/vfp.h>
 #endif
@@ -103,6 +104,7 @@ static void ipi_hardclock(void *);
 static void ipi_preempt(void *);
 static void ipi_rendezvous(void *);
 static void ipi_stop(void *);
+static void ipi_off(void *);
 
 #ifdef FDT
 static u_int fdt_cpuid;
@@ -193,6 +195,7 @@ release_aps(void *dummy __unused)
 	intr_ipi_setup(IPI_STOP, "stop", ipi_stop, NULL);
 	intr_ipi_setup(IPI_STOP_HARD, "stop hard", ipi_stop, NULL);
 	intr_ipi_setup(IPI_HARDCLOCK, "hardclock", ipi_hardclock, NULL);
+	intr_ipi_setup(IPI_OFF, "off", ipi_off, NULL);
 
 	atomic_store_int(&aps_started, 0);
 	atomic_store_rel_int(&aps_ready, 1);
@@ -390,6 +393,34 @@ ipi_stop(void *dummy __unused)
 	CTR0(KTR_SMP, "IPI_STOP (restart)");
 }
 
+void stop_mmu(vm_paddr_t, vm_paddr_t) __dead2;
+extern uint32_t mp_cpu_spinloop[];
+extern uint32_t mp_cpu_spinloop_end[];
+extern uint64_t mp_cpu_spin_table_release_addr;
+static void
+ipi_off(void *dummy __unused)
+{
+	CTR0(KTR_SMP, "IPI_OFF");
+	if (psci_present)
+		psci_cpu_off();
+	else {
+		uint64_t release_addr;
+		vm_size_t size;
+
+		size = (vm_offset_t)&mp_cpu_spin_table_release_addr -
+		    (vm_offset_t)mp_cpu_spinloop;
+		release_addr = PCPU_GET(release_addr) - size;
+		isb();
+		invalidate_icache();
+		/* Go catatonic, don't take any interrupts. */
+		intr_disable();
+		stop_mmu(release_addr, pmap_kextract(KERNBASE));
+
+
+	}
+	CTR0(KTR_SMP, "IPI_OFF failed");
+}
+
 struct cpu_group *
 cpu_topo(void)
 {
@@ -511,6 +542,7 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain, vm_paddr_t release_addr)
 	pcpu_init(pcpup, cpuid, sizeof(struct pcpu));
 	pcpup->pc_mpidr = target_cpu & CPU_AFF_MASK;
 	bootpcpu = pcpup;
+	pcpup->pc_release_addr = release_addr;
 
 	dpcpu[cpuid - 1] = (void *)(pcpup + 1);
 	dpcpu_init(dpcpu[cpuid - 1], cpuid);
@@ -750,6 +782,52 @@ cpu_mp_start(void)
 	default:
 		break;
 	}
+}
+
+void
+cpu_mp_stop(void)
+{
+
+	/* Short-circuit for single-CPU */
+	if (CPU_COUNT(&all_cpus) == 1)
+		return;
+
+	KASSERT(PCPU_GET(cpuid) == CPU_FIRST(), ("Not on the first CPU!\n"));
+
+	/*
+	 * If we use spin-table, assume U-boot method for now (single address
+	 * shared by all CPUs).
+	 */
+	if (!psci_present) {
+		int cpu;
+		vm_paddr_t release_addr;
+		void *release_vaddr;
+		vm_size_t size;
+
+		/* Find the shared release address. */
+		CPU_FOREACH(cpu) {
+			release_addr = pcpu_find(cpu)->pc_release_addr;
+			if (release_addr != 0)
+				break;
+		}
+		/* No release address? No way of notifying other CPUs. */
+		if (release_addr == 0)
+			return;
+
+		size = (vm_offset_t)&mp_cpu_spinloop_end -
+		    (vm_offset_t)&mp_cpu_spinloop;
+
+		release_addr -= (vm_offset_t)&mp_cpu_spin_table_release_addr -
+		    (vm_offset_t)mp_cpu_spinloop;
+
+		release_vaddr = pmap_mapdev(release_addr, size);
+		bcopy(mp_cpu_spinloop, release_vaddr, size);
+		cpu_dcache_wbinv_range(release_vaddr, size);
+		pmap_unmapdev(release_vaddr, size);
+		invalidate_icache();
+	}
+	ipi_all_but_self(IPI_OFF);
+	DELAY(1000000);
 }
 
 /* Introduce rest of cores to the world */
