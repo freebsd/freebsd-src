@@ -43,10 +43,10 @@
 #define	_MACHINE_CPU_H_
 
 #if !defined(__ASSEMBLER__)
+#include <machine/_armreg.h>
 #include <machine/atomic.h>
 #include <machine/frame.h>
 #endif
-#include <machine/armreg.h>
 
 #define	TRAPF_PC(tfp)		((tfp)->tf_elr)
 #define	TRAPF_USERMODE(tfp)	(((tfp)->tf_spsr & PSR_M_MASK) == PSR_M_EL0t)

@@ -28,6 +28,7 @@
  */
 
 #if !defined(_MACHINE_ARMREG_H_) && \
+    !defined(_MACHINE_CPU_H_) && \
     !defined(_MACHINE_HYPERVISOR_H_)
 #error Do not include this file directly
 #endif
