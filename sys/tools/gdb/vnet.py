@@ -10,7 +10,7 @@ from freebsd import *
 
 class vnet(gdb.Function):
     """
-    Register a function to look up VNET variables by name.
+    A function to look up VNET variables by name.
 
     To look at the value of a VNET variable V_foo, print $V("foo").  The
     currently selected thread's VNET is used by default, but can be optionally

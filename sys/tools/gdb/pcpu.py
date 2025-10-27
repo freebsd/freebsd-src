@@ -9,7 +9,7 @@ from freebsd import *
 
 class pcpu(gdb.Function):
     """
-    Register a function to lookup PCPU and DPCPU variables by name.
+    A function to look up PCPU and DPCPU fields by name.
 
     To look up the value of the PCPU field foo on CPU n, use
     $PCPU("foo", n).  This works for DPCPU fields too.  If the CPU ID is
