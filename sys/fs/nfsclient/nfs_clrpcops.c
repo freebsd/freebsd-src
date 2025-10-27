@@ -2212,7 +2212,7 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 				NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED
 					+ NFSX_VERF);
 				rlen = fxdr_unsigned(int, *tl++);
-				if (rlen == 0) {
+				if (rlen <= 0 || rlen > len) {
 					error = NFSERR_IO;
 					goto nfsmout;
 				} else if (rlen < len) {
@@ -7254,7 +7254,7 @@ nfsrpc_writeds(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED + NFSX_VERF);
 		rlen = fxdr_unsigned(int, *tl++);
 		NFSCL_DEBUG(4, "nfsrpc_writeds: len=%d rlen=%d\n", len, rlen);
-		if (rlen == 0) {
+		if (rlen <= 0 || rlen > len) {
 			error = NFSERR_IO;
 			goto nfsmout;
 		} else if (rlen < len) {
