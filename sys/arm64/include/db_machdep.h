@@ -31,7 +31,6 @@
 #ifndef	_MACHINE_DB_MACHDEP_H_
 #define	_MACHINE_DB_MACHDEP_H_
 
-#include <machine/armreg.h>
 #include <machine/frame.h>
 #include <machine/trap.h>
 
