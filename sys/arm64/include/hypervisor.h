@@ -30,6 +30,8 @@
 #ifndef _MACHINE_HYPERVISOR_H_
 #define	_MACHINE_HYPERVISOR_H_
 
+#include <machine/_armreg.h>
+
 /*
  * These registers are only useful when in hypervisor context,
  * e.g. specific to EL2, or controlling the hypervisor.
