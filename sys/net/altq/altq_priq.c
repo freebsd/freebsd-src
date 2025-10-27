@@ -597,6 +597,8 @@ priq_purgeq(struct priq_class *cl)
 static void
 get_class_stats(struct priq_classstats *sp, struct priq_class *cl)
 {
+	memset(sp, 0, sizeof(*sp));
+
 	sp->class_handle = cl->cl_handle;
 	sp->qlength = qlen(cl->cl_q);
 	sp->qlimit = qlimit(cl->cl_q);

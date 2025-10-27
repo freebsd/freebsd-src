@@ -173,6 +173,8 @@ cbq_request(struct ifaltq *ifq, int req, void *arg)
 static void
 get_class_stats(class_stats_t *statsp, struct rm_class *cl)
 {
+	memset(statsp, 0, sizeof(*statsp));
+
 	statsp->xmit_cnt	= cl->stats_.xmit_cnt;
 	statsp->drop_cnt	= cl->stats_.drop_cnt;
 	statsp->over		= cl->stats_.over;
