@@ -58,10 +58,18 @@ _thread_printf(int fd, const char *fmt, ...)
 	va_end(ap);
 }
 
+/* GCC has had this for a long while now, but Clang only got it
+   recently. */
+#if __has_attribute(__nonstring__)
+# define	__nonstring __attribute__((__nonstring__))
+#else
+# define	__nonstring
+#endif
+
 void
 _thread_vprintf(int fd, const char *fmt, va_list ap)
 {
-	static const char digits[16] = "0123456789abcdef";
+	__nonstring static const char digits[16] = "0123456789abcdef";
 	char buf[20];
 	char *s;
 	unsigned long r, u;

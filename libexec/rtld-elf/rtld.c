@@ -343,12 +343,20 @@ static void (*rtld_exit_ptr)(void);
 			ld_utrace_log(e, h, mb, ms, r, n); \
 	} while (0)
 
+/* GCC has had this for a long while now, but Clang only got it
+   recently. */
+#if __has_attribute(__nonstring__)
+# define	__nonstring __attribute__((__nonstring__))
+#else
+# define	__nonstring
+#endif
+
 static void
 ld_utrace_log(int event, void *handle, void *mapbase, size_t mapsize,
     int refcnt, const char *name)
 {
 	struct utrace_rtld ut;
-	static const char rtld_utrace_sig[RTLD_UTRACE_SIG_SZ] = RTLD_UTRACE_SIG;
+	__nonstring static const char rtld_utrace_sig[RTLD_UTRACE_SIG_SZ] = RTLD_UTRACE_SIG;
 
 	memset(&ut, 0, sizeof(ut));	/* clear holes */
 	memcpy(ut.sig, rtld_utrace_sig, sizeof(ut.sig));
