@@ -86,7 +86,6 @@ METHOD void enable_intr {
 METHOD void disable_intr {
 	device_t	pic;
 	struct intsrc	*isrc;
-	enum eoi_flag	eoi;
 };
 
 METHOD int source_pending {
