@@ -454,10 +454,42 @@ openpic_resume(device_t dev)
 	return (0);
 }
 
+/*
+ * Interrupt event methods
+ */
+
+static void
+openpic_post_filter(device_t pic, interrupt_t *i)
+{
+
+	openpic_eoi(pic, i->intline, i->priv);
+}
+
+static void
+openpic_post_ithread(device_t pic, interrupt_t *i)
+{
+
+	openpic_unmask(pic, i->intline, i->priv);
+}
+
+static void
+openpic_pre_ithread(device_t pic, interrupt_t *i)
+{
+
+	openpic_mask(pic, i->intline, i->priv);
+	openpic_eoi(pic, i->intline, i->priv);
+}
+
+
 static device_method_t openpic_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_suspend,	openpic_suspend),
 	DEVMETHOD(device_resume,	openpic_resume),
+
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	openpic_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	openpic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	openpic_pre_ithread),
 
 	/* PIC interface */
 	DEVMETHOD(pic_bind,		openpic_bind),
