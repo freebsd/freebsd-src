@@ -5678,7 +5678,8 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
 			stripecnt = fxdr_unsigned(int, *tl);
 			NFSCL_DEBUG(4, "stripecnt=%d\n", stripecnt);
-			if (stripecnt < 1 || stripecnt > 4096) {
+			if (stripecnt >= MHLEN / NFSX_UNSIGNED ||
+			    stripecnt < 1) {
 				printf("pNFS File layout devinfo stripecnt %d:"
 				    " out of range\n", stripecnt);
 				error = NFSERR_BADXDR;
@@ -8124,7 +8125,7 @@ nfsrv_parseug(struct nfsrv_descript *nd, int dogrp, uid_t *uidp, gid_t *gidp,
     NFSPROC_T *p)
 {
 	uint32_t *tl;
-	char *cp, *str, str0[NFSV4_SMALLSTR + 1];
+	char *str, str0[NFSV4_SMALLSTR + 1];
 	uint32_t len = 0;
 	int error = 0;
 
@@ -8147,9 +8148,9 @@ nfsrv_parseug(struct nfsrv_descript *nd, int dogrp, uid_t *uidp, gid_t *gidp,
 		str = malloc(len + 1, M_TEMP, M_WAITOK);
 	else
 		str = str0;
-	NFSM_DISSECT(cp, char *, NFSM_RNDUP(len));
-	NFSBCOPY(cp, str, len);
-	str[len] = '\0';
+	error = nfsrv_mtostr(nd, str, len);
+	if (error != 0)
+		goto nfsmout;
 	NFSCL_DEBUG(4, "nfsrv_parseug: str=%s\n", str);
 	if (dogrp != 0)
 		error = nfsv4_strtogid(nd, str, len, gidp);
