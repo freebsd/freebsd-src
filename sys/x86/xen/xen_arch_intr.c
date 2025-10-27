@@ -187,7 +187,7 @@ xen_intr_pic_enable_intr(x86pic_t pic, struct intsrc *isrc)
 }
 
 static void
-xen_intr_pic_disable_intr(x86pic_t pic, struct intsrc *isrc)
+xen_intr_pic_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
