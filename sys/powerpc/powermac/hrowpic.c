@@ -63,6 +63,10 @@
 static int	hrowpic_probe(device_t);
 static int	hrowpic_attach(device_t);
 
+static intr_event_post_filter_t		hrowpic_post_filter;
+static intr_event_post_ithread_t	hrowpic_post_ithread;
+static intr_event_pre_ithread_t		hrowpic_pre_ithread;
+
 static void	hrowpic_dispatch(device_t, struct trapframe *);
 static void	hrowpic_enable(device_t, u_int, u_int, void **);
 static void	hrowpic_eoi(device_t, u_int, void *);
@@ -74,6 +78,11 @@ static device_method_t  hrowpic_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,         hrowpic_probe),
 	DEVMETHOD(device_attach,        hrowpic_attach),
+
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	hrowpic_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	hrowpic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	hrowpic_pre_ithread),
 
 	/* PIC interface */
 	DEVMETHOD(pic_dispatch,		hrowpic_dispatch),
@@ -197,6 +206,32 @@ hrowpic_toggle_irq(struct hrowpic_softc *sc, int irq, int enable)
 		sc->sc_softreg[roffset] &= ~(1 << rbit);
 		
 	hrowpic_write_reg(sc, HPIC_ENABLE, roffset, sc->sc_softreg[roffset]);
+}
+
+/*
+ * Interrupt event methods.
+ */
+
+static void
+hrowpic_post_filter(device_t pic, interrupt_t *i)
+{
+
+	hrowpic_eoi(pic, i->intline, i->priv);
+}
+
+static void
+hrowpic_post_ithread(device_t pic, interrupt_t *i)
+{
+
+	hrowpic_unmask(pic, i->intline, i->priv);
+}
+
+static void
+hrowpic_pre_ithread(device_t pic, interrupt_t *i)
+{
+
+	hrowpic_mask(pic, i->intline, i->priv);
+	hrowpic_eoi(pic, i->intline, i->priv);
 }
 
 /*
