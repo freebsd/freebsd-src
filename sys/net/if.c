@@ -2842,15 +2842,20 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCAIFGROUP:
+	{
+		const char *groupname;
+
 		error = priv_check(td, PRIV_NET_ADDIFGROUP);
 		if (error)
 			return (error);
-		error = if_addgroup(ifp,
-		    ((struct ifgroupreq *)data)->ifgr_group);
+		groupname = ((struct ifgroupreq *)data)->ifgr_group;
+		if (strnlen(groupname, IFNAMSIZ) == IFNAMSIZ)
+			return (EINVAL);
+		error = if_addgroup(ifp, groupname);
 		if (error != 0)
 			return (error);
 		break;
-
+	}
 	case SIOCGIFGROUP:
 	{
 		struct epoch_tracker et;
@@ -2862,15 +2867,20 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	}
 
 	case SIOCDIFGROUP:
+	{
+		const char *groupname;
+
 		error = priv_check(td, PRIV_NET_DELIFGROUP);
 		if (error)
 			return (error);
-		error = if_delgroup(ifp,
-		    ((struct ifgroupreq *)data)->ifgr_group);
+		groupname = ((struct ifgroupreq *)data)->ifgr_group;
+		if (strnlen(groupname, IFNAMSIZ) == IFNAMSIZ)
+			return (EINVAL);
+		error = if_delgroup(ifp, groupname);
 		if (error != 0)
 			return (error);
 		break;
-
+	}
 	default:
 		error = ENOIOCTL;
 		break;
@@ -3014,9 +3024,17 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		goto out_noref;
 
 	case SIOCGIFGMEMB:
-		error = if_getgroupmembers((struct ifgroupreq *)data);
-		goto out_noref;
+	{
+		struct ifgroupreq *req;
 
+		req = (struct ifgroupreq *)data;
+		if (strnlen(req->ifgr_name, IFNAMSIZ) == IFNAMSIZ) {
+			error = EINVAL;
+			goto out_noref;
+		}
+		error = if_getgroupmembers(req);
+		goto out_noref;
+	}
 #if defined(INET) || defined(INET6)
 	case SIOCSVH:
 	case SIOCGVH:
