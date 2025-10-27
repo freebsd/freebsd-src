@@ -131,7 +131,7 @@ static void	msi_create_source(void);
 static void	msi_enable_source(x86pic_t pic, struct intsrc *isrc);
 static void	msi_eoi_source(x86pic_t pic, struct intsrc *isrc);
 static void	msi_enable_intr(x86pic_t pic, struct intsrc *isrc);
-static pic_disable_intr_t		msi_disable_intr;
+static void	msi_disable_intr(x86pic_t pic, struct intsrc *isrc);
 static int	msi_source_pending(x86pic_t pic, struct intsrc *isrc);
 static int	msi_assign_cpu(x86pic_t pic, struct intsrc *isrc,
 		    u_int apic_id);
@@ -208,7 +208,7 @@ msi_enable_intr(x86pic_t pic, struct intsrc *isrc)
 }
 
 static void
-msi_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
+msi_disable_intr(x86pic_t pic, struct intsrc *isrc)
 {
 	struct msi_intsrc *msi = (struct msi_intsrc *)isrc;
 
@@ -221,8 +221,7 @@ msi_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 	if (msi == NULL)
 		return;
 
-	if (eoi == PIC_EOI)
-		lapic_eoi();
+	lapic_eoi();
 
 	msi->msi_enabled--;
 	if (msi->msi_enabled == 0) {

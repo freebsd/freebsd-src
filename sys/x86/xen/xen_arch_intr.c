@@ -45,6 +45,8 @@
 
 #include <xen/xen-os.h>
 #include <xen/xen_intr.h>
+
+#include <machine/interrupt.h>
 #include <machine/xen/arch-intr.h>
 
 #include <x86/apicvar.h>
@@ -185,7 +187,7 @@ xen_intr_pic_enable_intr(x86pic_t pic, struct intsrc *isrc)
 }
 
 static void
-xen_intr_pic_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
+xen_intr_pic_disable_intr(x86pic_t pic, struct intsrc *isrc)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
