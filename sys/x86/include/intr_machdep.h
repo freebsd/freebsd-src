@@ -83,6 +83,12 @@ typedef	device_t		x86pic_t, x86pics_t;
 #define	X86PIC_PIC(type, pic)	((struct type *)device_get_softc(pic))
 #define	X86PIC_PTR(pic)		(pic)
 
+/* Flags for pic_disable_intr() */
+enum eoi_flag {
+	PIC_EOI,
+	PIC_NO_EOI,
+};
+
 /*
  * An interrupt source.  The upper-layer code uses the PIC methods to
  * control a given source.  The lower-layer PIC drivers can store additional
