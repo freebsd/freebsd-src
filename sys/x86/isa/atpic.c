@@ -128,10 +128,9 @@ struct atpic_intsrc {
 
 static void atpic_register_sources(x86pic_t pic);
 static void atpic_enable_source(x86pic_t pic, struct intsrc *isrc);
-static void atpic_disable_source(x86pic_t pic, struct intsrc *isrc);
 static void atpic_eoi(x86pic_t pic, struct intsrc *isrc);
 static void atpic_enable_intr(x86pic_t pic, struct intsrc *isrc);
-static pic_disable_intr_t		atpic_disable_intr;
+static void atpic_disable_intr(x86pic_t pic, struct intsrc *isrc);
 static void atpic_resume(x86pic_t pic, bool suspend_cancelled);
 static int atpic_source_pending(x86pic_t pic, struct intsrc *isrc);
 static int atpic_config_intr(x86pic_t pic, struct intsrc *isrc,
@@ -154,7 +153,7 @@ static const device_method_t atpic_methods[] = {
 	/* Interrupt controller interface */
 	X86PIC_FUNC(pic_register_sources,	atpic_register_sources),
 	X86PIC_FUNC(pic_enable_source,		atpic_enable_source),
-	X86PIC_FUNC(pic_disable_source,		atpic_disable_source),
+	X86PIC_FUNC(pic_disable_source,		atpic_disable_intr),
 	X86PIC_FUNC(pic_eoi_source,		atpic_eoi),
 	X86PIC_FUNC(pic_enable_intr,		atpic_enable_intr),
 	X86PIC_FUNC(pic_disable_intr,		atpic_disable_intr),
@@ -275,7 +274,7 @@ atpic_enable_source(x86pic_t pic, struct intsrc *isrc)
 }
 
 static void
-atpic_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
+atpic_disable_intr(x86pic_t pic, struct intsrc *isrc)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
 	struct atpic *ap = X86PIC_PIC(atpic, isrc->is_pic);
@@ -291,27 +290,18 @@ atpic_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 	 * a function pointer.  All of the referenced variables should
 	 * still be hot in the cache.
 	 */
-	if (eoi == PIC_EOI) {
-		if (isrc->is_pic == X86PIC_PTR(atpics[MASTER].at_pic))
-			_atpic_eoi_master(isrc);
-		else
-			_atpic_eoi_slave(isrc);
-	}
+	if (isrc->is_pic == X86PIC_PTR(atpics[MASTER].at_pic))
+		_atpic_eoi_master(isrc);
+	else
+		_atpic_eoi_slave(isrc);
 
 	spinlock_exit();
 }
 
 static void
-atpic_disable_source(x86pic_t pic, struct intsrc *isrc)
-{
-
-	atpic_disable_intr(pic, isrc, PIC_EOI);
-}
-
-static void
 atpic_eoi(x86pic_t pic, struct intsrc *isrc)
 {
-	/* Reference the above comment (atpic_disable_source()) */
+	/* Reference the above comment (atpic_disable_intr()) */
 	if (isrc->is_pic == X86PIC_PTR(atpics[MASTER].at_pic)) {
 #ifndef AUTO_EOI_1
 		spinlock_enter();
