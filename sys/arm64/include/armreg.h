@@ -34,25 +34,9 @@
 #ifndef _MACHINE_ARMREG_H_
 #define	_MACHINE_ARMREG_H_
 
+#include <machine/_armreg.h>
+
 #define	INSN_SIZE		4
-
-#define	__MRS_REG_ALT_NAME(op0, op1, crn, crm, op2)			\
-    S##op0##_##op1##_C##crn##_C##crm##_##op2
-#define	_MRS_REG_ALT_NAME(op0, op1, crn, crm, op2)			\
-    __MRS_REG_ALT_NAME(op0, op1, crn, crm, op2)
-#define	MRS_REG_ALT_NAME(reg)						\
-    _MRS_REG_ALT_NAME(reg##_op0, reg##_op1, reg##_CRn, reg##_CRm, reg##_op2)
-
-
-#define	READ_SPECIALREG(reg)						\
-({	uint64_t _val;							\
-	__asm __volatile("mrs	%0, " __STRING(reg) : "=&r" (_val));	\
-	_val;								\
-})
-#define	WRITE_SPECIALREG(reg, _val)					\
-	__asm __volatile("msr	" __STRING(reg) ", %0" : : "r"((uint64_t)_val))
-
-#define	UL(x)	UINT64_C(x)
 
 /* AFSR0_EL1 - Auxiliary Fault Status Register 0 */
 #define	AFSR0_EL1_REG			MRS_REG_ALT_NAME(AFSR0_EL1)
