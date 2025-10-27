@@ -5138,6 +5138,11 @@ nfsrvd_layoutcommit(struct nfsrv_descript *nd, __unused int isdgram,
 		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
 	layouttype = fxdr_unsigned(int, *tl++);
 	maxcnt = fxdr_unsigned(int, *tl);
+	/* There is no limit in the RFC, so use 1000 as a sanity limit. */
+	if (maxcnt < 0 || maxcnt > 1000) {
+		error = NFSERR_BADXDR;
+		goto nfsmout;
+	}
 	if (maxcnt > 0) {
 		layp = malloc(maxcnt + 1, M_TEMP, M_WAITOK);
 		error = nfsrv_mtostr(nd, layp, maxcnt);
