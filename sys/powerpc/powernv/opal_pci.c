@@ -89,6 +89,13 @@ static int		opalpci_map_msi(device_t dev, device_t child,
 static int opalpci_route_interrupt(device_t bus, device_t dev, int pin);
 
 /*
+ * Interrupt event interface.
+ */
+static intr_event_post_filter_t		opalpic_post_filter;
+static intr_event_post_ithread_t	opalpic_post_ithread;
+static intr_event_pre_ithread_t		opalpic_pre_ithread;
+
+/*
  * MSI PIC interface.
  */
 static void opalpic_pic_enable(device_t dev, u_int irq, u_int vector, void **);
@@ -142,6 +149,11 @@ static device_method_t	opalpci_methods[] = {
 	DEVMETHOD(pcib_release_msix,	opalpci_release_msix),
 	DEVMETHOD(pcib_map_msi,		opalpci_map_msi),
 	DEVMETHOD(pcib_route_interrupt,	opalpci_route_interrupt),
+
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	opalpic_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	opalpic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	opalpic_pre_ithread),
 
 	/* PIC interface for MSIs */
 	DEVMETHOD(pic_enable,		opalpic_pic_enable),
@@ -689,6 +701,27 @@ opalpci_map_msi(device_t dev, device_t child, int irq, uint64_t *addr,
 		device_printf(child, "OPAL MSI mapping error: %d\n", err);
 
 	return ((err == 0) ? 0 : ENXIO);
+}
+
+static void
+opalpic_post_filter(device_t pic, interrupt_t *i)
+{
+
+	opalpic_pic_eoi(pic, i->intline, i->priv);
+}
+
+static void
+opalpic_post_ithread(device_t pic, interrupt_t *i)
+{
+
+	KASSERT(false, ("function \"%s\" not implemented", __func__));
+}
+
+static void
+opalpic_pre_ithread(device_t pic, interrupt_t *i)
+{
+	/* no masking function? */
+	opalpic_pic_eoi(pic, i->intline, i->priv);
 }
 
 static void

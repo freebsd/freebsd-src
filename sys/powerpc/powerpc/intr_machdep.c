@@ -188,15 +188,14 @@ static void
 powerpc_ipi_post_ithread(device_t pic, interrupt_t *i)
 {
 
-	PIC_UNMASK(root_pic, i->intline, i->priv);
+	INTR_EVENT_POST_ITHREAD(root_pic, i);
 }
 
 static void
 powerpc_ipi_pre_ithread(device_t pic, interrupt_t *i)
 {
 
-	PIC_MASK(root_pic, i->intline, i->priv);
-	PIC_EOI(root_pic, i->intline, i->priv);
+	INTR_EVENT_PRE_ITHREAD(root_pic, i);
 }
 
 static device_method_t pic_ipi_funcs[] = {
@@ -716,7 +715,7 @@ powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
 	 * This prevents races in IPI handling.
 	 */
 	if (__predict_false(i->ipi)) {
-		PIC_EOI(ie->ie_pic, i->intline, i->priv);
+		INTR_EVENT_POST_FILTER(ie->ie_pic, i);
 		ie->ie_pic = ipi_pic;
 	}
 #endif
