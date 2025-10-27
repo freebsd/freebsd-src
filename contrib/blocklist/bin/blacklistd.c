@@ -1,4 +1,4 @@
-/*	$NetBSD: blocklistd.c,v 1.11 2025/10/25 16:55:23 christos Exp $	*/
+/*	$NetBSD: blocklistd.c,v 1.12 2025/10/25 18:43:51 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -35,7 +35,7 @@
 #ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
 #endif
-__RCSID("$NetBSD: blocklistd.c,v 1.11 2025/10/25 16:55:23 christos Exp $");
+__RCSID("$NetBSD: blocklistd.c,v 1.12 2025/10/25 18:43:51 christos Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -329,8 +329,8 @@ again:
 			(*lfun)(LOG_INFO, "released %s/%d:%d after %d seconds",
 			    buf, c.c_lmask, c.c_port, c.c_duration);
 		}
-		state_del(state, &c);
-		goto again;
+		if (state_del(state, &c) == 0)
+			goto again;
 	}
 }
 
