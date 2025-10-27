@@ -121,7 +121,7 @@ static void	ioapic_enable_source(x86pic_t pic, struct intsrc *isrc);
 static void	ioapic_disable_source(x86pic_t pic, struct intsrc *isrc);
 static void	ioapic_eoi_source(x86pic_t pic, struct intsrc *isrc);
 static void	ioapic_enable_intr(x86pic_t pic, struct intsrc *isrc);
-static void	ioapic_disable_intr(x86pic_t pic, struct intsrc *isrc);
+static pic_disable_intr_t		ioapic_disable_intr;
 static int	ioapic_source_pending(x86pic_t pic, struct intsrc *isrc);
 static int	ioapic_config_intr(x86pic_t pic, struct intsrc *isrc,
 		    enum intr_trigger trig, enum intr_polarity pol);
@@ -517,7 +517,7 @@ ioapic_enable_intr(x86pic_t pic, struct intsrc *isrc)
 }
 
 static void
-ioapic_disable_intr(x86pic_t pic, struct intsrc *isrc)
+ioapic_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_pic);
@@ -527,10 +527,14 @@ ioapic_disable_intr(x86pic_t pic, struct intsrc *isrc)
 	mtx_lock_spin(&icu_lock);
 	if (!intpin->io_masked && !intpin->io_edgetrigger) {
 		flags = intpin->io_lowreg | IOART_INTMSET;
-		ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(intpin->io_intpin),
-		    flags);
+		ioapic_write(io->io_addr,
+		    IOAPIC_REDTBL_LO(intpin->io_intpin), flags);
 		intpin->io_masked = 1;
 	}
+
+	if (eoi == PIC_EOI)
+		_ioapic_eoi_source(isrc, 1);
+
 	mtx_unlock_spin(&icu_lock);
 
 	if (intpin->io_vector != 0) {
