@@ -383,18 +383,18 @@ struct ifg_group {
 	char				 ifg_group[IFNAMSIZ];
 	u_int				 ifg_refcnt;
 	void				*ifg_pf_kif;
-	CK_STAILQ_HEAD(, ifg_member)	 ifg_members; /* (CK_) */
-	CK_STAILQ_ENTRY(ifg_group)		 ifg_next; /* (CK_) */
+	CK_STAILQ_HEAD(, ifg_member)	 ifg_members;
+	CK_STAILQ_ENTRY(ifg_group)	 ifg_next;
 };
 
 struct ifg_member {
-	CK_STAILQ_ENTRY(ifg_member)	 ifgm_next; /* (CK_) */
+	CK_STAILQ_ENTRY(ifg_member)	 ifgm_next;
 	if_t				 ifgm_ifp;
 };
 
 struct ifg_list {
 	struct ifg_group	*ifgl_group;
-	CK_STAILQ_ENTRY(ifg_list)	 ifgl_next; /* (CK_) */
+	CK_STAILQ_ENTRY(ifg_list)	 ifgl_next;
 };
 
 #ifdef _SYS_EVENTHANDLER_H_
