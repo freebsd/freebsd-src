@@ -47,7 +47,6 @@
 #include <vm/vm_page.h>
 #include <vm/vm_param.h>
 
-#include <machine/armreg.h>
 #include <machine/vm.h>
 #include <machine/cpufunc.h>
 #include <machine/cpu.h>

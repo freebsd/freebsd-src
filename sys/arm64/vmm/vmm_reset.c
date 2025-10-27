@@ -31,7 +31,6 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 
-#include <machine/armreg.h>
 #include <machine/cpu.h>
 #include <machine/hypervisor.h>
 

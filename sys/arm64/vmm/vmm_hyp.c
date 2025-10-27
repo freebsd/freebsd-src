@@ -32,7 +32,6 @@
 #include <sys/types.h>
 #include <sys/proc.h>
 
-#include <machine/armreg.h>
 
 #include "arm64.h"
 #include "hyp.h"

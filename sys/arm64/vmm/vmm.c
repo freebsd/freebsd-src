@@ -51,7 +51,6 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_param.h>
 
-#include <machine/armreg.h>
 #include <machine/cpu.h>
 #include <machine/fpu.h>
 #include <machine/machdep.h>

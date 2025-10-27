@@ -44,7 +44,6 @@
 #include <machine/bus.h>
 #include <machine/machdep.h>
 #include <machine/vmm.h>
-#include <machine/armreg.h>
 
 #include <arm64/vmm/arm64.h>
 
