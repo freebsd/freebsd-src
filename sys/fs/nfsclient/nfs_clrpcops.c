@@ -5599,7 +5599,7 @@ nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
 	}
 	*tl++ = txdr_unsigned(4096);		/* Max response size cached */
 	*tl++ = txdr_unsigned(20);		/* Max operations */
-	*tl++ = txdr_unsigned(64);		/* Max slots */
+	*tl++ = txdr_unsigned(NFSV4_SLOTS);	/* Max slots */
 	*tl = 0;				/* No rdma ird */
 
 	/* Fill in back channel attributes. */
@@ -5668,6 +5668,11 @@ nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
 		sep->nfsess_maxcache = fxdr_unsigned(int, *tl++);
 		tl++;
 		sep->nfsess_foreslots = fxdr_unsigned(uint16_t, *tl++);
+		if (sep->nfsess_foreslots == 0) {
+			error = NFSERR_BADXDR;
+			goto nfsmout;
+		} else if (sep->nfsess_foreslots > NFSV4_SLOTS)
+			sep->nfsess_foreslots = NFSV4_SLOTS;
 		NFSCL_DEBUG(4, "fore slots=%d\n", (int)sep->nfsess_foreslots);
 		irdcnt = fxdr_unsigned(int, *tl);
 		if (irdcnt < 0 || irdcnt > 1) {
@@ -5681,6 +5686,8 @@ nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
 		NFSM_DISSECT(tl, uint32_t *, 7 * NFSX_UNSIGNED);
 		tl += 5;
 		sep->nfsess_backslots = fxdr_unsigned(uint16_t, *tl);
+		if (sep->nfsess_backslots > NFSV4_CBSLOTS)
+			sep->nfsess_backslots = NFSV4_CBSLOTS;
 		NFSCL_DEBUG(4, "back slots=%d\n", (int)sep->nfsess_backslots);
 	}
 	error = nd->nd_repstat;
