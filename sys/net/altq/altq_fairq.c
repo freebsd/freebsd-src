@@ -857,6 +857,8 @@ get_class_stats(struct fairq_classstats *sp, struct fairq_class *cl)
 {
 	fairq_bucket_t *b;
 
+	memset(sp, 0, sizeof(*sp));
+
 	sp->class_handle = cl->cl_handle;
 	sp->qlimit = cl->cl_qlimit;
 	sp->xmit_cnt = cl->cl_xmitcnt;
