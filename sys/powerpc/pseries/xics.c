@@ -66,6 +66,10 @@ static int	xicp_attach(device_t);
 static int	xics_probe(device_t);
 static int	xics_attach(device_t);
 
+static intr_event_post_filter_t		xicp_post_filter;
+static intr_event_post_ithread_t	xicp_post_ithread;
+static intr_event_pre_ithread_t		xicp_pre_ithread;
+
 static void	xicp_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv);
 static void	xicp_dispatch(device_t, struct trapframe *);
 static void	xicp_enable(device_t, u_int, u_int, void **priv);
@@ -83,6 +87,11 @@ static device_method_t  xicp_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		xicp_probe),
 	DEVMETHOD(device_attach,	xicp_attach),
+
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	xicp_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	xicp_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	xicp_pre_ithread),
 
 	/* PIC interface */
 	DEVMETHOD(pic_bind,		xicp_bind),
@@ -300,6 +309,32 @@ xicp_setup_priv(struct xicp_softc *sc, u_int irq, void **priv)
 	}
 
 	return (*priv);
+}
+
+/*
+ * Interrupt event methods.
+ */
+
+static void
+xicp_post_filter(device_t pic, interrupt_t *i)
+{
+
+	xicp_eoi(pic, i->intline, i->priv);
+}
+
+static void
+xicp_post_ithread(device_t pic, interrupt_t *i)
+{
+
+	xicp_unmask(pic, i->intline, i->priv);
+}
+
+static void
+xicp_pre_ithread(device_t pic, interrupt_t *i)
+{
+
+	xicp_mask(pic, i->intline, i->priv);
+	xicp_eoi(pic, i->intline, i->priv);
 }
 
 /*
