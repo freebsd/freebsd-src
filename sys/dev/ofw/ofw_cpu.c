@@ -85,7 +85,8 @@ static driver_t ofw_cpulist_driver = {
 	sizeof(struct ofw_cpulist_softc)
 };
 
-DRIVER_MODULE(ofw_cpulist, ofwbus, ofw_cpulist_driver, 0, 0);
+EARLY_DRIVER_MODULE(ofw_cpulist, ofwbus, ofw_cpulist_driver, 0, 0,
+    BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);
 
 static int
 ofw_cpulist_probe(device_t dev)
@@ -180,7 +181,8 @@ static driver_t ofw_cpu_driver = {
 	sizeof(struct ofw_cpu_softc)
 };
 
-DRIVER_MODULE(ofw_cpu, cpulist, ofw_cpu_driver, 0, 0);
+EARLY_DRIVER_MODULE(ofw_cpu, cpulist, ofw_cpu_driver, 0, 0,
+    BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);
 
 static bool
 ofw_cpu_is_runnable(phandle_t node)
