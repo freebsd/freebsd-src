@@ -200,10 +200,10 @@ struct pci_vtscsi_softc {
 #define	VIRTIO_SCSI_S_FUNCTION_REJECTED		11
 
 struct pci_vtscsi_ctrl_tmf {
-	uint32_t type;
-	uint32_t subtype;
-	uint8_t lun[8];
-	uint64_t id;
+	const uint32_t type;
+	const uint32_t subtype;
+	const uint8_t lun[8];
+	const uint64_t id;
 	uint8_t response;
 } __attribute__((packed));
 
@@ -216,9 +216,9 @@ struct pci_vtscsi_ctrl_tmf {
 #define	VIRTIO_SCSI_EVT_ASYNC_DEVICE_BUSY	64
 
 struct pci_vtscsi_ctrl_an {
-	uint32_t type;
-	uint8_t lun[8];
-	uint32_t event_requested;
+	const uint32_t type;
+	const uint8_t lun[8];
+	const uint32_t event_requested;
 	uint32_t event_actual;
 	uint8_t response;
 } __attribute__((packed));
@@ -249,12 +249,12 @@ struct pci_vtscsi_event {
 } __attribute__((packed));
 
 struct pci_vtscsi_req_cmd_rd {
-	uint8_t lun[8];
-	uint64_t id;
-	uint8_t task_attr;
-	uint8_t prio;
-	uint8_t crn;
-	uint8_t cdb[];
+	const uint8_t lun[8];
+	const uint64_t id;
+	const uint8_t task_attr;
+	const uint8_t prio;
+	const uint8_t crn;
+	const uint8_t cdb[];
 } __attribute__((packed));
 
 struct pci_vtscsi_req_cmd_wr {
@@ -271,7 +271,10 @@ static void pci_vtscsi_reset(void *);
 static void pci_vtscsi_neg_features(void *, uint64_t);
 static int pci_vtscsi_cfgread(void *, int, int, uint32_t *);
 static int pci_vtscsi_cfgwrite(void *, int, int, uint32_t);
-static inline int pci_vtscsi_get_lun(uint8_t *);
+
+static inline bool pci_vtscsi_check_lun(const uint8_t *);
+static inline int pci_vtscsi_get_lun(const uint8_t *);
+
 static void pci_vtscsi_control_handle(struct pci_vtscsi_softc *, void *, size_t);
 static void pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *,
     struct pci_vtscsi_ctrl_tmf *);
@@ -398,9 +401,76 @@ pci_vtscsi_cfgwrite(void *vsc __unused, int offset __unused, int size __unused,
 	return (0);
 }
 
-static inline int
-pci_vtscsi_get_lun(uint8_t *lun)
+/*
+ * LUN address parsing
+ *
+ * The LUN address consists of 8 bytes. While the spec describes this as 0x01,
+ * followed by the target byte, followed by a "single-level LUN structure",
+ * this is actually the same as a hierarchical LUN address as defined by SAM-5,
+ * consisting of four levels of addressing, where in each level the two MSB of
+ * byte 0 select the address mode used in the remaining bits and bytes.
+ *
+ *
+ * Only the first two levels are acutally used by virtio-scsi:
+ *
+ * Level 1: 0x01, 0xTT: Peripheral Device Addressing: Bus 1, Target 0-255
+ * Level 2: 0xLL, 0xLL: Peripheral Device Addressing: Bus MBZ, LUN 0-255
+ *                  or: Flat Space Addressing: LUN (0-16383)
+ * Level 3 and 4: not used, MBZ
+ *
+ * Currently, we only support Target 0.
+ *
+ * Alternatively, the first level may contain an extended LUN address to select
+ * the REPORT_LUNS well-known logical unit:
+ *
+ * Level 1: 0xC1, 0x01: Extended LUN Adressing, Well-Known LUN 1 (REPORT_LUNS)
+ * Level 2, 3, and 4: not used, MBZ
+ *
+ * The virtio spec says that we SHOULD implement the REPORT_LUNS well-known
+ * logical unit  but we currently don't.
+ *
+ * According to the virtio spec, these are the only LUNS address formats to be
+ * used with virtio-scsi.
+ */
+
+/*
+ * Check that the given LUN address conforms to the virtio spec, does not
+ * address an unknown target, and especially does not address the REPORT_LUNS
+ * well-known logical unit.
+ */
+static inline bool
+pci_vtscsi_check_lun(const uint8_t *lun)
 {
+	if (lun[0] == 0xC1)
+		return (false);
+
+	if (lun[0] != 0x01)
+		return (false);
+
+	if (lun[1] != 0x00)
+		return (false);
+
+	if (lun[2] != 0x00 && (lun[2] & 0xc0) != 0x40)
+		return (false);
+
+	if (lun[4] != 0 || lun[5] != 0 || lun[6] != 0 || lun[7] != 0)
+		return (false);
+
+	return (true);
+}
+
+/*
+ * Get the LUN id from a LUN address.
+ *
+ * Every code path using this function must have called pci_vtscsi_check_lun()
+ * before to make sure the LUN address is valid.
+ */
+static inline int
+pci_vtscsi_get_lun(const uint8_t *lun)
+{
+	assert(lun[0] == 0x01);
+	assert(lun[1] == 0x00);
+	assert(lun[2] == 0x00 || (lun[2] & 0xc0) == 0x40);
 
 	return (((lun[2] << 8) | lun[3]) & 0x3fff);
 }
@@ -443,6 +513,16 @@ pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *sc,
 {
 	union ctl_io *io;
 	int err;
+
+	if (pci_vtscsi_check_lun(tmf->lun) == false) {
+		DPRINTF("TMF request to invalid LUN %.2hhx%.2hhx-%.2hhx%.2hhx-"
+		    "%.2hhx%.2hhx-%.2hhx%.2hhx", tmf->lun[0], tmf->lun[1],
+		    tmf->lun[2], tmf->lun[3], tmf->lun[4], tmf->lun[5],
+		    tmf->lun[6], tmf->lun[7]);
+
+		tmf->response = VIRTIO_SCSI_S_BAD_TARGET;
+		return;
+	}
 
 	io = ctl_scsi_alloc_io(sc->vss_iid);
 	if (io == NULL) {
@@ -669,6 +749,19 @@ pci_vtscsi_queue_request(struct pci_vtscsi_softc *sc, struct vqueue_info *vq)
 	 */
 	assert(iov_to_buf(req->vsr_iov_in, req->vsr_niov_in,
 	    (void **)&req->vsr_cmd_rd) == VTSCSI_IN_HEADER_LEN(q->vsq_sc));
+
+	/* Make sure this request addresses a valid LUN. */
+	if (pci_vtscsi_check_lun(req->vsr_cmd_rd->lun) == false) {
+		DPRINTF("I/O request to invalid LUN "
+		    "%.2hhx%.2hhx-%.2hhx%.2hhx-%.2hhx%.2hhx-%.2hhx%.2hhx",
+		    req->vsr_cmd_rd->lun[0], req->vsr_cmd_rd->lun[1],
+		    req->vsr_cmd_rd->lun[2], req->vsr_cmd_rd->lun[3],
+		    req->vsr_cmd_rd->lun[4], req->vsr_cmd_rd->lun[5],
+		    req->vsr_cmd_rd->lun[6], req->vsr_cmd_rd->lun[7]);
+		req->vsr_cmd_wr->response = VIRTIO_SCSI_S_BAD_TARGET;
+		pci_vtscsi_return_request(q, req, 1);
+		return;
+	}
 
 	pthread_mutex_lock(&q->vsq_rmtx);
 	pci_vtscsi_put_request(&q->vsq_requests, req);
