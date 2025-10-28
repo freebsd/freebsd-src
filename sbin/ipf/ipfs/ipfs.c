@@ -579,7 +579,7 @@ int readnat(int fd, char *file)
 
 		in = (nat_save_t *)malloc(ipn.ipn_dsize);
 		if (in == NULL) {
-			fprintf(stderr, "nat:cannot malloc nat save atruct\n");
+			fprintf(stderr, "nat:cannot malloc nat save struct\n");
 			goto freenathead;
 		}
 
