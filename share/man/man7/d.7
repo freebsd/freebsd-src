@@ -198,6 +198,130 @@ The number of nanoseconds since the Epoch
 Suitable for timestamping logs.
 .El
 .Sh BUILT-IN FUNCTIONS
+.\" Keep the indentation wide enough for the reader to be able to skim through
+.\" function names quickly.
+.Bl -tag -width "size_t strlen"
+.It Ft string Fn strchr "string s" "char c"
+Return a substring of
+.Fa s
+starting at the first occurance of
+.Fa c
+in
+.Fa s .
+Return
+.Dv NULL
+if
+.Fa c
+does not occur in
+.Fa s .
+.Pp
+For example,
+.Bd -literal -compact -offset indent
+strchr("abc", 'b');
+.Ed
+returns
+.Ql "bc"
+and
+.Bd -literal -compact -offset indent
+strchr("abc", 'd');
+.Ed
+returns
+.Dv NULL .
+.It Ft string Fn strjoin "string s1" "string s2"
+Return a string resulting from concatenating
+.Fa s1
+and
+.Fa s2 .
+.Pp
+For example,
+.Bd -literal -compact -offset indent
+strjoin("abc", "def")
+.Ed
+returns
+.Ql abcdef .
+.It Ft string Fn strrchr "string s" "char c"
+Return a substring of
+.Fa s
+starting at the last occurance of
+.Fa c
+in
+.Fa s .
+Similar to
+.Fn strchr .
+.It Ft string Fn strstr "string haystack" "string needle"
+Return a substring of
+.Fa haystack
+starting at the first occurrence of
+.Fa needle .
+Return
+.Dv NULL
+if
+.Fa needle
+is not a substring of
+.Fa haystack .
+.Pp
+For example,
+.Bd -literal -compact -offset indent
+strstr("abc1bc2", "bc")
+.Ed
+returns
+.Ql bc1bc2
+and
+.Bd -literal -compact -offset indent
+strstr("abc", "xy")
+.Ed
+returns
+.Dv NULL .
+.It Ft string Fn strtok "string s" "string separators"
+Tokenize
+.Fa s
+with
+.Fa separators .
+.Pp
+For example,
+.Bd -literal -compact -offset indent
+strtok("abcdefg", "xyzd")
+.Ed
+returns
+.Ql abc .
+.It Ft size_t Fn strlen "string s"
+Return the length of string
+.Fa s .
+.It Ft string Fn substr "string s" "int position" "[int length]"
+Return a
+substring of string
+.Fa s
+starting at
+.Fa position .
+The substring will be at most
+.Fa length Ns -long .
+If
+.Fa length
+is not specified, use the rest of the string.
+If
+.Fa position
+is greater than
+the size of
+.Fa s ,
+return an empty string.
+.Pp
+For example,
+.Bd -literal -compact -offset indent
+substr("abcd", 2)
+.Ed
+returns
+.Ql cd ,
+.Bd -literal -compact -offset indent
+substr("abcd", 2, 1)
+.Ed
+returns
+.Ql c ,
+and
+.Bd -literal -compact -offset indent
+substr("abcd", 99)
+.Ed
+returns an empty string.
+.El
 .Ss Aggregation Functions
 .Bl -tag -compact -width "llquantize(value, factor, low, high, nsteps)"
 .It Fn avg value
