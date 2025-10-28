@@ -5281,7 +5281,7 @@ nfsrpc_getdirpath(struct nfsmount *nmp, u_char *dirpath, struct ucred *cred,
 	struct nfsrv_descript nfsd;
 	struct nfsrv_descript *nd = &nfsd;
 	u_char *cp, *cp2, *fhp;
-	int error, cnt, len, setnil;
+	int error, cnt, i, len, setnil;
 	u_int32_t *opcntp;
 
 	nfscl_reqstart(nd, NFSPROC_PUTROOTFH, nmp, NULL, 0, &opcntp, NULL, 0,
@@ -5322,8 +5322,12 @@ nfsrpc_getdirpath(struct nfsmount *nmp, u_char *dirpath, struct ucred *cred,
 	if (error)
 		return (error);
 	if (nd->nd_repstat == 0) {
-		NFSM_DISSECT(tl, u_int32_t *, (3 + 2 * cnt) * NFSX_UNSIGNED);
-		tl += (2 + 2 * cnt);
+		NFSM_DISSECT(tl, uint32_t *, 3 * NFSX_UNSIGNED);
+		tl += 2;
+		for (i = 0; i < cnt; i++) {
+			NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+			tl++;
+		}
 		if ((len = fxdr_unsigned(int, *tl)) <= 0 ||
 			len > NFSX_FHMAX) {
 			nd->nd_repstat = NFSERR_BADXDR;
