@@ -818,7 +818,7 @@ load_fw(struct tegra_xhci_softc *sc)
 		DELAY(100);
 	}
 	if (i <= 0) {
-		device_printf(sc->dev, "Timedout while wating for DMA, "
+		device_printf(sc->dev, "Timedout while waiting for DMA, "
 		    "state: 0x%08X\n",
 		    CSB_RD4(sc, XUSB_CSB_MEMPOOL_L2IMEMOP_RESULT));
 		return (ETIMEDOUT);
@@ -835,7 +835,7 @@ load_fw(struct tegra_xhci_softc *sc)
 		DELAY(100);
 	}
 	if (i <= 0) {
-		device_printf(sc->dev, "Timedout while wating for FALCON cpu, "
+		device_printf(sc->dev, "Timedout while waiting for FALCON cpu, "
 		    "state: 0x%08X\n", CSB_RD4(sc, XUSB_FALCON_CPUCTL));
 		return (ETIMEDOUT);
 	}
