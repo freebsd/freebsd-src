@@ -572,8 +572,6 @@ devclass_find_internal(const char *classname, const char *parentname,
 {
 	devclass_t dc;
 
-	bus_topo_assert();
-
 	PDEBUG(("looking for %s", classname));
 	if (!classname)
 		return (NULL);
@@ -714,8 +712,6 @@ devclass_add_driver(devclass_t dc, driver_t *driver, int pass, devclass_t *dcp)
 	devclass_t child_dc;
 	const char *parentname;
 
-	bus_topo_assert();
-
 	PDEBUG(("%s", DRIVERNAME(driver)));
 
 	/* Don't allow invalid pass values. */
@@ -787,8 +783,6 @@ devclass_driver_deleted(devclass_t busclass, devclass_t dc, driver_t *driver)
 	devclass_t parent;
 	device_t dev;
 	int error, i;
-
-	bus_topo_assert();
 
 	/*
 	 * Disassociate from any devices.  We iterate through all the
@@ -862,8 +856,6 @@ devclass_delete_driver(devclass_t busclass, driver_t *driver)
 	driverlink_t dl;
 	int error;
 
-	bus_topo_assert();
-
 	PDEBUG(("%s from devclass %s", driver->name, DEVCLANAME(busclass)));
 
 	if (!dc)
@@ -921,8 +913,6 @@ devclass_quiesce_driver(devclass_t busclass, driver_t *driver)
 	int i;
 	int error;
 
-	bus_topo_assert();
-
 	PDEBUG(("%s from devclass %s", driver->name, DEVCLANAME(busclass)));
 
 	if (!dc)
@@ -973,8 +963,6 @@ static driverlink_t
 devclass_find_driver_internal(devclass_t dc, const char *classname)
 {
 	driverlink_t dl;
-
-	bus_topo_assert();
 
 	PDEBUG(("%s in devclass %s", classname, DEVCLANAME(dc)));
 
@@ -5267,8 +5255,6 @@ driver_module_handler(module_t mod, int what, void *arg)
 	kobj_class_t driver;
 	int error, pass;
 
-	bus_topo_lock();
-
 	dmd = (struct driver_module_data *)arg;
 	bus_devclass = devclass_find_internal(dmd->dmd_busname, NULL, TRUE);
 	error = 0;
@@ -5310,8 +5296,6 @@ driver_module_handler(module_t mod, int what, void *arg)
 		error = EOPNOTSUPP;
 		break;
 	}
-
-	bus_topo_unlock();
 
 	return (error);
 }
