@@ -345,6 +345,10 @@ retry:
 	page = vm_page_grab_iter(vm_obj, pindex, VM_ALLOC_NOCREAT, &pages);
 	if (page == NULL) {
 		page = PHYS_TO_VM_PAGE(IDX_TO_OFF(pfn));
+		if (page == NULL) {
+			pctrie_iter_reset(&pages);
+			return (VM_FAULT_SIGBUS);
+		}
 		if (!vm_page_busy_acquire(page, VM_ALLOC_WAITFAIL)) {
 			pctrie_iter_reset(&pages);
 			goto retry;
