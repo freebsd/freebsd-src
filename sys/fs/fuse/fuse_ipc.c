@@ -694,7 +694,7 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 		break;
 
 	case FUSE_FORGET:
-		panic("FUSE: a handler has been intalled for FUSE_FORGET");
+		panic("FUSE: a handler has been installed for FUSE_FORGET");
 		break;
 
 	case FUSE_GETATTR:

@@ -2756,7 +2756,7 @@ fuse_vnop_setextattr(struct vop_setextattr_args *ap)
 		 */
 		if (fsess_not_impl(mp, FUSE_REMOVEXATTR))
 			return (EXTERROR(EOPNOTSUPP, "This server does not "
-			    "implement removing extended attributess"));
+			    "implement removing extended attributes"));
 		else
 			return (EXTERROR(EINVAL, "DELETEEXTATTR should be used "
 			    "to remove extattrs"));
