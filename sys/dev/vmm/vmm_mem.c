@@ -279,8 +279,10 @@ vm_mmap_memseg(struct vm *vm, vm_paddr_t gpa, int segid, vm_ooffset_t first,
 	if (seg->object == NULL)
 		return (EINVAL);
 
+	if (first + len < first || gpa + len < gpa)
+		return (EINVAL);
 	last = first + len;
-	if (first < 0 || first >= last || last > seg->len)
+	if (first >= last || last > seg->len)
 		return (EINVAL);
 
 	if ((gpa | first | last) & PAGE_MASK)
@@ -298,11 +300,12 @@ vm_mmap_memseg(struct vm *vm, vm_paddr_t gpa, int segid, vm_ooffset_t first,
 		return (ENOSPC);
 
 	vmmap = &mem->mem_vmspace->vm_map;
-	error = vm_map_find(vmmap, seg->object, first, &gpa, len, 0,
-	    VMFS_NO_SPACE, prot, prot, 0);
+	vm_map_lock(vmmap);
+	error = vm_map_insert(vmmap, seg->object, first, gpa, gpa + len,
+	    prot, prot, 0);
+	vm_map_unlock(vmmap);
 	if (error != KERN_SUCCESS)
-		return (EFAULT);
-
+		return (vm_mmap_to_errno(error));
 	vm_object_reference(seg->object);
 
 	if (flags & VM_MEMMAP_F_WIRED) {

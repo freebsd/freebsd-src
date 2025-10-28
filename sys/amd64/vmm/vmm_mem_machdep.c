@@ -36,6 +36,7 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -45,40 +46,48 @@
 
 #include "vmm_mem.h"
 
-vm_object_t
+int
 vmm_mmio_alloc(struct vmspace *vmspace, vm_paddr_t gpa, size_t len,
-	       vm_paddr_t hpa)
+    vm_paddr_t hpa)
 {
-	int error;
-	vm_object_t obj;
 	struct sglist *sg;
+	vm_object_t obj;
+	int error;
+
+	if (gpa + len < gpa || hpa + len < hpa || (gpa & PAGE_MASK) != 0 ||
+	    (hpa & PAGE_MASK) != 0 || (len & PAGE_MASK) != 0)
+		return (EINVAL);
 
 	sg = sglist_alloc(1, M_WAITOK);
 	error = sglist_append_phys(sg, hpa, len);
 	KASSERT(error == 0, ("error %d appending physaddr to sglist", error));
 
 	obj = vm_pager_allocate(OBJT_SG, sg, len, VM_PROT_RW, 0, NULL);
-	if (obj != NULL) {
-		/*
-		 * VT-x ignores the MTRR settings when figuring out the
-		 * memory type for translations obtained through EPT.
-		 *
-		 * Therefore we explicitly force the pages provided by
-		 * this object to be mapped as uncacheable.
-		 */
-		VM_OBJECT_WLOCK(obj);
-		error = vm_object_set_memattr(obj, VM_MEMATTR_UNCACHEABLE);
-		VM_OBJECT_WUNLOCK(obj);
-		if (error != KERN_SUCCESS) {
-			panic("vmm_mmio_alloc: vm_object_set_memattr error %d",
-				error);
-		}
-		error = vm_map_find(&vmspace->vm_map, obj, 0, &gpa, len, 0,
-				    VMFS_NO_SPACE, VM_PROT_RW, VM_PROT_RW, 0);
-		if (error != KERN_SUCCESS) {
-			vm_object_deallocate(obj);
-			obj = NULL;
-		}
+	if (obj == NULL)
+		return (ENOMEM);
+
+	/*
+	 * VT-x ignores the MTRR settings when figuring out the memory type for
+	 * translations obtained through EPT.
+	 *
+	 * Therefore we explicitly force the pages provided by this object to be
+	 * mapped as uncacheable.
+	 */
+	VM_OBJECT_WLOCK(obj);
+	error = vm_object_set_memattr(obj, VM_MEMATTR_UNCACHEABLE);
+	VM_OBJECT_WUNLOCK(obj);
+	if (error != KERN_SUCCESS)
+		panic("vmm_mmio_alloc: vm_object_set_memattr error %d", error);
+
+	vm_map_lock(&vmspace->vm_map);
+	error = vm_map_insert(&vmspace->vm_map, obj, 0, gpa, gpa + len,
+	    VM_PROT_RW, VM_PROT_RW, 0);
+	vm_map_unlock(&vmspace->vm_map);
+	if (error != KERN_SUCCESS) {
+		error = vm_mmap_to_errno(error);
+		vm_object_deallocate(obj);
+	} else {
+		error = 0;
 	}
 
 	/*
@@ -94,7 +103,7 @@ vmm_mmio_alloc(struct vmspace *vmspace, vm_paddr_t gpa, size_t len,
 	 */
 	sglist_free(sg);
 
-	return (obj);
+	return (error);
 }
 
 void
