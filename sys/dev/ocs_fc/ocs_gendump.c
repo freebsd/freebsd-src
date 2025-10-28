@@ -153,7 +153,7 @@ ocs_gen_dump(ocs_t *ocs)
 			ocs_log_test(ocs, "Failed to see dump after 30 secs\n");
 			rc = -1;
 		} else {
-			ocs_log_debug(ocs, "sucessfully generated dump\n");
+			ocs_log_debug(ocs, "successfully generated dump\n");
 		}
 
 		/* now reset port */
@@ -219,7 +219,7 @@ ocs_fdb_dump(ocs_t *ocs)
 			return -1;
 		}
 
-		ocs_log_debug(ocs, "sucessfully generated dump\n");
+		ocs_log_debug(ocs, "successfully generated dump\n");
 
 	} else {
 		ocs_log_err(ocs, "dump request to hw failed\n");

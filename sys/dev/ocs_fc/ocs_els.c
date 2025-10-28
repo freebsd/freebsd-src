@@ -314,7 +314,7 @@ _ocs_els_io_free(void *arg)
 			ocs_list_remove(&node->els_io_pend_list, els);
 			els->els_pend = 0;
 		} else {
-			ocs_log_err(ocs, "assertion failed: niether els->els_pend nor els->active set\n");
+			ocs_log_err(ocs, "assertion failed: neither els->els_pend nor els->active set\n");
 			ocs_unlock(&node->active_ios_lock);
 			return;
 		}
@@ -363,7 +363,7 @@ ocs_els_make_active(ocs_io_t *els)
 		} else {
 			/* must be retrying; make sure it's already active */
 			if (!els->els_active) {
-				ocs_log_err(node->ocs, "assertion failed: niether els->els_pend nor els->active set\n");
+				ocs_log_err(node->ocs, "assertion failed: neither els->els_pend nor els->active set\n");
 			}
 		}
 	ocs_unlock(&node->active_ios_lock);
