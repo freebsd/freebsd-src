@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2016 Jakub Klama <jceel@FreeBSD.org>.
  * Copyright (c) 2018 Marcelo Araujo <araujo@FreeBSD.org>.
+ * Copyright (c) 2026 Hans Rosenfeld
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -120,10 +121,11 @@ struct pci_vtscsi_worker {
 
 struct pci_vtscsi_request {
 	struct pci_vtscsi_queue * vsr_queue;
-	struct iovec              vsr_iov_in[VTSCSI_MAXSEG];
-	int                       vsr_niov_in;
-	struct iovec              vsr_iov_out[VTSCSI_MAXSEG];
-	int                       vsr_niov_out;
+	struct iovec              vsr_iov[VTSCSI_MAXSEG + SPLIT_IOV_ADDL_IOV];
+	struct iovec *            vsr_iov_in;
+	struct iovec *            vsr_iov_out;
+	size_t                    vsr_niov_in;
+	size_t                    vsr_niov_out;
 	uint32_t                  vsr_idx;
 	STAILQ_ENTRY(pci_vtscsi_request) vsr_link;
 };
@@ -230,13 +232,13 @@ static void pci_vtscsi_neg_features(void *, uint64_t);
 static int pci_vtscsi_cfgread(void *, int, int, uint32_t *);
 static int pci_vtscsi_cfgwrite(void *, int, int, uint32_t);
 static inline int pci_vtscsi_get_lun(uint8_t *);
-static int pci_vtscsi_control_handle(struct pci_vtscsi_softc *, void *, size_t);
-static int pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *,
+static void pci_vtscsi_control_handle(struct pci_vtscsi_softc *, void *, size_t);
+static void pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *,
     struct pci_vtscsi_ctrl_tmf *);
-static int pci_vtscsi_an_handle(struct pci_vtscsi_softc *,
+static void pci_vtscsi_an_handle(struct pci_vtscsi_softc *,
     struct pci_vtscsi_ctrl_an *);
 static int pci_vtscsi_request_handle(struct pci_vtscsi_queue *, struct iovec *,
-    int, struct iovec *, int);
+    size_t, struct iovec *, size_t);
 static void pci_vtscsi_controlq_notify(void *, struct vqueue_info *);
 static void pci_vtscsi_eventq_notify(void *, struct vqueue_info *);
 static void pci_vtscsi_requestq_notify(void *, struct vqueue_info *);
@@ -353,7 +355,7 @@ pci_vtscsi_get_lun(uint8_t *lun)
 	return (((lun[2] << 8) | lun[3]) & 0x3fff);
 }
 
-static int
+static void
 pci_vtscsi_control_handle(struct pci_vtscsi_softc *sc, void *buf,
     size_t bufsize)
 {
@@ -363,7 +365,7 @@ pci_vtscsi_control_handle(struct pci_vtscsi_softc *sc, void *buf,
 
 	if (bufsize < sizeof(uint32_t)) {
 		WPRINTF("ignoring truncated control request");
-		return (0);
+		return;
 	}
 
 	type = *(uint32_t *)buf;
@@ -371,25 +373,21 @@ pci_vtscsi_control_handle(struct pci_vtscsi_softc *sc, void *buf,
 	if (type == VIRTIO_SCSI_T_TMF) {
 		if (bufsize != sizeof(*tmf)) {
 			WPRINTF("ignoring tmf request with size %zu", bufsize);
-			return (0);
+			return;
 		}
 		tmf = (struct pci_vtscsi_ctrl_tmf *)buf;
-		return (pci_vtscsi_tmf_handle(sc, tmf));
-	}
-
-	if (type == VIRTIO_SCSI_T_AN_QUERY) {
+		pci_vtscsi_tmf_handle(sc, tmf);
+	} else if (type == VIRTIO_SCSI_T_AN_QUERY) {
 		if (bufsize != sizeof(*an)) {
 			WPRINTF("ignoring AN request with size %zu", bufsize);
-			return (0);
+			return;
 		}
 		an = (struct pci_vtscsi_ctrl_an *)buf;
-		return (pci_vtscsi_an_handle(sc, an));
+		pci_vtscsi_an_handle(sc, an);
 	}
-
-	return (0);
 }
 
-static int
+static void
 pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *sc,
     struct pci_vtscsi_ctrl_tmf *tmf)
 {
@@ -454,46 +452,73 @@ pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *sc,
 
 	tmf->response = io->taskio.task_status;
 	ctl_scsi_free_io(io);
-	return (1);
 }
 
-static int
+static void
 pci_vtscsi_an_handle(struct pci_vtscsi_softc *sc __unused,
     struct pci_vtscsi_ctrl_an *an __unused)
 {
-	return (0);
 }
 
 static int
 pci_vtscsi_request_handle(struct pci_vtscsi_queue *q, struct iovec *iov_in,
-    int niov_in, struct iovec *iov_out, int niov_out)
+    size_t niov_in, struct iovec *iov_out, size_t niov_out)
 {
 	struct pci_vtscsi_softc *sc = q->vsq_sc;
 	struct pci_vtscsi_req_cmd_rd *cmd_rd = NULL;
 	struct pci_vtscsi_req_cmd_wr *cmd_wr;
-	struct iovec data_iov_in[VTSCSI_MAXSEG], data_iov_out[VTSCSI_MAXSEG];
+	struct iovec *data_iov_in, *data_iov_out;
 	union ctl_io *io;
-	int data_niov_in, data_niov_out;
+	size_t data_niov_in, data_niov_out;
 	void *ext_data_ptr = NULL;
 	uint32_t ext_data_len = 0, ext_sg_entries = 0;
 	int err, nxferred;
 
-	if (count_iov(iov_out, niov_out) < VTSCSI_OUT_HEADER_LEN(sc)) {
+	/*
+	 * Make sure we got at least enough space for the VirtIO-SCSI
+	 * command headers. If not, return this request immediately.
+	 */
+	if (check_iov_len(iov_out, niov_out,
+	    VTSCSI_OUT_HEADER_LEN(q->vsq_sc)) == false) {
 		WPRINTF("ignoring request with insufficient output");
 		return (0);
 	}
-	if (count_iov(iov_in, niov_in) < VTSCSI_IN_HEADER_LEN(sc)) {
+
+	if (check_iov_len(iov_in, niov_in,
+	    VTSCSI_IN_HEADER_LEN(q->vsq_sc)) == false) {
 		WPRINTF("ignoring request with incomplete header");
 		return (0);
 	}
 
-	seek_iov(iov_in, niov_in, data_iov_in, &data_niov_in,
-	    VTSCSI_IN_HEADER_LEN(sc));
-	seek_iov(iov_out, niov_out, data_iov_out, &data_niov_out,
-	    VTSCSI_OUT_HEADER_LEN(sc));
+	/*
+	 * We have to split the iovec array into a header and data portion each
+	 * for input and output.
+	 *
+	 * We need to start with the output section (at the end of iov) in case
+	 * the iovec covering the final part of the output header needs to be
+	 * split, in which case split_iov() will move all reamaining iovecs up
+	 * by one to make room for a new iovec covering the first part of the
+	 * output data portion.
+	 */
+	data_iov_out = split_iov(iov_out, &niov_out,
+	    VTSCSI_OUT_HEADER_LEN(q->vsq_sc), &data_niov_out);
 
-	truncate_iov(iov_in, &niov_in, VTSCSI_IN_HEADER_LEN(sc));
-	truncate_iov(iov_out, &niov_out, VTSCSI_OUT_HEADER_LEN(sc));
+	/*
+	 * Similarly, to not overwrite the first iovec of the output section,
+	 * the 2nd call to split_iov() to split the input section must actually
+	 * cover the entire iovec array (both input and the already split output
+	 * sections).
+	 */
+	niov_in += niov_out + data_niov_out;
+
+	data_iov_in = split_iov(iov_in, &niov_in,
+	    VTSCSI_IN_HEADER_LEN(q->vsq_sc), &data_niov_in);
+
+	/*
+	 * And of course we now have to adjust data_niov_in accordingly.
+	 */
+	data_niov_in -= niov_out + data_niov_out;
+
 	iov_to_buf(iov_in, niov_in, (void **)&cmd_rd);
 
 	cmd_wr = calloc(1, VTSCSI_OUT_HEADER_LEN(sc));
@@ -564,7 +589,7 @@ pci_vtscsi_request_handle(struct pci_vtscsi_queue *q, struct iovec *iov_in,
 		    cmd_wr->sense_len);
 	}
 
-	buf_to_iov(cmd_wr, VTSCSI_OUT_HEADER_LEN(sc), iov_out, niov_out, 0);
+	buf_to_iov(cmd_wr, VTSCSI_OUT_HEADER_LEN(sc), iov_out, niov_out);
 	nxferred = VTSCSI_OUT_HEADER_LEN(sc) + io->scsiio.ext_data_filled;
 	free(cmd_rd);
 	free(cmd_wr);
@@ -580,7 +605,7 @@ pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 	struct vi_req req;
 	void *buf = NULL;
 	size_t bufsize;
-	int iolen, n;
+	int n;
 
 	sc = vsc;
 
@@ -589,14 +614,13 @@ pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 		assert(n >= 1 && n <= VTSCSI_MAXSEG);
 
 		bufsize = iov_to_buf(iov, n, &buf);
-		iolen = pci_vtscsi_control_handle(sc, buf, bufsize);
-		buf_to_iov((uint8_t *)buf + bufsize - iolen, iolen, iov, n,
-		    bufsize - iolen);
+		pci_vtscsi_control_handle(sc, buf, bufsize);
+		buf_to_iov((uint8_t *)buf, bufsize, iov, n);
 
 		/*
 		 * Release this chain and handle more
 		 */
-		vq_relchain(vq, req.idx, iolen);
+		vq_relchain(vq, req.idx, bufsize);
 	}
 	vq_endchains(vq, 1);	/* Generate interrupt if appropriate. */
 	free(buf);
@@ -614,7 +638,6 @@ pci_vtscsi_requestq_notify(void *vsc, struct vqueue_info *vq)
 	struct pci_vtscsi_softc *sc;
 	struct pci_vtscsi_queue *q;
 	struct pci_vtscsi_request *req;
-	struct iovec iov[VTSCSI_MAXSEG];
 	struct vi_req vireq;
 	int n;
 
@@ -622,18 +645,17 @@ pci_vtscsi_requestq_notify(void *vsc, struct vqueue_info *vq)
 	q = &sc->vss_queues[vq->vq_num - 2];
 
 	while (vq_has_descs(vq)) {
-		n = vq_getchain(vq, iov, VTSCSI_MAXSEG, &vireq);
+		req = calloc(1, sizeof(struct pci_vtscsi_request));
+
+		n = vq_getchain(vq, req->vsr_iov, VTSCSI_MAXSEG, &vireq);
 		assert(n >= 1 && n <= VTSCSI_MAXSEG);
 
-		req = calloc(1, sizeof(struct pci_vtscsi_request));
 		req->vsr_idx = vireq.idx;
 		req->vsr_queue = q;
+		req->vsr_iov_in = &req->vsr_iov[0];
 		req->vsr_niov_in = vireq.readable;
+		req->vsr_iov_out = &req->vsr_iov[vireq.readable];
 		req->vsr_niov_out = vireq.writable;
-		memcpy(req->vsr_iov_in, iov,
-		    req->vsr_niov_in * sizeof(struct iovec));
-		memcpy(req->vsr_iov_out, iov + vireq.readable,
-		    req->vsr_niov_out * sizeof(struct iovec));
 
 		pthread_mutex_lock(&q->vsq_mtx);
 		STAILQ_INSERT_TAIL(&q->vsq_requests, req, vsr_link);

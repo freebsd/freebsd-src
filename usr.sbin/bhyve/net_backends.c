@@ -198,7 +198,7 @@ tap_recv(struct net_backend *be, const struct iovec *iov, int iovcnt)
 		 * we read it from there.
 		 */
 		ret = buf_to_iov(priv->bbuf, priv->bbuflen,
-		    iov, iovcnt, 0);
+		    iov, iovcnt);
 
 		/* Mark the bounce buffer as empty. */
 		priv->bbuflen = 0;
