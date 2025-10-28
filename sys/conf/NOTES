@@ -2825,6 +2825,8 @@ options 	RANDOM_ENABLE_UMA	# slab allocator
 # environment.
 options 	RANDOM_ENABLE_ETHER	# ether_input
 
+options 	RANDOM_ENABLE_TPM	# implies TPM_HARVEST
+
 # Module to enable execution of application via emulators like QEMU
 options         IMGACT_BINMISC
 

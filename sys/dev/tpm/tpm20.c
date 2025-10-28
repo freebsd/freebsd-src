@@ -42,7 +42,7 @@
 MALLOC_DEFINE(M_TPM20, "tpm_buffer", "buffer for tpm 2.0 driver");
 
 static void tpm20_discard_buffer(void *arg);
-#ifdef TPM_HARVEST
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
 static void tpm20_harvest(void *arg, int unused);
 #endif
 static int  tpm20_save_state(device_t dev, bool suspend);
@@ -184,7 +184,7 @@ tpm20_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	return (ENOTTY);
 }
 
-#ifdef TPM_HARVEST
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
 static const struct random_source random_tpm = {
 	.rs_ident = "TPM",
 	.rs_source = RANDOM_PURE_TPM,
@@ -212,7 +212,7 @@ tpm20_init(struct tpm_sc *sc)
 	if (result != 0)
 		tpm20_release(sc);
 
-#ifdef TPM_HARVEST
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
 	random_source_register(&random_tpm);
 	TIMEOUT_TASK_INIT(taskqueue_thread, &sc->harvest_task, 0,
 	    tpm20_harvest, sc);
@@ -227,7 +227,7 @@ void
 tpm20_release(struct tpm_sc *sc)
 {
 
-#ifdef TPM_HARVEST
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
 	if (device_is_attached(sc->dev))
 		taskqueue_drain_timeout(taskqueue_thread, &sc->harvest_task);
 	random_source_deregister(&random_tpm);
@@ -254,7 +254,7 @@ tpm20_shutdown(device_t dev)
 	return (tpm20_save_state(dev, false));
 }
 
-#ifdef TPM_HARVEST
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
 /*
  * Get TPM_HARVEST_SIZE random bytes and add them
  * into system entropy pool.
