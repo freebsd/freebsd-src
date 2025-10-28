@@ -97,4 +97,18 @@ pm_wakeup_event(struct device *dev __unused, unsigned int x __unused)
 	pr_debug("%s: TODO\n", __func__);
 }
 
+/*
+ * We do not need to specify anything here as a VT switch always happens on
+ * suspend/resume.
+ */
+static inline void
+pm_vt_switch_required(struct device *dev __unused, bool required __unused)
+{
+}
+
+static inline void
+pm_vt_switch_unregister(struct device *dev __unused)
+{
+}
+
 #endif	/* _LINUXKPI_LINUX_PM_H */
