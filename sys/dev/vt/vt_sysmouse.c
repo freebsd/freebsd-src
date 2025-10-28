@@ -32,7 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_evdev.h"
 
 #include <sys/param.h>
@@ -222,7 +221,9 @@ sysmouse_process_event(mouse_info_t *mi)
 	unsigned char buf[MOUSE_SYS_PACKETSIZE];
 	int x, y, iy, z;
 
+#ifdef RANDOM_ENABLE_MOUSE
 	random_harvest_queue(mi, sizeof *mi, RANDOM_MOUSE);
+#endif
 
 	mtx_lock(&sysmouse_lock);
 	switch (mi->operation) {
