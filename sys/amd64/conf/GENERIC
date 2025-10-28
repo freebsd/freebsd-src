@@ -326,6 +326,8 @@ device		bpf			# Berkeley packet filter
 device		rdrand_rng		# Intel Bull Mountain RNG
 device		tpm			# Trusted Platform Module
 options 	RANDOM_ENABLE_TPM	# enable entropy from TPM 2.0
+options 	RANDOM_ENABLE_KBD
+options 	RANDOM_ENABLE_MOUSE
 
 # USB support
 options 	USB_DEBUG		# enable debug msgs

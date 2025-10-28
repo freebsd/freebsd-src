@@ -207,6 +207,10 @@ device		xz		# lzma decompression
 # Note that 'bpf' is required for DHCP.
 device		bpf		# Berkeley packet filter
 
+# random(4)
+options 	RANDOM_ENABLE_KBD
+options 	RANDOM_ENABLE_MOUSE
+
 # USB support
 options 	USB_DEBUG	# enable debug msgs
 device		uhci		# UHCI PCI->USB interface

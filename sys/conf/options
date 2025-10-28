@@ -956,6 +956,8 @@ RANDOM_LOADABLE	opt_global.h
 # the uma slab allocator.
 RANDOM_ENABLE_UMA	opt_global.h
 RANDOM_ENABLE_ETHER	opt_global.h
+RANDOM_ENABLE_KBD	opt_global.h
+RANDOM_ENABLE_MOUSE	opt_global.h
 RANDOM_ENABLE_TPM	opt_global.h
 
 # This options turns TPM into entropy source.

@@ -876,7 +876,9 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 {
 	struct vt_window *vw = vd->vd_curwindow;
 
+#ifdef RANDOM_ENABLE_KBD
 	random_harvest_queue(&c, sizeof(c), RANDOM_KEYBOARD);
+#endif
 #if VT_ALT_TO_ESC_HACK
 	if (c & RELKEY) {
 		switch (c & ~RELKEY) {
