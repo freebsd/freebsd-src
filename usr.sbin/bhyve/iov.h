@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2016 Jakub Klama <jceel@FreeBSD.org>.
  * Copyright (c) 2018 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2026 Hans Rosenfeld
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,12 +32,15 @@
 #ifndef _IOV_H_
 #define	_IOV_H_
 
-void seek_iov(const struct iovec *iov1, int niov1, struct iovec *iov2,
-    int *niov2, size_t seek);
-void truncate_iov(struct iovec *iov, int *niov, size_t length);
-size_t count_iov(const struct iovec *iov, int niov);
-ssize_t iov_to_buf(const struct iovec *iov, int niov, void **buf);
-ssize_t buf_to_iov(const void *buf, size_t buflen, const struct iovec *iov,
-    int niov, size_t seek);
+#include <stdbool.h>
+
+/* Number of additional iovecs required for split_iov() */
+#define	SPLIT_IOV_ADDL_IOV	2
+
+struct iovec *split_iov(struct iovec *, size_t *, size_t, size_t *);
+size_t count_iov(const struct iovec *, size_t);
+bool check_iov_len(const struct iovec *, size_t, size_t);
+ssize_t iov_to_buf(const struct iovec *, size_t, void **);
+ssize_t buf_to_iov(const void *, size_t, const struct iovec *, size_t);
 
 #endif	/* _IOV_H_ */
