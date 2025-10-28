@@ -67,6 +67,8 @@ static void	auditid(void);
 #endif
 static void	group(struct passwd *, bool);
 static void	maclabel(void);
+static void	dir(struct passwd *);
+static void	shell(struct passwd *);
 static void	usage(void);
 static struct passwd *who(char *);
 
@@ -81,7 +83,7 @@ main(int argc, char *argv[])
 	bool Aflag;
 #endif
 	bool Gflag, Mflag, Pflag;
-	bool cflag, gflag, nflag, pflag, rflag, uflag;
+	bool cflag, dflag, gflag, nflag, pflag, rflag, sflag, uflag;
 	int ch, combo, error, id;
 	const char *myname, *optstr;
 	char loginclass[MAXLOGNAME];
@@ -90,10 +92,10 @@ main(int argc, char *argv[])
 	Aflag = false;
 #endif
 	Gflag = Mflag = Pflag = false;
-	cflag = gflag = nflag = pflag = rflag = uflag = false;
+	cflag = dflag = gflag = nflag = pflag = rflag = sflag = uflag = false;
 
 	myname = getprogname();
-	optstr = "AGMPacgnpru";
+	optstr = "AGMPacdgnprsu";
 	if (strcmp(myname, "groups") == 0) {
 		isgroups = true;
 		optstr = "";
@@ -126,6 +128,9 @@ main(int argc, char *argv[])
 		case 'c':
 			cflag = true;
 			break;
+		case 'd':
+			dflag = true;
+			break;
 		case 'g':
 			gflag = true;
 			break;
@@ -137,6 +142,9 @@ main(int argc, char *argv[])
 			break;
 		case 'r':
 			rflag = true;
+			break;
+		case 's':
+			sflag = true;
 			break;
 		case 'u':
 			uflag = true;
@@ -154,6 +162,8 @@ main(int argc, char *argv[])
 		usage();
 
 	combo = Aflag + Gflag + Mflag + Pflag + gflag + pflag + uflag;
+	if (combo + dflag + sflag > 1)
+		usage();
 	if (combo > 1)
 		usage();
 	if (combo == 0 && (nflag || rflag))
@@ -197,6 +207,11 @@ main(int argc, char *argv[])
 		exit(0);
 	}
 
+	if (dflag) {
+		dir(pw);
+		exit(0);
+	}
+
 	if (Gflag) {
 		group(pw, nflag);
 		exit(0);
@@ -214,6 +229,11 @@ main(int argc, char *argv[])
 
 	if (pflag) {
 		pretty(pw);
+		exit(0);
+	}
+
+	if (sflag) {
+		shell(pw);
 		exit(0);
 	}
 
@@ -477,6 +497,26 @@ pline(struct passwd *pw)
 }
 
 static void
+dir(struct passwd *pw)
+{
+	if (pw == NULL) {
+		if ((pw = getpwuid(getuid())) == NULL)
+			err(1, "getpwuid");
+	}
+	printf("%s\n", pw->pw_dir);
+}
+
+static void
+shell(struct passwd *pw)
+{
+	if (pw == NULL) {
+		if ((pw = getpwuid(getuid())) == NULL)
+			err(1, "getpwuid");
+	}
+	printf("%s\n", pw->pw_shell);
+}
+
+static void
 usage(void)
 {
 	if (isgroups)
@@ -493,8 +533,10 @@ usage(void)
 		    "       id -M\n"
 		    "       id -P [user]\n"
 		    "       id -c\n"
+		    "       id -d [user]\n"
 		    "       id -g [-nr] [user]\n"
 		    "       id -p [user]\n"
+		    "       id -s [user]\n"
 		    "       id -u [-nr] [user]\n");
 	exit(1);
 }
