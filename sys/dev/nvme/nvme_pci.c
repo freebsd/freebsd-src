@@ -152,11 +152,15 @@ static int
 nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
 {
 	ctrlr->resource_id = PCIR_BAR(0);
+	ctrlr->msix_table_resource_id = -1;
+	ctrlr->msix_table_resource = NULL;
+	ctrlr->msix_pba_resource_id = -1;
+	ctrlr->msix_pba_resource = NULL;
 
 	ctrlr->resource = bus_alloc_resource_any(ctrlr->dev, SYS_RES_MEMORY,
 	    &ctrlr->resource_id, RF_ACTIVE);
 
-	if(ctrlr->resource == NULL) {
+	if (ctrlr->resource == NULL) {
 		nvme_printf(ctrlr, "unable to allocate pci resource\n");
 		return (ENOMEM);
 	}
@@ -166,15 +170,32 @@ nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
 	ctrlr->regs = (struct nvme_registers *)ctrlr->bus_handle;
 
 	/*
-	 * The NVMe spec allows for the MSI-X table to be placed behind
-	 *  BAR 4/5, separate from the control/doorbell registers.  Always
-	 *  try to map this bar, because it must be mapped prior to calling
-	 *  pci_alloc_msix().  If the table isn't behind BAR 4/5,
-	 *  bus_alloc_resource() will just return NULL which is OK.
+	 * The NVMe spec allows for the MSI-X tables to be placed behind
+	 *  BAR 4 and/or 5, separate from the control/doorbell registers.
 	 */
-	ctrlr->bar4_resource_id = PCIR_BAR(4);
-	ctrlr->bar4_resource = bus_alloc_resource_any(ctrlr->dev, SYS_RES_MEMORY,
-	    &ctrlr->bar4_resource_id, RF_ACTIVE);
+
+	ctrlr->msix_table_resource_id = pci_msix_table_bar(ctrlr->dev);
+	ctrlr->msix_pba_resource_id = pci_msix_pba_bar(ctrlr->dev);
+
+	if (ctrlr->msix_table_resource_id >= 0 &&
+	    ctrlr->msix_table_resource_id != ctrlr->resource_id) {
+		ctrlr->msix_table_resource = bus_alloc_resource_any(ctrlr->dev,
+		    SYS_RES_MEMORY, &ctrlr->msix_table_resource_id, RF_ACTIVE);
+		if (ctrlr->msix_table_resource == NULL) {
+			nvme_printf(ctrlr, "unable to allocate msi-x table resource\n");
+			return (ENOMEM);
+		}
+	}
+	if (ctrlr->msix_pba_resource_id >= 0 &&
+	    ctrlr->msix_pba_resource_id != ctrlr->resource_id &&
+	    ctrlr->msix_pba_resource_id != ctrlr->msix_table_resource_id) {
+		ctrlr->msix_pba_resource = bus_alloc_resource_any(ctrlr->dev,
+		    SYS_RES_MEMORY, &ctrlr->msix_pba_resource_id, RF_ACTIVE);
+		if (ctrlr->msix_pba_resource == NULL) {
+			nvme_printf(ctrlr, "unable to allocate msi-x pba resource\n");
+			return (ENOMEM);
+		}
+	}
 
 	return (0);
 }
@@ -200,9 +221,14 @@ bad:
 		    ctrlr->resource_id, ctrlr->resource);
 	}
 
-	if (ctrlr->bar4_resource != NULL) {
+	if (ctrlr->msix_table_resource != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    ctrlr->bar4_resource_id, ctrlr->bar4_resource);
+		    ctrlr->msix_table_resource_id, ctrlr->msix_table_resource);
+	}
+
+	if (ctrlr->msix_pba_resource != NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    ctrlr->msix_pba_resource_id, ctrlr->msix_pba_resource);
 	}
 
 	if (ctrlr->tag)
