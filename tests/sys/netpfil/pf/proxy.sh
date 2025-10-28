@@ -88,7 +88,68 @@ ftp_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "tftp" "cleanup"
+tftp_head()
+{
+	atf_set descr 'Test tftp-proxy'
+	atf_set require.user root
+}
+
+tftp_body()
+{
+	pft_init
+
+	epair_client=$(vnet_mkepair)
+	epair_link=$(vnet_mkepair)
+
+	ifconfig ${epair_client}a 192.0.2.2/24 up
+	route add -net 198.51.100.0/24 192.0.2.1
+
+	vnet_mkjail fwd ${epair_client}b ${epair_link}a
+	jexec fwd ifconfig lo0 127.0.0.1/8 up
+	jexec fwd ifconfig ${epair_client}b 192.0.2.1/24 up
+	jexec fwd ifconfig ${epair_link}a 198.51.100.1/24 up
+	jexec fwd ifconfig lo0 127.0.0.1/8 up
+	jexec fwd sysctl net.inet.ip.forwarding=1
+
+	vnet_mkjail srv ${epair_link}b
+	jexec srv ifconfig ${epair_link}b 198.51.100.2/24 up
+	jexec srv route add default 198.51.100.1
+
+	# Start tftp server in srv
+	jexec srv /usr/sbin/inetd -p ${PWD}/inetd-srv.pid \
+	    $(atf_get_srcdir)/tftpd_inetd.conf
+
+	jexec fwd /usr/sbin/inetd -p ${PWD}/inetd-fwd.pid \
+	    $(atf_get_srcdir)/tftpd_proxy_inetd.conf
+
+	jexec fwd pfctl -e
+	pft_set_rules fwd \
+		"nat on ${epair_link}a inet from 192.0.2.0/24 to any -> (${epair_link}a)" \
+		"nat-anchor \"tftp-proxy/*\"" \
+		"rdr-anchor \"tftp-proxy/*\"" \
+		"rdr pass on ${epair_client}b proto udp from 192.0.2.0/24 to any port 69 -> 127.0.0.1 port 69" \
+		"anchor \"tftp-proxy/*\"" \
+		"pass out proto udp from 127.0.0.1 to any port 69"
+
+	# Create a dummy file to download
+	echo 'foo' > /tmp/remote.txt
+	echo 'get remote.txt local.txt' | tftp 198.51.100.2
+
+	# Compare the downloaded file to the original
+	if ! diff -q local.txt /tmp/remote.txt;
+	then
+		atf_fail 'Failed to retrieve file'
+	fi
+}
+
+tftp_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "ftp"
+	atf_add_test_case "tftp"
 }

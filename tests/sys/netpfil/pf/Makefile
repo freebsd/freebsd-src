@@ -90,6 +90,8 @@ ${PACKAGE}FILES+=	\
 			pft_ether.py \
 			pft_read_ipfix.py \
 			rdr-srcport.py \
+			tftpd_inetd.conf \
+			tftpd_proxy_inetd.conf \
 			utils.subr \
 			utils.py
 
