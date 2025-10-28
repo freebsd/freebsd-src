@@ -157,7 +157,7 @@ tegra_mc_intr(void *arg)
 	if (stat & MC_INT_DECERR_VPR)
 		printf(" - VPR requirements violated\n");
 	if (stat & MC_INT_INVALID_APB_ASID_UPDATE)
-		printf(" - ivalid APB ASID update\n");
+		printf(" - invalid APB ASID update\n");
 	if (stat & MC_INT_INVALID_SMMU_PAGE)
 		printf(" - SMMU address translation error\n");
 	if (stat & MC_INT_ARBITRATION_EMEM)
