@@ -792,31 +792,18 @@ sort_lite()
 #
 wait_for_pids()
 {
-	local _list _prefix _nlist _j
+	local _list _prefix _j
 
-	_list="$@"
-	if [ -z "$_list" ]; then
-		return
-	fi
-	_prefix=
-	while true; do
-		_nlist=""
-		for _j in $_list; do
-			if kill -0 $_j 2>/dev/null; then
-				_nlist="${_nlist}${_nlist:+ }$_j"
-			fi
-		done
-		if [ -z "$_nlist" ]; then
-			break
+	for _j in "$@"; do
+		if kill -0 $_j 2>/dev/null; then
+			_list="${_list}${_list:+ }$_j"
 		fi
-		_list=$_nlist
+	done
+	_prefix=
+	while [ -n "$_list" ]; do
 		echo -n ${_prefix:-"Waiting for PIDS: "}$_list
 		_prefix=", "
-		pwait -o $_list 2>/dev/null
-		# At least one of the processes we were waiting for
-		# has terminated.  Give init a chance to collect it
-		# before looping around and checking again.
-		sleep 1
+		_list=$(pwait -op $_list 2>/dev/null)
 	done
 	if [ -n "$_prefix" ]; then
 		echo "."
