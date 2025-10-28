@@ -1,8 +1,8 @@
 #
 #	List of PCI ID's
 #
-#	Version: 2025.07.11
-#	Date:    2025-07-11 03:15:02
+#	Version: 2025.10.18
+#	Date:    2025-10-18 03:15:01
 #
 #	Maintained by Albert Pool, Martin Mares, and other volunteers from
 #	the PCI ID Project at https://pci-ids.ucw.cz/.
@@ -27979,6 +27979,10 @@
 	1007  CL4-8D512 NVMe SSD M.2 (DRAM-less)
 	1008  CL5-8D512 NVMe SSD M.2 (DRAM-less)
 	100c  CL6 Series NVMe SSD M.2 (DRAM-less)
+	100d  PJ1 Series NVMe SSD
+		1e95 0001  M.2 2280 960 GB
+		1e95 0002  M.2 2280 1920 GB
+		1e95 100d  M.2 2280 480 GB
 	1010  CX3 Series NVMe SSD
 		1e95 0000  M.2 2280 480 GB
 		1e95 0001  M.2 2280 960 GB
