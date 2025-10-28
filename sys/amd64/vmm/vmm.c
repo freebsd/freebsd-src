@@ -724,12 +724,7 @@ vm_name(struct vm *vm)
 int
 vm_map_mmio(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t hpa)
 {
-	vm_object_t obj;
-
-	if ((obj = vmm_mmio_alloc(vm_vmspace(vm), gpa, len, hpa)) == NULL)
-		return (ENOMEM);
-	else
-		return (0);
+	return (vmm_mmio_alloc(vm_vmspace(vm), gpa, len, hpa));
 }
 
 int
