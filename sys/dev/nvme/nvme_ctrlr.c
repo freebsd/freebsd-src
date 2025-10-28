@@ -1762,9 +1762,14 @@ noadminq:
 		bus_release_resource(ctrlr->dev, SYS_RES_IRQ,
 		    rman_get_rid(ctrlr->res), ctrlr->res);
 
-	if (ctrlr->bar4_resource != NULL) {
+	if (ctrlr->msix_table_resource != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    ctrlr->bar4_resource_id, ctrlr->bar4_resource);
+		    ctrlr->msix_table_resource_id, ctrlr->msix_table_resource);
+	}
+
+	if (ctrlr->msix_pba_resource != NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    ctrlr->msix_pba_resource_id, ctrlr->msix_pba_resource);
 	}
 
 	bus_release_resource(dev, SYS_RES_MEMORY,
