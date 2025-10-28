@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 5, 2011
+.Dd October 23, 2025
 .Dt ID 1
 .Os
 .Sh NAME
@@ -50,10 +50,16 @@
 .Nm
 .Fl c
 .Nm
+.Fl d
+.Op Ar user
+.Nm
 .Fl g Op Fl nr
 .Op Ar user
 .Nm
 .Fl p
+.Op Ar user
+.Nm
+.Fl s
 .Op Ar user
 .Nm
 .Fl u Op Fl nr
@@ -90,6 +96,8 @@ Ignored for compatibility with other
 implementations.
 .It Fl c
 Display current login class.
+.It Fl d
+Display the home directory of the current or specified user.
 .It Fl g
 Display the effective group ID as a number.
 .It Fl n
@@ -128,6 +136,8 @@ Display the real ID for the
 and
 .Fl u
 options instead of the effective ID.
+.It Fl s
+Display the shell of the current or specified user.
 .It Fl u
 Display the effective user ID as a number.
 .El
@@ -174,8 +184,20 @@ bob          pts/5        Dec  4 19:51
 .Sh STANDARDS
 The
 .Nm
-function is expected to conform to
-.St -p1003.2 .
+utility is expected to conform to
+.St -p1003.1-2024 .
+The
+.Fl A ,
+.Fl M ,
+.Fl P ,
+.Fl c ,
+.Fl d ,
+.Fl p ,
+and
+.Fl s
+options are
+.Fx
+extensions.
 .Sh HISTORY
 The
 historic
