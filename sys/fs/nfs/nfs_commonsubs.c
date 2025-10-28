@@ -4192,10 +4192,15 @@ nfssvc_idname(struct nfsd_idargs *nidp)
 	    nidp->nid_namelen);
 	if (error == 0 && nidp->nid_ngroup > 0 &&
 	    (nidp->nid_flag & NFSID_ADDUID) != 0) {
-		grps = malloc(sizeof(gid_t) * nidp->nid_ngroup, M_TEMP,
-		    M_WAITOK);
-		error = copyin(nidp->nid_grps, grps,
-		    sizeof(gid_t) * nidp->nid_ngroup);
+		grps = NULL;
+		if (nidp->nid_ngroup > NGROUPS_MAX)
+			error = EINVAL;
+		if (error == 0) {
+			grps = malloc(sizeof(gid_t) * nidp->nid_ngroup, M_TEMP,
+			    M_WAITOK);
+			error = copyin(nidp->nid_grps, grps,
+			    sizeof(gid_t) * nidp->nid_ngroup);
+		}
 		if (error == 0) {
 			/*
 			 * Create a credential just like svc_getcred(),
