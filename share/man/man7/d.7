@@ -3,7 +3,7 @@
 .\"
 .\" Copyright (c) 2025 Mateusz Piotrowski <0mp@FreeBSD.org>
 .\"
-.Dd September 24, 2025
+.Dd October 28, 2025
 .Dt D 7
 .Os
 .Sh NAME
@@ -56,9 +56,9 @@ depends on
 .Bl -column "thread-local" "Syntax"
 .It Sy Type Ta Sy Syntax
 .It global       Ta Va variable_name
+.It aggregate    Ta Sy @ Ns Va variable_name
 .It thread-local Ta Sy self-> Ns Va variable_name
 .It clause-local Ta Sy this-> Ns Va variable_name
-.It aggregate  Ta Sy @ Ns Va variable_name
 .El
 .Pp
 .Em Tips :
