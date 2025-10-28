@@ -547,7 +547,7 @@ vtgpu_create_2d(struct vtgpu_softc *sc)
 		return (error);
 
 	if (s.resp.type != htole32(VIRTIO_GPU_RESP_OK_NODATA)) {
-		device_printf(sc->vtgpu_dev, "Invalid reponse type %x\n",
+		device_printf(sc->vtgpu_dev, "Invalid response type %x\n",
 		    le32toh(s.resp.type));
 		return (EINVAL);
 	}
@@ -586,7 +586,7 @@ vtgpu_attach_backing(struct vtgpu_softc *sc)
 		return (error);
 
 	if (s.resp.type != htole32(VIRTIO_GPU_RESP_OK_NODATA)) {
-		device_printf(sc->vtgpu_dev, "Invalid reponse type %x\n",
+		device_printf(sc->vtgpu_dev, "Invalid response type %x\n",
 		    le32toh(s.resp.type));
 		return (EINVAL);
 	}
@@ -624,7 +624,7 @@ vtgpu_set_scanout(struct vtgpu_softc *sc, uint32_t x, uint32_t y,
 		return (error);
 
 	if (s.resp.type != htole32(VIRTIO_GPU_RESP_OK_NODATA)) {
-		device_printf(sc->vtgpu_dev, "Invalid reponse type %x\n",
+		device_printf(sc->vtgpu_dev, "Invalid response type %x\n",
 		    le32toh(s.resp.type));
 		return (EINVAL);
 	}
@@ -663,7 +663,7 @@ vtgpu_transfer_to_host_2d(struct vtgpu_softc *sc, uint32_t x, uint32_t y,
 		return (error);
 
 	if (s.resp.type != htole32(VIRTIO_GPU_RESP_OK_NODATA)) {
-		device_printf(sc->vtgpu_dev, "Invalid reponse type %x\n",
+		device_printf(sc->vtgpu_dev, "Invalid response type %x\n",
 		    le32toh(s.resp.type));
 		return (EINVAL);
 	}
@@ -700,7 +700,7 @@ vtgpu_resource_flush(struct vtgpu_softc *sc, uint32_t x, uint32_t y,
 		return (error);
 
 	if (s.resp.type != htole32(VIRTIO_GPU_RESP_OK_NODATA)) {
-		device_printf(sc->vtgpu_dev, "Invalid reponse type %x\n",
+		device_printf(sc->vtgpu_dev, "Invalid response type %x\n",
 		    le32toh(s.resp.type));
 		return (EINVAL);
 	}

@@ -386,7 +386,7 @@ virtio_scmi_pdu_get(struct vtscmi_queue *q, void *buf, unsigned int tx_len,
 	mtx_unlock_spin(&q->p_mtx);
 
 	if (pdu == NULL) {
-		device_printf(q->dev, "Cannnot allocate PDU.\n");
+		device_printf(q->dev, "Cannot allocate PDU.\n");
 		return (NULL);
 	}
 
