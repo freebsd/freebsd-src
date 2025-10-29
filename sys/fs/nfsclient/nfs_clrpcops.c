@@ -9438,7 +9438,7 @@ nfsm_split(struct mbuf *mp, uint64_t xfer)
 		pgno++;
 	} while (pgno < m->m_epg_npgs);
 	if (pgno == m->m_epg_npgs)
-		panic("nfsm_split: eroneous ext_pgs mbuf");
+		panic("nfsm_split: erroneous ext_pgs mbuf");
 
 	m2 = mb_alloc_ext_pgs(M_WAITOK, mb_free_mext_pgs);
 	m2->m_epg_flags |= EPG_FLAG_ANON;
