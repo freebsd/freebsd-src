@@ -1402,7 +1402,7 @@ nicvf_allocate_net_interrupts(struct nicvf *nic)
 
 	/* MSI-X must be configured by now */
 	if (!nic->msix_enabled) {
-		device_printf(nic->dev, "Cannot alloacte queue interrups. "
+		device_printf(nic->dev, "Cannot alloacte queue interrupts. "
 		    "MSI-X interrupts disabled.\n");
 		return (ENXIO);
 	}
