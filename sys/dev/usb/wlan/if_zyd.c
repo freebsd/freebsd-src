@@ -827,7 +827,7 @@ zyd_cmd(struct zyd_softc *sc, uint16_t code, const void *idata, int ilen,
 	if (error)
 		device_printf(sc->sc_dev, "command timeout\n");
 	STAILQ_REMOVE(&sc->sc_rqh, &rq, zyd_rq, rq);
-	DPRINTF(sc, ZYD_DEBUG_CMD, "finsihed cmd %p, error = %d \n",
+	DPRINTF(sc, ZYD_DEBUG_CMD, "finished cmd %p, error = %d \n",
 	    &rq, error);
 
 	return (error);
