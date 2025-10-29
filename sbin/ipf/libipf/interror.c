@@ -536,6 +536,7 @@ log" },
 	{	130016,	"finding pfil head failed" },
 	{	130017,	"ipfilter is already initialised and running" },
 	{	130018,	"ioctl denied in jail without VNET" },
+	{	130019,	"ioctl denied in jail" },
 };
 
 

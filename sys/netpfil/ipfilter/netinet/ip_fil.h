@@ -1552,6 +1552,7 @@ typedef struct ipf_main_softc_s {
 	u_int		ipf_icmpacktimeout;
 	u_int		ipf_iptimeout;
 	u_int		ipf_large_nat;
+	u_int		ipf_jail_allowed;
 	u_long		ipf_ticks;
 	u_long		ipf_userifqs;
 	u_long		ipf_rb_no_mem;

@@ -92,6 +92,7 @@ VNET_DEFINE(ipf_main_softc_t, ipfmain) = {
 	.ipf_running		= -2,
 };
 #define	V_ipfmain		VNET(ipfmain)
+#define V0_ipfmain		VNET_VNET(vnet0,ipfmain)
 
 #include <sys/conf.h>
 #include <net/pfil.h>
@@ -276,6 +277,20 @@ ipfioctl(struct cdev *dev, ioctlcmd_t cmd, caddr_t data,
 		V_ipfmain.ipf_interror = 130001;
 		CURVNET_RESTORE();
 		return (EPERM);
+	}
+
+	/*
+	 * Remember, the host system (with its vnet0) controls
+	 * whether a jail is allowed to use ipfilter or not.
+	 * The default is ipfilter cannot be used by a jail
+	 * unless the sysctl allows it.
+	 */
+	if (V0_ipfmain.ipf_jail_allowed == 0) {
+		if (jailed(p->p_cred)) {
+			V_ipfmain.ipf_interror = 130019;
+			CURVNET_RESTORE();
+			return (EOPNOTSUPP);
+		}
 	}
 
 	if (jailed_without_vnet(p->p_cred)) {
