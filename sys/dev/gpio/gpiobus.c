@@ -734,7 +734,7 @@ gpiobus_add_child(device_t dev, u_int order, const char *name, int unit)
 	    sizeof(struct gpiobus_ivar)));
 }
 
-static void
+void
 gpiobus_child_deleted(device_t dev, device_t child)
 {
 	struct gpiobus_ivar *devi;
