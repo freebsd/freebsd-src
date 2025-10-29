@@ -2,6 +2,7 @@
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2013 Peter Grehan
+.\" Copyright (c) 2026 Hans Rosenfeld
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -680,9 +681,44 @@ In that case, this feature doesn't work as expected.
 .Bl -bullet
 .Sm off
 .It
-.Pa /dev/cam/ctl Oo Ar pp Cm \&. Ar vp Oc Oo Cm \&, Ar scsi-device-options Oc
+.Oo Cm target Ns = Ns Oo ID : Oc Ar /dev/cam/ctl Oo Ar pp Cm \&. Ar vp Oc Oc
+.Oo Cm \&, Ar scsi-device-options Oc
 .Sm on
 .El
+.Pp
+Multiple
+.Pa target
+parameters may be specified, each configuring a different
+.Ar path
+as a distinct SCSI target.
+If the
+.Pa target
+.Ar ID
+is not explicitly configured for a
+.Pa target ,
+the
+.Pa target
+will be assigned the next sequential
+.Ar ID
+following the highest
+.Pa target
+.Ar ID
+used at that point, or 0 if it is the first target configured.
+All
+.Pa target
+.Ar ID Ns s
+must be unique per instance.
+The
+.Ar path
+must point to a valid CAM target layer
+.Po CTL
+.Pc
+device node.
+If no
+.Pa target
+is configured, a single default target backed by
+.Sy /dev/cam/ctl
+will be created.
 .Pp
 The
 .Ar scsi-device-options

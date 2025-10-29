@@ -1,6 +1,7 @@
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2021 John H. Baldwin <jhb@FreeBSD.org>
+.\" Copyright 2025 Hans Rosenfeld
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -761,14 +762,33 @@ If specified, it must be a unicast MAC address.
 The largest supported MTU advertised to the guest.
 .El
 .Ss VirtIO SCSI Settings
-.Bl -column "Name" "integer" "Default"
+.Bl -column "target" "integer" "/dev/cam/ctl"
 .It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
-.It Va dev Ta path Ta Ta
-The path of a CAM target layer (CTL) device to export:
-.Pa /dev/cam/ctl Ns Oo Ar pp . Ns Ar vp Oc .
 .It Va iid Ta integer Ta 0 Ta
 Initiator ID to use when sending requests to the CTL port.
+.It Va target Ta Oo Va ID : Oc Ns path Ta Sy /dev/cam/ctl Ta
+The path of a CAM target layer (CTL) device to use:
+.Pa /dev/cam/ctl Ns Oo Ar pp . Ns Ar vp Oc
+Optionally, a numeric target
+.Ar ID
+in the range from 0 to 255 may be specified before the
+.Ar path ,
+separated by a colon.
 .El
+.Pp
+The
+.Va target
+variable may be specified multiple times with different
+.Ar path
+arguments to configure multiple distinct SCSI targets.
+If not explicitly configured, the target
+.Ar ID Ns s
+will be assigned sequentially beginning with the highest target
+.Ar ID
+configured so far, or 0 for the first target configured.
+The target
+.Ar ID Ns s
+must be unique within each virtio-scsi instance.
 .Sh SEE ALSO
 .Xr expand_number 3 ,
 .Xr getaddrinfo 3 ,
