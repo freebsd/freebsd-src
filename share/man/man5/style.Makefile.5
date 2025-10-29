@@ -1,7 +1,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-3-Clause
 .\"
-.\" Copyright (c) 2002-2003, 2023 David O'Brien <obrien@FreeBSD.org>
+.\" Copyright (c) 2002-2003, 2023, 2025 David O'Brien <deo@NUXI.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 17, 2023
+.Dd October 29, 2025
 .Dt STYLE.MAKEFILE 5
 .Os
 .Sh NAME
@@ -179,6 +179,21 @@ settings between the
 and
 .Fl I Ns 's.
 .It
+Lists that span more than one line should be formatted as follows:
+.Bd -literal -offset indent
+SRCS+=<SP>\\
+<TAB>main.c<SP>\\
+<TAB>trace.c<SP>\\
+<TAB>zoo.c \\
+\&
+.Ed
+Specifically, the last item in the list should have a trailing '\\'.
+This is to avoid causing a "false diff" or "false blame" when
+a new item is appended at the end.
+In general the list should be English language alphabetized.
+A list of libraries or header inclusion paths are notable exceptions
+if needed for proper building.
+.It
 Do not use GCCisms (such as
 .Fl g
 and
@@ -233,9 +248,6 @@ For variables that are only checked with
 .Fn defined ,
 do not provide any fake value.
 .El
-.Pp
-The desire to express a logical grouping often means not obeying some of the
-above.
 .Sh EXAMPLES
 The simplest program
 .Pa Makefile
@@ -270,5 +282,7 @@ manual page and first appeared in
 .An David O'Brien Aq deo@NUXI.org
 .Sh BUGS
 There are few hard and fast style rules here.
+The desire to express a logical grouping sometimes means not obeying some of the
+above.
 The style of many things is too dependent on the context of the whole makefile,
 or the lines surrounding it.
