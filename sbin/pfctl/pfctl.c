@@ -2618,6 +2618,8 @@ pfctl_apply_limit(struct pfctl *pf, const char *opt, unsigned int limit)
 int
 pfctl_load_limit(struct pfctl *pf, unsigned int index, unsigned int limit)
 {
+	static int restore_limit_handler_armed = 0;
+
 	if (pfctl_set_limit(pf->h, index, limit)) {
 		if (errno == EBUSY)
 			warnx("Current pool size exceeds requested %s limit %u",
@@ -2626,6 +2628,9 @@ pfctl_load_limit(struct pfctl *pf, unsigned int index, unsigned int limit)
 			warnx("Cannot set %s limit to %u",
 			    pf_limits[index].name, limit);
 		return (1);
+	} else if (restore_limit_handler_armed == 0) {
+		atexit(pfctl_restore_limits);
+		restore_limit_handler_armed = 1;
 	}
 	return (0);
 }
@@ -3474,7 +3479,6 @@ main(int argc, char *argv[])
 
 	if ((opts & PF_OPT_NOACTION) == 0) {
 		pfctl_read_limits(pfh);
-		atexit(pfctl_restore_limits);
 	}
 
 	if (opts & PF_OPT_DISABLE)
