@@ -322,6 +322,7 @@ nhi_detach(struct nhi_softc *sc)
 	tbdev_remove_interface(sc);
 
 	nhi_pci_disable_interrupts(sc);
+	nhi_pci_free_interrupts(sc);
 
 	nhi_free_ring0(sc);
 
