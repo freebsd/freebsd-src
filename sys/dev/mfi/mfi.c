@@ -2829,7 +2829,7 @@ mfi_check_command_post(struct mfi_softc *sc, struct mfi_command *cm)
 			if (ld->ld_id == cm->cm_frame->dcmd.mbox[0])
 				break;
 		}
-		KASSERT(ld != NULL, ("volume dissappeared"));
+		KASSERT(ld != NULL, ("volume disappeared"));
 		if (cm->cm_frame->header.cmd_status == MFI_STAT_OK) {
 			mtx_unlock(&sc->mfi_io_lock);
 			bus_topo_lock();
