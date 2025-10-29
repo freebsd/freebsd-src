@@ -1236,15 +1236,19 @@ racct_updatepcpu_containers(void)
 	    racct_updatepcpu_post, NULL, NULL);
 }
 
+static bool
+racct_proc_to_skip(const struct proc *p)
+{
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	return (p->p_state != PRS_NORMAL || (p->p_flag & P_IDLEPROC) != 0);
+}
+
 static void
 racctd(void)
 {
 	struct proc *p;
-	struct proc *idle;
 
 	ASSERT_RACCT_ENABLED();
-
-	idle = STAILQ_FIRST(&cpuhead)->pc_idlethread->td_proc;
 
 	for (;;) {
 		racct_decay();
@@ -1253,12 +1257,7 @@ racctd(void)
 
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
-			if (p == idle) {
-				PROC_UNLOCK(p);
-				continue;
-			}
-			if (p->p_state != PRS_NORMAL ||
-			    (p->p_flag & P_IDLEPROC) != 0) {
+			if (racct_proc_to_skip(p)) {
 				PROC_UNLOCK(p);
 				continue;
 			}
@@ -1284,7 +1283,7 @@ racctd(void)
 		 */
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
-			if (p->p_state != PRS_NORMAL) {
+			if (racct_proc_to_skip(p)) {
 				PROC_UNLOCK(p);
 				continue;
 			}
