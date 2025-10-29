@@ -364,7 +364,7 @@ max77620_get_sel(struct max77620_reg_sc *sc, uint8_t *sel)
 
 	rv = RD1(sc->base_sc, sc->def->volt_reg, sel);
 	if (rv != 0) {
-		printf("%s: cannot read volatge selector: %d\n",
+		printf("%s: cannot read voltage selector: %d\n",
 		    regnode_get_name(sc->regnode), rv);
 		return (rv);
 	}
@@ -384,7 +384,7 @@ max77620_set_sel(struct max77620_reg_sc *sc, uint8_t sel)
 	rv = RM1(sc->base_sc, sc->def->volt_reg,
 	    sc->def->volt_vsel_mask, sel);
 	if (rv != 0) {
-		printf("%s: cannot set volatge selector: %d\n",
+		printf("%s: cannot set voltage selector: %d\n",
 		    regnode_get_name(sc->regnode), rv);
 		return (rv);
 	}
