@@ -982,6 +982,8 @@ sys_setuid(struct thread *td, struct setuid_args *uap)
 	proc_set_cred(p, newcred);
 #ifdef RACCT
 	racct_proc_ucred_changed(p, oldcred, newcred);
+#endif
+#ifdef RCTL
 	crhold(newcred);
 #endif
 	PROC_UNLOCK(p);
@@ -1390,6 +1392,8 @@ sys_setreuid(struct thread *td, struct setreuid_args *uap)
 	proc_set_cred(p, newcred);
 #ifdef RACCT
 	racct_proc_ucred_changed(p, oldcred, newcred);
+#endif
+#ifdef RCTL
 	crhold(newcred);
 #endif
 	PROC_UNLOCK(p);
@@ -1536,6 +1540,8 @@ sys_setresuid(struct thread *td, struct setresuid_args *uap)
 	proc_set_cred(p, newcred);
 #ifdef RACCT
 	racct_proc_ucred_changed(p, oldcred, newcred);
+#endif
+#ifdef RCTL
 	crhold(newcred);
 #endif
 	PROC_UNLOCK(p);
