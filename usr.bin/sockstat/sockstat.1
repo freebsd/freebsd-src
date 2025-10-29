@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 14, 2025
+.Dd October 29, 2025
 .Dt SOCKSTAT 1
 .Os
 .Sh NAME
@@ -35,6 +35,7 @@
 .Nm
 .Op Fl -libxo
 .Op Fl 46AbCcfIiLlnqSsUuvw
+.Op Fl F Ar user
 .Op Fl j Ar jail
 .Op Fl p Ar ports
 .Op Fl P Ar protocols
@@ -73,6 +74,10 @@ Display the congestion control module, if applicable.
 This is currently only implemented for TCP.
 .It Fl c
 Show connected sockets.
+.It Fl F Ar user
+Show sockets for specified
+.Ar user
+(user name or UID) only.
 .It Fl f
 Show the FIB number of each socket.
 .It Fl I
