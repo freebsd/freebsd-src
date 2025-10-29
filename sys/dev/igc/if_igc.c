@@ -2816,7 +2816,7 @@ igc_add_hw_stats(struct igc_softc *sc)
 	    "Oversized Packets Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_jabber",
 	    CTLFLAG_RD, &sc->stats.rjc,
-	    "Recevied Jabber");
+	    "Received Jabber");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_errs",
 	    CTLFLAG_RD, &sc->stats.rxerrc,
 	    "Receive Errors");
