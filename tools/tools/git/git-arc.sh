@@ -242,7 +242,7 @@ title2diff()
 {
     local title
 
-    title=$(echo $1 | sed 's/"/\\"/g')
+    title=$(echo "$1" | sed 's/"/\\"/g')
     arc_list --no-ansi |
         awk -F': ' '{
             if (substr($0, index($0, FS) + length(FS)) == "'"$title"'") {
@@ -470,7 +470,7 @@ gitarc__list()
         title=$(git show -s --format=%s "$commit")
         diff=$(echo "$openrevs" | \
             awk -F'D[1-9][0-9]*: ' \
-            '{if ($2 == "'"$(echo $title | sed 's/"/\\"/g')"'") print $0}')
+            '{if ($2 == "'"$(echo "$title" | sed 's/"/\\"/g')"'") print $0}')
         if [ -z "$diff" ]; then
             echo "No Review            : $title"
         elif [ "$(echo "$diff" | wc -l)" -ne 1 ]; then
