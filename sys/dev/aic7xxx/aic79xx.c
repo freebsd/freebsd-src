@@ -2015,7 +2015,7 @@ ahd_handle_lqiphase_error(struct ahd_softc *ahd, u_int lqistat1)
 		ahd_outb(ahd, CLRINT, CLRSCSIINT);
 		ahd_unpause(ahd);
 	} else {
-		printf("Reseting Channel for LQI Phase error\n");
+		printf("Resetting Channel for LQI Phase error\n");
 		AHD_CORRECTABLE_ERROR(ahd);
 		ahd_dump_card_state(ahd);
 		ahd_reset_channel(ahd, 'A', /*Initiate Reset*/TRUE);
@@ -8179,7 +8179,7 @@ ahd_handle_scsi_status(struct ahd_softc *ahd, struct scb *scb)
 					AHD_UNCORRECTABLE_ERROR(ahd);
 					break;
 				case SIU_PFC_TMF_NOT_SUPPORTED:
-					printf("TMF not supportd\n");
+					printf("TMF not supported\n");
 					AHD_UNCORRECTABLE_ERROR(ahd);
 					break;
 				case SIU_PFC_TMF_FAILED:
@@ -8313,7 +8313,7 @@ ahd_handle_scsi_status(struct ahd_softc *ahd, struct scb *scb)
 		break;
 	}
 	case SCSI_STATUS_OK:
-		printf("%s: Interrupted for staus of 0???\n",
+		printf("%s: Interrupted for status of 0???\n",
 		       ahd_name(ahd));
 		/* FALLTHROUGH */
 	default:
