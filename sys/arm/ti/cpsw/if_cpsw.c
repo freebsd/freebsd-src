@@ -1646,7 +1646,7 @@ cpsw_rx_dequeue(struct cpsw_softc *sc)
 
 		port = (bd.flags & CPDMA_BD_PORT_MASK) - 1;
 		KASSERT(port >= 0 && port <= 1,
-		    ("patcket received with invalid port: %d", port));
+		    ("packet received with invalid port: %d", port));
 		psc = device_get_softc(sc->port[port].dev);
 
 		/* Set up mbuf */
