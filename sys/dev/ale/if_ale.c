@@ -813,7 +813,7 @@ ale_sysctl_node(struct ale_softc *sc)
 	/* Misc statistics. */
 	ALE_SYSCTL_STAT_ADD32(ctx, child, "reset_brk_seq",
 	    &stats->reset_brk_seq,
-	    "Controller resets due to broken Rx sequnce number");
+	    "Controller resets due to broken Rx sequence number");
 
 	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "ATE statistics");
