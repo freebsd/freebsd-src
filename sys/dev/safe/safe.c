@@ -424,6 +424,8 @@ safe_attach(device_t dev)
 #ifdef SAFE_DEBUG
 	safec = sc;			/* for use by hw.safe.dump */
 #endif
+	gone_in(16, "%s(4) is deprecated in 15.0 and removed in 16.0\n",
+	    safe_driver.name);
 	return (0);
 bad4:
 	crypto_unregister_all(sc->sc_cid);
