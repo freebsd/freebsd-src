@@ -217,6 +217,7 @@ struct nhi_dispatch {
 int nhi_pci_configure_interrupts(struct nhi_softc *sc);
 void nhi_pci_enable_interrupt(struct nhi_ring_pair *r);
 void nhi_pci_disable_interrupts(struct nhi_softc *sc);
+void nhi_pci_free_interrupts(struct nhi_softc *sc);
 int nhi_pci_get_uuid(struct nhi_softc *sc);
 int nhi_read_lc_mailbox(struct nhi_softc *, u_int reg, uint32_t *val);
 int nhi_write_lc_mailbox(struct nhi_softc *, u_int reg, uint32_t val);
