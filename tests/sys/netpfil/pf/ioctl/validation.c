@@ -928,6 +928,30 @@ ATF_TC_CLEANUP(natlook, tc)
 	COMMON_CLEANUP();
 }
 
+ATF_TC_WITH_CLEANUP(addstate);
+ATF_TC_HEAD(addstate, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+	atf_tc_set_md_var(tc, "require.kmods", "pfsync");
+}
+
+ATF_TC_BODY(addstate, tc)
+{
+	struct pfioc_state st;
+
+	COMMON_HEAD();
+
+	memset(&st, 'a', sizeof(st));
+	st.state.timeout = PFTM_TCP_FIRST_PACKET;
+
+	ATF_CHECK_ERRNO(EINVAL, ioctl(dev, DIOCADDSTATE, &st) == -1);
+}
+
+ATF_TC_CLEANUP(addstate, tc)
+{
+	COMMON_CLEANUP();
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, addtables);
@@ -953,6 +977,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, rpool_mtx);
 	ATF_TP_ADD_TC(tp, rpool_mtx2);
 	ATF_TP_ADD_TC(tp, natlook);
+	ATF_TP_ADD_TC(tp, addstate);
 
 	return (atf_no_error());
 }
