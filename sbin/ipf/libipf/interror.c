@@ -177,6 +177,11 @@ static ipf_error_entry_t ipf_errors[] = {
 	{	149,	"object size validation failed for kernel copyout" },
 	{	150,	"error copying data out for kernel copyout" },
 	{	151,	"version mismatch for kernel copyout" },
+	{	152,	"fr_names offset is wrapped negative" },
+	{	153,	"fr_names larger than fr_namelen" },
+	{	154,	"frentry larger than fr_size" },
+	{	155,	"frentry and fr_namelen mismatch fr_size" },
+	{	156,	"fr_namelen too large" },
 /* -------------------------------------------------------------------------- */
 	{	10001,	"could not find token for auth iterator" },
 	{	10002,	"write permissions require to add/remove auth rule" },

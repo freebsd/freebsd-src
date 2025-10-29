@@ -363,6 +363,10 @@ static ipftuneable_t ipf_main_tuneables[] = {
 		"ip_timeout",		1,	0x7fffffff,
 		stsizeof(ipf_main_softc_t, ipf_iptimeout),
 		0,			NULL,	ipf_settimeout },
+	{ { (void *)offsetof(ipf_main_softc_t, ipf_max_namelen) },
+		"max_namelen",		0,	0x7fffffff,
+		stsizeof(ipf_main_softc_t, ipf_max_namelen),
+		0,			NULL,	NULL },
 #if defined(INSTANCES) && defined(_KERNEL)
 	{ { (void *)offsetof(ipf_main_softc_t, ipf_get_loopback) },
 		"intercept_loopback",	0,	1,
@@ -4399,7 +4403,8 @@ int
 frrequest(ipf_main_softc_t *softc, int unit, ioctlcmd_t req, caddr_t data,
 	int set, int makecopy)
 {
-	int error = 0, in, family, need_free = 0;
+	int error = 0, in, family, need_free = 0, interr, i;
+	int interr_tbl[3] = { 152, 156, 153};
 	enum {	OP_ADD,		/* add rule */
 		OP_REM,		/* remove rule */
 		OP_ZERO 	/* zero statistics and counters */ }
@@ -4408,7 +4413,9 @@ frrequest(ipf_main_softc_t *softc, int unit, ioctlcmd_t req, caddr_t data,
 	void *ptr, *uptr;
 	u_int *p, *pp;
 	frgroup_t *fg;
-	char *group;
+	char *group, *name;
+	size_t v_fr_size, v_element_size;
+	int v_rem_namelen, v_fr_toend;
 
 	ptr = NULL;
 	fg = NULL;
@@ -4421,6 +4428,17 @@ frrequest(ipf_main_softc_t *softc, int unit, ioctlcmd_t req, caddr_t data,
 		}
 		if ((fp->fr_type & FR_T_BUILTIN) != 0) {
 			IPFERROR(6);
+			return (EINVAL);
+		}
+		if (fp->fr_size < sizeof(frd)) {
+			return (EINVAL);
+		}
+		if (sizeof(frd) + fp->fr_namelen != fp->fr_size ) {
+			IPFERROR(155);
+			return (EINVAL);
+		}
+		if (fp->fr_namelen < 0 || fp->fr_namelen > softc->ipf_max_namelen) {
+			IPFERROR(156);
 			return (EINVAL);
 		}
 		KMALLOCS(f, frentry_t *, fp->fr_size);
@@ -4449,6 +4467,44 @@ frrequest(ipf_main_softc_t *softc, int unit, ioctlcmd_t req, caddr_t data,
 		fp->fr_ptr = NULL;
 		fp->fr_ref = 0;
 		fp->fr_flags |= FR_COPIED;
+
+		for (i = 0; i <= 3; i++) {
+			if ((interr = ipf_check_names_string(fp->fr_names, fp->fr_namelen, fp->fr_ifnames[i])) != 0) {
+				IPFERROR(interr_tbl[interr-1]);
+				error = EINVAL;
+				goto donenolock;
+			}
+		}
+		if ((interr = ipf_check_names_string(fp->fr_names, fp->fr_namelen, fp->fr_comment)) != 0) {
+			IPFERROR(interr_tbl[interr-1]);
+			error = EINVAL;
+			goto donenolock;
+		}
+		if ((interr = ipf_check_names_string(fp->fr_names, fp->fr_namelen, fp->fr_group)) != 0) {
+			IPFERROR(interr_tbl[interr-1]);
+			error = EINVAL;
+			goto donenolock;
+		}
+		if ((interr = ipf_check_names_string(fp->fr_names, fp->fr_namelen, fp->fr_grhead)) != 0) {
+			IPFERROR(interr_tbl[interr-1]);
+			error = EINVAL;
+			goto donenolock;
+		}
+		if ((interr = ipf_check_names_string(fp->fr_names, fp->fr_namelen, fp->fr_tif.fd_name)) != 0) {
+			IPFERROR(interr_tbl[interr-1]);
+			error = EINVAL;
+			goto donenolock;
+		}
+		if ((interr = ipf_check_names_string(fp->fr_names, fp->fr_namelen, fp->fr_rif.fd_name)) != 0) {
+			IPFERROR(interr_tbl[interr-1]);
+			error = EINVAL;
+			goto donenolock;
+		}
+		if ((interr = ipf_check_names_string(fp->fr_names, fp->fr_namelen, fp->fr_dif.fd_name)) != 0) {
+			IPFERROR(interr_tbl[interr-1]);
+			error = EINVAL;
+			goto donenolock;
+		}
 	} else {
 		fp = (frentry_t *)data;
 		if ((fp->fr_type & FR_T_BUILTIN) == 0) {
@@ -9040,6 +9096,7 @@ ipf_main_soft_create(void *arg)
 #endif
 	softc->ipf_minttl = 4;
 	softc->ipf_icmpminfragmtu = 68;
+	softc->ipf_max_namelen = 128;
 	softc->ipf_flags = IPF_LOGGING;
 
 #ifdef LARGE_NAT

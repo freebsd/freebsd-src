@@ -1529,6 +1529,7 @@ typedef struct ipf_main_softc_s {
 	int		ipf_pass;
 	int		ipf_minttl;
 	int		ipf_icmpminfragmtu;
+	int		ipf_max_namelen;
 	int		ipf_interror;	/* Should be in a struct that is per  */
 					/* thread or process. Does not belong */
 					/* here but there's a lot more work   */
