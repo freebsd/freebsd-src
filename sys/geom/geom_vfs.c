@@ -153,7 +153,7 @@ g_vfs_done(struct bio *bip)
 			g_print_bio("g_vfs_done():", bip, "error = %d%s",
 			    bip->bio_error,
 			    bip->bio_error != ENXIO ? "" :
-			    " supressing further ENXIO");
+			    " suppressing further ENXIO");
 		}
 	}
 	bp->b_error = bip->bio_error;
