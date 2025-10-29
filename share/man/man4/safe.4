@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 22, 2024
+.Dd October 31, 2025
 .Dt SAFE 4
 .Os
 .Sh NAME
@@ -57,6 +57,11 @@ In
 .Cd hw.safe.rngbufsize
 .Cd hw.safe.rngmaxalarm
 .Ed
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is deprecated and is scheduled for removal in
+.Fx 16.0 .
 .Sh DESCRIPTION
 The
 .Nm
@@ -128,5 +133,14 @@ packet processing.
 .Xr random 4 ,
 .Xr crypto 7 ,
 .Xr crypto 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.2 .
+It is deprecated in
+.Fx 15.0
+and removed in
+.Fx 16.0 .
 .Sh BUGS
 Public key support is not implemented.
