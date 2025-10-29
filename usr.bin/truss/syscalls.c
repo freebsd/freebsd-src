@@ -403,7 +403,7 @@ static const struct syscall_decode decoded_syscalls[] = {
 	{ .name = "nanosleep", .ret_type = 1, .nargs = 1,
 	  .args = { { Timespec, 0 } } },
 	{ .name = "nmount", .ret_type = 1, .nargs = 3,
-	  .args = { { Ptr, 0 }, { UInt, 1 }, { Mountflags, 2 } } },
+	  .args = { { Iovec | IN, 0 }, { UInt, 1 }, { Mountflags, 2 } } },
 	{ .name = "open", .ret_type = 1, .nargs = 3,
 	  .args = { { Name | IN, 0 }, { Open, 1 }, { Octal, 2 } } },
 	{ .name = "openat", .ret_type = 1, .nargs = 4,
