@@ -1623,7 +1623,7 @@ ses_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 	} else {
 		if (cur_stat <= last_stat)
 			ENC_VLOG(enc, "Status page, exhausted objects before "
-				"exhausing page\n");
+				"exhausting page\n");
 		enc_update_request(enc, SES_PUBLISH_CACHE);
 		err = 0;
 	}
