@@ -3047,6 +3047,8 @@ do_jail_attach(struct thread *td, struct prison *pr, int drflags)
 	setsugid(p);
 #ifdef RACCT
 	racct_proc_ucred_changed(p, oldcred, newcred);
+#endif
+#ifdef RCTL
 	crhold(newcred);
 #endif
 	PROC_UNLOCK(p);
