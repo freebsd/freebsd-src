@@ -202,6 +202,8 @@ struct pci_vtscsi_softc {
 #define	VIRTIO_SCSI_T_TMF_QUERY_TASK		6
 #define	VIRTIO_SCSI_T_TMF_QUERY_TASK_SET 	7
 
+#define	VIRTIO_SCSI_T_TMF_MAX_FUNC		VIRTIO_SCSI_T_TMF_QUERY_TASK_SET
+
 /* command-specific response values */
 #define	VIRTIO_SCSI_S_FUNCTION_COMPLETE		0
 #define	VIRTIO_SCSI_S_FUNCTION_SUCCEEDED	10
@@ -274,6 +276,15 @@ struct pci_vtscsi_req_cmd_wr {
 	uint8_t sense[];
 } __attribute__((packed));
 
+enum pci_vtscsi_walk {
+	PCI_VTSCSI_WALK_CONTINUE = 0,
+	PCI_VTSCSI_WALK_STOP,
+};
+
+typedef enum pci_vtscsi_walk pci_vtscsi_walk_t;
+typedef pci_vtscsi_walk_t pci_vtscsi_walk_request_queue_cb_t(
+    struct pci_vtscsi_queue *, struct pci_vtscsi_request *, void *);
+
 static void *pci_vtscsi_proc(void *);
 static void pci_vtscsi_reset(void *);
 static void pci_vtscsi_neg_features(void *, uint64_t);
@@ -287,11 +298,24 @@ static inline uint8_t pci_vtscsi_get_target(struct pci_vtscsi_softc *,
 static inline uint16_t pci_vtscsi_get_lun(struct pci_vtscsi_softc *,
     const uint8_t *);
 
-static void pci_vtscsi_control_handle(struct pci_vtscsi_softc *, void *, size_t);
+static pci_vtscsi_walk_request_queue_cb_t pci_vtscsi_tmf_handle_abort_task;
+static pci_vtscsi_walk_request_queue_cb_t pci_vtscsi_tmf_handle_abort_task_set;
+static pci_vtscsi_walk_request_queue_cb_t pci_vtscsi_tmf_handle_clear_aca;
+static pci_vtscsi_walk_request_queue_cb_t pci_vtscsi_tmf_handle_clear_task_set;
+static pci_vtscsi_walk_request_queue_cb_t pci_vtscsi_tmf_handle_i_t_nexus_reset;
+static pci_vtscsi_walk_request_queue_cb_t pci_vtscsi_tmf_handle_lun_reset;
+static pci_vtscsi_walk_request_queue_cb_t pci_vtscsi_tmf_handle_query_task;
+static pci_vtscsi_walk_request_queue_cb_t pci_vtscsi_tmf_handle_query_task_set;
+
+static pci_vtscsi_walk_t pci_vtscsi_walk_request_queue(
+    struct pci_vtscsi_queue *, pci_vtscsi_walk_request_queue_cb_t *, void *);
+
 static void pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *,
     struct pci_vtscsi_ctrl_tmf *);
 static void pci_vtscsi_an_handle(struct pci_vtscsi_softc *,
     struct pci_vtscsi_ctrl_an *);
+static void pci_vtscsi_control_handle(struct pci_vtscsi_softc *, void *,
+    size_t);
 
 static struct pci_vtscsi_request *pci_vtscsi_alloc_request(
     struct pci_vtscsi_softc *);
@@ -520,37 +544,269 @@ pci_vtscsi_get_lun(struct pci_vtscsi_softc *sc, const uint8_t *lun)
 	return (((lun[2] << 8) | lun[3]) & 0x3fff);
 }
 
-static void
-pci_vtscsi_control_handle(struct pci_vtscsi_softc *sc, void *buf,
-    size_t bufsize)
+/*
+ * ABORT TASK: Abort the specifed task queued for this LUN.
+ *
+ * We can stop once we have found the specified task queued for this LUN.
+ */
+static pci_vtscsi_walk_t
+pci_vtscsi_tmf_handle_abort_task(struct pci_vtscsi_queue *q,
+    struct pci_vtscsi_request *req, void *arg)
 {
-	struct pci_vtscsi_ctrl_tmf *tmf;
-	struct pci_vtscsi_ctrl_an *an;
-	uint32_t type;
+	struct pci_vtscsi_ctrl_tmf *tmf = arg;
 
-	if (bufsize < sizeof(uint32_t)) {
-		WPRINTF("ignoring truncated control request");
-		return;
-	}
+	assert(tmf->subtype == VIRTIO_SCSI_T_TMF_ABORT_TASK);
 
-	type = *(uint32_t *)buf;
+	if (pci_vtscsi_get_target(q->vsq_sc, tmf->lun) !=
+	    pci_vtscsi_get_target(q->vsq_sc, req->vsr_cmd_rd->lun))
+		return (PCI_VTSCSI_WALK_CONTINUE);
 
-	if (type == VIRTIO_SCSI_T_TMF) {
-		if (bufsize != sizeof(*tmf)) {
-			WPRINTF("ignoring tmf request with size %zu", bufsize);
-			return;
-		}
-		tmf = (struct pci_vtscsi_ctrl_tmf *)buf;
-		pci_vtscsi_tmf_handle(sc, tmf);
-	} else if (type == VIRTIO_SCSI_T_AN_QUERY) {
-		if (bufsize != sizeof(*an)) {
-			WPRINTF("ignoring AN request with size %zu", bufsize);
-			return;
-		}
-		an = (struct pci_vtscsi_ctrl_an *)buf;
-		pci_vtscsi_an_handle(sc, an);
-	}
+	if (pci_vtscsi_get_lun(q->vsq_sc, tmf->lun) !=
+	    pci_vtscsi_get_lun(q->vsq_sc, req->vsr_cmd_rd->lun))
+		return (PCI_VTSCSI_WALK_CONTINUE);
+
+	if (tmf->id != req->vsr_cmd_rd->id)
+		return (PCI_VTSCSI_WALK_CONTINUE);
+
+	req->vsr_cmd_wr->response = VIRTIO_SCSI_S_ABORTED;
+	STAILQ_REMOVE(&q->vsq_requests, req, pci_vtscsi_request, vsr_link);
+	pci_vtscsi_return_request(q, req, 0);
+
+	return (PCI_VTSCSI_WALK_STOP);
 }
+
+/*
+ * ABORT TASK SET: Abort all tasks queued for this LUN.
+ */
+static pci_vtscsi_walk_t
+pci_vtscsi_tmf_handle_abort_task_set(struct pci_vtscsi_queue *q,
+    struct pci_vtscsi_request *req, void *arg)
+{
+	struct pci_vtscsi_ctrl_tmf *tmf = arg;
+
+	assert(tmf->subtype == VIRTIO_SCSI_T_TMF_ABORT_TASK_SET);
+
+	if (pci_vtscsi_get_target(q->vsq_sc, tmf->lun) !=
+	    pci_vtscsi_get_target(q->vsq_sc, req->vsr_cmd_rd->lun))
+		return (PCI_VTSCSI_WALK_CONTINUE);
+
+	if (pci_vtscsi_get_lun(q->vsq_sc, tmf->lun) !=
+	    pci_vtscsi_get_lun(q->vsq_sc, req->vsr_cmd_rd->lun))
+		return (PCI_VTSCSI_WALK_CONTINUE);
+
+	req->vsr_cmd_wr->response = VIRTIO_SCSI_S_ABORTED;
+	STAILQ_REMOVE(&q->vsq_requests, req, pci_vtscsi_request, vsr_link);
+	pci_vtscsi_return_request(q, req, 0);
+
+	return (PCI_VTSCSI_WALK_CONTINUE);
+}
+
+/*
+ * CLEAR ACA: Clear ACA (auto contingent allegiance) state.
+ */
+static pci_vtscsi_walk_t
+pci_vtscsi_tmf_handle_clear_aca(struct pci_vtscsi_queue *q __unused,
+    struct pci_vtscsi_request *req __unused, void *arg)
+{
+	struct pci_vtscsi_ctrl_tmf *tmf = arg;
+
+	assert(tmf->subtype == VIRTIO_SCSI_T_TMF_CLEAR_ACA);
+
+	/*
+	 * We don't implement handling of NACA=1 in the CONTROL byte at all.
+	 *
+	 * Thus, we probably should start filtering NORMACA in INQUIRY and
+	 * reject any command that sets NACA=1.
+	 *
+	 * In any case, there isn't anything we need to do with our queued
+	 * requests, so stop right here.
+	 */
+
+	return (PCI_VTSCSI_WALK_STOP);
+}
+
+/*
+ * CLEAR TASK SET: Clear all tasks queued for this LUN.
+ *
+ * All tasks in our queue were placed there by us, so there can be no other
+ * I_T nexus involved. Hence, this is handled the same as ABORT TASK SET.
+ */
+static pci_vtscsi_walk_t
+pci_vtscsi_tmf_handle_clear_task_set(struct pci_vtscsi_queue *q,
+    struct pci_vtscsi_request *req, void *arg)
+{
+	struct pci_vtscsi_ctrl_tmf *tmf = arg;
+
+	assert(tmf->subtype == VIRTIO_SCSI_T_TMF_CLEAR_TASK_SET);
+
+	if (pci_vtscsi_get_target(q->vsq_sc, tmf->lun) !=
+	    pci_vtscsi_get_target(q->vsq_sc, req->vsr_cmd_rd->lun))
+		return (PCI_VTSCSI_WALK_CONTINUE);
+
+	if (pci_vtscsi_get_lun(q->vsq_sc, tmf->lun) !=
+	    pci_vtscsi_get_lun(q->vsq_sc, req->vsr_cmd_rd->lun))
+		return (PCI_VTSCSI_WALK_CONTINUE);
+
+	req->vsr_cmd_wr->response = VIRTIO_SCSI_S_ABORTED;
+	STAILQ_REMOVE(&q->vsq_requests, req, pci_vtscsi_request, vsr_link);
+	pci_vtscsi_return_request(q, req, 0);
+
+	return (PCI_VTSCSI_WALK_CONTINUE);
+}
+
+/*
+ * I_T NEXUS RESET: Abort all tasks queued for any LUN of this target.
+ */
+static pci_vtscsi_walk_t
+pci_vtscsi_tmf_handle_i_t_nexus_reset(struct pci_vtscsi_queue *q,
+    struct pci_vtscsi_request *req, void *arg)
+{
+	struct pci_vtscsi_ctrl_tmf *tmf = arg;
+
+	assert(tmf->subtype == VIRTIO_SCSI_T_TMF_I_T_NEXUS_RESET);
+
+	if (pci_vtscsi_get_target(q->vsq_sc, tmf->lun) !=
+	    pci_vtscsi_get_target(q->vsq_sc, req->vsr_cmd_rd->lun))
+		return (PCI_VTSCSI_WALK_CONTINUE);
+
+	/*
+	 * T10 "06-026r4 SAM-4 TASK ABORTED status clarifications" indicates
+	 * that we should actually return ABORTED here, but other documents
+	 * such as the VirtIO spec suggest RESET.
+	 */
+	req->vsr_cmd_wr->response = VIRTIO_SCSI_S_RESET;
+	STAILQ_REMOVE(&q->vsq_requests, req, pci_vtscsi_request, vsr_link);
+	pci_vtscsi_return_request(q, req, 0);
+
+	return (PCI_VTSCSI_WALK_CONTINUE);
+}
+
+/*
+ * LOGICAL UNIT RESET: Abort all tasks queued for this LUN.
+ */
+static pci_vtscsi_walk_t
+pci_vtscsi_tmf_handle_lun_reset(struct pci_vtscsi_queue *q,
+    struct pci_vtscsi_request *req, void *arg)
+{
+	struct pci_vtscsi_ctrl_tmf *tmf = arg;
+
+	assert(tmf->subtype == VIRTIO_SCSI_T_TMF_LOGICAL_UNIT_RESET);
+
+	if (pci_vtscsi_get_target(q->vsq_sc, tmf->lun) !=
+	    pci_vtscsi_get_target(q->vsq_sc, req->vsr_cmd_rd->lun))
+		return (PCI_VTSCSI_WALK_CONTINUE);
+
+	if (pci_vtscsi_get_lun(q->vsq_sc, tmf->lun) !=
+	    pci_vtscsi_get_lun(q->vsq_sc, req->vsr_cmd_rd->lun))
+		return (PCI_VTSCSI_WALK_CONTINUE);
+
+	/*
+	 * T10 "06-026r4 SAM-4 TASK ABORTED status clarifications" indicates
+	 * that we should actually return ABORTED here, but other documents
+	 * such as the VirtIO spec suggest RESET.
+	 */
+	req->vsr_cmd_wr->response = VIRTIO_SCSI_S_RESET;
+	STAILQ_REMOVE(&q->vsq_requests, req, pci_vtscsi_request, vsr_link);
+	pci_vtscsi_return_request(q, req, 0);
+
+	return (PCI_VTSCSI_WALK_CONTINUE);
+}
+
+/*
+ * QUERY TASK: Is the specified task present in this LUN?
+ *
+ * We can stop once we have found the specified task queued for this LUN.
+ *
+ * Note that this function may cause false negatives under the following
+ * rare circumstances:
+ * (1) the specified task is still in the virtqueue, not yet having been
+ *     processed by pci_vtscsi_requestq_notify()
+ * (2) the specified task was actively being processed by a worker thread
+ *     but not yet processed by CTL by the time the QUERY TASK request was
+ *     handled by CTL
+ *
+ * While a false negative may be confusing for a guest OS looking for the
+ * state of an I/O request it sent, it is not considered a fatal error of
+ * any kind and is easy to recover from. Also, in both of the above cases,
+ * the QUERY TASK TMF request would need to overtake the I/O request in
+ * question, which can only happen if the TMF request is sent immediately
+ * after the I/O request. While it is technically perfectly fine for a
+ * guest to do so, any normal use of QUERY TASK would involve a certain
+ * delay before the TMF request is sent, giving the I/O request time to
+ * be processed.
+ */
+static pci_vtscsi_walk_t
+pci_vtscsi_tmf_handle_query_task(struct pci_vtscsi_queue *q,
+    struct pci_vtscsi_request *req, void *arg)
+{
+	struct pci_vtscsi_ctrl_tmf *tmf = arg;
+
+	assert(tmf->subtype == VIRTIO_SCSI_T_TMF_QUERY_TASK);
+
+	if (pci_vtscsi_get_target(q->vsq_sc, tmf->lun) !=
+	    pci_vtscsi_get_target(q->vsq_sc, req->vsr_cmd_rd->lun))
+		return (PCI_VTSCSI_WALK_CONTINUE);
+
+	if (pci_vtscsi_get_lun(q->vsq_sc, tmf->lun) !=
+	    pci_vtscsi_get_lun(q->vsq_sc, req->vsr_cmd_rd->lun))
+		return (PCI_VTSCSI_WALK_CONTINUE);
+
+	if (tmf->id != req->vsr_cmd_rd->id)
+		return (PCI_VTSCSI_WALK_CONTINUE);
+
+	tmf->response = VIRTIO_SCSI_S_FUNCTION_SUCCEEDED;
+	return (PCI_VTSCSI_WALK_STOP);
+}
+
+/*
+ * QUERY TASK SET: Are there any tasks present in this LUN?
+ *
+ * We can stop as soon as we've found at least one task queued for this LUN.
+ */
+static pci_vtscsi_walk_t
+pci_vtscsi_tmf_handle_query_task_set(struct pci_vtscsi_queue *q,
+    struct pci_vtscsi_request *req, void *arg)
+{
+	struct pci_vtscsi_ctrl_tmf *tmf = arg;
+
+	assert(tmf->subtype == VIRTIO_SCSI_T_TMF_QUERY_TASK_SET);
+
+	if (pci_vtscsi_get_target(q->vsq_sc, tmf->lun) !=
+	    pci_vtscsi_get_target(q->vsq_sc, req->vsr_cmd_rd->lun))
+		return (PCI_VTSCSI_WALK_CONTINUE);
+
+	if (pci_vtscsi_get_lun(q->vsq_sc, tmf->lun) !=
+	    pci_vtscsi_get_lun(q->vsq_sc, req->vsr_cmd_rd->lun))
+		return (PCI_VTSCSI_WALK_CONTINUE);
+
+	tmf->response = VIRTIO_SCSI_S_FUNCTION_SUCCEEDED;
+	return (PCI_VTSCSI_WALK_STOP);
+}
+
+static pci_vtscsi_walk_t
+pci_vtscsi_walk_request_queue(struct pci_vtscsi_queue *q,
+    pci_vtscsi_walk_request_queue_cb_t cb, void *arg)
+{
+	struct pci_vtscsi_request *req, *tmp;
+
+	STAILQ_FOREACH_SAFE(req, &q->vsq_requests, vsr_link, tmp) {
+		if (cb(q, req, arg) == PCI_VTSCSI_WALK_STOP)
+			return (PCI_VTSCSI_WALK_STOP);
+	}
+
+	return (PCI_VTSCSI_WALK_CONTINUE);
+}
+
+static pci_vtscsi_walk_request_queue_cb_t *const pci_vtscsi_tmf_handler_cb[] = {
+	pci_vtscsi_tmf_handle_abort_task,
+	pci_vtscsi_tmf_handle_abort_task_set,
+	pci_vtscsi_tmf_handle_clear_aca,
+	pci_vtscsi_tmf_handle_clear_task_set,
+	pci_vtscsi_tmf_handle_i_t_nexus_reset,
+	pci_vtscsi_tmf_handle_lun_reset,
+	pci_vtscsi_tmf_handle_query_task,
+	pci_vtscsi_tmf_handle_query_task_set
+};
 
 static void
 pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *sc,
@@ -560,6 +816,13 @@ pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *sc,
 	uint8_t target;
 	int err;
 	int fd;
+
+	if (tmf->subtype > VIRTIO_SCSI_T_TMF_MAX_FUNC) {
+		WPRINTF("pci_vtscsi_tmf_handle: invalid subtype %u",
+		    tmf->subtype);
+		tmf->response = VIRTIO_SCSI_S_FUNCTION_REJECTED;
+		return;
+	}
 
 	if (pci_vtscsi_check_lun(sc, tmf->lun) == false) {
 		DPRINTF("TMF request to invalid LUN %.2hhx%.2hhx-%.2hhx%.2hhx-"
@@ -575,13 +838,49 @@ pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *sc,
 
 	fd = sc->vss_targets[target].vst_fd;
 
+	DPRINTF("TMF request tgt %d, lun %d, subtype %d, id %lu",
+	    target, pci_vtscsi_get_lun(sc, tmf->lun), tmf->subtype, tmf->id);
+
+	/*
+	 * Lock out all the worker threads from processing any waiting requests
+	 * while we're processing the TMF request. This also effectively blocks
+	 * pci_vtscsi_requestq_notify() from adding any new requests to the
+	 * request queue. This in turn means we will miss any I/O requests which
+	 * may still be in the virtqueue.
+	 *
+	 * This does not prevent any requests currently being processed by CTL
+	 * from being completed and returned, which we must guarantee to adhere
+	 * to the ordering requirements for any TMF function which aborts tasks.
+	 */
+	for (int i = 0; i < VTSCSI_REQUESTQ; i++) {
+		struct pci_vtscsi_queue *q = &sc->vss_queues[i];
+
+		pthread_mutex_lock(&q->vsq_rmtx);
+	}
+
+	/*
+	 * CTL may set response to FAILURE for the TMF request.
+	 *
+	 * The default response of all TMF functions is FUNCTION COMPLETE if
+	 * there was no error, regardless of whether it actually succeeded or
+	 * not. The two notable exceptions are QUERY TASK and QUERY TASK SET,
+	 * which will explicitly return FUNCTION SUCCEEDED if the specified
+	 * task or any task was active in the target/LUN, respectively.
+	 *
+	 * Thus, we will call CTL first. Only if the response we get is
+	 * FUNCTION COMPLETE we'll continue processing the TMF function
+	 * on our queues. Note that there's a slim chance that we're racing
+	 * against a worker thread that is actively processing an I/O request,
+	 * which may lead to our TMF request being processed by CTL before the
+	 * same I/O request, in which case it won't be on any queue either.
+	 */
 	io = ctl_scsi_alloc_io(sc->vss_iid);
 	if (io == NULL) {
 		WPRINTF("failed to allocate ctl_io: err=%d (%s)",
 		    errno, strerror(errno));
 
 		tmf->response = VIRTIO_SCSI_S_FAILURE;
-		return;
+		goto out;
 	}
 
 	ctl_scsi_zero_io(io);
@@ -636,17 +935,108 @@ pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *sc,
 	}
 
 	err = ioctl(fd, CTL_IO, io);
-	if (err != 0)
+	if (err != 0) {
 		WPRINTF("CTL_IO: err=%d (%s)", errno, strerror(errno));
+		tmf->response = VIRTIO_SCSI_S_FAILURE;
+	} else {
+		tmf->response = io->taskio.task_status;
+	}
 
-	tmf->response = io->taskio.task_status;
 	ctl_scsi_free_io(io);
+
+	if (tmf->response != VIRTIO_SCSI_S_FUNCTION_COMPLETE) {
+		/*
+		 * If this is either a FAILURE or FUNCTION REJECTED, we must
+		 * not continue to process the TMF function on our queued
+		 * requests.
+		 *
+		 * If it is FUNCTION SUCCEEDED, we do not need to process the
+		 * TMF function on our queued requests.
+		 *
+		 * If it is anything else, log a warning, but handle it the
+		 * same as above.
+		 */
+		if (tmf->response != VIRTIO_SCSI_S_FAILURE &&
+		    tmf->response != VIRTIO_SCSI_S_FUNCTION_REJECTED &&
+		    tmf->response != VIRTIO_SCSI_S_FUNCTION_SUCCEEDED) {
+			WPRINTF("pci_vtscsi_tmf_hdl: unexpected response from "
+			    "CTL: %d", tmf->response);
+		}
+	} else {
+		pci_vtscsi_walk_t ret = PCI_VTSCSI_WALK_CONTINUE;
+		int i;
+
+		for (i = 0;
+		    i < VTSCSI_REQUESTQ && ret != PCI_VTSCSI_WALK_STOP;
+		    i++) {
+			struct pci_vtscsi_queue *q = &sc->vss_queues[i];
+
+			ret = pci_vtscsi_walk_request_queue(q,
+			    pci_vtscsi_tmf_handler_cb[tmf->subtype], tmf);
+		}
+	}
+
+out:
+	/* Unlock the request queues before we return. */
+	for (int i = 0; i < VTSCSI_REQUESTQ; i++) {
+		struct pci_vtscsi_queue *q = &sc->vss_queues[i];
+
+		pthread_mutex_unlock(&q->vsq_rmtx);
+	}
 }
 
 static void
-pci_vtscsi_an_handle(struct pci_vtscsi_softc *sc __unused,
-    struct pci_vtscsi_ctrl_an *an __unused)
+pci_vtscsi_an_handle(struct pci_vtscsi_softc *sc, struct pci_vtscsi_ctrl_an *an)
 {
+	int target;
+
+	if (pci_vtscsi_check_lun(sc, an->lun) == false) {
+		DPRINTF("AN request to invalid LUN %.2hhx%.2hhx-%.2hhx%.2hhx-"
+		    "%.2hhx%.2hhx-%.2hhx%.2hhx", an->lun[0], an->lun[1],
+		    an->lun[2], an->lun[3], an->lun[4], an->lun[5], an->lun[6],
+		    an->lun[7]);
+		an->response = VIRTIO_SCSI_S_BAD_TARGET;
+		return;
+	}
+
+	target = pci_vtscsi_get_target(sc, an->lun);
+
+	DPRINTF("AN request tgt %d, lun %d, event requested %x",
+	    target, pci_vtscsi_get_lun(sc, an->lun), an->event_requested);
+
+	an->response = VIRTIO_SCSI_S_FAILURE;
+}
+
+static void
+pci_vtscsi_control_handle(struct pci_vtscsi_softc *sc, void *buf,
+    size_t bufsize)
+{
+	uint32_t type;
+
+	if (bufsize < sizeof(uint32_t)) {
+		WPRINTF("ignoring truncated control request");
+		return;
+	}
+
+	type = *(uint32_t *)buf;
+
+	if (type == VIRTIO_SCSI_T_TMF) {
+		if (bufsize != sizeof(struct pci_vtscsi_ctrl_tmf)) {
+			WPRINTF("ignoring TMF request with size %zu", bufsize);
+			return;
+		}
+
+		pci_vtscsi_tmf_handle(sc, buf);
+	} else if (type == VIRTIO_SCSI_T_AN_QUERY) {
+		if (bufsize != sizeof(struct pci_vtscsi_ctrl_an)) {
+			WPRINTF("ignoring AN request with size %zu", bufsize);
+			return;
+		}
+
+		pci_vtscsi_an_handle(sc, buf);
+	} else {
+		WPRINTF("ignoring unknown control request type = %u", type);
+	}
 }
 
 static struct pci_vtscsi_request *
