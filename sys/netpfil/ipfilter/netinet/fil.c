@@ -9096,6 +9096,7 @@ ipf_main_soft_create(void *arg)
 	softc->ipf_icmpminfragmtu = 68;
 	softc->ipf_max_namelen = 128;
 	softc->ipf_flags = IPF_LOGGING;
+	softc->ipf_jail_allowed = 0;
 
 #ifdef LARGE_NAT
 	softc->ipf_large_nat = 1;
