@@ -4792,6 +4792,17 @@ DIOCCHANGEADDR_error:
 			error = ENODEV;
 			goto fail;
 		}
+		if (strnlen(io->pfrio_table.pfrt_anchor, MAXPATHLEN)
+		    == MAXPATHLEN) {
+			error = EINVAL;
+			goto fail;
+		}
+		if (strnlen(io->pfrio_table.pfrt_name, PF_TABLE_NAME_SIZE)
+		    == PF_TABLE_NAME_SIZE) {
+			error = EINVAL;
+			goto fail;
+		}
+
 		PF_RULES_WLOCK();
 		error = pfr_clr_tables(&io->pfrio_table, &io->pfrio_ndel,
 		    io->pfrio_flags | PFR_FLAG_USERIOCTL);
