@@ -76,7 +76,7 @@ ar5416IQCalibration(struct ath_hal *ah, uint8_t numChains)
 		HALDEBUG(ah, HAL_DEBUG_PERCAL,
 		    "Start IQ Cal and Correction for Chain %d\n", i);
 		HALDEBUG(ah, HAL_DEBUG_PERCAL,
-		    "Orignal: iq_corr_meas = 0x%08x\n", iqCorrMeas);
+		    "Original: iq_corr_meas = 0x%08x\n", iqCorrMeas);
 
 		iqCorrNeg = 0;
 		/* iqCorrMeas is always negative. */ 
