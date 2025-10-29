@@ -2900,7 +2900,7 @@ bwi_plcp_header(const struct ieee80211_rate_table *rt,
 	else if (modtype == IEEE80211_T_DS)
 		bwi_ds_plcp_header(plcp, pkt_len, rate);
 	else
-		panic("unsupport modulation type %u\n", modtype);
+		panic("unsupported modulation type %u\n", modtype);
 }
 
 static int
