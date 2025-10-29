@@ -716,7 +716,7 @@ oce_add_stats_sysctls_be3(POCE_SOFTC sc,
 			"Total Received Bytes");
 	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "total_frags",
 			CTLFLAG_RD, &stats->rx.t_rx_frags, 0,
-			"Total Received Fragements");
+			"Total Received Fragments");
 	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "total_mcast_pkts",
 			CTLFLAG_RD, &stats->rx.t_rx_mcast_pkts, 0,
 			"Total Received Multicast Packets");
@@ -748,7 +748,7 @@ oce_add_stats_sysctls_be3(POCE_SOFTC sc,
 			"Receive Packets");
 		SYSCTL_ADD_QUAD(ctx, queue_stats_list, OID_AUTO, "rx_bytes",
 			CTLFLAG_RD, &sc->rq[i]->rx_stats.rx_bytes,
-			"Recived Bytes");
+			"Received Bytes");
 		SYSCTL_ADD_UINT(ctx, queue_stats_list, OID_AUTO, "rx_frags",
 			CTLFLAG_RD, &sc->rq[i]->rx_stats.rx_frags, 0,
 			"Received Fragments");
@@ -786,7 +786,7 @@ oce_add_stats_sysctls_be3(POCE_SOFTC sc,
 			"ERX Errors");
 	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "alignment_errors",
 			CTLFLAG_RD, &stats->u0.be.rx_drops_too_many_frags, 0,
-			"RX Alignmnet Errors");
+			"RX Alignment Errors");
 	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "in_range_errors",
 			CTLFLAG_RD, &stats->u0.be.rx_in_range_errors, 0,
 			"In Range Errors");
@@ -932,7 +932,7 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 			"Total Received Bytes");
 	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "total_frags",
 			CTLFLAG_RD, &stats->rx.t_rx_frags, 0,
-			"Total Received Fragements");
+			"Total Received Fragments");
 	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "total_mcast_pkts",
 			CTLFLAG_RD, &stats->rx.t_rx_mcast_pkts, 0,
 			"Total Received Multicast Packets");
@@ -961,7 +961,7 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 			"Receive Packets");
 		SYSCTL_ADD_QUAD(ctx, queue_stats_list, OID_AUTO, "rx_bytes",
 			CTLFLAG_RD, &sc->rq[i]->rx_stats.rx_bytes,
-			"Recived Bytes");
+			"Received Bytes");
 		SYSCTL_ADD_UINT(ctx, queue_stats_list, OID_AUTO, "rx_frags",
 			CTLFLAG_RD, &sc->rq[i]->rx_stats.rx_frags, 0,
 			"Received Fragments");
@@ -989,7 +989,7 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 			"CRC Errors");
 	SYSCTL_ADD_UQUAD(ctx, rx_stat_list, OID_AUTO, "alignment_errors",
 			CTLFLAG_RD, &stats->u0.xe201.rx_alignment_errors,
-			"RX Alignmnet Errors");
+			"RX Alignment Errors");
 	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "in_range_errors",
 			CTLFLAG_RD, &stats->u0.xe201.rx_in_range_errors, 0,
 			"In Range Errors");
