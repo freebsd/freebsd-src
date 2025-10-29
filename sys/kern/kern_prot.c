@@ -670,7 +670,7 @@ kern_setcred(struct thread *const td, const u_int flags,
 	gid_t *groups = NULL;
 	gid_t smallgroups[CRED_SMALLGROUPS_NB];
 	int error;
-	bool cred_set;
+	bool cred_set = false;
 
 	/* Bail out on unrecognized flags. */
 	if (flags & ~SETCREDF_MASK)
@@ -821,16 +821,31 @@ kern_setcred(struct thread *const td, const u_int flags,
 	if (cred_set) {
 		setsugid(p);
 		to_free_cred = old_cred;
+#ifdef RACCT
+		racct_proc_ucred_changed(p, old_cred, new_cred);
+#endif
+#ifdef RCTL
+		crhold(new_cred);
+#endif
 		MPASS(error == 0);
 	} else
 		error = EAGAIN;
 
 unlock_finish:
 	PROC_UNLOCK(p);
+
 	/*
 	 * Part 3: After releasing the process lock, we perform cleanups and
 	 * finishing operations.
 	 */
+
+#ifdef RCTL
+	if (cred_set) {
+		rctl_proc_ucred_changed(p, new_cred);
+		/* Paired with the crhold() just above. */
+		crfree(new_cred);
+	}
+#endif
 
 #ifdef MAC
 	if (mac_set_proc_data != NULL)
