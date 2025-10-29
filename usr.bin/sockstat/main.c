@@ -88,6 +88,7 @@ static bool	 opt_A;		/* Show kernel address of pcb */
 static bool	 opt_b;		/* Show BBLog state */
 static bool	 opt_C;		/* Show congestion control */
 static bool	 opt_c;		/* Show connected sockets */
+static bool	 opt_F;		/* Show sockets for selected user only */
 static bool	 opt_f;		/* Show FIB numbers */
 static bool	 opt_I;		/* Show spliced socket addresses */
 static bool	 opt_i;		/* Show inp_gencnt */
@@ -114,6 +115,12 @@ static size_t	   default_numprotos = nitems(default_protos);
 
 static int	*protos;	/* protocols to use */
 static size_t	 numprotos;	/* allocated size of protos[] */
+
+/*
+ * Show sockets for user username or UID specified
+ */
+static char	*filter_user_optarg = NULL;	/* saved optarg for username/UID resolving */
+static uid_t	filter_user_uid;		/* UID to show sockets for */
 
 struct addr {
 	union {
@@ -216,6 +223,18 @@ _enforce_ksize(size_t received_size, size_t expected_size, const char *struct_na
 	}
 }
 #define enforce_ksize(_sz, _struct)	(_enforce_ksize(_sz, sizeof(_struct), #_struct))
+
+static inline bool
+filtered_uid(uid_t i_uid)
+{
+	return ((i_uid) == filter_user_uid);
+}
+
+static inline bool
+need_nosocks(void)
+{
+	return !(opt_F || (opt_j >= 0));
+}
 
 static int
 get_proto_type(const char *proto)
@@ -758,7 +777,8 @@ gather_inet(int proto)
 		if (sock->socket != 0)
 			RB_INSERT(socks_t, &socks, sock);
 		else
-			SLIST_INSERT_HEAD(&nosocks, sock, socket_list);
+			if (need_nosocks())
+				SLIST_INSERT_HEAD(&nosocks, sock, socket_list);
 	}
 out:
 	free(buf);
@@ -862,6 +882,8 @@ getfiles(void)
 	struct xfile *xfiles;
 	size_t len, olen;
 
+	int filenum = 0;
+
 	olen = len = sizeof(*xfiles);
 	if ((xfiles = malloc(len)) == NULL)
 		xo_err(1, "malloc()");
@@ -880,13 +902,22 @@ getfiles(void)
 	if ((files = malloc(nfiles * sizeof(struct file))) == NULL)
 		xo_err(1, "malloc()");
 
+	/* Fill files structure, optionally for specified user */
 	for (int i = 0; i < nfiles; i++) {
-		files[i].xf_data = xfiles[i].xf_data;
-		files[i].xf_pid = xfiles[i].xf_pid;
-		files[i].xf_uid = xfiles[i].xf_uid;
-		files[i].xf_fd = xfiles[i].xf_fd;
-		RB_INSERT(files_t, &ftree, &files[i]);
+		if (opt_F && !filtered_uid(xfiles[i].xf_uid))
+				continue;
+		files[filenum].xf_data = xfiles[i].xf_data;
+		files[filenum].xf_pid = xfiles[i].xf_pid;
+		files[filenum].xf_uid = xfiles[i].xf_uid;
+		files[filenum].xf_fd = xfiles[i].xf_fd;
+		RB_INSERT(files_t, &ftree, &files[filenum]);
+		filenum++;
 	}
+
+	/* Adjust global nfiles to match the number of files we
+	 * actually filled into files[] array
+	 */
+	nfiles = filenum;
 
 	free(xfiles);
 }
@@ -1584,6 +1615,24 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 static void
 display(void)
 {
+	static const char *__HDR_USER="USER",
+			  *__HDR_COMMAND="COMMAND",
+			  *__HDR_PID="PID",
+			  *__HDR_FD="FD",
+			  *__HDR_PROTO="PROTO",
+			  *__HDR_LOCAL_ADDRESS="LOCAL ADDRESS",
+			  *__HDR_FOREIGN_ADDRESS="FOREIGN ADDRESS",
+			  *__HDR_PCB_KVA="PCB KVA",
+			  *__HDR_FIB="FIB",
+			  *__HDR_SPLICE_ADDRESS="SPLICE ADDRESS",
+			  *__HDR_ID="ID",
+			  *__HDR_ENCAPS="ENCAPS",
+			  *__HDR_PATH_STATE="PATH STATE",
+			  *__HDR_CONN_STATE="CONN STATE",
+			  *__HDR_BBLOG_STATE="BBLOG STATE",
+			  *__HDR_STACK="STACK",
+			  *__HDR_CC="CC";
+
 	struct passwd *pwd;
 	struct file *xf;
 	struct sock *s;
@@ -1598,23 +1647,23 @@ display(void)
 
 	if (!is_xo_style_encoding) {
 		cw = (struct col_widths) {
-			.user = strlen("USER"),
+			.user = strlen(__HDR_USER),
 			.command = 10,
-			.pid = strlen("PID"),
-			.fd = strlen("FD"),
-			.proto = strlen("PROTO"),
-			.local_addr = opt_w ? strlen("LOCAL ADDRESS") : 21,
-			.foreign_addr = opt_w ? strlen("FOREIGN ADDRESS") : 21,
+			.pid = strlen(__HDR_PID),
+			.fd = strlen(__HDR_FD),
+			.proto = strlen(__HDR_PROTO),
+			.local_addr = opt_w ? strlen(__HDR_LOCAL_ADDRESS) : 21,
+			.foreign_addr = opt_w ? strlen(__HDR_FOREIGN_ADDRESS) : 21,
 			.pcb_kva = 18,
-			.fib = strlen("FIB"),
-			.splice_address = strlen("SPLICE ADDRESS"),
-			.inp_gencnt = strlen("ID"),
-			.encaps = strlen("ENCAPS"),
-			.path_state = strlen("PATH STATE"),
-			.conn_state = strlen("CONN STATE"),
-			.bblog_state = strlen("BBLOG STATE"),
-			.stack = strlen("STACK"),
-			.cc = strlen("CC"),
+			.fib = strlen(__HDR_FIB),
+			.splice_address = strlen(__HDR_SPLICE_ADDRESS),
+			.inp_gencnt = strlen(__HDR_ID),
+			.encaps = strlen(__HDR_ENCAPS),
+			.path_state = strlen(__HDR_PATH_STATE),
+			.conn_state = strlen(__HDR_CONN_STATE),
+			.bblog_state = strlen(__HDR_BBLOG_STATE),
+			.stack = strlen(__HDR_STACK),
+			.cc = strlen(__HDR_CC),
 		};
 		calculate_column_widths(&cw);
 	} else
@@ -1625,34 +1674,34 @@ display(void)
 	xo_open_list("socket");
 	if (!opt_q) {
 		xo_emit("{T:/%-*s} {T:/%-*s} {T:/%*s} {T:/%*s} {T:/%-*s} "
-			"{T:/%-*s} {T:/%-*s}", cw.user, "USER", cw.command,
-			"COMMAND", cw.pid, "PID", cw.fd, "FD", cw.proto,
-			"PROTO", cw.local_addr, "LOCAL ADDRESS",
-			cw.foreign_addr, "FOREIGN ADDRESS");
+			"{T:/%-*s} {T:/%-*s}", cw.user, __HDR_USER, cw.command,
+			__HDR_COMMAND, cw.pid, __HDR_PID, cw.fd, __HDR_FD, cw.proto,
+			__HDR_PROTO, cw.local_addr, __HDR_LOCAL_ADDRESS,
+			cw.foreign_addr, __HDR_FOREIGN_ADDRESS);
 		if (opt_A)
-			xo_emit(" {T:/%-*s}", cw.pcb_kva, "PCB KVA");
+			xo_emit(" {T:/%-*s}", cw.pcb_kva, __HDR_PCB_KVA);
 		if (opt_f)
 			/* RT_MAXFIBS is 65535. */
-			xo_emit(" {T:/%*s}", cw.fib, "FIB");
+			xo_emit(" {T:/%*s}", cw.fib, __HDR_FIB);
 		if (opt_I)
 			xo_emit(" {T:/%-*s}", cw.splice_address,
-			    "SPLICE ADDRESS");
+			    __HDR_SPLICE_ADDRESS);
 		if (opt_i)
-			xo_emit(" {T:/%*s}", cw.inp_gencnt, "ID");
+			xo_emit(" {T:/%*s}", cw.inp_gencnt, __HDR_ID);
 		if (opt_U)
-			xo_emit(" {T:/%*s}", cw.encaps, "ENCAPS");
+			xo_emit(" {T:/%*s}", cw.encaps, __HDR_ENCAPS);
 		if (opt_s) {
 			if (show_path_state)
 				xo_emit(" {T:/%-*s}", cw.path_state,
-				    "PATH STATE");
-			xo_emit(" {T:/%-*s}", cw.conn_state, "CONN STATE");
+				    __HDR_PATH_STATE);
+			xo_emit(" {T:/%-*s}", cw.conn_state, __HDR_CONN_STATE);
 		}
 		if (opt_b)
-			xo_emit(" {T:/%-*s}", cw.bblog_state, "BBLOG STATE");
+			xo_emit(" {T:/%-*s}", cw.bblog_state, __HDR_BBLOG_STATE);
 		if (opt_S)
-			xo_emit(" {T:/%-*s}", cw.stack, "STACK");
+			xo_emit(" {T:/%-*s}", cw.stack, __HDR_STACK);
 		if (opt_C)
-			xo_emit(" {T:/%-*s}", cw.cc, "CC");
+			xo_emit(" {T:/%-*s}", cw.cc, __HDR_CC);
 		xo_emit("\n");
 	}
 	cap_setpassent(cappwd, 1);
@@ -1684,7 +1733,7 @@ display(void)
 			xo_close_instance("socket");
 		}
 	}
-	if (opt_j >= 0)
+	if (!need_nosocks())
 		goto out;
 	SLIST_FOREACH(s, &nosocks, socket_list) {
 		if (!check_ports(s))
@@ -1775,11 +1824,44 @@ jail_getvnet(int jid)
 	return (vnet);
 }
 
+/*
+ * Parse username and/or UID
+ */
+static bool
+parse_filter_user(void)
+{
+	struct passwd *pwd;
+	char *ep;
+	uid_t uid;
+	bool rv = false;
+
+	uid = (uid_t)strtol(filter_user_optarg, &ep, 10);
+
+	/* Open and/or rewind capsicumized password file */
+	cap_setpassent(cappwd, 1);
+
+	if (*ep == '\0') {
+		/* We have an UID specified, check if it's valid */
+		if ((pwd = cap_getpwuid(cappwd, uid)) == NULL) 
+			goto out;
+		filter_user_uid = uid;
+	} else {
+		/* Check if we have a valid username */
+		if ((pwd = cap_getpwnam(cappwd, filter_user_optarg)) == NULL) 
+			goto out;
+		filter_user_uid = pwd->pw_uid;
+	}
+
+	rv = true;
+out:
+	return (rv);
+}
+
 static void
 usage(void)
 {
 	xo_error(
-"usage: sockstat [--libxo ...] [-46AbCcfIiLlnqSsUuvw] [-j jid] [-p ports]\n"
+"usage: sockstat [--libxo ...] [-46AbCcfIiLlnqSsUuvw] [-F uid/username] [-j jid] [-p ports]\n"
 "                [-P protocols]\n");
 	exit(1);
 }
@@ -1789,8 +1871,8 @@ main(int argc, char *argv[])
 {
 	cap_channel_t *capcas;
 	cap_net_limit_t *limit;
-	const char *pwdcmds[] = { "setpassent", "getpwuid" };
-	const char *pwdfields[] = { "pw_name" };
+	const char *pwdcmds[] = { "setpassent", "getpwuid", "getpwnam" };
+	const char *pwdfields[] = { "pw_name", "pw_uid" };
 	int protos_defined = -1;
 	int o, i, err;
 
@@ -1803,7 +1885,7 @@ main(int argc, char *argv[])
 			is_xo_style_encoding = true;
 	}
 	opt_j = -1;
-	while ((o = getopt(argc, argv, "46AbCcfIij:Llnp:P:qSsUuvw")) != -1)
+	while ((o = getopt(argc, argv, "46AbCcF:fIij:Llnp:P:qSsUuvw")) != -1)
 		switch (o) {
 		case '4':
 			opt_4 = true;
@@ -1822,6 +1904,11 @@ main(int argc, char *argv[])
 			break;
 		case 'c':
 			opt_c = true;
+			break;
+		case 'F':
+			/* Save optarg for later use when we enter capabilities mode */
+			filter_user_optarg = optarg;
+			opt_F = true;
 			break;
 		case 'f':
 			opt_f = true;
@@ -1933,6 +2020,9 @@ main(int argc, char *argv[])
 		xo_err(1, "Unable to apply pwd commands limits");
 	if (cap_pwd_limit_fields(cappwd, pwdfields, nitems(pwdfields)) < 0)
 		xo_err(1, "Unable to apply pwd commands limits");
+
+	if (opt_F && !parse_filter_user())
+		xo_errx(1, "Invalid username or UID specified");
 
 	if ((!opt_4 && !opt_6) && protos_defined != -1)
 		opt_4 = opt_6 = true;
