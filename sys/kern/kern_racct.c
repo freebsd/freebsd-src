@@ -1226,6 +1226,13 @@ racct_decay(void)
 	    racct_decay_post, NULL, NULL);
 }
 
+static bool
+racct_proc_to_skip(const struct proc *p)
+{
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	return (p->p_state != PRS_NORMAL || (p->p_flag & P_IDLEPROC) != 0);
+}
+
 static void
 racctd(void)
 {
@@ -1243,8 +1250,7 @@ racctd(void)
 
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
-			if (p->p_state != PRS_NORMAL ||
-			    (p->p_flag & P_IDLEPROC) != 0) {
+			if (racct_proc_to_skip(p)) {
 				if (p->p_state == PRS_ZOMBIE)
 					racct_set(p, RACCT_PCTCPU, 0);
 				PROC_UNLOCK(p);
@@ -1297,7 +1303,7 @@ racctd(void)
 		 */
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
-			if (p->p_state != PRS_NORMAL) {
+			if (racct_proc_to_skip(p)) {
 				PROC_UNLOCK(p);
 				continue;
 			}
