@@ -193,6 +193,37 @@ ATF_TC_CLEANUP(gettables, tc)
 	COMMON_CLEANUP();
 }
 
+ATF_TC_WITH_CLEANUP(clrtables);
+ATF_TC_HEAD(clrtables, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
+ATF_TC_BODY(clrtables, tc)
+{
+	struct pfioc_table io;
+	struct pfr_table tbl;
+	int flags;
+
+	COMMON_HEAD();
+
+	flags = 0;
+
+	memset(&io, '/', sizeof(io));
+	io.pfrio_flags = flags;
+	io.pfrio_buffer = &tbl;
+	io.pfrio_esize = 0;
+	io.pfrio_size = 1;
+
+	if (ioctl(dev, DIOCRCLRTABLES, &io) == 0)
+		atf_tc_fail("Request with unterminated anchor name succeeded");
+}
+
+ATF_TC_CLEANUP(clrtables, tc)
+{
+	COMMON_CLEANUP();
+}
+
 ATF_TC_WITH_CLEANUP(gettstats);
 ATF_TC_HEAD(gettstats, tc)
 {
@@ -923,6 +954,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, addtables);
 	ATF_TP_ADD_TC(tp, deltables);
 	ATF_TP_ADD_TC(tp, gettables);
+	ATF_TP_ADD_TC(tp, clrtables);
 	ATF_TP_ADD_TC(tp, getastats);
 	ATF_TP_ADD_TC(tp, gettstats);
 	ATF_TP_ADD_TC(tp, clrtstats);
