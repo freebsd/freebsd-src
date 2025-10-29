@@ -475,6 +475,9 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 
 	PF_RULES_RASSERT();
 
+	if (strnlen(sp->ifname, IFNAMSIZ) == IFNAMSIZ)
+		return (EINVAL);
+
 	if (sp->creatorid == 0) {
 		if (V_pf_status.debug >= PF_DEBUG_MISC)
 			printf("%s: invalid creator id: %08x\n", __func__,
