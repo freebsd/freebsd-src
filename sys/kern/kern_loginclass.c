@@ -225,6 +225,8 @@ sys_setloginclass(struct thread *td, struct setloginclass_args *uap)
 	proc_set_cred(p, newcred);
 #ifdef RACCT
 	racct_proc_ucred_changed(p, oldcred, newcred);
+#endif
+#ifdef RCTL
 	crhold(newcred);
 #endif
 	PROC_UNLOCK(p);
