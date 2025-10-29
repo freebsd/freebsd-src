@@ -514,7 +514,7 @@ static const struct bsm_errno bsm_errnos[] = {
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	ES("Authenticateion error") },
+	ES("Authentication error") },
 	{ BSM_ERRNO_ENEEDAUTH,
 #ifdef ENEEDAUTH
 	ENEEDAUTH,
