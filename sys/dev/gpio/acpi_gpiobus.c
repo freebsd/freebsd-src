@@ -304,6 +304,12 @@ acpi_gpiobus_attach_aei(struct acpi_gpiobus_softc *sc, ACPI_HANDLE handle)
 		devi->gpiobus.pins[i] = pins[i + 1];
 	free(pins, M_DEVBUF);
 
+	status = AcpiAttachData(aei_handle, acpi_fake_objhandler, child);
+	if (ACPI_FAILURE(status)) {
+		printf("WARNING: Unable to attach object data to %s - %s\n",
+		    acpi_name(aei_handle), AcpiFormatException(status));
+	}
+
 	bus_attach_children(sc->super_sc.sc_busdev);
 }
 
@@ -427,6 +433,16 @@ acpi_gpiobus_child_location(device_t bus, device_t child, struct sbuf *sb)
 	return (0);
 }
 
+static void
+acpi_gpiobus_child_deleted(device_t bus, device_t child)
+{
+	struct acpi_gpiobus_ivar *devi = device_get_ivars(child);
+
+	if (acpi_get_device(devi->handle) == child)
+		AcpiDetachData(devi->handle, acpi_fake_objhandler);
+	gpiobus_child_deleted(bus, child);
+}
+
 static device_method_t acpi_gpiobus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		acpi_gpiobus_probe),
@@ -437,6 +453,7 @@ static device_method_t acpi_gpiobus_methods[] = {
 	DEVMETHOD(bus_read_ivar,	acpi_gpiobus_read_ivar),
 	DEVMETHOD(bus_add_child,	acpi_gpiobus_add_child),
 	DEVMETHOD(bus_child_location,	acpi_gpiobus_child_location),
+	DEVMETHOD(bus_child_deleted,	acpi_gpiobus_child_deleted),
 
 	DEVMETHOD_END
 };
