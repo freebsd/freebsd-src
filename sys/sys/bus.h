@@ -600,6 +600,48 @@ bus_alloc_resource_anywhere(device_t dev, int type, int *rid,
 	return (bus_alloc_resource(dev, type, rid, 0, ~0, count, flags));
 }
 
+/* Compat shims for bus_alloc_resource API. */
+static __inline struct resource *
+bus_alloc_resource_const(device_t dev, int type, int rid, rman_res_t start,
+    rman_res_t end, rman_res_t count, u_int flags)
+{
+	return (bus_alloc_resource(dev, type, &rid, start, end, count, flags));
+}
+
+static __inline struct resource *
+bus_alloc_resource_any_const(device_t dev, int type, int rid, u_int flags)
+{
+	return (bus_alloc_resource(dev, type, &rid, 0, ~0, 1, flags));
+}
+
+static __inline struct resource *
+bus_alloc_resource_anywhere_const(device_t dev, int type, int rid,
+    rman_res_t count, u_int flags)
+{
+	return (bus_alloc_resource(dev, type, &rid, 0, ~0, count, flags));
+}
+
+#define	bus_alloc_resource(dev, type, rid, start, end, count, flags)	\
+	_Generic((rid),							\
+	    int *: bus_alloc_resource,					\
+	    unsigned int *: bus_alloc_resource,				\
+	    default: bus_alloc_resource_const)				\
+	((dev), (type), (rid), (start), (end), (count), (flags))
+
+#define	bus_alloc_resource_any(dev, type, rid, flags)			\
+	_Generic((rid),							\
+	    int *: bus_alloc_resource_any,				\
+	    unsigned int *: bus_alloc_resource_any,			\
+	    default: bus_alloc_resource_any_const)			\
+	((dev), (type), (rid), (flags))
+
+#define	bus_alloc_resource_anywhere(dev, type, rid, count, flags)	\
+	_Generic((rid),							\
+	    int *: bus_alloc_resource_anywhere,				\
+	    unsigned int *: bus_alloc_resource_anywhere,		\
+	    default: bus_alloc_resource_anywhere_const)			\
+	((dev), (type), (rid), (count), (flags))
+
 /* Compat shims for simpler bus resource API. */
 int	bus_adjust_resource_old(device_t child, int type, struct resource *r,
     rman_res_t start, rman_res_t end);
