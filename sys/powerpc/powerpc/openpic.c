@@ -280,17 +280,6 @@ openpic_config(device_t dev, u_int irq, enum intr_trigger trig,
 	openpic_write(sc, OPENPIC_SRC_VECTOR(irq), x);
 }
 
-static int
-openpic_intr(void *arg)
-{
-	device_t dev = (device_t)(arg);
-
-	/* XXX Cascaded PICs do not pass non-NULL trapframes! */
-	openpic_dispatch(dev, NULL);
-
-	return (FILTER_HANDLED);
-}
-
 static void
 openpic_dispatch(device_t dev, struct trapframe *tf)
 {
@@ -309,6 +298,17 @@ openpic_dispatch(device_t dev, struct trapframe *tf)
 			break;
 		powerpc_dispatch_intr(vector, tf);
 	}
+}
+
+static int
+openpic_intr(void *arg)
+{
+	device_t dev = (device_t)(arg);
+
+	/* XXX Cascaded PICs do not pass non-NULL trapframes! */
+	openpic_dispatch(dev, NULL);
+
+	return (FILTER_HANDLED);
 }
 
 void
