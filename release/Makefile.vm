@@ -101,9 +101,12 @@ QEMUTGT=emulator-portinstall
 .endif
 QEMUTGT?=
 
+.if (defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE)) || \
+    (defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES))
 .if (defined(WITHOUT_QEMU) && !defined(NO_ROOT)) || \
   (!defined(WITHOUT_QEMU) && defined(NO_ROOT))
 .error WITHOUT_QEMU requires NO_ROOT (and vice versa)
+.endif
 .endif
 
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
