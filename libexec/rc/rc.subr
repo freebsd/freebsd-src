@@ -121,11 +121,22 @@ dotted=
 dot()
 {
 	local f verify
+	local dot_dir dot_file
 
 	o_verify_set off verify
 	for f in "$@"; do
 		if [ -f $f -a -s $f ]; then
 			dotted="$dotted $f"
+			case $f in
+			*/*)
+				dot_dir=${f%/*}
+				dot_file=${f##*/}
+				;;
+			*)
+				dot_dir=.
+				dot_file=$f
+				;;
+			esac
 			. $f
 		fi
 	done
@@ -152,8 +163,7 @@ vdot()
 	for f in "$@"; do
 		[ -f $f -a -s $f ] || continue
 		if is_verified $f 2> /dev/null; then
-			dotted="$dotted $f"
-			. $f
+			dot $f
 		else
 			rc=80	# EAUTH
 		fi
