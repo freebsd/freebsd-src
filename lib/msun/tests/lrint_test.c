@@ -41,9 +41,9 @@
 #include "test-utils.h"
 
 #define	test(func, x, result, excepts)	do {					\
-	ATF_CHECK(feclearexcept(FE_ALL_EXCEPT) == 0);				\
+	ATF_REQUIRE(feclearexcept(FE_ALL_EXCEPT) == 0);				\
 	long long _r = (func)(x);						\
-	ATF_CHECK_MSG(_r == (result) || fetestexcept(FE_INVALID),		\
+	ATF_REQUIRE_MSG(_r == (result) || fetestexcept(FE_INVALID),		\
 	    #func "(%Lg) returned %lld, expected %lld", (long double)x, _r,	\
 	    (long long)(result));						\
 	CHECK_FP_EXCEPTIONS_MSG(excepts, FE_ALL_EXCEPT & ALL_STD_EXCEPT,	\
@@ -131,6 +131,9 @@ run_tests(void)
 ATF_TC_WITHOUT_HEAD(lrint);
 ATF_TC_BODY(lrint, tc)
 {
+#if defined(__aarch64__) || defined(__riscv)
+	atf_tc_expect_fail("https://bugs.freebsd.org/290099");
+#endif
 	run_tests();
 #ifdef	__i386__
 	fpsetprec(FP_PE);
