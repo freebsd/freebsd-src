@@ -476,3 +476,30 @@ if [ -f "$OBJTOP"/usr.sbin/moused/moused ]; then
 	echo "Removing old moused binary"
         run rm -fv "$OBJTOP"/usr.sbin/moused/moused
 fi
+
+if [ ${MACHINE} = riscv ]; then
+	# 20251031  df21a004be23  libc: scalar strrchr() in RISC-V assembly
+	clean_dep   lib/libc strrchr c
+
+	# 20251031  563efdd3bd5d  libc: scalar memchr() in RISC-V assembly
+	clean_dep   lib/libc memchr c
+
+	# 20251031  40a958d5850d  libc: scalar memset() in RISC-V assembly
+	clean_dep   lib/libc memset c
+
+	# 20251031  e09c1583eddd  libc: scalar strlen() in RISC-V assembly
+	clean_dep   lib/libc strlen c
+
+	# 20251031  25fdd86a4c92  libc: scalar memcpy() in RISC-V assembly
+	clean_dep   lib/libc memcpy c
+
+	# 20251031  5a52f0704435  libc: scalar strnlen() in RISC-V assembly
+	clean_dep   lib/libc strnlen c
+
+	# 20251031  08af0bbc9c7d  libc: scalar strchrnul() in RISC-V assembly
+	clean_dep   lib/libc strchrnul c
+
+	# 20251031  b5dbf3de5611  libc/riscv64: implement bcopy() and bzero() through memcpy() and memset()
+	clean_dep   lib/libc bcopy c "libc.string.bcopy.c"
+	clean_dep   lib/libc bzero c "libc.string.bzero.c"
+fi
