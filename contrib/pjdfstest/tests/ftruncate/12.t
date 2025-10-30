@@ -22,7 +22,7 @@ EFBIG|EINVAL)
 	;;
 *)
 	echo "not ok ${ntest}"
-	ntest=`expr ${ntest} + 1`
+	ntest=$((ntest + 1))
 	;;
 esac
 expect 0 unlink ${n0}

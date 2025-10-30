@@ -27,7 +27,7 @@ while [ ${i} -le ${link_max} ]; do
 	if [ $? -ne 0 ]; then
 		break
 	fi
-	i=`expr $i + 1`
+	i=$((i + 1))
 done
 test_check $i -eq ${link_max}
 
