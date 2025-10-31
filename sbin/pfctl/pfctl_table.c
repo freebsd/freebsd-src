@@ -236,17 +236,8 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 		CREATE_TABLE;
 		if (opts & PF_OPT_VERBOSE)
 			flags |= PFR_FLAG_FEEDBACK;
-		for (;;) {
-			int sz2 = b.pfrb_msize;
-
-			RVTEST(pfr_set_addrs(&table, b.pfrb_caddr, b.pfrb_size,
-			    &sz2, &nadd, &ndel, &nchange, flags));
-			if (sz2 <= b.pfrb_msize) {
-				b.pfrb_size = sz2;
-				break;
-			} else
-				pfr_buf_grow(&b, sz2);
-		}
+		RVTEST(pfr_set_addrs(&table, b.pfrb_caddr, b.pfrb_size,
+		    &nadd, &ndel, &nchange, flags));
 		if (nadd)
 			xprintf(opts, "%d addresses added", nadd);
 		if (ndel)

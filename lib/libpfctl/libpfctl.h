@@ -523,7 +523,10 @@ int	pfctl_table_del_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl,
 	    struct pfr_addr *addr, int size, int *ndel, int flags);
 int	pfctl_table_del_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
 	    *addr, int size, int *ndel, int flags);
-int     pfctl_table_set_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
+int	pfctl_table_set_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl,
+	    struct pfr_addr *addr, int size, int *nadd, int *ndel,
+	    int *nchange, int flags);
+int	pfctl_table_set_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
 	    *addr, int size, int *size2, int *nadd, int *ndel, int *nchange,
 	    int flags);
 int	pfctl_table_get_addrs(int dev, struct pfr_table *tbl, struct pfr_addr

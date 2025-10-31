@@ -2100,6 +2100,7 @@ struct nl_parsed_table_addrs {
 	size_t addr_count;
 	int nadd;
 	int ndel;
+	int nchange;
 };
 #define _OUT(_field)	offsetof(struct pfr_addr, _field)
 static const struct nlattr_parser nla_p_pfr_addr[] = {
@@ -2202,6 +2203,42 @@ pf_handle_table_del_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	ghdr_new->reserved = 0;
 
 	nlattr_add_u32(nw, PF_TA_NBR_DELETED, attrs.ndel);
+
+	if (!nlmsg_end(nw))
+		return (ENOMEM);
+
+	return (error);
+}
+
+static int
+pf_handle_table_set_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct nl_parsed_table_addrs attrs = { 0 };
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &table_addr_parser, npt, &attrs);
+	if (error != 0)
+		return  (error);
+
+	PF_RULES_WLOCK();
+	error = pfr_set_addrs(&attrs.table, &attrs.addrs[0],
+	    attrs.addr_count, NULL, &attrs.nadd, &attrs.ndel, &attrs.nchange,
+	    attrs.flags | PFR_FLAG_USERIOCTL, 0);
+	PF_RULES_WUNLOCK();
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_TABLE_DEL_ADDR;
+	ghdr_new->version = 0;
+	ghdr_new->reserved = 0;
+
+	nlattr_add_u32(nw, PF_TA_NBR_ADDED, attrs.nadd);
+	nlattr_add_u32(nw, PF_TA_NBR_DELETED, attrs.ndel);
+	nlattr_add_u32(nw, PF_TA_NBR_CHANGED, attrs.nchange);
 
 	if (!nlmsg_end(nw))
 		return (ENOMEM);
@@ -2457,6 +2494,13 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_num = PFNL_CMD_TABLE_DEL_ADDR,
 		.cmd_name = "TABLE_DEL_ADDRS",
 		.cmd_cb = pf_handle_table_del_addrs,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_TABLE_SET_ADDR,
+		.cmd_name = "TABLE_SET_ADDRS",
+		.cmd_cb = pf_handle_table_set_addrs,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},

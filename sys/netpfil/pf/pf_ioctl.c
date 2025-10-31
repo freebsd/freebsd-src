@@ -5142,7 +5142,7 @@ DIOCCHANGEADDR_error:
 		error = pfr_set_addrs(&io->pfrio_table, pfras,
 		    io->pfrio_size, &io->pfrio_size2, &io->pfrio_nadd,
 		    &io->pfrio_ndel, &io->pfrio_nchange, io->pfrio_flags |
-		    PFR_FLAG_USERIOCTL, 0);
+		    PFR_FLAG_START | PFR_FLAG_DONE | PFR_FLAG_USERIOCTL, 0);
 		PF_RULES_WUNLOCK();
 		if (error == 0 && io->pfrio_flags & PFR_FLAG_FEEDBACK)
 			error = copyout(pfras, io->pfrio_buffer, totlen);

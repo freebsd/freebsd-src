@@ -110,7 +110,7 @@ int	 pfr_clr_astats(struct pfr_table *, struct pfr_addr *, int, int *, int);
 int	 pfr_clr_addrs(struct pfr_table *, int *, int);
 int	 pfr_add_addrs(struct pfr_table *, struct pfr_addr *, int, int *, int);
 int	 pfr_del_addrs(struct pfr_table *, struct pfr_addr *, int, int *, int);
-int	 pfr_set_addrs(struct pfr_table *, struct pfr_addr *, int, int *,
+int	 pfr_set_addrs(struct pfr_table *, struct pfr_addr *, int,
 	    int *, int *, int *, int);
 int	 pfr_get_addrs(struct pfr_table *, struct pfr_addr *, int *, int);
 int	 pfr_get_astats(struct pfr_table *, struct pfr_astats *, int *, int);
