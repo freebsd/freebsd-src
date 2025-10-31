@@ -49,7 +49,9 @@ CXXFLAGS+= -mretpoline
 LDFLAGS+= -Wl,-zretpolineplt
 .endif
 .else
+.if !defined(_NO_INCLUDE_COMPILERMK)
 .warning Retpoline requested but not supported by compiler or linker
+.endif
 .endif
 .endif
 # LLD sensibly defaults to -znoexecstack, so do the same for BFD
@@ -65,14 +67,18 @@ CFLAGS+= -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clan
 CXXFLAGS+= -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
 .endif
 .else
+.if !defined(_NO_INCLUDE_COMPILERMK)
 .warning InitAll (zeros) requested but not supported by compiler
+.endif
 .endif
 .elif ${MK_INIT_ALL_PATTERN} == "yes"
 .if ${COMPILER_FEATURES:Minit-all}
 CFLAGS+= -ftrivial-auto-var-init=pattern
 CXXFLAGS+= -ftrivial-auto-var-init=pattern
 .else
+.if !defined(_NO_INCLUDE_COMPILERMK)
 .warning InitAll (pattern) requested but not supported by compiler
+.endif
 .endif
 .endif
 
