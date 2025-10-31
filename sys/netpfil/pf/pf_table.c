@@ -399,7 +399,8 @@ pfr_set_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 
 	PF_RULES_WASSERT();
 
-	ACCEPT_FLAGS(flags, PFR_FLAG_DUMMY | PFR_FLAG_FEEDBACK);
+	ACCEPT_FLAGS(flags, PFR_FLAG_START | PFR_FLAG_DONE |
+	    PFR_FLAG_DUMMY | PFR_FLAG_FEEDBACK);
 	if (pfr_validate_table(tbl, ignore_pfrt_flags, flags &
 	    PFR_FLAG_USERIOCTL))
 		return (EINVAL);
@@ -411,7 +412,8 @@ pfr_set_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	tmpkt = pfr_create_ktable(&V_pfr_nulltable, 0, 0);
 	if (tmpkt == NULL)
 		return (ENOMEM);
-	pfr_mark_addrs(kt);
+	if (flags & PFR_FLAG_START)
+		pfr_mark_addrs(kt);
 	SLIST_INIT(&addq);
 	SLIST_INIT(&delq);
 	SLIST_INIT(&changeq);
@@ -444,6 +446,7 @@ pfr_set_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 			}
 			p = pfr_create_kentry(&ad,
 			    (kt->pfrkt_flags & PFR_TFLAG_COUNTERS) != 0);
+			p->pfrke_mark = PFR_FB_ADDED;
 			if (p == NULL)
 				senderr(ENOMEM);
 			if (pfr_route_kentry(tmpkt, p)) {
@@ -459,7 +462,8 @@ _skip:
 		if (flags & PFR_FLAG_FEEDBACK)
 			bcopy(&ad, addr + i, sizeof(ad));
 	}
-	pfr_enqueue_addrs(kt, &delq, &xdel, ENQUEUE_UNMARKED_ONLY);
+	if (flags & PFR_FLAG_DONE)
+		pfr_enqueue_addrs(kt, &delq, &xdel, ENQUEUE_UNMARKED_ONLY);
 	if ((flags & PFR_FLAG_FEEDBACK) && *size2) {
 		if (*size2 < size+xdel) {
 			*size2 = size+xdel;

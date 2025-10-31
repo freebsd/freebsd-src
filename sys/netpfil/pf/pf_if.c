@@ -702,7 +702,7 @@ pfi_table_update(struct pfr_ktable *kt, struct pfi_kkif *kif, uint8_t net,
 	}
 
 	if ((e = pfr_set_addrs(&kt->pfrkt_t, V_pfi_buffer, V_pfi_buffer_cnt, &size2,
-	    NULL, NULL, NULL, 0, PFR_TFLAG_ALLMASK)))
+	    NULL, NULL, NULL, PFR_FLAG_START | PFR_FLAG_DONE, PFR_TFLAG_ALLMASK)))
 		printf("%s: cannot set %d new addresses into table %s: %d\n",
 		    __func__, V_pfi_buffer_cnt, kt->pfrkt_name, e);
 }
