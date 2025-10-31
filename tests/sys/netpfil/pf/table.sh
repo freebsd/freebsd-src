@@ -747,6 +747,67 @@ in_anchor_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "replace" "cleanup"
+replace_head()
+{
+	atf_set descr 'Test table replace command'
+	atf_set require.user root
+}
+
+replace_body()
+{
+	pft_init
+	pwd=$(pwd)
+
+	epair_send=$(vnet_mkepair)
+	ifconfig ${epair_send}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair_send}b
+	jexec alcatraz ifconfig ${epair_send}b 192.0.2.2/24 up
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+	    "table <foo> counters { 192.0.2.1 }" \
+	    "block all" \
+	    "pass in from <foo> to any" \
+	    "pass out from any to <foo>" \
+	    "set skip on lo"
+
+	atf_check -s exit:0 -o ignore ping -c 3 192.0.2.2
+
+	# Replace the address
+	atf_check -s exit:0 -e "match:1 addresses added." -e "match:1 addresses deleted." \
+	    jexec alcatraz pfctl -t foo -T replace 192.0.2.3
+	atf_check -s exit:0 -o "match:192.0.2.3" \
+	    jexec alcatraz pfctl -t foo -T show
+	atf_check -s exit:2 -o ignore ping -c 3 192.0.2.2
+
+	# Negated address
+	atf_check -s exit:0 -e "match:1 addresses changed." \
+	    jexec alcatraz pfctl -t foo -T replace "!192.0.2.3"
+
+	# Now add 500 addresses
+	for i in `seq 1 2`; do
+		for j in `seq 1 250`; do
+			echo "1.${i}.${j}.1" >> ${pwd}/foo.lst
+		done
+	done
+	atf_check -s exit:0 -e "match:500 addresses added." -e "match:1 addresses deleted." \
+	    jexec alcatraz pfctl -t foo -T replace -f ${pwd}/foo.lst
+
+	atf_check -s exit:0 -o "not-match:192.0.2.3" \
+	    jexec alcatraz pfctl -t foo -T show
+
+	# Loading the same list produces no changes.
+	atf_check -s exit:0 -e "match:no changes." \
+	    jexec alcatraz pfctl -t foo -T replace -f ${pwd}/foo.lst
+}
+
+replace_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4_counters"
@@ -765,4 +826,5 @@ atf_init_test_cases()
 	atf_add_test_case "large"
 	atf_add_test_case "show_recursive"
 	atf_add_test_case "in_anchor"
+	atf_add_test_case "replace"
 }
