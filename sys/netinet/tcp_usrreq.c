@@ -3088,13 +3088,17 @@ db_print_bblog_state(int state)
 }
 
 static void
-db_print_tcpcb(struct tcpcb *tp, const char *name, int indent, bool show_bblog)
+db_print_tcpcb(struct tcpcb *tp, const char *name, int indent, bool show_bblog,
+    bool show_inpcb)
 {
 
 	db_print_indent(indent);
 	db_printf("%s at %p\n", name, tp);
 
 	indent += 2;
+
+	if (show_inpcb)
+		db_print_inpcb(tptoinpcb(tp), "t_inpcb", indent);
 
 	db_print_indent(indent);
 	db_printf("t_segq first: %p   t_segqlen: %d   t_dupacks: %d\n",
@@ -3227,33 +3231,36 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent, bool show_bblog)
 DB_SHOW_COMMAND(tcpcb, db_show_tcpcb)
 {
 	struct tcpcb *tp;
-	bool show_bblog;
+	bool show_bblog, show_inpcb;
 
 	if (!have_addr) {
-		db_printf("usage: show tcpcb <addr>\n");
+		db_printf("usage: show tcpcb[/bi] <addr>\n");
 		return;
 	}
 	show_bblog = strchr(modif, 'b') != NULL;
+	show_inpcb = strchr(modif, 'i') != NULL;
 	tp = (struct tcpcb *)addr;
-
-	db_print_tcpcb(tp, "tcpcb", 0, show_bblog);
+	db_print_tcpcb(tp, "tcpcb", 0, show_bblog, show_inpcb);
 }
 
 DB_SHOW_ALL_COMMAND(tcpcbs, db_show_all_tcpcbs)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 	struct inpcb *inp;
-	bool only_locked, show_bblog;
+	struct tcpcb *tp;
+	bool only_locked, show_bblog, show_inpcb;
 
 	only_locked = strchr(modif, 'l') != NULL;
 	show_bblog = strchr(modif, 'b') != NULL;
+	show_inpcb = strchr(modif, 'i') != NULL;
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		CK_LIST_FOREACH(inp, &V_tcbinfo.ipi_listhead, inp_list) {
 			if (only_locked &&
 			    inp->inp_lock.rw_lock == RW_UNLOCKED)
 				continue;
-			db_print_tcpcb(intotcpcb(inp), "tcpcb", 0, show_bblog);
+			tp = intotcpcb(inp);
+			db_print_tcpcb(tp, "tcpcb", 0, show_bblog, show_inpcb);
 			if (db_pager_quit)
 				break;
 		}

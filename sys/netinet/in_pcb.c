@@ -3058,7 +3058,7 @@ db_print_inconninfo(struct in_conninfo *inc, const char *name, int indent)
 	    ntohs(inc->inc_fport));
 }
 
-static void
+void
 db_print_inpflags(int inp_flags)
 {
 	int comma;

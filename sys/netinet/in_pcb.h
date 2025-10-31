@@ -730,6 +730,9 @@ int	in_pcbquery_txrlevel(struct inpcb *, uint32_t *);
 void	in_pcboutput_txrtlmt(struct inpcb *, struct ifnet *, struct mbuf *);
 void	in_pcboutput_eagain(struct inpcb *);
 #endif
+#ifdef DDB
+void	db_print_inpcb(struct inpcb *, const char *, int);
+#endif
 #endif /* _KERNEL */
 
 #endif /* !_NETINET_IN_PCB_H_ */
