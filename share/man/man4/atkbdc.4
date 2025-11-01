@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd February 26, 2023
+.Dd August 29, 2025
 .Dt ATKBDC 4
 .Os
 .Sh NAME
@@ -36,12 +36,17 @@
 .Cd "options KBD_DELAY1=N"
 .Cd "options KBD_DELAY2=N"
 .Cd "options KBDIO_DEBUG=N"
+.Cd "options RESET_DELAY_DIVISION_FACTOR=N"
 .Cd "device atkbdc"
 .Pp
 In
 .Pa /boot/device.hints :
 .Cd hint.atkbdc.0.at="isa"
 .Cd hint.atkbdc.0.port="0x060"
+.Pp
+In
+.Pa /boot/loader.conf :
+.Cd hw.atkbd.short_delay
 .Sh DESCRIPTION
 The keyboard controller
 .Nm
@@ -101,6 +106,21 @@ The default value is 100ms.
 Sets the debug level to
 .Fa N .
 The default value is zero, which suppresses all debugging output.
+.It Em RESET_DELAY_DIVISION_FACTOR=N
+The default value is 40. It is suppose to divide original 200ms delay by 40 and result 5ms delay for modern hardware.
+.El
+.Ss Tunables
+The following tunable can be set at the
+.Xr loader 8
+prompt or in
+.Pa /boot/loader.conf :
+.Bl -tag -width indent
+.It Va hw.atkbd.short_delay
+The default value is one, which enables shorter delays during controller
+initialization.  Setting this to zero restores the original, longer delays.
+Using shorter delays can significantly improve boot time on modern
+systems, but may cause problems on some legacy hardware that requires
+longer timing for reliable operation.
 .El
 .\".Ss Driver Flags
 .\".Sh FILES
@@ -124,3 +144,5 @@ The kbdio module, the
 .Nm
 driver and this manual page were written by
 .An Kazutaka Yokota Aq Mt yokota@FreeBSD.org .
+Then updated by
+.An Lahiru Gunathilake Aq Mt bllgg@FreeBSD.org .
