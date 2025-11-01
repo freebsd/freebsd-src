@@ -243,6 +243,7 @@ struct fuse_data {
 #define FSESS_MNTOPTS_MASK	( \
 	FSESS_DAEMON_CAN_SPY | FSESS_PUSH_SYMLINKS_IN | \
 	FSESS_DEFAULT_PERMISSIONS | FSESS_INTR)
+#define	FSESS_SETXATTR_EXT	  0x8000000 /* extended fuse_setxattr_in */
 
 extern int fuse_data_cache_mode;
 
