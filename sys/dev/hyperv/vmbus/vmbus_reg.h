@@ -82,6 +82,12 @@ struct vmbus_mon_trig {
 #define VMBUS_MONTRIGS_MAX	4
 #define VMBUS_MONTRIG_LEN	32
 
+#ifdef __amd64__
+#define VMBUS_PAGE_SIZE PAGE_SIZE_4K
+#else
+#define VMBUS_PAGE_SIZE PAGE_SIZE
+#endif
+
 struct vmbus_mnf {
 	uint32_t	mnf_state;
 	uint32_t	mnf_rsvd1;
@@ -94,9 +100,9 @@ struct vmbus_mnf {
 
 	struct hyperv_mon_param
 			mnf_param[VMBUS_MONTRIGS_MAX][VMBUS_MONTRIG_LEN];
-	uint8_t		mnf_rsvd4[1984];
+	uint8_t		mnf_rsvd4[VMBUS_PAGE_SIZE - 2112];
 } __packed;
-CTASSERT(sizeof(struct vmbus_mnf) == PAGE_SIZE);
+CTASSERT(sizeof(struct vmbus_mnf) == VMBUS_PAGE_SIZE);
 
 /*
  * Buffer ring
@@ -159,8 +165,8 @@ struct vmbus_bufring {
 		uint32_t value;
 	} br_feature_bits;
 
-	/* Padding to PAGE_SIZE */
-	uint8_t			br_rsvd2[4020];
+	/* Padding to VMBUS_PAGE_SIZE */
+	uint8_t			br_rsvd2[VMBUS_PAGE_SIZE - 76];
 
 	/*
 	 * Total guest to host interrupt count
@@ -174,7 +180,7 @@ struct vmbus_bufring {
 
 	uint8_t			br_data[];
 } __packed;
-CTASSERT(sizeof(struct vmbus_bufring) == PAGE_SIZE);
+CTASSERT(sizeof(struct vmbus_bufring) == VMBUS_PAGE_SIZE);
 
 /*
  * Channel

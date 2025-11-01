@@ -43,18 +43,26 @@ static inline void
 vm_page_dump_add(struct bitset *bitset, vm_paddr_t pa)
 {
 	vm_pindex_t adj;
-	int i;
+	int i, j;
 
 	adj = 0;
 	for (i = 0; dump_avail[i + 1] != 0; i += 2) {
 		if (pa >= dump_avail[i] && pa < dump_avail[i + 1]) {
+
+			for (j = 0; j < PAGE_SIZE / MINIDUMP_PAGE_SIZE; j++) {
+
 			BIT_SET_ATOMIC(vm_page_dump_pages,
-			    (pa >> PAGE_SHIFT) - (dump_avail[i] >> PAGE_SHIFT) +
-			    adj, bitset);
+			    (pa >> MINIDUMP_PAGE_SHIFT) -
+			    (dump_avail[i] >> MINIDUMP_PAGE_SHIFT) + adj,
+			    bitset);
+
+			pa += MINIDUMP_PAGE_SIZE;
+			}
+
 			return;
 		}
-		adj += howmany(dump_avail[i + 1], PAGE_SIZE) -
-		    dump_avail[i] / PAGE_SIZE;
+		adj += howmany(dump_avail[i + 1], MINIDUMP_PAGE_SIZE) -
+		    dump_avail[i] / MINIDUMP_PAGE_SIZE;
 	}
 }
 
@@ -62,18 +70,26 @@ static inline void
 vm_page_dump_drop(struct bitset *bitset, vm_paddr_t pa)
 {
 	vm_pindex_t adj;
-	int i;
+	int i, j;
 
 	adj = 0;
 	for (i = 0; dump_avail[i + 1] != 0; i += 2) {
 		if (pa >= dump_avail[i] && pa < dump_avail[i + 1]) {
+
+			for (j = 0; j < PAGE_SIZE / MINIDUMP_PAGE_SIZE; j++) {
+
 			BIT_CLR_ATOMIC(vm_page_dump_pages,
-			    (pa >> PAGE_SHIFT) - (dump_avail[i] >> PAGE_SHIFT) +
-			    adj, bitset);
+			    (pa >> MINIDUMP_PAGE_SHIFT) -
+			    (dump_avail[i] >> MINIDUMP_PAGE_SHIFT) + adj,
+			    bitset);
+
+			pa += MINIDUMP_PAGE_SIZE;
+			}
+
 			return;
 		}
-		adj += howmany(dump_avail[i + 1], PAGE_SIZE) -
-		    dump_avail[i] / PAGE_SIZE;
+		adj += howmany(dump_avail[i + 1], MINIDUMP_PAGE_SIZE) -
+		    dump_avail[i] / MINIDUMP_PAGE_SIZE;
 	}
 }
 
@@ -83,11 +99,11 @@ vm_page_dump_index_to_pa(int bit)
 	int i, tot;
 
 	for (i = 0; dump_avail[i + 1] != 0; i += 2) {
-		tot = howmany(dump_avail[i + 1], PAGE_SIZE) -
-		    dump_avail[i] / PAGE_SIZE;
+		tot = howmany(dump_avail[i + 1], MINIDUMP_PAGE_SIZE) -
+		    dump_avail[i] / MINIDUMP_PAGE_SIZE;
 		if (bit < tot)
-			return ((vm_paddr_t)bit * PAGE_SIZE +
-			    (dump_avail[i] & ~PAGE_MASK));
+			return ((vm_paddr_t)bit * MINIDUMP_PAGE_SIZE +
+			    (dump_avail[i] & ~MINIDUMP_PAGE_MASK));
 		bit -= tot;
 	}
 	return (0);

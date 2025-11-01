@@ -333,7 +333,8 @@ amd64_mp_alloc_pcpu(void)
 int
 start_all_aps(void)
 {
-	vm_page_t m_boottramp, m_pml4, m_pdp, m_pd[4];
+	vm_page_t m_boottramp;
+	ptpage_t m_pml4, m_pdp, m_pd[4];
 	pml5_entry_t old_pml45;
 	pml4_entry_t *v_pml4;
 	pdp_entry_t *v_pdp;
@@ -355,46 +356,46 @@ start_all_aps(void)
 	/* Create a transient 1:1 mapping of low 4G */
 	if (la57) {
 		m_pml4 = pmap_page_alloc_below_4g(true);
-		v_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pml4));
+		v_pml4 = pmap_ptpage_va(m_pml4);
 	} else {
 		v_pml4 = &kernel_pmap->pm_pmltop[0];
 	}
 	m_pdp = pmap_page_alloc_below_4g(true);
-	v_pdp = (pdp_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pdp));
+	v_pdp = pmap_ptpage_va(m_pdp);
 	m_pd[0] = pmap_page_alloc_below_4g(false);
-	v_pd = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pd[0]));
+	v_pd = pmap_ptpage_va(m_pd[0]);
 	for (i = 0; i < NPDEPG; i++)
 		v_pd[i] = (i << PDRSHIFT) | X86_PG_V | X86_PG_RW | X86_PG_A |
 		    X86_PG_M | PG_PS;
 	m_pd[1] = pmap_page_alloc_below_4g(false);
-	v_pd = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pd[1]));
+	v_pd = pmap_ptpage_va(m_pd[1]);
 	for (i = 0; i < NPDEPG; i++)
 		v_pd[i] = (NBPDP + (i << PDRSHIFT)) | X86_PG_V | X86_PG_RW |
 		    X86_PG_A | X86_PG_M | PG_PS;
 	m_pd[2] = pmap_page_alloc_below_4g(false);
-	v_pd = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pd[2]));
+	v_pd = pmap_ptpage_va(m_pd[2]);
 	for (i = 0; i < NPDEPG; i++)
 		v_pd[i] = (2UL * NBPDP + (i << PDRSHIFT)) | X86_PG_V |
 		    X86_PG_RW | X86_PG_A | X86_PG_M | PG_PS;
 	m_pd[3] = pmap_page_alloc_below_4g(false);
-	v_pd = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pd[3]));
+	v_pd = pmap_ptpage_va(m_pd[3]);
 	for (i = 0; i < NPDEPG; i++)
 		v_pd[i] = (3UL * NBPDP + (i << PDRSHIFT)) | X86_PG_V |
 		    X86_PG_RW | X86_PG_A | X86_PG_M | PG_PS;
-	v_pdp[0] = VM_PAGE_TO_PHYS(m_pd[0]) | X86_PG_V |
+	v_pdp[0] = pmap_ptpage_pa(m_pd[0]) | X86_PG_V |
 	    X86_PG_RW | X86_PG_A | X86_PG_M;
-	v_pdp[1] = VM_PAGE_TO_PHYS(m_pd[1]) | X86_PG_V |
+	v_pdp[1] = pmap_ptpage_pa(m_pd[1]) | X86_PG_V |
 	    X86_PG_RW | X86_PG_A | X86_PG_M;
-	v_pdp[2] = VM_PAGE_TO_PHYS(m_pd[2]) | X86_PG_V |
+	v_pdp[2] = pmap_ptpage_pa(m_pd[2]) | X86_PG_V |
 	    X86_PG_RW | X86_PG_A | X86_PG_M;
-	v_pdp[3] = VM_PAGE_TO_PHYS(m_pd[3]) | X86_PG_V |
+	v_pdp[3] = pmap_ptpage_pa(m_pd[3]) | X86_PG_V |
 	    X86_PG_RW | X86_PG_A | X86_PG_M;
 	old_pml45 = kernel_pmap->pm_pmltop[0];
 	if (la57) {
-		kernel_pmap->pm_pmltop[0] = VM_PAGE_TO_PHYS(m_pml4) |
+		kernel_pmap->pm_pmltop[0] = pmap_ptpage_pa(m_pml4) |
 		    X86_PG_V | X86_PG_RW | X86_PG_A | X86_PG_M;
 	}
-	v_pml4[0] = VM_PAGE_TO_PHYS(m_pdp) | X86_PG_V |
+	v_pml4[0] = pmap_ptpage_pa(m_pdp) | X86_PG_V |
 	    X86_PG_RW | X86_PG_A | X86_PG_M;
 	pmap_invalidate_all(kernel_pmap);
 
@@ -466,12 +467,12 @@ start_all_aps(void)
 	kernel_pmap->pm_pmltop[0] = old_pml45;
 	invlpg(0);
 	if (la57)
-		vm_page_free(m_pml4);
-	vm_page_free(m_pd[3]);
-	vm_page_free(m_pd[2]);
-	vm_page_free(m_pd[1]);
-	vm_page_free(m_pd[0]);
-	vm_page_free(m_pdp);
+		pmap_free_pt_page(NULL, m_pml4, false);
+	pmap_free_pt_page(NULL, m_pd[3], false);
+	pmap_free_pt_page(NULL, m_pd[2], false);
+	pmap_free_pt_page(NULL, m_pd[1], false);
+	pmap_free_pt_page(NULL, m_pd[0], false);
+	pmap_free_pt_page(NULL, m_pdp, false);
 	vm_page_free(m_boottramp);
 
 	/* number of APs actually started */
@@ -715,7 +716,8 @@ void
 smp_masked_invlpg(vm_offset_t addr, pmap_t pmap, smp_invl_cb_t curcpu_cb)
 {
 	if (invlpgb_works && pmap == kernel_pmap) {
-		invlpgb(INVLPGB_GLOB | INVLPGB_VA | trunc_page(addr), 0, 0);
+		KASSERT((addr & PAGE_MASK_PT) == 0, ("unaligned va 0x%lx", addr));
+		invlpgb(INVLPGB_GLOB | INVLPGB_VA | addr, 0, 0);
 		tlbsync();
 		sched_unpin();
 		return;
@@ -737,17 +739,17 @@ smp_masked_invlpg_range(vm_offset_t addr1, vm_offset_t addr2, pmap_t pmap,
 
 		addr1 = trunc_page(addr1);
 		addr2 = round_page(addr2);
-		total = atop(addr2 - addr1);
+		total = atop_pt(addr2 - addr1);
 		for (va = addr1; total > 0;) {
 			if ((va & PDRMASK) != 0 || total < NPDEPG) {
-				cnt = atop(NBPDR - (va & PDRMASK));
+				cnt = atop_pt(NBPDR - (va & PDRMASK));
 				if (cnt > total)
 					cnt = total;
 				if (cnt > invlpgb_maxcnt + 1)
 					cnt = invlpgb_maxcnt + 1;
 				invlpgb(INVLPGB_GLOB | INVLPGB_VA | va, 0,
 				    cnt - 1);
-				va += ptoa(cnt);
+				va += ptoa_pt(cnt);
 				total -= cnt;
 			} else {
 				cnt = total / NPTEPG;
@@ -768,7 +770,7 @@ smp_masked_invlpg_range(vm_offset_t addr1, vm_offset_t addr2, pmap_t pmap,
 	    invl_op_pgrng);
 #ifdef COUNT_XINVLTLB_HITS
 	ipi_range++;
-	ipi_range_size += (addr2 - addr1) / PAGE_SIZE;
+	ipi_range_size += (addr2 - addr1) / PAGE_SIZE_PT;
 #endif
 }
 
@@ -951,7 +953,7 @@ invlrng_handler(vm_offset_t smp_tlb_addr1, vm_offset_t smp_tlb_addr2)
 	addr = smp_tlb_addr1;
 	do {
 		invlpg(addr);
-		addr += PAGE_SIZE;
+		addr += PAGE_SIZE_PT;
 	} while (addr < smp_tlb_addr2);
 }
 
@@ -977,7 +979,7 @@ invlrng_invpcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1,
 	} else {
 		do {
 			invlpg(addr);
-			addr += PAGE_SIZE;
+			addr += PAGE_SIZE_PT;
 		} while (addr < smp_tlb_addr2);
 	}
 	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
@@ -988,7 +990,7 @@ invlrng_invpcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1,
 		d.addr = smp_tlb_addr1;
 		do {
 			invpcid(&d, INVPCID_ADDR);
-			d.addr += PAGE_SIZE;
+			d.addr += PAGE_SIZE_PT;
 		} while (d.addr < smp_tlb_addr2);
 	}
 }
@@ -1011,7 +1013,7 @@ invlrng_pcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1,
 	addr = smp_tlb_addr1;
 	do {
 		invlpg(addr);
-		addr += PAGE_SIZE;
+		addr += PAGE_SIZE_PT;
 	} while (addr < smp_tlb_addr2);
 	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
 	    (ucr3 = smp_tlb_pmap->pm_ucr3) != PMAP_NO_CR3 &&
