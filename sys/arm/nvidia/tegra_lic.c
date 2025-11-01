@@ -37,7 +37,7 @@
 #include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -152,7 +152,7 @@ tegra_lic_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct tegra_lic_sc *sc = device_get_softc(dev);
 
-	PIC_PRE_ITHREAD(sc->parent, isrc);
+	INTR_EVENT_PRE_ITHREAD(sc->parent, isrc);
 }
 
 static void
@@ -160,7 +160,7 @@ tegra_lic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct tegra_lic_sc *sc = device_get_softc(dev);
 
-	PIC_POST_ITHREAD(sc->parent, isrc);
+	INTR_EVENT_POST_ITHREAD(sc->parent, isrc);
 }
 
 static void
@@ -168,7 +168,7 @@ tegra_lic_post_filter(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct tegra_lic_sc *sc = device_get_softc(dev);
 
-	PIC_POST_FILTER(sc->parent, isrc);
+	INTR_EVENT_POST_FILTER(sc->parent, isrc);
 }
 
 #ifdef SMP
@@ -262,6 +262,11 @@ static device_method_t tegra_lic_methods[] = {
 	DEVMETHOD(device_attach,	tegra_lic_attach),
 	DEVMETHOD(device_detach,	tegra_lic_detach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	tegra_lic_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	tegra_lic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	tegra_lic_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_activate_intr,	tegra_lic_activate_intr),
 	DEVMETHOD(pic_disable_intr,	tegra_lic_disable_intr),
@@ -270,16 +275,15 @@ static device_method_t tegra_lic_methods[] = {
 	DEVMETHOD(pic_deactivate_intr,	tegra_lic_deactivate_intr),
 	DEVMETHOD(pic_setup_intr,	tegra_lic_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	tegra_lic_teardown_intr),
-	DEVMETHOD(pic_pre_ithread,	tegra_lic_pre_ithread),
-	DEVMETHOD(pic_post_ithread,	tegra_lic_post_ithread),
-	DEVMETHOD(pic_post_filter,	tegra_lic_post_filter),
 #ifdef SMP
 	DEVMETHOD(pic_bind_intr,	tegra_lic_bind_intr),
 #endif
+
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(lic, tegra_lic_driver, tegra_lic_methods,
-    sizeof(struct tegra_lic_sc));
+PRIVATE_DEFINE_CLASSN(lic, tegra_lic_driver, tegra_lic_methods,
+    sizeof(struct tegra_lic_sc), pic_base_class);
+
 EARLY_DRIVER_MODULE(tegra_lic, simplebus, tegra_lic_driver, NULL, NULL,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE + 1);

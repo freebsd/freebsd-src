@@ -44,7 +44,7 @@
 #include <sys/systm.h>
 #include <sys/sched.h>
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -366,21 +366,21 @@ static device_method_t a10_aintc_methods[] = {
 	DEVMETHOD(device_probe,		a10_aintc_probe),
 	DEVMETHOD(device_attach,	a10_aintc_attach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	a10_intr_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	a10_intr_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	a10_intr_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	a10_intr_disable_intr),
 	DEVMETHOD(pic_enable_intr,	a10_intr_enable_intr),
 	DEVMETHOD(pic_map_intr,		a10_intr_map_intr),
-	DEVMETHOD(pic_post_filter,	a10_intr_post_filter),
-	DEVMETHOD(pic_post_ithread,	a10_intr_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	a10_intr_pre_ithread),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t a10_aintc_driver = {
-	"aintc",
-	a10_aintc_methods,
-	sizeof(struct a10_aintc_softc),
-};
+PRIVATE_DEFINE_CLASSN(aintc, a10_aintc_driver, a10_aintc_methods,
+    sizeof(struct a10_aintc_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(aintc, simplebus, a10_aintc_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_FIRST);
