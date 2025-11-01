@@ -546,7 +546,9 @@ free_pagelist(BULKINFO_T *bi, int actual)
 	pagelist = bi->pagelist;
 
 	vchiq_log_trace(vchiq_arm_log_level,
-		"free_pagelist - %zx, %d (%u bytes @%p)", (size_t)pagelist, actual, pagelist->length, bi->buf);
+	    "free_pagelist - %zx, %d (%lu bytes @%p)",
+	    (size_t)pagelist, (int)actual, (unsigned long)pagelist->length,
+	    bi->buf);
 
 	num_pages =
 		(pagelist->length + pagelist->offset + PAGE_SIZE - 1) /
