@@ -3267,6 +3267,7 @@ mld_init(void *unused __unused)
 	mld_po.ip6po_hbh = &mld_ra.hbh;
 	mld_po.ip6po_prefer_tempaddr = IP6PO_TEMPADDR_NOTPREFER;
 	mld_po.ip6po_flags = IP6PO_DONTFRAG;
+	mld_po.ip6po_valid = IP6PO_VALID_HLIM | IP6PO_VALID_HBH;
 
 	callout_init(&mldslow_callout, 1);
 	callout_reset(&mldslow_callout, hz / MLD_SLOWHZ, mld_slowtimo, NULL);
