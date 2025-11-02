@@ -5452,7 +5452,7 @@ nfsrpc_setaclrpc(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_ACL);
 	(void) nfsv4_fillattr(nd, vp->v_mount, vp, aclp, NULL, NULL, 0,
 	    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0, NULL, false, false,
-	    false, 0);
+	    false, 0, NULL, false);
 	error = nfscl_request(nd, vp, p, cred);
 	if (error)
 		return (error);

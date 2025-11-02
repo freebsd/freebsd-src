@@ -3701,7 +3701,8 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 			if (!error)
 				(void) nfsv4_fillattr(nd, NULL, NULL, NULL, &va,
 				    NULL, 0, &rattrbits, NULL, p, 0, 0, 0, 0,
-				    (uint64_t)0, NULL, false, false, false, 0);
+				    (uint64_t)0, NULL, false, false, false, 0,
+				    NULL, false);
 			break;
 		case NFSV4OP_CBRECALL:
 			NFSCL_DEBUG(4, "cbrecall\n");
