@@ -524,6 +524,9 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_IPV6	0x2
 #define	INP_IPV6PROTO	0x4		/* opened under IPv6 protocol */
 
+/* inp_vflags description for use with printf(9) %b identifier. */
+#define	INP_VFLAGS_BITS	"\20\1INP_IPV4\2INP_IPV6\3INP_IPV6PROTO"
+
 /*
  * Flags for inp_flags.
  */
@@ -566,6 +569,17 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 				 IN6P_DSTOPTS|IN6P_RTHDR|IN6P_RTHDRDSTOPTS|\
 				 IN6P_TCLASS|IN6P_AUTOFLOWLABEL|IN6P_RFC2292|\
 				 IN6P_MTU)
+
+/* inp_flags description for use with printf(9) %b identifier. */
+#define	INP_FLAGS_BITS	"\20" \
+    "\1INP_RECVOPTS\2INP_RECVRETOPTS\3INP_RECVDSTADDR\4INP_HDRINCL" \
+    "\5INP_HIGHPORT\6INP_LOWPORT\7INP_ANONPORT\10INP_RECVIF" \
+    "\11INP_MTUDISC\12INP_FREED\13INP_RECVTTL\14INP_DONTFRAG" \
+    "\15INP_BINDANY\16INP_INHASHLIST\17INP_RECVTOS\20IN6P_IPV6_V6ONLY" \
+    "\21IN6P_PKTINFO\22IN6P_HOPLIMIT\23IN6P_HOPOPTS\24IN6P_DSTOPTS" \
+    "\25IN6P_RTHDR\26IN6P_RTHDRDSTOPTS\27IN6P_TCLASS\30IN6P_AUTOFLOWLABEL" \
+    "\31INP_INLBGROUP\32INP_ONESBCAST\33INP_DROPPED\34INP_SOCKREF" \
+    "\35INP_RESERVED_0\36INP_BOUNDFIB\37IN6P_RFC2292\40IN6P_MTU"
 
 /*
  * Flags for inp_flags2.
