@@ -1583,15 +1583,15 @@ tzdata_is_fresh(void)
 	struct timespec now;
 
 	if (clock_gettime(CLOCK_MONOTONIC, &now) < 0)
-		return 0;
-
-	if ((now.tv_sec - last_checked >= __tz_change_interval) ||
-	    (last_checked > now.tv_sec)) {
-		last_checked = now.tv_sec;
 		return 1;
+
+	if (last_checked == 0 || last_checked > now.tv_sec ||
+	    now.tv_sec - last_checked >= __tz_change_interval) {
+		last_checked = now.tv_sec;
+		return 0;
 	}
 
-	return 0;
+	return 1;
 }
 #endif /* DETECT_TZ_CHANGES */
 
@@ -1642,7 +1642,7 @@ tzset_unlocked_name(char const *name)
       ? lcl_is_set < 0
       : 0 < lcl_is_set && strcmp(lcl_TZname, name) == 0)
 #ifdef DETECT_TZ_CHANGES
-    if (tzdata_is_fresh() == 0)
+    if (tzdata_is_fresh())
 #endif /* DETECT_TZ_CHANGES */
     return;
 # ifdef ALL_STATE
