@@ -252,7 +252,7 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 	struct thread *p = curthread;
 	size_t atsiz;
 	long pathval;
-	bool has_hiddensystem, has_namedattr, xattrsupp;
+	bool has_caseinsensitive, has_hiddensystem, has_namedattr, xattrsupp;
 	uint32_t clone_blksize;
 
 	if (nd->nd_repstat)
@@ -336,6 +336,10 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 				    &pathval) != 0)
 					pathval = 0;
 				clone_blksize = pathval;
+				if (VOP_PATHCONF(vp, _PC_CASE_INSENSITIVE,
+				    &pathval) != 0)
+					pathval = 0;
+				has_caseinsensitive = pathval > 0;
 				mp = vp->v_mount;
 				if (nfsrv_enable_crossmntpt != 0 &&
 				    vp->v_type == VDIR &&
@@ -371,7 +375,8 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 					    isdgram, 1, supports_nfsv4acls,
 					    at_root, mounted_on_fileno,
 					    xattrsupp, has_hiddensystem,
-					    has_namedattr, clone_blksize);
+					    has_namedattr, clone_blksize,
+					    has_caseinsensitive);
 					vfs_unbusy(mp);
 				}
 				vrele(vp);

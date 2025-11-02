@@ -658,7 +658,7 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMECREATE);
 		(void) nfsv4_fillattr(nd, vp->v_mount, vp, NULL, vap, NULL, 0,
 		    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0, NULL,
-		    false, false, false, 0);
+		    false, false, false, 0, NULL, false);
 		break;
 	}
 }
@@ -1706,11 +1706,18 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			attrsum += NFSX_UNSIGNED;
 			break;
 		case NFSATTRBIT_CASEINSENSITIVE:
-			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
 			if (compare) {
 				if (!(*retcmpp)) {
-				    if (*tl != newnfs_false)
-					*retcmpp = NFSERR_NOTSAME;
+					if (vp == NULL || VOP_PATHCONF(vp,
+					    _PC_CASE_INSENSITIVE,
+					    &has_pathconf) != 0)
+						has_pathconf = 0;
+					if ((has_pathconf != 0 &&
+					     *tl != newnfs_true) ||
+					    (has_pathconf == 0 &&
+					    *tl != newnfs_false))
+						*retcmpp = NFSERR_NOTSAME;
 				}
 			} else if (pc != NULL) {
 				pc->pc_caseinsensitive =
@@ -2690,7 +2697,8 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
     nfsattrbit_t *attrbitp, struct ucred *cred, NFSPROC_T *p, int isdgram,
     int reterr, int supports_nfsv4acls, int at_root, uint64_t mounted_on_fileno,
     struct statfs *pnfssf, bool xattrsupp, bool has_hiddensystem,
-    bool has_namedattr, uint32_t clone_blksize)
+    bool has_namedattr, uint32_t clone_blksize, fsid_t *fsidp,
+    bool has_caseinsensitive)
 {
 	int bitpos, retnum = 0;
 	u_int32_t *tl;
@@ -2865,10 +2873,12 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			break;
 		case NFSATTRBIT_FSID:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_V4FSID);
+			if (fsidp == NULL)
+				fsidp = &mp->mnt_stat.f_fsid;
 			*tl++ = 0;
-			*tl++ = txdr_unsigned(mp->mnt_stat.f_fsid.val[0]);
+			*tl++ = txdr_unsigned(fsidp->val[0]);
 			*tl++ = 0;
-			*tl = txdr_unsigned(mp->mnt_stat.f_fsid.val[1]);
+			*tl = txdr_unsigned(fsidp->val[1]);
 			retnum += NFSX_V4FSID;
 			break;
 		case NFSATTRBIT_UNIQUEHANDLES:
@@ -2914,8 +2924,11 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			retnum += NFSX_UNSIGNED;
 			break;
 		case NFSATTRBIT_CASEINSENSITIVE:
-			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			*tl = newnfs_false;
+			NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+			if (has_caseinsensitive)
+				*tl = newnfs_true;
+			else
+				*tl = newnfs_false;
 			retnum += NFSX_UNSIGNED;
 			break;
 		case NFSATTRBIT_CASEPRESERVING:
