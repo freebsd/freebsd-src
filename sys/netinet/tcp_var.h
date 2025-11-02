@@ -795,6 +795,17 @@ tcp_packets_this_ack(struct tcpcb *tp, tcp_seq ack)
 #define	TF_WASCRECOVERY	0x40000000	/* was in congestion recovery */
 #define	TF_FASTOPEN	0x80000000	/* TCP Fast Open indication */
 
+/* t_flags description for use with printf(9) %b identifier. */
+#define	TF_BITS	"\20" \
+    "\1TF_ACKNOW\2TF_DELACK\3TF_NODELAY\4TF_NOOPT" \
+    "\5TF_SENTFIN\6TF_REQ_SCALE\7TF_RCVD_SCALE\10TF_REQ_TSTMP" \
+    "\11TF_RCVD_TSTMP\12TF_SACK_PERMIT\13TF_NEEDSYN\14TF_NEEDFIN" \
+    "\15TF_NOPUSH\16TF_PREVVALID\17TF_WAKESOR\20TF_GPUTINPROG" \
+    "\21TF_MORETOCOME\22TF_SONOTCONN\23TF_LASTIDLE\24TF_RXWIN0SENT" \
+    "\25TF_FASTRECOVERY\26TF_WASFRECOVERY\27TF_SIGNATURE\30TF_FORCEDATA" \
+    "\31TF_TSO\32TF_TOE\33TF_CLOSED\34TF_SENTSYN" \
+    "\35TF_LRD\36TF_CONGRECOVERY\37TF_WASCRECOVERY\40TF_FASTOPEN"
+
 #define	IN_FASTRECOVERY(t_flags)	(t_flags & TF_FASTRECOVERY)
 #define	ENTER_FASTRECOVERY(t_flags)	t_flags |= TF_FASTRECOVERY
 #define	EXIT_FASTRECOVERY(t_flags)	t_flags &= ~TF_FASTRECOVERY
@@ -814,6 +825,9 @@ tcp_packets_this_ack(struct tcpcb *tp, tcp_seq ack)
  */
 #define	TCPOOB_HAVEDATA	0x01
 #define	TCPOOB_HADDATA	0x02
+
+/* t_oobflags description for use with printf(9) %b identifier. */
+#define	TCPOOB_BITS	"\20\1TCPOOB_HAVEDATA\2TCPOOB_HADDATA"
 
 /*
  * Flags for the extended TCP flags field, t_flags2
@@ -841,6 +855,21 @@ tcp_packets_this_ack(struct tcpcb *tp, tcp_seq ack)
 #define	TF2_PROC_SACK_PROHIBIT	0x00100000 /* Due to small MSS size do not process sack's */
 #define	TF2_IPSEC_TSO		0x00200000 /* IPSEC + TSO supported */
 #define	TF2_NO_ISS_CHECK	0x00400000 /* Don't check SEG.ACK against ISS */
+
+/* t_flags2 description for use with printf(9) %b identifier. */
+#define	TF2_BITS	"\20" \
+    "\1TF2_PLPMTU_BLACKHOLE\2TF2_PLPMTU_PMTUD" \
+    "\3TF2_PLPMTU_MAXSEGSNT\4TF2_LOG_AUTO" \
+    "\5TF2_DROP_AF_DATA\6TF2_ECN_PERMIT" \
+    "\7TF2_ECN_SND_CWR\10TF2_ECN_SND_ECE" \
+    "\11TF2_ACE_PERMIT\12TF2_HPTS_CPU_SET" \
+    "\13TF2_FBYTES_COMPLETE\14TF2_ECN_USE_ECT1" \
+    "\15TF2_TCP_ACCOUNTING\16TF2_HPTS_CALLS" \
+    "\17TF2_MBUF_L_ACKS\20TF2_MBUF_ACKCMP" \
+    "\21TF2_SUPPORTS_MBUFQ\22TF2_MBUF_QUEUE_READY" \
+    "\23TF2_DONT_SACK_QUEUE\24TF2_CANNOT_DO_ECN" \
+    "\25TF2_PROC_SACK_PROHIBIT\26TF2_IPSEC_TSO" \
+    "\27TF2_NO_ISS_CHECK"
 
 /*
  * Structure to hold TCP options that are only used during segment
