@@ -2114,7 +2114,7 @@ nfsvno_fillattr(struct nfsrv_descript *nd, struct mount *mp, struct vnode *vp,
     struct ucred *cred, struct thread *p, int isdgram, int reterr,
     int supports_nfsv4acls, int at_root, uint64_t mounted_on_fileno,
     bool xattrsupp, bool has_hiddensystem, bool has_namedattr,
-    uint32_t clone_blksize)
+    uint32_t clone_blksize, bool has_caseinsensitive)
 {
 	struct statfs *sf;
 	int error;
@@ -2135,7 +2135,7 @@ nfsvno_fillattr(struct nfsrv_descript *nd, struct mount *mp, struct vnode *vp,
 	error = nfsv4_fillattr(nd, mp, vp, NULL, &nvap->na_vattr, fhp, rderror,
 	    attrbitp, cred, p, isdgram, reterr, supports_nfsv4acls, at_root,
 	    mounted_on_fileno, sf, xattrsupp, has_hiddensystem, has_namedattr,
-	    clone_blksize);
+	    clone_blksize, NULL, has_caseinsensitive);
 	free(sf, M_TEMP);
 	NFSEXITCODE2(0, nd);
 	return (error);
@@ -2468,7 +2468,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	int bextpg0, bextpg1, bextpgsiz0, bextpgsiz1;
 	size_t atsiz;
 	long pathval;
-	bool has_hiddensystem, has_namedattr, xattrsupp;
+	bool has_caseinsensitive, has_hiddensystem, has_namedattr, xattrsupp;
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
@@ -2949,6 +2949,7 @@ ateof:
 				xattrsupp = false;
 				has_hiddensystem = false;
 				has_namedattr = false;
+				has_caseinsensitive = false;
 				clone_blksize = 0;
 				if (nvp != NULL) {
 					supports_nfsv4acls =
@@ -2978,6 +2979,11 @@ ateof:
 					    &pathval) != 0)
 						pathval = 0;
 					clone_blksize = pathval;
+					if (VOP_PATHCONF(nvp,
+					    _PC_CASE_INSENSITIVE,
+					    &pathval) != 0)
+						pathval = 0;
+					has_caseinsensitive = pathval > 0;
 					NFSVOPUNLOCK(nvp);
 				} else
 					supports_nfsv4acls = 0;
@@ -2999,7 +3005,7 @@ ateof:
 					    supports_nfsv4acls, at_root,
 					    mounted_on_fileno, xattrsupp,
 					    has_hiddensystem, has_namedattr,
-					    clone_blksize);
+					    clone_blksize, has_caseinsensitive);
 				} else {
 					dirlen += nfsvno_fillattr(nd, new_mp,
 					    nvp, nvap, &nfh, r, &attrbits,
@@ -3007,7 +3013,7 @@ ateof:
 					    supports_nfsv4acls, at_root,
 					    mounted_on_fileno, xattrsupp,
 					    has_hiddensystem, has_namedattr,
-					    clone_blksize);
+					    clone_blksize, has_caseinsensitive);
 				}
 				if (nvp != NULL)
 					vrele(nvp);
@@ -6405,7 +6411,7 @@ nfsrv_setacldsdorpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	 * the same type (VREG).
 	 */
 	nfsv4_fillattr(nd, NULL, vp, aclp, NULL, NULL, 0, &attrbits, NULL,
-	    NULL, 0, 0, 0, 0, 0, NULL, false, false, false, 0);
+	    NULL, 0, 0, 0, 0, 0, NULL, false, false, false, 0, NULL, false);
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
 	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 	if (error != 0) {

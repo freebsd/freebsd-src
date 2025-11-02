@@ -4677,12 +4677,13 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 	clone_blksize = 0;
 	if ((NFS_ISV34(vp) && (ap->a_name == _PC_LINK_MAX ||
 	    ap->a_name == _PC_NAME_MAX || ap->a_name == _PC_CHOWN_RESTRICTED ||
-	    ap->a_name == _PC_NO_TRUNC)) ||
+	    ap->a_name == _PC_NO_TRUNC ||
+	    ap->a_name == _PC_CASE_INSENSITIVE)) ||
 	    (NFS_ISV4(vp) && (ap->a_name == _PC_ACL_NFS4 ||
 	     ap->a_name == _PC_HAS_NAMEDATTR ||
 	     ap->a_name == _PC_CLONE_BLKSIZE))) {
 		/*
-		 * Since only the above 4 a_names are returned by the NFSv3
+		 * Since only the above 5 a_names are returned by the NFSv3
 		 * Pathconf RPC, there is no point in doing it for others.
 		 * For NFSv4, the Pathconf RPC (actually a Getattr Op.) can
 		 * be used for _PC_ACL_NFS4, _PC_HAS_NAMEDATTR and
@@ -4848,6 +4849,9 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 		break;
 	case _PC_CLONE_BLKSIZE:
 		*ap->a_retval = clone_blksize;
+		break;
+	case _PC_CASE_INSENSITIVE:
+		*ap->a_retval = pc.pc_caseinsensitive;
 		break;
 
 	default:
