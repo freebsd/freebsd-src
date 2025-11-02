@@ -3068,13 +3068,13 @@ db_print_inpcb(struct inpcb *inp, const char *name, int indent)
 	indent += 2;
 
 	db_print_indent(indent);
-	db_printf("inp_flow: 0x%x\n", inp->inp_flow);
+	db_printf("inp_flow: 0x%x   inp_label: %p\n", inp->inp_flow,
+	    inp->inp_label);
 
 	db_print_inconninfo(&inp->inp_inc, "inp_conninfo", indent);
 
 	db_print_indent(indent);
-	db_printf("inp_label: %p   inp_flags: 0x%b\n",
-	   inp->inp_label, inp->inp_flags, INP_FLAGS_BITS);
+	db_printf("inp_flags: 0x%b\n", inp->inp_flags, INP_FLAGS_BITS);
 
 	db_print_indent(indent);
 	db_printf("inp_sp: %p   inp_vflag: 0x%b\n", inp->inp_sp,
@@ -3084,18 +3084,20 @@ db_print_inpcb(struct inpcb *inp, const char *name, int indent)
 	db_printf("inp_ip_ttl: %d   inp_ip_p: %d   inp_ip_minttl: %d\n",
 	    inp->inp_ip_ttl, inp->inp_ip_p, inp->inp_ip_minttl);
 
-	db_print_indent(indent);
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6) {
+		db_print_indent(indent);
 		db_printf("in6p_options: %p   in6p_outputopts: %p   "
 		    "in6p_moptions: %p\n", inp->in6p_options,
 		    inp->in6p_outputopts, inp->in6p_moptions);
+		db_print_indent(indent);
 		db_printf("in6p_icmp6filt: %p   in6p_cksum %d   "
 		    "in6p_hops %u\n", inp->in6p_icmp6filt, inp->in6p_cksum,
 		    inp->in6p_hops);
 	} else
 #endif
 	{
+		db_print_indent(indent);
 		db_printf("inp_ip_tos: %d   inp_ip_options: %p   "
 		    "inp_ip_moptions: %p\n", inp->inp_ip_tos,
 		    inp->inp_options, inp->inp_moptions);
