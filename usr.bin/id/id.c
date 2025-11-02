@@ -67,19 +67,13 @@ main(int argc, char *argv[])
 {
 	struct group *gr;
 	struct passwd *pw;
-#ifdef USE_BSM_AUDIT
-	bool Aflag;
-#endif
-	bool Gflag, Mflag, Pflag;
+	bool Aflag, Gflag, Mflag, Pflag;
 	bool cflag, dflag, gflag, nflag, pflag, rflag, sflag, uflag;
 	int ch, combo, error, id;
 	const char *myname, *optstr;
 	char loginclass[MAXLOGNAME];
 
-#ifdef USE_BSM_AUDIT
-	Aflag = false;
-#endif
-	Gflag = Mflag = Pflag = false;
+	Aflag = Gflag = Mflag = Pflag = false;
 	cflag = dflag = gflag = nflag = pflag = rflag = sflag = uflag = false;
 
 	myname = getprogname();
