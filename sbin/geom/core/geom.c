@@ -897,23 +897,23 @@ list_one_provider(struct gprovider *pp, const char *padding)
 	struct gconfig *conf;
 	char buf[5];
 
-	xo_emit("{Lcw:Name}{:Name}\n", pp->lg_name);
+	xo_emit("{Lcw:Name}{:name}\n", pp->lg_name);
 	humanize_number(buf, sizeof(buf), (int64_t)pp->lg_mediasize, "",
 	    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
-	xo_emit("{P:/%s}{Lcw:Mediasize}{:Mediasize/%jd} ({N:/%s})\n",
+	xo_emit("{P:/%s}{Lcw:Mediasize}{:mediasize/%jd} ({N:/%s})\n",
 	    padding, (intmax_t)pp->lg_mediasize, buf);
-	xo_emit("{P:/%s}{Lcw:Sectorsize}{:Sectorsize/%u} \n",
+	xo_emit("{P:/%s}{Lcw:Sectorsize}{:sectorsize/%u}\n",
 	    padding, pp->lg_sectorsize);
 	if (pp->lg_stripesize > 0 || pp->lg_stripeoffset > 0) {
-		xo_emit("{P:/%s}{Lcw:Stripesize}{Stripesize/%ju}\n",
+		xo_emit("{P:/%s}{Lcw:Stripesize}{:stripesize/%ju}\n",
 		    padding, pp->lg_stripesize);
-		xo_emit("{P:/%s}{Lcw:Stripeoffset}{Stripeoffset/%ju}\n",
+		xo_emit("{P:/%s}{Lcw:Stripeoffset}{:stripeoffset/%ju}\n",
 		    padding, pp->lg_stripeoffset);
 	}
-	xo_emit("{P:/%s}{Lcw:Mode}{Mode}\n", padding, pp->lg_mode);
+	xo_emit("{P:/%s}{Lcw:Mode}{:mode}\n", padding, pp->lg_mode);
 	LIST_FOREACH(conf, &pp->lg_config, lg_config) {
 		xo_emit("{P:/%s}{Lcwa:}{a:}\n", padding, conf->lg_name,
-		    conf->lg_name, conf->lg_val);
+		    conf->lg_name, conf->lg_val ? conf->lg_val : "");
 	}
 }
 
@@ -929,24 +929,24 @@ list_one_consumer(struct gconsumer *cp, const char *padding)
 	else {
 		char buf[5];
 
-		xo_emit("{Lcw:Name}{:Name}\n", pp->lg_name);
+		xo_emit("{Lcw:Name}{:name}\n", pp->lg_name);
 		humanize_number(buf, sizeof(buf), (int64_t)pp->lg_mediasize, "",
 		    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
-		xo_emit("{P:/%s}{Lcw:Mediasize}{:Mediasize/%jd} ({N:/%s})\n",
+		xo_emit("{P:/%s}{Lcw:Mediasize}{:mediasize/%jd} ({N:/%s})\n",
 		    padding, (intmax_t)pp->lg_mediasize, buf);
-		xo_emit("{P:/%s}{Lcw:Sectorsize}{:Sectorsize/%u}\n",
+		xo_emit("{P:/%s}{Lcw:Sectorsize}{:sectorsize/%u}\n",
 		    padding, pp->lg_sectorsize);
 		if (pp->lg_stripesize > 0 || pp->lg_stripeoffset > 0) {
-			xo_emit("{P:/%s}{Lcw:Stripesize}{:Stripesize/%ju}\n",
+			xo_emit("{P:/%s}{Lcw:Stripesize}{:stripesize/%ju}\n",
 			    padding, pp->lg_stripesize);
-			xo_emit("{P:/%s}{Lcw:Stripeoffset}{:Stripesize/%ju}\n",
+			xo_emit("{P:/%s}{Lcw:Stripeoffset}{:stripeoffset/%ju}\n",
 			    padding, pp->lg_stripeoffset);
 		}
-		xo_emit("{P:/%s}{Lcw:Mode}{:Mode}\n", padding, pp->lg_mode);
+		xo_emit("{P:/%s}{Lcw:Mode}{:mode}\n", padding, pp->lg_mode);
 	}
 	LIST_FOREACH(conf, &cp->lg_config, lg_config) {
 		xo_emit("{P:/%s}{Lcwa:}{a:}\n", padding, conf->lg_name,
-		    conf->lg_name, conf->lg_val);
+		    conf->lg_name, conf->lg_val ? conf->lg_val : "");
 	}
 }
 
@@ -958,13 +958,13 @@ list_one_geom(struct ggeom *gp)
 	struct gconfig *conf;
 	unsigned n;
 
-	xo_emit("{Lcw:Geom name}{:Name}\n", gp->lg_name);
+	xo_emit("{Lcw:Geom name}{:name}\n", gp->lg_name);
 	LIST_FOREACH(conf, &gp->lg_config, lg_config) {
 		xo_emit("{Lcwa:}{a:}\n", conf->lg_name, conf->lg_name,
-		    conf->lg_val);
+		    conf->lg_val ? conf->lg_val : "");
 	}
 	if (!LIST_EMPTY(&gp->lg_provider)) {
-		xo_open_list("Providers");
+		xo_open_list("providers");
 		xo_emit("{Tc:Providers}\n");
 		n = 1;
 		LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
@@ -973,10 +973,10 @@ list_one_geom(struct ggeom *gp)
 			list_one_provider(pp, "   ");
 			xo_close_instance("provider");
 		}
-		xo_close_list("Providers");
+		xo_close_list("providers");
 	}
 	if (!LIST_EMPTY(&gp->lg_consumer)) {
-		xo_open_list("Consumers");
+		xo_open_list("consumers");
 		xo_emit("{Tc:Consumers}\n");
 		n = 1;
 		LIST_FOREACH(cp, &gp->lg_consumer, lg_consumer) {
@@ -985,7 +985,7 @@ list_one_geom(struct ggeom *gp)
 			list_one_consumer(cp, "   ");
 			xo_close_instance("consumer");
 		}
-		xo_close_list("Consumers");
+		xo_close_list("consumers");
 	}
 	xo_emit("\n");
 }
@@ -1005,10 +1005,10 @@ list_one_geom_by_provider(const char *provider_name)
 	if (gp == NULL)
 		errx(EXIT_FAILURE, "Cannot find provider '%s'.", provider_name);
 
-	xo_open_container("Geom");
-	xo_emit("{Lwc:Geom class}{:Class}\n", gp->lg_class->lg_name);
+	xo_open_container(provider_name);
+	xo_emit("{Lwc:Geom class}{:class}\n", gp->lg_class->lg_name);
 	list_one_geom(gp);
-	xo_close_container("Geom");
+	xo_close_container(provider_name);
 }
 
 static void
@@ -1067,12 +1067,12 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 				    "an instance named '%s'.",
 				    gclass_name, name);
 			}
-			xo_open_container("Geom");
+			xo_open_container(gclass_name);
 			list_one_geom(gp);
-			xo_close_container("Geom");
+			xo_close_container(gclass_name);
 		}
 	} else {
-		xo_open_list("Geoms");
+		xo_open_list(gclass_name);
 		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
 			if (LIST_EMPTY(&gp->lg_provider) && !all)
 				continue;
@@ -1080,7 +1080,7 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 			list_one_geom(gp);
 			xo_close_instance("geom");
 		}
-		xo_close_list("Geoms");
+		xo_close_list(gclass_name);
 	}
 	geom_deletetree(&mesh);
 }
@@ -1175,6 +1175,7 @@ status_one_geom(struct ggeom *gp, int script, int name_len, int status_len)
 {
 	struct gconsumer *cp;
 	struct gconfig *conf;
+	char fmt[64];
 	const char *name, *status, *cstate, *csyncr;
 	int gotone, len;
 
@@ -1196,28 +1197,36 @@ status_one_geom(struct ggeom *gp, int script, int name_len, int status_len)
 		csyncr = status_one_consumer(cp, "synchronized");
 		if (!gotone || script) {
 			if (!gotone) {
-				xo_emit("{:name/%*s}  {:status/%*s}  ",
+				xo_emit("{t:name/%*s}  {t:status/%*s}  ",
 				    name_len, name, status_len, status);
+				xo_open_list("components");
 			} else {
-				xo_emit("{d:name/%*s}  {d:status/%*s}  ",
+				/*
+				 * XXX: running the same xo_emit() as above or
+				 * variations of it will cause the XML/JSON to
+				 * produce extra "components" lists in script
+				 * mode
+				 */
+
+				snprintf(fmt, sizeof(fmt), "%*s  %*s  ",
 				    name_len, name, status_len, status);
+				xo_emit(fmt);
 			}
-			xo_open_list("components");
 		}
 
 		xo_open_instance("components");
 		if (cstate != NULL && csyncr != NULL) {
 			xo_emit("{P:/%*s}{:component} ({:state}, {:synchronized})\n",
-			len, "", cp->lg_provider->lg_name, cstate, csyncr);
+			    len, "", cp->lg_provider->lg_name, cstate, csyncr);
 		} else if (cstate != NULL) {
 			xo_emit("{P:/%*s}{:component} ({:state})\n",
-			len, "", cp->lg_provider->lg_name, cstate);
+			    len, "", cp->lg_provider->lg_name, cstate);
 		} else if (csyncr != NULL) {
 			xo_emit("{P:/%*s}{:component} ({:synchronized})\n",
-			len, "", cp->lg_provider->lg_name, csyncr);
+			    len, "", cp->lg_provider->lg_name, csyncr);
 		} else {
 			xo_emit("{P:/%*s}{:component}\n",
-			len, "", cp->lg_provider->lg_name);
+			    len, "", cp->lg_provider->lg_name);
 		}
 		xo_close_instance("components");
 		gotone = 1;
@@ -1225,13 +1234,11 @@ status_one_geom(struct ggeom *gp, int script, int name_len, int status_len)
 			len = name_len + status_len + 4;
 	}
 	if (!gotone) {
-		xo_emit("{:name/%*s}  {:status/%*s}  ", name_len, name, status_len, status);
-		xo_open_list("components");
-		xo_open_instance("components");
-		xo_emit("{P:/%*s}{d:component}\n", len, "", "N/A");
-		xo_close_instance("components");
+		xo_emit("{t:name/%*s}  {t:status/%*s}  N/A\n",
+		    name_len, name, status_len, status);
+	} else {
+		xo_close_list("components");
 	}
-	xo_close_list("components");
 	xo_close_instance("status");
 }
 
@@ -1242,6 +1249,7 @@ status_one_geom_prs(struct ggeom *gp, int script, int name_len, int status_len)
 	struct gconsumer *cp;
 	struct gconfig *conf;
 	const char *name, *status, *cstate, *csyncr;
+	char fmt[64];
 	int gotone, len;
 
 	xo_open_instance("status");
@@ -1269,28 +1277,37 @@ status_one_geom_prs(struct ggeom *gp, int script, int name_len, int status_len)
 			csyncr = status_one_consumer(cp, "synchronized");
 			if (!gotone || script) {
 				if (!gotone) {
-					xo_emit("{:name/%*s}  {:status/%*s}  ",
+					xo_emit("{t:name/%*s}  {t:status/%*s}  ",
 					    name_len, name, status_len, status);
+					xo_open_list("components");
 				} else {
-					xo_emit("{d:name/%*s}  {d:status/%*s}  ",
+					/*
+					 * XXX: running the same xo_emit() as
+					 * above or variations of it will
+					 * cause the XML/JSON to produce
+					 * extra "components" lists in
+					 * script mode
+					 */
+
+					snprintf(fmt, sizeof(fmt), "%*s  %*s  ",
 					    name_len, name, status_len, status);
+					xo_emit(fmt);
 				}
-				xo_open_list("components");
 			}
 
 			xo_open_instance("component");
 			if (cstate != NULL && csyncr != NULL) {
 				xo_emit("{P:/%*s}{:component} ({:state}, {:synchronized})\n",
-				len, "", cp->lg_provider->lg_name, cstate, csyncr);
+				    len, "", cp->lg_provider->lg_name, cstate, csyncr);
 			} else if (cstate != NULL) {
 				xo_emit("{P:/%*s}{:component} ({:state})\n",
-				len, "", cp->lg_provider->lg_name, cstate);
+				    len, "", cp->lg_provider->lg_name, cstate);
 			} else if (csyncr != NULL) {
 				xo_emit("{P:/%*s}{:component} ({:synchronized})\n",
-				len, "", cp->lg_provider->lg_name, csyncr);
+				    len, "", cp->lg_provider->lg_name, csyncr);
 			} else {
 				xo_emit("{P:/%*s}{:component}\n",
-				len, "", cp->lg_provider->lg_name);
+				    len, "", cp->lg_provider->lg_name);
 			}
 			xo_close_instance("component");
 			gotone = 1;
@@ -1298,13 +1315,11 @@ status_one_geom_prs(struct ggeom *gp, int script, int name_len, int status_len)
 				len = name_len + status_len + 4;
 		}
 		if (!gotone) {
-			xo_emit("{:name/%*s}  {:status/%*s}  ", name_len, name, status_len, status);
-			xo_open_list("components");
-			xo_open_instance("components");
-			xo_emit("{P:/%*s}{d:component}\n", len, "", "N/A");
-			xo_close_instance("components");
+			xo_emit("{t:name/%*s}  {t:status/%*s}  N/A\n",
+			    name_len, name, status_len, status);
+		} else {
+			xo_close_list("components");
 		}
-		xo_close_list("components");
 	}
 	xo_close_instance("status");
 }
@@ -1370,7 +1385,7 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 		xo_emit("{T:/%*s}  {T:/%*s}  {T:Components}\n",
 		    name_len, "Name", status_len, "Status");
 	}
-	xo_open_list("status");
+	xo_open_list(gclass_name);
 	if (nargs > 0) {
 		for (i = 0; i < nargs; i++) {
 			name = gctl_get_ascii(req, "arg%d", i);
@@ -1398,7 +1413,7 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 			}
 		}
 	}
-	xo_close_list("status");
+	xo_close_list(gclass_name);
 end:
 	geom_deletetree(&mesh);
 }
