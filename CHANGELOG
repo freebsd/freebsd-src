@@ -1,3 +1,13 @@
+2025-08-15 Version 1.1
+
+	Library:
+	* add: bsddialog_slider().
+	  Thanks to https://gitlab.com/alfix/bsddialog/-/merge_requests/7
+
+	Utility:
+	* add: --slider dialog.
+	  Thanks to https://gitlab.com/alfix/bsddialog/-/merge_requests/7
+
 2025-06-22 Version 1.0.5
 
 	Manual:

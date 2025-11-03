@@ -30,7 +30,7 @@
 
 #include <stdbool.h>
 
-#define LIBBSDDIALOG_VERSION     "1.0.5"
+#define LIBBSDDIALOG_VERSION     "1.1"
 
 /* Return values */
 #define BSDDIALOG_ERROR          -1
@@ -243,6 +243,12 @@ bsddialog_radiolist(struct bsddialog_conf *conf, const char *text, int rows,
 int
 bsddialog_rangebox(struct bsddialog_conf *conf, const char *text, int rows,
     int cols, int min, int max, int *value);
+
+int
+bsddialog_slider(struct bsddialog_conf *conf, const char *text, int rows,
+    int cols, const char *unit, unsigned long length, unsigned long *start,
+    unsigned long *end, bool resize, unsigned int nblocks,
+    unsigned long blocks[][2]);
 
 int
 bsddialog_textbox(struct bsddialog_conf *conf, const char *file, int rows,
