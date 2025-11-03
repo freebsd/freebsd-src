@@ -115,6 +115,9 @@ struct pic {
 #define	PIC_EOI_SOURCE(pic, isrc)	((pic)->pic_eoi_source((pic), (isrc)))
 #define	PIC_ENABLE_INTR(pic, isrc)	((pic)->pic_enable_intr((pic), (isrc)))
 #define	PIC_DISABLE_INTR(pic, isrc)	((pic)->pic_disable_intr((pic), (isrc)))
+#define	PIC_SOURCE_PENDING(pic, isrc) \
+		((pic)->pic_source_pending != NULL ?			\
+		    (pic)->pic_source_pending((pic), (isrc)) : 0)
 #define	PIC_SUSPEND(pic) \
 		do {							\
 			if ((pic)->pic_suspend != NULL)			\
