@@ -12,7 +12,7 @@ set -x
 
 libpath=../lib
 examples="menu checklist radiolist mixedlist theme infobox yesno msgbox \
-datebox form timebox rangebox pause calendar gauge mixedgauge textbox"
+datebox form timebox rangebox pause calendar gauge mixedgauge textbox slider"
 
 rm -f $examples
 

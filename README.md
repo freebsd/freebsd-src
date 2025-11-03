@@ -1,4 +1,4 @@
-# BSDDialog 1.0.5
+# BSDDialog 1.1
 
 This project provides **bsddialog** and **libbsddialog**, an utility
 and a library to build scripts and tools with TUI dialogs and widgets.
@@ -31,7 +31,8 @@ Output:
 
 --calendar, --checklist, --datebox, --form, --gauge, --infobox, --inputbox,
 --menu, --mixedform, --mixedgauge, --msgbox, --passwordbox, --passwordform,
---pause, --radiolist, --rangebox, --textbox, --timebox, --treeview, --yesno.
+--pause, --radiolist, --rangebox, --slider, --textbox, --timebox, --treeview,
+--yesno.
 
 **Manual**
 
@@ -69,6 +70,7 @@ in the _Public Domain_ to build new projects:
 % sh ./examples_utility/pause.sh
 % sh ./examples_utility/radiolist.sh
 % sh ./examples_utility/rangebox.sh
+% sh ./examples_utility/slider.sh
 % sh ./examples_utility/timebox.sh
 % sh ./examples_utility/yesno.sh
 ```
@@ -106,6 +108,7 @@ in the _Public Domain_ to build new projects:
 % ./pause
 % ./radiolist
 % ./rangebox
+% ./slider
 % ./theme
 % ./timebox
 % ./yesno
