@@ -45,7 +45,6 @@ struct socket *	 syncache_add(struct in_conninfo *, struct tcpopt *,
 	     void *, void *, uint8_t, uint16_t);
 void	 syncache_chkrst(struct in_conninfo *, struct tcphdr *, struct mbuf *,
 	     uint16_t);
-void	 syncache_badack(struct in_conninfo *, uint16_t);
 int	 syncache_pcblist(struct sysctl_req *);
 
 struct syncache {
