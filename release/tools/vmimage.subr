@@ -212,6 +212,13 @@ vm_extra_install_packages() {
 			    -r ${DESTDIR} \
 			    install -y -r ${PKG_REPO_NAME} $pkg
 		done
+		INSTALL_AS_USER=yes \
+		${PKG_CMD} \
+		    -o ABI=${PKG_ABI} \
+		    -o REPOS_DIR=${PKG_REPOS_DIR} \
+		    -o PKG_DBDIR=${DESTDIR}/var/db/pkg \
+		    -r ${DESTDIR} \
+		    autoremove
 		metalog_add_data ./var/db/pkg/local.sqlite
 	else
 		if [ -n "${WITHOUT_QEMU}" ]; then
@@ -224,6 +231,8 @@ vm_extra_install_packages() {
 			chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
 				/usr/sbin/pkg install -y ${p}
 		done
+		chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
+		    /usr/sbin/pkg autoremove
 	fi
 
 	return 0
