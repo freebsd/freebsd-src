@@ -3077,6 +3077,9 @@ db_print_inpcb(struct inpcb *inp, const char *name, int indent)
 	   inp->inp_label, inp->inp_flags, INP_FLAGS_BITS);
 
 	db_print_indent(indent);
+	db_printf("inp_flags2: 0x%b\n", inp->inp_flags2, INP_FLAGS2_BITS);
+
+	db_print_indent(indent);
 	db_printf("inp_sp: %p   inp_vflag: 0x%b\n", inp->inp_sp,
 	    inp->inp_vflag, INP_VFLAGS_BITS);
 
