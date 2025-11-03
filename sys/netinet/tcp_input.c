@@ -1192,11 +1192,10 @@ tfo_socket_result:
 		if (thflags & TH_ACK) {
 			if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				log(LOG_DEBUG, "%s; %s: Listen socket: "
-				    "SYN|ACK invalid, segment rejected\n",
+				    "SYN|ACK invalid, segment ignored\n",
 				    s, __func__);
-			syncache_badack(&inc, port);	/* XXX: Not needed! */
 			TCPSTAT_INC(tcps_badsyn);
-			goto dropwithreset;
+			goto dropunlock;
 		}
 		/*
 		 * If the drop_synfin option is enabled, drop all
