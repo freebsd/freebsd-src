@@ -129,6 +129,13 @@ ${_CW:tu}${_FS:tu}${_FMT:tu}IMAGE=	${_CW:tl}.${_FS}.${_FMT}
 cw-${_CW:tl}-${_FS}-${_FMT}: cw-ec2-base-${_FS}-${_FMT}
 .endif
 
+# Special handling: GCE images ingest src.txz and ports.txz and expect them
+# to be in the /ftp/ directory.  Note: This will need to be reworked before
+# distribution sets go away!
+.if ${_CW} == GCE
+cw-${_CW:tl}-${_FS}-${_FMT}: ftp
+.endif
+
 cw-${_CW:tl}-${_FS}-${_FMT}: ${QEMUTGT} ${PKGBASE_REPO_DIR}
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
