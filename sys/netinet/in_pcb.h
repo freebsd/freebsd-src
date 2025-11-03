@@ -624,6 +624,13 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define INP_2PCP_MASK	(INP_2PCP_BIT0 | INP_2PCP_BIT1 | INP_2PCP_BIT2)
 #define INP_2PCP_SHIFT		18         /* shift PCP field in/out of inp_flags2 */
 
+/* inp_flags2 description for use with printf(9) %b identifier. */
+#define	INP_FLAGS2_BITS	"\20" \
+    "\11INP_RECVFLOWID\12INP_RECVRSSBUCKETID" \
+    "\13INP_RATE_LIMIT_CHANGED\14INP_ORIGDSTADDR" \
+    "\22INP_2PCP_SET\23INP_2PCP_BIT0\24INP_2PCP_BIT1" \
+    "\25INP_2PCP_BIT2"
+
 /*
  * Flags passed to in_pcblookup*(), inp_smr_lock() and inp_next().
  */
