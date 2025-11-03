@@ -713,23 +713,6 @@ done:
 }
 
 void
-syncache_badack(struct in_conninfo *inc, uint16_t port)
-{
-	struct syncache *sc;
-	struct syncache_head *sch;
-
-	if (syncache_cookiesonly())
-		return;
-	sc = syncache_lookup(inc, &sch);	/* returns locked sch */
-	SCH_LOCK_ASSERT(sch);
-	if ((sc != NULL) && (sc->sc_port == port)) {
-		syncache_drop(sc, sch);
-		TCPSTAT_INC(tcps_sc_badack);
-	}
-	SCH_UNLOCK(sch);
-}
-
-void
 syncache_unreach(struct in_conninfo *inc, tcp_seq th_seq, uint16_t port)
 {
 	struct syncache *sc;
