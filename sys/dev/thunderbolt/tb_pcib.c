@@ -557,8 +557,20 @@ static int
 tb_pci_probe(device_t dev)
 {
 	struct tb_pcib_ident *n;
+	device_t parent;
+	devclass_t dc;
 
-	if ((n = tb_pcib_find_ident(device_get_parent(dev))) != NULL) {
+	/*
+	 * This driver is only valid if the parent device is a PCI-PCI
+	 * bridge.  To determine that, check if the grandparent is a
+	 * PCI bus.
+	 */
+	parent = device_get_parent(dev);
+	dc = device_get_devclass(device_get_parent(parent));
+	if (strcmp(devclass_get_name(dc), "pci") != 0)
+		return (ENXIO);
+
+	if ((n = tb_pcib_find_ident(parent)) != NULL) {
 		switch (n->flags & TB_GEN_MASK) {
 		case TB_GEN_TB1:
 			device_set_desc(dev, "Thunderbolt 1 Link");
