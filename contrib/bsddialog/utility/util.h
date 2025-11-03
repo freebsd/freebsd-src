@@ -108,6 +108,7 @@ int passwordform_builder(BUILDER_ARGS);
 int pause_builder(BUILDER_ARGS);
 int radiolist_builder(BUILDER_ARGS);
 int rangebox_builder(BUILDER_ARGS);
+int slider_builder(BUILDER_ARGS);
 int textbox_builder(BUILDER_ARGS);
 int timebox_builder(BUILDER_ARGS);
 int treeview_builder(BUILDER_ARGS);
