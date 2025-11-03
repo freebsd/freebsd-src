@@ -949,8 +949,10 @@ racct_proc_exit(struct proc *p)
 }
 
 /*
- * Called after credentials change, to move resource utilisation
- * between raccts.
+ * Called to signal credentials change, to move resource utilisation
+ * between raccts.  Must be called with the proc lock held, in the same span as
+ * the credentials change itself (i.e., without the proc lock being unlocked
+ * between the two), but the order does not matter.
  */
 void
 racct_proc_ucred_changed(struct proc *p, struct ucred *oldcred,
