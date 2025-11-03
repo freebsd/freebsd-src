@@ -222,13 +222,18 @@ sys_setloginclass(struct thread *td, struct setloginclass_args *uap)
 	PROC_LOCK(p);
 	oldcred = crcopysafe(p, newcred);
 	newcred->cr_loginclass = newlc;
-	proc_set_cred(p, newcred);
 #ifdef RACCT
 	racct_proc_ucred_changed(p, oldcred, newcred);
 #endif
 #ifdef RCTL
 	crhold(newcred);
 #endif
+	/*
+	 * Takes over 'newcred''s reference, so 'newcred' must not be used
+	 * besides this point except on RCTL where we took an additional
+	 * reference above.
+	 */
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 #ifdef RCTL
 	rctl_proc_ucred_changed(p, newcred);
