@@ -192,6 +192,24 @@ xen_intr_pic_disable_intr(x86pic_t pic, struct intsrc *isrc)
 }
 
 /**
+ * Determine whether or not interrupt events are pending on the
+ * the given interrupt source.
+ *
+ * \param isrc  The interrupt source to query.
+ *
+ * \returns  0 if no events are pending, otherwise non-zero.
+ */
+static int
+xen_intr_pic_source_pending(x86pic_t pic, struct intsrc *isrc)
+{
+	/*
+	 * EventChannels are edge triggered and never masked.
+	 * There can be no pending events.
+	 */
+	return (0);
+}
+
+/**
  * Prepare this PIC for system suspension.
  */
 static void
@@ -230,6 +248,7 @@ static struct pic xen_intr_pic = {
 	X86PIC_FUNC(pic_eoi_source,		xen_intr_pic_eoi_source),
 	X86PIC_FUNC(pic_enable_intr,		xen_intr_pic_enable_intr),
 	X86PIC_FUNC(pic_disable_intr,		xen_intr_pic_disable_intr),
+	X86PIC_FUNC(pic_source_pending,		xen_intr_pic_source_pending),
 	X86PIC_FUNC(pic_suspend,		xen_intr_pic_suspend),
 	X86PIC_FUNC(pic_resume,			xen_intr_pic_resume),
 	X86PIC_FUNC(pic_assign_cpu,		xen_intr_pic_assign_cpu),
