@@ -58,7 +58,7 @@ env_copy(char **envp)
 
 	for (count = 0;  envp[count] != NULL;  count++)
 		;
-	p = (char **) malloc((count+1) * sizeof(char *)); /* 1 for the NULL */
+	p = (char **) reallocarray(NULL, count+1, sizeof(char *)); /* 1 for the NULL */
 	if (p == NULL) {
 		errno = ENOMEM;
 		return NULL;
@@ -115,8 +115,7 @@ env_set(char **envp, char *envstr)
 	 * one, save our string over the old null pointer, and return resized
 	 * array.
 	 */
-	p = (char **) realloc((void *) envp,
-			      (unsigned) ((count+1) * sizeof(char *)));
+	p = (char **) reallocarray(envp, count+1, sizeof(char *));
 	if (p == NULL) 	{
 		/* XXX env_free(envp); */
 		errno = ENOMEM;
