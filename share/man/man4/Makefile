@@ -1017,7 +1017,8 @@ _dtrace_provs=	dtrace_audit.4 \
 		dtrace_sctp.4 \
 		dtrace_tcp.4 \
 		dtrace_udp.4 \
-		dtrace_udplite.4
+		dtrace_udplite.4 \
+		dtrace_vfs.4
 
 MLINKS+=	dtrace_audit.4 dtaudit.4
 .endif
