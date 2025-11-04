@@ -143,22 +143,12 @@ static int vmm_ipinum;
 SYSCTL_INT(_hw_vmm, OID_AUTO, ipinum, CTLFLAG_RD, &vmm_ipinum, 0,
     "IPI vector used for vcpu notifications");
 
-u_int vm_maxcpu;
-SYSCTL_UINT(_hw_vmm, OID_AUTO, maxcpu, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
-    &vm_maxcpu, 0, "Maximum number of vCPUs");
-
 static void vcpu_notify_event_locked(struct vcpu *vcpu);
 
 /* global statistics */
 VMM_STAT(VMEXIT_COUNT, "total number of vm exits");
 VMM_STAT(VMEXIT_IRQ, "number of vmexits for an irq");
 VMM_STAT(VMEXIT_UNHANDLED, "number of vmexits for an unhandled exception");
-
-/*
- * Upper limit on vm_maxcpu. We could increase this to 28 bits, but this
- * is a safe value for now.
- */
-#define	VM_MAXCPU	MIN(0xffff - 1, CPU_SETSIZE)
 
 static void
 vcpu_cleanup(struct vcpu *vcpu, bool destroy)
@@ -210,18 +200,6 @@ vm_exitinfo(struct vcpu *vcpu)
 int
 vmm_modinit(void)
 {
-	vm_maxcpu = mp_ncpus;
-
-	TUNABLE_INT_FETCH("hw.vmm.maxcpu", &vm_maxcpu);
-
-	if (vm_maxcpu > VM_MAXCPU) {
-		printf("vmm: vm_maxcpu clamped to %u\n", VM_MAXCPU);
-		vm_maxcpu = VM_MAXCPU;
-	}
-
-	if (vm_maxcpu == 0)
-		vm_maxcpu = 1;
-
 	return (vmmops_modinit());
 }
 
