@@ -303,6 +303,8 @@ check_ifaddrs(const char *ifname, int af, const struct ifaddrs *ifaddrs,
 	 * Prefer addresses that are not loopback or linklocal, but use them
 	 * if nothing else matches.
 	 */
+	int inet_supported = feature_present("inet");
+	int inet6_supported = feature_present("inet6");
 	for (allow_local = 0; allow_local < 2; allow_local++) {
 		for (ifa = ifaddrs; ifa != NULL; ifa = ifa->ifa_next) {
 			if (ifa->ifa_addr == NULL || ifa->ifa_name == NULL ||
@@ -312,6 +314,8 @@ check_ifaddrs(const char *ifname, int af, const struct ifaddrs *ifaddrs,
 				continue;
 			switch (ifa->ifa_addr->sa_family) {
 			case AF_INET:
+				if (!inet_supported)
+					continue;
 				sa = (struct sockaddr_in *)ifa->ifa_addr;
 				if (!allow_local && sa->sin_addr.s_addr ==
 				    htonl(INADDR_LOOPBACK))
@@ -324,6 +328,8 @@ check_ifaddrs(const char *ifname, int af, const struct ifaddrs *ifaddrs,
 				memcpy(resultp, sa, *rlenp);
 				return 0;
 			case AF_INET6:
+				if (!inet6_supported)
+					continue;
 				sa6 = (struct sockaddr_in6 *)ifa->ifa_addr;
 				v6addr = &sa6->sin6_addr;
 				if (!allow_local &&
