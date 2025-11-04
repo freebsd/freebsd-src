@@ -1,0 +1,68 @@
+.\"
+.\" Copyright (c) 2025 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd November 4, 2025
+.Dt DTRACE_CALLOUT_EXECUTE 4
+.Os
+.Sh NAME
+.Nm dtrace_callout_execute
+.Nd a DTrace provider for the callout API
+.Sh SYNOPSIS
+.Nm callout_execute Ns Cm :kernel::callout_start
+.Nm callout_execute Ns Cm :kernel::callout_end
+.Sh DESCRIPTION
+The
+.Nm callout_execute
+provider allows for tracing the
+.Xr callout 9
+mechanism.
+.Pp
+The
+.Nm callout_execute Ns Cm :kernel::callout_start
+probe fires just before a callout.
+.Pp
+The
+.Nm callout_execute Ns Cm :kernel::callout_end
+probe fires right after a callout.
+.Pp
+The only argument to the
+.Nm callout_execute
+probes,
+.Fa args[0] ,
+is a callout handler
+.Ft struct callout *
+of the invoked callout.
+.Sh EXAMPLES
+.Ss Example 1: Graph of Callout Execution Time
+The following
+.Xr d 7
+script generates a distribution graph of
+.Xr callout 9
+execution times:
+.Bd -literal -offset 2n
+callout_execute:::callout_start
+{
+    self->cstart = timestamp;
+}
+
+callout_execute:::callout_end
+{
+    @length = quantize(timestamp - self->cstart);
+}
+.Ed
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr tracing 7 ,
+.Xr callout 9 ,
+.Xr SDT 9
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm callout_execute
+provider was written by
+.An Robert N. M. Watson Aq Mt rwatson@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .
