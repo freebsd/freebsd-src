@@ -28,5 +28,8 @@ deps {
 	},
 	"set-devel-dbg" {
 		version = "${VERSION}"
+	},
+	"set-optional-dbg" {
+		version = "${VERSION}"
 	}
 }
