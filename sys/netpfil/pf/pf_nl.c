@@ -2246,6 +2246,87 @@ pf_handle_table_set_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (error);
 }
 
+static int
+nlattr_add_pfr_addr(struct nl_writer *nw, int attr, const struct pfr_addr *a)
+{
+	int off = nlattr_add_nested(nw, attr);
+	if (off == 0)
+		return (false);
+
+	nlattr_add_u32(nw, PFR_A_AF, a->pfra_af);
+	nlattr_add_u8(nw, PFR_A_NET, a->pfra_net);
+	nlattr_add_bool(nw, PFR_A_NOT, a->pfra_not);
+	nlattr_add_in6_addr(nw, PFR_A_ADDR, &a->pfra_u._pfra_ip6addr);
+
+	nlattr_set_len(nw, off);
+
+	return (true);
+}
+
+static int
+pf_handle_table_get_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pfioc_table attrs = { 0 };
+	struct pfr_addr *pfras;
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	int size = 0;
+	int error;
+
+	PF_RULES_RLOCK_TRACKER;
+
+	error = nl_parse_nlmsg(hdr, &table_addr_parser, npt, &attrs);
+	if (error != 0)
+		return  (error);
+
+	PF_RULES_RLOCK();
+	/* Get required size. */
+	error = pfr_get_addrs(&attrs.pfrio_table, NULL,
+	    &size, attrs.pfrio_flags | PFR_FLAG_USERIOCTL);
+	if (error != 0) {
+		PF_RULES_RUNLOCK();
+		return (error);
+	}
+	pfras = mallocarray(size, sizeof(struct pfr_addr), M_PF,
+	    M_NOWAIT | M_ZERO);
+	if (pfras == NULL) {
+		PF_RULES_RUNLOCK();
+		return (ENOMEM);
+	}
+	/* Now get the addresses. */
+	error = pfr_get_addrs(&attrs.pfrio_table, pfras,
+	    &size, attrs.pfrio_flags | PFR_FLAG_USERIOCTL);
+	PF_RULES_RUNLOCK();
+	if (error != 0)
+		goto out;
+
+	for (int i = 0; i < size; i++) {
+		if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr))) {
+			nlmsg_abort(nw);
+			error = ENOMEM;
+			goto out;
+		}
+		ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+		ghdr_new->cmd = PFNL_CMD_TABLE_GET_ADDR;
+		ghdr_new->version = 0;
+		ghdr_new->reserved = 0;
+
+		if (i == 0)
+			nlattr_add_u32(nw, PF_TA_ADDR_COUNT, size);
+
+		nlattr_add_pfr_addr(nw, PF_TA_ADDR, &pfras[i]);
+		if (!nlmsg_end(nw)) {
+			nlmsg_abort(nw);
+			error = ENOMEM;
+			goto out;
+		}
+	}
+
+out:
+	free(pfras, M_PF);
+	return (error);
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
@@ -2502,6 +2583,13 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_name = "TABLE_SET_ADDRS",
 		.cmd_cb = pf_handle_table_set_addrs,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_TABLE_GET_ADDR,
+		.cmd_name = "TABLE_GET_ADDRS",
+		.cmd_cb = pf_handle_table_get_addrs,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},
 };
