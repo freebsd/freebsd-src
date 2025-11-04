@@ -31,7 +31,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
@@ -188,8 +187,6 @@ struct vm {
 
 #define	VMM_CTR4(vcpu, format, p1, p2, p3, p4)				\
 	VCPU_CTR4((vcpu)->vm, (vcpu)->vcpuid, format, p1, p2, p3, p4)
-
-static int vmm_initialized;
 
 static void	vmmops_panic(void);
 
@@ -402,8 +399,8 @@ vm_exitinfo_cpuset(struct vcpu *vcpu)
 	return (&vcpu->exitinfo_cpuset);
 }
 
-static int
-vmm_init(void)
+int
+vmm_modinit(void)
 {
 	if (!vmm_is_hw_supported())
 		return (ENXIO);
@@ -431,69 +428,16 @@ vmm_init(void)
 	return (vmmops_modinit(vmm_ipinum));
 }
 
-static int
-vmm_handler(module_t mod, int what, void *arg)
+int
+vmm_modcleanup(void)
 {
-	int error;
-
-	switch (what) {
-	case MOD_LOAD:
-		if (vmm_is_hw_supported()) {
-			error = vmmdev_init();
-			if (error != 0)
-				break;
-			error = vmm_init();
-			if (error == 0)
-				vmm_initialized = 1;
-			else
-				(void)vmmdev_cleanup();
-		} else {
-			error = ENXIO;
-		}
-		break;
-	case MOD_UNLOAD:
-		if (vmm_is_hw_supported()) {
-			error = vmmdev_cleanup();
-			if (error == 0) {
-				vmm_suspend_p = NULL;
-				vmm_resume_p = NULL;
-				iommu_cleanup();
-				if (vmm_ipinum != IPI_AST)
-					lapic_ipi_free(vmm_ipinum);
-				error = vmmops_modcleanup();
-				/*
-				 * Something bad happened - prevent new
-				 * VMs from being created
-				 */
-				if (error)
-					vmm_initialized = 0;
-			}
-		} else {
-			error = 0;
-		}
-		break;
-	default:
-		error = 0;
-		break;
-	}
-	return (error);
+	vmm_suspend_p = NULL;
+	vmm_resume_p = NULL;
+	iommu_cleanup();
+	if (vmm_ipinum != IPI_AST)
+		lapic_ipi_free(vmm_ipinum);
+	return (vmmops_modcleanup());
 }
-
-static moduledata_t vmm_kmod = {
-	"vmm",
-	vmm_handler,
-	NULL
-};
-
-/*
- * vmm initialization has the following dependencies:
- *
- * - VT-x initialization requires smp_rendezvous() and therefore must happen
- *   after SMP is fully functional (after SI_SUB_SMP).
- * - vmm device initialization requires an initialized devfs.
- */
-DECLARE_MODULE(vmm, vmm_kmod, MAX(SI_SUB_SMP, SI_SUB_DEVFS) + 1, SI_ORDER_ANY);
-MODULE_VERSION(vmm, 1);
 
 static void
 vm_init(struct vm *vm, bool create)
@@ -578,13 +522,6 @@ vm_create(const char *name, struct vm **retvm)
 {
 	struct vm *vm;
 	int error;
-
-	/*
-	 * If vmm.ko could not be successfully initialized then don't attempt
-	 * to create the virtual machine.
-	 */
-	if (!vmm_initialized)
-		return (ENXIO);
 
 	if (name == NULL || strnlen(name, VM_MAX_NAMELEN + 1) ==
 	    VM_MAX_NAMELEN + 1)
