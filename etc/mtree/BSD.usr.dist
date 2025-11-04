@@ -6,35 +6,35 @@
 .
     bin
     ..
-    include
-        private
-            bsddialog
+    include                   tags=package=clibs-dev
+        private               tags=package=clibs-dev
+            bsddialog         tags=package=utilities-dev
             ..
-            bsdstat
+            bsdstat           tags=package=libbsdstat-dev
             ..
-            event1
+            event1            tags=package=libevent1-dev
             ..
-            gmock
-                internal
-                    custom
+            gmock             tags=package=utilities-dev
+                internal      tags=package=utilities-dev
+                    custom    tags=package=utilities-dev
                     ..
                 ..
             ..
-            gtest
-                internal
-                    custom
+            gtest             tags=package=utilities-dev
+                internal      tags=package=utilities-dev
+                    custom    tags=package=utilities-dev
                     ..
                 ..
             ..
-            samplerate
+            samplerate        tags=package=sound-dev
             ..
-            sqlite3
+            sqlite3           tags=package=libsqlite3-dev
             ..
-            ucl
+            ucl               tags=package=libucl-dev
             ..
-            yaml
+            yaml              tags=package=libyaml-dev
             ..
-            zstd
+            zstd              tags=package=runtime-dev
             ..
         ..
     ..
