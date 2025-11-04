@@ -120,7 +120,7 @@ struct vm {
 	volatile cpuset_t suspended_cpus; 	/* (i) suspended vcpus */
 	volatile cpuset_t halted_cpus;		/* (x) cpus in a hard halt */
 	struct vm_mem	mem;			/* (i) [m+v] guest memory */
-	char		name[VM_MAX_NAMELEN];	/* (o) virtual machine name */
+	char		name[VM_MAX_NAMELEN + 1]; /* (o) virtual machine name */
 	struct vcpu	**vcpu;			/* (i) guest vcpus */
 	struct vmm_mmio_region mmio_region[VM_MAX_MMIO_REGIONS];
 						/* (o) guest MMIO regions */
@@ -310,9 +310,6 @@ vm_create(const char *name, struct vm **retvm)
 {
 	struct vm *vm;
 	int error;
-
-	if (name == NULL || strlen(name) >= VM_MAX_NAMELEN)
-		return (EINVAL);
 
 	vm = malloc(sizeof(struct vm), M_VMM, M_WAITOK | M_ZERO);
 	error = vm_mem_init(&vm->mem, 0, 1ul << 39);

@@ -103,9 +103,6 @@ enum vm_reg_name {
 #define	VM_INTINFO_HWEXCEPTION	(3 << 8)
 #define	VM_INTINFO_SWINTR	(4 << 8)
 
-#define	VM_MAX_NAMELEN	32
-#define VM_MAX_SUFFIXLEN 15
-
 #ifdef _KERNEL
 
 struct vm;
