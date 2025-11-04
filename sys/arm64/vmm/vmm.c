@@ -205,10 +205,6 @@ static const struct vmm_regs vmm_arch_regs_masks = {
 /* Host registers masked by vmm_arch_regs_masks. */
 static struct vmm_regs vmm_arch_regs;
 
-u_int vm_maxcpu;
-SYSCTL_UINT(_hw_vmm, OID_AUTO, maxcpu, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
-    &vm_maxcpu, 0, "Maximum number of vCPUs");
-
 static void vcpu_notify_event_locked(struct vcpu *vcpu);
 
 /* global statistics */
@@ -227,12 +223,6 @@ VMM_STAT(VMEXIT_BRK, "number of vmexits for a breakpoint exception");
 VMM_STAT(VMEXIT_SS, "number of vmexits for a single-step exception");
 VMM_STAT(VMEXIT_UNHANDLED_EL2, "number of vmexits for an unhandled EL2 exception");
 VMM_STAT(VMEXIT_UNHANDLED, "number of vmexits for an unhandled exception");
-
-/*
- * Upper limit on vm_maxcpu. We could increase this to 28 bits, but this
- * is a safe value for now.
- */
-#define	VM_MAXCPU	MIN(0xffff - 1, CPU_SETSIZE)
 
 static int
 vmm_regs_init(struct vmm_regs *regs, const struct vmm_regs *masks)
@@ -328,16 +318,6 @@ vmm_modinit(void)
 	error = vmm_unsupported_quirk();
 	if (error != 0)
 		return (error);
-
-	vm_maxcpu = mp_ncpus;
-	TUNABLE_INT_FETCH("hw.vmm.maxcpu", &vm_maxcpu);
-
-	if (vm_maxcpu > VM_MAXCPU) {
-		printf("vmm: vm_maxcpu clamped to %u\n", VM_MAXCPU);
-		vm_maxcpu = VM_MAXCPU;
-	}
-	if (vm_maxcpu == 0)
-		vm_maxcpu = 1;
 
 	error = vmm_regs_init(&vmm_arch_regs, &vmm_arch_regs_masks);
 	if (error != 0)
