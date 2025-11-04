@@ -70,6 +70,7 @@
 	    _SET_ERROR0)(__VA_ARGS__)
 
 void exterr_clear(struct kexterr *ke);
+void exterr_db_print(struct kexterr *ke);
 int exterr_set_from(const struct kexterr *ke);
 int exterr_set(int eerror, int category, const char *mmsg, uintptr_t pp1,
     uintptr_t pp2, int line);
