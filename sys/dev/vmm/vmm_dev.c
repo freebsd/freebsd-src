@@ -14,6 +14,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
+#include <sys/module.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
@@ -77,6 +78,8 @@ struct vmmdev_softc {
 	SLIST_HEAD(, devmem_softc) devmem;
 	int		flags;
 };
+
+static bool vmm_initialized = false;
 
 static SLIST_HEAD(, vmmdev_softc) head;
 
@@ -1021,6 +1024,9 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 	char *buf;
 	int error, buflen;
 
+	if (!vmm_initialized)
+		return (ENXIO);
+
 	error = vmm_priv_check(req->td->td_ucred);
 	if (error != 0)
 		return (error);
@@ -1106,7 +1112,7 @@ static struct cdevsw vmmctlsw = {
 	.d_ioctl	= vmmctl_ioctl,
 };
 
-int
+static int
 vmmdev_init(void)
 {
 	int error;
@@ -1122,7 +1128,7 @@ vmmdev_init(void)
 	return (error);
 }
 
-int
+static int
 vmmdev_cleanup(void)
 {
 	sx_xlock(&vmmdev_mtx);
@@ -1138,6 +1144,61 @@ vmmdev_cleanup(void)
 
 	return (0);
 }
+
+static int
+vmm_handler(module_t mod, int what, void *arg)
+{
+	int error;
+
+	switch (what) {
+	case MOD_LOAD:
+		error = vmmdev_init();
+		if (error != 0)
+			break;
+		error = vmm_modinit();
+		if (error == 0)
+			vmm_initialized = true;
+		else {
+			error = vmmdev_cleanup();
+			KASSERT(error == 0,
+			    ("%s: vmmdev_cleanup failed: %d", __func__, error));
+		}
+		break;
+	case MOD_UNLOAD:
+		error = vmmdev_cleanup();
+		if (error == 0 && vmm_initialized) {
+			error = vmm_modcleanup();
+			if (error) {
+				/*
+				 * Something bad happened - prevent new
+				 * VMs from being created
+				 */
+				vmm_initialized = false;
+			}
+		}
+		break;
+	default:
+		error = 0;
+		break;
+	}
+	return (error);
+}
+
+static moduledata_t vmm_kmod = {
+	"vmm",
+	vmm_handler,
+	NULL
+};
+
+/*
+ * vmm initialization has the following dependencies:
+ *
+ * - Initialization requires smp_rendezvous() and therefore must happen
+ *   after SMP is fully functional (after SI_SUB_SMP).
+ * - vmm device initialization requires an initialized devfs.
+ */
+DECLARE_MODULE(vmm, vmm_kmod, MAX(SI_SUB_SMP, SI_SUB_DEVFS) + 1, SI_ORDER_ANY);
+MODULE_VERSION(vmm, 1);
 
 static int
 devmem_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t len,

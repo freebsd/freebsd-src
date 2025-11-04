@@ -18,8 +18,9 @@ struct thread;
 struct vm;
 struct vcpu;
 
-int	vmmdev_init(void);
-int	vmmdev_cleanup(void);
+int	vmm_modinit(void);
+int	vmm_modcleanup(void);
+
 int	vmmdev_machdep_ioctl(struct vm *vm, struct vcpu *vcpu, u_long cmd,
 	    caddr_t data, int fflag, struct thread *td);
 
