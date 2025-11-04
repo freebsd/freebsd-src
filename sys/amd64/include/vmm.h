@@ -383,7 +383,8 @@ vcpu_should_yield(struct vcpu *vcpu)
 #endif
 
 void *vcpu_stats(struct vcpu *vcpu);
-void vcpu_notify_event(struct vcpu *vcpu, bool lapic_intr);
+void vcpu_notify_event(struct vcpu *vcpu);
+void vcpu_notify_lapic(struct vcpu *vcpu);
 struct vm_mem *vm_mem(struct vm *vm);
 struct vatpic *vm_atpic(struct vm *vm);
 struct vatpit *vm_atpit(struct vm *vm);
