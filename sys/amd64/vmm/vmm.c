@@ -523,10 +523,6 @@ vm_create(const char *name, struct vm **retvm)
 	struct vm *vm;
 	int error;
 
-	if (name == NULL || strnlen(name, VM_MAX_NAMELEN + 1) ==
-	    VM_MAX_NAMELEN + 1)
-		return (EINVAL);
-
 	vm = malloc(sizeof(struct vm), M_VM, M_WAITOK | M_ZERO);
 	error = vm_mem_init(&vm->mem, 0, VM_MAXUSER_ADDRESS_LA48);
 	if (error != 0) {

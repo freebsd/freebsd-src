@@ -11,7 +11,10 @@
 
 #include <sys/types.h>
 #include <sys/ioccom.h>
+
 #include <machine/vmm_dev.h>
+
+#include <dev/vmm/vmm_param.h>
 
 #ifdef _KERNEL
 struct thread;
