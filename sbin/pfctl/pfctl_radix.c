@@ -182,7 +182,7 @@ pfr_get_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int *size,
 {
 	int ret;
 
-	ret = pfctl_table_get_addrs(dev, tbl, addr, size, flags);
+	ret = pfctl_table_get_addrs_h(pfh, tbl, addr, size, flags);
 	if (ret) {
 		errno = ret;
 		return (-1);
