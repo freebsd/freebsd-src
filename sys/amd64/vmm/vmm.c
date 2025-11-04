@@ -274,7 +274,7 @@ u_int vm_maxcpu;
 SYSCTL_UINT(_hw_vmm, OID_AUTO, maxcpu, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &vm_maxcpu, 0, "Maximum number of vCPUs");
 
-static void vcpu_notify_event_locked(struct vcpu *vcpu, bool lapic_intr);
+static void vcpu_notify_event_locked(struct vcpu *vcpu);
 
 /* global statistics */
 VMM_STAT(VCPU_MIGRATIONS, "vcpu migration across host cpus");
@@ -1028,7 +1028,7 @@ vcpu_wait_idle(struct vcpu *vcpu)
 	KASSERT(vcpu->state != VCPU_IDLE, ("vcpu already idle"));
 
 	vcpu->reqidle = 1;
-	vcpu_notify_event_locked(vcpu, false);
+	vcpu_notify_event_locked(vcpu);
 	VMM_CTR1(vcpu, "vcpu state change from %s to "
 	    "idle requested", vcpu_state2str(vcpu->state));
 	msleep_spin(&vcpu->state, &vcpu->mtx, "vmstat", hz);
@@ -1509,7 +1509,7 @@ vm_handle_suspend(struct vcpu *vcpu, bool *retu)
 	 */
 	for (i = 0; i < vm->maxcpus; i++) {
 		if (CPU_ISSET(i, &vm->suspended_cpus)) {
-			vcpu_notify_event(vm_vcpu(vm, i), false);
+			vcpu_notify_event(vm_vcpu(vm, i));
 		}
 	}
 
@@ -1583,7 +1583,7 @@ vm_suspend(struct vm *vm, enum vm_suspend_how how)
 	 */
 	for (i = 0; i < vm->maxcpus; i++) {
 		if (CPU_ISSET(i, &vm->active_cpus))
-			vcpu_notify_event(vm_vcpu(vm, i), false);
+			vcpu_notify_event(vm_vcpu(vm, i));
 	}
 
 	return (0);
@@ -2063,7 +2063,7 @@ vm_inject_nmi(struct vcpu *vcpu)
 {
 
 	vcpu->nmi_pending = 1;
-	vcpu_notify_event(vcpu, false);
+	vcpu_notify_event(vcpu);
 	return (0);
 }
 
@@ -2090,7 +2090,7 @@ vm_inject_extint(struct vcpu *vcpu)
 {
 
 	vcpu->extint_pending = 1;
-	vcpu_notify_event(vcpu, false);
+	vcpu_notify_event(vcpu);
 	return (0);
 }
 
@@ -2261,14 +2261,14 @@ vm_suspend_cpu(struct vm *vm, struct vcpu *vcpu)
 		vm->debug_cpus = vm->active_cpus;
 		for (int i = 0; i < vm->maxcpus; i++) {
 			if (CPU_ISSET(i, &vm->active_cpus))
-				vcpu_notify_event(vm_vcpu(vm, i), false);
+				vcpu_notify_event(vm_vcpu(vm, i));
 		}
 	} else {
 		if (!CPU_ISSET(vcpu->vcpuid, &vm->active_cpus))
 			return (EINVAL);
 
 		CPU_SET_ATOMIC(vcpu->vcpuid, &vm->debug_cpus);
-		vcpu_notify_event(vcpu, false);
+		vcpu_notify_event(vcpu);
 	}
 	return (0);
 }
@@ -2376,7 +2376,7 @@ vm_set_x2apic_state(struct vcpu *vcpu, enum x2apic_state state)
  *   to the host_cpu to cause the vcpu to trap into the hypervisor.
  */
 static void
-vcpu_notify_event_locked(struct vcpu *vcpu, bool lapic_intr)
+vcpu_notify_event_locked(struct vcpu *vcpu)
 {
 	int hostcpu;
 
@@ -2384,12 +2384,7 @@ vcpu_notify_event_locked(struct vcpu *vcpu, bool lapic_intr)
 	if (vcpu->state == VCPU_RUNNING) {
 		KASSERT(hostcpu != NOCPU, ("vcpu running on invalid hostcpu"));
 		if (hostcpu != curcpu) {
-			if (lapic_intr) {
-				vlapic_post_intr(vcpu->vlapic, hostcpu,
-				    vmm_ipinum);
-			} else {
-				ipi_cpu(hostcpu, vmm_ipinum);
-			}
+			ipi_cpu(hostcpu, vmm_ipinum);
 		} else {
 			/*
 			 * If the 'vcpu' is running on 'curcpu' then it must
@@ -2407,10 +2402,21 @@ vcpu_notify_event_locked(struct vcpu *vcpu, bool lapic_intr)
 }
 
 void
-vcpu_notify_event(struct vcpu *vcpu, bool lapic_intr)
+vcpu_notify_event(struct vcpu *vcpu)
 {
 	vcpu_lock(vcpu);
-	vcpu_notify_event_locked(vcpu, lapic_intr);
+	vcpu_notify_event_locked(vcpu);
+	vcpu_unlock(vcpu);
+}
+
+void
+vcpu_notify_lapic(struct vcpu *vcpu)
+{
+	vcpu_lock(vcpu);
+	if (vcpu->state == VCPU_RUNNING && vcpu->hostcpu != curcpu)
+		vlapic_post_intr(vcpu->vlapic, vcpu->hostcpu, vmm_ipinum);
+	else
+		vcpu_notify_event_locked(vcpu);
 	vcpu_unlock(vcpu);
 }
 
@@ -2472,7 +2478,7 @@ restart:
 	 */
 	for (i = 0; i < vm->maxcpus; i++) {
 		if (CPU_ISSET(i, &dest))
-			vcpu_notify_event(vm_vcpu(vm, i), false);
+			vcpu_notify_event(vm_vcpu(vm, i));
 	}
 
 	return (vm_handle_rendezvous(vcpu));
