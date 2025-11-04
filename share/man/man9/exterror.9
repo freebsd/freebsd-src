@@ -1,0 +1,137 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.Dd November 5, 2025
+.Dt EXTERROR 9
+.Os
+.Sh NAME
+.Nm exterror
+.Nd provide extended error information to userspace
+.Sh SYNOPSIS
+.Bd -literal -offset left -compact
+#define	EXTERR_CATEGORY EXTERR_CAT_MYCATEGORY
+.Ed
+.In sys/exterrvar.h
+.Ft int
+.Fn EXTERROR "int error" "const char *msg" ...
+.Sh DESCRIPTION
+The
+.Nm
+framework allows the kernel to return additional information about an error
+along with the standard
+.Xr errno 3
+error code, which is terse and often lacking context.
+.Pp
+The terseness is especially visible with commonly overloaded error codes like
+.Er EINVAL
+or
+.Er EIO ,
+which occur at many places for a given syscall, or even
+outside the context of the current kernel call.
+Identifying the specific cause for the returned error using only the
+.Va errno
+value requires searching for all instances that the error is returned
+in the kernel and trying to guess which is the most likely code path
+to have returned the error.
+.Nm
+attaches additional data to the error itself
+and records the error category and
+the kernel source code file line number.
+The intent of
+.Nm
+is to make it easier for a user to identify the cause of the error.
+.Sh USAGE
+Before
+.Nm
+can be used in the given source .c file, the category of extended errors
+should be allocated in the
+.In sys/exterr_cat.h
+file.
+The category is the unique integer, that, together with the source
+line number, uniquely identifies the extended error occurrence.
+Then, the
+.Va EXTERR_CATEGORY
+symbol should be defined as an alias for the allocated category, as
+shown in the summary.
+.Pp
+A typical code fragment to report an error is just
+.D1 return (EINVAL);
+An extended error can augment the error code with additional information:
+.D1 return (EXTERROR(EINVAL, \[dq]Invalid length\[dq]));
+The error data and metadata is saved in the current thread storage.
+The metadata includes the category and the source file line number.
+.Pp
+Arguments to the
+.Fn EXTERROR
+macro:
+.Bl -dash
+.It
+The first argument to
+.Fn EXTERROR
+is the errno error code.
+.It
+The second argument is a constant string with the unbound lifetime,
+which should tersely provide enough human-readable details about
+the error.
+.It
+The
+.Fn EXTERROR
+macro can take two optional 64-bit integer arguments,
+whose meaning is specific to the subsystem.
+.El
+.Pp
+The strings passed as the second argument are only retained
+in the kernel text if the
+.Cd option EXTERR_STRINGS
+was enabled in the kernel config.
+Otherwise they are stripped at compile time and are not available
+to userspace at runtime.
+.Pp
+The
+.Fn EXTERROR
+macro can be used in any context where the current thread is defined.
+Specifically,
+.Fn EXTERROR
+cannot be used in interrupt contexts and context switch code.
+Additionally, use of
+.Fn EXTERROR
+in kernel threads is not sensible as there is no userspace to retrieve
+the extended error data.
+.Sh USERSPACE ACCESS TO EXTENDED ERROR DATA
+There is no syscall overhead for using
+.Nm
+in the non-error case.
+When an error occurs that has supplied extended information,
+the kernel copies out that information into the userspace
+per-thread area that was registered with the kernel, typically on
+image activation, or later at thread startup.
+The area is controlled by the
+.Xr exterrctl 2
+internal syscall, normally done by the userspace C runtime.
+.Pp
+Userspace programs do not need to access the extended information
+area directly.
+There is no field that is stable for the specific error condition.
+Instead, the base
+.Lb c
+functions
+.Xr err 3
+and
+.Xr warn 3
+were modified to print the extended information if it is available
+in addition to the usual
+.Va errno
+decoding.
+.Sh SEE ALSO
+.Xr errno 3 ,
+.Xr err 3
+.Sh HISTORY
+The
+.Nm
+facility was introduced in
+.Fx 15.0 .
