@@ -373,10 +373,6 @@ vm_alloc_vcpu(struct vm *vm, int vcpuid)
 	if (vcpuid < 0 || vcpuid >= vm_get_maxcpus(vm))
 		return (NULL);
 
-	/* Some interrupt controllers may have a CPU limit */
-	if (vcpuid >= vgic_max_cpu_count(vm->cookie))
-		return (NULL);
-
 	vcpu = (struct vcpu *)
 	    atomic_load_acq_ptr((uintptr_t *)&vm->vcpu[vcpuid]);
 	if (__predict_true(vcpu != NULL))
@@ -385,6 +381,12 @@ vm_alloc_vcpu(struct vm *vm, int vcpuid)
 	sx_xlock(&vm->vcpus_init_lock);
 	vcpu = vm->vcpu[vcpuid];
 	if (vcpu == NULL && !vm->dying) {
+		/* Some interrupt controllers may have a CPU limit */
+		if (vcpuid >= vgic_max_cpu_count(vm->cookie)) {
+			sx_xunlock(&vm->vcpus_init_lock);
+			return (NULL);
+		}
+
 		vcpu = vcpu_alloc(vm, vcpuid);
 		vcpu_init(vcpu);
 
