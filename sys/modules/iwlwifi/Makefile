@@ -91,7 +91,7 @@ CFLAGS+=	-DCONFIG_IWLWIFI_DEVICE_TRACING=1
 #CFLAGS+=	-DCONFIG_THERMAL=1
 #CFLAGS+=	-DCONFIG_EFI=1
 
-# XXX-BZ how to do this just for pcie/drv.c (and gcc vs. clang)?
-CFLAGS += -Wno-override-init -Wno-initializer-overrides
+CWARNFLAGS.clang.drv.c+=	-Wno-initializer-overrides
+CWARNFLAGS.drv.c+=		-Wno-override-init ${CWARNFLAGS.${COMPILER_TYPE}.${.IMPSRC:T}}
 
 .include <bsd.kmod.mk>
