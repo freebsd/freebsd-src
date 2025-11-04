@@ -2358,3 +2358,16 @@ exterr_clear(struct kexterr *ke)
 {
 	memset(ke, 0, sizeof(*ke));
 }
+
+#include "opt_ddb.h"
+#ifdef DDB
+#include <ddb/ddb.h>
+
+void
+exterr_db_print(struct kexterr *ke)
+{
+	db_printf("errno %d cat %d msg %s p1 %#jx p2 %#jx line %d\n",
+	    ke->error, ke->cat, ke->msg == NULL ? "<none>" : ke->msg,
+	    (uintmax_t)ke->p1, (uintmax_t)ke->p2, ke->src_line);
+}
+#endif
