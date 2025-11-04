@@ -150,6 +150,7 @@ MAN=	accept_filter.9 \
 	EVENTHANDLER.9 \
 	eventtimers.9 \
 	extattr.9 \
+	exterror.9 \
 	fail.9 \
 	fdt_pinctrl.9 \
 	fetch.9 \
