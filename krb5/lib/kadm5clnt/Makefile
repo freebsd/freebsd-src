@@ -86,7 +86,8 @@ ${CHPASS_UTIL_STRINGS_ERR_C}: ${CHPASS_UTIL_STRINGS_ERR}
 	rm -f et-c-${.PREFIX}.et et-c-${.PREFIX}.c
 
 afterinstall:
-	${INSTALL_LIBSYMLINK} ${SHLIB_LINK} ${DESTDIR}${LIBDIR}/libkadm5clnt.so
+	${INSTALL_LIBSYMLINK} ${DEV_TAG_ARGS} ${SHLIB_LINK} \
+	    ${DESTDIR}${LIBDIR}/libkadm5clnt.so
 
 .include <bsd.lib.mk>
 
