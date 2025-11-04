@@ -573,12 +573,6 @@ vm_unlock_vcpus(struct vm *vm)
 	sx_unlock(&vm->vcpus_init_lock);
 }
 
-/*
- * The default CPU topology is a single thread per package.
- */
-u_int cores_per_package = 1;
-u_int threads_per_core = 1;
-
 int
 vm_create(const char *name, struct vm **retvm)
 {
@@ -609,8 +603,8 @@ vm_create(const char *name, struct vm **retvm)
 	    M_ZERO);
 
 	vm->sockets = 1;
-	vm->cores = cores_per_package;	/* XXX backwards compatibility */
-	vm->threads = threads_per_core;	/* XXX backwards compatibility */
+	vm->cores = 1;		/* XXX backwards compatibility */
+	vm->threads = 1;	/* XXX backwards compatibility */
 	vm->maxcpus = vm_maxcpu;
 
 	vm_init(vm, true);
