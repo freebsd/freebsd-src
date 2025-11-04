@@ -38,9 +38,11 @@
 #include <sys/cdefs.h>
 #include "opt_ddb.h"
 
+#define	EXTERR_CATEGORY	EXTERR_CAT_GEOM
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/devicestat.h>
+#include <sys/exterrvar.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
@@ -1663,6 +1665,8 @@ DB_SHOW_COMMAND(bio, db_show_bio)
 		db_printf("  caller2: %p\n", bp->bio_caller2);
 		db_printf("  bio_from: %p\n", bp->bio_from);
 		db_printf("  bio_to: %p\n", bp->bio_to);
+		if ((bp->bio_flags & BIO_EXTERR) != 0)
+			exterr_db_print(&bp->bio_exterr);
 
 #if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
 		db_printf("  bio_track_bp: %p\n", bp->bio_track_bp);
