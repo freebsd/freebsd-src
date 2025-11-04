@@ -619,20 +619,16 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			}
 			error = domainset_populate(&domain, mask, mseg->ds_policy,
 			    mseg->ds_mask_size);
-			if (error) {
-				free(mask, M_VMMDEV);
+			free(mask, M_VMMDEV);
+			if (error)
 				break;
-			}
 			domainset = domainset_create(&domain);
 			if (domainset == NULL) {
 				error = EINVAL;
-				free(mask, M_VMMDEV);
 				break;
 			}
-			free(mask, M_VMMDEV);
 		}
 		error = alloc_memseg(sc, mseg, sizeof(mseg->name), domainset);
-
 		break;
 	}
 	case VM_GET_MEMSEG:
