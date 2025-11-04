@@ -18,6 +18,7 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/smp.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/ucred.h>
@@ -90,6 +91,10 @@ SX_SYSINIT(vmmdev_mtx, &vmmdev_mtx, "vmm device mutex");
 static MALLOC_DEFINE(M_VMMDEV, "vmmdev", "vmmdev");
 
 SYSCTL_DECL(_hw_vmm);
+
+u_int vm_maxcpu;
+SYSCTL_UINT(_hw_vmm, OID_AUTO, maxcpu, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &vm_maxcpu, 0, "Maximum number of vCPUs");
 
 static void devmem_destroy(void *arg);
 static int devmem_create_cdev(struct vmmdev_softc *sc, int id, char *devmem);
@@ -1158,6 +1163,16 @@ vmm_handler(module_t mod, int what, void *arg)
 		error = vmmdev_init();
 		if (error != 0)
 			break;
+
+		vm_maxcpu = mp_ncpus;
+		TUNABLE_INT_FETCH("hw.vmm.maxcpu", &vm_maxcpu);
+		if (vm_maxcpu > VM_MAXCPU) {
+			printf("vmm: vm_maxcpu clamped to %u\n", VM_MAXCPU);
+			vm_maxcpu = VM_MAXCPU;
+		}
+		if (vm_maxcpu == 0)
+			vm_maxcpu = 1;
+
 		error = vmm_modinit();
 		if (error == 0)
 			vmm_initialized = true;

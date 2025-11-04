@@ -57,6 +57,17 @@ struct vmmdev_ioctl {
 extern const struct vmmdev_ioctl vmmdev_machdep_ioctls[];
 extern const size_t vmmdev_machdep_ioctl_count;
 
+/*
+ * Upper limit on vm_maxcpu.  Limited by use of uint16_t types for CPU counts as
+ * well as range of vpid values for VT-x on amd64 and by the capacity of
+ * cpuset_t masks.  The call to new_unrhdr() in vpid_init() in vmx.c requires
+ * 'vm_maxcpu + 1 <= 0xffff', hence the '- 1' below.
+ */
+#define	VM_MAXCPU	MIN(0xffff - 1, CPU_SETSIZE)
+
+/* Maximum number of vCPUs in a single VM. */
+extern u_int vm_maxcpu;
+
 #endif /* _KERNEL */
 
 struct vmmctl_vm_create {

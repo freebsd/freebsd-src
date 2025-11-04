@@ -267,10 +267,6 @@ static int trap_wbinvd;
 SYSCTL_INT(_hw_vmm, OID_AUTO, trap_wbinvd, CTLFLAG_RDTUN, &trap_wbinvd, 0,
     "WBINVD triggers a VM-exit");
 
-u_int vm_maxcpu;
-SYSCTL_UINT(_hw_vmm, OID_AUTO, maxcpu, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
-    &vm_maxcpu, 0, "Maximum number of vCPUs");
-
 static void vcpu_notify_event_locked(struct vcpu *vcpu);
 
 /* global statistics */
@@ -295,14 +291,6 @@ VMM_STAT(VMEXIT_REQIDLE, "number of times idle requested at exit");
 VMM_STAT(VMEXIT_USERSPACE, "number of vm exits handled in userspace");
 VMM_STAT(VMEXIT_RENDEZVOUS, "number of times rendezvous pending at exit");
 VMM_STAT(VMEXIT_EXCEPTION, "number of vm exits due to exceptions");
-
-/*
- * Upper limit on vm_maxcpu.  Limited by use of uint16_t types for CPU
- * counts as well as range of vpid values for VT-x and by the capacity
- * of cpuset_t masks.  The call to new_unrhdr() in vpid_init() in
- * vmx.c requires 'vm_maxcpu + 1 <= 0xffff', hence the '- 1' below.
- */
-#define	VM_MAXCPU	MIN(0xffff - 1, CPU_SETSIZE)
 
 #ifdef KTR
 static const char *
@@ -404,16 +392,6 @@ vmm_modinit(void)
 {
 	if (!vmm_is_hw_supported())
 		return (ENXIO);
-
-	vm_maxcpu = mp_ncpus;
-	TUNABLE_INT_FETCH("hw.vmm.maxcpu", &vm_maxcpu);
-
-	if (vm_maxcpu > VM_MAXCPU) {
-		printf("vmm: vm_maxcpu clamped to %u\n", VM_MAXCPU);
-		vm_maxcpu = VM_MAXCPU;
-	}
-	if (vm_maxcpu == 0)
-		vm_maxcpu = 1;
 
 	vmm_host_state_init();
 
