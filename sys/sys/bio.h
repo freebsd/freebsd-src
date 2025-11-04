@@ -70,7 +70,8 @@
 #define BIO_SPEEDUP_WRITE	0x4000	/* Resource shortage at upper layers */
 #define BIO_SPEEDUP_TRIM	0x8000	/* Resource shortage at upper layers */
 
-#define	PRINT_BIO_FLAGS "\20\20speedup_trim\17speedup_write\12swap\7vlist\6transient_mapping\5unmapped" \
+#define	PRINT_BIO_FLAGS "\20\20speedup_trim\17speedup_write\16exterr"	\
+	"\12swap\7vlist\6transient_mapping\5unmapped"			\
 	"\4ordered\3onqueue\2done\1error"
 
 
