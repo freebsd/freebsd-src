@@ -984,6 +984,9 @@ vmmdev_create(const char *name, struct ucred *cred)
 	struct vm *vm;
 	int error;
 
+	if (name == NULL || strlen(name) > VM_MAX_NAMELEN)
+		return (EINVAL);
+
 	sx_xlock(&vmmdev_mtx);
 	sc = vmmdev_lookup(name, cred);
 	if (sc != NULL) {

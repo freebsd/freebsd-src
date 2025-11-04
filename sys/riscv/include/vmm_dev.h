@@ -38,6 +38,8 @@
 
 #include <machine/vmm.h>
 
+#include <dev/vmm/vmm_param.h>
+
 struct vm_memmap {
 	vm_paddr_t	gpa;
 	int		segid;		/* memory segment */
