@@ -117,7 +117,8 @@ struct kinfo_proc {
 	struct	rusage ki_rusage;	/* process rusage statistics */
 	struct	rusage ki_rusage_ch;	/* rusage of children processes */
 	long	ki_sflag;		/* PS_* flags */
-	...				/* additional fields */
+	/* ... additional fields, see <sys/user.h> for full definition.
+	 * Use ki_structsize or KINFO_PROC_SIZE for actual struct size. */
 };
 .Ed
 .Pp
@@ -228,7 +229,8 @@ On failure the
 function returns
 .Dv NULL .
 .Sh EXAMPLES
-The following example retrieves and displays process memory information:
+The following example retrieves and displays process memory information.
+If no argument is provided, it displays information for the current process:
 .Bd -literal -offset indent
 #include <sys/types.h>
 #include <sys/user.h>
@@ -245,10 +247,10 @@ main(int argc, char *argv[])
 	int pagesize;
 	pid_t pid;
 
-	if (argc != 2)
-		errx(1, "usage: %s pid", argv[0]);
+	if (argc > 2)
+		errx(1, "usage: %s [pid]", argv[0]);
 
-	pid = atoi(argv[1]);
+	pid = (argc == 2) ? atoi(argv[1]) : getpid();
 	pagesize = getpagesize();
 
 	kp = kinfo_getproc(pid);
@@ -257,8 +259,8 @@ main(int argc, char *argv[])
 
 	printf("Process %d (%s) memory usage:\\n",
 	    kp->ki_pid, kp->ki_comm);
-	printf("  Virtual size: %zu bytes\\n",
-	    (size_t)kp->ki_size);
+	printf("  Virtual size: %zu KB\\n",
+	    (size_t)kp->ki_size / 1024);
 	printf("  Resident size: %zu KB\\n",
 	    (size_t)(kp->ki_rssize * pagesize) / 1024);
 	printf("  Text size: %zu KB\\n",
@@ -271,6 +273,11 @@ main(int argc, char *argv[])
 	free(kp);
 	return (0);
 }
+.Ed
+.Pp
+The above example can be compiled with:
+.Bd -literal -offset indent
+cc -o procmem procmem.c -lutil
 .Ed
 .Sh SEE ALSO
 .Xr ps 1 ,
