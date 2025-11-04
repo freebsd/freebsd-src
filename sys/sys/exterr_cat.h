@@ -23,6 +23,7 @@
 #define	EXTERR_CAT_VFSSYSCALL	9
 #define	EXTERR_CAT_VFSBIO	10
 #define	EXTERR_CAT_GEOMVFS	11
+#define	EXTERR_CAT_GEOM		12
 
 #endif
 

@@ -5529,6 +5529,8 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 		db_printf("\n");
 	}
 	BUF_LOCKPRINTINFO(bp);
+	if ((bp->b_ioflags & BIO_EXTERR) != 0)
+		exterr_db_print(&bp->b_exterr);
 #if defined(FULL_BUF_TRACKING)
 	db_printf("b_io_tracking: b_io_tcnt = %u\n", bp->b_io_tcnt);
 
