@@ -43,12 +43,6 @@ int	ppt_assigned_devices(struct vm *vm);
 bool	ppt_is_mmio(struct vm *vm, vm_paddr_t gpa);
 
 /*
- * Returns the number of devices sequestered by the ppt driver for assignment
- * to virtual machines.
- */
-int	ppt_avail_devices(void);
-
-/*
  * The following functions should never be called directly.
  * Use 'vm_assign_pptdev()' and 'vm_unassign_pptdev()' instead.
  */
