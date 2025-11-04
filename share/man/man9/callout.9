@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 22, 2024
+.Dd November 4, 2025
 .Dt CALLOUT 9
 .Os
 .Sh NAME
@@ -789,6 +789,8 @@ and
 functions return a value of one if the callout was still pending when it was
 called, a zero if the callout could not be stopped and a negative one is it
 was either not running or has already completed.
+.Sh SEE ALSO
+.Xr dtrace_callout_execute 4
 .Sh HISTORY
 .Fx
 initially used the long standing
