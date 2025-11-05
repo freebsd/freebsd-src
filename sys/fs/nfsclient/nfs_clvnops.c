@@ -3896,11 +3896,15 @@ nfs_allocate(struct vop_allocate_args *ap)
 			mtx_lock(&nmp->nm_mtx);
 			nmp->nm_privflag |= NFSMNTP_NOALLOCATE;
 			mtx_unlock(&nmp->nm_mtx);
-			error = EINVAL;
+			error = EOPNOTSUPP;
 		}
 	} else {
+		/*
+		 * Pre-v4.2 NFS server that doesn't support it, or a newer
+		 * NFS server that has indicated that it doesn't support it.
+		 */
 		mtx_unlock(&nmp->nm_mtx);
-		error = EINVAL;
+		error = EOPNOTSUPP;
 	}
 	if (attrflag != 0) {
 		ret = nfscl_loadattrcache(&vp, &nfsva, NULL, 0, 1);
