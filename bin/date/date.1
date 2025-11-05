@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 1, 2025
+.Dd November 5, 2025
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -143,7 +143,8 @@ values are
 .Cm minutes ,
 .Cm seconds ,
 and
-.Cm ns No Pq for nanoseconds .
+.Cm ns
+.Pq for nanoseconds .
 The date and time is formatted to the specified precision.
 When
 .Ar FMT
@@ -172,7 +173,7 @@ Obsolete flag, accepted and ignored for compatibility.
 .It Fl R
 Use RFC 2822 date and time output format.
 This is equivalent to using
-.Dq Li %a, %d %b %Y \&%T %z
+.Ql %a, %d %b %Y \&%T %z
 as
 .Ar output_fmt
 while
@@ -194,9 +195,7 @@ and can be specified in decimal, octal, or hex.
 Print the date and time of the last modification of
 .Ar filename .
 .It Fl u
-Display or set the date in
-.Tn UTC
-(Coordinated Universal) time.
+Display or set the date in UTC (Coordinated Universal) time.
 By default
 .Nm
 displays the time in the time zone described by
@@ -328,7 +327,7 @@ The format string may contain any of the conversion specifications
 described in the
 .Xr strftime 3
 manual page and
-.Ql %N
+.Ql \&%N
 for nanoseconds, as well as any arbitrary text.
 A newline
 .Pq Ql \en
@@ -468,7 +467,7 @@ will display:
 .Dl "Sun Jan  4 04:15:24 GMT 1998"
 .Pp
 where it is currently
-.Li "Mon Aug  4 04:15:24 BST 1997" .
+.Ql "Mon Aug  4 04:15:24 BST 1997" .
 .Pp
 The command:
 .Pp
@@ -493,29 +492,31 @@ will display the last Friday of the month:
 .Dl "Fri Aug 29 04:31:11 BST 1997"
 .Pp
 where it is currently
-.Li "Mon Aug  4 04:31:11 BST 1997" .
+.Ql "Mon Aug  4 04:31:11 BST 1997" .
 .Pp
 The command:
 .Pp
 .Dl "date 8506131627"
 .Pp
 sets the date to
-.Dq Li "June 13, 1985, 4:27 PM" .
+.Ql "June 13, 1985, 4:27 PM" .
 .Pp
 .Dl "date ""+%Y%m%d%H%M.%S"""
 .Pp
 may be used on one machine to print out the date
 suitable for setting on another.
-.Qq ( Li "+%m%d%H%M%Y.%S"
-for use on
-.Tn Linux . )
+.Po Use
+.Ql "+%m%d%H%M%Y.%S"
+with GNU date on
+Linux .
+.Pc
 .Pp
 The command:
 .Pp
 .Dl "date 1432"
 .Pp
 sets the time to
-.Li "2:32 PM" ,
+.Ql "2:32 PM" ,
 without modifying the date.
 .Pp
 The command
@@ -591,10 +592,10 @@ flag is compatible with
 .St -iso8601 .
 .Pp
 The
-.Ql %N
+.Ql \&%N
 conversion specification for nanoseconds is a non-standard extension.
 It is compatible with GNU date's
-.Ql %N .
+.Ql \&%N .
 .Sh HISTORY
 A
 .Nm
@@ -615,6 +616,6 @@ flag was added in
 .Fx 12.0 .
 .Pp
 The
-.Ql %N
+.Ql \&%N
 conversion specification was added in
 .Fx 14.1 .
