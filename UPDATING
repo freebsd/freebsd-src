@@ -27,6 +27,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20251105:
+	pf(4) now supports nat64 via the af-to keyword.
+
 20251102:
 	Commit e5aa60d06958 changed the internal KAPI between
 	the NFS modules.  As such, they all need to be rebuilt
