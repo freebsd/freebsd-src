@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 19, 2025
+.Dd November 4, 2025
 .Dt MAKE_DEV 9
 .Os
 .Sh NAME
@@ -387,14 +387,18 @@ function is the same as:
 destroy_dev_sched_cb(cdev, NULL, NULL);
 .Ed
 .Pp
-The
+Neither the
 .Fn d_close
-driver method cannot call
+driver method, nor a
+.Xr devfs_cdevpriv 9
+.Fa dtr
+method can
 .Fn destroy_dev
 directly.
 Doing so causes deadlock when
 .Fn destroy_dev
-waits for all threads to leave the driver methods.
+waits for all threads to leave the driver methods and finish executing any
+per-open destructors.
 Also, because
 .Fn destroy_dev
 sleeps, no non-sleepable locks may be held over the call.
