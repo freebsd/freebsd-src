@@ -160,6 +160,17 @@ cd_setup(struct mmc_helper *helper, phandle_t node)
 	}
 
 	/*
+	 * If the device has no card-detection, treat it as non-removable.
+	 * This could be improved by polling for detection.
+	 */
+	if (helper->props & MMC_PROP_BROKEN_CD) {
+		helper->cd_disabled = true;
+		if (bootverbose)
+			device_printf(dev, "Broken card-detect\n");
+		return;
+	}
+
+	/*
 	 * If there is no cd-gpios property, then presumably the hardware
 	 * PRESENT_STATE register and interrupts will reflect card state
 	 * properly, and there's nothing more for us to do.  Our get_present()
