@@ -12,6 +12,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20251105:
+	pf(4) now supports nat64 via the af-to keyword.
+
 20251030:
 	flua(1) has moved to the new FreeBSD-flua package.  If you use flua,
 	you may want to install this package if it's not otherwise installed
