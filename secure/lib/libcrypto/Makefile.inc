@@ -1,6 +1,6 @@
 .include <bsd.own.mk>
 
-PACKAGE=	openssl
+PACKAGE?=	openssl
 LIB_PACKAGE=
 
 LCRYPTO_SRC=	${SRCTOP}/crypto/openssl
