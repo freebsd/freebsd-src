@@ -625,7 +625,7 @@ fuse_vnop_allocate(struct vop_allocate_args *ap)
 		return (EROFS);
 
 	if (fsess_not_impl(mp, FUSE_FALLOCATE))
-		return (EXTERROR(EINVAL, "This server does not implement "
+		return (EXTERROR(EOPNOTSUPP, "This server does not implement "
 		    "FUSE_FALLOCATE"));
 
 	io.uio_offset = *offset;
@@ -656,14 +656,14 @@ fuse_vnop_allocate(struct vop_allocate_args *ap)
 
 	if (err == ENOSYS) {
 		fsess_set_notimpl(mp, FUSE_FALLOCATE);
-		err = EXTERROR(EINVAL, "This server does not implement "
+		err = EXTERROR(EOPNOTSUPP, "This server does not implement "
 		    "FUSE_ALLOCATE");
 	} else if (err == EOPNOTSUPP) {
 		/*
 		 * The file system server does not support FUSE_FALLOCATE with
 		 * the supplied mode for this particular file.
 		 */
-		err = EXTERROR(EINVAL, "This file can't be pre-allocated");
+		err = EXTERROR(EOPNOTSUPP, "This file can't be pre-allocated");
 	} else if (!err) {
 		*offset += *len;
 		*len = 0;
