@@ -73,7 +73,7 @@ translator bufinfo_t < struct bio *B > {
 	b_lblkno = 0;
 	b_resid = B->bio_resid;
 	b_bufsize = 0; /* XXX gnn */
-	b_error = B->bio_error;
+	b_error = B->bio_exterr.error;
 };
 
 /*
