@@ -77,8 +77,13 @@ struct vmmdev_softc {
 	struct cdev	*cdev;
 	struct ucred	*ucred;
 	SLIST_ENTRY(vmmdev_softc) link;
+	LIST_ENTRY(vmmdev_softc) priv_link;
 	SLIST_HEAD(, devmem_softc) devmem;
 	int		flags;
+};
+
+struct vmmctl_priv {
+	LIST_HEAD(, vmmdev_softc) softcs;
 };
 
 static bool vmm_initialized = false;
@@ -103,6 +108,7 @@ SYSCTL_UINT(_hw_vmm, OID_AUTO, maxvmms, CTLFLAG_RWTUN,
 
 static void devmem_destroy(void *arg);
 static int devmem_create_cdev(struct vmmdev_softc *sc, int id, char *devmem);
+static void vmmdev_destroy(struct vmmdev_softc *sc);
 
 static int
 vmm_priv_check(struct ucred *ucred)
@@ -909,7 +915,10 @@ vmmdev_destroy(struct vmmdev_softc *sc)
 
 	sx_xlock(&vmmdev_mtx);
 	SLIST_REMOVE(&head, sc, vmmdev_softc, link);
+	if ((sc->flags & VMMCTL_CREATE_DESTROY_ON_CLOSE) != 0)
+		LIST_REMOVE(sc, priv_link);
 	sx_xunlock(&vmmdev_mtx);
+	wakeup(sc);
 	free(sc, M_VMMDEV);
 }
 
@@ -934,7 +943,7 @@ vmmdev_lookup_and_destroy(const char *name, struct ucred *cred)
 	sc->cdev = NULL;
 	sx_xunlock(&vmmdev_mtx);
 
-	vm_suspend(sc->vm, VM_SUSPEND_DESTROY);
+	(void)vm_suspend(sc->vm, VM_SUSPEND_DESTROY);
 	destroy_dev(cdev);
 	vmmdev_destroy(sc);
 
@@ -987,16 +996,23 @@ vmmdev_alloc(struct vm *vm, struct ucred *cred)
 }
 
 static int
-vmmdev_create(const char *name, struct ucred *cred)
+vmmdev_create(const char *name, uint32_t flags, struct ucred *cred)
 {
 	struct make_dev_args mda;
 	struct cdev *cdev;
 	struct vmmdev_softc *sc;
+	struct vmmctl_priv *priv;
 	struct vm *vm;
 	int error;
 
 	if (name == NULL || strlen(name) > VM_MAX_NAMELEN)
 		return (EINVAL);
+
+	if ((flags & ~VMMCTL_FLAGS_MASK) != 0)
+		return (EINVAL);
+	error = devfs_get_cdevpriv((void **)&priv);
+	if (error)
+		return (error);
 
 	sx_xlock(&vmmdev_mtx);
 	sc = vmmdev_lookup(name, cred);
@@ -1012,6 +1028,9 @@ vmmdev_create(const char *name, struct ucred *cred)
 	}
 	sc = vmmdev_alloc(vm, cred);
 	SLIST_INSERT_HEAD(&head, sc, link);
+	sc->flags = flags;
+	if ((flags & VMMCTL_CREATE_DESTROY_ON_CLOSE) != 0)
+		LIST_INSERT_HEAD(&priv->softcs, sc, priv_link);
 
 	make_dev_args_init(&mda);
 	mda.mda_devsw = &vmmdevsw;
@@ -1055,7 +1074,7 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 	buf = malloc(buflen, M_VMMDEV, M_WAITOK | M_ZERO);
 	error = sysctl_handle_string(oidp, buf, buflen, req);
 	if (error == 0 && req->newptr != NULL)
-		error = vmmdev_create(buf, req->td->td_ucred);
+		error = vmmdev_create(buf, 0, req->td->td_ucred);
 	free(buf, M_VMMDEV);
 	return (error);
 }
@@ -1064,10 +1083,53 @@ SYSCTL_PROC(_hw_vmm, OID_AUTO, create,
     NULL, 0, sysctl_vmm_create, "A",
     "Create a vmm(4) instance (legacy interface)");
 
+static void
+vmmctl_dtor(void *arg)
+{
+	struct cdev *sc_cdev;
+	struct vmmdev_softc *sc;
+	struct vmmctl_priv *priv = arg;
+
+	/*
+	 * Scan the softc list for any VMs associated with
+	 * the current descriptor and destroy them.
+	 */
+	sx_xlock(&vmmdev_mtx);
+	while (!LIST_EMPTY(&priv->softcs)) {
+		sc = LIST_FIRST(&priv->softcs);
+		sc_cdev = sc->cdev;
+		if (sc_cdev != NULL) {
+			sc->cdev = NULL;
+		} else {
+			/*
+			 * Another thread has already
+			 * started the removal process.
+			 * Sleep until 'vmmdev_destroy' notifies us
+			 * that the removal has finished.
+			 */
+			sx_sleep(sc, &vmmdev_mtx, 0, "vmmctl_dtor", 0);
+			continue;
+		}
+		/*
+		 * Temporarily drop the lock to allow vmmdev_destroy to run.
+		 */
+		sx_xunlock(&vmmdev_mtx);
+		(void)vm_suspend(sc->vm, VM_SUSPEND_DESTROY);
+		destroy_dev(sc_cdev);
+		/* vmmdev_destroy will unlink the 'priv_link' entry. */
+		vmmdev_destroy(sc);
+		sx_xlock(&vmmdev_mtx);
+	}
+	sx_xunlock(&vmmdev_mtx);
+
+	free(priv, M_VMMDEV);
+}
+
 static int
 vmmctl_open(struct cdev *cdev, int flags, int fmt, struct thread *td)
 {
 	int error;
+	struct vmmctl_priv *priv;
 
 	error = vmm_priv_check(td->td_ucred);
 	if (error != 0)
@@ -1075,6 +1137,14 @@ vmmctl_open(struct cdev *cdev, int flags, int fmt, struct thread *td)
 
 	if ((flags & FWRITE) == 0)
 		return (EPERM);
+
+	priv = malloc(sizeof(*priv), M_VMMDEV, M_WAITOK | M_ZERO);
+	LIST_INIT(&priv->softcs);
+	error = devfs_set_cdevpriv(priv, vmmctl_dtor);
+	if (error != 0) {
+		free(priv, M_VMMDEV);
+		return (error);
+	}
 
 	return (0);
 }
@@ -1098,7 +1168,7 @@ vmmctl_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			}
 		}
 
-		error = vmmdev_create(vmc->name, td->td_ucred);
+		error = vmmdev_create(vmc->name, vmc->flags, td->td_ucred);
 		break;
 	}
 	case VMMCTL_VM_DESTROY: {
