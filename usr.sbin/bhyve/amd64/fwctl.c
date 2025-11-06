@@ -368,7 +368,7 @@ fwctl_request(uint32_t value)
 		/* Verify size */
 		if (value < 12) {
 			printf("msg size error");
-			exit(4);
+			exit(BHYVE_EXIT_ERROR);
 		}
 		rinfo.req_size = value;
 		rinfo.req_count = 1;

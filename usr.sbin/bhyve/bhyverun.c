@@ -477,7 +477,7 @@ set_vcpu_affinities(void)
 		value = get_config_value_node(nvl, "cpus");
 		if (value == NULL) {
 			EPRINTLN("Missing CPU set for domain %d", dom);
-			exit(4);
+			exit(BHYVE_EXIT_ERROR);
 		}
 
 		parse_cpuset(dom, value, &cpus);
@@ -487,7 +487,7 @@ set_vcpu_affinities(void)
 				EPRINTLN(
 				    "Unable to set vCPU %d affinity for domain %d: %s",
 				    cpu, dom, strerror(errno));
-				exit(4);
+				exit(BHYVE_EXIT_ERROR);
 			}
 		}
 	}
@@ -504,7 +504,7 @@ set_vcpu_affinities(void)
 			EPRINTLN(
 			    "Unable to set vCPU %d affinity for domain %d: %s",
 			    cpu, 0, strerror(errno));
-			exit(4);
+			exit(BHYVE_EXIT_ERROR);
 		}
 	}
 }
@@ -562,7 +562,7 @@ fbsdrun_start_thread(void *param)
 
 	vm_loop(vi->ctx, vi->vcpu);
 	/* We get here if the VM was destroyed asynchronously. */
-	exit(4);
+	exit(BHYVE_EXIT_ERROR);
 }
 
 void
@@ -596,7 +596,7 @@ fbsdrun_deletecpu(int vcpu)
 	pthread_mutex_lock(&resetcpu_mtx);
 	if (!CPU_ISSET(vcpu, &cpumask)) {
 		EPRINTLN("Attempting to delete unknown cpu %d", vcpu);
-		exit(4);
+		exit(BHYVE_EXIT_ERROR);
 	}
 
 	CPU_CLR(vcpu, &cpumask);
@@ -645,7 +645,7 @@ vm_loop(struct vmctx *ctx, struct vcpu *vcpu)
 		if (exitcode >= VM_EXITCODE_MAX ||
 		    vmexit_handlers[exitcode] == NULL) {
 			warnx("vm_loop: unexpected exitcode 0x%x", exitcode);
-			exit(4);
+			exit(BHYVE_EXIT_ERROR);
 		}
 
 		rc = (*vmexit_handlers[exitcode])(ctx, vcpu, &vmrun);
@@ -656,7 +656,7 @@ vm_loop(struct vmctx *ctx, struct vcpu *vcpu)
 		case VMEXIT_ABORT:
 			abort();
 		default:
-			exit(4);
+			exit(BHYVE_EXIT_ERROR);
 		}
 	}
 	EPRINTLN("vm_run error %d, errno %d", error, errno);
@@ -816,7 +816,7 @@ main(int argc, char *argv[])
 		if (error) {
 			fprintf(stderr, "Failed to read checkpoint info from "
 					"file: '%s'.\n", restore_file);
-			exit(1);
+			exit(BHYVE_EXIT_ERROR);
 		}
 		vmname = lookup_vmname(&rstate);
 		if (vmname != NULL)
@@ -833,7 +833,7 @@ main(int argc, char *argv[])
 
 	if (get_config_bool_default("config.dump", false)) {
 		dump_config();
-		exit(1);
+		exit(BHYVE_EXIT_POWEROFF);
 	}
 
 	calc_topology();
@@ -855,7 +855,7 @@ main(int argc, char *argv[])
 
 	if (guest_ncpus < 1) {
 		fprintf(stderr, "Invalid guest vCPUs (%d)\n", guest_ncpus);
-		exit(1);
+		exit(BHYVE_EXIT_ERROR);
 	}
 #endif
 
@@ -864,7 +864,7 @@ main(int argc, char *argv[])
 	if (guest_ncpus > max_vcpus) {
 		fprintf(stderr, "%d vCPUs requested but only %d available\n",
 			guest_ncpus, max_vcpus);
-		exit(4);
+		exit(BHYVE_EXIT_ERROR);
 	}
 
 	bhyve_init_vcpu(bsp);
@@ -898,17 +898,17 @@ main(int argc, char *argv[])
 	init_mem(guest_ncpus);
 	init_bootrom(ctx);
 	if (bhyve_init_platform(ctx, bsp) != 0)
-		exit(4);
+		exit(BHYVE_EXIT_ERROR);
 
 	if (qemu_fwcfg_init(ctx) != 0) {
 		fprintf(stderr, "qemu fwcfg initialization error\n");
-		exit(4);
+		exit(BHYVE_EXIT_ERROR);
 	}
 
 	if (qemu_fwcfg_add_file("opt/bhyve/hw.ncpu", sizeof(guest_ncpus),
 	    &guest_ncpus) != 0) {
 		fprintf(stderr, "Could not add qemu fwcfg opt/bhyve/hw.ncpu\n");
-		exit(4);
+		exit(BHYVE_EXIT_ERROR);
 	}
 
 	/*
@@ -917,11 +917,11 @@ main(int argc, char *argv[])
 	if (init_pci(ctx) != 0) {
 		EPRINTLN("Device emulation initialization error: %s",
 		    strerror(errno));
-		exit(4);
+		exit(BHYVE_EXIT_ERROR);
 	}
 	if (init_tpm(ctx) != 0) {
 		EPRINTLN("Failed to init TPM device");
-		exit(4);
+		exit(BHYVE_EXIT_ERROR);
 	}
 
 	/*
@@ -946,37 +946,37 @@ main(int argc, char *argv[])
 		FPRINTLN(stdout, "Pausing pci devs...");
 		if (vm_pause_devices() != 0) {
 			EPRINTLN("Failed to pause PCI device state.");
-			exit(1);
+			exit(BHYVE_EXIT_ERROR);
 		}
 
 		FPRINTLN(stdout, "Restoring vm mem...");
 		if (restore_vm_mem(ctx, &rstate) != 0) {
 			EPRINTLN("Failed to restore VM memory.");
-			exit(1);
+			exit(BHYVE_EXIT_ERROR);
 		}
 
 		FPRINTLN(stdout, "Restoring pci devs...");
 		if (vm_restore_devices(&rstate) != 0) {
 			EPRINTLN("Failed to restore PCI device state.");
-			exit(1);
+			exit(BHYVE_EXIT_ERROR);
 		}
 
 		FPRINTLN(stdout, "Restoring kernel structs...");
 		if (vm_restore_kern_structs(ctx, &rstate) != 0) {
 			EPRINTLN("Failed to restore kernel structs.");
-			exit(1);
+			exit(BHYVE_EXIT_ERROR);
 		}
 
 		FPRINTLN(stdout, "Resuming pci devs...");
 		if (vm_resume_devices() != 0) {
 			EPRINTLN("Failed to resume PCI device state.");
-			exit(1);
+			exit(BHYVE_EXIT_ERROR);
 		}
 	}
 #endif
 
 	if (bhyve_init_platform_late(ctx, bsp) != 0)
-		exit(4);
+		exit(BHYVE_EXIT_ERROR);
 
 	/*
 	 * Change the proc title to include the VM name.
@@ -1018,5 +1018,5 @@ main(int argc, char *argv[])
 	 */
 	mevent_dispatch();
 
-	exit(4);
+	exit(BHYVE_EXIT_ERROR);
 }

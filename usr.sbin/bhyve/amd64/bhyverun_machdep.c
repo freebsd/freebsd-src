@@ -186,7 +186,7 @@ bhyve_optparse(int argc, char **argv)
 				pci_print_supported_devices();
 				exit(0);
 			} else if (pci_parse_slot(optarg) != 0)
-				exit(4);
+				exit(BHYVE_EXIT_ERROR);
 			else
 				break;
 		case 'S':
@@ -276,7 +276,7 @@ bhyve_init_vcpu(struct vcpu *vcpu)
 		err = vm_get_capability(vcpu, VM_CAP_HALT_EXIT, &tmp);
 		if (err < 0) {
 			EPRINTLN("VM exit on HLT not supported");
-			exit(4);
+			exit(BHYVE_EXIT_ERROR);
 		}
 		vm_set_capability(vcpu, VM_CAP_HALT_EXIT, 1);
 	}
@@ -288,7 +288,7 @@ bhyve_init_vcpu(struct vcpu *vcpu)
 		err = vm_get_capability(vcpu, VM_CAP_PAUSE_EXIT, &tmp);
 		if (err < 0) {
 			EPRINTLN("SMP mux requested, no pause support");
-			exit(4);
+			exit(BHYVE_EXIT_ERROR);
 		}
 		vm_set_capability(vcpu, VM_CAP_PAUSE_EXIT, 1);
 	}
@@ -300,7 +300,7 @@ bhyve_init_vcpu(struct vcpu *vcpu)
 
 	if (err) {
 		EPRINTLN("Unable to set x2apic state (%d)", err);
-		exit(4);
+		exit(BHYVE_EXIT_ERROR);
 	}
 
 	vm_set_capability(vcpu, VM_CAP_ENABLE_INVPCID, 1);

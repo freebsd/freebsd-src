@@ -409,17 +409,17 @@ vmexit_suspend(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 
 	switch (how) {
 	case VM_SUSPEND_RESET:
-		exit(0);
+		exit(BHYVE_EXIT_RESET);
 	case VM_SUSPEND_POWEROFF:
 		if (get_config_bool_default("destroy_on_poweroff", false))
 			vm_destroy(ctx);
-		exit(1);
+		exit(BHYVE_EXIT_POWEROFF);
 	case VM_SUSPEND_HALT:
-		exit(2);
+		exit(BHYVE_EXIT_HALT);
 	case VM_SUSPEND_TRIPLEFAULT:
-		exit(3);
+		exit(BHYVE_EXIT_TRIPLEFAULT);
 	case VM_SUSPEND_DESTROY:
-		exit(4);
+		exit(BHYVE_EXIT_ERROR);
 	default:
 		EPRINTLN("vmexit_suspend: invalid reason %d", how);
 		exit(100);
