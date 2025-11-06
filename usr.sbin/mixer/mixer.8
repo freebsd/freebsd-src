@@ -19,7 +19,7 @@
 .\" OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 .\" THE SOFTWARE.
 .\"
-.Dd August 14, 2024
+.Dd October 31, 2025
 .Dt MIXER 8
 .Os
 .Sh NAME
@@ -28,7 +28,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl f Ar device
-.Op Fl d Ar pcmN | N Op Fl V Ar voss_device:mode
+.Op Fl d Ar pcmX | X Op Fl V Ar voss_device:mode
 .Op Fl os
 .Op Ar dev Ns Op Cm \&. Ns Ar control Ns Op Cm \&= Ns Ar value
 .Ar ...
@@ -47,10 +47,10 @@ The options are as follows:
 .It Fl a
 Print the values for all mixer devices available in the system
 .Pq see Sx FILES .
-.It Fl d Ar pcmN | N
+.It Fl d Ar pcmX | X
 Change the default audio card to
-.Ar pcmN ,
-where N is the unit number (e.g for pcm0, the unit number is 0).
+.Ar pcmX ,
+where X is the device's unit number (e.g for pcm0, the unit number is 0).
 See
 .Sx EXAMPLES
 on how to list all available audio devices in the system.
@@ -246,30 +246,22 @@ makes
 the only recording device.
 .El
 .Sh FILES
-.Bl -tag -width /dev/mixerN -compact
-.It Pa /dev/mixerN
-The mixer device, where
-.Ar N
-is the number of that device, for example
-.Ar /dev/mixer0 .
-PCM cards and mixers have a 1:1 relationship, which means that
+.Bl -tag -width "/dev/mixerX" -compact
+.It Pa /dev/mixerX
+The mixer device, where X is the unit number of that device,
+.Pa /dev/dsp*
+devices and
+.Pa /dev/mixer*
+devices have a 1:1 relationship, which means that, for instance,
 .Pa /dev/mixer0
-is the mixer for
-.Pa /dev/pcm0
-and so on.
-By default,
+is the mixer device for
+.Pa /dev/dsp0 .
+.It /dev/mixer
+Alias to the default device's mixer device.
 .Nm
-prints both the audio card's number and the mixer associated with it
-in the form of
-.Ar pcmN:mixer .
-The
-.Pa /dev/mixer
-file, although it does not exist in the filesystem, points to the default
-mixer device and is the file
-.Nm
-opens when the
+opens this when the
 .Fl f Ar device
-option has not been specified.
+option is not specified.
 .El
 .Sh EXAMPLES
 List all available audio devices in the system:
