@@ -115,6 +115,7 @@ int	vm_create(const char *name);
 struct vmctx *vm_open(const char *name);
 #define	VMMAPI_OPEN_CREATE	0x01	/* create if the VM does not exist */
 #define	VMMAPI_OPEN_REINIT	0x02	/* reinitialize the VM if it exists */
+#define	VMMAPI_OPEN_CREATE_DESTROY_ON_CLOSE	0x04	/* Destroy the VM when closing vmm_ctl */
 struct vmctx *vm_openf(const char *name, int flags);
 void	vm_close(struct vmctx *ctx);
 void	vm_destroy(struct vmctx *ctx);
