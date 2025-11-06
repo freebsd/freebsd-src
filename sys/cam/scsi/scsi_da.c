@@ -3369,11 +3369,32 @@ static void
 dastart(struct cam_periph *periph, union ccb *start_ccb)
 {
 	struct da_softc *softc;
+	uint32_t priority = start_ccb->ccb_h.pinfo.priority;
 
 	cam_periph_assert(periph, MA_OWNED);
 	softc = (struct da_softc *)periph->softc;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dastart\n"));
+
+	/*
+	 * When we're running the state machine, we should only accept DEV CCBs.
+	 * When we're doing normal I/O we should only accept NORMAL CCBs.
+	 *
+	 * While in the state machine, we carefully single step the queue, but
+	 * there's no protection for 'extra' calls to xpt_schedule() at the
+	 * wrong priority. Guard against that so that we filter any CCBs that
+	 * are offered at the wrong priority. This avoids generating requests
+	 * that are at normal priority. In addition, though we can't easily
+	 * enforce it, one must not transition to the NORMAL state via the
+	 * skipstate mechanism.
+`        */
+	if ((softc->state != DA_STATE_NORMAL && priority != CAM_PRIORITY_DEV) ||
+	    (softc->state == DA_STATE_NORMAL && priority != CAM_PRIORITY_NORMAL)) {
+		xpt_print(periph->path, "Bad priority for state %d prio %d\n",
+		    softc->state, priority);
+		xpt_release_ccb(start_ccb);
+		return;
+	}
 
 skipstate:
 	switch (softc->state) {
