@@ -1,0 +1,59 @@
+.\"
+.\" Copyright (c) 2025 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd November 12, 2025
+.Dt DTRACE_PRIV 4
+.Os
+.Sh NAME
+.Nm dtrace_priv
+.Nd a DTrace provider for the kernel privilege checking API
+.Sh SYNOPSIS
+.Nm priv Ns Cm :kernel:priv_check:priv-ok
+.Nm priv Ns Cm :kernel:priv_check:priv-err
+.Sh DESCRIPTION
+The
+.Nm priv
+provider allows for tracing the
+.Xr priv 9
+API.
+.Pp
+The
+.Nm priv Ns Cm :kernel:priv_check:priv-ok
+probe fires upon a successful kernel privilege check.
+.Pp
+The
+.Nm priv Ns Cm :kernel:priv_check:priv-err
+probe fires upon a failed kernel privilege check.
+.Pp
+The only argument to the
+.Nm priv
+probes,
+.Fa args[0] ,
+is the requested privilege number
+.Ft int priv .
+.Sh EXAMPLES
+.Ss Example 1: Tracing Kernel Privilege Check Failures
+The following script captures an array of counters,
+one for each stack trace leading to a failed kernel privilege check:
+.Bd -literal -offset 2n
+priv:::priv-err
+{
+	@traces[stack()] = count();
+}
+.Ed
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr tracing 7 ,
+.Xr priv 9 ,
+.Xr SDT 9
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm priv
+provider was written by
+.An Robert N. M. Watson Aq Mt rwatson@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .
