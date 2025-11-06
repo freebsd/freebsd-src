@@ -128,6 +128,7 @@ static const char *features_for_read[] = {
 	"org.open-zfs:large_blocks",
 	"org.openzfs:blake3",
 	"org.zfsonlinux:large_dnode",
+	"com.klarasystems:dynamic_gang_header",
 	NULL
 };
 
@@ -141,6 +142,8 @@ static uint64_t dnode_cache_bn;
 static char *dnode_cache_buf;
 
 static int zio_read(const spa_t *spa, const blkptr_t *bp, void *buf);
+static int zio_read_impl(const spa_t *spa, const blkptr_t *bp, void *buf,
+    bool print);
 static int zfs_get_root(const spa_t *spa, uint64_t *objid);
 static int zfs_rlookup(const spa_t *spa, uint64_t objnum, char *result);
 static int zap_lookup(const spa_t *spa, const dnode_phys_t *dnode,
@@ -530,7 +533,7 @@ vdev_indirect_mapping_duplicate_adjacent_entries(vdev_t *vd, uint64_t offset,
 }
 
 static vdev_t *
-vdev_lookup_top(spa_t *spa, uint64_t vdev)
+vdev_lookup_top(const spa_t *spa, uint64_t vdev)
 {
 	vdev_t *rvd;
 	vdev_list_t *vlist;
@@ -2270,45 +2273,77 @@ ilog2(int n)
 	return (-1);
 }
 
+static inline uint64_t
+gbh_nblkptrs(uint64_t size)
+{
+	ASSERT(IS_P2ALIGNED(size, sizeof(blkptr_t)));
+	return ((size - sizeof(zio_eck_t)) / sizeof(blkptr_t));
+}
+
 static int
 zio_read_gang(const spa_t *spa, const blkptr_t *bp, void *buf)
 {
 	blkptr_t gbh_bp;
-	zio_gbh_phys_t zio_gb;
+	void *gbuf;
 	char *pbuf;
-	int i;
+	uint64_t gangblocksize;
+	int err, i;
+
+	gangblocksize = UINT64_MAX;
+	for (int dva = 0; dva < BP_GET_NDVAS(bp); dva++) {
+		vdev_t *vd = vdev_lookup_top(spa,
+		    DVA_GET_VDEV(&bp->blk_dva[dva]));
+		gangblocksize = MIN(gangblocksize, 1ULL << vd->v_ashift);
+	}
 
 	/* Artificial BP for gang block header. */
 	gbh_bp = *bp;
-	BP_SET_PSIZE(&gbh_bp, SPA_GANGBLOCKSIZE);
-	BP_SET_LSIZE(&gbh_bp, SPA_GANGBLOCKSIZE);
+	BP_SET_PSIZE(&gbh_bp, gangblocksize);
+	BP_SET_LSIZE(&gbh_bp, gangblocksize);
 	BP_SET_CHECKSUM(&gbh_bp, ZIO_CHECKSUM_GANG_HEADER);
 	BP_SET_COMPRESS(&gbh_bp, ZIO_COMPRESS_OFF);
 	for (i = 0; i < SPA_DVAS_PER_BP; i++)
 		DVA_SET_GANG(&gbh_bp.blk_dva[i], 0);
 
+	gbuf = malloc(gangblocksize);
+	if (gbuf == NULL)
+		return (ENOMEM);
 	/* Read gang header block using the artificial BP. */
-	if (zio_read(spa, &gbh_bp, &zio_gb))
+	err = zio_read_impl(spa, &gbh_bp, gbuf, false);
+	if ((err == EIO || err == ECKSUM) &&
+	    gangblocksize > SPA_OLD_GANGBLOCKSIZE) {
+		/* This might be a legacy gang block header, try again. */
+		gangblocksize = SPA_OLD_GANGBLOCKSIZE;
+		BP_SET_PSIZE(&gbh_bp, gangblocksize);
+		BP_SET_LSIZE(&gbh_bp, gangblocksize);
+		err = zio_read(spa, &gbh_bp, gbuf);
+	}
+	if (err != 0) {
+		free(gbuf);
 		return (EIO);
+	}
 
 	pbuf = buf;
-	for (i = 0; i < SPA_GBH_NBLKPTRS; i++) {
-		blkptr_t *gbp = &zio_gb.zg_blkptr[i];
+	for (i = 0; i < gbh_nblkptrs(gangblocksize); i++) {
+		blkptr_t *gbp = &((blkptr_t *)gbuf)[i];
 
 		if (BP_IS_HOLE(gbp))
 			continue;
-		if (zio_read(spa, gbp, pbuf))
+		if (zio_read(spa, gbp, pbuf)) {
+			free(gbuf);
 			return (EIO);
+		}
 		pbuf += BP_GET_PSIZE(gbp);
 	}
 
+	free(gbuf);
 	if (zio_checksum_verify(spa, bp, buf))
 		return (EIO);
 	return (0);
 }
 
 static int
-zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
+zio_read_impl(const spa_t *spa, const blkptr_t *bp, void *buf, bool print)
 {
 	int cpfunc = BP_GET_COMPRESS(bp);
 	uint64_t align, size;
@@ -2340,7 +2375,7 @@ zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
 			    size, buf, BP_GET_LSIZE(bp));
 			free(pbuf);
 		}
-		if (error != 0)
+		if (error != 0 && print)
 			printf("ZFS: i/o error - unable to decompress "
 			    "block pointer data, error %d\n", error);
 		return (error);
@@ -2394,7 +2429,7 @@ zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
 				    BP_GET_PSIZE(bp), buf, BP_GET_LSIZE(bp));
 			else if (size != BP_GET_PSIZE(bp))
 				bcopy(pbuf, buf, BP_GET_PSIZE(bp));
-		} else {
+		} else if (print) {
 			printf("zio_read error: %d\n", error);
 		}
 		if (buf != pbuf)
@@ -2402,10 +2437,16 @@ zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
 		if (error == 0)
 			break;
 	}
-	if (error != 0)
+	if (error != 0 && print)
 		printf("ZFS: i/o error - all block copies unavailable\n");
 
 	return (error);
+}
+
+static int
+zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
+{
+	return (zio_read_impl(spa, bp, buf, true));
 }
 
 static int
