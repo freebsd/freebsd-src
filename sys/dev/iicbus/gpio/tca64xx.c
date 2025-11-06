@@ -39,6 +39,7 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/proc.h>
+#include <sys/sx.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 
@@ -93,7 +94,7 @@ struct tca64xx_softc {
 	device_t	dev;
 	device_t	busdev;
 	enum chip_type	chip;
-	struct mtx	mtx;
+	struct sx	mtx;
 	uint32_t	addr;
 	uint8_t		num_pins;
 	uint8_t 	in_port_reg;
@@ -260,7 +261,7 @@ tca64xx_attach(device_t dev)
 	sc->dev = dev;
 	sc->addr = iicbus_get_addr(dev);
 
-	mtx_init(&sc->mtx, "tca64xx gpio", "gpio", MTX_DEF);
+	sx_init(&sc->mtx, "tca64xx gpio");
 	OF_device_register_xref(OF_xref_from_node(ofw_bus_get_node(dev)), dev);
 	sc->busdev = gpiobus_add_bus(dev);
 	if (sc->busdev == NULL) {
@@ -293,7 +294,7 @@ tca64xx_detach(device_t dev)
 	sc = device_get_softc(dev);
 
 	gpiobus_detach_bus(dev);
-	mtx_destroy(&sc->mtx);
+	sx_destroy(&sc->mtx);
 
 	return (0);
 }
@@ -383,7 +384,7 @@ tca64xx_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 
 	if (pin >= pins)
 		return (EINVAL);
-	mtx_lock(&sc->mtx);
+	sx_xlock(&sc->mtx);
 
 	addr = TCA64XX_REG_ADDR(pin, sc->conf_reg);
 	error = tca64xx_read(dev, addr, &val);
@@ -414,7 +415,7 @@ tca64xx_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	error = tca64xx_write(dev, addr, inv_val);
 
 fail:
-	mtx_unlock(&sc->mtx);
+	sx_unlock(&sc->mtx);
 	return (error);
 }
 
@@ -478,11 +479,11 @@ tca64xx_pin_set(device_t dev, uint32_t pin, unsigned int val)
 
 	dbg_dev_printf(dev, "Setting pin: %u to %u\n", pin, val);
 
-	mtx_lock(&sc->mtx);
+	sx_xlock(&sc->mtx);
 
 	error = tca64xx_read(dev, addr, &value);
 	if (error != 0) {
-		mtx_unlock(&sc->mtx);
+		sx_unlock(&sc->mtx);
 		dbg_dev_printf(dev, "Failed to read from register.\n");
 		return (error);
 	}
@@ -494,12 +495,12 @@ tca64xx_pin_set(device_t dev, uint32_t pin, unsigned int val)
 
 	error = tca64xx_write(dev, addr, value);
 	if (error != 0) {
-		mtx_unlock(&sc->mtx);
+		sx_unlock(&sc->mtx);
 		dbg_dev_printf(dev, "Could not write to register.\n");
 		return (error);
 	}
 
-	mtx_unlock(&sc->mtx);
+	sx_unlock(&sc->mtx);
 
 	return (0);
 }
@@ -522,11 +523,11 @@ tca64xx_pin_toggle(device_t dev, uint32_t pin)
 
 	dbg_dev_printf(dev, "Toggling pin: %d\n", pin);
 
-	mtx_lock(&sc->mtx);
+	sx_xlock(&sc->mtx);
 
 	error = tca64xx_read(dev, addr, &value);
 	if (error != 0) {
-		mtx_unlock(&sc->mtx);
+		sx_unlock(&sc->mtx);
 		dbg_dev_printf(dev, "Cannot read from register.\n");
 		return (error);
 	}
@@ -535,12 +536,12 @@ tca64xx_pin_toggle(device_t dev, uint32_t pin)
 
 	error = tca64xx_write(dev, addr, value);
 	if (error != 0) {
-		mtx_unlock(&sc->mtx);
+		sx_unlock(&sc->mtx);
 		dbg_dev_printf(dev, "Cannot write to register.\n");
 		return (error);
 	}
 
-	mtx_unlock(&sc->mtx);
+	sx_unlock(&sc->mtx);
 
 	return (0);
 }
