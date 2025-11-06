@@ -1105,7 +1105,7 @@ gdb_cpu_breakpoint(struct vcpu *vcpu, struct vm_exit *vmexit)
 
 	if (!gdb_active) {
 		EPRINTLN("vm_loop: unexpected VMEXIT_DEBUG");
-		exit(4);
+		exit(BHYVE_EXIT_ERROR);
 	}
 	vcpuid = vcpu_id(vcpu);
 	pthread_mutex_lock(&gdb_lock);

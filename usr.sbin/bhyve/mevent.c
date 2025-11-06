@@ -55,6 +55,7 @@
 #include <pthread.h>
 #include <pthread_np.h>
 
+#include "bhyverun.h"
 #include "mevent.h"
 
 #define	MEVENT_MAX	64
@@ -517,7 +518,7 @@ mevent_dispatch(void)
 	ret = pipe(mevent_pipefd);
 	if (ret < 0) {
 		perror("pipe");
-		exit(0);
+		exit(BHYVE_EXIT_ERROR);
 	}
 
 #ifndef WITHOUT_CAPSICUM
