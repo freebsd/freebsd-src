@@ -8,12 +8,11 @@ CONFS=	340.noid \
 
 # NB: keep these sorted by MK_* knobs
 
-.if ${MK_LOCATE} != "no"
-CONFS+=	310.locate
-.endif
+CONFGROUPS.${MK_LOCATE}+=	LOCATE
+LOCATE=	310.locate
 
-.if ${MK_MAN_UTILS} != "no"
-CONFS+=	320.whatis
-.endif
+CONFGROUPS.${MK_MAN_UTILS}+=	WHATIS
+WHATISPACKAGE=			mandoc
+WHATIS=	320.whatis
 
 .include <bsd.prog.mk>
