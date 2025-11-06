@@ -298,6 +298,15 @@ ofw_bus_is_compatible_strict(device_t dev, const char *compatible)
 	return (0);
 }
 
+bool
+ofw_bus_is_machine_compatible(const char *compat)
+{
+	phandle_t root;
+
+	root = OF_finddevice("/");
+	return (ofw_bus_node_is_compatible(root, compat) != 0);
+}
+
 const struct ofw_compat_data *
 ofw_bus_search_compatible(device_t dev, const struct ofw_compat_data *compat)
 {
