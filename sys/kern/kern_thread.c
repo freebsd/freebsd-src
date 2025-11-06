@@ -1447,6 +1447,14 @@ thread_suspend_check(int return_instead)
 		}
 
 		/*
+		 * We might get here with return_instead == 1 if
+		 * other checks missed it.  Then we must not suspend
+		 * regardless of P_SHOULDSTOP() or debugger request.
+		 */
+		if (return_instead)
+			return (EINTR);
+
+		/*
 		 * If the process is waiting for us to exit,
 		 * this thread should just suicide.
 		 * Assumes that P_SINGLE_EXIT implies P_STOPPED_SINGLE.
@@ -1481,10 +1489,9 @@ thread_suspend_check(int return_instead)
 		 * gets taken off all queues.
 		 */
 		thread_suspend_one(td);
-		if (return_instead == 0) {
-			p->p_boundary_count++;
-			td->td_flags |= TDF_BOUNDARY;
-		}
+		MPASS(!return_instead);
+		p->p_boundary_count++;
+		td->td_flags |= TDF_BOUNDARY;
 		PROC_SUNLOCK(p);
 		mi_switch(SW_INVOL | SWT_SUSPEND);
 		PROC_LOCK(p);
