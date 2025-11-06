@@ -89,6 +89,7 @@ getpoints(char *s)
 			break;
 		case 'x':
 			facs |= KTRFAC_EXTERR;
+			break;
 		case '+':
 			facs |= DEF_POINTS;
 			break;
