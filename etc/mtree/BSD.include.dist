@@ -278,7 +278,7 @@
     ..
     lib9p               tags=package=lib9p-dev
     ..
-    libipt              tags=package=libipt-dev
+    libipt
     ..
     libmilter           tags=package=libmilter-dev
     ..
