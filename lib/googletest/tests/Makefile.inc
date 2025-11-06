@@ -3,6 +3,8 @@
 # rather than installing all of them to /usr/tests/lib/googletest
 TESTSDIR=	${TESTSBASE}/lib/googletest/${.CURDIR:T}
 
+PACKAGE=	tests
+
 # Clang's optimizer spends a really long time on these tests at -O2. Changing
 # -O2 to -O1 reduces the -j32 time for lib/googletest/test from 131s to 71s.
 # Using -O0 further reduces the time to 29s, and also reduces the disk usage

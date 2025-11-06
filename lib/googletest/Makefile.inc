@@ -1,5 +1,7 @@
 .include <googletest.test.inc.mk>
 
+PACKAGE?=	googletest
+
 GTEST_DIR=	${SRCTOP}/contrib/googletest
 GOOGLEMOCK_SRCROOT= ${GTEST_DIR}/googlemock
 GOOGLETEST_SRCROOT= ${GTEST_DIR}/googletest
