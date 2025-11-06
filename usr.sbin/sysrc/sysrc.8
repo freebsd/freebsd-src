@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2011-2016 Devin Teske
 .\" All rights reserved.
 .\"
@@ -408,62 +411,52 @@ and
 .It Pa /usr/local/etc/rc.conf.d/name/*
 .El
 .Sh EXAMPLES
-Below are some simple examples of how
-.Nm
-can be used to query certain values from the
-.Xr rc.conf 5
-collection of system configuration files:
+.Ss Working with rc.conf files
+Ask the value of
+.Cm sshd_enable ,
+usually YES or NO:
+.Dl sysrc sshd_enable
 .Pp
-.Nm
-sshd_enable
-.Dl returns the value of $sshd_enable, usually YES or NO .
-.Pp
-.Nm
-defaultrouter
-.Dl returns IP address of default router Pq if configured .
-.Pp
-Working on other files, such as
+Return the IP address of default router
+.Pq if configured :
+.Dl sysrc defaultrouter
+.Ss Working with other files
+Return the value of the MAILTO setting, if configured, from
 .Xr crontab 5 :
+.Dl sysrc -f /etc/crontab MAILTO
 .Pp
-.Nm
--f /etc/crontab MAILTO
-.Dl returns the value of the MAILTO setting Pq if configured .
+Append
+.Dq gif0
+to $cloned_interfaces
+.Pq see Sx APPENDING VALUES :
+.Dl sysrc cloned_interfaces+=gif0
 .Pp
-Appending to existing values:
+Remove
+.Dq gif0
+from $cloned_interfaces
+.Pq see Sx SUBTRACTING VALUES :
+.Dl sysrc cloned_interfaces-=gif0
+.Ss Inline shell parameter expansion
+Return $hostname up to, but not including, first
+.Ql \&. :
+.Dl sysrc 'hostname%%.*'
 .Pp
-.Nm
-\&cloned_interfaces+=gif0
-.Dl appends Qo gif0 Qc to $cloned_interfaces Pq see APPENDING VALUES .
+Return first word of $network_interfaces:
+.Dl sysrc 'network_interfaces%%[$IFS]*'
 .Pp
-.Nm
-\&cloned_interfaces-=gif0
-.Dl removes Qo gif0 Qc from $cloned_interfaces Pq see SUBTRACTING VALUES .
+Return last word of $ntpdate_flags
+.Pq time server address :
+.Dl sysrc 'ntpdate_flags##*[$IFS]'
 .Pp
-In addition to the above syntax,
-.Nm
-also supports inline
-.Xr sh 1
-PARAMETER expansion for changing the way values are reported, shown below:
+Return $usbd_flags or
+.Dq default
+if unset or NULL:
+.Dl sysrc usbd_flags-"default"
 .Pp
-.Nm
-\&'hostname%%.*'
-.Dl returns $hostname up to (but not including) first `.' .
-.Pp
-.Nm
-\&'network_interfaces%%[$IFS]*'
-.Dl returns first word of $network_interfaces .
-.Pp
-.Nm
-\&'ntpdate_flags##*[$IFS]'
-.Dl returns last word of $ntpdate_flags (time server address) .
-.Pp
-.Nm
-usbd_flags-"default"
-.Dl returns $usbd_flags or "default" if unset or NULL .
-.Pp
-.Nm
-cloned_interfaces+"alternate"
-.Dl returns "alternate" if $cloned_interfaces is set .
+Return
+.Dq alternate
+if $cloned_interfaces is set:
+.Dl sysrc cloned_interfaces+"alternate"
 .Sh SEE ALSO
 .Xr rc.conf 5 ,
 .Xr jail 8 ,
