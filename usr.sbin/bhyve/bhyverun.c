@@ -41,6 +41,7 @@
 #ifdef BHYVE_SNAPSHOT
 #include <sys/un.h>
 #endif
+#include <sys/wait.h>
 
 #include <machine/atomic.h>
 
@@ -687,9 +688,10 @@ static struct vmctx *
 do_open(const char *vmname)
 {
 	struct vmctx *ctx;
-	int error;
-	bool romboot;
+	int error, flags;
+	bool romboot, monitor;
 
+	monitor = get_config_bool_default("monitor", false);
 	romboot = bootrom_boot();
 
 	/*
@@ -702,7 +704,10 @@ do_open(const char *vmname)
 			err(4, "vm_openf");
 		if (!romboot)
 			errx(4, "no bootrom was configured");
-		ctx = vm_openf(vmname, VMMAPI_OPEN_CREATE);
+		flags = VMMAPI_OPEN_CREATE;
+		if (monitor)
+			flags |= VMMAPI_OPEN_CREATE_DESTROY_ON_CLOSE;
+		ctx = vm_openf(vmname, flags);
 		if (ctx == NULL)
 			err(4, "vm_openf");
 	}
@@ -792,7 +797,7 @@ bhyve_parse_gdb_options(const char *opt)
 int
 main(int argc, char *argv[])
 {
-	int error;
+	int error, status;
 	int max_vcpus, memflags;
 	struct vcpu *bsp;
 	struct vmctx *ctx;
@@ -859,6 +864,58 @@ main(int argc, char *argv[])
 	}
 #endif
 
+	calc_mem_affinity(memsize);
+	memflags = 0;
+	if (get_config_bool_default("memory.wired", false))
+		memflags |= VM_MEM_F_WIRED;
+	if (get_config_bool_default("memory.guest_in_core", false))
+		memflags |= VM_MEM_F_INCORE;
+	vm_set_memflags(ctx, memflags);
+	error = vm_setup_memory_domains(ctx, VM_MMAP_ALL, guest_domains,
+	    guest_ndomains);
+	if (error) {
+		fprintf(stderr, "Unable to setup memory (%d)\n", errno);
+		exit(BHYVE_EXIT_ERROR);
+	}
+
+	set_vcpu_affinities();
+	init_mem(guest_ncpus);
+	init_bootrom(ctx);
+
+	if (get_config_bool_default("monitor", false)) {
+		while (1) {
+			pid_t child = fork();
+			if (child == -1) {
+				EPRINTLN("Monitor mode fork failed: %s",
+				    strerror(errno));
+				exit(BHYVE_EXIT_ERROR);
+			}
+			if (child == 0)
+				break;
+			while ((error = waitpid(child, &status, 0)) == -1 && errno == EINTR)
+			    ;
+			if (error == -1) {
+				EPRINTLN("Monitor mode wait failed: %s",
+				    strerror(errno));
+				exit(BHYVE_EXIT_ERROR);
+			}
+			if (WIFSIGNALED(status)) {
+				EPRINTLN("Child process was killed by signal %d",
+				    WTERMSIG(status));
+				exit(BHYVE_EXIT_ERROR);
+			} else {
+				status = WEXITSTATUS(status);
+				if (status != BHYVE_EXIT_RESET)
+					exit(status);
+			}
+			if (vm_reinit(ctx) != 0) {
+				EPRINTLN("Monitor mode reinit failed: %s",
+				    strerror(errno));
+				exit(BHYVE_EXIT_ERROR);
+			};
+		}
+	}
+
 	bsp = vm_vcpu_open(ctx, BSP);
 	max_vcpus = num_vcpus_allowed(ctx, bsp);
 	if (guest_ncpus > max_vcpus) {
@@ -880,23 +937,6 @@ main(int argc, char *argv[])
 			vcpu_info[vcpuid].vcpu = vm_vcpu_open(ctx, vcpuid);
 	}
 
-	calc_mem_affinity(memsize);
-	memflags = 0;
-	if (get_config_bool_default("memory.wired", false))
-		memflags |= VM_MEM_F_WIRED;
-	if (get_config_bool_default("memory.guest_in_core", false))
-		memflags |= VM_MEM_F_INCORE;
-	vm_set_memflags(ctx, memflags);
-	error = vm_setup_memory_domains(ctx, VM_MMAP_ALL, guest_domains,
-	    guest_ndomains);
-	if (error) {
-		fprintf(stderr, "Unable to setup memory (%d)\n", errno);
-		exit(4);
-	}
-
-	set_vcpu_affinities();
-	init_mem(guest_ncpus);
-	init_bootrom(ctx);
 	if (bhyve_init_platform(ctx, bsp) != 0)
 		exit(BHYVE_EXIT_ERROR);
 

@@ -101,6 +101,7 @@ bhyve_usage(int code)
 	    "       -D: destroy on power-off\n"
 	    "       -h: help\n"
 	    "       -k: key=value flat config file\n"
+	    "       -M: monitor mode\n"
 	    "       -m: memory size\n"
 	    "       -o: set config 'var' to 'value'\n"
 	    "       -p: pin 'vcpu' to 'hostcpu'\n"
@@ -119,7 +120,7 @@ bhyve_optparse(int argc, char **argv)
 	const char *optstr;
 	int c;
 
-	optstr = "hCDSWk:f:o:p:c:s:m:U:";
+	optstr = "hCDMSWk:f:o:p:c:s:m:U:";
 	while ((c = getopt(argc, argv, optstr)) != -1) {
 		switch (c) {
 		case 'c':
@@ -136,6 +137,9 @@ bhyve_optparse(int argc, char **argv)
 			break;
 		case 'k':
 			bhyve_parse_simple_config_file(optarg);
+			break;
+		case 'M':
+			set_config_bool("monitor", true);
 			break;
 		case 'm':
 			set_config_value("memory.size", optarg);

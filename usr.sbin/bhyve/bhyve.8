@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 4, 2025
+.Dd December 17, 2025
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Nd "run a guest operating system inside a virtual machine"
 .Sh SYNOPSIS
 .Nm
-.Op Fl aCDeHhPSuWwxY
+.Op Fl aCDeHhMPSuWwxY
 .Oo
 .Sm off
 .Fl c\~
@@ -273,6 +273,14 @@ or
 to indicate a multiple of kilobytes, megabytes, gigabytes, or terabytes.
 If no suffix is given, the value is assumed to be in megabytes.
 The default is 256M.
+.It Fl M
+Run the VM in
+.Ql monitor
+mode.
+In this mode, a guest reboot does not cause the bhyve process to exit.
+Instead, bhyve will restart the VM.
+Once the bhyve process exits or is killed, the VM will be destroyed automatically.
+The underlying virtual machine is automatically destroyed when the bhyve process exits.
 .Pp
 .It Fl n Ar id Ns Cm \&, Ns Ar size Ns Cm \&, Ns Ar cpus Ns Op Cm \&, Ns Ar domain_policy
 Configure guest NUMA domains.
