@@ -2678,10 +2678,6 @@ _proc_set_cred(struct proc *p, struct ucred *newcred, bool enforce_proc_lim)
 
 	MPASS(oldcred != NULL);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	KASSERT(newcred->cr_users == 0, ("%s: users %d not 0 on cred %p",
-	    __func__, newcred->cr_users, newcred));
-	KASSERT(newcred->cr_ref == 1, ("%s: ref %ld not 1 on cred %p",
-	    __func__, newcred->cr_ref, newcred));
 
 	if (newcred->cr_ruidinfo != oldcred->cr_ruidinfo) {
 		/*
@@ -2707,8 +2703,10 @@ _proc_set_cred(struct proc *p, struct ucred *newcred, bool enforce_proc_lim)
 	    __func__, oldcred->cr_users, oldcred));
 	oldcred->cr_users--;
 	mtx_unlock(&oldcred->cr_mtx);
+	mtx_lock(&newcred->cr_mtx);
+	newcred->cr_users++;
+	mtx_unlock(&newcred->cr_mtx);
 	p->p_ucred = newcred;
-	newcred->cr_users = 1;
 	PROC_UPDATE_COW(p);
 	if (newcred->cr_ruidinfo != oldcred->cr_ruidinfo)
 		(void)chgproccnt(oldcred->cr_ruidinfo, -1, 0);
