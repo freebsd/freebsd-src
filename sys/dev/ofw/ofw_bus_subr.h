@@ -117,6 +117,9 @@ int ofw_bus_is_compatible(device_t, const char *);
 int ofw_bus_is_compatible_strict(device_t, const char *);
 int ofw_bus_node_is_compatible(phandle_t, const char *);
 
+/* Check if machine (root node) is  compatible */
+bool ofw_bus_is_machine_compatible(const char *);
+
 /* 
  * Helper routine to search a list of compat properties.  The table is
  * terminated by an entry with a NULL compat-string pointer; a pointer to that
