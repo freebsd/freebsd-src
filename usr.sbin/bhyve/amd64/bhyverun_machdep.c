@@ -90,6 +90,7 @@ bhyve_usage(int code)
 	    "       -k: key=value flat config file\n"
 	    "       -K: PS2 keyboard layout\n"
 	    "       -l: LPC device configuration\n"
+	    "       -M: monitor mode\n"
 	    "       -m: memory size\n"
 	    "       -n: NUMA domain specification\n"
 	    "       -o: set config 'var' to 'value'\n"
@@ -118,9 +119,9 @@ bhyve_optparse(int argc, char **argv)
 	int c;
 
 #ifdef BHYVE_SNAPSHOT
-	optstr = "aehuwxACDHIPSWYk:f:o:p:G:c:s:m:n:l:K:U:r:";
+	optstr = "aehuwxACDHIMPSWYk:f:o:p:G:c:s:m:n:l:K:U:r:";
 #else
-	optstr = "aehuwxACDHIPSWYk:f:o:p:G:c:s:m:n:l:K:U:";
+	optstr = "aehuwxACDHIMPSWYk:f:o:p:G:c:s:m:n:l:K:U:";
 #endif
 	while ((c = getopt(argc, argv, optstr)) != -1) {
 		switch (c) {
@@ -194,6 +195,9 @@ bhyve_optparse(int argc, char **argv)
 			break;
 		case 'm':
 			set_config_value("memory.size", optarg);
+			break;
+		case 'M':
+			set_config_bool("monitor", true);
 			break;
 		case 'n':
 			if (bhyve_numa_parse(optarg) != 0)
