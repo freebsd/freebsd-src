@@ -1,7 +1,7 @@
 .\" Written by Tom Rhodes
 .\" This file is in the public domain.
 .\"
-.Dd January 26, 2012
+.Dd November 6, 2025
 .Dt CISS 4
 .Os
 .Sh NAME
@@ -87,9 +87,10 @@ might be solved by updating the firmware and/or setting the
 .Va hw.ciss.nop_message_heartbeat
 tunable to non-zero at boot time.
 .Sh HARDWARE
-Controllers supported by the
+The
 .Nm
-driver include:
+driver supports controllers implementing
+Common Interface for SCSI-3 Support Open Specification v1.04, including:
 .Pp
 .Bl -bullet -compact
 .It
@@ -144,6 +145,8 @@ HP Smart Array P430
 HP Smart Array P430i
 .It
 HP Smart Array P431
+.It
+HP Smart Array P440ar
 .It
 HP Smart Array P530
 .It
