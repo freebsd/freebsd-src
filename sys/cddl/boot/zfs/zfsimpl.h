@@ -94,6 +94,7 @@ typedef enum { B_FALSE, B_TRUE } boolean_t;
 #define	P2END(x, align)			(-(~(x) & -(align)))
 #define	P2PHASEUP(x, align, phase)	((phase) - (((phase) - (x)) & -(align)))
 #define	P2BOUNDARY(off, len, align)	(((off) ^ ((off) + (len) - 1)) > (align) - 1)
+#define	IS_P2ALIGNED(v, a)		((((uintptr_t)(v)) & ((uintptr_t)(a) - 1)) == 0)
 
 /*
  * General-purpose 32-bit and 64-bit bitfield encodings.
@@ -498,19 +499,7 @@ typedef struct zio_eck {
  * Gang block headers are self-checksumming and contain an array
  * of block pointers.
  */
-#define	SPA_GANGBLOCKSIZE	SPA_MINBLOCKSIZE
-#define	SPA_GBH_NBLKPTRS	((SPA_GANGBLOCKSIZE - \
-	sizeof (zio_eck_t)) / sizeof (blkptr_t))
-#define	SPA_GBH_FILLER		((SPA_GANGBLOCKSIZE - \
-	sizeof (zio_eck_t) - \
-	(SPA_GBH_NBLKPTRS * sizeof (blkptr_t))) /\
-	sizeof (uint64_t))
-
-typedef struct zio_gbh {
-	blkptr_t		zg_blkptr[SPA_GBH_NBLKPTRS];
-	uint64_t		zg_filler[SPA_GBH_FILLER];
-	zio_eck_t		zg_tail;
-} zio_gbh_phys_t;
+#define	SPA_OLD_GANGBLOCKSIZE	SPA_MINBLOCKSIZE
 
 #define	VDEV_RAIDZ_MAXPARITY	3
 
