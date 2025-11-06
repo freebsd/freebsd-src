@@ -16,13 +16,18 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-comment = "Test suite"
+comment = "Unit testing framework"
 
 desc = <<EOD
-The test suite, installed in /usr/tests, allows the functionality of the
-installed system to be verified.
+Google Test (gtest) is an xUnit-based unit testing framework for C++,
+developed by Google LLC.
+
+This version of Google Test is provided for use by unit tests in the
+base system, and is not intended for third-party users.  A supported
+version of Google Test may be found in the FreeBSD Ports Collection
+as devel/googletest.
 EOD
 
 annotations {
-	set = tests
+	set = "optional,optional-jail"
 }
