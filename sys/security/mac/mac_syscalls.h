@@ -30,4 +30,14 @@ int	mac_set_proc_core(struct thread *const td, struct ucred *const newcred,
 void	mac_set_proc_finish(struct thread *const td, bool proc_label_set,
 	    void *const mac_set_proc_data);
 
+struct vfsoptlist;
+int	mac_get_prison(struct thread *const td, struct prison *pr,
+	    struct vfsoptlist *opts);
+int	mac_set_prison_prepare(struct thread *const td, struct vfsoptlist *opts,
+	    void **const mac_set_prison_data);
+int	mac_set_prison_core(struct thread *const td, struct prison *pr,
+	    void *const mac_set_prison_data);
+void	mac_set_prison_finish(struct thread *const td, bool prison_label_set,
+	    void *const mac_set_prison_data);
+
 #endif /* !_SECURITY_MAC_MAC_SYSCALLS_H_ */
