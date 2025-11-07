@@ -535,6 +535,10 @@ syncache_timer(void *xsch)
 			TCPSTAT_INC(tcps_sndtotal);
 			TCPSTAT_INC(tcps_sc_retransmitted);
 		} else {
+			/*
+			 * Most likely we are memory constrained, so free
+			 * resources.
+			 */
 			syncache_drop(sc, sch);
 			TCPSTAT_INC(tcps_sc_dropped);
 		}
@@ -734,7 +738,7 @@ syncache_unreach(struct in_conninfo *inc, tcp_seq th_seq, uint16_t port)
 		goto done;
 
 	/*
-	 * If we've rertransmitted 3 times and this is our second error,
+	 * If we've retransmitted 3 times and this is our second error,
 	 * we remove the entry.  Otherwise, we allow it to continue on.
 	 * This prevents us from incorrectly nuking an entry during a
 	 * spurious network outage.
@@ -1562,6 +1566,10 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			TCPSTAT_INC(tcps_sndacks);
 			TCPSTAT_INC(tcps_sndtotal);
 		} else {
+			/*
+			 * Most likely we are memory constrained, so free
+			 * resources.
+			 */
 			syncache_drop(sc, sch);
 			TCPSTAT_INC(tcps_sc_dropped);
 		}
@@ -1747,6 +1755,9 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		TCPSTAT_INC(tcps_sndacks);
 		TCPSTAT_INC(tcps_sndtotal);
 	} else {
+		/*
+		 * Most likely we are memory constrained, so free resources.
+		 */
 		if (sc != &scs)
 			syncache_free(sc);
 		TCPSTAT_INC(tcps_sc_dropped);
