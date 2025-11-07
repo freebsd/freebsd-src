@@ -471,7 +471,9 @@ MLINKS+=intro.2 errno.2
 MLINKS+=jail.2 jail_attach.2 \
 	jail.2 jail_get.2 \
 	jail.2 jail_remove.2 \
-	jail.2 jail_set.2
+	jail.2 jail_set.2 \
+	jail.2 jail_attach_jd.2 \
+	jail.2 jail_remove_jd.2
 MLINKS+=kldunload.2 kldunloadf.2
 MLINKS+=kqueue.2 kevent.2 \
 	kqueue.2 kqueue1.2 \
