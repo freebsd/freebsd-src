@@ -216,7 +216,7 @@ KLDLOAD='kldload %s'
 LN_SF='ln -sf "%s" "%s"'
 MKDIR_P='mkdir -p "%s"'
 MOUNT_TYPE='mount -t %s "%s" "%s"'
-NEWFS_ESP='newfs_msdos "%s"'
+NEWFS_ESP='newfs_msdos -F 32 -c 1 "%s"'
 PRINTF_CONF="printf '%s=\"%%s\"\\\n' %s >> \"%s\""
 PRINTF_FSTAB='printf "$FSTAB_FMT" "%s" "%s" "%s" "%s" "%s" "%s" >> "%s"'
 SHELL_TRUNCATE=':> "%s"'
