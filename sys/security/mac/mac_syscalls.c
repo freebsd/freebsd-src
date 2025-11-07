@@ -90,6 +90,35 @@ struct mac32 {
 };
 #endif
 
+static int
+mac_label_copyin_string(struct mac *const mac, char **const u_string,
+    int flag)
+{
+	char *buffer;
+	int error;
+
+	error = mac_check_structmac_consistent(mac);
+	if (error != 0)
+		return (error);
+
+	/* 'm_buflen' not too big checked by function call above. */
+	buffer = malloc(mac->m_buflen, M_MACTEMP, flag);
+	if (buffer == NULL)
+		return (ENOMEM);
+
+	error = copyinstr(mac->m_string, buffer, mac->m_buflen, NULL);
+	if (error != 0) {
+		free(buffer, M_MACTEMP);
+		return (error);
+	}
+
+	MPASS(error == 0);
+	if (u_string != NULL)
+		*u_string = mac->m_string;
+	mac->m_string = buffer;
+	return (0);
+}
+
 /*
  * Copyin a 'struct mac', including the string pointed to by 'm_string'.
  *
@@ -101,7 +130,6 @@ int
 mac_label_copyin(const void *const u_mac, struct mac *const mac,
     char **const u_string)
 {
-	char *buffer;
 	int error;
 
 #ifdef COMPAT_FREEBSD32
@@ -122,23 +150,7 @@ mac_label_copyin(const void *const u_mac, struct mac *const mac,
 			return (error);
 	}
 
-	error = mac_check_structmac_consistent(mac);
-	if (error != 0)
-		return (error);
-
-	/* 'm_buflen' not too big checked by function call above. */
-	buffer = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK);
-	error = copyinstr(mac->m_string, buffer, mac->m_buflen, NULL);
-	if (error != 0) {
-		free(buffer, M_MACTEMP);
-		return (error);
-	}
-
-	MPASS(error == 0);
-	if (u_string != NULL)
-		*u_string = mac->m_string;
-	mac->m_string = buffer;
-	return (0);
+	return (mac_label_copyin_string(mac, u_string, M_WAITOK));
 }
 
 void
