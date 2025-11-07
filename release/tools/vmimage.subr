@@ -449,7 +449,11 @@ vm_create_disk() {
 		# Create an ESP
 		espfilename=$(mktemp /tmp/efiboot.XXXXXX)
 		make_esp_file ${espfilename} ${fat32min} ${BOOTFILES}/efi/loader_lua/loader_lua.efi
-		BOOTPARTS="${BOOTPARTS} -p efi/efiboot0:=${espfilename}"
+		espsuffix=""
+		if [ -z "${BOOTPARTS}" ]; then
+			espsuffix="${BOOTPARTSOFFSET}"
+		fi
+		BOOTPARTS="${BOOTPARTS} -p efi/efiboot0:=${espfilename}${espsuffix}"
 
 		# Add this to fstab
 		mkdir -p ${DESTDIR}/boot/efi
