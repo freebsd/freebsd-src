@@ -429,7 +429,7 @@ AcpiUtSubsystemShutdown (
     AcpiGbl_StartupFlags = 0;
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Shutting down ACPI Subsystem\n"));
 
-#ifndef ACPI_ASL_COMPILER
+#if !defined(ACPI_ASL_COMPILER) && !defined(_STANDALONE)
 
     /* Close the AcpiEvent Handling */
 
