@@ -303,6 +303,160 @@ mac_set_proc_finish(struct thread *const td, bool proc_label_set,
 }
 
 int
+mac_get_prison(struct thread *const td, struct prison *pr,
+    struct vfsoptlist *opts)
+{
+	char *buffer = NULL, *u_buffer;
+	struct label *intlabel = NULL;
+	struct mac mac;
+	int error;
+	bool locked = true;
+
+	mtx_assert(&pr->pr_mtx, MA_OWNED);
+#ifdef COMPAT_FREEBSD32
+	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
+		struct mac32 mac32;
+
+		error = vfs_copyopt(opts, "mac.label", &mac32, sizeof(mac32));
+		if (error == 0) {
+			CP(mac32, mac, m_buflen);
+			PTRIN_CP(mac32, mac, m_string);
+		}
+	} else
+#endif
+		error = vfs_copyopt(opts, "mac.label", &mac, sizeof(mac));
+	if (error) {
+		if (error != ENOENT)
+			vfs_opterror(opts, "bad mac.label");
+		goto out_nomac;
+	}
+
+	if (!(mac_labeled & MPC_OBJECT_PRISON)) {
+		error = EINVAL;
+		goto out;
+	}
+
+	intlabel = mac_prison_label_alloc(M_NOWAIT);
+	if (intlabel == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
+
+	mac_prison_copy_label(pr->pr_label, intlabel);
+
+	/*
+	 * Externalization may want to acquire an rmlock.  We already tapped out
+	 * a copy of the label from when the jail_get(2) operation started and
+	 * we're expected to be called near the end of jail_get(2) when the lock
+	 * is about to be dropped anyways, so this is safe.
+	 */
+	mtx_unlock(&pr->pr_mtx);
+	locked = false;
+
+	error = mac_label_copyin_string(&mac, &u_buffer, M_WAITOK);
+	if (error) {
+		vfs_opterror(opts, "mac.label: string copy failure");
+		goto out;
+	}
+
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
+	if (buffer == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
+
+	error = mac_prison_externalize_label(intlabel, mac.m_string,
+	    buffer, mac.m_buflen);
+
+	if (error == 0)
+		error = copyout(buffer, u_buffer, strlen(buffer)+1);
+
+out:
+	mac_prison_label_free(intlabel);
+	free_copied_label(&mac);
+	free(buffer, M_MACTEMP);
+
+out_nomac:
+	if (locked) {
+		MPASS(error != 0);
+		mtx_unlock(&pr->pr_mtx);
+	}
+
+	return (error);
+}
+
+int
+mac_set_prison_prepare(struct thread *const td, struct vfsoptlist *opts,
+    void **const mac_set_prison_data)
+{
+	struct mac mac;
+	struct label *intlabel;
+	int error;
+
+#ifdef COMPAT_FREEBSD32
+	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
+		struct mac32 mac32;
+
+		error = vfs_copyopt(opts, "mac.label", &mac32, sizeof(mac32));
+		if (error == 0) {
+			CP(mac32, mac, m_buflen);
+			PTRIN_CP(mac32, mac, m_string);
+		}
+	} else
+#endif
+		error = vfs_copyopt(opts, "mac.label", &mac, sizeof(mac));
+	if (error) {
+		if (error != ENOENT)
+			vfs_opterror(opts, "bad mac.label");
+		return (error);
+	}
+
+	error = mac_label_copyin_string(&mac, NULL, M_WAITOK);
+	if (error) {
+		vfs_opterror(opts, "mac.label: string copy failure");
+		return (error);
+	}
+
+	/*
+	 * If the option wasn't set, then we return ENOENT above.  If we don't
+	 * have any policies applicable to prisons, we can return EINVAL early.
+	 */
+	if (!(mac_labeled & MPC_OBJECT_PRISON)) {
+		vfs_opterror(opts, "no labelled jail policies");
+		return (EINVAL);
+	}
+
+	intlabel = mac_prison_label_alloc(M_WAITOK);
+	error = mac_prison_internalize_label(intlabel, mac.m_string);
+	if (error) {
+		mac_prison_label_free(intlabel);
+		vfs_opterror(opts, "internalize_label error");
+		return (error);
+	}
+
+	*mac_set_prison_data = intlabel;
+	return (0);
+}
+
+int
+mac_set_prison_core(struct thread *const td, struct prison *pr,
+    void *const mac_set_prison_data)
+{
+	struct label *const intlabel = mac_set_prison_data;
+
+	return (mac_prison_label_set(td->td_ucred, pr, intlabel));
+}
+
+void
+mac_set_prison_finish(struct thread *const td, bool prison_label_set __unused,
+    void *const mac_set_prison_data)
+{
+	struct label *const intlabel = mac_set_prison_data;
+
+	mac_prison_label_free(intlabel);
+}
+
+int
 sys___mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 {
 	struct ucred *newcred, *oldcred;
