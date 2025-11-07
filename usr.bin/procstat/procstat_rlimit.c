@@ -64,6 +64,7 @@ static struct {
 	{"kqueues",          "   "},
 	{"umtxp",            "   "},
 	{"pipebuf",          "B  "},
+	{"virtual-machines", "   "},
 };
 
 _Static_assert(nitems(rlimit_param) == RLIM_NLIMITS,

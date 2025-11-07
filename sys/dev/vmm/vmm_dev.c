@@ -18,6 +18,7 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/resourcevar.h>
 #include <sys/smp.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
@@ -95,6 +96,10 @@ SYSCTL_DECL(_hw_vmm);
 u_int vm_maxcpu;
 SYSCTL_UINT(_hw_vmm, OID_AUTO, maxcpu, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &vm_maxcpu, 0, "Maximum number of vCPUs");
+
+u_int vm_maxvmms;
+SYSCTL_UINT(_hw_vmm, OID_AUTO, maxvmms, CTLFLAG_RWTUN,
+    &vm_maxvmms, 0, "Maximum number of VMM instances per user");
 
 static void devmem_destroy(void *arg);
 static int devmem_create_cdev(struct vmmdev_softc *sc, int id, char *devmem);
@@ -870,6 +875,7 @@ vmmdev_destroy(struct vmmdev_softc *sc)
 	int error __diagused;
 
 	KASSERT(sc->cdev == NULL, ("%s: cdev not free", __func__));
+	KASSERT(sc->ucred != NULL, ("%s: missing ucred", __func__));
 
 	/*
 	 * Destroy all cdevs:
@@ -898,8 +904,8 @@ vmmdev_destroy(struct vmmdev_softc *sc)
 	if (sc->vm != NULL)
 		vm_destroy(sc->vm);
 
-	if (sc->ucred != NULL)
-		crfree(sc->ucred);
+	chgvmmcnt(sc->ucred->cr_ruidinfo, -1, 0);
+	crfree(sc->ucred);
 
 	sx_xlock(&vmmdev_mtx);
 	SLIST_REMOVE(&head, sc, vmmdev_softc, link);
@@ -1020,6 +1026,12 @@ vmmdev_create(const char *name, struct ucred *cred)
 		sx_xunlock(&vmmdev_mtx);
 		vmmdev_destroy(sc);
 		return (error);
+	}
+	if (!chgvmmcnt(cred->cr_ruidinfo, 1, vm_maxvmms)) {
+		sx_xunlock(&vmmdev_mtx);
+		destroy_dev(cdev);
+		vmmdev_destroy(sc);
+		return (ENOMEM);
 	}
 	sc->cdev = cdev;
 	sx_xunlock(&vmmdev_mtx);
@@ -1172,7 +1184,7 @@ vmm_handler(module_t mod, int what, void *arg)
 		}
 		if (vm_maxcpu == 0)
 			vm_maxcpu = 1;
-
+		vm_maxvmms = 4 * mp_ncpus;
 		error = vmm_modinit();
 		if (error == 0)
 			vmm_initialized = true;

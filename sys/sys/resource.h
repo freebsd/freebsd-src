@@ -115,8 +115,9 @@ struct __wrusage {
 #define	RLIMIT_KQUEUES	13		/* kqueues allocated */
 #define	RLIMIT_UMTXP	14		/* process-shared umtx */
 #define	RLIMIT_PIPEBUF	15		/* pipes/fifos buffers */
+#define	RLIMIT_VMM	16		/* virtual machines */
 
-#define	RLIM_NLIMITS	16		/* number of resource limits */
+#define	RLIM_NLIMITS	17		/* number of resource limits */
 
 #define	RLIM_INFINITY	((rlim_t)(((__uint64_t)1 << 63) - 1))
 #define	RLIM_SAVED_MAX	RLIM_INFINITY
@@ -144,6 +145,7 @@ static const char *rlimit_ident[] = {
 	"kqueues",
 	"umtx",
 	"pipebuf",
+	"vmm",
 };
 #endif
 
