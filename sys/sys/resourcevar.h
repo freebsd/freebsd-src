@@ -124,6 +124,7 @@ struct uidinfo {
 	long	ui_pipecnt;		/* (b) consumption of pipe buffers */
 	long	ui_inotifycnt;		/* (b) number of inotify descriptors */
 	long	ui_inotifywatchcnt;	/* (b) number of inotify watches */
+	long	ui_vmmcnt;		/* (b) number of vmm instances */
 	uid_t	ui_uid;			/* (a) uid */
 	u_int	ui_ref;			/* (b) reference count */
 #ifdef	RACCT
@@ -148,6 +149,7 @@ int	 chgumtxcnt(struct uidinfo *uip, int diff, rlim_t maxval);
 int	 chgpipecnt(struct uidinfo *uip, int diff, rlim_t max);
 int	 chginotifycnt(struct uidinfo *uip, int diff, rlim_t maxval);
 int	 chginotifywatchcnt(struct uidinfo *uip, int diff, rlim_t maxval);
+int	 chgvmmcnt(struct uidinfo *uip, int diff, rlim_t max);
 int	 kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 	    struct rlimit *limp);
 struct plimit
