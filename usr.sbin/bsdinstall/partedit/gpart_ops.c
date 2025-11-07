@@ -139,16 +139,16 @@ newfs_command(const char *fstype, int use_default)
 	} else if (strcmp(fstype, "freebsd-zfs") == 0) {
 		int i;
 		struct bsddialog_menuitem items[] = {
-			{"", 0, true, "fletcher4", "checksum algorithm: fletcher4",
+			{"", true, 0, "fletcher4", "checksum algorithm: fletcher4",
 			    "Use fletcher4 for data integrity checking. "
 			    "(default)"},
-			{"", 0, false, "fletcher2", "checksum algorithm: fletcher2",
+			{"", false, 0, "fletcher2", "checksum algorithm: fletcher2",
 			    "Use fletcher2 for data integrity checking. "
 			    "(not recommended)"},
-			{"", 0, false, "sha256", "checksum algorithm: sha256",
+			{"", false, 0, "sha256", "checksum algorithm: sha256",
 			    "Use sha256 for data integrity checking. "
 			    "(not recommended)"},
-			{"", 0, false, "atime", "Update atimes for files",
+			{"", false, 0, "atime", "Update atimes for files",
 			    "Disable atime update"},
 		};
 
@@ -188,11 +188,11 @@ newfs_command(const char *fstype, int use_default)
 	     strcmp(fstype, "ms-basic-data") == 0) {
 		int i;
 		struct bsddialog_menuitem items[] = {
-			{"", 0, true, "FAT32", "FAT Type 32",
+			{"", true, 0, "FAT32", "FAT Type 32",
 			    "Create a FAT32 filesystem (default)"},
-			{"", 0, false, "FAT16", "FAT Type 16",
+			{"", false, 0, "FAT16", "FAT Type 16",
 			    "Create a FAT16 filesystem"},
-			{"", 0, false, "FAT12", "FAT Type 12",
+			{"", false, 0, "FAT12", "FAT Type 12",
 			    "Create a FAT12 filesystem"},
 		};
 
