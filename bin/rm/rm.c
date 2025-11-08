@@ -184,7 +184,7 @@ rm_tree(char **argv)
 	flags = FTS_PHYSICAL;
 	if (!needstat)
 		flags |= FTS_NOSTAT;
-	if (Wflag)
+	if (Wflag || fflag)
 		flags |= FTS_WHITEOUT;
 	if (xflag)
 		flags |= FTS_XDEV;
@@ -273,7 +273,7 @@ rm_tree(char **argv)
 
 			case FTS_W:
 				rval = undelete(p->fts_accpath);
-				if (rval == 0 && (fflag && errno == ENOENT)) {
+				if (rval == 0 || (fflag && errno == ENOENT)) {
 					if (vflag)
 						(void)printf("%s\n",
 						    p->fts_path);
