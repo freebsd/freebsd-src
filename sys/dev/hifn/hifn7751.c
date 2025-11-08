@@ -586,6 +586,9 @@ hifn_attach(device_t dev)
 	callout_init(&sc->sc_tickto, 1);
 	callout_reset(&sc->sc_tickto, hz, hifn_tick, sc);
 
+	gone_in(16, "%s(4) is deprecated in 15.0 and removed in 16.0\n",
+	    hifn_driver.name);
+
 	return (0);
 
 fail_intr:
