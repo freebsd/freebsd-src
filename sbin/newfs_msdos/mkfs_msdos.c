@@ -264,7 +264,7 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 	goto done;
     }
     if (o.OEM_string && strlen(o.OEM_string) > 8) {
-	warnx("%s: bad OEM string", o.OEM_string);
+	warnx("%s: OEM string too long", o.OEM_string);
 	goto done;
     }
     if (o.create_size) {
@@ -274,11 +274,11 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 	}
 	fd = open(fname, O_RDWR | O_CREAT | O_TRUNC, 0644);
 	if (fd == -1) {
-	    warnx("failed to create %s", fname);
+	    warn("failed to create %s", fname);
 	    goto done;
 	}
 	if (ftruncate(fd, o.create_size)) {
-	    warnx("failed to initialize %jd bytes", (intmax_t)o.create_size);
+	    warn("failed to initialize %jd bytes", (intmax_t)o.create_size);
 	    goto done;
 	}
     } else if ((fd = open(fname, o.no_create ? O_RDONLY : O_RDWR)) == -1) {
