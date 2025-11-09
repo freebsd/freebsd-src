@@ -46,6 +46,8 @@ TEST_METADATA.fibs_test+= execenv="jail"		\
 TEST_METADATA.forward+=	required_programs="python"	\
 			execenv="jail"			\
 			execenv_jail_params="vnet allow.raw_sockets"
+TEST_METADATA.multicast+= execenv="jail"		\
+			execenv_jail_params="vnet"
 TEST_METADATA.output+=	required_programs="python"
 TEST_METADATA.redirect+= required_programs="python"
 
