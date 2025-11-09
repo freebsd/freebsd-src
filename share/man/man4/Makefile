@@ -172,6 +172,7 @@ MAN=	aac.4 \
 	geom_linux_lvm.4 \
 	geom_map.4 \
 	geom_uzip.4 \
+	geom_zero.4 \
 	gif.4 \
 	${_gve.4} \
 	gpio.4 \
@@ -1068,6 +1069,7 @@ MAN+=	\
 	uvscom.4 \
 	zyd.4
 
+MLINKS+=geom_zero.4 gzero.4
 MLINKS+=otus.4 if_otus.4
 MLINKS+=rsu.4 if_rsu.4
 MLINKS+=rtwn_usb.4 if_rtwn_usb.4
