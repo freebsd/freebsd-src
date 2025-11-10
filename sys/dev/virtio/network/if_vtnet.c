@@ -2503,10 +2503,6 @@ vtnet_txq_offload(struct vtnet_txq *txq, struct mbuf *m,
 		hdr->csum_start = vtnet_gtoh16(sc, csum_start);
 		hdr->csum_offset = vtnet_gtoh16(sc, m->m_pkthdr.csum_data);
 		txq->vtntx_stats.vtxs_csum++;
-	} else if ((flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) &&
-	           (proto == IPPROTO_TCP || proto == IPPROTO_UDP) &&
-	           (m->m_pkthdr.csum_data == 0xFFFF)) {
-		hdr->flags |= VIRTIO_NET_HDR_F_DATA_VALID;
 	}
 
 	if (flags & (CSUM_IP_TSO | CSUM_IP6_TSO)) {
@@ -2620,8 +2616,7 @@ vtnet_txq_encap(struct vtnet_txq *txq, struct mbuf **m_head, int flags)
 		m->m_flags &= ~M_VLANTAG;
 	}
 
-	if (m->m_pkthdr.csum_flags &
-	    (VTNET_CSUM_ALL_OFFLOAD | CSUM_DATA_VALID)) {
+	if (m->m_pkthdr.csum_flags & VTNET_CSUM_ALL_OFFLOAD) {
 		m = vtnet_txq_offload(txq, m, hdr);
 		if ((*m_head = m) == NULL) {
 			error = ENOBUFS;
