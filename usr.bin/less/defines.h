@@ -122,9 +122,18 @@
 #define	LESSKEYINFILE_SYS	"/etc/syslesskey"
 #define LESSHISTFILE		".lesshst"
 
+/* Autodetect mingw */
+#if defined(__MINGW32__)
+/*
+ * Define MSDOS_COMPILER if compiling under Microsoft C.
+ */
+#define	MSDOS_COMPILER	WIN32C
 
-/* Settings always true on Unix.  */
-
+/*
+ * Pathname separator character.
+ */
+#define	PATHNAME_SEP	"\\"
+#else
 /*
  * Define MSDOS_COMPILER if compiling under Microsoft C.
  */
@@ -134,6 +143,9 @@
  * Pathname separator character.
  */
 #define	PATHNAME_SEP	"/"
+#endif
+
+/* Settings always true on Unix.  */
 
 /*
  * The value returned from tgetent on success.
@@ -144,7 +156,7 @@
 /*
  * HAVE_ANSI_PROTOS	is 1 if your compiler supports ANSI function prototypes.
  */
-#define HAVE_ANSI_PROTOS 1
+#define HAVE_ANSI_PROTOS	1
 
 /*
  * HAVE_SYS_TYPES_H is 1 if your system has <sys/types.h>.

@@ -283,11 +283,7 @@ static int ch_get(void)
 
 		read_again = FALSE;
 		if (n == READ_INTR)
-		{
-			if (ch_flags & CH_CANSEEK)
-				ch_fsize = pos;
 			return (EOI);
-		}
 		if (n == READ_AGAIN)
 		{
 			read_again = TRUE;

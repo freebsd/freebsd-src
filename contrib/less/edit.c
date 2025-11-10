@@ -113,9 +113,7 @@ public constant char * forw_textlist(struct textlist *tlist, constant char *prev
 		s = tlist->string;
 	else
 		s = prev + strlen(prev);
-	if (s >= tlist->endstring)
-		return (NULL);
-	while (*s == '\0')
+	while (s < tlist->endstring && *s == '\0')
 		s++;
 	if (s >= tlist->endstring)
 		return (NULL);
@@ -306,7 +304,11 @@ static void close_pipe(FILE *pipefd)
 	if (WIFSIGNALED(status))
 	{
 		int sig = WTERMSIG(status);
-		if (sig != SIGPIPE || ch_length() != NULL_POSITION)
+		if (
+#ifdef SIGPIPE
+			sig != SIGPIPE || 
+#endif
+			ch_length() != NULL_POSITION)
 		{
 			parg.p_string = signal_message(sig);
 			error("Input preprocessor terminated: %s", &parg);

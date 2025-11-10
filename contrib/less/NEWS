@@ -11,6 +11,45 @@
 
 ======================================================================
 
+	Major changes between "less" versions 679 and 685
+
+* Add --cmd option (github #624).
+
+* Add LESS_TERMCAP_SUSPEND and LESS_TERMCAP_RESUME (github #654).
+
+* Change --incsearch so that after typing each character of the pattern,
+  the search begins at the position where the search command was invoked,
+  not the current position (github #640).
+
+* Allow mixing of option arguments and filename arguments on the
+  command line unless POSIXLY_CORRECT is set (github #653).
+
+* Don't output U+00AD and U+200D, and fix some bugs handling emoji
+  modifier characters (github #637).
+
+* Fix hang if a search using ^S modifier matches empty string (github #634).
+
+* Fix bug using -g and -J (github #636).
+
+* Fix bug when pasting a search pattern while --incsearch is active
+  (github #635).
+
+* Fix bug in Windows build when autorepeating a search pattern (github #639).
+
+* Fix lesskey bug using #stop directive.
+
+* Fix lesskey bug using "invalid" action (github #643).
+
+* Fix bug causing file to appear to end prematurely if an input command
+  was received during a file read (github #649).
+
+* Fix performance issue in & filtering (github #638). Problem was introduced
+  in da2a9ecdf16beb642d0c030e35f0351c5f2e5a12 and released in less-673.
+
+* Fix some problems reported by valgrind (github #659, github #660, github #661).
+
+======================================================================
+
 	Major changes between "less" versions 678 and 679
 
 * Fix bad parsing of lesskey file an env var is a prefix of another

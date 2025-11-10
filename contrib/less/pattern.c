@@ -469,7 +469,12 @@ public lbool match_pattern(PATTERN_TYPE pattern, constant char *tpattern, consta
 		lbool matched = match_pattern1(pattern, tpattern, line, line_len, line_off, sp, ep, nsp, notbol, search_type);
 		if (!matched || subsearch_ok(sp, ep, search_type))
 			return matched;
-		mlen = ep[0] - line;
+		/* We have a match, but it does not satisfy all SUBSEARCH conditions.
+		 * Continue searching after this match. */
+		mlen = ptr_diff(ep[0], line);
+		if (mlen == 0)
+			/* If the match is empty, we can't progress. */
+			return FALSE;
 		line += mlen;
 		line_len -= mlen;
 		notbol = 1;

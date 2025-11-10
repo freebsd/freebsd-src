@@ -43,7 +43,7 @@ extern int errno;
 #include <sys/utsname.h>
 #endif
 
-#if HAVE_POLL && !MSDOS_COMPILER
+#if HAVE_POLL && !MSDOS_COMPILER && !defined(__MVS__)
 #define USE_POLL 1
 static lbool use_poll = TRUE;
 #else
@@ -82,6 +82,7 @@ static lbool opening;
 public lbool waiting_for_data;
 public int consecutive_nulls = 0;
 public lbool getting_one_screen = FALSE;
+public lbool no_poll = FALSE;
 
 /* Milliseconds to wait for data before displaying "waiting for data" message. */
 static int waiting_for_data_delay = 4000;
@@ -163,7 +164,8 @@ static int check_poll(int fd, int tty)
 				/* Break out of "waiting for data". */
 				return (READ_INTR);
 			ungetcc_back((char) ch);
-			return (READ_INTR);
+			if (!no_poll)
+				return (READ_INTR);
 		}
 	}
 	if (ignore_eoi && exit_F_on_close && (poller[0].revents & (POLLHUP|POLLIN)) == POLLHUP)
@@ -176,6 +178,36 @@ static int check_poll(int fd, int tty)
 	return (0);
 }
 #endif /* USE_POLL */
+
+/*
+ * Is a character available to be read from the tty?
+ */
+public lbool ttyin_ready(void)
+{
+#if MSDOS_COMPILER==WIN32C
+	return win32_kbhit();
+#else
+#if MSDOS_COMPILER
+	return kbhit();
+#else
+#if USE_POLL
+#if LESSTEST
+	if (is_lesstest())
+		return FALSE;
+#endif /*LESSTEST*/
+	if (!use_poll)
+		return FALSE;
+	{
+		struct pollfd poller[1] = { { tty, POLLIN, 0 } };
+		poll(poller, 1, 0);
+		return ((poller[0].revents & POLLIN) != 0);
+	}
+#else
+	return FALSE;
+#endif
+#endif
+#endif
+}
 
 public int supports_ctrl_x(void)
 {
@@ -282,16 +314,21 @@ start:
 	}
 #else
 #if MSDOS_COMPILER==WIN32C
-	if (win32_kbhit2(TRUE))
+	if (!(quit_if_one_screen && one_screen) && win32_kbhit2(TRUE))
 	{
 		int c;
+		lbool intr;
 
 		c = WIN32getch();
-		sigs |= S_SWINTERRUPT;
-		reading = FALSE;
-		if (c != CONTROL('C') && c != intr_char)
+		intr = (c == CONTROL('C') || c == intr_char);
+		if (!intr)
 			WIN32ungetch((char) c);
-		return (READ_INTR);
+		if (intr || !no_poll)
+		{
+			sigs |= S_SWINTERRUPT;
+			reading = FALSE;
+			return (READ_INTR);
+		}
 	}
 #endif
 #endif

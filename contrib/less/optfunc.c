@@ -72,6 +72,7 @@ extern int nosearch_header_lines;
 extern int nosearch_header_cols;
 extern POSITION header_start_pos;
 extern char *init_header;
+extern char *first_cmd_at_prompt;
 #if LOGFILE
 extern char *namelogfile;
 extern lbool force_logfile;
@@ -967,6 +968,23 @@ public void opt_filesize(int type, constant char *s)
 	case TOGGLE:
 		if (want_filesize && curr_ifile != NULL && ch_length() == NULL_POSITION)
 			scan_eof();
+		break;
+	case QUERY:
+		break;
+	}
+}
+
+/*
+ * Handler for the --cmd option.
+ */
+	/*ARGSUSED*/
+public void opt_first_cmd_at_prompt(int type, constant char *s)
+{
+	switch (type)
+	{
+	case INIT:
+	case TOGGLE:
+		first_cmd_at_prompt = save(s);
 		break;
 	case QUERY:
 		break;

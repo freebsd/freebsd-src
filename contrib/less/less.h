@@ -216,7 +216,7 @@ void free();
  * Special types and constants.
  */
 typedef unsigned long LWCHAR;
-#if defined(MINGW) || (defined(_MSC_VER) && _MSC_VER >= 1500)
+#if defined(__MINGW32__) || (defined(_MSC_VER) && _MSC_VER >= 1500)
 typedef long long less_off_t;  /* __int64 */
 typedef struct _stat64 less_stat_t;
 #define less_fstat _fstat64
@@ -435,6 +435,7 @@ typedef enum osc8_state {
 #define AT_ANSI         (1 << 4)  /* Content-supplied "ANSI" escape sequence */
 #define AT_BINARY       (1 << 5)  /* LESS*BINFMT representation */
 #define AT_HILITE       (1 << 6)  /* Internal highlights (e.g., for search) */
+#define AT_PLACEHOLDER  (1 << 7)  /* Placeholder for half of double-wide char */
 
 #define AT_COLOR_SHIFT    8
 #define AT_NUM_COLORS     16
@@ -554,6 +555,8 @@ typedef enum {
 #define ESC             CONTROL('[')
 #define ESCS            "\33"
 #define CSI             ((unsigned char)'\233')
+#define VARSEL_15       ((LWCHAR)0xFE0E)  /* VARIATION SELECTOR 15 */
+#define VARSEL_16       ((LWCHAR)0xFE0F)  /* VARIATION SELECTOR 16 */
 
 #if _OSK_MWC32
 #define LSIGNAL(sig,func)       os9_signal(sig,func)

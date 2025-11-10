@@ -17,7 +17,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#if defined(MINGW) || defined(_MSC_VER)
+#if defined(__MINGW32__) || defined(_MSC_VER)
 #include <locale.h>
 #include <shellapi.h>
 #endif
@@ -78,7 +78,7 @@ extern int      redraw_on_quit;
 extern int      term_init_done;
 extern lbool    first_time;
 
-#if MSDOS_COMPILER==WIN32C && (defined(MINGW) || defined(_MSC_VER))
+#if MSDOS_COMPILER==WIN32C && (defined(__MINGW32__) || defined(_MSC_VER))
 /* malloc'ed 0-terminated utf8 of 0-terminated wide ws, or null on errors */
 static char *utf8_from_wide(constant wchar_t *ws)
 {
@@ -247,8 +247,14 @@ int main(int argc, constant char *argv[])
 {
 	IFILE ifile;
 	constant char *s;
+	int i;
+	struct xbuffer xfiles;
+	constant int *files;
+	size_t num_files;
+	lbool end_opts = FALSE;
+	lbool posixly_correct = FALSE;
 
-#if MSDOS_COMPILER==WIN32C && (defined(MINGW) || defined(_MSC_VER))
+#if MSDOS_COMPILER==WIN32C && (defined(__MINGW32__) || defined(_MSC_VER))
 	if (GetACP() != CP_UTF8)  /* not using a UTF-8 manifest */
 		try_utf8_locale(&argc, &argv);
 #endif
@@ -318,13 +324,20 @@ int main(int argc, constant char *argv[])
 
 #define isoptstring(s)  less_is_more ? (((s)[0] == '-') && (s)[1] != '\0') : \
 			(((s)[0] == '-' || (s)[0] == '+') && (s)[1] != '\0')
-	while (argc > 0 && (isoptstring(*argv) || isoptpending()))
+	xbuf_init(&xfiles);
+	posixly_correct = (getenv("POSIXLY_CORRECT") != NULL);
+	for (i = 0;  i < argc;  i++)
 	{
-		s = *argv++;
-		argc--;
-		if (strcmp(s, "--") == 0)
-			break;
-		scan_option(s, FALSE);
+		if (strcmp(argv[i], "--") == 0)
+			end_opts = TRUE;
+		else if (!end_opts && (isoptstring(argv[i]) || isoptpending()))
+			scan_option(argv[i], FALSE);
+		else
+		{
+			if (posixly_correct)
+				end_opts = TRUE;
+			xbuf_add_data(&xfiles, (constant unsigned char *) &i, sizeof(i));
+		}
 	}
 #undef isoptstring
 
@@ -364,7 +377,9 @@ int main(int argc, constant char *argv[])
 	ifile = NULL_IFILE;
 	if (dohelp)
 		ifile = get_ifile(FAKE_HELPFILE, ifile);
-	while (argc-- > 0)
+	files = (constant int *) xfiles.data;
+	num_files = xfiles.end / sizeof(int);
+	for (i = 0;  i < num_files;  i++)
 	{
 #if (MSDOS_COMPILER && MSDOS_COMPILER != DJGPPC)
 		/*
@@ -378,7 +393,7 @@ int main(int argc, constant char *argv[])
 		char *gfilename;
 		char *qfilename;
 		
-		gfilename = lglob(*argv++);
+		gfilename = lglob(argv[files[i]]);
 		init_textlist(&tlist, gfilename);
 		filename = NULL;
 		while ((filename = forw_textlist(&tlist, filename)) != NULL)
@@ -390,10 +405,12 @@ int main(int argc, constant char *argv[])
 		}
 		free(gfilename);
 #else
-		(void) get_ifile(*argv++, ifile);
+		(void) get_ifile(argv[files[i]], ifile);
 		ifile = prev_ifile(NULL_IFILE);
 #endif
 	}
+	xbuf_deinit(&xfiles);
+
 	/*
 	 * Set up terminal, etc.
 	 */

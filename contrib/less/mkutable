@@ -22,6 +22,17 @@ my %force_space = (
     0x0d => 1, # carriage return
 );
 
+# Override Unicode tables for certain modifier chars which act differently
+# on different terminals. Treat them as omittable.
+my @force_omit = (
+    [0xad,    0xad],    # SOFT HYPHEN
+    [0x200d,  0x200d],  # ZERO WIDTH JOINER
+    [0x1f3fb, 0x1f3ff], # EMOJI MODIFIER FITZPATRICK TYPE-[1-6]
+    [0x1f9b0, 0x1f9b3], # EMOJI COMPONENT [RED,CURLY,BALD,WHITE] HAIR
+    [0xfe00,  0xfe0f],  # VARIATION SELECTOR-[1-16]
+    [0xe0100, 0xe01ef], # VARIATION SELECTOR-[17-256]
+);
+
 # Hangul Jamo medial vowels and final consonants should be zero width.
 my @force_compose = (
     [0x1160, 0x11ff],
@@ -49,6 +60,13 @@ sub main {
         my ($lo,$hi) = @$comp;
         for (my $ch = $lo; $ch <= $hi; ++$ch) {
             $force_compose{$ch} = 1;
+        }
+    }
+    my %force_omit;
+    foreach my $comp (@force_omit) {
+        my ($lo,$hi) = @$comp;
+        for (my $ch = $lo; $ch <= $hi; ++$ch) {
+            $force_omit{$ch} = 1;
         }
     }
 
@@ -88,7 +106,8 @@ sub main {
         $type =~ s/\s//g;
         for ($last_code = $lo_code; $last_code <= $hi_code; ++$last_code) {
             output(\%out, $last_code,
-                $force_space{$last_code} ? 'Zs' : $force_compose{$last_code} ? 'Mn' : $type);
+                $force_space{$last_code} ? 'Zs' : $force_compose{$last_code} ? 'Mn' :
+                $force_omit{$last_code} ? 'Xx' : $type);
         }
     }
     output(\%out, $last_code);
