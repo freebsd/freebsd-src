@@ -62,8 +62,8 @@
             \r   RETURN      (0x0D)
             \t   TAB         (0x09)
 
-            \k  followed by a single character represents the char(s) produced
-            when one of these keys is pressed:
+       \k  followed by a single character represents the char(s) produced when
+       one of these keys is pressed:
             \kb   BACKSPACE (the BACKSPACE key)
             \kB   ctrl‐BACKSPACE
             \kd   DOWN ARROW
@@ -82,21 +82,25 @@
             \kX   ctrl‐DELETE
             \k1   F1
 
+       A backslash followed by any other character indicates that character is
+       to be taken literally.  Characters which must be preceded by  backslash
+       include caret, space, tab, hash mark and the backslash itself.
 
-            A backslash followed by any other character indicates that charac‐
-            ter is to be taken literally.  Characters which must  be  preceded
-            by  backslash  include  caret, space, tab, hash mark and the back‐
-            slash itself.
+       An action may be followed by an "extra" string.  When such a command is
+       entered while running [1mless[22m, the action is performed, and then the extra
+       string  is  parsed,  just as if it were typed in to [1mless[22m.  This feature
+       can be used in certain cases to extend the functionality of a  command.
+       For  example,  see  the "{" and ":t" commands in the example below.  It
+       can also be used to execute  more  than  one  command  when  a  key  is
+       pressed.   For  example,  if this line were in a lesskey file, pressing
+       the "B" key would first set the "b" mark and then search for the string
+       "next":
 
-            An action may be followed by an "extra" string.  When such a  com‐
-            mand  is  entered while running [1mless[22m, the action is performed, and
-            then the extra string is parsed, just as if it were  typed  in  to
-            [1mless[22m.   This  feature  can  be used in certain cases to extend the
-            functionality of a command.  For example, see  the  "{"  and  ":t"
-            commands  in  the  example  below.  The extra string has a special
-            meaning for the "quit" action: when [1mless [22mquits, the ASCII value of
-            the first character of the extra string is used as its  exit  sta‐
-            tus.
+           B set‐mark b/next\n
+
+       The extra string has a special meaning for the "quit" action: when [1mless[0m
+       quits, the ASCII value of the first character of the  extra  string  is
+       used as its exit status.
 
 [1mEXAMPLE[0m
        The following input file describes the set of default command keys used
@@ -403,6 +407,6 @@
 
 [1mAUTHOR[0m
        Mark Nudelman
-       Report bugs at ⟨https://github.com/gwsw/less/issues⟩.
+       Report bugs at https://github.com/gwsw/less/issues.
 
-                           Version 679: 28 May 2025                 [4mLESSKEY[24m(1)
+                           Version 685: 04 Oct 2025                 [4mLESSKEY[24m(1)

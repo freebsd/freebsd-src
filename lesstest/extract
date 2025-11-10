@@ -4,10 +4,11 @@ use Getopt::Std;
 
 # Extract all text files from an lt file.
 my $usage = <<_EOF_;
-usage: extract [-ckfv] [lt-file]...
-       -c = print text file to stdout
+usage: extract [-cekfv] [lt-file]...
+       -c = print text file
+       -e = print environment variables
        -f = overwrite existing text file
-       -k = print keystrokes to stdout
+       -k = print keystrokes
        -v = verbose
 _EOF_
 
@@ -15,7 +16,7 @@ my %opt;
 
 exit(main() ? 0 : 1);
 sub main() {
-    die $usage if not getopts('cfkv', \%opt);
+    die $usage if not getopts('cefkv', \%opt);
     foreach my $in_filename (@ARGV) {
         my $in;
         if (not open $in, '<', $in_filename) {
@@ -43,6 +44,8 @@ sub read_ltfile {
                 return 0 if not create_text_file($1, $2, $in);
             } elsif (/^\+([0-9a-fA-F]+)/) {
                 print "$1\n" if $opt{k};
+            } elsif (/^E\s*"([^"]+)"\s*"([^"]*)"/) {
+                print "$1=\"$2\"\n" if $opt{e};
             }
         }
     }
@@ -51,8 +54,9 @@ sub read_ltfile {
 
 sub create_text_file {
     my ($out_filename, $filelen, $in) = @_;
+    my $ptext = (not $opt{k} and not $opt{e});
     my $out;
-    if ($opt{k}) {
+    if (not $ptext) {
         $out = undef;
     } elsif ($opt{c}) {
         $out = \*STDOUT;
@@ -70,7 +74,7 @@ sub create_text_file {
     my $nread = read $in, $buf, $filelen;
     print STDERR "$out_filename: read $nread/$filelen\n" if $opt{v};
     print STDERR "WARNING: read only $nread of $filelen bytes\n" if not $nread or $nread != $filelen;
-    if (not $opt{k}) {
+    if ($ptext) {
         print $out $buf;
         close $out unless $opt{c};
     }

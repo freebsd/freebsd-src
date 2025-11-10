@@ -46,6 +46,6 @@
        This  manual  page  was written by Thomas Schoepf <schoepf@debian.org>,
        for the Debian GNU/Linux system (but may be used by others).
 
-       Report bugs at ⟨https://github.com/gwsw/less/issues⟩.
+       Report bugs at https://github.com/gwsw/less/issues.
 
-                           Version 679: 28 May 2025                [4mLESSECHO[24m(1)
+                           Version 685: 04 Oct 2025                [4mLESSECHO[24m(1)

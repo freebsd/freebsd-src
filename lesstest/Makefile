@@ -1,7 +1,7 @@
 CC ?= gcc
 CFLAGS ?= -Wall -O2
 LDFLAGS ?=
-TERMLIB = -lncurses
+TERMLIB ?= $(shell ( grep '^LIBS *=' ../Makefile || grep '^LIBS *=' ../obj/Makefile || echo 'LIBS=-lncurses' ) 2>/dev/null | sed -e 's/LIBS *=//' -e 's/$$(LIBSAN)//' )
 srcdir ?= .
 
 all: lesstest lt_screen 
