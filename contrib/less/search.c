@@ -52,6 +52,7 @@ static POSITION prep_endpos;
 public POSITION header_start_pos = NULL_POSITION;
 static POSITION header_end_pos;
 public lbool search_wrapped = FALSE;
+public POSITION search_incr_start = NULL_POSITION;
 #if OSC8_LINK
 public POSITION osc8_linepos = NULL_POSITION;
 public POSITION osc8_match_start = NULL_POSITION;
@@ -1083,7 +1084,7 @@ public void chg_hilite(void)
 /*
  * Figure out where to start a search.
  */
-static POSITION search_pos(int search_type)
+public POSITION search_pos(int search_type)
 {
 	POSITION pos;
 	int sindex;
@@ -1189,6 +1190,7 @@ static lbool matches_filters(POSITION pos, char *cline, size_t line_len, int *ch
 			struct hilite hl;
 			hl.hl_startpos = linepos;
 			hl.hl_endpos = pos;
+			hl.hl_attr = 0;
 			add_hilite(&filter_anchor, &hl);
 			free(cline);
 			free(chpos);
@@ -2118,7 +2120,8 @@ public int search(int search_type, constant char *pattern, int n)
 	/*
 	 * Figure out where to start the search.
 	 */
-	pos = search_pos(search_type);
+	pos = ((search_type & SRCH_INCR) && search_incr_start != NULL_POSITION) ?
+		search_incr_start : search_pos(search_type);
 	opos = position(sindex_from_sline(jump_sline));
 	if (pos == NULL_POSITION)
 	{
@@ -2241,7 +2244,7 @@ public void prep_hilite(POSITION spos, POSITION epos, int maxlines)
 		 */
 		clr_hilite();
 		clr_filter();
-		nprep_startpos = spos;
+		nprep_startpos = nprep_endpos = spos;
 	} else
 	{
 		/*
@@ -2282,7 +2285,7 @@ public void prep_hilite(POSITION spos, POSITION epos, int maxlines)
 			result = search_range(spos, epos, search_type, 0, maxlines, (POSITION*)NULL, &new_epos, (POSITION*)NULL);
 			if (result < 0)
 				return;
-			if (prep_endpos == NULL_POSITION || new_epos > prep_endpos)
+			if (nprep_endpos == NULL_POSITION || new_epos > nprep_endpos)
 				nprep_endpos = new_epos;
 
 			/*
@@ -2300,6 +2303,7 @@ public void prep_hilite(POSITION spos, POSITION epos, int maxlines)
 					if (epos == NULL_POSITION)
 						break;
 					maxlines = 1;
+					nprep_endpos = epos;
 					continue;
 				}
 			}

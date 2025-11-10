@@ -49,10 +49,13 @@ extern void *ml_examine;
 extern int wheel_lines;
 extern int def_search_type;
 extern lbool search_wrapped;
+extern lbool no_poll;
 extern int no_paste;
 extern lbool pasting;
 extern int no_edit_warn;
 extern POSITION soft_eof;
+extern POSITION search_incr_start;
+extern char *first_cmd_at_prompt;
 #if SHELL_ESCAPE || PIPEC
 extern void *ml_shell;
 #endif
@@ -90,6 +93,8 @@ static int save_proc_backspace;
 static int screen_trashed_value = 0;
 static lbool literal_char = FALSE;
 static lbool ignoring_input = FALSE;
+static struct scrpos search_incr_pos = { NULL_POSITION, 0 };
+static int search_incr_hshift;
 #if HAVE_TIME
 static time_type ignoring_input_time;
 #endif
@@ -209,6 +214,13 @@ static void mca_search1(void)
 
 static void mca_search(void)
 {
+	if (incr_search)
+	{
+		/* Remember where the incremental search started. */
+		get_scrpos(&search_incr_pos, TOP);
+		search_incr_start = search_pos(search_type);
+		search_incr_hshift = hshift;
+	}
 	mca_search1();
 	set_mlist(ml_search, 0);
 }
@@ -747,6 +759,9 @@ static int mca_char(char c)
 			constant char *pattern = get_cmdbuf();
 			if (pattern == NULL)
 				return (MCA_MORE);
+			/* Defer searching if more chars of the pattern are available. */
+			if (ttyin_ready())
+				return (MCA_MORE);
 			/*
 			 * Must save updown_match because mca_search
 			 * reinits it. That breaks history scrolling.
@@ -758,11 +773,24 @@ static int mca_char(char c)
 			{
 				/* User has backspaced to an empty pattern. */
 				undo_search(1);
+				hshift = search_incr_hshift;
+				jump_loc(search_incr_pos.pos, search_incr_pos.ln);
 			} else
 			{
+				/*
+				 * Suppress tty polling while searching.
+				 * This avoids a problem where tty input
+				 * can cause the search to be interrupted.
+				 */
+				no_poll = TRUE;
 				if (search(st | SRCH_INCR, pattern, 1) != 0)
+				{
 					/* No match, invalid pattern, etc. */
 					undo_search(1);
+					hshift = search_incr_hshift;
+					jump_loc(search_incr_pos.pos, search_incr_pos.ln);
+				}
+				no_poll = FALSE;
 			}
 			/* Redraw the search prompt and search string. */
 			if (is_screen_trashed() || !full_screen)
@@ -795,6 +823,7 @@ static void clear_buffers(void)
 #if HILITE_SEARCH
 	clr_hilite();
 #endif
+	set_line_contig_pos(NULL_POSITION);
 }
 
 public void screen_trashed_num(int trashed)
@@ -889,6 +918,12 @@ static void prompt(void)
 	    next_ifile(curr_ifile) == NULL_IFILE)
 		quit(QUIT_OK);
 	quit_if_one_screen = FALSE; /* only get one chance at this */
+	if (first_cmd_at_prompt != NULL)
+	{
+		ungetsc(first_cmd_at_prompt);
+		first_cmd_at_prompt = NULL;
+		return;
+	}
 
 #if MSDOS_COMPILER==WIN32C
 	/* 
@@ -962,6 +997,7 @@ static void prompt(void)
 		put_line(FALSE);
 	}
 	clear_eol();
+	resume_screen();
 }
 
 /*
@@ -2261,6 +2297,7 @@ public void commands(void)
 			pos_rehead();
 			hshift -= (int) number;
 			screen_trashed();
+			cmd_exec();
 			break;
 
 		case A_RSHIFT:
@@ -2274,6 +2311,7 @@ public void commands(void)
 			pos_rehead();
 			hshift += (int) number;
 			screen_trashed();
+			cmd_exec();
 			break;
 
 		case A_LLSHIFT:
@@ -2283,6 +2321,7 @@ public void commands(void)
 			pos_rehead();
 			hshift = 0;
 			screen_trashed();
+			cmd_exec();
 			break;
 
 		case A_RRSHIFT:
@@ -2292,6 +2331,7 @@ public void commands(void)
 			pos_rehead();
 			hshift = rrshift();
 			screen_trashed();
+			cmd_exec();
 			break;
 
 		case A_PREFIX:
