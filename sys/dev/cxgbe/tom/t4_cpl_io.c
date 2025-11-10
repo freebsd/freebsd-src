@@ -1787,7 +1787,8 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	socantrcvmore(so);
 
 	if (ulp_mode(toep) == ULP_MODE_RDMA ||
-	    (ulp_mode(toep) == ULP_MODE_ISCSI && chip_id(sc) >= CHELSIO_T6)) {
+	    (ulp_mode(toep) == ULP_MODE_ISCSI && chip_id(sc) >= CHELSIO_T6) ||
+	    ulp_mode(toep) == ULP_MODE_NVMET) {
 		/*
 		 * There might be data received via DDP before the FIN
 		 * not reported to the driver.  Just assume the
