@@ -25,8 +25,8 @@
 
 PACKAGE=	runtime
 
-LIB=	pam_securetty
-SRCS=	pam_securetty.c
-MAN=	pam_securetty.8
+LIB=		pam_securetty
+SRCS=		pam_securetty.c
+MANNODEV=	pam_securetty.8
 
 .include <bsd.lib.mk>
