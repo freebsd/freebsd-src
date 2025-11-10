@@ -188,6 +188,12 @@ nvmf_sqhd_valid(struct nvmf_capsule *nc)
 	return (nc->nc_sqhd_valid);
 }
 
+uint64_t
+nvmf_max_xfer_size(struct nvmf_qpair *qp)
+{
+	return (qp->nq_ops->max_xfer_size(qp));
+}
+
 uint8_t
 nvmf_validate_command_capsule(struct nvmf_capsule *nc)
 {
