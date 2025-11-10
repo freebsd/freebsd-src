@@ -1346,20 +1346,40 @@ vtnet_ioctl_ifcap(struct vtnet_softc *sc, struct ifreq *ifr)
 	VTNET_CORE_LOCK_ASSERT(sc);
 
 	if (mask & IFCAP_TXCSUM) {
+		if (if_getcapenable(ifp) & IFCAP_TXCSUM &&
+		    if_getcapenable(ifp) & IFCAP_TSO4) {
+			/* Disable tso4, because txcsum will be disabled. */
+			if_setcapenablebit(ifp, 0, IFCAP_TSO4);
+			if_sethwassistbits(ifp, 0, CSUM_IP_TSO);
+			mask &= ~IFCAP_TSO4;
+		}
 		if_togglecapenable(ifp, IFCAP_TXCSUM);
 		if_togglehwassist(ifp, VTNET_CSUM_OFFLOAD);
 	}
 	if (mask & IFCAP_TXCSUM_IPV6) {
+		if (if_getcapenable(ifp) & IFCAP_TXCSUM_IPV6 &&
+		    if_getcapenable(ifp) & IFCAP_TSO6) {
+			/* Disable tso6, because txcsum6 will be disabled. */
+			if_setcapenablebit(ifp, 0, IFCAP_TSO6);
+			if_sethwassistbits(ifp, 0, CSUM_IP6_TSO);
+			mask &= ~IFCAP_TSO6;
+		}
 		if_togglecapenable(ifp, IFCAP_TXCSUM_IPV6);
 		if_togglehwassist(ifp, VTNET_CSUM_OFFLOAD_IPV6);
 	}
 	if (mask & IFCAP_TSO4) {
-		if_togglecapenable(ifp, IFCAP_TSO4);
-		if_togglehwassist(ifp, IFCAP_TSO4);
+		if (if_getcapenable(ifp) & (IFCAP_TXCSUM | IFCAP_TSO4)) {
+			/* tso4 can only be enabled, if txcsum is enabled. */
+			if_togglecapenable(ifp, IFCAP_TSO4);
+			if_togglehwassist(ifp, CSUM_IP_TSO);
+		}
 	}
 	if (mask & IFCAP_TSO6) {
-		if_togglecapenable(ifp, IFCAP_TSO6);
-		if_togglehwassist(ifp, IFCAP_TSO6);
+		if (if_getcapenable(ifp) & (IFCAP_TXCSUM_IPV6 | IFCAP_TSO6)) {
+			/* tso6 can only be enabled, if txcsum6 is enabled. */
+			if_togglecapenable(ifp, IFCAP_TSO6);
+			if_togglehwassist(ifp, CSUM_IP6_TSO);
+		}
 	}
 
 	if (mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_LRO)) {
