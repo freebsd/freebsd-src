@@ -498,7 +498,7 @@ nvmf_attach(device_t dev)
 	nvlist_t *nvl = device_get_ivars(dev);
 	const nvlist_t * const *io;
 	struct sysctl_oid *oid;
-	uint64_t val;
+	uint64_t mpsmin, val;
 	u_int i;
 	int error;
 
@@ -545,12 +545,19 @@ nvmf_attach(device_t dev)
 	sc->vs = val;
 
 	/* Honor MDTS if it is set. */
+	mpsmin = (uint64_t)1 << (NVME_MPS_SHIFT +
+	    NVME_CAP_HI_MPSMIN(sc->cap >> 32));
 	sc->max_xfer_size = maxphys;
 	if (sc->cdata->mdts != 0) {
 		sc->max_xfer_size = ulmin(sc->max_xfer_size,
-		    1 << (sc->cdata->mdts + NVME_MPS_SHIFT +
-		    NVME_CAP_HI_MPSMIN(sc->cap >> 32)));
+		    mpsmin << sc->cdata->mdts);
 	}
+
+	/* Honor any transfer size restriction imposed by the transport. */
+	val = nvmf_max_xfer_size_qp(sc->io[0]);
+	if (val >= mpsmin)
+		sc->max_xfer_size = ulmin(sc->max_xfer_size,
+		    rounddown2(val, mpsmin));
 
 	io = nvlist_get_nvlist_array(nvl, "io", NULL);
 	sc->max_pending_io = nvlist_get_number(io[0], "qsize") *
