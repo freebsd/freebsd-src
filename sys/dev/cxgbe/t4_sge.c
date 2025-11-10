@@ -852,6 +852,11 @@ t4_tweak_chip_settings(struct adapter *sc)
 
 	/* We use multiple DDP page sizes both in plain-TOE and ISCSI modes. */
 	m = v = F_TDDPTAGTCB | F_ISCSITAGTCB;
+	if (sc->nvmecaps != 0) {
+		/* Request DDP status bit for NVMe PDU completions. */
+		m |= F_NVME_TCP_DDP_VAL_EN;
+		v |= F_NVME_TCP_DDP_VAL_EN;
+	}
 	t4_set_reg_field(sc, A_ULP_RX_CTL, m, v);
 
 	m = V_INDICATESIZE(M_INDICATESIZE) | F_REARMDDPOFFSET |
@@ -4170,6 +4175,20 @@ alloc_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq, int idx,
 		ofld_rxq->rx_iscsi_ddp_setup_ok = counter_u64_alloc(M_WAITOK);
 		ofld_rxq->rx_iscsi_ddp_setup_error =
 		    counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_ddp_setup_ok = counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_ddp_setup_no_stag =
+		    counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_ddp_setup_error =
+		    counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_ddp_octets = counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_ddp_pdus = counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_fl_octets = counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_fl_pdus = counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_invalid_headers = counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_header_digest_errors =
+		    counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_data_digest_errors =
+		    counter_u64_alloc(M_WAITOK);
 		ofld_rxq->ddp_buffer_alloc = counter_u64_alloc(M_WAITOK);
 		ofld_rxq->ddp_buffer_reuse = counter_u64_alloc(M_WAITOK);
 		ofld_rxq->ddp_buffer_free = counter_u64_alloc(M_WAITOK);
@@ -4207,6 +4226,16 @@ free_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq)
 		MPASS(!(ofld_rxq->iq.flags & IQ_SW_ALLOCATED));
 		counter_u64_free(ofld_rxq->rx_iscsi_ddp_setup_ok);
 		counter_u64_free(ofld_rxq->rx_iscsi_ddp_setup_error);
+		counter_u64_free(ofld_rxq->rx_nvme_ddp_setup_ok);
+		counter_u64_free(ofld_rxq->rx_nvme_ddp_setup_no_stag);
+		counter_u64_free(ofld_rxq->rx_nvme_ddp_setup_error);
+		counter_u64_free(ofld_rxq->rx_nvme_ddp_octets);
+		counter_u64_free(ofld_rxq->rx_nvme_ddp_pdus);
+		counter_u64_free(ofld_rxq->rx_nvme_fl_octets);
+		counter_u64_free(ofld_rxq->rx_nvme_fl_pdus);
+		counter_u64_free(ofld_rxq->rx_nvme_invalid_headers);
+		counter_u64_free(ofld_rxq->rx_nvme_header_digest_errors);
+		counter_u64_free(ofld_rxq->rx_nvme_data_digest_errors);
 		counter_u64_free(ofld_rxq->ddp_buffer_alloc);
 		counter_u64_free(ofld_rxq->ddp_buffer_reuse);
 		counter_u64_free(ofld_rxq->ddp_buffer_free);
@@ -4218,12 +4247,12 @@ static void
 add_ofld_rxq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
     struct sge_ofld_rxq *ofld_rxq)
 {
-	struct sysctl_oid_list *children;
+	struct sysctl_oid_list *children, *top;
 
 	if (ctx == NULL || oid == NULL)
 		return;
 
-	children = SYSCTL_CHILDREN(oid);
+	top = children = SYSCTL_CHILDREN(oid);
 	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "rx_aio_ddp_jobs",
 	    CTLFLAG_RD, &ofld_rxq->rx_aio_ddp_jobs, 0,
 	    "# of aio_read(2) jobs completed via DDP");
@@ -4279,6 +4308,41 @@ add_ofld_rxq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
 	    "# of PDUs with invalid header digests");
 	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "data_digest_errors",
 	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_data_digest_errors, 0,
+	    "# of PDUs with invalid data digests");
+
+	oid = SYSCTL_ADD_NODE(ctx, top, OID_AUTO, "nvme",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "TOE NVMe statistics");
+	children = SYSCTL_CHILDREN(oid);
+
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "ddp_setup_ok",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_ddp_setup_ok,
+	    "# of times DDP buffer was setup successfully");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "ddp_setup_no_stag",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_ddp_setup_no_stag,
+	    "# of times STAG was not available for DDP buffer setup");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "ddp_setup_error",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_ddp_setup_error,
+	    "# of times DDP buffer setup failed");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "ddp_octets",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_ddp_octets,
+	    "# of octets placed directly");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "ddp_pdus",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_ddp_pdus,
+	    "# of PDUs with data placed directly");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "fl_octets",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_fl_octets,
+	    "# of data octets delivered in freelist");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "fl_pdus",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_fl_pdus,
+	    "# of PDUs with data delivered in freelist");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "invalid_headers",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_invalid_headers,
+	    "# of PDUs with invalid header field");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "header_digest_errors",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_header_digest_errors,
+	    "# of PDUs with invalid header digests");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "data_digest_errors",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_data_digest_errors,
 	    "# of PDUs with invalid data digests");
 }
 #endif

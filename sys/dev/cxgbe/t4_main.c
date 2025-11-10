@@ -13009,6 +13009,22 @@ clear_stats(struct adapter *sc, u_int port_id)
 				ofld_rxq->rx_iscsi_ddp_octets = 0;
 				ofld_rxq->rx_iscsi_fl_pdus = 0;
 				ofld_rxq->rx_iscsi_fl_octets = 0;
+				counter_u64_zero(
+				    ofld_rxq->rx_nvme_ddp_setup_ok);
+				counter_u64_zero(
+				    ofld_rxq->rx_nvme_ddp_setup_no_stag);
+				counter_u64_zero(
+				    ofld_rxq->rx_nvme_ddp_setup_error);
+				counter_u64_zero(ofld_rxq->rx_nvme_ddp_pdus);
+				counter_u64_zero(ofld_rxq->rx_nvme_ddp_octets);
+				counter_u64_zero(ofld_rxq->rx_nvme_fl_pdus);
+				counter_u64_zero(ofld_rxq->rx_nvme_fl_octets);
+				counter_u64_zero(
+				    ofld_rxq->rx_nvme_invalid_headers);
+				counter_u64_zero(
+				    ofld_rxq->rx_nvme_header_digest_errors);
+				counter_u64_zero(
+				    ofld_rxq->rx_nvme_data_digest_errors);
 				ofld_rxq->rx_aio_ddp_jobs = 0;
 				ofld_rxq->rx_aio_ddp_octets = 0;
 				ofld_rxq->rx_toe_tls_records = 0;

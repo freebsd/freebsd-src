@@ -723,6 +723,16 @@ struct sge_ofld_rxq {
 	uint64_t rx_iscsi_padding_errors;
 	uint64_t rx_iscsi_header_digest_errors;
 	uint64_t rx_iscsi_data_digest_errors;
+	counter_u64_t rx_nvme_ddp_setup_ok;
+	counter_u64_t rx_nvme_ddp_setup_no_stag;
+	counter_u64_t rx_nvme_ddp_setup_error;
+	counter_u64_t rx_nvme_ddp_pdus;
+	counter_u64_t rx_nvme_ddp_octets;
+	counter_u64_t rx_nvme_fl_pdus;
+	counter_u64_t rx_nvme_fl_octets;
+	counter_u64_t rx_nvme_invalid_headers;
+	counter_u64_t rx_nvme_header_digest_errors;
+	counter_u64_t rx_nvme_data_digest_errors;
 	uint64_t rx_aio_ddp_jobs;
 	uint64_t rx_aio_ddp_octets;
 	u_long	rx_toe_tls_records;
@@ -1000,6 +1010,7 @@ struct adapter {
 	void *iwarp_softc;	/* (struct c4iw_dev *) */
 	struct iw_tunables iwt;
 	void *iscsi_ulp_softc;	/* (struct cxgbei_data *) */
+	void *nvme_ulp_softc;	/* (struct nvmf_che_adapter *) */
 	struct l2t_data *l2t;	/* L2 table */
 	struct smt_data *smt;	/* Source MAC Table */
 	struct tid_info tids;
