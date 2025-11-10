@@ -4957,6 +4957,9 @@ alloc_ofld_txq(struct vi_info *vi, struct sge_ofld_txq *ofld_txq, int idx)
 		ofld_txq->tx_iscsi_pdus = counter_u64_alloc(M_WAITOK);
 		ofld_txq->tx_iscsi_octets = counter_u64_alloc(M_WAITOK);
 		ofld_txq->tx_iscsi_iso_wrs = counter_u64_alloc(M_WAITOK);
+		ofld_txq->tx_nvme_pdus = counter_u64_alloc(M_WAITOK);
+		ofld_txq->tx_nvme_octets = counter_u64_alloc(M_WAITOK);
+		ofld_txq->tx_nvme_iso_wrs = counter_u64_alloc(M_WAITOK);
 		ofld_txq->tx_aio_jobs = counter_u64_alloc(M_WAITOK);
 		ofld_txq->tx_aio_octets = counter_u64_alloc(M_WAITOK);
 		ofld_txq->tx_toe_tls_records = counter_u64_alloc(M_WAITOK);
@@ -5000,6 +5003,9 @@ free_ofld_txq(struct vi_info *vi, struct sge_ofld_txq *ofld_txq)
 		counter_u64_free(ofld_txq->tx_iscsi_pdus);
 		counter_u64_free(ofld_txq->tx_iscsi_octets);
 		counter_u64_free(ofld_txq->tx_iscsi_iso_wrs);
+		counter_u64_free(ofld_txq->tx_nvme_pdus);
+		counter_u64_free(ofld_txq->tx_nvme_octets);
+		counter_u64_free(ofld_txq->tx_nvme_iso_wrs);
 		counter_u64_free(ofld_txq->tx_aio_jobs);
 		counter_u64_free(ofld_txq->tx_aio_octets);
 		counter_u64_free(ofld_txq->tx_toe_tls_records);
@@ -5029,6 +5035,15 @@ add_ofld_txq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
 	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "tx_iscsi_iso_wrs",
 	    CTLFLAG_RD, &ofld_txq->tx_iscsi_iso_wrs,
 	    "# of iSCSI segmentation offload work requests");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "tx_nvme_pdus",
+	    CTLFLAG_RD, &ofld_txq->tx_nvme_pdus,
+	    "# of NVMe PDUs transmitted");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "tx_nvme_octets",
+	    CTLFLAG_RD, &ofld_txq->tx_nvme_octets,
+	    "# of payload octets in transmitted NVMe PDUs");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "tx_nvme_iso_wrs",
+	    CTLFLAG_RD, &ofld_txq->tx_nvme_iso_wrs,
+	    "# of NVMe segmentation offload work requests");
 	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "tx_aio_jobs",
 	    CTLFLAG_RD, &ofld_txq->tx_aio_jobs,
 	    "# of zero-copy aio_write(2) jobs transmitted");

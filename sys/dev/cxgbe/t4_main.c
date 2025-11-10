@@ -12987,6 +12987,9 @@ clear_stats(struct adapter *sc, u_int port_id)
 				counter_u64_zero(ofld_txq->tx_iscsi_pdus);
 				counter_u64_zero(ofld_txq->tx_iscsi_octets);
 				counter_u64_zero(ofld_txq->tx_iscsi_iso_wrs);
+				counter_u64_zero(ofld_txq->tx_nvme_pdus);
+				counter_u64_zero(ofld_txq->tx_nvme_octets);
+				counter_u64_zero(ofld_txq->tx_nvme_iso_wrs);
 				counter_u64_zero(ofld_txq->tx_aio_jobs);
 				counter_u64_zero(ofld_txq->tx_aio_octets);
 				counter_u64_zero(ofld_txq->tx_toe_tls_records);

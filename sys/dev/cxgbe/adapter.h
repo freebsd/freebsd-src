@@ -795,6 +795,9 @@ struct sge_ofld_txq {
 	counter_u64_t tx_iscsi_pdus;
 	counter_u64_t tx_iscsi_octets;
 	counter_u64_t tx_iscsi_iso_wrs;
+	counter_u64_t tx_nvme_pdus;
+	counter_u64_t tx_nvme_octets;
+	counter_u64_t tx_nvme_iso_wrs;
 	counter_u64_t tx_aio_jobs;
 	counter_u64_t tx_aio_octets;
 	counter_u64_t tx_toe_tls_records;
