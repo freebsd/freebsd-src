@@ -78,7 +78,7 @@ If set to
 .Nm
 will not copy any data into the read data buffers
 and just return the read data buffers as they are without modifying them.
-In particular, it will not not fill the read buffer with the value of
+In particular, it will not fill the read buffer with the value of
 .Va kern.geom.zero.byte .
 This is useful for read benchmarking to reduce the measurement noise
 caused by extra memory initialization.
