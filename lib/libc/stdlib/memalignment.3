@@ -1,0 +1,53 @@
+.\"
+.\" Copyright (c) 2025 Robert Clausecker <fuz@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd November 10, 2025
+.Dt MEMALIGNMENT 3
+.Os
+.Sh NAME
+.Nm memalignment
+.Nd find the memory alignment of an object
+.Sh SYNOPSIS
+.Lb libc
+.In stdlib.h
+.Ft size_t
+.Fn memalignment "const void *ptr"
+.Sh DESCRIPTION
+The
+.Fn memalignment
+function determines the alignment of the object pointed to by
+.Fa ptr .
+This alignment is a power of\~2, and may be larger than the range
+supported by the
+.Sy alignof
+operator.
+The value returned can be compared to the result of
+.Sy alignof ,
+and if it is greater or equal, the alignment requirement of the operand
+is satisfied.
+.Sh RETURN VALUES
+Returns the alignment of
+.Fa ptr
+as a power of\~2.
+If
+.Fa ptr
+is a null pointer, an alignment of zero is returned.
+An alignment of zero indicates that the tested pointer cannot be used to
+access an object of any type.
+.Sh SEE ALSO
+.Xr aligned_alloc 3 ,
+.Xr posix_memalign 3
+.Sh STANDARDS
+The
+.Fn memalignment
+function conforms to
+.St -isoC-2023 .
+.Sh HISTORY
+The
+.Fn memalignment
+function was added in
+.Fx 15.1.
+.Sh AUTHOR
+.An Robert Clausecker Aq Mt fuz@FreeBSD.org
