@@ -524,7 +524,8 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 			    c->parentchannel->name : "userland");
 		} else {
 			sbuf_printf(&sb, "[%s", (c->direction == PCMDIR_REC) ?
-			    "hardware" : "userland");
+			    "hardware" :
+			    ((d->flags & SD_F_PVCHANS) ? "vchans" : "userland"));
 		}
 		sbuf_printf(&sb, " -> ");
 		f = c->feeder;
@@ -561,7 +562,8 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 			    "userland" : c->parentchannel->name);
 		} else {
 			sbuf_printf(&sb, "%s]", (c->direction == PCMDIR_REC) ?
-			    "userland" : "hardware");
+			    ((d->flags & SD_F_RVCHANS) ? "vchans" : "userland") :
+			    "hardware");
 		}
 
 		CHN_UNLOCK(c);
@@ -1320,7 +1322,8 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 			    c->parentchannel->name : "userland");
 		} else {
 			sbuf_printf(s, "\t{%s}", (c->direction == PCMDIR_REC) ?
-			    "hardware" : "userland");
+			    "hardware" :
+			    ((d->flags & SD_F_PVCHANS) ? "vchans" : "userland"));
 		}
 		sbuf_printf(s, " -> ");
 		f = c->feeder;
@@ -1358,7 +1361,8 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 			    "userland" : c->parentchannel->name);
 		} else {
 			sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC) ?
-			    "userland" : "hardware");
+			    ((d->flags & SD_F_RVCHANS) ? "vchans" : "userland") :
+			    "hardware");
 		}
 
 		CHN_UNLOCK(c);
