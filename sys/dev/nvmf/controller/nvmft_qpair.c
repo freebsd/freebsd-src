@@ -182,6 +182,12 @@ nvmft_qpair_name(struct nvmft_qpair *qp)
 	return (qp->name);
 }
 
+uint32_t
+nvmft_max_ioccsz(struct nvmft_qpair *qp)
+{
+	return (nvmf_max_ioccsz(qp->qp));
+}
+
 static int
 _nvmft_send_response(struct nvmft_qpair *qp, const void *cqe)
 {
