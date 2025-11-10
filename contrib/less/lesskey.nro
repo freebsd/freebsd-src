@@ -1,5 +1,5 @@
 '\" t
-.TH LESSKEY 1 "Version 679: 28 May 2025"
+.TH LESSKEY 1 "Version 685: 04 Oct 2025"
 .SH NAME
 lesskey \- customize key bindings for less
 .SH "SYNOPSIS (deprecated)"
@@ -83,8 +83,10 @@ l l l.
 \er	RETURN	(0x0D)
 \et	TAB	(0x09)
 .TE
+.RE
 .sp
 \ek followed by a single character represents the char(s) produced when one of these keys is pressed:
+.RS 5m
 .TS
 l l.
 \ekb	BACKSPACE (the BACKSPACE key)
@@ -105,7 +107,7 @@ l l.
 \ekX	ctrl-DELETE
 \ek1	F1
 .TE
-
+.RE
 .PP
 A backslash followed by any other character indicates that character is
 to be taken literally.
@@ -121,6 +123,14 @@ string is parsed, just as if it were typed in to
 This feature can be used in certain cases to extend
 the functionality of a command.
 For example, see the "{" and ":t" commands in the example below.
+It can also be used to execute more than one command when a key is pressed.
+For example, if this line were in a lesskey file, pressing the "B" key
+would first set the "b" mark and then search for the string "next":
+.sp
+.nf
+    B set-mark b/next\en
+.fi
+.sp
 The extra string has a special meaning for the "quit" action:
 when
 .B less
@@ -486,6 +496,4 @@ See the GNU General Public License for more details.
 .
 Mark Nudelman
 .br
-Report bugs at 
-.UR https://github.com/gwsw/less/issues
-.UE .
+Report bugs at https://github.com/gwsw/less/issues.

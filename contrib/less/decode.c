@@ -483,12 +483,12 @@ public void add_ecmd_table(unsigned char *buf, size_t len)
 /*
  * Add an environment variable table.
  */
-static void add_var_table(struct tablelist **tlist, unsigned char *buf, size_t len)
+static void add_var_table(struct tablelist **tlist, mutable unsigned char *buf, size_t len)
 {
 	struct xbuffer xbuf;
 
 	xbuf_init(&xbuf);
-	expand_evars((char*)buf, len, &xbuf); /*{{unsigned-issue}}*/
+	expand_evars((mutable char*)buf, len, &xbuf); /*{{unsigned-issue}}*/
 	/* {{ We leak the table in buf. expand_evars scribbled in it so it's useless anyway. }} */
 	if (add_cmd_table(tlist, xbuf.data, xbuf.end) < 0)
 		error("Warning: environment variables from lesskey file unavailable", NULL_PARG);
@@ -749,7 +749,8 @@ static int cmd_search(constant char *cmd, constant unsigned char *table, constan
 			if (match == cmdlen) /* (last chars of) cmd matches this table entry */
 			{
 				action = taction;
-				*extra = textra;
+				if (extra != NULL)
+					*extra = textra;
 			} else if (match > 0 && action == A_INVALID) /* cmd is a prefix of this table entry */
 			{
 				action = A_PREFIX;
@@ -780,13 +781,11 @@ static int cmd_decode(struct tablelist *tlist, constant char *cmd, constant char
 	for (t = tlist;  t != NULL;  t = t->t_next)
 	{
 		constant unsigned char *tsp;
-		size_t mlen;
+		size_t mlen = match_len;
 		int taction = cmd_search(cmd, t->t_start, t->t_end, &tsp, &mlen);
 		if (mlen >= match_len)
 		{
 			match_len = mlen;
-			if (taction == A_UINVALID)
-				taction = A_INVALID;
 			if (taction != A_INVALID)
 			{
 				*sp = (constant char *) tsp;
