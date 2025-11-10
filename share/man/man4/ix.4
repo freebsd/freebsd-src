@@ -132,6 +132,35 @@ Enable Adaptive Interrupt Moderation (AIM).
 Vary the interrupt rate over time based on the traffic for
 that interrupt vector.
 .El
+.Sh SYSCTL VARIABLES
+The
+.Nm
+driver supports the following
+.Xr sysctl 8
+variables:
+.Bl -tag -width "dev.ix.?.debug.dump.clusters"
+.It Va dev.ix.?.debug.dump.clusters
+Specify a bitmask to select firmware event clusters
+to be included in the debug dump.
+Possible values include:
+.Pp
+.Bl -tag -compact
+.It 0
+All clusters excluding Manageability Transactions
+.It 0x1
+Link cluster
+.It 0x2
+Full CSR Space excluding RCW registers
+.El
+.Pp
+This feature is only supported on E610 devices.
+.It Va dev.ix.?.debug.dump.dump
+Specify 1 to generate a per-device debugging snapshot.
+Output must be redirected to a file
+and decoded by Intel Customer Support.
+.Pp
+This feature is only supported on E610.
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ix%d: Unable to allocate bus resource: memory"
