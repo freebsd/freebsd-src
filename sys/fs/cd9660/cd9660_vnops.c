@@ -193,8 +193,8 @@ cd9660_getattr(struct vop_getattr_args *ap)
 	vap->va_ctime	= ip->inode.iso_ctime;
 	vap->va_rdev	= VN_ISDEV(vp) ? ip->inode.iso_rdev : NODEV;
 
-	vap->va_size	= (u_quad_t) ip->i_size;
-	if (ip->i_size == 0 && (vap->va_mode & S_IFMT) == S_IFLNK) {
+	vap->va_size	= ip->i_size;
+	if (ip->i_size == 0 && vp->v_type == VLNK) {
 		struct vop_readlink_args rdlnk;
 		struct iovec aiov;
 		struct uio auio;
