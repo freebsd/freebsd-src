@@ -13412,11 +13412,16 @@ toe_capability(struct vi_info *vi, bool enable)
 			    ("%s: TOM activated but flag not set", __func__));
 		}
 
-		/* Activate iWARP and iSCSI too, if the modules are loaded. */
+		/*
+		 * Activate iWARP, iSCSI, and NVMe too, if the modules
+		 * are loaded.
+		 */
 		if (!uld_active(sc, ULD_IWARP))
 			(void) t4_activate_uld(sc, ULD_IWARP);
 		if (!uld_active(sc, ULD_ISCSI))
 			(void) t4_activate_uld(sc, ULD_ISCSI);
+		if (!uld_active(sc, ULD_NVME))
+			(void) t4_activate_uld(sc, ULD_NVME);
 
 		if (pi->uld_vis++ == 0)
 			setbit(&sc->offload_map, pi->port_id);
