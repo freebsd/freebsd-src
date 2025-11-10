@@ -27,6 +27,18 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20251110:
+	OpenPAM (including libpam and the PAM modules) has moved to the new
+	"pam" package.  The pam-lib subpackage, which includes libpam, will
+	be automatically installed when required.
+
+	If you have set-minimal(-jail) installed, the pam base package which
+	contains the PAM modules will also be automatically installed.
+	If you don't, you MUST manually install the FreeBSD-pam package if you
+	need to authenticate users, otherwise you won't be able to log in.
+
+	This change only affects pkgbase users.
+
 20251105:
 	pf(4) now supports nat64 via the af-to keyword.
 
