@@ -2308,6 +2308,10 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		changed |= IEEE80211_CHANCTX_CHANGE_WIDTH;
 		lkpi_80211_mo_change_chanctx(hw, chanctx_conf, changed);
 	} else {
+		/* The device is no longer idle. */
+		IMPROVE("Once we do multi-vif, only do for 1st chanctx");
+		lkpi_hw_conf_idle(hw, false);
+
 		error = lkpi_80211_mo_add_chanctx(hw, chanctx_conf);
 		if (error == 0 || error == EOPNOTSUPP) {
 			vif->bss_conf.chanreq.oper.chan = chanctx_conf->def.chan;
@@ -3080,8 +3084,6 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = false;
 	}
-
-	lkpi_hw_conf_idle(hw, false);
 
 	/*
 	 * And then:
