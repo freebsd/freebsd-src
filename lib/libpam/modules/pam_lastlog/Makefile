@@ -25,8 +25,8 @@
 
 PACKAGE=	runtime
 
-LIB=	pam_lastlog
-SRCS=	pam_lastlog.c
-MAN=	pam_lastlog.8
+LIB=		pam_lastlog
+SRCS=		pam_lastlog.c
+MANNODEV=	pam_lastlog.8
 
 .include <bsd.lib.mk>
