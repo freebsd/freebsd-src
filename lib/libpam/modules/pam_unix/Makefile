@@ -36,8 +36,6 @@
 .include <src.opts.mk>
 .include <bsd.init.mk>
 
-PACKAGE=	runtime
-
 LIB=		pam_unix
 SRCS=		pam_unix.c
 MANNODEV=	pam_unix.8

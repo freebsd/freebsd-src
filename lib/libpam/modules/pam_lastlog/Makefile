@@ -23,8 +23,6 @@
 # SUCH DAMAGE.
 #
 
-PACKAGE=	runtime
-
 LIB=		pam_lastlog
 SRCS=		pam_lastlog.c
 MANNODEV=	pam_lastlog.8
