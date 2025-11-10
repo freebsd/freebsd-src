@@ -1,7 +1,7 @@
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2021 John H. Baldwin <jhb@FreeBSD.org>
-.\" Copyright 2025 Hans Rosenfeld
+.\" Copyright (c) 2026 Hans Rosenfeld
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -762,10 +762,22 @@ If specified, it must be a unicast MAC address.
 The largest supported MTU advertised to the guest.
 .El
 .Ss VirtIO SCSI Settings
-.Bl -column "backend" "string" "/dev/cam/ctl"
+.Bl -column "num_queues" "Format" "Default"
 .It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
 .It Va backend Ta string Ta ctl Ta
 The virtio-scsi backend to use (case-insensitive).
+.It Va ctl_ringsz Ta integer Ta 64 Ta
+The ring size of the control queue.
+.It Va evt_ringsz Ta integer Ta 64 Ta
+The ring size of the event queue.
+.It Va req_ringsz Ta integer Ta 64 Ta
+The ring size of each I/O request queue.
+.It Va num_queues Ta integer Ta 1 Ta
+The number of I/O request queues.
+.It Va seg_max Ta integer Ta 64 Ta
+The maximum number of segments allowed in a single command.
+.It Va thr_per_q Ta integer Ta 16 Ta
+The number of parallel request processing threads per I/O request queue.
 .It Va target Ta Oo Va ID : Oc Ns path Ta /dev/cam/ctl Ta
 The backend
 .Ar path

@@ -114,20 +114,35 @@ static void pci_vtscsi_requestq_notify(void *, struct vqueue_info *);
 static int pci_vtscsi_add_target_config(nvlist_t *, const char *, int);
 static int pci_vtscsi_init_queue(struct pci_vtscsi_softc *,
     struct pci_vtscsi_queue *, int);
-static void pci_vtscsi_destroy_queue(struct pci_vtscsi_queue *);
+static void pci_vtscsi_destroy_queue(struct pci_vtscsi_softc *,
+    struct pci_vtscsi_queue *);
 static int pci_vtscsi_init(struct pci_devinst *, nvlist_t *);
 
 SET_DECLARE(pci_vtscsi_backend_set, struct pci_vtscsi_backend);
 
 static struct virtio_consts vtscsi_vi_consts = {
 	.vc_name =	"vtscsi",
-	.vc_nvq =	VTSCSI_MAXQ,
+	.vc_nvq =	VTSCSI_DEF_REQUESTQ + VIRTIO_SCSI_ADDL_Q,
 	.vc_cfgsize =	sizeof(struct pci_vtscsi_config),
 	.vc_reset =	pci_vtscsi_reset,
 	.vc_cfgread =	pci_vtscsi_cfgread,
 	.vc_cfgwrite =	pci_vtscsi_cfgwrite,
 	.vc_apply_features = pci_vtscsi_neg_features,
 	.vc_hv_caps =	VIRTIO_RING_F_INDIRECT_DESC,
+};
+
+static const struct pci_vtscsi_config vtscsi_config = {
+	.num_queues = VTSCSI_DEF_REQUESTQ,
+	/* Leave room for the request and the response. */
+	.seg_max = VTSCSI_DEF_MAXSEG - VIRTIO_SCSI_HDR_SEG,
+	.max_sectors = 0,
+	.cmd_per_lun = 1,
+	.event_info_size = sizeof(struct pci_vtscsi_event),
+	.sense_size = 96,
+	.cdb_size = 32,
+	.max_channel = VIRTIO_SCSI_MAX_CHANNEL,
+	.max_target = VIRTIO_SCSI_MAX_TARGET,
+	.max_lun = VIRTIO_SCSI_MAX_LUN
 };
 
 int pci_vtscsi_debug = 0;
@@ -200,19 +215,9 @@ pci_vtscsi_reset(void *vsc)
 	vi_reset_dev(&sc->vss_vs);
 
 	/* initialize config structure */
-	sc->vss_config = (struct pci_vtscsi_config){
-		.num_queues = VTSCSI_REQUESTQ,
-		/* Leave room for the request and the response. */
-		.seg_max = VTSCSI_MAXSEG - 2,
-		.max_sectors = 0, /* overridden by backend reset() */
-		.cmd_per_lun = 1,
-		.event_info_size = sizeof(struct pci_vtscsi_event),
-		.sense_size = 96,
-		.cdb_size = 32,
-		.max_channel = VIRTIO_SCSI_MAX_CHANNEL,
-		.max_target = MAX(1, sc->vss_num_target) - 1,
-		.max_lun = VIRTIO_SCSI_MAX_LUN
-	};
+	sc->vss_config = sc->vss_default_config;
+
+	sc->vss_config.max_target = MAX(1, sc->vss_num_target) - 1;
 
 	sc->vss_backend->vsb_reset(sc);
 }
@@ -550,7 +555,7 @@ pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *sc,
 	 * adhere to the ordering requirements for any TMF function which aborts
 	 * tasks.
 	 */
-	for (int i = 0; i < VTSCSI_REQUESTQ; i++) {
+	for (uint32_t i = 0; i < sc->vss_config.num_queues; i++) {
 		struct pci_vtscsi_queue *q = &sc->vss_queues[i];
 
 		pthread_mutex_lock(&q->vsq_rmtx);
@@ -594,20 +599,21 @@ pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *sc,
 		}
 	} else {
 		pci_vtscsi_walk_t ret = PCI_VTSCSI_WALK_CONTINUE;
-		int i;
+		uint32_t i;
 
-		for (i = 0;
-		    i < VTSCSI_REQUESTQ && ret != PCI_VTSCSI_WALK_STOP;
-		    i++) {
+		for (i = 0; i < sc->vss_config.num_queues; i++) {
 			struct pci_vtscsi_queue *q = &sc->vss_queues[i];
 
 			ret = pci_vtscsi_walk_request_queue(q,
 			    pci_vtscsi_tmf_handler_cb[tmf->subtype], tmf);
+
+			if (ret == PCI_VTSCSI_WALK_STOP)
+				break;
 		}
 	}
 
 	/* Unlock the request queues before we return. */
-	for (int i = 0; i < VTSCSI_REQUESTQ; i++) {
+	for (uint32_t i = 0; i < sc->vss_config.num_queues; i++) {
 		struct pci_vtscsi_queue *q = &sc->vss_queues[i];
 
 		pthread_mutex_unlock(&q->vsq_rmtx);
@@ -680,6 +686,11 @@ pci_vtscsi_alloc_request(struct pci_vtscsi_softc *sc)
 	if (req == NULL)
 		goto fail;
 
+	req->vsr_iov = calloc(sc->vss_config.seg_max + VIRTIO_SCSI_HDR_SEG +
+	    SPLIT_IOV_ADDL_IOV, sizeof(struct iovec));
+	if (req->vsr_iov == NULL)
+		goto fail;
+
 	req->vsr_cmd_rd = calloc(1, VTSCSI_IN_HEADER_LEN(sc));
 	if (req->vsr_cmd_rd == NULL)
 		goto fail;
@@ -712,6 +723,8 @@ pci_vtscsi_free_request(struct pci_vtscsi_softc *sc,
 		free(req->vsr_cmd_rd);
 	if (req->vsr_cmd_wr != NULL)
 		free(req->vsr_cmd_wr);
+	if (req->vsr_iov != NULL)
+		free(req->vsr_iov);
 
 	free(req);
 }
@@ -739,19 +752,23 @@ pci_vtscsi_put_request(struct pci_vtscsi_req_queue *req_queue,
 static void
 pci_vtscsi_queue_request(struct pci_vtscsi_softc *sc, struct vqueue_info *vq)
 {
-	struct pci_vtscsi_queue *q = &sc->vss_queues[vq->vq_num - 2];
+	struct pci_vtscsi_queue *q;
 	struct pci_vtscsi_request *req;
 	struct vi_req vireq;
 	size_t res __maybe_unused;
-	int n;
+	int n, numseg;
+
+	q = &sc->vss_queues[vq->vq_num - VIRTIO_SCSI_ADDL_Q];
 
 	pthread_mutex_lock(&q->vsq_fmtx);
 	req = pci_vtscsi_get_request(&q->vsq_free_requests);
 	assert(req != NULL);
 	pthread_mutex_unlock(&q->vsq_fmtx);
 
-	n = vq_getchain(vq, req->vsr_iov, VTSCSI_MAXSEG, &vireq);
-	assert(n >= 1 && n <= VTSCSI_MAXSEG);
+	numseg = (int)(sc->vss_config.seg_max + VIRTIO_SCSI_HDR_SEG);
+
+	n = vq_getchain(vq, req->vsr_iov, numseg, &vireq);
+	assert(n >= 1 && n <= numseg);
 
 	req->vsr_idx = vireq.idx;
 	req->vsr_queue = q;
@@ -851,6 +868,7 @@ pci_vtscsi_return_request(struct pci_vtscsi_queue *q,
     struct pci_vtscsi_request *req, int iolen)
 {
 	struct pci_vtscsi_softc *sc = q->vsq_sc;
+	void *iov = req->vsr_iov;
 	void *cmd_rd = req->vsr_cmd_rd;
 	void *cmd_wr = req->vsr_cmd_wr;
 	void *backend = req->vsr_backend;
@@ -864,10 +882,13 @@ pci_vtscsi_return_request(struct pci_vtscsi_queue *q,
 
 	sc->vss_backend->vsb_req_clear(backend);
 
+	memset(iov, 0, sizeof(struct iovec) * (sc->vss_config.seg_max +
+	    VIRTIO_SCSI_HDR_SEG + SPLIT_IOV_ADDL_IOV));
 	memset(cmd_rd, 0, VTSCSI_IN_HEADER_LEN(q->vsq_sc));
 	memset(cmd_wr, 0, VTSCSI_OUT_HEADER_LEN(q->vsq_sc));
 	memset(req, 0, sizeof(struct pci_vtscsi_request));
 
+	req->vsr_iov = iov;
 	req->vsr_cmd_rd = cmd_rd;
 	req->vsr_cmd_wr = cmd_wr;
 	req->vsr_backend = backend;
@@ -892,18 +913,17 @@ pci_vtscsi_request_handle(struct pci_vtscsi_softc *sc, int fd,
 static void
 pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 {
-	struct pci_vtscsi_softc *sc;
-	struct iovec iov[VTSCSI_MAXSEG];
+	struct pci_vtscsi_softc *sc = vsc;
+	int numseg = (int)(sc->vss_config.seg_max + VIRTIO_SCSI_HDR_SEG);
+	struct iovec *iov = calloc(numseg, sizeof (struct iovec));
 	struct vi_req req;
 	void *buf = NULL;
 	size_t bufsize;
 	int n;
 
-	sc = vsc;
-
 	while (vq_has_descs(vq)) {
-		n = vq_getchain(vq, iov, VTSCSI_MAXSEG, &req);
-		assert(n >= 1 && n <= VTSCSI_MAXSEG);
+		n = vq_getchain(vq, iov, numseg, &req);
+		assert(n >= 1 && n <= numseg);
 
 		bufsize = iov_to_buf(iov, n, &buf);
 		pci_vtscsi_control_handle(sc, buf, bufsize);
@@ -916,6 +936,7 @@ pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 	}
 	vq_endchains(vq, 1);	/* Generate interrupt if appropriate. */
 	free(buf);
+	free(iov);
 }
 
 static void
@@ -938,10 +959,10 @@ pci_vtscsi_init_queue(struct pci_vtscsi_softc *sc,
 {
 	struct pci_vtscsi_worker *workers;
 	char tname[MAXCOMLEN + 1];
-	int i;
+	uint32_t i;
 
 	queue->vsq_sc = sc;
-	queue->vsq_vq = &sc->vss_vq[num + 2];
+	queue->vsq_vq = &sc->vss_vq[num];
 
 	pthread_mutex_init(&queue->vsq_rmtx, NULL);
 	pthread_mutex_init(&queue->vsq_fmtx, NULL);
@@ -951,7 +972,7 @@ pci_vtscsi_init_queue(struct pci_vtscsi_softc *sc,
 	STAILQ_INIT(&queue->vsq_free_requests);
 	LIST_INIT(&queue->vsq_workers);
 
-	for (i = 0; i < VTSCSI_RINGSZ; i++) {
+	for (i = 0; i < sc->vss_req_ringsz; i++) {
 		struct pci_vtscsi_request *req;
 
 		req = pci_vtscsi_alloc_request(sc);
@@ -961,11 +982,11 @@ pci_vtscsi_init_queue(struct pci_vtscsi_softc *sc,
 		pci_vtscsi_put_request(&queue->vsq_free_requests, req);
 	}
 
-	workers = calloc(VTSCSI_THR_PER_Q, sizeof(struct pci_vtscsi_worker));
+	workers = calloc(sc->vss_thr_per_q, sizeof(struct pci_vtscsi_worker));
 	if (workers == NULL)
 		goto fail;
 
-	for (i = 0; i < VTSCSI_THR_PER_Q; i++) {
+	for (i = 0; i < sc->vss_thr_per_q; i++) {
 		workers[i].vsw_queue = queue;
 
 		pthread_create(&workers[i].vsw_thread, NULL, &pci_vtscsi_proc,
@@ -979,19 +1000,19 @@ pci_vtscsi_init_queue(struct pci_vtscsi_softc *sc,
 	return (0);
 
 fail:
-	pci_vtscsi_destroy_queue(queue);
+	pci_vtscsi_destroy_queue(sc, queue);
 
 	return (-1);
-
 }
 
 static void
-pci_vtscsi_destroy_queue(struct pci_vtscsi_queue *queue)
+pci_vtscsi_destroy_queue(struct pci_vtscsi_softc *sc,
+    struct pci_vtscsi_queue *queue)
 {
 	if (queue->vsq_sc == NULL)
 		return;
 
-	for (int i = VTSCSI_RINGSZ; i > 0; i--) {
+	for (int i =  sc->vss_req_ringsz; i > 0; i--) {
 		struct pci_vtscsi_request *req;
 
 		if (STAILQ_EMPTY(&queue->vsq_free_requests))
@@ -1218,17 +1239,47 @@ pci_vtscsi_init_target(const char *prefix __unused, const nvlist_t *parent,
 }
 
 static int
+pci_vtscsi_get_config_num(nvlist_t *nvl, const char *name, uint32_t lim_lo,
+    uint32_t lim_hi, uint32_t *res)
+{
+	const char *value;
+	const char *errstr;
+	long long val;
+
+	value = get_config_value_node(nvl, name);
+	if (value == NULL)
+		return (0);
+
+	val = strtonumx(value, lim_lo, lim_hi, &errstr, 0);
+	if (errstr != NULL) {
+		EPRINTLN("Invalid value for %s: %s", name, value);
+		return (-1);
+	}
+
+	*res = (uint32_t)val;
+	return (0);
+}
+
+static int
 pci_vtscsi_init(struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct pci_vtscsi_softc *sc;
 	struct pci_vtscsi_backend *backend, **vbpp;
 	const char *value;
+	uint32_t val;
 	size_t i;
-	int err;
+	int q, err;
 
 	sc = calloc(1, sizeof(struct pci_vtscsi_softc));
 	if (sc == NULL)
 		return (-1);
+
+	sc->vss_vi_consts = vtscsi_vi_consts;
+	sc->vss_ctl_ringsz = VTSCSI_DEF_RINGSZ;
+	sc->vss_evt_ringsz = VTSCSI_DEF_RINGSZ;
+	sc->vss_req_ringsz = VTSCSI_DEF_RINGSZ;
+	sc->vss_thr_per_q = VTSCSI_DEF_THR_PER_Q;
+	sc->vss_default_config = vtscsi_config;
 
 	value = get_config_value_node(nvl, "bootindex");
 	if (value != NULL) {
@@ -1238,6 +1289,60 @@ pci_vtscsi_init(struct pci_devinst *pi, nvlist_t *nvl)
 			goto fail;
 		}
 	}
+
+	val = vtscsi_config.seg_max;
+	if (pci_vtscsi_get_config_num(nvl, "seg_max", VTSCSI_MIN_MAXSEG,
+	    VTSCSI_MAX_MAXSEG, &val) != 0)
+		goto fail;
+	sc->vss_default_config.seg_max = val;
+
+	val = vtscsi_config.num_queues;
+	if (pci_vtscsi_get_config_num(nvl, "num_queues", VTSCSI_MIN_REQUESTQ,
+	    VTSCSI_MAX_REQUESTQ, &val) != 0)
+		goto fail;
+	sc->vss_default_config.num_queues = val;
+
+	/*
+	 * num_queues is only the number of request queues, but nvq must
+	 * account for the control and event queues.
+	 */
+	sc->vss_vi_consts.vc_nvq = val + VIRTIO_SCSI_ADDL_Q;
+
+	/*
+	 * Allocate queues early, so that they're there for the call to
+	 * vi_softc_linkup().
+	 */
+	sc->vss_vq = calloc(sc->vss_vi_consts.vc_nvq,
+	    sizeof(struct vqueue_info));
+	if (sc->vss_vq == NULL) {
+		EPRINTLN("can't allocate space for %d virtqueues",
+		    sc->vss_vi_consts.vc_nvq);
+		goto fail;
+	}
+
+	sc->vss_queues = calloc(sc->vss_default_config.num_queues,
+	    sizeof(struct pci_vtscsi_queue));
+	if (sc->vss_queues == NULL) {
+		EPRINTLN("can't allocate space for %d request queues",
+		    sc->vss_config.num_queues);
+		goto fail;
+	}
+
+	if (pci_vtscsi_get_config_num(nvl, "ctl_ringsz", VTSCSI_MIN_RINGSZ,
+	    VTSCSI_MAX_RINGSZ, &sc->vss_ctl_ringsz) != 0)
+		goto fail;
+
+	if (pci_vtscsi_get_config_num(nvl, "evt_ringsz", VTSCSI_MIN_RINGSZ,
+	    VTSCSI_MAX_RINGSZ, &sc->vss_evt_ringsz) != 0)
+		goto fail;
+
+	if (pci_vtscsi_get_config_num(nvl, "req_ringsz", VTSCSI_MIN_RINGSZ,
+	    VTSCSI_MAX_RINGSZ, &sc->vss_req_ringsz) != 0)
+		goto fail;
+
+	if (pci_vtscsi_get_config_num(nvl, "thr_per_q", VTSCSI_MIN_THR_PER_Q,
+	    VTSCSI_MAX_THR_PER_Q, &sc->vss_thr_per_q) != 0)
+		goto fail;
 
 	value = get_config_value_node(nvl, "backend");
 	if (value == NULL) {
@@ -1301,7 +1406,7 @@ pci_vtscsi_init(struct pci_devinst *pi, nvlist_t *nvl)
 
 	pthread_mutex_init(&sc->vss_mtx, NULL);
 
-	vi_softc_linkup(&sc->vss_vs, &vtscsi_vi_consts, sc, pi, sc->vss_vq);
+	vi_softc_linkup(&sc->vss_vs, &sc->vss_vi_consts, sc, pi, sc->vss_vq);
 	sc->vss_vs.vs_mtx = &sc->vss_mtx;
 
 	/*
@@ -1317,20 +1422,22 @@ pci_vtscsi_init(struct pci_devinst *pi, nvlist_t *nvl)
 	pci_vtscsi_reset(sc);
 	pthread_mutex_unlock(&sc->vss_mtx);
 
-	/* controlq */
-	sc->vss_vq[0].vq_qsize = VTSCSI_RINGSZ;
+	/* virtqueue 0: control queue */
+	sc->vss_vq[0].vq_qsize = sc->vss_ctl_ringsz;
 	sc->vss_vq[0].vq_notify = pci_vtscsi_controlq_notify;
 
-	/* eventq */
-	sc->vss_vq[1].vq_qsize = VTSCSI_RINGSZ;
+	/* virtqueue 1: event queue */
+	sc->vss_vq[1].vq_qsize = sc->vss_evt_ringsz;
 	sc->vss_vq[1].vq_notify = pci_vtscsi_eventq_notify;
 
-	/* request queues */
-	for (i = 2; i < VTSCSI_MAXQ; i++) {
-		sc->vss_vq[i].vq_qsize = VTSCSI_RINGSZ;
-		sc->vss_vq[i].vq_notify = pci_vtscsi_requestq_notify;
+	/* virtqueue 2-n: request queues */
+	for (q = VIRTIO_SCSI_ADDL_Q; q < sc->vss_vi_consts.vc_nvq; q++) {
+		int rq = q - VIRTIO_SCSI_ADDL_Q;
 
-		err = pci_vtscsi_init_queue(sc, &sc->vss_queues[i - 2], i - 2);
+		sc->vss_vq[q].vq_qsize = sc->vss_req_ringsz;
+		sc->vss_vq[q].vq_notify = pci_vtscsi_requestq_notify;
+
+		err = pci_vtscsi_init_queue(sc, &sc->vss_queues[rq], q);
 		if (err != 0)
 			goto fail;
 	}
@@ -1351,8 +1458,15 @@ pci_vtscsi_init(struct pci_devinst *pi, nvlist_t *nvl)
 	return (0);
 
 fail:
-	for (i = 2; i < VTSCSI_MAXQ; i++)
-		pci_vtscsi_destroy_queue(&sc->vss_queues[i - 2]);
+	if (sc->vss_queues != NULL) {
+		for (q = VIRTIO_SCSI_ADDL_Q;
+		     q < sc->vss_vi_consts.vc_nvq;
+		     q++) {
+			int rq = q - VIRTIO_SCSI_ADDL_Q;
+
+			pci_vtscsi_destroy_queue(sc, &sc->vss_queues[rq]);
+		}
+	}
 
 	pthread_mutex_destroy(&sc->vss_mtx);
 
@@ -1365,6 +1479,8 @@ fail:
 
 	free(sc->vss_targets);
 	free(sc->vss_backend);
+	free(sc->vss_queues);
+	free(sc->vss_vq);
 	free(sc);
 	return (-1);
 }

@@ -32,6 +32,8 @@
 #ifndef	_PCI_VIRTIO_SCSI_H_
 #define	_PCI_VIRTIO_SCSI_H_
 
+#include "iov.h"
+
 extern int pci_vtscsi_debug;
 
 #define	WPRINTF(msg, params...)	PRINTLN("virtio-scsi: " msg, ##params)
@@ -41,18 +43,31 @@ extern int pci_vtscsi_debug;
 #define	VIRTIO_SCSI_MAX_CHANNEL	0
 #define	VIRTIO_SCSI_MAX_TARGET	255
 #define	VIRTIO_SCSI_MAX_LUN	16383
+#define	VIRTIO_SCSI_HDR_SEG	2
+#define	VIRTIO_SCSI_ADDL_Q	2
 
 /* Features specific to VirtIO SCSI, none of which we currently support */
 #define	VIRTIO_SCSI_F_INOUT	(1 << 0)
 #define	VIRTIO_SCSI_F_HOTPLUG	(1 << 1)
 #define	VIRTIO_SCSI_F_CHANGE	(1 << 2)
 
-/* Limits which we set. These should really be configurable. */
-#define	VTSCSI_RINGSZ		64
-#define	VTSCSI_REQUESTQ		1
-#define	VTSCSI_THR_PER_Q	16
-#define	VTSCSI_MAXQ		(VTSCSI_REQUESTQ + 2)
-#define	VTSCSI_MAXSEG		64
+/* Default limits which we set. All of these are configurable. */
+#define	VTSCSI_DEF_RINGSZ	64
+#define	VTSCSI_MIN_RINGSZ	4
+#define	VTSCSI_MAX_RINGSZ	4096
+
+#define	VTSCSI_DEF_THR_PER_Q	16
+#define	VTSCSI_MIN_THR_PER_Q	1
+#define	VTSCSI_MAX_THR_PER_Q	256
+
+#define	VTSCSI_DEF_MAXSEG	64
+#define	VTSCSI_MIN_MAXSEG	(VIRTIO_SCSI_HDR_SEG + 1)
+#define	VTSCSI_MAX_MAXSEG	\
+    (4096 - VIRTIO_SCSI_HDR_SEG - SPLIT_IOV_ADDL_IOV)
+
+#define	VTSCSI_DEF_REQUESTQ	1
+#define	VTSCSI_MIN_REQUESTQ	1
+#define	VTSCSI_MAX_REQUESTQ	(32 - VIRTIO_SCSI_ADDL_Q)
 
 /*
  * Device-specific config space registers
@@ -88,20 +103,17 @@ struct pci_vtscsi_config {
  * device instance has at least one I/O request queue, the state of which is
  * is kept in an array of struct pci_vtscsi_queue in the device softc.
  *
- * Currently there is only one I/O request queue, but it's trivial to support
- * more than one.
+ * Each pci_vtscsi_queue has configurable number of pci_vtscsi_request
+ * structures pre-allocated on vsq_free_requests. For each I/O request
+ * coming in on the I/O virtqueue, the request queue handler will take a
+ * pci_vtscsi_request off vsq_free_requests, fills in the data from the
+ * I/O virtqueue, puts it on vsq_requests, and signals vsq_cv.
  *
- * Each pci_vtscsi_queue has VTSCSI_RINGSZ pci_vtscsi_request structures pre-
- * allocated on vsq_free_requests. For each I/O request coming in on the I/O
- * virtqueue, the request queue handler will take a pci_vtscsi_request off
- * vsq_free_requests, fills in the data from the I/O virtqueue, puts it on
- * vsq_requests, and signals vsq_cv.
- *
- * There are VTSCSI_THR_PER_Q worker threads for each pci_vtscsi_queue which
- * wait on vsq_cv. When signalled, they repeatedly take one pci_vtscsi_request
- * off vsq_requests, construct a ctl_io for it, and hand it off to the CTL ioctl
- * Interface, which processes it synchronously. After completion of the request,
- * the pci_vtscsi_request is re-initialized and put back onto vsq_free_requests.
+ * Each pci_vtscsi_queue will have a configurable number of worker threads,
+ * which wait on vsq_cv. When signalled, they repeatedly take a single
+ * pci_vtscsi_request off vsq_requests and hand it to the backend, which
+ * processes it synchronously. After completion, the pci_vtscsi_request
+ * is re-initialized and put back onto vsq_free_requests.
  *
  * The worker threads exit when vsq_cv is signalled after vsw_exiting was set.
  *
@@ -109,6 +121,23 @@ struct pci_vtscsi_config {
  * - vsq_rmtx protects vsq_requests and must be held when waiting on vsq_cv
  * - vsq_fmtx protects vsq_free_requests
  * - vsq_qmtx must be held when operating on the underlying virtqueue, vsq_vq
+ *
+ * The I/O vectors for each request are kept in the preallocated iovec array
+ * vsr_iov, and pointers to the respective header/data in/out portions are set
+ * up to point into the array when the request is queued for processing.
+ *
+ * The number of iovecs preallocated for vsr_iov is derived from the configured
+ * 'seg_max' parameter defined by the virtio spec:
+ *   - 'seg_max' parameter specifies the maximum number of I/O data vectors
+ *     we support in any request
+ *   - we need 2 additional iovecs for the I/O headers (VIRTIO_SCSI_HDR_SEG)
+ *   - we need another 2 additional iovecs for split_iov() (SPLIT_IOV_ADDL_IOV)
+ *
+ * The only time we explicitly need the full size of vsr_iov after preallocation
+ * is during re-initialization after completing a request, and implicitly in the
+ * calls to split_iov() the set up the pointers. In all other cases, we use only
+ * 'seg_max' + VIRTIO_SCSI_HDR_SEG, and we advertise only 'seg_max' to the guest
+ * in accordance to the virtio spec.
  */
 STAILQ_HEAD(pci_vtscsi_req_queue, pci_vtscsi_request);
 
@@ -133,8 +162,7 @@ struct pci_vtscsi_worker {
 
 struct pci_vtscsi_request {
 	struct pci_vtscsi_queue			*vsr_queue;
-	struct iovec				vsr_iov[VTSCSI_MAXSEG +
-	    SPLIT_IOV_ADDL_IOV];
+	struct iovec				*vsr_iov;
 	struct iovec				*vsr_iov_in;
 	struct iovec				*vsr_iov_out;
 	struct iovec				*vsr_data_iov_in;
@@ -164,11 +192,17 @@ struct pci_vtscsi_target {
  */
 struct pci_vtscsi_softc {
 	struct virtio_softc			vss_vs;
-	struct vqueue_info			vss_vq[VTSCSI_MAXQ];
-	struct pci_vtscsi_queue			vss_queues[VTSCSI_REQUESTQ];
+	struct virtio_consts			vss_vi_consts;
+	struct vqueue_info			*vss_vq;
+	struct pci_vtscsi_queue			*vss_queues;
 	pthread_mutex_t				vss_mtx;
 	uint32_t				vss_features;
 	size_t					vss_num_target;
+	uint32_t				vss_ctl_ringsz;
+	uint32_t				vss_evt_ringsz;
+	uint32_t				vss_req_ringsz;
+	uint32_t				vss_thr_per_q;
+	struct pci_vtscsi_config		vss_default_config;
 	struct pci_vtscsi_config		vss_config;
 	struct pci_vtscsi_target		*vss_targets;
 	struct pci_vtscsi_backend		*vss_backend;
