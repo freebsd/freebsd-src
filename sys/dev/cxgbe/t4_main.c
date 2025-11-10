@@ -611,7 +611,7 @@ static int t4_switchcaps_allowed = FW_CAPS_CONFIG_SWITCH_INGRESS |
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, switchcaps_allowed, CTLFLAG_RDTUN,
     &t4_switchcaps_allowed, 0, "Default switch capabilities");
 
-static int t4_nvmecaps_allowed = 0;
+static int t4_nvmecaps_allowed = -1;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, nvmecaps_allowed, CTLFLAG_RDTUN,
     &t4_nvmecaps_allowed, 0, "Default NVMe capabilities");
 
@@ -5408,6 +5408,7 @@ apply_cfg_and_initialize(struct adapter *sc, char *cfg_file,
 		caps.toecaps = 0;
 		caps.rdmacaps = 0;
 		caps.iscsicaps = 0;
+		caps.nvmecaps = 0;
 	}
 
 	caps.op_to_write = htobe32(V_FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
@@ -5881,61 +5882,63 @@ get_params__post_init(struct adapter *sc)
 		 * that will never be used.
 		 */
 		sc->iscsicaps = 0;
+		sc->nvmecaps = 0;
 		sc->rdmacaps = 0;
 	}
-	if (sc->rdmacaps) {
+	if (sc->nvmecaps || sc->rdmacaps) {
 		param[0] = FW_PARAM_PFVF(STAG_START);
 		param[1] = FW_PARAM_PFVF(STAG_END);
-		param[2] = FW_PARAM_PFVF(RQ_START);
-		param[3] = FW_PARAM_PFVF(RQ_END);
-		param[4] = FW_PARAM_PFVF(PBL_START);
-		param[5] = FW_PARAM_PFVF(PBL_END);
+		param[2] = FW_PARAM_PFVF(PBL_START);
+		param[3] = FW_PARAM_PFVF(PBL_END);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 4, param, val);
+		if (rc != 0) {
+			device_printf(sc->dev,
+			    "failed to query NVMe/RDMA parameters: %d.\n", rc);
+			return (rc);
+		}
+		sc->vres.stag.start = val[0];
+		sc->vres.stag.size = val[1] - val[0] + 1;
+		sc->vres.pbl.start = val[2];
+		sc->vres.pbl.size = val[3] - val[2] + 1;
+	}
+	if (sc->rdmacaps) {
+		param[0] = FW_PARAM_PFVF(RQ_START);
+		param[1] = FW_PARAM_PFVF(RQ_END);
+		param[2] = FW_PARAM_PFVF(SQRQ_START);
+		param[3] = FW_PARAM_PFVF(SQRQ_END);
+		param[4] = FW_PARAM_PFVF(CQ_START);
+		param[5] = FW_PARAM_PFVF(CQ_END);
 		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 6, param, val);
 		if (rc != 0) {
 			device_printf(sc->dev,
 			    "failed to query RDMA parameters(1): %d.\n", rc);
 			return (rc);
 		}
-		sc->vres.stag.start = val[0];
-		sc->vres.stag.size = val[1] - val[0] + 1;
-		sc->vres.rq.start = val[2];
-		sc->vres.rq.size = val[3] - val[2] + 1;
-		sc->vres.pbl.start = val[4];
-		sc->vres.pbl.size = val[5] - val[4] + 1;
+		sc->vres.rq.start = val[0];
+		sc->vres.rq.size = val[1] - val[0] + 1;
+		sc->vres.qp.start = val[2];
+		sc->vres.qp.size = val[3] - val[2] + 1;
+		sc->vres.cq.start = val[4];
+		sc->vres.cq.size = val[5] - val[4] + 1;
 
-		param[0] = FW_PARAM_PFVF(SQRQ_START);
-		param[1] = FW_PARAM_PFVF(SQRQ_END);
-		param[2] = FW_PARAM_PFVF(CQ_START);
-		param[3] = FW_PARAM_PFVF(CQ_END);
-		param[4] = FW_PARAM_PFVF(OCQ_START);
-		param[5] = FW_PARAM_PFVF(OCQ_END);
+		param[0] = FW_PARAM_PFVF(OCQ_START);
+		param[1] = FW_PARAM_PFVF(OCQ_END);
+		param[2] = FW_PARAM_PFVF(SRQ_START);
+		param[3] = FW_PARAM_PFVF(SRQ_END);
+		param[4] = FW_PARAM_DEV(MAXORDIRD_QP);
+		param[5] = FW_PARAM_DEV(MAXIRD_ADAPTER);
 		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 6, param, val);
 		if (rc != 0) {
 			device_printf(sc->dev,
 			    "failed to query RDMA parameters(2): %d.\n", rc);
 			return (rc);
 		}
-		sc->vres.qp.start = val[0];
-		sc->vres.qp.size = val[1] - val[0] + 1;
-		sc->vres.cq.start = val[2];
-		sc->vres.cq.size = val[3] - val[2] + 1;
-		sc->vres.ocq.start = val[4];
-		sc->vres.ocq.size = val[5] - val[4] + 1;
-
-		param[0] = FW_PARAM_PFVF(SRQ_START);
-		param[1] = FW_PARAM_PFVF(SRQ_END);
-		param[2] = FW_PARAM_DEV(MAXORDIRD_QP);
-		param[3] = FW_PARAM_DEV(MAXIRD_ADAPTER);
-		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 4, param, val);
-		if (rc != 0) {
-			device_printf(sc->dev,
-			    "failed to query RDMA parameters(3): %d.\n", rc);
-			return (rc);
-		}
-		sc->vres.srq.start = val[0];
-		sc->vres.srq.size = val[1] - val[0] + 1;
-		sc->params.max_ordird_qp = val[2];
-		sc->params.max_ird_adapter = val[3];
+		sc->vres.ocq.start = val[0];
+		sc->vres.ocq.size = val[1] - val[0] + 1;
+		sc->vres.srq.start = val[2];
+		sc->vres.srq.size = val[3] - val[2] + 1;
+		sc->params.max_ordird_qp = val[4];
+		sc->params.max_ird_adapter = val[5];
 	}
 	if (sc->iscsicaps) {
 		param[0] = FW_PARAM_PFVF(ISCSI_START);
@@ -13694,6 +13697,9 @@ tweak_tunables(void)
 		    FW_CAPS_CONFIG_ISCSI_T10DIF;
 	}
 
+	if (t4_nvmecaps_allowed == -1)
+		t4_nvmecaps_allowed = FW_CAPS_CONFIG_NVME_TCP;
+
 	if (t4_tmr_idx_ofld < 0 || t4_tmr_idx_ofld >= SGE_NTIMERS)
 		t4_tmr_idx_ofld = TMR_IDX_OFLD;
 
@@ -13705,6 +13711,9 @@ tweak_tunables(void)
 
 	if (t4_iscsicaps_allowed == -1)
 		t4_iscsicaps_allowed = 0;
+
+	if (t4_nvmecaps_allowed == -1)
+		t4_nvmecaps_allowed = 0;
 #endif
 
 #ifdef DEV_NETMAP
