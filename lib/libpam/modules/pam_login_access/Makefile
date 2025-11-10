@@ -23,8 +23,6 @@
 # SUCH DAMAGE.
 #
 
-PACKAGE=	runtime
-
 LIB=		pam_login_access
 SRCS=		pam_login_access.c login_access.c
 MANNODEV=	login.access.5 pam_login_access.8

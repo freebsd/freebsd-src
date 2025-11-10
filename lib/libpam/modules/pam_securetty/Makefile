@@ -23,8 +23,6 @@
 # SUCH DAMAGE.
 #
 
-PACKAGE=	runtime
-
 LIB=		pam_securetty
 SRCS=		pam_securetty.c
 MANNODEV=	pam_securetty.8

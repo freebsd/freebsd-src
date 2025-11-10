@@ -42,7 +42,7 @@ OPENPAM=	${SRCTOP}/contrib/openpam
 SHLIB=	pam
 .endif
 
-PACKAGE=	runtime
+LIB_PACKAGE=
 
 SRCS=	openpam_asprintf.c \
 	openpam_borrow_cred.c \
