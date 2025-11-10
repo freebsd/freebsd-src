@@ -57,8 +57,8 @@ SRCS=	account.c \
 	support.c \
 	vector.c
 
-MAN=	pam-krb5.8
-MLINKS=	pam-krb5.8 pam_krb5.8
+MANNODEV=	pam-krb5.8
+MANNODEVLINKS=	pam-krb5.8 pam_krb5.8
 
 CFLAGS=	-I${SRCDIR} \
 	-I${.CURDIR} \
@@ -77,9 +77,9 @@ module_options.c:	.PHONY
 .else
 PACKAGE=	kerberos
 
-LIB=	pam_krb5
-SRCS=	pam_krb5.c
-MAN=	pam_krb5.8
+LIB=		pam_krb5
+SRCS=		pam_krb5.c
+MANNODEV=	pam_krb5.8
 .if defined(_FREEFALL_CONFIG)
 CFLAGS+=-D_FREEFALL_CONFIG
 WARNS?=	3

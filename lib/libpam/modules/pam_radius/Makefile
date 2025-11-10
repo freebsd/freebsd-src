@@ -23,9 +23,10 @@
 # SUCH DAMAGE.
 #
 
-LIB=	pam_radius
-SRCS=	pam_radius.c
-MAN=	pam_radius.8
+LIB=		pam_radius
+SRCS=		pam_radius.c
+MANNODEV=	pam_radius.8
+
 WARNS?=	3
 
 LIBADD+=	radius

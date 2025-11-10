@@ -1,6 +1,6 @@
-LIB=	pam_exec
-SRCS=	pam_exec.c
-MAN=	pam_exec.8
+LIB=		pam_exec
+SRCS=		pam_exec.c
+MANNODEV=	pam_exec.8
 
 WARNS?=	1
 

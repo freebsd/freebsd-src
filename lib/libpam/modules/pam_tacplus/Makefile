@@ -23,9 +23,9 @@
 # SUCH DAMAGE.
 #
 
-LIB=	pam_tacplus
-SRCS=	pam_tacplus.c
-MAN=	pam_tacplus.8
+LIB=		pam_tacplus
+SRCS=		pam_tacplus.c
+MANNODEV=	pam_tacplus.8
 
 LIBADD+=	tacplus
 
