@@ -92,6 +92,12 @@ uint64_t nvmf_max_xfer_size(struct nvmf_qpair *qp);
 /* Controller-specific APIs. */
 
 /*
+ * Largest I/O command capsule size (IOCCSZ) supported by the
+ * transport.  If the transport does not have a limit, returns 0.
+ */
+uint32_t nvmf_max_ioccsz(struct nvmf_qpair *qp);
+
+/*
  * A controller calls this function to check for any
  * transport-specific errors (invalid fields) in a received command
  * capsule.  The callback returns a generic command status value:

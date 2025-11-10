@@ -1602,6 +1602,12 @@ tcp_free_qpair(struct nvmf_qpair *nq)
 	tcp_release_qpair(qp);
 }
 
+static uint32_t
+tcp_max_ioccsz(struct nvmf_qpair *nq)
+{
+	return (0);
+}
+
 static uint64_t
 tcp_max_xfer_size(struct nvmf_qpair *nq)
 {
@@ -1878,6 +1884,7 @@ tcp_send_controller_data(struct nvmf_capsule *nc, uint32_t data_offset,
 struct nvmf_transport_ops tcp_ops = {
 	.allocate_qpair = tcp_allocate_qpair,
 	.free_qpair = tcp_free_qpair,
+	.max_ioccsz = tcp_max_ioccsz,
 	.max_xfer_size = tcp_max_xfer_size,
 	.allocate_capsule = tcp_allocate_capsule,
 	.free_capsule = tcp_free_capsule,
