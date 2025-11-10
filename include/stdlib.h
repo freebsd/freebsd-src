@@ -167,6 +167,14 @@ int	at_quick_exit(void (*)(void)) __noexcept;
 _Noreturn void
 	quick_exit(int) /* __noexcept -- not ready ABI issues? */;
 #endif /* __ISO_C_VISIBLE >= 2011 */
+
+/*
+ * C23 extensions
+ */
+#if __ISO_C_VISIBLE >= 2023
+size_t	memalignment(const void *) __pure2;
+#endif /* __ISO_C_VISIBLE >= 2023 */
+
 /*
  * Extensions made by POSIX relative to C.
  */

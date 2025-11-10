@@ -7,7 +7,7 @@ MISRCS+=C99_Exit.c a64l.c abort.c abs.c atexit.c atof.c atoi.c atol.c atoll.c \
 	div.c exit.c getenv.c getopt.c getopt_long.c \
 	getsubopt.c hcreate.c hcreate_r.c hdestroy_r.c heapsort.c heapsort_b.c \
 	hsearch_r.c imaxabs.c imaxdiv.c \
-	insque.c l64a.c labs.c ldiv.c llabs.c lldiv.c lsearch.c \
+	insque.c l64a.c labs.c ldiv.c llabs.c lldiv.c lsearch.c memalignment.c \
 	merge.c mergesort_b.c ptsname.c qsort.c qsort_r.c qsort_r_compat.c \
 	qsort_s.c quick_exit.c radixsort.c rand.c \
 	random.c reallocarray.c reallocf.c realpath.c recallocarray.c remque.c \
@@ -35,7 +35,7 @@ MAN+=	a64l.3 abort.3 abs.3 atexit.3 atof.3 \
 	atoi.3 atol.3 at_quick_exit.3 bsearch.3 \
 	div.3 exit.3 getenv.3 getopt.3 getopt_long.3 getsubopt.3 \
 	hcreate.3 imaxabs.3 imaxdiv.3 insque.3 labs.3 ldiv.3 llabs.3 lldiv.3 \
-	lsearch.3 memory.3 ptsname.3 qsort.3 \
+	lsearch.3 memalignment.3 memory.3 ptsname.3 qsort.3 \
 	quick_exit.3 \
 	radixsort.3 rand.3 random.3 reallocarray.3 reallocf.3 realpath.3 \
 	set_constraint_handler_s.3 \
