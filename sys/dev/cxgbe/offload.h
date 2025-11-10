@@ -196,7 +196,8 @@ enum {
 	ULD_TOM = 0,
 	ULD_IWARP,
 	ULD_ISCSI,
-	ULD_MAX = ULD_ISCSI
+	ULD_NVME,
+	ULD_MAX = ULD_NVME
 };
 
 struct adapter;
