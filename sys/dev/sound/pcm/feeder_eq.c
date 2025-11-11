@@ -420,8 +420,8 @@ feed_eq_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 }
 
 static struct pcm_feederdesc feeder_eq_desc[] = {
-	{ FEEDER_EQ, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0 }
+	{ FEEDER_EQ, 0, 0, 0 },
+	{ 0, 0, 0, 0 }
 };
 
 static kobj_method_t feeder_eq_methods[] = {
