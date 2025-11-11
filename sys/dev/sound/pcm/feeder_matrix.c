@@ -405,7 +405,7 @@ static kobj_method_t feeder_matrix_methods[] = {
 	KOBJMETHOD_END
 };
 
-FEEDER_DECLARE(feeder_matrix, FEEDER_MATRIX, NULL);
+FEEDER_DECLARE(feeder_matrix, FEEDER_MATRIX);
 
 /* External */
 int

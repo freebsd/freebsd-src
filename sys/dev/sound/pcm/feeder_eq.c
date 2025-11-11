@@ -427,7 +427,7 @@ static kobj_method_t feeder_eq_methods[] = {
 	KOBJMETHOD_END
 };
 
-FEEDER_DECLARE(feeder_eq, FEEDER_EQ, NULL);
+FEEDER_DECLARE(feeder_eq, FEEDER_EQ);
 
 static int32_t
 feed_eq_scan_preamp_arg(const char *s)
