@@ -178,7 +178,7 @@ ATF_TC_BODY(poll_select, tc)
 		FD_ZERO(&fds[1]);
 		FD_SET(fd, &fds[0]);
 		FD_SET(fd, &fds[1]);
-		ATF_REQUIRE_MSG(select(fd + 1, &fds[0], &fds[1], NULL, NULL) > 0,
+		ATF_REQUIRE_MSG(select(fd + 2, &fds[0], &fds[1], NULL, NULL) > 0,
 		    FMT_ERR("select"));
 		if (FD_ISSET(fd, &fds[0])) {
 			ATF_REQUIRE_MSG(read(fd, buf, sizeof(buf)) > 0,
