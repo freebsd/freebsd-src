@@ -1269,8 +1269,8 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 		goto fail;
 	}
 
-	b = sndbuf_create(c->name, "primary", c);
-	bs = sndbuf_create(c->name, "secondary", c);
+	b = sndbuf_create(c, "primary");
+	bs = sndbuf_create(c, "secondary");
 	if (b == NULL || bs == NULL) {
 		device_printf(d->dev, "%s(): failed to create %s buffer\n",
 		    __func__, b == NULL ? "hardware" : "software");
