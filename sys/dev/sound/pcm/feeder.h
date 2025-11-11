@@ -49,7 +49,7 @@ struct pcm_feeder {
 };
 
 void feeder_register(void *p);
-struct feeder_class *feeder_getclass(struct pcm_feederdesc *desc);
+struct feeder_class *feeder_getclass(u_int32_t type);
 
 u_int32_t snd_fmtscore(u_int32_t fmt);
 u_int32_t snd_fmtbestbit(u_int32_t fmt, u_int32_t *fmts);
