@@ -41,12 +41,12 @@
 #include "snd_fxdiv_gen.h"
 
 struct snd_dbuf *
-sndbuf_create(char *drv, char *desc, struct pcm_channel *channel)
+sndbuf_create(struct pcm_channel *channel, const char *desc)
 {
 	struct snd_dbuf *b;
 
 	b = malloc(sizeof(*b), M_DEVBUF, M_WAITOK | M_ZERO);
-	snprintf(b->name, SNDBUF_NAMELEN, "%s:%s", drv, desc);
+	snprintf(b->name, SNDBUF_NAMELEN, "%s:%s", channel->name, desc);
 	b->channel = channel;
 
 	return b;
