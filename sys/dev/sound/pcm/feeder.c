@@ -41,53 +41,34 @@
 
 static MALLOC_DEFINE(M_FEEDER, "feeder", "pcm feeder");
 
-struct feedertab_entry {
-	SLIST_ENTRY(feedertab_entry) link;
-	struct feeder_class *feederclass;
-};
-static SLIST_HEAD(, feedertab_entry) feedertab;
-
-/*****************************************************************************/
+static SLIST_HEAD(, feeder_class) feedertab;
 
 static void
 feeder_register_root(void *p)
 {
 	struct feeder_class *fc = p;
-	struct feedertab_entry *fte;
 
 	KASSERT(fc->desc.type == FEEDER_ROOT,
 	    ("first feeder not root: %s", fc->name));
 
 	SLIST_INIT(&feedertab);
-	fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
-	fte->feederclass = fc;
-	SLIST_INSERT_HEAD(&feedertab, fte, link);
+	SLIST_INSERT_HEAD(&feedertab, fc, link);
 }
 
 void
 feeder_register(void *p)
 {
 	struct feeder_class *fc = p;
-	struct feedertab_entry *fte;
 
 	KASSERT(fc->desc.type != 0, ("feeder '%s' has no descriptor", fc->name));
 
-	fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
-	fte->feederclass = fc;
-	SLIST_INSERT_HEAD(&feedertab, fte, link);
+	SLIST_INSERT_HEAD(&feedertab, fc, link);
 }
 
 static void
-feeder_unregisterall(void *p)
+feeder_unregisterall(void *p __unused)
 {
-	struct feedertab_entry *fte, *next;
-
-	next = SLIST_FIRST(&feedertab);
-	while (next != NULL) {
-		fte = next;
-		next = SLIST_NEXT(fte, link);
-		free(fte, M_FEEDER);
-	}
+	SLIST_INIT(&feedertab);
 }
 
 static void
@@ -135,11 +116,11 @@ feeder_create(struct feeder_class *fc, struct pcm_feederdesc *desc)
 struct feeder_class *
 feeder_getclass(u_int32_t type)
 {
-	struct feedertab_entry *fte;
+	struct feeder_class *fc;
 
-	SLIST_FOREACH(fte, &feedertab, link) {
-		if (fte->feederclass->desc.type == type)
-			return (fte->feederclass);
+	SLIST_FOREACH(fc, &feedertab, link) {
+		if (fc->desc.type == type)
+			return (fc);
 	}
 	return (NULL);
 }

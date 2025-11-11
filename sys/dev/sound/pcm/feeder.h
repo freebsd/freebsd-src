@@ -36,6 +36,7 @@ struct feeder_class {
 	KOBJ_CLASS_FIELDS;
 	struct pcm_feederdesc desc;
 	void *data;
+	SLIST_ENTRY(feeder_class) link;
 };
 
 struct pcm_feeder {
