@@ -88,7 +88,7 @@ feeder_create(struct feeder_class *fc, struct pcm_feederdesc *desc)
 	if (f == NULL)
 		return NULL;
 
-	f->data = fc->data;
+	f->data = NULL;
 	f->source = NULL;
 	f->parent = NULL;
 	f->class = fc;
@@ -401,7 +401,6 @@ static struct feeder_class feeder_root_class = {
 	.methods =	feeder_root_methods,
 	.size =		sizeof(struct pcm_feeder),
 	.desc =		{ FEEDER_ROOT, 0, 0 },
-	.data =		NULL,
 };
 /*
  * Register the root feeder first so that pcm_addchan() and subsequent
