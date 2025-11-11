@@ -70,22 +70,13 @@ feeder_register(void *p)
 {
 	struct feeder_class *fc = p;
 	struct feedertab_entry *fte;
-	int i;
 
-	KASSERT(fc->desc != NULL, ("feeder '%s' has no descriptor", fc->name));
+	KASSERT(fc->desc.type != 0, ("feeder '%s' has no descriptor", fc->name));
 
-	/*
-	 * beyond this point failure is non-fatal but may result in some
-	 * translations being unavailable
-	 */
-	i = 0;
-	while (fc->desc[i].type > 0) {
-		fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
-		fte->feederclass = fc;
-		fte->desc = &fc->desc[i];
-		SLIST_INSERT_HEAD(&feedertab, fte, link);
-		i++;
-	}
+	fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
+	fte->feederclass = fc;
+	fte->desc = &fc->desc;
+	SLIST_INSERT_HEAD(&feedertab, fte, link);
 }
 
 static void
@@ -442,7 +433,7 @@ static struct feeder_class feeder_root_class = {
 	.name =		"feeder_root",
 	.methods =	feeder_root_methods,
 	.size =		sizeof(struct pcm_feeder),
-	.desc =		NULL,
+	.desc =		{ 0 },
 	.data =		NULL,
 };
 /*

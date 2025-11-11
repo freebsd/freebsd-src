@@ -398,11 +398,6 @@ feed_matrix_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 	return (dst - b);
 }
 
-static struct pcm_feederdesc feeder_matrix_desc[] = {
-	{ FEEDER_MATRIX, 0, 0, 0 },
-	{ 0, 0, 0, 0 }
-};
-
 static kobj_method_t feeder_matrix_methods[] = {
 	KOBJMETHOD(feeder_init,		feed_matrix_init),
 	KOBJMETHOD(feeder_free,		feed_matrix_free),
@@ -410,7 +405,7 @@ static kobj_method_t feeder_matrix_methods[] = {
 	KOBJMETHOD_END
 };
 
-FEEDER_DECLARE(feeder_matrix, NULL);
+FEEDER_DECLARE(feeder_matrix, FEEDER_MATRIX, NULL);
 
 /* External */
 int
