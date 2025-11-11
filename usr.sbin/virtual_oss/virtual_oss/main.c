@@ -26,12 +26,14 @@
 #include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/filio.h>
+#include <sys/linker.h>
 #include <sys/rtprio.h>
 #include <sys/nv.h>
 #include <sys/sndstat.h>
 #include <sys/soundcard.h>
 
 #include <dlfcn.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -2539,11 +2541,8 @@ main(int argc, char **argv)
 
 	atomic_init();
 
-	/* automagically load the cuse.ko module, if any */
-	if (feature_present("cuse") == 0) {
-		if (system("kldload cuse") == -1)
-			warn("Failed to kldload cuse");
-	}
+	if (kldload("cuse.ko") < 0 && errno != EEXIST)
+		err(1, "Failed to load cuse kernel module");
 
 	if (cuse_init() != 0)
 		errx(EX_USAGE, "Could not connect to cuse module");
