@@ -43,7 +43,7 @@
 #include <machine/pci_cfgreg.h>
 
 struct pcie_mcfg_region {
-	char *base;
+	char *base;          /* virtual base of mapped MMCFG region */
 	uint16_t domain;
 	uint8_t minbus;
 	uint8_t maxbus;
@@ -52,12 +52,12 @@ struct pcie_mcfg_region {
 static uint32_t	pci_docfgregread(int domain, int bus, int slot, int func,
 		    int reg, int bytes);
 static struct pcie_mcfg_region *pcie_lookup_region(int domain, int bus);
-static int	pciereg_cfgread(struct pcie_mcfg_region *region, int bus,
+static uint32_t	pciereg_cfgread(struct pcie_mcfg_region *region, int bus,
 		    unsigned slot, unsigned func, unsigned reg, unsigned bytes);
 static void	pciereg_cfgwrite(struct pcie_mcfg_region *region, int bus,
 		    unsigned slot, unsigned func, unsigned reg, int data,
 		    unsigned bytes);
-static int	pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
+static uint32_t	pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
 
 SYSCTL_DECL(_hw_pci);
@@ -82,25 +82,27 @@ SYSCTL_INT(_hw_pci, OID_AUTO, mcfg, CTLFLAG_RDTUN, &mcfg_enable, 0,
 int
 pci_cfgregopen(void)
 {
-
+	/* Stub kept for ABI compatibility; nothing to initialize here. */
 	return (1);
 }
 
 static struct pcie_mcfg_region *
 pcie_lookup_region(int domain, int bus)
 {
-	for (int i = 0; i < mcfg_numregions; i++)
+	for (int i = 0; i < mcfg_numregions; i++) {
 		if (mcfg_regions[i].domain == domain &&
 		    bus >= mcfg_regions[i].minbus &&
 		    bus <= mcfg_regions[i].maxbus)
 			return (&mcfg_regions[i]);
+	}
 	return (NULL);
 }
 
 static uint32_t
 pci_docfgregread(int domain, int bus, int slot, int func, int reg, int bytes)
 {
-	if (domain == 0 && bus == 0 && (1 << slot & pcie_badslots) != 0)
+	/* If a slot on bus 0 is known bad for MMCONFIG, force IO access. */
+	if (domain == 0 && bus == 0 && (1U << slot & pcie_badslots) != 0)
 		return (pcireg_cfgread(bus, slot, func, reg, bytes));
 
 	if (cfgmech == CFGMECH_PCIE) {
@@ -115,7 +117,7 @@ pci_docfgregread(int domain, int bus, int slot, int func, int reg, int bytes)
 	if (domain == 0)
 		return (pcireg_cfgread(bus, slot, func, reg, bytes));
 	else
-		return (-1);
+		return ((uint32_t)-1);
 }
 
 /*
@@ -127,12 +129,10 @@ pci_cfgregread(int domain, int bus, int slot, int func, int reg, int bytes)
 	uint32_t line;
 
 	/*
-	 * Some BIOS writers seem to want to ignore the spec and put
-	 * 0 in the intline rather than 255 to indicate none.  Some use
-	 * numbers in the range 128-254 to indicate something strange and
-	 * apparently undocumented anywhere.  Assume these are completely bogus
-	 * and map them to 255, which the rest of the PCI code recognizes as
-	 * as an invalid IRQ.
+	 * Some BIOS writers put 0 in the intline rather than 255 to indicate
+	 * "none".  Some use values >= 128 which are also considered bogus.
+	 * Normalize those to PCI_INVALID_IRQ which the rest of the PCI code
+	 * understands as "no IRQ".
 	 */
 	if (reg == PCIR_INTLINE && bytes == 1) {
 		line = pci_docfgregread(domain, bus, slot, func, PCIR_INTLINE,
@@ -151,7 +151,8 @@ void
 pci_cfgregwrite(int domain, int bus, int slot, int func, int reg, uint32_t data,
     int bytes)
 {
-	if (domain == 0 && bus == 0 && (1 << slot & pcie_badslots) != 0) {
+	/* If a slot on bus 0 is known bad for MMCONFIG, force IO access. */
+	if (domain == 0 && bus == 0 && (1U << slot & pcie_badslots) != 0) {
 		pcireg_cfgwrite(bus, slot, func, reg, data, bytes);
 		return;
 	}
@@ -181,9 +182,10 @@ pci_cfgenable(unsigned bus, unsigned slot, unsigned func, int reg, int bytes)
 {
 	int dataport = 0;
 
-	if (bus <= PCI_BUSMAX && slot <= PCI_SLOTMAX && func <= PCI_FUNCMAX &&
-	    (unsigned)reg <= PCI_REGMAX && bytes != 3 &&
-	    (unsigned)bytes <= 4 && (reg & (bytes - 1)) == 0) {
+	/* Accept only 1, 2 or 4 byte accesses, aligned within the register. */
+	if ((bytes == 1 || bytes == 2 || bytes == 4) &&
+	    bus <= PCI_BUSMAX && slot <= PCI_SLOTMAX && func <= PCI_FUNCMAX &&
+	    (unsigned)reg <= PCI_REGMAX && (reg & (bytes - 1)) == 0) {
 		outl(CONF1_ADDR_PORT, (1U << 31) | (bus << 16) | (slot << 11)
 		    | (func << 8) | (reg & ~0x03));
 		dataport = CONF1_DATA_PORT + (reg & 0x03);
@@ -202,10 +204,10 @@ pci_cfgdisable(void)
 	 */
 }
 
-static int
+static uint32_t
 pcireg_cfgread(int bus, int slot, int func, int reg, int bytes)
 {
-	int data = -1;
+	uint32_t data = (uint32_t)-1;
 	int port;
 
 	mtx_lock_spin(&pcicfg_mtx);
@@ -213,10 +215,10 @@ pcireg_cfgread(int bus, int slot, int func, int reg, int bytes)
 	if (port != 0) {
 		switch (bytes) {
 		case 1:
-			data = inb(port);
+			data = inb(port) & 0xff;
 			break;
 		case 2:
-			data = inw(port);
+			data = inw(port) & 0xffff;
 			break;
 		case 4:
 			data = inl(port);
@@ -238,10 +240,10 @@ pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
 	if (port != 0) {
 		switch (bytes) {
 		case 1:
-			outb(port, data);
+			outb(port, data & 0xff);
 			break;
 		case 2:
-			outw(port, data);
+			outw(port, data & 0xffff);
 			break;
 		case 4:
 			outl(port, data);
@@ -267,12 +269,12 @@ pcie_init_badslots(struct pcie_mcfg_region *region)
 	if (pci_cfgregopen() != 0) {
 		for (slot = 0; slot <= PCI_SLOTMAX; slot++) {
 			val1 = pcireg_cfgread(0, slot, 0, 0, 4);
-			if (val1 == 0xffffffff)
+			if (val1 == (uint32_t)-1 || val1 == 0xffffffffu)
 				continue;
 
 			val2 = pciereg_cfgread(region, 0, slot, 0, 0, 4);
 			if (val2 != val1)
-				pcie_badslots |= (1 << slot);
+				pcie_badslots |= (1U << slot);
 		}
 	}
 }
@@ -287,7 +289,7 @@ pcie_cfgregopen(uint64_t base, uint16_t domain, uint8_t minbus, uint8_t maxbus)
 
 	if (bootverbose)
 		printf("PCI: MCFG domain %u bus %u-%u base @ 0x%lx\n",
-		    domain, minbus, maxbus, base);
+		    domain, minbus, maxbus, (unsigned long)base);
 
 	/* Resize the array. */
 	mcfg_regions = realloc(mcfg_regions,
@@ -295,8 +297,9 @@ pcie_cfgregopen(uint64_t base, uint16_t domain, uint8_t minbus, uint8_t maxbus)
 
 	region = &mcfg_regions[mcfg_numregions];
 
-	/* XXX: We should make sure this really fits into the direct map. */
-	region->base = pmap_mapdev_pciecfg(base + (minbus << 20), (maxbus + 1 - minbus) << 20);
+	/* Map the MMCONFIG region for the bus range. */
+	region->base = pmap_mapdev_pciecfg(base + (minbus << 20),
+	    (maxbus + 1 - minbus) << 20);
 	region->domain = domain;
 	region->minbus = minbus;
 	region->maxbus = maxbus;
@@ -304,6 +307,7 @@ pcie_cfgregopen(uint64_t base, uint16_t domain, uint8_t minbus, uint8_t maxbus)
 
 	cfgmech = CFGMECH_PCIE;
 
+	/* On domain 0, bus 0, check for devices that need IO access. */
 	if (domain == 0 && minbus == 0)
 		pcie_init_badslots(region);
 
@@ -319,26 +323,29 @@ pcie_cfgregopen(uint64_t base, uint16_t domain, uint8_t minbus, uint8_t maxbus)
 
 /*
  * AMD BIOS And Kernel Developer's Guides for CPU families starting with 10h
- * have a requirement that all accesses to the memory mapped PCI configuration
- * space are done using AX class of registers.
- * Since other vendors do not currently have any contradicting requirements
- * the AMD access pattern is applied universally.
+ * require that all accesses to the memory mapped PCI configuration space
+ * are done using AX-class registers.  Use inline asm to ensure the correct
+ * register class is used (this is the recommended pattern on AMD systems).
  */
 
-static int
+static uint32_t
 pciereg_cfgread(struct pcie_mcfg_region *region, int bus, unsigned slot,
     unsigned func, unsigned reg, unsigned bytes)
 {
 	char *va;
-	int data = -1;
+	uint32_t data = (uint32_t)-1;
 
 	MPASS(bus >= region->minbus && bus <= region->maxbus);
 
 	if (slot > PCI_SLOTMAX || func > PCI_FUNCMAX || reg > PCIE_REGMAX)
-		return (-1);
+		return ((uint32_t)-1);
 
 	va = PCIE_VADDR(region->base, reg, bus - region->minbus, slot, func);
 
+	/*
+	 * Use explicit loads with asm to ensure the AX-family register
+	 * usage required by certain AMD processors.
+	 */
 	switch (bytes) {
 	case 4:
 		__asm("movl %1, %0" : "=a" (data)
@@ -351,6 +358,10 @@ pciereg_cfgread(struct pcie_mcfg_region *region, int bus, unsigned slot,
 	case 1:
 		__asm("movzbl %1, %0" : "=a" (data)
 		    : "m" (*(volatile uint8_t *)va));
+		break;
+	default:
+		/* unsupported size */
+		data = (uint32_t)-1;
 		break;
 	}
 
@@ -370,6 +381,10 @@ pciereg_cfgwrite(struct pcie_mcfg_region *region, int bus, unsigned slot,
 
 	va = PCIE_VADDR(region->base, reg, bus - region->minbus, slot, func);
 
+	/*
+	 * Use explicit stores with asm to ensure the AX-family register
+	 * usage required by certain AMD processors.
+	 */
 	switch (bytes) {
 	case 4:
 		__asm("movl %1, %0" : "=m" (*(volatile uint32_t *)va)
@@ -382,6 +397,9 @@ pciereg_cfgwrite(struct pcie_mcfg_region *region, int bus, unsigned slot,
 	case 1:
 		__asm("movb %1, %0" : "=m" (*(volatile uint8_t *)va)
 		    : "a" ((uint8_t)data));
+		break;
+	default:
+		/* unsupported size */
 		break;
 	}
 }
