@@ -276,16 +276,10 @@ sndbuf_clear(struct snd_dbuf *b, unsigned int length)
 		length = b->bufsize;
 
 	data = sndbuf_zerodata(b->fmt);
-
 	i = sndbuf_getfreeptr(b);
 	p = sndbuf_getbuf(b);
-	while (length > 0) {
-		p[i] = data;
-		length--;
-		i++;
-		if (i >= b->bufsize)
-			i = 0;
-	}
+	for  (; length > 0; length--, i++)
+		p[i % b->bufsize] = data;
 }
 
 /**
