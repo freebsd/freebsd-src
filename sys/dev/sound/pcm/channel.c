@@ -271,7 +271,7 @@ chn_lockdestroy(struct pcm_channel *c)
  * @retval 1 = ready for I/O
  * @retval 0 = not ready for I/O
  */
-static int
+int
 chn_polltrigger(struct pcm_channel *c)
 {
 	struct snd_dbuf *bs = c->bufsoft;
@@ -313,6 +313,7 @@ chn_wakeup(struct pcm_channel *c)
 	bs = c->bufsoft;
 
 	if (CHN_EMPTY(c, children.busy)) {
+		KNOTE_LOCKED(&bs->sel.si_note, 0);
 		if (SEL_WAITING(sndbuf_getsel(bs)) && chn_polltrigger(c))
 			selwakeuppri(sndbuf_getsel(bs), PRIBIO);
 		CHN_BROADCAST(&c->intr_cv);
@@ -1277,6 +1278,7 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	}
 	c->bufhard = b;
 	c->bufsoft = bs;
+	knlist_init_mtx(&bs->sel.si_note, c->lock);
 
 	c->devinfo = CHANNEL_INIT(c->methods, devinfo, b, c, direction);
 	if (c->devinfo == NULL) {
@@ -1373,8 +1375,11 @@ chn_kill(struct pcm_channel *c)
 	feeder_remove(c);
 	if (c->devinfo && CHANNEL_FREE(c->methods, c->devinfo))
 		sndbuf_free(b);
-	if (bs)
+	if (bs) {
+		knlist_clear(&bs->sel.si_note, 0);
+		knlist_destroy(&bs->sel.si_note);
 		sndbuf_destroy(bs);
+	}
 	if (b)
 		sndbuf_destroy(b);
 	CHN_LOCK(c);

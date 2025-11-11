@@ -261,6 +261,7 @@ int chn_read(struct pcm_channel *c, struct uio *buf);
 u_int32_t chn_start(struct pcm_channel *c, int force);
 int chn_sync(struct pcm_channel *c, int threshold);
 int chn_flush(struct pcm_channel *c);
+int chn_polltrigger(struct pcm_channel *c);
 int chn_poll(struct pcm_channel *c, int ev, struct thread *td);
 
 char *chn_mkname(char *buf, size_t len, struct pcm_channel *c);
