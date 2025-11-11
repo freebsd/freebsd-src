@@ -30,7 +30,6 @@
 struct pcm_feederdesc {
 	u_int32_t type;
 	u_int32_t in, out;
-	u_int32_t flags;
 };
 
 struct feeder_class {
@@ -69,7 +68,7 @@ static struct feeder_class feeder ## _class = {				\
 	.name =		#feeder,					\
 	.methods =	feeder ## _methods,				\
 	.size =		sizeof(struct pcm_feeder),			\
-	.desc =		{ type, 0, 0, 0 },				\
+	.desc =		{ type, 0, 0 },					\
 	.data =		pdata,						\
 };									\
 SYSINIT(feeder, SI_SUB_DRIVERS, SI_ORDER_ANY, feeder_register,		\

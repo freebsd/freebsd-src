@@ -97,8 +97,7 @@ cmpdesc(struct pcm_feederdesc *n, struct pcm_feederdesc *m)
 {
 	return ((n->type == m->type) &&
 		((n->in == 0) || (n->in == m->in)) &&
-		((n->out == 0) || (n->out == m->out)) &&
-		(n->flags == m->flags));
+		((n->out == 0) || (n->out == m->out)));
 }
 
 static void
@@ -130,7 +129,6 @@ feeder_create(struct feeder_class *fc, struct pcm_feederdesc *desc)
 		f->desc->type = FEEDER_ROOT;
 		f->desc->in = 0;
 		f->desc->out = 0;
-		f->desc->flags = 0;
 	}
 
 	err = FEEDER_INIT(f);
