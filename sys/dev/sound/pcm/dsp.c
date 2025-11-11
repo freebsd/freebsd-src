@@ -81,6 +81,7 @@ static d_ioctl_t dsp_ioctl;
 static d_poll_t dsp_poll;
 static d_mmap_t dsp_mmap;
 static d_mmap_single_t dsp_mmap_single;
+static d_kqfilter_t dsp_kqfilter;
 
 struct cdevsw dsp_cdevsw = {
 	.d_version	= D_VERSION,
@@ -89,6 +90,7 @@ struct cdevsw dsp_cdevsw = {
 	.d_write	= dsp_write,
 	.d_ioctl	= dsp_ioctl,
 	.d_poll		= dsp_poll,
+	.d_kqfilter	= dsp_kqfilter,
 	.d_mmap		= dsp_mmap,
 	.d_mmap_single	= dsp_mmap_single,
 	.d_name		= "dsp",
@@ -2960,6 +2962,86 @@ dsp_oss_getchannelmask(struct pcm_channel *wrch, struct pcm_channel *rdch,
 		*mask = chnmask;
 
 	return (ret);
+}
+
+static void
+dsp_kqdetach(struct knote *kn)
+{
+	struct pcm_channel *ch = kn->kn_hook;
+
+	if (ch == NULL)
+		return;
+	CHN_LOCK(ch);
+	knlist_remove(&ch->bufsoft->sel.si_note, kn, 1);
+	CHN_UNLOCK(ch);
+}
+
+static int
+dsp_kqevent(struct knote *kn, long hint)
+{
+	struct pcm_channel *ch = kn->kn_hook;
+
+	CHN_LOCKASSERT(ch);
+	if (ch->flags & CHN_F_DEAD) {
+		kn->kn_flags |= EV_EOF;
+		return (1);
+	}
+	kn->kn_data = 0;
+	if (chn_polltrigger(ch)) {
+		if (kn->kn_filter == EVFILT_READ)
+			kn->kn_data = sndbuf_getready(ch->bufsoft);
+		else
+			kn->kn_data = sndbuf_getfree(ch->bufsoft);
+	}
+
+	return (kn->kn_data > 0);
+}
+
+static const struct filterops dsp_filtops = {
+	.f_isfd = 1,
+	.f_detach = dsp_kqdetach,
+	.f_event = dsp_kqevent,
+};
+
+static int
+dsp_kqfilter(struct cdev *dev, struct knote *kn)
+{
+	struct dsp_cdevpriv *priv;
+	struct snddev_info *d;
+	struct pcm_channel *ch;
+	int err = 0;
+
+	if ((err = devfs_get_cdevpriv((void **)&priv)) != 0)
+		return (err);
+
+	d = priv->sc;
+	if (!DSP_REGISTERED(d))
+		return (EBADF);
+	PCM_GIANT_ENTER(d);
+	switch (kn->kn_filter) {
+	case EVFILT_READ:
+		ch = priv->rdch;
+		break;
+	case EVFILT_WRITE:
+		ch = priv->wrch;
+		break;
+	default:
+		kn->kn_hook = NULL;
+		err = EINVAL;
+		ch = NULL;
+		break;
+	}
+	if (ch != NULL) {
+		kn->kn_fop = &dsp_filtops;
+		CHN_LOCK(ch);
+		knlist_add(&ch->bufsoft->sel.si_note, kn, 1);
+		CHN_UNLOCK(ch);
+		kn->kn_hook = ch;
+	} else
+		err = EINVAL;
+	PCM_GIANT_LEAVE(d);
+
+	return (err);
 }
 
 #ifdef OSSV4_EXPERIMENT
