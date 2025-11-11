@@ -105,8 +105,8 @@ dummy_chan_io(void *arg)
 		if (!ch->run)
 			continue;
 		if (ch->dir == PCMDIR_PLAY) {
-			ch->ptr += sndbuf_getblksz(ch->buf);
-			ch->ptr %= sndbuf_getsize(ch->buf);
+			ch->ptr += ch->buf->blksz;
+			ch->ptr %= ch->buf->bufsize;
 		} else
 			sndbuf_fillsilence(ch->buf);
 		snd_mtxunlock(sc->lock);
@@ -123,7 +123,7 @@ dummy_chan_free(kobj_t obj, void *data)
 	struct dummy_chan *ch =data;
 	uint8_t *buf;
 
-	buf = sndbuf_getbuf(ch->buf);
+	buf = ch->buf->buf;
 	if (buf != NULL)
 		free(buf, M_DEVBUF);
 
@@ -190,7 +190,7 @@ dummy_chan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 {
 	struct dummy_chan *ch = data;
 
-	return (sndbuf_getblksz(ch->buf));
+	return (ch->buf->blksz);
 }
 
 static int

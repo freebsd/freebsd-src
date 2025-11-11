@@ -403,10 +403,10 @@ rk_i2s_dai_intr(device_t dev, struct snd_dbuf *play_buf, struct snd_dbuf *rec_bu
 		count = sndbuf_getready(play_buf);
 		if (count > FIFO_SIZE - 1)
 			count = FIFO_SIZE - 1;
-		size = sndbuf_getsize(play_buf);
+		size = play_buf->bufsize;
 		readyptr = sndbuf_getreadyptr(play_buf);
 
-		samples = (uint8_t*)sndbuf_getbuf(play_buf);
+		samples = play_buf->buf;
 		written = 0;
 		for (; level < count; level++) {
 			val  = (samples[readyptr++ % size] << 0);
@@ -426,9 +426,9 @@ rk_i2s_dai_intr(device_t dev, struct snd_dbuf *play_buf, struct snd_dbuf *rec_bu
 		uint8_t *samples;
 		uint32_t count, size, freeptr, recorded;
 		count = sndbuf_getfree(rec_buf);
-		size = sndbuf_getsize(rec_buf);
+		size = rec_buf->bufsize;
 		freeptr = sndbuf_getfreeptr(rec_buf);
-		samples = (uint8_t*)sndbuf_getbuf(rec_buf);
+		samples = rec_buf->buf;
 		recorded = 0;
 		if (level > count / 4)
 			level = count / 4;

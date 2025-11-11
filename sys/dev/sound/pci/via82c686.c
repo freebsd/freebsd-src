@@ -226,8 +226,8 @@ via_buildsgdt(struct via_chinfo *ch)
 	 *  is feeding.
 	 */
 	seg_size = ch->blksz;
-	segs = sndbuf_getsize(ch->buffer) / seg_size;
-	phys_addr = sndbuf_getbufaddr(ch->buffer);
+	segs = ch->buffer->bufsize / seg_size;
+	phys_addr = ch->buffer->buf_addr;
 
 	for (i = 0; i < segs; i++) {
 		flag = (i == segs - 1)? VIA_DMAOP_EOL : VIA_DMAOP_FLAG;
@@ -385,7 +385,7 @@ viachan_getptr(kobj_t obj, void *data)
 		seg = SEGS_PER_CHAN;
 
 	/* Now work out offset: seg less count */
-	ptr = (seg * sndbuf_getsize(ch->buffer) / SEGS_PER_CHAN) - len;
+	ptr = (seg * ch->buffer->bufsize / SEGS_PER_CHAN) - len;
 	if (ch->dir == PCMDIR_REC) {
 		/* DMA appears to operate on memory 'lines' of 32 bytes	*/
 		/* so don't return any part line - it isn't in RAM yet	*/

@@ -837,13 +837,13 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	    		if (wrch) {
 				CHN_LOCK(wrch);
 				chn_setblocksize(wrch, 2, p->play_size);
-				p->play_size = sndbuf_getblksz(wrch->bufsoft);
+				p->play_size = wrch->bufsoft->blksz;
 				CHN_UNLOCK(wrch);
 			}
 	    		if (rdch) {
 				CHN_LOCK(rdch);
 				chn_setblocksize(rdch, 2, p->rec_size);
-				p->rec_size = sndbuf_getblksz(rdch->bufsoft);
+				p->rec_size = rdch->bufsoft->blksz;
 				CHN_UNLOCK(rdch);
 			}
 			PCM_RELEASE_QUICK(d);
@@ -855,12 +855,12 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 
 	    		if (wrch) {
 				CHN_LOCK(wrch);
-				p->play_size = sndbuf_getblksz(wrch->bufsoft);
+				p->play_size = wrch->bufsoft->blksz;
 				CHN_UNLOCK(wrch);
 			}
 	    		if (rdch) {
 				CHN_LOCK(rdch);
-				p->rec_size = sndbuf_getblksz(rdch->bufsoft);
+				p->rec_size = rdch->bufsoft->blksz;
 				CHN_UNLOCK(rdch);
 			}
 		}
@@ -975,8 +975,8 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	                      		  pcaps? pcaps->minspeed : 0);
 	    		p->rate_max = min(rcaps? rcaps->maxspeed : 1000000,
 	                      		  pcaps? pcaps->maxspeed : 1000000);
-	    		p->bufsize = min(rdch? sndbuf_getsize(rdch->bufsoft) : 1000000,
-	                     		 wrch? sndbuf_getsize(wrch->bufsoft) : 1000000);
+			p->bufsize = min(rdch? rdch->bufsoft->bufsize : 1000000,
+					 wrch? wrch->bufsoft->bufsize : 1000000);
 			/* XXX bad on sb16 */
 	    		p->formats = (rdch? chn_getformats(rdch) : 0xffffffff) &
 			 	     (wrch? chn_getformats(wrch) : 0xffffffff);
@@ -1079,7 +1079,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		chn = wrch ? wrch : rdch;
 		if (chn) {
 			CHN_LOCK(chn);
-			*arg_i = sndbuf_getblksz(chn->bufsoft);
+			*arg_i = chn->bufsoft->blksz;
 			CHN_UNLOCK(chn);
 		} else {
 			*arg_i = 0;
@@ -1317,8 +1317,8 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		    	if (rdch) {
 				CHN_LOCK(rdch);
 				ret = chn_setblocksize(rdch, maxfrags, fragsz);
-				r_maxfrags = sndbuf_getblkcnt(rdch->bufsoft);
-				r_fragsz = sndbuf_getblksz(rdch->bufsoft);
+				r_maxfrags = rdch->bufsoft->blkcnt;
+				r_fragsz = rdch->bufsoft->blksz;
 				CHN_UNLOCK(rdch);
 			} else {
 				r_maxfrags = maxfrags;
@@ -1327,8 +1327,8 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		    	if (wrch && ret == 0) {
 				CHN_LOCK(wrch);
 				ret = chn_setblocksize(wrch, maxfrags, fragsz);
- 				maxfrags = sndbuf_getblkcnt(wrch->bufsoft);
-				fragsz = sndbuf_getblksz(wrch->bufsoft);
+				maxfrags = wrch->bufsoft->blkcnt;
+				fragsz = wrch->bufsoft->blksz;
 				CHN_UNLOCK(wrch);
 			} else { /* use whatever came from the read channel */
 				maxfrags = r_maxfrags;
@@ -1354,9 +1354,9 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 
 				CHN_LOCK(rdch);
 				a->bytes = sndbuf_getready(bs);
-	        		a->fragments = a->bytes / sndbuf_getblksz(bs);
-	        		a->fragstotal = sndbuf_getblkcnt(bs);
-	        		a->fragsize = sndbuf_getblksz(bs);
+				a->fragments = a->bytes / bs->blksz;
+				a->fragstotal = bs->blkcnt;
+				a->fragsize = bs->blksz;
 				CHN_UNLOCK(rdch);
 	    		} else
 				ret = EINVAL;
@@ -1372,9 +1372,9 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 
 				CHN_LOCK(wrch);
 				a->bytes = sndbuf_getfree(bs);
-	        		a->fragments = a->bytes / sndbuf_getblksz(bs);
-	        		a->fragstotal = sndbuf_getblkcnt(bs);
-	        		a->fragsize = sndbuf_getblksz(bs);
+				a->fragments = a->bytes / bs->blksz;
+				a->fragstotal = bs->blkcnt;
+				a->fragsize = bs->blksz;
 				CHN_UNLOCK(wrch);
 	    		} else
 				ret = EINVAL;
@@ -1388,7 +1388,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	        		struct snd_dbuf *bs = rdch->bufsoft;
 
 				CHN_LOCK(rdch);
-	        		a->bytes = sndbuf_gettotal(bs);
+				a->bytes = bs->total;
 	        		a->blocks = sndbuf_getblocks(bs) - rdch->blocks;
 	        		a->ptr = sndbuf_getfreeptr(bs);
 				rdch->blocks = sndbuf_getblocks(bs);
@@ -1405,7 +1405,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	        		struct snd_dbuf *bs = wrch->bufsoft;
 
 				CHN_LOCK(wrch);
-	        		a->bytes = sndbuf_gettotal(bs);
+				a->bytes = bs->total;
 	        		a->blocks = sndbuf_getblocks(bs) - wrch->blocks;
 	        		a->ptr = sndbuf_getreadyptr(bs);
 				wrch->blocks = sndbuf_getblocks(bs);
@@ -1692,8 +1692,8 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 
 			CHN_LOCK(chn);
 			bs = chn->bufsoft;
-			oc->samples = sndbuf_gettotal(bs) / sndbuf_getalign(bs);
-			oc->fifo_samples = sndbuf_getready(bs) / sndbuf_getalign(bs);
+			oc->samples = bs->total / bs->align;
+			oc->fifo_samples = sndbuf_getready(bs) / bs->align;
 			CHN_UNLOCK(chn);
 		}
 		break;
@@ -1994,7 +1994,7 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 
 	c = ((nprot & PROT_WRITE) != 0) ? wrch : rdch;
 	if (c == NULL || (c->flags & CHN_F_MMAP_INVALID) ||
-	    (*offset  + size) > sndbuf_getallocsize(c->bufsoft) ||
+	    (*offset  + size) > c->bufsoft->allocsize ||
 	    (wrch != NULL && (wrch->flags & CHN_F_MMAP_INVALID)) ||
 	    (rdch != NULL && (rdch->flags & CHN_F_MMAP_INVALID))) {
 		dsp_unlock_chans(priv, FREAD | FWRITE);

@@ -971,7 +971,7 @@ hdspchan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 		hdsp_write_4(sc, HDSP_FREQ_REG, hdsp_freq_reg_value(sc->speed));
 end:
 
-	return (sndbuf_getblksz(ch->buffer));
+	return (ch->buffer->blksz);
 }
 
 static uint32_t hdsp_bkp_fmt[] = {

@@ -48,8 +48,8 @@ int vchan_sync(struct pcm_channel *);
 
 #define VCHAN_SYNC_REQUIRED(c)						\
 	(((c)->flags & CHN_F_VIRTUAL) && (((c)->flags & CHN_F_DIRTY) ||	\
-	sndbuf_getfmt((c)->bufhard) != (c)->parentchannel->format ||	\
-	sndbuf_getspd((c)->bufhard) != (c)->parentchannel->speed))
+	(c)->bufhard->fmt != (c)->parentchannel->format ||		\
+	(c)->bufhard->spd != (c)->parentchannel->speed))
 
 void vchan_initsys(device_t);
 

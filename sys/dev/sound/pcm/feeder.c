@@ -433,9 +433,7 @@ feed_root(struct pcm_feeder *feeder, struct pcm_channel *ch, u_int8_t *buffer, u
 			    offset, count, l, ch->feedcount);
 
 		if (ch->feedcount == 1) {
-			memset(buffer,
-			    sndbuf_zerodata(sndbuf_getfmt(src)),
-			    offset);
+			memset(buffer, sndbuf_zerodata(src->fmt), offset);
 			if (l > 0)
 				sndbuf_dispose(src, buffer + offset, l);
 			else
@@ -443,9 +441,7 @@ feed_root(struct pcm_feeder *feeder, struct pcm_channel *ch, u_int8_t *buffer, u
 		} else {
 			if (l > 0)
 				sndbuf_dispose(src, buffer, l);
-			memset(buffer + l,
-			    sndbuf_zerodata(sndbuf_getfmt(src)),
-			    offset);
+			memset(buffer + l, sndbuf_zerodata(src->fmt), offset);
 			if (!(ch->flags & CHN_F_CLOSING))
 				ch->xruns++;
 		}

@@ -385,7 +385,7 @@ via_buildsgdt(struct via_chinfo *ch)
 	uint32_t phys_addr, flag;
 	int i;
 
-	phys_addr = sndbuf_getbufaddr(ch->buffer);
+	phys_addr = ch->buffer->buf_addr;
 
 	for (i = 0; i < ch->blkcnt; i++) {
 		flag = (i == ch->blkcnt - 1) ? VIA_DMAOP_EOL : VIA_DMAOP_FLAG;
@@ -568,8 +568,8 @@ via8233chan_setfragments(kobj_t obj, void *data,
 
 	blksz &= VIA_BLK_ALIGN;
 
-	if (blksz > (sndbuf_getmaxsize(ch->buffer) / VIA_SEGS_MIN))
-		blksz = sndbuf_getmaxsize(ch->buffer) / VIA_SEGS_MIN;
+	if (blksz > (ch->buffer->maxsize / VIA_SEGS_MIN))
+		blksz = ch->buffer->maxsize / VIA_SEGS_MIN;
 	if (blksz < VIA_BLK_MIN)
 		blksz = VIA_BLK_MIN;
 	if (blkcnt > VIA_SEGS_MAX)
@@ -577,7 +577,7 @@ via8233chan_setfragments(kobj_t obj, void *data,
 	if (blkcnt < VIA_SEGS_MIN)
 		blkcnt = VIA_SEGS_MIN;
 
-	while ((blksz * blkcnt) > sndbuf_getmaxsize(ch->buffer)) {
+	while ((blksz * blkcnt) > ch->buffer->maxsize) {
 		if ((blkcnt >> 1) >= VIA_SEGS_MIN)
 			blkcnt >>= 1;
 		else if ((blksz >> 1) >= VIA_BLK_MIN)
@@ -586,14 +586,14 @@ via8233chan_setfragments(kobj_t obj, void *data,
 			break;
 	}
 
-	if ((sndbuf_getblksz(ch->buffer) != blksz ||
-	    sndbuf_getblkcnt(ch->buffer) != blkcnt) &&
+	if ((ch->buffer->blksz != blksz ||
+	    ch->buffer->blkcnt != blkcnt) &&
 	    sndbuf_resize(ch->buffer, blkcnt, blksz) != 0)
 		device_printf(via->dev, "%s: failed blksz=%u blkcnt=%u\n",
 		    __func__, blksz, blkcnt);
 
-	ch->blksz = sndbuf_getblksz(ch->buffer);
-	ch->blkcnt = sndbuf_getblkcnt(ch->buffer);
+	ch->blksz = ch->buffer->blksz;
+	ch->blkcnt = ch->buffer->blkcnt;
 
 	return (0);
 }
@@ -850,8 +850,7 @@ via_poll_ticks(struct via_info *via)
 		if (ch->channel == NULL || ch->active == 0)
 			continue;
 		pollticks = ((uint64_t)hz * ch->blksz) /
-		    ((uint64_t)sndbuf_getalign(ch->buffer) *
-		    sndbuf_getspd(ch->buffer));
+		    ((uint64_t)ch->buffer->align * ch->buffer->spd);
 		pollticks >>= 2;
 		if (pollticks > hz)
 			pollticks = hz;
@@ -866,8 +865,7 @@ via_poll_ticks(struct via_info *via)
 		if (ch->channel == NULL || ch->active == 0)
 			continue;
 		pollticks = ((uint64_t)hz * ch->blksz) /
-		    ((uint64_t)sndbuf_getalign(ch->buffer) *
-		    sndbuf_getspd(ch->buffer));
+		    ((uint64_t)ch->buffer->align * ch->buffer->spd);
 		pollticks >>= 2;
 		if (pollticks > hz)
 			pollticks = hz;
@@ -900,8 +898,8 @@ via8233chan_trigger(kobj_t obj, void* data, int go)
 			ch->ptr = 0;
 			ch->prevptr = 0;
 			pollticks = ((uint64_t)hz * ch->blksz) /
-			    ((uint64_t)sndbuf_getalign(ch->buffer) *
-			    sndbuf_getspd(ch->buffer));
+			    ((uint64_t)ch->buffer->align *
+			    ch->buffer->spd);
 			pollticks >>= 2;
 			if (pollticks > hz)
 				pollticks = hz;

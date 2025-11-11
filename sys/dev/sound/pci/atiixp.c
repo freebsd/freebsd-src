@@ -535,8 +535,8 @@ atiixp_chan_setfragments(kobj_t obj, void *data,
 
 	blksz &= ATI_IXP_BLK_ALIGN;
 
-	if (blksz > (sndbuf_getmaxsize(ch->buffer) / ATI_IXP_DMA_CHSEGS_MIN))
-		blksz = sndbuf_getmaxsize(ch->buffer) / ATI_IXP_DMA_CHSEGS_MIN;
+	if (blksz > (ch->buffer->maxsize / ATI_IXP_DMA_CHSEGS_MIN))
+		blksz = ch->buffer->maxsize / ATI_IXP_DMA_CHSEGS_MIN;
 	if (blksz < ATI_IXP_BLK_MIN)
 		blksz = ATI_IXP_BLK_MIN;
 	if (blkcnt > ATI_IXP_DMA_CHSEGS_MAX)
@@ -544,7 +544,7 @@ atiixp_chan_setfragments(kobj_t obj, void *data,
 	if (blkcnt < ATI_IXP_DMA_CHSEGS_MIN)
 		blkcnt = ATI_IXP_DMA_CHSEGS_MIN;
 
-	while ((blksz * blkcnt) > sndbuf_getmaxsize(ch->buffer)) {
+	while ((blksz * blkcnt) > ch->buffer->maxsize) {
 		if ((blkcnt >> 1) >= ATI_IXP_DMA_CHSEGS_MIN)
 			blkcnt >>= 1;
 		else if ((blksz >> 1) >= ATI_IXP_BLK_MIN)
@@ -553,14 +553,14 @@ atiixp_chan_setfragments(kobj_t obj, void *data,
 			break;
 	}
 
-	if ((sndbuf_getblksz(ch->buffer) != blksz ||
-	    sndbuf_getblkcnt(ch->buffer) != blkcnt) &&
+	if ((ch->buffer->blksz != blksz ||
+	    ch->buffer->blkcnt != blkcnt) &&
 	    sndbuf_resize(ch->buffer, blkcnt, blksz) != 0)
 		device_printf(sc->dev, "%s: failed blksz=%u blkcnt=%u\n",
 		    __func__, blksz, blkcnt);
 
-	ch->blksz = sndbuf_getblksz(ch->buffer);
-	ch->blkcnt = sndbuf_getblkcnt(ch->buffer);
+	ch->blksz = ch->buffer->blksz;
+	ch->blkcnt = ch->buffer->blkcnt;
 
 	return (0);
 }
@@ -583,7 +583,7 @@ atiixp_buildsgdt(struct atiixp_chinfo *ch)
 	uint32_t addr, blksz, blkcnt;
 	int i;
 
-	addr = sndbuf_getbufaddr(ch->buffer);
+	addr = ch->buffer->buf_addr;
 
 	if (sc->polling != 0) {
 		blksz = ch->blksz * ch->blkcnt;
@@ -610,7 +610,7 @@ atiixp_dmapos(struct atiixp_chinfo *ch)
 	volatile uint32_t ptr;
 
 	reg = ch->dt_cur_bit;
-	addr = sndbuf_getbufaddr(ch->buffer);
+	addr = ch->buffer->buf_addr;
 	sz = ch->blkcnt * ch->blksz;
 	retry = ATI_IXP_DMA_RETRY_MAX;
 
@@ -739,8 +739,7 @@ atiixp_chan_trigger(kobj_t obj, void *data, int go)
 			ch->ptr = 0;
 			ch->prevptr = 0;
 			pollticks = ((uint64_t)hz * ch->blksz) /
-			    ((uint64_t)sndbuf_getalign(ch->buffer) *
-			    sndbuf_getspd(ch->buffer));
+			    ((uint64_t)ch->buffer->align * ch->buffer->spd);
 			pollticks >>= 2;
 			if (pollticks > hz)
 				pollticks = hz;
@@ -781,8 +780,8 @@ atiixp_chan_trigger(kobj_t obj, void *data, int go)
 				else
 					ch = &sc->rch;
 				pollticks = ((uint64_t)hz * ch->blksz) /
-				    ((uint64_t)sndbuf_getalign(ch->buffer) *
-				    sndbuf_getspd(ch->buffer));
+				    ((uint64_t)ch->buffer->align *
+				    ch->buffer->spd);
 				pollticks >>= 2;
 				if (pollticks > hz)
 					pollticks = hz;

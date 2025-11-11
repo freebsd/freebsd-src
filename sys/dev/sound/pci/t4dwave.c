@@ -555,9 +555,9 @@ trpchan_trigger(kobj_t obj, void *data, int go)
 		ch->fms = 0;
 		ch->ec = 0;
 		ch->alpha = 0;
-		ch->lba = sndbuf_getbufaddr(ch->buffer);
+		ch->lba = ch->buffer->buf_addr;
 		ch->cso = 0;
-		ch->eso = (sndbuf_getsize(ch->buffer) / sndbuf_getalign(ch->buffer)) - 1;
+		ch->eso = (ch->buffer->bufsize / ch->buffer->align) - 1;
 		ch->rvol = ch->cvol = 0x7f;
 		ch->gvsel = 0;
 		ch->pan = 0;
@@ -581,7 +581,7 @@ trpchan_getptr(kobj_t obj, void *data)
 	struct tr_chinfo *ch = data;
 
 	tr_rdch(ch);
-	return ch->cso * sndbuf_getalign(ch->buffer);
+	return ch->cso * ch->buffer->align;
 }
 
 static struct pcmchan_caps *
@@ -680,7 +680,7 @@ trrchan_trigger(kobj_t obj, void *data, int go)
 		i = tr_rd(tr, TR_REG_DMAR11, 1) & 0x03;
 		tr_wr(tr, TR_REG_DMAR11, i | 0x54, 1);
 		/* set up base address */
-	   	tr_wr(tr, TR_REG_DMAR0, sndbuf_getbufaddr(ch->buffer), 4);
+		tr_wr(tr, TR_REG_DMAR0, ch->buffer->buf_addr, 4);
 		/* set up buffer size */
 		i = tr_rd(tr, TR_REG_DMAR4, 4) & ~0x00ffffff;
 		tr_wr(tr, TR_REG_DMAR4, i | (sndbuf_runsz(ch->buffer) - 1), 4);
@@ -703,7 +703,7 @@ trrchan_getptr(kobj_t obj, void *data)
 	struct tr_info *tr = ch->parent;
 
 	/* return current byte offset of channel */
-	return tr_rd(tr, TR_REG_DMAR0, 4) - sndbuf_getbufaddr(ch->buffer);
+	return tr_rd(tr, TR_REG_DMAR0, 4) - ch->buffer->buf_addr;
 }
 
 static struct pcmchan_caps *

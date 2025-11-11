@@ -362,7 +362,7 @@ nmchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c
 	sndbuf_setup(ch->buffer, (u_int8_t *)rman_get_virtual(sc->buf) + chnbuf, NM_BUFFSIZE);
 	if (bootverbose)
 		device_printf(sc->dev, "%s buf %p\n", (dir == PCMDIR_PLAY)?
-			      "play" : "rec", sndbuf_getbuf(ch->buffer));
+			      "play" : "rec", ch->buffer->buf);
 	ch->parent = sc;
 	ch->channel = c;
 	ch->dir = dir;

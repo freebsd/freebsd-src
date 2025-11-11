@@ -491,29 +491,29 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_RIGHTVOL,
 		    CHN_GETVOLUME(c, SND_VOL_C_PCM, SND_CHN_T_FR));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_FORMAT,
-		    sndbuf_getfmt(c->bufhard));
+		    c->bufhard->fmt);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_RATE,
-		    sndbuf_getspd(c->bufhard));
+		    c->bufhard->spd);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_SIZE,
-		    sndbuf_getsize(c->bufhard));
+		    c->bufhard->bufsize);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_BLKSZ,
-		    sndbuf_getblksz(c->bufhard));
+		    c->bufhard->blksz);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_BLKCNT,
-		    sndbuf_getblkcnt(c->bufhard));
+		    c->bufhard->blkcnt);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_FREE,
 		    sndbuf_getfree(c->bufhard));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_READY,
 		    sndbuf_getready(c->bufhard));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_FORMAT,
-		    sndbuf_getfmt(c->bufsoft));
+		    c->bufsoft->fmt);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_RATE,
-		    sndbuf_getspd(c->bufsoft));
+		    c->bufsoft->spd);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_SIZE,
-		    sndbuf_getsize(c->bufsoft));
+		    c->bufsoft->bufsize);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_BLKSZ,
-		    sndbuf_getblksz(c->bufsoft));
+		    c->bufsoft->blksz);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_BLKCNT,
-		    sndbuf_getblkcnt(c->bufsoft));
+		    c->bufsoft->blkcnt);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_FREE,
 		    sndbuf_getfree(c->bufsoft));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_READY,
@@ -1267,14 +1267,11 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 		    (c->parentchannel != NULL) ?
 		    c->parentchannel->name : "", c->name);
 		sbuf_printf(s, "spd %d", c->speed);
-		if (c->speed != sndbuf_getspd(c->bufhard)) {
-			sbuf_printf(s, "/%d",
-			    sndbuf_getspd(c->bufhard));
-		}
+		if (c->speed != c->bufhard->spd)
+			sbuf_printf(s, "/%d", c->bufhard->spd);
 		sbuf_printf(s, ", fmt 0x%08x", c->format);
-		if (c->format != sndbuf_getfmt(c->bufhard)) {
-			sbuf_printf(s, "/0x%08x",
-			    sndbuf_getfmt(c->bufhard));
+		if (c->format != c->bufhard->fmt) {
+			sbuf_printf(s, "/0x%08x", c->bufhard->fmt);
 		}
 		sbuf_printf(s, ", flags 0x%08x, 0x%08x",
 		    c->flags, c->feederflags);
@@ -1293,24 +1290,24 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 				c->xruns, c->feedcount,
 				sndbuf_getfree(c->bufhard),
 				sndbuf_getfree(c->bufsoft),
-				sndbuf_getsize(c->bufhard),
-				sndbuf_getblksz(c->bufhard),
-				sndbuf_getblkcnt(c->bufhard),
-				sndbuf_getsize(c->bufsoft),
-				sndbuf_getblksz(c->bufsoft),
-				sndbuf_getblkcnt(c->bufsoft));
+				c->bufhard->bufsize,
+				c->bufhard->blksz,
+				c->bufhard->blkcnt,
+				c->bufsoft->bufsize,
+				c->bufsoft->blksz,
+				c->bufsoft->blkcnt);
 		} else {
 			sbuf_printf(s,
 			    "underruns %d, feed %u, ready %d "
 			    "\n\t\t[b:%d/%d/%d|bs:%d/%d/%d]",
 				c->xruns, c->feedcount,
 				sndbuf_getready(c->bufsoft),
-				sndbuf_getsize(c->bufhard),
-				sndbuf_getblksz(c->bufhard),
-				sndbuf_getblkcnt(c->bufhard),
-				sndbuf_getsize(c->bufsoft),
-				sndbuf_getblksz(c->bufsoft),
-				sndbuf_getblkcnt(c->bufsoft));
+				c->bufhard->bufsize,
+				c->bufhard->blksz,
+				c->bufhard->blkcnt,
+				c->bufsoft->bufsize,
+				c->bufsoft->blksz,
+				c->bufsoft->blkcnt);
 		}
 		sbuf_printf(s, "\n\t");
 

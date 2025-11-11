@@ -680,7 +680,7 @@ a10codec_dmaintr(void *priv)
 	struct a10codec_chinfo *ch = priv;
 	unsigned bufsize;
 
-	bufsize = sndbuf_getsize(ch->buffer);
+	bufsize = ch->buffer->bufsize;
 
 	ch->pos += ch->blocksize;
 	if (ch->pos >= bufsize)

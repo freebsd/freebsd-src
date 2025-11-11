@@ -440,7 +440,7 @@ fm801ch_trigger(kobj_t obj, void *data, int go)
 {
 	struct fm801_chinfo *ch = data;
 	struct fm801_info *fm801 = ch->parent;
-	u_int32_t baseaddr = sndbuf_getbufaddr(ch->buffer);
+	u_int32_t baseaddr = ch->buffer->buf_addr;
 	u_int32_t k1;
 
 	DPRINT("fm801ch_trigger go %d , ", go);

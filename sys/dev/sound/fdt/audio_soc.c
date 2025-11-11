@@ -249,7 +249,7 @@ audio_soc_chan_free(kobj_t obj, void *data)
 
 	ausoc_chan = (struct audio_soc_channel *)data;
 
-	buffer = sndbuf_getbuf(ausoc_chan->buf);
+	buffer = ausoc_chan->buf->buf;
 	if (buffer)
 		free(buffer, M_DEVBUF);
 

@@ -492,7 +492,7 @@ sysctl_dev_pcm_vchanrate(SYSCTL_HANDLER_ARGS)
 				}
 			}
 		}
-		*vchanrate = sndbuf_getspd(c->bufsoft);
+		*vchanrate = c->bufsoft->spd;
 
 		CHN_UNLOCK(c);
 	}
@@ -591,7 +591,7 @@ sysctl_dev_pcm_vchanformat(SYSCTL_HANDLER_ARGS)
 				}
 			}
 		}
-		*vchanformat = sndbuf_getfmt(c->bufsoft);
+		*vchanformat = c->bufsoft->fmt;
 
 		CHN_UNLOCK(c);
 	}

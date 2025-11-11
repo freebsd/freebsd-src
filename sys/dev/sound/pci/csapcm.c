@@ -483,7 +483,7 @@ csa_setupchan(struct csa_chinfo *ch)
 
 	if (ch->dir == PCMDIR_PLAY) {
 		/* direction */
-		csa_writemem(resp, BA1_PBA, sndbuf_getbufaddr(ch->buffer));
+		csa_writemem(resp, BA1_PBA, ch->buffer->buf_addr);
 
 		/* format */
 		csa->pfie = csa_readmem(resp, BA1_PFIE) & ~0x0000f03f;
@@ -512,7 +512,7 @@ csa_setupchan(struct csa_chinfo *ch)
 		csa_setplaysamplerate(resp, ch->spd);
 	} else if (ch->dir == PCMDIR_REC) {
 		/* direction */
-		csa_writemem(resp, BA1_CBA, sndbuf_getbufaddr(ch->buffer));
+		csa_writemem(resp, BA1_CBA, ch->buffer->buf_addr);
 
 		/* format */
 		csa_writemem(resp, BA1_CIE, (csa_readmem(resp, BA1_CIE) & ~0x0000003f) | 0x00000001);
@@ -602,11 +602,11 @@ csachan_getptr(kobj_t obj, void *data)
 	resp = &csa->res;
 
 	if (ch->dir == PCMDIR_PLAY) {
-		ptr = csa_readmem(resp, BA1_PBA) - sndbuf_getbufaddr(ch->buffer);
+		ptr = csa_readmem(resp, BA1_PBA) - ch->buffer->buf_addr;
 		if ((ch->fmt & AFMT_U8) != 0 || (ch->fmt & AFMT_S8) != 0)
 			ptr >>= 1;
 	} else {
-		ptr = csa_readmem(resp, BA1_CBA) - sndbuf_getbufaddr(ch->buffer);
+		ptr = csa_readmem(resp, BA1_CBA) - ch->buffer->buf_addr;
 		if ((ch->fmt & AFMT_U8) != 0 || (ch->fmt & AFMT_S8) != 0)
 			ptr >>= 1;
 	}
