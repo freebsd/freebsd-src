@@ -148,8 +148,6 @@ struct snd_mixer;
 #define RANGE(var, low, high) (var) = \
 	(((var)<(low))? (low) : ((var)>(high))? (high) : (var))
 
-#define DSP_DEFAULT_SPEED	8000
-
 extern int snd_unit;
 extern int snd_verbose;
 extern devclass_t pcm_devclass;

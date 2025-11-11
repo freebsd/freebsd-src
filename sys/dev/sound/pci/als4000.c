@@ -221,7 +221,7 @@ alschan_init(kobj_t obj, void *devinfo,
 	ch->channel = c;
 	ch->bps = 1;
 	ch->format = SND_FORMAT(AFMT_U8, 1, 0);
-	ch->speed = DSP_DEFAULT_SPEED;
+	ch->speed = 8000;
 	ch->buffer = b;
 	snd_mtxunlock(sc->lock);
 
