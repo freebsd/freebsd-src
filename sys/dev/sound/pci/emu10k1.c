@@ -413,7 +413,7 @@ emu_settimer(struct sc_info *sc)
 	for (i = 0; i < sc->nchans; i++) {
 		pch = &sc->pch[i];
 		if (pch->buffer) {
-			tmp = (pch->spd * sndbuf_getalign(pch->buffer))
+			tmp = (pch->spd * pch->buffer->align)
 			    / pch->blksz;
 			if (tmp > rate)
 				rate = tmp;
@@ -423,7 +423,7 @@ emu_settimer(struct sc_info *sc)
 	for (i = 0; i < 3; i++) {
 		rch = &sc->rch[i];
 		if (rch->buffer) {
-			tmp = (rch->spd * sndbuf_getalign(rch->buffer))
+			tmp = (rch->spd * rch->buffer->align)
 			    / rch->blksz;
 			if (tmp > rate)
 				rate = tmp;
@@ -838,7 +838,7 @@ emupchan_free(kobj_t obj, void *data)
 	int r;
 
 	snd_mtxlock(sc->lock);
-	r = emu_memfree(sc, sndbuf_getbuf(ch->buffer));
+	r = emu_memfree(sc, ch->buffer->buf);
 	snd_mtxunlock(sc->lock);
 
 	return r;
@@ -985,7 +985,7 @@ emurchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 		return NULL;
 	else {
 		snd_mtxlock(sc->lock);
-		emu_wrptr(sc, 0, ch->basereg, sndbuf_getbufaddr(ch->buffer));
+		emu_wrptr(sc, 0, ch->basereg, ch->buffer->buf_addr);
 		emu_wrptr(sc, 0, ch->sizereg, 0); /* off */
 		snd_mtxunlock(sc->lock);
 		return ch;

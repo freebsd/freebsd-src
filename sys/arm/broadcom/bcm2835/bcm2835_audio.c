@@ -575,7 +575,7 @@ bcm2835_audio_worker(void *data)
 			continue;
 
 		count = sndbuf_getready(ch->buffer);
-		size = sndbuf_getsize(ch->buffer);
+		size = ch->buffer->bufsize;
 		readyptr = sndbuf_getreadyptr(ch->buffer);
 
 		BCM2835_AUDIO_LOCK(sc);
@@ -588,11 +588,12 @@ bcm2835_audio_worker(void *data)
 		if (count < VCHIQ_AUDIO_PACKET_SIZE)
 			continue;
 
-		buf = (uint8_t*)sndbuf_getbuf(ch->buffer) + readyptr;
+		buf = ch->buffer->buf + readyptr;
 
 		bcm2835_audio_write_samples(ch, buf, count);
 		BCM2835_AUDIO_LOCK(sc);
-		ch->unsubmittedptr = (ch->unsubmittedptr + count) % sndbuf_getsize(ch->buffer);
+		ch->unsubmittedptr = (ch->unsubmittedptr + count) %
+		    ch->buffer->bufsize;
 		ch->available_space -= count;
 		ch->submitted_samples += count;
 		KASSERT(ch->available_space >= 0, ("ch->available_space == %d\n", ch->available_space));
@@ -662,7 +663,7 @@ bcmchan_free(kobj_t obj, void *data)
 	struct bcm2835_audio_chinfo *ch = data;
 	void *buffer;
 
-	buffer = sndbuf_getbuf(ch->buffer);
+	buffer = ch->buffer->buf;
 	if (buffer)
 		free(buffer, M_DEVBUF);
 

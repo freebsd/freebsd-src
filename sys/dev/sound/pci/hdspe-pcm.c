@@ -962,7 +962,7 @@ hdspechan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 	    (sc->period * 4));
 end:
 
-	return (sndbuf_getblksz(ch->buffer));
+	return (ch->buffer->blksz);
 }
 
 static uint32_t hdspe_bkp_fmt[] = {

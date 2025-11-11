@@ -398,7 +398,7 @@ ssichan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 
 	setup_dma(scp);
 
-	return (sndbuf_getblksz(ch->buffer));
+	return (ch->buffer->blksz);
 }
 
 uint32_t
@@ -415,7 +415,7 @@ ssi_dma_intr(void *arg, int chn)
 	sc = scp->sc;
 	conf = sc->conf;
 
-	bufsize = sndbuf_getsize(ch->buffer);
+	bufsize = ch->buffer->bufsize;
 
 	sc->pos += conf->period;
 	if (sc->pos >= bufsize)
@@ -487,8 +487,8 @@ setup_dma(struct sc_pcminfo *scp)
 	conf->saddr = sc->buf_base_phys;
 	conf->daddr = rman_get_start(sc->res[0]) + SSI_STX0;
 	conf->event = sc->sdma_ev_tx; /* SDMA TX event */
-	conf->period = sndbuf_getblksz(ch->buffer);
-	conf->num_bd = sndbuf_getblkcnt(ch->buffer);
+	conf->period = ch->buffer->blksz;
+	conf->num_bd = ch->buffer->blkcnt;
 
 	/*
 	 * Word Length
@@ -497,7 +497,7 @@ setup_dma(struct sc_pcminfo *scp)
 	 * SSI supports 24 at max.
 	 */
 
-	fmt = sndbuf_getfmt(ch->buffer);
+	fmt = ch->buffer->fmt;
 
 	if (fmt & AFMT_16BIT) {
 		conf->word_length = 16;
