@@ -128,7 +128,7 @@ struct tpm_sc {
 	lwpid_t		owner_tid;
 
 	struct callout 	discard_buffer_callout;
-#ifdef TPM_HARVEST
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
 	struct timeout_task 	harvest_task;
 #endif
 
