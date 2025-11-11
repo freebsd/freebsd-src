@@ -20,6 +20,8 @@ start_cmd="${name}_start"
 stop_cmd="${name}_stop"
 status_cmd="${name}_status"
 
+required_modules="cuse"
+
 configs=
 pidpath="/var/run/${name}"
 virtual_oss_default_args="\
@@ -53,7 +55,6 @@ virtual_oss_pids()
 virtual_oss_precmd()
 {
 	/usr/bin/install -d -m 0755 -o root "${pidpath}"
-	load_kld cuse
 }
 
 start_instance()
