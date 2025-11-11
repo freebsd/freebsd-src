@@ -184,7 +184,6 @@ int sndstat_unregister(device_t dev);
 enum {
 	SCF_PCM,
 	SCF_MIDI,
-	SCF_SYNTH,
 };
 
 /*
