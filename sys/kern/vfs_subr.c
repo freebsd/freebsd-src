@@ -3713,11 +3713,12 @@ vput(struct vnode *vp)
 
 	ASSERT_VOP_LOCKED(vp, __func__);
 	ASSERT_VI_UNLOCKED(vp, __func__);
-	if (!refcount_release(&vp->v_usecount)) {
-		VOP_UNLOCK(vp);
+	if (refcount_release_if_last(&vp->v_usecount)) {
+		vput_final(vp, VPUT);
 		return;
 	}
-	vput_final(vp, VPUT);
+	VOP_UNLOCK(vp);
+	vrele(vp);
 }
 
 /*
