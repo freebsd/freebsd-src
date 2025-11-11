@@ -36,6 +36,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <locale.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -55,10 +56,10 @@ static void badformat(void);
 static void iso8601_usage(const char *) __dead2;
 static void multipleformats(void);
 static void printdate(const char *);
-static void printisodate(struct tm *, long);
+static void printisodate(struct tm *, long, long);
 static void setthetime(const char *, const char *, int, struct timespec *);
 static size_t strftime_ns(char * __restrict, size_t, const char * __restrict,
-    const struct tm * __restrict, long);
+    const struct tm * __restrict, long, long);
 static void usage(void) __dead2;
 
 static const struct iso8601_fmt {
@@ -78,26 +79,24 @@ static const char *rfc2822_format = "%a, %d %b %Y %T %z";
 int
 main(int argc, char *argv[])
 {
-	struct timespec ts;
+	struct timespec ts = { 0, 0 }, tres = { 0, 1 };
 	int ch, rflag;
 	bool Iflag, jflag, Rflag;
 	const char *format;
 	char buf[1024];
-	char *fmt, *outzone = NULL;
-	char *tmp;
+	char *end, *fmt, *outzone = NULL;
 	struct vary *v;
 	const struct vary *badv;
 	struct tm *lt;
 	struct stat sb;
 	size_t i;
+	intmax_t number;
 
 	v = NULL;
 	fmt = NULL;
 	(void) setlocale(LC_TIME, "");
 	rflag = 0;
 	Iflag = jflag = Rflag = 0;
-	ts.tv_sec = 0;
-	ts.tv_nsec = 0;
 	while ((ch = getopt(argc, argv, "f:I::jnRr:uv:z:")) != -1)
 		switch((char)ch) {
 		case 'f':
@@ -131,13 +130,15 @@ main(int argc, char *argv[])
 			break;
 		case 'r':		/* user specified seconds */
 			rflag = 1;
-			ts.tv_sec = strtoq(optarg, &tmp, 0);
-			if (*tmp != 0) {
-				if (stat(optarg, &sb) == 0) {
-					ts.tv_sec = sb.st_mtim.tv_sec;
-					ts.tv_nsec = sb.st_mtim.tv_nsec;
-				} else
-					usage();
+			number = strtoimax(optarg, &end, 0);
+			if (end > optarg && *end == '\0') {
+				ts.tv_sec = number;
+				ts.tv_nsec = 0;
+			} else if (stat(optarg, &sb) == 0) {
+				ts.tv_sec = sb.st_mtim.tv_sec;
+				ts.tv_nsec = sb.st_mtim.tv_nsec;
+			} else {
+				usage();
 			}
 			break;
 		case 'u':		/* do everything in UTC */
@@ -155,8 +156,12 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (!rflag && clock_gettime(CLOCK_REALTIME, &ts) == -1)
-		err(1, "clock_gettime");
+	if (!rflag) {
+		if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
+			err(1, "clock_gettime");
+		if (clock_getres(CLOCK_REALTIME, &tres) == -1)
+			err(1, "clock_getres");
+	}
 
 	format = "%+";
 
@@ -191,14 +196,14 @@ main(int argc, char *argv[])
 	badv = vary_apply(v, lt);
 	if (badv) {
 		fprintf(stderr, "%s: Cannot apply date adjustment\n",
-			badv->arg);
+		    badv->arg);
 		vary_destroy(v);
 		usage();
 	}
 	vary_destroy(v);
 
 	if (Iflag)
-		printisodate(lt, ts.tv_nsec);
+		printisodate(lt, ts.tv_nsec, tres.tv_nsec);
 
 	if (format == rfc2822_format)
 		/*
@@ -208,7 +213,8 @@ main(int argc, char *argv[])
 		setlocale(LC_TIME, "C");
 
 
-	(void)strftime_ns(buf, sizeof(buf), format, lt, ts.tv_nsec);
+	(void)strftime_ns(buf, sizeof(buf), format, lt,
+	    ts.tv_nsec, tres.tv_nsec);
 	printdate(buf);
 }
 
@@ -222,7 +228,7 @@ printdate(const char *buf)
 }
 
 static void
-printisodate(struct tm *lt, long nsec)
+printisodate(struct tm *lt, long nsec, long res)
 {
 	const struct iso8601_fmt *it;
 	char fmtbuf[64], buf[64], tzbuf[8];
@@ -231,10 +237,10 @@ printisodate(struct tm *lt, long nsec)
 	for (it = iso8601_fmts; it <= iso8601_selected; it++)
 		strlcat(fmtbuf, it->format_string, sizeof(fmtbuf));
 
-	(void)strftime_ns(buf, sizeof(buf), fmtbuf, lt, nsec);
+	(void)strftime_ns(buf, sizeof(buf), fmtbuf, lt, nsec, res);
 
 	if (iso8601_selected > iso8601_fmts) {
-		(void)strftime_ns(tzbuf, sizeof(tzbuf), "%z", lt, nsec);
+		(void)strftime_ns(tzbuf, sizeof(tzbuf), "%z", lt, nsec, res);
 		memmove(&tzbuf[4], &tzbuf[3], 3);
 		tzbuf[3] = ':';
 		strlcat(buf, tzbuf, sizeof(buf));
@@ -370,16 +376,17 @@ setthetime(const char *fmt, const char *p, int jflag, struct timespec *ts)
  */
 static size_t
 strftime_ns(char * __restrict s, size_t maxsize, const char * __restrict format,
-    const struct tm * __restrict t, long nsec)
+    const struct tm * __restrict t, long nsec, long res)
 {
-	size_t prefixlen;
 	size_t ret;
 	char *newformat;
 	char *oldformat;
 	const char *prefix;
 	const char *suffix;
 	const char *tok;
-	bool seen_percent;
+	long number;
+	int i, len, prefixlen, width, zeroes;
+	bool seen_percent, seen_dash, seen_width;
 
 	seen_percent = false;
 	if ((newformat = strdup(format)) == NULL)
@@ -392,35 +399,84 @@ strftime_ns(char * __restrict s, size_t maxsize, const char * __restrict format,
 			 * If the previous token was a percent sign,
 			 * then there are two percent tokens in a row.
 			 */
-			if (seen_percent)
+			if (seen_percent) {
 				seen_percent = false;
-			else
+			} else {
 				seen_percent = true;
+				seen_dash = seen_width = false;
+				prefixlen = tok - newformat;
+				width = 0;
+			}
 			break;
 		case 'N':
-			if (seen_percent) {
-				oldformat = newformat;
-				prefix = oldformat;
-				prefixlen = tok - oldformat - 1;
-				suffix = tok + 1;
+			if (!seen_percent)
+				break;
+			oldformat = newformat;
+			prefix = oldformat;
+			suffix = tok + 1;
+			/*
+			 * Prepare the number we are about to print.  If
+			 * the requested width is less than 9, we need to
+			 * cut off the least significant digits.  If it is
+			 * more than 9, we will have to append zeroes.
+			 */
+			if (seen_dash) {
 				/*
-				 * Construct a new format string from the
-				 * prefix (i.e., the part of the old format
-				 * from its beginning to the currently handled
-				 * "%N" conversion specification), the
-				 * nanoseconds, and the suffix (i.e., the part
-				 * of the old format from the next token to the
-				 * end).
+				 * Calculate number of singificant digits
+				 * based on res which is the clock's
+				 * resolution in nanoseconds.
 				 */
-				if (asprintf(&newformat, "%.*s%.9ld%s",
-				    (int)prefixlen, prefix, nsec,
-				    suffix) < 0) {
-					err(1, "asprintf");
-				}
-				free(oldformat);
-				tok = newformat + prefixlen + 9;
+				for (width = 9, number = res;
+				     width > 0 && number > 0;
+				     width--, number /= 10)
+					/* nothing */;
 			}
+			number = nsec;
+			zeroes = 0;
+			if (width == 0) {
+				width = 9;
+			} else if (width > 9) {
+				zeroes = width - 9;
+				width = 9;
+			} else {
+				for (i = 0; i < 9 - width; i++)
+					number /= 10;
+			}
+			/*
+			 * Construct a new format string from the prefix
+			 * (i.e., the part of the old format from its
+			 * beginning to the currently handled "%N"
+			 * conversion specification), the nanoseconds, and
+			 * the suffix (i.e., the part of the old format
+			 * from the next token to the end).
+			 */
+			asprintf(&newformat, "%.*s%.*ld%.*d%n%s", prefixlen,
+			    prefix, width, number, zeroes, 0, &len, suffix);
+			if (newformat == NULL)
+				err(1, "asprintf");
+			free(oldformat);
+			tok = newformat + len - 1;
 			seen_percent = false;
+			break;
+		case '-':
+			if (seen_percent) {
+				if (seen_dash || seen_width) {
+					seen_percent = false;
+					break;
+				}
+				seen_dash = true;
+			}
+			break;
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+			if (seen_percent) {
+				if (seen_dash) {
+					seen_percent = false;
+					break;
+				}
+				width = width * 10 + *tok - '0';
+				seen_width = true;
+			}
 			break;
 		default:
 			seen_percent = false;
