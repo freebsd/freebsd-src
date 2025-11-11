@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 5, 2025
+.Dd November 10, 2025
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -186,7 +186,7 @@ Print the date and time represented by
 .Ar seconds ,
 where
 .Ar seconds
-is the number of seconds since the Epoch
+is the number of seconds since the Unix Epoch
 (00:00:00 UTC, January 1, 1970;
 see
 .Xr time 3 ) ,
@@ -321,20 +321,43 @@ Refer to the examples below for further details.
 .Pp
 An operand with a leading plus
 .Pq Sq +
-sign signals a user-defined format string
+sign specifies a user-defined format string
 which specifies the format in which to display the date and time.
 The format string may contain any of the conversion specifications
 described in the
 .Xr strftime 3
-manual page and
-.Ql \&%N
-for nanoseconds, as well as any arbitrary text.
+manual page, as well as any arbitrary text.
+.Pp
+The following extensions to the regular
+.Xr strftime 3
+syntax are supported:
+.Bl -tag -width "xxxx"
+.It Cm \&% Ns Ar n Ns Cm N
+Replaced by the
+.Ar n Ns
+-digit fractional part of the number of seconds since the Unix Epoch.
+If
+.Ar n
+is omitted or zero, a default value of 9 is used, resulting in a
+number with nanosecond resolution (hence the choice of the letter
+.Sq N
+for this conversion).
+Note that the underlying clock may not necessarily support nanosecond
+resolution.
+.It Cm \&%-N
+As above, but automatically choose the precision based on the reported
+resolution of the underlying clock.
+If the
+.Fl r
+option was specified, the default precision of 9 digits is used.
+.El
+.Pp
 A newline
 .Pq Ql \en
 character is always output after the characters specified by
 the format string.
 The format string for the default display is
-.Dq +%+ .
+.Dq %+ .
 .Pp
 If an operand does not have a leading plus sign, it is interpreted as
 a value for setting the system's notion of the current date and time.
@@ -448,6 +471,13 @@ The
 utility exits 0 on success, 1 if unable to set the date, and 2
 if able to set the local date, but unable to set it globally.
 .Sh EXAMPLES
+The command
+.Pp
+.Dl "date +%s.%3N"
+.Pp
+will print the time elapsed since the Unix Epoch with millisecond
+precision.
+.Pp
 The command:
 .Pp
 .Dl "date ""+DATE: %Y-%m-%d%nTIME: %H:%M:%S"""
@@ -619,3 +649,9 @@ The
 .Ql \&%N
 conversion specification was added in
 .Fx 14.1 .
+Support for the
+.Ql \&% Ns Ar n Ns Cm N
+and
+.Ql \&%-N
+variants was added in
+.Fx 15.1 .

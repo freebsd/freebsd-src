@@ -132,6 +132,8 @@ atf_init_test_cases()
 	format_string_test M M 04 20
 	format_string_test m m 02 11
 	format_string_test N N 000000000 000000000
+	format_string_test 3N 3N 000 000
+	format_string_test 12N 12N 000000000000 000000000000
 	format_string_test p p AM PM
 	format_string_test R R 07:04 21:20
 	format_string_test r r "07:04:03 AM" "09:20:00 PM"
