@@ -399,8 +399,8 @@ feed_matrix_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 }
 
 static struct pcm_feederdesc feeder_matrix_desc[] = {
-	{ FEEDER_MATRIX, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0 }
+	{ FEEDER_MATRIX, 0, 0, 0 },
+	{ 0, 0, 0, 0 }
 };
 
 static kobj_method_t feeder_matrix_methods[] = {

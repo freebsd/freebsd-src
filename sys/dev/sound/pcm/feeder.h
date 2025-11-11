@@ -31,7 +31,6 @@ struct pcm_feederdesc {
 	u_int32_t type;
 	u_int32_t in, out;
 	u_int32_t flags;
-	int idx;
 };
 
 struct feeder_class {

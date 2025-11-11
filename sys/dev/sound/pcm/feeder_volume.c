@@ -307,8 +307,8 @@ feed_volume_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 }
 
 static struct pcm_feederdesc feeder_volume_desc[] = {
-	{ FEEDER_VOLUME, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0 }
+	{ FEEDER_VOLUME, 0, 0, 0 },
+	{ 0, 0, 0, 0 }
 };
 
 static kobj_method_t feeder_volume_methods[] = {
