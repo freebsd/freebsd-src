@@ -57,8 +57,6 @@ struct snd_dbuf {
 struct snd_dbuf *sndbuf_create(struct pcm_channel *channel, const char *desc);
 void sndbuf_destroy(struct snd_dbuf *b);
 
-void sndbuf_dump(struct snd_dbuf *b, char *s, u_int32_t what);
-
 int sndbuf_alloc(struct snd_dbuf *b, bus_dma_tag_t dmatag, int dmaflags, unsigned int size);
 int sndbuf_setup(struct snd_dbuf *b, void *buf, unsigned int size);
 void sndbuf_free(struct snd_dbuf *b);
