@@ -88,19 +88,10 @@ feeder_create(struct feeder_class *fc, struct pcm_feederdesc *desc)
 	if (f == NULL)
 		return NULL;
 
-	f->data = NULL;
-	f->source = NULL;
-	f->parent = NULL;
 	f->class = fc;
 	f->desc = &(f->desc_static);
-
-	if (desc) {
+	if (desc != NULL)
 		*(f->desc) = *desc;
-	} else {
-		f->class->type = FEEDER_ROOT;
-		f->desc->in = 0;
-		f->desc->out = 0;
-	}
 
 	err = FEEDER_INIT(f);
 	if (err) {
