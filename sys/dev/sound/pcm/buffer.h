@@ -31,7 +31,6 @@
 #define SNDBUF_NAMELEN	48
 
 struct snd_dbuf {
-	device_t dev;
 	u_int8_t *buf, *tmpbuf;
 	u_int8_t *shadbuf; /**< shadow buffer used w/ S_D_SILENCE/SKIP */
 	volatile int sl; /**< shadbuf ready length in # of bytes */
@@ -55,7 +54,7 @@ struct snd_dbuf {
 	char name[SNDBUF_NAMELEN];
 };
 
-struct snd_dbuf *sndbuf_create(device_t dev, char *drv, char *desc, struct pcm_channel *channel);
+struct snd_dbuf *sndbuf_create(char *drv, char *desc, struct pcm_channel *channel);
 void sndbuf_destroy(struct snd_dbuf *b);
 
 void sndbuf_dump(struct snd_dbuf *b, char *s, u_int32_t what);
