@@ -1257,7 +1257,7 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	chn_vpc_reset(c, SND_VOL_C_PCM, 1);
 	CHN_UNLOCK(c);
 
-	fc = feeder_getclass(NULL);
+	fc = feeder_getclass(FEEDER_ROOT);
 	if (fc == NULL) {
 		device_printf(d->dev, "%s(): failed to get feeder class\n",
 		    __func__);
