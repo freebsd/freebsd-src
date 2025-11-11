@@ -306,11 +306,6 @@ feed_volume_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 	return (dst - b);
 }
 
-static struct pcm_feederdesc feeder_volume_desc[] = {
-	{ FEEDER_VOLUME, 0, 0, 0 },
-	{ 0, 0, 0, 0 }
-};
-
 static kobj_method_t feeder_volume_methods[] = {
 	KOBJMETHOD(feeder_init,		feed_volume_init),
 	KOBJMETHOD(feeder_free,		feed_volume_free),
@@ -319,7 +314,7 @@ static kobj_method_t feeder_volume_methods[] = {
 	KOBJMETHOD_END
 };
 
-FEEDER_DECLARE(feeder_volume, NULL);
+FEEDER_DECLARE(feeder_volume, FEEDER_VOLUME, NULL);
 
 /* Extern */
 
