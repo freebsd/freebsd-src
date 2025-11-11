@@ -180,4 +180,4 @@ static kobj_method_t feeder_format_methods[] = {
 	KOBJMETHOD_END
 };
 
-FEEDER_DECLARE(feeder_format, FEEDER_FORMAT, NULL);
+FEEDER_DECLARE(feeder_format, FEEDER_FORMAT);

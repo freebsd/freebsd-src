@@ -1714,4 +1714,4 @@ static kobj_method_t feeder_rate_methods[] = {
 	KOBJMETHOD_END
 };
 
-FEEDER_DECLARE(feeder_rate, FEEDER_RATE, NULL);
+FEEDER_DECLARE(feeder_rate, FEEDER_RATE);

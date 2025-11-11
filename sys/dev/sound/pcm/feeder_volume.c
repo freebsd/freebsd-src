@@ -314,7 +314,7 @@ static kobj_method_t feeder_volume_methods[] = {
 	KOBJMETHOD_END
 };
 
-FEEDER_DECLARE(feeder_volume, FEEDER_VOLUME, NULL);
+FEEDER_DECLARE(feeder_volume, FEEDER_VOLUME);
 
 /* Extern */
 

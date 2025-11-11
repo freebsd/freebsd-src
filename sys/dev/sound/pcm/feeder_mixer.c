@@ -366,4 +366,4 @@ static kobj_method_t feeder_mixer_methods[] = {
 	KOBJMETHOD_END
 };
 
-FEEDER_DECLARE(feeder_mixer, FEEDER_MIXER, NULL);
+FEEDER_DECLARE(feeder_mixer, FEEDER_MIXER);

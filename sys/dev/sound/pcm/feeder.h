@@ -35,7 +35,6 @@ struct pcm_feederdesc {
 struct feeder_class {
 	KOBJ_CLASS_FIELDS;
 	struct pcm_feederdesc desc;
-	void *data;
 	SLIST_ENTRY(feeder_class) link;
 };
 
@@ -64,13 +63,12 @@ struct pcm_feeder *feeder_find(struct pcm_channel *c, u_int32_t type);
 void feeder_printchain(struct pcm_feeder *head);
 int feeder_chain(struct pcm_channel *);
 
-#define FEEDER_DECLARE(feeder, type, pdata)				\
+#define FEEDER_DECLARE(feeder, type)					\
 static struct feeder_class feeder ## _class = {				\
 	.name =		#feeder,					\
 	.methods =	feeder ## _methods,				\
 	.size =		sizeof(struct pcm_feeder),			\
 	.desc =		{ type, 0, 0 },					\
-	.data =		pdata,						\
 };									\
 SYSINIT(feeder, SI_SUB_DRIVERS, SI_ORDER_ANY, feeder_register,		\
     &feeder ## _class)
