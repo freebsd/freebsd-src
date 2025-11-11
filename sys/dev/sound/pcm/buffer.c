@@ -694,20 +694,6 @@ sndbuf_feed(struct snd_dbuf *from, struct snd_dbuf *to, struct pcm_channel *chan
 	return (0);
 }
 
-u_int32_t
-sndbuf_getflags(struct snd_dbuf *b)
-{
-	return b->flags;
-}
-
-void
-sndbuf_setflags(struct snd_dbuf *b, u_int32_t flags, int on)
-{
-	b->flags &= ~flags;
-	if (on)
-		b->flags |= flags;
-}
-
 /**
  * @brief Clear the shadow buffer by filling with samples equal to zero.
  *
