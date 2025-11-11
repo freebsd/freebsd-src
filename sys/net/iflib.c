@@ -3449,25 +3449,6 @@ iflib_remove_mbuf(iflib_txq_t txq)
 	return (m);
 }
 
-static inline caddr_t
-calc_next_txd(iflib_txq_t txq, int cidx, uint8_t qid)
-{
-	qidx_t size;
-	int ntxd;
-	caddr_t start, end, cur, next;
-
-	ntxd = txq->ift_size;
-	size = txq->ift_txd_size[qid];
-	start = txq->ift_ifdi[qid].idi_vaddr;
-
-	if (__predict_false(size == 0))
-		return (start);
-	cur = start + size * cidx;
-	end = start + size * ntxd;
-	next = CACHE_PTR_NEXT(cur);
-	return (next < end ? next : start);
-}
-
 /*
  * Pad an mbuf to ensure a minimum ethernet frame size.
  * min_frame_size is the frame size (less CRC) to pad the mbuf to
@@ -3521,37 +3502,22 @@ iflib_encap(iflib_txq_t txq, struct mbuf **m_headp)
 	bus_dma_tag_t		buf_tag;
 	bus_dma_segment_t	*segs;
 	struct mbuf		*m_head, **ifsd_m;
-	void			*next_txd;
 	bus_dmamap_t		map;
 	struct if_pkt_info	pi;
 	int remap = 0;
-	int err, nsegs, ndesc, max_segs, pidx, cidx, next, ntxd;
+	int err, nsegs, ndesc, max_segs, pidx;
 
 	ctx = txq->ift_ctx;
 	sctx = ctx->ifc_sctx;
 	scctx = &ctx->ifc_softc_ctx;
 	segs = txq->ift_segs;
-	ntxd = txq->ift_size;
 	m_head = *m_headp;
 	map = NULL;
 
 	/*
 	 * If we're doing TSO the next descriptor to clean may be quite far ahead
 	 */
-	cidx = txq->ift_cidx;
 	pidx = txq->ift_pidx;
-	if (ctx->ifc_flags & IFC_PREFETCH) {
-		next = (cidx + CACHE_PTR_INCREMENT) & (ntxd - 1);
-		if (!(ctx->ifc_flags & IFLIB_HAS_TXCQ)) {
-			next_txd = calc_next_txd(txq, cidx, 0);
-			prefetch(next_txd);
-		}
-
-		/* prefetch the next cache line of mbuf pointers and flags */
-		prefetch(&txq->ift_sds.ifsd_m[next]);
-		prefetch(&txq->ift_sds.ifsd_map[next]);
-		next = (cidx + CACHE_LINE_SIZE) & (ntxd - 1);
-	}
 	map = txq->ift_sds.ifsd_map[pidx];
 	ifsd_m = txq->ift_sds.ifsd_m;
 
@@ -3737,24 +3703,16 @@ defrag_failed:
 static void
 iflib_tx_desc_free(iflib_txq_t txq, int n)
 {
-	uint32_t qsize, cidx, mask, gen;
+	uint32_t qsize, cidx, gen;
 	struct mbuf *m, **ifsd_m;
-	bool do_prefetch;
 
 	cidx = txq->ift_cidx;
 	gen = txq->ift_gen;
 	qsize = txq->ift_size;
-	mask = qsize - 1;
 	ifsd_m = txq->ift_sds.ifsd_m;
-	do_prefetch = (txq->ift_ctx->ifc_flags & IFC_PREFETCH);
 
 	while (n-- > 0) {
-		if (do_prefetch) {
-			prefetch(ifsd_m[(cidx + 3) & mask]);
-			prefetch(ifsd_m[(cidx + 4) & mask]);
-		}
 		if ((m = ifsd_m[cidx]) != NULL) {
-			prefetch(&ifsd_m[(cidx + CACHE_PTR_INCREMENT) & mask]);
 			if (m->m_pkthdr.csum_flags & CSUM_TSO) {
 				bus_dmamap_sync(txq->ift_tso_buf_tag,
 				    txq->ift_sds.ifsd_tso_map[cidx],
