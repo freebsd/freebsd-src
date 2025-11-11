@@ -41,7 +41,7 @@ struct snd_dbuf {
 	volatile int rl; /* length of ready area */
 	volatile int hp;
 	volatile u_int64_t total, prev_total;
-	int dmachan, dir;       /* dma channel */
+	int dmachan;       /* dma channel */
 	u_int32_t fmt, spd, bps, align;
 	unsigned int blksz, blkcnt;
 	int xrun;
