@@ -358,11 +358,6 @@ feed_mixer_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 	return (rcnt);
 }
 
-static struct pcm_feederdesc feeder_mixer_desc[] = {
-	{ FEEDER_MIXER, 0, 0, 0 },
-	{ 0, 0, 0, 0 }
-};
-
 static kobj_method_t feeder_mixer_methods[] = {
 	KOBJMETHOD(feeder_init,		feed_mixer_init),
 	KOBJMETHOD(feeder_free,		feed_mixer_free),
@@ -371,4 +366,4 @@ static kobj_method_t feeder_mixer_methods[] = {
 	KOBJMETHOD_END
 };
 
-FEEDER_DECLARE(feeder_mixer, NULL);
+FEEDER_DECLARE(feeder_mixer, FEEDER_MIXER, NULL);
