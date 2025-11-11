@@ -41,26 +41,12 @@
 
 static MALLOC_DEFINE(M_FEEDER, "feeder", "pcm feeder");
 
-static SLIST_HEAD(, feeder_class) feedertab;
-
-static void
-feeder_register_root(void *p)
-{
-	struct feeder_class *fc = p;
-
-	KASSERT(fc->type == FEEDER_ROOT,
-	    ("first feeder not root: %s", fc->name));
-
-	SLIST_INIT(&feedertab);
-	SLIST_INSERT_HEAD(&feedertab, fc, link);
-}
+static SLIST_HEAD(, feeder_class) feedertab = SLIST_HEAD_INITIALIZER(feedertab);
 
 void
 feeder_register(void *p)
 {
 	struct feeder_class *fc = p;
-
-	KASSERT(fc->type != 0, ("feeder '%s' has no descriptor", fc->name));
 
 	SLIST_INSERT_HEAD(&feedertab, fc, link);
 }
@@ -381,6 +367,6 @@ static struct feeder_class feeder_root_class = {
  * Register the root feeder first so that pcm_addchan() and subsequent
  * functions can use it.
  */
-SYSINIT(feeder_root, SI_SUB_DRIVERS, SI_ORDER_FIRST, feeder_register_root,
+SYSINIT(feeder_root, SI_SUB_DRIVERS, SI_ORDER_FIRST, feeder_register,
     &feeder_root_class);
 SYSUNINIT(feeder_root, SI_SUB_DRIVERS, SI_ORDER_FIRST, feeder_unregisterall, NULL);
