@@ -31,6 +31,7 @@
 #include <sys/nv.h>
 #include <sys/sndstat.h>
 #include <sys/soundcard.h>
+#include <sys/sysctl.h>
 
 #include <dlfcn.h>
 #include <errno.h>
@@ -51,6 +52,8 @@
 #include "backend.h"
 #include "int.h"
 #include "virtual_oss.h"
+
+#define SYSCTL_BASECLONE	"hw.snd.basename_clone"
 
 pthread_mutex_t atomic_mtx;
 pthread_cond_t atomic_cv;
@@ -1617,6 +1620,7 @@ volatile sig_atomic_t voss_exit = 0;
 
 static int voss_dsp_perm = 0666;
 static int voss_do_background;
+static int voss_baseclone = 0;
 static const char *voss_pid_path;
 
 uint32_t voss_dsp_rx_refresh;
@@ -1737,6 +1741,20 @@ usage(void)
 	    "\t" "Max channels = %d\n", VMAX_CHAN);
 
 	exit(EX_USAGE);
+}
+
+/*
+ * Restore hw.snd.basename_clone if it was disabled by us.
+ */
+static void
+restore_baseclone(void)
+{
+	if (voss_baseclone) {
+		if (sysctlbyname(SYSCTL_BASECLONE, NULL, NULL, &voss_baseclone,
+		    sizeof(int)) < 0)
+			warn("Could not enable " SYSCTL_BASECLONE);
+		printf(SYSCTL_BASECLONE ": 0 -> %d\n", voss_baseclone);
+	}
 }
 
 static void
@@ -1883,8 +1901,18 @@ dup_profile(vprofile_t *pvp, int *pamp, int pol, int rx_mute,
 		 * Detect /dev/dsp creation and try to disable system
 		 * basename cloning automatically:
 		 */
-		if (strcmp(ptr->oss_name, "dsp") == 0)
-			system("sysctl hw.snd.basename_clone=0");
+		if (strcmp(ptr->oss_name, "dsp") == 0) {
+			size_t size;
+
+			x = 0;
+			size = sizeof(int);
+			if (sysctlbyname(SYSCTL_BASECLONE, &voss_baseclone,
+			    &size, &x, size) < 0)
+				return ("Could not disable " SYSCTL_BASECLONE);
+			printf(SYSCTL_BASECLONE ": %d -> 0\n", voss_baseclone);
+			if (atexit(restore_baseclone) < 0)
+				return ("Could not set atexit callback");
+		}
 
 		/* create DSP character device */
 		pdev = cuse_dev_create(&vclient_oss_methods, ptr, NULL,
