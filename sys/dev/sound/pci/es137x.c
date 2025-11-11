@@ -987,7 +987,7 @@ es1370_init(struct es_info *es)
 		es->escfg = ES_SET_FIXED_RATE(es->escfg, fixed_rate);
 	else {
 		es->escfg = ES_SET_FIXED_RATE(es->escfg, 0);
-		fixed_rate = DSP_DEFAULT_SPEED;
+		fixed_rate = 8000;
 	}
 	if (single_pcm)
 		es->escfg = ES_SET_SINGLE_PCM_MIX(es->escfg, 1);
