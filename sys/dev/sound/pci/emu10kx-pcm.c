@@ -773,7 +773,7 @@ emupchan_setblocksize(kobj_t obj __unused, void *c_devinfo, uint32_t blocksize)
 		blocksize = ch->pcm->bufsz;
 	snd_mtxlock(sc->lock);
 	ch->blksz = blocksize;
-	emu_timer_set(sc->card, ch->timer, ch->blksz / sndbuf_getalign(ch->buffer));
+	emu_timer_set(sc->card, ch->timer, ch->blksz / ch->buffer->align);
 	snd_mtxunlock(sc->lock);
 	return (ch->blksz);
 }
@@ -795,7 +795,8 @@ emupchan_trigger(kobj_t obj __unused, void *c_devinfo, int go)
 		else
 			emu_vroute(sc->card, &(sc->rt_mono), ch->master);
 		emu_vwrite(sc->card, ch->master);
-		emu_timer_set(sc->card, ch->timer, ch->blksz / sndbuf_getalign(ch->buffer));
+		emu_timer_set(sc->card, ch->timer, ch->blksz /
+		    ch->buffer->align);
 		emu_timer_enable(sc->card, ch->timer, 1);
 	}
 	/* PCM interrupt handler will handle PCMTRIG_STOP event */
@@ -878,7 +879,7 @@ emurchan_init(kobj_t obj __unused, void *devinfo, struct snd_dbuf *b, struct pcm
 		return (NULL);
 	else {
 		ch->timer = emu_timer_create(sc->card);
-		emu_wrptr(sc->card, 0, ch->basereg, sndbuf_getbufaddr(ch->buffer));
+		emu_wrptr(sc->card, 0, ch->basereg, ch->buffer->buf_addr);
 		emu_wrptr(sc->card, 0, ch->sizereg, 0);	/* off */
 		return (ch);
 	}
@@ -930,7 +931,8 @@ emurchan_setblocksize(kobj_t obj __unused, void *c_devinfo, uint32_t blocksize)
 	 * (and use) timer interrupts. Otherwise channel will be marked dead.
 	 */
 	if (ch->blksz < (ch->pcm->bufsz / 2)) {
-		emu_timer_set(sc->card, ch->timer, ch->blksz / sndbuf_getalign(ch->buffer));
+		emu_timer_set(sc->card, ch->timer, ch->blksz /
+		    ch->buffer->align);
 		emu_timer_enable(sc->card, ch->timer, 1);
 	} else {
 		emu_timer_enable(sc->card, ch->timer, 0);
@@ -1059,7 +1061,7 @@ emufxrchan_init(kobj_t obj __unused, void *devinfo, struct snd_dbuf *b, struct p
 	if (sndbuf_alloc(ch->buffer, emu_gettag(sc->card), 0, sc->bufsz) != 0)
 		return (NULL);
 	else {
-		emu_wrptr(sc->card, 0, ch->basereg, sndbuf_getbufaddr(ch->buffer));
+		emu_wrptr(sc->card, 0, ch->basereg, ch->buffer->buf_addr);
 		emu_wrptr(sc->card, 0, ch->sizereg, 0);	/* off */
 		return (ch);
 	}

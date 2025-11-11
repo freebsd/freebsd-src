@@ -695,11 +695,11 @@ feeder_chain(struct pcm_channel *c)
 		cdesc.origin.rate    = c->speed;
 		cdesc.target.afmt    = hwfmt;
 		cdesc.target.matrix  = hwmatrix;
-		cdesc.target.rate    = sndbuf_getspd(c->bufhard);
+		cdesc.target.rate    = c->bufhard->spd;
 	} else {
 		cdesc.origin.afmt    = hwfmt;
 		cdesc.origin.matrix  = hwmatrix;
-		cdesc.origin.rate    = sndbuf_getspd(c->bufhard);
+		cdesc.origin.rate    = c->bufhard->spd;
 		cdesc.target.afmt    = softfmt;
 		cdesc.target.matrix  = softmatrix;
 		cdesc.target.rate    = c->speed;

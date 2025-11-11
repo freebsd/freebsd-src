@@ -2081,10 +2081,10 @@ hdaa_channel_setfragments(kobj_t obj, void *data,
 {
 	struct hdaa_chan *ch = data;
 
-	blksz -= blksz % lcm(HDA_DMA_ALIGNMENT, sndbuf_getalign(ch->b));
+	blksz -= blksz % lcm(HDA_DMA_ALIGNMENT, ch->b->align);
 
-	if (blksz > (sndbuf_getmaxsize(ch->b) / HDA_BDL_MIN))
-		blksz = sndbuf_getmaxsize(ch->b) / HDA_BDL_MIN;
+	if (blksz > (ch->b->maxsize / HDA_BDL_MIN))
+		blksz = ch->b->maxsize / HDA_BDL_MIN;
 	if (blksz < HDA_BLK_MIN)
 		blksz = HDA_BLK_MIN;
 	if (blkcnt > HDA_BDL_MAX)
@@ -2092,7 +2092,7 @@ hdaa_channel_setfragments(kobj_t obj, void *data,
 	if (blkcnt < HDA_BDL_MIN)
 		blkcnt = HDA_BDL_MIN;
 
-	while ((blksz * blkcnt) > sndbuf_getmaxsize(ch->b)) {
+	while ((blksz * blkcnt) > ch->b->maxsize) {
 		if ((blkcnt >> 1) >= HDA_BDL_MIN)
 			blkcnt >>= 1;
 		else if ((blksz >> 1) >= HDA_BLK_MIN)
@@ -2101,14 +2101,14 @@ hdaa_channel_setfragments(kobj_t obj, void *data,
 			break;
 	}
 
-	if ((sndbuf_getblksz(ch->b) != blksz ||
-	    sndbuf_getblkcnt(ch->b) != blkcnt) &&
+	if ((ch->b->blksz != blksz ||
+	    ch->b->blkcnt != blkcnt) &&
 	    sndbuf_resize(ch->b, blkcnt, blksz) != 0)
 		device_printf(ch->devinfo->dev, "%s: failed blksz=%u blkcnt=%u\n",
 		    __func__, blksz, blkcnt);
 
-	ch->blksz = sndbuf_getblksz(ch->b);
-	ch->blkcnt = sndbuf_getblkcnt(ch->b);
+	ch->blksz = ch->b->blksz;
+	ch->blkcnt = ch->b->blkcnt;
 
 	return (0);
 }
@@ -2169,7 +2169,7 @@ hdaa_channel_start(struct hdaa_chan *ch)
 	    ch->dir == PCMDIR_PLAY ? 1 : 0, ch->sid);
 	HDAC_STREAM_START(device_get_parent(devinfo->dev), devinfo->dev,
 	    ch->dir == PCMDIR_PLAY ? 1 : 0, ch->sid,
-	    sndbuf_getbufaddr(ch->b), ch->blksz, ch->blkcnt);
+	    ch->b->buf_addr, ch->blksz, ch->blkcnt);
 	ch->flags |= HDAA_CHN_RUNNING;
 	return (0);
 }

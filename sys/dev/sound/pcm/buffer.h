@@ -69,43 +69,21 @@ void sndbuf_fillsilence_rl(struct snd_dbuf *b, u_int rl);
 void sndbuf_softreset(struct snd_dbuf *b);
 void sndbuf_clearshadow(struct snd_dbuf *b);
 
-u_int32_t sndbuf_getfmt(struct snd_dbuf *b);
 int sndbuf_setfmt(struct snd_dbuf *b, u_int32_t fmt);
-unsigned int sndbuf_getspd(struct snd_dbuf *b);
 void sndbuf_setspd(struct snd_dbuf *b, unsigned int spd);
-unsigned int sndbuf_getbps(struct snd_dbuf *b);
 
-bus_addr_t sndbuf_getbufaddr(struct snd_dbuf *buf);
-
-void *sndbuf_getbuf(struct snd_dbuf *b);
 void *sndbuf_getbufofs(struct snd_dbuf *b, unsigned int ofs);
-unsigned int sndbuf_getsize(struct snd_dbuf *b);
-unsigned int sndbuf_getmaxsize(struct snd_dbuf *b);
-unsigned int sndbuf_getallocsize(struct snd_dbuf *b);
-unsigned int sndbuf_getalign(struct snd_dbuf *b);
-unsigned int sndbuf_getblkcnt(struct snd_dbuf *b);
-void sndbuf_setblkcnt(struct snd_dbuf *b, unsigned int blkcnt);
-unsigned int sndbuf_getblksz(struct snd_dbuf *b);
-void sndbuf_setblksz(struct snd_dbuf *b, unsigned int blksz);
 unsigned int sndbuf_runsz(struct snd_dbuf *b);
 void sndbuf_setrun(struct snd_dbuf *b, int go);
-struct selinfo *sndbuf_getsel(struct snd_dbuf *b);
 
-unsigned int sndbuf_getxrun(struct snd_dbuf *b);
 void sndbuf_setxrun(struct snd_dbuf *b, unsigned int xrun);
-unsigned int sndbuf_gethwptr(struct snd_dbuf *b);
-void sndbuf_sethwptr(struct snd_dbuf *b, unsigned int ptr);
 unsigned int sndbuf_getfree(struct snd_dbuf *b);
 unsigned int sndbuf_getfreeptr(struct snd_dbuf *b);
 unsigned int sndbuf_getready(struct snd_dbuf *b);
 unsigned int sndbuf_getreadyptr(struct snd_dbuf *b);
 u_int64_t sndbuf_getblocks(struct snd_dbuf *b);
-u_int64_t sndbuf_getprevblocks(struct snd_dbuf *b);
-u_int64_t sndbuf_gettotal(struct snd_dbuf *b);
-u_int64_t sndbuf_getprevtotal(struct snd_dbuf *b);
 unsigned int sndbuf_xbytes(unsigned int v, struct snd_dbuf *from, struct snd_dbuf *to);
 u_int8_t sndbuf_zerodata(u_int32_t fmt);
-void sndbuf_updateprevtotal(struct snd_dbuf *b);
 
 int sndbuf_acquire(struct snd_dbuf *b, u_int8_t *from, unsigned int count);
 int sndbuf_dispose(struct snd_dbuf *b, u_int8_t *to, unsigned int count);
