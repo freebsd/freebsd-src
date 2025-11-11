@@ -39,7 +39,7 @@ azure-check-depends:
 .endif
 
 .for _FS in ${AZURE_FSLIST}
-AZURE_IMG_${_FS}=	${.OBJDIR}/azure.${_FS}.vhd
+AZURE_IMG_${_FS}=	${.OBJDIR}/azure.${_FS}.vhdf
 AZURE_TARGET_${_FS}=	${OSRELEASE}-${_FS}${SNAPSHOT_DATE}
 
 azure-do-upload-${_FS}:
