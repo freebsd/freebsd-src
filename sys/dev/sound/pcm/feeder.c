@@ -48,7 +48,7 @@ feeder_register_root(void *p)
 {
 	struct feeder_class *fc = p;
 
-	KASSERT(fc->desc.type == FEEDER_ROOT,
+	KASSERT(fc->type == FEEDER_ROOT,
 	    ("first feeder not root: %s", fc->name));
 
 	SLIST_INIT(&feedertab);
@@ -60,7 +60,7 @@ feeder_register(void *p)
 {
 	struct feeder_class *fc = p;
 
-	KASSERT(fc->desc.type != 0, ("feeder '%s' has no descriptor", fc->name));
+	KASSERT(fc->type != 0, ("feeder '%s' has no descriptor", fc->name));
 
 	SLIST_INSERT_HEAD(&feedertab, fc, link);
 }
@@ -119,7 +119,7 @@ feeder_getclass(u_int32_t type)
 	struct feeder_class *fc;
 
 	SLIST_FOREACH(fc, &feedertab, link) {
-		if (fc->desc.type == type)
+		if (fc->type == type)
 			return (fc);
 	}
 	return (NULL);
@@ -400,7 +400,7 @@ static struct feeder_class feeder_root_class = {
 	.name =		"feeder_root",
 	.methods =	feeder_root_methods,
 	.size =		sizeof(struct pcm_feeder),
-	.desc =		{ FEEDER_ROOT, 0, 0 },
+	.type =		FEEDER_ROOT,
 };
 /*
  * Register the root feeder first so that pcm_addchan() and subsequent

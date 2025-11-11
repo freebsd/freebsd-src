@@ -27,6 +27,17 @@
  * SUCH DAMAGE.
  */
 
+enum feeder_type {
+	FEEDER_ROOT,
+	FEEDER_FORMAT,
+	FEEDER_MIXER,
+	FEEDER_RATE,
+	FEEDER_EQ,
+	FEEDER_VOLUME,
+	FEEDER_MATRIX,
+	FEEDER_LAST,
+};
+
 struct pcm_feederdesc {
 	u_int32_t type;
 	u_int32_t in, out;
@@ -34,7 +45,7 @@ struct pcm_feederdesc {
 
 struct feeder_class {
 	KOBJ_CLASS_FIELDS;
-	struct pcm_feederdesc desc;
+	enum feeder_type type;
 	SLIST_ENTRY(feeder_class) link;
 };
 
@@ -63,26 +74,15 @@ struct pcm_feeder *feeder_find(struct pcm_channel *c, u_int32_t type);
 void feeder_printchain(struct pcm_feeder *head);
 int feeder_chain(struct pcm_channel *);
 
-#define FEEDER_DECLARE(feeder, type)					\
+#define FEEDER_DECLARE(feeder, ctype)					\
 static struct feeder_class feeder ## _class = {				\
 	.name =		#feeder,					\
 	.methods =	feeder ## _methods,				\
 	.size =		sizeof(struct pcm_feeder),			\
-	.desc =		{ type, 0, 0 },					\
+	.type =		ctype,						\
 };									\
 SYSINIT(feeder, SI_SUB_DRIVERS, SI_ORDER_ANY, feeder_register,		\
     &feeder ## _class)
-
-enum {
-	FEEDER_ROOT,
-	FEEDER_FORMAT,
-	FEEDER_MIXER,
-	FEEDER_RATE,
-	FEEDER_EQ,
-	FEEDER_VOLUME,
-	FEEDER_MATRIX,
-	FEEDER_LAST,
-};
 
 /* feeder_format */
 enum {
