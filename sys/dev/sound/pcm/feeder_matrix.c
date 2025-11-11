@@ -413,7 +413,7 @@ feeder_matrix_setup(struct pcm_feeder *f, struct pcmchan_matrix *m_in,
     struct pcmchan_matrix *m_out)
 {
 
-	if (f == NULL || f->desc == NULL || f->desc->type != FEEDER_MATRIX ||
+	if (f == NULL || f->desc == NULL || f->class->type != FEEDER_MATRIX ||
 	    f->data == NULL)
 		return (EINVAL);
 

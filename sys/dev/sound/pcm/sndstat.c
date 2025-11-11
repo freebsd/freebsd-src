@@ -533,12 +533,12 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 			f = f->source;
 		while (f != NULL) {
 			sbuf_printf(&sb, "%s", f->class->name);
-			if (f->desc->type == FEEDER_FORMAT) {
+			if (f->class->type == FEEDER_FORMAT) {
 				snd_afmt2str(f->desc->in, buf, sizeof(buf));
 				sbuf_printf(&sb, "(%s -> ", buf);
 				snd_afmt2str(f->desc->out, buf, sizeof(buf));
 				sbuf_printf(&sb, "%s)", buf);
-			} else if (f->desc->type == FEEDER_MATRIX) {
+			} else if (f->class->type == FEEDER_MATRIX) {
 				sbuf_printf(&sb, "(%d.%dch -> %d.%dch)",
 				    AFMT_CHANNEL(f->desc->in) -
 				    AFMT_EXTCHANNEL(f->desc->in),
@@ -546,7 +546,7 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 				    AFMT_CHANNEL(f->desc->out) -
 				    AFMT_EXTCHANNEL(f->desc->out),
 				    AFMT_EXTCHANNEL(f->desc->out));
-			} else if (f->desc->type == FEEDER_RATE) {
+			} else if (f->class->type == FEEDER_RATE) {
 				sbuf_printf(&sb, "(%d -> %d)",
 				    FEEDER_GET(f, FEEDRATE_SRC),
 				    FEEDER_GET(f, FEEDRATE_DST));
@@ -1328,10 +1328,10 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 			f = f->source;
 		while (f != NULL) {
 			sbuf_printf(s, "%s", f->class->name);
-			if (f->desc->type == FEEDER_FORMAT) {
+			if (f->class->type == FEEDER_FORMAT) {
 				sbuf_printf(s, "(0x%08x -> 0x%08x)",
 				    f->desc->in, f->desc->out);
-			} else if (f->desc->type == FEEDER_MATRIX) {
+			} else if (f->class->type == FEEDER_MATRIX) {
 				sbuf_printf(s, "(%d.%d -> %d.%d)",
 				    AFMT_CHANNEL(f->desc->in) -
 				    AFMT_EXTCHANNEL(f->desc->in),
@@ -1339,7 +1339,7 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 				    AFMT_CHANNEL(f->desc->out) -
 				    AFMT_EXTCHANNEL(f->desc->out),
 				    AFMT_EXTCHANNEL(f->desc->out));
-			} else if (f->desc->type == FEEDER_RATE) {
+			} else if (f->class->type == FEEDER_RATE) {
 				sbuf_printf(s,
 				    "(0x%08x q:%d %d -> %d)",
 				    f->desc->out,
