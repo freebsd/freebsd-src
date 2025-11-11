@@ -1373,8 +1373,8 @@ chn_kill(struct pcm_channel *c)
 	}
 	free_unr(chn_getunr(d, c->type), c->unit);
 	feeder_remove(c);
-	if (c->devinfo && CHANNEL_FREE(c->methods, c->devinfo))
-		sndbuf_free(b);
+	if (c->devinfo)
+		CHANNEL_FREE(c->methods, c->devinfo);
 	if (bs) {
 		knlist_clear(&bs->sel.si_note, 0);
 		knlist_destroy(&bs->sel.si_note);
