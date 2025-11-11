@@ -70,7 +70,6 @@ int feeder_add(struct pcm_channel *c, struct feeder_class *fc,
     struct pcm_feederdesc *desc);
 void feeder_remove(struct pcm_channel *c);
 struct pcm_feeder *feeder_find(struct pcm_channel *c, u_int32_t type);
-void feeder_printchain(struct pcm_feeder *head);
 int feeder_chain(struct pcm_channel *);
 
 #define FEEDER_DECLARE(feeder, ctype)					\

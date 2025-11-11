@@ -318,22 +318,6 @@ snd_fmtbest(u_int32_t fmt, u_int32_t *fmts)
 		return best2;
 }
 
-void
-feeder_printchain(struct pcm_feeder *head)
-{
-	struct pcm_feeder *f;
-
-	printf("feeder chain (head @%p)\n", head);
-	f = head;
-	while (f != NULL) {
-		printf("%s @ %p\n", f->class->name, f);
-		f = f->source;
-	}
-	printf("[end]\n\n");
-}
-
-/*****************************************************************************/
-
 static int
 feed_root(struct pcm_feeder *feeder, struct pcm_channel *ch, u_int8_t *buffer, u_int32_t count, void *source)
 {
