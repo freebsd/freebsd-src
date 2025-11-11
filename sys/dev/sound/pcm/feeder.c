@@ -97,7 +97,7 @@ feeder_create(struct feeder_class *fc, struct pcm_feederdesc *desc)
 	if (desc) {
 		*(f->desc) = *desc;
 	} else {
-		f->desc->type = FEEDER_ROOT;
+		f->class->type = FEEDER_ROOT;
 		f->desc->in = 0;
 		f->desc->out = 0;
 	}
@@ -162,7 +162,7 @@ feeder_find(struct pcm_channel *c, u_int32_t type)
 
 	f = c->feeder;
 	while (f != NULL) {
-		if (f->desc->type == type)
+		if (f->class->type == type)
 			return f;
 		f = f->source;
 	}

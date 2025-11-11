@@ -144,7 +144,6 @@ feeder_build_format(struct pcm_channel *c, struct feeder_chain_desc *cdesc)
 	int ret;
 
 	desc = &(cdesc->desc);
-	desc->type = FEEDER_FORMAT;
 	desc->in = 0;
 	desc->out = 0;
 
@@ -216,7 +215,6 @@ feeder_build_rate(struct pcm_channel *c, struct feeder_chain_desc *cdesc)
 		return (ret);
 
 	desc = &(cdesc->desc);
-	desc->type = FEEDER_RATE;
 	desc->in = 0;
 	desc->out = 0;
 
@@ -293,7 +291,6 @@ feeder_build_matrix(struct pcm_channel *c, struct feeder_chain_desc *cdesc)
 		return (ret);
 
 	desc = &(cdesc->desc);
-	desc->type = FEEDER_MATRIX;
 	desc->in = 0;
 	desc->out = 0;
 
@@ -349,7 +346,6 @@ feeder_build_volume(struct pcm_channel *c, struct feeder_chain_desc *cdesc)
 		return (ret);
 
 	desc = &(cdesc->desc);
-	desc->type = FEEDER_VOLUME;
 	desc->in = 0;
 	desc->out = 0;
 
@@ -416,7 +412,6 @@ feeder_build_eq(struct pcm_channel *c, struct feeder_chain_desc *cdesc)
 		return (ret);
 
 	desc = &(cdesc->desc);
-	desc->type = FEEDER_EQ;
 	desc->in = 0;
 	desc->out = 0;
 
@@ -495,7 +490,6 @@ feeder_build_mixer(struct pcm_channel *c, struct feeder_chain_desc *cdesc)
 	int ret;
 
 	desc = &(cdesc->desc);
-	desc->type = FEEDER_MIXER;
 	desc->in = 0;
 	desc->out = 0;
 

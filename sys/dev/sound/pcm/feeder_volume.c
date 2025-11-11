@@ -332,7 +332,7 @@ feeder_volume_apply_matrix(struct pcm_feeder *f, struct pcmchan_matrix *m)
 	struct feed_volume_info *info;
 	uint32_t i;
 
-	if (f == NULL || f->desc == NULL || f->desc->type != FEEDER_VOLUME ||
+	if (f == NULL || f->desc == NULL || f->class->type != FEEDER_VOLUME ||
 	    f->data == NULL || m == NULL || m->channels < SND_CHN_MIN ||
 	    m->channels > SND_CHN_MAX)
 		return (EINVAL);

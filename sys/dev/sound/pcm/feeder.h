@@ -39,7 +39,6 @@ enum feeder_type {
 };
 
 struct pcm_feederdesc {
-	u_int32_t type;
 	u_int32_t in, out;
 };
 
