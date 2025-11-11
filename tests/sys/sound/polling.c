@@ -34,6 +34,7 @@
 #include <atf-c.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <poll.h>
 #include <unistd.h>
 
@@ -93,7 +94,7 @@ ATF_TC_BODY(poll_kqueue, tc)
 	ATF_REQUIRE_MSG(kevent(kq, NULL, 0, &ev, 1, NULL) == 1,
 	    FMT_ERR("kevent"));
 	ATF_REQUIRE_MSG((ev.flags & EV_ERROR) == 0, "EV_ERROR is set");
-	ATF_REQUIRE_MSG(ev.data != 0, "data is %lld", ev.data);
+	ATF_REQUIRE_MSG(ev.data != 0, "data is %" PRId64, ev.data);
 	ATF_REQUIRE_MSG(read(fd, buf, sizeof(buf)) > 0, FMT_ERR("read"));
 
 	EV_SET(&ev, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
@@ -108,7 +109,7 @@ ATF_TC_BODY(poll_kqueue, tc)
 	ATF_REQUIRE_MSG(kevent(kq, NULL, 0, &ev, 1, NULL) == 1,
 	    FMT_ERR("kevent"));
 	ATF_REQUIRE_MSG((ev.flags & EV_ERROR) == 0, "EV_ERROR is set");
-	ATF_REQUIRE_MSG(ev.data != 0, "data is %lld", ev.data);
+	ATF_REQUIRE_MSG(ev.data != 0, "data is %" PRId64, ev.data);
 	ATF_REQUIRE_MSG(write(fd, buf, sizeof(buf)) > 0, FMT_ERR("write"));
 
 	EV_SET(&ev, fd, EVFILT_WRITE, EV_DELETE, 0, 0, 0);
