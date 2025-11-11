@@ -173,8 +173,8 @@ feed_format_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 }
 
 static struct pcm_feederdesc feeder_format_desc[] = {
-	{ FEEDER_FORMAT, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0 }
+	{ FEEDER_FORMAT, 0, 0, 0 },
+	{ 0, 0, 0, 0 }
 };
 
 static kobj_method_t feeder_format_methods[] = {

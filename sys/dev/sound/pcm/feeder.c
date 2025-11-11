@@ -48,8 +48,6 @@ struct feedertab_entry {
 	SLIST_ENTRY(feedertab_entry) link;
 	struct feeder_class *feederclass;
 	struct pcm_feederdesc *desc;
-
-	int idx;
 };
 static SLIST_HEAD(, feedertab_entry) feedertab;
 static int feedercnt = 0;
@@ -69,7 +67,6 @@ feeder_register_root(void *p)
 	fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
 	fte->feederclass = fc;
 	fte->desc = NULL;
-	fte->idx = feedercnt;
 	SLIST_INSERT_HEAD(&feedertab, fte, link);
 	feedercnt++;
 }
@@ -92,8 +89,6 @@ feeder_register(void *p)
 		fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
 		fte->feederclass = fc;
 		fte->desc = &fc->desc[i];
-		fte->idx = feedercnt;
-		fte->desc->idx = feedercnt;
 		SLIST_INSERT_HEAD(&feedertab, fte, link);
 		i++;
 	}
@@ -156,7 +151,6 @@ feeder_create(struct feeder_class *fc, struct pcm_feederdesc *desc)
 		f->desc->in = 0;
 		f->desc->out = 0;
 		f->desc->flags = 0;
-		f->desc->idx = 0;
 	}
 
 	err = FEEDER_INIT(f);
@@ -394,7 +388,7 @@ feeder_printchain(struct pcm_feeder *head)
 	printf("feeder chain (head @%p)\n", head);
 	f = head;
 	while (f != NULL) {
-		printf("%s/%d @ %p\n", f->class->name, f->desc->idx, f);
+		printf("%s @ %p\n", f->class->name, f);
 		f = f->source;
 	}
 	printf("[end]\n\n");
