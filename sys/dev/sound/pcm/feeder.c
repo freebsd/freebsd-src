@@ -42,15 +42,12 @@
 
 static MALLOC_DEFINE(M_FEEDER, "feeder", "pcm feeder");
 
-#define MAXFEEDERS 	256
-
 struct feedertab_entry {
 	SLIST_ENTRY(feedertab_entry) link;
 	struct feeder_class *feederclass;
 	struct pcm_feederdesc *desc;
 };
 static SLIST_HEAD(, feedertab_entry) feedertab;
-static int feedercnt = 0;
 
 /*****************************************************************************/
 
@@ -60,7 +57,6 @@ feeder_register_root(void *p)
 	struct feeder_class *fc = p;
 	struct feedertab_entry *fte;
 
-	MPASS(feedercnt == 0);
 	KASSERT(fc->desc == NULL, ("first feeder not root: %s", fc->name));
 
 	SLIST_INIT(&feedertab);
@@ -68,7 +64,6 @@ feeder_register_root(void *p)
 	fte->feederclass = fc;
 	fte->desc = NULL;
 	SLIST_INSERT_HEAD(&feedertab, fte, link);
-	feedercnt++;
 }
 
 void
@@ -85,17 +80,12 @@ feeder_register(void *p)
 	 * translations being unavailable
 	 */
 	i = 0;
-	while ((feedercnt < MAXFEEDERS) && (fc->desc[i].type > 0)) {
+	while (fc->desc[i].type > 0) {
 		fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
 		fte->feederclass = fc;
 		fte->desc = &fc->desc[i];
 		SLIST_INSERT_HEAD(&feedertab, fte, link);
 		i++;
-	}
-	feedercnt++;
-	if (feedercnt >= MAXFEEDERS) {
-		printf("MAXFEEDERS (%d >= %d) exceeded\n",
-		    feedercnt, MAXFEEDERS);
 	}
 }
 
