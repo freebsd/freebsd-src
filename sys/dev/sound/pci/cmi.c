@@ -352,7 +352,7 @@ cmichan_init(kobj_t obj, void *devinfo,
 	ch->channel    = c;
 	ch->bps        = 1;
 	ch->fmt        = SND_FORMAT(AFMT_U8, 1, 0);
-	ch->spd        = DSP_DEFAULT_SPEED;
+	ch->spd        = 8000;
 	ch->buffer     = b;
 	ch->dma_active = 0;
 	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, 0, sc->bufsz) != 0) {

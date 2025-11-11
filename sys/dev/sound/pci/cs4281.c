@@ -326,7 +326,7 @@ cs4281chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channe
     ch->channel = c;
 
     ch->fmt = SND_FORMAT(AFMT_U8, 1, 0);
-    ch->spd = DSP_DEFAULT_SPEED;
+    ch->spd = 8000;
     ch->bps = 1;
     ch->blksz = ch->buffer->bufsize;
 
