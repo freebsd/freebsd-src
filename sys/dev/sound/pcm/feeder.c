@@ -44,7 +44,6 @@ static MALLOC_DEFINE(M_FEEDER, "feeder", "pcm feeder");
 struct feedertab_entry {
 	SLIST_ENTRY(feedertab_entry) link;
 	struct feeder_class *feederclass;
-	struct pcm_feederdesc *desc;
 };
 static SLIST_HEAD(, feedertab_entry) feedertab;
 
@@ -56,12 +55,12 @@ feeder_register_root(void *p)
 	struct feeder_class *fc = p;
 	struct feedertab_entry *fte;
 
-	KASSERT(fc->desc == NULL, ("first feeder not root: %s", fc->name));
+	KASSERT(fc->desc.type == FEEDER_ROOT,
+	    ("first feeder not root: %s", fc->name));
 
 	SLIST_INIT(&feedertab);
 	fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
 	fte->feederclass = fc;
-	fte->desc = NULL;
 	SLIST_INSERT_HEAD(&feedertab, fte, link);
 }
 
@@ -75,7 +74,6 @@ feeder_register(void *p)
 
 	fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
 	fte->feederclass = fc;
-	fte->desc = &fc->desc;
 	SLIST_INSERT_HEAD(&feedertab, fte, link);
 }
 
@@ -90,14 +88,6 @@ feeder_unregisterall(void *p)
 		next = SLIST_NEXT(fte, link);
 		free(fte, M_FEEDER);
 	}
-}
-
-static int
-cmpdesc(struct pcm_feederdesc *n, struct pcm_feederdesc *m)
-{
-	return ((n->type == m->type) &&
-		((n->in == 0) || (n->in == m->in)) &&
-		((n->out == 0) || (n->out == m->out)));
 }
 
 static void
@@ -143,17 +133,15 @@ feeder_create(struct feeder_class *fc, struct pcm_feederdesc *desc)
 }
 
 struct feeder_class *
-feeder_getclass(struct pcm_feederdesc *desc)
+feeder_getclass(u_int32_t type)
 {
 	struct feedertab_entry *fte;
 
 	SLIST_FOREACH(fte, &feedertab, link) {
-		if ((desc == NULL) && (fte->desc == NULL))
-			return fte->feederclass;
-		if ((fte->desc != NULL) && (desc != NULL) && cmpdesc(desc, fte->desc))
-			return fte->feederclass;
+		if (fte->feederclass->desc.type == type)
+			return (fte->feederclass);
 	}
-	return NULL;
+	return (NULL);
 }
 
 int
@@ -431,7 +419,7 @@ static struct feeder_class feeder_root_class = {
 	.name =		"feeder_root",
 	.methods =	feeder_root_methods,
 	.size =		sizeof(struct pcm_feeder),
-	.desc =		{ 0 },
+	.desc =		{ FEEDER_ROOT, 0, 0 },
 	.data =		NULL,
 };
 /*
