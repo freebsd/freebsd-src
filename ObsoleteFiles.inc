@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20251112: Remove pccard(4)
+OLD_FILES+=share/man/man4/pccard.4
+
 # 20251028: Remove hifn(4)
 OLD_FILES+=share/man/man4/hifn.4
 
