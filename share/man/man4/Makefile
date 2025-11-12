@@ -432,7 +432,6 @@ MAN=	aac.4 \
 	p9fs.4 \
 	pass.4 \
 	pca954x.4 \
-	pccard.4 \
 	pccbb.4 \
 	pcf.4 \
 	pcf8574.4 \
