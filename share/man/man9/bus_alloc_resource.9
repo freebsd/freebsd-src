@@ -157,11 +157,6 @@ resource permits contemporaneous sharing.
 It should always be set unless you know that the resource cannot be shared.
 It is the bus driver's task to filter out the flag if the bus does not
 support sharing.
-For example,
-.Xr pccard 4
-cannot share IRQs while
-.Xr cardbus 4
-can.
 .It Dv RF_UNMAPPED
 do not establish implicit mapping when activated via
 .Xr bus_activate_resource 9 .
