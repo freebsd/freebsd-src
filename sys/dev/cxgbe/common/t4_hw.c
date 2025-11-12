@@ -570,11 +570,11 @@ static int t4_edc_err_read(struct adapter *adap, int idx)
 	edc_bist_status_rdata_reg = EDC_T5_REG(A_EDC_H_BIST_STATUS_RDATA, idx);
 
 	CH_WARN(adap,
-		"edc%d err addr 0x%x: 0x%x.\n",
+		"  edc%d err addr 0x%x: 0x%x.\n",
 		idx, edc_ecc_err_addr_reg,
 		t4_read_reg(adap, edc_ecc_err_addr_reg));
 	CH_WARN(adap,
-	 	"bist: 0x%x, status %llx %llx %llx %llx %llx %llx %llx %llx %llx.\n",
+		"  bist: 0x%x, status %llx %llx %llx %llx %llx %llx %llx %llx %llx.\n",
 		edc_bist_status_rdata_reg,
 		(unsigned long long)t4_read_reg64(adap, edc_bist_status_rdata_reg),
 		(unsigned long long)t4_read_reg64(adap, edc_bist_status_rdata_reg + 8),
@@ -4777,10 +4777,9 @@ struct intr_details {
 struct intr_action {
 	u32 mask;
 	int arg;
-	bool (*action)(struct adapter *, int, bool);
+	bool (*action)(struct adapter *, int, int);
 };
 
-#define NONFATAL_IF_DISABLED 1
 struct intr_info {
 	const char *name;	/* name of the INT_CAUSE register */
 	int cause_reg;		/* INT_CAUSE register */
@@ -4803,73 +4802,78 @@ intr_alert_char(u32 cause, u32 enable, u32 fatal)
 }
 
 static void
-t4_show_intr_info(struct adapter *adap, const struct intr_info *ii, u32 cause)
+show_intr_info(struct adapter *sc, const struct intr_info *ii, uint32_t cause,
+    uint32_t ucause, uint32_t enabled, uint32_t fatal, int flags)
 {
-	u32 enable, fatal, leftover;
+	uint32_t leftover, msgbits;
 	const struct intr_details *details;
 	char alert;
+	const bool verbose = flags & IHF_VERBOSE;
 
-	enable = t4_read_reg(adap, ii->enable_reg);
-	if (ii->flags & NONFATAL_IF_DISABLED)
-		fatal = ii->fatal & t4_read_reg(adap, ii->enable_reg);
-	else
-		fatal = ii->fatal;
-	alert = intr_alert_char(cause, enable, fatal);
-	CH_ALERT(adap, "%c %s 0x%x = 0x%08x, E 0x%08x, F 0x%08x\n",
-	    alert, ii->name, ii->cause_reg, cause, enable, fatal);
+	if (verbose || ucause != 0 || flags & IHF_RUN_ALL_ACTIONS) {
+		alert = intr_alert_char(cause, enabled, fatal);
+		CH_ALERT(sc, "%c %s 0x%x = 0x%08x, E 0x%08x, F 0x%08x\n", alert,
+		    ii->name, ii->cause_reg, cause, enabled, fatal);
+	}
 
-	leftover = cause;
+	leftover = verbose ? cause : ucause;
 	for (details = ii->details; details && details->mask != 0; details++) {
-		u32 msgbits = details->mask & cause;
+		msgbits = details->mask & leftover;
 		if (msgbits == 0)
 			continue;
-		alert = intr_alert_char(msgbits, enable, ii->fatal);
-		CH_ALERT(adap, "  %c [0x%08x] %s\n", alert, msgbits,
-		    details->msg);
+		alert = intr_alert_char(msgbits, enabled, fatal);
+		CH_ALERT(sc, "  %c [0x%08x] %s\n", alert, msgbits, details->msg);
 		leftover &= ~msgbits;
 	}
-	if (leftover != 0 && leftover != cause)
-		CH_ALERT(adap, "  ? [0x%08x]\n", leftover);
+	if (leftover != 0 && leftover != (verbose ? cause : ucause))
+		CH_ALERT(sc, "  ? [0x%08x]\n", leftover);
 }
 
 /*
  * Returns true for fatal error.
  */
 static bool
-t4_handle_intr(struct adapter *adap, const struct intr_info *ii,
-    u32 additional_cause, bool verbose)
+t4_handle_intr(struct adapter *sc, const struct intr_info *ii, uint32_t acause,
+    int flags)
 {
-	u32 cause, fatal;
+	uint32_t cause, ucause, enabled, fatal;
 	bool rc;
 	const struct intr_action *action;
 
-	/*
-	 * Read and display cause.  Note that the top level PL_INT_CAUSE is a
-	 * bit special and we need to completely ignore the bits that are not in
-	 * PL_INT_ENABLE.
-	 */
-	cause = t4_read_reg(adap, ii->cause_reg);
-	if (ii->cause_reg == A_PL_INT_CAUSE)
-		cause &= t4_read_reg(adap, ii->enable_reg);
-	if (verbose || cause != 0)
-		t4_show_intr_info(adap, ii, cause);
-	fatal = cause & ii->fatal;
-	if (fatal != 0 && ii->flags & NONFATAL_IF_DISABLED)
-		fatal &= t4_read_reg(adap, ii->enable_reg);
-	cause |= additional_cause;
-	if (cause == 0)
-		return (false);
+	cause = t4_read_reg(sc, ii->cause_reg);
+	enabled = t4_read_reg(sc, ii->enable_reg);
+	flags |= ii->flags;
+	fatal = ii->fatal & cause;
+	if (flags & IHF_FATAL_IFF_ENABLED)
+		fatal &= enabled;
+	ucause = cause;
+	if (flags & IHF_IGNORE_IF_DISABLED)
+		ucause &= enabled;
+	if (!(flags & IHF_NO_SHOW))
+		show_intr_info(sc, ii, cause, ucause, enabled, fatal, flags);
 
 	rc = fatal != 0;
 	for (action = ii->actions; action && action->mask != 0; action++) {
-		if (!(action->mask & cause))
+		if (action->action == NULL)
 			continue;
-		rc |= (action->action)(adap, action->arg, verbose);
+		if (action->mask & (ucause | acause) ||
+		    flags & IHF_RUN_ALL_ACTIONS) {
+			bool rc1 = (action->action)(sc, action->arg, flags);
+			if (action->mask & ucause)
+				rc |= rc1;
+		}
 	}
 
 	/* clear */
-	t4_write_reg(adap, ii->cause_reg, cause);
-	(void)t4_read_reg(adap, ii->cause_reg);
+	if (cause != 0) {
+		if (flags & IHF_CLR_ALL_SET) {
+			t4_write_reg(sc, ii->cause_reg, cause);
+			(void)t4_read_reg(sc, ii->cause_reg);
+		} else if (ucause != 0 && flags & IHF_CLR_ALL_UNIGNORED) {
+			t4_write_reg(sc, ii->cause_reg, ucause);
+			(void)t4_read_reg(sc, ii->cause_reg);
+		}
+	}
 
 	return (rc);
 }
@@ -4877,7 +4881,7 @@ t4_handle_intr(struct adapter *adap, const struct intr_info *ii,
 /*
  * Interrupt handler for the PCIE module.
  */
-static bool pcie_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool pcie_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_details sysbus_intr_details[] = {
 		{ F_RNPP, "RXNP array parity error" },
@@ -4990,21 +4994,43 @@ static bool pcie_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_PCIE_INT_CAUSE,
 		.enable_reg = A_PCIE_INT_ENABLE,
 		.fatal = 0xffffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	struct intr_info pcie_int_cause_ext = {
+		.name = "PCIE_INT_CAUSE_EXT",
+		.cause_reg = A_PCIE_INT_CAUSE_EXT,
+		.enable_reg = A_PCIE_INT_ENABLE_EXT,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	struct intr_info pcie_int_cause_x8 = {
+		.name = "PCIE_INT_CAUSE_X8",
+		.cause_reg = A_PCIE_INT_CAUSE_X8,
+		.enable_reg = A_PCIE_INT_ENABLE_X8,
+		.fatal = 0,
+		.flags = 0,
 		.details = NULL,
 		.actions = NULL,
 	};
 	bool fatal = false;
 
 	if (is_t4(adap)) {
-		fatal |= t4_handle_intr(adap, &sysbus_intr_info, 0, verbose);
-		fatal |= t4_handle_intr(adap, &pcie_port_intr_info, 0, verbose);
+		fatal |= t4_handle_intr(adap, &sysbus_intr_info, 0, flags);
+		fatal |= t4_handle_intr(adap, &pcie_port_intr_info, 0, flags);
 
 		pcie_intr_info.details = pcie_intr_details;
 	} else {
 		pcie_intr_info.details = t5_pcie_intr_details;
 	}
-	fatal |= t4_handle_intr(adap, &pcie_intr_info, 0, verbose);
+	fatal |= t4_handle_intr(adap, &pcie_intr_info, 0, flags);
+	if (chip_id(adap) > CHELSIO_T6) {
+		fatal |= t4_handle_intr(adap, &pcie_int_cause_ext, 0, flags);
+		fatal |= t4_handle_intr(adap, &pcie_int_cause_x8, 0, flags);
+	}
 
 	return (fatal);
 }
@@ -5012,7 +5038,7 @@ static bool pcie_intr_handler(struct adapter *adap, int arg, bool verbose)
 /*
  * TP interrupt handler.
  */
-static bool tp_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool tp_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_details tp_intr_details[] = {
 		{ 0x3fffffff, "TP parity error" },
@@ -5024,25 +5050,90 @@ static bool tp_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_TP_INT_CAUSE,
 		.enable_reg = A_TP_INT_ENABLE,
 		.fatal = 0x7fffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = tp_intr_details,
 		.actions = NULL,
 	};
+	static const struct intr_info tp_inic_perr_cause = {
+		.name = "TP_INIC_PERR_CAUSE",
+		.cause_reg = A_TP_INIC_PERR_CAUSE,
+		.enable_reg = A_TP_INIC_PERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info tp_c_perr_cause = {
+		.name = "TP_C_PERR_CAUSE",
+		.cause_reg = A_TP_C_PERR_CAUSE,
+		.enable_reg = A_TP_C_PERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info tp_e_eg_perr_cause = {
+		.name = "TP_E_EG_PERR_CAUSE",
+		.cause_reg = A_TP_E_EG_PERR_CAUSE,
+		.enable_reg = A_TP_E_EG_PERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info tp_e_in0_perr_cause = {
+		.name = "TP_E_IN0_PERR_CAUSE",
+		.cause_reg = A_TP_E_IN0_PERR_CAUSE,
+		.enable_reg = A_TP_E_IN0_PERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info tp_e_in1_perr_cause = {
+		.name = "TP_E_IN1_PERR_CAUSE",
+		.cause_reg = A_TP_E_IN1_PERR_CAUSE,
+		.enable_reg = A_TP_E_IN1_PERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info tp_o_perr_cause = {
+		.name = "TP_O_PERR_CAUSE",
+		.cause_reg = A_TP_O_PERR_CAUSE,
+		.enable_reg = A_TP_O_PERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	bool fatal;
 
-	return (t4_handle_intr(adap, &tp_intr_info, 0, verbose));
+	fatal = t4_handle_intr(adap, &tp_intr_info, 0, flags);
+	if (chip_id(adap) > CHELSIO_T6) {
+		fatal |= t4_handle_intr(adap, &tp_inic_perr_cause, 0, flags);
+		fatal |= t4_handle_intr(adap, &tp_c_perr_cause, 0, flags);
+		fatal |= t4_handle_intr(adap, &tp_e_eg_perr_cause, 0, flags);
+		fatal |= t4_handle_intr(adap, &tp_e_in0_perr_cause, 0, flags);
+		fatal |= t4_handle_intr(adap, &tp_e_in1_perr_cause, 0, flags);
+		fatal |= t4_handle_intr(adap, &tp_o_perr_cause, 0, flags);
+	}
+
+	return (fatal);
 }
 
 /*
  * SGE interrupt handler.
  */
-static bool sge_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool sge_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_info sge_int1_info = {
 		.name = "SGE_INT_CAUSE1",
 		.cause_reg = A_SGE_INT_CAUSE1,
 		.enable_reg = A_SGE_INT_ENABLE1,
 		.fatal = 0xffffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = NULL,
 		.actions = NULL,
 	};
@@ -5051,7 +5142,7 @@ static bool sge_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_SGE_INT_CAUSE2,
 		.enable_reg = A_SGE_INT_ENABLE2,
 		.fatal = 0xffffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = NULL,
 		.actions = NULL,
 	};
@@ -5149,7 +5240,7 @@ static bool sge_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_SGE_INT_CAUSE5,
 		.enable_reg = A_SGE_INT_ENABLE5,
 		.fatal = 0xffffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = NULL,
 		.actions = NULL,
 	};
@@ -5162,7 +5253,24 @@ static bool sge_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.details = NULL,
 		.actions = NULL,
 	};
-
+	static const struct intr_info sge_int7_info = {
+		.name = "SGE_INT_CAUSE7",
+		.cause_reg = A_SGE_INT_CAUSE7,
+		.enable_reg = A_SGE_INT_ENABLE7,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info sge_int8_info = {
+		.name = "SGE_INT_CAUSE8",
+		.cause_reg = A_SGE_INT_CAUSE8,
+		.enable_reg = A_SGE_INT_ENABLE8,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
 	bool fatal;
 	u32 v;
 
@@ -5173,14 +5281,18 @@ static bool sge_intr_handler(struct adapter *adap, int arg, bool verbose)
 	}
 
 	fatal = false;
-	fatal |= t4_handle_intr(adap, &sge_int1_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &sge_int2_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &sge_int3_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &sge_int4_info, 0, verbose);
+	fatal |= t4_handle_intr(adap, &sge_int1_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &sge_int2_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &sge_int3_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &sge_int4_info, 0, flags);
 	if (chip_id(adap) >= CHELSIO_T5)
-		fatal |= t4_handle_intr(adap, &sge_int5_info, 0, verbose);
+		fatal |= t4_handle_intr(adap, &sge_int5_info, 0, flags);
 	if (chip_id(adap) >= CHELSIO_T6)
-		fatal |= t4_handle_intr(adap, &sge_int6_info, 0, verbose);
+		fatal |= t4_handle_intr(adap, &sge_int6_info, 0, flags);
+	if (chip_id(adap) >= CHELSIO_T7) {
+		fatal |= t4_handle_intr(adap, &sge_int7_info, 0, flags);
+		fatal |= t4_handle_intr(adap, &sge_int8_info, 0, flags);
+	}
 
 	v = t4_read_reg(adap, A_SGE_ERROR_STATS);
 	if (v & F_ERROR_QID_VALID) {
@@ -5197,7 +5309,7 @@ static bool sge_intr_handler(struct adapter *adap, int arg, bool verbose)
 /*
  * CIM interrupt handler.
  */
-static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool cim_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_details cim_host_intr_details[] = {
 		/* T6+ */
@@ -5242,7 +5354,7 @@ static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_CIM_HOST_INT_CAUSE,
 		.enable_reg = A_CIM_HOST_INT_ENABLE,
 		.fatal = 0x007fffe6,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = cim_host_intr_details,
 		.actions = NULL,
 	};
@@ -5293,7 +5405,7 @@ static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_CIM_HOST_UPACC_INT_CAUSE,
 		.enable_reg = A_CIM_HOST_UPACC_INT_ENABLE,
 		.fatal = 0x3fffeeff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = cim_host_upacc_intr_details,
 		.actions = NULL,
 	};
@@ -5303,6 +5415,15 @@ static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.enable_reg = MYPF_REG(A_CIM_PF_HOST_INT_ENABLE),
 		.fatal = 0,
 		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info cim_perr_cause = {
+		.name = "CIM_PERR_CAUSE",
+		.cause_reg = A_CIM_PERR_CAUSE,
+		.enable_reg = A_CIM_PERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = NULL,
 		.actions = NULL,
 	};
@@ -5324,9 +5445,11 @@ static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
 	}
 
 	fatal = (fw_err & F_PCIE_FW_ERR) != 0;
-	fatal |= t4_handle_intr(adap, &cim_host_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &cim_host_upacc_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &cim_pf_host_intr_info, 0, verbose);
+	fatal |= t4_handle_intr(adap, &cim_host_intr_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &cim_host_upacc_intr_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &cim_pf_host_intr_info, 0, flags);
+	if (chip_id(adap) > CHELSIO_T6)
+		fatal |= t4_handle_intr(adap, &cim_perr_cause, 0, flags);
 	if (fatal)
 		t4_os_cim_err(adap);
 
@@ -5336,7 +5459,7 @@ static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
 /*
  * ULP RX interrupt handler.
  */
-static bool ulprx_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool ulprx_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_details ulprx_intr_details[] = {
 		/* T5+ */
@@ -5354,7 +5477,7 @@ static bool ulprx_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_ULP_RX_INT_CAUSE,
 		.enable_reg = A_ULP_RX_INT_ENABLE,
 		.fatal = 0x07ffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = ulprx_intr_details,
 		.actions = NULL,
 	};
@@ -5367,10 +5490,53 @@ static bool ulprx_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.details = NULL,
 		.actions = NULL,
 	};
+	static const struct intr_info ulprx_int_cause_pcmd = {
+		.name = "ULP_RX_INT_CAUSE_PCMD",
+		.cause_reg = A_ULP_RX_INT_CAUSE_PCMD,
+		.enable_reg = A_ULP_RX_INT_ENABLE_PCMD,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info ulprx_int_cause_data = {
+		.name = "ULP_RX_INT_CAUSE_DATA",
+		.cause_reg = A_ULP_RX_INT_CAUSE_DATA,
+		.enable_reg = A_ULP_RX_INT_ENABLE_DATA,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info ulprx_int_cause_arb = {
+		.name = "ULP_RX_INT_CAUSE_ARB",
+		.cause_reg = A_ULP_RX_INT_CAUSE_ARB,
+		.enable_reg = A_ULP_RX_INT_ENABLE_ARB,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info ulprx_int_cause_intf = {
+		.name = "ULP_RX_INT_CAUSE_INTERFACE",
+		.cause_reg = A_ULP_RX_INT_CAUSE_INTERFACE,
+		.enable_reg = A_ULP_RX_INT_ENABLE_INTERFACE,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
 	bool fatal = false;
 
-	fatal |= t4_handle_intr(adap, &ulprx_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &ulprx_intr2_info, 0, verbose);
+	fatal |= t4_handle_intr(adap, &ulprx_intr_info, 0, flags);
+	if (chip_id(adap) < CHELSIO_T7)
+		fatal |= t4_handle_intr(adap, &ulprx_intr2_info, 0, flags);
+	else {
+		fatal |= t4_handle_intr(adap, &ulprx_int_cause_pcmd, 0, flags);
+		fatal |= t4_handle_intr(adap, &ulprx_int_cause_data, 0, flags);
+		fatal |= t4_handle_intr(adap, &ulprx_int_cause_arb, 0, flags);
+		fatal |= t4_handle_intr(adap, &ulprx_int_cause_intf, 0, flags);
+	}
 
 	return (fatal);
 }
@@ -5378,7 +5544,7 @@ static bool ulprx_intr_handler(struct adapter *adap, int arg, bool verbose)
 /*
  * ULP TX interrupt handler.
  */
-static bool ulptx_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool ulptx_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_details ulptx_intr_details[] = {
 		{ F_PBL_BOUND_ERR_CH3, "ULPTX channel 3 PBL out of bounds" },
@@ -5393,31 +5559,97 @@ static bool ulptx_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_ULP_TX_INT_CAUSE,
 		.enable_reg = A_ULP_TX_INT_ENABLE,
 		.fatal = 0x0fffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = ulptx_intr_details,
 		.actions = NULL,
 	};
-	static const struct intr_info ulptx_intr2_info = {
+	static const struct intr_info ulptx_intr_info2 = {
 		.name = "ULP_TX_INT_CAUSE_2",
 		.cause_reg = A_ULP_TX_INT_CAUSE_2,
 		.enable_reg = A_ULP_TX_INT_ENABLE_2,
-		.fatal = 0xf0,
-		.flags = NONFATAL_IF_DISABLED,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info ulptx_intr_info3 = {
+		.name = "ULP_TX_INT_CAUSE_3",
+		.cause_reg = A_ULP_TX_INT_CAUSE_3,
+		.enable_reg = A_ULP_TX_INT_ENABLE_3,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info ulptx_intr_info4 = {
+		.name = "ULP_TX_INT_CAUSE_4",
+		.cause_reg = A_ULP_TX_INT_CAUSE_4,
+		.enable_reg = A_ULP_TX_INT_ENABLE_4,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info ulptx_intr_info5 = {
+		.name = "ULP_TX_INT_CAUSE_5",
+		.cause_reg = A_ULP_TX_INT_CAUSE_5,
+		.enable_reg = A_ULP_TX_INT_ENABLE_5,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info ulptx_intr_info6 = {
+		.name = "ULP_TX_INT_CAUSE_6",
+		.cause_reg = A_ULP_TX_INT_CAUSE_6,
+		.enable_reg = A_ULP_TX_INT_ENABLE_6,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info ulptx_intr_info7 = {
+		.name = "ULP_TX_INT_CAUSE_7",
+		.cause_reg = A_ULP_TX_INT_CAUSE_7,
+		.enable_reg = A_ULP_TX_INT_ENABLE_7,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info ulptx_intr_info8 = {
+		.name = "ULP_TX_INT_CAUSE_8",
+		.cause_reg = A_ULP_TX_INT_CAUSE_8,
+		.enable_reg = A_ULP_TX_INT_ENABLE_8,
+		.fatal = 0,
+		.flags = 0,
 		.details = NULL,
 		.actions = NULL,
 	};
 	bool fatal = false;
 
-	fatal |= t4_handle_intr(adap, &ulptx_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &ulptx_intr2_info, 0, verbose);
+	fatal |= t4_handle_intr(adap, &ulptx_intr_info, 0, flags);
+	if (chip_id(adap) > CHELSIO_T4)
+		fatal |= t4_handle_intr(adap, &ulptx_intr_info2, 0, flags);
+	if (chip_id(adap) > CHELSIO_T6) {
+		fatal |= t4_handle_intr(adap, &ulptx_intr_info3, 0, flags);
+		fatal |= t4_handle_intr(adap, &ulptx_intr_info4, 0, flags);
+		fatal |= t4_handle_intr(adap, &ulptx_intr_info5, 0, flags);
+		fatal |= t4_handle_intr(adap, &ulptx_intr_info6, 0, flags);
+		fatal |= t4_handle_intr(adap, &ulptx_intr_info7, 0, flags);
+		fatal |= t4_handle_intr(adap, &ulptx_intr_info8, 0, flags);
+	}
 
 	return (fatal);
 }
 
-static bool pmtx_dump_dbg_stats(struct adapter *adap, int arg, bool verbose)
+static bool pmtx_dump_dbg_stats(struct adapter *adap, int arg, int flags)
 {
 	int i;
 	u32 data[17];
+
+	if (flags & IHF_NO_SHOW)
+		return (false);
 
 	t4_read_indirect(adap, A_PM_TX_DBG_CTRL, A_PM_TX_DBG_DATA, &data[0],
 	    ARRAY_SIZE(data), A_PM_TX_DBG_STAT0);
@@ -5432,13 +5664,9 @@ static bool pmtx_dump_dbg_stats(struct adapter *adap, int arg, bool verbose)
 /*
  * PM TX interrupt handler.
  */
-static bool pmtx_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool pmtx_intr_handler(struct adapter *adap, int arg, int flags)
 {
-	static const struct intr_action pmtx_intr_actions[] = {
-		{ 0xffffffff, 0, pmtx_dump_dbg_stats },
-		{ 0 },
-	};
-	static const struct intr_details pmtx_intr_details[] = {
+	static const struct intr_details pmtx_int_cause_fields[] = {
 		{ F_PCMD_LEN_OVFL0, "PMTX channel 0 pcmd too large" },
 		{ F_PCMD_LEN_OVFL1, "PMTX channel 1 pcmd too large" },
 		{ F_PCMD_LEN_OVFL2, "PMTX channel 2 pcmd too large" },
@@ -5455,25 +5683,29 @@ static bool pmtx_intr_handler(struct adapter *adap, int arg, bool verbose)
 		{ F_C_PCMD_PAR_ERROR, "PMTX c_pcmd parity error" },
 		{ 0 }
 	};
-	static const struct intr_info pmtx_intr_info = {
+	static const struct intr_action pmtx_int_cause_actions[] = {
+		{ 0xffffffff, -1, pmtx_dump_dbg_stats },
+		{ 0 },
+	};
+	static const struct intr_info pmtx_int_cause = {
 		.name = "PM_TX_INT_CAUSE",
 		.cause_reg = A_PM_TX_INT_CAUSE,
 		.enable_reg = A_PM_TX_INT_ENABLE,
 		.fatal = 0xffffffff,
 		.flags = 0,
-		.details = pmtx_intr_details,
-		.actions = pmtx_intr_actions,
+		.details = pmtx_int_cause_fields,
+		.actions = pmtx_int_cause_actions,
 	};
 
-	return (t4_handle_intr(adap, &pmtx_intr_info, 0, verbose));
+	return (t4_handle_intr(adap, &pmtx_int_cause, 0, flags));
 }
 
 /*
  * PM RX interrupt handler.
  */
-static bool pmrx_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool pmrx_intr_handler(struct adapter *adap, int arg, int flags)
 {
-	static const struct intr_details pmrx_intr_details[] = {
+	static const struct intr_details pmrx_int_cause_fields[] = {
 		/* T6+ */
 		{ 0x18000000, "PMRX ospi overflow" },
 		{ F_MA_INTF_SDC_ERR, "PMRX MA interface SDC parity error" },
@@ -5495,25 +5727,25 @@ static bool pmrx_intr_handler(struct adapter *adap, int arg, bool verbose)
 		{ F_E_PCMD_PAR_ERROR, "PMRX e_pcmd parity error"},
 		{ 0 }
 	};
-	static const struct intr_info pmrx_intr_info = {
+	static const struct intr_info pmrx_int_cause = {
 		.name = "PM_RX_INT_CAUSE",
 		.cause_reg = A_PM_RX_INT_CAUSE,
 		.enable_reg = A_PM_RX_INT_ENABLE,
 		.fatal = 0x1fffffff,
-		.flags = NONFATAL_IF_DISABLED,
-		.details = pmrx_intr_details,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = pmrx_int_cause_fields,
 		.actions = NULL,
 	};
 
-	return (t4_handle_intr(adap, &pmrx_intr_info, 0, verbose));
+	return (t4_handle_intr(adap, &pmrx_int_cause, 0, flags));
 }
 
 /*
  * CPL switch interrupt handler.
  */
-static bool cplsw_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool cplsw_intr_handler(struct adapter *adap, int arg, int flags)
 {
-	static const struct intr_details cplsw_intr_details[] = {
+	static const struct intr_details cplsw_int_cause_fields[] = {
 		/* T5+ */
 		{ F_PERR_CPL_128TO128_1, "CPLSW 128TO128 FIFO1 parity error" },
 		{ F_PERR_CPL_128TO128_0, "CPLSW 128TO128 FIFO0 parity error" },
@@ -5527,17 +5759,17 @@ static bool cplsw_intr_handler(struct adapter *adap, int arg, bool verbose)
 		{ F_ZERO_SWITCH_ERROR, "CPLSW no-switch error" },
 		{ 0 }
 	};
-	static const struct intr_info cplsw_intr_info = {
+	static const struct intr_info cplsw_int_cause = {
 		.name = "CPL_INTR_CAUSE",
 		.cause_reg = A_CPL_INTR_CAUSE,
 		.enable_reg = A_CPL_INTR_ENABLE,
-		.fatal = 0xff,
-		.flags = NONFATAL_IF_DISABLED,
-		.details = cplsw_intr_details,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = cplsw_int_cause_fields,
 		.actions = NULL,
 	};
 
-	return (t4_handle_intr(adap, &cplsw_intr_info, 0, verbose));
+	return (t4_handle_intr(adap, &cplsw_int_cause, 0, flags));
 }
 
 #define T4_LE_FATAL_MASK (F_PARITYERR | F_UNKNOWNCMD | F_REQQPARERR)
@@ -5549,11 +5781,12 @@ static bool cplsw_intr_handler(struct adapter *adap, int arg, bool verbose)
 #define T6_LE_FATAL_MASK (T6_LE_PERRCRC_MASK | F_T6_UNKNOWNCMD | \
     F_TCAMACCFAIL | F_HASHTBLACCFAIL | F_CMDTIDERR | F_CMDPRSRINTERR | \
     F_TOTCNTERR | F_CLCAMFIFOERR | F_CLIPSUBERR)
+#define T7_LE_FATAL_MASK (T6_LE_FATAL_MASK | F_CACHESRAMPERR | F_CACHEINTPERR)
 
 /*
  * LE interrupt handler.
  */
-static bool le_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool le_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_details le_intr_details[] = {
 		{ F_REQQPARERR, "LE request queue parity error" },
@@ -5590,7 +5823,7 @@ static bool le_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_LE_DB_INT_CAUSE,
 		.enable_reg = A_LE_DB_INT_ENABLE,
 		.fatal = 0,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = NULL,
 		.actions = NULL,
 	};
@@ -5600,16 +5833,19 @@ static bool le_intr_handler(struct adapter *adap, int arg, bool verbose)
 		le_intr_info.fatal = T5_LE_FATAL_MASK;
 	} else {
 		le_intr_info.details = t6_le_intr_details;
-		le_intr_info.fatal = T6_LE_FATAL_MASK;
+		if (chip_id(adap) < CHELSIO_T7)
+			le_intr_info.fatal = T6_LE_FATAL_MASK;
+		else
+			le_intr_info.fatal = T7_LE_FATAL_MASK;
 	}
 
-	return (t4_handle_intr(adap, &le_intr_info, 0, verbose));
+	return (t4_handle_intr(adap, &le_intr_info, 0, flags));
 }
 
 /*
  * MPS interrupt handler.
  */
-static bool mps_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool mps_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_details mps_rx_perr_intr_details[] = {
 		{ 0xffffffff, "MPS Rx parity error" },
@@ -5620,8 +5856,53 @@ static bool mps_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_MPS_RX_PERR_INT_CAUSE,
 		.enable_reg = A_MPS_RX_PERR_INT_ENABLE,
 		.fatal = 0xffffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = mps_rx_perr_intr_details,
+		.actions = NULL,
+	};
+	static const struct intr_info mps_rx_perr_intr_info2 = {
+		.name = "MPS_RX_PERR_INT_CAUSE2",
+		.cause_reg = A_MPS_RX_PERR_INT_CAUSE2,
+		.enable_reg = A_MPS_RX_PERR_INT_ENABLE2,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mps_rx_perr_intr_info3 = {
+		.name = "MPS_RX_PERR_INT_CAUSE3",
+		.cause_reg = A_MPS_RX_PERR_INT_CAUSE3,
+		.enable_reg = A_MPS_RX_PERR_INT_ENABLE3,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mps_rx_perr_intr_info4 = {
+		.name = "MPS_RX_PERR_INT_CAUSE4",
+		.cause_reg = A_MPS_RX_PERR_INT_CAUSE4,
+		.enable_reg = A_MPS_RX_PERR_INT_ENABLE4,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mps_rx_perr_intr_info5 = {
+		.name = "MPS_RX_PERR_INT_CAUSE5",
+		.cause_reg = A_MPS_RX_PERR_INT_CAUSE5,
+		.enable_reg = A_MPS_RX_PERR_INT_ENABLE5,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mps_rx_perr_intr_info6 = {
+		.name = "MPS_RX_PERR_INT_CAUSE6",
+		.cause_reg = A_MPS_RX_PERR_INT_CAUSE6,
+		.enable_reg = A_MPS_RX_PERR_INT_ENABLE6,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
 		.actions = NULL,
 	};
 	static const struct intr_details mps_tx_intr_details[] = {
@@ -5640,8 +5921,35 @@ static bool mps_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_MPS_TX_INT_CAUSE,
 		.enable_reg = A_MPS_TX_INT_ENABLE,
 		.fatal = 0x1ffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = mps_tx_intr_details,
+		.actions = NULL,
+	};
+	static const struct intr_info mps_tx_intr_info2 = {
+		.name = "MPS_TX_INT2_CAUSE",
+		.cause_reg = A_MPS_TX_INT2_CAUSE,
+		.enable_reg = A_MPS_TX_INT2_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mps_tx_intr_info3 = {
+		.name = "MPS_TX_INT3_CAUSE",
+		.cause_reg = A_MPS_TX_INT3_CAUSE,
+		.enable_reg = A_MPS_TX_INT3_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mps_tx_intr_info4 = {
+		.name = "MPS_TX_INT4_CAUSE",
+		.cause_reg = A_MPS_TX_INT4_CAUSE,
+		.enable_reg = A_MPS_TX_INT4_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
 		.actions = NULL,
 	};
 	static const struct intr_details mps_trc_intr_details[] = {
@@ -5660,12 +5968,21 @@ static bool mps_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.actions = NULL,
 	};
 	static const struct intr_info t7_mps_trc_intr_info = {
-		.name = "T7_MPS_TRC_INT_CAUSE",
+		.name = "MPS_TRC_INT_CAUSE",
 		.cause_reg = A_T7_MPS_TRC_INT_CAUSE,
 		.enable_reg = A_T7_MPS_TRC_INT_ENABLE,
-		.fatal = F_MISCPERR | V_PKTFIFO(M_PKTFIFO) | V_FILTMEM(M_FILTMEM),
-		.flags = 0,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = mps_trc_intr_details,
+		.actions = NULL,
+	};
+	static const struct intr_info t7_mps_trc_intr_info2 = {
+		.name = "MPS_TRC_INT_CAUSE2",
+		.cause_reg = A_MPS_TRC_INT_CAUSE2,
+		.enable_reg = A_MPS_TRC_INT_ENABLE2,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
 		.actions = NULL,
 	};
 	static const struct intr_details mps_stat_sram_intr_details[] = {
@@ -5677,7 +5994,7 @@ static bool mps_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_MPS_STAT_PERR_INT_CAUSE_SRAM,
 		.enable_reg = A_MPS_STAT_PERR_INT_ENABLE_SRAM,
 		.fatal = 0x1fffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = mps_stat_sram_intr_details,
 		.actions = NULL,
 	};
@@ -5690,7 +6007,7 @@ static bool mps_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_MPS_STAT_PERR_INT_CAUSE_TX_FIFO,
 		.enable_reg = A_MPS_STAT_PERR_INT_ENABLE_TX_FIFO,
 		.fatal =  0xffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = mps_stat_tx_intr_details,
 		.actions = NULL,
 	};
@@ -5735,24 +6052,31 @@ static bool mps_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.details = mps_stat_sram1_intr_details,
 		.actions = NULL,
 	};
+	bool fatal = false;
 
-	bool fatal;
-
-	fatal = false;
-	fatal |= t4_handle_intr(adap, &mps_rx_perr_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &mps_tx_intr_info, 0, verbose);
-	if (chip_id(adap) > CHELSIO_T6)
-		fatal |= t4_handle_intr(adap, &t7_mps_trc_intr_info, 0, verbose);
-	else
-		fatal |= t4_handle_intr(adap, &mps_trc_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &mps_stat_sram_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &mps_stat_tx_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &mps_stat_rx_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &mps_cls_intr_info, 0, verbose);
-	if (chip_id(adap) > CHELSIO_T4) {
-		fatal |= t4_handle_intr(adap, &mps_stat_sram1_intr_info, 0,
-		    verbose);
+	fatal |= t4_handle_intr(adap, &mps_rx_perr_intr_info, 0, flags);
+	if (chip_id(adap) > CHELSIO_T6) {
+		fatal |= t4_handle_intr(adap, &mps_rx_perr_intr_info2, 0, flags);
+		fatal |= t4_handle_intr(adap, &mps_rx_perr_intr_info3, 0, flags);
+		fatal |= t4_handle_intr(adap, &mps_rx_perr_intr_info4, 0, flags);
+		fatal |= t4_handle_intr(adap, &mps_rx_perr_intr_info5, 0, flags);
+		fatal |= t4_handle_intr(adap, &mps_rx_perr_intr_info6, 0, flags);
 	}
+	fatal |= t4_handle_intr(adap, &mps_tx_intr_info, 0, flags);
+	if (chip_id(adap) > CHELSIO_T6) {
+		fatal |= t4_handle_intr(adap, &mps_tx_intr_info2, 0, flags);
+		fatal |= t4_handle_intr(adap, &mps_tx_intr_info3, 0, flags);
+		fatal |= t4_handle_intr(adap, &mps_tx_intr_info4, 0, flags);
+		fatal |= t4_handle_intr(adap, &t7_mps_trc_intr_info, 0, flags);
+		fatal |= t4_handle_intr(adap, &t7_mps_trc_intr_info2, 0, flags);
+	} else
+		fatal |= t4_handle_intr(adap, &mps_trc_intr_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &mps_stat_sram_intr_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &mps_stat_tx_intr_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &mps_stat_rx_intr_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &mps_cls_intr_info, 0, flags);
+	if (chip_id(adap) > CHELSIO_T4)
+		fatal |= t4_handle_intr(adap, &mps_stat_sram1_intr_info, 0, flags);
 
 	t4_write_reg(adap, A_MPS_INT_CAUSE, is_t4(adap) ? 0 : 0xffffffff);
 	t4_read_reg(adap, A_MPS_INT_CAUSE);	/* flush */
@@ -5764,7 +6088,7 @@ static bool mps_intr_handler(struct adapter *adap, int arg, bool verbose)
 /*
  * EDC/MC interrupt handler.
  */
-static bool mem_intr_handler(struct adapter *adap, int idx, bool verbose)
+static bool mem_intr_handler(struct adapter *adap, int idx, int flags)
 {
 	static const char name[4][5] = { "EDC0", "EDC1", "MC0", "MC1" };
 	unsigned int count_reg, v;
@@ -5774,61 +6098,103 @@ static bool mem_intr_handler(struct adapter *adap, int idx, bool verbose)
 		{ F_PERR_INT_CAUSE, "FIFO parity error" },
 		{ 0 }
 	};
+	char rname[32];
 	struct intr_info ii = {
+		.name = &rname[0],
 		.fatal = F_PERR_INT_CAUSE | F_ECC_UE_INT_CAUSE,
 		.details = mem_intr_details,
 		.flags = 0,
 		.actions = NULL,
 	};
-	bool fatal;
+	bool fatal = false;
+	int i = 0;
 
 	switch (idx) {
+	case MEM_EDC1: i = 1;
+		       /* fall through */
 	case MEM_EDC0:
-		ii.name = "EDC0_INT_CAUSE";
-		ii.cause_reg = EDC_REG(A_EDC_INT_CAUSE, 0);
-		ii.enable_reg = EDC_REG(A_EDC_INT_ENABLE, 0);
-		count_reg = EDC_REG(A_EDC_ECC_STATUS, 0);
+		snprintf(rname, sizeof(rname), "EDC%u_INT_CAUSE", i);
+		if (is_t4(adap)) {
+			ii.cause_reg = EDC_REG(A_EDC_INT_CAUSE, i);
+			ii.enable_reg = EDC_REG(A_EDC_INT_ENABLE, i);
+			count_reg = EDC_REG(A_EDC_ECC_STATUS, i);
+		} else {
+			ii.cause_reg = EDC_T5_REG(A_EDC_H_INT_CAUSE, i);
+			ii.enable_reg = EDC_T5_REG(A_EDC_H_INT_ENABLE, i);
+			count_reg = EDC_T5_REG(A_EDC_H_ECC_STATUS, i);
+		}
+		fatal |= t4_handle_intr(adap, &ii, 0, flags);
+		if (chip_id(adap) > CHELSIO_T6) {
+			snprintf(rname, sizeof(rname), "EDC%u_PAR_CAUSE", i);
+			ii.cause_reg = EDC_T5_REG(A_EDC_H_PAR_CAUSE, i);
+			ii.enable_reg = EDC_T5_REG(A_EDC_H_PAR_ENABLE, i);
+			ii.fatal = 0xffffffff;
+			ii.details = NULL;
+			ii.flags = IHF_FATAL_IFF_ENABLED;
+			fatal |= t4_handle_intr(adap, &ii, 0, flags);
+		}
 		break;
-	case MEM_EDC1:
-		ii.name = "EDC1_INT_CAUSE";
-		ii.cause_reg = EDC_REG(A_EDC_INT_CAUSE, 1);
-		ii.enable_reg = EDC_REG(A_EDC_INT_ENABLE, 1);
-		count_reg = EDC_REG(A_EDC_ECC_STATUS, 1);
-		break;
+	case MEM_MC1: i = 1;
+		       /* fall through */
 	case MEM_MC0:
-		ii.name = "MC0_INT_CAUSE";
+		snprintf(rname, sizeof(rname), "MC%u_INT_CAUSE", i);
 		if (is_t4(adap)) {
 			ii.cause_reg = A_MC_INT_CAUSE;
 			ii.enable_reg = A_MC_INT_ENABLE;
 			count_reg = A_MC_ECC_STATUS;
+		} else if (chip_id(adap) < CHELSIO_T7) {
+			ii.cause_reg = MC_REG(A_MC_P_INT_CAUSE, i);
+			ii.enable_reg = MC_REG(A_MC_P_INT_ENABLE, i);
+			count_reg = MC_REG(A_MC_P_ECC_STATUS, i);
 		} else {
-			ii.cause_reg = A_MC_P_INT_CAUSE;
-			ii.enable_reg = A_MC_P_INT_ENABLE;
-			count_reg = A_MC_P_ECC_STATUS;
+			ii.cause_reg = MC_T7_REG(A_T7_MC_P_INT_CAUSE, i);
+			ii.enable_reg = MC_T7_REG(A_T7_MC_P_INT_ENABLE, i);
+			count_reg = MC_T7_REG(A_T7_MC_P_ECC_STATUS, i);
 		}
-		break;
-	case MEM_MC1:
-		ii.name = "MC1_INT_CAUSE";
-		ii.cause_reg = MC_REG(A_MC_P_INT_CAUSE, 1);
-		ii.enable_reg = MC_REG(A_MC_P_INT_ENABLE, 1);
-		count_reg = MC_REG(A_MC_P_ECC_STATUS, 1);
+		fatal |= t4_handle_intr(adap, &ii, 0, flags);
+
+		snprintf(rname, sizeof(rname), "MC%u_PAR_CAUSE", i);
+		if (is_t4(adap)) {
+			ii.cause_reg = A_MC_PAR_CAUSE;
+			ii.enable_reg = A_MC_PAR_ENABLE;
+		} else if (chip_id(adap) < CHELSIO_T7) {
+			ii.cause_reg = MC_REG(A_MC_P_PAR_CAUSE, i);
+			ii.enable_reg = MC_REG(A_MC_P_PAR_ENABLE, i);
+		} else {
+			ii.cause_reg = MC_T7_REG(A_T7_MC_P_PAR_CAUSE, i);
+			ii.enable_reg = MC_T7_REG(A_T7_MC_P_PAR_ENABLE, i);
+		}
+		ii.fatal = 0xffffffff;
+		ii.details = NULL;
+		ii.flags = IHF_FATAL_IFF_ENABLED;
+		fatal |= t4_handle_intr(adap, &ii, 0, flags);
+
+		if (chip_id(adap) > CHELSIO_T6) {
+			snprintf(rname, sizeof(rname), "MC%u_DDRCTL_INT_CAUSE", i);
+			ii.cause_reg = MC_T7_REG(A_MC_P_DDRCTL_INT_CAUSE, i);
+			ii.enable_reg = MC_T7_REG(A_MC_P_DDRCTL_INT_ENABLE, i);
+			fatal |= t4_handle_intr(adap, &ii, 0, flags);
+
+			snprintf(rname, sizeof(rname), "MC%u_ECC_UE_INT_CAUSE", i);
+			ii.cause_reg = MC_T7_REG(A_MC_P_ECC_UE_INT_CAUSE, i);
+			ii.enable_reg = MC_T7_REG(A_MC_P_ECC_UE_INT_ENABLE, i);
+			fatal |= t4_handle_intr(adap, &ii, 0, flags);
+		}
 		break;
 	}
 
-	fatal = t4_handle_intr(adap, &ii, 0, verbose);
-
 	v = t4_read_reg(adap, count_reg);
 	if (v != 0) {
-		if (G_ECC_UECNT(v) != 0) {
+		if (G_ECC_UECNT(v) != 0 && !(flags & IHF_NO_SHOW)) {
 			CH_ALERT(adap,
-			    "%s: %u uncorrectable ECC data error(s)\n",
+			    "  %s: %u uncorrectable ECC data error(s)\n",
 			    name[idx], G_ECC_UECNT(v));
 		}
-		if (G_ECC_CECNT(v) != 0) {
+		if (G_ECC_CECNT(v) != 0 && !(flags & IHF_NO_SHOW)) {
 			if (idx <= MEM_EDC1)
 				t4_edc_err_read(adap, idx);
 			CH_WARN_RATELIMIT(adap,
-			    "%s: %u correctable ECC data error(s)\n",
+			    "  %s: %u correctable ECC data error(s)\n",
 			    name[idx], G_ECC_CECNT(v));
 		}
 		t4_write_reg(adap, count_reg, 0xffffffff);
@@ -5837,14 +6203,16 @@ static bool mem_intr_handler(struct adapter *adap, int idx, bool verbose)
 	return (fatal);
 }
 
-static bool ma_wrap_status(struct adapter *adap, int arg, bool verbose)
+static bool ma_wrap_status(struct adapter *adap, int arg, int flags)
 {
 	u32 v;
 
 	v = t4_read_reg(adap, A_MA_INT_WRAP_STATUS);
-	CH_ALERT(adap,
-	    "MA address wrap-around error by client %u to address %#x\n",
-	    G_MEM_WRAP_CLIENT_NUM(v), G_MEM_WRAP_ADDRESS(v) << 4);
+	if (!(flags & IHF_NO_SHOW)) {
+		CH_ALERT(adap,
+		    "  MA address wrap-around by client %u to address %#x\n",
+		    G_MEM_WRAP_CLIENT_NUM(v), G_MEM_WRAP_ADDRESS(v) << 4);
+	}
 	t4_write_reg(adap, A_MA_INT_WRAP_STATUS, v);
 
 	return (false);
@@ -5854,7 +6222,7 @@ static bool ma_wrap_status(struct adapter *adap, int arg, bool verbose)
 /*
  * MA interrupt handler.
  */
-static bool ma_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool ma_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_action ma_intr_actions[] = {
 		{ F_MEM_WRAP_INT_CAUSE, 0, ma_wrap_status },
@@ -5865,7 +6233,7 @@ static bool ma_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_MA_INT_CAUSE,
 		.enable_reg = A_MA_INT_ENABLE,
 		.fatal = F_MEM_PERR_INT_CAUSE | F_MEM_TO_INT_CAUSE,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = NULL,
 		.actions = ma_intr_actions,
 	};
@@ -5890,10 +6258,10 @@ static bool ma_intr_handler(struct adapter *adap, int arg, bool verbose)
 	bool fatal;
 
 	fatal = false;
-	fatal |= t4_handle_intr(adap, &ma_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &ma_perr_status1, 0, verbose);
+	fatal |= t4_handle_intr(adap, &ma_intr_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &ma_perr_status1, 0, flags);
 	if (chip_id(adap) > CHELSIO_T4)
-		fatal |= t4_handle_intr(adap, &ma_perr_status2, 0, verbose);
+		fatal |= t4_handle_intr(adap, &ma_perr_status2, 0, flags);
 
 	return (fatal);
 }
@@ -5901,58 +6269,115 @@ static bool ma_intr_handler(struct adapter *adap, int arg, bool verbose)
 /*
  * SMB interrupt handler.
  */
-static bool smb_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool smb_intr_handler(struct adapter *adap, int arg, int flags)
 {
-	static const struct intr_details smb_intr_details[] = {
+	static const struct intr_details smb_int_cause_fields[] = {
 		{ F_MSTTXFIFOPARINT, "SMB master Tx FIFO parity error" },
 		{ F_MSTRXFIFOPARINT, "SMB master Rx FIFO parity error" },
 		{ F_SLVFIFOPARINT, "SMB slave FIFO parity error" },
 		{ 0 }
 	};
-	static const struct intr_info smb_intr_info = {
+	static const struct intr_info smb_int_cause = {
 		.name = "SMB_INT_CAUSE",
 		.cause_reg = A_SMB_INT_CAUSE,
 		.enable_reg = A_SMB_INT_ENABLE,
 		.fatal = F_SLVFIFOPARINT | F_MSTRXFIFOPARINT | F_MSTTXFIFOPARINT,
 		.flags = 0,
-		.details = smb_intr_details,
+		.details = smb_int_cause_fields,
 		.actions = NULL,
 	};
-
-	return (t4_handle_intr(adap, &smb_intr_info, 0, verbose));
+	return (t4_handle_intr(adap, &smb_int_cause, 0, flags));
 }
 
 /*
  * NC-SI interrupt handler.
  */
-static bool ncsi_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool ncsi_intr_handler(struct adapter *adap, int arg, int flags)
 {
-	static const struct intr_details ncsi_intr_details[] = {
+	static const struct intr_details ncsi_int_cause_fields[] = {
 		{ F_CIM_DM_PRTY_ERR, "NC-SI CIM parity error" },
 		{ F_MPS_DM_PRTY_ERR, "NC-SI MPS parity error" },
 		{ F_TXFIFO_PRTY_ERR, "NC-SI Tx FIFO parity error" },
 		{ F_RXFIFO_PRTY_ERR, "NC-SI Rx FIFO parity error" },
 		{ 0 }
 	};
-	static const struct intr_info ncsi_intr_info = {
+	static const struct intr_info ncsi_int_cause = {
 		.name = "NCSI_INT_CAUSE",
 		.cause_reg = A_NCSI_INT_CAUSE,
 		.enable_reg = A_NCSI_INT_ENABLE,
 		.fatal = F_RXFIFO_PRTY_ERR | F_TXFIFO_PRTY_ERR |
 		    F_MPS_DM_PRTY_ERR | F_CIM_DM_PRTY_ERR,
 		.flags = 0,
-		.details = ncsi_intr_details,
+		.details = ncsi_int_cause_fields,
 		.actions = NULL,
 	};
+	static const struct intr_info ncsi_xgmac0_int_cause = {
+		.name = "NCSI_XGMAC0_INT_CAUSE",
+		.cause_reg = A_NCSI_XGMAC0_INT_CAUSE,
+		.enable_reg = A_NCSI_XGMAC0_INT_ENABLE,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	bool fatal = false;
 
-	return (t4_handle_intr(adap, &ncsi_intr_info, 0, verbose));
+	fatal |= t4_handle_intr(adap, &ncsi_int_cause, 0, flags);
+	if (chip_id(adap) > CHELSIO_T6)
+		fatal |= t4_handle_intr(adap, &ncsi_xgmac0_int_cause, 0, flags);
+	return (fatal);
 }
 
 /*
  * MAC interrupt handler.
  */
-static bool mac_intr_handler(struct adapter *adap, int port, bool verbose)
+static bool mac_intr_handler(struct adapter *adap, int port, int flags)
 {
+	static const struct intr_info mac_int_cause_cmn = {
+		.name = "MAC_INT_CAUSE_CMN",
+		.cause_reg = A_MAC_INT_CAUSE_CMN,
+		.enable_reg = A_MAC_INT_EN_CMN,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mac_perr_cause_mtip = {
+		.name = "MAC_PERR_INT_CAUSE_MTIP",
+		.cause_reg = A_MAC_PERR_INT_CAUSE_MTIP,
+		.enable_reg = A_MAC_PERR_INT_EN_MTIP,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED | IHF_IGNORE_IF_DISABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mac_cerr_cause_mtip = {
+		.name = "MAC_CERR_INT_CAUSE_MTIP",
+		.cause_reg = A_MAC_CERR_INT_CAUSE_MTIP,
+		.enable_reg = A_MAC_CERR_INT_EN_MTIP,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mac_ios_int_cause_quad0 = {
+		.name = "MAC_IOS_INTR_CAUSE_QUAD0",
+		.cause_reg = A_MAC_IOS_INTR_CAUSE_QUAD0,
+		.enable_reg = A_MAC_IOS_INTR_EN_QUAD0,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mac_ios_int_cause_quad1 = {
+		.name = "MAC_IOS_INTR_CAUSE_QUAD1",
+		.cause_reg = A_MAC_IOS_INTR_CAUSE_QUAD1,
+		.enable_reg = A_MAC_IOS_INTR_EN_QUAD1,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
 	static const struct intr_details mac_intr_details[] = {
 		{ F_TXFIFO_PRTY_ERR, "MAC Tx FIFO parity error" },
 		{ F_RXFIFO_PRTY_ERR, "MAC Rx FIFO parity error" },
@@ -5981,66 +6406,79 @@ static bool mac_intr_handler(struct adapter *adap, int port, bool verbose)
 		ii.details = mac_intr_details;
 		ii.actions = NULL;
 	} else {
-		snprintf(name, sizeof(name), "T7_MAC_PORT%u_INT_CAUSE", port);
+		snprintf(name, sizeof(name), "MAC_PORT%u_INT_CAUSE", port);
 		ii.name = &name[0];
 		ii.cause_reg = T7_PORT_REG(port, A_T7_MAC_PORT_INT_CAUSE);
 		ii.enable_reg = T7_PORT_REG(port, A_T7_MAC_PORT_INT_EN);
-		ii.fatal = F_TXFIFO_PRTY_ERR | F_RXFIFO_PRTY_ERR;
-		ii.flags = 0;
-		ii.details = mac_intr_details;
+		ii.fatal = 0xffffffff;
+		ii.flags = IHF_FATAL_IFF_ENABLED;
+		ii.details = NULL;
 		ii.actions = NULL;
 	}
-	fatal |= t4_handle_intr(adap, &ii, 0, verbose);
+	fatal |= t4_handle_intr(adap, &ii, 0, flags);
+	if (is_t4(adap))
+		return (fatal);
 
+	MPASS(chip_id(adap) >= CHELSIO_T5);
+	snprintf(name, sizeof(name), "MAC_PORT%u_PERR_INT_CAUSE", port);
 	if (chip_id(adap) > CHELSIO_T6) {
-		snprintf(name, sizeof(name), "T7_MAC_PORT%u_PERR_INT_CAUSE", port);
 		ii.name = &name[0];
 		ii.cause_reg = T7_PORT_REG(port, A_T7_MAC_PORT_PERR_INT_CAUSE);
 		ii.enable_reg = T7_PORT_REG(port, A_T7_MAC_PORT_PERR_INT_EN);
-		ii.fatal = 0;
-		ii.flags = 0;
+		ii.fatal = 0xffffffff;
+		ii.flags = IHF_FATAL_IFF_ENABLED;
 		ii.details = NULL;
 		ii.actions = NULL;
-		fatal |= t4_handle_intr(adap, &ii, 0, verbose);
-	} else if (chip_id(adap) >= CHELSIO_T5) {
-		snprintf(name, sizeof(name), "MAC_PORT%u_PERR_INT_CAUSE", port);
+	} else {
 		ii.name = &name[0];
 		ii.cause_reg = T5_PORT_REG(port, A_MAC_PORT_PERR_INT_CAUSE);
 		ii.enable_reg = T5_PORT_REG(port, A_MAC_PORT_PERR_INT_EN);
-		ii.fatal = 0;
-		ii.flags = 0;
+		ii.fatal = 0xffffffff;
+		ii.flags = IHF_FATAL_IFF_ENABLED;
 		ii.details = NULL;
 		ii.actions = NULL;
-		fatal |= t4_handle_intr(adap, &ii, 0, verbose);
 	}
+	fatal |= t4_handle_intr(adap, &ii, 0, flags);
+	if (is_t5(adap))
+		return (fatal);
 
+	MPASS(chip_id(adap) >= CHELSIO_T6);
+	snprintf(name, sizeof(name), "MAC_PORT%u_PERR_INT_CAUSE_100G", port);
 	if (chip_id(adap) > CHELSIO_T6) {
-		snprintf(name, sizeof(name), "T7_MAC_PORT%u_PERR_INT_CAUSE_100G", port);
 		ii.name = &name[0];
 		ii.cause_reg = T7_PORT_REG(port, A_T7_MAC_PORT_PERR_INT_CAUSE_100G);
 		ii.enable_reg = T7_PORT_REG(port, A_T7_MAC_PORT_PERR_INT_EN_100G);
-		ii.fatal = 0;
-		ii.flags = 0;
+		ii.fatal = 0xffffffff;
+		ii.flags = IHF_FATAL_IFF_ENABLED;
 		ii.details = NULL;
 		ii.actions = NULL;
-		fatal |= t4_handle_intr(adap, &ii, 0, verbose);
-	} else if (is_t6(adap)) {
-		snprintf(name, sizeof(name), "MAC_PORT%u_PERR_INT_CAUSE_100G", port);
+	} else {
 		ii.name = &name[0];
 		ii.cause_reg = T5_PORT_REG(port, A_MAC_PORT_PERR_INT_CAUSE_100G);
 		ii.enable_reg = T5_PORT_REG(port, A_MAC_PORT_PERR_INT_EN_100G);
-		ii.fatal = 0;
-		ii.flags = 0;
+		ii.fatal = 0xffffffff;
+		ii.flags = IHF_FATAL_IFF_ENABLED;
 		ii.details = NULL;
 		ii.actions = NULL;
-		fatal |= t4_handle_intr(adap, &ii, 0, verbose);
 	}
+	fatal |= t4_handle_intr(adap, &ii, 0, flags);
+	if (is_t6(adap))
+		return (fatal);
+
+	MPASS(chip_id(adap) >= CHELSIO_T7);
+	fatal |= t4_handle_intr(adap, &mac_int_cause_cmn, 0, flags);
+	fatal |= t4_handle_intr(adap, &mac_perr_cause_mtip, 0, flags);
+	fatal |= t4_handle_intr(adap, &mac_cerr_cause_mtip, 0, flags);
+	fatal |= t4_handle_intr(adap, &mac_ios_int_cause_quad0, 0, flags);
+	fatal |= t4_handle_intr(adap, &mac_ios_int_cause_quad1, 0, flags);
 
 	return (fatal);
 }
 
-static bool pl_timeout_status(struct adapter *adap, int arg, bool verbose)
+static bool pl_timeout_status(struct adapter *adap, int arg, int flags)
 {
+	if (flags & IHF_NO_SHOW)
+		return (false);
 
 	CH_ALERT(adap, "    PL_TIMEOUT_STATUS 0x%08x 0x%08x\n",
 	    t4_read_reg(adap, A_PL_TIMEOUT_STATUS0),
@@ -6049,13 +6487,9 @@ static bool pl_timeout_status(struct adapter *adap, int arg, bool verbose)
 	return (false);
 }
 
-static bool plpl_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool plpl_intr_handler(struct adapter *adap, int arg, int flags)
 {
-	static const struct intr_action plpl_intr_actions[] = {
-		{ F_TIMEOUT, 0, pl_timeout_status },
-		{ 0 },
-	};
-	static const struct intr_details plpl_intr_details[] = {
+	static const struct intr_details plpl_int_cause_fields[] = {
 		{ F_PL_BUSPERR, "Bus parity error" },
 		{ F_FATALPERR, "Fatal parity error" },
 		{ F_INVALIDACCESS, "Global reserved memory access" },
@@ -6064,31 +6498,397 @@ static bool plpl_intr_handler(struct adapter *adap, int arg, bool verbose)
 		{ F_PERRVFID, "VFID_MAP parity error" },
 		{ 0 }
 	};
-	static const struct intr_info plpl_intr_info = {
+	static const struct intr_action plpl_int_cause_actions[] = {
+		{ F_TIMEOUT, -1, pl_timeout_status },
+		{ 0 },
+	};
+	static const struct intr_info plpl_int_cause = {
 		.name = "PL_PL_INT_CAUSE",
 		.cause_reg = A_PL_PL_INT_CAUSE,
 		.enable_reg = A_PL_PL_INT_ENABLE,
 		.fatal = F_FATALPERR | F_PERRVFID,
-		.flags = NONFATAL_IF_DISABLED,
-		.details = plpl_intr_details,
-		.actions = plpl_intr_actions,
+		.flags = IHF_FATAL_IFF_ENABLED | IHF_IGNORE_IF_DISABLED,
+		.details = plpl_int_cause_fields,
+		.actions = plpl_int_cause_actions,
 	};
 
-	return (t4_handle_intr(adap, &plpl_intr_info, 0, verbose));
+	return (t4_handle_intr(adap, &plpl_int_cause, 0, flags));
+}
+
+/* similar to t4_port_reg */
+static inline u32
+t7_tlstx_reg(u8 instance, u8 channel, u32 reg)
+{
+	MPASS(instance <= 1);
+	MPASS(channel < NUM_TLS_TX_CH_INSTANCES);
+	return (instance * (CRYPTO_1_BASE_ADDR - CRYPTO_0_BASE_ADDR) +
+	    TLS_TX_CH_REG(reg, channel));
+}
+
+/*
+ * CRYPTO (aka TLS_TX) interrupt handler.
+ */
+static bool tlstx_intr_handler(struct adapter *adap, int idx, int flags)
+{
+	static const struct intr_details tlstx_int_cause_fields[] = {
+		{ F_KEX_CERR, "KEX SRAM Correctable error" },
+		{ F_KEYLENERR, "IPsec Key length error" },
+		{ F_INTF1_PERR, "Input Interface1 parity error" },
+		{ F_INTF0_PERR, "Input Interface0 parity error" },
+		{ F_KEX_PERR, "KEX SRAM Parity error" },
+		{ 0 }
+	};
+	struct intr_info ii = {
+		.fatal = F_KEX_PERR | F_INTF0_PERR | F_INTF1_PERR,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = tlstx_int_cause_fields,
+		.actions = NULL,
+	};
+	char name[32];
+	int ch;
+	bool fatal = false;
+
+	for (ch = 0; ch < NUM_TLS_TX_CH_INSTANCES; ch++) {
+		snprintf(name, sizeof(name), "TLSTX%u_CH%u_INT_CAUSE", idx, ch);
+		ii.name = &name[0];
+		ii.cause_reg = t7_tlstx_reg(idx, ch, A_TLS_TX_CH_INT_CAUSE);
+		ii.enable_reg = t7_tlstx_reg(idx, ch, A_TLS_TX_CH_INT_ENABLE);
+		fatal |= t4_handle_intr(adap, &ii, 0, flags);
+	}
+
+	return (fatal);
+}
+
+/*
+ * HMA interrupt handler.
+ */
+static bool hma_intr_handler(struct adapter *adap, int idx, int flags)
+{
+	static const struct intr_details hma_int_cause_fields[] = {
+		{ F_GK_UF_INT_CAUSE, "Gatekeeper underflow" },
+		{ F_IDTF_INT_CAUSE, "Invalid descriptor fault" },
+		{ F_OTF_INT_CAUSE, "Offset translation fault" },
+		{ F_RTF_INT_CAUSE, "Region translation fault" },
+		{ F_PCIEMST_INT_CAUSE, "PCIe master access error" },
+		{ F_MAMST_INT_CAUSE, "MA master access error" },
+		{ 1, "FIFO parity error" },
+		{ 0 }
+	};
+	static const struct intr_info hma_int_cause = {
+		.name = "HMA_INT_CAUSE",
+		.cause_reg = A_HMA_INT_CAUSE,
+		.enable_reg = A_HMA_INT_ENABLE,
+		.fatal = 7,
+		.flags = 0,
+		.details = hma_int_cause_fields,
+		.actions = NULL,
+	};
+
+	return (t4_handle_intr(adap, &hma_int_cause, 0, flags));
+}
+
+/*
+ * CRYPTO_KEY interrupt handler.
+ */
+static bool cryptokey_intr_handler(struct adapter *adap, int idx, int flags)
+{
+	static const struct intr_details cryptokey_int_cause_fields[] = {
+		{ F_MA_FIFO_PERR, "MA arbiter FIFO parity error" },
+		{ F_MA_RSP_PERR, "MA response IF parity error" },
+		{ F_ING_CACHE_DATA_PERR, "Ingress key cache data parity error" },
+		{ F_ING_CACHE_TAG_PERR, "Ingress key cache tag parity error" },
+		{ F_LKP_KEY_REQ_PERR, "Ingress key req parity error" },
+		{ F_LKP_CLIP_TCAM_PERR, "Ingress LKP CLIP TCAM parity error" },
+		{ F_LKP_MAIN_TCAM_PERR, "Ingress LKP main TCAM parity error" },
+		{ F_EGR_KEY_REQ_PERR, "Egress key req or FIFO3 parity error" },
+		{ F_EGR_CACHE_DATA_PERR, "Egress key cache data parity error" },
+		{ F_EGR_CACHE_TAG_PERR, "Egress key cache tag parity error" },
+		{ F_CIM_PERR, "CIM interface parity error" },
+		{ F_MA_INV_RSP_TAG, "MA invalid response tag" },
+		{ F_ING_KEY_RANGE_ERR, "Ingress key range error" },
+		{ F_ING_MFIFO_OVFL, "Ingress MFIFO overflow" },
+		{ F_LKP_REQ_OVFL, "Ingress lookup FIFO overflow" },
+		{ F_EOK_WAIT_ERR, "EOK wait error" },
+		{ F_EGR_KEY_RANGE_ERR, "Egress key range error" },
+		{ F_EGR_MFIFO_OVFL, "Egress MFIFO overflow" },
+		{ F_SEQ_WRAP_HP_OVFL, "Sequence wrap (hi-pri)" },
+		{ F_SEQ_WRAP_LP_OVFL, "Sequence wrap (lo-pri)" },
+		{ F_EGR_SEQ_WRAP_HP, "Egress sequence wrap (hi-pri)" },
+		{ F_EGR_SEQ_WRAP_LP, "Egress sequence wrap (lo-pri)" },
+		{ 0 }
+	};
+	static const struct intr_info cryptokey_int_cause = {
+		.name = "CRYPTO_KEY_INT_CAUSE",
+		.cause_reg = A_CRYPTO_KEY_INT_CAUSE,
+		.enable_reg = A_CRYPTO_KEY_INT_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = cryptokey_int_cause_fields,
+		.actions = NULL,
+	};
+
+	return (t4_handle_intr(adap, &cryptokey_int_cause, 0, flags));
+}
+
+/*
+ * GCACHE interrupt handler.
+ */
+static bool gcache_intr_handler(struct adapter *adap, int idx, int flags)
+{
+	static const struct intr_details gcache_int_cause_fields[] = {
+		{ F_GC1_SRAM_RSP_DATAQ_PERR_INT_CAUSE, "GC1 SRAM rsp dataq perr" },
+		{ F_GC0_SRAM_RSP_DATAQ_PERR_INT_CAUSE, "GC0 SRAM rsp dataq perr" },
+		{ F_GC1_WQDATA_FIFO_PERR_INT_CAUSE, "GC1 wqdata FIFO perr" },
+		{ F_GC0_WQDATA_FIFO_PERR_INT_CAUSE, "GC0 wqdata FIFO perr" },
+		{ F_GC1_RDTAG_QUEUE_PERR_INT_CAUSE, "GC1 rdtag queue perr" },
+		{ F_GC0_RDTAG_QUEUE_PERR_INT_CAUSE, "GC0 rdtag queue perr" },
+		{ F_GC1_SRAM_RDTAG_QUEUE_PERR_INT_CAUSE, "GC1 SRAM rdtag queue perr" },
+		{ F_GC0_SRAM_RDTAG_QUEUE_PERR_INT_CAUSE, "GC0 SRAM rdtag queue perr" },
+		{ F_GC1_RSP_PERR_INT_CAUSE, "GC1 rsp perr" },
+		{ F_GC0_RSP_PERR_INT_CAUSE, "GC0 rsp perr" },
+		{ F_GC1_LRU_UERR_INT_CAUSE, "GC1 lru uerr" },
+		{ F_GC0_LRU_UERR_INT_CAUSE, "GC0 lru uerr" },
+		{ F_GC1_TAG_UERR_INT_CAUSE, "GC1 tag uerr" },
+		{ F_GC0_TAG_UERR_INT_CAUSE, "GC0 tag uerr" },
+		{ F_GC1_LRU_CERR_INT_CAUSE, "GC1 lru cerr" },
+		{ F_GC0_LRU_CERR_INT_CAUSE, "GC0 lru cerr" },
+		{ F_GC1_TAG_CERR_INT_CAUSE, "GC1 tag cerr" },
+		{ F_GC0_TAG_CERR_INT_CAUSE, "GC0 tag cerr" },
+		{ F_GC1_CE_INT_CAUSE, "GC1 correctable error" },
+		{ F_GC0_CE_INT_CAUSE, "GC0 correctable error" },
+		{ F_GC1_UE_INT_CAUSE, "GC1 uncorrectable error" },
+		{ F_GC0_UE_INT_CAUSE, "GC0 uncorrectable error" },
+		{ F_GC1_CMD_PAR_INT_CAUSE, "GC1 cmd perr" },
+		{ F_GC1_DATA_PAR_INT_CAUSE, "GC1 data perr" },
+		{ F_GC0_CMD_PAR_INT_CAUSE, "GC0 cmd perr" },
+		{ F_GC0_DATA_PAR_INT_CAUSE, "GC0 data perr" },
+		{ F_ILLADDRACCESS1_INT_CAUSE, "GC1 illegal address access" },
+		{ F_ILLADDRACCESS0_INT_CAUSE, "GC0 illegal address access" },
+		{ 0 }
+	};
+	static const struct intr_info gcache_perr_cause = {
+		.name = "GCACHE_PAR_CAUSE",
+		.cause_reg = A_GCACHE_PAR_CAUSE,
+		.enable_reg = A_GCACHE_PAR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info gcache_int_cause = {
+		.name = "GCACHE_INT_CAUSE",
+		.cause_reg = A_GCACHE_INT_CAUSE,
+		.enable_reg = A_GCACHE_INT_ENABLE,
+		.fatal = 0,
+		.flags = 0,
+		.details = gcache_int_cause_fields,
+		.actions = NULL,
+	};
+	bool fatal = false;
+
+	fatal |= t4_handle_intr(adap, &gcache_int_cause, 0, flags);
+	fatal |= t4_handle_intr(adap, &gcache_perr_cause, 0, flags);
+
+	return (fatal);
+}
+
+/*
+ * ARM interrupt handler.
+ */
+static bool arm_intr_handler(struct adapter *adap, int idx, int flags)
+{
+	static const struct intr_info arm_perr_cause0 = {
+		.name = "ARM_PERR_INT_CAUSE0",
+		.cause_reg = A_ARM_PERR_INT_CAUSE0,
+		.enable_reg = A_ARM_PERR_INT_ENB0,
+		.fatal = 0xffffffff,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info arm_perr_cause1 = {
+		.name = "ARM_PERR_INT_CAUSE1",
+		.cause_reg = A_ARM_PERR_INT_CAUSE1,
+		.enable_reg = A_ARM_PERR_INT_ENB1,
+		.fatal = 0xffffffff,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info arm_perr_cause2 = {
+		.name = "ARM_PERR_INT_CAUSE2",
+		.cause_reg = A_ARM_PERR_INT_CAUSE2,
+		.enable_reg = A_ARM_PERR_INT_ENB2,
+		.fatal = 0xffffffff,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info arm_cerr_cause0 = {
+		.name = "ARM_CERR_INT_CAUSE",
+		.cause_reg = A_ARM_CERR_INT_CAUSE0,
+		.enable_reg = A_ARM_CERR_INT_ENB0,
+		.fatal = 0,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info arm_err_cause0 = {
+		.name = "ARM_ERR_INT_CAUSE",
+		.cause_reg = A_ARM_ERR_INT_CAUSE0,
+		.enable_reg = A_ARM_ERR_INT_ENB0,
+		.fatal = 0,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info arm_periph_cause = {
+		.name = "ARM_PERIPHERAL_INT_CAUSE",
+		.cause_reg = A_ARM_PERIPHERAL_INT_CAUSE,
+		.enable_reg = A_ARM_PERIPHERAL_INT_ENB,
+		.fatal = 0,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info arm_nvme_db_emu_cause = {
+		.name = "ARM_NVME_DB_EMU_INT_CAUSE",
+		.cause_reg = A_ARM_NVME_DB_EMU_INT_CAUSE,
+		.enable_reg = A_ARM_NVME_DB_EMU_INT_ENABLE,
+		.fatal = 0,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	bool fatal = false;
+
+	fatal |= t4_handle_intr(adap, &arm_perr_cause0, 0, flags);
+	fatal |= t4_handle_intr(adap, &arm_perr_cause1, 0, flags);
+	fatal |= t4_handle_intr(adap, &arm_perr_cause2, 0, flags);
+	fatal |= t4_handle_intr(adap, &arm_cerr_cause0, 0, flags);
+	fatal |= t4_handle_intr(adap, &arm_err_cause0, 0, flags);
+	fatal |= t4_handle_intr(adap, &arm_periph_cause, 0, flags);
+	fatal |= t4_handle_intr(adap, &arm_nvme_db_emu_cause, 0, flags);
+
+	return (fatal);
+}
+
+static inline uint32_t
+get_perr_ucause(struct adapter *sc, const struct intr_info *ii)
+{
+	uint32_t cause;
+
+	cause = t4_read_reg(sc, ii->cause_reg);
+	if (ii->flags & IHF_IGNORE_IF_DISABLED)
+		cause &= t4_read_reg(sc, ii->enable_reg);
+	return (cause);
+}
+
+static uint32_t
+t4_perr_to_ic(struct adapter *adap, uint32_t perr)
+{
+	uint32_t mask;
+
+	if (adap->chip_params->nchan > 2)
+		mask = F_MAC0 | F_MAC1 | F_MAC2 | F_MAC3;
+	else
+		mask = F_MAC0 | F_MAC1;
+	return (perr & mask ? perr | mask : perr);
+}
+
+static uint32_t
+t7_perr_to_ic1(uint32_t perr)
+{
+	uint32_t cause = 0;
+
+	if (perr & F_T7_PL_PERR_ULP_TX)
+		cause |= F_T7_ULP_TX;
+	if (perr & F_T7_PL_PERR_SGE)
+		cause |= F_T7_SGE;
+	if (perr & F_T7_PL_PERR_HMA)
+		cause |= F_T7_HMA;
+	if (perr & F_T7_PL_PERR_CPL_SWITCH)
+		cause |= F_T7_CPL_SWITCH;
+	if (perr & F_T7_PL_PERR_ULP_RX)
+		cause |= F_T7_ULP_RX;
+	if (perr & F_T7_PL_PERR_PM_RX)
+		cause |= F_T7_PM_RX;
+	if (perr & F_T7_PL_PERR_PM_TX)
+		cause |= F_T7_PM_TX;
+	if (perr & F_T7_PL_PERR_MA)
+		cause |= F_T7_MA;
+	if (perr & F_T7_PL_PERR_TP)
+		cause |= F_T7_TP;
+	if (perr & F_T7_PL_PERR_LE)
+		cause |= F_T7_LE;
+	if (perr & F_T7_PL_PERR_EDC1)
+		cause |= F_T7_EDC1;
+	if (perr & F_T7_PL_PERR_EDC0)
+		cause |= F_T7_EDC0;
+	if (perr & F_T7_PL_PERR_MC1)
+		cause |= F_T7_MC1;
+	if (perr & F_T7_PL_PERR_MC0)
+		cause |= F_T7_MC0;
+	if (perr & F_T7_PL_PERR_PCIE)
+		cause |= F_T7_PCIE;
+	if (perr & F_T7_PL_PERR_UART)
+		cause |= F_T7_UART;
+	if (perr & F_T7_PL_PERR_PMU)
+		cause |= F_PMU;
+	if (perr & F_T7_PL_PERR_MAC)
+		cause |= F_MAC0 | F_MAC1 | F_MAC2 | F_MAC3;
+	if (perr & F_T7_PL_PERR_SMB)
+		cause |= F_SMB;
+	if (perr & F_T7_PL_PERR_SF)
+		cause |= F_SF;
+	if (perr & F_T7_PL_PERR_PL)
+		cause |= F_PL;
+	if (perr & F_T7_PL_PERR_NCSI)
+		cause |= F_NCSI;
+	if (perr & F_T7_PL_PERR_MPS)
+		cause |= F_MPS;
+	if (perr & F_T7_PL_PERR_MI)
+		cause |= F_MI;
+	if (perr & F_T7_PL_PERR_DBG)
+		cause |= F_DBG;
+	if (perr & F_T7_PL_PERR_I2CM)
+		cause |= F_I2CM;
+	if (perr & F_T7_PL_PERR_CIM)
+		cause |= F_CIM;
+
+	return (cause);
+}
+
+static uint32_t
+t7_perr_to_ic2(uint32_t perr)
+{
+	uint32_t cause = 0;
+
+	if (perr & F_T7_PL_PERR_CRYPTO_KEY)
+		cause |= F_CRYPTO_KEY;
+	if (perr & F_T7_PL_PERR_CRYPTO1)
+		cause |= F_CRYPTO1;
+	if (perr & F_T7_PL_PERR_CRYPTO0)
+		cause |= F_CRYPTO0;
+	if (perr & F_T7_PL_PERR_GCACHE)
+		cause |= F_GCACHE;
+	if (perr & F_T7_PL_PERR_ARM)
+		cause |= F_ARM;
+
+	return (cause);
 }
 
 /**
  *	t4_slow_intr_handler - control path interrupt handler
  *	@adap: the adapter
- *	@verbose: increased verbosity, for debug
  *
  *	T4 interrupt handler for non-data global interrupt events, e.g., errors.
  *	The designation 'slow' is because it involves register reads, while
  *	data interrupts typically don't involve any MMIOs.
  */
-bool t4_slow_intr_handler(struct adapter *adap, bool verbose)
+bool t4_slow_intr_handler(struct adapter *adap, int flags)
 {
-	static const struct intr_details pl_intr_details[] = {
+	static const struct intr_details pl_int_cause_fields[] = {
 		{ F_MC1, "MC1" },
 		{ F_UART, "UART" },
 		{ F_ULP_TX, "ULP TX" },
@@ -6121,10 +6921,56 @@ bool t4_slow_intr_handler(struct adapter *adap, bool verbose)
 		{ F_CIM, "CIM" },
 		{ 0 }
 	};
-	static const struct intr_details t7_pl_intr_details[] = {
-		{ F_T7_MC1, "MC1" },
+	static const struct intr_action pl_int_cause_actions[] = {
+		{ F_ULP_TX, -1, ulptx_intr_handler },
+		{ F_SGE, -1, sge_intr_handler },
+		{ F_CPL_SWITCH, -1, cplsw_intr_handler },
+		{ F_ULP_RX, -1, ulprx_intr_handler },
+		{ F_PM_RX, -1, pmtx_intr_handler },
+		{ F_PM_TX, -1, pmtx_intr_handler },
+		{ F_MA, -1, ma_intr_handler },
+		{ F_TP, -1, tp_intr_handler },
+		{ F_LE, -1, le_intr_handler },
+		{ F_EDC0, MEM_EDC0, mem_intr_handler },
+		{ F_EDC1, MEM_EDC1, mem_intr_handler },
+		{ F_MC0, MEM_MC0, mem_intr_handler },
+		{ F_MC1, MEM_MC1, mem_intr_handler },
+		{ F_PCIE, -1, pcie_intr_handler },
+		{ F_MAC0, 0, mac_intr_handler },
+		{ F_MAC1, 1, mac_intr_handler },
+		{ F_MAC2, 2, mac_intr_handler },
+		{ F_MAC3, 3, mac_intr_handler },
+		{ F_SMB, -1, smb_intr_handler },
+		{ F_PL, -1, plpl_intr_handler },
+		{ F_NCSI, -1, ncsi_intr_handler },
+		{ F_MPS, -1, mps_intr_handler },
+		{ F_CIM, -1, cim_intr_handler },
+		{ 0 }
+	};
+	static const struct intr_info pl_int_cause = {
+		.name = "PL_INT_CAUSE",
+		.cause_reg = A_PL_INT_CAUSE,
+		.enable_reg = A_PL_INT_ENABLE,
+		.fatal = 0,
+		.flags = IHF_IGNORE_IF_DISABLED,
+		.details = pl_int_cause_fields,
+		.actions = pl_int_cause_actions,
+	};
+	static const struct intr_info pl_perr_cause = {
+		.name = "PL_PERR_CAUSE",
+		.cause_reg = A_PL_PERR_CAUSE,
+		.enable_reg = A_PL_PERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.details = pl_int_cause_fields,
+		.actions = NULL,
+	};
+	static const struct intr_details t7_pl_int_cause_fields[] = {
+		{ F_T7_FLR, "FLR" },
+		{ F_T7_SW_CIM, "SW CIM" },
 		{ F_T7_ULP_TX, "ULP TX" },
 		{ F_T7_SGE, "SGE" },
+		{ F_T7_HMA, "HMA" },
 		{ F_T7_CPL_SWITCH, "CPL Switch" },
 		{ F_T7_ULP_RX, "ULP RX" },
 		{ F_T7_PM_RX, "PM RX" },
@@ -6134,117 +6980,165 @@ bool t4_slow_intr_handler(struct adapter *adap, bool verbose)
 		{ F_T7_LE, "LE" },
 		{ F_T7_EDC1, "EDC1" },
 		{ F_T7_EDC0, "EDC0" },
+		{ F_T7_MC1, "MC1" },
 		{ F_T7_MC0, "MC0" },
 		{ F_T7_PCIE, "PCIE" },
+		{ F_T7_UART, "UART" },
+		{ F_PMU, "PMU" },
 		{ F_MAC3, "MAC3" },
 		{ F_MAC2, "MAC2" },
 		{ F_MAC1, "MAC1" },
 		{ F_MAC0, "MAC0" },
 		{ F_SMB, "SMB" },
+		{ F_SF, "SF" },
 		{ F_PL, "PL" },
 		{ F_NCSI, "NC-SI" },
 		{ F_MPS, "MPS" },
+		{ F_MI, "MI" },
 		{ F_DBG, "DBG" },
 		{ F_I2CM, "I2CM" },
-		{ F_MI, "MI" },
 		{ F_CIM, "CIM" },
 		{ 0 }
 	};
-	struct intr_info pl_perr_cause = {
-		.name = "PL_PERR_CAUSE",
-		.cause_reg = A_PL_PERR_CAUSE,
-		.enable_reg = A_PL_PERR_ENABLE,
-		.fatal = 0xffffffff,
-		.flags = NONFATAL_IF_DISABLED,
-		.details = NULL,
-		.actions = NULL,
-	};
-	static const struct intr_action pl_intr_action[] = {
-		{ F_MC1, MEM_MC1, mem_intr_handler },
-		{ F_ULP_TX, -1, ulptx_intr_handler },
-		{ F_SGE, -1, sge_intr_handler },
-		{ F_CPL_SWITCH, -1, cplsw_intr_handler },
-		{ F_ULP_RX, -1, ulprx_intr_handler },
-		{ F_PM_RX, -1, pmrx_intr_handler},
-		{ F_PM_TX, -1, pmtx_intr_handler},
-		{ F_MA, -1, ma_intr_handler },
-		{ F_TP, -1, tp_intr_handler },
-		{ F_LE, -1, le_intr_handler },
-		{ F_EDC1, MEM_EDC1, mem_intr_handler },
-		{ F_EDC0, MEM_EDC0, mem_intr_handler },
-		{ F_MC0, MEM_MC0, mem_intr_handler },
-		{ F_PCIE, -1, pcie_intr_handler },
-		{ F_MAC3, 3, mac_intr_handler},
-		{ F_MAC2, 2, mac_intr_handler},
-		{ F_MAC1, 1, mac_intr_handler},
-		{ F_MAC0, 0, mac_intr_handler},
-		{ F_SMB, -1, smb_intr_handler},
-		{ F_PL, -1, plpl_intr_handler },
-		{ F_NCSI, -1, ncsi_intr_handler},
-		{ F_MPS, -1, mps_intr_handler },
-		{ F_CIM, -1, cim_intr_handler },
-		{ 0 }
-	};
-	static const struct intr_action t7_pl_intr_action[] = {
+	static const struct intr_action t7_pl_int_cause_actions[] = {
 		{ F_T7_ULP_TX, -1, ulptx_intr_handler },
 		{ F_T7_SGE, -1, sge_intr_handler },
+		{ F_T7_HMA, -1, hma_intr_handler },
 		{ F_T7_CPL_SWITCH, -1, cplsw_intr_handler },
 		{ F_T7_ULP_RX, -1, ulprx_intr_handler },
-		{ F_T7_PM_RX, -1, pmrx_intr_handler},
-		{ F_T7_PM_TX, -1, pmtx_intr_handler},
+		{ F_T7_PM_RX, -1, pmrx_intr_handler },
+		{ F_T7_PM_TX, -1, pmtx_intr_handler },
 		{ F_T7_MA, -1, ma_intr_handler },
 		{ F_T7_TP, -1, tp_intr_handler },
 		{ F_T7_LE, -1, le_intr_handler },
-		{ F_T7_EDC1, MEM_EDC1, mem_intr_handler },
 		{ F_T7_EDC0, MEM_EDC0, mem_intr_handler },
-		{ F_T7_MC1, MEM_MC1, mem_intr_handler },
+		{ F_T7_EDC1, MEM_EDC1, mem_intr_handler },
 		{ F_T7_MC0, MEM_MC0, mem_intr_handler },
+		{ F_T7_MC1, MEM_MC1, mem_intr_handler },
 		{ F_T7_PCIE, -1, pcie_intr_handler },
-		{ F_MAC3, 3, mac_intr_handler},
-		{ F_MAC2, 2, mac_intr_handler},
-		{ F_MAC1, 1, mac_intr_handler},
-		{ F_MAC0, 0, mac_intr_handler},
-		{ F_SMB, -1, smb_intr_handler},
+		{ F_MAC0, 0, mac_intr_handler },
+		{ F_MAC1, 1, mac_intr_handler },
+		{ F_MAC2, 2, mac_intr_handler },
+		{ F_MAC3, 3, mac_intr_handler },
+		{ F_SMB, -1, smb_intr_handler },
 		{ F_PL, -1, plpl_intr_handler },
-		{ F_NCSI, -1, ncsi_intr_handler},
+		{ F_NCSI, -1, ncsi_intr_handler },
 		{ F_MPS, -1, mps_intr_handler },
 		{ F_CIM, -1, cim_intr_handler },
 		{ 0 }
 	};
-	struct intr_info pl_intr_info = {
+	static const struct intr_info t7_pl_int_cause = {
 		.name = "PL_INT_CAUSE",
 		.cause_reg = A_PL_INT_CAUSE,
 		.enable_reg = A_PL_INT_ENABLE,
 		.fatal = 0,
-		.flags = 0,
-		.details = NULL,
+		.flags = IHF_IGNORE_IF_DISABLED,
+		.details = t7_pl_int_cause_fields,
+		.actions = t7_pl_int_cause_actions,
+	};
+	static const struct intr_details t7_pl_int_cause2_fields[] = {
+		{ F_CRYPTO_KEY, "CRYPTO KEY" },
+		{ F_CRYPTO1, "CRYPTO1" },
+		{ F_CRYPTO0, "CRYPTO0" },
+		{ F_GCACHE, "GCACHE" },
+		{ F_ARM, "ARM" },
+		{ 0 }
+	};
+	static const struct intr_action t7_pl_int_cause2_actions[] = {
+		{ F_CRYPTO_KEY, -1, cryptokey_intr_handler },
+		{ F_CRYPTO1, 1, tlstx_intr_handler },
+		{ F_CRYPTO0, 0, tlstx_intr_handler },
+		{ F_GCACHE, -1, gcache_intr_handler },
+		{ F_ARM, -1, arm_intr_handler },
+		{ 0 }
+	};
+	static const struct intr_info t7_pl_int_cause2 = {
+		.name = "PL_INT_CAUSE2",
+		.cause_reg = A_PL_INT_CAUSE2,
+		.enable_reg = A_PL_INT_ENABLE2,
+		.fatal = 0,
+		.flags = IHF_IGNORE_IF_DISABLED,
+		.details = t7_pl_int_cause2_fields,
+		.actions = t7_pl_int_cause2_actions,
+	};
+	static const struct intr_details t7_pl_perr_cause_fields[] = {
+		{ F_T7_PL_PERR_CRYPTO_KEY, "CRYPTO KEY" },
+		{ F_T7_PL_PERR_CRYPTO1, "CRYPTO1" },
+		{ F_T7_PL_PERR_CRYPTO0, "CRYPTO0" },
+		{ F_T7_PL_PERR_GCACHE, "GCACHE" },
+		{ F_T7_PL_PERR_ARM, "ARM" },
+		{ F_T7_PL_PERR_ULP_TX, "ULP TX" },
+		{ F_T7_PL_PERR_SGE, "SGE" },
+		{ F_T7_PL_PERR_HMA, "HMA" },
+		{ F_T7_PL_PERR_CPL_SWITCH, "CPL Switch" },
+		{ F_T7_PL_PERR_ULP_RX, "ULP RX" },
+		{ F_T7_PL_PERR_PM_RX, "PM RX" },
+		{ F_T7_PL_PERR_PM_TX, "PM TX" },
+		{ F_T7_PL_PERR_MA, "MA" },
+		{ F_T7_PL_PERR_TP, "TP" },
+		{ F_T7_PL_PERR_LE, "LE" },
+		{ F_T7_PL_PERR_EDC1, "EDC1" },
+		{ F_T7_PL_PERR_EDC0, "EDC0" },
+		{ F_T7_PL_PERR_MC1, "MC1" },
+		{ F_T7_PL_PERR_MC0, "MC0" },
+		{ F_T7_PL_PERR_PCIE, "PCIE" },
+		{ F_T7_PL_PERR_UART, "UART" },
+		{ F_T7_PL_PERR_PMU, "PMU" },
+		{ F_T7_PL_PERR_MAC, "MAC" },
+		{ F_T7_PL_PERR_SMB, "SMB" },
+		{ F_T7_PL_PERR_SF, "SF" },
+		{ F_T7_PL_PERR_PL, "PL" },
+		{ F_T7_PL_PERR_NCSI, "NC-SI" },
+		{ F_T7_PL_PERR_MPS, "MPS" },
+		{ F_T7_PL_PERR_MI, "MI" },
+		{ F_T7_PL_PERR_DBG, "DBG" },
+		{ F_T7_PL_PERR_I2CM, "I2CM" },
+		{ F_T7_PL_PERR_CIM, "CIM" },
+		{ 0 }
+	};
+	static const struct intr_info t7_pl_perr_cause = {
+		.name = "PL_PERR_CAUSE",
+		.cause_reg = A_PL_PERR_CAUSE,
+		.enable_reg = A_PL_PERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.details = t7_pl_perr_cause_fields,
 		.actions = NULL,
 	};
-	u32 perr;
+	bool fatal = false;
+	uint32_t perr;
 
-	if (chip_id(adap) >= CHELSIO_T7) {
-		pl_perr_cause.details = t7_pl_intr_details;
-		pl_intr_info.details = t7_pl_intr_details;
-		pl_intr_info.actions = t7_pl_intr_action;
+	if (chip_id(adap) < CHELSIO_T7) {
+		perr = get_perr_ucause(adap, &pl_perr_cause);
+		fatal |= t4_handle_intr(adap, &pl_perr_cause, 0,
+		    flags & ~(IHF_CLR_ALL_SET | IHF_CLR_ALL_UNIGNORED));
+		fatal |= t4_handle_intr(adap, &pl_int_cause,
+		    t4_perr_to_ic(adap, perr), flags);
+		t4_write_reg(adap, pl_perr_cause.cause_reg, perr);
+		(void)t4_read_reg(adap, pl_perr_cause.cause_reg);
 	} else {
-		pl_perr_cause.details = pl_intr_details;
-		pl_intr_info.details = pl_intr_details;
-		pl_intr_info.actions = pl_intr_action;
+		perr = get_perr_ucause(adap, &t7_pl_perr_cause);
+		fatal |= t4_handle_intr(adap, &t7_pl_perr_cause, 0,
+		    flags & ~(IHF_CLR_ALL_SET | IHF_CLR_ALL_UNIGNORED));
+		fatal |= t4_handle_intr(adap, &t7_pl_int_cause,
+		    t7_perr_to_ic1(perr), flags);
+		fatal |= t4_handle_intr(adap, &t7_pl_int_cause2,
+		    t7_perr_to_ic2(perr), flags);
+		t4_write_reg(adap, t7_pl_perr_cause.cause_reg, perr);
+		(void)t4_read_reg(adap, t7_pl_perr_cause.cause_reg);
 	}
-
-	perr = t4_read_reg(adap, pl_perr_cause.cause_reg);
-	if (verbose || perr != 0) {
-		t4_show_intr_info(adap, &pl_perr_cause, perr);
-		if (perr != 0)
-			t4_write_reg(adap, pl_perr_cause.cause_reg, perr);
-		if (verbose)
-			perr |= t4_read_reg(adap, pl_intr_info.enable_reg);
-	}
-
-	return (t4_handle_intr(adap, &pl_intr_info, perr, verbose));
+	return (fatal);
 }
 
-#define PF_INTR_MASK (F_PFSW | F_PFCIM)
+void t4_intr_clear(struct adapter *adap)
+{
+#if 1
+	if (chip_id(adap) >= CHELSIO_T7)
+		t4_write_reg(adap, A_SGE_INT_CAUSE8, 0xffffffff);
+#endif
+	(void)t4_slow_intr_handler(adap,
+	    IHF_NO_SHOW | IHF_RUN_ALL_ACTIONS | IHF_CLR_ALL_SET);
+}
 
 /**
  *	t4_intr_enable - enable interrupts
@@ -6263,6 +7157,8 @@ void t4_intr_enable(struct adapter *adap)
 {
 	u32 mask, val;
 
+	if (adap->intr_flags & IHF_INTR_CLEAR_ON_INIT)
+		t4_intr_clear(adap);
 	if (chip_id(adap) <= CHELSIO_T5)
 		val = F_ERR_DROPPED_DB | F_ERR_EGR_CTXT_PRIO | F_DBFIFO_HP_INT |
 		    F_DBFIFO_LP_INT;
@@ -6275,8 +7171,14 @@ void t4_intr_enable(struct adapter *adap)
 	    F_ERR_BAD_DB_PIDX0 | F_ERR_ING_CTXT_PRIO | F_EGRESS_SIZE_ERR;
 	mask = val;
 	t4_set_reg_field(adap, A_SGE_INT_ENABLE3, mask, val);
-	t4_write_reg(adap, MYPF_REG(A_PL_PF_INT_ENABLE), PF_INTR_MASK);
+	if (chip_id(adap) >= CHELSIO_T7)
+		t4_write_reg(adap, A_SGE_INT_ENABLE4, 0xffffffff);
+	t4_write_reg(adap, MYPF_REG(A_PL_PF_INT_ENABLE), F_PFSW | F_PFCIM);
 	t4_set_reg_field(adap, A_PL_INT_ENABLE, F_SF | F_I2CM, 0);
+#if 1
+	if (chip_id(adap) >= CHELSIO_T7)
+		t4_set_reg_field(adap, A_PL_INT_ENABLE, F_MAC0 | F_MAC1 | F_MAC2 | F_MAC3, 0);
+#endif
 	t4_set_reg_field(adap, A_PL_INT_MAP0, 0, 1 << adap->pf);
 }
 

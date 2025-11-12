@@ -1340,7 +1340,6 @@ t4_intr_err(void *arg)
 {
 	struct adapter *sc = arg;
 	uint32_t v;
-	const bool verbose = (sc->debug_flags & DF_VERBOSE_SLOWINTR) != 0;
 
 	if (atomic_load_int(&sc->error_flags) & ADAP_FATAL_ERR)
 		return;
@@ -1351,7 +1350,7 @@ t4_intr_err(void *arg)
 		t4_write_reg(sc, MYPF_REG(A_PL_PF_INT_CAUSE), v);
 	}
 
-	if (t4_slow_intr_handler(sc, verbose))
+	if (t4_slow_intr_handler(sc, sc->intr_flags))
 		t4_fatal_err(sc, false);
 }
 
