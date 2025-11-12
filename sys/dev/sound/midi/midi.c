@@ -62,10 +62,6 @@
 #include <dev/sound/midi/midiq.h>
 MALLOC_DEFINE(M_MIDI, "midi buffers", "Midi data allocation area");
 
-#ifndef KOBJMETHOD_END
-#define KOBJMETHOD_END	{ NULL, NULL }
-#endif
-
 #define MIDI_DEV_MIDICTL 12
 
 enum midi_states {

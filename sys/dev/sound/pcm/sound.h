@@ -76,10 +76,6 @@
 #include <sys/mutex.h>
 #include <sys/condvar.h>
 
-#ifndef KOBJMETHOD_END
-#define KOBJMETHOD_END	{ NULL, NULL }
-#endif
-
 struct pcm_channel;
 struct pcm_feeder;
 struct snd_dbuf;
