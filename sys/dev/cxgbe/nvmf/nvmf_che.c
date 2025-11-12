@@ -38,6 +38,7 @@
 #include <sys/capsicum.h>
 #include <sys/file.h>
 #include <sys/kthread.h>
+#include <sys/ktr.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/nv.h>
