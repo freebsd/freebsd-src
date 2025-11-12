@@ -684,9 +684,10 @@ u32 t4_hw_pci_read_cfg4(adapter_t *adapter, int reg);
 
 struct fw_filter_wr;
 
+void t4_intr_clear(struct adapter *adapter);
 void t4_intr_enable(struct adapter *adapter);
 void t4_intr_disable(struct adapter *adapter);
-bool t4_slow_intr_handler(struct adapter *adapter, bool verbose);
+bool t4_slow_intr_handler(struct adapter *adapter, int flags);
 
 int t4_hash_mac_addr(const u8 *addr);
 int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,

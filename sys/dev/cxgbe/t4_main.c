@@ -1327,6 +1327,8 @@ t4_attach(device_t dev)
 	sc->dev = dev;
 	sysctl_ctx_init(&sc->ctx);
 	TUNABLE_INT_FETCH("hw.cxgbe.dflags", &sc->debug_flags);
+	if (TUNABLE_INT_FETCH("hw.cxgbe.iflags", &sc->intr_flags) == 0)
+		sc->intr_flags = IHF_INTR_CLEAR_ON_INIT | IHF_CLR_ALL_UNIGNORED;
 
 	if ((pci_get_device(dev) & 0xff00) == 0x5400)
 		t5_attribute_workaround(dev);
@@ -3943,8 +3945,6 @@ fatal_error_task(void *arg, int pending)
 void
 t4_fatal_err(struct adapter *sc, bool fw_error)
 {
-	const bool verbose = (sc->debug_flags & DF_VERBOSE_SLOWINTR) != 0;
-
 	stop_adapter(sc);
 	if (atomic_testandset_int(&sc->error_flags, ilog2(ADAP_FATAL_ERR)))
 		return;
@@ -3957,7 +3957,7 @@ t4_fatal_err(struct adapter *sc, bool fw_error)
 		 * main INT_CAUSE registers here to make sure we haven't missed
 		 * anything interesting.
 		 */
-		t4_slow_intr_handler(sc, verbose);
+		t4_slow_intr_handler(sc, sc->intr_flags);
 		atomic_set_int(&sc->error_flags, ADAP_CIM_ERR);
 	}
 	t4_report_fw_error(sc);
@@ -7907,6 +7907,9 @@ t4_sysctls(struct adapter *sc)
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "dflags", CTLFLAG_RW,
 	    &sc->debug_flags, 0, "flags to enable runtime debugging");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "iflags", CTLFLAG_RW,
+	    &sc->intr_flags, 0, "flags for the slow interrupt handler");
 
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "tp_version",
 	    CTLFLAG_RD, sc->tp_version, 0, "TP microcode version");
