@@ -445,6 +445,10 @@ LENTRY(enter_kernel_el)
 	ldr	x3, =(CNTHCTL_EL1PCTEN_NOTRAP | CNTHCTL_EL1PCEN_NOTRAP)
 	ldr	x5, =(PSR_DAIF | PSR_M_EL1h)
 
+	/* Enable SPE at EL1 via Monitor Debug Configuration Register */
+	mov     x6, MDCR_EL2_E2PB_EL1_0_NO_TRAP
+	msr     mdcr_el2, x6
+
 .Ldone_vhe:
 
 	msr	cptr_el2, x2
