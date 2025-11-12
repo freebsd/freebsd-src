@@ -10711,9 +10711,13 @@ iwx_suspend(device_t dev)
 	struct iwx_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
 
-	if (sc->sc_flags & IWX_FLAG_HW_INITED) {
-		ieee80211_suspend_all(ic);
+	/*
+	 * Suspend everything first, then shutdown hardware if it's
+	 * still up.
+	 */
+	ieee80211_suspend_all(ic);
 
+	if (sc->sc_flags & IWX_FLAG_HW_INITED) {
 		iwx_stop(sc);
 		sc->sc_flags &= ~IWX_FLAG_HW_INITED;
 	}
@@ -10725,7 +10729,6 @@ iwx_resume(device_t dev)
 {
 	struct iwx_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
-	int err;
 
 	/*
 	 * We disable the RETRY_TIMEOUT register (0x41) to keep
@@ -10735,15 +10738,15 @@ iwx_resume(device_t dev)
 
 	IWX_LOCK(sc);
 
-	err = iwx_init(sc);
-	if (err) {
-		iwx_stop_device(sc);
-		IWX_UNLOCK(sc);
-		return err;
+	/* Stop the hardware here if it's still thought of as "up" */
+	if (sc->sc_flags & IWX_FLAG_HW_INITED) {
+		iwx_stop(sc);
+		sc->sc_flags &= ~IWX_FLAG_HW_INITED;
 	}
 
 	IWX_UNLOCK(sc);
 
+	/* Start the VAPs, which will bring the hardware back up again */
 	ieee80211_resume_all(ic);
 	return (0);
 }
