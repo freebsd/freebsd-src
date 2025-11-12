@@ -10940,7 +10940,7 @@ iwx_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 {
 
 	if (k->wk_cipher->ic_cipher == IEEE80211_CIPHER_AES_CCM) {
-		return 1;
+		return (1);
 	}
 
 	if (ieee80211_is_key_unicast(vap, k)) {
@@ -10953,7 +10953,7 @@ iwx_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 		return (0);
 	}
 	*rxkeyix = IEEE80211_KEYIX_NONE;	/* XXX maybe *keyix? */
-	return 1;
+	return (1);
 }
 
 static int
@@ -10980,9 +10980,11 @@ iwx_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 
 	if (ieee80211_is_key_global(vap, k)) {
 		id = ieee80211_crypto_get_key_wepidx(vap, k);
-		DPRINTF(("%s: adding group key\n", __func__));
+		IWX_DPRINTF(sc, IWX_DEBUG_KEYMGMT, "%s: adding group key\n",
+		    __func__);
 	} else if (ieee80211_is_key_unicast(vap, k)) {
-		DPRINTF(("%s: adding key\n", __func__));
+		IWX_DPRINTF(sc, IWX_DEBUG_KEYMGMT, "%s: adding key\n",
+		    __func__);
 		id = 0; /* net80211 currently only supports unicast key 0 */
 	} else {
 		net80211_vap_printf(vap, "%s: unknown key type\n", __func__);
@@ -10991,7 +10993,6 @@ iwx_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 
 	IWX_LOCK(sc);
 
-	DPRINTF(("%s: setting keyid=%i\n", __func__, id));
 	cmd.common.key_flags = htole16(IWX_STA_KEY_FLG_CCM |
 	    IWX_STA_KEY_FLG_WEP_KEY_MAP |
 	    ((id << IWX_STA_KEY_FLG_KEYID_POS) &
@@ -11008,14 +11009,14 @@ iwx_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	}
 	memcpy(cmd.common.key, k->wk_key, MIN(sizeof(cmd.common.key),
 	    k->wk_keylen));
-	DPRINTF(("%s: wk_keylen=%i\n", __func__, k->wk_keylen));
-	for (int i=0; i<k->wk_keylen; i++) {
-		DPRINTF(("%s: key[%d]=%x\n", __func__, i, k->wk_key[i]));
-	}
+	IWX_DPRINTF(sc, IWX_DEBUG_KEYMGMT, "%s: key: id=%d, len=%i, key=%*D\n",
+	    __func__, id, k->wk_keylen, k->wk_keylen,
+	    (const unsigned char *) k->wk_key, "");
 	cmd.common.sta_id = IWX_STATION_ID;
 
 	cmd.transmit_seq_cnt = htole64(k->wk_keytsc);
-	DPRINTF(("%s: k->wk_keytsc=%lu\n", __func__, k->wk_keytsc));
+	IWX_DPRINTF(sc, IWX_DEBUG_KEYMGMT, "%s: k->wk_keytsc=%lu\n", __func__,
+	    k->wk_keytsc);
 
 	status = IWX_ADD_STA_SUCCESS;
 	err = iwx_send_cmd_pdu_status(sc, IWX_ADD_STA_KEY, sizeof(cmd), &cmd,
@@ -11023,19 +11024,28 @@ iwx_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	if (!err && (status & IWX_ADD_STA_STATUS_MASK) != IWX_ADD_STA_SUCCESS)
 		err = EIO;
 	if (err) {
-		printf("%s: can't set wpa2 keys (error %d)\n", __func__, err);
+		net80211_vap_printf(vap,
+		    "%s: can't set wpa2 keys (error %d)\n", __func__, err);
 		IWX_UNLOCK(sc);
 		return err;
 	} else
-		DPRINTF(("%s: key added successfully\n", __func__));
+		IWX_DPRINTF(sc, IWX_DEBUG_KEYMGMT,
+		    "%s: key added successfully\n", __func__);
 	IWX_UNLOCK(sc);
-	return 1;
+	return (1);
 }
 
 static int
 iwx_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 {
-	return 1;
+	/*
+	 * Note: since there's no key allocations to track - it's either
+	 * the 4 static WEP keys or the single unicast key - there's nothing
+	 * else to do here.
+	 *
+	 * This would need some further work to support IBSS/mesh/AP modes.
+	 */
+	return (1);
 }
 
 static device_method_t iwx_pci_methods[] = {
