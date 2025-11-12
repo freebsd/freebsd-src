@@ -1356,7 +1356,7 @@ vmmops_setcap(void *vcpui, int num, int val)
 			break;
 		if (val != 0)
 			hypctx->mdcr_el2 |= MDCR_EL2_TDE;
-		else
+		else if ((hypctx->setcaps & (1ul << VM_CAP_SS_EXIT)) == 0)
 			hypctx->mdcr_el2 &= ~MDCR_EL2_TDE;
 		break;
 	case VM_CAP_SS_EXIT:
@@ -1377,7 +1377,8 @@ vmmops_setcap(void *vcpui, int num, int val)
 			hypctx->mdscr_el1 &= ~MDSCR_SS;
 			hypctx->mdscr_el1 |= hypctx->debug_mdscr;
 			hypctx->debug_mdscr &= ~MDSCR_SS;
-			hypctx->mdcr_el2 &= ~MDCR_EL2_TDE;
+			if ((hypctx->setcaps & (1ul << VM_CAP_BRK_EXIT)) == 0)
+				hypctx->mdcr_el2 &= ~MDCR_EL2_TDE;
 		}
 		break;
 	case VM_CAP_MASK_HWINTR:
