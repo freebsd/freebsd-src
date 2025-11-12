@@ -441,7 +441,7 @@ tarfs_alloc_one(struct tarfs_mount *tmp, size_t *blknump)
 	int endmarker = 0;
 	char *namep, *sep;
 	struct tarfs_node *parent, *tnp, *other;
-	size_t namelen = 0, linklen = 0, realsize = 0, sz;
+	size_t namelen = 0, linklen = 0, realsize = 0, extsize = 0, sz;
 	ssize_t res;
 	dev_t rdev;
 	gid_t gid;
@@ -588,10 +588,7 @@ again:
 			char *eol, *key, *value, *sep;
 			size_t len = strtoul(line, &sep, 10);
 			if (len == 0 || sep == line || *sep != ' ') {
-				TARFS_DPF(ALLOC, "%s: exthdr syntax error\n",
-				    __func__);
-				error = EINVAL;
-				goto bad;
+				goto syntax;
 			}
 			if ((uintptr_t)line + len < (uintptr_t)line ||
 			    line + len > exthdr + sz) {
@@ -606,16 +603,18 @@ again:
 			key = sep + 1;
 			sep = strchr(key, '=');
 			if (sep == NULL) {
-				TARFS_DPF(ALLOC, "%s: exthdr syntax error\n",
-				    __func__);
-				error = EINVAL;
-				goto bad;
+				goto syntax;
 			}
 			*sep = '\0';
 			value = sep + 1;
 			TARFS_DPF(ALLOC, "%s: exthdr %s=%s\n", __func__,
 			    key, value);
-			if (strcmp(key, "path") == 0) {
+			if (strcmp(key, "size") == 0) {
+				extsize = strtol(value, &sep, 10);
+				if (sep != eol) {
+					goto syntax;
+				}
+			} else if (strcmp(key, "path") == 0) {
 				name = value;
 				namelen = eol - value;
 			} else if (strcmp(key, "linkpath") == 0) {
@@ -625,45 +624,40 @@ again:
 				sparse = true;
 				major = strtol(value, &sep, 10);
 				if (sep != eol) {
-					printf("exthdr syntax error\n");
-					error = EINVAL;
-					goto bad;
+					goto syntax;
 				}
 			} else if (strcmp(key, "GNU.sparse.minor") == 0) {
 				sparse = true;
 				minor = strtol(value, &sep, 10);
 				if (sep != eol) {
-					printf("exthdr syntax error\n");
-					error = EINVAL;
-					goto bad;
+					goto syntax;
 				}
 			} else if (strcmp(key, "GNU.sparse.name") == 0) {
 				sparse = true;
 				name = value;
 				namelen = eol - value;
 				if (namelen == 0) {
-					printf("exthdr syntax error\n");
-					error = EINVAL;
-					goto bad;
+					goto syntax;
 				}
 			} else if (strcmp(key, "GNU.sparse.realsize") == 0) {
 				sparse = true;
 				realsize = strtoul(value, &sep, 10);
 				if (sep != eol) {
-					printf("exthdr syntax error\n");
-					error = EINVAL;
-					goto bad;
+					goto syntax;
 				}
 			} else if (strcmp(key, "SCHILY.fflags") == 0) {
 				flags |= tarfs_strtofflags(value, &sep);
 				if (sep != eol) {
-					printf("exthdr syntax error\n");
-					error = EINVAL;
-					goto bad;
+					goto syntax;
 				}
 			}
 		}
 		goto again;
+	}
+
+	/* do we have a size from an exthdr? */
+	if (extsize > 0) {
+		sz = extsize;
 	}
 
 	/* sparse file consistency checks */
@@ -832,6 +826,10 @@ skip:
 		sbuf_delete(namebuf);
 	}
 	return (0);
+syntax:
+	TARFS_DPF(ALLOC, "%s: exthdr syntax error\n", __func__);
+	error = EINVAL;
+	goto bad;
 eof:
 	TARFS_DPF(IO, "%s: premature end of file\n", __func__);
 	error = EIO;

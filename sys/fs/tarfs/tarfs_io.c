@@ -444,7 +444,7 @@ tarfs_zread_zstd(struct tarfs_zio *zio, struct uio *uiop)
 		}
 		if (zio->opos < off) {
 			/* to be discarded */
-			zob.size = min(off - zio->opos, len);
+			zob.size = MIN(off - zio->opos, len);
 			zob.pos = 0;
 		} else {
 			zob.size = len;
