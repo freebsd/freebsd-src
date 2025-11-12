@@ -466,7 +466,6 @@ MAN=	aac.4 \
 	${_pchtherm.4} \
 	pci.4 \
 	pcib.4 \
-	pcic.4 \
 	pcm.4 \
 	${_pf.4} \
 	${_pflog.4} \
