@@ -52,7 +52,7 @@
 # done
 
 # 20251112: Remove pccard(4)
-OLD_FILES+=share/man/man4/pccard.4
+OLD_FILES+=share/man/man4/pccard.4.gz
 
 # 20251028: Remove hifn(4)
 OLD_FILES+=share/man/man4/hifn.4.gz
