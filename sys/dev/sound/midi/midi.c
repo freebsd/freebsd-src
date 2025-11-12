@@ -794,7 +794,7 @@ midi_poll(struct cdev *i_dev, int events, struct thread *td)
 	mtx_unlock(&m->lock);
 	mtx_unlock(&m->qlock);
 
-	return (revents);
+	return (revents ? 1 : 0);
 }
 
 /*
