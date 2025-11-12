@@ -129,12 +129,12 @@ If this file starts with a
 it will be executed at the end of the boot via
 .Cm nuageinit_user_data_script .
 If this file starts with
-.Qq #!cloud-config ,
+.Qq #cloud-config ,
 it will be parsed as a YAML configuration file.
 All other cases will be ignored.
 .Pp
 The
-.Qq #!cloud-config
+.Qq #cloud-config
 configuration entries supported by
 .Nm :
 .Bl -tag -width "config-2"
