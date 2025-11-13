@@ -35,8 +35,6 @@
 #include <sys/endian.h>
 #include "uefi-dplib.h"
 
-/* XXX maybe I should include the entire DevicePathUtiltiies.c and ifdef out what we don't use */
-
 /*
  * Taken from MdePkg/Library/UefiDevicePathLib/DevicePathUtilities.c
  * hash a11928f3310518ab1c6fd34e8d0fdbb72de9602c 2017-Mar-01
@@ -62,6 +60,8 @@
   WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 **/
+
+// #include "UefiDevicePathLib.h"
 
 //
 // Template for an end-of-device path node.
@@ -212,6 +212,7 @@ DevicePathNodeLength (
   )
 {
   ASSERT (Node != NULL);
+//  return ReadUnaligned16 ((UINT16 *)&((EFI_DEVICE_PATH_PROTOCOL *)(Node))->Length[0]);
   return ((const EFI_DEVICE_PATH_PROTOCOL *)Node)->Length[0] |
       (((const EFI_DEVICE_PATH_PROTOCOL *)Node)->Length[1] << 8);
 }
@@ -296,6 +297,35 @@ IsDevicePathEnd (
   ASSERT (Node != NULL);
   return (BOOLEAN) (IsDevicePathEndType (Node) && DevicePathSubType(Node) == END_ENTIRE_DEVICE_PATH_SUBTYPE);
 }
+
+#ifndef __FreeBSD__
+/**
+  Determines if a device path node is an end node of a device path instance.
+
+  Determines if a device path node specified by Node is an end node of a device 
+  path instance. If Node represents the end of a device path instance, then TRUE 
+  is returned.  Otherwise, FALSE is returned.
+
+  If Node is NULL, then ASSERT().
+
+  @param  Node      A pointer to a device path node data structure.
+
+  @retval TRUE      The device path node specified by Node is the end of a device 
+                    path instance.
+  @retval FALSE     The device path node specified by Node is not the end of a 
+                    device path instance.
+
+**/
+BOOLEAN
+EFIAPI
+IsDevicePathEndInstance (
+  IN CONST VOID  *Node
+  )
+{
+  ASSERT (Node != NULL);
+  return (BOOLEAN) (IsDevicePathEndType (Node) && DevicePathSubType(Node) == END_INSTANCE_DEVICE_PATH_SUBTYPE);
+}
+#endif
 
 /**
   Sets the length, in bytes, of a device path node.
@@ -580,6 +610,159 @@ AppendDevicePathNode (
   return NewDevicePath;
 }
 
+#ifndef __FreeBSD__
+/**
+  Creates a new device path by appending the specified device path instance to the specified device
+  path.
+ 
+  This function creates a new device path by appending a copy of the device path 
+  instance specified by DevicePathInstance to a copy of the device path specified 
+  by DevicePath in a allocated buffer.
+  The end-of-device-path device node is moved after the end of the appended device 
+  path instance and a new end-of-device-path-instance node is inserted between. 
+  If DevicePath is NULL, then a copy if DevicePathInstance is returned.
+  If DevicePathInstance is NULL, then NULL is returned.
+  If DevicePath or DevicePathInstance is invalid, then NULL is returned.
+  If there is not enough memory to allocate space for the new device path, then 
+  NULL is returned.  
+  The memory is allocated from EFI boot services memory. It is the responsibility 
+  of the caller to free the memory allocated.
+  
+  @param  DevicePath                 A pointer to a device path data structure.
+  @param  DevicePathInstance         A pointer to a device path instance.
+
+  @return A pointer to the new device path.
+
+**/
+EFI_DEVICE_PATH_PROTOCOL *
+EFIAPI
+UefiDevicePathLibAppendDevicePathInstance (
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath,        OPTIONAL
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePathInstance OPTIONAL
+  )
+{
+  EFI_DEVICE_PATH_PROTOCOL  *NewDevicePath;
+  EFI_DEVICE_PATH_PROTOCOL  *TempDevicePath;
+  UINTN                     SrcSize;
+  UINTN                     InstanceSize;
+
+  if (DevicePath == NULL) {
+    return DuplicateDevicePath (DevicePathInstance);
+  }
+
+  if (DevicePathInstance == NULL) {
+    return NULL;
+  }
+
+  if (!IsDevicePathValid (DevicePath, 0) || !IsDevicePathValid (DevicePathInstance, 0)) {
+    return NULL;
+  }
+
+  SrcSize       = GetDevicePathSize (DevicePath);
+  InstanceSize  = GetDevicePathSize (DevicePathInstance);
+
+  NewDevicePath = AllocatePool (SrcSize + InstanceSize);
+  if (NewDevicePath != NULL) {
+    
+    TempDevicePath = CopyMem (NewDevicePath, DevicePath, SrcSize);;
+ 
+    while (!IsDevicePathEnd (TempDevicePath)) {
+      TempDevicePath = NextDevicePathNode (TempDevicePath);
+    }
+    
+    TempDevicePath->SubType  = END_INSTANCE_DEVICE_PATH_SUBTYPE;
+    TempDevicePath           = NextDevicePathNode (TempDevicePath);
+    CopyMem (TempDevicePath, DevicePathInstance, InstanceSize);
+  }
+
+  return NewDevicePath;
+}
+
+/**
+  Creates a copy of the current device path instance and returns a pointer to the next device path
+  instance.
+
+  This function creates a copy of the current device path instance. It also updates 
+  DevicePath to point to the next device path instance in the device path (or NULL 
+  if no more) and updates Size to hold the size of the device path instance copy.
+  If DevicePath is NULL, then NULL is returned.
+  If DevicePath points to a invalid device path, then NULL is returned.
+  If there is not enough memory to allocate space for the new device path, then 
+  NULL is returned.  
+  The memory is allocated from EFI boot services memory. It is the responsibility 
+  of the caller to free the memory allocated.
+  If Size is NULL, then ASSERT().
+ 
+  @param  DevicePath                 On input, this holds the pointer to the current 
+                                     device path instance. On output, this holds 
+                                     the pointer to the next device path instance 
+                                     or NULL if there are no more device path
+                                     instances in the device path pointer to a 
+                                     device path data structure.
+  @param  Size                       On output, this holds the size of the device 
+                                     path instance, in bytes or zero, if DevicePath 
+                                     is NULL.
+
+  @return A pointer to the current device path instance.
+
+**/
+EFI_DEVICE_PATH_PROTOCOL *
+EFIAPI
+UefiDevicePathLibGetNextDevicePathInstance (
+  IN OUT EFI_DEVICE_PATH_PROTOCOL    **DevicePath,
+  OUT UINTN                          *Size
+  )
+{
+  EFI_DEVICE_PATH_PROTOCOL  *DevPath;
+  EFI_DEVICE_PATH_PROTOCOL  *ReturnValue;
+  UINT8                     Temp;
+
+  ASSERT (Size != NULL);
+
+  if (DevicePath == NULL || *DevicePath == NULL) {
+    *Size = 0;
+    return NULL;
+  }
+
+  if (!IsDevicePathValid (*DevicePath, 0)) {
+    return NULL;
+  }
+
+  //
+  // Find the end of the device path instance
+  //
+  DevPath = *DevicePath;
+  while (!IsDevicePathEndType (DevPath)) {
+    DevPath = NextDevicePathNode (DevPath);
+  }
+
+  //
+  // Compute the size of the device path instance
+  //
+  *Size = ((UINTN) DevPath - (UINTN) (*DevicePath)) + sizeof (EFI_DEVICE_PATH_PROTOCOL);
+ 
+  //
+  // Make a copy and return the device path instance
+  //
+  Temp              = DevPath->SubType;
+  DevPath->SubType  = END_ENTIRE_DEVICE_PATH_SUBTYPE;
+  ReturnValue       = DuplicateDevicePath (*DevicePath);
+  DevPath->SubType  = Temp;
+
+  //
+  // If DevPath is the end of an entire device path, then another instance
+  // does not follow, so *DevicePath is set to NULL.
+  //
+  if (DevicePathSubType (DevPath) == END_ENTIRE_DEVICE_PATH_SUBTYPE) {
+    *DevicePath = NULL;
+  } else {
+    *DevicePath = NextDevicePathNode (DevPath);
+  }
+
+  return ReturnValue;
+}
+#endif
+
 /**
   Creates a device node.
 
@@ -625,3 +808,138 @@ CreateDeviceNode (
 
   return DevicePath;
 }
+
+#ifndef __FreeBSD__
+/**
+  Determines if a device path is single or multi-instance.
+
+  This function returns TRUE if the device path specified by DevicePath is
+  multi-instance.
+  Otherwise, FALSE is returned.
+  If DevicePath is NULL or invalid, then FALSE is returned.
+
+  @param  DevicePath                 A pointer to a device path data structure.
+
+  @retval  TRUE                      DevicePath is multi-instance.
+  @retval  FALSE                     DevicePath is not multi-instance, or DevicePath 
+                                     is NULL or invalid.
+
+**/
+BOOLEAN
+EFIAPI
+UefiDevicePathLibIsDevicePathMultiInstance (
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath
+  )
+{
+  CONST EFI_DEVICE_PATH_PROTOCOL     *Node;
+
+  if (DevicePath == NULL) {
+    return FALSE;
+  }
+
+  if (!IsDevicePathValid (DevicePath, 0)) {
+    return FALSE;
+  }
+
+  Node = DevicePath;
+  while (!IsDevicePathEnd (Node)) {
+    if (IsDevicePathEndInstance (Node)) {
+      return TRUE;
+    }
+
+    Node = NextDevicePathNode (Node);
+  }
+
+  return FALSE;
+}
+
+
+/**
+  Retrieves the device path protocol from a handle.
+
+  This function returns the device path protocol from the handle specified by Handle.  
+  If Handle is NULL or Handle does not contain a device path protocol, then NULL 
+  is returned.
+ 
+  @param  Handle                     The handle from which to retrieve the device 
+                                     path protocol.
+
+  @return The device path protocol from the handle specified by Handle.
+
+**/
+EFI_DEVICE_PATH_PROTOCOL *
+EFIAPI
+DevicePathFromHandle (
+  IN EFI_HANDLE                      Handle
+  )
+{
+  EFI_DEVICE_PATH_PROTOCOL  *DevicePath;
+  EFI_STATUS                Status;
+
+  Status = gBS->HandleProtocol (
+                  Handle,
+                  &gEfiDevicePathProtocolGuid,
+                  (VOID *) &DevicePath
+                  );
+  if (EFI_ERROR (Status)) {
+    DevicePath = NULL;
+  }
+  return DevicePath;
+}
+
+/**
+  Allocates a device path for a file and appends it to an existing device path.
+
+  If Device is a valid device handle that contains a device path protocol, then a device path for
+  the file specified by FileName  is allocated and appended to the device path associated with the
+  handle Device.  The allocated device path is returned.  If Device is NULL or Device is a handle
+  that does not support the device path protocol, then a device path containing a single device
+  path node for the file specified by FileName is allocated and returned.
+  The memory for the new device path is allocated from EFI boot services memory. It is the responsibility
+  of the caller to free the memory allocated.
+  
+  If FileName is NULL, then ASSERT().
+  If FileName is not aligned on a 16-bit boundary, then ASSERT().
+
+  @param  Device                     A pointer to a device handle.  This parameter 
+                                     is optional and may be NULL.
+  @param  FileName                   A pointer to a Null-terminated Unicode string.
+
+  @return The allocated device path.
+
+**/
+EFI_DEVICE_PATH_PROTOCOL *
+EFIAPI
+FileDevicePath (
+  IN EFI_HANDLE                      Device,     OPTIONAL
+  IN CONST CHAR16                    *FileName
+  )
+{
+  UINTN                     Size;
+  FILEPATH_DEVICE_PATH      *FilePath;
+  EFI_DEVICE_PATH_PROTOCOL  *DevicePath;
+  EFI_DEVICE_PATH_PROTOCOL  *FileDevicePath;
+
+  DevicePath = NULL;
+
+  Size = StrSize (FileName);
+  FileDevicePath = AllocatePool (Size + SIZE_OF_FILEPATH_DEVICE_PATH + END_DEVICE_PATH_LENGTH);
+  if (FileDevicePath != NULL) {
+    FilePath = (FILEPATH_DEVICE_PATH *) FileDevicePath;
+    FilePath->Header.Type    = MEDIA_DEVICE_PATH;
+    FilePath->Header.SubType = MEDIA_FILEPATH_DP;
+    CopyMem (&FilePath->PathName, FileName, Size);
+    SetDevicePathNodeLength (&FilePath->Header, Size + SIZE_OF_FILEPATH_DEVICE_PATH);
+    SetDevicePathEndNode (NextDevicePathNode (&FilePath->Header));
+
+    if (Device != NULL) {
+      DevicePath = DevicePathFromHandle (Device);
+    }
+
+    DevicePath = AppendDevicePath (DevicePath, FileDevicePath);
+    FreePool (FileDevicePath);
+  }
+
+  return DevicePath;
+}
+#endif
