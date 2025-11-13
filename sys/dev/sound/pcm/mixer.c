@@ -65,11 +65,6 @@ struct snd_mixer {
 	char name[MIXER_NAMELEN];
 	struct mtx *lock;
 	oss_mixer_enuminfo enuminfo;
-	/** 
-	 * Counter is incremented when applications change any of this
-	 * mixer's controls.  A change in value indicates that persistent
-	 * mixer applications should update their displays.
-	 */
 	int modify_counter;
 };
 
@@ -1474,6 +1469,11 @@ mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
 		mi->dev = i;
 		snprintf(mi->id, sizeof(mi->id), "mixer%d", i);
 		strlcpy(mi->name, m->name, sizeof(mi->name));
+		/**
+		 * Counter is incremented when applications change any of this
+		 * mixer's controls.  A change in value indicates that
+		 * persistent mixer applications should update their displays.
+		 */
 		mi->modify_counter = m->modify_counter;
 		mi->card_number = i;
 		/*
