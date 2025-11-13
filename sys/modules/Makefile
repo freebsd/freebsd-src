@@ -44,6 +44,7 @@ SUBDIR=	\
 	${_armv8crypto} \
 	${_armv8_rng} \
 	${_asmc} \
+	aq \
 	ata \
 	ath \
 	ath_dfs \
