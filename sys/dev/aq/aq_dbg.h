@@ -38,7 +38,7 @@
 #ifndef AQ_DBG_H
 #define AQ_DBG_H
 
-#include <syslog.h>
+#include <sys/syslog.h>
 #include <sys/systm.h>
 /*
 Debug levels:
