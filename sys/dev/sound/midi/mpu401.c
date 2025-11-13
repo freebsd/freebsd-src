@@ -1,6 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
+ * Copyright (c) 2025 Nicolas Provost
  * Copyright (c) 2003 Mathew Kanner
  * All rights reserved.
  *
@@ -49,10 +50,6 @@
 #include "mpu_if.h"
 #include "mpufoi_if.h"
 
-#ifndef KOBJMETHOD_END
-#define KOBJMETHOD_END	{ NULL, NULL }
-#endif
-
 #define MPU_DATAPORT   0
 #define MPU_CMDPORT    1
 #define MPU_STATPORT   1
@@ -64,11 +61,14 @@
 #define MPU_INPUTBUSY  0x80
 #define MPU_TRYDATA 50
 #define MPU_DELAY   2500
+#define MPU_INTR_BUF   16
 
 #define CMD(m,d)	MPUFOI_WRITE(m, m->cookie, MPU_CMDPORT,d)
 #define STATUS(m)	MPUFOI_READ(m, m->cookie, MPU_STATPORT)
 #define READ(m)		MPUFOI_READ(m, m->cookie, MPU_DATAPORT)
 #define WRITE(m,d)	MPUFOI_WRITE(m, m->cookie, MPU_DATAPORT,d)
+#define RXRDY(m) 	( (STATUS(m) & MPU_INPUTBUSY) == 0)
+#define TXRDY(m) 	( (STATUS(m) & MPU_OUTPUTBUSY) == 0)
 
 struct mpu401 {
 	KOBJ_FIELDS;
@@ -110,38 +110,97 @@ mpu401_timeout(void *a)
 		(m->si)(m->cookie);
 
 }
+
+static inline void
+mpu401_pause ()
+{
+	pause_sbt("mpusetup", SBT_1MS, 0, 0);
+}
+
+static int
+mpu401_waitfortx(struct mpu401* m)
+{
+	int i;
+
+	for (i = 0; i < MPU_TRYDATA; i++) {
+		if (TXRDY(m))
+			return (1);
+		else if (RXRDY(m))
+			(void) READ(m);
+		else
+			mpu401_pause();
+	}
+	return (0);
+}
+
+static int
+mpu401_waitforack(struct mpu401* m)
+{
+	int i;
+
+	for (i = 0; i < MPU_TRYDATA; i++) {
+		if (RXRDY(m) && READ(m) == MPU_ACK)
+			return (1);
+		else
+			mpu401_pause();
+	}
+	return (0);
+}
+
+/* Some cards only support UART mode but others will start in
+ * "Intelligent" mode, so we must try to switch to UART mode.
+ * Cheap cards may not even have a COMMAND register..
+ * Returns 0 if the final state of the MPU is dubious.
+ */
+static int
+mpu401_setup(struct mpu401 *m)
+{
+	int res;
+
+	/* first, we try to send a reset and get back one ACK */
+	if (mpu401_waitfortx(m)) {
+		CMD(m, MPU_RESET);
+		if (mpu401_waitforack(m)) {
+			/* ok, send UART command (we can also try on timeout) */
+			mpu401_waitfortx(m);
+			CMD(m, MPU_UART);
+			res = mpu401_waitforack(m);
+			printf("mpu401: %s mode\n", res ? "UART" : "unknown");
+		}
+		else
+			printf("mpu401: no ack, probable UART-only device\n");
+		return (1);
+	}
+	else {
+		/* may be a UART-only card */
+		printf("mpu401: UART mode may not be enabled\n");
+		return (0);
+	}
+}
+
 static int
 mpu401_intr(struct mpu401 *m)
 {
-#define MPU_INTR_BUF	16
-	uint8_t b[MPU_INTR_BUF];
+	uint8_t b;
 	int i;
-	int s;
 
-#define RXRDY(m) ( (STATUS(m) & MPU_INPUTBUSY) == 0)
-#define TXRDY(m) ( (STATUS(m) & MPU_OUTPUTBUSY) == 0)
-	i = 0;
-	s = STATUS(m);
-	while ((s & MPU_INPUTBUSY) == 0 && i < MPU_INTR_BUF) {
-		b[i] = READ(m);
-		i++;
-		s = STATUS(m);
+	/* Read and buffer all input bytes, then send data.
+	 * Note that pending input may inhibits data sending.
+	 * Spurious cards may also be sticky, so limit the count of tries
+	 * (probably MPU cards have no more than 16 bytes as internal buffer).
+	 */
+	for (i = 0; RXRDY(m) && i < 2*MPU_INTR_BUF; i++) {
+		/* XXX we should check midi_in has room in its buffer, else
+		 * we're missing a byte */
+		b = READ(m);
+		midi_in(m->mid, &b, 1);
 	}
-	if (i)
-		midi_in(m->mid, b, i);
-	i = 0;
-	while (!(s & MPU_OUTPUTBUSY) && i < MPU_INTR_BUF) {
-		if (midi_out(m->mid, b, 1)) {
-
-			WRITE(m, *b);
-		} else {
-			return 0;
-		}
-		i++;
-		/* DELAY(100); */
-		s = STATUS(m);
+	for (i = 0; TXRDY(m) && i < 2*MPU_INTR_BUF; i++) {
+		if (midi_out(m->mid, &b, 1))
+			WRITE(m, b);
+		else
+			break;
 	}
-
 	if ((m->flags & M_TXEN) && (m->si)) {
 		callout_reset(&m->timer, 1, mpu401_timeout, m);
 	}
@@ -162,9 +221,6 @@ mpu401_init(kobj_class_t cls, void *cookie, driver_intr_t softintr,
 
 	kobj_init((kobj_t)m, cls);
 
-	callout_init(&m->timer, 1);
-
-	m->si = softintr;
 	m->cookie = cookie;
 	m->flags = 0;
 
@@ -172,11 +228,24 @@ mpu401_init(kobj_class_t cls, void *cookie, driver_intr_t softintr,
 	if (!m->mid)
 		goto err;
 	*cb = mpu401_intr;
-	return m;
+	/* setting up the MPU in UART mode must be done before the interrupt
+	 * handler is enabled by the caller, else we may miss the ACK, which
+	 * is read back from the data port of the MPU. */
+	if (mpu401_setup(m) == 0) {
+		/* Giant lock is used here to invoke the interrupt handler when
+		 * timer expires. Enable it only for spurious cards. Should not
+		 * occur nowadays and Giant is being removed. */
+		callout_init(&m->timer, 1);
+		m->si = softintr;
+	}
+	else
+		m->si = NULL;
+
+	return (m);
 err:
 	printf("mpu401_init error\n");
 	free(m, M_MIDI);
-	return NULL;
+	return (NULL);
 }
 
 int
@@ -195,25 +264,9 @@ mpu401_uninit(struct mpu401 *m)
 static int
 mpu401_minit(struct snd_midi *sm, void *arg)
 {
-	struct mpu401 *m = arg;
-	int i;
-
-	CMD(m, MPU_RESET);
-	CMD(m, MPU_UART);
-	return 0;
-	i = 0;
-	while (++i < 2000) {
-		if (RXRDY(m))
-			if (READ(m) == MPU_ACK)
-				break;
-	}
-
-	if (i < 2000) {
-		CMD(m, MPU_UART);
-		return 0;
-	}
-	printf("mpu401_minit failed active sensing\n");
-	return 1;
+	/* hardware init is done in mpu401_init, before the interrupt handler
+	 * is active. */
+	return (0);
 }
 
 int
@@ -241,7 +294,7 @@ mpu401_mcallback(struct snd_midi *sm, void *arg, int flags)
 {
 	struct mpu401 *m = arg;
 
-	if (flags & M_TXEN && m->si) {
+	if (flags & M_TXEN && (m->si)) {
 		callout_reset(&m->timer, 1, mpu401_timeout, m);
 	}
 	m->flags = flags;
