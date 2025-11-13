@@ -6134,8 +6134,11 @@ static bool mem_intr_handler(struct adapter *adap, int idx, int flags)
 			fatal |= t4_handle_intr(adap, &ii, 0, flags);
 		}
 		break;
-	case MEM_MC1: i = 1;
-		       /* fall through */
+	case MEM_MC1:
+		if (is_t4(adap) || is_t6(adap))
+			return (false);
+		i = 1;
+	       /* fall through */
 	case MEM_MC0:
 		snprintf(rname, sizeof(rname), "MC%u_INT_CAUSE", i);
 		if (is_t4(adap)) {
@@ -6386,6 +6389,9 @@ static bool mac_intr_handler(struct adapter *adap, int port, int flags)
 	char name[32];
 	struct intr_info ii;
 	bool fatal = false;
+
+	if (port > 1 && is_t6(adap))
+		return (false);
 
 	if (is_t4(adap)) {
 		snprintf(name, sizeof(name), "XGMAC_PORT%u_INT_CAUSE", port);
