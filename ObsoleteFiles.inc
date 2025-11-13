@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20251218: Remove old MLINK to apmconf(8)
+OLD_FILES+=usr/share/man/man8/apmconf.8.gz
+
 # 20251208: Rename iwm8000C to correct name.
 OLD_FILES+=boot/firmware/iwm8000C
 
