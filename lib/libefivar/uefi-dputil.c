@@ -37,7 +37,7 @@
 
 /*
  * Taken from MdePkg/Library/UefiDevicePathLib/DevicePathUtilities.c
- * hash 9095d37b8fe5bfc3d02adad6ba7fd7359ebc0107 2018-Jun-28
+ * hash fd02394228ee1dc2378cccfde6098c461f96dd42 2019-Jan-31
  */
 
 /** @file
@@ -77,12 +77,13 @@ static CONST EFI_DEVICE_PATH_PROTOCOL  mUefiDevicePathLibEndDevicePath = {
 
 /**
   Determine whether a given device path is valid.
-  If DevicePath is NULL, then ASSERT().
 
   @param  DevicePath  A pointer to a device path data structure.
   @param  MaxSize     The maximum size of the device path data structure.
 
   @retval TRUE        DevicePath is valid.
+  @retval FALSE       DevicePath is NULL.
+  @retval FALSE       Maxsize is less than sizeof(EFI_DEVICE_PATH_PROTOCOL).
   @retval FALSE       The length of any node Node in the DevicePath is less
                       than sizeof (EFI_DEVICE_PATH_PROTOCOL).
   @retval FALSE       If MaxSize is not zero, the size of the DevicePath
@@ -101,17 +102,15 @@ IsDevicePathValid (
   UINTN Size;
   UINTN NodeLength;
 
-  ASSERT (DevicePath != NULL);
+  //
+  //Validate the input whether exists and its size big enough to touch the first node
+  //
+  if (DevicePath == NULL || (MaxSize > 0 && MaxSize < END_DEVICE_PATH_LENGTH)) {
+    return FALSE;
+  }
 
   if (MaxSize == 0) {
     MaxSize = MAX_UINTN;
-  }
-
-  //
-  // Validate the input size big enough to touch the first node.
-  //
-  if (MaxSize < sizeof (EFI_DEVICE_PATH_PROTOCOL)) {
-    return FALSE;
   }
 
   for (Count = 0, Size = 0; !IsDevicePathEnd (DevicePath); DevicePath = NextDevicePathNode (DevicePath)) {
