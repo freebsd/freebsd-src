@@ -467,10 +467,6 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 	int prio, ret;
 	pid_t runpid;
 
-	KASSERT(buf != NULL &&
-	    (buf->uio_rw == UIO_READ || buf->uio_rw == UIO_WRITE),
-	    ("%s(): io train wreck!", __func__));
-
 	d = priv->sc;
 	if (!DSP_REGISTERED(d))
 		return (EBADF);
@@ -487,9 +483,6 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 		prio = FWRITE;
 		ch = &priv->wrch;
 		chn_io = chn_write;
-		break;
-	default:
-		panic("invalid/corrupted uio direction: %d", buf->uio_rw);
 		break;
 	}
 
