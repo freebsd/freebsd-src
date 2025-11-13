@@ -47,13 +47,10 @@ void mixer_hwvol_step(device_t dev, int left_step, int right_step);
 
 int mixer_busy(struct snd_mixer *m);
 
-int mix_get_locked(struct snd_mixer *m, u_int dev, int *pleft, int *pright);
-int mix_set_locked(struct snd_mixer *m, u_int dev, int left, int right);
 int mix_set(struct snd_mixer *m, u_int dev, u_int left, u_int right);
 int mix_get(struct snd_mixer *m, u_int dev);
 int mix_setrecsrc(struct snd_mixer *m, u_int32_t src);
 u_int32_t mix_getrecsrc(struct snd_mixer *m);
-int mix_get_type(struct snd_mixer *m);
 device_t mix_get_dev(struct snd_mixer *m);
 
 void mix_setdevs(struct snd_mixer *m, u_int32_t v);
@@ -65,7 +62,6 @@ u_int32_t mix_getmutedevs(struct snd_mixer *m);
 void mix_setparentchild(struct snd_mixer *m, u_int32_t parent, u_int32_t childs);
 void mix_setrealdev(struct snd_mixer *m, u_int32_t dev, u_int32_t realdev);
 u_int32_t mix_getparent(struct snd_mixer *m, u_int32_t dev);
-u_int32_t mix_getchild(struct snd_mixer *m, u_int32_t dev);
 void *mix_getdevinfo(struct snd_mixer *m);
 struct mtx *mixer_get_lock(struct snd_mixer *m);
 
