@@ -75,50 +75,6 @@ static CONST EFI_DEVICE_PATH_PROTOCOL  mUefiDevicePathLibEndDevicePath = {
   }
 };
 
-
-/**
-  Returns the size of a device path in bytes.
-
-  This function returns the size, in bytes, of the device path data structure
-  specified by DevicePath including the end of device path node.
-  If DevicePath is NULL or invalid, then 0 is returned.
-
-  @param  DevicePath  A pointer to a device path data structure.
-
-  @retval 0           If DevicePath is NULL or invalid.
-  @retval Others      The size of a device path in bytes.
-
-**/
-UINTN
-EFIAPI
-GetDevicePathSize (
-  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath
-  )
-{
-  CONST EFI_DEVICE_PATH_PROTOCOL  *Start;
-
-  if (DevicePath == NULL) {
-    return 0;
-  }
-
-  if (!IsDevicePathValid (DevicePath, 0)) {
-    return 0;
-  }
-
-  //
-  // Search for the end of the device path structure
-  //
-  Start = DevicePath;
-  while (!IsDevicePathEnd (DevicePath)) {
-    DevicePath = NextDevicePathNode (DevicePath);
-  }
-
-  //
-  // Compute the size and add back in the size of the end device path structure
-  //
-  return ((UINTN) DevicePath - (UINTN) Start) + DevicePathNodeLength (DevicePath);
-}
-
 /**
   Determine whether a given device path is valid.
   If DevicePath is NULL, then ASSERT().
@@ -211,7 +167,6 @@ DevicePathType (
   ASSERT (Node != NULL);
   return ((const EFI_DEVICE_PATH_PROTOCOL *)(Node))->Type;
 }
-
 
 /**
   Returns the SubType field of a device path node.
@@ -343,32 +298,6 @@ IsDevicePathEnd (
 }
 
 /**
-  Fills in all the fields of a device path node that is the end of an entire device path.
-
-  Fills in all the fields of a device path node specified by Node so Node represents
-  the end of an entire device path.  The Type field of Node is set to
-  END_DEVICE_PATH_TYPE, the SubType field of Node is set to
-  END_ENTIRE_DEVICE_PATH_SUBTYPE, and the Length field of Node is set to
-  END_DEVICE_PATH_LENGTH.  Node is not required to be aligned on a 16-bit boundary,
-  so it is recommended that a function such as WriteUnaligned16() be used to set
-  the contents of the Length field.
-
-  If Node is NULL, then ASSERT().
-
-  @param  Node      A pointer to a device path node data structure.
-
-**/
-VOID
-EFIAPI
-SetDevicePathEndNode (
-  OUT VOID  *Node
-  )
-{
-  ASSERT (Node != NULL);
-  memcpy (Node, &mUefiDevicePathLibEndDevicePath, sizeof (mUefiDevicePathLibEndDevicePath));
-}
-
-/**
   Sets the length, in bytes, of a device path node.
 
   Sets the length of the device path node specified by Node to the value specified
@@ -401,49 +330,72 @@ SetDevicePathNodeLength (
 }
 
 /**
-  Creates a device node.
+  Fills in all the fields of a device path node that is the end of an entire device path.
 
-  This function creates a new device node in a newly allocated buffer of size
-  NodeLength and initializes the device path node header with NodeType and NodeSubType.
-  The new device path node is returned.
-  If NodeLength is smaller than a device path header, then NULL is returned.
-  If there is not enough memory to allocate space for the new device path, then
-  NULL is returned.
-  The memory is allocated from EFI boot services memory. It is the responsibility
-  of the caller to free the memory allocated.
+  Fills in all the fields of a device path node specified by Node so Node represents
+  the end of an entire device path.  The Type field of Node is set to
+  END_DEVICE_PATH_TYPE, the SubType field of Node is set to
+  END_ENTIRE_DEVICE_PATH_SUBTYPE, and the Length field of Node is set to
+  END_DEVICE_PATH_LENGTH.  Node is not required to be aligned on a 16-bit boundary,
+  so it is recommended that a function such as WriteUnaligned16() be used to set
+  the contents of the Length field.
 
-  @param  NodeType                   The device node type for the new device node.
-  @param  NodeSubType                The device node sub-type for the new device node.
-  @param  NodeLength                 The length of the new device node.
+  If Node is NULL, then ASSERT().
 
-  @return The new device path.
+  @param  Node      A pointer to a device path node data structure.
 
 **/
-EFI_DEVICE_PATH_PROTOCOL *
+VOID
 EFIAPI
-CreateDeviceNode (
-  IN UINT8                           NodeType,
-  IN UINT8                           NodeSubType,
-  IN UINT16                          NodeLength
+SetDevicePathEndNode (
+  OUT VOID  *Node
   )
 {
-  EFI_DEVICE_PATH_PROTOCOL      *DevicePath;
+  ASSERT (Node != NULL);
+  memcpy (Node, &mUefiDevicePathLibEndDevicePath, sizeof (mUefiDevicePathLibEndDevicePath));
+}
 
-  if (NodeLength < sizeof (EFI_DEVICE_PATH_PROTOCOL)) {
-    //
-    // NodeLength is less than the size of the header.
-    //
-    return NULL;
+/**
+  Returns the size of a device path in bytes.
+
+  This function returns the size, in bytes, of the device path data structure
+  specified by DevicePath including the end of device path node.
+  If DevicePath is NULL or invalid, then 0 is returned.
+
+  @param  DevicePath  A pointer to a device path data structure.
+
+  @retval 0           If DevicePath is NULL or invalid.
+  @retval Others      The size of a device path in bytes.
+
+**/
+UINTN
+EFIAPI
+GetDevicePathSize (
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath
+  )
+{
+  CONST EFI_DEVICE_PATH_PROTOCOL  *Start;
+
+  if (DevicePath == NULL) {
+    return 0;
   }
 
-  DevicePath = AllocateZeroPool (NodeLength);
-  if (DevicePath != NULL) {
-     DevicePath->Type    = NodeType;
-     DevicePath->SubType = NodeSubType;
-     SetDevicePathNodeLength (DevicePath, NodeLength);
+  if (!IsDevicePathValid (DevicePath, 0)) {
+    return 0;
   }
 
-  return DevicePath;
+  //
+  // Search for the end of the device path structure
+  //
+  Start = DevicePath;
+  while (!IsDevicePathEnd (DevicePath)) {
+    DevicePath = NextDevicePathNode (DevicePath);
+  }
+
+  //
+  // Compute the size and add back in the size of the end device path structure
+  //
+  return ((UINTN) DevicePath - (UINTN) Start) + DevicePathNodeLength (DevicePath);
 }
 
 /**
@@ -626,4 +578,50 @@ AppendDevicePathNode (
   FreePool (TempDevicePath);
 
   return NewDevicePath;
+}
+
+/**
+  Creates a device node.
+
+  This function creates a new device node in a newly allocated buffer of size
+  NodeLength and initializes the device path node header with NodeType and NodeSubType.
+  The new device path node is returned.
+  If NodeLength is smaller than a device path header, then NULL is returned.
+  If there is not enough memory to allocate space for the new device path, then
+  NULL is returned.
+  The memory is allocated from EFI boot services memory. It is the responsibility
+  of the caller to free the memory allocated.
+
+  @param  NodeType                   The device node type for the new device node.
+  @param  NodeSubType                The device node sub-type for the new device node.
+  @param  NodeLength                 The length of the new device node.
+
+  @return The new device path.
+
+**/
+EFI_DEVICE_PATH_PROTOCOL *
+EFIAPI
+CreateDeviceNode (
+  IN UINT8                           NodeType,
+  IN UINT8                           NodeSubType,
+  IN UINT16                          NodeLength
+  )
+{
+  EFI_DEVICE_PATH_PROTOCOL      *DevicePath;
+
+  if (NodeLength < sizeof (EFI_DEVICE_PATH_PROTOCOL)) {
+    //
+    // NodeLength is less than the size of the header.
+    //
+    return NULL;
+  }
+
+  DevicePath = AllocateZeroPool (NodeLength);
+  if (DevicePath != NULL) {
+     DevicePath->Type    = NodeType;
+     DevicePath->SubType = NodeSubType;
+     SetDevicePathNodeLength (DevicePath, NodeLength);
+  }
+
+  return DevicePath;
 }
