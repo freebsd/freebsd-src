@@ -37,7 +37,7 @@
 
 /*
  * Taken from MdePkg/Library/UefiDevicePathLib/DevicePathUtilities.c
- * hash fd02394228ee1dc2378cccfde6098c461f96dd42 2019-Jan-31
+ * hash 2f7a96d6ec13b292d6f31295f3195913921173e1 2019-Feb-21
  */
 
 /** @file
@@ -136,6 +136,15 @@ IsDevicePathValid (
       if (Count >= PcdGet32 (PcdMaximumDevicePathNodeCount)) {
         return FALSE;
       }
+    }
+
+    //
+    // FilePath must be a NULL-terminated string.
+    //
+    if (DevicePathType (DevicePath) == MEDIA_DEVICE_PATH &&
+        DevicePathSubType (DevicePath) == MEDIA_FILEPATH_DP &&
+        *(const CHAR16 *)((const UINT8 *) DevicePath + NodeLength - 2) != 0) {
+      return FALSE;
     }
   }
 
