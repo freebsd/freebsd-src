@@ -72,8 +72,6 @@ SYSCTL_INT(_hw_snd, OID_AUTO, basename_clone, CTLFLAG_RWTUN,
 #define DSP_F_READ(x)		((x) & FREAD)
 #define DSP_F_WRITE(x)		((x) & FWRITE)
 
-#define OLDPCM_IOCTL
-
 static d_open_t dsp_open;
 static d_read_t dsp_read;
 static d_write_t dsp_write;
@@ -808,10 +806,6 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	}
 
     	switch(cmd) {
-#ifdef OLDPCM_IOCTL
-    	/*
-     	 * we start with the new ioctl interface.
-     	 */
     	case AIONWRITE:	/* how many bytes can write ? */
 		if (wrch) {
 			CHN_LOCK(wrch);
@@ -1028,10 +1022,6 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		printf("AIOSYNC chan 0x%03lx pos %lu unimplemented\n",
 	    		((snd_sync_parm *)arg)->chan, ((snd_sync_parm *)arg)->pos);
 		break;
-#endif
-	/*
-	 * here follow the standard ioctls (filio.h etc.)
-	 */
     	case FIONREAD: /* get # bytes to read */
 		if (rdch) {
 			CHN_LOCK(rdch);
@@ -1070,11 +1060,6 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		}
 		break;
 
-    	/*
-	 * Finally, here is the linux-compatible ioctl interface
-	 */
-#define THE_REAL_SNDCTL_DSP_GETBLKSIZE _IOWR('P', 4, int)
-    	case THE_REAL_SNDCTL_DSP_GETBLKSIZE:
     	case SNDCTL_DSP_GETBLKSIZE:
 		chn = wrch ? wrch : rdch;
 		if (chn) {
