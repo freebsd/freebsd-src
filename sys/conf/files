@@ -844,6 +844,17 @@ dev/alpm/alpm.c			optional alpm pci
 dev/amdpm/amdpm.c		optional amdpm pci | nfpm pci
 dev/amdsmb/amdsmb.c		optional amdsmb pci
 #
+dev/aq/aq_main.c		optional aq
+dev/aq/aq_media.c		optional aq
+dev/aq/aq_irq.c			optional aq
+dev/aq/aq_ring.c		optional aq
+dev/aq/aq_hw.c			optional aq
+dev/aq/aq_hw_llh.c		optional aq
+dev/aq/aq_fw.c			optional aq
+dev/aq/aq_fw1x.c		optional aq
+dev/aq/aq_fw2x.c		optional aq
+dev/aq/aq_dbg.c			optional aq
+#
 dev/ata/ata_if.m		optional ata | atacore
 dev/ata/ata-all.c		optional ata | atacore
 dev/ata/ata-dma.c		optional ata | atacore
