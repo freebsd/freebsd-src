@@ -175,8 +175,7 @@ typedef struct {
 
 #pragma pack()
 
-#ifdef FreeBSD		/* Remove these on FreeBSD */
-
+#ifndef __FreeBSD__		/* Remove these on FreeBSD */
 /**
   Returns the size of a device path in bytes.
 

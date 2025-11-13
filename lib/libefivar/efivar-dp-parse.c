@@ -313,7 +313,6 @@ GetNextDeviceNodeStr (
   return ReturnStr;
 }
 
-
 #ifndef __FreeBSD__
 /**
   Return whether the integer string is a hex string.
