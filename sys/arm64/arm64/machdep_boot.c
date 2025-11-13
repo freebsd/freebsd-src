@@ -106,7 +106,8 @@ fake_preload_metadata(void *dtb_ptr, size_t dtb_size)
 
 	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_SIZE);
 	PRELOAD_PUSH_VALUE(uint32_t, sizeof(size_t));
-	PRELOAD_PUSH_VALUE(uint64_t, (size_t)(&end - VM_MIN_KERNEL_ADDRESS));
+	PRELOAD_PUSH_VALUE(uint64_t,
+		(size_t)((vm_offset_t)&end - VM_MIN_KERNEL_ADDRESS));
 
 	if (dtb_ptr != NULL) {
 		/* Copy DTB to KVA space and insert it into module chain. */
