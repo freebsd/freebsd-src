@@ -4202,10 +4202,12 @@ unp_gc(__unused void *arg, int pending)
 		struct socket *so;
 
 		so = unref[i]->f_data;
-		CURVNET_SET(so->so_vnet);
-		socantrcvmore(so);
-		unp_dispose(so);
-		CURVNET_RESTORE();
+		if (!SOLISTENING(so)) {
+			CURVNET_SET(so->so_vnet);
+			socantrcvmore(so);
+			unp_dispose(so);
+			CURVNET_RESTORE();
+		}
 	}
 
 	/*
