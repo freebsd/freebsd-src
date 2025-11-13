@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2003 Mathew Kanner
+ * Copyright (c) 2025 Nicolas Provost <dev@nicolas-provost.fr>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +27,7 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/param.h>
@@ -64,11 +66,14 @@
 #define MPU_INPUTBUSY  0x80
 #define MPU_TRYDATA 50
 #define MPU_DELAY   2500
+#define MPU_INTR_BUF	64
 
 #define CMD(m,d)	MPUFOI_WRITE(m, m->cookie, MPU_CMDPORT,d)
 #define STATUS(m)	MPUFOI_READ(m, m->cookie, MPU_STATPORT)
 #define READ(m)		MPUFOI_READ(m, m->cookie, MPU_DATAPORT)
 #define WRITE(m,d)	MPUFOI_WRITE(m, m->cookie, MPU_DATAPORT,d)
+#define RXRDY(m) ( (STATUS(m) & MPU_INPUTBUSY) == 0)
+#define TXRDY(m) ( (STATUS(m) & MPU_OUTPUTBUSY) == 0)
 
 struct mpu401 {
 	KOBJ_FIELDS;
@@ -88,6 +93,8 @@ static int mpu401_minqsize(struct snd_midi *, void *);
 static int mpu401_moutqsize(struct snd_midi *, void *);
 static void mpu401_mcallback(struct snd_midi *, void *, int);
 static void mpu401_mcallbackp(struct snd_midi *, void *, int);
+static const char *mpu401_mdescr(struct snd_midi *, void *, int);
+static const char *mpu401_mprovider(struct snd_midi *, void *);
 
 static kobj_method_t mpu401_methods[] = {
 	KOBJMETHOD(mpu_init, mpu401_minit),
@@ -96,6 +103,8 @@ static kobj_method_t mpu401_methods[] = {
 	KOBJMETHOD(mpu_outqsize, mpu401_moutqsize),
 	KOBJMETHOD(mpu_callback, mpu401_mcallback),
 	KOBJMETHOD(mpu_callbackp, mpu401_mcallbackp),
+	KOBJMETHOD(mpu_descr, mpu401_mdescr),
+	KOBJMETHOD(mpu_provider, mpu401_mprovider),
 	KOBJMETHOD_END
 };
 
@@ -110,38 +119,86 @@ mpu401_timeout(void *a)
 		(m->si)(m->cookie);
 
 }
+
+#define MPU_TIMEOUT 50
+#define MPU_PAUSE pause_sbt("mpusetup", SBT_1MS, 0, 0)
+
+static int
+mpu401_waitfortx(struct mpu401* m)
+{
+	int i;
+
+	for (i = 0; i < MPU_TIMEOUT; i++) {
+		if (TXRDY(m))
+			return (1);
+		else if (RXRDY(m))
+			(void) READ(m);
+		else
+			MPU_PAUSE;
+	}
+	return (0);
+}
+
+static int
+mpu401_waitforack(struct mpu401* m)
+{
+	int i;
+
+	for (i = 0; i < MPU_TIMEOUT; i++) {
+		if (RXRDY(m) && READ(m) == MPU_ACK)
+			return (1);
+		else
+			MPU_PAUSE;
+	}
+	return (0);
+}
+
+/* Some cards only support UART mode but others will start in
+ * "Intelligent" mode, so we must try to switch to UART mode.
+ * Cheap cards may not even have a COMMAND register..
+ */
+static void
+mpu401_setup(struct mpu401 *m)
+{
+	int res = 0;
+
+	/* first, we try to send a reset and get an ACK */
+	if (mpu401_waitfortx(m)) {
+		CMD(m, MPU_RESET);
+		if (mpu401_waitforack(m)) {
+			/* ok, send UART command (we can also try on timeout) */
+			mpu401_waitfortx(m);
+			CMD(m, MPU_UART);
+			res = mpu401_waitforack(m);
+			printf("mpu401: %s mode\n", res ? "UART" : "unknown");
+		}
+		else
+			printf("mpu401: no ack, probable UART-only device\n");
+	}
+	else
+		printf("mpu401: setup failed\n");
+}
+
 static int
 mpu401_intr(struct mpu401 *m)
 {
-#define MPU_INTR_BUF	16
-	uint8_t b[MPU_INTR_BUF];
+	MIDI_TYPE b;
 	int i;
-	int s;
 
-#define RXRDY(m) ( (STATUS(m) & MPU_INPUTBUSY) == 0)
-#define TXRDY(m) ( (STATUS(m) & MPU_OUTPUTBUSY) == 0)
-	i = 0;
-	s = STATUS(m);
-	while ((s & MPU_INPUTBUSY) == 0 && i < MPU_INTR_BUF) {
-		b[i] = READ(m);
-		i++;
-		s = STATUS(m);
+	/* Read and buffer all input bytes, then send data.
+	 * Note that pending input may inhibits data sending.
+	 * Spurious cards may also be sticky..
+	 */
+	for (i = 0; RXRDY(m) && i < 512; i++) {
+		b = READ(m);
+		midi_in(m->mid, &b, 1);
 	}
-	if (i)
-		midi_in(m->mid, b, i);
-	i = 0;
-	while (!(s & MPU_OUTPUTBUSY) && i < MPU_INTR_BUF) {
-		if (midi_out(m->mid, b, 1)) {
-
-			WRITE(m, *b);
-		} else {
-			return 0;
-		}
-		i++;
-		/* DELAY(100); */
-		s = STATUS(m);
+	for (i = 0; TXRDY(m) && i < 512; i++) {
+		if (midi_out(m->mid, &b, 1))
+			WRITE(m, b);
+		else
+			break;
 	}
-
 	if ((m->flags & M_TXEN) && (m->si)) {
 		callout_reset(&m->timer, 1, mpu401_timeout, m);
 	}
@@ -167,16 +224,16 @@ mpu401_init(kobj_class_t cls, void *cookie, driver_intr_t softintr,
 	m->si = softintr;
 	m->cookie = cookie;
 	m->flags = 0;
-
 	m->mid = midi_init(&mpu401_class, 0, 0, m);
 	if (!m->mid)
 		goto err;
 	*cb = mpu401_intr;
-	return m;
+	mpu401_setup(m);
+	return (m);
 err:
-	printf("mpu401_init error\n");
+	printf("mpu401: init error\n");
 	free(m, M_MIDI);
-	return NULL;
+	return (NULL);
 }
 
 int
@@ -189,31 +246,13 @@ mpu401_uninit(struct mpu401 *m)
 	if (retval)
 		return retval;
 	free(m, M_MIDI);
-	return 0;
+	return (0);
 }
 
 static int
 mpu401_minit(struct snd_midi *sm, void *arg)
 {
-	struct mpu401 *m = arg;
-	int i;
-
-	CMD(m, MPU_RESET);
-	CMD(m, MPU_UART);
-	return 0;
-	i = 0;
-	while (++i < 2000) {
-		if (RXRDY(m))
-			if (READ(m) == MPU_ACK)
-				break;
-	}
-
-	if (i < 2000) {
-		CMD(m, MPU_UART);
-		return 0;
-	}
-	printf("mpu401_minit failed active sensing\n");
-	return 1;
+	return (0);
 }
 
 int
@@ -221,19 +260,19 @@ mpu401_muninit(struct snd_midi *sm, void *arg)
 {
 	struct mpu401 *m = arg;
 
-	return MPUFOI_UNINIT(m, m->cookie);
+	return (MPUFOI_UNINIT(m, m->cookie));
 }
 
 int
 mpu401_minqsize(struct snd_midi *sm, void *arg)
 {
-	return 128;
+	return (128);
 }
 
 int
 mpu401_moutqsize(struct snd_midi *sm, void *arg)
 {
-	return 128;
+	return (128);
 }
 
 static void
@@ -251,4 +290,16 @@ static void
 mpu401_mcallbackp(struct snd_midi *sm, void *arg, int flags)
 {
 	mpu401_mcallback(sm, arg, flags);
+}
+
+static const char *
+mpu401_mdescr(struct snd_midi *sm, void *arg, int verbosity)
+{
+	return ("mpu401");
+}
+
+static const char *
+mpu401_mprovider(struct snd_midi *m, void *arg)
+{
+	return ("provider mpu401");
 }
