@@ -857,39 +857,6 @@ UefiDevicePathLibIsDevicePathMultiInstance (
 
 
 /**
-  Retrieves the device path protocol from a handle.
-
-  This function returns the device path protocol from the handle specified by Handle.
-  If Handle is NULL or Handle does not contain a device path protocol, then NULL
-  is returned.
-
-  @param  Handle                     The handle from which to retrieve the device
-                                     path protocol.
-
-  @return The device path protocol from the handle specified by Handle.
-
-**/
-EFI_DEVICE_PATH_PROTOCOL *
-EFIAPI
-DevicePathFromHandle (
-  IN EFI_HANDLE                      Handle
-  )
-{
-  EFI_DEVICE_PATH_PROTOCOL  *DevicePath;
-  EFI_STATUS                Status;
-
-  Status = gBS->HandleProtocol (
-                  Handle,
-                  &gEfiDevicePathProtocolGuid,
-                  (VOID *) &DevicePath
-                  );
-  if (EFI_ERROR (Status)) {
-    DevicePath = NULL;
-  }
-  return DevicePath;
-}
-
-/**
   Allocates a device path for a file and appends it to an existing device path.
 
   If Device is a valid device handle that contains a device path protocol, then a device path for
