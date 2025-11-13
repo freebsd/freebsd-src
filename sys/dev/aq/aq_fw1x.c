@@ -272,7 +272,7 @@ int fw1x_get_mac_addr(struct aq_hw* hw, u8* mac)
     mac_addr[0] = bswap32(mac_addr[0]);
     mac_addr[1] = bswap32(mac_addr[1]);
 
-    memcpy(mac, (u8*)mac_addr, ETH_MAC_LEN);
+    memcpy(mac, (u8*)mac_addr, ETHER_ADDR_LEN);
 
     trace(dbg_init, "fw1x> eFUSE MAC addr -> %02x-%02x-%02x-%02x-%02x-%02x",
         mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);

@@ -37,8 +37,6 @@
 
 #include <sys/types.h>
 
-#define ETH_MAC_LEN 6
-
 #define s8       __int8_t
 #define u8       __uint8_t
 #define u16      __uint16_t

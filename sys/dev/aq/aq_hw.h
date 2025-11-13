@@ -39,6 +39,7 @@
 #include <sys/cdefs.h>
 #include <machine/cpufunc.h>
 #include <sys/endian.h>
+#include <net/ethernet.h>
 #include "aq_common.h"
 
 #define AQ_WRITE_REG(hw, reg, value) writel(((hw)->hw_addr + (reg)), htole32(value))
@@ -138,7 +139,7 @@ struct aq_hw {
     u8 *hw_addr;
     u32 regs_size;
 
-    u8 mac_addr[ETH_MAC_LEN];
+    u8 mac_addr[ETHER_ADDR_LEN];
 
     enum aq_hw_irq_type irq_type;
     
