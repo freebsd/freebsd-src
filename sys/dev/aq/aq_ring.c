@@ -361,7 +361,7 @@ static int aq_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		ri->iri_frags[i].irf_idx = cidx;
 		ri->iri_frags[i].irf_len = len;
 
-		if ((rx_desc->wb.pkt_type & 0x60) == 1) {
+		if ((rx_desc->wb.pkt_type & 0x60) != 0) {
 			ri->iri_flags |= M_VLANTAG;
 			ri->iri_vtag = le32toh(rx_desc->wb.vlan);
 		}
