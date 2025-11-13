@@ -372,7 +372,7 @@ int fw2x_get_mac_addr(struct aq_hw* hw, u8* mac)
     mac_addr[0] = bswap32(mac_addr[0]);
     mac_addr[1] = bswap32(mac_addr[1]);
 
-    memcpy(mac, (u8*)mac_addr, ETH_MAC_LEN);
+    memcpy(mac, (u8*)mac_addr, ETHER_ADDR_LEN);
 
     AQ_DBG_EXIT(EOK);
     return (EOK);
