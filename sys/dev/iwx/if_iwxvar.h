@@ -290,7 +290,6 @@ struct iwx_rx_ring {
 #define IWX_FLAG_BGSCAN		0x200	/* background scan in progress */
 #define IWX_FLAG_TXFLUSH	0x400	/* Tx queue flushing in progress */
 #define IWX_FLAG_HW_INITED	0x800	/* Hardware initialized */
-#define	IWX_FLAG_AMPDUTX	0x1000
 
 struct iwx_ucode_status {
 	uint32_t uc_lmac_error_event_table[2];
