@@ -462,7 +462,7 @@ static __inline int
 dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 {
 	struct snddev_info *d;
-	struct pcm_channel **ch;
+	struct pcm_channel *ch;
 	int (*chn_io)(struct pcm_channel *, struct uio *);
 	int prio, ret;
 	pid_t runpid;
@@ -476,12 +476,12 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 	switch (buf->uio_rw) {
 	case UIO_READ:
 		prio = FREAD;
-		ch = &priv->rdch;
+		ch = priv->rdch;
 		chn_io = chn_read;
 		break;
 	case UIO_WRITE:
 		prio = FWRITE;
-		ch = &priv->wrch;
+		ch = priv->wrch;
 		chn_io = chn_write;
 		break;
 	}
@@ -490,21 +490,21 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 
 	dsp_lock_chans(priv, prio);
 
-	if (*ch == NULL || !((*ch)->flags & CHN_F_BUSY)) {
+	if (ch == NULL || !(ch->flags & CHN_F_BUSY)) {
 		if (priv->rdch != NULL || priv->wrch != NULL)
 			dsp_unlock_chans(priv, prio);
 		PCM_GIANT_EXIT(d);
 		return (EBADF);
 	}
 
-	if (((*ch)->flags & (CHN_F_MMAP | CHN_F_DEAD)) ||
-	    (((*ch)->flags & CHN_F_RUNNING) && (*ch)->pid != runpid)) {
+	if (ch->flags & (CHN_F_MMAP | CHN_F_DEAD) ||
+	    (ch->flags & CHN_F_RUNNING && ch->pid != runpid)) {
 		dsp_unlock_chans(priv, prio);
 		PCM_GIANT_EXIT(d);
 		return (EINVAL);
-	} else if (!((*ch)->flags & CHN_F_RUNNING)) {
-		(*ch)->flags |= CHN_F_RUNNING;
-		(*ch)->pid = runpid;
+	} else if (!(ch->flags & CHN_F_RUNNING)) {
+		ch->flags |= CHN_F_RUNNING;
+		ch->pid = runpid;
 	}
 
 	/*
@@ -512,11 +512,11 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 	 * from/to userland, so up the "in progress" counter to make sure
 	 * someone else doesn't come along and muss up the buffer.
 	 */
-	++(*ch)->inprog;
-	ret = chn_io(*ch, buf);
-	--(*ch)->inprog;
+	ch->inprog++;
+	ret = chn_io(ch, buf);
+	ch->inprog--;
 
-	CHN_BROADCAST(&(*ch)->cv);
+	CHN_BROADCAST(&ch->cv);
 
 	dsp_unlock_chans(priv, prio);
 
