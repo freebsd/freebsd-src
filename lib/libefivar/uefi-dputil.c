@@ -37,7 +37,7 @@
 
 /*
  * Taken from MdePkg/Library/UefiDevicePathLib/DevicePathUtilities.c
- * hash 9344f0921518309295da89c221d10cbead8531aa 2019-Apr-09
+ * hash d0e2f8232a26453fc0191629ed44ff2a46ea073e 2021-Dec-07
  */
 
 /** @file
@@ -496,7 +496,7 @@ DuplicateDevicePath (
 EFI_DEVICE_PATH_PROTOCOL *
 EFIAPI
 AppendDevicePath (
-  IN CONST EFI_DEVICE_PATH_PROTOCOL  *FirstDevicePath,  OPTIONAL
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *FirstDevicePath   OPTIONAL,
   IN CONST EFI_DEVICE_PATH_PROTOCOL  *SecondDevicePath  OPTIONAL
   )
 {
@@ -575,7 +575,7 @@ AppendDevicePath (
 EFI_DEVICE_PATH_PROTOCOL *
 EFIAPI
 AppendDevicePathNode (
-  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath,     OPTIONAL
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath      OPTIONAL,
   IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePathNode  OPTIONAL
   )
 {
@@ -639,7 +639,7 @@ AppendDevicePathNode (
 EFI_DEVICE_PATH_PROTOCOL *
 EFIAPI
 UefiDevicePathLibAppendDevicePathInstance (
-  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath,        OPTIONAL
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath         OPTIONAL,
   IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePathInstance OPTIONAL
   )
 {
@@ -880,7 +880,7 @@ UefiDevicePathLibIsDevicePathMultiInstance (
 EFI_DEVICE_PATH_PROTOCOL *
 EFIAPI
 FileDevicePath (
-  IN EFI_HANDLE                      Device,     OPTIONAL
+  IN EFI_HANDLE                      Device      OPTIONAL,
   IN CONST CHAR16                    *FileName
   )
 {
