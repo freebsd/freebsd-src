@@ -1516,13 +1516,6 @@ cuse_client_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 	}
 
 	pcc = malloc(sizeof(*pcc), M_CUSE, M_WAITOK | M_ZERO);
-	if (devfs_set_cdevpriv(pcc, &cuse_client_free)) {
-		printf("Cuse: Cannot set cdevpriv.\n");
-		/* drop reference on server */
-		cuse_server_unref(pcs);
-		free(pcc, M_CUSE);
-		return (ENOMEM);
-	}
 	pcc->fflags = fflags;
 	pcc->server_dev = pcsd;
 	pcc->server = pcs;
@@ -1553,10 +1546,12 @@ cuse_client_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 	}
 	cuse_server_unlock(pcs);
 
-	if (error) {
-		devfs_clear_cdevpriv();	/* XXX bugfix */
+	if (error != 0)
 		return (error);
-	}
+
+	if ((error = devfs_set_cdevpriv(pcc, &cuse_client_free)) != 0)
+		return (error);
+
 	pccmd = &pcc->cmds[CUSE_CMD_OPEN];
 
 	cuse_cmd_lock(pccmd);
@@ -1574,9 +1569,6 @@ cuse_client_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 	}
 
 	cuse_cmd_unlock(pccmd);
-
-	if (error)
-		devfs_clear_cdevpriv();	/* XXX bugfix */
 
 	return (error);
 }
