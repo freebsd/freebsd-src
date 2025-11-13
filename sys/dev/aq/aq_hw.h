@@ -35,7 +35,6 @@
 #ifndef _AQ_HW_H_
 #define _AQ_HW_H_
 
-#include <stdbool.h>
 #include <sys/types.h>
 #include <sys/cdefs.h>
 #include <machine/cpufunc.h>
