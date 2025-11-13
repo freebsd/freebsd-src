@@ -3335,8 +3335,10 @@ mlx5e_open_locked(if_t ifp)
 
 	mlx5e_update_carrier(priv);
 
+#ifdef KERN_TLS
 	if ((if_getcapenable(ifp) & (IFCAP_TXTLS4 | IFCAP_TXTLS6)) != 0)
 		mlx5e_tls_prealloc_tags(priv);
+#endif
 
 	return (0);
 
