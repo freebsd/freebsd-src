@@ -2752,7 +2752,11 @@ struct __aiocb_private32 {
 #ifdef COMPAT_FREEBSD6
 typedef struct oaiocb32 {
 	int	aio_fildes;		/* File descriptor */
+#ifdef __amd64__
 	uint64_t aio_offset __packed;	/* File offset for I/O */
+#else
+	uint64_t aio_offset;		/* File offset for I/O */
+#endif
 	uint32_t aio_buf;		/* I/O buffer in process space */
 	uint32_t aio_nbytes;		/* Number of bytes for I/O */
 	struct	osigevent32 aio_sigevent; /* Signal to deliver */
@@ -2764,7 +2768,11 @@ typedef struct oaiocb32 {
 
 typedef struct aiocb32 {
 	int32_t	aio_fildes;		/* File descriptor */
+#ifdef __amd64__
 	uint64_t aio_offset __packed;	/* File offset for I/O */
+#else
+	uint64_t aio_offset;		/* File offset for I/O*/
+#endif
 	uint32_t aio_buf;	/* I/O buffer in process space */
 	uint32_t aio_nbytes;	/* Number of bytes for I/O */
 	int	__spare__[2];
