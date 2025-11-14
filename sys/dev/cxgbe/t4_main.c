@@ -9007,7 +9007,7 @@ sysctl_requested_fec(SYSCTL_HANDLER_ARGS)
 	struct adapter *sc = pi->adapter;
 	struct link_config *lc = &pi->link_cfg;
 	int rc;
-	int8_t old;
+	int8_t old = lc->requested_fec;
 
 	if (req->newptr == NULL) {
 		struct sbuf *sb;
@@ -9016,16 +9016,15 @@ sysctl_requested_fec(SYSCTL_HANDLER_ARGS)
 		if (sb == NULL)
 			return (ENOMEM);
 
-		sbuf_printf(sb, "%b", lc->requested_fec, t4_fec_bits);
+		sbuf_printf(sb, "%b", old, t4_fec_bits);
 		rc = sbuf_finish(sb);
 		sbuf_delete(sb);
 	} else {
 		char s[8];
 		int n;
 
-		snprintf(s, sizeof(s), "%d",
-		    lc->requested_fec == FEC_AUTO ? -1 :
-		    lc->requested_fec & (M_FW_PORT_CAP32_FEC | FEC_MODULE));
+		snprintf(s, sizeof(s), "%d", old == FEC_AUTO ? -1 :
+		    old & (M_FW_PORT_CAP32_FEC | FEC_MODULE));
 
 		rc = sysctl_handle_string(oidp, s, sizeof(s), req);
 		if (rc != 0)
@@ -9042,7 +9041,10 @@ sysctl_requested_fec(SYSCTL_HANDLER_ARGS)
 		if (rc)
 			return (rc);
 		PORT_LOCK(pi);
-		old = lc->requested_fec;
+		if (lc->requested_fec != old) {
+			rc = EBUSY;
+			goto done;
+		}
 		if (n == FEC_AUTO)
 			lc->requested_fec = FEC_AUTO;
 		else if (n == 0 || n == FEC_NONE)
