@@ -598,7 +598,6 @@ arm_gic_v3_intr(void *arg)
 	struct gic_v3_irqsrc *gi;
 	struct intr_pic *pic;
 	uint64_t active_irq;
-	struct trapframe *tf;
 
 	pic = sc->gic_pic;
 
@@ -628,7 +627,6 @@ arm_gic_v3_intr(void *arg)
 		if (__predict_false(active_irq >= sc->gic_nirqs))
 			return (FILTER_HANDLED);
 
-		tf = curthread->td_intr_frame;
 		gi = &sc->gic_irqs[active_irq];
 		if (active_irq <= GIC_LAST_SGI) {
 			/* Call EOI for all IPI before dispatch. */
@@ -644,7 +642,7 @@ arm_gic_v3_intr(void *arg)
 			if (gi->gi_trig == INTR_TRIGGER_EDGE)
 				gic_icc_write(EOIR1, gi->gi_irq);
 
-			if (intr_isrc_dispatch(&gi->gi_isrc, tf) != 0) {
+			if (intr_isrc_dispatch(&gi->gi_isrc) != 0) {
 				if (gi->gi_trig != INTR_TRIGGER_EDGE)
 					gic_icc_write(EOIR1, gi->gi_irq);
 				gic_v3_disable_intr(sc->dev, &gi->gi_isrc);
