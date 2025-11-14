@@ -41,7 +41,9 @@
 The
 .Nm
 utility
-is used to gather statistics about the disk usage for each local user.
+is used to gather per-user disk usage statistics from
+.Xr ffs 7
+file systems.
 .Pp
 The following options are available:
 .Bl -tag -width indent
@@ -51,8 +53,16 @@ Include statistics for all mounted file systems.
 Display three columns containing number of blocks per file,
 number of files in this category, and aggregate total of
 blocks in files with this or lower size.
+This option is mutually exclusive with the
+.Fl n
+option.
 .It Fl f
 For each user, display count of files and space occupied.
+This option has no effect if combined with the
+.Fl c
+or
+.Fl n
+options.
 .It Fl k
 Force the numbers to be reported in kilobyte counts.
 By default, all sizes are reported in 512-byte block counts.
@@ -69,9 +79,17 @@ ls -i | sed -e 's,^  *,,' | sort -k 1n | quot -n filesystem
 .Ed
 .Pp
 to get a report of files and their owners.
+This option is mutually exclusive with the
+.Fl c
+option.
 .It Fl v
 In addition to the default output, display the number of files
 not accessed within 30, 60 and 90 days.
+This option has no effect if combined with the
+.Fl c
+or
+.Fl n
+options.
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width BLOCKSIZE
@@ -88,6 +106,7 @@ size block.
 .Xr quota 1 ,
 .Xr getmntinfo 3 ,
 .Xr fstab 5 ,
+.Xr ffs 7 ,
 .Xr mount 8
 .Sh HISTORY
 This implementation of
