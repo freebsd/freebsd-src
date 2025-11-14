@@ -1,0 +1,56 @@
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd December 1, 2025
+.Dt AQ 4
+.Os
+.Sh NAME
+.Nm aq
+.Nd Aquantia / Marvell AQ1xx 10 Gigabit Ethernet driver
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device aq"
+.Ed
+.Pp
+To load the driver as a module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_aq_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides support for PCIe 1/2.5/5/10 Gigabit Ethernet adapters
+based on
+Aquantia (now Marvell) AQtion AQC1xx Ethernet controllers.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Pp
+The
+.Nm
+driver is experimental, and has a number of caveats and limitations.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following 10 Gigabit Ethernet PCIe controllers:
+.Pp
+.Bl -bullet -compact
+.It
+aQuantia AQC107
+.It
+aQuantia AQC108
+.It
+aQuantia AQC109
+.It
+aQuantia AQC111
+.It
+aQuantia AQC112
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr ifconfig 8
