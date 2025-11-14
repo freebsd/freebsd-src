@@ -53,6 +53,7 @@ MAN=	aac.4 \
 	${_bxe.4} \
 	${_aout.4} \
 	${_apic.4} \
+	aq.4 \
 	arcmsr.4 \
 	arswitch.4 \
 	${_asmc.4} \
