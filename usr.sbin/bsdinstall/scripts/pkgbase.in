@@ -337,7 +337,7 @@ local function pkgbase()
 		-- Since pkg always interprets fingerprints paths as relative to
 		-- the --rootdir we must copy the key from the host.
 		assert(os.execute("mkdir -p " .. chroot .. "/usr/share/keys"))
-		assert(os.execute("cp -R /usr/share/keys/pkg " .. chroot .. "/usr/share/keys/"))
+		assert(os.execute("cp -R /usr/share/keys/* " .. chroot .. "/usr/share/keys/"))
 	end
 
 	-- We must use --repo-conf-dir rather than -o REPOS_DIR here as the latter
