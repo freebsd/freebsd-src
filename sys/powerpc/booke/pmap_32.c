@@ -803,15 +803,14 @@ mmu_booke_zero_page_area(vm_page_t m, int off, int size)
 static void
 mmu_booke_zero_page(vm_page_t m)
 {
-	vm_offset_t off, va;
+	vm_offset_t va;
 
 	va = zero_page_va;
 	mtx_lock(&zero_page_mutex);
 
 	mmu_booke_kenter(va, VM_PAGE_TO_PHYS(m));
 
-	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
-		__asm __volatile("dcbz 0,%0" :: "r"(va + off));
+	bzero((void *)va, PAGE_SIZE);
 
 	mmu_booke_kremove(va);
 
