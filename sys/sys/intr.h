@@ -86,8 +86,6 @@ struct intr_irqsrc {
 	u_int			isrc_flags;
 	char			isrc_name[INTR_ISRC_NAMELEN];
 	cpuset_t		isrc_cpu;	/* on which CPUs is enabled */
-	u_int			isrc_index;
-	u_long *		isrc_count;
 	u_int			isrc_handlers;
 	struct intr_event *	isrc_event;
 #ifdef INTR_SOLO
