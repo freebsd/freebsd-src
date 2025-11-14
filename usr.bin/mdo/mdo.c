@@ -753,8 +753,14 @@ main(int argc, char **argv)
 			 */
 			setcred_flags |= SETCREDF_SUPP_GROUPS;
 		}
-	} else if (supp_groups_str == NULL && (supp_mod_str == NULL ||
-	    supp_mod_str[0] != '@')) {
+	} else if (supp_groups_str == NULL && supp_mod_str != NULL &&
+	    supp_mod_str[0] != '@') {
+		/*
+		 * We do not need to determine the current groups if, as for the
+		 * '!start_from_current_groups' case, we are going to replace
+		 * them entirely, but here also if we do not amend them at all
+		 * (because they are by definition already in place).
+		 */
 		const int ngroups = getgroups(0, NULL);
 
 		if (ngroups > 0) {
