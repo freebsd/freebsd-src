@@ -41,6 +41,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <fstab.h>
+#include <inttypes.h>
 #include <libufs.h>
 #include <mntopts.h>
 #include <paths.h>
@@ -390,41 +391,43 @@ douser(int fd, struct fs *super)
 static void
 donames(int fd, struct fs *super)
 {
-	int c;
-	ino_t maxino;
-	uintmax_t inode;
 	union dinode *dp;
+	char *end, *line;
+	size_t cap;
+	ssize_t len;
+	intmax_t inode, maxino;
 
 	maxino = super->fs_ncg * super->fs_ipg - 1;
-	/* first skip the name of the filesystem */
-	while ((c = getchar()) != EOF && (c < '0' || c > '9'))
-		while ((c = getchar()) != EOF && c != '\n');
-	ungetc(c, stdin);
-	while (scanf("%ju", &inode) == 1) {
-		if (inode > maxino) {
-			warnx("illegal inode %ju", inode);
-			return;
+	line = NULL;
+	cap = 0;
+	while ((len = getline(&line, &cap, stdin)) > 0) {
+		if (len > 0 && line[len - 1] == '\n')
+			line[--len] = '\0';
+		inode = strtoimax(line, &end, 10);
+		/*
+		 * Silently ignore lines that do not begin with a number.
+		 * For backward compatibility reasons, we do not require
+		 * the optional comment to be preceded by whitespace.
+		 */
+		if (end == line)
+			continue;
+		if (inode <= 0 || inode > maxino) {
+			warnx("invalid inode %jd", inode);
+			continue;
 		}
 		if ((dp = get_inode(fd, super, inode)) != NULL &&
 		    !isfree(super, dp)) {
 			printf("%s\t", user(DIP(super, dp, di_uid))->name);
 			/* now skip whitespace */
-			while ((c = getchar()) == ' ' || c == '\t')
-				/* nothing */;
+			while (*end == ' ' || *end == '\t')
+				end++;
 			/* and print out the remainder of the input line */
-			while (c != EOF && c != '\n') {
-				putchar(c);
-				c = getchar();
-			}
-			putchar('\n');
+			printf("%s\n", end);
 		} else {
 			/* skip this line */
-			while ((c = getchar()) != EOF && c != '\n')
-				/* nothing */;
 		}
-		if (c == EOF)
-			break;
 	}
+	free(line);
 }
 
 static void
