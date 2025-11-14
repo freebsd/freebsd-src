@@ -603,8 +603,8 @@ user_setcred(struct thread *td, const u_int flags,
 		if (error != 0)
 			return (error);
 		/* These fields have exactly the same sizes and positions. */
-		memcpy(&wcred, &wcred32, &wcred32.setcred32_copy_end -
-		    &wcred32.setcred32_copy_start);
+		memcpy(&wcred, &wcred32, __rangeof(struct setcred32,
+		    setcred32_copy_start, setcred32_copy_end));
 		/* Remaining fields are pointers and need PTRIN*(). */
 		PTRIN_CP(wcred32, wcred, sc_supp_groups);
 		PTRIN_CP(wcred32, wcred, sc_label);
