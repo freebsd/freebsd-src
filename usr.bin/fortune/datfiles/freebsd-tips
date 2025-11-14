@@ -860,3 +860,11 @@ When netstat reports every 8 seconds, it tells traffic in bits per second:
 
 $ netstat -I bge0 8
 %
+Using vt(4) on a laptop? Try this sh(1) function. It provides an "h"
+command that prints the last 22 commands executed, the time, remaining
+battery life, and current working directory:
+
+h() { fc -l -22; printf "%s\n" "`date +%H:%M` -- `apm -l`% -- `pwd`"; }
+
+		-- Alexander Ziaee <ziaee@FreeBSD.org>
+%
