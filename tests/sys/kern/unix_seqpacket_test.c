@@ -1314,6 +1314,67 @@ ATF_TC_BODY(random_eor_and_waitall, tc)
 	free(params.records);
 }
 
+/* See bug 290658. */
+#define	PEEK_RACE_SIZE	10
+#define	PEEK_RACE_TRIES	10000
+static void *
+peek_race_writer(void *args)
+{
+	struct timespec ts = {};
+	u_short seed[3];
+	char buf[PEEK_RACE_SIZE];
+	int fd = *(int *)args;
+
+	arc4random_buf(seed, sizeof(seed));
+	for (u_int i = 0; i < PEEK_RACE_TRIES; i++) {
+		ATF_REQUIRE_EQ(PEEK_RACE_SIZE,
+		    send(fd, buf, sizeof(buf), MSG_EOR));
+		ts.tv_nsec = nrand48(seed) % 20;
+		(void)clock_nanosleep(CLOCK_MONOTONIC_FAST, 0, &ts, NULL);
+	}
+
+	return (NULL);
+}
+
+static void *
+peek_race_peeker(void *args)
+{
+	char buf[PEEK_RACE_SIZE * 10];
+	int fd = *(int *)args;
+
+	for (u_int i = 0; i < PEEK_RACE_TRIES; i++) {
+		ssize_t rcvd;
+
+		while ((rcvd = recv(fd, buf, sizeof(buf),
+		    MSG_PEEK | MSG_DONTWAIT)) == -1)
+			ATF_REQUIRE(errno == EAGAIN);
+		ATF_REQUIRE(rcvd == PEEK_RACE_SIZE);
+
+		ATF_REQUIRE_EQ(PEEK_RACE_SIZE,
+		    recv(fd, buf, sizeof(buf), 0));
+	}
+
+	return (NULL);
+}
+
+ATF_TC_WITHOUT_HEAD(peek_race);
+ATF_TC_BODY(peek_race, tc)
+{
+	pthread_t peeker, writer;
+	int sv[2];
+
+	do_socketpair(sv);
+
+	ATF_REQUIRE_EQ(0, pthread_create(&writer, NULL, peek_race_writer,
+	    &sv[0]));
+	ATF_REQUIRE_EQ(0, pthread_create(&peeker, NULL, peek_race_peeker,
+	    &sv[1]));
+	ATF_REQUIRE_EQ(0, pthread_join(writer, NULL));
+	ATF_REQUIRE_EQ(0, pthread_join(peeker, NULL));
+	close(sv[0]);
+	close(sv[1]);
+}
+
 /*
  * Main.
  */
@@ -1370,6 +1431,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, pipe_128k_8k);
 	ATF_TP_ADD_TC(tp, pipe_128k_128k);
 	ATF_TP_ADD_TC(tp, random_eor_and_waitall);
+	ATF_TP_ADD_TC(tp, peek_race);
 
 	return atf_no_error();
 }
