@@ -679,12 +679,11 @@ mmu_booke_zero_page_area(vm_page_t m, int off, int size)
 static void
 mmu_booke_zero_page(vm_page_t m)
 {
-	vm_offset_t off, va;
+	vm_offset_t va;
 
 	va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
 
-	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
-		__asm __volatile("dcbz 0,%0" :: "r"(va + off));
+	bzero((void *)va, PAGE_SIZE);
 }
 
 /*
