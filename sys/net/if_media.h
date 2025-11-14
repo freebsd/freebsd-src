@@ -553,7 +553,7 @@ struct ifmedia_description {
 	{ IFM_400G_AUI8_AC,	"400G-AUI8-AC" },			\
 	{ IFM_400G_AUI8,	"400G-AUI8" },				\
 	{ IFM_400G_SR8,	"400GBase-SR8" },				\
-	{ IFM_400G_SR8,	"400GBase-CR8" },				\
+	{ IFM_400G_CR8,	"400GBase-CR8" },				\
 	{ 0, NULL },							\
 }
 
