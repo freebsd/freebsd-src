@@ -326,7 +326,7 @@ int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	    struct mbuf *control, enum uio_seg segflg);
 int	kern_setcred(struct thread *const td, const u_int flags,
-	    struct setcred *const wcred, gid_t *preallocated_groups);
+	    struct setcred *const wcred);
 int	kern_setgroups(struct thread *td, int *ngrpp, gid_t *groups);
 int	kern_setitimer(struct thread *, u_int, struct itimerval *,
 	    struct itimerval *);
