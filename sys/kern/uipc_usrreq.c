@@ -1492,11 +1492,10 @@ restart:
 	}
 
 	if (!peek) {
-		STAILQ_FIRST(&sb->uxst_mbq) = next;
-#ifdef INVARIANTS
 		if (next == NULL)
 			STAILQ_INIT(&sb->uxst_mbq);
-#endif
+		else
+			STAILQ_FIRST(&sb->uxst_mbq) = next;
 		MPASS(sb->sb_acc >= datalen);
 		sb->sb_acc -= datalen;
 		sb->sb_ccc -= datalen;
