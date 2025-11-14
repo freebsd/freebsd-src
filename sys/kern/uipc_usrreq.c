@@ -1372,8 +1372,8 @@ uipc_soreceive_stream_or_seqpacket(struct socket *so, struct sockaddr **psa,
     struct uio *uio, struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
 {
 	struct sockbuf *sb = &so->so_rcv;
-	struct mbuf *control, *m, *first, *last, *next;
-	u_int ctl, space, datalen, mbcnt, lastlen;
+	struct mbuf *control, *m, *first, *part, *next;
+	u_int ctl, space, datalen, mbcnt, partlen;
 	int error, flags;
 	bool nonblock, waitall, peek;
 
@@ -1457,22 +1457,16 @@ restart:
 		control = NULL;
 
 	/*
-	 * Find split point for the next copyout.  On exit from the loop:
-	 * last == NULL - socket to be flushed
-	 * last != NULL
-	 *   lastlen > last->m_len - uio to be filled, last to be adjusted
-	 *   lastlen == 0          - MT_CONTROL, M_EOR or M_NOTREADY encountered
+	 * Find split point for the next copyout.  On exit from the loop,
+	 * 'next' points to the new head of the buffer STAILQ and 'datalen'
+	 * contains the amount of data we will copy out at the end.  The
+	 * copyout is protected by the I/O lock only, as writers can only
+	 * append to the buffer.  We need to record the socket buffer state
+	 * and do all length adjustments before dropping the socket buffer lock.
 	 */
-	space = uio->uio_resid;
-	datalen = 0;
-	for (m = first, last = sb->uxst_fnrdy, lastlen = 0;
-	     m != sb->uxst_fnrdy;
+	for (space = uio->uio_resid, m = next = first, part = NULL, datalen = 0;
+	     space > 0 && m != sb->uxst_fnrdy && m->m_type == MT_DATA;
 	     m = STAILQ_NEXT(m, m_stailq)) {
-		if (m->m_type != MT_DATA) {
-			last = m;
-			lastlen = 0;
-			break;
-		}
 		if (space >= m->m_len) {
 			space -= m->m_len;
 			datalen += m->m_len;
@@ -1480,29 +1474,29 @@ restart:
 			if (m->m_flags & M_EXT)
 				mbcnt += m->m_ext.ext_size;
 			if (m->m_flags & M_EOR) {
-				last = STAILQ_NEXT(m, m_stailq);
-				lastlen = 0;
 				flags |= MSG_EOR;
+				next = STAILQ_NEXT(m, m_stailq);
 				break;
 			}
 		} else {
 			datalen += space;
-			last = m;
-			lastlen = space;
+			partlen = space;
+			if (!peek) {
+				m->m_len -= partlen;
+				m->m_data += partlen;
+			}
+			next = part = m;
 			break;
 		}
+		next = STAILQ_NEXT(m, m_stailq);
 	}
 
-	UIPC_STREAM_SBCHECK(sb);
 	if (!peek) {
-		if (last == NULL)
+		STAILQ_FIRST(&sb->uxst_mbq) = next;
+#ifdef INVARIANTS
+		if (next == NULL)
 			STAILQ_INIT(&sb->uxst_mbq);
-		else {
-			STAILQ_FIRST(&sb->uxst_mbq) = last;
-			MPASS(last->m_len > lastlen);
-			last->m_len -= lastlen;
-			last->m_data += lastlen;
-		}
+#endif
 		MPASS(sb->sb_acc >= datalen);
 		sb->sb_acc -= datalen;
 		sb->sb_ccc -= datalen;
@@ -1629,33 +1623,34 @@ restart:
 		}
 	}
 
-	for (m = first; m != last; m = next) {
+	for (m = first; datalen > 0; m = next) {
+		void *data;
+		u_int len;
+
 		next = STAILQ_NEXT(m, m_stailq);
-		error = uiomove(mtod(m, char *), m->m_len, uio);
+		if (m == part) {
+			data = peek ?
+			    mtod(m, char *) : mtod(m, char *) - partlen;
+			len = partlen;
+		} else {
+			data = mtod(m, char *);
+			len = m->m_len;
+		}
+		error = uiomove(data, len, uio);
 		if (__predict_false(error)) {
-			SOCK_IO_RECV_UNLOCK(so);
 			if (!peek)
-				for (; m != last; m = next) {
+				for (; m != part && datalen > 0; m = next) {
 					next = STAILQ_NEXT(m, m_stailq);
+					MPASS(datalen >= m->m_len);
+					datalen -= m->m_len;
 					m_free(m);
 				}
-			return (error);
-		}
-		if (!peek)
-			m_free(m);
-	}
-	if (last != NULL && lastlen > 0) {
-		if (!peek) {
-			MPASS(!(m->m_flags & M_PKTHDR));
-			MPASS(last->m_data - M_START(last) >= lastlen);
-			error = uiomove(mtod(last, char *) - lastlen,
-			    lastlen, uio);
-		} else
-			error = uiomove(mtod(last, char *), lastlen, uio);
-		if (__predict_false(error)) {
 			SOCK_IO_RECV_UNLOCK(so);
 			return (error);
 		}
+		datalen -= len;
+		if (!peek && m != part)
+			m_free(m);
 	}
 	if (waitall && !(flags & MSG_EOR) && uio->uio_resid > 0)
 		goto restart;
