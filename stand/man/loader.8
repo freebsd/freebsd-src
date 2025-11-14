@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 29, 2021
+.Dd November 14, 2025
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -89,6 +89,52 @@ The commands common to all interpreters are described in the
 .Xr loader_simp 8
 .Dq BUILTIN COMMANDS
 section.
+.Pp
+The following commands are only available in
+.Xr loader_lua 8
+and
+.Xr loader_4th 8 :
+.Pp
+.Bl -tag -width indent -compact
+.\" sort the following entries according to the second field
+.It Ic boot-conf
+Load the
+.Nm
+config and commence the autoboot sequence.
+.Pp
+.It Ic read-conf Ar file
+Load the specified configuration file.
+.Pp
+.It Ic reload-conf
+Revert any previously applied settings, and reload the configuration.
+Set comands that were executed at the command line to override variables
+previously
+.Cm set
+by
+.Xr loader.conf 5
+configuration will also be reverted,
+along with any module options that were toggled.
+.Pp
+.It Ic enable-module Ar kmod-name
+.It Ic disable-module Ar kmod-name
+.It Ic toggle-module Ar kmod-name
+Enable, disable, or toggle loading of the kernel module named
+.Dq Ar kmod-name .
+.Pp
+.It Ic show-module-options
+Describe all modules the
+.Nm
+is aware of, and show if they are enabled or not.
+.El
+.Pp
+The following command is only available in
+.Xr loader_lua 8 :
+.Pp
+.Bl -tag -width indent -compact
+.It Ic disable-device Ar device
+Set a newbus hint to disable the
+.Ar device .
+.El
 .Ss BUILTIN ENVIRONMENT VARIABLES
 The environment variables common to all interpreters are described in the
 .Xr loader_simp 8
