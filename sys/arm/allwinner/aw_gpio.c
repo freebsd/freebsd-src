@@ -43,8 +43,8 @@
 #include <sys/proc.h>
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
 
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
@@ -1535,15 +1535,17 @@ static device_method_t aw_gpio_methods[] = {
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	aw_gpio_pic_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	aw_gpio_pic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	aw_gpio_pic_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	aw_gpio_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	aw_gpio_pic_enable_intr),
 	DEVMETHOD(pic_map_intr,		aw_gpio_pic_map_intr),
 	DEVMETHOD(pic_setup_intr,	aw_gpio_pic_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	aw_gpio_pic_teardown_intr),
-	DEVMETHOD(pic_post_filter,	aw_gpio_pic_post_filter),
-	DEVMETHOD(pic_post_ithread,	aw_gpio_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	aw_gpio_pic_pre_ithread),
 
 	/* GPIO protocol */
 	DEVMETHOD(gpio_get_bus,		aw_gpio_get_bus),
@@ -1568,11 +1570,8 @@ static device_method_t aw_gpio_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t aw_gpio_driver = {
-	"gpio",
-	aw_gpio_methods,
-	sizeof(struct aw_gpio_softc),
-};
+PRIVATE_DEFINE_CLASSN(gpio, aw_gpio_driver, aw_gpio_methods,
+    sizeof(struct aw_gpio_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(aw_gpio, simplebus, aw_gpio_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);

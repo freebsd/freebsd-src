@@ -42,7 +42,7 @@
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/pio.h>
 #include <machine/resource.h>
@@ -72,7 +72,7 @@ static device_method_t  openpic_iobus_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(openpic, openpic_iobus_driver, openpic_iobus_methods,
+PRIVATE_DEFINE_CLASSN(openpic, openpic_iobus_driver, openpic_iobus_methods,
     sizeof(struct openpic_softc), openpic_class);
 
 DRIVER_MODULE(openpic, iobus, openpic_iobus_driver, 0, 0);

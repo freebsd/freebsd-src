@@ -39,7 +39,7 @@
 #include <sys/mutex.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 
 #include <dev/fdt/simplebus.h>
@@ -450,7 +450,7 @@ mv_ap806_sei_release_msi(device_t dev, device_t child, int count, struct intr_ir
 
 	for (i = 0; i < count; i++) {
 		BIT_SET(MV_AP806_SEI_CP_SIZE,
-		    srcs[i]->isrc_irq - MV_AP806_SEI_CP_FIRST,
+		    srcs[i]->isrc_event.ie_irq - MV_AP806_SEI_CP_FIRST,
 		    &sc->msi_bitmap);
 	}
 
@@ -466,7 +466,7 @@ mv_ap806_sei_map_msi(device_t dev, device_t child, struct intr_irqsrc *isrc,
 	sc = device_get_softc(dev);
 
 	*addr = rman_get_start(sc->mem_res) + MV_AP806_SEI_SETSPI_OFFSET;
-	*data = isrc->isrc_irq;
+	*data = isrc->isrc_event.ie_irq;
 
 	return (0);
 }
@@ -477,15 +477,17 @@ static device_method_t mv_ap806_sei_methods[] = {
 	DEVMETHOD(device_attach,	mv_ap806_sei_attach),
 	DEVMETHOD(device_detach,	mv_ap806_sei_detach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	mv_ap806_sei_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	mv_ap806_sei_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	mv_ap806_sei_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	mv_ap806_sei_disable_intr),
 	DEVMETHOD(pic_enable_intr,	mv_ap806_sei_enable_intr),
 	DEVMETHOD(pic_map_intr,		mv_ap806_sei_map_intr),
 	DEVMETHOD(pic_setup_intr,	mv_ap806_sei_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	mv_ap806_sei_teardown_intr),
-	DEVMETHOD(pic_post_filter,	mv_ap806_sei_post_filter),
-	DEVMETHOD(pic_post_ithread,	mv_ap806_sei_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	mv_ap806_sei_pre_ithread),
 
 	/* MSI interface */
 	DEVMETHOD(msi_alloc_msi,	mv_ap806_sei_alloc_msi),
@@ -495,11 +497,8 @@ static device_method_t mv_ap806_sei_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t mv_ap806_sei_driver = {
-	"mv_ap806_sei",
-	mv_ap806_sei_methods,
-	sizeof(struct mv_ap806_sei_softc),
-};
+PRIVATE_DEFINE_CLASSN(mv_ap806_sei, mv_ap806_sei_driver, mv_ap806_sei_methods,
+    sizeof(struct mv_ap806_sei_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(mv_ap806_sei, simplebus, mv_ap806_sei_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

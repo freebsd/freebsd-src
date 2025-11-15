@@ -50,7 +50,7 @@
 
 #include <machine/bus.h>
 #include <machine/clock.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 
 #include "clock_if.h"
