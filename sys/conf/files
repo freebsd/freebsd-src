@@ -2278,6 +2278,10 @@ iwn6050.fw			optional iwn6050fw | iwnfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn6050.fw"
+dev/iwx/if_iwx.c		optional iwx \
+	compile-with "${NORMAL_C} -DIWX_DEBUG=1"
+dev/iwx/if_iwx_debug.c		optional iwx \
+	compile-with "${NORMAL_C} -DIWX_DEBUG=1"
 dev/ixgbe/if_ix.c		optional ix inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
 dev/ixgbe/if_ixv.c		optional ixv inet \
