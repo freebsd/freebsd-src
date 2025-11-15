@@ -301,6 +301,48 @@ tpmcrb_cancel_cmd(struct tpm_sc *sc)
 	return (true);
 }
 
+static bool
+tpmcrb_state_idle(struct tpmcrb_sc *crb_sc, bool wait)
+{
+	struct tpm_sc *sc;
+	int mask, timeout;
+
+	timeout = wait ? TPM_TIMEOUT_C : 0;
+
+	sc = &crb_sc->base;
+	OR4(sc, TPM_CRB_CTRL_REQ, TPM_CRB_CTRL_REQ_GO_IDLE);
+
+	if (timeout > 0) {
+		mask = TPM_CRB_CTRL_STS_IDLE_BIT;
+		if (!tpm_wait_for_u32(sc, TPM_CRB_CTRL_STS, mask, mask,
+		    timeout))
+			return (false);
+	}
+
+	return (true);
+}
+
+static bool
+tpmcrb_state_ready(struct tpmcrb_sc *crb_sc, bool wait)
+{
+	struct tpm_sc *sc;
+	int mask, timeout;
+
+	timeout = wait ? TPM_TIMEOUT_C : 0;
+
+	sc = &crb_sc->base;
+	OR4(sc, TPM_CRB_CTRL_REQ, TPM_CRB_CTRL_REQ_GO_READY);
+
+	if (timeout > 0) {
+		mask = TPM_CRB_CTRL_REQ_GO_READY;
+		if (!tpm_wait_for_u32(sc, TPM_CRB_CTRL_STS, mask, !mask,
+		    timeout))
+			return (false);
+	}
+
+	return (true);
+}
+
 int
 tpmcrb_transmit(device_t dev, size_t length)
 {
@@ -335,22 +377,15 @@ tpmcrb_transmit(device_t dev, size_t length)
 
 	/* Switch device to idle state if necessary */
 	if (!(TPM_READ_4(dev, TPM_CRB_CTRL_STS) & TPM_CRB_CTRL_STS_IDLE_BIT)) {
-		OR4(sc, TPM_CRB_CTRL_REQ, TPM_CRB_CTRL_REQ_GO_IDLE);
-
-		mask = TPM_CRB_CTRL_STS_IDLE_BIT;
-		if (!tpm_wait_for_u32(sc, TPM_CRB_CTRL_STS,
-			    mask, mask, TPM_TIMEOUT_C)) {
+		if (!tpmcrb_state_idle(crb_sc, true)) {
 			device_printf(dev,
 			    "Failed to transition to idle state\n");
 			return (EIO);
 		}
 	}
-	/* Switch to ready state */
-	OR4(sc, TPM_CRB_CTRL_REQ, TPM_CRB_CTRL_REQ_GO_READY);
 
-	mask = TPM_CRB_CTRL_REQ_GO_READY;
-	if (!tpm_wait_for_u32(sc, TPM_CRB_CTRL_STS,
-		    mask, !mask, TPM_TIMEOUT_C)) {
+	/* Switch to ready state */
+	if (!tpmcrb_state_ready(crb_sc, true)) {
 		device_printf(dev,
 		    "Failed to transition to ready state\n");
 		return (EIO);
@@ -394,7 +429,11 @@ tpmcrb_transmit(device_t dev, size_t length)
 	bus_read_region_stream_1(sc->mem_res, crb_sc->rsp_off + TPM_HEADER_SIZE,
 	      &sc->buf[TPM_HEADER_SIZE], bytes_available - TPM_HEADER_SIZE);
 
-	OR4(sc, TPM_CRB_CTRL_REQ, TPM_CRB_CTRL_REQ_GO_IDLE);
+	if (!tpmcrb_state_idle(crb_sc, false)) {
+		device_printf(dev,
+		    "Failed to transition to idle state post-send\n");
+		return (EIO);
+	}
 
 	tpmcrb_relinquish_locality(sc);
 	sc->pending_data_length = bytes_available;
