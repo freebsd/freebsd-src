@@ -7552,11 +7552,13 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 		action = pf_test_state_tcp(&s, dir, kif, m, off, h, &pd,
 		    &reason);
 		if (action == PF_PASS) {
-			if (V_pfsync_update_state_ptr != NULL)
-				V_pfsync_update_state_ptr(s);
-			r = s->rule.ptr;
-			a = s->anchor.ptr;
-			log = s->log;
+			if (s != NULL) {
+				if (V_pfsync_update_state_ptr != NULL)
+					V_pfsync_update_state_ptr(s);
+				r = s->rule.ptr;
+				a = s->anchor.ptr;
+				log = s->log;
+			}
 		} else if (s == NULL) {
 			/* Validate remote SYN|ACK, re-create original SYN if
 			 * valid. */
@@ -7612,11 +7614,13 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 		}
 		action = pf_test_state_udp(&s, dir, kif, m, off, h, &pd);
 		if (action == PF_PASS) {
-			if (V_pfsync_update_state_ptr != NULL)
-				V_pfsync_update_state_ptr(s);
-			r = s->rule.ptr;
-			a = s->anchor.ptr;
-			log = s->log;
+			if (s != NULL) {
+				if (V_pfsync_update_state_ptr != NULL)
+					V_pfsync_update_state_ptr(s);
+				r = s->rule.ptr;
+				a = s->anchor.ptr;
+				log = s->log;
+			}
 		} else if (s == NULL)
 			action = pf_test_rule(&r, &s, dir, kif, m, off, &pd,
 			    &a, &ruleset, inp);
