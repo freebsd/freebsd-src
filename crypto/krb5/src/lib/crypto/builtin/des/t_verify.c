@@ -128,9 +128,7 @@ unsigned char mresult[8] = {
 mit_des_key_schedule sched;
 
 int
-main(argc,argv)
-    int argc;
-    char *argv[];
+main(int argc, char *argv[])
 {
     /* Local Declarations */
     size_t  in_length;
@@ -335,9 +333,7 @@ main(argc,argv)
 }
 
 static void
-do_encrypt(in,out)
-    unsigned char *in;
-    unsigned char *out;
+do_encrypt(unsigned char *in, unsigned char *out)
 {
     int i, j;
     for (i =1; i<=nflag; i++) {
@@ -359,9 +355,7 @@ do_encrypt(in,out)
 }
 
 static void
-do_decrypt(in,out)
-    unsigned char *out;
-    unsigned char *in;
+do_decrypt(unsigned char *in, unsigned char *out)
     /* try to invert it */
 {
     int i, j;
@@ -388,8 +382,7 @@ do_decrypt(in,out)
  */
 
 int
-mit_des_is_weak_key(key)
-    mit_des_cblock key;
+mit_des_is_weak_key(mit_des_cblock key)
 {
     return 0;                           /* fake it out for testing */
 }

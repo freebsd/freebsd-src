@@ -4,8 +4,6 @@
 .SH NAME
 tzselect \- select a timezone
 .SH SYNOPSIS
-.ie \n(.g .ds - \f(CR-\fP
-.el .ds - \-
 .ds d " degrees
 .ds m " minutes
 .ds s " seconds
@@ -20,15 +18,15 @@ tzselect \- select a timezone
 .\}
 .B tzselect
 [
-.B \*-c
+.B \-c
 .I coord
 ] [
-.B \*-n
+.B \-n
 .I limit
 ] [
-.B \*-\*-help
+.B \-\-help
 ] [
-.B \*-\*-version
+.B \-\-version
 ]
 .SH DESCRIPTION
 The
@@ -40,7 +38,7 @@ The output is suitable as a value for the TZ environment variable.
 All interaction with the user is done via standard input and standard error.
 .SH OPTIONS
 .TP
-.BI "\*-c " coord
+.BI "\-c " coord
 Instead of asking for continent and then country and then city,
 ask for selection from time zones whose largest cities
 are closest to the location with geographical coordinates
@@ -70,27 +68,27 @@ seconds, with any trailing fractions represent fractional minutes or
 .I SS
 is present) seconds.  The decimal point is that of the current locale.
 For example, in the (default) C locale,
-.B "\*-c\ +40.689\*-074.045"
+.B "\-c\ +40.689\-074.045"
 specifies 40.689\*d\*_N, 74.045\*d\*_W,
-.B "\*-c\ +4041.4\*-07402.7"
+.B "\-c\ +4041.4\-07402.7"
 specifies 40\*d\*_41.4\*m\*_N, 74\*d\*_2.7\*m\*_W, and
-.B "\*-c\ +404121\*-0740240"
+.B "\-c\ +404121\-0740240"
 specifies 40\*d\*_41\*m\*_21\*s\*_N, 74\*d\*_2\*m\*_40\*s\*_W.
 If
 .I coord
 is not one of the documented forms, the resulting behavior is unspecified.
 .TP
-.BI "\*-n " limit
+.BI "\-n " limit
 When
-.B \*-c
+.B \-c
 is used, display the closest
 .I limit
 locations (default 10).
 .TP
-.B "\*-\*-help"
+.B "\-\-help"
 Output help information and exit.
 .TP
-.B "\*-\*-version"
+.B "\-\-version"
 Output version information and exit.
 .SH "ENVIRONMENT VARIABLES"
 .TP

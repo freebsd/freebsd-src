@@ -54,6 +54,7 @@ enum monitor_reqtype {
 	MONITOR_REQ_GSSUSEROK = 46, MONITOR_ANS_GSSUSEROK = 47,
 	MONITOR_REQ_GSSCHECKMIC = 48, MONITOR_ANS_GSSCHECKMIC = 49,
 	MONITOR_REQ_TERM = 50,
+	MONITOR_REQ_STATE = 51, MONITOR_ANS_STATE = 52,
 
 	MONITOR_REQ_PAM_START = 100,
 	MONITOR_REQ_PAM_ACCOUNT = 102, MONITOR_ANS_PAM_ACCOUNT = 103,
@@ -95,5 +96,7 @@ void mm_get_keystate(struct ssh *, struct monitor *);
 
 /* XXX: should be returned via a monitor call rather than config_fd */
 void mm_encode_server_options(struct sshbuf *);
+
+struct sshbuf *pack_hostkeys(void);
 
 #endif /* _MONITOR_H_ */

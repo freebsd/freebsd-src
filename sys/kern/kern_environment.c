@@ -1098,65 +1098,65 @@ kernenv_next(char *cp)
 }
 
 void
-tunable_int_init(void *data)
+tunable_int_init(const void *data)
 {
-	struct tunable_int *d = (struct tunable_int *)data;
+	const struct tunable_int *d = data;
 
 	TUNABLE_INT_FETCH(d->path, d->var);
 }
 
 void
-tunable_long_init(void *data)
+tunable_long_init(const void *data)
 {
-	struct tunable_long *d = (struct tunable_long *)data;
+	const struct tunable_long *d = data;
 
 	TUNABLE_LONG_FETCH(d->path, d->var);
 }
 
 void
-tunable_ulong_init(void *data)
+tunable_ulong_init(const void *data)
 {
-	struct tunable_ulong *d = (struct tunable_ulong *)data;
+	const struct tunable_ulong *d = data;
 
 	TUNABLE_ULONG_FETCH(d->path, d->var);
 }
 
 void
-tunable_int64_init(void *data)
+tunable_int64_init(const void *data)
 {
-	struct tunable_int64 *d = (struct tunable_int64 *)data;
+	const struct tunable_int64 *d = data;
 
 	TUNABLE_INT64_FETCH(d->path, d->var);
 }
 
 void
-tunable_uint64_init(void *data)
+tunable_uint64_init(const void *data)
 {
-	struct tunable_uint64 *d = (struct tunable_uint64 *)data;
+	const struct tunable_uint64 *d = data;
 
 	TUNABLE_UINT64_FETCH(d->path, d->var);
 }
 
 void
-tunable_quad_init(void *data)
+tunable_quad_init(const void *data)
 {
-	struct tunable_quad *d = (struct tunable_quad *)data;
+	const struct tunable_quad *d = data;
 
 	TUNABLE_QUAD_FETCH(d->path, d->var);
 }
 
 void
-tunable_bool_init(void *data)
+tunable_bool_init(const void *data)
 {
-	struct tunable_bool *d = (struct tunable_bool *)data;
+	const struct tunable_bool *d = data;
 
 	TUNABLE_BOOL_FETCH(d->path, d->var);
 }
 
 void
-tunable_str_init(void *data)
+tunable_str_init(const void *data)
 {
-	struct tunable_str *d = (struct tunable_str *)data;
+	const struct tunable_str *d = data;
 
 	TUNABLE_STR_FETCH(d->path, d->var, d->size);
 }

@@ -34,8 +34,6 @@
 #include <sys/time.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_kevent, __kevent);
-
 #pragma weak kevent
 int
 kevent(int kq, const struct kevent *changelist, int nchanges,

@@ -18,8 +18,8 @@ extern const krb5_cc_ops krb5_fcc_ops;
 
 static int krb5_win_ccdll_loaded = 0;
 
-extern void krb5_win_ccdll_load();
-extern int krb5_is_ccdll_loaded();
+extern void krb5_win_ccdll_load(krb5_context context);
+extern int krb5_is_ccdll_loaded(void);
 
 /*
  * return codes
@@ -81,8 +81,7 @@ static int LoadFuncs(const char* dll_name, FUNC_INFO fi[],
     return LF_OK;
 }
 
-void krb5_win_ccdll_load(context)
-    krb5_context    context;
+void krb5_win_ccdll_load(krb5_context context)
 {
     krb5_cc_register(context, &krb5_fcc_ops, 0);
     if (krb5_win_ccdll_loaded)
@@ -93,7 +92,7 @@ void krb5_win_ccdll_load(context)
     krb5_cc_dfl_ops = &krb5_cc_stdcc_ops; /* Use stdcc! */
 }
 
-int krb5_is_ccdll_loaded()
+int krb5_is_ccdll_loaded(void)
 {
     return krb5_win_ccdll_loaded;
 }

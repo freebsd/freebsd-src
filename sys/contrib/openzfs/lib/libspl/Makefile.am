@@ -2,6 +2,9 @@ include $(srcdir)/%D%/include/Makefile.am
 
 libspl_assert_la_CFLAGS = $(AM_CFLAGS) $(LIBRARY_CFLAGS) $(LIBUNWIND_CFLAGS)
 libspl_la_CFLAGS        = $(libspl_assert_la_CFLAGS)
+if TARGET_CPU_I386
+libspl_la_CFLAGS        += $(NO_ATOMIC_ALIGNMENT)
+endif
 
 noinst_LTLIBRARIES += libspl_assert.la libspl.la
 CPPCHECKTARGETS    += libspl_assert.la libspl.la
@@ -20,6 +23,7 @@ libspl_la_SOURCES = \
 	%D%/strlcat.c \
 	%D%/strlcpy.c \
 	%D%/timestamp.c \
+	%D%/tunables.c \
 	%D%/include/sys/list.h \
 	%D%/include/sys/list_impl.h
 

@@ -736,14 +736,14 @@ udf_fhtovp(struct mount *mp, struct fid *fhp, int flags, struct vnode **vpp)
 	ifhp = (struct ifid *)fhp;
 
 	if ((error = VFS_VGET(mp, ifhp->ifid_ino, LK_EXCLUSIVE, &nvp)) != 0) {
-		*vpp = NULLVP;
+		*vpp = NULL;
 		return (error);
 	}
 
 	np = VTON(nvp);
 	fsize = le64toh(np->fentry->inf_len);
 	if (fsize > OFF_MAX) {
-		*vpp = NULLVP;
+		*vpp = NULL;
 		return (EIO);
 	}
 

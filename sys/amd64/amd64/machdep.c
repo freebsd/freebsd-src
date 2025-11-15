@@ -1336,12 +1336,9 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	pti = pti_get_default();
 	TUNABLE_INT_FETCH("vm.pmap.pti", &pti);
 	TUNABLE_INT_FETCH("vm.pmap.pcid_enabled", &pmap_pcid_enabled);
-	if ((cpu_feature2 & CPUID2_PCID) != 0 && pmap_pcid_enabled) {
-		invpcid_works = (cpu_stdext_feature &
-		    CPUID_STDEXT_INVPCID) != 0;
-	} else {
+	if ((cpu_feature2 & CPUID2_PCID) == 0)
 		pmap_pcid_enabled = 0;
-	}
+	invpcid_works = (cpu_stdext_feature & CPUID_STDEXT_INVPCID) != 0;
 
 	/*
 	 * Now we can do small core initialization, after the PCID
@@ -1823,6 +1820,39 @@ clear_pcb_flags(struct pcb *pcb, const u_int flags)
 	__asm __volatile("andl %1,%0"
 	    : "=m" (pcb->pcb_flags) : "ir" (~flags), "m" (pcb->pcb_flags)
 	    : "cc", "memory");
+}
+
+extern const char wrmsr_early_safe_gp_handler[];
+static struct region_descriptor wrmsr_early_safe_orig_efi_idt;
+
+void
+wrmsr_early_safe_start(void)
+{
+	struct region_descriptor efi_idt;
+	struct gate_descriptor *gpf_descr;
+
+	sidt(&wrmsr_early_safe_orig_efi_idt);
+	efi_idt.rd_limit = 32 * sizeof(idt0[0]);
+	efi_idt.rd_base = (uintptr_t)idt0;
+	lidt(&efi_idt);
+
+	gpf_descr = &idt0[IDT_GP];
+	gpf_descr->gd_looffset = (uintptr_t)wrmsr_early_safe_gp_handler;
+	gpf_descr->gd_hioffset = (uintptr_t)wrmsr_early_safe_gp_handler >> 16;
+	gpf_descr->gd_selector = rcs();
+	gpf_descr->gd_type = SDT_SYSTGT;
+	gpf_descr->gd_p = 1;
+}
+
+void
+wrmsr_early_safe_end(void)
+{
+	struct gate_descriptor *gpf_descr;
+
+	lidt(&wrmsr_early_safe_orig_efi_idt);
+
+	gpf_descr = &idt0[IDT_GP];
+	memset(gpf_descr, 0, sizeof(*gpf_descr));
 }
 
 #ifdef KDB

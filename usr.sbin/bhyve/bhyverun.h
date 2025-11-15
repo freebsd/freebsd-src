@@ -73,6 +73,7 @@ void bhyve_parse_gdb_options(const char *opt);
 #endif
 int bhyve_pincpu_parse(const char *opt);
 int bhyve_topology_parse(const char *opt);
+int bhyve_numa_parse(const char *opt);
 
 void bhyve_init_vcpu(struct vcpu *vcpu);
 void bhyve_start_vcpu(struct vcpu *vcpu, bool bsp);

@@ -104,9 +104,10 @@ dummy_chan_io(void *arg)
 		ch = &sc->chans[i];
 		if (!ch->run)
 			continue;
-		if (ch->dir == PCMDIR_PLAY)
-			ch->ptr += sndbuf_getblksz(ch->buf);
-		else
+		if (ch->dir == PCMDIR_PLAY) {
+			ch->ptr += ch->buf->blksz;
+			ch->ptr %= ch->buf->bufsize;
+		} else
 			sndbuf_fillsilence(ch->buf);
 		snd_mtxunlock(sc->lock);
 		chn_intr(ch->chan);
@@ -122,7 +123,7 @@ dummy_chan_free(kobj_t obj, void *data)
 	struct dummy_chan *ch =data;
 	uint8_t *buf;
 
-	buf = sndbuf_getbuf(ch->buf);
+	buf = ch->buf->buf;
 	if (buf != NULL)
 		free(buf, M_DEVBUF);
 
@@ -189,7 +190,7 @@ dummy_chan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 {
 	struct dummy_chan *ch = data;
 
-	return (sndbuf_getblksz(ch->buf));
+	return (ch->buf->blksz);
 }
 
 static int
@@ -345,6 +346,12 @@ dummy_attach(device_t dev)
 	if (pcm_register(dev, status))
 		return (ENXIO);
 	mixer_init(dev, &dummy_mixer_class, sc);
+
+	/*
+	 * Create an alias so that tests do not need to guess which one is the
+	 * dummy device if there are more devices present in the system.
+	 */
+	make_dev_alias(sc->info.dsp_dev, "dsp.dummy");
 
 	return (0);
 }

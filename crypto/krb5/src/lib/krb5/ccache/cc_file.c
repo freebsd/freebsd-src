@@ -745,12 +745,15 @@ cleanup:
     return set_errmsg_filename(context, ret, data->filename);
 }
 
-/* Return true if cred is a removed entry (assuming that no legitimate cred
- * entries will have authtime=-1 and endtime=0). */
+/*
+ * Return true if cred is a removed entry.  We assume that any active entry
+ * with endtime=0 (such as a config entry or gssproxy encrypted credential)
+ * will also have authtime=0.
+ */
 static inline krb5_boolean
 cred_removed(krb5_creds *c)
 {
-    return c->times.endtime == 0 && c->times.authtime == -1;
+    return c->times.endtime == 0 && c->times.authtime != 0;
 }
 
 /* Get the next credential from the cache file. */

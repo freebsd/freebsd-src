@@ -18,7 +18,7 @@ SUBDIR.yes+=	loader_simp
 # special boot programs, 'self-extracting boot2+loader'
 SUBDIR.${MK_LOADER_PXEBOOT}+=	pxeldr
 
-SUBDIR.${MK_LOADER_ZFS}+=	zfsboot gptzfsboot
+SUBDIR.${MK_LOADER_ZFS}+=	gptzfsboot
 
 .if defined(PXEBOOT_DEFAULT_INTERP)
 L=${PXEBOOT_DEFAULT_INTERP}

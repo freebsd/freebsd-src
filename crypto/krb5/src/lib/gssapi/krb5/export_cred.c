@@ -447,8 +447,10 @@ krb5_gss_export_cred(OM_uint32 *minor_status, gss_cred_id_t cred_handle,
 
     /* Validate and lock cred_handle. */
     status = krb5_gss_validate_cred_1(minor_status, cred_handle, context);
-    if (status != GSS_S_COMPLETE)
+    if (status != GSS_S_COMPLETE) {
+        krb5_free_context(context);
         return status;
+    }
     cred = (krb5_gss_cred_id_t)cred_handle;
 
     if (json_kgcred(context, cred, &jcred))

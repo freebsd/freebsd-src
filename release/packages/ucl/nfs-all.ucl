@@ -1,4 +1,38 @@
-comment = "NFS Utilities"
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+comment = "NFS client and server utilities"
+
 desc = <<EOD
-NFS Utilities
+The Network File System (NFS) is a widely-used network filesystem protocol,
+which allows a filesystem to be exported from one system and mounted on one
+or more client systems over a network connection.  NFS is supported on nearly
+all Unix systems, and many non-Unix systems.
+
+NFS offers optional authentication, integrity and confidentiality via either
+Kerberos (using GSS-API) or TLS.
+
+This package provides nfsd(8) and mountd(8), the userland component of the
+NFS server, and the mount_nfs(8) utility used to mount an NFS filesystem on
+the client.  Several other daemons and utilities are also provided which may
+be necessary depending on the NFS configuration.
 EOD
+
+annotations {
+	set = "optional,optional-jail"
+}

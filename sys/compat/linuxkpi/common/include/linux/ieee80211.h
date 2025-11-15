@@ -35,6 +35,7 @@
 #include <asm/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
+#include <linux/bitfield.h>
 #include <linux/if_ether.h>
 
 /* linux_80211.c */
@@ -121,7 +122,20 @@ enum ieee80211_rate_control_changed_flags {
 /* 802.11-2016, 9.4.2.158.3 Supported VHT-MCS and NSS Set field. */
 #define	IEEE80211_VHT_EXT_NSS_BW_CAPABLE	(1 << 13)	/* part of tx_highest */
 
-#define	IEEE80211_VHT_MAX_AMPDU_1024K		7	/* 9.4.2.56.3 A-MPDU Parameters field, Table 9-163 */
+/*
+ * 802.11-2020, 9.4.2.157.2 VHT Capabilities Information field,
+ * Table 9-271-Subfields of the VHT Capabilities Information field (continued).
+ */
+enum ieee80211_vht_max_ampdu_len_exp {
+	IEEE80211_VHT_MAX_AMPDU_8K		= 0,
+	IEEE80211_VHT_MAX_AMPDU_16K		= 1,
+	IEEE80211_VHT_MAX_AMPDU_32K		= 2,
+	IEEE80211_VHT_MAX_AMPDU_64K		= 3,
+	IEEE80211_VHT_MAX_AMPDU_128K		= 4,
+	IEEE80211_VHT_MAX_AMPDU_256K		= 5,
+	IEEE80211_VHT_MAX_AMPDU_512K		= 6,
+	IEEE80211_VHT_MAX_AMPDU_1024K		= 7,
+};
 
 #define	IEEE80211_WEP_IV_LEN			3	/* net80211: IEEE80211_WEP_IVLEN */
 #define	IEEE80211_WEP_ICV_LEN			4
@@ -133,9 +147,9 @@ enum ieee80211_rate_control_changed_flags {
 
 enum wlan_ht_cap_sm_ps {
 	WLAN_HT_CAP_SM_PS_STATIC		= 0,
-	WLAN_HT_CAP_SM_PS_DYNAMIC,
-	WLAN_HT_CAP_SM_PS_INVALID,
-	WLAN_HT_CAP_SM_PS_DISABLED,
+	WLAN_HT_CAP_SM_PS_DYNAMIC		= 1,
+	WLAN_HT_CAP_SM_PS_INVALID		= 2,
+	WLAN_HT_CAP_SM_PS_DISABLED		= 3
 };
 
 #define	WLAN_MAX_KEY_LEN			32
@@ -298,6 +312,7 @@ enum ieee80211_ac_numbers {
 #define	IEEE80211_MLD_CAP_OP_MAX_SIMUL_LINKS	0xf
 #define	IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP		0x0060
 #define	IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP_SAME	1
+#define	IEEE80211_MLD_CAP_OP_LINK_RECONF_SUPPORT		0x2000
 
 struct ieee80211_mcs_info {
 	uint8_t		rx_mask[IEEE80211_HT_MCS_MASK_LEN];
@@ -351,6 +366,7 @@ enum ieee80211_chanctx_change_flags {
 	IEEE80211_CHANCTX_CHANGE_CHANNEL	= BIT(4),
 	IEEE80211_CHANCTX_CHANGE_PUNCTURING	= BIT(5),
 	IEEE80211_CHANCTX_CHANGE_MIN_DEF	= BIT(6),
+	IEEE80211_CHANCTX_CHANGE_AP		= BIT(7),
 };
 
 enum ieee80211_frame_release_type {
@@ -392,6 +408,14 @@ enum ieee80211_sta_state {
 	IEEE80211_STA_AUTH		= 2,
 	IEEE80211_STA_ASSOC		= 3,
 	IEEE80211_STA_AUTHORIZED	= 4,	/* 802.1x */
+};
+
+enum ieee80211_sta_rx_bandwidth {
+	IEEE80211_STA_RX_BW_20		= 0,
+	IEEE80211_STA_RX_BW_40,
+	IEEE80211_STA_RX_BW_80,
+	IEEE80211_STA_RX_BW_160,
+	IEEE80211_STA_RX_BW_320,
 };
 
 enum ieee80211_tx_info_flags {
@@ -510,24 +534,24 @@ struct ieee80211_mgmt {
 			uint16_t	beacon_int;
 			uint16_t	capab_info;
 			uint8_t		variable[0];
-		} beacon;
+		} __packed beacon;
 		/* 9.3.3.5 Association Request frame format */
 		struct  {
 			uint16_t	capab_info;
 			uint16_t	listen_interval;
 			uint8_t		variable[0];
-		} assoc_req;
+		} __packed assoc_req;
 		/* 9.3.3.10 Probe Request frame format */
 		struct {
 			uint8_t		variable[0];
-		} probe_req;
+		} __packed probe_req;
 		/* 9.3.3.11 Probe Response frame format */
 		struct {
 			uint64_t	timestamp;
 			uint16_t	beacon_int;
 			uint16_t	capab_info;
 			uint8_t		variable[0];
-		} probe_resp;
+		} __packed probe_resp;
 		/* 9.3.3.14 Action frame format */
 		struct {
 			/* 9.4.1.11 Action field */
@@ -543,7 +567,7 @@ struct ieee80211_mgmt {
 					uint8_t tpc_elem_length;
 					uint8_t tpc_elem_tx_power;
 					uint8_t tpc_elem_link_margin;
-				} tpc_report;
+				} __packed tpc_report;
 				/* 9.6.8.33 Fine Timing Measurement frame format */
 				struct {
 					uint8_t	dialog_token;
@@ -553,7 +577,7 @@ struct ieee80211_mgmt {
 					uint16_t tod_error;
 					uint16_t toa_error;
 					uint8_t variable[0];
-				} ftm;
+				} __packed ftm;
 				/* 802.11-2016, 9.6.5.2 ADDBA Request frame format */
 				struct {
 					uint8_t action_code;
@@ -563,16 +587,16 @@ struct ieee80211_mgmt {
 					uint16_t start_seq_num;
 					/* Optional follows... */
 					uint8_t variable[0];
-				} addba_req;
+				} __packed addba_req;
 				/* XXX */
 				struct {
 					uint8_t dialog_token;
-				} wnm_timing_msr;
+				} __packed wnm_timing_msr;
 			} u;
-		} action;
+		} __packed action;
 		DECLARE_FLEX_ARRAY(uint8_t, body);
 	} u;
-};
+} __packed __aligned(2);
 
 struct ieee80211_cts {		/* net80211::ieee80211_frame_cts */
         __le16		frame_control;

@@ -728,6 +728,12 @@ otus_attachhook(struct otus_softc *sc)
 	    IEEE80211_C_SWAMSDUTX |	/* Do software A-MSDU TX */
 	    IEEE80211_C_WPA;		/* WPA/RSN. */
 
+	/*
+	 * Although A-MPDU RX is fine, A-MPDU TX apparently has some
+	 * hardware bugs.  Looking at Linux carl9170, it has a work-around
+	 * that forces all frames into the AC_BE queue regardless of
+	 * the actual QoS queue.
+	 */
 	ic->ic_htcaps =
 	    IEEE80211_HTC_HT |
 #if 0
@@ -736,6 +742,8 @@ otus_attachhook(struct otus_softc *sc)
 	    IEEE80211_HTC_AMSDU |
 	    IEEE80211_HTCAP_MAXAMSDU_3839 |
 	    IEEE80211_HTCAP_SMPS_OFF;
+
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
 
 	otus_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
 	    ic->ic_channels);
@@ -2232,6 +2240,9 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 	int hasqos, xferlen, type, ismcast;
 
 	wh = mtod(m, struct ieee80211_frame *);
+
+	ieee80211_output_seqno_assign(ni, -1, m);
+
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m);
 		if (k == NULL) {

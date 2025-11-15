@@ -37,9 +37,12 @@
  */
 
 #include <sys/param.h>
+#include <sys/cpuset.h>
+#include <sys/domainset.h>
 #include <sys/endian.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
+#include <sys/tree.h>
 
 #include <err.h>
 #include <paths.h>
@@ -50,7 +53,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <dev/vmm/vmm_mem.h>
 #include <machine/vmm.h>
+#include <machine/vmm_dev.h>
 #include <vmmapi.h>
 
 #include "bhyverun.h"
@@ -77,6 +82,22 @@ static int basl_ncpu;
  */
 static char basl_template[MAXPATHLEN];
 static char basl_stemplate[MAXPATHLEN];
+
+/*
+ * SRAT vCPU affinity info.
+ */
+struct acpi_vcpu_affinity_entry {
+	RB_ENTRY(acpi_vcpu_affinity_entry) entry;
+	int vcpuid;
+	int domain;
+};
+
+static int vcpu_affinity_cmp(struct acpi_vcpu_affinity_entry *const a1,
+    struct acpi_vcpu_affinity_entry *const a2);
+static RB_HEAD(vcpu_affinities,
+    acpi_vcpu_affinity_entry) aff_head = RB_INITIALIZER(&aff_head);
+RB_GENERATE_STATIC(vcpu_affinities, acpi_vcpu_affinity_entry, entry,
+    vcpu_affinity_cmp);
 
 /*
  * State for dsdt_line(), dsdt_indent(), and dsdt_unindent().
@@ -117,6 +138,31 @@ acpi_tables_add_device(const struct acpi_device *const dev)
 
 	entry->dev = dev;
 	SLIST_INSERT_HEAD(&acpi_devices, entry, chain);
+
+	return (0);
+}
+
+static int
+vcpu_affinity_cmp(struct acpi_vcpu_affinity_entry *a1,
+    struct acpi_vcpu_affinity_entry *a2)
+{
+	return (a1->vcpuid < a2->vcpuid ? -1 : a1->vcpuid > a2->vcpuid);
+}
+
+int
+acpi_add_vcpu_affinity(int vcpuid, int domain)
+{
+	struct acpi_vcpu_affinity_entry *entry = calloc(1, sizeof(*entry));
+	if (entry == NULL) {
+		return (ENOMEM);
+	}
+
+	entry->vcpuid = vcpuid;
+	entry->domain = domain;
+	if (RB_INSERT(vcpu_affinities, &aff_head, entry) != NULL) {
+		free(entry);
+		return (EEXIST);
+	}
 
 	return (0);
 }
@@ -726,6 +772,83 @@ build_spcr(struct vmctx *const ctx)
 	return (0);
 }
 
+static int
+build_srat(struct vmctx *const ctx)
+{
+	ACPI_TABLE_SRAT srat;
+	ACPI_SRAT_MEM_AFFINITY srat_mem_affinity;
+	ACPI_SRAT_CPU_AFFINITY srat_cpu_affinity;
+
+	struct acpi_vcpu_affinity_entry *ep;
+	struct basl_table *table;
+	int segid, domain;
+	int _flags, _prot;
+	vm_ooffset_t _off;
+	size_t maplen;
+	uint64_t gpa;
+	int ret;
+
+	if (RB_EMPTY(&aff_head))
+		return (0);
+
+	memset(&srat, 0, sizeof(srat));
+	BASL_EXEC(basl_table_create(&table, ctx, ACPI_SIG_SRAT,
+	    BASL_TABLE_ALIGNMENT));
+	BASL_EXEC(basl_table_append_header(table, ACPI_SIG_SRAT, 1, 1));
+	srat.TableRevision = 1;
+	BASL_EXEC(basl_table_append_content(table, &srat, sizeof(srat)));
+
+	/*
+	 * Iterate over the VM's memory maps and add
+	 * a 'Memory Affinity Structure' for each mapping.
+	 */
+	gpa = 0;
+	while (1) {
+		ret = vm_mmap_getnext(ctx, &gpa, &segid, &_off, &maplen, &_prot,
+		    &_flags);
+		if (ret) {
+			break;
+		}
+
+		if (segid >= VM_SYSMEM && segid < VM_BOOTROM) {
+			domain = segid - VM_SYSMEM;
+		} else {
+			/* Treat devmem segs as domain 0. */
+			domain = 0;
+		}
+		memset(&srat_mem_affinity, 0, sizeof(srat_mem_affinity));
+		srat_mem_affinity.Header.Type = ACPI_SRAT_TYPE_MEMORY_AFFINITY;
+		srat_mem_affinity.Header.Length = sizeof(srat_mem_affinity);
+		srat_mem_affinity.Flags |= ACPI_SRAT_MEM_ENABLED;
+		srat_mem_affinity.ProximityDomain = htole32(domain);
+		srat_mem_affinity.BaseAddress = htole64(gpa);
+		srat_mem_affinity.Length = htole64(maplen);
+		srat_mem_affinity.Flags = htole32(ACPI_SRAT_MEM_ENABLED);
+		BASL_EXEC(basl_table_append_bytes(table, &srat_mem_affinity,
+		    sizeof(srat_mem_affinity)));
+		gpa += maplen;
+	}
+
+	/*
+	 * Iterate over each "vCPUid to domain id" mapping and emit a
+	 * 'Processor Local APIC/SAPIC Affinity Structure' for each entry.
+	 */
+	RB_FOREACH(ep, vcpu_affinities, &aff_head) {
+		memset(&srat_cpu_affinity, 0, sizeof(srat_cpu_affinity));
+		srat_cpu_affinity.Header.Type = ACPI_SRAT_TYPE_CPU_AFFINITY;
+		srat_cpu_affinity.Header.Length = sizeof(srat_cpu_affinity);
+		srat_cpu_affinity.ProximityDomainLo = (uint8_t)ep->domain;
+		srat_cpu_affinity.ApicId = (uint8_t)ep->vcpuid;
+		srat_cpu_affinity.Flags = htole32(ACPI_SRAT_CPU_USE_AFFINITY);
+		BASL_EXEC(basl_table_append_bytes(table, &srat_cpu_affinity,
+		    sizeof(srat_cpu_affinity)));
+	}
+
+	BASL_EXEC(basl_table_register_to_rsdt(table));
+
+	return (0);
+}
+
 int
 acpi_build(struct vmctx *ctx, int ncpu)
 {
@@ -765,6 +888,7 @@ acpi_build(struct vmctx *ctx, int ncpu)
 	BASL_EXEC(build_mcfg(ctx));
 	BASL_EXEC(build_facs(ctx));
 	BASL_EXEC(build_spcr(ctx));
+	BASL_EXEC(build_srat(ctx));
 
 	/* Build ACPI device-specific tables such as a TPM2 table. */
 	const struct acpi_device_list_entry *entry;

@@ -1509,7 +1509,7 @@ void dtio_output_cb(int ATTR_UNUSED(fd), short bits, void* arg)
 	}
 #endif
 
-	if((bits&UB_EV_READ || dtio->ssl_brief_write)) {
+	if((bits&UB_EV_READ) || dtio->ssl_brief_write) {
 #ifdef HAVE_SSL
 		if(dtio->ssl_brief_write)
 			(void)dtio_disable_brief_write(dtio);

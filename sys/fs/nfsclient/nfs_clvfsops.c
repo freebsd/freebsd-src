@@ -292,8 +292,10 @@ nfs_statfs(struct mount *mp, struct statfs *sbp)
 	int error = 0, attrflag, gotfsinfo = 0, ret;
 	struct nfsnode *np;
 	char *fakefh;
+	uint32_t clone_blksize;
 
 	td = curthread;
+	clone_blksize = 0;
 
 	error = vfs_busy(mp, MBF_NOWAIT);
 	if (error)
@@ -337,8 +339,8 @@ nfs_statfs(struct mount *mp, struct statfs *sbp)
 	} else
 		mtx_unlock(&nmp->nm_mtx);
 	if (!error)
-		error = nfsrpc_statfs(vp, &sb, &fs, NULL, td->td_ucred, td,
-		    &nfsva, &attrflag);
+		error = nfsrpc_statfs(vp, &sb, &fs, NULL, &clone_blksize,
+		    td->td_ucred, td, &nfsva, &attrflag);
 	if ((nmp->nm_privflag & NFSMNTP_FAKEROOTFH) != 0 &&
 	    error == NFSERR_WRONGSEC) {
 		/* Cannot get new stats, so return what is in mnt_stat. */
@@ -375,7 +377,7 @@ nfs_statfs(struct mount *mp, struct statfs *sbp)
 	if (!error) {
 	    mtx_lock(&nmp->nm_mtx);
 	    if (gotfsinfo || (nmp->nm_flag & NFSMNT_NFSV4))
-		nfscl_loadfsinfo(nmp, &fs);
+		nfscl_loadfsinfo(nmp, &fs, clone_blksize);
 	    nfscl_loadsbinfo(nmp, &sb, sbp);
 	    sbp->f_iosize = newnfs_iosize(nmp);
 	    mtx_unlock(&nmp->nm_mtx);
@@ -408,7 +410,7 @@ ncl_fsinfo(struct nfsmount *nmp, struct vnode *vp, struct ucred *cred,
 		if (attrflag)
 			(void) nfscl_loadattrcache(&vp, &nfsva, NULL, 0, 1);
 		mtx_lock(&nmp->nm_mtx);
-		nfscl_loadfsinfo(nmp, &fs);
+		nfscl_loadfsinfo(nmp, &fs, 0);
 		mtx_unlock(&nmp->nm_mtx);
 	}
 	return (error);
@@ -925,7 +927,7 @@ nfs_mount(struct mount *mp)
 	struct vnode *vp;
 	struct thread *td;
 	char *hst;
-	u_char nfh[NFSX_FHMAX], krbname[100], dirpath[100], srvkrbname[100];
+	u_char nfh[NFSX_FHMAX], krbname[100], *dirpath, srvkrbname[100];
 	char *cp, *opt, *name, *secname, *tlscertname;
 	int nametimeo = NFS_DEFAULT_NAMETIMEO;
 	int negnametimeo = NFS_DEFAULT_NEGNAMETIMEO;
@@ -941,6 +943,7 @@ nfs_mount(struct mount *mp)
 	newflag = 0;
 	tlscertname = NULL;
 	hst = malloc(MNAMELEN, M_TEMP, M_WAITOK);
+	dirpath = malloc(MNAMELEN, M_TEMP, M_WAITOK);
 	if (vfs_filteropt(mp->mnt_optnew, nfs_opts)) {
 		error = EINVAL;
 		goto out;
@@ -1327,7 +1330,7 @@ nfs_mount(struct mount *mp)
 			goto out;
 	} else if (nfs_mount_parse_from(mp->mnt_optnew,
 	    &args.hostname, (struct sockaddr_in **)&nam, dirpath,
-	    sizeof(dirpath), &dirlen) == 0) {
+	    MNAMELEN, &dirlen) == 0) {
 		has_nfs_from_opt = 1;
 		bcopy(args.hostname, hst, MNAMELEN);
 		hst[MNAMELEN - 1] = '\0';
@@ -1385,7 +1388,7 @@ nfs_mount(struct mount *mp)
 	if (has_nfs_from_opt == 0) {
 		if (vfs_getopt(mp->mnt_optnew,
 		    "dirpath", (void **)&name, NULL) == 0)
-			strlcpy(dirpath, name, sizeof (dirpath));
+			strlcpy(dirpath, name, MNAMELEN);
 		else
 			dirpath[0] = '\0';
 		dirlen = strlen(dirpath);
@@ -1470,6 +1473,7 @@ out:
 		MNT_IUNLOCK(mp);
 	}
 	free(hst, M_TEMP);
+	free(dirpath, M_TEMP);
 	return (error);
 }
 

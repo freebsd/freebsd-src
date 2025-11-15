@@ -1,7 +1,5 @@
 #	$NetBSD: Makefile,v 1.56 2016/03/02 19:24:20 christos Exp $
 
-PACKAGE=clibs
-
 EDITDIR=	${SRCTOP}/contrib/libedit
 .PATH: ${EDITDIR}
 
@@ -17,10 +15,10 @@ SRCS=	chared.c chartype.c common.c el.c eln.c emacs.c filecomplete.c \
 	parse.c prompt.c read.c readline.c refresh.c search.c sig.c \
 	terminal.c tokenizer.c tokenizern.c tty.c vi.c
 
+MAN=		editline.3
+MANNODEV=	editrc.5 editline.7
 
-MAN=	editline.3 editrc.5 editline.7
-
-MLINKS=	\
+MLINKS=\
 	editline.3 el_deletestr.3 \
 	editline.3 el_end.3 \
 	editline.3 el_get.3 \
@@ -93,6 +91,7 @@ tc1.o: ${EDITDIR}/TEST/tc1.c
 test: tc1.o libedit.a ${DPADD} ${LIBTERMCAP}
 	${CC} ${CFLAGS} ${.ALLSRC} -o ${.TARGET} libedit.a ${LDADD}
 
+.include "Makefile.inc"
 .include <bsd.lib.mk>
 
 CWARNFLAGS.chartype.c=	${NO_WUSE_AFTER_FREE}

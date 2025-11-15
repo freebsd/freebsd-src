@@ -1,4 +1,4 @@
-# BSDDialog 1.0.4
+# BSDDialog 1.1
 
 This project provides **bsddialog** and **libbsddialog**, an utility
 and a library to build scripts and tools with TUI dialogs and widgets.
@@ -31,7 +31,8 @@ Output:
 
 --calendar, --checklist, --datebox, --form, --gauge, --infobox, --inputbox,
 --menu, --mixedform, --mixedgauge, --msgbox, --passwordbox, --passwordform,
---pause, --radiolist, --rangebox, --textbox, --timebox, --treeview, --yesno.
+--pause, --radiolist, --rangebox, --slider, --textbox, --timebox, --treeview,
+--yesno.
 
 **Manual**
 
@@ -69,6 +70,7 @@ in the _Public Domain_ to build new projects:
 % sh ./examples_utility/pause.sh
 % sh ./examples_utility/radiolist.sh
 % sh ./examples_utility/rangebox.sh
+% sh ./examples_utility/slider.sh
 % sh ./examples_utility/timebox.sh
 % sh ./examples_utility/yesno.sh
 ```
@@ -106,6 +108,7 @@ in the _Public Domain_ to build new projects:
 % ./pause
 % ./radiolist
 % ./rangebox
+% ./slider
 % ./theme
 % ./timebox
 % ./yesno
@@ -129,7 +132,6 @@ in the _Public Domain_ to build new projects:
  - implement global buttons handler.
  - doc: external tutorial, theming guide.
  - implement menutype.min\_on.
- - improve refresh at startup, avoid dialog refresh before drawing text.
  - add debug API: bsddialog\_debug(y,x,refresh,"fmt",...).
  - add mouse support.
  - use alarm(2) for bsddialog\_pause.
@@ -139,4 +141,4 @@ in the _Public Domain_ to build new projects:
  - fix --mixedform "" 0 0 0 Label 1 0 Init 1 12 0 0 2 (with 0 editable field).
  - add *text* customization to --hmsg *help-message*
  - check --passwordform *fieldlen* like --form and --mixedform.
-
+ - add manuals to Makefiles installe and uninstall targets.

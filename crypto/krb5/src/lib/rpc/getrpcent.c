@@ -56,10 +56,10 @@ struct rpcdata {
 	char	line[BUFSIZ+1];
 	char	*domain;
 } *rpcdata;
-static struct rpcdata *get_rpcdata();
+static struct rpcdata *get_rpcdata(void);
 
-static	struct rpcent *interpret();
-struct	hostent *gethostent();
+static	struct rpcent *interpret(void);
+struct	hostent *gethostent(void);
 
 static char RPCDB[] = "/etc/rpc";
 

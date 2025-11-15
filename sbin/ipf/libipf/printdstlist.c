@@ -42,6 +42,8 @@ printdstlist( ippool_dst_t *pp, copyfunc_t copyfunc, char *name, int opts,
 				return (NULL);
 			}
 
+			if (opts & OPT_SAVEOUT)
+				PRINTF("\t");
 			node = printdstlistnode(n, bcopywrap, opts, fields);
 
 			free(n);

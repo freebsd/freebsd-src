@@ -233,7 +233,7 @@ static int	tar_read_header(struct archive_read *, struct tar *,
 		    struct archive_entry *, int64_t *);
 static int	tohex(int c);
 static char	*url_decode(const char *, size_t);
-static void	tar_flush_unconsumed(struct archive_read *, int64_t *);
+static int	tar_flush_unconsumed(struct archive_read *, int64_t *);
 
 /* Sanity limits:  These numbers should be low enough to
  * prevent a maliciously-crafted archive from forcing us to
@@ -477,7 +477,7 @@ archive_read_format_tar_options(struct archive_read *a,
  * how much unconsumed data we have floating around, and to consume
  * anything outstanding since we're going to do read_aheads
  */
-static void
+static int
 tar_flush_unconsumed(struct archive_read *a, int64_t *unconsumed)
 {
 	if (*unconsumed) {
@@ -490,9 +490,13 @@ tar_flush_unconsumed(struct archive_read *a, int64_t *unconsumed)
 			memset(data, 0xff, *unconsumed);
 		}
 */
-		__archive_read_consume(a, *unconsumed);
+		int64_t consumed = __archive_read_consume(a, *unconsumed);
+		if (consumed != *unconsumed) {
+			return (ARCHIVE_FATAL);
+		}
 		*unconsumed = 0;
 	}
+	return (ARCHIVE_OK);
 }
 
 /*
@@ -750,7 +754,9 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 
 		/* Find the next valid header record. */
 		while (1) {
-			tar_flush_unconsumed(a, unconsumed);
+			if (tar_flush_unconsumed(a, unconsumed) != ARCHIVE_OK) {
+				return (ARCHIVE_FATAL);
+			}
 
 			/* Read 512-byte header record */
 			h = __archive_read_ahead(a, 512, &bytes);
@@ -796,7 +802,9 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 
 			/* This is NOT a null block, so it must be a valid header. */
 			if (!checksum(a, h)) {
-				tar_flush_unconsumed(a, unconsumed);
+				if (tar_flush_unconsumed(a, unconsumed) != ARCHIVE_OK) {
+					return (ARCHIVE_FATAL);
+				}
 				archive_set_error(&a->archive, EINVAL,
 						  "Damaged tar archive (bad header checksum)");
 				/* If we've read some critical information (pax headers, etc)
@@ -1236,7 +1244,7 @@ header_volume(struct archive_read *a, struct tar *tar,
 
 	header = (const struct archive_entry_header_ustar *)h;
 	size = tar_atol(header->size, sizeof(header->size));
-	if (size > (int64_t)pathname_limit) {
+	if (size < 0 || size > (int64_t)pathname_limit) {
 		return (ARCHIVE_FATAL);
 	}
 	to_consume = ((size + 511) & ~511);
@@ -1255,13 +1263,15 @@ read_bytes_to_string(struct archive_read *a,
 	const void *src;
 
 	/* Fail if we can't make our buffer big enough. */
-	if (archive_string_ensure(as, (size_t)size+1) == NULL) {
+	if (archive_string_ensure(as, size + 1) == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "No memory");
 		return (ARCHIVE_FATAL);
 	}
 
-	tar_flush_unconsumed(a, unconsumed);
+	if (tar_flush_unconsumed(a, unconsumed) != ARCHIVE_OK) {
+		return (ARCHIVE_FATAL);
+	}
 
 	/* Read the body into the string. */
 	src = __archive_read_ahead(a, size, NULL);
@@ -1272,9 +1282,9 @@ read_bytes_to_string(struct archive_read *a,
 		*unconsumed = 0;
 		return (ARCHIVE_FATAL);
 	}
-	memcpy(as->s, src, (size_t)size);
+	memcpy(as->s, src, size);
 	as->s[size] = '\0';
-	as->length = (size_t)size;
+	as->length = size;
 	*unconsumed += size;
 	return (ARCHIVE_OK);
 }
@@ -1715,7 +1725,9 @@ read_mac_metadata_blob(struct archive_read *a,
 	 * Q: Is the above idea really possible?  Even
 	 * when there are GNU or pax extension entries?
 	 */
-	tar_flush_unconsumed(a, unconsumed);
+	if (tar_flush_unconsumed(a, unconsumed) != ARCHIVE_OK) {
+		return (ARCHIVE_FATAL);
+	}
 	data = __archive_read_ahead(a, msize, NULL);
 	if (data == NULL) {
 		archive_set_error(&a->archive, EINVAL,
@@ -1900,7 +1912,9 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 		    (long long)ext_size, (long long)ext_size_limit);
 		return (ARCHIVE_WARN);
 	}
-	tar_flush_unconsumed(a, unconsumed);
+	if (tar_flush_unconsumed(a, unconsumed) != ARCHIVE_OK) {
+		return (ARCHIVE_FATAL);
+	}
 
 	/* Parse the size/name of each pax attribute in the body */
 	archive_string_init(&attr_name);
@@ -1994,7 +2008,9 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 
 		/* Consume size, name, and `=` */
 		*unconsumed += p - attr_start;
-		tar_flush_unconsumed(a, unconsumed);
+		if (tar_flush_unconsumed(a, unconsumed) != ARCHIVE_OK) {
+			return (ARCHIVE_FATAL);
+		}
 
 		if (value_length == 0) {
 			archive_set_error(&a->archive, EINVAL,
@@ -2017,7 +2033,9 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 		err = err_combine(err, r);
 
 		/* Consume the `\n` that follows the pax attribute value. */
-		tar_flush_unconsumed(a, unconsumed);
+		if (tar_flush_unconsumed(a, unconsumed) != ARCHIVE_OK) {
+			return (ARCHIVE_FATAL);
+		}
 		p = __archive_read_ahead(a, 1, &did_read);
 		if (p == NULL) {
 			archive_set_error(&a->archive, EINVAL,
@@ -2033,7 +2051,9 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 		}
 		ext_size -= 1;
 		*unconsumed += 1;
-		tar_flush_unconsumed(a, unconsumed);
+		if (tar_flush_unconsumed(a, unconsumed) != ARCHIVE_OK) {
+			return (ARCHIVE_FATAL);
+		}
 	}
 	*unconsumed += ext_size + ext_padding;
 
@@ -2290,7 +2310,9 @@ pax_attribute_read_number(struct archive_read *a, size_t value_length, int64_t *
 
 	archive_string_init(&as);
 	r = read_bytes_to_string(a, &as, value_length, &unconsumed);
-	tar_flush_unconsumed(a, &unconsumed);
+	if (tar_flush_unconsumed(a, &unconsumed) != ARCHIVE_OK) {
+		return (ARCHIVE_FATAL);
+	}
 	if (r < ARCHIVE_OK) {
 		archive_string_free(&as);
 		*result = 0;
@@ -2940,7 +2962,9 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 	/* Copy filename over (to ensure null termination). */
 	header = (const struct archive_entry_header_gnutar *)h;
 	const char *existing_pathname = archive_entry_pathname(entry);
-	if (existing_pathname == NULL || existing_pathname[0] == '\0') {
+	const wchar_t *existing_wcs_pathname = archive_entry_pathname_w(entry);
+	if ((existing_pathname == NULL || existing_pathname[0] == '\0')
+	    && (existing_wcs_pathname == NULL || existing_wcs_pathname[0] == L'\0')) {
 		if (archive_entry_copy_pathname_l(entry,
 		    header->name, sizeof(header->name), tar->sconv) != 0) {
 			err = set_conversion_failed_error(a, tar->sconv, "Pathname");
@@ -3093,7 +3117,9 @@ gnu_sparse_old_read(struct archive_read *a, struct tar *tar,
 		return (ARCHIVE_OK);
 
 	do {
-		tar_flush_unconsumed(a, unconsumed);
+		if (tar_flush_unconsumed(a, unconsumed) != ARCHIVE_OK) {
+			return (ARCHIVE_FATAL);
+		}
 		data = __archive_read_ahead(a, 512, &bytes_read);
 		if (data == NULL) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -3283,7 +3309,9 @@ gnu_sparse_10_read(struct archive_read *a, struct tar *tar, int64_t *unconsumed)
 			return (ARCHIVE_FATAL);
 	}
 	/* Skip rest of block... */
-	tar_flush_unconsumed(a, unconsumed);
+	if (tar_flush_unconsumed(a, unconsumed) != ARCHIVE_OK) {
+		return (ARCHIVE_FATAL);
+	}
 	bytes_read = tar->entry_bytes_remaining - remaining;
 	to_skip = 0x1ff & -bytes_read;
 	/* Fail if tar->entry_bytes_remaing would get negative */
@@ -3509,7 +3537,9 @@ readline(struct archive_read *a, struct tar *tar, const char **start,
 	const char *s;
 	void *p;
 
-	tar_flush_unconsumed(a, unconsumed);
+	if (tar_flush_unconsumed(a, unconsumed) != ARCHIVE_OK) {
+		return (ARCHIVE_FATAL);
+	}
 
 	t = __archive_read_ahead(a, 1, &bytes_read);
 	if (bytes_read <= 0 || t == NULL)

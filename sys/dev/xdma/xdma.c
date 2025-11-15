@@ -555,7 +555,7 @@ xdma_put(xdma_controller_t *xdma)
 }
 
 static void
-xdma_init(void)
+xdma_init(void *dummy __unused)
 {
 
 	mtx_init(&xdma_mtx, "xDMA", NULL, MTX_DEF);

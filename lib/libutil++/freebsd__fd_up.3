@@ -1,0 +1,78 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Chelsio Communications, Inc.
+.\" Written by: John Baldwin <jhb@FreeBSD.org>
+.\"
+.Dd July 31, 2025
+.Dt FREEBSD::STRINGF 3
+.Os
+.Sh NAME
+.Nm freebsd::fd_up
+.Nd own a file descriptor
+.Sh LIBRARY
+.Lb libutil++
+.Sh SYNOPSIS
+.In libutil++.hh
+.Pp
+.Vt class freebsd::fd_up
+{
+.Bd -ragged -offset indent
+.Fn fd_up
+.Fn fd_up "int fd"
+.Fn fd_up "fd_up &&other"
+.Fn ~fd_up
+.Ft int
+.Fn get
+.Ft int
+.Fn release
+.Ft void
+.Fn reset "int newfd = -1"
+.Ft "fd_up &"
+.Fn operator= "fd_up &&other"
+.Ft "fd_up &"
+.Fn operator= "int fd"
+.Fn "explicit operator bool"
+.Fn "operator int"
+.Ed
+};
+.Sh DESCRIPTION
+Each instance of this class owns a file descriptor.
+This class is patterned on std::unique_ptr,
+but instead of owning a pointer to an object,
+this class owns a file descriptor.
+The currently-owned file descriptor is disposed by invoking
+.Xr close 2
+when an instance of this class is destroyed.
+The currently-owned file descriptor is also disposed if it is replaced by the
+.Fn reset
+method or assignment operators.
+.Pp
+The
+.Fn get
+method returns the current file descriptor value while retaining ownership.
+.Pp
+The
+.Fn release
+method relinquishes ownership of the current file descriptor and returns the
+value of the previously-owned file descriptor.
+.Pp
+The explicit
+.Vt bool
+conversion operator permits testing the validity of an object.
+The operator returns true if the instance owns a valid file descriptor.
+.Pp
+The implicit
+.Vt int
+conversion operator permits passing an instance of this class directly as
+an argument to existing functions which expect a file descriptor.
+.Sh EXAMPLES
+.Bd -literal -offset indent
+freebsd::fd_up fd(open("/dev/null", O_RDWR));
+if (!fd)
+	err(1, "open");
+write(fd, "test", 4);
+// `fd' is implicitly closed on destruction
+.Ed
+.Sh SEE ALSO
+.Xr close 2

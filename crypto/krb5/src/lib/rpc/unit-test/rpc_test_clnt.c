@@ -5,9 +5,7 @@
 static struct timeval TIMEOUT = { 25, 0 };
 
 char **
-rpc_test_echo_1(argp, clnt)
-	char **argp;
-	CLIENT *clnt;
+rpc_test_echo_1(char **argp, CLIENT *clnt)
 {
 	static char *clnt_res;
 

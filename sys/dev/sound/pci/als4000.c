@@ -221,7 +221,7 @@ alschan_init(kobj_t obj, void *devinfo,
 	ch->channel = c;
 	ch->bps = 1;
 	ch->format = SND_FORMAT(AFMT_U8, 1, 0);
-	ch->speed = DSP_DEFAULT_SPEED;
+	ch->speed = 8000;
 	ch->buffer = b;
 	snd_mtxunlock(sc->lock);
 
@@ -281,7 +281,7 @@ alschan_getptr(kobj_t obj, void *data)
 	snd_mtxlock(sc->lock);
 	pos = als_gcr_rd(ch->parent, ch->gcr_fifo_status) & 0xffff;
 	snd_mtxunlock(sc->lock);
-	sz  = sndbuf_getsize(ch->buffer);
+	sz  = ch->buffer->bufsize;
 	return (2 * sz - pos - 1) % sz;
 }
 
@@ -348,8 +348,8 @@ als_playback_start(struct sc_chinfo *ch)
 	struct	sc_info *sc = ch->parent;
 	u_int32_t	buf, bufsz, count, dma_prog;
 
-	buf = sndbuf_getbufaddr(ch->buffer);
-	bufsz = sndbuf_getsize(ch->buffer);
+	buf = ch->buffer->buf_addr;
+	bufsz = ch->buffer->bufsize;
 	count = bufsz / 2;
 	if (ch->format & AFMT_16BIT)
 		count /= 2;
@@ -451,8 +451,8 @@ als_capture_start(struct sc_chinfo *ch)
 	struct	sc_info *sc = ch->parent;
 	u_int32_t	buf, bufsz, count, dma_prog;
 
-	buf = sndbuf_getbufaddr(ch->buffer);
-	bufsz = sndbuf_getsize(ch->buffer);
+	buf = ch->buffer->buf_addr;
+	bufsz = ch->buffer->bufsize;
 	count = bufsz / 2;
 	if (ch->format & AFMT_16BIT)
 		count /= 2;

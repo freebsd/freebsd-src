@@ -30,10 +30,8 @@
 /*
  * Made obsolete by DynInsert, now just a convenience function.
  */
-int DynAppend(obj, els, num)
-   DynObjectP obj;
-   DynPtr els;
-   int num;
+int
+DynAppend(DynObjectP obj, DynPtr els, int num)
 {
      return DynInsert(obj, DynSize(obj), els, num);
 }
@@ -52,8 +50,8 @@ int DynAppend(obj, els, num)
 
 static int default_increment = DEFAULT_INC;
 
-DynObjectP DynCreate(el_size, inc)
-   int	el_size, inc;
+DynObjectP
+DynCreate(int el_size, int inc)
 {
      DynObjectP obj;
 
@@ -77,8 +75,8 @@ DynObjectP DynCreate(el_size, inc)
      return obj;
 }
 
-DynObjectP DynCopy(obj)
-   DynObjectP obj;
+DynObjectP
+DynCopy(DynObjectP obj)
 {
      DynObjectP obj1;
 
@@ -104,8 +102,8 @@ DynObjectP DynCopy(obj)
      return obj1;
 }
 
-int DynDestroy(obj)
-     /*@only@*/DynObjectP obj;
+int
+DynDestroy(/*@only@*/DynObjectP obj)
 {
      if (obj->paranoid) {
 	  if (obj->debug)
@@ -118,8 +116,8 @@ int DynDestroy(obj)
      return DYN_OK;
 }
 
-int DynRelease(obj)
-   DynObjectP obj;
+int
+DynRelease(DynObjectP obj)
 {
      if (obj->debug)
 	  fprintf(stderr, "dyn: release: freeing object structure.\n");
@@ -134,9 +132,8 @@ int DynRelease(obj)
  * contains the source code for the function DynDebug().
  */
 
-int DynDebug(obj, state)
-   DynObjectP obj;
-   int state;
+int
+DynDebug(DynObjectP obj, int state)
 {
      obj->debug = state;
 
@@ -155,9 +152,8 @@ int DynDebug(obj, state)
  * Checkers!  Get away from that "hard disk erase" button!
  *    (Stupid dog.  He almost did it to me again ...)
  */
-int DynDelete(obj, idx)
-   DynObjectP obj;
-   int idx;
+int
+DynDelete(DynObjectP obj, int idx)
 {
      if (idx < 0) {
 	  if (obj->debug)
@@ -219,9 +215,8 @@ int DynDelete(obj, idx)
  * contains the source code for the function DynInitZero().
  */
 
-int DynInitzero(obj, state)
-   DynObjectP obj;
-   int state;
+int
+DynInitzero(DynObjectP obj, int state)
 {
      obj->initzero = state;
 
@@ -237,10 +232,8 @@ int DynInitzero(obj, state)
  * contains the source code for the function DynInsert().
  */
 
-int DynInsert(obj, idx, els_in, num)
-   DynObjectP obj;
-   void *els_in;
-   int idx, num;
+int
+DynInsert(DynObjectP obj, int idx, void *els_in, int num)
 {
      DynPtr els = (DynPtr) els_in;
      int ret;
@@ -290,9 +283,8 @@ int DynInsert(obj, idx, els_in, num)
  * contains the source code for the function DynDebug().
  */
 
-int DynParanoid(obj, state)
-   DynObjectP obj;
-   int state;
+int
+DynParanoid(DynObjectP obj, int state)
 {
      obj->paranoid = state;
 
@@ -308,8 +300,8 @@ int DynParanoid(obj, state)
  * contains the source code for the functions DynGet() and DynAdd().
  */
 
-DynPtr DynArray(obj)
-   DynObjectP obj;
+DynPtr
+DynArray(DynObjectP obj)
 {
      if (obj->debug)
 	  fprintf(stderr, "dyn: array: returning array pointer %p.\n",
@@ -318,9 +310,8 @@ DynPtr DynArray(obj)
      return obj->array;
 }
 
-DynPtr DynGet(obj, num)
-   DynObjectP obj;
-   int num;
+DynPtr
+DynGet(DynObjectP obj, int num)
 {
      if (num < 0) {
 	  if (obj->debug)
@@ -342,9 +333,7 @@ DynPtr DynGet(obj, num)
      return (DynPtr) obj->array + obj->el_size*num;
 }
 
-int DynAdd(obj, el)
-   DynObjectP obj;
-   void *el;
+int DynAdd(DynObjectP obj, void *el)
 {
      int	ret;
 
@@ -364,10 +353,8 @@ int DynAdd(obj, el)
  * obj->num_el) will not be updated properly and many other functions
  * in the library will lose.  Have a nice day.
  */
-int DynPut(obj, el_in, idx)
-   DynObjectP obj;
-   void *el_in;
-   int idx;
+int
+DynPut(DynObjectP obj, void *el_in, int idx)
 {
      DynPtr el = (DynPtr) el_in;
      int ret;
@@ -397,9 +384,8 @@ int DynPut(obj, el_in, idx)
 /*
  * Resize the array so that element req exists.
  */
-int _DynResize(obj, req)
-   DynObjectP obj;
-   int req;
+int
+_DynResize(DynObjectP obj, int req)
 {
      int size;
 
@@ -430,9 +416,8 @@ int _DynResize(obj, req)
  * Ideally, this function should not be called from outside the
  * library.  However, nothing will break if it is.
  */
-int _DynRealloc(obj, num_incs)
-   DynObjectP obj;
-   int num_incs;
+int
+_DynRealloc(DynObjectP obj, int num_incs)
 {
      DynPtr temp;
      int new_size_in_bytes;
@@ -475,8 +460,8 @@ int _DynRealloc(obj, num_incs)
  * contains the source code for the function DynSize().
  */
 
-int DynSize(obj)
-   DynObjectP obj;
+int
+DynSize(DynObjectP obj)
 {
      if (obj->debug)
 	  fprintf(stderr, "dyn: size: returning size %d.\n", obj->num_el);
@@ -484,8 +469,8 @@ int DynSize(obj)
      return obj->num_el;
 }
 
-int DynCapacity(obj)
-   DynObjectP obj;
+int
+DynCapacity(DynObjectP obj)
 {
      if (obj->debug)
 	  fprintf(stderr, "dyn: capacity: returning cap of %d.\n", obj->size);

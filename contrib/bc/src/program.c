@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2025 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -623,6 +623,9 @@ bc_program_prepResult(BcProgram* p)
 {
 	BcResult* res = bc_vec_pushEmpty(&p->results);
 
+	// Mark a result as not retired.
+	p->nresults += 1;
+
 	bc_result_clear(res);
 
 	return res;
@@ -645,6 +648,8 @@ bc_program_const(BcProgram* p, const char* code, size_t* bgn)
 	BcResult* r = bc_program_prepResult(p);
 	BcConst* c = bc_vec_item(&p->consts, bc_program_index(code, bgn));
 	BcBigDig base = BC_PROG_IBASE(p);
+
+	assert(p->nresults == 1);
 
 	// Only reparse if the base changed.
 	if (c->base != base)
@@ -673,6 +678,9 @@ bc_program_const(BcProgram* p, const char* code, size_t* bgn)
 	bc_num_createCopy(&r->d.n, &c->num);
 
 	BC_SIG_UNLOCK;
+
+	// XXX: Make sure to clear the number of results.
+	p->nresults -= 1;
 }
 
 /**
@@ -692,6 +700,8 @@ bc_program_op(BcProgram* p, uchar inst)
 
 	res = bc_program_prepResult(p);
 
+	assert(p->nresults == 1);
+
 	bc_program_binOpPrep(p, &opd1, &n1, &opd2, &n2, 1);
 
 	BC_SIG_LOCK;
@@ -709,7 +719,7 @@ bc_program_op(BcProgram* p, uchar inst)
 	// Run the operation. This also executes an item of an array.
 	bc_program_ops[idx](n1, n2, &res->d.n, BC_PROG_SCALE(p));
 
-	bc_program_retire(p, 1, 2);
+	bc_program_retire(p, 2);
 }
 
 /**
@@ -1060,6 +1070,8 @@ bc_program_unary(BcProgram* p, uchar inst)
 
 	res = bc_program_prepResult(p);
 
+	assert(p->nresults == 1);
+
 	bc_program_prep(p, &ptr, &num, 1);
 
 	BC_SIG_LOCK;
@@ -1070,7 +1082,7 @@ bc_program_unary(BcProgram* p, uchar inst)
 
 	// This calls a function that is in an array.
 	bc_program_unarys[inst - BC_INST_NEG](res, num);
-	bc_program_retire(p, 1, 1);
+	bc_program_retire(p, 1);
 }
 
 /**
@@ -1090,6 +1102,8 @@ bc_program_logical(BcProgram* p, uchar inst)
 	ssize_t cmp;
 
 	res = bc_program_prepResult(p);
+
+	assert(p->nresults == 1);
 
 	// All logical operators (except boolean not, which is taken care of by
 	// bc_program_unary()), are binary operators.
@@ -1165,7 +1179,7 @@ bc_program_logical(BcProgram* p, uchar inst)
 
 	if (cond) bc_num_one(&res->d.n);
 
-	bc_program_retire(p, 1, 2);
+	bc_program_retire(p, 2);
 }
 
 /**
@@ -1880,6 +1894,8 @@ bc_program_return(BcProgram* p, uchar inst)
 
 	res = bc_program_prepResult(p);
 
+	assert(p->nresults == 1);
+
 	// If we are returning normally...
 	if (inst == BC_INST_RET)
 	{
@@ -1930,7 +1946,7 @@ bc_program_return(BcProgram* p, uchar inst)
 	BC_SIG_LOCK;
 
 	// When we retire, pop all of the unused results.
-	bc_program_retire(p, 1, nresults);
+	bc_program_retire(p, nresults);
 
 	// Pop the globals, if necessary.
 	if (BC_G) bc_program_popGlobals(p, false);
@@ -1973,6 +1989,8 @@ bc_program_builtin(BcProgram* p, uchar inst)
 	assert(BC_PROG_STACK(&p->results, 1));
 
 	res = bc_program_prepResult(p);
+
+	assert(p->nresults == 1);
 
 	bc_program_operand(p, &opd, &num, 1);
 
@@ -2102,7 +2120,7 @@ bc_program_builtin(BcProgram* p, uchar inst)
 		BC_SIG_UNLOCK;
 	}
 
-	bc_program_retire(p, 1, 1);
+	bc_program_retire(p, 1);
 }
 
 /**
@@ -2127,6 +2145,7 @@ bc_program_divmod(BcProgram* p)
 	// the capacity is enough due to the line above.
 	res2 = bc_program_prepResult(p);
 	res = bc_program_prepResult(p);
+	assert(p->nresults == 2);
 
 	// Prepare the operands.
 	bc_program_binOpPrep(p, &opd1, &n1, &opd2, &n2, 2);
@@ -2144,7 +2163,7 @@ bc_program_divmod(BcProgram* p)
 	// Execute.
 	bc_num_divmod(n1, n2, &res2->d.n, &res->d.n, BC_PROG_SCALE(p));
 
-	bc_program_retire(p, 2, 2);
+	bc_program_retire(p, 2);
 }
 
 /**
@@ -2176,6 +2195,8 @@ bc_program_modexp(BcProgram* p)
 
 	res = bc_program_prepResult(p);
 
+	assert(p->nresults == 1);
+
 	// Get the first operand and typecheck.
 	bc_program_operand(p, &r1, &n1, 3);
 	bc_program_type_num(r1, n1);
@@ -2198,7 +2219,7 @@ bc_program_modexp(BcProgram* p)
 
 	bc_num_modexp(n1, n2, n3, &res->d.n);
 
-	bc_program_retire(p, 1, 3);
+	bc_program_retire(p, 3);
 }
 
 /**
@@ -2737,6 +2758,9 @@ bc_program_pushSeed(BcProgram* p)
 	BcResult* res;
 
 	res = bc_program_prepResult(p);
+
+	assert(p->nresults == 1);
+
 	res->t = BC_RESULT_SEED;
 
 	BC_SIG_LOCK;
@@ -2747,6 +2771,9 @@ bc_program_pushSeed(BcProgram* p)
 	BC_SIG_UNLOCK;
 
 	bc_num_createFromRNG(&res->d.n, &p->rng);
+
+	// XXX: Clear the number of results.
+	p->nresults = 0;
 }
 
 #endif // BC_ENABLE_EXTRA_MATH
@@ -2932,6 +2959,9 @@ bc_program_init(BcProgram* p)
 	bc_map_init(&p->const_map);
 	bc_vec_init(&p->strs, sizeof(char*), BC_DTOR_NONE);
 	bc_map_init(&p->str_map);
+
+	// XXX: Clear the number of results.
+	p->nresults = 0;
 }
 
 void
@@ -2985,13 +3015,18 @@ bc_program_reset(BcProgram* p)
 	if (BC_IS_DC) bc_vec_npop(&p->tail_calls, p->tail_calls.len - 1);
 #endif // DC_ENABLED
 
-#if BC_ENABLED
 	// Clear the stack if we are in bc. We have to do this in bc because bc's
 	// stack is implicit.
 	//
 	// XXX: We don't do this in dc because other dc implementations don't.
-	if (BC_IS_BC || !BC_I) bc_vec_popAll(&p->results);
+	// However, we *MUST* pop the items for results that are not retired yet.
+	if (BC_IS_DC && BC_I) bc_vec_npop(&p->results, p->nresults);
+	else bc_vec_popAll(&p->results);
 
+	// Now clear how many results there are.
+	p->nresults = 0;
+
+#if BC_ENABLED
 	// Clear the globals' stacks.
 	if (BC_G) bc_program_popGlobals(p, true);
 #endif // BC_ENABLED
@@ -3039,10 +3074,12 @@ bc_program_exec(BcProgram* p)
 #if BC_HAS_COMPUTED_GOTO
 
 #if BC_GCC
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif // BC_GCC
 
 #if BC_CLANG
+#pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-label-as-value"
 #endif // BC_CLANG
 
@@ -3050,11 +3087,11 @@ bc_program_exec(BcProgram* p)
 	BC_PROG_LBLS_ASSERT;
 
 #if BC_CLANG
-#pragma clang diagnostic warning "-Wgnu-label-as-value"
+#pragma clang diagnostic pop
 #endif // BC_CLANG
 
 #if BC_GCC
-#pragma GCC diagnostic warning "-Wpedantic"
+#pragma GCC diagnostic pop
 #endif // BC_GCC
 
 	// BC_INST_INVALID is a marker for the end so that we don't have to have an
@@ -3085,10 +3122,12 @@ bc_program_exec(BcProgram* p)
 #if BC_HAS_COMPUTED_GOTO
 
 #if BC_GCC
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif // BC_GCC
 
 #if BC_CLANG
+#pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-label-as-value"
 #endif // BC_CLANG
 
@@ -3711,11 +3750,11 @@ bc_program_exec(BcProgram* p)
 #if BC_HAS_COMPUTED_GOTO
 
 #if BC_CLANG
-#pragma clang diagnostic warning "-Wgnu-label-as-value"
+#pragma clang diagnostic pop
 #endif // BC_CLANG
 
 #if BC_GCC
-#pragma GCC diagnostic warning "-Wpedantic"
+#pragma GCC diagnostic pop
 #endif // BC_GCC
 
 #else // BC_HAS_COMPUTED_GOTO

@@ -646,7 +646,7 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 			return (NULL);
 		}
 	}
-	gp = g_new_geomf(mp, "%s", md->md_name);
+	gp = g_new_geom(mp, md->md_name);
 	sc = malloc(sizeof(*sc), M_CONCAT, M_WAITOK | M_ZERO);
 	gp->start = g_concat_start;
 	gp->spoiled = g_concat_orphan;
@@ -753,7 +753,7 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	G_CONCAT_DEBUG(3, "Tasting %s.", pp->name);
 
-	gp = g_new_geomf(mp, "concat:taste");
+	gp = g_new_geom(mp, "concat:taste");
 	gp->start = g_concat_start;
 	gp->access = g_concat_access;
 	gp->orphan = g_concat_orphan;
@@ -1107,8 +1107,6 @@ g_concat_ctl_append(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No 'arg%u' argument.", 1);
 		goto fail;
 	}
-	if (strncmp(name, "/dev/", strlen("/dev/")) == 0)
-		name += strlen("/dev/");
 	pp = g_provider_by_name(name);
 	if (pp == NULL) {
 		G_CONCAT_DEBUG(1, "Disk %s is invalid.", name);

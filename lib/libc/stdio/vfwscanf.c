@@ -298,10 +298,9 @@ parseint_fsm(wchar_t c, enum parseint_state *state, int *base)
 	case '0':
 		if (*state == begin || *state == havesign) {
 			*state = havezero;
-		} else {
-			*state = any;
+			return 1;
 		}
-		return 1;
+		/* FALL THROUGH */
 	case '1':
 	case '2':
 	case '3':

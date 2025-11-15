@@ -74,7 +74,6 @@
 #include <vm/uma.h>
 
 #include <net/bpf.h>
-#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_clone.h>
@@ -1102,6 +1101,7 @@ if_detach_internal(struct ifnet *ifp, bool vmove)
 	struct ifaddr *ifa;
 	int i;
 	struct domain *dp;
+	void *if_afdata[AF_MAX];
 #ifdef VIMAGE
 	bool shutdown;
 
@@ -1225,15 +1225,30 @@ finish_vnet_shutdown:
 	IF_AFDATA_LOCK(ifp);
 	i = ifp->if_afdata_initialized;
 	ifp->if_afdata_initialized = 0;
+	if (i != 0) {
+		/*
+		 * Defer the dom_ifdetach call.
+		 */
+		_Static_assert(sizeof(if_afdata) == sizeof(ifp->if_afdata),
+		    "array size mismatch");
+		memcpy(if_afdata, ifp->if_afdata, sizeof(if_afdata));
+		memset(ifp->if_afdata, 0, sizeof(ifp->if_afdata));
+	}
 	IF_AFDATA_UNLOCK(ifp);
 	if (i == 0)
 		return;
+	/*
+	 * XXXZL: This net epoch wait is not necessary if we have done right.
+	 * But if we do not, at least we can make a guarantee that threads those
+	 * enter net epoch will see NULL address family dependent data,
+	 * e.g. if_afdata[AF_INET6]. A clear NULL pointer derefence is much
+	 * better than writing to freed memory.
+	 */
+	NET_EPOCH_WAIT();
 	SLIST_FOREACH(dp, &domains, dom_next) {
-		if (dp->dom_ifdetach && ifp->if_afdata[dp->dom_family]) {
-			(*dp->dom_ifdetach)(ifp,
-			    ifp->if_afdata[dp->dom_family]);
-			ifp->if_afdata[dp->dom_family] = NULL;
-		}
+		if (dp->dom_ifdetach != NULL &&
+		    if_afdata[dp->dom_family] != NULL)
+			(*dp->dom_ifdetach)(ifp, if_afdata[dp->dom_family]);
 	}
 }
 
@@ -2589,16 +2604,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		 * flip.  They require special handling because in-kernel
 		 * consumers may indepdently toggle them.
 		 */
-		if ((ifp->if_flags ^ new_flags) & IFF_PPROMISC) {
-			if (new_flags & IFF_PPROMISC)
-				ifp->if_flags |= IFF_PROMISC;
-			else if (ifp->if_pcount == 0)
-				ifp->if_flags &= ~IFF_PROMISC;
-			if (log_promisc_mode_change)
-                                if_printf(ifp, "permanently promiscuous mode %s\n",
-                                    ((new_flags & IFF_PPROMISC) ?
-                                     "enabled" : "disabled"));
-		}
+		if_setppromisc(ifp, new_flags & IFF_PPROMISC);
 		if ((ifp->if_flags ^ new_flags) & IFF_PALLMULTI) {
 			if (new_flags & IFF_PALLMULTI)
 				ifp->if_flags |= IFF_ALLMULTI;
@@ -2836,15 +2842,20 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCAIFGROUP:
+	{
+		const char *groupname;
+
 		error = priv_check(td, PRIV_NET_ADDIFGROUP);
 		if (error)
 			return (error);
-		error = if_addgroup(ifp,
-		    ((struct ifgroupreq *)data)->ifgr_group);
+		groupname = ((struct ifgroupreq *)data)->ifgr_group;
+		if (strnlen(groupname, IFNAMSIZ) == IFNAMSIZ)
+			return (EINVAL);
+		error = if_addgroup(ifp, groupname);
 		if (error != 0)
 			return (error);
 		break;
-
+	}
 	case SIOCGIFGROUP:
 	{
 		struct epoch_tracker et;
@@ -2856,15 +2867,20 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	}
 
 	case SIOCDIFGROUP:
+	{
+		const char *groupname;
+
 		error = priv_check(td, PRIV_NET_DELIFGROUP);
 		if (error)
 			return (error);
-		error = if_delgroup(ifp,
-		    ((struct ifgroupreq *)data)->ifgr_group);
+		groupname = ((struct ifgroupreq *)data)->ifgr_group;
+		if (strnlen(groupname, IFNAMSIZ) == IFNAMSIZ)
+			return (EINVAL);
+		error = if_delgroup(ifp, groupname);
 		if (error != 0)
 			return (error);
 		break;
-
+	}
 	default:
 		error = ENOIOCTL;
 		break;
@@ -3008,9 +3024,17 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		goto out_noref;
 
 	case SIOCGIFGMEMB:
-		error = if_getgroupmembers((struct ifgroupreq *)data);
-		goto out_noref;
+	{
+		struct ifgroupreq *req;
 
+		req = (struct ifgroupreq *)data;
+		if (strnlen(req->ifgr_name, IFNAMSIZ) == IFNAMSIZ) {
+			error = EINVAL;
+			goto out_noref;
+		}
+		error = if_getgroupmembers(req);
+		goto out_noref;
+	}
 #if defined(INET) || defined(INET6)
 	case SIOCSVH:
 	case SIOCGVH:
@@ -4454,6 +4478,32 @@ if_getmtu_family(const if_t ifp, int family)
 	}
 
 	return (ifp->if_mtu);
+}
+
+void
+if_setppromisc(if_t ifp, bool ppromisc)
+{
+	int new_flags;
+
+	if (ppromisc)
+		new_flags = ifp->if_flags | IFF_PPROMISC;
+	else
+		new_flags = ifp->if_flags & ~IFF_PPROMISC;
+	if ((ifp->if_flags ^ new_flags) & IFF_PPROMISC) {
+		if (new_flags & IFF_PPROMISC)
+			new_flags |= IFF_PROMISC;
+		/*
+		 * Only unset IFF_PROMISC if there are no more consumers of
+		 * promiscuity, i.e. the ifp->if_pcount refcount is 0.
+		 */
+		else if (ifp->if_pcount == 0)
+			new_flags &= ~IFF_PROMISC;
+		if (log_promisc_mode_change)
+                        if_printf(ifp, "permanently promiscuous mode %s\n",
+                            ((new_flags & IFF_PPROMISC) ?
+                             "enabled" : "disabled"));
+	}
+	ifp->if_flags = new_flags;
 }
 
 /*

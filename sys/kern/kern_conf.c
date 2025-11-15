@@ -664,7 +664,7 @@ prep_cdevsw(struct cdevsw *devsw, int flags)
 		if ((devsw->d_flags & D_GIANTOK) == 0) {
 			printf(
 			    "WARNING: Device \"%s\" is Giant locked and may be "
-			    "deleted before FreeBSD 15.0.\n",
+			    "deleted before FreeBSD 16.0.\n",
 			    devsw->d_name == NULL ? "???" : devsw->d_name);
 		}
 		if (devsw->d_gianttrick == NULL) {
@@ -1162,6 +1162,9 @@ destroy_devl(struct cdev *dev)
 	while ((p = LIST_FIRST(&cdp->cdp_fdpriv)) != NULL) {
 		devfs_destroy_cdevpriv(p);
 		mtx_lock(&cdevpriv_mtx);
+	}
+	while (cdp->cdp_fdpriv_dtrc != 0) {
+		msleep(&cdp->cdp_fdpriv_dtrc, &cdevpriv_mtx, 0, "cdfdpc", 0);
 	}
 	mtx_unlock(&cdevpriv_mtx);
 	dev_lock();

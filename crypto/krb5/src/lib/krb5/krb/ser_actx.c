@@ -171,7 +171,7 @@ k5_externalize_auth_context(krb5_auth_context auth_context,
             /* Now handle remote_port, if appropriate */
             if (!kret && auth_context->remote_port) {
                 (void) krb5_ser_pack_int32(TOKEN_RPORT, &bp, &remain);
-                kret = k5_externalize_address(auth_context->remote_addr,
+                kret = k5_externalize_address(auth_context->remote_port,
                                               &bp, &remain);
             }
 

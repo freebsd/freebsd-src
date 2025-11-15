@@ -96,6 +96,7 @@ static const struct filterops evdev_cdev_filterops = {
 	.f_attach = NULL,
 	.f_detach = evdev_kqdetach,
 	.f_event = evdev_kqread,
+	.f_copy = knote_triv_copy,
 };
 
 static int

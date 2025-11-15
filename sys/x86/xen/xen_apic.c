@@ -330,7 +330,7 @@ xen_cpu_ipi_init(int cpu)
 }
 
 static void
-xen_setup_cpus(void)
+xen_setup_cpus(void *dummy __unused)
 {
 	uint32_t regs[4];
 	int i;

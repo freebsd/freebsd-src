@@ -52,54 +52,9 @@ struct cpu_quirks {
 	u_int		flags;
 };
 
-static enum {
-	SSBD_FORCE_ON,
-	SSBD_FORCE_OFF,
-	SSBD_KERNEL,
-} ssbd_method = SSBD_KERNEL;
-
-static cpu_quirk_install install_psci_bp_hardening;
-static cpu_quirk_install install_ssbd_workaround;
 static cpu_quirk_install install_thunderx_bcast_tlbi_workaround;
 
 static struct cpu_quirks cpu_quirks[] = {
-	{
-		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
-		.midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A57,0,0),
-		.quirk_install = install_psci_bp_hardening,
-		.flags = CPU_QUIRK_POST_DEVICE,
-	},
-	{
-		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
-		.midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A72,0,0),
-		.quirk_install = install_psci_bp_hardening,
-		.flags = CPU_QUIRK_POST_DEVICE,
-	},
-	{
-		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
-		.midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A73,0,0),
-		.quirk_install = install_psci_bp_hardening,
-		.flags = CPU_QUIRK_POST_DEVICE,
-	},
-	{
-		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
-		.midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A75,0,0),
-		.quirk_install = install_psci_bp_hardening,
-		.flags = CPU_QUIRK_POST_DEVICE,
-	},
-	{
-		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
-		.midr_value =
-		    CPU_ID_RAW(CPU_IMPL_CAVIUM, CPU_PART_THUNDERX2, 0,0),
-		.quirk_install = install_psci_bp_hardening,
-		.flags = CPU_QUIRK_POST_DEVICE,
-	},
-	{
-		.midr_mask = 0,
-		.midr_value = 0,
-		.quirk_install = install_ssbd_workaround,
-		.flags = CPU_QUIRK_POST_DEVICE,
-	},
 	{
 		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
 		.midr_value =
@@ -113,57 +68,6 @@ static struct cpu_quirks cpu_quirks[] = {
 		.quirk_install = install_thunderx_bcast_tlbi_workaround,
 	},
 };
-
-static void
-install_psci_bp_hardening(void)
-{
-	/* SMCCC depends on PSCI. If PSCI is missing so is SMCCC */
-	if (!psci_present)
-		return;
-
-	if (smccc_arch_features(SMCCC_ARCH_WORKAROUND_1) != SMCCC_RET_SUCCESS)
-		return;
-
-	PCPU_SET(bp_harden, smccc_arch_workaround_1);
-}
-
-static void
-install_ssbd_workaround(void)
-{
-	char *env;
-
-	if (PCPU_GET(cpuid) == 0) {
-		env = kern_getenv("kern.cfg.ssbd");
-		if (env != NULL) {
-			if (strcmp(env, "force-on") == 0) {
-				ssbd_method = SSBD_FORCE_ON;
-			} else if (strcmp(env, "force-off") == 0) {
-				ssbd_method = SSBD_FORCE_OFF;
-			}
-		}
-	}
-
-	/* SMCCC depends on PSCI. If PSCI is missing so is SMCCC */
-	if (!psci_present)
-		return;
-
-	/* Enable the workaround on this CPU if it's enabled in the firmware */
-	if (smccc_arch_features(SMCCC_ARCH_WORKAROUND_2) != SMCCC_RET_SUCCESS)
-		return;
-
-	switch(ssbd_method) {
-	case SSBD_FORCE_ON:
-		smccc_arch_workaround_2(1);
-		break;
-	case SSBD_FORCE_OFF:
-		smccc_arch_workaround_2(0);
-		break;
-	case SSBD_KERNEL:
-	default:
-		PCPU_SET(ssbd, smccc_arch_workaround_2);
-		break;
-	}
-}
 
 /*
  * Workaround Cavium erratum 27456.

@@ -48,8 +48,6 @@
 
 #include "zdb.h"
 
-extern uint8_t dump_opt[256];
-
 static char tab_prefix[4] = "\t\t\t";
 
 static void
@@ -176,7 +174,7 @@ zil_prt_rec_write(zilog_t *zilog, int txtype, const void *arg)
 
 	if (lr->lr_common.lrc_reclen == sizeof (lr_write_t)) {
 		(void) printf("%shas blkptr, %s\n", tab_prefix,
-		    !BP_IS_HOLE(bp) && BP_GET_LOGICAL_BIRTH(bp) >=
+		    !BP_IS_HOLE(bp) && BP_GET_BIRTH(bp) >=
 		    spa_min_claim_txg(zilog->zl_spa) ?
 		    "will claim" : "won't claim");
 		print_log_bp(bp, tab_prefix);
@@ -189,7 +187,7 @@ zil_prt_rec_write(zilog_t *zilog, int txtype, const void *arg)
 			(void) printf("%s<hole>\n", tab_prefix);
 			return;
 		}
-		if (BP_GET_LOGICAL_BIRTH(bp) < zilog->zl_header->zh_claim_txg) {
+		if (BP_GET_BIRTH(bp) < zilog->zl_header->zh_claim_txg) {
 			(void) printf("%s<block already committed>\n",
 			    tab_prefix);
 			return;
@@ -240,7 +238,7 @@ zil_prt_rec_write_enc(zilog_t *zilog, int txtype, const void *arg)
 
 	if (lr->lr_common.lrc_reclen == sizeof (lr_write_t)) {
 		(void) printf("%shas blkptr, %s\n", tab_prefix,
-		    !BP_IS_HOLE(bp) && BP_GET_LOGICAL_BIRTH(bp) >=
+		    !BP_IS_HOLE(bp) && BP_GET_BIRTH(bp) >=
 		    spa_min_claim_txg(zilog->zl_spa) ?
 		    "will claim" : "won't claim");
 		print_log_bp(bp, tab_prefix);
@@ -476,7 +474,7 @@ print_log_block(zilog_t *zilog, const blkptr_t *bp, void *arg,
 
 	if (claim_txg != 0)
 		claim = "already claimed";
-	else if (BP_GET_LOGICAL_BIRTH(bp) >= spa_min_claim_txg(zilog->zl_spa))
+	else if (BP_GET_BIRTH(bp) >= spa_min_claim_txg(zilog->zl_spa))
 		claim = "will claim";
 	else
 		claim = "won't claim";

@@ -19,10 +19,6 @@ VMDK_DESC=	VMWare, VirtualBox disk image
 QCOW2_DESC=	Qemu, KVM disk image
 RAW_DESC=	Unformatted raw disk image
 
-.if defined(WITHOUT_QEMU)
-CLOUDWARE_TYPES?= \
-		BASIC-CI
-.else
 CLOUDWARE_TYPES?= AZURE \
 		BASIC-CI \
 		BASIC-CLOUDINIT \
@@ -30,7 +26,6 @@ CLOUDWARE_TYPES?= AZURE \
 		GCE \
 		ORACLE \
 		VAGRANT
-.endif
 AZURE_FORMAT=	vhdf
 AZURE_FSLIST?=	ufs zfs
 AZURE_DESC=	Microsoft Azure platform image
@@ -106,9 +101,12 @@ QEMUTGT=emulator-portinstall
 .endif
 QEMUTGT?=
 
+.if (defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE)) || \
+    (defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES))
 .if (defined(WITHOUT_QEMU) && !defined(NO_ROOT)) || \
   (!defined(WITHOUT_QEMU) && defined(NO_ROOT))
 .error WITHOUT_QEMU requires NO_ROOT (and vice versa)
+.endif
 .endif
 
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
@@ -131,14 +129,27 @@ ${_CW:tu}${_FS:tu}${_FMT:tu}IMAGE=	${_CW:tl}.${_FS}.${_FMT}
 cw-${_CW:tl}-${_FS}-${_FMT}: cw-ec2-base-${_FS}-${_FMT}
 .endif
 
-cw-${_CW:tl}-${_FS}-${_FMT}: ${QEMUTGT}
+# Special handling: GCE images ingest src.txz and ports.txz and expect them
+# to be in the /ftp/ directory.  Note: This will need to be reworked before
+# distribution sets go away!
+.if ${_CW} == GCE
+cw-${_CW:tl}-${_FS}-${_FMT}: ftp
+.endif
+
+cw-${_CW:tl}-${_FS}-${_FMT}: ${QEMUTGT} ${PKGBASE_REPO_DIR}
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		QEMUSTATIC=${QEMUSTATIC} \
 		EC2BASEIMG=${.OBJDIR}/${EC2-BASE${_FS:tu}${_FMT:tu}IMAGE} \
 		${WITHOUT_QEMU:DWITHOUT_QEMU=true} \
 		${NO_ROOT:DNO_ROOT=true} \
+		PKG_CMD=${PKG_CMD:Upkg} \
+		PKG_ABI=${PKG_ABI} \
+		PKG_REPOS_DIR=${PKG_REPOS_DIR:U${.OBJDIR}/${.TARGET}/etc/pkg} \
+		PKG_REPO_NAME=${PKG_REPO_NAME:UFreeBSD-ports} \
 		PKG_INSTALL_EPOCH=${PKG_INSTALL_EPOCH:U${GITEPOCH}} \
+		NOPKGBASE=${NOPKGBASE} \
+		PKGBASE_REPO_DIR=${.OBJDIR}/pkgbase-repo-dir \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
 		-F ${"${_CW:MEC2-BUILDER}" != "":?ufs:${_FS}} \
@@ -182,7 +193,7 @@ CLEANFILES+=	${VMBASE}.${FS}.${FORMAT}
 
 vm-base:	vm-image
 
-vm-image:	${QEMUTGT}
+vm-image:	${QEMUTGT} ${PKGBASE_REPO_DIR}
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 . for FORMAT in ${VMFORMATS}
 .  for FS in ${VMFSLIST}
@@ -191,7 +202,13 @@ vm-image:	${QEMUTGT}
 		QEMUSTATIC=${QEMUSTATIC} \
 		${WITHOUT_QEMU:DWITHOUT_QEMU=true} \
 		${NO_ROOT:DNO_ROOT=true} \
+		PKG_CMD=${PKG_CMD:Upkg} \
+		PKG_ABI=${PKG_ABI} \
+		PKG_REPOS_DIR=${PKG_REPOS_DIR:U${.OBJDIR}/${.TARGET}-${FORMAT}-${FS}/etc/pkg} \
+		PKG_REPO_NAME=${PKG_REPO_NAME:UFreeBSD-ports} \
 		PKG_INSTALL_EPOCH=${PKG_INSTALL_EPOCH:U${GITEPOCH}} \
+		NOPKGBASE=${NOPKGBASE} \
+		PKGBASE_REPO_DIR=${.OBJDIR}/pkgbase-repo-dir \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr \
 		-d ${.OBJDIR}/${.TARGET}-${FORMAT}-${FS} -F ${FS} \

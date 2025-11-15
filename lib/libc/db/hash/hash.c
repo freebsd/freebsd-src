@@ -99,11 +99,6 @@ __hash_open(const char *file, int flags, int mode,
 	DB *dbp;
 	int bpages, hdrsize, new_table, nsegs, save_errno;
 
-	if ((flags & O_ACCMODE) == O_WRONLY) {
-		errno = EINVAL;
-		return (NULL);
-	}
-
 	if (!(hashp = (HTAB *)calloc(1, sizeof(HTAB))))
 		return (NULL);
 	hashp->fp = -1;
@@ -115,6 +110,10 @@ __hash_open(const char *file, int flags, int mode,
 	 * we can check accesses.
 	 */
 	hashp->flags = flags;
+	if ((flags & O_ACCMODE) == O_WRONLY) {
+		flags &= ~O_WRONLY;
+		flags |= O_RDWR;
+	}
 
 	if (file) {
 		if ((hashp->fp = _open(file, flags | O_CLOEXEC, mode)) == -1)
@@ -180,7 +179,7 @@ __hash_open(const char *file, int flags, int mode,
 		__buf_init(hashp, DEF_BUFSIZE);
 
 	hashp->new_file = new_table;
-	hashp->save_file = file && (hashp->flags & O_RDWR);
+	hashp->save_file = file && (flags & O_RDWR);
 	hashp->cbucket = -1;
 	if (!(dbp = (DB *)malloc(sizeof(DB)))) {
 		save_errno = errno;
@@ -524,6 +523,10 @@ hash_get(const DB *dbp, const DBT *key, DBT *data, u_int32_t flag)
 		hashp->error = errno = EINVAL;
 		return (ERROR);
 	}
+	if ((hashp->flags & O_ACCMODE) == O_WRONLY) {
+		hashp->error = errno = EPERM;
+		return (ERROR);
+	}
 	return (hash_access(hashp, HASH_GET, (DBT *)key, data));
 }
 
@@ -701,17 +704,19 @@ hash_seq(const DB *dbp, DBT *key, DBT *data, u_int32_t flag)
 	u_int16_t *bp, ndx;
 
 	hashp = (HTAB *)dbp->internal;
-	if (flag && flag != R_FIRST && flag != R_NEXT) {
+	if (flag != R_FIRST && flag != R_NEXT) {
 		hashp->error = errno = EINVAL;
 		return (ERROR);
 	}
 #ifdef HASH_STATISTICS
 	hash_accesses++;
 #endif
-	if ((hashp->cbucket < 0) || (flag == R_FIRST)) {
+	if (flag == R_FIRST) {
 		hashp->cbucket = 0;
 		hashp->cndx = 1;
 		hashp->cpage = NULL;
+	} else if (hashp->cbucket < 0) { /* R_NEXT */
+		return (ABNORMAL);
 	}
 next_bucket:
 	for (bp = NULL; !bp || !bp[0]; ) {

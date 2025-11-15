@@ -535,8 +535,8 @@ krb5_iprop_prog_1(struct svc_req *rqstp,
 	kdb_last_t iprop_get_updates_1_arg;
     } argument;
     void *result;
-    bool_t (*_xdr_argument)(), (*_xdr_result)();
-    void *(*local)(/* union XXX *, struct svc_req * */);
+    xdrproc_t _xdr_argument, _xdr_result;
+    void *(*local)(char *, struct svc_req *);
     char *whoami = "krb5_iprop_prog_1";
 
     if (!check_iprop_rpcsec_auth(rqstp)) {
@@ -555,21 +555,21 @@ krb5_iprop_prog_1(struct svc_req *rqstp,
 	return;
 
     case IPROP_GET_UPDATES:
-	_xdr_argument = xdr_kdb_last_t;
-	_xdr_result = xdr_kdb_incr_result_t;
-	local = (void *(*)()) iprop_get_updates_1_svc;
+	_xdr_argument = (xdrproc_t)xdr_kdb_last_t;
+	_xdr_result = (xdrproc_t)xdr_kdb_incr_result_t;
+	local = (void *(*)(char *, struct svc_req *))iprop_get_updates_1_svc;
 	break;
 
     case IPROP_FULL_RESYNC:
-	_xdr_argument = xdr_void;
-	_xdr_result = xdr_kdb_fullresync_result_t;
-	local = (void *(*)()) iprop_full_resync_1_svc;
+	_xdr_argument = (xdrproc_t)xdr_void;
+	_xdr_result = (xdrproc_t)xdr_kdb_fullresync_result_t;
+	local = (void *(*)(char *, struct svc_req *))iprop_full_resync_1_svc;
 	break;
 
     case IPROP_FULL_RESYNC_EXT:
-	_xdr_argument = xdr_u_int32;
-	_xdr_result = xdr_kdb_fullresync_result_t;
-	local = (void *(*)()) iprop_full_resync_ext_1_svc;
+	_xdr_argument = (xdrproc_t)xdr_u_int32;
+	_xdr_result = (xdrproc_t)xdr_kdb_fullresync_result_t;
+	local = (void *(*)(char *, struct svc_req *))iprop_full_resync_ext_1_svc;
 	break;
 
     default:
@@ -587,7 +587,7 @@ krb5_iprop_prog_1(struct svc_req *rqstp,
 	svcerr_decode(transp);
 	return;
     }
-    result = (*local)(&argument, rqstp);
+    result = (*local)((char *)&argument, rqstp);
 
     if (_xdr_result && result != NULL &&
 	!svc_sendreply(transp, _xdr_result, result)) {

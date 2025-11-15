@@ -1,0 +1,101 @@
+# This BSD makefile helps provide a deterministic means of doing a "clean"
+# vendor import of OpenSSL.
+#
+# Recommended use:
+#
+#   % make clean
+#   % make all
+
+NO_OBJ=
+
+LCRYPTO_SRC=	${SRCTOP}/crypto/openssl
+LCRYPTO_DOC=	${LCRYPTO_SRC}/doc
+
+CAT?=		/bin/cat
+CC?=		cc
+GMAKE?=		gmake
+LD?=		ld
+MV?=		/bin/mv
+PERL?=		perl
+SETENVI=	/usr/bin/env -i
+
+BN_CONF_H=		include/crypto/bn_conf.h
+BN_CONF_H_ORIG=		${BN_CONF_H}.orig
+CONFIGURATION_H=	include/openssl/configuration.h
+CONFIGURATION_H_ORIG=	${CONFIGURATION_H}.orig
+
+.PHONY: configure patch all
+.ORDER: configure patch all
+
+LOCALBASE=	/usr/local
+WRK_ENV=	CC=${CC} \
+		LD=${LD} \
+		PATH=${LOCALBASE}/bin:/bin:/usr/bin
+
+configure:
+	@(cd ${.CURDIR} && ${SETENVI} \
+	    ${WRK_ENV} \
+	    ${PERL} ./Configure \
+	    disable-aria \
+	    disable-egd \
+	    disable-idea \
+	    disable-mdc2 \
+	    disable-sm2 \
+	    disable-sm3 \
+	    disable-sm4 \
+	    enable-ec_nistp_64_gcc_128 \
+	    enable-ktls \
+	    enable-sctp \
+	    --openssldir=etc \
+	    --prefix=/usr)
+
+all: patch
+	@echo "==> Building generated files (headers, manpages, etc)"
+	@(cd ${.CURDIR} && \
+	     ${SETENVI} ${WRK_ENV} ${GMAKE} -j ${.MAKE.JOBS} build_all_generated)
+
+	@echo "==> Cleaning / rebuilding ASM"
+	@(cd ${SRCTOP}/secure/lib/libcrypto && \
+	     ${SETENVI} ${WRK_ENV} ${MAKE} cleanasm && \
+	     ${SETENVI} ${WRK_ENV} ${MAKE} buildasm)
+
+	@echo "==> Syncing manpages (section 1)"
+	@rsync -a --delete \
+	    --exclude 'Makefile*' --exclude '*.1' \
+	    ${LCRYPTO_DOC}/man/ \
+	    ${SRCTOP}/secure/lib/libcrypto/man
+
+	@echo "==> Syncing manpages (sections {3,5,7})"
+	@rsync -a --delete \
+	    --exclude 'Makefile*' --exclude '*.[357]' \
+	    ${LCRYPTO_DOC}/man/man1/ \
+	    ${SRCTOP}/secure/usr.bin/openssl/man
+
+
+# This doesn't use standard patching since the generated files can vary
+# depending on the host architecture.
+patch: configure
+	# Spam arch-specific overrides to config files.
+	@echo "==> Patching headers"
+	@(cd ${.CURDIR} && ${SETENVI} ${WRK_ENV} ${GMAKE} ${BN_CONF_H} && \
+	 ${MV} ${BN_CONF_H} ${BN_CONF_H_ORIG} && \
+	 ${CAT} ${BN_CONF_H}.orig \
+	     ${LCRYPTO_SRC}/freebsd/${BN_CONF_H} >> \
+	     ${BN_CONF_H})
+
+	@(cd ${.CURDIR} && \
+	  ${MV} ${CONFIGURATION_H} ${CONFIGURATION_H_ORIG} && \
+	  ${CAT} ${CONFIGURATION_H_ORIG} \
+	     ${LCRYPTO_SRC}/freebsd/${CONFIGURATION_H} >> \
+	     ${CONFIGURATION_H})
+
+
+clean: .PHONY
+	@(cd ${.CURDIR} && rm -f ${BN_CONF_H_ORIG} ${CONFIGURATION_H_ORIG})
+
+	@(cd ${SRCTOP}/secure/lib/libcrypto && \
+	    ${SETENVI} ${WRK_ENV} ${MAKE} cleanasm)
+
+	-@(cd ${.CURDIR} && ${GMAKE} ${.TARGET})
+
+.include <sys.mk>

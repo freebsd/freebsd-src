@@ -4,6 +4,7 @@
 .\" Copyright (c) 2019, 2021 by Delphix. All rights reserved.
 .\" Copyright (c) 2019 Datto Inc.
 .\" Copyright (c) 2023, 2024, 2025, Klara, Inc.
+.\"
 .\" The contents of this file are subject to the terms of the Common Development
 .\" and Distribution License (the "License").  You may not use this file except
 .\" in compliance with the License. You can obtain a copy of the license at
@@ -17,7 +18,7 @@
 .\" own identifying information:
 .\" Portions Copyright [yyyy] [name of copyright owner]
 .\"
-.Dd May 29, 2025
+.Dd September 15, 2025
 .Dt ZFS 4
 .Os
 .
@@ -601,6 +602,42 @@ new format when enabling the
 feature.
 The default is to convert all log entries.
 .
+.It Sy vdev_read_sit_out_secs Ns = Ns Sy 600 Ns s Po 10 min Pc Pq ulong
+When a slow disk outlier is detected it is placed in a sit out state.
+While sitting out the disk will not participate in normal reads, instead its
+data will be reconstructed as needed from parity.
+Scrub operations will always read from a disk, even if it's sitting out.
+A number of disks in a RAID-Z or dRAID vdev may sit out at the same time, up
+to the number of parity devices.
+Writes will still be issued to a disk which is sitting out to maintain full
+redundancy.
+Defaults to 600 seconds and a value of zero disables disk sit-outs in general,
+including slow disk outlier detection.
+.
+.It Sy vdev_raidz_outlier_check_interval_ms Ns = Ns Sy 1000 Ns ms Po 1 sec Pc Pq ulong
+How often each RAID-Z and dRAID vdev will check for slow disk outliers.
+Increasing this interval will reduce the sensitivity of detection (since all
+I/Os since the last check are included in the statistics), but will slow the
+response to a disk developing a problem.
+Defaults to once per second; setting extremely small values may cause negative
+performance effects.
+.
+.It Sy vdev_raidz_outlier_insensitivity Ns = Ns Sy 50 Pq uint
+When performing slow outlier checks for RAID-Z and dRAID vdevs, this value is
+used to determine how far out an outlier must be before it counts as an event
+worth consdering.
+This is phrased as "insensitivity" because larger values result in fewer
+detections.
+Smaller values will result in more aggressive sitting out of disks that may have
+problems, but may significantly increase the rate of spurious sit-outs.
+.Pp
+To provide a more technical definition of this parameter, this is the multiple
+of the inter-quartile range (IQR) that is being used in a Tukey's Fence
+detection algorithm.
+This is much higher than a normal Tukey's Fence k-value, because the
+distribution under consideration is probably an extreme-value distribution,
+rather than a more typical Gaussian distribution.
+.
 .It Sy vdev_removal_max_span Ns = Ns Sy 32768 Ns B Po 32 KiB Pc Pq uint
 During top-level vdev removal, chunks of data are copied from the vdev
 which may include free space in order to trade bandwidth for IOPS.
@@ -940,10 +977,6 @@ Value of 4 means parity with page cache.
 The target number of bytes the ARC should leave as free memory on the system.
 If zero, equivalent to the bigger of
 .Sy 512 KiB No and Sy all_system_memory/64 .
-.
-.It Sy zfs_autoimport_disable Ns = Ns Sy 1 Ns | Ns 0 Pq int
-Disable pool import at module load by ignoring the cache file
-.Pq Sy spa_config_path .
 .
 .It Sy zfs_checksum_events_per_second Ns = Ns Sy 20 Ns /s Pq uint
 Rate limit checksum events to this many per second.
@@ -1399,14 +1432,15 @@ If this setting is 0, then even if feature@block_cloning is enabled,
 using functions and system calls that attempt to clone blocks will act as
 though the feature is disabled.
 .
-.It Sy zfs_bclone_wait_dirty Ns = Ns Sy 0 Ns | Ns 1 Pq int
-When set to 1 the FICLONE and FICLONERANGE ioctls wait for dirty data to be
-written to disk.
-This allows the clone operation to reliably succeed when a file is
+.It Sy zfs_bclone_wait_dirty Ns = Ns Sy 1 Ns | Ns 0 Pq int
+When set to 1 the FICLONE and FICLONERANGE ioctls will wait for any dirty
+data to be written to disk before proceeding.
+This ensures that the clone operation reliably succeeds, even if a file is
 modified and then immediately cloned.
-For small files this may be slower than making a copy of the file.
-Therefore, this setting defaults to 0 which causes a clone operation to
-immediately fail when encountering a dirty block.
+Note that for small files this may be slower than simply copying the file.
+When set to 0 the clone operation will immediately fail if it encounters
+any dirty blocks.
+By default waiting is enabled.
 .
 .It Sy zfs_blake3_impl Ns = Ns Sy fastest Pq string
 Select a BLAKE3 implementation.
@@ -1713,10 +1747,19 @@ Similar to
 but for cleanup of old indirection records for removed vdevs.
 .
 .It Sy zfs_immediate_write_sz Ns = Ns Sy 32768 Ns B Po 32 KiB Pc Pq s64
-Largest data block to write to the ZIL.
-Larger blocks will be treated as if the dataset being written to had the
-.Sy logbias Ns = Ns Sy throughput
-property set.
+Largest write size to store the data directly into the ZIL if
+.Sy logbias Ns = Ns Sy latency .
+Larger writes may be written indirectly similar to
+.Sy logbias Ns = Ns Sy throughput .
+In presence of SLOG this parameter is ignored, as if it was set to infinity,
+storing all written data into ZIL to not depend on regular vdev latency.
+.
+.It Sy zil_special_is_slog Ns = Ns Sy 1 Ns | Ns 0 Pq int
+When enabled, and written blocks go to normal vdevs, treat present special
+vdevs as SLOGs.
+Blocks that go to the special vdevs are still written indirectly, as with
+.Sy logbias Ns = Ns Sy throughput .
+This parameter is ignored if an SLOG is present.
 .
 .It Sy zfs_initialize_value Ns = Ns Sy 16045690984833335022 Po 0xDEADBEEFDEADBEEE Pc Pq u64
 Pattern written to vdev free space by
@@ -2237,6 +2280,21 @@ Defer frees starting in this pass.
 Maximum memory used for prefetching a checkpoint's space map on each
 vdev while discarding the checkpoint.
 .
+.It Sy zfs_spa_note_txg_time Ns = Ns Sy 600 Pq uint
+This parameter defines, in seconds, how often the TXG time database will record
+a new TXG if it has changed.
+After the specified time interval has passed, and if the TXG number has changed,
+the new value is recorded in the database.
+These timestamps can later be used for more granular operations, such as
+scrubbing.
+.
+.It Sy zfs_spa_flush_txg_time Ns = Ns Sy 600 Pq uint
+This parameter defines, in seconds, how often the ZFS will flush
+the TXG time database to disk.
+It ensures that the data is actually written to persistent storage, which helps
+preserve the database in case of unexpected shutdown.
+The database is also automatically flushed during the export sequence.
+.
 .It Sy zfs_special_class_metadata_reserve_pct Ns = Ns Sy 25 Ns % Pq uint
 Only allow small data blocks to be allocated on the special and dedup vdev
 types when the available free space percentage on these vdevs exceeds this
@@ -2462,8 +2520,8 @@ code for this record type.
 The tunable has no effect if the feature is disabled.
 .
 .It Sy zfs_embedded_slog_min_ms Ns = Ns Sy 64 Pq uint
-Usually, one metaslab from each normal-class vdev is dedicated for use by
-the ZIL to log synchronous writes.
+Usually, one metaslab from each normal and special class vdev is dedicated
+for use by the ZIL to log synchronous writes.
 However, if there are fewer than
 .Sy zfs_embedded_slog_min_ms
 metaslabs in the vdev, this functionality is disabled.
@@ -2524,6 +2582,49 @@ the xattr so as to not accumulate duplicates.
 .
 .It Sy zio_requeue_io_start_cut_in_line Ns = Ns Sy 0 Ns | Ns 1 Pq int
 Prioritize requeued I/O.
+.
+.It Sy zfs_delete_inode Ns = Ns Sy 0 Ns | Ns 1 Pq int
+Sets whether the kernel should free an inode structure when the last reference
+is released, or cache it in memory.
+Intended for testing/debugging.
+.Pp
+A live inode structure "pins" versious internal OpenZFS structures in memory,
+which can result in large amounts of "unusable" memory on systems with lots of
+infrequently-accessed files, until the kernel's memory pressure mechanism
+asks OpenZFS to release them.
+.Pp
+The default value of
+.Sy 0
+always caches inodes that appear to still exist on disk.
+Setting it to
+.Sy 1
+will immediately release unused inodes and their associated memory back to the
+dbuf cache or the ARC for reuse, but may reduce performance if inodes are
+frequently evicted and reloaded.
+.Pp
+This parameter is only available on Linux.
+.
+.It Sy zfs_delete_dentry Ns = Ns Sy 0 Ns | Ns 1 Pq int
+Sets whether the kernel should free a dentry structure when it is no longer
+required, or hold it in the dentry cache.
+Intended for testing/debugging.
+.
+Since a dentry structure holds an inode reference, a cached dentry can "pin"
+an inode in memory indefinitely, along with associated OpenZFS structures (See
+.Sy zfs_delete_inode ) .
+.Pp
+The default value of
+.Sy 0
+instructs the kernel to cache entries and their associated inodes when they
+are no longer directly referenced.
+They will be reclaimed as part of the kernel's normal cache management
+processes.
+Setting it to
+.Sy 1
+will instruct the kernel to release directory entries and their inodes as soon
+as they are no longer referenced by the filesystem.
+.Pp
+This parameter is only available on Linux.
 .
 .It Sy zio_taskq_batch_pct Ns = Ns Sy 80 Ns % Pq uint
 Percentage of online CPUs which will run a worker thread for I/O.

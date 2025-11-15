@@ -7,6 +7,7 @@ makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
 options 	SCHED_ULE		# ULE scheduler
 options 	NUMA			# Non-Uniform Memory Architecture support
 options 	PREEMPTION		# Enable kernel thread preemption
+options 	EXTERR_STRINGS
 options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
@@ -105,3 +106,9 @@ device		efirtc			# EFI RTC
 
 # SMBIOS -- all EFI platforms
 device		smbios
+
+# random(4)
+device		tpm			# Trusted Platform Module
+options 	RANDOM_ENABLE_TPM	# enable entropy from TPM 2.0
+options 	RANDOM_ENABLE_KBD
+options 	RANDOM_ENABLE_MOUSE

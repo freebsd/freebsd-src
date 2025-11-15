@@ -38,6 +38,8 @@
     <?define BinDir="$(env.KRB_INSTALL_DIR)\bin\"?>
     <?define PreauthDir=$(env.KRB_INSTALL_DIR)\bin\plugins\preauth?>
     <?define LibDir="$(env.KRB_INSTALL_DIR)\lib\"?>
+    <?define OpenSSLDir="$(env.OPENSSL_DIR)\bin"?>
+    <?define OpenSSLVer="$(env.OPENSSL_VERSION)"?>
     <?define InstallerVersion="450"?>
     <?ifndef env.VISUALSTUDIOVERSION?>
         <?define VCVer="100"?>
@@ -58,7 +60,6 @@
     <?endif?>
     
     <?define KfwRegRoot="SOFTWARE\MIT\Kerberos"?>
-    <?define KfwRegWow6432Root="SOFTWARE\Wow6432Node\MIT\Kerberos"?>
 
     <?define DocDir="$(var.TargetDir)doc\"?>
     <?define IncDir="$(var.TargetDir)include\"?>

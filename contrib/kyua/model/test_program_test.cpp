@@ -547,7 +547,7 @@ check_output__no_test_cases(void)
         "description='', execenv='', execenv_jail_params='', "
         "has_cleanup='false', is_exclusive='false', "
         "required_configs='', required_disk_space='0', required_files='', "
-        "required_memory='0', "
+        "required_kmods='', required_memory='0', "
         "required_programs='', required_user='', timeout='300'}, "
         "test_cases=map()}",
         str.str());
@@ -597,7 +597,7 @@ check_output__some_test_cases(void)
         "description='', execenv='', execenv_jail_params='', "
         "has_cleanup='false', is_exclusive='false', "
         "required_configs='', required_disk_space='0', required_files='', "
-        "required_memory='0', "
+        "required_kmods='', required_memory='0', "
         "required_programs='', required_user='', timeout='300'}, "
         "test_cases=map("
         "another-name=test_case{name='another-name', "
@@ -605,14 +605,14 @@ check_output__some_test_cases(void)
         "description='', execenv='', execenv_jail_params='', "
         "has_cleanup='false', is_exclusive='false', "
         "required_configs='', required_disk_space='0', required_files='', "
-        "required_memory='0', "
+        "required_kmods='', required_memory='0', "
         "required_programs='', required_user='', timeout='300'}}, "
         "the-name=test_case{name='the-name', "
         "metadata=metadata{allowed_architectures='a', allowed_platforms='foo', "
         "custom.bar='baz', description='', execenv='', execenv_jail_params='', "
         "has_cleanup='false', is_exclusive='false', "
         "required_configs='', required_disk_space='0', required_files='', "
-        "required_memory='0', "
+        "required_kmods='', required_memory='0', "
         "required_programs='', required_user='', timeout='300'}})}",
         str.str());
 }

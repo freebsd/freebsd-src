@@ -1,6 +1,4 @@
-#
-#
-
+PACKAGE=pmc
 PROG=	pmcannotate
 MAN=	pmcannotate.8
 

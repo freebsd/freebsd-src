@@ -123,7 +123,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_inc, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(tcp_autosndbuf_inc), 0,
 	"Incrementor step size of automatic send buffer");
 
-VNET_DEFINE(int, tcp_autosndbuf_max) = 2*1024*1024;
+VNET_DEFINE(int, tcp_autosndbuf_max) = 8*1024*1024;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_max, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(tcp_autosndbuf_max), 0,
 	"Max size of automatic send buffer");
@@ -1250,7 +1250,7 @@ send:
 		 * fack acks recoverypoint.
 		 */
 		if ((tp->t_flags & TF_LRD) && SEQ_GEQ(p->rxmit, p->end))
-			p->rxmit = tp->snd_recover;
+			p->rxmit = SEQ_MAX(p->rxmit, tp->snd_recover);
 		tp->sackhint.sack_bytes_rexmit += len;
 	}
 	if (IN_RECOVERY(tp->t_flags)) {

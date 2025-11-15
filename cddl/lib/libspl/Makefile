@@ -4,9 +4,11 @@
 .PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libspl
 .PATH: ${SRCTOP}/sys/contrib/openzfs/include
 
+PACKAGE=	zfs
+LIB_PACKAGE=
+
 LIB=	spl
 LIBADD=
-PACKAGE=	libzfs
 
 SRCS = \
         assert.c \
@@ -19,12 +21,13 @@ SRCS = \
         include/sys/list.h \
         include/sys/list_impl.h
 
-# These functions are not required when bootstrapping and the atomic code
-# will not compile when building on macOS.
+# These functions are not required when bootstrapping and the atomic code,
+# among others, will not compile when building on macOS.
 .if !defined(BOOTSTRAPPING)
 SRCS += \
         atomic.c \
         getexecname.c \
+        tunables.c \
         os/freebsd/getexecname.c \
         os/freebsd/gethostid.c \
         os/freebsd/getmntany.c \

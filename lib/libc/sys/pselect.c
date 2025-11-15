@@ -33,8 +33,6 @@
 #include <sys/select.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_pselect, __pselect);
-
 #pragma weak pselect
 int
 pselect(int n, fd_set *rs, fd_set *ws, fd_set *es, const struct timespec *t,

@@ -96,6 +96,8 @@ typedef struct ipf_htable_softc_s {
 	u_long		ipf_nhtnodes[LOOKUP_POOL_SZ];
 	iphtable_t	*ipf_htables[LOOKUP_POOL_SZ];
 	iphtent_t	*ipf_node_explist;
+	ipftuneable_t	*ipf_htable_tune;
+	u_int		ipf_htable_size_max;
 } ipf_htable_softc_t;
 
 ipf_lookup_t ipf_htable_backend = {
@@ -122,6 +124,18 @@ ipf_lookup_t ipf_htable_backend = {
 };
 
 
+static ipftuneable_t ipf_htable_tuneables[] = {
+	{ { (void *)offsetof(ipf_htable_softc_t, ipf_htable_size_max) },
+		"htable_size_max",	1,	0x7fffffff,
+		stsizeof(ipf_htable_softc_t, ipf_htable_size_max),
+		0,			NULL,	NULL },
+	{ { NULL },
+		NULL,                   0,      0,
+		0,
+		0,      NULL, NULL }
+};
+
+
 /* ------------------------------------------------------------------------ */
 /* Function:    ipf_htable_soft_create                                      */
 /* Returns:     void *   - NULL = failure, else pointer to local context    */
@@ -142,6 +156,18 @@ ipf_htable_soft_create(ipf_main_softc_t *softc)
 
 	bzero((char *)softh, sizeof(*softh));
 
+	softh->ipf_htable_tune = ipf_tune_array_copy(softh,
+						sizeof(ipf_htable_tuneables),
+						ipf_htable_tuneables);
+	if (softh->ipf_htable_tune == NULL) {
+		ipf_htable_soft_destroy(softc, softh);
+		return (NULL);
+	}
+	if (ipf_tune_array_link(softc, softh->ipf_htable_tune) == -1) {
+		ipf_htable_soft_destroy(softc, softh);
+		return (NULL);
+	}
+
 	return (softh);
 }
 
@@ -159,6 +185,12 @@ static void
 ipf_htable_soft_destroy(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_htable_softc_t *softh = arg;
+
+	if (softh->ipf_htable_tune != NULL) {
+		ipf_tune_array_unlink(softc, softh->ipf_htable_tune);
+		KFREES(softh->ipf_htable_tune, sizeof(ipf_htable_tuneables));
+		softh->ipf_htable_tune = NULL;
+	}
 
 	KFREE(softh);
 }
@@ -178,6 +210,8 @@ ipf_htable_soft_init(ipf_main_softc_t *softc, void *arg)
 	ipf_htable_softc_t *softh = arg;
 
 	bzero((char *)softh, sizeof(*softh));
+
+	softh->ipf_htable_size_max = IPHTABLE_MAX_SIZE;
 
 	return (0);
 }
@@ -229,6 +263,8 @@ ipf_htable_stats_get(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 		IPFERROR(30001);
 		return (EINVAL);
 	}
+
+	bzero(&stats, sizeof(stats));
 
 	stats.iphs_tables = softh->ipf_htables[op->iplo_unit + 1];
 	stats.iphs_numtables = softh->ipf_nhtables[op->iplo_unit + 1];
@@ -325,6 +361,15 @@ ipf_htable_create(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 		iph->iph_name[sizeof(iph->iph_name) - 1] = '\0';
 	}
 
+	if ((iph->iph_size == 0) ||
+	    (iph->iph_size > softh->ipf_htable_size_max)) {
+		IPFERROR(30027);
+		return (EINVAL);
+	}
+	if (iph->iph_size > ( SIZE_MAX / sizeof(*iph->iph_table))) {
+		IPFERROR(30028);
+		return (EINVAL);
+	}
 	KMALLOCS(iph->iph_table, iphtent_t **,
 		 iph->iph_size * sizeof(*iph->iph_table));
 	if (iph->iph_table == NULL) {

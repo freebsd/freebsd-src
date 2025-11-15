@@ -251,6 +251,7 @@ void	cpu_mp_announce(void);
 int	cpu_mp_probe(void);
 void	cpu_mp_setmaxid(void);
 void	cpu_mp_start(void);
+void	cpu_mp_stop(void);	/* Go back to single-CPU */
 
 void	forward_signal(struct thread *);
 int	restart_cpus(cpuset_t);
@@ -259,6 +260,7 @@ int	stop_cpus_hard(cpuset_t);
 #if defined(__amd64__) || defined(__i386__)
 int	suspend_cpus(cpuset_t);
 int	resume_cpus(cpuset_t);
+int	offline_cpus(cpuset_t);
 #endif
 
 void	smp_rendezvous_action(void);

@@ -37,7 +37,9 @@ enum {
 	IWX_DEBUG_FW		= 0x00200000,	/* Firmware management */
 	IWX_DEBUG_LAR		= 0x00400000,	/* Location Aware Regulatory */
 	IWX_DEBUG_TE		= 0x00800000,	/* Time Event handling */
-						/* 0x0n000000 are available */
+	IWX_DEBUG_KEYMGMT	= 0x01000000,	/* Encryption key management */
+	IWX_DEBUG_AMPDU_MGMT	= 0x02000000,	/* AMPDU TX/RX management */
+						/* 0x0c000000 are available */
 	IWX_DEBUG_NI		= 0x10000000,	/* Not Implemented  */
 	IWX_DEBUG_REGISTER	= 0x20000000,	/* print chipset register */
 	IWX_DEBUG_TRACE		= 0x40000000,	/* Print begin and start driver function */

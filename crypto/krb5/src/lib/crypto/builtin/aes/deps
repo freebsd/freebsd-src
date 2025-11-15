@@ -35,3 +35,5 @@ aeskey.so aeskey.po $(OUTPRE)aeskey.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
   $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
   $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
   aes.h aeskey.c aesopt.h aestab.h brg_endian.h brg_types.h
+aes-gen.so aes-gen.po $(OUTPRE)aes-gen.$(OBJEXT): aes-gen.c \
+  aes.h brg_types.h

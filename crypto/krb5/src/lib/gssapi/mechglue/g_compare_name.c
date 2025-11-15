@@ -59,16 +59,8 @@ val_comp_name_args(
 
 
 OM_uint32 KRB5_CALLCONV
-gss_compare_name (minor_status,
-                  name1,
-                  name2,
-                  name_equal)
-
-OM_uint32 *		minor_status;
-gss_name_t		name1;
-gss_name_t		name2;
-int *			name_equal;
-
+gss_compare_name(OM_uint32 * minor_status, gss_name_t name1, gss_name_t name2,
+		 int * name_equal)
 {
     OM_uint32		major_status, temp_minor;
     gss_union_name_t	union_name1, union_name2;

@@ -47,7 +47,7 @@ kau_make_tkt_id(krb5_context context,
 
 krb5_error_code
 kau_init_kdc_req(krb5_context context, krb5_kdc_req *request,
-                 const krb5_fulladdr *from, krb5_audit_state **au_state);
+                 const struct sockaddr *from, krb5_audit_state **au_state);
 
 void kau_free_kdc_req(krb5_audit_state *state);
 

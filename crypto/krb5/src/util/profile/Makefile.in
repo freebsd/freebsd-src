@@ -140,6 +140,7 @@ F2=$(srcdir)/final2.ini
 F3=$(srcdir)/final3.ini
 F4=$(srcdir)/final4.ini
 F5=$(srcdir)/final5.ini
+F6=$(srcdir)/final6.ini
 QUERY=query section subsection key
 check-unix-final: test_profile
 	$(RM) final.out
@@ -148,6 +149,13 @@ check-unix-final: test_profile
 	(echo; $(RUN_TEST) ./test_profile $(F3):$(F1) $(QUERY)) >> final.out
 	(echo; $(RUN_TEST) ./test_profile $(F4):$(F1) $(QUERY)) >> final.out
 	(echo; $(RUN_TEST) ./test_profile $(F5):$(F1) $(QUERY)) >> final.out
+	(echo; $(RUN_TEST) ./test_profile $(F6) query a ab) >> final.out
+	(echo; $(RUN_TEST) ./test_profile $(F6) query a ac) >> final.out
+	(echo; $(RUN_TEST) ./test_profile $(F6) query b ba) >> final.out
+	(echo; $(RUN_TEST) ./test_profile $(F6) query b bb bba) >> final.out
+	(echo; $(RUN_TEST) ./test_profile $(F6) query c ca caa) >> final.out
+	(echo; $(RUN_TEST) ./test_profile $(F6) query c cb cba) >> final.out
+	(echo; $(RUN_TEST) ./test_profile $(F6) query c cc) >> final.out
 	cmp final.out $(srcdir)/final.expected
 	$(RM) final.out
 

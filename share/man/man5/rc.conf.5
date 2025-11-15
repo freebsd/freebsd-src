@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 15, 2025
+.Dd October 5, 2025
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3867,27 +3867,6 @@ is set to
 these are the flags to pass to the
 .Xr sshd 8
 daemon.
-.It Va ftpd_program
-.Pq Vt str
-Path to the FTP server program
-.Pa ( /usr/libexec/ftpd
-is the default).
-.It Va ftpd_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to start
-.Xr ftpd 8
-as a stand-alone daemon at system boot time.
-.It Va ftpd_flags
-.Pq Vt str
-If
-.Va ftpd_enable
-is set to
-.Dq Li YES ,
-these are the additional flags to pass to the
-.Xr ftpd 8
-daemon.
 .It Va watchdogd_enable
 .Pq Vt bool
 If set to
@@ -4584,20 +4563,16 @@ If set to
 .Dq Li YES ,
 delays the start of network-reliant services until
 .Va netwait_if
-is up and ICMP packets to a destination defined in
+is up, duplicate address discovery (DAD) has completed, and ICMP
+packets to a destination defined in
 .Va netwait_ip
 are flowing.
-Link state is examined first, followed by
+Link state is examined first, followed by DAD, then
 .Dq Li pinging
 an IP address to verify network usability.
 If no destination can be reached or timeouts are exceeded,
 network services are started anyway with no guarantee that
 the network is usable.
-Use of this variable requires both
-.Va netwait_ip
-and
-.Va netwait_if
-to be set.
 .It Va netwait_ip
 .Pq Vt str
 Empty by default.
@@ -4633,6 +4608,21 @@ interface if desired.
 Defines the total number of seconds to wait for link to become usable,
 polled at a 1-second interval.
 The default is 30.
+.It Va netwait_dad
+.Pq Vt str
+Set to
+.Dq Li NO
+by default.
+Set to
+.Dq Li YES
+to enable waiting for DAD to complete.
+.It Va netwait_dad_timeout
+.Pq Vt int
+Unset by default.
+Indicates the maximum number of seconds to wait for DAD to complete.
+If zero or unset, the timeout will be one more than the value of the
+.Va net.inet6.ip6.dad_count
+sysctl variable.
 .It Va rctl_enable
 .Pq Vt bool
 If set to
@@ -4960,7 +4950,7 @@ can be used in jails) depending on the content of the
 .Ao Ar name Ac Ns Va _svcj_options
 variable.
 Typically this variable is set inside rc scripts, but it can be
-overriden in the rc config.
+overridden in the rc config.
 Valid options for
 .Ao Ar name Ac Ns Va _svcj_options
 are:
@@ -5051,7 +5041,7 @@ service at all, or may set it to
 if it is not set in the
 rc config, to exclude it from
 .Va svcj_all_enable
-but allow to explicitely enable it.
+but allow to explicitly enable it.
 The sshd service for example would not see other jails, if
 it would run as a service jail.
 This may or may not be what is needed, and as such it is
@@ -5116,7 +5106,6 @@ to
 .Xr cron 8 ,
 .Xr devfs 8 ,
 .Xr dhclient 8 ,
-.Xr ftpd 8 ,
 .Xr geli 8 ,
 .Xr hcsecd 8 ,
 .Xr ifconfig 8 ,

@@ -526,7 +526,7 @@ tegra_ahci_ctrl_init(struct tegra_ahci_sc *sc)
 		rv = sc->soc->init(sc);
 		if (rv != 0) {
 			device_printf(sc->dev,
-			    "SOC specific intialization failed: %d\n", rv);
+			    "SOC specific initialization failed: %d\n", rv);
 			return (rv);
 		}
 	}

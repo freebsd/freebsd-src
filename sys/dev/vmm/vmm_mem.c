@@ -7,6 +7,7 @@
 
 #include <sys/types.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/sx.h>
 #include <sys/systm.h>
 
@@ -25,10 +26,14 @@
 
 static void vm_free_memmap(struct vm *vm, int ident);
 
-void
-vm_mem_init(struct vm_mem *mem)
+int
+vm_mem_init(struct vm_mem *mem, vm_offset_t lo, vm_offset_t hi)
 {
+	mem->mem_vmspace = vmmops_vmspace_alloc(lo, hi);
+	if (mem->mem_vmspace == NULL)
+		return (ENOMEM);
 	sx_init(&mem->mem_segs_lock, "vm_mem_segs");
+	return (0);
 }
 
 static bool
@@ -92,8 +97,19 @@ vm_mem_destroy(struct vm *vm)
 	for (int i = 0; i < VM_MAX_MEMSEGS; i++)
 		vm_free_memseg(vm, i);
 
+	vmmops_vmspace_free(mem->mem_vmspace);
+
 	sx_xunlock(&mem->mem_segs_lock);
 	sx_destroy(&mem->mem_segs_lock);
+}
+
+struct vmspace *
+vm_vmspace(struct vm *vm)
+{
+	struct vm_mem *mem;
+
+	mem = vm_mem(vm);
+	return (mem->mem_vmspace);
 }
 
 void
@@ -156,10 +172,11 @@ vm_mem_allocated(struct vcpu *vcpu, vm_paddr_t gpa)
 }
 
 int
-vm_alloc_memseg(struct vm *vm, int ident, size_t len, bool sysmem)
+vm_alloc_memseg(struct vm *vm, int ident, size_t len, bool sysmem,
+    struct domainset *obj_domainset)
 {
-	struct vm_mem *mem;
 	struct vm_mem_seg *seg;
+	struct vm_mem *mem;
 	vm_object_t obj;
 
 	mem = vm_mem(vm);
@@ -179,13 +196,22 @@ vm_alloc_memseg(struct vm *vm, int ident, size_t len, bool sysmem)
 			return (EINVAL);
 	}
 
+	/*
+	 * When given an impossible policy, signal an
+	 * error to the user.
+	 */
+	if (obj_domainset != NULL && domainset_empty_vm(obj_domainset))
+		return (EINVAL);
 	obj = vm_object_allocate(OBJT_SWAP, len >> PAGE_SHIFT);
 	if (obj == NULL)
 		return (ENOMEM);
 
 	seg->len = len;
 	seg->object = obj;
+	if (obj_domainset != NULL)
+		seg->object->domain.dr_policy = obj_domainset;
 	seg->sysmem = sysmem;
+
 	return (0);
 }
 
@@ -235,7 +261,7 @@ vm_mmap_memseg(struct vm *vm, vm_paddr_t gpa, int segid, vm_ooffset_t first,
 	struct vm_mem *mem;
 	struct vm_mem_seg *seg;
 	struct vm_mem_map *m, *map;
-	struct vmspace *vmspace;
+	struct vm_map *vmmap;
 	vm_ooffset_t last;
 	int i, error;
 
@@ -253,8 +279,10 @@ vm_mmap_memseg(struct vm *vm, vm_paddr_t gpa, int segid, vm_ooffset_t first,
 	if (seg->object == NULL)
 		return (EINVAL);
 
+	if (first + len < first || gpa + len < gpa)
+		return (EINVAL);
 	last = first + len;
-	if (first < 0 || first >= last || last > seg->len)
+	if (first >= last || last > seg->len)
 		return (EINVAL);
 
 	if ((gpa | first | last) & PAGE_MASK)
@@ -271,19 +299,20 @@ vm_mmap_memseg(struct vm *vm, vm_paddr_t gpa, int segid, vm_ooffset_t first,
 	if (map == NULL)
 		return (ENOSPC);
 
-	vmspace = vm_vmspace(vm);
-	error = vm_map_find(&vmspace->vm_map, seg->object, first, &gpa,
-	    len, 0, VMFS_NO_SPACE, prot, prot, 0);
+	vmmap = &mem->mem_vmspace->vm_map;
+	vm_map_lock(vmmap);
+	error = vm_map_insert(vmmap, seg->object, first, gpa, gpa + len,
+	    prot, prot, 0);
+	vm_map_unlock(vmmap);
 	if (error != KERN_SUCCESS)
-		return (EFAULT);
-
+		return (vm_mmap_to_errno(error));
 	vm_object_reference(seg->object);
 
 	if (flags & VM_MEMMAP_F_WIRED) {
-		error = vm_map_wire(&vmspace->vm_map, gpa, gpa + len,
+		error = vm_map_wire(vmmap, gpa, gpa + len,
 		    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
 		if (error != KERN_SUCCESS) {
-			vm_map_remove(&vmspace->vm_map, gpa, gpa + len);
+			vm_map_remove(vmmap, gpa, gpa + len);
 			return (error == KERN_RESOURCE_SHORTAGE ? ENOMEM :
 			    EFAULT);
 		}

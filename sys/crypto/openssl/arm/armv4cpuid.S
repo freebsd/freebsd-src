@@ -269,5 +269,5 @@ atomic_add_spinlock:
 .word	0
 #endif
 
-.comm	OPENSSL_armcap_P,4,4
+
 .hidden	OPENSSL_armcap_P

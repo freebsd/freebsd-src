@@ -63,6 +63,13 @@ STAGE_TARGETS+=		oci-images-stage
 OCI_DIR=		${TLD}/OCI-IMAGES/${REVISION}-${BRANCH}/${TARGET_ARCH}
 .endif
 
+.if !defined(EMBEDDED) || empty(EMBEDDED)
+.if !defined(NOPKGBASE) || empty(NOPKGBASE)
+STAGE_TARGETS+=		pkgbase-repo-stage
+PKGBASE_DIR=		${TLD}/PKGBASE-REPOS/${REVISION}-${BRANCH}/${TARGET_ARCH}
+.endif
+.endif
+
 CLEANFILES+=		${STAGE_TARGETS}
 CHECKSUM_FILES?=	SHA512 SHA256
 SNAP_SUFFIX!=		echo ${_SNAP_SUFFIX:S,^-,,1} | tr -d ' '
@@ -363,6 +370,48 @@ oci-images-stage:
 		${CHECKSUM:tl} ${OSRELEASE}* > CHECKSUM.${CHECKSUM}
 	cp -p ${RELEASEDIR}/ociimages/CHECKSUM.${CHECKSUM} \
 		${OCI_DIR}/Latest/CHECKSUM.${CHECKSUM}
+. endfor
+.endif
+
+pkgbase-repo-stage:
+	mkdir -p ${PKGBASE_DIR}
+.if defined(SNAPSHOT) && !empty(SNAPSHOT)
+. if exists(${PKGBASE_DIR}/Latest)
+	rm -rf ${PKGBASE_DIR}/Latest
+. endif
+	mkdir -p ${PKGBASE_DIR}/Latest
+	mkdir -p ${PKGBASE_DIR}/${BUILDDATE}
+	cd ${RELEASEDIR}/pkgbase && \
+		mv pkgbase-repo.tar ${OSRELEASE}-pkgbase-repo-${SNAP_SUFFIX}.tar
+	cp -p ${RELEASEDIR}/pkgbase/${OSRELEASE}-pkgbase-repo-${SNAP_SUFFIX}.tar \
+		${PKGBASE_DIR}/${BUILDDATE}/${OSRELEASE}-pkgbase-repo-${SNAP_SUFFIX}.tar
+	cd ${PKGBASE_DIR}/Latest && \
+		ln -s ../${BUILDDATE}/${OSRELEASE}-pkgbase-repo-${SNAP_SUFFIX}.tar \
+		${OSRELEASE}-pkgbase-repo.tar
+	cd ${RELEASEDIR}/pkgbase && rm -f CHECKSUM.*
+. for CHECKSUM in ${CHECKSUM_FILES}
+	cd ${RELEASEDIR}/pkgbase && \
+		${CHECKSUM:tl} ${OSRELEASE}-pkgbase-repo-*.tar > CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
+	cp -p ${RELEASEDIR}/pkgbase/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX} \
+		${PKGBASE_DIR}/${BUILDDATE}/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
+	cd ${PKGBASE_DIR}/Latest && \
+		ln -s ../${BUILDDATE}/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX} \
+		CHECKSUM.${CHECKSUM}
+. endfor
+.else # not snapshot
+. if exists(${PKGBASE_DIR}/Latest)
+	rm -rf ${PKGBASE_DIR}/Latest
+. endif
+	mkdir -p ${PKGBASE_DIR}/Latest
+	cd ${RELEASEDIR}/pkgbase && \
+		mv pkgbase-repo.tar ${OSRELEASE}-pkgbase-repo.tar
+	cp -p ${RELEASEDIR}/pkgbase/${OSRELEASE}-pkgbase-repo.tar \
+		${PKGBASE_DIR}/Latest/${OSRELEASE}-pkgbase-repo.tar
+. for CHECKSUM in ${CHECKSUM_FILES}
+	cd ${RELEASEDIR}/pkgbase && \
+		${CHECKSUM:tl} ${OSRELEASE}-pkgbase-repo.tar > CHECKSUM.${CHECKSUM}
+	cp -p ${RELEASEDIR}/pkgbase/CHECKSUM.${CHECKSUM} \
+		${PKGBASE_DIR}/Latest/CHECKSUM.${CHECKSUM}
 . endfor
 .endif
 

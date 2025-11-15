@@ -571,7 +571,7 @@ threadinit(void)
 
 	/*
 	 * Thread structures are specially aligned so that (at least) the
-	 * 5 lower bits of a pointer to 'struct thead' must be 0.  These bits
+	 * 5 lower bits of a pointer to 'struct thread' must be 0.  These bits
 	 * are used by synchronization primitives to store flags in pointers to
 	 * such structures.
 	 */
@@ -1447,6 +1447,14 @@ thread_suspend_check(int return_instead)
 		}
 
 		/*
+		 * We might get here with return_instead == 1 if
+		 * other checks missed it.  Then we must not suspend
+		 * regardless of P_SHOULDSTOP() or debugger request.
+		 */
+		if (return_instead)
+			return (EINTR);
+
+		/*
 		 * If the process is waiting for us to exit,
 		 * this thread should just suicide.
 		 * Assumes that P_SINGLE_EXIT implies P_STOPPED_SINGLE.
@@ -1481,10 +1489,9 @@ thread_suspend_check(int return_instead)
 		 * gets taken off all queues.
 		 */
 		thread_suspend_one(td);
-		if (return_instead == 0) {
-			p->p_boundary_count++;
-			td->td_flags |= TDF_BOUNDARY;
-		}
+		MPASS(!return_instead);
+		p->p_boundary_count++;
+		td->td_flags |= TDF_BOUNDARY;
 		PROC_SUNLOCK(p);
 		mi_switch(SW_INVOL | SWT_SUSPEND);
 		PROC_LOCK(p);
@@ -1694,8 +1701,10 @@ thread_single_end(struct proc *p, int mode)
 				thread_unlock(td);
 		}
 	}
-	KASSERT(mode != SINGLE_BOUNDARY || p->p_boundary_count == 0,
-	    ("inconsistent boundary count %d", p->p_boundary_count));
+	KASSERT(mode != SINGLE_BOUNDARY || P_SHOULDSTOP(p) ||
+	    p->p_boundary_count == 0,
+	    ("pid %d proc %p flags %#x inconsistent boundary count %d",
+	    p->p_pid, p, p->p_flag, p->p_boundary_count));
 	PROC_SUNLOCK(p);
 	wakeup(&p->p_flag);
 }

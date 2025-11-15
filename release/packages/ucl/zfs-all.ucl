@@ -1,4 +1,49 @@
-comment = "ZFS Libraries and Utilities"
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
+ * Note: Do not include text from the ZFS manpages here, since they are
+ * licensed under the CDDL.
+ */
+
+comment = "ZFS filesystem support"
+
 desc = <<EOD
-ZFS Libraries and Utilities
+ZFS is an advanced filesystem originally developed by Sun Microsystems
+for the Solaris Operating Environment.  This implementation of ZFS is
+developed by the OpenZFS project, and was originally derived from the
+OpenSolaris operating system.
+
+ZFS provides a number of features not found in traditional filesystems,
+including integrated data redundancy using mirroring, striping and parity,
+checksumming of on-disk data with real-time self-repair, data encryption,
+compression, deduplication, cheap snapshots and cloning, and hierarchical
+(tiered) storage.
+
+This package provides the zfs(8) and zpool(8) utilities used to manage
+ZFS filesystems, the zfsd(8) self-healing daemon, and several other
+utilities, as well as the runtime libraries used internally by ZFS
+itself, and the libzfs_core library providing a stable interface for
+managing ZFS programmatically.
 EOD
+
+licenses = [ "CDDL-1.0" ]
+
+annotations {
+	set = minimal
+}

@@ -1,7 +1,7 @@
-/*	$Id: tbl.h,v 1.3 2025/01/05 18:14:39 schwarze Exp $ */
+/* $Id: tbl.h,v 1.4 2025/07/16 14:33:08 schwarze Exp $ */
 /*
+ * Copyright (c) 2014-2018, 2021, 2025 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014,2015,2017,2018,2021 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -27,8 +27,8 @@ struct	tbl_opts {
 #define	TBL_OPT_NOSPACE	 (1 << 6)  /* Option "nospaces". */
 #define	TBL_OPT_NOWARN	 (1 << 7)  /* Option "nowarn". */
 	int		  cols;    /* Number of columns. */
-	int		  lvert;   /* Width of left vertical line. */
-	int		  rvert;   /* Width of right vertical line. */
+	int		  lvert;   /* Width of left vertical line in EN. */
+	int		  rvert;   /* Width of right vertical line in EN. */
 	char		  tab;     /* Option "tab": cell separator. */
 	char		  decimal; /* Option "decimalpoint". */
 };
@@ -51,9 +51,9 @@ enum	tbl_cellt {
  */
 struct	tbl_cell {
 	struct tbl_cell	 *next;     /* Layout cell to the right. */
-	size_t		  width;    /* Minimum column width. */
-	size_t		  spacing;  /* To the right of the column. */
-	int		  vert;     /* Width of subsequent vertical line. */
+	size_t		  width;    /* Minimum column width in basic units. */
+	size_t		  spacing;  /* To the right of the column in EN. */
+	int		  vert;     /* Width of subseq. vertical line in EN. */
 	int		  col;      /* Column number, starting from 0. */
 	int		  flags;
 #define	TBL_CELL_TALIGN	 (1 << 2)   /* t, T */
@@ -73,7 +73,7 @@ struct	tbl_row {
 	struct tbl_row	 *next;   /* Layout row below. */
 	struct tbl_cell	 *first;  /* Leftmost layout cell. */
 	struct tbl_cell	 *last;   /* Rightmost layout cell. */
-	int		  vert;   /* Width of left vertical line. */
+	int		  vert;   /* Width of left vertical line in EN. */
 };
 
 enum	tbl_datt {

@@ -13,9 +13,7 @@ SRCS=	sshd-session.c auth-rhosts.c auth-passwd.c \
 	auth2-gss.c gss-serv.c gss-serv-krb5.c \
 	loginrec.c auth-pam.c auth-shadow.c auth-sia.c \
 	sftp-server.c sftp-common.c \
-	sandbox-null.c sandbox-rlimit.c sandbox-systrace.c sandbox-darwin.c \
-	sandbox-seccomp-filter.c sandbox-capsicum.c sandbox-pledge.c \
-	sandbox-solaris.c uidswap.c $(SKSRCS)
+	uidswap.c platform-listen.c $(SKSRCS)
 PACKAGE=	ssh
 
 # gss-genr.c really belongs in libssh; see src/secure/lib/libssh/Makefile
@@ -31,23 +29,22 @@ CFLAGS+= -DUSE_BSM_AUDIT=1 -DHAVE_GETAUDIT_ADDR=1
 LIBADD+=	bsm
 .endif
 
-.if ${MK_BLACKLIST_SUPPORT} != "no"
-CFLAGS+= -DUSE_BLACKLIST=1 -I${SRCTOP}/contrib/blocklist/include
-SRCS+=	blacklist.c
-LIBADD+= blacklist
-LDFLAGS+=-L${LIBBLACKLISTDIR}
+.if ${MK_BLOCKLIST_SUPPORT} != "no"
+CFLAGS+= -DUSE_BLOCKLIST=1 -I${SRCTOP}/contrib/blocklist/include
+SRCS+=	blocklist.c
+LIBADD+= blocklist
+LDFLAGS+=-L${LIBBLOCKLISTDIR}
 .endif
 
-.if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
-LIBADD+=	gssapi_krb5 gssapi krb5
+.if ${MK_KERBEROS_SUPPORT} != "no"
 .if ${MK_MITKRB5} != "no"
+LIBADD+=	gssapi_krb5 krb5
 .include "../../krb5/Makefile.inc"
 CFLAGS+=	-I${KRB5_DIR}/include \
 		-I${KRB5_SRCTOP}/include \
-		-I${KRB5_OBJTOP}/lib \
-		-I${KRB5_DIR}/lib/gssapi/generic \
-		-I${KRB5_DIR}/lib/gssapi/krb5 \
-		-I${KRB5_DIR}/lib/gssapi/mechglue
+		-I${KRB5_OBJTOP}/lib
+.else
+LIBADD+=	gssapi_krb5 gssapi krb5
 .endif
 .endif
 

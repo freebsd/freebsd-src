@@ -75,6 +75,7 @@ enum net_proto {
 
 extern	u_char bcea[6];
 extern	char rootpath[FNAME_SIZE];
+extern  int rootport;
 extern	char bootfile[FNAME_SIZE];
 extern	char hostname[FNAME_SIZE];
 extern	int hostnamelen;

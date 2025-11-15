@@ -1,7 +1,7 @@
-/* $Id: mandocd.c,v 1.13 2022/04/14 16:43:44 schwarze Exp $ */
+/* $Id: mandocd.c,v 1.15 2025/06/30 15:04:57 schwarze Exp $ */
 /*
+ * Copyright (c) 2017-2019, 2022, 2025 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2017 Michael Stapelberg <stapelberg@debian.org>
- * Copyright (c) 2017, 2019, 2021 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -27,11 +27,14 @@
 #if HAVE_ERR
 #include <err.h>
 #endif
+#include <errno.h>
 #include <limits.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "mandoc.h"
@@ -61,6 +64,7 @@ static	void	  usage(void) __attribute__((__noreturn__));
 static int
 read_fds(int clientfd, int *fds)
 {
+	const struct timespec timeout = { 0, 10000000 };  /* 0.01 s */
 	struct msghdr	 msg;
 	struct iovec	 iov[1];
 	unsigned char	 dummy[1];
@@ -98,6 +102,15 @@ read_fds(int clientfd, int *fds)
 		break;
 	}
 
+	*dummy = '\0';
+	while (send(clientfd, dummy, sizeof(dummy), 0) == -1) {
+		if (errno != EAGAIN) {
+			warn("send");
+			return -1;
+		}
+		nanosleep(&timeout, NULL);
+	}
+
 	if ((cmsg = CMSG_FIRSTHDR(&msg)) == NULL) {
 		warnx("CMSG_FIRSTHDR: missing control message");
 		return -1;
@@ -120,6 +133,7 @@ read_fds(int clientfd, int *fds)
 int
 main(int argc, char *argv[])
 {
+	struct sigaction	 sa;
 	struct manoutput	 options;
 	struct mparse		*parser;
 	void			*formatter;
@@ -170,13 +184,25 @@ main(int argc, char *argv[])
 		argc -= optind;
 		argv += optind;
 	}
-	if (argc != 1)
+	if (argc != 1) {
+		if (argc == 0)
+			warnx("missing argument: socket_fd");
+		else
+			warnx("too many arguments: %s", argv[1]);
 		usage();
+	}
 
 	errstr = NULL;
 	clientfd = strtonum(argv[0], 3, INT_MAX, &errstr);
 	if (errstr)
-		errx(1, "file descriptor %s %s", argv[1], errstr);
+		errx(1, "file descriptor %s is %s", argv[0], errstr);
+
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = SIG_IGN;
+	if (sigfillset(&sa.sa_mask) == -1)
+		err(1, "sigfillset");
+	if (sigaction(SIGPIPE, &sa, NULL) == -1)
+		err(1, "sigaction(SIGPIPE)");
 
 	mchars_alloc();
 	parser = mparse_alloc(MPARSE_SO | MPARSE_UTF8 | MPARSE_LATIN1 |

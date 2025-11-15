@@ -35,7 +35,8 @@ k5_os_hostaddr(krb5_context context, const char *name,
 {
     krb5_error_code     retval;
     krb5_address        **addrs = NULL;
-    int                 i, j, r;
+    size_t              i, j;
+    int                 r;
     struct addrinfo hints, *ai = NULL, *aip;
 
     if (!name)
@@ -76,7 +77,7 @@ k5_os_hostaddr(krb5_context context, const char *name,
         addrs[j] = 0;
 
     for (i = 0, aip = ai; aip; aip = aip->ai_next) {
-        void *ptr;
+        const void *ptr;
         size_t addrlen;
         int atype;
 

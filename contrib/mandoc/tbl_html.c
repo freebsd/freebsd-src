@@ -1,4 +1,4 @@
-/* $Id: tbl_html.c,v 1.41 2022/04/23 14:02:17 schwarze Exp $ */
+/* $Id: tbl_html.c,v 1.42 2025/07/16 14:33:08 schwarze Exp $ */
 /*
  * Copyright (c) 2014, 2015, 2017, 2018, 2021, 2022
  *               Ingo Schwarze <schwarze@openbsd.org>
@@ -37,7 +37,6 @@
 static	void	 html_tblopen(struct html *, const struct tbl_span *);
 static	size_t	 html_tbl_len(size_t, void *);
 static	size_t	 html_tbl_strlen(const char *, void *);
-static	size_t	 html_tbl_sulen(const struct roffsu *, void *);
 
 
 static size_t
@@ -52,36 +51,6 @@ html_tbl_strlen(const char *p, void *arg)
 	return strlen(p);
 }
 
-static size_t
-html_tbl_sulen(const struct roffsu *su, void *arg)
-{
-	if (su->scale < 0.0)
-		return 0;
-
-	switch (su->unit) {
-	case SCALE_FS:  /* 2^16 basic units */
-		return su->scale * 65536.0 / 24.0;
-	case SCALE_IN:  /* 10 characters per inch */
-		return su->scale * 10.0;
-	case SCALE_CM:  /* 2.54 cm per inch */
-		return su->scale * 10.0 / 2.54;
-	case SCALE_PC:  /* 6 pica per inch */
-	case SCALE_VS:
-		return su->scale * 10.0 / 6.0;
-	case SCALE_EN:
-	case SCALE_EM:
-		return su->scale;
-	case SCALE_PT:  /* 12 points per pica */
-		return su->scale * 10.0 / 6.0 / 12.0;
-	case SCALE_BU:  /* 24 basic units per character */
-		return su->scale / 24.0;
-	case SCALE_MM:  /* 1/1000 inch */
-		return su->scale / 100.0;
-	default:
-		abort();
-	}
-}
-
 static void
 html_tblopen(struct html *h, const struct tbl_span *sp)
 {
@@ -89,7 +58,6 @@ html_tblopen(struct html *h, const struct tbl_span *sp)
 	if (h->tbl.cols == NULL) {
 		h->tbl.len = html_tbl_len;
 		h->tbl.slen = html_tbl_strlen;
-		h->tbl.sulen = html_tbl_sulen;
 		tblcalc(&h->tbl, sp, 0, 0);
 	}
 	assert(NULL == h->tblt);

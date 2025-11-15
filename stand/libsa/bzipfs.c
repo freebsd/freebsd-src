@@ -68,6 +68,7 @@ static int	bzf_stat(struct open_file *f, struct stat *sb);
 #ifndef REGRESSION
 struct fs_ops bzipfs_fsops = {
 	.fs_name = "bzip",
+	.fs_flags = 0,
 	.fo_open = bzf_open,
 	.fo_close = bzf_close,
 	.fo_read = bzf_read,

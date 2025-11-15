@@ -117,7 +117,7 @@ end
 
 local function usage(from_branch, to_branch, author)
 	local script_name = arg[0]:match("([^/]+)$")
-	print(script_name .. " [-ah] [-f from_branch] [-t to_branch] [-u user] [-X exclude_file] [path ...]")
+	print(script_name .. " [-ah] [-F git-show-fmt] [-f from_branch] [-t to_branch] [-u user] [-X exclude_file] [path ...]")
 	print()
 	params(from_branch, to_branch, author)
 end
@@ -129,16 +129,18 @@ local function main()
 	local author = os.getenv("USER") or ""
 	local dirspec = nil
 
-	local url = exec_command("git remote get-url freebsd")
-	local freebsd_repo = string.match(url, "[^/]+$")
-	freebsd_repo = string.gsub(freebsd_repo, ".git$", "")
+	local url = exec_command("git remote get-url freebsd 2>/dev/null")
+	local freebsd_repo
+	if url and url ~= "" then
+		freebsd_repo = string.match(url, "[^/]+$")
+		freebsd_repo = string.gsub(freebsd_repo, "%.git$", "")
+	end
 	if freebsd_repo == "ports" or freebsd_repo == "freebsd-ports" then
 		local year = os.date("%Y")
 		local month = os.date("%m")
 		local qtr = math.ceil(month / 3)
 		to_branch = "freebsd/" .. year .. "Q" .. qtr
 	elseif freebsd_repo == "src" or freebsd_repo == "freebsd-src" then
-		to_branch = "freebsd/stable/14"
 		-- If pwd is a stable or release branch tree, default to it.
 		local cur_branch = exec_command("git symbolic-ref --short HEAD")
 		if string.match(cur_branch, "^stable/") then
@@ -147,6 +149,11 @@ local function main()
 			to_branch = cur_branch
 			local major = string.match(cur_branch, "%d+")
 			from_branch = "freebsd/stable/" .. major
+		else
+			-- Use latest stable branch.
+			to_branch = exec_command("git for-each-ref --sort=-v:refname " ..
+				"--format='%(refname:lstrip=2)' " ..
+				"refs/remotes/freebsd/stable/* --count=1")
 		end
 	else
 		print("pwd is not under a ports or src repository.")
@@ -155,6 +162,7 @@ local function main()
 
 	local do_help = false
 	local exclude_file = nil
+	local gitshowfmt = '%h %s'
 	local i = 1
 	while i <= #arg and arg[i] do
 		local opt = arg[i]
@@ -174,6 +182,9 @@ local function main()
 			i = i + 1
 		elseif opt == "-v" then
 			verbose = verbose + 1
+		elseif opt == "-F" then
+			gitshowfmt = arg[i + 1]
+			i = i + 1
 		elseif opt == "-X" then
 			exclude_file = arg[i + 1]
 			i = i + 1
@@ -210,7 +221,7 @@ local function main()
 
 	-- Print the result
 	for _, hash in ipairs(result_hashes) do
-		print(exec_command("git show --pretty='%h %s' --no-patch " .. hash))
+		print(exec_command("git show --pretty='" .. gitshowfmt .. "' --no-patch " .. hash))
 	end
 end
 

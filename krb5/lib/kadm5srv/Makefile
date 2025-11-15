@@ -1,5 +1,5 @@
 #
-# SPDX-License-Idendifier: BSD-2-Clause
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2025 FreeBSD Foundation
 #
@@ -10,14 +10,14 @@
 .include <src.opts.mk>
 
 .include "../Makefile.inc"
+.include "${KRB5_SRCTOP}/Makefile.pc"
 
 LIB=		kadm5srv_mit
-# SHLIB_MAJOR=	12
-LDFLAGS=-Wl,--no-undefined
-LIBADD=	krb5profile gssrpc gssapi_krb5 kdb5 krb5 k5crypto krb5support com_err
+LDFLAGS=	-Wl,--no-undefined
+LIBADD=		krb5profile gssrpc gssapi_krb5 kdb5 krb5 k5crypto krb5support com_err
 VERSION_MAP=	${.CURDIR}/version.map
-
-INCSDIR=	${INCLUDEDIR}/kadm5
+PCFILES=	kadm-server.pc
+CLEANFILES+=	${PCFILES}
 
 SRCS=	alt_prof.c \
 	chpass_util.c \
@@ -29,10 +29,6 @@ SRCS=	alt_prof.c \
 	${GEN}
 
 .include "${KRB5_SRCTOP}/lib/kadm5srv/srv/Makefile.inc"
-
-INCS=	admin.h \
-	chpass_util_strings.h \
-	kadm_err.h
 
 GEN=	kadm_err.c kadm_err.h chpass_util_strings.c chpass_util_strings.h
 CLEANFILES=	${GEN} ${GENI}
@@ -46,11 +42,7 @@ CFLAGS+=-I${KRB5_DIR}/lib \
 	-I${KRB5_OBJTOP}/lib/gssapi \
 	-I${KRB5_DIR}/lib/gssapi/krb5 \
 	-I${KRB5_DIR}/lib/gssapi/generic
-
-HDRDIR=	${KRB5_OBJHDR}/kadm5
-HDRS=	${HDRDIR}/admin.h \
-	${HDRDIR}/chpass_util_strings.h \
-	${HDRDIR}/kadm_err.h
+CWARNFLAGS.gcc+=-Wno-alloc-size-larger-than
 
 GEN_KADM_ERR=	kadm_err.et
 GEN_KADM_ERR_C=	${GEN_KADM_ERR:S/.et$/.c/}
@@ -98,6 +90,9 @@ ${GEN_CHPASS_UTIL_STRINGS_C}: ${GEN_CHPASS_UTIL_STRINGS}
 
 .include <bsd.lib.mk>
 
+all: ${PCFILES}
+
 .SUFFIXES: .h .c .et
 
-.PATH:	${KRB5_DIR}/lib/kadm5
+.PATH:	${KRB5_DIR}/build-tools \
+	${KRB5_DIR}/lib/kadm5

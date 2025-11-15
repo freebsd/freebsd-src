@@ -591,6 +591,75 @@ ffs_create_image(const char *image, fsinfo_t *fsopts)
 	return (fsopts->fd);
 }
 
+static void
+ffs_add_size(fsinfo_t *fsopts, size_t file_len)
+{
+	ffs_opt_t	*ffs_opts = fsopts->fs_specific;
+	size_t		blocks, fs_nindir, overhead;
+	int		indir_level;
+
+	blocks = howmany(file_len, ffs_opts->bsize);
+
+	if (blocks <= UFS_NDADDR) {
+		/* Count full blocks. */
+		fsopts->size += rounddown2(file_len, ffs_opts->bsize);
+		/* Calculate fragment size needed. */
+		overhead = howmany(file_len -
+		    rounddown2(file_len, ffs_opts->bsize), ffs_opts->fsize);
+
+		/*
+		 * A file could have just 1 fragment with size 1/8, 1/4 or 1/2
+		 * of bsize.
+		 */
+		switch (overhead) {
+		case 0:
+			break;
+		case 1:
+			fsopts->size += ffs_opts->fsize;
+			break;
+		case 2:
+			fsopts->size += 2 * ffs_opts->fsize;
+			break;
+		case 3:
+		case 4:
+			fsopts->size += 4 * ffs_opts->fsize;
+			break;
+		default:
+			fsopts->size += ffs_opts->bsize;
+			break;
+		}
+		return;
+	}
+
+	/* File does not fit into direct blocks, count indirect blocks. */
+	blocks = howmany(file_len - UFS_NDADDR * (size_t)ffs_opts->bsize,
+	    ffs_opts->bsize);
+	fs_nindir = (size_t)ffs_opts->bsize / ((ffs_opts->version == 1) ?
+	    sizeof(ufs1_daddr_t) : sizeof(ufs2_daddr_t));
+
+	indir_level = overhead = 0;
+	while (blocks > 0 && indir_level < 3) {
+		/* One indirect block is stored in di_ib[] */
+		blocks = howmany(blocks, fs_nindir) - 1;
+		fsopts->size += ffs_opts->bsize * blocks;
+		overhead += blocks + 1;
+		indir_level++;
+	}
+
+	assert(blocks == 0);
+
+	if ((debug & DEBUG_FS_SIZE_DIR_NODE) != 0) {
+		printf("ffs_size_dir: size %jd, using %d levels of indirect "
+		    "blocks, overhead %jd blocks\n", (uintmax_t)file_len,
+		    indir_level, (uintmax_t)overhead);
+	}
+
+	/*
+	 * If the file is big enough to use indirect blocks,
+	 * we allocate bsize block for trailing data.
+	 */
+	fsopts->size += roundup2(file_len, ffs_opts->bsize);
+}
 
 static void
 ffs_size_dir(fsnode *root, fsinfo_t *fsopts)
@@ -622,20 +691,6 @@ ffs_size_dir(fsnode *root, fsinfo_t *fsopts)
 		    e, tmpdir.d_namlen, this, curdirsize);		\
 } while (0);
 
-#define	ADDSIZE(x) do {							\
-	if ((size_t)(x) < UFS_NDADDR * (size_t)ffs_opts->bsize) {	\
-		fsopts->size += roundup((x), ffs_opts->fsize);		\
-	} else {							\
-		/* Count space consumed by indirecttion blocks. */	\
-		fsopts->size +=	ffs_opts->bsize *			\
-		    (howmany((x), UFS_NDADDR * ffs_opts->bsize) - 1);	\
-		/*							\
-		 * If the file is big enough to use indirect blocks,	\
-		 * we allocate bsize block for trailing data.		\
-		 */							\
-		fsopts->size += roundup((x), ffs_opts->bsize);		\
-	}								\
-} while (0);
 
 	curdirsize = 0;
 	for (node = root; node != NULL; node = node->next) {
@@ -646,13 +701,13 @@ ffs_size_dir(fsnode *root, fsinfo_t *fsopts)
 		} else if ((node->inode->flags & FI_SIZED) == 0) {
 				/* don't count duplicate names */
 			node->inode->flags |= FI_SIZED;
-			if (debug & DEBUG_FS_SIZE_DIR_NODE)
+			if ((debug & DEBUG_FS_SIZE_DIR_NODE) != 0)
 				printf("ffs_size_dir: `%s' size %lld\n",
 				    node->name,
 				    (long long)node->inode->st.st_size);
 			fsopts->inodes++;
 			if (node->type == S_IFREG)
-				ADDSIZE(node->inode->st.st_size);
+				ffs_add_size(fsopts, node->inode->st.st_size);
 			if (node->type == S_IFLNK) {
 				size_t slen;
 
@@ -660,13 +715,16 @@ ffs_size_dir(fsnode *root, fsinfo_t *fsopts)
 				if (slen >= (ffs_opts->version == 1 ?
 						UFS1_MAXSYMLINKLEN :
 						UFS2_MAXSYMLINKLEN))
-					ADDSIZE(slen);
+					ffs_add_size(fsopts, slen);
 			}
 		}
 		if (node->type == S_IFDIR)
 			ffs_size_dir(node->child, fsopts);
 	}
-	ADDSIZE(curdirsize);
+	ffs_add_size(fsopts, curdirsize);
+
+	/* Round up to full block to account fragment scattering. */
+	fsopts->size = roundup2(fsopts->size, ffs_opts->bsize);
 
 	if (debug & DEBUG_FS_SIZE_DIR)
 		printf("ffs_size_dir: exit: size %lld inodes %lld\n",

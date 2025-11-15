@@ -103,3 +103,4 @@ krb5_c_prfplus
 krb5_c_derive_prfplus
 k5_enctype_to_ssf
 krb5int_c_deprecated_enctype
+k5_hmac_md5

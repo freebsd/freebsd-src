@@ -383,18 +383,18 @@ struct ifg_group {
 	char				 ifg_group[IFNAMSIZ];
 	u_int				 ifg_refcnt;
 	void				*ifg_pf_kif;
-	CK_STAILQ_HEAD(, ifg_member)	 ifg_members; /* (CK_) */
-	CK_STAILQ_ENTRY(ifg_group)		 ifg_next; /* (CK_) */
+	CK_STAILQ_HEAD(, ifg_member)	 ifg_members;
+	CK_STAILQ_ENTRY(ifg_group)	 ifg_next;
 };
 
 struct ifg_member {
-	CK_STAILQ_ENTRY(ifg_member)	 ifgm_next; /* (CK_) */
+	CK_STAILQ_ENTRY(ifg_member)	 ifgm_next;
 	if_t				 ifgm_ifp;
 };
 
 struct ifg_list {
 	struct ifg_group	*ifgl_group;
-	CK_STAILQ_ENTRY(ifg_list)	 ifgl_next; /* (CK_) */
+	CK_STAILQ_ENTRY(ifg_list)	 ifgl_next;
 };
 
 #ifdef _SYS_EVENTHANDLER_H_
@@ -622,6 +622,7 @@ int if_setmtu(if_t ifp, int mtu);
 int if_getmtu(const if_t ifp);
 int if_getmtu_family(const if_t ifp, int family);
 void if_notifymtu(if_t ifp);
+void if_setppromisc(const if_t ifp, bool ppromisc);
 int if_setflagbits(if_t ifp, int set, int clear);
 int if_setflags(if_t ifp, int flags);
 int if_getflags(const if_t ifp);

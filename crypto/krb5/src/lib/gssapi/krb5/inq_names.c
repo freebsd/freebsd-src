@@ -27,10 +27,8 @@
 #include "gssapiP_krb5.h"
 
 OM_uint32 KRB5_CALLCONV
-krb5_gss_inquire_names_for_mech(minor_status, mechanism, name_types)
-    OM_uint32   *minor_status;
-    gss_OID     mechanism;
-    gss_OID_set *name_types;
+krb5_gss_inquire_names_for_mech(OM_uint32 *minor_status, gss_OID mechanism,
+                                gss_OID_set *name_types)
 {
     OM_uint32   major, minor;
 

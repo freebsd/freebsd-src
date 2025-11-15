@@ -32,12 +32,12 @@
 
 . ../default.cfg
 
+[ `sysctl -n kern.maxproc` -gt 37028 ] && exit 0	# Excessive run time
 here=`pwd`
 cd /tmp
 sed '1,/^EOF/d' < $here/$0 > maxproc.c
 mycc -o maxproc -Wall -Wextra maxproc.c -lkvm || exit 1
 rm -f maxproc.c
-[ `sysctl -n kern.maxproc` -gt 37028 ] && exit 0	# Excessive run time
 cd $here
 
 /tmp/maxproc
@@ -103,7 +103,7 @@ t1(int priv)
 			err(1, "no such user: nobody");
 
 		if (priv == 0) {
-			if (setgroups(1, &pw->pw_gid) ||
+			if (setgroups(0, NULL) ||
 			    setegid(pw->pw_gid) || setgid(pw->pw_gid) ||
 			    seteuid(pw->pw_uid) || setuid(pw->pw_uid))
 				err(1, "Can't drop privileges to \"nobody\"");

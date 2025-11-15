@@ -15,7 +15,7 @@ mlx5_en_rl.c \
 mlx5_en_txrx.c \
 mlx5_en_port_buffer.c
 SRCS+=	${LINUXKPI_GENSRCS}
-SRCS+=	opt_inet.h opt_inet6.h opt_rss.h opt_ratelimit.h opt_kern_tls.h
+SRCS+=	opt_inet.h opt_inet6.h opt_ipsec.h opt_rss.h opt_ratelimit.h opt_kern_tls.h
 
 .if defined(HAVE_PER_CQ_EVENT_PACKET)
 CFLAGS+= -DHAVE_PER_CQ_EVENT_PACKET

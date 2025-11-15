@@ -47,6 +47,7 @@
 
 #include "k5-platform.h"
 #include "k5-buf.h"
+#include "k5-input.h"
 
 /** helper macros **/
 
@@ -66,14 +67,10 @@
 /** helper functions **/
 
 /* hide names from applications, especially glib applications */
-#define g_set_init              gssint_g_set_init
-#define g_set_destroy           gssint_g_set_destroy
-#define g_set_entry_add         gssint_g_set_entry_add
-#define g_set_entry_delete      gssint_g_set_entry_delete
-#define g_set_entry_get         gssint_g_set_entry_get
 #define g_make_string_buffer    gssint_g_make_string_buffer
 #define g_token_size            gssint_g_token_size
 #define g_make_token_header     gssint_g_make_token_header
+#define g_get_token_header      gssint_g_get_token_header
 #define g_verify_token_header   gssint_g_verify_token_header
 #define g_display_major_status  gssint_g_display_major_status
 #define g_display_com_err_status gssint_g_display_com_err_status
@@ -84,38 +81,8 @@
 #define g_seqstate_externalize  gssint_g_seqstate_externalize
 #define g_seqstate_internalize  gssint_g_seqstate_internalize
 #define g_canonicalize_host     gssint_g_canonicalize_host
-#define g_local_host_name       gssint_g_local_host_name
-#define g_strdup                gssint_g_strdup
-
-typedef struct _g_set_elt *g_set_elt;
-typedef struct {
-    k5_mutex_t mutex;
-    void *data;
-} g_set;
-#define G_SET_INIT { K5_MUTEX_PARTIAL_INITIALIZER, 0 }
 
 typedef struct g_seqnum_state_st *g_seqnum_state;
-
-int g_set_init (g_set_elt *s);
-int g_set_destroy (g_set_elt *s);
-int g_set_entry_add (g_set_elt *s, void *key, void *value);
-int g_set_entry_delete (g_set_elt *s, void *key);
-int g_set_entry_get (g_set_elt *s, void *key, void **value);
-
-int g_save_name (g_set *vdb, gss_name_t name);
-int g_save_cred_id (g_set *vdb, gss_cred_id_t cred);
-int g_save_ctx_id (g_set *vdb, gss_ctx_id_t ctx);
-int g_save_lucidctx_id (g_set *vdb, void *lctx);
-
-int g_validate_name (g_set *vdb, gss_name_t name);
-int g_validate_cred_id (g_set *vdb, gss_cred_id_t cred);
-int g_validate_ctx_id (g_set *vdb, gss_ctx_id_t ctx);
-int g_validate_lucidctx_id (g_set *vdb, void *lctx);
-
-int g_delete_name (g_set *vdb, gss_name_t name);
-int g_delete_cred_id (g_set *vdb, gss_cred_id_t cred);
-int g_delete_ctx_id (g_set *vdb, gss_ctx_id_t ctx);
-int g_delete_lucidctx_id (g_set *vdb, void *lctx);
 
 int g_make_string_buffer (const char *str, gss_buffer_t buffer);
 
@@ -124,14 +91,10 @@ unsigned int g_token_size (const gss_OID_desc * mech, unsigned int body_size);
 void g_make_token_header (struct k5buf *buf, const gss_OID_desc *mech,
                           size_t body_size, int tok_type);
 
-/* flags for g_verify_token_header() */
-#define G_VFY_TOKEN_HDR_WRAPPER_REQUIRED        0x01
+int g_get_token_header (struct k5input *in, gss_OID oid_out,
+                        size_t *token_len_out);
 
-gss_int32 g_verify_token_header (const gss_OID_desc * mech,
-                                 unsigned int *body_size,
-                                 unsigned char **buf, int tok_type,
-                                 unsigned int toksize_in,
-                                 int flags);
+int g_verify_token_header(struct k5input *in, gss_const_OID expected_mech);
 
 OM_uint32 g_display_major_status (OM_uint32 *minor_status,
                                   OM_uint32 status_value,
@@ -151,8 +114,6 @@ long g_seqstate_externalize(g_seqnum_state state, unsigned char **buf,
                             size_t *lenremain);
 long g_seqstate_internalize(g_seqnum_state *state_out, unsigned char **buf,
                             size_t *lenremain);
-
-char *g_strdup (char *str);
 
 /** declarations of internal name mechanism functions **/
 

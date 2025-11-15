@@ -1,6 +1,6 @@
 .include <src.opts.mk>
 
-PACKAGE=	kernel
+MANPACKAGE=	kernel-man
 
 MAN=	accept_filter.9 \
 	accf_data.9 \
@@ -69,6 +69,7 @@ MAN=	accept_filter.9 \
 	config_intrhook.9 \
 	contigmalloc.9 \
 	copy.9 \
+	coredumper_register.9 \
 	counter.9 \
 	cpu_machdep.9 \
 	cpuset.9 \
@@ -89,6 +90,7 @@ MAN=	accept_filter.9 \
 	DECLARE_MODULE.9 \
 	DEFINE_IFUNC.9 \
 	DELAY.9 \
+	deadfs.9 \
 	devclass.9 \
 	devclass_find.9 \
 	devclass_get_device.9 \
@@ -148,6 +150,7 @@ MAN=	accept_filter.9 \
 	EVENTHANDLER.9 \
 	eventtimers.9 \
 	extattr.9 \
+	exterror.9 \
 	fail.9 \
 	fdt_pinctrl.9 \
 	fetch.9 \
@@ -416,7 +419,7 @@ MAN=	accept_filter.9 \
 	vn_deallocate.9 \
 	vn_fullpath.9 \
 	vn_isdisk.9 \
-	vnet.9 \
+	VNET.9 \
 	vnode.9 \
 	vnode_pager_setsize.9 \
 	vnode_pager_purge_range.9 \
@@ -905,6 +908,7 @@ MLINKS+=copy.9 copyin.9 \
 	copy.9 copyout.9 \
 	copy.9 copyout_nofault.9 \
 	copy.9 copystr.9
+MLINKS+=coredumper_register.9 coredumper_unregister.9
 MLINKS+=counter.9 counter_u64_alloc.9 \
 	counter.9 counter_u64_free.9 \
 	counter.9 counter_u64_add.9 \
@@ -2205,6 +2209,7 @@ MLINKS+=syscall_helper_register.9 syscall_helper_unregister.9 \
 	syscall_helper_register.9 SYSCALL_INIT_HELPER_COMPAT_F.9 \
 	syscall_helper_register.9 SYSCALL_INIT_HELPER_F.9
 MLINKS+=sysctl.9 SYSCTL_DECL.9 \
+	sysctl.9 SYSCTL_ADD_BOOL.9 \
 	sysctl.9 SYSCTL_ADD_CONST_STRING.9 \
 	sysctl.9 SYSCTL_ADD_INT.9 \
 	sysctl.9 SYSCTL_ADD_LONG.9 \
@@ -2231,6 +2236,7 @@ MLINKS+=sysctl.9 SYSCTL_DECL.9 \
 	sysctl.9 SYSCTL_ADD_UMA_CUR.9 \
 	sysctl.9 SYSCTL_ADD_UMA_MAX.9 \
 	sysctl.9 SYSCTL_ADD_UQUAD.9 \
+	sysctl.9 SYSCTL_BOOL.9 \
 	sysctl.9 SYSCTL_CHILDREN.9 \
 	sysctl.9 SYSCTL_STATIC_CHILDREN.9 \
 	sysctl.9 SYSCTL_NODE_CHILDREN.9 \
@@ -2453,6 +2459,9 @@ MLINKS+=vm_page_insert.9 vm_page_remove.9
 MLINKS+=vm_page_wire.9 vm_page_unwire.9 \
 	vm_page_wire.9 vm_page_unwire_noq.9 \
 	vm_page_wire.9 vm_page_wire_mapped.9
+MLINKS+=vn_fullpath.9 vn_fullpath_jail.9 \
+	vn_fullpath.9 vn_fullpath_global.9 \
+	vn_fullpath.9 vn_fullpath_hardlink.9
 MLINKS+=VOP_ACCESS.9 VOP_ACCESSX.9
 MLINKS+=VOP_ATTRIB.9 VOP_GETATTR.9 \
 	VOP_ATTRIB.9 VOP_SETATTR.9 \
@@ -2472,9 +2481,8 @@ MLINKS+=VOP_OPENCLOSE.9 VOP_CLOSE.9 \
 MLINKS+=VOP_RDWR.9 VOP_READ.9 \
 	VOP_RDWR.9 VOP_WRITE.9
 MLINKS+=VOP_REMOVE.9 VOP_RMDIR.9
-MLINKS+=vnet.9 vimage.9
-MLINKS+=vref.9 VREF.9 \
-	vref.9 vrefl.9
+MLINKS+=VNET.9 VIMAGE.9
+MLINKS+=vref.9 vrefl.9
 MLINKS+=vrele.9 vput.9 \
 	vrele.9 vunref.9
 MLINKS+=vslock.9 vsunlock.9

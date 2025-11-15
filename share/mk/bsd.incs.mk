@@ -37,7 +37,7 @@ ${group}TAGS+=		package=${${group}PACKAGE:Uutilities},dev
 ${group}TAGS+=		package=${PACKAGE:Uutilities},dev
 .endif
 .endif
-${group}TAG_ARGS=	-T ${${group}TAGS:[*]:S/ /,/g}
+${group}TAG_ARGS=	-T ${${group}TAGS:ts,:[*]}
 .endif
 
 _${group}INCS=

@@ -354,6 +354,8 @@ upgt_attach(device_t dev)
 	ic->ic_transmit = upgt_transmit;
 	ic->ic_parent = upgt_parent;
 
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
+
 	ieee80211_radiotap_attach(ic,
 	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
 		UPGT_TX_RADIOTAP_PRESENT,
@@ -1172,7 +1174,7 @@ upgt_eeprom_parse_freq3(struct upgt_softc *sc, uint8_t *data, int len)
 
 		sc->sc_eeprom_freq3[channel] = freq3[i];
 
-		DPRINTF(sc, UPGT_DEBUG_FW, "frequence=%d, channel=%d\n",
+		DPRINTF(sc, UPGT_DEBUG_FW, "frequency=%d, channel=%d\n",
 		    le16toh(sc->sc_eeprom_freq3[channel].freq), channel);
 	}
 }
@@ -1214,7 +1216,7 @@ upgt_eeprom_parse_freq4(struct upgt_softc *sc, uint8_t *data, int len)
 			sc->sc_eeprom_freq4[channel][j].pad = 0;
 		}
 
-		DPRINTF(sc, UPGT_DEBUG_FW, "frequence=%d, channel=%d\n",
+		DPRINTF(sc, UPGT_DEBUG_FW, "frequency=%d, channel=%d\n",
 		    le16toh(freq4_1[i].freq), channel);
 	}
 }
@@ -1242,7 +1244,7 @@ upgt_eeprom_parse_freq6(struct upgt_softc *sc, uint8_t *data, int len)
 
 		sc->sc_eeprom_freq6[channel] = freq6[i];
 
-		DPRINTF(sc, UPGT_DEBUG_FW, "frequence=%d, channel=%d\n",
+		DPRINTF(sc, UPGT_DEBUG_FW, "frequency=%d, channel=%d\n",
 		    le16toh(sc->sc_eeprom_freq6[channel].freq), channel);
 	}
 }
@@ -2115,6 +2117,9 @@ upgt_tx_start(struct upgt_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	UPGT_ASSERT_LOCKED(sc);
 
 	upgt_set_led(sc, UPGT_LED_BLINK);
+
+	/* Assign sequence number */
+	ieee80211_output_seqno_assign(ni, -1, m);
 
 	/*
 	 * Software crypto.

@@ -31,6 +31,7 @@
 #include <ddb/db_access.h>
 #include <ddb/db_sym.h>
 
+#include <machine/armreg.h>
 #include <machine/disassem.h>
 
 static u_int db_disasm_read_word(vm_offset_t);

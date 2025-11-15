@@ -1,4 +1,4 @@
-Copyright (C) 1985-2024 by the Massachusetts Institute of Technology.
+Copyright (C) 1985-2025 by the Massachusetts Institute of Technology.
 
 All rights reserved.
 
@@ -172,10 +172,10 @@ following copyright:
    * Redistributions of source code must retain the above copyright
      notice, this list of conditions and the following disclaimer.
 
-   * Redistributions in binary form must reproduce the above
-     copyright notice, this list of conditions and the following
-     disclaimer in the documentation and/or other materials provided
-     with the distribution.
+   * Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in
+     the documentation and/or other materials provided with the
+     distribution.
 
    * Neither the name of Red Hat, Inc., nor the names of its
      contributors may be used to endorse or promote products derived
@@ -345,9 +345,8 @@ notice:
    modification, are permitted provided that the following conditions
    are met:
 
-   1. Redistributions of source code must retain the above
-      copyright notice, this list of conditions and the following
-      disclaimer.
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
 
    2. Redistributions in binary form must reproduce the above
       copyright notice, this list of conditions and the following
@@ -386,10 +385,10 @@ backend, are subject to the following license:
    * Redistributions of source code must retain the above copyright
      notice, this list of conditions and the following disclaimer.
 
-   * Redistributions in binary form must reproduce the above
-     copyright notice, this list of conditions and the following
-     disclaimer in the documentation and/or other materials provided
-     with the distribution.
+   * Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in
+     the documentation and/or other materials provided with the
+     distribution.
 
    * The copyright holder's name is not used to endorse or promote
      products derived from this software without specific prior
@@ -497,16 +496,15 @@ permission notice:
    documentation ("Software"), with or without modification, are
    permitted provided that the following conditions are met:
 
-   1. Redistributions in source form must retain copyright
-      statements and notices,
+   1. Redistributions in source form must retain copyright statements
+      and notices,
 
    2. Redistributions in binary form must reproduce applicable
       copyright statements and notices, this list of conditions, and
       the following disclaimer in the documentation and/or other
       materials provided with the distribution, and
 
-   3. Redistributions must contain a verbatim copy of this
-      document.
+   3. Redistributions must contain a verbatim copy of this document.
 
    The OpenLDAP Foundation may revise this license from time to time.
    Each revision is distinguished by a version number.  You may use
@@ -552,18 +550,17 @@ Marked test programs in src/lib/krb5/krb have the following copyright:
    modification, are permitted provided that the following conditions
    are met:
 
-   1. Redistributions of source code must retain the above
-      copyright notice, this list of conditions and the following
-      disclaimer.
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
 
    2. Redistributions in binary form must reproduce the above
       copyright notice, this list of conditions and the following
       disclaimer in the documentation and/or other materials provided
       with the distribution.
 
-   3. Neither the name of KTH nor the names of its contributors may
-      be used to endorse or promote products derived from this
-      software without specific prior written permission.
+   3. Neither the name of KTH nor the names of its contributors may be
+      used to endorse or promote products derived from this software
+      without specific prior written permission.
 
    THIS SOFTWARE IS PROVIDED BY KTH AND ITS CONTRIBUTORS "AS IS" AND
    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
@@ -593,9 +590,8 @@ copyright:
    modification, are permitted provided that the following conditions
    are met:
 
-   1. Redistributions of source code must retain the above
-      copyright notice, this list of conditions and the following
-      disclaimer.
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
 
    2. Redistributions in binary form must reproduce the above
       copyright notice, this list of conditions and the following
@@ -632,17 +628,16 @@ src/include/gssrpc have the following copyright and permission notice:
    modification, are permitted provided that the following conditions
    are met:
 
-   1. Redistributions of source code must retain the above
-      copyright notice, this list of conditions and the following
-      disclaimer.
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
 
    2. Redistributions in binary form must reproduce the above
       copyright notice, this list of conditions and the following
       disclaimer in the documentation and/or other materials provided
       with the distribution.
 
-   3. Neither the name of the "Oracle America, Inc." nor the names
-      of its contributors may be used to endorse or promote products
+   3. Neither the name of the "Oracle America, Inc." nor the names of
+      its contributors may be used to endorse or promote products
       derived from this software without specific prior written
       permission.
 
@@ -668,9 +663,9 @@ src/include/gssrpc have the following copyright and permission notice:
    modification, are permitted provided that the following conditions
    are met:
 
-   1. Redistributions of source code must retain the above
-      copyright notice, this list of conditions and the following
-      disclaimer as the first lines of this file unmodified.
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer as
+      the first lines of this file unmodified.
 
    2. Redistributions in binary form must reproduce the above
       copyright notice, this list of conditions and the following
@@ -739,10 +734,10 @@ src/include/gssrpc have the following copyright and permission notice:
    * Redistributions of source code must retain the above copyright
      notice, this list of conditions and the following disclaimer.
 
-   * Redistributions in binary form must reproduce the above
-     copyright notice, this list of conditions and the following
-     disclaimer in the documentation and/or other materials provided
-     with the distribution.
+   * Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in
+     the documentation and/or other materials provided with the
+     distribution.
 
    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -796,38 +791,6 @@ src/include/gssrpc have the following copyright and permission notice:
 
 ======================================================================
 
-Portions of the implementation of the Fortuna-like PRNG are subject to
-the following notice:
-
-      Copyright (C) 2005 Marko Kreen
-      All rights reserved.
-
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions
-   are met:
-
-   1. Redistributions of source code must retain the above
-      copyright notice, this list of conditions and the following
-      disclaimer.
-
-   2. Redistributions in binary form must reproduce the above
-      copyright notice, this list of conditions and the following
-      disclaimer in the documentation and/or other materials provided
-      with the distribution.
-
-   THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS "AS IS"
-   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-   TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-   PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR
-   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
-   USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-   ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-   OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
-   OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-   SUCH DAMAGE.
-
    Copyright (C) 1994 by the University of Southern California
 
       EXPORT OF THIS SOFTWARE from the United States of America may
@@ -863,9 +826,8 @@ the following notice:
    modification, are permitted provided that the following conditions
    are met:
 
-   1. Redistributions of source code must retain the above
-      copyright notice, this list of conditions and the following
-      disclaimer.
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
 
    2. Redistributions in binary form must reproduce the above
       copyright notice, this list of conditions and the following
@@ -932,9 +894,8 @@ The following notice applies to "src/lib/krb5/krb/strptime.c" and
    modification, are permitted provided that the following conditions
    are met:
 
-   1. Redistributions of source code must retain the above
-      copyright notice, this list of conditions and the following
-      disclaimer.
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
 
    2. Redistributions in binary form must reproduce the above
       copyright notice, this list of conditions and the following
@@ -947,10 +908,9 @@ The following notice applies to "src/lib/krb5/krb/strptime.c" and
          This product includes software developed by the NetBSD
          Foundation, Inc. and its contributors.
 
-   4. Neither the name of The NetBSD Foundation nor the names of
-      its contributors may be used to endorse or promote products
-      derived from this software without specific prior written
-      permission.
+   4. Neither the name of The NetBSD Foundation nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
 
    THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND
    CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
@@ -1037,16 +997,6 @@ The following notice applies to "src/util/profile/argv_parse.c" and
 
 ======================================================================
 
-The following notice applies to SWIG-generated code in
-"src/util/profile/profile_tcl.c":
-
-   Copyright (C) 1999-2000, The University of Chicago
-
-   This file may be freely redistributed without license or fee
-   provided this copyright message remains intact.
-
-======================================================================
-
 The following notice applies to portiions of "src/lib/rpc" and
 "src/include/gssrpc":
 
@@ -1060,9 +1010,8 @@ The following notice applies to portiions of "src/lib/rpc" and
    modification, are permitted provided that the following conditions
    are met:
 
-   1. Redistributions of source code must retain the above
-      copyright notice, this list of conditions and the following
-      disclaimer.
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
 
    2. Redistributions in binary form must reproduce the above
       copyright notice, this list of conditions and the following
@@ -1192,9 +1141,8 @@ license:
    modification, are permitted provided that the following conditions
    are met:
 
-   1. Redistributions of source code must retain the above
-      copyright notice, this list of conditions and the following
-      disclaimer.
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
 
    2. Redistributions in binary form must reproduce the above
       copyright notice, this list of conditions and the following
@@ -1232,10 +1180,10 @@ The bundled libev source code is subject to the following license:
    * Redistributions of source code must retain the above copyright
      notice, this list of conditions and the following disclaimer.
 
-   * Redistributions in binary form must reproduce the above
-     copyright notice, this list of conditions and the following
-     disclaimer in the documentation and/or other materials provided
-     with the distribution.
+   * Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in
+     the documentation and/or other materials provided with the
+     distribution.
 
    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -1273,9 +1221,8 @@ following license:
    modification, are permitted provided that the following conditions
    are met:
 
-      * Redistributions of source code must retain the above
-        copyright notice, this list of conditions and the following
-        disclaimer.
+      * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
 
       * Redistributions in binary form must reproduce the above
         copyright notice, this list of conditions and the following
@@ -1314,10 +1261,10 @@ The following notice applies to
    * Redistributions of source code must retain the above copyright
      notice, this list of conditions and the following disclaimer.
 
-   * Redistributions in binary form must reproduce the above
-     copyright notice, this list of conditions and the following
-     disclaimer in the documentation and/or other materials provided
-     with the distribution.
+   * Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in
+     the documentation and/or other materials provided with the
+     distribution.
 
    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -1382,3 +1329,32 @@ DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
 PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
+
+======================================================================
+
+The following notice applies to files in "src/tests/fuzzing":
+
+Copyright (C) 2024 by Arjun. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+* Redistributions of source code must retain the above copyright
+  notice, this list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright
+  notice, this list of conditions and the following disclaimer in the
+  documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

@@ -61,7 +61,7 @@ nstrcmp(const char *a, const char *b)
 }
 
 int
-main()
+main(void)
 {
     k5_response_items *ri;
 

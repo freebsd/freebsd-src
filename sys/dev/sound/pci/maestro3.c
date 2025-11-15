@@ -437,17 +437,17 @@ m3_pchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel
 	ch->parent = sc;
 	ch->channel = c;
 	ch->fmt = SND_FORMAT(AFMT_U8, 1, 0);
-	ch->spd = DSP_DEFAULT_SPEED;
+	ch->spd = 8000;
 	M3_UNLOCK(sc); /* XXX */
 	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, 0, sc->bufsz) != 0) {
 		device_printf(sc->dev, "m3_pchan_init chn_allocbuf failed\n");
 		return (NULL);
 	}
 	M3_LOCK(sc);
-	ch->bufsize = sndbuf_getsize(ch->buffer);
+	ch->bufsize = ch->buffer->bufsize;
 
 	/* host dma buffer pointers */
-	bus_addr = sndbuf_getbufaddr(ch->buffer);
+	bus_addr = ch->buffer->buf_addr;
 	if (bus_addr & 3) {
 		device_printf(sc->dev, "m3_pchan_init unaligned bus_addr\n");
 		bus_addr = (bus_addr + 4) & ~3;
@@ -595,7 +595,7 @@ m3_pchan_setblocksize(kobj_t kobj, void *chdata, u_int32_t blocksize)
 	M3_DEBUG(CHANGE, ("m3_pchan_setblocksize(dac=%d, blocksize=%d)\n",
 			  ch->dac_idx, blocksize));
 
-	return (sndbuf_getblksz(ch->buffer));
+	return (ch->buffer->blksz);
 }
 
 static int
@@ -709,7 +709,7 @@ m3_pchan_getptr_internal(struct sc_pchinfo *ch)
 	struct sc_info *sc = ch->parent;
 	u_int32_t hi, lo, bus_base, bus_crnt;
 
-	bus_base = sndbuf_getbufaddr(ch->buffer);
+	bus_base = ch->buffer->buf_addr;
 	hi = m3_rd_assp_data(sc, ch->dac_data + CDATA_HOST_SRC_CURRENTH);
         lo = m3_rd_assp_data(sc, ch->dac_data + CDATA_HOST_SRC_CURRENTL);
         bus_crnt = lo | (hi << 16);
@@ -816,17 +816,17 @@ m3_rchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel
 	ch->parent = sc;
 	ch->channel = c;
 	ch->fmt = SND_FORMAT(AFMT_U8, 1, 0);
-	ch->spd = DSP_DEFAULT_SPEED;
+	ch->spd = 8000;
 	M3_UNLOCK(sc); /* XXX */
 	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, 0, sc->bufsz) != 0) {
 		device_printf(sc->dev, "m3_rchan_init chn_allocbuf failed\n");
 		return (NULL);
 	}
 	M3_LOCK(sc);
-	ch->bufsize = sndbuf_getsize(ch->buffer);
+	ch->bufsize = ch->buffer->bufsize;
 
 	/* host dma buffer pointers */
-	bus_addr = sndbuf_getbufaddr(ch->buffer);
+	bus_addr = ch->buffer->buf_addr;
 	if (bus_addr & 3) {
 		device_printf(sc->dev, "m3_rchan_init unaligned bus_addr\n");
 		bus_addr = (bus_addr + 4) & ~3;
@@ -968,7 +968,7 @@ m3_rchan_setblocksize(kobj_t kobj, void *chdata, u_int32_t blocksize)
 	M3_DEBUG(CHANGE, ("m3_rchan_setblocksize(adc=%d, blocksize=%d)\n",
 			  ch->adc_idx, blocksize));
 
-	return (sndbuf_getblksz(ch->buffer));
+	return (ch->buffer->blksz);
 }
 
 static int
@@ -1061,7 +1061,7 @@ m3_rchan_getptr_internal(struct sc_rchinfo *ch)
 	struct sc_info *sc = ch->parent;
 	u_int32_t hi, lo, bus_base, bus_crnt;
 
-	bus_base = sndbuf_getbufaddr(ch->buffer);
+	bus_base = ch->buffer->buf_addr;
 	hi = m3_rd_assp_data(sc, ch->adc_data + CDATA_HOST_SRC_CURRENTH);
         lo = m3_rd_assp_data(sc, ch->adc_data + CDATA_HOST_SRC_CURRENTL);
         bus_crnt = lo | (hi << 16);
@@ -1162,7 +1162,7 @@ m3_handle_channel_intr:
 			pch->ptr = m3_pchan_getptr_internal(pch);
 			delta = pch->bufsize + pch->ptr - pch->prevptr;
 			delta %= pch->bufsize;
-			if (delta < sndbuf_getblksz(pch->buffer))
+			if (delta < pch->buffer->blksz)
 				continue;
 			pch->prevptr = pch->ptr;
 			M3_UNLOCK(sc);
@@ -1176,7 +1176,7 @@ m3_handle_channel_intr:
 			rch->ptr = m3_rchan_getptr_internal(rch);
 			delta = rch->bufsize + rch->ptr - rch->prevptr;
 			delta %= rch->bufsize;
-			if (delta < sndbuf_getblksz(rch->buffer))
+			if (delta < rch->buffer->blksz)
 				continue;
 			rch->prevptr = rch->ptr;
 			M3_UNLOCK(sc);

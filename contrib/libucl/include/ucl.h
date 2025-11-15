@@ -1411,13 +1411,13 @@ struct ucl_emitter_operations {
 		const ucl_object_t *obj, bool first, bool print_key);
 	/** Start ucl object */
 	void (*ucl_emitter_start_object) (struct ucl_emitter_context *ctx,
-		const ucl_object_t *obj, bool print_key);
+		const ucl_object_t *obj, bool first, bool print_key);
 	/** End ucl object */
 	void (*ucl_emitter_end_object) (struct ucl_emitter_context *ctx,
 		const ucl_object_t *obj);
 	/** Start ucl array */
 	void (*ucl_emitter_start_array) (struct ucl_emitter_context *ctx,
-		const ucl_object_t *obj, bool print_key);
+		const ucl_object_t *obj, bool first, bool print_key);
 	void (*ucl_emitter_end_array) (struct ucl_emitter_context *ctx,
 		const ucl_object_t *obj);
 };

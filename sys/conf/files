@@ -359,6 +359,7 @@ contrib/openzfs/module/zfs/zcp_synctask.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zfeature.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zfs_byteswap.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zfs_chksum.c		optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/zfs/zfs_crrd.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zfs_fm.c		optional zfs compile-with "${ZFS_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 contrib/openzfs/module/zfs/zfs_fuid.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zfs_impl.c		optional zfs compile-with "${ZFS_C}"
@@ -680,6 +681,8 @@ crypto/curve25519.c		optional crypto \
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include -I$S/crypto/libsodium"
 crypto/des/des_ecb.c		optional netsmb
 crypto/des/des_setkey.c		optional netsmb
+crypto/md4c.c			optional netsmb
+crypto/md5c.c			standard
 crypto/openssl/ossl.c		optional ossl
 crypto/openssl/ossl_aes.c	optional ossl
 crypto/openssl/ossl_chacha20.c	optional ossl
@@ -1392,6 +1395,8 @@ dev/cxgbe/t4_smt.c		optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/t4_l2t.c		optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
+dev/cxgbe/t4_tpt.c		optional cxgbe pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/t4_tracer.c		optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/t4_vf.c		optional cxgbev pci \
@@ -1401,6 +1406,8 @@ dev/cxgbe/common/t4_hw.c	optional cxgbe pci \
 dev/cxgbe/common/t4vf_hw.c	optional cxgbev pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/crypto/t6_kern_tls.c	optional cxgbe pci kern_tls \
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
+dev/cxgbe/crypto/t7_kern_tls.c	optional cxgbe pci kern_tls \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/crypto/t4_keyctx.c	optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
@@ -1518,6 +1525,30 @@ t6fw.fw			optional cxgbe					\
 	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
 	no-obj no-implicit-rule						\
 	clean		"t6fw.fw"
+t7fw_cfg.c		optional cxgbe					\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk t7fw_cfg.fw:t7fw_cfg t7fw_cfg_uwire.fw:t7fw_cfg_uwire -mt7fw_cfg -c${.TARGET}" \
+	no-ctfconvert no-implicit-rule before-depend local		\
+	clean		"t7fw_cfg.c"
+t7fw_cfg.fwo		optional cxgbe					\
+	dependency	"t7fw_cfg.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"t7fw_cfg.fwo"
+t7fw_cfg.fw		optional cxgbe					\
+	dependency	"$S/dev/cxgbe/firmware/t7fw_cfg.txt"		\
+	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
+	no-obj no-implicit-rule						\
+	clean		"t7fw_cfg.fw"
+t7fw_cfg_uwire.fwo	optional cxgbe					\
+	dependency	"t7fw_cfg_uwire.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"t7fw_cfg_uwire.fwo"
+t7fw_cfg_uwire.fw	optional cxgbe					\
+	dependency	"$S/dev/cxgbe/firmware/t7fw_cfg_uwire.txt"	\
+	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
+	no-obj no-implicit-rule						\
+	clean		"t7fw_cfg_uwire.fw"
 dev/cxgbe/crypto/t4_crypto.c	optional ccr \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cyapa/cyapa.c		optional cyapa iicbus
@@ -1749,8 +1780,8 @@ dev/hid/hpen.c			optional hpen
 dev/hid/hsctrl.c		optional hsctrl
 dev/hid/ietp.c			optional ietp
 dev/hid/ps4dshock.c		optional ps4dshock
+dev/hid/u2f.c			optional u2f
 dev/hid/xb360gp.c		optional xb360gp
-dev/hifn/hifn7751.c		optional hifn
 dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
 dev/hwpmc/hwpmc_mod.c		optional hwpmc
@@ -2247,6 +2278,10 @@ iwn6050.fw			optional iwn6050fw | iwnfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn6050.fw"
+dev/iwx/if_iwx.c		optional iwx \
+	compile-with "${NORMAL_C} -DIWX_DEBUG=1"
+dev/iwx/if_iwx_debug.c		optional iwx \
+	compile-with "${NORMAL_C} -DIWX_DEBUG=1"
 dev/ixgbe/if_ix.c		optional ix inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
 dev/ixgbe/if_ixv.c		optional ixv inet \
@@ -2278,6 +2313,8 @@ dev/ixgbe/ixgbe_82599.c		optional ix inet | ixv inet \
 dev/ixgbe/ixgbe_x540.c		optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_x550.c		optional ix inet | ixv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixgbe_e610.c		optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_dcb.c		optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
@@ -3447,7 +3484,6 @@ dev/virtio/mmio/virtio_mmio.c		optional	virtio_mmio
 dev/virtio/mmio/virtio_mmio_acpi.c	optional	virtio_mmio acpi
 dev/virtio/mmio/virtio_mmio_cmdline.c	optional	virtio_mmio
 dev/virtio/mmio/virtio_mmio_fdt.c	optional	virtio_mmio fdt
-dev/virtio/mmio/virtio_mmio_if.m	optional	virtio_mmio
 dev/virtio/network/if_vtnet.c		optional	vtnet
 dev/virtio/balloon/virtio_balloon.c	optional	virtio_balloon
 dev/virtio/block/virtio_blk.c		optional	virtio_blk
@@ -3768,6 +3804,7 @@ gnu/gcov/gcov_subr.c		optional gcov
 
 kern/bus_if.m			standard
 kern/clock_if.m			standard
+kern/coredump_vnode.c		standard
 kern/cpufreq_if.m		standard
 kern/device_if.m		standard
 kern/imgact_binmisc.c		optional imgact_binmisc
@@ -3804,9 +3841,11 @@ kern/kern_hhook.c		standard
 kern/kern_idle.c		standard
 kern/kern_intr.c		standard
 kern/kern_jail.c		standard
+kern/kern_jaildesc.c		standard
 kern/kern_jailmeta.c		standard
 kern/kern_kcov.c		optional kcov			\
 	compile-with "${NOSAN_C} ${MSAN_CFLAGS}"
+kern/kern_kexec.c		standard
 kern/kern_khelp.c		standard
 kern/kern_kthread.c		standard
 kern/kern_ktr.c			optional ktr
@@ -3856,14 +3895,13 @@ kern/kern_time.c		standard
 kern/kern_timeout.c		standard
 kern/kern_tslog.c		optional tslog
 kern/kern_ubsan.c		optional kubsan
+kern/kern_ucoredump.c		standard
 kern/kern_umtx.c		standard
 kern/kern_uuid.c		standard
 kern/kern_vnodedumper.c		standard
 kern/kern_xxx.c			standard
 kern/link_elf.c			standard
 kern/linker_if.m		standard
-kern/md4c.c			optional netsmb
-kern/md5c.c			standard
 kern/p1003_1b.c			standard
 kern/posix4_mib.c		standard
 kern/sched_4bsd.c		optional sched_4bsd
@@ -4363,15 +4401,23 @@ netinet/cc/cc.c			optional cc_newreno inet | cc_vegas inet | \
 	cc_chd inet | cc_cdg inet | cc_newreno inet6 | cc_vegas inet6 | \
 	cc_htcp inet6 | cc_hd inet6 |cc_dctcp inet6 | cc_cubic inet6 | \
 	cc_chd inet6 | cc_cdg inet6
-netinet/cc/cc_cdg.c		optional inet cc_cdg tcp_hhook
-netinet/cc/cc_chd.c		optional inet cc_chd tcp_hhook
+netinet/cc/cc_cdg.c		optional inet cc_cdg tcp_hhook | \
+	inet6 cc_cdg tcp_hhook
+netinet/cc/cc_chd.c		optional inet cc_chd tcp_hhook | \
+	inet6 cc_chd tcp_hhook
 netinet/cc/cc_cubic.c		optional inet cc_cubic | inet6 cc_cubic
 netinet/cc/cc_dctcp.c		optional inet cc_dctcp | inet6 cc_dctcp
-netinet/cc/cc_hd.c		optional inet cc_hd tcp_hhook
+netinet/cc/cc_hd.c		optional inet cc_hd tcp_hhook | \
+	inet6 cc_hd tcp_hhook
 netinet/cc/cc_htcp.c		optional inet cc_htcp | inet6 cc_htcp
 netinet/cc/cc_newreno.c		optional inet cc_newreno | inet6 cc_newreno
-netinet/cc/cc_vegas.c		optional inet cc_vegas tcp_hhook
-netinet/khelp/h_ertt.c		optional inet tcp_hhook
+netinet/cc/cc_vegas.c		optional inet cc_vegas tcp_hhook | \
+	inet6 cc_vegas tcp_hhook
+netinet/khelp/h_ertt.c		optional inet tcp_hhook cc_cdg | \
+	inet tcp_hhook cc_chd | inet tcp_hhook cc_hd | \
+	inet tcp_hhook cc_vegas | inet6 tcp_hhook cc_cdg | \
+	inet6 tcp_hhook cc_chd | inet6 tcp_hhook cc_hd | \
+	inet6 tcp_hhook cc_vegas
 netinet/sctp_asconf.c		optional inet sctp | inet6 sctp
 netinet/sctp_auth.c		optional inet sctp | inet6 sctp
 netinet/sctp_bsd_addr.c		optional inet sctp | inet6 sctp
@@ -4507,7 +4553,6 @@ netpfil/ipfw/dn_sched_rr.c	optional inet dummynet
 netpfil/ipfw/dn_sched_wf2q.c	optional inet dummynet
 netpfil/ipfw/ip_dummynet.c	optional inet dummynet
 netpfil/ipfw/ip_dn_io.c		optional inet dummynet
-netpfil/ipfw/ip_dn_glue.c	optional inet dummynet
 netpfil/ipfw/ip_fw2.c		optional inet ipfirewall
 netpfil/ipfw/ip_fw_bpf.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_dynamic.c	optional inet ipfirewall \

@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 1999
 .\"	Nick Hibma <n_hibma@FreeBSD.org>. All rights reserved.
 .\"
@@ -22,44 +25,44 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 27, 2020
+.Dd October 9, 2025
 .Dt UMASS 4
 .Os
 .Sh NAME
 .Nm umass
 .Nd USB Mass Storage Devices driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following line in your
-kernel configuration file:
-.Bd -ragged -offset indent
+.Cd "device da"
 .Cd "device scbus"
+.Cd "device pass"
 .Cd "device usb"
 .Cd "device umass"
-.Ed
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-umass_load="YES"
-.Ed
+.Cd umass_load
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for Mass Storage devices that attach to the USB
-port.
+interface.
 .Pp
-To use the
-.Nm
-driver,
+If the appropriate hardware is detected,
+the driver will be loaded automatically by
+.Xr devmatch 8 .
+To load the driver manually at boot time, use the
+.Cm umass_load
+command at the
+.Xr loader 8
+prompt, or add it to
+.Xr loader.conf 5 .
+.Pp
+To use the driver in a custom kernel,
 .Xr usb 4
-and one of
-.Xr uhci 4
-or
-.Xr ohci 4
-or
-.Xr ehci 4
+and at least one of
+.Xr uhci 4 ,
+.Xr ohci 4 ,
+.Xr ehci 4 ,
 or
 .Xr xhci 4
 must be configured in the kernel.
@@ -71,17 +74,22 @@ requires
 and
 .Xr scbus 4
 to be included in the kernel.
-.Sh EXAMPLES
-.Bd -literal -offset indent
-device umass
-device scbus
-device da
-device pass
-.Ed
-.Pp
-Add the
+.Sh HARDWARE
+The
 .Nm
-driver to the kernel.
+driver supports USB Mass Storage devices such as:
+.Pp
+.Bl -bullet -compact
+.It
+USB thumb drives
+.It
+USB hard disk drives
+.It
+USB floppy drives
+.El
+.Sh EXAMPLES
+Rescan all slots on a multi-slot flash reader,
+where the slots map to separate LUNs on a single SCSI ID:
 .Bd -literal -offset indent
 camcontrol rescan 0:0:0
 camcontrol rescan 0:0:1
@@ -89,10 +97,9 @@ camcontrol rescan 0:0:2
 camcontrol rescan 0:0:3
 .Ed
 .Pp
-Rescan all slots on a multi-slot flash reader, where the slots map to separate
-LUNs on a single SCSI ID.
 Typically only the first slot will be enabled at boot time.
-This assumes that the flash reader is the first SCSI bus in the system and has 4 slots.
+This assumes that
+the flash reader is the first SCSI bus in the system and has 4 slots.
 .Sh SEE ALSO
 .Xr cfumass 4 ,
 .Xr ehci 4 ,
@@ -101,7 +108,11 @@ This assumes that the flash reader is the first SCSI bus in the system and has 4
 .Xr usb 4 ,
 .Xr xhci 4 ,
 .Xr camcontrol 8
-.\".Sh HISTORY
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Fx 4.3 .
 .Sh AUTHORS
 .An -nosplit
 The

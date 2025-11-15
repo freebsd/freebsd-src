@@ -279,10 +279,12 @@ struct vdev {
 	uint64_t	vdev_noalloc;	/* device is passivated?	*/
 	uint64_t	vdev_removing;	/* device is being removed?	*/
 	uint64_t	vdev_failfast;	/* device failfast setting	*/
+	boolean_t	vdev_autosit;	/* automatic sitout management	*/
 	boolean_t	vdev_rz_expanding; /* raidz is being expanded?	*/
 	boolean_t	vdev_ishole;	/* is a hole in the namespace	*/
 	uint64_t	vdev_top_zap;
 	vdev_alloc_bias_t vdev_alloc_bias; /* metaslab allocation bias	*/
+	uint64_t	vdev_last_latency_check;
 
 	/* pool checkpoint related */
 	space_map_t	*vdev_checkpoint_sm;	/* contains reserved blocks */
@@ -431,6 +433,10 @@ struct vdev {
 	hrtime_t	vdev_mmp_pending; /* 0 if write finished	*/
 	uint64_t	vdev_mmp_kstat_id;	/* to find kstat entry */
 	uint64_t	vdev_expansion_time;	/* vdev's last expansion time */
+	/* used to calculate average read latency */
+	uint64_t	*vdev_prev_histo;
+	int64_t		vdev_outlier_count;	/* read outlier amongst peers */
+	hrtime_t	vdev_read_sit_out_expire; /* end of sit out period    */
 	list_node_t	vdev_leaf_node;		/* leaf vdev list */
 
 	/*
@@ -621,7 +627,6 @@ extern uint64_t vdev_default_asize(vdev_t *vd, uint64_t psize, uint64_t txg);
 extern uint64_t vdev_default_min_asize(vdev_t *vd);
 extern uint64_t vdev_get_min_asize(vdev_t *vd);
 extern void vdev_set_min_asize(vdev_t *vd);
-extern uint64_t vdev_get_min_alloc(vdev_t *vd);
 extern uint64_t vdev_get_nparity(vdev_t *vd);
 extern uint64_t vdev_get_ndisks(vdev_t *vd);
 
@@ -645,10 +650,11 @@ extern int vdev_obsolete_counts_are_precise(vdev_t *vd, boolean_t *are_precise);
 int vdev_checkpoint_sm_object(vdev_t *vd, uint64_t *sm_obj);
 void vdev_metaslab_group_create(vdev_t *vd);
 uint64_t vdev_best_ashift(uint64_t logical, uint64_t a, uint64_t b);
-#if defined(__linux__)
+#if defined(__linux__) && defined(_KERNEL)
 int param_get_raidz_impl(char *buf, zfs_kernel_param_t *kp);
 #endif
 int param_set_raidz_impl(ZFS_MODULE_PARAM_ARGS);
+char *vdev_rt_name(vdev_t *vd, const char *name);
 
 /*
  * Vdev ashift optimization tunables

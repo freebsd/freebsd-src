@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 2018 Intel Corporation.
  * Copyright (c) 2020 by Lawrence Livermore National Security, LLC.
+ * Copyright (c) 2025, Klara, Inc.
  */
 
 #include <sys/zfs_context.h>
@@ -477,7 +478,7 @@ vdev_draid_generate_perms(const draid_map_t *map, uint8_t **permsp)
 	VERIFY3U(map->dm_children, <=, VDEV_DRAID_MAX_CHILDREN);
 	VERIFY3U(map->dm_seed, !=, 0);
 	VERIFY3U(map->dm_nperms, !=, 0);
-	VERIFY3P(map->dm_perms, ==, NULL);
+	VERIFY0P(map->dm_perms);
 
 #ifdef _KERNEL
 	/*
@@ -590,7 +591,7 @@ vdev_draid_psize_to_asize(vdev_t *vd, uint64_t psize, uint64_t txg)
 	uint64_t asize = (rows * vdc->vdc_groupwidth) << ashift;
 
 	ASSERT3U(asize, !=, 0);
-	ASSERT3U(asize % (vdc->vdc_groupwidth), ==, 0);
+	ASSERT0(asize % (vdc->vdc_groupwidth));
 
 	return (asize);
 }
@@ -704,7 +705,7 @@ vdev_draid_map_alloc_scrub(zio_t *zio, uint64_t abd_offset, raidz_row_t *rr)
 	uint64_t skip_off = 0;
 
 	ASSERT3U(zio->io_type, ==, ZIO_TYPE_READ);
-	ASSERT3P(rr->rr_abd_empty, ==, NULL);
+	ASSERT0P(rr->rr_abd_empty);
 
 	if (rr->rr_nempty > 0) {
 		rr->rr_abd_empty = abd_alloc_linear(rr->rr_nempty * skip_size,
@@ -793,7 +794,7 @@ vdev_draid_map_alloc_empty(zio_t *zio, raidz_row_t *rr)
 	uint64_t skip_off = 0;
 
 	ASSERT3U(zio->io_type, ==, ZIO_TYPE_READ);
-	ASSERT3P(rr->rr_abd_empty, ==, NULL);
+	ASSERT0P(rr->rr_abd_empty);
 
 	if (rr->rr_nempty > 0) {
 		rr->rr_abd_empty = abd_alloc_linear(rr->rr_nempty * skip_size,
@@ -807,7 +808,7 @@ vdev_draid_map_alloc_empty(zio_t *zio, raidz_row_t *rr)
 			/* empty data column (small read), add a skip sector */
 			ASSERT3U(skip_size, ==, parity_size);
 			ASSERT3U(rr->rr_nempty, !=, 0);
-			ASSERT3P(rc->rc_abd, ==, NULL);
+			ASSERT0P(rc->rc_abd);
 			rc->rc_abd = abd_get_offset_size(rr->rr_abd_empty,
 			    skip_off, skip_size);
 			skip_off += skip_size;
@@ -1623,7 +1624,7 @@ vdev_draid_rebuild_asize(vdev_t *vd, uint64_t start, uint64_t asize,
 	    SPA_MAXBLOCKSIZE);
 
 	ASSERT3U(vdev_draid_get_astart(vd, start), ==, start);
-	ASSERT3U(asize % (vdc->vdc_groupwidth << ashift), ==, 0);
+	ASSERT0(asize % (vdc->vdc_groupwidth << ashift));
 
 	/* Chunks must evenly span all data columns in the group. */
 	psize = (((psize >> ashift) / ndata) * ndata) << ashift;
@@ -1634,7 +1635,7 @@ vdev_draid_rebuild_asize(vdev_t *vd, uint64_t start, uint64_t asize,
 	uint64_t left = vdev_draid_group_to_offset(vd, group + 1) - start;
 	chunk_size = MIN(chunk_size, left);
 
-	ASSERT3U(chunk_size % (vdc->vdc_groupwidth << ashift), ==, 0);
+	ASSERT0(chunk_size % (vdc->vdc_groupwidth << ashift));
 	ASSERT3U(vdev_draid_offset_to_group(vd, start), ==,
 	    vdev_draid_offset_to_group(vd, start + chunk_size - 1));
 
@@ -1996,6 +1997,33 @@ vdev_draid_io_start_read(zio_t *zio, raidz_row_t *rr)
 				rc->rc_allow_repair = 1;
 			}
 		}
+
+		if (vdev_sit_out_reads(cvd, zio->io_flags)) {
+			rr->rr_outlier_cnt++;
+			ASSERT0(rc->rc_latency_outlier);
+			rc->rc_latency_outlier = 1;
+		}
+	}
+
+	/*
+	 * When the row contains a latency outlier and sufficient parity
+	 * exists to reconstruct the column data, then skip reading the
+	 * known slow child vdev as a performance optimization.
+	 */
+	if (rr->rr_outlier_cnt > 0 &&
+	    (rr->rr_firstdatacol - rr->rr_missingparity) >=
+	    (rr->rr_missingdata + 1)) {
+
+		for (int c = rr->rr_cols - 1; c >= rr->rr_firstdatacol; c--) {
+			raidz_col_t *rc = &rr->rr_col[c];
+
+			if (rc->rc_error == 0 && rc->rc_latency_outlier) {
+				rr->rr_missingdata++;
+				rc->rc_error = SET_ERROR(EAGAIN);
+				rc->rc_skipped = 1;
+				break;
+			}
+		}
 	}
 
 	/*
@@ -2272,7 +2300,7 @@ vdev_draid_init(spa_t *spa, nvlist_t *nv, void **tsd)
 	ASSERT3U(vdc->vdc_groupwidth, <=, vdc->vdc_ndisks);
 	ASSERT3U(vdc->vdc_groupsz, >=, 2 * VDEV_DRAID_ROWHEIGHT);
 	ASSERT3U(vdc->vdc_devslicesz, >=, VDEV_DRAID_ROWHEIGHT);
-	ASSERT3U(vdc->vdc_devslicesz % VDEV_DRAID_ROWHEIGHT, ==, 0);
+	ASSERT0(vdc->vdc_devslicesz % VDEV_DRAID_ROWHEIGHT);
 	ASSERT3U((vdc->vdc_groupwidth * vdc->vdc_ngroups) %
 	    vdc->vdc_ndisks, ==, 0);
 

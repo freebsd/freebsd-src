@@ -278,13 +278,13 @@ fuse_vfsop_fhtovp(struct mount *mp, struct fid *fhp, int flags,
 
 	error = VFS_VGET(mp, ffhp->nid, LK_EXCLUSIVE, &nvp);
 	if (error) {
-		*vpp = NULLVP;
+		*vpp = NULL;
 		return (error);
 	}
 	fvdat = VTOFUD(nvp);
 	if (fvdat->generation != ffhp->gen ) {
 		vput(nvp);
-		*vpp = NULLVP;
+		*vpp = NULL;
 		return (ESTALE);
 	}
 	*vpp = nvp;

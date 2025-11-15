@@ -86,7 +86,7 @@ public int xbuf_pop(struct xbuffer *buf)
 /*
  * Set an xbuf to the contents of another xbuf.
  */
-public void xbuf_set(struct xbuffer *dst, struct xbuffer *src)
+public void xbuf_set(struct xbuffer *dst, constant struct xbuffer *src)
 {
 	xbuf_reset(dst);
 	xbuf_add_data(dst, src->data, src->end);

@@ -285,7 +285,7 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
 			}
 			/*
 			 * Only allow 2-tuple for TCP frames if we don't also
-			 * support 2-tuple for TCP.
+			 * support 4-tuple for TCP.
 			 */
 			if ((rss_gethashconfig() & RSS_HASHTYPE_RSS_IPV4) &&
 			    ((rss_gethashconfig() & RSS_HASHTYPE_RSS_TCP_IPV4) == 0) &&

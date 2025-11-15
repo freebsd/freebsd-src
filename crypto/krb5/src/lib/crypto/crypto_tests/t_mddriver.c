@@ -111,9 +111,8 @@ struct md_test_entry md_test_suite[] = {
    -t       - runs time trial
    -x       - runs test script
 */
-int main (argc, argv)
-    int argc;
-    char *argv[];
+int
+main(int argc, char *argv[])
 {
     int i;
 
@@ -128,10 +127,8 @@ int main (argc, argv)
     return (0);
 }
 
-static void MDHash (bytes, len, count, out)
-    char *bytes;
-    size_t len, count;
-    unsigned char *out;
+static void
+MDHash(char *bytes, size_t len, size_t count, unsigned char *out)
 {
     krb5_crypto_iov *iov;
     krb5_data outdata = make_data (out, MDProvider.hashsize);
@@ -150,8 +147,8 @@ static void MDHash (bytes, len, count, out)
 
 /* Digests a string and prints the result.
  */
-static void MDString (string)
-    char *string;
+static void
+MDString(char *string)
 {
     unsigned char digest[16];
 
@@ -164,7 +161,8 @@ static void MDString (string)
 /* Measures the time to digest TEST_BLOCK_COUNT TEST_BLOCK_LEN-byte
    blocks.
 */
-static void MDTimeTrial ()
+static void
+MDTimeTrial(void)
 {
     time_t endTime, startTime;
     unsigned char block[TEST_BLOCK_LEN], digest[16];
@@ -197,7 +195,8 @@ static void MDTimeTrial ()
 
 /* Digests a reference suite of strings and prints the results.
  */
-static void MDTestSuite ()
+static void
+MDTestSuite(void)
 {
 #ifdef HAVE_TEST_SUITE
     struct md_test_entry *entry;
@@ -246,8 +245,8 @@ static void MDTestSuite ()
 
 /* Prints a message digest in hexadecimal.
  */
-static void MDPrint (digest)
-    unsigned char digest[16];
+static void
+MDPrint(unsigned char digest[16])
 {
     unsigned int i;
 

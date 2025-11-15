@@ -1,8 +1,9 @@
+PACKAGE= diff3
+
 DIFFSRC=${SRCTOP}/contrib/diff/src
 .PATH:  ${DIFFSRC} \
 	${SRCTOP}/contrib/diff/lib \
 	${SRCTOP}/contrib/diff/man
-
 PROG=		diff3
 SRCS=           diff3.c version-etc.c \
 		xmalloc.c error.c c-stack.c exitfail.c cmpbuf.c

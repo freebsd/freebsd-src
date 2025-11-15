@@ -1,4 +1,4 @@
-/*	$NetBSD: blacklistctl.c,v 1.23 2018/05/24 19:21:01 christos Exp $	*/
+/*	$NetBSD: blocklistctl.c,v 1.4 2025/02/11 17:48:30 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -32,8 +32,10 @@
 #include "config.h"
 #endif
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: blacklistctl.c,v 1.23 2018/05/24 19:21:01 christos Exp $");
+#endif
+__RCSID("$NetBSD: blocklistctl.c,v 1.4 2025/02/11 17:48:30 christos Exp $");
 
 #include <stdio.h>
 #include <time.h>
@@ -53,7 +55,7 @@ __RCSID("$NetBSD: blacklistctl.c,v 1.23 2018/05/24 19:21:01 christos Exp $");
 
 #include "conf.h"
 #include "state.h"
-#include "internal.h"
+#include "old_internal.h"
 #include "support.h"
 
 static __dead void
@@ -63,7 +65,8 @@ usage(int c)
 		warnx("Missing/unknown command");
 	else if (c != '?')
 		warnx("Unknown option `%c'", (char)c);
-	fprintf(stderr, "Usage: %s dump [-abdnrw]\n", getprogname());
+	fprintf(stderr,
+	    "Usage: %s dump [-abdnrw] [-D dbname]\n", getprogname());
 	exit(EXIT_FAILURE);
 }
 

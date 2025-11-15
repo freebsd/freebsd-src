@@ -150,7 +150,7 @@ sdiob_rw_direct_sc(struct sdiob_softc *sc, uint8_t fn, uint32_t addr, bool wr,
 		sc->ccb = xpt_alloc_ccb();
 	else
 		memset(sc->ccb, 0, sizeof(*sc->ccb));
-	xpt_setup_ccb(&sc->ccb->ccb_h, sc->periph->path, CAM_PRIORITY_NONE);
+	xpt_setup_ccb(&sc->ccb->ccb_h, sc->periph->path, CAM_PRIORITY_NORMAL);
 	CAM_DEBUG(sc->ccb->ccb_h.path, CAM_DEBUG_TRACE,
 	    ("%s(fn=%d, addr=%#02x, wr=%d, *val=%#02x)\n", __func__,
 	    fn, addr, wr, *val));
@@ -250,7 +250,7 @@ sdiob_rw_extended_cam(struct sdiob_softc *sc, uint8_t fn, uint32_t addr,
 		sc->ccb = xpt_alloc_ccb();
 	else
 		memset(sc->ccb, 0, sizeof(*sc->ccb));
-	xpt_setup_ccb(&sc->ccb->ccb_h, sc->periph->path, CAM_PRIORITY_NONE);
+	xpt_setup_ccb(&sc->ccb->ccb_h, sc->periph->path, CAM_PRIORITY_NORMAL);
 	CAM_DEBUG(sc->ccb->ccb_h.path, CAM_DEBUG_TRACE,
 	    ("%s(fn=%d addr=%#0x wr=%d b_count=%u blksz=%u buf=%p incr=%d)\n",
 	    __func__, fn, addr, wr, b_count, blksz, buffer, incaddr));
@@ -977,9 +977,6 @@ sdiobdiscover(void *context, int pending)
 
 	if (sc->ccb == NULL)
 		sc->ccb = xpt_alloc_ccb();
-	else
-		memset(sc->ccb, 0, sizeof(*sc->ccb));
-	xpt_setup_ccb(&sc->ccb->ccb_h, periph->path, CAM_PRIORITY_NONE);
 
 	/*
 	 * Read CCCR and FBR of each function, get manufacturer and device IDs,

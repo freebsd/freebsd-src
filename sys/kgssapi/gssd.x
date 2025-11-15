@@ -48,6 +48,21 @@ typedef uint64_t gssd_ctx_id_t;
 typedef uint64_t gssd_cred_id_t;
 typedef uint64_t gssd_name_t;
 
+struct kgss_lucid_desc {
+	uint32_t initiate;
+	uint32_t endtime;
+	uint64_t send_seq;
+	uint64_t recv_seq;
+	uint32_t protocol;
+	uint32_t rfc_sign;
+	uint32_t rfc_seal;
+	uint32_t have_subkey;
+	uint32_t ctx_type;
+	gss_buffer_desc ctx_key;
+	uint32_t subkey_type;
+	gss_buffer_desc subkey_key;
+};
+
 struct init_sec_context_res {
 	uint32_t	major_status;
 	uint32_t	minor_status;
@@ -59,6 +74,29 @@ struct init_sec_context_res {
 };
 
 struct init_sec_context_args {
+	uint32_t	uid;
+	gssd_cred_id_t	cred;
+	gssd_ctx_id_t	ctx;
+	gssd_name_t	name;
+	gss_OID		mech_type;
+	uint32_t	req_flags;
+	uint32_t	time_req;
+	gss_channel_bindings_t input_chan_bindings;
+	gss_buffer_desc input_token;
+};
+
+struct init_sec_context_lucid_v1_res {
+	uint32_t	major_status;
+	uint32_t	minor_status;
+	gssd_ctx_id_t	ctx;
+	gss_OID		actual_mech_type;
+	gss_buffer_desc output_token;
+	uint32_t	ret_flags;
+	uint32_t	time_rec;
+	kgss_lucid_desc lucid;
+};
+
+struct init_sec_context_lucid_v1_args {
 	uint32_t	uid;
 	gssd_cred_id_t	cred;
 	gssd_ctx_id_t	ctx;
@@ -89,6 +127,30 @@ struct accept_sec_context_args {
 	gss_channel_bindings_t input_chan_bindings;
 };
 
+struct accept_sec_context_lucid_v1_res {
+	uint32_t	major_status;
+	uint32_t	minor_status;
+	gssd_ctx_id_t	ctx;
+	gssd_name_t	src_name;
+	gss_OID		mech_type;
+	gss_buffer_desc	output_token;
+	uint32_t	ret_flags;
+	uint32_t	time_rec;
+	gssd_cred_id_t	delegated_cred_handle;
+	kgss_lucid_desc lucid;
+	gss_buffer_desc	exported_name;
+	uint32_t	uid;
+	uint32_t	gid;
+	uint32_t	gidlist<>;
+};
+
+struct accept_sec_context_lucid_v1_args {
+	gssd_ctx_id_t	ctx;
+	gssd_cred_id_t	cred;
+	gss_buffer_desc	input_token;
+	gss_channel_bindings_t input_chan_bindings;
+};
+
 struct delete_sec_context_res {
 	uint32_t	major_status;
 	uint32_t	minor_status;
@@ -101,7 +163,8 @@ struct delete_sec_context_args {
 
 enum sec_context_format {
 	KGSS_HEIMDAL_0_6,
-	KGSS_HEIMDAL_1_1
+	KGSS_HEIMDAL_1_1,
+	MIT_V1
 };
 
 struct export_sec_context_res {
@@ -229,6 +292,11 @@ struct ip_to_dns_args {
 	char		ip_addr<NI_MAXHOST>;
 };
 
+struct supports_lucid_res {
+	uint32_t	major_status;
+	uint32_t	vers;
+};
+
 program GSSD {
 	version GSSDVERS {
 		void GSSD_NULL(void) = 0;
@@ -274,5 +342,14 @@ program GSSD {
 
 		ip_to_dns_res
 		GSSD_IP_TO_DNS(ip_to_dns_args) = 14;
+
+		init_sec_context_lucid_v1_res
+		GSSD_INIT_SEC_CONTEXT_LUCID_V1(init_sec_context_lucid_v1_args) = 15;
+
+		accept_sec_context_lucid_v1_res
+		GSSD_ACCEPT_SEC_CONTEXT_LUCID_V1(accept_sec_context_lucid_v1_args) = 16;
+
+		supports_lucid_res
+		GSSD_SUPPORTS_LUCID(void) = 17;
 	} = 1;
 } = 0x40677373;

@@ -274,7 +274,7 @@ struct ufshci_registers {
 #define UFSHCI_HCS_REG_UTMRLRDY_MASK  (0x1)
 #define UFSHCI_HCS_REG_UCRDY_SHIFT    (3)
 #define UFSHCI_HCS_REG_UCRDY_MASK     (0x1)
-#define UFSHCI_HCS_REG_UPMCRS_SHIFT   (7)
+#define UFSHCI_HCS_REG_UPMCRS_SHIFT   (8)
 #define UFSHCI_HCS_REG_UPMCRS_MASK    (0x7)
 #define UFSHCI_HCS_REG_UTPEC_SHIFT    (12)
 #define UFSHCI_HCS_REG_UTPEC_MASK     (0xF)

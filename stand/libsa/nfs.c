@@ -131,6 +131,7 @@ struct	nfs_iodesc nfs_root_node;
 
 struct fs_ops nfs_fsops = {
 	.fs_name = "nfs",
+	.fs_flags = 0,
 	.fo_open = nfs_open,
 	.fo_close = nfs_close,
 	.fo_read = nfs_read,

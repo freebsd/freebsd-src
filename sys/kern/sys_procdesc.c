@@ -129,7 +129,7 @@ procdesc_find(struct thread *td, int fd, const cap_rights_t *rightsp,
 	if (error)
 		return (error);
 	if (fp->f_type != DTYPE_PROCDESC) {
-		error = EBADF;
+		error = EINVAL;
 		goto out;
 	}
 	pd = fp->f_data;
@@ -486,6 +486,7 @@ static const struct filterops procdesc_kqops = {
 	.f_isfd = 1,
 	.f_detach = procdesc_kqops_detach,
 	.f_event = procdesc_kqops_event,
+	.f_copy = knote_triv_copy,
 };
 
 static int

@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.Dd January 23, 2019
+.Dd August 29, 2025
 .Dt UCRED 9
 .Os
 .Sh NAME
@@ -53,6 +53,9 @@
 .Fn crdup "struct ucred *cr"
 .Ft void
 .Fn crsetgroups "struct ucred *cr" "int ngrp" "gid_t *groups"
+.Ft void
+.Fn crsetgroups_and_egid "struct ucred *cr" "int ngrp" "gid_t *groups" \
+    "gid_t default_egid"
 .Ft void
 .Fn cru2x "struct ucred *cr" "struct xucred *xcr"
 .Sh DESCRIPTION
@@ -114,13 +117,22 @@ function sets the
 .Va cr_groups
 and
 .Va cr_ngroups
-variables and allocates space as needed.
-It also truncates the group list to the current maximum number of
-groups.
+variables representing the supplementary groups, allocating space as needed.
+It also truncates the group list to the current maximum number of groups.
+The
+.Fn crsetgroups_and_egid
+function is similar, but interprets separately the first group of
+.Va groups
+as the effective GID to set, only setting the subsequent groups as supplementary
+ones.
+It will use
+.Va default_egid
+as the new effective GID if
+.Va groups
+is empty.
 No other mechanism should be used to modify the
 .Va cr_groups
-array except for updating the primary group via assignment to
-.Va cr_groups[0] .
+array.
 .Pp
 The
 .Fn cru2x

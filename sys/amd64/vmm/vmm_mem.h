@@ -30,10 +30,9 @@
 #define	_VMM_MEM_H_
 
 struct vmspace;
-struct vm_object;
 
-struct vm_object *vmm_mmio_alloc(struct vmspace *, vm_paddr_t gpa, size_t len,
-				 vm_paddr_t hpa);
+int		vmm_mmio_alloc(struct vmspace *, vm_paddr_t gpa, size_t len,
+		    vm_paddr_t hpa);
 void		vmm_mmio_free(struct vmspace *, vm_paddr_t gpa, size_t size);
 vm_paddr_t	vmm_mem_maxaddr(void);
 

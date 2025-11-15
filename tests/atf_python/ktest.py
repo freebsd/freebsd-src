@@ -67,6 +67,10 @@ class KtestLoader(object):
     def __init__(self, module_name: str, autoload: bool):
         self.module_name = module_name
         self.autoload = autoload
+        # Ensure the base ktest.ko module is loaded
+        result = libc.kldload("ktest")
+        if result != 0 and result != 17:  # 17 is EEXIST (already loaded)
+            logger.debug(f"Failed to load base ktest module (error {result})")
         self.helper = NlHelper()
         self.nlsock = Nlsock(NlConst.NETLINK_GENERIC, self.helper)
         self.family_id = self._get_family_id()
@@ -76,7 +80,9 @@ class KtestLoader(object):
             family_id = self.nlsock.get_genl_family_id(NETLINK_FAMILY)
         except ValueError:
             if self.autoload:
-                libc.kldload(self.module_name)
+                result = libc.kldload(self.module_name)
+                if result != 0 and result != 17:  # 17 is EEXIST (already loaded)
+                    raise RuntimeError(f"Failed to load kernel module '{self.module_name}' (error {result})")
                 family_id = self.nlsock.get_genl_family_id(NETLINK_FAMILY)
             else:
                 raise
@@ -103,7 +109,9 @@ class KtestLoader(object):
     def load_ktests(self):
         ret = self._load_ktests()
         if not ret and self.autoload:
-            libc.kldload(self.module_name)
+            result = libc.kldload(self.module_name)
+            if result != 0 and result != 17:  # 17 is EEXIST (already loaded)
+                raise RuntimeError(f"Failed to load kernel module '{self.module_name}' (error {result})")
             ret = self._load_ktests()
         return ret
 

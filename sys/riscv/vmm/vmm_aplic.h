@@ -49,6 +49,5 @@ void aplic_cpuinit(struct hypctx *hypctx);
 void aplic_cpucleanup(struct hypctx *hypctx);
 void aplic_flush_hwstate(struct hypctx *hypctx);
 void aplic_sync_hwstate(struct hypctx *hypctx);
-int aplic_max_cpu_count(struct hyp *hyp);
 
 #endif /* !_VMM_APLIC_H_ */

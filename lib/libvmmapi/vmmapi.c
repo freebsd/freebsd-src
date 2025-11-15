@@ -28,13 +28,14 @@
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
+#include <sys/cpuset.h>
+#include <sys/domainset.h>
 #include <sys/sysctl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/linker.h>
 #include <sys/module.h>
 #include <sys/_iovec.h>
-#include <sys/cpuset.h>
 
 #include <capsicum_helpers.h>
 #include <err.h>
@@ -322,8 +323,8 @@ vm_get_guestmem_from_ctx(struct vmctx *ctx, char **guest_baseaddr,
 {
 
 	*guest_baseaddr = ctx->baseaddr;
-	*lowmem_size = ctx->memsegs[VM_MEMSEG_LOW].size;
-	*highmem_size = ctx->memsegs[VM_MEMSEG_HIGH].size;
+	*lowmem_size = ctx->lowmem_size;
+	*highmem_size = ctx->highmem_size;
 	return (0);
 }
 
@@ -379,7 +380,8 @@ cmpseg(size_t len, const char *str, size_t len2, const char *str2)
 }
 
 static int
-vm_alloc_memseg(struct vmctx *ctx, int segid, size_t len, const char *name)
+vm_alloc_memseg(struct vmctx *ctx, int segid, size_t len, const char *name,
+    int ds_policy, domainset_t *ds_mask, size_t ds_size)
 {
 	struct vm_memseg memseg;
 	size_t n;
@@ -407,6 +409,13 @@ vm_alloc_memseg(struct vmctx *ctx, int segid, size_t len, const char *name)
 	bzero(&memseg, sizeof(struct vm_memseg));
 	memseg.segid = segid;
 	memseg.len = len;
+	if (ds_mask == NULL) {
+		memseg.ds_policy = DOMAINSET_POLICY_INVALID;
+	} else {
+		memseg.ds_policy = ds_policy;
+		memseg.ds_mask = ds_mask;
+		memseg.ds_mask_size = ds_size;
+	}
 	if (name != NULL) {
 		n = strlcpy(memseg.name, name, sizeof(memseg.name));
 		if (n >= sizeof(memseg.name)) {
@@ -442,13 +451,14 @@ vm_get_memseg(struct vmctx *ctx, int segid, size_t *lenp, char *namebuf,
 }
 
 static int
-setup_memory_segment(struct vmctx *ctx, vm_paddr_t gpa, size_t len, char *base)
+map_memory_segment(struct vmctx *ctx, int segid, vm_paddr_t gpa, size_t len,
+    size_t segoff, char *base)
 {
 	char *ptr;
 	int error, flags;
 
 	/* Map 'len' bytes starting at 'gpa' in the guest address space */
-	error = vm_mmap_memseg(ctx, gpa, VM_SYSMEM, gpa, len, PROT_ALL);
+	error = vm_mmap_memseg(ctx, gpa, segid, segoff, len, PROT_ALL);
 	if (error)
 		return (error);
 
@@ -464,63 +474,134 @@ setup_memory_segment(struct vmctx *ctx, vm_paddr_t gpa, size_t len, char *base)
 	return (0);
 }
 
+/*
+ * Allocates and maps virtual machine memory segments according
+ * to the NUMA topology specified by the 'doms' array.
+ *
+ * The domains are laid out sequentially in the guest's physical address space.
+ * The [VM_LOWMEM_LIMIT, VM_HIGHMEM_BASE) address range is skipped and
+ * left unmapped.
+ */
 int
-vm_setup_memory(struct vmctx *ctx, size_t memsize, enum vm_mmap_style vms)
+vm_setup_memory_domains(struct vmctx *ctx, enum vm_mmap_style vms,
+    struct vm_mem_domain *doms, int ndoms)
 {
-	size_t objsize, len;
-	vm_paddr_t gpa;
+	size_t low_len, len, totalsize;
+	struct vm_mem_domain *dom;
+	struct vm_memseg memseg;
 	char *baseaddr, *ptr;
-	int error;
+	int error, i, segid;
+	vm_paddr_t gpa;
 
+	/* Sanity checks. */
 	assert(vms == VM_MMAP_ALL);
-
-	/*
-	 * If 'memsize' cannot fit entirely in the 'lowmem' segment then create
-	 * another 'highmem' segment above VM_HIGHMEM_BASE for the remainder.
-	 */
-	if (memsize > VM_LOWMEM_LIMIT) {
-		ctx->memsegs[VM_MEMSEG_LOW].size = VM_LOWMEM_LIMIT;
-		ctx->memsegs[VM_MEMSEG_HIGH].size = memsize - VM_LOWMEM_LIMIT;
-		objsize = VM_HIGHMEM_BASE + ctx->memsegs[VM_MEMSEG_HIGH].size;
-	} else {
-		ctx->memsegs[VM_MEMSEG_LOW].size = memsize;
-		ctx->memsegs[VM_MEMSEG_HIGH].size = 0;
-		objsize = memsize;
+	if (doms == NULL || ndoms <= 0 || ndoms > VM_MAXMEMDOM) {
+		errno = EINVAL;
+		return (-1);
 	}
 
-	error = vm_alloc_memseg(ctx, VM_SYSMEM, objsize, NULL);
-	if (error)
-		return (error);
+	/* Calculate total memory size. */
+	totalsize = 0;
+	for (i = 0; i < ndoms; i++)
+		totalsize += doms[i].size;
+
+	if (totalsize > VM_LOWMEM_LIMIT)
+		totalsize = VM_HIGHMEM_BASE + (totalsize - VM_LOWMEM_LIMIT);
 
 	/*
 	 * Stake out a contiguous region covering the guest physical memory
 	 * and the adjoining guard regions.
 	 */
-	len = VM_MMAP_GUARD_SIZE + objsize + VM_MMAP_GUARD_SIZE;
+	len = VM_MMAP_GUARD_SIZE + totalsize + VM_MMAP_GUARD_SIZE;
 	ptr = mmap(NULL, len, PROT_NONE, MAP_GUARD | MAP_ALIGNED_SUPER, -1, 0);
 	if (ptr == MAP_FAILED)
 		return (-1);
-
 	baseaddr = ptr + VM_MMAP_GUARD_SIZE;
-	if (ctx->memsegs[VM_MEMSEG_HIGH].size > 0) {
-		gpa = VM_HIGHMEM_BASE;
-		len = ctx->memsegs[VM_MEMSEG_HIGH].size;
-		error = setup_memory_segment(ctx, gpa, len, baseaddr);
-		if (error)
-			return (error);
-	}
 
-	if (ctx->memsegs[VM_MEMSEG_LOW].size > 0) {
-		gpa = 0;
-		len = ctx->memsegs[VM_MEMSEG_LOW].size;
-		error = setup_memory_segment(ctx, gpa, len, baseaddr);
-		if (error)
-			return (error);
-	}
+	/*
+	 * Allocate and map memory segments for the virtual machine.
+	 */
+	gpa = VM_LOWMEM_LIMIT > 0 ? 0 : VM_HIGHMEM_BASE;
+	ctx->lowmem_size = 0;
+	ctx->highmem_size = 0;
+	for (i = 0; i < ndoms; i++) {
+		segid = VM_SYSMEM + i;
+		dom = &doms[i];
 
+		/*
+		 * Check if the memory segment already exists.
+		 * If 'ndoms' is greater than one, refuse to proceed if the
+		 * memseg already exists. If only one domain was requested, use
+		 * the existing segment to preserve the behaviour of the previous
+		 * implementation.
+		 *
+		 * Splitting existing memory segments is tedious and
+		 * error-prone, which is why we don't support NUMA
+		 * domains for bhyveload(8)-loaded VMs.
+		 */
+		error = vm_get_memseg(ctx, segid, &len, memseg.name,
+		    sizeof(memseg.name));
+		if (error == 0 && len != 0) {
+			if (ndoms != 1) {
+				errno = EEXIST;
+				return (-1);
+			} else
+				doms[0].size = len;
+		} else {
+			error = vm_alloc_memseg(ctx, segid, dom->size, NULL,
+			    dom->ds_policy, dom->ds_mask, dom->ds_size);
+			if (error)
+				return (error);
+		}
+
+		/*
+		 * If a domain is split by VM_LOWMEM_LIMIT then break
+		 * its segment mapping into two parts, one below VM_LOWMEM_LIMIT
+		 * and one above VM_HIGHMEM_BASE.
+		 */
+		if (gpa <= VM_LOWMEM_LIMIT &&
+		    gpa + dom->size > VM_LOWMEM_LIMIT) {
+			low_len = VM_LOWMEM_LIMIT - gpa;
+			error = map_memory_segment(ctx, segid, gpa, low_len, 0,
+			    baseaddr);
+			if (error)
+				return (error);
+			ctx->lowmem_size = VM_LOWMEM_LIMIT;
+			/* Map the remainder. */
+			gpa = VM_HIGHMEM_BASE;
+			len = dom->size - low_len;
+			error = map_memory_segment(ctx, segid, gpa, len,
+			    low_len, baseaddr);
+			if (error)
+				return (error);
+		} else {
+			len = dom->size;
+			error = map_memory_segment(ctx, segid, gpa, len, 0,
+			    baseaddr);
+			if (error)
+				return (error);
+		}
+		if (gpa <= VM_LOWMEM_LIMIT)
+			ctx->lowmem_size += len;
+		else
+			ctx->highmem_size += len;
+		gpa += len;
+	}
 	ctx->baseaddr = baseaddr;
 
 	return (0);
+}
+
+int
+vm_setup_memory(struct vmctx *ctx, size_t memsize, enum vm_mmap_style vms)
+{
+	struct vm_mem_domain dom0;
+
+	memset(&dom0, 0, sizeof(dom0));
+	dom0.ds_policy = DOMAINSET_POLICY_INVALID;
+	dom0.size = memsize;
+
+	return (vm_setup_memory_domains(ctx, vms, &dom0, 1));
 }
 
 /*
@@ -535,13 +616,13 @@ vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len)
 {
 	vm_size_t lowsize, highsize;
 
-	lowsize = ctx->memsegs[VM_MEMSEG_LOW].size;
+	lowsize = ctx->lowmem_size;
 	if (lowsize > 0) {
 		if (gaddr < lowsize && len <= lowsize && gaddr + len <= lowsize)
 			return (ctx->baseaddr + gaddr);
 	}
 
-	highsize = ctx->memsegs[VM_MEMSEG_HIGH].size;
+	highsize = ctx->highmem_size;
 	if (highsize > 0 && gaddr >= VM_HIGHMEM_BASE) {
 		if (gaddr < VM_HIGHMEM_BASE + highsize && len <= highsize &&
 		    gaddr + len <= VM_HIGHMEM_BASE + highsize)
@@ -559,12 +640,12 @@ vm_rev_map_gpa(struct vmctx *ctx, void *addr)
 
 	offaddr = (char *)addr - ctx->baseaddr;
 
-	lowsize = ctx->memsegs[VM_MEMSEG_LOW].size;
+	lowsize = ctx->lowmem_size;
 	if (lowsize > 0)
 		if (offaddr <= lowsize)
 			return (offaddr);
 
-	highsize = ctx->memsegs[VM_MEMSEG_HIGH].size;
+	highsize = ctx->highmem_size;
 	if (highsize > 0)
 		if (offaddr >= VM_HIGHMEM_BASE &&
 		    offaddr < VM_HIGHMEM_BASE + highsize)
@@ -583,8 +664,7 @@ vm_get_name(struct vmctx *ctx)
 size_t
 vm_get_lowmem_size(struct vmctx *ctx)
 {
-
-	return (ctx->memsegs[VM_MEMSEG_LOW].size);
+	return (ctx->lowmem_size);
 }
 
 vm_paddr_t
@@ -597,8 +677,7 @@ vm_get_highmem_base(struct vmctx *ctx __unused)
 size_t
 vm_get_highmem_size(struct vmctx *ctx)
 {
-
-	return (ctx->memsegs[VM_MEMSEG_HIGH].size);
+	return (ctx->highmem_size);
 }
 
 void *
@@ -616,7 +695,7 @@ vm_create_devmem(struct vmctx *ctx, int segid, const char *name, size_t len)
 		goto done;
 	}
 
-	error = vm_alloc_memseg(ctx, segid, len, name);
+	error = vm_alloc_memseg(ctx, segid, len, name, 0, NULL, 0);
 	if (error)
 		goto done;
 

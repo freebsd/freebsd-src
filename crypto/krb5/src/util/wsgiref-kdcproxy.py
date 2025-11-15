@@ -14,6 +14,8 @@ else:
     pem = '*'
 
 server = make_server('localhost', port, kdcproxy.Application())
-server.socket = ssl.wrap_socket(server.socket, certfile=pem, server_side=True)
+sslctx = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
+sslctx.load_cert_chain(certfile=pem)
+server.socket = sslctx.wrap_socket(server.socket, server_side=True)
 os.write(sys.stdout.fileno(), b'proxy server ready\n')
 server.serve_forever()

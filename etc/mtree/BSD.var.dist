@@ -45,6 +45,8 @@
         ..
         ipf             mode=0700 tags=package=ipf
         ..
+        krb5kdc		mode=0700 tags=package=kerberos-kdc
+        ..
         mtree
         ..
         ntp             uname=ntpd gname=ntpd
@@ -102,8 +104,8 @@
         vi.recover      mode=01777
         ..
     ..
-    unbound         uname=unbound gname=unbound mode=0755 tags=package=unbound
-        conf.d          uname=unbound gname=unbound mode=0755 tags=package=unbound
+    unbound         uname=unbound gname=unbound mode=0755 tags=package=local-unbound
+        conf.d          uname=unbound gname=unbound mode=0755 tags=package=local-unbound
         ..
     ..
     yp

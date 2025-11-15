@@ -69,7 +69,7 @@ kinit_kdb_init(krb5_context *pcontext, char *realm)
 }
 
 void
-kinit_kdb_fini()
+kinit_kdb_fini(void)
 {
     kadm5_destroy(server_handle);
 }

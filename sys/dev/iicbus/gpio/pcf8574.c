@@ -142,12 +142,13 @@ pcf8574_attach(device_t dev)
 	(void)pcf8574_write(sc, 0xff);
 
 	sx_init(&sc->lock, "pcf8574");
-	sc->busdev = gpiobus_attach_bus(dev);
+	sc->busdev = gpiobus_add_bus(dev);
 	if (sc->busdev == NULL) {
 		device_printf(dev, "Could not create busdev child\n");
 		sx_destroy(&sc->lock);
 		return (ENXIO);
 	}
+	bus_attach_children(dev);
 	return (0);
 }
 
@@ -158,9 +159,7 @@ pcf8574_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if (sc->busdev != NULL)
-		gpiobus_detach_bus(sc->busdev);
-
+	gpiobus_detach_bus(dev);
 	sx_destroy(&sc->lock);
 	return (0);
 }

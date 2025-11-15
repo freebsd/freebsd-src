@@ -40,12 +40,12 @@ my $vararg;
 LINE:
 while (! $h->eof()) {
     $_ = $h->getline();
-    chop;
+    s/(\r)?\n$//;
     # get calling convention info for function decls
     # what about function pointer typedefs?
     # need to verify unhandled syntax actually triggers a report, not ignored
     # blank lines
-    if (/^[ \t]*$/) {
+    if (/^[ \t\cZ]*$/) {
         next LINE;
     }
   Top:
@@ -79,7 +79,7 @@ while (! $h->eof()) {
 	$_ .= " ";
 	$len1 = length;
 	$_ .= $h->getline();
-	chop if $len1 < length;
+	s/(\r)?\n$// if $len1 < length;
 	goto Cloop1 if /\/\*./;
     }
     # blank lines
@@ -101,7 +101,7 @@ while (! $h->eof()) {
 	$_ .= "\n";
 	$len1 = length;
 	$_ .= $h->getline();
-	chop if $len1 < length;
+	s/(\r)?\n$// if $len1 < length;
 	goto Struct1;
     }
   Semi:
@@ -109,7 +109,7 @@ while (! $h->eof()) {
 	$_ .= "\n";
 	$len1 = length;
 	$_ .= $h->getline();
-	chop if $len1 < length;
+	s/(\r)?\n$// if $len1 < length;
 	s/\n/ /g;
 	s/[ \t]+/ /g;
 	s/^[ \t]*//;
@@ -212,7 +212,7 @@ if (!$d) {
 LINE2:
 while (! $d->eof()) {
     $_ = $d->getline();
-    chop;
+    s/[\r\n]+$//;
     #
     if (/^;/) {
         $printit = 0;

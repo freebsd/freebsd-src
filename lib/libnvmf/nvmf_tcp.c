@@ -728,7 +728,7 @@ nvmf_tcp_handle_r2t(struct nvmf_tcp_qpair *qp, struct nvmf_tcp_rxpdu *pdu)
 	}
 
 	/*
-	 * XXX: The spec does not specify how to handle R2T tranfers
+	 * XXX: The spec does not specify how to handle R2T transfers
 	 * out of range of the original command.
 	 */
 	data_len = le32toh(r2t->r2tl);

@@ -1,8 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2012, 2016 Chelsio Communications, Inc.
- * All rights reserved.
+ * Copyright (c) 2012, 2016, 2025 Chelsio Communications.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -83,6 +82,41 @@ static inline int t4_wait_op_done(struct adapter *adapter, int reg, u32 mask,
 {
 	return t4_wait_op_done_val(adapter, reg, mask, polarity, attempts,
 				   delay, NULL);
+}
+
+ /**
+ *	t7_wait_sram_done - wait until an operation is completed
+ *	@adapter: the adapter performing the operation
+ *	@reg: the register to check for completion
+ *	@result_reg: register that holds the result value 
+ *	@attempts: number of check iterations
+ *	@delay: delay in usecs between iterations
+ *	@valp: where to store the value of the result register at completion time
+ *
+ *	Waits until a specific bit in @reg is cleared, checking up to
+ *	@attempts times.Once the bit is cleared, reads from @result_reg
+ *	and stores the value in @valp if it is not NULL. Returns 0 if the
+ *	operation completes successfully and -EAGAIN if it times out.
+ */
+static int t7_wait_sram_done(struct adapter *adap, int reg, int result_reg,
+			     int attempts, int delay, u32 *valp)
+{
+	while (1) {
+		u32 val = t4_read_reg(adap, reg);
+
+		/* Check if SramStart (bit 19) is cleared */
+		if (!(val & (1 << 19))) {
+			if (valp)
+				*valp  = t4_read_reg(adap, result_reg);
+			return 0;
+		}
+
+		if (--attempts == 0)
+			return -EAGAIN;
+
+		if (delay)
+			udelay(delay);
+	}
 }
 
 /**
@@ -246,6 +280,8 @@ struct port_tx_state {
 u32
 t4_port_reg(struct adapter *adap, u8 port, u32 reg)
 {
+	if (chip_id(adap) > CHELSIO_T6)
+		return T7_PORT_REG(port, reg);
 	if (chip_id(adap) > CHELSIO_T4)
 		return T5_PORT_REG(port, reg);
 	return PORT_REG(port, reg);
@@ -268,8 +304,10 @@ read_tx_state(struct adapter *sc, struct port_tx_state *tx_state)
 {
 	int i;
 
-	for_each_port(sc, i)
-		read_tx_state_one(sc, i, &tx_state[i]);
+	for (i = 0; i < MAX_NCHAN; i++) {
+		if (sc->chan_map[i] != 0xff)
+			read_tx_state_one(sc, i, &tx_state[i]);
+	}
 }
 
 static void
@@ -279,7 +317,9 @@ check_tx_state(struct adapter *sc, struct port_tx_state *tx_state)
 	uint64_t tx_frames, rx_pause;
 	int i;
 
-	for_each_port(sc, i) {
+	for (i = 0; i < MAX_NCHAN; i++) {
+		if (sc->chan_map[i] == 0xff)
+			continue;
 		rx_pause = tx_state[i].rx_pause;
 		tx_frames = tx_state[i].tx_frames;
 		read_tx_state_one(sc, i, &tx_state[i]);	/* update */
@@ -351,7 +391,7 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 		return -EINVAL;
 
 	if (adap->flags & IS_VF) {
-		if (is_t6(adap))
+		if (chip_id(adap) >= CHELSIO_T6)
 			data_reg = FW_T6VF_MBDATA_BASE_ADDR;
 		else
 			data_reg = FW_T4VF_MBDATA_BASE_ADDR;
@@ -508,9 +548,8 @@ failed:
 int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 		    void *rpl, bool sleep_ok)
 {
-		return t4_wr_mbox_meat_timeout(adap, mbox, cmd, size, rpl,
-					       sleep_ok, FW_CMD_MAX_TIMEOUT);
-
+	return t4_wr_mbox_meat_timeout(adap, mbox, cmd, size, rpl,
+				       sleep_ok, FW_CMD_MAX_TIMEOUT);
 }
 
 static int t4_edc_err_read(struct adapter *adap, int idx)
@@ -531,11 +570,11 @@ static int t4_edc_err_read(struct adapter *adap, int idx)
 	edc_bist_status_rdata_reg = EDC_T5_REG(A_EDC_H_BIST_STATUS_RDATA, idx);
 
 	CH_WARN(adap,
-		"edc%d err addr 0x%x: 0x%x.\n",
+		"  edc%d err addr 0x%x: 0x%x.\n",
 		idx, edc_ecc_err_addr_reg,
 		t4_read_reg(adap, edc_ecc_err_addr_reg));
 	CH_WARN(adap,
-	 	"bist: 0x%x, status %llx %llx %llx %llx %llx %llx %llx %llx %llx.\n",
+		"  bist: 0x%x, status %llx %llx %llx %llx %llx %llx %llx %llx %llx.\n",
 		edc_bist_status_rdata_reg,
 		(unsigned long long)t4_read_reg64(adap, edc_bist_status_rdata_reg),
 		(unsigned long long)t4_read_reg64(adap, edc_bist_status_rdata_reg + 8),
@@ -574,14 +613,15 @@ int t4_mc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 		mc_bist_cmd_len_reg = A_MC_BIST_CMD_LEN;
 		mc_bist_status_rdata_reg = A_MC_BIST_STATUS_RDATA;
 		mc_bist_data_pattern_reg = A_MC_BIST_DATA_PATTERN;
-	} else {
+	} else if (chip_id(adap) < CHELSIO_T7) {
 		mc_bist_cmd_reg = MC_REG(A_MC_P_BIST_CMD, idx);
 		mc_bist_cmd_addr_reg = MC_REG(A_MC_P_BIST_CMD_ADDR, idx);
 		mc_bist_cmd_len_reg = MC_REG(A_MC_P_BIST_CMD_LEN, idx);
-		mc_bist_status_rdata_reg = MC_REG(A_MC_P_BIST_STATUS_RDATA,
-						  idx);
-		mc_bist_data_pattern_reg = MC_REG(A_MC_P_BIST_DATA_PATTERN,
-						  idx);
+		mc_bist_status_rdata_reg = MC_REG(A_MC_P_BIST_STATUS_RDATA, idx);
+		mc_bist_data_pattern_reg = MC_REG(A_MC_P_BIST_DATA_PATTERN, idx);
+	} else {
+		/* Need to figure out split mode and the rest. */
+		return (-ENOTSUP);
 	}
 
 	if (t4_read_reg(adap, mc_bist_cmd_reg) & F_START_BIST)
@@ -632,21 +672,13 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 		edc_bist_status_rdata_reg = EDC_REG(A_EDC_BIST_STATUS_RDATA,
 						    idx);
 	} else {
-/*
- * These macro are missing in t4_regs.h file.
- * Added temporarily for testing.
- */
-#define EDC_STRIDE_T5 (EDC_T51_BASE_ADDR - EDC_T50_BASE_ADDR)
-#define EDC_REG_T5(reg, idx) (reg + EDC_STRIDE_T5 * idx)
-		edc_bist_cmd_reg = EDC_REG_T5(A_EDC_H_BIST_CMD, idx);
-		edc_bist_cmd_addr_reg = EDC_REG_T5(A_EDC_H_BIST_CMD_ADDR, idx);
-		edc_bist_cmd_len_reg = EDC_REG_T5(A_EDC_H_BIST_CMD_LEN, idx);
-		edc_bist_cmd_data_pattern = EDC_REG_T5(A_EDC_H_BIST_DATA_PATTERN,
+		edc_bist_cmd_reg = EDC_T5_REG(A_EDC_H_BIST_CMD, idx);
+		edc_bist_cmd_addr_reg = EDC_T5_REG(A_EDC_H_BIST_CMD_ADDR, idx);
+		edc_bist_cmd_len_reg = EDC_T5_REG(A_EDC_H_BIST_CMD_LEN, idx);
+		edc_bist_cmd_data_pattern = EDC_T5_REG(A_EDC_H_BIST_DATA_PATTERN,
 						    idx);
-		edc_bist_status_rdata_reg = EDC_REG_T5(A_EDC_H_BIST_STATUS_RDATA,
+		edc_bist_status_rdata_reg = EDC_T5_REG(A_EDC_H_BIST_STATUS_RDATA,
 						    idx);
-#undef EDC_REG_T5
-#undef EDC_STRIDE_T5
 	}
 
 	if (t4_read_reg(adap, edc_bist_cmd_reg) & F_START_BIST)
@@ -799,6 +831,7 @@ unsigned int t4_get_regs_len(struct adapter *adapter)
 
 	case CHELSIO_T5:
 	case CHELSIO_T6:
+	case CHELSIO_T7:
 		if (adapter->flags & IS_VF)
 			return FW_T4VF_REGMAP_SIZE;
 		return T5_REGMAP_SIZE;
@@ -2639,6 +2672,644 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		((NUM_CIM_PF_MAILBOX_DATA_INSTANCES - 1) * 4),
 	};
 
+	static const unsigned int t7_reg_ranges[] = {
+		0x1008, 0x101c,
+		0x1024, 0x10a8,
+		0x10b4, 0x10f8,
+		0x1100, 0x1114,
+		0x111c, 0x112c,
+		0x1138, 0x113c,
+		0x1144, 0x115c,
+		0x1180, 0x1184,
+		0x1190, 0x1194,
+		0x11a0, 0x11a4,
+		0x11b0, 0x11d0,
+		0x11fc, 0x1278,
+		0x1280, 0x1368,
+		0x1700, 0x172c,
+		0x173c, 0x1760,
+		0x1800, 0x18fc,
+		0x3000, 0x3044,
+		0x30a4, 0x30b0,
+		0x30b8, 0x30d8,
+		0x30e0, 0x30e8,
+		0x3140, 0x357c,
+		0x35a8, 0x35cc,
+		0x35e0, 0x35ec,
+		0x3600, 0x37fc,
+		0x3804, 0x3818,
+		0x3880, 0x388c,
+		0x3900, 0x3904,
+		0x3910, 0x3978,
+		0x3980, 0x399c,
+		0x4700, 0x4720,
+		0x4728, 0x475c,
+		0x480c, 0x4814,
+		0x4890, 0x489c,
+		0x48a4, 0x48ac,
+		0x48b8, 0x48bc,
+		0x4900, 0x4924,
+		0x4ffc, 0x4ffc,
+		0x5500, 0x5624,
+		0x56c4, 0x56ec,
+		0x56f4, 0x5720,
+		0x5728, 0x575c,
+		0x580c, 0x5814,
+		0x5890, 0x589c,
+		0x58a4, 0x58ac,
+		0x58b8, 0x58bc,
+		0x5940, 0x598c,
+		0x59b0, 0x59c8,
+		0x59d0, 0x59dc,
+		0x59fc, 0x5a18,
+		0x5a60, 0x5a6c,
+		0x5a80, 0x5a8c,
+		0x5a94, 0x5a9c,
+		0x5b94, 0x5bec,
+		0x5bf8, 0x5bfc,
+		0x5c10, 0x5c40,
+		0x5c4c, 0x5e48,
+		0x5e50, 0x5e94,
+		0x5ea0, 0x5eb0,
+		0x5ec0, 0x5ec0,
+		0x5ec8, 0x5ed0,
+		0x5ee0, 0x5ee0,
+		0x5ef0, 0x5ef0,
+		0x5f00, 0x5f04,
+		0x5f0c, 0x5f10,
+		0x5f20, 0x5f78,
+		0x5f84, 0x5f88,
+		0x5f90, 0x5fd8,
+		0x6000, 0x6020,
+		0x6028, 0x6030,
+		0x6044, 0x609c,
+		0x60a8, 0x60ac,
+		0x60b8, 0x60ec,
+		0x6100, 0x6104,
+		0x6118, 0x611c,
+		0x6150, 0x6150,
+		0x6180, 0x61b8,
+		0x7700, 0x77a8,
+		0x77b0, 0x7888,
+		0x78cc, 0x7970,
+		0x7b00, 0x7b00,
+		0x7b08, 0x7b0c,
+		0x7b24, 0x7b84,
+		0x7b8c, 0x7c2c,
+		0x7c34, 0x7c40,
+		0x7c48, 0x7c68,
+		0x7c70, 0x7c7c,
+		0x7d00, 0x7ddc,
+		0x7de4, 0x7e38,
+		0x7e40, 0x7e44,
+		0x7e4c, 0x7e74,
+		0x7e80, 0x7ee0,
+		0x7ee8, 0x7f0c,
+		0x7f20, 0x7f5c,
+		0x8dc0, 0x8de8,
+		0x8df8, 0x8e04,
+		0x8e10, 0x8e30,
+		0x8e7c, 0x8ee8,
+		0x8f88, 0x8f88,
+		0x8f90, 0x8fb0,
+		0x8fb8, 0x9058,
+		0x9074, 0x90f8,
+		0x9100, 0x912c,
+		0x9138, 0x9188,
+		0x9400, 0x9414,
+		0x9430, 0x9440,
+		0x9454, 0x9454,
+		0x945c, 0x947c,
+		0x9498, 0x94b8,
+		0x9600, 0x9600,
+		0x9608, 0x9638,
+		0x9640, 0x9704,
+		0x9710, 0x971c,
+		0x9800, 0x9804,
+		0x9854, 0x9854,
+		0x9c00, 0x9c6c,
+		0x9c80, 0x9cec,
+		0x9d00, 0x9d6c,
+		0x9d80, 0x9dec,
+		0x9e00, 0x9e6c,
+		0x9e80, 0x9eec,
+		0x9f00, 0x9f6c,
+		0x9f80, 0x9fec,
+		0xa000, 0xa06c,
+		0xa080, 0xa0ec,
+		0xa100, 0xa16c,
+		0xa180, 0xa1ec,
+		0xa200, 0xa26c,
+		0xa280, 0xa2ec,
+		0xa300, 0xa36c,
+		0xa380, 0xa458,
+		0xa460, 0xa4f8,
+		0xd000, 0xd03c,
+		0xd100, 0xd134,
+		0xd200, 0xd214,
+		0xd220, 0xd234,
+		0xd240, 0xd254,
+		0xd260, 0xd274,
+		0xd280, 0xd294,
+		0xd2a0, 0xd2b4,
+		0xd2c0, 0xd2d4,
+		0xd2e0, 0xd2f4,
+		0xd300, 0xd31c,
+		0xdfc0, 0xdfe0,
+		0xe000, 0xe00c,
+		0xf000, 0xf008,
+		0xf010, 0xf06c,
+		0x11000, 0x11014,
+		0x11048, 0x11120,
+		0x11130, 0x11144,
+		0x11174, 0x11178,
+		0x11190, 0x111a0,
+		0x111e4, 0x112f0,
+		0x11300, 0x1133c,
+		0x11408, 0x1146c,
+		0x12000, 0x12004,
+		0x12060, 0x122c4,
+		0x19040, 0x1906c,
+		0x19078, 0x19080,
+		0x1908c, 0x190e8,
+		0x190f0, 0x190f8,
+		0x19100, 0x19110,
+		0x19120, 0x19124,
+		0x19150, 0x19194,
+		0x1919c, 0x191a0,
+		0x191ac, 0x191c8,
+		0x191d0, 0x191e4,
+		0x19250, 0x19250,
+		0x19258, 0x19268,
+		0x19278, 0x19278,
+		0x19280, 0x192b0,
+		0x192bc, 0x192f0,
+		0x19300, 0x19308,
+		0x19310, 0x19318,
+		0x19320, 0x19328,
+		0x19330, 0x19330,
+		0x19348, 0x1934c,
+		0x193f8, 0x19428,
+		0x19430, 0x19444,
+		0x1944c, 0x1946c,
+		0x19474, 0x1947c,
+		0x19488, 0x194cc,
+		0x194f0, 0x194f8,
+		0x19c00, 0x19c48,
+		0x19c50, 0x19c80,
+		0x19c94, 0x19c98,
+		0x19ca0, 0x19cdc,
+		0x19ce4, 0x19cf8,
+		0x19d00, 0x19d30,
+		0x19d50, 0x19d80,
+		0x19d94, 0x19d98,
+		0x19da0, 0x19de0,
+		0x19df0, 0x19e10,
+		0x19e50, 0x19e6c,
+		0x19ea0, 0x19ebc,
+		0x19ec4, 0x19ef4,
+		0x19f04, 0x19f2c,
+		0x19f34, 0x19f34,
+		0x19f40, 0x19f50,
+		0x19f90, 0x19fb4,
+		0x19fbc, 0x19fbc,
+		0x19fc4, 0x19fc8,
+		0x19fd0, 0x19fe4,
+		0x1a000, 0x1a004,
+		0x1a010, 0x1a06c,
+		0x1a0b0, 0x1a0e4,
+		0x1a0ec, 0x1a108,
+		0x1a114, 0x1a130,
+		0x1a138, 0x1a1c4,
+		0x1a1fc, 0x1a29c,
+		0x1a2a8, 0x1a2b8,
+		0x1a2c0, 0x1a388,
+		0x1a398, 0x1a3ac,
+		0x1e008, 0x1e00c,
+		0x1e040, 0x1e044,
+		0x1e04c, 0x1e04c,
+		0x1e284, 0x1e290,
+		0x1e2c0, 0x1e2c0,
+		0x1e2e0, 0x1e2e4,
+		0x1e300, 0x1e384,
+		0x1e3c0, 0x1e3c8,
+		0x1e408, 0x1e40c,
+		0x1e440, 0x1e444,
+		0x1e44c, 0x1e44c,
+		0x1e684, 0x1e690,
+		0x1e6c0, 0x1e6c0,
+		0x1e6e0, 0x1e6e4,
+		0x1e700, 0x1e784,
+		0x1e7c0, 0x1e7c8,
+		0x1e808, 0x1e80c,
+		0x1e840, 0x1e844,
+		0x1e84c, 0x1e84c,
+		0x1ea84, 0x1ea90,
+		0x1eac0, 0x1eac0,
+		0x1eae0, 0x1eae4,
+		0x1eb00, 0x1eb84,
+		0x1ebc0, 0x1ebc8,
+		0x1ec08, 0x1ec0c,
+		0x1ec40, 0x1ec44,
+		0x1ec4c, 0x1ec4c,
+		0x1ee84, 0x1ee90,
+		0x1eec0, 0x1eec0,
+		0x1eee0, 0x1eee4,
+		0x1ef00, 0x1ef84,
+		0x1efc0, 0x1efc8,
+		0x1f008, 0x1f00c,
+		0x1f040, 0x1f044,
+		0x1f04c, 0x1f04c,
+		0x1f284, 0x1f290,
+		0x1f2c0, 0x1f2c0,
+		0x1f2e0, 0x1f2e4,
+		0x1f300, 0x1f384,
+		0x1f3c0, 0x1f3c8,
+		0x1f408, 0x1f40c,
+		0x1f440, 0x1f444,
+		0x1f44c, 0x1f44c,
+		0x1f684, 0x1f690,
+		0x1f6c0, 0x1f6c0,
+		0x1f6e0, 0x1f6e4,
+		0x1f700, 0x1f784,
+		0x1f7c0, 0x1f7c8,
+		0x1f808, 0x1f80c,
+		0x1f840, 0x1f844,
+		0x1f84c, 0x1f84c,
+		0x1fa84, 0x1fa90,
+		0x1fac0, 0x1fac0,
+		0x1fae0, 0x1fae4,
+		0x1fb00, 0x1fb84,
+		0x1fbc0, 0x1fbc8,
+		0x1fc08, 0x1fc0c,
+		0x1fc40, 0x1fc44,
+		0x1fc4c, 0x1fc4c,
+		0x1fe84, 0x1fe90,
+		0x1fec0, 0x1fec0,
+		0x1fee0, 0x1fee4,
+		0x1ff00, 0x1ff84,
+		0x1ffc0, 0x1ffc8,
+		0x30000, 0x30038,
+		0x30100, 0x3017c,
+		0x30190, 0x301a0,
+		0x301a8, 0x301b8,
+		0x301c4, 0x301c8,
+		0x301d0, 0x301e0,
+		0x30200, 0x30344,
+		0x30400, 0x304b4,
+		0x304c0, 0x3052c,
+		0x30540, 0x3065c,
+		0x30800, 0x30848,
+		0x30850, 0x308a8,
+		0x308b8, 0x308c0,
+		0x308cc, 0x308dc,
+		0x30900, 0x30904,
+		0x3090c, 0x30914,
+		0x3091c, 0x30928,
+		0x30930, 0x3093c,
+		0x30944, 0x30948,
+		0x30954, 0x30974,
+		0x3097c, 0x30980,
+		0x30a00, 0x30a20,
+		0x30a38, 0x30a3c,
+		0x30a50, 0x30a50,
+		0x30a80, 0x30a80,
+		0x30a88, 0x30aa8,
+		0x30ab0, 0x30ab4,
+		0x30ac8, 0x30ad4,
+		0x30b28, 0x30b84,
+		0x30b98, 0x30bb8,
+		0x30c98, 0x30d14,
+		0x31000, 0x31020,
+		0x31038, 0x3103c,
+		0x31050, 0x31050,
+		0x31080, 0x31080,
+		0x31088, 0x310a8,
+		0x310b0, 0x310b4,
+		0x310c8, 0x310d4,
+		0x31128, 0x31184,
+		0x31198, 0x311b8,
+		0x32000, 0x32038,
+		0x32100, 0x3217c,
+		0x32190, 0x321a0,
+		0x321a8, 0x321b8,
+		0x321c4, 0x321c8,
+		0x321d0, 0x321e0,
+		0x32200, 0x32344,
+		0x32400, 0x324b4,
+		0x324c0, 0x3252c,
+		0x32540, 0x3265c,
+		0x32800, 0x32848,
+		0x32850, 0x328a8,
+		0x328b8, 0x328c0,
+		0x328cc, 0x328dc,
+		0x32900, 0x32904,
+		0x3290c, 0x32914,
+		0x3291c, 0x32928,
+		0x32930, 0x3293c,
+		0x32944, 0x32948,
+		0x32954, 0x32974,
+		0x3297c, 0x32980,
+		0x32a00, 0x32a20,
+		0x32a38, 0x32a3c,
+		0x32a50, 0x32a50,
+		0x32a80, 0x32a80,
+		0x32a88, 0x32aa8,
+		0x32ab0, 0x32ab4,
+		0x32ac8, 0x32ad4,
+		0x32b28, 0x32b84,
+		0x32b98, 0x32bb8,
+		0x32c98, 0x32d14,
+		0x33000, 0x33020,
+		0x33038, 0x3303c,
+		0x33050, 0x33050,
+		0x33080, 0x33080,
+		0x33088, 0x330a8,
+		0x330b0, 0x330b4,
+		0x330c8, 0x330d4,
+		0x33128, 0x33184,
+		0x33198, 0x331b8,
+		0x34000, 0x34038,
+		0x34100, 0x3417c,
+		0x34190, 0x341a0,
+		0x341a8, 0x341b8,
+		0x341c4, 0x341c8,
+		0x341d0, 0x341e0,
+		0x34200, 0x34344,
+		0x34400, 0x344b4,
+		0x344c0, 0x3452c,
+		0x34540, 0x3465c,
+		0x34800, 0x34848,
+		0x34850, 0x348a8,
+		0x348b8, 0x348c0,
+		0x348cc, 0x348dc,
+		0x34900, 0x34904,
+		0x3490c, 0x34914,
+		0x3491c, 0x34928,
+		0x34930, 0x3493c,
+		0x34944, 0x34948,
+		0x34954, 0x34974,
+		0x3497c, 0x34980,
+		0x34a00, 0x34a20,
+		0x34a38, 0x34a3c,
+		0x34a50, 0x34a50,
+		0x34a80, 0x34a80,
+		0x34a88, 0x34aa8,
+		0x34ab0, 0x34ab4,
+		0x34ac8, 0x34ad4,
+		0x34b28, 0x34b84,
+		0x34b98, 0x34bb8,
+		0x34c98, 0x34d14,
+		0x35000, 0x35020,
+		0x35038, 0x3503c,
+		0x35050, 0x35050,
+		0x35080, 0x35080,
+		0x35088, 0x350a8,
+		0x350b0, 0x350b4,
+		0x350c8, 0x350d4,
+		0x35128, 0x35184,
+		0x35198, 0x351b8,
+		0x36000, 0x36038,
+		0x36100, 0x3617c,
+		0x36190, 0x361a0,
+		0x361a8, 0x361b8,
+		0x361c4, 0x361c8,
+		0x361d0, 0x361e0,
+		0x36200, 0x36344,
+		0x36400, 0x364b4,
+		0x364c0, 0x3652c,
+		0x36540, 0x3665c,
+		0x36800, 0x36848,
+		0x36850, 0x368a8,
+		0x368b8, 0x368c0,
+		0x368cc, 0x368dc,
+		0x36900, 0x36904,
+		0x3690c, 0x36914,
+		0x3691c, 0x36928,
+		0x36930, 0x3693c,
+		0x36944, 0x36948,
+		0x36954, 0x36974,
+		0x3697c, 0x36980,
+		0x36a00, 0x36a20,
+		0x36a38, 0x36a3c,
+		0x36a50, 0x36a50,
+		0x36a80, 0x36a80,
+		0x36a88, 0x36aa8,
+		0x36ab0, 0x36ab4,
+		0x36ac8, 0x36ad4,
+		0x36b28, 0x36b84,
+		0x36b98, 0x36bb8,
+		0x36c98, 0x36d14,
+		0x37000, 0x37020,
+		0x37038, 0x3703c,
+		0x37050, 0x37050,
+		0x37080, 0x37080,
+		0x37088, 0x370a8,
+		0x370b0, 0x370b4,
+		0x370c8, 0x370d4,
+		0x37128, 0x37184,
+		0x37198, 0x371b8,
+		0x38000, 0x380b0,
+		0x380b8, 0x38130,
+		0x38140, 0x38140,
+		0x38150, 0x38154,
+		0x38160, 0x381c4,
+		0x381d0, 0x38204,
+		0x3820c, 0x38214,
+		0x3821c, 0x3822c,
+		0x38244, 0x38244,
+		0x38254, 0x38274,
+		0x3827c, 0x38280,
+		0x38300, 0x38304,
+		0x3830c, 0x38314,
+		0x3831c, 0x3832c,
+		0x38344, 0x38344,
+		0x38354, 0x38374,
+		0x3837c, 0x38380,
+		0x38400, 0x38424,
+		0x38438, 0x3843c,
+		0x38480, 0x38480,
+		0x384a8, 0x384a8,
+		0x384b0, 0x384b4,
+		0x384c8, 0x38514,
+		0x38600, 0x3860c,
+		0x3861c, 0x38624,
+		0x38900, 0x38924,
+		0x38938, 0x3893c,
+		0x38980, 0x38980,
+		0x389a8, 0x389a8,
+		0x389b0, 0x389b4,
+		0x389c8, 0x38a14,
+		0x38b00, 0x38b0c,
+		0x38b1c, 0x38b24,
+		0x38e00, 0x38e00,
+		0x38e18, 0x38e20,
+		0x38e38, 0x38e40,
+		0x38e58, 0x38e60,
+		0x38e78, 0x38e80,
+		0x38e98, 0x38ea0,
+		0x38eb8, 0x38ec0,
+		0x38ed8, 0x38ee0,
+		0x38ef8, 0x38f08,
+		0x38f10, 0x38f2c,
+		0x38f80, 0x38ffc,
+		0x39080, 0x39080,
+		0x39088, 0x39090,
+		0x39100, 0x39108,
+		0x39120, 0x39128,
+		0x39140, 0x39148,
+		0x39160, 0x39168,
+		0x39180, 0x39188,
+		0x391a0, 0x391a8,
+		0x391c0, 0x391c8,
+		0x391e0, 0x391e8,
+		0x39200, 0x39200,
+		0x39208, 0x39240,
+		0x39300, 0x39300,
+		0x39308, 0x39340,
+		0x39400, 0x39400,
+		0x39408, 0x39440,
+		0x39500, 0x39500,
+		0x39508, 0x39540,
+		0x39600, 0x39600,
+		0x39608, 0x39640,
+		0x39700, 0x39700,
+		0x39708, 0x39740,
+		0x39800, 0x39800,
+		0x39808, 0x39840,
+		0x39900, 0x39900,
+		0x39908, 0x39940,
+		0x39a00, 0x39a04,
+		0x39a10, 0x39a14,
+		0x39a1c, 0x39aa8,
+		0x39b00, 0x39ecc,
+		0x3a000, 0x3a004,
+		0x3a050, 0x3a084,
+		0x3a090, 0x3a09c,
+		0x3a93c, 0x3a93c,
+		0x3b93c, 0x3b93c,
+		0x3c93c, 0x3c93c,
+		0x3d93c, 0x3d93c,
+		0x3e000, 0x3e020,
+		0x3e03c, 0x3e05c,
+		0x3e100, 0x3e120,
+		0x3e13c, 0x3e15c,
+		0x3e200, 0x3e220,
+		0x3e23c, 0x3e25c,
+		0x3e300, 0x3e320,
+		0x3e33c, 0x3e35c,
+		0x3f000, 0x3f034,
+		0x3f100, 0x3f130,
+		0x3f200, 0x3f218,
+		0x44000, 0x44014,
+		0x44020, 0x44028,
+		0x44030, 0x44030,
+		0x44100, 0x44114,
+		0x44120, 0x44128,
+		0x44130, 0x44130,
+		0x44200, 0x44214,
+		0x44220, 0x44228,
+		0x44230, 0x44230,
+		0x44300, 0x44314,
+		0x44320, 0x44328,
+		0x44330, 0x44330,
+		0x44400, 0x44414,
+		0x44420, 0x44428,
+		0x44430, 0x44430,
+		0x44500, 0x44514,
+		0x44520, 0x44528,
+		0x44530, 0x44530,
+		0x44714, 0x44718,
+		0x44730, 0x44730,
+		0x447c0, 0x447c0,
+		0x447f0, 0x447f0,
+		0x447f8, 0x447fc,
+		0x45000, 0x45014,
+		0x45020, 0x45028,
+		0x45030, 0x45030,
+		0x45100, 0x45114,
+		0x45120, 0x45128,
+		0x45130, 0x45130,
+		0x45200, 0x45214,
+		0x45220, 0x45228,
+		0x45230, 0x45230,
+		0x45300, 0x45314,
+		0x45320, 0x45328,
+		0x45330, 0x45330,
+		0x45400, 0x45414,
+		0x45420, 0x45428,
+		0x45430, 0x45430,
+		0x45500, 0x45514,
+		0x45520, 0x45528,
+		0x45530, 0x45530,
+		0x45714, 0x45718,
+		0x45730, 0x45730,
+		0x457c0, 0x457c0,
+		0x457f0, 0x457f0,
+		0x457f8, 0x457fc,
+		0x46000, 0x46010,
+		0x46020, 0x46034,
+		0x46040, 0x46050,
+		0x46060, 0x46088,
+		0x47000, 0x4709c,
+		0x470c0, 0x470d4,
+		0x47100, 0x471a8,
+		0x471b0, 0x471e8,
+		0x47200, 0x47210,
+		0x4721c, 0x47230,
+		0x47238, 0x47238,
+		0x47240, 0x472ac,
+		0x472d0, 0x472f4,
+		0x47300, 0x47310,
+		0x47318, 0x47348,
+		0x47350, 0x47354,
+		0x47380, 0x47388,
+		0x47390, 0x47394,
+		0x47400, 0x47448,
+		0x47450, 0x47458,
+		0x47500, 0x4751c,
+		0x47530, 0x4754c,
+		0x47560, 0x4757c,
+		0x47590, 0x475ac,
+		0x47600, 0x47630,
+		0x47640, 0x47644,
+		0x47660, 0x4769c,
+		0x47700, 0x47710,
+		0x47740, 0x47750,
+		0x4775c, 0x4779c,
+		0x477b0, 0x477bc,
+		0x477c4, 0x477c8,
+		0x477d4, 0x477fc,
+		0x48000, 0x48004,
+		0x48018, 0x4801c,
+		0x49304, 0x493f0,
+		0x49400, 0x49410,
+		0x49460, 0x494f4,
+		0x50000, 0x50084,
+		0x50090, 0x500cc,
+		0x50300, 0x50384,
+		0x50400, 0x50404,
+		0x50800, 0x50884,
+		0x50890, 0x508cc,
+		0x50b00, 0x50b84,
+		0x50c00, 0x50c04,
+		0x51000, 0x51020,
+		0x51028, 0x510c4,
+		0x51104, 0x51108,
+		0x51200, 0x51274,
+		0x51300, 0x51324,
+		0x51400, 0x51548,
+		0x51550, 0x51554,
+		0x5155c, 0x51584,
+		0x5158c, 0x515c8,
+		0x515f0, 0x515f4,
+		0x58000, 0x58004,
+		0x58018, 0x5801c,
+		0x59304, 0x593f0,
+		0x59400, 0x59410,
+		0x59460, 0x594f4,
+	};
+
 	u32 *buf_end = (u32 *)(buf + buf_size);
 	const unsigned int *reg_ranges;
 	int reg_ranges_size, range;
@@ -2676,6 +3347,16 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		} else {
 			reg_ranges = t6_reg_ranges;
 			reg_ranges_size = ARRAY_SIZE(t6_reg_ranges);
+		}
+		break;
+
+	case CHELSIO_T7:
+		if (adap->flags & IS_VF) {
+			reg_ranges = t6vf_reg_ranges;
+			reg_ranges_size = ARRAY_SIZE(t6vf_reg_ranges);
+		} else {
+			reg_ranges = t7_reg_ranges;
+			reg_ranges_size = ARRAY_SIZE(t7_reg_ranges);
 		}
 		break;
 
@@ -3086,6 +3767,56 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p,
 	return 0;
 }
 
+/* Flash Layout {start sector, # of sectors} for T4/T5/T6 adapters */
+static const struct t4_flash_loc_entry t4_flash_loc_arr[] = {
+	[FLASH_LOC_EXP_ROM] = { 0, 6 },
+	[FLASH_LOC_IBFT] = { 6, 1 },
+	[FLASH_LOC_BOOTCFG] = { 7, 1 },
+	[FLASH_LOC_FW] = { 8, 16 },
+	[FLASH_LOC_FWBOOTSTRAP] = { 27, 1 },
+	[FLASH_LOC_ISCSI_CRASH] = { 29, 1 },
+	[FLASH_LOC_FCOE_CRASH] = { 30, 1 },
+	[FLASH_LOC_CFG] = { 31, 1 },
+	[FLASH_LOC_CUDBG] = { 32, 32 },
+	[FLASH_LOC_BOOT_AREA] = { 0, 8 }, /* Spans complete Boot Area */
+	[FLASH_LOC_END] = { 64, 0 },
+};
+
+/* Flash Layout {start sector, # of sectors} for T7 adapters */
+static const struct t4_flash_loc_entry t7_flash_loc_arr[] = {
+	[FLASH_LOC_VPD] = { 0, 1 },
+	[FLASH_LOC_FWBOOTSTRAP] = { 1, 1 },
+	[FLASH_LOC_FW] = { 2, 29 },
+	[FLASH_LOC_CFG] = { 31, 1 },
+	[FLASH_LOC_EXP_ROM] = { 32, 15 },
+	[FLASH_LOC_IBFT] = { 47, 1 },
+	[FLASH_LOC_BOOTCFG] = { 48, 1 },
+	[FLASH_LOC_DPU_BOOT] = { 49, 13 },
+	[FLASH_LOC_ISCSI_CRASH] = { 62, 1 },
+	[FLASH_LOC_FCOE_CRASH] = { 63, 1 },
+	[FLASH_LOC_VPD_BACKUP] = { 64, 1 },
+	[FLASH_LOC_FWBOOTSTRAP_BACKUP] = { 65, 1 },
+	[FLASH_LOC_FW_BACKUP] = { 66, 29 },
+	[FLASH_LOC_CFG_BACK] = { 95, 1 },
+	[FLASH_LOC_CUDBG] = { 96, 48 },
+	[FLASH_LOC_CHIP_DUMP] = { 144, 48 },
+	[FLASH_LOC_DPU_AREA] = { 192, 64 },
+	[FLASH_LOC_BOOT_AREA] = { 32, 17 }, /* Spans complete UEFI/PXE Boot Area */
+	[FLASH_LOC_END] = { 256, 0 },
+};
+
+int
+t4_flash_loc_start(struct adapter *adap, enum t4_flash_loc loc,
+    unsigned int *lenp)
+{
+	const struct t4_flash_loc_entry *l = chip_id(adap) >= CHELSIO_T7 ?
+	    &t7_flash_loc_arr[loc] : &t4_flash_loc_arr[loc];
+
+	if (lenp != NULL)
+		*lenp = FLASH_MAX_SIZE(l->nsecs);
+	return (FLASH_START(l->start_sec));
+}
+
 /* serial flash and firmware constants and flash config file constants */
 enum {
 	SF_ATTEMPTS = 10,	/* max retries for SF operations */
@@ -3116,13 +3847,16 @@ static int sf1_read(struct adapter *adapter, unsigned int byte_cnt, int cont,
 		    int lock, u32 *valp)
 {
 	int ret;
+	uint32_t op;
 
 	if (!byte_cnt || byte_cnt > 4)
 		return -EINVAL;
 	if (t4_read_reg(adapter, A_SF_OP) & F_BUSY)
 		return -EBUSY;
-	t4_write_reg(adapter, A_SF_OP,
-		     V_SF_LOCK(lock) | V_CONT(cont) | V_BYTECNT(byte_cnt - 1));
+	op = V_SF_LOCK(lock) | V_CONT(cont) | V_BYTECNT(byte_cnt - 1);
+	if (chip_id(adapter) >= CHELSIO_T7)
+		op |= F_QUADREADDISABLE;
+	t4_write_reg(adapter, A_SF_OP, op);
 	ret = t4_wait_op_done(adapter, A_SF_OP, F_BUSY, 0, SF_ATTEMPTS, 5);
 	if (!ret)
 		*valp = t4_read_reg(adapter, A_SF_DATA);
@@ -3294,9 +4028,10 @@ unlock:
  */
 int t4_get_fw_version(struct adapter *adapter, u32 *vers)
 {
-	return t4_read_flash(adapter, FLASH_FW_START +
-			     offsetof(struct fw_hdr, fw_ver), 1,
-			     vers, 0);
+	const int start = t4_flash_loc_start(adapter, FLASH_LOC_FW, NULL);
+
+	return t4_read_flash(adapter, start + offsetof(struct fw_hdr, fw_ver),
+	    1, vers, 0);
 }
 
 /**
@@ -3308,8 +4043,10 @@ int t4_get_fw_version(struct adapter *adapter, u32 *vers)
  */
 int t4_get_fw_hdr(struct adapter *adapter, struct fw_hdr *hdr)
 {
-	return t4_read_flash(adapter, FLASH_FW_START,
-	    sizeof (*hdr) / sizeof (uint32_t), (uint32_t *)hdr, 1);
+	const int start = t4_flash_loc_start(adapter, FLASH_LOC_FW, NULL);
+
+	return t4_read_flash(adapter, start, sizeof (*hdr) / sizeof (uint32_t),
+	    (uint32_t *)hdr, 1);
 }
 
 /**
@@ -3321,9 +4058,11 @@ int t4_get_fw_hdr(struct adapter *adapter, struct fw_hdr *hdr)
  */
 int t4_get_bs_version(struct adapter *adapter, u32 *vers)
 {
-	return t4_read_flash(adapter, FLASH_FWBOOTSTRAP_START +
-			     offsetof(struct fw_hdr, fw_ver), 1,
-			     vers, 0);
+	const int start = t4_flash_loc_start(adapter, FLASH_LOC_FWBOOTSTRAP,
+	    NULL);
+
+	return t4_read_flash(adapter, start + offsetof(struct fw_hdr, fw_ver),
+	    1, vers, 0);
 }
 
 /**
@@ -3335,9 +4074,10 @@ int t4_get_bs_version(struct adapter *adapter, u32 *vers)
  */
 int t4_get_tp_version(struct adapter *adapter, u32 *vers)
 {
-	return t4_read_flash(adapter, FLASH_FW_START +
-			     offsetof(struct fw_hdr, tp_microcode_ver),
-			     1, vers, 0);
+	const int start = t4_flash_loc_start(adapter, FLASH_LOC_FW, NULL);
+
+	return t4_read_flash(adapter, start +
+	    offsetof(struct fw_hdr, tp_microcode_ver), 1, vers, 0);
 }
 
 /**
@@ -3359,10 +4099,10 @@ int t4_get_exprom_version(struct adapter *adapter, u32 *vers)
 	u32 exprom_header_buf[DIV_ROUND_UP(sizeof(struct exprom_header),
 					   sizeof(u32))];
 	int ret;
+	const int start = t4_flash_loc_start(adapter, FLASH_LOC_EXP_ROM, NULL);
 
-	ret = t4_read_flash(adapter, FLASH_EXP_ROM_START,
-			    ARRAY_SIZE(exprom_header_buf), exprom_header_buf,
-			    0);
+	ret = t4_read_flash(adapter, start, ARRAY_SIZE(exprom_header_buf),
+	    exprom_header_buf, 0);
 	if (ret)
 		return ret;
 
@@ -3520,16 +4260,20 @@ int t4_flash_erase_sectors(struct adapter *adapter, int start, int end)
  *	File is stored, or an error if the device FLASH is too small to contain
  *	a Firmware Configuration File.
  */
-int t4_flash_cfg_addr(struct adapter *adapter)
+int t4_flash_cfg_addr(struct adapter *adapter, unsigned int *lenp)
 {
+	unsigned int len = 0;
+	const int cfg_start = t4_flash_loc_start(adapter, FLASH_LOC_CFG, &len);
+
 	/*
 	 * If the device FLASH isn't large enough to hold a Firmware
 	 * Configuration File, return an error.
 	 */
-	if (adapter->params.sf_size < FLASH_CFG_START + FLASH_CFG_MAX_SIZE)
+	if (adapter->params.sf_size < cfg_start + len)
 		return -ENOSPC;
-
-	return FLASH_CFG_START;
+	if (lenp != NULL)
+		*lenp = len;
+	return (cfg_start);
 }
 
 /*
@@ -3547,7 +4291,8 @@ static int t4_fw_matches_chip(struct adapter *adap,
 	 */
 	if ((is_t4(adap) && hdr->chip == FW_HDR_CHIP_T4) ||
 	    (is_t5(adap) && hdr->chip == FW_HDR_CHIP_T5) ||
-	    (is_t6(adap) && hdr->chip == FW_HDR_CHIP_T6))
+	    (is_t6(adap) && hdr->chip == FW_HDR_CHIP_T6) ||
+	    (is_t7(adap) && hdr->chip == FW_HDR_CHIP_T7))
 		return 1;
 
 	CH_ERR(adap,
@@ -3572,20 +4317,15 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	u8 first_page[SF_PAGE_SIZE];
 	const u32 *p = (const u32 *)fw_data;
 	const struct fw_hdr *hdr = (const struct fw_hdr *)fw_data;
-	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
 	unsigned int fw_start_sec;
 	unsigned int fw_start;
 	unsigned int fw_size;
+	enum t4_flash_loc loc;
 
-	if (ntohl(hdr->magic) == FW_HDR_MAGIC_BOOTSTRAP) {
-		fw_start_sec = FLASH_FWBOOTSTRAP_START_SEC;
-		fw_start = FLASH_FWBOOTSTRAP_START;
-		fw_size = FLASH_FWBOOTSTRAP_MAX_SIZE;
-	} else {
-		fw_start_sec = FLASH_FW_START_SEC;
- 		fw_start = FLASH_FW_START;
-		fw_size = FLASH_FW_MAX_SIZE;
-	}
+	loc = ntohl(hdr->magic) == FW_HDR_MAGIC_BOOTSTRAP ?
+	    FLASH_LOC_FWBOOTSTRAP : FLASH_LOC_FW;
+	fw_start = t4_flash_loc_start(adap, loc, &fw_size);
+	fw_start_sec = fw_start / SF_SEC_SIZE;
 
 	if (!size) {
 		CH_ERR(adap, "FW image has no data\n");
@@ -3618,7 +4358,7 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 		return -EINVAL;
 	}
 
-	i = DIV_ROUND_UP(size, sf_sec_size);	/* # of sectors spanned */
+	i = DIV_ROUND_UP(size, SF_SEC_SIZE);	/* # of sectors spanned */
 	ret = t4_flash_erase_sectors(adap, fw_start_sec, fw_start_sec + i - 1);
 	if (ret)
 		goto out;
@@ -3672,7 +4412,7 @@ int t4_fwcache(struct adapter *adap, enum fw_params_param_dev_fwcache op)
 	c.param[0].mnem =
 	    cpu_to_be32(V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
 			    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_FWCACHE));
-	c.param[0].val = (__force __be32)op;
+	c.param[0].val = cpu_to_be32(op);
 
 	return t4_wr_mbox(adap, adap->mbox, &c, sizeof(c), NULL);
 }
@@ -3922,15 +4662,12 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 				 * speed and let the firmware pick one.
 				 */
 				fec |= FW_PORT_CAP32_FORCE_FEC;
-				if (speed & FW_PORT_CAP32_SPEED_100G) {
+				if (speed & FW_PORT_CAP32_SPEED_25G) {
 					fec |= FW_PORT_CAP32_FEC_RS;
-					fec |= FW_PORT_CAP32_FEC_NO_FEC;
-				} else if (speed & FW_PORT_CAP32_SPEED_50G) {
 					fec |= FW_PORT_CAP32_FEC_BASER_RS;
 					fec |= FW_PORT_CAP32_FEC_NO_FEC;
 				} else {
 					fec |= FW_PORT_CAP32_FEC_RS;
-					fec |= FW_PORT_CAP32_FEC_BASER_RS;
 					fec |= FW_PORT_CAP32_FEC_NO_FEC;
 				}
 			} else {
@@ -3948,12 +4685,9 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 				 * the potential top speed.  Request the best
 				 * FEC at that speed instead.
 				 */
-				if (speed & FW_PORT_CAP32_SPEED_100G) {
-					if (fec == FW_PORT_CAP32_FEC_BASER_RS)
-						fec = FW_PORT_CAP32_FEC_RS;
-				} else if (speed & FW_PORT_CAP32_SPEED_50G) {
-					if (fec == FW_PORT_CAP32_FEC_RS)
-						fec = FW_PORT_CAP32_FEC_BASER_RS;
+				if ((speed & FW_PORT_CAP32_SPEED_25G) == 0 &&
+				    fec == FW_PORT_CAP32_FEC_BASER_RS) {
+					fec = FW_PORT_CAP32_FEC_RS;
 				}
 			}
 		} else {
@@ -4043,10 +4777,9 @@ struct intr_details {
 struct intr_action {
 	u32 mask;
 	int arg;
-	bool (*action)(struct adapter *, int, bool);
+	bool (*action)(struct adapter *, int, int);
 };
 
-#define NONFATAL_IF_DISABLED 1
 struct intr_info {
 	const char *name;	/* name of the INT_CAUSE register */
 	int cause_reg;		/* INT_CAUSE register */
@@ -4069,73 +4802,78 @@ intr_alert_char(u32 cause, u32 enable, u32 fatal)
 }
 
 static void
-t4_show_intr_info(struct adapter *adap, const struct intr_info *ii, u32 cause)
+show_intr_info(struct adapter *sc, const struct intr_info *ii, uint32_t cause,
+    uint32_t ucause, uint32_t enabled, uint32_t fatal, int flags)
 {
-	u32 enable, fatal, leftover;
+	uint32_t leftover, msgbits;
 	const struct intr_details *details;
 	char alert;
+	const bool verbose = flags & IHF_VERBOSE;
 
-	enable = t4_read_reg(adap, ii->enable_reg);
-	if (ii->flags & NONFATAL_IF_DISABLED)
-		fatal = ii->fatal & t4_read_reg(adap, ii->enable_reg);
-	else
-		fatal = ii->fatal;
-	alert = intr_alert_char(cause, enable, fatal);
-	CH_ALERT(adap, "%c %s 0x%x = 0x%08x, E 0x%08x, F 0x%08x\n",
-	    alert, ii->name, ii->cause_reg, cause, enable, fatal);
+	if (verbose || ucause != 0 || flags & IHF_RUN_ALL_ACTIONS) {
+		alert = intr_alert_char(cause, enabled, fatal);
+		CH_ALERT(sc, "%c %s 0x%x = 0x%08x, E 0x%08x, F 0x%08x\n", alert,
+		    ii->name, ii->cause_reg, cause, enabled, fatal);
+	}
 
-	leftover = cause;
+	leftover = verbose ? cause : ucause;
 	for (details = ii->details; details && details->mask != 0; details++) {
-		u32 msgbits = details->mask & cause;
+		msgbits = details->mask & leftover;
 		if (msgbits == 0)
 			continue;
-		alert = intr_alert_char(msgbits, enable, ii->fatal);
-		CH_ALERT(adap, "  %c [0x%08x] %s\n", alert, msgbits,
-		    details->msg);
+		alert = intr_alert_char(msgbits, enabled, fatal);
+		CH_ALERT(sc, "  %c [0x%08x] %s\n", alert, msgbits, details->msg);
 		leftover &= ~msgbits;
 	}
-	if (leftover != 0 && leftover != cause)
-		CH_ALERT(adap, "  ? [0x%08x]\n", leftover);
+	if (leftover != 0 && leftover != (verbose ? cause : ucause))
+		CH_ALERT(sc, "  ? [0x%08x]\n", leftover);
 }
 
 /*
  * Returns true for fatal error.
  */
 static bool
-t4_handle_intr(struct adapter *adap, const struct intr_info *ii,
-    u32 additional_cause, bool verbose)
+t4_handle_intr(struct adapter *sc, const struct intr_info *ii, uint32_t acause,
+    int flags)
 {
-	u32 cause, fatal;
+	uint32_t cause, ucause, enabled, fatal;
 	bool rc;
 	const struct intr_action *action;
 
-	/*
-	 * Read and display cause.  Note that the top level PL_INT_CAUSE is a
-	 * bit special and we need to completely ignore the bits that are not in
-	 * PL_INT_ENABLE.
-	 */
-	cause = t4_read_reg(adap, ii->cause_reg);
-	if (ii->cause_reg == A_PL_INT_CAUSE)
-		cause &= t4_read_reg(adap, ii->enable_reg);
-	if (verbose || cause != 0)
-		t4_show_intr_info(adap, ii, cause);
-	fatal = cause & ii->fatal;
-	if (fatal != 0 && ii->flags & NONFATAL_IF_DISABLED)
-		fatal &= t4_read_reg(adap, ii->enable_reg);
-	cause |= additional_cause;
-	if (cause == 0)
-		return (false);
+	cause = t4_read_reg(sc, ii->cause_reg);
+	enabled = t4_read_reg(sc, ii->enable_reg);
+	flags |= ii->flags;
+	fatal = ii->fatal & cause;
+	if (flags & IHF_FATAL_IFF_ENABLED)
+		fatal &= enabled;
+	ucause = cause;
+	if (flags & IHF_IGNORE_IF_DISABLED)
+		ucause &= enabled;
+	if (!(flags & IHF_NO_SHOW))
+		show_intr_info(sc, ii, cause, ucause, enabled, fatal, flags);
 
 	rc = fatal != 0;
 	for (action = ii->actions; action && action->mask != 0; action++) {
-		if (!(action->mask & cause))
+		if (action->action == NULL)
 			continue;
-		rc |= (action->action)(adap, action->arg, verbose);
+		if (action->mask & (ucause | acause) ||
+		    flags & IHF_RUN_ALL_ACTIONS) {
+			bool rc1 = (action->action)(sc, action->arg, flags);
+			if (action->mask & ucause)
+				rc |= rc1;
+		}
 	}
 
 	/* clear */
-	t4_write_reg(adap, ii->cause_reg, cause);
-	(void)t4_read_reg(adap, ii->cause_reg);
+	if (cause != 0) {
+		if (flags & IHF_CLR_ALL_SET) {
+			t4_write_reg(sc, ii->cause_reg, cause);
+			(void)t4_read_reg(sc, ii->cause_reg);
+		} else if (ucause != 0 && flags & IHF_CLR_ALL_UNIGNORED) {
+			t4_write_reg(sc, ii->cause_reg, ucause);
+			(void)t4_read_reg(sc, ii->cause_reg);
+		}
+	}
 
 	return (rc);
 }
@@ -4143,7 +4881,7 @@ t4_handle_intr(struct adapter *adap, const struct intr_info *ii,
 /*
  * Interrupt handler for the PCIE module.
  */
-static bool pcie_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool pcie_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_details sysbus_intr_details[] = {
 		{ F_RNPP, "RXNP array parity error" },
@@ -4256,21 +4994,43 @@ static bool pcie_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_PCIE_INT_CAUSE,
 		.enable_reg = A_PCIE_INT_ENABLE,
 		.fatal = 0xffffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	struct intr_info pcie_int_cause_ext = {
+		.name = "PCIE_INT_CAUSE_EXT",
+		.cause_reg = A_PCIE_INT_CAUSE_EXT,
+		.enable_reg = A_PCIE_INT_ENABLE_EXT,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	struct intr_info pcie_int_cause_x8 = {
+		.name = "PCIE_INT_CAUSE_X8",
+		.cause_reg = A_PCIE_INT_CAUSE_X8,
+		.enable_reg = A_PCIE_INT_ENABLE_X8,
+		.fatal = 0,
+		.flags = 0,
 		.details = NULL,
 		.actions = NULL,
 	};
 	bool fatal = false;
 
 	if (is_t4(adap)) {
-		fatal |= t4_handle_intr(adap, &sysbus_intr_info, 0, verbose);
-		fatal |= t4_handle_intr(adap, &pcie_port_intr_info, 0, verbose);
+		fatal |= t4_handle_intr(adap, &sysbus_intr_info, 0, flags);
+		fatal |= t4_handle_intr(adap, &pcie_port_intr_info, 0, flags);
 
 		pcie_intr_info.details = pcie_intr_details;
 	} else {
 		pcie_intr_info.details = t5_pcie_intr_details;
 	}
-	fatal |= t4_handle_intr(adap, &pcie_intr_info, 0, verbose);
+	fatal |= t4_handle_intr(adap, &pcie_intr_info, 0, flags);
+	if (chip_id(adap) > CHELSIO_T6) {
+		fatal |= t4_handle_intr(adap, &pcie_int_cause_ext, 0, flags);
+		fatal |= t4_handle_intr(adap, &pcie_int_cause_x8, 0, flags);
+	}
 
 	return (fatal);
 }
@@ -4278,7 +5038,7 @@ static bool pcie_intr_handler(struct adapter *adap, int arg, bool verbose)
 /*
  * TP interrupt handler.
  */
-static bool tp_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool tp_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_details tp_intr_details[] = {
 		{ 0x3fffffff, "TP parity error" },
@@ -4290,25 +5050,90 @@ static bool tp_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_TP_INT_CAUSE,
 		.enable_reg = A_TP_INT_ENABLE,
 		.fatal = 0x7fffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = tp_intr_details,
 		.actions = NULL,
 	};
+	static const struct intr_info tp_inic_perr_cause = {
+		.name = "TP_INIC_PERR_CAUSE",
+		.cause_reg = A_TP_INIC_PERR_CAUSE,
+		.enable_reg = A_TP_INIC_PERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info tp_c_perr_cause = {
+		.name = "TP_C_PERR_CAUSE",
+		.cause_reg = A_TP_C_PERR_CAUSE,
+		.enable_reg = A_TP_C_PERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info tp_e_eg_perr_cause = {
+		.name = "TP_E_EG_PERR_CAUSE",
+		.cause_reg = A_TP_E_EG_PERR_CAUSE,
+		.enable_reg = A_TP_E_EG_PERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info tp_e_in0_perr_cause = {
+		.name = "TP_E_IN0_PERR_CAUSE",
+		.cause_reg = A_TP_E_IN0_PERR_CAUSE,
+		.enable_reg = A_TP_E_IN0_PERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info tp_e_in1_perr_cause = {
+		.name = "TP_E_IN1_PERR_CAUSE",
+		.cause_reg = A_TP_E_IN1_PERR_CAUSE,
+		.enable_reg = A_TP_E_IN1_PERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info tp_o_perr_cause = {
+		.name = "TP_O_PERR_CAUSE",
+		.cause_reg = A_TP_O_PERR_CAUSE,
+		.enable_reg = A_TP_O_PERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	bool fatal;
 
-	return (t4_handle_intr(adap, &tp_intr_info, 0, verbose));
+	fatal = t4_handle_intr(adap, &tp_intr_info, 0, flags);
+	if (chip_id(adap) > CHELSIO_T6) {
+		fatal |= t4_handle_intr(adap, &tp_inic_perr_cause, 0, flags);
+		fatal |= t4_handle_intr(adap, &tp_c_perr_cause, 0, flags);
+		fatal |= t4_handle_intr(adap, &tp_e_eg_perr_cause, 0, flags);
+		fatal |= t4_handle_intr(adap, &tp_e_in0_perr_cause, 0, flags);
+		fatal |= t4_handle_intr(adap, &tp_e_in1_perr_cause, 0, flags);
+		fatal |= t4_handle_intr(adap, &tp_o_perr_cause, 0, flags);
+	}
+
+	return (fatal);
 }
 
 /*
  * SGE interrupt handler.
  */
-static bool sge_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool sge_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_info sge_int1_info = {
 		.name = "SGE_INT_CAUSE1",
 		.cause_reg = A_SGE_INT_CAUSE1,
 		.enable_reg = A_SGE_INT_ENABLE1,
 		.fatal = 0xffffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = NULL,
 		.actions = NULL,
 	};
@@ -4317,7 +5142,7 @@ static bool sge_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_SGE_INT_CAUSE2,
 		.enable_reg = A_SGE_INT_ENABLE2,
 		.fatal = 0xffffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = NULL,
 		.actions = NULL,
 	};
@@ -4415,7 +5240,7 @@ static bool sge_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_SGE_INT_CAUSE5,
 		.enable_reg = A_SGE_INT_ENABLE5,
 		.fatal = 0xffffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = NULL,
 		.actions = NULL,
 	};
@@ -4428,7 +5253,24 @@ static bool sge_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.details = NULL,
 		.actions = NULL,
 	};
-
+	static const struct intr_info sge_int7_info = {
+		.name = "SGE_INT_CAUSE7",
+		.cause_reg = A_SGE_INT_CAUSE7,
+		.enable_reg = A_SGE_INT_ENABLE7,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info sge_int8_info = {
+		.name = "SGE_INT_CAUSE8",
+		.cause_reg = A_SGE_INT_CAUSE8,
+		.enable_reg = A_SGE_INT_ENABLE8,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
 	bool fatal;
 	u32 v;
 
@@ -4439,14 +5281,18 @@ static bool sge_intr_handler(struct adapter *adap, int arg, bool verbose)
 	}
 
 	fatal = false;
-	fatal |= t4_handle_intr(adap, &sge_int1_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &sge_int2_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &sge_int3_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &sge_int4_info, 0, verbose);
+	fatal |= t4_handle_intr(adap, &sge_int1_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &sge_int2_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &sge_int3_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &sge_int4_info, 0, flags);
 	if (chip_id(adap) >= CHELSIO_T5)
-		fatal |= t4_handle_intr(adap, &sge_int5_info, 0, verbose);
+		fatal |= t4_handle_intr(adap, &sge_int5_info, 0, flags);
 	if (chip_id(adap) >= CHELSIO_T6)
-		fatal |= t4_handle_intr(adap, &sge_int6_info, 0, verbose);
+		fatal |= t4_handle_intr(adap, &sge_int6_info, 0, flags);
+	if (chip_id(adap) >= CHELSIO_T7) {
+		fatal |= t4_handle_intr(adap, &sge_int7_info, 0, flags);
+		fatal |= t4_handle_intr(adap, &sge_int8_info, 0, flags);
+	}
 
 	v = t4_read_reg(adap, A_SGE_ERROR_STATS);
 	if (v & F_ERROR_QID_VALID) {
@@ -4463,7 +5309,7 @@ static bool sge_intr_handler(struct adapter *adap, int arg, bool verbose)
 /*
  * CIM interrupt handler.
  */
-static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool cim_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_details cim_host_intr_details[] = {
 		/* T6+ */
@@ -4508,7 +5354,7 @@ static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_CIM_HOST_INT_CAUSE,
 		.enable_reg = A_CIM_HOST_INT_ENABLE,
 		.fatal = 0x007fffe6,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = cim_host_intr_details,
 		.actions = NULL,
 	};
@@ -4559,7 +5405,7 @@ static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_CIM_HOST_UPACC_INT_CAUSE,
 		.enable_reg = A_CIM_HOST_UPACC_INT_ENABLE,
 		.fatal = 0x3fffeeff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = cim_host_upacc_intr_details,
 		.actions = NULL,
 	};
@@ -4569,6 +5415,15 @@ static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.enable_reg = MYPF_REG(A_CIM_PF_HOST_INT_ENABLE),
 		.fatal = 0,
 		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info cim_perr_cause = {
+		.name = "CIM_PERR_CAUSE",
+		.cause_reg = A_CIM_PERR_CAUSE,
+		.enable_reg = A_CIM_PERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = NULL,
 		.actions = NULL,
 	};
@@ -4590,9 +5445,11 @@ static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
 	}
 
 	fatal = (fw_err & F_PCIE_FW_ERR) != 0;
-	fatal |= t4_handle_intr(adap, &cim_host_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &cim_host_upacc_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &cim_pf_host_intr_info, 0, verbose);
+	fatal |= t4_handle_intr(adap, &cim_host_intr_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &cim_host_upacc_intr_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &cim_pf_host_intr_info, 0, flags);
+	if (chip_id(adap) > CHELSIO_T6)
+		fatal |= t4_handle_intr(adap, &cim_perr_cause, 0, flags);
 	if (fatal)
 		t4_os_cim_err(adap);
 
@@ -4602,7 +5459,7 @@ static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
 /*
  * ULP RX interrupt handler.
  */
-static bool ulprx_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool ulprx_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_details ulprx_intr_details[] = {
 		/* T5+ */
@@ -4620,7 +5477,7 @@ static bool ulprx_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_ULP_RX_INT_CAUSE,
 		.enable_reg = A_ULP_RX_INT_ENABLE,
 		.fatal = 0x07ffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = ulprx_intr_details,
 		.actions = NULL,
 	};
@@ -4633,10 +5490,53 @@ static bool ulprx_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.details = NULL,
 		.actions = NULL,
 	};
+	static const struct intr_info ulprx_int_cause_pcmd = {
+		.name = "ULP_RX_INT_CAUSE_PCMD",
+		.cause_reg = A_ULP_RX_INT_CAUSE_PCMD,
+		.enable_reg = A_ULP_RX_INT_ENABLE_PCMD,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info ulprx_int_cause_data = {
+		.name = "ULP_RX_INT_CAUSE_DATA",
+		.cause_reg = A_ULP_RX_INT_CAUSE_DATA,
+		.enable_reg = A_ULP_RX_INT_ENABLE_DATA,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info ulprx_int_cause_arb = {
+		.name = "ULP_RX_INT_CAUSE_ARB",
+		.cause_reg = A_ULP_RX_INT_CAUSE_ARB,
+		.enable_reg = A_ULP_RX_INT_ENABLE_ARB,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info ulprx_int_cause_intf = {
+		.name = "ULP_RX_INT_CAUSE_INTERFACE",
+		.cause_reg = A_ULP_RX_INT_CAUSE_INTERFACE,
+		.enable_reg = A_ULP_RX_INT_ENABLE_INTERFACE,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
 	bool fatal = false;
 
-	fatal |= t4_handle_intr(adap, &ulprx_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &ulprx_intr2_info, 0, verbose);
+	fatal |= t4_handle_intr(adap, &ulprx_intr_info, 0, flags);
+	if (chip_id(adap) < CHELSIO_T7)
+		fatal |= t4_handle_intr(adap, &ulprx_intr2_info, 0, flags);
+	else {
+		fatal |= t4_handle_intr(adap, &ulprx_int_cause_pcmd, 0, flags);
+		fatal |= t4_handle_intr(adap, &ulprx_int_cause_data, 0, flags);
+		fatal |= t4_handle_intr(adap, &ulprx_int_cause_arb, 0, flags);
+		fatal |= t4_handle_intr(adap, &ulprx_int_cause_intf, 0, flags);
+	}
 
 	return (fatal);
 }
@@ -4644,7 +5544,7 @@ static bool ulprx_intr_handler(struct adapter *adap, int arg, bool verbose)
 /*
  * ULP TX interrupt handler.
  */
-static bool ulptx_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool ulptx_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_details ulptx_intr_details[] = {
 		{ F_PBL_BOUND_ERR_CH3, "ULPTX channel 3 PBL out of bounds" },
@@ -4659,31 +5559,97 @@ static bool ulptx_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_ULP_TX_INT_CAUSE,
 		.enable_reg = A_ULP_TX_INT_ENABLE,
 		.fatal = 0x0fffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = ulptx_intr_details,
 		.actions = NULL,
 	};
-	static const struct intr_info ulptx_intr2_info = {
+	static const struct intr_info ulptx_intr_info2 = {
 		.name = "ULP_TX_INT_CAUSE_2",
 		.cause_reg = A_ULP_TX_INT_CAUSE_2,
 		.enable_reg = A_ULP_TX_INT_ENABLE_2,
-		.fatal = 0xf0,
-		.flags = NONFATAL_IF_DISABLED,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info ulptx_intr_info3 = {
+		.name = "ULP_TX_INT_CAUSE_3",
+		.cause_reg = A_ULP_TX_INT_CAUSE_3,
+		.enable_reg = A_ULP_TX_INT_ENABLE_3,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info ulptx_intr_info4 = {
+		.name = "ULP_TX_INT_CAUSE_4",
+		.cause_reg = A_ULP_TX_INT_CAUSE_4,
+		.enable_reg = A_ULP_TX_INT_ENABLE_4,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info ulptx_intr_info5 = {
+		.name = "ULP_TX_INT_CAUSE_5",
+		.cause_reg = A_ULP_TX_INT_CAUSE_5,
+		.enable_reg = A_ULP_TX_INT_ENABLE_5,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info ulptx_intr_info6 = {
+		.name = "ULP_TX_INT_CAUSE_6",
+		.cause_reg = A_ULP_TX_INT_CAUSE_6,
+		.enable_reg = A_ULP_TX_INT_ENABLE_6,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info ulptx_intr_info7 = {
+		.name = "ULP_TX_INT_CAUSE_7",
+		.cause_reg = A_ULP_TX_INT_CAUSE_7,
+		.enable_reg = A_ULP_TX_INT_ENABLE_7,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info ulptx_intr_info8 = {
+		.name = "ULP_TX_INT_CAUSE_8",
+		.cause_reg = A_ULP_TX_INT_CAUSE_8,
+		.enable_reg = A_ULP_TX_INT_ENABLE_8,
+		.fatal = 0,
+		.flags = 0,
 		.details = NULL,
 		.actions = NULL,
 	};
 	bool fatal = false;
 
-	fatal |= t4_handle_intr(adap, &ulptx_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &ulptx_intr2_info, 0, verbose);
+	fatal |= t4_handle_intr(adap, &ulptx_intr_info, 0, flags);
+	if (chip_id(adap) > CHELSIO_T4)
+		fatal |= t4_handle_intr(adap, &ulptx_intr_info2, 0, flags);
+	if (chip_id(adap) > CHELSIO_T6) {
+		fatal |= t4_handle_intr(adap, &ulptx_intr_info3, 0, flags);
+		fatal |= t4_handle_intr(adap, &ulptx_intr_info4, 0, flags);
+		fatal |= t4_handle_intr(adap, &ulptx_intr_info5, 0, flags);
+		fatal |= t4_handle_intr(adap, &ulptx_intr_info6, 0, flags);
+		fatal |= t4_handle_intr(adap, &ulptx_intr_info7, 0, flags);
+		fatal |= t4_handle_intr(adap, &ulptx_intr_info8, 0, flags);
+	}
 
 	return (fatal);
 }
 
-static bool pmtx_dump_dbg_stats(struct adapter *adap, int arg, bool verbose)
+static bool pmtx_dump_dbg_stats(struct adapter *adap, int arg, int flags)
 {
 	int i;
 	u32 data[17];
+
+	if (flags & IHF_NO_SHOW)
+		return (false);
 
 	t4_read_indirect(adap, A_PM_TX_DBG_CTRL, A_PM_TX_DBG_DATA, &data[0],
 	    ARRAY_SIZE(data), A_PM_TX_DBG_STAT0);
@@ -4698,13 +5664,9 @@ static bool pmtx_dump_dbg_stats(struct adapter *adap, int arg, bool verbose)
 /*
  * PM TX interrupt handler.
  */
-static bool pmtx_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool pmtx_intr_handler(struct adapter *adap, int arg, int flags)
 {
-	static const struct intr_action pmtx_intr_actions[] = {
-		{ 0xffffffff, 0, pmtx_dump_dbg_stats },
-		{ 0 },
-	};
-	static const struct intr_details pmtx_intr_details[] = {
+	static const struct intr_details pmtx_int_cause_fields[] = {
 		{ F_PCMD_LEN_OVFL0, "PMTX channel 0 pcmd too large" },
 		{ F_PCMD_LEN_OVFL1, "PMTX channel 1 pcmd too large" },
 		{ F_PCMD_LEN_OVFL2, "PMTX channel 2 pcmd too large" },
@@ -4721,25 +5683,29 @@ static bool pmtx_intr_handler(struct adapter *adap, int arg, bool verbose)
 		{ F_C_PCMD_PAR_ERROR, "PMTX c_pcmd parity error" },
 		{ 0 }
 	};
-	static const struct intr_info pmtx_intr_info = {
+	static const struct intr_action pmtx_int_cause_actions[] = {
+		{ 0xffffffff, -1, pmtx_dump_dbg_stats },
+		{ 0 },
+	};
+	static const struct intr_info pmtx_int_cause = {
 		.name = "PM_TX_INT_CAUSE",
 		.cause_reg = A_PM_TX_INT_CAUSE,
 		.enable_reg = A_PM_TX_INT_ENABLE,
 		.fatal = 0xffffffff,
 		.flags = 0,
-		.details = pmtx_intr_details,
-		.actions = pmtx_intr_actions,
+		.details = pmtx_int_cause_fields,
+		.actions = pmtx_int_cause_actions,
 	};
 
-	return (t4_handle_intr(adap, &pmtx_intr_info, 0, verbose));
+	return (t4_handle_intr(adap, &pmtx_int_cause, 0, flags));
 }
 
 /*
  * PM RX interrupt handler.
  */
-static bool pmrx_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool pmrx_intr_handler(struct adapter *adap, int arg, int flags)
 {
-	static const struct intr_details pmrx_intr_details[] = {
+	static const struct intr_details pmrx_int_cause_fields[] = {
 		/* T6+ */
 		{ 0x18000000, "PMRX ospi overflow" },
 		{ F_MA_INTF_SDC_ERR, "PMRX MA interface SDC parity error" },
@@ -4761,25 +5727,25 @@ static bool pmrx_intr_handler(struct adapter *adap, int arg, bool verbose)
 		{ F_E_PCMD_PAR_ERROR, "PMRX e_pcmd parity error"},
 		{ 0 }
 	};
-	static const struct intr_info pmrx_intr_info = {
+	static const struct intr_info pmrx_int_cause = {
 		.name = "PM_RX_INT_CAUSE",
 		.cause_reg = A_PM_RX_INT_CAUSE,
 		.enable_reg = A_PM_RX_INT_ENABLE,
 		.fatal = 0x1fffffff,
-		.flags = NONFATAL_IF_DISABLED,
-		.details = pmrx_intr_details,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = pmrx_int_cause_fields,
 		.actions = NULL,
 	};
 
-	return (t4_handle_intr(adap, &pmrx_intr_info, 0, verbose));
+	return (t4_handle_intr(adap, &pmrx_int_cause, 0, flags));
 }
 
 /*
  * CPL switch interrupt handler.
  */
-static bool cplsw_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool cplsw_intr_handler(struct adapter *adap, int arg, int flags)
 {
-	static const struct intr_details cplsw_intr_details[] = {
+	static const struct intr_details cplsw_int_cause_fields[] = {
 		/* T5+ */
 		{ F_PERR_CPL_128TO128_1, "CPLSW 128TO128 FIFO1 parity error" },
 		{ F_PERR_CPL_128TO128_0, "CPLSW 128TO128 FIFO0 parity error" },
@@ -4793,17 +5759,17 @@ static bool cplsw_intr_handler(struct adapter *adap, int arg, bool verbose)
 		{ F_ZERO_SWITCH_ERROR, "CPLSW no-switch error" },
 		{ 0 }
 	};
-	static const struct intr_info cplsw_intr_info = {
+	static const struct intr_info cplsw_int_cause = {
 		.name = "CPL_INTR_CAUSE",
 		.cause_reg = A_CPL_INTR_CAUSE,
 		.enable_reg = A_CPL_INTR_ENABLE,
-		.fatal = 0xff,
-		.flags = NONFATAL_IF_DISABLED,
-		.details = cplsw_intr_details,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = cplsw_int_cause_fields,
 		.actions = NULL,
 	};
 
-	return (t4_handle_intr(adap, &cplsw_intr_info, 0, verbose));
+	return (t4_handle_intr(adap, &cplsw_int_cause, 0, flags));
 }
 
 #define T4_LE_FATAL_MASK (F_PARITYERR | F_UNKNOWNCMD | F_REQQPARERR)
@@ -4815,11 +5781,12 @@ static bool cplsw_intr_handler(struct adapter *adap, int arg, bool verbose)
 #define T6_LE_FATAL_MASK (T6_LE_PERRCRC_MASK | F_T6_UNKNOWNCMD | \
     F_TCAMACCFAIL | F_HASHTBLACCFAIL | F_CMDTIDERR | F_CMDPRSRINTERR | \
     F_TOTCNTERR | F_CLCAMFIFOERR | F_CLIPSUBERR)
+#define T7_LE_FATAL_MASK (T6_LE_FATAL_MASK | F_CACHESRAMPERR | F_CACHEINTPERR)
 
 /*
  * LE interrupt handler.
  */
-static bool le_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool le_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_details le_intr_details[] = {
 		{ F_REQQPARERR, "LE request queue parity error" },
@@ -4856,7 +5823,7 @@ static bool le_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_LE_DB_INT_CAUSE,
 		.enable_reg = A_LE_DB_INT_ENABLE,
 		.fatal = 0,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = NULL,
 		.actions = NULL,
 	};
@@ -4866,16 +5833,19 @@ static bool le_intr_handler(struct adapter *adap, int arg, bool verbose)
 		le_intr_info.fatal = T5_LE_FATAL_MASK;
 	} else {
 		le_intr_info.details = t6_le_intr_details;
-		le_intr_info.fatal = T6_LE_FATAL_MASK;
+		if (chip_id(adap) < CHELSIO_T7)
+			le_intr_info.fatal = T6_LE_FATAL_MASK;
+		else
+			le_intr_info.fatal = T7_LE_FATAL_MASK;
 	}
 
-	return (t4_handle_intr(adap, &le_intr_info, 0, verbose));
+	return (t4_handle_intr(adap, &le_intr_info, 0, flags));
 }
 
 /*
  * MPS interrupt handler.
  */
-static bool mps_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool mps_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_details mps_rx_perr_intr_details[] = {
 		{ 0xffffffff, "MPS Rx parity error" },
@@ -4886,8 +5856,53 @@ static bool mps_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_MPS_RX_PERR_INT_CAUSE,
 		.enable_reg = A_MPS_RX_PERR_INT_ENABLE,
 		.fatal = 0xffffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = mps_rx_perr_intr_details,
+		.actions = NULL,
+	};
+	static const struct intr_info mps_rx_perr_intr_info2 = {
+		.name = "MPS_RX_PERR_INT_CAUSE2",
+		.cause_reg = A_MPS_RX_PERR_INT_CAUSE2,
+		.enable_reg = A_MPS_RX_PERR_INT_ENABLE2,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mps_rx_perr_intr_info3 = {
+		.name = "MPS_RX_PERR_INT_CAUSE3",
+		.cause_reg = A_MPS_RX_PERR_INT_CAUSE3,
+		.enable_reg = A_MPS_RX_PERR_INT_ENABLE3,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mps_rx_perr_intr_info4 = {
+		.name = "MPS_RX_PERR_INT_CAUSE4",
+		.cause_reg = A_MPS_RX_PERR_INT_CAUSE4,
+		.enable_reg = A_MPS_RX_PERR_INT_ENABLE4,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mps_rx_perr_intr_info5 = {
+		.name = "MPS_RX_PERR_INT_CAUSE5",
+		.cause_reg = A_MPS_RX_PERR_INT_CAUSE5,
+		.enable_reg = A_MPS_RX_PERR_INT_ENABLE5,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mps_rx_perr_intr_info6 = {
+		.name = "MPS_RX_PERR_INT_CAUSE6",
+		.cause_reg = A_MPS_RX_PERR_INT_CAUSE6,
+		.enable_reg = A_MPS_RX_PERR_INT_ENABLE6,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
 		.actions = NULL,
 	};
 	static const struct intr_details mps_tx_intr_details[] = {
@@ -4906,8 +5921,35 @@ static bool mps_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_MPS_TX_INT_CAUSE,
 		.enable_reg = A_MPS_TX_INT_ENABLE,
 		.fatal = 0x1ffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = mps_tx_intr_details,
+		.actions = NULL,
+	};
+	static const struct intr_info mps_tx_intr_info2 = {
+		.name = "MPS_TX_INT2_CAUSE",
+		.cause_reg = A_MPS_TX_INT2_CAUSE,
+		.enable_reg = A_MPS_TX_INT2_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mps_tx_intr_info3 = {
+		.name = "MPS_TX_INT3_CAUSE",
+		.cause_reg = A_MPS_TX_INT3_CAUSE,
+		.enable_reg = A_MPS_TX_INT3_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mps_tx_intr_info4 = {
+		.name = "MPS_TX_INT4_CAUSE",
+		.cause_reg = A_MPS_TX_INT4_CAUSE,
+		.enable_reg = A_MPS_TX_INT4_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
 		.actions = NULL,
 	};
 	static const struct intr_details mps_trc_intr_details[] = {
@@ -4925,6 +5967,24 @@ static bool mps_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.details = mps_trc_intr_details,
 		.actions = NULL,
 	};
+	static const struct intr_info t7_mps_trc_intr_info = {
+		.name = "MPS_TRC_INT_CAUSE",
+		.cause_reg = A_T7_MPS_TRC_INT_CAUSE,
+		.enable_reg = A_T7_MPS_TRC_INT_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = mps_trc_intr_details,
+		.actions = NULL,
+	};
+	static const struct intr_info t7_mps_trc_intr_info2 = {
+		.name = "MPS_TRC_INT_CAUSE2",
+		.cause_reg = A_MPS_TRC_INT_CAUSE2,
+		.enable_reg = A_MPS_TRC_INT_ENABLE2,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
 	static const struct intr_details mps_stat_sram_intr_details[] = {
 		{ 0xffffffff, "MPS statistics SRAM parity error" },
 		{ 0 }
@@ -4934,7 +5994,7 @@ static bool mps_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_MPS_STAT_PERR_INT_CAUSE_SRAM,
 		.enable_reg = A_MPS_STAT_PERR_INT_ENABLE_SRAM,
 		.fatal = 0x1fffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = mps_stat_sram_intr_details,
 		.actions = NULL,
 	};
@@ -4947,7 +6007,7 @@ static bool mps_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_MPS_STAT_PERR_INT_CAUSE_TX_FIFO,
 		.enable_reg = A_MPS_STAT_PERR_INT_ENABLE_TX_FIFO,
 		.fatal =  0xffffff,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = mps_stat_tx_intr_details,
 		.actions = NULL,
 	};
@@ -4992,21 +6052,31 @@ static bool mps_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.details = mps_stat_sram1_intr_details,
 		.actions = NULL,
 	};
+	bool fatal = false;
 
-	bool fatal;
-
-	fatal = false;
-	fatal |= t4_handle_intr(adap, &mps_rx_perr_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &mps_tx_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &mps_trc_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &mps_stat_sram_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &mps_stat_tx_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &mps_stat_rx_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &mps_cls_intr_info, 0, verbose);
-	if (chip_id(adap) > CHELSIO_T4) {
-		fatal |= t4_handle_intr(adap, &mps_stat_sram1_intr_info, 0,
-		    verbose);
+	fatal |= t4_handle_intr(adap, &mps_rx_perr_intr_info, 0, flags);
+	if (chip_id(adap) > CHELSIO_T6) {
+		fatal |= t4_handle_intr(adap, &mps_rx_perr_intr_info2, 0, flags);
+		fatal |= t4_handle_intr(adap, &mps_rx_perr_intr_info3, 0, flags);
+		fatal |= t4_handle_intr(adap, &mps_rx_perr_intr_info4, 0, flags);
+		fatal |= t4_handle_intr(adap, &mps_rx_perr_intr_info5, 0, flags);
+		fatal |= t4_handle_intr(adap, &mps_rx_perr_intr_info6, 0, flags);
 	}
+	fatal |= t4_handle_intr(adap, &mps_tx_intr_info, 0, flags);
+	if (chip_id(adap) > CHELSIO_T6) {
+		fatal |= t4_handle_intr(adap, &mps_tx_intr_info2, 0, flags);
+		fatal |= t4_handle_intr(adap, &mps_tx_intr_info3, 0, flags);
+		fatal |= t4_handle_intr(adap, &mps_tx_intr_info4, 0, flags);
+		fatal |= t4_handle_intr(adap, &t7_mps_trc_intr_info, 0, flags);
+		fatal |= t4_handle_intr(adap, &t7_mps_trc_intr_info2, 0, flags);
+	} else
+		fatal |= t4_handle_intr(adap, &mps_trc_intr_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &mps_stat_sram_intr_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &mps_stat_tx_intr_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &mps_stat_rx_intr_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &mps_cls_intr_info, 0, flags);
+	if (chip_id(adap) > CHELSIO_T4)
+		fatal |= t4_handle_intr(adap, &mps_stat_sram1_intr_info, 0, flags);
 
 	t4_write_reg(adap, A_MPS_INT_CAUSE, is_t4(adap) ? 0 : 0xffffffff);
 	t4_read_reg(adap, A_MPS_INT_CAUSE);	/* flush */
@@ -5018,7 +6088,7 @@ static bool mps_intr_handler(struct adapter *adap, int arg, bool verbose)
 /*
  * EDC/MC interrupt handler.
  */
-static bool mem_intr_handler(struct adapter *adap, int idx, bool verbose)
+static bool mem_intr_handler(struct adapter *adap, int idx, int flags)
 {
 	static const char name[4][5] = { "EDC0", "EDC1", "MC0", "MC1" };
 	unsigned int count_reg, v;
@@ -5028,61 +6098,106 @@ static bool mem_intr_handler(struct adapter *adap, int idx, bool verbose)
 		{ F_PERR_INT_CAUSE, "FIFO parity error" },
 		{ 0 }
 	};
+	char rname[32];
 	struct intr_info ii = {
+		.name = &rname[0],
 		.fatal = F_PERR_INT_CAUSE | F_ECC_UE_INT_CAUSE,
 		.details = mem_intr_details,
 		.flags = 0,
 		.actions = NULL,
 	};
-	bool fatal;
+	bool fatal = false;
+	int i = 0;
 
 	switch (idx) {
+	case MEM_EDC1: i = 1;
+		       /* fall through */
 	case MEM_EDC0:
-		ii.name = "EDC0_INT_CAUSE";
-		ii.cause_reg = EDC_REG(A_EDC_INT_CAUSE, 0);
-		ii.enable_reg = EDC_REG(A_EDC_INT_ENABLE, 0);
-		count_reg = EDC_REG(A_EDC_ECC_STATUS, 0);
+		snprintf(rname, sizeof(rname), "EDC%u_INT_CAUSE", i);
+		if (is_t4(adap)) {
+			ii.cause_reg = EDC_REG(A_EDC_INT_CAUSE, i);
+			ii.enable_reg = EDC_REG(A_EDC_INT_ENABLE, i);
+			count_reg = EDC_REG(A_EDC_ECC_STATUS, i);
+		} else {
+			ii.cause_reg = EDC_T5_REG(A_EDC_H_INT_CAUSE, i);
+			ii.enable_reg = EDC_T5_REG(A_EDC_H_INT_ENABLE, i);
+			count_reg = EDC_T5_REG(A_EDC_H_ECC_STATUS, i);
+		}
+		fatal |= t4_handle_intr(adap, &ii, 0, flags);
+		if (chip_id(adap) > CHELSIO_T6) {
+			snprintf(rname, sizeof(rname), "EDC%u_PAR_CAUSE", i);
+			ii.cause_reg = EDC_T5_REG(A_EDC_H_PAR_CAUSE, i);
+			ii.enable_reg = EDC_T5_REG(A_EDC_H_PAR_ENABLE, i);
+			ii.fatal = 0xffffffff;
+			ii.details = NULL;
+			ii.flags = IHF_FATAL_IFF_ENABLED;
+			fatal |= t4_handle_intr(adap, &ii, 0, flags);
+		}
 		break;
-	case MEM_EDC1:
-		ii.name = "EDC1_INT_CAUSE";
-		ii.cause_reg = EDC_REG(A_EDC_INT_CAUSE, 1);
-		ii.enable_reg = EDC_REG(A_EDC_INT_ENABLE, 1);
-		count_reg = EDC_REG(A_EDC_ECC_STATUS, 1);
-		break;
+	case MEM_MC1:
+		if (is_t4(adap) || is_t6(adap))
+			return (false);
+		i = 1;
+	       /* fall through */
 	case MEM_MC0:
-		ii.name = "MC0_INT_CAUSE";
+		snprintf(rname, sizeof(rname), "MC%u_INT_CAUSE", i);
 		if (is_t4(adap)) {
 			ii.cause_reg = A_MC_INT_CAUSE;
 			ii.enable_reg = A_MC_INT_ENABLE;
 			count_reg = A_MC_ECC_STATUS;
+		} else if (chip_id(adap) < CHELSIO_T7) {
+			ii.cause_reg = MC_REG(A_MC_P_INT_CAUSE, i);
+			ii.enable_reg = MC_REG(A_MC_P_INT_ENABLE, i);
+			count_reg = MC_REG(A_MC_P_ECC_STATUS, i);
 		} else {
-			ii.cause_reg = A_MC_P_INT_CAUSE;
-			ii.enable_reg = A_MC_P_INT_ENABLE;
-			count_reg = A_MC_P_ECC_STATUS;
+			ii.cause_reg = MC_T7_REG(A_T7_MC_P_INT_CAUSE, i);
+			ii.enable_reg = MC_T7_REG(A_T7_MC_P_INT_ENABLE, i);
+			count_reg = MC_T7_REG(A_T7_MC_P_ECC_STATUS, i);
 		}
-		break;
-	case MEM_MC1:
-		ii.name = "MC1_INT_CAUSE";
-		ii.cause_reg = MC_REG(A_MC_P_INT_CAUSE, 1);
-		ii.enable_reg = MC_REG(A_MC_P_INT_ENABLE, 1);
-		count_reg = MC_REG(A_MC_P_ECC_STATUS, 1);
+		fatal |= t4_handle_intr(adap, &ii, 0, flags);
+
+		snprintf(rname, sizeof(rname), "MC%u_PAR_CAUSE", i);
+		if (is_t4(adap)) {
+			ii.cause_reg = A_MC_PAR_CAUSE;
+			ii.enable_reg = A_MC_PAR_ENABLE;
+		} else if (chip_id(adap) < CHELSIO_T7) {
+			ii.cause_reg = MC_REG(A_MC_P_PAR_CAUSE, i);
+			ii.enable_reg = MC_REG(A_MC_P_PAR_ENABLE, i);
+		} else {
+			ii.cause_reg = MC_T7_REG(A_T7_MC_P_PAR_CAUSE, i);
+			ii.enable_reg = MC_T7_REG(A_T7_MC_P_PAR_ENABLE, i);
+		}
+		ii.fatal = 0xffffffff;
+		ii.details = NULL;
+		ii.flags = IHF_FATAL_IFF_ENABLED;
+		fatal |= t4_handle_intr(adap, &ii, 0, flags);
+
+		if (chip_id(adap) > CHELSIO_T6) {
+			snprintf(rname, sizeof(rname), "MC%u_DDRCTL_INT_CAUSE", i);
+			ii.cause_reg = MC_T7_REG(A_MC_P_DDRCTL_INT_CAUSE, i);
+			ii.enable_reg = MC_T7_REG(A_MC_P_DDRCTL_INT_ENABLE, i);
+			fatal |= t4_handle_intr(adap, &ii, 0, flags);
+
+			snprintf(rname, sizeof(rname), "MC%u_ECC_UE_INT_CAUSE", i);
+			ii.cause_reg = MC_T7_REG(A_MC_P_ECC_UE_INT_CAUSE, i);
+			ii.enable_reg = MC_T7_REG(A_MC_P_ECC_UE_INT_ENABLE, i);
+			fatal |= t4_handle_intr(adap, &ii, 0, flags);
+		}
 		break;
 	}
 
-	fatal = t4_handle_intr(adap, &ii, 0, verbose);
-
 	v = t4_read_reg(adap, count_reg);
 	if (v != 0) {
-		if (G_ECC_UECNT(v) != 0) {
+		if (G_ECC_UECNT(v) != 0 && !(flags & IHF_NO_SHOW)) {
 			CH_ALERT(adap,
-			    "%s: %u uncorrectable ECC data error(s)\n",
+			    "  %s: %u uncorrectable ECC data error(s)\n",
 			    name[idx], G_ECC_UECNT(v));
 		}
-		if (G_ECC_CECNT(v) != 0) {
+		if (G_ECC_CECNT(v) != 0 && !(flags & IHF_NO_SHOW)) {
 			if (idx <= MEM_EDC1)
 				t4_edc_err_read(adap, idx);
 			CH_WARN_RATELIMIT(adap,
-			    "%s: %u correctable ECC data error(s)\n",
+			    "  %s: %u correctable ECC data error(s)\n",
 			    name[idx], G_ECC_CECNT(v));
 		}
 		t4_write_reg(adap, count_reg, 0xffffffff);
@@ -5091,14 +6206,16 @@ static bool mem_intr_handler(struct adapter *adap, int idx, bool verbose)
 	return (fatal);
 }
 
-static bool ma_wrap_status(struct adapter *adap, int arg, bool verbose)
+static bool ma_wrap_status(struct adapter *adap, int arg, int flags)
 {
 	u32 v;
 
 	v = t4_read_reg(adap, A_MA_INT_WRAP_STATUS);
-	CH_ALERT(adap,
-	    "MA address wrap-around error by client %u to address %#x\n",
-	    G_MEM_WRAP_CLIENT_NUM(v), G_MEM_WRAP_ADDRESS(v) << 4);
+	if (!(flags & IHF_NO_SHOW)) {
+		CH_ALERT(adap,
+		    "  MA address wrap-around by client %u to address %#x\n",
+		    G_MEM_WRAP_CLIENT_NUM(v), G_MEM_WRAP_ADDRESS(v) << 4);
+	}
 	t4_write_reg(adap, A_MA_INT_WRAP_STATUS, v);
 
 	return (false);
@@ -5108,7 +6225,7 @@ static bool ma_wrap_status(struct adapter *adap, int arg, bool verbose)
 /*
  * MA interrupt handler.
  */
-static bool ma_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool ma_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_action ma_intr_actions[] = {
 		{ F_MEM_WRAP_INT_CAUSE, 0, ma_wrap_status },
@@ -5119,7 +6236,7 @@ static bool ma_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.cause_reg = A_MA_INT_CAUSE,
 		.enable_reg = A_MA_INT_ENABLE,
 		.fatal = F_MEM_PERR_INT_CAUSE | F_MEM_TO_INT_CAUSE,
-		.flags = NONFATAL_IF_DISABLED,
+		.flags = IHF_FATAL_IFF_ENABLED,
 		.details = NULL,
 		.actions = ma_intr_actions,
 	};
@@ -5144,10 +6261,10 @@ static bool ma_intr_handler(struct adapter *adap, int arg, bool verbose)
 	bool fatal;
 
 	fatal = false;
-	fatal |= t4_handle_intr(adap, &ma_intr_info, 0, verbose);
-	fatal |= t4_handle_intr(adap, &ma_perr_status1, 0, verbose);
+	fatal |= t4_handle_intr(adap, &ma_intr_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &ma_perr_status1, 0, flags);
 	if (chip_id(adap) > CHELSIO_T4)
-		fatal |= t4_handle_intr(adap, &ma_perr_status2, 0, verbose);
+		fatal |= t4_handle_intr(adap, &ma_perr_status2, 0, flags);
 
 	return (fatal);
 }
@@ -5155,58 +6272,115 @@ static bool ma_intr_handler(struct adapter *adap, int arg, bool verbose)
 /*
  * SMB interrupt handler.
  */
-static bool smb_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool smb_intr_handler(struct adapter *adap, int arg, int flags)
 {
-	static const struct intr_details smb_intr_details[] = {
+	static const struct intr_details smb_int_cause_fields[] = {
 		{ F_MSTTXFIFOPARINT, "SMB master Tx FIFO parity error" },
 		{ F_MSTRXFIFOPARINT, "SMB master Rx FIFO parity error" },
 		{ F_SLVFIFOPARINT, "SMB slave FIFO parity error" },
 		{ 0 }
 	};
-	static const struct intr_info smb_intr_info = {
+	static const struct intr_info smb_int_cause = {
 		.name = "SMB_INT_CAUSE",
 		.cause_reg = A_SMB_INT_CAUSE,
 		.enable_reg = A_SMB_INT_ENABLE,
 		.fatal = F_SLVFIFOPARINT | F_MSTRXFIFOPARINT | F_MSTTXFIFOPARINT,
 		.flags = 0,
-		.details = smb_intr_details,
+		.details = smb_int_cause_fields,
 		.actions = NULL,
 	};
-
-	return (t4_handle_intr(adap, &smb_intr_info, 0, verbose));
+	return (t4_handle_intr(adap, &smb_int_cause, 0, flags));
 }
 
 /*
  * NC-SI interrupt handler.
  */
-static bool ncsi_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool ncsi_intr_handler(struct adapter *adap, int arg, int flags)
 {
-	static const struct intr_details ncsi_intr_details[] = {
+	static const struct intr_details ncsi_int_cause_fields[] = {
 		{ F_CIM_DM_PRTY_ERR, "NC-SI CIM parity error" },
 		{ F_MPS_DM_PRTY_ERR, "NC-SI MPS parity error" },
 		{ F_TXFIFO_PRTY_ERR, "NC-SI Tx FIFO parity error" },
 		{ F_RXFIFO_PRTY_ERR, "NC-SI Rx FIFO parity error" },
 		{ 0 }
 	};
-	static const struct intr_info ncsi_intr_info = {
+	static const struct intr_info ncsi_int_cause = {
 		.name = "NCSI_INT_CAUSE",
 		.cause_reg = A_NCSI_INT_CAUSE,
 		.enable_reg = A_NCSI_INT_ENABLE,
 		.fatal = F_RXFIFO_PRTY_ERR | F_TXFIFO_PRTY_ERR |
 		    F_MPS_DM_PRTY_ERR | F_CIM_DM_PRTY_ERR,
 		.flags = 0,
-		.details = ncsi_intr_details,
+		.details = ncsi_int_cause_fields,
 		.actions = NULL,
 	};
+	static const struct intr_info ncsi_xgmac0_int_cause = {
+		.name = "NCSI_XGMAC0_INT_CAUSE",
+		.cause_reg = A_NCSI_XGMAC0_INT_CAUSE,
+		.enable_reg = A_NCSI_XGMAC0_INT_ENABLE,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	bool fatal = false;
 
-	return (t4_handle_intr(adap, &ncsi_intr_info, 0, verbose));
+	fatal |= t4_handle_intr(adap, &ncsi_int_cause, 0, flags);
+	if (chip_id(adap) > CHELSIO_T6)
+		fatal |= t4_handle_intr(adap, &ncsi_xgmac0_int_cause, 0, flags);
+	return (fatal);
 }
 
 /*
  * MAC interrupt handler.
  */
-static bool mac_intr_handler(struct adapter *adap, int port, bool verbose)
+static bool mac_intr_handler(struct adapter *adap, int port, int flags)
 {
+	static const struct intr_info mac_int_cause_cmn = {
+		.name = "MAC_INT_CAUSE_CMN",
+		.cause_reg = A_MAC_INT_CAUSE_CMN,
+		.enable_reg = A_MAC_INT_EN_CMN,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mac_perr_cause_mtip = {
+		.name = "MAC_PERR_INT_CAUSE_MTIP",
+		.cause_reg = A_MAC_PERR_INT_CAUSE_MTIP,
+		.enable_reg = A_MAC_PERR_INT_EN_MTIP,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED | IHF_IGNORE_IF_DISABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mac_cerr_cause_mtip = {
+		.name = "MAC_CERR_INT_CAUSE_MTIP",
+		.cause_reg = A_MAC_CERR_INT_CAUSE_MTIP,
+		.enable_reg = A_MAC_CERR_INT_EN_MTIP,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mac_ios_int_cause_quad0 = {
+		.name = "MAC_IOS_INTR_CAUSE_QUAD0",
+		.cause_reg = A_MAC_IOS_INTR_CAUSE_QUAD0,
+		.enable_reg = A_MAC_IOS_INTR_EN_QUAD0,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info mac_ios_int_cause_quad1 = {
+		.name = "MAC_IOS_INTR_CAUSE_QUAD1",
+		.cause_reg = A_MAC_IOS_INTR_CAUSE_QUAD1,
+		.enable_reg = A_MAC_IOS_INTR_EN_QUAD1,
+		.fatal = 0,
+		.flags = 0,
+		.details = NULL,
+		.actions = NULL,
+	};
 	static const struct intr_details mac_intr_details[] = {
 		{ F_TXFIFO_PRTY_ERR, "MAC Tx FIFO parity error" },
 		{ F_RXFIFO_PRTY_ERR, "MAC Rx FIFO parity error" },
@@ -5215,6 +6389,9 @@ static bool mac_intr_handler(struct adapter *adap, int port, bool verbose)
 	char name[32];
 	struct intr_info ii;
 	bool fatal = false;
+
+	if (port > 1 && is_t6(adap))
+		return (false);
 
 	if (is_t4(adap)) {
 		snprintf(name, sizeof(name), "XGMAC_PORT%u_INT_CAUSE", port);
@@ -5225,7 +6402,7 @@ static bool mac_intr_handler(struct adapter *adap, int port, bool verbose)
 		ii.flags = 0;
 		ii.details = mac_intr_details;
 		ii.actions = NULL;
-	} else {
+	} else if (chip_id(adap) < CHELSIO_T7) {
 		snprintf(name, sizeof(name), "MAC_PORT%u_INT_CAUSE", port);
 		ii.name = &name[0];
 		ii.cause_reg = T5_PORT_REG(port, A_MAC_PORT_INT_CAUSE);
@@ -5234,38 +6411,80 @@ static bool mac_intr_handler(struct adapter *adap, int port, bool verbose)
 		ii.flags = 0;
 		ii.details = mac_intr_details;
 		ii.actions = NULL;
+	} else {
+		snprintf(name, sizeof(name), "MAC_PORT%u_INT_CAUSE", port);
+		ii.name = &name[0];
+		ii.cause_reg = T7_PORT_REG(port, A_T7_MAC_PORT_INT_CAUSE);
+		ii.enable_reg = T7_PORT_REG(port, A_T7_MAC_PORT_INT_EN);
+		ii.fatal = 0xffffffff;
+		ii.flags = IHF_FATAL_IFF_ENABLED;
+		ii.details = NULL;
+		ii.actions = NULL;
 	}
-	fatal |= t4_handle_intr(adap, &ii, 0, verbose);
+	fatal |= t4_handle_intr(adap, &ii, 0, flags);
+	if (is_t4(adap))
+		return (fatal);
 
-	if (chip_id(adap) >= CHELSIO_T5) {
-		snprintf(name, sizeof(name), "MAC_PORT%u_PERR_INT_CAUSE", port);
+	MPASS(chip_id(adap) >= CHELSIO_T5);
+	snprintf(name, sizeof(name), "MAC_PORT%u_PERR_INT_CAUSE", port);
+	if (chip_id(adap) > CHELSIO_T6) {
+		ii.name = &name[0];
+		ii.cause_reg = T7_PORT_REG(port, A_T7_MAC_PORT_PERR_INT_CAUSE);
+		ii.enable_reg = T7_PORT_REG(port, A_T7_MAC_PORT_PERR_INT_EN);
+		ii.fatal = 0xffffffff;
+		ii.flags = IHF_FATAL_IFF_ENABLED;
+		ii.details = NULL;
+		ii.actions = NULL;
+	} else {
 		ii.name = &name[0];
 		ii.cause_reg = T5_PORT_REG(port, A_MAC_PORT_PERR_INT_CAUSE);
 		ii.enable_reg = T5_PORT_REG(port, A_MAC_PORT_PERR_INT_EN);
-		ii.fatal = 0;
-		ii.flags = 0;
+		ii.fatal = 0xffffffff;
+		ii.flags = IHF_FATAL_IFF_ENABLED;
 		ii.details = NULL;
 		ii.actions = NULL;
-		fatal |= t4_handle_intr(adap, &ii, 0, verbose);
 	}
+	fatal |= t4_handle_intr(adap, &ii, 0, flags);
+	if (is_t5(adap))
+		return (fatal);
 
-	if (chip_id(adap) >= CHELSIO_T6) {
-		snprintf(name, sizeof(name), "MAC_PORT%u_PERR_INT_CAUSE_100G", port);
+	MPASS(chip_id(adap) >= CHELSIO_T6);
+	snprintf(name, sizeof(name), "MAC_PORT%u_PERR_INT_CAUSE_100G", port);
+	if (chip_id(adap) > CHELSIO_T6) {
+		ii.name = &name[0];
+		ii.cause_reg = T7_PORT_REG(port, A_T7_MAC_PORT_PERR_INT_CAUSE_100G);
+		ii.enable_reg = T7_PORT_REG(port, A_T7_MAC_PORT_PERR_INT_EN_100G);
+		ii.fatal = 0xffffffff;
+		ii.flags = IHF_FATAL_IFF_ENABLED;
+		ii.details = NULL;
+		ii.actions = NULL;
+	} else {
 		ii.name = &name[0];
 		ii.cause_reg = T5_PORT_REG(port, A_MAC_PORT_PERR_INT_CAUSE_100G);
 		ii.enable_reg = T5_PORT_REG(port, A_MAC_PORT_PERR_INT_EN_100G);
-		ii.fatal = 0;
-		ii.flags = 0;
+		ii.fatal = 0xffffffff;
+		ii.flags = IHF_FATAL_IFF_ENABLED;
 		ii.details = NULL;
 		ii.actions = NULL;
-		fatal |= t4_handle_intr(adap, &ii, 0, verbose);
 	}
+	fatal |= t4_handle_intr(adap, &ii, 0, flags);
+	if (is_t6(adap))
+		return (fatal);
+
+	MPASS(chip_id(adap) >= CHELSIO_T7);
+	fatal |= t4_handle_intr(adap, &mac_int_cause_cmn, 0, flags);
+	fatal |= t4_handle_intr(adap, &mac_perr_cause_mtip, 0, flags);
+	fatal |= t4_handle_intr(adap, &mac_cerr_cause_mtip, 0, flags);
+	fatal |= t4_handle_intr(adap, &mac_ios_int_cause_quad0, 0, flags);
+	fatal |= t4_handle_intr(adap, &mac_ios_int_cause_quad1, 0, flags);
 
 	return (fatal);
 }
 
-static bool pl_timeout_status(struct adapter *adap, int arg, bool verbose)
+static bool pl_timeout_status(struct adapter *adap, int arg, int flags)
 {
+	if (flags & IHF_NO_SHOW)
+		return (false);
 
 	CH_ALERT(adap, "    PL_TIMEOUT_STATUS 0x%08x 0x%08x\n",
 	    t4_read_reg(adap, A_PL_TIMEOUT_STATUS0),
@@ -5274,13 +6493,9 @@ static bool pl_timeout_status(struct adapter *adap, int arg, bool verbose)
 	return (false);
 }
 
-static bool plpl_intr_handler(struct adapter *adap, int arg, bool verbose)
+static bool plpl_intr_handler(struct adapter *adap, int arg, int flags)
 {
-	static const struct intr_action plpl_intr_actions[] = {
-		{ F_TIMEOUT, 0, pl_timeout_status },
-		{ 0 },
-	};
-	static const struct intr_details plpl_intr_details[] = {
+	static const struct intr_details plpl_int_cause_fields[] = {
 		{ F_PL_BUSPERR, "Bus parity error" },
 		{ F_FATALPERR, "Fatal parity error" },
 		{ F_INVALIDACCESS, "Global reserved memory access" },
@@ -5289,31 +6504,397 @@ static bool plpl_intr_handler(struct adapter *adap, int arg, bool verbose)
 		{ F_PERRVFID, "VFID_MAP parity error" },
 		{ 0 }
 	};
-	static const struct intr_info plpl_intr_info = {
+	static const struct intr_action plpl_int_cause_actions[] = {
+		{ F_TIMEOUT, -1, pl_timeout_status },
+		{ 0 },
+	};
+	static const struct intr_info plpl_int_cause = {
 		.name = "PL_PL_INT_CAUSE",
 		.cause_reg = A_PL_PL_INT_CAUSE,
 		.enable_reg = A_PL_PL_INT_ENABLE,
 		.fatal = F_FATALPERR | F_PERRVFID,
-		.flags = NONFATAL_IF_DISABLED,
-		.details = plpl_intr_details,
-		.actions = plpl_intr_actions,
+		.flags = IHF_FATAL_IFF_ENABLED | IHF_IGNORE_IF_DISABLED,
+		.details = plpl_int_cause_fields,
+		.actions = plpl_int_cause_actions,
 	};
 
-	return (t4_handle_intr(adap, &plpl_intr_info, 0, verbose));
+	return (t4_handle_intr(adap, &plpl_int_cause, 0, flags));
+}
+
+/* similar to t4_port_reg */
+static inline u32
+t7_tlstx_reg(u8 instance, u8 channel, u32 reg)
+{
+	MPASS(instance <= 1);
+	MPASS(channel < NUM_TLS_TX_CH_INSTANCES);
+	return (instance * (CRYPTO_1_BASE_ADDR - CRYPTO_0_BASE_ADDR) +
+	    TLS_TX_CH_REG(reg, channel));
+}
+
+/*
+ * CRYPTO (aka TLS_TX) interrupt handler.
+ */
+static bool tlstx_intr_handler(struct adapter *adap, int idx, int flags)
+{
+	static const struct intr_details tlstx_int_cause_fields[] = {
+		{ F_KEX_CERR, "KEX SRAM Correctable error" },
+		{ F_KEYLENERR, "IPsec Key length error" },
+		{ F_INTF1_PERR, "Input Interface1 parity error" },
+		{ F_INTF0_PERR, "Input Interface0 parity error" },
+		{ F_KEX_PERR, "KEX SRAM Parity error" },
+		{ 0 }
+	};
+	struct intr_info ii = {
+		.fatal = F_KEX_PERR | F_INTF0_PERR | F_INTF1_PERR,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = tlstx_int_cause_fields,
+		.actions = NULL,
+	};
+	char name[32];
+	int ch;
+	bool fatal = false;
+
+	for (ch = 0; ch < NUM_TLS_TX_CH_INSTANCES; ch++) {
+		snprintf(name, sizeof(name), "TLSTX%u_CH%u_INT_CAUSE", idx, ch);
+		ii.name = &name[0];
+		ii.cause_reg = t7_tlstx_reg(idx, ch, A_TLS_TX_CH_INT_CAUSE);
+		ii.enable_reg = t7_tlstx_reg(idx, ch, A_TLS_TX_CH_INT_ENABLE);
+		fatal |= t4_handle_intr(adap, &ii, 0, flags);
+	}
+
+	return (fatal);
+}
+
+/*
+ * HMA interrupt handler.
+ */
+static bool hma_intr_handler(struct adapter *adap, int idx, int flags)
+{
+	static const struct intr_details hma_int_cause_fields[] = {
+		{ F_GK_UF_INT_CAUSE, "Gatekeeper underflow" },
+		{ F_IDTF_INT_CAUSE, "Invalid descriptor fault" },
+		{ F_OTF_INT_CAUSE, "Offset translation fault" },
+		{ F_RTF_INT_CAUSE, "Region translation fault" },
+		{ F_PCIEMST_INT_CAUSE, "PCIe master access error" },
+		{ F_MAMST_INT_CAUSE, "MA master access error" },
+		{ 1, "FIFO parity error" },
+		{ 0 }
+	};
+	static const struct intr_info hma_int_cause = {
+		.name = "HMA_INT_CAUSE",
+		.cause_reg = A_HMA_INT_CAUSE,
+		.enable_reg = A_HMA_INT_ENABLE,
+		.fatal = 7,
+		.flags = 0,
+		.details = hma_int_cause_fields,
+		.actions = NULL,
+	};
+
+	return (t4_handle_intr(adap, &hma_int_cause, 0, flags));
+}
+
+/*
+ * CRYPTO_KEY interrupt handler.
+ */
+static bool cryptokey_intr_handler(struct adapter *adap, int idx, int flags)
+{
+	static const struct intr_details cryptokey_int_cause_fields[] = {
+		{ F_MA_FIFO_PERR, "MA arbiter FIFO parity error" },
+		{ F_MA_RSP_PERR, "MA response IF parity error" },
+		{ F_ING_CACHE_DATA_PERR, "Ingress key cache data parity error" },
+		{ F_ING_CACHE_TAG_PERR, "Ingress key cache tag parity error" },
+		{ F_LKP_KEY_REQ_PERR, "Ingress key req parity error" },
+		{ F_LKP_CLIP_TCAM_PERR, "Ingress LKP CLIP TCAM parity error" },
+		{ F_LKP_MAIN_TCAM_PERR, "Ingress LKP main TCAM parity error" },
+		{ F_EGR_KEY_REQ_PERR, "Egress key req or FIFO3 parity error" },
+		{ F_EGR_CACHE_DATA_PERR, "Egress key cache data parity error" },
+		{ F_EGR_CACHE_TAG_PERR, "Egress key cache tag parity error" },
+		{ F_CIM_PERR, "CIM interface parity error" },
+		{ F_MA_INV_RSP_TAG, "MA invalid response tag" },
+		{ F_ING_KEY_RANGE_ERR, "Ingress key range error" },
+		{ F_ING_MFIFO_OVFL, "Ingress MFIFO overflow" },
+		{ F_LKP_REQ_OVFL, "Ingress lookup FIFO overflow" },
+		{ F_EOK_WAIT_ERR, "EOK wait error" },
+		{ F_EGR_KEY_RANGE_ERR, "Egress key range error" },
+		{ F_EGR_MFIFO_OVFL, "Egress MFIFO overflow" },
+		{ F_SEQ_WRAP_HP_OVFL, "Sequence wrap (hi-pri)" },
+		{ F_SEQ_WRAP_LP_OVFL, "Sequence wrap (lo-pri)" },
+		{ F_EGR_SEQ_WRAP_HP, "Egress sequence wrap (hi-pri)" },
+		{ F_EGR_SEQ_WRAP_LP, "Egress sequence wrap (lo-pri)" },
+		{ 0 }
+	};
+	static const struct intr_info cryptokey_int_cause = {
+		.name = "CRYPTO_KEY_INT_CAUSE",
+		.cause_reg = A_CRYPTO_KEY_INT_CAUSE,
+		.enable_reg = A_CRYPTO_KEY_INT_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = cryptokey_int_cause_fields,
+		.actions = NULL,
+	};
+
+	return (t4_handle_intr(adap, &cryptokey_int_cause, 0, flags));
+}
+
+/*
+ * GCACHE interrupt handler.
+ */
+static bool gcache_intr_handler(struct adapter *adap, int idx, int flags)
+{
+	static const struct intr_details gcache_int_cause_fields[] = {
+		{ F_GC1_SRAM_RSP_DATAQ_PERR_INT_CAUSE, "GC1 SRAM rsp dataq perr" },
+		{ F_GC0_SRAM_RSP_DATAQ_PERR_INT_CAUSE, "GC0 SRAM rsp dataq perr" },
+		{ F_GC1_WQDATA_FIFO_PERR_INT_CAUSE, "GC1 wqdata FIFO perr" },
+		{ F_GC0_WQDATA_FIFO_PERR_INT_CAUSE, "GC0 wqdata FIFO perr" },
+		{ F_GC1_RDTAG_QUEUE_PERR_INT_CAUSE, "GC1 rdtag queue perr" },
+		{ F_GC0_RDTAG_QUEUE_PERR_INT_CAUSE, "GC0 rdtag queue perr" },
+		{ F_GC1_SRAM_RDTAG_QUEUE_PERR_INT_CAUSE, "GC1 SRAM rdtag queue perr" },
+		{ F_GC0_SRAM_RDTAG_QUEUE_PERR_INT_CAUSE, "GC0 SRAM rdtag queue perr" },
+		{ F_GC1_RSP_PERR_INT_CAUSE, "GC1 rsp perr" },
+		{ F_GC0_RSP_PERR_INT_CAUSE, "GC0 rsp perr" },
+		{ F_GC1_LRU_UERR_INT_CAUSE, "GC1 lru uerr" },
+		{ F_GC0_LRU_UERR_INT_CAUSE, "GC0 lru uerr" },
+		{ F_GC1_TAG_UERR_INT_CAUSE, "GC1 tag uerr" },
+		{ F_GC0_TAG_UERR_INT_CAUSE, "GC0 tag uerr" },
+		{ F_GC1_LRU_CERR_INT_CAUSE, "GC1 lru cerr" },
+		{ F_GC0_LRU_CERR_INT_CAUSE, "GC0 lru cerr" },
+		{ F_GC1_TAG_CERR_INT_CAUSE, "GC1 tag cerr" },
+		{ F_GC0_TAG_CERR_INT_CAUSE, "GC0 tag cerr" },
+		{ F_GC1_CE_INT_CAUSE, "GC1 correctable error" },
+		{ F_GC0_CE_INT_CAUSE, "GC0 correctable error" },
+		{ F_GC1_UE_INT_CAUSE, "GC1 uncorrectable error" },
+		{ F_GC0_UE_INT_CAUSE, "GC0 uncorrectable error" },
+		{ F_GC1_CMD_PAR_INT_CAUSE, "GC1 cmd perr" },
+		{ F_GC1_DATA_PAR_INT_CAUSE, "GC1 data perr" },
+		{ F_GC0_CMD_PAR_INT_CAUSE, "GC0 cmd perr" },
+		{ F_GC0_DATA_PAR_INT_CAUSE, "GC0 data perr" },
+		{ F_ILLADDRACCESS1_INT_CAUSE, "GC1 illegal address access" },
+		{ F_ILLADDRACCESS0_INT_CAUSE, "GC0 illegal address access" },
+		{ 0 }
+	};
+	static const struct intr_info gcache_perr_cause = {
+		.name = "GCACHE_PAR_CAUSE",
+		.cause_reg = A_GCACHE_PAR_CAUSE,
+		.enable_reg = A_GCACHE_PAR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info gcache_int_cause = {
+		.name = "GCACHE_INT_CAUSE",
+		.cause_reg = A_GCACHE_INT_CAUSE,
+		.enable_reg = A_GCACHE_INT_ENABLE,
+		.fatal = 0,
+		.flags = 0,
+		.details = gcache_int_cause_fields,
+		.actions = NULL,
+	};
+	bool fatal = false;
+
+	fatal |= t4_handle_intr(adap, &gcache_int_cause, 0, flags);
+	fatal |= t4_handle_intr(adap, &gcache_perr_cause, 0, flags);
+
+	return (fatal);
+}
+
+/*
+ * ARM interrupt handler.
+ */
+static bool arm_intr_handler(struct adapter *adap, int idx, int flags)
+{
+	static const struct intr_info arm_perr_cause0 = {
+		.name = "ARM_PERR_INT_CAUSE0",
+		.cause_reg = A_ARM_PERR_INT_CAUSE0,
+		.enable_reg = A_ARM_PERR_INT_ENB0,
+		.fatal = 0xffffffff,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info arm_perr_cause1 = {
+		.name = "ARM_PERR_INT_CAUSE1",
+		.cause_reg = A_ARM_PERR_INT_CAUSE1,
+		.enable_reg = A_ARM_PERR_INT_ENB1,
+		.fatal = 0xffffffff,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info arm_perr_cause2 = {
+		.name = "ARM_PERR_INT_CAUSE2",
+		.cause_reg = A_ARM_PERR_INT_CAUSE2,
+		.enable_reg = A_ARM_PERR_INT_ENB2,
+		.fatal = 0xffffffff,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info arm_cerr_cause0 = {
+		.name = "ARM_CERR_INT_CAUSE",
+		.cause_reg = A_ARM_CERR_INT_CAUSE0,
+		.enable_reg = A_ARM_CERR_INT_ENB0,
+		.fatal = 0,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info arm_err_cause0 = {
+		.name = "ARM_ERR_INT_CAUSE",
+		.cause_reg = A_ARM_ERR_INT_CAUSE0,
+		.enable_reg = A_ARM_ERR_INT_ENB0,
+		.fatal = 0,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info arm_periph_cause = {
+		.name = "ARM_PERIPHERAL_INT_CAUSE",
+		.cause_reg = A_ARM_PERIPHERAL_INT_CAUSE,
+		.enable_reg = A_ARM_PERIPHERAL_INT_ENB,
+		.fatal = 0,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	static const struct intr_info arm_nvme_db_emu_cause = {
+		.name = "ARM_NVME_DB_EMU_INT_CAUSE",
+		.cause_reg = A_ARM_NVME_DB_EMU_INT_CAUSE,
+		.enable_reg = A_ARM_NVME_DB_EMU_INT_ENABLE,
+		.fatal = 0,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
+	};
+	bool fatal = false;
+
+	fatal |= t4_handle_intr(adap, &arm_perr_cause0, 0, flags);
+	fatal |= t4_handle_intr(adap, &arm_perr_cause1, 0, flags);
+	fatal |= t4_handle_intr(adap, &arm_perr_cause2, 0, flags);
+	fatal |= t4_handle_intr(adap, &arm_cerr_cause0, 0, flags);
+	fatal |= t4_handle_intr(adap, &arm_err_cause0, 0, flags);
+	fatal |= t4_handle_intr(adap, &arm_periph_cause, 0, flags);
+	fatal |= t4_handle_intr(adap, &arm_nvme_db_emu_cause, 0, flags);
+
+	return (fatal);
+}
+
+static inline uint32_t
+get_perr_ucause(struct adapter *sc, const struct intr_info *ii)
+{
+	uint32_t cause;
+
+	cause = t4_read_reg(sc, ii->cause_reg);
+	if (ii->flags & IHF_IGNORE_IF_DISABLED)
+		cause &= t4_read_reg(sc, ii->enable_reg);
+	return (cause);
+}
+
+static uint32_t
+t4_perr_to_ic(struct adapter *adap, uint32_t perr)
+{
+	uint32_t mask;
+
+	if (adap->chip_params->nchan > 2)
+		mask = F_MAC0 | F_MAC1 | F_MAC2 | F_MAC3;
+	else
+		mask = F_MAC0 | F_MAC1;
+	return (perr & mask ? perr | mask : perr);
+}
+
+static uint32_t
+t7_perr_to_ic1(uint32_t perr)
+{
+	uint32_t cause = 0;
+
+	if (perr & F_T7_PL_PERR_ULP_TX)
+		cause |= F_T7_ULP_TX;
+	if (perr & F_T7_PL_PERR_SGE)
+		cause |= F_T7_SGE;
+	if (perr & F_T7_PL_PERR_HMA)
+		cause |= F_T7_HMA;
+	if (perr & F_T7_PL_PERR_CPL_SWITCH)
+		cause |= F_T7_CPL_SWITCH;
+	if (perr & F_T7_PL_PERR_ULP_RX)
+		cause |= F_T7_ULP_RX;
+	if (perr & F_T7_PL_PERR_PM_RX)
+		cause |= F_T7_PM_RX;
+	if (perr & F_T7_PL_PERR_PM_TX)
+		cause |= F_T7_PM_TX;
+	if (perr & F_T7_PL_PERR_MA)
+		cause |= F_T7_MA;
+	if (perr & F_T7_PL_PERR_TP)
+		cause |= F_T7_TP;
+	if (perr & F_T7_PL_PERR_LE)
+		cause |= F_T7_LE;
+	if (perr & F_T7_PL_PERR_EDC1)
+		cause |= F_T7_EDC1;
+	if (perr & F_T7_PL_PERR_EDC0)
+		cause |= F_T7_EDC0;
+	if (perr & F_T7_PL_PERR_MC1)
+		cause |= F_T7_MC1;
+	if (perr & F_T7_PL_PERR_MC0)
+		cause |= F_T7_MC0;
+	if (perr & F_T7_PL_PERR_PCIE)
+		cause |= F_T7_PCIE;
+	if (perr & F_T7_PL_PERR_UART)
+		cause |= F_T7_UART;
+	if (perr & F_T7_PL_PERR_PMU)
+		cause |= F_PMU;
+	if (perr & F_T7_PL_PERR_MAC)
+		cause |= F_MAC0 | F_MAC1 | F_MAC2 | F_MAC3;
+	if (perr & F_T7_PL_PERR_SMB)
+		cause |= F_SMB;
+	if (perr & F_T7_PL_PERR_SF)
+		cause |= F_SF;
+	if (perr & F_T7_PL_PERR_PL)
+		cause |= F_PL;
+	if (perr & F_T7_PL_PERR_NCSI)
+		cause |= F_NCSI;
+	if (perr & F_T7_PL_PERR_MPS)
+		cause |= F_MPS;
+	if (perr & F_T7_PL_PERR_MI)
+		cause |= F_MI;
+	if (perr & F_T7_PL_PERR_DBG)
+		cause |= F_DBG;
+	if (perr & F_T7_PL_PERR_I2CM)
+		cause |= F_I2CM;
+	if (perr & F_T7_PL_PERR_CIM)
+		cause |= F_CIM;
+
+	return (cause);
+}
+
+static uint32_t
+t7_perr_to_ic2(uint32_t perr)
+{
+	uint32_t cause = 0;
+
+	if (perr & F_T7_PL_PERR_CRYPTO_KEY)
+		cause |= F_CRYPTO_KEY;
+	if (perr & F_T7_PL_PERR_CRYPTO1)
+		cause |= F_CRYPTO1;
+	if (perr & F_T7_PL_PERR_CRYPTO0)
+		cause |= F_CRYPTO0;
+	if (perr & F_T7_PL_PERR_GCACHE)
+		cause |= F_GCACHE;
+	if (perr & F_T7_PL_PERR_ARM)
+		cause |= F_ARM;
+
+	return (cause);
 }
 
 /**
  *	t4_slow_intr_handler - control path interrupt handler
  *	@adap: the adapter
- *	@verbose: increased verbosity, for debug
  *
  *	T4 interrupt handler for non-data global interrupt events, e.g., errors.
  *	The designation 'slow' is because it involves register reads, while
  *	data interrupts typically don't involve any MMIOs.
  */
-bool t4_slow_intr_handler(struct adapter *adap, bool verbose)
+bool t4_slow_intr_handler(struct adapter *adap, int flags)
 {
-	static const struct intr_details pl_intr_details[] = {
+	static const struct intr_details pl_int_cause_fields[] = {
 		{ F_MC1, "MC1" },
 		{ F_UART, "UART" },
 		{ F_ULP_TX, "ULP TX" },
@@ -5346,65 +6927,224 @@ bool t4_slow_intr_handler(struct adapter *adap, bool verbose)
 		{ F_CIM, "CIM" },
 		{ 0 }
 	};
+	static const struct intr_action pl_int_cause_actions[] = {
+		{ F_ULP_TX, -1, ulptx_intr_handler },
+		{ F_SGE, -1, sge_intr_handler },
+		{ F_CPL_SWITCH, -1, cplsw_intr_handler },
+		{ F_ULP_RX, -1, ulprx_intr_handler },
+		{ F_PM_RX, -1, pmtx_intr_handler },
+		{ F_PM_TX, -1, pmtx_intr_handler },
+		{ F_MA, -1, ma_intr_handler },
+		{ F_TP, -1, tp_intr_handler },
+		{ F_LE, -1, le_intr_handler },
+		{ F_EDC0, MEM_EDC0, mem_intr_handler },
+		{ F_EDC1, MEM_EDC1, mem_intr_handler },
+		{ F_MC0, MEM_MC0, mem_intr_handler },
+		{ F_MC1, MEM_MC1, mem_intr_handler },
+		{ F_PCIE, -1, pcie_intr_handler },
+		{ F_MAC0, 0, mac_intr_handler },
+		{ F_MAC1, 1, mac_intr_handler },
+		{ F_MAC2, 2, mac_intr_handler },
+		{ F_MAC3, 3, mac_intr_handler },
+		{ F_SMB, -1, smb_intr_handler },
+		{ F_PL, -1, plpl_intr_handler },
+		{ F_NCSI, -1, ncsi_intr_handler },
+		{ F_MPS, -1, mps_intr_handler },
+		{ F_CIM, -1, cim_intr_handler },
+		{ 0 }
+	};
+	static const struct intr_info pl_int_cause = {
+		.name = "PL_INT_CAUSE",
+		.cause_reg = A_PL_INT_CAUSE,
+		.enable_reg = A_PL_INT_ENABLE,
+		.fatal = 0,
+		.flags = IHF_IGNORE_IF_DISABLED,
+		.details = pl_int_cause_fields,
+		.actions = pl_int_cause_actions,
+	};
 	static const struct intr_info pl_perr_cause = {
 		.name = "PL_PERR_CAUSE",
 		.cause_reg = A_PL_PERR_CAUSE,
 		.enable_reg = A_PL_PERR_ENABLE,
 		.fatal = 0xffffffff,
-		.flags = 0,
-		.details = pl_intr_details,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.details = pl_int_cause_fields,
 		.actions = NULL,
 	};
-	static const struct intr_action pl_intr_action[] = {
-		{ F_MC1, MEM_MC1, mem_intr_handler },
-		{ F_ULP_TX, -1, ulptx_intr_handler },
-		{ F_SGE, -1, sge_intr_handler },
-		{ F_CPL_SWITCH, -1, cplsw_intr_handler },
-		{ F_ULP_RX, -1, ulprx_intr_handler },
-		{ F_PM_RX, -1, pmrx_intr_handler},
-		{ F_PM_TX, -1, pmtx_intr_handler},
-		{ F_MA, -1, ma_intr_handler },
-		{ F_TP, -1, tp_intr_handler },
-		{ F_LE, -1, le_intr_handler },
-		{ F_EDC1, MEM_EDC1, mem_intr_handler },
-		{ F_EDC0, MEM_EDC0, mem_intr_handler },
-		{ F_MC0, MEM_MC0, mem_intr_handler },
-		{ F_PCIE, -1, pcie_intr_handler },
-		{ F_MAC3, 3, mac_intr_handler},
-		{ F_MAC2, 2, mac_intr_handler},
-		{ F_MAC1, 1, mac_intr_handler},
-		{ F_MAC0, 0, mac_intr_handler},
-		{ F_SMB, -1, smb_intr_handler},
+	static const struct intr_details t7_pl_int_cause_fields[] = {
+		{ F_T7_FLR, "FLR" },
+		{ F_T7_SW_CIM, "SW CIM" },
+		{ F_T7_ULP_TX, "ULP TX" },
+		{ F_T7_SGE, "SGE" },
+		{ F_T7_HMA, "HMA" },
+		{ F_T7_CPL_SWITCH, "CPL Switch" },
+		{ F_T7_ULP_RX, "ULP RX" },
+		{ F_T7_PM_RX, "PM RX" },
+		{ F_T7_PM_TX, "PM TX" },
+		{ F_T7_MA, "MA" },
+		{ F_T7_TP, "TP" },
+		{ F_T7_LE, "LE" },
+		{ F_T7_EDC1, "EDC1" },
+		{ F_T7_EDC0, "EDC0" },
+		{ F_T7_MC1, "MC1" },
+		{ F_T7_MC0, "MC0" },
+		{ F_T7_PCIE, "PCIE" },
+		{ F_T7_UART, "UART" },
+		{ F_PMU, "PMU" },
+		{ F_MAC3, "MAC3" },
+		{ F_MAC2, "MAC2" },
+		{ F_MAC1, "MAC1" },
+		{ F_MAC0, "MAC0" },
+		{ F_SMB, "SMB" },
+		{ F_SF, "SF" },
+		{ F_PL, "PL" },
+		{ F_NCSI, "NC-SI" },
+		{ F_MPS, "MPS" },
+		{ F_MI, "MI" },
+		{ F_DBG, "DBG" },
+		{ F_I2CM, "I2CM" },
+		{ F_CIM, "CIM" },
+		{ 0 }
+	};
+	static const struct intr_action t7_pl_int_cause_actions[] = {
+		{ F_T7_ULP_TX, -1, ulptx_intr_handler },
+		{ F_T7_SGE, -1, sge_intr_handler },
+		{ F_T7_HMA, -1, hma_intr_handler },
+		{ F_T7_CPL_SWITCH, -1, cplsw_intr_handler },
+		{ F_T7_ULP_RX, -1, ulprx_intr_handler },
+		{ F_T7_PM_RX, -1, pmrx_intr_handler },
+		{ F_T7_PM_TX, -1, pmtx_intr_handler },
+		{ F_T7_MA, -1, ma_intr_handler },
+		{ F_T7_TP, -1, tp_intr_handler },
+		{ F_T7_LE, -1, le_intr_handler },
+		{ F_T7_EDC0, MEM_EDC0, mem_intr_handler },
+		{ F_T7_EDC1, MEM_EDC1, mem_intr_handler },
+		{ F_T7_MC0, MEM_MC0, mem_intr_handler },
+		{ F_T7_MC1, MEM_MC1, mem_intr_handler },
+		{ F_T7_PCIE, -1, pcie_intr_handler },
+		{ F_MAC0, 0, mac_intr_handler },
+		{ F_MAC1, 1, mac_intr_handler },
+		{ F_MAC2, 2, mac_intr_handler },
+		{ F_MAC3, 3, mac_intr_handler },
+		{ F_SMB, -1, smb_intr_handler },
 		{ F_PL, -1, plpl_intr_handler },
-		{ F_NCSI, -1, ncsi_intr_handler},
+		{ F_NCSI, -1, ncsi_intr_handler },
 		{ F_MPS, -1, mps_intr_handler },
 		{ F_CIM, -1, cim_intr_handler },
 		{ 0 }
 	};
-	static const struct intr_info pl_intr_info = {
+	static const struct intr_info t7_pl_int_cause = {
 		.name = "PL_INT_CAUSE",
 		.cause_reg = A_PL_INT_CAUSE,
 		.enable_reg = A_PL_INT_ENABLE,
 		.fatal = 0,
-		.flags = 0,
-		.details = pl_intr_details,
-		.actions = pl_intr_action,
+		.flags = IHF_IGNORE_IF_DISABLED,
+		.details = t7_pl_int_cause_fields,
+		.actions = t7_pl_int_cause_actions,
 	};
-	u32 perr;
+	static const struct intr_details t7_pl_int_cause2_fields[] = {
+		{ F_CRYPTO_KEY, "CRYPTO KEY" },
+		{ F_CRYPTO1, "CRYPTO1" },
+		{ F_CRYPTO0, "CRYPTO0" },
+		{ F_GCACHE, "GCACHE" },
+		{ F_ARM, "ARM" },
+		{ 0 }
+	};
+	static const struct intr_action t7_pl_int_cause2_actions[] = {
+		{ F_CRYPTO_KEY, -1, cryptokey_intr_handler },
+		{ F_CRYPTO1, 1, tlstx_intr_handler },
+		{ F_CRYPTO0, 0, tlstx_intr_handler },
+		{ F_GCACHE, -1, gcache_intr_handler },
+		{ F_ARM, -1, arm_intr_handler },
+		{ 0 }
+	};
+	static const struct intr_info t7_pl_int_cause2 = {
+		.name = "PL_INT_CAUSE2",
+		.cause_reg = A_PL_INT_CAUSE2,
+		.enable_reg = A_PL_INT_ENABLE2,
+		.fatal = 0,
+		.flags = IHF_IGNORE_IF_DISABLED,
+		.details = t7_pl_int_cause2_fields,
+		.actions = t7_pl_int_cause2_actions,
+	};
+	static const struct intr_details t7_pl_perr_cause_fields[] = {
+		{ F_T7_PL_PERR_CRYPTO_KEY, "CRYPTO KEY" },
+		{ F_T7_PL_PERR_CRYPTO1, "CRYPTO1" },
+		{ F_T7_PL_PERR_CRYPTO0, "CRYPTO0" },
+		{ F_T7_PL_PERR_GCACHE, "GCACHE" },
+		{ F_T7_PL_PERR_ARM, "ARM" },
+		{ F_T7_PL_PERR_ULP_TX, "ULP TX" },
+		{ F_T7_PL_PERR_SGE, "SGE" },
+		{ F_T7_PL_PERR_HMA, "HMA" },
+		{ F_T7_PL_PERR_CPL_SWITCH, "CPL Switch" },
+		{ F_T7_PL_PERR_ULP_RX, "ULP RX" },
+		{ F_T7_PL_PERR_PM_RX, "PM RX" },
+		{ F_T7_PL_PERR_PM_TX, "PM TX" },
+		{ F_T7_PL_PERR_MA, "MA" },
+		{ F_T7_PL_PERR_TP, "TP" },
+		{ F_T7_PL_PERR_LE, "LE" },
+		{ F_T7_PL_PERR_EDC1, "EDC1" },
+		{ F_T7_PL_PERR_EDC0, "EDC0" },
+		{ F_T7_PL_PERR_MC1, "MC1" },
+		{ F_T7_PL_PERR_MC0, "MC0" },
+		{ F_T7_PL_PERR_PCIE, "PCIE" },
+		{ F_T7_PL_PERR_UART, "UART" },
+		{ F_T7_PL_PERR_PMU, "PMU" },
+		{ F_T7_PL_PERR_MAC, "MAC" },
+		{ F_T7_PL_PERR_SMB, "SMB" },
+		{ F_T7_PL_PERR_SF, "SF" },
+		{ F_T7_PL_PERR_PL, "PL" },
+		{ F_T7_PL_PERR_NCSI, "NC-SI" },
+		{ F_T7_PL_PERR_MPS, "MPS" },
+		{ F_T7_PL_PERR_MI, "MI" },
+		{ F_T7_PL_PERR_DBG, "DBG" },
+		{ F_T7_PL_PERR_I2CM, "I2CM" },
+		{ F_T7_PL_PERR_CIM, "CIM" },
+		{ 0 }
+	};
+	static const struct intr_info t7_pl_perr_cause = {
+		.name = "PL_PERR_CAUSE",
+		.cause_reg = A_PL_PERR_CAUSE,
+		.enable_reg = A_PL_PERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.details = t7_pl_perr_cause_fields,
+		.actions = NULL,
+	};
+	bool fatal = false;
+	uint32_t perr;
 
-	perr = t4_read_reg(adap, pl_perr_cause.cause_reg);
-	if (verbose || perr != 0) {
-		t4_show_intr_info(adap, &pl_perr_cause, perr);
-		if (perr != 0)
-			t4_write_reg(adap, pl_perr_cause.cause_reg, perr);
-		if (verbose)
-			perr |= t4_read_reg(adap, pl_intr_info.enable_reg);
+	if (chip_id(adap) < CHELSIO_T7) {
+		perr = get_perr_ucause(adap, &pl_perr_cause);
+		fatal |= t4_handle_intr(adap, &pl_perr_cause, 0,
+		    flags & ~(IHF_CLR_ALL_SET | IHF_CLR_ALL_UNIGNORED));
+		fatal |= t4_handle_intr(adap, &pl_int_cause,
+		    t4_perr_to_ic(adap, perr), flags);
+		t4_write_reg(adap, pl_perr_cause.cause_reg, perr);
+		(void)t4_read_reg(adap, pl_perr_cause.cause_reg);
+	} else {
+		perr = get_perr_ucause(adap, &t7_pl_perr_cause);
+		fatal |= t4_handle_intr(adap, &t7_pl_perr_cause, 0,
+		    flags & ~(IHF_CLR_ALL_SET | IHF_CLR_ALL_UNIGNORED));
+		fatal |= t4_handle_intr(adap, &t7_pl_int_cause,
+		    t7_perr_to_ic1(perr), flags);
+		fatal |= t4_handle_intr(adap, &t7_pl_int_cause2,
+		    t7_perr_to_ic2(perr), flags);
+		t4_write_reg(adap, t7_pl_perr_cause.cause_reg, perr);
+		(void)t4_read_reg(adap, t7_pl_perr_cause.cause_reg);
 	}
-
-	return (t4_handle_intr(adap, &pl_intr_info, perr, verbose));
+	return (fatal);
 }
 
-#define PF_INTR_MASK (F_PFSW | F_PFCIM)
+void t4_intr_clear(struct adapter *adap)
+{
+#if 1
+	if (chip_id(adap) >= CHELSIO_T7)
+		t4_write_reg(adap, A_SGE_INT_CAUSE8, 0xffffffff);
+#endif
+	(void)t4_slow_intr_handler(adap,
+	    IHF_NO_SHOW | IHF_RUN_ALL_ACTIONS | IHF_CLR_ALL_SET);
+}
 
 /**
  *	t4_intr_enable - enable interrupts
@@ -5421,21 +7161,30 @@ bool t4_slow_intr_handler(struct adapter *adap, bool verbose)
  */
 void t4_intr_enable(struct adapter *adap)
 {
-	u32 val = 0;
+	u32 mask, val;
 
+	if (adap->intr_flags & IHF_INTR_CLEAR_ON_INIT)
+		t4_intr_clear(adap);
 	if (chip_id(adap) <= CHELSIO_T5)
-		val = F_ERR_DROPPED_DB | F_ERR_EGR_CTXT_PRIO | F_DBFIFO_HP_INT;
+		val = F_ERR_DROPPED_DB | F_ERR_EGR_CTXT_PRIO | F_DBFIFO_HP_INT |
+		    F_DBFIFO_LP_INT;
 	else
 		val = F_ERR_PCIE_ERROR0 | F_ERR_PCIE_ERROR1 | F_FATAL_WRE_LEN;
 	val |= F_ERR_CPL_EXCEED_IQE_SIZE | F_ERR_INVALID_CIDX_INC |
 	    F_ERR_CPL_OPCODE_0 | F_ERR_DATA_CPL_ON_HIGH_QID1 |
 	    F_INGRESS_SIZE_ERR | F_ERR_DATA_CPL_ON_HIGH_QID0 |
 	    F_ERR_BAD_DB_PIDX3 | F_ERR_BAD_DB_PIDX2 | F_ERR_BAD_DB_PIDX1 |
-	    F_ERR_BAD_DB_PIDX0 | F_ERR_ING_CTXT_PRIO | F_DBFIFO_LP_INT |
-	    F_EGRESS_SIZE_ERR;
-	t4_set_reg_field(adap, A_SGE_INT_ENABLE3, val, val);
-	t4_write_reg(adap, MYPF_REG(A_PL_PF_INT_ENABLE), PF_INTR_MASK);
+	    F_ERR_BAD_DB_PIDX0 | F_ERR_ING_CTXT_PRIO | F_EGRESS_SIZE_ERR;
+	mask = val;
+	t4_set_reg_field(adap, A_SGE_INT_ENABLE3, mask, val);
+	if (chip_id(adap) >= CHELSIO_T7)
+		t4_write_reg(adap, A_SGE_INT_ENABLE4, 0xffffffff);
+	t4_write_reg(adap, MYPF_REG(A_PL_PF_INT_ENABLE), F_PFSW | F_PFCIM);
 	t4_set_reg_field(adap, A_PL_INT_ENABLE, F_SF | F_I2CM, 0);
+#if 1
+	if (chip_id(adap) >= CHELSIO_T7)
+		t4_set_reg_field(adap, A_PL_INT_ENABLE, F_MAC0 | F_MAC1 | F_MAC2 | F_MAC3, 0);
+#endif
 	t4_set_reg_field(adap, A_PL_INT_MAP0, 0, 1 << adap->pf);
 }
 
@@ -5632,9 +7381,15 @@ int t4_config_vi_rss(struct adapter *adapter, int mbox, unsigned int viid,
 /* Read an RSS table row */
 static int rd_rss_row(struct adapter *adap, int row, u32 *val)
 {
-	t4_write_reg(adap, A_TP_RSS_LKP_TABLE, 0xfff00000 | row);
-	return t4_wait_op_done_val(adap, A_TP_RSS_LKP_TABLE, F_LKPTBLROWVLD, 1,
-				   5, 0, val);
+	if (chip_id(adap) < CHELSIO_T7) {
+		t4_write_reg(adap, A_TP_RSS_LKP_TABLE, 0xfff00000 | row);
+		return t4_wait_op_done_val(adap, A_TP_RSS_LKP_TABLE,
+					   F_LKPTBLROWVLD, 1, 5, 0, val);
+	} else {
+		t4_write_reg(adap, A_TP_RSS_CONFIG_SRAM, 0xB0000 | row);
+		return t7_wait_sram_done(adap, A_TP_RSS_CONFIG_SRAM,
+					 A_TP_RSS_LKP_TABLE, 5, 0, val);
+	}
 }
 
 /**
@@ -6184,6 +7939,11 @@ void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st,
 {
 	t4_tp_mib_read(adap, &st->rqe_dfr_pkt, 2, A_TP_MIB_RQE_DFR_PKT,
 		       sleep_ok);
+
+	if (chip_id(adap) >= CHELSIO_T7)
+		/* read RDMA stats IN and OUT for all ports at once */
+		t4_tp_mib_read(adap, &st->pkts_in[0], 28, A_TP_MIB_RDMA_IN_PKT_0,
+			       sleep_ok);
 }
 
 /**
@@ -6564,16 +8324,24 @@ void t4_get_chan_txrate(struct adapter *adap, u64 *nic_rate, u64 *ofld_rate)
 int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp,
     int idx, int enable)
 {
-	int i, ofst = idx * 4;
+	int i, ofst;
+	u32 match_ctl_a, match_ctl_b;
 	u32 data_reg, mask_reg, cfg;
 	u32 en = is_t4(adap) ? F_TFEN : F_T5_TFEN;
 
 	if (idx < 0 || idx >= NTRACE)
 		return -EINVAL;
 
+	if (chip_id(adap) >= CHELSIO_T7) {
+		match_ctl_a = T7_MPS_TRC_FILTER_MATCH_CTL_A(idx);
+		match_ctl_b = T7_MPS_TRC_FILTER_MATCH_CTL_B(idx);
+	} else {
+		match_ctl_a = MPS_TRC_FILTER_MATCH_CTL_A(idx);
+		match_ctl_b = MPS_TRC_FILTER_MATCH_CTL_B(idx);
+	}
+
 	if (tp == NULL || !enable) {
-		t4_set_reg_field(adap, A_MPS_TRC_FILTER_MATCH_CTL_A + ofst, en,
-		    enable ? en : 0);
+		t4_set_reg_field(adap, match_ctl_a, en, enable ? en : 0);
 		return 0;
 	}
 
@@ -6610,22 +8378,20 @@ int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp,
 		return -EINVAL;
 
 	/* stop the tracer we'll be changing */
-	t4_set_reg_field(adap, A_MPS_TRC_FILTER_MATCH_CTL_A + ofst, en, 0);
+	t4_set_reg_field(adap, match_ctl_a, en, 0);
 
-	idx *= (A_MPS_TRC_FILTER1_MATCH - A_MPS_TRC_FILTER0_MATCH);
-	data_reg = A_MPS_TRC_FILTER0_MATCH + idx;
-	mask_reg = A_MPS_TRC_FILTER0_DONT_CARE + idx;
+	ofst = (A_MPS_TRC_FILTER1_MATCH - A_MPS_TRC_FILTER0_MATCH) * idx;
+	data_reg = A_MPS_TRC_FILTER0_MATCH + ofst;
+	mask_reg = A_MPS_TRC_FILTER0_DONT_CARE + ofst;
 
 	for (i = 0; i < TRACE_LEN / 4; i++, data_reg += 4, mask_reg += 4) {
 		t4_write_reg(adap, data_reg, tp->data[i]);
 		t4_write_reg(adap, mask_reg, ~tp->mask[i]);
 	}
-	t4_write_reg(adap, A_MPS_TRC_FILTER_MATCH_CTL_B + ofst,
-		     V_TFCAPTUREMAX(tp->snap_len) |
+	t4_write_reg(adap, match_ctl_b, V_TFCAPTUREMAX(tp->snap_len) |
 		     V_TFMINPKTSIZE(tp->min_len));
-	t4_write_reg(adap, A_MPS_TRC_FILTER_MATCH_CTL_A + ofst,
-		     V_TFOFFSET(tp->skip_ofst) | V_TFLENGTH(tp->skip_len) | en |
-		     (is_t4(adap) ?
+	t4_write_reg(adap, match_ctl_a, V_TFOFFSET(tp->skip_ofst) |
+		     V_TFLENGTH(tp->skip_len) | en | (is_t4(adap) ?
 		     V_TFPORT(tp->port) | V_TFINVERTMATCH(tp->invert) :
 		     V_T5_TFPORT(tp->port) | V_T5_TFINVERTMATCH(tp->invert)));
 
@@ -6645,11 +8411,16 @@ void t4_get_trace_filter(struct adapter *adap, struct trace_params *tp, int idx,
 			 int *enabled)
 {
 	u32 ctla, ctlb;
-	int i, ofst = idx * 4;
+	int i, ofst;
 	u32 data_reg, mask_reg;
 
-	ctla = t4_read_reg(adap, A_MPS_TRC_FILTER_MATCH_CTL_A + ofst);
-	ctlb = t4_read_reg(adap, A_MPS_TRC_FILTER_MATCH_CTL_B + ofst);
+	if (chip_id(adap) >= CHELSIO_T7) {
+		ctla = t4_read_reg(adap, T7_MPS_TRC_FILTER_MATCH_CTL_A(idx));
+		ctlb = t4_read_reg(adap, T7_MPS_TRC_FILTER_MATCH_CTL_B(idx));
+	} else {
+		ctla = t4_read_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A(idx));
+		ctlb = t4_read_reg(adap, MPS_TRC_FILTER_MATCH_CTL_B(idx));
+	}
 
 	if (is_t4(adap)) {
 		*enabled = !!(ctla & F_TFEN);
@@ -6676,6 +8447,37 @@ void t4_get_trace_filter(struct adapter *adap, struct trace_params *tp, int idx,
 }
 
 /**
+ *	t4_set_trace_rss_control - configure the trace rss control register
+ *	@adap: the adapter
+ *	@chan: the channel number for RSS control
+ *	@qid: queue number
+ *
+ *	Configures the MPS tracing RSS control parameter for specified
+ *	@chan channel and @qid queue number.
+ */
+void t4_set_trace_rss_control(struct adapter *adap, u8 chan, u16 qid)
+{
+	u32 mps_trc_rss_control;
+
+	switch (chip_id(adap)) {
+	case CHELSIO_T4:
+		mps_trc_rss_control = A_MPS_TRC_RSS_CONTROL;
+		break;
+	case CHELSIO_T5:
+	case CHELSIO_T6:
+		mps_trc_rss_control = A_MPS_T5_TRC_RSS_CONTROL;
+		break;
+	case CHELSIO_T7:
+	default:
+		mps_trc_rss_control = A_T7_MPS_T5_TRC_RSS_CONTROL;
+		break;
+	}
+
+	t4_write_reg(adap, mps_trc_rss_control,
+		     V_RSSCONTROL(chan) | V_QUEUENUMBER(qid));
+}
+
+/**
  *	t4_pmtx_get_stats - returns the HW stats from PMTX
  *	@adap: the adapter
  *	@cnt: where to store the count statistics
@@ -6696,6 +8498,8 @@ void t4_pmtx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
 		else {
 			t4_read_indirect(adap, A_PM_TX_DBG_CTRL,
 					 A_PM_TX_DBG_DATA, data, 2,
+					 chip_id(adap) >= CHELSIO_T7 ?
+					 A_T7_PM_TX_DBG_STAT_MSB :
 					 A_PM_TX_DBG_STAT_MSB);
 			cycles[i] = (((u64)data[0] << 32) | data[1]);
 		}
@@ -6726,6 +8530,25 @@ void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
 					 A_PM_RX_DBG_STAT_MSB);
 			cycles[i] = (((u64)data[0] << 32) | data[1]);
 		}
+	}
+}
+
+/**
+ * t4_pmrx_cache_get_stats - returns the HW PMRX cache stats
+ * @adap: the adapter
+ * @stats: where to store the statistics
+ *
+ * Returns performance statistics of PMRX cache.
+ */
+void t4_pmrx_cache_get_stats(struct adapter *adap, u32 stats[])
+{
+	u8 i, j;
+
+	for (i = 0, j = 0; i < T7_PM_RX_CACHE_NSTATS / 3; i++, j += 3) {
+		t4_write_reg(adap, A_PM_RX_STAT_CONFIG, 0x100 + i);
+		stats[j] = t4_read_reg(adap, A_PM_RX_STAT_COUNT);
+		t4_read_indirect(adap, A_PM_RX_DBG_CTRL, A_PM_RX_DBG_DATA,
+				 &stats[j + 1], 2, A_PM_RX_DBG_STAT_MSB);
 	}
 }
 
@@ -6762,11 +8585,24 @@ static unsigned int t4_get_rx_e_chan_map(struct adapter *adap, int idx)
 	const u32 n = adap->params.nports;
 	const u32 all_chan = (1 << adap->chip_params->nchan) - 1;
 
-	if (n == 1)
-		return idx == 0 ? all_chan : 0;
-	if (n == 2 && chip_id(adap) <= CHELSIO_T5)
-		return idx < 2 ? (3 << (2 * idx)) : 0;
-	return 1 << idx;
+	switch (adap->params.tp.lb_mode) {
+	case 0:
+		if (n == 1)
+			return (all_chan);
+		if (n == 2 && chip_id(adap) <= CHELSIO_T5)
+			return (3 << (2 * idx));
+		return (1 << idx);
+	case 1:
+		MPASS(n == 1);
+		return (all_chan);
+	case 2:
+		MPASS(n <= 2);
+		return (3 << (2 * idx));
+	default:
+		CH_ERR(adap, "Unsupported LB mode %d\n",
+		    adap->params.tp.lb_mode);
+		return (0);
+	}
 }
 
 /*
@@ -6784,6 +8620,8 @@ static unsigned int t4_get_rx_c_chan(struct adapter *adap, int idx)
  */
 static unsigned int t4_get_tx_c_chan(struct adapter *adap, int idx)
 {
+	if (adap->params.tx_tp_ch_map != UINT32_MAX)
+		return (adap->params.tx_tp_ch_map >> (8 * idx)) & 0xff;
 	return idx;
 }
 
@@ -6856,79 +8694,89 @@ void t4_get_port_stats_offset(struct adapter *adap, int idx,
  */
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 {
-	struct port_info *pi = adap->port[idx];
-	u32 bgmap = pi->mps_bg_map;
-	u32 stat_ctl = t4_read_reg(adap, A_MPS_STAT_CTL);
+	struct port_info *pi;
+	int port_id, tx_chan;
+	u32 bgmap, stat_ctl;
+
+	port_id  = adap->port_map[idx];
+	MPASS(port_id >= 0 && port_id <= adap->params.nports);
+	pi = adap->port[port_id];
 
 #define GET_STAT(name) \
 	t4_read_reg64(adap, \
-	    t4_port_reg(adap, pi->tx_chan, A_MPS_PORT_STAT_##name##_L));
-#define GET_STAT_COM(name) t4_read_reg64(adap, A_MPS_STAT_##name##_L)
+	    t4_port_reg(adap, tx_chan, A_MPS_PORT_STAT_##name##_L));
+	memset(p, 0, sizeof(*p));
+	for (tx_chan = pi->tx_chan;
+	    tx_chan < pi->tx_chan + adap->params.tp.lb_nchan; tx_chan++) {
+		p->tx_pause		+= GET_STAT(TX_PORT_PAUSE);
+		p->tx_octets		+= GET_STAT(TX_PORT_BYTES);
+		p->tx_frames		+= GET_STAT(TX_PORT_FRAMES);
+		p->tx_bcast_frames	+= GET_STAT(TX_PORT_BCAST);
+		p->tx_mcast_frames	+= GET_STAT(TX_PORT_MCAST);
+		p->tx_ucast_frames	+= GET_STAT(TX_PORT_UCAST);
+		p->tx_error_frames	+= GET_STAT(TX_PORT_ERROR);
+		p->tx_frames_64		+= GET_STAT(TX_PORT_64B);
+		p->tx_frames_65_127	+= GET_STAT(TX_PORT_65B_127B);
+		p->tx_frames_128_255	+= GET_STAT(TX_PORT_128B_255B);
+		p->tx_frames_256_511	+= GET_STAT(TX_PORT_256B_511B);
+		p->tx_frames_512_1023	+= GET_STAT(TX_PORT_512B_1023B);
+		p->tx_frames_1024_1518	+= GET_STAT(TX_PORT_1024B_1518B);
+		p->tx_frames_1519_max	+= GET_STAT(TX_PORT_1519B_MAX);
+		p->tx_drop		+= GET_STAT(TX_PORT_DROP);
+		p->tx_ppp0		+= GET_STAT(TX_PORT_PPP0);
+		p->tx_ppp1		+= GET_STAT(TX_PORT_PPP1);
+		p->tx_ppp2		+= GET_STAT(TX_PORT_PPP2);
+		p->tx_ppp3		+= GET_STAT(TX_PORT_PPP3);
+		p->tx_ppp4		+= GET_STAT(TX_PORT_PPP4);
+		p->tx_ppp5		+= GET_STAT(TX_PORT_PPP5);
+		p->tx_ppp6		+= GET_STAT(TX_PORT_PPP6);
+		p->tx_ppp7		+= GET_STAT(TX_PORT_PPP7);
 
-	p->tx_pause		= GET_STAT(TX_PORT_PAUSE);
-	p->tx_octets		= GET_STAT(TX_PORT_BYTES);
-	p->tx_frames		= GET_STAT(TX_PORT_FRAMES);
-	p->tx_bcast_frames	= GET_STAT(TX_PORT_BCAST);
-	p->tx_mcast_frames	= GET_STAT(TX_PORT_MCAST);
-	p->tx_ucast_frames	= GET_STAT(TX_PORT_UCAST);
-	p->tx_error_frames	= GET_STAT(TX_PORT_ERROR);
-	p->tx_frames_64		= GET_STAT(TX_PORT_64B);
-	p->tx_frames_65_127	= GET_STAT(TX_PORT_65B_127B);
-	p->tx_frames_128_255	= GET_STAT(TX_PORT_128B_255B);
-	p->tx_frames_256_511	= GET_STAT(TX_PORT_256B_511B);
-	p->tx_frames_512_1023	= GET_STAT(TX_PORT_512B_1023B);
-	p->tx_frames_1024_1518	= GET_STAT(TX_PORT_1024B_1518B);
-	p->tx_frames_1519_max	= GET_STAT(TX_PORT_1519B_MAX);
-	p->tx_drop		= GET_STAT(TX_PORT_DROP);
-	p->tx_ppp0		= GET_STAT(TX_PORT_PPP0);
-	p->tx_ppp1		= GET_STAT(TX_PORT_PPP1);
-	p->tx_ppp2		= GET_STAT(TX_PORT_PPP2);
-	p->tx_ppp3		= GET_STAT(TX_PORT_PPP3);
-	p->tx_ppp4		= GET_STAT(TX_PORT_PPP4);
-	p->tx_ppp5		= GET_STAT(TX_PORT_PPP5);
-	p->tx_ppp6		= GET_STAT(TX_PORT_PPP6);
-	p->tx_ppp7		= GET_STAT(TX_PORT_PPP7);
+		p->rx_pause		+= GET_STAT(RX_PORT_PAUSE);
+		p->rx_octets		+= GET_STAT(RX_PORT_BYTES);
+		p->rx_frames		+= GET_STAT(RX_PORT_FRAMES);
+		p->rx_bcast_frames	+= GET_STAT(RX_PORT_BCAST);
+		p->rx_mcast_frames	+= GET_STAT(RX_PORT_MCAST);
+		p->rx_ucast_frames	+= GET_STAT(RX_PORT_UCAST);
+		p->rx_too_long		+= GET_STAT(RX_PORT_MTU_ERROR);
+		p->rx_jabber		+= GET_STAT(RX_PORT_MTU_CRC_ERROR);
+		p->rx_len_err		+= GET_STAT(RX_PORT_LEN_ERROR);
+		p->rx_symbol_err	+= GET_STAT(RX_PORT_SYM_ERROR);
+		p->rx_runt		+= GET_STAT(RX_PORT_LESS_64B);
+		p->rx_frames_64		+= GET_STAT(RX_PORT_64B);
+		p->rx_frames_65_127	+= GET_STAT(RX_PORT_65B_127B);
+		p->rx_frames_128_255	+= GET_STAT(RX_PORT_128B_255B);
+		p->rx_frames_256_511	+= GET_STAT(RX_PORT_256B_511B);
+		p->rx_frames_512_1023	+= GET_STAT(RX_PORT_512B_1023B);
+		p->rx_frames_1024_1518	+= GET_STAT(RX_PORT_1024B_1518B);
+		p->rx_frames_1519_max	+= GET_STAT(RX_PORT_1519B_MAX);
+		p->rx_ppp0		+= GET_STAT(RX_PORT_PPP0);
+		p->rx_ppp1		+= GET_STAT(RX_PORT_PPP1);
+		p->rx_ppp2		+= GET_STAT(RX_PORT_PPP2);
+		p->rx_ppp3		+= GET_STAT(RX_PORT_PPP3);
+		p->rx_ppp4		+= GET_STAT(RX_PORT_PPP4);
+		p->rx_ppp5		+= GET_STAT(RX_PORT_PPP5);
+		p->rx_ppp6		+= GET_STAT(RX_PORT_PPP6);
+		p->rx_ppp7		+= GET_STAT(RX_PORT_PPP7);
+		if (!is_t6(adap)) {
+			MPASS(pi->fcs_reg == A_MPS_PORT_STAT_RX_PORT_CRC_ERROR_L);
+			p->rx_fcs_err	+= GET_STAT(RX_PORT_CRC_ERROR);
+		}
+	}
+#undef GET_STAT
+
+	if (is_t6(adap) && pi->fcs_reg != -1)
+		p->rx_fcs_err = t4_read_reg64(adap,
+		    t4_port_reg(adap, pi->tx_chan, pi->fcs_reg)) - pi->fcs_base;
 
 	if (chip_id(adap) >= CHELSIO_T5) {
+		stat_ctl = t4_read_reg(adap, A_MPS_STAT_CTL);
 		if (stat_ctl & F_COUNTPAUSESTATTX) {
 			p->tx_frames -= p->tx_pause;
 			p->tx_octets -= p->tx_pause * 64;
 		}
 		if (stat_ctl & F_COUNTPAUSEMCTX)
 			p->tx_mcast_frames -= p->tx_pause;
-	}
-
-	p->rx_pause		= GET_STAT(RX_PORT_PAUSE);
-	p->rx_octets		= GET_STAT(RX_PORT_BYTES);
-	p->rx_frames		= GET_STAT(RX_PORT_FRAMES);
-	p->rx_bcast_frames	= GET_STAT(RX_PORT_BCAST);
-	p->rx_mcast_frames	= GET_STAT(RX_PORT_MCAST);
-	p->rx_ucast_frames	= GET_STAT(RX_PORT_UCAST);
-	p->rx_too_long		= GET_STAT(RX_PORT_MTU_ERROR);
-	p->rx_jabber		= GET_STAT(RX_PORT_MTU_CRC_ERROR);
-	p->rx_len_err		= GET_STAT(RX_PORT_LEN_ERROR);
-	p->rx_symbol_err	= GET_STAT(RX_PORT_SYM_ERROR);
-	p->rx_runt		= GET_STAT(RX_PORT_LESS_64B);
-	p->rx_frames_64		= GET_STAT(RX_PORT_64B);
-	p->rx_frames_65_127	= GET_STAT(RX_PORT_65B_127B);
-	p->rx_frames_128_255	= GET_STAT(RX_PORT_128B_255B);
-	p->rx_frames_256_511	= GET_STAT(RX_PORT_256B_511B);
-	p->rx_frames_512_1023	= GET_STAT(RX_PORT_512B_1023B);
-	p->rx_frames_1024_1518	= GET_STAT(RX_PORT_1024B_1518B);
-	p->rx_frames_1519_max	= GET_STAT(RX_PORT_1519B_MAX);
-	p->rx_ppp0		= GET_STAT(RX_PORT_PPP0);
-	p->rx_ppp1		= GET_STAT(RX_PORT_PPP1);
-	p->rx_ppp2		= GET_STAT(RX_PORT_PPP2);
-	p->rx_ppp3		= GET_STAT(RX_PORT_PPP3);
-	p->rx_ppp4		= GET_STAT(RX_PORT_PPP4);
-	p->rx_ppp5		= GET_STAT(RX_PORT_PPP5);
-	p->rx_ppp6		= GET_STAT(RX_PORT_PPP6);
-	p->rx_ppp7		= GET_STAT(RX_PORT_PPP7);
-
-	if (pi->fcs_reg != -1)
-		p->rx_fcs_err = t4_read_reg64(adap, pi->fcs_reg) - pi->fcs_base;
-
-	if (chip_id(adap) >= CHELSIO_T5) {
 		if (stat_ctl & F_COUNTPAUSESTATRX) {
 			p->rx_frames -= p->rx_pause;
 			p->rx_octets -= p->rx_pause * 64;
@@ -6937,6 +8785,8 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 			p->rx_mcast_frames -= p->rx_pause;
 	}
 
+#define GET_STAT_COM(name) t4_read_reg64(adap, A_MPS_STAT_##name##_L)
+	bgmap = pi->mps_bg_map;
 	p->rx_ovflow0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_MAC_DROP_FRAME) : 0;
 	p->rx_ovflow1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_MAC_DROP_FRAME) : 0;
 	p->rx_ovflow2 = (bgmap & 4) ? GET_STAT_COM(RX_BG_2_MAC_DROP_FRAME) : 0;
@@ -6945,8 +8795,6 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->rx_trunc1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_MAC_TRUNC_FRAME) : 0;
 	p->rx_trunc2 = (bgmap & 4) ? GET_STAT_COM(RX_BG_2_MAC_TRUNC_FRAME) : 0;
 	p->rx_trunc3 = (bgmap & 8) ? GET_STAT_COM(RX_BG_3_MAC_TRUNC_FRAME) : 0;
-
-#undef GET_STAT
 #undef GET_STAT_COM
 }
 
@@ -7016,10 +8864,14 @@ void t4_wol_magic_enable(struct adapter *adap, unsigned int port,
 		mag_id_reg_l = PORT_REG(port, A_XGMAC_PORT_MAGIC_MACID_LO);
 		mag_id_reg_h = PORT_REG(port, A_XGMAC_PORT_MAGIC_MACID_HI);
 		port_cfg_reg = PORT_REG(port, A_XGMAC_PORT_CFG2);
-	} else {
+	} else if (chip_id(adap) < CHELSIO_T7) {
 		mag_id_reg_l = T5_PORT_REG(port, A_MAC_PORT_MAGIC_MACID_LO);
 		mag_id_reg_h = T5_PORT_REG(port, A_MAC_PORT_MAGIC_MACID_HI);
 		port_cfg_reg = T5_PORT_REG(port, A_MAC_PORT_CFG2);
+	} else {
+		mag_id_reg_l = T7_PORT_REG(port, A_T7_MAC_PORT_MAGIC_MACID_LO);
+		mag_id_reg_h = T7_PORT_REG(port, A_T7_MAC_PORT_MAGIC_MACID_HI);
+		port_cfg_reg = T7_PORT_REG(port, A_MAC_PORT_CFG2);
 	}
 
 	if (addr) {
@@ -7056,8 +8908,10 @@ int t4_wol_pat_enable(struct adapter *adap, unsigned int port, unsigned int map,
 
 	if (is_t4(adap))
 		port_cfg_reg = PORT_REG(port, A_XGMAC_PORT_CFG2);
-	else
+	else if (chip_id(adap) < CHELSIO_T7)
 		port_cfg_reg = T5_PORT_REG(port, A_MAC_PORT_CFG2);
+	else
+		port_cfg_reg = T7_PORT_REG(port, A_MAC_PORT_CFG2);
 
 	if (!enable) {
 		t4_set_reg_field(adap, port_cfg_reg, F_PATEN, 0);
@@ -7348,6 +9202,7 @@ void t4_sge_decode_idma_state(struct adapter *adapter, int state)
 		break;
 
 	case CHELSIO_T6:
+	case CHELSIO_T7:
 		sge_idma_decode = (const char * const *)t6_decode;
 		sge_idma_decode_nstates = ARRAY_SIZE(t6_decode);
 		break;
@@ -8964,7 +10819,7 @@ static void handle_port_info(struct port_info *pi, const struct fw_port_cmd *p,
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.op_to_portid = cpu_to_be32(V_FW_CMD_OP(FW_PORT_CMD) |
 	    F_FW_CMD_REQUEST | F_FW_CMD_READ |
-	    V_FW_PORT_CMD_PORTID(pi->tx_chan));
+	    V_FW_PORT_CMD_PORTID(pi->hw_port));
 	action = sc->params.port_caps32 ? FW_PORT_ACTION_GET_PORT_INFO32 :
 	    FW_PORT_ACTION_GET_PORT_INFO;
 	cmd.action_to_len16 = cpu_to_be32(V_FW_PORT_CMD_ACTION(action) |
@@ -8996,16 +10851,12 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 	    (action == FW_PORT_ACTION_GET_PORT_INFO ||
 	    action == FW_PORT_ACTION_GET_PORT_INFO32)) {
 		/* link/module state change message */
-		int i;
-		int chan = G_FW_PORT_CMD_PORTID(be32_to_cpu(p->op_to_portid));
-		struct port_info *pi = NULL;
+		int hw_port = G_FW_PORT_CMD_PORTID(be32_to_cpu(p->op_to_portid));
+		int port_id = adap->port_map[hw_port];
+		struct port_info *pi;
 
-		for_each_port(adap, i) {
-			pi = adap2pinfo(adap, i);
-			if (pi->tx_chan == chan)
-				break;
-		}
-
+		MPASS(port_id >= 0 && port_id < adap->params.nports);
+		pi = adap->port[port_id];
 		PORT_LOCK(pi);
 		handle_port_info(pi, p, action, &mod_changed, &link_changed);
 		PORT_UNLOCK(pi);
@@ -9159,14 +11010,15 @@ int t4_get_flash_params(struct adapter *adapter)
 	}
 
 	/* If we didn't recognize the FLASH part, that's no real issue: the
-	 * Hardware/Software contract says that Hardware will _*ALWAYS*_
-	 * use a FLASH part which is at least 4MB in size and has 64KB
-	 * sectors.  The unrecognized FLASH part is likely to be much larger
-	 * than 4MB, but that's all we really need.
+	 * Hardware/Software contract says that Hardware will _*ALWAYS*_ use a
+	 * FLASH part which has 64KB sectors and is at least 4MB or 16MB in
+	 * size, depending on the board.
 	 */
 	if (size == 0) {
-		CH_WARN(adapter, "Unknown Flash Part, ID = %#x, assuming 4MB\n", flashid);
-		size = 1 << 22;
+		size = chip_id(adapter) >= CHELSIO_T7 ? 16 : 4;
+		CH_WARN(adapter, "Unknown Flash Part %#x, assuming %uMB\n",
+		    flashid, size);
+		size <<= 20;
 	}
 
 	/*
@@ -9212,11 +11064,14 @@ const struct chip_params *t4_get_chip_params(int chipid)
 			.pm_stats_cnt = PM_NSTATS,
 			.cng_ch_bits_log = 2,
 			.nsched_cls = 15,
+			.cim_num_ibq = CIM_NUM_IBQ,
 			.cim_num_obq = CIM_NUM_OBQ,
 			.filter_opt_len = FILTER_OPT_LEN,
+			.filter_num_opt = S_FT_LAST + 1,
 			.mps_rplc_size = 128,
 			.vfcount = 128,
 			.sge_fl_db = F_DBPRIO,
+			.sge_ctxt_size = SGE_CTXT_SIZE,
 			.mps_tcam_size = NUM_MPS_CLS_SRAM_L_INSTANCES,
 			.rss_nentries = RSS_NENTRIES,
 			.cim_la_size = CIMLA_SIZE,
@@ -9227,11 +11082,14 @@ const struct chip_params *t4_get_chip_params(int chipid)
 			.pm_stats_cnt = PM_NSTATS,
 			.cng_ch_bits_log = 2,
 			.nsched_cls = 16,
+			.cim_num_ibq = CIM_NUM_IBQ,
 			.cim_num_obq = CIM_NUM_OBQ_T5,
 			.filter_opt_len = T5_FILTER_OPT_LEN,
+			.filter_num_opt = S_FT_LAST + 1,
 			.mps_rplc_size = 128,
 			.vfcount = 128,
 			.sge_fl_db = F_DBPRIO | F_DBTYPE,
+			.sge_ctxt_size = SGE_CTXT_SIZE,
 			.mps_tcam_size = NUM_MPS_T5_CLS_SRAM_L_INSTANCES,
 			.rss_nentries = RSS_NENTRIES,
 			.cim_la_size = CIMLA_SIZE,
@@ -9242,13 +11100,34 @@ const struct chip_params *t4_get_chip_params(int chipid)
 			.pm_stats_cnt = T6_PM_NSTATS,
 			.cng_ch_bits_log = 3,
 			.nsched_cls = 16,
+			.cim_num_ibq = CIM_NUM_IBQ,
 			.cim_num_obq = CIM_NUM_OBQ_T5,
 			.filter_opt_len = T5_FILTER_OPT_LEN,
+			.filter_num_opt = S_FT_LAST + 1,
 			.mps_rplc_size = 256,
 			.vfcount = 256,
 			.sge_fl_db = 0,
+			.sge_ctxt_size = SGE_CTXT_SIZE,
 			.mps_tcam_size = NUM_MPS_T5_CLS_SRAM_L_INSTANCES,
 			.rss_nentries = T6_RSS_NENTRIES,
+			.cim_la_size = CIMLA_SIZE_T6,
+		},
+		{
+			/* T7 */
+			.nchan = NCHAN,
+			.pm_stats_cnt = T6_PM_NSTATS,
+			.cng_ch_bits_log = 2,
+			.nsched_cls = 16,
+			.cim_num_ibq = CIM_NUM_IBQ_T7,
+			.cim_num_obq = CIM_NUM_OBQ_T7,
+			.filter_opt_len = T7_FILTER_OPT_LEN,
+			.filter_num_opt = S_T7_FT_LAST + 1,
+			.mps_rplc_size = 256,
+			.vfcount = 256,
+			.sge_fl_db = 0,
+			.sge_ctxt_size = SGE_CTXT_SIZE_T7,
+			.mps_tcam_size = NUM_MPS_T5_CLS_SRAM_L_INSTANCES * 3,
+			.rss_nentries = T7_RSS_NENTRIES,
 			.cim_la_size = CIMLA_SIZE_T6,
 		},
 	};
@@ -9466,14 +11345,11 @@ int t4_bar2_sge_qregs(struct adapter *adapter,
 }
 
 /**
- *	t4_init_devlog_params - initialize adapter->params.devlog
+ *	t4_init_devlog_ncores_params - initialize adap->params.devlog and ncores
  *	@adap: the adapter
  *	@fw_attach: whether we can talk to the firmware
- *
- *	Initialize various fields of the adapter's Firmware Device Log
- *	Parameters structure.
  */
-int t4_init_devlog_params(struct adapter *adap, int fw_attach)
+int t4_init_devlog_ncores_params(struct adapter *adap, int fw_attach)
 {
 	struct devlog_params *dparams = &adap->params.devlog;
 	u32 pf_dparams;
@@ -9487,12 +11363,15 @@ int t4_init_devlog_params(struct adapter *adap, int fw_attach)
 	 */
 	pf_dparams =
 		t4_read_reg(adap, PCIE_FW_REG(A_PCIE_FW_PF, PCIE_FW_PF_DEVLOG));
-	if (pf_dparams) {
-		unsigned int nentries, nentries128;
+	if (pf_dparams && pf_dparams != UINT32_MAX) {
+		unsigned int nentries, nentries128, ncore_shift;
+
+		ncore_shift = (G_PCIE_FW_PF_DEVLOG_COUNT_MSB(pf_dparams) << 1) |
+		    G_PCIE_FW_PF_DEVLOG_COUNT_LSB(pf_dparams);
+		adap->params.ncores = 1 << ncore_shift;
 
 		dparams->memtype = G_PCIE_FW_PF_DEVLOG_MEMTYPE(pf_dparams);
 		dparams->start = G_PCIE_FW_PF_DEVLOG_ADDR16(pf_dparams) << 4;
-
 		nentries128 = G_PCIE_FW_PF_DEVLOG_NENTRIES128(pf_dparams);
 		nentries = (nentries128 + 1) * 128;
 		dparams->size = nentries * sizeof(struct fw_devlog_e);
@@ -9503,6 +11382,7 @@ int t4_init_devlog_params(struct adapter *adap, int fw_attach)
 	/*
 	 * For any failing returns ...
 	 */
+	adap->params.ncores = 1;
 	memset(dparams, 0, sizeof *dparams);
 
 	/*
@@ -9624,21 +11504,28 @@ int t4_init_sge_params(struct adapter *adapter)
 
 /* Convert the LE's hardware hash mask to a shorter filter mask. */
 static inline uint16_t
-hashmask_to_filtermask(uint64_t hashmask, uint16_t filter_mode)
+hashmask_to_filtermask(struct adapter *adap, uint64_t hashmask, uint16_t filter_mode)
 {
-	static const uint8_t width[] = {1, 3, 17, 17, 8, 8, 16, 9, 3, 1};
-	int i;
+	int first, last, i;
 	uint16_t filter_mask;
-	uint64_t mask;		/* field mask */
+	uint64_t mask;          /* field mask */
 
-	filter_mask = 0;
-	for (i = S_FCOE; i <= S_FRAGMENTATION; i++) {
+
+	if (chip_id(adap) >= CHELSIO_T7) {
+		first = S_T7_FT_FIRST;
+		last = S_T7_FT_LAST;
+	} else {
+		first = S_FT_FIRST;
+		last = S_FT_LAST;
+	}
+
+	for (filter_mask = 0, i = first; i <= last; i++) {
 		if ((filter_mode & (1 << i)) == 0)
 			continue;
-		mask = (1 << width[i]) - 1;
+		mask = (1 << t4_filter_field_width(adap, i)) - 1;
 		if ((hashmask & mask) == mask)
 			filter_mask |= 1 << i;
-		hashmask >>= width[i];
+		hashmask >>= t4_filter_field_width(adap, i);
 	}
 
 	return (filter_mask);
@@ -9681,7 +11568,15 @@ read_filter_mode_and_ingress_config(struct adapter *adap)
 			v = t4_read_reg(adap, LE_HASH_MASK_GEN_IPV4T5(4));
 			hash_mask |= (u64)v << 32;
 		}
-		tpp->filter_mask = hashmask_to_filtermask(hash_mask,
+		if (chip_id(adap) >= CHELSIO_T7) {
+			/*
+			 * This param came before T7 so T7+ firmwares should
+			 * always support this query.
+			 */
+			CH_WARN(adap, "query for filter mode/mask failed: %d\n",
+			    rc);
+		}
+		tpp->filter_mask = hashmask_to_filtermask(adap, hash_mask,
 		    tpp->filter_mode);
 
 		t4_tp_pio_read(adap, &v, 1, A_TP_INGRESS_CONFIG, true);
@@ -9696,16 +11591,37 @@ read_filter_mode_and_ingress_config(struct adapter *adap)
 	 * shift positions of several elements of the Compressed Filter Tuple
 	 * for this adapter which we need frequently ...
 	 */
-	tpp->fcoe_shift = t4_filter_field_shift(adap, F_FCOE);
-	tpp->port_shift = t4_filter_field_shift(adap, F_PORT);
-	tpp->vnic_shift = t4_filter_field_shift(adap, F_VNIC_ID);
-	tpp->vlan_shift = t4_filter_field_shift(adap, F_VLAN);
-	tpp->tos_shift = t4_filter_field_shift(adap, F_TOS);
-	tpp->protocol_shift = t4_filter_field_shift(adap, F_PROTOCOL);
-	tpp->ethertype_shift = t4_filter_field_shift(adap, F_ETHERTYPE);
-	tpp->macmatch_shift = t4_filter_field_shift(adap, F_MACMATCH);
-	tpp->matchtype_shift = t4_filter_field_shift(adap, F_MPSHITTYPE);
-	tpp->frag_shift = t4_filter_field_shift(adap, F_FRAGMENTATION);
+	if (chip_id(adap) >= CHELSIO_T7) {
+		tpp->ipsecidx_shift = t4_filter_field_shift(adap, F_IPSECIDX);
+		tpp->fcoe_shift = t4_filter_field_shift(adap, F_T7_FCOE);
+		tpp->port_shift = t4_filter_field_shift(adap, F_T7_PORT);
+		tpp->vnic_shift = t4_filter_field_shift(adap, F_T7_VNIC_ID);
+		tpp->vlan_shift = t4_filter_field_shift(adap, F_T7_VLAN);
+		tpp->tos_shift = t4_filter_field_shift(adap, F_T7_TOS);
+		tpp->protocol_shift = t4_filter_field_shift(adap, F_T7_PROTOCOL);
+		tpp->ethertype_shift = t4_filter_field_shift(adap, F_T7_ETHERTYPE);
+		tpp->macmatch_shift = t4_filter_field_shift(adap, F_T7_MACMATCH);
+		tpp->matchtype_shift = t4_filter_field_shift(adap, F_T7_MPSHITTYPE);
+		tpp->frag_shift = t4_filter_field_shift(adap, F_T7_FRAGMENTATION);
+		tpp->roce_shift = t4_filter_field_shift(adap, F_ROCE);
+		tpp->synonly_shift = t4_filter_field_shift(adap, F_SYNONLY);
+		tpp->tcpflags_shift = t4_filter_field_shift(adap, F_TCPFLAGS);
+	} else {
+		tpp->ipsecidx_shift = -1;
+		tpp->fcoe_shift = t4_filter_field_shift(adap, F_FCOE);
+		tpp->port_shift = t4_filter_field_shift(adap, F_PORT);
+		tpp->vnic_shift = t4_filter_field_shift(adap, F_VNIC_ID);
+		tpp->vlan_shift = t4_filter_field_shift(adap, F_VLAN);
+		tpp->tos_shift = t4_filter_field_shift(adap, F_TOS);
+		tpp->protocol_shift = t4_filter_field_shift(adap, F_PROTOCOL);
+		tpp->ethertype_shift = t4_filter_field_shift(adap, F_ETHERTYPE);
+		tpp->macmatch_shift = t4_filter_field_shift(adap, F_MACMATCH);
+		tpp->matchtype_shift = t4_filter_field_shift(adap, F_MPSHITTYPE);
+		tpp->frag_shift = t4_filter_field_shift(adap, F_FRAGMENTATION);
+		tpp->roce_shift = -1;
+		tpp->synonly_shift = -1;
+		tpp->tcpflags_shift = -1;
+	}
 }
 
 /**
@@ -9725,11 +11641,21 @@ int t4_init_tp_params(struct adapter *adap)
 
 	read_filter_mode_and_ingress_config(adap);
 
+	tpp->rx_pkt_encap = false;
+	tpp->lb_mode = 0;
+	tpp->lb_nchan = 1;
 	if (chip_id(adap) > CHELSIO_T5) {
 		v = t4_read_reg(adap, A_TP_OUT_CONFIG);
 		tpp->rx_pkt_encap = v & F_CRXPKTENC;
-	} else
-		tpp->rx_pkt_encap = false;
+		if (chip_id(adap) >= CHELSIO_T7) {
+			t4_tp_pio_read(adap, &v, 1, A_TP_CHANNEL_MAP, true);
+			tpp->lb_mode = G_T7_LB_MODE(v);
+			if (tpp->lb_mode == 1)
+				tpp->lb_nchan = 4;
+			else if (tpp->lb_mode == 2)
+				tpp->lb_nchan = 2;
+		}
+	}
 
 	rx_len = t4_read_reg(adap, A_TP_PMM_RX_PAGE_SIZE);
 	tx_len = t4_read_reg(adap, A_TP_PMM_TX_PAGE_SIZE);
@@ -9750,6 +11676,53 @@ int t4_init_tp_params(struct adapter *adap)
 }
 
 /**
+ *      t4_filter_field_width - returns the width of a filter field
+ *      @adap: the adapter
+ *      @filter_field: the filter field whose width is being requested
+ *
+ *      Return the shift position of a filter field within the Compressed
+ *      Filter Tuple.  The filter field is specified via its selection bit
+ *      within TP_VLAN_PRI_MAL (filter mode).  E.g. F_VLAN.
+ */
+int t4_filter_field_width(const struct adapter *adap, int filter_field)
+{
+	const int nopt = adap->chip_params->filter_num_opt;
+	static const uint8_t width_t7[] = {
+		W_FT_IPSECIDX,
+		W_FT_FCOE,
+		W_FT_PORT,
+		W_FT_VNIC_ID,
+		W_FT_VLAN,
+		W_FT_TOS,
+		W_FT_PROTOCOL,
+		W_FT_ETHERTYPE,
+		W_FT_MACMATCH,
+		W_FT_MPSHITTYPE,
+		W_FT_FRAGMENTATION,
+		W_FT_ROCE,
+		W_FT_SYNONLY,
+		W_FT_TCPFLAGS
+	};
+	static const uint8_t width_t4[] = {
+		W_FT_FCOE,
+		W_FT_PORT,
+		W_FT_VNIC_ID,
+		W_FT_VLAN,
+		W_FT_TOS,
+		W_FT_PROTOCOL,
+		W_FT_ETHERTYPE,
+		W_FT_MACMATCH,
+		W_FT_MPSHITTYPE,
+		W_FT_FRAGMENTATION
+	};
+	const uint8_t *width = chip_id(adap) >= CHELSIO_T7 ? width_t7 : width_t4;
+
+	if (filter_field < 0 || filter_field >= nopt)
+		return (0);
+	return (width[filter_field]);
+}
+
+/**
  *      t4_filter_field_shift - calculate filter field shift
  *      @adap: the adapter
  *      @filter_sel: the desired field (from TP_VLAN_PRI_MAP bits)
@@ -9766,6 +11739,56 @@ int t4_filter_field_shift(const struct adapter *adap, int filter_sel)
 
 	if ((filter_mode & filter_sel) == 0)
 		return -1;
+
+	if (chip_id(adap) >= CHELSIO_T7) {
+		for (sel = 1, field_shift = 0; sel < filter_sel; sel <<= 1) {
+			switch (filter_mode & sel) {
+			case F_IPSECIDX:
+				field_shift += W_FT_IPSECIDX;
+				break;
+			case F_T7_FCOE:
+				field_shift += W_FT_FCOE;
+				break;
+			case F_T7_PORT:
+				field_shift += W_FT_PORT;
+				break;
+			case F_T7_VNIC_ID:
+				field_shift += W_FT_VNIC_ID;
+				break;
+			case F_T7_VLAN:
+				field_shift += W_FT_VLAN;
+				break;
+			case F_T7_TOS:
+				field_shift += W_FT_TOS;
+				break;
+			case F_T7_PROTOCOL:
+				field_shift += W_FT_PROTOCOL;
+				break;
+			case F_T7_ETHERTYPE:
+				field_shift += W_FT_ETHERTYPE;
+				break;
+			case F_T7_MACMATCH:
+				field_shift += W_FT_MACMATCH;
+				break;
+			case F_T7_MPSHITTYPE:
+				field_shift += W_FT_MPSHITTYPE;
+				break;
+			case F_T7_FRAGMENTATION:
+				field_shift += W_FT_FRAGMENTATION;
+				break;
+			case F_ROCE:
+				field_shift += W_FT_ROCE;
+				break;
+			case F_SYNONLY:
+				field_shift += W_FT_SYNONLY;
+				break;
+			case F_TCPFLAGS:
+				field_shift += W_FT_TCPFLAGS;
+				break;
+			}
+		}
+		return field_shift;
+	}
 
 	for (sel = 1, field_shift = 0; sel < filter_sel; sel <<= 1) {
 		switch (filter_mode & sel) {
@@ -9818,11 +11841,11 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 		} while ((adap->params.portvec & (1 << j)) == 0);
 	}
 
+	p->hw_port = j;
 	p->tx_chan = t4_get_tx_c_chan(adap, j);
 	p->rx_chan = t4_get_rx_c_chan(adap, j);
 	p->mps_bg_map = t4_get_mps_bg_map(adap, j);
 	p->rx_e_chan_map = t4_get_rx_e_chan_map(adap, j);
-	p->lport = j;
 
 	if (!(adap->flags & IS_VF) ||
 	    adap->params.vfres.r_caps & FW_CMD_CAP_PORT) {
@@ -9851,232 +11874,321 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 	return 0;
 }
 
+static void t4_read_cimq_cfg_ibq_core(struct adapter *adap, u8 coreid, u32 qid,
+				      u16 *base, u16 *size, u16 *thres)
+{
+	unsigned int v, m;
+
+	if (chip_id(adap) > CHELSIO_T6) {
+		v = F_T7_IBQSELECT | V_T7_QUENUMSELECT(qid) |
+		    V_CORESELECT(coreid);
+		/* value is in 512-byte units */
+		m = 512;
+	} else {
+		v = F_IBQSELECT | V_QUENUMSELECT(qid);
+		/* value is in 256-byte units */
+		m = 256;
+	}
+
+	t4_write_reg(adap, A_CIM_QUEUE_CONFIG_REF, v);
+	v = t4_read_reg(adap, A_CIM_QUEUE_CONFIG_CTRL);
+	if (base)
+		*base = G_CIMQBASE(v) * m;
+	if (size)
+		*size = G_CIMQSIZE(v) * m;
+	if (thres)
+		*thres = G_QUEFULLTHRSH(v) * 8; /* 8-byte unit */
+}
+
+static void t4_read_cimq_cfg_obq_core(struct adapter *adap, u8 coreid, u32 qid,
+				      u16 *base, u16 *size)
+{
+	unsigned int v, m;
+
+	if (chip_id(adap) > CHELSIO_T6) {
+		v = F_T7_OBQSELECT | V_T7_QUENUMSELECT(qid) |
+		    V_CORESELECT(coreid);
+		/* value is in 512-byte units */
+		m = 512;
+	} else {
+		v = F_OBQSELECT | V_QUENUMSELECT(qid);
+		/* value is in 256-byte units */
+		m = 256;
+	}
+
+	t4_write_reg(adap, A_CIM_QUEUE_CONFIG_REF, v);
+	v = t4_read_reg(adap, A_CIM_QUEUE_CONFIG_CTRL);
+	if (base)
+		*base = G_CIMQBASE(v) * m;
+	if (size)
+		*size = G_CIMQSIZE(v) * m;
+}
+
 /**
- *	t4_read_cimq_cfg - read CIM queue configuration
+ *	t4_read_cimq_cfg_core - read CIM queue configuration on specific core
  *	@adap: the adapter
+ *	@coreid: the uP coreid
  *	@base: holds the queue base addresses in bytes
  *	@size: holds the queue sizes in bytes
  *	@thres: holds the queue full thresholds in bytes
  *
  *	Returns the current configuration of the CIM queues, starting with
- *	the IBQs, then the OBQs.
+ *	the IBQs, then the OBQs, on a specific @coreid.
  */
-void t4_read_cimq_cfg(struct adapter *adap, u16 *base, u16 *size, u16 *thres)
+void t4_read_cimq_cfg_core(struct adapter *adap, u8 coreid, u16 *base,
+			   u16 *size, u16 *thres)
 {
-	unsigned int i, v;
-	int cim_num_obq = adap->chip_params->cim_num_obq;
+	unsigned int cim_num_ibq = adap->chip_params->cim_num_ibq;
+	unsigned int cim_num_obq = adap->chip_params->cim_num_obq;
+	unsigned int i;
 
-	for (i = 0; i < CIM_NUM_IBQ; i++) {
-		t4_write_reg(adap, A_CIM_QUEUE_CONFIG_REF, F_IBQSELECT |
-			     V_QUENUMSELECT(i));
-		v = t4_read_reg(adap, A_CIM_QUEUE_CONFIG_CTRL);
-		/* value is in 256-byte units */
-		*base++ = G_CIMQBASE(v) * 256;
-		*size++ = G_CIMQSIZE(v) * 256;
-		*thres++ = G_QUEFULLTHRSH(v) * 8; /* 8-byte unit */
-	}
-	for (i = 0; i < cim_num_obq; i++) {
-		t4_write_reg(adap, A_CIM_QUEUE_CONFIG_REF, F_OBQSELECT |
-			     V_QUENUMSELECT(i));
-		v = t4_read_reg(adap, A_CIM_QUEUE_CONFIG_CTRL);
-		/* value is in 256-byte units */
-		*base++ = G_CIMQBASE(v) * 256;
-		*size++ = G_CIMQSIZE(v) * 256;
-	}
+	for (i = 0; i < cim_num_ibq; i++, base++, size++, thres++)
+		t4_read_cimq_cfg_ibq_core(adap, coreid, i, base, size, thres);
+
+	for (i = 0; i < cim_num_obq; i++, base++, size++)
+		t4_read_cimq_cfg_obq_core(adap, coreid, i, base, size);
 }
 
-/**
- *	t4_read_cim_ibq - read the contents of a CIM inbound queue
- *	@adap: the adapter
- *	@qid: the queue index
- *	@data: where to store the queue contents
- *	@n: capacity of @data in 32-bit words
- *
- *	Reads the contents of the selected CIM queue starting at address 0 up
- *	to the capacity of @data.  @n must be a multiple of 4.  Returns < 0 on
- *	error and the number of 32-bit words actually read on success.
- */
-int t4_read_cim_ibq(struct adapter *adap, unsigned int qid, u32 *data, size_t n)
+static int t4_read_cim_ibq_data_core(struct adapter *adap, u8 coreid, u32 addr,
+				     u32 *data)
 {
-	int i, err, attempts;
-	unsigned int addr;
-	const unsigned int nwords = CIM_IBQ_SIZE * 4;
-
-	if (qid > 5 || (n & 3))
-		return -EINVAL;
-
-	addr = qid * nwords;
-	if (n > nwords)
-		n = nwords;
+	int ret, attempts;
+	unsigned int v;
 
 	/* It might take 3-10ms before the IBQ debug read access is allowed.
 	 * Wait for 1 Sec with a delay of 1 usec.
 	 */
 	attempts = 1000000;
 
-	for (i = 0; i < n; i++, addr++) {
-		t4_write_reg(adap, A_CIM_IBQ_DBG_CFG, V_IBQDBGADDR(addr) |
-			     F_IBQDBGEN);
-		err = t4_wait_op_done(adap, A_CIM_IBQ_DBG_CFG, F_IBQDBGBUSY, 0,
-				      attempts, 1);
-		if (err)
-			return err;
-		*data++ = t4_read_reg(adap, A_CIM_IBQ_DBG_DATA);
-	}
-	t4_write_reg(adap, A_CIM_IBQ_DBG_CFG, 0);
-	return i;
+	if (chip_id(adap) > CHELSIO_T6)
+		v = V_T7_IBQDBGADDR(addr) | V_IBQDBGCORE(coreid);
+	else
+		v = V_IBQDBGADDR(addr);
+
+	t4_write_reg(adap, A_CIM_IBQ_DBG_CFG, v | F_IBQDBGEN);
+	ret = t4_wait_op_done(adap, A_CIM_IBQ_DBG_CFG, F_IBQDBGBUSY, 0,
+			      attempts, 1);
+	if (ret)
+		return ret;
+
+	*data = t4_read_reg(adap, A_CIM_IBQ_DBG_DATA);
+	return 0;
 }
 
 /**
- *	t4_read_cim_obq - read the contents of a CIM outbound queue
+ *	t4_read_cim_ibq_core - read the contents of a CIM inbound queue on
+ *	specific core
  *	@adap: the adapter
+ *	@coreid: the uP coreid
  *	@qid: the queue index
  *	@data: where to store the queue contents
  *	@n: capacity of @data in 32-bit words
  *
  *	Reads the contents of the selected CIM queue starting at address 0 up
- *	to the capacity of @data.  @n must be a multiple of 4.  Returns < 0 on
- *	error and the number of 32-bit words actually read on success.
+ *	to the capacity of @data on a specific @coreid.  @n must be a multiple
+ *	of 4.  Returns < 0 on error and the number of 32-bit words actually
+ *	read on success.
  */
-int t4_read_cim_obq(struct adapter *adap, unsigned int qid, u32 *data, size_t n)
+int t4_read_cim_ibq_core(struct adapter *adap, u8 coreid, u32 qid, u32 *data,
+			 size_t n)
 {
-	int i, err;
-	unsigned int addr, v, nwords;
-	int cim_num_obq = adap->chip_params->cim_num_obq;
+	unsigned int cim_num_ibq = adap->chip_params->cim_num_ibq;
+	u16 i, addr, nwords;
+	int ret;
+
+	if (qid > (cim_num_ibq - 1) || (n & 3))
+		return -EINVAL;
+
+	t4_read_cimq_cfg_ibq_core(adap, coreid, qid, &addr, &nwords, NULL);
+	addr >>= sizeof(u16);
+	nwords >>= sizeof(u16);
+	if (n > nwords)
+		n = nwords;
+
+	for (i = 0; i < n; i++, addr++, data++) {
+		ret = t4_read_cim_ibq_data_core(adap, coreid, addr, data);
+		if (ret < 0)
+			return ret;
+	}
+
+	t4_write_reg(adap, A_CIM_IBQ_DBG_CFG, 0);
+	return i;
+}
+
+static int t4_read_cim_obq_data_core(struct adapter *adap, u8 coreid, u32 addr,
+				     u32 *data)
+{
+	unsigned int v;
+	int ret;
+
+	if (chip_id(adap) > CHELSIO_T6)
+		v = V_T7_OBQDBGADDR(addr) | V_OBQDBGCORE(coreid);
+	else
+		v = V_OBQDBGADDR(addr);
+
+	t4_write_reg(adap, A_CIM_OBQ_DBG_CFG, v | F_OBQDBGEN);
+	ret = t4_wait_op_done(adap, A_CIM_OBQ_DBG_CFG, F_OBQDBGBUSY, 0, 2, 1);
+	if (ret)
+		return ret;
+
+	*data = t4_read_reg(adap, A_CIM_OBQ_DBG_DATA);
+	return 0;
+}
+
+/**
+ *	t4_read_cim_obq_core - read the contents of a CIM outbound queue on
+ *	specific core
+ *	@adap: the adapter
+ *	@coreid: the uP coreid
+ *	@qid: the queue index
+ *	@data: where to store the queue contents
+ *	@n: capacity of @data in 32-bit words
+ *
+ *	Reads the contents of the selected CIM queue starting at address 0 up
+ *	to the capacity of @data on specific @coreid.  @n must be a multiple
+ *	of 4.  Returns < 0 on error and the number of 32-bit words actually
+ *	read on success.
+ */
+int t4_read_cim_obq_core(struct adapter *adap, u8 coreid, u32 qid, u32 *data,
+			 size_t n)
+{
+	unsigned int cim_num_obq = adap->chip_params->cim_num_obq;
+	u16 i, addr, nwords;
+	int ret;
 
 	if ((qid > (cim_num_obq - 1)) || (n & 3))
 		return -EINVAL;
 
-	t4_write_reg(adap, A_CIM_QUEUE_CONFIG_REF, F_OBQSELECT |
-		     V_QUENUMSELECT(qid));
-	v = t4_read_reg(adap, A_CIM_QUEUE_CONFIG_CTRL);
-
-	addr = G_CIMQBASE(v) * 64;    /* muliple of 256 -> muliple of 4 */
-	nwords = G_CIMQSIZE(v) * 64;  /* same */
+	t4_read_cimq_cfg_obq_core(adap, coreid, qid, &addr, &nwords);
+	addr >>= sizeof(u16);
+	nwords >>= sizeof(u16);
 	if (n > nwords)
 		n = nwords;
 
-	for (i = 0; i < n; i++, addr++) {
-		t4_write_reg(adap, A_CIM_OBQ_DBG_CFG, V_OBQDBGADDR(addr) |
-			     F_OBQDBGEN);
-		err = t4_wait_op_done(adap, A_CIM_OBQ_DBG_CFG, F_OBQDBGBUSY, 0,
-				      2, 1);
-		if (err)
-			return err;
-		*data++ = t4_read_reg(adap, A_CIM_OBQ_DBG_DATA);
+	for (i = 0; i < n; i++, addr++, data++) {
+		ret = t4_read_cim_obq_data_core(adap, coreid, addr, data);
+		if (ret < 0)
+			return ret;
 	}
+
 	t4_write_reg(adap, A_CIM_OBQ_DBG_CFG, 0);
-	return i;
+ 	return i;
 }
 
-enum {
-	CIM_QCTL_BASE     = 0,
-	CIM_CTL_BASE      = 0x2000,
-	CIM_PBT_ADDR_BASE = 0x2800,
-	CIM_PBT_LRF_BASE  = 0x3000,
-	CIM_PBT_DATA_BASE = 0x3800
-};
-
 /**
- *	t4_cim_read - read a block from CIM internal address space
+ *	t4_cim_read_core - read a block from CIM internal address space
+ *	of a control register group on specific core.
  *	@adap: the adapter
+ *	@group: the control register group to select for read
+ *	@coreid: the uP coreid
  *	@addr: the start address within the CIM address space
  *	@n: number of words to read
  *	@valp: where to store the result
  *
- *	Reads a block of 4-byte words from the CIM intenal address space.
+ *	Reads a block of 4-byte words from the CIM intenal address space
+ *	of a control register @group on a specific @coreid.
  */
-int t4_cim_read(struct adapter *adap, unsigned int addr, unsigned int n,
-		unsigned int *valp)
+int t4_cim_read_core(struct adapter *adap, u8 group, u8 coreid,
+		     unsigned int addr, unsigned int n,
+		     unsigned int *valp)
 {
+	unsigned int hostbusy, v = 0;
 	int ret = 0;
 
-	if (t4_read_reg(adap, A_CIM_HOST_ACC_CTRL) & F_HOSTBUSY)
+	if (chip_id(adap) > CHELSIO_T6) {
+		hostbusy = F_T7_HOSTBUSY;
+		v = V_HOSTGRPSEL(group) | V_HOSTCORESEL(coreid);
+	} else {
+		hostbusy = F_HOSTBUSY;
+	}
+
+	if (t4_read_reg(adap, A_CIM_HOST_ACC_CTRL) & hostbusy)
 		return -EBUSY;
 
 	for ( ; !ret && n--; addr += 4) {
-		t4_write_reg(adap, A_CIM_HOST_ACC_CTRL, addr);
-		ret = t4_wait_op_done(adap, A_CIM_HOST_ACC_CTRL, F_HOSTBUSY,
+		t4_write_reg(adap, A_CIM_HOST_ACC_CTRL, addr | v);
+		ret = t4_wait_op_done(adap, A_CIM_HOST_ACC_CTRL, hostbusy,
 				      0, 5, 2);
 		if (!ret)
 			*valp++ = t4_read_reg(adap, A_CIM_HOST_ACC_DATA);
 	}
+
 	return ret;
 }
 
 /**
- *	t4_cim_write - write a block into CIM internal address space
+ *	t4_cim_write_core - write a block into CIM internal address space
+ *	of a control register group on specific core.
  *	@adap: the adapter
+ *	@group: the control register group to select for write
+ *	@coreid: the uP coreid
  *	@addr: the start address within the CIM address space
  *	@n: number of words to write
  *	@valp: set of values to write
  *
- *	Writes a block of 4-byte words into the CIM intenal address space.
+ *	Writes a block of 4-byte words into the CIM intenal address space
+ *	of a control register @group on a specific @coreid.
  */
-int t4_cim_write(struct adapter *adap, unsigned int addr, unsigned int n,
-		 const unsigned int *valp)
+int t4_cim_write_core(struct adapter *adap, u8 group, u8 coreid,
+		      unsigned int addr, unsigned int n,
+		      const unsigned int *valp)
 {
+	unsigned int hostbusy, v;
 	int ret = 0;
 
-	if (t4_read_reg(adap, A_CIM_HOST_ACC_CTRL) & F_HOSTBUSY)
+	if (chip_id(adap) > CHELSIO_T6) {
+		hostbusy = F_T7_HOSTBUSY;
+		v = F_T7_HOSTWRITE | V_HOSTGRPSEL(group) |
+		    V_HOSTCORESEL(coreid);
+	} else {
+		hostbusy = F_HOSTBUSY;
+		v = F_HOSTWRITE;
+	}
+
+	if (t4_read_reg(adap, A_CIM_HOST_ACC_CTRL) & hostbusy)
 		return -EBUSY;
 
 	for ( ; !ret && n--; addr += 4) {
 		t4_write_reg(adap, A_CIM_HOST_ACC_DATA, *valp++);
-		t4_write_reg(adap, A_CIM_HOST_ACC_CTRL, addr | F_HOSTWRITE);
-		ret = t4_wait_op_done(adap, A_CIM_HOST_ACC_CTRL, F_HOSTBUSY,
+		t4_write_reg(adap, A_CIM_HOST_ACC_CTRL, addr | v);
+		ret = t4_wait_op_done(adap, A_CIM_HOST_ACC_CTRL, hostbusy,
 				      0, 5, 2);
 	}
+
 	return ret;
 }
 
-static int t4_cim_write1(struct adapter *adap, unsigned int addr,
-			 unsigned int val)
-{
-	return t4_cim_write(adap, addr, 1, &val);
-}
-
 /**
- *	t4_cim_ctl_read - read a block from CIM control region
+ *	t4_cim_read_la_core - read CIM LA capture buffer on specific core
  *	@adap: the adapter
- *	@addr: the start address within the CIM control region
- *	@n: number of words to read
- *	@valp: where to store the result
- *
- *	Reads a block of 4-byte words from the CIM control region.
- */
-int t4_cim_ctl_read(struct adapter *adap, unsigned int addr, unsigned int n,
-		    unsigned int *valp)
-{
-	return t4_cim_read(adap, addr + CIM_CTL_BASE, n, valp);
-}
-
-/**
- *	t4_cim_read_la - read CIM LA capture buffer
- *	@adap: the adapter
+ *	@coreid: uP coreid
  *	@la_buf: where to store the LA data
  *	@wrptr: the HW write pointer within the capture buffer
  *
- *	Reads the contents of the CIM LA buffer with the most recent entry at
- *	the end	of the returned data and with the entry at @wrptr first.
- *	We try to leave the LA in the running state we find it in.
+ *	Reads the contents of the CIM LA buffer on a specific @coreid
+ *	with the most recent entry at the end of the returned data
+ *	and with the entry at @wrptr first. We try to leave the LA
+ *	in the running state we find it in.
  */
-int t4_cim_read_la(struct adapter *adap, u32 *la_buf, unsigned int *wrptr)
+int t4_cim_read_la_core(struct adapter *adap, u8 coreid, u32 *la_buf,
+			u32 *wrptr)
 {
-	int i, ret;
 	unsigned int cfg, val, idx;
+	int i, ret;
 
-	ret = t4_cim_read(adap, A_UP_UP_DBG_LA_CFG, 1, &cfg);
+	ret = t4_cim_read_core(adap, 1, coreid, A_UP_UP_DBG_LA_CFG, 1, &cfg);
 	if (ret)
 		return ret;
 
 	if (cfg & F_UPDBGLAEN) {	/* LA is running, freeze it */
-		ret = t4_cim_write1(adap, A_UP_UP_DBG_LA_CFG, 0);
+		val = 0;
+		ret = t4_cim_write_core(adap, 1, coreid, A_UP_UP_DBG_LA_CFG, 1,
+					&val);
 		if (ret)
 			return ret;
 	}
 
-	ret = t4_cim_read(adap, A_UP_UP_DBG_LA_CFG, 1, &val);
+	ret = t4_cim_read_core(adap, 1, coreid, A_UP_UP_DBG_LA_CFG, 1, &val);
 	if (ret)
 		goto restart;
 
@@ -10085,25 +12197,28 @@ int t4_cim_read_la(struct adapter *adap, u32 *la_buf, unsigned int *wrptr)
 		*wrptr = idx;
 
 	for (i = 0; i < adap->params.cim_la_size; i++) {
-		ret = t4_cim_write1(adap, A_UP_UP_DBG_LA_CFG,
-				    V_UPDBGLARDPTR(idx) | F_UPDBGLARDEN);
+		val = V_UPDBGLARDPTR(idx) | F_UPDBGLARDEN;
+		ret = t4_cim_write_core(adap, 1, coreid, A_UP_UP_DBG_LA_CFG, 1,
+					&val);
 		if (ret)
 			break;
-		ret = t4_cim_read(adap, A_UP_UP_DBG_LA_CFG, 1, &val);
+		ret = t4_cim_read_core(adap, 1, coreid, A_UP_UP_DBG_LA_CFG, 1,
+				       &val);
 		if (ret)
 			break;
 		if (val & F_UPDBGLARDEN) {
 			ret = -ETIMEDOUT;
 			break;
 		}
-		ret = t4_cim_read(adap, A_UP_UP_DBG_LA_DATA, 1, &la_buf[i]);
+		ret = t4_cim_read_core(adap, 1, coreid, A_UP_UP_DBG_LA_DATA, 1,
+				       &la_buf[i]);
 		if (ret)
 			break;
 
 		/* Bits 0-3 of UpDbgLaRdPtr can be between 0000 to 1001 to
 		 * identify the 32-bit portion of the full 312-bit data
 		 */
-		if (is_t6(adap) && (idx & 0xf) >= 9)
+		if ((chip_id(adap) > CHELSIO_T5) && (idx & 0xf) >= 9)
 			idx = (idx & 0xff0) + 0x10;
 		else
 			idx++;
@@ -10112,11 +12227,15 @@ int t4_cim_read_la(struct adapter *adap, u32 *la_buf, unsigned int *wrptr)
 	}
 restart:
 	if (cfg & F_UPDBGLAEN) {
-		int r = t4_cim_write1(adap, A_UP_UP_DBG_LA_CFG,
-				      cfg & ~F_UPDBGLARDEN);
+		int r;
+
+		val = cfg & ~F_UPDBGLARDEN;
+		r = t4_cim_write_core(adap, 1, coreid, A_UP_UP_DBG_LA_CFG, 1,
+				      &val);
 		if (!ret)
 			ret = r;
 	}
+
 	return ret;
 }
 
@@ -10403,25 +12522,20 @@ void t4_get_tx_sched(struct adapter *adap, unsigned int sched, unsigned int *kbp
 int t4_load_cfg(struct adapter *adap, const u8 *cfg_data, unsigned int size)
 {
 	int ret, i, n, cfg_addr;
-	unsigned int addr;
+	unsigned int addr, len;
 	unsigned int flash_cfg_start_sec;
-	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
 
-	cfg_addr = t4_flash_cfg_addr(adap);
+	cfg_addr = t4_flash_cfg_addr(adap, &len);
 	if (cfg_addr < 0)
 		return cfg_addr;
 
-	addr = cfg_addr;
-	flash_cfg_start_sec = addr / SF_SEC_SIZE;
-
-	if (size > FLASH_CFG_MAX_SIZE) {
-		CH_ERR(adap, "cfg file too large, max is %u bytes\n",
-		       FLASH_CFG_MAX_SIZE);
+	if (size > len) {
+		CH_ERR(adap, "cfg file too large, max is %u bytes\n", len);
 		return -EFBIG;
 	}
 
-	i = DIV_ROUND_UP(FLASH_CFG_MAX_SIZE,	/* # of sectors spanned */
-			 sf_sec_size);
+	flash_cfg_start_sec = cfg_addr / SF_SEC_SIZE;
+	i = DIV_ROUND_UP(len, SF_SEC_SIZE);
 	ret = t4_flash_erase_sectors(adap, flash_cfg_start_sec,
 				     flash_cfg_start_sec + i - 1);
 	/*
@@ -10432,15 +12546,12 @@ int t4_load_cfg(struct adapter *adap, const u8 *cfg_data, unsigned int size)
 		goto out;
 
 	/* this will write to the flash up to SF_PAGE_SIZE at a time */
-	for (i = 0; i< size; i+= SF_PAGE_SIZE) {
-		if ( (size - i) <  SF_PAGE_SIZE)
-			n = size - i;
-		else
-			n = SF_PAGE_SIZE;
+	addr = cfg_addr;
+	for (i = 0; i < size; i += SF_PAGE_SIZE) {
+		n = min(size - i, SF_PAGE_SIZE);
 		ret = t4_write_flash(adap, addr, n, cfg_data, 1);
 		if (ret)
 			goto out;
-
 		addr += SF_PAGE_SIZE;
 		cfg_data += SF_PAGE_SIZE;
 	}
@@ -10644,25 +12755,25 @@ int t4_load_boot(struct adapter *adap, u8 *boot_data,
 	pcir_data_t *pcir_header;
 	int ret, addr;
 	uint16_t device_id;
-	unsigned int i;
-	unsigned int boot_sector = (boot_addr * 1024 );
-	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
+	unsigned int i, start, len;
+	unsigned int boot_sector = boot_addr * 1024;
 
 	/*
-	 * Make sure the boot image does not encroach on the firmware region
+	 * Make sure the boot image does not exceed its available space.
 	 */
-	if ((boot_sector + size) >> 16 > FLASH_FW_START_SEC) {
-		CH_ERR(adap, "boot image encroaching on firmware region\n");
+	len = 0;
+	start = t4_flash_loc_start(adap, FLASH_LOC_BOOT_AREA, &len);
+	if (boot_sector + size > start + len) {
+		CH_ERR(adap, "boot data is larger than available BOOT area\n");
 		return -EFBIG;
 	}
 
 	/*
 	 * The boot sector is comprised of the Expansion-ROM boot, iSCSI boot,
 	 * and Boot configuration data sections. These 3 boot sections span
-	 * sectors 0 to 7 in flash and live right before the FW image location.
+	 * the entire FLASH_LOC_BOOT_AREA.
 	 */
-	i = DIV_ROUND_UP(size ? size : FLASH_FW_START,
-			sf_sec_size);
+	i = DIV_ROUND_UP(size ? size : len, SF_SEC_SIZE);
 	ret = t4_flash_erase_sectors(adap, boot_sector >> 16,
 				     (boot_sector >> 16) + i - 1);
 
@@ -10765,40 +12876,39 @@ out:
  *	is stored, or an error if the device FLASH is too small to contain
  *	a OptionROM Configuration.
  */
-static int t4_flash_bootcfg_addr(struct adapter *adapter)
+static int t4_flash_bootcfg_addr(struct adapter *adapter, unsigned int *lenp)
 {
+	unsigned int len = 0;
+	const int start = t4_flash_loc_start(adapter, FLASH_LOC_BOOTCFG, &len);
+
 	/*
 	 * If the device FLASH isn't large enough to hold a Firmware
 	 * Configuration File, return an error.
 	 */
-	if (adapter->params.sf_size < FLASH_BOOTCFG_START + FLASH_BOOTCFG_MAX_SIZE)
+	if (adapter->params.sf_size < start + len)
 		return -ENOSPC;
-
-	return FLASH_BOOTCFG_START;
+	if (lenp != NULL)
+		*lenp = len;
+	return (start);
 }
 
 int t4_load_bootcfg(struct adapter *adap,const u8 *cfg_data, unsigned int size)
 {
 	int ret, i, n, cfg_addr;
-	unsigned int addr;
+	unsigned int addr, len;
 	unsigned int flash_cfg_start_sec;
-	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
 
-	cfg_addr = t4_flash_bootcfg_addr(adap);
+	cfg_addr = t4_flash_bootcfg_addr(adap, &len);
 	if (cfg_addr < 0)
 		return cfg_addr;
 
-	addr = cfg_addr;
-	flash_cfg_start_sec = addr / SF_SEC_SIZE;
-
-	if (size > FLASH_BOOTCFG_MAX_SIZE) {
-		CH_ERR(adap, "bootcfg file too large, max is %u bytes\n",
-			FLASH_BOOTCFG_MAX_SIZE);
+	if (size > len) {
+		CH_ERR(adap, "bootcfg file too large, max is %u bytes\n", len);
 		return -EFBIG;
 	}
 
-	i = DIV_ROUND_UP(FLASH_BOOTCFG_MAX_SIZE,/* # of sectors spanned */
-			 sf_sec_size);
+	flash_cfg_start_sec = cfg_addr / SF_SEC_SIZE;
+	i = DIV_ROUND_UP(len, SF_SEC_SIZE);
 	ret = t4_flash_erase_sectors(adap, flash_cfg_start_sec,
 					flash_cfg_start_sec + i - 1);
 
@@ -10810,15 +12920,12 @@ int t4_load_bootcfg(struct adapter *adap,const u8 *cfg_data, unsigned int size)
 		goto out;
 
 	/* this will write to the flash up to SF_PAGE_SIZE at a time */
-	for (i = 0; i< size; i+= SF_PAGE_SIZE) {
-		if ( (size - i) <  SF_PAGE_SIZE)
-			n = size - i;
-		else
-			n = SF_PAGE_SIZE;
+	addr = cfg_addr;
+	for (i = 0; i < size; i += SF_PAGE_SIZE) {
+		n = min(size - i, SF_PAGE_SIZE);
 		ret = t4_write_flash(adap, addr, n, cfg_data, 0);
 		if (ret)
 			goto out;
-
 		addr += SF_PAGE_SIZE;
 		cfg_data += SF_PAGE_SIZE;
 	}
@@ -10844,19 +12951,20 @@ out:
  */
 int t4_set_filter_cfg(struct adapter *adap, int mode, int mask, int vnic_mode)
 {
-	static const uint8_t width[] = {1, 3, 17, 17, 8, 8, 16, 9, 3, 1};
 	int i, nbits, rc;
 	uint32_t param, val;
 	uint16_t fmode, fmask;
 	const int maxbits = adap->chip_params->filter_opt_len;
+	const int nopt = adap->chip_params->filter_num_opt;
+	int width;
 
 	if (mode != -1 || mask != -1) {
 		if (mode != -1) {
 			fmode = mode;
 			nbits = 0;
-			for (i = S_FCOE; i <= S_FRAGMENTATION; i++) {
+			for (i = 0; i < nopt; i++) {
 				if (fmode & (1 << i))
-					nbits += width[i];
+					nbits += t4_filter_field_width(adap, i);
 			}
 			if (nbits > maxbits) {
 				CH_ERR(adap, "optional fields in the filter "
@@ -10867,17 +12975,20 @@ int t4_set_filter_cfg(struct adapter *adap, int mode, int mask, int vnic_mode)
 			}
 
 			/*
-			 * Hardware wants the bits to be maxed out.  Keep
+			 * Hardware < T7 wants the bits to be maxed out.  Keep
 			 * setting them until there's no room for more.
 			 */
-			for (i = S_FCOE; i <= S_FRAGMENTATION; i++) {
-				if (fmode & (1 << i))
-					continue;
-				if (nbits + width[i] <= maxbits) {
-					fmode |= 1 << i;
-					nbits += width[i];
-					if (nbits == maxbits)
-						break;
+			if (chip_id(adap) < CHELSIO_T7) {
+				for (i = 0; i < nopt; i++) {
+					if (fmode & (1 << i))
+						continue;
+					width = t4_filter_field_width(adap, i);
+					if (nbits + width <= maxbits) {
+						fmode |= 1 << i;
+						nbits += width;
+						if (nbits == maxbits)
+							break;
+					}
 				}
 			}
 
@@ -10936,21 +13047,26 @@ int t4_set_filter_cfg(struct adapter *adap, int mode, int mask, int vnic_mode)
  */
 void t4_clr_port_stats(struct adapter *adap, int idx)
 {
-	unsigned int i;
-	u32 bgmap = adap2pinfo(adap, idx)->mps_bg_map;
-	u32 port_base_addr;
+	struct port_info *pi;
+	int i, port_id, tx_chan;
+	u32 bgmap, port_base_addr;
 
-	if (is_t4(adap))
-		port_base_addr = PORT_BASE(idx);
-	else
-		port_base_addr = T5_PORT_BASE(idx);
+	port_id  = adap->port_map[idx];
+	MPASS(port_id >= 0 && port_id <= adap->params.nports);
+	pi = adap->port[port_id];
 
-	for (i = A_MPS_PORT_STAT_TX_PORT_BYTES_L;
-			i <= A_MPS_PORT_STAT_TX_PORT_PPP7_H; i += 8)
-		t4_write_reg(adap, port_base_addr + i, 0);
-	for (i = A_MPS_PORT_STAT_RX_PORT_BYTES_L;
-			i <= A_MPS_PORT_STAT_RX_PORT_LESS_64B_H; i += 8)
-		t4_write_reg(adap, port_base_addr + i, 0);
+	for (tx_chan = pi->tx_chan;
+	    tx_chan < pi->tx_chan + adap->params.tp.lb_nchan; tx_chan++) {
+		port_base_addr = t4_port_reg(adap, tx_chan, 0);
+
+		for (i = A_MPS_PORT_STAT_TX_PORT_BYTES_L;
+				i <= A_MPS_PORT_STAT_TX_PORT_PPP7_H; i += 8)
+			t4_write_reg(adap, port_base_addr + i, 0);
+		for (i = A_MPS_PORT_STAT_RX_PORT_BYTES_L;
+				i <= A_MPS_PORT_STAT_RX_PORT_LESS_64B_H; i += 8)
+			t4_write_reg(adap, port_base_addr + i, 0);
+	}
+	bgmap = pi->mps_bg_map;
 	for (i = 0; i < 4; i++)
 		if (bgmap & (1 << i)) {
 			t4_write_reg(adap,
@@ -11078,6 +13194,8 @@ int t4_sge_ctxt_rd(struct adapter *adap, unsigned int mbox, unsigned int cid,
 		data[3] = be32_to_cpu(c.u.idctxt.ctxt_data3);
 		data[4] = be32_to_cpu(c.u.idctxt.ctxt_data4);
 		data[5] = be32_to_cpu(c.u.idctxt.ctxt_data5);
+		if (chip_id(adap) > CHELSIO_T6)
+			data[6] = be32_to_cpu(c.u.idctxt.ctxt_data6);
 	}
 	return ret;
 }
@@ -11099,9 +13217,12 @@ int t4_sge_ctxt_rd_bd(struct adapter *adap, unsigned int cid, enum ctxt_type cty
 
 	t4_write_reg(adap, A_SGE_CTXT_CMD, V_CTXTQID(cid) | V_CTXTTYPE(ctype));
 	ret = t4_wait_op_done(adap, A_SGE_CTXT_CMD, F_BUSY, 0, 3, 1);
-	if (!ret)
+	if (!ret) {
 		for (i = A_SGE_CTXT_DATA0; i <= A_SGE_CTXT_DATA5; i += 4)
 			*data++ = t4_read_reg(adap, i);
+		if (chip_id(adap) > CHELSIO_T6)
+			*data++ = t4_read_reg(adap, i);
+	}
 	return ret;
 }
 

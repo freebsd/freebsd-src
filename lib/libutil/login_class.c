@@ -543,7 +543,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 
     /* we need a passwd entry to set these */
     if (pwd == NULL)
-	flags &= ~(LOGIN_SETGROUP | LOGIN_SETLOGIN | LOGIN_SETMAC);
+	flags &= ~(LOGIN_SETGROUP | LOGIN_SETLOGIN);
 
     /* Set the process priority */
     if (flags & LOGIN_SETPRIORITY)
@@ -561,31 +561,6 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 		   (u_long)pwd->pw_gid);
 	    login_close(llc);
 	    return (-1);
-	}
-    }
-
-    /* Set up the user's MAC label. */
-    if ((flags & LOGIN_SETMAC) && mac_is_present(NULL) == 1) {
-	const char *label_string;
-	mac_t label;
-
-	label_string = login_getcapstr(lc, "label", NULL, NULL);
-	if (label_string != NULL) {
-	    if (mac_from_text(&label, label_string) == -1) {
-		syslog(LOG_ERR, "mac_from_text('%s') for %s: %m",
-		    pwd->pw_name, label_string);
-		return (-1);
-	    }
-	    if (mac_set_proc(label) == -1)
-		error = errno;
-	    else
-		error = 0;
-	    mac_free(label);
-	    if (error != 0) {
-		syslog(LOG_ERR, "mac_set_proc('%s') for %s: %s",
-		    label_string, pwd->pw_name, strerror(error));
-		return (-1);
-	    }
 	}
     }
 
@@ -609,6 +584,36 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
     }
 
     setlogincontext(lc, pwd, flags);
+
+    /* Set up the user's MAC label. */
+    if ((flags & LOGIN_SETMAC) && mac_is_present(NULL) == 1) {
+	const char *label_string;
+	mac_t label;
+
+	label_string = login_getcapstr(lc, "label", NULL, NULL);
+	if (label_string != NULL) {
+	    if (mac_from_text(&label, label_string) == -1) {
+		syslog(LOG_ERR, "mac_from_text('%s') for %s %s: %m",
+		    label_string, pwd != NULL ? "user" : "class",
+		    pwd != NULL ? pwd->pw_name : lc->lc_class);
+		login_close(llc);
+		return (-1);
+	    }
+	    if (mac_set_proc(label) == -1)
+		error = errno;
+	    else
+		error = 0;
+	    mac_free(label);
+	    if (error != 0) {
+		syslog(LOG_ERR, "mac_set_proc('%s') for %s %s: %s",
+		    label_string, pwd != NULL ? "user" : "class",
+		    pwd != NULL ? pwd->pw_name : lc->lc_class, strerror(error));
+		login_close(llc);
+		return (-1);
+	    }
+	}
+    }
+
     login_close(llc);
 
     /* This needs to be done after anything that needs root privs */

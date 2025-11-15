@@ -192,12 +192,18 @@ kgss_delete_context(gss_ctx_id_t ctx, gss_buffer_t output_token)
 }
 
 OM_uint32
-kgss_transfer_context(gss_ctx_id_t ctx)
+kgss_transfer_context(gss_ctx_id_t ctx, void *lctx)
 {
 	struct export_sec_context_res res;
 	struct export_sec_context_args args;
 	enum clnt_stat stat;
 	OM_uint32 maj_stat;
+
+	if (lctx != NULL) {
+		maj_stat = KGSS_IMPORT(ctx, MIT_V1, lctx);
+		ctx->handle = 0;
+		return (maj_stat);
+	}
 
 	KGSS_CURVNET_SET_QUIET(KGSS_TD_TO_VNET(curthread));
 	if (!KGSS_VNET(kgss_gssd_handle)) {

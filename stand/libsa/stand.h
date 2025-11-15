@@ -94,6 +94,8 @@ __BEGIN_DECLS
 
 struct open_file;
 
+#define FS_OPS_NO_DEVOPEN 1
+
 /*
  * This structure is used to define file system operations in a file system
  * independent way.
@@ -104,6 +106,7 @@ struct open_file;
  */
 struct fs_ops {
     const char	*fs_name;
+    int		fs_flags;
     int		(*fo_open)(const char *path, struct open_file *f);
     int		(*fo_close)(struct open_file *f);
     int		(*fo_read)(struct open_file *f, void *buf,
@@ -349,6 +352,7 @@ extern int	pager_file(const char *fname);
 #define EV_DYNAMIC	(1<<0)		/* value was dynamically allocated, free if changed/unset */
 #define EV_VOLATILE	(1<<1)		/* value is volatile, make a copy of it */
 #define EV_NOHOOK	(1<<2)		/* don't call hook when setting */
+#define EV_NOKENV	(1<<3)		/* don't add to kenv (loader-only) */
 
 struct env_var;
 typedef char	*(ev_format_t)(struct env_var *ev);
@@ -503,6 +507,9 @@ extern void *reallocf(void *, size_t);
  * va <-> pa routines. MD code must supply.
  */
 caddr_t ptov(uintptr_t);
+
+/* dev_net.c */
+bool is_tftp(void);
 
 /* features.c */
 typedef void (feature_iter_fn)(void *, const char *, const char *, bool);

@@ -512,13 +512,13 @@ parse_cmdline () {
 			if [ $# -eq 1 ]; then usage; fi; shift
 			config_KeyPrint $1 || usage
 			;;
-		-s)
-			if [ $# -eq 1 ]; then usage; fi; shift
-			config_ServerName $1 || usage
-			;;
 		-r)
 			if [ $# -eq 1 ]; then usage; fi; shift
 			config_TargetRelease $1 || usage
+			;;
+		-s)
+			if [ $# -eq 1 ]; then usage; fi; shift
+			config_ServerName $1 || usage
 			;;
 		-t)
 			if [ $# -eq 1 ]; then usage; fi; shift
@@ -1099,24 +1099,19 @@ IDS_check_params () {
 	fetch_setup_verboselevel
 }
 
-# Packaged base and freebsd-update are incompatible.  Exit with an error if
-# packaged base is in use.
+# Return 0 if the system is managed using pkgbase, 1 otherwise.
 check_pkgbase()
 {
 	# Packaged base requires that pkg is bootstrapped.
-	if ! pkg -c ${BASEDIR} -N >/dev/null 2>/dev/null; then
-		return
+	if ! pkg -N -r ${BASEDIR} >/dev/null 2>/dev/null; then
+		return 1
 	fi
 	# uname(1) is used by pkg to determine ABI, so it should exist.
 	# If it comes from a package then this system uses packaged base.
-	if ! pkg -c ${BASEDIR} which /usr/bin/uname >/dev/null; then
-		return
+	if ! pkg -r ${BASEDIR} which /usr/bin/uname >/dev/null; then
+		return 1
 	fi
-	cat <<EOF
-freebsd-update is incompatible with the use of packaged base.  Please see
-https://wiki.freebsd.org/PkgBase for more information.
-EOF
-	exit 1
+	return 0
 }
 
 #### Core functionality -- the actual work gets done here
@@ -3005,7 +3000,7 @@ install_from_index () {
 			if [ -z "${LINK}" ]; then
 				# Create a file, without setting flags.
 				gunzip < files/${HASH}.gz > ${HASH}
-				install -S -o ${OWNER} -g ${GROUP}	\
+				install -o ${OWNER} -g ${GROUP}		\
 				    -m ${PERM} ${HASH} ${BASEDIR}/${FPATH}
 				rm ${HASH}
 			else
@@ -3116,10 +3111,28 @@ Kernel updates have been installed.  Please reboot and run
 		    grep -E '^/libexec/ld-elf[^|]*\.so\.[0-9]+\|' > INDEX-NEW
 		install_from_index INDEX-NEW || return 1
 
-		# Install new shared libraries next
+		# Next, in order, libsys, libc, and libthr.
 		grep -vE '^/boot/' $1/INDEX-NEW |
 		    grep -vE '^[^|]+\|d\|' |
 		    grep -vE '^/libexec/ld-elf[^|]*\.so\.[0-9]+\|' |
+		    grep -E '^[^|]*/lib/libsys\.so\.[0-9]+\|' > INDEX-NEW
+		install_from_index INDEX-NEW || return 1
+		grep -vE '^/boot/' $1/INDEX-NEW |
+		    grep -vE '^[^|]+\|d\|' |
+		    grep -vE '^/libexec/ld-elf[^|]*\.so\.[0-9]+\|' |
+		    grep -E '^[^|]*/lib/libc\.so\.[0-9]+\|' > INDEX-NEW
+		install_from_index INDEX-NEW || return 1
+		grep -vE '^/boot/' $1/INDEX-NEW |
+		    grep -vE '^[^|]+\|d\|' |
+		    grep -vE '^/libexec/ld-elf[^|]*\.so\.[0-9]+\|' |
+		    grep -E '^[^|]*/lib/libthr\.so\.[0-9]+\|' > INDEX-NEW
+		install_from_index INDEX-NEW || return 1
+
+		# Install the rest of the shared libraries next
+		grep -vE '^/boot/' $1/INDEX-NEW |
+		    grep -vE '^[^|]+\|d\|' |
+		    grep -vE '^/libexec/ld-elf[^|]*\.so\.[0-9]+\|' |
+		    grep -vE '^[^|]*/lib/(libsys|libc|libthr)\.so\.[0-9]+\|' |
 		    grep -E '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-NEW
 		install_from_index INDEX-NEW || return 1
 
@@ -3615,10 +3628,18 @@ export LC_ALL=C
 # Clear environment variables that may affect operation of tools that we use.
 unset GREP_OPTIONS
 
-# Disallow use with packaged base.
-check_pkgbase
+# Parse command line options and the configuration file.
+get_params "$@"
 
-get_params $@
+# Disallow use with packaged base.
+if check_pkgbase; then
+	cat <<EOF
+freebsd-update is incompatible with the use of packaged base.  Please see
+https://wiki.freebsd.org/PkgBase for more information.
+EOF
+	exit 1
+fi
+
 for COMMAND in ${COMMANDS}; do
 	cmd_${COMMAND}
 done

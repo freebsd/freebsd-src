@@ -1,0 +1,36 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\"
+.Dd October 24, 2025
+.Dt DEADFS 9
+.Os
+.Sh NAME
+.Nm deadfs
+.Nd pseudo-filesystem to own reclaimed vnodes
+.Sh DESCRIPTION
+The
+.Nm
+file system implements operations that do not modify any data
+and instead return indications of invalid IO.
+Its role is to provide a fallback vnode operations vector for reclaimed
+.Xr vnode 9 Ap s .
+.Pp
+It is a kernel-only pseudo-file system and so cannot be mounted from userspace.
+.Sh SEE ALSO
+.Xr insmntque 9 ,
+.Xr vnode 9 ,
+.Xr VOP_RECLAIM 9
+.Sh HISTORY
+UNIX System Manager's Manual (SMM) for
+.Bx 4.4
+described
+.Nm
+as a file system
+.Dq where rejected vnodes go to die .
+.Sh AUTHORS
+The
+.Nm
+manual page was written by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .

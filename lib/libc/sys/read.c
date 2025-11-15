@@ -34,8 +34,6 @@
 #include <unistd.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_read, __read);
-
 #pragma weak read
 ssize_t
 read(int fd, void *buf, size_t nbytes)

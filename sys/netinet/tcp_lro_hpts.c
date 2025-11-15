@@ -29,6 +29,8 @@
 #include "opt_inet6.h"
 
 #include <sys/param.h>
+#include <sys/bus.h>
+#include <sys/interrupt.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -62,6 +64,7 @@
 #include <netinet/tcp_lro.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_hpts.h>
+#include <netinet/tcp_hpts_internal.h>
 #ifdef TCP_BLACKBOX
 #include <netinet/tcp_log_buf.h>
 #endif
@@ -188,7 +191,7 @@ tcp_lro_log(struct tcpcb *tp, const struct lro_ctrl *lc,
 		log.u_bbr.cur_del_rate = (uintptr_t)m;
 		log.u_bbr.bw_inuse = (uintptr_t)le->m_head;
 		bintime2timeval(&lc->lro_last_queue_time, &btv);
-		log.u_bbr.flex6 = tcp_tv_to_usectick(&btv);
+		log.u_bbr.flex6 = tcp_tv_to_usec(&btv);
 		log.u_bbr.flex7 = le->compressed;
 		log.u_bbr.pacing_gain = le->uncompressed;
 		if (in_epoch(net_epoch_preempt))

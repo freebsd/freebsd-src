@@ -73,8 +73,8 @@ aoa_dma_set_program(struct aoa_dma *dma)
 	u_int32_t 		 addr;
 	int 			 i;
 
-	addr = (u_int32_t) sndbuf_getbufaddr(dma->buf);
-	KASSERT(dma->bufsz == sndbuf_getsize(dma->buf), ("bad size"));
+	addr = (u_int32_t)dma->buf->buf_addr;
+	KASSERT(dma->bufsz == dma->buf->bufsize, ("bad size"));
 
 	dma->slots = dma->bufsz / dma->blksz;
 

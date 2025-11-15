@@ -1,0 +1,183 @@
+.\" $NetBSD: libblocklist.3,v 1.7 2025/02/05 20:14:30 christos Exp $
+.\"
+.\" Copyright (c) 2015 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Christos Zoulas.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd February 5, 2025
+.Dt LIBBLOCKLIST 3
+.Os
+.Sh NAME
+.Nm blocklist_open ,
+.Nm blocklist_open2 ,
+.Nm blocklist_close ,
+.Nm blocklist_r ,
+.Nm blocklist ,
+.Nm blocklist_sa ,
+.Nm blocklist_sa_r
+.Nd Blocklistd notification library
+.Sh LIBRARY
+.Lb libblocklist
+.Sh SYNOPSIS
+.In blocklist.h
+.Ft struct blocklist *
+.Fn blocklist_open "void"
+.Ft struct blocklist *
+.Fn blocklist_open2 "void (*logger)(int, struct syslog_data *, va_list)"
+.Ft void
+.Fn blocklist_close "struct blocklist *cookie"
+.Ft int
+.Fn blocklist "int action" "int fd" "const char *msg"
+.Ft int
+.Fn blocklist_r "struct blocklist *cookie" "int action" "int fd" "const char *msg"
+.Ft int
+.Fn blocklist_sa "int action" "int fd" "const struct sockaddr *sa" "socklen_t salen" "const char *msg"
+.Ft int
+.Fn blocklist_sa_r "struct blocklist *cookie" "int action" "int fd" "const struct sockaddr *sa" "socklen_t salen" "const char *msg"
+.Sh DESCRIPTION
+These functions can be used by daemons to notify
+.Xr blocklistd 8
+about successful and failed remote connections so that blocklistd can
+block or release port access to prevent Denial of Service attacks.
+.Pp
+The function
+.Fn blocklist_open
+creates the necessary state to communicate with
+.Xr blocklistd 8
+and returns a pointer to it, or
+.Dv NULL
+on failure.
+.Pp
+The function
+.Fn blocklist_open2
+is similar to
+.Fn blocklist_open
+but allows a
+.Fa logger
+to be specified.
+If the
+.Fa logger
+is
+.Dv NULL ,
+then no logging is performed.
+.Pp
+The
+.Fn blocklist_close
+function frees all memory and resources used.
+.Pp
+The
+.Fn blocklist
+function sends a message to
+.Xr blocklistd 8 ,
+with an integer
+.Ar action
+argument specifying the type of notification,
+a file descriptor
+.Ar fd
+specifying the accepted file descriptor connected to the client,
+and an optional message in the
+.Ar msg
+argument.
+.Pp
+The
+.Ar action
+parameter can take these values:
+.Bl -tag -width ".Dv BLOCKLIST_ABUSIVE_BEHAVIOR"
+.It Dv BLOCKLIST_AUTH_FAIL
+There was an unsuccessful authentication attempt.
+.It Dv BLOCKLIST_AUTH_OK
+A user successfully authenticated.
+.It Dv BLOCKLIST_ABUSIVE_BEHAVIOR
+The sending daemon has detected abusive behavior
+from the remote system.
+The remote address should
+be blocked as soon as possible.
+.It Dv BLOCKLIST_BAD_USER
+The sending daemon has determined the username
+presented for authentication is invalid.
+The
+.Xr blocklistd 8
+daemon compares the username to a configured list of forbidden
+usernames and
+blocks the address immediately if a forbidden username matches.
+(The
+.Dv BLOCKLIST_BAD_USER
+support is not currently available.)
+.El
+.Pp
+The
+.Fn blocklist_r
+function is more efficient because it keeps the blocklist state around.
+.Pp
+The
+.Fn blocklist_sa
+and
+.Fn blocklist_sa_r
+functions can be used with unconnected sockets, where
+.Xr getpeername 2
+will not work, the server will pass the peer name in the message.
+.Pp
+In all cases the file descriptor passed in the
+.Fa fd
+argument must be pointing to a valid socket so that
+.Xr blocklistd 8
+can establish ownership of the local endpoint
+using
+.Xr getsockname 2 .
+.Pp
+By default,
+.Xr syslogd 8
+is used for message logging.
+The internal
+.Fn bl_create
+function can be used to create the required internal
+state and specify a custom logging function.
+.Sh RETURN VALUES
+The function
+.Fn blocklist_open
+returns a cookie on success and
+.Dv NULL
+on failure setting
+.Dv errno
+to an appropriate value.
+.Pp
+The functions
+.Fn blocklist ,
+.Fn blocklist_sa ,
+and
+.Fn blocklist_sa_r
+return
+.Dv 0
+on success and
+.Dv \-1
+on failure setting
+.Dv errno
+to an appropriate value.
+.Sh SEE ALSO
+.Xr blocklistd.conf 5 ,
+.Xr blocklistd 8
+.Sh AUTHORS
+.An Christos Zoulas

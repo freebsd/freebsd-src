@@ -55,9 +55,7 @@ int mode;
 int Dflag;
 
 int
-main(argc,argv)
-    int argc;
-    char **argv;
+main(int argc, char **argv)
 {
     char *argp;
 
@@ -131,8 +129,7 @@ static void process(void)
 
 #ifndef shsDigest
 static unsigned char *
-shsDigest(si)
-    SHS_INFO *si;
+shsDigest(SHS_INFO *si)
 {
     longReverse(si->digest, SHS_DIGESTSIZE);
     return (unsigned char*) si->digest;

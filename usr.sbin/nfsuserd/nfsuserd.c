@@ -421,8 +421,12 @@ main(int argc, char *argv[])
 			/* Get the group list for this user. */
 			ngroup = NGROUPS;
 			if (getgrouplist(pwd->pw_name, pwd->pw_gid, grps,
-			    &ngroup) < 0)
-				syslog(LOG_ERR, "Group list too small");
+			    &ngroup) < 0) {
+				syslog(LOG_ERR,
+				    "Group list of user '%s' too big",
+				    pwd->pw_name);
+				ngroup = NGROUPS;
+			}
 			nid.nid_ngroup = ngroup;
 			nid.nid_grps = grps;
 		} else {
@@ -621,8 +625,12 @@ nfsuserdsrv(struct svc_req *rqstp, SVCXPRT *transp)
 				/* Get the group list for this user. */
 				ngroup = NGROUPS;
 				if (getgrouplist(pwd->pw_name, pwd->pw_gid,
-				    grps, &ngroup) < 0)
-					syslog(LOG_ERR, "Group list too small");
+				    grps, &ngroup) < 0) {
+					syslog(LOG_ERR,
+					    "Group list of user '%s' too big",
+					    pwd->pw_name);
+					ngroup = NGROUPS;
+				}
 				nid.nid_ngroup = ngroup;
 				nid.nid_grps = grps;
 			} else {

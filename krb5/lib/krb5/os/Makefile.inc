@@ -1,5 +1,5 @@
 #
-# SPDX-License-Idendifier: BSD-2-Clause
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2025 FreeBSD Foundation
 #
@@ -10,6 +10,7 @@
 .PATH:	${KRB5_DIR}/lib/krb5/os
 
 SRCS+=	accessor.c \
+	addr.c \
 	c_ustime.c \
 	ccdefname.c \
 	changepw.c \

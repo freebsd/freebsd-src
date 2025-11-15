@@ -3574,7 +3574,7 @@ hn_rxpkt(struct hn_rx_ring *rxr)
 	}
 
 	/*
-	 * If VF is activated (tranparent/non-transparent mode does not
+	 * If VF is activated (transparent/non-transparent mode does not
 	 * matter here).
 	 *
 	 * - Disable LRO
@@ -3591,7 +3591,7 @@ hn_rxpkt(struct hn_rx_ring *rxr)
 		do_lro = 0;
 
 	/*
-	 * If VF is activated (tranparent/non-transparent mode does not
+	 * If VF is activated (transparent/non-transparent mode does not
 	 * matter here), do _not_ mess with unsupported hash types or
 	 * functions.
 	 */
@@ -7600,7 +7600,7 @@ hn_sysinit(void *arg __unused)
 	 */
 	if (hn_xpnt_vf && hn_use_if_start) {
 		hn_use_if_start = 0;
-		printf("hn: tranparent VF mode, if_transmit will be used, "
+		printf("hn: transparent VF mode, if_transmit will be used, "
 		    "instead of if_start\n");
 	}
 #endif

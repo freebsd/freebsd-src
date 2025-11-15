@@ -2827,7 +2827,7 @@ serviced_perturb_qname(struct ub_randstate* rnd, uint8_t* qbuf, size_t len)
 					random = ub_random(rnd);
 					bits = 30;
 				}
-				if(random & 0x1) {
+				if((random & 0x1)) {
 					*d = (uint8_t)toupper((unsigned char)*d);
 				} else {
 					*d = (uint8_t)tolower((unsigned char)*d);
@@ -2890,9 +2890,9 @@ serviced_encode(struct serviced_query* sq, sldns_buffer* buff, int with_edns)
 		edns.opt_list_inplace_cb_out = NULL;
 		edns.udp_size = serviced_query_udp_size(sq, sq->status);
 		edns.bits = 0;
-		if(sq->dnssec & EDNS_DO)
+		if((sq->dnssec & EDNS_DO))
 			edns.bits = EDNS_DO;
-		if(sq->dnssec & BIT_CD)
+		if((sq->dnssec & BIT_CD))
 			LDNS_CD_SET(sldns_buffer_begin(buff));
 		if (sq->ssl_upstream && sq->padding_block_size) {
 			padding_option.opt_code = LDNS_EDNS_PADDING;

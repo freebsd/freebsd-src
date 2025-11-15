@@ -72,8 +72,6 @@ SYSCTL_INT(_hw_snd, OID_AUTO, basename_clone, CTLFLAG_RWTUN,
 #define DSP_F_READ(x)		((x) & FREAD)
 #define DSP_F_WRITE(x)		((x) & FWRITE)
 
-#define OLDPCM_IOCTL
-
 static d_open_t dsp_open;
 static d_read_t dsp_read;
 static d_write_t dsp_write;
@@ -81,17 +79,19 @@ static d_ioctl_t dsp_ioctl;
 static d_poll_t dsp_poll;
 static d_mmap_t dsp_mmap;
 static d_mmap_single_t dsp_mmap_single;
+static d_kqfilter_t dsp_kqfilter;
 
 struct cdevsw dsp_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	dsp_open,
-	.d_read =	dsp_read,
-	.d_write =	dsp_write,
-	.d_ioctl =	dsp_ioctl,
-	.d_poll =	dsp_poll,
-	.d_mmap =	dsp_mmap,
-	.d_mmap_single = dsp_mmap_single,
-	.d_name =	"dsp",
+	.d_version	= D_VERSION,
+	.d_open		= dsp_open,
+	.d_read		= dsp_read,
+	.d_write	= dsp_write,
+	.d_ioctl	= dsp_ioctl,
+	.d_poll		= dsp_poll,
+	.d_kqfilter	= dsp_kqfilter,
+	.d_mmap		= dsp_mmap,
+	.d_mmap_single	= dsp_mmap_single,
+	.d_name		= "dsp",
 };
 
 static eventhandler_tag dsp_ehtag = NULL;
@@ -299,7 +299,7 @@ dsp_close(void *data)
 			CHN_LOCK(rdch);
 			chn_abort(rdch); /* won't sleep */
 			rdch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
-			    CHN_F_DEAD | CHN_F_EXCLUSIVE);
+			    CHN_F_DEAD | CHN_F_EXCLUSIVE | CHN_F_NBIO);
 			chn_reset(rdch, 0, 0);
 			chn_release(rdch);
 			if (rdch->flags & CHN_F_VIRTUAL) {
@@ -323,7 +323,7 @@ dsp_close(void *data)
 			CHN_LOCK(wrch);
 			chn_flush(wrch); /* may sleep */
 			wrch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
-			    CHN_F_DEAD | CHN_F_EXCLUSIVE);
+			    CHN_F_DEAD | CHN_F_EXCLUSIVE | CHN_F_NBIO);
 			chn_reset(wrch, 0, 0);
 			chn_release(wrch);
 			if (wrch->flags & CHN_F_VIRTUAL) {
@@ -462,14 +462,10 @@ static __inline int
 dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 {
 	struct snddev_info *d;
-	struct pcm_channel **ch;
+	struct pcm_channel *ch;
 	int (*chn_io)(struct pcm_channel *, struct uio *);
 	int prio, ret;
 	pid_t runpid;
-
-	KASSERT(buf != NULL &&
-	    (buf->uio_rw == UIO_READ || buf->uio_rw == UIO_WRITE),
-	    ("%s(): io train wreck!", __func__));
 
 	d = priv->sc;
 	if (!DSP_REGISTERED(d))
@@ -480,16 +476,13 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 	switch (buf->uio_rw) {
 	case UIO_READ:
 		prio = FREAD;
-		ch = &priv->rdch;
+		ch = priv->rdch;
 		chn_io = chn_read;
 		break;
 	case UIO_WRITE:
 		prio = FWRITE;
-		ch = &priv->wrch;
+		ch = priv->wrch;
 		chn_io = chn_write;
-		break;
-	default:
-		panic("invalid/corrupted uio direction: %d", buf->uio_rw);
 		break;
 	}
 
@@ -497,21 +490,21 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 
 	dsp_lock_chans(priv, prio);
 
-	if (*ch == NULL || !((*ch)->flags & CHN_F_BUSY)) {
+	if (ch == NULL || !(ch->flags & CHN_F_BUSY)) {
 		if (priv->rdch != NULL || priv->wrch != NULL)
 			dsp_unlock_chans(priv, prio);
 		PCM_GIANT_EXIT(d);
 		return (EBADF);
 	}
 
-	if (((*ch)->flags & (CHN_F_MMAP | CHN_F_DEAD)) ||
-	    (((*ch)->flags & CHN_F_RUNNING) && (*ch)->pid != runpid)) {
+	if (ch->flags & (CHN_F_MMAP | CHN_F_DEAD) ||
+	    (ch->flags & CHN_F_RUNNING && ch->pid != runpid)) {
 		dsp_unlock_chans(priv, prio);
 		PCM_GIANT_EXIT(d);
 		return (EINVAL);
-	} else if (!((*ch)->flags & CHN_F_RUNNING)) {
-		(*ch)->flags |= CHN_F_RUNNING;
-		(*ch)->pid = runpid;
+	} else if (!(ch->flags & CHN_F_RUNNING)) {
+		ch->flags |= CHN_F_RUNNING;
+		ch->pid = runpid;
 	}
 
 	/*
@@ -519,11 +512,11 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 	 * from/to userland, so up the "in progress" counter to make sure
 	 * someone else doesn't come along and muss up the buffer.
 	 */
-	++(*ch)->inprog;
-	ret = chn_io(*ch, buf);
-	--(*ch)->inprog;
+	ch->inprog++;
+	ret = chn_io(ch, buf);
+	ch->inprog--;
 
-	CHN_BROADCAST(&(*ch)->cv);
+	CHN_BROADCAST(&ch->cv);
 
 	dsp_unlock_chans(priv, prio);
 
@@ -671,6 +664,43 @@ dsp_ioctl_channel(struct dsp_cdevpriv *priv, struct pcm_channel *ch,
 	return (0);
 }
 
+#ifdef COMPAT_FREEBSD32
+typedef struct _snd_chan_param32 {
+	uint32_t	play_rate;
+	uint32_t	rec_rate;
+	uint32_t	play_format;
+	uint32_t	rec_format;
+} snd_chan_param32;
+#define AIOGFMT32    _IOC_NEWTYPE(AIOGFMT, snd_chan_param32)
+#define AIOSFMT32    _IOC_NEWTYPE(AIOSFMT, snd_chan_param32)
+
+typedef struct _snd_capabilities32 {
+	uint32_t	rate_min, rate_max;
+	uint32_t	formats;
+	uint32_t	bufsize;
+	uint32_t	mixers;
+	uint32_t	inputs;
+	uint16_t	left, right;
+} snd_capabilities32;
+#define AIOGCAP32 _IOC_NEWTYPE(AIOGCAP, snd_capabilities32)
+
+typedef struct audio_errinfo32
+{
+	int32_t		play_underruns;
+	int32_t		rec_overruns;
+	uint32_t	play_ptradjust;
+	uint32_t	rec_ptradjust;
+	int32_t		play_errorcount;
+	int32_t		rec_errorcount;
+	int32_t		play_lasterror;
+	int32_t		rec_lasterror;
+	int32_t		play_errorparm;
+	int32_t		rec_errorparm;
+	int32_t		filler[16];
+} audio_errinfo32;
+#define SNDCTL_DSP_GETERROR32 _IOC_NEWTYPE(SNDCTL_DSP_GETERROR, audio_errinfo32)
+#endif
+
 static int
 dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
     struct thread *td)
@@ -769,10 +799,6 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	}
 
     	switch(cmd) {
-#ifdef OLDPCM_IOCTL
-    	/*
-     	 * we start with the new ioctl interface.
-     	 */
     	case AIONWRITE:	/* how many bytes can write ? */
 		if (wrch) {
 			CHN_LOCK(wrch);
@@ -798,13 +824,13 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	    		if (wrch) {
 				CHN_LOCK(wrch);
 				chn_setblocksize(wrch, 2, p->play_size);
-				p->play_size = sndbuf_getblksz(wrch->bufsoft);
+				p->play_size = wrch->bufsoft->blksz;
 				CHN_UNLOCK(wrch);
 			}
 	    		if (rdch) {
 				CHN_LOCK(rdch);
 				chn_setblocksize(rdch, 2, p->rec_size);
-				p->rec_size = sndbuf_getblksz(rdch->bufsoft);
+				p->rec_size = rdch->bufsoft->blksz;
 				CHN_UNLOCK(rdch);
 			}
 			PCM_RELEASE_QUICK(d);
@@ -816,12 +842,12 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 
 	    		if (wrch) {
 				CHN_LOCK(wrch);
-				p->play_size = sndbuf_getblksz(wrch->bufsoft);
+				p->play_size = wrch->bufsoft->blksz;
 				CHN_UNLOCK(wrch);
 			}
 	    		if (rdch) {
 				CHN_LOCK(rdch);
-				p->rec_size = sndbuf_getblksz(rdch->bufsoft);
+				p->rec_size = rdch->bufsoft->blksz;
 				CHN_UNLOCK(rdch);
 			}
 		}
@@ -829,9 +855,25 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 
     	case AIOSFMT:
     	case AIOGFMT:
+#ifdef COMPAT_FREEBSD32
+	case AIOSFMT32:
+	case AIOGFMT32:
+#endif
 		{
 	    		snd_chan_param *p = (snd_chan_param *)arg;
 
+#ifdef COMPAT_FREEBSD32
+			snd_chan_param32 *p32 = (snd_chan_param32 *)arg;
+			snd_chan_param param;
+
+			if (cmd == AIOSFMT32) {
+				p = &param;
+				p->play_rate = p32->play_rate;
+				p->rec_rate = p32->rec_rate;
+				p->play_format = p32->play_format;
+				p->rec_format = p32->rec_format;
+			}
+#endif
 			if (cmd == AIOSFMT &&
 			    ((p->play_format != 0 && p->play_rate == 0) ||
 			    (p->rec_format != 0 && p->rec_rate == 0))) {
@@ -872,15 +914,41 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	    			p->rec_format = 0;
 	    		}
 			PCM_RELEASE_QUICK(d);
+#ifdef COMPAT_FREEBSD32
+			if (cmd == AIOSFMT32 || cmd == AIOGFMT32) {
+				p32->play_rate = p->play_rate;
+				p32->rec_rate = p->rec_rate;
+				p32->play_format = p->play_format;
+				p32->rec_format = p->rec_format;
+			}
+#endif
 		}
 		break;
 
     	case AIOGCAP:     /* get capabilities */
+#ifdef COMPAT_FREEBSD32
+	case AIOGCAP32:
+#endif
 		{
 	    		snd_capabilities *p = (snd_capabilities *)arg;
 			struct pcmchan_caps *pcaps = NULL, *rcaps = NULL;
 			struct cdev *pdev;
+#ifdef COMPAT_FREEBSD32
+			snd_capabilities32 *p32 = (snd_capabilities32 *)arg;
+			snd_capabilities capabilities;
 
+			if (cmd == AIOGCAP32) {
+				p = &capabilities;
+				p->rate_min = p32->rate_min;
+				p->rate_max = p32->rate_max;
+				p->formats = p32->formats;
+				p->bufsize = p32->bufsize;
+				p->mixers = p32->mixers;
+				p->inputs = p32->inputs;
+				p->left = p32->left;
+				p->right = p32->right;
+			}
+#endif
 			PCM_LOCK(d);
 			if (rdch) {
 				CHN_LOCK(rdch);
@@ -894,8 +962,8 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	                      		  pcaps? pcaps->minspeed : 0);
 	    		p->rate_max = min(rcaps? rcaps->maxspeed : 1000000,
 	                      		  pcaps? pcaps->maxspeed : 1000000);
-	    		p->bufsize = min(rdch? sndbuf_getsize(rdch->bufsoft) : 1000000,
-	                     		 wrch? sndbuf_getsize(wrch->bufsoft) : 1000000);
+			p->bufsize = min(rdch? rdch->bufsoft->bufsize : 1000000,
+					 wrch? wrch->bufsoft->bufsize : 1000000);
 			/* XXX bad on sb16 */
 	    		p->formats = (rdch? chn_getformats(rdch) : 0xffffffff) &
 			 	     (wrch? chn_getformats(wrch) : 0xffffffff);
@@ -913,6 +981,18 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 			if (rdch)
 				CHN_UNLOCK(rdch);
 			PCM_UNLOCK(d);
+#ifdef COMPAT_FREEBSD32
+			if (cmd == AIOGCAP32) {
+				p32->rate_min = p->rate_min;
+				p32->rate_max = p->rate_max;
+				p32->formats = p->formats;
+				p32->bufsize = p->bufsize;
+				p32->mixers = p->mixers;
+				p32->inputs = p->inputs;
+				p32->left = p->left;
+				p32->right = p->right;
+			}
+#endif
 		}
 		break;
 
@@ -935,10 +1015,6 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		printf("AIOSYNC chan 0x%03lx pos %lu unimplemented\n",
 	    		((snd_sync_parm *)arg)->chan, ((snd_sync_parm *)arg)->pos);
 		break;
-#endif
-	/*
-	 * here follow the standard ioctls (filio.h etc.)
-	 */
     	case FIONREAD: /* get # bytes to read */
 		if (rdch) {
 			CHN_LOCK(rdch);
@@ -977,16 +1053,11 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		}
 		break;
 
-    	/*
-	 * Finally, here is the linux-compatible ioctl interface
-	 */
-#define THE_REAL_SNDCTL_DSP_GETBLKSIZE _IOWR('P', 4, int)
-    	case THE_REAL_SNDCTL_DSP_GETBLKSIZE:
     	case SNDCTL_DSP_GETBLKSIZE:
 		chn = wrch ? wrch : rdch;
 		if (chn) {
 			CHN_LOCK(chn);
-			*arg_i = sndbuf_getblksz(chn->bufsoft);
+			*arg_i = chn->bufsoft->blksz;
 			CHN_UNLOCK(chn);
 		} else {
 			*arg_i = 0;
@@ -1224,8 +1295,8 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		    	if (rdch) {
 				CHN_LOCK(rdch);
 				ret = chn_setblocksize(rdch, maxfrags, fragsz);
-				r_maxfrags = sndbuf_getblkcnt(rdch->bufsoft);
-				r_fragsz = sndbuf_getblksz(rdch->bufsoft);
+				r_maxfrags = rdch->bufsoft->blkcnt;
+				r_fragsz = rdch->bufsoft->blksz;
 				CHN_UNLOCK(rdch);
 			} else {
 				r_maxfrags = maxfrags;
@@ -1234,8 +1305,8 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		    	if (wrch && ret == 0) {
 				CHN_LOCK(wrch);
 				ret = chn_setblocksize(wrch, maxfrags, fragsz);
- 				maxfrags = sndbuf_getblkcnt(wrch->bufsoft);
-				fragsz = sndbuf_getblksz(wrch->bufsoft);
+				maxfrags = wrch->bufsoft->blkcnt;
+				fragsz = wrch->bufsoft->blksz;
 				CHN_UNLOCK(wrch);
 			} else { /* use whatever came from the read channel */
 				maxfrags = r_maxfrags;
@@ -1261,9 +1332,9 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 
 				CHN_LOCK(rdch);
 				a->bytes = sndbuf_getready(bs);
-	        		a->fragments = a->bytes / sndbuf_getblksz(bs);
-	        		a->fragstotal = sndbuf_getblkcnt(bs);
-	        		a->fragsize = sndbuf_getblksz(bs);
+				a->fragments = a->bytes / bs->blksz;
+				a->fragstotal = bs->blkcnt;
+				a->fragsize = bs->blksz;
 				CHN_UNLOCK(rdch);
 	    		} else
 				ret = EINVAL;
@@ -1279,9 +1350,9 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 
 				CHN_LOCK(wrch);
 				a->bytes = sndbuf_getfree(bs);
-	        		a->fragments = a->bytes / sndbuf_getblksz(bs);
-	        		a->fragstotal = sndbuf_getblkcnt(bs);
-	        		a->fragsize = sndbuf_getblksz(bs);
+				a->fragments = a->bytes / bs->blksz;
+				a->fragstotal = bs->blkcnt;
+				a->fragsize = bs->blksz;
 				CHN_UNLOCK(wrch);
 	    		} else
 				ret = EINVAL;
@@ -1295,7 +1366,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	        		struct snd_dbuf *bs = rdch->bufsoft;
 
 				CHN_LOCK(rdch);
-	        		a->bytes = sndbuf_gettotal(bs);
+				a->bytes = bs->total;
 	        		a->blocks = sndbuf_getblocks(bs) - rdch->blocks;
 	        		a->ptr = sndbuf_getfreeptr(bs);
 				rdch->blocks = sndbuf_getblocks(bs);
@@ -1312,7 +1383,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	        		struct snd_dbuf *bs = wrch->bufsoft;
 
 				CHN_LOCK(wrch);
-	        		a->bytes = sndbuf_gettotal(bs);
+				a->bytes = bs->total;
 	        		a->blocks = sndbuf_getblocks(bs) - wrch->blocks;
 	        		a->ptr = sndbuf_getreadyptr(bs);
 				wrch->blocks = sndbuf_getblocks(bs);
@@ -1599,8 +1670,8 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 
 			CHN_LOCK(chn);
 			bs = chn->bufsoft;
-			oc->samples = sndbuf_gettotal(bs) / sndbuf_getalign(bs);
-			oc->fifo_samples = sndbuf_getready(bs) / sndbuf_getalign(bs);
+			oc->samples = bs->total / bs->align;
+			oc->fifo_samples = sndbuf_getready(bs) / bs->align;
 			CHN_UNLOCK(chn);
 		}
 		break;
@@ -1635,6 +1706,9 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		break;
 
 	case SNDCTL_DSP_GETERROR:
+#ifdef COMPAT_FREEBSD32
+	case SNDCTL_DSP_GETERROR32:
+#endif
 	/*
 	 * OSSv4 docs:  "All errors and counters will automatically be
 	 * cleared to zeroes after the call so each call will return only
@@ -1644,6 +1718,14 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	 */
 		{
 			audio_errinfo *ei = (audio_errinfo *)arg;
+#ifdef COMPAT_FREEBSD32
+			audio_errinfo errinfo;
+			audio_errinfo32 *ei32 = (audio_errinfo32 *)arg;
+
+			if (cmd == SNDCTL_DSP_GETERROR32) {
+				ei = &errinfo;
+			}
+#endif
 
 			bzero((void *)ei, sizeof(*ei));
 
@@ -1659,6 +1741,21 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 				rdch->xruns = 0;
 				CHN_UNLOCK(rdch);
 			}
+#ifdef COMPAT_FREEBSD32
+			if (cmd == SNDCTL_DSP_GETERROR32) {
+				bzero((void *)ei32, sizeof(*ei32));
+				ei32->play_underruns = ei->play_underruns;
+				ei32->rec_overruns = ei->rec_overruns;
+				ei32->play_ptradjust = ei->play_ptradjust;
+				ei32->rec_ptradjust = ei->rec_ptradjust;
+				ei32->play_errorcount = ei->play_errorcount;
+				ei32->rec_errorcount = ei->rec_errorcount;
+				ei32->play_lasterror = ei->play_lasterror;
+				ei32->rec_lasterror = ei->rec_lasterror;
+				ei32->play_errorparm = ei->play_errorparm;
+				ei32->rec_errorparm = ei->rec_errorparm;
+			}
+#endif
 		}
 		break;
 
@@ -1875,7 +1972,7 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 
 	c = ((nprot & PROT_WRITE) != 0) ? wrch : rdch;
 	if (c == NULL || (c->flags & CHN_F_MMAP_INVALID) ||
-	    (*offset  + size) > sndbuf_getallocsize(c->bufsoft) ||
+	    (*offset  + size) > c->bufsoft->allocsize ||
 	    (wrch != NULL && (wrch->flags & CHN_F_MMAP_INVALID)) ||
 	    (rdch != NULL && (rdch->flags & CHN_F_MMAP_INVALID))) {
 		dsp_unlock_chans(priv, FREAD | FWRITE);
@@ -2843,6 +2940,86 @@ dsp_oss_getchannelmask(struct pcm_channel *wrch, struct pcm_channel *rdch,
 		*mask = chnmask;
 
 	return (ret);
+}
+
+static void
+dsp_kqdetach(struct knote *kn)
+{
+	struct pcm_channel *ch = kn->kn_hook;
+
+	if (ch == NULL)
+		return;
+	CHN_LOCK(ch);
+	knlist_remove(&ch->bufsoft->sel.si_note, kn, 1);
+	CHN_UNLOCK(ch);
+}
+
+static int
+dsp_kqevent(struct knote *kn, long hint)
+{
+	struct pcm_channel *ch = kn->kn_hook;
+
+	CHN_LOCKASSERT(ch);
+	if (ch->flags & CHN_F_DEAD) {
+		kn->kn_flags |= EV_EOF;
+		return (1);
+	}
+	kn->kn_data = 0;
+	if (chn_polltrigger(ch)) {
+		if (kn->kn_filter == EVFILT_READ)
+			kn->kn_data = sndbuf_getready(ch->bufsoft);
+		else
+			kn->kn_data = sndbuf_getfree(ch->bufsoft);
+	}
+
+	return (kn->kn_data > 0);
+}
+
+static const struct filterops dsp_filtops = {
+	.f_isfd = 1,
+	.f_detach = dsp_kqdetach,
+	.f_event = dsp_kqevent,
+};
+
+static int
+dsp_kqfilter(struct cdev *dev, struct knote *kn)
+{
+	struct dsp_cdevpriv *priv;
+	struct snddev_info *d;
+	struct pcm_channel *ch;
+	int err = 0;
+
+	if ((err = devfs_get_cdevpriv((void **)&priv)) != 0)
+		return (err);
+
+	d = priv->sc;
+	if (!DSP_REGISTERED(d))
+		return (EBADF);
+	PCM_GIANT_ENTER(d);
+	switch (kn->kn_filter) {
+	case EVFILT_READ:
+		ch = priv->rdch;
+		break;
+	case EVFILT_WRITE:
+		ch = priv->wrch;
+		break;
+	default:
+		kn->kn_hook = NULL;
+		err = EINVAL;
+		ch = NULL;
+		break;
+	}
+	if (ch != NULL) {
+		kn->kn_fop = &dsp_filtops;
+		CHN_LOCK(ch);
+		knlist_add(&ch->bufsoft->sel.si_note, kn, 1);
+		CHN_UNLOCK(ch);
+		kn->kn_hook = ch;
+	} else
+		err = EINVAL;
+	PCM_GIANT_LEAVE(d);
+
+	return (err);
 }
 
 #ifdef OSSV4_EXPERIMENT

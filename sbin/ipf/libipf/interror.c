@@ -17,7 +17,7 @@ typedef	struct	{
 
 static ipf_error_entry_t *find_error(int);
 
-#define	IPF_NUM_ERRORS	477
+#define	IPF_NUM_ERRORS	sizeof(ipf_errors) / sizeof(ipf_error_entry_t)
 
 /*
  * NO REUSE OF NUMBERS!
@@ -25,7 +25,7 @@ static ipf_error_entry_t *find_error(int);
  * IF YOU WANT TO ADD AN ERROR TO THIS TABLE, _ADD_ A NEW NUMBER.
  * DO _NOT_ USE AN EMPTY NUMBER OR FILL IN A GAP.
  */
-static ipf_error_entry_t ipf_errors[IPF_NUM_ERRORS] = {
+static ipf_error_entry_t ipf_errors[] = {
 	{	1,	"auth table locked/full" },
 	{	2,	"" },
 	{	3,	"copyinptr received bad address" },
@@ -228,6 +228,8 @@ static ipf_error_entry_t ipf_errors[IPF_NUM_ERRORS] = {
 	{	30024,	"object size incorrect for hash table" },
 	{	30025,	"hash table size must be at least 1"},
 	{	30026,	"cannot allocate memory for hash table context" },
+	{	30027,	"hash table larger than maximum allowed" },
+	{	30028,	"hash table multiplication overflow" },
 /* -------------------------------------------------------------------------- */
 	{	40001,	"invalid minor device number for log read" },
 	{	40002,	"read size too small" },

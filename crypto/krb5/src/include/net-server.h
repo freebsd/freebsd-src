@@ -30,17 +30,10 @@
 #define NET_SERVER_H
 
 #include <verto.h>
+#include <gssrpc/rpc.h>
 
 /* The delimiter characters supported by the addresses string. */
 #define ADDRESSES_DELIM ",; "
-
-typedef struct _krb5_fulladdr {
-    krb5_address *      address;
-    krb5_ui_4           port;
-} krb5_fulladdr;
-
-/* exported from network.c */
-void init_addr(krb5_fulladdr *, struct sockaddr *);
 
 /* exported from net-server.c */
 verto_ctx *loop_init(verto_ev_type types);
@@ -64,13 +57,15 @@ krb5_error_code loop_add_udp_address(int default_port, const char *addresses);
 krb5_error_code loop_add_tcp_address(int default_port, const char *addresses);
 krb5_error_code loop_add_rpc_service(int default_port, const char *addresses,
                                      u_long prognum, u_long versnum,
-                                     void (*dispatchfn)());
+                                     void (*dispatchfn)(struct svc_req *,
+                                                        SVCXPRT *));
+krb5_error_code loop_add_unix_socket(const char *socket_paths);
 
 krb5_error_code loop_setup_network(verto_ctx *ctx, void *handle,
                                    const char *progname,
                                    int tcp_listen_backlog);
 krb5_error_code loop_setup_signals(verto_ctx *ctx, void *handle,
-                                   void (*reset)());
+                                   void (*reset)(void *));
 void loop_free(verto_ctx *ctx);
 
 /* to be supplied by the server application */
@@ -86,8 +81,8 @@ void loop_free(verto_ctx *ctx);
  */
 typedef void (*loop_respond_fn)(void *arg, krb5_error_code code,
                                 krb5_data *response);
-void dispatch(void *handle, const krb5_fulladdr *local_addr,
-              const krb5_fulladdr *remote_addr, krb5_data *request,
+void dispatch(void *handle, const struct sockaddr *local_addr,
+              const struct sockaddr *remote_addr, krb5_data *request,
               int is_tcp, verto_ctx *vctx, loop_respond_fn respond, void *arg);
 krb5_error_code make_toolong_error (void *handle, krb5_data **);
 

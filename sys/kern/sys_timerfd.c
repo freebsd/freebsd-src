@@ -206,7 +206,6 @@ retry:
 			mtx_unlock(&tfd->tfd_lock);
 			return (EAGAIN);
 		}
-		td->td_rtcgen = atomic_load_acq_int(&rtc_generation);
 		error = mtx_sleep(&tfd->tfd_count, &tfd->tfd_lock,
 		    PCATCH, "tfdrd", 0);
 		if (error == 0) {

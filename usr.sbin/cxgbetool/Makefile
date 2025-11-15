@@ -6,6 +6,7 @@ SRCS+=	tcb_common.c
 SRCS+=	tcbinfot4.c tcbshowt4.c
 SRCS+=	tcbinfot5.c tcbshowt5.c
 SRCS+=	tcbinfot6.c tcbshowt6.c
+SRCS+=	tcbinfot7.c tcbshowt7.c
 CFLAGS+= -I${SRCTOP}/sys/dev/cxgbe -I${SRCTOP}/sys -I.
 LIBADD=	pcap
 WARNS?= 2

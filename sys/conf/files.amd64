@@ -13,14 +13,14 @@ include 	"conf/files.x86"
 #
 elf-vdso.so.o			standard				\
 	dependency	"$S/amd64/amd64/sigtramp.S assym.inc $S/conf/vdso_amd64.ldscript $S/tools/amd64_vdso.sh" \
-	compile-with	"env AWK='${AWK}' NM='${NM}' LD='${LD}' CC='${CC}' DEBUG='${DEBUG}' OBJCOPY='${OBJCOPY}' ELFDUMP='${ELFDUMP}' S='${S}' sh $S/tools/amd64_vdso.sh" \
+	compile-with	"env AWK='${AWK}' NM='${NM}' LD='${LD}' CC='${CC}' OBJCOPY='${OBJCOPY}' ELFDUMP='${ELFDUMP}' S='${S}' sh $S/tools/amd64_vdso.sh" \
 	no-ctfconvert	\
 	no-implicit-rule before-depend	\
 	clean		"elf-vdso.so.o elf-vdso.so.1 vdso_offsets.h sigtramp.pico"
 #
 elf-vdso32.so.o			optional	compat_freebsd32		\
 	dependency	"$S/amd64/ia32/ia32_sigtramp.S ia32_assym.h $S/conf/vdso_amd64_ia32.ldscript $S/tools/amd64_ia32_vdso.sh" \
-	compile-with	"env AWK='${AWK}' NM='${NM}' LD='${LD}' CC='${CC}' DEBUG='${DEBUG}' OBJCOPY='${OBJCOPY}' ELFDUMP='${ELFDUMP}' S='${S}' sh $S/tools/amd64_ia32_vdso.sh" \
+	compile-with	"env AWK='${AWK}' NM='${NM}' LD='${LD}' CC='${CC}' OBJCOPY='${OBJCOPY}' ELFDUMP='${ELFDUMP}' S='${S}' sh $S/tools/amd64_ia32_vdso.sh" \
 	no-ctfconvert	\
 	no-implicit-rule before-depend	\
 	clean		"elf-vdso32.so.o elf-vdso32.so.1 vdso_ia32_offsets.h ia32_sigtramp.pico"
@@ -77,6 +77,8 @@ amd64/amd64/fpu.c		standard
 amd64/amd64/gdb_machdep.c	optional	gdb
 amd64/amd64/initcpu.c		standard
 amd64/amd64/io.c		optional	io
+amd64/amd64/kexec_support.c	standard
+amd64/amd64/kexec_tramp.S	standard
 amd64/amd64/locore.S		standard	no-obj
 amd64/amd64/xen-locore.S	optional	xenhvm \
 	compile-with "${NORMAL_S} -g0" \
@@ -107,7 +109,8 @@ crypto/openssl/amd64/poly1305-x86_64.S	optional ossl
 crypto/openssl/amd64/sha1-x86_64.S	optional ossl
 crypto/openssl/amd64/sha256-x86_64.S	optional ossl
 crypto/openssl/amd64/sha512-x86_64.S	optional ossl
-crypto/openssl/amd64/ossl_aes_gcm.c	optional ossl
+crypto/openssl/amd64/ossl_aes_gcm_avx512.c	optional ossl
+crypto/openssl/ossl_aes_gcm.c	optional ossl
 dev/amdgpio/amdgpio.c		optional	amdgpio
 dev/axgbe/if_axgbe_pci.c	optional	axp
 dev/axgbe/xgbe-desc.c		optional	axp
@@ -418,6 +421,9 @@ contrib/openzfs/module/icp/asm-x86_64/blake3/blake3_avx2.S      optional zfs com
 contrib/openzfs/module/icp/asm-x86_64/blake3/blake3_avx512.S    optional zfs compile-with "${ZFS_S}"
 contrib/openzfs/module/icp/asm-x86_64/blake3/blake3_sse2.S      optional zfs compile-with "${ZFS_S}"
 contrib/openzfs/module/icp/asm-x86_64/blake3/blake3_sse41.S     optional zfs compile-with "${ZFS_S}"
+
+# zfs AVX2 implementation of aes-gcm from BoringSSL
+contrib/openzfs/module/icp/asm-x86_64/modes/aesni-gcm-avx2-vaes.S	optional zfs compile-with "${ZFS_S}"
 
 # zfs sha2 hash support
 zfs-sha256-x86_64.o		optional	zfs			\

@@ -1792,7 +1792,7 @@ linux_memfd_create(struct thread *td, struct linux_memfd_create_args *args)
 	if ((flags & MFD_ALLOW_SEALING) != 0)
 		shmflags |= SHM_ALLOW_SEALING;
 	return (kern_shm_open2(td, SHM_ANON, oflags, 0, shmflags, NULL,
-	    memfd_name));
+	    memfd_name, NULL));
 }
 
 int

@@ -11,9 +11,8 @@
 
 void dump_profile (struct profile_node *root, int level);
 
-int main(argc, argv)
-    int     argc;
-    char    **argv;
+int
+main(int argc, char **argv)
 {
     struct profile_node *root;
     unsigned long retval;

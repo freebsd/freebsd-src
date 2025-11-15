@@ -54,7 +54,8 @@ uint8_t test_case[NTESTS][4 * B] = {
 aes_encrypt_ctx ctx;
 aes_decrypt_ctx dctx;
 
-static void init ()
+static void
+init (void)
 {
     AES_RETURN r;
 
@@ -71,7 +72,8 @@ static void hexdump(const unsigned char *ptr, size_t len)
 	printf ("%s%02X", (i % 16 == 0) ? "\n    " : " ", ptr[i]);
 }
 
-static void fips_test ()
+static void
+fips_test (void)
 {
     static const unsigned char fipskey[16] = {
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
@@ -254,7 +256,8 @@ cts_dec (unsigned char *out, unsigned char *in, unsigned char *iv,
     memcpy(out+B, pn, len-B);
 }
 
-static void ecb_test ()
+static void
+ecb_test (void)
 {
     unsigned int testno;
     uint8_t output[4 * B], tmp[4 * B];
@@ -285,7 +288,8 @@ static void ecb_test ()
 
 unsigned char ivec[16] = { 0 };
 
-static void cbc_test ()
+static void
+cbc_test (void)
 {
     unsigned int testno;
     uint8_t output[4 * B], tmp[4 * B];
@@ -314,7 +318,8 @@ static void cbc_test ()
     printf ("\n");
 }
 
-static void cts_test ()
+static void
+cts_test (void)
 {
     unsigned int testno;
     uint8_t output[4 * B], tmp[4 * B];
@@ -339,7 +344,8 @@ static void cts_test ()
     printf ("\n");
 }
 
-int main ()
+int
+main (void)
 {
     init ();
     fips_test ();

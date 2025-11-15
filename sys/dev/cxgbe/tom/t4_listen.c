@@ -508,10 +508,11 @@ send_flowc_wr_synqe(struct adapter *sc, struct synq_entry *synqe)
 	    V_FW_WR_FLOWID(synqe->tid));
 	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_PFNVFN;
 	flowc->mnemval[0].val = htobe32(pfvf);
+	/* Firmware expects hw port and will translate to channel itself. */
 	flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
-	flowc->mnemval[1].val = htobe32(pi->tx_chan);
+	flowc->mnemval[1].val = htobe32(pi->hw_port);
 	flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
-	flowc->mnemval[2].val = htobe32(pi->tx_chan);
+	flowc->mnemval[2].val = htobe32(pi->hw_port);
 	flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
 	flowc->mnemval[3].val = htobe32(ofld_rxq->iq.abs_id);
 	flowc->mnemval[4].mnemonic = FW_FLOWC_MNEM_SNDBUF;
@@ -1507,6 +1508,8 @@ found:
 
 	init_conn_params(vi, &settings, &inc, so, &cpl->tcpopt, e->idx,
 	    &synqe->params);
+	if (sc->params.tid_qid_sel_mask != 0)
+		update_tid_qid_sel(vi, &synqe->params, tid);
 
 	/*
 	 * If all goes well t4_syncache_respond will get called during

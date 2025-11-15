@@ -19,7 +19,8 @@ struct {
 } test_case[NTESTS];
 camellia_ctx ctx, dctx;
 
-static void init ()
+static void
+init (void)
 {
     size_t i, j;
     cam_rval r;
@@ -46,7 +47,8 @@ static void hexdump(const unsigned char *ptr, size_t len)
 	printf ("%s%02X", (i % 16 == 0) ? "\n    " : " ", ptr[i]);
 }
 
-static void fips_test ()
+static void
+fips_test (void)
 {
     static const unsigned char fipskey[16] = {
 	0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
@@ -234,7 +236,8 @@ cts_dec (unsigned char *out, unsigned char *in, unsigned char *iv,
     memcpy(out+B, pn, len-B);
 }
 
-static void ecb_test ()
+static void
+ecb_test (void)
 {
     size_t testno;
     unsigned char tmp[4*B];
@@ -265,7 +268,8 @@ static void ecb_test ()
 
 unsigned char ivec[16] = { 0 };
 
-static void cbc_test ()
+static void
+cbc_test (void)
 {
     size_t testno;
     unsigned char tmp[4*B];
@@ -294,7 +298,8 @@ static void cbc_test ()
     printf ("\n");
 }
 
-static void cts_test ()
+static void
+cts_test (void)
 {
     size_t testno;
     unsigned char tmp[4*B];
@@ -319,7 +324,8 @@ static void cts_test ()
     printf ("\n");
 }
 
-int main ()
+int
+main (void)
 {
     init ();
     fips_test ();

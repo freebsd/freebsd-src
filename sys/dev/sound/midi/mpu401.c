@@ -49,10 +49,6 @@
 #include "mpu_if.h"
 #include "mpufoi_if.h"
 
-#ifndef KOBJMETHOD_END
-#define KOBJMETHOD_END	{ NULL, NULL }
-#endif
-
 #define MPU_DATAPORT   0
 #define MPU_CMDPORT    1
 #define MPU_STATPORT   1

@@ -29,8 +29,8 @@ DEFINE_TEST(test_read_filter_gzip_recursive)
 	const char *name = "test_read_filter_gzip_recursive.gz";
 	struct archive *a;
 
-	if (!canGzip()) {
-		skipping("gzip not available");
+	if (archive_zlib_version() == NULL) {
+		skipping("zlib not available");
 		return;
 	}
 

@@ -5,10 +5,12 @@
  *
  */
 
+#include <sys/capsicum.h>
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,42 +40,42 @@ static const char *fmt_flags(int);
 int
 main(int argc, char **argv)
 {
-	struct xvfsconf vfc, *xvfsp;
-	size_t buflen;
-	int cnt, i, rv = 0;
+	struct xvfsconf *xvfsp;
+	size_t cnt, buflen;
+	int rv = 0;
 
 	argc--, argv++;
+
+	if (sysctlbyname("vfs.conflist", NULL, &buflen, NULL, 0) < 0)
+		err(EXIT_FAILURE, "sysctl(vfs.conflist)");
+	if ((xvfsp = malloc(buflen)) == NULL)
+		errx(EXIT_FAILURE, "malloc failed");
+	if (sysctlbyname("vfs.conflist", xvfsp, &buflen, NULL, 0) < 0)
+		err(EXIT_FAILURE, "sysctl(vfs.conflist)");
+	cnt = buflen / sizeof(struct xvfsconf);
+
+	caph_cache_catpages();
+	if (caph_enter() != 0)
+		err(EXIT_FAILURE, "failed to enter capability mode");
 
 	printf(HDRFMT, "Filesystem", "Num", "Refs", "Flags");
 	fputs(DASHES, stdout);
 
-	if (argc > 0) {
-		for (; argc > 0; argc--, argv++) {
-			if (getvfsbyname(*argv, &vfc) == 0) {
-				printf(FMT, vfc.vfc_name, vfc.vfc_typenum,
-				    vfc.vfc_refcount, fmt_flags(vfc.vfc_flags));
-			} else {
-				warnx("VFS %s unknown or not loaded", *argv);
-				rv++;
+	for (size_t i = 0; i < cnt; i++) {
+		if (argc > 0) {
+			int j;
+			for (j = 0; j < argc; j++) {
+				if (strcmp(argv[j], xvfsp[i].vfc_name) == 0)
+					break;
 			}
+			if (j == argc)
+				continue;
 		}
-	} else {
-		if (sysctlbyname("vfs.conflist", NULL, &buflen, NULL, 0) < 0)
-			err(1, "sysctl(vfs.conflist)");
-		xvfsp = malloc(buflen);
-		if (xvfsp == NULL)
-			errx(1, "malloc failed");
-		if (sysctlbyname("vfs.conflist", xvfsp, &buflen, NULL, 0) < 0)
-			err(1, "sysctl(vfs.conflist)");
-		cnt = buflen / sizeof(struct xvfsconf);
 
-		for (i = 0; i < cnt; i++) {
-			printf(FMT, xvfsp[i].vfc_name, xvfsp[i].vfc_typenum,
-			    xvfsp[i].vfc_refcount,
-			    fmt_flags(xvfsp[i].vfc_flags));
-		}
-		free(xvfsp);
+		printf(FMT, xvfsp[i].vfc_name, xvfsp[i].vfc_typenum,
+		    xvfsp[i].vfc_refcount, fmt_flags(xvfsp[i].vfc_flags));
 	}
+	free(xvfsp);
 
 	return (rv);
 }
@@ -82,10 +84,9 @@ static const char *
 fmt_flags(int flags)
 {
 	static char buf[sizeof(struct flaglist) * sizeof(fl)];
-	int i;
 
 	buf[0] = '\0';
-	for (i = 0; i < (int)nitems(fl); i++) {
+	for (size_t i = 0; i < (int)nitems(fl); i++) {
 		if ((flags & fl[i].flag) != 0) {
 			strlcat(buf, fl[i].str, sizeof(buf));
 			strlcat(buf, ", ", sizeof(buf));

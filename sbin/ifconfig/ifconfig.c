@@ -463,6 +463,9 @@ args_parse(struct ifconfig_args *args, int argc, char *argv[])
 {
 	char options[1024];
 	struct option *p;
+#ifdef JAIL
+	int jid;
+#endif
 	int c;
 
 	/* Parse leading line options */
@@ -494,7 +497,11 @@ args_parse(struct ifconfig_args *args, int argc, char *argv[])
 #ifdef JAIL
 			if (optarg == NULL)
 				usage();
-			args->jail_name = optarg;
+			jid = jail_getid(optarg);
+			if (jid == -1)
+				Perror("jail not found");
+			if (jail_attach(jid) != 0)
+				Perror("cannot attach to jail");
 #else
 			Perror("not built with jail support");
 #endif
@@ -611,9 +618,6 @@ main(int ac, char *av[])
 {
 	char *envformat;
 	int flags;
-#ifdef JAIL
-	int jid;
-#endif
 	struct ifconfig_args _args = {};
 	struct ifconfig_args *args = &_args;
 
@@ -637,16 +641,6 @@ main(int ac, char *av[])
 	atexit(printifnamemaybe);
 
 	args_parse(args, ac, av);
-
-#ifdef JAIL
-	if (args->jail_name) {
-		jid = jail_getid(args->jail_name);
-		if (jid == -1)
-			Perror("jail not found");
-		if (jail_attach(jid) != 0)
-			Perror("cannot attach to jail");
-	}
-#endif
 
 	if (!args->all && !args->namesonly) {
 		/* not listing, need an argument */
@@ -1209,6 +1203,13 @@ top:
 			argc -= 2, argv += 2;
 		} else if (p->c_parameter == SPARAM && p->c_u.c_func3) {
 			p->c_u.c_func3(ctx, *argv, p->c_sparameter);
+		} else if (p->c_parameter == ARGVECTOR && p->c_u.c_funcv) {
+			int argsdone;
+
+			argsdone = p->c_u.c_funcv(ctx, argc - 1,
+			    (const char *const *)argv + 1);
+			argc -= argsdone;
+			argv += argsdone;
 		} else if (p->c_u.c_func)
 			p->c_u.c_func(ctx, *argv, p->c_parameter);
 		argc--, argv++;
@@ -1662,9 +1663,10 @@ static const char *IFCAPBITS[] = {
 	[20] = "NETMAP",
 	[21] = "RXCSUM_IPV6",
 	[22] = "TXCSUM_IPV6",
+	[23] = "HWSTATS",
 	[24] = "TXRTLMT",
 	[25] = "HWRXTSTMP",
-	[26] = "NOMAP",
+	[26] = "MEXTPG",
 	[27] = "TXTLS4",
 	[28] = "TXTLS6",
 	[29] = "VXLAN_HWCSUM",
@@ -2087,11 +2089,6 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD("-alias",	-IFF_UP,	notealias),
 	DEF_CMD("delete",	-IFF_UP,	notealias),
 	DEF_CMD("remove",	-IFF_UP,	notealias),
-#ifdef notdef
-#define	EN_SWABIPS	0x1000
-	DEF_CMD("swabips",	EN_SWABIPS,	setifflags),
-	DEF_CMD("-swabips",	EN_SWABIPS,	clearifflags),
-#endif
 	DEF_CMD_ARG("netmask",			setifnetmask),
 	DEF_CMD_ARG("metric",			setifmetric),
 	DEF_CMD_ARG("broadcast",		setifbroadaddr),

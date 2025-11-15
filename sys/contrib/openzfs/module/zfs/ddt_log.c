@@ -116,7 +116,7 @@ static void
 ddt_log_create_one(ddt_t *ddt, ddt_log_t *ddl, uint_t n, dmu_tx_t *tx)
 {
 	ASSERT3U(ddt->ddt_dir_object, >, 0);
-	ASSERT3U(ddl->ddl_object, ==, 0);
+	ASSERT0(ddl->ddl_object);
 
 	char name[DDT_NAMELEN];
 	ddt_log_name(ddt, name, n);
@@ -176,11 +176,13 @@ ddt_log_update_stats(ddt_t *ddt)
 	 * that's reasonable to expect anyway.
 	 */
 	dmu_object_info_t doi;
-	uint64_t nblocks;
-	dmu_object_info(ddt->ddt_os, ddt->ddt_log_active->ddl_object, &doi);
-	nblocks = doi.doi_physical_blocks_512;
-	dmu_object_info(ddt->ddt_os, ddt->ddt_log_flushing->ddl_object, &doi);
-	nblocks += doi.doi_physical_blocks_512;
+	uint64_t nblocks = 0;
+	if (dmu_object_info(ddt->ddt_os, ddt->ddt_log_active->ddl_object,
+	    &doi) == 0)
+		nblocks += doi.doi_physical_blocks_512;
+	if (dmu_object_info(ddt->ddt_os, ddt->ddt_log_flushing->ddl_object,
+	    &doi) == 0)
+		nblocks += doi.doi_physical_blocks_512;
 
 	ddt_object_t *ddo = &ddt->ddt_log_stats;
 	ddo->ddo_count =
@@ -194,7 +196,7 @@ void
 ddt_log_begin(ddt_t *ddt, size_t nentries, dmu_tx_t *tx, ddt_log_update_t *dlu)
 {
 	ASSERT3U(nentries, >, 0);
-	ASSERT3P(dlu->dlu_dbp, ==, NULL);
+	ASSERT0P(dlu->dlu_dbp);
 
 	if (ddt->ddt_log_active->ddl_object == 0)
 		ddt_log_create(ddt, tx);
@@ -240,6 +242,13 @@ ddt_log_alloc_entry(ddt_t *ddt)
 	}
 
 	return (ddle);
+}
+
+static void
+ddt_log_free_entry(ddt_t *ddt, ddt_log_entry_t *ddle)
+{
+	kmem_cache_free(ddt->ddt_flags & DDT_FLAG_FLAT ?
+	    ddt_log_entry_flat_cache : ddt_log_entry_trad_cache, ddle);
 }
 
 static void
@@ -347,8 +356,7 @@ ddt_log_take_first(ddt_t *ddt, ddt_log_t *ddl, ddt_lightweight_entry_t *ddlwe)
 	ddt_histogram_sub_entry(ddt, &ddt->ddt_log_histogram, ddlwe);
 
 	avl_remove(&ddl->ddl_tree, ddle);
-	kmem_cache_free(ddt->ddt_flags & DDT_FLAG_FLAT ?
-	    ddt_log_entry_flat_cache : ddt_log_entry_trad_cache, ddle);
+	ddt_log_free_entry(ddt, ddle);
 
 	return (B_TRUE);
 }
@@ -365,8 +373,7 @@ ddt_log_remove_key(ddt_t *ddt, ddt_log_t *ddl, const ddt_key_t *ddk)
 	ddt_histogram_sub_entry(ddt, &ddt->ddt_log_histogram, &ddlwe);
 
 	avl_remove(&ddl->ddl_tree, ddle);
-	kmem_cache_free(ddt->ddt_flags & DDT_FLAG_FLAT ?
-	    ddt_log_entry_flat_cache : ddt_log_entry_trad_cache, ddle);
+	ddt_log_free_entry(ddt, ddle);
 
 	return (B_TRUE);
 }
@@ -527,8 +534,7 @@ ddt_log_empty(ddt_t *ddt, ddt_log_t *ddl)
 	IMPLY(ddt->ddt_version == UINT64_MAX, avl_is_empty(&ddl->ddl_tree));
 	while ((ddle =
 	    avl_destroy_nodes(&ddl->ddl_tree, &cookie)) != NULL) {
-		kmem_cache_free(ddt->ddt_flags & DDT_FLAG_FLAT ?
-		    ddt_log_entry_flat_cache : ddt_log_entry_trad_cache, ddle);
+		ddt_log_free_entry(ddt, ddle);
 	}
 	ASSERT(avl_is_empty(&ddl->ddl_tree));
 }
@@ -727,7 +733,7 @@ ddt_log_load(ddt_t *ddt)
 				ddle = fe;
 				fe = AVL_NEXT(fl, fe);
 				avl_remove(fl, ddle);
-
+				ddt_log_free_entry(ddt, ddle);
 				ddle = ae;
 				ae = AVL_NEXT(al, ae);
 			}
@@ -748,8 +754,8 @@ ddt_log_load(ddt_t *ddt)
 void
 ddt_log_alloc(ddt_t *ddt)
 {
-	ASSERT3P(ddt->ddt_log_active, ==, NULL);
-	ASSERT3P(ddt->ddt_log_flushing, ==, NULL);
+	ASSERT0P(ddt->ddt_log_active);
+	ASSERT0P(ddt->ddt_log_flushing);
 
 	avl_create(&ddt->ddt_log[0].ddl_tree, ddt_key_compare,
 	    sizeof (ddt_log_entry_t), offsetof(ddt_log_entry_t, ddle_node));

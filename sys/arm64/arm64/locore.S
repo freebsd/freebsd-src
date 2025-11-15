@@ -39,6 +39,23 @@
 
 #define	VIRT_BITS	48
 
+/*
+ * Loads a 64-bit value into reg using 1 to 4 mov/movk instructions.
+ * This can be used early on when we don't know the CPUs endianness.
+ */
+.macro	mov_q reg, val
+	mov	\reg, :abs_g0_nc:\val
+.if (\val >> 16) & 0xffff != 0
+	movk	\reg, :abs_g1_nc:\val
+.endif
+.if (\val >> 32) & 0xffff != 0
+	movk	\reg, :abs_g2_nc:\val
+.endif
+.if (\val >> 48) & 0xffff != 0
+	movk	\reg, :abs_g3:\val
+.endif
+.endm
+
 #if PAGE_SIZE == PAGE_SIZE_16K
 /*
  * The number of level 3 tables to create. 32 will allow for 1G of address
@@ -308,6 +325,19 @@ mp_virtdone:
 
 	b	init_secondary
 LEND(mpentry_common)
+
+ENTRY(mp_cpu_spinloop)
+0:
+	wfe
+	ldr	x0, mp_cpu_spin_table_release_addr
+	cbz	x0, 0b
+	blr	x0
+	.globl mp_cpu_spin_table_release_addr
+mp_cpu_spin_table_release_addr:
+	.quad	0
+	.globl mp_cpu_spinloop_end
+mp_cpu_spinloop_end:
+END(mp_cpu_spinloop)
 #endif
 
 /*
@@ -319,22 +349,28 @@ LEND(mpentry_common)
  *  - Configure EL2 to support running the kernel at EL1 and exit to that
  */
 LENTRY(enter_kernel_el)
-#define	INIT_SCTLR_EL1	(SCTLR_LSMAOE | SCTLR_nTLSMD | SCTLR_EIS | \
-    SCTLR_TSCXT | SCTLR_EOS)
 	mrs	x23, CurrentEL
 	and	x23, x23, #(CURRENTEL_EL_MASK)
 	cmp	x23, #(CURRENTEL_EL_EL2)
 	b.eq	1f
 
-	ldr	x2, =INIT_SCTLR_EL1
+	/*
+	 * Ensure there are no memory operations here. If the boot loader
+	 * enters the kernel in big-endian mode then loading sctlr will
+	 * be incorrect. As instructions are the same in both endians it is
+	 * safe to use mov instructions.
+	 */
+	mov_q	x2, SCTLR_MMU_OFF
 	msr	sctlr_el1, x2
-	/* SCTLR_EOS is set so eret is a context synchronizing event so we
+	/*
+	 * SCTLR_EOS is set to make eret a context synchronizing event. We
 	 * need an isb here to ensure it's observed by later instructions,
 	 * but don't need it in the eret below.
 	 */
 	isb
 
-	/* Ensure SPSR_EL1 and pstate are in sync. The only wat to set the
+	/*
+	 * Ensure SPSR_EL1 and pstate are in sync. The only way to set the
 	 * latter is to set the former and return from an exception with eret.
 	 */
 	mov	x2, #(PSR_DAIF | PSR_M_EL1h)
@@ -348,10 +384,18 @@ LENTRY(enter_kernel_el)
 	 * Set just the reserved bits in sctlr_el2. This will disable the
 	 * MMU which may have broken the kernel if we enter the kernel in
 	 * EL2, e.g. when using VHE.
+	 *
+	 * As with sctlr_el1 above use mov instructions to ensure there are
+	 * no memory operations.
 	 */
-	ldr	x2, =(SCTLR_EL2_RES1 | SCTLR_EL2_EIS | SCTLR_EL2_EOS)
+	mov_q	x2, (SCTLR_EL2_RES1 | SCTLR_EL2_EIS | SCTLR_EL2_EOS)
 	msr	sctlr_el2, x2
 	isb
+
+	/*
+	 * The hardware is now in little-endian mode so memory operations
+	 * are safe.
+	 */
 
 	/* Configure the Hypervisor */
 	ldr	x2, =(HCR_RW | HCR_APK | HCR_API)
@@ -370,11 +414,11 @@ LENTRY(enter_kernel_el)
 	msr	vmpidr_el2, x2
 
 	/* Set the initial sctlr_el1 */
-	ldr	x2, =INIT_SCTLR_EL1
+	ldr	x2, =SCTLR_MMU_OFF
 	msr	sctlr_el1, x2
 
 	/* Check for VHE */
-	CHECK_CPU_FEAT(x2, ID_AA64MMFR1, VH, .Lno_vhe)
+	CHECK_CPU_FEAT(x2, ID_AA64MMFR1, VH, IMPL, .Lno_vhe)
 
 	/*
 	 * The kernel will be running in EL2, route exceptions here rather
@@ -387,7 +431,7 @@ LENTRY(enter_kernel_el)
 
 	msr	SCTLR_EL12_REG, x2
 	mov	x2, xzr /* CPTR_EL2 is managed by vfp.c */
-	ldr	x3, =(CNTHCTL_E2H_EL1PCTEN | CNTHCTL_E2H_EL1PTEN)
+	ldr	x3, =(CNTHCTL_E2H_EL1PCTEN_NOTRAP | CNTHCTL_E2H_EL1PTEN_NOTRAP)
 	ldr	x5, =(PSR_DAIF | PSR_M_EL2h)
 	b	.Ldone_vhe
 
@@ -398,8 +442,12 @@ LENTRY(enter_kernel_el)
 	msr	vbar_el2, x2
 
 	ldr	x2, =(CPTR_RES1)
-	ldr	x3, =(CNTHCTL_EL1PCTEN | CNTHCTL_EL1PCEN)
+	ldr	x3, =(CNTHCTL_EL1PCTEN_NOTRAP | CNTHCTL_EL1PCEN_NOTRAP)
 	ldr	x5, =(PSR_DAIF | PSR_M_EL1h)
+
+	/* Enable SPE at EL1 via Monitor Debug Configuration Register */
+	mov     x6, MDCR_EL2_E2PB_EL1_0_NO_TRAP
+	msr     mdcr_el2, x6
 
 .Ldone_vhe:
 
@@ -413,10 +461,9 @@ LENTRY(enter_kernel_el)
 	 * Configure the Extended Hypervisor register. This is only valid if
 	 * FEAT_HCX is enabled.
 	 */
-	CHECK_CPU_FEAT(x2, ID_AA64MMFR1, HCX, 2f)
+	CHECK_CPU_FEAT(x2, ID_AA64MMFR1, HCX, IMPL, 2f)
 	/* Extended Hypervisor Configuration */
-	mov x2, xzr
-	msr HCRX_EL2_REG, x2
+	msr	HCRX_EL2_REG, xzr
 	isb
 2:
 
@@ -430,7 +477,7 @@ LENTRY(enter_kernel_el)
 	msr	vttbr_el2, xzr
 
 	/* Check the CPU supports GIC, and configure the CPU interface */
-	CHECK_CPU_FEAT(x2, ID_AA64PFR0, GIC, 3f)
+	CHECK_CPU_FEAT(x2, ID_AA64PFR0, GIC, CPUIF_EN, 3f)
 
 	mrs	x2, icc_sre_el2
 	orr	x2, x2, #ICC_SRE_EL2_EN	/* Enable access from insecure EL1 */
@@ -443,9 +490,31 @@ LENTRY(enter_kernel_el)
 	isb
 
 	eret
-#undef INIT_SCTLR_EL1
 LEND(enter_kernel_el)
 
+/* Turn off the MMU.  Install ttbr0 from the bootstrap page table, and go there.
+ * Does not return.
+ * - x0 - target address to jump to after stopping the MMU.
+ * - x1 - kernel load address
+ */
+ENTRY(stop_mmu)
+	mov	x16, x0	/* Save target. */
+	ldr	x2, =(1f - KERNBASE)
+	add	x17, x1, x2
+	ldr	x3, =(pagetable_l0_ttbr0_bootstrap - KERNBASE)
+	add	x1, x1, x3
+	msr	ttbr0_el1, x1
+	isb
+	br	x17
+1:
+	BTI_J
+	mrs	x0, sctlr_el1
+	bic	x0, x0, SCTLR_M
+	bic	x0, x0, SCTLR_C
+	msr	sctlr_el1, x0
+	isb
+	br	x16
+END(stop_mmu)
 /*
  * Get the physical address the kernel was loaded at.
  */
@@ -1029,7 +1098,7 @@ LENTRY(start_mmu)
 	 * HW management of dirty state is set in C code as it may
 	 * need to be disabled because of CPU errata.
 	 */
-	CHECK_CPU_FEAT(x3, ID_AA64MMFR1, HAFDBS, 1f)
+	CHECK_CPU_FEAT(x3, ID_AA64MMFR1, HAFDBS, AF, 1f)
 	orr	x2, x2, #(TCR_HA)
 1:
 
@@ -1038,11 +1107,7 @@ LENTRY(start_mmu)
 	/*
 	 * Setup SCTLR.
 	 */
-	ldr	x2, sctlr_set
-	ldr	x3, sctlr_clear
-	mrs	x1, sctlr_el1
-	bic	x1, x1, x3	/* Clear the required bits */
-	orr	x1, x1, x2	/* Set the required bits */
+	ldr	x1, =SCTLR_MMU_ON
 	msr	sctlr_el1, x1
 	isb
 
@@ -1067,17 +1132,13 @@ tcr:
 	.quad (TCR_TxSZ(64 - VIRT_BITS) | TCR_TG |			\
 	    TCR_SH1_IS | TCR_ORGN1_WBWA | TCR_IRGN1_WBWA |		\
 	    TCR_SH0_IS | TCR_ORGN0_WBWA | TCR_IRGN0_WBWA)
-sctlr_set:
-	/* Bits to set */
-	.quad (SCTLR_LSMAOE | SCTLR_nTLSMD | SCTLR_UCI | SCTLR_SPAN | \
-	    SCTLR_nTWE | SCTLR_nTWI | SCTLR_UCT | SCTLR_DZE | \
-	    SCTLR_I | SCTLR_SED | SCTLR_SA0 | SCTLR_SA | SCTLR_C | \
-	    SCTLR_M | SCTLR_CP15BEN | SCTLR_BT1 | SCTLR_BT0)
-sctlr_clear:
-	/* Bits to clear */
-	.quad (SCTLR_EE | SCTLR_E0E | SCTLR_IESB | SCTLR_WXN | SCTLR_UMA | \
-	    SCTLR_ITD | SCTLR_A)
 LEND(start_mmu)
+
+ENTRY(switch_stack)
+	mov	sp, x0
+	mov 	x16, x1
+	br	x16
+END(switch_stack)
 
 ENTRY(abort)
 	b abort
@@ -1085,6 +1146,7 @@ END(abort)
 
 .bss
 	.align	PAGE_SHIFT
+	.globl	initstack_end
 initstack:
 	.space	BOOT_STACK_SIZE
 initstack_end:
@@ -1101,6 +1163,7 @@ initstack_end:
 	 *           L0 for user
 	 */
 	.globl pagetable_l0_ttbr1
+	.globl pagetable_l0_ttbr0_bootstrap
 pagetable:
 pagetable_l3_ttbr1:
 	.space	(PAGE_SIZE * L3_PAGE_COUNT)

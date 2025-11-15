@@ -1162,11 +1162,12 @@ aw_gpio_attach(device_t dev)
 	fdt_pinctrl_register(dev, "allwinner,pins");
 	fdt_pinctrl_configure_tree(dev);
 
-	sc->sc_busdev = gpiobus_attach_bus(dev);
+	sc->sc_busdev = gpiobus_add_bus(dev);
 	if (sc->sc_busdev == NULL)
 		goto fail;
 
 	config_intrhook_oneshot(aw_gpio_enable_bank_supply, sc);
+	bus_attach_children(dev);
 
 	return (0);
 
@@ -1529,6 +1530,10 @@ static device_method_t aw_gpio_methods[] = {
 	DEVMETHOD(device_probe,		aw_gpio_probe),
 	DEVMETHOD(device_attach,	aw_gpio_attach),
 	DEVMETHOD(device_detach,	aw_gpio_detach),
+
+	/* Bus interface */
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	aw_gpio_pic_disable_intr),

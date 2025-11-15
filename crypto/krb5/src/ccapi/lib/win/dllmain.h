@@ -32,7 +32,7 @@
 extern "C" {          // we need to export the C interface
 #endif
 
-DWORD GetTlsIndex();
+DWORD GetTlsIndex(void);
 
 #ifdef __cplusplus
 }

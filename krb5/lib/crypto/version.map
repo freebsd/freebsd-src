@@ -8,7 +8,7 @@ k5crypto_3_MIT {
 		krb5_c_valid_cksumtype;
 		krb5_string_to_key;
 		krb5_c_encrypt_iov;
-		krb5_c_checksum_length;
+		k5_hmac_md5;
 		is_keyed_cksum;
 		krb5_c_padding_length;
 		is_coll_proof_cksum;
@@ -105,5 +105,6 @@ k5crypto_3_MIT {
 		krb5_c_derive_prfplus;
 		k5_enctype_to_ssf;
 		krb5int_c_deprecated_enctype;
+		krb5_c_checksum_length;
 };
 HIDDEN { local: __*; _rest*; _save*; *; };

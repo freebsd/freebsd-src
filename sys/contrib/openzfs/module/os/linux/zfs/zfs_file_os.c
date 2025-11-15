@@ -115,8 +115,9 @@ zfs_file_write(zfs_file_t *fp, const void *buf, size_t count, ssize_t *resid)
  */
 int
 zfs_file_pwrite(zfs_file_t *fp, const void *buf, size_t count, loff_t off,
-    ssize_t *resid)
+    uint8_t ashift, ssize_t *resid)
 {
+	(void) ashift;
 	ssize_t rc;
 
 	rc  = kernel_write(fp, buf, count, &off);
@@ -260,23 +261,11 @@ zfs_file_fsync(zfs_file_t *filp, int flags)
 {
 	int datasync = 0;
 	int error;
-	int fstrans;
 
 	if (flags & O_DSYNC)
 		datasync = 1;
 
-	/*
-	 * May enter XFS which generates a warning when PF_FSTRANS is set.
-	 * To avoid this the flag is cleared over vfs_sync() and then reset.
-	 */
-	fstrans = __spl_pf_fstrans_check();
-	if (fstrans)
-		current->flags &= ~(__SPL_PF_FSTRANS);
-
 	error = -vfs_fsync(filp, datasync);
-
-	if (fstrans)
-		current->flags |= __SPL_PF_FSTRANS;
 
 	return (error);
 }
@@ -292,14 +281,6 @@ int
 zfs_file_deallocate(zfs_file_t *fp, loff_t offset, loff_t len)
 {
 	/*
-	 * May enter XFS which generates a warning when PF_FSTRANS is set.
-	 * To avoid this the flag is cleared over vfs_sync() and then reset.
-	 */
-	int fstrans = __spl_pf_fstrans_check();
-	if (fstrans)
-		current->flags &= ~(__SPL_PF_FSTRANS);
-
-	/*
 	 * When supported by the underlying file system preferentially
 	 * use the fallocate() callback to preallocate the space.
 	 */
@@ -307,9 +288,6 @@ zfs_file_deallocate(zfs_file_t *fp, loff_t offset, loff_t len)
 	if (fp->f_op->fallocate)
 		error = -fp->f_op->fallocate(fp,
 		    FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, offset, len);
-
-	if (fstrans)
-		current->flags |= __SPL_PF_FSTRANS;
 
 	if (error)
 		return (SET_ERROR(error));

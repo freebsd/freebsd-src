@@ -2665,10 +2665,13 @@ in_pcbinshash(struct inpcb *inp)
 	    INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_porthashmask)];
 
 	/*
-	 * Add entry to load balance group.
-	 * Only do this if SO_REUSEPORT_LB is set.
+	 * Ignore SO_REUSEPORT_LB if the socket is connected.  Really this case
+	 * should be an error, but for UDP sockets it is not, and some
+	 * applications erroneously set it on connected UDP sockets, so we can't
+	 * change this without breaking compatibility.
 	 */
-	if ((inp->inp_socket->so_options & SO_REUSEPORT_LB) != 0) {
+	if (!connected &&
+	    (inp->inp_socket->so_options & SO_REUSEPORT_LB) != 0) {
 		int error = in_pcbinslbgrouphash(inp, M_NODOM);
 		if (error != 0)
 			return (error);
@@ -2769,6 +2772,10 @@ in_pcbrehash(struct inpcb *inp)
 		    inp->inp_fport, pcbinfo->ipi_hashmask);
 		connected = !in_nullhost(inp->inp_faddr);
 	}
+
+	/* See the comment in in_pcbinshash(). */
+	if (connected && (inp->inp_flags & INP_INLBGROUP) != 0)
+		in_pcbremlbgrouphash(inp);
 
 	/*
 	 * When rehashing, the caller must ensure that either the new or the old
@@ -3051,143 +3058,7 @@ db_print_inconninfo(struct in_conninfo *inc, const char *name, int indent)
 	    ntohs(inc->inc_fport));
 }
 
-static void
-db_print_inpflags(int inp_flags)
-{
-	int comma;
-
-	comma = 0;
-	if (inp_flags & INP_RECVOPTS) {
-		db_printf("%sINP_RECVOPTS", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & INP_RECVRETOPTS) {
-		db_printf("%sINP_RECVRETOPTS", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & INP_RECVDSTADDR) {
-		db_printf("%sINP_RECVDSTADDR", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & INP_ORIGDSTADDR) {
-		db_printf("%sINP_ORIGDSTADDR", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & INP_HDRINCL) {
-		db_printf("%sINP_HDRINCL", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & INP_HIGHPORT) {
-		db_printf("%sINP_HIGHPORT", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & INP_LOWPORT) {
-		db_printf("%sINP_LOWPORT", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & INP_ANONPORT) {
-		db_printf("%sINP_ANONPORT", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & INP_RECVIF) {
-		db_printf("%sINP_RECVIF", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & INP_MTUDISC) {
-		db_printf("%sINP_MTUDISC", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & INP_RECVTTL) {
-		db_printf("%sINP_RECVTTL", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & INP_DONTFRAG) {
-		db_printf("%sINP_DONTFRAG", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & INP_RECVTOS) {
-		db_printf("%sINP_RECVTOS", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & IN6P_IPV6_V6ONLY) {
-		db_printf("%sIN6P_IPV6_V6ONLY", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & IN6P_PKTINFO) {
-		db_printf("%sIN6P_PKTINFO", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & IN6P_HOPLIMIT) {
-		db_printf("%sIN6P_HOPLIMIT", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & IN6P_HOPOPTS) {
-		db_printf("%sIN6P_HOPOPTS", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & IN6P_DSTOPTS) {
-		db_printf("%sIN6P_DSTOPTS", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & IN6P_RTHDR) {
-		db_printf("%sIN6P_RTHDR", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & IN6P_RTHDRDSTOPTS) {
-		db_printf("%sIN6P_RTHDRDSTOPTS", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & IN6P_TCLASS) {
-		db_printf("%sIN6P_TCLASS", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & IN6P_AUTOFLOWLABEL) {
-		db_printf("%sIN6P_AUTOFLOWLABEL", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & INP_ONESBCAST) {
-		db_printf("%sINP_ONESBCAST", comma ? ", " : "");
-		comma  = 1;
-	}
-	if (inp_flags & INP_DROPPED) {
-		db_printf("%sINP_DROPPED", comma ? ", " : "");
-		comma  = 1;
-	}
-	if (inp_flags & INP_SOCKREF) {
-		db_printf("%sINP_SOCKREF", comma ? ", " : "");
-		comma  = 1;
-	}
-	if (inp_flags & IN6P_RFC2292) {
-		db_printf("%sIN6P_RFC2292", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & IN6P_MTU) {
-		db_printf("IN6P_MTU%s", comma ? ", " : "");
-		comma = 1;
-	}
-}
-
-static void
-db_print_inpvflag(u_char inp_vflag)
-{
-	int comma;
-
-	comma = 0;
-	if (inp_vflag & INP_IPV4) {
-		db_printf("%sINP_IPV4", comma ? ", " : "");
-		comma  = 1;
-	}
-	if (inp_vflag & INP_IPV6) {
-		db_printf("%sINP_IPV6", comma ? ", " : "");
-		comma  = 1;
-	}
-	if (inp_vflag & INP_IPV6PROTO) {
-		db_printf("%sINP_IPV6PROTO", comma ? ", " : "");
-		comma  = 1;
-	}
-}
-
-static void
+void
 db_print_inpcb(struct inpcb *inp, const char *name, int indent)
 {
 
@@ -3197,38 +3068,39 @@ db_print_inpcb(struct inpcb *inp, const char *name, int indent)
 	indent += 2;
 
 	db_print_indent(indent);
-	db_printf("inp_flow: 0x%x\n", inp->inp_flow);
+	db_printf("inp_flow: 0x%x   inp_label: %p\n", inp->inp_flow,
+	    inp->inp_label);
 
 	db_print_inconninfo(&inp->inp_inc, "inp_conninfo", indent);
 
 	db_print_indent(indent);
-	db_printf("inp_label: %p   inp_flags: 0x%x (",
-	   inp->inp_label, inp->inp_flags);
-	db_print_inpflags(inp->inp_flags);
-	db_printf(")\n");
+	db_printf("inp_flags: 0x%b\n", inp->inp_flags, INP_FLAGS_BITS);
 
 	db_print_indent(indent);
-	db_printf("inp_sp: %p   inp_vflag: 0x%x (", inp->inp_sp,
-	    inp->inp_vflag);
-	db_print_inpvflag(inp->inp_vflag);
-	db_printf(")\n");
+	db_printf("inp_flags2: 0x%b\n", inp->inp_flags2, INP_FLAGS2_BITS);
+
+	db_print_indent(indent);
+	db_printf("inp_sp: %p   inp_vflag: 0x%b\n", inp->inp_sp,
+	    inp->inp_vflag, INP_VFLAGS_BITS);
 
 	db_print_indent(indent);
 	db_printf("inp_ip_ttl: %d   inp_ip_p: %d   inp_ip_minttl: %d\n",
 	    inp->inp_ip_ttl, inp->inp_ip_p, inp->inp_ip_minttl);
 
-	db_print_indent(indent);
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6) {
+		db_print_indent(indent);
 		db_printf("in6p_options: %p   in6p_outputopts: %p   "
 		    "in6p_moptions: %p\n", inp->in6p_options,
 		    inp->in6p_outputopts, inp->in6p_moptions);
+		db_print_indent(indent);
 		db_printf("in6p_icmp6filt: %p   in6p_cksum %d   "
 		    "in6p_hops %u\n", inp->in6p_icmp6filt, inp->in6p_cksum,
 		    inp->in6p_hops);
 	} else
 #endif
 	{
+		db_print_indent(indent);
 		db_printf("inp_ip_tos: %d   inp_ip_options: %p   "
 		    "inp_ip_moptions: %p\n", inp->inp_ip_tos,
 		    inp->inp_options, inp->inp_moptions);

@@ -419,12 +419,10 @@ kau_j_tgs_u2u(const krb5_boolean ev_success, krb5_audit_state *state,
             goto error;
     }
     /* Client in the second ticket. */
-    if (req != NULL) {
-        ret = princ_to_value(req->second_ticket[0]->enc_part2->client,
-                             obj, AU_REQ_U2U_USER);
-        if (ret)
-            goto error;
-    }
+    ret = princ_to_value(req->second_ticket[0]->enc_part2->client,
+                         obj, AU_REQ_U2U_USER);
+    if (ret)
+        goto error;
     /* Enctype of a session key of the second ticket. */
     ret = int32_to_value(req->second_ticket[0]->enc_part2->session->enctype,
                          obj, AU_SRV_ETYPE);
@@ -630,6 +628,17 @@ addr_to_obj(krb5_address *a, k5_json_object obj)
                 goto error;
         }
         ret = k5_json_object_set(obj, AU_IP, arr);
+        if (ret)
+            goto error;
+    } else if (a->addrtype == ADDRTYPE_UNIXSOCK) {
+        k5_json_string str = NULL;
+
+        ret = k5_json_string_create_len(a->contents, a->length, &str);
+        if (ret)
+            return ret;
+
+        ret = k5_json_object_set(obj, AU_PATH, str);
+        k5_json_release(str);
         if (ret)
             goto error;
     }

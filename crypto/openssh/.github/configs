@@ -129,6 +129,7 @@ case "$config" in
     kitchensink)
 	CONFIGFLAGS="--with-kerberos5 --with-libedit --with-pam"
 	CONFIGFLAGS="${CONFIGFLAGS} --with-security-key-builtin --with-selinux"
+	CONFIGFLAGS="${CONFIGFLAGS} --with-linux-memlock-onfault"
 	CFLAGS="-DSK_DEBUG -DSANDBOX_SECCOMP_FILTER_DEBUG"
 	;;
     hardenedmalloc)
@@ -136,6 +137,13 @@ case "$config" in
 	;;
     tcmalloc)
 	CONFIGFLAGS="--with-ldflags=-ltcmalloc"
+	# tcmalloc may, depending on the stacktrace generator it uses, create
+	# pipe(2) fds during shared library initialisation. These will later
+	# get clobbered by ssh/sshd calling closefrom() and chaos will ensue.
+	# Tell tcmalloc to use an unwinder that doesn't pull this stuff.
+	TCMALLOC_STACKTRACE_METHOD=generic_fp
+	TEST_SSH_SSHD_ENV="TCMALLOC_STACKTRACE_METHOD=generic_fp"
+	export TCMALLOC_STACKTRACE_METHOD TEST_SSH_SSHD_ENV
 	;;
     krb5|heimdal)
 	CONFIGFLAGS="--with-kerberos5"
@@ -161,6 +169,9 @@ case "$config" in
 	CONFIGFLAGS="--disable-pkcs11"
 	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/boringssl --with-rpath=-Wl,-rpath,"
 	;;
+	aws-lc)
+	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/aws-lc --with-rpath=-Wl,-rpath,"
+	;;
     libressl-*)
 	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/libressl --with-rpath=-Wl,-rpath,"
 	;;
@@ -181,7 +192,7 @@ case "$config" in
 	CONFIGFLAGS="--with-selinux"
 	;;
     sk)
-	CONFIGFLAGS="--with-security-key-builtin"
+	CONFIGFLAGS="--with-security-key-builtin --with-security-key-standalone"
         ;;
     without-openssl)
 	LIBCRYPTOFLAGS="--without-openssl"
@@ -266,6 +277,10 @@ case "${TARGET_HOST}" in
 	# Native linker is not great with PIC so OpenSSL is built w/out.
 	CONFIGFLAGS="${CONFIGFLAGS} --disable-security-key"
 	;;
+    fbsd14-ppc64)
+	# Disable security key tests for bigendian interop test.
+	CONFIGFLAGS="${CONFIGFLAGS} --disable-security-key"
+	;;
     hurd)
 	SKIP_LTESTS="forwarding multiplex proxy-connect hostkey-agent agent-ptrace"
 	;;
@@ -296,8 +311,20 @@ case "${TARGET_HOST}" in
 	# SHA256 functions in sha2.h conflict with OpenSSL's breaking sk-dummy
 	CONFIGFLAGS="${CONFIGFLAGS} --without-hardening --disable-security-key"
 	;;
+    openwrt-mipsel)
+	# Test most of the flags that OpenWRT sets for their package build.
+	# We only do this on one OpenWRT target for better coverage.
+	# The installed shared libraries installed by default are stripped and
+	# can't be linked to on the target systems.
+	OPENWRT_FLAGS="--disable-strip --disable-lastlog
+	   --disable-utmp --disable-utmpx --disable-wtmp --disable-wtmpx
+	   --with-stackprotect --with-cflags-after=-fzero-call-used-regs=skip"
+	CONFIGFLAGS="${CONFIGFLAGS} $(echo ${OPENWRT_FLAGS}) --without-zlib --disable-security-key"
+	LIBCRYPTOFLAGS="--without-openssl"
+	TEST_TARGET="t-exec"
+	;;
     openwrt-*)
-	CONFIGFLAGS="${CONFIGFLAGS} --without-zlib"
+	CONFIGFLAGS="${CONFIGFLAGS} --without-zlib --disable-security-key"
 	LIBCRYPTOFLAGS="--without-openssl"
 	TEST_TARGET="t-exec"
 	;;

@@ -1,3 +1,5 @@
+PACKAGE=xz
+
 PROG=	xzdec
 
 LINKS=	${BINDIR}/xzdec ${BINDIR}/lzdec

@@ -222,9 +222,9 @@ owner_sx(const struct lock_object *lock, struct thread **owner)
 #endif
 
 void
-sx_sysinit(void *arg)
+sx_sysinit(const void *arg)
 {
-	struct sx_args *sargs = arg;
+	const struct sx_args *sargs = arg;
 
 	sx_init_flags(sargs->sa_sx, sargs->sa_desc, sargs->sa_flags);
 }
@@ -1539,16 +1539,19 @@ sx_chain(struct thread *td, struct thread **ownerp)
 
 	/*
 	 * Check to see if this thread is blocked on an sx lock.
-	 * First, we check the lock class.  If that is ok, then we
-	 * compare the lock name against the wait message.
+	 * The thread should be on a sleep queue with type SLEEPQ_SX, the
+	 * purported lock should have the lock class index of sx, and the lock
+	 * name should match the wait message.
 	 */
 	sx = td->td_wchan;
-	if (LOCK_CLASS(&sx->lock_object) != &lock_class_sx ||
+	if (!TD_ON_SLEEPQ(td) || sleepq_type(td->td_wchan) != SLEEPQ_SX ||
+	    LOCK_CLASS(&sx->lock_object) != &lock_class_sx ||
 	    sx->lock_object.lo_name != td->td_wmesg)
 		return (0);
 
 	/* We think we have an sx lock, so output some details. */
-	db_printf("blocked on sx \"%s\" ", td->td_wmesg);
+	db_printf("blocked on lock %p (%s) \"%s\" ", &sx->lock_object,
+	    lock_class_sx.lc_name, td->td_wmesg);
 	*ownerp = sx_xholder(sx);
 	if (sx->sx_lock & SX_LOCK_SHARED)
 		db_printf("SLOCK (count %ju)\n",

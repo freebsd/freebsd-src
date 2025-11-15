@@ -590,7 +590,7 @@ cleanup:
  */
 static krb5_error_code
 gather_tgs_req_info(kdc_realm_t *realm, krb5_kdc_req **reqptr, krb5_data *pkt,
-                    const krb5_fulladdr *from,
+                    const struct sockaddr *from,
                     struct kdc_request_state *fast_state,
                     krb5_audit_state *au_state, struct tgs_req_info *t,
                     const char **status)
@@ -955,7 +955,7 @@ check_tgs_req(kdc_realm_t *realm, struct tgs_req_info *t,
 static krb5_error_code
 tgs_issue_ticket(kdc_realm_t *realm, struct tgs_req_info *t,
                  krb5_flags tktflags, krb5_ticket_times *times, krb5_data *pkt,
-                 const krb5_fulladdr *from,
+                 const struct sockaddr *from,
                  struct kdc_request_state *fast_state,
                  krb5_audit_state *au_state, const char **status,
                  krb5_data **response)
@@ -1162,7 +1162,7 @@ free_req_info(krb5_context context, struct tgs_req_info *t)
 
 krb5_error_code
 process_tgs_req(krb5_kdc_req *request, krb5_data *pkt,
-                const krb5_fulladdr *from, kdc_realm_t *realm,
+                const struct sockaddr *from, kdc_realm_t *realm,
                 krb5_data **response)
 {
     krb5_context context = realm->realm_context;

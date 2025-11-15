@@ -197,6 +197,10 @@ device		mmcsd			# MMC/SD flash cards
 # Note that 'bpf' is required for DHCP.
 device		bpf		# Berkeley packet filter
 
+# random(4)
+options 	RANDOM_ENABLE_KBD
+options 	RANDOM_ENABLE_MOUSE
+
 # Flattened Device Tree
 options 	FDT
 
@@ -204,8 +208,13 @@ options 	FDT
 device		iicbus		# Bus support, required for iicoc below.
 device		iicoc		# OpenCores I2C controller support
 
+# random(4)
+device		tpm			# Trusted Platform Module
+options 	RANDOM_ENABLE_TPM	# enable entropy from TPM 2.0
+
 # Include SoC specific configuration
 include		"std.allwinner"
+include		"std.cvitek"
 include		"std.eswin"
 include		"std.sifive"
 include		"std.starfive"

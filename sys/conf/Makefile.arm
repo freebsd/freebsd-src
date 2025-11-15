@@ -93,7 +93,7 @@ ${KERNEL_KO}.bin: ${FULLKERNEL}
 	    --output-target=binary ${FULLKERNEL} ${.TARGET}.temp
 	@{ ${NM} ${FULLKERNEL} | \
 	    LC_ALL=C \
-	    ${AWK} -f $S/tools/arm_kernel_boothdr.awk -v hdrtype=v7jump && \
+	    ${AWK} -f $S/tools/arm_kernel_boothdr.awk -v hdrtype=v7bootz && \
 	    cat ${.TARGET}.temp; \
 	 } > ${.TARGET}
 	@rm ${.TARGET}.temp

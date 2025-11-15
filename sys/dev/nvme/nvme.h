@@ -1507,9 +1507,7 @@ struct nvme_namespace_data {
 	uint8_t			eui64[8];
 
 	/** lba format support */
-	uint32_t		lbaf[16];
-
-	uint8_t			reserved7[192];
+	uint32_t		lbaf[64];
 
 	uint8_t			vendor_specific[3712];
 } __packed __aligned(4);
@@ -2155,8 +2153,6 @@ static inline
 void	nvme_namespace_data_swapbytes(struct nvme_namespace_data *s __unused)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
-	int i;
-
 	s->nsze = le64toh(s->nsze);
 	s->ncap = le64toh(s->ncap);
 	s->nuse = le64toh(s->nuse);
@@ -2175,7 +2171,7 @@ void	nvme_namespace_data_swapbytes(struct nvme_namespace_data *s __unused)
 	s->anagrpid = le32toh(s->anagrpid);
 	s->nvmsetid = le16toh(s->nvmsetid);
 	s->endgid = le16toh(s->endgid);
-	for (i = 0; i < 16; i++)
+	for (unsigned i = 0; i < nitems(s->lbaf); i++)
 		s->lbaf[i] = le32toh(s->lbaf[i]);
 #endif
 }

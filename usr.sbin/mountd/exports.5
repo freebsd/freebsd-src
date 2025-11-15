@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 16, 2024
+.Dd August 24, 2025
 .Dt EXPORTS 5
 .Os
 .Sh NAME
@@ -147,6 +147,19 @@ option may be used to encode directory name(s) with embedded special
 characters.
 Mount points for a file system may appear on multiple lines each with
 different sets of hosts and export options.
+.Pp
+Note that, for NFSv4 exporting, there must be both one or more ``V4:'' line(s)
+and one or more line(s) exporting the file systems that are to be
+exported to NFSv4 clients.
+If there are multiple ``V4:'' lines, these lines must all specify the
+same root directory path, but with different options for different
+clients.
+These line(s) do not export any file system, but simply define the
+location of the ``root'' of the NFSv4 export subtree.
+The line(s) exporting the file systems should always
+specify the pathname of the root of a server file system
+and must include at least one line exporting the file system
+which is specified as the ``root'' by the ``V4:'' line(s).
 .Pp
 The second component of a line specifies how the file system is to be
 exported to the host set.

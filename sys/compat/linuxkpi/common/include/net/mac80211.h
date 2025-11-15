@@ -87,6 +87,9 @@ enum mcast_filter_flags {
 	FIF_PSPOLL			= BIT(5),
 	FIF_CONTROL			= BIT(6),
 	FIF_MCAST_ACTION		= BIT(7),
+
+	/* Must stay last. */
+	FIF_FLAGS_MASK			= BIT(8)-1,
 };
 
 enum ieee80211_bss_changed {
@@ -163,7 +166,7 @@ enum ieee80211_bss_changed {
 #define	WLAN_AKM_SUITE_PSK_SHA256	WLAN_AKM_SUITE(6)
 /* TDLS					7 */
 #define	WLAN_AKM_SUITE_SAE		WLAN_AKM_SUITE(8)
-/* FToSAE				9 */
+#define	WLAN_AKM_SUITE_FT_OVER_SAE	WLAN_AKM_SUITE(9)
 /* AP peer key				10 */
 /* 802.1x suite B			11 */
 /* 802.1x suite B 384			12 */
@@ -734,7 +737,7 @@ struct ieee80211_link_sta {
 	struct ieee80211_he_6ghz_capa		he_6ghz_capa;
 	struct ieee80211_sta_eht_cap		eht_cap;
 	uint8_t					rx_nss;
-	enum ieee80211_sta_rx_bw		bandwidth;
+	enum ieee80211_sta_rx_bandwidth		bandwidth;
 	enum ieee80211_smps_mode		smps_mode;
 	struct ieee80211_sta_agg		agg;
 	struct ieee80211_sta_txpwr		txpwr;
@@ -854,7 +857,8 @@ struct ieee80211_vif_chanctx_switch {
 };
 
 struct ieee80211_prep_tx_info {
-	u16				duration;
+	uint16_t			duration;
+	uint16_t			subtype;
 	bool				success;
 	bool				was_assoc;
 	int				link_id;
@@ -900,27 +904,6 @@ struct linuxkpi_ieee80211_tim_ie {
 	uint8_t				*virtual_map;
 };
 #define	ieee80211_tim_ie	linuxkpi_ieee80211_tim_ie
-
-struct survey_info {		/* net80211::struct ieee80211_channel_survey */
-	/* TODO FIXME */
-	uint32_t			filled;
-#define	SURVEY_INFO_TIME		0x0001
-#define	SURVEY_INFO_TIME_RX		0x0002
-#define	SURVEY_INFO_TIME_SCAN		0x0004
-#define	SURVEY_INFO_TIME_TX		0x0008
-#define	SURVEY_INFO_TIME_BSS_RX		0x0010
-#define	SURVEY_INFO_TIME_BUSY		0x0020
-#define	SURVEY_INFO_IN_USE		0x0040
-#define	SURVEY_INFO_NOISE_DBM		0x0080
-	uint32_t			noise;
-	uint64_t			time;
-	uint64_t			time_bss_rx;
-	uint64_t			time_busy;
-	uint64_t			time_rx;
-	uint64_t			time_scan;
-	uint64_t			time_tx;
-	struct ieee80211_channel	*channel;
-};
 
 enum ieee80211_iface_iter {
 	IEEE80211_IFACE_ITER_NORMAL	= BIT(0),
@@ -973,7 +956,7 @@ struct ieee80211_ops {
 	int  (*start)(struct ieee80211_hw *);
 	void (*stop)(struct ieee80211_hw *, bool);
 
-	int  (*config)(struct ieee80211_hw *, u32);
+	int  (*config)(struct ieee80211_hw *, int, u32);
 	void (*reconfig_complete)(struct ieee80211_hw *, enum ieee80211_reconfig_type);
 
 	void (*prep_add_interface)(struct ieee80211_hw *, enum nl80211_iftype);
@@ -1000,7 +983,7 @@ struct ieee80211_ops {
 	void (*flush)(struct ieee80211_hw *, struct ieee80211_vif *, u32, bool);
 	void (*flush_sta)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_sta *);
 
-	int  (*set_frag_threshold)(struct ieee80211_hw *, u32);
+	int  (*set_frag_threshold)(struct ieee80211_hw *, int, u32);
 
 	void (*sync_rx_queues)(struct ieee80211_hw *);
 
@@ -1043,8 +1026,8 @@ struct ieee80211_ops {
 	void (*unassign_vif_chanctx)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_bss_conf *, struct ieee80211_chanctx_conf *);
 	int  (*switch_vif_chanctx)(struct ieee80211_hw *, struct ieee80211_vif_chanctx_switch *, int, enum ieee80211_chanctx_switch_mode);
 
-	int  (*get_antenna)(struct ieee80211_hw *, u32 *, u32 *);
-	int  (*set_antenna)(struct ieee80211_hw *, u32, u32);
+	int  (*get_antenna)(struct ieee80211_hw *, int, u32 *, u32 *);
+	int  (*set_antenna)(struct ieee80211_hw *, int, u32, u32);
 
 	int  (*remain_on_channel)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_channel *, int, enum ieee80211_roc_type);
 	int  (*cancel_remain_on_channel)(struct ieee80211_hw *, struct ieee80211_vif *);
@@ -1055,7 +1038,7 @@ struct ieee80211_ops {
 	void (*bss_info_changed)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_bss_conf *, u64);
         void (*link_info_changed)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_bss_conf *, u64);
 
-	int  (*set_rts_threshold)(struct ieee80211_hw *, u32);
+	int  (*set_rts_threshold)(struct ieee80211_hw *, int, u32);
 	void (*event_callback)(struct ieee80211_hw *, struct ieee80211_vif *, const struct ieee80211_event *);
 	int  (*get_survey)(struct ieee80211_hw *, int, struct survey_info *);
 	int  (*get_ftm_responder_stats)(struct ieee80211_hw *, struct ieee80211_vif *, struct cfg80211_ftm_responder_stats *);
@@ -1065,7 +1048,7 @@ struct ieee80211_ops {
 	void (*offset_tsf)(struct ieee80211_hw *, struct ieee80211_vif *, s64);
 
 	int  (*set_bitrate_mask)(struct ieee80211_hw *, struct ieee80211_vif *, const struct cfg80211_bitrate_mask *);
-	void (*set_coverage_class)(struct ieee80211_hw *, s16);
+	void (*set_coverage_class)(struct ieee80211_hw *, int, s16);
 	int  (*set_tim)(struct ieee80211_hw *, struct ieee80211_sta *, bool);
 
 	int  (*set_key)(struct ieee80211_hw *, enum set_key_cmd, struct ieee80211_vif *, struct ieee80211_sta *, struct ieee80211_key_conf *);
@@ -1135,7 +1118,7 @@ extern const struct cfg80211_ops linuxkpi_mac80211cfgops;
 struct ieee80211_hw *linuxkpi_ieee80211_alloc_hw(size_t,
     const struct ieee80211_ops *);
 void linuxkpi_ieee80211_iffree(struct ieee80211_hw *);
-void linuxkpi_set_ieee80211_dev(struct ieee80211_hw *, char *);
+void linuxkpi_set_ieee80211_dev(struct ieee80211_hw *);
 int linuxkpi_ieee80211_ifattach(struct ieee80211_hw *);
 void linuxkpi_ieee80211_ifdetach(struct ieee80211_hw *);
 void linuxkpi_ieee80211_unregister_hw(struct ieee80211_hw *);
@@ -1184,7 +1167,7 @@ struct wireless_dev *linuxkpi_ieee80211_vif_to_wdev(struct ieee80211_vif *);
 void linuxkpi_ieee80211_connection_loss(struct ieee80211_vif *);
 void linuxkpi_ieee80211_beacon_loss(struct ieee80211_vif *);
 struct sk_buff *linuxkpi_ieee80211_probereq_get(struct ieee80211_hw *,
-    uint8_t *, uint8_t *, size_t, size_t);
+    const uint8_t *, const uint8_t *, size_t, size_t);
 void linuxkpi_ieee80211_tx_status(struct ieee80211_hw *, struct sk_buff *);
 void linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *,
     struct ieee80211_tx_status *);
@@ -1255,7 +1238,7 @@ SET_IEEE80211_DEV(struct ieee80211_hw *hw, struct device *dev)
 {
 
 	set_wiphy_dev(hw->wiphy, dev);
-	linuxkpi_set_ieee80211_dev(hw, dev_name(dev));
+	linuxkpi_set_ieee80211_dev(hw);
 
 	IMPROVE();
 }
@@ -1550,6 +1533,15 @@ ieee80211_iter_chan_contexts_atomic(struct ieee80211_hw *hw,
 }
 
 static __inline void
+ieee80211_iter_chan_contexts_mtx(struct ieee80211_hw *hw,
+    void (*iterfunc)(struct ieee80211_hw *, struct ieee80211_chanctx_conf *, void *),
+    void *arg)
+{
+	IMPROVE("XXX LKPI80211 TODO MTX\n");
+	linuxkpi_ieee80211_iterate_chan_contexts(hw, iterfunc, arg);
+}
+
+static __inline void
 ieee80211_iterate_stations_atomic(struct ieee80211_hw *hw,
    void (*iterfunc)(void *, struct ieee80211_sta *), void *arg)
 {
@@ -1741,12 +1733,15 @@ ieee80211_request_smps(struct ieee80211_vif *vif, u_int link_id,
 		"SMPS_STATIC",
 		"SMPS_DYNAMIC",
 		"SMPS_AUTOMATIC",
-		"SMPS_NUM_MODES"
 	};
 
-	if (linuxkpi_debug_80211 & D80211_TODO)
-		printf("%s:%d: XXX LKPI80211 TODO smps %d %s\n",
-		    __func__, __LINE__, smps, smps_mode_name[smps]);
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	if (smps >= nitems(smps_mode_name))
+		panic("%s: unsupported smps value: %d\n", __func__, smps);
+
+	IMPROVE("XXX LKPI80211 TODO smps %d %s\n", smps, smps_mode_name[smps]);
 }
 
 static __inline void
@@ -2057,7 +2052,7 @@ ieee80211_tx_dequeue_ni(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 
 static __inline void
 ieee80211_update_mu_groups(struct ieee80211_vif *vif,
-    u_int _i, uint8_t *ms, uint8_t *up)
+    u_int link_id, const uint8_t *ms, const uint8_t *up)
 {
 	TODO();
 }
@@ -2161,8 +2156,8 @@ ieee80211_nullfunc_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 
 static __inline struct sk_buff *
-ieee80211_probereq_get(struct ieee80211_hw *hw, uint8_t *addr,
-    uint8_t *ssid, size_t ssid_len, size_t tailroom)
+ieee80211_probereq_get(struct ieee80211_hw *hw, const uint8_t *addr,
+    const uint8_t *ssid, size_t ssid_len, size_t tailroom)
 {
 
 	return (linuxkpi_ieee80211_probereq_get(hw, addr, ssid, ssid_len,
@@ -2411,7 +2406,7 @@ ieee80211_remove_key(struct ieee80211_key_conf *key)
 
 static __inline struct ieee80211_key_conf *
 ieee80211_gtk_rekey_add(struct ieee80211_vif *vif,
-    struct ieee80211_key_conf *key, int link_id)
+    uint16_t keyidx, uint8_t *key, size_t keylen, int link_id)
 {
         TODO();
         return (NULL);

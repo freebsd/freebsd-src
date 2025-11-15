@@ -153,6 +153,7 @@ atf_test_case "4G" "cleanup"
 {
 	atf_set descr 'Test keepcounter for values above 32 bits'
 	atf_set require.user root
+	atf_set timeout 900
 }
 
 4G_body()

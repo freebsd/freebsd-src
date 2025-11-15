@@ -36,12 +36,10 @@
    _ss_table[sci_idx], make sure you change the allocation routine to
    not assume there are no null pointers in the middle of the
    array.  */
-int ss_create_invocation(subsystem_name, version_string, info_ptr,
-                         request_table_ptr, code_ptr)
-    char *subsystem_name, *version_string;
-    char *info_ptr;
-    ss_request_table *request_table_ptr;
-    int *code_ptr;
+int
+ss_create_invocation(char *subsystem_name, char *version_string,
+                     char *info_ptr, ss_request_table *request_table_ptr,
+                     int *code_ptr)
 {
     int sci_idx;
     ss_data *new_table;
@@ -115,8 +113,7 @@ int ss_create_invocation(subsystem_name, version_string, info_ptr,
 }
 
 void
-ss_delete_invocation(sci_idx)
-    int sci_idx;
+ss_delete_invocation(int sci_idx)
 {
     ss_data *t;
     int ignored_code;

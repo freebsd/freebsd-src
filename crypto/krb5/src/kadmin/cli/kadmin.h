@@ -36,27 +36,43 @@
 extern void kadmin_startup(int argc, char *argv[], char **request_out,
                            char ***args_out);
 extern int quit (void);
-extern void kadmin_lock(int argc, char *argv[]);
-extern void kadmin_unlock(int argc, char *argv[]);
-extern void kadmin_delprinc(int argc, char *argv[]);
-extern void kadmin_renameprinc(int argc, char *argv[]);
-extern void kadmin_cpw(int argc, char *argv[]);
-extern void kadmin_addprinc(int argc, char *argv[]);
-extern void kadmin_modprinc(int argc, char *argv[]);
-extern void kadmin_getprinc(int argc, char *argv[]);
-extern void kadmin_getprincs(int argc, char *argv[]);
-extern void kadmin_addpol(int argc, char *argv[]);
-extern void kadmin_modpol(int argc, char *argv[]);
-extern void kadmin_delpol(int argc, char *argv[]);
-extern void kadmin_getpol(int argc, char *argv[]);
-extern void kadmin_getpols(int argc, char *argv[]);
-extern void kadmin_getprivs(int argc, char *argv[]);
-extern void kadmin_keytab_add(int argc, char *argv[]);
-extern void kadmin_keytab_remove(int argc, char *argv[]);
-extern void kadmin_purgekeys(int argc, char *argv[]);
-extern void kadmin_getstrings(int argc, char *argv[]);
-extern void kadmin_setstring(int argc, char *argv[]);
-extern void kadmin_delstring(int argc, char *argv[]);
+extern void kadmin_lock(int argc, char *argv[], int sci_idx, void *info_ptr);
+extern void kadmin_unlock(int argc, char *argv[], int sci_idx, void *info_ptr);
+extern void kadmin_delprinc(int argc, char *argv[], int sci_idx,
+                            void *info_ptr);
+extern void kadmin_renameprinc(int argc, char *argv[], int sci_idx,
+                               void *info_ptr);
+extern void kadmin_addalias(int argc, char *argv[], int sci_idx,
+                            void *info_ptr);
+extern void kadmin_cpw(int argc, char *argv[], int sci_idx, void *info_ptr);
+extern void kadmin_addprinc(int argc, char *argv[], int sci_idx,
+                            void *info_ptr);
+extern void kadmin_modprinc(int argc, char *argv[], int sci_idx,
+                            void *info_ptr);
+extern void kadmin_getprinc(int argc, char *argv[], int sci_idx,
+                            void *info_ptr);
+extern void kadmin_getprincs(int argc, char *argv[], int sci_idx,
+                             void *info_ptr);
+extern void kadmin_addpol(int argc, char *argv[], int sci_idx, void *info_ptr);
+extern void kadmin_modpol(int argc, char *argv[], int sci_idx, void *info_ptr);
+extern void kadmin_delpol(int argc, char *argv[], int sci_idx, void *info_ptr);
+extern void kadmin_getpol(int argc, char *argv[], int sci_idx, void *info_ptr);
+extern void kadmin_getpols(int argc, char *argv[], int sci_idx,
+                           void *info_ptr);
+extern void kadmin_getprivs(int argc, char *argv[], int sci_idx,
+                            void *info_ptr);
+extern void kadmin_keytab_add(int argc, char *argv[], int sci_idx,
+                              void *info_ptr);
+extern void kadmin_keytab_remove(int argc, char *argv[], int sci_idx,
+                                 void *info_ptr);
+extern void kadmin_purgekeys(int argc, char *argv[], int sci_idx,
+                             void *info_ptr);
+extern void kadmin_getstrings(int argc, char *argv[], int sci_idx,
+                              void *info_ptr);
+extern void kadmin_setstring(int argc, char *argv[], int sci_idx,
+                             void *info_ptr);
+extern void kadmin_delstring(int argc, char *argv[], int sci_idx,
+                             void *info_ptr);
 
 #include <kdb.h>
 

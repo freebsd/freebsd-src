@@ -255,10 +255,10 @@ cmi_dma_prog(struct sc_info *sc, struct sc_chinfo *ch, u_int32_t base)
 {
 	u_int32_t s, i, sz;
 
-	ch->phys_buf = sndbuf_getbufaddr(ch->buffer);
+	ch->phys_buf = ch->buffer->buf_addr;
 
 	cmi_wr(sc, base, ch->phys_buf, 4);
-	sz = (u_int32_t)sndbuf_getsize(ch->buffer);
+	sz = (u_int32_t)ch->buffer->bufsize;
 
 	s = sz / ch->bps - 1;
 	cmi_wr(sc, base + 4, s, 2);
@@ -352,7 +352,7 @@ cmichan_init(kobj_t obj, void *devinfo,
 	ch->channel    = c;
 	ch->bps        = 1;
 	ch->fmt        = SND_FORMAT(AFMT_U8, 1, 0);
-	ch->spd        = DSP_DEFAULT_SPEED;
+	ch->spd        = 8000;
 	ch->buffer     = b;
 	ch->dma_active = 0;
 	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, 0, sc->bufsz) != 0) {
@@ -525,7 +525,7 @@ cmichan_getptr(kobj_t obj, void *data)
 	}
 	snd_mtxunlock(sc->lock);
 
-	sz = sndbuf_getsize(ch->buffer);
+	sz = ch->buffer->bufsize;
 	bufptr = (physptr - ch->phys_buf + sz - ch->bps) % sz;
 
 	return bufptr;

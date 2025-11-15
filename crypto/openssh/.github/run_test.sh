@@ -33,17 +33,31 @@ output_failed_logs() {
 }
 trap output_failed_logs 0
 
+env=""
+if [ ! -z "${SUDO}" ]; then
+    env="${env} SUDO=${SUDO}"
+fi
+if [ ! -z "${TCMALLOC_STACKTRACE_METHOD}" ]; then
+    env="${env} TCMALLOC_STACKTRACE_METHOD=${TCMALLOC_STACKTRACE_METHOD}"
+fi
+if [ ! -z "${TEST_SSH_SSHD_ENV}" ]; then
+    env="${env} TEST_SSH_SSHD_ENV=${TEST_SSH_SSHD_ENV}"
+fi
+if [ ! -z "${env}" ]; then
+    env="env${env}"
+fi
+
 if [ -z "${LTESTS}" ]; then
-    make ${TEST_TARGET} SKIP_LTESTS="${SKIP_LTESTS}"
+    ${env} make ${TEST_TARGET} SKIP_LTESTS="${SKIP_LTESTS}"
 else
-    make ${TEST_TARGET} SKIP_LTESTS="${SKIP_LTESTS}" LTESTS="${LTESTS}"
+    ${env} make ${TEST_TARGET} SKIP_LTESTS="${SKIP_LTESTS}" LTESTS="${LTESTS}"
 fi
 
 if [ ! -z "${SSHD_CONFOPTS}" ]; then
     echo "rerunning t-exec with TEST_SSH_SSHD_CONFOPTS='${SSHD_CONFOPTS}'"
     if [ -z "${LTESTS}" ]; then
-        make t-exec SKIP_LTESTS="${SKIP_LTESTS}" TEST_SSH_SSHD_CONFOPTS="${SSHD_CONFOPTS}"
+        ${env} make t-exec SKIP_LTESTS="${SKIP_LTESTS}" TEST_SSH_SSHD_CONFOPTS="${SSHD_CONFOPTS}"
     else
-        make t-exec SKIP_LTESTS="${SKIP_LTESTS}" LTESTS="${LTESTS}" TEST_SSH_SSHD_CONFOPTS="${SSHD_CONFOPTS}"
+        ${env} make t-exec SKIP_LTESTS="${SKIP_LTESTS}" LTESTS="${LTESTS}" TEST_SSH_SSHD_CONFOPTS="${SSHD_CONFOPTS}"
     fi
 fi

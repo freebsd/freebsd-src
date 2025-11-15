@@ -1,6 +1,5 @@
 .include <bsd.own.mk>
 
-PACKAGE=lib${LIB}
 LIB=	netbsd
 
 CFLAGS+=	-I${.CURDIR}

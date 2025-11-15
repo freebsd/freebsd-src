@@ -50,18 +50,18 @@ krb5_error_code ktutil_write_keytab (krb5_context,
                                      krb5_kt_list,
                                      char *);
 
-void ktutil_add_entry (int, char *[]);
+void ktutil_add_entry (int, char *[], int, void *);
 
-void ktutil_clear_list (int, char *[]);
+void ktutil_clear_list (int, char *[], int, void *);
 
-void ktutil_read_v5 (int, char *[]);
+void ktutil_read_v5 (int, char *[], int, void *);
 
-void ktutil_read_v4 (int, char *[]);
+void ktutil_read_v4 (int, char *[], int, void *);
 
-void ktutil_write_v5 (int, char *[]);
+void ktutil_write_v5 (int, char *[], int, void *);
 
-void ktutil_write_v4 (int, char *[]);
+void ktutil_write_v4 (int, char *[], int, void *);
 
-void ktutil_delete_entry (int, char *[]);
+void ktutil_delete_entry (int, char *[], int, void *);
 
-void ktutil_list (int, char *[]);
+void ktutil_list (int, char *[], int, void *);

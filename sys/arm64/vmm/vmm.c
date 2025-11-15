@@ -33,7 +33,6 @@
 #include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
@@ -51,7 +50,6 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_param.h>
 
-#include <machine/armreg.h>
 #include <machine/cpu.h>
 #include <machine/fpu.h>
 #include <machine/machdep.h>
@@ -88,7 +86,6 @@ struct vcpu {
 	struct vfpstate	*guestfpu;	/* (a,i) guest fpu state */
 };
 
-#define	vcpu_lock_initialized(v) mtx_initialized(&((v)->mtx))
 #define	vcpu_lock_init(v)	mtx_init(&((v)->mtx), "vcpu lock", 0, MTX_SPIN)
 #define	vcpu_lock_destroy(v)	mtx_destroy(&((v)->mtx))
 #define	vcpu_lock(v)		mtx_lock_spin(&((v)->mtx))
@@ -126,9 +123,8 @@ struct vm {
 	bool		dying;			/* (o) is dying */
 	volatile cpuset_t suspended_cpus; 	/* (i) suspended vcpus */
 	volatile cpuset_t halted_cpus;		/* (x) cpus in a hard halt */
-	struct vmspace	*vmspace;		/* (o) guest's address space */
 	struct vm_mem	mem;			/* (i) guest memory */
-	char		name[VM_MAX_NAMELEN];	/* (o) virtual machine name */
+	char		name[VM_MAX_NAMELEN + 1];	/* (o) virtual machine name */
 	struct vcpu	**vcpu;			/* (i) guest vcpus */
 	struct vmm_mmio_region mmio_region[VM_MAX_MMIO_REGIONS];
 						/* (o) guest MMIO regions */
@@ -140,8 +136,6 @@ struct vm {
 	uint16_t	maxcpus;		/* (o) max pluggable cpus */
 	struct sx	vcpus_init_lock;	/* (o) */
 };
-
-static bool vmm_initialized = false;
 
 static int vm_handle_wfi(struct vcpu *vcpu,
 			 struct vm_exit *vme, bool *retu);
@@ -211,10 +205,6 @@ static const struct vmm_regs vmm_arch_regs_masks = {
 /* Host registers masked by vmm_arch_regs_masks. */
 static struct vmm_regs vmm_arch_regs;
 
-u_int vm_maxcpu;
-SYSCTL_UINT(_hw_vmm, OID_AUTO, maxcpu, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
-    &vm_maxcpu, 0, "Maximum number of vCPUs");
-
 static void vcpu_notify_event_locked(struct vcpu *vcpu);
 
 /* global statistics */
@@ -233,12 +223,6 @@ VMM_STAT(VMEXIT_BRK, "number of vmexits for a breakpoint exception");
 VMM_STAT(VMEXIT_SS, "number of vmexits for a single-step exception");
 VMM_STAT(VMEXIT_UNHANDLED_EL2, "number of vmexits for an unhandled EL2 exception");
 VMM_STAT(VMEXIT_UNHANDLED, "number of vmexits for an unhandled exception");
-
-/*
- * Upper limit on vm_maxcpu. We could increase this to 28 bits, but this
- * is a safe value for now.
- */
-#define	VM_MAXCPU	MIN(0xffff - 1, CPU_SETSIZE)
 
 static int
 vmm_regs_init(struct vmm_regs *regs, const struct vmm_regs *masks)
@@ -274,6 +258,7 @@ vcpu_cleanup(struct vcpu *vcpu, bool destroy)
 		vmm_stat_free(vcpu->stats);
 		fpu_save_area_free(vcpu->guestfpu);
 		vcpu_lock_destroy(vcpu);
+		free(vcpu, M_VMM);
 	}
 }
 
@@ -325,20 +310,14 @@ vmm_unsupported_quirk(void)
 	return (0);
 }
 
-static int
-vmm_init(void)
+int
+vmm_modinit(void)
 {
 	int error;
 
-	vm_maxcpu = mp_ncpus;
-	TUNABLE_INT_FETCH("hw.vmm.maxcpu", &vm_maxcpu);
-
-	if (vm_maxcpu > VM_MAXCPU) {
-		printf("vmm: vm_maxcpu clamped to %u\n", VM_MAXCPU);
-		vm_maxcpu = VM_MAXCPU;
-	}
-	if (vm_maxcpu == 0)
-		vm_maxcpu = 1;
+	error = vmm_unsupported_quirk();
+	if (error != 0)
+		return (error);
 
 	error = vmm_regs_init(&vmm_arch_regs, &vmm_arch_regs_masks);
 	if (error != 0)
@@ -347,67 +326,18 @@ vmm_init(void)
 	return (vmmops_modinit(0));
 }
 
-static int
-vmm_handler(module_t mod, int what, void *arg)
+int
+vmm_modcleanup(void)
 {
-	int error;
-
-	switch (what) {
-	case MOD_LOAD:
-		error = vmm_unsupported_quirk();
-		if (error != 0)
-			break;
-		error = vmmdev_init();
-		if (error != 0)
-			break;
-		error = vmm_init();
-		if (error == 0)
-			vmm_initialized = true;
-		else
-			(void)vmmdev_cleanup();
-		break;
-	case MOD_UNLOAD:
-		error = vmmdev_cleanup();
-		if (error == 0 && vmm_initialized) {
-			error = vmmops_modcleanup();
-			if (error) {
-				/*
-				 * Something bad happened - prevent new
-				 * VMs from being created
-				 */
-				vmm_initialized = false;
-			}
-		}
-		break;
-	default:
-		error = 0;
-		break;
-	}
-	return (error);
+	return (vmmops_modcleanup());
 }
-
-static moduledata_t vmm_kmod = {
-	"vmm",
-	vmm_handler,
-	NULL
-};
-
-/*
- * vmm initialization has the following dependencies:
- *
- * - HYP initialization requires smp_rendezvous() and therefore must happen
- *   after SMP is fully functional (after SI_SUB_SMP).
- * - vmm device initialization requires an initialized devfs.
- */
-DECLARE_MODULE(vmm, vmm_kmod, MAX(SI_SUB_SMP, SI_SUB_DEVFS) + 1, SI_ORDER_ANY);
-MODULE_VERSION(vmm, 1);
 
 static void
 vm_init(struct vm *vm, bool create)
 {
 	int i;
 
-	vm->cookie = vmmops_init(vm, vmspace_pmap(vm->vmspace));
+	vm->cookie = vmmops_init(vm, vmspace_pmap(vm_vmspace(vm)));
 	MPASS(vm->cookie != NULL);
 
 	CPU_ZERO(&vm->active_cpus);
@@ -443,10 +373,6 @@ vm_alloc_vcpu(struct vm *vm, int vcpuid)
 	if (vcpuid < 0 || vcpuid >= vm_get_maxcpus(vm))
 		return (NULL);
 
-	/* Some interrupt controllers may have a CPU limit */
-	if (vcpuid >= vgic_max_cpu_count(vm->cookie))
-		return (NULL);
-
 	vcpu = (struct vcpu *)
 	    atomic_load_acq_ptr((uintptr_t *)&vm->vcpu[vcpuid]);
 	if (__predict_true(vcpu != NULL))
@@ -455,6 +381,12 @@ vm_alloc_vcpu(struct vm *vm, int vcpuid)
 	sx_xlock(&vm->vcpus_init_lock);
 	vcpu = vm->vcpu[vcpuid];
 	if (vcpu == NULL && !vm->dying) {
+		/* Some interrupt controllers may have a CPU limit */
+		if (vcpuid >= vgic_max_cpu_count(vm->cookie)) {
+			sx_xunlock(&vm->vcpus_init_lock);
+			return (NULL);
+		}
+
 		vcpu = vcpu_alloc(vm, vcpuid);
 		vcpu_init(vcpu);
 
@@ -470,9 +402,9 @@ vm_alloc_vcpu(struct vm *vm, int vcpuid)
 }
 
 void
-vm_slock_vcpus(struct vm *vm)
+vm_lock_vcpus(struct vm *vm)
 {
-	sx_slock(&vm->vcpus_init_lock);
+	sx_xlock(&vm->vcpus_init_lock);
 }
 
 void
@@ -485,26 +417,15 @@ int
 vm_create(const char *name, struct vm **retvm)
 {
 	struct vm *vm;
-	struct vmspace *vmspace;
-
-	/*
-	 * If vmm.ko could not be successfully initialized then don't attempt
-	 * to create the virtual machine.
-	 */
-	if (!vmm_initialized)
-		return (ENXIO);
-
-	if (name == NULL || strlen(name) >= VM_MAX_NAMELEN)
-		return (EINVAL);
-
-	vmspace = vmmops_vmspace_alloc(0, 1ul << 39);
-	if (vmspace == NULL)
-		return (ENOMEM);
+	int error;
 
 	vm = malloc(sizeof(struct vm), M_VMM, M_WAITOK | M_ZERO);
+	error = vm_mem_init(&vm->mem, 0, 1ul << 39);
+	if (error != 0) {
+		free(vm, M_VMM);
+		return (error);
+	}
 	strcpy(vm->name, name);
-	vm->vmspace = vmspace;
-	vm_mem_init(&vm->mem);
 	sx_init(&vm->vcpus_init_lock, "vm vcpus");
 
 	vm->sockets = 1;
@@ -558,7 +479,7 @@ vm_cleanup(struct vm *vm, bool destroy)
 
 	if (destroy) {
 		vm_xlock_memsegs(vm);
-		pmap = vmspace_pmap(vm->vmspace);
+		pmap = vmspace_pmap(vm_vmspace(vm));
 		sched_pin();
 		PCPU_SET(curvmpmap, NULL);
 		sched_unpin();
@@ -582,11 +503,6 @@ vm_cleanup(struct vm *vm, bool destroy)
 	if (destroy) {
 		vm_mem_destroy(vm);
 
-		vmmops_vmspace_free(vm->vmspace);
-		vm->vmspace = NULL;
-
-		for (i = 0; i < vm->maxcpus; i++)
-			free(vm->vcpu[i], M_VMM);
 		free(vm->vcpu, M_VMM);
 		sx_destroy(&vm->vcpus_init_lock);
 	}
@@ -651,6 +567,33 @@ vmm_reg_wi(struct vcpu *vcpu, uint64_t wval, void *arg)
 	return (0);
 }
 
+static int
+vmm_write_oslar_el1(struct vcpu *vcpu, uint64_t wval, void *arg)
+{
+	struct hypctx *hypctx;
+
+	hypctx = vcpu_get_cookie(vcpu);
+	/* All other fields are RES0 & we don't do anything with this */
+	/* TODO: Disable access to other debug state when locked */
+	hypctx->dbg_oslock = (wval & OSLAR_OSLK) == OSLAR_OSLK;
+	return (0);
+}
+
+static int
+vmm_read_oslsr_el1(struct vcpu *vcpu, uint64_t *rval, void *arg)
+{
+	struct hypctx *hypctx;
+	uint64_t val;
+
+	hypctx = vcpu_get_cookie(vcpu);
+	val = OSLSR_OSLM_1;
+	if (hypctx->dbg_oslock)
+		val |= OSLSR_OSLK;
+	*rval = val;
+
+	return (0);
+}
+
 static const struct vmm_special_reg vmm_special_regs[] = {
 #define	SPECIAL_REG(_reg, _read, _write)				\
 	{								\
@@ -707,6 +650,13 @@ static const struct vmm_special_reg vmm_special_regs[] = {
 	SPECIAL_REG(CNTP_TVAL_EL0, vtimer_phys_tval_read,
 	    vtimer_phys_tval_write),
 	SPECIAL_REG(CNTPCT_EL0, vtimer_phys_cnt_read, vtimer_phys_cnt_write),
+
+	/* Debug registers */
+	SPECIAL_REG(DBGPRCR_EL1, vmm_reg_raz, vmm_reg_wi),
+	SPECIAL_REG(OSDLR_EL1, vmm_reg_raz, vmm_reg_wi),
+	/* TODO: Exceptions on invalid access */
+	SPECIAL_REG(OSLAR_EL1, vmm_reg_raz, vmm_write_oslar_el1),
+	SPECIAL_REG(OSLSR_EL1, vmm_read_oslsr_el1, vmm_reg_wi),
 #undef SPECIAL_REG
 };
 
@@ -1056,12 +1006,6 @@ vcpu_notify_event(struct vcpu *vcpu)
 	vcpu_unlock(vcpu);
 }
 
-struct vmspace *
-vm_vmspace(struct vm *vm)
-{
-	return (vm->vmspace);
-}
-
 struct vm_mem *
 vm_mem(struct vm *vm)
 {
@@ -1258,8 +1202,7 @@ vcpu_get_state(struct vcpu *vcpu, int *hostcpu)
 int
 vm_get_register(struct vcpu *vcpu, int reg, uint64_t *retval)
 {
-
-	if (reg >= VM_REG_LAST)
+	if (reg < 0 || reg >= VM_REG_LAST)
 		return (EINVAL);
 
 	return (vmmops_getreg(vcpu->cookie, reg, retval));
@@ -1270,7 +1213,7 @@ vm_set_register(struct vcpu *vcpu, int reg, uint64_t val)
 {
 	int error;
 
-	if (reg >= VM_REG_LAST)
+	if (reg < 0 || reg >= VM_REG_LAST)
 		return (EINVAL);
 	error = vmmops_setreg(vcpu->cookie, reg, val);
 	if (error || reg != VM_REG_GUEST_PC)
@@ -1342,8 +1285,14 @@ vm_handle_smccc_call(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 static int
 vm_handle_wfi(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 {
+	struct vm *vm;
+
+	vm = vcpu->vm;
 	vcpu_lock(vcpu);
 	while (1) {
+		if (vm->suspend)
+			break;
+
 		if (vgic_has_pending_irq(vcpu->cookie))
 			break;
 
@@ -1376,7 +1325,7 @@ vm_handle_paging(struct vcpu *vcpu, bool *retu)
 
 	vme = &vcpu->exitinfo;
 
-	pmap = vmspace_pmap(vcpu->vm->vmspace);
+	pmap = vmspace_pmap(vm_vmspace(vcpu->vm));
 	addr = vme->u.paging.gpa;
 	esr = vme->u.paging.esr;
 
@@ -1393,7 +1342,7 @@ vm_handle_paging(struct vcpu *vcpu, bool *retu)
 		panic("%s: Invalid exception (esr = %lx)", __func__, esr);
 	}
 
-	map = &vm->vmspace->vm_map;
+	map = &vm_vmspace(vm)->vm_map;
 	rv = vm_fault(map, vme->u.paging.gpa, ftype, VM_FAULT_NORMAL, NULL);
 	if (rv != KERN_SUCCESS)
 		return (EFAULT);
@@ -1467,7 +1416,7 @@ vm_run(struct vcpu *vcpu)
 	if (CPU_ISSET(vcpuid, &vm->suspended_cpus))
 		return (EINVAL);
 
-	pmap = vmspace_pmap(vm->vmspace);
+	pmap = vmspace_pmap(vm_vmspace(vm));
 	vme = &vcpu->exitinfo;
 	evinfo.rptr = NULL;
 	evinfo.sptr = &vm->suspend;

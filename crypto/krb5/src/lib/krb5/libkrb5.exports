@@ -119,6 +119,8 @@ initialize_prof_error_table
 k5_add_empty_pa_data
 k5_add_pa_data_element
 k5_add_pa_data_from_data
+k5_addr_directional_accept
+k5_addr_directional_init
 k5_alloc_pa_data
 k5_authind_decode
 k5_build_conf_principals
@@ -169,6 +171,8 @@ k5_plugin_load
 k5_plugin_load_all
 k5_plugin_register
 k5_plugin_register_dyn
+k5_print_addr
+k5_print_addr_port
 k5_rc_close
 k5_rc_get_name
 k5_rc_resolve
@@ -180,6 +184,7 @@ k5_size_context
 k5_size_keyblock
 k5_size_principal
 k5_sname_compare
+k5_sockaddr_to_address
 k5_unmarshal_cred
 k5_unmarshal_princ
 k5_unwrap_cammac_svc

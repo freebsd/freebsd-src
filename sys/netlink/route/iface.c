@@ -403,6 +403,7 @@ static const struct nlattr_parser nla_p_linfo[] = {
 NL_DECLARE_ATTR_PARSER(linfo_parser, nla_p_linfo);
 
 static const struct nlattr_parser nla_p_if[] = {
+	{ .type = IFLA_ADDRESS, .off = _OUT(ifla_address), .cb = nlattr_get_nla },
 	{ .type = IFLA_IFNAME, .off = _OUT(ifla_ifname), .cb = nlattr_get_string },
 	{ .type = IFLA_MTU, .off = _OUT(ifla_mtu), .cb = nlattr_get_uint32 },
 	{ .type = IFLA_LINK, .off = _OUT(ifla_link), .cb = nlattr_get_uint32 },

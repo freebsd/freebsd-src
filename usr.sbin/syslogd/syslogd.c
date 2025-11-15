@@ -1185,13 +1185,15 @@ parsemsg_rfc3164_app_name_procid(char **msg, const char **app_name,
 
 	/* Split strings from input. */
 	app_name_begin[app_name_length] = '\0';
-	m += app_name_length + 1;
+	m += app_name_length;
 	if (procid_begin != NULL) {
 		procid_begin[procid_length] = '\0';
+		/* Skip "[PID]". */
 		m += procid_length + 2;
 	}
 
-	*msg = m + 1;
+	/* Skip separator ": ". */
+	*msg = m + 2;
 	*app_name = app_name_begin;
 	*procid = procid_begin;
 	return;
@@ -1830,15 +1832,14 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 			case EHOSTUNREACH:
 			case EHOSTDOWN:
 			case EADDRNOTAVAIL:
+			case EAGAIN:
+			case ECONNREFUSED:
 				break;
 			/* case EBADF: */
 			/* case EACCES: */
 			/* case ENOTSOCK: */
 			/* case EFAULT: */
 			/* case EMSGSIZE: */
-			/* case EAGAIN: */
-			/* case ENOBUFS: */
-			/* case ECONNREFUSED: */
 			default:
 				dprintf("removing entry: errno=%d\n", e);
 				f->f_type = F_UNUSED;
@@ -2571,7 +2572,7 @@ syslogd_cap_enter(void)
 	if (cap_syslogd == NULL)
 		err(1, "Failed to open the syslogd.casper libcasper service");
 	cap_net = cap_service_open(cap_casper, "system.net");
-	if (cap_syslogd == NULL)
+	if (cap_net == NULL)
 		err(1, "Failed to open the system.net libcasper service");
 	cap_close(cap_casper);
 	limit = cap_net_limit_init(cap_net,

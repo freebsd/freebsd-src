@@ -36,8 +36,6 @@
 #include <ssp/ssp.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_readv, __readv);
-
 ssize_t __weak_symbol
 __ssp_real(readv)(int fd, const struct iovec *iov, int iovcnt)
 {

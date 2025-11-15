@@ -1,0 +1,40 @@
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
+ * Note: Do not use the text from ctf(5) to describe this package, since that
+ * text is licensed under the CDDL.
+ */
+
+comment = "Compact C Type Format (CTF)"
+
+desc = <<EOD
+The Compact C Type Format (CTF) is a method of encoding type information for C
+programs inside ELF objects.  Compared to the common DWARF debug symbol format,
+CTF is intended specifically for runtime program analyzers such as DTrace.
+
+This package provides the ctfconvert(1), ctfdump(1) and ctfmerge(1) utilities
+which are used to work with CTF data, and the libctf library which allows
+applications to access CTF debugging information programmatically.
+EOD
+
+licenses = [ "CDDL-1.0" ]
+
+annotations {
+	set = devel
+}

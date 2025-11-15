@@ -1,5 +1,27 @@
 # News
 
+## 7.1.0
+
+This is an ***UNTESTED*** release. If you would like testing, see the
+[maintenance terms][23].
+
+This fixes a few bugs:
+
+* Improper response to double `SIGINT` with editline.
+* Not letting `libedit` handle terminal size changes.
+* A `dc` crash from improperly handling an error.
+* A duplicate check for reference arrays.
+* Build failures with GCC 15.
+
+It also has a performance increase in the `band()` function and others in the
+math library.
+
+## 7.0.3
+
+This is a production release that fixes build warnings on the musl libc.
+
+Other users do ***NOT*** need to upgrade.
+
 ## 7.0.2
 
 This is a production release that fixes `Ctrl+d` on FreeBSD and Linux when using
@@ -1588,3 +1610,4 @@ not thoroughly tested.
 [20]: https://github.com/apjanke/ronn-ng
 [21]: https://pandoc.org/
 [22]: ./scripts/locale_uninstall.sh
+[23]: ./MAINTENANCE-TERMS.md

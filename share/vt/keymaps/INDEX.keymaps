@@ -33,14 +33,6 @@ MENU:el:Επιλέξτε το πληκτρολόγιο της κονσόλας
 MENU:hy:Ընտրեք ստեղնաշարի դասավորությունը
 MENU:tr:Klavye düzeninizi seçiniz
 
-#
-# The font definition for "en" is the fall-back font for
-# all languages.
-# Add language specific font definitions only where required!
-#
-FONT:en:vgarom-8x16.hex
-
-#
 am.kbd:en:Armenian phonetic layout
 am.kbd:da:Armensk fonetisk layout
 am.kbd:de:Armenische phonetische Tastenbelegung

@@ -162,6 +162,15 @@ The value has the same syntax as the environment variable.
 For x86 the string looks like C<CPUINFO: OPENSSL_ia32cap=0x123:0x456>
 or C<CPUINFO: N/A> if not available.
 
+=item OPENSSL_WINCTX
+
+The Windows install context.
+The Windows install context is used to compute the OpenSSL registry key name
+on Windows.  The full registry key is
+C<SOFTWARE\WOW6432Node\OpenSSL-{major}.{minor}-{context}>, where C<{major}>,
+C<{minor}> and C<{context}> are OpenSSL's major version number, minor version
+number and the Windows install context, respectively.
+
 =back
 
 For an unknown I<t>, the text C<not available> is returned.
@@ -211,6 +220,15 @@ automatically configured but may be set via an environment variable.
 The value has the same syntax as the environment variable.
 For x86 the string looks like C<OPENSSL_ia32cap=0x123:0x456>.
 
+=item OPENSSL_INFO_WINDOWS_CONTEXT
+
+The Windows install context.
+The Windows install context is used to compute the OpenSSL registry key name
+on Windows.  The full registry key is
+C<SOFTWARE\WOW6432Node\OpenSSL-{major}.{minor}-{context}>, where C<{major}>,
+C<{minor}> and C<{context}> are OpenSSL's major version number, minor version
+number and the Windows install context, respectively.
+
 =back
 
 For an unknown I<t>, NULL is returned.
@@ -238,9 +256,16 @@ L<crypto(7)>
 The macros and functions described here were added in OpenSSL 3.0,
 except for OPENSSL_VERSION_NUMBER and OpenSSL_version_num().
 
+=head1 BUGS
+
+There was a discrepancy between this manual and commentary + code
+in F<< <openssl/opensslv.h> >>, where the latter suggested that the
+four least significant bits of B<OPENSSL_VERSION_NUMBER> could be
+C<0x0f> in released OpenSSL versions.
+
 =head1 COPYRIGHT
 
-Copyright 2018-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2018-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

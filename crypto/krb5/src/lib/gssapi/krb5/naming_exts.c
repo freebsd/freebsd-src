@@ -201,7 +201,7 @@ data_list_to_buffer_set(krb5_context context,
 {
     gss_buffer_set_t set = GSS_C_NO_BUFFER_SET;
     OM_uint32 minor_status;
-    int i;
+    size_t i;
     krb5_error_code code = 0;
 
     if (data == NULL)
@@ -233,8 +233,8 @@ data_list_to_buffer_set(krb5_context context,
      * NULL-terminated in case of allocation failure
      * in data_to_gss() on windows.
      */
-    for (i = set->count-1; i >= 0; i--) {
-        if (data_to_gss(&data[i], &set->elements[i])) {
+    for (i = set->count; i > 0; i--) {
+        if (data_to_gss(&data[i - 1], &set->elements[i - 1])) {
             gss_release_buffer_set(&minor_status, &set);
             code = ENOMEM;
             goto cleanup;

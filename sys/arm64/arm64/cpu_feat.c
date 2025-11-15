@@ -32,22 +32,42 @@
 #include <machine/cpu.h>
 #include <machine/cpu_feat.h>
 
+SYSCTL_NODE(_hw, OID_AUTO, feat, CTLFLAG_RD, 0, "CPU features/errata");
+
 /* TODO: Make this a list if we ever grow a callback other than smccc_errata */
 static cpu_feat_errata_check_fn cpu_feat_check_cb = NULL;
 
 void
 enable_cpu_feat(uint32_t stage)
 {
+	char tunable[32];
 	struct cpu_feat **featp, *feat;
 	uint32_t midr;
 	u_int errata_count, *errata_list;
 	cpu_feat_errata errata_status;
+	cpu_feat_en check_status;
+	bool val;
 
 	MPASS((stage & ~CPU_FEAT_STAGE_MASK) == 0);
 
 	midr = get_midr();
 	SET_FOREACH(featp, cpu_feat_set) {
 		feat = *featp;
+
+		/* Read any tunable the user may have set */
+		if (stage == CPU_FEAT_EARLY_BOOT && PCPU_GET(cpuid) == 0) {
+			snprintf(tunable, sizeof(tunable), "hw.feat.%s",
+			    feat->feat_name);
+			if (TUNABLE_BOOL_FETCH(tunable, &val)) {
+				if (val) {
+					feat->feat_flags |=
+					    CPU_FEAT_USER_ENABLED;
+				} else {
+					feat->feat_flags |=
+					    CPU_FEAT_USER_DISABLED;
+				}
+			}
+		}
 
 		/* Run the enablement code at the correct stage of boot */
 		if ((feat->feat_flags & CPU_FEAT_STAGE_MASK) != stage)
@@ -58,8 +78,26 @@ enable_cpu_feat(uint32_t stage)
 		    PCPU_GET(cpuid) != 0)
 			continue;
 
-		if (feat->feat_check != NULL && !feat->feat_check(feat, midr))
-			continue;
+		if (feat->feat_check != NULL) {
+			check_status = feat->feat_check(feat, midr);
+		} else {
+			check_status = FEAT_DEFAULT_ENABLE;
+		}
+		/* Ignore features that are not present */
+		if (check_status == FEAT_ALWAYS_DISABLE)
+			goto next;
+
+		/* The user disabled the feature */
+		if ((feat->feat_flags & CPU_FEAT_USER_DISABLED) != 0)
+			goto next;
+
+		/*
+		 * The feature was disabled by default and the user
+		 * didn't enable it then skip.
+		 */
+		if (check_status == FEAT_DEFAULT_DISABLE &&
+		    (feat->feat_flags & CPU_FEAT_USER_ENABLED) == 0)
+			goto next;
 
 		/*
 		 * Check if the feature has any errata that may need a
@@ -97,8 +135,13 @@ enable_cpu_feat(uint32_t stage)
 		/* Shouldn't be possible */
 		MPASS(errata_status != ERRATA_UNKNOWN);
 
-		feat->feat_enable(feat, errata_status, errata_list,
-		    errata_count);
+		if (feat->feat_enable(feat, errata_status, errata_list,
+		    errata_count))
+			feat->feat_enabled = true;
+
+next:
+		if (!feat->feat_enabled && feat->feat_disabled != NULL)
+			feat->feat_disabled(feat);
 	}
 }
 

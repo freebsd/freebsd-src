@@ -235,8 +235,10 @@ struct nvme_controller {
 	 *  separate from the control registers which are in BAR 0/1.  These
 	 *  members track the mapping of BAR 4/5 for that reason.
 	 */
-	int			bar4_resource_id;
-	struct resource		*bar4_resource;
+	int			msix_table_resource_id;
+	struct resource		*msix_table_resource;
+	int			msix_pba_resource_id;
+	struct resource		*msix_pba_resource;
 
 	int			msi_count;
 	uint32_t		enable_aborts;
@@ -459,18 +461,17 @@ int	nvme_detach(device_t dev);
  * vast majority of these without waiting for a tick plus scheduling delays. Since
  * these are on startup, this drastically reduces startup time.
  */
-static __inline
-void
+static __inline void
 nvme_completion_poll(struct nvme_completion_poll_status *status)
 {
 	int timeout = ticks + 10 * hz;
-	sbintime_t delta_t = SBT_1US;
+	sbintime_t delta = SBT_1US;
 
 	while (!atomic_load_acq_int(&status->done)) {
 		if (timeout - ticks < 0)
 			panic("NVME polled command failed to complete within 10s.");
-		pause_sbt("nvme", delta_t, 0, C_PREL(1));
-		delta_t = min(SBT_1MS, delta_t * 3 / 2);
+		pause_sbt("nvme", delta, 0, C_PREL(1));
+		delta = min(SBT_1MS, delta + delta / 2);
 	}
 }
 
@@ -564,6 +565,7 @@ void	nvme_notify_new_controller(struct nvme_controller *ctrlr);
 void	nvme_notify_ns(struct nvme_controller *ctrlr, int nsid);
 
 void	nvme_ctrlr_shared_handler(void *arg);
+void	nvme_ctrlr_get_ident(const struct nvme_controller *ctrlr, uint8_t *sn);
 void	nvme_ctrlr_poll(struct nvme_controller *ctrlr);
 
 int	nvme_ctrlr_suspend(struct nvme_controller *ctrlr);

@@ -1311,6 +1311,9 @@ ipfw_check_rule(struct ip_fw_rule *rule, size_t size,
 	return (check_ipfw_rule_body(rule->cmd, rule->cmd_len, ci));
 }
 
+#define	CHECK_TARG(a, c)	\
+    ((a) == IP_FW_TARG && ((c)->flags & IPFW_RCIFLAG_HAS_STATE))
+
 enum ipfw_opcheck_result
 ipfw_check_opcode(ipfw_insn **pcmd, int *plen, struct rule_check_info *ci)
 {
@@ -1326,6 +1329,7 @@ ipfw_check_opcode(ipfw_insn **pcmd, int *plen, struct rule_check_info *ci)
 		if (cmdlen != F_INSN_SIZE(ipfw_insn_kidx))
 			return (BAD_SIZE);
 		ci->object_opcodes++;
+		ci->flags |= IPFW_RCIFLAG_HAS_STATE;
 		break;
 	case O_PROTO:
 	case O_IP_SRC_ME:
@@ -1410,6 +1414,8 @@ ipfw_check_opcode(ipfw_insn **pcmd, int *plen, struct rule_check_info *ci)
 				cmd->arg1 & 0x7FFF);
 			return (FAILED);
 		}
+		if (CHECK_TARG(cmd->arg1, ci))
+			goto bad_targ;
 		return (CHECK_ACTION);
 
 	case O_UID:
@@ -1518,11 +1524,16 @@ ipfw_check_opcode(ipfw_insn **pcmd, int *plen, struct rule_check_info *ci)
 	case O_QUEUE:
 		if (cmdlen != F_INSN_SIZE(ipfw_insn))
 			return (BAD_SIZE);
+		if (CHECK_TARG(cmd->arg1, ci))
+			goto bad_targ;
 		return (CHECK_ACTION);
 
 	case O_FORWARD_IP:
 		if (cmdlen != F_INSN_SIZE(ipfw_insn_sa))
 			return (BAD_SIZE);
+		if (insntoc(cmd, sa)->sa.sin_addr.s_addr == INADDR_ANY &&
+		    (ci->flags & IPFW_RCIFLAG_HAS_STATE))
+			goto bad_targ;
 		return (CHECK_ACTION);
 #ifdef INET6
 	case O_FORWARD_IP6:
@@ -1537,6 +1548,8 @@ ipfw_check_opcode(ipfw_insn **pcmd, int *plen, struct rule_check_info *ci)
 			return (FAILED);
 		if (cmdlen != F_INSN_SIZE(ipfw_insn))
 			return (BAD_SIZE);
+		if (CHECK_TARG(cmd->arg1, ci))
+			goto bad_targ;
 		return (CHECK_ACTION);
 	case O_NETGRAPH:
 	case O_NGTEE:
@@ -1544,12 +1557,16 @@ ipfw_check_opcode(ipfw_insn **pcmd, int *plen, struct rule_check_info *ci)
 			return (FAILED);
 		if (cmdlen != F_INSN_SIZE(ipfw_insn))
 			return (BAD_SIZE);
+		if (CHECK_TARG(cmd->arg1, ci))
+			goto bad_targ;
 		return (CHECK_ACTION);
 	case O_NAT:
 		if (!IPFW_NAT_LOADED)
 			return (FAILED);
 		if (cmdlen != F_INSN_SIZE(ipfw_insn_nat))
 			return (BAD_SIZE);
+		if (CHECK_TARG(cmd->arg1, ci))
+			goto bad_targ;
 		return (CHECK_ACTION);
 
 	case O_SKIPTO:
@@ -1557,6 +1574,11 @@ ipfw_check_opcode(ipfw_insn **pcmd, int *plen, struct rule_check_info *ci)
 	case O_SETMARK:
 		if (cmdlen != F_INSN_SIZE(ipfw_insn_u32))
 			return (BAD_SIZE);
+		/* O_CALLRETURN + F_NOT means 'return' opcode. */
+		if (cmd->opcode != O_CALLRETURN || (cmd->len & F_NOT) == 0) {
+			if (CHECK_TARG(insntoc(cmd, u32)->d[0], ci))
+				goto bad_targ;
+		}
 		return (CHECK_ACTION);
 
 	case O_CHECK_STATE:
@@ -1577,6 +1599,8 @@ ipfw_check_opcode(ipfw_insn **pcmd, int *plen, struct rule_check_info *ci)
 	case O_REASS:
 		if (cmdlen != F_INSN_SIZE(ipfw_insn))
 			return (BAD_SIZE);
+		if (cmd->opcode == O_SETDSCP && CHECK_TARG(cmd->arg1, ci))
+			goto bad_targ;
 		return (CHECK_ACTION);
 #ifdef INET6
 	case O_IP6_SRC:
@@ -1627,6 +1651,13 @@ ipfw_check_opcode(ipfw_insn **pcmd, int *plen, struct rule_check_info *ci)
 		}
 	}
 	return (SUCCESS);
+bad_targ:
+	/*
+	 * For dynamic states we can not correctly initialize tablearg value,
+	 * because we don't go through rule's opcodes except rule action.
+	 */
+	printf("ipfw: tablearg is not allowed with dynamic states\n");
+	return (FAILED);
 }
 
 static __noinline int

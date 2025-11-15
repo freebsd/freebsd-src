@@ -144,12 +144,10 @@ feeder_build_format(struct pcm_channel *c, struct feeder_chain_desc *cdesc)
 	int ret;
 
 	desc = &(cdesc->desc);
-	desc->type = FEEDER_FORMAT;
 	desc->in = 0;
 	desc->out = 0;
-	desc->flags = 0;
 
-	fc = feeder_getclass(desc);
+	fc = feeder_getclass(FEEDER_FORMAT);
 	if (fc == NULL) {
 		device_printf(c->dev,
 		    "%s(): can't find feeder_format\n", __func__);
@@ -217,12 +215,10 @@ feeder_build_rate(struct pcm_channel *c, struct feeder_chain_desc *cdesc)
 		return (ret);
 
 	desc = &(cdesc->desc);
-	desc->type = FEEDER_RATE;
 	desc->in = 0;
 	desc->out = 0;
-	desc->flags = 0;
 
-	fc = feeder_getclass(desc);
+	fc = feeder_getclass(FEEDER_RATE);
 	if (fc == NULL) {
 		device_printf(c->dev,
 		    "%s(): can't find feeder_rate\n", __func__);
@@ -295,12 +291,10 @@ feeder_build_matrix(struct pcm_channel *c, struct feeder_chain_desc *cdesc)
 		return (ret);
 
 	desc = &(cdesc->desc);
-	desc->type = FEEDER_MATRIX;
 	desc->in = 0;
 	desc->out = 0;
-	desc->flags = 0;
 
-	fc = feeder_getclass(desc);
+	fc = feeder_getclass(FEEDER_MATRIX);
 	if (fc == NULL) {
 		device_printf(c->dev,
 		    "%s(): can't find feeder_matrix\n", __func__);
@@ -352,12 +346,10 @@ feeder_build_volume(struct pcm_channel *c, struct feeder_chain_desc *cdesc)
 		return (ret);
 
 	desc = &(cdesc->desc);
-	desc->type = FEEDER_VOLUME;
 	desc->in = 0;
 	desc->out = 0;
-	desc->flags = 0;
 
-	fc = feeder_getclass(desc);
+	fc = feeder_getclass(FEEDER_VOLUME);
 	if (fc == NULL) {
 		device_printf(c->dev,
 		    "%s(): can't find feeder_volume\n", __func__);
@@ -420,12 +412,10 @@ feeder_build_eq(struct pcm_channel *c, struct feeder_chain_desc *cdesc)
 		return (ret);
 
 	desc = &(cdesc->desc);
-	desc->type = FEEDER_EQ;
 	desc->in = 0;
 	desc->out = 0;
-	desc->flags = 0;
 
-	fc = feeder_getclass(desc);
+	fc = feeder_getclass(FEEDER_EQ);
 	if (fc == NULL) {
 		device_printf(c->dev,
 		    "%s(): can't find feeder_eq\n", __func__);
@@ -467,7 +457,7 @@ feeder_build_root(struct pcm_channel *c, struct feeder_chain_desc *cdesc)
 	struct feeder_class *fc;
 	int ret;
 
-	fc = feeder_getclass(NULL);
+	fc = feeder_getclass(FEEDER_ROOT);
 	if (fc == NULL) {
 		device_printf(c->dev,
 		    "%s(): can't find feeder_root\n", __func__);
@@ -500,12 +490,10 @@ feeder_build_mixer(struct pcm_channel *c, struct feeder_chain_desc *cdesc)
 	int ret;
 
 	desc = &(cdesc->desc);
-	desc->type = FEEDER_MIXER;
 	desc->in = 0;
 	desc->out = 0;
-	desc->flags = 0;
 
-	fc = feeder_getclass(desc);
+	fc = feeder_getclass(FEEDER_MIXER);
 	if (fc == NULL) {
 		device_printf(c->dev,
 		    "%s(): can't find feeder_mixer\n", __func__);
@@ -695,11 +683,11 @@ feeder_chain(struct pcm_channel *c)
 		cdesc.origin.rate    = c->speed;
 		cdesc.target.afmt    = hwfmt;
 		cdesc.target.matrix  = hwmatrix;
-		cdesc.target.rate    = sndbuf_getspd(c->bufhard);
+		cdesc.target.rate    = c->bufhard->spd;
 	} else {
 		cdesc.origin.afmt    = hwfmt;
 		cdesc.origin.matrix  = hwmatrix;
-		cdesc.origin.rate    = sndbuf_getspd(c->bufhard);
+		cdesc.origin.rate    = c->bufhard->spd;
 		cdesc.target.afmt    = softfmt;
 		cdesc.target.matrix  = softmatrix;
 		cdesc.target.rate    = c->speed;

@@ -216,6 +216,12 @@ device		ffec			# Freescale Fast Ethernet Controller
 device		neta			# Marvell 10/100/1000 Network controller
 device		smsc			# SMSC LAN91C111
 
+# random(4)
+device		tpm			# Trusted Platform Module
+options 	RANDOM_ENABLE_TPM	# enable entropy from TPM 2.0
+options 	RANDOM_ENABLE_KBD
+options 	RANDOM_ENABLE_MOUSE
+
 # Sound support
 device		sound
 
@@ -270,7 +276,3 @@ makeoptions	MODULES_EXTRA+="dtb/nvidia"
 makeoptions	MODULES_EXTRA+="dtb/rockchip"
 makeoptions	MODULES_EXTRA+="dtb/rpi"
 makeoptions	MODULES_EXTRA+="dtb/zynq"
-
-# SOC-specific modules
-makeoptions	MODULES_EXTRA+="allwinner"
-makeoptions	MODULES_EXTRA+="imx"

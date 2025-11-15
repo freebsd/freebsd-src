@@ -207,7 +207,7 @@ tpm_ppi_write_dsdt_regions(void *sc __unused)
 	 * Used for TCG Platform Reset Attack Mitigation
 	 */
 	dsdt_line("OperationRegion(TPP3, SystemMemory, 0x%8x, 1)",
-	    TPM_PPI_ADDRESS + sizeof(struct tpm_ppi_qemu));
+	    TPM_PPI_ADDRESS + (uint32_t)sizeof(struct tpm_ppi_qemu));
 	dsdt_line("Field(TPP3, ByteAcc, NoLock, Preserve)");
 	dsdt_line("{");
 	dsdt_line("  MOVV, 8,");

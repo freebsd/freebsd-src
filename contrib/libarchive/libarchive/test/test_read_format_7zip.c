@@ -1285,19 +1285,26 @@ DEFINE_TEST(test_read_format_7zip_sfx_pe)
 	const char test_txt[] = "123";
 	int size = sizeof(test_txt) - 1;
 
-	extract_reference_file(reffile);
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_filter_all(a));
-	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_open_filename(a, reffile, bs));
 
-	assertA(0 == archive_read_next_header(a, &ae));
-	assertEqualString("test.txt.txt", archive_entry_pathname(ae));
+	if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+		skipping(
+		    "7zip:lzma decoding is not supported on this platform");
+	} else {
+		extract_reference_file(reffile);
+		assertA(0 == archive_read_support_filter_all(a));
+		assertA(0 == archive_read_support_format_all(a));
+		assertA(0 == archive_read_open_filename(a, reffile, bs));
 
-	assertA(size == archive_read_data(a, buff, size));
-	assertEqualMem(buff, test_txt, size);
+		assertA(0 == archive_read_next_header(a, &ae));
+		assertEqualString("test.txt.txt", archive_entry_pathname(ae));
 
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+		assertA(size == archive_read_data(a, buff, size));
+		assertEqualMem(buff, test_txt, size);
+
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	}
+
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -1316,19 +1323,26 @@ DEFINE_TEST(test_read_format_7zip_sfx_modified_pe)
 	const char test_txt[] = "123";
 	int size = sizeof(test_txt) - 1;
 
-	extract_reference_file(reffile);
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_filter_all(a));
-	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_open_filename(a, reffile, bs));
 
-	assertA(0 == archive_read_next_header(a, &ae));
-	assertEqualString("test.txt.txt", archive_entry_pathname(ae));
+	if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+		skipping(
+		    "7zip:lzma decoding is not supported on this platform");
+	} else {
+		extract_reference_file(reffile);
+		assertA(0 == archive_read_support_filter_all(a));
+		assertA(0 == archive_read_support_format_all(a));
+		assertA(0 == archive_read_open_filename(a, reffile, bs));
 
-	assertA(size == archive_read_data(a, buff, size));
-	assertEqualMem(buff, test_txt, size);
+		assertA(0 == archive_read_next_header(a, &ae));
+		assertEqualString("test.txt.txt", archive_entry_pathname(ae));
 
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+		assertA(size == archive_read_data(a, buff, size));
+		assertEqualMem(buff, test_txt, size);
+
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	}
+
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -1346,20 +1360,27 @@ DEFINE_TEST(test_read_format_7zip_sfx_elf)
 	const char test_txt[] = "123";
 	int size = sizeof(test_txt) - 1;
 
-	extract_reference_file(reffile);
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_filter_all(a));
-	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_open_filename(a, reffile, bs));
 
-	assertA(0 == archive_read_next_header(a, &ae));
-	assertEqualString("test.txt.txt", archive_entry_pathname(ae));
+	if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+		skipping(
+		    "7zip:lzma decoding is not supported on this platform");
+	} else {
+		extract_reference_file(reffile);
+		assertA(0 == archive_read_support_filter_all(a));
+		assertA(0 == archive_read_support_format_all(a));
+		assertA(0 == archive_read_open_filename(a, reffile, bs));
 
-	assertA(size == archive_read_data(a, buff, size));
-	assertEqualMem(buff, test_txt, size);
+		assertA(0 == archive_read_next_header(a, &ae));
+		assertEqualString("test.txt.txt", archive_entry_pathname(ae));
 
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		assertA(size == archive_read_data(a, buff, size));
+		assertEqualMem(buff, test_txt, size);
+
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	}
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 DEFINE_TEST(test_read_format_7zip_extract_second)
@@ -1597,9 +1618,9 @@ DEFINE_TEST(test_read_format_7zip_lzma2_powerpc)
 
 	assert((a = archive_read_new()) != NULL);
 
-	if (ARCHIVE_OK != archive_read_support_filter_gzip(a)) {
+	if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
 		skipping(
-		    "7zip:deflate decoding is not supported on this platform");
+		    "7zip:lzma decoding is not supported on this platform");
 	} else {
 		test_powerpc_filter("test_read_format_7zip_lzma2_powerpc.7z");
 	}

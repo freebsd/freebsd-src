@@ -300,7 +300,7 @@ static void rangelock_free_free(struct rl_q_entry *free);
 static void rangelock_noncheating_destroy(struct rangelock *lock);
 
 static void
-rangelock_sys_init(void)
+rangelock_sys_init(void *dummy __unused)
 {
 	rl_entry_zone = uma_zcreate("rl_entry", sizeof(struct rl_q_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGNOF(struct rl_q_entry),

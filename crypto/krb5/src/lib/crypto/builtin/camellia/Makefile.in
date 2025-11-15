@@ -14,6 +14,8 @@ OBJS= $(OUTPRE)camellia.$(OBJEXT)
 
 SRCS= $(srcdir)/camellia.c
 
+EXTRADEPSRCS= $(srcdir)/camellia-gen.c
+
 GEN_OBJS= $(OUTPRE)camellia.$(OBJEXT)
 
 ##DOS##LIBOBJS = $(OBJS)

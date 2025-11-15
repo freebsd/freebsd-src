@@ -29,6 +29,8 @@ _PRIVATELIBS=	\
 		heimipcs \
 		kldelf \
 		ldns \
+		opencsd \
+		samplerate \
 		sqlite3 \
 		ssh \
 		ucl \
@@ -77,6 +79,7 @@ _INTERNALLIBS=	\
 		smdb \
 		smutil \
 		telnet \
+		util++ \
 		vers \
 		wpaap \
 		wpacommon \
@@ -262,8 +265,12 @@ _LIBRARIES+= \
 
 .if ${MK_BLACKLIST} != "no"
 _LIBRARIES+= \
-		blacklist \
+		blacklist
+.endif
 
+.if ${MK_BLOCKLIST} != "no"
+_LIBRARIES+= \
+		blocklist
 .endif
 
 .if ${MK_OFED} != "no"
@@ -317,6 +324,9 @@ _DP_zstd=	pthread
 .if ${MK_BLACKLIST} != "no"
 _DP_blacklist+=	pthread
 .endif
+.if ${MK_BLOCKLIST} != "no"
+_DP_blocklist+=	pthread
+.endif
 _DP_crypto=	pthread
 # See comment by _DP_archive above
 .if ${.MAKE.OS} == "FreeBSD" || !defined(BOOTSTRAPPING)
@@ -327,7 +337,7 @@ _DP_archive+=	md
 .endif
 .endif
 _DP_sqlite3=	pthread
-_DP_ssl=	crypto
+_DP_ssl=	pthread crypto
 _DP_ssh=	crypto crypt z
 .if ${MK_LDNS} != "no"
 _DP_ssh+=	ldns
@@ -423,7 +433,7 @@ _DP_kadm5clnt=	com_err krb5 roken
 _DP_kadm5srv=	com_err hdb krb5 roken
 _DP_heimntlm=	crypto com_err krb5 roken
 _DP_hx509=	asn1 com_err crypto roken wind
-_DP_hdb=	asn1 com_err krb5 roken sqlite3
+_DP_hdb=	asn1 com_err krb5 roken sqlite3 heimbase
 _DP_asn1=	com_err roken
 _DP_kdc=	roken hdb hx509 krb5 heimntlm asn1 crypto
 _DP_wind=	com_err roken
@@ -470,7 +480,11 @@ _DP_ncursesw=	tinfow
 _DP_formw=	ncursesw
 _DP_nvpair=	spl
 _DP_panelw=	ncursesw
+.if ${MK_MITKRB5} == "no"
 _DP_rpcsec_gss=	gssapi
+.else
+_DP_rpcsec_gss=	gssapi_krb5
+.endif
 _DP_smb=	kiconv
 _DP_ulog=	md
 _DP_fifolog=	z
@@ -487,6 +501,7 @@ _DP_be=		zfs spl nvpair zfsbootenv
 _DP_netmap=
 _DP_ifconfig=	m
 _DP_pfctl=	nv
+_DP_krb5ss=		edit
 
 # OFED support
 .if ${MK_OFED} != "no"
@@ -692,6 +707,9 @@ LIBPKGECC?=	${LIBPKGECCDIR}/libpkgecc${PIE_SUFFIX}.a
 LIBPMCSTATDIR=	${_LIB_OBJTOP}/lib/libpmcstat
 LIBPMCSTAT?=	${LIBPMCSTATDIR}/libpmcstat${PIE_SUFFIX}.a
 
+LIBUTIL++DIR=	${_LIB_OBJTOP}/lib/libutil++
+LIBUTIL++?=	${LIBUTIL++DIR}/libutil++${PIE_SUFFIX}.a
+
 LIBWPAAPDIR=	${_LIB_OBJTOP}/usr.sbin/wpa/src/ap
 LIBWPAAP?=	${LIBWPAAPDIR}/libwpaap${PIE_SUFFIX}.a
 
@@ -745,6 +763,9 @@ LIBC_NOSSP_PIC?=	${LIBC_NOSSP_PICDIR}/libc_nossp_pic.a
 
 LIBSYS_PICDIR=	${_LIB_OBJTOP}/lib/libsys
 LIBSYS_PIC?=	${LIBSYS_PICDIR}/libsys_pic.a
+
+LIBSAMPLERATEDIR?=	${_LIB_OBJTOP}/lib/libsamplerate
+LIBSAMPLERATE?=	${LIBSAMPLERATEDIR}/libsamplerate${PIE_SUFFIX}.a
 
 # Define a directory for each library.  This is useful for adding -L in when
 # not using a --sysroot or for meta mode bootstrapping when there is no
@@ -852,6 +873,7 @@ LIBGTESTDIR=	${_LIB_OBJTOP}/lib/googletest/gtest
 LIBGTEST_MAINDIR=	${_LIB_OBJTOP}/lib/googletest/gtest_main
 LIBALIASDIR=	${_LIB_OBJTOP}/lib/libalias/libalias
 LIBBLACKLISTDIR=	${_LIB_OBJTOP}/lib/libblacklist
+LIBBLOCKLISTDIR=	${_LIB_OBJTOP}/lib/libblocklist
 LIBBLOCKSRUNTIMEDIR=	${_LIB_OBJTOP}/lib/libblocksruntime
 LIBBSNMPDIR=	${_LIB_OBJTOP}/lib/libbsnmp/libbsnmp
 LIBCASPERDIR=	${_LIB_OBJTOP}/lib/libcasper/libcasper

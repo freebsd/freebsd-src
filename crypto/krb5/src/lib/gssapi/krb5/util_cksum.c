@@ -28,10 +28,8 @@
 
 /* Checksumming the channel bindings always uses plain MD5.  */
 krb5_error_code
-kg_checksum_channel_bindings(context, cb, cksum)
-    krb5_context context;
-    gss_channel_bindings_t cb;
-    krb5_checksum *cksum;
+kg_checksum_channel_bindings(krb5_context context, gss_channel_bindings_t cb,
+                             krb5_checksum *cksum)
 {
     struct k5buf buf;
     size_t sumlen;

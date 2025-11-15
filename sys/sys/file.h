@@ -72,6 +72,7 @@ struct nameidata;
 #define	DTYPE_EVENTFD	13	/* eventfd */
 #define	DTYPE_TIMERFD	14	/* timerfd */
 #define	DTYPE_INOTIFY	15	/* inotify descriptor */
+#define	DTYPE_JAILDESC	16	/* jail descriptor */
 
 #ifdef _KERNEL
 
@@ -92,6 +93,8 @@ void foffset_lock_pair(struct file *fp1, off_t *off1p, struct file *fp2,
 void foffset_lock_uio(struct file *fp, struct uio *uio, int flags);
 void foffset_unlock(struct file *fp, off_t val, int flags);
 void foffset_unlock_uio(struct file *fp, struct uio *uio, int flags);
+void fsetfl_lock(struct file *fp);
+void fsetfl_unlock(struct file *fp);
 
 static inline off_t
 foffset_get(struct file *fp)
@@ -136,6 +139,8 @@ typedef int fo_fspacectl_t(struct file *fp, int cmd,
 		    off_t *offset, off_t *length, int flags,
 		    struct ucred *active_cred, struct thread *td);
 typedef int fo_cmp_t(struct file *fp, struct file *fp1, struct thread *td);
+typedef	int fo_fork_t(struct filedesc *fdp, struct file *fp, struct file **fp1,
+		    struct proc *p1, struct thread *td);
 typedef int fo_spare_t(struct file *fp);
 typedef	int fo_flags_t;
 
@@ -160,12 +165,14 @@ struct fileops {
 	fo_fallocate_t	*fo_fallocate;
 	fo_fspacectl_t	*fo_fspacectl;
 	fo_cmp_t	*fo_cmp;
+	fo_fork_t	*fo_fork;
 	fo_spare_t	*fo_spares[8];	/* Spare slots */
 	fo_flags_t	fo_flags;	/* DFLAG_* below */
 };
 
 #define DFLAG_PASSABLE	0x01	/* may be passed via unix sockets. */
 #define DFLAG_SEEKABLE	0x02	/* seekable / nonsequential */
+#define	DFLAG_FORK	0x04	/* copy on fork */
 #endif /* _KERNEL */
 
 #if defined(_KERNEL) || defined(_WANT_FILE)
@@ -196,7 +203,7 @@ struct file {
 	struct vnode 	*f_vnode;	/* NULL or applicable vnode */
 	struct ucred	*f_cred;	/* associated credentials. */
 	short		f_type;		/* descriptor type */
-	short		f_vnread_flags; /* (f) Sleep lock for f_offset */
+	short		f_vflags;	/* (f) Sleep lock flags for members */
 	/*
 	 *  DTYPE_VNODE specific fields.
 	 */
@@ -219,8 +226,10 @@ struct file {
 #define	f_cdevpriv	f_vnun.fvn_cdevpriv
 #define	f_advice	f_vnun.fvn_advice
 
-#define	FOFFSET_LOCKED       0x1
-#define	FOFFSET_LOCK_WAITING 0x2
+#define	FILE_V_FOFFSET_LOCKED		0x0001
+#define	FILE_V_FOFFSET_LOCK_WAITING	0x0002
+#define	FILE_V_SETFL_LOCKED		0x0004
+#define	FILE_V_SETFL_LOCK_WAITING	0x0008
 #endif /* __BSD_VISIBLE */
 
 #endif /* _KERNEL || _WANT_FILE */

@@ -804,12 +804,13 @@ mvebu_gpio_attach(device_t dev)
 		}
 	}
 
-	sc->busdev = gpiobus_attach_bus(dev);
+	sc->busdev = gpiobus_add_bus(dev);
 	if (sc->busdev == NULL) {
 		mvebu_gpio_detach(dev);
 		return (ENXIO);
 	}
 
+	bus_attach_children(dev);
 	return (0);
 }
 
@@ -837,6 +838,10 @@ static device_method_t mvebu_gpio_methods[] = {
 	DEVMETHOD(device_probe,		mvebu_gpio_probe),
 	DEVMETHOD(device_attach,	mvebu_gpio_attach),
 	DEVMETHOD(device_detach,	mvebu_gpio_detach),
+
+	/* Bus interface */
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	mvebu_gpio_pic_disable_intr),

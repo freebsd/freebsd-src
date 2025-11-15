@@ -1,7 +1,13 @@
 #!/usr/libexec/flua
+--
+-- Copyright (c) 2024-2025 Baptiste Daroussin <bapt@FreeBSD.org>
+-- Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+--
+-- SPDX-License-Identifier: BSD-2-Clause
+--
 
 --[[ usage:
-generare-ucl.lua [<variablename> <variablevalue>]... <sourceucl> <destucl>
+generate-ucl.lua [<variablename> <variablevalue>]... <sourceucl> <destucl>
 
 Build a package's UCL configuration by loading the template UCL file
 <sourceucl>, replacing any $VARIABLES in the UCL based on the provided
@@ -37,6 +43,10 @@ pkg_suffixes = {
 		"%-lib32$", "(32-bit libraries)",
 		"This package contains 32-bit libraries for running 32-bit "..
 		"applications on a 64-bit host.",
+	},
+	{
+		"%-lib$", "(libraries)",
+		"This package contains runtime shared libraries.",
 	},
 	{
 		"%-dev$", "(development files)",
@@ -98,6 +108,9 @@ function add_gen_dep(pkgname, pkggenname)
 	if no_gen_deps[pkgname] ~= nil then
 		return false
 	end
+	if pkgname:match("%-lib$") ~= nil then
+		return false
+	end
 	if pkggenname == "kernel" then
 		return false
 	end
@@ -154,9 +167,54 @@ if add_gen_dep(pkgname, pkggenname) then
 	end
 	obj["deps"][pkggenname] = {
 		["version"] = pkgversion,
-		["origin"] = "base"
+		["origin"] = "base/"..pkgprefix.."-"..pkggenname,
 	}
 end
+
+--
+-- Handle the 'set' annotation, a comma-separated list of sets which this
+-- package should be placed in.  If it's not specified, the package goes
+-- in the default set which is base.
+--
+-- Ensure we have an annotations table to work with.
+obj["annotations"] = obj["annotations"] or {}
+-- If no set is provided, use the default set which is "base".
+sets = obj["annotations"]["set"] or "base"
+-- For subpackages, we may need to rewrite the set name.  This is done a little
+-- differently from the normal pkg suffix processing, because we don't need sets
+-- to be as a granular as the base packages.
+--
+-- Create a single lib32 set for all lib32 packages.  Most users don't need
+-- lib32, so this avoids creating a large number of unnecessary lib32 sets.
+-- However, lib32 debug symbols still go into their own package since they're
+-- quite large.
+if pkgname:match("%-dbg%-lib32$") then
+	sets = "lib32-dbg"
+elseif pkgname:match("%-lib32$") then
+	sets = "lib32"
+-- If this is a -dev package, put it in a single set called "devel" which
+-- contains all development files.  Also include lib*-man packages, which
+-- contain manpages for libraries. Having a separate <set>-dev for every
+-- set is not necessary, because generally you either want development
+-- support or you don't.
+elseif pkgname:match("%-dev$") or pkgname:match("^lib.*%-man$") then
+	sets = "devel"
+-- Don't separate tests and tests-dbg into 2 sets, if the user wants tests
+-- they should be able to debug failures.
+elseif sets == "tests" then
+	sets = sets
+-- If this is a -dbg package, put it in the -dbg subpackage of each set,
+-- which means the user can install debug symbols only for the sets they
+-- have installed.
+elseif pkgname:match("%-dbg$") then
+	local newsets = {}
+	for set in sets:gmatch("[^,]+") do
+		newsets[#newsets + 1] = set .. "-dbg"
+	end
+	sets = table.concat(newsets, ",")
+end
+-- Put our new sets back into the package.
+obj["annotations"]["set"] = sets
 
 -- If PKG_NAME_PREFIX is provided, rewrite the names of dependency packages.
 -- We can't do this in UCL since variable substitution doesn't work in array
@@ -165,6 +223,8 @@ if pkgprefix ~= nil and obj["deps"] ~= nil then
 	newdeps = {}
 	for dep, opts in pairs(obj["deps"]) do
 		local newdep = pkgprefix .. "-" .. dep
+		-- Make sure origin is set.
+		opts["origin"] = opts["origin"] or "base/"..newdep
 		newdeps[newdep] = opts
 	end
 	obj["deps"] = newdeps

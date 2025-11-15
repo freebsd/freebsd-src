@@ -77,7 +77,7 @@ static struct virtio_feature_desc vtrnd_feature_desc[] = {
 	{ 0, NULL }
 };
 
-static struct random_source random_vtrnd = {
+static const struct random_source random_vtrnd = {
 	.rs_ident = "VirtIO Entropy Adapter",
 	.rs_source = RANDOM_PURE_VIRTIO,
 	.rs_read = vtrnd_read,

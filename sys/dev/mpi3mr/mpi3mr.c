@@ -2799,10 +2799,11 @@ retry_init:
 
 			U32 fault = mpi3mr_regread(sc, MPI3_SYSIF_FAULT_OFFSET) &
 						   MPI3_SYSIF_FAULT_CODE_MASK;
-			if (fault == MPI3_SYSIF_FAULT_CODE_INSUFFICIENT_PCI_SLOT_POWER)
+			if (fault == MPI3_SYSIF_FAULT_CODE_INSUFFICIENT_PCI_SLOT_POWER) {
 				mpi3mr_dprint(sc, MPI3MR_INFO,
 					      "controller faulted due to insufficient power, try by connecting it in a different slot\n");
 				goto err;
+			}
 
 			U32 host_diagnostic;
 			timeout = MPI3_SYSIF_DIAG_SAVE_TIMEOUT * 10;
@@ -4486,7 +4487,7 @@ static void mpi3mr_process_admin_reply_desc(struct mpi3mr_softc *sc,
 	Mpi3SuccessReplyDescriptor_t *success_desc;
 	Mpi3DefaultReply_t *def_reply = NULL;
 	struct mpi3mr_drvr_cmd *cmdptr = NULL;
-	Mpi3SCSIIOReply_t *scsi_reply;
+	Mpi3SCSIIOReply_t *scsi_reply = NULL;
 	U8 *sense_buf = NULL;
 
 	*reply_dma = 0;
@@ -4589,7 +4590,7 @@ static void mpi3mr_process_admin_reply_desc(struct mpi3mr_softc *sc,
 		}
 	}
 out:
-	if (sense_buf != NULL)
+	if (scsi_reply != NULL && sense_buf != NULL)
 		mpi3mr_repost_sense_buf(sc,
 		    scsi_reply->SenseDataBufferAddress);
 	return;
@@ -6161,7 +6162,7 @@ static int mpi3mr_issue_reset(struct mpi3mr_softc *sc, U16 reset_type,
 {
 	int retval = -1;
 	U8 unlock_retry_count = 0;
-	U32 host_diagnostic, ioc_status, ioc_config, scratch_pad0;
+	U32 host_diagnostic = 0, ioc_status, ioc_config, scratch_pad0;
 	U32 timeout = MPI3MR_RESET_ACK_TIMEOUT * 10;
 
 	if ((reset_type != MPI3_SYSIF_HOST_DIAG_RESET_ACTION_SOFT_RESET) &&

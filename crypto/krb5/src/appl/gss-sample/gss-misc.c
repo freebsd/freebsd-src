@@ -157,10 +157,7 @@ read_all(int fildes, void *data, unsigned int nbyte)
  * if an error occurs or if it could not write all the data.
  */
 int
-send_token(s, flags, tok)
-    int     s;
-    int     flags;
-    gss_buffer_t tok;
+send_token(int s, int flags, gss_buffer_t tok)
 {
     int     ret;
     unsigned char char_flags = (unsigned char) flags;
@@ -230,10 +227,7 @@ send_token(s, flags, tok)
  * and -1 if an error occurs or if it could not read all the data.
  */
 int
-recv_token(s, flags, tok)
-    int     s;
-    int    *flags;
-    gss_buffer_t tok;
+recv_token(int s, int *flags, gss_buffer_t tok)
 {
     int     ret;
     unsigned char char_flags;
@@ -303,10 +297,7 @@ recv_token(s, flags, tok)
 }
 
 static void
-display_status_1(m, code, type)
-    char   *m;
-    OM_uint32 code;
-    int     type;
+display_status_1(char *m, OM_uint32 code, int type)
 {
     OM_uint32 min_stat;
     gss_buffer_desc msg;
@@ -344,10 +335,7 @@ display_status_1(m, code, type)
  * followed by a newline.
  */
 void
-display_status(msg, maj_stat, min_stat)
-    char   *msg;
-    OM_uint32 maj_stat;
-    OM_uint32 min_stat;
+display_status(char *msg, OM_uint32 maj_stat, OM_uint32 min_stat)
 {
     display_status_1(msg, maj_stat, GSS_C_GSS_CODE);
     display_status_1(msg, min_stat, GSS_C_MECH_CODE);
@@ -370,8 +358,7 @@ display_status(msg, maj_stat, min_stat)
  */
 
 void
-display_ctx_flags(flags)
-    OM_uint32 flags;
+display_ctx_flags(OM_uint32 flags)
 {
     if (flags & GSS_C_DELEG_FLAG)
         fprintf(display_file, "context flag: GSS_C_DELEG_FLAG\n");
@@ -388,8 +375,7 @@ display_ctx_flags(flags)
 }
 
 void
-print_token(tok)
-    gss_buffer_t tok;
+print_token(gss_buffer_t tok)
 {
     unsigned int   i;
     unsigned char *p = tok->value;

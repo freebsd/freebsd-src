@@ -159,6 +159,10 @@ profile_make_prf_data(const char *filename)
     d->root = NULL;
     d->next = NULL;
     d->fslen = flen;
+    if (k5_mutex_init(&d->lock) != 0) {
+        free(d);
+        return NULL;
+    }
     return d;
 }
 
@@ -239,13 +243,6 @@ errcode_t profile_open_file(const_profile_filespec_t filespec,
     free(expanded_filename);
     prf->data = data;
 
-    retval = k5_mutex_init(&data->lock);
-    if (retval) {
-        free(data);
-        free(prf);
-        return retval;
-    }
-
     retval = profile_update_file(prf, ret_modspec);
     if (retval) {
         profile_close_file(prf);
@@ -262,6 +259,37 @@ errcode_t profile_open_file(const_profile_filespec_t filespec,
     return 0;
 }
 
+prf_file_t profile_open_memory(void)
+{
+    struct profile_node *root = NULL;
+    prf_file_t file = NULL;
+    prf_data_t data;
+
+    file = calloc(1, sizeof(*file));
+    if (file == NULL)
+        goto errout;
+    file->magic = PROF_MAGIC_FILE;
+
+    if (profile_create_node("(root)", NULL, &root) != 0)
+        goto errout;
+
+    data = profile_make_prf_data("");
+    if (data == NULL)
+        goto errout;
+
+    data->root = root;
+    data->flags = PROFILE_FILE_NO_RELOAD | PROFILE_FILE_DIRTY;
+    file->data = data;
+    file->next = NULL;
+    return file;
+
+errout:
+    free(file);
+    if (root != NULL)
+        profile_free_node(root);
+    return NULL;
+}
+
 errcode_t profile_update_file_data_locked(prf_data_t data, char **ret_modspec)
 {
     errcode_t retval;
@@ -273,7 +301,12 @@ errcode_t profile_update_file_data_locked(prf_data_t data, char **ret_modspec)
     FILE *f;
     int isdir = 0;
 
+    /* Don't reload if the backing file isn't a regular file. */
     if ((data->flags & PROFILE_FILE_NO_RELOAD) && data->root != NULL)
+        return 0;
+    /* Don't reload a modified data object, as the modifications may be
+     * important for this object's use. */
+    if (data->flags & PROFILE_FILE_DIRTY)
         return 0;
 
 #ifdef HAVE_STAT
@@ -330,7 +363,6 @@ errcode_t profile_update_file_data_locked(prf_data_t data, char **ret_modspec)
     }
 
     data->upd_serial++;
-    data->flags &= ~PROFILE_FILE_DIRTY;
 
     if (isdir) {
         retval = profile_process_directory(data->filespec, &data->root);
@@ -468,6 +500,10 @@ errcode_t profile_flush_file_data(prf_data_t data)
     if (!data || data->magic != PROF_MAGIC_FILE_DATA)
         return PROF_MAGIC_FILE_DATA;
 
+    /* Do nothing if this data object has no backing file. */
+    if (*data->filespec == '\0')
+        return 0;
+
     k5_mutex_lock(&data->lock);
 
     if ((data->flags & PROFILE_FILE_DIRTY) == 0) {
@@ -509,13 +545,51 @@ void profile_dereference_data_locked(prf_data_t data)
         profile_free_file_data(data);
 }
 
-void profile_lock_global()
+void profile_lock_global(void)
 {
     k5_mutex_lock(&g_shared_trees_mutex);
 }
-void profile_unlock_global()
+void profile_unlock_global(void)
 {
     k5_mutex_unlock(&g_shared_trees_mutex);
+}
+
+prf_file_t profile_copy_file(prf_file_t oldfile)
+{
+    prf_file_t file;
+
+    file = calloc(1, sizeof(*file));
+    if (file == NULL)
+        return NULL;
+    file->magic = PROF_MAGIC_FILE;
+
+    /* Shared data objects can just have their reference counts incremented. */
+    if (oldfile->data->flags & PROFILE_FILE_SHARED) {
+        profile_lock_global();
+        oldfile->data->refcount++;
+        profile_unlock_global();
+        file->data = oldfile->data;
+        return file;
+    }
+
+    /* Otherwise we need to copy the data object. */
+    file->data = profile_make_prf_data(oldfile->data->filespec);
+    if (file->data == NULL) {
+        free(file);
+        return NULL;
+    }
+    k5_mutex_lock(&oldfile->data->lock);
+    file->data->flags = oldfile->data->flags;
+    file->data->last_stat = oldfile->data->last_stat;
+    file->data->frac_ts = oldfile->data->frac_ts;
+    file->data->root = profile_copy_node(oldfile->data->root);
+    k5_mutex_unlock(&oldfile->data->lock);
+    if (file->data->root == NULL) {
+        profile_free_file(file);
+        return NULL;
+    }
+
+    return file;
 }
 
 void profile_free_file(prf_file_t prf)

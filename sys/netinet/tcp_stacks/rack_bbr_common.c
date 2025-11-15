@@ -76,8 +76,6 @@
 #include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
-#include <netinet/ip_icmp.h>	/* required for icmp_var.h */
-#include <netinet/icmp_var.h>	/* for ICMP_BANDLIM */
 #include <netinet/ip_var.h>
 #include <netinet/ip6.h>
 #include <netinet6/in6_pcb.h>
@@ -507,13 +505,11 @@ ctf_flight_size(struct tcpcb *tp, uint32_t rc_sacked)
 
 void
 ctf_do_dropwithreset(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
-    int32_t rstreason, int32_t tlen)
+    int32_t tlen)
 {
-	if (tp != NULL) {
-		tcp_dropwithreset(m, th, tp, tlen, rstreason);
+	tcp_dropwithreset(m, th, tp, tlen);
+	if (tp != NULL)
 		INP_WUNLOCK(tptoinpcb(tp));
-	} else
-		tcp_dropwithreset(m, th, NULL, tlen, rstreason);
 }
 
 void
@@ -672,7 +668,7 @@ ctf_do_dropafterack(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th, int32_t
 	    (SEQ_GT(tp->snd_una, th->th_ack) ||
 	    SEQ_GT(th->th_ack, tp->snd_max))) {
 		*ret_val = 1;
-		ctf_do_dropwithreset(m, tp, th, BANDLIM_TCP_RST, tlen);
+		ctf_do_dropwithreset(m, tp, th, tlen);
 		return;
 	} else
 		*ret_val = 0;
@@ -866,10 +862,10 @@ ctf_calc_rwin(struct socket *so, struct tcpcb *tp)
 
 void
 ctf_do_dropwithreset_conn(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
-    int32_t rstreason, int32_t tlen)
+    int32_t tlen)
 {
 
-	tcp_dropwithreset(m, th, tp, tlen, rstreason);
+	tcp_dropwithreset(m, th, tp, tlen);
 	tp = tcp_drop(tp, ETIMEDOUT);
 	if (tp)
 		INP_WUNLOCK(tptoinpcb(tp));

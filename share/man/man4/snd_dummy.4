@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 15, 2024
+.Dd October 22, 2025
 .Dt SND_DUMMY 4
 .Os
 .Sh NAME
@@ -47,11 +47,22 @@ physical sound card.
 It is intended for testing, so that test programs do not need to rely on
 hardware being present in the machine in order to run.
 .Pp
-The driver attaches as a regular PCM device, with two channels (one playback
-and one recording), as well as a mixer.
+The driver attaches as a regular
+.Xr sound 4
+device, with two channels (one playback and one recording), as well as a mixer.
 .Pp
 Playback works by discarding all input, and recording by returning silence
 (zeros).
+.Sh FILES
+.Bl -tag -width "/dev/dsp.dummy" -compact
+.It Pa /dev/dsp.dummy
+Alias to the device's
+.Pa /dev/dsp%d
+file created by
+.Xr sound 4 .
+This makes it easy for tests to open the dummy devic when there are more
+devices present in the system.
+.El
 .Sh SEE ALSO
 .Xr sound 4 ,
 .Xr loader.conf 5 ,

@@ -2146,7 +2146,8 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		return (ENOPROTOOPT);
 	}
 
-	if (name == IPV6_NEXTHOP) {
+	switch (name) {
+	case IPV6_NEXTHOP: {
 		len = args->optlen;
 		error = linux_to_bsd_sockaddr(PTRIN(args->optval), &sa, &len);
 		if (error != 0)
@@ -2155,7 +2156,34 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		error = kern_setsockopt(td, args->s, level,
 		    name, sa, UIO_SYSSPACE, len);
 		free(sa, M_SONAME);
-	} else {
+		break;
+	}
+	case MCAST_JOIN_GROUP:
+	case MCAST_LEAVE_GROUP:
+	case MCAST_JOIN_SOURCE_GROUP:
+	case MCAST_LEAVE_SOURCE_GROUP: {
+		struct group_source_req req;
+		size_t size;
+
+		size = (name == MCAST_JOIN_SOURCE_GROUP ||
+		    name == MCAST_LEAVE_SOURCE_GROUP) ?
+		    sizeof(struct group_source_req) : sizeof(struct group_req);
+
+		if ((error = copyin(PTRIN(args->optval), &req, size)))
+			return (error);
+		len = sizeof(struct sockaddr_storage);
+		if ((error = linux_to_bsd_sockaddr(
+		    (struct l_sockaddr *)&req.gsr_group, NULL, &len)))
+			return (error);
+		if (size == sizeof(struct group_source_req) &&
+		    (error = linux_to_bsd_sockaddr(
+		    (struct l_sockaddr *)&req.gsr_source, NULL, &len)))
+			return (error);
+		error = kern_setsockopt(td, args->s, level, name, &req,
+		    UIO_SYSSPACE, size);
+		break;
+	}
+	default:
 		error = kern_setsockopt(td, args->s, level,
 		    name, PTRIN(args->optval), UIO_USERSPACE, args->optlen);
 	}
@@ -2179,6 +2207,7 @@ static int
 linux_getsockopt_so_peergroups(struct thread *td,
     struct linux_getsockopt_args *args)
 {
+	l_gid_t *out = PTRIN(args->optval);
 	struct xucred xu;
 	socklen_t xulen, len;
 	int error, i;
@@ -2197,13 +2226,12 @@ linux_getsockopt_so_peergroups(struct thread *td,
 		return (error);
 	}
 
-	/*
-	 * "- 1" to skip the primary group.
-	 */
+	/* "- 1" to skip the primary group. */
 	for (i = 0; i < xu.cr_ngroups - 1; i++) {
-		error = copyout(xu.cr_groups + i + 1,
-		    (void *)(args->optval + i * sizeof(l_gid_t)),
-		    sizeof(l_gid_t));
+		/* Copy to cope with a possible type discrepancy. */
+		const l_gid_t g = xu.cr_groups[i + 1];
+
+		error = copyout(&g, out + i, sizeof(l_gid_t));
 		if (error != 0)
 			return (error);
 	}

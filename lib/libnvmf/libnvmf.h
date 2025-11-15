@@ -51,6 +51,8 @@ struct nvmf_qpair_params {
 	};
 };
 
+__BEGIN_DECLS
+
 /* Transport-independent APIs. */
 
 /*
@@ -111,8 +113,13 @@ const void *nvmf_capsule_cqe(const struct nvmf_capsule *nc);
 /* Return a string name for a transport type. */
 const char *nvmf_transport_type(uint8_t trtype);
 
-/* Validate a NVMe Qualified Name. */
+/*
+ * Validate a NVMe Qualified Name.  The second version enforces
+ * stricter checks inline with the specification.  The first version
+ * enforces more minimal checks.
+ */
 bool	nvmf_nqn_valid(const char *nqn);
+bool	nvmf_nqn_valid_strict(const char *nqn);
 
 /* Controller-specific APIs. */
 
@@ -378,5 +385,7 @@ int	nvmf_reconnect_host(int fd, const struct nvme_discovery_log_entry *dle,
  * Fetch connection status from an existing kernel host.
  */
 int	nvmf_connection_status(int fd, nvlist_t **nvlp);
+
+__END_DECLS
 
 #endif /* !__LIBNVMF_H__ */

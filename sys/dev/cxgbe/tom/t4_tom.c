@@ -182,7 +182,7 @@ init_toepcb(struct vi_info *vi, struct toepcb *toep)
 	}
 	toep->ofld_txq = &sc->sge.ofld_txq[cp->txq_idx];
 	toep->ofld_rxq = &sc->sge.ofld_rxq[cp->rxq_idx];
-	toep->ctrlq = &sc->sge.ctrlq[pi->port_id];
+	toep->ctrlq = &sc->sge.ctrlq[cp->ctrlq_idx];
 
 	tls_init_toep(toep);
 	MPASS(ulp_mode(toep) != ULP_MODE_TCPDDP);
@@ -494,8 +494,15 @@ send_get_tcb(struct adapter *sc, u_int tid)
 	bzero(cpl, sizeof(*cpl));
 	INIT_TP_WR(cpl, tid);
 	OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_GET_TCB, tid));
-	cpl->reply_ctrl = htobe16(V_REPLY_CHAN(0) |
-	    V_QUEUENO(sc->sge.ofld_rxq[0].iq.cntxt_id));
+	if (chip_id(sc) >= CHELSIO_T7) {
+		cpl->reply_ctrl =
+		    htobe16(V_T7_QUEUENO(sc->sge.ofld_rxq[0].iq.cntxt_id) |
+			V_T7_REPLY_CHAN(0) | V_NO_REPLY(0));
+	} else {
+		cpl->reply_ctrl =
+		    htobe16(V_QUEUENO(sc->sge.ofld_rxq[0].iq.cntxt_id) |
+			V_REPLY_CHAN(0) | V_NO_REPLY(0));
+	}
 	cpl->cookie = 0xff;
 	commit_wrq_wr(&sc->sge.ctrlq[0], cpl, &cookie);
 
@@ -882,6 +889,8 @@ send_mss_flowc_wr(struct adapter *sc, struct toepcb *toep)
 	flowc->mnemval[0].val = htobe32(toep->params.emss);
 
 	txsd = &toep->txsd[toep->txsd_pidx];
+	_Static_assert(flowclen16 <= MAX_OFLD_TX_SDESC_CREDITS,
+	    "MAX_OFLD_TX_SDESC_CREDITS too small");
 	txsd->tx_credits = flowclen16;
 	txsd->plen = 0;
 	toep->tx_credits -= txsd->tx_credits;
@@ -1219,7 +1228,7 @@ select_ntuple(struct vi_info *vi, struct l2t_entry *e)
 		ntuple |= (uint64_t)(F_FT_VLAN_VLD | e->vlan) << tp->vlan_shift;
 
 	if (tp->port_shift >= 0)
-		ntuple |= (uint64_t)e->lport << tp->port_shift;
+		ntuple |= (uint64_t)e->hw_port << tp->port_shift;
 
 	if (tp->protocol_shift >= 0)
 		ntuple |= (uint64_t)IPPROTO_TCP << tp->protocol_shift;
@@ -1230,10 +1239,7 @@ select_ntuple(struct vi_info *vi, struct l2t_entry *e)
 		    tp->vnic_shift;
 	}
 
-	if (is_t4(sc))
-		return (htobe32((uint32_t)ntuple));
-	else
-		return (htobe64(V_FILTER_TUPLE(ntuple)));
+	return (ntuple);
 }
 
 /*
@@ -1323,6 +1329,9 @@ init_conn_params(struct vi_info *vi , struct offload_settings *s,
 	 * use to send data.
 	 */
 	cp->mtu_idx = find_best_mtu_idx(sc, inc, s);
+
+	/* Control queue. */
+	cp->ctrlq_idx = vi->pi->port_id;
 
 	/* Tx queue for this connection. */
 	if (s->txq == QUEUE_RANDOM)
@@ -1434,6 +1443,32 @@ init_conn_params(struct vi_info *vi , struct offload_settings *s,
 
 	/* This will be initialized on ESTABLISHED. */
 	cp->emss = 0;
+}
+
+void
+update_tid_qid_sel(struct vi_info *vi, struct conn_params *cp, int tid)
+{
+	struct adapter *sc = vi->adapter;
+	const int mask = sc->params.tid_qid_sel_mask;
+	struct sge_ofld_txq *ofld_txq = &sc->sge.ofld_txq[cp->txq_idx];
+	uint32_t ngroup;
+	int g, nqpg;
+
+	cp->ctrlq_idx = ofld_txq_group(tid, mask);
+	CTR(KTR_CXGBE, "tid %u is on core %u", tid, cp->ctrlq_idx);
+	if ((ofld_txq->wrq.eq.cntxt_id & mask) == (tid & mask))
+		return;
+
+	ngroup = 1 << bitcount32(mask);
+	MPASS(vi->nofldtxq % ngroup == 0);
+	g = ofld_txq_group(tid, mask);
+	nqpg = vi->nofldtxq / ngroup;
+	cp->txq_idx = vi->first_ofld_txq + g * nqpg + arc4random() % nqpg;
+#ifdef INVARIANTS
+	MPASS(cp->txq_idx < vi->first_ofld_txq + vi->nofldtxq);
+	ofld_txq = &sc->sge.ofld_txq[cp->txq_idx];
+	MPASS((ofld_txq->wrq.eq.cntxt_id & mask) == (tid & mask));
+#endif
 }
 
 int
@@ -1955,8 +1990,10 @@ t4_tom_deactivate(struct adapter *sc)
 	if (td == NULL)
 		return (0);	/* XXX. KASSERT? */
 
-	if (uld_active(sc, ULD_IWARP) || uld_active(sc, ULD_ISCSI))
-		return (EBUSY);	/* both iWARP and iSCSI rely on the TOE. */
+	/* These ULDs rely on the TOE. */
+	if (uld_active(sc, ULD_IWARP) || uld_active(sc, ULD_ISCSI) ||
+	    uld_active(sc, ULD_NVME))
+		return (EBUSY);
 
 	if (sc->offload_map != 0) {
 		for_each_port(sc, i) {
@@ -2229,6 +2266,98 @@ t4_aio_queue_tom(struct socket *so, struct kaiocb *job)
 		return (soaio_queue_generic(so, job));
 	else
 		return (0);
+}
+
+/*
+ * Request/response structure used to find out the adapter offloading
+ * a socket.
+ */
+struct find_offload_adapter_data {
+	struct socket *so;
+	struct adapter *sc;	/* result */
+};
+
+static void
+find_offload_adapter_cb(struct adapter *sc, void *arg)
+{
+	struct find_offload_adapter_data *fa = arg;
+	struct socket *so = fa->so;
+	struct tom_data *td = sc->tom_softc;
+	struct tcpcb *tp;
+	struct inpcb *inp;
+
+	/* Non-TCP were filtered out earlier. */
+	MPASS(so->so_proto->pr_protocol == IPPROTO_TCP);
+
+	if (fa->sc != NULL)
+		return;	/* Found already. */
+
+	if (td == NULL)
+		return;	/* TOE not enabled on this adapter. */
+
+	inp = sotoinpcb(so);
+	INP_WLOCK(inp);
+	if ((inp->inp_flags & INP_DROPPED) == 0) {
+		tp = intotcpcb(inp);
+		if (tp->t_flags & TF_TOE && tp->tod == &td->tod)
+			fa->sc = sc;	/* Found. */
+	}
+	INP_WUNLOCK(inp);
+}
+
+struct adapter *
+find_offload_adapter(struct socket *so)
+{
+	struct find_offload_adapter_data fa;
+
+	fa.sc = NULL;
+	fa.so = so;
+	t4_iterate(find_offload_adapter_cb, &fa);
+	return (fa.sc);
+}
+
+void
+send_txdataplen_max_flowc_wr(struct adapter *sc, struct toepcb *toep,
+    int maxlen)
+{
+	struct wrqe *wr;
+	struct fw_flowc_wr *flowc;
+	const u_int nparams = 1;
+	u_int flowclen;
+	struct ofld_tx_sdesc *txsd = &toep->txsd[toep->txsd_pidx];
+
+	CTR(KTR_CXGBE, "%s: tid %u maxlen=%d", __func__, toep->tid, maxlen);
+
+	flowclen = sizeof(*flowc) + nparams * sizeof(struct fw_flowc_mnemval);
+
+	wr = alloc_wrqe(roundup2(flowclen, 16), &toep->ofld_txq->wrq);
+	if (wr == NULL) {
+		/* XXX */
+		panic("%s: allocation failure.", __func__);
+	}
+	flowc = wrtod(wr);
+	memset(flowc, 0, wr->wr_len);
+
+	flowc->op_to_nparams = htobe32(V_FW_WR_OP(FW_FLOWC_WR) |
+	    V_FW_FLOWC_WR_NPARAMS(nparams));
+	flowc->flowid_len16 = htonl(V_FW_WR_LEN16(howmany(flowclen, 16)) |
+	    V_FW_WR_FLOWID(toep->tid));
+
+	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_TXDATAPLEN_MAX;
+	flowc->mnemval[0].val = htobe32(maxlen);
+
+	KASSERT(howmany(flowclen, 16) <= MAX_OFLD_TX_SDESC_CREDITS,
+	    ("%s: tx_credits %u too large", __func__, howmany(flowclen, 16)));
+	txsd->tx_credits = howmany(flowclen, 16);
+	txsd->plen = 0;
+	KASSERT(toep->tx_credits >= txsd->tx_credits && toep->txsd_avail > 0,
+	    ("%s: not enough credits (%d)", __func__, toep->tx_credits));
+	toep->tx_credits -= txsd->tx_credits;
+	if (__predict_false(++toep->txsd_pidx == toep->txsd_total))
+		toep->txsd_pidx = 0;
+	toep->txsd_avail--;
+
+	t4_wrq_tx(sc, wr);
 }
 
 static int

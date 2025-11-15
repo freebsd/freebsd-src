@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 9, 2025
+.Dd August 2, 2025
 .Dt SERVICE 8
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Fl e
 .Nm
 .Op Fl j Ar jail
+.Op Fl q
 .Fl R
 .Nm
 .Op Fl j Ar jail
@@ -45,8 +46,7 @@
 .Fl r
 .Nm
 .Op Fl j Ar jail
-.Op Fl q
-.Op Fl v
+.Op Fl dqv
 .Op Fl E Ar var=value
 .Ar script
 .Op Ar command
@@ -74,6 +74,8 @@ scripts, see
 .Pp
 The options are as follows:
 .Bl -tag -width F1
+.It Fl d
+Enable debugging.
 .It Fl E Ar var=value
 Set the environment variable
 .Ar var
@@ -106,6 +108,9 @@ this is usually
 .Pa /usr/local/etc/rc.d .
 All files will be listed whether they are an actual
 rc.d script or not.
+.It Fl q
+Be quiet, redirecting output to
+.Pa /dev/null .
 .It Fl R
 Restart all enabled local services.
 .It Fl r
@@ -116,8 +121,6 @@ as in
 above, but list all of the files, not just what is enabled.
 .It Fl v
 Be slightly more verbose.
-.It Fl q
-Be quiet, redirecting output to /dev/null.
 .El
 .Sh ENVIRONMENT
 When used to run rc.d scripts the

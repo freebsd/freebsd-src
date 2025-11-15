@@ -31,7 +31,7 @@ nvmft_printf(struct nvmft_controller *ctrlr, const char *fmt, ...)
 	va_list ap;
 	size_t retval;
 
-	sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
+	sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN | SBUF_INCLUDENUL);
 	sbuf_set_drain(&sb, sbuf_printf_drain, &retval);
 
 	sbuf_printf(&sb, "nvmft%u: ", ctrlr->cntlid);
@@ -103,6 +103,19 @@ nvmft_keep_alive_timer(void *arg)
 	callout_schedule_sbt(&ctrlr->ka_timer, ctrlr->ka_sbt, 0, C_HARDCLOCK);
 }
 
+static void
+nvmft_update_cdata(struct nvmft_controller *ctrlr)
+{
+	uint32_t ioccsz, val;
+
+	val = nvmft_max_ioccsz(ctrlr->admin);
+	if (val != 0) {
+		ioccsz = le32toh(ctrlr->cdata.ioccsz) * 16;
+		if (val < ioccsz)
+			ctrlr->cdata.ioccsz = htole32(val / 16);
+	}
+}
+
 int
 nvmft_handoff_admin_queue(struct nvmft_port *np, enum nvmf_trtype trtype,
     const nvlist_t *params, const struct nvmf_fabric_connect_cmd *cmd,
@@ -160,6 +173,7 @@ nvmft_handoff_admin_queue(struct nvmft_port *np, enum nvmf_trtype trtype,
 	    (int)sizeof(data->hostnqn), data->hostnqn);
 	ctrlr->admin = qp;
 	ctrlr->trtype = trtype;
+	nvmft_update_cdata(ctrlr);
 
 	/*
 	 * The spec requires a non-zero KeepAlive timer, but allow a

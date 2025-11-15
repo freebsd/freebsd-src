@@ -190,6 +190,8 @@ pt_entry_t __read_mostly pmap_gp_attr;
 #define	PMAP_SAN_PTE_BITS	(ATTR_AF | ATTR_S1_XN | pmap_sh_attr | \
   ATTR_KERN_GP | ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK) | ATTR_S1_AP(ATTR_S1_AP_RW))
 
+static bool __read_mostly pmap_multiple_tlbi = false;
+
 struct pmap_large_md_page {
 	struct rwlock   pv_lock;
 	struct md_page  pv_page;
@@ -469,7 +471,7 @@ static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
 		    vm_offset_t va);
 
 static void pmap_abort_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mpte);
-static bool pmap_activate_int(pmap_t pmap);
+static bool pmap_activate_int(struct thread *td, pmap_t pmap);
 static void pmap_alloc_asid(pmap_t pmap);
 static int pmap_change_props_locked(vm_offset_t va, vm_size_t size,
     vm_prot_t prot, int mode, bool skip_unmapped);
@@ -1297,7 +1299,7 @@ pmap_bootstrap_dmap(vm_size_t kernlen)
 		}
 	}
 
-	cpu_tlb_flushID();
+	pmap_s1_invalidate_all_kernel();
 
 	bs_state.dmap_valid = true;
 
@@ -1399,7 +1401,7 @@ pmap_bootstrap(void)
 	/* And the l3 tables for the early devmap */
 	pmap_bootstrap_l3(VM_MAX_KERNEL_ADDRESS - (PMAP_MAPDEV_EARLY_SIZE));
 
-	cpu_tlb_flushID();
+	pmap_s1_invalidate_all_kernel();
 
 #define alloc_pages(var, np)						\
 	(var) = bs_state.freemempos;					\
@@ -1656,14 +1658,17 @@ pmap_init_pv_table(void)
 	}
 }
 
-static bool
+static cpu_feat_en
 pmap_dbm_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 {
 	uint64_t id_aa64mmfr1;
 
 	id_aa64mmfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
-	return (ID_AA64MMFR1_HAFDBS_VAL(id_aa64mmfr1) >=
-	    ID_AA64MMFR1_HAFDBS_AF_DBS);
+	if (ID_AA64MMFR1_HAFDBS_VAL(id_aa64mmfr1) >=
+	    ID_AA64MMFR1_HAFDBS_AF_DBS)
+		return (FEAT_DEFAULT_ENABLE);
+
+	return (FEAT_ALWAYS_DISABLE);
 }
 
 static bool
@@ -1671,8 +1676,8 @@ pmap_dbm_has_errata(const struct cpu_feat *feat __unused, u_int midr,
     u_int **errata_list, u_int *errata_count)
 {
 	/* Disable on Cortex-A55 for erratum 1024718 - all revisions */
-	if (CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK, CPU_IMPL_ARM,
-	    CPU_PART_CORTEX_A55, 0, 0)) {
+	if (CPU_IMPL(midr) == CPU_IMPL_ARM &&
+	    CPU_PART(midr) == CPU_PART_CORTEX_A55) {
 		static u_int errata_id = 1024718;
 
 		*errata_list = &errata_id;
@@ -1681,21 +1686,19 @@ pmap_dbm_has_errata(const struct cpu_feat *feat __unused, u_int midr,
 	}
 
 	/* Disable on Cortex-A510 for erratum 2051678 - r0p0 to r0p2 */
-	if (CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK | CPU_VAR_MASK,
-	    CPU_IMPL_ARM, CPU_PART_CORTEX_A510, 0, 0)) {
-		if (CPU_REV(PCPU_GET(midr)) < 3) {
-			static u_int errata_id = 2051678;
+	if (midr_check_var_part_range(midr, CPU_IMPL_ARM, CPU_PART_CORTEX_A510,
+	    0, 0, 0, 2)) {
+		static u_int errata_id = 2051678;
 
-			*errata_list = &errata_id;
-			*errata_count = 1;
-			return (true);
-		}
+		*errata_list = &errata_id;
+		*errata_count = 1;
+		return (true);
 	}
 
 	return (false);
 }
 
-static void
+static bool
 pmap_dbm_enable(const struct cpu_feat *feat __unused,
     cpu_feat_errata errata_status, u_int *errata_list __unused,
     u_int errata_count)
@@ -1704,7 +1707,7 @@ pmap_dbm_enable(const struct cpu_feat *feat __unused,
 
 	/* Skip if there is an erratum affecting DBM */
 	if (errata_status != ERRATA_NONE)
-		return;
+		return (false);
 
 	tcr = READ_SPECIALREG(tcr_el1) | TCR_HD;
 	WRITE_SPECIALREG(tcr_el1, tcr);
@@ -1714,16 +1717,58 @@ pmap_dbm_enable(const struct cpu_feat *feat __unused,
 	__asm __volatile("tlbi vmalle1");
 	dsb(nsh);
 	isb();
+
+	return (true);
 }
 
-static struct cpu_feat feat_dbm = {
-	.feat_name		= "FEAT_HAFDBS (DBM)",
-	.feat_check		= pmap_dbm_check,
-	.feat_has_errata	= pmap_dbm_has_errata,
-	.feat_enable		= pmap_dbm_enable,
-	.feat_flags		= CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU,
-};
-DATA_SET(cpu_feat_set, feat_dbm);
+CPU_FEAT(feat_hafdbs, "Hardware management of the Access flag and dirty state",
+    pmap_dbm_check, pmap_dbm_has_errata, pmap_dbm_enable, NULL,
+    CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU);
+
+static cpu_feat_en
+pmap_multiple_tlbi_check(const struct cpu_feat *feat __unused, u_int midr)
+{
+	/*
+	 * Cortex-A55 erratum 2441007 (Cat B rare)
+	 * Present in all revisions
+	 */
+	if (CPU_IMPL(midr) == CPU_IMPL_ARM &&
+	    CPU_PART(midr) == CPU_PART_CORTEX_A55)
+		return (FEAT_DEFAULT_DISABLE);
+
+	/*
+	 * Cortex-A76 erratum 1286807 (Cat B rare)
+	 * Present in r0p0 - r3p0
+	 * Fixed in r3p1
+	 */
+	if (midr_check_var_part_range(midr, CPU_IMPL_ARM, CPU_PART_CORTEX_A76,
+	    0, 0, 3, 0))
+		return (FEAT_DEFAULT_DISABLE);
+
+	/*
+	 * Cortex-A510 erratum 2441009 (Cat B rare)
+	 * Present in r0p0 - r1p1
+	 * Fixed in r1p2
+	 */
+	if (midr_check_var_part_range(midr, CPU_IMPL_ARM, CPU_PART_CORTEX_A510,
+	    0, 0, 1, 1))
+		return (FEAT_DEFAULT_DISABLE);
+
+	return (FEAT_ALWAYS_DISABLE);
+}
+
+static bool
+pmap_multiple_tlbi_enable(const struct cpu_feat *feat __unused,
+    cpu_feat_errata errata_status, u_int *errata_list __unused,
+    u_int errata_count __unused)
+{
+	pmap_multiple_tlbi = true;
+	return (true);
+}
+
+CPU_FEAT(errata_multi_tlbi, "Multiple TLBI errata",
+    pmap_multiple_tlbi_check, NULL, pmap_multiple_tlbi_enable, NULL,
+    CPU_FEAT_EARLY_BOOT | CPU_FEAT_PER_CPU);
 
 /*
  *	Initialize the pmap module.
@@ -1878,9 +1923,17 @@ pmap_s1_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only)
 	r = TLBI_VA(va);
 	if (pmap == kernel_pmap) {
 		pmap_s1_invalidate_kernel(r, final_only);
+		if (pmap_multiple_tlbi) {
+			dsb(ish);
+			pmap_s1_invalidate_kernel(r, final_only);
+		}
 	} else {
 		r |= ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
 		pmap_s1_invalidate_user(r, final_only);
+		if (pmap_multiple_tlbi) {
+			dsb(ish);
+			pmap_s1_invalidate_user(r, final_only);
+		}
 	}
 	dsb(ish);
 	isb();
@@ -1922,12 +1975,24 @@ pmap_s1_invalidate_strided(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 		end = TLBI_VA(eva);
 		for (r = start; r < end; r += TLBI_VA(stride))
 			pmap_s1_invalidate_kernel(r, final_only);
+
+		if (pmap_multiple_tlbi) {
+			dsb(ish);
+			for (r = start; r < end; r += TLBI_VA(stride))
+				pmap_s1_invalidate_kernel(r, final_only);
+		}
 	} else {
 		start = end = ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
 		start |= TLBI_VA(sva);
 		end |= TLBI_VA(eva);
 		for (r = start; r < end; r += TLBI_VA(stride))
 			pmap_s1_invalidate_user(r, final_only);
+
+		if (pmap_multiple_tlbi) {
+			dsb(ish);
+			for (r = start; r < end; r += TLBI_VA(stride))
+				pmap_s1_invalidate_user(r, final_only);
+		}
 	}
 	dsb(ish);
 	isb();
@@ -1963,6 +2028,19 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 		pmap_s2_invalidate_range(pmap, sva, eva, final_only);
 }
 
+void
+pmap_s1_invalidate_all_kernel(void)
+{
+	dsb(ishst);
+	__asm __volatile("tlbi vmalle1is");
+	dsb(ish);
+	if (pmap_multiple_tlbi) {
+		__asm __volatile("tlbi vmalle1is");
+		dsb(ish);
+	}
+	isb();
+}
+
 /*
  * Invalidates all cached intermediate- and final-level TLB entries for the
  * given virtual address space.
@@ -1977,9 +2055,17 @@ pmap_s1_invalidate_all(pmap_t pmap)
 	dsb(ishst);
 	if (pmap == kernel_pmap) {
 		__asm __volatile("tlbi vmalle1is");
+		if (pmap_multiple_tlbi) {
+			dsb(ish);
+			__asm __volatile("tlbi vmalle1is");
+		}
 	} else {
 		r = ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
 		__asm __volatile("tlbi aside1is, %0" : : "r" (r));
+		if (pmap_multiple_tlbi) {
+			dsb(ish);
+			__asm __volatile("tlbi aside1is, %0" : : "r" (r));
+		}
 	}
 	dsb(ish);
 	isb();
@@ -2915,13 +3001,13 @@ retry:
 	l1 = pmap_l1(pmap, va);
 	if (l1 != NULL && (pmap_load(l1) & ATTR_DESCR_MASK) == L1_TABLE) {
 		l2 = pmap_l1_to_l2(l1, va);
-		if (!ADDR_IS_KERNEL(va)) {
+		if (ADDR_IS_USER(va)) {
 			/* Add a reference to the L2 page. */
 			l2pg = PTE_TO_VM_PAGE(pmap_load(l1));
 			l2pg->ref_count++;
 		} else
 			l2pg = NULL;
-	} else if (!ADDR_IS_KERNEL(va)) {
+	} else if (ADDR_IS_USER(va)) {
 		/* Allocate a L2 page. */
 		l2pindex = pmap_l2_pindex(va) >> Ln_ENTRIES_SHIFT;
 		l2pg = _pmap_alloc_l3(pmap, NUL2E + l2pindex, lockp);
@@ -4082,7 +4168,7 @@ pmap_remove_l3_range(pmap_t pmap, pd_entry_t l2e, vm_offset_t sva,
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT(rounddown2(sva, L2_SIZE) + L2_SIZE == roundup2(eva, L2_SIZE),
 	    ("pmap_remove_l3_range: range crosses an L3 page table boundary"));
-	l3pg = !ADDR_IS_KERNEL(sva) ? PTE_TO_VM_PAGE(l2e) : NULL;
+	l3pg = ADDR_IS_USER(sva) ? PTE_TO_VM_PAGE(l2e) : NULL;
 	va = eva;
 	for (l3 = pmap_l2_to_l3(&l2e, sva); sva != eva; l3++, sva += L3_SIZE) {
 		old_l3 = pmap_load(l3);
@@ -5310,7 +5396,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if ((flags & PMAP_ENTER_WIRED) != 0)
 		new_l3 |= ATTR_SW_WIRED;
 	if (pmap->pm_stage == PM_STAGE1) {
-		if (!ADDR_IS_KERNEL(va))
+		if (ADDR_IS_USER(va))
 			new_l3 |= ATTR_S1_AP(ATTR_S1_AP_USER) | ATTR_S1_PXN;
 		else
 			new_l3 |= ATTR_S1_UXN;
@@ -5401,7 +5487,7 @@ retry:
 	pde = pmap_pde(pmap, va, &lvl);
 	if (pde != NULL && lvl == 2) {
 		l3 = pmap_l2_to_l3(pde, va);
-		if (!ADDR_IS_KERNEL(va) && mpte == NULL) {
+		if (ADDR_IS_USER(va) && mpte == NULL) {
 			mpte = PTE_TO_VM_PAGE(pmap_load(pde));
 			mpte->ref_count++;
 		}
@@ -5411,7 +5497,7 @@ retry:
 		if ((pmap_load(l2) & ATTR_DESCR_MASK) == L2_BLOCK &&
 		    (l3 = pmap_demote_l2_locked(pmap, l2, va, &lock)) != NULL) {
 			l3 = &l3[pmap_l3_index(va)];
-			if (!ADDR_IS_KERNEL(va)) {
+			if (ADDR_IS_USER(va)) {
 				mpte = PTE_TO_VM_PAGE(pmap_load(l2));
 				mpte->ref_count++;
 			}
@@ -5419,7 +5505,7 @@ retry:
 		}
 		/* We need to allocate an L3 table. */
 	}
-	if (!ADDR_IS_KERNEL(va)) {
+	if (ADDR_IS_USER(va)) {
 		nosleep = (flags & PMAP_ENTER_NOSLEEP) != 0;
 
 		/*
@@ -5657,7 +5743,7 @@ pmap_enter_l2_rx(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if ((prot & VM_PROT_EXECUTE) == 0 ||
 	    m->md.pv_memattr == VM_MEMATTR_DEVICE)
 		new_l2 |= ATTR_S1_XN;
-	if (!ADDR_IS_KERNEL(va))
+	if (ADDR_IS_USER(va))
 		new_l2 |= ATTR_S1_AP(ATTR_S1_AP_USER) | ATTR_S1_PXN;
 	else
 		new_l2 |= ATTR_S1_UXN;
@@ -5745,7 +5831,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 				    "pmap_enter_l2: no space for va %#lx"
 				    " in pmap %p", va, pmap);
 				return (KERN_NO_SPACE);
-			} else if (!ADDR_IS_KERNEL(va) ||
+			} else if (ADDR_IS_USER(va) ||
 			    !pmap_every_pte_zero(PTE_TO_PHYS(old_l2))) {
 				if (l2pg != NULL)
 					l2pg->ref_count--;
@@ -5796,7 +5882,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 		}
 		KASSERT(pmap_load(l2) == 0,
 		    ("pmap_enter_l2: non-zero L2 entry %p", l2));
-		if (!ADDR_IS_KERNEL(va)) {
+		if (ADDR_IS_USER(va)) {
 			vm_page_free_pages_toq(&free, true);
 		} else {
 			KASSERT(SLIST_EMPTY(&free),
@@ -5916,7 +6002,7 @@ pmap_enter_l3c_rx(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t *ml3p,
 	if ((prot & VM_PROT_EXECUTE) == 0 ||
 	    m->md.pv_memattr == VM_MEMATTR_DEVICE)
 		l3e |= ATTR_S1_XN;
-	if (!ADDR_IS_KERNEL(va))
+	if (ADDR_IS_USER(va))
 		l3e |= ATTR_S1_AP(ATTR_S1_AP_USER) | ATTR_S1_PXN;
 	else
 		l3e |= ATTR_S1_UXN;
@@ -5948,7 +6034,7 @@ pmap_enter_l3c(pmap_t pmap, vm_offset_t va, pt_entry_t l3e, u_int flags,
 	/*
 	 * If the L3 PTP is not resident, we attempt to create it here.
 	 */
-	if (!ADDR_IS_KERNEL(va)) {
+	if (ADDR_IS_USER(va)) {
 		/*
 		 * Were we given the correct L3 PTP?  If so, we can simply
 		 * increment its ref count.
@@ -6224,7 +6310,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 * In the case that a page table page is not
 	 * resident, we are creating it here.
 	 */
-	if (!ADDR_IS_KERNEL(va)) {
+	if (ADDR_IS_USER(va)) {
 		vm_pindex_t l2pindex;
 
 		/*
@@ -6310,7 +6396,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	if ((prot & VM_PROT_EXECUTE) == 0 ||
 	    m->md.pv_memattr == VM_MEMATTR_DEVICE)
 		l3_val |= ATTR_S1_XN;
-	if (!ADDR_IS_KERNEL(va))
+	if (ADDR_IS_USER(va))
 		l3_val |= ATTR_S1_AP(ATTR_S1_AP_USER) | ATTR_S1_PXN;
 	else
 		l3_val |= ATTR_S1_UXN;
@@ -7967,7 +8053,7 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 			pa += L2_SIZE;
 		}
 		if ((old_l2e & ATTR_DESCR_VALID) != 0)
-			pmap_s1_invalidate_all(kernel_pmap);
+			pmap_s1_invalidate_all_kernel();
 		else {
 			/*
 			 * Because the old entries were invalid and the new
@@ -8058,7 +8144,7 @@ pmap_unmapbios(void *p, vm_size_t size)
 		}
 	}
 	if (preinit_map) {
-		pmap_s1_invalidate_all(kernel_pmap);
+		pmap_s1_invalidate_all_kernel();
 		return;
 	}
 
@@ -8528,7 +8614,7 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 		 * region and early kernel memory are the only parts of the
 		 * kernel address space that must be handled here.
 		 */
-		KASSERT(!ADDR_IS_KERNEL(va) || VIRT_IN_DMAP(va) ||
+		KASSERT(ADDR_IS_USER(va) || VIRT_IN_DMAP(va) ||
 		    (va >= VM_MIN_KERNEL_ADDRESS && va < kernel_vm_end),
 		    ("pmap_demote_l2: No saved mpte for va %#lx", va));
 
@@ -8555,7 +8641,7 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 		}
 		ml3->pindex = pmap_l2_pindex(va);
 
-		if (!ADDR_IS_KERNEL(va)) {
+		if (ADDR_IS_USER(va)) {
 			ml3->ref_count = NL3PG;
 			pmap_resident_count_inc(pmap, 1);
 		}
@@ -9113,7 +9199,7 @@ pmap_init_cnp(void *dummy __unused)
 SYSINIT(pmap_init_cnp, SI_SUB_SMP, SI_ORDER_ANY, pmap_init_cnp, NULL);
 
 static bool
-pmap_activate_int(pmap_t pmap)
+pmap_activate_int(struct thread *td, pmap_t pmap)
 {
 	struct asid_set *set;
 	int epoch;
@@ -9152,6 +9238,15 @@ pmap_activate_int(pmap_t pmap)
 		pmap_alloc_asid(pmap);
 
 	if (pmap->pm_stage == PM_STAGE1) {
+		uint64_t new_tcr, tcr;
+
+		new_tcr = td->td_proc->p_md.md_tcr;
+		tcr = READ_SPECIALREG(tcr_el1);
+		if ((tcr & MD_TCR_FIELDS) != new_tcr) {
+			tcr &= ~MD_TCR_FIELDS;
+			tcr |= new_tcr;
+			WRITE_SPECIALREG(tcr_el1, tcr);
+		}
 		set_ttbr0(pmap_to_ttbr0(pmap));
 		if (PCPU_GET(bcast_tlbi_workaround) != 0)
 			invalidate_local_icache();
@@ -9165,7 +9260,7 @@ pmap_activate_vm(pmap_t pmap)
 
 	PMAP_ASSERT_STAGE2(pmap);
 
-	(void)pmap_activate_int(pmap);
+	(void)pmap_activate_int(NULL, pmap);
 }
 
 void
@@ -9176,7 +9271,7 @@ pmap_activate(struct thread *td)
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	PMAP_ASSERT_STAGE1(pmap);
 	critical_enter();
-	(void)pmap_activate_int(pmap);
+	(void)pmap_activate_int(td, pmap);
 	critical_exit();
 }
 
@@ -9202,7 +9297,7 @@ pmap_switch(struct thread *new)
 	 * to a user process.
 	 */
 
-	if (pmap_activate_int(vmspace_pmap(new->td_proc->p_vmspace))) {
+	if (pmap_activate_int(new, vmspace_pmap(new->td_proc->p_vmspace))) {
 		/*
 		 * Stop userspace from training the branch predictor against
 		 * other processes. This will call into a CPU specific

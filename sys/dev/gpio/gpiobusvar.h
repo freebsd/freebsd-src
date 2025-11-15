@@ -171,7 +171,6 @@ struct resource *gpio_alloc_intr_resource(device_t consumer_dev, int *rid,
 
 int gpio_check_flags(uint32_t, uint32_t);
 device_t gpiobus_add_bus(device_t);
-device_t gpiobus_attach_bus(device_t);
 int gpiobus_detach_bus(device_t);
 
 #endif	/* __GPIOBUS_H__ */

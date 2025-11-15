@@ -656,4 +656,7 @@ atomic_thread_fence_seq_cst(void)
 
 #include <sys/_atomic_subword.h>
 
+#define	atomic_set_short		atomic_set_16
+#define	atomic_clear_short		atomic_clear_16
+
 #endif /* _MACHINE_ATOMIC_H_ */

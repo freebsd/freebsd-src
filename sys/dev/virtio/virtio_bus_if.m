@@ -109,7 +109,3 @@ METHOD void write_device_config {
 	int		len;
 };
 
-METHOD void poll {
-	device_t	dev;
-};
-

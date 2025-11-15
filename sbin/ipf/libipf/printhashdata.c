@@ -12,7 +12,11 @@ void
 printhashdata(iphtable_t *hp, int opts)
 {
 
-	if ((opts & OPT_DEBUG) == 0) {
+	if (opts & OPT_SAVEOUT) {
+		if ((hp->iph_flags & IPHASH_DELETE) == IPHASH_DELETE)
+			PRINTF("# ");
+		PRINTF("pool ");
+	} else if ((opts & OPT_DEBUG) == 0) {
 		if ((hp->iph_type & IPHASH_ANON) == IPHASH_ANON)
 			PRINTF("# 'anonymous' table refs %d\n", hp->iph_ref);
 		if ((hp->iph_flags & IPHASH_DELETE) == IPHASH_DELETE)
@@ -37,6 +41,8 @@ printhashdata(iphtable_t *hp, int opts)
 		}
 		PRINTF(" role=");
 	} else {
+		if ((hp->iph_flags & IPHASH_DELETE) == IPHASH_DELETE)
+			PRINTF("# ");
 		PRINTF("Hash Table %s: %s",
 			ISDIGIT(*hp->iph_name) ? "Number" : "Name",
 			hp->iph_name);
@@ -48,7 +54,16 @@ printhashdata(iphtable_t *hp, int opts)
 
 	printunit(hp->iph_unit);
 
-	if ((opts & OPT_DEBUG) == 0) {
+	if ((opts & OPT_SAVEOUT)) {
+		if ((hp->iph_type & ~IPHASH_ANON) == IPHASH_LOOKUP)
+			PRINTF("/hash");
+		PRINTF("(%s \"%s\"; size %lu;",
+			ISDIGIT(*hp->iph_name) ? "number" : "name",
+			hp->iph_name, (u_long)hp->iph_size);
+		if (hp->iph_seed != 0)
+			PRINTF(" seed %lu;", hp->iph_seed);
+		PRINTF(")\n", hp->iph_seed);
+	} else if ((opts & OPT_DEBUG) == 0) {
 		if ((hp->iph_type & ~IPHASH_ANON) == IPHASH_LOOKUP)
 			PRINTF(" type=hash");
 		PRINTF(" %s=%s size=%lu",

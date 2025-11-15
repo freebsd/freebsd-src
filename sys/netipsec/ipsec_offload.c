@@ -289,18 +289,17 @@ ipsec_accel_sa_newkey_cb(if_t ifp, void *arg)
 	    be32toh(tq->sav->spi), tq->sav->flags, tq->sav->seq);
 	priv = NULL;
 	drv_spi = alloc_unr(drv_spi_unr);
+	if (drv_spi == -1) {
+		dprintf("ipsec_accel_sa_install_newkey: cannot alloc "
+		    "drv_spi if %s spi %#x\n", if_name(ifp),
+		    be32toh(tq->sav->spi));
+		return (0);
+	}
 	if (tq->sav->accel_ifname != NULL &&
 	    strcmp(tq->sav->accel_ifname, if_name(ifp)) != 0) {
 		error = ipsec_accel_handle_sav(tq->sav,
 		    ifp, drv_spi, priv, IFP_HS_REJECTED, NULL);
 		goto out;
-	}
-	if (drv_spi == -1) {
-		/* XXXKIB */
-		dprintf("ipsec_accel_sa_install_newkey: cannot alloc "
-		    "drv_spi if %s spi %#x\n", if_name(ifp),
-		    be32toh(tq->sav->spi));
-		return (ENOMEM);
 	}
 	error = ifp->if_ipsec_accel_m->if_sa_newkey(ifp, tq->sav,
 	    drv_spi, &priv);
@@ -329,7 +328,7 @@ ipsec_accel_sa_newkey_cb(if_t ifp, void *arg)
 		}
 	}
 out:
-	return (error);
+	return (0);
 }
 
 static void
@@ -663,7 +662,7 @@ ipsec_accel_spdadd_cb(if_t ifp, void *arg)
 	if (error != 0) {
 		dprintf("ipsec_accel_spdadd: %s if_spdadd %p remember res %d\n",
 		    if_name(ifp), sp, error);
-		return (error);
+		return (0);
 	}
 	error = ifp->if_ipsec_accel_m->if_spdadd(ifp, sp, inp, &i->ifdata);
 	if (error != 0) {
@@ -671,7 +670,7 @@ ipsec_accel_spdadd_cb(if_t ifp, void *arg)
 		dprintf("ipsec_accel_spdadd: %s if_spdadd %p res %d\n",
 		    if_name(ifp), sp, error);
 	}
-	return (error);
+	return (0);
 }
 
 static void

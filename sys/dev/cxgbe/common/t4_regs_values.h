@@ -1,8 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2011, 2016 Chelsio Communications, Inc.
- * All rights reserved.
+ * Copyright (c) 2011, 2016, 2025 Chelsio Communications.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -269,6 +268,7 @@
 
 #define X_WINDOW_SHIFT			10
 #define X_PCIEOFST_SHIFT		10
+#define X_T7_MEMOFST_SHIFT		4
 
 /*
  * TP definitions.
@@ -284,6 +284,10 @@
 #define S_FT_FIRST			S_FCOE
 #define S_FT_LAST			S_FRAGMENTATION
 
+#define S_T7_FT_FIRST			S_IPSECIDX
+#define S_T7_FT_LAST			S_TCPFLAGS
+
+#define W_FT_IPSECIDX			12
 #define W_FT_FCOE			1
 #define W_FT_PORT			3
 #define W_FT_VNIC_ID			17
@@ -294,17 +298,9 @@
 #define W_FT_MACMATCH			9
 #define W_FT_MPSHITTYPE			3
 #define W_FT_FRAGMENTATION		1
-
-#define M_FT_FCOE			((1ULL << W_FT_FCOE) - 1)
-#define M_FT_PORT			((1ULL << W_FT_PORT) - 1)
-#define M_FT_VNIC_ID			((1ULL << W_FT_VNIC_ID) - 1)
-#define M_FT_VLAN			((1ULL << W_FT_VLAN) - 1)
-#define M_FT_TOS			((1ULL << W_FT_TOS) - 1)
-#define M_FT_PROTOCOL			((1ULL << W_FT_PROTOCOL) - 1)
-#define M_FT_ETHERTYPE			((1ULL << W_FT_ETHERTYPE) - 1)
-#define M_FT_MACMATCH			((1ULL << W_FT_MACMATCH) - 1)
-#define M_FT_MPSHITTYPE			((1ULL << W_FT_MPSHITTYPE) - 1)
-#define M_FT_FRAGMENTATION		((1ULL << W_FT_FRAGMENTATION) - 1)
+#define W_FT_ROCE			1
+#define W_FT_SYNONLY			1
+#define W_FT_TCPFLAGS			12
 
 /*
  * Some of the Compressed Filter Tuple fields have internal structure.  These
@@ -327,6 +323,6 @@
 
 #define S_FT_VNID_ID_VLD		16
 #define V_FT_VNID_ID_VLD(x)		((x) << S_FT_VNID_ID_VLD)
-#define F_FT_VNID_ID_VLD(x)		V_FT_VNID_ID_VLD(1U)
+#define F_FT_VNID_ID_VLD		V_FT_VNID_ID_VLD(1U)
 
 #endif /* __T4_REGS_VALUES_H__ */

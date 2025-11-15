@@ -95,15 +95,17 @@ main(int argc, char *argv[])
 	 * -r is the entire file, not 10 lines.
 	 */
 #define	ARG(units, forward, backward) {					\
+	int64_t num;							\
 	if (style)							\
 		usage();						\
-	if (expand_number(optarg, &off))				\
+	if (expand_number(optarg, &num))				\
 		err(1, "illegal offset -- %s", optarg);			\
-	if (off > INT64_MAX / units || off < INT64_MIN / units )	\
+	if (num > INT64_MAX / units || num < INT64_MIN / units)		\
 		errx(1, "illegal offset -- %s", optarg);		\
-	switch(optarg[0]) {						\
+	off = num * units;						\
+	switch (optarg[0]) {						\
 	case '+':							\
-		if (off)						\
+		if (off != 0)						\
 			off -= (units);					\
 		style = (forward);					\
 		break;							\
@@ -121,7 +123,7 @@ main(int argc, char *argv[])
 	off = 0;
 	while ((ch = getopt_long(argc, argv, "+Fb:c:fn:qrv", long_opts, NULL)) !=
 	    -1)
-		switch(ch) {
+		switch (ch) {
 		case 'F':	/* -F is superset of (and implies) -f */
 			Fflag = fflag = 1;
 			break;

@@ -33,7 +33,7 @@ struct thread;
 #define	PADR_(t)	0
 #endif
 
-struct exit_args {
+struct _exit_args {
 	char rval_l_[PADL_(int)]; int rval; char rval_r_[PADR_(int)];
 };
 struct fork_args {
@@ -272,14 +272,6 @@ struct mincore_args {
 	char addr_l_[PADL_(const void *)]; const void * addr; char addr_r_[PADR_(const void *)];
 	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
 	char vec_l_[PADL_(char *)]; char * vec; char vec_r_[PADR_(char *)];
-};
-struct getgroups_args {
-	char gidsetsize_l_[PADL_(int)]; int gidsetsize; char gidsetsize_r_[PADR_(int)];
-	char gidset_l_[PADL_(gid_t *)]; gid_t * gidset; char gidset_r_[PADR_(gid_t *)];
-};
-struct setgroups_args {
-	char gidsetsize_l_[PADL_(int)]; int gidsetsize; char gidsetsize_r_[PADR_(int)];
-	char gidset_l_[PADL_(const gid_t *)]; const gid_t * gidset; char gidset_r_[PADR_(const gid_t *)];
 };
 struct getpgrp_args {
 	syscallarg_t dummy;
@@ -546,7 +538,7 @@ struct setrlimit_args {
 	char rlp_l_[PADL_(struct rlimit *)]; struct rlimit * rlp; char rlp_r_[PADR_(struct rlimit *)];
 };
 struct __sysctl_args {
-	char name_l_[PADL_(int *)]; int * name; char name_r_[PADR_(int *)];
+	char name_l_[PADL_(const int *)]; const int * name; char name_r_[PADR_(const int *)];
 	char namelen_l_[PADL_(u_int)]; u_int namelen; char namelen_r_[PADR_(u_int)];
 	char old_l_[PADL_(void *)]; void * old; char old_r_[PADR_(void *)];
 	char oldlenp_l_[PADL_(size_t *)]; size_t * oldlenp; char oldlenp_r_[PADR_(size_t *)];
@@ -1901,7 +1893,27 @@ struct inotify_rm_watch_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char wd_l_[PADL_(int)]; int wd; char wd_r_[PADR_(int)];
 };
-int	sys_exit(struct thread *, struct exit_args *);
+struct getgroups_args {
+	char gidsetsize_l_[PADL_(int)]; int gidsetsize; char gidsetsize_r_[PADR_(int)];
+	char gidset_l_[PADL_(gid_t *)]; gid_t * gidset; char gidset_r_[PADR_(gid_t *)];
+};
+struct setgroups_args {
+	char gidsetsize_l_[PADL_(int)]; int gidsetsize; char gidsetsize_r_[PADR_(int)];
+	char gidset_l_[PADL_(const gid_t *)]; const gid_t * gidset; char gidset_r_[PADR_(const gid_t *)];
+};
+struct jail_attach_jd_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+};
+struct jail_remove_jd_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+};
+struct kexec_load_args {
+	char entry_l_[PADL_(uint64_t)]; uint64_t entry; char entry_r_[PADR_(uint64_t)];
+	char nseg_l_[PADL_(u_long)]; u_long nseg; char nseg_r_[PADR_(u_long)];
+	char segments_l_[PADL_(struct kexec_segment *)]; struct kexec_segment * segments; char segments_r_[PADR_(struct kexec_segment *)];
+	char flags_l_[PADL_(u_long)]; u_long flags; char flags_r_[PADR_(u_long)];
+};
+int	sys__exit(struct thread *, struct _exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);
 int	sys_write(struct thread *, struct write_args *);
@@ -1957,8 +1969,6 @@ int	sys_munmap(struct thread *, struct munmap_args *);
 int	sys_mprotect(struct thread *, struct mprotect_args *);
 int	sys_madvise(struct thread *, struct madvise_args *);
 int	sys_mincore(struct thread *, struct mincore_args *);
-int	sys_getgroups(struct thread *, struct getgroups_args *);
-int	sys_setgroups(struct thread *, struct setgroups_args *);
 int	sys_getpgrp(struct thread *, struct getpgrp_args *);
 int	sys_setpgid(struct thread *, struct setpgid_args *);
 int	sys_setitimer(struct thread *, struct setitimer_args *);
@@ -2305,6 +2315,11 @@ int	sys_setcred(struct thread *, struct setcred_args *);
 int	sys_exterrctl(struct thread *, struct exterrctl_args *);
 int	sys_inotify_add_watch_at(struct thread *, struct inotify_add_watch_at_args *);
 int	sys_inotify_rm_watch(struct thread *, struct inotify_rm_watch_args *);
+int	sys_getgroups(struct thread *, struct getgroups_args *);
+int	sys_setgroups(struct thread *, struct setgroups_args *);
+int	sys_jail_attach_jd(struct thread *, struct jail_attach_jd_args *);
+int	sys_jail_remove_jd(struct thread *, struct jail_remove_jd_args *);
+int	sys_kexec_load(struct thread *, struct kexec_load_args *);
 
 #ifdef COMPAT_43
 
@@ -2799,10 +2814,20 @@ int	freebsd13_swapoff(struct thread *, struct freebsd13_swapoff_args *);
 
 #ifdef COMPAT_FREEBSD14
 
+struct freebsd14_getgroups_args {
+	char gidsetsize_l_[PADL_(int)]; int gidsetsize; char gidsetsize_r_[PADR_(int)];
+	char gidset_l_[PADL_(gid_t *)]; gid_t * gidset; char gidset_r_[PADR_(gid_t *)];
+};
+struct freebsd14_setgroups_args {
+	char gidsetsize_l_[PADL_(int)]; int gidsetsize; char gidsetsize_r_[PADR_(int)];
+	char gidset_l_[PADL_(const gid_t *)]; const gid_t * gidset; char gidset_r_[PADR_(const gid_t *)];
+};
+int	freebsd14_getgroups(struct thread *, struct freebsd14_getgroups_args *);
+int	freebsd14_setgroups(struct thread *, struct freebsd14_setgroups_args *);
 
 #endif /* COMPAT_FREEBSD14 */
 
-#define	SYS_AUE_exit	AUE_EXIT
+#define	SYS_AUE__exit	AUE_EXIT
 #define	SYS_AUE_fork	AUE_FORK
 #define	SYS_AUE_read	AUE_READ
 #define	SYS_AUE_write	AUE_WRITE
@@ -2873,8 +2898,8 @@ int	freebsd13_swapoff(struct thread *, struct freebsd13_swapoff_args *);
 #define	SYS_AUE_mprotect	AUE_MPROTECT
 #define	SYS_AUE_madvise	AUE_MADVISE
 #define	SYS_AUE_mincore	AUE_MINCORE
-#define	SYS_AUE_getgroups	AUE_GETGROUPS
-#define	SYS_AUE_setgroups	AUE_SETGROUPS
+#define	SYS_AUE_freebsd14_getgroups	AUE_GETGROUPS
+#define	SYS_AUE_freebsd14_setgroups	AUE_SETGROUPS
 #define	SYS_AUE_getpgrp	AUE_GETPGRP
 #define	SYS_AUE_setpgid	AUE_SETPGRP
 #define	SYS_AUE_setitimer	AUE_SETITIMER
@@ -3289,6 +3314,11 @@ int	freebsd13_swapoff(struct thread *, struct freebsd13_swapoff_args *);
 #define	SYS_AUE_exterrctl	AUE_NULL
 #define	SYS_AUE_inotify_add_watch_at	AUE_INOTIFY
 #define	SYS_AUE_inotify_rm_watch	AUE_INOTIFY
+#define	SYS_AUE_getgroups	AUE_GETGROUPS
+#define	SYS_AUE_setgroups	AUE_SETGROUPS
+#define	SYS_AUE_jail_attach_jd	AUE_JAIL_ATTACH
+#define	SYS_AUE_jail_remove_jd	AUE_JAIL_REMOVE
+#define	SYS_AUE_kexec_load	AUE_NULL
 
 #undef PAD_
 #undef PADL_

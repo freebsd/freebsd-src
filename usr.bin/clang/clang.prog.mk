@@ -31,7 +31,7 @@ DPADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${LIBPRIV}${lib}.${LIBEXT}
 LDADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${LIBPRIV}${lib}.${LIBEXT}
 .endfor
 
-PACKAGE=	clang
+PACKAGE?=	clang
 
 .if ${.MAKE.OS} == "FreeBSD" || !defined(BOOTSTRAPPING)
 LIBADD+=	execinfo

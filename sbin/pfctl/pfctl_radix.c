@@ -48,12 +48,26 @@
 #include <err.h>
 
 #include "pfctl.h"
+#include "pfctl_parser.h"
 
 #define BUF_SIZE 256
 
 extern int dev;
 
 static int	 pfr_next_token(char buf[BUF_SIZE], FILE *);
+
+struct pfr_ktablehead	pfr_ktables = { 0 };
+RB_GENERATE(pfr_ktablehead, pfr_ktable, pfrkt_tree, pfr_ktable_compare);
+
+int
+pfr_ktable_compare(struct pfr_ktable *p, struct pfr_ktable *q)
+{
+	int d;
+
+	if ((d = strncmp(p->pfrkt_name, q->pfrkt_name, PF_TABLE_NAME_SIZE)))
+		return (d);
+	return (strcmp(p->pfrkt_anchor, q->pfrkt_anchor));
+}
 
 static void
 pfr_report_error(struct pfr_table *tbl, struct pfioc_table *io,
@@ -122,7 +136,10 @@ pfr_add_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 {
 	int ret;
 
-	ret = pfctl_table_add_addrs(dev, tbl, addr, size, nadd, flags);
+	if (*nadd)
+		*nadd = 0;
+
+	ret = pfctl_table_add_addrs_h(pfh, tbl, addr, size, nadd, flags);
 	if (ret) {
 		errno = ret;
 		return (-1);
@@ -136,7 +153,7 @@ pfr_del_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 {
 	int ret;
 
-	ret = pfctl_table_del_addrs(dev, tbl, addr, size, ndel, flags);
+	ret = pfctl_table_del_addrs_h(pfh, tbl, addr, size, ndel, flags);
 	if (ret) {
 		errno = ret;
 		return (-1);
@@ -146,11 +163,11 @@ pfr_del_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 
 int
 pfr_set_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
-    int *size2, int *nadd, int *ndel, int *nchange, int flags)
+    int *nadd, int *ndel, int *nchange, int flags)
 {
 	int ret;
 
-	ret = pfctl_table_set_addrs(dev, tbl, addr, size, size2, nadd, ndel,
+	ret = pfctl_table_set_addrs_h(pfh, tbl, addr, size, nadd, ndel,
 	    nchange, flags);
 	if (ret) {
 		errno = ret;
@@ -165,7 +182,7 @@ pfr_get_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int *size,
 {
 	int ret;
 
-	ret = pfctl_table_get_addrs(dev, tbl, addr, size, flags);
+	ret = pfctl_table_get_addrs_h(pfh, tbl, addr, size, flags);
 	if (ret) {
 		errno = ret;
 		return (-1);
@@ -253,6 +270,7 @@ pfr_ina_define(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	struct pfioc_table io;
 
 	if (tbl == NULL || size < 0 || (size && addr == NULL)) {
+		DBGPRINT("%s %p %d %p\n", __func__, tbl, size, addr);
 		errno = EINVAL;
 		return (-1);
 	}

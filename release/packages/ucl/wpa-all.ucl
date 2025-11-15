@@ -1,4 +1,49 @@
-comment = "802.11 Supplicant"
+/*
+ * Copyright (c) 2005 Sam Leffler <sam@errno.com>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+comment = "IEEE Std 802.11 WPA Supplicant"
+
 desc = <<EOD
-802.11 Supplicant
+The IEEE 802.11 standard for wireless networking, sometimes called Wi-Fi,
+defines several security protocols to provide security in wireless networks,
+the most common of which is Wi-Fi Protected Access (WPA).
+
+The wpa_supplicant utility is an implementation of the WPA Supplicant
+component, i.e., the part that runs in the client stations.  It implements
+WPA key negotiation with a WPA Authenticator and EAP authentication with an
+Authentication Server.  In addition, wpa_supplicant controls the roaming and
+IEEE 802.11 authentication/association support of the wlan(4) module and can
+be used to configure static WEP keys based on identified networks.
+
+The wpa_supplicant utility is designed to be a "daemon" program that
+runs in the background and acts as the backend component controlling
+the wireless connection.  It supports separate frontend programs such
+as the text-based wpa_cli(8) program.
 EOD
+
+annotations {
+	set = minimal
+}

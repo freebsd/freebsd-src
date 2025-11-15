@@ -1,4 +1,36 @@
-comment = "GEOM Gate Utilities"
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+comment = "GEOM Gate client and server"
+
 desc = <<EOD
-GEOM Gate Utilities
+GEOM Gate allows a block storage device to be exported on the network for
+access by a remote system.  The exported device may be a physical device
+such as a hard disk, or a regular file on a filesystem.  On the client,
+the device will appear as a geom(4) device.  GEOM Gate does not provide
+encryption or authentication except by IP address, and is not intended
+as a replacement for more feature-rich storage networking protocols
+such as iSCSI.
+
+This package provides the ggated(8) server used to export devices, and
+the ggatec(8) client used to access them.
 EOD
+
+annotations {
+	set = "optional"
+}

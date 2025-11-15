@@ -120,6 +120,9 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_daif = PSR_DAIF_DEFAULT;
 
+	/* Copy the TCR_EL1 value */
+	td2->td_proc->p_md.md_tcr = td1->td_proc->p_md.md_tcr;
+
 #if defined(PERTHREAD_SSP)
 	/* Set the new canary */
 	arc4random_buf(&td2->td_md.md_canary, sizeof(td2->td_md.md_canary));

@@ -71,11 +71,9 @@
  *	Page fault handling module.
  */
 
-#include <sys/cdefs.h>
 #include "opt_ktrace.h"
 #include "opt_vm.h"
 
-#include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -204,7 +202,10 @@ vm_fault_page_release(vm_page_t *mp)
 		 * pageout while optimizing fault restarts.
 		 */
 		vm_page_deactivate(m);
-		vm_page_xunbusy(m);
+		if (vm_page_xbusied(m))
+			vm_page_xunbusy(m);
+		else
+			vm_page_sunbusy(m);
 		*mp = NULL;
 	}
 }
@@ -260,6 +261,12 @@ vm_fault_unlock_vp(struct faultstate *fs)
 	}
 }
 
+static bool
+vm_fault_might_be_cow(struct faultstate *fs)
+{
+	return (fs->object != fs->first_object);
+}
+
 static void
 vm_fault_deallocate(struct faultstate *fs)
 {
@@ -267,7 +274,7 @@ vm_fault_deallocate(struct faultstate *fs)
 	vm_fault_page_release(&fs->m_cow);
 	vm_fault_page_release(&fs->m);
 	vm_object_pip_wakeup(fs->object);
-	if (fs->object != fs->first_object) {
+	if (vm_fault_might_be_cow(fs)) {
 		VM_OBJECT_WLOCK(fs->first_object);
 		vm_fault_page_free(&fs->first_m);
 		VM_OBJECT_WUNLOCK(fs->first_object);
@@ -327,6 +334,13 @@ vm_fault_dirty(struct faultstate *fs, vm_page_t m)
 			vm_page_aflag_clear(m, PGA_NOSYNC);
 	}
 
+}
+
+static bool
+vm_fault_is_read(const struct faultstate *fs)
+{
+	return ((fs->prot & VM_PROT_WRITE) == 0 &&
+	    (fs->fault_type & (VM_PROT_COPY | VM_PROT_WRITE)) == 0);
 }
 
 /*
@@ -694,21 +708,18 @@ _Static_assert(UCODE_PAGEFLT == T_PAGEFLT, "T_PAGEFLT");
 #endif
 
 /*
- *	vm_fault_trap:
+ * vm_fault_trap:
  *
- *	Handle a page fault occurring at the given address,
- *	requiring the given permissions, in the map specified.
- *	If successful, the page is inserted into the
- *	associated physical map.
+ * Helper for the page fault trap handlers, wrapping vm_fault().
+ * Issues ktrace(2) tracepoints for the faults.
  *
- *	NOTE: the given address should be truncated to the
- *	proper page address.
+ * If a fault cannot be handled successfully by satisfying the
+ * required mapping, and the faulted instruction cannot be restarted,
+ * the signal number and si_code values are returned for trapsignal()
+ * to deliver.
  *
- *	KERN_SUCCESS is returned if the page fault is handled; otherwise,
- *	a standard error specifying why the fault is fatal is returned.
- *
- *	The map in question must be referenced, and remains so.
- *	Caller may hold no locks.
+ * Returns Mach error codes, but callers should only check for
+ * KERN_SUCCESS.
  */
 int
 vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
@@ -1002,12 +1013,22 @@ vm_fault_relookup(struct faultstate *fs)
 	return (KERN_SUCCESS);
 }
 
+static bool
+vm_fault_can_cow_rename(struct faultstate *fs)
+{
+	return (
+	    /* Only one shadow object and no other refs. */
+	    fs->object->shadow_count == 1 && fs->object->ref_count == 1 &&
+	    /* No other ways to look the object up. */
+	    fs->object->handle == NULL && (fs->object->flags & OBJ_ANON) != 0);
+}
+
 static void
 vm_fault_cow(struct faultstate *fs)
 {
-	bool is_first_object_locked;
+	bool is_first_object_locked, rename_cow;
 
-	KASSERT(fs->object != fs->first_object,
+	KASSERT(vm_fault_might_be_cow(fs),
 	    ("source and target COW objects are identical"));
 
 	/*
@@ -1019,21 +1040,29 @@ vm_fault_cow(struct faultstate *fs)
 	 * object so that it will go out to swap when needed.
 	 */
 	is_first_object_locked = false;
-	if (
-	    /*
-	     * Only one shadow object and no other refs.
-	     */
-	    fs->object->shadow_count == 1 && fs->object->ref_count == 1 &&
-	    /*
-	     * No other ways to look the object up
-	     */
-	    fs->object->handle == NULL && (fs->object->flags & OBJ_ANON) != 0 &&
-	    /*
-	     * We don't chase down the shadow chain and we can acquire locks.
-	     */
-	    (is_first_object_locked = VM_OBJECT_TRYWLOCK(fs->first_object)) &&
-	    fs->object == fs->first_object->backing_object &&
-	    VM_OBJECT_TRYWLOCK(fs->object)) {
+	rename_cow = false;
+
+	if (vm_fault_can_cow_rename(fs) && vm_page_xbusied(fs->m)) {
+		/*
+		 * Check that we don't chase down the shadow chain and
+		 * we can acquire locks.  Recheck the conditions for
+		 * rename after the shadow chain is stable after the
+		 * object locking.
+		 */
+		is_first_object_locked = VM_OBJECT_TRYWLOCK(fs->first_object);
+		if (is_first_object_locked &&
+		    fs->object == fs->first_object->backing_object) {
+			if (VM_OBJECT_TRYWLOCK(fs->object)) {
+				rename_cow = vm_fault_can_cow_rename(fs);
+				if (!rename_cow)
+					VM_OBJECT_WUNLOCK(fs->object);
+			}
+		}
+	}
+
+	if (rename_cow) {
+		vm_page_assert_xbusied(fs->m);
+
 		/*
 		 * Remove but keep xbusy for replace.  fs->m is moved into
 		 * fs->first_object and left busy while fs->first_m is
@@ -1090,8 +1119,12 @@ vm_fault_cow(struct faultstate *fs)
 		 * address space.  If OBJ_ONEMAPPING is set after the check,
 		 * removing mappings will at worse trigger some unnecessary page
 		 * faults.
+		 *
+		 * In the fs->m shared busy case, the xbusy state of
+		 * fs->first_m prevents new mappings of fs->m from
+		 * being created because a parallel fault on this
+		 * shadow chain should wait for xbusy on fs->first_m.
 		 */
-		vm_page_assert_xbusied(fs->m_cow);
 		if ((fs->first_object->flags & OBJ_ONEMAPPING) == 0)
 			pmap_remove_all(fs->m_cow);
 	}
@@ -1171,7 +1204,7 @@ vm_fault_zerofill(struct faultstate *fs)
 	 * If there's no object left, fill the page in the top
 	 * object with zeros.
 	 */
-	if (fs->object != fs->first_object) {
+	if (vm_fault_might_be_cow(fs)) {
 		vm_object_pip_wakeup(fs->object);
 		fs->object = fs->first_object;
 		fs->pindex = fs->first_pindex;
@@ -1420,14 +1453,13 @@ vm_fault_getpages(struct faultstate *fs, int *behindp, int *aheadp)
  * and we could end up trying to pagein and pageout the same page
  * simultaneously.
  *
- * We can theoretically allow the busy case on a read fault if the page
- * is marked valid, but since such pages are typically already pmap'd,
- * putting that special case in might be more effort then it is worth.
- * We cannot under any circumstances mess around with a shared busied
- * page except, perhaps, to pmap it.
+ * We allow the busy case on a read fault if the page is valid.  We
+ * cannot under any circumstances mess around with a shared busied
+ * page except, perhaps, to pmap it.  This is controlled by the
+ * VM_ALLOC_SBUSY bit in the allocflags argument.
  */
 static void
-vm_fault_busy_sleep(struct faultstate *fs)
+vm_fault_busy_sleep(struct faultstate *fs, int allocflags)
 {
 	/*
 	 * Reference the page before unlocking and
@@ -1435,13 +1467,13 @@ vm_fault_busy_sleep(struct faultstate *fs)
 	 * likely to reclaim it.
 	 */
 	vm_page_aflag_set(fs->m, PGA_REFERENCED);
-	if (fs->object != fs->first_object) {
+	if (vm_fault_might_be_cow(fs)) {
 		vm_fault_page_release(&fs->first_m);
 		vm_object_pip_wakeup(fs->first_object);
 	}
 	vm_object_pip_wakeup(fs->object);
 	vm_fault_unlock_map(fs);
-	if (!vm_page_busy_sleep(fs->m, "vmpfw", 0))
+	if (!vm_page_busy_sleep(fs->m, "vmpfw", allocflags))
 		VM_OBJECT_UNLOCK(fs->object);
 	VM_CNT_INC(v_intrans);
 	vm_object_deallocate(fs->first_object);
@@ -1487,8 +1519,53 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 	vm_page_iter_init(&pages, fs->object);
 	fs->m = vm_radix_iter_lookup(&pages, fs->pindex);
 	if (fs->m != NULL) {
+		/*
+		 * If the found page is valid, will be either shadowed
+		 * or mapped read-only, and will not be renamed for
+		 * COW, then busy it in shared mode.  This allows
+		 * other faults needing this page to proceed in
+		 * parallel.
+		 *
+		 * Unlocked check for validity, rechecked after busy
+		 * is obtained.
+		 */
+		if (vm_page_all_valid(fs->m) &&
+		    /*
+		     * No write permissions for the new fs->m mapping,
+		     * or the first object has only one mapping, so
+		     * other writeable COW mappings of fs->m cannot
+		     * appear under us.
+		     */
+		    (vm_fault_is_read(fs) || vm_fault_might_be_cow(fs)) &&
+		    /*
+		     * fs->m cannot be renamed from object to
+		     * first_object.  These conditions will be
+		     * re-checked with proper synchronization in
+		     * vm_fault_cow().
+		     */
+		    (!vm_fault_can_cow_rename(fs) ||
+		    fs->object != fs->first_object->backing_object)) {
+			if (!vm_page_trysbusy(fs->m)) {
+				vm_fault_busy_sleep(fs, VM_ALLOC_SBUSY);
+				return (FAULT_RESTART);
+			}
+
+			/*
+			 * Now make sure that racily checked
+			 * conditions are still valid.
+			 */
+			if (__predict_true(vm_page_all_valid(fs->m) &&
+			    (vm_fault_is_read(fs) ||
+			    vm_fault_might_be_cow(fs)))) {
+				VM_OBJECT_UNLOCK(fs->object);
+				return (FAULT_SOFT);
+			}
+
+			vm_page_sunbusy(fs->m);
+		}
+
 		if (!vm_page_tryxbusy(fs->m)) {
-			vm_fault_busy_sleep(fs);
+			vm_fault_busy_sleep(fs, 0);
 			return (FAULT_RESTART);
 		}
 
@@ -1546,6 +1623,27 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 	return (res);
 }
 
+/*
+ * vm_fault:
+ *
+ * Handle a page fault occurring at the given address, requiring the
+ * given permissions, in the map specified.  If successful, the page
+ * is inserted into the associated physical map, and optionally
+ * referenced and returned in *m_hold.
+ *
+ * The given address should be truncated to the proper page address.
+ *
+ * KERN_SUCCESS is returned if the page fault is handled; otherwise, a
+ * Mach error specifying why the fault is fatal is returned.
+ *
+ * The map in question must be alive, either being the map for current
+ * process, or the owner process hold count incremented to prevent
+ * exit().
+ *
+ * If the thread private TDP_NOFAULTING flag is set, any fault results
+ * in immediate protection failure.  Otherwise the fault is processed,
+ * and caller may hold no locks.
+ */
 int
 vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold)
@@ -1701,10 +1799,15 @@ RetryFault:
 
 found:
 	/*
-	 * A valid page has been found and exclusively busied.  The
-	 * object lock must no longer be held.
+	 * A valid page has been found and busied.  The object lock
+	 * must no longer be held if the page was busied.
+	 *
+	 * Regardless of the busy state of fs.m, fs.first_m is always
+	 * exclusively busied after the first iteration of the loop
+	 * calling vm_fault_object().  This is an ordering point for
+	 * the parallel faults occuring in on the same page.
 	 */
-	vm_page_assert_xbusied(fs.m);
+	vm_page_assert_busied(fs.m);
 	VM_OBJECT_ASSERT_UNLOCKED(fs.object);
 
 	/*
@@ -1712,7 +1815,7 @@ found:
 	 * top-level object, we have to copy it into a new page owned by the
 	 * top-level object.
 	 */
-	if (fs.object != fs.first_object) {
+	if (vm_fault_might_be_cow(&fs)) {
 		/*
 		 * We only really need to copy if we want to write it.
 		 */
@@ -1773,7 +1876,7 @@ found:
 	 * Page must be completely valid or it is not fit to
 	 * map into user space.  vm_pager_get_pages() ensures this.
 	 */
-	vm_page_assert_xbusied(fs.m);
+	vm_page_assert_busied(fs.m);
 	KASSERT(vm_page_all_valid(fs.m),
 	    ("vm_fault: page %p partially invalid", fs.m));
 
@@ -1805,7 +1908,13 @@ found:
 		(*fs.m_hold) = fs.m;
 		vm_page_wire(fs.m);
 	}
-	vm_page_xunbusy(fs.m);
+
+	KASSERT(fs.first_object == fs.object || vm_page_xbusied(fs.first_m),
+	    ("first_m must be xbusy"));
+	if (vm_page_xbusied(fs.m))
+		vm_page_xunbusy(fs.m);
+	else
+		vm_page_sunbusy(fs.m);
 	fs.m = NULL;
 
 	/*
@@ -1995,32 +2104,43 @@ vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
 }
 
 /*
- * Hold each of the physical pages that are mapped by the specified range of
- * virtual addresses, ["addr", "addr" + "len"), if those mappings are valid
- * and allow the specified types of access, "prot".  If all of the implied
- * pages are successfully held, then the number of held pages is returned
- * together with pointers to those pages in the array "ma".  However, if any
- * of the pages cannot be held, -1 is returned.
+ * Hold each of the physical pages that are mapped by the specified
+ * range of virtual addresses, ["addr", "addr" + "len"), if those
+ * mappings are valid and allow the specified types of access, "prot".
+ * If all of the implied pages are successfully held, then the number
+ * of held pages is assigned to *ppages_count, together with pointers
+ * to those pages in the array "ma". The returned value is zero.
+ *
+ * However, if any of the pages cannot be held, an error is returned,
+ * and no pages are held.
+ * Error values:
+ *   ENOMEM - the range is not valid
+ *   EINVAL - the provided vm_page array is too small to hold all pages
+ *   EAGAIN - a page was not mapped, and the thread is in nofaulting mode
+ *   EFAULT - a page with requested permissions cannot be mapped
+ *            (more detailed result from vm_fault() is lost)
  */
 int
-vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
-    vm_prot_t prot, vm_page_t *ma, int max_count)
+vm_fault_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
+    vm_prot_t prot, vm_page_t *ma, int max_count, int *ppages_count)
 {
 	vm_offset_t end, va;
 	vm_page_t *mp;
-	int count;
+	int count, error;
 	boolean_t pmap_failed;
 
-	if (len == 0)
+	if (len == 0) {
+		*ppages_count = 0;
 		return (0);
+	}
 	end = round_page(addr + len);
 	addr = trunc_page(addr);
 
 	if (!vm_map_range_valid(map, addr, end))
-		return (-1);
+		return (ENOMEM);
 
 	if (atop(end - addr) > max_count)
-		panic("vm_fault_quick_hold_pages: count > max_count");
+		return (EINVAL);
 	count = atop(end - addr);
 
 	/*
@@ -2062,19 +2182,49 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 		 * the proper behaviour explicitly.
 		 */
 		if ((prot & VM_PROT_QUICK_NOFAULT) != 0 &&
-		    (curthread->td_pflags & TDP_NOFAULTING) != 0)
-			goto error;
-		for (mp = ma, va = addr; va < end; mp++, va += PAGE_SIZE)
+		    (curthread->td_pflags & TDP_NOFAULTING) != 0) {
+			error = EAGAIN;
+			goto fail;
+		}
+		for (mp = ma, va = addr; va < end; mp++, va += PAGE_SIZE) {
 			if (*mp == NULL && vm_fault(map, va, prot,
-			    VM_FAULT_NORMAL, mp) != KERN_SUCCESS)
-				goto error;
+			    VM_FAULT_NORMAL, mp) != KERN_SUCCESS) {
+				error = EFAULT;
+				goto fail;
+			}
+		}
 	}
-	return (count);
-error:	
+	*ppages_count = count;
+	return (0);
+fail:
 	for (mp = ma; mp < ma + count; mp++)
 		if (*mp != NULL)
 			vm_page_unwire(*mp, PQ_INACTIVE);
-	return (-1);
+	return (error);
+}
+
+ /*
+ * Hold each of the physical pages that are mapped by the specified range of
+ * virtual addresses, ["addr", "addr" + "len"), if those mappings are valid
+ * and allow the specified types of access, "prot".  If all of the implied
+ * pages are successfully held, then the number of held pages is returned
+ * together with pointers to those pages in the array "ma".  However, if any
+ * of the pages cannot be held, -1 is returned.
+ */
+int
+vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
+    vm_prot_t prot, vm_page_t *ma, int max_count)
+{
+	int error, pages_count;
+
+	error = vm_fault_hold_pages(map, addr, len, prot, ma,
+	    max_count, &pages_count);
+	if (error != 0) {
+		if (error == EINVAL)
+			panic("vm_fault_quick_hold_pages: count > max_count");
+		return (-1);
+	}
+	return (pages_count);
 }
 
 /*

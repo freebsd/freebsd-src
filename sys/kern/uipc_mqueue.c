@@ -281,11 +281,13 @@ static const struct filterops mq_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_mqdetach,
 	.f_event = filt_mqread,
+	.f_copy = knote_triv_copy,
 };
 static const struct filterops mq_wfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_mqdetach,
 	.f_event = filt_mqwrite,
+	.f_copy = knote_triv_copy,
 };
 
 /*
@@ -867,7 +869,7 @@ mqfs_lookupx(struct vop_cachedlookup_args *ap)
 	pd = VTON(dvp);
 	pn = NULL;
 	mqfs = pd->mn_info;
-	*vpp = NULLVP;
+	*vpp = NULL;
 
 	if (dvp->v_type != VDIR)
 		return (ENOTDIR);
@@ -886,7 +888,7 @@ mqfs_lookupx(struct vop_cachedlookup_args *ap)
 			return (EINVAL);
 		pn = pd;
 		*vpp = dvp;
-		VREF(dvp);
+		vref(dvp);
 		return (0);
 	}
 
@@ -921,7 +923,7 @@ mqfs_lookupx(struct vop_cachedlookup_args *ap)
 				return (error);
 			}
 			if (*vpp == dvp) {
-				VREF(dvp);
+				vref(dvp);
 				*vpp = dvp;
 				mqnode_release(pn);
 				return (0);

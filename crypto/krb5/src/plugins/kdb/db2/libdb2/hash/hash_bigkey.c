@@ -83,10 +83,7 @@ static int32_t collect_data __P((HTAB *, PAGE16 *, int32_t));
  *	-1 ==> ERROR
  */
 int32_t
-__big_insert(hashp, pagep, key, val)
-	HTAB *hashp;
-	PAGE16 *pagep;
-	const DBT *key, *val;
+__big_insert(HTAB *hashp, PAGE16 *pagep, const DBT *key, const DBT *val)
 {
 	size_t  key_size, val_size;
 	indx_t  key_move_bytes, val_move_bytes;
@@ -185,11 +182,7 @@ __big_delete(hashp, pagep, ndx)
  *	-1 error
  */
 int32_t
-__find_bigpair(hashp, cursorp, key, size)
-	HTAB *hashp;
-	CURSOR *cursorp;
-	int8_t *key;
-	int32_t size;
+__find_bigpair(HTAB *hashp, CURSOR *cursorp, int8_t *key, int32_t size)
 {
 	PAGE16 *pagep, *hold_pagep;
 	db_pgno_t  next_pgno;
@@ -257,11 +250,7 @@ __find_bigpair(hashp, cursorp, key, size)
  * Fill in the key and data for this big pair.
  */
 int32_t
-__big_keydata(hashp, pagep, key, val, ndx)
-	HTAB *hashp;
-	PAGE16 *pagep;
-	DBT *key, *val;
-	int32_t ndx;
+__big_keydata(HTAB *hashp, PAGE16 *pagep, DBT *key, DBT *val, int32_t ndx)
 {
 	ITEM_INFO ii;
 	PAGE16 *key_pagep;
@@ -315,11 +304,8 @@ __get_bigkey(hashp, pagep, ndx, key)
  * Return the big key and data indicated in item_info.
  */
 int32_t
-__big_return(hashp, item_info, val, on_bigkey_page)
-	HTAB *hashp;
-	ITEM_INFO *item_info;
-	DBT *val;
-	int32_t on_bigkey_page;
+__big_return(HTAB *hashp, ITEM_INFO *item_info, DBT *val,
+	     int32_t on_bigkey_page)
 {
 	PAGE16 *pagep;
 	db_pgno_t next_pgno;
@@ -366,11 +352,7 @@ __big_return(hashp, item_info, val, on_bigkey_page)
  * Return total length of data; -1 if error.
  */
 static int32_t
-collect_key(hashp, pagep, len, last_page)
-	HTAB *hashp;
-	PAGE16 *pagep;
-	int32_t len;
-	db_pgno_t *last_page;
+collect_key(HTAB *hashp, PAGE16 *pagep, int32_t len, db_pgno_t *last_page)
 {
 	PAGE16 *next_pagep;
 	int32_t totlen, retval;
@@ -434,10 +416,7 @@ collect_key(hashp, pagep, len, last_page)
  * Return total length of data; -1 if error.
  */
 static int32_t
-collect_data(hashp, pagep, len)
-	HTAB *hashp;
-	PAGE16 *pagep;
-	int32_t len;
+collect_data(HTAB *hashp, PAGE16 *pagep, int32_t len)
 {
 	PAGE16 *next_pagep;
 	int32_t totlen, retval;

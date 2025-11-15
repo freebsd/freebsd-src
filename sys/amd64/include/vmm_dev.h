@@ -29,8 +29,12 @@
 #ifndef	_VMM_DEV_H_
 #define	_VMM_DEV_H_
 
+#include <sys/domainset.h>
+
 #include <machine/vmm.h>
 #include <machine/vmm_snapshot.h>
+
+#include <dev/vmm/vmm_param.h>
 
 struct vm_memmap {
 	vm_paddr_t	gpa;
@@ -52,7 +56,10 @@ struct vm_munmap {
 struct vm_memseg {
 	int		segid;
 	size_t		len;
-	char		name[VM_MAX_SUFFIXLEN + 1];
+	char 		name[VM_MAX_SUFFIXLEN + 1];
+	domainset_t	*ds_mask;
+	size_t		ds_mask_size;
+	int 		ds_policy;
 };
 
 struct vm_register {

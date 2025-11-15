@@ -51,7 +51,7 @@ f_include $BSDCFG_SHARE/variable.subr
 #
 # Default options to use when creating zroot pool
 #
-: ${ZFSBOOT_POOL_CREATE_OPTIONS:=-O compress=lz4 -O atime=off}
+: ${ZFSBOOT_POOL_CREATE_OPTIONS:=-O compression=on -O atime=off}
 
 #
 # Default name for the boot environment parent dataset
@@ -69,7 +69,7 @@ f_include $BSDCFG_SHARE/variable.subr
 : ${ZFSBOOT_VDEV_TYPE:=stripe}
 
 #
-# Should we use sysctl(8) vfs.zfs.min_auto_ashift=12 to force 4K sectors?
+# Should we use sysctl(8) vfs.zfs.vdev.min_auto_ashift=12 to force 4K sectors?
 #
 : ${ZFSBOOT_FORCE_4K_SECTORS=1}
 
@@ -152,7 +152,7 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 	# Home directories separated so they are common to all BEs
 	/home		mountpoint=/home
 
-	# Compress /tmp, allow exec but not setuid
+	# Create /tmp and allow exec but not setuid
 	/tmp		mountpoint=/tmp,exec=on,setuid=off
 
 	# Don't mount /usr so that 'base' files go to the BEROOT
@@ -161,7 +161,7 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 	# Ports tree
 	/usr/ports	setuid=off
 
-	# Source tree (compressed)
+	# Source tree
 	/usr/src
 
 	# Create /var and friends
@@ -216,12 +216,12 @@ KLDLOAD='kldload %s'
 LN_SF='ln -sf "%s" "%s"'
 MKDIR_P='mkdir -p "%s"'
 MOUNT_TYPE='mount -t %s "%s" "%s"'
-NEWFS_ESP='newfs_msdos "%s"'
+NEWFS_ESP='newfs_msdos -F 32 -c 1 "%s"'
 PRINTF_CONF="printf '%s=\"%%s\"\\\n' %s >> \"%s\""
 PRINTF_FSTAB='printf "$FSTAB_FMT" "%s" "%s" "%s" "%s" "%s" "%s" >> "%s"'
 SHELL_TRUNCATE=':> "%s"'
 SWAP_GMIRROR_LABEL='gmirror label swap %s'
-SYSCTL_ZFS_MIN_ASHIFT_12='sysctl vfs.zfs.min_auto_ashift=12'
+SYSCTL_ZFS_MIN_ASHIFT_12='sysctl vfs.zfs.vdev.min_auto_ashift=12'
 UMOUNT='umount "%s"'
 ZFS_CREATE_WITH_OPTIONS='zfs create %s "%s"'
 ZFS_MOUNT='zfs mount "%s"'
@@ -255,7 +255,7 @@ msg_encrypt_disks="Encrypt Disks?"
 msg_encrypt_disks_help="Use geli(8) to encrypt all data partitions"
 msg_error="Error"
 msg_force_4k_sectors="Force 4K Sectors?"
-msg_force_4k_sectors_help="Align partitions to 4K sector boundries and set vfs.zfs.min_auto_ashift=12"
+msg_force_4k_sectors_help="Align partitions to 4K sector boundaries and set vfs.zfs.vdev.min_auto_ashift=12"
 msg_freebsd_installer="$OSNAME Installer"
 msg_geli_password="Enter a strong passphrase, used to protect your encryption keys. You will be required to enter this passphrase each time the system is booted"
 msg_geli_setup="Initializing encryption on selected disks,\n this will take several seconds per disk"
@@ -760,6 +760,7 @@ zfs_create_diskpart()
 {
 	local funcname=zfs_create_diskpart
 	local disk="$1" index="$2"
+	local efibootpart
 
 	# Check arguments
 	if [ ! "$disk" ]; then
@@ -867,18 +868,22 @@ zfs_create_diskpart()
 			             $disk || return $FAILURE
 
 			# We'll configure the ESP in bootconfig
-			if [ -z "$efibootpart" ]; then
-				efibootpart="/dev/gpt/efiboot$index"
-				f_dprintf "$funcname: configuring ESP at [%s]" \
-				          "${efibootpart}"
+			# Note: This will always be p1
+			efibootpart="/dev/gpt/efiboot$index"
+			f_dprintf "$funcname: configuring ESP at [%s]" \
+			          "${efibootpart}"
 
-				f_eval_catch $funcname newfs_msdos "$NEWFS_ESP"\
-				             "$efibootpart" \
-				             || return $FAILURE
+			f_eval_catch $funcname newfs_msdos "$NEWFS_ESP"\
+			             "$efibootpart" \
+			             || return $FAILURE
+			if [ $index -eq 0 ]; then
 				f_eval_catch $funcname printf "$PRINTF_FSTAB" \
-					     $efibootpart /boot/efi msdosfs \
-				             rw 2 2 "$BSDINSTALL_TMPETC/fstab" \
-				             || return $FAILURE
+					$efibootpart /boot/efi msdosfs \
+					rw 2 2 "$BSDINSTALL_TMPETC/fstab" \
+					|| return $FAILURE
+			else
+				# Record the extra ones
+				echo "${efibootpart}" >> ${TMPDIR:-"/tmp"}/bsdinstall-esps
 			fi
 		fi
 
@@ -1021,7 +1026,6 @@ zfs_create_boot()
 	local isswapmirror
 	local bootpart targetpart swappart # Set by zfs_create_diskpart() below
 	local create_options
-	local efibootpart
 
 	#
 	# Pedantic checks; should never be seen
@@ -1099,7 +1103,7 @@ zfs_create_boot()
 	#
 	f_dprintf "$funcname: Preparing disk partitions for ZFS pool..."
 
-	# Force 4K sectors using vfs.zfs.min_auto_ashift=12
+	# Force 4K sectors using vfs.zfs.vdev.min_auto_ashift=12
 	if [ "$ZFSBOOT_FORCE_4K_SECTORS" ]; then
 		f_dprintf "$funcname: With 4K sectors..."
 		f_eval_catch $funcname sysctl "$SYSCTL_ZFS_MIN_ASHIFT_12" \
@@ -1382,7 +1386,7 @@ zfs_create_boot()
 
 	if [ "$ZFSBOOT_FORCE_4K_SECTORS" ]; then
 		f_eval_catch $funcname echo "$ECHO_APPEND" \
-	             'vfs.zfs.min_auto_ashift=12' \
+	             'vfs.zfs.vdev.min_auto_ashift=12' \
 	             $BSDINSTALL_TMPETC/sysctl.conf.zfs || return $FAILURE
 	fi
 

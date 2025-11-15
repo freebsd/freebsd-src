@@ -192,17 +192,17 @@ SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, purge, CTLFLAG_VNET | CTLFLAG_RW,
     "Expire all entries on next purge run");
 
 SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, list,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP | CTLFLAG_MPSAFE,
+    CTLFLAG_VNET | CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP | CTLFLAG_MPSAFE,
     0, 0, sysctl_tcp_hc_list, "A",
     "List of all hostcache entries");
 
 SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, histo,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP | CTLFLAG_MPSAFE,
+    CTLFLAG_VNET | CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP | CTLFLAG_MPSAFE,
     0, 0, sysctl_tcp_hc_histo, "A",
     "Print a histogram of hostcache hashbucket utilization");
 
 SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, purgenow,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, 0, sysctl_tcp_hc_purgenow, "I",
     "Immediately purge all entries");
 

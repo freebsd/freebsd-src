@@ -40,5 +40,5 @@ SRCS=	gve_main.c \
 	gve_tx_dqo.c \
 	gve_sysctl.c
 SRCS+=  device_if.h bus_if.h pci_if.h
-
+SRCS+=  opt_inet6.h
 .include <bsd.kmod.mk>

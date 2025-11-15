@@ -1258,13 +1258,14 @@ nct_attach(device_t dev)
 
 	GPIO_UNLOCK(sc);
 
-	sc->busdev = gpiobus_attach_bus(dev);
+	sc->busdev = gpiobus_add_bus(dev);
 	if (sc->busdev == NULL) {
 		device_printf(dev, "failed to attach to gpiobus\n");
 		GPIO_LOCK_DESTROY(sc);
 		return (ENXIO);
 	}
 
+	bus_attach_children(dev);
 	return (0);
 }
 

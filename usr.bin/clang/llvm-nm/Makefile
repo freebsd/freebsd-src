@@ -1,5 +1,6 @@
 .include <src.opts.mk>
 
+PACKAGE=	toolchain
 PROG_CXX=	llvm-nm
 
 SRCDIR=		llvm/tools/llvm-nm

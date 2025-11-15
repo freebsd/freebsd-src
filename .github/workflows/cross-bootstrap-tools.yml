@@ -22,16 +22,16 @@ jobs:
         include:
           # TODO: both Ubuntu and macOS have bmake packages, we should try them instead of bootstrapping our own copy.
           - os: ubuntu-22.04
-            compiler: clang-14
-            cross-bindir: /usr/lib/llvm-14/bin
-            pkgs: bmake libarchive-dev clang-14 lld-14
+            compiler: clang-15
+            cross-bindir: /usr/lib/llvm-15/bin
+            pkgs: bmake libarchive-dev clang-15 lld-15
           - os: ubuntu-24.04
             compiler: clang-18
             cross-bindir: /usr/lib/llvm-18/bin
             pkgs: bmake libarchive-dev clang-18 lld-18
           - os: macos-latest
             compiler: clang-18
-            cross-bindir: /opt/homebrew/opt/llvm@18/bin
+            cross-toolchain: llvm@18
             pkgs: bmake libarchive llvm@18
           - target_arch: amd64
             target: amd64
@@ -54,6 +54,9 @@ jobs:
           echo "GITHUB_WORKSPACE = $GITHUB_WORKSPACE"
           if [ -n "${{ matrix.cross-bindir }}" ]; then
             echo "EXTRA_BUILD_ARGS=--cross-bindir=${{ matrix.cross-bindir }}" >> $GITHUB_ENV
+          fi
+          if [ -n "${{ matrix.cross-toolchain }}" ]; then
+            echo "EXTRA_BUILD_ARGS=--cross-toolchain=${{ matrix.cross-toolchain }}" >> $GITHUB_ENV
           fi
           mkdir -p ../build
           echo "MAKEOBJDIRPREFIX=${PWD%/*}/build" >> $GITHUB_ENV

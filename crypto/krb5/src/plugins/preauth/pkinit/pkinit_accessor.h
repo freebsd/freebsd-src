@@ -66,7 +66,7 @@ extern krb5_error_code (*k5int_decode_krb5_td_trusted_certifiers)
 
 extern krb5_error_code (*k5int_encode_krb5_kdc_req_body)
 	(const krb5_kdc_req *rep, krb5_data **code);
-extern void KRB5_CALLCONV (*k5int_krb5_free_kdc_req)
+extern void (KRB5_CALLCONV *k5int_krb5_free_kdc_req)
 	(krb5_context, krb5_kdc_req * );
 extern void (*k5int_set_prompt_types)
 	(krb5_context, krb5_prompt_type *);

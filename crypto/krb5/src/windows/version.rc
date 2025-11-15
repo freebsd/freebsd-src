@@ -41,7 +41,7 @@
 #define K5_PRODUCT_VERSION_STRING MAJOR_MINOR MAYBE_PATCH RELTAIL "\0"
 #define K5_PRODUCT_VERSION        KRB5_MAJOR_RELEASE, KRB5_MINOR_RELEASE, KRB5_PATCHLEVEL, KRB5_BUILDLEVEL
 
-#define K5_COPYRIGHT "Copyright (C) 1997-2024 by the Massachusetts Institute of Technology\0"
+#define K5_COPYRIGHT "Copyright (C) 1997-2025 by the Massachusetts Institute of Technology\0"
 #define K5_COMPANY_NAME "Massachusetts Institute of Technology.\0"
 
 /* 

@@ -63,7 +63,7 @@ check-windows: check-recurse
 !endif # WINSUBDIRS
 
 # Use 64-bit LIBNAME and OBJFILE on 64-bit platforms, if defined.
-!if ("$(CPU)" == "IA64") || ("$(CPU)" == "AMD64") || ("$(CPU)" == "ALPHA64")
+!if ("$(CPU)" == "IA64") || ("$(CPU)" == "AMD64") || ("$(CPU)" == "ALPHA64") || ("$(CPU)" == "ARM64")
 !if defined(WIN64LIBNAME)
 LIBNAME=$(WIN64LIBNAME)
 !endif

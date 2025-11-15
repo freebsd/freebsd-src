@@ -255,17 +255,18 @@ int		 pfs_uninit	(struct pfs_info *pi, struct vfsconf *vfc);
 /*
  * Directory structure construction and manipulation
  */
-struct pfs_node	*pfs_create_dir	(struct pfs_node *parent, const char *name,
+int pfs_create_dir		(struct pfs_node *parent, struct pfs_node **opn,
+				 const char *name, pfs_attr_t attr,
+				 pfs_vis_t vis, pfs_destroy_t destroy,
+				 int flags);
+int pfs_create_file		(struct pfs_node *parent, struct pfs_node **opn,
+				 const char *name, pfs_fill_t fill,
 				 pfs_attr_t attr, pfs_vis_t vis,
 				 pfs_destroy_t destroy, int flags);
-struct pfs_node	*pfs_create_file(struct pfs_node *parent, const char *name,
-				 pfs_fill_t fill, pfs_attr_t attr,
-				 pfs_vis_t vis, pfs_destroy_t destroy,
-				 int flags);
-struct pfs_node	*pfs_create_link(struct pfs_node *parent, const char *name,
-				 pfs_fill_t fill, pfs_attr_t attr,
-				 pfs_vis_t vis, pfs_destroy_t destroy,
-				 int flags);
+int pfs_create_link		(struct pfs_node *parent, struct pfs_node **opn,
+				 const char *name, pfs_fill_t fill,
+				 pfs_attr_t attr, pfs_vis_t vis,
+				 pfs_destroy_t destroy, int flags);
 struct pfs_node	*pfs_find_node	(struct pfs_node *parent, const char *name);
 void		 pfs_purge	(struct pfs_node *pn);
 int		 pfs_destroy	(struct pfs_node *pn);

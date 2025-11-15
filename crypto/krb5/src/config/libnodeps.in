@@ -1,4 +1,0 @@
-# Must override when there are no dependencies, because on some
-# platforms there's a prefix stuck in front of the library path that
-# we won't set (SHLIB_RDIRS).
-SHLIB_EXPFLAGS=

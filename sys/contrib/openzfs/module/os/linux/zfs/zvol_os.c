@@ -21,8 +21,8 @@
  */
 /*
  * Copyright (c) 2012, 2020 by Delphix. All rights reserved.
- * Copyright (c) 2024, Rob Norris <robn@despairlabs.com>
- * Copyright (c) 2024, Klara, Inc.
+ * Copyright (c) 2024, 2025, Rob Norris <robn@despairlabs.com>
+ * Copyright (c) 2024, 2025, Klara, Inc.
  */
 
 #include <sys/dataset_kstats.h>
@@ -84,8 +84,9 @@ static unsigned int zvol_blk_mq_blocks_per_thread = 8;
 static inline void
 zvol_end_io(struct bio *bio, struct request *rq, int error)
 {
+	ASSERT3U(error, >=, 0);
 	if (bio) {
-		bio->bi_status = errno_to_bi_status(-error);
+		bio->bi_status = errno_to_bi_status(error);
 		bio_endio(bio);
 	} else {
 		blk_mq_end_request(rq, errno_to_bi_status(error));
@@ -208,8 +209,14 @@ zvol_write(zv_request_t *zvr)
 	disk = zv->zv_zso->zvo_disk;
 
 	/* bio marked as FLUSH need to flush before write */
-	if (io_is_flush(bio, rq))
-		zil_commit(zv->zv_zilog, ZVOL_OBJ);
+	if (io_is_flush(bio, rq)) {
+		error = zil_commit(zv->zv_zilog, ZVOL_OBJ);
+		if (error != 0) {
+			rw_exit(&zv->zv_suspend_lock);
+			zvol_end_io(bio, rq, -error);
+			return;
+		}
+	}
 
 	/* Some requests are just for flush and nothing else. */
 	if (io_size(bio, rq) == 0) {
@@ -273,8 +280,8 @@ zvol_write(zv_request_t *zvr)
 	dataset_kstats_update_write_kstats(&zv->zv_kstat, nwritten);
 	task_io_account_write(nwritten);
 
-	if (sync)
-		zil_commit(zv->zv_zilog, ZVOL_OBJ);
+	if (error == 0 && sync)
+		error = zil_commit(zv->zv_zilog, ZVOL_OBJ);
 
 	rw_exit(&zv->zv_suspend_lock);
 
@@ -282,7 +289,7 @@ zvol_write(zv_request_t *zvr)
 		blk_generic_end_io_acct(q, disk, WRITE, bio, start_time);
 	}
 
-	zvol_end_io(bio, rq, -error);
+	zvol_end_io(bio, rq, error);
 }
 
 static void
@@ -330,16 +337,14 @@ zvol_discard(zv_request_t *zvr)
 	}
 
 	/*
-	 * Align the request to volume block boundaries when a secure erase is
-	 * not required.  This will prevent dnode_free_range() from zeroing out
-	 * the unaligned parts which is slow (read-modify-write) and useless
-	 * since we are not freeing any space by doing so.
+	 * Align the request to volume block boundaries. This will prevent
+	 * dnode_free_range() from zeroing out the unaligned parts which is
+	 * slow (read-modify-write) and useless since we are not freeing any
+	 * space by doing so.
 	 */
-	if (!io_is_secure_erase(bio, rq)) {
-		start = P2ROUNDUP(start, zv->zv_volblocksize);
-		end = P2ALIGN_TYPED(end, zv->zv_volblocksize, uint64_t);
-		size = end - start;
-	}
+	start = P2ROUNDUP(start, zv->zv_volblocksize);
+	end = P2ALIGN_TYPED(end, zv->zv_volblocksize, uint64_t);
+	size = end - start;
 
 	if (start >= end)
 		goto unlock;
@@ -361,7 +366,7 @@ zvol_discard(zv_request_t *zvr)
 	zfs_rangelock_exit(lr);
 
 	if (error == 0 && sync)
-		zil_commit(zv->zv_zilog, ZVOL_OBJ);
+		error = zil_commit(zv->zv_zilog, ZVOL_OBJ);
 
 unlock:
 	rw_exit(&zv->zv_suspend_lock);
@@ -371,7 +376,7 @@ unlock:
 		    start_time);
 	}
 
-	zvol_end_io(bio, rq, -error);
+	zvol_end_io(bio, rq, error);
 }
 
 static void
@@ -449,7 +454,7 @@ zvol_read(zv_request_t *zvr)
 		blk_generic_end_io_acct(q, disk, READ, bio, start_time);
 	}
 
-	zvol_end_io(bio, rq, -error);
+	zvol_end_io(bio, rq, error);
 }
 
 static void
@@ -460,6 +465,24 @@ zvol_read_task(void *arg)
 	zv_request_task_free(task);
 }
 
+/*
+ * Note:
+ *
+ * The kernel uses different enum names for the IO opcode, depending on the
+ * kernel version ('req_opf', 'req_op').  To sidestep this, use macros rather
+ * than inline functions for these checks.
+ */
+/* Should this IO go down the zvol write path? */
+#define	ZVOL_OP_IS_WRITE(op) \
+	(op == REQ_OP_WRITE || \
+	op == REQ_OP_FLUSH || \
+	op == REQ_OP_DISCARD)
+
+/* Is this IO type supported by zvols? */
+#define	ZVOL_OP_IS_SUPPORTED(op) (op == REQ_OP_READ || ZVOL_OP_IS_WRITE(op))
+
+/* Get the IO opcode */
+#define	ZVOL_OP(bio, rq) (bio != NULL ? bio_op(bio) : req_op(rq))
 
 /*
  * Process a BIO or request
@@ -477,10 +500,36 @@ zvol_request_impl(zvol_state_t *zv, struct bio *bio, struct request *rq,
 	fstrans_cookie_t cookie = spl_fstrans_mark();
 	uint64_t offset = io_offset(bio, rq);
 	uint64_t size = io_size(bio, rq);
-	int rw = io_data_dir(bio, rq);
+	int rw;
+
+	if (unlikely(!ZVOL_OP_IS_SUPPORTED(ZVOL_OP(bio, rq)))) {
+		zfs_dbgmsg("Unsupported zvol %s, op=%d, flags=0x%x",
+		    rq != NULL ? "request" : "BIO",
+		    ZVOL_OP(bio, rq),
+		    rq != NULL ? rq->cmd_flags : bio->bi_opf);
+		ASSERT(ZVOL_OP_IS_SUPPORTED(ZVOL_OP(bio, rq)));
+		zvol_end_io(bio, rq, SET_ERROR(ENOTSUPP));
+		goto out;
+	}
+
+	if (ZVOL_OP_IS_WRITE(ZVOL_OP(bio, rq))) {
+		rw = WRITE;
+	} else {
+		rw = READ;
+	}
+
+	/*
+	 * Sanity check
+	 *
+	 * If we're a BIO, check our rw matches the kernel's
+	 * bio_data_dir(bio) rw.  We need to check because we support fewer
+	 * IO operations, and want to verify that what we think are reads and
+	 * writes from those operations match what the kernel thinks.
+	 */
+	ASSERT(rq != NULL || rw == bio_data_dir(bio));
 
 	if (unlikely(zv->zv_flags & ZVOL_REMOVING)) {
-		zvol_end_io(bio, rq, -SET_ERROR(ENXIO));
+		zvol_end_io(bio, rq, SET_ERROR(ENXIO));
 		goto out;
 	}
 
@@ -499,7 +548,7 @@ zvol_request_impl(zvol_state_t *zv, struct bio *bio, struct request *rq,
 		    (long long unsigned)offset,
 		    (long unsigned)size);
 
-		zvol_end_io(bio, rq, -SET_ERROR(EIO));
+		zvol_end_io(bio, rq, SET_ERROR(EIO));
 		goto out;
 	}
 
@@ -512,8 +561,8 @@ zvol_request_impl(zvol_state_t *zv, struct bio *bio, struct request *rq,
 #ifdef HAVE_BLK_MQ_RQ_HCTX
 		blk_mq_hw_queue = rq->mq_hctx->queue_num;
 #else
-		blk_mq_hw_queue =
-		    rq->q->queue_hw_ctx[rq->q->mq_map[rq->cpu]]->queue_num;
+		blk_mq_hw_queue = rq->q->queue_hw_ctx[
+		    rq->q->mq_map[raw_smp_processor_id()]]->queue_num;
 #endif
 	taskq_hash = cityhash3((uintptr_t)zv, offset >> ZVOL_TASKQ_OFFSET_SHIFT,
 	    blk_mq_hw_queue);
@@ -521,7 +570,7 @@ zvol_request_impl(zvol_state_t *zv, struct bio *bio, struct request *rq,
 
 	if (rw == WRITE) {
 		if (unlikely(zv->zv_flags & ZVOL_RDONLY)) {
-			zvol_end_io(bio, rq, -SET_ERROR(EROFS));
+			zvol_end_io(bio, rq, SET_ERROR(EROFS));
 			goto out;
 		}
 
@@ -582,7 +631,7 @@ zvol_request_impl(zvol_state_t *zv, struct bio *bio, struct request *rq,
 		 * interfaces lack this functionality (they block waiting for
 		 * the i/o to complete).
 		 */
-		if (io_is_discard(bio, rq) || io_is_secure_erase(bio, rq)) {
+		if (io_is_discard(bio, rq)) {
 			if (force_sync) {
 				zvol_discard(&zvr);
 			} else {
@@ -672,28 +721,19 @@ zvol_open(struct block_device *bdev, fmode_t flag)
 
 retry:
 #endif
-	rw_enter(&zvol_state_lock, RW_READER);
-	/*
-	 * Obtain a copy of private_data under the zvol_state_lock to make
-	 * sure that either the result of zvol free code path setting
-	 * disk->private_data to NULL is observed, or zvol_os_free()
-	 * is not called on this zv because of the positive zv_open_count.
-	 */
+
 #ifdef HAVE_BLK_MODE_T
-	zv = disk->private_data;
+	zv = atomic_load_ptr(&disk->private_data);
 #else
-	zv = bdev->bd_disk->private_data;
+	zv = atomic_load_ptr(&bdev->bd_disk->private_data);
 #endif
 	if (zv == NULL) {
-		rw_exit(&zvol_state_lock);
 		return (-SET_ERROR(ENXIO));
 	}
 
 	mutex_enter(&zv->zv_state_lock);
-
 	if (unlikely(zv->zv_flags & ZVOL_REMOVING)) {
 		mutex_exit(&zv->zv_state_lock);
-		rw_exit(&zvol_state_lock);
 		return (-SET_ERROR(ENXIO));
 	}
 
@@ -705,8 +745,28 @@ retry:
 	if (zv->zv_open_count == 0) {
 		if (!rw_tryenter(&zv->zv_suspend_lock, RW_READER)) {
 			mutex_exit(&zv->zv_state_lock);
+
+			/*
+			 * Removal may happen while the locks are down, so
+			 * we can't trust zv any longer; we have to start over.
+			 */
+#ifdef HAVE_BLK_MODE_T
+			zv = atomic_load_ptr(&disk->private_data);
+#else
+			zv = atomic_load_ptr(&bdev->bd_disk->private_data);
+#endif
+			if (zv == NULL)
+				return (-SET_ERROR(ENXIO));
+
 			rw_enter(&zv->zv_suspend_lock, RW_READER);
 			mutex_enter(&zv->zv_state_lock);
+
+			if (unlikely(zv->zv_flags & ZVOL_REMOVING)) {
+				mutex_exit(&zv->zv_state_lock);
+				rw_exit(&zv->zv_suspend_lock);
+				return (-SET_ERROR(ENXIO));
+			}
+
 			/* check to see if zv_suspend_lock is needed */
 			if (zv->zv_open_count != 0) {
 				rw_exit(&zv->zv_suspend_lock);
@@ -717,7 +777,6 @@ retry:
 			drop_suspend = B_TRUE;
 		}
 	}
-	rw_exit(&zvol_state_lock);
 
 	ASSERT(MUTEX_HELD(&zv->zv_state_lock));
 
@@ -814,11 +873,11 @@ zvol_release(struct gendisk *disk, fmode_t unused)
 #if !defined(HAVE_BLOCK_DEVICE_OPERATIONS_RELEASE_1ARG)
 	(void) unused;
 #endif
-	zvol_state_t *zv;
 	boolean_t drop_suspend = B_TRUE;
 
-	rw_enter(&zvol_state_lock, RW_READER);
-	zv = disk->private_data;
+	zvol_state_t *zv = atomic_load_ptr(&disk->private_data);
+	if (zv == NULL)
+		return;
 
 	mutex_enter(&zv->zv_state_lock);
 	ASSERT3U(zv->zv_open_count, >, 0);
@@ -832,6 +891,15 @@ zvol_release(struct gendisk *disk, fmode_t unused)
 			mutex_exit(&zv->zv_state_lock);
 			rw_enter(&zv->zv_suspend_lock, RW_READER);
 			mutex_enter(&zv->zv_state_lock);
+
+			/*
+			 * Unlike in zvol_open(), we don't check if removal
+			 * started here, because we might be one of the openers
+			 * that needs to be thrown out! If we're the last, we
+			 * need to call zvol_last_close() below to finish
+			 * cleanup. So, no special treatment for us.
+			 */
+
 			/* check to see if zv_suspend_lock is needed */
 			if (zv->zv_open_count != 1) {
 				rw_exit(&zv->zv_suspend_lock);
@@ -841,7 +909,6 @@ zvol_release(struct gendisk *disk, fmode_t unused)
 	} else {
 		drop_suspend = B_FALSE;
 	}
-	rw_exit(&zvol_state_lock);
 
 	ASSERT(MUTEX_HELD(&zv->zv_state_lock));
 
@@ -861,9 +928,10 @@ static int
 zvol_ioctl(struct block_device *bdev, fmode_t mode,
     unsigned int cmd, unsigned long arg)
 {
-	zvol_state_t *zv = bdev->bd_disk->private_data;
 	int error = 0;
 
+	zvol_state_t *zv = atomic_load_ptr(&bdev->bd_disk->private_data);
+	ASSERT3P(zv, !=, NULL);
 	ASSERT3U(zv->zv_open_count, >, 0);
 
 	switch (cmd) {
@@ -886,16 +954,18 @@ zvol_ioctl(struct block_device *bdev, fmode_t mode,
 
 	case BLKZNAME:
 		mutex_enter(&zv->zv_state_lock);
-		error = copy_to_user((void *)arg, zv->zv_name, MAXNAMELEN);
+		error = -copy_to_user((void *)arg, zv->zv_name, MAXNAMELEN);
 		mutex_exit(&zv->zv_state_lock);
+		if (error)
+			error = SET_ERROR(error);
 		break;
 
 	default:
-		error = -ENOTTY;
+		error = SET_ERROR(ENOTTY);
 		break;
 	}
 
-	return (SET_ERROR(error));
+	return (-error);
 }
 
 #ifdef CONFIG_COMPAT
@@ -914,9 +984,8 @@ zvol_check_events(struct gendisk *disk, unsigned int clearing)
 {
 	unsigned int mask = 0;
 
-	rw_enter(&zvol_state_lock, RW_READER);
+	zvol_state_t *zv = atomic_load_ptr(&disk->private_data);
 
-	zvol_state_t *zv = disk->private_data;
 	if (zv != NULL) {
 		mutex_enter(&zv->zv_state_lock);
 		mask = zv->zv_changed ? DISK_EVENT_MEDIA_CHANGE : 0;
@@ -924,25 +993,20 @@ zvol_check_events(struct gendisk *disk, unsigned int clearing)
 		mutex_exit(&zv->zv_state_lock);
 	}
 
-	rw_exit(&zvol_state_lock);
-
 	return (mask);
 }
 
 static int
 zvol_revalidate_disk(struct gendisk *disk)
 {
-	rw_enter(&zvol_state_lock, RW_READER);
+	zvol_state_t *zv = atomic_load_ptr(&disk->private_data);
 
-	zvol_state_t *zv = disk->private_data;
 	if (zv != NULL) {
 		mutex_enter(&zv->zv_state_lock);
 		set_capacity(zv->zv_zso->zvo_disk,
 		    zv->zv_volsize >> SECTOR_BITS);
 		mutex_exit(&zv->zv_state_lock);
 	}
-
-	rw_exit(&zvol_state_lock);
 
 	return (0);
 }
@@ -962,28 +1026,19 @@ zvol_os_update_volsize(zvol_state_t *zv, uint64_t volsize)
 	return (0);
 }
 
-void
-zvol_os_clear_private(zvol_state_t *zv)
-{
-	/*
-	 * Cleared while holding zvol_state_lock as a writer
-	 * which will prevent zvol_open() from opening it.
-	 */
-	zv->zv_zso->zvo_disk->private_data = NULL;
-}
-
 /*
  * Provide a simple virtual geometry for legacy compatibility.  For devices
  * smaller than 1 MiB a small head and sector count is used to allow very
  * tiny devices.  For devices over 1 Mib a standard head and sector count
  * is used to keep the cylinders count reasonable.
  */
-static int
-zvol_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+static inline int
+zvol_getgeo_impl(struct gendisk *disk, struct hd_geometry *geo)
 {
-	zvol_state_t *zv = bdev->bd_disk->private_data;
+	zvol_state_t *zv = atomic_load_ptr(&disk->private_data);
 	sector_t sectors;
 
+	ASSERT3P(zv, !=, NULL);
 	ASSERT3U(zv->zv_open_count, >, 0);
 
 	sectors = get_capacity(zv->zv_zso->zvo_disk);
@@ -1001,6 +1056,20 @@ zvol_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 
 	return (0);
 }
+
+#ifdef HAVE_BLOCK_DEVICE_OPERATIONS_GETGEO_GENDISK
+static int
+zvol_getgeo(struct gendisk *disk, struct hd_geometry *geo)
+{
+	return (zvol_getgeo_impl(disk, geo));
+}
+#else
+static int
+zvol_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	return (zvol_getgeo_impl(bdev->bd_disk, geo));
+}
+#endif
 
 /*
  * Why have two separate block_device_operations structs?
@@ -1302,27 +1371,30 @@ zvol_alloc_blk_mq(zvol_state_t *zv, zvol_queue_limits_t *limits)
  * Allocate memory for a new zvol_state_t and setup the required
  * request queue and generic disk structures for the block device.
  */
-static zvol_state_t *
-zvol_alloc(dev_t dev, const char *name, uint64_t volblocksize)
+static int
+zvol_alloc(dev_t dev, const char *name, uint64_t volsize, uint64_t volblocksize,
+    zvol_state_t **zvp)
 {
 	zvol_state_t *zv;
 	struct zvol_state_os *zso;
 	uint64_t volmode;
 	int ret;
 
-	if (dsl_prop_get_integer(name, "volmode", &volmode, NULL) != 0)
-		return (NULL);
+	ret = dsl_prop_get_integer(name, "volmode", &volmode, NULL);
+	if (ret)
+		return (ret);
 
 	if (volmode == ZFS_VOLMODE_DEFAULT)
 		volmode = zvol_volmode;
 
 	if (volmode == ZFS_VOLMODE_NONE)
-		return (NULL);
+		return (0);
 
 	zv = kmem_zalloc(sizeof (zvol_state_t), KM_SLEEP);
 	zso = kmem_zalloc(sizeof (struct zvol_state_os), KM_SLEEP);
 	zv->zv_zso = zso;
 	zv->zv_volmode = volmode;
+	zv->zv_volsize = volsize;
 	zv->zv_volblocksize = volblocksize;
 
 	list_link_init(&zv->zv_next);
@@ -1396,25 +1468,59 @@ zvol_alloc(dev_t dev, const char *name, uint64_t volblocksize)
 	snprintf(zso->zvo_disk->disk_name, DISK_NAME_LEN, "%s%d",
 	    ZVOL_DEV_NAME, (dev & MINORMASK));
 
-	return (zv);
+	*zvp = zv;
+	return (ret);
 
 out_kmem:
 	kmem_free(zso, sizeof (struct zvol_state_os));
 	kmem_free(zv, sizeof (zvol_state_t));
-	return (NULL);
+	return (ret);
 }
 
-/*
- * Cleanup then free a zvol_state_t which was created by zvol_alloc().
- * At this time, the structure is not opened by anyone, is taken off
- * the zvol_state_list, and has its private data set to NULL.
- * The zvol_state_lock is dropped.
- *
- * This function may take many milliseconds to complete (e.g. we've seen
- * it take over 256ms), due to the calls to "blk_cleanup_queue" and
- * "del_gendisk". Thus, consumers need to be careful to account for this
- * latency when calling this function.
- */
+void
+zvol_os_remove_minor(zvol_state_t *zv)
+{
+	ASSERT(MUTEX_HELD(&zv->zv_state_lock));
+	ASSERT0(zv->zv_open_count);
+	ASSERT0(atomic_read(&zv->zv_suspend_ref));
+	ASSERT(zv->zv_flags & ZVOL_REMOVING);
+
+	struct zvol_state_os *zso = zv->zv_zso;
+	zv->zv_zso = NULL;
+
+	/* Clearing private_data will make new callers return immediately. */
+	atomic_store_ptr(&zso->zvo_disk->private_data, NULL);
+
+	/*
+	 * Drop the state lock before calling del_gendisk(). There may be
+	 * callers waiting to acquire it, but del_gendisk() will block until
+	 * they exit, which would deadlock.
+	 */
+	mutex_exit(&zv->zv_state_lock);
+
+	del_gendisk(zso->zvo_disk);
+#if defined(HAVE_SUBMIT_BIO_IN_BLOCK_DEVICE_OPERATIONS) && \
+	(defined(HAVE_BLK_ALLOC_DISK) || defined(HAVE_BLK_ALLOC_DISK_2ARG))
+#if defined(HAVE_BLK_CLEANUP_DISK)
+	blk_cleanup_disk(zso->zvo_disk);
+#else
+	put_disk(zso->zvo_disk);
+#endif
+#else
+	blk_cleanup_queue(zso->zvo_queue);
+	put_disk(zso->zvo_disk);
+#endif
+
+	if (zso->use_blk_mq)
+		blk_mq_free_tag_set(&zso->tag_set);
+
+	ida_free(&zvol_ida, MINOR(zso->zvo_dev) >> ZVOL_MINOR_BITS);
+
+	kmem_free(zso, sizeof (struct zvol_state_os));
+
+	mutex_enter(&zv->zv_state_lock);
+}
+
 void
 zvol_os_free(zvol_state_t *zv)
 {
@@ -1422,35 +1528,19 @@ zvol_os_free(zvol_state_t *zv)
 	ASSERT(!RW_LOCK_HELD(&zv->zv_suspend_lock));
 	ASSERT(!MUTEX_HELD(&zv->zv_state_lock));
 	ASSERT0(zv->zv_open_count);
-	ASSERT3P(zv->zv_zso->zvo_disk->private_data, ==, NULL);
+	ASSERT0P(zv->zv_zso);
+
+	ASSERT0P(zv->zv_objset);
+	ASSERT0P(zv->zv_zilog);
+	ASSERT0P(zv->zv_dn);
 
 	rw_destroy(&zv->zv_suspend_lock);
 	zfs_rangelock_fini(&zv->zv_rangelock);
-
-	del_gendisk(zv->zv_zso->zvo_disk);
-#if defined(HAVE_SUBMIT_BIO_IN_BLOCK_DEVICE_OPERATIONS) && \
-	(defined(HAVE_BLK_ALLOC_DISK) || defined(HAVE_BLK_ALLOC_DISK_2ARG))
-#if defined(HAVE_BLK_CLEANUP_DISK)
-	blk_cleanup_disk(zv->zv_zso->zvo_disk);
-#else
-	put_disk(zv->zv_zso->zvo_disk);
-#endif
-#else
-	blk_cleanup_queue(zv->zv_zso->zvo_queue);
-	put_disk(zv->zv_zso->zvo_disk);
-#endif
-
-	if (zv->zv_zso->use_blk_mq)
-		blk_mq_free_tag_set(&zv->zv_zso->tag_set);
-
-	ida_simple_remove(&zvol_ida,
-	    MINOR(zv->zv_zso->zvo_dev) >> ZVOL_MINOR_BITS);
 
 	cv_destroy(&zv->zv_removing_cv);
 	mutex_destroy(&zv->zv_state_lock);
 	dataset_kstats_destroy(&zv->zv_kstat);
 
-	kmem_free(zv->zv_zso, sizeof (struct zvol_state_os));
 	kmem_free(zv, sizeof (zvol_state_t));
 }
 
@@ -1470,7 +1560,9 @@ __zvol_os_add_disk(struct gendisk *disk)
 {
 	int error = 0;
 #ifdef HAVE_ADD_DISK_RET
-	error = add_disk(disk);
+	error = -add_disk(disk);
+	if (error)
+		error = SET_ERROR(error);
 #else
 	add_disk(disk);
 #endif
@@ -1562,7 +1654,7 @@ zvol_os_add_disk(struct gendisk *disk)
 int
 zvol_os_create_minor(const char *name)
 {
-	zvol_state_t *zv;
+	zvol_state_t *zv = NULL;
 	objset_t *os;
 	dmu_object_info_t *doi;
 	uint64_t volsize;
@@ -1577,7 +1669,7 @@ zvol_os_create_minor(const char *name)
 	if (zvol_inhibit_dev)
 		return (0);
 
-	idx = ida_simple_get(&zvol_ida, 0, 0, kmem_flags_convert(KM_SLEEP));
+	idx = ida_alloc(&zvol_ida, kmem_flags_convert(KM_SLEEP));
 	if (idx < 0)
 		return (SET_ERROR(-idx));
 	minor = idx << ZVOL_MINOR_BITS;
@@ -1585,7 +1677,7 @@ zvol_os_create_minor(const char *name)
 		/* too many partitions can cause an overflow */
 		zfs_dbgmsg("zvol: create minor overflow: %s, minor %u/%u",
 		    name, minor, MINOR(minor));
-		ida_simple_remove(&zvol_ida, idx);
+		ida_free(&zvol_ida, idx);
 		return (SET_ERROR(EINVAL));
 	}
 
@@ -1593,7 +1685,7 @@ zvol_os_create_minor(const char *name)
 	if (zv) {
 		ASSERT(MUTEX_HELD(&zv->zv_state_lock));
 		mutex_exit(&zv->zv_state_lock);
-		ida_simple_remove(&zvol_ida, idx);
+		ida_free(&zvol_ida, idx);
 		return (SET_ERROR(EEXIST));
 	}
 
@@ -1611,18 +1703,16 @@ zvol_os_create_minor(const char *name)
 	if (error)
 		goto out_dmu_objset_disown;
 
-	zv = zvol_alloc(MKDEV(zvol_major, minor), name,
-	    doi->doi_data_block_size);
-	if (zv == NULL) {
-		error = SET_ERROR(EAGAIN);
+	error = zvol_alloc(MKDEV(zvol_major, minor), name,
+	    volsize, doi->doi_data_block_size, &zv);
+	if (error || zv == NULL)
 		goto out_dmu_objset_disown;
-	}
+
 	zv->zv_hash = hash;
 
 	if (dmu_objset_is_snapshot(os))
 		zv->zv_flags |= ZVOL_RDONLY;
 
-	zv->zv_volsize = volsize;
 	zv->zv_objset = os;
 
 	/* Default */
@@ -1647,11 +1737,11 @@ zvol_os_create_minor(const char *name)
 	blk_queue_flag_set(QUEUE_FLAG_SCSI_PASSTHROUGH, zv->zv_zso->zvo_queue);
 #endif
 
-	ASSERT3P(zv->zv_kstat.dk_kstats, ==, NULL);
+	ASSERT0P(zv->zv_kstat.dk_kstats);
 	error = dataset_kstats_create(&zv->zv_kstat, zv->zv_objset);
 	if (error)
 		goto out_dmu_objset_disown;
-	ASSERT3P(zv->zv_zilog, ==, NULL);
+	ASSERT0P(zv->zv_zilog);
 	zv->zv_zilog = zil_open(os, zvol_get_data, &zv->zv_kstat.dk_zil_sums);
 	if (spa_writeable(dmu_objset_spa(os))) {
 		if (zil_replay_disable)
@@ -1689,19 +1779,19 @@ out_doi:
 	 * zvol_open()->zvol_first_open() and zvol_release()->zvol_last_close()
 	 * directly as well.
 	 */
-	if (error == 0) {
+	if (error == 0 && zv) {
 		rw_enter(&zvol_state_lock, RW_WRITER);
 		zvol_insert(zv);
 		rw_exit(&zvol_state_lock);
 		error = zvol_os_add_disk(zv->zv_zso->zvo_disk);
 	} else {
-		ida_simple_remove(&zvol_ida, idx);
+		ida_free(&zvol_ida, idx);
 	}
 
 	return (error);
 }
 
-void
+int
 zvol_os_rename_minor(zvol_state_t *zv, const char *newname)
 {
 	int readonly = get_disk_ro(zv->zv_zso->zvo_disk);
@@ -1728,6 +1818,8 @@ zvol_os_rename_minor(zvol_state_t *zv, const char *newname)
 	set_disk_ro(zv->zv_zso->zvo_disk, readonly);
 
 	dataset_kstats_rename(&zv->zv_kstat, newname);
+
+	return (0);
 }
 
 void
@@ -1755,10 +1847,10 @@ zvol_init(void)
 		return (error);
 	}
 
-	error = register_blkdev(zvol_major, ZVOL_DRIVER);
+	error = -register_blkdev(zvol_major, ZVOL_DRIVER);
 	if (error) {
 		printk(KERN_INFO "ZFS: register_blkdev() failed %d\n", error);
-		return (error);
+		return (SET_ERROR(error));
 	}
 
 	if (zvol_blk_mq_queue_depth == 0) {

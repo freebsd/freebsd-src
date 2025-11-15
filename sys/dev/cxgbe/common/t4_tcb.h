@@ -1,8 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2011, 2016 Chelsio Communications, Inc.
- * All rights reserved.
+ * Copyright (c) 2011, 2016, 2025 Chelsio Communications.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -340,10 +339,9 @@
 
 /* 1023:1020 */
 #define W_TCB_ULP_EXT    31
-#define S_TCP_ULP_EXT    28
+#define S_TCB_ULP_EXT    28
 #define M_TCB_ULP_EXT    0xfULL
-#define V_TCB_ULP_EXT(x) ((x) << S_TCP_ULP_EXT)
-
+#define V_TCB_ULP_EXT(x) ((x) << S_TCB_ULP_EXT)
 
 /* 840:832 */
 #define W_TCB_IRS_ULP    26
@@ -495,31 +493,31 @@
 #define M_TCB_RX_DDP_BUF1_TAG    0xffffffffULL
 #define V_TCB_RX_DDP_BUF1_TAG(x) ((x) << S_TCB_RX_DDP_BUF1_TAG)
 
-/* 855:832  */
+/* 855:832 */
 #define W_TCB_RX_TLS_BUF_OFFSET    26
 #define S_TCB_RX_TLS_BUF_OFFSET    0
 #define M_TCB_RX_TLS_BUF_OFFSET    0xffffffULL
 #define V_TCB_RX_TLS_BUF_OFFSET(x) ((x) << S_TCB_RX_TLS_BUF_OFFSET)
 
-/* 876:856  */
+/* 879:856 */
 #define W_TCB_RX_TLS_BUF_LEN    26
 #define S_TCB_RX_TLS_BUF_LEN    24
 #define M_TCB_RX_TLS_BUF_LEN    0xffffffULL
 #define V_TCB_RX_TLS_BUF_LEN(x) ((__u64)(x) << S_TCB_RX_TLS_BUF_LEN)
 
-/* 895:880  */
-#define W_TCB_RX_TLS_FLAGS    26
-#define S_TCB_RX_TLS_FLAGS    48
+/* 895:880 */
+#define W_TCB_RX_TLS_FLAGS    27
+#define S_TCB_RX_TLS_FLAGS    16
 #define M_TCB_RX_TLS_FLAGS    0xffffULL
 #define V_TCB_RX_TLS_FLAGS(x) ((__u64)(x) << S_TCB_RX_TLS_FLAGS)
 
-/* 959:896  */
-#define W_TCB_TLS_SEQ    28
-#define S_TCB_TLS_SEQ    0
-#define M_TCB_TLS_SEQ    0xffffffffffffffffULL
-#define V_TCB_TLS_SEQ(x) ((__u64)(x) << S_TCB_TLS_SEQ)
+/* 959:896 */
+#define W_TCB_RX_TLS_SEQ    28
+#define S_TCB_RX_TLS_SEQ    0
+#define M_TCB_RX_TLS_SEQ    0xffffffffffffffffULL
+#define V_TCB_RX_TLS_SEQ(x) ((__u64)(x) << S_TCB_RX_TLS_SEQ)
 
-/* 991:960  */
+/* 991:960 */
 #define W_TCB_RX_TLS_BUF_TAG    30
 #define S_TCB_RX_TLS_BUF_TAG    0
 #define M_TCB_RX_TLS_BUF_TAG    0xffffffffULL
@@ -531,17 +529,113 @@
 #define M_TCB_RX_TLS_KEY_TAG    0xffffffffULL
 #define V_TCB_RX_TLS_KEY_TAG(x) ((x) << S_TCB_RX_TLS_KEY_TAG)
 
+#define S_TF_TLS_ENABLE    0
+#define V_TF_TLS_ENABLE(x) ((x) << S_TF_TLS_ENABLE)
+
+#define S_TF_TLS_ACTIVE    1
+#define V_TF_TLS_ACTIVE(x) ((x) << S_TF_TLS_ACTIVE)
+
+#define S_TF_TLS_CONTROL    2
+#define V_TF_TLS_CONTROL(x) ((x) << S_TF_TLS_CONTROL)
+
 #define S_TF_TLS_KEY_SIZE    7
 #define V_TF_TLS_KEY_SIZE(x) ((x) << S_TF_TLS_KEY_SIZE)
 
-#define S_TF_TLS_CONTROL     2
-#define V_TF_TLS_CONTROL(x) ((x) << S_TF_TLS_CONTROL)
+/* 853:832 */
+#define W_TCB_TPT_OFFSET    26
+#define S_TCB_TPT_OFFSET    0
+#define M_TCB_TPT_OFFSET    0x3fffffULL
+#define V_TCB_TPT_OFFSET(x) ((x) << S_TCB_TPT_OFFSET)
 
-#define S_TF_TLS_ACTIVE      1
-#define V_TF_TLS_ACTIVE(x) ((x) << S_TF_TLS_ACTIVE)
+/* 863:854 */
+#define W_TCB_T10_CONFIG    26
+#define S_TCB_T10_CONFIG    22
+#define M_TCB_T10_CONFIG    0x3ffULL
+#define V_TCB_T10_CONFIG(x) ((x) << S_TCB_T10_CONFIG)
 
-#define S_TF_TLS_ENABLE      0
-#define V_TF_TLS_ENABLE(x) ((x) << S_TF_TLS_ENABLE)
+/* 871:864 */
+#define W_TCB_PDU_HLEN    27
+#define S_TCB_PDU_HLEN    0
+#define M_TCB_PDU_HLEN    0xffULL
+#define V_TCB_PDU_HLEN(x) ((x) << S_TCB_PDU_HLEN)
+
+/* 879:872 */
+#define W_TCB_PDU_PDO    27
+#define S_TCB_PDU_PDO    8
+#define M_TCB_PDU_PDO    0xffULL
+#define V_TCB_PDU_PDO(x) ((x) << S_TCB_PDU_PDO)
+
+/* 895:880 */
+#define W_TCB_N_CQ_IDX_RQ    27
+#define S_TCB_N_CQ_IDX_RQ    16
+#define M_TCB_N_CQ_IDX_RQ    0xffffULL
+#define V_TCB_N_CQ_IDX_RQ(x) ((x) << S_TCB_N_CQ_IDX_RQ)
+
+/* 900:896 */
+#define W_TCB_NVMT_PDA    28
+#define S_TCB_NVMT_PDA    0
+#define M_TCB_NVMT_PDA    0x1fULL
+#define V_TCB_NVMT_PDA(x) ((x) << S_TCB_NVMT_PDA)
+
+/* 911:901 */
+#define W_TCB_RSVD    28
+#define S_TCB_RSVD    5
+#define M_TCB_RSVD    0x7ffULL
+#define V_TCB_RSVD(x) ((x) << S_TCB_RSVD)
+
+/* 927:912 */
+#define W_TCB_N_PD_ID    28
+#define S_TCB_N_PD_ID    16
+#define M_TCB_N_PD_ID    0xffffULL
+#define V_TCB_N_PD_ID(x) ((x) << S_TCB_N_PD_ID)
+
+/* 929:928 */
+#define W_TCB_CMP_IMM_SZ    29
+#define S_TCB_CMP_IMM_SZ    0
+#define M_TCB_CMP_IMM_SZ    0x3ULL
+#define V_TCB_CMP_IMM_SZ(x) ((x) << S_TCB_CMP_IMM_SZ)
+
+/* 931:930 */
+#define W_TCB_PDU_DGST_FLAGS    29
+#define S_TCB_PDU_DGST_FLAGS    2
+#define M_TCB_PDU_DGST_FLAGS    0x3ULL
+#define V_TCB_PDU_DGST_FLAGS(x) ((x) << S_TCB_PDU_DGST_FLAGS)
+
+/* 959:932 */
+#define W_TCB_RSVD1    29
+#define S_TCB_RSVD1    4
+#define M_TCB_RSVD1    0xfffffffULL
+#define V_TCB_RSVD1(x) ((x) << S_TCB_RSVD1)
+
+/* 985:960 */
+#define W_TCB_N_RQ_START    30
+#define S_TCB_N_RQ_START    0
+#define M_TCB_N_RQ_START    0x3ffffffULL
+#define V_TCB_N_RQ_START(x) ((x) << S_TCB_N_RQ_START)
+
+/* 998:986 */
+#define W_TCB_N_RQ_MSN    30
+#define S_TCB_N_RQ_MSN    26
+#define M_TCB_N_RQ_MSN    0x1fffULL
+#define V_TCB_N_RQ_MSN(x) ((__u64)(x) << S_TCB_N_RQ_MSN)
+
+/* 1002:999 */
+#define W_TCB_N_RQ_MAX_OFFSET    31
+#define S_TCB_N_RQ_MAX_OFFSET    7
+#define M_TCB_N_RQ_MAX_OFFSET    0xfULL
+#define V_TCB_N_RQ_MAX_OFFSET(x) ((x) << S_TCB_N_RQ_MAX_OFFSET)
+
+/* 1015:1003 */
+#define W_TCB_N_RQ_WRITE_PTR    31
+#define S_TCB_N_RQ_WRITE_PTR    11
+#define M_TCB_N_RQ_WRITE_PTR    0x1fffULL
+#define V_TCB_N_RQ_WRITE_PTR(x) ((x) << S_TCB_N_RQ_WRITE_PTR)
+
+/* 1023:1016 */
+#define W_TCB_N_PDU_TYPE    31
+#define S_TCB_N_PDU_TYPE    24
+#define M_TCB_N_PDU_TYPE    0xffULL
+#define V_TCB_N_PDU_TYPE(x) ((x) << S_TCB_N_PDU_TYPE)
 
 #define S_TF_MIGRATING    0
 #define V_TF_MIGRATING(x) ((x) << S_TF_MIGRATING)
@@ -549,14 +643,23 @@
 #define S_TF_NON_OFFLOAD    1
 #define V_TF_NON_OFFLOAD(x) ((x) << S_TF_NON_OFFLOAD)
 
+#define S_TF_FILTER    1
+#define V_TF_FILTER(x) ((x) << S_TF_FILTER)
+
 #define S_TF_LOCK_TID    2
 #define V_TF_LOCK_TID(x) ((x) << S_TF_LOCK_TID)
 
 #define S_TF_KEEPALIVE    3
 #define V_TF_KEEPALIVE(x) ((x) << S_TF_KEEPALIVE)
 
+#define S_TF_DROP_ENCAPS_HDR    3
+#define V_TF_DROP_ENCAPS_HDR(x) ((x) << S_TF_DROP_ENCAPS_HDR)
+
 #define S_TF_DACK    4
 #define V_TF_DACK(x) ((x) << S_TF_DACK)
+
+#define S_TF_COUNT_HITS    4
+#define V_TF_COUNT_HITS(x) ((x) << S_TF_COUNT_HITS)
 
 #define S_TF_DACK_MSS    5
 #define V_TF_DACK_MSS(x) ((x) << S_TF_DACK_MSS)
@@ -567,6 +670,9 @@
 #define S_TF_NAGLE    7
 #define V_TF_NAGLE(x) ((x) << S_TF_NAGLE)
 
+#define S_TF_REMOVE_VLAN    7
+#define V_TF_REMOVE_VLAN(x) ((x) << S_TF_REMOVE_VLAN)
+
 #define S_TF_SSWS_DISABLED    8
 #define V_TF_SSWS_DISABLED(x) ((x) << S_TF_SSWS_DISABLED)
 
@@ -576,14 +682,23 @@
 #define S_TF_RX_FLOW_CONTROL_DISABLE    10
 #define V_TF_RX_FLOW_CONTROL_DISABLE(x) ((x) << S_TF_RX_FLOW_CONTROL_DISABLE)
 
+#define S_TF_NAT_SEQ_CHECK    10
+#define V_TF_NAT_SEQ_CHECK(x) ((x) << S_TF_NAT_SEQ_CHECK)
+
 #define S_TF_RX_CHANNEL    11
 #define V_TF_RX_CHANNEL(x) ((x) << S_TF_RX_CHANNEL)
 
 #define S_TF_TX_CHANNEL0    12
 #define V_TF_TX_CHANNEL0(x) ((x) << S_TF_TX_CHANNEL0)
 
+#define S_TF_LPBK_TX_CHANNEL0    12
+#define V_TF_LPBK_TX_CHANNEL0(x) ((x) << S_TF_LPBK_TX_CHANNEL0)
+
 #define S_TF_TX_CHANNEL1    13
 #define V_TF_TX_CHANNEL1(x) ((x) << S_TF_TX_CHANNEL1)
+
+#define S_TF_LPBK_TX_CHANNEL1    13
+#define V_TF_LPBK_TX_CHANNEL1(x) ((x) << S_TF_LPBK_TX_CHANNEL1)
 
 #define S_TF_TX_QUIESCE    14
 #define V_TF_TX_QUIESCE(x) ((x) << S_TF_TX_QUIESCE)
@@ -606,6 +721,10 @@
 #define S_TF_TX_QUEUE    18
 #define M_TF_TX_QUEUE    0x7ULL
 #define V_TF_TX_QUEUE(x) ((x) << S_TF_TX_QUEUE)
+
+#define S_TF_NAT_MODE    18
+#define M_TF_NAT_MODE    0x7ULL
+#define V_TF_NAT_MODE(x) ((x) << S_TF_NAT_MODE)
 
 #define S_TF_TURBO    21
 #define V_TF_TURBO(x) ((x) << S_TF_TURBO)
@@ -652,8 +771,8 @@
 #define S_TF_RCV_COALESCE_HEARTBEAT    32
 #define V_TF_RCV_COALESCE_HEARTBEAT(x) ((__u64)(x) << S_TF_RCV_COALESCE_HEARTBEAT)
 
-#define S_TF_INIT    33
-#define V_TF_INIT(x) ((__u64)(x) << S_TF_INIT)
+#define S_TF_RSS_FW    33
+#define V_TF_RSS_FW(x) ((__u64)(x) << S_TF_RSS_FW)
 
 #define S_TF_ACTIVE_OPEN    34
 #define V_TF_ACTIVE_OPEN(x) ((__u64)(x) << S_TF_ACTIVE_OPEN)
@@ -712,11 +831,20 @@
 #define S_TF_RECV_SCALE    52
 #define V_TF_RECV_SCALE(x) ((__u64)(x) << S_TF_RECV_SCALE)
 
+#define S_TF_NAT_FLAG_CHECK    52
+#define V_TF_NAT_FLAG_CHECK(x) ((__u64)(x) << S_TF_NAT_FLAG_CHECK)
+
 #define S_TF_RECV_TSTMP    53
 #define V_TF_RECV_TSTMP(x) ((__u64)(x) << S_TF_RECV_TSTMP)
 
+#define S_TF_LPBK_TX_LPBK    53
+#define V_TF_LPBK_TX_LPBK(x) ((__u64)(x) << S_TF_LPBK_TX_LPBK)
+
 #define S_TF_RECV_SACK    54
 #define V_TF_RECV_SACK(x) ((__u64)(x) << S_TF_RECV_SACK)
+
+#define S_TF_SWAP_MAC_ADDR    54
+#define V_TF_SWAP_MAC_ADDR(x) ((__u64)(x) << S_TF_SWAP_MAC_ADDR)
 
 #define S_TF_PEND_CTL0    55
 #define V_TF_PEND_CTL0(x) ((__u64)(x) << S_TF_PEND_CTL0)
@@ -751,6 +879,9 @@
 #define S_TF_CCTRL_RFR    62
 #define V_TF_CCTRL_RFR(x) ((__u64)(x) << S_TF_CCTRL_RFR)
 
+#define S_TF_INSERT_VLAN    62
+#define V_TF_INSERT_VLAN(x) ((__u64)(x) << S_TF_INSERT_VLAN)
+
 #define S_TF_CORE_BYPASS    63
 #define V_TF_CORE_BYPASS(x) ((__u64)(x) << S_TF_CORE_BYPASS)
 
@@ -771,6 +902,9 @@
 
 #define S_TF_DDP_RX2TX    21
 #define V_TF_DDP_RX2TX(x) ((x) << S_TF_DDP_RX2TX)
+
+#define S_TF_DDP_INDICATE_FLL    22
+#define V_TF_DDP_INDICATE_FLL(x) ((x) << S_TF_DDP_INDICATE_FLL)
 
 #define S_TF_DDP_BUF0_VALID    24
 #define V_TF_DDP_BUF0_VALID(x) ((x) << S_TF_DDP_BUF0_VALID)

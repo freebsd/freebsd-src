@@ -121,11 +121,22 @@ dotted=
 dot()
 {
 	local f verify
+	local dot_dir dot_file
 
 	o_verify_set off verify
 	for f in "$@"; do
 		if [ -f $f -a -s $f ]; then
 			dotted="$dotted $f"
+			case $f in
+			*/*)
+				dot_dir=${f%/*}
+				dot_file=${f##*/}
+				;;
+			*)
+				dot_dir=.
+				dot_file=$f
+				;;
+			esac
 			. $f
 		fi
 	done
@@ -152,8 +163,7 @@ vdot()
 	for f in "$@"; do
 		[ -f $f -a -s $f ] || continue
 		if is_verified $f 2> /dev/null; then
-			dotted="$dotted $f"
-			. $f
+			dot $f
 		else
 			rc=80	# EAUTH
 		fi
@@ -792,28 +802,18 @@ sort_lite()
 #
 wait_for_pids()
 {
-	local _list _prefix _nlist _j
+	local _list _prefix _j
 
-	_list="$@"
-	if [ -z "$_list" ]; then
-		return
-	fi
-	_prefix=
-	while true; do
-		_nlist="";
-		for _j in $_list; do
-			if kill -0 $_j 2>/dev/null; then
-				_nlist="${_nlist}${_nlist:+ }$_j"
-				[ -n "$_prefix" ] && sleep 1
-			fi
-		done
-		if [ -z "$_nlist" ]; then
-			break
+	for _j in "$@"; do
+		if kill -0 $_j 2>/dev/null; then
+			_list="${_list}${_list:+ }$_j"
 		fi
-		_list=$_nlist
+	done
+	_prefix=
+	while [ -n "$_list" ]; do
 		echo -n ${_prefix:-"Waiting for PIDS: "}$_list
 		_prefix=", "
-		pwait $_list 2>/dev/null
+		_list=$(pwait -op $_list 2>/dev/null)
 	done
 	if [ -n "$_prefix" ]; then
 		echo "."

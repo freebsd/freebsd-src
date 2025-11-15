@@ -46,6 +46,7 @@
 #include <netconfig.h>
 #include <stdio.h>
 #ifdef RPCBIND_DEBUG
+#include <stdio.h>
 #include <stdlib.h>
 #endif
 #include <string.h>
@@ -53,9 +54,9 @@
 #include "rpcbind.h"
 
 static void *rpcbproc_getaddr_3_local(void *, struct svc_req *, SVCXPRT *,
-					   rpcvers_t);
+    rpcvers_t);
 static void *rpcbproc_dump_3_local(void *, struct svc_req *, SVCXPRT *,
-					rpcvers_t);
+    rpcvers_t);
 
 /*
  * Called by svc_getreqset. There is a separate server handle for
@@ -89,7 +90,7 @@ rpcb_service_3(struct svc_req *rqstp, SVCXPRT *transp)
 #endif
 		/* This call just logs, no actual checks */
 		check_access(transp, rqstp->rq_proc, NULL, RPCBVERS);
-		(void) svc_sendreply(transp, (xdrproc_t)xdr_void, (char *)NULL);
+		(void) svc_sendreply(transp, (xdrproc_t)xdr_void, NULL);
 		return;
 
 	case RPCBPROC_SET:
@@ -204,7 +205,7 @@ done:
 /* ARGSUSED */
 static void *
 rpcbproc_getaddr_3_local(void *arg, struct svc_req *rqstp __unused,
-			 SVCXPRT *transp __unused, rpcvers_t versnum __unused)
+    SVCXPRT *transp __unused, rpcvers_t versnum __unused)
 {
 	RPCB *regp = (RPCB *)arg;
 #ifdef RPCBIND_DEBUG
@@ -212,7 +213,7 @@ rpcbproc_getaddr_3_local(void *arg, struct svc_req *rqstp __unused,
 		char *uaddr;
 
 		uaddr = taddr2uaddr(rpcbind_get_conf(transp->xp_netid),
-			    svc_getrpccaller(transp));
+		    svc_getrpccaller(transp));
 		fprintf(stderr, "RPCB_GETADDR req for (%lu, %lu, %s) from %s: ",
 		    (unsigned long)regp->r_prog, (unsigned long)regp->r_vers,
 		    regp->r_netid, uaddr);
@@ -226,7 +227,7 @@ rpcbproc_getaddr_3_local(void *arg, struct svc_req *rqstp __unused,
 /* ARGSUSED */
 static void *
 rpcbproc_dump_3_local(void *arg __unused, struct svc_req *rqstp __unused,
-		      SVCXPRT *transp __unused, rpcvers_t versnum __unused)
+    SVCXPRT *transp __unused, rpcvers_t versnum __unused)
 {
 	return ((void *)&list_rbl);
 }

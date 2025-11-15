@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2000, 2003 Robert N. M. Watson
 .\" Copyright (c) 2008-2012 James Gritton
 .\" All rights reserved.
@@ -23,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 11, 2025
+.Dd November 13, 2025
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -686,6 +689,12 @@ in the
 file outside of the jails.
 .It Va allow.reserved_ports
 The jail root may bind to ports lower than 1024.
+.It Va allow.unprivileged_parent_tampering
+Unprivileged processes in the jail's parent may tamper with processes of the
+same UID in the jail.
+This includes the ability to signal, debug, and
+.Xr cpuset 1
+processes that belong to the jail.
 .It Va allow.unprivileged_proc_debug
 Unprivileged processes in the jail may use debugging facilities.
 .It Va allow.suser
@@ -696,15 +705,15 @@ The super-user will be disabled automatically if its parent system has it
 disabled.
 The super-user is enabled by default.
 .It Va allow.extattr
-Allow privileged process in the jail to manipulate filesystem extended
+Allow privileged processes in the jail to manipulate filesystem extended
 attributes in the system namespace.
 .It Va allow.adjtime
-Allow privileged process in the jail to slowly adjusting global operating system
-time.
+Allow privileged processes in the jail to slowly adjusting global operating
+system time.
 For example through utilities like
 .Xr ntpd 8 .
 .It Va allow.settime
-Allow privileged process in the jail to set global operating system data
+Allow privileged processes in the jail to set global operating system data
 and time.
 For example through utilities like
 .Xr date 1 .
@@ -713,6 +722,17 @@ This permission includes also
 .It Va allow.routing
 Allow privileged process in the non-VNET jail to modify the system routing
 table.
+.It Va allow.setaudit
+Allow privileged processes in the jail to set
+.Xr audit 4
+session state using
+.Xr setaudit 2
+and related system calls.
+This is useful, for example, for allowing a jailed
+.Xr sshd 8
+to set the audit user ID for an authenticated session.
+However, it gives jailed processes the ability to modify or disable audit
+session state, so should be configured with care.
 .El
 .El
 .Pp
@@ -992,7 +1012,7 @@ jail is removed.
 .It Va ip4.addr
 In addition to the IP addresses that are passed to the kernel, an
 interface, netmask and additional parameters (as supported by
-.Xr ifconfig 8 Ns )
+.Xr ifconfig 8 )
 may also be specified, in the form
 .Dq Ar interface Ns | Ns Ar ip-address Ns / Ns Ar netmask param ... .
 If an interface is given before the IP address, an alias for the address
@@ -1006,11 +1026,12 @@ adding the IP alias.
 .It Va ip6.addr
 In addition to the IP addresses that are passed to the kernel,
 an interface, prefix and additional parameters (as supported by
-.Xr ifconfig 8 Ns )
+.Xr ifconfig 8 )
 may also be specified, in the form
 .Dq Ar interface Ns | Ns Ar ip-address Ns / Ns Ar prefix param ... .
 .It Va vnet.interface
-A list of network interfaces to give to a vnet-enabled jail after is it created.
+A comma separated list of network interfaces to give to a vnet-enabled jail
+after is it created.
 The interfaces will automatically be released when the jail is removed.
 .It Va zfs.dataset
 A list of ZFS datasets to be attached to the jail.
@@ -1102,7 +1123,7 @@ process.
 This manual page documents the configuration steps necessary to support
 either of these steps, although the configuration steps may need to be
 refined based on local requirements.
-.Ss "Setting up a Jail Directory Tree"
+.Ss Setting up a Jail Directory Tree From Source
 To set up a jail directory tree containing an entire
 .Fx
 distribution, the following
@@ -1115,8 +1136,26 @@ mkdir -p $D
 make world DESTDIR=$D
 make distribution DESTDIR=$D
 .Ed
+.Ss Setting up a Jail Directory Tree from Distribution Files
+To set up a jail directory tree containing an entire
+.Fx
+distribution, the following
+.Xr sh 1
+command script can be used:
+.Bd -literal -offset indent
+D=/here/is/the/jail
+mkdir -p $D
+tar -xf /usr/freebsd-dist/base.txz -C $D --unlink
+.Ed
+.Ss Setting up a Jail Directory Tree from System Packages
+To set up a jail directory tree containing an selectable
+.Fx
+distribution with the packages tech preview,
+the following command can be used:
 .Pp
-In many cases this example would put far more in the jail than needed.
+.Dl bsdinstall jail /here/is/the/jail
+.Pp
+In many cases these examples would put far more in the jail than needed.
 In the other extreme case a jail might contain only one file:
 the executable to be run in the jail.
 .Pp

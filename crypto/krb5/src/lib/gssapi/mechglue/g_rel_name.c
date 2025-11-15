@@ -34,12 +34,7 @@
 #include <string.h>
 
 OM_uint32 KRB5_CALLCONV
-gss_release_name (minor_status,
-		  input_name)
-
-OM_uint32 *		minor_status;
-gss_name_t *		input_name;
-
+gss_release_name(OM_uint32 *minor_status, gss_name_t *input_name)
 {
     gss_union_name_t	union_name;
 

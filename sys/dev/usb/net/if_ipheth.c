@@ -55,6 +55,7 @@
 #include <net/if_var.h>
 
 #include <dev/usb/usb.h>
+#include <dev/usb/usb_cdc.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 #include "usbdevs.h"
@@ -81,6 +82,9 @@ static uether_fn_t ipheth_start;
 static uether_fn_t ipheth_setmulti;
 static uether_fn_t ipheth_setpromisc;
 
+static ipheth_consumer_t ipheth_consume_read;
+static ipheth_consumer_t ipheth_consume_read_ncm;
+
 #ifdef USB_DEBUG
 static int ipheth_debug = 0;
 
@@ -96,7 +100,31 @@ static const struct usb_config ipheth_config[IPHETH_N_TRANSFER] = {
 		.direction = UE_DIR_RX,
 		.frames = IPHETH_RX_FRAMES_MAX,
 		.bufsize = (IPHETH_RX_FRAMES_MAX * MCLBYTES),
-		.flags = {.short_frames_ok = 1,.short_xfer_ok = 1,.ext_buffer = 1,},
+		.flags = {.short_frames_ok = 1, .short_xfer_ok = 1, .ext_buffer = 1,},
+		.callback = ipheth_bulk_read_callback,
+		.timeout = 0,		/* no timeout */
+	},
+
+	[IPHETH_BULK_TX] = {
+		.type = UE_BULK,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_TX,
+		.frames = IPHETH_TX_FRAMES_MAX,
+		.bufsize = (IPHETH_TX_FRAMES_MAX * IPHETH_BUF_SIZE),
+		.flags = {.force_short_xfer = 1,},
+		.callback = ipheth_bulk_write_callback,
+		.timeout = IPHETH_TX_TIMEOUT,
+	},
+};
+
+static const struct usb_config ipheth_config_ncm[IPHETH_N_TRANSFER] = {
+	[IPHETH_BULK_RX] = {
+		.type = UE_BULK,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_RX,
+		.frames = 1,
+		.bufsize = IPHETH_RX_NCM_BUF_SIZE,
+		.flags = {.short_frames_ok = 1, .short_xfer_ok = 1,},
 		.callback = ipheth_bulk_read_callback,
 		.timeout = 0,		/* no timeout */
 	},
@@ -204,6 +232,21 @@ ipheth_get_mac_addr(struct ipheth_softc *sc)
 	return (0);
 }
 
+static bool
+ipheth_enable_ncm(struct ipheth_softc *sc)
+{
+	struct usb_device_request req;
+
+	req.bmRequestType = UT_WRITE_VENDOR_INTERFACE;
+	req.bRequest = IPHETH_CMD_ENABLE_NCM;
+	USETW(req.wValue, 0);
+	req.wIndex[0] = sc->sc_iface_no;
+	req.wIndex[1] = 0;
+	USETW(req.wLength, 0);
+
+	return (usbd_do_request(sc->sc_ue.ue_udev, NULL, &req, NULL) == 0);
+}
+
 static int
 ipheth_probe(device_t dev)
 {
@@ -221,6 +264,7 @@ ipheth_attach(device_t dev)
 	struct ipheth_softc *sc = device_get_softc(dev);
 	struct usb_ether *ue = &sc->sc_ue;
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	const struct usb_config *config;
 	int error;
 
 	sc->sc_iface_no = uaa->info.bIfaceIndex;
@@ -235,17 +279,28 @@ ipheth_attach(device_t dev)
 		device_printf(dev, "Cannot set alternate setting\n");
 		goto detach;
 	}
-	error = usbd_transfer_setup(uaa->device, &sc->sc_iface_no,
-	    sc->sc_xfer, ipheth_config, IPHETH_N_TRANSFER, sc, &sc->sc_mtx);
-	if (error) {
-		device_printf(dev, "Cannot setup USB transfers\n");
-		goto detach;
-	}
+
 	ue->ue_sc = sc;
 	ue->ue_dev = dev;
 	ue->ue_udev = uaa->device;
 	ue->ue_mtx = &sc->sc_mtx;
 	ue->ue_methods = &ipheth_ue_methods;
+
+	if (ipheth_enable_ncm(sc)) {
+		config = ipheth_config_ncm;
+		sc->is_ncm = true;
+		sc->consume = &ipheth_consume_read_ncm;
+	} else {
+		config = ipheth_config;
+		sc->consume = &ipheth_consume_read;
+	}
+
+	error = usbd_transfer_setup(uaa->device, &sc->sc_iface_no, sc->sc_xfer,
+	    config, IPHETH_N_TRANSFER, sc, &sc->sc_mtx);
+	if (error) {
+		device_printf(dev, "Cannot setup USB transfers\n");
+		goto detach;
+	}
 
 	error = ipheth_get_mac_addr(sc);
 	if (error) {
@@ -389,12 +444,9 @@ ipheth_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	int actlen;
 	int aframes;
 
-	usbd_xfer_status(xfer, &actlen, NULL, &aframes, NULL);
-
-	DPRINTFN(1, "\n");
-
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
+		usbd_xfer_status(xfer, &actlen, NULL, &aframes, NULL);
 		DPRINTFN(11, "transfer complete: %u bytes in %u frames\n",
 		    actlen, aframes);
 
@@ -471,53 +523,40 @@ ipheth_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	uint8_t x;
 	int actlen;
 	int aframes;
-	int len;
-
-	usbd_xfer_status(xfer, &actlen, NULL, &aframes, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-
+		usbd_xfer_status(xfer, &actlen, NULL, &aframes, NULL);
 		DPRINTF("received %u bytes in %u frames\n", actlen, aframes);
 
-		for (x = 0; x != aframes; x++) {
-			m = sc->sc_rx_buf[x];
-			sc->sc_rx_buf[x] = NULL;
-			len = usbd_xfer_frame_len(xfer, x);
-
-			if (len < (int)(sizeof(struct ether_header) +
-			    IPHETH_RX_ADJ)) {
-				m_freem(m);
-				continue;
-			}
-
-			m_adj(m, IPHETH_RX_ADJ);
-
-			/* queue up mbuf */
-			uether_rxmbuf(&sc->sc_ue, m, len - IPHETH_RX_ADJ);
-		}
+		for (x = 0; x != aframes; x++)
+			sc->consume(xfer, x);
 
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
+		if (!sc->is_ncm) {
+			for (x = 0; x != IPHETH_RX_FRAMES_MAX; x++) {
+				if (sc->sc_rx_buf[x] == NULL) {
+					m = uether_newbuf();
+					if (m == NULL)
+						goto tr_stall;
 
-		for (x = 0; x != IPHETH_RX_FRAMES_MAX; x++) {
-			if (sc->sc_rx_buf[x] == NULL) {
-				m = uether_newbuf();
-				if (m == NULL)
-					goto tr_stall;
+					/* cancel alignment for ethernet */
+					m_adj(m, ETHER_ALIGN);
 
-				/* cancel alignment for ethernet */
-				m_adj(m, ETHER_ALIGN);
-
-				sc->sc_rx_buf[x] = m;
-			} else {
-				m = sc->sc_rx_buf[x];
+					sc->sc_rx_buf[x] = m;
+				} else {
+					m = sc->sc_rx_buf[x];
+				}
+				usbd_xfer_set_frame_data(xfer, x, m->m_data, m->m_len);
 			}
-
-			usbd_xfer_set_frame_data(xfer, x, m->m_data, m->m_len);
+			usbd_xfer_set_frames(xfer, x);
+		} else {
+			usbd_xfer_set_frame_len(xfer, 0,
+			    IPHETH_RX_NCM_BUF_SIZE);
+			usbd_xfer_set_frames(xfer, 1);
 		}
-		/* set number of frames and start hardware */
-		usbd_xfer_set_frames(xfer, x);
+
 		usbd_transfer_submit(xfer);
 		/* flush any received frames */
 		uether_rxflush(&sc->sc_ue);
@@ -537,5 +576,88 @@ ipheth_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		/* need to free the RX-mbufs when we are cancelled */
 		ipheth_free_queue(sc->sc_rx_buf, IPHETH_RX_FRAMES_MAX);
 		break;
+	}
+}
+
+static void
+ipheth_consume_read(struct usb_xfer *xfer, int x)
+{
+	struct ipheth_softc *sc = usbd_xfer_softc(xfer);
+	struct mbuf *m = sc->sc_rx_buf[x];
+	int len;
+
+	sc->sc_rx_buf[x] = NULL;
+	len = usbd_xfer_frame_len(xfer, x);
+
+	if (len < (int)(sizeof(struct ether_header) + IPHETH_RX_ADJ)) {
+		m_freem(m);
+		return;
+	}
+
+	m_adj(m, IPHETH_RX_ADJ);
+
+	/* queue up mbuf */
+	uether_rxmbuf(&sc->sc_ue, m, len - IPHETH_RX_ADJ);
+}
+
+static void
+ipheth_consume_read_ncm(struct usb_xfer *xfer, int x)
+{
+	struct ipheth_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc = usbd_xfer_get_frame(xfer, 0);
+	struct ncm_data_cache ncm;
+	if_t ifp = uether_getifp(&sc->sc_ue);
+	struct mbuf *new_buf;
+	int i, actlen;
+	uint16_t dp_offset, dp_len;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
+
+	if (actlen < IPHETH_NCM_HEADER_SIZE)
+		return;
+
+	usbd_copy_out(pc, 0, &ncm.hdr, sizeof(ncm.hdr));
+
+	if (UGETDW(ncm.hdr.dwSignature) != 0x484D434E)
+		return;
+
+	/* Dpt follows the hdr on iOS */
+	if (UGETW(ncm.hdr.wDptIndex) != (int)(sizeof(struct usb_ncm16_hdr)))
+		return;
+
+	usbd_copy_out(pc, UGETW(ncm.hdr.wDptIndex), &ncm.dpt, sizeof(ncm.dpt));
+
+	if (UGETDW(ncm.dpt.dwSignature) != 0x304D434E)
+		return;
+
+	usbd_copy_out(pc, UGETW(ncm.hdr.wDptIndex) + sizeof(ncm.dpt), &ncm.dp,
+	    sizeof(ncm.dp));
+
+	for (i = 0; i < IPHETH_NCM_DPT_DP_NUM; ++i) {
+		dp_offset = UGETW(ncm.dp[i].wFrameIndex);
+		dp_len = UGETW(ncm.dp[i].wFrameLength);
+
+		/* (3.3.1 USB CDC NCM spec v1.0) */
+		if (dp_offset == 0 && dp_len == 0)
+			break;
+
+		if (dp_offset < IPHETH_NCM_HEADER_SIZE || dp_offset >= actlen ||
+		    actlen < (dp_len + dp_offset) ||
+		    dp_len < sizeof(struct ether_header)) {
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+			continue;
+		}
+		if (dp_len > (MCLBYTES - ETHER_ALIGN)) {
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
+			continue;
+		}
+
+		new_buf = uether_newbuf();
+		if (new_buf == NULL) {
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
+			continue;
+		}
+		usbd_copy_out(pc, dp_offset, new_buf->m_data, dp_len);
+		uether_rxmbuf(&sc->sc_ue, new_buf, dp_len);
 	}
 }

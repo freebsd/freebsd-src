@@ -62,14 +62,8 @@ val_del_sec_ctx_args(
 
 
 OM_uint32 KRB5_CALLCONV
-gss_delete_sec_context (minor_status,
-                        context_handle,
-                        output_token)
-
-OM_uint32 *		minor_status;
-gss_ctx_id_t *		context_handle;
-gss_buffer_t		output_token;
-
+gss_delete_sec_context(OM_uint32 *minor_status, gss_ctx_id_t *context_handle,
+		       gss_buffer_t output_token)
 {
     OM_uint32		status;
     gss_union_ctx_id_t	ctx;

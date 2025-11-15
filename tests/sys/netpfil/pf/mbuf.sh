@@ -69,22 +69,22 @@ inet_in_mbuf_len_body()
 	# Should still work for m_len=0
 	jexec alcatraz pfilctl link -i dummymbuf:inet inet
 	jexec alcatraz sysctl net.dummymbuf.rules="inet in ${epair}b pull-head 0;"
-	atf_check_equal "0" "$(jexec alcatraz sysctl -n net.dummymbuf.hits)"
+	atf_check_equal '0' '$(jexec alcatraz sysctl -n net.dummymbuf.hits)'
 	atf_check -s exit:0 -o ignore ping -c1 192.0.2.2
-	atf_check_equal "1" "$(jexec alcatraz sysctl -n net.dummymbuf.hits)"
+	atf_check_equal '1' '$(jexec alcatraz sysctl -n net.dummymbuf.hits)'
 
 	# m_len=1
 	jexec alcatraz sysctl net.dummymbuf.rules="inet in ${epair}b pull-head 1;"
 	jexec alcatraz sysctl net.dummymbuf.hits=0
 	atf_check -s exit:0 -o ignore ping -c1 192.0.2.2
-	atf_check_equal "1" "$(jexec alcatraz sysctl -n net.dummymbuf.hits)"
+	atf_check_equal '1' '$(jexec alcatraz sysctl -n net.dummymbuf.hits)'
 
 	# m_len=19
 	# provided IPv4 basic header is 20 bytes long, it should impact the dst addr
 	jexec alcatraz sysctl net.dummymbuf.rules="inet in ${epair}b pull-head 19;"
 	jexec alcatraz sysctl net.dummymbuf.hits=0
 	atf_check -s exit:0 -o ignore ping -c1 192.0.2.2
-	atf_check_equal "1" "$(jexec alcatraz sysctl -n net.dummymbuf.hits)"
+	atf_check_equal '1' '$(jexec alcatraz sysctl -n net.dummymbuf.hits)'
 }
 inet_in_mbuf_len_cleanup()
 {
@@ -140,22 +140,22 @@ inet6_in_mbuf_len_body()
 	# Should still work for m_len=0
 	jexec alcatraz pfilctl link -i dummymbuf:inet6 inet6
 	jexec alcatraz sysctl net.dummymbuf.rules="inet6 in ${epair}b pull-head 0;"
-	atf_check_equal "0" "$(jexec alcatraz sysctl -n net.dummymbuf.hits)"
+	atf_check_equal '0' '$(jexec alcatraz sysctl -n net.dummymbuf.hits)'
 	atf_check -s exit:0 -o ignore ping -c1 2001:db8::2
-	atf_check_equal "1" "$(jexec alcatraz sysctl -n net.dummymbuf.hits)"
+	atf_check_equal '1' '$(jexec alcatraz sysctl -n net.dummymbuf.hits)'
 
 	# m_len=1
 	jexec alcatraz sysctl net.dummymbuf.rules="inet6 in ${epair}b pull-head 1;"
 	jexec alcatraz sysctl net.dummymbuf.hits=0
 	atf_check -s exit:0 -o ignore ping -c1 2001:db8::2
-	atf_check_equal "1" "$(jexec alcatraz sysctl -n net.dummymbuf.hits)"
+	atf_check_equal '1' '$(jexec alcatraz sysctl -n net.dummymbuf.hits)'
 
 	# m_len=39
 	# provided IPv6 basic header is 40 bytes long, it should impact the dst addr
 	jexec alcatraz sysctl net.dummymbuf.rules="inet6 in ${epair}b pull-head 39;"
 	jexec alcatraz sysctl net.dummymbuf.hits=0
 	atf_check -s exit:0 -o ignore ping -c1 2001:db8::2
-	atf_check_equal "1" "$(jexec alcatraz sysctl -n net.dummymbuf.hits)"
+	atf_check_equal '1' '$(jexec alcatraz sysctl -n net.dummymbuf.hits)'
 }
 inet6_in_mbuf_len_cleanup()
 {
@@ -205,29 +205,29 @@ ethernet_in_mbuf_len_body()
 	# Should still work for m_len=0
 	jexec alcatraz pfilctl link -i dummymbuf:ethernet ethernet
 	jexec alcatraz sysctl net.dummymbuf.rules="ethernet in ${epair}b pull-head 0;"
-	atf_check_equal "0" "$(jexec alcatraz sysctl -n net.dummymbuf.hits)"
+	atf_check_equal '0' '$(jexec alcatraz sysctl -n net.dummymbuf.hits)'
 	atf_check -s exit:0 -o ignore ping -c1 192.0.2.2
-	atf_check_equal "1" "$(jexec alcatraz sysctl -n net.dummymbuf.hits)"
+	atf_check_equal '1' '$(jexec alcatraz sysctl -n net.dummymbuf.hits)'
 
 	# m_len=1
 	jexec alcatraz sysctl net.dummymbuf.rules="ethernet in ${epair}b pull-head 1;"
 	jexec alcatraz sysctl net.dummymbuf.hits=0
 	atf_check -s exit:0 -o ignore ping -c1 192.0.2.2
-	atf_check_equal "1" "$(jexec alcatraz sysctl -n net.dummymbuf.hits)"
+	atf_check_equal '1' '$(jexec alcatraz sysctl -n net.dummymbuf.hits)'
 
 	# m_len=11
 	# for the simplest L2 Ethernet frame it should impact src field
 	jexec alcatraz sysctl net.dummymbuf.rules="ethernet in ${epair}b pull-head 11;"
 	jexec alcatraz sysctl net.dummymbuf.hits=0
 	atf_check -s exit:0 -o ignore ping -c1 192.0.2.2
-	atf_check_equal "1" "$(jexec alcatraz sysctl -n net.dummymbuf.hits)"
+	atf_check_equal '1' '$(jexec alcatraz sysctl -n net.dummymbuf.hits)'
 
 	# m_len=13
 	# provided L2 Ethernet simplest header is 14 bytes long, it should impact ethertype field
 	jexec alcatraz sysctl net.dummymbuf.rules="ethernet in ${epair}b pull-head 13;"
 	jexec alcatraz sysctl net.dummymbuf.hits=0
 	atf_check -s exit:0 -o ignore ping -c1 192.0.2.2
-	atf_check_equal "1" "$(jexec alcatraz sysctl -n net.dummymbuf.hits)"
+	atf_check_equal '1' '$(jexec alcatraz sysctl -n net.dummymbuf.hits)'
 }
 ethernet_in_mbuf_len_cleanup()
 {

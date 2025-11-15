@@ -701,7 +701,7 @@ kdb5_ldap_modify(int argc, char *argv[])
         goto cleanup;
     /* Parse the arguments */
     for (i = 1; i < argc; i++) {
-        int k = 0;
+        size_t k = 0;
         if (!strcmp(argv[i], "-subtrees")) {
             if (++i > argc-1)
                 goto err_usage;

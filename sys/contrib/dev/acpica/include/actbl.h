@@ -220,7 +220,7 @@ typedef struct acpi_table_header
     char                    OemId[ACPI_OEM_ID_SIZE] ACPI_NONSTRING;            /* ASCII OEM identification */
     char                    OemTableId[ACPI_OEM_TABLE_ID_SIZE] ACPI_NONSTRING; /* ASCII OEM table identification */
     UINT32                  OemRevision;                                       /* OEM revision number */
-    char                    AslCompilerId[ACPI_NAMESEG_SIZE];                  /* ASCII ASL compiler vendor ID */
+    char                    AslCompilerId[ACPI_NAMESEG_SIZE] ACPI_NONSTRING;   /* ASCII ASL compiler vendor ID */
     UINT32                  AslCompilerRevision;                               /* ASL compiler version */
 
 } ACPI_TABLE_HEADER;

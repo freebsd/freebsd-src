@@ -417,7 +417,18 @@ disk_parsedev(struct devdesc **idev, const char *devspec, const char **path)
 	char *cp;
 	struct disk_devdesc *dev;
 
-	np = devspec + 4;	/* Skip the leading 'disk' */
+	/*
+	 * disk names look approximately like:
+	 *	v?disk([0-9]+(p[0-9]+|s[a-z])?)?:
+	 * so skip over the initial bit. We don't have access to the devsw
+	 * to check the name.
+	 */
+	if (strncmp(devspec, "disk", 4) == 0)
+		np = devspec + 4;
+	else if (strncmp(devspec, "vdisk", 5) == 0)
+		np = devspec + 5;
+	else
+		return (EINVAL);
 	unit = -1;
 	/*
 	 * If there is path/file info after the device info, then any missing

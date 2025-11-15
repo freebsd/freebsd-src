@@ -45,7 +45,7 @@ default() {
 	# Reset everything changed by the other functions to initial defaults.
 
 	dc=$1; shift	# device name character
-	drainwait=`sysctl -n kern.drainwait`
+	drainwait=`sysctl -n kern.tty_drainwait`
 
 	for i in $*
 	do
@@ -84,7 +84,7 @@ modem() {
 	for i in $*
 	do
 		# may depend on modem
-		comcontrol /dev/tty${dc}${i} dtrwait 100 drainwait 180
+		comcontrol /dev/tty${dc}${i} drainwait 180
 		# Lock crtscts on.
 		# Speed reasonable for V42bis.
 		stty < /dev/tty${dc}${i}.init crtscts 115200
@@ -156,12 +156,3 @@ terminal() {
 # modem    u    1
 # terminal u  0
 # 3wire    u  0
-
-# Initialize all ports on a Cyclades-8yo.
-# modem    c  00 01 02 03 04 05 06 07
-
-# Initialize all ports on a Cyclades-16ye.
-# modem    c  00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f
-
-# Initialize all ports on a Digiboard 8.
-# modem    D  00 01 02 03 04 05 06 07

@@ -38,7 +38,7 @@
  */
 
 int
-main()
+main(void)
 {
     krb5_db_entry *ent;
     krb5_context context;

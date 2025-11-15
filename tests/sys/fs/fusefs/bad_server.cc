@@ -64,6 +64,11 @@ TEST_F(BadServer, ShortWrite)
 	out.header.error = 0;
 	out.header.unique = 0;			// Asynchronous notification
 	out.expected_errno = EINVAL;
+	/*
+	 * Tell the event loop to quit.  The kernel will disconnect us
+	 * because of the short write.
+	 */
+	m_mock->m_expect_unmount = true;
 	m_mock->write_response(out);
 }
 
@@ -93,7 +98,7 @@ TEST_F(BadServer, ErrorWithPayload)
 		out.push_back(std::move(out1));
 
 		// The kernel may disconnect us for bad behavior, so don't try
-		// to read any more.
+		// to read or write any more.
 		m_mock->m_quit = true;
 	}));
 

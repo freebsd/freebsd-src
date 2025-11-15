@@ -5,7 +5,7 @@
  */
 
 #define	FREEBSD32_SYS_syscall	0
-#define	FREEBSD32_SYS_exit	1
+#define	FREEBSD32_SYS__exit	1
 #define	FREEBSD32_SYS_fork	2
 #define	FREEBSD32_SYS_read	3
 #define	FREEBSD32_SYS_write	4
@@ -83,8 +83,8 @@
 				/* 76 is obsolete vhangup */
 				/* 77 is obsolete vlimit */
 #define	FREEBSD32_SYS_mincore	78
-#define	FREEBSD32_SYS_getgroups	79
-#define	FREEBSD32_SYS_setgroups	80
+#define	FREEBSD32_SYS_freebsd14_getgroups	79
+#define	FREEBSD32_SYS_freebsd14_setgroups	80
 #define	FREEBSD32_SYS_getpgrp	81
 #define	FREEBSD32_SYS_setpgid	82
 #define	FREEBSD32_SYS_freebsd32_setitimer	83
@@ -513,4 +513,8 @@
 #define	FREEBSD32_SYS_exterrctl	592
 #define	FREEBSD32_SYS_inotify_add_watch_at	593
 #define	FREEBSD32_SYS_inotify_rm_watch	594
-#define	FREEBSD32_SYS_MAXSYSCALL	595
+#define	FREEBSD32_SYS_getgroups	595
+#define	FREEBSD32_SYS_setgroups	596
+#define	FREEBSD32_SYS_jail_attach_jd	597
+#define	FREEBSD32_SYS_jail_remove_jd	598
+#define	FREEBSD32_SYS_MAXSYSCALL	600

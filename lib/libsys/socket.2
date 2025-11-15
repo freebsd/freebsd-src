@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 17, 2025
+.Dd September 28, 2025
 .Dt SOCKET 2
 .Os
 .Sh NAME
@@ -64,7 +64,7 @@ PF_NETGRAPH	Netgraph sockets,
 PF_NETLINK	Netlink protocols,
 PF_BLUETOOTH	Bluetooth protocols,
 PF_INET_SDP	OFED socket direct protocol (IPv4),
-AF_HYPERV	HyperV sockets
+PF_HYPERV	HyperV sockets
 .Ed
 .Pp
 Each protocol family is connected to an address family, which has the
@@ -88,32 +88,6 @@ SOCK_DGRAM	Datagram socket,
 SOCK_RAW	Raw-protocol interface,
 SOCK_SEQPACKET	Sequenced packet stream
 .Ed
-.Pp
-A
-.Dv SOCK_STREAM
-type provides sequenced, reliable,
-two-way connection based byte streams.
-An out-of-band data transmission mechanism may be supported.
-A
-.Dv SOCK_DGRAM
-socket supports
-datagrams (connectionless, unreliable messages of
-a fixed (typically small) maximum length).
-A
-.Dv SOCK_SEQPACKET
-socket may provide a sequenced, reliable,
-two-way connection-based data transmission path for datagrams
-of fixed maximum length; a consumer may be required to read
-an entire packet with each read system call.
-This facility may have protocol-specific properties.
-.Dv SOCK_RAW
-sockets provide access to internal network protocols and interfaces.
-The
-.Dv SOCK_RAW
-type is available only to the super-user and is described in
-.Xr ip 4
-and
-.Xr ip6 4 .
 .Pp
 Additionally, the following flags are allowed in the
 .Fa type
@@ -140,32 +114,23 @@ particular to the
 in which communication
 is to take place; see
 .Xr protocols 5 .
-.Pp
 The
 .Fa protocol
 argument may be set to zero (0) to request the default
 implementation of a socket type for the protocol, if any.
-.Pp
-Sockets of type
+.Sh STREAM SOCKET TYPE
+The
 .Dv SOCK_STREAM
-are full-duplex byte streams, similar
-to pipes.
-A stream socket must be in a
+socket type provides reliable, sequenced, full-duplex octet streams between
+the socket and a peer to which the socket is connected.
+A socket of type
+.Dv SOCK_STREAM
+needs to be in a
 .Em connected
-state before any data may be sent or received
-on it.
+state before any data can be sent or received.
 A connection to another socket is created with a
 .Xr connect 2
 system call.
-Once connected, data may be transferred using
-.Xr read 2
-and
-.Xr write 2
-calls or some variant of the
-.Xr send 2
-and
-.Xr recv 2
-functions.
 (Some protocol families, such as the Internet family,
 support the notion of an
 .Dq implied connect ,
@@ -173,62 +138,210 @@ which permits data to be sent piggybacked onto a connect operation by
 using the
 .Xr sendto 2
 system call.)
-When a session has been completed a
-.Xr close 2
-may be performed.
-Out-of-band data may also be transmitted as described in
+Once connected, data may be sent using
+.Xr send 2 ,
+.Xr sendto 2 ,
+.Xr sendmsg 2
+and
+.Xr write 2
+system calls.
+Data may be received using
+.Xr recv 2 ,
+.Xr recvfrom 2 ,
+.Xr recvmsg 2 ,
+and
+.Xr read 2
+system calls.
+Record boundaries are not maintained; data sent on a stream socket using output
+operations of one size can be received using input operations of smaller or
+larger sizes without loss of data.
+Data may be buffered; successful return from an output function does not imply
+that the data has been delivered to the peer or even transmitted from the local
+system.
+For certain protocols out-of-band data may also be transmitted as described in
 .Xr send 2
 and received as described in
 .Xr recv 2 .
 .Pp
-The communications protocols used to implement a
-.Dv SOCK_STREAM
-ensure that data
-is not lost or duplicated.
-If a piece of data for which the
-peer protocol has buffer space cannot be successfully transmitted
-within a reasonable length of time, then
-the connection is considered broken and calls
-will indicate an error with
--1 returns and with
-.Er ETIMEDOUT
-as the specific code
-in the global variable
-.Va errno .
-The protocols optionally keep sockets
-.Dq warm
-by forcing transmissions
-roughly every minute in the absence of other activity.
-An error is then indicated if no response can be
-elicited on an otherwise
-idle connection for an extended period (e.g.\& 5 minutes).
-By default, a
+If data cannot be successfully transmitted within a given time then the
+connection is considered broken, and subsequent operations shall fail with
+a protocol specific error code.
+A
 .Dv SIGPIPE
-signal is raised if a process sends
-on a broken stream, but this behavior may be inhibited via
+signal is raised if a thread attempts to send data on a broken stream (one that
+is no longer connected).
+The signal can be suppressed by the
+.Dv MSG_NOSIGNAL
+flag with distinct
+.Xr send 2 ,
+.Xr sendto 2 ,
+and
+.Xr sendmsg 2
+system calls or by the
+.Dv SO_NOSIGPIPE
+socket option set on the socket with
 .Xr setsockopt 2 .
 .Pp
-.Dv SOCK_SEQPACKET
-sockets employ the same system calls
-as
+The
 .Dv SOCK_STREAM
-sockets.
-The only difference
-is that
-.Xr read 2
-calls will return only the amount of data requested,
-and any remaining in the arriving packet will be discarded.
-.Pp
-.Dv SOCK_DGRAM
+socket is supported by the following protocol families:
+.Dv PF_INET ,
+.Dv PF_INET6 ,
+.Dv PF_UNIX ,
+.Dv PF_BLUETOOTH ,
+.Dv PF_HYPERV ,
 and
-.Dv SOCK_RAW
-sockets allow sending of datagrams to correspondents
-named in
+.Dv PF_INET_SDP .
+Out-of-band data transmission mechanism is supported for stream sockets of
+.Dv PF_INET
+and
+.Dv PF_INET6
+protocol families.
+.Sh DATAGRAM SOCKET TYPE
+The
+.Dv SOCK_DGRAM
+socket type supports connectionless data transfer which is not necessarily
+acknowledged or reliable.
+Datagrams can be sent to the address specified (possibly multicast or
+broadcast) in each output operation, and incoming datagrams can be received
+from multiple sources.
+The source address of each datagram is available when receiving the datagram
+with
+.Xr recvfrom 2
+or
+.Xr recvmsg 2 .
+An application can also pre-specify a peer address with
+.Xr sendto 2
+or
+.Xr sendmsg 2 ,
+in which case calls to output functions that do not specify a peer address
+shall send to the pre-specified peer.
+If a peer has been specified, only datagrams from that peer shall be received.
+A datagram shall be sent in a single output operation, and needs to be received
+in a single input operation.
+The maximum size of a datagram is protocol-specific.
+Output datagrams may be buffered within the system; thus, a successful return
+from an output function does not guarantee that a datagram is actually sent or
+received.
+.Pp
+The
+.Dv SOCK_DGRAM
+socket is supported by the following protocol families:
+.Dv PF_INET ,
+.Dv PF_INET6 ,
+.Dv PF_UNIX ,
+.Dv PF_NETGRAPH ,
+and
+.Dv PF_NETLINK .
+.Sh SEQUENCED PACKET SOCKET TYPE
+The
+.Dv SOCK_SEQPACKET
+socket type is similar to the
+.Dv SOCK_STREAM
+type, and is also connection-oriented.
+The only difference between these types is that record boundaries are
+maintained using the
+.Dv SOCK_SEQPACKET
+type.
+A record can be sent using one or more output operations and received using one
+or more input operations, but a single operation never transfers parts of more
+than one record.
+Record boundaries are set by the sender with the
+.Dv MSG_EOR
+flag of
 .Xr send 2
-calls.
-Datagrams are generally received with
+or
+.Xr sendmsg 2
+functions.
+There is no possibility to set a record boundary with
+.Xr write 2 .
+Record boundaries are visible to the receiver via the
+.Dv MSG_EOR
+flag in the received message flags returned by the
+.Xr recvmsg 2
+function.
+It is protocol-specific whether a maximum record size is imposed.
+.Pp
+The
+.Dv SOCK_SEQPACKET
+socket is supported by the following protocol families:
+.Dv PF_INET ,
+.Dv PF_INET6 ,
+and
+.Dv PF_UNIX .
+.Pp
+.Sh RAW SOCKET TYPE
+The
+.Dv SOCK_RAW
+socket type provides access to internal network protocols and interfaces.
+It is a datagram socket in its nature, thus has the same semantics of
+read and write operations.
+The
+.Dv SOCK_RAW
+type is available only to the super-user and is described in
+.Xr ip 4
+and
+.Xr ip6 4 .
+.Sh NON-BLOCKING MODE
+A socket can be created in
+.Em non-blocking mode
+with the help of
+.Dv SOCK_NONBLOCK
+flag.
+Alternatively, the non-blocking mode on a socket can be turned on and off with
+the help of the
+.Dv O_NONBLOCK
+flag of the
+.Xr fcntl 2
+system call.
+.Pp
+When a non-blocking socket has not enough data in its receive buffer to fulfill
+the application supplied buffer, then data receiving system calls like
+.Xr recv 2 ,
 .Xr recvfrom 2 ,
-which returns the next datagram with its return address.
+.Xr recvmsg 2
+and
+.Xr read 2
+will not block waiting for the data but immediately return.
+Return value will indicate amount of bytes read into the supplied buffer.
+The
+.Va errno
+will be set to
+.Dv EAGAIN
+.Po
+has same value as
+.Dv EWOULDBLOCK
+.Pc .
+.Pp
+If application tries to send more data on a non-blocking socket than the socket
+send buffer can accomodate with
+.Xr send 2 ,
+.Xr sendto 2 ,
+.Xr sendmsg 2
+or
+.Xr write 2
+system calls partial data will be sent.
+Return value will indicate amount of bytes sent.
+The
+.Va errno
+will be set to
+.Dv EAGAIN .
+Note that sockets of
+.Dv SOCK_DGRAM
+type are unreliable, thus for these sockets sending operations will never fail
+with
+.Dv EAGAIN
+in non-blocking mode neither will block in blocking mode.
+.Sh OTHER OPERATIONS ON SOCKETS
+Since socket descriptors are file descriptors, many generic file operations
+performed by
+.Xr fcntl 2 ,
+apply.
+Socket descriptors can be used with all event engines, such as
+.Xr kevent 2 ,
+.Xr select 2
+and
+.Xr poll 2 .
 .Pp
 An
 .Xr fcntl 2
@@ -250,6 +363,12 @@ The
 and
 .Xr getsockopt 2
 system calls are used to set and get options, respectively.
+.Pp
+Connection associated with a socket can be terminated by
+.Xr close 2
+system call.
+One direction of communication can be disabled with
+.Xr shutdown 2 .
 .Sh RETURN VALUES
 A -1 is returned if an error occurs, otherwise the return
 value is a descriptor referencing the socket.
@@ -282,16 +401,23 @@ The socket type is not supported by the protocol.
 .Sh SEE ALSO
 .Xr accept 2 ,
 .Xr bind 2 ,
+.Xr close 2 ,
 .Xr connect 2 ,
+.Xr fcntl 2 ,
 .Xr getpeername 2 ,
 .Xr getsockname 2 ,
 .Xr getsockopt 2 ,
 .Xr ioctl 2 ,
+.Xr kevent 2 ,
 .Xr listen 2 ,
+.Xr poll 2 ,
 .Xr read 2 ,
 .Xr recv 2 ,
 .Xr select 2 ,
 .Xr send 2 ,
+.Xr sendmsg 2 ,
+.Xr sendto 2 ,
+.Xr signal 3 ,
 .Xr shutdown 2 ,
 .Xr socketpair 2 ,
 .Xr write 2 ,

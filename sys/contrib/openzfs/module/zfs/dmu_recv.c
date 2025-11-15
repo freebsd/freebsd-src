@@ -866,7 +866,7 @@ dmu_recv_begin_sync(void *arg, dmu_tx_t *tx)
 	 */
 	if (dcp == NULL && drrb->drr_fromguid == 0 &&
 	    drba->drba_origin == NULL) {
-		ASSERT3P(dcp, ==, NULL);
+		ASSERT0P(dcp);
 		dcp = &dummy_dcp;
 
 		if (featureflags & DMU_BACKUP_FEATURE_RAW)
@@ -881,7 +881,7 @@ dmu_recv_begin_sync(void *arg, dmu_tx_t *tx)
 		if (drba->drba_cookie->drc_fromsnapobj != 0) {
 			VERIFY0(dsl_dataset_hold_obj(dp,
 			    drba->drba_cookie->drc_fromsnapobj, FTAG, &snap));
-			ASSERT3P(dcp, ==, NULL);
+			ASSERT0P(dcp);
 		}
 		if (drc->drc_heal) {
 			/* When healing we want to use the provided snapshot */
@@ -905,7 +905,7 @@ dmu_recv_begin_sync(void *arg, dmu_tx_t *tx)
 		if (drba->drba_origin != NULL) {
 			VERIFY0(dsl_dataset_hold(dp, drba->drba_origin,
 			    FTAG, &origin));
-			ASSERT3P(dcp, ==, NULL);
+			ASSERT0P(dcp);
 		}
 
 		/* Create new dataset. */
@@ -1403,7 +1403,7 @@ corrective_read_done(zio_t *zio)
 	/* Corruption corrected; update error log if needed */
 	if (zio->io_error == 0) {
 		spa_remove_error(data->spa, &data->zb,
-		    BP_GET_LOGICAL_BIRTH(zio->io_bp));
+		    BP_GET_PHYSICAL_BIRTH(zio->io_bp));
 	}
 	kmem_free(data, sizeof (cr_cb_data_t));
 	abd_free(zio->io_abd);
@@ -1530,7 +1530,7 @@ do_corrective_recv(struct receive_writer_arg *rwa, struct drr_write *drrw,
 	}
 	rrd->abd = abd;
 
-	io = zio_rewrite(NULL, rwa->os->os_spa, BP_GET_LOGICAL_BIRTH(bp), bp,
+	io = zio_rewrite(NULL, rwa->os->os_spa, BP_GET_BIRTH(bp), bp,
 	    abd, BP_GET_PSIZE(bp), NULL, NULL, ZIO_PRIORITY_SYNC_WRITE, flags,
 	    &zb);
 
@@ -2792,7 +2792,7 @@ receive_read_payload_and_next_header(dmu_recv_cookie_t *drc, int len, void *buf)
 			drc->drc_rrd->bytes_read = drc->drc_bytes_read;
 		}
 	} else {
-		ASSERT3P(buf, ==, NULL);
+		ASSERT0P(buf);
 	}
 
 	drc->drc_prev_cksum = drc->drc_cksum;
@@ -3450,7 +3450,7 @@ dmu_recv_stream(dmu_recv_cookie_t *drc, offset_t *voffp)
 			break;
 		}
 
-		ASSERT3P(drc->drc_rrd, ==, NULL);
+		ASSERT0P(drc->drc_rrd);
 		drc->drc_rrd = drc->drc_next_rrd;
 		drc->drc_next_rrd = NULL;
 		/* Allocates and loads header into drc->drc_next_rrd */
@@ -3468,7 +3468,7 @@ dmu_recv_stream(dmu_recv_cookie_t *drc, offset_t *voffp)
 		drc->drc_rrd = NULL;
 	}
 
-	ASSERT3P(drc->drc_rrd, ==, NULL);
+	ASSERT0P(drc->drc_rrd);
 	drc->drc_rrd = kmem_zalloc(sizeof (*drc->drc_rrd), KM_SLEEP);
 	drc->drc_rrd->eos_marker = B_TRUE;
 	bqueue_enqueue_flush(&rwa->q, drc->drc_rrd, 1);
@@ -3831,11 +3831,11 @@ dmu_recv_end(dmu_recv_cookie_t *drc, void *owner)
 		nvlist_free(drc->drc_keynvl);
 	} else if (!drc->drc_heal) {
 		if (drc->drc_newfs) {
-			zvol_create_minor(drc->drc_tofs);
+			zvol_create_minors(drc->drc_tofs);
 		}
 		char *snapname = kmem_asprintf("%s@%s",
 		    drc->drc_tofs, drc->drc_tosnap);
-		zvol_create_minor(snapname);
+		zvol_create_minors(snapname);
 		kmem_strfree(snapname);
 	}
 

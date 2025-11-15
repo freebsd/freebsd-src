@@ -93,6 +93,9 @@ __ElfType(Auxinfo);
 #define	ET_DYN_LOAD_ADDR 0x100000
 #endif
 
+/* First __FreeBSD_version that supports Top Byte Ignore (TBI) */
+#define	TBI_VERSION	1500058
+
 /* HWCAP */
 #define	HWCAP_FP		(1 << 0)
 #define	HWCAP_ASIMD		(1 << 1)

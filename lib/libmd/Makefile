@@ -108,7 +108,7 @@ CFLAGS+= -DWEAK_REFS
 CFLAGS.skein_block.c+= -DSKEIN_LOOP=995
 .PATH: ${.CURDIR}/${MACHINE_ARCH} ${SRCTOP}/sys/crypto/sha2
 .PATH: ${SRCTOP}/sys/crypto/skein ${SRCTOP}/sys/crypto/skein/${MACHINE_ARCH}
-.PATH: ${SRCTOP}/sys/kern
+.PATH: ${SRCTOP}/sys/crypto
 
 USE_ASM_SOURCES?=1
 .if defined(BOOTSTRAPPING) || ${MK_MACHDEP_OPTIMIZATIONS} == no
@@ -117,6 +117,13 @@ USE_ASM_SOURCES:=0
 .endif
 
 .if ${USE_ASM_SOURCES} != 0
+.if exists(${MACHINE_ARCH}/md5block.S)
+SRCS+=	md5block.S
+CFLAGS+= -DMD5_ASM
+.if exists(${MACHINE_ARCH}/md5dispatch.c)
+SRCS+=  md5dispatch.c
+.endif
+.endif
 .if exists(${MACHINE_ARCH}/sha1block.S)
 SRCS+=	sha1block.S
 CFLAGS+= -DSHA1_ASM

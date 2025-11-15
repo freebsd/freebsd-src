@@ -580,7 +580,8 @@ virtqueue_dequeue(struct virtqueue *vq, uint32_t *len)
 	void *cookie;
 	uint16_t used_idx, desc_idx;
 
-	if (vq->vq_used_cons_idx == vq_htog16(vq, vq->vq_ring.used->idx))
+	if (vq->vq_used_cons_idx ==
+	    vq_htog16(vq, atomic_load_16(&vq->vq_ring.used->idx)))
 		return (NULL);
 
 	used_idx = vq->vq_used_cons_idx++ & (vq->vq_nentries - 1);
@@ -605,10 +606,8 @@ virtqueue_poll(struct virtqueue *vq, uint32_t *len)
 {
 	void *cookie;
 
-	VIRTIO_BUS_POLL(vq->vq_dev);
 	while ((cookie = virtqueue_dequeue(vq, len)) == NULL) {
 		cpu_spinwait();
-		VIRTIO_BUS_POLL(vq->vq_dev);
 	}
 
 	return (cookie);

@@ -182,35 +182,42 @@ This variant is the default.
 The second variant has acquire semantics, and the third variant has release
 semantics.
 .Pp
-When an atomic operation has acquire semantics, the operation must have
+An atomic operation can only have
+.Em acquire
+semantics if it performs a load
+from memory.
+When an atomic operation has acquire semantics, a load performed as
+part of the operation must have
 completed before any subsequent load or store (by program order) is
 performed.
 Conversely, acquire semantics do not require that prior loads or stores have
-completed before the atomic operation is performed.
-An atomic operation can only have acquire semantics if it performs a load
-from memory.
+completed before a load from the atomic operation is performed.
 To denote acquire semantics, the suffix
 .Dq Li _acq
 is inserted into the function name immediately prior to the
 .Dq Li _ Ns Aq Fa type
 suffix.
-For example, to subtract two integers ensuring that the subtraction is
+For example, to subtract two integers ensuring that the load of
+the value from memory is
 completed before any subsequent loads and stores are performed, use
 .Fn atomic_subtract_acq_int .
 .Pp
+An atomic operation can only have
+.Em release
+semantics if it performs a store to memory.
 When an atomic operation has release semantics, all prior loads or stores
-(by program order) must have completed before the operation is performed.
-Conversely, release semantics do not require that the atomic operation must
+(by program order) must have completed before a store executed as part of
+the operation that is performed.
+Conversely, release semantics do not require that a store from the atomic
+operation must
 have completed before any subsequent load or store is performed.
-An atomic operation can only have release semantics if it performs a store
-to memory.
 To denote release semantics, the suffix
 .Dq Li _rel
 is inserted into the function name immediately prior to the
 .Dq Li _ Ns Aq Fa type
 suffix.
 For example, to add two long integers ensuring that all prior loads and
-stores are completed before the addition is performed, use
+stores are completed before the store of the result is performed, use
 .Fn atomic_add_rel_long .
 .Pp
 When a release operation by one thread
@@ -235,6 +242,33 @@ section.
 However, they will not prevent the compiler or processor from moving loads
 or stores into the critical section, which does not violate the semantics of
 a mutex.
+.Ss Architecture-dependent caveats for compare-and-swap
+The
+.Fn atomic_[f]cmpset_<type>
+operations, specifically those without explicitly specified memory
+ordering, are defined as relaxed.
+Consequently, a thread's accesses to memory locations different from
+that of the atomic operation can be reordered in relation to the
+atomic operation.
+.Pp
+However, the implementation on the
+.Sy amd64
+and
+.Sy i386
+architectures provide sequentially consistent semantics.
+In particular, the reordering mentioned above cannot occur.
+.Pp
+On the
+.Sy arm64/aarch64
+architecture, the operation may include either acquire
+semantics on the constituent load or release semantics
+on the constituent store.
+This means that accesses to other locations in program order
+before the atomic, might be observed as executed after the load
+that is the part of the atomic operation (but not after the store
+from the operation due to release).
+Similarly, accesses after the atomic might be observed as executed
+before the store.
 .Ss Thread Fence Operations
 Alternatively, a programmer can use atomic thread fence operations to
 constrain the reordering of accesses.
@@ -272,7 +306,7 @@ In C11, a release fence by one thread synchronizes with an acquire fence by
 another thread when an atomic load that is prior to the acquire fence (by
 program order) reads the value written by an atomic store that is subsequent
 to the release fence.
-In constrast, in
+In contrast, in
 .Fx ,
 because of the atomicity of ordinary, naturally
 aligned loads and stores, fences can also be synchronized by ordinary loads

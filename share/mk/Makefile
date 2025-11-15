@@ -10,6 +10,7 @@ UPDATE_DEPENDFILE= no
 
 .include <src.opts.mk>
 
+PACKAGE= bmake
 FILES=	\
 	auto.obj.mk \
 	bsd.README \
@@ -21,6 +22,7 @@ FILES=	\
 	bsd.confs.mk \
 	bsd.cpu.mk \
 	bsd.crunchgen.mk \
+	bsd.debug.mk \
 	bsd.dep.mk \
 	bsd.dirs.mk \
 	bsd.doc.mk \

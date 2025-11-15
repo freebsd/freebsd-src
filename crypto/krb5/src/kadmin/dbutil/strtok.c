@@ -50,9 +50,7 @@
  */
 
 char *
-nstrtok(s, delim)
-    char *s;
-    const char *delim;
+nstrtok(char *s, const char *delim)
 {
     const char *spanp;
     int c, sc;

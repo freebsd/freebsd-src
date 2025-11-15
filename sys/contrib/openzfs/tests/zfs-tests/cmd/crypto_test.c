@@ -529,6 +529,8 @@ static const char *aes_gcm_impl[][2] = {
 	{ "aesni",   "pclmulqdq" },
 	{ "x86_64",  "avx" },
 	{ "aesni",   "avx" },
+	{ "x86_64",  "avx2" },
+	{ "aesni",   "avx2" },
 };
 
 /* signature of function to call after setting implementation params */
@@ -861,7 +863,8 @@ test_result(const crypto_test_t *test, int encrypt_rv, uint8_t *encrypt_buf,
 		return (pass);
 
 	/* print summary of test result */
-	printf("%s[%lu]: encrypt=%s decrypt=%s\n", test->fileloc, test->id,
+	printf("%s[%ju]: encrypt=%s decrypt=%s\n", test->fileloc,
+	    (uintmax_t)test->id,
 	    encrypt_pass ? "PASS" : "FAIL",
 	    decrypt_pass ? "PASS" : "FAIL");
 

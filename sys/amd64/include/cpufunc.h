@@ -76,7 +76,7 @@ static __inline void
 clflushopt(u_long addr)
 {
 
-	__asm __volatile(".byte 0x66;clflush %0" : : "m" (*(char *)addr));
+	__asm __volatile("clflushopt %0" : : "m" (*(char *)addr));
 }
 
 static __inline void
@@ -569,6 +569,15 @@ rss(void)
 {
 	u_short sel;
 	__asm __volatile("movw %%ss,%0" : "=rm" (sel));
+	return (sel);
+}
+
+static __inline u_short
+rcs(void)
+{
+	u_short sel;
+
+	__asm __volatile("movw %%cs,%0" : "=rm" (sel));
 	return (sel);
 }
 

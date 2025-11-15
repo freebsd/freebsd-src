@@ -759,6 +759,8 @@ dmu_prefetch_by_dnode(dnode_t *dn, int64_t level, uint64_t offset,
 		 */
 		uint8_t ibps = ibs - SPA_BLKPTRSHIFT;
 		limit = P2ROUNDUP(dmu_prefetch_max, 1 << ibs) >> ibs;
+		if (limit == 0)
+			end2 = start2;
 		do {
 			level2++;
 			start2 = P2ROUNDUP(start2, 1 << ibps) >> ibps;
@@ -1343,7 +1345,7 @@ dmu_prealloc(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 	if (size == 0)
 		return;
 
-	VERIFY(0 == dmu_buf_hold_array(os, object, offset, size,
+	VERIFY0(dmu_buf_hold_array(os, object, offset, size,
 	    FALSE, FTAG, &numbufs, &dbp));
 
 	for (i = 0; i < numbufs; i++) {
@@ -1689,8 +1691,8 @@ dmu_object_cached_size(objset_t *os, uint64_t object,
 
 	dmu_object_info_from_dnode(dn, &doi);
 
-	for (uint64_t off = 0; off < doi.doi_max_offset;
-	    off += dmu_prefetch_max) {
+	for (uint64_t off = 0; off < doi.doi_max_offset &&
+	    dmu_prefetch_max > 0; off += dmu_prefetch_max) {
 		/* dbuf_read doesn't prefetch L1 blocks. */
 		dmu_prefetch_by_dnode(dn, 1, off,
 		    dmu_prefetch_max, ZIO_PRIORITY_SYNC_READ);
@@ -1872,7 +1874,7 @@ dmu_sync_ready(zio_t *zio, arc_buf_t *buf, void *varg)
 			 */
 			BP_SET_LSIZE(bp, db->db_size);
 		} else if (!BP_IS_EMBEDDED(bp)) {
-			ASSERT(BP_GET_LEVEL(bp) == 0);
+			ASSERT0(BP_GET_LEVEL(bp));
 			BP_SET_FILL(bp, 1);
 		}
 	}
@@ -1966,7 +1968,7 @@ dmu_sync_late_arrival_done(zio_t *zio)
 			blkptr_t *bp_orig __maybe_unused = &zio->io_bp_orig;
 			ASSERT(!(zio->io_flags & ZIO_FLAG_NOPWRITE));
 			ASSERT(BP_IS_HOLE(bp_orig) || !BP_EQUAL(bp, bp_orig));
-			ASSERT(BP_GET_LOGICAL_BIRTH(zio->io_bp) == zio->io_txg);
+			ASSERT(BP_GET_BIRTH(zio->io_bp) == zio->io_txg);
 			ASSERT(zio->io_txg > spa_syncing_txg(zio->io_spa));
 			zio_free(zio->io_spa, zio->io_txg, zio->io_bp);
 		}
@@ -2405,7 +2407,7 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 			}
 		}
 	} else if (wp & WP_NOFILL) {
-		ASSERT(level == 0);
+		ASSERT0(level);
 
 		/*
 		 * If we're writing preallocated blocks, we aren't actually
@@ -2508,6 +2510,7 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 	zp->zp_encrypt = encrypt;
 	zp->zp_byteorder = ZFS_HOST_BYTEORDER;
 	zp->zp_direct_write = (wp & WP_DIRECT_WR) ? B_TRUE : B_FALSE;
+	zp->zp_rewrite = B_FALSE;
 	memset(zp->zp_salt, 0, ZIO_DATA_SALT_LEN);
 	memset(zp->zp_iv, 0, ZIO_DATA_IV_LEN);
 	memset(zp->zp_mac, 0, ZIO_DATA_MAC_LEN);
@@ -2655,11 +2658,12 @@ dmu_read_l0_bps(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 		 * operation into ZIL, or it may be impossible to replay, since
 		 * the block may appear not yet allocated at that point.
 		 */
-		if (BP_GET_BIRTH(bp) > spa_freeze_txg(os->os_spa)) {
+		if (BP_GET_PHYSICAL_BIRTH(bp) > spa_freeze_txg(os->os_spa)) {
 			error = SET_ERROR(EINVAL);
 			goto out;
 		}
-		if (BP_GET_BIRTH(bp) > spa_last_synced_txg(os->os_spa)) {
+		if (BP_GET_PHYSICAL_BIRTH(bp) >
+		    spa_last_synced_txg(os->os_spa)) {
 			error = SET_ERROR(EAGAIN);
 			goto out;
 		}
@@ -2731,7 +2735,8 @@ dmu_brt_clone(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 		if (!BP_IS_HOLE(bp) || BP_GET_LOGICAL_BIRTH(bp) != 0) {
 			if (!BP_IS_EMBEDDED(bp)) {
 				BP_SET_BIRTH(&dl->dr_overridden_by, dr->dr_txg,
-				    BP_GET_BIRTH(bp));
+				    BP_GET_PHYSICAL_BIRTH(bp));
+				BP_SET_REWRITE(&dl->dr_overridden_by, 0);
 			} else {
 				BP_SET_LOGICAL_BIRTH(&dl->dr_overridden_by,
 				    dr->dr_txg);
@@ -2862,7 +2867,7 @@ byteswap_uint64_array(void *vbuf, size_t size)
 	size_t count = size >> 3;
 	int i;
 
-	ASSERT((size & 7) == 0);
+	ASSERT0((size & 7));
 
 	for (i = 0; i < count; i++)
 		buf[i] = BSWAP_64(buf[i]);
@@ -2875,7 +2880,7 @@ byteswap_uint32_array(void *vbuf, size_t size)
 	size_t count = size >> 2;
 	int i;
 
-	ASSERT((size & 3) == 0);
+	ASSERT0((size & 3));
 
 	for (i = 0; i < count; i++)
 		buf[i] = BSWAP_32(buf[i]);
@@ -2888,7 +2893,7 @@ byteswap_uint16_array(void *vbuf, size_t size)
 	size_t count = size >> 1;
 	int i;
 
-	ASSERT((size & 1) == 0);
+	ASSERT0((size & 1));
 
 	for (i = 0; i < count; i++)
 		buf[i] = BSWAP_16(buf[i]);

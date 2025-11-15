@@ -80,7 +80,7 @@ static struct svc_callout {
 	struct svc_callout *sc_next;
 	rpcprog_t		    sc_prog;
 	rpcprog_t		    sc_vers;
-	void		    (*sc_dispatch)();
+	void		    (*sc_dispatch)(struct svc_req *, SVCXPRT *);
 } *svc_head;
 
 static struct svc_callout *svc_find(rpcprog_t, rpcvers_t,
@@ -162,7 +162,7 @@ svc_register(
 	SVCXPRT *xprt,
 	rpcprog_t prog,
 	rpcvers_t vers,
-	void (*dispatch)(),
+	void (*dispatch)(struct svc_req *, SVCXPRT *),
 	int protocol)
 {
 	struct svc_callout *prev;

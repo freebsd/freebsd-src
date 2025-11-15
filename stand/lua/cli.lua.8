@@ -52,10 +52,11 @@ For instance:
 local cli = require("cli")
 
 cli.foo = function(...)
-	-- Expand args to command name and the rest of argv.  These arguments
-	-- are pushed directly to the stack by loader, then handed off to
-	-- cli_execute.  cli_execute then passes them on to the invoked
-	-- function, where they appear as varargs that must be peeled apart into
+	-- Expand args to command name and the rest of argv.
+	-- These arguments are pushed directly to the stack by
+	-- loader, then handed off to cli_execute.  cli_execute
+	-- then passes them on to the invoked function, where
+	-- they appear as varargs that must be peeled apart into
 	-- their respective components.
 	local _, argv = cli.arguments(...)
 
@@ -63,10 +64,11 @@ cli.foo = function(...)
 	for k, v in ipairs(argv) do
 		print("arg #" .. tostring(k) .. ": '" .. v .. "'")
 	end
-	-- Perform a loader command directly.  This will not get dispatched back
-	-- to Lua, so it is acceptable to have a function of the exact same name
-	-- in loader.  Lua will have the first chance to handle any commands
-	-- executed at the loader prompt.
+	-- Perform a loader command directly.  This will not get
+	-- dispatched back to Lua, so it is acceptable to have a
+	-- function of the exact same name in loader.  Lua will
+	-- have the first chance to handle any commands executed
+	-- at the loader prompt.
 	loader.perform("foo")
 end
 .Ed

@@ -44,6 +44,7 @@
  * see man buf(9) for more info.
  */
 
+#define	EXTERR_CATEGORY	EXTERR_CAT_VFSBIO
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/asan.h>
@@ -55,6 +56,7 @@
 #include <sys/counter.h>
 #include <sys/devicestat.h>
 #include <sys/eventhandler.h>
+#include <sys/exterrvar.h>
 #include <sys/fail.h>
 #include <sys/ktr.h>
 #include <sys/limits.h>
@@ -1775,7 +1777,6 @@ buf_alloc(struct bufdomain *bd)
 	bp->b_blkno = bp->b_lblkno = 0;
 	bp->b_offset = NOOFFSET;
 	bp->b_iodone = 0;
-	bp->b_error = 0;
 	bp->b_resid = 0;
 	bp->b_bcount = 0;
 	bp->b_npages = 0;
@@ -1785,6 +1786,7 @@ buf_alloc(struct bufdomain *bd)
 	bp->b_fsprivate1 = NULL;
 	bp->b_fsprivate2 = NULL;
 	bp->b_fsprivate3 = NULL;
+	exterr_clear(&bp->b_exterr);
 	LIST_INIT(&bp->b_dep);
 
 	return (bp);
@@ -2276,7 +2278,7 @@ breadn_flags(struct vnode *vp, daddr_t blkno, daddr_t dblkno, int size,
 		}
 		if ((flags & GB_CVTENXIO) != 0)
 			bp->b_xflags |= BX_CVTENXIO;
-		bp->b_ioflags &= ~BIO_ERROR;
+		bp->b_ioflags &= ~(BIO_ERROR | BIO_EXTERR);
 		if (bp->b_rcred == NOCRED && cred != NOCRED)
 			bp->b_rcred = crhold(cred);
 		vfs_busy_pages(bp, 0);
@@ -2353,7 +2355,7 @@ bufwrite(struct buf *bp)
 	bundirty(bp);
 
 	bp->b_flags &= ~B_DONE;
-	bp->b_ioflags &= ~BIO_ERROR;
+	bp->b_ioflags &= ~(BIO_ERROR | BIO_EXTERR);
 	bp->b_flags |= B_CACHE;
 	bp->b_iocmd = BIO_WRITE;
 
@@ -4520,8 +4522,11 @@ biowait(struct bio *bp, const char *wmesg)
 	while ((bp->bio_flags & BIO_DONE) == 0)
 		msleep(bp, mtxp, PRIBIO, wmesg, 0);
 	mtx_unlock(mtxp);
-	if (bp->bio_error != 0)
+	if (bp->bio_error != 0) {
+		if ((bp->bio_flags & BIO_EXTERR) != 0)
+			return (exterr_set_from(&bp->bio_exterr));
 		return (bp->bio_error);
+	}
 	if (!(bp->bio_flags & BIO_ERROR))
 		return (0);
 	return (EIO);
@@ -4568,6 +4573,8 @@ bufwait(struct buf *bp)
 		return (EINTR);
 	}
 	if (bp->b_ioflags & BIO_ERROR) {
+		if ((bp->b_ioflags & BIO_EXTERR) != 0)
+			exterr_set_from(&bp->b_exterr);
 		return (bp->b_error ? bp->b_error : EIO);
 	} else {
 		return (0);
@@ -5170,7 +5177,7 @@ bufstrategy(struct bufobj *bo, struct buf *bp)
 
 	vp = bp->b_vp;
 	KASSERT(vp == bo->bo_private, ("Inconsistent vnode bufstrategy"));
-	KASSERT(vp->v_type != VCHR && vp->v_type != VBLK,
+	KASSERT(!VN_ISDEV(vp),
 	    ("Wrong vnode in bufstrategy(bp=%p, vp=%p)", bp, vp));
 	i = VOP_STRATEGY(vp, bp);
 	KASSERT(i == 0, ("VOP_STRATEGY failed bp=%p vp=%p", bp, bp->b_vp));
@@ -5522,6 +5529,8 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 		db_printf("\n");
 	}
 	BUF_LOCKPRINTINFO(bp);
+	if ((bp->b_ioflags & BIO_EXTERR) != 0)
+		exterr_db_print(&bp->b_exterr);
 #if defined(FULL_BUF_TRACKING)
 	db_printf("b_io_tracking: b_io_tcnt = %u\n", bp->b_io_tcnt);
 

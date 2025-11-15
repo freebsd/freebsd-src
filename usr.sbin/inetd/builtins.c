@@ -606,6 +606,8 @@ ident_stream(int s, struct servtab *sep)
 		 */
 		if (initgroups(pw->pw_name, pw->pw_gid) == -1)
 			iderror(lport, fport, s, ID_UNKNOWN);
+		if (setegid(pw->pw_gid) == -1)
+			iderror(lport, fport, s, ID_UNKNOWN);
 		if (seteuid(pw->pw_uid) == -1)
 			iderror(lport, fport, s, ID_UNKNOWN);
 		/*

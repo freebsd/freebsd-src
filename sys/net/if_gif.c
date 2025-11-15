@@ -312,10 +312,7 @@ gif_transmit(struct ifnet *ifp, struct mbuf *m)
 		goto err;
 	}
 	/* Now pull back the af that we stashed in the csum_data. */
-	if (ifp->if_bridge)
-		af = AF_LINK;
-	else
-		af = m->m_pkthdr.csum_data;
+	af = m->m_pkthdr.csum_data;
 	m->m_flags &= ~(M_BCAST|M_MCAST);
 	M_SETFIB(m, sc->gif_fibnum);
 	BPF_MTAP2(ifp, &af, sizeof(af), m);
@@ -355,6 +352,8 @@ gif_transmit(struct ifnet *ifp, struct mbuf *m)
 		break;
 #endif
 	case AF_LINK:
+		KASSERT(ifp->if_bridge != NULL,
+		    ("%s: bridge not attached", __func__));
 		proto = IPPROTO_ETHERIP;
 		M_PREPEND(m, sizeof(struct etherip_header), M_NOWAIT);
 		if (m == NULL) {
@@ -404,9 +403,6 @@ gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	struct route *ro)
 {
 	uint32_t af;
-
-	KASSERT(ifp->if_bridge == NULL,
-	    ("%s: unexpectedly called with bridge attached", __func__));
 
 	/* BPF writes need to be handled specially. */
 	if (dst->sa_family == AF_UNSPEC || dst->sa_family == pseudo_AF_HDRCMPLT)

@@ -142,6 +142,10 @@ for TARGET in $TARGETS; do
         INSTALL_BORINGSSL=1
         PACKAGES="${PACKAGES} cmake ninja-build"
        ;;
+    aws-lc)
+        INSTALL_AWSLC=1
+        PACKAGES="${PACKAGES} cmake ninja-build"
+        ;;
     putty-*)
 	INSTALL_PUTTY=$(echo "${TARGET}" | cut -f2 -d-)
 	PACKAGES="${PACKAGES} cmake"
@@ -238,6 +242,15 @@ if [ ! -z "${INSTALL_BORINGSSL}" ]; then
      mkdir -p /opt/boringssl/lib &&
      cp ${HOME}/boringssl/build/crypto/libcrypto.a /opt/boringssl/lib &&
      cp -r ${HOME}/boringssl/include /opt/boringssl)
+fi
+
+if [ ! -z "${INSTALL_AWSLC}" ]; then
+    (cd ${HOME} && git clone --depth 1 --branch v1.46.1 https://github.com/aws/aws-lc.git &&
+     cd ${HOME}/aws-lc && mkdir build && cd build &&
+     cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF .. && ninja &&
+     mkdir -p /opt/aws-lc/lib &&
+     cp ${HOME}/aws-lc/build/crypto/libcrypto.a /opt/aws-lc/lib &&
+     cp -r ${HOME}/aws-lc/include /opt/aws-lc)
 fi
 
 if [ ! -z "${INSTALL_ZLIB}" ]; then

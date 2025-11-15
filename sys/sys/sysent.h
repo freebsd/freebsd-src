@@ -90,6 +90,7 @@ struct sysent {			/* system call table */
 #define	SY_THR_STATIC_KLD	SY_THR_STATIC
 #endif
 
+struct coredump_writer;
 struct image_params;
 struct proc;
 struct __sigset;
@@ -108,7 +109,8 @@ struct sysentvec {
 	int 		*sv_szsigcode;	/* size of sigtramp code */
 	int		sv_sigcodeoff;
 	char		*sv_name;	/* name of binary type */
-	int		(*sv_coredump)(struct thread *, struct vnode *, off_t, int);
+	int		(*sv_coredump)(struct thread *, struct coredump_writer *,
+			    off_t, int);
 					/* function to dump core, or NULL */
 	int		sv_elf_core_osabi;
 	const char	*sv_elf_core_abi_vendor;
@@ -341,8 +343,7 @@ void exec_free_abi_mappings(struct proc *p);
 void exec_onexec_old(struct thread *td);
 
 #define INIT_SYSENTVEC(name, sv)					\
-    SYSINIT(name, SI_SUB_EXEC, SI_ORDER_ANY,				\
-	(sysinit_cfunc_t)exec_sysvec_init, sv);
+    SYSINIT(name, SI_SUB_EXEC, SI_ORDER_ANY, exec_sysvec_init, sv)
 
 #endif /* _KERNEL */
 

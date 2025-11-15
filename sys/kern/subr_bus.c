@@ -280,6 +280,9 @@ device_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	struct sbuf sb;
 	device_t dev = (device_t)arg1;
 	device_t iommu;
+#ifdef IOMMU
+	device_t requester;
+#endif
 	int error;
 	uint16_t rid;
 	const char *c;
@@ -314,9 +317,15 @@ device_sysctl_handler(SYSCTL_HANDLER_ARGS)
 		}
 		rid = 0;
 #ifdef IOMMU
-		iommu_get_requester(dev, &rid);
+		error = iommu_get_requester(dev, &requester, &rid);
+		/*
+		 * Do not return requester error from sysctl, iommu
+		 * unit might be assigned by other means.
+		 */
+#else
+		error = ENXIO;
 #endif
-		if (rid != 0)
+		if (error == 0)
 			sbuf_printf(&sb, "%srid=%#x", c, rid);
 		break;
 	default:
@@ -4624,7 +4633,7 @@ bus_release_resources(device_t dev, const struct resource_spec *rs,
  * parent of @p dev.
  */
 struct resource *
-bus_alloc_resource(device_t dev, int type, int *rid, rman_res_t start,
+(bus_alloc_resource)(device_t dev, int type, int *rid, rman_res_t start,
     rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *res;

@@ -1184,7 +1184,7 @@ msdosfs_fhtovp(struct mount *mp, struct fid *fhp, int flags, struct vnode **vpp)
 	error = deget(pmp, defhp->defid_dirclust, defhp->defid_dirofs,
 	    LK_EXCLUSIVE, &dep);
 	if (error) {
-		*vpp = NULLVP;
+		*vpp = NULL;
 		return (error);
 	}
 	*vpp = DETOV(dep);

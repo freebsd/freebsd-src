@@ -34,6 +34,9 @@
 #ifdef HAVE_ENDIAN_H
 # include <endian.h>
 #endif
+#ifdef HAVE_FCNTL_H
+# include <fcntl.h>
+#endif
 #ifdef HAVE_TTYENT_H
 # include <ttyent.h>
 #endif
@@ -48,6 +51,9 @@
 #endif
 #ifdef HAVE_PATHS_H
 # include <paths.h>
+#endif
+#ifdef HAVE_FCNTL_H
+# include <fcntl.h> /* For AT_FDCWD */
 #endif
 
 /*

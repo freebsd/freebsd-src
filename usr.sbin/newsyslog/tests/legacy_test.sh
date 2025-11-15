@@ -206,7 +206,7 @@ tmpdir_clean()
 run_newsyslog()
 {
 
-	newsyslog -f ../newsyslog.conf -F -r "$@"
+	newsyslog -f ../newsyslog.conf -r "$@"
 }
 
 tests_normal_rotate() {
@@ -216,17 +216,17 @@ tests_normal_rotate() {
 	dir="$2"
 
 	if [ -n "$dir" ]; then
-		newsyslog_args=" -a ${dir}"
+		newsyslog_args="-F -a ${dir}"
 		name_postfix="${ext} archive dir"
 	else
-		newsyslog_args=""
+		newsyslog_args="-F"
 		name_postfix="${ext}"
 	fi
 
 	tmpdir_create
 
 	begin "create file ${name_postfix}" -newdir
-	run_newsyslog -C
+	run_newsyslog -CF
 	ckfe $LOGFNAME
 	cknt ${dir}${LOGFNAME}.0${ext}
 	end
@@ -294,17 +294,17 @@ tests_normal_rotate_keepn() {
 	dir="$3"
 
 	if [ -n "$dir" ]; then
-		newsyslog_args=" -a ${dir}"
+		newsyslog_args="-F -a ${dir}"
 		name_postfix="${ext} archive dir"
 	else
-		newsyslog_args=""
+		newsyslog_args="-F"
 		name_postfix="${ext}"
 	fi
 
 	tmpdir_create
 
 	begin "create file ${name_postfix}" -newdir
-	run_newsyslog -C
+	run_newsyslog -CF
 	ckfe $LOGFNAME
 	cknt ${dir}${LOGFNAME}.0${ext}
 	end
@@ -363,10 +363,10 @@ tests_time_rotate() {
 	dir="$2"
 
 	if [ -n "$dir" ]; then
-		newsyslog_args="-t DEFAULT -a ${dir}"
+		newsyslog_args="-F -t DEFAULT -a ${dir}"
 		name_postfix="${ext} archive dir"
 	else
-		newsyslog_args="-t DEFAULT"
+		newsyslog_args="-F -t DEFAULT"
 		name_postfix="${ext}"
 	fi
 
@@ -417,6 +417,51 @@ tests_time_rotate() {
 	tmpdir_clean
 }
 
+tests_interval_rotate() {
+	local hours ext h
+
+	hours="$1"
+	ext="$2"
+
+	tmpdir_create
+
+	begin "create file" -newdir
+	run_newsyslog -C
+	ckfe ${LOGFNAME}
+	end
+
+	# old file doesn't exist - forced rotation
+	begin "rotate interval 0"
+	run_newsyslog
+	ckfe ${LOGFNAME}
+	chkfcnt 1 ${dir}${LOGFNAME}.*
+	end
+
+	# emulate newsyslog runs every 5 minutes
+	begin "rotate interval less than ${hours} hours"
+	m=0
+	while [ $(expr ${m} / 60 ) -lt ${hours} ]; do
+		touch -t $(date -v -${m}M +%Y%m%d%H%M) ${LOGFNAME}.0
+		run_newsyslog
+		ckfe ${LOGFNAME}
+		chkfcnt 1 ${dir}${LOGFNAME}.*
+		if [ $OK != 1 ]; then
+			break;
+		fi
+		m=$(expr ${m} + 5)
+	done
+	end
+
+	begin "rotate interval ${hours} hours"
+	touch -t $(date -v -${hours}H +%Y%m%d%H%M) ${LOGFNAME}.0
+	run_newsyslog
+	ckfe ${LOGFNAME}
+	chkfcnt 2 ${dir}${LOGFNAME}.*
+	end
+
+	tmpdir_clean
+}
+
 tests_rfc5424() {
 	local dir ext name_postfix newsyslog_args
 
@@ -424,17 +469,17 @@ tests_rfc5424() {
 	dir="$2"
 
 	if [ -n "$dir" ]; then
-		newsyslog_args=" -a ${dir}"
+		newsyslog_args="-F -a ${dir}"
 		name_postfix="${ext} archive dir"
 	else
-		newsyslog_args=""
+		newsyslog_args="-F"
 		name_postfix="${ext}"
 	fi
 
 	tmpdir_create
 
 	begin "RFC-5424 - create file ${name_postfix}" -newdir
-	run_newsyslog -C
+	run_newsyslog -CF
 	ckfe $LOGFNAME
 	cknt ${dir}${LOGFNAME}.0${ext}
 	ckfe $LOGFNAME5424
@@ -466,23 +511,23 @@ tests_p_flag_rotate() {
 	tmpdir_create
 
 	begin "create file"
-	run_newsyslog -C
+	run_newsyslog -CF
 	ckfe $LOGFNAME
 	cknt ${LOGFNAME}.0
 	cknt ${LOGFNAME}.0${ext}
 	end
 
 	begin "rotate p flag 1 ${ext}"
-	run_newsyslog
+	run_newsyslog -F
 	ckfe $LOGFNAME
 	ckfe ${LOGFNAME}.0
 	cknt ${LOGFNAME}.0${ext}
-	run_newsyslog
+	run_newsyslog -F
 	ckfe $LOGFNAME
 	ckfe ${LOGFNAME}.0
 	cknt ${LOGFNAME}.0${ext}
 	ckfe ${LOGFNAME}.1${ext}
-	run_newsyslog
+	run_newsyslog -F
 	ckfe $LOGFNAME
 	ckfe ${LOGFNAME}.0
 	cknt ${LOGFNAME}.0${ext}
@@ -501,13 +546,13 @@ tests_normal_rotate_recompress() {
 	tmpdir_create
 
 	begin "create file recompress"
-	run_newsyslog -C
+	run_newsyslog -CF
 	ckfe $LOGFNAME
 	cknt ${LOGFNAME}.0${ext}
 	end
 
 	begin "rotate normal 1"
-	run_newsyslog
+	run_newsyslog -F
 	ckfe $LOGFNAME
 	ckfe ${LOGFNAME}.0${ext}
 	cknt ${LOGFNAME}.1${ext}
@@ -517,14 +562,16 @@ tests_normal_rotate_recompress() {
 	gunzip ${LOGFNAME}.0${ext}
 	ckfe ${LOGFNAME}.0
 	cknt ${LOGFNAME}.0${ext}
-	run_newsyslog
+	run_newsyslog -F
 	ckfe $LOGFNAME
 	ckfe ${LOGFNAME}.0${ext}
 	ckfe ${LOGFNAME}.1${ext}
 	end
+
+	tmpdir_clean
 }
 
-echo 1..185
+echo 1..193
 mkdir -p ${TMPDIR}
 cd ${TMPDIR}
 
@@ -635,5 +682,11 @@ tests_p_flag_rotate ".gz"
 
 echo "$LOGFPATH 640  3     *    @T00  NCZ" > newsyslog.conf
 tests_normal_rotate_recompress
+
+# Interval based rotation
+echo "$LOGFPATH	640  3	   *	1  NC" > newsyslog.conf
+tests_interval_rotate 1
+echo "$LOGFPATH	640  3	   *	2  NC" > newsyslog.conf
+tests_interval_rotate 2
 
 rm -rf "${TMPDIR}"

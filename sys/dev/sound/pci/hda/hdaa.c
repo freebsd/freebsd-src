@@ -532,9 +532,11 @@ static void
 hdaa_presence_handler(struct hdaa_widget *w)
 {
 	struct hdaa_devinfo *devinfo = w->devinfo;
-	struct hdaa_audio_as *as;
+	struct hdaa_audio_as *as, *asp;
+	char buf[32];
 	uint32_t res;
-	int connected, old;
+	int connected, old, i;
+	bool active;
 
 	if (w->enable == 0 || w->type !=
 	    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
@@ -552,13 +554,6 @@ hdaa_presence_handler(struct hdaa_widget *w)
 	if (connected == old)
 		return;
 	w->wclass.pin.connected = connected;
-	HDA_BOOTVERBOSE(
-		if (connected || old != 2) {
-			device_printf(devinfo->dev,
-			    "Pin sense: nid=%d sense=0x%08x (%sconnected)\n",
-			    w->nid, res, !connected ? "dis" : "");
-		}
-	);
 
 	as = &devinfo->as[w->bindas];
 	if (as->hpredir >= 0 && as->pins[15] == w->nid)
@@ -567,6 +562,38 @@ hdaa_presence_handler(struct hdaa_widget *w)
 		hdaa_autorecsrc_handler(as, w);
 	if (old != 2)
 		hdaa_channels_handler(as);
+
+	if (connected || old != 2) {
+		HDA_BOOTVERBOSE(
+			device_printf(devinfo->dev,
+			    "Pin sense: nid=%d sense=0x%08x (%sconnected)\n",
+			    w->nid, res, !connected ? "dis" : "");
+		);
+		if (as->hpredir >= 0)
+			return;
+		for (i = 0, active = false; i < devinfo->num_devs; i++) {
+			if (device_get_unit(devinfo->devs[i].dev) == snd_unit) {
+				active = true;
+				break;
+			}
+		}
+		/* Proceed only if we are currently using this codec. */
+		if (!active)
+			return;
+		for (i = 0; i < devinfo->ascnt; i++) {
+			asp = &devinfo->as[i];
+			if (!asp->enable)
+				continue;
+			if ((connected && asp->index == as->index) ||
+			    (!connected && asp->dir == as->dir)) {
+				snprintf(buf, sizeof(buf), "cdev=dsp%d",
+				    device_get_unit(asp->pdevinfo->dev));
+				devctl_notify("SND", "CONN",
+				    asp->dir == HDAA_CTL_IN ? "IN" : "OUT", buf);
+				break;
+			}
+		}
+	}
 }
 
 /*
@@ -2054,10 +2081,10 @@ hdaa_channel_setfragments(kobj_t obj, void *data,
 {
 	struct hdaa_chan *ch = data;
 
-	blksz -= blksz % lcm(HDA_DMA_ALIGNMENT, sndbuf_getalign(ch->b));
+	blksz -= blksz % lcm(HDA_DMA_ALIGNMENT, ch->b->align);
 
-	if (blksz > (sndbuf_getmaxsize(ch->b) / HDA_BDL_MIN))
-		blksz = sndbuf_getmaxsize(ch->b) / HDA_BDL_MIN;
+	if (blksz > (ch->b->maxsize / HDA_BDL_MIN))
+		blksz = ch->b->maxsize / HDA_BDL_MIN;
 	if (blksz < HDA_BLK_MIN)
 		blksz = HDA_BLK_MIN;
 	if (blkcnt > HDA_BDL_MAX)
@@ -2065,7 +2092,7 @@ hdaa_channel_setfragments(kobj_t obj, void *data,
 	if (blkcnt < HDA_BDL_MIN)
 		blkcnt = HDA_BDL_MIN;
 
-	while ((blksz * blkcnt) > sndbuf_getmaxsize(ch->b)) {
+	while ((blksz * blkcnt) > ch->b->maxsize) {
 		if ((blkcnt >> 1) >= HDA_BDL_MIN)
 			blkcnt >>= 1;
 		else if ((blksz >> 1) >= HDA_BLK_MIN)
@@ -2074,14 +2101,14 @@ hdaa_channel_setfragments(kobj_t obj, void *data,
 			break;
 	}
 
-	if ((sndbuf_getblksz(ch->b) != blksz ||
-	    sndbuf_getblkcnt(ch->b) != blkcnt) &&
+	if ((ch->b->blksz != blksz ||
+	    ch->b->blkcnt != blkcnt) &&
 	    sndbuf_resize(ch->b, blkcnt, blksz) != 0)
 		device_printf(ch->devinfo->dev, "%s: failed blksz=%u blkcnt=%u\n",
 		    __func__, blksz, blkcnt);
 
-	ch->blksz = sndbuf_getblksz(ch->b);
-	ch->blkcnt = sndbuf_getblkcnt(ch->b);
+	ch->blksz = ch->b->blksz;
+	ch->blkcnt = ch->b->blkcnt;
 
 	return (0);
 }
@@ -2142,7 +2169,7 @@ hdaa_channel_start(struct hdaa_chan *ch)
 	    ch->dir == PCMDIR_PLAY ? 1 : 0, ch->sid);
 	HDAC_STREAM_START(device_get_parent(devinfo->dev), devinfo->dev,
 	    ch->dir == PCMDIR_PLAY ? 1 : 0, ch->sid,
-	    sndbuf_getbufaddr(ch->b), ch->blksz, ch->blkcnt);
+	    ch->b->buf_addr, ch->blksz, ch->blkcnt);
 	ch->flags |= HDAA_CHN_RUNNING;
 	return (0);
 }
@@ -6194,15 +6221,15 @@ hdaa_configure(device_t dev)
 	);
 	hdaa_patch_direct(devinfo);
 	HDA_BOOTHVERBOSE(
-		device_printf(dev, "Pin sense init...\n");
-	);
-	hdaa_sense_init(devinfo);
-	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Creating PCM devices...\n");
 	);
 	hdaa_unlock(devinfo);
 	hdaa_create_pcms(devinfo);
 	hdaa_lock(devinfo);
+	HDA_BOOTHVERBOSE(
+		device_printf(dev, "Pin sense init...\n");
+	);
+	hdaa_sense_init(devinfo);
 
 	HDA_BOOTVERBOSE(
 		if (devinfo->quirks != 0) {

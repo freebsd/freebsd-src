@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2020 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2020-2025 Ruslan Bukin <br@bsdpad.com>
  *
  * This software was developed by SRI International and the University of
  * Cambridge Computer Laboratory (Department of Computer Science and
@@ -84,7 +84,7 @@ struct xlnx_pcib_softc {
 	struct generic_pcie_fdt_softc	fdt_sc;
 	struct resource			*res[4];
 	struct mtx			mtx;
-	vm_offset_t			msi_page;
+	void				*msi_page;
 	struct xlnx_pcib_irqsrc		*isrcs;
 	device_t			dev;
 	void				*intr_cookie[3];
@@ -103,6 +103,12 @@ struct xlnx_pcib_irqsrc {
 	u_int			irq;
 #define	XLNX_IRQ_FLAG_USED	(1 << 0)
 	u_int			flags;
+};
+
+static struct ofw_compat_data compat_data[] = {
+	{ "xlnx,xdma-host-3.00",	1 },
+	{ "xlnx,axi-pcie-host-1.00.a",	1 },
+	{ NULL,				0 },
 };
 
 static void
@@ -333,12 +339,12 @@ xlnx_pcib_fdt_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "xlnx,xdma-host-3.00")) {
-		device_set_desc(dev, "Xilinx XDMA PCIe Controller");
-		return (BUS_PROBE_DEFAULT);
-	}
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+		return (ENXIO);
 
-	return (ENXIO);
+	device_set_desc(dev, "Xilinx XDMA PCIe Controller");
+
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -424,8 +430,8 @@ xlnx_pcib_req_valid(struct generic_pcie_core_softc *sc,
 	bus_space_tag_t t;
 	uint32_t val;
 
-	t = sc->bst;
-	h = sc->bsh;
+	t = rman_get_bustag(sc->res);
+	h = rman_get_bushandle(sc->res);
 
 	if ((bus < sc->bus_start) || (bus > sc->bus_end))
 		return (0);
@@ -467,8 +473,8 @@ xlnx_pcib_read_config(device_t dev, u_int bus, u_int slot,
 		return (~0U);
 
 	offset = PCIE_ADDR_OFFSET(bus - sc->bus_start, slot, func, reg);
-	t = sc->bst;
-	h = sc->bsh;
+	t = rman_get_bustag(sc->res);
+	h = rman_get_bushandle(sc->res);
 
 	data = bus_space_read_4(t, h, offset & ~3);
 
@@ -512,8 +518,8 @@ xlnx_pcib_write_config(device_t dev, u_int bus, u_int slot,
 
 	offset = PCIE_ADDR_OFFSET(bus - sc->bus_start, slot, func, reg);
 
-	t = sc->bst;
-	h = sc->bsh;
+	t = rman_get_bustag(sc->res);
+	h = rman_get_bushandle(sc->res);
 
 	/*
 	 * 32-bit access used due to a bug in the Xilinx bridge that

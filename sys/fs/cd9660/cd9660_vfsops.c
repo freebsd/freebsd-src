@@ -617,13 +617,13 @@ cd9660_fhtovp(struct mount *mp, struct fid *fhp, int flags, struct vnode **vpp)
 #endif
 
 	if ((error = VFS_VGET(mp, ifh.ifid_ino, LK_EXCLUSIVE, &nvp)) != 0) {
-		*vpp = NULLVP;
+		*vpp = NULL;
 		return (error);
 	}
 	ip = VTOI(nvp);
 	if (ip->inode.iso_mode == 0) {
 		vput(nvp);
-		*vpp = NULLVP;
+		*vpp = NULL;
 		return (ESTALE);
 	}
 	*vpp = nvp;
@@ -704,7 +704,7 @@ cd9660_vget_internal(struct mount *mp, ino_t ino, int flags,
 
 	/* Allocate a new vnode/iso_node. */
 	if ((error = getnewvnode("isofs", mp, &cd9660_vnodeops, &vp)) != 0) {
-		*vpp = NULLVP;
+		*vpp = NULL;
 		return (error);
 	}
 	ip = malloc(sizeof(struct iso_node), M_ISOFSNODE,
@@ -717,7 +717,7 @@ cd9660_vget_internal(struct mount *mp, ino_t ino, int flags,
 	error = insmntque(vp, mp);
 	if (error != 0) {
 		free(ip, M_ISOFSNODE);
-		*vpp = NULLVP;
+		*vpp = NULL;
 		return (error);
 	}
 	error = vfs_hash_insert(vp, ino, flags, td, vpp, cd9660_vfs_hash_cmp,

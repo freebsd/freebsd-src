@@ -1,0 +1,32 @@
+path_glob: [
+	"/usr/share/man/*",
+	"/usr/share/openssl/man/*",
+]
+
+cleanup: {
+	type: lua
+	sandbox: false
+	script: <<EOD
+	os.remove("/usr/share/man/mandoc.db")
+	os.remove("/usr/share/openssl/man/mandoc.db")
+EOD
+}
+
+trigger: {
+	type: lua
+	sandbox: false
+	script: <<EOD
+
+	local dirs = {
+		"/usr/share/man",
+		"/usr/share/openssl/man",
+	}
+
+	for _,dir in ipairs(dirs) do
+		if pkg.stat(dir) then
+			print("Generating apropos(1) database for "..dir.."...")
+			pkg.exec({"/usr/bin/makewhatis", dir})
+		end
+	end
+EOD
+}

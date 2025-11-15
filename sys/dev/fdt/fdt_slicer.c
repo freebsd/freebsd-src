@@ -45,7 +45,7 @@
 
 static int fill_slices(device_t dev, const char *provider,
     struct flash_slice *slices, int *slices_num);
-static void fdt_slicer_init(void);
+static void fdt_slicer_init(void *);
 
 static int
 fill_slices_from_node(phandle_t node, struct flash_slice *slices, int *count)
@@ -138,7 +138,7 @@ fill_slices(device_t dev, const char *provider __unused,
 }
 
 static void
-fdt_slicer_init(void)
+fdt_slicer_init(void *dummy __unused)
 {
 
 	flash_register_slicer(fill_slices, FLASH_SLICES_TYPE_NAND, false);
@@ -147,7 +147,7 @@ fdt_slicer_init(void)
 }
 
 static void
-fdt_slicer_cleanup(void)
+fdt_slicer_cleanup(void *dummy __unused)
 {
 
 	flash_register_slicer(NULL, FLASH_SLICES_TYPE_NAND, true);

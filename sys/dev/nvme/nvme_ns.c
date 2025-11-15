@@ -45,7 +45,7 @@
 #include "nvme_private.h"
 #include "nvme_linux.h"
 
-static void		nvme_bio_child_inbed(struct bio *parent, int bio_error);
+static void		nvme_bio_child_inbed(struct bio *parent, int abio_error);
 static void		nvme_bio_child_done(void *arg,
 					    const struct nvme_completion *cpl);
 static uint32_t		nvme_get_num_segments(uint64_t addr, uint64_t size,
@@ -86,6 +86,11 @@ nvme_ns_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 		strlcpy(gnsid->cdev, device_get_nameunit(ctrlr->dev),
 		    sizeof(gnsid->cdev));
 		gnsid->nsid = ns->id;
+		break;
+	}
+	case DIOCGIDENT: {
+		uint8_t *sn = arg;
+		nvme_ctrlr_get_ident(ctrlr, sn);
 		break;
 	}
 	case DIOCGMEDIASIZE:
@@ -129,7 +134,6 @@ static int
 nvme_ns_close(struct cdev *dev __unused, int flags, int fmt __unused,
     struct thread *td)
 {
-
 	return (0);
 }
 
@@ -138,10 +142,6 @@ nvme_ns_strategy_done(void *arg, const struct nvme_completion *cpl)
 {
 	struct bio *bp = arg;
 
-	/*
-	 * TODO: add more extensive translation of NVMe status codes
-	 *  to different bio error codes (i.e. EIO, EINVAL, etc.)
-	 */
 	if (nvme_completion_is_error(cpl)) {
 		bp->bio_error = EIO;
 		bp->bio_flags |= BIO_ERROR;
@@ -231,7 +231,6 @@ nvme_ns_get_model_number(struct nvme_namespace *ns)
 const struct nvme_namespace_data *
 nvme_ns_get_data(struct nvme_namespace *ns)
 {
-
 	return (&ns->data);
 }
 
@@ -276,14 +275,14 @@ nvme_ns_bio_done(void *arg, const struct nvme_completion *status)
 }
 
 static void
-nvme_bio_child_inbed(struct bio *parent, int bio_error)
+nvme_bio_child_inbed(struct bio *parent, int abio_error)
 {
 	struct nvme_completion	parent_cpl;
 	int			children, inbed;
 
-	if (bio_error != 0) {
+	if (abio_error != 0) {
 		parent->bio_flags |= BIO_ERROR;
-		parent->bio_error = bio_error;
+		parent->bio_error = abio_error;
 	}
 
 	/*
@@ -310,12 +309,12 @@ nvme_bio_child_done(void *arg, const struct nvme_completion *cpl)
 {
 	struct bio		*child = arg;
 	struct bio		*parent;
-	int			bio_error;
+	int			abio_error;
 
 	parent = child->bio_parent;
 	g_destroy_bio(child);
-	bio_error = nvme_completion_is_error(cpl) ? EIO : 0;
-	nvme_bio_child_inbed(parent, bio_error);
+	abio_error = nvme_completion_is_error(cpl) ? EIO : 0;
+	nvme_bio_child_inbed(parent, abio_error);
 }
 
 static uint32_t
@@ -631,7 +630,6 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 void
 nvme_ns_destruct(struct nvme_namespace *ns)
 {
-
 	if (ns->cdev != NULL) {
 		if (ns->cdev->si_drv2 != NULL)
 			destroy_dev(ns->cdev->si_drv2);

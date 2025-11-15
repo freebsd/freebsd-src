@@ -2,10 +2,22 @@
 -- SPDX-License-Identifier: BSD-2-Clause
 --
 -- Copyright(c) 2022-2025 Baptiste Daroussin <bapt@FreeBSD.org>
+-- Copyright(c) 2025 Jesús Daniel Colmenares Oviedo <dtxdf@FreeBSD.org>
 
 local unistd = require("posix.unistd")
 local sys_stat = require("posix.sys.stat")
 local lfs = require("lfs")
+
+local function getlocalbase()
+	local f = io.popen("sysctl -in user.localbase 2> /dev/null")
+	local localbase = f:read("*l")
+	f:close()
+	if localbase == nil or localbase:len() == 0 then
+		-- fallback
+		localbase = "/usr/local"
+	end
+	return localbase
+end
 
 local function decode_base64(input)
 	local b = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
@@ -127,6 +139,58 @@ local function splitlist(list)
 	return ret
 end
 
+local function splitlines(s)
+	local ret = {}
+
+	for line in string.gmatch(s, "[^\n]+") do
+		ret[#ret + 1] = line
+	end
+
+	return ret
+end
+
+local function getgroups()
+	local ret = {}
+
+	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
+	local cmd = "pw "
+	if root then
+		cmd = cmd .. "-R " .. root .. " "
+	end
+
+	local f = io.popen(cmd .. "groupshow -a 2> /dev/null | cut -d: -f1")
+	local groups = f:read("*a")
+	f:close()
+
+	return splitlines(groups)
+end
+
+local function checkgroup(group)
+	local groups = getgroups()
+
+	for _, group2chk in ipairs(groups) do
+		if group == group2chk then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function purge_group(groups)
+	local ret = {}
+
+	for _, group in ipairs(groups) do
+		if checkgroup(group) then
+			ret[#ret + 1] = group
+		else
+			warnmsg("ignoring non-existent group '" .. group .. "'")
+		end
+	end
+
+	return ret
+end
+
 local function adduser(pwd)
 	if (type(pwd) ~= "table") then
 		warnmsg("Argument should be a table")
@@ -152,7 +216,14 @@ local function adduser(pwd)
 	local extraargs = ""
 	if pwd.groups then
 		local list = splitlist(pwd.groups)
-		extraargs = " -G " .. table.concat(list, ",")
+		-- pw complains if the group does not exist, so if the user
+		-- specifies one that cannot be found, nuageinit will generate
+		-- an exception and exit, unlike cloud-init, which only issues
+		-- a warning but creates the user anyway.
+		list = purge_group(list)
+		if #list > 0 then
+			extraargs = " -G " .. table.concat(list, ",")
+		end
 	end
 	-- pw will automatically create a group named after the username
 	-- do not add a -g option in this case
@@ -276,11 +347,59 @@ local function addsshkey(homedir, key)
 	end
 end
 
+local function adddoas(pwd)
+	local chmodetcdir = false
+	local chmoddoasconf = false
+	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
+	local localbase = getlocalbase()
+	local etcdir = localbase .. "/etc"
+	if root then
+		etcdir= root .. etcdir
+	end
+	local doasconf = etcdir .. "/doas.conf"
+	local doasconf_attr = lfs.attributes(doasconf)
+	if doasconf_attr == nil then
+		chmoddoasconf = true
+		local dirattrs = lfs.attributes(etcdir)
+		if dirattrs == nil then
+			local r, err = mkdir_p(etcdir)
+			if not r then
+				return nil, err .. " (creating " .. etcdir .. ")"
+			end
+			chmodetcdir = true
+		end
+	end
+	local f = io.open(doasconf, "a")
+	if not f then
+		warnmsg("impossible to open " .. doasconf)
+		return
+	end
+	if type(pwd.doas) == "string" then
+		local rule = pwd.doas
+		rule = rule:gsub("%%u", pwd.name)
+		f:write(rule .. "\n")
+	elseif type(pwd.doas) == "table" then
+		for _, str in ipairs(pwd.doas) do
+			local rule = str
+			rule = rule:gsub("%%u", pwd.name)
+			f:write(rule .. "\n")
+		end
+	end
+	f:close()
+	if chmoddoasconf then
+		chmod(doasconf, "0640")
+	end
+	if chmodetcdir then
+		chmod(etcdir, "0755")
+	end
+end
+
 local function addsudo(pwd)
 	local chmodsudoersd = false
 	local chmodsudoers = false
 	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
-	local sudoers_dir = "/usr/local/etc/sudoers.d"
+	local localbase = getlocalbase()
+	local sudoers_dir = localbase .. "/etc/sudoers.d"
 	if root then
 		sudoers_dir= root .. sudoers_dir
 	end
@@ -311,10 +430,10 @@ local function addsudo(pwd)
 	end
 	f:close()
 	if chmodsudoers then
-		chmod(sudoers, "0640")
+		chmod(sudoers, "0440")
 	end
 	if chmodsudoersd then
-		chmod(sudoers, "0740")
+		chmod(sudoers_dir, "0750")
 	end
 end
 
@@ -451,6 +570,23 @@ local function chpasswd(obj)
 	end
 end
 
+local function settimezone(timezone)
+	if timezone == nil then
+		return
+	end
+	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
+	if not root then
+		root = "/"
+	end
+
+	f, _, rc = os.execute("tzsetup -s -C " .. root .. " " .. timezone)
+
+	if not f then
+		warnmsg("Impossible to configure time zone ( rc = " .. rc .. " )")
+		return
+	end
+end
+
 local function pkg_bootstrap()
 	if os.getenv("NUAGE_RUN_TESTS") then
 		return true
@@ -480,7 +616,7 @@ local function install_package(package)
 end
 
 local function run_pkg_cmd(subcmd)
-	local cmd = "pkg " .. subcmd .. " -y"
+	local cmd = "env ASSUME_ALWAYS_YES=yes pkg " .. subcmd
 	if os.getenv("NUAGE_RUN_TESTS") then
 		print(cmd)
 		return true
@@ -556,6 +692,7 @@ local n = {
 	dirname = dirname,
 	mkdir_p = mkdir_p,
 	sethostname = sethostname,
+	settimezone = settimezone,
 	adduser = adduser,
 	addgroup = addgroup,
 	addsshkey = addsshkey,
@@ -566,6 +703,7 @@ local n = {
 	update_packages = update_packages,
 	upgrade_packages = upgrade_packages,
 	addsudo = addsudo,
+	adddoas = adddoas,
 	addfile = addfile
 }
 

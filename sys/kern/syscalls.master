@@ -51,6 +51,7 @@
 ;	SYSMUX	syscall multiplexer.  No prototype, argument struct, or
 ;		handler is declared or used.  Handled in MD syscall code.
 ;	CAPENABLED syscall is allowed in capability mode
+;	NORETURN the syscall does not return
 ;
 ; To support programmatic generation of both the default ABI and 32-bit compat
 ; (freebsd32) we impose a number of restrictions on the types of system calls.
@@ -124,8 +125,8 @@
 		    ...
 		);
 	}
-1	AUE_EXIT	STD|CAPENABLED {
-		void exit(
+1	AUE_EXIT	STD|CAPENABLED|NORETURN {
+		void _exit(
 		    int rval
 		);
 	}
@@ -551,13 +552,13 @@
 		    _Out_writes_bytes_(len/PAGE_SIZE) char *vec
 		);
 	}
-79	AUE_GETGROUPS	STD|CAPENABLED {
+79	AUE_GETGROUPS	COMPAT14|CAPENABLED {
 		int getgroups(
 		    int gidsetsize,
 		    _Out_writes_opt_(gidsetsize) gid_t *gidset
 		);
 	}
-80	AUE_SETGROUPS	STD {
+80	AUE_SETGROUPS	COMPAT14 {
 		int setgroups(
 		    int gidsetsize,
 		    _In_reads_(gidsetsize) const gid_t *gidset
@@ -1223,7 +1224,7 @@
 	}
 202	AUE_SYSCTL	STD|CAPENABLED {
 		int __sysctl(
-		    _In_reads_(namelen) int *name,
+		    _In_reads_(namelen) const int *name,
 		    u_int namelen,
 		    _Out_writes_bytes_opt_(*oldlenp) void *old,
 		    _Inout_opt_ size_t *oldlenp,
@@ -3370,5 +3371,35 @@
 		    int wd
 		);
 	}
+595	AUE_GETGROUPS	STD|CAPENABLED {
+		int getgroups(
+		    int gidsetsize,
+		    _Out_writes_opt_(gidsetsize) gid_t *gidset
+		);
+	}
+596	AUE_SETGROUPS	STD {
+		int setgroups(
+		    int gidsetsize,
+		    _In_reads_(gidsetsize) const gid_t *gidset
+		);
+	}
+597	AUE_JAIL_ATTACH	STD {
+		int jail_attach_jd(
+		    int fd
+		);
+	}
+598	AUE_JAIL_REMOVE	STD {
+		int jail_remove_jd(
+		    int fd
+		);
+	}
 
+599	AUE_NULL	STD {
+		int kexec_load(
+			uint64_t entry,
+			u_long nseg,
+			_In_reads_(nseg) _Contains_long_ptr_ struct kexec_segment *segments,
+			u_long flags
+		);
+	}
 ; vim: syntax=off

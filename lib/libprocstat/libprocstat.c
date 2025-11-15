@@ -1330,8 +1330,7 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 		return (1);
 	}
 	vn->vn_mntdir = getmnton(kd, vnode.v_mount);
-	if ((vnode.v_type == VBLK || vnode.v_type == VCHR) &&
-	    vnode.v_rdev != NULL){
+	if (VTYPE_ISDEV(vnode.v_type) && vnode.v_rdev != NULL) {
 		vn->vn_dev = dev2udev(kd, vnode.v_rdev);
 		(void)kdevtoname(kd, vnode.v_rdev, vn->vn_devname);
 	} else {
@@ -1974,6 +1973,7 @@ procstat_getgroups_kvm(kvm_t *kd, struct kinfo_proc *kp, unsigned int *cntp)
 	struct ucred ucred;
 	gid_t *groups;
 	size_t len;
+	unsigned int ngroups;
 
 	assert(kd != NULL);
 	assert(kp != NULL);
@@ -1991,19 +1991,22 @@ procstat_getgroups_kvm(kvm_t *kd, struct kinfo_proc *kp, unsigned int *cntp)
 		    proc.p_ucred, kp->ki_pid);
 		return (NULL);
 	}
-	len = ucred.cr_ngroups * sizeof(gid_t);
+	ngroups = 1 + ucred.cr_ngroups;
+	len = ngroups * sizeof(gid_t);
 	groups = malloc(len);
 	if (groups == NULL) {
 		warn("malloc(%zu)", len);
 		return (NULL);
 	}
-	if (!kvm_read_all(kd, (unsigned long)ucred.cr_groups, groups, len)) {
+	groups[0] = ucred.cr_gid;
+	if (!kvm_read_all(kd, (unsigned long)ucred.cr_groups, groups + 1,
+	    len - sizeof(gid_t))) {
 		warnx("can't read groups at %p for pid %d",
 		    ucred.cr_groups, kp->ki_pid);
 		free(groups);
 		return (NULL);
 	}
-	*cntp = ucred.cr_ngroups;
+	*cntp = ngroups;
 	return (groups);
 }
 

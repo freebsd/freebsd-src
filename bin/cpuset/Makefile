@@ -1,6 +1,6 @@
 PROG=   cpuset
 
-LIBADD=	jail
+LIBADD=	jail util
 
 SYMLINKS+=	../..${BINDIR}/cpuset	/usr/bin/cpuset
 

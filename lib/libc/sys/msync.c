@@ -34,8 +34,6 @@
 #include <sys/mman.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_msync, __msync);
-
 #pragma weak msync
 int
 msync(void *addr, size_t len, int flags)

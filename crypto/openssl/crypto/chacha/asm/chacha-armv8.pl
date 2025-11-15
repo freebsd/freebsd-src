@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -136,9 +136,11 @@ $code.=<<___;
 #ifndef	__KERNEL__
 .extern	OPENSSL_armcap_P
 .hidden	OPENSSL_armcap_P
+
+.extern ChaCha20_ctr32_sve
 #endif
 
-.text
+.rodata
 
 .align	5
 .Lsigma:
@@ -149,18 +151,19 @@ $code.=<<___;
 .long	0x02010003,0x06050407,0x0a09080b,0x0e0d0c0f
 .asciz	"ChaCha20 for ARMv8, CRYPTOGAMS by \@dot-asm"
 
-.globl	ChaCha20_ctr32
-.type	ChaCha20_ctr32,%function
+.text
+
+.globl	ChaCha20_ctr32_dflt
+.type	ChaCha20_ctr32_dflt,%function
 .align	5
-ChaCha20_ctr32:
+ChaCha20_ctr32_dflt:
 	AARCH64_SIGN_LINK_REGISTER
-	cbz	$len,.Labort
 	cmp	$len,#192
 	b.lo	.Lshort
-
 #ifndef	__KERNEL__
 	adrp	x17,OPENSSL_armcap_P
 	ldr	w17,[x17,#:lo12:OPENSSL_armcap_P]
+.Lcheck_neon:
 	tst	w17,#ARMV7_NEON
 	b.ne	.LChaCha20_neon
 #endif
@@ -169,7 +172,8 @@ ChaCha20_ctr32:
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
-	adr	@x[0],.Lsigma
+	adrp	@x[0],.Lsigma
+	add	@x[0],@x[0],:lo12:.Lsigma
 	stp	x19,x20,[sp,#16]
 	stp	x21,x22,[sp,#32]
 	stp	x23,x24,[sp,#48]
@@ -344,6 +348,41 @@ $code.=<<___;
 	ldp	x29,x30,[sp],#96
 	AARCH64_VALIDATE_LINK_REGISTER
 	ret
+.size	ChaCha20_ctr32_dflt,.-ChaCha20_ctr32_dflt
+
+.globl	ChaCha20_ctr32
+.type	ChaCha20_ctr32,%function
+.align	5
+ChaCha20_ctr32:
+	AARCH64_SIGN_LINK_REGISTER
+	cbz	$len,.Labort
+	cmp	$len,#192
+	b.lo	.Lshort
+#ifndef	__KERNEL__
+	adrp	x17,OPENSSL_armcap_P
+	ldr	w17,[x17,#:lo12:OPENSSL_armcap_P]
+	tst	w17,#ARMV8_SVE
+	b.eq	.Lcheck_neon
+	stp	x29,x30,[sp,#-16]!
+	sub	sp,sp,#16
+	// SVE handling will inevitably increment the counter
+	// Neon/Scalar code that follows to process tail data needs to
+	// use new counter, unfortunately the input counter buffer
+	// pointed to by ctr is meant to be read-only per API contract
+	// we have to copy the buffer to stack to be writable by SVE
+	ldp	x5,x6,[$ctr]
+	stp	x5,x6,[sp]
+	mov	$ctr,sp
+	bl	ChaCha20_ctr32_sve
+	cbz	$len,1f
+	bl	ChaCha20_ctr32_dflt
+1:
+	add	sp,sp,#16
+	ldp	x29,x30,[sp],#16
+	AARCH64_VALIDATE_LINK_REGISTER
+	ret
+#endif
+	b	.Lshort
 .size	ChaCha20_ctr32,.-ChaCha20_ctr32
 ___
 
@@ -437,7 +476,8 @@ ChaCha20_neon:
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
-	adr	@x[0],.Lsigma
+	adrp	@x[0],.Lsigma
+	add	@x[0],@x[0],:lo12:.Lsigma
 	stp	x19,x20,[sp,#16]
 	stp	x21,x22,[sp,#32]
 	stp	x23,x24,[sp,#48]
@@ -848,7 +888,8 @@ ChaCha20_512_neon:
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
-	adr	@x[0],.Lsigma
+	adrp	@x[0],.Lsigma
+	add	@x[0],@x[0],:lo12:.Lsigma
 	stp	x19,x20,[sp,#16]
 	stp	x21,x22,[sp,#32]
 	stp	x23,x24,[sp,#48]

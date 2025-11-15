@@ -16,6 +16,7 @@ start_cmd="moused_start"
 pidprefix="/var/run/moused"
 pidfile="${pidprefix}.pid"
 pidarg=
+typearg=
 load_rc_config $name
 
 # doesn't make sense to run in a svcj: nojail keyword
@@ -27,9 +28,10 @@ moused_svcj="NO"
 # expected to be the mouse device.
 #
 if [ -n "$2" ]; then
-	eval moused_$2_enable=\${moused_$2_enable-${moused_nondefault_enable}}
-	rcvar="moused_${2}_enable"
-	pidfile="${pidprefix}.$2.pid"
+	ms=`basename $2`
+	eval moused_${ms}_enable=\${moused_${ms}_enable-${moused_nondefault_enable}}
+	rcvar="moused_${ms}_enable"
+	pidfile="${pidprefix}.${ms}.pid"
 	pidarg="-I $pidfile"
 fi
 
@@ -44,20 +46,22 @@ moused_start()
 	# the moused_port variable, which if not defined sets it to the
 	# passed in device name.
 	#
-	ms=$1
-	if [ -n "$ms" ]; then
+	if [ -n "$1" ]; then
+		ms=`basename $1`
 		eval myflags=\${moused_${ms}_flags-$moused_flags}
-		eval myport=\${moused_${ms}_port-/dev/$ms}
+		eval myport=\${moused_${ms}_port-/dev/$1}
 		eval mytype=\${moused_${ms}_type-$moused_type}
+		if [ -n "$mytype" ] && check_kern_features evdev_support; then
+			typearg="-t ${mytype}"
+		fi
 	else
 		ms="default"
 		myflags="$moused_flags"
 		myport="$moused_port"
-		mytype="$moused_type"
 	fi
 
 	startmsg -n "Starting ${ms} moused"
-	/usr/sbin/moused ${myflags} -p ${myport} -t ${mytype} ${pidarg}
+	/usr/sbin/moused ${myflags} -p ${myport} ${typearg} ${pidarg}
 	startmsg '.'
 
 	mousechar_arg=
@@ -70,6 +74,7 @@ moused_start()
 	esac
 
 	for ttyv in /dev/ttyv* ; do
+		[ "$ttyv" = '/dev/ttyv*' ] && break
 		vidcontrol < ${ttyv} ${mousechar_arg} -m on
 	done
 }

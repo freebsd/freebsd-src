@@ -4,8 +4,10 @@ ATF_TESTS_C+=	ether_test
 ATF_TESTS_C+=	eui64_aton_test
 ATF_TESTS_C+=	eui64_ntoa_test
 ATF_TESTS_CXX+=	link_addr_test
+ATF_TESTS_CXX+=	inet_net_test
 
 CXXSTD.link_addr_test=	c++20
+CXXSTD.inet_net_test=	c++20
 
 CFLAGS+=	-I${.CURDIR}
 

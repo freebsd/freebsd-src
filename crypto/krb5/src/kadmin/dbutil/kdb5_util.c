@@ -74,7 +74,7 @@ int exit_status = 0;
 krb5_context util_context;
 kadm5_config_params global_params;
 
-void usage()
+void usage(void)
 {
     fprintf(stderr,
             _("Usage: kdb5_util [-r realm] [-d dbname] "
@@ -143,8 +143,8 @@ struct _cmd_table {
     {NULL, NULL, 0},
 };
 
-static struct _cmd_table *cmd_lookup(name)
-    char *name;
+static struct _cmd_table *
+cmd_lookup(char *name)
 {
     struct _cmd_table *cmd = cmd_table;
     while (cmd->name) {
@@ -160,10 +160,11 @@ static struct _cmd_table *cmd_lookup(name)
 #define ARG_VAL (--argc > 0 ? (koptarg = *(++argv)) : (char *)(usage(), NULL))
 
 char **db5util_db_args = NULL;
-int    db5util_db_args_size = 0;
+size_t db5util_db_args_size = 0;
 
-static void extended_com_err_fn (const char *myprog, errcode_t code,
-                                 const char *fmt, va_list args)
+static void
+extended_com_err_fn(const char *myprog, errcode_t code, const char *fmt,
+                    va_list args)
 {
     const char *emsg;
     if (code) {
@@ -177,7 +178,8 @@ static void extended_com_err_fn (const char *myprog, errcode_t code,
     fprintf (stderr, "\n");
 }
 
-int add_db_arg(char *arg)
+int
+add_db_arg(char *arg)
 {
     char **temp;
     db5util_db_args_size++;
@@ -191,9 +193,8 @@ int add_db_arg(char *arg)
     return 1;
 }
 
-int main(argc, argv)
-    int argc;
-    char *argv[];
+int
+main(int argc, char *argv[])
 {
     struct _cmd_table *cmd = NULL;
     char *koptarg, **cmd_argv;
@@ -365,7 +366,8 @@ int main(argc, argv)
  * cannot be fetched (the master key stash file may not exist when the
  * program is run).
  */
-static int open_db_and_mkey()
+static int
+open_db_and_mkey(void)
 {
     krb5_error_code retval;
     krb5_data scratch, pwd, seed;
@@ -487,7 +489,7 @@ static int open_db_and_mkey()
 #endif
 
 int
-quit()
+quit(void)
 {
     krb5_error_code retval;
     static krb5_boolean finished = 0;
@@ -508,9 +510,7 @@ quit()
 }
 
 static void
-add_random_key(argc, argv)
-    int argc;
-    char **argv;
+add_random_key(int argc, char **argv)
 {
     krb5_error_code ret;
     krb5_principal princ;
@@ -522,7 +522,7 @@ add_random_key(argc, argv)
 
     int free_keysalts;
     char *me = progname;
-    char *ks_str = NULL;
+    char *ks_str = "";
     char *pr_str;
     krb5_keyblock *tmp_mkey;
 
@@ -600,6 +600,9 @@ add_random_key(argc, argv)
         exit_status++;
         return;
     }
+
+    dbent->mask |= KADM5_ATTRIBUTES | KADM5_KEY_DATA | KADM5_TL_DATA;
+
     ret = krb5_db_put_principal(util_context, dbent);
     krb5_db_free_principal(util_context, dbent);
     if (ret) {

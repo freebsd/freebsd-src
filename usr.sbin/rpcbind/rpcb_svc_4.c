@@ -51,12 +51,14 @@
 #include "rpcbind.h"
 
 static void *rpcbproc_getaddr_4_local(void *, struct svc_req *, SVCXPRT *,
-				      rpcvers_t);
-static void *rpcbproc_getversaddr_4_local(void *, struct svc_req *, SVCXPRT *, rpcvers_t);
-static void *rpcbproc_getaddrlist_4_local
-	(void *, struct svc_req *, SVCXPRT *, rpcvers_t);
+    rpcvers_t);
+static void *rpcbproc_getversaddr_4_local(void *, struct svc_req *, SVCXPRT *,
+    rpcvers_t);
+static void *rpcbproc_getaddrlist_4_local(void *, struct svc_req *, SVCXPRT *,
+    rpcvers_t);
 static void free_rpcb_entry_list(rpcb_entry_list_ptr *);
-static void *rpcbproc_dump_4_local(void *, struct svc_req *, SVCXPRT *, rpcvers_t);
+static void *rpcbproc_dump_4_local(void *, struct svc_req *, SVCXPRT *,
+    rpcvers_t);
 
 /*
  * Called by svc_getreqset. There is a separate server handle for
@@ -88,8 +90,7 @@ rpcb_service_4(struct svc_req *rqstp, SVCXPRT *transp)
 			fprintf(stderr, "RPCBPROC_NULL\n");
 #endif
 		check_access(transp, rqstp->rq_proc, NULL, RPCBVERS4);
-		(void) svc_sendreply(transp, (xdrproc_t) xdr_void,
-					(char *)NULL);
+		(void) svc_sendreply(transp, (xdrproc_t) xdr_void, NULL);
 		return;
 
 	case RPCBPROC_SET:
@@ -257,7 +258,7 @@ done:
 /* ARGSUSED */
 static void *
 rpcbproc_getaddr_4_local(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
-			 rpcvers_t rpcbversnum __unused)
+    rpcvers_t rpcbversnum __unused)
 {
 	RPCB *regp = (RPCB *)arg;
 #ifdef RPCBIND_DEBUG
@@ -315,7 +316,7 @@ rpcbproc_getversaddr_4_local(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
 /* ARGSUSED */
 static void *
 rpcbproc_getaddrlist_4_local(void *arg, struct svc_req *rqstp __unused,
-			     SVCXPRT *transp, rpcvers_t versnum __unused)
+    SVCXPRT *transp, rpcvers_t versnum __unused)
 {
 	RPCB *regp = (RPCB *)arg;
 	static rpcb_entry_list_ptr rlist;
@@ -384,7 +385,7 @@ rpcbproc_getaddrlist_4_local(void *arg, struct svc_req *rqstp __unused,
 		/*
 		 * Add it to rlist.
 		 */
-		rp = malloc(sizeof (rpcb_entry_list));
+		rp = malloc(sizeof(*rp));
 		if (rp == NULL)
 			goto fail;
 		a = &rp->rpcb_entry_map;
@@ -397,7 +398,7 @@ rpcbproc_getaddrlist_4_local(void *arg, struct svc_req *rqstp __unused,
 		if (rlist == NULL) {
 			rlist = rp;
 			tail = rp;
-		} else {
+		} else if (tail != NULL) {
 			tail->rpcb_entry_next = rp;
 			tail = rp;
 		}
@@ -417,9 +418,10 @@ rpcbproc_getaddrlist_4_local(void *arg, struct svc_req *rqstp __unused,
 	 * Perhaps wrong, but better than it not getting counted at all.
 	 */
 	rpcbs_getaddr(RPCBVERS4 - 2, prog, vers, transp->xp_netid, maddr);
-	return (void *)&rlist;
+	return (&rlist);
 
-fail:	free_rpcb_entry_list(&rlist);
+fail:
+	free_rpcb_entry_list(&rlist);
 	return (NULL);
 }
 
@@ -444,7 +446,7 @@ free_rpcb_entry_list(rpcb_entry_list_ptr *rlistp)
 /* ARGSUSED */
 static void *
 rpcbproc_dump_4_local(void *arg __unused, struct svc_req *req __unused,
-    		      SVCXPRT *xprt __unused, rpcvers_t versnum __unused)
+    SVCXPRT *xprt __unused, rpcvers_t versnum __unused)
 {
 	return ((void *)&list_rbl);
 }

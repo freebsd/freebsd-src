@@ -102,6 +102,14 @@ struct subnet_qstate {
 	int started_no_cache_store;
 	/** has the subnet module been started with no_cache_lookup? */
 	int started_no_cache_lookup;
+	/** Wait for subquery that has been started for nonsubnet lookup. */
+	int wait_subquery;
+	/** The subquery waited for is done. */
+	int wait_subquery_done;
+	/** The subnet state is a subquery state for nonsubnet lookup. */
+	int is_subquery_nonsubnet;
+	/** This is a subquery, and it is made due to a scope zero request. */
+	int is_subquery_scopezero;
 };
 
 void subnet_data_delete(void* d, void* ATTR_UNUSED(arg));

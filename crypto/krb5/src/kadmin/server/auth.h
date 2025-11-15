@@ -52,6 +52,7 @@
 #define OP_GETPOL      17
 #define OP_LISTPOLS    18
 #define OP_IPROP       19
+#define OP_ADDALIAS    20
 
 /* Initialize all authorization modules. */
 krb5_error_code auth_init(krb5_context context, const char *acl_file);
@@ -70,6 +71,7 @@ krb5_boolean auth(krb5_context context, int opcode,
  * restrictions to ent and mask if any modules supply them. */
 krb5_boolean auth_restrict(krb5_context context, int opcode,
                            krb5_const_principal client,
+                           krb5_const_principal target,
                            kadm5_principal_ent_t ent, long *mask);
 
 /* Notify modules that the most recent authorized operation has ended. */

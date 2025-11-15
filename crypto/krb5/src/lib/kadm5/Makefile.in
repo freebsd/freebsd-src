@@ -23,6 +23,8 @@ SRCS =	kadm_err.c \
 	$(srcdir)/str_conv.c \
 	$(srcdir)/logger.c
 
+EXTRADEPSRCS = $(srcdir)/t_kadm5.c
+
 OBJS =	kadm_err.$(OBJEXT) \
 	chpass_util_strings.$(OBJEXT) \
 	misc_free.$(OBJEXT) \

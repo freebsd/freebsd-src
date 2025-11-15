@@ -92,6 +92,18 @@ ifconfig_bridge_get_bridge_status(ifconfig_handle_t *h,
 	}
 	bridge->inner.cache_lifetime = cache_param.ifbrp_ctime;
 
+	if (ifconfig_bridge_ioctlwrap(h, name, BRDGGFLAGS,
+	    &cache_param, sizeof(cache_param), false) != 0) {
+		goto err;
+	}
+	bridge->inner.flags = cache_param.ifbrp_flags;
+
+	if (ifconfig_bridge_ioctlwrap(h, name, BRDGGDEFPVID,
+	    &cache_param, sizeof(cache_param), false) != 0) {
+		goto err;
+	}
+	bridge->inner.defpvid = cache_param.ifbrp_defpvid;
+
 	if (ifconfig_bridge_ioctlwrap(h, name, BRDGPARAM,
 	    &bridge->params, sizeof(bridge->params), false) != 0) {
 		goto err;

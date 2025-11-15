@@ -33,8 +33,6 @@
 #include <time.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_nanosleep, __nanosleep);
-
 #pragma weak nanosleep
 int
 nanosleep(const struct timespec *rqtp, struct timespec *rmtp)

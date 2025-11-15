@@ -156,6 +156,7 @@ struct xhci_std_temp {
 
 static void	xhci_do_poll(struct usb_bus *);
 static void	xhci_device_done(struct usb_xfer *, usb_error_t);
+static void	xhci_get_xecp(struct xhci_softc *);
 static void	xhci_root_intr(struct xhci_softc *);
 static void	xhci_free_device_ext(struct usb_device *);
 static struct xhci_endpoint_ext *xhci_get_endpoint_ext(struct usb_device *,
@@ -566,6 +567,8 @@ xhci_init(struct xhci_softc *sc, device_t self, uint8_t dma32)
 	device_printf(self, "%d bytes context size, %d-bit DMA\n",
 	    sc->sc_ctx_is_64_byte ? 64 : 32, (int)sc->sc_bus.dma_bits);
 
+	xhci_get_xecp(sc);
+
 	/* enable 64Kbyte control endpoint quirk */
 	sc->sc_bus.control_ep_quirk = (xhcictlquirk ? 1 : 0);
 
@@ -651,6 +654,88 @@ xhci_uninit(struct xhci_softc *sc)
 
 	cv_destroy(&sc->sc_cmd_cv);
 	sx_destroy(&sc->sc_cmd_sx);
+}
+
+static void
+xhci_get_xecp(struct xhci_softc *sc)
+{
+
+	uint32_t hccp1;
+	uint32_t eec;
+	uint32_t eecp;
+	bool first = true;
+
+	hccp1 = XREAD4(sc, capa, XHCI_HCSPARAMS0);
+
+	if (XHCI_HCS0_XECP(hccp1) == 0)  {
+		device_printf(sc->sc_bus.parent,
+		    "xECP: no capabilities found\n");
+		return;
+	}
+
+	/*
+	 * Parse the xECP Capabilities table and print known caps.
+	 * Implemented, vendor and reserved xECP Capabilities values are
+	 * documented in Table 7.2 of eXtensible Host Controller Interface for
+	 * Universal Serial Bus (xHCI) Rev 1.2b 2023.
+	 */
+	device_printf(sc->sc_bus.parent, "xECP capabilities <");
+
+	eec = -1;
+	for (eecp = XHCI_HCS0_XECP(hccp1) << 2;
+	     eecp != 0 && XHCI_XECP_NEXT(eec) != 0;
+	     eecp += XHCI_XECP_NEXT(eec) << 2) {
+		eec = XREAD4(sc, capa, eecp);
+
+		uint8_t xecpid = XHCI_XECP_ID(eec);
+
+		if ((xecpid >= 11 && xecpid <= 16) ||
+		    (xecpid >= 19 && xecpid <= 191)) {
+			if (!first)
+				printf(",");
+			printf("RES(%x)", xecpid);
+		} else if (xecpid > 191) {
+			if (!first)
+				printf(",");
+			printf("VEND(%x)", xecpid);
+		} else {
+			if (!first)
+				printf(",");
+			switch (xecpid)
+			{
+			case XHCI_ID_USB_LEGACY:
+				printf("LEGACY");
+				break;
+			case XHCI_ID_PROTOCOLS:
+				printf("PROTO");
+				break;
+			case XHCI_ID_POWER_MGMT:
+				printf("POWER");
+				break;
+			case XHCI_ID_VIRTUALIZATION:
+				printf("VIRT");
+				break;
+			case XHCI_ID_MSG_IRQ:
+				printf("MSG IRQ");
+				break;
+			case XHCI_ID_USB_LOCAL_MEM:
+				printf("LOCAL MEM");
+				break;
+			case XHCI_ID_USB_DEBUG:
+				printf("DEBUG");
+				break;
+			case XHCI_ID_EXT_MSI:
+				printf("EXT MSI");
+				break;
+			case XHCI_ID_USB3_TUN:
+				printf("TUN");
+				break;
+
+			}
+		}
+		first = false;
+	}
+	printf(">\n");
 }
 
 static void

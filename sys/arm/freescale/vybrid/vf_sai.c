@@ -369,7 +369,7 @@ saichan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 
 	sndbuf_resize(ch->buffer, sc->dma_size / blocksize, blocksize);
 
-	sc->period = sndbuf_getblksz(ch->buffer);
+	sc->period = ch->buffer->blksz;
 	return (sc->period);
 }
 

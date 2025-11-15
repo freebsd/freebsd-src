@@ -56,7 +56,7 @@ static FILE *tracefp;
  *	initialize debugging.
  */
 static void
-__bt_dinit()
+__bt_dinit(void)
 {
 	static int first = 1;
 

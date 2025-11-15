@@ -256,7 +256,7 @@ vdev_rebuild_initiate_sync(void *arg, dmu_tx_t *tx)
 	    "vdev_id=%llu vdev_guid=%llu started",
 	    (u_longlong_t)vd->vdev_id, (u_longlong_t)vd->vdev_guid);
 
-	ASSERT3P(vd->vdev_rebuild_thread, ==, NULL);
+	ASSERT0P(vd->vdev_rebuild_thread);
 	vd->vdev_rebuild_thread = thread_create(NULL, 0,
 	    vdev_rebuild_thread, vd, 0, &p0, TS_RUN, maxclsyspri);
 
@@ -413,7 +413,7 @@ vdev_rebuild_reset_sync(void *arg, dmu_tx_t *tx)
 	mutex_enter(&vd->vdev_rebuild_lock);
 
 	ASSERT(vrp->vrp_rebuild_state == VDEV_REBUILD_ACTIVE);
-	ASSERT3P(vd->vdev_rebuild_thread, ==, NULL);
+	ASSERT0P(vd->vdev_rebuild_thread);
 
 	vrp->vrp_last_offset = 0;
 	vrp->vrp_min_txg = 0;
@@ -787,8 +787,9 @@ vdev_rebuild_thread(void *arg)
 	vdev_rebuild_phys_t *vrp = &vr->vr_rebuild_phys;
 	vr->vr_top_vdev = vd;
 	vr->vr_scan_msp = NULL;
-	vr->vr_scan_tree = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64, NULL,
-	    0, 0);
+	vr->vr_scan_tree = zfs_range_tree_create_flags(
+	    NULL, ZFS_RANGE_SEG64, NULL, 0, 0,
+	    ZFS_RT_F_DYN_NAME, vdev_rt_name(vd, "vr_scan_tree"));
 	mutex_init(&vr->vr_io_lock, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&vr->vr_io_cv, NULL, CV_DEFAULT, NULL);
 

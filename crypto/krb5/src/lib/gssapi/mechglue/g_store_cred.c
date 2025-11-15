@@ -93,24 +93,10 @@ val_store_cred_args(
 
 
 OM_uint32 KRB5_CALLCONV
-gss_store_cred(minor_status,
-	       input_cred_handle,
-	       cred_usage,
-	       desired_mech,
-	       overwrite_cred,
-	       default_cred,
-	       elements_stored,
-	       cred_usage_stored)
-
-OM_uint32		*minor_status;
-gss_cred_id_t	         input_cred_handle;
-gss_cred_usage_t	 cred_usage;
-const gss_OID		 desired_mech;
-OM_uint32		 overwrite_cred;
-OM_uint32		 default_cred;
-gss_OID_set		*elements_stored;
-gss_cred_usage_t	*cred_usage_stored;
-
+gss_store_cred(OM_uint32 *minor_status, gss_cred_id_t input_cred_handle,
+	       gss_cred_usage_t cred_usage, const gss_OID desired_mech,
+	       OM_uint32 overwrite_cred, OM_uint32 default_cred,
+	       gss_OID_set *elements_stored, gss_cred_usage_t *cred_usage_stored)
 {
 	return gss_store_cred_into(minor_status, input_cred_handle, cred_usage,
 				   desired_mech, overwrite_cred, default_cred,
@@ -119,26 +105,12 @@ gss_cred_usage_t	*cred_usage_stored;
 }
 
 OM_uint32 KRB5_CALLCONV
-gss_store_cred_into(minor_status,
-		    input_cred_handle,
-		    cred_usage,
-		    desired_mech,
-		    overwrite_cred,
-		    default_cred,
-		    cred_store,
-		    elements_stored,
-		    cred_usage_stored)
-
-OM_uint32			 *minor_status;
-gss_cred_id_t			 input_cred_handle;
-gss_cred_usage_t		 cred_usage;
-gss_OID				 desired_mech;
-OM_uint32			 overwrite_cred;
-OM_uint32			 default_cred;
-gss_const_key_value_set_t	 cred_store;
-gss_OID_set			 *elements_stored;
-gss_cred_usage_t		 *cred_usage_stored;
-
+gss_store_cred_into(OM_uint32 *minor_status, gss_cred_id_t input_cred_handle,
+		    gss_cred_usage_t cred_usage, gss_OID desired_mech,
+		    OM_uint32 overwrite_cred, OM_uint32 default_cred,
+		    gss_const_key_value_set_t cred_store,
+		    gss_OID_set *elements_stored,
+		    gss_cred_usage_t *cred_usage_stored)
 {
 	OM_uint32		major_status = GSS_S_FAILURE;
 	gss_union_cred_t	union_cred;

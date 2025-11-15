@@ -283,11 +283,11 @@ next_token:
 
 	  PRINTF(("gssapi_create: calling GSSAPI_INIT (%d)\n", init_func));
 
-	  xdr_free(xdr_authgssapi_init_res, &call_res);
+	  xdr_free((xdrproc_t)xdr_authgssapi_init_res, &call_res);
 	  memset(&call_res, 0, sizeof(call_res));
 	  callstat = clnt_call(clnt, init_func,
-			       xdr_authgssapi_init_arg, &call_arg,
-			       xdr_authgssapi_init_res, &call_res,
+			       (xdrproc_t)xdr_authgssapi_init_arg, &call_arg,
+			       (xdrproc_t)xdr_authgssapi_init_res, &call_res,
 			       timeout);
 	  gss_release_buffer(minor_stat, &call_arg.token);
 
@@ -436,7 +436,7 @@ next_token:
      /* don't assume the caller will want to change clnt->cl_auth */
      clnt->cl_auth = save_auth;
 
-     xdr_free(xdr_authgssapi_init_res, &call_res);
+     xdr_free((xdrproc_t)xdr_authgssapi_init_res, &call_res);
      return auth;
 
      /******************************************************************/
@@ -458,7 +458,7 @@ cleanup:
      if (rpc_createerr.cf_stat == 0)
 	  rpc_createerr.cf_stat = RPC_AUTHERROR;
 
-     xdr_free(xdr_authgssapi_init_res, &call_res);
+     xdr_free((xdrproc_t)xdr_authgssapi_init_res, &call_res);
      return auth;
 }
 
@@ -760,7 +760,7 @@ skip_call:
 static bool_t auth_gssapi_wrap(
      AUTH *auth,
      XDR *out_xdrs,
-     bool_t (*xdr_func)(),
+     xdrproc_t xdr_func,
      caddr_t xdr_ptr)
 {
      OM_uint32 gssstat, minor_stat;
@@ -791,7 +791,7 @@ static bool_t auth_gssapi_wrap(
 static bool_t auth_gssapi_unwrap(
      AUTH *auth,
      XDR *in_xdrs,
-     bool_t (*xdr_func)(),
+     xdrproc_t xdr_func,
      caddr_t xdr_ptr)
 {
      OM_uint32 gssstat, minor_stat;

@@ -29,7 +29,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd October 26, 2024
+.Dd November 10, 2025
 .Dt IX 4
 .Os
 .Sh NAME
@@ -77,6 +77,8 @@ driver supports Intel 10Gb Ethernet PCIe adapters,
 including:
 .Pp
 .Bl -bullet -compact
+.It
+Intel(R) Ethernet E610
 .It
 Intel(R) Ethernet X553
 .It
@@ -129,6 +131,35 @@ This has no effect if your system has only one processing unit.
 Enable Adaptive Interrupt Moderation (AIM).
 Vary the interrupt rate over time based on the traffic for
 that interrupt vector.
+.El
+.Sh SYSCTL VARIABLES
+The
+.Nm
+driver supports the following
+.Xr sysctl 8
+variables:
+.Bl -tag -width "dev.ix.?.debug.dump.clusters"
+.It Va dev.ix.?.debug.dump.clusters
+Specify a bitmask to select firmware event clusters
+to be included in the debug dump.
+Possible values include:
+.Pp
+.Bl -tag -compact
+.It 0
+All clusters excluding Manageability Transactions
+.It 0x1
+Link cluster
+.It 0x2
+Full CSR Space excluding RCW registers
+.El
+.Pp
+This feature is only supported on E610 devices.
+.It Va dev.ix.?.debug.dump.dump
+Specify 1 to generate a per-device debugging snapshot.
+Output must be redirected to a file
+and decoded by Intel Customer Support.
+.Pp
+This feature is only supported on E610.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag

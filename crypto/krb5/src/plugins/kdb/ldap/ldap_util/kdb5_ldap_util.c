@@ -186,8 +186,8 @@ static struct _cmd_table {
  * The function cmd_lookup returns the structure matching the
  * command name and returns NULL if nothing matches.
  */
-static struct _cmd_table *cmd_lookup(name)
-    char *name;
+static struct _cmd_table *
+cmd_lookup(const char *name)
 {
     int i;
 

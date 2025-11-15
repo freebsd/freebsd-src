@@ -72,15 +72,15 @@ main(void)
 	struct kevent events;
 	char *fn = "/tmp/kevent10.trace";
 
-	if (open(fn, O_RDWR | O_CREAT, 0666) == -1)
-		err(1, "%s", fn);
+	if (open(fn, O_RDWR | O_CREAT | O_TRUNC, 0666) == -1)
+		err(1, "open(%s)", fn);
 	if (ktrace(fn, KTRFLAG_DESCEND | KTROP_SET, KTRFAC_GENIO, 0) == -1)
 		err(1, "ktrace");
 	memset(&changes, 0, sizeof(struct kevent));
 	memset(&events, 0, sizeof(struct kevent));
 	if (kevent(0, &changes, -1, &events, 1, 0) == -1)
-		if (errno != EBADF)
-			err(1, "kevent");
+		if (errno != EBADF && errno != EINVAL)
+			warn("kevent");
 	if (ktrace(fn, KTROP_CLEARFILE, KTRFAC_GENIO, 0) == -1)
 		err(1, "ktrace clear");
 

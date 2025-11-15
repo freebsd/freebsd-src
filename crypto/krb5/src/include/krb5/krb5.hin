@@ -322,6 +322,7 @@ typedef struct _krb5_address {
 
 /* per Kerberos v5 protocol spec */
 #define ADDRTYPE_INET           0x0002
+#define ADDRTYPE_DIRECTIONAL    0x0003
 #define ADDRTYPE_CHAOS          0x0005
 #define ADDRTYPE_XNS            0x0006
 #define ADDRTYPE_ISO            0x0007
@@ -331,6 +332,14 @@ typedef struct _krb5_address {
 /* not yet in the spec... */
 #define ADDRTYPE_ADDRPORT       0x0100
 #define ADDRTYPE_IPPORT         0x0101
+
+/*
+ * Negative values for the host address type are reserved for local use.  Do
+ * not use these types in Kerberos protocol elements.
+ */
+
+/* The contents field contains a UNIX domain socket path. */
+#define ADDRTYPE_UNIXSOCK       (0x8000 | 0x0001)
 
 /* macros to determine if a type is a local type */
 #define ADDRTYPE_IS_LOCAL(addrtype) (addrtype & 0x8000)
@@ -977,6 +986,7 @@ krb5_c_keyed_checksum_types(krb5_context context, krb5_enctype enctype,
 #define KRB5_KEYUSAGE_PA_REFERRAL               26
 
 #define KRB5_KEYUSAGE_AD_SIGNEDPATH             -21
+#define KRB5_KEYUSAGE_FINISHED                  41
 #define KRB5_KEYUSAGE_IAKERB_FINISHED           42
 #define KRB5_KEYUSAGE_PA_PKINIT_KX              44
 #define KRB5_KEYUSAGE_PA_OTP_REQUEST  45  /**< See RFC 6560 section 4.2 */
@@ -1658,6 +1668,7 @@ krb5_verify_checksum(krb5_context context, krb5_cksumtype ctype,
 #define AP_OPTS_USE_SESSION_KEY    0x40000000 /**< Use session key */
 #define AP_OPTS_MUTUAL_REQUIRED    0x20000000 /**< Perform a mutual
                                                  authentication exchange */
+#define AP_OPTS_CBT_FLAG           0x00000004 /* include KERB_AP_OPTIONS_CBT */
 #define AP_OPTS_ETYPE_NEGOTIATION  0x00000002
 #define AP_OPTS_USE_SUBKEY         0x00000001 /**< Generate a subsession key
                                                  from the current session key
@@ -1689,7 +1700,6 @@ krb5_verify_checksum(krb5_context context, krb5_cksumtype ctype,
 /* #define      AP_OPTS_RESERVED        0x00000020 */
 /* #define      AP_OPTS_RESERVED        0x00000010 */
 /* #define      AP_OPTS_RESERVED        0x00000008 */
-/* #define      AP_OPTS_RESERVED        0x00000004 */
 
 
 #define AP_OPTS_WIRE_MASK               0xfffffff0
@@ -2935,6 +2945,33 @@ krb5_error_code KRB5_CALLCONV
 krb5_copy_context(krb5_context ctx, krb5_context *nctx_out);
 
 /**
+ * Return a list of default configuration filenames
+ *
+ * @param [out] filenames       Configuration filename list
+ *
+ * Fill in @a filenames with a null-terminated list of configuration files
+ * which will be read by krb5_init_context() in the current process
+ * environment.
+ *
+ * Use krb5_free_config_files() to free @a filenames when it is no longer
+ * needed.
+ *
+ * @version New in 1.22
+ */
+krb5_error_code KRB5_CALLCONV
+krb5_get_default_config_files(char ***filenames);
+
+/**
+ * Free a list allocated by krb5_get_default_config_files()
+ *
+ * @param [in]  filenames       Configuration filename list
+ *
+ * @version New in 1.22
+ */
+void KRB5_CALLCONV
+krb5_free_config_files(char **filenames);
+
+/**
  * Set default TGS encryption types in a krb5_context structure.
  *
  * @param [in] context          Library context
@@ -3042,10 +3079,10 @@ krb5_free_tgt_creds(krb5_context context, krb5_creds **tgts);
  * session key type is specified in @a in_creds->keyblock.enctype, if it is
  * nonzero.
  *
- * The expiration date is specified in @a in_creds->times.endtime.
- * The KDC may return tickets with an earlier expiration date.
- * If @a in_creds->times.endtime is set to 0, the latest possible
- * expiration date will be requested.
+ * If @a in_creds->times.endtime is specified, it is used as the requested
+ * expiration date if a TGS request is made.  If @a in_creds->times.endtime is
+ * set to 0, the latest possible expiration date will be requested.  The KDC or
+ * cache may return a ticket with an earlier expiration date.
  *
  * Any returned ticket and intermediate ticket-granting tickets are stored
  * in @a ccache.

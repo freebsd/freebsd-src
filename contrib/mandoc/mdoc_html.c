@@ -1,4 +1,4 @@
-/* $Id: mdoc_html.c,v 1.353 2025/01/25 00:22:28 schwarze Exp $ */
+/* $Id: mdoc_html.c,v 1.354 2025/06/26 17:06:34 schwarze Exp $ */
 /*
  * Copyright (c) 2014-2022, 2025 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
@@ -454,20 +454,29 @@ static void
 mdoc_root_post(const struct roff_meta *meta, struct html *h)
 {
 	struct tag	*t;
+	char		*title;
+
+	assert(meta->title != NULL);
+	if (meta->msec == NULL)
+		title = mandoc_strdup(meta->title);
+	else
+		mandoc_asprintf(&title, "%s(%s)", meta->title, meta->msec);
 
 	t = print_otag(h, TAG_DIV, "cr?", "foot", "doc-pagefooter",
 	    "aria-label", "Manual footer line");
 
 	print_otag(h, TAG_SPAN, "c", "foot-left");
+	print_text(h, meta->os);
 	print_stagq(h, t);
 
 	print_otag(h, TAG_SPAN, "c", "foot-date");
 	print_text(h, meta->date);
 	print_stagq(h, t);
 
-	print_otag(h, TAG_SPAN, "c", "foot-os");
-	print_text(h, meta->os);
+	print_otag(h, TAG_SPAN, "c", "foot-right");
+	print_text(h, title);
 	print_tagq(h, t);
+	free(title);
 }
 
 static int

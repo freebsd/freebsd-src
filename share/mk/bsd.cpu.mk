@@ -391,21 +391,24 @@ MACHINE_ABI+=	soft-float
 .else
 MACHINE_ABI+=	hard-float
 .endif
-# Currently all 64-bit architectures include 64 in their name (see arch(7)).
-.if ${MACHINE_ARCH:M*64*}
-MACHINE_ABI+=  long64
+# Currently all 64-bit FreeBSD architectures include 64 in their name
+# (see arch(7)).  We need a special case for cross-building from macOS
+# (which uses arm64/arm).
+.if ${MACHINE_ARCH:M*64*} || \
+    (defined(BOOTSTRAPPING) && ${.MAKE.OS} == "Darwin" && ${MACHINE} == "arm64")
+MACHINE_ABI+=	long64
 .else
-MACHINE_ABI+=  long32
+MACHINE_ABI+=	long32
 .endif
 .if ${MACHINE_ABI:Mlong64}
-MACHINE_ABI+=  ptr64
+MACHINE_ABI+=	ptr64
 .else
-MACHINE_ABI+=  ptr32
+MACHINE_ABI+=	ptr32
 .endif
 .if ${MACHINE_ARCH} == "i386"
-MACHINE_ABI+=  time32
+MACHINE_ABI+=	time32
 .else
-MACHINE_ABI+=  time64
+MACHINE_ABI+=	time64
 .endif
 .if ${MACHINE_ARCH:Mpowerpc*} && !${MACHINE_ARCH:M*le}
 MACHINE_ABI+=	big-endian

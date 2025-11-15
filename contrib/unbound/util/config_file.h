@@ -792,6 +792,9 @@ struct config_file {
 	int iter_scrub_cname;
 	/** limit on upstream queries for an incoming query and subqueries. */
 	int max_global_quota;
+	/** Should the iterator scrub promiscuous NS rrsets, from positive
+	 * answers. */
+	int iter_scrub_promiscuous;
 };
 
 /** from cfg username, after daemonize setup performed */
@@ -965,6 +968,17 @@ struct config_file* config_create(void);
  * @return: the new structure or NULL on memory error.
  */
 struct config_file* config_create_forlib(void);
+
+/**
+ * If _slabs values are not explicitly configured, 0 value, put them in a
+ * pow2 value close to the number of threads used.
+ * Starts at the current default 4.
+ * If num_threads is in between two pow2 values, 1/3 of the way stays with
+ * the lower pow2 value.
+ * Exported for unit testing.
+ * @param config: where the _slabs values reside.
+ */
+void config_auto_slab_values(struct config_file* config);
 
 /**
  * Read the config file from the specified filename.

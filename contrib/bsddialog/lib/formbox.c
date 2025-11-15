@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021-2024 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2025 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -601,11 +601,11 @@ static int form_size_position(struct dialog *d, struct privateform *f)
 }
 
 static int
-form_redraw(struct dialog *d, struct privateform *f, bool focusinform)
+form_draw(struct dialog *d, bool redraw, struct privateform *f, bool focusinform)
 {
 	unsigned int i;
 
-	if (d->built) {
+	if (redraw) {
 		hide_dialog(d);
 		refresh(); /* Important for decreasing screen */
 	}
@@ -613,9 +613,9 @@ form_redraw(struct dialog *d, struct privateform *f, bool focusinform)
 	f->w = f->wmin;
 	if (form_size_position(d, f) != 0)
 		return (BSDDIALOG_ERROR);
-	if (draw_dialog(d) != 0)
+	if (draw_dialog(d) != 0) /* doupdate() in main loop */
 		return (BSDDIALOG_ERROR);
-	if (d->built)
+	if (redraw)
 		refresh(); /* Important to fix grey lines expanding screen */
 	TEXTPAD(d, 2 /* box borders */ + f->viewrows + HBUTTONS);
 
@@ -707,7 +707,7 @@ bsddialog_form(struct bsddialog_conf *conf, const char *text, int rows,
 	}
 
 	form.formheight = formheight;
-	if (form_redraw(&d, &form, focusinform) != 0)
+	if (form_draw(&d, false, &form, focusinform) != 0)
 		return (BSDDIALOG_ERROR);
 
 	changeitem = switchfocus = false;
@@ -719,10 +719,16 @@ bsddialog_form(struct bsddialog_conf *conf, const char *text, int rows,
 		switch(input) {
 		case KEY_ENTER:
 		case 10: /* Enter */
-			if (focusinform && conf->button.always_active == false)
-				break;
-			retval = BUTTONVALUE(d.bs);
-			loop = false;
+			if (focusinform && conf->button.always_active == false) {
+				next = nextitem(form.nitems, form.pritems, form.sel);
+				if (next > form.sel)
+					changeitem = true; /* needs next */
+				else
+					switchfocus = true;
+			} else {
+				retval = BUTTONVALUE(d.bs);
+				loop = false;
+			}
 			break;
 		case 27: /* Esc */
 			if (conf->key.enable_esc) {
@@ -732,7 +738,12 @@ bsddialog_form(struct bsddialog_conf *conf, const char *text, int rows,
 			break;
 		case '\t': /* TAB */
 			if (focusinform) {
-				switchfocus = true;
+				next = nextitem(form.nitems, form.pritems,
+				    form.sel);
+				if (next > form.sel)
+					changeitem = true;  /* needs next */
+				else
+					switchfocus = true;
 			} else {
 				if (d.bs.curr + 1 < (int)d.bs.nbuttons) {
 					d.bs.curr++;
@@ -839,12 +850,12 @@ bsddialog_form(struct bsddialog_conf *conf, const char *text, int rows,
 				retval = BSDDIALOG_ERROR;
 				loop = false;
 			}
-			if (form_redraw(&d, &form, focusinform) != 0)
+			if (form_draw(&d, true, &form, focusinform) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
 		case KEY_CTRL('l'):
 		case KEY_RESIZE:
-			if (form_redraw(&d, &form, focusinform) != 0)
+			if (form_draw(&d, true, &form, focusinform) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
 		default:
@@ -884,11 +895,20 @@ bsddialog_form(struct bsddialog_conf *conf, const char *text, int rows,
 			    conf->button.always_active || !focusinform,
 			    !focusinform);
 			wnoutrefresh(d.widget);
-			DRAWITEM_TRICK(&form, form.sel, focusinform);
+			if (focusinform == false)
+				DRAWITEM_TRICK(&form, form.sel, false);
+			else {
+				next = firstitem(form.nitems, form.pritems);
+				if (next == form.sel)
+					DRAWITEM_TRICK(&form, form.sel, true);
+				else
+					changeitem = true;
+			}
 			switchfocus = false;
 		}
 
 		if (changeitem) {
+			/* useless after if(switchfocus) */
 			DRAWITEM_TRICK(&form, form.sel, false);
 			form.sel = next;
 			item = &form.pritems[form.sel];

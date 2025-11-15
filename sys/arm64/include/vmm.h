@@ -42,6 +42,7 @@ enum vm_suspend_how {
 	VM_SUSPEND_RESET,
 	VM_SUSPEND_POWEROFF,
 	VM_SUSPEND_HALT,
+	VM_SUSPEND_DESTROY,
 	VM_SUSPEND_LAST
 };
 
@@ -89,6 +90,7 @@ enum vm_reg_name {
 	VM_REG_GUEST_TTBR1_EL1,
 	VM_REG_GUEST_TCR_EL1,
 	VM_REG_GUEST_TCR2_EL1,
+	VM_REG_GUEST_MPIDR_EL1,
 	VM_REG_LAST
 };
 
@@ -103,27 +105,6 @@ enum vm_reg_name {
 #define	VM_INTINFO_SWINTR	(4 << 8)
 
 #define VM_GUEST_BASE_IPA	0x80000000UL	/* Guest kernel start ipa */
-
-/*
- * The VM name has to fit into the pathname length constraints of devfs,
- * governed primarily by SPECNAMELEN.  The length is the total number of
- * characters in the full path, relative to the mount point and not 
- * including any leading '/' characters.
- * A prefix and a suffix are added to the name specified by the user.
- * The prefix is usually "vmm/" or "vmm.io/", but can be a few characters
- * longer for future use.
- * The suffix is a string that identifies a bootrom image or some similar
- * image that is attached to the VM. A separator character gets added to
- * the suffix automatically when generating the full path, so it must be
- * accounted for, reducing the effective length by 1.
- * The effective length of a VM name is 229 bytes for FreeBSD 13 and 37
- * bytes for FreeBSD 12.  A minimum length is set for safety and supports
- * a SPECNAMELEN as small as 32 on old systems.
- */
-#define VM_MAX_PREFIXLEN 10
-#define VM_MAX_SUFFIXLEN 15
-#define VM_MAX_NAMELEN \
-    (SPECNAMELEN - VM_MAX_PREFIXLEN - VM_MAX_SUFFIXLEN - 1)
 
 #ifdef _KERNEL
 struct vm;
@@ -141,10 +122,41 @@ struct vm_eventinfo {
 	int	*iptr;		/* reqidle cookie */
 };
 
+#define	DECLARE_VMMOPS_FUNC(ret_type, opname, args)			\
+	ret_type vmmops_##opname args
+
+DECLARE_VMMOPS_FUNC(int, modinit, (int ipinum));
+DECLARE_VMMOPS_FUNC(int, modcleanup, (void));
+DECLARE_VMMOPS_FUNC(void *, init, (struct vm *vm, struct pmap *pmap));
+DECLARE_VMMOPS_FUNC(int, gla2gpa, (void *vcpui, struct vm_guest_paging *paging,
+    uint64_t gla, int prot, uint64_t *gpa, int *is_fault));
+DECLARE_VMMOPS_FUNC(int, run, (void *vcpui, register_t pc, struct pmap *pmap,
+    struct vm_eventinfo *info));
+DECLARE_VMMOPS_FUNC(void, cleanup, (void *vmi));
+DECLARE_VMMOPS_FUNC(void *, vcpu_init, (void *vmi, struct vcpu *vcpu,
+    int vcpu_id));
+DECLARE_VMMOPS_FUNC(void, vcpu_cleanup, (void *vcpui));
+DECLARE_VMMOPS_FUNC(int, exception, (void *vcpui, uint64_t esr, uint64_t far));
+DECLARE_VMMOPS_FUNC(int, getreg, (void *vcpui, int num, uint64_t *retval));
+DECLARE_VMMOPS_FUNC(int, setreg, (void *vcpui, int num, uint64_t val));
+DECLARE_VMMOPS_FUNC(int, getcap, (void *vcpui, int num, int *retval));
+DECLARE_VMMOPS_FUNC(int, setcap, (void *vcpui, int num, int val));
+DECLARE_VMMOPS_FUNC(struct vmspace *, vmspace_alloc, (vm_offset_t min,
+    vm_offset_t max));
+DECLARE_VMMOPS_FUNC(void, vmspace_free, (struct vmspace *vmspace));
+#ifdef notyet
+#ifdef BHYVE_SNAPSHOT
+DECLARE_VMMOPS_FUNC(int, snapshot, (void *vmi, struct vm_snapshot_meta *meta));
+DECLARE_VMMOPS_FUNC(int, vcpu_snapshot, (void *vcpui,
+    struct vm_snapshot_meta *meta));
+DECLARE_VMMOPS_FUNC(int, restore_tsc, (void *vcpui, uint64_t now));
+#endif
+#endif
+
 int vm_create(const char *name, struct vm **retvm);
 struct vcpu *vm_alloc_vcpu(struct vm *vm, int vcpuid);
 void vm_disable_vcpu_creation(struct vm *vm);
-void vm_slock_vcpus(struct vm *vm);
+void vm_lock_vcpus(struct vm *vm);
 void vm_unlock_vcpus(struct vm *vm);
 void vm_destroy(struct vm *vm);
 int vm_reinit(struct vm *vm);
@@ -230,7 +242,6 @@ vcpu_should_yield(struct vcpu *vcpu)
 
 void *vcpu_stats(struct vcpu *vcpu);
 void vcpu_notify_event(struct vcpu *vcpu);
-struct vmspace *vm_vmspace(struct vm *vm);
 struct vm_mem *vm_mem(struct vm *vm);
 
 enum vm_reg_name vm_segment_name(int seg_encoding);

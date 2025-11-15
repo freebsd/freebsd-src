@@ -239,6 +239,12 @@ uart_cpu_fdt_probe(struct uart_class **classp, bus_space_tag_t *bst,
 	}
 
 	/*
+	 * Grab the default rclk from the uart class.
+	 */
+	if (clk == 0)
+		clk = class->uc_rclk;
+
+	/*
 	 * Retrieve serial attributes.
 	 */
 	if (uart_fdt_get_shift(node, &shift) != 0)

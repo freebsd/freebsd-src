@@ -49,7 +49,7 @@ static int ex_handle_id = -1;
 MAKE_INIT_FUNCTION(init_openssl);
 
 int
-init_openssl()
+init_openssl(void)
 {
     SSL_library_init();
     SSL_load_error_strings();

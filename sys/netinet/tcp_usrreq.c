@@ -2799,258 +2799,6 @@ db_print_tstate(int t_state)
 }
 
 static void
-db_print_tflags(u_int t_flags)
-{
-	int comma;
-
-	comma = 0;
-	if (t_flags & TF_ACKNOW) {
-		db_printf("%sTF_ACKNOW", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_DELACK) {
-		db_printf("%sTF_DELACK", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_NODELAY) {
-		db_printf("%sTF_NODELAY", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_NOOPT) {
-		db_printf("%sTF_NOOPT", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_SENTFIN) {
-		db_printf("%sTF_SENTFIN", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_REQ_SCALE) {
-		db_printf("%sTF_REQ_SCALE", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_RCVD_SCALE) {
-		db_printf("%sTF_RECVD_SCALE", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_REQ_TSTMP) {
-		db_printf("%sTF_REQ_TSTMP", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_RCVD_TSTMP) {
-		db_printf("%sTF_RCVD_TSTMP", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_SACK_PERMIT) {
-		db_printf("%sTF_SACK_PERMIT", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_NEEDSYN) {
-		db_printf("%sTF_NEEDSYN", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_NEEDFIN) {
-		db_printf("%sTF_NEEDFIN", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_NOPUSH) {
-		db_printf("%sTF_NOPUSH", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_PREVVALID) {
-		db_printf("%sTF_PREVVALID", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_WAKESOR) {
-		db_printf("%sTF_WAKESOR", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_GPUTINPROG) {
-		db_printf("%sTF_GPUTINPROG", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_MORETOCOME) {
-		db_printf("%sTF_MORETOCOME", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_SONOTCONN) {
-		db_printf("%sTF_SONOTCONN", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_LASTIDLE) {
-		db_printf("%sTF_LASTIDLE", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_RXWIN0SENT) {
-		db_printf("%sTF_RXWIN0SENT", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_FASTRECOVERY) {
-		db_printf("%sTF_FASTRECOVERY", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_WASFRECOVERY) {
-		db_printf("%sTF_WASFRECOVERY", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_SIGNATURE) {
-		db_printf("%sTF_SIGNATURE", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_FORCEDATA) {
-		db_printf("%sTF_FORCEDATA", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_TSO) {
-		db_printf("%sTF_TSO", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_TOE) {
-		db_printf("%sTF_TOE", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_CLOSED) {
-		db_printf("%sTF_CLOSED", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_SENTSYN) {
-		db_printf("%sTF_SENTSYN", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_LRD) {
-		db_printf("%sTF_LRD", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_CONGRECOVERY) {
-		db_printf("%sTF_CONGRECOVERY", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_WASCRECOVERY) {
-		db_printf("%sTF_WASCRECOVERY", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_FASTOPEN) {
-		db_printf("%sTF_FASTOPEN", comma ? ", " : "");
-		comma = 1;
-	}
-}
-
-static void
-db_print_tflags2(u_int t_flags2)
-{
-	int comma;
-
-	comma = 0;
-	if (t_flags2 & TF2_PLPMTU_BLACKHOLE) {
-		db_printf("%sTF2_PLPMTU_BLACKHOLE", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_PLPMTU_PMTUD) {
-		db_printf("%sTF2_PLPMTU_PMTUD", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_PLPMTU_MAXSEGSNT) {
-		db_printf("%sTF2_PLPMTU_MAXSEGSNT", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_LOG_AUTO) {
-		db_printf("%sTF2_LOG_AUTO", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_DROP_AF_DATA) {
-		db_printf("%sTF2_DROP_AF_DATA", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_ECN_PERMIT) {
-		db_printf("%sTF2_ECN_PERMIT", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_ECN_SND_CWR) {
-		db_printf("%sTF2_ECN_SND_CWR", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_ECN_SND_ECE) {
-		db_printf("%sTF2_ECN_SND_ECE", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_ACE_PERMIT) {
-		db_printf("%sTF2_ACE_PERMIT", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_HPTS_CPU_SET) {
-		db_printf("%sTF2_HPTS_CPU_SET", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_FBYTES_COMPLETE) {
-		db_printf("%sTF2_FBYTES_COMPLETE", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_ECN_USE_ECT1) {
-		db_printf("%sTF2_ECN_USE_ECT1", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_TCP_ACCOUNTING) {
-		db_printf("%sTF2_TCP_ACCOUNTING", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_HPTS_CALLS) {
-		db_printf("%sTF2_HPTS_CALLS", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_MBUF_L_ACKS) {
-		db_printf("%sTF2_MBUF_L_ACKS", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_MBUF_ACKCMP) {
-		db_printf("%sTF2_MBUF_ACKCMP", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_SUPPORTS_MBUFQ) {
-		db_printf("%sTF2_SUPPORTS_MBUFQ", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_MBUF_QUEUE_READY) {
-		db_printf("%sTF2_MBUF_QUEUE_READY", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_DONT_SACK_QUEUE) {
-		db_printf("%sTF2_DONT_SACK_QUEUE", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_CANNOT_DO_ECN) {
-		db_printf("%sTF2_CANNOT_DO_ECN", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_PROC_SACK_PROHIBIT) {
-		db_printf("%sTF2_PROC_SACK_PROHIBIT", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_IPSEC_TSO) {
-		db_printf("%sTF2_IPSEC_TSO", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags2 & TF2_NO_ISS_CHECK) {
-		db_printf("%sTF2_NO_ISS_CHECK", comma ? ", " : "");
-		comma = 1;
-	}
-}
-
-static void
-db_print_toobflags(char t_oobflags)
-{
-	int comma;
-
-	comma = 0;
-	if (t_oobflags & TCPOOB_HAVEDATA) {
-		db_printf("%sTCPOOB_HAVEDATA", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_oobflags & TCPOOB_HADDATA) {
-		db_printf("%sTCPOOB_HADDATA", comma ? ", " : "");
-		comma = 1;
-	}
-}
-
-static void
 db_print_bblog_state(int state)
 {
 	switch (state) {
@@ -3088,13 +2836,17 @@ db_print_bblog_state(int state)
 }
 
 static void
-db_print_tcpcb(struct tcpcb *tp, const char *name, int indent, bool show_bblog)
+db_print_tcpcb(struct tcpcb *tp, const char *name, int indent, bool show_bblog,
+    bool show_inpcb)
 {
 
 	db_print_indent(indent);
 	db_printf("%s at %p\n", name, tp);
 
 	indent += 2;
+
+	if (show_inpcb)
+		db_print_inpcb(tptoinpcb(tp), "t_inpcb", indent);
 
 	db_print_indent(indent);
 	db_printf("t_segq first: %p   t_segqlen: %d   t_dupacks: %d\n",
@@ -3110,14 +2862,10 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent, bool show_bblog)
 	db_printf(")\n");
 
 	db_print_indent(indent);
-	db_printf("t_flags: 0x%x (", tp->t_flags);
-	db_print_tflags(tp->t_flags);
-	db_printf(")\n");
+	db_printf("t_flags: 0x%b\n", tp->t_flags, TF_BITS);
 
 	db_print_indent(indent);
-	db_printf("t_flags2: 0x%x (", tp->t_flags2);
-	db_print_tflags2(tp->t_flags2);
-	db_printf(")\n");
+	db_printf("t_flags2: 0x%b\n", tp->t_flags2, TF2_BITS);
 
 	db_print_indent(indent);
 	db_printf("snd_una: 0x%08x   snd_max: 0x%08x   snd_nxt: 0x%08x\n",
@@ -3164,9 +2912,8 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent, bool show_bblog)
 	    tp->t_rttupdated, tp->max_sndwnd, tp->t_softerror);
 
 	db_print_indent(indent);
-	db_printf("t_oobflags: 0x%x (", tp->t_oobflags);
-	db_print_toobflags(tp->t_oobflags);
-	db_printf(")   t_iobc: 0x%02x\n", tp->t_iobc);
+	db_printf("t_oobflags: 0x%b   t_iobc: 0x%02x\n", tp->t_oobflags,
+	    TCPOOB_BITS, tp->t_iobc);
 
 	db_print_indent(indent);
 	db_printf("snd_scale: %u   rcv_scale: %u   request_r_scale: %u\n",
@@ -3227,33 +2974,36 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent, bool show_bblog)
 DB_SHOW_COMMAND(tcpcb, db_show_tcpcb)
 {
 	struct tcpcb *tp;
-	bool show_bblog;
+	bool show_bblog, show_inpcb;
 
 	if (!have_addr) {
-		db_printf("usage: show tcpcb <addr>\n");
+		db_printf("usage: show tcpcb[/bi] <addr>\n");
 		return;
 	}
 	show_bblog = strchr(modif, 'b') != NULL;
+	show_inpcb = strchr(modif, 'i') != NULL;
 	tp = (struct tcpcb *)addr;
-
-	db_print_tcpcb(tp, "tcpcb", 0, show_bblog);
+	db_print_tcpcb(tp, "tcpcb", 0, show_bblog, show_inpcb);
 }
 
 DB_SHOW_ALL_COMMAND(tcpcbs, db_show_all_tcpcbs)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 	struct inpcb *inp;
-	bool only_locked, show_bblog;
+	struct tcpcb *tp;
+	bool only_locked, show_bblog, show_inpcb;
 
 	only_locked = strchr(modif, 'l') != NULL;
 	show_bblog = strchr(modif, 'b') != NULL;
+	show_inpcb = strchr(modif, 'i') != NULL;
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		CK_LIST_FOREACH(inp, &V_tcbinfo.ipi_listhead, inp_list) {
 			if (only_locked &&
 			    inp->inp_lock.rw_lock == RW_UNLOCKED)
 				continue;
-			db_print_tcpcb(intotcpcb(inp), "tcpcb", 0, show_bblog);
+			tp = intotcpcb(inp);
+			db_print_tcpcb(tp, "tcpcb", 0, show_bblog, show_inpcb);
 			if (db_pager_quit)
 				break;
 		}

@@ -46,6 +46,7 @@ enum vm_suspend_how {
 	VM_SUSPEND_POWEROFF,
 	VM_SUSPEND_HALT,
 	VM_SUSPEND_TRIPLEFAULT,
+	VM_SUSPEND_DESTROY,
 	VM_SUSPEND_LAST
 };
 
@@ -121,33 +122,7 @@ enum x2apic_state {
 #define	VM_INTINFO_HWEXCEPTION	(3 << 8)
 #define	VM_INTINFO_SWINTR	(4 << 8)
 
-/*
- * The VM name has to fit into the pathname length constraints of devfs,
- * governed primarily by SPECNAMELEN.  The length is the total number of
- * characters in the full path, relative to the mount point and not
- * including any leading '/' characters.
- * A prefix and a suffix are added to the name specified by the user.
- * The prefix is usually "vmm/" or "vmm.io/", but can be a few characters
- * longer for future use.
- * The suffix is a string that identifies a bootrom image or some similar
- * image that is attached to the VM. A separator character gets added to
- * the suffix automatically when generating the full path, so it must be
- * accounted for, reducing the effective length by 1.
- * The effective length of a VM name is 229 bytes for FreeBSD 13 and 37
- * bytes for FreeBSD 12.  A minimum length is set for safety and supports
- * a SPECNAMELEN as small as 32 on old systems.
- */
-#define VM_MAX_PREFIXLEN 10
-#define VM_MAX_SUFFIXLEN 15
-#define VM_MIN_NAMELEN   6
-#define VM_MAX_NAMELEN \
-    (SPECNAMELEN - VM_MAX_PREFIXLEN - VM_MAX_SUFFIXLEN - 1)
-
 #ifdef _KERNEL
-#include <sys/kassert.h>
-
-CTASSERT(VM_MAX_NAMELEN >= VM_MIN_NAMELEN);
-
 struct vm;
 struct vm_exception;
 struct vm_mem;
@@ -169,66 +144,72 @@ struct vm_eventinfo {
 	int	*iptr;		/* reqidle cookie */
 };
 
-typedef int	(*vmm_init_func_t)(int ipinum);
-typedef int	(*vmm_cleanup_func_t)(void);
-typedef void	(*vmm_suspend_func_t)(void);
-typedef void	(*vmm_resume_func_t)(void);
-typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
-typedef int	(*vmi_run_func_t)(void *vcpui, register_t rip,
-		    struct pmap *pmap, struct vm_eventinfo *info);
-typedef void	(*vmi_cleanup_func_t)(void *vmi);
-typedef void *	(*vmi_vcpu_init_func_t)(void *vmi, struct vcpu *vcpu,
-		    int vcpu_id);
-typedef void	(*vmi_vcpu_cleanup_func_t)(void *vcpui);
-typedef int	(*vmi_get_register_t)(void *vcpui, int num, uint64_t *retval);
-typedef int	(*vmi_set_register_t)(void *vcpui, int num, uint64_t val);
-typedef int	(*vmi_get_desc_t)(void *vcpui, int num, struct seg_desc *desc);
-typedef int	(*vmi_set_desc_t)(void *vcpui, int num, struct seg_desc *desc);
-typedef int	(*vmi_get_cap_t)(void *vcpui, int num, int *retval);
-typedef int	(*vmi_set_cap_t)(void *vcpui, int num, int val);
-typedef struct vmspace * (*vmi_vmspace_alloc)(vm_offset_t min, vm_offset_t max);
-typedef void	(*vmi_vmspace_free)(struct vmspace *vmspace);
-typedef struct vlapic * (*vmi_vlapic_init)(void *vcpui);
-typedef void	(*vmi_vlapic_cleanup)(struct vlapic *vlapic);
-typedef int	(*vmi_snapshot_vcpu_t)(void *vcpui, struct vm_snapshot_meta *meta);
-typedef int	(*vmi_restore_tsc_t)(void *vcpui, uint64_t now);
+#define	DECLARE_VMMOPS_FUNC(ret_type, opname, args)		\
+	typedef ret_type (*vmmops_##opname##_t) args;		\
+	ret_type vmmops_##opname args
+
+DECLARE_VMMOPS_FUNC(int, modinit, (int ipinum));
+DECLARE_VMMOPS_FUNC(int, modcleanup, (void));
+DECLARE_VMMOPS_FUNC(void, modresume, (void));
+DECLARE_VMMOPS_FUNC(void, modsuspend, (void));
+DECLARE_VMMOPS_FUNC(void *, init, (struct vm *vm, struct pmap *pmap));
+DECLARE_VMMOPS_FUNC(int, run, (void *vcpui, register_t pc,
+    struct pmap *pmap, struct vm_eventinfo *info));
+DECLARE_VMMOPS_FUNC(void, cleanup, (void *vmi));
+DECLARE_VMMOPS_FUNC(void *, vcpu_init, (void *vmi, struct vcpu *vcpu,
+    int vcpu_id));
+DECLARE_VMMOPS_FUNC(void, vcpu_cleanup, (void *vcpui));
+DECLARE_VMMOPS_FUNC(int, getreg, (void *vcpui, int num, uint64_t *retval));
+DECLARE_VMMOPS_FUNC(int, setreg, (void *vcpui, int num, uint64_t val));
+DECLARE_VMMOPS_FUNC(int, getdesc, (void *vcpui, int num,
+    struct seg_desc *desc));
+DECLARE_VMMOPS_FUNC(int, setdesc, (void *vcpui, int num,
+    struct seg_desc *desc));
+DECLARE_VMMOPS_FUNC(int, getcap, (void *vcpui, int num, int *retval));
+DECLARE_VMMOPS_FUNC(int, setcap, (void *vcpui, int num, int val));
+DECLARE_VMMOPS_FUNC(struct vmspace *, vmspace_alloc,
+    (vm_offset_t min, vm_offset_t max));
+DECLARE_VMMOPS_FUNC(void, vmspace_free, (struct vmspace *vmspace));
+DECLARE_VMMOPS_FUNC(struct vlapic *, vlapic_init, (void *vcpui));
+DECLARE_VMMOPS_FUNC(void, vlapic_cleanup, (struct vlapic *vlapic));
+DECLARE_VMMOPS_FUNC(int, vcpu_snapshot, (void *vcpui,
+    struct vm_snapshot_meta *meta));
+DECLARE_VMMOPS_FUNC(int, restore_tsc, (void *vcpui, uint64_t now));
 
 struct vmm_ops {
-	vmm_init_func_t		modinit;	/* module wide initialization */
-	vmm_cleanup_func_t	modcleanup;
-	vmm_resume_func_t	modsuspend;
-	vmm_resume_func_t	modresume;
+	vmmops_modinit_t	modinit;	/* module wide initialization */
+	vmmops_modcleanup_t	modcleanup;
+	vmmops_modresume_t	modsuspend;
+	vmmops_modresume_t	modresume;
 
-	vmi_init_func_t		init;		/* vm-specific initialization */
-	vmi_run_func_t		run;
-	vmi_cleanup_func_t	cleanup;
-	vmi_vcpu_init_func_t	vcpu_init;
-	vmi_vcpu_cleanup_func_t	vcpu_cleanup;
-	vmi_get_register_t	getreg;
-	vmi_set_register_t	setreg;
-	vmi_get_desc_t		getdesc;
-	vmi_set_desc_t		setdesc;
-	vmi_get_cap_t		getcap;
-	vmi_set_cap_t		setcap;
-	vmi_vmspace_alloc	vmspace_alloc;
-	vmi_vmspace_free	vmspace_free;
-	vmi_vlapic_init		vlapic_init;
-	vmi_vlapic_cleanup	vlapic_cleanup;
+	vmmops_init_t		init;		/* vm-specific initialization */
+	vmmops_run_t		run;
+	vmmops_cleanup_t	cleanup;
+	vmmops_vcpu_init_t	vcpu_init;
+	vmmops_vcpu_cleanup_t	vcpu_cleanup;
+	vmmops_getreg_t		getreg;
+	vmmops_setreg_t		setreg;
+	vmmops_getdesc_t	getdesc;
+	vmmops_setdesc_t	setdesc;
+	vmmops_getcap_t		getcap;
+	vmmops_setcap_t		setcap;
+	vmmops_vmspace_alloc_t	vmspace_alloc;
+	vmmops_vmspace_free_t	vmspace_free;
+	vmmops_vlapic_init_t	vlapic_init;
+	vmmops_vlapic_cleanup_t	vlapic_cleanup;
 
 	/* checkpoint operations */
-	vmi_snapshot_vcpu_t	vcpu_snapshot;
-	vmi_restore_tsc_t	restore_tsc;
+	vmmops_vcpu_snapshot_t	vcpu_snapshot;
+	vmmops_restore_tsc_t	restore_tsc;
 };
 
 extern const struct vmm_ops vmm_ops_intel;
 extern const struct vmm_ops vmm_ops_amd;
 
-extern u_int vm_maxcpu;			/* maximum virtual cpus */
-
 int vm_create(const char *name, struct vm **retvm);
 struct vcpu *vm_alloc_vcpu(struct vm *vm, int vcpuid);
 void vm_disable_vcpu_creation(struct vm *vm);
-void vm_slock_vcpus(struct vm *vm);
+void vm_lock_vcpus(struct vm *vm);
 void vm_unlock_vcpus(struct vm *vm);
 void vm_destroy(struct vm *vm);
 int vm_reinit(struct vm *vm);
@@ -353,6 +334,7 @@ enum vcpu_state {
 };
 
 int vcpu_set_state(struct vcpu *vcpu, enum vcpu_state state, bool from_idle);
+int vcpu_set_state_all(struct vm *vm, enum vcpu_state state);
 enum vcpu_state vcpu_get_state(struct vcpu *vcpu, int *hostcpu);
 
 static int __inline
@@ -373,8 +355,8 @@ vcpu_should_yield(struct vcpu *vcpu)
 #endif
 
 void *vcpu_stats(struct vcpu *vcpu);
-void vcpu_notify_event(struct vcpu *vcpu, bool lapic_intr);
-struct vmspace *vm_vmspace(struct vm *vm);
+void vcpu_notify_event(struct vcpu *vcpu);
+void vcpu_notify_lapic(struct vcpu *vcpu);
 struct vm_mem *vm_mem(struct vm *vm);
 struct vatpic *vm_atpic(struct vm *vm);
 struct vatpit *vm_atpit(struct vm *vm);

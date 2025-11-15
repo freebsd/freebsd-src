@@ -89,10 +89,8 @@ static int tmp __P((void));
  *
  */
 DB *
-__bt_open(fname, flags, mode, openinfo, dflags)
-	const char *fname;
-	int flags, mode, dflags;
-	const BTREEINFO *openinfo;
+__bt_open(const char *fname, int flags, int mode, const BTREEINFO *openinfo,
+	  int dflags)
 {
 	struct stat sb;
 	BTMETA m;
@@ -352,8 +350,7 @@ err:	if (t) {
  *	RET_ERROR, RET_SUCCESS
  */
 static int
-nroot(t)
-	BTREE *t;
+nroot(BTREE *t)
 {
 	PAGE *meta, *root;
 	db_pgno_t npg;
@@ -393,7 +390,7 @@ nroot(t)
 }
 
 static int
-tmp()
+tmp(void)
 {
 #ifdef SIG_BLOCK
 	sigset_t set, oset;
@@ -440,7 +437,7 @@ tmp()
 }
 
 static int
-byteorder()
+byteorder(void)
 {
 	u_int32_t x;
 	u_char *p;
@@ -458,8 +455,7 @@ byteorder()
 }
 
 int
-__bt_fd(dbp)
-        const DB *dbp;
+__bt_fd(const DB *dbp)
 {
 	BTREE *t;
 

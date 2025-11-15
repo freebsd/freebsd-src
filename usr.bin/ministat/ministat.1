@@ -1,6 +1,7 @@
 .\"
-.\" Copyright (c) 2007 Poul-Henning Kamp
-.\" All rights reserved.
+.\" Copyright (c) 2007 Poul-Henning Kamp. All rights reserved.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 10, 2012
+.Dd November 13, 2025
 .Dt MINISTAT 1
 .Os
 .Sh NAME
@@ -33,9 +34,9 @@
 .Nm
 .Op Fl Anqs
 .Op Fl C Ar column
-.Op Fl c Ar confidence_level
-.Op Fl d Ar delimiter
-.Op Fl w Op width
+.Op Fl c Ar confidence
+.Op Fl d Ar delimiters
+.Op Fl w Ar width
 .Op Ar
 .Sh DESCRIPTION
 The
@@ -44,10 +45,26 @@ command calculates fundamental statistical properties of numeric data
 in the specified files or, if no file is specified, standard input.
 .Pp
 The options are as follows:
-.Bl -tag -width Fl
+.Bl -tag -width "-c confidence"
 .It Fl A
 Just report the statistics of the input and relative comparisons,
 suppress the ASCII-art plot.
+.It Fl C Ar column
+Specify which column of data to use.
+By default the first column in the input file(s) is used.
+.It Fl c Ar confidence
+Specify desired confidence level for Student's T analysis.
+Possible percent values are
+.Cm 80 , 90 , 95 , 98 , 99 ,
+and
+.Cm 99.5 .
+.It Fl d Ar delimiters
+Specify the column delimiter characters, default is
+.Ql \ \et
+.Pq i.e., a space and a tab .
+See
+.Xr strtok 3
+for details.
 .It Fl n
 Just report the raw statistics of the input, suppress the ASCII-art plot
 and the relative comparisons.
@@ -58,75 +75,104 @@ alongside
 .It Fl s
 Print the average/median/stddev bars on separate lines in the ASCII-art
 plot, to avoid overlap.
-.It Fl C Ar column
-Specify which column of data to use.
-By default the first column in the input file(s) are used.
-.It Fl c Ar confidence_level
-Specify desired confidence level for Student's T analysis.
-Possible values are 80, 90, 95, 98, 99 and 99.5 %
-.It Fl d Ar delimiter
-Specifies the column delimiter characters, default is SPACE and TAB.
-See
-.Xr strtok 3
-for details.
 .It Fl w Ar width
-Width of ASCII-art plot in characters.
+Set the width of the ASCII-art plot in characters.
 The default is the terminal width, or 74 if standard output is not a
 terminal.
 .El
 .Pp
+.Nm
+accepts up to seven input files.
+.Pp
+Each dataset must contain at least three values.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Let's consider two input files.
+The first one will be
+.Dq iguana :
+.Bd -literal -offset indent
+50
+200
+150
+400
+750
+400
+150
+.Ed
+.Pp
+The second one will be
+.Dq chameleon :
+.Bd -literal -offset indent
+150
+400
+720
+500
+930
+.Ed
+.Pp
 A sample output could look like this:
 .Bd -literal -offset indent
-  $ ministat -s -w 60 iguana chameleon
-  x iguana
-  + chameleon
-  +------------------------------------------------------------+
-  |x      *  x            *      +              + x           +|
-  | |________M______A_______________|                          |
-  |             |________________M__A___________________|      |
-  +------------------------------------------------------------+
-      N        Min        Max     Median        Avg       Stddev
-  x   7         50        750        200        300    238.04761
-  +   5        150        930        500        540    299.08193
-  No difference proven at 95.0% confidence
+$ ministat -s -w 60 iguana chameleon
+x iguana
++ chameleon
++------------------------------------------------------------+
+|x      *  x            *      +              + x           +|
+| |________M______A_______________|                          |
+|             |________________M__A___________________|      |
++------------------------------------------------------------+
+    N        Min        Max     Median        Avg       Stddev
+x   7         50        750        200        300    238.04761
++   5        150        930        500        540    299.08193
+No difference proven at 95.0% confidence
 .Ed
 .Pp
 If
 .Nm
 tells you, as in the example above, that there is no difference
-proven at 95% confidence, the two data sets you gave it are for
+proven at 95% confidence, the two datasets you gave it are for
 all statistical purposes identical.
 .Pp
 You have the option of lowering your standards by specifying a
 lower confidence level:
 .Bd -literal -offset indent
-  $ ministat -s -w 60 -c 80 iguana chameleon
-  x iguana
-  + chameleon
-  +------------------------------------------------------------+
-  |x      *  x            *      +              + x           +|
-  | |________M______A_______________|                          |
-  |             |________________M__A___________________|      |
-  +------------------------------------------------------------+
-      N        Min        Max     Median        Avg       Stddev
-  x   7         50        750        200        300    238.04761
-  +   5        150        930        500        540    299.08193
-  Difference at 80.0% confidence
-        240 +/- 212.215
-        80% +/- 70.7384%
-        (Student's t, pooled s = 264.159)
+$ ministat -s -w 60 -c 80 iguana chameleon
+x iguana
++ chameleon
++------------------------------------------------------------+
+|x      *  x            *      +              + x           +|
+| |________M______A_______________|                          |
+|             |________________M__A___________________|      |
++------------------------------------------------------------+
+    N        Min        Max     Median        Avg       Stddev
+x   7         50        750        200        300    238.04761
++   5        150        930        500        540    299.08193
+Difference at 80.0% confidence
+      240 +/- 212.215
+      80% +/- 70.7384%
+      (Student's t, pooled s = 264.159)
 .Ed
 .Pp
 But a lower standard does not make your data any better, and the
 example is only included here to show the format of the output when
 a statistical difference is proven according to Student's T method.
 .Sh SEE ALSO
-Any mathematics text on basic statistics, for instances Larry Gonicks
-excellent "Cartoon Guide to Statistics" which supplied the above example.
+Any mathematics text on basic statistics, for instance the following book,
+which supplied the above example:
+.Rs
+.%A Larry Gonick
+.%A Woollcott Smith
+.%B The Cartoon Guide to Statistics
+.%D 1993
+.%I HarperPerennial
+.%O ISBN 0-06-273102-5
+.Re
 .Sh HISTORY
 The
 .Nm
-command was written by Poul-Henning Kamp out of frustration
+command was written by
+.An Poul-Henning Kamp
+out of frustration
 over all the bogus benchmark claims made by people with no
 understanding of the importance of uncertainty and statistics.
 .Pp

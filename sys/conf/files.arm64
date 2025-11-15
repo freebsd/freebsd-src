@@ -26,6 +26,10 @@ arm64/acpica/OsdEnvironment.c			optional acpi
 arm64/acpica/acpi_wakeup.c			optional acpi
 arm64/acpica/pci_cfgreg.c			optional acpi pci
 arm64/arm64/autoconf.c				standard
+arm64/spe/arm_spe_backend.c			optional hwt spe
+arm64/spe/arm_spe_dev.c				optional hwt spe
+arm64/spe/arm_spe_acpi.c			optional hwt spe acpi
+arm64/spe/arm_spe_fdt.c				optional hwt spe fdt
 arm64/arm64/bus_machdep.c			standard
 arm64/arm64/bus_space_asm.S			standard
 arm64/arm64/busdma_bounce.c			standard
@@ -55,6 +59,7 @@ arm64/arm64/gic_v3_acpi.c			optional acpi
 arm64/arm64/gic_v3_fdt.c			optional fdt
 arm64/arm64/hyp_stub.S				standard
 arm64/arm64/identcpu.c				standard
+arm64/arm64/kexec_support.c			standard
 arm64/arm64/locore.S				standard no-obj
 arm64/arm64/machdep.c				standard
 arm64/arm64/machdep_boot.c			standard
@@ -73,6 +78,7 @@ arm64/arm64/pmap.c				standard
 arm64/arm64/ptrace_machdep.c			standard
 arm64/arm64/sdt_machdep.c			optional kdtrace_hooks
 arm64/arm64/sigtramp.S				standard
+arm64/arm64/spec_workaround.c			standard
 arm64/arm64/stack_machdep.c			optional ddb | stack
 arm64/arm64/strcmp.S				standard
 arm64/arm64/strncmp.S				standard
@@ -127,9 +133,11 @@ arm64/vmm/vmm_reset.c				optional vmm
 arm64/vmm/vmm_handlers.c			optional vmm
 arm64/vmm/vmm_call.S				optional vmm
 arm64/vmm/vmm_nvhe_exception.S			optional vmm		\
+	dependency	"$S/arm64/vmm/vmm_hyp_exception.S"		\
 	compile-with "${NOSAN_C} -fpie"					\
 	no-obj
 arm64/vmm/vmm_nvhe.c				optional vmm		\
+	dependency	"$S/arm64/vmm/vmm_hyp.c"			\
 	compile-with "${NOSAN_C} -fpie"					\
 	no-obj
 vmm_hyp_blob.elf.full				optional vmm		\
@@ -177,6 +185,8 @@ ghashv8-armx.o					optional armv8crypto	\
 crypto/des/des_enc.c				optional netsmb
 crypto/openssl/ossl_aarch64.c			optional ossl
 crypto/openssl/aarch64/chacha-armv8.S		optional ossl		\
+	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} -I$S/crypto/openssl ${WERROR} ${.IMPSRC}"
+crypto/openssl/aarch64/chacha-armv8-sve.S	optional ossl		\
 	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} -I$S/crypto/openssl ${WERROR} ${.IMPSRC}"
 crypto/openssl/aarch64/poly1305-armv8.S		optional ossl		\
 	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} -I$S/crypto/openssl ${WERROR} ${.IMPSRC}"
@@ -367,6 +377,10 @@ dev/ice/irdma_if.m				optional ice pci \
 dev/ice/irdma_di_if.m				optional ice pci \
 	compile-with "${NORMAL_M} -I$S/dev/ice"
 dev/ice/ice_ddp_common.c			optional ice pci \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_iov.c	optional	ice pci pci_iov \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_vf_mbx.c	optional	ice pci pci_iov \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
 ice_ddp.c					optional ice_ddp	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk ice_ddp.fw:ice_ddp:0x01032900 -mice_ddp -c${.TARGET}"	\

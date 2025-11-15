@@ -34,11 +34,13 @@
 #include <sys/epoch.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/nv.h>
+#include <sys/osd.h>
 #include <sys/priv.h>
 #include <sys/protosw.h>
 #include <sys/rmlock.h>
@@ -131,6 +133,9 @@ struct ovpn_notification {
 	/* Delete notification */
 	enum ovpn_del_reason	del_reason;
 	struct ovpn_peer_counters	counters;
+
+	/* Float notification */
+	struct sockaddr_storage	address;
 };
 
 struct ovpn_softc;
@@ -195,6 +200,10 @@ struct ovpn_softc {
 	struct epoch_context	 epoch_ctx;
 };
 
+struct ovpn_mtag {
+	struct sockaddr_storage	 addr;
+};
+
 static struct ovpn_kpeer *ovpn_find_peer(struct ovpn_softc *, uint32_t);
 static bool ovpn_udp_input(struct mbuf *, int, struct inpcb *,
     const struct sockaddr *, void *);
@@ -206,6 +215,8 @@ static void ovpn_free_kkey_dir(struct ovpn_kkey_dir *);
 static bool ovpn_check_replay(struct ovpn_kkey_dir *, uint32_t);
 static int ovpn_peer_compare(const struct ovpn_kpeer *,
     const struct ovpn_kpeer *);
+static bool ovpn_sockaddr_compare(const struct sockaddr *,
+    const struct sockaddr *);
 
 static RB_PROTOTYPE(ovpn_kpeers, ovpn_kpeer, tree, ovpn_peer_compare);
 static RB_GENERATE(ovpn_kpeers, ovpn_kpeer, tree, ovpn_peer_compare);
@@ -283,6 +294,45 @@ ovpn_peer_compare(const struct ovpn_kpeer *a, const struct ovpn_kpeer *b)
 	return (a->peerid - b->peerid);
 }
 
+static bool
+ovpn_sockaddr_compare(const struct sockaddr *a,
+    const struct sockaddr *b)
+{
+	if (a->sa_family != b->sa_family)
+		return (false);
+	MPASS(a->sa_len == b->sa_len);
+
+	switch (a->sa_family) {
+	case AF_INET: {
+		const struct sockaddr_in *a4, *b4;
+
+		a4 = (const struct sockaddr_in *)a;
+		b4 = (const struct sockaddr_in *)b;
+
+		if (a4->sin_port != b4->sin_port)
+			return (false);
+
+		return (a4->sin_addr.s_addr == b4->sin_addr.s_addr);
+	}
+	case AF_INET6: {
+		const struct sockaddr_in6 *a6, *b6;
+
+		a6 = (const struct sockaddr_in6 *)a;
+		b6 = (const struct sockaddr_in6 *)b;
+
+		if (a6->sin6_port != b6->sin6_port)
+			return (false);
+		if (a6->sin6_scope_id != b6->sin6_scope_id)
+			return (false);
+
+		return (memcmp(&a6->sin6_addr, &b6->sin6_addr,
+		    sizeof(a6->sin6_addr)) == 0);
+	}
+	default:
+		panic("Unknown address family %d", a->sa_family);
+	}
+}
+
 static struct ovpn_kpeer *
 ovpn_find_peer(struct ovpn_softc *sc, uint32_t peerid)
 {
@@ -344,6 +394,8 @@ ovpn_nvlist_to_sockaddr(const nvlist_t *nvl, struct sockaddr_storage *sa)
 {
 	int af;
 
+	memset(sa, 0, sizeof(*sa));
+
 	if (! nvlist_exists_number(nvl, "af"))
 		return (EINVAL);
 	if (! nvlist_exists_binary(nvl, "address"))
@@ -384,12 +436,55 @@ ovpn_nvlist_to_sockaddr(const nvlist_t *nvl, struct sockaddr_storage *sa)
 
 		memcpy(&in6->sin6_addr, addr, sizeof(in6->sin6_addr));
 		in6->sin6_port = nvlist_get_number(nvl, "port");
+
+		if (nvlist_exists_number(nvl, "scopeid"))
+			in6->sin6_scope_id = nvlist_get_number(nvl, "scopeid");
+
 		break;
 	}
 #endif
 	default:
 		return (EINVAL);
 	}
+
+	return (0);
+}
+
+static int
+ovpn_add_sockaddr(nvlist_t *parent, const char *name, const struct sockaddr *s)
+{
+	nvlist_t *nvl;
+
+	nvl = nvlist_create(0);
+	if (nvl == NULL)
+		return (ENOMEM);
+
+	nvlist_add_number(nvl, "af", s->sa_family);
+
+	switch (s->sa_family) {
+	case AF_INET: {
+		const struct sockaddr_in *s4 = (const struct sockaddr_in *)s;
+
+		nvlist_add_number(nvl, "port", s4->sin_port);
+		nvlist_add_binary(nvl, "address", &s4->sin_addr,
+		    sizeof(s4->sin_addr));
+		break;
+	}
+	case AF_INET6: {
+		const struct sockaddr_in6 *s6 = (const struct sockaddr_in6 *)s;
+
+		nvlist_add_number(nvl, "port", s6->sin6_port);
+		nvlist_add_binary(nvl, "address", &s6->sin6_addr,
+		    sizeof(s6->sin6_addr));
+		nvlist_add_number(nvl, "scopeid", s6->sin6_scope_id);
+		break;
+	}
+	default:
+		nvlist_destroy(nvl);
+		return (EINVAL);
+	}
+
+	nvlist_move_nvlist(parent, name, nvl);
 
 	return (0);
 }
@@ -444,6 +539,33 @@ ovpn_notify_key_rotation(struct ovpn_softc *sc, struct ovpn_kpeer *peer)
 		sorwakeup(sc->so);
 		sowwakeup(sc->so);
 	}
+}
+
+static int
+ovpn_notify_float(struct ovpn_softc *sc, uint32_t peerid,
+    const struct sockaddr_storage *remote)
+{
+	struct ovpn_notification *n;
+
+	n = malloc(sizeof(*n), M_OVPN, M_NOWAIT | M_ZERO);
+	if (n == NULL)
+		return (ENOMEM);
+
+	n->peerid = peerid;
+	n->type = OVPN_NOTIF_FLOAT;
+	memcpy(&n->address, remote, sizeof(n->address));
+
+	if (buf_ring_enqueue(sc->notifring, n) != 0) {
+		free(n, M_OVPN);
+		return (ENOMEM);
+	} else if (sc->so != NULL) {
+		/* Wake up userspace */
+		sc->so->so_error = EAGAIN;
+		sorwakeup(sc->so);
+		sowwakeup(sc->so);
+	}
+
+	return (0);
 }
 
 static void
@@ -612,7 +734,8 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 		NET_EPOCH_ENTER(et);
 		ret = in6_selectsrc_addr(curthread->td_proc->p_fibnum,
 		    &TO_IN6(&peer->remote)->sin6_addr,
-		    0, NULL, &TO_IN6(&peer->local)->sin6_addr, NULL);
+		    TO_IN6(&peer->remote)->sin6_scope_id, NULL,
+		    &TO_IN6(&peer->local)->sin6_addr, NULL);
 		NET_EPOCH_EXIT(et);
 		if (ret != 0) {
 			goto error;
@@ -781,9 +904,11 @@ ovpn_create_kkey_dir(struct ovpn_kkey_dir **kdirp,
 	kdir->cipher = cipher;
 	kdir->keylen = keylen;
 	kdir->tx_seq = 1;
-	memcpy(kdir->key, key, keylen);
+	if (keylen != 0)
+		memcpy(kdir->key, key, keylen);
 	kdir->noncelen = ivlen;
-	memcpy(kdir->nonce, iv, ivlen);
+	if (ivlen != 0)
+		memcpy(kdir->nonce, iv, ivlen);
 
 	if (kdir->cipher != OVPN_CIPHER_ALG_NONE) {
 		/* Crypto init */
@@ -1377,12 +1502,36 @@ opvn_get_pkt(struct ovpn_softc *sc, nvlist_t **onvl)
 	}
 	nvlist_add_number(nvl, "peerid", n->peerid);
 	nvlist_add_number(nvl, "notification", n->type);
-	if (n->type == OVPN_NOTIF_DEL_PEER) {
+	switch (n->type) {
+	case OVPN_NOTIF_DEL_PEER: {
 		nvlist_add_number(nvl, "del_reason", n->del_reason);
 
 		/* No error handling, because we want to send the notification
 		 * even if we can't attach the counters. */
 		ovpn_notif_add_counters(nvl, n);
+		break;
+	}
+	case OVPN_NOTIF_FLOAT: {
+		int ret;
+
+		ret = ovpn_add_sockaddr(nvl, "address",
+		    (struct sockaddr *)&n->address);
+
+		if (ret) {
+			/*
+			 * Try to re-enqueue the notification. Maybe we'll
+			 * have better luck next time. No error handling,
+			 * because if we fail to re-enqueue there's nothing we can do.
+			 */
+			(void)ovpn_notify_float(sc, n->peerid, &n->address);
+			nvlist_destroy(nvl);
+			free(n, M_OVPN);
+			return (ret);
+		}
+		break;
+	}
+	default:
+		break;
 	}
 	free(n, M_OVPN);
 
@@ -1538,6 +1687,7 @@ ovpn_finish_rx(struct ovpn_softc *sc, struct mbuf *m,
     struct rm_priotracker *_ovpn_lock_trackerp)
 {
 	uint32_t af;
+	struct m_tag *mtag;
 
 	OVPN_RASSERT(sc);
 	NET_EPOCH_ASSERT();
@@ -1556,6 +1706,38 @@ ovpn_finish_rx(struct ovpn_softc *sc, struct mbuf *m,
 
 	OVPN_RUNLOCK(sc);
 
+	/* Check if the peer changed to a new source address. */
+	mtag = m_tag_find(m, PACKET_TAG_OVPN, NULL);
+	if (mtag != NULL) {
+		struct ovpn_mtag *ot = (struct ovpn_mtag *)(mtag + 1);
+
+		OVPN_WLOCK(sc);
+
+		/*
+		 * Check the address against the peer's remote again, because we may race
+		 * against ourselves (i.e. we may have tagged multiple packets to indicate we
+		 * floated).
+		 */
+		if (ovpn_sockaddr_compare((struct sockaddr *)&ot->addr,
+		    (struct sockaddr *)&peer->remote)) {
+			OVPN_WUNLOCK(sc);
+			goto skip_float;
+		}
+
+		/* And notify userspace. */
+		if (ovpn_notify_float(sc, peer->peerid, &ot->addr) == 0) {
+			/*
+			 * Update the 'remote' for this peer, but only if
+			 * we've actually enqueued the notification.
+			 * Otherwise we can try again later.
+			 */
+			memcpy(&peer->remote, &ot->addr, sizeof(peer->remote));
+		}
+
+		OVPN_WUNLOCK(sc);
+	}
+
+skip_float:
 	OVPN_COUNTER_ADD(sc, received_data_pkts, 1);
 	OVPN_COUNTER_ADD(sc, tunnel_bytes_received, m->m_pkthdr.len);
 	OVPN_PEER_COUNTER_ADD(peer, pkt_in, 1);
@@ -2105,6 +2287,15 @@ ovpn_encap(struct ovpn_softc *sc, uint32_t peerid, struct mbuf *m)
 		memcpy(&ip6->ip6_dst, &in6_remote->sin6_addr,
 		    sizeof(ip6->ip6_dst));
 
+		if (IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_src)) {
+			/* Local and remote must have the same scope. */
+			ip6->ip6_src.__u6_addr.__u6_addr16[1] =
+			    htons(in6_remote->sin6_scope_id & 0xffff);
+		}
+		if (IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_dst))
+			ip6->ip6_dst.__u6_addr.__u6_addr16[1] =
+			    htons(in6_remote->sin6_scope_id & 0xffff);
+
 		udp = mtodo(m, sizeof(*ip6));
 		udp->uh_sum = in6_cksum_pseudo(ip6,
 		    m->m_pkthdr.len - sizeof(struct ip6_hdr),
@@ -2316,6 +2507,29 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_in, 1);
 		m_freem(m);
 		return (true);
+	}
+
+	/*
+	 * If we got this from a different address than we expected tag the packet.
+	 * We'll deal with notifiying userspace later, after we've decrypted and
+	 * verified.
+	 */
+	if (! ovpn_sockaddr_compare((struct sockaddr *)&peer->remote, sa)) {
+		struct m_tag *mt;
+		struct ovpn_mtag *ot;
+
+		MPASS(sa->sa_len <= sizeof(ot->addr));
+		mt = m_tag_get(PACKET_TAG_OVPN, sizeof(*ot), M_NOWAIT);
+		/*
+		 * If we fail to allocate here we'll just try again on the next
+		 * packet.
+		 */
+		if (mt != NULL) {
+			ot = (struct ovpn_mtag *)(mt + 1);
+			memcpy(&ot->addr, sa, sa->sa_len);
+
+			m_tag_prepend(m, mt);
+		}
 	}
 
 	if (key->decrypt->cipher == OVPN_CIPHER_ALG_NONE) {
@@ -2593,23 +2807,53 @@ vnet_ovpn_init(const void *unused __unused)
 VNET_SYSINIT(vnet_ovpn_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_ovpn_init, NULL);
 
-static void
-vnet_ovpn_uninit(const void *unused __unused)
+static int
+ovpn_prison_remove(void *obj, void *data __unused)
 {
-	if_clone_detach(V_ovpn_cloner);
+#ifdef VIMAGE
+	struct prison *pr;
+
+	pr = obj;
+	if (prison_owns_vnet(pr)) {
+		CURVNET_SET(pr->pr_vnet);
+		if (V_ovpn_cloner != NULL) {
+			ifc_detach_cloner(V_ovpn_cloner);
+			V_ovpn_cloner = NULL;
+		}
+		CURVNET_RESTORE();
+	}
+#endif
+	return (0);
 }
-VNET_SYSUNINIT(vnet_ovpn_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY,
-    vnet_ovpn_uninit, NULL);
 
 static int
 ovpnmodevent(module_t mod, int type, void *data)
 {
+	static int ovpn_osd_jail_slot;
+
 	switch (type) {
-	case MOD_LOAD:
-		/* Done in vnet_ovpn_init() */
+	case MOD_LOAD: {
+		/*
+		 * Registration is handled in vnet_ovpn_init(), but cloned
+		 * interfaces must be destroyed via PR_METHOD_REMOVE since they
+		 * hold a reference to the prison via the UDP socket, which
+		 * prevents the prison from being destroyed.
+		 */
+		osd_method_t methods[PR_MAXMETHOD] = {
+			[PR_METHOD_REMOVE] = ovpn_prison_remove,
+		};
+		ovpn_osd_jail_slot = osd_jail_register(NULL, methods);
 		break;
+	}
 	case MOD_UNLOAD:
-		/* Done in vnet_ovpn_uninit() */
+		if (ovpn_osd_jail_slot != 0)
+			osd_jail_deregister(ovpn_osd_jail_slot);
+		CURVNET_SET(vnet0);
+		if (V_ovpn_cloner != NULL) {
+			ifc_detach_cloner(V_ovpn_cloner);
+			V_ovpn_cloner = NULL;
+		}
+		CURVNET_RESTORE();
 		break;
 	default:
 		return (EOPNOTSUPP);

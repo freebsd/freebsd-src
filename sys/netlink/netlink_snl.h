@@ -631,6 +631,17 @@ snl_attr_get_int64(struct snl_state *ss, struct nlattr *nla, const void *arg,
 }
 
 static inline bool
+snl_attr_get_time_t(struct snl_state *ss __unused, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	if (NLA_DATA_LEN(nla) == sizeof(time_t)) {
+		memcpy(target, NLA_DATA_CONST(nla), sizeof(time_t));
+		return (true);
+	}
+	return (false);
+}
+
+static inline bool
 snl_attr_get_string(struct snl_state *ss __unused, struct nlattr *nla,
     const void *arg __unused, void *target)
 {
@@ -1057,14 +1068,14 @@ snl_init_writer(struct snl_state *ss, struct snl_writer *nw)
 {
 	nw->size = SNL_WRITER_BUFFER_SIZE;
 	nw->base = (char *)snl_allocz(ss, nw->size);
-	if (nw->base == NULL) {
+	if (__predict_false(nw->base == NULL)) {
 		nw->error = true;
 		nw->size = 0;
-	}
+	} else
+		nw->error = false;
 
 	nw->offset = 0;
 	nw->hdr = NULL;
-	nw->error = false;
 	nw->ss = ss;
 }
 

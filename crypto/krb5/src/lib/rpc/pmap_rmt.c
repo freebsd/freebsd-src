@@ -105,8 +105,9 @@ pmap_rmtcall(
 		r.port_ptr = port_ptr;
 		r.results_ptr = resp;
 		r.xdr_results = xdrres;
-		stat = CLNT_CALL(client, PMAPPROC_CALLIT, xdr_rmtcall_args, &a,
-		    xdr_rmtcallres, &r, tout);
+		stat = CLNT_CALL(client, PMAPPROC_CALLIT,
+				 (xdrproc_t)xdr_rmtcall_args, &a,
+				 (xdrproc_t)xdr_rmtcallres, &r, tout);
 		CLNT_DESTROY(client);
 	} else {
 		stat = RPC_FAILED;
@@ -160,11 +161,12 @@ xdr_rmtcallres(
 	caddr_t port_ptr;
 
 	port_ptr = (caddr_t)(void *)crp->port_ptr;
-	if (xdr_reference(xdrs, &port_ptr, sizeof (uint32_t),
-	    xdr_u_int32) && xdr_u_int32(xdrs, &crp->resultslen)) {
-		crp->port_ptr = (uint32_t *)(void *)port_ptr;
+	if (!xdr_reference(xdrs, &port_ptr, sizeof (uint32_t),
+			   (xdrproc_t)xdr_u_int32))
+		return (FALSE);
+	crp->port_ptr = (uint32_t *)(void *)port_ptr;
+	if (xdr_u_int32(xdrs, &crp->resultslen))
 		return ((*(crp->xdr_results))(xdrs, crp->results_ptr));
-	}
 	return (FALSE);
 }
 
@@ -343,7 +345,7 @@ clnt_broadcast(
 	recv_again:
 		msg.acpted_rply.ar_verf = gssrpc__null_auth;
 		msg.acpted_rply.ar_results.where = (caddr_t)&r;
-                msg.acpted_rply.ar_results.proc = xdr_rmtcallres;
+		msg.acpted_rply.ar_results.proc = (xdrproc_t)xdr_rmtcallres;
 		readfds = mask;
 		t2 = t;
 		switch (select(gssrpc__rpc_dtablesize(), &readfds, (fd_set *)NULL,

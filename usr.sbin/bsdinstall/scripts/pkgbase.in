@@ -77,41 +77,93 @@ end
 -- traditional tarball component selection dialog.
 local function select_components(components, options)
 	local descriptions = {
-		kernel_dbg = "Kernel debug info",
-		base_dbg = "Base system debug info",
-		src = "System source tree",
-		tests = "Test suite",
-		lib32 = "32-bit compatibility libraries",
-		lib32_dbg = "32-bit compatibility libraries debug info",
+		["kernel-dbg"] = "Debug symbols for the kernel",
+		["devel"] = "C/C++ compilers and related utilities",
+		["optional"] = "Optional software (excluding compilers)",
+		["optional-jail"] = "Optional software (excluding compilers)",
+		["base"] = "The complete base system (includes devel and optional)",
+		["base-jail"] = "The complete base system (includes devel and optional)",
+		["src"] = "System source tree",
+		["tests"] = "Test suite",
+		["lib32"] = "32-bit compatibility libraries",
+		["debug"] = "Debug symbols for the selected components",
 	}
+
+	-- These defaults match what the non-pkgbase installer selects
+	-- by default.
 	local defaults = {
-		kernel_dbg = "on",
-		base_dbg = "off",
-		src = "off",
-		tests = "off",
-		lib32 = "on",
-		lib32_dbg = "off",
+		["base"] = "on",
+		["base-jail"] = "on",
+		["kernel-dbg"] = "on",
 	}
+	-- Enable compat sets by default.
+	for compat in all_libcompats:gmatch("%S+") do
+		defaults["lib" .. compat] = "on"
+	end
 
 	-- Sorting the components is necessary to ensure that the ordering is
 	-- consistent in the UI.
 	local sorted_components = {}
-	for component, _ in pairs(components) do
-		table.insert(sorted_components, component)
+
+	-- Determine which components we want to offer the user.
+	local show_component = function (component)
+		-- "pkg" is always installed if present.
+		if component == "pkg" then return false end
+
+		-- Don't include individual "-dbg" components, because those
+		-- are handled via the "debug" component, except for kernel-dbg
+		-- which is always shown for non-jail installations.
+		if component == "kernel-dbg" then
+			return (not options.jail)
+		end
+		if component:match("%-dbg$") then return false end
+
+		-- Some sets have "-jail" variants which are jail-specific
+		-- variants of the base set.
+
+		if options.jail and components[component.."-jail"] then
+			-- If we're installing in a jail, and this component
+			-- has a jail variant, hide it.
+			return false
+		end
+
+		if not options.jail and component:match("%-jail$") then
+			-- Otherwise if we're not installing in a jail, and
+			-- this is a jail variant, hide it.
+			return false
+		end
+
+		-- "minimal(-jail)" is always installed if present.
+		if component == "minimal" or component == "minimal-jail" then
+			return false
+		end
+
+		-- "kernel" (the generic kernel) and "kernels" (the set) are
+		-- never offered; we always install the kernel for a non-jail
+		-- installation.
+		if component == "kernel" or component == "kernels" then
+			return false
+		end
+
+		-- If we didn't find a reason to hide this component, show it.
+		return true
 	end
+
+	for component, _ in pairs(components) do
+		if show_component(component) then
+			table.insert(sorted_components, component)
+		end
+	end
+
 	table.sort(sorted_components)
 
 	local checklist_items = {}
 	for _, component in ipairs(sorted_components) do
-		if component ~= "base" and component ~= "kernel" and
-		    not (component == "kernel_dbg" and options.no_kernel) and
-		    #components[component] > 0 then
-			local description = descriptions[component] or "''"
-			local default = defaults[component]  or "off"
-			table.insert(checklist_items, component)
-			table.insert(checklist_items, description)
-			table.insert(checklist_items, default)
-		end
+		local description = descriptions[component] or ""
+		local default = defaults[component] or "off"
+		table.insert(checklist_items, component)
+		table.insert(checklist_items, description)
+		table.insert(checklist_items, default)
 	end
 
 	local bsddialog_args = {
@@ -120,7 +172,10 @@ local function select_components(components, options)
 		"--nocancel",
 		"--disable-esc",
 		"--separate-output",
-		"--checklist", "Choose optional system components to install:",
+		"--checklist",
+		"A minimal set of packages suitable for a multi-user system "..
+		"is always installed.  Select additional packages you wish "..
+		"to install:",
 		"0", "0", "0", -- autosize
 	}
 	append_list(bsddialog_args, checklist_items)
@@ -132,10 +187,28 @@ local function select_components(components, options)
 	-- hopefully useful stack trace.
 	assert(exit_code == 0)
 
-	local selected = {"base"}
-	if not options.no_kernel then
+	-- Always install the minimal set, since it's required for the system
+	-- to work.  The base set depends on minimal, but it's fine to install
+	-- both, and this way the user can remove the base set without pkg
+	-- autoremove then trying to remove minimal.
+	local selected = {}
+	if options.jail then
+		table.insert(selected, "minimal-jail")
+	else
+		table.insert(selected, "minimal")
+	end
+
+	-- If pkg is available, always install it so the user can manage the
+	-- installed system.  This is optional, because a repository built
+	-- from src alone won't have a pkg package.
+	if components["pkg"] then
+		table.insert(selected, "pkg")
+	end
+
+	if not options.jail then
 		table.insert(selected, "kernel")
 	end
+
 	for component in output:gmatch("[^\n]+") do
 		table.insert(selected, component)
 	end
@@ -145,72 +218,88 @@ end
 
 -- Returns a list of pkgbase packages selected by the user
 local function select_packages(pkg, options)
+	-- These are the components which aren't generated automatically from
+	-- package sets.
 	local components = {
-		kernel = {},
-		kernel_dbg = {},
-		base = {},
-		base_dbg = {},
-		src = {},
-		tests = {},
+		["kernel"] = {},
+		["kernel-dbg"] = {},
+		["debug"] = {},
 	}
 
-	for compat in all_libcompats:gmatch("%S+") do
-		components["lib" .. compat] = {}
-		components["lib" .. compat .. "_dbg"] = {}
-	end
+	-- Note: if you update this list, you must also update the list in
+	-- release/scripts/pkgbase-stage.lua.
+	local kernel_packages = {
+		-- Most architectures use this
+		["FreeBSD-kernel-generic"] = true,
+		-- PowerPC uses either of these, depending on platform
+		["FreeBSD-kernel-generic64"] = true,
+		["FreeBSD-kernel-generic64le"] = true,
+	}
 
 	local rquery = capture(pkg .. "rquery -U -r FreeBSD-base %n")
 	for package in rquery:gmatch("[^\n]+") do
-		if package == "FreeBSD-src" or package:match("^FreeBSD%-src%-.*") then
-			table.insert(components["src"], package)
-		elseif package == "FreeBSD-tests" or package:match("^FreeBSD%-tests%-.*") then
-			table.insert(components["tests"], package)
-		elseif package:match("^FreeBSD%-kernel%-.*") then
-			-- Kernels other than FreeBSD-kernel-generic are ignored
-			if package == "FreeBSD-kernel-generic" then
-				table.insert(components["kernel"], package)
-			elseif package == "FreeBSD-kernel-generic-dbg" then
-				table.insert(components["kernel_dbg"], package)
-			end
-		elseif package:match(".*%-dbg$") then
-			table.insert(components["base_dbg"], package)
-		else
-			local found = false
-			for compat in all_libcompats:gmatch("%S+") do
-				if package:match(".*%-dbg%-lib" .. compat .. "$") then
-					table.insert(components["lib" .. compat .. "_dbg"], package)
-					found = true
-					break
-				elseif package:match(".*%-lib" .. compat .. "$") then
-					table.insert(components["lib" .. compat], package)
-					found = true
-					break
+		local setname = package:match("^FreeBSD%-set%-(.+)$")
+
+		if setname then
+			components[setname] = components[setname] or {}
+			table.insert(components[setname], package)
+		elseif kernel_packages[package] then
+			table.insert(components["kernel"], package)
+		elseif kernel_packages[package:match("(.*)%-dbg$")] then
+			table.insert(components["kernel-dbg"], package)
+		elseif package == "pkg" then
+			components["pkg"] = components["pkg"] or {}
+			table.insert(components["pkg"], package)
+		end
+	end
+
+	-- Assert that both a kernel and the "minimal" set are available, since
+	-- those are both required to install a functional system.  Don't worry
+	-- if other sets are missing (e.g. base or src), which might happen
+	-- when using custom install media.
+	assert(#components["kernel"] == 1)
+	assert(#components["minimal"] == 1)
+
+	-- Prompt the user for what to install.
+	local selected = select_components(components, options)
+
+	-- Determine if the "debug" component was selected.
+	local debug = false
+	for _, component in ipairs(selected) do
+		if component == "debug" then
+			debug = true
+			break
+		end
+	end
+
+	local packages = {}
+	for _, component in ipairs(selected) do
+		local pkglist = components[component]
+		append_list(packages, pkglist)
+
+		-- If the debug component was selected, install the -dbg
+		-- package for each set.  We have to check if the dbg set
+		-- actually exists, because some sets (src, tests) don't
+		-- have a -dbg subpackage.
+		for _, c in ipairs(pkglist) do
+			local setname = c:match("^FreeBSD%-set%-(.*)$")
+			if debug and setname then
+				local dbgset = setname.."-dbg"
+				if components[dbgset] then
+					append_list(packages, components[dbgset])
 				end
-			end
-			if not found then
-				table.insert(components["base"], package)
 			end
 		end
 	end
-	-- Don't assert the existence of dbg, tests, and src packages here. If using
-	-- a custom local repository with BSDINSTALL_PKG_REPOS_DIR we shouldn't
-	-- require it to have all packages.
-	assert(#components["kernel"] == 1)
-	assert(#components["base"] > 0)
 
-	local selected = {}
-	for _, component in ipairs(select_components(components, options)) do
-		append_list(selected, components[component])
-	end
-
-	return selected
+	return packages
 end
 
 local function parse_options()
 	local options = {}
 	for _, a in ipairs(arg) do
-		if a == "--no-kernel" then
-			options.no_kernel = true
+		if a == "--jail" then
+			options.jail = true
 		else
 			io.stderr:write("Error: unknown option " .. a .. "\n")
 			os.exit(1)
@@ -220,7 +309,7 @@ local function parse_options()
 end
 
 -- Fetch and install pkgbase packages to BSDINSTALL_CHROOT.
--- Respect BSDINSTALL_PKG_REPOS_DIR if set, otherwise use pkg.freebsd.org.
+-- Respect BSDINSTALL_PKG_REPOS_DIR if set, otherwise use pkgbase.freebsd.org.
 local function pkgbase()
 	local options = parse_options()
 
@@ -234,21 +323,13 @@ local function pkgbase()
 	local chroot = assert(os.getenv("BSDINSTALL_CHROOT"))
 	assert(os.execute("mkdir -p " .. chroot))
 
-	-- Always install the default FreeBSD-base.conf file to the chroot, even
-	-- if we don't actually fetch the packages from the repository specified
-	-- there (e.g. because we are performing an offline installation).
-	local chroot_repos_dir = chroot .. "/usr/local/etc/pkg/repos/"
-	assert(os.execute("mkdir -p " .. chroot_repos_dir))
-	assert(os.execute("cp /usr/share/bsdinstall/FreeBSD-base.conf " ..
-		chroot_repos_dir))
-
 	local repos_dir = os.getenv("BSDINSTALL_PKG_REPOS_DIR")
 	if not repos_dir then
-		repos_dir = chroot_repos_dir
+		repos_dir = "/usr/share/bsdinstall/"
 		-- Since pkg always interprets fingerprints paths as relative to
 		-- the --rootdir we must copy the key from the host.
 		assert(os.execute("mkdir -p " .. chroot .. "/usr/share/keys"))
-		assert(os.execute("cp -R /usr/share/keys/pkg " .. chroot .. "/usr/share/keys/"))
+		assert(os.execute("cp -R /usr/share/keys/* " .. chroot .. "/usr/share/keys/"))
 	end
 
 	-- We must use --repo-conf-dir rather than -o REPOS_DIR here as the latter

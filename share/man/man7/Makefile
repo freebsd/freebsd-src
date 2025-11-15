@@ -1,5 +1,7 @@
 .include <src.opts.mk>
 
+MANGROUPS=	MAN
+
 #MISSING: eqnchar.7 ms.7 term.7
 MAN=	arch.7 \
 	ascii.7 \
@@ -21,6 +23,7 @@ MAN=	arch.7 \
 	named_attribute.7 \
 	operator.7 \
 	orders.7 \
+	freebsd-base.7 \
 	ports.7 \
 	release.7 \
 	sdoc.7 \
@@ -31,12 +34,12 @@ MAN=	arch.7 \
 	stats.7 \
 	stdint.7 \
 	sticky.7 \
-	tests.7 \
 	tracing.7 \
 	tuning.7
 
 MLINKS=	intro.7 miscellaneous.7
 MLINKS+= growfs.7 growfs_fstab.7
+MLINKS+= freebsd-base.7 pkgbase.7
 MLINKS+= security.7 securelevel.7
 MLINKS+= c.7 c78.7
 MLINKS+= c.7 c89.7
@@ -54,14 +57,21 @@ MLINKS+= networking.7 wifi.7
 .endif
 
 .if ${MK_TESTS} != "no"
-ATF=	${SRCTOP}/contrib/atf
-.PATH:	${ATF}/doc
-MAN+=	atf.7
+MANGROUPS+=	ATF TESTS
+
+TESTS=		tests.7
+TESTSPACKAGE=	tests
+
+ATF=		atf.7
+ATFPACKAGE=	atf
+
+ATFPATH=	${SRCTOP}/contrib/atf
+.PATH:	${ATFPATH}/doc
 
 CLEANFILES+= atf.7
 atf.7: atf.7.in
 	sed -e 's,__DOCDIR__,/usr/share/doc/atf,g' \
-	    <"${ATF}/doc/atf.7.in" >atf.7
+	    <"${ATFPATH}/doc/atf.7.in" >atf.7
 .endif
 
 .include <bsd.prog.mk>

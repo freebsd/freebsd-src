@@ -503,8 +503,8 @@ _mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file, int line)
 /*
  * __mtx_lock_sleep: the tougher part of acquiring an MTX_DEF lock.
  *
- * We call this if the lock is either contested (i.e. we need to go to
- * sleep waiting for it), or if we need to recurse on it.
+ * We get here if lock profiling is enabled, the lock is already held by
+ * someone else or we are recursing on it.
  */
 #if LOCK_DEBUG > 0
 void
@@ -660,13 +660,8 @@ retry_turnstile:
 		}
 #endif
 
-		/*
-		 * If the mutex isn't already contested and a failure occurs
-		 * setting the contested bit, the mutex was either released
-		 * or the state of the MTX_RECURSED bit changed.
-		 */
-		if ((v & MTX_CONTESTED) == 0 &&
-		    !atomic_fcmpset_ptr(&m->mtx_lock, &v, v | MTX_CONTESTED)) {
+		if ((v & MTX_WAITERS) == 0 &&
+		    !atomic_fcmpset_ptr(&m->mtx_lock, &v, v | MTX_WAITERS)) {
 			goto retry_turnstile;
 		}
 
@@ -869,7 +864,7 @@ _thread_lock(struct thread *td)
 		WITNESS_LOCK(&m->lock_object, LOP_EXCLUSIVE, file, line);
 		return;
 	}
-	_mtx_release_lock_quick(m);
+	atomic_store_rel_ptr(&m->mtx_lock, MTX_UNOWNED);
 slowpath_unlocked:
 	spinlock_exit();
 slowpath_noirq:
@@ -959,7 +954,7 @@ retry:
 		}
 		if (m == td->td_lock)
 			break;
-		_mtx_release_lock_quick(m);
+		atomic_store_rel_ptr(&m->mtx_lock, MTX_UNOWNED);
 	}
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
@@ -1029,8 +1024,8 @@ thread_lock_set(struct thread *td, struct mtx *new)
 /*
  * __mtx_unlock_sleep: the tougher part of releasing an MTX_DEF lock.
  *
- * We are only called here if the lock is recursed, contested (i.e. we
- * need to wake up a blocked thread) or lockstat probe is active.
+ * We get here if lock profiling is enabled, the lock is already held by
+ * someone else or we are recursing on it.
  */
 #if LOCK_DEBUG > 0
 void
@@ -1071,7 +1066,7 @@ __mtx_unlock_sleep(volatile uintptr_t *c, uintptr_t v)
 	 * can be removed from the hash list if it is empty.
 	 */
 	turnstile_chain_lock(&m->lock_object);
-	_mtx_release_lock_quick(m);
+	atomic_store_rel_ptr(&m->mtx_lock, MTX_UNOWNED);
 	ts = turnstile_lookup(&m->lock_object);
 	MPASS(ts != NULL);
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
@@ -1136,9 +1131,9 @@ __mtx_assert(const volatile uintptr_t *c, int what, const char *file, int line)
  * General init routine used by the MTX_SYSINIT() macro.
  */
 void
-mtx_sysinit(void *arg)
+mtx_sysinit(const void *arg)
 {
-	struct mtx_args *margs = arg;
+	const struct mtx_args *margs = arg;
 
 	mtx_init((struct mtx *)margs->ma_mtx, margs->ma_desc, NULL,
 	    margs->ma_opts);
@@ -1207,7 +1202,7 @@ _mtx_destroy(volatile uintptr_t *c)
 	if (!mtx_owned(m))
 		MPASS(mtx_unowned(m));
 	else {
-		MPASS((m->mtx_lock & (MTX_RECURSED|MTX_CONTESTED)) == 0);
+		MPASS((m->mtx_lock & (MTX_RECURSED|MTX_WAITERS)) == 0);
 
 		/* Perform the non-mtx related part of mtx_unlock_spin(). */
 		if (LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin) {
@@ -1359,8 +1354,8 @@ db_show_mtx(const struct lock_object *lock)
 		db_printf("DESTROYED");
 	else {
 		db_printf("OWNED");
-		if (m->mtx_lock & MTX_CONTESTED)
-			db_printf(", CONTESTED");
+		if (m->mtx_lock & MTX_WAITERS)
+			db_printf(", WAITERS");
 		if (m->mtx_lock & MTX_RECURSED)
 			db_printf(", RECURSED");
 	}

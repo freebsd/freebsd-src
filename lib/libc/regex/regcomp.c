@@ -1183,6 +1183,7 @@ p_b_pseudoclass(struct parse *p, char c) {
 		/* PASSTHROUGH */
 	case 'w':
 		p_b_cclass_named(p, cs, "alnum");
+		CHadd(p, cs, '_');
 		break;
 	case 'S':
 		cs->invert = 1;

@@ -175,8 +175,8 @@ cc_result cc_get_NC_info (apiCB    *in_context,
 {
     cc_result err = CC_NOERROR;
     infoNC **info = NULL;
-    cc_uint64 count = 0; /* Preflight the size */
-    cc_uint64 i;
+    size_t count = 0; /* Preflight the size */
+    size_t i;
 
     if (!in_context) { err = cci_check_error (ccErrBadParam); }
     if (!out_info  ) { err = cci_check_error (ccErrBadParam); }
@@ -873,7 +873,7 @@ cc_result cc_free_NC_info (apiCB    *in_context,
 
     if (!err && *io_info) {
         infoNC **data = *io_info;
-        int i;
+        size_t i;
 
         for (i = 0; data[i] != NULL; i++) {
             cc_free_principal (in_context, &data[i]->principal);

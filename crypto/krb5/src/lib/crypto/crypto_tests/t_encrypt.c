@@ -88,7 +88,7 @@ display(const char *msg, const krb5_data *d)
 }
 
 int
-main ()
+main(void)
 {
     krb5_context context = 0;
     krb5_data  in, in2, out, out2, check, check2, state, signdata;

@@ -37,15 +37,18 @@
  * Copyright (c) 1990 by Sun Microsystems, Inc.
  */
 
-#include <netconfig.h>
+#include <sys/stat.h>
+
 #include <rpc/rpc.h>
 #include <rpc/rpcb_prot.h>
-#include <sys/stat.h>
 #ifdef PORTMAP
 #include <rpc/pmap_prot.h>
 #endif
+
+#include <netconfig.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "rpcbind.h"
 
 static rpcb_stat_byvers inf;
@@ -96,8 +99,8 @@ rpcbs_unset(rpcvers_t rtype, bool_t success)
 }
 
 void
-rpcbs_getaddr(rpcvers_t rtype, rpcprog_t prog, rpcvers_t vers, char *netid,
-	      char *uaddr)
+rpcbs_getaddr(rpcvers_t rtype, rpcprog_t prog, rpcvers_t vers,
+    const char *netid, const char *uaddr)
 {
 	rpcbs_addrlist *al;
 	struct netconfig *nconf;
@@ -121,7 +124,7 @@ rpcbs_getaddr(rpcvers_t rtype, rpcprog_t prog, rpcvers_t vers, char *netid,
 	if (nconf == NULL) {
 		return;
 	}
-	al = (rpcbs_addrlist *) malloc(sizeof (rpcbs_addrlist));
+	al = malloc(sizeof(*al));
 	if (al == NULL) {
 		return;
 	}
@@ -170,7 +173,7 @@ rpcbs_rmtcall(rpcvers_t rtype, rpcproc_t rpcbproc, rpcprog_t prog,
 	if (nconf == NULL) {
 		return;
 	}
-	rl = (rpcbs_rmtcalllist *) malloc(sizeof (rpcbs_rmtcalllist));
+	rl = malloc(sizeof(*rl));
 	if (rl == NULL) {
 		return;
 	}

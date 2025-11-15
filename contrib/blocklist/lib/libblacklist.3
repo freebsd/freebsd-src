@@ -1,4 +1,4 @@
-.\" $NetBSD: libblacklist.3,v 1.10 2020/03/30 15:47:15 christos Exp $
+.\" $NetBSD: libblocklist.3,v 1.7 2025/02/05 20:14:30 christos Exp $
 .\"
 .\" Copyright (c) 2015 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -27,11 +27,12 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd March 30, 2020
+.Dd February 5, 2025
 .Dt LIBBLACKLIST 3
 .Os
 .Sh NAME
 .Nm blacklist_open ,
+.Nm blacklist_open2 ,
 .Nm blacklist_close ,
 .Nm blacklist_r ,
 .Nm blacklist ,
@@ -44,6 +45,8 @@
 .In blacklist.h
 .Ft struct blacklist *
 .Fn blacklist_open "void"
+.Ft struct blacklist *
+.Fn blacklist_open2 "void (*logger)(int, struct syslog_data *, va_list)"
 .Ft void
 .Fn blacklist_close "struct blacklist *cookie"
 .Ft int
@@ -68,6 +71,19 @@ and returns a pointer to it, or
 .Dv NULL
 on failure.
 .Pp
+The function
+.Fn blacklist_open2
+is similar to
+.Fn blacklist_open
+but allows a
+.Fa logger
+to be specified.
+If the
+.Fa logger
+is
+.Dv NULL ,
+then no logging is performed.
+.Pp
 The
 .Fn blacklist_close
 function frees all memory and resources used.
@@ -89,17 +105,17 @@ argument.
 The
 .Ar action
 parameter can take these values:
-.Bl -tag -width ".Va BLACKLIST_ABUSIVE_BEHAVIOR"
-.It Va BLACKLIST_AUTH_FAIL
+.Bl -tag -width ".Dv BLACKLIST_ABUSIVE_BEHAVIOR"
+.It Dv BLACKLIST_AUTH_FAIL
 There was an unsuccessful authentication attempt.
-.It Va BLACKLIST_AUTH_OK
+.It Dv BLACKLIST_AUTH_OK
 A user successfully authenticated.
-.It Va BLACKLIST_ABUSIVE_BEHAVIOR
+.It Dv BLACKLIST_ABUSIVE_BEHAVIOR
 The sending daemon has detected abusive behavior
 from the remote system.
 The remote address should
 be blocked as soon as possible.
-.It Va BLACKLIST_BAD_USER
+.It Dv BLACKLIST_BAD_USER
 The sending daemon has determined the username
 presented for authentication is invalid.
 The
@@ -108,7 +124,7 @@ daemon compares the username to a configured list of forbidden
 usernames and
 blocks the address immediately if a forbidden username matches.
 (The
-.Ar BLACKLIST_BAD_USER
+.Dv BLACKLIST_BAD_USER
 support is not currently available.)
 .El
 .Pp
@@ -160,6 +176,11 @@ on success and
 on failure setting
 .Dv errno
 to an appropriate value.
+.Sh NOTES
+The
+.Lb libblacklist
+has been renamed to
+.Xr libblocklist 3 .
 .Sh SEE ALSO
 .Xr blacklistd.conf 5 ,
 .Xr blacklistd 8

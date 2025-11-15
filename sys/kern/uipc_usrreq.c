@@ -154,15 +154,12 @@ static struct task	unp_defer_task;
  * and don't really want to reserve the sendspace.  Their recvspace should be
  * large enough for at least one max-size datagram plus address.
  */
-#ifndef PIPSIZ
-#define	PIPSIZ	8192
-#endif
-static u_long	unpst_sendspace = PIPSIZ;
-static u_long	unpst_recvspace = PIPSIZ;
+static u_long	unpst_sendspace = 64*1024;
+static u_long	unpst_recvspace = 64*1024;
 static u_long	unpdg_maxdgram = 8*1024;	/* support 8KB syslog msgs */
 static u_long	unpdg_recvspace = 16*1024;
-static u_long	unpsp_sendspace = PIPSIZ;
-static u_long	unpsp_recvspace = PIPSIZ;
+static u_long	unpsp_sendspace = 64*1024;
+static u_long	unpsp_recvspace = 64*1024;
 
 static SYSCTL_NODE(_net, PF_LOCAL, local, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Local domain");
@@ -1072,6 +1069,21 @@ uipc_stream_sbspace(struct sockbuf *sb)
 	return (min(space, mbspace));
 }
 
+/*
+ * UNIX version of generic sbwait() for writes.  We wait on peer's receive
+ * buffer, using our timeout.
+ */
+static int
+uipc_stream_sbwait(struct socket *so, sbintime_t timeo)
+{
+	struct sockbuf *sb = &so->so_rcv;
+
+	SOCK_RECVBUF_LOCK_ASSERT(so);
+	sb->sb_flags |= SB_WAIT;
+	return (msleep_sbt(&sb->sb_acc, SOCK_RECVBUF_MTX(so), PSOCK | PCATCH,
+	    "sbwait", timeo, 0, 0));
+}
+
 static int
 uipc_sosend_stream_or_seqpacket(struct socket *so, struct sockaddr *addr,
     struct uio *uio0, struct mbuf *m, struct mbuf *c, int flags,
@@ -1206,7 +1218,8 @@ restart:
 				error = EWOULDBLOCK;
 				goto out4;
 			}
-			if ((error = sbwait(so2, SO_RCV)) != 0) {
+			if ((error = uipc_stream_sbwait(so2,
+			    so->so_snd.sb_timeo)) != 0) {
 				SOCK_RECVBUF_UNLOCK(so2);
 				goto out4;
 			} else
@@ -1359,8 +1372,8 @@ uipc_soreceive_stream_or_seqpacket(struct socket *so, struct sockaddr **psa,
     struct uio *uio, struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
 {
 	struct sockbuf *sb = &so->so_rcv;
-	struct mbuf *control, *m, *first, *last, *next;
-	u_int ctl, space, datalen, mbcnt, lastlen;
+	struct mbuf *control, *m, *first, *part, *next;
+	u_int ctl, space, datalen, mbcnt, partlen;
 	int error, flags;
 	bool nonblock, waitall, peek;
 
@@ -1444,22 +1457,16 @@ restart:
 		control = NULL;
 
 	/*
-	 * Find split point for the next copyout.  On exit from the loop:
-	 * last == NULL - socket to be flushed
-	 * last != NULL
-	 *   lastlen > last->m_len - uio to be filled, last to be adjusted
-	 *   lastlen == 0          - MT_CONTROL, M_EOR or M_NOTREADY encountered
+	 * Find split point for the next copyout.  On exit from the loop,
+	 * 'next' points to the new head of the buffer STAILQ and 'datalen'
+	 * contains the amount of data we will copy out at the end.  The
+	 * copyout is protected by the I/O lock only, as writers can only
+	 * append to the buffer.  We need to record the socket buffer state
+	 * and do all length adjustments before dropping the socket buffer lock.
 	 */
-	space = uio->uio_resid;
-	datalen = 0;
-	for (m = first, last = sb->uxst_fnrdy, lastlen = 0;
-	     m != sb->uxst_fnrdy;
+	for (space = uio->uio_resid, m = next = first, part = NULL, datalen = 0;
+	     space > 0 && m != sb->uxst_fnrdy && m->m_type == MT_DATA;
 	     m = STAILQ_NEXT(m, m_stailq)) {
-		if (m->m_type != MT_DATA) {
-			last = m;
-			lastlen = 0;
-			break;
-		}
 		if (space >= m->m_len) {
 			space -= m->m_len;
 			datalen += m->m_len;
@@ -1467,29 +1474,28 @@ restart:
 			if (m->m_flags & M_EXT)
 				mbcnt += m->m_ext.ext_size;
 			if (m->m_flags & M_EOR) {
-				last = STAILQ_NEXT(m, m_stailq);
-				lastlen = 0;
 				flags |= MSG_EOR;
+				next = STAILQ_NEXT(m, m_stailq);
 				break;
 			}
 		} else {
 			datalen += space;
-			last = m;
-			lastlen = space;
+			partlen = space;
+			if (!peek) {
+				m->m_len -= partlen;
+				m->m_data += partlen;
+			}
+			next = part = m;
 			break;
 		}
+		next = STAILQ_NEXT(m, m_stailq);
 	}
 
-	UIPC_STREAM_SBCHECK(sb);
 	if (!peek) {
-		if (last == NULL)
+		if (next == NULL)
 			STAILQ_INIT(&sb->uxst_mbq);
-		else {
-			STAILQ_FIRST(&sb->uxst_mbq) = last;
-			MPASS(last->m_len > lastlen);
-			last->m_len -= lastlen;
-			last->m_data += lastlen;
-		}
+		else
+			STAILQ_FIRST(&sb->uxst_mbq) = next;
 		MPASS(sb->sb_acc >= datalen);
 		sb->sb_acc -= datalen;
 		sb->sb_ccc -= datalen;
@@ -1546,15 +1552,19 @@ restart:
 				mc_init_m(&cmc, control);
 
 				SOCK_RECVBUF_LOCK(so);
-				MPASS(!(sb->sb_state & SBS_CANTRCVMORE));
-
-				if (__predict_false(cmc.mc_len + sb->sb_ccc +
-				    sb->sb_ctl > sb->sb_hiwat)) {
+				if (__predict_false(
+				    (sb->sb_state & SBS_CANTRCVMORE) ||
+				    cmc.mc_len + sb->sb_ccc + sb->sb_ctl >
+				    sb->sb_hiwat)) {
 					/*
-					 * Too bad, while unp_externalize() was
-					 * failing, the other side had filled
-					 * the buffer and we can't prepend data
-					 * back. Losing data!
+					 * While the lock was dropped and we
+					 * were failing in unp_externalize(),
+					 * the peer could has a) disconnected,
+					 * b) filled the buffer so that we
+					 * can't prepend data back.
+					 * These are two edge conditions that
+					 * we just can't handle, so lose the
+					 * data and return the error.
 					 */
 					SOCK_RECVBUF_UNLOCK(so);
 					SOCK_IO_RECV_UNLOCK(so);
@@ -1612,33 +1622,34 @@ restart:
 		}
 	}
 
-	for (m = first; m != last; m = next) {
+	for (m = first; datalen > 0; m = next) {
+		void *data;
+		u_int len;
+
 		next = STAILQ_NEXT(m, m_stailq);
-		error = uiomove(mtod(m, char *), m->m_len, uio);
+		if (m == part) {
+			data = peek ?
+			    mtod(m, char *) : mtod(m, char *) - partlen;
+			len = partlen;
+		} else {
+			data = mtod(m, char *);
+			len = m->m_len;
+		}
+		error = uiomove(data, len, uio);
 		if (__predict_false(error)) {
-			SOCK_IO_RECV_UNLOCK(so);
 			if (!peek)
-				for (; m != last; m = next) {
+				for (; m != part && datalen > 0; m = next) {
 					next = STAILQ_NEXT(m, m_stailq);
+					MPASS(datalen >= m->m_len);
+					datalen -= m->m_len;
 					m_free(m);
 				}
-			return (error);
-		}
-		if (!peek)
-			m_free(m);
-	}
-	if (last != NULL && lastlen > 0) {
-		if (!peek) {
-			MPASS(!(m->m_flags & M_PKTHDR));
-			MPASS(last->m_data - M_START(last) >= lastlen);
-			error = uiomove(mtod(last, char *) - lastlen,
-			    lastlen, uio);
-		} else
-			error = uiomove(mtod(last, char *), lastlen, uio);
-		if (__predict_false(error)) {
 			SOCK_IO_RECV_UNLOCK(so);
 			return (error);
 		}
+		datalen -= len;
+		if (!peek && m != part)
+			m_free(m);
 	}
 	if (waitall && !(flags & MSG_EOR) && uio->uio_resid > 0)
 		goto restart;
@@ -1810,9 +1821,7 @@ uipc_filt_sowrite(struct knote *kn, long hint)
 	kn->kn_data = uipc_stream_sbspace(&so2->so_rcv);
 
 	if (so2->so_rcv.sb_state & SBS_CANTRCVMORE) {
-		/*
-		 * XXXGL: maybe kn->kn_flags |= EV_EOF ?
-		 */
+		kn->kn_flags |= EV_EOF;
 		return (1);
 	} else if (kn->kn_sfflags & NOTE_LOWAT)
 		return (kn->kn_data >= kn->kn_sdata);
@@ -1840,11 +1849,13 @@ static const struct filterops uipc_write_filtops = {
 	.f_isfd = 1,
 	.f_detach = uipc_filt_sowdetach,
 	.f_event = uipc_filt_sowrite,
+	.f_copy = knote_triv_copy,
 };
 static const struct filterops uipc_empty_filtops = {
 	.f_isfd = 1,
 	.f_detach = uipc_filt_sowdetach,
 	.f_event = uipc_filt_soempty,
+	.f_copy = knote_triv_copy,
 };
 
 static int
@@ -2402,7 +2413,7 @@ uipc_sendfile_wait(struct socket *so, off_t need, int *space)
 		}
 		if (!sockref)
 			soref(so2);
-		error = sbwait(so2, SO_RCV);
+		error = uipc_stream_sbwait(so2, so->so_snd.sb_timeo);
 		if (error == 0 &&
 		    __predict_false(sb->sb_state & SBS_CANTRCVMORE))
 			error = EPIPE;
@@ -3199,11 +3210,9 @@ unp_disconnect(struct unpcb *unp, struct unpcb *unp2)
 #endif
 		LIST_REMOVE(unp, unp_reflink);
 		UNP_REF_LIST_UNLOCK();
-		if (so) {
-			SOCK_LOCK(so);
-			so->so_state &= ~SS_ISCONNECTED;
-			SOCK_UNLOCK(so);
-		}
+		SOCK_LOCK(so);
+		so->so_state &= ~SS_ISCONNECTED;
+		SOCK_UNLOCK(so);
 		break;
 
 	case SOCK_STREAM:
@@ -3672,11 +3681,14 @@ unp_internalize(struct mbuf *control, struct mchain *mc, struct thread *td)
 			cmcred->cmcred_uid = td->td_ucred->cr_ruid;
 			cmcred->cmcred_gid = td->td_ucred->cr_rgid;
 			cmcred->cmcred_euid = td->td_ucred->cr_uid;
-			cmcred->cmcred_ngroups = MIN(td->td_ucred->cr_ngroups,
+			_Static_assert(CMGROUP_MAX >= 1,
+			    "Room needed for the effective GID.");
+			cmcred->cmcred_ngroups = MIN(td->td_ucred->cr_ngroups + 1,
 			    CMGROUP_MAX);
-			for (i = 0; i < cmcred->cmcred_ngroups; i++)
+			cmcred->cmcred_groups[0] = td->td_ucred->cr_gid;
+			for (i = 1; i < cmcred->cmcred_ngroups; i++)
 				cmcred->cmcred_groups[i] =
-				    td->td_ucred->cr_groups[i];
+				    td->td_ucred->cr_groups[i - 1];
 			break;
 
 		case SCM_RIGHTS:
@@ -4188,10 +4200,12 @@ unp_gc(__unused void *arg, int pending)
 		struct socket *so;
 
 		so = unref[i]->f_data;
-		CURVNET_SET(so->so_vnet);
-		socantrcvmore(so);
-		unp_dispose(so);
-		CURVNET_RESTORE();
+		if (!SOLISTENING(so)) {
+			CURVNET_SET(so->so_vnet);
+			socantrcvmore(so);
+			unp_dispose(so);
+			CURVNET_RESTORE();
+		}
 	}
 
 	/*

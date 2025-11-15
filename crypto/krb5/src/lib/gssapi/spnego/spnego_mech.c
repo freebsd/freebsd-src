@@ -379,7 +379,7 @@ spnego_gss_acquire_cred_from(OM_uint32 *minor_status,
 				     &amechs, time_rec);
 
 	if (actual_mechs && amechs != GSS_C_NULL_OID_SET) {
-		(void) gssint_copy_oid_set(&tmpmin, amechs, actual_mechs);
+		(void) generic_gss_copy_oid_set(&tmpmin, amechs, actual_mechs);
 	}
 	(void) gss_release_oid_set(&tmpmin, &amechs);
 

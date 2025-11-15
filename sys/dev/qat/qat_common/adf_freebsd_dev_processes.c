@@ -89,6 +89,7 @@ static struct filterops adf_state_read_filterops = {
 	.f_attach = NULL,
 	.f_detach = adf_state_kqread_detach,
 	.f_event = adf_state_kqread_event,
+	.f_copy = knote_triv_copy,
 };
 
 static struct cdev *adf_processes_dev;

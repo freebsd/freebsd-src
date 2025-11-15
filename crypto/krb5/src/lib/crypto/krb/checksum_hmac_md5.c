@@ -92,3 +92,31 @@ cleanup:
     free(hash_iov);
     return ret;
 }
+
+krb5_error_code
+k5_hmac_md5(const krb5_data *key, const krb5_crypto_iov *data, size_t num_data,
+            krb5_data *output)
+{
+    krb5_error_code ret;
+    const struct krb5_hash_provider *hash = &krb5int_hash_md5;
+    krb5_keyblock keyblock = { 0 };
+    krb5_data hashed_key;
+    uint8_t hkeybuf[16];
+    krb5_crypto_iov iov;
+
+    /* Hash the key if it is longer than the block size. */
+    if (key->length > hash->blocksize) {
+        hashed_key = make_data(hkeybuf, sizeof(hkeybuf));
+        iov.flags = KRB5_CRYPTO_TYPE_DATA;
+        iov.data = *key;
+        ret = hash->hash(&iov, 1, &hashed_key);
+        if (ret)
+            return ret;
+        key = &hashed_key;
+    }
+
+    keyblock.magic = KV5M_KEYBLOCK;
+    keyblock.length = key->length;
+    keyblock.contents = (uint8_t *)key->data;
+    return krb5int_hmac_keyblock(hash, &keyblock, data, num_data, output);
+}

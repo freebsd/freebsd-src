@@ -7,7 +7,7 @@
 FBSDprivate_1.0 {
 	_syscall;
 	__sys_syscall;
-	__sys_exit;
+	__sys__exit;
 	_fork;
 	__sys_fork;
 	_read;
@@ -117,10 +117,6 @@ FBSDprivate_1.0 {
 	__sys_madvise;
 	_mincore;
 	__sys_mincore;
-	_getgroups;
-	__sys_getgroups;
-	_setgroups;
-	__sys_setgroups;
 	_getpgrp;
 	__sys_getpgrp;
 	_setpgid;
@@ -813,4 +809,14 @@ FBSDprivate_1.0 {
 	__sys_inotify_add_watch_at;
 	_inotify_rm_watch;
 	__sys_inotify_rm_watch;
+	_getgroups;
+	__sys_getgroups;
+	_setgroups;
+	__sys_setgroups;
+	_jail_attach_jd;
+	__sys_jail_attach_jd;
+	_jail_remove_jd;
+	__sys_jail_remove_jd;
+	_kexec_load;
+	__sys_kexec_load;
 };

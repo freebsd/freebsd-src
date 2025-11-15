@@ -3,6 +3,7 @@ PACKAGE=	tests
 TESTSDIR=	${TESTSBASE}/sys/netmap
 TEST_METADATA+=	required_user="root"
 TEST_METADATA+=	is_exclusive=true
+TEST_METADATA+=	required_kmods="if_tap netmap"
 
 PLAIN_TESTS_C+=	ctrl-api-test
 

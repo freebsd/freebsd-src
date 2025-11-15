@@ -2599,8 +2599,8 @@ igc_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 		    sc->stats.ruc + sc->stats.roc +
 		    sc->stats.mpc + sc->stats.htdpmc);
 	case IFCOUNTER_OERRORS:
-		return (sc->stats.ecol + sc->stats.latecol +
-		    sc->watchdog_events);
+		return (if_get_counter_default(ifp, cnt) +
+		    sc->stats.ecol + sc->stats.latecol + sc->watchdog_events);
 	default:
 		return (if_get_counter_default(ifp, cnt));
 	}
@@ -2816,7 +2816,7 @@ igc_add_hw_stats(struct igc_softc *sc)
 	    "Oversized Packets Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_jabber",
 	    CTLFLAG_RD, &sc->stats.rjc,
-	    "Recevied Jabber");
+	    "Received Jabber");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_errs",
 	    CTLFLAG_RD, &sc->stats.rxerrc,
 	    "Receive Errors");

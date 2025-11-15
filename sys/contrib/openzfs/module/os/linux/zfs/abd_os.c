@@ -23,6 +23,7 @@
  * Copyright (c) 2014 by Chunwei Chen. All rights reserved.
  * Copyright (c) 2019 by Delphix. All rights reserved.
  * Copyright (c) 2023, 2024, Klara Inc.
+ * Copyright (c) 2025, Rob Norris <robn@despairlabs.com>
  */
 
 /*
@@ -255,10 +256,6 @@ abd_unmark_zfs_page(struct page *page)
 #endif /* _LP64 */
 
 #ifndef CONFIG_HIGHMEM
-
-#ifndef __GFP_RECLAIM
-#define	__GFP_RECLAIM		__GFP_WAIT
-#endif
 
 /*
  * The goal is to minimize fragmentation by preferentially populating ABDs
@@ -867,9 +864,9 @@ abd_iter_advance(struct abd_iter *aiter, size_t amount)
 	 * Ensure that last chunk is not in use. abd_iterate_*() must clear
 	 * this state (directly or abd_iter_unmap()) before advancing.
 	 */
-	ASSERT3P(aiter->iter_mapaddr, ==, NULL);
+	ASSERT0P(aiter->iter_mapaddr);
 	ASSERT0(aiter->iter_mapsize);
-	ASSERT3P(aiter->iter_page, ==, NULL);
+	ASSERT0P(aiter->iter_page);
 	ASSERT0(aiter->iter_page_doff);
 	ASSERT0(aiter->iter_page_dsize);
 
@@ -901,7 +898,7 @@ abd_iter_map(struct abd_iter *aiter)
 	void *paddr;
 	size_t offset = 0;
 
-	ASSERT3P(aiter->iter_mapaddr, ==, NULL);
+	ASSERT0P(aiter->iter_mapaddr);
 	ASSERT0(aiter->iter_mapsize);
 
 	/* There's nothing left to iterate over, so do nothing */
@@ -1111,6 +1108,14 @@ abd_return_buf_copy(abd_t *abd, void *buf, size_t n)
 	(PageCompound(page) ? page_size(page) : PAGESIZE)
 #else
 #define	ABD_ITER_PAGE_SIZE(page)	(PAGESIZE)
+#endif
+
+#ifndef nth_page
+/*
+ * Since 6.18 nth_page() no longer exists, and is no longer required to iterate
+ * within a single SG entry, so we replace it with a simple addition.
+ */
+#define	nth_page(p, n)	((p)+(n))
 #endif
 
 void

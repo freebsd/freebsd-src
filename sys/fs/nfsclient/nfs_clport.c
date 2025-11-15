@@ -412,7 +412,7 @@ nfscl_warn_fileid(struct nfsmount *nmp, struct nfsvattr *oldnap,
 }
 
 void
-ncl_copy_vattr(struct vattr *dst, struct vattr *src)
+ncl_copy_vattr(struct vnode *vp, struct vattr *dst, struct vattr *src)
 {
 	dst->va_type = src->va_type;
 	dst->va_mode = src->va_mode;
@@ -429,7 +429,7 @@ ncl_copy_vattr(struct vattr *dst, struct vattr *src)
 	dst->va_birthtime = src->va_birthtime;
 	dst->va_gen = src->va_gen;
 	dst->va_flags = src->va_flags;
-	dst->va_rdev = src->va_rdev;
+	dst->va_rdev = VN_ISDEV(vp) ? src->va_rdev : NODEV;
 	dst->va_bytes = src->va_bytes;
 	dst->va_filerev = src->va_filerev;
 }
@@ -595,7 +595,7 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 	}
 	if (vaper != NULL) {
-		ncl_copy_vattr(vaper, vap);
+		ncl_copy_vattr(vp, vaper, vap);
 		if (np->n_flag & NCHG) {
 			if (np->n_flag & NACC)
 				vaper->va_atime = np->n_atim;
@@ -828,7 +828,7 @@ nfscl_wcc_data(struct nfsrv_descript *nd, struct vnode *vp,
 	    == (ND_NFSV4 | ND_V4WCCATTR)) {
 		error = nfsv4_loadattr(nd, NULL, &nfsva, NULL,
 		    NULL, 0, NULL, NULL, NULL, NULL, NULL, 0,
-		    NULL, NULL, NULL, NULL, NULL, NULL);
+		    NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 		if (error)
 			return (error);
 		/*
@@ -963,7 +963,8 @@ nfscl_loadsbinfo(struct nfsmount *nmp, struct nfsstatfs *sfp, void *statfs)
  * Use the fsinfo stuff to update the mount point.
  */
 void
-nfscl_loadfsinfo(struct nfsmount *nmp, struct nfsfsinfo *fsp)
+nfscl_loadfsinfo(struct nfsmount *nmp, struct nfsfsinfo *fsp,
+    uint32_t clone_blksize)
 {
 
 	if ((nmp->nm_wsize == 0 || fsp->fs_wtpref < nmp->nm_wsize) &&
@@ -1003,6 +1004,14 @@ nfscl_loadfsinfo(struct nfsmount *nmp, struct nfsfsinfo *fsp)
 	    fsp->fs_maxfilesize < nmp->nm_maxfilesize)
 		nmp->nm_maxfilesize = fsp->fs_maxfilesize;
 	nmp->nm_mountp->mnt_stat.f_iosize = newnfs_iosize(nmp);
+
+	/*
+	 * Although ZFS reports a clone_blksize of 16Mbytes,
+	 * 128Kbytes usually works, so set it to that.
+	 */
+	if (clone_blksize > 128 * 1024)
+		clone_blksize = 128 * 1024;
+	nmp->nm_cloneblksize = clone_blksize;
 	nmp->nm_state |= NFSSTA_GOTFSINFO;
 }
 
@@ -1089,9 +1098,10 @@ newnfs_copyincred(struct ucred *cr, struct nfscred *nfscr)
 	KASSERT(cr->cr_ngroups >= 0,
 	    ("newnfs_copyincred: negative cr_ngroups"));
 	nfscr->nfsc_uid = cr->cr_uid;
-	nfscr->nfsc_ngroups = MIN(cr->cr_ngroups, NFS_MAXGRPS + 1);
-	for (i = 0; i < nfscr->nfsc_ngroups; i++)
-		nfscr->nfsc_groups[i] = cr->cr_groups[i];
+	nfscr->nfsc_ngroups = MIN(cr->cr_ngroups + 1, NFS_MAXGRPS + 1);
+	nfscr->nfsc_groups[0] = cr->cr_gid;
+	for (i = 1; i < nfscr->nfsc_ngroups; i++)
+		nfscr->nfsc_groups[i] = cr->cr_groups[i - 1];
 }
 
 /*

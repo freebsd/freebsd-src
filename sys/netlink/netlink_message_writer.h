@@ -284,6 +284,12 @@ nlattr_add_s64(struct nl_writer *nw, uint16_t attrtype, int64_t value)
 }
 
 static inline bool
+nlattr_add_time_t(struct nl_writer *nw, uint16_t attrtype, time_t value)
+{
+	return (nlattr_add(nw, attrtype, sizeof(time_t), &value));
+}
+
+static inline bool
 nlattr_add_flag(struct nl_writer *nw, uint16_t attrtype)
 {
 	return (nlattr_add(nw, attrtype, 0, NULL));

@@ -25,7 +25,7 @@ static const float Zero[] = {0.0, -0.0,};
 float
 remquof(float x, float y, int *quo)
 {
-	int32_t n,hx,hy,hz,ix,iy,sx,i;
+	int32_t hx, hy, hz, ix, iy, n, sx;
 	u_int32_t q,sxy;
 
 	GET_FLOAT_WORD(hx,x);
@@ -47,14 +47,16 @@ remquof(float x, float y, int *quo)
 	}
 
     /* determine ix = ilogb(x) */
-	if(hx<0x00800000) {	/* subnormal x */
-	    for (ix = -126,i=(hx<<8); i>0; i<<=1) ix -=1;
-	} else ix = (hx>>23)-127;
+	if(hx<0x00800000)
+	    ix = subnormal_ilogbf(hx);
+	else
+	    ix = (hx>>23)-127;
 
     /* determine iy = ilogb(y) */
-	if(hy<0x00800000) {	/* subnormal y */
-	    for (iy = -126,i=(hy<<8); i>0; i<<=1) iy -=1;
-	} else iy = (hy>>23)-127;
+	if(hy<0x00800000)
+	    iy = subnormal_ilogbf(hy);
+	else
+	    iy = (hy>>23)-127;
 
     /* set up {hx,lx}, {hy,ly} and align y to x */
 	if(ix >= -126)

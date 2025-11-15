@@ -97,6 +97,7 @@ tpmtis_attach(device_t dev)
 {
 	struct tpm_sc *sc;
 	int result;
+	int poll = 0;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -104,6 +105,12 @@ tpmtis_attach(device_t dev)
 
 	sx_init(&sc->dev_lock, "TPM driver lock");
 	sc->buf = malloc(TPM_BUFSIZE, M_TPM20, M_WAITOK);
+
+	resource_int_value("tpm", device_get_unit(dev), "use_polling", &poll);
+	if (poll != 0) {
+	    device_printf(dev, "Using poll method to get TPM operation status \n");
+	    goto skip_irq;
+	}
 
 	sc->irq_rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,

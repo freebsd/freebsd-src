@@ -34,7 +34,7 @@ jobs:
                 cd src/doc
                 make -f Makefile.in SPHINX_ARGS=-W htmlsrc
             - name: Upload HTML
-              uses: actions/upload-artifact@v2
+              uses: actions/upload-artifact@v4
               with:
                   name: html
                   path: doc/html

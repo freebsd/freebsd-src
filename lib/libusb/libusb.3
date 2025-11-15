@@ -209,6 +209,14 @@ Decrement the reference counter of the device
 .Fa dev .
 .Pp
 .Ft int
+.Fn libusb_wrap_sys_device "libusb_context *ctx" "intptr_t sys_dev" "libusb_device_handle **dev_handle"
+This function creates a libusb handler from a previously opened fd
+.Fa sys_dev .
+This function is provided for compatibility and is currently unimplemented.
+It always returns
+.Dv LIBUSB_ERROR_NOT_SUPPORTED .
+.Pp
+.Ft int
 .Fn libusb_open "libusb_device *dev" "libusb_device_handle **devh"
 Open a device and obtain a device_handle.
 Returns 0 on success,
@@ -536,6 +544,21 @@ libusb_free_container_id_descriptor function.
 .Fn libusb_free_container_id_descriptor "struct libusb_container_id_descriptor *container_id"
 This function is NULL safe and frees a parsed container ID descriptor given by
 .Fa container_id .
+.Pp
+.Ft int
+.Fn libusb_get_platform_descriptor "struct libusb_context *ctx" "struct libusb_bos_dev_capability_descriptor *dev_cap" "struct libusb_platform_descriptor **platform_descriptor"
+This function parses the platform descriptor from the descriptor given by
+.Fa dev_cap
+and stores a pointer to the parsed descriptor into
+.Fa platform_descriptor .
+Returns zero on success and a LIBUSB_ERROR code on failure.
+On success the parsed platform descriptor must be freed using the
+libusb_free_platform_descriptor function.
+.Pp
+.Ft void
+.Fn libusb_free_platform_descriptor "struct libusb_platform_descriptor *platform_descriptor"
+This function is NULL safe and frees a parsed platform descriptor given by
+.Fa platform_descriptor .
 .Sh USB ASYNCHRONOUS I/O
 .Ft struct libusb_transfer *
 .Fn libusb_alloc_transfer "int iso_packets"
@@ -732,6 +755,14 @@ on success and a LIBUSB_ERROR code on failure.
 Handle any pending events by polling file descriptors, without checking if
 another thread is already doing so.
 Must be called with the event lock held.
+.Pp
+.Ft int
+.Fn libusb_pollfds_handle_timeouts "libusb_context *ctx"
+This function determines whether applications maintaining libusb events using
+.Fn libusb_get_pollfds
+are responsible for handling timeout events themselves.
+Returns 1 if libusb handles the timeout internally, 0 if the application
+needs to set a dedicated timer to handle it.
 .Pp
 .Ft int
 .Fn libusb_get_next_timeout "libusb_context *ctx" "struct timeval *tv"

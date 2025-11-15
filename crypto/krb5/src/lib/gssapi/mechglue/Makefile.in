@@ -49,7 +49,6 @@ SRCS = \
 	$(srcdir)/g_map_name_to_any.c \
 	$(srcdir)/g_mech_invoke.c \
 	$(srcdir)/g_mechattr.c \
-	$(srcdir)/g_mechname.c \
 	$(srcdir)/g_negoex.c \
 	$(srcdir)/g_oid_ops.c \
 	$(srcdir)/g_prf.c \
@@ -114,7 +113,6 @@ OBJS = \
 	$(OUTPRE)g_map_name_to_any.$(OBJEXT) \
 	$(OUTPRE)g_mech_invoke.$(OBJEXT) \
 	$(OUTPRE)g_mechattr.$(OBJEXT) \
-	$(OUTPRE)g_mechname.$(OBJEXT) \
 	$(OUTPRE)g_negoex.$(OBJEXT) \
 	$(OUTPRE)g_oid_ops.$(OBJEXT) \
 	$(OUTPRE)g_prf.$(OBJEXT) \
@@ -179,7 +177,6 @@ STLIBOBJS = \
 	g_map_name_to_any.o \
 	g_mech_invoke.o \
 	g_mechattr.o \
-	g_mechname.o \
 	g_negoex.o \
 	g_oid_ops.o \
 	g_prf.o \

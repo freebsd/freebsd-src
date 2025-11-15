@@ -700,7 +700,7 @@ pqisrc_create_op_obq(pqisrc_softstate_t *softs,
     	} else {
 		int i = 0;
 		DBG_WARN("Error Status Descriptors\n");
-		for(i = 0; i < 4;i++)
+		for (i = 0; i < 4; i++)
 			DBG_WARN(" %x ",admin_resp.resp_type.create_op_oq.status_desc[i]);
 	}
 
@@ -743,7 +743,7 @@ pqisrc_create_op_ibq(pqisrc_softstate_t *softs,
 	} else {
 		int i = 0;
 		DBG_WARN("Error Status Decsriptors\n");
-		for(i = 0; i < 4;i++)
+		for (i = 0; i < 4; i++)
 			DBG_WARN(" %x ",admin_resp.resp_type.create_op_iq.status_desc[i]);
 	}
 

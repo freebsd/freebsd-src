@@ -465,5 +465,5 @@ mycc -o /tmp/$prog -Wall -Wextra -O0 /tmp/$prog.c -lpthread || exit 1
 cd /tmp
 timeout 3m /tmp/$prog > /dev/null 2>&1
 
-rm -rf /tmp/$prog /tmp/$prog.c /tmp/$prog.core /tmp/$prog.??????
+rm -rf /tmp/$prog /tmp/$prog.c /tmp/$prog.core /tmp/$prog.?????? /tmp/syzkaller.*
 exit 0

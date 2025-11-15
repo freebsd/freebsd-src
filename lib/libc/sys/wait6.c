@@ -34,8 +34,6 @@
 #include <signal.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_wait6, __wait6);
-
 #pragma weak wait6
 pid_t
 wait6(idtype_t idtype, id_t id, int *status, int options, struct __wrusage *ru,

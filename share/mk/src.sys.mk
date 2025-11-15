@@ -6,7 +6,11 @@
 
 .if !defined(_WITHOUT_SRCCONF)
 # Allow user to configure things that only effect src tree builds.
+.if exists(${SRCTOP}/src.conf)
+SRCCONF?=	${SRCTOP}/src.conf
+.else
 SRCCONF?=	/etc/src.conf
+.endif
 .if !empty(SRCCONF) && \
     (exists(${SRCCONF}) || ${SRCCONF} != "/etc/src.conf") && \
     !target(_srcconf_included_)
@@ -42,7 +46,7 @@ CFLAGS+=	${CFCOMMONFLAG}
 CFLAGS+=	-fmacro-prefix-map=${SRCTOP}=/usr/src -fdebug-prefix-map=${SRCTOP}=/usr/src
 .endif
 
-DEFAULTWARNS=	6
+DEFAULTWARNS?=	6
 
 # tempting, but bsd.compiler.mk causes problems this early
 # probably need to remove dependence on bsd.own.mk 

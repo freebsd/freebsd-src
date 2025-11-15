@@ -21,3 +21,6 @@ device		arm_doorbell		# ARM Message Handling Unit (MHU)
 
 options 	FDT
 device		acpi
+
+# DTBs
+makeoptions	MODULES_EXTRA+="dtb/arm"

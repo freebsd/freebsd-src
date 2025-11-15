@@ -45,7 +45,7 @@ user_env_vars="BSDINSTALL_DISTSITE DISTRIBUTIONS"
 # error [$msg]
 #
 # Display generic error message when a script fails. An optional message
-# argument can preceed the generic message. User is given the choice of
+# argument can precede the generic message. User is given the choice of
 # restarting the installer or exiting.
 #
 error() {
@@ -79,7 +79,7 @@ distbase() {
 
 	: ${DISTRIBUTIONS="base.txz"}; export DISTRIBUTIONS
 	if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
-		DISTMENU=`cut -f 4,5,6 $BSDINSTALL_DISTDIR/MANIFEST | grep -v -e ^kernel -e ^base`
+		DISTMENU=$(cut -f 1,5,6 $BSDINSTALL_DISTDIR/MANIFEST | grep -v -e ^kernel -e ^base | sed -E 's/\.txz//g')
 
 		if [ ! "$nonInteractive" == "YES" ]
 		then
@@ -175,15 +175,15 @@ fi
 
 if [ ! "$nonInteractive" == "YES" ]; then
 	bsddialog --backtitle "$OSNAME Installer" --title "Select Installation Type" \
-	    --yes-label "Traditional" --no-label "Packages (Experimental)" --yesno \
-	    "Would you like to install the base system using traditional distribution sets or packages (experimental)?" 0 0
+	    --yes-label "Distribution Sets" --no-label "Packages (Tech Preview)" --yesno \
+	    "Would you like to install the base system using traditional distribution sets or packages (technology preview)?" 0 0
 	if [ $? -eq 1 ]; then
 		PKGBASE=yes
 	fi
 fi
 
 if [ "$PKGBASE" == yes ]; then
-	bsdinstall pkgbase --no-kernel || error "Installation of base system packages failed"
+	bsdinstall pkgbase --jail || error "Installation of base system packages failed"
 else
 	distbase
 fi
@@ -207,7 +207,7 @@ fi
 trap error SIGINT	# SIGINT is bad again
 bsdinstall config  || error "Failed to save config"
 cp /etc/resolv.conf $1/etc
-cp /etc/localtime $1/etc
+cp -P /etc/localtime $1/etc
 cp /var/db/zoneinfo $1/var/db
 
 # Run post-install script

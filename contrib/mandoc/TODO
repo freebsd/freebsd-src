@@ -1,6 +1,6 @@
 ************************************************************************
 * Official mandoc TODO.
-* $Id: TODO,v 1.337 2025/04/08 21:53:14 schwarze Exp $
+* $Id: TODO,v 1.338 2025/07/22 13:36:54 schwarze Exp $
 ************************************************************************
 
 Many issues are annotated for difficulty as follows:
@@ -504,6 +504,15 @@ are mere guesses, and some may be wrong.
     and change the /Name from /F0 to the new font (/F5 (?)).
   re-reported by tb@ Mon, 16 Mar 2015 16:47:21 +0100
   loc **  exist **  algo **  size *  imp **
+
+- Check for bad line breaks caused by PostScript and PDF using variable-
+  width fonts, for example in .Bl -width "string".  The difficulty line
+  below describes a naive solution by simply scaling up widths internally
+  or adding default spacing (like in terminal output).  If fixes are
+  needed in width measurements, it might be a bit harder, but likely
+  not unreasonably so.
+  reported by Jan Stary 20 May 2024 10:19:01 +0200
+  loc *  exist *  algo **  size *  imp **
 
 --- HTML issues --------------------------------------------------------
 

@@ -140,6 +140,10 @@ cpu_mp_start(void)
 	setidt(IPI_STOP, pti ? IDTVEC(cpustop_pti) : IDTVEC(cpustop),
 	    SDT_SYSIGT, SEL_KPL, 0);
 
+	/* Install an inter-CPU IPI for CPU offline */
+	setidt(IPI_OFF, pti ? IDTVEC(cpuoff_pti) : IDTVEC(cpuoff),
+	    SDT_SYSIGT, SEL_KPL, 0);
+
 	/* Install an inter-CPU IPI for CPU suspend/resume */
 	setidt(IPI_SUSPEND, pti ? IDTVEC(cpususpend_pti) : IDTVEC(cpususpend),
 	    SDT_SYSIGT, SEL_KPL, 0);
@@ -174,6 +178,15 @@ cpu_mp_start(void)
 #if defined(DEV_ACPI) && MAXMEMDOM > 1
 	acpi_pxm_set_cpu_locality();
 #endif
+}
+
+void
+cpu_mp_stop(void)
+{
+	cpuset_t other_cpus = all_cpus;
+
+	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+	offline_cpus(other_cpus);
 }
 
 /*

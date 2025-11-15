@@ -26,7 +26,7 @@ makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
 options 	SCHED_ULE		# ULE scheduler
 options 	NUMA			# Non-Uniform Memory Architecture support
 options 	PREEMPTION		# Enable kernel thread preemption
-options 	BLOAT_KERNEL_WITH_EXTERR
+options 	EXTERR_STRINGS
 options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
@@ -184,6 +184,9 @@ device		mrsas			# LSI/Avago MegaRAID SAS/SATA, 6Gb/s and 12Gb/s
 device		nvme			# base NVMe driver
 device		nvd			# expose NVMe namespaces as disks, depends on nvme
 
+# Universal Flash Storage Host Controller Interface support
+device 		ufshci			# UFS host controller
+
 # Intel Volume Management Device (VMD) support
 device		vmd
 
@@ -284,9 +287,9 @@ device		wlan			# 802.11 support
 options 	IEEE80211_DEBUG		# enable debug msgs
 options 	IEEE80211_SUPPORT_MESH	# enable 802.11s draft support
 device		wlan_wep		# 802.11 WEP support
+device		wlan_tkip		# 802.11 TKIP support
 device		wlan_ccmp		# 802.11 CCMP support
 device		wlan_gcmp		# 802.11 GCMP support
-device		wlan_tkip		# 802.11 TKIP support
 device		wlan_amrr		# AMRR transmit rate control algorithm
 device		ath			# Atheros CardBus/PCI NICs
 device		ath_hal			# Atheros CardBus/PCI chip support
@@ -306,8 +309,6 @@ device		wpi			# Intel 3945ABG wireless NICs.
 device		crypto			# core crypto support
 device		aesni			# AES-NI OpenCrypto module
 device		loop			# Network loopback
-device		padlock_rng		# VIA Padlock RNG
-device		rdrand_rng		# Intel Bull Mountain RNG
 device		ether			# Ethernet support
 device		vlan			# 802.1Q VLAN support
 device		tuntap			# Packet tunnel.
@@ -320,6 +321,13 @@ device		xz			# lzma decompression
 # Be aware of the administrative consequences of enabling this!
 # Note that 'bpf' is required for DHCP.
 device		bpf			# Berkeley packet filter
+
+# random(4)
+device		rdrand_rng		# Intel Bull Mountain RNG
+device		tpm			# Trusted Platform Module
+options 	RANDOM_ENABLE_TPM	# enable entropy from TPM 2.0
+options 	RANDOM_ENABLE_KBD
+options 	RANDOM_ENABLE_MOUSE
 
 # USB support
 options 	USB_DEBUG		# enable debug msgs

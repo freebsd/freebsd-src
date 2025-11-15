@@ -59,21 +59,37 @@ typedef struct zio_eck {
 
 /*
  * Gang block headers are self-checksumming and contain an array
- * of block pointers.
+ * of block pointers. The old gang block size has enough room for 3 blkptrs,
+ * while new gang blocks can store more.
+ *
+ * Layout:
+ * +--------+--------+--------+-----+---------+-----------+
+ * |        |        |        |     |         |           |
+ * | blkptr | blkptr | blkptr | ... | padding | zio_eck_t |
+ * |   1    |   2    |   3    |     |         |           |
+ * +--------+--------+--------+-----+---------+-----------+
+ *   128B     128B     128B             88B        40B
  */
-#define	SPA_GANGBLOCKSIZE	SPA_MINBLOCKSIZE
-#define	SPA_GBH_NBLKPTRS	((SPA_GANGBLOCKSIZE - \
-	sizeof (zio_eck_t)) / sizeof (blkptr_t))
-#define	SPA_GBH_FILLER		((SPA_GANGBLOCKSIZE - \
-	sizeof (zio_eck_t) - \
-	(SPA_GBH_NBLKPTRS * sizeof (blkptr_t))) /\
-	sizeof (uint64_t))
+#define	SPA_OLD_GANGBLOCKSIZE	SPA_MINBLOCKSIZE
+typedef void zio_gbh_phys_t;
 
-typedef struct zio_gbh {
-	blkptr_t		zg_blkptr[SPA_GBH_NBLKPTRS];
-	uint64_t		zg_filler[SPA_GBH_FILLER];
-	zio_eck_t		zg_tail;
-} zio_gbh_phys_t;
+static inline uint64_t
+gbh_nblkptrs(uint64_t size) {
+	ASSERT(IS_P2ALIGNED(size, sizeof (blkptr_t)));
+	return ((size - sizeof (zio_eck_t)) / sizeof (blkptr_t));
+}
+
+static inline zio_eck_t *
+gbh_eck(zio_gbh_phys_t *gbh, uint64_t size) {
+	ASSERT(IS_P2ALIGNED(size, sizeof (blkptr_t)));
+	return ((zio_eck_t *)((uintptr_t)gbh + (size_t)size -
+	    sizeof (zio_eck_t)));
+}
+
+static inline blkptr_t *
+gbh_bp(zio_gbh_phys_t *gbh, int bp) {
+	return (&((blkptr_t *)gbh)[bp]);
+}
 
 enum zio_checksum {
 	ZIO_CHECKSUM_INHERIT = 0,
@@ -196,7 +212,7 @@ typedef uint64_t zio_flag_t;
 #define	ZIO_FLAG_DONT_RETRY	(1ULL << 10)
 #define	ZIO_FLAG_NODATA		(1ULL << 12)
 #define	ZIO_FLAG_INDUCE_DAMAGE	(1ULL << 13)
-#define	ZIO_FLAG_IO_ALLOCATING	(1ULL << 14)
+#define	ZIO_FLAG_ALLOC_THROTTLED	(1ULL << 14)
 
 #define	ZIO_FLAG_DDT_INHERIT	(ZIO_FLAG_IO_RETRY - 1)
 #define	ZIO_FLAG_GANG_INHERIT	(ZIO_FLAG_IO_RETRY - 1)
@@ -226,8 +242,7 @@ typedef uint64_t zio_flag_t;
 #define	ZIO_FLAG_NOPWRITE	(1ULL << 29)
 #define	ZIO_FLAG_REEXECUTED	(1ULL << 30)
 #define	ZIO_FLAG_DELEGATED	(1ULL << 31)
-#define	ZIO_FLAG_DIO_CHKSUM_ERR	(1ULL << 32)
-#define	ZIO_FLAG_PREALLOCATED	(1ULL << 33)
+#define	ZIO_FLAG_PREALLOCATED	(1ULL << 32)
 
 #define	ZIO_ALLOCATOR_NONE	(-1)
 #define	ZIO_HAS_ALLOCATOR(zio)	((zio)->io_allocator != ZIO_ALLOCATOR_NONE)
@@ -346,25 +361,26 @@ struct zbookmark_err_phys {
 	(zb)->zb_blkid == ZB_ROOT_BLKID)
 
 typedef struct zio_prop {
-	enum zio_checksum	zp_checksum;
-	enum zio_compress	zp_compress;
+	enum zio_checksum	zp_checksum:8;
+	enum zio_compress	zp_compress:8;
 	uint8_t			zp_complevel;
 	uint8_t			zp_level;
 	uint8_t			zp_copies;
 	uint8_t			zp_gang_copies;
-	dmu_object_type_t	zp_type;
-	boolean_t		zp_dedup;
-	boolean_t		zp_dedup_verify;
-	boolean_t		zp_nopwrite;
-	boolean_t		zp_brtwrite;
-	boolean_t		zp_encrypt;
-	boolean_t		zp_byteorder;
-	boolean_t		zp_direct_write;
+	dmu_object_type_t	zp_type:8;
+	dmu_object_type_t	zp_storage_type:8;
+	boolean_t		zp_dedup:1;
+	boolean_t		zp_dedup_verify:1;
+	boolean_t		zp_nopwrite:1;
+	boolean_t		zp_brtwrite:1;
+	boolean_t		zp_encrypt:1;
+	boolean_t		zp_byteorder:1;
+	boolean_t		zp_direct_write:1;
+	boolean_t		zp_rewrite:1;
+	uint32_t		zp_zpl_smallblk;
 	uint8_t			zp_salt[ZIO_DATA_SALT_LEN];
 	uint8_t			zp_iv[ZIO_DATA_IV_LEN];
 	uint8_t			zp_mac[ZIO_DATA_MAC_LEN];
-	uint32_t		zp_zpl_smallblk;
-	dmu_object_type_t	zp_storage_type;
 } zio_prop_t;
 
 typedef struct zio_cksum_report zio_cksum_report_t;
@@ -399,7 +415,9 @@ typedef struct zio_vsd_ops {
 
 typedef struct zio_gang_node {
 	zio_gbh_phys_t		*gn_gbh;
-	struct zio_gang_node	*gn_child[SPA_GBH_NBLKPTRS];
+	uint64_t		gn_gangblocksize;
+	uint64_t		gn_allocsize;
+	struct zio_gang_node	*gn_child[];
 } zio_gang_node_t;
 
 typedef zio_t *zio_gang_issue_func_t(zio_t *zio, blkptr_t *bp,
@@ -418,14 +436,16 @@ typedef struct zio_transform {
 typedef zio_t *zio_pipe_stage_t(zio_t *zio);
 
 /*
- * The io_reexecute flags are distinct from io_flags because the child must
- * be able to propagate them to the parent.  The normal io_flags are local
- * to the zio, not protected by any lock, and not modifiable by children;
- * the reexecute flags are protected by io_lock, modifiable by children,
- * and always propagated -- even when ZIO_FLAG_DONT_PROPAGATE is set.
+ * The io_post flags describe additional actions that a parent IO should
+ * consider or perform on behalf of a child. They are distinct from io_flags
+ * because the child must be able to propagate them to the parent. The normal
+ * io_flags are local to the zio, not protected by any lock, and not modifiable
+ * by children; the reexecute flags are protected by io_lock, modifiable by
+ * children, and always propagated -- even when ZIO_FLAG_DONT_PROPAGATE is set.
  */
-#define	ZIO_REEXECUTE_NOW	0x01
-#define	ZIO_REEXECUTE_SUSPEND	0x02
+#define	ZIO_POST_REEXECUTE	(1 << 0)
+#define	ZIO_POST_SUSPEND	(1 << 1)
+#define	ZIO_POST_DIO_CHKSUM_ERR	(1 << 2)
 
 /*
  * The io_trim flags are used to specify the type of TRIM to perform.  They
@@ -461,7 +481,7 @@ struct zio {
 	enum zio_child	io_child_type;
 	enum trim_flag	io_trim_flags;
 	zio_priority_t	io_priority;
-	uint8_t		io_reexecute;
+	uint8_t		io_post;
 	uint8_t		io_state[ZIO_WAIT_TYPES];
 	uint64_t	io_txg;
 	spa_t		*io_spa;
@@ -603,7 +623,8 @@ extern zio_t *zio_free_sync(zio_t *pio, spa_t *spa, uint64_t txg,
     const blkptr_t *bp, zio_flag_t flags);
 
 extern int zio_alloc_zil(spa_t *spa, objset_t *os, uint64_t txg,
-    blkptr_t *new_bp, uint64_t size, boolean_t *slog);
+    blkptr_t *new_bp, uint64_t min_size, uint64_t max_size, boolean_t *slog,
+    boolean_t allow_larger);
 extern void zio_flush(zio_t *zio, vdev_t *vd);
 extern void zio_shrink(zio_t *zio, uint64_t size);
 
@@ -697,6 +718,7 @@ extern void zio_handle_ignored_writes(zio_t *zio);
 extern hrtime_t zio_handle_io_delay(zio_t *zio);
 extern void zio_handle_import_delay(spa_t *spa, hrtime_t elapsed);
 extern void zio_handle_export_delay(spa_t *spa, hrtime_t elapsed);
+extern hrtime_t zio_handle_ready_delay(zio_t *zio);
 
 /*
  * Checksum ereport functions

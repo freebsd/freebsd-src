@@ -76,8 +76,12 @@ function libsys_h.generate(tbl, config, fh)
 
 	for _, v in pairs(s) do
 		if print_decl(v) then
-			gen:write(string.format("%s __sys_%s(%s);\n",
-			    v.ret, v.name, v.argstr_type_var))
+			local ret_attr = "";
+			if v.type.NORETURN then
+				ret_attr = "_Noreturn "
+			end
+			gen:write(string.format("%s%s __sys_%s(%s);\n",
+			    ret_attr, v.ret, v.name, v.argstr_type_var))
 		end
 	end
 

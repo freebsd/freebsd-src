@@ -81,7 +81,21 @@ void *nvmf_capsule_sqe(struct nvmf_capsule *nc);
 void *nvmf_capsule_cqe(struct nvmf_capsule *nc);
 bool	nvmf_sqhd_valid(struct nvmf_capsule *nc);
 
+/* Host-specific APIs. */
+
+/*
+ * Largest I/O request size for a single command supported by the
+ * transport.  If the transport does not have a limit, returns 0.
+ */
+uint64_t nvmf_max_xfer_size(struct nvmf_qpair *qp);
+
 /* Controller-specific APIs. */
+
+/*
+ * Largest I/O command capsule size (IOCCSZ) supported by the
+ * transport.  If the transport does not have a limit, returns 0.
+ */
+uint32_t nvmf_max_ioccsz(struct nvmf_qpair *qp);
 
 /*
  * A controller calls this function to check for any

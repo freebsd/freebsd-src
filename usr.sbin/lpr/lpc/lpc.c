@@ -358,6 +358,8 @@ ingroup(const char *grname)
 			err(1, "getgroups");
 	}
 	gid = gptr->gr_gid;
+	if (gid == getegid())
+		return(1);
 	for (i = 0; i < ngroups; i++)
 		if (gid == groups[i])
 			return(1);

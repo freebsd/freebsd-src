@@ -39,4 +39,4 @@
 #include_next <libutil.h>
 #endif
 
-int expand_number(const char *_buf, uint64_t *_num);
+int expand_number(const char *_buf, int64_t *_num);

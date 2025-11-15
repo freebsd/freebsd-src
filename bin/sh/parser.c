@@ -55,6 +55,8 @@
 #include "show.h"
 #include "eval.h"
 #include "exec.h"	/* to check for special builtins */
+#include "main.h"
+#include "jobs.h"
 #ifndef NO_HISTORY
 #include "myhistedit.h"
 #endif
@@ -2050,7 +2052,129 @@ getprompt(void *unused __unused)
 	 * Format prompt string.
 	 */
 	for (i = 0; (i < PROMPTLEN - 1) && (*fmt != '\0'); i++, fmt++) {
-		if (*fmt != '\\') {
+		if (*fmt == '$') {
+			const char *varname_start, *varname_end, *value;
+			char varname[256];
+			int namelen, braced = 0;
+
+			fmt++;  /* Skip the '$' */
+
+			/* Check for ${VAR} syntax */
+			if (*fmt == '{') {
+				braced = 1;
+				fmt++;
+			}
+
+			varname_start = fmt;
+
+			/* Extract variable name */
+			if (is_digit(*fmt)) {
+				/* Positional parameter: $0, $1, etc. */
+				fmt++;
+				varname_end = fmt;
+			} else if (is_special(*fmt)) {
+				/* Special parameter: $?, $!, $$, etc. */
+				fmt++;
+				varname_end = fmt;
+			} else if (is_name(*fmt)) {
+				/* Regular variable name */
+				do
+					fmt++;
+				while (is_in_name(*fmt));
+				varname_end = fmt;
+			} else {
+				/*
+				 * Not a valid variable reference.
+				 * Output literal '$'.
+				 */
+				ps[i] = '$';
+				if (braced && i < PROMPTLEN - 2)
+					ps[++i] = '{';
+				fmt = varname_start - 1;
+				continue;
+			}
+
+			namelen = varname_end - varname_start;
+			if (namelen == 0 || namelen >= (int)sizeof(varname)) {
+				/* Invalid or too long, output literal */
+				ps[i] = '$';
+				fmt = varname_start - 1;
+				continue;
+			}
+
+			/* Copy variable name */
+			memcpy(varname, varname_start, namelen);
+			varname[namelen] = '\0';
+
+			/* Handle closing brace for ${VAR} */
+			if (braced) {
+				if (*fmt == '}') {
+					fmt++;
+				} else {
+					/* Missing closing brace, treat as literal */
+					ps[i] = '$';
+					if (i < PROMPTLEN - 2)
+						ps[++i] = '{';
+					fmt = varname_start - 1;
+					continue;
+				}
+			}
+
+			/* Look up the variable */
+			if (namelen == 1 && is_digit(*varname)) {
+				/* Positional parameters - check digits FIRST */
+				int num = *varname - '0';
+				if (num == 0)
+					value = arg0 ? arg0 : "";
+				else if (num > 0 && num <= shellparam.nparam)
+					value = shellparam.p[num - 1];
+				else
+					value = "";
+			} else if (namelen == 1 && is_special(*varname)) {
+				/* Special parameters */
+				char valbuf[20];
+				int num;
+
+				switch (*varname) {
+				case '$':
+					num = rootpid;
+					break;
+				case '?':
+					num = exitstatus;
+					break;
+				case '#':
+					num = shellparam.nparam;
+					break;
+				case '!':
+					num = backgndpidval();
+					break;
+				default:
+					num = 0;
+					break;
+				}
+				snprintf(valbuf, sizeof(valbuf), "%d", num);
+				value = valbuf;
+			} else {
+				/* Regular variables */
+				value = lookupvar(varname);
+				if (value == NULL)
+					value = "";
+			}
+
+			/* Copy value to output, respecting buffer size */
+			while (*value != '\0' && i < PROMPTLEN - 1) {
+				ps[i++] = *value++;
+			}
+
+			/*
+			 * Adjust fmt and i for the loop increment.
+			 * fmt will be incremented by the for loop,
+			 * so position it one before where we want.
+			 */
+			fmt--;
+			i--;
+			continue;
+		} else if (*fmt != '\\') {
 			ps[i] = *fmt;
 			continue;
 		}

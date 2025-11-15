@@ -45,6 +45,7 @@
 #define AU_FROMADDR           "fromaddr"
 #define AU_TYPE               "type" /* used by fromaddr */
 #define AU_IP                 "ip" /* used by fromaddr */
+#define AU_PATH               "path" /* used by fromaddr */
 #define AU_SESS_ETYPE         "sess_etype"
 #define AU_SRV_ETYPE          "srv_etype"
 #define AU_REP_ETYPE          "rep_etype"

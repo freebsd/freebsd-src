@@ -1189,6 +1189,34 @@ ATF_TC_CLEANUP(cross_jail_dirfd, tc)
 		err(1, "jail_remove");
 }
 
+ATF_TC_WITHOUT_HEAD(listening_socket);
+ATF_TC_BODY(listening_socket, tc)
+{
+	struct sockaddr_un sun;
+	int error, ls, s[2];
+
+	ls = socket(AF_UNIX, SOCK_STREAM, 0);
+	ATF_REQUIRE(ls != -1);
+
+	memset(&sun, 0, sizeof(sun));
+	sun.sun_len = sizeof(sun);
+	sun.sun_family = AF_UNIX;
+	snprintf(sun.sun_path, sizeof(sun.sun_path), "listen.sock");
+	error = bind(ls, (struct sockaddr *)&sun, sizeof(sun));
+	ATF_REQUIRE_MSG(error == 0, "bind failed: %s", strerror(errno));
+	error = listen(ls, 0);
+
+	error = socketpair(AF_UNIX, SOCK_STREAM, 0, s);
+	ATF_REQUIRE_MSG(error == 0, "socketpair failed: %s", strerror(errno));
+
+	sendfd(s[0], ls);
+	sendfd(s[0], s[0]);
+	sendfd(s[0], s[1]);
+	close(ls);
+	close(s[0]);
+	close(s[1]);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -1211,6 +1239,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, empty_rights_message);
 	ATF_TP_ADD_TC(tp, control_creates_records);
 	ATF_TP_ADD_TC(tp, cross_jail_dirfd);
+	ATF_TP_ADD_TC(tp, listening_socket);
 
 	return (atf_no_error());
 }

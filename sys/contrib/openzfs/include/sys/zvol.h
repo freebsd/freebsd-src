@@ -36,8 +36,7 @@
 #define	SPEC_MAXOFFSET_T	((1LL << ((NBBY * sizeof (daddr32_t)) + \
 				DEV_BSHIFT - 1)) - 1)
 
-extern void zvol_create_minor(const char *);
-extern void zvol_create_minors_recursive(const char *);
+extern void zvol_create_minors(const char *);
 extern void zvol_remove_minors(spa_t *, const char *, boolean_t);
 extern void zvol_rename_minors(spa_t *, const char *, const char *, boolean_t);
 
@@ -54,7 +53,7 @@ extern int zvol_set_volsize(const char *, uint64_t);
 extern int zvol_set_volthreading(const char *, boolean_t);
 extern int zvol_set_common(const char *, zfs_prop_t, zprop_source_t, uint64_t);
 extern int zvol_set_ro(const char *, boolean_t);
-extern zvol_state_handle_t *zvol_suspend(const char *);
+extern int zvol_suspend(const char *, zvol_state_handle_t **);
 extern int zvol_resume(zvol_state_handle_t *);
 extern void *zvol_tag(zvol_state_handle_t *);
 

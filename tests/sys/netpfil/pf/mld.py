@@ -32,23 +32,22 @@ from atf_python.sys.net.vnet import VnetTestTemplate
 class TestMLD(VnetTestTemplate):
     REQUIRED_MODULES = [ "pf" ]
     TOPOLOGY = {
-        "vnet1": {"ifaces": ["if1"]},
+        "vnet1": {"ifaces": ["if1"], "opts": ["allow.read_msgbuf"]},
         "vnet2": {"ifaces": ["if1"]},
         "if1": {"prefixes6": [("2001:db8::2/64", "2001:db8::1/64")]},
     }
 
     def vnet2_handler(self, vnet):
         ifname = vnet.iface_alias_map["if1"].name
-        #ToolsHelper.print_output("/sbin/pfctl -e")
+        ToolsHelper.print_output("/sbin/pfctl -e")
         ToolsHelper.pf_rules([
             "pass",
             ])
         ToolsHelper.print_output("/sbin/pfctl -x loud")
-        #ToolsHelper.print_output("echo \"j 230.0.0.1 %s\ns 3600\nq\" | /usr/sbin/mtest" % ifname)
 
     def find_mld_reply(self, pkt, ifname):
         pkt.show()
-        s = DelayedSend(pkt)
+        s = DelayedSend(pkt, ifname)
 
         found = False
         packets = self.sp.sniff(iface=ifname, timeout=5)
@@ -66,7 +65,6 @@ class TestMLD(VnetTestTemplate):
     def test_router_alert(self):
         """Verify that we allow MLD packets with router alert extension header"""
         ifname = self.vnet.iface_alias_map["if1"].name
-        #ToolsHelper.print_output("/sbin/ifconfig %s inet6 -ifdisable" % ifname)
         ToolsHelper.print_output("/sbin/ifconfig")
 
         # Import in the correct vnet, so at to not confuse Scapy
@@ -76,20 +74,17 @@ class TestMLD(VnetTestTemplate):
         self.sp = sp
         self.sc = sc
 
-        # A correct MLD query gets a reply
-        pkt = sp.IPv6(src="fe80::1%%%s" % ifname, dst="ff02::1", hlim=1) \
-            / sp.RouterAlert(value=0) \
+        # MLD packets with an incorrect hop limit get dropped.
+        pkt = sp.Ether() \
+            / sp.IPv6(src="fe80::1%%%s" % ifname, dst="ff02::1", hlim=2) \
+            / sp.IPv6ExtHdrHopByHop(options=[ \
+                sp.RouterAlert(value=0) \
+                ]) \
             / sp.ICMPv6MLQuery2()
-        assert self.find_mld_reply(pkt, ifname)
+        # We can't reliably test this by checking for a reply, because
+        # the other jail may just send a spontaneous MLD reply.
+        self.find_mld_reply(pkt, ifname)
 
-        # The wrong extension header does not
-        pkt = sp.IPv6(src="fe80::1%%%s" % ifname, dst="ff02::1", hlim=1) \
-            / sp.IPv6ExtHdrRouting() \
-            / sp.ICMPv6MLQuery2()
-        assert not self.find_mld_reply(pkt, ifname)
-
-        # Neither does an incorrect hop limit
-        pkt = sp.IPv6(src="fe80::1%%%s" % ifname, dst="ff02::1", hlim=2) \
-            / sp.RouterAlert(value=0) \
-            / sp.ICMPv6MLQuery2()
-        assert not self.find_mld_reply(pkt, ifname)
+        # Check if we logged dropping the MLD paacket
+        dmesg = ToolsHelper.get_output("/sbin/dmesg")
+        assert dmesg.find("Invalid MLD") != -1

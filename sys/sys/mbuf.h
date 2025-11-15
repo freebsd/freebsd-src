@@ -641,16 +641,15 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
 
 /*
  * Flags indicating checksum, segmentation and other offload work to be
- * done, or already done, by hardware or lower layers.  It is split into
- * separate inbound and outbound flags.
+ * done, or already done, by hardware or lower layers.
  *
- * Outbound flags that are set by upper protocol layers requesting lower
+ * Flags that are set by upper protocol layers requesting lower
  * layers, or ideally the hardware, to perform these offloading tasks.
- * For outbound packets this field and its flags can be directly tested
- * against ifnet if_hwassist.  Note that the outbound and the inbound flags do
- * not collide right now but they could be allowed to (as long as the flags are
- * scrubbed appropriately when the direction of an mbuf changes).  CSUM_BITS
- * would also have to split into CSUM_BITS_TX and CSUM_BITS_RX.
+ * Before passing packets to a network interface this field and its flags can
+ * be directly tested against ifnet if_hwassist.  Note that the flags
+ * CSUM_IP_SCTP, CSUM_IP_TCP, and CSUM_IP_UDP can appear on input processing
+ * of SCTP, TCP, and UDP.  In such a case the checksum will not be computed or
+ * validated by SCTP, TCP, or TCP, since the packet has not been on the wire.
  *
  * CSUM_INNER_<x> is the same as CSUM_<x> but it applies to the inner frame.
  * The CSUM_ENCAP_<x> bits identify the outer encapsulation.
@@ -679,7 +678,7 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
 #define	CSUM_ENCAP_VXLAN	0x00040000	/* VXLAN outer encapsulation */
 #define	CSUM_ENCAP_RSVD1	0x00080000
 
-/* Inbound checksum support where the checksum was verified by hardware. */
+/* Flags used to indicate that the checksum was verified by hardware. */
 #define	CSUM_INNER_L3_CALC	0x00100000
 #define	CSUM_INNER_L3_VALID	0x00200000
 #define	CSUM_INNER_L4_CALC	0x00400000
@@ -1391,6 +1390,7 @@ extern bool		mb_use_ext_pgs;	/* Use ext_pgs for sendfile */
 #define	PACKET_TAG_PF_REASSEMBLED		31
 #define	PACKET_TAG_IPSEC_ACCEL_OUT		32  /* IPSEC accel out */
 #define	PACKET_TAG_IPSEC_ACCEL_IN		33  /* IPSEC accel in */
+#define	PACKET_TAG_OVPN				34 /* if_ovpn */
 
 /* Specific cookies and tags. */
 

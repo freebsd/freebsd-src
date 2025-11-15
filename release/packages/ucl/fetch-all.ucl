@@ -1,4 +1,33 @@
-comment = "Fetch Utility"
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+comment = "Retrieve a file from a remote URL"
+
 desc = <<EOD
-Fetch Utility
+The fetch(1) utility retrieves one or more files from a remote URL via
+HTTP or FTP.  fetch(1) includes support for TLS, HTTP proxies, .netrc
+files, and includes a "mirror" mode which only downloads files which
+are newer on the remote site.
+
+Also provided is fetch(3), a library which allows applications to use
+this functionality programmatically.
 EOD
+
+annotations {
+	set = "minimal,minimal-jail"
+}

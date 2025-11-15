@@ -1,13 +1,11 @@
 #
-# SPDX-License-Idendifier: BSD-2-Clause
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2025 FreeBSD Foundation
 #
 # This sofware was developed by Cy Schubert <cy@FreeBSD.org>
 # under sponsorship from the FreeBSD Foundation.
 #
-
-PACKAGE=	kerberos-lib
 
 .include <src.opts.mk>
 
@@ -46,6 +44,11 @@ CFLAGS+=-I${KRB5_DIR}/util/ss \
 	-I${KRB5_DIR}/include \
 	-I${.OBJDIR:H} \
 	-I${.OBJDIR}
+
+.if !defined(BOOTSTRAPPING)
+CFLAGS+= -DHAVE_READLINE=1 \
+	 -I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/edit
+.endif
 
 GEN=	std_rqs.c ${GEN_SS_ERR_C} ${GEN_SS_ERR_H}
 GEN_SCRIPTS=	ct_c.awk ct_c.sed mk_cmds

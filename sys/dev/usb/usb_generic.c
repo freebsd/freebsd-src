@@ -831,42 +831,7 @@ ugen_get_iface_driver(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 int
 ugen_fill_deviceinfo(struct usb_fifo *f, struct usb_device_info *di)
 {
-	struct usb_device *udev;
-	struct usb_device *hub;
-
-	udev = f->udev;
-
-	bzero(di, sizeof(di[0]));
-
-	di->udi_bus = device_get_unit(udev->bus->bdev);
-	di->udi_addr = udev->address;
-	di->udi_index = udev->device_index;
-	strlcpy(di->udi_serial, usb_get_serial(udev), sizeof(di->udi_serial));
-	strlcpy(di->udi_vendor, usb_get_manufacturer(udev), sizeof(di->udi_vendor));
-	strlcpy(di->udi_product, usb_get_product(udev), sizeof(di->udi_product));
-	usb_printbcd(di->udi_release, sizeof(di->udi_release),
-	    UGETW(udev->ddesc.bcdDevice));
-	di->udi_vendorNo = UGETW(udev->ddesc.idVendor);
-	di->udi_productNo = UGETW(udev->ddesc.idProduct);
-	di->udi_releaseNo = UGETW(udev->ddesc.bcdDevice);
-	di->udi_class = udev->ddesc.bDeviceClass;
-	di->udi_subclass = udev->ddesc.bDeviceSubClass;
-	di->udi_protocol = udev->ddesc.bDeviceProtocol;
-	di->udi_config_no = udev->curr_config_no;
-	di->udi_config_index = udev->curr_config_index;
-	di->udi_power = udev->flags.self_powered ? 0 : udev->power;
-	di->udi_speed = udev->speed;
-	di->udi_mode = udev->flags.usb_mode;
-	di->udi_power_mode = udev->power_mode;
-	di->udi_suspended = udev->flags.peer_suspended;
-
-	hub = udev->parent_hub;
-	if (hub) {
-		di->udi_hubaddr = hub->address;
-		di->udi_hubindex = hub->device_index;
-		di->udi_hubport = udev->port_no;
-	}
-	return (0);
+	return (usbd_fill_deviceinfo(f->udev, di));
 }
 
 int

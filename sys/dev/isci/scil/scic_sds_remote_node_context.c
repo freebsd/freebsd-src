@@ -663,7 +663,7 @@ SCI_STATUS scic_sds_remote_node_context_invalidating_state_event_handler(
                SCIC_LOG_OBJECT_SSP_REMOTE_TARGET |
                   SCIC_LOG_OBJECT_SMP_REMOTE_TARGET |
                   SCIC_LOG_OBJECT_STP_REMOTE_TARGET,
-               "SCIC Remote Node Context 0x%x was suspeneded by hardware while being invalidated.\n",
+               "SCIC Remote Node Context 0x%x was suspended by hardware while being invalidated.\n",
                this_rnc
                   ));
             status = SCI_SUCCESS;
@@ -718,7 +718,7 @@ SCI_STATUS scic_sds_remote_node_context_resuming_state_event_handler(
                SCIC_LOG_OBJECT_SSP_REMOTE_TARGET |
                   SCIC_LOG_OBJECT_SMP_REMOTE_TARGET |
                   SCIC_LOG_OBJECT_STP_REMOTE_TARGET,
-               "SCIC Remote Node Context 0x%x was suspeneded by hardware while being resumed.\n",
+               "SCIC Remote Node Context 0x%x was suspended by hardware while being resumed.\n",
                this_rnc
                   ));
             status = SCI_SUCCESS;

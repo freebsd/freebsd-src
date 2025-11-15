@@ -26,12 +26,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 26, 2025
+.Dd August 6, 2025
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
 .Nm ctl.conf
-.Nd CAM Target Layer / iSCSI target daemon configuration file
+.Nd CAM Target Layer / iSCSI target / NVMeoF controller daemon configuration file
 .Sh DESCRIPTION
 The
 .Nm
@@ -59,10 +59,24 @@ file is:
 .Dl ...
 }
 
+.No transport-group Ar name No {
+.Dl listen Ar transport Ar address
+.Dl ...
+}
+
 .No target Ar name {
 .Dl auth-group Ar name
 .Dl portal-group Ar name
 .Dl lun Ar number No {
+.Dl 	path Ar path
+.Dl }
+.Dl ...
+}
+
+.No controller Ar name {
+.Dl auth-group Ar name
+.Dl transport-group Ar name
+.Dl namespace Ar number No {
 .Dl 	path Ar path
 .Dl }
 .Dl ...
@@ -94,15 +108,28 @@ Create a
 configuration context,
 defining a new portal-group,
 which can then be assigned to any number of targets.
+.It Ic transport-group Ar name
+Create a
+.Sy transport-group
+configuration context,
+defining a new transport-group,
+which can then be assigned to any number of NVMeoF controllers.
 .It Ic lun Ar name
 Create a
 .Sy lun
-configuration context, defining a LUN to be exported by any number of targets.
+configuration context, defining a LUN to be exported by any number of targets
+or controllers.
 .It Ic target Ar name
 Create a
 .Sy target
 configuration context, which can optionally contain one or more
 .Sy lun
+contexts.
+.It Ic controller Ar name
+Create a
+.Sy controller
+configuration context, which can optionally contain one or more
+.Sy namespace
 contexts.
 .It Ic timeout Ar seconds
 The timeout for login sessions, after which the connection
@@ -150,6 +177,19 @@ the configuration may only contain either
 or
 .Sy chap-mutual
 entries; it is an error to mix them.
+.It Ic host-address Ar address Ns Op / Ns Ar prefixlen
+An NVMeoF host address: an IPv4 or IPv6 address, optionally
+followed by a literal slash and a prefix length.
+Only NVMeoF hosts with an address matching one of the defined
+addresses will be allowed to connect.
+If not defined, there will be no restrictions based on host
+address.
+.It Ic host-nqn Ar name
+An NVMeoF host name.
+Only NVMeoF hosts with a name matching one of the defined
+names will be allowed to connect.
+If not defined, there will be no restrictions based on NVMe host
+name.
 .It Ic initiator-name Ar initiator-name
 An iSCSI initiator name.
 Only initiators with a name matching one of the defined
@@ -263,6 +303,75 @@ The PCP can be set to a value in the range between
 to
 .Qq Ar 7 .
 When omitted, the default for the outgoing interface is used.
+.El
+.Ss transport-group Context
+.Bl -tag -width indent
+.It Ic discovery-auth-group Ar name
+See the description for this option for
+.Sy portal-group
+contexts.
+.It Ic discovery-filter Ar filter
+Filter can be either
+.Qq Ar none ,
+.Qq Ar address ,
+or
+.Qq Ar address-name .
+When set to
+.Qq Ar none ,
+discovery will return all controllers assigned to that transport group.
+When set to
+.Qq Ar address ,
+discovery will not return controllers that cannot be accessed by the
+host because of their
+.Sy host-address .
+When set to
+.Qq Ar address-name ,
+the check will include both
+.Sy host-address
+and
+.Sy host-nqn .
+The default is
+.Qq Ar none .
+.It Ic listen Ar transport Ar address
+An IPv4 or IPv6 address and port to listen on for incoming connections
+using the specified NVMeoF transport.
+Supported transports are
+.Qq Ar tcp
+.Pq for NVMe/TCP I/O controllers
+and
+.Qq Ar discovery-tcp
+.Pq for NVMe/TCP discovery controllers .
+.It Ic option Ar name Ar value
+One of the following options:
+.Bl -column "max_admin_qsize" "Default" "Transports"
+.It Sy Name Ta Sy Default Ta Sy Transports Ta Sy Description
+.It MAXH2CDATA Ta 256KiB Ta TCP Ta
+Size in bytes of the maximum data payload size for data PDUs accepted from
+remote hosts.
+The value must be at least 4KiB and must be a multiple of 4.
+.It SQFC Ta false Ta any Ta
+Always enable SQ flow control.
+.It HDGST Ta false Ta TCP Ta
+Enable PDU header digests if requested by a remote host.
+.It DDGST Ta false Ta TCP Ta
+Enable PDU data digests if requested by a remote host.
+.It max_admin_qsize Ta 4096 Ta any Ta
+The maximum number of entries a remote host can request for an admin queue pair.
+.It max_io_qsize Ta 65536 Ta any Ta
+The maximum number of entries a remote host can request for an I/O queue pair.
+.El
+.It Ic tag Ar value
+Unique 16-bit port ID for this
+.Sy transport-group .
+If not specified, the value is generated automatically.
+.It Ic dscp Ar value
+See the description for this option for
+.Sy portal-group
+contexts.
+.It Ic pcp Ar value
+See the description for this option for
+.Sy portal-group
+contexts.
 .El
 .Ss target Context
 .Bl -tag -width indent
@@ -390,6 +499,101 @@ configuration context, defining a LUN exported by the parent target.
 This is an alternative to defining the LUN separately, useful in the common
 case of a LUN being exported by a single target.
 .El
+.Ss controller Context
+.Bl -tag -width indent
+.It Ic auth-group Ar name
+Assign a previously defined authentication group to the controller.
+By default, controllers that do not specify their own auth settings,
+using clauses such as
+.Sy host-address
+or
+.Sy host-nqn ,
+are assigned to the
+predefined
+.Sy auth-group
+.Qq Ar default ,
+which denies all access.
+Another predefined
+.Sy auth-group ,
+.Qq Ar no-authentication ,
+may be used to permit access
+without authentication.
+Note that this clause can be overridden using the second argument
+to a
+.Sy transport-group
+clause.
+.It Ic auth-type Ar type
+Sets the authentication type.
+Type can be either
+.Qq Ar none
+or
+.Qq Ar deny .
+In most cases it is not necessary to set the type using this clause;
+it is usually used to disable authentication for a given
+.Sy controller .
+This clause is mutually exclusive with
+.Sy auth-group ;
+one cannot use
+both in a single controller.
+.It Ic host-address Ar address Ns Op / Ns Ar prefixlen
+An NVMeoF host address: an IPv4 or IPv6 address, optionally
+followed by a literal slash and a prefix length.
+Only NVMeoF hosts with an address matching one of the defined
+addresses will be allowed to connect.
+If not defined, there will be no restrictions based on host
+address.
+This clause is mutually exclusive with
+.Sy auth-group ;
+one cannot use
+both in a single controller.
+.It Ic host-nqn Ar name
+An NVMeoF host name.
+Only NVMeoF hosts with a name matching one of the defined
+names will be allowed to connect.
+If not defined, there will be no restrictions based on NVMe host
+name.
+This clause is mutually exclusive with
+.Sy auth-group ;
+one cannot use
+both in a single target.
+.Pp
+The
+.Sy auth-type ,
+.Sy host-address ,
+and
+.Sy host-nqn
+clauses in the controller context provide an alternative to assigning an
+.Sy auth-group
+defined separately, useful in the common case of authentication settings
+specific to a single controller.
+.It Ic transport-group Ar name Op Ar ag-name
+Assign a previously defined transport group to the controller.
+The default transport group is
+.Qq Ar default ,
+which makes the controller available
+on TCP port 4420 on all configured IPv4 and IPv6 addresses.
+The optional second argument specifies the
+.Sy auth-group
+for connections to this specific transport group group.
+If the second argument is not specified, the controller
+.Sy auth-group
+is used.
+.It Ic namespace Ar number Ar name
+Export previously defined
+.Sy lun
+as an NVMe namespace from the parent controller.
+.It Ic namespace Ar number
+Create a
+.Sy namespace
+configuration context, defining an NVMe namespace exported by the parent target.
+.Pp
+This is an alternative to defining the namespace separately,
+useful in the common case of a namespace being exported by a single controller.
+.Sy namespace
+configuration contexts accept the the same properties as
+.Sy lun
+contexts.
+.El
 .Ss lun Context
 .Bl -tag -width indent
 .It Ic backend Ar block No | Ar ramdisk
@@ -410,7 +614,7 @@ Global numeric identifier to use for a given LUN inside CTL.
 By default CTL allocates those IDs dynamically, but explicit specification
 may be needed for consistency in HA configurations.
 .It Ic device-id Ar string
-The SCSI Device Identification string presented to the initiator.
+The SCSI Device Identification string presented to iSCSI initiators.
 .It Ic device-type Ar type
 Specify the SCSI device type to use when creating the LUN.
 Currently CTL supports Direct Access (type 0), Processor (type 3)
@@ -425,11 +629,11 @@ section of
 The path to the file, device node, or
 .Xr zfs 8
 volume used to back the LUN.
-For optimal performance, create the volume with the
+For optimal performance, create ZFS volumes with the
 .Qq Ar volmode=dev
 property set.
 .It Ic serial Ar string
-The SCSI serial number presented to the initiator.
+The SCSI serial number presented to iSCSI initiators.
 .It Ic size Ar size
 The LUN size, in bytes or by number with a suffix of
 .Sy K , M , G , T
@@ -497,6 +701,16 @@ target naa.50015178f369f092 {
 	port isp0
 	port isp1
 	lun 0 example_1
+}
+
+controller nqn.2012-06.com.example:controller1 {
+	auth-group no-authentication;
+	namespace 1 example_1
+	namespace 2 {
+		backend ramdisk
+		size 1G
+		option capacity 1G
+	}
 }
 .Ed
 .Pp
@@ -582,6 +796,22 @@ target {
 		port = isp0
 		lun {
 			0 = example_1
+		}
+	}
+}
+
+controller {
+	"nqn.2012-06.com.example:controller1" {
+		auth-group = no-authentication
+		namespace = {
+			1 = example_1,
+			2 {
+				backend = ramdisk
+				size = 1G
+				options {
+					capacity = 1G
+				}
+			}
 		}
 	}
 }

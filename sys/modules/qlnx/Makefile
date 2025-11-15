@@ -31,9 +31,6 @@
 #
 #
 
-SYSDIR?=${SRCTOP}/sys
-.include "${SYSDIR}/conf/kern.opts.mk"
-
 SUBDIR=qlnxe
 SUBDIR+=qlnxev
 SUBDIR+=qlnxr

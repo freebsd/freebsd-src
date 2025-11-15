@@ -46,6 +46,7 @@ MAN+= openssl-s_client.1
 MAN+= openssl-s_server.1
 MAN+= openssl-s_time.1
 MAN+= openssl-sess_id.1
+MAN+= openssl-skeyutl.1
 MAN+= openssl-smime.1
 MAN+= openssl-speed.1
 MAN+= openssl-spkac.1

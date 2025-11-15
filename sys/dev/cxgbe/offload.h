@@ -196,7 +196,8 @@ enum {
 	ULD_TOM = 0,
 	ULD_IWARP,
 	ULD_ISCSI,
-	ULD_MAX = ULD_ISCSI
+	ULD_NVME,
+	ULD_MAX = ULD_NVME
 };
 
 struct adapter;
@@ -229,7 +230,17 @@ struct iw_tunables {
 
 struct tls_tunables {
 	int inline_keys;
-	int combo_wrs;
+	union {
+		struct {
+			/* T6 only. */
+			int combo_wrs;
+		};
+		struct {
+			/* T7 only. */
+			int short_records;
+			int partial_ghash;
+		};
+	};
 };
 
 #ifdef TCP_OFFLOAD

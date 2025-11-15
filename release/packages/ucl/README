@@ -1,0 +1,50 @@
+This directory contains package manifests for the base packages in UCL format.
+There are two types of manifest: "<package>.ucl" applies specifically to the
+package called "<package>", and "<package>-all.ucl" applies to all of that
+package's subpackages.
+
+For example, if a Makefile sets PACKAGE=foo, then the build might generate the
+following packages:
+
+	FreeBSD-foo
+	FreeBSD-foo-dev
+	FreeBSD-foo-lib32
+	FreeBSD-foo-man
+
+All of these packages will include "foo-all.ucl", but "foo.ucl" will only be
+included by FreeBSD-foo, "foo-dev.ucl" will only be included by FreeBSD-foo-dev,
+and so on.
+
+In general, dependencies and post-install scripts should be added in the
+package-specific manifests, while comment and description should be set
+in the "-all" manifest.
+
+Policies for package dependencies:
+
+* If a package requires a shared library from another package, do not add a
+  dependency, unless pkg(8) doesn't detect the dependency automatically for
+  some reason (which may happen if the library is loaded with dlopen() at
+  runtime).
+
+* If a package contains rc(8) scripts, do not add a dependency on "rc".
+  Installing "rc" is optional.
+
+* If a package contains hooks intended to be invoked from devd, do not add
+  a dependency on "devd".  Like rc, devd is optional.  The exception is if
+  the package doesn't work at all without devd, in which case a dependency
+  is warranted.
+
+* If a package contains cron(8) jobs in /etc/cron.d, do not a dependency
+  on "cron", unless the package doesn't work at all without cron.
+
+* If a package contains periodic(8) reports, do not add a dependency on
+  "periodic", unless the package only contains periodic reports.
+
+* If a package contains shell scripts, and the script is *not* one of the
+  previously mentioned examples (rc, devd, etc.), add a dependency on
+  "runtime" for /bin/sh.
+
+* Otherwise, if one component of a package requires another package to work,
+  add a dependency on the other package even if not everything in the package
+  requires that dependency.  Users expect that all of a package will work
+  after installing it.

@@ -180,8 +180,8 @@ struct as_req_state {
     struct kdc_request_state *rstate;
     char *sname, *cname;
     void *pa_context;
-    const krb5_fulladdr *local_addr;
-    const krb5_fulladdr *remote_addr;
+    const struct sockaddr *local_addr;
+    const struct sockaddr *remote_addr;
     krb5_data **auth_indicators;
 
     krb5_error_code preauth_err;
@@ -468,8 +468,8 @@ finish_preauth(void *arg, krb5_error_code code)
 /*ARGSUSED*/
 void
 process_as_req(krb5_kdc_req *request, krb5_data *req_pkt,
-               const krb5_fulladdr *local_addr,
-               const krb5_fulladdr *remote_addr, kdc_realm_t *realm,
+               const struct sockaddr *local_addr,
+               const struct sockaddr *remote_addr, kdc_realm_t *realm,
                verto_ctx *vctx, loop_respond_fn respond, void *arg)
 {
     krb5_context context = realm->realm_context;

@@ -520,6 +520,8 @@
     ..
     secure
         lib
+            libcrypto
+            ..
         ..
         libexec
         ..
@@ -832,6 +834,8 @@
                 gate
                 ..
                 gpt
+                ..
+                label
                 ..
                 mirror
                 ..
@@ -1161,6 +1165,8 @@
         ..
         jot
         ..
+        lam
+        ..
         lastcomm
         ..
         limits
@@ -1204,6 +1210,8 @@
             ..
         ..
         seq
+        ..
+        sockstat
         ..
         soelim
         ..
@@ -1253,6 +1261,8 @@
         ..
     ..
     usr.sbin
+        certctl
+        ..
         chown
         ..
         ctladm
@@ -1278,6 +1288,8 @@
         praudit
         ..
         pw
+        ..
+        quot
         ..
         rpcbind
         ..

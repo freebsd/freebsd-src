@@ -82,9 +82,10 @@ static struct stat curstat, initstat, oldstat;
 13999999999 packets forwarded        999999999 - no checksum
 14999999999 - unreachable dests      999999999 - invalid length
 15999999999 - redirects generated    999999999 - no socket for dest port
-16999999999 option errors            999999999 - no socket for broadcast
-17999999999 unwanted multicasts      999999999 - socket buffer full
-18999999999 delivered to upper layer 999999999 total output packets
+16999999999 option errors            999999999   - no socket for broadcast
+17999999999 unwanted multicasts      999999999   - no socket for multicast
+18999999999 delivered to upper layer 999999999 - socket buffer full
+19999999999                          999999999 total output packets
 --0123456789012345678901234567890123456789012345678901234567890123456789012345
 --0         1         2         3         4         5         6         7
 */
@@ -127,9 +128,10 @@ labelip(void)
 	L(13, "packets forwarded");	R(13, "- no checksum");
 	L(14, "- unreachable dests");	R(14, "- invalid length");
 	L(15, "- redirects generated");	R(15, "- no socket for dest port");
-	L(16, "option errors");		R(16, "- no socket for broadcast");
-	L(17, "unwanted multicasts");	R(17, "- socket buffer full");
-	L(18, "delivered to upper layer");	R(18, "total output packets");
+	L(16, "option errors");		R(16, "  - no socket for broadcast");
+	L(17, "unwanted multicasts");	R(17, "  - no socket for multicast");
+	L(18, "delivered to upper layer");	R(18, "- socket buffer full");
+					R(19, "total output packets");
 #undef L
 #undef R
 }
@@ -189,6 +191,7 @@ domode(struct stat *ret)
 	DO(u.udps_badlen);
 	DO(u.udps_noport);
 	DO(u.udps_noportbcast);
+	DO(u.udps_noportmcast);
 	DO(u.udps_fullsock);
 	DO(u.udps_opackets);
 #undef DO
@@ -237,9 +240,10 @@ showip(void)
 	DO(i.ips_badoptions, 16, 0);
 	DO(u.udps_noportbcast, 16, 35);
 	DO(i.ips_notmember, 17, 0);
-	DO(u.udps_fullsock, 17, 35);
+	DO(u.udps_noportmcast, 17, 35);
 	DO(i.ips_delivered, 18, 0);
-	DO(u.udps_opackets, 18, 35);
+	DO(u.udps_fullsock, 18, 35);
+	DO(u.udps_opackets, 19, 35);
 #undef DO
 }
 

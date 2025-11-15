@@ -1,5 +1,6 @@
 #-
 # Copyright (c) 2022-2025 Baptiste Daroussin <bapt@FreeBSD.org>
+# Copyright (c) 2025 Jesús Daniel Colmenares Oviedo <dtxdf@FreeBSD.org>
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -119,12 +120,16 @@ users:
     gecos: Foo B. Bar
     primary_group: foobar
     sudo: ALL=(ALL) NOPASSWD:ALL
+    doas: permit persist %u as root
     groups: users
     passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
   - name: bla
     sudo:
     - "ALL=(ALL) NOPASSWD:/usr/sbin/pw"
     - "ALL=(ALL) ALL"
+    doas:
+    - "deny %u as foobar"
+    - "permit persist %u as root cmd whoami"
 EOF
 	atf_check /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
 	atf_check /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
@@ -147,7 +152,13 @@ EOF
 	sed -i "" "s/freebsd:.*:1001/freebsd:freebsd:1001/" "${PWD}"/etc/master.passwd
 	atf_check -o file:expectedpasswd cat "${PWD}"/etc/master.passwd
 	atf_check -o file:expectedgroup cat "${PWD}"/etc/group
-	atf_check -o inline:"foobar ALL=(ALL) NOPASSWD:ALL\nbla ALL=(ALL) NOPASSWD:/usr/sbin/pw\nbla ALL=(ALL) ALL\n" cat ${PWD}/usr/local/etc/sudoers.d/90-nuageinit-users
+	localbase=`sysctl -ni user.localbase 2> /dev/null`
+	if [ -z "${localbase}" ]; then
+		# fallback
+		localbase="/usr/local"
+	fi
+	atf_check -o inline:"foobar ALL=(ALL) NOPASSWD:ALL\nbla ALL=(ALL) NOPASSWD:/usr/sbin/pw\nbla ALL=(ALL) ALL\n" cat "${PWD}/${localbase}/etc/sudoers.d/90-nuageinit-users"
+	atf_check -o inline:"permit persist foobar as root\ndeny bla as foobar\npermit persist bla as root cmd whoami\n" cat "${PWD}/${localbase}/etc/doas.conf"
 }
 
 nocloud_network_head()
@@ -815,7 +826,7 @@ config2_userdata_update_packages_body()
 package_update: true
 EOF
 	chmod 755 "${PWD}"/media/nuageinit/user_data
-	atf_check -o inline:"pkg update -y\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
+	atf_check -o inline:"env ASSUME_ALWAYS_YES=yes pkg update\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 }
 
 config2_userdata_upgrade_packages_body()
@@ -829,7 +840,7 @@ config2_userdata_upgrade_packages_body()
 package_upgrade: true
 EOF
 	chmod 755 "${PWD}"/media/nuageinit/user_data
-	atf_check -o inline:"pkg upgrade -y\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
+	atf_check -o inline:"env ASSUME_ALWAYS_YES=yes pkg upgrade\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 }
 
 config2_userdata_shebang_body()

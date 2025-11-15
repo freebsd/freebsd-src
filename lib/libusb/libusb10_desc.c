@@ -711,6 +711,55 @@ void
 libusb_free_container_id_descriptor(
     struct libusb_container_id_descriptor *container_id)
 {
-
 	free(container_id);
+}
+
+int
+libusb_get_platform_descriptor(libusb_context *ctx,
+    struct libusb_bos_dev_capability_descriptor *bos_cap,
+    struct libusb_platform_descriptor **pd)
+{
+	struct libusb_platform_descriptor *desc;
+	uint8_t *cap_data;
+
+	if (bos_cap == NULL ||
+	    bos_cap->bDescriptorType != LIBUSB_BT_PLATFORM_DESCRIPTOR ||
+	    pd == NULL)
+		return (LIBUSB_ERROR_INVALID_PARAM);
+
+	if (bos_cap->bLength < LIBUSB_BT_PLATFORM_DESCRIPTOR_MIN_SIZE)
+		return (LIBUSB_ERROR_IO);
+
+	cap_data = bos_cap->dev_capability_data;
+	desc = calloc(1, bos_cap->bLength);
+	if (desc == NULL)
+		return (LIBUSB_ERROR_NO_MEM);
+
+	desc->bLength = bos_cap->bLength;
+	desc->bDescriptorType = LIBUSB_BT_PLATFORM_DESCRIPTOR;
+	desc->bDevCapabilityType = bos_cap->bDevCapabilityType;
+	desc->bReserved = cap_data[0];
+	memcpy(desc->PlatformCapabilityUUID, cap_data + 1,
+	    sizeof(desc->PlatformCapabilityUUID));
+
+	/*
+	 * UUID (16 bytes) + bReserved
+	 */
+	cap_data += sizeof(desc->PlatformCapabilityUUID) + 1;
+	/*
+	 * UUID (16 bytes) + bReserved + bLength + bDescriptortype +
+	 * bDevCapabilitytype
+	 */
+	memcpy(desc->CapabilityData, cap_data,
+	    bos_cap->bLength - (sizeof(desc->PlatformCapabilityUUID) + 4));
+	*pd = desc;
+
+	return (LIBUSB_SUCCESS);
+}
+
+void
+libusb_free_platform_descriptor(
+    struct libusb_platform_descriptor *platform_descriptor)
+{
+	free(platform_descriptor);
 }

@@ -2,17 +2,17 @@
 # Please see the file src/etc/mtree/README before making changes to this file.
 #
 
-/set type=dir uname=root gname=wheel mode=0755
+/set type=dir uname=root gname=wheel mode=0755 tags=package=clibs-dev
 .
     arpa
     ..
-    atf-c
+    atf-c               tags=package=atf-dev
     ..
-    atf-c++
+    atf-c++             tags=package=atf-dev
     ..
-    bsm
+    bsm                 tags=package=audit-dev
     ..
-    bsnmp
+    bsnmp               tags=package=bsnmp-dev
     ..
     c++
         v1
@@ -118,7 +118,7 @@
         scsi
         ..
     ..
-    casper
+    casper              tags=package=libcasper-dev
     ..
     crypto
     ..
@@ -126,8 +126,6 @@
         acpica
         ..
         agp
-        ..
-        an
         ..
         ciss
         ..
@@ -191,13 +189,11 @@
         ..
         wg
         ..
-        wi
-        ..
     ..
-    devdctl
+    devdctl             tags=package=utilities-dev
     ..
-    edit
-        readline
+    edit                tags=package=runtime-dev
+        readline        tags=package=runtime-dev
         ..
     ..
     fs
@@ -256,45 +252,39 @@
         virstor
         ..
     ..
-    gssapi
+    gssapi              tags=package=kerberos-dev
     ..
-    gssapi_krb5
-        gssapi
-        ..
+    gssrpc              tags=package=kerberos-dev
     ..
-    gssrpc
-    ..
-    infiniband
-        complib
+    infiniband          tags=package=utilities-dev
+        complib         tags=package=utilities-dev
         ..
-        iba
+        iba             tags=package=utilities-dev
         ..
-        opensm
+        opensm          tags=package=utilities-dev
         ..
-        vendor
+        vendor          tags=package=utilities-dev
         ..
     ..
     isofs
         cd9660
         ..
     ..
-    kadm5
+    kadm5               tags=package=kerberos-dev
     ..
-    kdb5
+    krb5                tags=package=kerberos-dev
     ..
-    krb5
+    lib80211            tags=package=runtime-dev
     ..
-    lib80211
-    ..
-    lib9p
+    lib9p               tags=package=lib9p-dev
     ..
     libipt
     ..
-    libmilter
+    libmilter           tags=package=libmilter-dev
     ..
-    libxo
+    libxo               tags=package=runtime-dev
     ..
-    lzma
+    lzma                tags=package=xz-dev
     ..
     machine
         pc
@@ -309,8 +299,6 @@
     net80211
     ..
     netgraph
-        atm
-        ..
         bluetooth
             include
             ..
@@ -335,7 +323,7 @@
         ..
     ..
     netpfil
-        pf
+        pf              tags=package=pf-dev
         ..
     ..
     netsmb
@@ -360,20 +348,20 @@
         stm
         ..
     ..
-    openssl
+    openssl             tags=package=openssl-dev
     ..
-    pcap
+    pcap                tags=package=utilities-dev
     ..
     protocols
     ..
-    rdma
+    rdma                tags=package=utilities-dev
     ..
     rpc
     ..
     rpcsvc
     ..
     security
-        audit
+        audit           tags=package=audit-dev
         ..
         mac_biba
         ..

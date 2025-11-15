@@ -2,7 +2,7 @@
 
 # PROVIDE: zpoolreguid
 # REQUIRE: zpool
-# BEFORE: mountcritlocal
+# BEFORE: FILESYSTEMS
 # KEYWORD: firstboot nojail
 
 . /etc/rc.subr

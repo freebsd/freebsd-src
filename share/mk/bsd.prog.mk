@@ -12,22 +12,6 @@
 CFLAGS+=${COPTS}
 .endif
 
-.if ${MK_ASSERT_DEBUG} == "no"
-CFLAGS+= -DNDEBUG
-# XXX: shouldn't we ensure that !asserts marks potentially unused variables as
-# __unused instead of disabling -Werror globally?
-MK_WERROR=	no
-.endif
-
-.if defined(DEBUG_FLAGS)
-CFLAGS+=${DEBUG_FLAGS}
-CXXFLAGS+=${DEBUG_FLAGS}
-
-.if ${MK_CTF} != "no" && ${DEBUG_FLAGS:M-g} != ""
-CTFFLAGS+= -g
-.endif
-.endif
-
 .if defined(PROG_CXX)
 PROG=	${PROG_CXX}
 .endif
@@ -65,7 +49,9 @@ CXXFLAGS+= -mretpoline
 LDFLAGS+= -Wl,-zretpolineplt
 .endif
 .else
+.if !defined(_NO_INCLUDE_COMPILERMK)
 .warning Retpoline requested but not supported by compiler or linker
+.endif
 .endif
 .endif
 # LLD sensibly defaults to -znoexecstack, so do the same for BFD
@@ -87,7 +73,9 @@ CFLAGS+= -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clan
 CXXFLAGS+= -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
 .endif
 .else
+.if !defined(_NO_INCLUDE_COMPILERMK)
 .warning INIT_ALL (${OPT_INIT_ALL}) requested but not supported by compiler
+.endif
 .endif
 .endif
 
@@ -109,27 +97,13 @@ CFLAGS += -mno-relax
 
 .if defined(CRUNCH_CFLAGS)
 CFLAGS+=${CRUNCH_CFLAGS}
-.else
-.if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
-    empty(DEBUG_FLAGS:M-gdwarf-*)
-.if !${COMPILER_FEATURES:Mcompressed-debug}
-CFLAGS+= ${DEBUG_FILES_CFLAGS:N-gz*}
-.else
-CFLAGS+= ${DEBUG_FILES_CFLAGS}
-.endif
-CTFFLAGS+= -g
-.endif
-.endif
-
-.if !defined(DEBUG_FLAGS)
-STRIP?=	-s
 .endif
 
 .if defined(NO_ROOT)
 .if !defined(TAGS) || ! ${TAGS:Mpackage=*}
 TAGS+=		package=${PACKAGE:Uutilities}
 .endif
-TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
+TAG_ARGS=	-T ${TAGS:ts,:[*]}
 .endif
 
 .if defined(NO_SHARED) && ${NO_SHARED:tl} != "no"
@@ -159,6 +133,9 @@ PROG_FULL=	${PROG}
 
 .if defined(PROG)
 PROGNAME?=	${PROG}
+.if ${MK_DEBUG_FILES} != "no"
+DEBUGFILE= ${PROGNAME}.debug
+.endif
 
 .if defined(SRCS)
 
@@ -223,11 +200,12 @@ ${PROG_FULL}: ${OBJS}
 .endif # !defined(SRCS)
 
 .if ${MK_DEBUG_FILES} != "no"
-${PROG}: ${PROG_FULL} ${PROGNAME}.debug
-	${OBJCOPY} --strip-debug --add-gnu-debuglink=${PROGNAME}.debug \
+CLEANFILES+= ${PROG_FULL} ${DEBUGFILE}
+${PROG}: ${PROG_FULL} ${DEBUGFILE}
+	${OBJCOPY} --strip-debug --add-gnu-debuglink=${DEBUGFILE} \
 	    ${PROG_FULL} ${.TARGET}
 
-${PROGNAME}.debug: ${PROG_FULL}
+${DEBUGFILE}: ${PROG_FULL}
 	${OBJCOPY} --only-keep-debug ${PROG_FULL} ${.TARGET}
 .endif
 
@@ -266,9 +244,6 @@ all: all-man
 
 .if defined(PROG)
 CLEANFILES+= ${PROG} ${PROG}.bc ${PROG}.ll
-.if ${MK_DEBUG_FILES} != "no"
-CLEANFILES+= ${PROG_FULL} ${PROGNAME}.debug
-.endif
 .endif
 
 .if defined(OBJS)
@@ -308,19 +283,12 @@ _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 .endfor
 
 .if !target(realinstall) && !defined(INTERNALPROG)
-realinstall: _proginstall
-.ORDER: beforeinstall _proginstall
+realinstall: _proginstall _debuginstall
+.ORDER: beforeinstall _proginstall _debuginstall
 _proginstall:
 .if defined(PROG)
 	${INSTALL} ${TAG_ARGS} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}/${PROGNAME}
-.if ${MK_DEBUG_FILES} != "no"
-.if defined(DEBUGMKDIR)
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dbg} -d ${DESTDIR}${DEBUGFILEDIR}/
-.endif
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dbg} -o ${BINOWN} -g ${BINGRP} -m ${DEBUGMODE} \
-	    ${PROGNAME}.debug ${DESTDIR}${DEBUGFILEDIR}/${PROGNAME}.debug
-.endif
 .endif
 .endif	# !target(realinstall)
 
@@ -391,6 +359,7 @@ TESTS_PATH+=		${.OBJDIR}
 OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
 .endif
 
+.include <bsd.debug.mk>
 .include <bsd.dep.mk>
 .include <bsd.clang-analyze.mk>
 .include <bsd.obj.mk>

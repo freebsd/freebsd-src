@@ -38,7 +38,8 @@
 #include <netdb.h>
 #include <sys/socket.h>
 
-#include "ctld.h"
+#include "ctld.hh"
+#include "iscsi.hh"
 #include "iscsi_proto.h"
 
 static struct pdu *
@@ -101,19 +102,21 @@ logout_new_response(struct pdu *request)
 static void
 discovery_add_target(struct keys *response_keys, const struct target *targ)
 {
-	struct port *port;
-	struct portal *portal;
 	char *buf;
 	char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
-	struct addrinfo *ai;
+	const struct addrinfo *ai;
 	int ret;
 
-	keys_add(response_keys, "TargetName", targ->t_name);
-	TAILQ_FOREACH(port, &targ->t_ports, p_ts) {
-	    if (port->p_portal_group == NULL)
+	keys_add(response_keys, "TargetName", targ->name());
+	for (const port *port : targ->ports()) {
+	    const struct portal_group *pg = port->portal_group();
+	    if (pg == nullptr)
 		continue;
-	    TAILQ_FOREACH(portal, &port->p_portal_group->pg_portals, p_next) {
-		ai = portal->p_ai;
+	    for (const portal_up &portal : pg->portals()) {
+		if (portal->protocol() != portal_protocol::ISCSI &&
+		    portal->protocol() != portal_protocol::ISER)
+			continue;
+		ai = portal->ai();
 		ret = getnameinfo(ai->ai_addr, ai->ai_addrlen,
 		    hbuf, sizeof(hbuf), sbuf, sizeof(sbuf),
 		    NI_NUMERICHOST | NI_NUMERICSERV);
@@ -126,13 +129,13 @@ discovery_add_target(struct keys *response_keys, const struct target *targ)
 			if (strcmp(hbuf, "0.0.0.0") == 0)
 				continue;
 			ret = asprintf(&buf, "%s:%s,%d", hbuf, sbuf,
-			    port->p_portal_group->pg_tag);
+			    pg->tag());
 			break;
 		case AF_INET6:
 			if (strcmp(hbuf, "::") == 0)
 				continue;
 			ret = asprintf(&buf, "[%s]:%s,%d", hbuf, sbuf,
-			    port->p_portal_group->pg_tag);
+			    pg->tag());
 			break;
 		default:
 			continue;
@@ -145,9 +148,8 @@ discovery_add_target(struct keys *response_keys, const struct target *targ)
 	}
 }
 
-static bool
-discovery_target_filtered_out(const struct ctld_connection *conn,
-    const struct port *port)
+bool
+iscsi_connection::discovery_target_filtered_out(const struct port *port) const
 {
 	const struct auth_group *ag;
 	const struct portal_group *pg;
@@ -155,52 +157,53 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 	const struct auth *auth;
 	int error;
 
-	targ = port->p_target;
-	ag = port->p_auth_group;
-	if (ag == NULL)
-		ag = targ->t_auth_group;
-	pg = conn->conn_portal->p_portal_group;
+	targ = port->target();
+	ag = port->auth_group();
+	if (ag == nullptr)
+		ag = targ->auth_group();
+	pg = conn_portal->portal_group();
 
-	assert(pg->pg_discovery_filter != PG_FILTER_UNKNOWN);
+	assert(pg->discovery_filter() != discovery_filter::UNKNOWN);
 
-	if (pg->pg_discovery_filter >= PG_FILTER_PORTAL &&
-	    !auth_portal_check(ag, &conn->conn_initiator_sa)) {
+	if (pg->discovery_filter() >= discovery_filter::PORTAL &&
+	    !ag->initiator_permitted(conn_initiator_sa)) {
 		log_debugx("initiator does not match initiator portals "
-		    "allowed for target \"%s\"; skipping", targ->t_name);
+		    "allowed for target \"%s\"; skipping", targ->name());
 		return (true);
 	}
 
-	if (pg->pg_discovery_filter >= PG_FILTER_PORTAL_NAME &&
-	    !auth_name_check(ag, conn->conn_initiator_name)) {
+	if (pg->discovery_filter() >= discovery_filter::PORTAL_NAME &&
+	    !ag->initiator_permitted(conn_initiator_name)) {
 		log_debugx("initiator does not match initiator names "
-		    "allowed for target \"%s\"; skipping", targ->t_name);
+		    "allowed for target \"%s\"; skipping", targ->name());
 		return (true);
 	}
 
-	if (pg->pg_discovery_filter >= PG_FILTER_PORTAL_NAME_AUTH &&
-	    ag->ag_type != AG_TYPE_NO_AUTHENTICATION) {
-		if (conn->conn_chap == NULL) {
-			assert(pg->pg_discovery_auth_group->ag_type ==
-			    AG_TYPE_NO_AUTHENTICATION);
+	if (pg->discovery_filter() >= discovery_filter::PORTAL_NAME_AUTH &&
+	    ag->type() != auth_type::NO_AUTHENTICATION) {
+		if (conn_chap == nullptr) {
+			assert(pg->discovery_auth_group()->type() ==
+			    auth_type::NO_AUTHENTICATION);
 
 			log_debugx("initiator didn't authenticate, but target "
-			    "\"%s\" requires CHAP; skipping", targ->t_name);
+			    "\"%s\" requires CHAP; skipping", targ->name());
 			return (true);
 		}
 
-		assert(conn->conn_user != NULL);
-		auth = auth_find(ag, conn->conn_user);
+		assert(!conn_user.empty());
+		auth = ag->find_auth(conn_user);
 		if (auth == NULL) {
 			log_debugx("CHAP user \"%s\" doesn't match target "
-			    "\"%s\"; skipping", conn->conn_user, targ->t_name);
+			    "\"%s\"; skipping", conn_user.c_str(),
+			    targ->name());
 			return (true);
 		}
 
-		error = chap_authenticate(conn->conn_chap, auth->a_secret);
+		error = chap_authenticate(conn_chap, auth->secret());
 		if (error != 0) {
 			log_debugx("password for CHAP user \"%s\" doesn't "
 			    "match target \"%s\"; skipping",
-			    conn->conn_user, targ->t_name);
+			    conn_user.c_str(), targ->name());
 			return (true);
 		}
 	}
@@ -209,7 +212,7 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 }
 
 void
-discovery(struct ctld_connection *conn)
+iscsi_connection::discovery()
 {
 	struct pdu *request, *response;
 	struct keys *request_keys, *response_keys;
@@ -217,10 +220,10 @@ discovery(struct ctld_connection *conn)
 	const struct portal_group *pg;
 	const char *send_targets;
 
-	pg = conn->conn_portal->p_portal_group;
+	pg = conn_portal->portal_group();
 
 	log_debugx("beginning discovery session; waiting for TextRequest PDU");
-	request_keys = text_read_request(&conn->conn, &request);
+	request_keys = text_read_request(&conn, &request);
 
 	send_targets = keys_find(request_keys, "SendTargets");
 	if (send_targets == NULL)
@@ -229,23 +232,25 @@ discovery(struct ctld_connection *conn)
 	response_keys = keys_new();
 
 	if (strcmp(send_targets, "All") == 0) {
-		TAILQ_FOREACH(port, &pg->pg_ports, p_pgs) {
-			if (discovery_target_filtered_out(conn, port)) {
+		for (const auto &kv : pg->ports()) {
+			port = kv.second;
+			if (discovery_target_filtered_out(port)) {
 				/* Ignore this target. */
 				continue;
 			}
-			discovery_add_target(response_keys, port->p_target);
+			discovery_add_target(response_keys, port->target());
 		}
 	} else {
-		port = port_find_in_pg(pg, send_targets);
+		port = pg->find_port(send_targets);
 		if (port == NULL) {
 			log_debugx("initiator requested information on unknown "
 			    "target \"%s\"; returning nothing", send_targets);
 		} else {
-			if (discovery_target_filtered_out(conn, port)) {
+			if (discovery_target_filtered_out(port)) {
 				/* Ignore this target. */
 			} else {
-				discovery_add_target(response_keys, port->p_target);
+				discovery_add_target(response_keys,
+				    port->target());
 			}
 		}
 	}
@@ -256,7 +261,7 @@ discovery(struct ctld_connection *conn)
 	keys_delete(request_keys);
 
 	log_debugx("done sending targets; waiting for Logout PDU");
-	request = logout_receive(&conn->conn);
+	request = logout_receive(&conn);
 	response = logout_new_response(request);
 
 	pdu_send(response);

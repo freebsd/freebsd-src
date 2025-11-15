@@ -129,7 +129,7 @@ t_cf2$(EXEEXT): t_cf2.$(OBJEXT) $(KRB5_BASE_DEPLIBS)
 clean:
 	$(RM) t_nfold.o t_nfold t_encrypt t_encrypt.o \
 		t_decrypt.o t_decrypt t_cmac.o t_cmac \
-		t_hmac.o t_hmac t_pkcs5.o t_pkcs5 pbkdf2.o t_prf t_prf.o \
+		t_hmac.o t_hmac t_pkcs5.o t_pkcs5 t_prf t_prf.o \
 		aes-test.o aes-test vt.txt vk.txt kresults.out \
 		t_cts.o t_cts \
 		t_mddriver4.o t_mddriver4 t_mddriver.o t_mddriver \

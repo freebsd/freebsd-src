@@ -2368,7 +2368,7 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 			priv = PRIV_SYSCTL_WRITEJAIL;
 #ifdef VIMAGE
 		else if ((oid->oid_kind & CTLFLAG_VNET) &&
-		     prison_owns_vnet(req->td->td_ucred))
+		     prison_owns_vnet(req->td->td_ucred->cr_prison))
 			priv = PRIV_SYSCTL_WRITEJAIL;
 #endif
 		else

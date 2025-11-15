@@ -208,7 +208,7 @@ def check_assignment_in_conditional(line, ln):
 
 
 def indent(line):
-    return len(re.match('\s*', line).group(0).expandtabs())
+    return len(re.match(r'\s*', line).group(0).expandtabs())
 
 
 def check_unbraced_flow_body(line, ln, lines):
@@ -220,8 +220,8 @@ def check_unbraced_flow_body(line, ln, lines):
     if m and (m.group(1) is None) != (m.group(3) is None):
         warn(ln, 'One arm of if/else statement braced but not the other')
 
-    if (re.match('\s*(if|else if|for|while)\s*\(.*\)$', line) or
-        re.match('\s*else$', line)):
+    if (re.match(r'\s*(if|else if|for|while)\s*\(.*\)$', line) or
+        re.match(r'\s*else$', line)):
         base = indent(line)
         # Look at the next two lines (ln is 1-based so lines[ln] is next).
         if indent(lines[ln]) > base and indent(lines[ln + 1]) > base:

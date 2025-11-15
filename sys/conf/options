@@ -53,7 +53,7 @@ DDB_CAPTURE_MAXBUFSIZE	opt_ddb.h
 DDB_CTF		opt_ddb.h
 DDB_NUMSYM	opt_ddb.h
 EARLY_PRINTF	opt_global.h
-BLOAT_KERNEL_WITH_EXTERR	opt_global.h
+EXTERR_STRINGS	opt_global.h
 FULL_BUF_TRACKING	opt_global.h
 GDB
 KDB		opt_global.h
@@ -231,15 +231,11 @@ SYSVSEM		opt_sysvipc.h
 SYSVSHM		opt_sysvipc.h
 SW_WATCHDOG	opt_watchdog.h
 TCPHPTS
+TCP_HPTS_KTEST	opt_inet.h
 TCP_REQUEST_TRK opt_global.h
 TCP_ACCOUNTING	opt_global.h
 TCP_BBR		opt_inet.h
 TCP_RACK	opt_inet.h
-#
-# TCP SaD Detection is an experimental Sack attack Detection (SaD)
-# algorithm that uses "normal" behaviour with SACK's to detect
-# a possible attack. It is strictly experimental at this point.
-#
 TURNSTILE_PROFILING
 UMTX_PROFILING
 UMTX_CHAINS	opt_global.h
@@ -740,10 +736,6 @@ BCE_NVRAM_WRITE_SUPPORT	opt_bce.h
 SOCKBUF_DEBUG		opt_global.h
 
 
-# options for hifn driver
-HIFN_DEBUG		opt_hifn.h
-HIFN_RNDTEST		opt_hifn.h
-
 # options for safenet driver
 SAFE_DEBUG		opt_safe.h
 SAFE_NO_RNG		opt_safe.h
@@ -964,6 +956,9 @@ RANDOM_LOADABLE	opt_global.h
 # the uma slab allocator.
 RANDOM_ENABLE_UMA	opt_global.h
 RANDOM_ENABLE_ETHER	opt_global.h
+RANDOM_ENABLE_KBD	opt_global.h
+RANDOM_ENABLE_MOUSE	opt_global.h
+RANDOM_ENABLE_TPM	opt_global.h
 
 # This options turns TPM into entropy source.
 TPM_HARVEST	opt_tpm.h
@@ -1009,6 +1004,7 @@ IICHID_DEBUG	opt_hid.h
 IICHID_SAMPLING	opt_hid.h
 HKBD_DFLT_KEYMAP	opt_hkbd.h
 HIDRAW_MAKE_UHID_ALIAS	opt_hid.h
+U2F_DROP_UHID_ALIAS	opt_hid.h
 
 # kenv options
 # The early kernel environment (loader environment, config(8)-provided static)

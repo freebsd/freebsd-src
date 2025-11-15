@@ -127,8 +127,8 @@ show()
 		exit 1
 		;;
 	esac
-	requireds=`env -i ${make} -f ${srcdir}/share/mk/src.opts.mk \
-	    -V '${__REQUIRED_OPTIONS:ts,}'`
+	requireds=$(env -i ${make} -f ${srcdir}/share/mk/src.opts.mk \
+	    -V 'REQUIRED_OPTIONS:ts,')
 	env -i ${make} .MAKE.MODE=normal "$@" showconfig __MAKE_CONF=/dev/null \
 	    SRCCONF=/dev/null |
 	while read var _ val ; do
@@ -222,8 +222,11 @@ variables that control the aspects of how the system builds.
 .Pp
 The default location of
 .Nm
-is
-.Pa /etc/src.conf ,
+is the top level of the source tree, or
+.Pa /etc/src.conf
+if no
+.Nm
+is found in the source tree itself,
 though an alternative location can be specified in the
 .Xr make 1
 variable

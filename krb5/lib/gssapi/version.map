@@ -140,7 +140,6 @@ gssapi_krb5_2_MIT {
 		gss_get_mic_iov_length;
 		gss_krb5_set_cred_rcache;
 		gss_krb5int_make_seal_token_v3;
-		gss_krb5int_unseal_token_v3;
 		gss_localname;
 		gss_map_name_to_any;
 		gss_mech_iakerb;

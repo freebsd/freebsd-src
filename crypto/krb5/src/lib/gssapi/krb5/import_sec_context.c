@@ -32,8 +32,7 @@
  * Fix up the OID of the mechanism so that uses the static version of
  * the OID if possible.
  */
-gss_OID krb5_gss_convert_static_mech_oid(oid)
-    gss_OID    oid;
+gss_OID krb5_gss_convert_static_mech_oid(gss_OID oid)
 {
     const gss_OID_desc      *p;
     OM_uint32               minor_status;
@@ -49,10 +48,9 @@ gss_OID krb5_gss_convert_static_mech_oid(oid)
 }
 
 OM_uint32 KRB5_CALLCONV
-krb5_gss_import_sec_context(minor_status, interprocess_token, context_handle)
-    OM_uint32           *minor_status;
-    gss_buffer_t        interprocess_token;
-    gss_ctx_id_t        *context_handle;
+krb5_gss_import_sec_context(OM_uint32 *minor_status,
+                            gss_buffer_t interprocess_token,
+                            gss_ctx_id_t *context_handle)
 {
     krb5_context        context;
     krb5_error_code     kret = 0;

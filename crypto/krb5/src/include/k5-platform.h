@@ -70,6 +70,10 @@
 #include <unistd.h>
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef _WIN32
 #define CAN_COPY_VA_LIST
 #endif
@@ -152,6 +156,9 @@
    such, it's a bit more complicated.  And we also need to handle
    doing the pthread test at run time on systems where that works, so
    we use the k5_once_t stuff instead.)
+
+   UNIX, with library unloading prevented or when building static
+   libraries: we don't need to run finalizers.
 
    UNIX, with compiler support: MAKE_FINI_FUNCTION declares the
    function as a destructor, and the run time linker support or
@@ -398,7 +405,7 @@ typedef struct { int error; unsigned char did_run; } k5_init_t;
 
 # endif
 
-#elif !defined(SHARED)
+#elif !defined(SHARED) || defined(LIB_UNLOAD_PREVENTED)
 
 /*
  * In this case, we just don't care about finalization.  The code will still
@@ -1147,5 +1154,9 @@ extern char *k5_secure_getenv(const char *name);
  * sorted according to strcmp().  Return 0 on success, or ENOENT/ENOMEM. */
 int k5_dir_filenames(const char *dirname, char ***fnames_out);
 void k5_free_filenames(char **fnames);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* K5_PLATFORM_H */

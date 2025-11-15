@@ -70,7 +70,7 @@
 
 #define HMAC_CTX_new compat_hmac_ctx_new
 static HMAC_CTX *
-compat_hmac_ctx_new()
+compat_hmac_ctx_new(void)
 {
     HMAC_CTX *ctx;
 

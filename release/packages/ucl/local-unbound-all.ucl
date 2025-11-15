@@ -1,0 +1,35 @@
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+comment = "NLnet Labs Unbound DNS resolver"
+
+desc = <<EOD
+Unbound is a caching, DNSSEC-validating DNS resolver developed by NLnet Labs.
+This version of Unbound, called local-unbound, is intended to service DNS
+requests from services running on the local system, and is typically started
+via the local_unbound rc(8) service.
+
+A full-featured version of Unbound is available in the FreeBSD Ports Collection
+as "dns/unbound".
+EOD
+
+licenses = [ BSD4CLAUSE ]
+
+annotations {
+	set = "optional,optional-jail"
+}

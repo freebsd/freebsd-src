@@ -452,11 +452,10 @@ r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	} else {
 		uint16_t seqno;
 
-		if (m->m_flags & M_AMPDU_MPDU) {
-			seqno = ni->ni_txseqs[tid] % IEEE80211_SEQ_RANGE;
-			ni->ni_txseqs[tid]++;
-		} else
-			seqno = M_SEQNO_GET(m) % IEEE80211_SEQ_RANGE;
+		if (m->m_flags & M_AMPDU_MPDU)
+			ieee80211_output_seqno_assign(ni, -1, m);
+
+		seqno = M_SEQNO_GET(m);
 
 		/* Set sequence number. */
 		txd->txdseq = htole16(seqno);
@@ -511,7 +510,7 @@ r92c_fill_tx_desc_raw(struct rtwn_softc *sc, struct ieee80211_node *ni,
 		rtwn_r92c_tx_setup_hwseq(sc, txd);
 	} else {
 		/* Set sequence number. */
-		txd->txdseq |= htole16(M_SEQNO_GET(m) % IEEE80211_SEQ_RANGE);
+		txd->txdseq |= htole16(M_SEQNO_GET(m));
 	}
 }
 

@@ -12,4 +12,4 @@ Description: An implementation of Kerberos network authentication
 Version: @KRB5_VERSION@
 Cflags: -I${includedir}
 Libs: -L${libdir} -lkrb5 -lk5crypto @COM_ERR_LIB@
-Libs.private: -lkrb5support
+Libs.private: -lkrb5support -lkrb5profile

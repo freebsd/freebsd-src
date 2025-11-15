@@ -47,7 +47,6 @@
 #include <vm/vm_page.h>
 #include <vm/vm_param.h>
 
-#include <machine/armreg.h>
 #include <machine/vm.h>
 #include <machine/cpufunc.h>
 #include <machine/cpu.h>
@@ -238,7 +237,6 @@ vmmops_modinit(int ipinum)
 	vm_offset_t next_hyp_va;
 	vm_paddr_t vmm_base;
 	uint64_t id_aa64mmfr0_el1, pa_range_bits, pa_range_field;
-	uint64_t cnthctl_el2;
 	int cpu, i;
 	bool rv __diagused;
 
@@ -444,10 +442,9 @@ vmmops_modinit(int ipinum)
 			vmem_add(el2_mem_alloc, next_hyp_va,
 			    HYP_VM_MAX_ADDRESS - next_hyp_va, M_WAITOK);
 	}
-	cnthctl_el2 = vmm_read_reg(HYP_REG_CNTHCTL);
 
 	vgic_init();
-	vtimer_init(cnthctl_el2);
+	vtimer_init();
 
 	return (0);
 }
@@ -517,12 +514,23 @@ vmmops_init(struct vm *vm, pmap_t pmap)
 {
 	struct hyp *hyp;
 	vm_size_t size;
+	uint64_t idreg;
 
 	size = el2_hyp_size(vm);
 	hyp = malloc_aligned(size, PAGE_SIZE, M_HYP, M_WAITOK | M_ZERO);
 
 	hyp->vm = vm;
 	hyp->vgic_attached = false;
+
+	if (get_kernel_reg(ID_AA64MMFR0_EL1, &idreg)) {
+		if (ID_AA64MMFR0_ECV_VAL(idreg) >= ID_AA64MMFR0_ECV_POFF)
+			hyp->feats |= HYP_FEAT_ECV_POFF;
+	}
+
+	if (get_kernel_reg(ID_AA64MMFR1_EL1, &idreg)) {
+		if (ID_AA64MMFR1_HCX_VAL(idreg) >= ID_AA64MMFR1_HCX_IMPL)
+			hyp->feats |= HYP_FEAT_HCX;
+	}
 
 	vtimer_vminit(hyp);
 	vgic_vminit(hyp);
@@ -1251,6 +1259,8 @@ hypctx_regptr(struct hypctx *hypctx, int reg)
 		return (&hypctx->tcr_el1);
 	case VM_REG_GUEST_TCR2_EL1:
 		return (&hypctx->tcr2_el1);
+	case VM_REG_GUEST_MPIDR_EL1:
+		return (&hypctx->vmpidr_el2);
 	default:
 		break;
 	}
@@ -1354,7 +1364,7 @@ vmmops_setcap(void *vcpui, int num, int val)
 			break;
 		if (val != 0)
 			hypctx->mdcr_el2 |= MDCR_EL2_TDE;
-		else
+		else if ((hypctx->setcaps & (1ul << VM_CAP_SS_EXIT)) == 0)
 			hypctx->mdcr_el2 &= ~MDCR_EL2_TDE;
 		break;
 	case VM_CAP_SS_EXIT:
@@ -1363,20 +1373,20 @@ vmmops_setcap(void *vcpui, int num, int val)
 
 		if (val != 0) {
 			hypctx->debug_spsr |= (hypctx->tf.tf_spsr & PSR_SS);
-			hypctx->debug_mdscr |= hypctx->mdscr_el1 &
-			    (MDSCR_SS | MDSCR_KDE);
+			hypctx->debug_mdscr |= (hypctx->mdscr_el1 & MDSCR_SS);
 
 			hypctx->tf.tf_spsr |= PSR_SS;
-			hypctx->mdscr_el1 |= MDSCR_SS | MDSCR_KDE;
+			hypctx->mdscr_el1 |= MDSCR_SS;
 			hypctx->mdcr_el2 |= MDCR_EL2_TDE;
 		} else {
 			hypctx->tf.tf_spsr &= ~PSR_SS;
 			hypctx->tf.tf_spsr |= hypctx->debug_spsr;
 			hypctx->debug_spsr &= ~PSR_SS;
-			hypctx->mdscr_el1 &= ~(MDSCR_SS | MDSCR_KDE);
+			hypctx->mdscr_el1 &= ~MDSCR_SS;
 			hypctx->mdscr_el1 |= hypctx->debug_mdscr;
-			hypctx->debug_mdscr &= ~(MDSCR_SS | MDSCR_KDE);
-			hypctx->mdcr_el2 &= ~MDCR_EL2_TDE;
+			hypctx->debug_mdscr &= ~MDSCR_SS;
+			if ((hypctx->setcaps & (1ul << VM_CAP_BRK_EXIT)) == 0)
+				hypctx->mdcr_el2 &= ~MDCR_EL2_TDE;
 		}
 		break;
 	case VM_CAP_MASK_HWINTR:

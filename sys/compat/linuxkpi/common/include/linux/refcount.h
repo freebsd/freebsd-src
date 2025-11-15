@@ -30,6 +30,7 @@
 #define _LINUXKPI_LINUX_REFCOUNT_H
 
 #include <linux/atomic.h>
+#include <linux/spinlock.h>
 
 typedef atomic_t refcount_t;
 

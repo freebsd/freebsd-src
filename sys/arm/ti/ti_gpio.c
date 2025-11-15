@@ -674,12 +674,13 @@ ti_gpio_attach(device_t dev)
 		}
 	}
 
-	sc->sc_busdev = gpiobus_attach_bus(dev);
+	sc->sc_busdev = gpiobus_add_bus(dev);
 	if (sc->sc_busdev == NULL) {
 		ti_gpio_detach(dev);
 		return (ENXIO);
 	}
 
+	bus_attach_children(dev);
 	return (0);
 }
 
@@ -1046,6 +1047,10 @@ ti_gpio_get_node(device_t bus, device_t dev)
 static device_method_t ti_gpio_methods[] = {
 	DEVMETHOD(device_attach, ti_gpio_attach),
 	DEVMETHOD(device_detach, ti_gpio_detach),
+
+	/* Bus interface */
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	/* GPIO protocol */
 	DEVMETHOD(gpio_get_bus, ti_gpio_get_bus),

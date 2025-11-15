@@ -403,7 +403,7 @@ t4_l2t_get(struct port_info *pi, if_t ifp, struct sockaddr *sa)
 		l2_store(sa, e);
 		e->ifp = ifp;
 		e->hash = hash;
-		e->lport = pi->lport;
+		e->hw_port = pi->hw_port;
 		e->wrq = &sc->sge.ctrlq[pi->port_id];
 		e->iqid = sc->sge.ofld_rxq[pi->vi[0].first_ofld_rxq].iq.abs_id;
 		atomic_store_rel_int(&e->refcnt, 1);

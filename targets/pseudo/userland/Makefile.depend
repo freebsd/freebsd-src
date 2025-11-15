@@ -806,6 +806,12 @@ DIRDEPS+= \
 	usr.sbin/blacklistd
 .endif
 
+.if ${MK_BLOCKLIST_SUPPORT} != "no"
+DIRDEPS+= \
+	usr.sbin/blocklistctl \
+	usr.sbin/blocklistd
+.endif
+
 .if ${MK_CXGBETOOL} != "no"
 DIRDEPS+= usr.sbin/cxgbetool
 .endif

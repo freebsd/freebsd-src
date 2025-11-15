@@ -37,13 +37,8 @@
 
 #define	BIT(nr)			(1UL << (nr))
 #define	BIT_ULL(nr)		(1ULL << (nr))
-#ifdef __LP64__
-#define	BITS_PER_LONG		64
-#else
-#define	BITS_PER_LONG		32
-#endif
-
-#define	BITS_PER_LONG_LONG	64
+#define	BITS_PER_LONG		(__SIZEOF_LONG__ * __CHAR_BIT__)
+#define	BITS_PER_LONG_LONG	(__SIZEOF_LONG_LONG__ * __CHAR_BIT__)
 
 #define	BITMAP_FIRST_WORD_MASK(start)	(~0UL << ((start) % BITS_PER_LONG))
 #define	BITMAP_LAST_WORD_MASK(n)	(~0UL >> (BITS_PER_LONG - (n)))
@@ -62,10 +57,10 @@
 #define	hweight64(x)	bitcount64(x)
 #define	hweight_long(x)	bitcountl(x)
 
-#define	HWEIGHT8(x)	(bitcount8((uint8_t)(x)))
-#define	HWEIGHT16(x)	(bitcount16(x))
-#define	HWEIGHT32(x)	(bitcount32(x))
-#define	HWEIGHT64(x)	(bitcount64(x))
+#define	HWEIGHT8(x)	(__builtin_popcountg((uint8_t)(x)))
+#define	HWEIGHT16(x)	(__builtin_popcountg((uint16_t)(x)))
+#define	HWEIGHT32(x)	(__builtin_popcountg((uint32_t)(x)))
+#define	HWEIGHT64(x)	(__builtin_popcountg((uint64_t)(x)))
 
 static inline int
 __ffs(int mask)

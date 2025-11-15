@@ -107,11 +107,6 @@ typedef struct indirect_vsd {
 } indirect_vsd_t;
 
 /*
- * List of all vdevs, chained through v_alllink.
- */
-static vdev_list_t zfs_vdevs;
-
-/*
  * List of supported read-incompatible ZFS features.  Do not add here features
  * marked as ZFEATURE_FLAG_READONLY_COMPAT, they are irrelevant for read-only!
  */
@@ -133,6 +128,7 @@ static const char *features_for_read[] = {
 	"org.open-zfs:large_blocks",
 	"org.openzfs:blake3",
 	"org.zfsonlinux:large_dnode",
+	"com.klarasystems:dynamic_gang_header",
 	NULL
 };
 
@@ -146,6 +142,8 @@ static uint64_t dnode_cache_bn;
 static char *dnode_cache_buf;
 
 static int zio_read(const spa_t *spa, const blkptr_t *bp, void *buf);
+static int zio_read_impl(const spa_t *spa, const blkptr_t *bp, void *buf,
+    bool print);
 static int zfs_get_root(const spa_t *spa, uint64_t *objid);
 static int zfs_rlookup(const spa_t *spa, uint64_t objnum, char *result);
 static int zap_lookup(const spa_t *spa, const dnode_phys_t *dnode,
@@ -167,7 +165,6 @@ vdev_indirect_mapping_entry_phys_t *
 static void
 zfs_init(void)
 {
-	STAILQ_INIT(&zfs_vdevs);
 	STAILQ_INIT(&zfs_pools);
 
 	dnode_cache_buf = malloc(SPA_MAXBLOCKSIZE);
@@ -536,7 +533,7 @@ vdev_indirect_mapping_duplicate_adjacent_entries(vdev_t *vd, uint64_t offset,
 }
 
 static vdev_t *
-vdev_lookup_top(spa_t *spa, uint64_t vdev)
+vdev_lookup_top(const spa_t *spa, uint64_t vdev)
 {
 	vdev_t *rvd;
 	vdev_list_t *vlist;
@@ -839,16 +836,27 @@ vdev_replacing_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
 	return (kid->v_read(kid, bp, buf, offset, bytes));
 }
 
-static vdev_t *
-vdev_find(uint64_t guid)
-{
-	vdev_t *vdev;
+/*
+ * List of vdevs that were fully initialized from their own label, but later a
+ * newer label was found that obsoleted the stale label, freeing its
+ * configuration tree.  We keep those vdevs around, since a new configuration
+ * may include them.
+ */
+static vdev_list_t orphans = STAILQ_HEAD_INITIALIZER(orphans);
 
-	STAILQ_FOREACH(vdev, &zfs_vdevs, v_alllink)
+static vdev_t *
+vdev_find(vdev_list_t *list, uint64_t guid)
+{
+	vdev_t *vdev, *safe;
+
+	STAILQ_FOREACH_SAFE(vdev, list, v_childlink, safe) {
 		if (vdev->v_guid == guid)
 			return (vdev);
+		if ((vdev = vdev_find(&vdev->v_children, guid)) != NULL)
+			return (vdev);
+	}
 
-	return (0);
+	return (NULL);
 }
 
 static vdev_t *
@@ -856,6 +864,11 @@ vdev_create(uint64_t guid, vdev_read_t *_read)
 {
 	vdev_t *vdev;
 	vdev_indirect_config_t *vic;
+
+	if ((vdev = vdev_find(&orphans, guid))) {
+		STAILQ_REMOVE(&orphans, vdev, vdev, v_childlink);
+		return (vdev);
+	}
 
 	vdev = calloc(1, sizeof(vdev_t));
 	if (vdev != NULL) {
@@ -871,7 +884,6 @@ vdev_create(uint64_t guid, vdev_read_t *_read)
 		if (_read != NULL) {
 			vic = &vdev->vdev_indirect_config;
 			vic->vic_prev_indirect_vdev = UINT64_MAX;
-			STAILQ_INSERT_TAIL(&zfs_vdevs, vdev, v_alllink);
 		}
 	}
 
@@ -1035,22 +1047,19 @@ vdev_init(uint64_t guid, const nvlist_t *nvlist, vdev_t **vdevp)
  * STAILQ_INSERT_AFTER.
  */
 static vdev_t *
-vdev_find_previous(vdev_t *top_vdev, vdev_t *vdev)
+vdev_find_previous(vdev_t *top_vdev, uint64_t id)
 {
 	vdev_t *v, *previous;
 
-	if (STAILQ_EMPTY(&top_vdev->v_children))
-		return (NULL);
-
 	previous = NULL;
 	STAILQ_FOREACH(v, &top_vdev->v_children, v_childlink) {
-		if (v->v_id > vdev->v_id)
+		if (v->v_id > id)
 			return (previous);
 
-		if (v->v_id == vdev->v_id)
+		if (v->v_id == id)
 			return (v);
 
-		if (v->v_id < vdev->v_id)
+		if (v->v_id < id)
 			previous = v;
 	}
 	return (previous);
@@ -1072,7 +1081,7 @@ vdev_child_count(vdev_t *vdev)
 /*
  * Insert vdev into top_vdev children list. List is ordered by v_id.
  */
-static void
+static vdev_t *
 vdev_insert(vdev_t *top_vdev, vdev_t *vdev)
 {
 	vdev_t *previous;
@@ -1085,7 +1094,7 @@ vdev_insert(vdev_t *top_vdev, vdev_t *vdev)
 	 * so we can use either STAILQ_INSERT_HEAD or STAILQ_INSERT_AFTER
 	 * as STAILQ does not have insert before.
 	 */
-	previous = vdev_find_previous(top_vdev, vdev);
+	previous = vdev_find_previous(top_vdev, vdev->v_id);
 
 	if (previous == NULL) {
 		STAILQ_INSERT_HEAD(&top_vdev->v_children, vdev, v_childlink);
@@ -1094,7 +1103,8 @@ vdev_insert(vdev_t *top_vdev, vdev_t *vdev)
 		 * This vdev was configured from label config,
 		 * do not insert duplicate.
 		 */
-		return;
+		free(vdev);
+		return (previous);
 	} else {
 		STAILQ_INSERT_AFTER(&top_vdev->v_children, previous, vdev,
 		    v_childlink);
@@ -1103,26 +1113,28 @@ vdev_insert(vdev_t *top_vdev, vdev_t *vdev)
 	count = vdev_child_count(top_vdev);
 	if (top_vdev->v_nchildren < count)
 		top_vdev->v_nchildren = count;
+	return (vdev);
 }
 
 static int
-vdev_from_nvlist(spa_t *spa, uint64_t top_guid, uint64_t txg,
-    const nvlist_t *nvlist)
+vdev_from_nvlist(spa_t *spa, uint64_t top_guid, uint64_t label_guid,
+    uint64_t txg, const nvlist_t *nvlist)
 {
 	vdev_t *top_vdev, *vdev;
 	nvlist_t **kids = NULL;
 	int rc, nkids;
 
 	/* Get top vdev. */
-	top_vdev = vdev_find(top_guid);
+	top_vdev = vdev_find(&spa->spa_root_vdev->v_children, top_guid);
 	if (top_vdev == NULL) {
 		rc = vdev_init(top_guid, nvlist, &top_vdev);
 		if (rc != 0)
 			return (rc);
 		top_vdev->v_spa = spa;
 		top_vdev->v_top = top_vdev;
+		top_vdev->v_label = label_guid;
 		top_vdev->v_txg = txg;
-		vdev_insert(spa->spa_root_vdev, top_vdev);
+		(void )vdev_insert(spa->spa_root_vdev, top_vdev);
 	}
 
 	/* Add children if there are any. */
@@ -1143,7 +1155,7 @@ vdev_from_nvlist(spa_t *spa, uint64_t top_guid, uint64_t txg,
 
 			vdev->v_spa = spa;
 			vdev->v_top = top_vdev;
-			vdev_insert(top_vdev, vdev);
+			vdev = vdev_insert(top_vdev, vdev);
 		}
 	} else {
 		/*
@@ -1159,30 +1171,6 @@ done:
 		free(kids);
 	}
 
-	return (rc);
-}
-
-static int
-vdev_init_from_label(spa_t *spa, const nvlist_t *nvlist)
-{
-	uint64_t pool_guid, top_guid, txg;
-	nvlist_t *vdevs;
-	int rc;
-
-	if (nvlist_find(nvlist, ZPOOL_CONFIG_POOL_GUID, DATA_TYPE_UINT64,
-	    NULL, &pool_guid, NULL) ||
-	    nvlist_find(nvlist, ZPOOL_CONFIG_TOP_GUID, DATA_TYPE_UINT64,
-	    NULL, &top_guid, NULL) ||
-	    nvlist_find(nvlist, ZPOOL_CONFIG_POOL_TXG, DATA_TYPE_UINT64,
-	    NULL, &txg, NULL) != 0 ||
-	    nvlist_find(nvlist, ZPOOL_CONFIG_VDEV_TREE, DATA_TYPE_NVLIST,
-	    NULL, &vdevs, NULL)) {
-		printf("ZFS: can't find vdev details\n");
-		return (ENOENT);
-	}
-
-	rc = vdev_from_nvlist(spa, top_guid, txg, vdevs);
-	nvlist_destroy(vdevs);
 	return (rc);
 }
 
@@ -1232,14 +1220,14 @@ vdev_set_state(vdev_t *vdev)
 }
 
 static int
-vdev_update_from_nvlist(uint64_t top_guid, const nvlist_t *nvlist)
+vdev_update_from_nvlist(vdev_t *root, uint64_t top_guid, const nvlist_t *nvlist)
 {
 	vdev_t *vdev;
 	nvlist_t **kids = NULL;
 	int rc, nkids;
 
 	/* Update top vdev. */
-	vdev = vdev_find(top_guid);
+	vdev = vdev_find(&root->v_children, top_guid);
 	if (vdev != NULL)
 		vdev_set_initial_state(vdev, nvlist);
 
@@ -1255,7 +1243,7 @@ vdev_update_from_nvlist(uint64_t top_guid, const nvlist_t *nvlist)
 			if (rc != 0)
 				break;
 
-			vdev = vdev_find(guid);
+			vdev = vdev_find(&root->v_children, guid);
 			if (vdev != NULL)
 				vdev_set_initial_state(vdev, kids[i]);
 		}
@@ -1271,10 +1259,6 @@ vdev_update_from_nvlist(uint64_t top_guid, const nvlist_t *nvlist)
 	return (rc);
 }
 
-/*
- * Shall not be called on root vdev, that is not linked into zfs_vdevs.
- * See comment in vdev_create().
- */
 static void
 vdev_free(struct vdev *vdev)
 {
@@ -1282,8 +1266,10 @@ vdev_free(struct vdev *vdev)
 
 	STAILQ_FOREACH_SAFE(kid, &vdev->v_children, v_childlink, safe)
 		vdev_free(kid);
-	STAILQ_REMOVE(&zfs_vdevs, vdev, vdev, v_alllink);
-	free(vdev);
+	if (vdev->v_phys_read != NULL)
+		STAILQ_INSERT_HEAD(&orphans, vdev, v_childlink);
+	else
+		free(vdev);
 }
 
 static int
@@ -1329,15 +1315,16 @@ vdev_init_from_nvlist(spa_t *spa, const nvlist_t *nvlist)
 		    NULL, &guid, NULL);
 		if (rc != 0)
 			break;
-		vdev = vdev_find(guid);
+		vdev = vdev_find(&spa->spa_root_vdev->v_children, guid);
 		/*
 		 * Top level vdev is missing, create it.
 		 * XXXGL: how can this happen?
 		 */
 		if (vdev == NULL)
-			rc = vdev_from_nvlist(spa, guid, 0, kids[i]);
+			rc = vdev_from_nvlist(spa, guid, 0, 0, kids[i]);
 		else
-			rc = vdev_update_from_nvlist(guid, kids[i]);
+			rc = vdev_update_from_nvlist(spa->spa_root_vdev, guid,
+			    kids[i]);
 		if (rc != 0)
 			break;
 	}
@@ -1353,6 +1340,53 @@ vdev_init_from_nvlist(spa_t *spa, const nvlist_t *nvlist)
 	vdev_set_state(spa->spa_root_vdev);
 
 	return (rc);
+}
+
+static bool
+nvlist_find_child_guid(const nvlist_t *nvlist, uint64_t guid)
+{
+	nvlist_t **kids = NULL;
+	int nkids, i;
+	bool rv = false;
+
+	if (nvlist_find(nvlist, ZPOOL_CONFIG_CHILDREN, DATA_TYPE_NVLIST_ARRAY,
+	    &nkids, &kids, NULL) != 0)
+		nkids = 0;
+
+	for (i = 0; i < nkids; i++) {
+		uint64_t kid_guid;
+
+		if (nvlist_find(kids[i], ZPOOL_CONFIG_GUID, DATA_TYPE_UINT64,
+		    NULL, &kid_guid, NULL) != 0)
+			break;
+		if (kid_guid == guid)
+			rv = true;
+		else
+			rv = nvlist_find_child_guid(kids[i], guid);
+		if (rv)
+			break;
+	}
+
+	for (i = 0; i < nkids; i++)
+		nvlist_destroy(kids[i]);
+	free(kids);
+
+	return (rv);
+}
+
+static bool
+nvlist_find_vdev_guid(const nvlist_t *nvlist, uint64_t guid)
+{
+	nvlist_t *vdevs;
+	bool rv;
+
+	if (nvlist_find(nvlist, ZPOOL_CONFIG_VDEV_TREE, DATA_TYPE_NVLIST, NULL,
+	    &vdevs, NULL) != 0)
+		return (false);
+	rv = nvlist_find_child_guid(vdevs, guid);
+	nvlist_destroy(vdevs);
+
+	return (rv);
 }
 
 static spa_t *
@@ -2023,8 +2057,8 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 {
 	vdev_t vtmp;
 	spa_t *spa;
-	vdev_t *vdev;
-	nvlist_t *nvl;
+	vdev_t *vdev, *top;
+	nvlist_t *nvl, *vdevs;
 	uint64_t val;
 	uint64_t guid, pool_guid, top_guid, txg;
 	const char *pool_name;
@@ -2083,6 +2117,7 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 
 	if (nvlist_find(nvl, ZPOOL_CONFIG_POOL_TXG, DATA_TYPE_UINT64,
 	    NULL, &txg, NULL) != 0 ||
+	    txg == 0 ||
 	    nvlist_find(nvl, ZPOOL_CONFIG_TOP_GUID, DATA_TYPE_UINT64,
 	    NULL, &top_guid, NULL) != 0 ||
 	    nvlist_find(nvl, ZPOOL_CONFIG_POOL_GUID, DATA_TYPE_UINT64,
@@ -2092,7 +2127,7 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 	    nvlist_find(nvl, ZPOOL_CONFIG_GUID, DATA_TYPE_UINT64,
 	    NULL, &guid, NULL) != 0) {
 		/*
-		 * Cache and spare devices end up here - just ignore
+		 * Cache, spare and replaced devices end up here - just ignore
 		 * them.
 		 */
 		nvlist_destroy(nvl);
@@ -2119,22 +2154,47 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 			nvlist_destroy(nvl);
 			return (ENOMEM);
 		}
-	} else {
-		struct vdev *kid;
-
-		STAILQ_FOREACH(kid, &spa->spa_root_vdev->v_children,
-		    v_childlink)
-			if (kid->v_guid == top_guid && kid->v_txg < txg) {
-				printf("ZFS: pool %s vdev %s ignoring stale "
-				    "label from txg 0x%jx, using 0x%jx@0x%jx\n",
-				    spa->spa_name, kid->v_name,
-				    kid->v_txg, guid, txg);
-				STAILQ_REMOVE(&spa->spa_root_vdev->v_children,
-				    kid, vdev, v_childlink);
-				vdev_free(kid);
-				break;
-			}
 	}
+
+	/*
+	 * Check if configuration is already known.  If configuration is known
+	 * and txg numbers don't match, we got 2x2 scenarios here.  First, is
+	 * the label being read right now _newer_ than the one read before.
+	 * Second, is the vdev that provided the stale label _present_ in the
+	 * newer configuration.  If neither is true, we completely ignore the
+	 * label.
+	 */
+	STAILQ_FOREACH(top, &spa->spa_root_vdev->v_children, v_childlink)
+		if (top->v_guid == top_guid) {
+			bool newer, present;
+
+			if (top->v_txg == txg)
+				break;
+			newer = (top->v_txg < txg);
+			present = newer ?
+			    nvlist_find_vdev_guid(nvl, top->v_label) :
+			    (vdev_find(&top->v_children, guid) != NULL);
+			printf("ZFS: pool %s vdev %s %s stale label from "
+			    "0x%jx@0x%jx, %s 0x%jx@0x%jx\n",
+			    spa->spa_name, top->v_name,
+			    present ? "using" : "ignoring",
+			    newer ? top->v_label : guid,
+			    newer ? top->v_txg : txg,
+			    present ? "referred by" : "using",
+			    newer ? guid : top->v_label,
+			    newer ? txg : top->v_txg);
+			if (newer) {
+				STAILQ_REMOVE(&spa->spa_root_vdev->v_children,
+				    top, vdev, v_childlink);
+				vdev_free(top);
+				break;
+			} else if (present) {
+				break;
+			} else {
+				nvlist_destroy(nvl);
+				return (EIO);
+			}
+		}
 
 	/*
 	 * Get the vdev tree and create our in-core copy of it.
@@ -2142,14 +2202,22 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 	 * be some kind of alias (overlapping slices, dangerously dedicated
 	 * disks etc).
 	 */
-	vdev = vdev_find(guid);
+	vdev = vdev_find(&spa->spa_root_vdev->v_children, guid);
 	/* Has this vdev already been inited? */
 	if (vdev && vdev->v_phys_read) {
 		nvlist_destroy(nvl);
 		return (EIO);
 	}
 
-	rc = vdev_init_from_label(spa, nvl);
+	if (nvlist_find(nvl, ZPOOL_CONFIG_VDEV_TREE, DATA_TYPE_NVLIST, NULL,
+	    &vdevs, NULL)) {
+		printf("ZFS: can't find vdev details\n");
+		nvlist_destroy(nvl);
+		return (ENOENT);
+	}
+
+	rc = vdev_from_nvlist(spa, top_guid, guid, txg, vdevs);
+	nvlist_destroy(vdevs);
 	nvlist_destroy(nvl);
 	if (rc != 0)
 		return (rc);
@@ -2158,7 +2226,7 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 	 * We should already have created an incomplete vdev for this
 	 * vdev. Find it and initialise it with our read proc.
 	 */
-	vdev = vdev_find(guid);
+	vdev = vdev_find(&spa->spa_root_vdev->v_children, guid);
 	if (vdev != NULL) {
 		vdev->v_phys_read = _read;
 		vdev->v_phys_write = _write;
@@ -2205,45 +2273,77 @@ ilog2(int n)
 	return (-1);
 }
 
+static inline uint64_t
+gbh_nblkptrs(uint64_t size)
+{
+	ASSERT(IS_P2ALIGNED(size, sizeof(blkptr_t)));
+	return ((size - sizeof(zio_eck_t)) / sizeof(blkptr_t));
+}
+
 static int
 zio_read_gang(const spa_t *spa, const blkptr_t *bp, void *buf)
 {
 	blkptr_t gbh_bp;
-	zio_gbh_phys_t zio_gb;
+	void *gbuf;
 	char *pbuf;
-	int i;
+	uint64_t gangblocksize;
+	int err, i;
+
+	gangblocksize = UINT64_MAX;
+	for (int dva = 0; dva < BP_GET_NDVAS(bp); dva++) {
+		vdev_t *vd = vdev_lookup_top(spa,
+		    DVA_GET_VDEV(&bp->blk_dva[dva]));
+		gangblocksize = MIN(gangblocksize, 1ULL << vd->v_ashift);
+	}
 
 	/* Artificial BP for gang block header. */
 	gbh_bp = *bp;
-	BP_SET_PSIZE(&gbh_bp, SPA_GANGBLOCKSIZE);
-	BP_SET_LSIZE(&gbh_bp, SPA_GANGBLOCKSIZE);
+	BP_SET_PSIZE(&gbh_bp, gangblocksize);
+	BP_SET_LSIZE(&gbh_bp, gangblocksize);
 	BP_SET_CHECKSUM(&gbh_bp, ZIO_CHECKSUM_GANG_HEADER);
 	BP_SET_COMPRESS(&gbh_bp, ZIO_COMPRESS_OFF);
 	for (i = 0; i < SPA_DVAS_PER_BP; i++)
 		DVA_SET_GANG(&gbh_bp.blk_dva[i], 0);
 
+	gbuf = malloc(gangblocksize);
+	if (gbuf == NULL)
+		return (ENOMEM);
 	/* Read gang header block using the artificial BP. */
-	if (zio_read(spa, &gbh_bp, &zio_gb))
+	err = zio_read_impl(spa, &gbh_bp, gbuf, false);
+	if ((err == EIO || err == ECKSUM) &&
+	    gangblocksize > SPA_OLD_GANGBLOCKSIZE) {
+		/* This might be a legacy gang block header, try again. */
+		gangblocksize = SPA_OLD_GANGBLOCKSIZE;
+		BP_SET_PSIZE(&gbh_bp, gangblocksize);
+		BP_SET_LSIZE(&gbh_bp, gangblocksize);
+		err = zio_read(spa, &gbh_bp, gbuf);
+	}
+	if (err != 0) {
+		free(gbuf);
 		return (EIO);
+	}
 
 	pbuf = buf;
-	for (i = 0; i < SPA_GBH_NBLKPTRS; i++) {
-		blkptr_t *gbp = &zio_gb.zg_blkptr[i];
+	for (i = 0; i < gbh_nblkptrs(gangblocksize); i++) {
+		blkptr_t *gbp = &((blkptr_t *)gbuf)[i];
 
 		if (BP_IS_HOLE(gbp))
 			continue;
-		if (zio_read(spa, gbp, pbuf))
+		if (zio_read(spa, gbp, pbuf)) {
+			free(gbuf);
 			return (EIO);
+		}
 		pbuf += BP_GET_PSIZE(gbp);
 	}
 
+	free(gbuf);
 	if (zio_checksum_verify(spa, bp, buf))
 		return (EIO);
 	return (0);
 }
 
 static int
-zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
+zio_read_impl(const spa_t *spa, const blkptr_t *bp, void *buf, bool print)
 {
 	int cpfunc = BP_GET_COMPRESS(bp);
 	uint64_t align, size;
@@ -2275,7 +2375,7 @@ zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
 			    size, buf, BP_GET_LSIZE(bp));
 			free(pbuf);
 		}
-		if (error != 0)
+		if (error != 0 && print)
 			printf("ZFS: i/o error - unable to decompress "
 			    "block pointer data, error %d\n", error);
 		return (error);
@@ -2329,7 +2429,7 @@ zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
 				    BP_GET_PSIZE(bp), buf, BP_GET_LSIZE(bp));
 			else if (size != BP_GET_PSIZE(bp))
 				bcopy(pbuf, buf, BP_GET_PSIZE(bp));
-		} else {
+		} else if (print) {
 			printf("zio_read error: %d\n", error);
 		}
 		if (buf != pbuf)
@@ -2337,10 +2437,16 @@ zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
 		if (error == 0)
 			break;
 	}
-	if (error != 0)
+	if (error != 0 && print)
 		printf("ZFS: i/o error - all block copies unavailable\n");
 
 	return (error);
+}
+
+static int
+zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
+{
+	return (zio_read_impl(spa, bp, buf, true));
 }
 
 static int

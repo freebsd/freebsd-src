@@ -286,7 +286,7 @@ cesa_alloc_tdesc(struct cesa_softc *sc)
 	CESA_GENERIC_ALLOC_LOCKED(sc, ctd, tdesc);
 
 	if (!ctd)
-		device_printf(sc->sc_dev, "TDMA descriptors pool exhaused. "
+		device_printf(sc->sc_dev, "TDMA descriptors pool exhausted. "
 		    "Consider increasing CESA_TDMA_DESCRIPTORS.\n");
 
 	return (ctd);
@@ -299,7 +299,7 @@ cesa_alloc_sdesc(struct cesa_softc *sc, struct cesa_request *cr)
 
 	CESA_GENERIC_ALLOC_LOCKED(sc, csd, sdesc);
 	if (!csd) {
-		device_printf(sc->sc_dev, "SA descriptors pool exhaused. "
+		device_printf(sc->sc_dev, "SA descriptors pool exhausted. "
 		    "Consider increasing CESA_SA_DESCRIPTORS.\n");
 		return (NULL);
 	}

@@ -39,27 +39,6 @@ extern gss_mechanism *gssint_mechs_array;
  * This file contains the support routines for the glue layer.
  */
 
-/* Retrieve the mechanism OID from an RFC 2743 InitialContextToken.  Place
- * the result into *oid_out, aliasing memory from token. */
-OM_uint32 gssint_get_mech_type_oid(gss_OID oid_out, gss_buffer_t token)
-{
-    struct k5input in;
-
-    if (oid_out == NULL)
-	return (GSS_S_CALL_INACCESSIBLE_WRITE);
-    if (token == NULL || token->value == NULL)
-	return (GSS_S_DEFECTIVE_TOKEN);
-
-    k5_input_init(&in, token->value, token->length);
-    if (!k5_der_get_value(&in, 0x60, &in))
-	return (GSS_S_DEFECTIVE_TOKEN);
-    if (!k5_der_get_value(&in, 0x06, &in))
-	return (GSS_S_DEFECTIVE_TOKEN);
-    oid_out->length = in.len;
-    oid_out->elements = (uint8_t *)in.ptr;
-    return (GSS_S_COMPLETE);
-}
-
 /*
  * The following mechanisms do not always identify themselves
  * per the GSS-API specification, when interoperating with MS
@@ -75,10 +54,12 @@ static gss_OID_desc gss_krb5_mechanism_oid_desc =
 
 #define NTLMSSP_SIGNATURE "NTLMSSP"
 
-OM_uint32 gssint_get_mech_type(OID, token)
-    gss_OID		OID;
-    gss_buffer_t	token;
+OM_uint32
+gssint_get_mech_type(gss_OID OID, gss_buffer_t token)
 {
+    struct k5input in;
+    size_t tlen;
+
     /* Check for interoperability exceptions */
     if (token->length >= sizeof(NTLMSSP_SIGNATURE) &&
 	memcmp(token->value, NTLMSSP_SIGNATURE,
@@ -91,7 +72,9 @@ OM_uint32 gssint_get_mech_type(OID, token)
     } else if (token->length == 0) {
 	*OID = gss_spnego_mechanism_oid_desc;
     } else {
-	return gssint_get_mech_type_oid(OID, token);
+	k5_input_init(&in, token->value, token->length);
+	return (g_get_token_header(&in, OID, &tlen) ? GSS_S_COMPLETE :
+		GSS_S_DEFECTIVE_TOKEN);
     }
 
     return (GSS_S_COMPLETE);
@@ -163,12 +146,10 @@ import_internal_attributes(OM_uint32 *minor,
  *  Internal routines to get and release an internal mechanism name
  */
 
-OM_uint32 gssint_import_internal_name (minor_status, mech_type, union_name,
-				internal_name)
-OM_uint32	*minor_status;
-gss_OID		mech_type;
-gss_union_name_t	union_name;
-gss_name_t	*internal_name;
+OM_uint32
+gssint_import_internal_name(OM_uint32 *minor_status, gss_OID mech_type,
+			    gss_union_name_t union_name,
+			    gss_name_t *internal_name)
 {
     OM_uint32		status, tmpMinor;
     gss_mechanism	mech;
@@ -220,12 +201,10 @@ gss_name_t	*internal_name;
     return (status);
 }
 
-OM_uint32 gssint_export_internal_name(minor_status, mech_type,
-				     internal_name, name_buf)
-    OM_uint32		*minor_status;
-    const gss_OID		mech_type;
-    const gss_name_t	internal_name;
-    gss_buffer_t		name_buf;
+OM_uint32
+gssint_export_internal_name(OM_uint32 *minor_status, const gss_OID mech_type,
+			    const gss_name_t internal_name,
+			    gss_buffer_t name_buf)
 {
     OM_uint32 status;
     gss_mechanism mech;
@@ -307,13 +286,10 @@ OM_uint32 gssint_export_internal_name(minor_status, mech_type,
     return (GSS_S_COMPLETE);
 } /*  gssint_export_internal_name */
 
-OM_uint32 gssint_display_internal_name (minor_status, mech_type, internal_name,
-				 external_name, name_type)
-OM_uint32	*minor_status;
-gss_OID		mech_type;
-gss_name_t	internal_name;
-gss_buffer_t	external_name;
-gss_OID		*name_type;
+OM_uint32
+gssint_display_internal_name(OM_uint32 *minor_status, gss_OID mech_type,
+			     gss_name_t internal_name,
+			     gss_buffer_t external_name, gss_OID *name_type)
 {
     OM_uint32		status;
     gss_mechanism	mech;
@@ -337,10 +313,9 @@ gss_OID		*name_type;
     return (GSS_S_BAD_MECH);
 }
 
-OM_uint32 gssint_release_internal_name (minor_status, mech_type, internal_name)
-OM_uint32	*minor_status;
-gss_OID		mech_type;
-gss_name_t	*internal_name;
+OM_uint32
+gssint_release_internal_name(OM_uint32 *minor_status, gss_OID mech_type,
+			     gss_name_t *internal_name)
 {
     OM_uint32		status;
     gss_mechanism	mech;
@@ -362,14 +337,10 @@ gss_name_t	*internal_name;
     return (GSS_S_BAD_MECH);
 }
 
-OM_uint32 gssint_delete_internal_sec_context (minor_status,
-					      mech_type,
-					      internal_ctx,
-					      output_token)
-OM_uint32	*minor_status;
-gss_OID		mech_type;
-gss_ctx_id_t	*internal_ctx;
-gss_buffer_t	output_token;
+OM_uint32
+gssint_delete_internal_sec_context(OM_uint32 *minor_status, gss_OID mech_type,
+				   gss_ctx_id_t *internal_ctx,
+				   gss_buffer_t output_token)
 {
     OM_uint32		status;
     gss_mechanism	mech;
@@ -394,12 +365,10 @@ gss_buffer_t	output_token;
  * name.  Note that internal_name should be considered "consumed" by
  * this call, whether or not we return an error.
  */
-OM_uint32 gssint_convert_name_to_union_name(minor_status, mech,
-					   internal_name, external_name)
-    OM_uint32 *minor_status;
-    gss_mechanism	mech;
-    gss_name_t	internal_name;
-    gss_name_t	*external_name;
+OM_uint32
+gssint_convert_name_to_union_name(OM_uint32 *minor_status, gss_mechanism mech,
+				  gss_name_t internal_name,
+				  gss_name_t *external_name)
 {
     OM_uint32 major_status,tmp;
     gss_union_name_t union_name;
@@ -473,9 +442,7 @@ allocation_failure:
  * external union credential.
  */
 gss_cred_id_t
-gssint_get_mechanism_cred(union_cred, mech_type)
-    gss_union_cred_t	union_cred;
-    gss_OID		mech_type;
+gssint_get_mechanism_cred(gss_union_cred_t union_cred, gss_OID mech_type)
 {
     int		i;
 
@@ -494,10 +461,8 @@ gssint_get_mechanism_cred(union_cred, mech_type)
  * Both space for the structure and the data is allocated.
  */
 OM_uint32
-gssint_create_copy_buffer(srcBuf, destBuf, addNullChar)
-    const gss_buffer_t	srcBuf;
-    gss_buffer_t 		*destBuf;
-    int			addNullChar;
+gssint_create_copy_buffer(const gss_buffer_t srcBuf, gss_buffer_t *destBuf,
+			  int addNullChar)
 {
     gss_buffer_t aBuf;
     unsigned int len;

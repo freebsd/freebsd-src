@@ -522,9 +522,16 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct ucred *cred
 	/*
 	 * Check if bridge wants to allow adding addrs to member interfaces.
 	 */
-	if (ifp->if_bridge && bridge_member_ifaddrs_p &&
-	    !bridge_member_ifaddrs_p())
-		return (EINVAL);
+	if (ifp->if_bridge != NULL && ifp->if_type != IFT_GIF &&
+	    bridge_member_ifaddrs_p != NULL) {
+		if (bridge_member_ifaddrs_p())
+			if_printf(ifp, "WARNING: Assigning an IP address to "
+			    "an interface which is also a bridge member is "
+			    "deprecated and will be unsupported in a future "
+			    "release.\n");
+		else
+			return (EINVAL);
+	}
 
 	/*
 	 * See whether address already exist.
@@ -1881,6 +1888,8 @@ void
 in_domifdetach(struct ifnet *ifp, void *aux)
 {
 	struct in_ifinfo *ii = (struct in_ifinfo *)aux;
+
+	MPASS(ifp->if_afdata[AF_INET] == NULL);
 
 	igmp_domifdetach(ifp);
 	lltable_free(ii->ii_llt);

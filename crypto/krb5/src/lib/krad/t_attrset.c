@@ -40,7 +40,7 @@ const static unsigned char encpass[] = {
 };
 
 int
-main()
+main(void)
 {
     unsigned char buffer[KRAD_PACKET_SIZE_MAX], encoded[MAX_ATTRSETSIZE];
     const char *username = "testUser", *password = "accept";
@@ -55,24 +55,24 @@ main()
 
     /* Add username. */
     tmp = string2data((char *)username);
-    noerror(krad_attrset_add(set, krad_attr_name2num("User-Name"), &tmp));
+    noerror(krad_attrset_add(set, KRAD_ATTR_USER_NAME, &tmp));
 
     /* Add password. */
     tmp = string2data((char *)password);
-    noerror(krad_attrset_add(set, krad_attr_name2num("User-Password"), &tmp));
+    noerror(krad_attrset_add(set, KRAD_ATTR_USER_PASSWORD, &tmp));
 
     /* Encode attrset. */
-    noerror(kr_attrset_encode(set, "foo", auth, buffer, &encode_len));
+    noerror(kr_attrset_encode(set, "foo", auth, FALSE, buffer, &encode_len));
     krad_attrset_free(set);
 
     /* Manually encode User-Name. */
-    encoded[len + 0] = krad_attr_name2num("User-Name");
+    encoded[len + 0] = KRAD_ATTR_USER_NAME;
     encoded[len + 1] = strlen(username) + 2;
     memcpy(encoded + len + 2, username, strlen(username));
     len += encoded[len + 1];
 
     /* Manually encode User-Password. */
-    encoded[len + 0] = krad_attr_name2num("User-Password");
+    encoded[len + 0] = KRAD_ATTR_USER_PASSWORD;
     encoded[len + 1] = sizeof(encpass) + 2;
     memcpy(encoded + len + 2, encpass, sizeof(encpass));
     len += encoded[len + 1];
@@ -87,7 +87,7 @@ main()
 
     /* Test getting an attribute. */
     tmp = string2data((char *)username);
-    tmpp = krad_attrset_get(set, krad_attr_name2num("User-Name"), 0);
+    tmpp = krad_attrset_get(set, KRAD_ATTR_USER_NAME, 0);
     insist(tmpp != NULL);
     insist(tmpp->length == tmp.length);
     insist(strncmp(tmpp->data, tmp.data, tmp.length) == 0);

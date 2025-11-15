@@ -345,12 +345,6 @@ smallblk_changed_cb(void *arg, uint64_t newval)
 {
 	objset_t *os = arg;
 
-	/*
-	 * Inheritance and range checking should have been done by now.
-	 */
-	ASSERT(newval <= SPA_MAXBLOCKSIZE);
-	ASSERT(ISP2(newval));
-
 	os->os_zpl_special_smallblock = newval;
 }
 
@@ -730,7 +724,7 @@ dmu_objset_from_ds(dsl_dataset_t *ds, objset_t **osp)
 
 		if (err == 0) {
 			mutex_enter(&ds->ds_lock);
-			ASSERT(ds->ds_objset == NULL);
+			ASSERT0P(ds->ds_objset);
 			ds->ds_objset = os;
 			mutex_exit(&ds->ds_lock);
 		}
@@ -1376,7 +1370,7 @@ dmu_objset_create(const char *name, dmu_objset_type_t type, uint64_t flags,
 	    6, ZFS_SPACE_CHECK_NORMAL);
 
 	if (rv == 0)
-		zvol_create_minor(name);
+		zvol_create_minors(name);
 
 	crfree(cr);
 
@@ -2043,6 +2037,8 @@ userquota_updates_task(void *arg)
 				dn->dn_id_flags |= DN_ID_CHKED_BONUS;
 		}
 		dn->dn_id_flags &= ~(DN_ID_NEW_EXIST);
+		ASSERT3U(dn->dn_dirtycnt, >, 0);
+		dn->dn_dirtycnt--;
 		mutex_exit(&dn->dn_mtx);
 
 		multilist_sublist_remove(list, dn);
@@ -2076,6 +2072,10 @@ dnode_rele_task(void *arg)
 
 	dnode_t *dn;
 	while ((dn = multilist_sublist_head(list)) != NULL) {
+		mutex_enter(&dn->dn_mtx);
+		ASSERT3U(dn->dn_dirtycnt, >, 0);
+		dn->dn_dirtycnt--;
+		mutex_exit(&dn->dn_mtx);
 		multilist_sublist_remove(list, dn);
 		dnode_rele(dn, &os->os_synced_dnodes);
 	}
@@ -2232,7 +2232,7 @@ dmu_objset_userquota_get_ids(dnode_t *dn, boolean_t before, dmu_tx_t *tx)
 				rf |= DB_RF_HAVESTRUCT;
 			error = dmu_spill_hold_by_dnode(dn, rf,
 			    FTAG, (dmu_buf_t **)&db);
-			ASSERT(error == 0);
+			ASSERT0(error);
 			mutex_enter(&db->db_mtx);
 			data = (before) ? db->db.db_data :
 			    dmu_objset_userquota_find_data(db, tx);

@@ -31,12 +31,7 @@
 #endif
 
 OM_uint32 KRB5_CALLCONV
-gss_release_cred(minor_status,
-                 cred_handle)
-
-OM_uint32 *		minor_status;
-gss_cred_id_t *		cred_handle;
-
+gss_release_cred(OM_uint32 *minor_status, gss_cred_id_t *cred_handle)
 {
     OM_uint32		status, temp_status;
     int			j;

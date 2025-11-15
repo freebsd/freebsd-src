@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2013 Peter Grehan
 .\" All rights reserved.
 .\"
@@ -22,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 21, 2024
+.Dd October 28, 2025
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -125,7 +128,7 @@ xAPIC mode is the default setting so this option is redundant.
 It will be deprecated in a future version.
 .It Fl C
 Include guest memory in core files.
-.It Fl c Op Ar setting ...
+.It Fl c Oo Oo Cm cpus= Oc Ns Ar numcpus Oc Ns Oo Cm ,sockets= Ns Ar n Oc Ns Oo Cm ,cores= Ns Ar n Oc Ns Oo Cm ,threads= Ns Ar n Oc
 Number of guest virtual CPUs
 and/or the CPU topology.
 The default value for each of
@@ -269,8 +272,56 @@ or
 (either upper or lower case)
 to indicate a multiple of kilobytes, megabytes, gigabytes, or terabytes.
 If no suffix is given, the value is assumed to be in megabytes.
-.Pp
 The default is 256M.
+.Pp
+.It Fl n Ar id Ns Cm \&, Ns Ar size Ns Cm \&, Ns Ar cpus Ns Op Cm \&, Ns Ar domain_policy
+Configure guest NUMA domains.
+This option applies only to the amd64 platform.
+.Pp
+The
+.Fl n
+option allows the guest physical address space to be partitioned into domains.
+The layout of each domain is encoded in an ACPI table
+visible to the guest operating system.
+The
+.Fl n
+option also allows the specification of a
+.Xr domainset 9
+memory allocation policy for the host memory backing a given NUMA domain.
+A guest can have up to 8 NUMA domains.
+This feature requires that the guest use a boot ROM, and in
+particular cannot be used if the guest was initialized using
+.Xr bhyveload 8 .
+.Pp
+Each domain is identified by a numerical
+.Em id .
+The domain memory
+.Em size
+is specified using the same format as the
+.Fl m
+flag.
+The sum of all
+.Em size
+parameters overrides the total VM memory size specified by the
+.Fl m
+flag.
+However, if at least one domain memory size parameter is
+missing, the total VM memory size will be equally distributed across
+all emulated domains.
+The
+.Em cpuset
+parameter specifies the set of CPUs that are part of the domain.
+The
+.Em domain_policy
+parameter may be optionally used to configure the
+.Xr domainset 9
+host NUMA memory allocation policy for an emulated
+domain.
+See the
+.Ar -n
+flag in
+.Xr cpuset 1
+for a list of valid NUMA memory allocation policies and their formats.
 .It Fl o Ar var Ns Cm = Ns Ar value
 Set the configuration variable
 .Ar var
@@ -470,6 +521,8 @@ considered unconnected.
 .Op Cm \&,mtu= Ar N
 .Xc
 .It
+.Cm ngd Ar N
+.It
 .Xo
 .Cm netgraph,path= Ar ADDRESS Cm \&,peerhook= Ar HOOK
 .Op Cm \&,socket= Ar NAME
@@ -493,6 +546,19 @@ the device name.
 The MAC address is an ASCII string in
 .Xr ethers 5
 format.
+.Pp
+A
+.Cm ngd
+device can be used to connect a guest to a
+.Xr netgraph 4
+through a
+.Xr ng_device 4
+node.
+This can be used to run bhyve in a
+.Xr VNET 9
+jail, and give it access to the host's netgraph, that cannot be reached
+directly, by exposing the ng_device through
+.Xr devfs 8 .
 .Pp
 With
 .Cm virtio-net
@@ -524,7 +590,9 @@ must comply with
 .Xr netgraph 4
 addressing rules.
 .Pp
-The slirp backend can be used to provide a NATed network to the guest.
+The
+.Cm slirp
+backend can be used to provide a NATed network to the guest.
 This backend has poor performance but does not require any network
 configuration on the host system.
 It depends on the
@@ -1078,7 +1146,7 @@ powered off
 .It 2
 halted
 .It 3
-triple fault
+triple fault (amd64 only)
 .It 4
 exited due to an error
 .El
@@ -1202,6 +1270,33 @@ using this configuration file, use flag
 .Bd -literal -offset indent
 /usr/sbin/bhyve -k configfile vm0
 .Ed
+.Pp
+Run a UEFI virtual machine with four CPUs and two emulated NUMA domains:
+.Bd -literal -offset indent
+bhyve -c 4 -w -H \\
+  -s 0,hostbridge \\
+  -s 4,ahci-hd,disk.img \\
+  -s 31,lpc -l com1,stdio \\
+  -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \\
+  -n id=0,size=4G,cpus=0-1 \\
+  -n id=1,size=4G,cpus=2-3 \\
+   numavm
+.Ed
+.Pp
+Assuming a host machine with two NUMA domains,
+run a UEFI virtual machine with four CPUs using a
+.Ar prefer
+.Xr domainset 9
+policy to allocate guest memory from the first host NUMA domain only.
+.Bd -literal -offset indent
+bhyve -c 2 -w -H \\
+  -s 0,hostbridge \\
+  -s 4,ahci-hd,disk.img \\
+  -s 31,lpc -l com1,stdio \\
+  -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \\
+  -n id=0,size=4G,cpus=0-1,domain_policy=prefer:0 \\
+   numavm
+.Ed
 .Sh SEE ALSO
 .Xr bhyve 4 ,
 .Xr netgraph 4 ,
@@ -1211,7 +1306,8 @@ using this configuration file, use flag
 .Xr bhyve_config 5 ,
 .Xr ethers 5 ,
 .Xr bhyvectl 8 ,
-.Xr bhyveload 8
+.Xr bhyveload 8 ,
+.Xr domainset 9
 .Pp
 .Rs
 .%A Intel

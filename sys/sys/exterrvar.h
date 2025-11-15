@@ -31,11 +31,31 @@
 #error "Specify error category before including sys/exterrvar.h"
 #endif
 
-#ifdef	BLOAT_KERNEL_WITH_EXTERR
+#ifdef	EXTERR_STRINGS
 #define	SET_ERROR_MSG(mmsg)	(mmsg)
 #else
 #define	SET_ERROR_MSG(mmsg)	NULL
 #endif
+
+#define	_SET_ERROR2_KE(kep, eerror, mmsg, pp1, pp2)	({		\
+	(kep)->error = (eerror);					\
+	(kep)->cat = EXTERR_CATEGORY;					\
+	(kep)->msg = SET_ERROR_MSG(mmsg);				\
+	(kep)->p1 = (pp1);						\
+	(kep)->p2 = (pp2);						\
+	(kep)->src_line = __LINE__;					\
+	(kep)->error;					       		\
+})
+#define	_SET_ERROR0_KE(kep, eerror, mmsg)				\
+	_SET_ERROR2_KE(kep, eerror, mmsg, 0, 0)
+#define	_SET_ERROR1_KE(kep, eerror, mmsg, pp1)				\
+	_SET_ERROR2_KE(kep, eerror, mmsg, pp1, 0)
+
+#define	_EXTERROR_MACRO_KE(kep, eerror, mmsg, _1, _2, NAME, ...)	\
+	NAME
+#define	EXTERROR_KE(...)						\
+	_EXTERROR_MACRO_KE(__VA_ARGS__, _SET_ERROR2_KE, _SET_ERROR1_KE,	\
+	    _SET_ERROR0_KE)(__VA_ARGS__)
 
 #define	_SET_ERROR2(eerror, mmsg, pp1, pp2)				\
 	exterr_set(eerror, EXTERR_CATEGORY, SET_ERROR_MSG(mmsg),	\
@@ -49,6 +69,9 @@
 	_EXTERROR_MACRO(__VA_ARGS__, _SET_ERROR2, _SET_ERROR1,		\
 	    _SET_ERROR0)(__VA_ARGS__)
 
+void exterr_clear(struct kexterr *ke);
+void exterr_db_print(struct kexterr *ke);
+int exterr_set_from(const struct kexterr *ke);
 int exterr_set(int eerror, int category, const char *mmsg, uintptr_t pp1,
     uintptr_t pp2, int line);
 int exterr_to_ue(struct thread *td, struct uexterror *ue);

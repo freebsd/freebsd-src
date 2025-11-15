@@ -1,5 +1,3 @@
-PACKAGE=	runtime
-
 SHLIBDIR?=	/lib
 
 .include <src.opts.mk>

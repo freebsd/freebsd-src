@@ -75,7 +75,7 @@ static gss_OID_desc gss_spnego_mechanism_oid_desc =
 {6, (void *)"\x2b\x06\x01\x05\x05\x02"};
 
 static void
-usage()
+usage(void)
 {
     fprintf(stderr, "Usage: gss-client [-port port] [-mech mechanism] "
             "[-spnego] [-d]\n");
@@ -182,186 +182,152 @@ client_establish_context(int s, char *service_name, OM_uint32 gss_flags,
                          char *username, char *password,
                          gss_ctx_id_t *gss_context, OM_uint32 *ret_flags)
 {
-    if (auth_flag) {
-        gss_buffer_desc send_tok, recv_tok, *token_ptr;
-        gss_name_t target_name;
-        OM_uint32 maj_stat, min_stat, init_sec_min_stat;
-        int token_flags;
-        gss_cred_id_t cred = GSS_C_NO_CREDENTIAL;
-        gss_name_t gss_username = GSS_C_NO_NAME;
-        gss_OID_set_desc mechs, *mechsp = GSS_C_NO_OID_SET;
+    int result = -1, st;
+    gss_buffer_desc send_tok, recv_tok, pwbuf, *token_ptr;
+    gss_name_t target_name = GSS_C_NO_NAME, gss_username = GSS_C_NO_NAME;
+    OM_uint32 maj_stat, min_stat, init_sec_min_stat;
+    int token_flags;
+    gss_cred_id_t cred = GSS_C_NO_CREDENTIAL;
+    gss_OID_set_desc mechs, neg_mechs, *mechsp = GSS_C_NO_OID_SET;
 
-        if (spnego) {
-            mechs.elements = &gss_spnego_mechanism_oid_desc;
-            mechs.count = 1;
-            mechsp = &mechs;
-        } else if (oid != GSS_C_NO_OID) {
-            mechs.elements = oid;
-            mechs.count = 1;
-            mechsp = &mechs;
-        } else {
-            mechs.elements = NULL;
-            mechs.count = 0;
-        }
+    if (!auth_flag)
+        return send_token(s, TOKEN_NOOP, empty_token);
 
-        if (username != NULL) {
-            send_tok.value = username;
-            send_tok.length = strlen(username);
-
-            maj_stat = gss_import_name(&min_stat, &send_tok,
-                                       (gss_OID) gss_nt_user_name,
-                                       &gss_username);
-            if (maj_stat != GSS_S_COMPLETE) {
-                display_status("parsing client name", maj_stat, min_stat);
-                return -1;
-            }
-        }
-
-        if (password != NULL) {
-            gss_buffer_desc pwbuf;
-
-            pwbuf.value = password;
-            pwbuf.length = strlen(password);
-
-            maj_stat = gss_acquire_cred_with_password(&min_stat,
-                                                      gss_username,
-                                                      &pwbuf, 0,
-                                                      mechsp, GSS_C_INITIATE,
-                                                      &cred, NULL, NULL);
-        } else if (gss_username != GSS_C_NO_NAME) {
-            maj_stat = gss_acquire_cred(&min_stat,
-                                        gss_username, 0,
-                                        mechsp, GSS_C_INITIATE,
-                                        &cred, NULL, NULL);
-        } else
-            maj_stat = GSS_S_COMPLETE;
-        if (maj_stat != GSS_S_COMPLETE) {
-            display_status("acquiring creds", maj_stat, min_stat);
-            gss_release_name(&min_stat, &gss_username);
-            return -1;
-        }
-        if (spnego && oid != GSS_C_NO_OID) {
-            gss_OID_set_desc neg_mechs;
-
-            neg_mechs.elements = oid;
-            neg_mechs.count = 1;
-
-            maj_stat = gss_set_neg_mechs(&min_stat, cred, &neg_mechs);
-            if (maj_stat != GSS_S_COMPLETE) {
-                display_status("setting neg mechs", maj_stat, min_stat);
-                gss_release_name(&min_stat, &gss_username);
-                gss_release_cred(&min_stat, &cred);
-                return -1;
-            }
-        }
-        gss_release_name(&min_stat, &gss_username);
-
-        /*
-         * Import the name into target_name.  Use send_tok to save
-         * local variable space.
-         */
-        send_tok.value = service_name;
-        send_tok.length = strlen(service_name);
-        maj_stat = gss_import_name(&min_stat, &send_tok,
-                                   (gss_OID) gss_nt_service_name,
-                                   &target_name);
-        if (maj_stat != GSS_S_COMPLETE) {
-            display_status("parsing name", maj_stat, min_stat);
-            return -1;
-        }
-
-        if (!v1_format) {
-            if (send_token(s, TOKEN_NOOP | TOKEN_CONTEXT_NEXT, empty_token) <
-                0) {
-                (void) gss_release_name(&min_stat, &target_name);
-                return -1;
-            }
-        }
-
-        /*
-         * Perform the context-establishement loop.
-         *
-         * On each pass through the loop, token_ptr points to the token
-         * to send to the server (or GSS_C_NO_BUFFER on the first pass).
-         * Every generated token is stored in send_tok which is then
-         * transmitted to the server; every received token is stored in
-         * recv_tok, which token_ptr is then set to, to be processed by
-         * the next call to gss_init_sec_context.
-         *
-         * GSS-API guarantees that send_tok's length will be non-zero
-         * if and only if the server is expecting another token from us,
-         * and that gss_init_sec_context returns GSS_S_CONTINUE_NEEDED if
-         * and only if the server has another token to send us.
-         */
-
-        token_ptr = GSS_C_NO_BUFFER;
-        *gss_context = GSS_C_NO_CONTEXT;
-
-        do {
-            maj_stat = gss_init_sec_context(&init_sec_min_stat,
-                                            cred, gss_context,
-                                            target_name, mechs.elements,
-                                            gss_flags, 0,
-                                            NULL, /* channel bindings */
-                                            token_ptr, NULL, /* mech type */
-                                            &send_tok, ret_flags,
-                                            NULL);  /* time_rec */
-
-            if (token_ptr != GSS_C_NO_BUFFER)
-                free(recv_tok.value);
-
-            if (send_tok.length != 0) {
-                if (verbose)
-                    printf("Sending init_sec_context token (size=%d)...",
-                           (int) send_tok.length);
-                if (send_token(s, v1_format ? 0 : TOKEN_CONTEXT, &send_tok) <
-                    0) {
-                    (void) gss_release_buffer(&min_stat, &send_tok);
-                    (void) gss_release_name(&min_stat, &target_name);
-                    return -1;
-                }
-            }
-            (void) gss_release_buffer(&min_stat, &send_tok);
-
-            if (maj_stat != GSS_S_COMPLETE
-                && maj_stat != GSS_S_CONTINUE_NEEDED) {
-                display_status("initializing context", maj_stat,
-                               init_sec_min_stat);
-                (void) gss_release_name(&min_stat, &target_name);
-                (void) gss_release_cred(&min_stat, &cred);
-                if (*gss_context != GSS_C_NO_CONTEXT)
-                    gss_delete_sec_context(&min_stat, gss_context,
-                                           GSS_C_NO_BUFFER);
-                return -1;
-            }
-
-            if (maj_stat == GSS_S_CONTINUE_NEEDED) {
-                if (verbose)
-                    printf("continue needed...");
-                if (recv_token(s, &token_flags, &recv_tok) < 0) {
-                    (void) gss_release_name(&min_stat, &target_name);
-                    return -1;
-                }
-                token_ptr = &recv_tok;
-            }
-            if (verbose)
-                printf("\n");
-        } while (maj_stat == GSS_S_CONTINUE_NEEDED);
-
-        (void) gss_release_cred(&min_stat, &cred);
-        (void) gss_release_name(&min_stat, &target_name);
+    if (spnego) {
+        mechs.elements = &gss_spnego_mechanism_oid_desc;
+        mechs.count = 1;
+        mechsp = &mechs;
+    } else if (oid != GSS_C_NO_OID) {
+        mechs.elements = oid;
+        mechs.count = 1;
+        mechsp = &mechs;
     } else {
-        if (send_token(s, TOKEN_NOOP, empty_token) < 0)
-            return -1;
+        mechs.elements = NULL;
+        mechs.count = 0;
     }
 
-    return 0;
+    if (username != NULL) {
+        send_tok.value = username;
+        send_tok.length = strlen(username);
+
+        maj_stat = gss_import_name(&min_stat, &send_tok,
+                                   (gss_OID) gss_nt_user_name, &gss_username);
+        if (maj_stat != GSS_S_COMPLETE) {
+            display_status("parsing client name", maj_stat, min_stat);
+            goto cleanup;
+        }
+    }
+
+    if (password != NULL) {
+        pwbuf.value = password;
+        pwbuf.length = strlen(password);
+
+        maj_stat = gss_acquire_cred_with_password(&min_stat, gss_username,
+                                                  &pwbuf, 0, mechsp,
+                                                  GSS_C_INITIATE, &cred, NULL,
+                                                  NULL);
+    } else if (gss_username != GSS_C_NO_NAME) {
+        maj_stat = gss_acquire_cred(&min_stat, gss_username, 0, mechsp,
+                                    GSS_C_INITIATE, &cred, NULL, NULL);
+    } else {
+        maj_stat = GSS_S_COMPLETE;
+    }
+    if (maj_stat != GSS_S_COMPLETE) {
+        display_status("acquiring creds", maj_stat, min_stat);
+        goto cleanup;
+    }
+    if (spnego && oid != GSS_C_NO_OID) {
+        neg_mechs.elements = oid;
+        neg_mechs.count = 1;
+        maj_stat = gss_set_neg_mechs(&min_stat, cred, &neg_mechs);
+        if (maj_stat != GSS_S_COMPLETE) {
+            display_status("setting neg mechs", maj_stat, min_stat);
+            goto cleanup;
+        }
+    }
+
+    /* Import the name into target_name.  Use send_tok to save local variable
+     * space. */
+    send_tok.value = service_name;
+    send_tok.length = strlen(service_name);
+    maj_stat = gss_import_name(&min_stat, &send_tok,
+                               (gss_OID) gss_nt_service_name, &target_name);
+    if (maj_stat != GSS_S_COMPLETE) {
+        display_status("parsing name", maj_stat, min_stat);
+        goto cleanup;
+    }
+
+    if (!v1_format) {
+        if (send_token(s, TOKEN_NOOP | TOKEN_CONTEXT_NEXT, empty_token) < 0)
+            goto cleanup;
+    }
+
+    /*
+     * Perform the context-establishment loop.
+     *
+     * On each pass through the loop, token_ptr points to the token to send to
+     * the server (or GSS_C_NO_BUFFER on the first pass).  Every generated
+     * token is stored in send_tok which is then transmitted to the server;
+     * every received token is stored in recv_tok, which token_ptr is then set
+     * to, to be processed by the next call to gss_init_sec_context.
+     *
+     * GSS-API guarantees that send_tok's length will be non-zero if and only
+     * if the server is expecting another token from us, and that
+     * gss_init_sec_context returns GSS_S_CONTINUE_NEEDED if and only if the
+     * server has another token to send us.
+     */
+
+    token_ptr = GSS_C_NO_BUFFER;
+    *gss_context = GSS_C_NO_CONTEXT;
+
+    do {
+        maj_stat = gss_init_sec_context(&init_sec_min_stat, cred, gss_context,
+                                        target_name, mechs.elements, gss_flags,
+                                        0, NULL, token_ptr, NULL, &send_tok,
+                                        ret_flags, NULL);
+
+        if (token_ptr != GSS_C_NO_BUFFER)
+            free(recv_tok.value);
+
+        if (send_tok.length > 0) {
+            if (verbose) {
+                printf("Sending init_sec_context token (size=%d)...",
+                       (int) send_tok.length);
+            }
+            st = send_token(s, v1_format ? 0 : TOKEN_CONTEXT, &send_tok);
+            (void) gss_release_buffer(&min_stat, &send_tok);
+            if (st < 0)
+                goto cleanup;
+        }
+
+        if (maj_stat != GSS_S_COMPLETE && maj_stat != GSS_S_CONTINUE_NEEDED) {
+            display_status("initializing context", maj_stat,
+                           init_sec_min_stat);
+            goto cleanup;
+        }
+
+        if (maj_stat == GSS_S_CONTINUE_NEEDED) {
+            if (verbose)
+                printf("continue needed...");
+            if (recv_token(s, &token_flags, &recv_tok) < 0)
+                goto cleanup;
+            token_ptr = &recv_tok;
+        }
+        if (verbose)
+            printf("\n");
+    } while (maj_stat == GSS_S_CONTINUE_NEEDED);
+
+    result = 0;
+
+cleanup:
+    (void) gss_release_name(&min_stat, &gss_username);
+    (void) gss_release_cred(&min_stat, &cred);
+    (void) gss_release_name(&min_stat, &target_name);
+    return result;
 }
 
 static void
-read_file(file_name, in_buf)
-    char   *file_name;
-    gss_buffer_t in_buf;
+read_file(char *file_name, gss_buffer_t in_buf)
 {
     int     fd, count;
     struct stat stat_buf;
@@ -431,29 +397,18 @@ read_file(file_name, in_buf)
  * verifies it with gss_verify.  -1 is returned if any step fails,
  * otherwise 0 is returned.  */
 static int
-call_server(host, port, oid, service_name, gss_flags, auth_flag,
-            wrap_flag, encrypt_flag, mic_flag, v1_format, msg, use_file,
-            mcount, username, password)
-    char   *host;
-    u_short port;
-    gss_OID oid;
-    char   *service_name;
-    OM_uint32 gss_flags;
-    int     auth_flag, wrap_flag, encrypt_flag, mic_flag;
-    int     v1_format;
-    char   *msg;
-    int     use_file;
-    int     mcount;
-    char    *username;
-    char    *password;
+call_server(char *host, u_short port, gss_OID oid, char *service_name,
+            OM_uint32 gss_flags, int auth_flag, int wrap_flag,
+            int encrypt_flag, int mic_flag, int v1_format, char *msg,
+            int use_file, int mcount, char *username, char *password)
 {
     gss_ctx_id_t context = GSS_C_NO_CONTEXT;
     gss_buffer_desc in_buf, out_buf;
-    int     s, state;
+    int     s = -1, result = -1, state;
     OM_uint32 ret_flags;
     OM_uint32 maj_stat, min_stat;
-    gss_name_t src_name, targ_name;
-    gss_buffer_desc sname, tname;
+    gss_name_t src_name = GSS_C_NO_NAME, targ_name = GSS_C_NO_NAME;
+    gss_buffer_desc sname = GSS_C_EMPTY_BUFFER, tname = GSS_C_EMPTY_BUFFER;
     OM_uint32 lifetime;
     gss_OID mechanism, name_type;
     int     is_local;
@@ -467,14 +422,13 @@ call_server(host, port, oid, service_name, gss_flags, auth_flag,
 
     /* Open connection */
     if ((s = connect_to_server(host, port)) < 0)
-        return -1;
+        goto cleanup;
 
     /* Establish context */
     if (client_establish_context(s, service_name, gss_flags, auth_flag,
                                  v1_format, oid, username, password,
                                  &context, &ret_flags) < 0) {
-        (void) closesocket(s);
-        return -1;
+        goto cleanup;
     }
 
     if (auth_flag && verbose) {
@@ -488,19 +442,19 @@ call_server(host, port, oid, service_name, gss_flags, auth_flag,
                                        &is_local, &is_open);
         if (maj_stat != GSS_S_COMPLETE) {
             display_status("inquiring context", maj_stat, min_stat);
-            return -1;
+            goto cleanup;
         }
 
         maj_stat = gss_display_name(&min_stat, src_name, &sname, &name_type);
         if (maj_stat != GSS_S_COMPLETE) {
             display_status("displaying source name", maj_stat, min_stat);
-            return -1;
+            goto cleanup;
         }
         maj_stat = gss_display_name(&min_stat, targ_name, &tname,
                                     (gss_OID *) NULL);
         if (maj_stat != GSS_S_COMPLETE) {
             display_status("displaying target name", maj_stat, min_stat);
-            return -1;
+            goto cleanup;
         }
         printf("\"%.*s\" to \"%.*s\", lifetime %d, flags %x, %s, %s\n",
                (int) sname.length, (char *) sname.value,
@@ -509,15 +463,10 @@ call_server(host, port, oid, service_name, gss_flags, auth_flag,
                (is_local) ? "locally initiated" : "remotely initiated",
                (is_open) ? "open" : "closed");
 
-        (void) gss_release_name(&min_stat, &src_name);
-        (void) gss_release_name(&min_stat, &targ_name);
-        (void) gss_release_buffer(&min_stat, &sname);
-        (void) gss_release_buffer(&min_stat, &tname);
-
         maj_stat = gss_oid_to_str(&min_stat, name_type, &oid_name);
         if (maj_stat != GSS_S_COMPLETE) {
             display_status("converting oid->string", maj_stat, min_stat);
-            return -1;
+            goto cleanup;
         }
         printf("Name type of source name is %.*s.\n",
                (int) oid_name.length, (char *) oid_name.value);
@@ -528,13 +477,13 @@ call_server(host, port, oid, service_name, gss_flags, auth_flag,
                                               mechanism, &mech_names);
         if (maj_stat != GSS_S_COMPLETE) {
             display_status("inquiring mech names", maj_stat, min_stat);
-            return -1;
+            goto cleanup;
         }
 
         maj_stat = gss_oid_to_str(&min_stat, mechanism, &oid_name);
         if (maj_stat != GSS_S_COMPLETE) {
             display_status("converting oid->string", maj_stat, min_stat);
-            return -1;
+            goto cleanup;
         }
         printf("Mechanism %.*s supports %d names\n",
                (int) oid_name.length, (char *) oid_name.value,
@@ -546,7 +495,7 @@ call_server(host, port, oid, service_name, gss_flags, auth_flag,
                                       &mech_names->elements[i], &oid_name);
             if (maj_stat != GSS_S_COMPLETE) {
                 display_status("converting oid->string", maj_stat, min_stat);
-                return -1;
+                goto cleanup;
             }
             printf("  %d: %.*s\n", (int) i,
                    (int) oid_name.length, (char *) oid_name.value);
@@ -571,10 +520,7 @@ call_server(host, port, oid, service_name, gss_flags, auth_flag,
                          &in_buf, &state, &out_buf);
             if (maj_stat != GSS_S_COMPLETE) {
                 display_status("wrapping message", maj_stat, min_stat);
-                (void) closesocket(s);
-                (void) gss_delete_sec_context(&min_stat, &context,
-                                              GSS_C_NO_BUFFER);
-                return -1;
+                goto cleanup;
             } else if (encrypt_flag && !state) {
                 fprintf(stderr, "Warning!  Message not encrypted.\n");
             }
@@ -588,22 +534,15 @@ call_server(host, port, oid, service_name, gss_flags, auth_flag,
                               (wrap_flag ? TOKEN_WRAPPED : 0) |
                               (encrypt_flag ? TOKEN_ENCRYPTED : 0) |
                               (mic_flag ? TOKEN_SEND_MIC : 0))),
-                       &out_buf) < 0) {
-            (void) closesocket(s);
-            (void) gss_delete_sec_context(&min_stat, &context,
-                                          GSS_C_NO_BUFFER);
-            return -1;
-        }
+                       &out_buf) < 0)
+            goto cleanup;
+
         if (out_buf.value != in_buf.value)
             (void) gss_release_buffer(&min_stat, &out_buf);
 
         /* Read signature block into out_buf */
-        if (recv_token(s, &token_flags, &out_buf) < 0) {
-            (void) closesocket(s);
-            (void) gss_delete_sec_context(&min_stat, &context,
-                                          GSS_C_NO_BUFFER);
-            return -1;
-        }
+        if (recv_token(s, &token_flags, &out_buf) < 0)
+            goto cleanup;
 
         if (mic_flag) {
             /* Verify signature block */
@@ -611,10 +550,7 @@ call_server(host, port, oid, service_name, gss_flags, auth_flag,
                                       &out_buf, &qop_state);
             if (maj_stat != GSS_S_COMPLETE) {
                 display_status("verifying signature", maj_stat, min_stat);
-                (void) closesocket(s);
-                (void) gss_delete_sec_context(&min_stat, &context,
-                                              GSS_C_NO_BUFFER);
-                return -1;
+                goto cleanup;
             }
 
             if (verbose)
@@ -634,23 +570,17 @@ call_server(host, port, oid, service_name, gss_flags, auth_flag,
     if (!v1_format)
         (void) send_token(s, TOKEN_NOOP, empty_token);
 
-    if (auth_flag) {
-        /* Delete context */
-        maj_stat = gss_delete_sec_context(&min_stat, &context, &out_buf);
-        if (maj_stat != GSS_S_COMPLETE) {
-            display_status("deleting context", maj_stat, min_stat);
-            (void) closesocket(s);
-            (void) gss_delete_sec_context(&min_stat, &context,
-                                          GSS_C_NO_BUFFER);
-            return -1;
-        }
+    result = 0;
 
-        (void) gss_release_buffer(&min_stat, &out_buf);
-    }
-
-    (void) closesocket(s);
-
-    return 0;
+cleanup:
+    (void) gss_release_name(&min_stat, &src_name);
+    (void) gss_release_name(&min_stat, &targ_name);
+    (void) gss_release_buffer(&min_stat, &sname);
+    (void) gss_release_buffer(&min_stat, &tname);
+    (void) gss_delete_sec_context(&min_stat, &context, GSS_C_NO_BUFFER);
+    if (s >= 0)
+        (void) closesocket(s);
+    return result;
 }
 
 static void
@@ -774,9 +704,7 @@ worker_bee(void *unused)
 }
 
 int
-main(argc, argv)
-    int     argc;
-    char  **argv;
+main(int argc, char **argv)
 {
     int     i;
 

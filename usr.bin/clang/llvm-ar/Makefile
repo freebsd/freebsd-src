@@ -1,5 +1,6 @@
 .include <src.opts.mk>
 
+PACKAGE=	toolchain
 PROG_CXX=	llvm-ar
 MAN=		llvm-ar.1 llvm-ranlib.1
 

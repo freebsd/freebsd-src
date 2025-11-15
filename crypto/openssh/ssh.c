@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.600 2024/01/11 01:45:36 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.612 2025/04/09 01:24:40 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -50,6 +50,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <sys/utsname.h>
 
 #include <ctype.h>
 #include <errno.h>
@@ -558,15 +559,18 @@ check_load(int r, struct sshkey **k, const char *path, const char *message)
  * file if the user specifies a config file on the command line.
  */
 static void
-process_config_files(const char *host_name, struct passwd *pw, int final_pass,
-    int *want_final_pass)
+process_config_files(const char *host_name, struct passwd *pw,
+    int final_pass, int *want_final_pass)
 {
-	char buf[PATH_MAX];
+	char *cmd, buf[PATH_MAX];
 	int r;
 
+	if ((cmd = sshbuf_dup_string(command)) == NULL)
+		fatal_f("sshbuf_dup_string failed");
 	if (config != NULL) {
 		if (strcasecmp(config, "none") != 0 &&
-		    !read_config_file(config, pw, host, host_name, &options,
+		    !read_config_file(config, pw, host, host_name, cmd,
+		    &options,
 		    SSHCONF_USERCONF | (final_pass ? SSHCONF_FINAL : 0),
 		    want_final_pass))
 			fatal("Can't open user config file %.100s: "
@@ -575,15 +579,16 @@ process_config_files(const char *host_name, struct passwd *pw, int final_pass,
 		r = snprintf(buf, sizeof buf, "%s/%s", pw->pw_dir,
 		    _PATH_SSH_USER_CONFFILE);
 		if (r > 0 && (size_t)r < sizeof(buf))
-			(void)read_config_file(buf, pw, host, host_name,
+			(void)read_config_file(buf, pw, host, host_name, cmd,
 			    &options, SSHCONF_CHECKPERM | SSHCONF_USERCONF |
 			    (final_pass ? SSHCONF_FINAL : 0), want_final_pass);
 
 		/* Read systemwide configuration file after user config. */
 		(void)read_config_file(_PATH_HOST_CONFIG_FILE, pw,
-		    host, host_name, &options,
+		    host, host_name, cmd, &options,
 		    final_pass ? SSHCONF_FINAL : 0, want_final_pass);
 	}
+	free(cmd);
 }
 
 /* Rewrite the port number in an addrinfo list of addresses */
@@ -634,7 +639,7 @@ valid_hostname(const char *s)
 	if (*s == '-')
 		return 0;
 	for (i = 0; s[i] != 0; i++) {
-		if (strchr("'`\"$\\;&<>|(){}", s[i]) != NULL ||
+		if (strchr("'`\"$\\;&<>|(){},", s[i]) != NULL ||
 		    isspace((u_char)s[i]) || iscntrl((u_char)s[i]))
 			return 0;
 	}
@@ -670,7 +675,7 @@ main(int ac, char **av)
 	struct ssh *ssh = NULL;
 	int i, r, opt, exit_status, use_syslog, direct, timeout_ms;
 	int was_addr, config_test = 0, opt_terminated = 0, want_final_pass = 0;
-	char *p, *cp, *line, *argv0, *logfile;
+	char *p, *cp, *line, *argv0, *logfile, *args;
 	char cname[NI_MAXHOST], thishost[NI_MAXHOST];
 	struct stat st;
 	struct passwd *pw;
@@ -680,6 +685,7 @@ main(int ac, char **av)
 	struct addrinfo *addrs = NULL;
 	size_t n, len;
 	u_int j;
+	struct utsname utsname;
 	struct ssh_conn_info *cinfo = NULL;
 
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
@@ -738,7 +744,9 @@ main(int ac, char **av)
 		fatal("Couldn't allocate session state");
 	channel_init_channels(ssh);
 
+
 	/* Parse command-line arguments. */
+	args = argv_assemble(ac, av); /* logged later */
 	host = NULL;
 	use_syslog = 0;
 	logfile = NULL;
@@ -965,7 +973,7 @@ main(int ac, char **av)
 			options.log_level = SYSLOG_LEVEL_QUIET;
 			break;
 		case 'e':
-			if (optarg[0] == '^' && optarg[2] == 0 &&
+			if (strlen(optarg) == 2 && optarg[0] == '^' &&
 			    (u_char) optarg[1] >= 64 &&
 			    (u_char) optarg[1] < 128)
 				options.escape_char = (u_char) optarg[1] & 31;
@@ -1017,7 +1025,7 @@ main(int ac, char **av)
 			break;
 		case 'l':
 			if (options.user == NULL)
-				options.user = optarg;
+				options.user = xstrdup(optarg);
 			break;
 
 		case 'L':
@@ -1074,7 +1082,7 @@ main(int ac, char **av)
 		case 'o':
 			line = xstrdup(optarg);
 			if (process_config_line(&options, pw,
-			    host ? host : "", host ? host : "", line,
+			    host ? host : "", host ? host : "", "", line,
 			    "command-line", 0, NULL, SSHCONF_USERCONF) != 0)
 				exit(255);
 			free(line);
@@ -1155,8 +1163,6 @@ main(int ac, char **av)
 
 	if (!valid_hostname(host))
 		fatal("hostname contains invalid characters");
-	if (options.user != NULL && !valid_ruser(options.user))
-		fatal("remote username contains invalid characters");
 	options.host_arg = xstrdup(host);
 
 	/* Initialize the command to execute on remote host. */
@@ -1201,8 +1207,15 @@ main(int ac, char **av)
 	    SYSLOG_FACILITY_USER : options.log_facility,
 	    !use_syslog);
 
-	if (debug_flag)
-		logit("%s, %s", SSH_RELEASE, SSH_OPENSSL_VERSION);
+	debug("%s, %s", SSH_RELEASE, SSH_OPENSSL_VERSION);
+	if (uname(&utsname) != 0) {
+		memset(&utsname, 0, sizeof(utsname));
+		strlcpy(utsname.sysname, "UNKNOWN", sizeof(utsname.sysname));
+	}
+	debug3("Running on %s %s %s %s", utsname.sysname, utsname.release,
+	    utsname.version, utsname.machine);
+	debug3("Started with: %s", args);
+	free(args);
 
 	/* Parse the configuration files */
 	process_config_files(options.host_arg, pw, 0, &want_final_pass);
@@ -1430,11 +1443,28 @@ main(int ac, char **av)
 	    options.host_key_alias : options.host_arg);
 	cinfo->host_arg = xstrdup(options.host_arg);
 	cinfo->remhost = xstrdup(host);
-	cinfo->remuser = xstrdup(options.user);
 	cinfo->homedir = xstrdup(pw->pw_dir);
 	cinfo->locuser = xstrdup(pw->pw_name);
 	cinfo->jmphost = xstrdup(options.jump_host == NULL ?
 	    "" : options.jump_host);
+
+	/*
+	 * Expand User. It cannot contain %r (itself) or %C since User is
+	 * a component of the hash.
+	 */
+	if (options.user != NULL) {
+		if ((p = percent_dollar_expand(options.user,
+		    DEFAULT_CLIENT_PERCENT_EXPAND_ARGS_NOUSER(cinfo),
+		    (char *)NULL)) == NULL)
+			fatal("invalid environment variable expansion");
+		free(options.user);
+		options.user = p;
+		if (!valid_ruser(options.user))
+			fatal("remote username contains invalid characters");
+	}
+
+	/* Now User is expanded, store it and calculate hash. */
+	cinfo->remuser = xstrdup(options.user);
 	cinfo->conn_hash_hex = ssh_connection_hash(cinfo->thishost,
 	    cinfo->remhost, cinfo->portstr, cinfo->remuser, cinfo->jmphost);
 
@@ -1514,6 +1544,13 @@ main(int ac, char **av)
 		}
 	}
 
+	if (options.version_addendum != NULL) {
+		cp = default_client_percent_dollar_expand(
+		    options.version_addendum, cinfo);
+		free(options.version_addendum);
+		options.version_addendum = cp;
+	}
+
 	if (options.num_system_hostfiles > 0 &&
 	    strcasecmp(options.system_hostfiles[0], "none") == 0) {
 		if (options.num_system_hostfiles > 1)
@@ -1544,6 +1581,28 @@ main(int ac, char **av)
 		free(options.user_hostfiles[j]);
 		free(cp);
 		options.user_hostfiles[j] = p;
+	}
+
+	for (j = 0; j < options.num_setenv; j++) {
+		char *name = options.setenv[j], *value;
+
+		if (name == NULL)
+			continue;
+		/* Expand only the value portion, not the variable name. */
+		if ((value = strchr(name, '=')) == NULL) {
+			/* shouldn't happen; vars are checked in readconf.c */
+			fatal("Invalid config SetEnv: %s", name);
+		}
+		*value++ = '\0';
+		cp = default_client_percent_dollar_expand(value, cinfo);
+		xasprintf(&p, "%s=%s", name, cp);
+		if (strcmp(value, p) != 0) {
+			debug3("expanded SetEnv '%s' '%s' -> '%s'",
+			    name, value, cp);
+		}
+		free(options.setenv[j]);
+		free(cp);
+		options.setenv[j] = p;
 	}
 
 	for (i = 0; i < options.num_local_forwards; i++) {

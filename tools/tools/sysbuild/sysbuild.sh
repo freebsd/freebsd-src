@@ -600,7 +600,7 @@ fi
 
 if [ -f /etc/localtime ] ; then
 	log_it copy localtime
-	cp /etc/localtime ${SBMNT}/etc
+	cp -P /etc/localtime ${SBMNT}/etc
 	if [ -f /var/db/zoneinfo ] ; then
 		log_it copy zoneinfo
 		cp /var/db/zoneinfo ${SBMNT}/var/db

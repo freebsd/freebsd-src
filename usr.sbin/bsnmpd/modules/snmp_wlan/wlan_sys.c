@@ -2167,7 +2167,7 @@ wlan_add_new_scan_result(struct wlan_iface *wif,
 		return (-1);
 
 	sr->opchannel = wlan_channel_flags_to_snmp_phy(isr->isr_flags);
-	sr->rssi = isr->isr_rssi;
+	sr->rssi = (isr->isr_rssi / 2) - isr->isr_noise;
 	sr->frequency = isr->isr_freq;
 	sr->noise = isr->isr_noise;
 	sr->bintval = isr->isr_intval;

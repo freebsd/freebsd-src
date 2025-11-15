@@ -160,19 +160,19 @@ enum ufshci_data_direction {
 	UFSHCI_DATA_DIRECTION_RESERVED = 0b11,
 };
 
-enum ufshci_overall_command_status {
-	UFSHCI_OCS_SUCCESS = 0x0,
-	UFSHCI_OCS_INVALID_COMMAND_TABLE_ATTRIBUTES = 0x01,
-	UFSHCI_OCS_INVALID_PRDT_ATTRIBUTES = 0x02,
-	UFSHCI_OCS_MISMATCH_DATA_BUFFER_SIZE = 0x03,
-	UFSHCI_OCS_MISMATCH_RESPONSE_UPIU_SIZE = 0x04,
-	UFSHCI_OCS_COMMUNICATION_FAILURE_WITHIN_UIC_LAYERS = 0x05,
-	UFSHCI_OCS_ABORTED = 0x06,
-	UFSHCI_OCS_HOST_CONTROLLER_FATAL_ERROR = 0x07,
-	UFSHCI_OCS_DEVICE_FATAL_ERROR = 0x08,
-	UFSHCI_OCS_INVALID_CRYPTO_CONFIGURATION = 0x09,
-	UFSHCI_OCS_GENERAL_CRYPTO_ERROR = 0x0A,
-	UFSHCI_OCS_INVALID = 0xF,
+enum ufshci_utr_overall_command_status {
+	UFSHCI_UTR_OCS_SUCCESS = 0x0,
+	UFSHCI_UTR_OCS_INVALID_COMMAND_TABLE_ATTRIBUTES = 0x01,
+	UFSHCI_UTR_OCS_INVALID_PRDT_ATTRIBUTES = 0x02,
+	UFSHCI_UTR_OCS_MISMATCH_DATA_BUFFER_SIZE = 0x03,
+	UFSHCI_UTR_OCS_MISMATCH_RESPONSE_UPIU_SIZE = 0x04,
+	UFSHCI_UTR_OCS_COMMUNICATION_FAILURE_WITHIN_UIC_LAYERS = 0x05,
+	UFSHCI_UTR_OCS_ABORTED = 0x06,
+	UFSHCI_UTR_OCS_HOST_CONTROLLER_FATAL_ERROR = 0x07,
+	UFSHCI_UTR_OCS_DEVICE_FATAL_ERROR = 0x08,
+	UFSHCI_UTR_OCS_INVALID_CRYPTO_CONFIGURATION = 0x09,
+	UFSHCI_UTR_OCS_GENERAL_CRYPTO_ERROR = 0x0A,
+	UFSHCI_UTR_OCS_INVALID = 0xF,
 };
 
 struct ufshci_utp_xfer_req_desc {
@@ -271,6 +271,18 @@ _Static_assert(sizeof(struct ufshci_utp_cmd_desc) ==
 #define UFSHCI_UTP_TASK_MGMT_REQ_SIZE  32
 #define UFSHCI_UTP_TASK_MGMT_RESP_SIZE 32
 
+enum ufshci_utmr_overall_command_status {
+	UFSHCI_UTMR_OCS_SUCCESS = 0x0,
+	UFSHCI_UTMR_OCS_INVALID_TASK_MANAGEMENT_FUNCTION_ATTRIBUTES = 0x01,
+	UFSHCI_UTMR_OCS_MISMATCH_TASK_MANAGEMENT_REQUEST_SIZE = 0x02,
+	UFSHCI_UTMR_OCS_MISMATCH_TASK_MANAGEMENT_RESPONSE_SIZE = 0x03,
+	UFSHCI_UTMR_OCS_PEER_COMMUNICATION_FAILURE = 0x04,
+	UFSHCI_UTMR_OCS_ABORTED = 0x05,
+	UFSHCI_UTMR_OCS_FATAL_ERROR = 0x06,
+	UFSHCI_UTMR_OCS_DEVICE_FATAL_ERROR = 0x07,
+	UFSHCI_UTMR_OCS_INVALID = 0xF,
+};
+
 /* UFSHCI spec 4.1, section 6.3.1 "UTP Task Management Request Descriptor" */
 struct ufshci_utp_task_mgmt_req_desc {
 	/* dword 0 */
@@ -356,6 +368,7 @@ struct ufshci_upiu {
 _Static_assert(sizeof(struct ufshci_upiu) == 512,
     "ufshci_upiu must be 512 bytes");
 
+/* UFS Spec 4.1, section 10.7.1 "COMMAND UPIU" */
 struct ufshci_cmd_command_upiu {
 	/* dword 0-2 */
 	struct ufshci_upiu_header header;
@@ -376,6 +389,7 @@ _Static_assert(sizeof(struct ufshci_cmd_command_upiu) % UFSHCI_UPIU_ALIGNMENT ==
 	0,
     "UPIU requires 64-bit alignment");
 
+/* UFS Spec 4.1, section 10.7.2 "RESPONSE UPIU" */
 struct ufshci_cmd_response_upiu {
 	/* dword 0-2 */
 	struct ufshci_upiu_header header;
@@ -399,6 +413,69 @@ _Static_assert(sizeof(struct ufshci_cmd_response_upiu) <=
 	UFSHCI_UTP_XFER_RESP_SIZE,
     "bad size for ufshci_cmd_response_upiu");
 _Static_assert(sizeof(struct ufshci_cmd_response_upiu) %
+	    UFSHCI_UPIU_ALIGNMENT ==
+	0,
+    "UPIU requires 64-bit alignment");
+
+enum task_management_function {
+	UFSHCI_TASK_MGMT_FUNCTION_ABORT_TASK = 0x01,
+	UFSHCI_TASK_MGMT_FUNCTION_ABORT_TASK_SET = 0x02,
+	UFSHCI_TASK_MGMT_FUNCTION_CLEAR_TASK_SET = 0x04,
+	UFSHCI_TASK_MGMT_FUNCTION_LOGICAL_UNIT_RESET = 0x08,
+	UFSHCI_TASK_MGMT_FUNCTION_QUERY_TASK = 0x80,
+	UFSHCI_TASK_MGMT_FUNCTION_QUERY_TASKSET = 0x81,
+};
+
+/* UFS Spec 4.1, section 10.7.6 "TASK MANAGEMENT REQUEST UPIU" */
+struct ufshci_task_mgmt_request_upiu {
+	/* dword 0-2 */
+	struct ufshci_upiu_header header;
+	/* dword 3 */
+	uint32_t input_param1; /* (Big-endian) */
+	/* dword 4 */
+	uint32_t input_param2; /* (Big-endian) */
+	/* dword 5 */
+	uint32_t input_param3; /* (Big-endian) */
+	/* dword 6-7 */
+	uint8_t reserved[8];
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct ufshci_task_mgmt_request_upiu) == 32,
+    "bad size for ufshci_task_mgmt_request_upiu");
+_Static_assert(sizeof(struct ufshci_task_mgmt_request_upiu) <=
+	UFSHCI_UTP_XFER_RESP_SIZE,
+    "bad size for ufshci_task_mgmt_request_upiu");
+_Static_assert(sizeof(struct ufshci_task_mgmt_request_upiu) %
+	    UFSHCI_UPIU_ALIGNMENT ==
+	0,
+    "UPIU requires 64-bit alignment");
+
+enum task_management_service_response {
+	UFSHCI_TASK_MGMT_SERVICE_RESPONSE_FUNCTION_COMPLETE = 0x00,
+	UFSHCI_TASK_MGMT_SERVICE_RESPONSE_FUNCTION_NOT_SUPPORTED = 0x04,
+	UFSHCI_TASK_MGMT_SERVICE_RESPONSE_FUNCTION_FAILED = 0x05,
+	UFSHCI_TASK_MGMT_SERVICE_RESPONSE_FUNCTION_SUCCEEDED = 0x08,
+	UFSHCI_TASK_MGMT_SERVICE_RESPONSE_INCORRECT_LUN = 0x09,
+};
+
+/* UFS Spec 4.1, section 10.7.7 "TASK MANAGEMENT RESPONSE UPIU" */
+struct ufshci_task_mgmt_response_upiu {
+	/* dword 0-2 */
+	struct ufshci_upiu_header header;
+	/* dword 3 */
+	uint32_t output_param1; /* (Big-endian) */
+	/* dword 4 */
+	uint32_t output_param2; /* (Big-endian) */
+	/* dword 5-7 */
+	uint8_t reserved[12];
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct ufshci_task_mgmt_response_upiu) == 32,
+    "bad size for ufshci_task_mgmt_response_upiu");
+_Static_assert(sizeof(struct ufshci_task_mgmt_response_upiu) <=
+	UFSHCI_UTP_XFER_RESP_SIZE,
+    "bad size for ufshci_task_mgmt_response_upiu");
+_Static_assert(sizeof(struct ufshci_task_mgmt_response_upiu) %
 	    UFSHCI_UPIU_ALIGNMENT ==
 	0,
     "UPIU requires 64-bit alignment");
@@ -554,6 +631,7 @@ union ufshci_reponse_upiu {
 	struct ufshci_upiu_header header;
 	struct ufshci_cmd_response_upiu cmd_response_upiu;
 	struct ufshci_query_response_upiu query_response_upiu;
+	struct ufshci_task_mgmt_response_upiu task_mgmt_response_upiu;
 	struct ufshci_nop_in_upiu nop_in_upiu;
 };
 
@@ -637,6 +715,42 @@ struct ufshci_device_descriptor {
 
 _Static_assert(sizeof(struct ufshci_device_descriptor) == 89,
     "bad size for ufshci_device_descriptor");
+
+/* Defines the bit field of dExtendedUfsFeaturesSupport. */
+enum ufshci_desc_wb_ext_ufs_feature {
+	UFSHCI_DESC_EXT_UFS_FEATURE_FFU = (1 << 0),
+	UFSHCI_DESC_EXT_UFS_FEATURE_PSA = (1 << 1),
+	UFSHCI_DESC_EXT_UFS_FEATURE_DEV_LIFE_SPAN = (1 << 2),
+	UFSHCI_DESC_EXT_UFS_FEATURE_REFRESH_OP = (1 << 3),
+	UFSHCI_DESC_EXT_UFS_FEATURE_TOO_HIGH_TEMP = (1 << 4),
+	UFSHCI_DESC_EXT_UFS_FEATURE_TOO_LOW_TEMP = (1 << 5),
+	UFSHCI_DESC_EXT_UFS_FEATURE_EXT_TEMP = (1 << 6),
+	UFSHCI_DESC_EXT_UFS_FEATURE_HPB_SUPPORT = (1 << 7),
+	UFSHCI_DESC_EXT_UFS_FEATURE_WRITE_BOOSTER = (1 << 8),
+	UFSHCI_DESC_EXT_UFS_FEATURE_PERF_THROTTLING = (1 << 9),
+	UFSHCI_DESC_EXT_UFS_FEATURE_ADVANCED_RPMB = (1 << 10),
+	UFSHCI_DESC_EXT_UFS_FEATURE_ZONED_UFS_EXTENSION = (1 << 11),
+	UFSHCI_DESC_EXT_UFS_FEATURE_DEV_LEVEL_EXCEPTION = (1 << 12),
+	UFSHCI_DESC_EXT_UFS_FEATURE_HID = (1 << 13),
+	UFSHCI_DESC_EXT_UFS_FEATURE_BARRIER = (1 << 14),
+	UFSHCI_DESC_EXT_UFS_FEATURE_CLEAR_ERROR_HISTORY = (1 << 15),
+	UFSHCI_DESC_EXT_UFS_FEATURE_EXT_IID = (1 << 16),
+	UFSHCI_DESC_EXT_UFS_FEATURE_FBO = (1 << 17),
+	UFSHCI_DESC_EXT_UFS_FEATURE_FAST_RECOVERY_MODE = (1 << 18),
+	UFSHCI_DESC_EXT_UFS_FEATURE_RPMB_VENDOR_CMD = (1 << 19),
+};
+
+/* Defines the bit field of bWriteBoosterBufferType. */
+enum ufshci_desc_wb_buffer_type {
+	UFSHCI_DESC_WB_BUF_TYPE_LU_DEDICATED = 0x00,
+	UFSHCI_DESC_WB_BUF_TYPE_SINGLE_SHARED = 0x01,
+};
+
+/* Defines the bit field of bWriteBoosterBufferPreserveUserSpaceEn. */
+enum ufshci_desc_user_space_config {
+	UFSHCI_DESC_WB_BUF_USER_SPACE_REDUCTION = 0x00,
+	UFSHCI_DESC_WB_BUF_PRESERVE_USER_SPACE = 0x01,
+};
 
 /*
  * UFS Spec 4.1, section 14.1.5.3 "Configuration Descriptor"
@@ -934,6 +1048,39 @@ enum ufshci_attributes {
 	UFSHCI_ATTR_B_REFRESH_FREQ = 0x2d,
 	UFSHCI_ATTR_B_REFRESH_UNIT = 0x2e,
 	UFSHCI_ATTR_B_REFRESH_METHOD = 0x2f,
+};
+
+/* bAvailableWriteBoosterBufferSize codes (UFS WriteBooster abailable buffer
+ * left %) */
+enum ufshci_wb_available_buffer_Size {
+	UFSHCI_ATTR_WB_AVAILABLE_0 = 0x00,   /* 0% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_10 = 0x01,  /* 10% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_20 = 0x02,  /* 20% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_30 = 0x03,  /* 30% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_40 = 0x04,  /* 40% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_50 = 0x05,  /* 50% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_60 = 0x06,  /* 60% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_70 = 0x07,  /* 70% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_80 = 0x08,  /* 80% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_90 = 0x09,  /* 90% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_100 = 0x0A, /* 100% buffer remains  */
+};
+
+/* bWriteBoosterBufferLifeTimeEst codes (UFS WriteBooster buffer life %) */
+enum ufshci_wb_lifetime {
+	UFSHCI_ATTR_WB_LIFE_DISABLED = 0x00, /* Info not available */
+	UFSHCI_ATTR_WB_LIFE_0_10 = 0x01,     /*   0%–10% used  */
+	UFSHCI_ATTR_WB_LIFE_10_20 = 0x02,    /*  10%–20% used  */
+	UFSHCI_ATTR_WB_LIFE_20_30 = 0x03,    /*  20%–30% used  */
+	UFSHCI_ATTR_WB_LIFE_30_40 = 0x04,    /*  30%–40% used  */
+	UFSHCI_ATTR_WB_LIFE_40_50 = 0x05,    /*  40%–50% used  */
+	UFSHCI_ATTR_WB_LIFE_50_60 = 0x06,    /*  50%–60% used  */
+	UFSHCI_ATTR_WB_LIFE_60_70 = 0x07,    /*  60%–70% used  */
+	UFSHCI_ATTR_WB_LIFE_70_80 = 0x08,    /*  70%–80% used  */
+	UFSHCI_ATTR_WB_LIFE_80_90 = 0x09,    /*  80%–90% used  */
+	UFSHCI_ATTR_WB_LIFE_90_100 = 0x0A,   /* 90%–100% used  */
+	UFSHCI_ATTR_WB_LIFE_EXCEEDED =
+	    0x0B, /* Exceeded estimated life (treat as WB disabled) */
 };
 
 #endif /* __UFSHCI_H__ */

@@ -226,7 +226,7 @@ ocs_mgmt_get_list(ocs_t *ocs, ocs_textbuf_t *textbuf)
 
 	ocs_mgmt_start_unnumbered_section(textbuf, "ocs");
 
-	for (i=0;i<ARRAY_SIZE(mgmt_table);i++) {
+	for (i = 0; i < ARRAY_SIZE(mgmt_table); i++) {
 		access = 0;
 		if (mgmt_table[i].get_handler) {
 			access |= MGMT_MODE_RD;
@@ -305,7 +305,7 @@ ocs_mgmt_get(ocs_t *ocs, char *name, ocs_textbuf_t *textbuf)
 	if (ocs_strncmp(name, qualifier, strlen(qualifier)) == 0) {
 		char *unqualified_name = name + strlen(qualifier) + 1;
 
-		for (i=0;i<ARRAY_SIZE(mgmt_table);i++) {
+		for (i = 0; i < ARRAY_SIZE(mgmt_table); i++) {
 			if (ocs_strcmp(unqualified_name, mgmt_table[i].name) == 0) {
 				if (mgmt_table[i].get_handler) {
 					mgmt_table[i].get_handler(ocs, name, textbuf);
@@ -387,7 +387,7 @@ ocs_mgmt_set(ocs_t *ocs, char *name, char *value)
 		char *unqualified_name = name + strlen(qualifier) +1;
 
 		/* See if it's a value I can set */
-		for (i=0;i<ARRAY_SIZE(mgmt_table);i++) {
+		for (i = 0; i < ARRAY_SIZE(mgmt_table); i++) {
 			if (ocs_strcmp(unqualified_name, mgmt_table[i].name) == 0) {
 				if (mgmt_table[i].set_handler) {
 					return mgmt_table[i].set_handler(ocs, name, value);
@@ -469,7 +469,7 @@ ocs_mgmt_exec(ocs_t *ocs, char *action, void *arg_in,
 		char *unqualified_name = action + strlen(qualifier) +1;
 
 		/* See if it's an action I can perform */
-		for (i=0;i<ARRAY_SIZE(mgmt_table); i++) {
+		for (i = 0; i < ARRAY_SIZE(mgmt_table); i++) {
 			if (ocs_strcmp(unqualified_name, mgmt_table[i].name) == 0) {
 				if (mgmt_table[i].action_handler) {
 					return mgmt_table[i].action_handler(ocs, action, arg_in, arg_in_length,
@@ -527,7 +527,7 @@ ocs_mgmt_get_all(ocs_t *ocs, ocs_textbuf_t *textbuf)
 
 	ocs_mgmt_start_unnumbered_section(textbuf, "ocs");
 
-	for (i=0;i<ARRAY_SIZE(mgmt_table);i++) {
+	for (i = 0; i < ARRAY_SIZE(mgmt_table); i++) {
 		if (mgmt_table[i].get_handler) {
 			mgmt_table[i].get_handler(ocs, mgmt_table[i].name, textbuf);
 		} else if (mgmt_table[i].action_handler) {
@@ -1212,7 +1212,7 @@ get_sfp_a2(ocs_t *ocs, char *name, ocs_textbuf_t *textbuf)
 		int buffer_remaining = (SFP_PAGE_SIZE * 3) + 1;
 		int bytes_added;
 
-		for (i=0; i < bytes_read; i++) {
+		for (i = 0; i < bytes_read; i++) {
 			bytes_added = ocs_snprintf(d, buffer_remaining, "%02x ", *s);
 			++s;
 			d += bytes_added;
@@ -2040,7 +2040,7 @@ get_profile_list(ocs_t *ocs, char *name, ocs_textbuf_t *textbuf)
 			result_buf = ocs_malloc(ocs, BUFFER_SIZE, OCS_M_ZERO);
 			bytes_left = BUFFER_SIZE;
 
-			for (i=0; i<result.list->num_descriptors; i++) {
+			for (i = 0; i < result.list->num_descriptors; i++) {
 				sprintf(result_line, "0x%02x:%s\n", result.list->descriptors[i].profile_id,
 					result.list->descriptors[i].profile_description);
 				if (strlen(result_line) < bytes_left) {

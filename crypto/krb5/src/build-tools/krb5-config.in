@@ -42,7 +42,6 @@ DEFKTNAME='@DEFKTNAME@'
 DEFCKTNAME='@DEFCKTNAME@'
 
 LIBS='@LIBS@'
-GEN_LIB=@GEN_LIB@
 
 # Defaults for program
 library=krb5
@@ -253,8 +252,7 @@ if test -n "$do_libs"; then
     fi
 
     # If we ever support a flag to generate output suitable for static
-    # linking, we would output "-lkrb5support $GEN_LIB $LIBS $DL_LIB"
-    # here.
+    # linking, we would output "-lkrb5support $LIBS $DL_LIB" here.
 
     echo $lib_flags
 fi

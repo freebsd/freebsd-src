@@ -58,6 +58,7 @@
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 
 #include <net/bpf.h>
@@ -66,9 +67,9 @@
 #include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_media.h>
-#include <net/if_var.h>
 #include <net/if_private.h>
 #include <net/if_types.h>
+#include <net/if_vlan_var.h>
 #include <net/netisr.h>
 #ifdef RSS
 #include <net/rss_config.h>
@@ -96,6 +97,15 @@ static unsigned int next_index = 0;
 #define	EPAIR_LOCK_DESTROY()		mtx_destroy(&epair_n_index_mtx)
 #define	EPAIR_LOCK()			mtx_lock(&epair_n_index_mtx)
 #define	EPAIR_UNLOCK()			mtx_unlock(&epair_n_index_mtx)
+
+SYSCTL_DECL(_net_link);
+static SYSCTL_NODE(_net_link, OID_AUTO, epair, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+	"Pair of virtual cross-over connected Ethernet-like interfaces");
+
+static bool use_ether_gen_addr = true;
+SYSCTL_BOOL(_net_link_epair, OID_AUTO, ether_gen_addr, CTLFLAG_RWTUN,
+	&use_ether_gen_addr, false,
+	"Generate MAC with FreeBSD OUI using ether_gen_addr(9)");
 
 struct epair_softc;
 struct epair_queue {
@@ -425,6 +435,21 @@ epair_media_status(struct ifnet *ifp __unused, struct ifmediareq *imr)
 	imr->ifm_active = IFM_ETHER | IFM_10G_T | IFM_FDX;
 }
 
+/*
+ * Update ifp->if_hwassist according to the current value of ifp->if_capenable.
+ */
+static void
+epair_caps_changed(struct ifnet *ifp)
+{
+	uint64_t hwassist = 0;
+
+	if (ifp->if_capenable & IFCAP_TXCSUM)
+		hwassist |= CSUM_IP_TCP | CSUM_IP_UDP;
+	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
+		hwassist |= CSUM_IP6_TCP | CSUM_IP6_UDP;
+	ifp->if_hwassist = hwassist;
+}
+
 static int
 epair_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
@@ -449,6 +474,44 @@ epair_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFMTU:
 		/* We basically allow all kinds of MTUs. */
 		ifp->if_mtu = ifr->ifr_mtu;
+		error = 0;
+		break;
+
+	case SIOCGIFCAP:
+		ifr->ifr_reqcap = ifp->if_capabilities;
+		ifr->ifr_curcap = ifp->if_capenable;
+		error = 0;
+		break;
+	case SIOCSIFCAP:
+		/*
+		 * Enable/disable capabilities as requested, besides
+		 * IFCAP_RXCSUM(_IPV6), which always remain enabled.
+		 * Incoming packets may have the mbuf flag CSUM_DATA_VALID set.
+		 * Without IFCAP_RXCSUM(_IPV6), this flag would have to be
+		 * removed, which does not seem helpful.
+		 */
+		ifp->if_capenable = ifr->ifr_reqcap | IFCAP_RXCSUM |
+		    IFCAP_RXCSUM_IPV6;
+		epair_caps_changed(ifp);
+		/*
+		 * If IFCAP_TXCSUM(_IPV6) has been changed, change it on the
+		 * other epair interface as well.
+		 * A bridge disables IFCAP_TXCSUM(_IPV6) when adding one epair
+		 * interface if another interface in the bridge has it disabled.
+		 * In that case this capability needs to be disabled on the
+		 * other epair interface to avoid sending packets in the bridge
+		 * that rely on this capability.
+		 */
+		sc = ifp->if_softc;
+		if ((ifp->if_capenable ^ sc->oifp->if_capenable) &
+		    (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6)) {
+			sc->oifp->if_capenable &=
+			    ~(IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
+			sc->oifp->if_capenable |= ifp->if_capenable &
+			    (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
+			epair_caps_changed(sc->oifp);
+		}
+		VLAN_CAPABILITIES(ifp);
 		error = 0;
 		break;
 
@@ -496,15 +559,29 @@ epair_clone_match(struct if_clone *ifc, const char *name)
 }
 
 static void
+epair_generate_mac_byname(struct epair_softc *sc, uint8_t eaddr[])
+{
+	struct ether_addr gen_eaddr;
+	int i;
+
+	ether_gen_addr_byname(if_name(sc->ifp), &gen_eaddr);
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
+		eaddr[i] = gen_eaddr.octet[i];
+}
+
+static void
 epair_clone_add(struct if_clone *ifc, struct epair_softc *scb)
 {
 	struct ifnet *ifp;
 	uint8_t eaddr[ETHER_ADDR_LEN];	/* 00:00:00:00:00:00 */
 
 	ifp = scb->ifp;
-	/* Copy epairNa etheraddr and change the last byte. */
-	memcpy(eaddr, scb->oifp->if_hw_addr, ETHER_ADDR_LEN);
-	eaddr[5] = 0x0b;
+	if (!use_ether_gen_addr) {
+		/* Copy epairNa etheraddr and change the last byte. */
+		memcpy(eaddr, scb->oifp->if_hw_addr, ETHER_ADDR_LEN);
+		eaddr[5] = 0x0b;
+	} else
+		epair_generate_mac_byname(scb, eaddr);
 	ether_ifattach(ifp, eaddr);
 
 	if_clone_addif(ifc, ifp);
@@ -549,8 +626,11 @@ epair_setup_ifp(struct epair_softc *sc, char *name, int unit)
 	ifp->if_dname = epairname;
 	ifp->if_dunit = unit;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_capabilities = IFCAP_VLAN_MTU;
-	ifp->if_capenable = IFCAP_VLAN_MTU;
+	ifp->if_capabilities = IFCAP_VLAN_MTU | IFCAP_TXCSUM |
+	    IFCAP_TXCSUM_IPV6 | IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
+	ifp->if_capenable = IFCAP_VLAN_MTU | IFCAP_TXCSUM |
+	    IFCAP_TXCSUM_IPV6 | IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
+	epair_caps_changed(ifp);
 	ifp->if_transmit = epair_transmit;
 	ifp->if_qflush = epair_qflush;
 	ifp->if_start = epair_start;
@@ -719,7 +799,10 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len,
 	/* Finish initialization of interface <n>a. */
 	ifp = sca->ifp;
 	epair_setup_ifp(sca, name, unit);
-	epair_generate_mac(sca, eaddr);
+	if (!use_ether_gen_addr)
+		epair_generate_mac(sca, eaddr);
+	else
+		epair_generate_mac_byname(sca, eaddr);
 
 	ether_ifattach(ifp, eaddr);
 

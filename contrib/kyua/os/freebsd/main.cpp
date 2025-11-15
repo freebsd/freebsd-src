@@ -31,6 +31,9 @@
 #include "engine/execenv/execenv.hpp"
 #include "os/freebsd/execenv_jail_manager.hpp"
 
+#include "engine/requirements.hpp"
+#include "os/freebsd/reqs_checker_kmods.hpp"
+
 namespace execenv = engine::execenv;
 
 /// FreeBSD related features initialization.
@@ -49,6 +52,14 @@ freebsd::main(const int, const char* const* const)
     execenv::register_execenv(
         std::shared_ptr< execenv::manager >(new freebsd::execenv_jail_manager())
     );
+
+#ifdef __FreeBSD__
+    engine::register_reqs_checker(
+        std::shared_ptr< engine::reqs_checker >(
+            new freebsd::reqs_checker_kmods()
+        )
+    );
+#endif
 
     return 0;
 }

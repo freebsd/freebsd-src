@@ -413,7 +413,7 @@ end
 
 function core.isSingleUserBoot()
 	local single_user = loader.getenv("boot_single")
-	return single_user ~= nil and single_user:lower() == "yes"
+	return single_user ~= nil and single_user:lower() ~= "no"
 end
 
 function core.isUEFIBoot()

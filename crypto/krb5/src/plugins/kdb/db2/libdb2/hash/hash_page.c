@@ -84,11 +84,8 @@ static void	 account_page(HTAB *, db_pgno_t, int);
 #endif
 
 u_int32_t
-__get_item(hashp, cursorp, key, val, item_info)
-	HTAB *hashp;
-	CURSOR *cursorp;
-	DBT *key, *val;
-	ITEM_INFO *item_info;
+__get_item(HTAB *hashp, CURSOR *cursorp, DBT *key, DBT *val,
+	   ITEM_INFO *item_info)
 {
 	db_pgno_t next_pgno;
 	int32_t i;
@@ -159,9 +156,7 @@ __get_item(hashp, cursorp, key, val, item_info)
 }
 
 u_int32_t
-__get_item_reset(hashp, cursorp)
-	HTAB *hashp;
-	CURSOR *cursorp;
+__get_item_reset(HTAB *hashp, CURSOR *cursorp)
 {
 	if (cursorp->pagep)
 		__put_page(hashp, cursorp->pagep, A_RAW, 0);
@@ -174,9 +169,7 @@ __get_item_reset(hashp, cursorp)
 }
 
 u_int32_t
-__get_item_done(hashp, cursorp)
-	HTAB *hashp;
-	CURSOR *cursorp;
+__get_item_done(HTAB *hashp, CURSOR *cursorp)
 {
 	if (cursorp->pagep)
 		__put_page(hashp, cursorp->pagep, A_RAW, 0);
@@ -190,11 +183,8 @@ __get_item_done(hashp, cursorp)
 }
 
 u_int32_t
-__get_item_first(hashp, cursorp, key, val, item_info)
-	HTAB *hashp;
-	CURSOR *cursorp;
-	DBT *key, *val;
-	ITEM_INFO *item_info;
+__get_item_first(HTAB *hashp, CURSOR *cursorp, DBT *key, DBT *val,
+		 ITEM_INFO *item_info)
 {
 	__get_item_reset(hashp, cursorp);
 	cursorp->bucket = 0;
@@ -206,11 +196,8 @@ __get_item_first(hashp, cursorp, key, val, item_info)
  * just returns the page number and index of the bigkey pointer pair.
  */
 u_int32_t
-__get_item_next(hashp, cursorp, key, val, item_info)
-	HTAB *hashp;
-	CURSOR *cursorp;
-	DBT *key, *val;
-	ITEM_INFO *item_info;
+__get_item_next(HTAB *hashp, CURSOR *cursorp, DBT *key, DBT *val,
+		ITEM_INFO *item_info)
 {
 	int status;
 
@@ -224,9 +211,7 @@ __get_item_next(hashp, cursorp, key, val, item_info)
  * Put a non-big pair on a page.
  */
 static void
-putpair(p, key, val)
-	PAGE8 *p;
-	const DBT *key, *val;
+putpair(PAGE8 *p, const DBT *key, const DBT *val)
 {
 	u_int16_t *pagep, n, off;
 
@@ -275,10 +260,7 @@ prev_realkey(pagep, n)
  *      -1 error
  */
 extern int32_t
-__delpair(hashp, cursorp, item_info)
-	HTAB *hashp;
-	CURSOR *cursorp;
-	ITEM_INFO *item_info;
+__delpair(HTAB *hashp, CURSOR *cursorp, ITEM_INFO *item_info)
 {
 	PAGE16 *pagep;
 	indx_t ndx;
@@ -412,9 +394,7 @@ __delpair(hashp, cursorp, item_info)
 }
 
 extern int32_t
-__split_page(hashp, obucket, nbucket)
-	HTAB *hashp;
-	u_int32_t obucket, nbucket;
+__split_page(HTAB *hashp, u_int32_t obucket, u_int32_t nbucket)
 {
 	DBT key, val;
 	ITEM_INFO old_ii, new_ii;
@@ -661,9 +641,7 @@ add_bigptr(hashp, item_info, big_pgno)
  *      NULL on error
  */
 extern PAGE16 *
-__add_ovflpage(hashp, pagep)
-	HTAB *hashp;
-	PAGE16 *pagep;
+__add_ovflpage(HTAB *hashp, PAGE16 *pagep)
 {
 	PAGE16 *new_pagep;
 	u_int16_t ovfl_num;
@@ -768,10 +746,7 @@ page_init(hashp, pagep, pgno, type)
 }
 
 int32_t
-__new_page(hashp, addr, addr_type)
-	HTAB *hashp;
-	u_int32_t addr;
-	int32_t addr_type;
+__new_page(HTAB *hashp, u_int32_t addr, int32_t addr_type)
 {
 	db_pgno_t paddr;
 	PAGE16 *pagep;
@@ -804,10 +779,7 @@ __new_page(hashp, addr, addr_type)
 }
 
 int32_t
-__delete_page(hashp, pagep, page_type)
-	HTAB *hashp;
-	PAGE16 *pagep;
-	int32_t page_type;
+__delete_page(HTAB *hashp, PAGE16 *pagep, int32_t page_type)
 {
 	if (page_type == A_OVFL)
 		__free_ovflpage(hashp, pagep);
@@ -815,9 +787,7 @@ __delete_page(hashp, pagep, page_type)
 }
 
 static u_int8_t
-is_bitmap_pgno(hashp, pgno)
-	HTAB *hashp;
-	db_pgno_t pgno;
+is_bitmap_pgno(HTAB *hashp, db_pgno_t pgno)
 {
 	int32_t i;
 
@@ -828,10 +798,7 @@ is_bitmap_pgno(hashp, pgno)
 }
 
 void
-__pgin_routine(pg_cookie, pgno, page)
-	void *pg_cookie;
-	db_pgno_t pgno;
-	void *page;
+__pgin_routine(void *pg_cookie, db_pgno_t pgno, void *page)
 {
 	HTAB *hashp;
 	PAGE16 *pagep;
@@ -868,10 +835,7 @@ __pgin_routine(pg_cookie, pgno, page)
 }
 
 void
-__pgout_routine(pg_cookie, pgno, page)
-	void *pg_cookie;
-	db_pgno_t pgno;
-	void *page;
+__pgout_routine(void *pg_cookie, db_pgno_t pgno, void *page)
 {
 	HTAB *hashp;
 	PAGE16 *pagep;
@@ -905,10 +869,7 @@ __pgout_routine(pg_cookie, pgno, page)
  *      -1 ==>failure
  */
 extern int32_t
-__put_page(hashp, pagep, addr_type, is_dirty)
-	HTAB *hashp;
-	PAGE16 *pagep;
-	int32_t addr_type, is_dirty;
+__put_page(HTAB *hashp, PAGE16 *pagep, int32_t addr_type, int32_t is_dirty)
 {
 #if DEBUG_SLOW
 	account_page(hashp,
@@ -924,10 +885,7 @@ __put_page(hashp, pagep, addr_type, is_dirty)
  *      -1 indicates FAILURE
  */
 extern PAGE16 *
-__get_page(hashp, addr, addr_type)
-	HTAB *hashp;
-	u_int32_t addr;
-	int32_t addr_type;
+__get_page(HTAB *hashp, u_int32_t addr, int32_t addr_type)
 {
 	PAGE16 *pagep;
 	db_pgno_t paddr;
@@ -958,8 +916,7 @@ __get_page(hashp, addr, addr_type)
 }
 
 static void
-swap_page_header_in(pagep)
-	PAGE16 *pagep;
+swap_page_header_in(PAGE16 *pagep)
 {
 	u_int32_t i;
 
@@ -977,8 +934,7 @@ swap_page_header_in(pagep)
 }
 
 static void
-swap_page_header_out(pagep)
-	PAGE16 *pagep;
+swap_page_header_out(PAGE16 *pagep)
 {
 	u_int32_t i;
 
@@ -1001,9 +957,7 @@ swap_page_header_out(pagep)
  * once they are read in.
  */
 extern int32_t
-__ibitmap(hashp, pnum, nbits, ndx)
-	HTAB *hashp;
-	int32_t pnum, nbits, ndx;
+__ibitmap(HTAB *hashp, int32_t pnum, int32_t nbits, int32_t ndx)
 {
 	u_int32_t *ip;
 	int32_t clearbytes, clearints;
@@ -1027,8 +981,7 @@ __ibitmap(hashp, pnum, nbits, ndx)
 }
 
 static u_int32_t
-first_free(map)
-	u_int32_t map;
+first_free(u_int32_t map)
 {
 	u_int32_t i, mask;
 
@@ -1044,8 +997,7 @@ first_free(map)
  * returns 0 on error
  */
 static u_int16_t
-overflow_page(hashp)
-	HTAB *hashp;
+overflow_page(HTAB *hashp)
 {
 	u_int32_t *freep;
 	u_int32_t bit, first_page, free_bit, free_page, i, in_use_bits, j;
@@ -1206,9 +1158,7 @@ found:
 
 #ifdef DEBUG
 int
-bucket_to_page(hashp, n)
-	HTAB *hashp;
-	int n;
+bucket_to_page(HTAB *hashp, int n)
 {
 	int ret_val;
 
@@ -1219,9 +1169,7 @@ bucket_to_page(hashp, n)
 }
 
 int32_t
-oaddr_to_page(hashp, n)
-	HTAB *hashp;
-	int n;
+oaddr_to_page(HTAB *hashp, int n)
 {
 	int ret_val, temp;
 
@@ -1234,9 +1182,7 @@ oaddr_to_page(hashp, n)
 #endif /* DEBUG */
 
 static indx_t
-page_to_oaddr(hashp, pgno)
-	HTAB *hashp;
-	db_pgno_t pgno;
+page_to_oaddr(HTAB *hashp, db_pgno_t pgno)
 {
 	int32_t sp, ret_val;
 
@@ -1268,9 +1214,7 @@ page_to_oaddr(hashp, pgno)
  * Mark this overflow page as free.
  */
 extern void
-__free_ovflpage(hashp, pagep)
-	HTAB *hashp;
-	PAGE16 *pagep;
+__free_ovflpage(HTAB *hashp, PAGE16 *pagep)
 {
 	u_int32_t *freep;
 	u_int32_t bit_address, free_page, free_bit;
@@ -1307,9 +1251,7 @@ __free_ovflpage(hashp, pagep)
 }
 
 static u_int32_t *
-fetch_bitmap(hashp, ndx)
-	HTAB *hashp;
-	int32_t ndx;
+fetch_bitmap(HTAB *hashp, int32_t ndx)
 {
 	if (ndx >= hashp->nmaps)
 		return (NULL);
@@ -1322,10 +1264,7 @@ fetch_bitmap(hashp, ndx)
 
 #ifdef DEBUG_SLOW
 static void
-account_page(hashp, pgno, inout)
-	HTAB *hashp;
-	db_pgno_t pgno;
-	int inout;
+account_page(HTAB *hashp, db_pgno_t pgno, int inout)
 {
 	static struct {
 		db_pgno_t pgno;

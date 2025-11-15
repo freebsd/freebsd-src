@@ -33,8 +33,6 @@
 #include <sys/wait.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_wait4, __wait4);
-
 #pragma weak wait4
 pid_t
 wait4(pid_t pid, int *status, int options, struct rusage *ru)

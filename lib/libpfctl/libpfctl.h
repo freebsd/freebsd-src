@@ -62,6 +62,8 @@ struct pfctl_status {
 	struct pfctl_status_counters	 lcounters;
 	struct pfctl_status_counters	 fcounters;
 	struct pfctl_status_counters	 scounters;
+	struct pfctl_status_counters	 ncounters;
+	uint64_t	fragments;
 	uint64_t	pcounters[2][2][2];
 	uint64_t	bcounters[2][2];
 };
@@ -143,9 +145,18 @@ struct pfctl_eth_anchor {
 	int				 match;	/* XXX: used for pfctl black magic */
 };
 
+struct pfctl_pooladdr {
+	struct pf_addr_wrap		 addr;
+	TAILQ_ENTRY(pfctl_pooladdr)	 entries;
+	char				 ifname[IFNAMSIZ];
+	sa_family_t		 	 af;
+};
+
+TAILQ_HEAD(pfctl_palist, pfctl_pooladdr);
+
 struct pfctl_pool {
-	struct pf_palist	 list;
-	struct pf_pooladdr	*cur;
+	struct pfctl_palist	 list;
+	struct pfctl_pooladdr	*cur;
 	struct pf_poolhashkey	 key;
 	struct pf_addr		 counter;
 	struct pf_mape_portset	 mape;
@@ -252,8 +263,8 @@ struct pfctl_rule {
 	uint8_t			 keep_state;
 	sa_family_t		 af;
 	uint8_t			 proto;
-	uint8_t			 type;
-	uint8_t			 code;
+	uint16_t		 type;
+	uint16_t		 code;
 	uint8_t			 flags;
 	uint8_t			 flagset;
 	uint8_t			 min_ttl;
@@ -274,6 +285,8 @@ struct pfctl_rule {
 		struct pf_addr		addr;
 		uint16_t		port;
 	}			divert;
+
+	time_t			exptime;
 };
 
 TAILQ_HEAD(pfctl_rulequeue, pfctl_rule);
@@ -383,6 +396,7 @@ struct pfctl_state {
 	uint8_t			 set_prio[2];
 	uint8_t			 rt;
 	char			 rt_ifname[IFNAMSIZ];
+	sa_family_t		 rt_af;
 	uint8_t			 src_node_flags;
 };
 
@@ -414,7 +428,7 @@ struct pfctl_src_node {
 	uint32_t		states;
 	uint32_t		conn;
 	sa_family_t		af;
-	sa_family_t		naf;
+	sa_family_t		raf;
 	uint8_t			ruletype;
 	uint64_t		creation;
 	uint64_t		expire;
@@ -501,13 +515,22 @@ int	pfctl_clear_nat(int dev, const char *anchorname);
 int	pfctl_clear_eth_rules(int dev, const char *anchorname);
 int	pfctl_set_syncookies(int dev, const struct pfctl_syncookies *s);
 int	pfctl_get_syncookies(int dev, struct pfctl_syncookies *s);
+int	pfctl_table_add_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struct pfr_addr
+	    *addr, int size, int *nadd, int flags);
 int	pfctl_table_add_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
 	    *addr, int size, int *nadd, int flags);
+int	pfctl_table_del_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl,
+	    struct pfr_addr *addr, int size, int *ndel, int flags);
 int	pfctl_table_del_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
 	    *addr, int size, int *ndel, int flags);
-int     pfctl_table_set_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
+int	pfctl_table_set_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl,
+	    struct pfr_addr *addr, int size, int *nadd, int *ndel,
+	    int *nchange, int flags);
+int	pfctl_table_set_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
 	    *addr, int size, int *size2, int *nadd, int *ndel, int *nchange,
 	    int flags);
+int	pfctl_table_get_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struct pfr_addr *addr,
+	    int *size, int flags);
 int	pfctl_table_get_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
 	    *addr, int *size, int flags);
 int	pfctl_set_statusif(struct pfctl_handle *h, const char *ifname);

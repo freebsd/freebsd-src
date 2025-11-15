@@ -1,0 +1,168 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.Dd July 23, 2025
+.Dt COREDUMPER_REGISTER 9
+.Os
+.Sh NAME
+.Nm coredumper_register ,
+.Nm coredumper_unregister
+.Nd loadable user coredumper support
+.Sh SYNOPSIS
+.In sys/ucoredump.h
+.Ft void
+.Fn coredumper_register "struct coredumper *cd"
+.Ft void
+.Fn coredumper_unregister "struct coredumper *cd"
+.Pp
+.Ft int
+.Fn coredumper_probe_fn "struct thread *td"
+.Ft int
+.Fn coredumper_handle_fn "struct thread *td" "off_t limit"
+.Bd -literal
+/* Incomplete, but the useful members are depicted here. */
+struct coredumper {
+	const char		*cd_name;
+	coredumper_probe_fn	*cd_probe;
+	coredumper_handle_fn	*cd_handle;
+};
+.Ed
+.Pp
+.Ft int
+.Fn coredump_init_fn "const struct coredump_writer *" \
+"const struct coredump_params *"
+.Ft int
+.Fn coredump_write_fn "const struct coredump_writer *" "const void *" "size_t" \
+"off_t" "enum uio_seg" "struct ucred *" "size_t *" "struct thread *"
+.Ft int
+.Fn coredump_extend_fn "const struct coredump_writer *" "off_t" "struct ucred *"
+.Bd -literal
+struct coredump_writer {
+	void			*ctx;
+	coredump_init_fn	*init_fn;
+	coredump_write_fn	*write_fn;
+	coredump_extend_fn	*extend_fn;
+};
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+mechanism provides a path for kernel modules to register a new user process core
+dumper.
+The expected use of
+.Nm
+is for a module to define the fields of the struct coredumper listed above, then
+call
+.Fn coredumper_register
+at
+.Dv MOD_LOAD
+time.
+A corresponding
+.Fn coredumper_unregister
+should be called at
+.Dv MOD_UNLOAD
+time.
+Note that
+.Fn coredumper_unregister
+will block until the specified coredumper is no longer processing coredumps.
+.Pp
+When a user process is preparing to start dumping core, the kernel will execute
+the
+.Fn cd_probe
+function for each coredumper currently registered.
+The
+.Fn cd_probe
+function is expected to return either -1 if it would decline to dump the
+process, or a priority level greater than 0.
+The coredumper with the highest priority will handle the coredump.
+The following default priorities are defined:
+.Bl -tag -width indent
+.It Dv COREDUMPER_NOMATCH
+This dumper declines dumping the process.
+.It Dv COREDUMPER_GENERIC
+This dumper will dump the process at the lowest priority.
+This priority is not recommended, as the default vnode dumper will bid at
+.Dv COREDUMPER_GENERIC
+as well.
+.It Dv COREDUMPER_SPECIAL
+This dumper provides special behavior, and will dump the process at a higher
+priority.
+.It Dv COREDUMPER_HIGHPRIORITY
+This dumper would prefer to handle this coredump.
+This may be used by, for instance, a custom or vendor-specific coredump
+mechanism that wishes to preempt others.
+.El
+.Pp
+Note that this system has been designed such that the
+.Fn cd_probe
+function can examine the process in question and make an informed decision.
+Different processes being dumped could probe at different priorities in the
+same coredumper.
+.Pp
+Once the highest priority coredumper has been selected, the
+.Fn cd_handle
+function will be invoked.
+The
+.Fn cd_handle
+will receive both the thread and the
+.Dv RLIMIT_CORE
+.Xr setrlimit 2
+.Fa limit .
+The proc lock will be held on entry, and should be unlocked before the handler
+returns.
+The
+.Fa limit
+is typically passed to the
+.Fn sv_coredump
+that belongs to the process's
+.Va p_sysent .
+.Pp
+The
+.Fn cd_handle
+function should return either 0 if the dump was successful, or an appropriate
+.Xr errno 2
+otherwise.
+.Ss Customized Coredump Writers
+Custom coredumpers can define their own
+.Dv coredump_writer
+to pass to
+.Fn sv_coredump .
+.Pp
+The
+.Va ctx
+member is opaque and only to be used by the coredumper itself.
+.Pp
+The
+.Va init_fn
+function, if it's provided, will be called by the
+.Fn sv_coredump
+implementation before any data is to be written.
+This allows the writer implementation to record any coredump parameters that it
+might need to capture, or setup the object to be written to.
+.Pp
+The
+.Va write_fn
+function will be called by the
+.Fn sv_coredump
+implementation to write out data.
+The
+.Va extend_fn
+function will be called to enlarge the coredump, in the sense that a hole is
+created in any difference between the current size and the new size.
+For convenience, the
+.Fn core_vn_write
+and
+.Fn core_vn_extend
+functions used by the vnode coredumper are exposed in
+.In sys/ucordumper.h ,
+and the
+.Dv coredump_vnode_ctx
+defined there should be populated with the vnode to write to.
+.Sh SEE ALSO
+.Xr setrlimit 2 ,
+.Xr core 5
+.Sh AUTHORS
+This manual page was written by
+.An Kyle Evans Aq Mt kevans@FreeBSD.org .

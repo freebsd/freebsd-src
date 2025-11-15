@@ -113,14 +113,19 @@ device		uart			# Generic UART driver
 
 # Pseudo devices.
 device		loop			# Network loopback
-device		padlock_rng		# VIA Padlock RNG
-device		rdrand_rng		# Intel Bull Mountain RNG
 device		ether			# Ethernet support
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
 # Note that 'bpf' is required for DHCP.
 device		bpf			# Berkeley packet filter
+
+# random(4)
+device		rdrand_rng		# Intel Bull Mountain RNG
+device		tpm			# Trusted Platform Module
+options 	RANDOM_ENABLE_TPM	# enable entropy from TPM 2.0
+options 	RANDOM_ENABLE_KBD
+options 	RANDOM_ENABLE_MOUSE
 
 # VirtIO support
 device		virtio			# Generic VirtIO bus (required)

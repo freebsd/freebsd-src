@@ -921,7 +921,7 @@ fzap_add_cd(zap_name_t *zn,
 
 	ASSERT(RW_LOCK_HELD(&zap->zap_rwlock));
 	ASSERT(!zap->zap_ismicro);
-	ASSERT(fzap_check(zn, integer_size, num_integers) == 0);
+	ASSERT0(fzap_check(zn, integer_size, num_integers));
 
 	err = zap_deref_leaf(zap, zn->zn_hash, tx, RW_WRITER, &l);
 	if (err != 0)
@@ -1304,7 +1304,7 @@ zap_increment_int(objset_t *os, uint64_t obj, uint64_t key, int64_t delta,
 int
 fzap_cursor_retrieve(zap_t *zap, zap_cursor_t *zc, zap_attribute_t *za)
 {
-	int err = ENOENT;
+	int err;
 	zap_entry_handle_t zeh;
 	zap_leaf_t *l;
 
@@ -1386,7 +1386,7 @@ again:
 		}
 		err = zap_entry_read_name(zap, &zeh,
 		    za->za_name_len, za->za_name);
-		ASSERT(err == 0);
+		ASSERT0(err);
 
 		za->za_normalization_conflict =
 		    zap_entry_normalization_conflict(&zeh,
@@ -1546,7 +1546,7 @@ zap_shrink(zap_name_t *zn, zap_leaf_t *l, dmu_tx_t *tx)
 	boolean_t trunc = B_FALSE;
 	int err = 0;
 
-	ASSERT3U(zap_leaf_phys(l)->l_hdr.lh_nentries, ==, 0);
+	ASSERT0(zap_leaf_phys(l)->l_hdr.lh_nentries);
 	ASSERT3U(prefix_len, <=, zap_f_phys(zap)->zap_ptrtbl.zt_shift);
 	ASSERT(RW_LOCK_HELD(&zap->zap_rwlock));
 	ASSERT3U(ZAP_HASH_IDX(hash, prefix_len), ==, prefix);
@@ -1564,7 +1564,7 @@ zap_shrink(zap_name_t *zn, zap_leaf_t *l, dmu_tx_t *tx)
 		uint64_t sl_hash = ZAP_PREFIX_HASH(sl_prefix, prefix_len);
 		int slbit = prefix & 1;
 
-		ASSERT3U(zap_leaf_phys(l)->l_hdr.lh_nentries, ==, 0);
+		ASSERT0(zap_leaf_phys(l)->l_hdr.lh_nentries);
 
 		/*
 		 * Check if there is a sibling by reading ptrtbl ptrs.

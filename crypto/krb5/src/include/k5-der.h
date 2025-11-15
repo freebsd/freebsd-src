@@ -105,19 +105,15 @@ k5_der_add_value(struct k5buf *buf, uint8_t idbyte, const void *contents,
 
 /*
  * If the next byte in in matches idbyte and the subsequent DER length is
- * valid, advance in past the value, set *contents_out to the value contents,
- * and return true.  Otherwise return false.  Only set an error on in if the
- * next bytes matches idbyte but the ensuing length is invalid.  contents_out
- * may be aliased to in; it will only be written to on successful decoding of a
- * value.
+ * valid, advance in past the tag and length, set *len_out to the decoded
+ * length, and return true.  Otherwise return false.  Only set an error on in
+ * if the next byte matches idbyte but the ensuing length is invalid.
  */
 static inline bool
-k5_der_get_value(struct k5input *in, uint8_t idbyte,
-                 struct k5input *contents_out)
+k5_der_get_taglen(struct k5input *in, uint8_t idbyte, size_t *len_out)
 {
     uint8_t lenbyte, i;
     size_t len;
-    const void *bytes;
 
     /* Do nothing if in is empty or the next byte doesn't match idbyte. */
     if (in->status || in->len == 0 || *in->ptr != idbyte)
@@ -139,6 +135,30 @@ k5_der_get_value(struct k5input *in, uint8_t idbyte,
         }
     }
 
+    if (in->status)
+        return false;
+
+    *len_out = len;
+    return true;
+}
+
+/*
+ * If the next byte in in matches idbyte and the subsequent DER length is
+ * valid, advance in past the value, set *contents_out to the value contents,
+ * and return true.  Otherwise return false.  Only set an error on in if the
+ * next byte matches idbyte but the ensuing length is invalid.  contents_out
+ * may be aliased to in; it will only be written to on successful decoding of a
+ * value.
+ */
+static inline bool
+k5_der_get_value(struct k5input *in, uint8_t idbyte,
+                 struct k5input *contents_out)
+{
+    size_t len;
+    const void *bytes;
+
+    if (!k5_der_get_taglen(in, idbyte, &len))
+        return false;
     bytes = k5_input_get_bytes(in, len);
     if (bytes == NULL)
         return false;

@@ -103,6 +103,16 @@ struct vattr va_null;
  * Routines having to do with the management of the vnode table.
  */
 
+void
+vfs_unref_vfsconf(struct vfsconf *vfsp)
+{
+	vfsconf_lock();
+	KASSERT(vfsp->vfc_refcount > 0,
+	    ("vfs %p refcount underflow %d", vfsp, vfsp->vfc_refcount));
+	vfsp->vfc_refcount--;
+	vfsconf_unlock();
+}
+
 static struct vfsconf *
 vfs_byname_locked(const char *name)
 {
@@ -123,9 +133,11 @@ vfs_byname(const char *name)
 {
 	struct vfsconf *vfsp;
 
-	vfsconf_slock();
+	vfsconf_lock();
 	vfsp = vfs_byname_locked(name);
-	vfsconf_sunlock();
+	if (vfsp != NULL)
+		vfsp->vfc_refcount++;
+	vfsconf_unlock();
 	return (vfsp);
 }
 
@@ -387,7 +399,7 @@ vfs_register(struct vfsconf *vfc)
 	static int once;
 	struct vfsconf *tvfc;
 	uint32_t hashval;
-	int secondpass;
+	int error, prevmaxconf, secondpass;
 
 	if (!once) {
 		vattr_null(&va_null);
@@ -405,6 +417,7 @@ vfs_register(struct vfsconf *vfc)
 		return (EEXIST);
 	}
 
+	prevmaxconf = maxvfsconf;
 	if (vfs_typenumhash != 0) {
 		/*
 		 * Calculate a hash on vfc_name to use for vfc_typenum. Unless
@@ -497,16 +510,24 @@ vfs_register(struct vfsconf *vfc)
 		vfc->vfc_vfsops = &vfsops_sigdefer;
 	}
 
-	if (vfc->vfc_flags & VFCF_JAIL)
-		prison_add_vfs(vfc);
-
 	/*
 	 * Call init function for this VFS...
 	 */
 	if ((vfc->vfc_flags & VFCF_SBDRY) != 0)
-		vfc->vfc_vfsops_sd->vfs_init(vfc);
+		error = vfc->vfc_vfsops_sd->vfs_init(vfc);
 	else
-		vfc->vfc_vfsops->vfs_init(vfc);
+		error = vfc->vfc_vfsops->vfs_init(vfc);
+
+	if (error != 0) {
+		maxvfsconf = prevmaxconf;
+		TAILQ_REMOVE(&vfsconf, vfc, vfc_list);
+		vfsconf_unlock();
+		return (error);
+	}
+
+	if ((vfc->vfc_flags & VFCF_JAIL) != 0)
+		prison_add_vfs(vfc);
+
 	vfsconf_unlock();
 
 	/*

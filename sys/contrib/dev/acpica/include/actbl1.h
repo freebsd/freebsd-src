@@ -262,7 +262,7 @@ typedef struct acpi_whea_header
 
 /* Larger subtable header (when Length can exceed 255) */
 
-typedef struct acpi_subtable_header_16
+typedef struct acpi_subtbl_hdr_16
 {
     UINT16                  Type;
     UINT16                  Length;

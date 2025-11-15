@@ -1,6 +1,6 @@
-/* $Id: man_validate.c,v 1.159 2023/10/24 20:53:12 schwarze Exp $ */
+/* $Id: man_validate.c,v 1.161 2025/07/09 12:51:06 schwarze Exp $ */
 /*
- * Copyright (c) 2010, 2012-2020, 2023 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010-2020, 2023, 2025 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -299,6 +299,14 @@ post_SH(CHKARGS)
 
 	nc = n->child;
 	switch (n->type) {
+	case ROFFT_BLOCK:
+		if ((nc = n->prev) != NULL && nc->tok == ROFF_br) {
+			mandoc_msg(MANDOCERR_PAR_SKIP, nc->line, nc->pos,
+			    "%s before first %s", roff_name[nc->tok],
+			    roff_name[n->tok]);
+			roff_node_delete(man, nc);
+		}
+		return;
 	case ROFFT_HEAD:
 		tag = NULL;
 		deroff(&tag, n);
@@ -473,7 +481,7 @@ post_TH(CHKARGS)
 	/* ->TITLE<- MSEC DATE OS VOL */
 
 	n = n->child;
-	if (n != NULL && n->string != NULL) {
+	if (n != NULL && n->string != NULL && *n->string != '\0') {
 		for (p = n->string; *p != '\0'; p++) {
 			/* Only warn about this once... */
 			if (isalpha((unsigned char)*p) &&
@@ -486,8 +494,8 @@ post_TH(CHKARGS)
 		}
 		man->meta.title = mandoc_strdup(n->string);
 	} else {
-		man->meta.title = mandoc_strdup("");
-		mandoc_msg(MANDOCERR_TH_NOTITLE, nb->line, nb->pos, "TH");
+		man->meta.title = mandoc_strdup("UNTITLED");
+		mandoc_msg(MANDOCERR_DT_NOTITLE, nb->line, nb->pos, "TH");
 	}
 
 	/* TITLE ->MSEC<- DATE OS VOL */

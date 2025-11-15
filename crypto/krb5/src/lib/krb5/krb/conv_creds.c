@@ -55,7 +55,7 @@ krb524_convert_creds_kdc(krb5_context context, krb5_creds *v5creds,
     return KRB524_KRB4_DISABLED;
 }
 
-void KRB5_CALLCONV krb524_init_ets ()
+void KRB5_CALLCONV krb524_init_ets (void)
 {
 }
 #endif

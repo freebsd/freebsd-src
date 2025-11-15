@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2020 Vladimir Kondratyev <wulf@FreeBSD.org>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -21,45 +24,62 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 14, 2020
+.Dd November 12, 2025
 .Dt HGAME 4
 .Os
 .Sh NAME
 .Nm hgame
-.Nd Generic HID game controller (joystick/gamepad) driver
+.Nd generic HID gamepad, joystick, and controller evdev driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device hgame"
-.Cd "device hid"
-.Cd "device hidbus"
-.Cd "device hidmap"
-.Cd "device evdev"
-.Ed
+.Cd device hgame
+.Cd device hid
+.Cd device hidbus
+.Cd device hidmap
+.Cd device evdev
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
+.Xr sysctl.conf 5 :
+.Cd dev.hgame.X.debug
+.Pp
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-hgame_load="YES"
-.Ed
+.Cd hw.hid.hgame.debug
+.Cd hgame_load
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for generic game controllers (joysticks/gamepads)
-that attach to the HID transport backend.
-See
-.Xr iichid 4
-or
-.Xr usbhid 4 .
+driver supports generic game controllers
+that attach to the HID transport backend,
+and presents them to applications over the
+.Sy evdev
+interface.
 .Pp
-The
+If the appropriate hardware is detected,
+the driver will be loaded automatically by
+.Xr devmatch 8 .
+To load the driver manually at boot time, set the
+.Va hgame_load
+variable to
+.Ar YES
+at the
+.Xr loader 8
+prompt, or add it to
+.Xr loader.conf 5 .
+.Pp
+To give user applications access to the game controllers,
+allow user access to the
 .Pa /dev/input/event*
-device presents the game controller as a
-.Ar evdev
-type device.
+nodes with
+.Xr devfs.rules 5 .
+.Sh HARDWARE
+The
+.Nm
+driver supports HID gamepads, joysticks, and controllers such as:
+.Pp
+.Bl -bullet -compact
+.It
+8bitdo USB Wireless Adapter 2
+.El
 .Sh SYSCTL VARIABLES
 The following variable is available as both
 .Xr sysctl 8
@@ -68,25 +88,31 @@ variable and
 tunable:
 .Bl -tag -width indent
 .It Va dev.hgame.X.debug
-Debug output level, where 0 is debugging disabled and larger values increase
-debug message verbosity.
+Debug output level,
+where 0 is debugging disabled and
+larger values increase debug message verbosity.
 Default is 0.
 .El
 .Pp
-It's default value is set with
+Its default value is set with
 .Xr loader 8
 tunable:
 .Bl -tag -width indent
 .It Va hw.hid.hgame.debug
 .El
 .Sh FILES
-.Bl -tag -width /dev/input/event* -compact
+.Bl -tag -width "/dev/input/event*" -compact
 .It Pa /dev/input/event*
-input event device node.
+input event device
+.Pq Sy evdev
+node
 .El
 .Sh SEE ALSO
 .Xr iichid 4 ,
-.Xr usbhid 4
+.Xr ps4dshock 4 ,
+.Xr usbhid 4 ,
+.Xr xb360gp 4 ,
+.Xr devfs.rules 5
 .Sh HISTORY
 The
 .Nm

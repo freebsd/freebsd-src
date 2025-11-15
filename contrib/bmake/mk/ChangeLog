@@ -1,3 +1,20 @@
+2025-07-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20250724
+
+	* meta2deps: Allow X record to have 3 or 4 args.
+	V4 filemon on Linux produces 3
+	V5 filemon on FreeBSD produces 4
+
+2025-07-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20250721
+
+	* meta2deps.{py,sh}: detect corrupted filemon output (an issue on
+	Linux) by checking each record type has the correct number of
+	words.  Throw an error if necessary so that gendirdeps.mk will not
+	update Makefile.depend
+
 2025-07-04  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* prog.mk: .MADE is a special source not a target!

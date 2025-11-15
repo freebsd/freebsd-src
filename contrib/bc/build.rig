@@ -1,0 +1,575 @@
+/*
+ * *****************************************************************************
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2018-2025 Gavin D. Howard and contributors.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * * Redistributions of source code must retain the above copyright notice, this
+ *   list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * *****************************************************************************
+ *
+ * The build script file.
+ *
+ */
+
+if OS == "Windows" && bool(config["lto"])
+{
+	error("Link-time optimization is not supported on Windows");
+}
+
+if LIBRARY_ENABLED == "0"
+{
+	if OS != "Windows" && NLS_ENABLED != "0"
+	{
+		io.eprint("Testing NLS...\n");
+
+		clang_flags: []str =
+		if CC contains "clang"
+		{
+			@[ "-Wno_unreachable-code" ];
+		};
+
+		flags: []str = clang_flags +~ @[
+			DEFOPT +~ "BC_ENABLE_NLS=1",
+			DEFOPT +~ "BC_ENABLED=" +~ BC_ENABLED,
+			DEFOPT +~ "DC_ENABLED=" +~ DC_ENABLED,
+			DEFOPT +~ "BC_ENABLE_HISTORY=0",
+			DEFOPT +~ "BC_ENABLE_LIBRARY=0",
+			DEFOPT +~ "BC_ENABLE_AFL=0",
+			DEFOPT +~ "BC_ENABLE_EXTRA_MATH=" +~ EXTRA_MATH_ENABLED,
+			DEFOPT +~ "BC_ENABLE_OSSFUZZ=0",
+			DEFOPT +~ "_POSIX_C_SOURCE=200809L",
+			DEFOPT +~ "_XOPEN_SOURCE=700",
+			INCOPT,
+		];
+
+		res := $ $CC %(flags) -c @(path.join(src_dir, "src/vm.c")) -E;
+
+		if res.exitcode != 0
+		{
+			if FORCE
+			{
+				io.eprint("Forcing NLS...\n");
+			}
+			else
+			{
+				error("NLS does not work\n");
+			}
+		}
+		else
+		{
+			if path.isfile("vm.o")
+			{
+				path.rm("vm.o");
+			}
+
+			io.eprint("NLS works.\n\n");
+			io.eprint("Testing gencat...\n");
+
+			res2 := $ gencat ./en_US.cat
+			          @(path.join(src_dir, "locales/en_US.msg"));
+
+			if res2.exitcode != 0
+			{
+				if FORCE
+				{
+					io.eprint("Forcing NLS...\n");
+				}
+				else
+				{
+					error("gencat does not work\n");
+				}
+			}
+			else
+			{
+				io.eprint("gencat works.\n\n");
+
+				if platform != host
+				{
+					error("Cross compiles will not work!\n\n");
+				}
+			}
+		}
+	}
+
+	if OS != "Windows" && sym(config["history"]) != @none
+	{
+		io.eprint("Testing history...\n");
+
+		flags: []str = @[
+			DEFOPT +~ "BC_ENABLE_HISTORY=1",
+			DEFOPT +~ "BC_ENABLED=" +~ BC_ENABLED,
+			DEFOPT +~ "DC_ENABLED=" +~ DC_ENABLED,
+			DEFOPT +~ "BC_ENABLE_NLS=" +~ NLS_ENABLED,
+			DEFOPT +~ "BC_ENABLE_LIBRARY=0",
+			DEFOPT +~ "BC_ENABLE_AFL=0",
+			DEFOPT +~ "BC_ENABLE_EDITLINE=" +~ EDITLINE_ENABLED,
+			DEFOPT +~ "BC_ENABLE_READLINE=" +~ READLINE_ENABLED,
+			DEFOPT +~ "BC_ENABLE_EXTRA_MATH=" +~ EXTRA_MATH_ENABLED,
+			DEFOPT +~ "BC_ENABLE_OSSFUZZ=0",
+			DEFOPT +~ "_POSIX_C_SOURCE=200809L",
+			DEFOPT +~ "_XOPEN_SOURCE=700",
+			INCOPT,
+		];
+
+		res := $ $CC %(flags) -c @(path.join(src_dir, "src/history.c")) -E;
+
+		if res.exitcode != 0
+		{
+			if FORCE
+			{
+				io.eprint("Forcing history...\n");
+			}
+			else
+			{
+				error("History does not work\n");
+			}
+		}
+		else
+		{
+			if path.isfile("history.o")
+			{
+				path.rm("history.o");
+			}
+
+			io.eprint("History works.\n\n");
+		}
+	}
+}
+
+freebsd_flags: []str =
+if OS != "FreeBSD"
+{
+	@[ DEFOPT +~ "_POSIX_C_SOURCE=200809L", DEFOPT +~ "_XOPEN_SOURCE=700" ];
+};
+
+macos: bool = (OS == "Darwin");
+
+macos_flags: []str =
+if macos
+{
+	@[ DEFOPT +~ "_DARWIN_C_SOURCE" ];
+};
+
+openbsd_flags: []str =
+if OS == "OpenBSD"
+{
+	if READLINE_ENABLED != "0"
+	{
+		error("Cannot use readline on OpenBSD");
+	}
+
+	@[ DEFOPT +~ "_BSD_SOURCE" ];
+};
+
+strip_flag: []str =
+if OS != "Windows" && !bool(config["debug"]) && !macos && bool(config["strip"])
+{
+	@[ "-s" ];
+};
+
+lto_flag: []str =
+if bool(config["lto"])
+{
+	@[ "-flto" ];
+};
+
+strict_flags: []str =
+if bool(config["strict"])
+{
+	// Strict build only works for GCC and Clang, so we do want to set that
+	// here.
+	if CC contains "gcc" || CC contains "clang"
+	{
+		// These are the standard strict build flags for both compilers.
+		std_strict: []str = @[ "-Wall", "-Wextra", "-Werror", "-pedantic" ];
+
+		// Clang has -Weverything, which I ensure Yc builds under.
+		//
+		// I also want unlimited errors because Clang is my development
+		// compiler; it caps at 20 by default.
+		compiler_strict: []str =
+		if CC contains "clang"
+		{
+			// Oh, and add the standard.
+			@[ "-Weverything", "-ferror-limit=100000", "-Wno-padded",
+			   "-Wno-unknown-warning-option", "-Wno-unsafe-buffer-usage",
+			   "-Wno-documentation-unknown-command", "-Wno-pre-c11-compat",
+			   "-Wno-enum-enum-conversion", "-Wno-switch-default" ];
+		};
+
+		// Return the combination of the sets.
+		std_strict +~ compiler_strict;
+	}
+	else if OS == "Windows"
+	{
+		// Return the combo of the strict options, the standard, and the
+		// sanitizer defines.
+		@[ "/W4", "/WX", "/wd\"4996\"", "/permissive-" ];
+	}
+};
+
+version_contents: str = io.read_file(path.join(src_dir, "VERSION.txt"));
+version_lines: []str = version_contents.split("\n");
+version: str = version_lines[0];
+
+version_flag: []str = @[ DEFOPT +~ "VERSION=" +~ version ];
+
+other_flags: []str = freebsd_flags +~ macos_flags +~ openbsd_flags +~
+                     lto_flag +~ strict_flags +~ version_flag +~
+if bool(config["debug"])
+{
+	@[ compiler_db["opt.debug"] ];
+};
+
+history_files: []str =
+if HISTORY != @none
+{
+	HISTORY_C_FILES;
+};
+
+c_files: []str =
+if BUILD_MODE == @both
+{
+	COMMON_C_FILES +~ EXEC_C_FILES +~ BC_C_FILES +~ DC_C_FILES +~ history_files;
+}
+else if BUILD_MODE == @bc
+{
+	COMMON_C_FILES +~ EXEC_C_FILES +~ BC_C_FILES +~ history_files;
+}
+else if BUILD_MODE == @dc
+{
+	COMMON_C_FILES +~ EXEC_C_FILES +~ DC_C_FILES +~ history_files;
+}
+else
+{
+	COMMON_C_FILES +~ LIBRARY_C_FILES;
+};
+
+build_config: Gaml = @(gaml){
+	other_cflags: $other_flags
+	strip_flag: $strip_flag
+};
+
+targets: []str =
+push build_config: config_stack
+{
+	gen_o_files: []str =
+	if BUILD_MODE != @library
+	{
+		@[
+			txt2o("gen/lib.bc", "bc_lib", "bc_lib_name", "BC_ENABLED", true),
+			txt2o("gen/lib2.bc", "bc_lib2", "bc_lib2_name",
+			      "BC_ENABLED && BC_ENABLE_EXTRA_MATH", true),
+			txt2o("gen/bc_help.txt", "bc_help", "", "BC_ENABLED", false),
+			txt2o("gen/dc_help.txt", "dc_help", "", "DC_ENABLED", false),
+		];
+	};
+
+	obj_files: []str = gen_o_files +~
+	for f: c_files
+	{
+		c2o(f);
+	};
+
+	if BUILD_MODE == @both || BUILD_MODE == @bc
+	{
+		if OS != "Windows" && bool(config["install_manpages"])
+		{
+			src: str = path.join("manuals/bc", BUILD_TYPE +~ ".1");
+
+			target BC_MANPAGE: src
+			{
+				$ cp -f @(file_dep) @(tgt);
+			}
+		}
+
+		exe(BC_BIN, obj_files);
+	}
+
+	if BUILD_MODE == @both || BUILD_MODE == @dc
+	{
+		if OS != "Windows" && bool(config["install_manpages"])
+		{
+			src: str = path.join("manuals/dc", BUILD_TYPE +~ ".1");
+
+			target DC_MANPAGE: src
+			{
+				$ cp -f @(file_dep) @(tgt);
+			}
+		}
+
+		if BUILD_MODE == @both
+		{
+			ln(DC_BIN, BC_BIN);
+		}
+		else
+		{
+			exe(DC_BIN, obj_files);
+		}
+	}
+
+	if BUILD_MODE == @library
+	{
+		lib(LIBRARY, obj_files);
+	}
+
+	if BUILD_MODE == @both
+	{
+		@[ BC_BIN, DC_BIN ];
+	}
+	else if BUILD_MODE == @bc
+	{
+		@[ DC_BIN ];
+	}
+	else if BUILD_MODE == @dc
+	{
+		@[ DC_BIN ];
+	}
+	else
+	{
+		includedir: str = get_includedir();
+		libdir: str = get_libdir();
+
+		pc_config: Gaml = @(gaml){
+			INCLUDEDIR: $includedir
+			LIBDIR: $libdir
+			VERSION: $version
+		};
+
+		push pc_config: config_stack
+		{
+			target PC_FILE: PC_FILE +~ ".in"
+			{
+				configure_file(file_dep, tgt, "%%");
+			}
+		}
+
+		@[ LIBRARY, PC_FILE ];
+	}
+};
+
+if OS != "Windows"
+{
+	if LIBRARY_ENABLED == "0"
+	{
+		target @install: targets
+		{
+			bindir: str = get_bindir();
+
+			if BC_ENABLED != "0"
+			{
+				$ $SAFE_INSTALL $EXEC_INSTALL_MODE $BC_BIN
+				  @(path.join(bindir, BC_BIN));
+			}
+
+			if DC_ENABLED != "0"
+			{
+				if BC_ENABLED != "0"
+				{
+					$ ln -sf @("./" +~ BC_BIN) @(path.join(bindir, DC_BIN));
+				}
+				else
+				{
+					$ $SAFE_INSTALL $EXEC_INSTALL_MODE $BC_BIN
+					  @(path.join(bindir, BC_BIN));
+				}
+			}
+
+			if NLS_ENABLED != "0"
+			{
+				locale_install_args: []str =
+				if sym(config["locales"]) == @all
+				{
+					@[ "-l" ];
+				};
+
+				if DESTDIR != ""
+				{
+					$ @(path.join(src_dir, "scripts/locale_install.sh"))
+					  %(locale_install_args) @(str(config["nlspath"]))
+					  $MAINEXEC $DESTDIR;
+				}
+				else
+				{
+					$ @(path.join(src_dir, "scripts/locale_install.sh"))
+					  %(locale_install_args) @(str(config["nlspath"]))
+					  $MAINEXEC;
+				}
+			}
+
+			if bool(config["install_manpages"])
+			{
+				man1dir: str = get_man1dir();
+
+				if BC_ENABLED != "0"
+				{
+					$ rm -rf @(path.join(man1dir, BC_MANPAGE));
+				}
+
+				if DC_ENABLED != "0"
+				{
+					$ rm -rf @(path.join(man1dir, DC_MANPAGE));
+				}
+			}
+		}
+
+		target @uninstall
+		{
+			bindir: str = get_bindir();
+
+			if BC_ENABLED != "0"
+			{
+				$ rm -rf @(path.join(bindir, BC_BIN));
+			}
+
+			if DC_ENABLED != "0"
+			{
+				$ rm -rf @(path.join(bindir, DC_BIN));
+			}
+
+			if NLS_ENABLED != "0"
+			{
+				if DESTDIR != ""
+				{
+					$ @(path.join(src_dir, "scripts/locale_uninstall.sh"))
+					  @(str(config["nlspath"])) $MAINEXEC $DESTDIR;
+				}
+				else
+				{
+					$ @(path.join(src_dir, "scripts/locale_uninstall.sh"))
+					  @(str(config["nlspath"])) $MAINEXEC;
+				}
+			}
+
+			if bool(config["install_manpages"])
+			{
+				man1dir: str = get_man1dir();
+				$ rm -rf @(path.join(man1dir, BC_MANPAGE))
+				  @(path.join(man1dir, DC_MANPAGE));
+			}
+		}
+	}
+	else
+	{
+		target @install: targets, BCL_HEADER_PATH
+		{
+			full_libdir: str = get_libdir();
+
+			$ $SAFE_INSTALL $EXEC_INSTALL_MODE @(file_dep)
+			  @(path.join(full_libdir, file_dep));
+
+			full_pc_path: str = get_pc_path();
+			bcl_pc: str = file_deps[1];
+
+			$ $SAFE_INSTALL $MANPAGE_INSTALL_MODE $bcl_pc
+			  @(path.join(full_pc_path, bcl_pc));
+
+			full_includedir: str = get_includedir();
+
+			$ $SAFE_INSTALL $MANPAGE_INSTALL_MODE @(file_deps[2])
+			  @(path.join(full_includedir, BCL_HEADER));
+
+			if bool(config["install_manpages"])
+			{
+				$ $SAFE_INSTALL $MANPAGE_INSTALL_MODE
+				  @(path.join(src_dir, path.join("manuals", BCL_MANPAGE)))
+				  @(path.join(get_man3dir(), BCL_MANPAGE));
+			}
+		}
+
+		target @uninstall
+		{
+			$ rm -rf @(path.join(get_libdir(), LIBRARY))
+			  @(path.join(get_pc_path(), PC_FILE))
+			  @(path.join(get_includedir(), BCL_HEADER));
+
+			if bool(config["install_manpages"])
+			{
+				$ rm -rf @(path.join(get_man3dir(), BCL_MANPAGE));
+			}
+		}
+	}
+}
+
+// If the platform matches the host, we can run the test suite.
+if platform == host
+{
+	// If we have the library, build and run that test.
+	if BUILD_MODE == @library
+	{
+		libtesto: str = c2o("tests/bcl.c");
+
+		libtest: str = "bcl";
+
+		exe(libtest, @[ libtesto, targets[0] ]);
+
+		test @bcl: libtest
+		{
+			$ @(str(tgt_name));
+		}
+	}
+	else
+	{
+		if BUILD_MODE != @dc
+		{
+			exe_tests("bc");
+		}
+
+		if BUILD_MODE != @bc
+		{
+			exe_tests("dc");
+		}
+
+		target @clean_tests
+		{
+			for f: path.find_ext(build_dir, "txt")
+			{
+				path.rm(f);
+			}
+		}
+	}
+}
+
+target "bitfuncgen"
+{
+	error("TODO: Make this");
+}
+
+target @bitfuncgen: "bitfuncgen"
+{
+	error("TODO: Make this");
+}
+
+target "ministat"
+{
+	error("TODO: Make this");
+}
+
+target @ministat: "ministat"
+{
+	error("TODO: Make this");
+}
+
+target @all: targets;

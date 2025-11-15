@@ -26,16 +26,16 @@
 
 #include "lprefix.h"
 
-
 #include <stddef.h>
+#include <stdlib.h>
 
 #include "lua.h"
 
 #include "lualib.h"
 #include "lauxlib.h"
-#include "lfs.h"
 #include "lposix.h"
-#include "lfbsd.h"
+
+#include "bootstrap.h"
 
 /*
 ** these libs are loaded by lua.c and are readily available to any Lua
@@ -56,11 +56,31 @@ static const luaL_Reg loadedlibs[] = {
   {LUA_BITLIBNAME, luaopen_bit32},
 #endif
   /* FreeBSD Extensions */
-  {"lfs", luaopen_lfs},
   {"posix", luaopen_posix},
-  {"fbsd", luaopen_fbsd},
   {NULL, NULL}
 };
+
+#ifdef BOOTSTRAPPING
+static void __attribute__((constructor)) flua_init_env(void) {
+  /*
+   * This happens in the middle of luaopen_package().  We could move it into
+   * flua_setup_mods(), but it seems better to avoid its timing being so
+   * important that it would break some of our bootstrap modules if someone
+   * were to reorder things.
+   */
+  if (getenv("LUA_PATH") == NULL)
+    setenv("LUA_PATH", BOOTSTRAP_FLUA_PATH, 1);
+}
+
+static void flua_setup_mods (lua_State *L) {
+  const luaL_Reg **flib;
+
+  SET_FOREACH(flib, FLUA_MODULE_SETNAME) {
+    luaL_requiref(L, (*flib)->name, (*flib)->func, 1);
+    lua_pop(L, 1);  /* remove lib */
+  }
+};
+#endif
 
 LUALIB_API void luaL_openlibs (lua_State *L) {
   const luaL_Reg *lib;
@@ -69,4 +89,7 @@ LUALIB_API void luaL_openlibs (lua_State *L) {
     luaL_requiref(L, lib->name, lib->func, 1);
     lua_pop(L, 1);  /* remove lib */
   }
+#ifdef BOOTSTRAPPING
+  flua_setup_mods(L);
+#endif
 }

@@ -1,4 +1,35 @@
-comment = "System Accounting Utilities"
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+comment = "System resource accounting"
+
 desc = <<EOD
-System Accounting Utilities
+System accounting monitors the system resources used by logged in users.  The
+accounting data is summarised daily and can be viewed using sa(8).  A monthly
+periodic(8) script is also provided which includes basic login time accounting
+in the monthly system status report.
+
+System accounting tracks programs executed by each user, and provides the
+lastcomm(1) command to view this information.  However, system accounting
+is not intended as a security auditing mechanism; use the OpenBSM auditing
+system provided in the $PKG_NAME_PREFIX-audit package for that.
 EOD
+
+annotations {
+	set = "optional,optional-jail"
+}

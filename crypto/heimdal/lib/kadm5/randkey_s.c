@@ -59,6 +59,10 @@ kadm5_s_randkey_principal(void *server_handle,
     if(ret)
 	goto out;
 
+    ret = hdb_add_current_keys_to_history(context->context, &ent.entry);
+    if (ret)
+        goto out2;
+
     ret = _kadm5_set_keys_randomly (context,
 				    &ent.entry,
 				    new_keys,

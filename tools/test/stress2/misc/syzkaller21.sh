@@ -398,6 +398,6 @@ if pgrep -q syzkaller21; then
 fi
 wait
 
-rm -rf /tmp/syzkaller21.*
+rm -rf /tmp/syzkaller21.* /tmp/syzkaller.*
 rm -f /tmp/syzkaller21
 exit 0

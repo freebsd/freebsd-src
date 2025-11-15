@@ -1,9 +1,6 @@
 SHLIB_NAME=	hash.so
 
-SRCS+=		lhash.c
-
-LIBADD+=	md
-
 MAN=	hash.3lua
 
+.include "Makefile.inc"
 .include <bsd.lib.mk>

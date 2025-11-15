@@ -301,7 +301,6 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 static void
 nvme_sim_poll(struct cam_sim *sim)
 {
-
 	nvme_ctrlr_poll(sim2ctrlr(sim));
 }
 
@@ -392,7 +391,7 @@ nvme_sim_controller_fail(void *ctrlr_arg)
 struct nvme_consumer *consumer_cookie;
 
 static void
-nvme_sim_init(void)
+nvme_sim_init(void *dummy __unused)
 {
 	if (nvme_use_nvd)
 		return;
@@ -405,7 +404,7 @@ SYSINIT(nvme_sim_register, SI_SUB_DRIVERS, SI_ORDER_ANY,
     nvme_sim_init, NULL);
 
 static void
-nvme_sim_uninit(void)
+nvme_sim_uninit(void *dummy __unused)
 {
 	if (nvme_use_nvd)
 		return;

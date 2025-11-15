@@ -460,7 +460,7 @@ xen_intr_handle_upcall(void *unused __unused)
 	return (FILTER_HANDLED);
 }
 
-static int
+static void
 xen_intr_init(void *dummy __unused)
 {
 	shared_info_t *s = HYPERVISOR_shared_info;
@@ -468,7 +468,7 @@ xen_intr_init(void *dummy __unused)
 	int i;
 
 	if (!xen_domain())
-		return (0);
+		return;
 
 	_Static_assert(is_valid_evtchn(0),
 	    "is_valid_evtchn(0) fails (unused by Xen, but valid by interface");
@@ -502,8 +502,6 @@ xen_intr_init(void *dummy __unused)
 
 	if (bootverbose)
 		printf("Xen interrupt system initialized\n");
-
-	return (0);
 }
 SYSINIT(xen_intr_init, SI_SUB_INTR, SI_ORDER_SECOND, xen_intr_init, NULL);
 

@@ -76,10 +76,6 @@
 #include <sys/mutex.h>
 #include <sys/condvar.h>
 
-#ifndef KOBJMETHOD_END
-#define KOBJMETHOD_END	{ NULL, NULL }
-#endif
-
 struct pcm_channel;
 struct pcm_feeder;
 struct snd_dbuf;
@@ -148,8 +144,6 @@ struct snd_mixer;
 #define RANGE(var, low, high) (var) = \
 	(((var)<(low))? (low) : ((var)>(high))? (high) : (var))
 
-#define DSP_DEFAULT_SPEED	8000
-
 extern int snd_unit;
 extern int snd_verbose;
 extern devclass_t pcm_devclass;
@@ -186,7 +180,6 @@ int sndstat_unregister(device_t dev);
 enum {
 	SCF_PCM,
 	SCF_MIDI,
-	SCF_SYNTH,
 };
 
 /*
@@ -258,108 +251,6 @@ int	sound_oss_card_info(oss_card_info *);
  * For PCM_[WAIT | ACQUIRE | RELEASE], be sure to surround these
  * with PCM_LOCK/UNLOCK() sequence, or I'll come to gnaw upon you!
  */
-#ifdef SND_DIAGNOSTIC
-#define PCM_WAIT(x)		do {					\
-	if (!PCM_LOCKOWNED(x))						\
-		panic("%s(%d): [PCM WAIT] Mutex not owned!",		\
-		    __func__, __LINE__);				\
-	while ((x)->flags & SD_F_BUSY) {				\
-		if (snd_verbose > 3)					\
-			device_printf((x)->dev,				\
-			    "%s(%d): [PCM WAIT] calling cv_wait().\n",	\
-			    __func__, __LINE__);			\
-		cv_wait(&(x)->cv, (x)->lock);				\
-	}								\
-} while (0)
-
-#define PCM_ACQUIRE(x)		do {					\
-	if (!PCM_LOCKOWNED(x))						\
-		panic("%s(%d): [PCM ACQUIRE] Mutex not owned!",		\
-		    __func__, __LINE__);				\
-	if ((x)->flags & SD_F_BUSY)					\
-		panic("%s(%d): [PCM ACQUIRE] "				\
-		    "Trying to acquire BUSY cv!", __func__, __LINE__);	\
-	(x)->flags |= SD_F_BUSY;					\
-} while (0)
-
-#define PCM_RELEASE(x)		do {					\
-	if (!PCM_LOCKOWNED(x))						\
-		panic("%s(%d): [PCM RELEASE] Mutex not owned!",		\
-		    __func__, __LINE__);				\
-	if ((x)->flags & SD_F_BUSY) {					\
-		(x)->flags &= ~SD_F_BUSY;				\
-		cv_broadcast(&(x)->cv);					\
-	} else								\
-		panic("%s(%d): [PCM RELEASE] Releasing non-BUSY cv!",	\
-		    __func__, __LINE__);				\
-} while (0)
-
-/* Quick version, for shorter path. */
-#define PCM_ACQUIRE_QUICK(x)	do {					\
-	if (PCM_LOCKOWNED(x))						\
-		panic("%s(%d): [PCM ACQUIRE QUICK] Mutex owned!",	\
-		    __func__, __LINE__);				\
-	PCM_LOCK(x);							\
-	PCM_WAIT(x);							\
-	PCM_ACQUIRE(x);							\
-	PCM_UNLOCK(x);							\
-} while (0)
-
-#define PCM_RELEASE_QUICK(x)	do {					\
-	if (PCM_LOCKOWNED(x))						\
-		panic("%s(%d): [PCM RELEASE QUICK] Mutex owned!",	\
-		    __func__, __LINE__);				\
-	PCM_LOCK(x);							\
-	PCM_RELEASE(x);							\
-	PCM_UNLOCK(x);							\
-} while (0)
-
-#define PCM_BUSYASSERT(x)	do {					\
-	if (!((x) != NULL && ((x)->flags & SD_F_BUSY)))			\
-		panic("%s(%d): [PCM BUSYASSERT] "			\
-		    "Failed, snddev_info=%p", __func__, __LINE__, x);	\
-} while (0)
-
-#define PCM_GIANT_ENTER(x)	do {					\
-	int _pcm_giant = 0;						\
-	if (PCM_LOCKOWNED(x))						\
-		panic("%s(%d): [GIANT ENTER] PCM lock owned!",		\
-		    __func__, __LINE__);				\
-	if (mtx_owned(&Giant) != 0 && snd_verbose > 3)			\
-		device_printf((x)->dev,					\
-		    "%s(%d): [GIANT ENTER] Giant owned!\n",		\
-		    __func__, __LINE__);				\
-	if (!((x)->flags & SD_F_MPSAFE) && mtx_owned(&Giant) == 0)	\
-		do {							\
-			mtx_lock(&Giant);				\
-			_pcm_giant = 1;					\
-		} while (0)
-
-#define PCM_GIANT_EXIT(x)	do {					\
-	if (PCM_LOCKOWNED(x))						\
-		panic("%s(%d): [GIANT EXIT] PCM lock owned!",		\
-		    __func__, __LINE__);				\
-	if (!(_pcm_giant == 0 || _pcm_giant == 1))			\
-		panic("%s(%d): [GIANT EXIT] _pcm_giant screwed!",	\
-		    __func__, __LINE__);				\
-	if ((x)->flags & SD_F_MPSAFE) {					\
-		if (_pcm_giant == 1)					\
-			panic("%s(%d): [GIANT EXIT] MPSAFE Giant?",	\
-			    __func__, __LINE__);			\
-		if (mtx_owned(&Giant) != 0 && snd_verbose > 3)		\
-			device_printf((x)->dev,				\
-			    "%s(%d): [GIANT EXIT] Giant owned!\n",	\
-			    __func__, __LINE__);			\
-	}								\
-	if (_pcm_giant != 0) {						\
-		if (mtx_owned(&Giant) == 0)				\
-			panic("%s(%d): [GIANT EXIT] Giant not owned!",	\
-			    __func__, __LINE__);			\
-		_pcm_giant = 0;						\
-		mtx_unlock(&Giant);					\
-	}								\
-} while (0)
-#else /* !SND_DIAGNOSTIC */
 #define PCM_WAIT(x)		do {					\
 	PCM_LOCKASSERT(x);						\
 	while ((x)->flags & SD_F_BUSY)					\
@@ -429,7 +320,6 @@ int	sound_oss_card_info(oss_card_info *);
 		mtx_unlock(&Giant);					\
 	}								\
 } while (0)
-#endif /* SND_DIAGNOSTIC */
 
 #define PCM_GIANT_LEAVE(x)						\
 	PCM_GIANT_EXIT(x);						\

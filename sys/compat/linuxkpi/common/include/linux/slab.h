@@ -40,8 +40,10 @@
 #include <linux/compat.h>
 #include <linux/types.h>
 #include <linux/gfp.h>
+#include <linux/err.h>
 #include <linux/llist.h>
 #include <linux/overflow.h>
+#include <linux/cleanup.h>
 
 MALLOC_DECLARE(M_KMALLOC);
 
@@ -99,6 +101,7 @@ void lkpi_kmem_cache_free(struct linux_kmem_cache *, void *);
 void linux_kmem_cache_destroy(struct linux_kmem_cache *);
 
 void *lkpi_kmalloc(size_t, gfp_t);
+void *lkpi_kvmalloc(size_t, gfp_t);
 void *lkpi___kmalloc(size_t, gfp_t);
 void *lkpi___kmalloc_node(size_t, gfp_t, int);
 void *lkpi_krealloc(void *, size_t, gfp_t);
@@ -151,6 +154,8 @@ kfree(const void *ptr)
 {
 	lkpi_kfree(ptr);
 }
+
+DEFINE_FREE(kfree, void *, if (!IS_ERR_OR_NULL(_T)) kfree(_T))
 
 /*
  * Other k*alloc() funtions using the above as underlying allocator.
@@ -225,7 +230,7 @@ vmalloc_32(size_t size)
 static inline void *
 kvmalloc(size_t size, gfp_t flags)
 {
-	return (malloc(size, M_KMALLOC, linux_check_m_flags(flags)));
+	return (lkpi_kvmalloc(size, flags));
 }
 
 static inline void *

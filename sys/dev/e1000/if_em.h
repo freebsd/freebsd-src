@@ -370,6 +370,19 @@
 #define EM_NVM_MSIX_N_MASK	(0x7 << EM_NVM_MSIX_N_SHIFT)
 #define EM_NVM_MSIX_N_SHIFT	7
 
+/*
+ * VFs use 32-bit counter that rolls over.
+ */
+#define UPDATE_VF_REG(reg, last, cur)		\
+do {						\
+	u32 new = E1000_READ_REG(&sc->hw, reg);	\
+	if (new < last)				\
+		cur += 0x100000000LL;		\
+	last = new;				\
+	cur &= 0xFFFFFFFF00000000LL;		\
+	cur |= new;				\
+} while (0)
+
 struct e1000_softc;
 
 struct em_int_delay_info {
@@ -546,7 +559,11 @@ struct e1000_softc {
 	unsigned long		rx_overruns;
 	unsigned long		watchdog_events;
 
-	struct e1000_hw_stats	stats;
+	union {
+		struct e1000_hw_stats	stats;		/* !sc->vf_ifp */
+		struct e1000_vf_stats	vf_stats;	/* sc->vf_ifp */
+	} ustats;
+
 	u16			vf_ifp;
 };
 

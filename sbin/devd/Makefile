@@ -32,6 +32,11 @@ CONSOLEDIR=		${DEVDDIR}
 CONSOLE+=		moused.conf syscons.conf
 CONSOLEPACKAGE=		console-tools
 
+CONFGROUPS+=		SND
+SNDDIR=			${DEVDDIR}
+SND=			snd.conf
+SNDPACKAGE=		sound
+
 .if ${MK_BLUETOOTH} != "no"
 CONFGROUPS+=		BLUETOOTH
 BLUETOOTHDIR=		${DEVDDIR}

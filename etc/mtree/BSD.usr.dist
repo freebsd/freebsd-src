@@ -6,33 +6,35 @@
 .
     bin
     ..
-    include
-        private
-            bsddialog
+    include                   tags=package=clibs-dev
+        private               tags=package=clibs-dev
+            bsddialog         tags=package=utilities-dev
             ..
-            bsdstat
+            bsdstat           tags=package=libbsdstat-dev
             ..
-            event1
+            event1            tags=package=libevent1-dev
             ..
-            gmock
-                internal
-                    custom
+            gmock             tags=package=utilities-dev
+                internal      tags=package=utilities-dev
+                    custom    tags=package=utilities-dev
                     ..
                 ..
             ..
-            gtest
-                internal
-                    custom
+            gtest             tags=package=utilities-dev
+                internal      tags=package=utilities-dev
+                    custom    tags=package=utilities-dev
                     ..
                 ..
             ..
-            sqlite3
+            samplerate        tags=package=sound-dev
             ..
-            ucl
+            sqlite3           tags=package=libsqlite3-dev
             ..
-            yaml
+            ucl               tags=package=libucl-dev
             ..
-            zstd
+            yaml              tags=package=libyaml-dev
+            ..
+            zstd              tags=package=runtime-dev
             ..
         ..
     ..
@@ -83,15 +85,15 @@
         ..
         i18n
         ..
-        krb5
-            kdb
+        krb5                    tags=package=kerberos-kdc
+            kdb                 tags=package=kerberos-kdc
             ..
-            plugins
-                kdb
+            plugins             tags=package=kerberos-kdc
+                kdb             tags=package=kerberos-kdc
                 ..
-                preauth
+                preauth         tags=package=kerberos-kdc
                 ..
-                tls
+                tls             tags=package=kerberos-kdc
                 ..
             ..
         ..
@@ -101,6 +103,8 @@
         ..
         ossl-modules
         ..
+	virtual_oss
+	..
     ..
     libdata
         ldscripts
@@ -177,8 +181,6 @@
         ..
         hyperv
         ..
-        kgdb
-        ..
         lpr
             ru
             ..
@@ -240,8 +242,8 @@
             ..
             legal
             ..
-            llvm
-                clang
+            llvm            tags=package=clang
+                clang       tags=package=clang
                 ..
             ..
             ncurses
@@ -267,7 +269,7 @@
         ..
         dtrace
         ..
-        et
+        et        tags=package=kerberos-dev
         ..
         examples
             BSD_daemon
@@ -285,8 +287,6 @@
             diskless
             ..
             dma
-            ..
-            drivers
             ..
             dwatch
             ..
@@ -473,6 +473,12 @@
         ..
         keys
             pkg
+                revoked         tags=package=runtime
+                ..
+                trusted         tags=package=runtime
+                ..
+            ..
+            pkgbase-15
                 revoked         tags=package=runtime
                 ..
                 trusted         tags=package=runtime
@@ -857,7 +863,7 @@
             scrnmaps
             ..
         ..
-        tabset
+        tabset                tags=package=ncurses-lib
         ..
         vi
             catalog

@@ -51,12 +51,8 @@ val_dup_name_args(
 
 
 OM_uint32 KRB5_CALLCONV
-gss_duplicate_name(minor_status,
-		src_name,
-		dest_name)
-OM_uint32 *minor_status;
-const gss_name_t src_name;
-gss_name_t *dest_name;
+gss_duplicate_name(OM_uint32 *minor_status, const gss_name_t src_name,
+		   gss_name_t *dest_name)
 {
 		gss_union_name_t src_union, dest_union;
 		OM_uint32 major_status = GSS_S_FAILURE;

@@ -113,7 +113,17 @@ struct uart_class uart_snps_class = {
 	.uc_rclk = 0,
 };
 
+struct uart_class uart_snps_jh7110_class = {
+	"snps",
+	snps_methods,
+	sizeof(struct snps_softc),
+	.uc_ops = &uart_ns8250_ops,
+	.uc_range = 8,
+	.uc_rclk = 24000000,
+};
+
 static struct ofw_compat_data compat_data[] = {
+	{ "starfive,jh7110-uart",	(uintptr_t)&uart_snps_jh7110_class },
 	{ "snps,dw-apb-uart",		(uintptr_t)&uart_snps_class },
 	{ "marvell,armada-38x-uart",	(uintptr_t)&uart_snps_class },
 	{ NULL,				(uintptr_t)NULL }

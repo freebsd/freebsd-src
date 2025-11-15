@@ -508,21 +508,21 @@ eschan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 			es_wr(es, ES1370_REG_MEMPAGE,
 			    ES1370_REG_DAC1_FRAMEADR >> 8, 1);
 			es_wr(es, ES1370_REG_DAC1_FRAMEADR & 0xff,
-			    sndbuf_getbufaddr(ch->buffer), 4);
+			    ch->buffer->buf_addr, 4);
 			es_wr(es, ES1370_REG_DAC1_FRAMECNT & 0xff,
 			    (ch->bufsz >> 2) - 1, 4);
 		} else {
 			es_wr(es, ES1370_REG_MEMPAGE,
 			    ES1370_REG_DAC2_FRAMEADR >> 8, 1);
 			es_wr(es, ES1370_REG_DAC2_FRAMEADR & 0xff,
-			    sndbuf_getbufaddr(ch->buffer), 4);
+			    ch->buffer->buf_addr, 4);
 			es_wr(es, ES1370_REG_DAC2_FRAMECNT & 0xff,
 			    (ch->bufsz >> 2) - 1, 4);
 		}
 	} else {
 		es_wr(es, ES1370_REG_MEMPAGE, ES1370_REG_ADC_FRAMEADR >> 8, 1);
 		es_wr(es, ES1370_REG_ADC_FRAMEADR & 0xff,
-		    sndbuf_getbufaddr(ch->buffer), 4);
+		    ch->buffer->buf_addr, 4);
 		es_wr(es, ES1370_REG_ADC_FRAMECNT & 0xff,
 		    (ch->bufsz >> 2) - 1, 4);
 	}
@@ -637,8 +637,8 @@ eschan_setfragments(kobj_t obj, void *data, uint32_t blksz, uint32_t blkcnt)
 
 	blksz &= ES_BLK_ALIGN;
 
-	if (blksz > (sndbuf_getmaxsize(ch->buffer) / ES_DMA_SEGS_MIN))
-		blksz = sndbuf_getmaxsize(ch->buffer) / ES_DMA_SEGS_MIN;
+	if (blksz > (ch->buffer->maxsize / ES_DMA_SEGS_MIN))
+		blksz = ch->buffer->maxsize / ES_DMA_SEGS_MIN;
 	if (blksz < ES_BLK_MIN)
 		blksz = ES_BLK_MIN;
 	if (blkcnt > ES_DMA_SEGS_MAX)
@@ -646,7 +646,7 @@ eschan_setfragments(kobj_t obj, void *data, uint32_t blksz, uint32_t blkcnt)
 	if (blkcnt < ES_DMA_SEGS_MIN)
 		blkcnt = ES_DMA_SEGS_MIN;
 
-	while ((blksz * blkcnt) > sndbuf_getmaxsize(ch->buffer)) {
+	while ((blksz * blkcnt) > ch->buffer->maxsize) {
 		if ((blkcnt >> 1) >= ES_DMA_SEGS_MIN)
 			blkcnt >>= 1;
 		else if ((blksz >> 1) >= ES_BLK_MIN)
@@ -655,15 +655,15 @@ eschan_setfragments(kobj_t obj, void *data, uint32_t blksz, uint32_t blkcnt)
 			break;
 	}
 
-	if ((sndbuf_getblksz(ch->buffer) != blksz ||
-	    sndbuf_getblkcnt(ch->buffer) != blkcnt) &&
+	if ((ch->buffer->blksz != blksz ||
+	    ch->buffer->blkcnt != blkcnt) &&
 	    sndbuf_resize(ch->buffer, blkcnt, blksz) != 0)
 		device_printf(es->dev, "%s: failed blksz=%u blkcnt=%u\n",
 		    __func__, blksz, blkcnt);
 
-	ch->bufsz = sndbuf_getsize(ch->buffer);
-	ch->blksz = sndbuf_getblksz(ch->buffer);
-	ch->blkcnt = sndbuf_getblkcnt(ch->buffer);
+	ch->bufsz = ch->buffer->bufsize;
+	ch->blksz = ch->buffer->blksz;
+	ch->blkcnt = ch->buffer->blkcnt;
 
 	return (0);
 }
@@ -762,7 +762,7 @@ eschan_trigger(kobj_t obj, void *data, int go)
 		return 0;
 
 	ES_LOCK(es);
-	cnt = (ch->blksz / sndbuf_getalign(ch->buffer)) - 1;
+	cnt = (ch->blksz / ch->buffer->align) - 1;
 	if (ch->fmt & AFMT_16BIT)
 		b |= 0x02;
 	if (AFMT_CHANNEL(ch->fmt) > 1)
@@ -987,7 +987,7 @@ es1370_init(struct es_info *es)
 		es->escfg = ES_SET_FIXED_RATE(es->escfg, fixed_rate);
 	else {
 		es->escfg = ES_SET_FIXED_RATE(es->escfg, 0);
-		fixed_rate = DSP_DEFAULT_SPEED;
+		fixed_rate = 8000;
 	}
 	if (single_pcm)
 		es->escfg = ES_SET_SINGLE_PCM_MIX(es->escfg, 1);

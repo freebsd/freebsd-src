@@ -416,6 +416,12 @@ nvmf_destroy_qp(struct nvmf_host_qpair *qp)
 	free(qp, M_NVMF);
 }
 
+uint64_t
+nvmf_max_xfer_size_qp(struct nvmf_host_qpair *qp)
+{
+	return (nvmf_max_xfer_size(qp->qp));
+}
+
 void
 nvmf_submit_request(struct nvmf_request *req)
 {

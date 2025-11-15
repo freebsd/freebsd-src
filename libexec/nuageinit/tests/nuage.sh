@@ -1,5 +1,6 @@
 #-
 # Copyright (c) 2022-2025 Baptiste Daroussin <bapt@FreeBSD.org>
+# Copyright (c) 2025 Jesús Daniel Colmenares Oviedo <dtxdf@FreeBSD.org>
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -7,11 +8,20 @@
 export NUAGE_FAKE_ROOTDIR="$PWD"
 
 atf_test_case sethostname
+atf_test_case settimezone
 atf_test_case addsshkey
 atf_test_case adduser
 atf_test_case adduser_passwd
 atf_test_case addgroup
 atf_test_case addfile
+
+settimezone_body()
+{
+	atf_check /usr/libexec/flua $(atf_get_srcdir)/settimezone.lua
+	if [ ! -f etc/localtime ]; then
+		atf_fail "localtime not written"
+	fi
+}
 
 sethostname_body()
 {

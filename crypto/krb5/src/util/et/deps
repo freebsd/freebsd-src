@@ -11,3 +11,7 @@ et_name.so et_name.po $(OUTPRE)et_name.$(OBJEXT): $(BUILDTOP)/include/autoconf.h
 com_err.so com_err.po $(OUTPRE)com_err.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
   $(top_srcdir)/include/k5-thread.h com_err.c com_err.h \
   error_table.h
+t_com_err.so t_com_err.po $(OUTPRE)t_com_err.$(OBJEXT): \
+  $(COM_ERR_DEPS) com_err.h et1.h et2.h t_com_err.c
+test_et.so test_et.po $(OUTPRE)test_et.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(COM_ERR_DEPS) com_err.h test1.h test2.h test_et.c

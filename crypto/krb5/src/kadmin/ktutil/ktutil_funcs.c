@@ -37,9 +37,8 @@
 /*
  * Free a kt_list
  */
-krb5_error_code ktutil_free_kt_list(context, list)
-    krb5_context context;
-    krb5_kt_list list;
+krb5_error_code
+ktutil_free_kt_list(krb5_context context, krb5_kt_list list)
 {
     krb5_kt_list lp, prev;
     krb5_error_code retval = 0;
@@ -60,10 +59,8 @@ krb5_error_code ktutil_free_kt_list(context, list)
  * Delete a numbered entry in a kt_list.  Takes a pointer to a kt_list
  * in case head gets deleted.
  */
-krb5_error_code ktutil_delete(context, list, idx)
-    krb5_context context;
-    krb5_kt_list *list;
-    int idx;
+krb5_error_code
+ktutil_delete(krb5_context context, krb5_kt_list *list, int idx)
 {
     krb5_kt_list lp, prev;
     int i;
@@ -138,16 +135,10 @@ get_etype_info(krb5_context context, krb5_principal princ, int fetch,
  * password or key.  If the keytab list is NULL, allocate a new
  * one first.
  */
-krb5_error_code ktutil_add(context, list, princ_str, fetch, kvno,
-                           enctype_str, use_pass, salt_str)
-    krb5_context context;
-    krb5_kt_list *list;
-    char *princ_str;
-    int fetch;
-    krb5_kvno kvno;
-    char *enctype_str;
-    int use_pass;
-    char *salt_str;
+krb5_error_code
+ktutil_add(krb5_context context, krb5_kt_list *list, char *princ_str,
+           int fetch, krb5_kvno kvno, char *enctype_str, int use_pass,
+           char *salt_str)
 {
     krb5_keytab_entry *entry = NULL;
     krb5_kt_list lp, *last;
@@ -269,10 +260,8 @@ cleanup:
  * Read in a keytab and append it to list.  If list starts as NULL,
  * allocate a new one if necessary.
  */
-krb5_error_code ktutil_read_keytab(context, name, list)
-    krb5_context context;
-    char *name;
-    krb5_kt_list *list;
+krb5_error_code
+ktutil_read_keytab(krb5_context context, char *name, krb5_kt_list *list)
 {
     krb5_kt_list lp = NULL, tail = NULL, back = NULL;
     krb5_keytab kt;
@@ -344,10 +333,8 @@ close_kt:
 /*
  * Takes a kt_list and writes it to the named keytab.
  */
-krb5_error_code ktutil_write_keytab(context, list, name)
-    krb5_context context;
-    krb5_kt_list list;
-    char *name;
+krb5_error_code
+ktutil_write_keytab(krb5_context context, krb5_kt_list list, char *name)
 {
     krb5_kt_list lp;
     krb5_keytab kt;

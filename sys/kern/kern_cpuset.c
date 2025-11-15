@@ -530,7 +530,7 @@ _domainset_create(struct domainset *domain, struct domainlist *freelist)
  * remove them and update the domainset accordingly.  If only empty
  * domains are present, we must return failure.
  */
-static bool
+bool
 domainset_empty_vm(struct domainset *domain)
 {
 	domainset_t empty;
@@ -2409,6 +2409,59 @@ sys_cpuset_setdomain(struct thread *td, struct cpuset_setdomain_args *uap)
 }
 
 int
+domainset_populate(struct domainset *domain, const domainset_t *mask, int policy,
+    size_t mask_size)
+{
+
+	if (policy <= DOMAINSET_POLICY_INVALID ||
+	    policy > DOMAINSET_POLICY_MAX) {
+		return (EINVAL);
+	}
+
+	/*
+	 * Verify that no high bits are set.
+	 */
+	if (mask_size > sizeof(domainset_t)) {
+		const char *end;
+		const char *cp;
+
+		end = cp = (const char *)&mask->__bits;
+		end += mask_size;
+		cp += sizeof(domainset_t);
+		while (cp != end) {
+			if (*cp++ != 0) {
+				return (EINVAL);
+			}
+		}
+	}
+	if (DOMAINSET_EMPTY(mask)) {
+		return (EDEADLK);
+	}
+	DOMAINSET_COPY(mask, &domain->ds_mask);
+	domain->ds_policy = policy;
+
+	/*
+	 * Sanitize the provided mask.
+	 */
+	if (!DOMAINSET_SUBSET(&all_domains, &domain->ds_mask)) {
+		return (EINVAL);
+	}
+
+	/* Translate preferred policy into a mask and fallback. */
+	if (policy == DOMAINSET_POLICY_PREFER) {
+		/* Only support a single preferred domain. */
+		if (DOMAINSET_COUNT(&domain->ds_mask) != 1) {
+			return (EINVAL);
+		}
+		domain->ds_prefer = DOMAINSET_FFS(&domain->ds_mask) - 1;
+		/* This will be constrained by domainset_shadow(). */
+		DOMAINSET_COPY(&all_domains, &domain->ds_mask);
+	}
+
+	return (0);
+}
+
+int
 kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
     id_t id, size_t domainsetsize, const domainset_t *maskp, int policy,
     const struct cpuset_copy_cb *cb)
@@ -2421,62 +2474,20 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	domainset_t *mask;
 	int error;
 
-	if (domainsetsize < sizeof(domainset_t) ||
-	    domainsetsize > DOMAINSET_MAXSIZE / NBBY)
-		return (ERANGE);
-	if (policy <= DOMAINSET_POLICY_INVALID ||
-	    policy > DOMAINSET_POLICY_MAX)
-		return (EINVAL);
 	error = cpuset_check_capabilities(td, level, which, id);
 	if (error != 0)
 		return (error);
+	if (domainsetsize < sizeof(domainset_t) ||
+	    domainsetsize > DOMAINSET_MAXSIZE / NBBY)
+		return (ERANGE);
 	memset(&domain, 0, sizeof(domain));
 	mask = malloc(domainsetsize, M_TEMP, M_WAITOK | M_ZERO);
 	error = cb->cpuset_copyin(maskp, mask, domainsetsize);
 	if (error)
 		goto out;
-	/*
-	 * Verify that no high bits are set.
-	 */
-	if (domainsetsize > sizeof(domainset_t)) {
-		char *end;
-		char *cp;
-
-		end = cp = (char *)&mask->__bits;
-		end += domainsetsize;
-		cp += sizeof(domainset_t);
-		while (cp != end)
-			if (*cp++ != 0) {
-				error = EINVAL;
-				goto out;
-			}
-	}
-	if (DOMAINSET_EMPTY(mask)) {
-		error = EDEADLK;
+	error = domainset_populate(&domain, mask, policy, domainsetsize);
+	if (error)
 		goto out;
-	}
-	DOMAINSET_COPY(mask, &domain.ds_mask);
-	domain.ds_policy = policy;
-
-	/*
-	 * Sanitize the provided mask.
-	 */
-	if (!DOMAINSET_SUBSET(&all_domains, &domain.ds_mask)) {
-		error = EINVAL;
-		goto out;
-	}
-
-	/* Translate preferred policy into a mask and fallback. */
-	if (policy == DOMAINSET_POLICY_PREFER) {
-		/* Only support a single preferred domain. */
-		if (DOMAINSET_COUNT(&domain.ds_mask) != 1) {
-			error = EINVAL;
-			goto out;
-		}
-		domain.ds_prefer = DOMAINSET_FFS(&domain.ds_mask) - 1;
-		/* This will be constrained by domainset_shadow(). */
-		DOMAINSET_COPY(&all_domains, &domain.ds_mask);
-	}
 
 	/*
 	 * When given an impossible policy, fall back to interleaving
@@ -2484,7 +2495,6 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	 */
 	if (domainset_empty_vm(&domain))
 		domainset_copy(domainset2, &domain);
-
 	switch (level) {
 	case CPU_LEVEL_ROOT:
 	case CPU_LEVEL_CPUSET:

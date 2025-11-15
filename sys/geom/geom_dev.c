@@ -82,6 +82,7 @@ static const struct filterops gdev_filterops_vnode = {
 	.f_isfd = 1,
 	.f_detach = gdev_filter_detach,
 	.f_event = gdev_filter_vnode,
+	.f_copy = knote_triv_copy,
 };
 
 static struct cdevsw g_dev_cdevsw = {
@@ -355,7 +356,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
-	gp = g_new_geomf(mp, "%s", pp->name);
+	gp = g_new_geom(mp, pp->name);
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	mtx_init(&sc->sc_mtx, "g_dev", NULL, MTX_DEF);
 	cp = g_new_consumer(gp);
@@ -733,6 +734,10 @@ g_dev_done(struct bio *bp2)
 		g_trace(G_T_BIO, "g_dev_done(%p) had error %d",
 		    bp2, bp2->bio_error);
 		bp->bio_flags |= BIO_ERROR;
+		if ((bp2->bio_flags & BIO_EXTERR) != 0) {
+			bp->bio_flags |= BIO_EXTERR;
+			bp->bio_exterr = bp2->bio_exterr;
+		}
 	} else {
 		if (bp->bio_cmd == BIO_READ)
 			KNOTE_UNLOCKED(&sc->sc_selinfo.si_note, NOTE_READ);

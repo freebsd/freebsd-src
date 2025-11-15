@@ -55,6 +55,10 @@
 #include <histedit.h>
 #include <pthread.h>
 #endif
+#ifdef JAIL
+#include <sys/jail.h>
+#include <jail.h>
+#endif
 
 #include <netgraph.h>
 
@@ -137,16 +141,19 @@ int	csock, dsock;
 int
 main(int ac, char *av[])
 {
-	char	name[NG_NODESIZ];
-	int	interactive = isatty(0) && isatty(1);
-	FILE	*fp = NULL;
-	int	ch, rtn = 0;
+	char		name[NG_NODESIZ];
+	int		interactive = isatty(0) && isatty(1);
+	FILE		*fp = NULL;
+#ifdef JAIL
+	const char	*jail_name = NULL;
+#endif
+	int		ch, rtn = 0;
 
 	/* Set default node name */
 	snprintf(name, sizeof(name), "ngctl%d", getpid());
 
 	/* Parse command line */
-	while ((ch = getopt(ac, av, "df:n:")) != -1) {
+	while ((ch = getopt(ac, av, "df:j:n:")) != -1) {
 		switch (ch) {
 		case 'd':
 			NgSetDebug(NgSetDebug(-1) + 1);
@@ -156,6 +163,13 @@ main(int ac, char *av[])
 				fp = stdin;
 			else if ((fp = fopen(optarg, "r")) == NULL)
 				err(EX_NOINPUT, "%s", optarg);
+			break;
+		case 'j':
+#ifdef JAIL
+			jail_name = optarg;
+#else
+			errx(EX_UNAVAILABLE, "not built with jail support");
+#endif
 			break;
 		case 'n':
 			snprintf(name, sizeof(name), "%s", optarg);
@@ -168,6 +182,24 @@ main(int ac, char *av[])
 	}
 	ac -= optind;
 	av += optind;
+
+#ifdef JAIL
+	if (jail_name != NULL) {
+		int jid;
+
+		if (jail_name[0] == '\0')
+			Usage("invalid jail name");
+
+		jid = jail_getid(jail_name);
+
+		if (jid == -1)
+			errx((errno == EPERM) ? EX_NOPERM : EX_NOHOST,
+			    "%s", jail_errmsg);
+		if (jail_attach(jid) != 0)
+			errx((errno == EPERM) ? EX_NOPERM : EX_OSERR,
+			    "cannot attach to jail");
+	}
+#endif
 
 	/* Create a new socket node */
 	if (NgMkSockNode(name, &csock, &dsock) < 0)
@@ -657,6 +689,7 @@ Usage(const char *msg)
 	if (msg)
 		warnx("%s", msg);
 	fprintf(stderr,
-		"usage: ngctl [-d] [-f file] [-n name] [command ...]\n");
+		"usage: ngctl [-j jail] [-d] [-f filename] [-n nodename] "
+		"[command [argument ...]]\n");
 	exit(EX_USAGE);
 }

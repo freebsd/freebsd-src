@@ -28,6 +28,7 @@
 #include <sys/kmem.h>
 #include <sys/tsd.h>
 #include <sys/string.h>
+#include <sys/misc.h>
 
 /*
  * Thread interfaces
@@ -79,7 +80,7 @@ __thread_create(caddr_t stk, size_t  stksize, thread_func_t func,
 
 	/* Option pp is simply ignored */
 	/* Variable stack size unsupported */
-	ASSERT(stk == NULL);
+	ASSERT0P(stk);
 
 	tp = kmem_alloc(sizeof (thread_priv_t), KM_PUSHPAGE);
 	if (tp == NULL)
@@ -197,3 +198,14 @@ issig(void)
 }
 
 EXPORT_SYMBOL(issig);
+
+/*
+ * Check if the current thread is a memory reclaim thread.
+ * Returns true if current thread is kswapd.
+ */
+int
+current_is_reclaim_thread(void)
+{
+	return (current_is_kswapd());
+}
+EXPORT_SYMBOL(current_is_reclaim_thread);

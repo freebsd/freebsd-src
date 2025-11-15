@@ -492,24 +492,32 @@ UART_CLASS(uart_ns8250_class);
  * XXX -- refactor out ACPI and FDT ifdefs
  */
 #ifdef DEV_ACPI
+static struct acpi_spcr_compat_data acpi_spcr_compat_data[] = {
+	{ &uart_ns8250_class, ACPI_DBG2_16550_COMPATIBLE },
+	{ &uart_ns8250_class, ACPI_DBG2_16550_SUBSET },
+	{ &uart_ns8250_class, ACPI_DBG2_16550_WITH_GAS },
+	{ NULL, 0 },
+};
+UART_ACPI_SPCR_CLASS(acpi_spcr_compat_data);
+
 static struct acpi_uart_compat_data acpi_compat_data[] = {
-	{"AMD0020",	&uart_ns8250_class, 0, 2, 0, 48000000, UART_F_BUSY_DETECT, "AMD / Synopsys Designware UART"},
-	{"AMDI0020", &uart_ns8250_class, 0, 2, 0, 48000000, UART_F_BUSY_DETECT, "AMD / Synopsys Designware UART"},
-	{"APMC0D08", &uart_ns8250_class, ACPI_DBG2_16550_COMPATIBLE, 2, 4, 0, 0, "APM compatible UART"},
-	{"MRVL0001", &uart_ns8250_class, ACPI_DBG2_16550_SUBSET, 2, 0, 200000000, UART_F_BUSY_DETECT, "Marvell / Synopsys Designware UART"},
-	{"SCX0006",  &uart_ns8250_class, 0, 2, 0, 62500000, UART_F_BUSY_DETECT, "SynQuacer / Synopsys Designware UART"},
-	{"HISI0031", &uart_ns8250_class, 0, 2, 0, 200000000, UART_F_BUSY_DETECT, "HiSilicon / Synopsys Designware UART"},
-	{"INTC1006", &uart_ns8250_class, 0, 2, 0, 25000000, 0, "Intel ARM64 UART"},
-	{"NXP0018", &uart_ns8250_class, 0, 0, 0, 350000000, UART_F_BUSY_DETECT, "NXP / Synopsys Designware UART"},
-	{"PNP0500", &uart_ns8250_class, 0, 0, 0, 0, 0, "Standard PC COM port"},
-	{"PNP0501", &uart_ns8250_class, 0, 0, 0, 0, 0, "16550A-compatible COM port"},
-	{"PNP0502", &uart_ns8250_class, 0, 0, 0, 0, 0, "Multiport serial device (non-intelligent 16550)"},
-	{"PNP0510", &uart_ns8250_class, 0, 0, 0, 0, 0, "Generic IRDA-compatible device"},
-	{"PNP0511", &uart_ns8250_class, 0, 0, 0, 0, 0, "Generic IRDA-compatible device"},
-	{"WACF004", &uart_ns8250_class, 0, 0, 0, 0, 0, "Wacom Tablet PC Screen"},
-	{"WACF00E", &uart_ns8250_class, 0, 0, 0, 0, 0, "Wacom Tablet PC Screen 00e"},
-	{"FUJ02E5", &uart_ns8250_class, 0, 0, 0, 0, 0, "Wacom Tablet at FuS Lifebook T"},
-	{NULL, 			NULL, 0, 0 , 0, 0, 0, NULL},
+	{"AMD0020",	&uart_ns8250_class, 2, 0, 48000000, UART_F_BUSY_DETECT, "AMD / Synopsys Designware UART"},
+	{"AMDI0020", &uart_ns8250_class, 2, 0, 48000000, UART_F_BUSY_DETECT, "AMD / Synopsys Designware UART"},
+	{"APMC0D08", &uart_ns8250_class, 2, 4, 0, 0, "APM compatible UART"},
+	{"MRVL0001", &uart_ns8250_class, 2, 0, 200000000, UART_F_BUSY_DETECT, "Marvell / Synopsys Designware UART"},
+	{"SCX0006",  &uart_ns8250_class, 2, 0, 62500000, UART_F_BUSY_DETECT, "SynQuacer / Synopsys Designware UART"},
+	{"HISI0031", &uart_ns8250_class, 2, 0, 200000000, UART_F_BUSY_DETECT, "HiSilicon / Synopsys Designware UART"},
+	{"INTC1006", &uart_ns8250_class, 2, 0, 25000000, 0, "Intel ARM64 UART"},
+	{"NXP0018", &uart_ns8250_class, 0, 0, 350000000, UART_F_BUSY_DETECT, "NXP / Synopsys Designware UART"},
+	{"PNP0500", &uart_ns8250_class, 0, 0, 0, 0, "Standard PC COM port"},
+	{"PNP0501", &uart_ns8250_class, 0, 0, 0, 0, "16550A-compatible COM port"},
+	{"PNP0502", &uart_ns8250_class, 0, 0, 0, 0, "Multiport serial device (non-intelligent 16550)"},
+	{"PNP0510", &uart_ns8250_class, 0, 0, 0, 0, "Generic IRDA-compatible device"},
+	{"PNP0511", &uart_ns8250_class, 0, 0, 0, 0, "Generic IRDA-compatible device"},
+	{"WACF004", &uart_ns8250_class, 0, 0, 0, 0, "Wacom Tablet PC Screen"},
+	{"WACF00E", &uart_ns8250_class, 0, 0, 0, 0, "Wacom Tablet PC Screen 00e"},
+	{"FUJ02E5", &uart_ns8250_class, 0, 0, 0, 0, "Wacom Tablet at FuS Lifebook T"},
+	{NULL, 			NULL, 0 , 0, 0, 0, NULL},
 };
 UART_ACPI_CLASS_AND_DEVICE(acpi_compat_data);
 #endif

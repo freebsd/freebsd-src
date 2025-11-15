@@ -381,7 +381,7 @@ kadm5_ret_t    kadm5_chpass_principal(void *server_handle,
                                       char *pass);
 kadm5_ret_t    kadm5_chpass_principal_3(void *server_handle,
                                         krb5_principal principal,
-                                        krb5_boolean keepold,
+                                        unsigned int keepold,
                                         int n_ks_tuple,
                                         krb5_key_salt_tuple *ks_tuple,
                                         char *pass);
@@ -391,7 +391,7 @@ kadm5_ret_t    kadm5_randkey_principal(void *server_handle,
                                        int *n_keys);
 kadm5_ret_t    kadm5_randkey_principal_3(void *server_handle,
                                          krb5_principal principal,
-                                         krb5_boolean keepold,
+                                         unsigned int keepold,
                                          int n_ks_tuple,
                                          krb5_key_salt_tuple *ks_tuple,
                                          krb5_keyblock **keyblocks,
@@ -404,7 +404,7 @@ kadm5_ret_t    kadm5_setkey_principal(void *server_handle,
 
 kadm5_ret_t    kadm5_setkey_principal_3(void *server_handle,
                                         krb5_principal principal,
-                                        krb5_boolean keepold,
+                                        unsigned int keepold,
                                         int n_ks_tuple,
                                         krb5_key_salt_tuple *ks_tuple,
                                         krb5_keyblock *keyblocks,
@@ -412,7 +412,7 @@ kadm5_ret_t    kadm5_setkey_principal_3(void *server_handle,
 
 kadm5_ret_t    kadm5_setkey_principal_4(void *server_handle,
                                         krb5_principal principal,
-                                        krb5_boolean keepold,
+                                        unsigned int keepold,
                                         kadm5_key_data *key_data,
                                         int n_key_data);
 
@@ -494,6 +494,9 @@ kadm5_ret_t    kadm5_free_strings(void *server_handle,
 
 kadm5_ret_t    kadm5_free_kadm5_key_data(krb5_context context, int n_key_data,
                                          kadm5_key_data *key_data);
+
+kadm5_ret_t    kadm5_create_alias(void *server_handle, krb5_principal alias,
+                                  krb5_principal target);
 
 KADM5INT_END_DECLS
 

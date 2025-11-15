@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 26, 2013
+.Dd August 30, 2025
 .Dt SYSCONF 3
 .Os
 .Sh NAME
@@ -77,7 +77,9 @@ The maximum number of supplemental groups.
 .It Li _SC_NPROCESSORS_CONF
 The number of processors configured.
 .It Li _SC_NPROCESSORS_ONLN
-The number of processors currently online.
+The number of processors currently online, taking into account current jail
+restrictions to report only the number of processors that are usable to the
+process.
 .It Li _SC_OPEN_MAX
 One more than the maximum value the system may assign to a new file descriptor.
 .It Li _SC_PAGESIZE

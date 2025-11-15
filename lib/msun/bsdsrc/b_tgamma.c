@@ -259,7 +259,7 @@ small_gam(double x)
 static double
 smaller_gam(double x)
 {
-	double d, rhi, rlo, t, xhi, xlo;
+	double d, t, xhi, xlo;
 	struct Double r;
 
 	if (x < x0 + left) {

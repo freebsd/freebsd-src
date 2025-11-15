@@ -11,7 +11,7 @@
 static cc_result destroy_all_ccaches_v2(apiCB *context) {
     cc_result err = CC_NOERROR;
     infoNC **info = NULL;
-    int i = 0;
+    size_t i = 0;
 
     err = cc_get_NC_info(context, &info);
 

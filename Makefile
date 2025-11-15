@@ -175,7 +175,7 @@ TGTS=	all all-man buildenv buildenvvars buildetc buildkernel buildworld \
 	create-packages-world create-packages-kernel \
 	create-packages-kernel-repo create-packages-world-repo \
 	create-packages-source create-packages \
-	update-packages packages installconfig real-packages real-update-packages \
+	installconfig real-packages real-update-packages \
 	sign-packages package-pkg print-dir test-system-compiler test-system-linker \
 	test-includes
 
@@ -219,6 +219,8 @@ META_TGT_WHITELIST+=	build${libcompat}
 .ORDER: buildworld distribute
 .ORDER: buildworld distributeworld
 .ORDER: buildworld buildkernel
+.ORDER: buildworld packages
+.ORDER: buildworld update-packages
 .ORDER: distrib-dirs distribute
 .ORDER: distrib-dirs distributeworld
 .ORDER: distrib-dirs installworld
@@ -232,6 +234,8 @@ META_TGT_WHITELIST+=	build${libcompat}
 .ORDER: buildkernel installkernel.debug
 .ORDER: buildkernel reinstallkernel
 .ORDER: buildkernel reinstallkernel.debug
+.ORDER: buildkernel packages
+.ORDER: buildkernel update-packages
 .ORDER: kernel-toolchain buildkernel
 
 # Only sanitize PATH on FreeBSD.
@@ -516,6 +520,9 @@ kernels: .PHONY
 
 worlds: .PHONY
 	@cd ${.CURDIR}; ${SUB_MAKE} UNIVERSE_TARGET=buildworld universe
+
+packages update-packages: .PHONY
+	${_+_}@cd ${.CURDIR}; ${_MAKE} DISTDIR=/ ${.TARGET}
 
 #
 # universe

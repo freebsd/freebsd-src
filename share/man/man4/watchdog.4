@@ -41,24 +41,22 @@ The device
 supports several optional
 .Xr ioctl 2
 calls for configuration, and
-responds to a single operational
+responds to a set of operational
 .Xr ioctl 2
-call,
-.Dv WDIOCPATPAT .
-It takes a single argument which represents a timeout value specified as a
-power of two nanoseconds, or-ed with a flag selecting active or passive control
-of the watchdog.
+calls:
+.Bl -tag -width "WDIOC_CONTROL int  "
+.It Dv WDIOCPATPAT
+Pat the watchdog.
+.It Dv WDIOC_CONTROL
+Enable, disable, or reset the watchdog.
+.El
 .Pp
-.Dv WD_ACTIVE
-indicates that the
-.Nm
-will be kept from timing out from userland, for instance by the
-.Xr watchdogd 8
-daemon.
-.Dv WD_PASSIVE
-indicates that the
-.Nm
-will be kept from timing out from the kernel.
+The
+.Dv WDIOCPATPAT
+.Xr ioctl 2
+call takes a single argument which represents a timeout value specified as a
+.Vt sbintime_t
+of the timeout period for the watchdog.
 .Pp
 The
 .Dv WDIOCPATPAT
@@ -77,27 +75,43 @@ none of
 implementations support the timeout length, all watchdogs are disabled and must
 be explicitly re-enabled.
 .Pp
-To disable the watchdogs pass
-.Dv WD_TO_NEVER .
+To disable the watchdogs use the
+.Dv WDIOC_CONTROL
+.Xr ioctl 2
+call with the
+.Dv WD_CTRL_DISABLE
+flag.
 If disarming the watchdog(s) failed an error is returned.
 The watchdog might
 still be armed!
+To reenable the watchdogs use the
+.Dv WDIOC_CONTROL
+.Xr ioctl 2
+call with the
+.Dv WD_CTRL_ENABLE
+flag.
+Another way to pat the watchdog is with the
+.Dv WDIOC_CONTROL
+.Xr ioctl 2
+call passing the
+.Dv WDIOC_CTRL_RESET
+flag.
 .Pp
 The optional configuration
 .Xr ioctl 2
 commands are listed here, along with the type of the parameter used.
 Examples of their use can be found in
 .Xr watchdogd 8 .
-.Bl -tag -width "WDIOC_SETSOFTTIMEOUTACT int  "
-.It Dv WDIOC_SETTIMEOUT Fa int
+.Bl -tag -width "WDIOC_GETPRETTIMEOUT sbintime_t"
+.It Dv WDIOC_SETTIMEOUT Fa sbintime_t
 set/reset the timer
-.It Dv WDIOC_GETTIMEOUT Fa int
+.It Dv WDIOC_GETTIMEOUT Fa sbintime_t
 get total timeout
-.It Dv WDIOC_GETTIMELEFT Fa int
+.It Dv WDIOC_GETTIMELEFT Fa sbintime_t
 get time left
-.It Dv WDIOC_GETPRETIMEOUT Fa int
+.It Dv WDIOC_GETPRETIMEOUT Fa sbintime_t
 get the pre-timeout
-.It Dv WDIOC_SETPRETIMEOUT Fa int
+.It Dv WDIOC_SETPRETIMEOUT Fa sbintime_t
 set the pre-timeout
 .It Dv WDIOC_SETPRETIMEOUTACT Fa int
 Set the action when a pre-timeout occurs (see

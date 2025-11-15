@@ -19,14 +19,6 @@
 # If both WITH_FOO and WITHOUT_FOO are defined, WITHOUT_FOO wins and
 # MK_FOO is set to "no" regardless of which list it was in.
 #
-# All of __DEFAULT_YES_OPTIONS, __DEFAULT_NO_OPTIONS and
-# __DEFAULT_DEPENDENT_OPTIONS are undef'd after all this processing,
-# allowing this file to be included multiple times with different lists.
-#
-# Other parts of the build system will set BROKEN_OPTIONS to a list
-# of options that are broken on this platform. This will not be unset
-# before returning. Clients are expected to always += this variable.
-#
 # Users should generally define WITH_FOO or WITHOUT_FOO, but the build
 # system should use MK_FOO={yes,no} when it needs to override the
 # user's desires or default behavior.
@@ -35,11 +27,51 @@
 # defined and __FOO_DEFAULT if not.  Valid values for FOO are specified
 # by __FOO_OPTIONS.
 #
+# All of __REQUIRED_OPTIONS, __DEFAULT_DEPENDENT_OPTIONS,
+# __DEFAULT_YES_OPTIONS, __DEFAULT_NO_OPTIONS, and __SINGLE_OPTIONS
+# are undef'd after all this processing, allowing this file to be
+# included multiple times with different lists.  However, we keep
+# deduplicated lists of these options in similarly-named variables
+# without the leading underscores (i.e. FOO_OPTIONS is the complete
+# deduplicated list of all values of __FOO_OPTIONS across all
+# invokations of this file).
+#
+# Other parts of the build system will set BROKEN_OPTIONS to a list
+# of options that are broken on this platform. This will not be unset
+# before returning. Clients are expected to always += this variable.
+#
 # Other parts of the build system will set BROKEN_SINGLE_OPTIONS to a
 # list of 3-tuples of the form: "OPTION broken_value replacment_value".
 # This will not be unset before returning. Clients are expected to
 # always += this variable.
 #
+
+#
+# These variables accumulate all the options from our possibly
+# multiple callers so they're available to build tools such as
+# tools/build/options/makeman.
+#
+DEFAULT_NO_OPTIONS+=${__DEFAULT_NO_OPTIONS}
+DEFAULT_NO_OPTIONS:=${DEFAULT_NO_OPTIONS:O:u}
+DEFAULT_YES_OPTIONS+=${__DEFAULT_YES_OPTIONS}
+DEFAULT_YES_OPTIONS:=${DEFAULT_YES_OPTIONS:O:u}
+DEFAULT_DEPENDENT_OPTIONS+=${__DEFAULT_DEPENDENT_OPTIONS}
+DEFAULT_DEPENDENT_OPTIONS:=${DEFAULT_DEPENDENT_OPTIONS:O:u}
+REQUIRED_OPTIONS+=${__REQUIRED_OPTIONS}
+REQUIRED_OPTIONS:=${REQUIRED_OPTIONS:O:u}
+SINGLE_OPTIONS+=${__SINGLE_OPTIONS}
+SINGLE_OPTIONS:=${SINGLE_OPTIONS:O:u}
+
+#
+# All options defined by our caller; we will undef this before
+# returning.
+#
+__ALL_OPTIONS:= \
+	${__DEFAULT_NO_OPTIONS} \
+	${__DEFAULT_YES_OPTIONS} \
+	${__REQUIRED_OPTIONS} \
+	${__DEFAULT_DEPENDENT_OPTIONS:H} \
+	${__SINGLE_OPTIONS}
 
 #
 # MK_* options which default to "yes".
@@ -72,6 +104,7 @@ MK_${var}:=	yes
 .endif
 MK_${var}:=	yes
 .endfor
+.undef __REQUIRED_OPTIONS
 
 #
 # MK_* options which default to "no".
@@ -142,3 +175,22 @@ MK_${vv:H}?= ${MK_${vv:T}}
 MK_${vv:H}:= ${MK_${vv:H}}
 .endfor
 .undef __DEFAULT_DEPENDENT_OPTIONS
+
+#
+# Define SRC_OPT_DEFS and SRC_OPT_LIST
+#
+SRC_OPT_DEFS?=-D__${MACHINE_ARCH}__
+SRC_OPT_LIST?=TARGET=${MACHINE} TARGET_ARCH=${MACHINE_ARCH}
+.for option in ${__ALL_OPTIONS:O:u}
+.if defined(OPT_${option})
+SRC_OPT_DEFS+=-D${option}=${OPT_${option}:Q}
+SRC_OPT_LIST+=${option}=${OPT_${option}:Q}
+.elif ${MK_${option}} == yes
+SRC_OPT_DEFS+=-D${option}
+SRC_OPT_LIST+=WITH_${option}=1
+.elif ${MK_${option}} == no
+SRC_OPT_DEFS+=-U${option}
+SRC_OPT_LIST+=WITHOUT_${option}=1
+.endif
+.endfor
+.undef __ALL_OPTIONS

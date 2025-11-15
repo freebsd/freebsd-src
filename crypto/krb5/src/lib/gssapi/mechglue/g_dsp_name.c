@@ -70,16 +70,8 @@ val_dsp_name_args(
 
 
 OM_uint32 KRB5_CALLCONV
-gss_display_name (minor_status,
-                  input_name,
-                  output_name_buffer,
-                  output_name_type)
-
-OM_uint32 *		minor_status;
-gss_name_t		input_name;
-gss_buffer_t		output_name_buffer;
-gss_OID *		output_name_type;
-
+gss_display_name(OM_uint32 *minor_status, gss_name_t input_name,
+		 gss_buffer_t output_name_buffer, gss_OID *output_name_type)
 {
     OM_uint32		major_status;
     gss_union_name_t	union_name;

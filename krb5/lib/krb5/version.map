@@ -629,5 +629,10 @@ krb5_3_MIT {
 		krb5int_parse_enctype_list;
 		krb5int_random_string;
 		krb5int_trace;
+		k5_sockaddr_to_address;
+		k5_addr_directional_accept;
+		k5_addr_directional_init;
+		k5_print_addr;
+		k5_print_addr_port;
 };
 HIDDEN { local: __*; _rest*; _save*; *; };

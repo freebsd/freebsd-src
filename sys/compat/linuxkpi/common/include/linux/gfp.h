@@ -34,6 +34,7 @@
 #include <sys/malloc.h>
 
 #include <linux/page.h>
+#include <linux/topology.h>
 
 #include <vm/vm_param.h>
 #include <vm/vm_object.h>

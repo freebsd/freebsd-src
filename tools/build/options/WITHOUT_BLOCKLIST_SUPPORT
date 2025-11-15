@@ -1,0 +1,6 @@
+Build some programs without
+.Xr libblocklist 3
+support, like
+.Xr fingerd 8
+and
+.Xr sshd 8 .

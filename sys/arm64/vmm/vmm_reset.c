@@ -31,7 +31,6 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 
-#include <machine/armreg.h>
 #include <machine/cpu.h>
 #include <machine/hypervisor.h>
 
@@ -100,10 +99,12 @@ reset_vm_el01_regs(void *vcpu)
 	el2ctx->pmcr_el0 |= PMCR_LC;
 	set_arch_unknown(el2ctx->pmccntr_el0);
 	set_arch_unknown(el2ctx->pmccfiltr_el0);
+	set_arch_unknown(el2ctx->pmuserenr_el0);
+	set_arch_unknown(el2ctx->pmselr_el0);
+	set_arch_unknown(el2ctx->pmxevcntr_el0);
 	set_arch_unknown(el2ctx->pmcntenset_el0);
 	set_arch_unknown(el2ctx->pmintenset_el1);
 	set_arch_unknown(el2ctx->pmovsset_el0);
-	set_arch_unknown(el2ctx->pmuserenr_el0);
 	memset(el2ctx->pmevcntr_el0, 0, sizeof(el2ctx->pmevcntr_el0));
 	memset(el2ctx->pmevtyper_el0, 0, sizeof(el2ctx->pmevtyper_el0));
 }
@@ -143,7 +144,8 @@ reset_vm_el2_regs(void *vcpu)
 	/* Set the Extended Hypervisor Configuration Register */
 	el2ctx->hcrx_el2 = 0;
 	/* TODO: Trap all extensions we don't support */
-	el2ctx->mdcr_el2 = 0;
+	el2ctx->mdcr_el2 = MDCR_EL2_TDOSA | MDCR_EL2_TDRA | MDCR_EL2_TPMS |
+	    MDCR_EL2_TTRF;
 	/* PMCR_EL0.N is read from MDCR_EL2.HPMN */
 	el2ctx->mdcr_el2 |= (el2ctx->pmcr_el0 & PMCR_N_MASK) >> PMCR_N_SHIFT;
 

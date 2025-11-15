@@ -235,6 +235,7 @@ ip6_vnet_init(void *arg __unused)
 	    &V_ip6_auto_linklocal);
 	TUNABLE_INT_FETCH("net.inet6.ip6.accept_rtadv", &V_ip6_accept_rtadv);
 	TUNABLE_INT_FETCH("net.inet6.ip6.no_radr", &V_ip6_no_radr);
+	TUNABLE_BOOL_FETCH("net.inet6.ip6.use_stableaddr", &V_ip6_use_stableaddr);
 
 	CK_STAILQ_INIT(&V_in6_ifaddrhead);
 	V_in6_ifaddrhashtbl = hashinit(IN6ADDR_NHASH, M_IFADDR,
@@ -1197,8 +1198,8 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 {
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 
-#ifdef SO_TIMESTAMP
-	if ((inp->inp_socket->so_options & SO_TIMESTAMP) != 0) {
+#if defined(SO_TIMESTAMP) && defined(SO_BINTIME)
+	if ((inp->inp_socket->so_options & (SO_TIMESTAMP | SO_BINTIME)) != 0) {
 		union {
 			struct timeval tv;
 			struct bintime bt;
@@ -1206,10 +1207,44 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 		} t;
 		struct bintime boottimebin, bt1;
 		struct timespec ts1;
+		int ts_clock;
 		bool stamped;
 
+		ts_clock = inp->inp_socket->so_ts_clock;
 		stamped = false;
-		switch (inp->inp_socket->so_ts_clock) {
+
+		/*
+		 * Handle BINTIME first. We create the same output options
+		 * for both SO_BINTIME and the case where SO_TIMESTAMP is
+		 * set with the timestamp clock set to SO_TS_BINTIME.
+		 */
+		if ((inp->inp_socket->so_options & SO_BINTIME) != 0 ||
+		    ts_clock == SO_TS_BINTIME) {
+			if ((m->m_flags & (M_PKTHDR | M_TSTMP)) == (M_PKTHDR |
+			    M_TSTMP)) {
+				mbuf_tstmp2timespec(m, &ts1);
+				timespec2bintime(&ts1, &t.bt);
+				getboottimebin(&boottimebin);
+				bintime_add(&t.bt, &boottimebin);
+			} else {
+				bintime(&t.bt);
+			}
+			*mp = sbcreatecontrol(&t.bt, sizeof(t.bt), SCM_BINTIME,
+			    SOL_SOCKET, M_NOWAIT);
+			if (*mp != NULL) {
+				mp = &(*mp)->m_next;
+				stamped = true;
+			}
+
+			/*
+			 * Suppress other timestamps if SO_TIMESTAMP is not
+			 * set.
+			 */
+			if ((inp->inp_socket->so_options & SO_TIMESTAMP) == 0)
+				ts_clock = SO_TS_BINTIME;
+		}
+
+		switch (ts_clock) {
 		case SO_TS_REALTIME_MICRO:
 			if ((m->m_flags & (M_PKTHDR | M_TSTMP)) == (M_PKTHDR |
 			    M_TSTMP)) {
@@ -1230,21 +1265,6 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 			break;
 
 		case SO_TS_BINTIME:
-			if ((m->m_flags & (M_PKTHDR | M_TSTMP)) == (M_PKTHDR |
-			    M_TSTMP)) {
-				mbuf_tstmp2timespec(m, &ts1);
-				timespec2bintime(&ts1, &t.bt);
-				getboottimebin(&boottimebin);
-				bintime_add(&t.bt, &boottimebin);
-			} else {
-				bintime(&t.bt);
-			}
-			*mp = sbcreatecontrol(&t.bt, sizeof(t.bt), SCM_BINTIME,
-			    SOL_SOCKET, M_NOWAIT);
-			if (*mp != NULL) {
-				mp = &(*mp)->m_next;
-				stamped = true;
-			}
 			break;
 
 		case SO_TS_REALTIME:

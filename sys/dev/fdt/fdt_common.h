@@ -59,13 +59,6 @@ struct fdt_fixup_entry {
 extern struct fdt_fixup_entry fdt_fixup_table[];
 #endif
 
-extern SLIST_HEAD(fdt_ic_list, fdt_ic) fdt_ic_list_head;
-struct fdt_ic {
-	SLIST_ENTRY(fdt_ic)	fdt_ics;
-	ihandle_t		iph;
-	device_t		dev;
-};
-
 #if defined(FDT_DTB_STATIC)
 extern u_char fdt_static_dtb;
 #endif

@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/endian.h>
 
 #include <assert.h>
@@ -172,14 +172,14 @@ zap_add_uint64_self(zfs_zap_t *zap, uint64_t val)
 {
 	char name[32];
 
-	snprintf(name, sizeof(name), "%jx", (uintmax_t)val);
+	(void)snprintf(name, sizeof(name), "%jx", (uintmax_t)val);
 	zap_add(zap, name, sizeof(uint64_t), 1, (uint8_t *)&val);
 }
 
 void
 zap_add_string(zfs_zap_t *zap, const char *name, const char *val)
 {
-	zap_add(zap, name, 1, strlen(val) + 1, val);
+	zap_add(zap, name, 1, strlen(val) + 1, (const uint8_t *)val);
 }
 
 bool
@@ -221,7 +221,8 @@ zap_micro_write(zfs_opt_t *zfs, zfs_zap_t *zap)
 	STAILQ_FOREACH(ent, &zap->kvps, next) {
 		memcpy(&ment->mze_value, ent->valp, ent->intsz * ent->intcnt);
 		ment->mze_cd = cd++;
-		strlcpy(ment->mze_name, ent->name, sizeof(ment->mze_name));
+		(void)strlcpy(ment->mze_name, ent->name,
+		    sizeof(ment->mze_name));
 		ment++;
 	}
 
@@ -247,6 +248,7 @@ zap_fat_write_array_chunk(zap_leaf_t *l, uint16_t li, size_t sz,
 	struct zap_leaf_array *la;
 
 	assert(sz <= ZAP_MAXVALUELEN);
+	assert(sz > 0);
 
 	for (uint16_t n, resid = sz; resid > 0; resid -= n, val += n, li++) {
 		n = MIN(resid, ZAP_LEAF_ARRAY_BYTES);
@@ -503,7 +505,8 @@ zap_fat_write(zfs_opt_t *zfs, zfs_zap_t *zap)
 		le->le_value_intlen = ent->intsz;
 		le->le_value_numints = ent->intcnt;
 		le->le_hash = ent->hash;
-		zap_fat_write_array_chunk(&l, *lptr + 1, namelen, ent->name);
+		zap_fat_write_array_chunk(&l, *lptr + 1, namelen,
+		    (uint8_t *)ent->name);
 		zap_fat_write_array_chunk(&l, *lptr + 1 + nnamechunks,
 		    ent->intcnt * ent->intsz, ent->valp);
 	}

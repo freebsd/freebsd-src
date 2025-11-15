@@ -182,23 +182,40 @@ gss_inquire_attrs_for_mech(
     if (mech == NULL)
         return GSS_S_BAD_MECH;
 
-    /* If the mech does not implement RFC 5587, return success with an empty
-     * mech_attrs and known_mech_attrs. */
-    if (mech->gss_inquire_attrs_for_mech == NULL)
-        return GSS_S_COMPLETE;
+    if (mech->gss_inquire_attrs_for_mech != NULL) {
+        public_mech = gssint_get_public_oid(selected_mech);
+        status = mech->gss_inquire_attrs_for_mech(minor, public_mech,
+                                                  mech_attrs,
+                                                  known_mech_attrs);
+        if (GSS_ERROR(status)) {
+            map_error(minor, mech);
+            return status;
+        }
+    }
 
-    public_mech = gssint_get_public_oid(selected_mech);
-    status = mech->gss_inquire_attrs_for_mech(minor, public_mech, mech_attrs,
-                                              known_mech_attrs);
-    if (GSS_ERROR(status)) {
-        map_error(minor, mech);
-        return status;
+    /* Make sure *mech_attrs is a proper OID set, as GSS_C_NO_OID_SET is not
+     * accepted by gss_test_oid_set_member(). */
+    if (mech_attrs != NULL && *mech_attrs == GSS_C_NO_OID_SET) {
+        status = generic_gss_create_empty_oid_set(minor, mech_attrs);
+        if (status != GSS_S_COMPLETE) {
+            if (known_mech_attrs != NULL)
+                gss_release_oid_set(&tmpMinor, known_mech_attrs);
+            return status;
+        }
     }
 
     if (known_mech_attrs != NULL && *known_mech_attrs == GSS_C_NO_OID_SET) {
-        status = generic_gss_copy_oid_set(minor,
-                                          gss_ma_known_attrs,
-                                          known_mech_attrs);
+        if (mech->gss_inquire_attrs_for_mech != NULL) {
+            /* A mech can leave *known_mech_attrs alone as shorthand for
+             * understanding the RFC 5587 attribute set. */
+            status = generic_gss_copy_oid_set(minor,
+                                              gss_ma_known_attrs,
+                                              known_mech_attrs);
+        } else {
+            /* The mech does not implement RFC 5587.  Indicate that it doesn't
+             * know about any attributes. */
+            status = generic_gss_create_empty_oid_set(minor, known_mech_attrs);
+        }
         if (GSS_ERROR(status)) {
             gss_release_oid_set(&tmpMinor, mech_attrs);
             if (mech_attrs != NULL)

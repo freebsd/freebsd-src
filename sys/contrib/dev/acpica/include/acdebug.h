@@ -187,7 +187,7 @@ typedef struct acpi_db_execute_walk
 {
     UINT32                  Count;
     UINT32                  MaxCount;
-    char                    NameSeg[ACPI_NAMESEG_SIZE + 1] ACPI_NONSTRING;
+    char                    NameSeg[ACPI_NAMESEG_SIZE + 1];
 
 } ACPI_DB_EXECUTE_WALK;
 

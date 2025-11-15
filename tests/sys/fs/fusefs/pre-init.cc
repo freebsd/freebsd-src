@@ -44,9 +44,23 @@ using namespace testing;
 
 /* Tests for behavior that happens before the server responds to FUSE_INIT */
 class PreInit: public FuseTest {
+public:
 void SetUp() {
 	m_no_auto_init = true;
 	FuseTest::SetUp();
+}
+};
+
+/*
+ * Tests for behavior that happens before the server responds to FUSE_INIT,
+ * parameterized on default_permissions
+ */
+class PreInitP: public PreInit,
+	        public WithParamInterface<bool>
+{
+void SetUp() {
+	m_default_permissions = GetParam();
+	PreInit::SetUp();
 }
 };
 
@@ -152,3 +166,61 @@ TEST_F(PreInit, signal_during_unmount_before_init)
 	sem_post(&sem0);
 	m_mock->join_daemon();
 }
+
+/*
+ * If some process attempts VOP_GETATTR for the mountpoint before init is
+ * complete, fusefs should wait, just like it does for other VOPs.
+ *
+ * To verify that fuse_vnop_getattr does indeed wait for FUSE_INIT to complete,
+ * invoke the test like this:
+ *
+> sudo cpuset -c -l 0 dtrace -i 'fbt:fusefs:fuse_internal_init_callback:' -i 'fbt:fusefs:fuse_vnop_getattr:' -c "./pre-init --gtest_filter=PI/PreInitP.getattr_before_init/0"
+...
+dtrace: pid 4224 has exited
+CPU     ID                    FUNCTION:NAME
+  0  68670          fuse_vnop_getattr:entry
+  0  68893 fuse_internal_init_callback:entry
+  0  68894 fuse_internal_init_callback:return
+  0  68671         fuse_vnop_getattr:return
+ *
+ * Note that fuse_vnop_getattr was entered first, but exitted last.
+ */
+TEST_P(PreInitP, getattr_before_init)
+{
+	struct stat sb;
+	nlink_t nlink = 12345;
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_INIT);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([&](auto in, auto& out) {
+		SET_OUT_HEADER_LEN(out, init);
+		out.body.init.major = FUSE_KERNEL_VERSION;
+		out.body.init.minor = FUSE_KERNEL_MINOR_VERSION;
+		out.body.init.flags = in.body.init.flags & m_init_flags;
+		out.body.init.max_write = m_maxwrite;
+		out.body.init.max_readahead = m_maxreadahead;
+		out.body.init.time_gran = m_time_gran;
+		nap();	/* Allow stat() to run first */
+	})));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == FUSE_ROOT_ID);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto& in, auto& out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr.ino = in.header.nodeid;
+		out.body.attr.attr.mode = S_IFDIR | 0644;
+		out.body.attr.attr.nlink = nlink;
+		out.body.attr.attr_valid = UINT64_MAX;
+	})));
+
+	EXPECT_EQ(0, stat("mountpoint", &sb));
+	EXPECT_EQ(nlink, sb.st_nlink);
+}
+
+INSTANTIATE_TEST_SUITE_P(PI, PreInitP, Bool());

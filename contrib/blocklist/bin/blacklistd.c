@@ -1,4 +1,4 @@
-/*	$NetBSD: blacklistd.c,v 1.38 2019/02/27 02:20:18 christos Exp $	*/
+/*	$NetBSD: blocklistd.c,v 1.12 2025/10/25 18:43:51 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -31,8 +31,11 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
+
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: blacklistd.c,v 1.38 2019/02/27 02:20:18 christos Exp $");
+#endif
+__RCSID("$NetBSD: blocklistd.c,v 1.12 2025/10/25 18:43:51 christos Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -64,8 +67,8 @@ __RCSID("$NetBSD: blacklistd.c,v 1.38 2019/02/27 02:20:18 christos Exp $");
 #include <ifaddrs.h>
 #include <netinet/in.h>
 
-#include "bl.h"
-#include "internal.h"
+#include "old_bl.h"
+#include "old_internal.h"
 #include "conf.h"
 #include "run.h"
 #include "state.h"
@@ -175,6 +178,8 @@ process(bl_t bl)
 	struct dbinfo dbi;
 	struct timespec ts;
 
+	memset(&dbi, 0, sizeof(dbi));
+	memset(&c, 0, sizeof(c));
 	if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
 		(*lfun)(LOG_ERR, "clock_gettime failed (%m)");
 		return;
@@ -186,24 +191,25 @@ process(bl_t bl)
 	}
 
 	if (getremoteaddress(bi, &rss, &rsl) == -1)
-		goto out;
+		return;
 
-	if (debug) {
+	if (debug || bi->bi_msg[0]) {
 		sockaddr_snprintf(rbuf, sizeof(rbuf), "%a:%p", (void *)&rss);
-		(*lfun)(LOG_DEBUG, "processing type=%d fd=%d remote=%s msg=%s"
-		    " uid=%lu gid=%lu", bi->bi_type, bi->bi_fd, rbuf,
+		(*lfun)(bi->bi_msg[0] ? LOG_INFO : LOG_DEBUG,
+		    "processing type=%d fd=%d remote=%s msg=\"%s\" uid=%lu gid=%lu",
+		    bi->bi_type, bi->bi_fd, rbuf,
 		    bi->bi_msg, (unsigned long)bi->bi_uid,
 		    (unsigned long)bi->bi_gid);
 	}
 
 	if (conf_find(bi->bi_fd, bi->bi_uid, &rss, &c) == NULL) {
 		(*lfun)(LOG_DEBUG, "no rule matched");
-		goto out;
+		return;
 	}
 
 
 	if (state_get(state, &c, &dbi) == -1)
-		goto out;
+		return;
 
 	if (debug) {
 		char b1[128], b2[128];
@@ -220,7 +226,7 @@ process(bl_t bl)
 		 * set the number of fails to be one less than the
 		 * configured limit.  Fallthrough to the normal BL_ADD
 		 * processing, which will increment the failure count
-		 * to the threshhold, and block the abusive address.
+		 * to the threshold, and block the abusive address.
 		 */
 		if (c.c_nfail != -1)
 			dbi.count = c.c_nfail - 1;
@@ -263,8 +269,6 @@ process(bl_t bl)
 	state_put(state, &c, &dbi);
 
 out:
-	close(bi->bi_fd);
-
 	if (debug) {
 		char b1[128], b2[128];
 		(*lfun)(LOG_DEBUG, "%s: final db state for %s: count=%d/%d "
@@ -325,8 +329,8 @@ again:
 			(*lfun)(LOG_INFO, "released %s/%d:%d after %d seconds",
 			    buf, c.c_lmask, c.c_port, c.c_duration);
 		}
-		state_del(state, &c);
-		goto again;
+		if (state_del(state, &c) == 0)
+			goto again;
 	}
 }
 
@@ -334,7 +338,7 @@ static void
 addfd(struct pollfd **pfdp, bl_t **blp, size_t *nfd, size_t *maxfd,
     const char *path)
 {
-	bl_t bl = bl_create(true, path, vflag ? vdlog : vsyslog);
+	bl_t bl = bl_create(true, path, vflag ? vdlog : vsyslog_r);
 	if (bl == NULL || !bl_isconnected(bl))
 		exit(EXIT_FAILURE);
 	if (*nfd >= *maxfd) {
@@ -395,15 +399,25 @@ rules_flush(void)
 static void
 rules_restore(void)
 {
+	DB *db;
 	struct conf c;
 	struct dbinfo dbi;
 	unsigned int f;
 
-	for (f = 1; state_iterate(state, &c, &dbi, f) == 1; f = 0) {
+	db = state_open(dbfile, O_RDONLY, 0);
+	if (db == NULL) {
+		(*lfun)(LOG_ERR, "Can't open `%s' to restore state (%m)",
+			dbfile);
+		return;
+	}
+	for (f = 1; state_iterate(db, &c, &dbi, f) == 1; f = 0) {
 		if (dbi.id[0] == '\0')
 			continue;
 		(void)run_change("add", &c, dbi.id, sizeof(dbi.id));
+		state_put(state, &c, &dbi);
 	}
+	state_close(db);
+	state_sync(state);
 }
 
 int
@@ -549,7 +563,7 @@ main(int argc, char *argv[])
 			conf_parse(configfile);
 		}
 		ret = poll(pfd, (nfds_t)nfd, tout);
-		if (debug)
+		if (debug && ret != 0)
 			(*lfun)(LOG_DEBUG, "received %d from poll()", ret);
 		switch (ret) {
 		case -1:

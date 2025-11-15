@@ -350,15 +350,12 @@ do_cryptop(int fd, int ses, const void *inp, size_t inlen, void *out)
 }
 
 static void
-test_rfc7539_poly1305_vectors(int crid, const char *modname)
+test_rfc7539_poly1305_vectors(int crid)
 {
 	uint8_t comptag[POLY1305_HASH_LEN], exptag[POLY1305_HASH_LEN],
 	    key[POLY1305_KEY_LEN], msg[512];
 	int fd, ses;
 	size_t i;
-
-	ATF_REQUIRE_KERNEL_MODULE(modname);
-	ATF_REQUIRE_KERNEL_MODULE("cryptodev");
 
 	fd = get_handle_fd();
 
@@ -378,11 +375,15 @@ test_rfc7539_poly1305_vectors(int crid, const char *modname)
 	}
 }
 
-ATF_TC_WITHOUT_HEAD(poly1305_vectors);
+ATF_TC(poly1305_vectors);
+ATF_TC_HEAD(poly1305_vectors, tc)
+{
+	 atf_tc_set_md_var(tc, "require.kmods", "nexus/cryptosoft cryptodev");
+}
 ATF_TC_BODY(poly1305_vectors, tc)
 {
 	ATF_REQUIRE_SYSCTL_INT("kern.crypto.allow_soft", 1);
-	test_rfc7539_poly1305_vectors(CRYPTO_FLAG_SOFTWARE, "nexus/cryptosoft");
+	test_rfc7539_poly1305_vectors(CRYPTO_FLAG_SOFTWARE);
 }
 
 ATF_TP_ADD_TCS(tp)

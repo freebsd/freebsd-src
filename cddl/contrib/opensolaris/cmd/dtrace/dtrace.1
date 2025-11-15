@@ -20,7 +20,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2025
+.Dd November 12, 2025
 .Dt DTRACE 1
 .Os
 .Sh NAME
@@ -537,7 +537,18 @@ option is not specified,
 .Nm
 does not permit the compilation or enabling of a D program that contains
 destructive actions.
-.It Fl x Ar arg Op Ns = Ns value
+.Pp
+Set the
+.Va security.bsd.allow_destructive_dtrace
+.Xr loader 8
+tunable
+to
+.Ql 0
+to disallow the possibility of enabling destructive actions system-wide at any point at all.
+Any attempts to enable destructive actions will cause
+.Nm
+to exit with a runtime error.
+.It Fl x Ar arg Ns Op = Ns Ar value
 Enable or modify a DTrace runtime option or D compiler option.
 Boolean options are enabled by specifying their name.
 Options with values are set by separating the option name and value with an
@@ -1241,6 +1252,14 @@ command line to define a set of macro variables and so forth).
 The additional arguments can be used in D programs specified using the
 .Fl s
 option or on the command line.
+.Sh ENVIRONMENT
+.Bl -tag -width 'DTRACE_DEBUG'
+.It Ev DTRACE_DEBUG
+When defined,
+.Nm
+will output debug log messages to
+.Xr stderr 4 .
+.El
 .Sh FILES
 .Bl -tag -width /boot/dtrace.dof -compact
 .It Pa /boot/dtrace.dof
@@ -1265,23 +1284,39 @@ failed or that the specified request could not be satisfied.
 .It 2
 Invalid command line options or arguments were specified.
 .El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It dtrace: could not enable tracing: Permission denied
+This can happen when
+.Nm
+fails to enable destructive actions because
+.Va security.bsd.allow_destructive_dtrace
+is set to
+.Ql 0
+in
+.Xr loader.conf 5 .
+.El
 .Sh SEE ALSO
 .Xr cpp 1 ,
 .Xr dwatch 1 ,
 .Xr dtrace_audit 4 ,
+.Xr dtrace_callout_execute 4 ,
 .Xr dtrace_dtrace 4 ,
 .Xr dtrace_fbt 4 ,
 .Xr dtrace_io 4 ,
 .Xr dtrace_ip 4 ,
 .Xr dtrace_kinst 4 ,
 .Xr dtrace_lockstat 4 ,
+.Xr dtrace_pid 4 ,
 .Xr dtrace_proc 4 ,
+.Xr dtrace_priv 4 ,
 .Xr dtrace_profile 4 ,
 .Xr dtrace_sched 4 ,
 .Xr dtrace_sctp 4 ,
 .Xr dtrace_tcp 4 ,
 .Xr dtrace_udp 4 ,
 .Xr dtrace_udplite 4 ,
+.Xr dtrace_vfs 4 ,
 .Xr elf 5 ,
 .Xr d 7 ,
 .Xr tracing 7 ,

@@ -371,17 +371,15 @@ rsu_update_chw(struct ieee80211com *ic)
 
 /*
  * notification from net80211 that it'd like to do A-MPDU on the given TID.
- *
- * Note: this actually hangs traffic at the present moment, so don't use it.
- * The firmware debug does indiciate it's sending and establishing a TX AMPDU
- * session, but then no traffic flows.
  */
 static int
 rsu_ampdu_enable(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 {
-#if 0
 	struct rsu_softc *sc = ni->ni_ic->ic_softc;
 	struct r92s_add_ba_req req;
+
+	RSU_DPRINTF(sc, RSU_DEBUG_AMPDU, "%s: called, tid=%d\n",
+	    __func__, tap->txa_tid);
 
 	/* Don't enable if it's requested or running */
 	if (IEEE80211_AMPDU_REQUESTED(tap))
@@ -397,23 +395,30 @@ rsu_ampdu_enable(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 		return (0);
 
 	/* Send the firmware command */
-	RSU_DPRINTF(sc, RSU_DEBUG_AMPDU, "%s: establishing AMPDU TX for TID %d\n",
+	RSU_DPRINTF(sc, RSU_DEBUG_AMPDU,
+	    "%s: establishing AMPDU TX for TID %d\n",
 	    __func__,
 	    tap->txa_tid);
 
 	RSU_LOCK(sc);
-	if (rsu_fw_cmd(sc, R92S_CMD_ADDBA_REQ, &req, sizeof(req)) != 1) {
+	if (rsu_fw_cmd(sc, R92S_CMD_ADDBA_REQ, &req, sizeof(req)) != 0) {
 		RSU_UNLOCK(sc);
+		RSU_DPRINTF(sc, RSU_DEBUG_AMPDU, "%s: AMPDU TX cmd failure\n",
+		    __func__);
 		/* Mark failure */
-		(void) ieee80211_ampdu_tx_request_active_ext(ni, tap->txa_tid, 0);
+		ieee80211_ampdu_tx_request_active_ext(ni, tap->txa_tid, 0);
+		/* Return 0, we've been driving this ourselves */
 		return (0);
 	}
 	RSU_UNLOCK(sc);
 
+	RSU_DPRINTF(sc, RSU_DEBUG_AMPDU, "%s: AMPDU TX cmd success\n",
+	    __func__);
+
 	/* Mark success; we don't get any further notifications */
-	(void) ieee80211_ampdu_tx_request_active_ext(ni, tap->txa_tid, 1);
-#endif
-	/* Return 0, we're driving this ourselves */
+	ieee80211_ampdu_tx_request_active_ext(ni, tap->txa_tid, 1);
+
+	/* Return 0, we've been driving this ourselves */
 	return (0);
 }
 
@@ -563,9 +568,7 @@ rsu_attach(device_t self)
 
 		/* Enable basic HT */
 		ic->ic_htcaps = IEEE80211_HTC_HT |
-#if 0
 		    IEEE80211_HTC_AMPDU |
-#endif
 		    IEEE80211_HTC_AMSDU |
 		    IEEE80211_HTCAP_MAXAMSDU_3839 |
 		    IEEE80211_HTCAP_SMPS_OFF;
@@ -576,6 +579,7 @@ rsu_attach(device_t self)
 		ic->ic_rxstream = sc->sc_nrxstream;
 	}
 	ic->ic_flags_ext |= IEEE80211_FEXT_SCAN_OFFLOAD;
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
 
 	rsu_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
 	    ic->ic_channels);
@@ -1537,6 +1541,10 @@ rsu_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 			is_checked = 1;
 			k->wk_flags |= IEEE80211_KEY_SWCRYPT;
 		} else
+			/*
+			 * TODO: should allocate these from the CAM space;
+			 * skipping over the fixed slots and _BC / _BSS.
+			 */
 			*keyix = R92S_MACID_BSS;
 	}
 
@@ -2166,7 +2174,7 @@ rsu_event_addba_req_report(struct rsu_softc *sc, uint8_t *buf, int len)
 	    __func__,
 	    ether_sprintf(ba->mac_addr),
 	    (int) ba->tid,
-	    (int) le16toh(ba->ssn));
+	    (int) le16toh(ba->ssn) >> 4);
 
 	/* XXX do node lookup; this is STA specific */
 
@@ -2212,6 +2220,11 @@ rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 		if (vap->iv_state == IEEE80211_S_AUTH)
 			rsu_event_join_bss(sc, buf, len);
 		break;
+
+	/* TODO: what about R92S_EVT_ADD_STA? and decoding macid? */
+	/* It likely is required for IBSS/AP mode */
+
+	/* TODO: should I be doing this transition in AP mode? */
 	case R92S_EVT_DEL_STA:
 		RSU_DPRINTF(sc, RSU_DEBUG_FWCMD | RSU_DEBUG_STATE,
 		    "%s: disassociated from %s\n", __func__,
@@ -2229,6 +2242,7 @@ rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 		break;
 	case R92S_EVT_FWDBG:
 		buf[60] = '\0';
+		/* TODO: some are \n terminated, some aren't, sigh */
 		RSU_DPRINTF(sc, RSU_DEBUG_FWDBG, "FWDBG: %s\n", (char *)buf);
 		break;
 	case R92S_EVT_ADDBA_REQ_REPORT:
@@ -2782,6 +2796,9 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 	if (rate != 0)
 		ridx = rate2ridx(rate);
 
+	/* Assign sequence number, A-MPDU or otherwise */
+	ieee80211_output_seqno_assign(ni, -1, m0);
+
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {
@@ -2838,8 +2855,10 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 	    SM(R92S_TXDW0_OFFSET, sizeof(*txd)) |
 	    R92S_TXDW0_OWN | R92S_TXDW0_FSG | R92S_TXDW0_LSG);
 
+	/* TODO: correct macid here? It should be in the node */
 	txd->txdw1 |= htole32(
 	    SM(R92S_TXDW1_MACID, R92S_MACID_BSS) | SM(R92S_TXDW1_QSEL, qid));
+
 	if (!hasqos)
 		txd->txdw1 |= htole32(R92S_TXDW1_NONQOS);
 	if (k != NULL && !(k->wk_flags & IEEE80211_KEY_SWENCRYPT)) {
@@ -2860,8 +2879,13 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 		    SM(R92S_TXDW1_CIPHER, cipher) |
 		    SM(R92S_TXDW1_KEYIDX, k->wk_keyix));
 	}
-	/* XXX todo: set AGGEN bit if appropriate? */
-	txd->txdw2 |= htole32(R92S_TXDW2_BK);
+
+	/*
+	 * Note: no need to set TXDW2_AGGEN/TXDW2_BK to mark
+	 * A-MPDU and non-AMPDU candidates; the firmware will
+	 * handle this for us.
+	 */
+
 	if (ismcast)
 		txd->txdw2 |= htole32(R92S_TXDW2_BMCAST);
 
@@ -2880,8 +2904,11 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 	}
 
 	/*
-	 * Firmware will use and increment the sequence number for the
-	 * specified priority.
+	 * Pass in prio here, NOT the sequence number.
+	 *
+	 * The hardware is in theory incrementing sequence numbers
+	 * for us, but I haven't yet figured out exactly when/how
+	 * it's supposed to work.
 	 */
 	txd->txdw3 |= htole32(SM(R92S_TXDW3_SEQ, prio));
 
@@ -3481,7 +3508,8 @@ rsu_load_firmware(struct rsu_softc *sc)
 	dmem.vcs_mode = R92S_VCS_MODE_RTS_CTS;
 	dmem.turbo_mode = 0;
 	dmem.bw40_en = !! (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40);
-	dmem.amsdu2ampdu_en = !! (sc->sc_ht);
+	/* net80211 handles AMSDUs just fine */
+	dmem.amsdu2ampdu_en = 0;
 	dmem.ampdu_en = !! (sc->sc_ht);
 	dmem.agg_offload = !! (sc->sc_ht);
 	dmem.qos_en = 1;

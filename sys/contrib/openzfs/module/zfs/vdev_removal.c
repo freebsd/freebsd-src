@@ -51,34 +51,70 @@
 #include <sys/trace_zfs.h>
 
 /*
- * This file contains the necessary logic to remove vdevs from a
- * storage pool.  Currently, the only devices that can be removed
- * are log, cache, and spare devices; and top level vdevs from a pool
- * w/o raidz or mirrors.  (Note that members of a mirror can be removed
- * by the detach operation.)
+ * This file contains the necessary logic to remove vdevs from a storage
+ * pool. Note that members of a mirror can be removed by the detach
+ * operation. Currently, the only devices that can be removed are:
  *
- * Log vdevs are removed by evacuating them and then turning the vdev
- * into a hole vdev while holding spa config locks.
+ * 1) Traditional hot spare and cache vdevs. Note that draid distributed
+ *    spares are fixed at creation time and cannot be removed.
  *
- * Top level vdevs are removed and converted into an indirect vdev via
- * a multi-step process:
+ * 2) Log vdevs are removed by evacuating them and then turning the vdev
+ *    into a hole vdev while holding spa config locks.
  *
- *  - Disable allocations from this device (spa_vdev_remove_top).
+ * 3) Top-level singleton and mirror vdevs, including dedup and special
+ *    vdevs, are removed and converted into an indirect vdev via a
+ *    multi-step process:
  *
- *  - From a new thread (spa_vdev_remove_thread), copy data from
- *    the removing vdev to a different vdev.  The copy happens in open
- *    context (spa_vdev_copy_impl) and issues a sync task
- *    (vdev_mapping_sync) so the sync thread can update the partial
- *    indirect mappings in core and on disk.
+ *    - Disable allocations from this device (spa_vdev_remove_top).
  *
- *  - If a free happens during a removal, it is freed from the
- *    removing vdev, and if it has already been copied, from the new
- *    location as well (free_from_removing_vdev).
+ *    - From a new thread (spa_vdev_remove_thread), copy data from the
+ *      removing vdev to a different vdev. The copy happens in open context
+ *      (spa_vdev_copy_impl) and issues a sync task (vdev_mapping_sync) so
+ *      the sync thread can update the partial indirect mappings in core
+ *      and on disk.
  *
- *  - After the removal is completed, the copy thread converts the vdev
- *    into an indirect vdev (vdev_remove_complete) before instructing
- *    the sync thread to destroy the space maps and finish the removal
- *    (spa_finish_removal).
+ *    - If a free happens during a removal, it is freed from the removing
+ *      vdev, and if it has already been copied, from the new location as
+ *      well (free_from_removing_vdev).
+ *
+ *    - After the removal is completed, the copy thread converts the vdev
+ *      into an indirect vdev (vdev_remove_complete) before instructing
+ *      the sync thread to destroy the space maps and finish the removal
+ *      (spa_finish_removal).
+ *
+ *   The following constraints currently apply primary device removal:
+ *
+ *     - All vdevs must be online, healthy, and not be missing any data
+ *       according to the DTLs.
+ *
+ *     - When removing a singleton or mirror vdev, regardless of it's a
+ *       special, dedup, or primary device, it must have the same ashift
+ *       as the devices in the normal allocation class. Furthermore, all
+ *       vdevs in the normal allocation class must have the same ashift to
+ *       ensure the new allocations never includes additional padding.
+ *
+ *     - The normal allocation class cannot contain any raidz or draid
+ *       top-level vdevs since segments are copied without regard for block
+ *       boundaries. This makes it impossible to calculate the required
+ *       parity columns when using these vdev types as the destination.
+ *
+ *     - The encryption keys must be loaded so the ZIL logs can be reset
+ *       in order to prevent writing to the device being removed.
+ *
+ * N.B. ashift and raidz/draid constraints for primary top-level device
+ * removal could be slightly relaxed if it were possible to request that
+ * DVAs from a mirror or singleton in the specified allocation class be
+ * used (metaslab_alloc_dva).
+ *
+ * This flexibility would be particularly useful for raidz/draid pools which
+ * often include a mirrored special device. If a mistakenly added top-level
+ * singleton were added it could then still be removed at the cost of some
+ * special device capacity. This may be a worthwhile tradeoff depending on
+ * the pool capacity and expense (cost, complexity, time) of creating a new
+ * pool and copying all of the data to correct the configuration.
+ *
+ * Furthermore, while not currently supported it should be possible to allow
+ * vdevs of any type to be removed as long as they've never been written to.
  */
 
 typedef struct vdev_copy_arg {
@@ -344,10 +380,10 @@ spa_vdev_remove_aux(nvlist_t *config, const char *name, nvlist_t **dev,
 	for (int i = 0, j = 0; i < count; i++) {
 		if (dev[i] == dev_to_remove)
 			continue;
-		VERIFY(nvlist_dup(dev[i], &newdev[j++], KM_SLEEP) == 0);
+		VERIFY0(nvlist_dup(dev[i], &newdev[j++], KM_SLEEP));
 	}
 
-	VERIFY(nvlist_remove(config, name, DATA_TYPE_NVLIST_ARRAY) == 0);
+	VERIFY0(nvlist_remove(config, name, DATA_TYPE_NVLIST_ARRAY));
 	fnvlist_add_nvlist_array(config, name, (const nvlist_t * const *)newdev,
 	    count - 1);
 
@@ -364,13 +400,15 @@ spa_vdev_removal_create(vdev_t *vd)
 	spa_vdev_removal_t *svr = kmem_zalloc(sizeof (*svr), KM_SLEEP);
 	mutex_init(&svr->svr_lock, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&svr->svr_cv, NULL, CV_DEFAULT, NULL);
-	svr->svr_allocd_segs = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64,
-	    NULL, 0, 0);
+	svr->svr_allocd_segs = zfs_range_tree_create_flags(
+	    NULL, ZFS_RANGE_SEG64, NULL, 0, 0,
+	    ZFS_RT_F_DYN_NAME, vdev_rt_name(vd, "svr_allocd_segs"));
 	svr->svr_vdev_id = vd->vdev_id;
 
 	for (int i = 0; i < TXG_SIZE; i++) {
-		svr->svr_frees[i] = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64,
-		    NULL, 0, 0);
+		svr->svr_frees[i] = zfs_range_tree_create_flags(
+		    NULL, ZFS_RANGE_SEG64, NULL, 0, 0,
+		    ZFS_RT_F_DYN_NAME, vdev_rt_name(vd, "svr_frees"));
 		list_create(&svr->svr_new_segments[i],
 		    sizeof (vdev_indirect_mapping_entry_t),
 		    offsetof(vdev_indirect_mapping_entry_t, vime_node));
@@ -421,7 +459,7 @@ vdev_remove_initiate_sync(void *arg, dmu_tx_t *tx)
 	svr = spa_vdev_removal_create(vd);
 
 	ASSERT(vd->vdev_removing);
-	ASSERT3P(vd->vdev_indirect_mapping, ==, NULL);
+	ASSERT0P(vd->vdev_indirect_mapping);
 
 	spa_feature_incr(spa, SPA_FEATURE_DEVICE_REMOVAL, tx);
 	if (spa_feature_is_enabled(spa, SPA_FEATURE_OBSOLETE_COUNTS)) {
@@ -527,7 +565,7 @@ vdev_remove_initiate_sync(void *arg, dmu_tx_t *tx)
 	 * but in any case only when there are outstanding free i/os, which
 	 * there are not).
 	 */
-	ASSERT3P(spa->spa_vdev_removal, ==, NULL);
+	ASSERT0P(spa->spa_vdev_removal);
 	spa->spa_vdev_removal = svr;
 	svr->svr_thread = thread_create(NULL, 0,
 	    spa_vdev_remove_thread, spa, 0, &p0, TS_RUN, minclsyspri);
@@ -1179,8 +1217,9 @@ spa_vdev_copy_segment(vdev_t *vd, zfs_range_tree_t *segs,
 	 * relative to the start of the range to be copied (i.e. relative to the
 	 * local variable "start").
 	 */
-	zfs_range_tree_t *obsolete_segs = zfs_range_tree_create(NULL,
-	    ZFS_RANGE_SEG64, NULL, 0, 0);
+	zfs_range_tree_t *obsolete_segs = zfs_range_tree_create_flags(
+	    NULL, ZFS_RANGE_SEG64, NULL, 0, 0,
+	    ZFS_RT_F_DYN_NAME, vdev_rt_name(vd, "obsolete_segs"));
 
 	zfs_btree_index_t where;
 	zfs_range_seg_t *rs = zfs_btree_first(&segs->rt_root, &where);
@@ -1359,11 +1398,11 @@ vdev_remove_complete(spa_t *spa)
 	txg_wait_synced(spa->spa_dsl_pool, 0);
 	txg = spa_vdev_enter(spa);
 	vdev_t *vd = vdev_lookup_top(spa, spa->spa_vdev_removal->svr_vdev_id);
-	ASSERT3P(vd->vdev_initialize_thread, ==, NULL);
-	ASSERT3P(vd->vdev_trim_thread, ==, NULL);
-	ASSERT3P(vd->vdev_autotrim_thread, ==, NULL);
+	ASSERT0P(vd->vdev_initialize_thread);
+	ASSERT0P(vd->vdev_trim_thread);
+	ASSERT0P(vd->vdev_autotrim_thread);
 	vdev_rebuild_stop_wait(vd);
-	ASSERT3P(vd->vdev_rebuild_thread, ==, NULL);
+	ASSERT0P(vd->vdev_rebuild_thread);
 
 	sysevent_t *ev = spa_event_create(spa, vd, NULL,
 	    ESC_ZFS_VDEV_REMOVE_DEV);
@@ -1448,8 +1487,9 @@ spa_vdev_copy_impl(vdev_t *vd, spa_vdev_removal_t *svr, vdev_copy_arg_t *vca,
 	 * allocated segments that we are copying.  We may also be copying
 	 * free segments (of up to vdev_removal_max_span bytes).
 	 */
-	zfs_range_tree_t *segs = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64,
-	    NULL, 0, 0);
+	zfs_range_tree_t *segs = zfs_range_tree_create_flags(
+	    NULL, ZFS_RANGE_SEG64, NULL, 0, 0,
+	    ZFS_RT_F_DYN_NAME, vdev_rt_name(vd, "spa_vdev_copy_impl:segs"));
 	for (;;) {
 		zfs_range_tree_t *rt = svr->svr_allocd_segs;
 		zfs_range_seg_t *rs = zfs_range_tree_first(rt);
@@ -1610,8 +1650,9 @@ spa_vdev_remove_thread(void *arg)
 	vca.vca_read_error_bytes = 0;
 	vca.vca_write_error_bytes = 0;
 
-	zfs_range_tree_t *segs = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64,
-	    NULL, 0, 0);
+	zfs_range_tree_t *segs = zfs_range_tree_create_flags(
+	    NULL, ZFS_RANGE_SEG64, NULL, 0, 0,
+	    ZFS_RT_F_DYN_NAME, vdev_rt_name(vd, "spa_vdev_remove_thread:segs"));
 
 	mutex_enter(&svr->svr_lock);
 
@@ -1863,7 +1904,7 @@ spa_vdev_remove_cancel_sync(void *arg, dmu_tx_t *tx)
 	vdev_indirect_mapping_t *vim = vd->vdev_indirect_mapping;
 	objset_t *mos = spa->spa_meta_objset;
 
-	ASSERT3P(svr->svr_thread, ==, NULL);
+	ASSERT0P(svr->svr_thread);
 
 	spa_feature_decr(spa, SPA_FEATURE_DEVICE_REMOVAL, tx);
 
@@ -1895,8 +1936,9 @@ spa_vdev_remove_cancel_sync(void *arg, dmu_tx_t *tx)
 		    vdev_indirect_mapping_max_offset(vim));
 	}
 
-	zfs_range_tree_t *segs = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64,
-	    NULL, 0, 0);
+	zfs_range_tree_t *segs = zfs_range_tree_create_flags(
+	    NULL, ZFS_RANGE_SEG64, NULL, 0, 0, ZFS_RT_F_DYN_NAME,
+	    vdev_rt_name(vd, "spa_vdev_remove_cancel_sync:segs"));
 	for (uint64_t msi = 0; msi < vd->vdev_ms_count; msi++) {
 		metaslab_t *msp = vd->vdev_ms[msi];
 
@@ -2070,7 +2112,7 @@ spa_vdev_remove_log(vdev_t *vd, uint64_t *txg)
 
 	ASSERT(vd->vdev_islog);
 	ASSERT(vd == vd->vdev_top);
-	ASSERT3P(vd->vdev_log_mg, ==, NULL);
+	ASSERT0P(vd->vdev_log_mg);
 	ASSERT(MUTEX_HELD(&spa_namespace_lock));
 
 	/*
@@ -2106,7 +2148,7 @@ spa_vdev_remove_log(vdev_t *vd, uint64_t *txg)
 
 	if (error != 0) {
 		metaslab_group_activate(mg);
-		ASSERT3P(vd->vdev_log_mg, ==, NULL);
+		ASSERT0P(vd->vdev_log_mg);
 		return (error);
 	}
 	ASSERT0(vd->vdev_stat.vs_alloc);

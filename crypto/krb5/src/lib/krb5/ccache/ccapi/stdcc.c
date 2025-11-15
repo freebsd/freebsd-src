@@ -101,7 +101,7 @@ krb5_cc_ops krb5_cc_stdcc_ops = {
  * changes made.  We register a unique message type with which
  * we'll communicate to all other processes.
  */
-static void cache_changed()
+static void cache_changed(void)
 {
     static unsigned int message = 0;
 
@@ -112,7 +112,7 @@ static void cache_changed()
 }
 #else /* _WIN32 */
 
-static void cache_changed()
+static void cache_changed(void)
 {
     return;
 }
@@ -242,7 +242,7 @@ static krb5_error_code stdccv3_setup (krb5_context context,
 }
 
 /* krb5_stdcc_shutdown is exported; use the old name */
-void krb5_stdcc_shutdown()
+void krb5_stdcc_shutdown(void)
 {
     if (gCntrlBlock) { cc_context_release(gCntrlBlock); }
     gCntrlBlock = NULL;

@@ -33,7 +33,7 @@ extern "C" {
 #define REPLY_SUFFIX    (char*)"reply"
 #define LISTEN_SUFFIX   (char*)"listen"
 
-BOOL    isNT();
+BOOL    isNT(void);
 char*   allocEventName   (char* uuid, char* suffix);
 HANDLE  createThreadEvent(char* uuid, char* suffix);
 HANDLE  openThreadEvent  (char* uuid, char* suffix);

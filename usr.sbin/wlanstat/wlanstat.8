@@ -1,0 +1,66 @@
+.\"
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\"
+.\" This documentation was written by Björn Zeeb under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd March 14, 2025
+.Dt WLANSTAT 8
+.Os
+.Sh NAME
+.Nm wlanstat
+.Nd query 802.11 wireless network statistics
+.Sh SYNOPSIS
+.Nm
+.Op Fl h
+.Op Fl i Ar ifnet
+.Op Fl l
+.Op Fl m Ar station_MAC_address
+.Op Fl o Ar fmt
+.Op interval
+.Sh DESCRIPTION
+The
+.Nm
+command is a tool to query 802.11 statistics for
+.Xr wlan 4
+interface.
+Running
+.Nm
+without any options will display the current statistics
+for the
+.Em wlan0
+network interface.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl h
+Print usage and exit.
+.It Fl i Ar ifnet
+Report information for the specified
+.Ar ifnet
+instead of the default
+.Em wlan0 .
+.It Fl l
+List all field names and their descriptions.
+.It Fl m Ar station_MAC_address
+Request information for the station specified by the given
+.Ar MAC_address .
+.It Fl o Ar fmt
+Set format of fields to query.
+This can be either a pre-defined tag (one of
+.Em default ,
+.Em ampdu ,
+or
+.Em amsdu ) ,
+or a comma separated list of field names without space.
+.El
+.Sh SEE ALSO
+.Xr ifconfig 8 ,
+.Xr wlandebug 8
+.Pp
+The
+.Pa /usr/src/tools/tools/net80211
+directory contains more utilities that might be relevant to debug wireless
+issues.

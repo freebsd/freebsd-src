@@ -394,11 +394,15 @@ vm_page_blacklist_load(char **list, char **end)
 		ptr = preload_fetch_addr(mod);
 		len = preload_fetch_size(mod);
         }
-	*list = ptr;
-	if (ptr != NULL)
-		*end = ptr + len;
-	else
+
+	if (ptr != NULL && len > 0) {
+		*list = ptr;
+		*end = ptr + len - 1;
+	} else {
+		*list = NULL;
 		*end = NULL;
+	}
+
 	return;
 }
 
@@ -2011,8 +2015,9 @@ vm_page_alloc_iter(vm_object_t object, vm_pindex_t pindex, int req,
 	vm_page_t m;
 	int domain;
 
-	vm_domainset_iter_page_init(&di, object, pindex, &domain, &req,
-	    pages);
+	if (vm_domainset_iter_page_init(&di, object, pindex, &domain, &req) != 0)
+		return (NULL);
+
 	do {
 		m = vm_page_alloc_domain_iter(object, pindex, domain, req,
 		    pages);
@@ -2264,7 +2269,9 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 
 	start_segind = -1;
 
-	vm_domainset_iter_page_init(&di, object, pindex, &domain, &req, NULL);
+	if (vm_domainset_iter_page_init(&di, object, pindex, &domain, &req) != 0)
+		return (NULL);
+
 	do {
 		m = vm_page_alloc_contig_domain(object, pindex, domain, req,
 		    npages, low, high, alignment, boundary, memattr);
@@ -2592,7 +2599,9 @@ vm_page_alloc_noobj(int req)
 	vm_page_t m;
 	int domain;
 
-	vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req, NULL);
+	if (vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req) != 0)
+		return (NULL);
+
 	do {
 		m = vm_page_alloc_noobj_domain(domain, req);
 		if (m != NULL)
@@ -2611,7 +2620,9 @@ vm_page_alloc_noobj_contig(int req, u_long npages, vm_paddr_t low,
 	vm_page_t m;
 	int domain;
 
-	vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req, NULL);
+	if (vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req) != 0)
+		return (NULL);
+
 	do {
 		m = vm_page_alloc_noobj_contig_domain(domain, req, npages, low,
 		    high, alignment, boundary, memattr);
@@ -3330,7 +3341,9 @@ vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
 
 	ret = ERANGE;
 
-	vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req, NULL);
+	if (vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req) != 0)
+		return (ret);
+
 	do {
 		status = vm_page_reclaim_contig_domain(domain, req, npages, low,
 		    high, alignment, boundary);
@@ -4713,7 +4726,7 @@ vm_page_grab_pflags(int allocflags)
 
 	pflags = allocflags &
 	    ~(VM_ALLOC_NOWAIT | VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL |
-	    VM_ALLOC_NOBUSY | VM_ALLOC_IGN_SBUSY);
+	    VM_ALLOC_NOBUSY | VM_ALLOC_IGN_SBUSY | VM_ALLOC_NOCREAT);
 	if ((allocflags & VM_ALLOC_NOWAIT) == 0)
 		pflags |= VM_ALLOC_WAITFAIL;
 	if ((allocflags & VM_ALLOC_IGN_SBUSY) != 0)

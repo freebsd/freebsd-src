@@ -64,7 +64,9 @@ static krb5_error_code resolve_target_cache(krb5_context ksu_context,
 /* insure the proper specification of target user as well as catching
    ill specified arguments to commands */
 
-void usage (){
+void
+usage(void)
+{
     fprintf(stderr,
             _("Usage: %s [target user] [-n principal] [-c source cachename] "
               "[-k] [-r time] [-p|-P] [-f|-F] [-l lifetime] [-zZ] [-q] "
@@ -80,9 +82,7 @@ void usage (){
 static uid_t source_uid, target_uid;
 
 int
-main (argc, argv)
-    int argc;
-    char ** argv;
+main(int argc, char ** argv)
 {
     int hp =0;
     int some_rest_copy = 0;
@@ -101,7 +101,6 @@ main (argc, argv)
 
     krb5_ccache cc_source = NULL;
     const char * cc_source_tag = NULL;
-    const char * cc_source_tag_tmp = NULL;
     char * cmd = NULL, * exec_cmd = NULL;
     int errflg = 0;
     krb5_boolean auth_val;
@@ -114,7 +113,6 @@ main (argc, argv)
     char ** params;
     int keep_target_cache = 0;
     int child_pid, child_pgrp, ret_pid;
-    extern char * getpass(), *crypt();
     int pargc;
     char ** pargv;
     krb5_boolean stored = FALSE, cc_reused = FALSE, given_princ = FALSE;
@@ -275,23 +273,13 @@ main (argc, argv)
         case 'c':
             if (cc_source_tag == NULL) {
                 cc_source_tag = xstrdup(optarg);
-                if ( strchr(cc_source_tag, ':')){
-                    cc_source_tag_tmp = strchr(cc_source_tag, ':') + 1;
-
-                    if (!ks_ccache_name_is_initialized(ksu_context,
-                                                       cc_source_tag)) {
-                        com_err(prog_name, errno,
-                                _("while looking for credentials cache %s"),
-                                cc_source_tag_tmp);
-                        exit (1);
-                    }
-                }
-                else {
-                    fprintf(stderr, _("malformed credential cache name %s\n"),
+                if (!ks_ccache_name_is_initialized(ksu_context,
+                                                   cc_source_tag)) {
+                    com_err(prog_name, errno,
+                            _("while looking for credentials cache %s"),
                             cc_source_tag);
-                    errflg++;
+                    exit(1);
                 }
-
             } else {
                 fprintf(stderr, _("Only one -c option allowed\n"));
                 errflg++;
@@ -375,11 +363,10 @@ main (argc, argv)
 
     if (cc_source_tag == NULL){
         cc_source_tag = krb5_cc_default_name(ksu_context);
-        cc_source_tag_tmp = strchr(cc_source_tag, ':');
-        if (cc_source_tag_tmp == 0)
-            cc_source_tag_tmp = cc_source_tag;
-        else
-            cc_source_tag_tmp++;
+        if (cc_source_tag == NULL) {
+            fprintf(stderr, _("ksu: failed to get default ccache name\n"));
+            exit(1);
+        }
     }
 
     /* get a handle for the cache */
@@ -781,7 +768,7 @@ main (argc, argv)
                 com_err(prog_name, errno, _("while calling waitpid"));
             }
             sweep_up(ksu_context, cc_target);
-            exit (statusp);
+            exit (WIFEXITED(statusp) ? WEXITSTATUS(statusp) : 1);
         case -1:
             com_err(prog_name, errno, _("while trying to fork."));
             sweep_up(ksu_context, cc_target);
@@ -919,7 +906,7 @@ resolve_target_cache(krb5_context context, krb5_principal princ,
             if (retval) {
                 com_err(prog_name, retval,
                         _("while generating part of the target ccache name"));
-                return retval;
+                goto cleanup;
             }
             if (asprintf(&ccname, "%s.%s", target, sym) < 0) {
                 retval = ENOMEM;
@@ -931,6 +918,7 @@ resolve_target_cache(krb5_context context, krb5_principal princ,
             free(sym);
         } while (ks_ccache_name_is_initialized(context, ccname));
         retval = krb5_cc_resolve(context, ccname, &ccache);
+        free(ccname);
     } else {
         /* Look for a cache in the collection that we can reuse. */
         retval = krb5_cc_cache_match(context, princ, &ccache);
@@ -965,11 +953,10 @@ cleanup:
 
 #ifdef HAVE_GETUSERSHELL
 
-int standard_shell(sh)
-    char *sh;
+int
+standard_shell(char *sh)
 {
     char *cp;
-    char *getusershell();
 
     while ((cp = getusershell()) != NULL)
         if (!strcmp(cp, sh))
@@ -979,7 +966,8 @@ int standard_shell(sh)
 
 #endif /* HAVE_GETUSERSHELL */
 
-static char * ontty()
+static char *
+ontty(void)
 {
     char *p;
     static char buf[MAXPATHLEN + 5];
@@ -996,10 +984,8 @@ static char * ontty()
     return (buf);
 }
 
-
-static int set_env_var(name, value)
-    char *name;
-    char *value;
+static int
+set_env_var(char *name, char *value)
 {
     char * env_var_buf;
 
@@ -1008,9 +994,8 @@ static int set_env_var(name, value)
 
 }
 
-static void sweep_up(context, cc)
-    krb5_context context;
-    krb5_ccache cc;
+static void
+sweep_up(krb5_context context, krb5_ccache cc)
 {
     krb5_error_code retval;
 
@@ -1038,11 +1023,7 @@ get_params is to be called for the -a option or -e option to
 *****************************************************************/
 
 krb5_error_code
-get_params(optindex, pargc, pargv, params)
-    int *optindex;
-    int pargc;
-    char **pargv;
-    char ***params;
+get_params(int *optindex, int pargc, char **pargv, char ***params)
 {
 
     int i,j;
@@ -1075,10 +1056,8 @@ void print_status(const char *fmt, ...)
 }
 
 krb5_error_code
-ksu_tgtname(context, server, client, tgtprinc)
-    krb5_context context;
-    const krb5_data *server, *client;
-    krb5_principal *tgtprinc;
+ksu_tgtname(krb5_context context, const krb5_data *server,
+            const krb5_data *client, krb5_principal *tgtprinc)
 {
     return krb5_build_principal_ext(context, tgtprinc, client->length, client->data,
                                     KRB5_TGS_NAME_SIZE, KRB5_TGS_NAME,

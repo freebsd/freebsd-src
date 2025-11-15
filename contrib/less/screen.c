@@ -221,6 +221,8 @@ static constant char
 	*sc_e_mousecap,         /* End mouse capture mode */
 	*sc_s_bracketed_paste,  /* Start bracketed paste mode */
 	*sc_e_bracketed_paste,  /* End bracketed paste mode */
+	*sc_suspend,            /* Suspend screen updates */
+	*sc_resume,             /* Resume screen updates */
 	*sc_init,               /* Startup terminal initialization */
 	*sc_deinit;             /* Exit terminal de-initialization */
 
@@ -1330,6 +1332,13 @@ public void get_term(void)
 	if (sc_e_bracketed_paste == NULL)
 		sc_e_bracketed_paste = ESCS"[?2004l";
 
+	sc_suspend = ltgetstr("SUSPEND", &sp);
+	if (sc_suspend == NULL)
+		sc_suspend = "";
+	sc_resume = ltgetstr("RESUME", &sp);
+	if (sc_resume == NULL)
+		sc_resume = "";
+
 	sc_init = ltgetstr("ti", &sp);
 	if (sc_init == NULL)
 		sc_init = "";
@@ -1752,6 +1761,26 @@ public void deinit_mouse(void)
 	curr_console_input_mode = base_console_input_mode;
 	SetConsoleMode(tty, curr_console_input_mode);
 #endif
+#endif
+}
+
+/*
+ * Suspend screen updates.
+ */
+public void suspend_screen(void)
+{
+#if !MSDOS_COMPILER
+	ltputs(sc_suspend, 1, putchr);
+#endif
+}
+
+/*
+ * Resume screen updates.
+ */
+public void resume_screen(void)
+{
+#if !MSDOS_COMPILER
+	ltputs(sc_resume, 1, putchr);
 #endif
 }
 
@@ -2341,6 +2370,7 @@ public void bell(void)
 public void clear(void)
 {
 	assert_interactive();
+	suspend_screen();
 #if !MSDOS_COMPILER
 	ltputs(sc_clear, sc_height, putchr);
 #else

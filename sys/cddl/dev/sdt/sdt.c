@@ -72,6 +72,7 @@ static void	sdt_load(void);
 static int	sdt_unload(void);
 static void	sdt_create_provider(struct sdt_provider *);
 static void	sdt_create_probe(struct sdt_probe *);
+static void	sdt_init_probe(struct sdt_probe *, linker_file_t);
 static void	sdt_kld_load(void *, struct linker_file *);
 static void	sdt_kld_unload_try(void *, struct linker_file *, int *);
 
@@ -202,6 +203,14 @@ sdt_create_probe(struct sdt_probe *probe)
 		aframes++;
 	}
 	(void)dtrace_probe_create(prov->id, mod, func, name, aframes, probe);
+}
+
+static void
+sdt_init_probe(struct sdt_probe *probe, linker_file_t lf)
+{
+	probe->sdtp_lf = lf;
+	TAILQ_INIT(&probe->argtype_list);
+	STAILQ_INIT(&probe->tracepoint_list);
 }
 
 /*
@@ -361,11 +370,18 @@ static void
 sdt_kld_load_providers(struct linker_file *lf)
 {
 	struct sdt_provider **prov, **begin, **end;
+	struct sdt_probe **p_begin, **p_end;
 
 	if (linker_file_lookup_set(lf, "sdt_providers_set", &begin, &end,
 	    NULL) == 0) {
 		for (prov = begin; prov < end; prov++)
 			sdt_create_provider(*prov);
+	}
+
+	if (linker_file_lookup_set(lf, "sdt_probes_set", &p_begin, &p_end,
+	    NULL) == 0) {
+		for (struct sdt_probe **probe = p_begin; probe < p_end; probe++)
+			sdt_init_probe(*probe, lf);
 	}
 }
 
@@ -378,13 +394,8 @@ sdt_kld_load_probes(struct linker_file *lf)
 
 	if (linker_file_lookup_set(lf, "sdt_probes_set", &p_begin, &p_end,
 	    NULL) == 0) {
-		for (struct sdt_probe **probe = p_begin; probe < p_end;
-		    probe++) {
-			(*probe)->sdtp_lf = lf;
+		for (struct sdt_probe **probe = p_begin; probe < p_end; probe++)
 			sdt_create_probe(*probe);
-			TAILQ_INIT(&(*probe)->argtype_list);
-			STAILQ_INIT(&(*probe)->tracepoint_list);
-		}
 	}
 
 	if (linker_file_lookup_set(lf, "sdt_argtypes_set", &a_begin, &a_end,

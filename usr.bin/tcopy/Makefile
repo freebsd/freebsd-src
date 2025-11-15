@@ -1,4 +1,4 @@
-PROG=	tcopy
-LIBADD=      util
+PROG_CXX=	tcopy
+LIBADD=		util
 
 .include <bsd.prog.mk>

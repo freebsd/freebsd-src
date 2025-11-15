@@ -37,7 +37,7 @@
 /*
  * LINUXKPI_WANT_LINUX_ACPI is a temporary workaround to allow drm-kmod
  * to update all needed branches without breaking builds.
- * Once that happened and checks are implemented based on __FreeBSD_verison
+ * Once that happened and checks are implemented based on __FreeBSD_version
  * we will remove these conditions again.
  */
 
@@ -131,7 +131,7 @@ acpi_format_exception(ACPI_STATUS Exception)
 }
 
 static inline ACPI_STATUS
-acpi_get_handle(ACPI_HANDLE Parent, ACPI_STRING Pathname,
+acpi_get_handle(ACPI_HANDLE Parent, const char *Pathname,
     ACPI_HANDLE *RetHandle)
 {
 	return (AcpiGetHandle(Parent, Pathname, RetHandle));

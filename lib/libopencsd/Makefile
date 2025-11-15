@@ -1,8 +1,3 @@
-PACKAGE=lib${LIB}
-SHLIBDIR?=	/lib
-
-.include <src.opts.mk>
-
 OPENCSDSRC=	${SRCTOP}/contrib/opencsd
 
 .PATH:	${OPENCSDSRC}/decoder/source/ete/		\
@@ -182,6 +177,7 @@ INCSGROUPS=INCS APIINCS ETEINCS ETMV3INCS ETMV4INCS PTMINCS STMINCS
 LIBADD= cxxrt
 
 WARNS?= 1
+PRIVATELIB=	true
 
 HAS_TESTS=
 

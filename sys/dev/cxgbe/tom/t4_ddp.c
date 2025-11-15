@@ -1655,7 +1655,10 @@ t4_write_page_pods_for_ps(struct adapter *sc, struct sge_wrq *wrq, int tid,
 
 		INIT_ULPTX_WR(ulpmc, len, 0, 0);
 		ulpmc->cmd = cmd;
-		ulpmc->dlen = htobe32(V_ULP_MEMIO_DATA_LEN(chunk / 32));
+		if (chip_id(sc) >= CHELSIO_T7)
+			ulpmc->dlen = htobe32(V_T7_ULP_MEMIO_DATA_LEN(chunk >> 5));
+		else
+			ulpmc->dlen = htobe32(V_ULP_MEMIO_DATA_LEN(chunk >> 5));
 		ulpmc->len16 = htobe32(howmany(len - sizeof(ulpmc->wr), 16));
 		ulpmc->lock_addr = htobe32(V_ULP_MEMIO_ADDR(ppod_addr >> 5));
 
@@ -1785,7 +1788,7 @@ t4_write_page_pods_for_rcvbuf(struct adapter *sc, struct sge_wrq *wrq, int tid,
 	return (0);
 }
 
-static struct mbuf *
+struct mbuf *
 alloc_raw_wr_mbuf(int len)
 {
 	struct mbuf *m;
@@ -1842,7 +1845,10 @@ t4_write_page_pods_for_bio(struct adapter *sc, struct toepcb *toep,
 		ulpmc = mtod(m, struct ulp_mem_io *);
 		INIT_ULPTX_WR(ulpmc, len, 0, toep->tid);
 		ulpmc->cmd = cmd;
-		ulpmc->dlen = htobe32(V_ULP_MEMIO_DATA_LEN(chunk / 32));
+		if (chip_id(sc) >= CHELSIO_T7)
+			ulpmc->dlen = htobe32(V_T7_ULP_MEMIO_DATA_LEN(chunk >> 5));
+		else
+			ulpmc->dlen = htobe32(V_ULP_MEMIO_DATA_LEN(chunk >> 5));
 		ulpmc->len16 = htobe32(howmany(len - sizeof(ulpmc->wr), 16));
 		ulpmc->lock_addr = htobe32(V_ULP_MEMIO_ADDR(ppod_addr >> 5));
 
@@ -1922,7 +1928,10 @@ t4_write_page_pods_for_buf(struct adapter *sc, struct toepcb *toep,
 
 		INIT_ULPTX_WR(ulpmc, len, 0, toep->tid);
 		ulpmc->cmd = cmd;
-		ulpmc->dlen = htobe32(V_ULP_MEMIO_DATA_LEN(chunk / 32));
+		if (chip_id(sc) >= CHELSIO_T7)
+			ulpmc->dlen = htobe32(V_T7_ULP_MEMIO_DATA_LEN(chunk >> 5));
+		else
+			ulpmc->dlen = htobe32(V_ULP_MEMIO_DATA_LEN(chunk >> 5));
 		ulpmc->len16 = htobe32(howmany(len - sizeof(ulpmc->wr), 16));
 		ulpmc->lock_addr = htobe32(V_ULP_MEMIO_ADDR(ppod_addr >> 5));
 
@@ -2013,7 +2022,10 @@ t4_write_page_pods_for_sgl(struct adapter *sc, struct toepcb *toep,
 
 		INIT_ULPTX_WR(ulpmc, len, 0, toep->tid);
 		ulpmc->cmd = cmd;
-		ulpmc->dlen = htobe32(V_ULP_MEMIO_DATA_LEN(chunk / 32));
+		if (chip_id(sc) >= CHELSIO_T7)
+			ulpmc->dlen = htobe32(V_T7_ULP_MEMIO_DATA_LEN(chunk >> 5));
+		else
+			ulpmc->dlen = htobe32(V_ULP_MEMIO_DATA_LEN(chunk >> 5));
 		ulpmc->len16 = htobe32(howmany(len - sizeof(ulpmc->wr), 16));
 		ulpmc->lock_addr = htobe32(V_ULP_MEMIO_ADDR(ppod_addr >> 5));
 

@@ -1,0 +1,110 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Chelsio Communications, Inc.
+.\" Written by: John Baldwin <jhb@FreeBSD.org>
+.\"
+.Dd July 31, 2025
+.Dt FREEBSD::STRINGF 3
+.Os
+.Sh NAME
+.Nm freebsd::pidfile
+.Nd own a PID file handle
+.Sh LIBRARY
+.Lb libutil++
+.Sh SYNOPSIS
+.In libutil++.hh
+.Pp
+.Vt class freebsd::pidfile
+{
+.Bd -ragged -offset indent
+.Fn pidfile
+.Fn pidfile "struct pidfh *pfh"
+.Fn pidfile "pidfile &&other"
+.Fn ~pidfile
+.Ft struct pidfh *
+.Fn release
+.Ft void
+.Fn reset "struct pidfh *newpfh = nullptr"
+.Ft int
+.Fn write
+.Ft int
+.Fn close
+.Ft int
+.Fn fileno
+.Ft "pidfile &"
+.Fn operator= "pidfile &&other"
+.Ft "pidfile &"
+.Fn operator= "struct pidfh *pfh"
+.Fn "explicit operator bool"
+.Ed
+};
+.Sh DESCRIPTION
+Each instance of this class owns a PID file handle created by
+.Xr pidfile_open 3 .
+This class is patterned on std::unique_ptr;
+however,
+rather than exporting the raw pointer via a
+.Fn get
+method,
+this class provides wrapper methods for each of the other
+.Xr pidfile 3
+functions.
+The currently-owned PID file is removed by invoking
+.Xr pidfile_remove 3
+when an instance of this class is destroyed.
+The currently-owned PID file is also removed if it is replaced by the
+.Fn reset
+method or assignment operators.
+.Pp
+The
+.Fn release
+method relinquishes ownership of the current PID file handle and returns the
+value of the previously-owned PID file handle.
+.Pp
+The
+.Fn write
+method writes out the PID of the current process to the PID file via
+.Xr pidfile_write 3 .
+.Pp
+The
+.Fn close
+method closes the current PID file without removing it via
+.Xr pidfile_close 3 .
+If the close succeeds, the PID file handle is no longer valid.
+.Pp
+The
+.Fn fileno
+method returns the underlying file descriptor for the current PID file via
+.Xr pidfile_fileno 3 .
+.Pp
+The explicit
+.Vt bool
+conversion operator permits testing the validity of an object.
+The operator returns true if the instance owns a valid PID file handle.
+.Sh EXAMPLES
+.Bd -literal -offset indent
+int
+main()
+{
+	freebsd::pidfile pf(pidfile_open("/var/run/daemon.pid",
+	    0600, NULL));
+	if (!pf)
+		err(1, "pidfile_open");
+
+	if (daemon(0, 0) == -1) {
+		warn("daemon");
+		return 1;
+	}
+
+	pf->write();
+
+	for (;;) {
+		/* Do Work */
+	}
+
+	return 0;
+}
+.Ed
+.Sh SEE ALSO
+.Xr pidfile 3

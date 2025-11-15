@@ -440,7 +440,7 @@ get_usage(zfs_help_t idx)
 		return (gettext("\tredact <snapshot> <bookmark> "
 		    "<redaction_snapshot> ...\n"));
 	case HELP_REWRITE:
-		return (gettext("\trewrite [-rvx] [-o <offset>] [-l <length>] "
+		return (gettext("\trewrite [-Prvx] [-o <offset>] [-l <length>] "
 		    "<directory|file ...>\n"));
 	case HELP_JAIL:
 		return (gettext("\tjail <jailid|jailname> <filesystem>\n"));
@@ -914,7 +914,11 @@ zfs_do_clone(int argc, char **argv)
 			log_history = B_FALSE;
 		}
 
-		ret = zfs_mount_and_share(g_zfs, argv[1], ZFS_TYPE_DATASET);
+		/*
+		 * Dataset cloned successfully, mount/share failures are
+		 * non-fatal.
+		 */
+		(void) zfs_mount_and_share(g_zfs, argv[1], ZFS_TYPE_DATASET);
 	}
 
 	zfs_close(zhp);
@@ -923,25 +927,21 @@ zfs_do_clone(int argc, char **argv)
 	return (!!ret);
 
 usage:
-	ASSERT3P(zhp, ==, NULL);
+	ASSERT0P(zhp);
 	nvlist_free(props);
 	usage(B_FALSE);
 	return (-1);
 }
 
 /*
- * Return a default volblocksize for the pool which always uses more than
- * half of the data sectors.  This primarily applies to dRAID which always
- * writes full stripe widths.
+ * Calculate the minimum allocation size based on the top-level vdevs.
  */
 static uint64_t
-default_volblocksize(zpool_handle_t *zhp, nvlist_t *props)
+calculate_volblocksize(nvlist_t *config)
 {
-	uint64_t volblocksize, asize = SPA_MINBLOCKSIZE;
+	uint64_t asize = SPA_MINBLOCKSIZE;
 	nvlist_t *tree, **vdevs;
 	uint_t nvdevs;
-
-	nvlist_t *config = zpool_get_config(zhp, NULL);
 
 	if (nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE, &tree) != 0 ||
 	    nvlist_lookup_nvlist_array(tree, ZPOOL_CONFIG_CHILDREN,
@@ -972,6 +972,24 @@ default_volblocksize(zpool_handle_t *zhp, nvlist_t *props)
 			asize = MAX(asize, 1ULL << ashift);
 		}
 	}
+
+	return (asize);
+}
+
+/*
+ * Return a default volblocksize for the pool which always uses more than
+ * half of the data sectors.  This primarily applies to dRAID which always
+ * writes full stripe widths.
+ */
+static uint64_t
+default_volblocksize(zpool_handle_t *zhp, nvlist_t *props)
+{
+	uint64_t volblocksize, asize = SPA_MINBLOCKSIZE;
+
+	nvlist_t *config = zpool_get_config(zhp, NULL);
+
+	if (nvlist_lookup_uint64(config, ZPOOL_CONFIG_MAX_ALLOC, &asize) != 0)
+		asize = calculate_volblocksize(config);
 
 	/*
 	 * Calculate the target volblocksize such that more than half
@@ -1319,7 +1337,9 @@ zfs_do_create(int argc, char **argv)
 		goto error;
 	}
 
-	ret = zfs_mount_and_share(g_zfs, argv[0], ZFS_TYPE_DATASET);
+	/* Dataset created successfully, mount/share failures are non-fatal */
+	ret = 0;
+	(void) zfs_mount_and_share(g_zfs, argv[0], ZFS_TYPE_DATASET);
 error:
 	nvlist_free(props);
 	return (ret);
@@ -1974,9 +1994,8 @@ fill_dataset_info(nvlist_t *list, zfs_handle_t *zhp, boolean_t as_int)
 	}
 
 	if (type == ZFS_TYPE_SNAPSHOT) {
-		char *ds, *snap;
-		ds = snap = strdup(zfs_get_name(zhp));
-		ds = strsep(&snap, "@");
+		char *snap = strdup(zfs_get_name(zhp));
+		char *ds = strsep(&snap, "@");
 		fnvlist_add_string(list, "dataset", ds);
 		fnvlist_add_string(list, "snapshot_name", snap);
 		free(ds);
@@ -2019,8 +2038,7 @@ get_callback(zfs_handle_t *zhp, void *data)
 	nvlist_t *user_props = zfs_get_user_props(zhp);
 	zprop_list_t *pl = cbp->cb_proplist;
 	nvlist_t *propval;
-	nvlist_t *item, *d, *props;
-	item = d = props = NULL;
+	nvlist_t *item, *d = NULL, *props = NULL;
 	const char *strval;
 	const char *sourceval;
 	boolean_t received = is_recvd_column(cbp);
@@ -5305,6 +5323,7 @@ zfs_do_receive(int argc, char **argv)
 #define	ZFS_DELEG_PERM_MOUNT		"mount"
 #define	ZFS_DELEG_PERM_SHARE		"share"
 #define	ZFS_DELEG_PERM_SEND		"send"
+#define	ZFS_DELEG_PERM_SEND_RAW		"send:raw"
 #define	ZFS_DELEG_PERM_RECEIVE		"receive"
 #define	ZFS_DELEG_PERM_RECEIVE_APPEND	"receive:append"
 #define	ZFS_DELEG_PERM_ALLOW		"allow"
@@ -5347,6 +5366,7 @@ static zfs_deleg_perm_tab_t zfs_deleg_perm_tbl[] = {
 	{ ZFS_DELEG_PERM_RENAME, ZFS_DELEG_NOTE_RENAME },
 	{ ZFS_DELEG_PERM_ROLLBACK, ZFS_DELEG_NOTE_ROLLBACK },
 	{ ZFS_DELEG_PERM_SEND, ZFS_DELEG_NOTE_SEND },
+	{ ZFS_DELEG_PERM_SEND_RAW, ZFS_DELEG_NOTE_SEND_RAW },
 	{ ZFS_DELEG_PERM_SHARE, ZFS_DELEG_NOTE_SHARE },
 	{ ZFS_DELEG_PERM_SNAPSHOT, ZFS_DELEG_NOTE_SNAPSHOT },
 	{ ZFS_DELEG_PERM_BOOKMARK, ZFS_DELEG_NOTE_BOOKMARK },
@@ -5879,7 +5899,7 @@ parse_fs_perm_set(fs_perm_set_t *fspset, nvlist_t *nvl)
 static inline const char *
 deleg_perm_comment(zfs_deleg_note_t note)
 {
-	const char *str = "";
+	const char *str;
 
 	/* subcommands */
 	switch (note) {
@@ -5930,6 +5950,10 @@ deleg_perm_comment(zfs_deleg_note_t note)
 		break;
 	case ZFS_DELEG_NOTE_SEND:
 		str = gettext("");
+		break;
+	case ZFS_DELEG_NOTE_SEND_RAW:
+		str = gettext("Allow sending ONLY encrypted (raw) replication"
+		    "\n\t\t\t\tstreams");
 		break;
 	case ZFS_DELEG_NOTE_SHARE:
 		str = gettext("Allows sharing file systems over NFS or SMB"
@@ -6860,17 +6884,17 @@ print_holds(boolean_t scripted, int nwidth, int tagwidth, nvlist_t *nvl,
 
 			if (scripted) {
 				if (parsable) {
-					(void) printf("%s\t%s\t%ld\n", zname,
-					    tagname, (unsigned long)time);
+					(void) printf("%s\t%s\t%lld\n", zname,
+					    tagname, (long long)time);
 				} else {
 					(void) printf("%s\t%s\t%s\n", zname,
 					    tagname, tsbuf);
 				}
 			} else {
 				if (parsable) {
-					(void) printf("%-*s  %-*s  %ld\n",
+					(void) printf("%-*s  %-*s  %lld\n",
 					    nwidth, zname, tagwidth,
-					    tagname, (unsigned long)time);
+					    tagname, (long long)time);
 				} else {
 					(void) printf("%-*s  %-*s  %s\n",
 					    nwidth, zname, tagwidth,
@@ -7729,6 +7753,7 @@ unshare_unmount_path(int op, char *path, int flags, boolean_t is_manual)
 	struct extmnttab entry;
 	const char *cmdname = (op == OP_SHARE) ? "unshare" : "unmount";
 	ino_t path_inode;
+	char *zfs_mntpnt, *entry_mntpnt;
 
 	/*
 	 * Search for the given (major,minor) pair in the mount table.
@@ -7769,6 +7794,24 @@ unshare_unmount_path(int op, char *path, int flags, boolean_t is_manual)
 		    "%s '%s': not a mountpoint\n"), cmdname, path);
 		goto out;
 	}
+
+	/*
+	 * If the filesystem is mounted, check that the mountpoint matches
+	 * the one in the mnttab entry w.r.t. provided path. If it doesn't,
+	 * then we should not proceed further.
+	 */
+	entry_mntpnt = strdup(entry.mnt_mountp);
+	if (zfs_is_mounted(zhp, &zfs_mntpnt)) {
+		if (strcmp(zfs_mntpnt, entry_mntpnt) != 0) {
+			(void) fprintf(stderr, gettext("cannot %s '%s': "
+			    "not an original mountpoint\n"), cmdname, path);
+			free(zfs_mntpnt);
+			free(entry_mntpnt);
+			goto out;
+		}
+		free(zfs_mntpnt);
+	}
+	free(entry_mntpnt);
 
 	if (op == OP_SHARE) {
 		char nfs_mnt_prop[ZFS_MAXPROPLEN];
@@ -9160,8 +9203,11 @@ zfs_do_rewrite(int argc, char **argv)
 	zfs_rewrite_args_t args;
 	memset(&args, 0, sizeof (args));
 
-	while ((c = getopt(argc, argv, "l:o:rvx")) != -1) {
+	while ((c = getopt(argc, argv, "Pl:o:rvx")) != -1) {
 		switch (c) {
+		case 'P':
+			args.flags |= ZFS_REWRITE_PHYSICAL;
+			break;
 		case 'l':
 			args.len = strtoll(optarg, NULL, 0);
 			break;

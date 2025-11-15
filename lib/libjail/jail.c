@@ -75,8 +75,9 @@ int
 jail_setv(int flags, ...)
 {
 	va_list ap, tap;
-	struct jailparam *jp;
-	const char *name, *value;
+	struct jailparam *jp, *jp_desc;
+	const char *name;
+	char *value, *desc_value;
 	int njp, jid;
 
 	/* Create the parameter list and import the parameters. */
@@ -86,15 +87,24 @@ jail_setv(int flags, ...)
 		(void)va_arg(tap, char *);
 	va_end(tap);
 	jp = alloca(njp * sizeof(struct jailparam));
-	for (njp = 0; (name = va_arg(ap, char *)) != NULL;) {
+	jp_desc = NULL;
+	desc_value = NULL;
+	for (njp = 0; (name = va_arg(ap, char *)) != NULL; njp++) {
 		value = va_arg(ap, char *);
 		if (jailparam_init(jp + njp, name) < 0)
 			goto error;
-		if (jailparam_import(jp + njp++, value) < 0)
+		if (jailparam_import(jp + njp, value) < 0)
 			goto error;
+		if (!strcmp(name, "desc") &&
+		    (flags & (JAIL_GET_DESC | JAIL_OWN_DESC))) {
+			jp_desc = jp + njp;
+			desc_value = value;
+		}
 	}
 	va_end(ap);
 	jid = jailparam_set(jp, njp, flags);
+	if (jid > 0 && jp_desc != NULL)
+		sprintf(desc_value, "%d", *(int *)jp_desc->jp_value);
 	jailparam_free(jp, njp);
 	return (jid);
 
@@ -112,9 +122,10 @@ int
 jail_getv(int flags, ...)
 {
 	va_list ap, tap;
-	struct jailparam *jp, *jp_lastjid, *jp_jid, *jp_name, *jp_key;
+	struct jailparam *jp, *jp_desc, *jp_lastjid, *jp_jid, *jp_name, *jp_key;
 	char *valarg, *value;
-	const char *name, *key_value, *lastjid_value, *jid_value, *name_value;
+	const char *name, *key_value, *desc_value, *lastjid_value, *jid_value;
+	const char *name_value;
 	int njp, i, jid;
 
 	/* Create the parameter list and find the key. */
@@ -126,15 +137,19 @@ jail_getv(int flags, ...)
 
 	jp = alloca(njp * sizeof(struct jailparam));
 	va_copy(tap, ap);
-	jp_lastjid = jp_jid = jp_name = NULL;
-	lastjid_value = jid_value = name_value = NULL;
+	jp_desc = jp_lastjid = jp_jid = jp_name = NULL;
+	desc_value = lastjid_value = jid_value = name_value = NULL;
 	for (njp = 0; (name = va_arg(tap, char *)) != NULL; njp++) {
 		value = va_arg(tap, char *);
 		if (jailparam_init(jp + njp, name) < 0) {
 			va_end(tap);
 			goto error;
 		}
-		if (!strcmp(jp[njp].jp_name, "lastjid")) {
+		if (!strcmp(jp[njp].jp_name, "desc") &&
+		    (flags & (JAIL_USE_DESC | JAIL_AT_DESC))) {
+			jp_desc = jp + njp;
+			desc_value = value;
+		} else if (!strcmp(jp[njp].jp_name, "lastjid")) {
 			jp_lastjid = jp + njp;
 			lastjid_value = value;
 		} else if (!strcmp(jp[njp].jp_name, "jid")) {
@@ -147,7 +162,10 @@ jail_getv(int flags, ...)
 	}
 	va_end(tap);
 	/* Import the key parameter. */
-	if (jp_lastjid != NULL) {
+	if (jp_desc != NULL && (flags & JAIL_USE_DESC)) {
+		jp_key = jp_desc;
+		key_value = desc_value;
+	} else if (jp_lastjid != NULL) {
 		jp_key = jp_lastjid;
 		key_value = lastjid_value;
 	} else if (jp_jid != NULL && strtol(jid_value, NULL, 10) != 0) {
@@ -162,6 +180,9 @@ jail_getv(int flags, ...)
 		goto error;
 	}
 	if (jailparam_import(jp_key, key_value) < 0)
+		goto error;
+	if (jp_desc != NULL && jp_desc != jp_key &&
+	    jailparam_import(jp_desc, desc_value) < 0)
 		goto error;
 	/* Get the jail and export the parameters. */
 	jid = jailparam_get(jp, njp, flags);
@@ -571,7 +592,7 @@ int
 jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 {
 	struct iovec *jiov;
-	struct jailparam *jp_lastjid, *jp_jid, *jp_name, *jp_key;
+	struct jailparam *jp_desc, *jp_lastjid, *jp_jid, *jp_name, *jp_key;
 	int i, ai, ki, jid, arrays, sanity;
 	unsigned j;
 
@@ -580,10 +601,13 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 	 * Find the key and any array parameters.
 	 */
 	jiov = alloca(sizeof(struct iovec) * 2 * (njp + 1));
-	jp_lastjid = jp_jid = jp_name = NULL;
+	jp_desc = jp_lastjid = jp_jid = jp_name = NULL;
 	arrays = 0;
 	for (ai = j = 0; j < njp; j++) {
-		if (!strcmp(jp[j].jp_name, "lastjid"))
+		if (!strcmp(jp[j].jp_name, "desc") &&
+		    (flags & (JAIL_USE_DESC | JAIL_AT_DESC)))
+			jp_desc = jp + j;
+		else if (!strcmp(jp[j].jp_name, "lastjid"))
 			jp_lastjid = jp + j;
 		else if (!strcmp(jp[j].jp_name, "jid"))
 			jp_jid = jp + j;
@@ -599,7 +623,9 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 			ai++;
 		}
 	}
-	jp_key = jp_lastjid ? jp_lastjid :
+	jp_key = jp_desc && jp_desc->jp_valuelen == sizeof(int) &&
+	    jp_desc->jp_value && (flags & JAIL_USE_DESC) ? jp_desc :
+	    jp_lastjid ? jp_lastjid :
 	    jp_jid && jp_jid->jp_valuelen == sizeof(int) &&
 	    jp_jid->jp_value && *(int *)jp_jid->jp_value ? jp_jid : jp_name;
 	if (jp_key == NULL || jp_key->jp_value == NULL) {
@@ -622,6 +648,14 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 	jiov[ki].iov_len = JAIL_ERRMSGLEN;
 	ki++;
 	jail_errmsg[0] = 0;
+	if (jp_desc != NULL && jp_desc != jp_key) {
+		jiov[ki].iov_base = jp_desc->jp_name;
+		jiov[ki].iov_len = strlen(jp_desc->jp_name) + 1;
+		ki++;
+		jiov[ki].iov_base = jp_desc->jp_value;
+		jiov[ki].iov_len = jp_desc->jp_valuelen;
+		ki++;
+	}
 	if (arrays && jail_get(jiov, ki, flags) < 0) {
 		if (!jail_errmsg[0])
 			snprintf(jail_errmsg, sizeof(jail_errmsg),
@@ -649,7 +683,7 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 			jiov[ai].iov_base = jp[j].jp_value;
 			memset(jiov[ai].iov_base, 0, jiov[ai].iov_len);
 			ai++;
-		} else if (jp + j != jp_key) {
+		} else if (jp + j != jp_key && jp + j != jp_desc) {
 			jiov[i].iov_base = jp[j].jp_name;
 			jiov[i].iov_len = strlen(jp[j].jp_name) + 1;
 			i++;
@@ -886,11 +920,19 @@ jailparam_type(struct jailparam *jp)
 	} desc;
 	int mib[CTL_MAXNAME];
 
-	/* The "lastjid" parameter isn't real. */
+	/*
+	 * Some pseudo-parameters don't show up in the sysctl
+	 * parameter list.
+	 */
 	name = jp->jp_name;
 	if (!strcmp(name, "lastjid")) {
 		jp->jp_valuelen = sizeof(int);
 		jp->jp_ctltype = CTLTYPE_INT | CTLFLAG_WR;
+		return (0);
+	}
+	if (!strcmp(name, "desc")) {
+		jp->jp_valuelen = sizeof(int);
+		jp->jp_ctltype = CTLTYPE_INT | CTLFLAG_RW;
 		return (0);
 	}
 

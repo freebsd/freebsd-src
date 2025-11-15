@@ -76,8 +76,10 @@ struct userconf {
 struct pwconf {
 	char		 rootdir[MAXPATHLEN];
 	char		 etcpath[MAXPATHLEN];
+	FILE		 *metalog;
 	int		 fd;
 	int		 rootfd;
+	bool		 altroot;
 	bool		 checkduplicate;
 };
 

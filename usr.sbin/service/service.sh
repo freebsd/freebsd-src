@@ -27,17 +27,19 @@
 #  SUCH DAMAGE.
 
 . /etc/rc.subr
-load_rc_config 'XXX'
+load_rc_config
 
 usage () {
 	echo ''
 	echo 'Usage:'
 	echo "${0##*/} [-j <jail name or id>] -e"
-	echo "${0##*/} [-j <jail name or id>] -R"
-	echo "${0##*/} [-j <jail name or id>] [-v] -l | -r"
-	echo "${0##*/} [-j <jail name or id>] [-v] [-E var=value] <rc.d script> start|stop|etc."
+	echo "${0##*/} [-j <jail name or id>] [-q] -R"
+	echo "${0##*/} [-j <jail name or id>] [-v] -l"
+	echo "${0##*/} [-j <jail name or id>] [-v] -r"
+	echo "${0##*/} [-j <jail name or id>] [-dqv] [-E var=value] <rc.d script> start|stop|etc."
 	echo "${0##*/} -h"
 	echo ''
+	echo "-d                Enable debugging of rc.d scripts"
 	echo "-j		Perform actions within the named jail"
 	echo "-E n=val	Set variable n to val before executing the rc.d script"
 	echo '-e		Show services that are enabled'
@@ -49,12 +51,13 @@ usage () {
 	echo ''
 }
 
-while getopts 'j:E:ehlqrRv' COMMAND_LINE_ARGUMENT ; do
+while getopts 'dE:ehj:lqrRv' COMMAND_LINE_ARGUMENT ; do
 	case "${COMMAND_LINE_ARGUMENT}" in
-	j)	JAIL="${OPTARG}" ;;
+	d)	DEBUG=dopt ;;
 	E)	VARS="${VARS} ${OPTARG}" ;;
 	e)	ENABLED=eopt ;;
 	h)	usage ; exit 0 ;;
+	j)	JAIL="${OPTARG}" ;;
 	l)	LIST=lopt ;;
 	q)	QUIET=qopt ;;
 	r)	RCORDER=ropt ;;
@@ -83,6 +86,10 @@ if [ -n "${JAIL}" ]; then
 	# were left in $@
 	/usr/sbin/jexec -l "${JAIL}" /usr/sbin/service $args "$@"
 	exit $?
+fi
+
+if [ -n "$DEBUG" ]; then
+	VARS="${VARS} rc_debug=yes"
 fi
 
 if [ -n "$RESTART" ]; then

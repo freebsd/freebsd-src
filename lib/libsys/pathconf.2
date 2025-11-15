@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 5, 2025
+.Dd October 31, 2025
 .Dt PATHCONF 2
 .Os
 .Sh NAME
@@ -180,12 +180,21 @@ Return 1 if named attributes are enabled for the file system, otherwise 0.
 .It Li _PC_HAS_NAMEDATTR
 Return 1 if one or more named attributes exist for the file, otherwise 0.
 .It Li _PC_HAS_HIDDENSYSTEM
-Return 1 if both
+Return 1 if all of the
+.Dv UF_ARCHIVE ,
 .Dv UF_HIDDEN
 and
 .Dv UF_SYSTEM
 flags can be set by
 .Xr chflags 2 ,
+otherwise 0.
+.It Li _PC_CLONE_BLKSIZE
+Returns the block size required for block cloning via
+.Xr copy_file_range 2
+for a file system if block cloning is supported,
+otherwise 0.
+.It Li _PC_CASE_INSENSITIVE
+Return 1 if the file system performs case insensitive lookups,
 otherwise 0.
 .El
 .Sh RETURN VALUES
@@ -264,6 +273,7 @@ Corrupted data was detected while reading from the file system.
 .El
 .Sh SEE ALSO
 .Xr chflags 2 ,
+.Xr copy_file_range 2 ,
 .Xr lseek 2 ,
 .Xr sysctl 3
 .Sh HISTORY

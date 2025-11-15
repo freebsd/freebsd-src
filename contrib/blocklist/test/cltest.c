@@ -1,4 +1,4 @@
-/*	$NetBSD: cltest.c,v 1.6 2015/01/22 05:44:28 christos Exp $	*/
+/*	$NetBSD: cltest.c,v 1.2 2025/02/11 17:48:31 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -32,8 +32,10 @@
 #include "config.h"
 #endif
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: cltest.c,v 1.6 2015/01/22 05:44:28 christos Exp $");
+#endif
+__RCSID("$NetBSD: cltest.c,v 1.2 2025/02/11 17:48:31 christos Exp $");
 
 #include <sys/types.h> 
 #include <sys/socket.h>

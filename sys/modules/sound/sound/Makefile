@@ -1,5 +1,4 @@
 SYSDIR?=${SRCTOP}/sys
-
 .PATH: ${SYSDIR}/dev/sound
 .PATH: ${SYSDIR}/dev/sound/pcm
 .PATH: ${SYSDIR}/dev/sound/midi

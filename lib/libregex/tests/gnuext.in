@@ -10,9 +10,9 @@ a\|b\|c	b	abc	a
 (ab)\1	-	abab	abab
 \1(ab)	C	ESUBREG
 (a)(b)(c)(d)(e)(f)(g)(h)(i)\9	-	abcdefghii	abcdefghii
-# \w, \W, \s, \S (alnum, ^alnum, space, ^space)
-\w+	-	-%@a0X-	a0X
-\w\+	b	-%@a0X-	a0X
+# \w, \W, \s, \S (_alnum, ^_alnum, space, ^space)
+\w+	-	-%@a_0X-	a_0X
+\w\+	b	-%@a_0X-	a_0X
 \s+	-	aSNTb	SNT
 \s\+	b	aSNTb	SNT
 # Word boundaries (\b, \B, \<, \>, \`, \')

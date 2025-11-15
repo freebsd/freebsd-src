@@ -34,6 +34,7 @@ SUBDIR=	\
 	alq \
 	${_amd_ecc_inject} \
 	${_amdgpio} \
+	${_amdsmu} \
 	${_amdsbwd} \
 	${_amdsmn} \
 	${_amdtemp} \
@@ -134,7 +135,6 @@ SUBDIR=	\
 	gpio \
 	${_gve} \
 	hid \
-	hifn \
 	${_hpt27xx} \
 	${_hptiop} \
 	${_hptmv} \
@@ -172,6 +172,7 @@ SUBDIR=	\
 	iflib \
 	${_igc} \
 	imgact_binmisc \
+	${_imx} \
 	${_intelspi} \
 	${_io} \
 	${_ioat} \
@@ -345,6 +346,7 @@ SUBDIR=	\
 	rc4 \
 	${_rdma} \
 	${_rdrand_rng} \
+	${_rdseed_rng} \
 	re \
 	rl \
 	${_rockchip} \
@@ -381,6 +383,7 @@ SUBDIR=	\
 	smbfs \
 	snp \
 	sound \
+	${_spe} \
 	${_speaker} \
 	spi \
 	${_splash} \
@@ -394,6 +397,7 @@ SUBDIR=	\
 	sysvipc \
 	tarfs \
 	tcp \
+	${_thunderbolt} \
 	${_ti} \
 	tmpfs \
 	${_toecore} \
@@ -575,7 +579,11 @@ _mlx5ib=	mlx5ib
     ${MACHINE_CPUARCH} == "i386"
 _ena=		ena
 _gve=		gve
+_igc=		igc
+# gcc13 and earlier lack __builtin_bitcountg used by linux emulation
+.if !(${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} < 140000)
 _iwlwifi=	iwlwifi
+.endif
 _rtw88=		rtw88
 _rtw89=		rtw89
 _vmware=	vmware
@@ -671,10 +679,16 @@ _irdma=		irdma
 .endif
 .endif
 
+.if ${MACHINE_CPUARCH} == "aarch64"
+_spe=		spe
+.endif
+
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm" || \
 	${MACHINE_CPUARCH} == "riscv"
 .if !empty(OPT_FDT)
+_allwinner=	allwinner
 _if_cgem=	if_cgem
+_sdhci_fdt=	sdhci_fdt
 .endif
 .endif
 
@@ -707,7 +721,6 @@ _hyperv=  hyperv
 _vf_i2c=	vf_i2c
 
 .if !empty(OPT_FDT)
-_allwinner=	allwinner
 _dwwdt=		dwwdt
 _enetc=		enetc
 _felix=		felix
@@ -715,11 +728,8 @@ _rockchip=	rockchip
 .endif
 .endif
 
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm"
-.if !empty(OPT_FDT)
-_sdhci_fdt=	sdhci_fdt
-.endif
-_neta=		neta
+.if ${MACHINE_CPUARCH} == "arm"
+_imx=		imx
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
@@ -741,7 +751,6 @@ _et=		et
 _ftgpio=	ftgpio
 _ftwd=		ftwd
 _exca=		exca
-_igc=		igc
 _io=		io
 _itwd=		itwd
 _ix=		ix
@@ -772,6 +781,7 @@ _acpi=		acpi
 _aesni=		aesni
 .endif
 _amd_ecc_inject=amd_ecc_inject
+_amdsmu=	amdsmu
 _amdsbwd=	amdsbwd
 _amdsmn=	amdsmn
 _amdtemp=	amdtemp
@@ -813,8 +823,8 @@ _nfe=		nfe
 _nvram=		nvram
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 _padlock=	padlock
-_padlock_rng=	padlock_rng
 _rdrand_rng=	rdrand_rng
+_rdseed_rng=	rdseed_rng
 .endif
 _pchtherm = pchtherm
 _s3=		s3
@@ -885,6 +895,9 @@ _glxsb=		glxsb
 _pcfclock=	pcfclock
 _pst=		pst
 _sbni=		sbni
+.if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
+_padlock_rng=	padlock_rng
+.endif
 .endif
 
 .if ${MACHINE_ARCH} == "armv7"
@@ -916,7 +929,12 @@ _nvram+=	powermac_nvram
 
 .if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "aarch64"
 _bcm283x_clkman=  bcm283x_clkman
-_bcm283x_pwm=  bcm283x_pwm
+_bcm283x_pwm=	bcm283x_pwm
+_neta=		neta
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64"
+_thunderbolt=	thunderbolt
 .endif
 
 .if !(${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 110000)

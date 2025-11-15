@@ -297,9 +297,11 @@ typedef	struct vm_page	*vm_page_t;
 #if	defined(_KERNEL) || defined(_STANDALONE)
 #if !defined(__bool_true_false_are_defined) && !defined(__cplusplus)
 #define	__bool_true_false_are_defined	1
+#if __STDC_VERSION__ < 202311L
 #define	false	0
 #define	true	1
 typedef	_Bool	bool;
+#endif /* __STDC_VERSION__ < 202311L */
 #endif /* !__bool_true_false_are_defined && !__cplusplus */
 #endif /* KERNEL || _STANDALONE */
 

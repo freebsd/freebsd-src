@@ -59,18 +59,9 @@ val_unwrap_iov_args(
 
 
 OM_uint32 KRB5_CALLCONV
-gss_unwrap_iov (minor_status,
-                context_handle,
-                conf_state,
-                qop_state,
-                iov,
-                iov_count)
-OM_uint32 *		minor_status;
-gss_ctx_id_t		context_handle;
-int *			conf_state;
-gss_qop_t		*qop_state;
-gss_iov_buffer_desc  *	iov;
-int			iov_count;
+gss_unwrap_iov(OM_uint32 * minor_status, gss_ctx_id_t context_handle,
+	       int *conf_state, gss_qop_t *qop_state,
+	       gss_iov_buffer_desc *iov, int iov_count)
 {
  /* EXPORT DELETE START */
 

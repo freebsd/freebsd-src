@@ -24,7 +24,9 @@ SRCS=	\
 	$(srcdir)/rc_base.c	\
 	$(srcdir)/rc_dfl.c 	\
 	$(srcdir)/rc_file2.c 	\
-	$(srcdir)/rc_none.c	\
+	$(srcdir)/rc_none.c
+
+EXTRADEPSRCS=	\
 	$(srcdir)/t_memrcache.c	\
 	$(srcdir)/t_rcfile2.c
 

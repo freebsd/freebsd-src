@@ -79,13 +79,15 @@ get_link_info(struct snl_state *ss, uint32_t ifindex,
 
 
 static bool
-has_l2(struct snl_state *ss, uint32_t ifindex)
+has_l2(struct snl_state *ss, uint32_t ifindex, uint32_t *pflags)
 {
 	struct snl_parsed_link_simple link = {};
 
+	*pflags = 0;
 	if (!get_link_info(ss, ifindex, &link))
 		return (false);
 
+	*pflags = link.ifi_flags;
 	return (valid_type(link.ifi_type) != 0);
 }
 
@@ -104,6 +106,7 @@ static int
 guess_ifindex(struct snl_state *ss, uint32_t fibnum, struct in_addr addr)
 {
 	struct snl_writer nw;
+	uint32_t ifindex, ifflags;
 
 	snl_init_writer(ss, &nw);
 
@@ -133,8 +136,15 @@ guess_ifindex(struct snl_state *ss, uint32_t fibnum, struct in_addr addr)
 		return (0);
 
 	/* Check if the interface is of supported type */
-	if (has_l2(ss, r.rta_oif))
+	if (has_l2(ss, r.rta_oif, &ifflags))
 		return (r.rta_oif);
+
+	/* Check if we are doing proxy arp for P2P interface */
+	if (ifflags & IFF_POINTOPOINT) {
+		/* Guess interface by dst prefix */
+		if (get_ifinfo(addr.s_addr, NULL, &ifindex))
+			return (ifindex);
+	}
 
 	/* Check the case when we matched the loopback route for P2P */
 	snl_init_writer(ss, &nw);
@@ -326,11 +336,12 @@ print_entries_nl(uint32_t ifindex, struct in_addr addr)
 }
 
 int
-delete_nl(uint32_t ifindex, char *host)
+delete_nl(char *host)
 {
 	struct snl_state ss = {};
 	struct snl_writer nw;
 	struct sockaddr_in *dst;
+	uint32_t ifindex = opts.rifindex;
 
 	dst = getaddr(host);
 	if (dst == NULL)
@@ -375,10 +386,11 @@ delete_nl(uint32_t ifindex, char *host)
 }
 
 int
-set_nl(uint32_t ifindex, struct sockaddr_in *dst, struct sockaddr_dl *sdl, char *host)
+set_nl(struct sockaddr_in *dst, struct sockaddr_dl *sdl, char *host)
 {
 	struct snl_state ss = {};
 	struct snl_writer nw;
+	uint32_t ifindex = opts.rifindex;
 
 	nl_init_socket(&ss);
 

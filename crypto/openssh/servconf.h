@@ -249,10 +249,11 @@ typedef struct {
 	int	unused_connection_timeout;
 
 	char   *sshd_session_path;
+	char   *sshd_auth_path;
 
 	int	refuse_connection;
 
-	int	use_blacklist;
+	int	use_blocklist;
 }       ServerOptions;
 
 /* Information about the incoming connection as used by Match */

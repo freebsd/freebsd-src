@@ -44,23 +44,15 @@
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/actables.h>
 
-static struct acpi_uart_compat_data *
+static struct acpi_spcr_compat_data *
 uart_cpu_acpi_scan(uint8_t interface_type)
 {
-	struct acpi_uart_compat_data **cd, *curcd;
+	struct acpi_spcr_compat_data **cd, *curcd;
 	int i;
 
-	SET_FOREACH(cd, uart_acpi_class_and_device_set) {
+	SET_FOREACH(cd, uart_acpi_spcr_class_set) {
 		curcd = *cd;
-		for (i = 0; curcd[i].cd_hid != NULL; i++) {
-			if (curcd[i].cd_port_subtype == interface_type)
-				return (&curcd[i]);
-		}
-	}
-
-	SET_FOREACH(cd, uart_acpi_class_set) {
-		curcd = *cd;
-		for (i = 0; curcd[i].cd_hid != NULL; i++) {
+		for (i = 0; curcd[i].cd_class != NULL; i++) {
 			if (curcd[i].cd_port_subtype == interface_type)
 				return (&curcd[i]);
 		}
@@ -143,7 +135,7 @@ uart_cpu_acpi_spcr(int devtype, struct uart_devinfo *di)
 {
 	vm_paddr_t spcr_physaddr;
 	ACPI_TABLE_SPCR *spcr;
-	struct acpi_uart_compat_data *cd;
+	struct acpi_spcr_compat_data *cd;
 	struct uart_class *class;
 	int error = ENXIO;
 
@@ -237,7 +229,7 @@ uart_cpu_acpi_dbg2(struct uart_devinfo *di)
 	ACPI_TABLE_DBG2 *dbg2;
 	ACPI_DBG2_DEVICE *dbg2_dev;
 	ACPI_GENERIC_ADDRESS *base_address;
-	struct acpi_uart_compat_data *cd;
+	struct acpi_spcr_compat_data *cd;
 	struct uart_class *class;
 	int error;
 	bool found;

@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2.c,v 1.169 2024/05/17 00:30:23 djm Exp $ */
+/* $OpenBSD: auth2.c,v 1.170 2025/01/17 00:09:41 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -52,7 +52,6 @@
 #include "dispatch.h"
 #include "pathnames.h"
 #include "ssherr.h"
-#include "blacklist_client.h"
 #ifdef GSSAPI
 #include "ssh-gss.h"
 #endif
@@ -239,7 +238,7 @@ user_specific_delay(const char *user)
 	/* 0-4.2 ms of delay */
 	delay = (double)PEEK_U32(hash) / 1000 / 1000 / 1000 / 1000;
 	freezero(hash, len);
-	debug3_f("user specific delay %0.3lfms", delay/1000);
+	debug3_f("user specific delay %0.3lfms", delay*1000);
 	return MIN_FAIL_DELAY_SECONDS + delay;
 }
 
@@ -443,10 +442,8 @@ userauth_finish(struct ssh *ssh, int authenticated, const char *packet_method,
 	} else {
 		/* Allow initial try of "none" auth without failure penalty */
 		if (!partial && !authctxt->server_caused_failure &&
-		    (authctxt->attempt > 1 || strcmp(method, "none") != 0)) {
+		    (authctxt->attempt > 1 || strcmp(method, "none") != 0))
 			authctxt->failures++;
-			BLACKLIST_NOTIFY(ssh, BLACKLIST_AUTH_FAIL, "ssh");
-		}
 		if (authctxt->failures >= options.max_authtries) {
 #ifdef SSH_AUDIT_EVENTS
 			mm_audit_event(ssh, SSH_LOGIN_EXCEED_MAXTRIES);

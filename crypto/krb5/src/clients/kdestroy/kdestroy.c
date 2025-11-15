@@ -47,7 +47,7 @@ char *progname;
 
 
 static void
-usage()
+usage(void)
 {
     fprintf(stderr, _("Usage: %s [-A] [-q] [-c cache_name] [-p princ_name]\n"),
             progname);

@@ -1,118 +1,190 @@
-.TH "unbound\-host" "1" "Apr 24, 2025" "NLnet Labs" "unbound 1.23.0"
-.\"
-.\" unbound-host.1 -- unbound DNS lookup utility
-.\"
-.\" Copyright (c) 2007, NLnet Labs. All rights reserved.
-.\"
-.\" See LICENSE for the license.
-.\"
-.\"
-.SH "NAME"
-.B unbound\-host
-\- unbound DNS lookup utility
-.SH "SYNOPSIS"
-.B unbound\-host
-.RB [ \-C
-.IR configfile ]
-.RB [ \-vdhr46D ]
-.RB [ \-c
-.IR class ]
-.RB [ \-t
-.IR type ]
-.RB [ \-y
-.IR key ]
-.RB [ \-f
-.IR keyfile ]
-.RB [ \-F
-.IR namedkeyfile ]
-.I hostname
-.SH "DESCRIPTION"
-.B Unbound\-host
-uses the Unbound validating resolver to query for the hostname and display
-results. With the \fB\-v\fR option it displays validation
-status: secure, insecure, bogus (security failure).
-.P
-By default it reads no configuration file whatsoever.  It attempts to reach
-the internet root servers.  With \fB\-C\fR an Unbound config file and with
-\fB\-r\fR resolv.conf can be read.
-.P
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "UNBOUND-HOST" "1" "Oct 22, 2025" "1.24.1" "Unbound"
+.SH NAME
+unbound-host \- Unbound 1.24.1 DNS lookup utility.
+.SH SYNOPSIS
+.sp
+\fBunbound\-host\fP [\fB\-C configfile\fP] [\fB\-vdhr46D\fP] [\fB\-c class\fP]
+[\fB\-t type\fP] [\fB\-y key\fP] [\fB\-f keyfile\fP] [\fB\-F namedkeyfile\fP] hostname
+.SH DESCRIPTION
+.sp
+\fBunbound\-host\fP uses the Unbound validating resolver to query for the hostname
+and display results.
+With the \fI\%\-v\fP option it displays validation status: secure, insecure,
+bogus (security failure).
+.sp
+By default it reads no configuration file whatsoever.
+It attempts to reach the internet root servers.
+With \fI\%\-C\fP an unbound config file and with \fI\%\-r\fP \fBresolv.conf\fP
+can be read.
+.sp
 The available options are:
+.INDENT 0.0
 .TP
-.I hostname
+.B hostname
 This name is resolved (looked up in the DNS).
 If a IPv4 or IPv6 address is given, a reverse lookup is performed.
+.UNINDENT
+.INDENT 0.0
 .TP
 .B \-h
 Show the version and commandline option help.
+.UNINDENT
+.INDENT 0.0
 .TP
 .B \-v
 Enable verbose output and it shows validation results, on every line.
-Secure means that the NXDOMAIN (no such domain name), nodata (no such data)
-or positive data response validated correctly with one of the keys.
+Secure means that the NXDOMAIN (no such domain name), nodata (no such
+data) or positive data response validated correctly with one of the
+keys.
 Insecure means that that domain name has no security set up for it.
-Bogus (security failure) means that the response failed one or more checks,
-it is likely wrong, outdated, tampered with, or broken.
+Bogus (security failure) means that the response failed one or more
+checks, it is likely wrong, outdated, tampered with, or broken.
+.UNINDENT
+.INDENT 0.0
 .TP
 .B \-d
-Enable debug output to stderr. One \-d shows what the resolver and validator
-are doing and may tell you what is going on. More times, \-d \-d, gives a
-lot of output, with every packet sent and received.
+Enable debug output to stderr.
+One \fI\%\-d\fP shows what the resolver and validator are doing and may
+tell you what is going on.
+More times, \fI\%\-d\fP \fI\%\-d\fP, gives a lot of output, with every
+packet sent and received.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B \-c \fIclass
-Specify the class to lookup for, the default is IN the internet class.
+.B \-c <class>
+Specify the class to lookup for, the default is IN the internet
+class.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B \-t \fItype
-Specify the type of data to lookup. The default looks for IPv4, IPv6 and
-mail handler data, or domain name pointers for reverse queries.
+.B \-t <type>
+Specify the type of data to lookup.
+The default looks for IPv4, IPv6 and mail handler data, or domain name
+pointers for reverse queries.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B \-y \fIkey
-Specify a public key to use as trust anchor. This is the base for a chain
-of trust that is built up from the trust anchor to the response, in order
-to validate the response message. Can be given as a DS or DNSKEY record.
-For example \-y "example.com DS 31560 5 1 1CFED84787E6E19CCF9372C1187325972FE546CD".
+.B \-y <key>
+Specify a public key to use as trust anchor.
+This is the base for a chain of trust that is built up from the trust
+anchor to the response, in order to validate the response message.
+Can be given as a DS or DNSKEY record.
+For example:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+\-y \(dqexample.com DS 31560 5 1 1CFED84787E6E19CCF9372C1187325972FE546CD\(dq
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
 .TP
 .B \-D
-Enables DNSSEC validation.  Reads the root anchor from the default configured
-root anchor at the default location, \fI@UNBOUND_ROOTKEY_FILE@\fR.
+Enables DNSSEC validation.
+Reads the root anchor from the default configured root anchor at the
+default location, \fB@UNBOUND_ROOTKEY_FILE@\fP\&.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B \-f \fIkeyfile
-Reads keys from a file. Every line has a DS or DNSKEY record, in the format
-as for \-y. The zone file format, the same as dig and drill produce.
+.B \-f <keyfile>
+Reads keys from a file.
+Every line has a DS or DNSKEY record, in the format as for \fI\%\-y\fP\&.
+The zone file format, the same as \fBdig\fP and \fBdrill\fP produce.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B \-F \fInamedkeyfile
-Reads keys from a BIND\-style named.conf file. Only the trusted\-key {}; entries
-are read.
+.B \-F <namedkeyfile>
+Reads keys from a BIND\-style \fBnamed.conf\fP file.
+Only the \fBtrusted\-key {};\fP entries are read.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B \-C \fIconfigfile
-Uses the specified unbound.conf to prime
-.IR libunbound (3).
+.B \-C <configfile>
+Uses the specified unbound.conf to prime \fI\%libunbound(3)\fP\&.
 Pass it as first argument if you want to override some options from the
 config file with further arguments on the commandline.
+.UNINDENT
+.INDENT 0.0
 .TP
 .B \-r
-Read /etc/resolv.conf, and use the forward DNS servers from there (those could
-have been set by DHCP).  More info in
-.IR resolv.conf (5).
+Read \fB/etc/resolv.conf\fP, and use the forward DNS servers from
+there (those could have been set by DHCP).
+More info in \fIresolv.conf(5)\fP\&.
 Breaks validation if those servers do not support DNSSEC.
+.UNINDENT
+.INDENT 0.0
 .TP
 .B \-4
 Use solely the IPv4 network for sending packets.
+.UNINDENT
+.INDENT 0.0
 .TP
 .B \-6
 Use solely the IPv6 network for sending packets.
-.SH "EXAMPLES"
-Some examples of use. The keys shown below are fakes, thus a security failure
-is encountered.
-.P
+.UNINDENT
+.SH EXAMPLES
+.sp
+Some examples of use.
+The keys shown below are fakes, thus a security failure is encountered.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
 $ unbound\-host www.example.com
-.P
-$ unbound\-host \-v \-y "example.com DS 31560 5 1 1CFED84787E6E19CCF9372C1187325972FE546CD" www.example.com
-.P
-$ unbound\-host \-v \-y "example.com DS 31560 5 1 1CFED84787E6E19CCF9372C1187325972FE546CD" 192.0.2.153
-.SH "EXIT CODE"
-The unbound\-host program exits with status code 1 on error,
-0 on no error. The data may not be available on exit code 0, exit code 1
-means the lookup encountered a fatal error.
-.SH "SEE ALSO"
-\fIunbound.conf\fR(5),
-\fIunbound\fR(8).
+
+$ unbound\-host \-v \-y \(dqexample.com DS 31560 5 1 1CFED84787E6E19CCF9372C1187325972FE546CD\(dq www.example.com
+
+$ unbound\-host \-v \-y \(dqexample.com DS 31560 5 1 1CFED84787E6E19CCF9372C1187325972FE546CD\(dq 192.0.2.153
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SH EXIT CODE
+.sp
+The \fBunbound\-host\fP program exits with status code 1 on error, 0 on no error.
+The data may not be available on exit code 0, exit code 1 means the lookup
+encountered a fatal error.
+.SH SEE ALSO
+.sp
+\fI\%unbound.conf(5)\fP,
+\fI\%unbound(8)\fP\&.
+.SH AUTHOR
+Unbound developers are mentioned in the CREDITS file in the distribution.
+.SH COPYRIGHT
+1999-2025, NLnet Labs
+.\" Generated by docutils manpage writer.
+.

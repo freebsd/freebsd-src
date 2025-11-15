@@ -61,7 +61,7 @@ lapic_set_intr(struct vcpu *vcpu, int vector, bool level)
 
 	vlapic = vm_lapic(vcpu);
 	if (vlapic_set_intr_ready(vlapic, vector, level))
-		vcpu_notify_event(vcpu, true);
+		vcpu_notify_lapic(vcpu);
 	return (0);
 }
 
@@ -115,6 +115,11 @@ lapic_intr_msi(struct vm *vm, uint64_t addr, uint64_t msg)
 	 * physical otherwise.
 	 */
 	dest = (addr >> 12) & 0xff;
+	/*
+	 * Extended Destination ID support uses bits 5-11 of the address:
+	 * http://david.woodhou.se/ExtDestId.pdf
+	 */
+	dest |= ((addr >> 5) & 0x7f) << 8;
 	phys = ((addr & (MSI_X86_ADDR_RH | MSI_X86_ADDR_LOG)) !=
 	    (MSI_X86_ADDR_RH | MSI_X86_ADDR_LOG));
 	delmode = msg & APIC_DELMODE_MASK;

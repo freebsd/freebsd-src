@@ -56,7 +56,7 @@
                                         char ext[_MAX_EXT];     \
                                         int handle;
 #else
-#if MSDOS_COMPILER==WIN32C && (defined(_MSC_VER) || defined(MINGW))
+#if MSDOS_COMPILER==WIN32C && (defined(_MSC_VER) || defined(__MINGW32__))
 
 #define GLOB_FIRST_NAME(filename,fndp,h) h = _findfirst(filename, fndp)
 #define GLOB_FIRST_FAILED(handle)       ((handle) == -1)

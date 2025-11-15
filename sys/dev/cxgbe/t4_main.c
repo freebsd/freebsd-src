@@ -1,8 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2011 Chelsio Communications, Inc.
- * All rights reserved.
+ * Copyright (c) 2011, 2025 Chelsio Communications.
  * Written by: Navdeep Parhar <np@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -237,6 +236,45 @@ static driver_t cc_driver = {
 /* T6 VI (vcc) interface */
 static driver_t vcc_driver = {
 	"vcc",
+	vcxgbe_methods,
+	sizeof(struct vi_info)
+};
+
+/* T7+ bus driver interface */
+static int ch_probe(device_t);
+static device_method_t ch_methods[] = {
+	DEVMETHOD(device_probe,		ch_probe),
+	DEVMETHOD(device_attach,	t4_attach),
+	DEVMETHOD(device_detach,	t4_detach),
+	DEVMETHOD(device_suspend,	t4_suspend),
+	DEVMETHOD(device_resume,	t4_resume),
+
+	DEVMETHOD(bus_child_location,	t4_child_location),
+	DEVMETHOD(bus_reset_prepare, 	t4_reset_prepare),
+	DEVMETHOD(bus_reset_post, 	t4_reset_post),
+
+	DEVMETHOD(t4_is_main_ready,	t4_ready),
+	DEVMETHOD(t4_read_port_device,	t4_read_port_device),
+
+	DEVMETHOD_END
+};
+static driver_t ch_driver = {
+	"chnex",
+	ch_methods,
+	sizeof(struct adapter)
+};
+
+
+/* T7+ port (che) interface */
+static driver_t che_driver = {
+	"che",
+	cxgbe_methods,
+	sizeof(struct port_info)
+};
+
+/* T7+ VI (vche) interface */
+static driver_t vche_driver = {
+	"vche",
 	vcxgbe_methods,
 	sizeof(struct vi_info)
 };
@@ -519,6 +557,9 @@ static int t4_fec = -1;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, fec, CTLFLAG_RDTUN, &t4_fec, 0,
     "Forward Error Correction (bit 0 = RS, bit 1 = BASER_RS)");
 
+static const char *
+t4_fec_bits = "\20\1RS-FEC\2FC-FEC\3NO-FEC\4RSVD1\5RSVD2\6auto\7module";
+
 /*
  * Controls when the driver sets the FORCE_FEC bit in the L1_CFG32 that it
  * issues to the firmware.  If the firmware doesn't support FORCE_FEC then the
@@ -569,6 +610,10 @@ static int t4_switchcaps_allowed = FW_CAPS_CONFIG_SWITCH_INGRESS |
     FW_CAPS_CONFIG_SWITCH_EGRESS;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, switchcaps_allowed, CTLFLAG_RDTUN,
     &t4_switchcaps_allowed, 0, "Default switch capabilities");
+
+static int t4_nvmecaps_allowed = -1;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nvmecaps_allowed, CTLFLAG_RDTUN,
+    &t4_nvmecaps_allowed, 0, "Default NVMe capabilities");
 
 #ifdef RATELIMIT
 static int t4_niccaps_allowed = FW_CAPS_CONFIG_NIC |
@@ -716,6 +761,14 @@ SYSCTL_INT(_hw_cxgbe_tls, OID_AUTO, inline_keys, CTLFLAG_RDTUN,
 static int t4_tls_combo_wrs = 0;
 SYSCTL_INT(_hw_cxgbe_tls, OID_AUTO, combo_wrs, CTLFLAG_RDTUN, &t4_tls_combo_wrs,
     0, "Attempt to combine TCB field updates with TLS record work requests.");
+
+static int t4_tls_short_records = 1;
+SYSCTL_INT(_hw_cxgbe_tls, OID_AUTO, short_records, CTLFLAG_RDTUN,
+    &t4_tls_short_records, 0, "Use cipher-only mode for short records.");
+
+static int t4_tls_partial_ghash = 1;
+SYSCTL_INT(_hw_cxgbe_tls, OID_AUTO, partial_ghash, CTLFLAG_RDTUN,
+    &t4_tls_partial_ghash, 0, "Use partial GHASH for AES-GCM records.");
 #endif
 
 /* Functions used by VIs to obtain unique MAC addresses for each VI. */
@@ -809,17 +862,20 @@ static int sysctl_requested_fec(SYSCTL_HANDLER_ARGS);
 static int sysctl_module_fec(SYSCTL_HANDLER_ARGS);
 static int sysctl_autoneg(SYSCTL_HANDLER_ARGS);
 static int sysctl_force_fec(SYSCTL_HANDLER_ARGS);
+static int sysctl_handle_t4_portstat64(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
 static int sysctl_temperature(SYSCTL_HANDLER_ARGS);
 static int sysctl_vdd(SYSCTL_HANDLER_ARGS);
 static int sysctl_reset_sensor(SYSCTL_HANDLER_ARGS);
 static int sysctl_loadavg(SYSCTL_HANDLER_ARGS);
 static int sysctl_cctrl(SYSCTL_HANDLER_ARGS);
-static int sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS);
+static int sysctl_cim_ibq(SYSCTL_HANDLER_ARGS);
+static int sysctl_cim_obq(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_ma_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_pif_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_qcfg(SYSCTL_HANDLER_ARGS);
+static int sysctl_cim_qcfg_t7(SYSCTL_HANDLER_ARGS);
 static int sysctl_cpl_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_ddp_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tid_stats(SYSCTL_HANDLER_ARGS);
@@ -831,6 +887,7 @@ static int sysctl_linkdnrc(SYSCTL_HANDLER_ARGS);
 static int sysctl_meminfo(SYSCTL_HANDLER_ARGS);
 static int sysctl_mps_tcam(SYSCTL_HANDLER_ARGS);
 static int sysctl_mps_tcam_t6(SYSCTL_HANDLER_ARGS);
+static int sysctl_mps_tcam_t7(SYSCTL_HANDLER_ARGS);
 static int sysctl_path_mtus(SYSCTL_HANDLER_ARGS);
 static int sysctl_pm_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_rdma_stats(SYSCTL_HANDLER_ARGS);
@@ -855,7 +912,7 @@ static int sysctl_tp_backoff(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_tmr_idx_ofld(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_pktc_idx_ofld(SYSCTL_HANDLER_ARGS);
 #endif
-static int get_sge_context(struct adapter *, struct t4_sge_context *);
+static int get_sge_context(struct adapter *, int, uint32_t, int, uint32_t *);
 static int load_fw(struct adapter *, struct t4_data *);
 static int load_cfg(struct adapter *, struct t4_data *);
 static int load_boot(struct adapter *, struct t4_bootrom *);
@@ -960,6 +1017,29 @@ struct {
 	{0x6485, "Custom T6240-SO"},
 	{0x6486, "Custom T6225-SO-CR"},
 	{0x6487, "Custom T6225-CR"},
+}, t7_pciids[] = {
+	{0xd000, "Chelsio Terminator 7 FPGA"},	/* T7 PE12K FPGA */
+	{0x7400, "Chelsio T72200-DBG"},		/* 2 x 200G, debug */
+	{0x7401, "Chelsio T7250"},		/* 2 x 10/25/50G, 1 mem */
+	{0x7402, "Chelsio S7250"},		/* 2 x 10/25/50G, nomem */
+	{0x7403, "Chelsio T7450"},		/* 4 x 10/25/50G, 1 mem */
+	{0x7404, "Chelsio S7450"},		/* 4 x 10/25/50G, nomem */
+	{0x7405, "Chelsio T72200"},		/* 2 x 40/100/200G, 1 mem */
+	{0x7406, "Chelsio S72200"},		/* 2 x 40/100/200G, nomem */
+	{0x7407, "Chelsio T72200-FH"},		/* 2 x 40/100/200G, 2 mem */
+	{0x7408, "Chelsio S71400"},		/* 1 x 400G, nomem */
+	{0x7409, "Chelsio S7210-BT"},		/* 2 x 10GBASE-T, nomem */
+	{0x740a, "Chelsio T7450-RC"},		/* 4 x 10/25/50G, 1 mem, RC */
+	{0x740b, "Chelsio T72200-RC"},		/* 2 x 40/100/200G, 1 mem, RC */
+	{0x740c, "Chelsio T72200-FH-RC"},	/* 2 x 40/100/200G, 2 mem, RC */
+	{0x740d, "Chelsio S72200-OCP3"},	/* 2 x 40/100/200G OCP3 */
+	{0x740e, "Chelsio S7450-OCP3"},		/* 4 x 1/20/25/50G OCP3 */
+	{0x740f, "Chelsio S7410-BT-OCP3"},	/* 4 x 10GBASE-T OCP3 */
+	{0x7410, "Chelsio S7210-BT-A"},		/* 2 x 10GBASE-T */
+	{0x7411, "Chelsio T7_MAYRA_7"},		/* Motherboard */
+
+	/* Custom */
+	{0x7480, "Custom T7"},
 };
 
 #ifdef TCP_OFFLOAD
@@ -1042,6 +1122,31 @@ t6_probe(device_t dev)
 	return (ENXIO);
 }
 
+static int
+ch_probe(device_t dev)
+{
+	int i;
+	uint16_t v = pci_get_vendor(dev);
+	uint16_t d = pci_get_device(dev);
+	uint8_t f = pci_get_function(dev);
+
+	if (v != PCI_VENDOR_ID_CHELSIO)
+		return (ENXIO);
+
+	/* Attach only to PF0 of the FPGA */
+	if (d == 0xd000 && f != 0)
+		return (ENXIO);
+
+	for (i = 0; i < nitems(t7_pciids); i++) {
+		if (d == t7_pciids[i].device) {
+			device_set_desc(dev, t7_pciids[i].desc);
+			return (BUS_PROBE_DEFAULT);
+		}
+	}
+
+	return (ENXIO);
+}
+
 static void
 t5_attribute_workaround(device_t dev)
 {
@@ -1091,6 +1196,13 @@ static const struct devnames devnames[] = {
 		.pf03_drv_name = "t6iov",
 		.vf_nexus_name = "t6vf",
 		.vf_ifnet_name = "ccv"
+	}, {
+		.nexus_name = "chnex",
+		.ifnet_name = "che",
+		.vi_ifnet_name = "vche",
+		.pf03_drv_name = "chiov",
+		.vf_nexus_name = "chvf",
+		.vf_ifnet_name = "chev"
 	}
 };
 
@@ -1100,12 +1212,13 @@ t4_init_devnames(struct adapter *sc)
 	int id;
 
 	id = chip_id(sc);
-	if (id >= CHELSIO_T4 && id - CHELSIO_T4 < nitems(devnames))
-		sc->names = &devnames[id - CHELSIO_T4];
-	else {
+	if (id < CHELSIO_T4) {
 		device_printf(sc->dev, "chip id %d is not supported.\n", id);
 		sc->names = NULL;
-	}
+	} else if (id - CHELSIO_T4 < nitems(devnames))
+		sc->names = &devnames[id - CHELSIO_T4];
+	else
+		sc->names = &devnames[nitems(devnames) - 1];
 }
 
 static int
@@ -1214,6 +1327,8 @@ t4_attach(device_t dev)
 	sc->dev = dev;
 	sysctl_ctx_init(&sc->ctx);
 	TUNABLE_INT_FETCH("hw.cxgbe.dflags", &sc->debug_flags);
+	if (TUNABLE_INT_FETCH("hw.cxgbe.iflags", &sc->intr_flags) == 0)
+		sc->intr_flags = IHF_INTR_CLEAR_ON_INIT | IHF_CLR_ALL_UNIGNORED;
 
 	if ((pci_get_device(dev) & 0xff00) == 0x5400)
 		t5_attribute_workaround(dev);
@@ -1277,6 +1392,7 @@ t4_attach(device_t dev)
 		goto done; /* error message displayed already */
 
 	memset(sc->chan_map, 0xff, sizeof(sc->chan_map));
+	memset(sc->port_map, 0xff, sizeof(sc->port_map));
 
 	/* Prepare the adapter for operation. */
 	buf = malloc(PAGE_SIZE, M_CXGBE, M_ZERO | M_WAITOK);
@@ -1309,7 +1425,7 @@ t4_attach(device_t dev)
 	 * will work even in "recovery mode".
 	 */
 	setup_memwin(sc);
-	if (t4_init_devlog_params(sc, 0) == 0)
+	if (t4_init_devlog_ncores_params(sc, 0) == 0)
 		fixup_devlog_params(sc);
 	make_dev_args_init(&mda);
 	mda.mda_devsw = &t4_cdevsw;
@@ -1407,14 +1523,16 @@ t4_attach(device_t dev)
 		}
 
 		if (is_bt(pi->port_type))
-			setbit(&sc->bt_map, pi->tx_chan);
+			setbit(&sc->bt_map, pi->hw_port);
 		else
-			MPASS(!isset(&sc->bt_map, pi->tx_chan));
+			MPASS(!isset(&sc->bt_map, pi->hw_port));
 
 		snprintf(pi->lockname, sizeof(pi->lockname), "%sp%d",
 		    device_get_nameunit(dev), i);
 		mtx_init(&pi->pi_lock, pi->lockname, 0, MTX_DEF);
-		sc->chan_map[pi->tx_chan] = i;
+		for (j = 0; j < sc->params.tp.lb_nchan; j++)
+			sc->chan_map[pi->tx_chan + j] = i;
+		sc->port_map[pi->hw_port] = i;
 
 		/*
 		 * The MPS counter for FCS errors doesn't work correctly on the
@@ -1424,10 +1542,8 @@ t4_attach(device_t dev)
 		 */
 		if (is_t6(sc))
 			pi->fcs_reg = -1;
-		else {
-			pi->fcs_reg = t4_port_reg(sc, pi->tx_chan,
-			    A_MPS_PORT_STAT_RX_PORT_CRC_ERROR_L);
-		}
+		else
+			pi->fcs_reg = A_MPS_PORT_STAT_RX_PORT_CRC_ERROR_L;
 		pi->fcs_base = 0;
 
 		/* All VIs on this port share this media. */
@@ -1467,6 +1583,7 @@ t4_attach(device_t dev)
 	sc->intr_count = iaq.nirq;
 
 	s = &sc->sge;
+	s->nctrlq = max(sc->params.nports, sc->params.ncores);
 	s->nrxq = nports * iaq.nrxq;
 	s->ntxq = nports * iaq.ntxq;
 	if (num_vis > 1) {
@@ -1521,7 +1638,7 @@ t4_attach(device_t dev)
 	MPASS(s->niq <= s->iqmap_sz);
 	MPASS(s->neq <= s->eqmap_sz);
 
-	s->ctrlq = malloc(nports * sizeof(struct sge_wrq), M_CXGBE,
+	s->ctrlq = malloc(s->nctrlq * sizeof(struct sge_wrq), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 	s->rxq = malloc(s->nrxq * sizeof(struct sge_rxq), M_CXGBE,
 	    M_ZERO | M_WAITOK);
@@ -1548,6 +1665,7 @@ t4_attach(device_t dev)
 	if (sc->vres.key.size != 0)
 		sc->key_map = vmem_create("T4TLS key map", sc->vres.key.start,
 		    sc->vres.key.size, 32, 0, M_FIRSTFIT | M_WAITOK);
+	t4_init_tpt(sc);
 
 	/*
 	 * Second pass over the ports.  This time we know the number of rx and
@@ -1849,6 +1967,7 @@ t4_detach_common(device_t dev)
 #endif
 	if (sc->key_map)
 		vmem_destroy(sc->key_map);
+	t4_free_tpt(sc);
 #ifdef INET6
 	t4_destroy_clip_table(sc);
 #endif
@@ -2156,6 +2275,7 @@ struct adapter_pre_reset_state {
 	uint16_t nbmcaps;
 	uint16_t linkcaps;
 	uint16_t switchcaps;
+	uint16_t nvmecaps;
 	uint16_t niccaps;
 	uint16_t toecaps;
 	uint16_t rdmacaps;
@@ -2187,6 +2307,7 @@ save_caps_and_params(struct adapter *sc, struct adapter_pre_reset_state *o)
 	o->nbmcaps =  sc->nbmcaps;
 	o->linkcaps = sc->linkcaps;
 	o->switchcaps = sc->switchcaps;
+	o->nvmecaps = sc->nvmecaps;
 	o->niccaps = sc->niccaps;
 	o->toecaps = sc->toecaps;
 	o->rdmacaps = sc->rdmacaps;
@@ -2225,6 +2346,7 @@ compare_caps_and_params(struct adapter *sc, struct adapter_pre_reset_state *o)
 	COMPARE_CAPS(nbm);
 	COMPARE_CAPS(link);
 	COMPARE_CAPS(switch);
+	COMPARE_CAPS(nvme);
 	COMPARE_CAPS(nic);
 	COMPARE_CAPS(toe);
 	COMPARE_CAPS(rdma);
@@ -2417,11 +2539,7 @@ restart_lld(struct adapter *sc)
 				}
 				if (sc->traceq < 0 && IS_MAIN_VI(vi)) {
 					sc->traceq = sc->sge.rxq[vi->first_rxq].iq.abs_id;
-					t4_write_reg(sc, is_t4(sc) ?
-					    A_MPS_TRC_RSS_CONTROL :
-					    A_MPS_T5_TRC_RSS_CONTROL,
-					    V_RSSCONTROL(pi->tx_chan) |
-					    V_QUEUENUMBER(sc->traceq));
+					t4_set_trace_rss_control(sc, pi->tx_chan, sc->traceq);
 					pi->flags |= HAS_TRACEQ;
 				}
 
@@ -3407,7 +3525,7 @@ cxgbe_snd_tag_alloc(if_t ifp, union if_snd_tag_alloc_params *params,
 		if (is_t6(vi->pi->adapter))
 			error = t6_tls_tag_alloc(ifp, params, pt);
 		else
-			error = EOPNOTSUPP;
+			error = t7_tls_tag_alloc(ifp, params, pt);
 		break;
 	}
 #endif
@@ -3534,6 +3652,9 @@ port_mword(struct port_info *pi, uint32_t speed)
 	case FW_PORT_TYPE_CR_QSFP:
 	case FW_PORT_TYPE_CR2_QSFP:
 	case FW_PORT_TYPE_SFP28:
+	case FW_PORT_TYPE_SFP56:
+	case FW_PORT_TYPE_QSFP56:
+	case FW_PORT_TYPE_QSFPDD:
 		/* Pluggable transceiver */
 		switch (pi->mod_type) {
 		case FW_PORT_MOD_TYPE_LR:
@@ -3551,6 +3672,10 @@ port_mword(struct port_info *pi, uint32_t speed)
 				return (IFM_50G_LR2);
 			case FW_PORT_CAP32_SPEED_100G:
 				return (IFM_100G_LR4);
+			case FW_PORT_CAP32_SPEED_200G:
+				return (IFM_200G_LR4);
+			case FW_PORT_CAP32_SPEED_400G:
+				return (IFM_400G_LR8);
 			}
 			break;
 		case FW_PORT_MOD_TYPE_SR:
@@ -3567,6 +3692,10 @@ port_mword(struct port_info *pi, uint32_t speed)
 				return (IFM_50G_SR2);
 			case FW_PORT_CAP32_SPEED_100G:
 				return (IFM_100G_SR4);
+			case FW_PORT_CAP32_SPEED_200G:
+				return (IFM_200G_SR4);
+			case FW_PORT_CAP32_SPEED_400G:
+				return (IFM_400G_SR8);
 			}
 			break;
 		case FW_PORT_MOD_TYPE_ER:
@@ -3588,6 +3717,10 @@ port_mword(struct port_info *pi, uint32_t speed)
 				return (IFM_50G_CR2);
 			case FW_PORT_CAP32_SPEED_100G:
 				return (IFM_100G_CR4);
+			case FW_PORT_CAP32_SPEED_200G:
+				return (IFM_200G_CR4_PAM4);
+			case FW_PORT_CAP32_SPEED_400G:
+				return (IFM_400G_CR8);
 			}
 			break;
 		case FW_PORT_MOD_TYPE_LRM:
@@ -3597,10 +3730,14 @@ port_mword(struct port_info *pi, uint32_t speed)
 		case FW_PORT_MOD_TYPE_DR:
 			if (speed == FW_PORT_CAP32_SPEED_100G)
 				return (IFM_100G_DR);
+			if (speed == FW_PORT_CAP32_SPEED_200G)
+				return (IFM_200G_DR4);
+			if (speed == FW_PORT_CAP32_SPEED_400G)
+				return (IFM_400G_DR4);
 			break;
 		case FW_PORT_MOD_TYPE_NA:
 			MPASS(0);	/* Not pluggable? */
-			/* fall throough */
+			/* fall through */
 		case FW_PORT_MOD_TYPE_ERROR:
 		case FW_PORT_MOD_TYPE_UNKNOWN:
 		case FW_PORT_MOD_TYPE_NOTSUPPORTED:
@@ -3609,6 +3746,10 @@ port_mword(struct port_info *pi, uint32_t speed)
 			return (IFM_NONE);
 		}
 		break;
+	case M_FW_PORT_CMD_PTYPE:	/* FW_PORT_TYPE_NONE for old firmware */
+		if (chip_id(pi->adapter) >= CHELSIO_T7)
+			return (IFM_UNKNOWN);
+		/* fall through */
 	case FW_PORT_TYPE_NONE:
 		return (IFM_NONE);
 	}
@@ -3684,7 +3825,7 @@ alloc_extra_vi(struct adapter *sc, struct port_info *pi, struct vi_info *vi)
 	    ("%s: VI %s doesn't have a MAC func", __func__,
 	    device_get_nameunit(vi->dev)));
 	func = vi_mac_funcs[index];
-	rc = t4_alloc_vi_func(sc, sc->mbox, pi->tx_chan, sc->pf, 0, 1,
+	rc = t4_alloc_vi_func(sc, sc->mbox, pi->hw_port, sc->pf, 0, 1,
 	    vi->hw_addr, &vi->rss_size, &vi->vfvld, &vi->vin, func, 0);
 	if (rc < 0) {
 		CH_ERR(vi, "failed to allocate virtual interface %d"
@@ -3804,8 +3945,6 @@ fatal_error_task(void *arg, int pending)
 void
 t4_fatal_err(struct adapter *sc, bool fw_error)
 {
-	const bool verbose = (sc->debug_flags & DF_VERBOSE_SLOWINTR) != 0;
-
 	stop_adapter(sc);
 	if (atomic_testandset_int(&sc->error_flags, ilog2(ADAP_FATAL_ERR)))
 		return;
@@ -3818,7 +3957,7 @@ t4_fatal_err(struct adapter *sc, bool fw_error)
 		 * main INT_CAUSE registers here to make sure we haven't missed
 		 * anything interesting.
 		 */
-		t4_slow_intr_handler(sc, verbose);
+		t4_slow_intr_handler(sc, sc->intr_flags);
 		atomic_set_int(&sc->error_flags, ADAP_CIM_ERR);
 	}
 	t4_report_fw_error(sc);
@@ -3954,7 +4093,7 @@ setup_memwin(struct adapter *sc)
 	const struct memwin_init *mw_init;
 	struct memwin *mw;
 	int i;
-	uint32_t bar0;
+	uint32_t bar0, reg;
 
 	if (is_t4(sc)) {
 		/*
@@ -3982,9 +4121,10 @@ setup_memwin(struct adapter *sc)
 			mw->mw_aperture = mw_init->aperture;
 			mw->mw_curpos = 0;
 		}
-		t4_write_reg(sc,
-		    PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, i),
-		    (mw->mw_base + bar0) | V_BIR(0) |
+		reg = chip_id(sc) > CHELSIO_T6 ?
+		    PCIE_MEM_ACCESS_T7_REG(A_T7_PCIE_MEM_ACCESS_BASE_WIN, i) :
+		    PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, i);
+		t4_write_reg(sc, reg, (mw->mw_base + bar0) | V_BIR(0) |
 		    V_WINDOW(ilog2(mw->mw_aperture) - 10));
 		rw_wlock(&mw->mw_lock);
 		position_memwin(sc, i, mw->mw_curpos);
@@ -3992,7 +4132,7 @@ setup_memwin(struct adapter *sc)
 	}
 
 	/* flush */
-	t4_read_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, 2));
+	t4_read_reg(sc, reg);
 }
 
 /*
@@ -4005,8 +4145,7 @@ static void
 position_memwin(struct adapter *sc, int idx, uint32_t addr)
 {
 	struct memwin *mw;
-	uint32_t pf;
-	uint32_t reg;
+	uint32_t pf, reg, val;
 
 	MPASS(idx >= 0 && idx < NUM_MEMWIN);
 	mw = &sc->memwin[idx];
@@ -4019,8 +4158,14 @@ position_memwin(struct adapter *sc, int idx, uint32_t addr)
 		pf = V_PFNUM(sc->pf);
 		mw->mw_curpos = addr & ~0x7f;	/* start must be 128B aligned */
 	}
-	reg = PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, idx);
-	t4_write_reg(sc, reg, mw->mw_curpos | pf);
+	if (chip_id(sc) > CHELSIO_T6) {
+		reg = PCIE_MEM_ACCESS_T7_REG(A_PCIE_MEM_ACCESS_OFFSET0, idx);
+		val = (mw->mw_curpos >> X_T7_MEMOFST_SHIFT) | pf;
+	} else {
+		reg = PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, idx);
+		val = mw->mw_curpos | pf;
+	}
+	t4_write_reg(sc, reg, val);
 	t4_read_reg(sc, reg);	/* flush */
 }
 
@@ -4453,8 +4598,27 @@ calculate_iaq(struct adapter *sc, struct intrs_and_queues *iaq, int itype,
 	iaq->nrxq_vi = t4_nrxq_vi;
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 	if (is_offload(sc) || is_ethoffload(sc)) {
-		iaq->nofldtxq = t4_nofldtxq;
-		iaq->nofldtxq_vi = t4_nofldtxq_vi;
+		if (sc->params.tid_qid_sel_mask == 0) {
+			iaq->nofldtxq = t4_nofldtxq;
+			iaq->nofldtxq_vi = t4_nofldtxq_vi;
+		} else {
+			iaq->nofldtxq = roundup(t4_nofldtxq, sc->params.ncores);
+			iaq->nofldtxq_vi = roundup(t4_nofldtxq_vi,
+			    sc->params.ncores);
+			if (iaq->nofldtxq != t4_nofldtxq)
+				device_printf(sc->dev,
+				    "nofldtxq updated (%d -> %d) for correct"
+				    " operation with %d firmware cores.\n",
+				    t4_nofldtxq, iaq->nofldtxq,
+				    sc->params.ncores);
+			if (iaq->num_vis > 1 &&
+			    iaq->nofldtxq_vi != t4_nofldtxq_vi)
+				device_printf(sc->dev,
+				    "nofldtxq_vi updated (%d -> %d) for correct"
+				    " operation with %d firmware cores.\n",
+				    t4_nofldtxq_vi, iaq->nofldtxq_vi,
+				    sc->params.ncores);
+		}
 	}
 #endif
 #ifdef TCP_OFFLOAD
@@ -4555,6 +4719,10 @@ calculate_iaq(struct adapter *sc, struct intrs_and_queues *iaq, int itype,
 	if (iaq->nofldrxq > 0) {
 		iaq->nofldrxq = 1;
 		iaq->nofldtxq = 1;
+		if (sc->params.tid_qid_sel_mask == 0)
+			iaq->nofldtxq = 1;
+		else
+			iaq->nofldtxq = sc->params.ncores;
 	}
 	iaq->nnmtxq = 0;
 	iaq->nnmrxq = 0;
@@ -4567,9 +4735,10 @@ done:
 	MPASS(iaq->nirq > 0);
 	MPASS(iaq->nrxq > 0);
 	MPASS(iaq->ntxq > 0);
-	if (itype == INTR_MSI) {
+	if (itype == INTR_MSI)
 		MPASS(powerof2(iaq->nirq));
-	}
+	if (sc->params.tid_qid_sel_mask != 0)
+		MPASS(iaq->nofldtxq % sc->params.ncores == 0);
 }
 
 static int
@@ -4710,6 +4879,22 @@ struct fw_info {
 			.intfver_iscsi = FW_INTFVER(T6, ISCSI),
 			.intfver_fcoepdu = FW_INTFVER(T6, FCOEPDU),
 			.intfver_fcoe = FW_INTFVER(T6, FCOE),
+		},
+	}, {
+		.chip = CHELSIO_T7,
+		.kld_name = "t7fw_cfg",
+		.fw_mod_name = "t7fw",
+		.fw_h = {
+			.chip = FW_HDR_CHIP_T7,
+			.fw_ver = htobe32(FW_VERSION(T7)),
+			.intfver_nic = FW_INTFVER(T7, NIC),
+			.intfver_vnic = FW_INTFVER(T7, VNIC),
+			.intfver_ofld = FW_INTFVER(T7, OFLD),
+			.intfver_ri = FW_INTFVER(T7, RI),
+			.intfver_iscsipdu = FW_INTFVER(T7, ISCSIPDU),
+			.intfver_iscsi = FW_INTFVER(T7, ISCSI),
+			.intfver_fcoepdu = FW_INTFVER(T7, FCOEPDU),
+			.intfver_fcoe = FW_INTFVER(T7, FCOE),
 		},
 	}
 };
@@ -5032,7 +5217,7 @@ done:
 
 static int
 copy_cfg_file_to_card(struct adapter *sc, char *cfg_file,
-    uint32_t mtype, uint32_t moff)
+    uint32_t mtype, uint32_t moff, u_int maxlen)
 {
 	struct fw_info *fw_info;
 	const struct firmware *dcfg, *rcfg = NULL;
@@ -5084,10 +5269,10 @@ copy_cfg_file_to_card(struct adapter *sc, char *cfg_file,
 		cflen = rcfg->datasize & ~3;
 	}
 
-	if (cflen > FLASH_CFG_MAX_SIZE) {
+	if (cflen > maxlen) {
 		device_printf(sc->dev,
 		    "config file too long (%d, max allowed is %d).\n",
-		    cflen, FLASH_CFG_MAX_SIZE);
+		    cflen, maxlen);
 		rc = EINVAL;
 		goto done;
 	}
@@ -5112,6 +5297,7 @@ struct caps_allowed {
 	uint16_t nbmcaps;
 	uint16_t linkcaps;
 	uint16_t switchcaps;
+	uint16_t nvmecaps;
 	uint16_t niccaps;
 	uint16_t toecaps;
 	uint16_t rdmacaps;
@@ -5139,6 +5325,8 @@ apply_cfg_and_initialize(struct adapter *sc, char *cfg_file,
 	int rc;
 	struct fw_caps_config_cmd caps;
 	uint32_t mtype, moff, finicsum, cfcsum, param, val;
+	unsigned int maxlen = 0;
+	const int cfg_addr = t4_flash_cfg_addr(sc, &maxlen);
 
 	rc = -t4_fw_reset(sc, sc->mbox, F_PIORSTMODE | F_PIORST);
 	if (rc != 0) {
@@ -5155,7 +5343,7 @@ apply_cfg_and_initialize(struct adapter *sc, char *cfg_file,
 		caps.cfvalid_to_len16 = htobe32(FW_LEN16(caps));
 	} else if (strncmp(cfg_file, FLASH_CF, sizeof(t4_cfg_file)) == 0) {
 		mtype = FW_MEMTYPE_FLASH;
-		moff = t4_flash_cfg_addr(sc);
+		moff = cfg_addr;
 		caps.cfvalid_to_len16 = htobe32(F_FW_CAPS_CONFIG_CMD_CFVALID |
 		    V_FW_CAPS_CONFIG_CMD_MEMTYPE_CF(mtype) |
 		    V_FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(moff >> 16) |
@@ -5179,7 +5367,7 @@ apply_cfg_and_initialize(struct adapter *sc, char *cfg_file,
 		    V_FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(moff >> 16) |
 		    FW_LEN16(caps));
 
-		rc = copy_cfg_file_to_card(sc, cfg_file, mtype, moff);
+		rc = copy_cfg_file_to_card(sc, cfg_file, mtype, moff, maxlen);
 		if (rc != 0) {
 			device_printf(sc->dev,
 			    "failed to upload config file to card: %d.\n", rc);
@@ -5213,6 +5401,7 @@ apply_cfg_and_initialize(struct adapter *sc, char *cfg_file,
 	LIMIT_CAPS(nbm);
 	LIMIT_CAPS(link);
 	LIMIT_CAPS(switch);
+	LIMIT_CAPS(nvme);
 	LIMIT_CAPS(nic);
 	LIMIT_CAPS(toe);
 	LIMIT_CAPS(rdma);
@@ -5232,6 +5421,7 @@ apply_cfg_and_initialize(struct adapter *sc, char *cfg_file,
 		caps.toecaps = 0;
 		caps.rdmacaps = 0;
 		caps.iscsicaps = 0;
+		caps.nvmecaps = 0;
 	}
 
 	caps.op_to_write = htobe32(V_FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
@@ -5278,6 +5468,7 @@ partition_resources(struct adapter *sc)
 	COPY_CAPS(nbm);
 	COPY_CAPS(link);
 	COPY_CAPS(switch);
+	COPY_CAPS(nvme);
 	COPY_CAPS(nic);
 	COPY_CAPS(toe);
 	COPY_CAPS(rdma);
@@ -5354,7 +5545,7 @@ get_params__pre_init(struct adapter *sc)
 	sc->params.vpd.cclk = val[1];
 
 	/* Read device log parameters. */
-	rc = -t4_init_devlog_params(sc, 1);
+	rc = -t4_init_devlog_ncores_params(sc, 1);
 	if (rc == 0)
 		fixup_devlog_params(sc);
 	else {
@@ -5508,6 +5699,14 @@ get_params__post_init(struct adapter *sc)
 		}
 	}
 
+	if (sc->params.ncores > 1) {
+		MPASS(chip_id(sc) >= CHELSIO_T7);
+
+		param[0] = FW_PARAM_DEV(TID_QID_SEL_MASK);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
+		sc->params.tid_qid_sel_mask = rc == 0 ? val[0] : 0;
+	}
+
 	/*
 	 * The parameters that follow may not be available on all firmwares.  We
 	 * query them individually rather than in a compound query because old
@@ -5532,6 +5731,14 @@ get_params__post_init(struct adapter *sc)
 		sc->params.tp_ch_map = val[0];
 	else
 		sc->params.tp_ch_map = UINT32_MAX;	/* Not a legal value. */
+
+	param[0] = FW_PARAM_DEV(TX_TPCHMAP);
+	val[0] = 0;
+	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
+	if (rc == 0)
+		sc->params.tx_tp_ch_map = val[0];
+	else
+		sc->params.tx_tp_ch_map = UINT32_MAX;	/* Not a legal value. */
 
 	/*
 	 * Determine whether the firmware supports the filter2 work request.
@@ -5604,6 +5811,7 @@ get_params__post_init(struct adapter *sc)
 	READ_CAPS(nbmcaps);
 	READ_CAPS(linkcaps);
 	READ_CAPS(switchcaps);
+	READ_CAPS(nvmecaps);
 	READ_CAPS(niccaps);
 	READ_CAPS(toecaps);
 	READ_CAPS(rdmacaps);
@@ -5687,61 +5895,63 @@ get_params__post_init(struct adapter *sc)
 		 * that will never be used.
 		 */
 		sc->iscsicaps = 0;
+		sc->nvmecaps = 0;
 		sc->rdmacaps = 0;
 	}
-	if (sc->rdmacaps) {
+	if (sc->nvmecaps || sc->rdmacaps) {
 		param[0] = FW_PARAM_PFVF(STAG_START);
 		param[1] = FW_PARAM_PFVF(STAG_END);
-		param[2] = FW_PARAM_PFVF(RQ_START);
-		param[3] = FW_PARAM_PFVF(RQ_END);
-		param[4] = FW_PARAM_PFVF(PBL_START);
-		param[5] = FW_PARAM_PFVF(PBL_END);
+		param[2] = FW_PARAM_PFVF(PBL_START);
+		param[3] = FW_PARAM_PFVF(PBL_END);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 4, param, val);
+		if (rc != 0) {
+			device_printf(sc->dev,
+			    "failed to query NVMe/RDMA parameters: %d.\n", rc);
+			return (rc);
+		}
+		sc->vres.stag.start = val[0];
+		sc->vres.stag.size = val[1] - val[0] + 1;
+		sc->vres.pbl.start = val[2];
+		sc->vres.pbl.size = val[3] - val[2] + 1;
+	}
+	if (sc->rdmacaps) {
+		param[0] = FW_PARAM_PFVF(RQ_START);
+		param[1] = FW_PARAM_PFVF(RQ_END);
+		param[2] = FW_PARAM_PFVF(SQRQ_START);
+		param[3] = FW_PARAM_PFVF(SQRQ_END);
+		param[4] = FW_PARAM_PFVF(CQ_START);
+		param[5] = FW_PARAM_PFVF(CQ_END);
 		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 6, param, val);
 		if (rc != 0) {
 			device_printf(sc->dev,
 			    "failed to query RDMA parameters(1): %d.\n", rc);
 			return (rc);
 		}
-		sc->vres.stag.start = val[0];
-		sc->vres.stag.size = val[1] - val[0] + 1;
-		sc->vres.rq.start = val[2];
-		sc->vres.rq.size = val[3] - val[2] + 1;
-		sc->vres.pbl.start = val[4];
-		sc->vres.pbl.size = val[5] - val[4] + 1;
+		sc->vres.rq.start = val[0];
+		sc->vres.rq.size = val[1] - val[0] + 1;
+		sc->vres.qp.start = val[2];
+		sc->vres.qp.size = val[3] - val[2] + 1;
+		sc->vres.cq.start = val[4];
+		sc->vres.cq.size = val[5] - val[4] + 1;
 
-		param[0] = FW_PARAM_PFVF(SQRQ_START);
-		param[1] = FW_PARAM_PFVF(SQRQ_END);
-		param[2] = FW_PARAM_PFVF(CQ_START);
-		param[3] = FW_PARAM_PFVF(CQ_END);
-		param[4] = FW_PARAM_PFVF(OCQ_START);
-		param[5] = FW_PARAM_PFVF(OCQ_END);
+		param[0] = FW_PARAM_PFVF(OCQ_START);
+		param[1] = FW_PARAM_PFVF(OCQ_END);
+		param[2] = FW_PARAM_PFVF(SRQ_START);
+		param[3] = FW_PARAM_PFVF(SRQ_END);
+		param[4] = FW_PARAM_DEV(MAXORDIRD_QP);
+		param[5] = FW_PARAM_DEV(MAXIRD_ADAPTER);
 		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 6, param, val);
 		if (rc != 0) {
 			device_printf(sc->dev,
 			    "failed to query RDMA parameters(2): %d.\n", rc);
 			return (rc);
 		}
-		sc->vres.qp.start = val[0];
-		sc->vres.qp.size = val[1] - val[0] + 1;
-		sc->vres.cq.start = val[2];
-		sc->vres.cq.size = val[3] - val[2] + 1;
-		sc->vres.ocq.start = val[4];
-		sc->vres.ocq.size = val[5] - val[4] + 1;
-
-		param[0] = FW_PARAM_PFVF(SRQ_START);
-		param[1] = FW_PARAM_PFVF(SRQ_END);
-		param[2] = FW_PARAM_DEV(MAXORDIRD_QP);
-		param[3] = FW_PARAM_DEV(MAXIRD_ADAPTER);
-		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 4, param, val);
-		if (rc != 0) {
-			device_printf(sc->dev,
-			    "failed to query RDMA parameters(3): %d.\n", rc);
-			return (rc);
-		}
-		sc->vres.srq.start = val[0];
-		sc->vres.srq.size = val[1] - val[0] + 1;
-		sc->params.max_ordird_qp = val[2];
-		sc->params.max_ird_adapter = val[3];
+		sc->vres.ocq.start = val[0];
+		sc->vres.ocq.size = val[1] - val[0] + 1;
+		sc->vres.srq.start = val[2];
+		sc->vres.srq.size = val[3] - val[2] + 1;
+		sc->params.max_ordird_qp = val[4];
+		sc->params.max_ird_adapter = val[5];
 	}
 	if (sc->iscsicaps) {
 		param[0] = FW_PARAM_PFVF(ISCSI_START);
@@ -5946,9 +6156,13 @@ set_params__post_init(struct adapter *sc)
 #ifdef KERN_TLS
 	if (is_ktls(sc)) {
 		sc->tlst.inline_keys = t4_tls_inline_keys;
-		sc->tlst.combo_wrs = t4_tls_combo_wrs;
-		if (t4_kern_tls != 0 && is_t6(sc))
+		if (t4_kern_tls != 0 && is_t6(sc)) {
+			sc->tlst.combo_wrs = t4_tls_combo_wrs;
 			t6_config_kern_tls(sc, true);
+		} else {
+			sc->tlst.short_records = t4_tls_short_records;
+			sc->tlst.partial_ghash = t4_tls_partial_ghash;
+		}
 	}
 #endif
 	return (0);
@@ -6220,7 +6434,7 @@ apply_link_config(struct port_info *pi)
 		MPASS(lc->pcaps & FW_PORT_CAP32_FEC_BASER_RS);
 #endif
 	if (!(sc->flags & IS_VF)) {
-		rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
+		rc = -t4_link_l1cfg(sc, sc->mbox, pi->hw_port, lc);
 		if (rc != 0) {
 			device_printf(pi->dev, "l1cfg failed: %d\n", rc);
 			return (rc);
@@ -6581,9 +6795,7 @@ cxgbe_init_synchronized(struct vi_info *vi)
 	 */
 	if (sc->traceq < 0 && IS_MAIN_VI(vi)) {
 		sc->traceq = sc->sge.rxq[vi->first_rxq].iq.abs_id;
-		t4_write_reg(sc, is_t4(sc) ?  A_MPS_TRC_RSS_CONTROL :
-		    A_MPS_T5_TRC_RSS_CONTROL, V_RSSCONTROL(pi->tx_chan) |
-		    V_QUEUENUMBER(sc->traceq));
+		t4_set_trace_rss_control(sc, pi->tx_chan, sc->traceq);
 		pi->flags |= HAS_TRACEQ;
 	}
 
@@ -7443,7 +7655,7 @@ cxgbe_refresh_stats(struct vi_info *vi)
 	pi = vi->pi;
 	sc = vi->adapter;
 	tnl_cong_drops = 0;
-	t4_get_port_stats(sc, pi->port_id, &pi->stats);
+	t4_get_port_stats(sc, pi->hw_port, &pi->stats);
 	chan_map = pi->rx_e_chan_map;
 	while (chan_map) {
 		i = ffs(chan_map) - 1;
@@ -7481,6 +7693,150 @@ vi_tick(void *arg)
 	callout_schedule(&vi->tick, hz);
 }
 
+/* CIM inbound queues */
+static const char *t4_ibq[CIM_NUM_IBQ] = {
+	"ibq_tp0", "ibq_tp1", "ibq_ulp", "ibq_sge0", "ibq_sge1", "ibq_ncsi"
+};
+static const char *t7_ibq[CIM_NUM_IBQ_T7] = {
+	"ibq_tp0", "ibq_tp1", "ibq_tp2", "ibq_tp3", "ibq_ulp", "ibq_sge0",
+	"ibq_sge1", "ibq_ncsi", NULL, "ibq_ipc1", "ibq_ipc2", "ibq_ipc3",
+	"ibq_ipc4", "ibq_ipc5", "ibq_ipc6", "ibq_ipc7"
+};
+static const char *t7_ibq_sec[] = {
+	"ibq_tp0", "ibq_tp1", "ibq_tp2", "ibq_tp3", "ibq_ulp", "ibq_sge0",
+	NULL, NULL, NULL, "ibq_ipc0"
+};
+
+/* CIM outbound queues */
+static const char *t4_obq[CIM_NUM_OBQ_T5] = {
+	"obq_ulp0", "obq_ulp1", "obq_ulp2", "obq_ulp3", "obq_sge", "obq_ncsi",
+	"obq_sge_rx_q0", "obq_sge_rx_q1" /* These two are T5/T6 only */
+};
+static const char *t7_obq[CIM_NUM_OBQ_T7] = {
+	"obq_ulp0", "obq_ulp1", "obq_ulp2", "obq_ulp3", "obq_sge", "obq_ncsi",
+	"obq_sge_rx_q0", NULL, NULL, "obq_ipc1", "obq_ipc2", "obq_ipc3",
+	"obq_ipc4", "obq_ipc5", "obq_ipc6", "obq_ipc7"
+};
+static const char *t7_obq_sec[] = {
+	"obq_ulp0", "obq_ulp1", "obq_ulp2", "obq_ulp3", "obq_sge", NULL,
+	"obq_sge_rx_q0", NULL, NULL, "obq_ipc0"
+};
+
+static void
+cim_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
+    struct sysctl_oid_list *c0)
+{
+	struct sysctl_oid *oid;
+	struct sysctl_oid_list *children1;
+	int i, j, qcount;
+	char s[16];
+	const char **qname;
+
+	oid = SYSCTL_ADD_NODE(ctx, c0, OID_AUTO, "cim",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "CIM block");
+	c0 = SYSCTL_CHILDREN(oid);
+
+	SYSCTL_ADD_U8(ctx, c0, OID_AUTO, "ncores", CTLFLAG_RD, NULL,
+	    sc->params.ncores, "# of active CIM cores");
+
+	for (i = 0; i < sc->params.ncores; i++) {
+		snprintf(s, sizeof(s), "%u", i);
+		oid = SYSCTL_ADD_NODE(ctx, c0, OID_AUTO, s,
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "CIM core");
+		children1 = SYSCTL_CHILDREN(oid);
+
+		/*
+		 * CTLFLAG_SKIP because the misc.devlog sysctl already displays
+		 * the log for all cores.  Use this sysctl to get the log for a
+		 * particular core only.
+		 */
+		SYSCTL_ADD_PROC(ctx, children1, OID_AUTO, "devlog",
+		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_SKIP,
+		    sc, i, sysctl_devlog, "A", "firmware's device log");
+
+		SYSCTL_ADD_PROC(ctx, children1, OID_AUTO, "loadavg",
+		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, i,
+		    sysctl_loadavg, "A",
+		    "microprocessor load averages (select firmwares only)");
+
+		SYSCTL_ADD_PROC(ctx, children1, OID_AUTO, "qcfg",
+		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, i,
+		    chip_id(sc) > CHELSIO_T6 ? sysctl_cim_qcfg_t7 : sysctl_cim_qcfg,
+		    "A", "Queue configuration");
+
+		SYSCTL_ADD_PROC(ctx, children1, OID_AUTO, "la",
+		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, i,
+		    sysctl_cim_la, "A", "Logic analyzer");
+
+		SYSCTL_ADD_PROC(ctx, children1, OID_AUTO, "ma_la",
+		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, i,
+		    sysctl_cim_ma_la, "A", "CIM MA logic analyzer");
+
+		SYSCTL_ADD_PROC(ctx, children1, OID_AUTO, "pif_la",
+		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, i,
+		    sysctl_cim_pif_la, "A", "CIM PIF logic analyzer");
+
+		/* IBQs */
+		switch (chip_id(sc)) {
+		case CHELSIO_T4:
+		case CHELSIO_T5:
+		case CHELSIO_T6:
+			qname = &t4_ibq[0];
+			qcount = nitems(t4_ibq);
+			break;
+		case CHELSIO_T7:
+		default:
+			if (i == 0) {
+				qname = &t7_ibq[0];
+				qcount = nitems(t7_ibq);
+			} else {
+				qname = &t7_ibq_sec[0];
+				qcount = nitems(t7_ibq_sec);
+			}
+			break;
+		}
+		MPASS(qcount <= sc->chip_params->cim_num_ibq);
+		for (j = 0; j < qcount; j++) {
+			if (qname[j] == NULL)
+				continue;
+			SYSCTL_ADD_PROC(ctx, children1, OID_AUTO, qname[j],
+			    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
+			    (i << 16) | j, sysctl_cim_ibq, "A", NULL);
+		}
+
+		/* OBQs */
+		switch (chip_id(sc)) {
+		case CHELSIO_T4:
+			qname = t4_obq;
+			qcount = CIM_NUM_OBQ;
+			break;
+		case CHELSIO_T5:
+		case CHELSIO_T6:
+			qname = t4_obq;
+			qcount = nitems(t4_obq);
+			break;
+		case CHELSIO_T7:
+		default:
+			if (i == 0) {
+				qname = t7_obq;
+				qcount = nitems(t7_obq);
+			} else {
+				qname = t7_obq_sec;
+				qcount = nitems(t7_obq_sec);
+			}
+			break;
+		}
+		MPASS(qcount <= sc->chip_params->cim_num_obq);
+		for (j = 0; j < qcount; j++) {
+			if (qname[j] == NULL)
+				continue;
+			SYSCTL_ADD_PROC(ctx, children1, OID_AUTO, qname[j],
+			    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
+			    (i << 16) | j, sysctl_cim_obq, "A", NULL);
+		}
+	}
+}
+
 /*
  * Should match fw_caps_config_<foo> enums in t4fw_interface.h
  */
@@ -7490,17 +7846,18 @@ static char *caps_decoder[] = {
 	"\20\001INGRESS\002EGRESS",			/* 2: switch */
 	"\20\001NIC\002VM\003IDS\004UM\005UM_ISGL"	/* 3: NIC */
 	    "\006HASHFILTER\007ETHOFLD",
-	"\20\001TOE",					/* 4: TOE */
-	"\20\001RDDP\002RDMAC",				/* 5: RDMA */
+	"\20\001TOE\002SENDPATH",			/* 4: TOE */
+	"\20\001RDDP\002RDMAC\003ROCEv2",		/* 5: RDMA */
 	"\20\001INITIATOR_PDU\002TARGET_PDU"		/* 6: iSCSI */
 	    "\003INITIATOR_CNXOFLD\004TARGET_CNXOFLD"
 	    "\005INITIATOR_SSNOFLD\006TARGET_SSNOFLD"
 	    "\007T10DIF"
 	    "\010INITIATOR_CMDOFLD\011TARGET_CMDOFLD",
 	"\20\001LOOKASIDE\002TLSKEYS\003IPSEC_INLINE"	/* 7: Crypto */
-	    "\004TLS_HW",
+	    "\004TLS_HW,\005TOE_IPSEC",
 	"\20\001INITIATOR\002TARGET\003CTRL_OFLD"	/* 8: FCoE */
 		    "\004PO_INITIATOR\005PO_TARGET",
+	"\20\001NVMe_TCP",				/* 9: NVMe */
 };
 
 void
@@ -7550,6 +7907,9 @@ t4_sysctls(struct adapter *sc)
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "dflags", CTLFLAG_RW,
 	    &sc->debug_flags, 0, "flags to enable runtime debugging");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "iflags", CTLFLAG_RW,
+	    &sc->intr_flags, 0, "flags for the slow interrupt handler");
 
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "tp_version",
 	    CTLFLAG_RD, sc->tp_version, 0, "TP microcode version");
@@ -7605,6 +7965,7 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_CAP(nbmcaps, 0, "NBM");
 	SYSCTL_CAP(linkcaps, 1, "link");
 	SYSCTL_CAP(switchcaps, 2, "switch");
+	SYSCTL_CAP(nvmecaps, 9, "NVMe");
 	SYSCTL_CAP(niccaps, 3, "NIC");
 	SYSCTL_CAP(toecaps, 4, "TCP offload");
 	SYSCTL_CAP(rdmacaps, 5, "RDMA");
@@ -7622,11 +7983,6 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "reset_sensor",
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
 	    sysctl_reset_sensor, "I", "reset the chip's temperature sensor.");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "loadavg",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    sysctl_loadavg, "A",
-	    "microprocessor load averages (debug firmwares only)");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "core_vdd",
 	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0, sysctl_vdd,
@@ -7659,81 +8015,7 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 	    sysctl_cctrl, "A", "congestion control");
 
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ibq_tp0",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    sysctl_cim_ibq_obq, "A", "CIM IBQ 0 (TP0)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ibq_tp1",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 1,
-	    sysctl_cim_ibq_obq, "A", "CIM IBQ 1 (TP1)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ibq_ulp",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 2,
-	    sysctl_cim_ibq_obq, "A", "CIM IBQ 2 (ULP)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ibq_sge0",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 3,
-	    sysctl_cim_ibq_obq, "A", "CIM IBQ 3 (SGE0)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ibq_sge1",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 4,
-	    sysctl_cim_ibq_obq, "A", "CIM IBQ 4 (SGE1)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ibq_ncsi",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 5,
-	    sysctl_cim_ibq_obq, "A", "CIM IBQ 5 (NCSI)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_la",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    sysctl_cim_la, "A", "CIM logic analyzer");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ma_la",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    sysctl_cim_ma_la, "A", "CIM MA logic analyzer");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_ulp0",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
-	    0 + CIM_NUM_IBQ, sysctl_cim_ibq_obq, "A", "CIM OBQ 0 (ULP0)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_ulp1",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
-	    1 + CIM_NUM_IBQ, sysctl_cim_ibq_obq, "A", "CIM OBQ 1 (ULP1)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_ulp2",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
-	    2 + CIM_NUM_IBQ, sysctl_cim_ibq_obq, "A", "CIM OBQ 2 (ULP2)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_ulp3",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
-	    3 + CIM_NUM_IBQ, sysctl_cim_ibq_obq, "A", "CIM OBQ 3 (ULP3)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_sge",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
-	    4 + CIM_NUM_IBQ, sysctl_cim_ibq_obq, "A", "CIM OBQ 4 (SGE)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_ncsi",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
-	    5 + CIM_NUM_IBQ, sysctl_cim_ibq_obq, "A", "CIM OBQ 5 (NCSI)");
-
-	if (chip_id(sc) > CHELSIO_T4) {
-		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_sge0_rx",
-		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
-		    6 + CIM_NUM_IBQ, sysctl_cim_ibq_obq, "A",
-		    "CIM OBQ 6 (SGE0-RX)");
-
-		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_sge1_rx",
-		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
-		    7 + CIM_NUM_IBQ, sysctl_cim_ibq_obq, "A",
-		    "CIM OBQ 7 (SGE1-RX)");
-	}
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_pif_la",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    sysctl_cim_pif_la, "A", "CIM PIF logic analyzer");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_qcfg",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    sysctl_cim_qcfg, "A", "CIM queue configuration");
+	cim_sysctls(sc, ctx, children);
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cpl_stats",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
@@ -7748,8 +8030,8 @@ t4_sysctls(struct adapter *sc)
 	    sysctl_tid_stats, "A", "tid stats");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "devlog",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    sysctl_devlog, "A", "firmware's device log");
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, -1,
+	    sysctl_devlog, "A", "firmware's device log (all cores)");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "fcoe_stats",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
@@ -7783,7 +8065,8 @@ t4_sysctls(struct adapter *sc)
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "mps_tcam",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    chip_id(sc) <= CHELSIO_T5 ? sysctl_mps_tcam : sysctl_mps_tcam_t6,
+	    chip_id(sc) >= CHELSIO_T7 ? sysctl_mps_tcam_t7 :
+	    (chip_id(sc) >= CHELSIO_T6 ? sysctl_mps_tcam_t6 : sysctl_mps_tcam),
 	    "A", "MPS TCAM entries");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "path_mtus",
@@ -7855,6 +8138,14 @@ t4_sysctls(struct adapter *sc)
 			    CTLFLAG_RW, &sc->tlst.combo_wrs, 0, "Attempt to "
 			    "combine TCB field updates with TLS record work "
 			    "requests.");
+		else {
+			SYSCTL_ADD_INT(ctx, children, OID_AUTO, "short_records",
+			    CTLFLAG_RW, &sc->tlst.short_records, 0,
+			    "Use cipher-only mode for short records.");
+			SYSCTL_ADD_INT(ctx, children, OID_AUTO, "partial_ghash",
+			    CTLFLAG_RW, &sc->tlst.partial_ghash, 0,
+			    "Use partial GHASH for AES-GCM records.");
+		}
 	}
 #endif
 
@@ -8230,86 +8521,112 @@ cxgbe_sysctls(struct port_info *pi)
 	    &pi->tx_parse_error, 0,
 	    "# of tx packets with invalid length or # of segments");
 
-#define T4_REGSTAT(name, stat, desc) \
-    SYSCTL_ADD_OID(ctx, children, OID_AUTO, #name, \
-	CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, \
-	t4_port_reg(sc, pi->tx_chan, A_MPS_PORT_STAT_##stat##_L), \
-        sysctl_handle_t4_reg64, "QU", desc)
+#define T4_LBSTAT(name, stat, desc) do { \
+	if (sc->params.tp.lb_mode) { \
+		SYSCTL_ADD_OID(ctx, children, OID_AUTO, #name, \
+		    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE, pi, \
+		    A_MPS_PORT_STAT_##stat##_L, \
+		    sysctl_handle_t4_portstat64, "QU", desc); \
+	} else { \
+		SYSCTL_ADD_OID(ctx, children, OID_AUTO, #name, \
+		    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, \
+		    t4_port_reg(sc, pi->tx_chan, A_MPS_PORT_STAT_##stat##_L), \
+		    sysctl_handle_t4_reg64, "QU", desc); \
+	} \
+} while (0)
 
-/* We get these from port_stats and they may be stale by up to 1s */
-#define T4_PORTSTAT(name, desc) \
-	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, #name, CTLFLAG_RD, \
-	    &pi->stats.name, desc)
+	T4_LBSTAT(tx_octets, TX_PORT_BYTES, "# of octets in good frames");
+	T4_LBSTAT(tx_frames, TX_PORT_FRAMES, "total # of good frames");
+	T4_LBSTAT(tx_bcast_frames, TX_PORT_BCAST, "# of broadcast frames");
+	T4_LBSTAT(tx_mcast_frames, TX_PORT_MCAST, "# of multicast frames");
+	T4_LBSTAT(tx_ucast_frames, TX_PORT_UCAST, "# of unicast frames");
+	T4_LBSTAT(tx_error_frames, TX_PORT_ERROR, "# of error frames");
+	T4_LBSTAT(tx_frames_64, TX_PORT_64B, "# of tx frames in this range");
+	T4_LBSTAT(tx_frames_65_127, TX_PORT_65B_127B, "# of tx frames in this range");
+	T4_LBSTAT(tx_frames_128_255, TX_PORT_128B_255B, "# of tx frames in this range");
+	T4_LBSTAT(tx_frames_256_511, TX_PORT_256B_511B, "# of tx frames in this range");
+	T4_LBSTAT(tx_frames_512_1023, TX_PORT_512B_1023B, "# of tx frames in this range");
+	T4_LBSTAT(tx_frames_1024_1518, TX_PORT_1024B_1518B, "# of tx frames in this range");
+	T4_LBSTAT(tx_frames_1519_max, TX_PORT_1519B_MAX, "# of tx frames in this range");
+	T4_LBSTAT(tx_drop, TX_PORT_DROP, "# of dropped tx frames");
+	T4_LBSTAT(tx_pause, TX_PORT_PAUSE, "# of pause frames transmitted");
+	T4_LBSTAT(tx_ppp0, TX_PORT_PPP0, "# of PPP prio 0 frames transmitted");
+	T4_LBSTAT(tx_ppp1, TX_PORT_PPP1, "# of PPP prio 1 frames transmitted");
+	T4_LBSTAT(tx_ppp2, TX_PORT_PPP2, "# of PPP prio 2 frames transmitted");
+	T4_LBSTAT(tx_ppp3, TX_PORT_PPP3, "# of PPP prio 3 frames transmitted");
+	T4_LBSTAT(tx_ppp4, TX_PORT_PPP4, "# of PPP prio 4 frames transmitted");
+	T4_LBSTAT(tx_ppp5, TX_PORT_PPP5, "# of PPP prio 5 frames transmitted");
+	T4_LBSTAT(tx_ppp6, TX_PORT_PPP6, "# of PPP prio 6 frames transmitted");
+	T4_LBSTAT(tx_ppp7, TX_PORT_PPP7, "# of PPP prio 7 frames transmitted");
 
-	T4_REGSTAT(tx_octets, TX_PORT_BYTES, "# of octets in good frames");
-	T4_REGSTAT(tx_frames, TX_PORT_FRAMES, "total # of good frames");
-	T4_REGSTAT(tx_bcast_frames, TX_PORT_BCAST, "# of broadcast frames");
-	T4_REGSTAT(tx_mcast_frames, TX_PORT_MCAST, "# of multicast frames");
-	T4_REGSTAT(tx_ucast_frames, TX_PORT_UCAST, "# of unicast frames");
-	T4_REGSTAT(tx_error_frames, TX_PORT_ERROR, "# of error frames");
-	T4_REGSTAT(tx_frames_64, TX_PORT_64B, "# of tx frames in this range");
-	T4_REGSTAT(tx_frames_65_127, TX_PORT_65B_127B, "# of tx frames in this range");
-	T4_REGSTAT(tx_frames_128_255, TX_PORT_128B_255B, "# of tx frames in this range");
-	T4_REGSTAT(tx_frames_256_511, TX_PORT_256B_511B, "# of tx frames in this range");
-	T4_REGSTAT(tx_frames_512_1023, TX_PORT_512B_1023B, "# of tx frames in this range");
-	T4_REGSTAT(tx_frames_1024_1518, TX_PORT_1024B_1518B, "# of tx frames in this range");
-	T4_REGSTAT(tx_frames_1519_max, TX_PORT_1519B_MAX, "# of tx frames in this range");
-	T4_REGSTAT(tx_drop, TX_PORT_DROP, "# of dropped tx frames");
-	T4_REGSTAT(tx_pause, TX_PORT_PAUSE, "# of pause frames transmitted");
-	T4_REGSTAT(tx_ppp0, TX_PORT_PPP0, "# of PPP prio 0 frames transmitted");
-	T4_REGSTAT(tx_ppp1, TX_PORT_PPP1, "# of PPP prio 1 frames transmitted");
-	T4_REGSTAT(tx_ppp2, TX_PORT_PPP2, "# of PPP prio 2 frames transmitted");
-	T4_REGSTAT(tx_ppp3, TX_PORT_PPP3, "# of PPP prio 3 frames transmitted");
-	T4_REGSTAT(tx_ppp4, TX_PORT_PPP4, "# of PPP prio 4 frames transmitted");
-	T4_REGSTAT(tx_ppp5, TX_PORT_PPP5, "# of PPP prio 5 frames transmitted");
-	T4_REGSTAT(tx_ppp6, TX_PORT_PPP6, "# of PPP prio 6 frames transmitted");
-	T4_REGSTAT(tx_ppp7, TX_PORT_PPP7, "# of PPP prio 7 frames transmitted");
-
-	T4_REGSTAT(rx_octets, RX_PORT_BYTES, "# of octets in good frames");
-	T4_REGSTAT(rx_frames, RX_PORT_FRAMES, "total # of good frames");
-	T4_REGSTAT(rx_bcast_frames, RX_PORT_BCAST, "# of broadcast frames");
-	T4_REGSTAT(rx_mcast_frames, RX_PORT_MCAST, "# of multicast frames");
-	T4_REGSTAT(rx_ucast_frames, RX_PORT_UCAST, "# of unicast frames");
-	T4_REGSTAT(rx_too_long, RX_PORT_MTU_ERROR, "# of frames exceeding MTU");
-	T4_REGSTAT(rx_jabber, RX_PORT_MTU_CRC_ERROR, "# of jabber frames");
+	T4_LBSTAT(rx_octets, RX_PORT_BYTES, "# of octets in good frames");
+	T4_LBSTAT(rx_frames, RX_PORT_FRAMES, "total # of good frames");
+	T4_LBSTAT(rx_bcast_frames, RX_PORT_BCAST, "# of broadcast frames");
+	T4_LBSTAT(rx_mcast_frames, RX_PORT_MCAST, "# of multicast frames");
+	T4_LBSTAT(rx_ucast_frames, RX_PORT_UCAST, "# of unicast frames");
+	T4_LBSTAT(rx_too_long, RX_PORT_MTU_ERROR, "# of frames exceeding MTU");
+	T4_LBSTAT(rx_jabber, RX_PORT_MTU_CRC_ERROR, "# of jabber frames");
 	if (is_t6(sc)) {
-		T4_PORTSTAT(rx_fcs_err,
+		/* Read from port_stats and may be stale by up to 1s */
+		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "rx_fcs_err",
+		    CTLFLAG_RD, &pi->stats.rx_fcs_err,
 		    "# of frames received with bad FCS since last link up");
 	} else {
-		T4_REGSTAT(rx_fcs_err, RX_PORT_CRC_ERROR,
+		T4_LBSTAT(rx_fcs_err, RX_PORT_CRC_ERROR,
 		    "# of frames received with bad FCS");
 	}
-	T4_REGSTAT(rx_len_err, RX_PORT_LEN_ERROR, "# of frames received with length error");
-	T4_REGSTAT(rx_symbol_err, RX_PORT_SYM_ERROR, "symbol errors");
-	T4_REGSTAT(rx_runt, RX_PORT_LESS_64B, "# of short frames received");
-	T4_REGSTAT(rx_frames_64, RX_PORT_64B, "# of rx frames in this range");
-	T4_REGSTAT(rx_frames_65_127, RX_PORT_65B_127B, "# of rx frames in this range");
-	T4_REGSTAT(rx_frames_128_255, RX_PORT_128B_255B, "# of rx frames in this range");
-	T4_REGSTAT(rx_frames_256_511, RX_PORT_256B_511B, "# of rx frames in this range");
-	T4_REGSTAT(rx_frames_512_1023, RX_PORT_512B_1023B, "# of rx frames in this range");
-	T4_REGSTAT(rx_frames_1024_1518, RX_PORT_1024B_1518B, "# of rx frames in this range");
-	T4_REGSTAT(rx_frames_1519_max, RX_PORT_1519B_MAX, "# of rx frames in this range");
-	T4_REGSTAT(rx_pause, RX_PORT_PAUSE, "# of pause frames received");
-	T4_REGSTAT(rx_ppp0, RX_PORT_PPP0, "# of PPP prio 0 frames received");
-	T4_REGSTAT(rx_ppp1, RX_PORT_PPP1, "# of PPP prio 1 frames received");
-	T4_REGSTAT(rx_ppp2, RX_PORT_PPP2, "# of PPP prio 2 frames received");
-	T4_REGSTAT(rx_ppp3, RX_PORT_PPP3, "# of PPP prio 3 frames received");
-	T4_REGSTAT(rx_ppp4, RX_PORT_PPP4, "# of PPP prio 4 frames received");
-	T4_REGSTAT(rx_ppp5, RX_PORT_PPP5, "# of PPP prio 5 frames received");
-	T4_REGSTAT(rx_ppp6, RX_PORT_PPP6, "# of PPP prio 6 frames received");
-	T4_REGSTAT(rx_ppp7, RX_PORT_PPP7, "# of PPP prio 7 frames received");
+	T4_LBSTAT(rx_len_err, RX_PORT_LEN_ERROR, "# of frames received with length error");
+	T4_LBSTAT(rx_symbol_err, RX_PORT_SYM_ERROR, "symbol errors");
+	T4_LBSTAT(rx_runt, RX_PORT_LESS_64B, "# of short frames received");
+	T4_LBSTAT(rx_frames_64, RX_PORT_64B, "# of rx frames in this range");
+	T4_LBSTAT(rx_frames_65_127, RX_PORT_65B_127B, "# of rx frames in this range");
+	T4_LBSTAT(rx_frames_128_255, RX_PORT_128B_255B, "# of rx frames in this range");
+	T4_LBSTAT(rx_frames_256_511, RX_PORT_256B_511B, "# of rx frames in this range");
+	T4_LBSTAT(rx_frames_512_1023, RX_PORT_512B_1023B, "# of rx frames in this range");
+	T4_LBSTAT(rx_frames_1024_1518, RX_PORT_1024B_1518B, "# of rx frames in this range");
+	T4_LBSTAT(rx_frames_1519_max, RX_PORT_1519B_MAX, "# of rx frames in this range");
+	T4_LBSTAT(rx_pause, RX_PORT_PAUSE, "# of pause frames received");
+	T4_LBSTAT(rx_ppp0, RX_PORT_PPP0, "# of PPP prio 0 frames received");
+	T4_LBSTAT(rx_ppp1, RX_PORT_PPP1, "# of PPP prio 1 frames received");
+	T4_LBSTAT(rx_ppp2, RX_PORT_PPP2, "# of PPP prio 2 frames received");
+	T4_LBSTAT(rx_ppp3, RX_PORT_PPP3, "# of PPP prio 3 frames received");
+	T4_LBSTAT(rx_ppp4, RX_PORT_PPP4, "# of PPP prio 4 frames received");
+	T4_LBSTAT(rx_ppp5, RX_PORT_PPP5, "# of PPP prio 5 frames received");
+	T4_LBSTAT(rx_ppp6, RX_PORT_PPP6, "# of PPP prio 6 frames received");
+	T4_LBSTAT(rx_ppp7, RX_PORT_PPP7, "# of PPP prio 7 frames received");
+#undef T4_LBSTAT
 
-	T4_PORTSTAT(rx_ovflow0, "# drops due to buffer-group 0 overflows");
-	T4_PORTSTAT(rx_ovflow1, "# drops due to buffer-group 1 overflows");
-	T4_PORTSTAT(rx_ovflow2, "# drops due to buffer-group 2 overflows");
-	T4_PORTSTAT(rx_ovflow3, "# drops due to buffer-group 3 overflows");
-	T4_PORTSTAT(rx_trunc0, "# of buffer-group 0 truncated packets");
-	T4_PORTSTAT(rx_trunc1, "# of buffer-group 1 truncated packets");
-	T4_PORTSTAT(rx_trunc2, "# of buffer-group 2 truncated packets");
-	T4_PORTSTAT(rx_trunc3, "# of buffer-group 3 truncated packets");
+#define T4_REGSTAT(name, stat, desc) do { \
+	SYSCTL_ADD_OID(ctx, children, OID_AUTO, #name, \
+	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, \
+	    A_MPS_STAT_##stat##_L, sysctl_handle_t4_reg64, "QU", desc); \
+} while (0)
 
+	if (pi->mps_bg_map & 1) {
+		T4_REGSTAT(rx_ovflow0, RX_BG_0_MAC_DROP_FRAME,
+		    "# drops due to buffer-group 0 overflows");
+		T4_REGSTAT(rx_trunc0, RX_BG_0_MAC_TRUNC_FRAME,
+		    "# of buffer-group 0 truncated packets");
+	}
+	if (pi->mps_bg_map & 2) {
+		T4_REGSTAT(rx_ovflow1, RX_BG_1_MAC_DROP_FRAME,
+		    "# drops due to buffer-group 1 overflows");
+		T4_REGSTAT(rx_trunc1, RX_BG_1_MAC_TRUNC_FRAME,
+		    "# of buffer-group 1 truncated packets");
+	}
+	if (pi->mps_bg_map & 4) {
+		T4_REGSTAT(rx_ovflow2, RX_BG_2_MAC_DROP_FRAME,
+		    "# drops due to buffer-group 2 overflows");
+		T4_REGSTAT(rx_trunc2, RX_BG_2_MAC_TRUNC_FRAME,
+		    "# of buffer-group 2 truncated packets");
+	}
+	if (pi->mps_bg_map & 8) {
+		T4_REGSTAT(rx_ovflow3, RX_BG_3_MAC_DROP_FRAME,
+		    "# drops due to buffer-group 3 overflows");
+		T4_REGSTAT(rx_trunc3, RX_BG_3_MAC_TRUNC_FRAME,
+		    "# of buffer-group 3 truncated packets");
+	}
 #undef T4_REGSTAT
-#undef T4_PORTSTAT
 }
 
 static int
@@ -8452,14 +8769,14 @@ sysctl_tx_vm_wr(SYSCTL_HANDLER_ARGS)
 			vi->flags |= TX_USES_VM_WR;
 			if_sethwtsomaxsegcount(vi->ifp, TX_SGL_SEGS_VM_TSO);
 			ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT_XT) |
-			    V_TXPKT_INTF(pi->tx_chan));
+			    V_TXPKT_INTF(pi->hw_port));
 			if (!(sc->flags & IS_VF))
 				npkt--;
 		} else {
 			vi->flags &= ~TX_USES_VM_WR;
 			if_sethwtsomaxsegcount(vi->ifp, TX_SGL_SEGS_TSO);
 			ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT_XT) |
-			    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(sc->pf) |
+			    V_TXPKT_INTF(pi->hw_port) | V_TXPKT_PF(sc->pf) |
 			    V_TXPKT_VF(vi->vin) | V_TXPKT_VF_VLD(vi->vfvld));
 		}
 		for_each_txq(vi, i, txq) {
@@ -8669,13 +8986,12 @@ sysctl_link_fec(SYSCTL_HANDLER_ARGS)
 	struct link_config *lc = &pi->link_cfg;
 	int rc;
 	struct sbuf *sb;
-	static char *bits = "\20\1RS-FEC\2FC-FEC\3NO-FEC\4RSVD1\5RSVD2";
 
 	sb = sbuf_new_for_sysctl(NULL, NULL, 128, req);
 	if (sb == NULL)
 		return (ENOMEM);
 	if (lc->link_ok)
-		sbuf_printf(sb, "%b", lc->fec, bits);
+		sbuf_printf(sb, "%b", lc->fec, t4_fec_bits);
 	else
 		sbuf_printf(sb, "no link");
 	rc = sbuf_finish(sb);
@@ -8691,27 +9007,24 @@ sysctl_requested_fec(SYSCTL_HANDLER_ARGS)
 	struct adapter *sc = pi->adapter;
 	struct link_config *lc = &pi->link_cfg;
 	int rc;
-	int8_t old;
+	int8_t old = lc->requested_fec;
 
 	if (req->newptr == NULL) {
 		struct sbuf *sb;
-		static char *bits = "\20\1RS-FEC\2FC-FEC\3NO-FEC\4RSVD2"
-		    "\5RSVD3\6auto\7module";
 
 		sb = sbuf_new_for_sysctl(NULL, NULL, 128, req);
 		if (sb == NULL)
 			return (ENOMEM);
 
-		sbuf_printf(sb, "%b", lc->requested_fec, bits);
+		sbuf_printf(sb, "%b", old, t4_fec_bits);
 		rc = sbuf_finish(sb);
 		sbuf_delete(sb);
 	} else {
 		char s[8];
 		int n;
 
-		snprintf(s, sizeof(s), "%d",
-		    lc->requested_fec == FEC_AUTO ? -1 :
-		    lc->requested_fec & (M_FW_PORT_CAP32_FEC | FEC_MODULE));
+		snprintf(s, sizeof(s), "%d", old == FEC_AUTO ? -1 :
+		    old & (M_FW_PORT_CAP32_FEC | FEC_MODULE));
 
 		rc = sysctl_handle_string(oidp, s, sizeof(s), req);
 		if (rc != 0)
@@ -8728,7 +9041,10 @@ sysctl_requested_fec(SYSCTL_HANDLER_ARGS)
 		if (rc)
 			return (rc);
 		PORT_LOCK(pi);
-		old = lc->requested_fec;
+		if (lc->requested_fec != old) {
+			rc = EBUSY;
+			goto done;
+		}
 		if (n == FEC_AUTO)
 			lc->requested_fec = FEC_AUTO;
 		else if (n == 0 || n == FEC_NONE)
@@ -8771,7 +9087,6 @@ sysctl_module_fec(SYSCTL_HANDLER_ARGS)
 	int rc;
 	int8_t fec;
 	struct sbuf *sb;
-	static char *bits = "\20\1RS-FEC\2FC-FEC\3NO-FEC\4RSVD2\5RSVD3";
 
 	sb = sbuf_new_for_sysctl(NULL, NULL, 128, req);
 	if (sb == NULL)
@@ -8805,7 +9120,7 @@ sysctl_module_fec(SYSCTL_HANDLER_ARGS)
 		if (fec == 0)
 			fec = FEC_NONE;
 		PORT_UNLOCK(pi);
-		sbuf_printf(sb, "%b", fec & M_FW_PORT_CAP32_FEC, bits);
+		sbuf_printf(sb, "%b", fec & M_FW_PORT_CAP32_FEC, t4_fec_bits);
 	}
 	rc = sbuf_finish(sb);
 done:
@@ -8913,6 +9228,31 @@ sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+sysctl_handle_t4_portstat64(SYSCTL_HANDLER_ARGS)
+{
+	struct port_info *pi = arg1;
+	struct adapter *sc = pi->adapter;
+	int rc, i, reg = arg2;
+	uint64_t val;
+
+	mtx_lock(&sc->reg_lock);
+	if (hw_off_limits(sc))
+		rc = ENXIO;
+	else {
+		val = 0;
+		for (i = 0; i < sc->params.tp.lb_nchan; i++) {
+			val += t4_read_reg64(sc,
+			    t4_port_reg(sc, pi->tx_chan + i, reg));
+		}
+		rc = 0;
+	}
+	mtx_unlock(&sc->reg_lock);
+	if (rc == 0)
+		rc = sysctl_handle_64(oidp, &val, 0, req);
+	return (rc);
+}
+
+static int
 sysctl_temperature(SYSCTL_HANDLER_ARGS)
 {
 	struct adapter *sc = arg1;
@@ -9012,15 +9352,20 @@ sysctl_loadavg(SYSCTL_HANDLER_ARGS)
 	struct sbuf *sb;
 	int rc;
 	uint32_t param, val;
+	uint8_t coreid = (uint8_t)arg2;
+
+	KASSERT(coreid < sc->params.ncores,
+	    ("%s: bad coreid %u\n", __func__, coreid));
 
 	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4lavg");
 	if (rc)
 		return (rc);
-	if (hw_all_ok(sc))
+	if (!hw_all_ok(sc))
 		rc = ENXIO;
 	else {
 		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
-		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_LOAD);
+		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_LOAD) |
+		    V_FW_PARAMS_PARAM_Y(coreid);
 		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
 	}
 	end_synchronized_op(sc, 0);
@@ -9086,50 +9431,30 @@ done:
 	return (rc);
 }
 
-static const char *qname[CIM_NUM_IBQ + CIM_NUM_OBQ_T5] = {
-	"TP0", "TP1", "ULP", "SGE0", "SGE1", "NC-SI",	/* ibq's */
-	"ULP0", "ULP1", "ULP2", "ULP3", "SGE", "NC-SI",	/* obq's */
-	"SGE0-RX", "SGE1-RX"	/* additional obq's (T5 onwards) */
-};
-
 static int
-sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS)
+sysctl_cim_ibq(SYSCTL_HANDLER_ARGS)
 {
 	struct adapter *sc = arg1;
 	struct sbuf *sb;
-	int rc, i, n, qid = arg2;
+	int rc, i, n, qid, coreid;
 	uint32_t *buf, *p;
-	char *qtype;
-	u_int cim_num_obq = sc->chip_params->cim_num_obq;
 
-	KASSERT(qid >= 0 && qid < CIM_NUM_IBQ + cim_num_obq,
-	    ("%s: bad qid %d\n", __func__, qid));
+	qid = arg2 & 0xffff;
+	coreid = arg2 >> 16;
 
-	if (qid < CIM_NUM_IBQ) {
-		/* inbound queue */
-		qtype = "IBQ";
-		n = 4 * CIM_IBQ_SIZE;
-		buf = malloc(n * sizeof(uint32_t), M_CXGBE, M_ZERO | M_WAITOK);
-		mtx_lock(&sc->reg_lock);
-		if (hw_off_limits(sc))
-			rc = -ENXIO;
-		else
-			rc = t4_read_cim_ibq(sc, qid, buf, n);
-		mtx_unlock(&sc->reg_lock);
-	} else {
-		/* outbound queue */
-		qtype = "OBQ";
-		qid -= CIM_NUM_IBQ;
-		n = 4 * cim_num_obq * CIM_OBQ_SIZE;
-		buf = malloc(n * sizeof(uint32_t), M_CXGBE, M_ZERO | M_WAITOK);
-		mtx_lock(&sc->reg_lock);
-		if (hw_off_limits(sc))
-			rc = -ENXIO;
-		else
-			rc = t4_read_cim_obq(sc, qid, buf, n);
-		mtx_unlock(&sc->reg_lock);
-	}
+	KASSERT(qid >= 0 && qid < sc->chip_params->cim_num_ibq,
+	    ("%s: bad ibq qid %d\n", __func__, qid));
+	KASSERT(coreid >= 0 && coreid < sc->params.ncores,
+	    ("%s: bad coreid %d\n", __func__, coreid));
 
+	n = 4 * CIM_IBQ_SIZE;
+	buf = malloc(n * sizeof(uint32_t), M_CXGBE, M_ZERO | M_WAITOK);
+	mtx_lock(&sc->reg_lock);
+	if (hw_off_limits(sc))
+		rc = -ENXIO;
+	else
+		rc = t4_read_cim_ibq_core(sc, coreid, qid, buf, n);
+	mtx_unlock(&sc->reg_lock);
 	if (rc < 0) {
 		rc = -rc;
 		goto done;
@@ -9141,12 +9466,58 @@ sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS)
 		rc = ENOMEM;
 		goto done;
 	}
-
-	sbuf_printf(sb, "%s%d %s", qtype , qid, qname[arg2]);
 	for (i = 0, p = buf; i < n; i += 16, p += 4)
 		sbuf_printf(sb, "\n%#06x: %08x %08x %08x %08x", i, p[0], p[1],
 		    p[2], p[3]);
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+done:
+	free(buf, M_CXGBE);
+	return (rc);
+}
 
+static int
+sysctl_cim_obq(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct sbuf *sb;
+	int rc, i, n, qid, coreid;
+	uint32_t *buf, *p;
+
+	qid = arg2 & 0xffff;
+	coreid = arg2 >> 16;
+
+	KASSERT(qid >= 0 && qid < sc->chip_params->cim_num_obq,
+	    ("%s: bad obq qid %d\n", __func__, qid));
+	KASSERT(coreid >= 0 && coreid < sc->params.ncores,
+	    ("%s: bad coreid %d\n", __func__, coreid));
+
+	n = 6 * CIM_OBQ_SIZE * 4;
+	buf = malloc(n * sizeof(uint32_t), M_CXGBE, M_ZERO | M_WAITOK);
+	mtx_lock(&sc->reg_lock);
+	if (hw_off_limits(sc))
+		rc = -ENXIO;
+	else
+		rc = t4_read_cim_obq_core(sc, coreid, qid, buf, n);
+	mtx_unlock(&sc->reg_lock);
+	if (rc < 0) {
+		rc = -rc;
+		goto done;
+	}
+	n = rc * sizeof(uint32_t);	/* rc has # of words actually read */
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		goto done;
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, PAGE_SIZE, req);
+	if (sb == NULL) {
+		rc = ENOMEM;
+		goto done;
+	}
+	for (i = 0, p = buf; i < n; i += 16, p += 4)
+		sbuf_printf(sb, "\n%#06x: %08x %08x %08x %08x", i, p[0], p[1],
+		    p[2], p[3]);
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
 done:
@@ -9217,7 +9588,7 @@ sbuf_cim_la6(struct adapter *sc, struct sbuf *sb, uint32_t *buf, uint32_t cfg)
 }
 
 static int
-sbuf_cim_la(struct adapter *sc, struct sbuf *sb, int flags)
+sbuf_cim_la(struct adapter *sc, int coreid, struct sbuf *sb, int flags)
 {
 	uint32_t cfg, *buf;
 	int rc;
@@ -9232,9 +9603,10 @@ sbuf_cim_la(struct adapter *sc, struct sbuf *sb, int flags)
 	if (hw_off_limits(sc))
 		rc = ENXIO;
 	else {
-		rc = -t4_cim_read(sc, A_UP_UP_DBG_LA_CFG, 1, &cfg);
+		rc = -t4_cim_read_core(sc, 1, coreid, A_UP_UP_DBG_LA_CFG, 1,
+		    &cfg);
 		if (rc == 0)
-			rc = -t4_cim_read_la(sc, buf, NULL);
+			rc = -t4_cim_read_la_core(sc, coreid, buf, NULL);
 	}
 	mtx_unlock(&sc->reg_lock);
 	if (rc == 0) {
@@ -9251,6 +9623,7 @@ static int
 sysctl_cim_la(SYSCTL_HANDLER_ARGS)
 {
 	struct adapter *sc = arg1;
+	int coreid = arg2;
 	struct sbuf *sb;
 	int rc;
 
@@ -9258,7 +9631,7 @@ sysctl_cim_la(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	rc = sbuf_cim_la(sc, sb, M_WAITOK);
+	rc = sbuf_cim_la(sc, coreid, sb, M_WAITOK);
 	if (rc == 0)
 		rc = sbuf_finish(sb);
 	sbuf_delete(sb);
@@ -9295,7 +9668,7 @@ dump_cimla(struct adapter *sc)
 		    device_get_nameunit(sc->dev));
 		return;
 	}
-	rc = sbuf_cim_la(sc, &sb, M_WAITOK);
+	rc = sbuf_cim_la(sc, 0, &sb, M_WAITOK);
 	if (rc == 0) {
 		rc = sbuf_finish(&sb);
 		if (rc == 0) {
@@ -9419,6 +9792,13 @@ sysctl_cim_qcfg(SYSCTL_HANDLER_ARGS)
 	uint32_t obq_wr[2 * CIM_NUM_OBQ_T5], *wr = obq_wr;
 	uint32_t stat[4 * (CIM_NUM_IBQ + CIM_NUM_OBQ_T5)], *p = stat;
 	u_int cim_num_obq, ibq_rdaddr, obq_rdaddr, nq;
+	static const char *qname[CIM_NUM_IBQ + CIM_NUM_OBQ_T5] = {
+		"TP0", "TP1", "ULP", "SGE0", "SGE1", "NC-SI",	/* ibq's */
+		"ULP0", "ULP1", "ULP2", "ULP3", "SGE", "NC-SI",	/* obq's */
+		"SGE0-RX", "SGE1-RX"	/* additional obq's (T5 onwards) */
+	};
+
+	MPASS(chip_id(sc) < CHELSIO_T7);
 
 	cim_num_obq = sc->chip_params->cim_num_obq;
 	if (is_t4(sc)) {
@@ -9467,6 +9847,104 @@ sysctl_cim_qcfg(SYSCTL_HANDLER_ARGS)
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
 
+	return (rc);
+}
+
+static int
+sysctl_cim_qcfg_t7(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	u_int coreid = arg2;
+	struct sbuf *sb;
+	int rc, i;
+	u_int addr;
+	uint16_t base[CIM_NUM_IBQ_T7 + CIM_NUM_OBQ_T7];
+	uint16_t size[CIM_NUM_IBQ_T7 + CIM_NUM_OBQ_T7];
+	uint16_t thres[CIM_NUM_IBQ_T7];
+	uint32_t obq_wr[2 * CIM_NUM_OBQ_T7], *wr = obq_wr;
+	uint32_t stat[4 * (CIM_NUM_IBQ_T7 + CIM_NUM_OBQ_T7)], *p = stat;
+	static const char * const qname_ibq_t7[] = {
+		"TP0", "TP1", "TP2", "TP3", "ULP", "SGE0", "SGE1", "NC-SI",
+		"RSVD", "IPC1", "IPC2", "IPC3", "IPC4", "IPC5", "IPC6", "IPC7",
+	};
+	static const char * const qname_obq_t7[] = {
+		"ULP0", "ULP1", "ULP2", "ULP3", "SGE", "NC-SI", "SGE0-RX",
+		"RSVD", "RSVD", "IPC1", "IPC2", "IPC3", "IPC4", "IPC5",
+		"IPC6", "IPC7"
+	};
+	static const char * const qname_ibq_sec_t7[] = {
+		"TP0", "TP1", "TP2", "TP3", "ULP", "SGE0", "RSVD", "RSVD",
+		"RSVD", "IPC0", "RSVD", "RSVD", "RSVD", "RSVD",	"RSVD", "RSVD",
+	};
+	static const char * const qname_obq_sec_t7[] = {
+		"ULP0", "ULP1", "ULP2", "ULP3", "SGE", "RSVD", "SGE0-RX",
+		"RSVD", "RSVD", "IPC0", "RSVD", "RSVD", "RSVD", "RSVD",
+		"RSVD", "RSVD",
+	};
+
+	MPASS(chip_id(sc) >= CHELSIO_T7);
+
+	mtx_lock(&sc->reg_lock);
+	if (hw_off_limits(sc))
+		rc = ENXIO;
+	else {
+		rc = -t4_cim_read_core(sc, 1, coreid,
+		    A_T7_UP_IBQ_0_SHADOW_RDADDR, 4 * CIM_NUM_IBQ_T7, stat);
+		if (rc != 0)
+			goto unlock;
+
+		rc = -t4_cim_read_core(sc, 1, coreid,
+		    A_T7_UP_OBQ_0_SHADOW_RDADDR, 4 * CIM_NUM_OBQ_T7,
+		    &stat[4 * CIM_NUM_IBQ_T7]);
+		if (rc != 0)
+			goto unlock;
+
+		addr = A_T7_UP_OBQ_0_SHADOW_REALADDR;
+		for (i = 0; i < CIM_NUM_OBQ_T7 * 2; i++, addr += 8) {
+			rc = -t4_cim_read_core(sc, 1, coreid, addr, 1,
+			    &obq_wr[i]);
+			if (rc != 0)
+				goto unlock;
+		}
+		t4_read_cimq_cfg_core(sc, coreid, base, size, thres);
+	}
+unlock:
+	mtx_unlock(&sc->reg_lock);
+	if (rc)
+		return (rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, PAGE_SIZE, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	sbuf_printf(sb,
+	    "  Queue  Base  Size Thres  RdPtr WrPtr  SOP  EOP Avail");
+
+	for (i = 0; i < CIM_NUM_IBQ_T7; i++, p += 4) {
+		if (!size[i])
+			continue;
+
+		sbuf_printf(sb, "\n%7s %5x %5u %5u %6x  %4x %4u %4u %5u",
+		    coreid == 0 ? qname_ibq_t7[i] : qname_ibq_sec_t7[i],
+		    base[i], size[i], thres[i], G_IBQRDADDR(p[0]) & 0xfff,
+		    G_IBQWRADDR(p[1]) & 0xfff, G_QUESOPCNT(p[3]),
+		    G_QUEEOPCNT(p[3]), G_T7_QUEREMFLITS(p[2]) * 16);
+	}
+
+	for ( ; i < CIM_NUM_IBQ_T7 + CIM_NUM_OBQ_T7; i++, p += 4, wr += 2) {
+		if (!size[i])
+			continue;
+
+		sbuf_printf(sb, "\n%7s %5x %5u %12x  %4x %4u %4u %5u",
+		    coreid == 0 ? qname_obq_t7[i - CIM_NUM_IBQ_T7] :
+		    qname_obq_sec_t7[i - CIM_NUM_IBQ_T7],
+		    base[i], size[i], G_QUERDADDR(p[0]) & 0xfff,
+		    wr[0] << 1, G_QUESOPCNT(p[3]), G_QUEEOPCNT(p[3]),
+		    G_T7_QUEREMFLITS(p[2]) * 16);
+	}
+
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
 	return (rc);
 }
 
@@ -9612,18 +10090,25 @@ static const char * const devlog_facility_strings[] = {
 };
 
 static int
-sbuf_devlog(struct adapter *sc, struct sbuf *sb, int flags)
+sbuf_devlog(struct adapter *sc, int coreid, struct sbuf *sb, int flags)
 {
 	int i, j, rc, nentries, first = 0;
 	struct devlog_params *dparams = &sc->params.devlog;
 	struct fw_devlog_e *buf, *e;
+	uint32_t addr, size;
 	uint64_t ftstamp = UINT64_MAX;
+
+	KASSERT(coreid >= 0 && coreid < sc->params.ncores,
+	    ("%s: bad coreid %d\n", __func__, coreid));
 
 	if (dparams->addr == 0)
 		return (ENXIO);
 
+	size = dparams->size / sc->params.ncores;
+	addr = dparams->addr + coreid * size;
+
 	MPASS(flags == M_WAITOK || flags == M_NOWAIT);
-	buf = malloc(dparams->size, M_CXGBE, M_ZERO | flags);
+	buf = malloc(size, M_CXGBE, M_ZERO | flags);
 	if (buf == NULL)
 		return (ENOMEM);
 
@@ -9631,13 +10116,12 @@ sbuf_devlog(struct adapter *sc, struct sbuf *sb, int flags)
 	if (hw_off_limits(sc))
 		rc = ENXIO;
 	else
-		rc = read_via_memwin(sc, 1, dparams->addr, (void *)buf,
-		    dparams->size);
+		rc = read_via_memwin(sc, 1, addr, (void *)buf, size);
 	mtx_unlock(&sc->reg_lock);
 	if (rc != 0)
 		goto done;
 
-	nentries = dparams->size / sizeof(struct fw_devlog_e);
+	nentries = size / sizeof(struct fw_devlog_e);
 	for (i = 0; i < nentries; i++) {
 		e = &buf[i];
 
@@ -9689,14 +10173,24 @@ static int
 sysctl_devlog(SYSCTL_HANDLER_ARGS)
 {
 	struct adapter *sc = arg1;
-	int rc;
+	int rc, i, coreid = arg2;
 	struct sbuf *sb;
 
 	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
 	if (sb == NULL)
 		return (ENOMEM);
-
-	rc = sbuf_devlog(sc, sb, M_WAITOK);
+	if (coreid == -1) {
+		/* -1 means all cores */
+		for (i = rc = 0; i < sc->params.ncores && rc == 0; i++) {
+			if (sc->params.ncores > 0)
+				sbuf_printf(sb, "=== CIM core %u ===\n", i);
+			rc = sbuf_devlog(sc, i, sb, M_WAITOK);
+		}
+	} else {
+		KASSERT(coreid >= 0 && coreid < sc->params.ncores,
+		    ("%s: bad coreid %d\n", __func__, coreid));
+		rc = sbuf_devlog(sc, coreid, sb, M_WAITOK);
+	}
 	if (rc == 0)
 		rc = sbuf_finish(sb);
 	sbuf_delete(sb);
@@ -9706,7 +10200,7 @@ sysctl_devlog(SYSCTL_HANDLER_ARGS)
 static void
 dump_devlog(struct adapter *sc)
 {
-	int rc;
+	int rc, i;
 	struct sbuf sb;
 
 	if (sbuf_new(&sb, NULL, 4096, SBUF_AUTOEXTEND) != &sb) {
@@ -9714,13 +10208,15 @@ dump_devlog(struct adapter *sc)
 		    device_get_nameunit(sc->dev));
 		return;
 	}
-	rc = sbuf_devlog(sc, &sb, M_WAITOK);
+	for (i = rc = 0; i < sc->params.ncores && rc == 0; i++) {
+		if (sc->params.ncores > 0)
+			sbuf_printf(&sb, "=== CIM core %u ===\n", i);
+		rc = sbuf_devlog(sc, i, &sb, M_WAITOK);
+	}
 	if (rc == 0) {
-		rc = sbuf_finish(&sb);
-		if (rc == 0) {
-			log(LOG_DEBUG, "%s: device log follows.\n%s",
-			    device_get_nameunit(sc->dev), sbuf_data(&sb));
-		}
+		sbuf_finish(&sb);
+		log(LOG_DEBUG, "%s: device log follows.\n%s",
+		    device_get_nameunit(sc->dev), sbuf_data(&sb));
 	}
 	sbuf_delete(&sb);
 }
@@ -9909,16 +10405,16 @@ sysctl_linkdnrc(SYSCTL_HANDLER_ARGS)
 }
 
 struct mem_desc {
-	u_int base;
-	u_int limit;
+	uint64_t base;
+	uint64_t limit;
 	u_int idx;
 };
 
 static int
 mem_desc_cmp(const void *a, const void *b)
 {
-	const u_int v1 = ((const struct mem_desc *)a)->base;
-	const u_int v2 = ((const struct mem_desc *)b)->base;
+	const uint64_t v1 = ((const struct mem_desc *)a)->base;
+	const uint64_t v2 = ((const struct mem_desc *)b)->base;
 
 	if (v1 < v2)
 		return (-1);
@@ -9929,10 +10425,9 @@ mem_desc_cmp(const void *a, const void *b)
 }
 
 static void
-mem_region_show(struct sbuf *sb, const char *name, unsigned int from,
-    unsigned int to)
+mem_region_show(struct sbuf *sb, const char *name, uint64_t from, uint64_t to)
 {
-	unsigned int size;
+	uintmax_t size;
 
 	if (from == to)
 		return;
@@ -9941,8 +10436,12 @@ mem_region_show(struct sbuf *sb, const char *name, unsigned int from,
 	if (size == 0)
 		return;
 
-	/* XXX: need humanize_number(3) in libkern for a more readable 'size' */
-	sbuf_printf(sb, "%-15s %#x-%#x [%u]\n", name, from, to, size);
+	if (from > UINT32_MAX || to > UINT32_MAX)
+		sbuf_printf(sb, "%-18s 0x%012jx-0x%012jx [%ju]\n", name,
+		    (uintmax_t)from, (uintmax_t)to, size);
+	else
+		sbuf_printf(sb, "%-18s 0x%08jx-0x%08jx [%ju]\n", name,
+		    (uintmax_t)from, (uintmax_t)to, size);
 }
 
 static int
@@ -9950,7 +10449,7 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 {
 	struct adapter *sc = arg1;
 	struct sbuf *sb;
-	int rc, i, n;
+	int rc, i, n, nchan;
 	uint32_t lo, hi, used, free, alloc;
 	static const char *memory[] = {
 		"EDC0:", "EDC1:", "MC:", "MC0:", "MC1:", "HMA:"
@@ -9961,12 +10460,14 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 		"Tx payload:", "Rx payload:", "LE hash:", "iSCSI region:",
 		"TDDP region:", "TPT region:", "STAG region:", "RQ region:",
 		"RQUDP region:", "PBL region:", "TXPBL region:",
-		"TLSKey region:", "DBVFIFO region:", "ULPRX state:",
-		"ULPTX state:", "On-chip queues:",
+		"TLSKey region:", "RRQ region:", "NVMe STAG region:",
+		"NVMe RQ region:", "NVMe RXPBL region:", "NVMe TPT region:",
+		"NVMe TXPBL region:", "DBVFIFO region:", "ULPRX state:",
+		"ULPTX state:", "RoCE RRQ region:", "On-chip queues:",
 	};
 	struct mem_desc avail[4];
 	struct mem_desc mem[nitems(region) + 3];	/* up to 3 holes */
-	struct mem_desc *md = mem;
+	struct mem_desc *md;
 
 	rc = sysctl_wire_old_buffer(req, 0);
 	if (rc != 0)
@@ -9992,36 +10493,91 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	lo = t4_read_reg(sc, A_MA_TARGET_MEM_ENABLE);
 	if (lo & F_EDRAM0_ENABLE) {
 		hi = t4_read_reg(sc, A_MA_EDRAM0_BAR);
-		avail[i].base = G_EDRAM0_BASE(hi) << 20;
-		avail[i].limit = avail[i].base + (G_EDRAM0_SIZE(hi) << 20);
+		if (chip_id(sc) >= CHELSIO_T7) {
+			avail[i].base = (uint64_t)G_T7_EDRAM0_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_T7_EDRAM0_SIZE(hi) << 20);
+		} else {
+			avail[i].base = (uint64_t)G_EDRAM0_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_EDRAM0_SIZE(hi) << 20);
+		}
 		avail[i].idx = 0;
 		i++;
 	}
 	if (lo & F_EDRAM1_ENABLE) {
 		hi = t4_read_reg(sc, A_MA_EDRAM1_BAR);
-		avail[i].base = G_EDRAM1_BASE(hi) << 20;
-		avail[i].limit = avail[i].base + (G_EDRAM1_SIZE(hi) << 20);
+		if (chip_id(sc) >= CHELSIO_T7) {
+			avail[i].base = (uint64_t)G_T7_EDRAM1_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_T7_EDRAM1_SIZE(hi) << 20);
+		} else {
+			avail[i].base = (uint64_t)G_EDRAM1_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_EDRAM1_SIZE(hi) << 20);
+		}
 		avail[i].idx = 1;
 		i++;
 	}
 	if (lo & F_EXT_MEM_ENABLE) {
-		hi = t4_read_reg(sc, A_MA_EXT_MEMORY_BAR);
-		avail[i].base = G_EXT_MEM_BASE(hi) << 20;
-		avail[i].limit = avail[i].base + (G_EXT_MEM_SIZE(hi) << 20);
-		avail[i].idx = is_t5(sc) ? 3 : 2;	/* Call it MC0 for T5 */
+		switch (chip_id(sc)) {
+		case CHELSIO_T4:
+		case CHELSIO_T6:
+			hi = t4_read_reg(sc, A_MA_EXT_MEMORY_BAR);
+			avail[i].base = (uint64_t)G_EXT_MEM_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_EXT_MEM_SIZE(hi) << 20);
+			avail[i].idx = 2;
+			break;
+		case CHELSIO_T5:
+			hi = t4_read_reg(sc, A_MA_EXT_MEMORY0_BAR);
+			avail[i].base = (uint64_t)G_EXT_MEM0_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_EXT_MEM0_SIZE(hi) << 20);
+			avail[i].idx = 3;	/* Call it MC0 for T5 */
+			break;
+		default:
+			hi = t4_read_reg(sc, A_MA_EXT_MEMORY0_BAR);
+			avail[i].base = (uint64_t)G_T7_EXT_MEM0_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_T7_EXT_MEM0_SIZE(hi) << 20);
+			avail[i].idx = 3;	/* Call it MC0 for T7+ */
+			break;
+		}
 		i++;
 	}
-	if (is_t5(sc) && lo & F_EXT_MEM1_ENABLE) {
+	if (lo & F_EXT_MEM1_ENABLE && !(lo & F_MC_SPLIT)) {
+		/* Only T5 and T7+ have 2 MCs. */
+		MPASS(is_t5(sc) || chip_id(sc) >= CHELSIO_T7);
+
 		hi = t4_read_reg(sc, A_MA_EXT_MEMORY1_BAR);
-		avail[i].base = G_EXT_MEM1_BASE(hi) << 20;
-		avail[i].limit = avail[i].base + (G_EXT_MEM1_SIZE(hi) << 20);
+		if (chip_id(sc) >= CHELSIO_T7) {
+			avail[i].base = (uint64_t)G_T7_EXT_MEM1_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_T7_EXT_MEM1_SIZE(hi) << 20);
+		} else {
+			avail[i].base = (uint64_t)G_EXT_MEM1_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_EXT_MEM1_SIZE(hi) << 20);
+		}
 		avail[i].idx = 4;
 		i++;
 	}
-	if (is_t6(sc) && lo & F_HMA_MUX) {
-		hi = t4_read_reg(sc, A_MA_EXT_MEMORY1_BAR);
-		avail[i].base = G_EXT_MEM1_BASE(hi) << 20;
-		avail[i].limit = avail[i].base + (G_EXT_MEM1_SIZE(hi) << 20);
+	if (lo & F_HMA_MUX) {
+		/* Only T6+ have HMA. */
+		MPASS(chip_id(sc) >= CHELSIO_T6);
+
+		if (chip_id(sc) >= CHELSIO_T7) {
+			hi = t4_read_reg(sc, A_MA_HOST_MEMORY_BAR);
+			avail[i].base = (uint64_t)G_HMATARGETBASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_T7_HMA_SIZE(hi) << 20);
+		} else {
+			hi = t4_read_reg(sc, A_MA_EXT_MEMORY1_BAR);
+			avail[i].base = G_EXT_MEM1_BASE(hi) << 20;
+			avail[i].limit = avail[i].base +
+			    (G_EXT_MEM1_SIZE(hi) << 20);
+		}
 		avail[i].idx = 5;
 		i++;
 	}
@@ -10030,6 +10586,7 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 		goto done;
 	qsort(avail, i, sizeof(struct mem_desc), mem_desc_cmp);
 
+	md = &mem[0];
 	(md++)->base = t4_read_reg(sc, A_SGE_DBQ_CTXT_BADDR);
 	(md++)->base = t4_read_reg(sc, A_SGE_IMSG_CTXT_BADDR);
 	(md++)->base = t4_read_reg(sc, A_SGE_FLM_CACHE_BADDR);
@@ -10065,22 +10622,52 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	}
 	md++;
 
-#define ulp_region(reg) \
-	md->base = t4_read_reg(sc, A_ULP_ ## reg ## _LLIMIT);\
-	(md++)->limit = t4_read_reg(sc, A_ULP_ ## reg ## _ULIMIT)
+#define ulp_region(reg) do {\
+		const u_int shift = chip_id(sc) >= CHELSIO_T7 ? 4 : 0; \
+		md->base = (uint64_t)t4_read_reg(sc, A_ULP_ ## reg ## _LLIMIT) << shift; \
+		md->limit = (uint64_t)t4_read_reg(sc, A_ULP_ ## reg ## _ULIMIT) << shift; \
+		md->limit += (1 << shift) - 1; \
+		md++; \
+	} while (0)
+
+#define	hide_ulp_region() do { \
+		md->base = 0; \
+		md->idx = nitems(region); \
+		md++; \
+	} while (0)
 
 	ulp_region(RX_ISCSI);
 	ulp_region(RX_TDDP);
 	ulp_region(TX_TPT);
 	ulp_region(RX_STAG);
 	ulp_region(RX_RQ);
-	ulp_region(RX_RQUDP);
+	if (chip_id(sc) < CHELSIO_T7)
+		ulp_region(RX_RQUDP);
+	else
+		hide_ulp_region();
 	ulp_region(RX_PBL);
 	ulp_region(TX_PBL);
-	if (sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS) {
+	if (chip_id(sc) >= CHELSIO_T6)
 		ulp_region(RX_TLS_KEY);
+	else
+		hide_ulp_region();
+	if (chip_id(sc) >= CHELSIO_T7) {
+		ulp_region(RX_RRQ);
+		ulp_region(RX_NVME_TCP_STAG);
+		ulp_region(RX_NVME_TCP_RQ);
+		ulp_region(RX_NVME_TCP_PBL);
+		ulp_region(TX_NVME_TCP_TPT);
+		ulp_region(TX_NVME_TCP_PBL);
+	} else {
+		hide_ulp_region();
+		hide_ulp_region();
+		hide_ulp_region();
+		hide_ulp_region();
+		hide_ulp_region();
+		hide_ulp_region();
 	}
 #undef ulp_region
+#undef hide_ulp_region
 
 	md->base = 0;
 	if (is_t4(sc))
@@ -10109,6 +10696,15 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	md++;
 	md->base = t4_read_reg(sc, A_ULP_TX_ERR_TABLE_BASE);
 	md->limit = 0;
+	md++;
+
+	if (chip_id(sc) >= CHELSIO_T7) {
+		t4_tp_pio_read(sc, &lo, 1, A_TP_ROCE_RRQ_BASE, false);
+		md->base = lo;
+	} else {
+		md->base = 0;
+		md->idx = nitems(region);
+	}
 	md++;
 
 	md->base = sc->vres.ocq.start;
@@ -10143,31 +10739,41 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 				mem[i].limit);
 	}
 
-	sbuf_printf(sb, "\n");
 	lo = t4_read_reg(sc, A_CIM_SDRAM_BASE_ADDR);
 	hi = t4_read_reg(sc, A_CIM_SDRAM_ADDR_SIZE) + lo - 1;
-	mem_region_show(sb, "uP RAM:", lo, hi);
+	if (hi != lo  - 1) {
+		sbuf_printf(sb, "\n");
+		mem_region_show(sb, "uP RAM:", lo, hi);
+	}
 
 	lo = t4_read_reg(sc, A_CIM_EXTMEM2_BASE_ADDR);
 	hi = t4_read_reg(sc, A_CIM_EXTMEM2_ADDR_SIZE) + lo - 1;
-	mem_region_show(sb, "uP Extmem2:", lo, hi);
+	if (hi != lo  - 1)
+		mem_region_show(sb, "uP Extmem2:", lo, hi);
 
 	lo = t4_read_reg(sc, A_TP_PMM_RX_MAX_PAGE);
-	for (i = 0, free = 0; i < 2; i++)
+	if (chip_id(sc) >= CHELSIO_T7)
+		nchan = 1 << G_T7_PMRXNUMCHN(lo);
+	else
+		nchan = lo & F_PMRXNUMCHN ? 2 : 1;
+	for (i = 0, free = 0; i < nchan; i++)
 		free += G_FREERXPAGECOUNT(t4_read_reg(sc, A_TP_FLM_FREE_RX_CNT));
 	sbuf_printf(sb, "\n%u Rx pages (%u free) of size %uKiB for %u channels\n",
 		   G_PMRXMAXPAGE(lo), free,
-		   t4_read_reg(sc, A_TP_PMM_RX_PAGE_SIZE) >> 10,
-		   (lo & F_PMRXNUMCHN) ? 2 : 1);
+		   t4_read_reg(sc, A_TP_PMM_RX_PAGE_SIZE) >> 10, nchan);
 
 	lo = t4_read_reg(sc, A_TP_PMM_TX_MAX_PAGE);
 	hi = t4_read_reg(sc, A_TP_PMM_TX_PAGE_SIZE);
-	for (i = 0, free = 0; i < 4; i++)
+	if (chip_id(sc) >= CHELSIO_T7)
+		nchan = 1 << G_T7_PMTXNUMCHN(lo);
+	else
+		nchan = 1 << G_PMTXNUMCHN(lo);
+	for (i = 0, free = 0; i < nchan; i++)
 		free += G_FREETXPAGECOUNT(t4_read_reg(sc, A_TP_FLM_FREE_TX_CNT));
 	sbuf_printf(sb, "%u Tx pages (%u free) of size %u%ciB for %u channels\n",
 		   G_PMTXMAXPAGE(lo), free,
 		   hi >= (1 << 20) ? (hi >> 20) : (hi >> 10),
-		   hi >= (1 << 20) ? 'M' : 'K', 1 << G_PMTXNUMCHN(lo));
+		   hi >= (1 << 20) ? 'M' : 'K', nchan);
 	sbuf_printf(sb, "%u p-structs (%u free)\n",
 		   t4_read_reg(sc, A_TP_CMM_MM_MAX_PSTRUCT),
 		   G_FREEPSTRUCTCOUNT(t4_read_reg(sc, A_TP_FLM_FREE_PS_CNT)));
@@ -10184,7 +10790,7 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 			used = G_USED(lo);
 			alloc = G_ALLOC(lo);
 		}
-		/* For T6 these are MAC buffer groups */
+		/* For T6+ these are MAC buffer groups */
 		sbuf_printf(sb, "\nPort %d using %u pages out of %u allocated",
 		    i, used, alloc);
 	}
@@ -10200,7 +10806,7 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 			used = G_USED(lo);
 			alloc = G_ALLOC(lo);
 		}
-		/* For T6 these are MAC buffer groups */
+		/* For T6+ these are MAC buffer groups */
 		sbuf_printf(sb,
 		    "\nLoopback %d using %u pages out of %u allocated",
 		    i, used, alloc);
@@ -10329,7 +10935,7 @@ sysctl_mps_tcam_t6(SYSCTL_HANDLER_ARGS)
 	struct sbuf *sb;
 	int rc, i;
 
-	MPASS(chip_id(sc) > CHELSIO_T5);
+	MPASS(chip_id(sc) == CHELSIO_T6);
 
 	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
 	if (sb == NULL)
@@ -10338,7 +10944,7 @@ sysctl_mps_tcam_t6(SYSCTL_HANDLER_ARGS)
 	sbuf_printf(sb, "Idx  Ethernet address     Mask       VNI   Mask"
 	    "   IVLAN Vld DIP_Hit   Lookup  Port Vld Ports PF  VF"
 	    "                           Replication"
-	    "                                    P0 P1 P2 P3  ML\n");
+	    "                                    P0 P1 P2 P3  ML");
 
 	rc = 0;
 	for (i = 0; i < sc->chip_params->mps_tcam_size; i++) {
@@ -10503,6 +11109,206 @@ sysctl_mps_tcam_t6(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+sysctl_mps_tcam_t7(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct sbuf *sb;
+	int rc, i;
+
+	MPASS(chip_id(sc) >= CHELSIO_T7);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	sbuf_printf(sb, "Idx  Ethernet address     Mask       VNI   Mask"
+	    "   IVLAN Vld DIP_Hit   Lookup  Port Vld Ports PF  VF"
+	    "                           Replication"
+	    "                                    P0 P1 P2 P3  ML");
+
+	rc = 0;
+	for (i = 0; i < sc->chip_params->mps_tcam_size; i++) {
+		uint8_t dip_hit, vlan_vld, lookup_type, port_num;
+		uint16_t ivlan;
+		uint64_t tcamx, tcamy, val, mask;
+		uint32_t cls_lo, cls_hi, ctl, data2, vnix, vniy;
+		uint8_t addr[ETHER_ADDR_LEN];
+
+		/* Read tcamy */
+		ctl = (V_CTLREQID(1) | V_CTLCMDTYPE(0) | V_CTLXYBITSEL(0));
+		if (chip_rev(sc) == 0) {
+			if (i < 256)
+				ctl |= V_CTLTCAMINDEX(i) | V_T7_CTLTCAMSEL(0);
+			else
+				ctl |= V_CTLTCAMINDEX(i - 256) | V_T7_CTLTCAMSEL(1);
+		} else {
+#if 0
+			ctl = (V_CTLREQID(1) | V_CTLCMDTYPE(0) | V_CTLXYBITSEL(0));
+#endif
+			if (i < 512)
+				ctl |= V_CTLTCAMINDEX(i) | V_T7_CTLTCAMSEL(0);
+			else if (i < 1024)
+				ctl |= V_CTLTCAMINDEX(i - 512) | V_T7_CTLTCAMSEL(1);
+			else
+				ctl |= V_CTLTCAMINDEX(i - 1024) | V_T7_CTLTCAMSEL(2);
+		}
+
+		mtx_lock(&sc->reg_lock);
+		if (hw_off_limits(sc))
+			rc = ENXIO;
+		else {
+			t4_write_reg(sc, A_MPS_CLS_TCAM_DATA2_CTL, ctl);
+			val = t4_read_reg(sc, A_MPS_CLS_TCAM0_RDATA1_REQ_ID1);
+			tcamy = G_DMACH(val) << 32;
+			tcamy |= t4_read_reg(sc, A_MPS_CLS_TCAM0_RDATA0_REQ_ID1);
+			data2 = t4_read_reg(sc, A_MPS_CLS_TCAM0_RDATA2_REQ_ID1);
+		}
+		mtx_unlock(&sc->reg_lock);
+		if (rc != 0)
+			break;
+
+		lookup_type = G_DATALKPTYPE(data2);
+		port_num = G_DATAPORTNUM(data2);
+		if (lookup_type && lookup_type != M_DATALKPTYPE) {
+			/* Inner header VNI */
+			vniy = (((data2 & F_DATAVIDH2) |
+			    G_DATAVIDH1(data2)) << 16) | G_VIDL(val);
+			dip_hit = data2 & F_DATADIPHIT;
+			vlan_vld = 0;
+		} else {
+			vniy = 0;
+			dip_hit = 0;
+			vlan_vld = data2 & F_DATAVIDH2;
+			ivlan = G_VIDL(val);
+		}
+
+		ctl |= V_CTLXYBITSEL(1);
+		mtx_lock(&sc->reg_lock);
+		if (hw_off_limits(sc))
+			rc = ENXIO;
+		else {
+			t4_write_reg(sc, A_MPS_CLS_TCAM_DATA2_CTL, ctl);
+			val = t4_read_reg(sc, A_MPS_CLS_TCAM0_RDATA1_REQ_ID1);
+			tcamx = G_DMACH(val) << 32;
+			tcamx |= t4_read_reg(sc, A_MPS_CLS_TCAM0_RDATA0_REQ_ID1);
+			data2 = t4_read_reg(sc, A_MPS_CLS_TCAM0_RDATA2_REQ_ID1);
+		}
+		mtx_unlock(&sc->reg_lock);
+		if (rc != 0)
+			break;
+
+		if (lookup_type && lookup_type != M_DATALKPTYPE) {
+			/* Inner header VNI mask */
+			vnix = (((data2 & F_DATAVIDH2) |
+			    G_DATAVIDH1(data2)) << 16) | G_VIDL(val);
+		} else
+			vnix = 0;
+
+		if (tcamx & tcamy)
+			continue;
+		tcamxy2valmask(tcamx, tcamy, addr, &mask);
+
+		mtx_lock(&sc->reg_lock);
+		if (hw_off_limits(sc))
+			rc = ENXIO;
+		else {
+			if (chip_rev(sc) == 0) {
+				cls_lo = t4_read_reg(sc, MPS_CLS_SRAM_L(i));
+				cls_hi = t4_read_reg(sc, MPS_CLS_SRAM_H(i));
+			} else {
+				t4_write_reg(sc, A_MPS_CLS_SRAM_H,
+				    V_SRAMWRN(0) | V_SRAMINDEX(i));
+				cls_lo = t4_read_reg(sc, A_MPS_CLS_SRAM_L);
+				cls_hi = t4_read_reg(sc, A_MPS_CLS_SRAM_H);
+			}
+		}
+		mtx_unlock(&sc->reg_lock);
+		if (rc != 0)
+			break;
+
+		if (lookup_type && lookup_type != M_DATALKPTYPE) {
+			sbuf_printf(sb, "\n%3u %02x:%02x:%02x:%02x:%02x:%02x "
+			    "%012jx %06x %06x    -    -   %3c"
+			    "        I  %4x   %3c   %#x%4u%4d", i, addr[0],
+			    addr[1], addr[2], addr[3], addr[4], addr[5],
+			    (uintmax_t)mask, vniy, vnix, dip_hit ? 'Y' : 'N',
+			    port_num, cls_lo & F_T6_SRAM_VLD ? 'Y' : 'N',
+			    G_PORTMAP(cls_hi), G_T6_PF(cls_lo),
+			    cls_lo & F_T6_VF_VALID ? G_T6_VF(cls_lo) : -1);
+		} else {
+			sbuf_printf(sb, "\n%3u %02x:%02x:%02x:%02x:%02x:%02x "
+			    "%012jx    -       -   ", i, addr[0], addr[1],
+			    addr[2], addr[3], addr[4], addr[5],
+			    (uintmax_t)mask);
+
+			if (vlan_vld)
+				sbuf_printf(sb, "%4u   Y     ", ivlan);
+			else
+				sbuf_printf(sb, "  -    N     ");
+
+			sbuf_printf(sb, "-      %3c  %4x   %3c   %#x%4u%4d",
+			    lookup_type ? 'I' : 'O', port_num,
+			    cls_lo & F_T6_SRAM_VLD ? 'Y' : 'N',
+			    G_PORTMAP(cls_hi), G_T6_PF(cls_lo),
+			    cls_lo & F_T6_VF_VALID ? G_T6_VF(cls_lo) : -1);
+		}
+
+		if (cls_lo & F_T6_REPLICATE) {
+			struct fw_ldst_cmd ldst_cmd;
+
+			memset(&ldst_cmd, 0, sizeof(ldst_cmd));
+			ldst_cmd.op_to_addrspace =
+			    htobe32(V_FW_CMD_OP(FW_LDST_CMD) |
+				F_FW_CMD_REQUEST | F_FW_CMD_READ |
+				V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_MPS));
+			ldst_cmd.cycles_to_len16 = htobe32(FW_LEN16(ldst_cmd));
+			ldst_cmd.u.mps.rplc.fid_idx =
+			    htobe16(V_FW_LDST_CMD_FID(FW_LDST_MPS_RPLC) |
+				V_FW_LDST_CMD_IDX(i));
+
+			rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK,
+			    "t6mps");
+			if (rc)
+				break;
+			if (hw_off_limits(sc))
+				rc = ENXIO;
+			else
+				rc = -t4_wr_mbox(sc, sc->mbox, &ldst_cmd,
+				    sizeof(ldst_cmd), &ldst_cmd);
+			end_synchronized_op(sc, 0);
+			if (rc != 0)
+				break;
+			else {
+				sbuf_printf(sb, " %08x %08x %08x %08x"
+				    " %08x %08x %08x %08x",
+				    be32toh(ldst_cmd.u.mps.rplc.rplc255_224),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc223_192),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc191_160),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc159_128),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc127_96),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc95_64),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc63_32),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc31_0));
+			}
+		} else
+			sbuf_printf(sb, "%72s", "");
+
+		sbuf_printf(sb, "%4u%3u%3u%3u %#x",
+		    G_T6_SRAM_PRIO0(cls_lo), G_T6_SRAM_PRIO1(cls_lo),
+		    G_T6_SRAM_PRIO2(cls_lo), G_T6_SRAM_PRIO3(cls_lo),
+		    (cls_lo >> S_T6_MULTILISTEN0) & 0xf);
+	}
+
+	if (rc)
+		(void) sbuf_finish(sb);
+	else
+		rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (rc);
+}
+
+static int
 sysctl_path_mtus(SYSCTL_HANDLER_ARGS)
 {
 	struct adapter *sc = arg1;
@@ -10543,6 +11349,7 @@ sysctl_pm_stats(SYSCTL_HANDLER_ARGS)
 	int rc, i;
 	uint32_t tx_cnt[MAX_PM_NSTATS], rx_cnt[MAX_PM_NSTATS];
 	uint64_t tx_cyc[MAX_PM_NSTATS], rx_cyc[MAX_PM_NSTATS];
+	uint32_t stats[T7_PM_RX_CACHE_NSTATS];
 	static const char *tx_stats[MAX_PM_NSTATS] = {
 		"Read:", "Write bypass:", "Write mem:", "Bypass + mem:",
 		"Tx FIFO wait", NULL, "Tx latency"
@@ -10559,12 +11366,14 @@ sysctl_pm_stats(SYSCTL_HANDLER_ARGS)
 	else {
 		t4_pmtx_get_stats(sc, tx_cnt, tx_cyc);
 		t4_pmrx_get_stats(sc, rx_cnt, rx_cyc);
+		if (chip_id(sc) >= CHELSIO_T7)
+			t4_pmrx_cache_get_stats(sc, stats);
 	}
 	mtx_unlock(&sc->reg_lock);
 	if (rc != 0)
 		return (rc);
 
-	sb = sbuf_new_for_sysctl(NULL, NULL, 256, req);
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
 	if (sb == NULL)
 		return (ENOMEM);
 
@@ -10597,6 +11406,61 @@ sysctl_pm_stats(SYSCTL_HANDLER_ARGS)
 		    tx_cyc[i]);
 		sbuf_printf(sb, "\n%-13s %10u %20ju", rx_stats[i], rx_cnt[i],
 		    rx_cyc[i]);
+	}
+
+	if (chip_id(sc) >= CHELSIO_T7) {
+		i = 0;
+		sbuf_printf(sb, "\n\nPM RX Cache Stats\n");
+		sbuf_printf(sb, "%-40s    %u\n", "ReqWrite", stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "ReqReadInv", stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "ReqReadNoInv", stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Write Split Request",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n",
+			   "Normal Read Split (Read Invalidate)", stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n",
+			   "Feedback Read Split (Read NoInvalidate)",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Write Hit", stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Normal Read Hit",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Feedback Read Hit",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Normal Read Hit Full Avail",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Normal Read Hit Full UnAvail",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n",
+			   "Normal Read Hit Partial Avail",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "FB Read Hit Full Avail",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "FB Read Hit Full UnAvail",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "FB Read Hit Partial Avail",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Normal Read Full Free",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n",
+			   "Normal Read Part-avail Mul-Regions",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n",
+			   "FB Read Part-avail Mul-Regions",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Write Miss FL Used",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Write Miss LRU Used",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n",
+			   "Write Miss LRU-Multiple Evict", stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n",
+			   "Write Hit Increasing Islands", stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n",
+			   "Normal Read Island Read split", stats[i++]);
+		sbuf_printf(sb, "%-40s    %u\n", "Write Overflow Eviction",
+			   stats[i++]);
+		sbuf_printf(sb, "%-40s    %u", "Read Overflow Eviction",
+			   stats[i++]);
 	}
 
 	rc = sbuf_finish(sb);
@@ -11609,15 +12473,17 @@ sysctl_holdoff_pktc_idx_ofld(SYSCTL_HANDLER_ARGS)
 #endif
 
 static int
-get_sge_context(struct adapter *sc, struct t4_sge_context *cntxt)
+get_sge_context(struct adapter *sc, int mem_id, uint32_t cid, int len,
+    uint32_t *data)
 {
 	int rc;
 
-	if (cntxt->cid > M_CTXTQID)
+	if (len < sc->chip_params->sge_ctxt_size)
+		return (ENOBUFS);
+	if (cid > M_CTXTQID)
 		return (EINVAL);
-
-	if (cntxt->mem_id != CTXT_EGRESS && cntxt->mem_id != CTXT_INGRESS &&
-	    cntxt->mem_id != CTXT_FLM && cntxt->mem_id != CTXT_CNM)
+	if (mem_id != CTXT_EGRESS && mem_id != CTXT_INGRESS &&
+	    mem_id != CTXT_FLM && mem_id != CTXT_CNM)
 		return (EINVAL);
 
 	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4ctxt");
@@ -11630,8 +12496,7 @@ get_sge_context(struct adapter *sc, struct t4_sge_context *cntxt)
 	}
 
 	if (sc->flags & FW_OK) {
-		rc = -t4_sge_ctxt_rd(sc, sc->mbox, cntxt->cid, cntxt->mem_id,
-		    &cntxt->data[0]);
+		rc = -t4_sge_ctxt_rd(sc, sc->mbox, cid, mem_id, data);
 		if (rc == 0)
 			goto done;
 	}
@@ -11640,7 +12505,7 @@ get_sge_context(struct adapter *sc, struct t4_sge_context *cntxt)
 	 * Read via firmware failed or wasn't even attempted.  Read directly via
 	 * the backdoor.
 	 */
-	rc = -t4_sge_ctxt_rd_bd(sc, cntxt->cid, cntxt->mem_id, &cntxt->data[0]);
+	rc = -t4_sge_ctxt_rd_bd(sc, cid, mem_id, data);
 done:
 	end_synchronized_op(sc, 0);
 	return (rc);
@@ -12048,10 +12913,11 @@ clear_stats(struct adapter *sc, u_int port_id)
 	mtx_lock(&sc->reg_lock);
 	if (!hw_off_limits(sc)) {
 		/* MAC stats */
-		t4_clr_port_stats(sc, pi->tx_chan);
+		t4_clr_port_stats(sc, pi->hw_port);
 		if (is_t6(sc)) {
 			if (pi->fcs_reg != -1)
-				pi->fcs_base = t4_read_reg64(sc, pi->fcs_reg);
+				pi->fcs_base = t4_read_reg64(sc,
+				    t4_port_reg(sc, pi->tx_chan, pi->fcs_reg));
 			else
 				pi->stats.rx_fcs_err = 0;
 		}
@@ -12114,12 +12980,21 @@ clear_stats(struct adapter *sc, u_int port_id)
 				txq->kern_tls_full = 0;
 				txq->kern_tls_octets = 0;
 				txq->kern_tls_waste = 0;
-				txq->kern_tls_options = 0;
 				txq->kern_tls_header = 0;
-				txq->kern_tls_fin = 0;
 				txq->kern_tls_fin_short = 0;
 				txq->kern_tls_cbc = 0;
 				txq->kern_tls_gcm = 0;
+				if (is_t6(sc)) {
+					txq->kern_tls_options = 0;
+					txq->kern_tls_fin = 0;
+				} else {
+					txq->kern_tls_ghash_received = 0;
+					txq->kern_tls_ghash_requested = 0;
+					txq->kern_tls_lso = 0;
+					txq->kern_tls_partial_ghash = 0;
+					txq->kern_tls_splitmode = 0;
+					txq->kern_tls_trailer = 0;
+				}
 				mp_ring_reset_stats(txq->r);
 			}
 
@@ -12130,6 +13005,9 @@ clear_stats(struct adapter *sc, u_int port_id)
 				counter_u64_zero(ofld_txq->tx_iscsi_pdus);
 				counter_u64_zero(ofld_txq->tx_iscsi_octets);
 				counter_u64_zero(ofld_txq->tx_iscsi_iso_wrs);
+				counter_u64_zero(ofld_txq->tx_nvme_pdus);
+				counter_u64_zero(ofld_txq->tx_nvme_octets);
+				counter_u64_zero(ofld_txq->tx_nvme_iso_wrs);
 				counter_u64_zero(ofld_txq->tx_aio_jobs);
 				counter_u64_zero(ofld_txq->tx_aio_octets);
 				counter_u64_zero(ofld_txq->tx_toe_tls_records);
@@ -12149,6 +13027,22 @@ clear_stats(struct adapter *sc, u_int port_id)
 				ofld_rxq->rx_iscsi_ddp_octets = 0;
 				ofld_rxq->rx_iscsi_fl_pdus = 0;
 				ofld_rxq->rx_iscsi_fl_octets = 0;
+				counter_u64_zero(
+				    ofld_rxq->rx_nvme_ddp_setup_ok);
+				counter_u64_zero(
+				    ofld_rxq->rx_nvme_ddp_setup_no_stag);
+				counter_u64_zero(
+				    ofld_rxq->rx_nvme_ddp_setup_error);
+				counter_u64_zero(ofld_rxq->rx_nvme_ddp_pdus);
+				counter_u64_zero(ofld_rxq->rx_nvme_ddp_octets);
+				counter_u64_zero(ofld_rxq->rx_nvme_fl_pdus);
+				counter_u64_zero(ofld_rxq->rx_nvme_fl_octets);
+				counter_u64_zero(
+				    ofld_rxq->rx_nvme_invalid_headers);
+				counter_u64_zero(
+				    ofld_rxq->rx_nvme_header_digest_errors);
+				counter_u64_zero(
+				    ofld_rxq->rx_nvme_data_digest_errors);
 				ofld_rxq->rx_aio_ddp_jobs = 0;
 				ofld_rxq->rx_aio_ddp_octets = 0;
 				ofld_rxq->rx_toe_tls_records = 0;
@@ -12264,14 +13158,12 @@ t4_os_link_changed(struct port_info *pi)
 	if (is_t6(sc)) {
 		if (lc->link_ok) {
 			if (lc->speed > 25000 ||
-			    (lc->speed == 25000 && lc->fec == FEC_RS)) {
-				pi->fcs_reg = T5_PORT_REG(pi->tx_chan,
-				    A_MAC_PORT_AFRAMECHECKSEQUENCEERRORS);
-			} else {
-				pi->fcs_reg = T5_PORT_REG(pi->tx_chan,
-				    A_MAC_PORT_MTIP_1G10G_RX_CRCERRORS);
-			}
-			pi->fcs_base = t4_read_reg64(sc, pi->fcs_reg);
+			    (lc->speed == 25000 && lc->fec == FEC_RS))
+				pi->fcs_reg = A_MAC_PORT_AFRAMECHECKSEQUENCEERRORS;
+			else
+				pi->fcs_reg = A_MAC_PORT_MTIP_1G10G_RX_CRCERRORS;
+			pi->fcs_base = t4_read_reg64(sc,
+			    t4_port_reg(sc, pi->tx_chan, pi->fcs_reg));
 			pi->stats.rx_fcs_err = 0;
 		} else {
 			pi->fcs_reg = -1;
@@ -12404,9 +13296,13 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 	case CHELSIO_T4_DEL_FILTER:
 		rc = del_filter(sc, (struct t4_filter *)data);
 		break;
-	case CHELSIO_T4_GET_SGE_CONTEXT:
-		rc = get_sge_context(sc, (struct t4_sge_context *)data);
+	case CHELSIO_T4_GET_SGE_CONTEXT: {
+		struct t4_sge_context *ctxt = (struct t4_sge_context *)data;
+
+		rc = get_sge_context(sc, ctxt->mem_id, ctxt->cid,
+		    sizeof(ctxt->data), &ctxt->data[0]);
 		break;
+	}
 	case CHELSIO_T4_LOAD_FW:
 		rc = load_fw(sc, (struct t4_data *)data);
 		break;
@@ -12452,6 +13348,13 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 	case CHELSIO_T4_RELEASE_CLIP_ADDR:
 		rc = release_clip_addr(sc, (struct t4_clip_addr *)data);
 		break;
+	case CHELSIO_T4_GET_SGE_CTXT: {
+		struct t4_sge_ctxt *ctxt = (struct t4_sge_ctxt *)data;
+
+		rc = get_sge_context(sc, ctxt->mem_id, ctxt->cid,
+		    sizeof(ctxt->data), &ctxt->data[0]);
+		break;
+	}
 	default:
 		rc = ENOTTY;
 	}
@@ -12546,11 +13449,16 @@ toe_capability(struct vi_info *vi, bool enable)
 			    ("%s: TOM activated but flag not set", __func__));
 		}
 
-		/* Activate iWARP and iSCSI too, if the modules are loaded. */
+		/*
+		 * Activate iWARP, iSCSI, and NVMe too, if the modules
+		 * are loaded.
+		 */
 		if (!uld_active(sc, ULD_IWARP))
 			(void) t4_activate_uld(sc, ULD_IWARP);
 		if (!uld_active(sc, ULD_ISCSI))
 			(void) t4_activate_uld(sc, ULD_ISCSI);
+		if (!uld_active(sc, ULD_NVME))
+			(void) t4_activate_uld(sc, ULD_NVME);
 
 		if (pi->uld_vis++ == 0)
 			setbit(&sc->offload_map, pi->port_id);
@@ -12831,6 +13739,9 @@ tweak_tunables(void)
 		    FW_CAPS_CONFIG_ISCSI_T10DIF;
 	}
 
+	if (t4_nvmecaps_allowed == -1)
+		t4_nvmecaps_allowed = FW_CAPS_CONFIG_NVME_TCP;
+
 	if (t4_tmr_idx_ofld < 0 || t4_tmr_idx_ofld >= SGE_NTIMERS)
 		t4_tmr_idx_ofld = TMR_IDX_OFLD;
 
@@ -12842,6 +13753,9 @@ tweak_tunables(void)
 
 	if (t4_iscsicaps_allowed == -1)
 		t4_iscsicaps_allowed = 0;
+
+	if (t4_nvmecaps_allowed == -1)
+		t4_nvmecaps_allowed = 0;
 #endif
 
 #ifdef DEV_NETMAP
@@ -12898,7 +13812,9 @@ t4_dump_mem(struct adapter *sc, u_int addr, u_int len)
 {
 	uint32_t base, j, off, pf, reg, save, win_pos;
 
-	reg = PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, 2);
+	reg = chip_id(sc) > CHELSIO_T6 ?
+	    PCIE_MEM_ACCESS_T7_REG(A_PCIE_MEM_ACCESS_OFFSET0, 2) :
+	    PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, 2);
 	save = t4_read_reg(sc, reg);
 	base = sc->memwin[2].mw_base;
 
@@ -12910,6 +13826,8 @@ t4_dump_mem(struct adapter *sc, u_int addr, u_int len)
 		win_pos = addr & ~0x7f;	/* start must be 128B aligned */
 	}
 	off = addr - win_pos;
+	if (chip_id(sc) > CHELSIO_T6)
+		win_pos >>= X_T7_MEMOFST_SHIFT;
 	t4_write_reg(sc, reg, win_pos | pf);
 	t4_read_reg(sc, reg);
 
@@ -13274,6 +14192,7 @@ mod_event(module_t mod, int cmd, void *arg)
 #endif
 #ifdef KERN_TLS
 			t6_ktls_modload();
+			t7_ktls_modload();
 #endif
 			t4_tracer_modload();
 			tweak_tunables();
@@ -13337,6 +14256,7 @@ mod_event(module_t mod, int cmd, void *arg)
 				    vxlan_stop_evtag);
 				t4_tracer_modunload();
 #ifdef KERN_TLS
+				t7_ktls_modunload();
 				t6_ktls_modunload();
 #endif
 #ifdef INET6
@@ -13383,6 +14303,14 @@ MODULE_DEPEND(t6nex, firmware, 1, 1, 1);
 MODULE_DEPEND(t6nex, netmap, 1, 1, 1);
 #endif /* DEV_NETMAP */
 
+DRIVER_MODULE(chnex, pci, ch_driver, mod_event, 0);
+MODULE_VERSION(chnex, 1);
+MODULE_DEPEND(chnex, crypto, 1, 1, 1);
+MODULE_DEPEND(chnex, firmware, 1, 1, 1);
+#ifdef DEV_NETMAP
+MODULE_DEPEND(chnex, netmap, 1, 1, 1);
+#endif /* DEV_NETMAP */
+
 DRIVER_MODULE(cxgbe, t4nex, cxgbe_driver, 0, 0);
 MODULE_VERSION(cxgbe, 1);
 
@@ -13392,6 +14320,9 @@ MODULE_VERSION(cxl, 1);
 DRIVER_MODULE(cc, t6nex, cc_driver, 0, 0);
 MODULE_VERSION(cc, 1);
 
+DRIVER_MODULE(che, chnex, che_driver, 0, 0);
+MODULE_VERSION(che, 1);
+
 DRIVER_MODULE(vcxgbe, cxgbe, vcxgbe_driver, 0, 0);
 MODULE_VERSION(vcxgbe, 1);
 
@@ -13400,3 +14331,6 @@ MODULE_VERSION(vcxl, 1);
 
 DRIVER_MODULE(vcc, cc, vcc_driver, 0, 0);
 MODULE_VERSION(vcc, 1);
+
+DRIVER_MODULE(vche, che, vche_driver, 0, 0);
+MODULE_VERSION(vche, 1);

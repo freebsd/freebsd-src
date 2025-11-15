@@ -82,7 +82,7 @@ void com_err_terminate(void)
 #endif
 
 static char *
-get_thread_buffer ()
+get_thread_buffer(void)
 {
     char *cp;
     cp = k5_getspecific(K5_KEY_COM_ERR);
@@ -303,7 +303,7 @@ remove_error_table(const struct error_table *et)
     return ENOENT;
 }
 
-int com_err_finish_init()
+int com_err_finish_init(void)
 {
     return CALL_INIT_FUNCTION(com_err_initialize);
 }

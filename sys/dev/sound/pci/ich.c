@@ -301,15 +301,15 @@ ich_filldtbl(struct sc_chinfo *ch)
 	uint32_t base;
 	int i;
 
-	base = sndbuf_getbufaddr(ch->buffer);
-	if ((ch->blksz * ch->blkcnt) > sndbuf_getmaxsize(ch->buffer))
-		ch->blksz = sndbuf_getmaxsize(ch->buffer) / ch->blkcnt;
-	if ((sndbuf_getblksz(ch->buffer) != ch->blksz ||
-	    sndbuf_getblkcnt(ch->buffer) != ch->blkcnt) &&
+	base = ch->buffer->buf_addr;
+	if ((ch->blksz * ch->blkcnt) > ch->buffer->maxsize)
+		ch->blksz = ch->buffer->maxsize / ch->blkcnt;
+	if ((ch->buffer->blksz != ch->blksz ||
+	    ch->buffer->blkcnt != ch->blkcnt) &&
 	    sndbuf_resize(ch->buffer, ch->blkcnt, ch->blksz) != 0)
 		device_printf(sc->dev, "%s: failed blksz=%u blkcnt=%u\n",
 		    __func__, ch->blksz, ch->blkcnt);
-	ch->blksz = sndbuf_getblksz(ch->buffer);
+	ch->blksz = ch->buffer->blksz;
 
 	for (i = 0; i < ICH_DTBL_LENGTH; i++) {
 		ch->dtbl[i].buffer = base + (ch->blksz * (i % ch->blkcnt));
@@ -491,7 +491,7 @@ ichchan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 	);
 
 	if (sc->flags & ICH_HIGH_LATENCY)
-		blocksize = sndbuf_getmaxsize(ch->buffer) / ch->blkcnt;
+		blocksize = ch->buffer->maxsize / ch->blkcnt;
 
 	if (blocksize < ICH_MIN_BLKSZ)
 		blocksize = ICH_MIN_BLKSZ;
@@ -734,7 +734,7 @@ ich_calibrate(void *arg)
 	ch->blkcnt = 2;
 	sc->flags |= ICH_CALIBRATE_DONE;
 	ICH_UNLOCK(sc);
-	ichchan_setblocksize(0, ch, sndbuf_getmaxsize(ch->buffer) >> 1);
+	ichchan_setblocksize(0, ch, ch->buffer->maxsize >> 1);
 	ICH_LOCK(sc);
 	sc->flags &= ~ICH_CALIBRATE_DONE;
 

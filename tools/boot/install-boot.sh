@@ -294,27 +294,9 @@ boot_nogeli_mbr_ufs_both() {
     boot_nogeli_mbr_ufs_uefi $1 $2 $3
 }
 
+# ZFS+MBR+BIOS is not a supported configuration
 boot_nogeli_mbr_zfs_legacy() {
-    dev=$1
-    dst=$2
-
-    # search to find the BSD slice
-    s=$(find_part $dev "freebsd")
-    if [ -z "$s" ] ; then
-	die "No BSD slice found"
-    fi
-    idx=$(find_part ${dev}s${s} "freebsd-zfs")
-    if [ -z "$idx" ] ; then
-	die "No freebsd-zfs slice found"
-    fi
-    # search to find the freebsd-zfs partition within the slice
-    # Or just assume it is 'a' because it has to be since it fails otherwise
-    doit gpart bootcode -b ${dst}/boot/mbr ${dev}
-    dd if=${dst}/boot/zfsboot of=/tmp/zfsboot1 count=1
-    doit gpart bootcode -b /tmp/zfsboot1 ${dev}s${s}	# Put boot1 into the start of part
-    sysctl kern.geom.debugflags=0x10		# Put boot2 into ZFS boot slot
-    doit dd if=${dst}/boot/zfsboot of=/dev/${dev}s${s}a skip=1 seek=1024
-    sysctl kern.geom.debugflags=0x0
+    exit 1
 }
 
 boot_nogeli_mbr_zfs_uefi() {
@@ -322,7 +304,6 @@ boot_nogeli_mbr_zfs_uefi() {
 }
 
 boot_nogeli_mbr_zfs_both() {
-    boot_nogeli_mbr_zfs_legacy $1 $2 $3
     boot_nogeli_mbr_zfs_uefi $1 $2 $3
 }
 

@@ -1,5 +1,33 @@
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
 comment = "Kerberos key distribution center"
+
 desc = <<EOD
-The Kerberos KDC, which manages the Kerberos database and issues tickets
-to clients.
+Kerberos is a secure network authentication protocol which allows clients
+and servers to authenticate each other over a potentially insecure network.
+The Kerberos protocol is platform-agnostic and is supported by nearly all
+Unix systems, as well as many other platforms.
+
+This package provides the Kerberos key distribution center (KDC), which
+manages the Kerberos database and issues tickets to Kerberos users.
 EOD
+
+annotations {
+	set = "optional,optional-jail"
+}

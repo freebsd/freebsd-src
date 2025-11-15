@@ -78,6 +78,37 @@
  */
 #define MAX_VALUE 0x7fffffff
 
+/* If the build mode is for fuzzing this removes randomness from the output.
+ * This helps fuzz engines from having state increase due to the randomness. */
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+struct ub_randstate {
+       unsigned int dummy;
+};
+
+struct ub_randstate* ub_initstate(struct ub_randstate* ATTR_UNUSED(from))
+{
+       struct ub_randstate* s = (struct ub_randstate*)calloc(1, sizeof(*s));
+       if(!s) {
+               log_err("malloc failure in random init");
+               return NULL;
+       }
+       return s;
+}
+
+long int ub_random(struct ub_randstate* state)
+{
+       state->dummy++;
+       return (long int)(state->dummy & MAX_VALUE);
+}
+
+long int
+ub_random_max(struct ub_randstate* state, long int x)
+{
+       state->dummy++;
+       return ((long int)state->dummy % x);
+}
+#else /* !FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION */
+
 #if defined(HAVE_SSL) || defined(HAVE_LIBBSD)
 struct ub_randstate* 
 ub_initstate(struct ub_randstate* ATTR_UNUSED(from))
@@ -199,6 +230,8 @@ ub_random_max(struct ub_randstate* state, long int x)
 	return (v % x);
 }
 #endif /* HAVE_NSS or HAVE_NETTLE and !HAVE_LIBBSD */
+
+#endif /* FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION */
 
 void 
 ub_randfree(struct ub_randstate* s)

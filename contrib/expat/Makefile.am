@@ -58,10 +58,8 @@ pkgconfig_DATA = expat.pc
 pkgconfigdir = $(libdir)/pkgconfig
 
 
-dist_cmake_DATA = \
-    cmake/autotools/expat.cmake
-
 nodist_cmake_DATA = \
+    cmake/autotools/expat.cmake \
     cmake/autotools/expat-config-version.cmake \
     cmake/autotools/expat-noconfig.cmake \
     cmake/expat-config.cmake
@@ -70,6 +68,9 @@ cmakedir = $(libdir)/cmake/expat-@PACKAGE_VERSION@
 
 
 _EXTRA_DIST_CMAKE = \
+    cmake/autotools/expat__linux.cmake.in \
+    cmake/autotools/expat__macos.cmake.in \
+    cmake/autotools/expat__windows.cmake.in \
     cmake/autotools/expat-noconfig__linux.cmake.in \
     cmake/autotools/expat-noconfig__macos.cmake.in \
     cmake/autotools/expat-noconfig__windows.cmake.in \

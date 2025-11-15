@@ -25,6 +25,10 @@ UBMIRROR="https://cloud-images.ubuntu.com"
 # default nic model for vm's
 NIC="virtio"
 
+# additional options for virt-install
+OPTS[0]=""
+OPTS[1]=""
+
 case "$OS" in
   almalinux8)
     OSNAME="AlmaLinux 8"
@@ -61,6 +65,14 @@ case "$OS" in
     OSNAME="Debian 12"
     URL="https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2"
     ;;
+  debian13)
+    OSNAME="Debian 13"
+    # TODO: Overwrite OSv to debian13 for virt-install until it's added to osinfo
+    OSv="debian12"
+    URL="https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2"
+    OPTS[0]="--boot"
+    OPTS[1]="uefi=on"
+    ;;
   fedora41)
     OSNAME="Fedora 41"
     OSv="fedora-unknown"
@@ -70,14 +82,6 @@ case "$OS" in
     OSNAME="Fedora 42"
     OSv="fedora-unknown"
     URL="https://download.fedoraproject.org/pub/fedora/linux/releases/42/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-42-1.1.x86_64.qcow2"
-    ;;
-  freebsd13-4r)
-    FreeBSD="13.4-RELEASE"
-    OSNAME="FreeBSD $FreeBSD"
-    OSv="freebsd13.0"
-    URLxz="$FREEBSD_REL/$FreeBSD/amd64/Latest/FreeBSD-$FreeBSD-amd64-BASIC-CI.raw.xz"
-    KSRC="$FREEBSD_REL/../amd64/$FreeBSD/src.txz"
-    NIC="rtl8139"
     ;;
   freebsd13-5r)
     FreeBSD="13.5-RELEASE"
@@ -117,7 +121,14 @@ case "$OS" in
     KSRC="$FREEBSD_SNAP/../amd64/$FreeBSD/src.txz"
     ;;
   freebsd15-0c)
-    FreeBSD="15.0-CURRENT"
+    FreeBSD="15.0-ALPHA4"
+    OSNAME="FreeBSD $FreeBSD"
+    OSv="freebsd14.0"
+    URLxz="$FREEBSD_SNAP/$FreeBSD/amd64/Latest/FreeBSD-$FreeBSD-amd64-BASIC-CI-ufs.raw.xz"
+    KSRC="$FREEBSD_SNAP/../amd64/$FreeBSD/src.txz"
+    ;;
+  freebsd16-0c)
+    FreeBSD="16.0-CURRENT"
     OSNAME="FreeBSD $FreeBSD"
     OSv="freebsd14.0"
     URLxz="$FREEBSD_SNAP/$FreeBSD/amd64/Latest/FreeBSD-$FreeBSD-amd64-BASIC-CI-ufs.raw.xz"
@@ -250,7 +261,7 @@ sudo virt-install \
   --network bridge=virbr0,model=$NIC,mac='52:54:00:83:79:00' \
   --cloud-init user-data=/tmp/user-data \
   --disk $DISK,bus=virtio,cache=none,format=raw,driver.discard=unmap \
-  --import --noautoconsole >/dev/null
+  --import --noautoconsole ${OPTS[0]} ${OPTS[1]} >/dev/null
 
 # Give the VMs hostnames so we don't have to refer to them with
 # hardcoded IP addresses.
@@ -283,7 +294,7 @@ else
   while pidof /usr/bin/qemu-system-x86_64 >/dev/null; do
     ssh 2>/dev/null root@vm0 "uname -a" && break
   done
-  ssh root@vm0 "pkg install -y bash ca_root_nss git qemu-guest-agent python3 py311-cloud-init"
+  ssh root@vm0 "env IGNORE_OSVERSION=yes pkg install -y bash ca_root_nss git qemu-guest-agent python3 py311-cloud-init"
   ssh root@vm0 "chsh -s $BASH root"
   ssh root@vm0 'sysrc qemu_guest_agent_enable="YES"'
   ssh root@vm0 'sysrc cloudinit_enable="YES"'

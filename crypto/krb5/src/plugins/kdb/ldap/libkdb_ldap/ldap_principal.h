@@ -124,10 +124,12 @@ void
 krb5_dbe_free_contents(krb5_context, krb5_db_entry *);
 
 krb5_error_code
-krb5_ldap_unparse_principal_name(char *);
+krb5_ldap_unparse_name(krb5_context context, krb5_const_principal princ,
+                       char **user_out);
 
 krb5_error_code
-krb5_ldap_parse_principal_name(char *, char **);
+krb5_ldap_parse_name(krb5_context context, const char *username,
+                     krb5_principal *out);
 
 struct berval**
 krb5_encode_krbsecretkey(krb5_key_data *key_data, int n_key_data,

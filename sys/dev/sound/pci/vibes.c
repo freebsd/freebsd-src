@@ -204,7 +204,7 @@ svchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c
 	}
 	ch->buffer = b;
 	ch->fmt = SND_FORMAT(AFMT_U8, 1, 0);
-	ch->spd = DSP_DEFAULT_SPEED;
+	ch->spd = 8000;
 	ch->dma_active = ch->dma_was_active = 0;
 
 	return ch;
@@ -328,9 +328,9 @@ svrchan_trigger(kobj_t obj, void *data, int go)
 		sv_indirect_set(sc, SV_REG_FORMAT, v);
 
 		/* Program DMA */
-		count = sndbuf_getsize(ch->buffer) / 2; /* DMAC uses words */
+		count = ch->buffer->bufsize / 2; /* DMAC uses words */
 		sv_dma_set_config(sc->dmac_st, sc->dmac_sh,
-				  sndbuf_getbufaddr(ch->buffer),
+				  ch->buffer->buf_addr,
 				  count - 1,
 				  SV_DMA_MODE_AUTO | SV_DMA_MODE_RD);
 		count = count / SV_INTR_PER_BUFFER - 1;
@@ -360,7 +360,7 @@ svrchan_getptr(kobj_t obj, void *data)
 	struct sc_info 		*sc = ch->parent;
 	u_int32_t sz, remain;
 
-	sz = sndbuf_getsize(ch->buffer);
+	sz = ch->buffer->bufsize;
 	/* DMAC uses words */
 	remain = (sv_dma_get_count(sc->dmac_st, sc->dmac_sh) + 1) * 2;
 	return sz - remain;
@@ -404,9 +404,9 @@ svpchan_trigger(kobj_t obj, void *data, int go)
 		sv_indirect_set(sc, SV_REG_FORMAT, v);
 
 		/* Program DMA */
-		count = sndbuf_getsize(ch->buffer);
+		count = ch->buffer->bufsize;
 		sv_dma_set_config(sc->dmaa_st, sc->dmaa_sh,
-				  sndbuf_getbufaddr(ch->buffer),
+				  ch->buffer->buf_addr,
 				  count - 1,
 				  SV_DMA_MODE_AUTO | SV_DMA_MODE_WR);
 		count = count / SV_INTR_PER_BUFFER - 1;
@@ -437,7 +437,7 @@ svpchan_getptr(kobj_t obj, void *data)
 	struct sc_info 		*sc = ch->parent;
 	u_int32_t sz, remain;
 
-	sz = sndbuf_getsize(ch->buffer);
+	sz = ch->buffer->bufsize;
 	/* DMAA uses bytes */
 	remain = sv_dma_get_count(sc->dmaa_st, sc->dmaa_sh) + 1;
 	return (sz - remain);

@@ -153,7 +153,7 @@ int	if_clone_destroy(const char *);
 int	if_clone_list(struct if_clonereq *);
 void	if_clone_restoregroup(struct ifnet *);
 
-/* The below interfaces are used only by epair(4). */
+/* The below interfaces are used only by epair(4) and tun(4)/tap(4). */
 void	if_clone_addif(struct if_clone *, struct ifnet *);
 int	if_clone_destroyif(struct if_clone *, struct ifnet *);
 

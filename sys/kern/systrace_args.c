@@ -17,9 +17,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
-	/* exit */
+	/* _exit */
 	case 1: {
-		struct exit_args *p = params;
+		struct _exit_args *p = params;
 		iarg[a++] = p->rval; /* int */
 		*n_args = 1;
 		break;
@@ -452,22 +452,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[a++] = p->len; /* size_t */
 		uarg[a++] = (intptr_t)p->vec; /* char * */
 		*n_args = 3;
-		break;
-	}
-	/* getgroups */
-	case 79: {
-		struct getgroups_args *p = params;
-		iarg[a++] = p->gidsetsize; /* int */
-		uarg[a++] = (intptr_t)p->gidset; /* gid_t * */
-		*n_args = 2;
-		break;
-	}
-	/* setgroups */
-	case 80: {
-		struct setgroups_args *p = params;
-		iarg[a++] = p->gidsetsize; /* int */
-		uarg[a++] = (intptr_t)p->gidset; /* const gid_t * */
-		*n_args = 2;
 		break;
 	}
 	/* getpgrp */
@@ -955,7 +939,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* __sysctl */
 	case 202: {
 		struct __sysctl_args *p = params;
-		uarg[a++] = (intptr_t)p->name; /* int * */
+		uarg[a++] = (intptr_t)p->name; /* const int * */
 		uarg[a++] = p->namelen; /* u_int */
 		uarg[a++] = (intptr_t)p->old; /* void * */
 		uarg[a++] = (intptr_t)p->oldlenp; /* size_t * */
@@ -3500,6 +3484,46 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* getgroups */
+	case 595: {
+		struct getgroups_args *p = params;
+		iarg[a++] = p->gidsetsize; /* int */
+		uarg[a++] = (intptr_t)p->gidset; /* gid_t * */
+		*n_args = 2;
+		break;
+	}
+	/* setgroups */
+	case 596: {
+		struct setgroups_args *p = params;
+		iarg[a++] = p->gidsetsize; /* int */
+		uarg[a++] = (intptr_t)p->gidset; /* const gid_t * */
+		*n_args = 2;
+		break;
+	}
+	/* jail_attach_jd */
+	case 597: {
+		struct jail_attach_jd_args *p = params;
+		iarg[a++] = p->fd; /* int */
+		*n_args = 1;
+		break;
+	}
+	/* jail_remove_jd */
+	case 598: {
+		struct jail_remove_jd_args *p = params;
+		iarg[a++] = p->fd; /* int */
+		*n_args = 1;
+		break;
+	}
+	/* kexec_load */
+	case 599: {
+		struct kexec_load_args *p = params;
+		uarg[a++] = p->entry; /* uint64_t */
+		uarg[a++] = p->nseg; /* u_long */
+		uarg[a++] = (intptr_t)p->segments; /* struct kexec_segment * */
+		uarg[a++] = p->flags; /* u_long */
+		*n_args = 4;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -3513,7 +3537,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* syscall */
 	case 0:
 		break;
-	/* exit */
+	/* _exit */
 	case 1:
 		switch (ndx) {
 		case 0:
@@ -4194,32 +4218,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 2:
 			p = "userland char *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* getgroups */
-	case 79:
-		switch (ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "userland gid_t *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* setgroups */
-	case 80:
-		switch (ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "userland const gid_t *";
 			break;
 		default:
 			break;
@@ -5033,7 +5031,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 202:
 		switch (ndx) {
 		case 0:
-			p = "userland int *";
+			p = "userland const int *";
 			break;
 		case 1:
 			p = "u_int";
@@ -9367,6 +9365,71 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* getgroups */
+	case 595:
+		switch (ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "userland gid_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setgroups */
+	case 596:
+		switch (ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "userland const gid_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* jail_attach_jd */
+	case 597:
+		switch (ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* jail_remove_jd */
+	case 598:
+		switch (ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* kexec_load */
+	case 599:
+		switch (ndx) {
+		case 0:
+			p = "uint64_t";
+			break;
+		case 1:
+			p = "u_long";
+			break;
+		case 2:
+			p = "userland struct kexec_segment *";
+			break;
+		case 3:
+			p = "u_long";
+			break;
+		default:
+			break;
+		};
+		break;
 	default:
 		break;
 	};
@@ -9380,7 +9443,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	switch (sysnum) {
 	/* syscall */
 	case 0:
-	/* exit */
+	/* _exit */
 	case 1:
 		if (ndx == 0 || ndx == 1)
 			p = "void";
@@ -9630,16 +9693,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* mincore */
 	case 78:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* getgroups */
-	case 79:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* setgroups */
-	case 80:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
@@ -11362,6 +11415,31 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* inotify_rm_watch */
 	case 594:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getgroups */
+	case 595:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setgroups */
+	case 596:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* jail_attach_jd */
+	case 597:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* jail_remove_jd */
+	case 598:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* kexec_load */
+	case 599:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

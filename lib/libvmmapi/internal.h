@@ -8,12 +8,7 @@
 #define	__VMMAPI_INTERNAL_H__
 
 #include <sys/types.h>
-
-enum {
-	VM_MEMSEG_LOW,
-	VM_MEMSEG_HIGH,
-	VM_MEMSEG_COUNT,
-};
+#include <dev/vmm/vmm_mem.h>
 
 struct vmctx {
 	int	fd;		/* device file descriptor */
@@ -21,7 +16,9 @@ struct vmctx {
 	struct {
 		vm_paddr_t base;
 		vm_size_t size;
-	} memsegs[VM_MEMSEG_COUNT];
+	} memsegs[VM_MAX_MEMSEGS];
+	size_t 	lowmem_size;
+	size_t 	highmem_size;
 	int	memflags;
 	char	*baseaddr;
 	char	*name;

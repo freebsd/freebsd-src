@@ -39,15 +39,14 @@
  * First, and probably the main thing its used by Rack and BBR, it can
  * be used to call tcp_output() of a transport stack at some time in the future.
  * The normal way this is done is that tcp_output() of the stack schedules
- * itself to be called again by calling tcp_hpts_insert(tcpcb, slot). The
- * slot is the time from now that the stack wants to be called but it
- * must be converted to tcp_hpts's notion of slot. This is done with
- * one of the macros HPTS_MS_TO_SLOTS or HPTS_USEC_TO_SLOTS. So a typical
+ * itself to be called again by calling tcp_hpts_insert(tcpcb, usecs). The
+ * usecs is the time from now that the stack wants to be called and is
+ * passing time directly in microseconds. So a typical
  * call from the tcp_output() routine might look like:
  *
- * tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(550));
+ * tcp_hpts_insert(tp, 550, NULL);
  *
- * The above would schedule tcp_output() to be called in 550 useconds.
+ * The above would schedule tcp_output() to be called in 550 microseconds.
  * Note that if using this mechanism the stack will want to add near
  * its top a check to prevent unwanted calls (from user land or the
  * arrival of incoming ack's). So it would add something like:
@@ -137,8 +136,6 @@
 #include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
-#include <netinet/ip_icmp.h>	/* required for icmp_var.h */
-#include <netinet/icmp_var.h>	/* for ICMP_BANDLIM */
 #include <netinet/ip_var.h>
 #include <netinet/ip6.h>
 #include <netinet6/in6_pcb.h>
@@ -151,125 +148,103 @@
 #include <netinet/tcpip.h>
 #include <netinet/cc/cc.h>
 #include <netinet/tcp_hpts.h>
+#include <netinet/tcp_hpts_internal.h>
 #include <netinet/tcp_log_buf.h>
 
 #ifdef tcp_offload
 #include <netinet/tcp_offload.h>
 #endif
 
-/*
- * The hpts uses a 102400 wheel. The wheel
- * defines the time in 10 usec increments (102400 x 10).
- * This gives a range of 10usec - 1024ms to place
- * an entry within. If the user requests more than
- * 1.024 second, a remaineder is attached and the hpts
- * when seeing the remainder will re-insert the
- * inpcb forward in time from where it is until
- * the remainder is zero.
- */
+/* Global instance for TCP HPTS */
+struct tcp_hptsi *tcp_hptsi_pace;
 
-#define NUM_OF_HPTSI_SLOTS 102400
+/* Default function table for production use. */
+const struct tcp_hptsi_funcs tcp_hptsi_default_funcs = {
+	.microuptime = microuptime,
+	.swi_add = swi_add,
+	.swi_remove = swi_remove,
+	.swi_sched = swi_sched,
+	.intr_event_bind = intr_event_bind,
+	.intr_event_bind_ithread_cpuset = intr_event_bind_ithread_cpuset,
+	.callout_init = callout_init,
+	.callout_reset_sbt_on = callout_reset_sbt_on,
+	._callout_stop_safe = _callout_stop_safe,
+};
 
-/* Each hpts has its own p_mtx which is used for locking */
-#define	HPTS_MTX_ASSERT(hpts)	mtx_assert(&(hpts)->p_mtx, MA_OWNED)
-#define	HPTS_LOCK(hpts)		mtx_lock(&(hpts)->p_mtx)
-#define	HPTS_TRYLOCK(hpts)	mtx_trylock(&(hpts)->p_mtx)
-#define	HPTS_UNLOCK(hpts)	mtx_unlock(&(hpts)->p_mtx)
-struct tcp_hpts_entry {
-	/* Cache line 0x00 */
-	struct mtx p_mtx;	/* Mutex for hpts */
-	struct timeval p_mysleep;	/* Our min sleep time */
-	uint64_t syscall_cnt;
-	uint64_t sleeping;	/* What the actual sleep was (if sleeping) */
-	uint16_t p_hpts_active; /* Flag that says hpts is awake  */
-	uint8_t p_wheel_complete; /* have we completed the wheel arc walk? */
-	uint32_t p_curtick;	/* Tick in 10 us the hpts is going to */
-	uint32_t p_runningslot; /* Current tick we are at if we are running */
-	uint32_t p_prev_slot;	/* Previous slot we were on */
-	uint32_t p_cur_slot;	/* Current slot in wheel hpts is draining */
-	uint32_t p_nxt_slot;	/* The next slot outside the current range of
-				 * slots that the hpts is running on. */
-	int32_t p_on_queue_cnt;	/* Count on queue in this hpts */
-	uint32_t p_lasttick;	/* Last tick before the current one */
-	uint8_t p_direct_wake :1, /* boolean */
-		p_on_min_sleep:1, /* boolean */
-		p_hpts_wake_scheduled:1, /* boolean */
-		hit_callout_thresh:1,
-		p_avail:4;
-	uint8_t p_fill[3];	  /* Fill to 32 bits */
-	/* Cache line 0x40 */
-	struct hptsh {
-		TAILQ_HEAD(, tcpcb)	head;
-		uint32_t		count;
-		uint32_t		gencnt;
-	} *p_hptss;			/* Hptsi wheel */
-	uint32_t p_hpts_sleep_time;	/* Current sleep interval having a max
-					 * of 255ms */
-	uint32_t overidden_sleep;	/* what was overrided by min-sleep for logging */
-	uint32_t saved_lasttick;	/* for logging */
-	uint32_t saved_curtick;		/* for logging */
-	uint32_t saved_curslot;		/* for logging */
-	uint32_t saved_prev_slot;       /* for logging */
-	uint32_t p_delayed_by;	/* How much were we delayed by */
-	/* Cache line 0x80 */
-	struct sysctl_ctx_list hpts_ctx;
-	struct sysctl_oid *hpts_root;
-	struct intr_event *ie;
-	void *ie_cookie;
-	uint16_t p_num;		/* The hpts number one per cpu */
-	uint16_t p_cpu;		/* The hpts CPU */
-	/* There is extra space in here */
-	/* Cache line 0x100 */
-	struct callout co __aligned(CACHE_LINE_SIZE);
-}               __aligned(CACHE_LINE_SIZE);
-
-static struct tcp_hptsi {
-	struct cpu_group **grps;
-	struct tcp_hpts_entry **rp_ent;	/* Array of hptss */
-	uint32_t *cts_last_ran;
-	uint32_t grp_cnt;
-	uint32_t rp_num_hptss;	/* Number of hpts threads */
-} tcp_pace;
+#ifdef TCP_HPTS_KTEST
+#define microuptime pace->funcs->microuptime
+#define swi_add pace->funcs->swi_add
+#define swi_remove pace->funcs->swi_remove
+#define swi_sched pace->funcs->swi_sched
+#define intr_event_bind pace->funcs->intr_event_bind
+#define intr_event_bind_ithread_cpuset pace->funcs->intr_event_bind_ithread_cpuset
+#define callout_init pace->funcs->callout_init
+#define callout_reset_sbt_on pace->funcs->callout_reset_sbt_on
+#define _callout_stop_safe pace->funcs->_callout_stop_safe
+#endif
 
 static MALLOC_DEFINE(M_TCPHPTS, "tcp_hpts", "TCP hpts");
+
+static void tcp_hpts_thread(void *ctx);
+
+/*
+ * When using the hpts, a TCP stack must make sure
+ * that once a INP_DROPPED flag is applied to a INP
+ * that it does not expect tcp_output() to ever be
+ * called by the hpts. The hpts will *not* call
+ * any output (or input) functions on a TCB that
+ * is in the DROPPED state.
+ *
+ * This implies final ACK's and RST's that might
+ * be sent when a TCB is still around must be
+ * sent from a routine like tcp_respond().
+ */
+#define LOWEST_SLEEP_ALLOWED 50
+#define DEFAULT_MIN_SLEEP 250	/* How many usec's is default for hpts sleep
+				 * this determines min granularity of the
+				 * hpts. If 1, granularity is 10useconds at
+				 * the cost of more CPU (context switching).
+				 * Note do not set this to 0.
+				 */
+#define DYNAMIC_MIN_SLEEP DEFAULT_MIN_SLEEP
+#define DYNAMIC_MAX_SLEEP 5000	/* 5ms */
+
+/* Thresholds for raising/lowering sleep */
+#define SLOTS_INDICATE_MORE_SLEEP 100		/* This would be 1ms */
+#define SLOTS_INDICATE_LESS_SLEEP 1000		/* This would indicate 10ms */
+/**
+ *
+ * Dynamic adjustment of sleeping times is done in "new" mode
+ * where we are depending on syscall returns and lro returns
+ * to push hpts forward mainly and the timer is only a backstop.
+ *
+ * When we are in the "new" mode i.e. conn_cnt > conn_cnt_thresh
+ * then we do a dynamic adjustment on the time we sleep.
+ * Our threshold is if the lateness of the first client served (in slots) is
+ * greater than or equal too slots_indicate_more_sleep (10ms
+ * or 10000 slots). If we were that late, the actual sleep time
+ * is adjusted down by 50%. If the slots_ran is less than
+ * slots_indicate_more_sleep (100 slots or 1000usecs).
+ *
+ */
+
 #ifdef RSS
-static int tcp_bind_threads = 1;
+int tcp_bind_threads = 1;
 #else
-static int tcp_bind_threads = 2;
+int tcp_bind_threads = 2;
 #endif
 static int tcp_use_irq_cpu = 0;
 static int hpts_does_tp_logging = 0;
-
-static int32_t tcp_hptsi(struct tcp_hpts_entry *hpts, bool from_callout);
-static void tcp_hpts_thread(void *ctx);
-
+static int32_t tcp_hpts_precision = 120;
 int32_t tcp_min_hptsi_time = DEFAULT_MIN_SLEEP;
-static int conn_cnt_thresh = DEFAULT_CONNECTION_THESHOLD;
+static int conn_cnt_thresh = DEFAULT_CONNECTION_THRESHOLD;
 static int32_t dynamic_min_sleep = DYNAMIC_MIN_SLEEP;
 static int32_t dynamic_max_sleep = DYNAMIC_MAX_SLEEP;
-
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hpts, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP Hpts controls");
 SYSCTL_NODE(_net_inet_tcp_hpts, OID_AUTO, stats, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "TCP Hpts statistics");
-
-#define	timersub(tvp, uvp, vvp)						\
-	do {								\
-		(vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;		\
-		(vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;	\
-		if ((vvp)->tv_usec < 0) {				\
-			(vvp)->tv_sec--;				\
-			(vvp)->tv_usec += 1000000;			\
-		}							\
-	} while (0)
-
-static int32_t tcp_hpts_precision = 120;
-
-static struct hpts_domain_info {
-	int count;
-	int cpu[MAXCPU];
-} hpts_domains[MAXMEMDOM];
 
 counter_u64_t hpts_hopelessly_behind;
 
@@ -366,7 +341,7 @@ sysctl_net_inet_tcp_hpts_max_sleep(SYSCTL_HANDLER_ARGS)
 	new = hpts_sleep_max;
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error == 0 && req->newptr) {
-		if ((new < (dynamic_min_sleep/HPTS_TICKS_PER_SLOT)) ||
+		if ((new < (dynamic_min_sleep/HPTS_USECS_PER_SLOT)) ||
 		     (new > HPTS_MAX_SLEEP_ALLOWED))
 			error = EINVAL;
 		else
@@ -404,28 +379,28 @@ SYSCTL_PROC(_net_inet_tcp_hpts, OID_AUTO, minsleep,
     &sysctl_net_inet_tcp_hpts_min_sleep, "IU",
     "The minimum time the hpts must sleep before processing more slots");
 
-static int ticks_indicate_more_sleep = TICKS_INDICATE_MORE_SLEEP;
-static int ticks_indicate_less_sleep = TICKS_INDICATE_LESS_SLEEP;
+static int slots_indicate_more_sleep = SLOTS_INDICATE_MORE_SLEEP;
+static int slots_indicate_less_sleep = SLOTS_INDICATE_LESS_SLEEP;
 static int tcp_hpts_no_wake_over_thresh = 1;
 
 SYSCTL_INT(_net_inet_tcp_hpts, OID_AUTO, more_sleep, CTLFLAG_RW,
-    &ticks_indicate_more_sleep, 0,
+    &slots_indicate_more_sleep, 0,
     "If we only process this many or less on a timeout, we need longer sleep on the next callout");
 SYSCTL_INT(_net_inet_tcp_hpts, OID_AUTO, less_sleep, CTLFLAG_RW,
-    &ticks_indicate_less_sleep, 0,
+    &slots_indicate_less_sleep, 0,
     "If we process this many or more on a timeout, we need less sleep on the next callout");
 SYSCTL_INT(_net_inet_tcp_hpts, OID_AUTO, nowake_over_thresh, CTLFLAG_RW,
     &tcp_hpts_no_wake_over_thresh, 0,
     "When we are over the threshold on the pacer do we prohibit wakeups?");
 
-static uint16_t
-hpts_random_cpu(void)
+uint16_t
+tcp_hptsi_random_cpu(struct tcp_hptsi *pace)
 {
 	uint16_t cpuid;
 	uint32_t ran;
 
 	ran = arc4random();
-	cpuid = (((ran & 0xffff) % mp_ncpus) % tcp_pace.rp_num_hptss);
+	cpuid = (((ran & 0xffff) % mp_ncpus) % pace->rp_num_hptss);
 	return (cpuid);
 }
 
@@ -446,14 +421,12 @@ tcp_hpts_log(struct tcp_hpts_entry *hpts, struct tcpcb *tp, struct timeval *tv,
 		log.u_bbr.flex2 = hpts->p_cur_slot;
 		log.u_bbr.flex3 = hpts->p_prev_slot;
 		log.u_bbr.flex4 = idx;
-		log.u_bbr.flex5 = hpts->p_curtick;
 		log.u_bbr.flex6 = hpts->p_on_queue_cnt;
 		log.u_bbr.flex7 = hpts->p_cpu;
 		log.u_bbr.flex8 = (uint8_t)from_callout;
 		log.u_bbr.inflight = slots_to_run;
 		log.u_bbr.applimited = hpts->overidden_sleep;
-		log.u_bbr.delivered = hpts->saved_curtick;
-		log.u_bbr.timeStamp = tcp_tv_to_usectick(tv);
+		log.u_bbr.timeStamp = tcp_tv_to_usec(tv);
 		log.u_bbr.epoch = hpts->saved_curslot;
 		log.u_bbr.lt_epoch = hpts->saved_prev_slot;
 		log.u_bbr.pkts_out = hpts->p_delayed_by;
@@ -469,10 +442,66 @@ tcp_hpts_log(struct tcp_hpts_entry *hpts, struct tcpcb *tp, struct timeval *tv,
 	}
 }
 
+/*
+ * Timeout handler for the HPTS sleep callout. It immediately schedules the SWI
+ * for the HPTS entry to run.
+ */
 static void
-tcp_wakehpts(struct tcp_hpts_entry *hpts)
+tcp_hpts_sleep_timeout(void *arg)
 {
+#ifdef TCP_HPTS_KTEST
+	struct tcp_hptsi *pace;
+#endif
+	struct tcp_hpts_entry *hpts;
+
+	hpts = (struct tcp_hpts_entry *)arg;
+#ifdef TCP_HPTS_KTEST
+	pace = hpts->p_hptsi;
+#endif
+	swi_sched(hpts->ie_cookie, 0);
+}
+
+/*
+ * Reset the HPTS callout timer with the provided timeval. Returns the results
+ * of the callout_reset_sbt_on() function.
+ */
+static int
+tcp_hpts_sleep(struct tcp_hpts_entry *hpts, struct timeval *tv)
+{
+#ifdef TCP_HPTS_KTEST
+	struct tcp_hptsi *pace;
+#endif
+	sbintime_t sb;
+
+#ifdef TCP_HPTS_KTEST
+	pace = hpts->p_hptsi;
+#endif
+
+	/* Store off to make visible the actual sleep time */
+	hpts->sleeping = tv->tv_usec;
+
+	sb = tvtosbt(*tv);
+	return (callout_reset_sbt_on(
+		    &hpts->co, sb, 0, tcp_hpts_sleep_timeout, hpts, hpts->p_cpu,
+		    (C_DIRECT_EXEC | C_PREL(tcp_hpts_precision))));
+}
+
+/*
+ * Schedules the SWI for the HTPS entry to run, if not already scheduled or
+ * running.
+ */
+void
+tcp_hpts_wake(struct tcp_hpts_entry *hpts)
+{
+#ifdef TCP_HPTS_KTEST
+	struct tcp_hptsi *pace;
+#endif
+
 	HPTS_MTX_ASSERT(hpts);
+
+#ifdef TCP_HPTS_KTEST
+	pace = hpts->p_hptsi;
+#endif
 
 	if (tcp_hpts_no_wake_over_thresh && (hpts->p_on_queue_cnt >= conn_cnt_thresh)) {
 		hpts->p_direct_wake = 0;
@@ -482,15 +511,6 @@ tcp_wakehpts(struct tcp_hpts_entry *hpts)
 		hpts->p_hpts_wake_scheduled = 1;
 		swi_sched(hpts->ie_cookie, 0);
 	}
-}
-
-static void
-hpts_timeout_swi(void *arg)
-{
-	struct tcp_hpts_entry *hpts;
-
-	hpts = (struct tcp_hpts_entry *)arg;
-	swi_sched(hpts->ie_cookie, 0);
 }
 
 static void
@@ -521,13 +541,13 @@ tcp_hpts_insert_internal(struct tcpcb *tp, struct tcp_hpts_entry *hpts)
 }
 
 static struct tcp_hpts_entry *
-tcp_hpts_lock(struct tcpcb *tp)
+tcp_hpts_lock(struct tcp_hptsi *pace, struct tcpcb *tp)
 {
 	struct tcp_hpts_entry *hpts;
 
 	INP_LOCK_ASSERT(tptoinpcb(tp));
 
-	hpts = tcp_pace.rp_ent[tp->t_hpts_cpu];
+	hpts = pace->rp_ent[tp->t_hpts_cpu];
 	HPTS_LOCK(hpts);
 
 	return (hpts);
@@ -554,11 +574,10 @@ tcp_hpts_release(struct tcpcb *tp)
  * and has never received a first packet.
  */
 void
-tcp_hpts_init(struct tcpcb *tp)
+__tcp_hpts_init(struct tcp_hptsi *pace, struct tcpcb *tp)
 {
-
 	if (__predict_true(tp->t_hpts_cpu == HPTS_CPU_NONE)) {
-		tp->t_hpts_cpu = hpts_random_cpu();
+		tp->t_hpts_cpu = tcp_hptsi_random_cpu(pace);
 		MPASS(!(tp->t_flags2 & TF2_HPTS_CPU_SET));
 	}
 }
@@ -570,14 +589,14 @@ tcp_hpts_init(struct tcpcb *tp)
  * INP lock and then get the hpts lock.
  */
 void
-tcp_hpts_remove(struct tcpcb *tp)
+__tcp_hpts_remove(struct tcp_hptsi *pace, struct tcpcb *tp)
 {
 	struct tcp_hpts_entry *hpts;
 	struct hptsh *hptsh;
 
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
-	hpts = tcp_hpts_lock(tp);
+	hpts = tcp_hpts_lock(pace, tp);
 	if (tp->t_in_hpts == IHPTS_ONQUEUE) {
 		hptsh = &hpts->p_hptss[tp->t_hpts_slot];
 		tp->t_hpts_request = 0;
@@ -621,23 +640,19 @@ hpts_slot(uint32_t wheel_slot, uint32_t plus)
 {
 	/*
 	 * Given a slot on the wheel, what slot
-	 * is that plus ticks out?
+	 * is that plus slots out?
 	 */
-	KASSERT(wheel_slot < NUM_OF_HPTSI_SLOTS, ("Invalid tick %u not on wheel", wheel_slot));
+	KASSERT(wheel_slot < NUM_OF_HPTSI_SLOTS, ("Invalid slot %u not on wheel", wheel_slot));
 	return ((wheel_slot + plus) % NUM_OF_HPTSI_SLOTS);
 }
 
 static inline int
-tick_to_wheel(uint32_t cts_in_wticks)
+cts_to_wheel(uint32_t cts)
 {
 	/*
-	 * Given a timestamp in ticks (so by
-	 * default to get it to a real time one
-	 * would multiply by 10.. i.e the number
-	 * of ticks in a slot) map it to our limited
-	 * space wheel.
+	 * Given a timestamp in useconds map it to our limited space wheel.
 	 */
-	return (cts_in_wticks % NUM_OF_HPTSI_SLOTS);
+	return ((cts / HPTS_USECS_PER_SLOT) % NUM_OF_HPTSI_SLOTS);
 }
 
 static inline int
@@ -680,7 +695,7 @@ max_slots_available(struct tcp_hpts_entry *hpts, uint32_t wheel_slot, uint32_t *
 	if ((hpts->p_hpts_active == 1) &&
 	    (hpts->p_wheel_complete == 0)) {
 		end_slot = hpts->p_runningslot;
-		/* Back up one tick */
+		/* Back up one slot */
 		if (end_slot == 0)
 			end_slot = NUM_OF_HPTSI_SLOTS - 1;
 		else
@@ -693,7 +708,7 @@ max_slots_available(struct tcp_hpts_entry *hpts, uint32_t wheel_slot, uint32_t *
 		 * not active, or we have
 		 * completed the pass over
 		 * the wheel, we can use the
-		 * prev tick and subtract one from it. This puts us
+		 * prev slot and subtract one from it. This puts us
 		 * as far out as possible on the wheel.
 		 */
 		end_slot = hpts->p_prev_slot;
@@ -706,7 +721,7 @@ max_slots_available(struct tcp_hpts_entry *hpts, uint32_t wheel_slot, uint32_t *
 		/*
 		 * Now we have close to the full wheel left minus the
 		 * time it has been since the pacer went to sleep. Note
-		 * that wheel_tick, passed in, should be the current time
+		 * that wheel_slot, passed in, should be the current time
 		 * from the perspective of the caller, mapped to the wheel.
 		 */
 		if (hpts->p_prev_slot != wheel_slot)
@@ -783,7 +798,7 @@ max_slots_available(struct tcp_hpts_entry *hpts, uint32_t wheel_slot, uint32_t *
 #ifdef INVARIANTS
 static void
 check_if_slot_would_be_wrong(struct tcp_hpts_entry *hpts, struct tcpcb *tp,
-    uint32_t hptsslot, int line)
+    uint32_t hptsslot)
 {
 	/*
 	 * Sanity checks for the pacer with invariants
@@ -814,12 +829,13 @@ check_if_slot_would_be_wrong(struct tcp_hpts_entry *hpts, struct tcpcb *tp,
 }
 #endif
 
-uint32_t
-tcp_hpts_insert_diag(struct tcpcb *tp, uint32_t slot, int32_t line, struct hpts_diag *diag)
+void
+__tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t usecs,
+	struct hpts_diag *diag)
 {
 	struct tcp_hpts_entry *hpts;
 	struct timeval tv;
-	uint32_t slot_on, wheel_cts, last_slot, need_new_to = 0;
+	uint32_t slot, wheel_cts, last_slot, need_new_to = 0;
 	int32_t wheel_slot, maxslots;
 	bool need_wakeup = false;
 
@@ -828,11 +844,13 @@ tcp_hpts_insert_diag(struct tcpcb *tp, uint32_t slot, int32_t line, struct hpts_
 	MPASS(!(tp->t_in_hpts == IHPTS_ONQUEUE));
 
 	/*
+	 * Convert microseconds to slots for internal use.
 	 * We now return the next-slot the hpts will be on, beyond its
 	 * current run (if up) or where it was when it stopped if it is
 	 * sleeping.
 	 */
-	hpts = tcp_hpts_lock(tp);
+	slot = HPTS_USEC_TO_SLOTS(usecs);
+	hpts = tcp_hpts_lock(pace, tp);
 	microuptime(&tv);
 	if (diag) {
 		memset(diag, 0, sizeof(struct hpts_diag));
@@ -841,8 +859,6 @@ tcp_hpts_insert_diag(struct tcpcb *tp, uint32_t slot, int32_t line, struct hpts_
 		diag->p_runningslot = hpts->p_runningslot;
 		diag->p_nxt_slot = hpts->p_nxt_slot;
 		diag->p_cur_slot = hpts->p_cur_slot;
-		diag->p_curtick = hpts->p_curtick;
-		diag->p_lasttick = hpts->p_lasttick;
 		diag->slot_req = slot;
 		diag->p_on_min_sleep = hpts->p_on_min_sleep;
 		diag->hpts_sleep_time = hpts->p_hpts_sleep_time;
@@ -869,17 +885,15 @@ tcp_hpts_insert_diag(struct tcpcb *tp, uint32_t slot, int32_t line, struct hpts_
 			 * timeout is not 1.
 			 */
 			hpts->p_direct_wake = 1;
-			tcp_wakehpts(hpts);
+			tcp_hpts_wake(hpts);
 		}
-		slot_on = hpts->p_nxt_slot;
 		HPTS_UNLOCK(hpts);
 
-		return (slot_on);
+		return;
 	}
-	/* Get the current time relative to the wheel */
-	wheel_cts = tcp_tv_to_hptstick(&tv);
-	/* Map it onto the wheel */
-	wheel_slot = tick_to_wheel(wheel_cts);
+	/* Get the current time stamp and map it onto the wheel */
+	wheel_cts = tcp_tv_to_usec(&tv);
+	wheel_slot = cts_to_wheel(wheel_cts);
 	/* Now what's the max we can place it at? */
 	maxslots = max_slots_available(hpts, wheel_slot, &last_slot);
 	if (diag) {
@@ -911,11 +925,11 @@ tcp_hpts_insert_diag(struct tcpcb *tp, uint32_t slot, int32_t line, struct hpts_
 		tp->t_hpts_slot = last_slot;
 	}
 	if (diag) {
-		diag->slot_remaining = tp->t_hpts_request;
+		diag->time_remaining = tp->t_hpts_request;
 		diag->inp_hptsslot = tp->t_hpts_slot;
 	}
 #ifdef INVARIANTS
-	check_if_slot_would_be_wrong(hpts, tp, tp->t_hpts_slot, line);
+	check_if_slot_would_be_wrong(hpts, tp, tp->t_hpts_slot);
 #endif
 	if (__predict_true(tp->t_in_hpts != IHPTS_MOVING))
 		tcp_hpts_insert_internal(tp, hpts);
@@ -949,17 +963,17 @@ tcp_hpts_insert_diag(struct tcpcb *tp, uint32_t slot, int32_t line, struct hpts_
 			 * We need to reschedule the hpts's time-out.
 			 */
 			hpts->p_hpts_sleep_time = slot;
-			need_new_to = slot * HPTS_TICKS_PER_SLOT;
+			need_new_to = slot * HPTS_USECS_PER_SLOT;
 		}
 	}
 	/*
 	 * Now how far is the hpts sleeping to? if active is 1, its
-	 * up and ticking we do nothing, otherwise we may need to
+	 * up and running we do nothing, otherwise we may need to
 	 * reschedule its callout if need_new_to is set from above.
 	 */
 	if (need_wakeup) {
 		hpts->p_direct_wake = 1;
-		tcp_wakehpts(hpts);
+		tcp_hpts_wake(hpts);
 		if (diag) {
 			diag->need_new_to = 0;
 			diag->co_ret = 0xffff0000;
@@ -967,7 +981,6 @@ tcp_hpts_insert_diag(struct tcpcb *tp, uint32_t slot, int32_t line, struct hpts_
 	} else if (need_new_to) {
 		int32_t co_ret;
 		struct timeval tv;
-		sbintime_t sb;
 
 		tv.tv_sec = 0;
 		tv.tv_usec = 0;
@@ -975,24 +988,18 @@ tcp_hpts_insert_diag(struct tcpcb *tp, uint32_t slot, int32_t line, struct hpts_
 			tv.tv_sec++;
 			need_new_to -= HPTS_USEC_IN_SEC;
 		}
-		tv.tv_usec = need_new_to;
-		sb = tvtosbt(tv);
-		co_ret = callout_reset_sbt_on(&hpts->co, sb, 0,
-					      hpts_timeout_swi, hpts, hpts->p_cpu,
-					      (C_DIRECT_EXEC | C_PREL(tcp_hpts_precision)));
+		tv.tv_usec = need_new_to; /* XXX: Why is this sleeping over the max? */
+		co_ret = tcp_hpts_sleep(hpts, &tv);
 		if (diag) {
 			diag->need_new_to = need_new_to;
 			diag->co_ret = co_ret;
 		}
 	}
-	slot_on = hpts->p_nxt_slot;
 	HPTS_UNLOCK(hpts);
-
-	return (slot_on);
 }
 
 static uint16_t
-hpts_cpuid(struct tcpcb *tp, int *failed)
+hpts_cpuid(struct tcp_hptsi *pace, struct tcpcb *tp, int *failed)
 {
 	struct inpcb *inp = tptoinpcb(tp);
 	u_int cpuid;
@@ -1019,7 +1026,7 @@ hpts_cpuid(struct tcpcb *tp, int *failed)
 #ifdef RSS
 	cpuid = rss_hash2cpuid(inp->inp_flowid, inp->inp_flowtype);
 	if (cpuid == NETISR_CPUID_NONE)
-		return (hpts_random_cpu());
+		return (tcp_hptsi_random_cpu(pace));
 	else
 		return (cpuid);
 #endif
@@ -1030,7 +1037,7 @@ hpts_cpuid(struct tcpcb *tp, int *failed)
 	 */
 	if (inp->inp_flowtype == M_HASHTYPE_NONE) {
 		counter_u64_add(cpu_uses_random, 1);
-		return (hpts_random_cpu());
+		return (tcp_hptsi_random_cpu(pace));
 	}
 	/*
 	 * Hash to a thread based on the flowid.  If we are using numa,
@@ -1045,7 +1052,7 @@ hpts_cpuid(struct tcpcb *tp, int *failed)
 #ifdef NUMA
 	} else {
 		/* Hash into the cpu's that use that domain */
-		di = &hpts_domains[inp->inp_numa_domain];
+		di = &pace->domains[inp->inp_numa_domain];
 		cpuid = di->cpu[inp->inp_flowid % di->count];
 	}
 #endif
@@ -1077,9 +1084,16 @@ tcp_hpts_set_max_sleep(struct tcp_hpts_entry *hpts, int wrap_loop_cnt)
 	}
 }
 
-static int32_t
+static bool
+tcp_hpts_different_slots(uint32_t cts, uint32_t cts_last_run)
+{
+	return ((cts / HPTS_USECS_PER_SLOT) != (cts_last_run / HPTS_USECS_PER_SLOT));
+}
+
+int32_t
 tcp_hptsi(struct tcp_hpts_entry *hpts, bool from_callout)
 {
+	struct tcp_hptsi *pace;
 	struct tcpcb *tp;
 	struct timeval tv;
 	int32_t slots_to_run, i, error;
@@ -1089,6 +1103,7 @@ tcp_hptsi(struct tcp_hpts_entry *hpts, bool from_callout)
 	int32_t wrap_loop_cnt = 0;
 	int32_t slot_pos_of_endpoint = 0;
 	int32_t orig_exit_slot;
+	uint32_t cts, cts_last_run;
 	bool completed_measure, seen_endpoint;
 
 	completed_measure = false;
@@ -1096,33 +1111,34 @@ tcp_hptsi(struct tcp_hpts_entry *hpts, bool from_callout)
 
 	HPTS_MTX_ASSERT(hpts);
 	NET_EPOCH_ASSERT();
+
+	pace = hpts->p_hptsi;
+	MPASS(pace != NULL);
+
 	/* record previous info for any logging */
-	hpts->saved_lasttick = hpts->p_lasttick;
-	hpts->saved_curtick = hpts->p_curtick;
 	hpts->saved_curslot = hpts->p_cur_slot;
 	hpts->saved_prev_slot = hpts->p_prev_slot;
 
-	hpts->p_lasttick = hpts->p_curtick;
-	hpts->p_curtick = tcp_gethptstick(&tv);
-	tcp_pace.cts_last_ran[hpts->p_num] = tcp_tv_to_usectick(&tv);
-	orig_exit_slot = hpts->p_cur_slot = tick_to_wheel(hpts->p_curtick);
+	microuptime(&tv);
+	cts_last_run = pace->cts_last_ran[hpts->p_cpu];
+	pace->cts_last_ran[hpts->p_cpu] = cts = tcp_tv_to_usec(&tv);
+
+	orig_exit_slot = hpts->p_cur_slot = cts_to_wheel(cts);
 	if ((hpts->p_on_queue_cnt == 0) ||
-	    (hpts->p_lasttick == hpts->p_curtick)) {
+	    !tcp_hpts_different_slots(cts, cts_last_run)) {
 		/*
-		 * No time has yet passed,
-		 * or nothing to do.
+		 * Not enough time has yet passed or nothing to do.
 		 */
 		hpts->p_prev_slot = hpts->p_cur_slot;
-		hpts->p_lasttick = hpts->p_curtick;
 		goto no_run;
 	}
 again:
 	hpts->p_wheel_complete = 0;
 	HPTS_MTX_ASSERT(hpts);
 	slots_to_run = hpts_slots_diff(hpts->p_prev_slot, hpts->p_cur_slot);
-	if (((hpts->p_curtick - hpts->p_lasttick) >
-	     ((NUM_OF_HPTSI_SLOTS-1) * HPTS_TICKS_PER_SLOT)) &&
-	    (hpts->p_on_queue_cnt != 0)) {
+	if ((hpts->p_on_queue_cnt != 0) &&
+	    ((cts - cts_last_run) >
+	     ((NUM_OF_HPTSI_SLOTS-1) * HPTS_USECS_PER_SLOT))) {
 		/*
 		 * Wheel wrap is occuring, basically we
 		 * are behind and the distance between
@@ -1198,11 +1214,11 @@ again:
 		uint32_t runningslot;
 
 		/*
-		 * Calculate our delay, if there are no extra ticks there
+		 * Calculate our delay, if there are no extra slots there
 		 * was not any (i.e. if slots_to_run == 1, no delay).
 		 */
 		hpts->p_delayed_by = (slots_to_run - (i + 1)) *
-		    HPTS_TICKS_PER_SLOT;
+		    HPTS_USECS_PER_SLOT;
 
 		runningslot = hpts->p_runningslot;
 		hptsh = &hpts->p_hptss[runningslot];
@@ -1351,7 +1367,7 @@ again:
 				 * gets added to the hpts (not this one)
 				 * :-)
 				 */
-				tcp_set_hpts(tp);
+				__tcp_set_hpts(pace, tp);
 			}
 			CURVNET_SET(inp->inp_vnet);
 			/* Lets do any logging that we might want to */
@@ -1410,10 +1426,12 @@ no_one:
 	hpts->p_delayed_by = 0;
 	/*
 	 * Check to see if we took an excess amount of time and need to run
-	 * more ticks (if we did not hit eno-bufs).
+	 * more slots (if we did not hit eno-bufs).
 	 */
 	hpts->p_prev_slot = hpts->p_cur_slot;
-	hpts->p_lasttick = hpts->p_curtick;
+	microuptime(&tv);
+	cts_last_run = cts;
+	cts = tcp_tv_to_usec(&tv);
 	if (!from_callout || (loop_cnt > max_pacer_loops)) {
 		/*
 		 * Something is serious slow we have
@@ -1425,7 +1443,7 @@ no_one:
 		 * can never catch up :(
 		 *
 		 * We will just lie to this thread
-		 * and let it thing p_curtick is
+		 * and let it think p_curslot is
 		 * correct. When it next awakens
 		 * it will find itself further behind.
 		 */
@@ -1433,20 +1451,19 @@ no_one:
 			counter_u64_add(hpts_hopelessly_behind, 1);
 		goto no_run;
 	}
-	hpts->p_curtick = tcp_gethptstick(&tv);
-	hpts->p_cur_slot = tick_to_wheel(hpts->p_curtick);
+
+	hpts->p_cur_slot = cts_to_wheel(cts);
 	if (!seen_endpoint) {
 		/* We saw no endpoint but we may be looping */
 		orig_exit_slot = hpts->p_cur_slot;
 	}
-	if ((wrap_loop_cnt < 2) &&
-	    (hpts->p_lasttick != hpts->p_curtick)) {
+	if ((wrap_loop_cnt < 2) && tcp_hpts_different_slots(cts, cts_last_run)) {
 		counter_u64_add(hpts_loops, 1);
 		loop_cnt++;
 		goto again;
 	}
 no_run:
-	tcp_pace.cts_last_ran[hpts->p_num] = tcp_tv_to_usectick(&tv);
+	pace->cts_last_ran[hpts->p_cpu] = cts;
 	/*
 	 * Set flag to tell that we are done for
 	 * any slot input that happens during
@@ -1454,25 +1471,36 @@ no_run:
 	 */
 	hpts->p_wheel_complete = 1;
 	/*
-	 * Now did we spend too long running input and need to run more ticks?
-	 * Note that if wrap_loop_cnt < 2 then we should have the conditions
-	 * in the KASSERT's true. But if the wheel is behind i.e. wrap_loop_cnt
-	 * is greater than 2, then the condtion most likely are *not* true.
-	 * Also if we are called not from the callout, we don't run the wheel
-	 * multiple times so the slots may not align either.
-	 */
-	KASSERT(((hpts->p_prev_slot == hpts->p_cur_slot) ||
-		 (wrap_loop_cnt >= 2) || !from_callout),
-		("H:%p p_prev_slot:%u not equal to p_cur_slot:%u", hpts,
-		 hpts->p_prev_slot, hpts->p_cur_slot));
-	KASSERT(((hpts->p_lasttick == hpts->p_curtick)
-		 || (wrap_loop_cnt >= 2) || !from_callout),
-		("H:%p p_lasttick:%u not equal to p_curtick:%u", hpts,
-		 hpts->p_lasttick, hpts->p_curtick));
-	if (from_callout && (hpts->p_lasttick != hpts->p_curtick)) {
-		hpts->p_curtick = tcp_gethptstick(&tv);
+	* If enough time has elapsed that we should be processing the next
+	* slot(s), then we should have kept running and not marked the wheel as
+	* complete.
+	*
+	* But there are several other conditions where we would have stopped
+	* processing, so the prev/cur slots and cts variables won't match.
+	* These conditions are:
+	*
+	* - Calls not from callouts don't run multiple times
+	* - The wheel is empty
+	* - We've processed more than max_pacer_loops times
+	* - We've wrapped more than 2 times
+	*
+	* This assert catches when the logic above has violated this design.
+	*
+	*/
+	KASSERT((!from_callout || (hpts->p_on_queue_cnt == 0) ||
+		 (loop_cnt > max_pacer_loops) || (wrap_loop_cnt >= 2) ||
+		 ((hpts->p_prev_slot == hpts->p_cur_slot) &&
+		  !tcp_hpts_different_slots(cts, cts_last_run))),
+		("H:%p Shouldn't be done! prev_slot:%u, cur_slot:%u, "
+		 "cts_last_run:%u, cts:%u, loop_cnt:%d, wrap_loop_cnt:%d",
+		 hpts, hpts->p_prev_slot, hpts->p_cur_slot,
+		 cts_last_run, cts, loop_cnt, wrap_loop_cnt));
+
+	if (from_callout && tcp_hpts_different_slots(cts, cts_last_run)) {
+		microuptime(&tv);
+		cts = tcp_tv_to_usec(&tv);
+		hpts->p_cur_slot = cts_to_wheel(cts);
 		counter_u64_add(hpts_loops, 1);
-		hpts->p_cur_slot = tick_to_wheel(hpts->p_curtick);
 		goto again;
 	}
 
@@ -1486,16 +1514,16 @@ no_run:
 }
 
 void
-tcp_set_hpts(struct tcpcb *tp)
+__tcp_set_hpts(struct tcp_hptsi *pace, struct tcpcb *tp)
 {
 	struct tcp_hpts_entry *hpts;
 	int failed;
 
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
-	hpts = tcp_hpts_lock(tp);
+	hpts = tcp_hpts_lock(pace, tp);
 	if (tp->t_in_hpts == IHPTS_NONE && !(tp->t_flags2 & TF2_HPTS_CPU_SET)) {
-		tp->t_hpts_cpu = hpts_cpuid(tp, &failed);
+		tp->t_hpts_cpu = hpts_cpuid(pace, tp, &failed);
 		if (failed == 0)
 			tp->t_flags2 |= TF2_HPTS_CPU_SET;
 	}
@@ -1503,33 +1531,35 @@ tcp_set_hpts(struct tcpcb *tp)
 }
 
 static struct tcp_hpts_entry *
-tcp_choose_hpts_to_run(void)
+tcp_choose_hpts_to_run(struct tcp_hptsi *pace)
 {
+	struct timeval tv;
 	int i, oldest_idx, start, end;
 	uint32_t cts, time_since_ran, calc;
 
-	cts = tcp_get_usecs(NULL);
+	microuptime(&tv);
+	cts = tcp_tv_to_usec(&tv);
 	time_since_ran = 0;
 	/* Default is all one group */
 	start = 0;
-	end = tcp_pace.rp_num_hptss;
+	end = pace->rp_num_hptss;
 	/*
 	 * If we have more than one L3 group figure out which one
 	 * this CPU is in.
 	 */
-	if (tcp_pace.grp_cnt > 1) {
-		for (i = 0; i < tcp_pace.grp_cnt; i++) {
-			if (CPU_ISSET(curcpu, &tcp_pace.grps[i]->cg_mask)) {
-				start = tcp_pace.grps[i]->cg_first;
-				end = (tcp_pace.grps[i]->cg_last + 1);
+	if (pace->grp_cnt > 1) {
+		for (i = 0; i < pace->grp_cnt; i++) {
+			if (CPU_ISSET(curcpu, &pace->grps[i]->cg_mask)) {
+				start = pace->grps[i]->cg_first;
+				end = (pace->grps[i]->cg_last + 1);
 				break;
 			}
 		}
 	}
 	oldest_idx = -1;
 	for (i = start; i < end; i++) {
-		if (TSTMP_GT(cts, tcp_pace.cts_last_ran[i]))
-			calc = cts - tcp_pace.cts_last_ran[i];
+		if (TSTMP_GT(cts, pace->cts_last_ran[i]))
+			calc = cts - pace->cts_last_ran[i];
 		else
 			calc = 0;
 		if (calc > time_since_ran) {
@@ -1538,9 +1568,9 @@ tcp_choose_hpts_to_run(void)
 		}
 	}
 	if (oldest_idx >= 0)
-		return(tcp_pace.rp_ent[oldest_idx]);
+		return(pace->rp_ent[oldest_idx]);
 	else
-		return(tcp_pace.rp_ent[(curcpu % tcp_pace.rp_num_hptss)]);
+		return(pace->rp_ent[(curcpu % pace->rp_num_hptss)]);
 }
 
 static void
@@ -1548,9 +1578,9 @@ __tcp_run_hpts(void)
 {
 	struct epoch_tracker et;
 	struct tcp_hpts_entry *hpts;
-	int ticks_ran;
+	int slots_ran;
 
-	hpts = tcp_choose_hpts_to_run();
+	hpts = tcp_choose_hpts_to_run(tcp_hptsi_pace);
 
 	if (hpts->p_hpts_active) {
 		/* Already active */
@@ -1566,12 +1596,11 @@ __tcp_run_hpts(void)
 	hpts->syscall_cnt++;
 	counter_u64_add(hpts_direct_call, 1);
 	hpts->p_hpts_active = 1;
-	ticks_ran = tcp_hptsi(hpts, false);
+	slots_ran = tcp_hptsi(hpts, false);
 	/* We may want to adjust the sleep values here */
 	if (hpts->p_on_queue_cnt >= conn_cnt_thresh) {
-		if (ticks_ran > ticks_indicate_less_sleep) {
+		if (slots_ran > slots_indicate_less_sleep) {
 			struct timeval tv;
-			sbintime_t sb;
 
 			hpts->p_mysleep.tv_usec /= 2;
 			if (hpts->p_mysleep.tv_usec < dynamic_min_sleep)
@@ -1579,7 +1608,7 @@ __tcp_run_hpts(void)
 			/* Reschedule with new to value */
 			tcp_hpts_set_max_sleep(hpts, 0);
 			tv.tv_sec = 0;
-			tv.tv_usec = hpts->p_hpts_sleep_time * HPTS_TICKS_PER_SLOT;
+			tv.tv_usec = hpts->p_hpts_sleep_time * HPTS_USECS_PER_SLOT;
 			/* Validate its in the right ranges */
 			if (tv.tv_usec < hpts->p_mysleep.tv_usec) {
 				hpts->overidden_sleep = tv.tv_usec;
@@ -1595,13 +1624,8 @@ __tcp_run_hpts(void)
 			 * the dynamic value and set the on_min_sleep
 			 * flag so we will not be awoken.
 			 */
-			sb = tvtosbt(tv);
-			/* Store off to make visible the actual sleep time */
-			hpts->sleeping = tv.tv_usec;
-			callout_reset_sbt_on(&hpts->co, sb, 0,
-					     hpts_timeout_swi, hpts, hpts->p_cpu,
-					     (C_DIRECT_EXEC | C_PREL(tcp_hpts_precision)));
-		} else if (ticks_ran < ticks_indicate_more_sleep) {
+			(void)tcp_hpts_sleep(hpts, &tv);
+		} else if (slots_ran < slots_indicate_more_sleep) {
 			/* For the further sleep, don't reschedule  hpts */
 			hpts->p_mysleep.tv_usec *= 2;
 			if (hpts->p_mysleep.tv_usec > dynamic_max_sleep)
@@ -1618,17 +1642,22 @@ out_with_mtx:
 static void
 tcp_hpts_thread(void *ctx)
 {
+#ifdef TCP_HPTS_KTEST
+	struct tcp_hptsi *pace;
+#endif
 	struct tcp_hpts_entry *hpts;
 	struct epoch_tracker et;
 	struct timeval tv;
-	sbintime_t sb;
-	int ticks_ran;
+	int slots_ran;
 
 	hpts = (struct tcp_hpts_entry *)ctx;
+#ifdef TCP_HPTS_KTEST
+	pace = hpts->p_hptsi;
+#endif
 	HPTS_LOCK(hpts);
 	if (hpts->p_direct_wake) {
 		/* Signaled by input or output with low occupancy count. */
-		callout_stop(&hpts->co);
+		_callout_stop_safe(&hpts->co, 0);
 		counter_u64_add(hpts_direct_awakening, 1);
 	} else {
 		/* Timed out, the normal case. */
@@ -1681,9 +1710,9 @@ tcp_hpts_thread(void *ctx)
 	}
 	hpts->sleeping = 0;
 	hpts->p_hpts_active = 1;
-	ticks_ran = tcp_hptsi(hpts, true);
+	slots_ran = tcp_hptsi(hpts, true);
 	tv.tv_sec = 0;
-	tv.tv_usec = hpts->p_hpts_sleep_time * HPTS_TICKS_PER_SLOT;
+	tv.tv_usec = hpts->p_hpts_sleep_time * HPTS_USECS_PER_SLOT;
 	if ((hpts->p_on_queue_cnt > conn_cnt_thresh) && (hpts->hit_callout_thresh == 0)) {
 		hpts->hit_callout_thresh = 1;
 		atomic_add_int(&hpts_that_need_softclock, 1);
@@ -1697,11 +1726,11 @@ tcp_hpts_thread(void *ctx)
 			 * Only adjust sleep time if we were
 			 * called from the callout i.e. direct_wake == 0.
 			 */
-			if (ticks_ran < ticks_indicate_more_sleep) {
+			if (slots_ran < slots_indicate_more_sleep) {
 				hpts->p_mysleep.tv_usec *= 2;
 				if (hpts->p_mysleep.tv_usec > dynamic_max_sleep)
 					hpts->p_mysleep.tv_usec = dynamic_max_sleep;
-			} else if (ticks_ran > ticks_indicate_less_sleep) {
+			} else if (slots_ran > slots_indicate_less_sleep) {
 				hpts->p_mysleep.tv_usec /= 2;
 				if (hpts->p_mysleep.tv_usec < dynamic_min_sleep)
 					hpts->p_mysleep.tv_usec = dynamic_min_sleep;
@@ -1757,17 +1786,10 @@ tcp_hpts_thread(void *ctx)
 	hpts->p_hpts_active = 0;
 back_to_sleep:
 	hpts->p_direct_wake = 0;
-	sb = tvtosbt(tv);
-	/* Store off to make visible the actual sleep time */
-	hpts->sleeping = tv.tv_usec;
-	callout_reset_sbt_on(&hpts->co, sb, 0,
-			     hpts_timeout_swi, hpts, hpts->p_cpu,
-			     (C_DIRECT_EXEC | C_PREL(tcp_hpts_precision)));
+	(void)tcp_hpts_sleep(hpts, &tv);
 	NET_EPOCH_EXIT(et);
 	HPTS_UNLOCK(hpts);
 }
-
-#undef	timersub
 
 static int32_t
 hpts_count_level(struct cpu_group *cg)
@@ -1805,27 +1827,301 @@ hpts_gather_grps(struct cpu_group **grps, int32_t *at, int32_t max, struct cpu_g
 	}
 }
 
-static void
-tcp_hpts_mod_load(void)
+/*
+ * Initialize a tcp_hptsi structure. This performs the core initialization
+ * without starting threads.
+ */
+struct tcp_hptsi*
+tcp_hptsi_create(const struct tcp_hptsi_funcs *funcs, bool enable_sysctl)
 {
+	struct tcp_hptsi *pace;
 	struct cpu_group *cpu_top;
-	int32_t error __diagused;
-	int32_t i, j, bound = 0, created = 0;
+	uint32_t i, j, cts;
+	int32_t count;
 	size_t sz, asz;
 	struct timeval tv;
-	sbintime_t sb;
 	struct tcp_hpts_entry *hpts;
-	struct pcpu *pc;
 	char unit[16];
 	uint32_t ncpus = mp_ncpus ? mp_ncpus : MAXCPU;
-	int count, domain;
 
+	KASSERT(funcs != NULL, ("funcs is NULL"));
+
+	/* Allocate the main structure */
+	pace = malloc(sizeof(struct tcp_hptsi), M_TCPHPTS, M_WAITOK | M_ZERO);
+	if (pace == NULL)
+		return (NULL);
+
+	memset(pace, 0, sizeof(*pace));
+	pace->funcs = funcs;
+
+	/* Setup CPU topology information */
 #ifdef SMP
 	cpu_top = smp_topo();
 #else
 	cpu_top = NULL;
 #endif
-	tcp_pace.rp_num_hptss = ncpus;
+	pace->rp_num_hptss = ncpus;
+
+	/* Allocate hpts entry array */
+	sz = (pace->rp_num_hptss * sizeof(struct tcp_hpts_entry *));
+	pace->rp_ent = malloc(sz, M_TCPHPTS, M_WAITOK | M_ZERO);
+
+	/* Allocate timestamp tracking array */
+	sz = (sizeof(uint32_t) * pace->rp_num_hptss);
+	pace->cts_last_ran = malloc(sz, M_TCPHPTS, M_WAITOK);
+
+	/* Setup CPU groups */
+	if (cpu_top == NULL) {
+		pace->grp_cnt = 1;
+	} else {
+		/* Find out how many cache level 3 domains we have */
+		count = 0;
+		pace->grp_cnt = hpts_count_level(cpu_top);
+		if (pace->grp_cnt == 0) {
+			pace->grp_cnt = 1;
+		}
+		sz = (pace->grp_cnt * sizeof(struct cpu_group *));
+		pace->grps = malloc(sz, M_TCPHPTS, M_WAITOK);
+		/* Now populate the groups */
+		if (pace->grp_cnt == 1) {
+			/*
+			 * All we need is the top level all cpu's are in
+			 * the same cache so when we use grp[0]->cg_mask
+			 * with the cg_first <-> cg_last it will include
+			 * all cpu's in it. The level here is probably
+			 * zero which is ok.
+			 */
+			pace->grps[0] = cpu_top;
+		} else {
+			/*
+			 * Here we must find all the level three cache domains
+			 * and setup our pointers to them.
+			 */
+			count = 0;
+			hpts_gather_grps(pace->grps, &count, pace->grp_cnt, cpu_top);
+		}
+	}
+
+	/* Cache the current time for initializing the hpts entries */
+	microuptime(&tv);
+	cts = tcp_tv_to_usec(&tv);
+
+	/* Initialize each hpts entry */
+	asz = sizeof(struct hptsh) * NUM_OF_HPTSI_SLOTS;
+	for (i = 0; i < pace->rp_num_hptss; i++) {
+		pace->rp_ent[i] = malloc(sizeof(struct tcp_hpts_entry),
+		    M_TCPHPTS, M_WAITOK | M_ZERO);
+		pace->rp_ent[i]->p_hptss = malloc(asz, M_TCPHPTS,
+		    M_WAITOK | M_ZERO);
+		hpts = pace->rp_ent[i];
+
+		/* Basic initialization */
+		hpts->p_hpts_sleep_time = hpts_sleep_max;
+		hpts->p_cpu = i;
+		pace->cts_last_ran[i] = cts;
+		hpts->p_cur_slot = cts_to_wheel(cts);
+		hpts->p_prev_slot = hpts->p_cur_slot;
+		hpts->p_nxt_slot = hpts_slot(hpts->p_cur_slot, 1);
+		callout_init(&hpts->co, 1);
+		hpts->p_hptsi = pace;
+		mtx_init(&hpts->p_mtx, "tcp_hpts_lck", "hpts",
+		    MTX_DEF | MTX_DUPOK);
+		for (j = 0; j < NUM_OF_HPTSI_SLOTS; j++) {
+			TAILQ_INIT(&hpts->p_hptss[j].head);
+		}
+
+		/* Setup SYSCTL if requested */
+		if (enable_sysctl) {
+			sysctl_ctx_init(&hpts->hpts_ctx);
+			sprintf(unit, "%d", i);
+			hpts->hpts_root = SYSCTL_ADD_NODE(&hpts->hpts_ctx,
+			    SYSCTL_STATIC_CHILDREN(_net_inet_tcp_hpts),
+			    OID_AUTO,
+			    unit,
+			    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+			    "");
+			SYSCTL_ADD_INT(&hpts->hpts_ctx,
+			    SYSCTL_CHILDREN(hpts->hpts_root),
+			    OID_AUTO, "out_qcnt", CTLFLAG_RD,
+			    &hpts->p_on_queue_cnt, 0,
+			    "Count TCB's awaiting output processing");
+			SYSCTL_ADD_U16(&hpts->hpts_ctx,
+			    SYSCTL_CHILDREN(hpts->hpts_root),
+			    OID_AUTO, "active", CTLFLAG_RD,
+			    &hpts->p_hpts_active, 0,
+			    "Is the hpts active");
+			SYSCTL_ADD_UINT(&hpts->hpts_ctx,
+			    SYSCTL_CHILDREN(hpts->hpts_root),
+			    OID_AUTO, "curslot", CTLFLAG_RD,
+			    &hpts->p_cur_slot, 0,
+			    "What the current running pacers goal");
+			SYSCTL_ADD_UINT(&hpts->hpts_ctx,
+			    SYSCTL_CHILDREN(hpts->hpts_root),
+			    OID_AUTO, "runslot", CTLFLAG_RD,
+			    &hpts->p_runningslot, 0,
+			    "What the running pacers current slot is");
+			SYSCTL_ADD_UINT(&hpts->hpts_ctx,
+			    SYSCTL_CHILDREN(hpts->hpts_root),
+			    OID_AUTO, "lastran", CTLFLAG_RD,
+			    &pace->cts_last_ran[i], 0,
+			    "The last usec timestamp that this hpts ran");
+			SYSCTL_ADD_LONG(&hpts->hpts_ctx,
+			    SYSCTL_CHILDREN(hpts->hpts_root),
+			    OID_AUTO, "cur_min_sleep", CTLFLAG_RD,
+			    &hpts->p_mysleep.tv_usec,
+			    "What the running pacers is using for p_mysleep.tv_usec");
+			SYSCTL_ADD_U64(&hpts->hpts_ctx,
+			    SYSCTL_CHILDREN(hpts->hpts_root),
+			    OID_AUTO, "now_sleeping", CTLFLAG_RD,
+			    &hpts->sleeping, 0,
+			    "What the running pacers is actually sleeping for");
+			SYSCTL_ADD_U64(&hpts->hpts_ctx,
+			    SYSCTL_CHILDREN(hpts->hpts_root),
+			    OID_AUTO, "syscall_cnt", CTLFLAG_RD,
+			    &hpts->syscall_cnt, 0,
+			    "How many times we had syscalls on this hpts");
+		}
+	}
+
+	return (pace);
+}
+
+/*
+ * Create threads for a tcp_hptsi structure and starts timers for the current
+ * (minimum) sleep interval.
+ */
+void
+tcp_hptsi_start(struct tcp_hptsi *pace)
+{
+	struct tcp_hpts_entry *hpts;
+	struct pcpu *pc;
+	struct timeval tv;
+	uint32_t i, j;
+	int count, domain;
+	int error __diagused;
+
+	KASSERT(pace != NULL, ("tcp_hptsi_start: pace is NULL"));
+
+	/* Start threads for each hpts entry */
+	for (i = 0; i < pace->rp_num_hptss; i++) {
+		hpts = pace->rp_ent[i];
+
+		KASSERT(hpts->ie_cookie == NULL,
+		    ("tcp_hptsi_start: hpts[%d]->ie_cookie is not NULL", i));
+
+		error = swi_add(&hpts->ie, "hpts",
+		    tcp_hpts_thread, (void *)hpts,
+		    SWI_NET, INTR_MPSAFE, &hpts->ie_cookie);
+		KASSERT(error == 0,
+		    ("Can't add hpts:%p i:%d err:%d", hpts, i, error));
+
+		if (tcp_bind_threads == 1) {
+			(void)intr_event_bind(hpts->ie, i);
+		} else if (tcp_bind_threads == 2) {
+			/* Find the group for this CPU (i) and bind into it */
+			for (j = 0; j < pace->grp_cnt; j++) {
+				if (CPU_ISSET(i, &pace->grps[j]->cg_mask)) {
+					if (intr_event_bind_ithread_cpuset(hpts->ie,
+					    &pace->grps[j]->cg_mask) == 0) {
+						pc = pcpu_find(i);
+						domain = pc->pc_domain;
+						count = pace->domains[domain].count;
+						pace->domains[domain].cpu[count] = i;
+						pace->domains[domain].count++;
+						break;
+					}
+				}
+			}
+		}
+
+		hpts->p_mysleep.tv_sec = 0;
+		hpts->p_mysleep.tv_usec = tcp_min_hptsi_time;
+		tv.tv_sec = 0;
+		tv.tv_usec = hpts->p_hpts_sleep_time * HPTS_USECS_PER_SLOT;
+		(void)tcp_hpts_sleep(hpts, &tv);
+	}
+}
+
+/*
+ * Stop all callouts/threads for a tcp_hptsi structure.
+ */
+void
+tcp_hptsi_stop(struct tcp_hptsi *pace)
+{
+	struct tcp_hpts_entry *hpts;
+	int rv __diagused;
+	uint32_t i;
+
+	KASSERT(pace != NULL, ("tcp_hptsi_stop: pace is NULL"));
+
+	for (i = 0; i < pace->rp_num_hptss; i++) {
+		hpts = pace->rp_ent[i];
+		KASSERT(hpts != NULL, ("tcp_hptsi_stop: hpts[%d] is NULL", i));
+		KASSERT(hpts->ie_cookie != NULL,
+		    ("tcp_hptsi_stop: hpts[%d]->ie_cookie is NULL", i));
+
+		rv = _callout_stop_safe(&hpts->co, CS_DRAIN);
+		MPASS(rv != 0);
+
+		rv = swi_remove(hpts->ie_cookie);
+		MPASS(rv == 0);
+		hpts->ie_cookie = NULL;
+	}
+}
+
+/*
+ * Destroy a tcp_hptsi structure initialized by tcp_hptsi_create.
+ */
+void
+tcp_hptsi_destroy(struct tcp_hptsi *pace)
+{
+	struct tcp_hpts_entry *hpts;
+	uint32_t i;
+
+	KASSERT(pace != NULL, ("tcp_hptsi_destroy: pace is NULL"));
+	KASSERT(pace->rp_ent != NULL, ("tcp_hptsi_destroy: pace->rp_ent is NULL"));
+
+	/* Cleanup each hpts entry */
+	for (i = 0; i < pace->rp_num_hptss; i++) {
+		hpts = pace->rp_ent[i];
+		if (hpts != NULL) {
+			/* Cleanup SYSCTL if it was initialized */
+			if (hpts->hpts_root != NULL) {
+				sysctl_ctx_free(&hpts->hpts_ctx);
+			}
+
+			mtx_destroy(&hpts->p_mtx);
+			free(hpts->p_hptss, M_TCPHPTS);
+			free(hpts, M_TCPHPTS);
+		}
+	}
+
+	/* Cleanup main arrays */
+	free(pace->rp_ent, M_TCPHPTS);
+	free(pace->cts_last_ran, M_TCPHPTS);
+#ifdef SMP
+	free(pace->grps, M_TCPHPTS);
+#endif
+
+	/* Free the main structure */
+	free(pace, M_TCPHPTS);
+}
+
+static int
+tcp_hpts_mod_load(void)
+{
+	int i;
+
+	/* Don't try to bind to NUMA domains if we don't have any */
+	if (vm_ndomains == 1 && tcp_bind_threads == 2)
+		tcp_bind_threads = 0;
+
+	/* Create the tcp_hptsi structure */
+	tcp_hptsi_pace = tcp_hptsi_create(&tcp_hptsi_default_funcs, true);
+	if (tcp_hptsi_pace == NULL)
+		return (ENOMEM);
+
+	/* Initialize global counters */
 	hpts_hopelessly_behind = counter_u64_alloc(M_WAITOK);
 	hpts_loops = counter_u64_alloc(M_WAITOK);
 	back_tosleep = counter_u64_alloc(M_WAITOK);
@@ -1838,218 +2134,47 @@ tcp_hpts_mod_load(void)
 	cpu_uses_flowid = counter_u64_alloc(M_WAITOK);
 	cpu_uses_random = counter_u64_alloc(M_WAITOK);
 
-	sz = (tcp_pace.rp_num_hptss * sizeof(struct tcp_hpts_entry *));
-	tcp_pace.rp_ent = malloc(sz, M_TCPHPTS, M_WAITOK | M_ZERO);
-	sz = (sizeof(uint32_t) * tcp_pace.rp_num_hptss);
-	tcp_pace.cts_last_ran = malloc(sz, M_TCPHPTS, M_WAITOK);
-	tcp_pace.grp_cnt = 0;
-	if (cpu_top == NULL) {
-		tcp_pace.grp_cnt = 1;
-	} else {
-		/* Find out how many cache level 3 domains we have */
-		count = 0;
-		tcp_pace.grp_cnt = hpts_count_level(cpu_top);
-		if (tcp_pace.grp_cnt == 0) {
-			tcp_pace.grp_cnt = 1;
-		}
-		sz = (tcp_pace.grp_cnt * sizeof(struct cpu_group *));
-		tcp_pace.grps = malloc(sz, M_TCPHPTS, M_WAITOK);
-		/* Now populate the groups */
-		if (tcp_pace.grp_cnt == 1) {
-			/*
-			 * All we need is the top level all cpu's are in
-			 * the same cache so when we use grp[0]->cg_mask
-			 * with the cg_first <-> cg_last it will include
-			 * all cpu's in it. The level here is probably
-			 * zero which is ok.
-			 */
-			tcp_pace.grps[0] = cpu_top;
-		} else {
-			/*
-			 * Here we must find all the level three cache domains
-			 * and setup our pointers to them.
-			 */
-			count = 0;
-			hpts_gather_grps(tcp_pace.grps, &count, tcp_pace.grp_cnt, cpu_top);
-		}
-	}
-	asz = sizeof(struct hptsh) * NUM_OF_HPTSI_SLOTS;
-	for (i = 0; i < tcp_pace.rp_num_hptss; i++) {
-		tcp_pace.rp_ent[i] = malloc(sizeof(struct tcp_hpts_entry),
-		    M_TCPHPTS, M_WAITOK | M_ZERO);
-		tcp_pace.rp_ent[i]->p_hptss = malloc(asz, M_TCPHPTS, M_WAITOK);
-		hpts = tcp_pace.rp_ent[i];
-		/*
-		 * Init all the hpts structures that are not specifically
-		 * zero'd by the allocations. Also lets attach them to the
-		 * appropriate sysctl block as well.
-		 */
-		mtx_init(&hpts->p_mtx, "tcp_hpts_lck",
-		    "hpts", MTX_DEF | MTX_DUPOK);
-		for (j = 0; j < NUM_OF_HPTSI_SLOTS; j++) {
-			TAILQ_INIT(&hpts->p_hptss[j].head);
-			hpts->p_hptss[j].count = 0;
-			hpts->p_hptss[j].gencnt = 0;
-		}
-		sysctl_ctx_init(&hpts->hpts_ctx);
-		sprintf(unit, "%d", i);
-		hpts->hpts_root = SYSCTL_ADD_NODE(&hpts->hpts_ctx,
-		    SYSCTL_STATIC_CHILDREN(_net_inet_tcp_hpts),
-		    OID_AUTO,
-		    unit,
-		    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-		    "");
-		SYSCTL_ADD_INT(&hpts->hpts_ctx,
-		    SYSCTL_CHILDREN(hpts->hpts_root),
-		    OID_AUTO, "out_qcnt", CTLFLAG_RD,
-		    &hpts->p_on_queue_cnt, 0,
-		    "Count TCB's awaiting output processing");
-		SYSCTL_ADD_U16(&hpts->hpts_ctx,
-		    SYSCTL_CHILDREN(hpts->hpts_root),
-		    OID_AUTO, "active", CTLFLAG_RD,
-		    &hpts->p_hpts_active, 0,
-		    "Is the hpts active");
-		SYSCTL_ADD_UINT(&hpts->hpts_ctx,
-		    SYSCTL_CHILDREN(hpts->hpts_root),
-		    OID_AUTO, "curslot", CTLFLAG_RD,
-		    &hpts->p_cur_slot, 0,
-		    "What the current running pacers goal");
-		SYSCTL_ADD_UINT(&hpts->hpts_ctx,
-		    SYSCTL_CHILDREN(hpts->hpts_root),
-		    OID_AUTO, "runtick", CTLFLAG_RD,
-		    &hpts->p_runningslot, 0,
-		    "What the running pacers current slot is");
-		SYSCTL_ADD_UINT(&hpts->hpts_ctx,
-		    SYSCTL_CHILDREN(hpts->hpts_root),
-		    OID_AUTO, "curtick", CTLFLAG_RD,
-		    &hpts->p_curtick, 0,
-		    "What the running pacers last tick mapped to the wheel was");
-		SYSCTL_ADD_UINT(&hpts->hpts_ctx,
-		    SYSCTL_CHILDREN(hpts->hpts_root),
-		    OID_AUTO, "lastran", CTLFLAG_RD,
-		    &tcp_pace.cts_last_ran[i], 0,
-		    "The last usec tick that this hpts ran");
-		SYSCTL_ADD_LONG(&hpts->hpts_ctx,
-		    SYSCTL_CHILDREN(hpts->hpts_root),
-		    OID_AUTO, "cur_min_sleep", CTLFLAG_RD,
-		    &hpts->p_mysleep.tv_usec,
-		    "What the running pacers is using for p_mysleep.tv_usec");
-		SYSCTL_ADD_U64(&hpts->hpts_ctx,
-		    SYSCTL_CHILDREN(hpts->hpts_root),
-		    OID_AUTO, "now_sleeping", CTLFLAG_RD,
-		    &hpts->sleeping, 0,
-		    "What the running pacers is actually sleeping for");
-		SYSCTL_ADD_U64(&hpts->hpts_ctx,
-		    SYSCTL_CHILDREN(hpts->hpts_root),
-		    OID_AUTO, "syscall_cnt", CTLFLAG_RD,
-		    &hpts->syscall_cnt, 0,
-		    "How many times we had syscalls on this hpts");
+	/* Start the threads */
+	tcp_hptsi_start(tcp_hptsi_pace);
 
-		hpts->p_hpts_sleep_time = hpts_sleep_max;
-		hpts->p_num = i;
-		hpts->p_curtick = tcp_gethptstick(&tv);
-		tcp_pace.cts_last_ran[i] = tcp_tv_to_usectick(&tv);
-		hpts->p_prev_slot = hpts->p_cur_slot = tick_to_wheel(hpts->p_curtick);
-		hpts->p_cpu = 0xffff;
-		hpts->p_nxt_slot = hpts_slot(hpts->p_cur_slot, 1);
-		callout_init(&hpts->co, 1);
-	}
-	/* Don't try to bind to NUMA domains if we don't have any */
-	if (vm_ndomains == 1 && tcp_bind_threads == 2)
-		tcp_bind_threads = 0;
+	/* Enable the global HPTS softclock function */
+	tcp_hpts_softclock = __tcp_run_hpts;
+
+	/* Initialize LRO HPTS */
+	tcp_lro_hpts_init();
 
 	/*
-	 * Now lets start ithreads to handle the hptss.
-	 */
-	for (i = 0; i < tcp_pace.rp_num_hptss; i++) {
-		hpts = tcp_pace.rp_ent[i];
-		hpts->p_cpu = i;
-
-		error = swi_add(&hpts->ie, "hpts",
-		    tcp_hpts_thread, (void *)hpts,
-		    SWI_NET, INTR_MPSAFE, &hpts->ie_cookie);
-		KASSERT(error == 0,
-			("Can't add hpts:%p i:%d err:%d",
-			 hpts, i, error));
-		created++;
-		hpts->p_mysleep.tv_sec = 0;
-		hpts->p_mysleep.tv_usec = tcp_min_hptsi_time;
-		if (tcp_bind_threads == 1) {
-			if (intr_event_bind(hpts->ie, i) == 0)
-				bound++;
-		} else if (tcp_bind_threads == 2) {
-			/* Find the group for this CPU (i) and bind into it */
-			for (j = 0; j < tcp_pace.grp_cnt; j++) {
-				if (CPU_ISSET(i, &tcp_pace.grps[j]->cg_mask)) {
-					if (intr_event_bind_ithread_cpuset(hpts->ie,
-						&tcp_pace.grps[j]->cg_mask) == 0) {
-						bound++;
-						pc = pcpu_find(i);
-						domain = pc->pc_domain;
-						count = hpts_domains[domain].count;
-						hpts_domains[domain].cpu[count] = i;
-						hpts_domains[domain].count++;
-						break;
-					}
-				}
-			}
-		}
-		tv.tv_sec = 0;
-		tv.tv_usec = hpts->p_hpts_sleep_time * HPTS_TICKS_PER_SLOT;
-		hpts->sleeping = tv.tv_usec;
-		sb = tvtosbt(tv);
-		callout_reset_sbt_on(&hpts->co, sb, 0,
-				     hpts_timeout_swi, hpts, hpts->p_cpu,
-				     (C_DIRECT_EXEC | C_PREL(tcp_hpts_precision)));
-	}
-	/*
-	 * If we somehow have an empty domain, fall back to choosing
-	 * among all htps threads.
+	 * If we somehow have an empty domain, fall back to choosing among all
+	 * HPTS threads.
 	 */
 	for (i = 0; i < vm_ndomains; i++) {
-		if (hpts_domains[i].count == 0) {
+		if (tcp_hptsi_pace->domains[i].count == 0) {
 			tcp_bind_threads = 0;
 			break;
 		}
 	}
-	tcp_hpts_softclock = __tcp_run_hpts;
-	tcp_lro_hpts_init();
-	printf("TCP Hpts created %d swi interrupt threads and bound %d to %s\n",
-	    created, bound,
-	    tcp_bind_threads == 2 ? "NUMA domains" : "cpus");
+
+	printf("TCP HPTS started %u (%s) swi interrupt threads\n",
+		tcp_hptsi_pace->rp_num_hptss, (tcp_bind_threads == 0) ?
+		 "(unbounded)" :
+		 (tcp_bind_threads == 1 ? "per-cpu" : "per-NUMA-domain"));
+
+	return (0);
 }
 
 static void
 tcp_hpts_mod_unload(void)
 {
-	int rv __diagused;
-
 	tcp_lro_hpts_uninit();
+
+	/* Disable the global HPTS softclock function */
 	atomic_store_ptr(&tcp_hpts_softclock, NULL);
 
-	for (int i = 0; i < tcp_pace.rp_num_hptss; i++) {
-		struct tcp_hpts_entry *hpts = tcp_pace.rp_ent[i];
+	tcp_hptsi_stop(tcp_hptsi_pace);
+	tcp_hptsi_destroy(tcp_hptsi_pace);
+	tcp_hptsi_pace = NULL;
 
-		rv = callout_drain(&hpts->co);
-		MPASS(rv != 0);
-
-		rv = swi_remove(hpts->ie_cookie);
-		MPASS(rv == 0);
-
-		rv = sysctl_ctx_free(&hpts->hpts_ctx);
-		MPASS(rv == 0);
-
-		mtx_destroy(&hpts->p_mtx);
-		free(hpts->p_hptss, M_TCPHPTS);
-		free(hpts, M_TCPHPTS);
-	}
-
-	free(tcp_pace.rp_ent, M_TCPHPTS);
-	free(tcp_pace.cts_last_ran, M_TCPHPTS);
-#ifdef SMP
-	free(tcp_pace.grps, M_TCPHPTS);
-#endif
-
+	/* Cleanup global counters */
 	counter_u64_free(hpts_hopelessly_behind);
 	counter_u64_free(hpts_loops);
 	counter_u64_free(back_tosleep);
@@ -2064,13 +2189,11 @@ tcp_hpts_mod_unload(void)
 }
 
 static int
-tcp_hpts_modevent(module_t mod, int what, void *arg)
+tcp_hpts_mod_event(module_t mod, int what, void *arg)
 {
-
 	switch (what) {
 	case MOD_LOAD:
-		tcp_hpts_mod_load();
-		return (0);
+		return (tcp_hpts_mod_load());
 	case MOD_QUIESCE:
 		/*
 		 * Since we are a dependency of TCP stack modules, they should
@@ -2090,7 +2213,7 @@ tcp_hpts_modevent(module_t mod, int what, void *arg)
 
 static moduledata_t tcp_hpts_module = {
 	.name = "tcphpts",
-	.evhand = tcp_hpts_modevent,
+	.evhand = tcp_hpts_mod_event,
 };
 
 DECLARE_MODULE(tcphpts, tcp_hpts_module, SI_SUB_SOFTINTR, SI_ORDER_ANY);

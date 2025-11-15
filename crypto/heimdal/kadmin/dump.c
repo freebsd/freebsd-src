@@ -42,32 +42,51 @@ dump(struct dump_options *opt, int argc, char **argv)
 {
     krb5_error_code ret;
     FILE *f;
+    struct hdb_print_entry_arg parg;
     HDB *db = NULL;
 
-    if(!local_flag) {
+    if (!local_flag) {
 	krb5_warnx(context, "dump is only available in local (-l) mode");
 	return 0;
     }
 
     db = _kadm5_s_get_db(kadm_handle);
 
-    if(argc == 0)
+    if (argc == 0)
 	f = stdout;
     else
 	f = fopen(argv[0], "w");
 
-    if(f == NULL) {
+    if (f == NULL) {
 	krb5_warn(context, errno, "open: %s", argv[0]);
 	goto out;
     }
     ret = db->hdb_open(context, db, O_RDONLY, 0600);
-    if(ret) {
+    if (ret) {
 	krb5_warn(context, ret, "hdb_open");
 	goto out;
     }
 
+    if (!opt->format_string || strcmp(opt->format_string, "Heimdal") == 0) {
+        parg.fmt = HDB_DUMP_HEIMDAL;
+    } else if (opt->format_string && strcmp(opt->format_string, "MIT") == 0) {
+        parg.fmt = HDB_DUMP_MIT;
+        fprintf(f, "kdb5_util load_dump version 5\n"); /* 5||6, either way */
+    } else if (opt->format_string) {
+	/* Open the format string as a MIT mkey file. */
+	ret = hdb_read_master_key(context, opt->format_string, &db->hdb_mit_key);
+	if (ret)
+	    krb5_errx(context, 1, "Cannot open MIT mkey file");
+	db->hdb_mit_key_set = 1;
+        parg.fmt = HDB_DUMP_MIT;
+	opt->decrypt_flag = 1;
+        fprintf(f, "kdb5_util load_dump version 5\n"); /* 5||6, either way */
+    } else {
+        krb5_errx(context, 1, "Supported dump formats: Heimdal and MIT");
+    }
+    parg.out = f;
     hdb_foreach(context, db, opt->decrypt_flag ? HDB_F_DECRYPT : 0,
-		hdb_print_entry, f);
+		hdb_print_entry, &parg);
 
     db->hdb_close(context, db);
 out:

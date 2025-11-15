@@ -94,4 +94,10 @@ print_hex_dump_bytes(const char *prefix_str, const int prefix_type,
 	0;							\
 })
 
+#define	FW_BUG		"[Firmware Bug]: "
+#define	FW_WARN		"[Firmware Warn]: "
+#define	FW_INFO		"[Firmware Info]: "
+#define	HW_ERR		"[Hardware Error]: "
+#define	DEPRECATED	"[Deprecated]: "
+
 #endif					/* _LINUXKPI_LINUX_PRINTK_H_ */

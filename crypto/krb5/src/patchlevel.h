@@ -50,8 +50,8 @@
  * organization.
  */
 #define KRB5_MAJOR_RELEASE 1
-#define KRB5_MINOR_RELEASE 21
-#define KRB5_PATCHLEVEL 3
+#define KRB5_MINOR_RELEASE 22
+#define KRB5_PATCHLEVEL 1
 /* #undef KRB5_RELTAIL */
-#define KRB5_RELDATE "20240626"
-#define KRB5_RELTAG "krb5-1.21.3-final"
+#define KRB5_RELDATE "20250820"
+#define KRB5_RELTAG "krb5-1.22.1-final"

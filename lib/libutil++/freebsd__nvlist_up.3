@@ -1,0 +1,37 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Chelsio Communications, Inc.
+.\" Written by: John Baldwin <jhb@FreeBSD.org>
+.\"
+.Dd July 31, 2025
+.Dt FREEBSD::NVLIST_UP 3
+.Os
+.Sh NAME
+.Nm freebsd::nvlist_up
+.Nd std::unique_ptr specialization for name/value pairs
+.Sh LIBRARY
+.Lb libutil++
+.Sh SYNOPSIS
+.In libutil++.hh
+.Ft using nvlist_up = std::unique_ptr<nvlist, nvlist_deleter>;
+.Sh DESCRIPTION
+This class is a specialization of
+.Vt std::unique_ptr
+for
+.Vt nvlist_t
+objects.
+When an
+.Vt nvlist_t
+object managed by an instance of this class is disposed,
+.Xr nvlist_destroy 3
+is invoked to dispose of the object.
+.Sh EXAMPLES
+.Bd -literal -offset indent
+freebsd::nvlist_up nvl(nvlist_create(0));
+nvlist_add_number(nvl.get(), "answer", 42);
+nvlist_add_bool(nvl.get(), "valid", true);
+// `nvl' is implicitly destroyed
+.Ed
+.Sh SEE ALSO
+.Xr nvlist_destroy 3

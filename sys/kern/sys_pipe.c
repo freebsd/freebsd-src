@@ -181,20 +181,23 @@ static int	filt_pipedump(struct proc *p, struct knote *kn,
 static const struct filterops pipe_nfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_pipedetach_notsup,
-	.f_event = filt_pipenotsup
+	.f_event = filt_pipenotsup,
 	/* no userdump */
+	.f_copy = knote_triv_copy,
 };
 static const struct filterops pipe_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_pipedetach,
 	.f_event = filt_piperead,
 	.f_userdump = filt_pipedump,
+	.f_copy = knote_triv_copy,
 };
 static const struct filterops pipe_wfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_pipedetach,
 	.f_event = filt_pipewrite,
 	.f_userdump = filt_pipedump,
+	.f_copy = knote_triv_copy,
 };
 
 /*
@@ -234,6 +237,7 @@ static void pipeinit(void *dummy __unused);
 static void pipeclose(struct pipe *cpipe);
 static void pipe_free_kmem(struct pipe *cpipe);
 static int pipe_create(struct pipe *pipe, bool backing);
+static void pipe_destroy(struct pipe *pipe);
 static int pipe_paircreate(struct thread *td, struct pipepair **p_pp);
 static __inline int pipelock(struct pipe *cpipe, bool catch);
 static __inline void pipeunlock(struct pipe *cpipe);
@@ -399,16 +403,7 @@ pipe_paircreate(struct thread *td, struct pipepair **p_pp)
 		goto fail;
 	error = pipe_create(wpipe, false);
 	if (error != 0) {
-		/*
-		 * This cleanup leaves the pipe inode number for rpipe
-		 * still allocated, but never used.  We do not free
-		 * inode numbers for opened pipes, which is required
-		 * for correctness because numbers must be unique.
-		 * But also it avoids any memory use by the unr
-		 * allocator, so stashing away the transient inode
-		 * number is reasonable.
-		 */
-		pipe_free_kmem(rpipe);
+		pipe_destroy(rpipe);
 		goto fail;
 	}
 
@@ -575,7 +570,7 @@ pipespace_new(struct pipe *cpipe, int size)
 	static int curfail = 0;
 	static struct timeval lastfail;
 
-	KASSERT(!mtx_owned(PIPE_MTX(cpipe)), ("pipespace: pipe mutex locked"));
+	PIPE_LOCK_ASSERT(cpipe, MA_NOTOWNED);
 	KASSERT(!(cpipe->pipe_state & PIPE_DIRECTW),
 		("pipespace: resize of direct writes not allowed"));
 retry:
@@ -741,6 +736,16 @@ pipe_create(struct pipe *pipe, bool large_backing)
 	if (error == 0)
 		pipe->pipe_ino = alloc_unr64(&pipeino_unr);
 	return (error);
+}
+
+static void
+pipe_destroy(struct pipe *pipe)
+{
+	pipe_free_kmem(pipe);
+	/*
+	 * Note: we "leak" pipe_ino -- by design the alloc_unr64 mechanism does
+	 * not undo allocations.
+	 */
 }
 
 /* ARGSUSED */
@@ -1677,8 +1682,7 @@ static void
 pipe_free_kmem(struct pipe *cpipe)
 {
 
-	KASSERT(!mtx_owned(PIPE_MTX(cpipe)),
-	    ("pipe_free_kmem: pipe mutex locked"));
+	PIPE_LOCK_ASSERT(cpipe, MA_NOTOWNED);
 
 	if (cpipe->pipe_buffer.buffer != NULL) {
 		atomic_subtract_long(&amountpipekva, cpipe->pipe_buffer.size);

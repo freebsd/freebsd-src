@@ -68,9 +68,9 @@
  */
 #define	MTX_UNOWNED	0x00000000	/* Cookie for free mutex */
 #define	MTX_RECURSED	0x00000001	/* lock recursed (for MTX_DEF only) */
-#define	MTX_CONTESTED	0x00000002	/* lock contested (for MTX_DEF only) */
+#define	MTX_WAITERS	0x00000002	/* lock has waiters (for MTX_DEF only) */
 #define	MTX_DESTROYED	0x00000004	/* lock destroyed */
-#define	MTX_FLAGMASK	(MTX_RECURSED | MTX_CONTESTED | MTX_DESTROYED)
+#define	MTX_FLAGMASK	(MTX_RECURSED | MTX_WAITERS | MTX_DESTROYED)
 
 /*
  * Prototypes
@@ -91,7 +91,7 @@
 void	_mtx_init(volatile uintptr_t *c, const char *name, const char *type,
 	    int opts);
 void	_mtx_destroy(volatile uintptr_t *c);
-void	mtx_sysinit(void *arg);
+void	mtx_sysinit(const void *arg);
 int	_mtx_trylock_flags_int(struct mtx *m, int opts LOCK_FILE_LINE_ARG_DEF);
 int	_mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file,
 	    int line);
@@ -217,13 +217,9 @@ void	_thread_lock(struct thread *);
 #define _mtx_obtain_lock_fetch(mp, vp, tid)				\
 	atomic_fcmpset_acq_ptr(&(mp)->mtx_lock, vp, (tid))
 
-/* Try to release mtx_lock if it is unrecursed and uncontested. */
+/* Try to release mtx_lock if it is unrecursed and without waiters. */
 #define _mtx_release_lock(mp, tid)					\
 	atomic_cmpset_rel_ptr(&(mp)->mtx_lock, (tid), MTX_UNOWNED)
-
-/* Release mtx_lock quickly, assuming we own it. */
-#define _mtx_release_lock_quick(mp)					\
-	atomic_store_rel_ptr(&(mp)->mtx_lock, MTX_UNOWNED)
 
 #define	_mtx_release_lock_fetch(mp, vp)					\
 	atomic_fcmpset_rel_ptr(&(mp)->mtx_lock, (vp), MTX_UNOWNED)
@@ -246,10 +242,10 @@ void	_thread_lock(struct thread *);
 })
 
 /*
- * Lock a spin mutex.  For spinlocks, we handle recursion inline (it
- * turns out that function calls can be significantly expensive on
- * some architectures).  Since spin locks are not _too_ common,
- * inlining this code is not too big a deal.
+ * Lock a spin mutex.
+ *
+ * FIXME: spinlock_enter is a function call, defeating the point of inlining in
+ * this.
  */
 #ifdef SMP
 #define __mtx_lock_spin(mp, tid, opts, file, line) __extension__ ({	\
@@ -317,10 +313,10 @@ void	_thread_lock(struct thread *);
 })
 
 /*
- * Unlock a spin mutex.  For spinlocks, we can handle everything
- * inline, as it's pretty simple and a function call would be too
- * expensive (at least on some architectures).  Since spin locks are
- * not _too_ common, inlining this code is not too big a deal.
+ * Unlock a spin mutex.
+ *
+ * FIXME: spinlock_exit is a function call, defeating the point of inlining in
+ * this.
  *
  * Since we always perform a spinlock_enter() when attempting to acquire a
  * spin lock, we need to always perform a matching spinlock_exit() when
@@ -332,7 +328,7 @@ void	_thread_lock(struct thread *);
 		(mp)->mtx_recurse--;					\
 	else {								\
 		LOCKSTAT_PROFILE_RELEASE_SPIN_LOCK(spin__release, mp);	\
-		_mtx_release_lock_quick((mp));				\
+		atomic_store_rel_ptr(&(mp)->mtx_lock, MTX_UNOWNED);	\
 	}								\
 	spinlock_exit();						\
 })

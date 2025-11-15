@@ -1144,16 +1144,23 @@ Inode of the file.
 .It n
 Number of hard links.
 .It y
-Unimplemented -- Type of the file
+A single character representing the type of the file.
 .It Y
-Unimplemented -- Type of the file with loop detection
+A single character representing the type of the file.
+If the file is a symbolic link, show information for the target of the
+link instead, or
+.Sq L
+if the link loops,
+.Sq N
+if the target does not exist, or
+.Sq ?
+if any other error occurs while attempting to determine the type of
+the target.
 .It a
 Access time of the file.
 .It A
 Access time of the file in strftime format.
 Takes an additional argument.
-.It b
-Birth time of a file.
 .It B
 Birth time of the file in strftime format.
 Takes an additional argument.

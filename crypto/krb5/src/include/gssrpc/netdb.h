@@ -53,6 +53,8 @@ struct rpcent {
 };
 #endif /*STRUCT_RPCENT_IN_RPC_NETDB_H*/
 
-struct rpcent *getrpcbyname(), *getrpcbynumber(), *getrpcent();
+struct rpcent *getrpcbyname(const char *name);
+struct rpcent *getrpcbynumber(int number);
+struct rpcent *getrpcent(void);
 
 #endif

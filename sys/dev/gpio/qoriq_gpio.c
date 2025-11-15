@@ -379,12 +379,13 @@ qoriq_gpio_attach(device_t dev)
 
 	OF_device_register_xref(OF_xref_from_node(ofw_bus_get_node(dev)), dev);
 
-	sc->busdev = gpiobus_attach_bus(dev);
+	sc->busdev = gpiobus_add_bus(dev);
 	if (sc->busdev == NULL) {
 		qoriq_gpio_detach(dev);
 		return (ENOMEM);
 	}
 
+	bus_attach_children(dev);
 	return (0);
 }
 

@@ -92,9 +92,6 @@ extern void plain_dump_principal
 extern krb5_error_code krb5_parse_lifetime
 (char *, long *);
 
-extern krb5_error_code get_best_principal
-(krb5_context, char **, krb5_principal *);
-
 /* ccache.c */
 extern krb5_error_code krb5_ccache_copy
 (krb5_context, krb5_ccache, krb5_principal, krb5_ccache,
@@ -116,9 +113,6 @@ extern krb5_error_code krb5_check_exp
 (krb5_context, krb5_ticket_times);
 
 extern char *flags_string (krb5_creds *);
-
-extern krb5_error_code krb5_get_login_princ
-(const char *, char ***);
 
 extern void show_credential
 (krb5_context, krb5_creds *, krb5_ccache);

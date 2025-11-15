@@ -45,9 +45,9 @@ struct acpi_bus_event {
 	lkpi_acpi_dev_get_first_match_dev(__VA_ARGS__)
 
 ACPI_HANDLE	bsd_acpi_get_handle(device_t bsddev);
-bool		acpi_check_dsm(ACPI_HANDLE handle, const char *uuid, int rev,
+bool		acpi_check_dsm(ACPI_HANDLE handle, const guid_t *uuid, int rev,
 		    uint64_t funcs);
-ACPI_OBJECT *	acpi_evaluate_dsm_typed(ACPI_HANDLE handle, const char *uuid,
+ACPI_OBJECT *	acpi_evaluate_dsm_typed(ACPI_HANDLE handle, const guid_t *uuid,
 		    int rev, int func, ACPI_OBJECT *argv4,
 		    ACPI_OBJECT_TYPE type);
 int		register_acpi_notifier(struct notifier_block *nb);

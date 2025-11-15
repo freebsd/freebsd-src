@@ -155,23 +155,25 @@ static int wr_entity_to_flash(void *handle, struct cudbg_buffer *dbg_buff,
 	u32 flash_data_offset;
 	u32 data_hdr_size;
 	int rc = -1;
+	unsigned int cudbg_len;
 
 	data_hdr_size = CUDBG_MAX_ENTITY * sizeof(struct cudbg_entity_hdr) +
 			sizeof(struct cudbg_hdr);
+	t4_flash_loc_start(cudbg_init->adap, FLASH_LOC_CUDBG, &cudbg_len);
 
-	flash_data_offset = (FLASH_CUDBG_NSECS *
+	flash_data_offset = ((cudbg_len / SF_SEC_SIZE) *
 			     (sizeof(struct cudbg_flash_hdr) +
 			      data_hdr_size)) +
 			    (cur_entity_data_offset - data_hdr_size);
 
-	if (flash_data_offset > CUDBG_FLASH_SIZE) {
+	if (flash_data_offset > cudbg_len) {
 		update_skip_size(sec_info, cur_entity_size);
 		if (cudbg_init->verbose)
 			cudbg_init->print("Large entity skipping...\n");
 		return rc;
 	}
 
-	remain_flash_size = CUDBG_FLASH_SIZE - flash_data_offset;
+	remain_flash_size = cudbg_len - flash_data_offset;
 
 	if (cur_entity_size > remain_flash_size) {
 		update_skip_size(sec_info, cur_entity_size);
@@ -1292,6 +1294,7 @@ static int collect_macstats(struct cudbg_init *pdbg_init,
 
 	mac_stats_buff->port_count = n;
 	for (i = 0; i <  mac_stats_buff->port_count; i++)
+		/* Incorrect, should use hport instead of i */
 		t4_get_port_stats(padap, i, &mac_stats_buff->stats[i]);
 
 	rc = write_compression_hdr(&scratch_buff, dbg_buff);
@@ -1967,7 +1970,7 @@ static int collect_fw_devlog(struct cudbg_init *pdbg_init,
 	u32 offset;
 	int rc = 0, i;
 
-	rc = t4_init_devlog_params(padap, 1);
+	rc = t4_init_devlog_ncores_params(padap, 1);
 
 	if (rc < 0) {
 		pdbg_init->print("%s(), t4_init_devlog_params failed!, rc: "\

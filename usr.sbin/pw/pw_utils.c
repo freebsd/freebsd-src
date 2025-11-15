@@ -92,3 +92,49 @@ nis_update(void) {
 		errx(i, "make exited with status %d", i);
 	return (i);
 }
+
+static void
+metalog_emit_record(const char *path, const char *target, mode_t mode,
+    uid_t uid, gid_t gid, int flags)
+{
+	const char *flagstr, *type;
+	int error;
+
+	if (conf.metalog == NULL)
+		return;
+
+	if (target != NULL)
+		type = "link";
+	else if (S_ISDIR(mode))
+		type = "dir";
+	else if (S_ISREG(mode))
+		type = "file";
+	else
+		errx(1, "metalog_emit: unhandled file type for %s", path);
+
+	flagstr = fflagstostr(flags &
+	    (UF_IMMUTABLE | UF_APPEND | SF_IMMUTABLE | SF_APPEND));
+	if (flagstr == NULL)
+		errx(1, "metalog_emit: fflagstostr failed");
+
+	error = fprintf(conf.metalog,
+	    "./%s type=%s mode=0%03o uid=%u gid=%u%s%s%s%s\n",
+	    path, type, mode & ACCESSPERMS, uid, gid,
+	    target != NULL ? " link=" : "", target != NULL ? target : "",
+	    *flagstr != '\0' ? " flags=" : "", *flagstr != '\0' ? flagstr : "");
+	if (error < 0)
+		errx(1, "metalog_emit: write error");
+}
+
+void
+metalog_emit(const char *path, mode_t mode, uid_t uid, gid_t gid, int flags)
+{
+	metalog_emit_record(path, NULL, mode, uid, gid, flags);
+}
+
+void
+metalog_emit_symlink(const char *path, const char *target, mode_t mode,
+    uid_t uid, gid_t gid)
+{
+	metalog_emit_record(path, target, mode, uid, gid, 0);
+}

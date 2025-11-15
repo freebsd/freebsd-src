@@ -33,7 +33,6 @@
 #include <signal.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_sigprocmask, __sigprocmask);
 __weak_reference(sigprocmask, __libc_sigprocmask);
 
 #pragma weak sigprocmask

@@ -1,6 +1,6 @@
-.\"	$Id: catman.8,v 1.8 2017/03/18 19:56:01 schwarze Exp $
+.\" $Id: catman.8,v 1.15 2025/07/13 14:15:26 schwarze Exp $
 .\"
-.\" Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2017, 2025 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: March 18 2017 $
+.Dd $Mdocdate: July 13 2025 $
 .Dt CATMAN 8
 .Os
 .Sh NAME
@@ -37,9 +37,9 @@ and
 format and formats all of them, storing the formatted versions in
 the same relative paths below
 .Ar dstdir .
-Subdirectories of
+Unless they already exist,
 .Ar dstdir
-are created as needed.
+itself and any required subdirectories are created.
 Existing files are not explicitly deleted, but possibly overwritten.
 .Pp
 The options are as follows:
@@ -71,6 +71,18 @@ output mode, the
 .Cm fragment
 output option is implied.
 Other output options are not supported.
+.It Fl v
+Verbose mode, printing additional information to standard error output.
+Specifying this once prints a summary about the number of files
+and directories processed at the end of the iteration.
+Specifying it twice additionally prints debugging information
+about the backchannel from
+.Xr mandocd 8
+to
+.Nm
+that is used to limit the number of files in flight at any given time.
+For details, see
+.Sx DIAGNOSTICS .
 .El
 .Sh IMPLEMENTATION NOTES
 Since this version avoids
@@ -87,33 +99,209 @@ implementations.
 .Sh EXIT STATUS
 .Ex -std
 .Pp
-Possible errors include:
-.Bl -bullet
-.It
-missing, invalid, or excessive command line arguments
-.It
-failure to change the current working directory to
-.Ar srcdir
-.It
-failure to open
-.Ar dstdir
-.It
-communication failure with
-.Xr mandocd 8
-.It
-resource exhaustion, for example file descriptor, process table,
-or memory exhaustion
-.El
-.Pp
-Except for memory exhaustion and similar system-level failures,
-failures while trying to open, read, parse, or format individual
-manual pages, to save individual formatted files to the file system,
-or even to create directories do not cause
+Failures while trying to open individual manual pages for reading,
+to save individual formatted files to the file system,
+or even to read or create subdirectories do not cause
 .Nm
 to return an error exit status.
 In such cases,
 .Nm
-will simply continue with the next file or subdirectory.
+simply continues with the next file or subdirectory.
+.Sh DIAGNOSTICS
+Some fatal errors cause
+.Nm
+to exit before the iteration over input files is even started:
+.Bl -tag -width Ds -offset indent
+.It unknown option \-\- Ar option
+An invalid option was passed on the command line.
+.It missing arguments: srcdir and dstdir
+No argument was provided.
+Both
+.Ar srcdir
+and
+.Ar dstdir
+are mandatory.
+.It missing argument: dstdir
+Only one argument was provided.
+The second argument,
+.Ar dstdir ,
+is mandatory, too.
+.It too many arguments: Ar third argument
+Three or more arguments were provided, but only two are supported.
+.It Sy socketpair : Ar reason
+The sockets needed for communication with
+.Xr mandocd 8
+could not be created, for example due to file descriptor or memory exhaustion.
+.It Sy fork : Ar reason
+The new process needed to run
+.Xr mandocd 8
+could not be created, for example due to process table exhaustion
+or system resource limits.
+.It Sy exec Ns Po Sy mandocd Pc : Ar reason
+The
+.Xr mandocd 8
+child program could not be started, for example because it is not in the
+.Ev PATH
+or has no execute permission.
+.It Sy mkdir No destination Ar dstdir : reason
+The
+.Ar dstdir
+does not exist and could not be created, for example because
+the parent directory does not exist or permission is denied.
+.It Sy open No destination Ar dstdir : reason
+The
+.Ar dstdir
+could not be opened for reading, for example because
+it is not a directory or permission is denied.
+.It Sy chdir No to source Ar srcdir : reason
+The current working directory could not be changed to
+.Ar srcdir ,
+for example because it does not exist, it is not a directory,
+or permission is denied.
+.It Sy fts_open : Ar reason
+Starting the iteration was attempted but failed,
+for example due to memory exhaustion.
+.El
+.Pp
+Some fatal errors cause the iteration over input files to be aborted
+prematurely:
+.Bl -tag -width Ds -offset indent
+.It FATAL: Sy fts_read : Ar reason
+A call to
+.Xr fts_read 3
+returned
+.Dv NULL ,
+meaning that the iteration failed before being complete.
+.It FATAL: mandocd child died: got Ar SIGNAME
+This message appears if
+.Nm
+gets the
+.Dv SIGCHLD
+or
+.Dv SIGPIPE
+signal, most likely due to a fatal bug in
+.Xr mandocd 8 .
+.It FATAL: Sy sendmsg : Ar reason
+The file descriptors needed to process one of the manual pages
+could not be sent to
+.Xr mandocd 8 ,
+for example because
+.Xr mandocd 8
+could not be started or died unexpectedly.
+.It FATAL: Sy recv : Ar reason
+Trying to read a reply message from
+.Xr mandocd 8
+failed, most likely because
+.Xr mandocd 8
+unexpectedly died or closed the socket.
+.It FATAL: signal Ar SIGNAME
+This message appears if
+.Nm
+gets a
+.Dv SIGHUP ,
+.Dv SIGINT ,
+or
+.Dv SIGTERM
+signal, for example because the user deliberately killed it.
+.El
+.Pp
+Some non-fatal errors cause a single subdirectory to be skipped.
+The iteration is not aborted but continues with the next subdirectory,
+and the exit status is unaffected:
+.Bl -tag -width Ds -offset indent
+.It directory Ar subdirectory No unreadable : Ar reason
+A directory below
+.Ar srcdir
+could not be read and is skipped.
+.It directory Ar subdirectory No causes cycle
+A directory below
+.Ar srcdir
+is skipped because it would cause cyclic processing.
+.It Sy mkdirat Ar subdirectory : reason
+A required directory below
+.Ar dstdir
+does not exist and could not be created.
+The corresponding subdirectory below
+.Ar srcdir
+is skipped.
+.El
+.Pp
+Some non-fatal errors cause a single source file to be skipped.
+The iteration is not aborted but continues with the next file,
+and the exit status is unaffected:
+.Bl -tag -width Ds -offset indent
+.It file Ar filename : reason
+The function
+.Xr fts_read 3
+reported a non-fatal error with respect to
+.Ar filename .
+.It file Ar filename : No not a regular file
+For example, it might be a symbolic link or a device file.
+.It Sy open Ar filename No for reading : Ar reason
+A file below
+.Ar srcdir
+could not be read, for example due to permission problems.
+.It Sy openat Ar filename No for writing : Ar reason
+A file below
+.Ar dstdir
+could not be created or truncated, for example due to permission problems.
+.El
+.Pp
+If errors occur, the applicable summary messages appear
+after the end of the iteration:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It skipped Ar number No directories due to errors
+.It skipped Ar number No files due to errors
+.It processing aborted due to fatal error
+.El
+.Pp
+If the
+.Fl v
+flag is specified, the following summary message also appears:
+.Bl -tag -width Ds -offset indent
+.It processed Ar nfiles No files in Ar ndirs No directories
+A file is counted if it could be opened for reading and the
+corresponding output file could be opened for writing;
+this does not necessarily mean that it is a useful manual page.
+A directory is counted if it could be opened for reading and the
+corresponding output directory existed or could be created;
+this does not necessarily mean that any files could be
+processed inside.
+.El
+.Pp
+If the
+.Fl v
+flag is specified twice, the following messages also appear:
+.Bl -tag -width Ds -offset indent
+.It allowing up to Ar number No files in flight
+This is printed at the beginning of the iteration,
+showing the maximum number of files that
+.Nm
+allows to be in flight at any given time.
+.It files in flight: Ar old No \- Ar decrement No = Ar new
+This message is printed when
+.Nm
+learns about
+.Xr mandocd 8
+accepting more than one file at the same time.
+The three numbers printed are the old number of files in flight,
+the amount this number is being reduced, and the resulting
+new number of files in flight.
+.It waiting for Ar number No files in flight
+This message is printed at the end of the iteration, after
+.Nm
+has submitted all files to
+.Xr mandocd 8
+that it intends to.
+THe message informs about the number of files still in flight
+at this point.
+The
+.Nm
+program then waits until
+.Xr mandocd 8
+has accepted them all or until an error occurs.
+.El
 .Sh SEE ALSO
 .Xr mandoc 1 ,
 .Xr mandocd 8

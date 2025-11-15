@@ -288,7 +288,7 @@ main(int ac, char *argv[])
 		struct nl_parsed_link link = {};
 		if (!snl_parse_nlmsg(&ss, hdr, &link_parser, &link))
 			continue;
-		printf("Link#%u %s mtu %u\n", link.ifi_index, link.ifla_ifname, link.ifla_mtu);
+		printf("Link#%u %s mtu %u\en", link.ifi_index, link.ifla_ifname, link.ifla_mtu);
 	}
 
 	return (0);

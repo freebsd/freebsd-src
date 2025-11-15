@@ -194,9 +194,9 @@ After obtaining the code and data files, see the
 The code lets you compile the <code><abbr>tz</abbr></code> source files into
 machine-readable binary files, one for each location. The binary files
 are in a special format specified by
-<a href="https://datatracker.ietf.org/doc/html/8536">The
+<a href="https://www.rfc-editor.org/rfc/9636">The
 Time Zone Information Format (<abbr>TZif</abbr>)</a>
-(Internet <abbr title="Request For Comments">RFC</abbr> 8536).
+(Internet <abbr title="Request For Comments">RFC</abbr> 9636).
 The code also lets
 you read a <abbr>TZif</abbr> file and interpret timestamps for that
 location.</p>
@@ -260,7 +260,7 @@ Studio Code</a>.
 </p>
 <p>
 For further information about updates, please see
-<a href="https://datatracker.ietf.org/doc/html/rfc6557">Procedures for
+<a href="https://www.rfc-editor.org/rfc/rfc6557">Procedures for
 Maintaining the Time Zone Database</a> (Internet <abbr>RFC</abbr> 6557).
 More detail can be
 found in <a href="theory.html">Theory and pragmatics of the
@@ -379,26 +379,26 @@ calculates the current time difference between locations.</li>
 <li>The <a href="https://www.ietf.org">Internet Engineering Task Force</a>'s
 <a href="https://datatracker.ietf.org/wg/tzdist/charter/">Time Zone Data
 Distribution Service (tzdist) working group</a> defined <a
-href="https://datatracker.ietf.org/doc/html/rfc7808">TZDIST</a>
+href="https://www.rfc-editor.org/rfc/rfc7808">TZDIST</a>
 (Internet <abbr>RFC</abbr> 7808), a time zone data distribution service,
-along with <a href="https://datatracker.ietf.org/doc/html/rfc7809">CalDAV</a>
+along with <a href="https://www.rfc-editor.org/rfc/rfc7809">CalDAV</a>
 (Internet <abbr>RFC</abbr> 7809), a calendar access protocol for
 transferring time zone data by reference.
 <a href="https://devguide.calconnect.org/Time-Zones/TZDS/">TZDIST
 implementations</a> are available.
 The <a href="https://www.ietf.org/mailman/listinfo/tzdist-bis">tzdist-bis
 mailing list</a> discusses possible extensions.</li>
-<li>The <a href="https://datatracker.ietf.org/doc/html/rfc5545">
+<li>The <a href="https://www.rfc-editor.org/rfc/rfc5545">
 Internet Calendaring and Scheduling Core Object Specification
 (iCalendar)</a> (Internet <abbr>RFC</abbr> 5445)
 covers time zone
 data; see its VTIMEZONE calendar component.
 The iCalendar format requires specialized parsers and generators; a
-variant <a href="https://datatracker.ietf.org/doc/html/rfc6321">xCal</a>
+variant <a href="https://www.rfc-editor.org/rfc/rfc6321">xCal</a>
 (Internet <abbr>RFC</abbr> 6321) uses
 <a href="https://www.w3.org/XML/"><abbr
 title="Extensible Markup Language">XML</abbr></a> format, and a variant
-<a href="https://datatracker.ietf.org/doc/html/rfc7265">jCal</a>
+<a href="https://www.rfc-editor.org/rfc/rfc7265">jCal</a>
 (Internet <abbr>RFC</abbr> 7265)
 uses <a href="https://www.json.org/json-en.html"><abbr
 title="JavaScript Object Notation">JSON</abbr></a> format.</li>
@@ -935,7 +935,13 @@ with perhaps the best-documented history of clock adjustments.</dd>
 <dt>United States</dt>
 <dd>The Department of Transportation's <a
 href="https://www.transportation.gov/regulations/recent-time-zone-proceedings">Recent
-Time Zone Proceedings</a> lists changes to time zone boundaries.</dd>
+Time Zone Proceedings</a> lists changes to
+official written time zone boundaries, and its <a
+href="https://geodata.bts.gov/datasets/usdot::time-zones/about">Time
+Zones dataset</a> maps current boundaries.
+These boundaries are only for standard time, so the current map puts
+all of Arizona in one time zone even though part of Arizona
+observes <abbr>DST</abbr> and part does not.</dd>
 <dt>Uruguay</dt>
 <dd>The Oceanography, Hydrography, and Meteorology Service of the Uruguayan
 Navy (SOHMA) publishes an annual <a
@@ -979,6 +985,14 @@ a Sleep Research Society position statement</a>.
 doi:<a href="https://doi.org/10.1093/sleep/zsac236">10.1093/sleep/zsac236</a>.
 After reviewing the scientific literature, the Sleep Research Society
 advocates permanent standard time due to its health benefits.
+<li>Neumann P, von Blanckenburg K. <a
+href="https://journals.sagepub.com/doi/full/10.1177/0961463X241310562">What
+time will it be? A comprehensive literature review on daylight saving time</a>.
+<em>Time Soc</em>. 2025-01-21.
+doi:<a href="https://doi.org/10.1177/0961463X241310562">10.1177/0961463X241310562</a>.
+This reviews DST's effects on electricity, health, crime, road safety,
+and the economy, focusing on research since 2010, and concludes that
+year-round standard time is preferable overall.
 <li>Rishi MA, Cheng JY, Strang AR <em>et al</em>.
 <a href="https://jcsm.aasm.org/doi/10.5664/jcsm.10898">Permanent standard time
 is the optimal choice for health and safety:
@@ -994,7 +1008,8 @@ should we abolish Daylight Saving Time?</a>
 <em>J Biol Rhythms.</em> 2019;34(3):227&ndash;230.
 doi:<a href="https://doi.org/10.1177/0748730419854197">10.1177/0748730419854197</a>.
 The Society for Research on Biological Rhythms
-opposes DST changes and permanent DST, and advocates that governments adopt
+opposes <abbr>DST</abbr> changes and permanent <abbr>DST</abbr>,
+and advocates that governments adopt
 "permanent Standard Time for the health and safety of their citizens".</li>
 </ul>
 </section>
@@ -1023,7 +1038,7 @@ title="Institute of Electrical and Electronics Engineers">IEEE</abbr> 1588)
 can achieve submicrosecond clock accuracy on a local area network
 with special-purpose hardware.</li>
 <li><a
-href="https://datatracker.ietf.org/doc/html/rfc4833">Timezone
+href="https://www.rfc-editor.org/rfc/rfc4833">Timezone
 Options for <abbr title="Dynamic Host Configuration Protocol">DHCP</abbr></a>
 (Internet <abbr>RFC</abbr> 4833)
 specifies a <a
@@ -1105,7 +1120,7 @@ the abovementioned <abbr>NTP</abbr> implementations, <a
 href="https://github.com/google/unsmear">supports</a> conversion between
 <abbr>UTC</abbr> and smeared <abbr>POSIX</abbr> timestamps, and is used by major
 cloud service providers. However, according to
-<a href="https://datatracker.ietf.org/doc/html/rfc8633#section-3.7.1">&sect;3.7.1 of
+<a href="https://www.rfc-editor.org/rfc/rfc8633#section-3.7.1">&sect;3.7.1 of
 Network Time Protocol Best Current Practices</a>
 (Internet <abbr>RFC</abbr> 8633), leap smearing is not suitable for
 applications requiring accurate <abbr>UTC</abbr> or civil time,
@@ -1165,16 +1180,16 @@ interchange &ndash; Part 1: Basic rules</em></a>.</li>
 <a href="https://www.w3.org/TR/xmlschema/#dateTime"><abbr>XML</abbr>
 Schema: Datatypes &ndash; dateTime</a> specifies a format inspired by
 <abbr>ISO</abbr> 8601 that is in common use in <abbr>XML</abbr> data.</li>
-<li><a href="https://datatracker.ietf.org/doc/html/rfc5322#section-3.3">&sect;3.3 of
+<li><a href="https://www.rfc-editor.org/rfc/rfc5322#section-3.3">&sect;3.3 of
 Internet Message Format</a> (Internet <abbr>RFC</abbr> 5322)
 specifies the time notation used in email and <a
 href="https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol"><abbr>HTTP</abbr></a>
 headers.</li>
 <li>
-<a href="https://datatracker.ietf.org/doc/html/rfc3339">Date and Time
+<a href="https://www.rfc-editor.org/rfc/rfc3339">Date and Time
 on the Internet: Timestamps</a> (Internet <abbr>RFC</abbr> 3339)
 specifies an <abbr>ISO</abbr> 8601 profile for use in new Internet protocols.
-An extension, <a href="https://datatracker.ietf.org/doc/html/rfc9557">Date
+An extension, <a href="https://www.rfc-editor.org/rfc/rfc9557">Date
 and Time on the Internet: Timestamps with Additional Information</a>
 (Internet <abbr>RFC</abbr> 9557) extends this profile
 to let you specify the <code><abbr>tzdb</abbr></code> timezone of a timestamp

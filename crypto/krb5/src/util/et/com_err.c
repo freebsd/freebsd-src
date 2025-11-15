@@ -35,7 +35,7 @@ static /*@null@*/ et_old_error_hook_func com_err_hook = 0;
 k5_mutex_t com_err_hook_lock = K5_MUTEX_PARTIAL_INITIALIZER;
 
 #if defined(_WIN32)
-BOOL  isGuiApp() {
+BOOL  isGuiApp(void) {
     DWORD mypid;
     HANDLE myprocess;
     mypid = GetCurrentProcessId();
@@ -161,7 +161,7 @@ et_old_error_hook_func set_com_err_hook (et_old_error_hook_func new_proc)
     return x;
 }
 
-et_old_error_hook_func reset_com_err_hook ()
+et_old_error_hook_func reset_com_err_hook (void)
 {
     et_old_error_hook_func x;
 

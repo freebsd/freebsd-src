@@ -22,21 +22,22 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 31, 2017
+.Dd June 24, 2025
 .Dt CPUSET 3
 .Os
 .Sh NAME
-.Nm cpuset_parselist
-.Nd utility functions for
-.Xr cpuset 2
-handling
+.Nm cpuset_parselist ,
+.Nm domainset_parselist
+.Nd utility functions for cpuset(2) handling
 .Sh LIBRARY
 .Lb libutil
 .Sh SYNOPSIS
 .In sys/cpuset.h
 .In libutil.h
 .Ft int
-.Fn cpuset_parselist "const char *cpu-list" "cpuset_t *mask"
+.Fn cpuset_parselist "const char *cpu_list" "cpuset_t *mask"
+.Ft int
+.Fn domainset_parselist "const char *domain_policy" "domainset_t *domain_mask" "int *policyp"
 .Sh DESCRIPTION
 The
 .Fn cpuset_parselist
@@ -52,6 +53,27 @@ numbers.
 A special list of
 .Dq all
 may be specified in which case the list includes all CPUs from the root set.
+.Pp
+The
+.Fn domainset_parselist
+function parses a
+.Xr domainset 9
+memory domain allocation policy
+specified by
+.Va domain_policy
+filling the
+.Va domain_mask
+and the
+.Va policyp .
+A valid
+.Va domain_policy
+is formatted as
+.Ar policy:domain-list .
+See the
+.Ar -n
+flag in
+.Xr cpuset 1
+for a list of valid domain policies.
 .Sh RETURN VALUES
 Return values can be the following
 .Bl -tag -width Er
@@ -60,19 +82,30 @@ The parsing was successful
 .It Dv CPUSET_PARSE_ERROR
 The
 .Va cpu-list
+or
+.Va domain-policy
 format is invalid
 .It Dv CPUSET_PARSE_GETAFFINITY
 The
 .Xr cpuset_getaffinity 2
 call has failed
 .It Dv CPUSET_PARSE_INVALID_CPU
-The number of supported CPUs has been exceeded.
+The number of supported CPUs or NUMA domains has been exceeded.
 The maximum number being
-.Va CPU_SETSIZE .
+.Va CPU_SETSIZE
+and
+.Va DOMAINSET_SETSIZE
+respectively.
+.It Dv CPUSET_PARSE_GETDOMAIN
+The
+.Xr cpuset_getdomain 2
+call has failed
 .El
 .Sh SEE ALSO
 .Xr cpuset 1 ,
 .Xr cpuset 2 ,
-.Xr cpuset 9
+.Xr numa 4 ,
+.Xr cpuset 9 ,
+.Xr domainset 9
 .Sh AUTHORS
 .An Jeffrey Roberson Aq Mt jeff@FreeBSD.org

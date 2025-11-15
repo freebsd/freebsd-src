@@ -53,18 +53,16 @@ construct_matching_creds(krb5_context context, krb5_flags options,
                          krb5_creds *in_creds, krb5_creds *mcreds,
                          krb5_flags *fields)
 {
+    krb5_error_code ret;
+
     if (!in_creds || !in_creds->server || !in_creds->client)
         return EINVAL;
 
     memset(mcreds, 0, sizeof(krb5_creds));
     mcreds->magic = KV5M_CREDS;
-    if (in_creds->times.endtime != 0) {
-        mcreds->times.endtime = in_creds->times.endtime;
-    } else {
-        krb5_error_code retval;
-        retval = krb5_timeofday(context, &mcreds->times.endtime);
-        if (retval != 0) return retval;
-    }
+    ret = krb5_timeofday(context, &mcreds->times.endtime);
+    if (ret)
+        return ret;
     mcreds->keyblock = in_creds->keyblock;
     mcreds->authdata = in_creds->authdata;
     mcreds->server = in_creds->server;
@@ -75,8 +73,7 @@ construct_matching_creds(krb5_context context, krb5_flags options,
         | KRB5_TC_SUPPORTED_KTYPES;
     if (mcreds->keyblock.enctype) {
         krb5_enctype *ktypes;
-        krb5_error_code ret;
-        int i;
+        size_t i;
 
         *fields |= KRB5_TC_MATCH_KTYPE;
         ret = krb5_get_tgs_ktypes(context, mcreds->server, &ktypes);
@@ -1214,23 +1211,22 @@ krb5_tkt_creds_get(krb5_context context, krb5_tkt_creds_context ctx)
     krb5_data request = empty_data(), reply = empty_data();
     krb5_data realm = empty_data();
     unsigned int flags = 0;
-    int tcp_only = 0, use_primary;
+    int no_udp = 0;
 
     for (;;) {
         /* Get the next request and realm.  Turn on TCP if necessary. */
         code = krb5_tkt_creds_step(context, ctx, &reply, &request, &realm,
                                    &flags);
-        if (code == KRB5KRB_ERR_RESPONSE_TOO_BIG && !tcp_only) {
+        if (code == KRB5KRB_ERR_RESPONSE_TOO_BIG && !no_udp) {
             TRACE_TKT_CREDS_RETRY_TCP(context);
-            tcp_only = 1;
+            no_udp = 1;
         } else if (code != 0 || !(flags & KRB5_TKT_CREDS_STEP_FLAG_CONTINUE))
             break;
         krb5_free_data_contents(context, &reply);
 
         /* Send it to a KDC for the appropriate realm. */
-        use_primary = 0;
-        code = krb5_sendto_kdc(context, &request, &realm,
-                               &reply, &use_primary, tcp_only);
+        code = k5_sendto_kdc(context, &request, &realm, FALSE, no_udp,
+                             &reply, NULL);
         if (code != 0)
             break;
 

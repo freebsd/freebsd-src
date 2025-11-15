@@ -9,6 +9,7 @@ TESTS_SUBDIRS+=	concat
 TESTS_SUBDIRS+=	eli
 .endif
 TESTS_SUBDIRS+=	gate
+TESTS_SUBDIRS+=	label
 TESTS_SUBDIRS+=	mirror
 TESTS_SUBDIRS+=	multipath
 TESTS_SUBDIRS+=	nop
