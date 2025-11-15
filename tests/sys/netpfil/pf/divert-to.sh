@@ -372,6 +372,47 @@ in_dn_in_div_in_out_div_out_dn_out_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "pr260867" "cleanup"
+pr260867_head()
+{
+	atf_set descr 'Test for the loop reported in PR260867'
+	atf_set require.user root
+}
+
+pr260867_body()
+{
+	pft_init
+	divert_init
+
+	epair=$(vnet_mkepair)
+
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c3 192.0.2.2
+
+	jexec alcatraz /usr/sbin/inetd -p ${PWD}/inetd-echo.pid $(atf_get_srcdir)/echo_inetd.conf
+	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1001 divert-back &
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+	    "pass in on ${epair}b proto tcp from any to port 7 divert-to 0.0.0.0 port 1001"
+
+	reply=$(echo "foo" | nc -N 192.0.2.2 7)
+	if ["${reply}" != "foo" ];
+	then
+		atf_fail "Did not receive echo reply"
+	fi
+}
+
+pr260867_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "in_div"
@@ -383,4 +424,6 @@ atf_init_test_cases()
 	atf_add_test_case "in_div_in_fwd_out_div_out"
 
 	atf_add_test_case "in_dn_in_div_in_out_div_out_dn_out"
+
+	atf_add_test_case "pr260867"
 }
