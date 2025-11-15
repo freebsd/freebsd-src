@@ -188,5 +188,6 @@ ${PACKAGE}FILES+=		wait7.0
 ${PACKAGE}FILES+=		wait8.0
 ${PACKAGE}FILES+=		wait9.127
 ${PACKAGE}FILES+=		wait10.0
+${PACKAGE}FILES+=		wait11.0
 
 .include <bsd.test.mk>

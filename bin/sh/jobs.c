@@ -573,6 +573,7 @@ waitcmdloop(struct job *job)
 					freejob(job);
 				else {
 					job->remembered = 0;
+					deljob(job);
 					if (job == bgjob)
 						bgjob = NULL;
 				}
@@ -599,7 +600,7 @@ waitcmdloop(struct job *job)
 					break;
 			}
 		}
-	} while (dowait(DOWAIT_BLOCK | DOWAIT_SIG, (struct job *)NULL) != -1);
+	} while (dowait(DOWAIT_BLOCK | DOWAIT_SIG, job) != -1);
 
 	sig = pendingsig_waitcmd;
 	pendingsig_waitcmd = 0;
