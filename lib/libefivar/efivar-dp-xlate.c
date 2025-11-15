@@ -221,7 +221,7 @@ efi_hd_to_unix(struct gmesh *mesh, const_efidp dp, char **dev, char **relpath, c
 	provider = pp;
 	for (i = 0; i < n; i++) {
 		/*
-		 * Skip all pseudo filesystems. This also skips the real filesytsem
+		 * Skip all pseudo filesystems. This also skips the real filesystem
 		 * of ZFS. There's no EFI designator for ZFS in the standard, so
 		 * we'll need to invent one, but its decoding will be handled in
 		 * a separate function.
@@ -328,7 +328,7 @@ errout:
  *
  * Extract the path from the File path node(s). translate any \ file separators
  * to /. Append the result to the mount point. Copy the resulting path into
- * *path.  Stat that path. If it is not found, return the errorr from stat.
+ * *path.  Stat that path. If it is not found, return the error from stat.
  *
  * Finally, check to make sure the resulting path is still on the same
  * device. If not, return ENODEV.
@@ -433,7 +433,7 @@ efivar_device_path_to_unix_path(const_efidp dp, char **dev, char **relpath, char
  * For paths of the first form:
  *	find where the filesystem is mount (either the file directly, or
  *		its parent directory).
- *	translate any logical device name (eg lable) to a physical one
+ *	translate any logical device name (eg label) to a physical one
  *	If not possible, return ENXIO
  *	If the physical path is unsupported (Eg not on a GPT or MBR disk),
  *		return ENXIO
@@ -442,7 +442,7 @@ efivar_device_path_to_unix_path(const_efidp dp, char **dev, char **relpath, char
  * 		as a file path.
  *
  * For paths matching the second form:
- *	find the EFI partition corresponding to the root fileystem.
+ *	find the EFI partition corresponding to the root filesystem.
  *	If none found, return ENXIO
  *	Create a media device path node for the found partition
  *	Append a File Path to the end for the rest of the file.
@@ -553,7 +553,7 @@ find_geom_efimedia(struct gmesh *mesh, const char *dev)
 	efimedia = geom_pp_attr(mesh, pp, "efimedia");
 
 	/*
-	 * If this device doesn't hav an efimedia attribute, see if it is a
+	 * If this device doesn't have an efimedia attribute, see if it is a
 	 * glabel node, and if so look for the underlying provider to get the
 	 * efimedia attribute from.
 	 */
