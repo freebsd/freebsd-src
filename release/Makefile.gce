@@ -22,7 +22,7 @@ GCE_ARCH=		X86_64
 .elif ${TARGET_ARCH} == "aarch64"
 GCE_ARCH=		ARM64
 .else
-.error "Unsupported TARGET_ARCH for GCE: ${TARGET_ARCH}. Must be amd64 or aarch64."
+GCE_ARCH=		UNSUPPORTED_IN_GCE
 .endif
 
 .if !defined(GCE_FAMILY) || empty(GCE_FAMILY)
