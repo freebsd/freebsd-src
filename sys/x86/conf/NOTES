@@ -444,7 +444,9 @@ device		gve		# Google Virtual NIC (gVNIC)
 device		igc		# Intel I225 2.5G Ethernet
 device		ipw		# Intel 2100 wireless NICs.
 device		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
+device		iwm		# Intel IEEE 802.11ac wireless NICs.
 device		iwn		# Intel 4965/1000/5000/6000 wireless NICs.
+device		iwx		# Intel IEEE 802.11ax wireless NICs.
 device  	mthca		# Mellanox HCA InfiniBand
 device  	mlx4		# Shared code module between IB and Ethernet
 device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
