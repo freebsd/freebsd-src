@@ -6,6 +6,8 @@
 #   echo "FreeBSD-ports: { enabled: no }" > /usr/local/etc/pkg/repos/FreeBSD.conf
 #   echo "FreeBSD-ports-kmods: { enabled: no }" >> /usr/local/etc/pkg/repos/FreeBSD.conf
 #
+# Note that the FreeBSD-base repository is disabled by default.
+#
 
 FreeBSD-ports: {
   url: "pkg+https://pkg.FreeBSD.org/${ABI}/quarterly",
@@ -20,4 +22,11 @@ FreeBSD-ports-kmods: {
   signature_type: "fingerprints",
   fingerprints: "/usr/share/keys/pkg",
   enabled: yes
+}
+FreeBSD-base: {
+  url: "pkg+https://pkg.FreeBSD.org/${ABI}/base_latest",
+  mirror_type: "srv",
+  signature_type: "fingerprints",
+  fingerprints: "/usr/share/keys/pkg",
+  enabled: no
 }
