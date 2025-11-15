@@ -478,6 +478,12 @@
                 trusted         tags=package=runtime
                 ..
             ..
+            pkgbase-15
+                revoked         tags=package=runtime
+                ..
+                trusted         tags=package=runtime
+                ..
+            ..
         ..
         kyua            tags=package=tests
             misc            tags=package=tests

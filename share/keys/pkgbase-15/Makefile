@@ -1,3 +1,3 @@
-SUBDIR= pkg pkgbase-15
+SUBDIR=	trusted
 
 .include <bsd.subdir.mk>
