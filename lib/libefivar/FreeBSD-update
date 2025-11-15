@@ -8,7 +8,7 @@ These files are first mechnaically processed with
 
 sed -e "s/L'/'/g;"'s/L"/"/g;s/%g/%36s/g;s/%a/%s/g;s/^VOID/static VOID/g;s/ *$//g'
 
-for several reasons. We're moving from wide rotuines to narrow routines. The
+for several reasons. We're moving from wide routines to narrow routines. The
 UTC-2 this code is written for is a bad match for wchar_t which is an int. It's
 a much better match for plain narrow characters on FreeBSD. So we pretend that
 CHAR16 for these files is really char * (ASCII).
