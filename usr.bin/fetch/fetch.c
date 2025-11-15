@@ -30,6 +30,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -39,6 +40,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,8 +57,9 @@
 static int	 A_flag;	/*    -A: do not follow 302 redirects */
 static int	 a_flag;	/*    -a: auto retry */
 static off_t	 B_size;	/*    -B: buffer size */
-static int	 b_flag;	/*!   -b: workaround TCP bug */
-static char    *c_dirname;	/*    -c: remote directory */
+static int	 C_flag;	/*    -C: force HTTP request chunk-encoding */
+static char	*c_dirname;	/*    -c: remote directory */
+static char	*D_filename;	/*    -D: HTTP request body content file */
 static int	 d_flag;	/*    -d: direct connection */
 static int	 F_flag;	/*    -F: restart without checking mtime  */
 static char	*f_filename;	/*    -f: file to fetch */
@@ -85,7 +88,10 @@ static int	 v_tty;		/*        stdout is a tty */
 static int	 v_progress;	/*        whether to display progress */
 static pid_t	 pgrp;		/*        our process group */
 static long	 w_secs;	/*    -w: retry delay */
+static char	*method;	/*    -X: HTTP method */
 static int	 family = PF_UNSPEC;	/* -[46]: address family to use */
+static struct http_fields headers = TAILQ_HEAD_INITIALIZER(headers);
+				/*    -H: HTTP headers */
 
 static int	 sigalrm;	/* SIGALRM received */
 static int	 siginfo;	/* SIGINFO received */
@@ -123,10 +129,13 @@ static struct option longopts[] =
 	{ "no-redirect", no_argument, NULL, 'A' },
 	{ "retry", no_argument, NULL, 'a' },
 	{ "buffer-size", required_argument, NULL, 'B' },
+	{ "chunked", no_argument, NULL, 'C' },
 	/* -c not mapped, since it's deprecated */
+	{ "data", required_argument, NULL, 'D' },
 	{ "direct", no_argument, NULL, 'd' },
 	{ "force-restart", no_argument, NULL, 'F' },
 	/* -f not mapped, since it's deprecated */
+	{ "header", required_argument, NULL, 'H' },
 	/* -h not mapped, since it's deprecated */
 	{ "if-modified-since", required_argument, NULL, 'i' },
 	{ "symlink", no_argument, NULL, 'l' },
@@ -146,6 +155,7 @@ static struct option longopts[] =
 	{ "passive-portrange-default", no_argument, NULL, 'T' },
 	{ "verbose", no_argument, NULL, 'v' },
 	{ "retry-delay", required_argument, NULL, 'w' },
+	{ "request", required_argument, NULL, 'X' },
 
 	/* options without a single character equivalent */
 	{ "bind-address", required_argument, NULL, OPTION_BIND_ADDRESS },
@@ -419,10 +429,49 @@ query_auth(struct url *URL)
 }
 
 /*
+ * Decide how to invoke libfetch
+ */
+static FILE *
+invoke(struct url *url, struct url_stat *us, const char *flags, bool is_http)
+{
+	static bool rewind_stdin = false;
+	FILE *body, *f;
+
+	if (is_http) {
+		if (D_filename == NULL)
+			body = NULL;
+		else if (strcmp(D_filename, "-") == 0) {
+			if (rewind_stdin) {
+				if (fseek(stdin, 0, SEEK_SET) == 0)
+					clearerr(stdin);
+				else {
+					snprintf(fetchLastErrString,
+					    MAXERRSTRING, "cannot rewind: "
+					    "stdin is not seekable");
+					return (NULL);
+				}
+			}
+			rewind_stdin = true;
+			body = stdin;
+		} else if ((body = fopen(D_filename, "r")) == NULL) {
+			snprintf(fetchLastErrString, MAXERRSTRING, "%s: %s",
+			    D_filename, strerror(errno));
+			return (NULL);
+		}
+		f = fetchXReqHTTP(url, us, method ? method : "GET", flags,
+		    &headers, NULL, NULL, NULL, body);
+		if (body != NULL && body != stdin)
+			fclose(body);
+		return (f);
+	}
+	return (fetchXGet(url, us, flags));
+}
+
+/*
  * Fetch a file
  */
 static int
-fetch(char *URL, const char *path, int *is_http)
+fetch(char *URL, const char *path, bool *is_http)
 {
 	struct url *url;
 	struct url_stat us;
@@ -503,6 +552,8 @@ fetch(char *URL, const char *path, int *is_http)
 			strcat(flags, "d");
 		if (A_flag)
 			strcat(flags, "A");
+		if (C_flag)
+			strcat(flags, "C");
 		timeout = T_secs ? T_secs : http_timeout;
 		if (i_flag) {
 			if (stat(i_filename, &sb)) {
@@ -576,7 +627,7 @@ again:
 	/* start the transfer */
 	if (timeout)
 		alarm(timeout);
-	f = fetchXGet(url, &us, flags);
+	f = invoke(url, &us, flags, *is_http);
 	if (timeout)
 		alarm(0);
 	if (sigalrm || sigint)
@@ -708,7 +759,7 @@ again:
 			 * from scratch if we want the whole file
 			 */
 			url->offset = 0;
-			if ((f = fetchXGet(url, &us, flags)) == NULL) {
+			if ((f = invoke(url, &us, flags, *is_http)) == NULL) {
 				warnx("%s: %s", URL, fetchLastErrString);
 				goto failure;
 			}
@@ -884,21 +935,39 @@ again:
 }
 
 static void
+add_header(char *arg)
+{
+	struct http_field *hdr;
+	char *split;
+
+	if ((split = strchr(arg, ':')) == NULL)
+		errx(1, "invalid header (%s)", arg);
+	*split = '\0';
+	if ((hdr = malloc(sizeof(*hdr))) == NULL)
+		errx(1, "%s", strerror(ENOMEM));
+	hdr->name = arg;
+	hdr->value = split + 1;
+	hdr->value += strspn(hdr->value, " \t"); /* skip leading whitespace */
+	TAILQ_INSERT_TAIL(&headers, hdr, fields);
+}
+
+static void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: fetch [-146AadFlMmnPpqRrsUv] [-B bytes] [--bind-address=host]",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+"usage: fetch [-146AaCdFlMmnPpqRrsUv] [-B bytes] [--bind-address=host]",
 "       [--ca-cert=file] [--ca-path=dir] [--cert=file] [--crl=file]",
-"       [-i file] [--key=file] [-N file] [--no-passive] [--no-proxy=list]",
-"       [--no-sslv3] [--no-tlsv1] [--no-verify-hostname] [--no-verify-peer]",
-"       [-o file] [--referer=URL] [-S bytes] [-T seconds]",
-"       [--user-agent=agent-string] [-w seconds] URL ...",
-"       fetch [-146AadFlMmnPpqRrsUv] [-B bytes] [--bind-address=host]",
+"       [-D file] [-H header] [-i file] [--key=file] [-N file] [--no-passive]",
+"       [--no-proxy=list] [--no-sslv3] [--no-tlsv1] [--no-verify-hostname]",
+"       [--no-verify-peer] [-o file] [--referer=URL] [-S bytes] [-T seconds]",
+"       [--user-agent=agent-string] [-w seconds] [-X method] URL ...",
+"       fetch [-146AaCdFlMmnPpqRrsUv] [-B bytes] [--bind-address=host]",
 "       [--ca-cert=file] [--ca-path=dir] [--cert=file] [--crl=file]",
-"       [-i file] [--key=file] [-N file] [--no-passive] [--no-proxy=list]",
-"       [--no-sslv3] [--no-tlsv1] [--no-verify-hostname] [--no-verify-peer]",
-"       [-o file] [--referer=URL] [-S bytes] [-T seconds]",
-"       [--user-agent=agent-string] [-w seconds] -h host -f file [-c dir]");
+"       [-D file] [-H header] [-i file] [--key=file] [-N file] [--no-passive]",
+"       [--no-proxy=list] [--no-sslv3] [--no-tlsv1] [--no-verify-hostname]",
+"       [--no-verify-peer] [-o file] [--referer=URL] [-S bytes] [-T seconds]",
+"       [--user-agent=agent-string] [-w seconds] [-X method] -h host -f file",
+"       [-c dir]");
 }
 
 
@@ -912,11 +981,12 @@ main(int argc, char *argv[])
 	struct sigaction sa;
 	const char *p, *s;
 	char *end, *q;
-	int c, e, is_http, r;
+	int c, e, r;
+	bool is_http;
 
 
 	while ((c = getopt_long(argc, argv,
-	    "146AaB:bc:dFf:Hh:i:lMmN:nPpo:qRrS:sT:tUvw:",
+	    "146AaB:bCc:D:dFf:H:h:i:lMmN:nPpo:qRrS:sT:tUvw:X:",
 	    longopts, NULL)) != -1)
 		switch (c) {
 		case '1':
@@ -941,10 +1011,15 @@ main(int argc, char *argv[])
 			break;
 		case 'b':
 			warnx("warning: the -b option is deprecated");
-			b_flag = 1;
+			break;
+		case 'C':
+			C_flag = 1;
 			break;
 		case 'c':
 			c_dirname = optarg;
+			break;
+		case 'D':
+			D_filename = optarg;
 			break;
 		case 'd':
 			d_flag = 1;
@@ -956,8 +1031,7 @@ main(int argc, char *argv[])
 			f_filename = optarg;
 			break;
 		case 'H':
-			warnx("the -H option is now implicit, "
-			    "use -U to disable");
+			add_header(optarg);
 			break;
 		case 'h':
 			h_hostname = optarg;
@@ -1030,6 +1104,9 @@ main(int argc, char *argv[])
 			w_secs = strtol(optarg, &end, 10);
 			if (*optarg == '\0' || *end != '\0')
 				errx(1, "invalid delay (%s)", optarg);
+			break;
+		case 'X':
+			method = optarg;
 			break;
 		case OPTION_BIND_ADDRESS:
 			setenv("FETCH_BIND_ADDRESS", optarg, 1);
