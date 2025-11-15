@@ -381,7 +381,14 @@ inotify_unlink_watch_locked(struct inotify_softc *sc, struct inotify_watch *watc
 static void
 inotify_free_watch(struct inotify_watch *watch)
 {
-	vrele(watch->vp);
+	/*
+	 * Formally, we don't need to lock the vnode here.  However, if we
+	 * don't, and vrele() releases the last reference, it's possible the
+	 * vnode will be recycled while a different thread holds the vnode lock.
+	 * Work around this bug by acquiring the lock here.
+	 */
+	(void)vn_lock(watch->vp, LK_EXCLUSIVE | LK_RETRY);
+	vput(watch->vp);
 	free(watch, M_INOTIFY);
 }
 
