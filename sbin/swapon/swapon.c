@@ -723,8 +723,8 @@ swapon_trim(const char *name)
 	} else
 		errx(1, "%s has an invalid file type", name);
 	/* Trim the device. */
-	ioarg[0] = BBSIZE;
-	ioarg[1] = sz - BBSIZE;
+	ioarg[0] = roundup(BBSIZE, getpagesize());
+	ioarg[1] = sz - ioarg[0];
 	if (ioctl(fd, DIOCGDELETE, ioarg) != 0)
 		warn("ioctl(DIOCGDELETE)");
 

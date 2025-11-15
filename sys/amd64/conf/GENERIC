@@ -115,7 +115,7 @@ device		cpufreq
 # Bus support.
 device		acpi
 device		smbios
-options 	IOMMU
+#options 	IOMMU
 device		pci
 options 	PCI_HP			# PCI-Express native HotPlug
 options 	PCI_IOV			# PCI SR-IOV support
@@ -373,10 +373,10 @@ device		hyperv			# HyperV drivers
 # Xen HVM Guest Optimizations
 # NOTE: XENHVM depends on xenpci and xentimer.
 # They must be added or removed together.
-options 	XENHVM			# Xen HVM kernel infrastructure
-device		xenefi			# Xen EFI timer device
-device		xenpci			# Xen HVM Hypervisor services driver
-device		xentimer		# Xen x86 PV timer device
+#options 	XENHVM			# Xen HVM kernel infrastructure
+#device		xenefi			# Xen EFI timer device
+#device		xenpci			# Xen HVM Hypervisor services driver
+#device		xentimer		# Xen x86 PV timer device
 
 # Netmap provides direct access to TX/RX rings on supported NICs
 device		netmap			# netmap(4) support
@@ -395,3 +395,13 @@ options 	IICHID_SAMPLING		# Workaround missing GPIO INTR support
 # EFI devices
 device		efidev			# EFI pseudo-device
 device		efirtc			# EFI RTC
+
+
+
+options DIAGNOSTIC
+options INVARIANTS
+options WITNESS
+options ALT_BREAK_TO_DEBUGGER
+
+options UART_NS8250_EARLY_PORT=0x3f8
+options EARLY_PRINTF=ns8250

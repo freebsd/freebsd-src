@@ -349,7 +349,7 @@ struct vmcb {
 	struct vmcb_ctrl ctrl;
 	struct vmcb_state state;
 } __attribute__ ((__packed__));
-CTASSERT(sizeof(struct vmcb) == PAGE_SIZE);
+CTASSERT(sizeof(struct vmcb) == PAGE_SIZE_4K);
 CTASSERT(offsetof(struct vmcb, state) == 0x400);
 
 int	vmcb_read(struct svm_vcpu *vcpu, int ident, uint64_t *retval);

@@ -153,7 +153,7 @@ SYSCTL_INT(ELF_NODE_OID, OID_AUTO, read_exec, CTLFLAG_RW, &i386_read_exec, 0,
     "enable execution from readable segments");
 #endif
 
-static u_long __elfN(pie_base) = ET_DYN_LOAD_ADDR;
+static u_long __elfN(pie_base) = round_page(ET_DYN_LOAD_ADDR);
 static int
 sysctl_pie_base(SYSCTL_HANDLER_ARGS)
 {
@@ -1117,6 +1117,13 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	int32_t osrel;
 	bool free_interp;
 	int error, i, n;
+
+#if defined(__amd64__) && __ELF_WORD_SIZE == 32 && PAGE_SIZE != PAGE_SIZE_4K
+	/*
+	 * XXX ia32 code hard-codes 4k page size, reject if PAGE_SIZE is larger.
+	 */
+	return -1;
+#endif
 
 	hdr = (const Elf_Ehdr *)imgp->image_header;
 

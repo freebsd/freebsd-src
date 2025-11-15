@@ -4960,22 +4960,20 @@ void
 vfs_bio_bzero_buf(struct buf *bp, int base, int size)
 {
 	vm_page_t m;
-	int i, n;
+	int i, n, pgoff;
 
 	if (buf_mapped(bp)) {
 		BUF_CHECK_MAPPED(bp);
 		bzero(bp->b_data + base, size);
 	} else {
 		BUF_CHECK_UNMAPPED(bp);
-		n = PAGE_SIZE - (base & PAGE_MASK);
 		for (i = base / PAGE_SIZE; size > 0 && i < bp->b_npages; ++i) {
 			m = bp->b_pages[i];
-			if (n > size)
-				n = size;
-			pmap_zero_page_area(m, base & PAGE_MASK, n);
+			pgoff = (bp->b_offset & PAGE_MASK) + (base & PAGE_MASK);
+			n = MIN(PAGE_SIZE - pgoff, size);
+			pmap_zero_page_area(m, pgoff, n);
 			base += n;
 			size -= n;
-			n = PAGE_SIZE;
 		}
 	}
 }

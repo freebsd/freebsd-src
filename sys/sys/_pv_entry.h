@@ -60,7 +60,14 @@ typedef struct pv_entry {
  * is the value of all the other entries in the pc_map[] array when a
  * chunk is completely free.
  */
-#if PAGE_SIZE == 4 * 1024
+
+#ifndef PAGE_SIZE_PV
+#define PAGE_SIZE_PV PAGE_SIZE
+#endif
+#ifndef PAGE_MASK_PV
+#define PAGE_MASK_PV PAGE_MASK
+#endif
+#if PAGE_SIZE_PV == 4 * 1024
 #ifdef __LP64__
 #define	_NPCPV	168
 #define	_NPAD	0
@@ -68,7 +75,7 @@ typedef struct pv_entry {
 #define	_NPCPV	336
 #define	_NPAD	0
 #endif
-#elif PAGE_SIZE == 16 * 1024
+#elif PAGE_SIZE_PV == 16 * 1024
 #ifdef __LP64__
 #define	_NPCPV	677
 #define	_NPAD	1
@@ -76,7 +83,7 @@ typedef struct pv_entry {
 #endif
 
 #ifndef _NPCPV
-#error Unsupported page size
+#error Unsupported page size PAGE_SIZE_PV
 #endif
 
 /* Support clang < 14 */
@@ -104,7 +111,7 @@ struct pv_chunk {
 	unsigned long		pc_pad[_NPAD];
 };
 
-_Static_assert(sizeof(struct pv_chunk) == PAGE_SIZE,
+_Static_assert(sizeof(struct pv_chunk) == PAGE_SIZE_PV,
     "PV entry chunk size mismatch");
 
 #ifdef _KERNEL
@@ -131,7 +138,7 @@ pc_is_free(struct pv_chunk *pc)
 static __inline struct pv_chunk *
 pv_to_chunk(pv_entry_t pv)
 {
-	return ((struct pv_chunk *)((uintptr_t)pv & ~(uintptr_t)PAGE_MASK));
+	return ((struct pv_chunk *)((uintptr_t)pv & ~(uintptr_t)PAGE_MASK_PV));
 }
 
 #define PV_PMAP(pv) (pv_to_chunk(pv)->pc_pmap)
