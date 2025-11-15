@@ -8558,10 +8558,12 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 			goto done;
 		action = pf_test_state_tcp(&s, kif, m, off, h, &pd, &reason);
 		if (action == PF_PASS) {
-			if (V_pfsync_update_state_ptr != NULL)
-				V_pfsync_update_state_ptr(s);
-			r = s->rule.ptr;
-			a = s->anchor.ptr;
+			if (s != NULL) {
+				if (V_pfsync_update_state_ptr != NULL)
+					V_pfsync_update_state_ptr(s);
+				r = s->rule.ptr;
+				a = s->anchor.ptr;
+			}
 		} else if (s == NULL) {
 			/* Validate remote SYN|ACK, re-create original SYN if
 			 * valid. */
@@ -8621,10 +8623,12 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 		}
 		action = pf_test_state_udp(&s, kif, m, off, h, &pd);
 		if (action == PF_PASS) {
-			if (V_pfsync_update_state_ptr != NULL)
-				V_pfsync_update_state_ptr(s);
-			r = s->rule.ptr;
-			a = s->anchor.ptr;
+			if (s != NULL) {
+				if (V_pfsync_update_state_ptr != NULL)
+					V_pfsync_update_state_ptr(s);
+				r = s->rule.ptr;
+				a = s->anchor.ptr;
+			}
 		} else if (s == NULL)
 			action = pf_test_rule(&r, &s, kif, m, off, &pd,
 			    &a, &ruleset, inp);
