@@ -355,6 +355,10 @@ local function pkgbase()
 	if not os.execute(pkg .. "install -U -y -r FreeBSD-base " .. packages) then
 		os.exit(1)
 	end
+
+	-- Enable the FreeBSD-base repository for this system.
+	assert(os.execute("mkdir -p " .. chroot .. "/usr/local/etc/pkg/repos"))
+	assert(os.execute("echo 'FreeBSD-base: { enabled: yes }' > " .. chroot .. "/usr/local/etc/pkg/repos/FreeBSD.conf"))
 end
 
 pkgbase()
