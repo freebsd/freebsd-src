@@ -2824,7 +2824,7 @@ ${_bt}-link-${_tool}: .PHONY
 	if [ ! -e "$${source_path}" ] ; then \
 		echo "Cannot find host tool '${_tool}'"; false; \
 	fi; \
-	cp -pf "$${source_path}" "${WORLDTMP}/legacy/bin/${_tool}"
+	install -p "$${source_path}" "${WORLDTMP}/legacy/bin/${_tool}"
 ${_bt}-links: ${_bt}-link-${_tool}
 .endfor
 
