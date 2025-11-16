@@ -4607,37 +4607,39 @@ iwx_rx_mpdu_mq(struct iwx_softc *sc, struct mbuf *m, void *pktdata,
 		pad = 1;
 	}
 
-//	/*
-//	 * Hardware de-aggregates A-MSDUs and copies the same MAC header
-//	 * in place for each subframe. But it leaves the 'A-MSDU present'
-//	 * bit set in the frame header. We need to clear this bit ourselves.
-//	 * (XXX This workaround is not required on AX200/AX201 devices that
-//	 * have been tested by me, but it's unclear when this problem was
-//	 * fixed in the hardware. It definitely affects the 9k generation.
-//	 * Leaving this in place for now since some 9k/AX200 hybrids seem
-//	 * to exist that we may eventually add support for.)
-//	 *
-//	 * And we must allow the same CCMP PN for subframes following the
-//	 * first subframe. Otherwise they would be discarded as replays.
-//	 */
+	/* If it's a HT node then perform re-order processing */
+	if (ni->ni_flags & IEEE80211_NODE_HT)
+		m->m_flags |= M_AMPDU;
+
+	/*
+	 * Hardware de-aggregates A-MSDUs and copies the same MAC header
+	 * in place for each subframe. But it leaves the 'A-MSDU present'
+	 * bit set in the frame header. We need to clear this bit ourselves.
+	 * (XXX This workaround is not required on AX200/AX201 devices that
+	 * have been tested by me, but it's unclear when this problem was
+	 * fixed in the hardware. It definitely affects the 9k generation.
+	 * Leaving this in place for now since some 9k/AX200 hybrids seem
+	 * to exist that we may eventually add support for.)
+	 *
+	 * And we must allow the same CCMP PN for subframes following the
+	 * first subframe. Otherwise they would be discarded as replays.
+	 */
 	if (desc->mac_flags2 & IWX_RX_MPDU_MFLG2_AMSDU) {
-		DPRINTF(("%s: === IWX_RX_MPDU_MFLG2_AMSDU\n", __func__));
-//		struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
-//		uint8_t subframe_idx = (desc->amsdu_info &
-//		    IWX_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK);
-//		if (subframe_idx > 0)
-//			rxi.rxi_flags |= IEEE80211_RXI_HWDEC_SAME_PN;
-//		if (ieee80211_has_qos(wh) && ieee80211_has_addr4(wh) &&
-//		    m->m_len >= sizeof(struct ieee80211_qosframe_addr4)) {
-//			struct ieee80211_qosframe_addr4 *qwh4 = mtod(m,
-//			    struct ieee80211_qosframe_addr4 *);
-//			qwh4->i_qos[0] &= htole16(~IEEE80211_QOS_AMSDU);
-//		} else if (ieee80211_has_qos(wh) &&
-//		    m->m_len >= sizeof(struct ieee80211_qosframe)) {
-//			struct ieee80211_qosframe *qwh = mtod(m,
-//			    struct ieee80211_qosframe *);
-//			qwh->i_qos[0] &= htole16(~IEEE80211_QOS_AMSDU);
-//		}
+		struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
+		uint8_t subframe_idx = (desc->amsdu_info &
+		    IWX_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK);
+		uint8_t *qos;
+
+		rxs.c_pktflags |= IEEE80211_RX_F_AMSDU;
+		if (subframe_idx > 0)
+			rxs.c_pktflags |= IEEE80211_RX_F_AMSDU_MORE;
+
+		/* XXX should keep driver statistics about this */
+		IWX_DPRINTF(sc, IWX_DEBUG_AMPDU_MGMT,
+		    "%s: === IWX_RX_MPDU_MFLG2_AMSDU\n", __func__);
+
+		qos = ieee80211_getqos(wh);
+		qos[0] &= ~IEEE80211_QOS_AMSDU;
 	}
 
 	/*
