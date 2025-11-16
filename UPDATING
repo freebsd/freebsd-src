@@ -27,6 +27,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20251115:
+	The FreeBSD-base repository is now defined in /etc/pkg/FreeBSD.conf,
+	disabled by default.  In -CURRENT and -STABLE this points at nightly
+	builds on pkg.freebsd.org; for BETA/RC/RELEASE builds it points at
+	release engineering builds on pkgbase.freebsd.org.
+
+	Users of pkgbase will need to replace any existing definition of the
+	FreeBSD-base repository in /usr/local/etc/pkg/repos/ with a single
+	line "FreeBSD-base: { enabled: yes }".
+
 20251110:
 	OpenPAM (including libpam and the PAM modules) has moved to the new
 	"pam" package.  The pam-lib subpackage, which includes libpam, will
