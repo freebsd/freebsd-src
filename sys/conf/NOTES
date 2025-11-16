@@ -1046,6 +1046,7 @@ options 	IPFILTER		#ipfilter support
 options 	IPFILTER_LOG		#ipfilter logging
 options 	IPFILTER_LOOKUP		#ipfilter pools
 options 	IPFILTER_DEFAULT_BLOCK	#block all packets by default
+options		IPFILTER_IPFS		#enable experimental ipfs(8) support
 options 	IPSTEALTH		#support for stealth forwarding
 options 	PF_DEFAULT_TO_DROP	#drop everything by default
 options 	TCP_BLACKBOX

@@ -1,3 +1,5 @@
+.include <src.opts.mk>
+
 .PATH: ${SRCTOP}/sys/netpfil/ipfilter/netinet
 
 KMOD=	ipl
@@ -9,6 +11,11 @@ SRCS+=	opt_bpf.h opt_inet6.h opt_kern_tls.h
 
 CFLAGS+= -I${SRCTOP}/sys/netpfil/ipfilter
 CFLAGS+= -DIPFILTER=1 -DIPFILTER_LKM -DIPFILTER_LOG -DIPFILTER_LOOKUP
+
+.if ${MK_IPFILTER_IPFS} != "no"
+CFLAGS+= -DIPFILTER_IPFS
+.endif
+
 #
 # If you don't want log functionality remove -DIPFILTER_LOG
 #

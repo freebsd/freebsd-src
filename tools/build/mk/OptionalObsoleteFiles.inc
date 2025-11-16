@@ -2627,6 +2627,10 @@ OLD_FILES+=usr/share/man/man8/ipnat.8.gz
 OLD_FILES+=usr/share/man/man8/ippool.8.gz
 .endif
 
+.if ${MK_IPFILTER_IPFS} == no
+OLD_FILES+=sbin/ipfs
+.endif
+
 .if ${MK_IPFW} == no
 OLD_FILES+=etc/rc.d/ipfw
 OLD_FILES+=etc/rc.d/natd

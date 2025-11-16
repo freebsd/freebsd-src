@@ -1337,6 +1337,7 @@ ipf_nat_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 		error = ipf_proxy_ioctl(softc, data, cmd, mode, ctx);
 		break;
 
+#ifdef IPFILTER_IPFS
 	case SIOCSTLCK :
 		if (!(mode & FWRITE)) {
 			IPFERROR(60015);
@@ -1372,6 +1373,7 @@ ipf_nat_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 			error = EACCES;
 		}
 		break;
+#endif /* IPFILTER_IPFS */
 
 	case SIOCGENITER :
 	    {
@@ -1679,7 +1681,7 @@ ipf_nat_siocdelnat(ipf_main_softc_t *softc, ipf_nat_softc_t *softn, ipnat_t *n,
 	}
 }
 
-
+#ifdef IPFILTER_IPFS
 /* ------------------------------------------------------------------------ */
 /* Function:    ipf_nat_getsz                                               */
 /* Returns:     int - 0 == success, != 0 is the error value.                */
@@ -2247,6 +2249,7 @@ junkput:
 	}
 	return (error);
 }
+#endif /* IPFILTER_IPFS */
 
 
 /* ------------------------------------------------------------------------ */
