@@ -106,7 +106,7 @@ error:
 	DPRINTF("vdev_read: failed dev: %p, id: %u, lba: %ju, size: %zu,"
 	    " rb_size: %zu, status: %lu\n", devinfo->dev,
 	    devinfo->dev->Media->MediaId, (uintmax_t)lba, bytes, rb_size,
-	    EFI_ERROR_CODE(status));
+	    DECODE_ERROR(status));
 	return (-1);
 }
 

@@ -343,7 +343,7 @@ exec(struct preloaded_file *fp)
 	    EFI_SIZE_TO_PAGES(PAGE_SIZE), &addr);
 	if (EFI_ERROR(status)) {
 		printf("Failed to allocate pages for multiboot2 header: %lu\n",
-		    EFI_ERROR_CODE(status));
+		    DECODE_ERROR(status));
 		error = ENOMEM;
 		goto error;
 	}
@@ -351,7 +351,7 @@ exec(struct preloaded_file *fp)
 	    EFI_SIZE_TO_PAGES(128 * 1024), &stack);
 	if (EFI_ERROR(status)) {
 		printf("Failed to allocate pages for Xen stack: %lu\n",
-		    EFI_ERROR_CODE(status));
+		    DECODE_ERROR(status));
 		error = ENOMEM;
 		goto error;
 	}

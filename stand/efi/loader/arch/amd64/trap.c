@@ -214,7 +214,7 @@ efi_setup_tss(struct region_descriptor *gdt, uint32_t loader_tss_idx,
 	    EFI_SIZE_TO_PAGES(sizeof(struct amd64tss)), &tss_pa);
 	if (EFI_ERROR(status)) {
 		printf("efi_setup_tss: AllocatePages tss error %lu\n",
-		    EFI_ERROR_CODE(status));
+		    DECODE_ERROR(status));
 		return (0);
 	}
 	*tss = (struct amd64tss *)tss_pa;
@@ -251,7 +251,7 @@ efi_redirect_exceptions(void)
 	    EFI_SIZE_TO_PAGES(fw_idt.rd_limit), &lidt_pa);
 	if (EFI_ERROR(status)) {
 		printf("efi_redirect_exceptions: AllocatePages IDT error %lu\n",
-		    EFI_ERROR_CODE(status));
+		    DECODE_ERROR(status));
 		lidt_pa = 0;
 		return (0);
 	}
@@ -259,7 +259,7 @@ efi_redirect_exceptions(void)
 	    &exc_stack_pa);
 	if (EFI_ERROR(status)) {
 		printf("efi_redirect_exceptions: AllocatePages stk error %lu\n",
-		    EFI_ERROR_CODE(status));
+		    DECODE_ERROR(status));
 		exc_stack_pa = 0;
 		free_tables();
 		return (0);
@@ -303,7 +303,7 @@ efi_redirect_exceptions(void)
 			    &loader_gdt_pa);
 			if (EFI_ERROR(status)) {
 				printf("efi_setup_tss: AllocatePages gdt error "
-				    "%lu\n",  EFI_ERROR_CODE(status));
+				    "%lu\n",  DECODE_ERROR(status));
 				loader_gdt_pa = 0;
 				free_tables();
 				return (0);

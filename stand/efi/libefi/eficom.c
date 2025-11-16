@@ -510,7 +510,7 @@ comc_port_set(struct env_var *ev, int flags, const void *value)
 	    (void**)&sio, IH, NULL, EFI_OPEN_PROTOCOL_GET_PROTOCOL);
 
 	if (EFI_ERROR(status)) {
-		printf("OpenProtocol: %lu\n", EFI_ERROR_CODE(status));
+		printf("OpenProtocol: %lu\n", DECODE_ERROR(status));
 		return (CMD_ERROR);
 	}
 

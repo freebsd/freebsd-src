@@ -71,7 +71,7 @@ efi_close_devpath(EFI_HANDLE handle)
 
 	status = BS->CloseProtocol(handle, &DevicePathGUID, IH, NULL);
 	if (EFI_ERROR(status))
-		printf("CloseProtocol error: %lu\n", EFI_ERROR_CODE(status));
+		printf("CloseProtocol error: %lu\n", DECODE_ERROR(status));
 }
 
 static char *

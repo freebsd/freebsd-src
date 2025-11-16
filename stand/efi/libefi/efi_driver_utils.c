@@ -84,7 +84,7 @@ install_driver(EFI_DRIVER_BINDING *driver)
 
         if (EFI_ERROR(status)) {
                 printf("Failed to install driver (%ld)!\n",
-                    EFI_ERROR_CODE(status));
+                    DECODE_ERROR(status));
         }
 
         return (status);

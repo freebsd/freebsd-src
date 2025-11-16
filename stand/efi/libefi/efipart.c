@@ -388,7 +388,7 @@ efipart_inithandles(void)
 		status = OpenProtocolByHandle(hin[i], &blkio_guid,
 		    (void **)&blkio);
 		if (EFI_ERROR(status)) {
-			printf("error %lu\n", EFI_ERROR_CODE(status));
+			printf("error %lu\n", DECODE_ERROR(status));
 			continue;
 		}
 
@@ -1033,7 +1033,7 @@ efipart_readwrite(EFI_BLOCK_IO *blkio, int rw, daddr_t blk, daddr_t nblks,
 
 	if (EFI_ERROR(status)) {
 		printf("%s: rw=%d, blk=%ju size=%ju status=%lu\n", __func__, rw,
-		    blk, nblks, EFI_ERROR_CODE(status));
+		    blk, nblks, DECODE_ERROR(status));
 	}
 	TSEXIT();
 	return (efi_status_to_errno(status));

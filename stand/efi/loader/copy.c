@@ -107,7 +107,7 @@ efi_verify_staging_size(unsigned long *nr_pages)
 
 		if (status != EFI_BUFFER_TOO_SMALL) {
 			printf("Can't read memory map: %lu\n",
-			    EFI_ERROR_CODE(status));
+			    DECODE_ERROR(status));
 			goto out;
 		}
 
@@ -334,7 +334,7 @@ efi_copy_init(void)
 	    nr_pages, &staging);
 	if (EFI_ERROR(status)) {
 		printf("failed to allocate staging area: %lu\n",
-		    EFI_ERROR_CODE(status));
+		    DECODE_ERROR(status));
 		return (status);
 	}
 	staging_base = staging;

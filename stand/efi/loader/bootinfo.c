@@ -251,7 +251,7 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 
 			if (status != EFI_BUFFER_TOO_SMALL) {
 				printf("%s: GetMemoryMap error %lu\n", __func__,
-	                           EFI_ERROR_CODE(status));
+	                           DECODE_ERROR(status));
 				return (EINVAL);
 			}
 
@@ -266,7 +266,7 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 					pages, &addr);
 			if (EFI_ERROR(status)) {
 				printf("%s: AllocatePages error %lu\n", __func__,
-				    EFI_ERROR_CODE(status));
+				    DECODE_ERROR(status));
 				return (ENOMEM);
 			}
 
@@ -289,7 +289,7 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 
 	if (retry == 0) {
 		BS->FreePages(addr, pages);
-		printf("ExitBootServices error %lu\n", EFI_ERROR_CODE(status));
+		printf("ExitBootServices error %lu\n", DECODE_ERROR(status));
 		return (EINVAL);
 	}
 
