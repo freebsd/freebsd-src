@@ -10,6 +10,14 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+8e0b1a1c03a3:
+	The FreeBSD-base repository is now defined in /etc/pkg/FreeBSD.conf,
+	disabled by default.  Systems which installed with pkgbase prior to
+	15.0-RC1 (if running releng/15.0) or November 15th (if running from
+	stable/main snapshots) will need to remove the definition of the
+	FreeBSD-base repository from /usr/local/etc/pkg/repos/ and replace
+	it with a single line "FreeBSD-base: { enabled: yes }".
+
 5000d023a446, 03da141d59ae:
 	Add a "-f" option to "kadmin -l dump" which can be used to
 	dump the Heimdal KDC database in a format that can be loaded
