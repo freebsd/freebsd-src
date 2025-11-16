@@ -45,6 +45,7 @@ typedef struct procfs_list {
 	size_t		pl_node_offset;
 } procfs_list_t;
 
+#ifndef __cplusplus
 struct seq_file { };
 void seq_printf(struct seq_file *m, const char *fmt, ...);
 
@@ -65,5 +66,6 @@ void procfs_list_install(const char *module,
 void procfs_list_uninstall(procfs_list_t *procfs_list);
 void procfs_list_destroy(procfs_list_t *procfs_list);
 void procfs_list_add(procfs_list_t *procfs_list, void *p);
+#endif
 
 #endif /* _SYS_PROCFS_LIST_H */

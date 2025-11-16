@@ -24,7 +24,7 @@ CFLAGS+= -DHAVE_ISSETUGID
 CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
 
 
-LIBADD=	nvpair zfs spl zutil zpool
+LIBADD=	nvpair zfs spl zutil zpool pthread
 
 CFLAGS+=	-DDEBUG=1
 #DEBUG_FLAGS+=	-g

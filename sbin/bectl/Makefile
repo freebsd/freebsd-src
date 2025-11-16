@@ -11,7 +11,8 @@ LIBADD+= be \
 	nvpair \
 	spl \
 	util \
-	zfsbootenv
+	zfsbootenv \
+	pthread
 
 CFLAGS+= -DIN_BASE
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
