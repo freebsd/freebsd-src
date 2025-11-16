@@ -41,6 +41,10 @@
 #include_next <sys/sysmacros.h>
 #endif
 
+#ifdef __FreeBSD__
+#include <sys/param.h>
+#endif
+
 /* common macros */
 #ifndef MIN
 #define	MIN(a, b)	((a) < (b) ? (a) : (b))

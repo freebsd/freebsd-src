@@ -11,6 +11,7 @@ CLEANFILES=	${FILES}
 # These FILES qualify as libraries for the purpose of LIBRARIES_ONLY.
 .undef LIBRARIES_ONLY
 CFLAGS+= -DIN_BASE
+CFLAGS+= -DSKIP_SPL_SYS_CONDVAR_H
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd

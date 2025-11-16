@@ -19,6 +19,7 @@ LIBADD+=	cxxrt elf procstat rtld_db util z
 LIBADD+=	ctf
 IGNORE_PRAGMA=	YES
 CFLAGS+= -DIN_BASE
+CFLAGS+= -DSKIP_SPL_SYS_CONDVAR_H
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd

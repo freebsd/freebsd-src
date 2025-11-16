@@ -10,6 +10,7 @@ BINDIR?=	/usr/sbin
 WARNS?=		1
 
 CFLAGS+= -DIN_BASE
+CFLAGS+= -DSKIP_SPL_SYS_CONDVAR_H
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
@@ -33,7 +34,7 @@ CFLAGS+=	-fsanitize=address -fsanitize=undefined
 LDFLAGS+=	-fsanitize=address -fsanitize=undefined
 .endif
 
-LIBADD=	dtrace ctf elf proc spl xo
+LIBADD=	dtrace ctf elf proc spl xo pthread
 
 .if ${MK_DTRACE_TESTS} != "no"
 SUBDIR+=	tests

@@ -22,6 +22,6 @@ CFLAGS+= \
 	-DSYSCONFDIR=\"/etc\" \
 	-DPKGDATADIR=\"/usr/share/zfs\"
 
-LIBADD=	nvpair spl zfs
+LIBADD=	nvpair spl zfs pthread
 
 .include <bsd.prog.mk>

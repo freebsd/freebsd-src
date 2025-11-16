@@ -10,6 +10,7 @@ LIBADD+= zfs \
 	spl \
 	nvpair \
 	be \
+	pthread
 
 CFLAGS+= -I${SRCTOP}/lib/libbe
 CFLAGS+= -DIN_BASE -DHAVE_RPC_TYPES

@@ -36,7 +36,6 @@ LIB=		zpool
 USER_C = \
 	arc_os.c \
 	kernel.c \
-	taskq.c \
 	util.c \
 	zfs_debug.c
 
@@ -181,6 +180,7 @@ KERNEL_C = \
 	zfs_debug_common.c \
 	zfs_fm.c \
 	zfs_fuid.c \
+	zfs_impl.c \
 	zfs_sa.c \
 	zfs_znode.c \
 	zfs_racct.c \
@@ -265,7 +265,6 @@ CFLAGS+= \
 	-I${ZFSTOP}/lib/libspl/include/os/freebsd \
 	-I${SRCTOP}/sys/contrib/openzfs/lib/libzpool/include \
 	-I${SRCTOP}/sys \
-	-I${ZFSTOP}/include/os/freebsd/zfs \
 	-I${SRCTOP}/cddl/compat/opensolaris/include \
 	-I${ZFSTOP}/module/icp/include \
 	-I${SRCTOP}/compat/linuxkpi/common/include/linux \

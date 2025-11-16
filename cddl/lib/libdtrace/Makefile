@@ -77,6 +77,7 @@ SYSINCS+=	${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/sys/ctf_api.h
 WARNS?=		1
 
 CFLAGS+= -DIN_BASE
+CFLAGS+= -DSKIP_SPL_SYS_CONDVAR_H
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd

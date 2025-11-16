@@ -47,7 +47,7 @@ CFLAGS.${src}+=-I${SRCTOP}/sys
 LIBADD=	geom md ufs
 
 .if ${MK_ZFS} != "no"
-LIBADD+=nvpair zfs spl
+LIBADD+=nvpair zfs spl pthread
 .endif
 
 .include <bsd.prog.mk>

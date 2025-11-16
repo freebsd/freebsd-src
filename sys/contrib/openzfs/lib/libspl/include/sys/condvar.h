@@ -29,6 +29,10 @@
 #ifndef _SYS_CONDVAR_H
 #define	_SYS_CONDVAR_H
 
+#ifdef SKIP_SPL_SYS_CONDVAR_H
+#include_next <sys/condvar.h>
+#else
+
 #include <pthread.h>
 #include <sys/time.h>
 #include <sys/mutex.h>
@@ -62,4 +66,5 @@ extern void cv_broadcast(kcondvar_t *cv);
 #define	cv_timedwait_idle_hires(cv, mp, t, r, f) \
 	cv_timedwait_hires(cv, mp, t, r, f)
 
+#endif /* SKIP_SPL_CONDVAR_H */
 #endif /* _SYS_CONDVAR_H */

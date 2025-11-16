@@ -32,6 +32,10 @@
 #include <umem.h>
 #include <sys/types.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Kernel memory
  */
@@ -65,8 +69,10 @@ extern char *kmem_asprintf(const char *fmt, ...);
 #define	kmem_strfree(str) kmem_free((str), strlen(str) + 1)
 #define	kmem_strdup(s)  strdup(s)
 
+#ifndef __cplusplus
 extern int kmem_scnprintf(char *restrict str, size_t size,
     const char *restrict fmt, ...);
+#endif
 
 typedef umem_cache_t kmem_cache_t;
 
@@ -82,5 +88,9 @@ typedef int fstrans_cookie_t;
 
 extern fstrans_cookie_t spl_fstrans_mark(void);
 extern void spl_fstrans_unmark(fstrans_cookie_t);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* _SYS_KMEM_H */

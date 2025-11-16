@@ -13,10 +13,22 @@ LIBADD=
 SRCS = \
         assert.c \
 	backtrace.c \
+	condvar.c \
+	cred.c \
+	kmem.c \
+	kstat.c \
+	libspl.c \
         list.c \
         mkdirp.c \
+        mutex.c \
         os/freebsd/zone.c \
         page.c \
+	procfs_list.c \
+	random.c \
+	rwlock.c \
+	sid.c \
+	taskq.c \
+	thread.c \
         timestamp.c \
         include/sys/list.h \
         include/sys/list_impl.h

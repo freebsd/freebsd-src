@@ -60,6 +60,7 @@ CFLAGS.zfs.c+=	-DIN_BASE
 CFLAGS.zfs.c+=	-DHAVE_ISSETUGID
 CFLAGS.zfs.c+=	-DZFS_DEBUG
 CFLAGS.zfs.c+=	-I${ZFSTOP}/include
+CFLAGS.zfs.c+=	-I${ZFSTOP}/lib/libzpool/include
 CFLAGS.zfs.c+=	-I${ZFSTOP}/lib/libspl/include
 CFLAGS.zfs.c+=	-I${ZFSTOP}/lib/libspl/include/os/freebsd
 CFLAGS.zfs.c+=	-I${ZFSTOP}/include/os/freebsd/zfs

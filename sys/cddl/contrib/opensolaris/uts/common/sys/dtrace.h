@@ -70,6 +70,9 @@ typedef int processorid_t;
 #include <sys/linker.h>
 #include <sys/ioccom.h>
 #include <sys/cred.h>
+#ifdef __FreeBSD__
+#include <sys/_mutex.h>
+#endif
 #include <sys/proc.h>
 #include <sys/types.h>
 #include <sys/ucred.h>
