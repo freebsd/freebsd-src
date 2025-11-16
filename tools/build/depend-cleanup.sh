@@ -260,11 +260,19 @@ check_epoch
 
 # Date      Rev      Description
 
-# latest clean epoch:
+# latest clean epoch (but not pushed until 20250814)
 # 20250807	# All OpenSSL-using bits need rebuilt
 
-# 20250813  4f766afc1ca0    tcopy converted to C++
-clean_dep   usr.bin/tcopy   tcopy c
+# Examples from the past, not currently active
+#
+#Binary program replaced a shell script
+# 20220524  68fe988a40ca    kqueue_test binary replaced shell script
+#if stat "$OBJTOP"/tests/sys/kqueue/libkqueue/*kqtest* \
+#    "$OBJTOP"/tests/sys/kqueue/libkqueue/.depend.kqtest* >/dev/null 2>&1; then
+#       echo "Removing old kqtest"
+#       run rm -fv "$OBJTOP"/tests/sys/kqueue/libkqueue/.depend.* \
+#          "$OBJTOP"/tests/sys/kqueue/libkqueue/*
+#fi
 
 # 20250904  aef807876c30    moused binary to directory
 if [ -f "$OBJTOP"/usr.sbin/moused/moused ]; then
