@@ -7,6 +7,8 @@
 #ifndef _SYS_EFI_MAP_H_
 #define _SYS_EFI_MAP_H_
 
+#ifdef _KERNEL
+
 #include <sys/efi.h>
 #include <machine/metadata.h>
 
@@ -20,5 +22,7 @@ void efi_map_foreach_entry(struct efi_map_header *efihdr, efi_map_entry_cb cb,
 void efi_map_add_entries(struct efi_map_header *efihdr);
 void efi_map_exclude_entries(struct efi_map_header *efihdr);
 void efi_map_print_entries(struct efi_map_header *efihdr);
+
+#endif
 
 #endif /* !_SYS_EFI_MAP_H_ */
