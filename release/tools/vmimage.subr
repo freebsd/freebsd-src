@@ -223,7 +223,7 @@ vm_extra_install_packages() {
 		    -o REPOS_DIR=${PKG_REPOS_DIR} \
 		    -o PKG_DBDIR=${DESTDIR}/var/db/pkg \
 		    -r ${DESTDIR} \
-		    autoremove
+		    autoremove -y
 		if [ -n "${NOPKGBASE}" ]; then
 			metalog_add_data ./var/db/pkg/local.sqlite
 		fi
@@ -239,7 +239,7 @@ vm_extra_install_packages() {
 				/usr/sbin/pkg install -y ${p}
 		done
 		chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
-		    /usr/sbin/pkg autoremove
+		    /usr/sbin/pkg autoremove -y
 	fi
 
 	return 0
