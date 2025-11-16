@@ -54,7 +54,8 @@
  * consumer of a socket is starting to tear down the socket, and that the
  * protocol should terminate the connection.  Historically, pr_abort() also
  * detached protocol state from the socket state, but this is no longer the
- * case.
+ * case.  pr_fdclose() is called when userspace invokes close(2) on a socket
+ * file descriptor.
  *
  * socreate() creates a socket and attaches protocol state.  This is a public
  * interface that may be used by socket layer consumers to create new

@@ -116,6 +116,7 @@ typedef	int fo_kqfilter_t(struct file *fp, struct knote *kn);
 typedef	int fo_stat_t(struct file *fp, struct stat *sb,
 		    struct ucred *active_cred);
 typedef	int fo_close_t(struct file *fp, struct thread *td);
+typedef	void fo_fdclose_t(struct file *fp, int fd, struct thread *td);
 typedef	int fo_chmod_t(struct file *fp, mode_t mode,
 		    struct ucred *active_cred, struct thread *td);
 typedef	int fo_chown_t(struct file *fp, uid_t uid, gid_t gid,
@@ -153,6 +154,7 @@ struct fileops {
 	fo_kqfilter_t	*fo_kqfilter;
 	fo_stat_t	*fo_stat;
 	fo_close_t	*fo_close;
+	fo_fdclose_t	*fo_fdclose;
 	fo_chmod_t	*fo_chmod;
 	fo_chown_t	*fo_chown;
 	fo_sendfile_t	*fo_sendfile;

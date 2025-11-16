@@ -267,7 +267,6 @@ static int	_mqueue_send(struct mqueue *mq, struct mqueue_msg *msg,
 static int	_mqueue_recv(struct mqueue *mq, struct mqueue_msg **msg,
 			int timo);
 static void	mqueue_send_notification(struct mqueue *mq);
-static void	mqueue_fdclose(struct thread *td, int fd, struct file *fp);
 static void	mq_proc_exit(void *arg, struct proc *p);
 
 /*
@@ -688,7 +687,6 @@ mqfs_init(struct vfsconf *vfc)
 	mqfs_fixup_dir(root);
 	exit_tag = EVENTHANDLER_REGISTER(process_exit, mq_proc_exit, NULL,
 	    EVENTHANDLER_PRI_ANY);
-	mq_fdclose = mqueue_fdclose;
 	p31b_setcfg(CTL_P1003_1B_MESSAGE_PASSING, _POSIX_MESSAGE_PASSING);
 	mqfs_osd_jail_slot = osd_jail_register(NULL, methods);
 	return (0);
@@ -2473,35 +2471,6 @@ sys_kmq_notify(struct thread *td, struct kmq_notify_args *uap)
 }
 
 static void
-mqueue_fdclose(struct thread *td, int fd, struct file *fp)
-{
-	struct mqueue *mq;
-#ifdef INVARIANTS
-	struct filedesc *fdp;
-
-	fdp = td->td_proc->p_fd;
-	FILEDESC_LOCK_ASSERT(fdp);
-#endif
-
-	if (fp->f_ops == &mqueueops) {
-		mq = FPTOMQ(fp);
-		mtx_lock(&mq->mq_mutex);
-		notifier_remove(td->td_proc, mq, fd);
-
-		/* have to wakeup thread in same process */
-		if (mq->mq_flags & MQ_RSEL) {
-			mq->mq_flags &= ~MQ_RSEL;
-			selwakeup(&mq->mq_rsel);
-		}
-		if (mq->mq_flags & MQ_WSEL) {
-			mq->mq_flags &= ~MQ_WSEL;
-			selwakeup(&mq->mq_wsel);
-		}
-		mtx_unlock(&mq->mq_mutex);
-	}
-}
-
-static void
 mq_proc_exit(void *arg __unused, struct proc *p)
 {
 	struct filedesc *fdp;
@@ -2564,6 +2533,33 @@ mqf_close(struct file *fp, struct thread *td)
 	mqnode_release(pn);
 	sx_xunlock(&mqfs_data.mi_lock);
 	return (0);
+}
+
+static void
+mqf_fdclose(struct file *fp, int fd, struct thread *td)
+{
+	struct mqueue *mq;
+#ifdef INVARIANTS
+	struct filedesc *fdp;
+
+	fdp = td->td_proc->p_fd;
+	FILEDESC_LOCK_ASSERT(fdp);
+#endif
+
+	mq = FPTOMQ(fp);
+	mtx_lock(&mq->mq_mutex);
+	notifier_remove(td->td_proc, mq, fd);
+
+	/* have to wakeup thread in same process */
+	if (mq->mq_flags & MQ_RSEL) {
+		mq->mq_flags &= ~MQ_RSEL;
+		selwakeup(&mq->mq_rsel);
+	}
+	if (mq->mq_flags & MQ_WSEL) {
+		mq->mq_flags &= ~MQ_WSEL;
+		selwakeup(&mq->mq_wsel);
+	}
+	mtx_unlock(&mq->mq_mutex);
 }
 
 static int
@@ -2694,6 +2690,7 @@ static const struct fileops mqueueops = {
 	.fo_kqfilter		= mqf_kqfilter,
 	.fo_stat		= mqf_stat,
 	.fo_close		= mqf_close,
+	.fo_fdclose		= mqf_fdclose,
 	.fo_chmod		= mqf_chmod,
 	.fo_chown		= mqf_chown,
 	.fo_sendfile		= invfo_sendfile,
