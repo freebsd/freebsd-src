@@ -7902,6 +7902,23 @@ iwx_rx_packet_payload_len(const struct iwx_rx_packet *pkt)
 #define IWX_MIN_DBM	-100
 #define IWX_MAX_DBM	-33	/* realistic guess */
 
+/*
+ * NF values for various channel widths at 20C
+ *
+ * 20MHz - -98 dBm
+ * 40MHz - -94 dBm
+ * 80MHz - -92 dBm
+ * 160MHz - -88 dBm
+ * 320MHz - -85 dBm
+ */
+#define IWX_DEFAULT_NF		-100
+/*
+ * Note; RSSI is for net80211, and it's calculated against the noise floor
+ * as a reference.
+ */
+#define IWX_RSSI_MINIMUM	-10
+#define IWX_RSSI_MAXIMUM	60
+
 #define IWX_READ(sc, reg)						\
 	bus_space_read_4((sc)->sc_st, (sc)->sc_sh, (reg))
 
