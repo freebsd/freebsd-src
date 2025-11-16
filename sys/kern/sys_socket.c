@@ -90,6 +90,7 @@ static fo_poll_t soo_poll;
 static fo_kqfilter_t soo_kqfilter;
 static fo_stat_t soo_stat;
 static fo_close_t soo_close;
+static fo_fdclose_t soo_fdclose;
 static fo_chmod_t soo_chmod;
 static fo_fill_kinfo_t soo_fill_kinfo;
 static fo_aio_queue_t soo_aio_queue;
@@ -105,6 +106,7 @@ const struct fileops socketops = {
 	.fo_kqfilter = soo_kqfilter,
 	.fo_stat = soo_stat,
 	.fo_close = soo_close,
+	.fo_fdclose = soo_fdclose,
 	.fo_chmod = soo_chmod,
 	.fo_chown = invfo_chown,
 	.fo_sendfile = invfo_sendfile,
@@ -360,6 +362,16 @@ soo_close(struct file *fp, struct thread *td)
 	if (so)
 		error = soclose(so);
 	return (error);
+}
+
+static void
+soo_fdclose(struct file *fp, int fd __unused, struct thread *td)
+{
+	struct socket *so;
+
+	so = fp->f_data;
+	if (so->so_proto->pr_fdclose != NULL)
+		so->so_proto->pr_fdclose(so);
 }
 
 static int

@@ -94,6 +94,7 @@ typedef int	pr_sopoll_t(struct socket *, int, struct thread *);
 typedef int	pr_kqfilter_t(struct socket *, struct knote *);
 typedef void	pr_sosetlabel_t(struct socket *);
 typedef void	pr_close_t(struct socket *);
+typedef void	pr_fdclose_t(struct socket *);
 typedef int	pr_bindat_t(int, struct socket *, struct sockaddr *,
 		    struct thread *);
 typedef int	pr_connectat_t(int, struct socket *, struct sockaddr *,
@@ -120,8 +121,8 @@ struct protosw {
 	pr_detach_t	*pr_detach;	/* destruction: sofree() */
 	pr_connect_t	*pr_connect;	/* connect(2) */
 	pr_disconnect_t	*pr_disconnect;	/* sodisconnect() */
-	pr_close_t	*pr_close;	/* close(2) */
-	pr_shutdown_t	*pr_shutdown;	/* shutdown(2) */
+	pr_close_t	*pr_close;	/* soclose(), socket refcount is 0 */
+	pr_fdclose_t	*pr_fdclose;	/* close(2) */
 	pr_rcvd_t	*pr_rcvd;	/* soreceive_generic() if PR_WANTRCVD */
 	pr_aio_queue_t	*pr_aio_queue;	/* aio(9) */
 /* Cache line #3 */
@@ -142,7 +143,9 @@ struct protosw {
 	pr_sosetlabel_t	*pr_sosetlabel;	/* MAC, XXXGL: remove */
 	pr_setsbopt_t	*pr_setsbopt;	/* Socket buffer ioctls */
 	pr_chmod_t	*pr_chmod;	/* fchmod(2) */
+/* Cache line #5 */
 	pr_kqfilter_t	*pr_kqfilter;	/* kevent(2) */
+	pr_shutdown_t	*pr_shutdown;	/* shutdown(2) */
 };
 #endif	/* defined(_KERNEL) || defined(_WANT_PROTOSW) */
 #ifdef _KERNEL
