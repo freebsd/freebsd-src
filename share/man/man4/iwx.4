@@ -24,16 +24,20 @@
 .Nm iwx
 .Nd Intel WiFi 6 IEEE 802.11ax wireless network driver
 .Sh SYNOPSIS
-.Cd device wlan
+To compile this driver into the kernel,
+include the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device iwx"
+.Cd "device pci"
+.Cd "device wlan"
+.Ed
 .Pp
-In
-.Xr rc.conf 5 :
-.Cd devmatch_blocklist="if_iwlwifi"
-.Cd kld_list="if_iwx"
-.Pp
-In
-.Xr sysctl.conf 5 :
-.Cd dev.iwx.?.debug=0xffffffff
+Alternatively, to load the driver as a
+module at boot time, place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_iwx_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
