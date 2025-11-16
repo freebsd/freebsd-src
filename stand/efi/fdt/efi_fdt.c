@@ -31,6 +31,8 @@
 #include <efi.h>
 #include <efilib.h>
 #include <fdt_platform.h>
+#include <Uefi.h>
+#include <Guid/Fdt.h>
 
 #include "bootstrap.h"
 

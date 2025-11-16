@@ -12,6 +12,7 @@ SRCS=		efi_fdt.c
 # EFI library headers
 CFLAGS+=	-I${EFISRC}/include
 CFLAGS+=	-I${EFISRC}/include/${MACHINE}
+CFLAGS+=	-I${EDK2INC}
 
 # libfdt headers
 CFLAGS+=	-I${FDTSRC}
