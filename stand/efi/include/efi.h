@@ -43,34 +43,18 @@ Revision History
 // Basic EFI types of various widths.
 //
 
-#include <stdint.h>
-#ifndef ACPI_THREAD_ID		/* ACPI's definitions are fine */
-#define ACPI_USE_SYSTEM_INTTYPES 1	/* Tell ACPI we've defined types */
+#include <sys/efi-edk2.h>
 
-typedef uint64_t   UINT64;
-typedef int64_t    INT64;
-typedef uint32_t   UINT32;
-typedef int32_t    INT32;
-typedef uint16_t   UINT16;
-typedef int16_t    INT16;
-typedef uint8_t    UINT8;
-typedef int8_t     INT8;
-
-#ifdef __LP64__
-typedef int64_t    INTN;
-typedef uint64_t   UINTN;
+#if __SIZEOF_LONG__ == 4
+#define EFI_ERROR_MASK      0x80000000
+#define EFIERR(a)           (0x80000000 | a)
+#define EFIERR_OEM(a)       (0xc0000000 | a)
 #else
-typedef int32_t    INTN;
-typedef uint32_t   UINTN;
+#define EFI_ERROR_MASK      0x8000000000000000
+#define EFIERR(a)           (0x8000000000000000 | a)
+#define EFIERR_OEM(a)       (0xc000000000000000 | a)
 #endif
 
-#endif
-
-#undef VOID
-#define VOID    void
-
-
-#include "efibind.h"
 #include "efidef.h"
 #include "efidevp.h"
 #include "efipciio.h"
