@@ -47,7 +47,7 @@ CFLAGS+=	-mgeneral-regs-only
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+= -fPIC -mno-red-zone
 .endif
-CFLAGS+= -I${EFIINC}
+CFLAGS+= -I${EFIINC} -I${EDK2INC}
 CFLAGS+= -I${EFIINCMD}
 CFLAGS.efi_console.c+= -I${SRCTOP}/sys/teken -I${SRCTOP}/contrib/pnglite
 CFLAGS.efi_console.c+= -I${.CURDIR}/../loader

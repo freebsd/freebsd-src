@@ -35,8 +35,9 @@
 
 #include <efi.h>
 #include <efilib.h>
-#include <efiprot.h>
 #include <efichar.h>
+#include <Protocol/DevicePath.h>
+#include <Protocol/BlockIo.h>
 #include <disk.h>
 
 static EFI_GUID blkio_guid = BLOCK_IO_PROTOCOL;

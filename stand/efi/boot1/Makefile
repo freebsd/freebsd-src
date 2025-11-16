@@ -44,7 +44,7 @@ CFLAGS.zfs_module.c+=	-include ${ZFSOSINC}/spl/sys/ccompile.h
 CFLAGS+=	-DEFI_ZFS_BOOT
 .endif
 
-CFLAGS+=	-I${EFIINC}
+CFLAGS+=	-I${EFIINC} -I${EDK2INC}
 CFLAGS+=	-I${EFIINCMD}
 CFLAGS+=	-I${SYSDIR}/contrib/dev/acpica/include
 CFLAGS+=	-DEFI_UFS_BOOT

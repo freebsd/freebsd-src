@@ -36,7 +36,6 @@
 
 #include <efi.h>
 #include <efilib.h>
-#include <efiprot.h>
 #include <Protocol/Http.h>
 #include <Protocol/Ip4Config2.h>
 #include <Protocol/ServiceBinding.h>

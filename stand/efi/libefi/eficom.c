@@ -30,8 +30,9 @@
 
 #include <efi.h>
 #include <efilib.h>
+#include <Protocol/SerialIo.h>
 
-static EFI_GUID serial = SERIAL_IO_PROTOCOL;
+static EFI_GUID serial = EFI_SERIAL_IO_PROTOCOL_GUID;
 
 #define	COMC_TXWAIT	0x40000		/* transmit timeout */
 
