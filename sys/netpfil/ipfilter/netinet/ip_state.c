@@ -713,6 +713,7 @@ ipf_state_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 				   IPFOBJ_STATESTAT);
 		break;
 
+#ifdef IPFILTER_IPFS
 	/*
 	 * Lock/Unlock the state table.  (Locking prevents any changes, which
 	 * means no packets match).
@@ -749,6 +750,7 @@ ipf_state_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 		}
 		error = ipf_state_getent(softc, softs, data);
 		break;
+#endif /* IPFILTER_IPFS */
 
 	case SIOCGENITER :
 	    {
@@ -805,6 +807,7 @@ ipf_state_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 }
 
 
+#ifdef IPFILTER_IPFS
 /* ------------------------------------------------------------------------ */
 /* Function:    ipf_state_getent                                            */
 /* Returns:     int - 0 == success, != 0 == failure                         */
@@ -1009,6 +1012,7 @@ ipf_state_putent(ipf_main_softc_t *softc, ipf_state_softc_t *softs,
 
 	return (error);
 }
+#endif /* IPFILTER_IPFS */
 
 
 /* ------------------------------------------------------------------------ */
