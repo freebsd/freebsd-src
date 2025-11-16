@@ -1,30 +1,11 @@
-/*-
- * Copyright (c) 2017 Netflix, Inc.
+/*
+ * Copyright (c) 2017-2025 Netflix, Inc.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#ifndef	_EFI_OSDEP_H_
-#define	_EFI_OSDEP_H_
+#ifndef	_SYS_EFI_EDK2_H_
+#define	_SYS_EFI_EDK2_H_
 
 /*
  * Defines to adjust the types that EDK2 uses for FreeBSD so we can
@@ -34,10 +15,8 @@
  * annoying dependencies that are difficult to satisfy.
  */
 
-#include <sys/cdefs.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <uuid.h>
 
 typedef int8_t INT8;
 typedef int16_t INT16;
@@ -61,7 +40,7 @@ typedef void VOID;
 //typedef uuid_t EFI_GUID;
 
 /* We can't actually call this stuff, so snip out API syntactic sugar */
-#define INTERFACE_DECL(x)
+#define INTERFACE_DECL(x) struct x
 #define EFIAPI
 #define IN
 #define OUT
@@ -107,4 +86,18 @@ typedef void VOID;
 #endif
 /* FreeBSD doesn't have/use MDE_CPU_EBC or MDE_CPU_IPF (ia64) */
 
-#endif /* _EFI_OSDEP_H_ */
+#if __SIZEOF_LONG__ == 4
+#define MAX_BIT      0x80000000
+#else
+#define MAX_BIT      0x8000000000000000
+#endif
+
+/*
+ * Sometimes EFI is included after sys/param.h, and that causes a collision. We
+ * get a collision the other way too, so when including both, you have to
+ * include sys/param.h first.
+ */
+#undef MAX
+#undef MIN
+
+#endif /* _SYS_EFI_EDK2_H_ */

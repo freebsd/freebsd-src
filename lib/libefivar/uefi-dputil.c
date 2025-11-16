@@ -33,9 +33,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/endian.h>
-
-#include "efi-osdep.h"
-
 #include "uefi-dplib.h"
 
 /* XXX maybe I should include the entire DevicePathUtiltiies.c and ifdef out what we don't use */

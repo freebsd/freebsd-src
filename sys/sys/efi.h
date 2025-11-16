@@ -27,8 +27,8 @@
 #ifndef _SYS_EFI_H_
 #define _SYS_EFI_H_
 
-#include <sys/uuid.h>
 #include <machine/efi.h>
+#include <sys/efi-freebsd.h>
 
 #define	EFI_PAGE_SHIFT		12
 #define	EFI_PAGE_SIZE		(1 << EFI_PAGE_SHIFT)
