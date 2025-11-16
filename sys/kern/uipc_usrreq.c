@@ -793,12 +793,18 @@ uipc_connect2(struct socket *so1, struct socket *so2)
 }
 
 static void
+maybe_schedule_gc(void)
+{
+	if (atomic_load_int(&unp_rights) != 0)
+		taskqueue_enqueue_timeout(taskqueue_thread, &unp_gc_task, -1);
+}
+
+static void
 uipc_detach(struct socket *so)
 {
 	struct unpcb *unp, *unp2;
 	struct mtx *vplock;
 	struct vnode *vp;
-	int local_unp_rights;
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_detach: unp == NULL"));
@@ -854,7 +860,6 @@ uipc_detach(struct socket *so)
 	UNP_REF_LIST_UNLOCK();
 
 	UNP_PCB_LOCK(unp);
-	local_unp_rights = unp_rights;
 	unp->unp_socket->so_pcb = NULL;
 	unp->unp_socket = NULL;
 	free(unp->unp_addr, M_SONAME);
@@ -865,8 +870,7 @@ uipc_detach(struct socket *so)
 		mtx_unlock(vplock);
 		vrele(vp);
 	}
-	if (local_unp_rights)
-		taskqueue_enqueue_timeout(taskqueue_thread, &unp_gc_task, -1);
+	maybe_schedule_gc();
 
 	switch (so->so_type) {
 	case SOCK_STREAM:
@@ -900,6 +904,18 @@ uipc_disconnect(struct socket *so)
 	else
 		UNP_PCB_UNLOCK(unp);
 	return (0);
+}
+
+static void
+uipc_fdclose(struct socket *so __unused)
+{
+	/*
+	 * Ensure that userspace can't create orphaned file descriptors without
+	 * triggering garbage collection.  Triggering GC from uipc_detach() is
+	 * not sufficient, since that's only closed once a socket reference
+	 * count drops to zero.
+	 */
+	maybe_schedule_gc();
 }
 
 static int
@@ -4372,6 +4388,7 @@ static struct protosw streamproto = {
 	.pr_connect2 =		uipc_connect2,
 	.pr_detach =		uipc_detach,
 	.pr_disconnect =	uipc_disconnect,
+	.pr_fdclose =		uipc_fdclose,
 	.pr_listen =		uipc_listen,
 	.pr_peeraddr =		uipc_peeraddr,
 	.pr_send =		uipc_sendfile,
@@ -4402,6 +4419,7 @@ static struct protosw dgramproto = {
 	.pr_connect2 =		uipc_connect2,
 	.pr_detach =		uipc_detach,
 	.pr_disconnect =	uipc_disconnect,
+	.pr_fdclose =		uipc_fdclose,
 	.pr_peeraddr =		uipc_peeraddr,
 	.pr_sosend =		uipc_sosend_dgram,
 	.pr_sense =		uipc_sense,
@@ -4426,6 +4444,7 @@ static struct protosw seqpacketproto = {
 	.pr_connect2 =		uipc_connect2,
 	.pr_detach =		uipc_detach,
 	.pr_disconnect =	uipc_disconnect,
+	.pr_fdclose =		uipc_fdclose,
 	.pr_listen =		uipc_listen,
 	.pr_peeraddr =		uipc_peeraddr,
 	.pr_sense =		uipc_sense,

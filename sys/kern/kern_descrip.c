@@ -194,7 +194,6 @@ struct filedesc0 {
  */
 static int __exclusive_cache_line openfiles; /* actual number of open files */
 struct mtx sigio_lock;		/* mtx to protect pointers to sigio */
-void __read_mostly (*mq_fdclose)(struct thread *td, int fd, struct file *fp);
 
 /*
  * If low >= size, just return low. Otherwise find the first zero bit in the
@@ -1413,11 +1412,8 @@ closefp_impl(struct filedesc *fdp, int fd, struct file *fp, struct thread *td,
 	if (__predict_false(!TAILQ_EMPTY(&fdp->fd_kqlist)))
 		knote_fdclose(td, fd);
 
-	/*
-	 * We need to notify mqueue if the object is of type mqueue.
-	 */
-	if (__predict_false(fp->f_type == DTYPE_MQUEUE))
-		mq_fdclose(td, fd, fp);
+	if (fp->f_ops->fo_fdclose != NULL)
+		fp->f_ops->fo_fdclose(fp, fd, td);
 	FILEDESC_XUNLOCK(fdp);
 
 #ifdef AUDIT
