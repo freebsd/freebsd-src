@@ -239,7 +239,7 @@ efifb_uga_find_pixel(EFI_UGA_DRAW_PROTOCOL *uga, u_int line,
 	printf("No change detected in frame buffer");
 
  fail:
-	printf(" -- error %lu\n", EFI_ERROR_CODE(status));
+	printf(" -- error %lu\n", DECODE_ERROR(status));
 	free(data1);
 	return (-1);
 }
@@ -781,7 +781,7 @@ gop_autoresize(void)
 		if (EFI_ERROR(status)) {
 			snprintf(command_errbuf, sizeof(command_errbuf),
 			    "gop_autoresize: Unable to set mode to %u (error=%lu)",
-			    mode, EFI_ERROR_CODE(status));
+			    mode, DECODE_ERROR(status));
 			return (CMD_ERROR);
 		}
 		(void) cons_update_mode(true);
@@ -884,7 +884,7 @@ command_gop(int argc, char *argv[])
 		if (EFI_ERROR(status)) {
 			snprintf(command_errbuf, sizeof(command_errbuf),
 			    "%s: Unable to set mode to %u (error=%lu)",
-			    argv[0], mode, EFI_ERROR_CODE(status));
+			    argv[0], mode, DECODE_ERROR(status));
 			return (CMD_ERROR);
 		}
 		(void) cons_update_mode(true);

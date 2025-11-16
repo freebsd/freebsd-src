@@ -69,7 +69,7 @@ drvread(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk)
 		DPRINTF("dskread: failed dev: %p, id: %u, lba: %ju, size: %d, "
 		    "status: %lu\n", devinfo->dev,
 		    dev->Media->MediaId, (uintmax_t)lba, size,
-		    EFI_ERROR_CODE(status));
+		    DECODE_ERROR(status));
 		return (-1);
 	}
 
@@ -99,7 +99,7 @@ drvwrite(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk)
 		DPRINTF("dskread: failed dev: %p, id: %u, lba: %ju, size: %d, "
 		    "status: %lu\n", devinfo->dev,
 		    dev->Media->MediaId, (uintmax_t)lba, size,
-		    EFI_ERROR_CODE(status));
+		    DECODE_ERROR(status));
 		return (-1);
 	}
 

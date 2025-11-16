@@ -1936,7 +1936,7 @@ command_chain(int argc, char *argv[])
 
 	status = BS->StartImage(loaderhandle, &ExitDataSize, &ExitData);
 	if (status != EFI_SUCCESS) {
-		printf("StartImage failed (%lu)", EFI_ERROR_CODE(status));
+		printf("StartImage failed (%lu)", DECODE_ERROR(status));
 		if (ExitData != NULL) {
 			printf(": %S", ExitData);
 			BS->FreePool(ExitData);

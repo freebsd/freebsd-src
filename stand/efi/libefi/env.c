@@ -679,7 +679,7 @@ efi_print_var(CHAR16 *varnamearg, EFI_GUID *matchguid, int lflag)
 	status = RS->GetVariable(varnamearg, matchguid, &attr, &datasz, NULL);
 	if (status != EFI_BUFFER_TOO_SMALL) {
 		printf("Can't get the variable: error %#lx\n",
-		    EFI_ERROR_CODE(status));
+		    DECODE_ERROR(status));
 		return (CMD_ERROR);
 	}
 	data = malloc(datasz);
@@ -691,7 +691,7 @@ efi_print_var(CHAR16 *varnamearg, EFI_GUID *matchguid, int lflag)
 	status = RS->GetVariable(varnamearg, matchguid, &attr, &datasz, data);
 	if (status != EFI_SUCCESS) {
 		printf("Can't get the variable: error %#lx\n",
-		    EFI_ERROR_CODE(status));
+		    DECODE_ERROR(status));
 		free(data);
 		return (CMD_ERROR);
 	}
@@ -954,7 +954,7 @@ command_efi_set(int argc, char *argv[])
 	    strlen(val) + 1, val);
 	if (EFI_ERROR(err)) {
 		printf("Failed to set variable: error %lu\n",
-		    EFI_ERROR_CODE(err));
+		    DECODE_ERROR(err));
 		return (CMD_ERROR);
 	}
 #else
@@ -990,7 +990,7 @@ command_efi_unset(int argc, char *argv[])
 	err = RS->SetVariable(wvar, &guid, 0, 0, NULL);
 	if (EFI_ERROR(err)) {
 		printf("Failed to unset variable: error %lu\n",
-		    EFI_ERROR_CODE(err));
+		    DECODE_ERROR(err));
 		return (CMD_ERROR);
 	}
 #else

@@ -118,7 +118,7 @@ try_boot(const boot_module_t *mod, dev_info_t *dev, void *loaderbuf, size_t load
 	if ((status = BS->LoadImage(TRUE, IH, efi_devpath_last_node(dev->devpath),
 	    loaderbuf, loadersize, &loaderhandle)) != EFI_SUCCESS) {
 		printf("Failed to load image provided by %s, size: %zu, (%lu)\n",
-		     mod->name, loadersize, EFI_ERROR_CODE(status));
+		     mod->name, loadersize, DECODE_ERROR(status));
 		goto errout;
 	}
 
@@ -126,7 +126,7 @@ try_boot(const boot_module_t *mod, dev_info_t *dev, void *loaderbuf, size_t load
 	    (void **)&loaded_image);
 	if (status != EFI_SUCCESS) {
 		printf("Failed to query LoadedImage provided by %s (%lu)\n",
-		    mod->name, EFI_ERROR_CODE(status));
+		    mod->name, DECODE_ERROR(status));
 		goto errout;
 	}
 
@@ -152,7 +152,7 @@ try_boot(const boot_module_t *mod, dev_info_t *dev, void *loaderbuf, size_t load
 	if ((status = BS->StartImage(loaderhandle, NULL, NULL)) !=
 	    EFI_SUCCESS) {
 		printf("Failed to start image provided by %s (%lu)\n",
-		    mod->name, EFI_ERROR_CODE(status));
+		    mod->name, DECODE_ERROR(status));
 		loaded_image->LoadOptionsSize = 0;
 		loaded_image->LoadOptions = NULL;
 	}
@@ -254,7 +254,7 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 		    &DevicePathGUID, (void **)&imgpath);
 		if (status != EFI_SUCCESS) {
 			DPRINTF("Failed to get image DevicePath (%lu)\n",
-			    EFI_ERROR_CODE(status));
+			    DECODE_ERROR(status));
 		} else {
 			text = efi_devpath_name(imgpath);
 			if (text != NULL) {
