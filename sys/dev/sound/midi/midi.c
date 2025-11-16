@@ -665,11 +665,11 @@ midi_poll(struct cdev *i_dev, int events, struct thread *td)
 
 	if (events & (POLLIN | POLLRDNORM))
 		if (!MIDIQ_EMPTY(m->inq))
-			events |= events & (POLLIN | POLLRDNORM);
+			revents |= events & (POLLIN | POLLRDNORM);
 
 	if (events & (POLLOUT | POLLWRNORM))
 		if (MIDIQ_AVAIL(m->outq) < m->hiwat)
-			events |= events & (POLLOUT | POLLWRNORM);
+			revents |= events & (POLLOUT | POLLWRNORM);
 
 	if (revents == 0) {
 		if (events & (POLLIN | POLLRDNORM))
@@ -681,7 +681,7 @@ midi_poll(struct cdev *i_dev, int events, struct thread *td)
 	mtx_unlock(&m->lock);
 	mtx_unlock(&m->qlock);
 
-	return (revents);
+	return (revents ? 1 : 0);
 }
 
 /*
