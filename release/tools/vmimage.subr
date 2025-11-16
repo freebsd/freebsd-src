@@ -292,8 +292,15 @@ vm_extra_pkg_rmcache() {
 buildfs() {
 	local md tmppool
 
+	# Copy entries from METALOG.pkg into METALOG, but first check to
+	# make sure that filesystem objects still exist; some things may
+	# have been logged which no longer exist if a package was removed.
 	if [ -f ${DESTDIR}/METALOG.pkg ]; then
-		cat ${DESTDIR}/METALOG.pkg >> ${DESTDIR}/METALOG
+		while read F REST; do
+			if [ -e ${DESTDIR}/${F} ]; then
+				echo "${F} ${REST}" >> ${DESTDIR}/METALOG
+			fi
+		done < ${DESTDIR}/METALOG.pkg
 	fi
 
 	if [ -n "${NO_ROOT}" ]; then
