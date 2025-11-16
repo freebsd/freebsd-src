@@ -109,8 +109,8 @@ vm_install_base() {
 		metalog_add_data ./var/db/pkg/local.sqlite
 		mkdir -p ${DESTDIR}/usr/local/etc/pkg/repos
 		echo 'FreeBSD-base: { enabled: yes }' > ${DESTDIR}/usr/local/etc/pkg/repos/FreeBSD.conf
-		metalog_add_data /usr/local/etc/pkg/repos
-		metalog_add_data /usr/local/etc/pkg/repos/FreeBSD.conf
+		metalog_add_data ./usr/local/etc/pkg/repos
+		metalog_add_data ./usr/local/etc/pkg/repos/FreeBSD.conf
 	else
 		cd ${WORLDDIR} && \
 			make DESTDIR=${DESTDIR} ${INSTALLOPTS} \
