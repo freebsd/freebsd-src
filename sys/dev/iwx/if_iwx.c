@@ -433,7 +433,7 @@ static int 	iwx_rx_addbuf(struct iwx_softc *, int, int);
 static int	iwx_rxmq_get_signal_strength(struct iwx_softc *, struct iwx_rx_mpdu_desc *);
 static void	iwx_rx_rx_phy_cmd(struct iwx_softc *, struct iwx_rx_packet *,
     struct iwx_rx_data *);
-static int	iwx_get_noise(const struct iwx_statistics_rx_non_phy *);
+static int	iwx_get_noise(struct iwx_softc *, const struct iwx_statistics_rx_non_phy *);
 static int	iwx_rx_hwdecrypt(struct iwx_softc *, struct mbuf *, uint32_t);
 #if 0
 int	iwx_ccmp_decap(struct iwx_softc *, struct mbuf *,
@@ -4209,6 +4209,17 @@ iwx_rx_addbuf(struct iwx_softc *sc, int size, int idx)
 	return 0;
 }
 
+/*
+ * @brief Return a single signal strength for the given frame.
+ *
+ * The firmware communicates up an energy field which is the negative of
+ * the dBm value.  Ie, the number is positive and it increases as the
+ * signal level decreases.
+ *
+ * Fetch the two values, map 0 (inactive antenna) to -256 dBm which is a
+ * very small number, negate a non-zero value so it's mapped into a dBm
+ * value, then choose the maximum value to return.
+ */
 static int
 iwx_rxmq_get_signal_strength(struct iwx_softc *sc,
     struct iwx_rx_mpdu_desc *desc)
@@ -4225,6 +4236,26 @@ iwx_rxmq_get_signal_strength(struct iwx_softc *sc,
 	energy_a = energy_a ? -energy_a : -256;
 	energy_b = energy_b ? -energy_b : -256;
 	return MAX(energy_a, energy_b);
+}
+
+/**
+ * @brief Calculate an RSSI from the given signal level and noise floor.
+ *
+ * This calculates an RSSI and clamps it at IWX_RSSI_MINIMUM at the lower level
+ * and IWX_RSSI_MAXIMUM at the upper level.
+ *
+ * All units are in dBm.
+ */
+static int
+iwx_calculate_rssi(struct iwx_softc *sc, int ss, int nf)
+{
+	int rssi = (ss - nf);
+	if (rssi < IWX_RSSI_MINIMUM)
+		rssi = IWX_RSSI_MINIMUM;
+	else if (rssi > IWX_RSSI_MAXIMUM)
+		rssi = IWX_RSSI_MAXIMUM;
+
+	return (rssi);
 }
 
 static int
@@ -4254,12 +4285,18 @@ iwx_rx_rx_phy_cmd(struct iwx_softc *sc, struct iwx_rx_packet *pkt,
 }
 
 /*
- * Retrieve the average noise (in dBm) among receivers.
+ * @brief Retrieve the average noise (in dBm) among receivers.
+ *
+ * Note: This routine calculates the noise floor sum incorrectly, as
+ * you can't just linearly add the logarithm based dB units together.
+ *
+ * If no noise floor is available then this routine will return -127.
  */
 static int
-iwx_get_noise(const struct iwx_statistics_rx_non_phy *stats)
+iwx_get_noise(struct iwx_softc *sc,
+    const struct iwx_statistics_rx_non_phy *stats)
 {
-	int i, total, nbant, noise;
+	int i, total, nbant, noise, ret;
 
 	total = nbant = noise = 0;
 	for (i = 0; i < 3; i++) {
@@ -4271,7 +4308,14 @@ iwx_get_noise(const struct iwx_statistics_rx_non_phy *stats)
 	}
 
 	/* There should be at least one antenna but check anyway. */
-	return (nbant == 0) ? -127 : (total / nbant) - 107;
+	if (nbant == 0)
+		ret = -127;
+	else if (total == 0)
+		ret = -127;
+	else
+		ret = (total / nbant) - 127;
+
+	return (ret);
 }
 
 #if 0
@@ -4669,9 +4713,8 @@ iwx_rx_mpdu_mq(struct iwx_softc *sc, struct mbuf *m, void *pktdata,
 
 	phy_info = le16toh(desc->phy_info);
 
+	/* note: RSSI here is absolute signal strength, not relative */
 	rssi = iwx_rxmq_get_signal_strength(sc, desc);
-	rssi = (0 - IWX_MIN_DBM) + rssi;		/* normalize */
-	rssi = MIN(rssi, (IWX_MAX_DBM - IWX_MIN_DBM));	/* clip to max. 100% */
 
 	memset(&rxs, 0, sizeof(rxs));
 	rxs.r_flags |= IEEE80211_R_IEEE | IEEE80211_R_FREQ;
@@ -4688,9 +4731,19 @@ iwx_rx_mpdu_mq(struct iwx_softc *sc, struct mbuf *m, void *pktdata,
 	if (rxs.c_chain != 0)
 		rxs.r_flags |= IEEE80211_R_C_CHAIN;
 
-	/* rssi is in 1/2db units */
-	rxs.c_rssi = rssi * 2;
-	rxs.c_nf = sc->sc_noise;
+	/* noise floor is in 1dB units */
+	if (sc->sc_noise < IWX_DEFAULT_NF)
+		/*
+		 * For now choose /a/ default, net80211 expects nf to be passed
+		 * in various places and older drivers fake NF values where
+		 * needed.
+		 */
+		rxs.c_nf = IWX_DEFAULT_NF;
+	else
+		rxs.c_nf = sc->sc_noise;
+
+	/* rssi is in 1/2db units relative to the noise floor */
+	rxs.c_rssi = iwx_calculate_rssi(sc, rssi, rxs.c_nf) * 2;
 
 	if (pad) {
 		rxs.c_pktflags |= IEEE80211_RX_F_DECRYPTED;
@@ -9142,11 +9195,16 @@ iwx_rx_pkt(struct iwx_softc *sc, struct iwx_rx_data *data, struct mbuf *ml)
 			break;
 		}
 
+		/*
+		 * TODO: is this the right struct to use? Look at what
+		 * mvm is doing for statistics notification (eg
+		 * iwl_mvm_handle_rx_statistics() .
+		 */
 		case IWX_STATISTICS_NOTIFICATION: {
 			struct iwx_notif_statistics *stats;
 			SYNC_RESP_STRUCT(stats, pkt);
 			memcpy(&sc->sc_stats, stats, sizeof(sc->sc_stats));
-			sc->sc_noise = iwx_get_noise(&stats->rx.general);
+			sc->sc_noise = iwx_get_noise(sc, &stats->rx.general);
 			break;
 		}
 
@@ -10586,6 +10644,9 @@ iwx_attach(device_t dev)
 		for (j = 0; j < nitems(rxba->entries); j++)
 			mbufq_init(&rxba->entries[j].frames, ifqmaxlen);
 	}
+
+	/* Initialize to something to have a chance to get S:N values. */
+	sc->sc_noise = IWX_DEFAULT_NF;
 
 	sc->sc_preinit_hook.ich_func = iwx_attach_hook;
 	sc->sc_preinit_hook.ich_arg = sc;
