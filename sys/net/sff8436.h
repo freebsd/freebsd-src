@@ -151,7 +151,7 @@ enum {
 					* OM2 fiber, units of 1 m */
 	SFF_8436_LEN_OM1	= 145,	/* Link length supported for 1310 nm
 					 * 50um multi-mode fiber, units of 1m*/
-	SFF_8436_LEN_ASM	= 144, /* Link length of passive cable assembly
+	SFF_8436_LEN_ASM	= 146, /* Link length of passive cable assembly
 					* Length is specified as in the INF
 					* 8074, units of 1m. 0 means this is
 					* not value assembly. Value of 255
