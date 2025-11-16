@@ -1120,6 +1120,9 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 		| FUSE_NO_OPEN_SUPPORT | FUSE_NO_OPENDIR_SUPPORT
 		| FUSE_SETXATTR_EXT;
 
+	if (fuse_libabi_geq(data, 7, 36))
+		fiii->flags2 = 0;
+
 	fuse_insert_callback(fdi.tick, fuse_internal_init_callback);
 	fuse_insert_message(fdi.tick, false);
 	fdisp_destroy(&fdi);
