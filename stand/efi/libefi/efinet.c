@@ -36,10 +36,11 @@
 
 #include <efi.h>
 #include <efilib.h>
+#include <Protocol/SimpleNetwork.h>
 
 #include "dev_net.h"
 
-static EFI_GUID sn_guid = EFI_SIMPLE_NETWORK_PROTOCOL;
+static EFI_GUID sn_guid = EFI_SIMPLE_NETWORK_PROTOCOL_GUID;
 
 static void efinet_end(struct netif *);
 static ssize_t efinet_get(struct iodesc *, void **, time_t);

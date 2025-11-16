@@ -28,6 +28,8 @@
 #include <efichar.h>
 #include <uuid.h>
 #include <machine/_inttypes.h>
+#include <Protocol/DevicePathToText.h>
+#include <Protocol/DevicePathFromText.h>
 
 static EFI_GUID ImageDevicePathGUID =
     EFI_LOADED_IMAGE_DEVICE_PATH_PROTOCOL_GUID;
@@ -165,7 +167,7 @@ efi_hw_dev_path(EFI_DEVICE_PATH *node, char *suffix)
 		break;
 	case HW_CONTROLLER_DP:
 		if (asprintf(&name, "Ctrl(%x)%s",
-		    ((CONTROLLER_DEVICE_PATH *)node)->Controller, tail) < 0)
+		    ((CONTROLLER_DEVICE_PATH *)node)->ControllerNumber, tail) < 0)
 			name = NULL;
 		break;
 	default:

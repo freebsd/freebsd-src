@@ -38,6 +38,7 @@ MK_UBSAN:=	no
 WARNS?=		1
 
 BOOTSRC=	${SRCTOP}/stand
+EDK2INC=	${SYSDIR}/contrib/edk2/Include
 EFISRC=		${BOOTSRC}/efi
 EFIINC=		${EFISRC}/include
 # For amd64, there's a bit of mixed bag. Some of the tree (i386, lib*32) is

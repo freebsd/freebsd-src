@@ -98,6 +98,7 @@
 #if defined(EFI)
 #include <efi.h>
 #include <efilib.h>
+#include <Protocol/GraphicsOutput.h>
 #else
 #include <vbe.h>
 #endif
@@ -855,7 +856,7 @@ gfxfb_blt(void *BltBuffer, GFXFB_BLT_OPERATION BltOperation,
 	int rv;
 #if defined(EFI)
 	EFI_STATUS status;
-	EFI_GRAPHICS_OUTPUT *gop = gfx_state.tg_private;
+	EFI_GRAPHICS_OUTPUT_PROTOCOL *gop = gfx_state.tg_private;
 	EFI_TPL tpl;
 
 	/*

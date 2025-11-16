@@ -44,36 +44,49 @@ Revision History
 //
 
 #include <sys/efi-edk2.h>
+#include <Uefi.h>
+#include <Protocol/LoadedImage.h>
 
-#if __SIZEOF_LONG__ == 4
-#define EFI_ERROR_MASK      0x80000000
-#define EFIERR(a)           (0x80000000 | a)
-#define EFIERR_OEM(a)       (0xc0000000 | a)
-#else
-#define EFI_ERROR_MASK      0x8000000000000000
-#define EFIERR(a)           (0x8000000000000000 | a)
-#define EFIERR_OEM(a)       (0xc000000000000000 | a)
-#endif
+/* old efierr.h */
+#define DECODE_ERROR(a)   (unsigned long)(a & ~MAX_BIT)
 
-#include "efidef.h"
-#include "efidevp.h"
-#include "efipciio.h"
-#include "efiprot.h"
-#include "eficon.h"
-#include "eficonsctl.h"
-#include "efiser.h"
-#include "efi_nii.h"
-#include "efipxebc.h"
-#include "efinet.h"
-#include "efiapi.h"
-#include "efifs.h"
-#include "efierr.h"
-#include "efigop.h"
-#include "efiip.h"
-#include "efiudp.h"
-#include "efitcp.h"
-#include "efipoint.h"
-#include "efiuga.h"
+/* old efidevp.h */
+#define EFI_DP_TYPE_MASK                    0x7F
+#define EFI_DP_TYPE_UNPACKED                0x80
+
+#define END_DEVICE_PATH_TYPE                0x7f
+
+#define END_INSTANCE_DEVICE_PATH_SUBTYPE    0x01
+#define END_DEVICE_PATH_LENGTH              (sizeof(EFI_DEVICE_PATH))
+
+
+#define DP_IS_END_TYPE(a)
+#define DP_IS_END_SUBTYPE(a)        ( ((a)->SubType == END_ENTIRE_DEVICE_PATH_SUBTYPE )
+
+#define DevicePathType(a)           ( ((a)->Type) & EFI_DP_TYPE_MASK )
+#define DevicePathSubType(a)        ( (a)->SubType )
+#define DevicePathNodeLength(a)     ((size_t)(((a)->Length[0]) | ((a)->Length[1] << 8)))
+#define NextDevicePathNode(a)       ( (EFI_DEVICE_PATH *) ( ((UINT8 *) (a)) + DevicePathNodeLength(a)))
+#define IsDevicePathType(a, t)      ( DevicePathType(a) == t )
+#define IsDevicePathEndType(a)      IsDevicePathType(a, END_DEVICE_PATH_TYPE)
+#define IsDevicePathEndSubType(a)   ( (a)->SubType == END_ENTIRE_DEVICE_PATH_SUBTYPE )
+#define IsDevicePathEnd(a)          ( IsDevicePathEndType(a) && IsDevicePathEndSubType(a) )
+#define IsDevicePathUnpacked(a)     ( (a)->Type & EFI_DP_TYPE_UNPACKED )
+
+
+#define SetDevicePathNodeLength(a,l) {                  \
+            (a)->Length[0] = (UINT8) (l);               \
+            (a)->Length[1] = (UINT8) ((l) >> 8);        \
+            }
+
+#define SetDevicePathEndNode(a)  {                      \
+            (a)->Type = END_DEVICE_PATH_TYPE;           \
+            (a)->SubType = END_ENTIRE_DEVICE_PATH_SUBTYPE;     \
+            (a)->Length[0] = sizeof(EFI_DEVICE_PATH);   \
+            (a)->Length[1] = 0;                         \
+            }
+
+#define NextMemoryDescriptor(Ptr,Size)  ((EFI_MEMORY_DESCRIPTOR *) (((UINT8 *) Ptr) + Size))
 #include <sys/types.h>
 
 /*

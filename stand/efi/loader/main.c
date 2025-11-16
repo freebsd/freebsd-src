@@ -50,7 +50,14 @@
 #include <efi.h>
 #include <efilib.h>
 #include <efichar.h>
-#include <efirng.h>
+
+#include <Guid/DebugImageInfoTable.h>
+#include <Guid/DxeServices.h>
+#include <Guid/Mps.h>
+#include <Guid/SmBios.h>
+#include <Protocol/Rng.h>
+#include <Protocol/SimpleNetwork.h>
+#include <Protocol/SimpleTextIn.h>
 
 #include <uuid.h>
 
@@ -85,10 +92,25 @@ struct arch_switch archsw = {	/* MI/MD interface boundary */
 	.arch_zfs_probe = efi_zfs_probe,
 };
 
+// XXX These are from ???? Maybe ACPI which needs to define them?
+// XXX EDK2 doesn't (or didn't as of Feb 2025)
+#define HOB_LIST_TABLE_GUID \
+    { 0x7739f24c, 0x93d7, 0x11d4, {0x9a, 0x3a, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d} }
+#define LZMA_DECOMPRESSION_GUID \
+	{ 0xee4e5898, 0x3914, 0x4259, {0x9d, 0x6e, 0xdc, 0x7b, 0xd7, 0x94, 0x3, 0xcf} }
+#define ARM_MP_CORE_INFO_TABLE_GUID \
+	{ 0xa4ee0728, 0xe5d7, 0x4ac5, {0xb2, 0x1e, 0x65, 0x8e, 0xd8, 0x57, 0xe8, 0x34} }
+#define ESRT_TABLE_GUID \
+	{ 0xb122a263, 0x3661, 0x4f68, {0x99, 0x29, 0x78, 0xf8, 0xb0, 0xd6, 0x21, 0x80} }
+#define MEMORY_TYPE_INFORMATION_TABLE_GUID \
+    { 0x4c19049f, 0x4137, 0x4dd3, {0x9c, 0x10, 0x8b, 0x97, 0xa8, 0x3f, 0xfd, 0xfa} }
+#define FDT_TABLE_GUID \
+    { 0xb1b621d5, 0xf19c, 0x41a5, {0x83, 0x0b, 0xd9, 0x15, 0x2c, 0x69, 0xaa, 0xe0} }
+
 EFI_GUID devid = DEVICE_PATH_PROTOCOL;
 EFI_GUID imgid = LOADED_IMAGE_PROTOCOL;
 EFI_GUID mps = MPS_TABLE_GUID;
-EFI_GUID netid = EFI_SIMPLE_NETWORK_PROTOCOL;
+EFI_GUID netid = EFI_SIMPLE_NETWORK_PROTOCOL_GUID;
 EFI_GUID smbios = SMBIOS_TABLE_GUID;
 EFI_GUID smbios3 = SMBIOS3_TABLE_GUID;
 EFI_GUID dxe = DXE_SERVICES_TABLE_GUID;
@@ -97,9 +119,10 @@ EFI_GUID lzmadecomp = LZMA_DECOMPRESSION_GUID;
 EFI_GUID mpcore = ARM_MP_CORE_INFO_TABLE_GUID;
 EFI_GUID esrt = ESRT_TABLE_GUID;
 EFI_GUID memtype = MEMORY_TYPE_INFORMATION_TABLE_GUID;
-EFI_GUID debugimg = DEBUG_IMAGE_INFO_TABLE_GUID;
+EFI_GUID debugimg = EFI_DEBUG_IMAGE_INFO_TABLE_GUID;
 EFI_GUID fdtdtb = FDT_TABLE_GUID;
-EFI_GUID inputid = SIMPLE_TEXT_INPUT_PROTOCOL;
+EFI_GUID inputid = EFI_SIMPLE_TEXT_INPUT_PROTOCOL_GUID;
+EFI_GUID rng_guid = EFI_RNG_PROTOCOL_GUID;
 
 /*
  * Number of seconds to wait for a keystroke before exiting with failure

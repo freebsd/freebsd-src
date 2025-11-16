@@ -27,12 +27,13 @@
 
 #include <machine/_inttypes.h>
 #include <efi.h>
+#include <Guid/Acpi.h>
 #include <acpi.h>
 #include "acpi_detect.h"
 
 /* For ACPI rsdp discovery. */
 EFI_GUID acpi = ACPI_TABLE_GUID;
-EFI_GUID acpi20 = ACPI_20_TABLE_GUID;
+EFI_GUID acpi20 = EFI_ACPI_TABLE_GUID;
 ACPI_TABLE_RSDP *rsdp;
 
 void

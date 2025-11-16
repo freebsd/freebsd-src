@@ -32,14 +32,19 @@
 
 #include <efi.h>
 #include <efilib.h>
-#include <efiuga.h>
 #include <efipciio.h>
 #include <Protocol/EdidActive.h>
 #include <Protocol/EdidDiscovered.h>
+#include <Protocol/GraphicsOutput.h>
+#include <Protocol/UgaDraw.h>
 #include <machine/metadata.h>
 
 #include "bootstrap.h"
 #include "framebuffer.h"
+
+/* XXX This may be obsolete -- edk2 doesn't define it anywhere */
+#define EFI_CONSOLE_OUT_DEVICE_GUID    \
+{ 0xd3b36f2c, 0xd551, 0x11d4, {0x9a, 0x46, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d} }
 
 static EFI_GUID conout_guid = EFI_CONSOLE_OUT_DEVICE_GUID;
 EFI_GUID gop_guid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
@@ -52,7 +57,7 @@ static EFI_HANDLE gop_handle;
 /* Cached EDID. */
 struct vesa_edid_info *edid_info = NULL;
 
-static EFI_GRAPHICS_OUTPUT *gop;
+static EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
 static EFI_UGA_DRAW_PROTOCOL *uga;
 
 static struct named_resolution {
@@ -595,7 +600,7 @@ efi_find_framebuffer(teken_gfx_t *gfx_state)
 	 */
 	gop_handle = NULL;
 	for (i = 0; i < nhandles; i++) {
-		EFI_GRAPHICS_OUTPUT *tgop;
+		EFI_GRAPHICS_OUTPUT_PROTOCOL *tgop;
 		void *dummy;
 
 		status = OpenProtocolByHandle(hlist[i], &gop_guid, (void **)&tgop);

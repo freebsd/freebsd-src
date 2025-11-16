@@ -296,12 +296,14 @@ efi_exit(EFI_STATUS s)
 
 	BS->FreePages(heap, EFI_SIZE_TO_PAGES(heapsize));
 	BS->Exit(IH, s, 0, NULL);
+	__unreachable();
 }
 
 void
 exit(int error)
 {
 	efi_exit(errno_to_efi_status(error));
+	__unreachable();
 }
 
 /*
@@ -320,6 +322,7 @@ efi_panic(EFI_STATUS s, const char *fmt, ...)
 	printf("\n");
 
 	efi_exit(s);
+	__unreachable();
 }
 
 int getchar(void)
