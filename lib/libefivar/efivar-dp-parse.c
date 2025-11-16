@@ -35,10 +35,7 @@
 #include <wchar.h>
 
 #include "efichar.h"
-
-#include "efi-osdep.h"
 #include "efivar-dp.h"
-
 #include "uefi-dplib.h"
 
 /* XXX STUBS -- this stuff doesn't work yet */

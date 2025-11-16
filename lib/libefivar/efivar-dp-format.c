@@ -33,10 +33,7 @@
 #include <string.h>
 
 #include "efichar.h"
-
-#include "efi-osdep.h"
 #include "efivar-dp.h"
-
 #include "uefi-dplib.h"
 
 /*

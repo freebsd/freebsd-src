@@ -39,10 +39,7 @@
 #include <string.h>
 
 #include "efichar.h"
-
-#include "efi-osdep.h"
 #include "efivar-dp.h"
-
 #include "uefi-dplib.h"
 
 #define MAX_DP_SANITY	4096		/* Biggest device path in bytes */
