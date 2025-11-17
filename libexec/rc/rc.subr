@@ -1246,49 +1246,55 @@ run_rc_command()
 	if [ -n "$_svcj_options" ]; then	# translate service jail options
 		_svcj_sysvipc_x=0
 		for _svcj_option in $_svcj_options; do
+			_opts=
 			case "$_svcj_option" in
-				mlock)
-					_svcj_cmd_options="allow.mlock ${_svcj_cmd_options}"
-					;;
-				netv4)
-					_svcj_cmd_options="${_svcj_ip4} allow.reserved_ports ${_svcj_cmd_options}"
-					;;
-				netv6)
-					_svcj_cmd_options="${_svcj_ip6} allow.reserved_ports ${_svcj_cmd_options}"
-					;;
-				net_basic)
-					_svcj_cmd_options="${_svcj_ip4} ${_svcj_ip6} allow.reserved_ports ${_svcj_cmd_options}"
-					;;
-				net_raw)
-					_svcj_cmd_options="allow.raw_sockets ${_svcj_cmd_options}"
-					;;
-				net_all)
-					_svcj_cmd_options="allow.socket_af allow.raw_sockets allow.reserved_ports ${_svcj_ip4} ${_svcj_ip6} ${_svcj_cmd_options}"
-					;;
-				nfsd)
-					_svcj_cmd_options="allow.nfsd enforce_statfs=1 ${_svcj_cmd_options}"
-					;;
-				routing)
-					_svcj_cmd_options="allow.routing ${_svcj_cmd_options}"
-					;;
-				settime)
-					_svcj_cmd_options="allow.settime ${_svcj_cmd_options}"
-					;;
-				sysvipc)
-					_svcj_sysvipc_x=$((${_svcj_sysvipc_x} + 1))
-					_svcj_cmd_options="sysvmsg=inherit sysvsem=inherit sysvshm=inherit  ${_svcj_cmd_options}"
-					;;
-				sysvipcnew)
-					_svcj_sysvipc_x=$((${_svcj_sysvipc_x} + 1))
-					_svcj_cmd_options="sysvmsg=new sysvsem=new sysvshm=new ${_svcj_cmd_options}"
-					;;
-				vmm)
-					_svcj_cmd_options="allow.vmm ${_svcj_cmd_options}"
-					;;
-				*)
-					echo ${name}: unknown service jail option: $_svcj_option
-					;;
+			mlock)
+				_opts="allow.mlock"
+				;;
+			netv4)
+				_opts="${_svcj_ip4} allow.reserved_ports"
+				;;
+			netv6)
+				_opts="${_svcj_ip6} allow.reserved_ports"
+				;;
+			net_basic)
+				_opts="${_svcj_ip4} ${_svcj_ip6}"
+				_opts="${_opts} allow.reserved_ports"
+				;;
+			net_raw)
+				_opts="allow.raw_sockets"
+				;;
+			net_all)
+				_opts="allow.socket_af"
+				_opts="${_opts} allow.raw_sockets"
+				_opts="${_opts} allow.reserved_ports"
+				_opts="${_opts} ${_svcj_ip4} ${_svcj_ip6}"
+				;;
+			nfsd)
+				_opts="allow.nfsd enforce_statfs=1"
+				;;
+			routing)
+				_opts="allow.routing"
+				;;
+			settime)
+				_opts="allow.settime"
+				;;
+			sysvipc)
+				_svcj_sysvipc_x=$((${_svcj_sysvipc_x} + 1))
+				_opts="sysvmsg=inherit sysvsem=inherit sysvshm=inherit"
+				;;
+			sysvipcnew)
+				_svcj_sysvipc_x=$((${_svcj_sysvipc_x} + 1))
+				_opts="sysvmsg=new sysvsem=new sysvshm=new"
+				;;
+			vmm)
+				_opts="allow.vmm"
+				;;
+			*)
+				echo ${name}: unknown service jail option: $_svcj_option
+				;;
 			esac
+			_svcj_cmd_options="${_opts} ${_svcj_cmd_options}"
 		done
 		if [ ${_svcj_sysvipc_x} -gt 1 ]; then
 			echo -n "ERROR: more than one sysvipc option is "
