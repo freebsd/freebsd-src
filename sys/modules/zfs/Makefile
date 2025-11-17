@@ -475,8 +475,6 @@ CFLAGS.zstd_ldm.c= -U__BMI__ -fno-tree-vectorize ${NO_WBITWISE_INSTEAD_OF_LOGICA
 CFLAGS.zstd_opt.c= -U__BMI__ -fno-tree-vectorize ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
 
 .if ${MACHINE_ARCH} == "aarch64"
-__ZFS_ZSTD_AARCH64_FLAGS= -include ${SRCDIR}/zstd/include/aarch64_compat.h
-CFLAGS.zstd.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
 CFLAGS.entropy_common.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
 CFLAGS.error_private.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
 CFLAGS.fse_compress.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
