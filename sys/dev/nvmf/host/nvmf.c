@@ -1237,6 +1237,9 @@ nvmf_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 	case NVME_GET_CONTROLLER_DATA:
 		memcpy(arg, sc->cdata, sizeof(*sc->cdata));
 		return (0);
+	case DIOCGIDENT:
+		nvme_cdata_get_disk_ident(sc->cdata, (uint8_t *)arg);
+		return (0);
 	case NVMF_RECONNECT_PARAMS:
 		nv = (struct nvmf_ioc_nv *)arg;
 		return (nvmf_reconnect_params(sc, nv));

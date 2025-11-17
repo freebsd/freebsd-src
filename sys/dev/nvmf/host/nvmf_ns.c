@@ -278,6 +278,9 @@ nvmf_ns_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag,
 		    sizeof(gnsid->cdev));
 		gnsid->nsid = ns->id;
 		return (0);
+	case DIOCGIDENT:
+		nvme_cdata_get_disk_ident(ns->sc->cdata, (uint8_t *)arg);
+		return (0);
 	case DIOCGMEDIASIZE:
 		*(off_t *)arg = ns->size;
 		return (0);
