@@ -1,0 +1,9 @@
+T=`mktemp -d ${TMPDIR:-/tmp}/sh-test.XXXXXXXX`
+trap 'rm -rf "$T"' 0
+cd "$T" || exit 3
+mkfifo fifo1 || exit 3
+set -T
+trap "for i in 1 2 3 4; do sleep 1 & done" USR1
+sleep 1 &
+{ kill -USR1 "$$"; echo .; } >fifo1 &
+(read dummy <fifo1)
