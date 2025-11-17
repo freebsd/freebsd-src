@@ -27,7 +27,9 @@
 #ifndef _LIBSPL_SYS_FCNTL_H_
 #define	_LIBSPL_SYS_FCNTL_H_
 
+#if !defined(__linux__) || !defined(IN_BASE)
 #include_next <sys/fcntl.h>
+#endif
 
 #define	O_LARGEFILE	0
 #define	O_RSYNC		0

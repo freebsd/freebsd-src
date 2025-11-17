@@ -39,7 +39,9 @@ random_in_range(uint32_t range)
 {
 	uint32_t r;
 
+#if !defined(__APPLE__) || !defined(IN_BASE)
 	ASSERT(range != 0);
+#endif
 
 	if (range == 1)
 		return (0);

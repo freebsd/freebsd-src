@@ -14,9 +14,7 @@ SRCS = \
         assert.c \
 	backtrace.c \
 	condvar.c \
-	cred.c \
 	kmem.c \
-	kstat.c \
 	libspl.c \
         list.c \
         mkdirp.c \
@@ -28,7 +26,6 @@ SRCS = \
 	rwlock.c \
 	sid.c \
 	taskq.c \
-	thread.c \
         timestamp.c \
         include/sys/list.h \
         include/sys/list_impl.h
@@ -38,7 +35,10 @@ SRCS = \
 .if !defined(BOOTSTRAPPING)
 SRCS += \
         atomic.c \
+	cred.c \
         getexecname.c \
+	kstat.c \
+	thread.c \
         tunables.c \
         os/freebsd/getexecname.c \
         os/freebsd/gethostid.c \

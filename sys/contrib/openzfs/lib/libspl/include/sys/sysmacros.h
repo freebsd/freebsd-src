@@ -38,7 +38,9 @@
  * have this header, so include_next won't find it and will abort. So, we
  * protect it with a platform check.
  */
+#ifndef IN_BASE
 #include_next <sys/sysmacros.h>
+#endif
 #endif
 
 #ifdef __FreeBSD__
