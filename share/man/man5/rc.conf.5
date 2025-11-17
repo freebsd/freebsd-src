@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 5, 2025
+.Dd November 14, 2025
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -190,6 +190,17 @@ Setting this option will bypass that check at boot time and
 always test whether or not the service is actually running.
 Enabling this option is likely to increase your boot time if
 services are enabled that utilize the force_depend check.
+.It Ao Ar name Ac Ns Va _audit_user
+.Pq Vt str
+A user name or UID to use as the
+.Xr audit 4
+user for the service.
+Run the chrooted service under this system group.
+By default, when an unprvileged user restarts a service using a utility
+such as sudo or doas, the service's will audit session will point to the
+unprivileged user, which may be undesirable.
+In that case, this variable can be used to override the audit user using
+.Xr setaudit 8 .
 .It Ao Ar name Ac Ns Va _chroot
 .Pq Vt str
 .Xr chroot 8
@@ -209,7 +220,6 @@ The
 value to run the service under.
 .It Ao Ar name Ac Ns Va _group
 .Pq Vt str
-Run the chrooted service under this system group.
 Unlike the
 .Ao Ar name Ac Ns Va _user
 setting, this setting has no effect if the service is not chrooted.
