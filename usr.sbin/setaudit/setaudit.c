@@ -58,7 +58,7 @@ main(int argc, char *argv [])
 	auditinfo_addr_t aia;
 	struct addrinfo *res;
 	struct passwd *pwd;
-	char *aflag, *mflag, *sflag, *r, *prog;
+	char *aflag, *mflag, *sflag, *prog;
 	int ch, error;
 
 	aflag = mflag = sflag = NULL;
@@ -99,8 +99,10 @@ main(int argc, char *argv [])
 	if (aflag) {
 		pwd = getpwnam(aflag);
 		if (pwd == NULL) {
+			char *r;
+
 			aia.ai_auid = strtoul(aflag, &r, 10);
-			if (r != NULL)
+			if (*r != '\0')
 				errx(1, "%s: invalid user", aflag);
 		} else
 			aia.ai_auid = pwd->pw_uid;
