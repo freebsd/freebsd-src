@@ -29,8 +29,10 @@
 #ifndef _LIBSPL_SYS_MOUNT_H
 #define	_LIBSPL_SYS_MOUNT_H
 
+#if !defined(__linux__) || !defined(IN_BASE)
 #undef _SYS_MOUNT_H_
 #include_next <sys/mount.h>
+#endif
 
 #include <assert.h>
 #include <string.h>
