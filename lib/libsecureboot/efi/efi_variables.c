@@ -30,6 +30,7 @@
 
 #include <efi.h>
 #include <efilib.h>
+#include <Uefi.h>
 #include <Guid/ImageAuthentication.h>
 
 #define NEED_BRSSL_H
