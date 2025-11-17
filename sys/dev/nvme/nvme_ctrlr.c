@@ -33,7 +33,6 @@
 #include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/disk.h>
 #include <sys/ioccom.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
@@ -1255,24 +1254,6 @@ nvme_ctrlr_poll(struct nvme_controller *ctrlr)
 }
 
 /*
- * Copy the NVME device's serial number to the provided buffer, which must be
- * at least DISK_IDENT_SIZE bytes large.
- */
-void
-nvme_ctrlr_get_ident(const struct nvme_controller *ctrlr, uint8_t *sn)
-{
-	_Static_assert(NVME_SERIAL_NUMBER_LENGTH < DISK_IDENT_SIZE,
-		"NVME serial number too big for disk ident");
-
-	memmove(sn, ctrlr->cdata.sn, NVME_SERIAL_NUMBER_LENGTH);
-	sn[NVME_SERIAL_NUMBER_LENGTH] = '\0';
-	for (int i = 0; sn[i] != '\0'; i++) {
-		if (sn[i] < 0x20 || sn[i] >= 0x80)
-			sn[i] = ' ';
-	}
-}
-
-/*
  * Poll the single-vector interrupt case: num_io_queues will be 1 and
  * there's only a single vector. While we're polling, we mask further
  * interrupts in the controller.
@@ -1516,7 +1497,7 @@ nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 		break;
 	case DIOCGIDENT: {
 		uint8_t *sn = arg;
-		nvme_ctrlr_get_ident(ctrlr, sn);
+		nvme_cdata_get_disk_ident(&ctrlr->cdata, sn);
 		break;
 	}
 	/* Linux Compatible (see nvme_linux.h) */

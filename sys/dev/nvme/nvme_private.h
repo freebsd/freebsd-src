@@ -565,7 +565,6 @@ void	nvme_notify_new_controller(struct nvme_controller *ctrlr);
 void	nvme_notify_ns(struct nvme_controller *ctrlr, int nsid);
 
 void	nvme_ctrlr_shared_handler(void *arg);
-void	nvme_ctrlr_get_ident(const struct nvme_controller *ctrlr, uint8_t *sn);
 void	nvme_ctrlr_poll(struct nvme_controller *ctrlr);
 
 int	nvme_ctrlr_suspend(struct nvme_controller *ctrlr);
