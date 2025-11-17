@@ -1910,6 +1910,7 @@ void	nvme_sc_sbuf(const struct nvme_completion *cpl, struct sbuf *sbuf);
 void	nvme_strvis(uint8_t *dst, const uint8_t *src, int dstlen, int srclen);
 
 #ifdef _KERNEL
+#include <sys/disk.h>
 
 struct bio;
 struct thread;
@@ -1993,6 +1994,24 @@ nvme_ctrlr_has_dataset_mgmt(const struct nvme_controller_data *cd)
 {
 	/* Assumes cd was byte swapped by nvme_controller_data_swapbytes() */
 	return (NVMEV(NVME_CTRLR_DATA_ONCS_DSM, cd->oncs) != 0);
+}
+
+/*
+ * Copy the NVME device's serial number to the provided buffer, which must be
+ * at least DISK_IDENT_SIZE bytes large.
+ */
+static inline void
+nvme_cdata_get_disk_ident(const struct nvme_controller_data *cdata, uint8_t *sn)
+{
+	_Static_assert(NVME_SERIAL_NUMBER_LENGTH < DISK_IDENT_SIZE,
+		"NVME serial number too big for disk ident");
+
+	memmove(sn, cdata->sn, NVME_SERIAL_NUMBER_LENGTH);
+	sn[NVME_SERIAL_NUMBER_LENGTH] = '\0';
+	for (int i = 0; sn[i] != '\0'; i++) {
+		if (sn[i] < 0x20 || sn[i] >= 0x80)
+			sn[i] = ' ';
+	}
 }
 
 /* Namespace helper functions */
