@@ -1450,7 +1450,7 @@ cfg80211_chandef_create(struct cfg80211_chan_def *chandef,
 	KASSERT(chandef != NULL, ("%s: chandef is NULL\n", __func__));
 	KASSERT(chan != NULL, ("%s: chan is NULL\n", __func__));
 
-	/* memset(chandef, 0, sizeof(*chandef)); */
+	memset(chandef, 0, sizeof(*chandef));
 	chandef->chan = chan;
 	chandef->center_freq1 = chan->center_freq;
 	/* chandef->width, center_freq2, punctured */
