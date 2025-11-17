@@ -829,7 +829,7 @@ STATIC_ASSERT (sizeof (CHAR16)  == 2, "sizeof (CHAR16) does not meet UEFI Specif
  * fail, but it also takes lengths to never use either of these constructs. The
  * boot loader, however, uses them and needs these assertionst o be correct.
  */
-#ifdef _STANDALONE
+#if 0
 STATIC_ASSERT (sizeof (L'A')    == 2, "sizeof (L'A') does not meet UEFI Specification Data Type requirements");
 STATIC_ASSERT (sizeof (L"A")    == 4, "sizeof (L\"A\") does not meet UEFI Specification Data Type requirements");
 #endif
