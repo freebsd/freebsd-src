@@ -1365,7 +1365,7 @@ run_rc_command()
 				_run_rc_precmd || return 1
 			fi
 			if ! checkyesno ${name}_svcj; then
-				_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || return 1
+				_run_rc_doit "$_cmd $rc_extra_args" || return 1
 			else
 				case "$rc_arg" in
 				start)
@@ -1394,7 +1394,7 @@ run_rc_command()
 							    name=svcj-${name} && _return=0
 						fi
 					else
-						_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || _return=1
+						_run_rc_doit "$_cmd $rc_extra_args" || _return=1
 					fi
 					;;
 				stop)
@@ -1402,7 +1402,7 @@ run_rc_command()
 						$SERVICE -E _rc_svcj=jailing -j svcj-${name} ${name} ${_rc_prefix}stop $rc_extra_args || _return=1
 						$JAIL_CMD -r svcj-${name} 2>/dev/null
 					else
-						_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || _return=1
+						_run_rc_doit "$_cmd $rc_extra_args" || _return=1
 					fi
 					;;
 				restart|status) ;; # no special case needed for svcj or handled somewhere else
@@ -1412,7 +1412,7 @@ run_rc_command()
 					if checkyesno _rc_svcj_extra_cmd && [ "${_rc_svcj}" != jailing ]; then
 						$SERVICE -v -E _rc_svcj=jailing -j svcj-${name} ${name} ${_rc_prefix}${rc_arg} $rc_extra_args || _return=1
 					else
-						_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || _return=1
+						_run_rc_doit "$_cmd $rc_extra_args" || _return=1
 					fi
 					;;
 				esac
