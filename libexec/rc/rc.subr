@@ -55,6 +55,7 @@ JAIL_CMD=/usr/sbin/jail
 _svcj_generic_params="path=/ mount.nodevfs host=inherit"
 JID=0
 CPUSET="/bin/cpuset"
+SETAUDIT="/usr/sbin/setaudit"
 
 # Cache the services that we loaded with load_rc_config.
 _loaded_services=""
@@ -923,6 +924,9 @@ startmsg()
 #				Meant to be used in /etc/rc.conf to override
 #				${command}.
 #
+#	${name}_audit_user n    Override the audit user for ${command},
+#				specified as a user name or UID.
+#
 #	${name}_chroot	n	Directory to chroot to before running ${command}
 #				Requires /usr to be mounted.
 #
@@ -1139,6 +1143,15 @@ run_rc_command()
 	_cpusetcmd=
 	if [ -n "$_cpuset" ]; then
 		_cpusetcmd="$CPUSET -l $_cpuset"
+	fi
+
+	eval _audit_user=\$${name}_audit_user
+	if [ -z "$_audit_user" -a -n "$audit_user" ]; then
+		_audit_user=$audit_user
+	fi
+	_setauditcmd=
+	if [ -n "$_audit_user" ]; then
+		_setauditcmd="setaudit -U -a $_audit_user"
 	fi
 
 	# If a specific jail has a specific svcj request, honor it (YES/NO).
@@ -1505,6 +1518,7 @@ run_rc_command()
 				_doit="\
 ${_nice:+nice -n $_nice }\
 $_cpusetcmd \
+$_setauditcmd \
 ${_fib:+setfib -F $_fib }\
 ${_env:+env $_env }\
 chroot ${_user:+-u $_user }${_group:+-g $_group }${_groups:+-G $_groups }\
@@ -1514,7 +1528,9 @@ $_chroot $command $rc_flags $command_args"
 				_doit="\
 ${_fib:+setfib -F $_fib }\
 ${_env:+env $_env }\
-$_cpusetcmd $command $rc_flags $command_args"
+$_cpusetcmd \
+$_setauditcmd \
+$command $rc_flags $command_args"
 				if [ -n "$_user" ]; then
 				    _doit="su -m $_user -c 'sh -c \"$_doit\"'"
 				fi
