@@ -27,6 +27,7 @@
 #ifndef _SYS_EFI_H_
 #define _SYS_EFI_H_
 
+#include <sys/types.h>
 #include <machine/efi.h>
 #include <sys/efi-freebsd.h>
 
