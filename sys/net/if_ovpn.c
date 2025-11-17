@@ -2691,7 +2691,7 @@ ovpn_clone_create(struct if_clone *ifc, char *name, size_t len,
 		return (EEXIST);
 
 	sc = malloc(sizeof(struct ovpn_softc), M_OVPN, M_WAITOK | M_ZERO);
-	sc->ifp = if_alloc(IFT_ENC);
+	sc->ifp = if_alloc(IFT_TUNNEL);
 	rm_init_flags(&sc->lock, "if_ovpn_lock", RM_RECURSE);
 	sc->refcount = 0;
 
