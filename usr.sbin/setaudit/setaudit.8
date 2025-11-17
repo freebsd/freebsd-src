@@ -28,7 +28,7 @@
 .Nd "specify audit configurations on a process"
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46
+.Op Fl 46U
 .Op Fl a Ar auid
 .Op Fl m Ar mask
 .Op Fl s Ar source
@@ -44,6 +44,16 @@ The following options are available:
 Use IPv4.
 .It Fl 6
 Use IPv6.
+.It Fl U
+Update audit session state rather than overwriting it.
+By default,
+.Nm
+will overwrite the entire audit session state using the specified
+parameters.
+If
+.Fl U
+is specified, only the parameters given on the command line will be
+updated, leaving the rest unchanged.
 .It Fl a Ar auid
 Audit user ID or user name.
 .It Fl m Ar mask
