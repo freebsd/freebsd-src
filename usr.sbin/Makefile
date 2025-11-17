@@ -117,6 +117,7 @@ SUBDIR.${MK_AUDIT}+=	auditdistd
 .endif
 SUBDIR.${MK_AUDIT}+=	auditreduce
 SUBDIR.${MK_AUDIT}+=	praudit
+SUBDIR.${MK_AUDIT}+=	setaudit
 SUBDIR.${MK_AUTHPF}+=	authpf
 SUBDIR.${MK_AUTOFS}+=	autofs
 SUBDIR.${MK_BLACKLIST}+=	blacklistctl
