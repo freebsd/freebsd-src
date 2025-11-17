@@ -341,7 +341,8 @@ hdac_pin_patch(struct hdaa_widget *w)
 	} else if (id == HDA_CODEC_ALC257 &&
 	    (subid == LENOVO_L5AMD_SUBVENDOR ||
 	    subid == LENOVO_L5INTEL_SUBVENDOR ||
-	    subid == LENOVO_IDEAPAD3_SUBVENDOR)) {
+	    subid == LENOVO_IDEAPAD3_SUBVENDOR ||
+	    subid == LENOVO_V15_SUBVENDOR)) {
 		switch (nid) {
 		case 20:
 			patch_str = "as=1 seq=0";
