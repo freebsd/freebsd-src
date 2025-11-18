@@ -31,6 +31,7 @@ MAN=		alloca.3 \
 		snl.3 \
 		stats.3 \
 		stdarg.3 \
+		stdbit.3 \
 		stdckdint.3 \
 		sysexits.3 \
 		tgmath.3 \
