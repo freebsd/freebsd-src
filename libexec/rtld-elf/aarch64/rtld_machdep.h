@@ -52,6 +52,8 @@ bool arch_digest_dynamic(struct Struct_Obj_Entry *obj, const Elf_Dyn *dynp);
 
 bool arch_digest_note(struct Struct_Obj_Entry *obj, const Elf_Note *note);
 
+#define	arch_fix_auxv(a, ai)		do {} while (0)
+
 Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
     const struct Struct_Obj_Entry *defobj, const struct Struct_Obj_Entry *obj,
     const Elf_Rel *rel);

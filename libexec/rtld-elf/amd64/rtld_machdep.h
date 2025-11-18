@@ -47,6 +47,8 @@ Elf_Dyn *rtld_dynamic_addr(void);
 /* No architecture specific notes */
 #define	arch_digest_note(obj, note)	false
 
+#define	arch_fix_auxv(a, ai)		do {} while (0)
+
 Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
     const struct Struct_Obj_Entry *obj, const struct Struct_Obj_Entry *refobj,
     const Elf_Rel *rel);
