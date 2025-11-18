@@ -61,6 +61,7 @@ static void nvd_done(void *arg, const struct nvme_completion *cpl);
 static void nvd_gone(struct nvd_disk *ndisk);
 
 static void *nvd_new_disk(struct nvme_namespace *ns, void *ctrlr);
+static void *nvd_ns_changed(struct nvme_namespace *ns, void *ctrlr);
 
 static void *nvd_new_controller(struct nvme_controller *ctrlr);
 static void nvd_controller_fail(void *ctrlr);
@@ -154,7 +155,7 @@ nvd_load(void)
 	TAILQ_INIT(&ctrlr_head);
 	TAILQ_INIT(&disk_head);
 
-	consumer_handle = nvme_register_consumer(nvd_new_disk,
+	consumer_handle = nvme_register_consumer(nvd_ns_changed,
 	    nvd_new_controller, NULL, nvd_controller_fail);
 
 	return (consumer_handle != NULL ? 0 : -1);
@@ -510,6 +511,48 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 		disk->d_sectorsize);
 
 	return (ndisk);
+}
+
+static void
+nvd_resize(struct nvd_disk *ndisk)
+{
+	struct disk		*disk = ndisk->disk;
+	struct nvme_namespace	*ns = ndisk->ns;
+
+	disk->d_sectorsize = nvme_ns_get_sector_size(ns);
+	disk->d_mediasize = (off_t)nvme_ns_get_size(ns);
+	disk->d_maxsize = nvme_ns_get_max_io_xfer_size(ns);
+	disk->d_delmaxsize = (off_t)nvme_ns_get_size(ns);
+	if (disk->d_delmaxsize > nvd_delete_max)
+		disk->d_delmaxsize = nvd_delete_max;
+
+	disk_resize(disk, M_NOWAIT);
+
+	printf(NVD_STR"%u: NVMe namespace resized\n", ndisk->unit);
+	printf(NVD_STR"%u: %juMB (%ju %u byte sectors)\n", disk->d_unit,
+		(uintmax_t)disk->d_mediasize / (1024*1024),
+		(uintmax_t)disk->d_mediasize / disk->d_sectorsize,
+		disk->d_sectorsize);
+}
+
+static void *
+nvd_ns_changed(struct nvme_namespace *ns, void *ctrlr_arg)
+{
+	struct nvd_disk		*ndisk;
+	struct nvd_controller	*ctrlr = ctrlr_arg;
+
+	if ((ns->flags & NVME_NS_CHANGED) == 0)
+		return (nvd_new_disk(ns, ctrlr_arg));
+
+	mtx_lock(&nvd_lock);
+	TAILQ_FOREACH(ndisk, &ctrlr->disk_head, ctrlr_tailq) {
+		if (ndisk->ns->id != ns->id)
+			continue;
+		nvd_resize(ndisk);
+		break;
+	}
+	mtx_unlock(&nvd_lock);
+	return (ctrlr_arg);
 }
 
 static void
