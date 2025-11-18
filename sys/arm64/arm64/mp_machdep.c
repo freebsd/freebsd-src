@@ -270,6 +270,8 @@ init_secondary(uint64_t cpu)
 	install_cpu_errata();
 	enable_cpu_feat(CPU_FEAT_AFTER_DEV);
 
+	intr_pic_init_secondary();
+
 	/* Signal we are done */
 	atomic_add_int(&aps_started, 1);
 
@@ -287,8 +289,6 @@ init_secondary(uint64_t cpu)
 	KASSERT(pmap_to_ttbr0(pmap0) == READ_SPECIALREG(ttbr0_el1),
 	    ("pmap0 doesn't match cpu %ld's ttbr0", cpu));
 	pcpup->pc_curpmap = pmap0;
-
-	intr_pic_init_secondary();
 
 	/* Start per-CPU event timers. */
 	cpu_initclocks_ap();
