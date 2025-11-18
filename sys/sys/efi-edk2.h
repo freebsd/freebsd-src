@@ -41,7 +41,20 @@ typedef void VOID;
 
 /* We can't actually call this stuff, so snip out API syntactic sugar */
 #define INTERFACE_DECL(x) struct x
+#ifdef _STANDALONE
+#if defined(__amd64__)
+#define EFIAPI    __attribute__((ms_abi))
+#endif
+#ifndef EFIAPI                  // Forces EFI calling conventions reguardless of compiler options
+    #ifdef _MSC_EXTENSIONS
+        #define EFIAPI __cdecl  // Force C calling convention for Microsoft C compiler
+    #else
+        #define EFIAPI          // Substitute expresion to force C calling convention
+    #endif
+#endif
+#else
 #define EFIAPI
+#endif
 #define IN
 #define OUT
 #define CONST const
@@ -64,11 +77,13 @@ typedef void VOID;
 #define PACKED
 
 /*
- * Since we're not compiling for the UEFI boot time (which use ms abi
- * conventions), tell EDK2 to define VA_START correctly. For the boot
- * loader, this likely needs to be different.
+ * For userland and the kernel, we're not compiling for the UEFI boot time
+ * (which use ms abi conventions on amd64), tell EDK2 to define VA_START
+ * correctly. For the boot loader, we can't do that, so don't.
  */
+#ifndef _STANDALONE
 #define NO_MSABI_VA_FUNCS 1
+#endif
 
 /*
  * Finally, we need to define the processor we are in EDK2 terms.
