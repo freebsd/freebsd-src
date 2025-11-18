@@ -32,6 +32,10 @@
 #define HPTS_MSEC_IN_SEC 1000
 #define HPTS_USEC_IN_MSEC 1000
 
+/*
+ * The following functions should also be available
+ * to userspace as well.
+ */
 static inline uint32_t
 tcp_tv_to_usec(const struct timeval *sv)
 {
@@ -49,6 +53,13 @@ tcp_tv_to_lusec(const struct timeval *sv)
 {
 	return ((uint64_t)((sv->tv_sec * HPTS_USEC_IN_SEC) + sv->tv_usec));
 }
+
+static inline uint64_t
+tcp_tv_to_lusectick(const struct timeval *sv)
+{
+        return ((uint64_t)((sv->tv_sec * HPTS_USEC_IN_SEC) + sv->tv_usec));
+}
+
 
 struct hpts_diag {
 	uint32_t p_hpts_active; 	/* bbr->flex7 x */
