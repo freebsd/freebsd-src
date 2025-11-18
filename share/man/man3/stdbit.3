@@ -1,0 +1,120 @@
+.\"
+.\" Copyright (c) 2025 Robert Clausecker <fuz@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd November 9, 2025
+.Dt STDBIT 3
+.Os
+.Sh NAME
+.Nm stdbit
+.Nd bit and byte utilities
+.Sh SYNOPSIS
+.Lb libc
+.In stdbit.h
+.Fd #define __STDC_ENDIAN_LITTLE__
+.Fd #define __STDC_ENDIAN_BIG__
+.Fd #define __STDC_ENDIAN_NATIVE__
+.Ft unsigned int
+.Fn stdc_count_leading_zeros "value"
+.Ft unsigned int
+.Fn stdc_count_leading_ones "value"
+.Ft unsigned int
+.Fn stdc_count_trailing_zeros "value"
+.Ft unsigned int
+.Fn stdc_count_trailing_ones "value"
+.Ft unsigned int
+.Fn stdc_first_leading_zero "value"
+.Ft unsigned int
+.Fn stdc_first_leading_one "value"
+.Ft unsigned int
+.Fn stdc_first_trailing_zero "value"
+.Ft unsigned int
+.Fn stdc_first_trailing_one "value"
+.Ft unsigned int
+.Fn stdc_count_zeros "value"
+.Ft unsigned int
+.Fn stdc_count_ones "value"
+.Ft bool
+.Fn stdc_has_single_bit "value"
+.Ft unsigned int
+.Fn stdc_bit_width "value"
+.Ft typeof Ns Pq Em value
+.Fn stdc_bit_floor "value"
+.Ft typeof Ns Pq Em value
+.Fn stdc_bit_ceil "value"
+.Sh DESCRIPTION
+The
+.Dv __STDC_ENDIAN_NATIVE__
+macro describes the byte order or endianness of the machine for which the
+program is built.
+If the machine has big-endian byte order, this macro is equal to
+.Dv __STDC_ENDIAN_BIG__ .
+If the machine has little-endian byte order, this macro is equal to
+.Dv __STDC_ENDIAN_LITTLE__ .
+Otherwise, the macro has a value that is equal to neither.
+.Pp
+The bit and byte utility functions analyze the bits within a datum.
+Each function
+.Em func
+is provided in five variants
+.Nm stdc_ Ns Em func Ns Em _ Ns Em type Ns Pq Em value
+where
+.Fa value
+is of type
+.Va unsigned char ,
+.Va unsigned short ,
+.Va unsigned int ,
+.Va unsigned long ,
+or
+.Va unsigned long long
+for
+.Em type
+being
+.Sy uc ,
+.Sy us ,
+.Sy ui ,
+.Sy ul ,
+or
+.Sy ull
+respectively.
+Additionally, for each
+.Em func ,
+a type-generic macro
+.Nm stdc_ Ns Em func Ns Pq Em value
+that picks the appropriate function
+.Nm stdc_ Ns Em func Ns Em _ Ns Em type Ns Pq Em value
+based on the type of
+.Fa value
+is provided.
+.Sh SEE ALSO
+.Xr arch 7 ,
+.Xr bitstring 3 ,
+.Xr ffs 3 ,
+.Xr fls 3 ,
+.Xr stdc_count_leading_zeros 3 ,
+.Xr stdc_count_leading_ones 3 ,
+.Xr stdc_count_trailing_zeros 3 ,
+.Xr stdc_count_trailing_ones 3 ,
+.Xr stdc_first_leading_zero 3 ,
+.Xr stdc_first_leading_one 3 ,
+.Xr stdc_first_trailing_zero 3 ,
+.Xr stdc_first_trailing_one 3 ,
+.Xr stdc_count_zeros 3 ,
+.Xr stdc_count_ones 3 ,
+.Xr stdc_has_single_bit 3 ,
+.Xr stdc_bit_width 3 ,
+.Xr stdc_bit_floor 3 ,
+.Xr stdc_bit_ceil 3
+.Sh STANDARDS
+The macros and functions of the
+.In stdbit.h
+header conform to
+.St -isoC-2023 .
+.Sh HISTORY
+The
+.In stdbit.h
+header and the macros and functions defined therein where added in
+.Fx 15.1.
+.Sh AUTHOR
+.Ah Robert Clausecker Aq Mt fuz@FreeBSD.org
