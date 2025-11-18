@@ -35,6 +35,7 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <sys/un.h>
 #include <arpa/inet.h>
 #include <stdatomic.h>
 #include <machine/cpufunc.h>
@@ -1254,13 +1255,15 @@ sse42_supported(void)
 }
 
 int
-rfb_init(const char *hostname, int port, int wait, const char *password)
+rfb_init(sa_family_t family, const char *hostname, int port, int wait,
+    const char *password)
 {
 	int e;
 	char servname[6];
 	struct rfb_softc *rc;
 	struct addrinfo *ai = NULL;
 	struct addrinfo hints;
+	struct sockaddr_un sun;
 	int on = 1;
 	int cnt;
 #ifndef WITHOUT_CAPSICUM
@@ -1301,25 +1304,42 @@ rfb_init(const char *hostname, int port, int wait, const char *password)
 		hostname = "[::1]";
 #endif
 
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV | AI_PASSIVE;
+	if (family == AF_UNIX) {
+		memset(&sun, 0, sizeof(sun));
+		sun.sun_family = AF_UNIX;
+		if (strlcpy(sun.sun_path, hostname, sizeof(sun.sun_path)) >=
+		    sizeof(sun.sun_path)) {
+			EPRINTLN("rfb: socket path too long");
+			goto error;
+		}
+		rc->sfd = socket(AF_UNIX, SOCK_STREAM, 0);
+	} else {
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_family = family;
+		hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV | AI_PASSIVE;
 
-	if ((e = getaddrinfo(hostname, servname, &hints, &ai)) != 0) {
-		EPRINTLN("getaddrinfo: %s", gai_strerror(e));
-		goto error;
+		if ((e = getaddrinfo(hostname, servname, &hints, &ai)) != 0) {
+			EPRINTLN("getaddrinfo: %s", gai_strerror(e));
+			goto error;
+		}
+		rc->sfd = socket(ai->ai_family, ai->ai_socktype, 0);
 	}
 
-	rc->sfd = socket(ai->ai_family, ai->ai_socktype, 0);
 	if (rc->sfd < 0) {
 		perror("socket");
 		goto error;
 	}
 
+	/* No effect for UNIX domain sockets. */
 	setsockopt(rc->sfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 
-	if (bind(rc->sfd, ai->ai_addr, ai->ai_addrlen) < 0) {
+	if (family == AF_UNIX) {
+		unlink(hostname);
+		e = bind(rc->sfd, (struct sockaddr *)&sun, SUN_LEN(&sun));
+	} else
+		e = bind(rc->sfd, ai->ai_addr, ai->ai_addrlen);
+	if (e < 0) {
 		perror("bind");
 		goto error;
 	}
@@ -1355,14 +1375,17 @@ rfb_init(const char *hostname, int port, int wait, const char *password)
 		DPRINTF(("rfb client connected"));
 	}
 
-	freeaddrinfo(ai);
+	if (family != AF_UNIX)
+		freeaddrinfo(ai);
 	return (0);
 
  error:
 	if (rc->pixfmt_mtx)
 		pthread_mutex_destroy(&rc->pixfmt_mtx);
-	if (ai != NULL)
+	if (ai != NULL) {
+		assert(family != AF_UNIX);
 		freeaddrinfo(ai);
+	}
 	if (rc->sfd != -1)
 		close(rc->sfd);
 	free(rc->crc);
