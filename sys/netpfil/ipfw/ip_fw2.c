@@ -2120,8 +2120,8 @@ do {								\
 							pkey = &args->f_id.dst_ip6;
 						else
 							pkey = &args->f_id.src_ip6;
-					} else /* only for L3 */
-						break;
+					}
+					break;
 				case LOOKUP_DSCP:
 					if (is_ipv4)
 						key = ip->ip_tos >> 2;
