@@ -17,8 +17,15 @@
 #define	EXTERR_CATEGORY EXTERR_CAT_MYCATEGORY
 .Ed
 .In sys/exterrvar.h
+.Vt struct kexterr;
+.Ft void
+.Fn exterr_clear "struct kexterr *ke"
+.Ft int
+.Fn exterr_set_from "const struct kexterr *ke"
 .Ft int
 .Fn EXTERROR "int error" "const char *msg" ...
+.Ft void
+.Fn EXTERROR_KE "struct kexterr *ke" "int error" "const char *msg" ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -102,6 +109,33 @@ Additionally, use of
 .Fn EXTERROR
 in kernel threads is not sensible as there is no userspace to retrieve
 the extended error data.
+.Pp
+The
+.Fn EXTERROR_KE
+macro is similar to
+.Fn EXTERROR ,
+but it takes an explicit pointer
+.Fa kep
+to the
+.Vt struct kexterr
+to fill with the extended error information.
+The macro expression value is
+.Vt void .
+See below for description of the asynchronous i/o error facilities.
+.Pp
+The
+.Fn exterr_clear
+function clears the content of the
+.Vt struct kexterr
+pointed to by the argument
+.Fa ke .
+.Pp
+The
+.Fn exterr_set_from
+function sets the current thread extended error data from the
+.Fa struct kexterr
+pointed to by the argument
+.Fa ke .
 .Sh USERSPACE ACCESS TO EXTENDED ERROR DATA
 There is no syscall overhead for using
 .Nm
@@ -127,6 +161,54 @@ were modified to print the extended information if it is available
 in addition to the usual
 .Va errno
 decoding.
+.Sh ASYNCHRONOUS INPUT/OUTPUT
+Due to the nature of the
+.Fx
+i/o subsystem, most input/output requests, presented as buffers (as in
+.Vt struct buf )
+and geom bio's (
+.Vt struct bio )
+are processed asynchronously in filesystem- and geom-private threads.
+This makes it challenging to pass any extended error information
+from the geom providers and drivers, where an error typically occurs,
+back to the thread that initiated the request, and is the consumer of
+the result.
+.Pp
+To alleviate the mismatch, both
+.Vt struct buf
+and
+.Vt struct bio
+have member of the
+.Vt struct kexterr
+type.
+For buffers, the
+.Va b_exterr
+for
+.Vt struct buf ,
+and
+.Va bio_exterr
+for
+.Vt struct bio .
+Asynchronous i/o code can use the
+.Fn EXTERROR_KE
+macro, passing the pointer to the current request's embedded
+.Vt struct kexterr ,
+to record the extended error.
+In both cases, the
+.Va BIO_EXTERR
+flag should be set to indicate that whole extended error is valid,
+not only the
+.Va b_error
+or
+.Va bio_error
+values.
+.Pp
+Both VFS and geom generic layers, and several geom providers that generate
+subordinate bio's from the original request, are aware of the extended
+errors.
+They pass
+.Vt kexterr
+from the failed request back to the thread that create the request.
 .Sh SEE ALSO
 .Xr errno 3 ,
 .Xr err 3
