@@ -644,6 +644,35 @@ ndacleanup(struct cam_periph *periph)
 }
 
 static void
+ndasetgeom(struct nda_softc *softc, struct cam_periph *periph)
+{
+	struct disk *disk = softc->disk;
+	struct ccb_pathinq cpi;
+	const struct nvme_namespace_data *nsd;
+	const struct nvme_controller_data *cd;
+	uint8_t flbas_fmt, lbads, vwc_present;
+
+	nsd = nvme_get_identify_ns(periph);
+        cd = nvme_get_identify_cntrl(periph);
+
+	flbas_fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, nsd->flbas);
+	lbads = NVMEV(NVME_NS_DATA_LBAF_LBADS, nsd->lbaf[flbas_fmt]);
+	disk->d_sectorsize = 1 << lbads;
+	disk->d_mediasize = (off_t)(disk->d_sectorsize * nsd->nsze);
+	disk->d_delmaxsize = disk->d_mediasize;
+	disk->d_flags = DISKFLAG_DIRECT_COMPLETION;
+	if (nvme_ctrlr_has_dataset_mgmt(cd))
+		disk->d_flags |= DISKFLAG_CANDELETE;
+	vwc_present = NVMEV(NVME_CTRLR_DATA_VWC_PRESENT, cd->vwc);
+	if (vwc_present)
+		disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
+	if ((cpi.hba_misc & PIM_UNMAPPED) != 0) {
+		disk->d_flags |= DISKFLAG_UNMAPPED_BIO;
+		softc->unmappedio = 1;
+	}
+}
+
+static void
 ndaasync(void *callback_arg, uint32_t code,
 	struct cam_path *path, void *arg)
 {
@@ -846,7 +875,6 @@ ndaregister(struct cam_periph *periph, void *arg)
 	const struct nvme_namespace_data *nsd;
 	const struct nvme_controller_data *cd;
 	char   announce_buf[80];
-	uint8_t flbas_fmt, lbads, vwc_present;
 	u_int maxio;
 	int quirks;
 
@@ -903,21 +931,8 @@ ndaregister(struct cam_periph *periph, void *arg)
 	else if (maxio > maxphys)
 		maxio = maxphys;	/* for safety */
 	disk->d_maxsize = maxio;
-	flbas_fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, nsd->flbas);
-	lbads = NVMEV(NVME_NS_DATA_LBAF_LBADS, nsd->lbaf[flbas_fmt]);
-	disk->d_sectorsize = 1 << lbads;
-	disk->d_mediasize = (off_t)(disk->d_sectorsize * nsd->nsze);
-	disk->d_delmaxsize = disk->d_mediasize;
-	disk->d_flags = DISKFLAG_DIRECT_COMPLETION;
-	if (nvme_ctrlr_has_dataset_mgmt(cd))
-		disk->d_flags |= DISKFLAG_CANDELETE;
-	vwc_present = NVMEV(NVME_CTRLR_DATA_VWC_PRESENT, cd->vwc);
-	if (vwc_present)
-		disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
-	if ((cpi.hba_misc & PIM_UNMAPPED) != 0) {
-		disk->d_flags |= DISKFLAG_UNMAPPED_BIO;
-		softc->unmappedio = 1;
-	}
+	ndasetgeom(softc, periph);
+
 	/*
 	 * d_ident and d_descr are both far bigger than the length of either
 	 *  the serial or model number strings.
