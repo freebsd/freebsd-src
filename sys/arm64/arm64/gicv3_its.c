@@ -2222,7 +2222,7 @@ gicv3_its_fdt_probe(device_t dev)
 	if (!ofw_bus_is_compatible(dev, "arm,gic-v3-its"))
 		return (ENXIO);
 
-	if (!gicv3_get_support_lpis(dev))
+	if (!gic_get_support_lpis(dev))
 		return (ENXIO);
 
 	device_set_desc(dev, "ARM GIC Interrupt Translation Service");
@@ -2294,7 +2294,7 @@ gicv3_its_acpi_probe(device_t dev)
 	if (gic_get_hw_rev(dev) < 3)
 		return (EINVAL);
 
-	if (!gicv3_get_support_lpis(dev))
+	if (!gic_get_support_lpis(dev))
 		return (ENXIO);
 
 	device_set_desc(dev, "ARM GIC Interrupt Translation Service");
