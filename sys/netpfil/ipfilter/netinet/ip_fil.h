@@ -1859,5 +1859,6 @@ extern	int	ipf_ht_node_del(host_track_t *, int, i6addr_t *);
 extern	void	ipf_rb_ht_flush(host_track_t *);
 extern	void	ipf_rb_ht_freenode(host_node_t *, void *);
 extern	void	ipf_rb_ht_init(host_track_t *);
+extern	int	ipf_check_names_string(char *, int, int);
 
 #endif	/* __IP_FIL_H__ */
