@@ -40,6 +40,9 @@
 
 #include <dev/fdt/simplebus.h>
 
+#include "pci_if.h"
+#include "pcib_if.h"
+
 /*
  * Bus interface.
  */
@@ -61,6 +64,21 @@ static ssize_t		simplebus_get_property(device_t bus, device_t child,
  */
 static const struct ofw_bus_devinfo *simplebus_get_devinfo(device_t bus,
     device_t child);
+
+/*
+ * PCI interface for MSI interrupts
+ */
+static pci_get_id_t simplebus_get_id;
+static pci_alloc_msi_t simplebus_alloc_msi;
+
+/*
+ * PCIB interface
+ */
+static pcib_alloc_msi_t simplebus_pcib_alloc_msi;
+static pcib_release_msi_t simplebus_pcib_release_msi;
+static pcib_alloc_msix_t simplebus_pcib_alloc_msix;
+static pcib_release_msix_t simplebus_pcib_release_msix;
+static pcib_map_msi_t simplebus_pcib_map_msi;
 
 /*
  * Driver methods.
@@ -104,6 +122,17 @@ static device_method_t	simplebus_methods[] = {
 	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
+
+	/* PCI interface for MSI interrupts */
+	DEVMETHOD(pci_get_id,		simplebus_get_id),
+	DEVMETHOD(pci_alloc_msi,	simplebus_alloc_msi),
+
+	/* PCIB interface */
+	DEVMETHOD(pcib_alloc_msi,	simplebus_pcib_alloc_msi),
+	DEVMETHOD(pcib_release_msi,	simplebus_pcib_release_msi),
+	DEVMETHOD(pcib_alloc_msix,	simplebus_pcib_alloc_msix),
+	DEVMETHOD(pcib_release_msix,	simplebus_pcib_release_msix),
+	DEVMETHOD(pcib_map_msi,		simplebus_pcib_map_msi),
 
 	DEVMETHOD_END
 };
@@ -533,4 +562,109 @@ simplebus_print_child(device_t bus, device_t child)
 		rv += printf(" disabled");
 	rv += bus_print_child_footer(bus, child);
 	return (rv);
+}
+
+static int
+simplebus_get_id(device_t dev, device_t child, enum pci_id_type type,
+    uintptr_t *id)
+{
+	phandle_t node, xref;
+	pcell_t *cells;
+	uintptr_t rid;
+	int error, ncells;
+
+	if (type != PCI_ID_MSI)
+		return (EINVAL);
+
+	node = ofw_bus_get_node(child);
+	error = ofw_bus_parse_xref_list_alloc(node, "msi-parent", "#msi-cells",
+	    0, &xref, &ncells, &cells);
+	if (error != 0)
+		return (error);
+
+	rid = 0;
+	if (ncells > 0)
+		rid = cells[0];
+
+	*id = rid;
+	return (0);
+}
+
+static int
+simplebus_alloc_msi(device_t bus, device_t child, int *count)
+{
+	struct simplebus_devinfo *ndi;
+	struct resource_list_entry *rle;
+	int error, i, irq_count, *irqs;
+
+	if (*count < 1)
+		return (EINVAL);
+
+	ndi = device_get_ivars(child);
+	if (ndi == NULL)
+		return (ENXIO);
+
+	/* Only MSI or non-MSI for now */
+	rle = resource_list_find(&ndi->rl, SYS_RES_IRQ, 0);
+	if (rle != NULL && rle->res != NULL)
+		return (ENXIO);
+
+	irq_count = *count;
+	irqs = mallocarray(irq_count, sizeof(int), M_DEVBUF, M_WAITOK | M_ZERO);
+
+	error = PCIB_ALLOC_MSI(bus, child, irq_count, irq_count, irqs);
+	if (error != 0)
+		goto out;
+
+	for (i = 0; i < irq_count; i++) {
+		error = bus_generic_rl_set_resource(bus, child, SYS_RES_IRQ,
+		    i + 1, irqs[i], 1);
+		if (error != 0)
+			break;
+	}
+
+	/* Clean up resources if something failed */
+	if (error != 0) {
+		for (int j = 0; j < i; j++) {
+			bus_generic_rl_delete_resource(bus, child, SYS_RES_IRQ,
+			    j + 1);
+		}
+	}
+out:
+	free(irqs, M_DEVBUF);
+	return (error);
+}
+
+static int
+simplebus_pcib_alloc_msi(device_t dev, device_t child, int count, int maxcount,
+    int *irqs)
+{
+	return (PCIB_ALLOC_MSI(device_get_parent(dev), child, count, maxcount,
+	    irqs));
+}
+
+static int
+simplebus_pcib_release_msi(device_t dev, device_t child, int count, int *irqs)
+{
+	return (PCIB_RELEASE_MSI(device_get_parent(dev), child, count, irqs));
+}
+
+static int
+simplebus_pcib_alloc_msix(device_t dev, device_t child, int *irq)
+{
+	return (PCIB_ALLOC_MSIX(device_get_parent(dev), child, irq));
+}
+
+static int
+simplebus_pcib_release_msix(device_t dev, device_t child, int irq)
+{
+	return (PCIB_RELEASE_MSIX(device_get_parent(dev), child, irq));
+}
+
+static int
+simplebus_pcib_map_msi(device_t dev, device_t child, int irq, uint64_t *addr,
+    uint32_t *data)
+{
+	return (PCIB_MAP_MSI(device_get_parent(dev), child, irq, addr,
+	    data));
 }
