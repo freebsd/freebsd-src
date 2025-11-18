@@ -521,9 +521,6 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	char buf[MAXPATHLEN];
 	int argc, fd, i, mib[4], old_osrel, osrel, phnum, rtld_argc;
 	size_t sz;
-#ifdef __powerpc__
-	int old_auxv_format = 1;
-#endif
 	bool dir_enable, dir_ignore, direct_exec, explicit_fd, search_in_path;
 
 	/*
@@ -549,28 +546,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	for (auxp = aux; auxp->a_type != AT_NULL; auxp++) {
 		if (auxp->a_type < AT_COUNT)
 			aux_info[auxp->a_type] = auxp;
-#ifdef __powerpc__
-		if (auxp->a_type == 23) /* AT_STACKPROT */
-			old_auxv_format = 0;
-#endif
 	}
-
-#ifdef __powerpc__
-	if (old_auxv_format) {
-		/* Remap from old-style auxv numbers. */
-		aux_info[23] = aux_info[21]; /* AT_STACKPROT */
-		aux_info[21] = aux_info[19]; /* AT_PAGESIZESLEN */
-		aux_info[19] = aux_info[17]; /* AT_NCPUS */
-		aux_info[17] = aux_info[15]; /* AT_CANARYLEN */
-		aux_info[15] = aux_info[13]; /* AT_EXECPATH */
-		aux_info[13] = NULL;	     /* AT_GID */
-
-		aux_info[20] = aux_info[18]; /* AT_PAGESIZES */
-		aux_info[18] = aux_info[16]; /* AT_OSRELDATE */
-		aux_info[16] = aux_info[14]; /* AT_CANARY */
-		aux_info[14] = NULL;	     /* AT_EGID */
-	}
-#endif
+	arch_fix_auxv(aux, aux_info);
 
 	/* Initialize and relocate ourselves. */
 	assert(aux_info[AT_BASE] != NULL);

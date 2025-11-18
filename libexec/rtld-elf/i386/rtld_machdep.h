@@ -60,6 +60,8 @@ Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 #define call_init_pointer(obj, target) \
 	(((InitArrFunc)(target))(main_argc, main_argv, environ))
 
+#define	arch_fix_auxv(a, ai)		do {} while (0)
+
 extern uint32_t cpu_feature;
 extern uint32_t cpu_feature2;
 extern uint32_t cpu_stdext_feature;

@@ -47,6 +47,8 @@ struct Struct_Obj_Entry;
 /* No architecture specific notes */
 #define	arch_digest_note(obj, note)	false
 
+#define	arch_fix_auxv(a, ai)		do {} while (0)
+
 Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
     const struct Struct_Obj_Entry *defobj, const struct Struct_Obj_Entry *obj,
     const Elf_Rel *rel);
