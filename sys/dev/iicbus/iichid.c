@@ -271,6 +271,8 @@ static int
 iichid_cmd_read(struct iichid_softc* sc, void *buf, iichid_size_t maxlen,
     iichid_size_t *actual_len)
 {
+	int error;
+
 	/*
 	 * 6.1.3 - Retrieval of Input Reports
 	 * DEVICE returns the length (2 Bytes) and the entire Input Report.
@@ -280,7 +282,10 @@ iichid_cmd_read(struct iichid_softc* sc, void *buf, iichid_size_t maxlen,
 	struct iic_msg msgs[] = {
 	    { sc->addr, IIC_M_RD, maxlen, buf },
 	};
-	int error;
+
+	if (!sc->reset_acked) {
+		msgs[0].len = 2;
+	}
 
 	error = iicbus_transfer(sc->dev, msgs, nitems(msgs));
 	if (error != 0)
