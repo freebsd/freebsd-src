@@ -29,9 +29,11 @@
 #ifndef _RFB_H_
 #define	_RFB_H_
 
+#include <sys/socket.h>
+
 #define	RFB_PORT	5900
 
-int	rfb_init(const char *hostname, int port, int wait,
+int	rfb_init(sa_family_t family, const char *hostname, int port, int wait,
 	    const char *password);
 
 #endif /* _RFB_H_ */
