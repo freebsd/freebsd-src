@@ -517,6 +517,9 @@ arm_gic_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case GIC_IVAR_VGIC:
 		*result = 0;
 		return (0);
+	case GIC_IVAR_SUPPORT_LPIS:
+		*result = false;
+		return (0);
 	}
 
 	return (ENOENT);
