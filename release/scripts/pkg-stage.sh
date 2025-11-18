@@ -15,6 +15,8 @@ export PORTSDIR="${PORTSDIR:-/usr/ports}"
 
 _DVD_PACKAGES="
 devel/git@lite
+editors/emacs
+editors/vim
 misc/freebsd-doc-all
 net/mpd5
 net/rsync
@@ -29,7 +31,6 @@ sysutils/tmux
 www/firefox
 www/links
 x11/gnome
-x11/kde
 x11/sddm
 x11/xorg
 x11-wm/sway
