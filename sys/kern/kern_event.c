@@ -627,12 +627,20 @@ knote_fork(struct knlist *list, int pid)
 		kev.data = kn->kn_id;		/* parent */
 		kev.udata = kn->kn_kevent.udata;/* preserve udata */
 		error = kqueue_register(kq, &kev, NULL, M_NOWAIT);
+
+		/*
+		 * Serialize updates to the kn_kevent fields with threads
+		 * scanning the queue.
+		 */
+		list->kl_lock(list->kl_lockarg);
 		if (error)
 			kn->kn_fflags |= NOTE_TRACKERR;
-		if (kn->kn_fop->f_event(kn, NOTE_FORK))
-			KNOTE_ACTIVATE(kn, 0);
-		list->kl_lock(list->kl_lockarg);
-		KQ_LOCK(kq);
+		if (kn->kn_fop->f_event(kn, NOTE_FORK)) {
+			KQ_LOCK(kq);
+			KNOTE_ACTIVATE(kn, 1);
+		} else {
+			KQ_LOCK(kq);
+		}
 		kn_leave_flux(kn);
 		KQ_UNLOCK_FLUX(kq);
 	}
