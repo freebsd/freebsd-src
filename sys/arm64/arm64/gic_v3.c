@@ -494,6 +494,7 @@ gic_v3_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case GICV3_IVAR_REDIST:
 		*result = (uintptr_t)&sc->gic_redists.pcpu[PCPU_GET(cpuid)];
 		return (0);
+	case GIC_IVAR_SUPPORT_LPIS:
 	case GICV3_IVAR_SUPPORT_LPIS:
 		*result =
 		    (gic_d_read(sc, 4, GICD_TYPER) & GICD_TYPER_LPIS) != 0;
