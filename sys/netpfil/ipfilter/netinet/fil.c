@@ -9951,3 +9951,34 @@ ipf_inet6_mask_del(int bits, i6addr_t *mask, ipf_v6_masktab_t *mtab)
 	ASSERT(mtab->imt6_max >= 0);
 }
 #endif
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_check_names_string                                      */
+/* Returns:     int       -  0 == success                                   */
+/*                        -  1 == negative offset                           */
+/*                        -  2 == offset exceds namelen                     */
+/*                        -  3 == string exceeds the names string           */
+/* Parameters:  names   - pointer to names string                           */
+/*              namelen - total length of names string                      */
+/*              offset  - offset into names string                          */
+/*                                                                          */
+/* Validate the names string (fr_names for ipfilter, in_names for ipnat).   */
+/* ------------------------------------------------------------------------ */
+int
+ipf_check_names_string(char *names, int namelen, int offset)
+{
+	const char *name;
+	size_t len;
+
+	if (offset == -1)
+		return (0);
+	if (offset < 0)
+		return (1);
+	if (offset > namelen)
+		return (2);
+	name = &names[offset];
+	len = strnlen(name, namelen - offset);
+	if (len == namelen - offset)
+		return (3);
+	return (0);
+}
