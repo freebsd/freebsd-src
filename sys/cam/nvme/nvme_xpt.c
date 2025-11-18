@@ -463,6 +463,8 @@ device_fail:	if ((path->device->flags & CAM_DEV_UNCONFIGURED) == 0)
 			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 			xpt_action(done_ccb);
 			xpt_async(AC_FOUND_DEVICE, path, done_ccb);
+		} else {
+			xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		}
 		NVME_PROBE_SET_ACTION(softc, NVME_PROBE_DONE);
 		break;
