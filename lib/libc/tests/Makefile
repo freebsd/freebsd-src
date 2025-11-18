@@ -14,6 +14,7 @@ TESTS_SUBDIRS+=	resolv
 TESTS_SUBDIRS+=	rpc
 TESTS_SUBDIRS+=	secure
 TESTS_SUBDIRS+=	setjmp
+TESTS_SUBDIRS+=	stdbit
 TESTS_SUBDIRS+=	stdio
 TESTS_SUBDIRS+=	stdlib
 TESTS_SUBDIRS+=	stdtime
