@@ -673,12 +673,11 @@ ndasetgeom(struct nda_softc *softc, struct cam_periph *periph)
 }
 
 static void
-ndaasync(void *callback_arg, uint32_t code,
-	struct cam_path *path, void *arg)
+ndaasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 {
-	struct cam_periph *periph;
+	struct cam_periph *periph = callback_arg;
+	struct nda_softc *softc;
 
-	periph = (struct cam_periph *)callback_arg;
 	switch (code) {
 	case AC_FOUND_DEVICE:
 	{
@@ -709,17 +708,29 @@ ndaasync(void *callback_arg, uint32_t code,
 				"due to status 0x%x\n", status);
 		break;
 	}
+	case AC_GETDEV_CHANGED:
+	{
+		int error;
+
+		softc = periph->softc;
+		ndasetgeom(softc, periph);
+		error = disk_resize(softc->disk, M_NOWAIT);
+		if (error != 0) {
+			xpt_print(periph->path, "disk_resize(9) failed, error = %d\n", error);
+			break;
+		}
+		break;
+
+	}
 	case AC_ADVINFO_CHANGED:
 	{
 		uintptr_t buftype;
 
+		softc = periph->softc;
 		buftype = (uintptr_t)arg;
 		if (buftype == CDAI_TYPE_PHYS_PATH) {
-			struct nda_softc *softc;
-
-			softc = periph->softc;
 			disk_attr_changed(softc->disk, "GEOM::physpath",
-					  M_NOWAIT);
+			    M_NOWAIT);
 		}
 		break;
 	}
@@ -997,7 +1008,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 	 * Register for device going away and info about the drive
 	 * changing (though with NVMe, it can't)
 	 */
-	xpt_register_async(AC_LOST_DEVICE | AC_ADVINFO_CHANGED,
+	xpt_register_async(AC_LOST_DEVICE | AC_ADVINFO_CHANGED | AC_GETDEV_CHANGED,
 	    ndaasync, periph, periph->path);
 
 	softc->state = NDA_STATE_NORMAL;
