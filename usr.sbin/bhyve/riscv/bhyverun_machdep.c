@@ -51,6 +51,7 @@
 #include "config.h"
 #include "debug.h"
 #include "fdt.h"
+#include "ipc.h"
 #include "mem.h"
 #include "pci_emul.h"
 #include "pci_irq.h"
@@ -82,6 +83,7 @@ bhyve_init_config(void)
 	set_config_bool("acpi_tables", false);
 	set_config_bool("acpi_tables_in_memory", false);
 	set_config_value("memory.size", "256M");
+	set_config_value("rundir", BHYVE_RUN_DIR);
 }
 
 void

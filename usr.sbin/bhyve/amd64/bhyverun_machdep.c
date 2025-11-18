@@ -46,6 +46,7 @@
 #include "e820.h"
 #include "fwctl.h"
 #include "ioapic.h"
+#include "ipc.h"
 #include "inout.h"
 #include "kernemu_dev.h"
 #include "mptbl.h"
@@ -68,9 +69,7 @@ bhyve_init_config(void)
 	set_config_bool("x86.strictmsr", true);
 	set_config_bool("x86.verbosemsr", false);
 	set_config_value("lpc.fwcfg", "bhyve");
-#ifdef BHYVE_SNAPSHOT
 	set_config_value("rundir", BHYVE_RUN_DIR);
-#endif
 }
 
 void

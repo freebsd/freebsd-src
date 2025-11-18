@@ -32,6 +32,7 @@ SRCS=	\
 	ctl_util.c		\
 	hda_codec.c		\
 	iov.c			\
+	ipc.c			\
 	mem.c			\
 	mevent.c		\
 	net_backend_netmap.c	\
