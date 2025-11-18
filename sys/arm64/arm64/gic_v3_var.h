@@ -108,11 +108,9 @@ MALLOC_DECLARE(M_GIC_V3);
 #define	GICV3_IVAR_NIRQS	1000
 /* 1001 was GICV3_IVAR_REDIST_VADDR */
 #define	GICV3_IVAR_REDIST	1002
-#define	GICV3_IVAR_SUPPORT_LPIS	1003
 
 __BUS_ACCESSOR(gicv3, nirqs, GICV3, NIRQS, u_int);
 __BUS_ACCESSOR(gicv3, redist, GICV3, REDIST, void *);
-__BUS_ACCESSOR(gicv3, support_lpis, GICV3, SUPPORT_LPIS, bool);
 
 /* Device methods */
 int gic_v3_attach(device_t dev);
