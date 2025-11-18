@@ -737,3 +737,29 @@ __tls_get_addr(tls_index* ti)
 	return (tls_get_addr_common(_tcb_get(), ti->ti_module, ti->ti_offset +
 	    TLS_DTV_OFFSET));
 }
+
+void
+arch_fix_auxv(Elf_Auxinfo *aux, Elf_Auxinfo *aux_info[])
+{
+	Elf_Auxinfo *aux;
+	bool old_auxv_format;
+
+	old_auxv_format = true;
+	for (auxp = aux; auxp->a_type != AT_NULL; auxp++) {
+		if (auxp->a_type == 23) /* AT_STACKPROT */
+			return;
+	}
+
+	/* Remap from old-style auxv numbers. */
+	aux_info[23] = aux_info[21]; /* AT_STACKPROT */
+	aux_info[21] = aux_info[19]; /* AT_PAGESIZESLEN */
+	aux_info[19] = aux_info[17]; /* AT_NCPUS */
+	aux_info[17] = aux_info[15]; /* AT_CANARYLEN */
+	aux_info[15] = aux_info[13]; /* AT_EXECPATH */
+	aux_info[13] = NULL;	     /* AT_GID */
+
+	aux_info[20] = aux_info[18]; /* AT_PAGESIZES */
+	aux_info[18] = aux_info[16]; /* AT_OSRELDATE */
+	aux_info[16] = aux_info[14]; /* AT_CANARY */
+	aux_info[14] = NULL;	     /* AT_EGID */
+}
