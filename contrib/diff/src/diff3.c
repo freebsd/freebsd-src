@@ -299,9 +299,9 @@ main (int argc, char **argv)
 	}
     }
 
-  edscript = incompat & ~merge;  /* -AeExX3 without -m implies ed script.  */
-  show_2nd |= ~incompat & merge;  /* -m without -AeExX3 implies -A.  */
-  flagging |= ~incompat & merge;
+  edscript = (incompat != 0) & !merge;  /* -AeExX3 without -m implies ed script.  */
+  show_2nd |= !incompat & merge;  /* -m without -AeExX3 implies -A.  */
+  flagging |= !incompat & merge;
 
   if (incompat > 1  /* Ensure at most one of -AeExX3.  */
       || finalwrite & merge /* -i -m would rewrite input file.  */
