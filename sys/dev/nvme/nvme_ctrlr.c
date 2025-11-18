@@ -1153,7 +1153,7 @@ nvme_ctrlr_aer_task(void *arg, int pending)
 		mtx_sleep(aer, &aer->mtx, PRIBIO, "nvme_pt", 0);
 	mtx_unlock(&aer->mtx);
 
-	if (aer->log_page_size != (uint32_t)-1) {
+	if (aer->log_page_size == (uint32_t)-1) {
 		/*
 		 * If the log page fetch for some reason completed with an
 		 * error, don't pass log page data to the consumers.  In
