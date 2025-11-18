@@ -1,0 +1,83 @@
+.\"
+.\" Copyright (c) 2025 Robert Clausecker <fuz@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd November 9, 2025
+.Dt STDC_BIT_FLOOR 3
+.Os
+.Sh NAME
+.Nm stdc_bit_floor
+.Nd round down to the previous power of\~2
+.Sh SYNOPSIS
+.Lb libc
+.In stdbit.h
+.Ft unsigned char
+.Fn stdc_bit_floor_uc "unsigned char value"
+.Ft unsigned short
+.Fn stdc_bit_floor_us "unsigned short value"
+.Ft unsigned int
+.Fn stdc_bit_floor_ui "unsigned int value"
+.Ft unsigned long
+.Fn stdc_bit_floor_ul "unsigned long value"
+.Ft unsigned long long
+.Fn stdc_bit_floor_ull "unsigned long long value"
+.Ft typeof Ns Pq Em value
+.Fn stdc_bit_floor "value"
+.Sh DESCRIPTION
+The
+.Nm stdc_bit_floor_ Ns Em type Ns ()
+family of functions rounds
+.Fa value
+down to the previous power of\~2, where
+.Fa value
+is of type
+.Va unsigned char ,
+.Va unsigned short ,
+.Va unsigned int ,
+.Va unsigned long ,
+or
+.Va unsigned long long
+for
+.Em type
+being
+.Sy uc ,
+.Sy us ,
+.Sy ui ,
+.Sy ul ,
+or
+.Sy ull
+respectively.
+The
+.Fn stdc_bit_floor "value"
+type-generic macro picks the appropriate
+.Nm stdc_bit_floor_ Ns Em type Ns ()
+function based on the type of
+.Fa value .
+.Sh RETURN VALUES
+Returns
+.Fa value
+round down to the previous power of\~2.
+If
+.Fa value
+is equal to zero,
+zero is returned.
+.Sh SEE ALSO
+.Xr stdbit 3 ,
+.Xr stdc_bit_ceil 3
+.Sh STANDARDS
+The
+.Nm stdc_bit_floor_ Ns Em type Ns ()
+family of functions and the
+.Fn stdc_bit_floor
+type-generic macro conform to
+.St -isoC-2023 .
+.Sh HISTORY
+The
+.Nm stdc_bit_floor_ Ns Em type Ns ()
+family of functions and the
+.Fn stdc_bit_floor
+type-generic macro were added in
+.Fx 15.1.
+.Sh AUTHOR
+.An Robert Clausecker Aq Mt fuz@FreeBSD.org
