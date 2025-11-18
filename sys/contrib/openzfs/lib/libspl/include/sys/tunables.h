@@ -25,7 +25,8 @@
  */
 
 #ifndef _SYS_TUNABLES_H
-#define	_SYS_TUNABLES_H extern __attribute__((visibility("hidden")))
+//#define	_SYS_TUNABLES_H extern __attribute__((visibility("hidden")))
+#define	_SYS_TUNABLES_H extern
 
 typedef enum {
 	ZFS_TUNABLE_TYPE_INT,
