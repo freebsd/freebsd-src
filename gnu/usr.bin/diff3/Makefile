@@ -17,6 +17,6 @@ CFLAGS+=-I${SRCTOP}/contrib/diff/lib
 CFLAGS+=-DHAVE_CONFIG_H
 CFLAGS+=-DDEFAULT_DIFF_PROGRAM=\"/usr/bin/diff\"
 
-WARNS?=	0
+WARNS?=	2
 
 .include <bsd.prog.mk>

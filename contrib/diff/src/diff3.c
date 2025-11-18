@@ -1405,7 +1405,7 @@ output_diff3 (FILE *outputfile, struct diff3_block *diff,
 	      line = 0;
 	      do
 		{
-		  fprintf (outputfile, line_prefix);
+		  fprintf (outputfile, "%s", line_prefix);
 		  cp = D_RELNUM (ptr, realfile, line);
 		  length = D_RELLEN (ptr, realfile, line);
 		  fwrite (cp, sizeof (char), length, outputfile);
