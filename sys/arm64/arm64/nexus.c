@@ -72,6 +72,8 @@
 #include "acpi_bus_if.h"
 #endif
 
+#include "pcib_if.h"
+
 extern struct bus_space memmap_bus;
 
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
@@ -123,6 +125,15 @@ static bus_get_bus_tag_t	nexus_get_bus_tag;
 
 #ifdef FDT
 static ofw_bus_map_intr_t	nexus_ofw_map_intr;
+/*
+ * PCIB interface
+ */
+static pcib_alloc_msi_t		nexus_fdt_pcib_alloc_msi;
+static pcib_release_msi_t	nexus_fdt_pcib_release_msi;
+static pcib_alloc_msix_t	nexus_fdt_pcib_alloc_msix;
+static pcib_release_msix_t	nexus_fdt_pcib_release_msix;
+static pcib_map_msi_t		nexus_fdt_pcib_map_msi;
+
 #endif
 
 static device_method_t nexus_methods[] = {
@@ -441,6 +452,13 @@ static device_method_t nexus_fdt_methods[] = {
 	/* OFW interface */
 	DEVMETHOD(ofw_bus_map_intr,	nexus_ofw_map_intr),
 
+	/* PCIB interface */
+	DEVMETHOD(pcib_alloc_msi,	nexus_fdt_pcib_alloc_msi),
+	DEVMETHOD(pcib_release_msi,	nexus_fdt_pcib_release_msi),
+	DEVMETHOD(pcib_alloc_msix,	nexus_fdt_pcib_alloc_msix),
+	DEVMETHOD(pcib_release_msix,	nexus_fdt_pcib_release_msix),
+	DEVMETHOD(pcib_map_msi,		nexus_fdt_pcib_map_msi),
+
 	DEVMETHOD_END,
 };
 
@@ -517,6 +535,73 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
 	memcpy(fdt_data->cells, intr, icells * sizeof(pcell_t));
 	irq = intr_map_irq(NULL, iparent, (struct intr_map_data *)fdt_data);
 	return (irq);
+}
+
+static int
+nexus_fdt_pcib_alloc_msi(device_t dev, device_t child, int count, int maxcount,
+    int *irqs)
+{
+	phandle_t msi_parent;
+	int error;
+
+	error = ofw_bus_msimap(ofw_bus_get_node(child), 0, &msi_parent, NULL);
+	if (error != 0)
+		return (error);
+
+	return (intr_alloc_msi(dev, child, msi_parent, count, maxcount, irqs));
+}
+
+static int
+nexus_fdt_pcib_release_msi(device_t dev, device_t child, int count, int *irqs)
+{
+	phandle_t msi_parent;
+	int error;
+
+	error = ofw_bus_msimap(ofw_bus_get_node(child), 0, &msi_parent, NULL);
+	if (error != 0)
+		return (error);
+
+	return (intr_release_msi(dev, child, msi_parent, count, irqs));
+}
+
+static int
+nexus_fdt_pcib_alloc_msix(device_t dev, device_t child, int *irq)
+{
+	phandle_t msi_parent;
+	int error;
+
+	error = ofw_bus_msimap(ofw_bus_get_node(child), 0, &msi_parent, NULL);
+	if (error != 0)
+		return (error);
+
+	return (intr_alloc_msix(dev, child, msi_parent, irq));
+}
+
+static int
+nexus_fdt_pcib_release_msix(device_t dev, device_t child, int irq)
+{
+	phandle_t msi_parent;
+	int error;
+
+	error = ofw_bus_msimap(ofw_bus_get_node(child), 0, &msi_parent, NULL);
+	if (error != 0)
+		return (error);
+
+	return (intr_release_msix(dev, child, msi_parent, irq));
+}
+
+static int
+nexus_fdt_pcib_map_msi(device_t dev, device_t child, int irq, uint64_t *addr,
+    uint32_t *data)
+{
+	phandle_t msi_parent;
+	int error;
+
+	error = ofw_bus_msimap(ofw_bus_get_node(child), 0, &msi_parent, NULL);
+	if (error != 0)
+		return (error);
+
+	return (intr_map_msi(dev, child, msi_parent, irq, addr, data));
 }
 #endif
 
