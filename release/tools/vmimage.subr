@@ -334,6 +334,16 @@ buildfs() {
 			metalog_add_data ./var/db/services.db
 		fi
 
+		if [ -n "${MISSING_METALOGS}" ]; then
+			# Hack to allow VM configurations to add files which
+			# weren't being added to METALOG appropriately.  This
+			# is mainly a workaround for the @sample bug and it
+			# should go away before FreeBSD 15.1 ships.
+			for P in ${MISSING_METALOGS}; do
+				metalog_add_data ${P}
+			done
+		fi
+
 		# Sort METALOG file; makefs produces directories with 000 permissions
 		# if their contents are seen before the directories themselves.
 		env -i LC_COLLATE=C sort -u ${DESTDIR}/METALOG > ${DESTDIR}/METALOG.sorted
