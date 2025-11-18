@@ -1,0 +1,92 @@
+.\"
+.\" Copyright (c) 2025 Robert Clausecker <fuz@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd November 9, 2025
+.Dt STDC_FIRST_LEADING_ZERO 3
+.Os
+.Sh NAME
+.Nm stdc_first_leading_zero
+.Nd find the first leading zero in an integer
+.Sh SYNOPSIS
+.Lb libc
+.In stdbit.h
+.Ft unsigned int
+.Fn stdc_first_leading_zero_uc "unsigned char value"
+.Ft unsigned int
+.Fn stdc_first_leading_zero_us "unsigned short value"
+.Ft unsigned int
+.Fn stdc_first_leading_zero_ui "unsigned int value"
+.Ft unsigned int
+.Fn stdc_first_leading_zero_ul "unsigned long value"
+.Ft unsigned int
+.Fn stdc_first_leading_zero_ull "unsigned long long value"
+.Ft unsigned int
+.Fn stdc_first_leading_zero "value"
+.Sh DESCRIPTION
+The
+.Nm stdc_first_leading_zero_ Ns Em type Ns ()
+family of functions returns the index of the most significant clear bit in
+.Fa value ,
+where 
+.Fa value
+is of type
+.Va unsigned char ,
+.Va unsigned short ,
+.Va unsigned int ,
+.Va unsigned long ,
+or
+.Va unsigned long long
+for
+.Em type
+being
+.Sy uc ,
+.Sy us ,
+.Sy ui ,
+.Sy ul ,
+or
+.Sy ull
+respectively.
+The
+.Fn stdc_first_leading_zero "value"
+type-generic macro picks the appropriate
+.Nm stdc_first_leading_zero_ Ns Em type Ns ()
+function based on the type of
+.Fa value .
+.Sh RETURN VALUES
+Returns the index of the most significant clear bit in
+.Fa value .
+The bits are numbered such that the most significant bit has number\~1,
+and the least significant bit has number
+.Ms w
+where
+.Ms w
+is the number of bits in the type of
+.Fa value .
+If no bits are clear in
+.Fa value
+(i.\^e.\&
+.Fa value
+is the bitwise complement of zero), zero is returned.
+.Sh SEE ALSO
+.Xr stdbit 3 ,
+.Xr stdc_leading_ones 3 ,
+.Xr stdc_first_leading_ones 3 ,
+.Xr stdc_first_trailing_zero 3
+.Sh STANDARDS
+The
+.Nm stdc_first_leading_zero_ Ns Em type Ns ()
+family of functions and the
+.Fn stdc_first_leading_zero
+type-generic macro conform to
+.St -isoC-2023 .
+.Sh HISTORY
+The
+.Nm stdc_first_leading_zero_ Ns Em type Ns ()
+family of functions and the
+.Fn stdc_first_leading_zero
+type-generic macro were added in
+.Fx 15.1.
+.Sh AUTHOR
+.An Robert Clausecker Aq Mt fuz@FreeBSD.org
