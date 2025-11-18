@@ -78,7 +78,7 @@ nvme_ns_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 		break;
 	case NVME_PASSTHROUGH_CMD:
 		pt = (struct nvme_pt_command *)arg;
-		return (nvme_ctrlr_passthrough_cmd(ctrlr, pt, ns->id, 
+		return (nvme_ctrlr_passthrough_cmd(ctrlr, pt, ns->id,
 		    1 /* is_user_buffer */, 0 /* is_admin_cmd */));
 	case NVME_GET_NSID:
 	{
@@ -558,8 +558,10 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	 * standard says the entire id will be zeros, so this is a
 	 * cheap way to test for that.
 	 */
-	if (ns->data.nsze == 0)
-		return (ENXIO);
+	if (ns->data.nsze == 0) {
+		ns->flags |= NVME_NS_GONE;
+		return ((ns->flags & NVME_NS_ADDED) ? 0 : ENXIO);
+	}
 
 	flbas_fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, ns->data.flbas);
 
@@ -623,6 +625,7 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	ns->cdev->si_drv2 = make_dev_alias(ns->cdev, "%sns%d",
 	    device_get_nameunit(ctrlr->dev), ns->id);
 	ns->cdev->si_flags |= SI_UNMAPPED;
+	ns->flags |= NVME_NS_ADDED;
 
 	return (0);
 }
