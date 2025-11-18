@@ -1216,10 +1216,20 @@ nvme_ctrlr_aer_task(void *arg, int pending)
 	} else if (aer->log_page_id == NVME_LOG_CHANGED_NAMESPACE) {
 		struct nvme_ns_list *nsl =
 		    (struct nvme_ns_list *)aer->log_page_buffer;
+		struct nvme_controller *ctrlr = aer->ctrlr;
+
 		for (int i = 0; i < nitems(nsl->ns) && nsl->ns[i] != 0; i++) {
+			struct nvme_namespace *ns;
+			uint32_t id = nsl->ns[i];
+
 			if (nsl->ns[i] > NVME_MAX_NAMESPACES)
 				break;
-			nvme_notify_ns(aer->ctrlr, nsl->ns[i]);
+
+			ns = &ctrlr->ns[id - 1];
+			ns->flags |= NVME_NS_CHANGED;
+			nvme_ns_construct(ns, id, ctrlr);
+			nvme_notify_ns(ctrlr, id);
+			ns->flags &= ~NVME_NS_CHANGED;
 		}
 	}
 

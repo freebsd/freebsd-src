@@ -1929,8 +1929,11 @@ typedef void (*nvme_cons_async_fn_t)(void *, const struct nvme_completion *,
 typedef void (*nvme_cons_fail_fn_t)(void *);
 
 enum nvme_namespace_flags {
-	NVME_NS_DEALLOCATE_SUPPORTED	= 0x1,
-	NVME_NS_FLUSH_SUPPORTED		= 0x2,
+	NVME_NS_DEALLOCATE_SUPPORTED	= 0x01,
+	NVME_NS_FLUSH_SUPPORTED		= 0x02,
+	NVME_NS_ADDED			= 0x04,
+	NVME_NS_CHANGED			= 0x08,
+	NVME_NS_GONE			= 0x10,
 };
 
 int	nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
