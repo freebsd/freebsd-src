@@ -53,6 +53,8 @@
 /* To deal with absolute symlink issues */
 #define START_ABSOLUTE_SYMLINK_REPARSE L"\\??\\"
 
+#define MAX_FILESYSTEM_ID 1000000
+
 /*-
  * This is a new directory-walking system that addresses a number
  * of problems I've had with fts(3).  In particular, it has no
@@ -1449,8 +1451,12 @@ update_current_filesystem(struct archive_read_disk *a, int64_t dev)
 	 * There is a new filesystem, we generate a new ID for.
 	 */
 	fid = t->max_filesystem_id++;
+	if (fid > MAX_FILESYSTEM_ID) {
+		archive_set_error(&a->archive, ENOMEM, "Too many filesystems");
+		return (ARCHIVE_FATAL);
+	}
 	if (t->max_filesystem_id > t->allocated_filesystem) {
-		size_t s;
+		int s;
 		void *p;
 
 		s = t->max_filesystem_id * 2;

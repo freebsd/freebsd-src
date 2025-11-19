@@ -78,6 +78,12 @@
 #include "archive_crc32.h"
 #endif
 
+/* length of local file header, not including filename and extra */
+#define ZIP_LOCHDR_LEN		30U
+
+/* maximum length of Mac metadata in MiB */
+#define ZIP_MAX_METADATA	10U
+
 struct zip_entry {
 	struct archive_rb_node	node;
 	struct zip_entry	*next;
@@ -933,7 +939,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		zip->init_default_conversion = 1;
 	}
 
-	if ((p = __archive_read_ahead(a, 30, NULL)) == NULL) {
+	if ((p = __archive_read_ahead(a, ZIP_LOCHDR_LEN, NULL)) == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated ZIP file header");
 		return (ARCHIVE_FATAL);
@@ -969,7 +975,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	filename_length = archive_le16dec(p + 26);
 	extra_length = archive_le16dec(p + 28);
 
-	__archive_read_consume(a, 30);
+	__archive_read_consume(a, ZIP_LOCHDR_LEN);
 
 	/* Read the filename. */
 	if ((h = __archive_read_ahead(a, filename_length, NULL)) == NULL) {
@@ -3637,7 +3643,7 @@ read_eocd(struct zip *zip, const char *p, int64_t current_offset)
 {
 	uint16_t disk_num;
 	uint32_t cd_size, cd_offset;
-	
+
 	disk_num = archive_le16dec(p + 4);
 	cd_size = archive_le32dec(p + 12);
 	cd_offset = archive_le32dec(p + 16);
@@ -4097,7 +4103,7 @@ zip_get_local_file_header_size(struct archive_read *a, size_t extra)
 	const char *p;
 	ssize_t filename_length, extra_length;
 
-	if ((p = __archive_read_ahead(a, extra + 30, NULL)) == NULL) {
+	if ((p = __archive_read_ahead(a, extra + ZIP_LOCHDR_LEN, NULL)) == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated ZIP file header");
 		return (ARCHIVE_WARN);
@@ -4111,7 +4117,7 @@ zip_get_local_file_header_size(struct archive_read *a, size_t extra)
 	filename_length = archive_le16dec(p + 26);
 	extra_length = archive_le16dec(p + 28);
 
-	return (30 + filename_length + extra_length);
+	return (ZIP_LOCHDR_LEN + filename_length + extra_length);
 }
 
 static int
@@ -4148,16 +4154,16 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 		return (ARCHIVE_WARN);
 	}
 
-	if (rsrc->uncompressed_size > (4 * 1024 * 1024)) {
+	if (rsrc->uncompressed_size > ZIP_MAX_METADATA * 1048576U) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Mac metadata is too large: %jd > 4M bytes",
-		    (intmax_t)rsrc->uncompressed_size);
+		    "Mac metadata is too large: %jd > %u MiB",
+		    (intmax_t)rsrc->uncompressed_size, ZIP_MAX_METADATA);
 		return (ARCHIVE_WARN);
 	}
-	if (rsrc->compressed_size > (4 * 1024 * 1024)) {
+	if (rsrc->compressed_size > ZIP_MAX_METADATA * 1048576U) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Mac metadata is too large: %jd > 4M bytes",
-		    (intmax_t)rsrc->compressed_size);
+		    "Mac metadata is too large: %jd > %u MiB",
+		    (intmax_t)rsrc->compressed_size, ZIP_MAX_METADATA);
 		return (ARCHIVE_WARN);
 	}
 

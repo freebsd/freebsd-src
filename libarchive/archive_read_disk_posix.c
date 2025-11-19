@@ -107,6 +107,8 @@
 #define O_CLOEXEC	0
 #endif
 
+#define MAX_FILESYSTEM_ID 1000000
+
 #if defined(__hpux) && !defined(HAVE_DIRFD)
 #define dirfd(x) ((x)->__dd_fd)
 #define HAVE_DIRFD
@@ -1412,8 +1414,12 @@ update_current_filesystem(struct archive_read_disk *a, int64_t dev)
 	 * This is the new filesystem which we have to generate a new ID for.
 	 */
 	fid = t->max_filesystem_id++;
+	if (fid > MAX_FILESYSTEM_ID) {
+		archive_set_error(&a->archive, ENOMEM, "Too many filesystems");
+		return (ARCHIVE_FATAL);
+	}
 	if (t->max_filesystem_id > t->allocated_filesystem) {
-		size_t s;
+		int s;
 		void *p;
 
 		s = t->max_filesystem_id * 2;
@@ -1693,8 +1699,6 @@ setup_current_filesystem(struct archive_read_disk *a)
 #endif
 		t->current_filesystem->noatime = 0;
 
-	/* Set maximum filename length. */
-	t->current_filesystem->name_max = svfs.f_namemax;
 	return (ARCHIVE_OK);
 }
 

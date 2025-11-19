@@ -8,6 +8,7 @@
 
 DEFINE_TEST(test_option_safe_writes)
 {
+	assertUmask(0);
 	/* Create files */
 	assertMakeDir("in", 0755);
 	assertEqualInt(0, chdir("in"));

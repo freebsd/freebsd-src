@@ -10,7 +10,7 @@ FreeBSD_task:
       BS: cmake
   matrix:
     freebsd_instance:
-      image_family: freebsd-14-2
+      image_family: freebsd-14-3
     freebsd_instance:
       image_family: freebsd-13-5
   prepare_script:
