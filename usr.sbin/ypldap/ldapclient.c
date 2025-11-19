@@ -317,7 +317,7 @@ client_dispatch_parent(int fd, short events, void *p)
 			client_configure(env);
 			break;
 		default:
-			log_debug("client_dispatch_parent: unexpect imsg %d",
+			log_debug("client_dispatch_parent: unexpected imsg %d",
 			    imsg.hdr.type);
 
 			break;
