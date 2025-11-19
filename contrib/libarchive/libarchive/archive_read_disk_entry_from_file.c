@@ -358,12 +358,10 @@ setup_mac_metadata(struct archive_read_disk *a,
 		return (ARCHIVE_OK);
 
 	archive_string_init(&tempfile);
-	if (__archive_get_tempdir(&tempfile) != ARCHIVE_OK) {
-		ret = ARCHIVE_WARN;
-		goto cleanup;
-	}
-	archive_strcat(&tempfile, "tar.md.XXXXXX");
-	tempfd = mkstemp(tempfile.s);
+	archive_strcpy(&tempfile, name);
+	archive_string_dirname(&tempfile);
+	archive_strcat(&tempfile, "/tar.XXXXXXXX");
+	tempfd = __archive_mkstemp(tempfile.s);
 	if (tempfd < 0) {
 		archive_set_error(&a->archive, errno,
 		    "Could not open extended attribute file");
