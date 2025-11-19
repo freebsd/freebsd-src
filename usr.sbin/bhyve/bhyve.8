@@ -532,7 +532,9 @@ considered unconnected.
 .Xc
 .It
 .Xo
-.Cm slirp,hostfwd= Ar proto : Ar hostaddr : Ar hostport - Ar guestaddr : Ar guestport
+.Cm slirp
+.Op Cm \&,open
+.Op Cm \&,hostfwd= Ar proto : Ar hostaddr : Ar hostport - Ar guestaddr : Ar guestport
 .Xc
 .El
 .Sm on
@@ -598,6 +600,12 @@ configuration on the host system.
 It depends on the
 .Pa net/libslirp
 port.
+If the
+.Cm open
+keyword is set, the guest will be able to make outbound network
+connections, and
+.Nm
+will transparently handle the necessary address translation.
 The
 .Cm hostfwd
 option takes a 5-tuple describing how connections from the host are to be
@@ -605,6 +613,7 @@ forwarded to the guest.
 Multiple rules can be specified, separated by semicolons.
 Note that semicolons must be escaped or quoted to prevent the shell from
 interpreting them.
+The backend will provide DHCP and DNS service to the guest.
 .Ss Block storage device backends:
 .Bl -bullet
 .Sm off
