@@ -1540,8 +1540,7 @@ enum nvme_log_page {
 	/* 0xC0-0xFF - vendor specific */
 
 	/*
-	 * The following are Intel Specific log pages, but they seem
-	 * to be widely implemented.
+	 * The following are Intel Specific log pages for older models.
 	 */
 	INTEL_LOG_READ_LAT_LOG		= 0xc1,
 	INTEL_LOG_WRITE_LAT_LOG		= 0xc2,
@@ -1550,7 +1549,7 @@ enum nvme_log_page {
 	INTEL_LOG_DRIVE_MKT_NAME	= 0xdd,
 
 	/*
-	 * HGST log page, with lots ofs sub pages.
+	 * HGST log page, with lots of sub pages.
 	 */
 	HGST_INFO_LOG			= 0xc1,
 };
