@@ -33,7 +33,7 @@ Load the kernel module named
 .Fa name
 and return the identifier
 .Pq fileid
-as an interger.
+as an integer.
 .It Dv ok, err, errno = freebsd.sys.linker.kldunload(fileid|name)
 Unload the kernel module identifier either by
 .Fa name
