@@ -33,7 +33,7 @@
 .\"
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\"
-.Dd March 8, 2025
+.Dd November 17, 2025
 .Dt SH 1
 .Os
 .Sh NAME
@@ -2504,6 +2504,10 @@ to explicitly specify seconds, minutes or hours.
 If none is supplied,
 .Ql s
 is assumed.
+Multiple value-unit groups may be stringed together, in which case
+they are added up, e.g.\&
+.Ql 1h30m15s
+which adds up to 5,415 seconds.
 .Pp
 The
 .Fl e
