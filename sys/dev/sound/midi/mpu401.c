@@ -79,9 +79,6 @@ struct mpu401 {
 	struct callout timer;
 };
 
-static void mpu401_timeout(void *m);
-static mpu401_intr_t mpu401_intr;
-
 static int mpu401_minit(struct snd_midi *, void *);
 static int mpu401_muninit(struct snd_midi *, void *);
 static int mpu401_minqsize(struct snd_midi *, void *);
@@ -150,7 +147,7 @@ mpu401_waitforack(struct mpu401* m)
 /* Some cards only support UART mode but others will start in
  * "Intelligent" mode, so we must try to switch to UART mode.
  * Cheap cards may not even have a COMMAND register..
- * Returns 0 if the final state of the MPU is dubious.
+ * Returns 0 if we're not sure of the MPU state.
  */
 static int
 mpu401_setup(struct mpu401 *m)
@@ -201,7 +198,7 @@ mpu401_intr(struct mpu401 *m)
 		else
 			break;
 	}
-	if ((m->flags & M_TXEN) && (m->si)) {
+	if ((m->flags & M_TXEN) && m->si) {
 		callout_reset(&m->timer, 1, mpu401_timeout, m);
 	}
 	return (m->flags & M_TXEN) == M_TXEN;
@@ -294,7 +291,7 @@ mpu401_mcallback(struct snd_midi *sm, void *arg, int flags)
 {
 	struct mpu401 *m = arg;
 
-	if (flags & M_TXEN && (m->si)) {
+	if (flags & M_TXEN && m->si) {
 		callout_reset(&m->timer, 1, mpu401_timeout, m);
 	}
 	m->flags = flags;
