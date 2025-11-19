@@ -183,7 +183,7 @@ typedef struct {
 	    __attribute__((__aligned__(__alignof__(long long))));
 #ifndef _STANDALONE
 	long double __max_align2
-	    __attribute__((__aligned__(__alignof__(long long))));
+	    __attribute__((__aligned__(__alignof__(long double))));
 #endif
 } __max_align_t;
 
