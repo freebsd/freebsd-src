@@ -32,23 +32,26 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+#include "opt_rss.h"
+
 #include <sys/param.h>
-#include <sys/malloc.h>
-#include <sys/socket.h>
-#include <sys/kernel.h>
-#include <sys/bus.h>
-#include <sys/module.h>
-#include <sys/rman.h>
-#include <sys/endian.h>
-#include <sys/sockio.h>
-#include <sys/priv.h>
-#include <sys/sysctl.h>
-#include <sys/sbuf.h>
 #include <sys/bitstring.h>
+#include <sys/bus.h>
+#include <sys/endian.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/priv.h>
+#include <sys/rman.h>
+#include <sys/sbuf.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
+#include <sys/sysctl.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -56,17 +59,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_var.h>
-#include <net/if_dl.h>
-#include <net/ethernet.h>
 #include <net/iflib.h>
 #include <net/rss_config.h>
-
-#include "opt_inet.h"
-#include "opt_inet6.h"
-#include "opt_rss.h"
 
 #include "ifdi_if.h"
 
@@ -110,25 +109,41 @@ char aq_driver_version[] = AQ_VER;
 #define AQ_DEVICE_ID_AQC112S	0x92B1
 
 static pci_vendor_info_t aq_vendor_info_array[] = {
-	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_0001, "Aquantia AQtion 10Gbit Network Adapter"),
-	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_D107, "Aquantia AQtion 10Gbit Network Adapter"),
-	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_D108, "Aquantia AQtion 5Gbit Network Adapter"),
-	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_D109, "Aquantia AQtion 2.5Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_0001,
+	    "Aquantia AQtion 10Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_D107,
+	    "Aquantia AQtion 10Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_D108,
+	    "Aquantia AQtion 5Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_D109,
+	    "Aquantia AQtion 2.5Gbit Network Adapter"),
 
-	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC107, "Aquantia AQtion 10Gbit Network Adapter"),
-	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC108, "Aquantia AQtion 5Gbit Network Adapter"),
-	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC109, "Aquantia AQtion 2.5Gbit Network Adapter"),
-	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC100, "Aquantia AQtion 10Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC107,
+	    "Aquantia AQtion 10Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC108,
+	    "Aquantia AQtion 5Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC109,
+	    "Aquantia AQtion 2.5Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC100,
+	    "Aquantia AQtion 10Gbit Network Adapter"),
 
-	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC107S, "Aquantia AQtion 10Gbit Network Adapter"),
-	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC108S, "Aquantia AQtion 5Gbit Network Adapter"),
-	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC109S, "Aquantia AQtion 2.5Gbit Network Adapter"),
-	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC100S, "Aquantia AQtion 10Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC107S,
+	    "Aquantia AQtion 10Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC108S,
+	    "Aquantia AQtion 5Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC109S,
+	    "Aquantia AQtion 2.5Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC100S,
+	    "Aquantia AQtion 10Gbit Network Adapter"),
 
-	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC111, "Aquantia AQtion 5Gbit Network Adapter"),
-	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC112, "Aquantia AQtion 2.5Gbit Network Adapter"),
-	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC111S, "Aquantia AQtion 5Gbit Network Adapter"),
-	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC112S, "Aquantia AQtion 2.5Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC111,
+	    "Aquantia AQtion 5Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC112,
+	    "Aquantia AQtion 2.5Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC111S,
+	    "Aquantia AQtion 5Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC112S,
+	    "Aquantia AQtion 2.5Gbit Network Adapter"),
 
 	PVID_END
 };
@@ -292,19 +307,21 @@ static struct if_shared_ctx aq_sctx_init = {
 static SYSCTL_NODE(_hw, OID_AUTO, aq, CTLFLAG_RD, 0, "Atlantic driver parameters");
 /* UDP Receive-Side Scaling */
 static int aq_enable_rss_udp = 1;
-SYSCTL_INT(_hw_aq, OID_AUTO, enable_rss_udp, CTLFLAG_RDTUN, &aq_enable_rss_udp, 0,
-    "Enable Receive-Side Scaling (RSS) for UDP");
+SYSCTL_INT(_hw_aq, OID_AUTO, enable_rss_udp, CTLFLAG_RDTUN, &aq_enable_rss_udp,
+     0, "Enable Receive-Side Scaling (RSS) for UDP");
 
 
 /*
  * Device Methods
  */
-static void *aq_register(device_t dev)
+static void *
+aq_register(device_t dev)
 {
 	return (&aq_sctx_init);
 }
 
-static int aq_if_attach_pre(if_ctx_t ctx)
+static int
+aq_if_attach_pre(if_ctx_t ctx)
 {
 	struct aq_dev *softc;
 	struct aq_hw *hw;
@@ -335,7 +352,7 @@ static int aq_if_attach_pre(if_ctx_t ctx)
 	softc->mmio_tag = rman_get_bustag(softc->mmio_res);
 	softc->mmio_handle = rman_get_bushandle(softc->mmio_res);
 	softc->mmio_size = rman_get_size(softc->mmio_res);
-	softc->hw.hw_addr = (u8*) softc->mmio_handle;
+	softc->hw.hw_addr = (uint8_t*) softc->mmio_handle;
 	hw = &softc->hw;
 	hw->link_rate = aq_fw_speed_auto;
 	hw->itr = -1;
@@ -371,22 +388,21 @@ static int aq_if_attach_pre(if_ctx_t ctx)
 #endif
 	scctx->isc_tx_csum_flags = CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_TSO;
 #if __FreeBSD__ >= 12
-	scctx->isc_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_HWCSUM | IFCAP_TSO |
-							  IFCAP_JUMBO_MTU | IFCAP_VLAN_HWFILTER |
-							  IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |
-							  IFCAP_VLAN_HWCSUM;
+	scctx->isc_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_HWCSUM |
+	    IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_VLAN_HWFILTER | IFCAP_VLAN_MTU |
+	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
 	scctx->isc_capenable = scctx->isc_capabilities;
 #else
 	if_t ifp;
 	ifp = iflib_get_ifp(ctx);
-	if_setcapenable(ifp,  IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_HWCSUM | IFCAP_TSO |
-							  IFCAP_JUMBO_MTU | IFCAP_VLAN_HWFILTER |
-							  IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |
-							  IFCAP_VLAN_HWCSUM;
+	if_setcapenable(ifp,  IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_HWCSUM |
+	    IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_VLAN_HWFILTER | IFCAP_VLAN_MTU |
+	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
 #endif
 	scctx->isc_tx_nsegments = 31,
 	scctx->isc_tx_tso_segments_max = 31;
-	scctx->isc_tx_tso_size_max = HW_ATL_B0_TSO_SIZE - sizeof(struct ether_vlan_header);
+	scctx->isc_tx_tso_size_max =
+	    HW_ATL_B0_TSO_SIZE - sizeof(struct ether_vlan_header);
 	scctx->isc_tx_tso_segsize_max = HW_ATL_B0_MTU_JUMBO;
 	scctx->isc_min_frame_size = 52;
 	scctx->isc_txrx = &aq_txrx;
@@ -415,7 +431,8 @@ fail:
 }
 
 
-static int aq_if_attach_post(if_ctx_t ctx)
+static int
+aq_if_attach_post(if_ctx_t ctx)
 {
 	struct aq_dev *softc;
 	int rc;
@@ -434,7 +451,7 @@ static int aq_if_attach_post(if_ctx_t ctx)
 	case IFLIB_INTR_LEGACY:
 		rc = EOPNOTSUPP;
 		goto exit;
-        goto exit;
+	goto exit;
 		break;
 	case IFLIB_INTR_MSI:
 		break;
@@ -458,7 +475,8 @@ exit:
 }
 
 
-static int aq_if_detach(if_ctx_t ctx)
+static int
+aq_if_detach(if_ctx_t ctx)
 {
 	struct aq_dev *softc;
 	int i;
@@ -483,7 +501,8 @@ static int aq_if_detach(if_ctx_t ctx)
 	return (0);
 }
 
-static int aq_if_shutdown(if_ctx_t ctx)
+static int
+aq_if_shutdown(if_ctx_t ctx)
 {
 
 	AQ_DBG_ENTER();
@@ -494,7 +513,8 @@ static int aq_if_shutdown(if_ctx_t ctx)
 	return (0);
 }
 
-static int aq_if_suspend(if_ctx_t ctx)
+static int
+aq_if_suspend(if_ctx_t ctx)
 {
 	AQ_DBG_ENTER();
 
@@ -504,7 +524,8 @@ static int aq_if_suspend(if_ctx_t ctx)
 	return (0);
 }
 
-static int aq_if_resume(if_ctx_t ctx)
+static int
+aq_if_resume(if_ctx_t ctx)
 {
 	AQ_DBG_ENTER();
 
@@ -515,8 +536,9 @@ static int aq_if_resume(if_ctx_t ctx)
 }
 
 /* Soft queue setup and teardown */
-static int aq_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
-    uint64_t *paddrs, int ntxqs, int ntxqsets)
+static int
+aq_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
+    int ntxqs, int ntxqsets)
 {
 	struct aq_dev *softc;
 	struct aq_ring *ring;
@@ -553,8 +575,9 @@ fail:
 	return (rc);
 }
 
-static int aq_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
-    uint64_t *paddrs, int nrxqs, int nrxqsets)
+static int
+aq_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
+    int nrxqs, int nrxqsets)
 {
 	struct aq_dev *softc;
 	struct aq_ring *ring;
@@ -568,7 +591,8 @@ static int aq_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 						   M_AQ, M_NOWAIT | M_ZERO);
 		if (!ring){
 			rc = ENOMEM;
-			device_printf(softc->dev, "atlantic: rx_ring malloc fail\n");
+			device_printf(softc->dev,
+			    "atlantic: rx_ring malloc fail\n");
 			goto fail;
 		}
 
@@ -601,7 +625,8 @@ fail:
 	return (rc);
 }
 
-static void aq_if_queues_free(if_ctx_t ctx)
+static void
+aq_if_queues_free(if_ctx_t ctx)
 {
 	struct aq_dev *softc;
 	int i;
@@ -629,7 +654,8 @@ static void aq_if_queues_free(if_ctx_t ctx)
 }
 
 /* Device configuration */
-static void aq_if_init(if_ctx_t ctx)
+static void
+aq_if_init(if_ctx_t ctx)
 {
 	struct aq_dev *softc;
 	struct aq_hw *hw;
@@ -641,7 +667,7 @@ static void aq_if_init(if_ctx_t ctx)
 	hw = &softc->hw;
 
 	err = aq_hw_init(&softc->hw, softc->hw.mac_addr, softc->msix,
-					softc->scctx->isc_intr == IFLIB_INTR_MSIX);
+	    softc->scctx->isc_intr == IFLIB_INTR_MSIX);
 	if (err != EOK) {
 		device_printf(softc->dev, "atlantic: aq_hw_init: %d", err);
 	}
@@ -654,22 +680,26 @@ static void aq_if_init(if_ctx_t ctx)
 		struct aq_ring *ring = softc->tx_rings[i];
 		err = aq_ring_tx_init(&softc->hw, ring);
 		if (err) {
-			device_printf(softc->dev, "atlantic: aq_ring_tx_init: %d", err);
+			device_printf(softc->dev,
+			    "atlantic: aq_ring_tx_init: %d", err);
 		}
 		err = aq_ring_tx_start(hw, ring);
 		if (err != EOK) {
-			device_printf(softc->dev, "atlantic: aq_ring_tx_start: %d", err);
+			device_printf(softc->dev,
+			    "atlantic: aq_ring_tx_start: %d", err);
 		}
 	}
 	for (i = 0; i < softc->rx_rings_count; i++) {
 		struct aq_ring *ring = softc->rx_rings[i];
 		err = aq_ring_rx_init(&softc->hw, ring);
 		if (err) {
-			device_printf(softc->dev, "atlantic: aq_ring_rx_init: %d", err);
+			device_printf(softc->dev,
+			    "atlantic: aq_ring_rx_init: %d", err);
 		}
 		err = aq_ring_rx_start(hw, ring);
 		if (err != EOK) {
-			device_printf(softc->dev, "atlantic: aq_ring_rx_start: %d", err);
+			device_printf(softc->dev,
+			    "atlantic: aq_ring_rx_start: %d", err);
 		}
 		aq_if_rx_queue_intr_enable(ctx, i);
 	}
@@ -685,7 +715,8 @@ static void aq_if_init(if_ctx_t ctx)
 }
 
 
-static void aq_if_stop(if_ctx_t ctx)
+static void
+aq_if_stop(if_ctx_t ctx)
 {
 	struct aq_dev *softc;
 	struct aq_hw *hw;
@@ -715,7 +746,8 @@ static void aq_if_stop(if_ctx_t ctx)
 	AQ_DBG_EXIT(0);
 }
 
-static uint64_t aq_if_get_counter(if_ctx_t ctx, ift_counter cnt)
+static uint64_t
+aq_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 {
 	struct aq_dev *softc = iflib_get_softc(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
@@ -733,11 +765,12 @@ static uint64_t aq_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 }
 
 #if __FreeBSD_version >= 1300054
-static u_int aq_mc_filter_apply(void *arg, struct sockaddr_dl *dl, u_int count)
+static u_int
+aq_mc_filter_apply(void *arg, struct sockaddr_dl *dl, u_int count)
 {
 	struct aq_dev *softc = arg;
 	struct aq_hw *hw = &softc->hw;
-	u8 *mac_addr = NULL;
+	uint8_t *mac_addr = NULL;
 
 	if (count == AQ_HW_MAC_MAX)
 		return (0);
@@ -749,11 +782,12 @@ static u_int aq_mc_filter_apply(void *arg, struct sockaddr_dl *dl, u_int count)
 	return (1);
 }
 #else
-static int aq_mc_filter_apply(void *arg, struct ifmultiaddr *ifma, int count)
+static int
+aq_mc_filter_apply(void *arg, struct ifmultiaddr *ifma, int count)
 {
 	struct aq_dev *softc = arg;
 	struct aq_hw *hw = &softc->hw;
-	u8 *mac_addr = NULL;
+	uint8_t *mac_addr = NULL;
 
 	if (ifma->ifma_addr->sa_family != AF_LINK)
 		return (0);
@@ -768,12 +802,14 @@ static int aq_mc_filter_apply(void *arg, struct ifmultiaddr *ifma, int count)
 }
 #endif
 
-static bool aq_is_mc_promisc_required(struct aq_dev *softc)
+static bool
+aq_is_mc_promisc_required(struct aq_dev *softc)
 {
 	return (softc->mcnt >= AQ_HW_MAC_MAX);
 }
 
-static void aq_if_multi_set(if_ctx_t ctx)
+static void
+aq_if_multi_set(if_ctx_t ctx)
 {
 	struct aq_dev *softc = iflib_get_softc(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
@@ -784,12 +820,11 @@ static void aq_if_multi_set(if_ctx_t ctx)
 #else
 	softc->mcnt = if_multiaddr_count(iflib_get_ifp(ctx), AQ_HW_MAC_MAX);
 #endif
-	if (softc->mcnt >= AQ_HW_MAC_MAX)
-	{
+	if (softc->mcnt >= AQ_HW_MAC_MAX) {
 		aq_hw_set_promisc(hw, !!(if_getflags(ifp) & IFF_PROMISC),
-				  aq_is_vlan_promisc_required(softc),
-				  !!(if_getflags(ifp) & IFF_ALLMULTI) || aq_is_mc_promisc_required(softc));
-	}else{
+		    aq_is_vlan_promisc_required(softc),
+		    !!(if_getflags(ifp) & IFF_ALLMULTI) || aq_is_mc_promisc_required(softc));
+	} else {
 #if __FreeBSD_version >= 1300054
 		if_foreach_llmaddr(iflib_get_ifp(ctx), &aq_mc_filter_apply, softc);
 #else
@@ -799,7 +834,8 @@ static void aq_if_multi_set(if_ctx_t ctx)
 	AQ_DBG_EXIT(0);
 }
 
-static int aq_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
+static int
+aq_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 {
 	int err = 0;
 	AQ_DBG_ENTER();
@@ -808,7 +844,8 @@ static int aq_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 	return (err);
 }
 
-static void aq_if_media_status(if_ctx_t ctx, struct ifmediareq *ifmr)
+static void
+aq_if_media_status(if_ctx_t ctx, struct ifmediareq *ifmr)
 {
 	if_t ifp;
 
@@ -821,7 +858,8 @@ static void aq_if_media_status(if_ctx_t ctx, struct ifmediareq *ifmr)
 	AQ_DBG_EXIT(0);
 }
 
-static int aq_if_media_change(if_ctx_t ctx)
+static int
+aq_if_media_change(if_ctx_t ctx)
 {
 	struct aq_dev *softc = iflib_get_softc(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
@@ -844,7 +882,8 @@ exit:
 	return (rc);
 }
 
-static int aq_if_promisc_set(if_ctx_t ctx, int flags)
+static int
+aq_if_promisc_set(if_ctx_t ctx, int flags)
 {
 	struct aq_dev *softc;
 
@@ -853,14 +892,15 @@ static int aq_if_promisc_set(if_ctx_t ctx, int flags)
 	softc = iflib_get_softc(ctx);
 
 	aq_hw_set_promisc(&softc->hw, !!(flags & IFF_PROMISC),
-			  aq_is_vlan_promisc_required(softc),
-			  !!(flags & IFF_ALLMULTI) || aq_is_mc_promisc_required(softc));
+	    aq_is_vlan_promisc_required(softc),
+	    !!(flags & IFF_ALLMULTI) || aq_is_mc_promisc_required(softc));
 
 	AQ_DBG_EXIT(0);
 	return (0);
 }
 
-static void aq_if_timer(if_ctx_t ctx, uint16_t qid)
+static void
+aq_if_timer(if_ctx_t ctx, uint16_t qid)
 {
 	struct aq_dev *softc;
 	uint64_t ticks_now;
@@ -882,7 +922,8 @@ static void aq_if_timer(if_ctx_t ctx, uint16_t qid)
 }
 
 /* Interrupt enable / disable */
-static void aq_if_enable_intr(if_ctx_t ctx)
+static void
+aq_if_enable_intr(if_ctx_t ctx)
 {
 	struct aq_dev *softc = iflib_get_softc(ctx);
 	struct aq_hw  *hw = &softc->hw;
@@ -895,7 +936,8 @@ static void aq_if_enable_intr(if_ctx_t ctx)
 	AQ_DBG_EXIT(0);
 }
 
-static void aq_if_disable_intr(if_ctx_t ctx)
+static void
+aq_if_disable_intr(if_ctx_t ctx)
 {
 	struct aq_dev *softc = iflib_get_softc(ctx);
 	struct aq_hw  *hw = &softc->hw;
@@ -908,7 +950,8 @@ static void aq_if_disable_intr(if_ctx_t ctx)
 	AQ_DBG_EXIT(0);
 }
 
-static int aq_if_rx_queue_intr_enable(if_ctx_t ctx, uint16_t rxqid)
+static int
+aq_if_rx_queue_intr_enable(if_ctx_t ctx, uint16_t rxqid)
 {
 	struct aq_dev *softc = iflib_get_softc(ctx);
 	struct aq_hw  *hw = &softc->hw;
@@ -921,7 +964,8 @@ static int aq_if_rx_queue_intr_enable(if_ctx_t ctx, uint16_t rxqid)
 	return (0);
 }
 
-static int aq_if_msix_intr_assign(if_ctx_t ctx, int msix)
+static int
+aq_if_msix_intr_assign(if_ctx_t ctx, int msix)
 {
 	struct aq_dev *softc;
 	int i, vector = 0, rc;
@@ -952,22 +996,22 @@ static int aq_if_msix_intr_assign(if_ctx_t ctx, int msix)
 
 	for (i = 0; i < softc->tx_rings_count; i++, vector++) {
 		snprintf(irq_name, sizeof(irq_name), "txq%d", i);
-		iflib_softirq_alloc_generic(ctx, &softc->rx_rings[i]->irq, IFLIB_INTR_TX,
-									softc->tx_rings[i], i, irq_name);
+		iflib_softirq_alloc_generic(ctx, &softc->rx_rings[i]->irq,
+		    IFLIB_INTR_TX, softc->tx_rings[i], i, irq_name);
 
 		softc->tx_rings[i]->msix = (vector % softc->rx_rings_count);
 		device_printf(softc->dev, "Assign IRQ %u to tx ring %u\n",
-					  softc->tx_rings[i]->msix, softc->tx_rings[i]->index);
+		    softc->tx_rings[i]->msix, softc->tx_rings[i]->index);
 	}
 
 	rc = iflib_irq_alloc_generic(ctx, &softc->irq, rx_vectors + 1,
-								 IFLIB_INTR_ADMIN, aq_linkstat_isr,
-								 softc, 0, "aq");
+	    IFLIB_INTR_ADMIN, aq_linkstat_isr, softc, 0, "aq");
 	softc->msix = rx_vectors;
 	device_printf(softc->dev, "Assign IRQ %u to admin proc \n",
-				  rx_vectors);
+	    rx_vectors);
 	if (rc) {
-		device_printf(iflib_get_dev(ctx), "Failed to register admin handler");
+		device_printf(iflib_get_dev(ctx),
+		    "Failed to register admin handler");
 		i = softc->rx_rings_count;
 		goto fail;
 	}
@@ -981,7 +1025,8 @@ fail:
 	return (rc);
 }
 
-static bool aq_is_vlan_promisc_required(struct aq_dev *softc)
+static bool
+aq_is_vlan_promisc_required(struct aq_dev *softc)
 {
 	int vlan_tag_count;
 
@@ -994,7 +1039,8 @@ static bool aq_is_vlan_promisc_required(struct aq_dev *softc)
 
 }
 
-static void aq_update_vlan_filters(struct aq_dev *softc)
+static void
+aq_update_vlan_filters(struct aq_dev *softc)
 {
 	struct aq_rx_filter_vlan aq_vlans[AQ_HW_VLAN_MAX_FILTERS];
 	struct aq_hw  *hw = &softc->hw;
@@ -1021,7 +1067,8 @@ static void aq_update_vlan_filters(struct aq_dev *softc)
 }
 
 /* VLAN support */
-static void aq_if_vlan_register(if_ctx_t ctx, uint16_t vtag)
+static void
+aq_if_vlan_register(if_ctx_t ctx, uint16_t vtag)
 {
 	struct aq_dev *softc = iflib_get_softc(ctx);
 
@@ -1034,7 +1081,8 @@ static void aq_if_vlan_register(if_ctx_t ctx, uint16_t vtag)
 	AQ_DBG_EXIT(0);
 }
 
-static void aq_if_vlan_unregister(if_ctx_t ctx, uint16_t vtag)
+static void
+aq_if_vlan_unregister(if_ctx_t ctx, uint16_t vtag)
 {
 	struct aq_dev *softc = iflib_get_softc(ctx);
 
@@ -1047,7 +1095,8 @@ static void aq_if_vlan_unregister(if_ctx_t ctx, uint16_t vtag)
 	AQ_DBG_EXIT(0);
 }
 
-static void aq_if_led_func(if_ctx_t ctx, int onoff)
+static void
+aq_if_led_func(if_ctx_t ctx, int onoff)
 {
 	struct aq_dev *softc = iflib_get_softc(ctx);
 	struct aq_hw  *hw = &softc->hw;
@@ -1059,7 +1108,8 @@ static void aq_if_led_func(if_ctx_t ctx, int onoff)
 	AQ_DBG_EXIT(0);
 }
 
-static int aq_hw_capabilities(struct aq_dev *softc)
+static int
+aq_hw_capabilities(struct aq_dev *softc)
 {
 
 	if (pci_get_vendor(softc->dev) != AQUANTIA_VENDOR_ID)
@@ -1106,7 +1156,8 @@ static int aq_hw_capabilities(struct aq_dev *softc)
 	return (0);
 }
 
-static int aq_sysctl_print_rss_config(SYSCTL_HANDLER_ARGS)
+static int
+aq_sysctl_print_rss_config(SYSCTL_HANDLER_ARGS)
 {
 	struct aq_dev  *softc = (struct aq_dev *)arg1;
 	device_t        dev = softc->dev;
@@ -1142,7 +1193,8 @@ static int aq_sysctl_print_rss_config(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int aq_sysctl_print_tx_head(SYSCTL_HANDLER_ARGS)
+static int
+aq_sysctl_print_tx_head(SYSCTL_HANDLER_ARGS)
 {
 	struct aq_ring  *ring = arg1;
 	int             error = 0;
@@ -1160,7 +1212,8 @@ static int aq_sysctl_print_tx_head(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int aq_sysctl_print_tx_tail(SYSCTL_HANDLER_ARGS)
+static int
+aq_sysctl_print_tx_tail(SYSCTL_HANDLER_ARGS)
 {
 	struct aq_ring  *ring = arg1;
 	int             error = 0;
@@ -1178,7 +1231,8 @@ static int aq_sysctl_print_tx_tail(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int aq_sysctl_print_rx_head(SYSCTL_HANDLER_ARGS)
+static int
+aq_sysctl_print_rx_head(SYSCTL_HANDLER_ARGS)
 {
 	struct aq_ring  *ring = arg1;
 	int             error = 0;
@@ -1196,7 +1250,8 @@ static int aq_sysctl_print_rx_head(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int aq_sysctl_print_rx_tail(SYSCTL_HANDLER_ARGS)
+static int
+aq_sysctl_print_rx_tail(SYSCTL_HANDLER_ARGS)
 {
 	struct aq_ring  *ring = arg1;
 	int             error = 0;
@@ -1214,116 +1269,117 @@ static int aq_sysctl_print_rx_tail(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static void aq_add_stats_sysctls(struct aq_dev *softc)
+static void
+aq_add_stats_sysctls(struct aq_dev *softc)
 {
-    device_t                dev = softc->dev;
-    struct sysctl_ctx_list  *ctx = device_get_sysctl_ctx(dev);
-    struct sysctl_oid       *tree = device_get_sysctl_tree(dev);
-    struct sysctl_oid_list  *child = SYSCTL_CHILDREN(tree);
-    struct aq_stats_s *stats = &softc->curr_stats;
-    struct sysctl_oid       *stat_node, *queue_node;
-    struct sysctl_oid_list  *stat_list, *queue_list;
+	device_t                dev = softc->dev;
+	struct sysctl_ctx_list  *ctx = device_get_sysctl_ctx(dev);
+	struct sysctl_oid       *tree = device_get_sysctl_tree(dev);
+	struct sysctl_oid_list  *child = SYSCTL_CHILDREN(tree);
+	struct aq_stats_s *stats = &softc->curr_stats;
+	struct sysctl_oid       *stat_node, *queue_node;
+	struct sysctl_oid_list  *stat_list, *queue_list;
 
 #define QUEUE_NAME_LEN 32
-    char                    namebuf[QUEUE_NAME_LEN];
+	char                    namebuf[QUEUE_NAME_LEN];
 	/* RSS configuration */
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "print_rss_config",
-		CTLTYPE_STRING | CTLFLAG_RD, softc, 0,
-		aq_sysctl_print_rss_config, "A", "Prints RSS Configuration");
+	    CTLTYPE_STRING | CTLFLAG_RD, softc, 0,
+	    aq_sysctl_print_rss_config, "A", "Prints RSS Configuration");
 
-    /* Driver Statistics */
-     for (int i = 0; i < softc->tx_rings_count; i++) {
-        struct aq_ring *ring = softc->tx_rings[i];
-        snprintf(namebuf, QUEUE_NAME_LEN, "tx_queue%d", i);
-        queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
-            CTLFLAG_RD, NULL, "Queue Name");
-        queue_list = SYSCTL_CHILDREN(queue_node);
+	/* Driver Statistics */
+	for (int i = 0; i < softc->tx_rings_count; i++) {
+		struct aq_ring *ring = softc->tx_rings[i];
+		snprintf(namebuf, QUEUE_NAME_LEN, "tx_queue%d", i);
+		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
+		    CTLFLAG_RD, NULL, "Queue Name");
+		queue_list = SYSCTL_CHILDREN(queue_node);
 
-        SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_pkts",
-            CTLFLAG_RD, &(ring->stats.tx_pkts), "TX Packets");
-        SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_bytes",
-            CTLFLAG_RD, &(ring->stats.tx_bytes), "TX Octets");
-        SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_drops",
-            CTLFLAG_RD, &(ring->stats.tx_drops), "TX Drops");
-        SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_queue_full",
-            CTLFLAG_RD, &(ring->stats.tx_queue_full), "TX Queue Full");
-	SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "tx_head",
-		CTLTYPE_UINT | CTLFLAG_RD, ring, 0,
-		aq_sysctl_print_tx_head, "IU", "ring head pointer");
-	SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "tx_tail",
-		CTLTYPE_UINT | CTLFLAG_RD, ring, 0,
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_pkts",
+		    CTLFLAG_RD, &(ring->stats.tx_pkts), "TX Packets");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_bytes",
+		    CTLFLAG_RD, &(ring->stats.tx_bytes), "TX Octets");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_drops",
+		    CTLFLAG_RD, &(ring->stats.tx_drops), "TX Drops");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_queue_full",
+		    CTLFLAG_RD, &(ring->stats.tx_queue_full), "TX Queue Full");
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "tx_head",
+		    CTLTYPE_UINT | CTLFLAG_RD, ring, 0,
+		    aq_sysctl_print_tx_head, "IU", "ring head pointer");
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "tx_tail",
+		    CTLTYPE_UINT | CTLFLAG_RD, ring, 0,
 		aq_sysctl_print_tx_tail, "IU", "ring tail pointer");
-    }
+	}
 
-     for (int i = 0; i < softc->rx_rings_count; i++) {
-        struct aq_ring *ring = softc->rx_rings[i];
-        snprintf(namebuf, QUEUE_NAME_LEN, "rx_queue%d", i);
-        queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
-            CTLFLAG_RD, NULL, "Queue Name");
-        queue_list = SYSCTL_CHILDREN(queue_node);
+	for (int i = 0; i < softc->rx_rings_count; i++) {
+		struct aq_ring *ring = softc->rx_rings[i];
+		snprintf(namebuf, QUEUE_NAME_LEN, "rx_queue%d", i);
+		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
+		    CTLFLAG_RD, NULL, "Queue Name");
+		queue_list = SYSCTL_CHILDREN(queue_node);
 
-        SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_pkts",
-            CTLFLAG_RD, &(ring->stats.rx_pkts), "RX Packets");
-        SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_bytes",
-            CTLFLAG_RD, &(ring->stats.rx_bytes), "TX Octets");
-        SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "jumbo_pkts",
-            CTLFLAG_RD, &(ring->stats.jumbo_pkts), "Jumbo Packets");
-        SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_err",
-            CTLFLAG_RD, &(ring->stats.rx_err), "RX Errors");
-        SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "irq",
-            CTLFLAG_RD, &(ring->stats.irq), "RX interrupts");
-	SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rx_head",
-		CTLTYPE_UINT | CTLFLAG_RD, ring, 0,
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_pkts",
+		    CTLFLAG_RD, &(ring->stats.rx_pkts), "RX Packets");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_bytes",
+		    CTLFLAG_RD, &(ring->stats.rx_bytes), "TX Octets");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "jumbo_pkts",
+		    CTLFLAG_RD, &(ring->stats.jumbo_pkts), "Jumbo Packets");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_err",
+		    CTLFLAG_RD, &(ring->stats.rx_err), "RX Errors");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "irq",
+		    CTLFLAG_RD, &(ring->stats.irq), "RX interrupts");
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rx_head",
+		    CTLTYPE_UINT | CTLFLAG_RD, ring, 0,
 		aq_sysctl_print_rx_head, "IU", "ring head pointer");
-	SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rx_tail",
-		CTLTYPE_UINT | CTLFLAG_RD, ring, 0,
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rx_tail",
+		    CTLTYPE_UINT | CTLFLAG_RD, ring, 0,
 		aq_sysctl_print_rx_tail, "IU", " ring tail pointer");
-    }
+	}
 
-    stat_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "mac",
-        CTLFLAG_RD, NULL, "Statistics (read from HW registers)");
-    stat_list = SYSCTL_CHILDREN(stat_node);
+	stat_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "mac",
+	    CTLFLAG_RD, NULL, "Statistics (read from HW registers)");
+	stat_list = SYSCTL_CHILDREN(stat_node);
 
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_pkts_rcvd",
-        CTLFLAG_RD, &stats->prc, "Good Packets Received");
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "ucast_pkts_rcvd",
-        CTLFLAG_RD, &stats->uprc, "Unicast Packets Received");
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_rcvd",
-        CTLFLAG_RD, &stats->mprc, "Multicast Packets Received");
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_rcvd",
-        CTLFLAG_RD, &stats->bprc, "Broadcast Packets Received");
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rsc_pkts_rcvd",
-        CTLFLAG_RD, &stats->cprc, "Coalesced Packets Received");
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "err_pkts_rcvd",
-        CTLFLAG_RD, &stats->erpr, "Errors of Packet Receive");
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "drop_pkts_dma",
-        CTLFLAG_RD, &stats->dpc, "Dropped Packets in DMA");
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_octets_rcvd",
-        CTLFLAG_RD, &stats->brc, "Good Octets Received");
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "ucast_octets_rcvd",
-        CTLFLAG_RD, &stats->ubrc, "Unicast Octets Received");
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mcast_octets_rcvd",
-        CTLFLAG_RD, &stats->mbrc, "Multicast Octets Received");
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "bcast_octets_rcvd",
-        CTLFLAG_RD, &stats->bbrc, "Broadcast Octets Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_pkts_rcvd",
+	    CTLFLAG_RD, &stats->prc, "Good Packets Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "ucast_pkts_rcvd",
+	    CTLFLAG_RD, &stats->uprc, "Unicast Packets Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_rcvd",
+	    CTLFLAG_RD, &stats->mprc, "Multicast Packets Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_rcvd",
+	    CTLFLAG_RD, &stats->bprc, "Broadcast Packets Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rsc_pkts_rcvd",
+	    CTLFLAG_RD, &stats->cprc, "Coalesced Packets Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "err_pkts_rcvd",
+	    CTLFLAG_RD, &stats->erpr, "Errors of Packet Receive");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "drop_pkts_dma",
+	    CTLFLAG_RD, &stats->dpc, "Dropped Packets in DMA");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_octets_rcvd",
+	    CTLFLAG_RD, &stats->brc, "Good Octets Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "ucast_octets_rcvd",
+	    CTLFLAG_RD, &stats->ubrc, "Unicast Octets Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mcast_octets_rcvd",
+	    CTLFLAG_RD, &stats->mbrc, "Multicast Octets Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "bcast_octets_rcvd",
+	    CTLFLAG_RD, &stats->bbrc, "Broadcast Octets Received");
 
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_pkts_txd",
-        CTLFLAG_RD, &stats->ptc, "Good Packets Transmitted");
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "ucast_pkts_txd",
-        CTLFLAG_RD, &stats->uptc, "Unicast Packets Transmitted");
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_txd",
-        CTLFLAG_RD, &stats->mptc, "Multicast Packets Transmitted");
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_txd",
-        CTLFLAG_RD, &stats->bptc, "Broadcast Packets Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_pkts_txd",
+	    CTLFLAG_RD, &stats->ptc, "Good Packets Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "ucast_pkts_txd",
+	    CTLFLAG_RD, &stats->uptc, "Unicast Packets Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_txd",
+	    CTLFLAG_RD, &stats->mptc, "Multicast Packets Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_txd",
+	    CTLFLAG_RD, &stats->bptc, "Broadcast Packets Transmitted");
 
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "err_pkts_txd",
-        CTLFLAG_RD, &stats->erpt, "Errors of Packet Transmit");
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_octets_txd",
-        CTLFLAG_RD, &stats->btc, "Good Octets Transmitted");
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "ucast_octets_txd",
-        CTLFLAG_RD, &stats->ubtc, "Unicast Octets Transmitted");
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mcast_octets_txd",
-        CTLFLAG_RD, &stats->mbtc, "Multicast Octets Transmitted");
-    SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "bcast_octets_txd",
-        CTLFLAG_RD, &stats->bbtc, "Broadcast Octets Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "err_pkts_txd",
+	    CTLFLAG_RD, &stats->erpt, "Errors of Packet Transmit");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_octets_txd",
+	    CTLFLAG_RD, &stats->btc, "Good Octets Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "ucast_octets_txd",
+	    CTLFLAG_RD, &stats->ubtc, "Unicast Octets Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mcast_octets_txd",
+	    CTLFLAG_RD, &stats->mbtc, "Multicast Octets Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "bcast_octets_txd",
+	    CTLFLAG_RD, &stats->bbtc, "Broadcast Octets Transmitted");
 }

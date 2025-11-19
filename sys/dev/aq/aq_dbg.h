@@ -38,8 +38,8 @@
 #ifndef AQ_DBG_H
 #define AQ_DBG_H
 
-#include <sys/syslog.h>
 #include <sys/systm.h>
+#include <sys/syslog.h>
 /*
 Debug levels:
 0 - no debug
@@ -78,10 +78,10 @@ Debug levels:
 
 #if AQ_CFG_DEBUG_LVL > 2
 #define AQ_DBG_DUMP_DESC(desc) { \
-            volatile u8 *raw = (volatile u8*)(desc); \
-            printf( "07-00 %02X%02X%02X%02X %02X%02X%02X%02X 15-08 %02X%02X%02X%02X %02X%02X%02X%02X\n", \
-                raw[7], raw[6], raw[5], raw[4], raw[3], raw[2], raw[1], raw[0], \
-                raw[15], raw[14], raw[13], raw[12], raw[11], raw[10], raw[9], raw[8]); \
+	volatile uint8_t *raw = (volatile uint8_t*)(desc); \
+	printf( "07-00 %02X%02X%02X%02X %02X%02X%02X%02X 15-08 %02X%02X%02X%02X %02X%02X%02X%02X\n", \
+	    raw[7], raw[6], raw[5], raw[4], raw[3], raw[2], raw[1], raw[0], \
+	    raw[15], raw[14], raw[13], raw[12], raw[11], raw[10], raw[9], raw[8]); \
 }\
 
 #else
@@ -90,27 +90,27 @@ Debug levels:
 
 typedef enum aq_debug_level
 {
-    lvl_error = LOG_ERR,
-    lvl_warn = LOG_WARNING,
-    lvl_trace = LOG_NOTICE,
-    lvl_detail = LOG_INFO,
+	lvl_error = LOG_ERR,
+	lvl_warn = LOG_WARNING,
+	lvl_trace = LOG_NOTICE,
+	lvl_detail = LOG_INFO,
 } aq_debug_level;
 
 typedef enum aq_debug_category
 {
-    dbg_init    = 1,
-    dbg_config  = 1 << 1,
-    dbg_tx      = 1 << 2,
-    dbg_rx      = 1 << 3,
-    dbg_intr    = 1 << 4,
-    dbg_fw      = 1 << 5,
+	dbg_init    = 1,
+	dbg_config  = 1 << 1,
+	dbg_tx      = 1 << 2,
+	dbg_rx      = 1 << 3,
+	dbg_intr    = 1 << 4,
+	dbg_fw      = 1 << 5,
 } aq_debug_category;
 
 
 #define __FILENAME__ (__builtin_strrchr(__FILE__, '/') ? __builtin_strrchr(__FILE__, '/') + 1 : __FILE__)
 
 extern const aq_debug_level dbg_level_;
-extern const u32 dbg_categories_;
+extern const uint32_t dbg_categories_;
 
 #define log_base_(_lvl, _fmt, args...) printf( "atlantic: " _fmt "\n", ##args)
 
@@ -130,9 +130,9 @@ extern const u32 dbg_categories_;
 #define trace(_cat, _fmt, args...)   trace_base_(lvl_trace, _cat, _fmt, ##args)
 #define trace_detail(_cat, _fmt, args...)   trace_base_(lvl_detail, _cat, _fmt, ##args)
 
-void trace_aq_tx_descr(int ring_idx, unsigned int pointer, volatile u64 descr[2]);
-void trace_aq_rx_descr(int ring_idx, unsigned int pointer, volatile u64 descr[2]);
-void trace_aq_tx_context_descr(int ring_idx, unsigned int pointer, volatile u64 descr[2]);
+void trace_aq_tx_descr(int ring_idx, unsigned int pointer, volatile uint64_t descr[2]);
+void trace_aq_rx_descr(int ring_idx, unsigned int pointer, volatile uint64_t descr[2]);
+void trace_aq_tx_context_descr(int ring_idx, unsigned int pointer, volatile uint64_t descr[2]);
 void DumpHex(const void* data, size_t size);
 
 #endif // AQ_DBG_H

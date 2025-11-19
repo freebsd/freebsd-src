@@ -38,35 +38,36 @@ struct aq_hw;
 
 typedef enum aq_fw_link_speed
 {
-    aq_fw_none  = 0,
-    aq_fw_100M  = (1 << 0),
-    aq_fw_1G    = (1 << 1),
-    aq_fw_2G5   = (1 << 2),
-    aq_fw_5G    = (1 << 3),
-    aq_fw_10G   = (1 << 4),
+	aq_fw_none  = 0,
+	aq_fw_100M  = (1 << 0),
+	aq_fw_1G    = (1 << 1),
+	aq_fw_2G5   = (1 << 2),
+	aq_fw_5G    = (1 << 3),
+	aq_fw_10G   = (1 << 4),
 } aq_fw_link_speed_t;
 
 typedef enum aq_fw_link_fc
 {
-    aq_fw_fc_none  = 0,
-    aq_fw_fc_ENABLE_RX = BIT(0),
-    aq_fw_fc_ENABLE_TX = BIT(1),
-    aq_fw_fc_ENABLE_ALL = aq_fw_fc_ENABLE_RX | aq_fw_fc_ENABLE_TX,
+	aq_fw_fc_none  = 0,
+	aq_fw_fc_ENABLE_RX = BIT(0),
+	aq_fw_fc_ENABLE_TX = BIT(1),
+	aq_fw_fc_ENABLE_ALL = aq_fw_fc_ENABLE_RX | aq_fw_fc_ENABLE_TX,
 } aq_fw_link_fc_t;
 
-#define aq_fw_speed_auto (aq_fw_100M | aq_fw_1G | aq_fw_2G5 | aq_fw_5G | aq_fw_10G)
+#define aq_fw_speed_auto \
+    (aq_fw_100M | aq_fw_1G | aq_fw_2G5 | aq_fw_5G | aq_fw_10G)
 
 struct aq_firmware_ops
 {
-    int (*reset)(struct aq_hw* hal);
+	int (*reset)(struct aq_hw* hal);
 
-    int (*set_mode)(struct aq_hw* hal, enum aq_hw_fw_mpi_state_e mode, aq_fw_link_speed_t speed);
-    int (*get_mode)(struct aq_hw* hal, enum aq_hw_fw_mpi_state_e* mode, aq_fw_link_speed_t* speed, aq_fw_link_fc_t* fc);
+	int (*set_mode)(struct aq_hw* hal, enum aq_hw_fw_mpi_state_e mode, aq_fw_link_speed_t speed);
+	int (*get_mode)(struct aq_hw* hal, enum aq_hw_fw_mpi_state_e* mode, aq_fw_link_speed_t* speed, aq_fw_link_fc_t* fc);
 
-    int (*get_mac_addr)(struct aq_hw* hal, u8* mac_addr);
-    int (*get_stats)(struct aq_hw* hal, struct aq_hw_stats_s* stats);
+	int (*get_mac_addr)(struct aq_hw* hal, uint8_t* mac_addr);
+	int (*get_stats)(struct aq_hw* hal, struct aq_hw_stats_s* stats);
 
-    int (*led_control)(struct aq_hw* hal, u32 mode);
+	int (*led_control)(struct aq_hw* hal, uint32_t mode);
 };
 
 

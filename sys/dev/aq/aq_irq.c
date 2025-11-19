@@ -37,14 +37,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/bitstring.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
-#include <sys/bitstring.h>
+#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_var.h>
-#include <net/if_dl.h>
-#include <net/ethernet.h>
 #include <net/iflib.h>
 
 #include "aq_common.h"
@@ -54,60 +54,60 @@ __FBSDID("$FreeBSD$");
 #include "aq_hw.h"
 #include "aq_hw_llh.h"
 
-int aq_update_hw_stats(aq_dev_t *aq_dev)
+int
+aq_update_hw_stats(aq_dev_t *aq_dev)
 {
-    struct aq_hw *hw = &aq_dev->hw;
-    struct aq_hw_fw_mbox mbox;
+	struct aq_hw *hw = &aq_dev->hw;
+	struct aq_hw_fw_mbox mbox;
 
-    aq_hw_mpi_read_stats(hw, &mbox);
+	aq_hw_mpi_read_stats(hw, &mbox);
 
 #define AQ_SDELTA(_N_) (aq_dev->curr_stats._N_ += \
-            mbox.stats._N_ - aq_dev->last_stats._N_)
-    if (aq_dev->linkup) {
-        AQ_SDELTA(uprc);
-        AQ_SDELTA(mprc);
-        AQ_SDELTA(bprc);
-        AQ_SDELTA(cprc);
-        AQ_SDELTA(erpt);
+    mbox.stats._N_ - aq_dev->last_stats._N_)
+	if (aq_dev->linkup) {
+		AQ_SDELTA(uprc);
+		AQ_SDELTA(mprc);
+		AQ_SDELTA(bprc);
+		AQ_SDELTA(cprc);
+		AQ_SDELTA(erpt);
 
-        AQ_SDELTA(uptc);
-        AQ_SDELTA(mptc);
-        AQ_SDELTA(bptc);
-        AQ_SDELTA(erpr);
+		AQ_SDELTA(uptc);
+		AQ_SDELTA(mptc);
+		AQ_SDELTA(bptc);
+		AQ_SDELTA(erpr);
 
-        AQ_SDELTA(ubrc);
-        AQ_SDELTA(ubtc);
-        AQ_SDELTA(mbrc);
-        AQ_SDELTA(mbtc);
-        AQ_SDELTA(bbrc);
-        AQ_SDELTA(bbtc);
+		AQ_SDELTA(ubrc);
+		AQ_SDELTA(ubtc);
+		AQ_SDELTA(mbrc);
+		AQ_SDELTA(mbtc);
+		AQ_SDELTA(bbrc);
+		AQ_SDELTA(bbtc);
 
-        AQ_SDELTA(ptc);
-        AQ_SDELTA(prc);
+		AQ_SDELTA(ptc);
+		AQ_SDELTA(prc);
 
-        AQ_SDELTA(dpc);
+		AQ_SDELTA(dpc);
 
-        aq_dev->curr_stats.brc = aq_dev->curr_stats.ubrc +
-                                 aq_dev->curr_stats.mbrc +
-                                 aq_dev->curr_stats.bbrc;
-        aq_dev->curr_stats.btc = aq_dev->curr_stats.ubtc +
-                                 aq_dev->curr_stats.mbtc +
-                                 aq_dev->curr_stats.bbtc;
+		aq_dev->curr_stats.brc = aq_dev->curr_stats.ubrc +
+		    aq_dev->curr_stats.mbrc + aq_dev->curr_stats.bbrc;
+		aq_dev->curr_stats.btc = aq_dev->curr_stats.ubtc +
+		    aq_dev->curr_stats.mbtc + aq_dev->curr_stats.bbtc;
 
-    }
+	}
 #undef AQ_SDELTA
 
-    memcpy(&aq_dev->last_stats, &mbox.stats, sizeof(mbox.stats));
+	memcpy(&aq_dev->last_stats, &mbox.stats, sizeof(mbox.stats));
 
-    return (0);
+	return (0);
 }
 
 
-void aq_if_update_admin_status(if_ctx_t ctx)
+void
+aq_if_update_admin_status(if_ctx_t ctx)
 {
 	aq_dev_t *aq_dev = iflib_get_softc(ctx);
 	struct aq_hw *hw = &aq_dev->hw;
-	u32 link_speed;
+	uint32_t link_speed;
 
 	//	AQ_DBG_ENTER();
 
@@ -156,7 +156,8 @@ void aq_if_update_admin_status(if_ctx_t ctx)
 /**************************************************************************/
 /* interrupt service routine  (Top half)                                  */
 /**************************************************************************/
-int aq_isr_rx(void *arg)
+int
+aq_isr_rx(void *arg)
 {
 	struct aq_ring  *ring = arg;
 	struct aq_dev   *aq_dev = ring->dev;
@@ -171,7 +172,8 @@ int aq_isr_rx(void *arg)
 /**************************************************************************/
 /* interrupt service routine  (Top half)                                  */
 /**************************************************************************/
-int aq_linkstat_isr(void *arg)
+int
+aq_linkstat_isr(void *arg)
 {
 	aq_dev_t              *aq_dev = arg;
 	struct aq_hw          *hw = &aq_dev->hw;
