@@ -3248,7 +3248,7 @@
 
 /* tx dma descriptor base address msw definitions */
 #define tx_dma_desc_base_addrmsw_adr(descriptor) \
-        (0x00007c04u + (descriptor) * 0x40)
+	(0x00007c04u + (descriptor) * 0x40)
 
 /* tx interrupt moderation control register definitions
  * Preprocessor definitions for TX Interrupt Moderation Control Register

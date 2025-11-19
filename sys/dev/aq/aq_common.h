@@ -37,14 +37,6 @@
 
 #include <sys/types.h>
 
-#define s8       __int8_t
-#define u8       __uint8_t
-#define u16      __uint16_t
-#define s16      __int16_t
-#define u32      __uint32_t
-#define u64      __uint64_t
-#define s64      __int64_t
-#define s32      int
 
 #define ETIME ETIMEDOUT
 #define EOK 0
@@ -59,18 +51,18 @@
 #endif
 
 #define AQ_HW_WAIT_FOR(_B_, _US_, _N_) \
-    do { \
+do { \
         unsigned int i; \
-        for (i = _N_; (!(_B_)) && i; --i) { \
-            usec_delay(_US_); \
-        } \
-        if (!i) { \
-            err = -1; \
-        } \
-    } while (0)
+	for (i = _N_; (!(_B_)) && i; --i) { \
+		usec_delay(_US_); \
+	} \
+	if (!i) { \
+		err = -1; \
+	} \
+} while (0)
 
 
-#define LOWORD(a) ((u16)(a))
+#define LOWORD(a) ((uint16_t)(a))
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 #define AQ_VER        "0.0.5"
