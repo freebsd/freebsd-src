@@ -1315,7 +1315,7 @@ ieee80211_hw_restart_disconnect(struct ieee80211_vif *vif)
     for (_linkid = 0; _linkid < nitems((_sta)->link); _linkid++)	\
 	if ( ((_vif)->active_links == 0 /* no MLO */ ||			\
 	    ((_vif)->active_links & BIT(_linkid)) != 0) &&		\
-	    (_linksta = link_sta_dereference_protected((_sta), (_linkid))) )
+	    (_linksta = link_sta_dereference_check((_sta), (_linkid))) )
 
 /* -------------------------------------------------------------------------- */
 
