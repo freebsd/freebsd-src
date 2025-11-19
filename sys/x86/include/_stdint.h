@@ -184,6 +184,39 @@
 #define	WINT_MIN	INT32_MIN
 #define	WINT_MAX	INT32_MAX
 
+#if __ISO_C_VISIBLE >= 2023
+/*
+ * ISO/IEC 9899:2023
+ * 7.22.2 Widths of specified-width integer types
+ */
+#define INT_FAST8_WIDTH		INT32_WIDTH
+#define INT_FAST16_WIDTH	INT32_WIDTH
+#define INT_FAST32_WIDTH	INT32_WIDTH
+#define INT_FAST64_WIDTH	INT64_WIDTH
+#ifdef __LP64__
+#define INTPTR_WIDTH		INT64_WIDTH
+#else
+#define INTPTR_WIDTH		INT32_WIDTH
+#endif
+#define INTMAX_WIDTH		INT64_WIDTH
+
+/*
+ * ISO/IEC 9899:2023
+ * 7.22.3 Width of other integer types
+ */
+#ifdef	__LP64__
+#define PTRDIFF_WIDTH		INT64_WIDTH
+#define SIG_ATOMIC_WIDTH	INT64_WIDTH
+#define SIZE_WIDTH		INT64_WIDTH
+#else
+#define PTRDIFF_WIDTH		INT32_WIDTH
+#define SIG_ATOMIC_WIDTH	INT32_WIDTH
+#define SIZE_WIDTH		INT32_WIDTH
+#endif
+#define WCHAR_WIDTH		INT32_WIDTH
+#define WINT_WIDTH		INT32_WIDTH
+#endif /* __ISO_C_VISIBLE >= 2023 */
+
 #endif /* !defined(__cplusplus) || defined(__STDC_LIMIT_MACROS) */
 
 #endif /* !_MACHINE__STDINT_H_ */
