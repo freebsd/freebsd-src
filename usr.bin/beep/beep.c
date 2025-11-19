@@ -133,20 +133,21 @@ wave_function_16(float phase, float power)
 static void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s [parameters]\n"
-	    "\t" "-F <frequency in HZ, default %d Hz>\n"
-	    "\t" "-D <duration in ms, from %d ms to %d ms, default %d ms>\n"
-	    "\t" "-r <sample rate in HZ, from %d Hz to %d Hz, default %d Hz>\n"
-	    "\t" "-d <OSS device (default %s)>\n"
-	    "\t" "-g <gain from %d to %d, default %d>\n"
+	fprintf(stderr, "Usage: %s [-Bh] [-D duration_ms] [-F frequency_hz] "
+	    "[-d oss_device] [-g gain] [-r sample_rate_hz]\n"
 	    "\t" "-B Run in background\n"
-	    "\t" "-h Show usage\n",
+	    "\t" "-D <duration in ms, from %d ms to %d ms, default %d ms>\n"
+	    "\t" "-F <frequency in Hz, default %d Hz>\n"
+	    "\t" "-d <OSS device, default %s>\n"
+	    "\t" "-g <gain from %d to %d, default %d>\n"
+	    "\t" "-h Show usage\n"
+	    "\t" "-r <sample rate in Hz, from %d Hz to %d Hz, default %d Hz>\n",
 	    getprogname(),
-	    DEFAULT_HZ,
 	    DURATION_MIN, DURATION_MAX, DURATION_DEF,
-	    SAMPLE_RATE_MIN, SAMPLE_RATE_MAX, SAMPLE_RATE_DEF,
+	    DEFAULT_HZ,
 	    DEFAULT_DEVICE,
-	    GAIN_MIN, GAIN_MAX, GAIN_DEF);
+	    GAIN_MIN, GAIN_MAX, GAIN_DEF,
+	    SAMPLE_RATE_MIN, SAMPLE_RATE_MAX, SAMPLE_RATE_DEF);
 	exit(1);
 }
 
