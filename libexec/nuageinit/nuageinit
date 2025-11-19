@@ -64,7 +64,7 @@ local function get_ifaces_by_mac()
 	ns:close()
 	local res, err = parser:parse_string(netres)
 	if not res then
-		nuage.warn("Error parsing netstat -i --libxo json outout: " .. err)
+		nuage.warn("Error parsing netstat -i --libxo json output: " .. err)
 		return nil
 	end
 	local ifaces = parser:get_object()
