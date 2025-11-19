@@ -79,6 +79,9 @@ struct mpu401 {
 	struct callout timer;
 };
 
+static void mpu401_timeout(void *m);
+static mpu401_intr_t mpu401_intr;
+
 static int mpu401_minit(struct snd_midi *, void *);
 static int mpu401_muninit(struct snd_midi *, void *);
 static int mpu401_minqsize(struct snd_midi *, void *);
