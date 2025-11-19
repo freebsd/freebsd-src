@@ -5,8 +5,8 @@
 #
 
 import gdb
-import traceback
 from freebsd import *
+
 
 class vnet(gdb.Function):
     """
@@ -18,6 +18,7 @@ class vnet(gdb.Function):
     pointer to a struct vnet (e.g., vnet0 or allprison.tqh_first->pr_vnet) or a
     string naming a jail.
     """
+
     def __init__(self):
         super(vnet, self).__init__("V")
 

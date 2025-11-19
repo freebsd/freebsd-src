@@ -11,11 +11,13 @@ import gdb
 from freebsd import *
 from pcpu import *
 
+
 class acttrace(gdb.Command):
     """
     Print the stack trace of all threads that were on-CPU at the time of
     the panic.
     """
+
     def __init__(self):
         super(acttrace, self).__init__("acttrace", gdb.COMMAND_USER)
 

@@ -6,6 +6,7 @@
 
 import gdb
 
+
 def symval(name):
     sym = gdb.lookup_global_symbol(name)
     if sym is None:
@@ -72,4 +73,6 @@ def tdfind(tid, pid=-1):
             tdfind.cached_threads[int(ntid)] = td
             if ntid == tid:
                 return td
+
+
 tdfind.cached_threads = dict()
