@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: JEMALLOC
 .\"    Author: Jason Evans
-.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/10/2019
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 05/06/2022
 .\"    Manual: User Manual
-.\"    Source: jemalloc 5.2.1-0-gea6b3e973b477b8061e0076bb257dbd7f3faa756
+.\"    Source: jemalloc 5.3.0-0-g54eaed1d8b56b1aa528be3bdd1877e59c56fa90c
 .\"  Language: English
 .\"
-.TH "JEMALLOC" "3" "11/10/2019" "jemalloc 5.2.1-0-gea6b3e973b47" "User Manual"
+.TH "JEMALLOC" "3" "05/06/2022" "jemalloc 5.3.0-0-g54eaed1d8b56" "User Manual"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -31,7 +31,7 @@
 jemalloc \- general purpose memory allocation functions
 .SH "LIBRARY"
 .PP
-This manual describes jemalloc 5\&.2\&.1\-0\-gea6b3e973b477b8061e0076bb257dbd7f3faa756\&. More information can be found at the
+This manual describes jemalloc 5\&.3\&.0\-0\-g54eaed1d8b56b1aa528be3bdd1877e59c56fa90c\&. More information can be found at the
 \m[blue]\fBjemalloc website\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .PP
 The following configuration options are enabled in libc\*(Aqs built\-in jemalloc:
@@ -603,7 +603,7 @@ T}
 :T{
 8 KiB
 T}:T{
-[40 KiB, 48 KiB, 54 KiB, 64 KiB]
+[40 KiB, 48 KiB, 56 KiB, 64 KiB]
 T}
 :T{
 16 KiB
@@ -848,6 +848,11 @@ in these cases\&. This option is disabled by default unless
 is specified during configuration, in which case it is enabled by default\&.
 .RE
 .PP
+opt\&.cache_oblivious (\fBbool\fR) r\-
+.RS 4
+Enable / Disable cache\-oblivious large allocation alignment, for large requests with no alignment constraints\&. If this feature is disabled, all large allocations are page\-aligned as an implementation artifact, which can severely harm CPU cache utilization\&. However, the cache\-oblivious layout comes at the cost of one extra page per large allocation, which in the most extreme case increases physical memory usage for the 16 KiB size class to 20 KiB\&. This option is enabled by default\&.
+.RE
+.PP
 opt\&.metadata_thp (\fBconst char *\fR) r\-
 .RS 4
 Controls whether to allow jemalloc to use transparent huge page (THP) for internal metadata (see
@@ -857,6 +862,11 @@ allows such usage\&.
 \(lqauto\(rq
 uses no THP initially, but may begin to do so when metadata usage reaches certain level\&. The default is
 \(lqdisabled\(rq\&.
+.RE
+.PP
+opt\&.trust_madvise (\fBbool\fR) r\-
+.RS 4
+If true, do not perform runtime check for MADV_DONTNEED, to check that it actually zeros pages\&. The default is disabled on Linux and enabled elsewhere\&.
 .RE
 .PP
 opt\&.retain (\fBbool\fR) r\-
@@ -990,6 +1000,28 @@ is enabled\&. The default is
 \(lq\(rq\&.
 .RE
 .PP
+opt\&.stats_interval (\fBint64_t\fR) r\-
+.RS 4
+Average interval between statistics outputs, as measured in bytes of allocation activity\&. The actual interval may be sporadic because decentralized event counters are used to avoid synchronization bottlenecks\&. The output may be triggered on any thread, which then calls
+malloc_stats_print()\&.
+opt\&.stats_interval_opts
+can be combined to specify output options\&. By default, interval\-triggered stats output is disabled (encoded as \-1)\&.
+.RE
+.PP
+opt\&.stats_interval_opts (\fBconst char *\fR) r\-
+.RS 4
+Options (the
+\fIopts\fR
+string) to pass to the
+malloc_stats_print()
+for interval based statistics printing (enabled through
+opt\&.stats_interval)\&. See available options in
+malloc_stats_print()\&. Has no effect unless
+opt\&.stats_interval
+is enabled\&. The default is
+\(lq\(rq\&.
+.RE
+.PP
 opt\&.junk (\fBconst char *\fR) r\- [\fB\-\-enable\-fill\fR]
 .RS 4
 Junk filling\&. If set to
@@ -1046,13 +1078,13 @@ This option is disabled by default\&.
 opt\&.tcache (\fBbool\fR) r\-
 .RS 4
 Thread\-specific caching (tcache) enabled/disabled\&. When there are multiple threads, each thread uses a tcache for objects up to a certain size\&. Thread\-specific caching allows many allocations to be satisfied without performing any thread synchronization, at the cost of increased memory use\&. See the
-opt\&.lg_tcache_max
+opt\&.tcache_max
 option for related tuning information\&. This option is enabled by default\&.
 .RE
 .PP
-opt\&.lg_tcache_max (\fBsize_t\fR) r\-
+opt\&.tcache_max (\fBsize_t\fR) r\-
 .RS 4
-Maximum size class (log base 2) to cache in the thread\-specific cache (tcache)\&. At a minimum, all small size classes are cached, and at a maximum all large size classes are cached\&. The default maximum is 32 KiB (2^15)\&.
+Maximum size class to cache in the thread\-specific cache (tcache)\&. At a minimum, the first size class is cached; and at a maximum, size classes up to 8 MiB can be cached\&. The default maximum is 32 KiB (2^15)\&. As a convenience, this may also be set by specifying lg_tcache_max, which will be taken to be the base\-2 logarithm of the setting of tcache_max\&.
 .RE
 .PP
 opt\&.thp (\fBconst char *\fR) r\-
@@ -1091,7 +1123,8 @@ for heap profile format documentation\&.
 opt\&.prof_prefix (\fBconst char *\fR) r\- [\fB\-\-enable\-prof\fR]
 .RS 4
 Filename prefix for profile dumps\&. If the prefix is set to the empty string, no automatic dumps will occur; this is primarily useful for disabling the automatic final heap dump (which also disables leak reporting, if enabled)\&. The default prefix is
-jeprof\&.
+jeprof\&. This prefix value can be overridden by
+prof\&.prefix\&.
 .RE
 .PP
 opt\&.prof_active (\fBbool\fR) r\- [\fB\-\-enable\-prof\fR]
@@ -1129,7 +1162,9 @@ Average interval (log base 2) between memory profile dumps, as measured in bytes
 <prefix>
 is controlled by the
 opt\&.prof_prefix
-option\&. By default, interval\-triggered profile dumping is disabled (encoded as \-1)\&.
+and
+prof\&.prefix
+options\&. By default, interval\-triggered profile dumping is disabled (encoded as \-1)\&.
 .RE
 .PP
 opt\&.prof_gdump (\fBbool\fR) r\- [\fB\-\-enable\-prof\fR]
@@ -1147,7 +1182,9 @@ function to dump final memory usage to a file named according to the pattern
 <prefix>
 is controlled by the
 opt\&.prof_prefix
-option\&. Note that
+and
+prof\&.prefix
+options\&. Note that
 atexit()
 may allocate memory during application initialization and then deadlock internally when jemalloc in turn calls
 atexit(), so this option is not universally usable (though the application can register its own
@@ -1161,7 +1198,46 @@ Leak reporting enabled/disabled\&. If enabled, use an
 \fBatexit\fR(3)
 function to report memory leaks detected by allocation sampling\&. See the
 opt\&.prof
-option for information on analyzing heap profile output\&. This option is disabled by default\&.
+option for information on analyzing heap profile output\&. Works only when combined with
+opt\&.prof_final, otherwise does nothing\&. This option is disabled by default\&.
+.RE
+.PP
+opt\&.prof_leak_error (\fBbool\fR) r\- [\fB\-\-enable\-prof\fR]
+.RS 4
+Similar to
+opt\&.prof_leak, but makes the process exit with error code 1 if a memory leak is detected\&. This option supersedes
+opt\&.prof_leak, meaning that if both are specified, this option takes precedence\&. When enabled, also enables
+opt\&.prof_leak\&. Works only when combined with
+opt\&.prof_final, otherwise does nothing\&. This option is disabled by default\&.
+.RE
+.PP
+opt\&.zero_realloc (\fBconst char *\fR) r\-
+.RS 4
+Determines the behavior of
+realloc()
+when passed a value of zero for the new size\&.
+\(lqalloc\(rq
+treats this as an allocation of size zero (and returns a non\-null result except in case of resource exhaustion)\&.
+\(lqfree\(rq
+treats this as a deallocation of the pointer, and returns
+\fBNULL\fR
+without setting
+\fIerrno\fR\&.
+\(lqabort\(rq
+aborts the process if zero is passed\&. The default is
+\(lqfree\(rq
+on Linux and Windows, and
+\(lqalloc\(rq
+elsewhere\&.
+.sp
+There is considerable divergence of behaviors across implementations in handling this case\&. Many have the behavior of
+\(lqfree\(rq\&. This can introduce security vulnerabilities, since a
+\fBNULL\fR
+return value indicates failure, and the continued validity of the passed\-in pointer (per POSIX and C11)\&.
+\(lqalloc\(rq
+is safe, but can cause leaks in programs that expect the common behavior\&. Programs intended to be portable and leak\-free cannot assume either behavior, and must therefore never call realloc with a size of 0\&. The
+\(lqabort\(rq
+option enables these testing this behavior\&.
 .RE
 .PP
 thread\&.arena (\fBunsigned\fR) rw
@@ -1182,7 +1258,7 @@ Get a pointer to the the value that is returned by the
 thread\&.allocated
 mallctl\&. This is useful for avoiding the overhead of repeated
 mallctl*()
-calls\&.
+calls\&. Note that the underlying counter should not be modified by the application\&.
 .RE
 .PP
 thread\&.deallocated (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
@@ -1196,7 +1272,23 @@ Get a pointer to the the value that is returned by the
 thread\&.deallocated
 mallctl\&. This is useful for avoiding the overhead of repeated
 mallctl*()
-calls\&.
+calls\&. Note that the underlying counter should not be modified by the application\&.
+.RE
+.PP
+thread\&.peak\&.read (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Get an approximation of the maximum value of the difference between the number of bytes allocated and the number of bytes deallocated by the calling thread since the last call to
+thread\&.peak\&.reset, or since the thread\*(Aqs creation if it has not called
+thread\&.peak\&.reset\&. No guarantees are made about the quality of the approximation, but jemalloc currently endeavors to maintain accuracy to within one hundred kilobytes\&.
+.RE
+.PP
+thread\&.peak\&.reset (\fBvoid\fR) \-\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Resets the counter for net bytes allocated in the calling thread to zero\&. This affects subsequent calls to
+thread\&.peak\&.read, but not the values returned by
+thread\&.allocated
+or
+thread\&.deallocated\&.
 .RE
 .PP
 thread\&.tcache\&.enabled (\fBbool\fR) rw
@@ -1224,11 +1316,27 @@ Control whether sampling is currently active for the calling thread\&. This is a
 prof\&.active; both must be active for the calling thread to sample\&. This flag is enabled by default\&.
 .RE
 .PP
+thread\&.idle (\fBvoid\fR) \-\-
+.RS 4
+Hints to jemalloc that the calling thread will be idle for some nontrivial period of time (say, on the order of seconds), and that doing some cleanup operations may be beneficial\&. There are no guarantees as to what specific operations will be performed; currently this flushes the caller\*(Aqs tcache and may (according to some heuristic) purge its associated arena\&.
+.sp
+This is not intended to be a general\-purpose background activity mechanism, and threads should not wake up multiple times solely to call it\&. Rather, a thread waiting for a task should do a timed wait first, call
+thread\&.idle
+if no task appears in the timeout interval, and then do an untimed wait\&. For such a background activity mechanism, see
+background_thread\&.
+.RE
+.PP
 tcache\&.create (\fBunsigned\fR) r\-
 .RS 4
 Create an explicit thread\-specific cache (tcache) and return an identifier that can be passed to the
 \fBMALLOCX_TCACHE(\fR\fB\fItc\fR\fR\fB)\fR
 macro to explicitly use the specified cache rather than the automatically managed one that is used by default\&. Each explicit cache can be used by only one thread at a time; the application must assure that this constraint holds\&.
+.sp
+If the amount of space supplied for storing the thread\-specific cache identifier does not equal
+sizeof(\fBunsigned\fR), no thread\-specific cache will be created, no data will be written to the space pointed by
+\fIoldp\fR, and
+\fI*oldlenp\fR
+will be set to 0\&.
 .RE
 .PP
 tcache\&.flush (\fBunsigned\fR) \-w
@@ -1634,6 +1742,12 @@ Maximum size supported by this large size class\&.
 arenas\&.create (\fBunsigned\fR, \fBextent_hooks_t *\fR) rw
 .RS 4
 Explicitly create a new arena outside the range of automatically managed arenas, with optionally specified extent hooks, and return the new arena index\&.
+.sp
+If the amount of space supplied for storing the arena index does not equal
+sizeof(\fBunsigned\fR), no arena will be created, no data will be written to the space pointed by
+\fIoldp\fR, and
+\fI*oldlenp\fR
+will be set to 0\&.
 .RE
 .PP
 arenas\&.lookup (\fBunsigned\fR, \fBvoid*\fR) rw
@@ -1666,7 +1780,16 @@ Dump a memory profile to the specified file, or if NULL is specified, to a file 
 <prefix>
 is controlled by the
 opt\&.prof_prefix
-option\&.
+and
+prof\&.prefix
+options\&.
+.RE
+.PP
+prof\&.prefix (\fBconst char *\fR) \-w [\fB\-\-enable\-prof\fR]
+.RS 4
+Set the filename prefix for profile dumps\&. See
+opt\&.prof_prefix
+for the default setting\&. This can be useful to differentiate profile dumps such as from forked processes\&.
 .RE
 .PP
 prof\&.gdump (\fBbool\fR) rw [\fB\-\-enable\-prof\fR]
@@ -1676,7 +1799,9 @@ When enabled, trigger a memory profile dump every time the total virtual memory 
 <prefix>
 is controlled by the
 opt\&.prof_prefix
-option\&.
+and
+prof\&.prefix
+options\&.
 .RE
 .PP
 prof\&.reset (\fBsize_t\fR) \-w [\fB\-\-enable\-prof\fR]
@@ -1752,6 +1877,18 @@ for details)\&. Retained memory is excluded from mapped memory statistics, e\&.g
 stats\&.mapped\&.
 .RE
 .PP
+stats\&.zero_reallocs (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of times that the
+realloc()
+was called with a non\-\fBNULL\fR
+pointer argument and a
+\fB0\fR
+size argument\&. This is a fundamentally unsafe pattern in portable programs; see
+opt\&.zero_realloc
+for details\&.
+.RE
+.PP
 stats\&.background_thread\&.num_threads (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
 .RS 4
 Number of
@@ -1820,6 +1957,26 @@ stats\&.mutexes\&.prof\&.{counter} (\fBcounter specific type\fR) r\- [\fB\-\-ena
 Statistics on
 \fIprof\fR
 mutex (global scope; profiling related)\&.
+{counter}
+is one of the counters in
+mutex profiling counters\&.
+.RE
+.PP
+stats\&.mutexes\&.prof_thds_data\&.{counter} (\fBcounter specific type\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Statistics on
+\fIprof\fR
+threads data mutex (global scope; profiling related)\&.
+{counter}
+is one of the counters in
+mutex profiling counters\&.
+.RE
+.PP
+stats\&.mutexes\&.prof_dump\&.{counter} (\fBcounter specific type\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Statistics on
+\fIprof\fR
+dumping mutex (global scope; profiling related)\&.
 {counter}
 is one of the counters in
 mutex profiling counters\&.
@@ -2242,7 +2399,7 @@ heap_v2/524288
   [\&.\&.\&.]
 @ 0x5f86da8 0x5f5a1dc [\&.\&.\&.] 0x29e4d4e 0xa200316 0xabb2988 [\&.\&.\&.]
   t*: 13: 6688 [0: 0]
-  t3: 12: 6496 [0: ]
+  t3: 12: 6496 [0: 0]
   t99: 1: 192 [0: 0]
 [\&.\&.\&.]
 
@@ -2264,9 +2421,9 @@ to indicate descriptions of the corresponding fields\&.
 <heap_profile_format_version>/<mean_sample_interval>
   <aggregate>: <curobjs>: <curbytes> [<cumobjs>: <cumbytes>]
   [\&.\&.\&.]
-  <thread_3_aggregate>: <curobjs>: <curbytes>[<cumobjs>: <cumbytes>]
+  <thread_3_aggregate>: <curobjs>: <curbytes> [<cumobjs>: <cumbytes>]
   [\&.\&.\&.]
-  <thread_99_aggregate>: <curobjs>: <curbytes>[<cumobjs>: <cumbytes>]
+  <thread_99_aggregate>: <curobjs>: <curbytes> [<cumobjs>: <cumbytes>]
   [\&.\&.\&.]
 @ <top_frame> <frame> [\&.\&.\&.] <frame> <frame> <frame> [\&.\&.\&.]
   <backtrace_aggregate>: <curobjs>: <curbytes> [<cumobjs>: <cumbytes>]
@@ -2432,7 +2589,8 @@ is not
 \fInewlen\fR
 is too large or too small\&. Alternatively,
 \fI*oldlenp\fR
-is too large or too small; in this case as much data as possible are read despite the error\&.
+is too large or too small; when it happens, except for a very few cases explicitly documented otherwise, as much data as possible are read despite the error, with the amount of data read being recorded in
+\fI*oldlenp\fR\&.
 .RE
 .PP
 ENOENT

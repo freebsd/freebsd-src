@@ -170,7 +170,6 @@ extern int daylight;
 
 #if __BSD_VISIBLE
 time_t timelocal(struct tm * const);
-time_t timegm(struct tm * const);
 int timer_oshandle_np(timer_t timerid);
 time_t time2posix(time_t t);
 time_t posix2time(time_t t);
@@ -193,6 +192,7 @@ int timespec_get(struct timespec *ts, int base);
 #define TIME_MONOTONIC	2	/* monotonic time */
 /* ISO/IEC 9899:2024 7.29.2.7 The timespec_getres function */
 int timespec_getres(struct timespec *, int);
+time_t timegm(struct tm * const);
 #endif
 #endif
 

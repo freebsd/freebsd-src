@@ -29,15 +29,13 @@
 #ifndef __NVME_H__
 #define __NVME_H__
 
-#ifdef _KERNEL
-#include <sys/types.h>
-#endif
-
 #include <sys/param.h>
-#include <sys/endian.h>
-#ifndef _KERNEL
+#ifdef _KERNEL
+#include <sys/systm.h>
+#else
 #include <stdbool.h>
 #endif
+#include <sys/endian.h>
 
 struct sbuf;
 
@@ -1540,8 +1538,7 @@ enum nvme_log_page {
 	/* 0xC0-0xFF - vendor specific */
 
 	/*
-	 * The following are Intel Specific log pages, but they seem
-	 * to be widely implemented.
+	 * The following are Intel Specific log pages for older models.
 	 */
 	INTEL_LOG_READ_LAT_LOG		= 0xc1,
 	INTEL_LOG_WRITE_LAT_LOG		= 0xc2,
@@ -1550,7 +1547,7 @@ enum nvme_log_page {
 	INTEL_LOG_DRIVE_MKT_NAME	= 0xdd,
 
 	/*
-	 * HGST log page, with lots ofs sub pages.
+	 * HGST log page, with lots of sub pages.
 	 */
 	HGST_INFO_LOG			= 0xc1,
 };
@@ -1910,7 +1907,6 @@ void	nvme_sc_sbuf(const struct nvme_completion *cpl, struct sbuf *sbuf);
 void	nvme_strvis(uint8_t *dst, const uint8_t *src, int dstlen, int srclen);
 
 #ifdef _KERNEL
-#include <sys/systm.h>
 #include <sys/disk.h>
 
 struct bio;
@@ -2194,7 +2190,7 @@ void	nvme_namespace_data_swapbytes(struct nvme_namespace_data *s __unused)
 	s->anagrpid = le32toh(s->anagrpid);
 	s->nvmsetid = le16toh(s->nvmsetid);
 	s->endgid = le16toh(s->endgid);
-	for (unsigned i = 0; i < nitems(s->lbaf); i++)
+	for (unsigned int i = 0; i < nitems(s->lbaf); i++)
 		s->lbaf[i] = le32toh(s->lbaf[i]);
 #endif
 }

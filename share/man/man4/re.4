@@ -33,7 +33,7 @@
 .Os
 .Sh NAME
 .Nm re
-.Nd "RealTek 8139C+/8169/816xS/811xS/8168/810xE/8111 PCI/PCIe Ethernet adapter driver"
+.Nd "Realtek 8139C+/8169/816xS/811xS/8168/810xE/8111 PCI/PCIe Ethernet adapter driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -52,7 +52,7 @@ if_re_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for various NICs based on the RealTek RTL8139C+,
+driver provides support for various NICs based on the Realtek RTL8139C+,
 RTL8169, RTL816xS, RTL811xS, RTL8168, RTL810xE and RTL8111 PCI and
 PCIe Ethernet controllers.
 .Pp
@@ -115,7 +115,7 @@ or
 modes.
 .It Cm 1000baseTX
 Set 1000baseTX operation over twisted pair.
-The RealTek gigE chips support 1000Mbps in
+The Realtek gigE chips support 1000Mbps in
 .Cm full-duplex
 mode only.
 .\" .It Cm 1000baseSX
@@ -142,7 +142,7 @@ For more information on configuring this device, see
 .Sh HARDWARE
 The
 .Nm
-driver supports RealTek RTL8139C+, RTL8169, RTL816xS, RTL811xS, RTL8168,
+driver supports Realtek RTL8139C+, RTL8169, RTL816xS, RTL811xS, RTL8168,
 RTL810xE and RTL8111 based Fast Ethernet and Gigabit Ethernet adapters including:
 .Pp
 .Bl -bullet -compact
@@ -241,7 +241,7 @@ the network connection (cable).
 .Xr vlan 4 ,
 .Xr ifconfig 8
 .Rs
-.%T RealTek Semiconductor RTL8139C+, RTL8169, RTL8169S and RTL8110S datasheets
+.%T Realtek Semiconductor RTL8139C+, RTL8169, RTL8169S and RTL8110S datasheets
 .%U https://www.realtek.com
 .Re
 .Sh HISTORY
@@ -281,7 +281,7 @@ The
 user should ensure the NIC is installed in a 32-bit PCI slot to
 avoid this problem.
 .Pp
-The RealTek 8169, 8169S and 8110S chips appear to only be capable of
+The Realtek 8169, 8169S and 8110S chips appear to only be capable of
 transmitting jumbo frames up to 7.5K in size.
 .Pp
 If this driver is causing problems then an updated driver from

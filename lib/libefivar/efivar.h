@@ -31,7 +31,7 @@
 #include <sys/endian.h>
 #include <stdint.h>
 
-/* Shoud these be elsewhere ? */
+/* Should these be elsewhere ? */
 #define	EFI_VARIABLE_NON_VOLATILE		0x00000001
 #define	EFI_VARIABLE_BOOTSERVICE_ACCESS		0x00000002
 #define	EFI_VARIABLE_RUNTIME_ACCESS		0x00000004

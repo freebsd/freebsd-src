@@ -548,16 +548,16 @@ main(int argc, char **argv)
 	priv.slirp = slirp;
 
 	/*
+	 * Drop root privileges if we have them.
+	 */
+	drop_privs();
+
+	/*
 	 * In restricted mode, we can enter a Capsicum sandbox without losing
 	 * functionality.
 	 */
 	if (restricted && caph_enter() != 0)
 		err(1, "caph_enter");
-
-	/*
-	 * Drop root privileges if we have them.
-	 */
-	drop_privs();
 
 	/*
 	 * Enter our main loop.  If bhyve goes away, we should observe a hangup

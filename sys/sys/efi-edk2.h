@@ -72,7 +72,7 @@ typedef void VOID;
 /*
  * Note: the EDK2 code assumed #pragma packed works and PACKED is a
  * workaround for some old toolchain issues for EDK2 that aren't
- * relevent to FreeBSD.
+ * relevant to FreeBSD.
  */
 #define PACKED
 

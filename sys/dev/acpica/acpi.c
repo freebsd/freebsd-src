@@ -616,7 +616,7 @@ acpi_attach(device_t dev)
 	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	&sc->acpi_lid_switch_stype, 0, acpi_stype_sysctl, "A",
 	"Lid ACPI sleep state. Set to s2idle or s2mem if you want to suspend "
-	"your laptop when close the lid.");
+	"your laptop when you close the lid.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "suspend_state", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	NULL, 0, acpi_suspend_state_sysctl, "A",
@@ -626,7 +626,7 @@ acpi_attach(device_t dev)
 	OID_AUTO, "standby_state",
 	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	&sc->acpi_standby_sx, 0, acpi_sleep_state_sysctl, "A",
-	"ACPI Sx state to use when going standby (S1 or S2).");
+	"ACPI Sx state to use when going standby (usually S1 or S2).");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "sleep_delay", CTLFLAG_RW, &sc->acpi_sleep_delay, 0,
 	"sleep delay in seconds");
@@ -4318,13 +4318,15 @@ acpi_sname_to_sstate(const char *sname)
 {
     int sstate;
 
+    if (strcasecmp(sname, "NONE") == 0)
+	return (ACPI_STATE_UNKNOWN);
+
     if (toupper(sname[0]) == 'S') {
 	sstate = sname[1] - '0';
 	if (sstate >= ACPI_STATE_S0 && sstate <= ACPI_STATE_S5 &&
 	    sname[2] == '\0')
 	    return (sstate);
-    } else if (strcasecmp(sname, "NONE") == 0)
-	return (ACPI_STATE_UNKNOWN);
+    }
     return (-1);
 }
 
@@ -4379,8 +4381,10 @@ acpi_suspend_state_sysctl(SYSCTL_HANDLER_ARGS)
     if (new_sstate < 0)
 	return (EINVAL);
     new_stype = acpi_sstate_to_stype(new_sstate);
-    if (acpi_supported_stypes[new_stype] == false)
+    if (new_sstate != ACPI_STATE_UNKNOWN &&
+	acpi_supported_stypes[new_stype] == false)
 	return (EOPNOTSUPP);
+
     if (new_stype != old_stype)
 	power_suspend_stype = new_stype;
     return (err);
@@ -4423,21 +4427,26 @@ acpi_stype_sysctl(SYSCTL_HANDLER_ARGS)
     if (err != 0 || req->newptr == NULL)
 	return (err);
 
-    new_stype = power_name_to_stype(name);
-    if (new_stype == POWER_STYPE_UNKNOWN) {
-	sstate = acpi_sname_to_sstate(name);
-	if (sstate < 0)
-	    return (EINVAL);
-	printf("warning: this sysctl expects a sleep type, but an ACPI S-state has "
-	    "been passed to it. This functionality is deprecated; see acpi(4).\n");
-	if (sstate < ACPI_S_STATE_COUNT &&
-	    !acpi_supported_sstates[sstate])
+    if (strcasecmp(name, "NONE") == 0) {
+	new_stype = POWER_STYPE_UNKNOWN;
+    } else {
+	new_stype = power_name_to_stype(name);
+	if (new_stype == POWER_STYPE_UNKNOWN) {
+	    sstate = acpi_sname_to_sstate(name);
+	    if (sstate < 0)
+		return (EINVAL);
+	    printf("warning: this sysctl expects a sleep type, but an ACPI "
+	           "S-state has been passed to it. This functionality is "
+	           "deprecated; see acpi(4).\n");
+	    MPASS(sstate < ACPI_S_STATE_COUNT);
+	    if (acpi_supported_sstates[sstate] == false)
+		return (EOPNOTSUPP);
+	    new_stype = acpi_sstate_to_stype(sstate);
+	}
+	if (acpi_supported_stypes[new_stype] == false)
 	    return (EOPNOTSUPP);
-	new_stype = acpi_sstate_to_stype(sstate);
     }
 
-    if (acpi_supported_stypes[new_stype] == false)
-	return (EOPNOTSUPP);
     if (new_stype != old_stype)
 	*(enum power_stype *)oidp->oid_arg1 = new_stype;
     return (0);

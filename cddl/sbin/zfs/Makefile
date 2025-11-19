@@ -1,5 +1,3 @@
-ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
-
 .PATH: ${ZFSTOP}/cmd/zfs
 .PATH: ${ZFSTOP}/man/man7
 .PATH: ${ZFSTOP}/man/man8

@@ -83,8 +83,6 @@ static uint32_t dbg_breakpoint_num;
 #define	ID_DFR0_CP_DEBUG_M_SHIFT	0
 #define	ID_DFR0_CP_DEBUG_M_MASK		(0xF << ID_DFR0_CP_DEBUG_M_SHIFT)
 #define	ID_DFR0_CP_DEBUG_M_NS		(0x0) /* Not supported */
-#define	ID_DFR0_CP_DEBUG_M_V6		(0x2) /* v6 Debug arch. CP14 access */
-#define	ID_DFR0_CP_DEBUG_M_V6_1		(0x3) /* v6.1 Debug arch. CP14 access */
 #define	ID_DFR0_CP_DEBUG_M_V7		(0x4) /* v7 Debug arch. CP14 access */
 #define	ID_DFR0_CP_DEBUG_M_V7_1		(0x5) /* v7.1 Debug arch. CP14 access */
 
@@ -594,10 +592,6 @@ dbg_enable_monitor(void)
 	dbg_dscr = cp14_dbgdscrint_get();
 
 	switch (dbg_model) {
-	case ID_DFR0_CP_DEBUG_M_V6:
-	case ID_DFR0_CP_DEBUG_M_V6_1: /* fall through */
-		cp14_dbgdscr_v6_set(dbg_dscr | DBGSCR_MDBG_EN);
-		break;
 	case ID_DFR0_CP_DEBUG_M_V7: /* fall through */
 	case ID_DFR0_CP_DEBUG_M_V7_1:
 		cp14_dbgdscr_v7_set(dbg_dscr | DBGSCR_MDBG_EN);
@@ -820,26 +814,12 @@ dbg_get_ossr(void)
 static __inline boolean_t
 dbg_arch_supported(void)
 {
-	uint32_t dbg_didr;
-
 	switch (dbg_model) {
-	case ID_DFR0_CP_DEBUG_M_V6:
-	case ID_DFR0_CP_DEBUG_M_V6_1:
-		dbg_didr = cp14_dbgdidr_get();
-		/*
-		 * read-all-zeroes is used by QEMU
-		 * to indicate that ARMv6 debug support
-		 * is not implemented. Real hardware has at
-		 * least version bits set
-		 */
-		if (dbg_didr == 0)
-			return (FALSE);
-		return (TRUE);
 	case ID_DFR0_CP_DEBUG_M_V7:
 	case ID_DFR0_CP_DEBUG_M_V7_1:	/* fall through */
 		return (TRUE);
 	default:
-		/* We only support valid v6.x/v7.x modes through CP14 */
+		/* We only support valid v7.x modes through CP14 */
 		return (FALSE);
 	}
 }
@@ -875,16 +855,6 @@ dbg_reset_state(void)
 	err = 0;
 
 	switch (dbg_model) {
-	case ID_DFR0_CP_DEBUG_M_V6:
-	case ID_DFR0_CP_DEBUG_M_V6_1: /* fall through */
-		/*
-		 * Arch needs monitor mode selected and enabled
-		 * to be able to access breakpoint/watchpoint registers.
-		 */
-		err = dbg_enable_monitor();
-		if (err != 0)
-			return (err);
-		goto vectr_clr;
 	case ID_DFR0_CP_DEBUG_M_V7:
 		/* Is core power domain powered up? */
 		if ((cp14_dbgprsr_get() & DBGPRSR_PU) == 0)
@@ -974,8 +944,6 @@ dbg_monitor_init(void)
 
 	if (bootverbose) {
 		db_printf("ARM Debug Architecture %s\n",
-		    (dbg_model == ID_DFR0_CP_DEBUG_M_V6) ? "v6" :
-		    (dbg_model == ID_DFR0_CP_DEBUG_M_V6_1) ? "v6.1" :
 		    (dbg_model == ID_DFR0_CP_DEBUG_M_V7) ? "v7" :
 		    (dbg_model == ID_DFR0_CP_DEBUG_M_V7_1) ? "v7.1" : "unknown");
 	}

@@ -23,7 +23,8 @@ dev/vmm/vmm_dev.c		optional	vmm
 dev/vmm/vmm_mem.c		optional	vmm
 dev/vmm/vmm_stat.c		optional	vmm
 dev/xilinx/axi_quad_spi.c	optional	xilinx_spi
-dev/xilinx/axidma.c		optional	axidma xdma
+dev/xilinx/axidma.c		optional	axidma
+dev/xilinx/axidma_if.m		optional	axidma
 dev/xilinx/if_xae.c		optional	xae
 dev/xilinx/xlnx_pcib.c		optional	pci fdt xlnx_pcib
 kern/msi_if.m			standard

@@ -187,12 +187,14 @@ v6_body()
 	jexec alcatraz pfctl -e
 
 	pft_set_rules alcatraz "block all" \
+		"pass quick inet6 proto ipv6-icmp all icmp6-type { neighbrsol, neighbradv } no state" \
 		"pass in proto icmp6" \
 		"set skip on lo"
 
 	# Sanity check & establish state
 	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
 		--sendif ${epair}a \
+		--fromaddr 2001:db8::1 \
 		--to 2001:db8::2 \
 		--replyif ${epair}a
 

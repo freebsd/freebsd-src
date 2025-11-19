@@ -526,61 +526,68 @@ gidp_cmp(const void *p1, const void *p2)
 }
 
 /*
- * Final storage for supplementary groups will be returned via 'groups'.
- * '*groups' must be NULL on input, and if not equal to 'smallgroups'
- * on output, must be freed (M_TEMP) *even if* an error is returned.
+ * 'smallgroups' must be an (uninitialized) array of length CRED_SMALLGROUPS_NB.
+ * Always sets 'sc_supp_groups', either to a valid kernel-space groups array
+ * (which may or may not be 'smallgroups'), or NULL if SETCREDF_SUPP_GROUPS was
+ * not specified or there are too many groups, or a buffer containing garbage on
+ * copyin() failure.  In the last two cases, 'sc_supp_groups_nb' is additionally
+ * set to 0 as a security measure.  'sc_supp_groups' must be freed (M_TEMP) if
+ * not equal to 'smallgroups' even on failure.
  */
 static int
-kern_setcred_copyin_supp_groups(struct setcred *const wcred,
-    const u_int flags, gid_t *const smallgroups, gid_t **const groups)
+user_setcred_copyin_supp_groups(struct setcred *const wcred,
+    const u_int flags, gid_t *const smallgroups)
 {
-	MPASS(*groups == NULL);
+	gid_t *groups;
+	int error;
 
-	if (flags & SETCREDF_SUPP_GROUPS) {
-		int error;
+	if ((flags & SETCREDF_SUPP_GROUPS) == 0) {
+		error = 0;
+		goto reset_groups_exit;
+	}
 
-		/*
-		 * Check for the limit for number of groups right now in order
-		 * to limit the amount of bytes to copy.
-		 */
-		if (wcred->sc_supp_groups_nb > ngroups_max)
-			return (EINVAL);
+	/*
+	 * Check the number of groups' limit right now in order to limit the
+	 * amount of bytes to copy.
+	 */
+	if (wcred->sc_supp_groups_nb > ngroups_max) {
+		error = EINVAL;
+		goto reset_groups_exit;
+	}
 
-		/*
-		 * Since we are going to be copying the supplementary groups
-		 * from userland, make room also for the effective GID right
-		 * now, to avoid having to allocate and copy again the
-		 * supplementary groups.
-		 */
-		*groups = wcred->sc_supp_groups_nb <= CRED_SMALLGROUPS_NB ?
-		    smallgroups : malloc(wcred->sc_supp_groups_nb *
-		    sizeof(*groups), M_TEMP, M_WAITOK);
+	groups = wcred->sc_supp_groups_nb <= CRED_SMALLGROUPS_NB ?
+	    smallgroups : malloc(wcred->sc_supp_groups_nb * sizeof(gid_t),
+	    M_TEMP, M_WAITOK);
+	error = copyin(wcred->sc_supp_groups, groups,
+	    wcred->sc_supp_groups_nb * sizeof(gid_t));
+	wcred->sc_supp_groups = groups;
 
-		error = copyin(wcred->sc_supp_groups, *groups,
-		    wcred->sc_supp_groups_nb * sizeof(*groups));
-		if (error != 0)
-			return (error);
-		wcred->sc_supp_groups = *groups;
-	} else {
+	if (error != 0) {
 		wcred->sc_supp_groups_nb = 0;
-		wcred->sc_supp_groups = NULL;
+		/*
+		 * 'sc_supp_groups' must be freed by caller if not
+		 * 'smallgroups'.
+		 */
+		return (error);
 	}
 
 	return (0);
+
+reset_groups_exit:
+	wcred->sc_supp_groups_nb = 0;
+	wcred->sc_supp_groups = NULL;
+	return (error);
 }
 
 int
-user_setcred(struct thread *td, const u_int flags,
-    const void *const uwcred, const size_t size, bool is_32bit)
+user_setcred(struct thread *td, const u_int flags, struct setcred *const wcred)
 {
-	struct setcred wcred;
 #ifdef MAC
 	struct mac mac;
 	/* Pointer to 'struct mac' or 'struct mac32'. */
 	void *umac;
 #endif
 	gid_t smallgroups[CRED_SMALLGROUPS_NB];
-	gid_t *groups = NULL;
 	int error;
 
 	/*
@@ -593,70 +600,40 @@ user_setcred(struct thread *td, const u_int flags,
 	if ((flags & ~SETCREDF_MASK) != 0)
 		return (EINVAL);
 
-#ifdef COMPAT_FREEBSD32
-	if (is_32bit) {
-		struct setcred32 wcred32;
-
-		if (size != sizeof(wcred32))
-			return (EINVAL);
-		error = copyin(uwcred, &wcred32, sizeof(wcred32));
-		if (error != 0)
-			return (error);
-		/* These fields have exactly the same sizes and positions. */
-		memcpy(&wcred, &wcred32, __rangeof(struct setcred32,
-		    setcred32_copy_start, setcred32_copy_end));
-		/* Remaining fields are pointers and need PTRIN*(). */
-		PTRIN_CP(wcred32, wcred, sc_supp_groups);
-		PTRIN_CP(wcred32, wcred, sc_label);
-	} else
-#endif /* COMPAT_FREEBSD32 */
-	{
-		if (size != sizeof(wcred))
-			return (EINVAL);
-		error = copyin(uwcred, &wcred, sizeof(wcred));
-		if (error != 0)
-			return (error);
-	}
 #ifdef MAC
-	umac = wcred.sc_label;
+	umac = wcred->sc_label;
 #endif
 	/* Also done on !MAC as a defensive measure. */
-	wcred.sc_label = NULL;
+	wcred->sc_label = NULL;
 
 	/*
 	 * Copy supplementary groups as needed.  There is no specific
 	 * alternative for 32-bit compatibility as 'gid_t' has the same size
 	 * everywhere.
 	 */
-	error = kern_setcred_copyin_supp_groups(&wcred, flags, smallgroups,
-	    &groups);
+	error = user_setcred_copyin_supp_groups(wcred, flags, smallgroups);
 	if (error != 0)
 		goto free_groups;
 
 #ifdef MAC
 	if ((flags & SETCREDF_MAC_LABEL) != 0) {
-#ifdef COMPAT_FREEBSD32
-		if (is_32bit)
-			error = mac_label_copyin32(umac, &mac, NULL);
-		else
-#endif
-			error = mac_label_copyin(umac, &mac, NULL);
+		error = mac_label_copyin(umac, &mac, NULL);
 		if (error != 0)
 			goto free_groups;
-		wcred.sc_label = &mac;
+		wcred->sc_label = &mac;
 	}
 #endif
 
-	error = kern_setcred(td, flags, &wcred, groups);
+	error = kern_setcred(td, flags, wcred);
 
 #ifdef MAC
-	if (wcred.sc_label != NULL)
-		free_copied_label(wcred.sc_label);
+	if (wcred->sc_label != NULL)
+		free_copied_label(wcred->sc_label);
 #endif
 
 free_groups:
-	if (groups != smallgroups)
-		free(groups, M_TEMP);
+	if (wcred->sc_supp_groups != smallgroups)
+		free(wcred->sc_supp_groups, M_TEMP);
 
 	return (error);
 }
@@ -672,29 +649,31 @@ struct setcred_args {
 int
 sys_setcred(struct thread *td, struct setcred_args *uap)
 {
-	return (user_setcred(td, uap->flags, uap->wcred, uap->size, false));
+	struct setcred wcred;
+	int error;
+
+	if (uap->size != sizeof(wcred))
+		return (EINVAL);
+	error = copyin(uap->wcred, &wcred, sizeof(wcred));
+	if (error != 0)
+		return (error);
+	return (user_setcred(td, uap->flags, &wcred));
 }
 
 /*
  * CAUTION: This function normalizes groups in 'wcred'.
- *
- * If 'preallocated_groups' is non-NULL, it must be an already allocated array
- * of size 'wcred->sc_supp_groups_nb' containing the supplementary groups, and
- * 'wcred->sc_supp_groups' then must point to it.
  */
 int
 kern_setcred(struct thread *const td, const u_int flags,
-    struct setcred *const wcred, gid_t *preallocated_groups)
+    struct setcred *const wcred)
 {
 	struct proc *const p = td->td_proc;
-	struct ucred *new_cred, *old_cred, *to_free_cred;
+	struct ucred *new_cred, *old_cred, *to_free_cred = NULL;
 	struct uidinfo *uip = NULL, *ruip = NULL;
 #ifdef MAC
 	void *mac_set_proc_data = NULL;
 	bool proc_label_set = false;
 #endif
-	gid_t *groups = NULL;
-	gid_t smallgroups[CRED_SMALLGROUPS_NB];
 	int error;
 	bool cred_set = false;
 
@@ -706,32 +685,18 @@ kern_setcred(struct thread *const td, const u_int flags,
 	 * Part 1: We allocate and perform preparatory operations with no locks.
 	 */
 
-	if (flags & SETCREDF_SUPP_GROUPS) {
-		if (wcred->sc_supp_groups_nb > ngroups_max)
+	if ((flags & SETCREDF_SUPP_GROUPS) != 0 &&
+	    wcred->sc_supp_groups_nb > ngroups_max)
 			return (EINVAL);
-		if (preallocated_groups != NULL) {
-			groups = preallocated_groups;
-			MPASS(preallocated_groups == wcred->sc_supp_groups);
-		} else {
-			if (wcred->sc_supp_groups_nb <= CRED_SMALLGROUPS_NB)
-				groups = smallgroups;
-			else
-				groups = malloc(wcred->sc_supp_groups_nb *
-				    sizeof(*groups), M_TEMP, M_WAITOK);
-			memcpy(groups, wcred->sc_supp_groups,
-			    wcred->sc_supp_groups_nb * sizeof(*groups));
-		}
-	}
 
 	if (flags & SETCREDF_MAC_LABEL) {
 #ifdef MAC
 		error = mac_set_proc_prepare(td, wcred->sc_label,
 		    &mac_set_proc_data);
 		if (error != 0)
-			goto free_groups;
+			return (error);
 #else
-		error = ENOTSUP;
-		goto free_groups;
+		return (ENOTSUP);
 #endif
 	}
 
@@ -757,8 +722,10 @@ kern_setcred(struct thread *const td, const u_int flags,
 		 * Output the raw supplementary groups array for better
 		 * traceability.
 		 */
-		AUDIT_ARG_GROUPSET(groups, wcred->sc_supp_groups_nb);
-		groups_normalize(&wcred->sc_supp_groups_nb, groups);
+		AUDIT_ARG_GROUPSET(wcred->sc_supp_groups,
+		    wcred->sc_supp_groups_nb);
+		groups_normalize(&wcred->sc_supp_groups_nb,
+		    wcred->sc_supp_groups);
 	}
 
 	/*
@@ -799,7 +766,7 @@ kern_setcred(struct thread *const td, const u_int flags,
 	 */
 	if (flags & SETCREDF_SUPP_GROUPS)
 		crsetgroups_internal(new_cred, wcred->sc_supp_groups_nb,
-		    groups);
+		    wcred->sc_supp_groups);
 	if (flags & SETCREDF_GID)
 		change_egid(new_cred, wcred->sc_gid);
 	if (flags & SETCREDF_RGID)
@@ -886,9 +853,7 @@ unlock_finish:
 		uifree(uip);
 	if (ruip != NULL)
 		uifree(ruip);
-free_groups:
-	if (groups != preallocated_groups && groups != smallgroups)
-		free(groups, M_TEMP); /* Deals with 'groups' being NULL. */
+
 	return (error);
 }
 
