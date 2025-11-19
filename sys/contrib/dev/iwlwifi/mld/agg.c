@@ -201,7 +201,11 @@ iwl_mld_reorder(struct iwl_mld *mld, struct napi_struct *napi,
 	struct iwl_mld_link_sta *mld_link_sta;
 	u32 reorder = le32_to_cpu(desc->reorder_data);
 	bool amsdu, last_subframe, is_old_sn, is_dup;
+#if defined(__linux__)
 	u8 tid = ieee80211_get_tid(hdr);
+#elif defined(__FreeBSD__)
+	u8 tid;
+#endif
 	u8 baid;
 	u16 nssn, sn;
 	u32 sta_mask = 0;
@@ -242,6 +246,10 @@ iwl_mld_reorder(struct iwl_mld *mld, struct napi_struct *napi,
 
 	for_each_mld_link_sta(mld_sta, mld_link_sta, link_id)
 		sta_mask |= BIT(mld_link_sta->fw_id);
+
+#if defined(__FreeBSD__)
+	tid = ieee80211_get_tid(hdr);
+#endif
 
 	/* verify the BAID is correctly mapped to the sta and tid */
 	if (IWL_FW_CHECK(mld,
