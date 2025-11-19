@@ -42,6 +42,9 @@
  */
 
 #define	__CHAR_BIT	8		/* number of bits in a char */
+#define __SHRT_BIT	16		/* number of bits in a short */
+#define __INT_BIT	32		/* number of bits in an int */
+#define __LLONG_BIT	64		/* number of bits in a long long */
 
 #define	__SCHAR_MAX	0x7f		/* max value for a signed char */
 #define	__SCHAR_MIN	(-0x7f - 1)	/* min value for a signed char */

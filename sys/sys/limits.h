@@ -68,6 +68,26 @@
 #define	LLONG_MIN	__LLONG_MIN	/* min for a long long */
 #endif
 
+#if __ISO_C_VISIBLE >= 2023
+#define BOOL_WIDTH	1		/* number of bits in a bool */
+
+#define CHAR_WIDTH	__CHAR_BIT	/* number of bits in a char */
+#define SCHAR_WIDTH	__CHAR_BIT	/* number of bits in a signed char */
+#define UCHAR_WIDTH	__CHAR_BIT	/* number of bits in an unsigned char */
+
+#define SHRT_WIDTH	__SHRT_BIT	/* number of bits in a short */
+#define USHRT_WIDTH	__SHRT_BIT	/* number of bits in an unsigned short */
+
+#define INT_WIDTH	__INT_BIT	/* number of bits in an int */
+#define UINT_WIDTH	__INT_BIT	/* number of bits in an unsigned int */
+
+#define LONG_WIDTH	__LONG_BIT	/* number of bits in a long */
+#define ULONG_WIDTH	__LONG_BIT	/* number of bits in an unsigned long */
+
+#define LLONG_WIDTH	__LLONG_BIT	/* number of bits in a long long */
+#define ULLONG_WIDTH	__LLONG_BIT	/* number of bits in an unsigned long long */
+#endif
+
 #if __POSIX_VISIBLE || __XSI_VISIBLE
 #define	SSIZE_MAX	__SSIZE_MAX	/* max value for an ssize_t */
 #endif
