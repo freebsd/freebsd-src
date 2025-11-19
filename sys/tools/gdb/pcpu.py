@@ -7,6 +7,7 @@
 import gdb
 from freebsd import *
 
+
 class pcpu(gdb.Function):
     """
     A function to look up PCPU and DPCPU fields by name.
@@ -16,6 +17,7 @@ class pcpu(gdb.Function):
     omitted, and the currently selected thread is on-CPU, that CPU is
     used, otherwise an error is raised.
     """
+
     def __init__(self):
         super(pcpu, self).__init__("PCPU")
 
@@ -72,6 +74,7 @@ class pcpu(gdb.Function):
             if pcpu_entry_addr >= start and pcpu_entry_addr < end:
                 obj = gdb.Value(pcpu_base + pcpu_entry_addr - start + base)
                 return obj.cast(pcpu_entry.type.pointer()).dereference()
+
 
 # Register with gdb.
 pcpu()
