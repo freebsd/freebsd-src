@@ -49,8 +49,11 @@
 #include "archive_xxhash.h"
 
 #define LZ4_MAGICNUMBER		0x184d2204
-#define LZ4_SKIPPABLED		0x184d2a50
 #define LZ4_LEGACY		0x184c2102
+
+// Note: LZ4 and zstd share the same skippable frame format with the same magic numbers.
+#define LZ4_SKIPPABLE_START 0x184D2A50
+#define LZ4_SKIPPABLE_MASK 0xFFFFFFF0
 
 #if defined(HAVE_LIBLZ4)
 struct private_data {
@@ -141,19 +144,67 @@ lz4_reader_bid(struct archive_read_filter_bidder *self,
 {
 	const unsigned char *buffer;
 	ssize_t avail;
-	int bits_checked;
-	uint32_t number;
+	int bits_checked = 0;
+	ssize_t min_lz4_archive_size = 11;
 
-	(void)self; /* UNUSED */
+	// LZ4 skippable frames contain a 4 byte magic number followed by
+	// a 4 byte frame data size, then that number of bytes of data. Regular
+	// frames contain a 4 byte magic number followed by a 2-14 byte frame
+	// header, some data, and a 3 byte end marker.
+	ssize_t min_lz4_frame_size = 8;
 
-	/* Minimal lz4 archive is 11 bytes. */
-	buffer = __archive_read_filter_ahead(filter, 11, &avail);
+	ssize_t offset_in_buffer = 0;
+	ssize_t max_lookahead = 64 * 1024;
+
+	(void)self; // UNUSED
+
+	// Zstd and LZ4 skippable frame magic numbers are identical. To
+	// differentiate these two, we need to look for a non-skippable
+	// frame.
+
+	// Minimal lz4 archive is 11 bytes.
+	buffer = __archive_read_filter_ahead(filter, min_lz4_archive_size, &avail);
 	if (buffer == NULL)
 		return (0);
 
-	/* First four bytes must be LZ4 magic numbers. */
-	bits_checked = 0;
-	if ((number = archive_le32dec(buffer)) == LZ4_MAGICNUMBER) {
+	uint32_t magic_number = archive_le32dec(buffer);
+
+	while ((magic_number & LZ4_SKIPPABLE_MASK) == LZ4_SKIPPABLE_START) {
+
+		offset_in_buffer += 4; // Skip over the magic number
+
+		// Ensure that we can read another 4 bytes.
+		if (offset_in_buffer + 4 > avail) {
+			buffer = __archive_read_filter_ahead(filter, offset_in_buffer + 4, &avail);
+			if (buffer == NULL)
+				return (0);
+		}
+
+		uint32_t frame_data_size = archive_le32dec(buffer + offset_in_buffer);
+
+		// Skip over the 4 frame data size bytes, plus the value stored there.
+		offset_in_buffer += 4 + frame_data_size;
+
+		// There should be at least one more frame if this is LZ4 data.
+		if (offset_in_buffer + min_lz4_frame_size > avail) { // TODO: should this be >= ?
+			if (offset_in_buffer + min_lz4_frame_size > max_lookahead)
+				return (0); 
+
+			buffer = __archive_read_filter_ahead(filter, offset_in_buffer + min_lz4_frame_size, &avail);
+			if (buffer == NULL)
+				return (0); 
+		}
+
+		magic_number = archive_le32dec(buffer + offset_in_buffer);
+	}
+
+	// We have skipped over any skippable frames. Either a regular LZ4 frame
+	// follows, or this isn't LZ4 data.
+
+	bits_checked = offset_in_buffer;
+	buffer = buffer + offset_in_buffer;
+
+	if (magic_number == LZ4_MAGICNUMBER) {
 		unsigned char flag, BD;
 
 		bits_checked += 32;
@@ -175,11 +226,16 @@ lz4_reader_bid(struct archive_read_filter_bidder *self,
 		if (BD & ~0x70)
 			return (0);
 		bits_checked += 8;
-	} else if (number == LZ4_LEGACY) {
-		bits_checked += 32;
+
+		return (bits_checked);
 	}
-	
-	return (bits_checked);
+
+	if (magic_number == LZ4_LEGACY) {
+		bits_checked += 32;
+		return (bits_checked);
+	}
+
+	return (0);
 }
 
 #if !defined(HAVE_LIBLZ4)
@@ -342,7 +398,7 @@ lz4_filter_read(struct archive_read_filter *self, const void **p)
 			return lz4_filter_read_default_stream(self, p);
 		else if (number == LZ4_LEGACY)
 			return lz4_filter_read_legacy_stream(self, p);
-		else if ((number & ~0xF) == LZ4_SKIPPABLED) {
+		else if ((number & LZ4_SKIPPABLE_MASK) == LZ4_SKIPPABLE_START) {
 			read_buf = __archive_read_filter_ahead(
 				self->upstream, 4, NULL);
 			if (read_buf == NULL) {
