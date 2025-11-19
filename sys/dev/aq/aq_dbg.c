@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 
 const aq_debug_level dbg_level_ = lvl_detail;
-const u32 dbg_categories_ = dbg_init | dbg_config | dbg_fw;
+const uint32_t dbg_categories_ = dbg_init | dbg_config | dbg_fw;
 
 
 
@@ -55,24 +55,25 @@ const u32 dbg_categories_ = dbg_init | dbg_config | dbg_fw;
 		(BIT(BIT_BEGIN - BIT_END + 1) -1))
 
 #define __field(TYPE, VAR) TYPE VAR;
-void trace_aq_tx_descr(int ring_idx, unsigned int pointer, volatile u64 descr[2])
+void
+trace_aq_tx_descr(int ring_idx, unsigned int pointer, volatile uint64_t descr[2])
 {
 #if AQ_CFG_DEBUG_LVL > 2
 	struct __entry{
 		__field(unsigned int, ring_idx)
 		__field(unsigned int, pointer)
 		/* Tx Descriptor */
-		__field(u64, data_buf_addr)
-		__field(u32, pay_len)
-		__field(u8, ct_en)
-		__field(u8, ct_idx)
-		__field(u16, rsvd2)
-		__field(u8, tx_cmd)
-		__field(u8, eop)
-		__field(u8, dd)
-		__field(u16, buf_len)
-		__field(u8, rsvd1)
-		__field(u8, des_typ)
+		__field(uint64_t, data_buf_addr)
+		__field(uint32_t, pay_len)
+		__field(uint8_t, ct_en)
+		__field(uint8_t, ct_idx)
+		__field(uint16_t, rsvd2)
+		__field(uint8_t, tx_cmd)
+		__field(uint8_t, eop)
+		__field(uint8_t, dd)
+		__field(uint16_t, buf_len)
+		__field(uint8_t, rsvd1)
+		__field(uint8_t, des_typ)
 	} entry;
 
 	entry.ring_idx = ring_idx;
@@ -98,27 +99,28 @@ void trace_aq_tx_descr(int ring_idx, unsigned int pointer, volatile u64 descr[2]
 #endif
 }
 
-void trace_aq_rx_descr(int ring_idx, unsigned int pointer, volatile u64 descr[2])
+void
+trace_aq_rx_descr(int ring_idx, unsigned int pointer, volatile uint64_t descr[2])
 {
 #if AQ_CFG_DEBUG_LVL > 2
-	u8 dd;
-	u8 eop;
-	u8 rx_stat;
-	u8 rx_estat;
-	u8 rsc_cnt;
-	u16 pkt_len;
-	u16 next_desp;
-	u16 vlan_tag;
+	uint8_t dd;
+	uint8_t eop;
+	uint8_t rx_stat;
+	uint8_t rx_estat;
+	uint8_t rsc_cnt;
+	uint16_t pkt_len;
+	uint16_t next_desp;
+	uint16_t vlan_tag;
 
-	u8 rss_type;
-	u8 pkt_type;
-	u8 rdm_err;
-	u8 avb_ts;
-	u8 rsvd;
-	u8 rx_cntl;
-	u8 sph;
-	u16 hdr_len;
-	u32 rss_hash;
+	uint8_t rss_type;
+	uint8_t pkt_type;
+	uint8_t rdm_err;
+	uint8_t avb_ts;
+	uint8_t rsvd;
+	uint8_t rx_cntl;
+	uint8_t sph;
+	uint16_t hdr_len;
+	uint32_t rss_hash;
 
 	rss_hash = DESCR_FIELD(descr[0], 63, 32);
 	hdr_len =  DESCR_FIELD(descr[0], 31, 22);
@@ -149,24 +151,26 @@ void trace_aq_rx_descr(int ring_idx, unsigned int pointer, volatile u64 descr[2]
 #endif
 }
 
-void trace_aq_tx_context_descr(int ring_idx, unsigned int pointer, volatile u64 descr[2])
+void
+trace_aq_tx_context_descr(int ring_idx, unsigned int pointer,
+    volatile uint64_t descr[2])
 {
 #if AQ_CFG_DEBUG_LVL > 2
 	struct __entry_s{
 		__field(unsigned int, ring_idx)
 		__field(unsigned int, pointer)
 		/* Tx Context Descriptor */
-		__field(u16, out_len)
-		__field(u8, tun_len)
-		__field(u64, resvd3)
-		__field(u16, mss_len)
-		__field(u8, l4_len)
-		__field(u8, l3_len)
-		__field(u8, l2_len)
-		__field(u8, ct_cmd)
-		__field(u16, vlan_tag)
-		__field(u8, ct_idx)
-		__field(u8, des_typ)
+		__field(uint16_t, out_len)
+		__field(uint8_t, tun_len)
+		__field(uint64_t, resvd3)
+		__field(uint16_t, mss_len)
+		__field(uint8_t, l4_len)
+		__field(uint8_t, l3_len)
+		__field(uint8_t, l2_len)
+		__field(uint8_t, ct_cmd)
+		__field(uint16_t, vlan_tag)
+		__field(uint8_t, ct_idx)
+		__field(uint8_t, des_typ)
 	} entry;
 	struct __entry_s *__entry = &entry;
 	__entry->ring_idx = ring_idx;
@@ -192,7 +196,8 @@ void trace_aq_tx_context_descr(int ring_idx, unsigned int pointer, volatile u64 
 #endif
 }
 
-void DumpHex(const void* data, size_t size) {
+void
+DumpHex(const void* data, size_t size) {
 #if AQ_CFG_DEBUG_LVL > 3
 	char ascii[17];
 	size_t i, j;

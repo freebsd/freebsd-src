@@ -41,130 +41,130 @@
 
 
 typedef volatile struct {
-    u32 rss_type:4;
-    u32 pkt_type:8;
-    u32 rdm_err:1;
-    u32 rsvd:6;
-    u32 rx_cntl:2;
-    u32 sph:1;
-    u32 hdr_len:10;
-    u32 rss_hash;
-    u16 dd:1;
-    u16 eop:1;
-    u16 rx_stat:4;
-    u16 rx_estat:6;
-    u16 rsc_cnt:4;
-    u16 pkt_len;
-    u16 next_desp;
-    u16 vlan;
+	uint32_t rss_type:4;
+	uint32_t pkt_type:8;
+	uint32_t rdm_err:1;
+	uint32_t rsvd:6;
+	uint32_t rx_cntl:2;
+	uint32_t sph:1;
+	uint32_t hdr_len:10;
+	uint32_t rss_hash;
+	uint16_t dd:1;
+	uint16_t eop:1;
+	uint16_t rx_stat:4;
+	uint16_t rx_estat:6;
+	uint16_t rsc_cnt:4;
+	uint16_t pkt_len;
+	uint16_t next_desp;
+	uint16_t vlan;
 } __attribute__((__packed__)) aq_rx_wb_t;
 
 typedef volatile struct {
-    union {
-        /* HW RX descriptor */
-        struct __packed {
-            u64 buf_addr;
-            u64 hdr_addr;
-        } read;
+	union {
+		/* HW RX descriptor */
+		struct __packed {
+			uint64_t buf_addr;
+			uint64_t hdr_addr;
+		} read;
 
-        /* HW RX descriptor writeback */
-        aq_rx_wb_t wb;
-    };
+		/* HW RX descriptor writeback */
+		aq_rx_wb_t wb;
+	};
 } __attribute__((__packed__)) aq_rx_desc_t;
 
 /* Hardware tx descriptor */
 typedef volatile struct {
-    u64 buf_addr;
+	uint64_t buf_addr;
 
-    union {
-        struct {
-            u32 type:3;
-            u32 :1;
-            u32 len:16;
-            u32 dd:1;
-            u32 eop:1;
-            u32 cmd:8;
-            u32 :14;
-            u32 ct_idx:1;
-            u32 ct_en:1;
-            u32 pay_len:18;
-        } __attribute__((__packed__));
-        u64 flags;
-    };
+	union {
+		struct {
+			uint32_t type:3;
+			uint32_t :1;
+			uint32_t len:16;
+			uint32_t dd:1;
+			uint32_t eop:1;
+			uint32_t cmd:8;
+			uint32_t :14;
+			uint32_t ct_idx:1;
+			uint32_t ct_en:1;
+			uint32_t pay_len:18;
+		} __attribute__((__packed__));
+		uint64_t flags;
+	};
 } __attribute__((__packed__)) aq_tx_desc_t;
 
 enum aq_tx_desc_type {
-    tx_desc_type_desc = 1,
-    tx_desc_type_ctx = 2,
+	tx_desc_type_desc = 1,
+	tx_desc_type_ctx = 2,
 };
 
 enum aq_tx_desc_cmd {
-    tx_desc_cmd_vlan = 1,
-    tx_desc_cmd_fcs = 2,
-    tx_desc_cmd_ipv4 = 4,
-    tx_desc_cmd_l4cs = 8,
-    tx_desc_cmd_lso = 0x10,
-    tx_desc_cmd_wb = 0x20,
+	tx_desc_cmd_vlan = 1,
+	tx_desc_cmd_fcs = 2,
+	tx_desc_cmd_ipv4 = 4,
+	tx_desc_cmd_l4cs = 8,
+	tx_desc_cmd_lso = 0x10,
+	tx_desc_cmd_wb = 0x20,
 };
 
 /* Hardware tx context descriptor */
 typedef volatile union {
-    struct __packed {
-        u64 flags1;
-        u64 flags2;
-    };
+	struct __packed {
+		uint64_t flags1;
+		uint64_t flags2;
+	};
 
-    struct __packed {
-        u64 :40;
-        u32 tun_len:8;
-        u32 out_len:16;
-        u32 type:3;
-        u32 idx:1;
-        u32 vlan_tag:16;
-        u32 cmd:4;
-        u32 l2_len:7;
-        u32 l3_len:9;
-        u32 l4_len:8;
-        u32 mss_len:16;
-    };
+	struct __packed {
+		uint64_t :40;
+		uint32_t tun_len:8;
+		uint32_t out_len:16;
+		uint32_t type:3;
+		uint32_t idx:1;
+		uint32_t vlan_tag:16;
+		uint32_t cmd:4;
+		uint32_t l2_len:7;
+		uint32_t l3_len:9;
+		uint32_t l4_len:8;
+		uint32_t mss_len:16;
+	};
 } __attribute__((__packed__)) aq_txc_desc_t;
 
 struct aq_ring_stats {
-	u64 rx_pkts;
-	u64 rx_bytes;
-	u64 jumbo_pkts;
-	u64 rx_err;
-	u64 irq;
+	uint64_t rx_pkts;
+	uint64_t rx_bytes;
+	uint64_t jumbo_pkts;
+	uint64_t rx_err;
+	uint64_t irq;
 
-	u64 tx_pkts;
-	u64 tx_bytes;
-	u64 tx_drops;
-	u64 tx_queue_full;
+	uint64_t tx_pkts;
+	uint64_t tx_bytes;
+	uint64_t tx_drops;
+	uint64_t tx_queue_full;
 };
 
 struct aq_dev;
 
 struct aq_ring {
-    struct aq_dev *dev;
-    int index;
+	struct aq_dev *dev;
+	int index;
 
-    struct if_irq irq;
-    int msix;
+	struct if_irq irq;
+	int msix;
 /* RX */
-    qidx_t rx_size;
-    int rx_max_frame_size;
-    void *rx_desc_area_ptr;
-    aq_rx_desc_t *rx_descs;
-    uint64_t rx_descs_phys;
+	qidx_t rx_size;
+	int rx_max_frame_size;
+	void *rx_desc_area_ptr;
+	aq_rx_desc_t *rx_descs;
+	uint64_t rx_descs_phys;
 
 /* TX */
-    int tx_head, tx_tail;
-    qidx_t tx_size;
-    void *tx_desc_area_ptr;
-    aq_tx_desc_t *tx_descs;
-    uint64_t tx_descs_phys;
+	int tx_head, tx_tail;
+	qidx_t tx_size;
+	void *tx_desc_area_ptr;
+	aq_tx_desc_t *tx_descs;
+	uint64_t tx_descs_phys;
 
-    struct aq_ring_stats stats;
+	struct aq_ring_stats stats;
 };
 
 int aq_ring_rx_init(struct aq_hw *hw, struct aq_ring *ring);
@@ -175,7 +175,7 @@ int aq_ring_tx_stop(struct aq_hw *hw, struct aq_ring *ring);
 int aq_ring_rx_start(struct aq_hw *hw, struct aq_ring *ring);
 int aq_ring_rx_stop(struct aq_hw *hw, struct aq_ring *ring);
 
-int aq_ring_tx_tail_update(struct aq_hw *hw, struct aq_ring *ring, u32 tail);
+int aq_ring_tx_tail_update(struct aq_hw *hw, struct aq_ring *ring, uint32_t tail);
 
 
 extern struct if_txrx aq_txrx;

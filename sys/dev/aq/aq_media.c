@@ -36,14 +36,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/bitstring.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
-#include <sys/bitstring.h>
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
-#include <net/ethernet.h>
 #include <net/iflib.h>
 
 #include "aq_device.h"
@@ -53,48 +53,46 @@ __FBSDID("$FreeBSD$");
 
 #define	AQ_HW_SUPPORT_SPEED(softc, s) ((softc)->link_speeds & s)
 
-void aq_mediastatus_update(aq_dev_t *aq_dev, u32 link_speed, const struct aq_hw_fc_info *fc_neg)
+void
+aq_mediastatus_update(aq_dev_t *aq_dev, uint32_t link_speed,
+const struct aq_hw_fc_info *fc_neg)
 {
 	struct aq_hw *hw = &aq_dev->hw;
 
 	aq_dev->media_active = 0;
 	if (fc_neg->fc_rx)
-	    aq_dev->media_active |= IFM_ETH_RXPAUSE;
+		aq_dev->media_active |= IFM_ETH_RXPAUSE;
 	if (fc_neg->fc_tx)
-	    aq_dev->media_active |= IFM_ETH_TXPAUSE;
+		aq_dev->media_active |= IFM_ETH_TXPAUSE;
 
 	switch(link_speed) {
 	case 100:
 		aq_dev->media_active |= IFM_100_TX | IFM_FDX;
-	break;
-
+		break;
 	case 1000:
 		aq_dev->media_active |= IFM_1000_T | IFM_FDX;
-	break;
-
+		break;
 	case 2500:
 		aq_dev->media_active |= IFM_2500_T | IFM_FDX;
-	break;
-
+		break;
 	case 5000:
 		aq_dev->media_active |= IFM_5000_T | IFM_FDX;
-	break;
-
+		break;
 	case 10000:
 		aq_dev->media_active |= IFM_10G_T | IFM_FDX;
-	break;
-
+		break;
 	case 0:
 	default:
 		aq_dev->media_active |= IFM_NONE;
-	break;
+		break;
 	}
 
 	if (hw->link_rate == aq_fw_speed_auto)
 		aq_dev->media_active |= IFM_AUTO;
 }
 
-void aq_mediastatus(if_t ifp, struct ifmediareq *ifmr)
+void
+aq_mediastatus(if_t ifp, struct ifmediareq *ifmr)
 {
 	aq_dev_t *aq_dev = iflib_get_softc(if_getsoftc(ifp));
 
@@ -107,7 +105,8 @@ void aq_mediastatus(if_t ifp, struct ifmediareq *ifmr)
 	ifmr->ifm_active |= aq_dev->media_active;
 }
 
-int aq_mediachange(if_t ifp)
+int
+aq_mediachange(if_t ifp)
 {
 	aq_dev_t          *aq_dev = iflib_get_softc(if_getsoftc(ifp));
 	struct aq_hw      *hw = &aq_dev->hw;
@@ -172,7 +171,8 @@ int aq_mediachange(if_t ifp)
 	if (!(if_getflags(ifp) & IFF_UP))
 		return (0);
 
-	if ((media_rate != old_media_rate) || (hw->link_rate != old_link_speed)) {
+	if ((media_rate != old_media_rate) ||
+	    (hw->link_rate != old_link_speed)) {
 		// re-initialize hardware with new parameters
 		aq_hw_set_link_speed(hw, hw->link_rate);
 	}
@@ -181,17 +181,20 @@ int aq_mediachange(if_t ifp)
 	return (0);
 }
 
-static void aq_add_media_types(aq_dev_t *aq_dev, int media_link_speed)
+static void
+aq_add_media_types(aq_dev_t *aq_dev, int media_link_speed)
 {
-	ifmedia_add(aq_dev->media, IFM_ETHER | media_link_speed | IFM_FDX, 0, NULL);
+	ifmedia_add(aq_dev->media, IFM_ETHER | media_link_speed | IFM_FDX, 0,
+	    NULL);
 	ifmedia_add(aq_dev->media, IFM_ETHER | media_link_speed | IFM_FDX |
-		IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE, 0, NULL);
+	    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE, 0, NULL);
 	ifmedia_add(aq_dev->media, IFM_ETHER | media_link_speed | IFM_FDX |
-		IFM_ETH_RXPAUSE, 0, NULL);
+	    IFM_ETH_RXPAUSE, 0, NULL);
 	ifmedia_add(aq_dev->media, IFM_ETHER | media_link_speed | IFM_FDX |
-		IFM_ETH_TXPAUSE, 0, NULL);
+	    IFM_ETH_TXPAUSE, 0, NULL);
 }
-void aq_initmedia(aq_dev_t *aq_dev)
+void
+aq_initmedia(aq_dev_t *aq_dev)
 {
 	AQ_DBG_ENTER();
 
@@ -213,7 +216,8 @@ void aq_initmedia(aq_dev_t *aq_dev)
 		aq_add_media_types(aq_dev, IFM_10G_T);
 
 	// link is initially autoselect
-	ifmedia_set(aq_dev->media, IFM_ETHER | IFM_AUTO | IFM_FDX | IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE);
+	ifmedia_set(aq_dev->media,
+	    IFM_ETHER | IFM_AUTO | IFM_FDX | IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE);
 
 	AQ_DBG_EXIT(0);
 }

@@ -43,24 +43,25 @@
 #include "aq_common.h"
 
 #define AQ_WRITE_REG(hw, reg, value) writel(((hw)->hw_addr + (reg)), htole32(value))
-    
+
 #define AQ_READ_REG(hw, reg) le32toh(readl((hw)->hw_addr + reg))
 
 
 #define AQ_WRITE_REG_BIT(hw, reg, msk, shift, value) do { \
-    if (msk ^ ~0) { \
-        u32 reg_old, reg_new = 0U; \
-        reg_old = AQ_READ_REG(hw, reg); \
-        reg_new = (reg_old & (~msk)) | (value << shift); \
-        if (reg_old != reg_new) \
-            AQ_WRITE_REG(hw, reg, reg_new); \
-    } else { \
-        AQ_WRITE_REG(hw, reg, value); \
-    } } while(0)
+	if (msk ^ ~0) { \
+		uint32_t reg_old, reg_new = 0U; \
+		reg_old = AQ_READ_REG(hw, reg); \
+		reg_new = (reg_old & (~msk)) | (value << shift); \
+	if (reg_old != reg_new) \
+		AQ_WRITE_REG(hw, reg, reg_new); \
+	} else { \
+		AQ_WRITE_REG(hw, reg, value); \
+	} \
+} while(0)
 
 
 #define AQ_READ_REG_BIT(a, reg, msk, shift) ( \
-    ((AQ_READ_REG(a, reg) & msk) >> shift))        
+	((AQ_READ_REG(a, reg) & msk) >> shift))
 
 #define AQ_HW_FLUSH() { (void)AQ_READ_REG(hw, 0x10); }
 
@@ -70,104 +71,104 @@
 
 /* Statistics  */
 struct aq_hw_stats {
-    u64 crcerrs;
+	uint64_t crcerrs;
 };
 
 struct aq_hw_stats_s {
-    u32 uprc;
-    u32 mprc;
-    u32 bprc;
-    u32 erpt;
-    u32 uptc;
-    u32 mptc;
-    u32 bptc;
-    u32 erpr;
-    u32 mbtc;
-    u32 bbtc;
-    u32 mbrc;
-    u32 bbrc;
-    u32 ubrc;
-    u32 ubtc;
-    u32 ptc;
-    u32 prc;
-    u32 dpc;
-    u32 cprc;
+	uint32_t uprc;
+	uint32_t mprc;
+	uint32_t bprc;
+	uint32_t erpt;
+	uint32_t uptc;
+	uint32_t mptc;
+	uint32_t bptc;
+	uint32_t erpr;
+	uint32_t mbtc;
+	uint32_t bbtc;
+	uint32_t mbrc;
+	uint32_t bbrc;
+	uint32_t ubrc;
+	uint32_t ubtc;
+	uint32_t ptc;
+	uint32_t prc;
+	uint32_t dpc;
+	uint32_t cprc;
 } __attribute__((__packed__));
 
 union ip_addr {
-    struct {
-        u8 addr[16];
-    } v6;
-    struct {
-        u8 padding[12];
-        u8 addr[4];
-    } v4;
+	struct {
+		uint8_t addr[16];
+	} v6;
+	struct {
+		uint8_t padding[12];
+		uint8_t addr[4];
+	} v4;
 } __attribute__((__packed__));
 
 struct aq_hw_fw_mbox {
-    u32 version;
-    u32 transaction_id;
-    int error;
-    struct aq_hw_stats_s stats;
+	uint32_t version;
+	uint32_t transaction_id;
+	int error;
+	struct aq_hw_stats_s stats;
 } __attribute__((__packed__));
 
 typedef struct aq_hw_fw_version {
-    union {
-        struct {
-            u16 build_number;
-            u8 minor_version;
-            u8 major_version;
-        };
-        u32 raw;
-    };
+	union {
+		struct {
+			uint16_t build_number;
+			uint8_t minor_version;
+			uint8_t major_version;
+		};
+		uint32_t raw;
+	};
 } aq_hw_fw_version;
 
 enum aq_hw_irq_type {
-    aq_irq_invalid = 0,
-    aq_irq_legacy = 1,
-    aq_irq_msi = 2,
-    aq_irq_msix = 3,
+	aq_irq_invalid = 0,
+	aq_irq_legacy = 1,
+	aq_irq_msi = 2,
+	aq_irq_msix = 3,
 };
 
 struct aq_hw_fc_info {
-    bool fc_rx;
-    bool fc_tx;
+	bool fc_rx;
+	bool fc_tx;
 };
 
 struct aq_hw {
-    void *aq_dev;
-    u8 *hw_addr;
-    u32 regs_size;
+	void *aq_dev;
+	uint8_t *hw_addr;
+	uint32_t regs_size;
 
-    u8 mac_addr[ETHER_ADDR_LEN];
+	uint8_t mac_addr[ETHER_ADDR_LEN];
 
-    enum aq_hw_irq_type irq_type;
-    
-    struct aq_hw_fc_info fc;
-    u16 link_rate;
+	enum aq_hw_irq_type irq_type;
 
-    u16 device_id;
-    u16 subsystem_vendor_id;
-    u16 subsystem_device_id;
-    u16 vendor_id;
-    u8  revision_id;
+	struct aq_hw_fc_info fc;
+	uint16_t link_rate;
 
-    /* Interrupt Moderation value. */
-    int itr;
+	uint16_t device_id;
+	uint16_t subsystem_vendor_id;
+	uint16_t subsystem_device_id;
+	uint16_t vendor_id;
+	uint8_t  revision_id;
 
-    /* Firmware-related stuff. */
-    aq_hw_fw_version fw_version;
-    const struct aq_firmware_ops* fw_ops;
-    bool rbl_enabled;
-    bool fast_start_enabled;
-    bool flash_present;
-    u32 chip_features;
-    u64 fw_caps;
+	/* Interrupt Moderation value. */
+	int itr;
+
+	/* Firmware-related stuff. */
+	aq_hw_fw_version fw_version;
+	const struct aq_firmware_ops* fw_ops;
+	bool rbl_enabled;
+	bool fast_start_enabled;
+	bool flash_present;
+	uint32_t chip_features;
+	uint64_t fw_caps;
 
 	bool lro_enabled;
 
-    u32 mbox_addr;
-    struct aq_hw_fw_mbox mbox;
+	uint32_t mbox_addr;
+	struct aq_hw_fw_mbox mbox;
 };
 
 #define aq_hw_s aq_hw
@@ -217,7 +218,7 @@ struct aq_hw {
 #define AQ_HW_CHIP_REVISION_B0  0x02000000U
 #define AQ_HW_CHIP_REVISION_B1  0x04000000U
 #define IS_CHIP_FEATURE(HW, _F_) (AQ_HW_CHIP_##_F_ & \
-    (HW)->chip_features)
+	(HW)->chip_features)
 
 #define AQ_HW_FW_VER_EXPECTED 0x01050006U
 
@@ -238,22 +239,22 @@ enum hw_atl_rx_action_with_traffic {
 };
 
 struct aq_rx_filter_vlan {
-	u8 enable;
-	u8 location;
-	u16 vlan_id;
-	u8 queue;
+	uint8_t enable;
+	uint8_t location;
+	uint16_t vlan_id;
+	uint8_t queue;
 };
 
 #define AQ_HW_VLAN_MAX_FILTERS         16U
 #define AQ_HW_ETYPE_MAX_FILTERS        16U
 
 struct aq_rx_filter_l2 {
-	u8 enable;
-	s8 queue;
-	u8 location;
-	u8 user_priority_en;
-	u8 user_priority;
-	u16 ethertype;
+	uint8_t enable;
+	int8_t queue;
+	uint8_t location;
+	uint8_t user_priority_en;
+	uint8_t user_priority;
+	uint16_t ethertype;
 };
 
 enum hw_atl_rx_ctrl_registers_l2 {
@@ -262,12 +263,12 @@ enum hw_atl_rx_ctrl_registers_l2 {
 };
 
 struct aq_rx_filter_l3l4 {
-	u32 cmd;
-	u8 location;
-	u32 ip_dst[4];
-	u32 ip_src[4];
-	u16 p_dst;
-	u16 p_src;
+	uint32_t cmd;
+	uint8_t location;
+	uint32_t ip_dst[4];
+	uint32_t ip_src[4];
+	uint16_t p_dst;
+	uint16_t p_src;
 	bool is_ipv6;
 };
 
@@ -301,22 +302,23 @@ enum hw_atl_rx_ctrl_registers_l3l4 {
 	((location) - AQ_RX_FIRST_LOC_FL3L4)
 
 enum aq_hw_fw_mpi_state_e {
-    MPI_DEINIT = 0,
-    MPI_RESET = 1,
-    MPI_INIT = 2,
-    MPI_POWER = 4,
+	MPI_DEINIT = 0,
+	MPI_RESET = 1,
+	MPI_INIT = 2,
+	MPI_POWER = 4,
 };
 
-int aq_hw_get_mac_permanent(struct aq_hw *hw, u8 *mac);
+int aq_hw_get_mac_permanent(struct aq_hw *hw, uint8_t *mac);
 
-int aq_hw_mac_addr_set(struct aq_hw *hw, u8 *mac_addr, u8 index);
+int aq_hw_mac_addr_set(struct aq_hw *hw, uint8_t *mac_addr, uint8_t index);
 
 /* link speed in mbps. "0" - no link detected */
-int aq_hw_get_link_state(struct aq_hw *hw, u32 *link_speed, struct aq_hw_fc_info *fc_neg);
+int aq_hw_get_link_state(struct aq_hw *hw, uint32_t *link_speed,
+    struct aq_hw_fc_info *fc_neg);
 
-int aq_hw_set_link_speed(struct aq_hw *hw, u32 speed);
+int aq_hw_set_link_speed(struct aq_hw *hw, uint32_t speed);
 
-int aq_hw_fw_downld_dwords(struct aq_hw *hw, u32 a, u32 *p, u32 cnt);
+int aq_hw_fw_downld_dwords(struct aq_hw *hw, uint32_t a, uint32_t *p, uint32_t cnt);
 
 int aq_hw_reset(struct aq_hw *hw);
 
@@ -324,19 +326,21 @@ int aq_hw_mpi_create(struct aq_hw *hw);
 
 int aq_hw_mpi_read_stats(struct aq_hw *hw, struct aq_hw_fw_mbox *pmbox);
 
-int aq_hw_init(struct aq_hw *hw, u8 *mac_addr, u8 adm_irq, bool msix);
+int aq_hw_init(struct aq_hw *hw, uint8_t *mac_addr, uint8_t adm_irq, bool msix);
 
 int aq_hw_start(struct aq_hw *hw);
 
 int aq_hw_interrupt_moderation_set(struct aq_hw *hw);
 
-int aq_hw_get_fw_version(struct aq_hw *hw, u32 *fw_version);
+int aq_hw_get_fw_version(struct aq_hw *hw, uint32_t *fw_version);
 
 int aq_hw_deinit(struct aq_hw *hw);
 
-int aq_hw_ver_match(const aq_hw_fw_version* ver_expected, const aq_hw_fw_version* ver_actual);
+int aq_hw_ver_match(const aq_hw_fw_version* ver_expected,
+    const aq_hw_fw_version* ver_actual);
 
-void aq_hw_set_promisc(struct aq_hw_s *self, bool l2_promisc, bool vlan_promisc, bool mc_promisc);
+void aq_hw_set_promisc(struct aq_hw_s *self, bool l2_promisc, bool vlan_promisc,
+    bool mc_promisc);
 
 int aq_hw_set_power(struct aq_hw *hw, unsigned int power_state);
 
@@ -345,11 +349,11 @@ int aq_hw_err_from_flags(struct aq_hw *hw);
 int hw_atl_b0_hw_vlan_promisc_set(struct aq_hw_s *self, bool promisc);
 
 int hw_atl_b0_hw_vlan_set(struct aq_hw_s *self,
-                  struct aq_rx_filter_vlan *aq_vlans);
+    struct aq_rx_filter_vlan *aq_vlans);
 
-int aq_hw_rss_hash_set(struct aq_hw_s *self, u8 rss_key[HW_ATL_RSS_HASHKEY_SIZE]);
-int aq_hw_rss_hash_get(struct aq_hw_s *self, u8 rss_key[HW_ATL_RSS_HASHKEY_SIZE]);
-int aq_hw_rss_set(struct aq_hw_s *self, u8 rss_table[HW_ATL_RSS_INDIRECTION_TABLE_MAX]);
+int aq_hw_rss_hash_set(struct aq_hw_s *self, uint8_t rss_key[HW_ATL_RSS_HASHKEY_SIZE]);
+int aq_hw_rss_hash_get(struct aq_hw_s *self, uint8_t rss_key[HW_ATL_RSS_HASHKEY_SIZE]);
+int aq_hw_rss_set(struct aq_hw_s *self, uint8_t rss_table[HW_ATL_RSS_INDIRECTION_TABLE_MAX]);
 int aq_hw_udp_rss_enable(struct aq_hw_s *self, bool enable);
 
 #endif //_AQ_HW_H_

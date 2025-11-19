@@ -54,40 +54,40 @@ enum aq_media_type {
 					 AQ_LINK_10G )
 
 struct aq_stats_s {
-    u64 prc;
-    u64 uprc;
-    u64 mprc;
-    u64 bprc;
-    u64 cprc;
-    u64 erpr;
-    u64 dpc;
-    u64 brc;
-    u64 ubrc;
-    u64 mbrc;
-    u64 bbrc;
+	uint64_t prc;
+	uint64_t uprc;
+	uint64_t mprc;
+	uint64_t bprc;
+	uint64_t cprc;
+	uint64_t erpr;
+	uint64_t dpc;
+	uint64_t brc;
+	uint64_t ubrc;
+	uint64_t mbrc;
+	uint64_t bbrc;
 
-    u64 ptc;
-    u64 uptc;
-    u64 mptc;
-    u64 bptc;
-    u64 erpt;
-    u64 btc;
-    u64 ubtc;
-    u64 mbtc;
-    u64 bbtc;
+	uint64_t ptc;
+	uint64_t uptc;
+	uint64_t mptc;
+	uint64_t bptc;
+	uint64_t erpt;
+	uint64_t btc;
+	uint64_t ubtc;
+	uint64_t mbtc;
+	uint64_t bbtc;
 };
 
 enum aq_dev_state_e {
-    AQ_DEV_STATE_UNLOAD,
-    AQ_DEV_STATE_PCI_STOP,
-    AQ_DEV_STATE_DOWN,
-    AQ_DEV_STATE_UP,
+	AQ_DEV_STATE_UNLOAD,
+	AQ_DEV_STATE_PCI_STOP,
+	AQ_DEV_STATE_DOWN,
+	AQ_DEV_STATE_UP,
 };
 
 struct aq_rx_filters {
-    unsigned int rule_cnt;
-    struct aq_rx_filter_vlan vlan_filters[AQ_HW_VLAN_MAX_FILTERS];
-    struct aq_rx_filter_l2 etype_filters[AQ_HW_ETYPE_MAX_FILTERS];
+	unsigned int rule_cnt;
+	struct aq_rx_filter_vlan vlan_filters[AQ_HW_VLAN_MAX_FILTERS];
+	struct aq_rx_filter_l2 etype_filters[AQ_HW_ETYPE_MAX_FILTERS];
 };
 
 struct aq_vlan_tag {
@@ -102,7 +102,7 @@ struct aq_dev {
 	if_shared_ctx_t		sctx;
 	struct ifmedia *	media;
 
-    struct aq_hw          hw;
+	struct aq_hw          hw;
 
 	enum aq_media_type	media_type;
 	uint32_t		link_speeds;
@@ -142,7 +142,7 @@ int aq_update_hw_stats(aq_dev_t *aq_dev);
 void aq_initmedia(aq_dev_t *aq_dev);
 int aq_linkstat_isr(void *arg);
 int aq_isr_rx(void *arg);
-void aq_mediastatus_update(aq_dev_t *aq_dev, u32 link_speed, const struct aq_hw_fc_info *fc_neg);
+void aq_mediastatus_update(aq_dev_t *aq_dev, uint32_t link_speed, const struct aq_hw_fc_info *fc_neg);
 void aq_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr);
 int aq_mediachange(struct ifnet *ifp);
 void aq_if_update_admin_status(if_ctx_t ctx);
