@@ -37,7 +37,7 @@ file specifies how the
 (mouse daemon) should operate. It provides ability to adjust certain
 mice parameters on per-device basis.
 .Pp
-Configuration file format is derrived from
+Configuration file format is derived from
 .Xr libinput 1
 device quirk files.
 A file may contain multiple section headers ([some identifier])
@@ -72,7 +72,7 @@ glob for the DMI modalias or the DeviceTree compatible string.
 .It MatchDevType
 One of touchpad, mouse, pointingstick, keyboard, joystick, tablet,
 tablet-pad.
-Only touchpad and mouse types are suppported.
+Only touchpad and mouse types are supported.
 .El
 .Ss List of currently available Moused tags.
 .Bl -tag -width indent
@@ -296,10 +296,10 @@ Enable natural scrolling.
 .It MousedThreeFingerDrag
 Enable dragging with three fingers.
 .It MousedSoftButton2X
-Horisontal position of 2-nd softbutton left edge in percents.
+Horizontal position of 2-nd softbutton left edge in percents.
 (0-disable)
 .It MousedSoftButton3X
-Horisontal position of 3-rd softbutton left edge in percents.
+Horizontal position of 3-rd softbutton left edge in percents.
 (0-disable)
 .It MousedSoftButtonsY
 Vertical size of softbuttons area in percents.
@@ -392,7 +392,7 @@ Predefined quirks processed before
 .Nm .
 .El
 .Sh EXAMPLES
-Set touch pressure and palm detection thesholds for PS/2 Synaptics
+Set touch pressure and palm detection thresholds for PS/2 Synaptics
 touchpad:
 .Bd -literal -offset indent
 [SynPS/2 Synaptics TouchPad]
