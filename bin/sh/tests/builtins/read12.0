@@ -1,5 +1,5 @@
-# Verify that `read -t 0 v` succeeds immediately if input is available
-# and fails immediately if not
+# Verify that `read -t 3 v` succeeds immediately if input is available
+# and times out after 3 s if not
 
 set -e
 
@@ -15,7 +15,7 @@ exec 3<fifo1
 v=original_value
 r=0
 ts=$(date +%s%3N)
-read -t 0 v <&3 || r=$?
+read -t 3 v <&3 || r=$?
 te=$(date +%s%3N)
 [ "$r" -eq 0 ]
 [ $((te-ts)) -lt 250 ]
@@ -24,9 +24,9 @@ te=$(date +%s%3N)
 v=original_value
 r=0
 ts=$(date +%s%3N)
-read -t 0 v <&3 || r=$?
+read -t 3 v <&3 || r=$?
 te=$(date +%s%3N)
 kill -TERM "$!" || :
 [ "$r" -gt 128 ] && [ "$(kill -l "$r")" = ALRM ]
-[ $((te-ts)) -lt 250 ]
+[ $((te-ts)) -gt 3000 ] && [ $((te-ts)) -lt 3250 ]
 [ -z "$v" ]
