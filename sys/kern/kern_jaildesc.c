@@ -54,7 +54,7 @@ static fo_close_t	jaildesc_close;
 static fo_fill_kinfo_t	jaildesc_fill_kinfo;
 static fo_cmp_t		jaildesc_cmp;
 
-static struct fileops jaildesc_ops = {
+static const struct fileops jaildesc_ops = {
 	.fo_read = invfo_rdwr,
 	.fo_write = invfo_rdwr,
 	.fo_truncate = invfo_truncate,
