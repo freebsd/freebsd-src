@@ -77,6 +77,8 @@ SRCS+=	snapshot.c
 
 .include "${MACHINE_CPUARCH}/Makefile.inc"
 
+SUBDIR+= slirp
+
 .if defined(BHYVE_FDT_SUPPORT)
 LIBADD+= fdt
 CFLAGS+= -I${SRCTOP}/sys/contrib/libfdt
