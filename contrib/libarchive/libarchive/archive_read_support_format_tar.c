@@ -2311,6 +2311,7 @@ pax_attribute_read_number(struct archive_read *a, size_t value_length, int64_t *
 	archive_string_init(&as);
 	r = read_bytes_to_string(a, &as, value_length, &unconsumed);
 	if (tar_flush_unconsumed(a, &unconsumed) != ARCHIVE_OK) {
+		*result = 0;
 		return (ARCHIVE_FATAL);
 	}
 	if (r < ARCHIVE_OK) {

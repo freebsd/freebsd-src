@@ -98,6 +98,8 @@ DEFINE_TEST(test_compat_lz4)
 	verify("test_compat_lz4_3.tar.lz4.uu", n);
 	/* This sample has been compressed with -B4 option. */
 	verify("test_compat_lz4_B4.tar.lz4.uu", n2);
+	/* This sample has been compresed with -B4, and has two skippable frames at the start. */
+	verify("test_compat_lz4_skippable_frames_B4.tar.lz4.uu", n2);
 	/* This sample has been compressed with -B5 option. */
 	verify("test_compat_lz4_B5.tar.lz4.uu", n2);
 	/* This sample has been compressed with -B6 option. */

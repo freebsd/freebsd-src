@@ -191,6 +191,8 @@ file_open(struct archive *a, void *client_data)
 			archive_set_error(a, errno, "Couldn't stat '%s'", mbs);
 		else
 			archive_set_error(a, errno, "Couldn't stat '%ls'", wcs);
+		close(mine->fd);
+		mine->fd = -1;
 		return (ARCHIVE_FATAL);
 	}
 
