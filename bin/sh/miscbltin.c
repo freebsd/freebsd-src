@@ -40,11 +40,14 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <unistd.h>
+
 #include <errno.h>
+#include <poll.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "shell.h"
 #include "options.h"
@@ -162,17 +165,18 @@ readcmd(int argc __unused, char **argv __unused)
 	int is_ifs;
 	int saveall = 0;
 	ptrdiff_t lastnonifs, lastnonifsws;
-	struct timeval tv;
-	char *tvptr;
-	fd_set ifds;
+	sigset_t set, oset;
+	intmax_t number, timeout;
+	struct timespec tnow, tend, tresid;
+	struct pollfd pfd;
+	char *endptr;
 	ssize_t nread;
 	int sig;
 	struct fdctx fdctx;
 
 	rflag = 0;
 	prompt = NULL;
-	tv.tv_sec = -1;
-	tv.tv_usec = 0;
+	timeout = -1;
 	while ((i = nextopt("erp:t:")) != '\0') {
 		switch(i) {
 		case 'p':
@@ -184,22 +188,29 @@ readcmd(int argc __unused, char **argv __unused)
 			rflag = 1;
 			break;
 		case 't':
-			tv.tv_sec = strtol(shoptarg, &tvptr, 0);
-			if (tvptr == shoptarg)
-				error("timeout value");
-			switch(*tvptr) {
-			case 0:
-			case 's':
-				break;
-			case 'h':
-				tv.tv_sec *= 60;
-				/* FALLTHROUGH */
-			case 'm':
-				tv.tv_sec *= 60;
-				break;
-			default:
-				error("timeout unit");
-			}
+			timeout = 0;
+			do {
+				number = strtol(shoptarg, &endptr, 0);
+				if (number < 0 || endptr == shoptarg)
+					error("timeout value");
+				switch (*endptr) {
+				case 's':
+					endptr++;
+					break;
+				case 'h':
+					number *= 60;
+					/* FALLTHROUGH */
+				case 'm':
+					number *= 60;
+					endptr++;
+					break;
+				}
+				if (*endptr != '\0' &&
+				    !(*endptr >= '0' && *endptr <= '9'))
+					error("timeout unit");
+				timeout += number;
+				shoptarg = endptr;
+			} while (*shoptarg != '\0');
 			break;
 		}
 	}
@@ -212,13 +223,33 @@ readcmd(int argc __unused, char **argv __unused)
 	if ((ifs = bltinlookup("IFS", 1)) == NULL)
 		ifs = " \t\n";
 
-	if (tv.tv_sec >= 0) {
+	if (timeout >= 0) {
 		/*
 		 * Wait for something to become available.
 		 */
-		FD_ZERO(&ifds);
-		FD_SET(0, &ifds);
-		status = select(1, &ifds, NULL, NULL, &tv);
+		pfd.fd = STDIN_FILENO;
+		pfd.events = POLLIN;
+		status = sig = 0;
+		sigfillset(&set);
+		sigprocmask(SIG_SETMASK, &set, &oset);
+		if (pendingsig) {
+			/* caught a signal already */
+			status = -1;
+		} else if (timeout == 0) {
+			status = poll(&pfd, 1, 0);
+		} else {
+			clock_gettime(CLOCK_UPTIME, &tnow);
+			tend = tnow;
+			tend.tv_sec += timeout;
+			do {
+				timespecsub(&tend, &tnow, &tresid);
+				status = ppoll(&pfd, 1, &tresid, &oset);
+				if (status >= 0 || pendingsig != 0)
+					break;
+				clock_gettime(CLOCK_UPTIME, &tnow);
+			} while (timespeccmp(&tnow, &tend, <));
+		}
+		sigprocmask(SIG_SETMASK, &oset, NULL);
 		/*
 		 * If there's nothing ready, return an error.
 		 */
