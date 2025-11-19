@@ -125,6 +125,7 @@ TESTS_SRCS= \
 	test_read_format_7zip_encryption_data.c \
 	test_read_format_7zip_encryption_header.c	\
 	test_read_format_7zip_encryption_partially.c	\
+	test_read_format_7zip_issue2765.c	\
 	test_read_format_7zip_malformed.c	\
 	test_read_format_7zip_packinfo_digests.c	\
 	test_read_format_ar.c			\
@@ -392,6 +393,7 @@ ${PACKAGE}FILES+=	test_compat_lz4_B6.tar.lz4.uu
 ${PACKAGE}FILES+=	test_compat_lz4_B6BD.tar.lz4.uu
 ${PACKAGE}FILES+=	test_compat_lz4_B7.tar.lz4.uu
 ${PACKAGE}FILES+=	test_compat_lz4_B7BD.tar.lz4.uu
+${PACKAGE}FILES+=	test_compat_lz4_skippable_frames_B4.tar.lz4.uu
 ${PACKAGE}FILES+=	test_compat_lzip_1.tlz.uu
 ${PACKAGE}FILES+=	test_compat_lzip_2.tlz.uu
 ${PACKAGE}FILES+=	test_compat_lzip_3.lz.uu
@@ -485,6 +487,7 @@ ${PACKAGE}FILES+=	test_read_format_7zip_encryption.7z.uu
 ${PACKAGE}FILES+=	test_read_format_7zip_encryption_header.7z.uu
 ${PACKAGE}FILES+=	test_read_format_7zip_encryption_partially.7z.uu
 ${PACKAGE}FILES+=	test_read_format_7zip_extract_second.7z.uu
+${PACKAGE}FILES+=	test_read_format_7zip_issue2765.7z.uu
 ${PACKAGE}FILES+=	test_read_format_7zip_lzma1.7z.uu
 ${PACKAGE}FILES+=	test_read_format_7zip_lzma1_2.7z.uu
 ${PACKAGE}FILES+=	test_read_format_7zip_lzma1_lzma2.7z.uu

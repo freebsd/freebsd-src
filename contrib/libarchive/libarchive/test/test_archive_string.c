@@ -353,6 +353,43 @@ test_archive_string_sprintf(void)
 	archive_string_free(&s);
 }
 
+static void
+test_archive_string_dirname(void)
+{
+	static struct pair { const char *str, *exp; } pairs[] = {
+		{ "",		"." },
+		{ "/",		"/" },
+		{ "//",		"/" },
+		{ "///",	"/" },
+		{ "./",		"." },
+		{ ".",		"." },
+		{ "..",		"." },
+		{ "foo",	"." },
+		{ "foo/",	"." },
+		{ "foo//",	"." },
+		{ "foo/bar",	"foo" },
+		{ "foo/bar/",	"foo" },
+		{ "foo/bar//",	"foo" },
+		{ "foo//bar",	"foo" },
+		{ "foo//bar/",	"foo" },
+		{ "foo//bar//",	"foo" },
+		{ "/foo",	"/" },
+		{ "//foo",	"/" },
+		{ "//foo/",	"/" },
+		{ "//foo//",	"/" },
+		{ 0 },
+	};
+	struct pair *pair;
+	struct archive_string s;
+
+	archive_string_init(&s);
+	for (pair = pairs; pair->str; pair++) {
+		archive_strcpy(&s, pair->str);
+		archive_string_dirname(&s);
+		assertEqualString(pair->exp, s.s);
+	}
+}
+
 DEFINE_TEST(test_archive_string)
 {
 	test_archive_string_ensure();
@@ -364,6 +401,7 @@ DEFINE_TEST(test_archive_string)
 	test_archive_string_concat();
 	test_archive_string_copy();
 	test_archive_string_sprintf();
+	test_archive_string_dirname();
 }
 
 static const char *strings[] =

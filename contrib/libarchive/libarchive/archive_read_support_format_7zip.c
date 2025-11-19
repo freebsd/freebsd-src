@@ -744,6 +744,7 @@ find_elf_data_sec(struct archive_read *a)
 	const char *h;
 	char big_endian, format_64;
 	ssize_t bytes, min_addr = SFX_MIN_ADDR;
+	ssize_t request;
 	uint64_t e_shoff, strtab_offset, strtab_size;
 	uint16_t e_shentsize, e_shnum, e_shstrndx;
 	uint16_t (*dec16)(const void *);
@@ -796,7 +797,12 @@ find_elf_data_sec(struct archive_read *a)
 		if (__archive_read_seek(a, e_shoff, SEEK_SET) < 0) {
 			break;
 		}
-		h = __archive_read_ahead(a, (size_t)e_shnum * (size_t)e_shentsize, NULL);
+		if (format_64) {
+		  request = (size_t)e_shnum * (size_t)e_shentsize + 0x28;
+		} else {
+		  request = (size_t)e_shnum * (size_t)e_shentsize + 0x18;
+		}
+		h = __archive_read_ahead(a, request, &bytes);
 		if (h == NULL) {
 			break;
 		}

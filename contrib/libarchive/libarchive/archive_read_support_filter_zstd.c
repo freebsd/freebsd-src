@@ -110,24 +110,67 @@ zstd_bidder_bid(struct archive_read_filter_bidder *self,
 {
 	const unsigned char *buffer;
 	ssize_t avail;
-	unsigned prefix;
 
-	/* Zstd frame magic values */
-	unsigned zstd_magic = 0xFD2FB528U;
-	unsigned zstd_magic_skippable_start = 0x184D2A50U;
-	unsigned zstd_magic_skippable_mask = 0xFFFFFFF0;
+	// Zstandard skippable frames contain a 4 byte magic number followed by
+	// a 4 byte frame data size, then that number of bytes of data. Regular
+	// frames contain a 4 byte magic number followed by a 2-14 byte frame
+	// header, some data, and a 3 byte end marker.
+	ssize_t min_zstd_frame_size = 8;
 
-	(void) self; /* UNUSED */
+	ssize_t offset_in_buffer = 0;
+	ssize_t max_lookahead = 64 * 1024;
 
-	buffer = __archive_read_filter_ahead(filter, 4, &avail);
+	// Zstd regular frame magic number.
+	uint32_t zstd_magic = 0xFD2FB528U;
+
+	// Note: Zstd and LZ4 skippable frame magic numbers are identical.
+	// To differentiate these two, we need to look for a non-skippable
+	// frame.
+	uint32_t zstd_magic_skippable_start = 0x184D2A50;
+	uint32_t zstd_magic_skippable_mask  = 0xFFFFFFF0;
+
+	(void) self; // UNUSED
+
+	buffer = __archive_read_filter_ahead(filter, min_zstd_frame_size, &avail);
 	if (buffer == NULL)
 		return (0);
 
-	prefix = archive_le32dec(buffer);
-	if (prefix == zstd_magic)
-		return (32);
-	if ((prefix & zstd_magic_skippable_mask) == zstd_magic_skippable_start)
-		return (32);
+	uint32_t magic_number = archive_le32dec(buffer);
+
+	while ((magic_number & zstd_magic_skippable_mask) == zstd_magic_skippable_start) {
+
+		offset_in_buffer += 4; // Skip over the magic number
+
+		// Ensure that we can read another 4 bytes.
+		if (offset_in_buffer + 4 > avail) {
+			buffer = __archive_read_filter_ahead(filter, offset_in_buffer + 4, &avail);
+			if (buffer == NULL)
+				return (0);
+		}
+
+		uint32_t frame_data_size = archive_le32dec(buffer + offset_in_buffer);
+
+		// Skip over the 4 frame data size bytes, plus the value stored there.
+		offset_in_buffer += 4 + frame_data_size;
+
+		// There should be at least one more frame if this is zstd data.
+		if (offset_in_buffer + min_zstd_frame_size > avail) {
+			if (offset_in_buffer + min_zstd_frame_size > max_lookahead)
+				return (0);
+
+			buffer = __archive_read_filter_ahead(filter, offset_in_buffer + min_zstd_frame_size, &avail);
+			if (buffer == NULL)
+				return (0);
+		}
+
+		magic_number = archive_le32dec(buffer + offset_in_buffer);
+	}
+
+	// We have skipped over any skippable frames. Either a regular zstd frame
+	// follows, or this isn't zstd data.
+
+	if (magic_number == zstd_magic)
+		return (offset_in_buffer + 4);
 
 	return (0);
 }

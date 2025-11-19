@@ -192,6 +192,10 @@ void	archive_string_vsprintf(struct archive_string *, const char *,
 void	archive_string_sprintf(struct archive_string *, const char *, ...)
 	    __LA_PRINTF(2, 3);
 
+/* Equivalent to dirname(3) */
+struct archive_string *
+archive_string_dirname(struct archive_string *);
+
 /* Translates from MBS to Unicode. */
 /* Returns non-zero if conversion failed in any way. */
 int archive_wstring_append_from_mbs(struct archive_wstring *dest,
