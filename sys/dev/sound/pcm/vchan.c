@@ -47,13 +47,6 @@
 #define FMTLIST_OFFSET		4
 #define DIGFMTS_MAX		2
 
-#ifdef SND_DEBUG
-static int snd_passthrough_verbose = 0;
-SYSCTL_INT(_hw_snd, OID_AUTO, passthrough_verbose, CTLFLAG_RWTUN,
-	&snd_passthrough_verbose, 0, "passthrough verbosity");
-
-#endif
-
 struct vchan_info {
 	struct pcm_channel *channel;
 	struct pcmchan_caps caps;
@@ -723,11 +716,7 @@ vchan_destroy(struct pcm_channel *c)
 }
 
 int
-#ifdef SND_DEBUG
-vchan_passthrough(struct pcm_channel *c, const char *caller)
-#else
 vchan_sync(struct pcm_channel *c)
-#endif
 {
 	int ret;
 
@@ -743,13 +732,6 @@ vchan_sync(struct pcm_channel *c)
 	c->flags &= ~(CHN_F_DIRTY | CHN_F_PASSTHROUGH);
 	if (ret != 0)
 		c->flags |= CHN_F_DIRTY;
-
-#ifdef SND_DEBUG
-	if (snd_passthrough_verbose) {
-		device_printf(c->dev, "%s(%s/%s) %s() -> re-sync err=%d\n",
-		    __func__, c->name, c->comm, caller, ret);
-	}
-#endif
 
 	return (ret);
 }
