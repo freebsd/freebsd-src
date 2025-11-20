@@ -438,7 +438,7 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 {
 	struct snd_dbuf *bs = c->bufsoft;
 	void *off;
-	int ret, timeout, sz, t, p;
+	int ret, timeout, sz, p;
 
 	CHN_LOCKASSERT(c);
 
@@ -446,24 +446,17 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 	timeout = chn_timeout * hz;
 
 	while (ret == 0 && buf->uio_resid > 0) {
+		p = sndbuf_getfreeptr(bs);
 		sz = min(buf->uio_resid, sndbuf_getfree(bs));
+		sz = min(sz, bs->bufsize - p);
 		if (sz > 0) {
-			/*
-			 * The following assumes that the free space in
-			 * the buffer can never be less around the
-			 * unlock-uiomove-lock sequence.
-			 */
-			while (ret == 0 && sz > 0) {
-				p = sndbuf_getfreeptr(bs);
-				t = min(sz, bs->bufsize - p);
-				off = sndbuf_getbufofs(bs, p);
-				CHN_UNLOCK(c);
-				ret = uiomove(off, t, buf);
-				CHN_LOCK(c);
-				sz -= t;
-				sndbuf_acquire(bs, NULL, t);
-			}
-			ret = 0;
+			off = sndbuf_getbufofs(bs, p);
+			sndbuf_acquire(bs, NULL, sz);
+			CHN_UNLOCK(c);
+			ret = uiomove(off, sz, buf);
+			CHN_LOCK(c);
+			if (ret != 0)
+				break;
 			if (CHN_STOPPED(c) && !(c->flags & CHN_F_NOTRIGGER)) {
 				ret = chn_start(c, 0);
 				if (ret != 0)
@@ -483,13 +476,7 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 			ret = EAGAIN;
 		} else {
    			ret = chn_sleep(c, timeout);
-			if (ret == EAGAIN) {
-				ret = EINVAL;
-				c->flags |= CHN_F_DEAD;
-				device_printf(c->dev, "%s(): %s: "
-				    "play interrupt timeout, channel dead\n",
-				    __func__, c->name);
-			} else if (ret == ERESTART || ret == EINTR)
+			if (ret == ERESTART || ret == EINTR)
 				c->flags |= CHN_F_ABORTING;
 		}
 	}
@@ -552,7 +539,7 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 {
 	struct snd_dbuf *bs = c->bufsoft;
 	void *off;
-	int ret, timeout, sz, t, p;
+	int ret, timeout, sz, p;
 
 	CHN_LOCKASSERT(c);
 
@@ -568,35 +555,22 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 	timeout = chn_timeout * hz;
 
 	while (ret == 0 && buf->uio_resid > 0) {
+		p = sndbuf_getreadyptr(bs);
 		sz = min(buf->uio_resid, sndbuf_getready(bs));
+		sz = min(sz, bs->bufsize - p);
 		if (sz > 0) {
-			/*
-			 * The following assumes that the free space in
-			 * the buffer can never be less around the
-			 * unlock-uiomove-lock sequence.
-			 */
-			while (ret == 0 && sz > 0) {
-				p = sndbuf_getreadyptr(bs);
-				t = min(sz, bs->bufsize - p);
-				off = sndbuf_getbufofs(bs, p);
-				CHN_UNLOCK(c);
-				ret = uiomove(off, t, buf);
-				CHN_LOCK(c);
-				sz -= t;
-				sndbuf_dispose(bs, NULL, t);
-			}
-			ret = 0;
+			off = sndbuf_getbufofs(bs, p);
+			sndbuf_dispose(bs, NULL, sz);
+			CHN_UNLOCK(c);
+			ret = uiomove(off, sz, buf);
+			CHN_LOCK(c);
+			if (ret != 0)
+				break;
 		} else if (c->flags & (CHN_F_NBIO | CHN_F_NOTRIGGER))
 			ret = EAGAIN;
 		else {
    			ret = chn_sleep(c, timeout);
-			if (ret == EAGAIN) {
-				ret = EINVAL;
-				c->flags |= CHN_F_DEAD;
-				device_printf(c->dev, "%s(): %s: "
-				    "record interrupt timeout, channel dead\n",
-				    __func__, c->name);
-			} else if (ret == ERESTART || ret == EINTR)
+			if (ret == ERESTART || ret == EINTR)
 				c->flags |= CHN_F_ABORTING;
 		}
 	}
