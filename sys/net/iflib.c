@@ -7188,9 +7188,13 @@ iflib_simple_transmit(if_t ifp, struct mbuf *m)
 
 
 	ctx = if_getsoftc(ifp);
-	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING)
-		return (EBUSY);
+	if (__predict_false((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0
+		|| !LINK_ACTIVE(ctx))) {
+		DBG_COUNTER_INC(tx_frees);
+		m_freem(m);
+		return (ENETDOWN);
+	}
+
 	txq = iflib_simple_select_queue(ctx, m);
 	mtx_lock(&txq->ift_mtx);
 	error = iflib_encap(txq, &m);
