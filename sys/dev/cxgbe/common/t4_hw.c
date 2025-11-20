@@ -3282,7 +3282,9 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x477d4, 0x477fc,
 		0x48000, 0x48004,
 		0x48018, 0x4801c,
-		0x49304, 0x493f0,
+		0x49304, 0x49320,
+		0x4932c, 0x4932c,
+		0x49334, 0x493f0,
 		0x49400, 0x49410,
 		0x49460, 0x494f4,
 		0x50000, 0x50084,
@@ -3305,7 +3307,9 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x515f0, 0x515f4,
 		0x58000, 0x58004,
 		0x58018, 0x5801c,
-		0x59304, 0x593f0,
+		0x59304, 0x59320,
+		0x5932c, 0x5932c,
+		0x59334, 0x593f0,
 		0x59400, 0x59410,
 		0x59460, 0x594f4,
 	};
@@ -6176,11 +6180,6 @@ static bool mem_intr_handler(struct adapter *adap, int idx, int flags)
 			snprintf(rname, sizeof(rname), "MC%u_DDRCTL_INT_CAUSE", i);
 			ii.cause_reg = MC_T7_REG(A_MC_P_DDRCTL_INT_CAUSE, i);
 			ii.enable_reg = MC_T7_REG(A_MC_P_DDRCTL_INT_ENABLE, i);
-			fatal |= t4_handle_intr(adap, &ii, 0, flags);
-
-			snprintf(rname, sizeof(rname), "MC%u_ECC_UE_INT_CAUSE", i);
-			ii.cause_reg = MC_T7_REG(A_MC_P_ECC_UE_INT_CAUSE, i);
-			ii.enable_reg = MC_T7_REG(A_MC_P_ECC_UE_INT_ENABLE, i);
 			fatal |= t4_handle_intr(adap, &ii, 0, flags);
 		}
 		break;
