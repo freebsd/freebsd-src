@@ -114,7 +114,8 @@
 
 	reg[0x7dc0] = 0x0e2f8849	# TP_SHIFT_CNT
 
-    reg[0x46004] = 0x3/0x3      #Crypto core reset
+    reg[0x46004] = 0x3/0x3      # Crypto core reset
+	reg[0x46000] = 0xa/0xe      # 16K ESH Hi Extraction window
 
 	#Tick granularities in kbps
 	tsch_ticks = 100000, 10000, 1000, 10
@@ -192,14 +193,15 @@
 	reg[0x19250] = 0x0/0x3   # Termimate_msg = 0
 	                         # Terminate_with_err = 0
 
-	gc_disable = 3 # 3 - disable gc for hma/mc1 and mc0,
+	#Enabling GC for HMA
+	gc_disable = 1 # 3 - disable gc for hma/mc1 and mc0,
 				    # 2 - disable gc for mc1/hma enable mc0,
 				    # 1 - enable gc for mc1/hma disable mc0,
 				    # 0 - enable gc for mc1/hma and for mc0,
 				    # default gc enabled.
 
 	# HMA configuration (uncomment following lines to enable HMA)
-	hma_size = 92 			# Size (in MBs) of host memory expected
+	hma_size = 128 			# Size (in MBs) of host memory expected
 	hma_regions = 	iscsi,rrq,tls,ddp,pmrx,stag,pbl,rq	# What all regions to place in host memory
 
     #mc[0]=0
@@ -429,7 +431,7 @@
 	nethofld = 1024		# number of user mode ethernet flow contexts
 	ncrypto_lookaside = 32
 	nclip = 320		# number of clip region entries
-	nfilter = 480		# number of filter region entries
+	nfilter = 448		# number of filter region entries
 	nserver = 480		# number of server region entries
 	nhash = 12288		# number of hash region entries
 	nhpfilter = 64		# number of high priority filter region entries
@@ -505,12 +507,20 @@
 	nfilter = 16		# number of filter region entries
 	#nhpfilter = 16		# number of high priority filter region entries
 	niqflint = 34		# NPORTS*NCPUS + NMSIX_EXTRA
-	nethctrl = 32		# NPORTS*NCPUS
-	neq = 64		# NPORTS*NCPUS * 2 (FL, ETHCTRL/TX)
+	nethctrl = 128		# NPORTS*NCPUS
+	neq = 256		# NPORTS*NCPUS * 2 (FL, ETHCTRL/TX)
 	nserver = 16
 	nhash = 1024
 	tp_l2t = 512
 	protocol = nic_vm, ofld, rddp, rdmac, tlskeys, ipsec_inline, rocev2, nvme_tcp
+	tp_ddp = 1
+	tp_ddp_iscsi = 1
+	tp_tls_key = 1
+	tp_stag = 1
+	tp_pbl = 3
+	tp_rq = 4
+	tp_rrq = 2
+	tp_srq = 96
 
 # The following function, 1023, is not an actual PCIE function but is used to
 # configure and reserve firmware internal resources that come from the global
@@ -523,7 +533,7 @@
 	cmask = all		# access to all channels
 	pmask = all		# access to all four ports ...
 	nexactf = 8		# NPORTS + DCBX +
-	nfilter = 16		# number of filter region entries
+	nfilter = 48		# number of filter region entries
 	#nhpfilter = 0		# number of high priority filter region entries
 
 
@@ -594,7 +604,7 @@
 #		Bytes)
 #
 [port "0"]
-	#dcb = ppp, dcbx, b2b	# configure for DCB PPP and enable DCBX offload
+	#dcb = ppp, dcbx	# configure for DCB PPP and enable DCBX offload
 	hwm = 30
 	lwm = 15
 	dwm = 30
@@ -604,7 +614,7 @@
 
 
 [port "1"]
-	#dcb = ppp, dcbx, b2b
+	#dcb = ppp, dcbx
 	hwm = 30
 	lwm = 15
 	dwm = 30
@@ -613,7 +623,7 @@
 	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [port "2"]
-	#dcb = ppp, dcbx, b2b	# configure for DCB PPP and enable DCBX offload
+	#dcb = ppp, dcbx	# configure for DCB PPP and enable DCBX offload
 	hwm = 30
 	lwm = 15
 	dwm = 30
@@ -623,7 +633,7 @@
 
 
 [port "3"]
-	#dcb = ppp, dcbx, b2b
+	#dcb = ppp, dcbx
 	hwm = 30
 	lwm = 15
 	dwm = 30
@@ -633,7 +643,7 @@
 
 [fini]
 	version = 0x1425001d
-	checksum = 0x684e23fb
+	checksum = 0x3671da3b
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104
