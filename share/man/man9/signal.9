@@ -306,7 +306,7 @@ to the process or process group
 .Fa sigiop->sio_pgid .
 If
 .Fa checkctty
-is non-zero, the signal is only delivered to processes in the process group
+is nonzero, the signal is only delivered to processes in the process group
 that have a controlling terminal.
 If
 .Fa sigiop->sio_pgid
@@ -418,7 +418,7 @@ The
 .Fn SIGSETNEQ ,
 and
 .Fn SIGPENDING
-macros all return non-zero (true) if the condition they are checking
+macros all return nonzero (true) if the condition they are checking
 is found to be true; otherwise, zero (false) is returned.
 .Pp
 The
