@@ -85,6 +85,11 @@ struct mmap_req {
 uint64_t at2cnpflags(u_int at_flags, u_int mask);
 int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
 	    size_t buflen, size_t path_max);
+int	kern___mac_get_fd(struct thread *td, int fd, void *mac_p);
+int	kern___mac_get_pid(struct thread *td, pid_t pid, void *mac_p);
+int	kern___mac_get_proc(struct thread *td, void *mac_p);
+int	kern___mac_set_fd(struct thread *td, int fd, void *mac_p);
+int	kern___mac_set_proc(struct thread *td, void *mac_p);
 int	kern_abort2(struct thread *td, const char *why, int nargs,
 	    void **uargs);
 int	kern_accept(struct thread *td, int s, struct sockaddr *sa,
@@ -239,6 +244,12 @@ int	kern_listen(struct thread *td, int s, int backlog);
 int	kern_lseek(struct thread *td, int fd, off_t offset, int whence);
 int	kern_lutimes(struct thread *td, const char *path, enum uio_seg pathseg,
 	    const struct timeval *tptr, enum uio_seg tptrseg);
+int	kern_mac_get_path(struct thread *td, const char *path_p,
+	    struct mac *mac_p, int follow);
+int	kern_mac_set_path(struct thread *td, const char *path_p,
+	    struct mac *mac_p, int follow);
+int	kern_mac_syscall(struct thread *td, const char *policy, int call,
+	    void *arg);
 int	kern_madvise(struct thread *td, uintptr_t addr, size_t len, int behav);
 int	kern_membarrier(struct thread *td, int cmd, unsigned flags,
 	    int cpu_id);
