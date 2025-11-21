@@ -32,7 +32,6 @@ multi_read_head()
 	atf_set descr 'Test multiple readers on /dev/bpf'
 	atf_set require.user root
 }
-
 multi_read_body()
 {
 	vnet_init
@@ -55,8 +54,65 @@ multi_read_body()
 	# Now let this run for 10 seconds
 	sleep 10
 }
-
 multi_read_cleanup()
+{
+	vnet_cleanup
+}
+
+atf_test_case "inject" "cleanup"
+inject_head()
+{
+	atf_set descr 'Catch packets, re-inject and check'
+	atf_set require.user root
+}
+inject_body()
+{
+	vnet_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a inet 192.0.2.1/24 up
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b inet 192.0.2.2/24 up
+
+	in=$(pwd)/$(mktemp in.pcap.XXXXXXXXXX)
+	in2=$(pwd)/$(mktemp in2.pcap.XXXXXXXXXX)
+	out=$(pwd)/$(mktemp out.pcap.XXXXXXXXXX)
+
+	# write dump on jail side, with "in" direction
+	jexec alcatraz $(atf_get_srcdir)/pcap-test \
+	    capture epair0b $in 3 in > out & pid=$!
+	while ! jexec alcatraz netstat -B | grep -q epair0b.*pcap-test; do
+		sleep 0.01;
+	done
+	atf_check -s exit:0 -o ignore ping -c 3 -i 0.1 192.0.2.2
+	atf_check -s exit:0 sh -c "wait $pid; exit $?"
+	atf_check -s exit:0 -o empty cat out
+
+	# inject dump on host side, recording on both sides
+	jexec alcatraz $(atf_get_srcdir)/pcap-test \
+	    capture epair0b $in2 3 in > jout & jpid=$!
+	while ! jexec alcatraz netstat -B | grep -q epair0b.*pcap-test; do
+		sleep 0.01;
+	done
+	$(atf_get_srcdir)/pcap-test \
+	    capture epair0a $out 3 out > hout & hpid=$!
+	while ! netstat -B | grep -q epair0a.*pcap-test; do
+		sleep 0.01;
+	done
+	atf_check -s exit:0 -o empty -e empty $(atf_get_srcdir)/pcap-test \
+	    inject epair0a $in 3
+	atf_check -s exit:0 sh -c "wait $jpid; exit $?"
+	atf_check -s exit:0 -o empty cat jout
+	atf_check -s exit:0 sh -c "wait $hpid; exit $?"
+	atf_check -s exit:0 -o empty cat hout
+
+	# all 3 dumps should be equal
+	atf_check -s exit:0 -o empty -e empty $(atf_get_srcdir)/pcap-test \
+	    compare $in $out
+	atf_check -s exit:0 -o empty -e empty $(atf_get_srcdir)/pcap-test \
+	    compare $in $in2
+}
+inject_cleanup()
 {
 	vnet_cleanup
 }
@@ -64,4 +120,5 @@ multi_read_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case "multi_read"
+	atf_add_test_case "inject"
 }
