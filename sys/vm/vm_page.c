@@ -84,6 +84,7 @@
 #include <sys/sleepqueue.h>
 #include <sys/sbuf.h>
 #include <sys/sched.h>
+#include <sys/sf_buf.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
@@ -144,6 +145,13 @@ static unsigned long nofreeq_size;
 SYSCTL_ULONG(_vm_stats_page, OID_AUTO, nofreeq_size, CTLFLAG_RD,
     &nofreeq_size, 0,
     "Size of the nofree queue");
+
+#ifdef INVARIANTS
+bool vm_check_pg_zero = false;
+SYSCTL_BOOL(_debug, OID_AUTO, vm_check_pg_zero, CTLFLAG_RWTUN,
+    &vm_check_pg_zero, 0,
+    "verify content of freed zero-filled pages");
+#endif
 
 /*
  * bogus page -- for I/O to/from partially complete buffers,
@@ -4050,14 +4058,24 @@ vm_page_free_prep(vm_page_t m)
 	 */
 	atomic_thread_fence_acq();
 
-#if defined(DIAGNOSTIC) && defined(PHYS_TO_DMAP)
-	if (PMAP_HAS_DMAP && (m->flags & PG_ZERO) != 0) {
-		uint64_t *p;
+#ifdef INVARIANTS
+	if (vm_check_pg_zero && (m->flags & PG_ZERO) != 0) {
+		struct sf_buf *sf;
+		unsigned long *p;
 		int i;
-		p = (uint64_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-		for (i = 0; i < PAGE_SIZE / sizeof(uint64_t); i++, p++)
-			KASSERT(*p == 0, ("vm_page_free_prep %p PG_ZERO %d %jx",
-			    m, i, (uintmax_t)*p));
+
+		sched_pin();
+		sf = sf_buf_alloc(m, SFB_CPUPRIVATE | SFB_NOWAIT);
+		if (sf != NULL) {
+			p = (unsigned long *)sf_buf_kva(sf);
+			for (i = 0; i < PAGE_SIZE / sizeof(*p); i++, p++) {
+				KASSERT(*p == 0,
+				    ("zerocheck failed page %p PG_ZERO %d %jx",
+				    m, i, (uintmax_t)*p));
+			}
+			sf_buf_free(sf);
+		}
+		sched_unpin();
 	}
 #endif
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
