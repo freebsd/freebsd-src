@@ -219,13 +219,13 @@ int	kern_kldstat(struct thread *td, int fileid, struct kld_file_stat *stat);
 int	kern_kldunload(struct thread *td, int fileid, int flags);
 int	kern_kmq_notify(struct thread *, int, struct sigevent *);
 int	kern_kmq_open(struct thread *, const char *, int, mode_t,
-		const struct mq_attr *);
+	    const struct mq_attr *);
 int	kern_kmq_setattr(struct thread *, int, const struct mq_attr *,
-		struct mq_attr *);
+	    struct mq_attr *);
 int	kern_kmq_timedreceive(struct thread *, int, char *,
-		size_t, unsigned int *, const struct timespec *);
+	    size_t, unsigned int *, const struct timespec *);
 int	kern_kmq_timedsend(struct thread *td, int, const char *,
-		size_t, unsigned int, const struct timespec *);
+	    size_t, unsigned int, const struct timespec *);
 int	kern_linkat(struct thread *td, int fd1, int fd2, const char *path1,
 	    const char *path2, enum uio_seg segflg, int flag);
 int	kern_listen(struct thread *td, int s, int backlog);
@@ -411,7 +411,7 @@ int	kern_kexec_load(struct thread *td, u_long entry,
 
 struct freebsd11_dirent;
 
-int	freebsd11_kern_getdirentries(struct thread *td, int fd, char *ubuf, u_int
-	    count, long *basep, void (*func)(struct freebsd11_dirent *));
+int	freebsd11_kern_getdirentries(struct thread *td, int fd, char *ubuf,
+	    u_int count, long *basep, void (*func)(struct freebsd11_dirent *));
 
 #endif /* !_SYS_SYSCALLSUBR_H_ */
