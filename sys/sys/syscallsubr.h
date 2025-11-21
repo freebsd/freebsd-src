@@ -312,6 +312,7 @@ int	kern_openatfp(struct thread *td, int dirfd, const char *path,
 	    enum uio_seg pathseg, int flags, int mode, struct file **fpp);
 int	kern_pathconf(struct thread *td, const char *path,
 	    enum uio_seg pathseg, int name, u_long flags, long *valuep);
+int	kern_pdfork(struct thread *td, int *fdp, int flags);
 int	kern_pipe(struct thread *td, int fildes[2], int flags,
 	    struct filecaps *fcaps1, struct filecaps *fcaps2);
 int	kern_poll(struct thread *td, struct pollfd *fds, u_int nfds,
