@@ -1289,7 +1289,7 @@ m_align(struct mbuf *m, int len)
 
 /* Return the rcvif of a packet header. */
 static __inline struct ifnet *
-m_rcvif(struct mbuf *m)
+m_rcvif(const struct mbuf *m)
 {
 
 	M_ASSERTPKTHDR(m);
