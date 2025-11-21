@@ -1923,7 +1923,7 @@ update_interfaces(
 
 			msyslog(LOG_ERR,
 				"cannot bind address %s",
-				stoa(&ep->sin));
+				stoa(&ep2->sin));
 		}
 		free(ep2);
 	}
