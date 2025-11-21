@@ -70,6 +70,15 @@ struct uio;
 struct vm_map;
 struct vmspace;
 
+struct g_kevent_args {
+	int	fd;
+	const void *changelist;
+	int	nchanges;
+	void	*eventlist;
+	int	nevents;
+	const struct timespec *timeout;
+};
+
 typedef int (*mmap_check_fp_fn)(struct file *, int, int, int);
 
 struct mmap_req {
@@ -220,6 +229,8 @@ int	kern_kenv(struct thread *td, int what, const char *namep, char *val,
 	    int vallen);
 int	kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 	    struct kevent_copyops *k_ops, const struct timespec *timeout);
+int	kern_kevent_generic(struct thread *td, struct g_kevent_args *uap,
+	    struct kevent_copyops *k_ops, const char *struct_name);
 int	kern_kevent_anonymous(struct thread *td, int nevents,
 	    struct kevent_copyops *k_ops);
 int	kern_kevent_fp(struct thread *td, struct file *fp, int nchanges,
