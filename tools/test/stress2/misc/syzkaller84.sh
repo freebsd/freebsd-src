@@ -398,5 +398,6 @@ kldstat | grep -q sctp || { kldload sctp.ko && loaded=1; }
 timeout 3m /tmp/$prog > /dev/null 2>&1
 
 rm -rf /tmp/$prog /tmp/$prog.c /tmp/$prog.core $work
+set +u
 [ $loaded ] && kldunload sctp.ko
 exit 0
