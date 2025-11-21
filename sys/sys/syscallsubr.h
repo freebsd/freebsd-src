@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <sys/_cpuset.h>
 #include <sys/_domainset.h>
+#include <sys/_ffcounter.h>
 #include <sys/_uio.h>
 #include <sys/mac.h>
 #include <sys/mount.h>
@@ -39,6 +40,7 @@
 
 struct __wrusage;
 struct cpuset_copy_cb;
+struct ffclock_estimate;
 struct file;
 struct filecaps;
 enum idtype;
@@ -182,6 +184,11 @@ int	kern_fchownat(struct thread *td, int fd, const char *path,
 	    enum uio_seg pathseg, int uid, int gid, int flag);
 int	kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg);
 int	kern_fcntl_freebsd(struct thread *td, int fd, int cmd, intptr_t arg);
+int	kern_ffclock_getcounter(struct thread *td, ffcounter *ffcountp);
+int	kern_ffclock_getestimate(struct thread *td,
+	    struct ffclock_estimate *ucest);
+int	kern_ffclock_setestimate(struct thread *td,
+	    const struct ffclock_estimate *ucest);
 int	kern_fhopen(struct thread *td, const struct fhandle *u_fhp, int flags);
 int	kern_fhstat(struct thread *td, fhandle_t fh, struct stat *buf);
 int	kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf);
