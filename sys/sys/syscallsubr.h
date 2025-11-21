@@ -260,6 +260,8 @@ int	kern_kmq_timedsend(struct thread *td, int, const char *,
 	    size_t, unsigned int, const struct timespec *);
 int	kern_kqueue(struct thread *td, int flags, bool cponfork,
 	    struct filecaps *fcaps);
+int	kern_ktrace(struct thread *td, const char *fname, int uops, int ufacs,
+	    int pid);
 int	kern_linkat(struct thread *td, int fd1, int fd2, const char *path1,
 	    const char *path2, enum uio_seg segflg, int flag);
 int	kern_listen(struct thread *td, int s, int backlog);
@@ -437,6 +439,7 @@ int	kern_utimesat(struct thread *td, int fd, const char *path,
 int	kern_utimensat(struct thread *td, int fd, const char *path,
 	    enum uio_seg pathseg, const struct timespec *tptr,
 	    enum uio_seg tptrseg, int flag);
+int	kern_utrace(struct thread *td, const void *addr, size_t len);
 int	kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	    struct rusage *rup);
 int	kern_wait4(struct thread *td, int pid, int *statusp, int options,
