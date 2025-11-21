@@ -99,7 +99,7 @@ struct tr_info {
 	int regtype, regid, irqid;
 	void *ih;
 
-	struct mtx *lock;
+	struct mtx lock;
 
 	u_int32_t hwchns;
 	u_int32_t playchns;
@@ -209,7 +209,7 @@ tr_rdcd(kobj_t obj, void *devinfo, int regno)
 	i = j = 0;
 
 	regno &= 0x7f;
-	snd_mtxlock(tr->lock);
+	mtx_lock(&tr->lock);
 	if (tr->type == ALI_PCI_ID) {
 		u_int32_t chk1, chk2;
 		j = trw;
@@ -229,7 +229,7 @@ tr_rdcd(kobj_t obj, void *devinfo, int regno)
 		for (i=TR_TIMEOUT_CDC; (i > 0) && (j & trw); i--)
 		       	j=tr_rd(tr, treg, 4);
 	}
-	snd_mtxunlock(tr->lock);
+	mtx_unlock(&tr->lock);
 	if (i == 0) printf("codec timeout during read of register %x\n", regno);
 	return (j >> TR_CDC_DATA) & 0xffff;
 }
@@ -266,7 +266,7 @@ tr_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 	printf("tr_wrcd: reg %x was %x", regno, tr_rdcd(devinfo, regno));
 #endif
 	j=trw;
-	snd_mtxlock(tr->lock);
+	mtx_lock(&tr->lock);
 	if (tr->type == ALI_PCI_ID) {
 		j = trw;
 		for (i = TR_TIMEOUT_CDC; (i > 0) && (j & trw); i--)
@@ -290,7 +290,7 @@ tr_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 #if 0
 	printf(" - wrote %x, now %x\n", data, tr_rdcd(devinfo, regno));
 #endif
-	snd_mtxunlock(tr->lock);
+	mtx_unlock(&tr->lock);
 	if (i==0) printf("codec timeout writing %x, data %x\n", regno, data);
 	return (i > 0)? 0 : -1;
 }
@@ -336,7 +336,7 @@ tr_enaint(struct tr_chinfo *ch, int enable)
        	u_int32_t i, reg;
 	int bank, chan;
 
-	snd_mtxlock(tr->lock);
+	mtx_lock(&tr->lock);
 	bank = (ch->index & 0x20) ? 1 : 0;
 	chan = ch->index & 0x1f;
 	reg = bank? TR_REG_INTENB : TR_REG_INTENA;
@@ -347,7 +347,7 @@ tr_enaint(struct tr_chinfo *ch, int enable)
 
 	tr_clrint(ch);
 	tr_wr(tr, reg, i, 4);
-	snd_mtxunlock(tr->lock);
+	mtx_unlock(&tr->lock);
 }
 
 /* playback channels */
@@ -429,11 +429,11 @@ tr_wrch(struct tr_chinfo *ch)
 		cr[3]|=(ch->alpha<<20) | (ch->fms<<16) | (ch->fmc<<14);
 		break;
 	}
-	snd_mtxlock(tr->lock);
+	mtx_lock(&tr->lock);
 	tr_selch(ch);
 	for (i=0; i<TR_CHN_REGS; i++)
 		tr_wr(tr, TR_REG_CHNBASE+(i<<2), cr[i], 4);
-	snd_mtxunlock(tr->lock);
+	mtx_unlock(&tr->lock);
 }
 
 static void
@@ -442,11 +442,11 @@ tr_rdch(struct tr_chinfo *ch)
 	struct tr_info *tr = ch->parent;
 	u_int32_t cr[5], i;
 
-	snd_mtxlock(tr->lock);
+	mtx_lock(&tr->lock);
 	tr_selch(ch);
 	for (i=0; i<5; i++)
 		cr[i]=tr_rd(tr, TR_REG_CHNBASE+(i<<2), 4);
-	snd_mtxunlock(tr->lock);
+	mtx_unlock(&tr->lock);
 
 	if (tr->type == ALI_PCI_ID)
 		ch->lba=(cr[1] & ALI_MAXADDR);
@@ -830,7 +830,8 @@ tr_pci_attach(device_t dev)
 	tr = malloc(sizeof(*tr), M_DEVBUF, M_WAITOK | M_ZERO);
 	tr->type = pci_get_devid(dev);
 	tr->rev = pci_get_revid(dev);
-	tr->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_t4dwave softc");
+	mtx_init(&tr->lock, device_get_nameunit(dev), "snd_t4dwave softc",
+	    MTX_DEF);
 
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "dac", &i) == 0) {
@@ -936,7 +937,7 @@ bad:
 	if (tr->ih) bus_teardown_intr(dev, tr->irq, tr->ih);
 	if (tr->irq) bus_release_resource(dev, SYS_RES_IRQ, tr->irqid, tr->irq);
 	if (tr->parent_dmat) bus_dma_tag_destroy(tr->parent_dmat);
-	if (tr->lock) snd_mtxfree(tr->lock);
+	mtx_destroy(&tr->lock);
 	free(tr, M_DEVBUF);
 	return ENXIO;
 }
@@ -956,7 +957,7 @@ tr_pci_detach(device_t dev)
 	bus_teardown_intr(dev, tr->irq, tr->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, tr->irqid, tr->irq);
 	bus_dma_tag_destroy(tr->parent_dmat);
-	snd_mtxfree(tr->lock);
+	mtx_destroy(&tr->lock);
 	free(tr, M_DEVBUF);
 
 	return 0;

@@ -305,10 +305,10 @@ hdspemixer_init(struct snd_mixer *m)
 	if (hdspe_channel_rec_ports(scp->hc))
 		mask |= SOUND_MASK_RECLEV;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	pcm_setflags(scp->dev, pcm_getflags(scp->dev) | SD_F_SOFTPCMVOL);
 	mix_setdevs(m, mask);
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return (0);
 }
@@ -667,7 +667,7 @@ hdspechan_free(kobj_t obj, void *data)
 	device_printf(scp->dev, "hdspechan_free()\n");
 #endif
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	if (ch->data != NULL) {
 		free(ch->data, M_HDSPE);
 		ch->data = NULL;
@@ -676,7 +676,7 @@ hdspechan_free(kobj_t obj, void *data)
 		free(ch->caps, M_HDSPE);
 		ch->caps = NULL;
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return (0);
 }
@@ -693,7 +693,7 @@ hdspechan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	scp = devinfo;
 	sc = scp->sc;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	num = scp->chnum;
 
 	ch = &scp->chan[num];
@@ -729,7 +729,7 @@ hdspechan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 
 	ch->dir = dir;
 
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	if (sndbuf_setup(ch->buffer, ch->data, ch->size) != 0) {
 		device_printf(scp->dev, "Can't setup sndbuf.\n");
@@ -751,7 +751,7 @@ hdspechan_trigger(kobj_t obj, void *data, int go)
 	scp = ch->parent;
 	sc = scp->sc;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	switch (go) {
 	case PCMTRIG_START:
 #if 0
@@ -779,7 +779,7 @@ hdspechan_trigger(kobj_t obj, void *data, int go)
 		break;
 	}
 
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return (0);
 }
@@ -796,9 +796,9 @@ hdspechan_getptr(kobj_t obj, void *data)
 	scp = ch->parent;
 	sc = scp->sc;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	ret = hdspe_read_2(sc, HDSPE_STATUS_REG);
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	pos = ret & HDSPE_BUF_POSITION_MASK;
 	pos *= AFMT_CHANNEL(ch->format); /* Hardbuf with multiple channels. */
@@ -946,12 +946,12 @@ hdspechan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 		}
 	}
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	sc->ctrl_register &= ~HDSPE_LAT_MASK;
 	sc->ctrl_register |= hdspe_encode_latency(hl->n);
 	hdspe_write_4(sc, HDSPE_CONTROL_REG, sc->ctrl_register);
 	sc->period = hl->period;
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 #if 0
 	device_printf(scp->dev, "New period=%d\n", sc->period);
@@ -1025,9 +1025,9 @@ hdspe_pcm_intr(struct sc_pcminfo *scp)
 
 	for (i = 0; i < scp->chnum; i++) {
 		ch = &scp->chan[i];
-		snd_mtxunlock(sc->lock);
+		mtx_unlock(&sc->lock);
 		chn_intr(ch->channel);
-		snd_mtxlock(sc->lock);
+		mtx_lock(&sc->lock);
 	}
 
 	return (0);

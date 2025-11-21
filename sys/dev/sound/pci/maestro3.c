@@ -156,12 +156,12 @@ struct sc_info {
 	unsigned int		bufsz;
 	u_int16_t		*savemem;
 
-	struct mtx		*sc_lock;
+	struct mtx		sc_lock;
 };
 
-#define M3_LOCK(_sc)		snd_mtxlock((_sc)->sc_lock)
-#define M3_UNLOCK(_sc)		snd_mtxunlock((_sc)->sc_lock)
-#define M3_LOCK_ASSERT(_sc)	snd_mtxassert((_sc)->sc_lock)
+#define M3_LOCK(_sc)		mtx_lock(&(_sc)->sc_lock)
+#define M3_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_lock)
+#define M3_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_lock, MA_OWNED)
 
 /* -------------------------------------------------------------------- */
 
@@ -1325,8 +1325,8 @@ m3_pci_attach(device_t dev)
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->dev = dev;
 	sc->type = pci_get_devid(dev);
-	sc->sc_lock = snd_mtxcreate(device_get_nameunit(dev),
-	    "snd_maestro3 softc");
+	mtx_init(&sc->sc_lock, device_get_nameunit(dev), "snd_maestro3 softc",
+	    MTX_DEF);
 	for (card = m3_card_types ; card->pci_id ; card++) {
 		if (sc->type == card->pci_id) {
 			sc->which = card->which;
@@ -1465,8 +1465,7 @@ m3_pci_attach(device_t dev)
 		bus_release_resource(dev, sc->regtype, sc->regid, sc->reg);
 	if (sc->parent_dmat)
 		bus_dma_tag_destroy(sc->parent_dmat);
-	if (sc->sc_lock)
-		snd_mtxfree(sc->sc_lock);
+	mtx_destroy(&sc->sc_lock);
 	free(sc, M_DEVBUF);
 	return ENXIO;
 }
@@ -1494,7 +1493,7 @@ m3_pci_detach(device_t dev)
 	bus_dma_tag_destroy(sc->parent_dmat);
 
 	free(sc->savemem, M_DEVBUF);
-	snd_mtxfree(sc->sc_lock);
+	mtx_destroy(&sc->sc_lock);
 	free(sc, M_DEVBUF);
 	return 0;
 }

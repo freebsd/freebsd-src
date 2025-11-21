@@ -228,19 +228,21 @@ chn_lockinit(struct pcm_channel *c, int dir)
 {
 	switch (dir) {
 	case PCMDIR_PLAY:
-		c->lock = snd_mtxcreate(c->name, "pcm play channel");
+		mtx_init(&c->lock, c->name, "pcm play channel", MTX_DEF);
 		cv_init(&c->intr_cv, "pcmwr");
 		break;
 	case PCMDIR_PLAY_VIRTUAL:
-		c->lock = snd_mtxcreate(c->name, "pcm virtual play channel");
+		mtx_init(&c->lock, c->name, "pcm virtual play channel",
+		    MTX_DEF);
 		cv_init(&c->intr_cv, "pcmwrv");
 		break;
 	case PCMDIR_REC:
-		c->lock = snd_mtxcreate(c->name, "pcm record channel");
+		mtx_init(&c->lock, c->name, "pcm record channel", MTX_DEF);
 		cv_init(&c->intr_cv, "pcmrd");
 		break;
 	case PCMDIR_REC_VIRTUAL:
-		c->lock = snd_mtxcreate(c->name, "pcm virtual record channel");
+		mtx_init(&c->lock, c->name, "pcm virtual record channel",
+		    MTX_DEF);
 		cv_init(&c->intr_cv, "pcmrdv");
 		break;
 	default:
@@ -262,7 +264,7 @@ chn_lockdestroy(struct pcm_channel *c)
 	cv_destroy(&c->cv);
 	cv_destroy(&c->intr_cv);
 
-	snd_mtxfree(c->lock);
+	mtx_destroy(&c->lock);
 }
 
 /**
@@ -337,7 +339,7 @@ chn_sleep(struct pcm_channel *c, int timeout)
 		return (EINVAL);
 
 	c->sleeping++;
-	ret = cv_timedwait_sig(&c->intr_cv, c->lock, timeout);
+	ret = cv_timedwait_sig(&c->intr_cv, &c->lock, timeout);
 	c->sleeping--;
 
 	return ((c->flags & CHN_F_DEAD) ? EINVAL : ret);
@@ -1251,7 +1253,7 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	}
 	c->bufhard = b;
 	c->bufsoft = bs;
-	knlist_init_mtx(&bs->sel.si_note, c->lock);
+	knlist_init_mtx(&bs->sel.si_note, &c->lock);
 
 	c->devinfo = CHANNEL_INIT(c->methods, devinfo, b, c, direction);
 	if (c->devinfo == NULL) {

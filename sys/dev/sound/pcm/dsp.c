@@ -1597,7 +1597,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 			struct snd_dbuf *bs;
 			CHN_LOCK(wrch);
 			while (wrch->inprog != 0)
-				cv_wait(&wrch->cv, wrch->lock);
+				cv_wait(&wrch->cv, &wrch->lock);
 			bs = wrch->bufsoft;
 			if ((bs->shadbuf != NULL) && (sndbuf_getready(bs) > 0)) {
 				bs->sl = sndbuf_getready(bs);
@@ -1621,7 +1621,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 			struct snd_dbuf *bs;
 			CHN_LOCK(wrch);
 			while (wrch->inprog != 0)
-				cv_wait(&wrch->cv, wrch->lock);
+				cv_wait(&wrch->cv, &wrch->lock);
 			bs = wrch->bufsoft;
 			if ((bs->shadbuf != NULL) && (bs->sl > 0)) {
 				sndbuf_softreset(bs);

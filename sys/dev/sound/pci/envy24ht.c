@@ -125,7 +125,7 @@ struct cfg_info {
 /* device private data */
 struct sc_info {
 	device_t	dev;
-	struct mtx	*lock;
+	struct mtx	lock;
 
 	/* Control/Status registor */
 	struct resource *cs;
@@ -1476,11 +1476,11 @@ envy24htchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_chan
 #if(0)
 	device_printf(sc->dev, "envy24htchan_init(obj, devinfo, b, c, %d)\n", dir);
 #endif
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 #if 0
 	if ((sc->chnum > ENVY24HT_CHAN_PLAY_SPDIF && dir != PCMDIR_REC) ||
 	    (sc->chnum < ENVY24HT_CHAN_REC_ADC1 && dir != PCMDIR_PLAY)) {
-		snd_mtxunlock(sc->lock);
+		mtx_unlock(&sc->lock);
 		return NULL;
 	}
 #endif
@@ -1500,14 +1500,14 @@ envy24htchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_chan
 		ch->dir = dir;
 		/* set channel map */
 		ch->num = envy24ht_chanmap[num];
-		snd_mtxunlock(sc->lock);
+		mtx_unlock(&sc->lock);
 		sndbuf_setup(ch->buffer, ch->data, ch->size);
-		snd_mtxlock(sc->lock);
+		mtx_lock(&sc->lock);
 		/* these 2 values are dummy */
 		ch->unit = 4;
 		ch->blk = 10240;
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return ch;
 }
@@ -1521,12 +1521,12 @@ envy24htchan_free(kobj_t obj, void *data)
 #if(0)
 	device_printf(sc->dev, "envy24htchan_free()\n");
 #endif
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	if (ch->data != NULL) {
 		free(ch->data, M_ENVY24HT);
 		ch->data = NULL;
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return 0;
 }
@@ -1543,21 +1543,21 @@ envy24htchan_setformat(kobj_t obj, void *data, u_int32_t format)
 #if(0)
 	device_printf(sc->dev, "envy24htchan_setformat(obj, data, 0x%08x)\n", format);
 #endif
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	/* check and get format related information */
 	if (ch->dir == PCMDIR_PLAY)
 		emltab = envy24ht_pemltab;
 	else
 		emltab = envy24ht_remltab;
 	if (emltab == NULL) {
-		snd_mtxunlock(sc->lock);
+		mtx_unlock(&sc->lock);
 		return -1;
 	}
 	for (i = 0; emltab[i].format != 0; i++)
 		if (emltab[i].format == format)
 			break;
 	if (emltab[i].format == 0) {
-		snd_mtxunlock(sc->lock);
+		mtx_unlock(&sc->lock);
 		return -1;
 	}
 
@@ -1581,7 +1581,7 @@ envy24htchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	bcnt = ch->size / bsize;
 	sndbuf_resize(ch->buffer, bcnt, bsize);
 #endif
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 #if(0)
 	device_printf(sc->dev, "envy24htchan_setformat(): return 0x%08x\n", 0);
@@ -1634,7 +1634,7 @@ envy24htchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	device_printf(sc->dev, "envy24htchan_setblocksize(obj, data, %d)\n", blocksize);
 #endif
 	prev = 0x7fffffff;
-	/* snd_mtxlock(sc->lock); */
+	/* mtx_lock(&sc->lock); */
 	for (size = ch->size / 2; size > 0; size /= 2) {
 		if (abs(size - blocksize) < abs(prev - blocksize))
 			prev = size;
@@ -1656,7 +1656,7 @@ envy24htchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
         bsize *= ch->unit;
         bcnt = ch->size / bsize;
         sndbuf_resize(ch->buffer, bcnt, bsize);
-	/* snd_mtxunlock(sc->lock); */
+	/* mtx_unlock(&sc->lock); */
 
 #if(0)
 	device_printf(sc->dev, "envy24htchan_setblocksize(): return %d\n", prev);
@@ -1678,7 +1678,7 @@ envy24htchan_trigger(kobj_t obj, void *data, int go)
 
 	device_printf(sc->dev, "envy24htchan_trigger(obj, data, %d)\n", go);
 #endif
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	if (ch->dir == PCMDIR_PLAY)
 		slot = 0;
 	else
@@ -1771,7 +1771,7 @@ envy24htchan_trigger(kobj_t obj, void *data, int go)
 		break;
 	}
 fail:
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 	return (error);
 }
 
@@ -1785,10 +1785,10 @@ envy24htchan_getptr(kobj_t obj, void *data)
 #if(0)
 	device_printf(sc->dev, "envy24htchan_getptr()\n");
 #endif
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	ptr = envy24ht_gethwptr(sc, ch->dir);
 	rtn = ptr * ch->unit;
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 #if(0)
 	device_printf(sc->dev, "envy24htchan_getptr(): return %d\n",
@@ -1807,7 +1807,7 @@ envy24htchan_getcaps(kobj_t obj, void *data)
 #if(0)
 	device_printf(sc->dev, "envy24htchan_getcaps()\n");
 #endif
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	if (ch->dir == PCMDIR_PLAY) {
 		if (sc->run[0] == 0)
 			rtn = &envy24ht_playcaps;
@@ -1820,7 +1820,7 @@ envy24htchan_getcaps(kobj_t obj, void *data)
 		else
 			rtn = &sc->caps[1];
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return rtn;
 }
@@ -1854,7 +1854,7 @@ envy24htmixer_init(struct snd_mixer *m)
 		return -1;
 
 	/* set volume control rate */
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 #if 0
 	envy24ht_wrmt(sc, ENVY24HT_MT_VOLRATE, 0x30, 1); /* 0x30 is default value */
 #endif
@@ -1864,7 +1864,7 @@ envy24htmixer_init(struct snd_mixer *m)
 	mix_setdevs(m, ENVY24HT_MIX_MASK);
 	mix_setrecdevs(m, ENVY24HT_MIX_REC_MASK);
 
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return 0;
 }
@@ -1917,7 +1917,7 @@ envy24htmixer_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned rig
 	    dev, left, right);
 #endif
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	if (dev == 0) {
 		for (i = 0; i < sc->dacn; i++) {
 			sc->cfg->codec->setvolume(sc->dac[i], PCMDIR_PLAY, left, right);
@@ -1934,7 +1934,7 @@ envy24htmixer_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned rig
 		if (hwch > ENVY24HT_CHAN_PLAY_SPDIF || sc->chan[ch].run)
 			envy24ht_setvolume(sc, hwch);
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return right << 8 | left;
 }
@@ -1977,7 +1977,7 @@ envy24ht_intr(void *p)
 #if(0)
 	device_printf(sc->dev, "envy24ht_intr()\n");
 #endif
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	if (envy24ht_checkintr(sc, PCMDIR_PLAY)) {
 #if(0)
 		device_printf(sc->dev, "envy24ht_intr(): play\n");
@@ -1999,9 +1999,9 @@ envy24ht_intr(void *p)
 				device_printf(sc->dev, "envy24ht_intr(): chan[%d].blk = %d\n", i, ch->blk);
 #endif
 			if (ch->run && ch->blk <= feed) {
-				snd_mtxunlock(sc->lock);
+				mtx_unlock(&sc->lock);
 				chn_intr(ch->channel);
-				snd_mtxlock(sc->lock);
+				mtx_lock(&sc->lock);
 			}
 		}
 		sc->intr[0] = ptr;
@@ -2018,15 +2018,15 @@ envy24ht_intr(void *p)
 		for (i = ENVY24HT_CHAN_REC_ADC1; i <= ENVY24HT_CHAN_REC_SPDIF; i++) {
 			ch = &sc->chan[i];
 			if (ch->run && ch->blk <= feed) {
-				snd_mtxunlock(sc->lock);
+				mtx_unlock(&sc->lock);
 				chn_intr(ch->channel);
-				snd_mtxlock(sc->lock);
+				mtx_lock(&sc->lock);
 			}
 		}
 		sc->intr[1] = ptr;
 		envy24ht_updintr(sc, PCMDIR_REC);
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return;
 }
@@ -2455,8 +2455,8 @@ envy24ht_pci_attach(device_t dev)
 	}
 
 	bzero(sc, sizeof(*sc));
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev),
-	    "snd_envy24ht softc");
+	mtx_init(&sc->lock, device_get_nameunit(dev), "snd_eny24ht softc",
+	    MTX_DEF);
 	sc->dev = dev;
 
 	/* initialize PCI interface */
@@ -2524,8 +2524,7 @@ bad:
 		bus_release_resource(dev, SYS_RES_IOPORT, sc->csid, sc->cs);
 	if (sc->mt)
 		bus_release_resource(dev, SYS_RES_IOPORT, sc->mtid, sc->mt);
-	if (sc->lock)
-		snd_mtxfree(sc->lock);
+	mtx_destroy(&sc->lock);
 	free(sc, M_ENVY24HT);
 	return err;
 }
@@ -2560,7 +2559,7 @@ envy24ht_pci_detach(device_t dev)
 	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
 	bus_release_resource(dev, SYS_RES_IOPORT, sc->csid, sc->cs);
 	bus_release_resource(dev, SYS_RES_IOPORT, sc->mtid, sc->mt);
-	snd_mtxfree(sc->lock);
+	mtx_destroy(&sc->lock);
 	free(sc, M_ENVY24HT);
 	return 0;
 }
