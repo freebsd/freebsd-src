@@ -218,7 +218,7 @@ struct sc_info {
 
 	struct resource *reg, *irq;
 	void		*ih;
-	struct mtx	*lock;
+	struct mtx	lock;
 
 	unsigned int bufsz;
 	int timer, timerinterval;
@@ -820,10 +820,10 @@ emupchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	ch->blksz = sc->bufsz / 2;
 	ch->fmt = SND_FORMAT(AFMT_U8, 1, 0);
 	ch->spd = 8000;
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	ch->master = emu_valloc(sc);
 	ch->slave = emu_valloc(sc);
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 	r = (emu_vinit(sc, ch->master, ch->slave, sc->bufsz, ch->buffer))
 	    ? NULL : ch;
 
@@ -837,9 +837,9 @@ emupchan_free(kobj_t obj, void *data)
 	struct sc_info *sc = ch->parent;
 	int r;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	r = emu_memfree(sc, ch->buffer->buf);
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return r;
 }
@@ -869,9 +869,9 @@ emupchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	struct sc_info *sc = ch->parent;
 
 	ch->blksz = blocksize;
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	emu_settimer(sc);
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 	return blocksize;
 }
 
@@ -884,7 +884,7 @@ emupchan_trigger(kobj_t obj, void *data, int go)
 	if (!PCMTRIG_COMMON(go))
 		return 0;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	if (go == PCMTRIG_START) {
 		emu_vsetup(ch);
 		emu_vwrite(sc, ch->master);
@@ -901,7 +901,7 @@ emupchan_trigger(kobj_t obj, void *data, int go)
 	}
 	ch->run = (go == PCMTRIG_START) ? 1 : 0;
 	emu_vtrigger(sc, ch->master, ch->run);
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 	return 0;
 }
 
@@ -912,9 +912,9 @@ emupchan_getptr(kobj_t obj, void *data)
 	struct sc_info *sc = ch->parent;
 	int r;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	r = emu_vpos(sc, ch->master);
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return r;
 }
@@ -984,10 +984,10 @@ emurchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, 0, sc->bufsz) != 0)
 		return NULL;
 	else {
-		snd_mtxlock(sc->lock);
+		mtx_lock(&sc->lock);
 		emu_wrptr(sc, 0, ch->basereg, ch->buffer->buf_addr);
 		emu_wrptr(sc, 0, ch->sizereg, 0); /* off */
-		snd_mtxunlock(sc->lock);
+		mtx_unlock(&sc->lock);
 		return ch;
 	}
 }
@@ -1027,9 +1027,9 @@ emurchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	struct sc_info *sc = ch->parent;
 
 	ch->blksz = blocksize;
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	emu_settimer(sc);
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 	return blocksize;
 }
 
@@ -1069,7 +1069,7 @@ emurchan_trigger(kobj_t obj, void *data, int go)
 		sz = EMU_RECBS_BUFSIZE_4096;
 	}
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	switch(go) {
 	case PCMTRIG_START:
 		ch->run = 1;
@@ -1111,7 +1111,7 @@ emurchan_trigger(kobj_t obj, void *data, int go)
 	default:
 		break;
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return 0;
 }
@@ -1123,9 +1123,9 @@ emurchan_getptr(kobj_t obj, void *data)
 	struct sc_info *sc = ch->parent;
 	int r;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	r = emu_rdptr(sc, 0, ch->idxreg) & 0x0000ffff;
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return r;
 }
@@ -1171,9 +1171,9 @@ emu_muninit(struct mpu401 *arg, void *cookie)
 {
 	struct sc_info *sc = cookie;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	sc->mpu_intr = NULL;
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return 0;
 }
@@ -1216,7 +1216,7 @@ emu_intr(void *data)
 	struct sc_info *sc = data;
 	u_int32_t stat, ack, i, x;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	while (1) {
 		stat = emu_rd(sc, EMU_IPR, 4);
 		if (stat == 0)
@@ -1262,7 +1262,7 @@ emu_intr(void *data)
 		emu_wr(sc, EMU_IPR, stat, 4);
 
 		if (ack) {
-			snd_mtxunlock(sc->lock);
+			mtx_unlock(&sc->lock);
 
 			if (ack & EMU_IPR_INTERVALTIMER) {
 				x = 0;
@@ -1289,10 +1289,10 @@ emu_intr(void *data)
 					chn_intr(sc->rch[2].channel);
 			}
 
-			snd_mtxlock(sc->lock);
+			mtx_lock(&sc->lock);
 		}
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 }
 
 /* -------------------------------------------------------------------- */
@@ -2071,7 +2071,8 @@ emu_pci_attach(device_t dev)
 	char status[SND_STATUSLEN];
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_emu10k1 softc");
+	mtx_init(&sc->lock, device_get_nameunit(dev), "snd_emu10k1 softc",
+	    MTX_DEF);
 	sc->dev = dev;
 	sc->type = pci_get_devid(dev);
 	sc->rev = pci_get_revid(dev);
@@ -2147,7 +2148,7 @@ bad:
 	if (sc->ih) bus_teardown_intr(dev, sc->irq, sc->ih);
 	if (sc->irq) bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
 	if (sc->parent_dmat) bus_dma_tag_destroy(sc->parent_dmat);
-	if (sc->lock) snd_mtxfree(sc->lock);
+	mtx_destroy(&sc->lock);
 	free(sc, M_DEVBUF);
 	return ENXIO;
 }
@@ -2170,7 +2171,7 @@ emu_pci_detach(device_t dev)
 	bus_teardown_intr(dev, sc->irq, sc->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
 	bus_dma_tag_destroy(sc->parent_dmat);
-	snd_mtxfree(sc->lock);
+	mtx_destroy(&sc->lock);
 	free(sc, M_DEVBUF);
 
 	return 0;

@@ -159,7 +159,7 @@ struct a10codec_chinfo {
 struct a10codec_info {
 	device_t		dev;
 	struct resource		*res[2];
-	struct mtx		*lock;
+	struct mtx		lock;
 	bus_dma_tag_t		dmat;
 	unsigned		dmasize;
 	void			*ih;
@@ -949,7 +949,7 @@ a10codec_chan_trigger(kobj_t obj, void *data, int go)
 	if (!PCMTRIG_COMMON(go))
 		return (0);
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	switch (go) {
 	case PCMTRIG_START:
 		ch->run = 1;
@@ -964,7 +964,7 @@ a10codec_chan_trigger(kobj_t obj, void *data, int go)
 	default:
 		break;
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return (0);
 }
@@ -1075,7 +1075,7 @@ a10codec_attach(device_t dev)
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->cfg = (void *)ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	sc->dev = dev;
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "a10codec softc");
+	mtx_init(&sc->lock, device_get_nameunit(dev), "a10codec_softc", MTX_DEF);
 
 	if (bus_alloc_resources(dev, a10codec_spec, sc->res)) {
 		device_printf(dev, "cannot allocate resources for device\n");
@@ -1180,7 +1180,7 @@ a10codec_attach(device_t dev)
 
 fail:
 	bus_release_resources(dev, a10codec_spec, sc->res);
-	snd_mtxfree(sc->lock);
+	mtx_destroy(&sc->lock);
 	free(sc, M_DEVBUF);
 
 	return (ENXIO);

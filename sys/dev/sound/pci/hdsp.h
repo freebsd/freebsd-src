@@ -223,7 +223,7 @@ struct sc_pcminfo {
 /* HDSP device private data */
 struct sc_info {
 	device_t		dev;
-	struct mtx		*lock;
+	struct mtx		lock;
 
 	uint32_t		ctrl_register;
 	uint32_t		type;

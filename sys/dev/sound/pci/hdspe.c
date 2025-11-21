@@ -119,7 +119,7 @@ hdspe_intr(void *p)
 
 	sc = (struct sc_info *)p;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 
 	status = hdspe_read_1(sc, HDSPE_STATUS_REG);
 	if (status & HDSPE_AUDIO_IRQ_PENDING) {
@@ -136,7 +136,7 @@ hdspe_intr(void *p)
 		free(devlist, M_TEMP);
 	}
 
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 }
 
 static void
@@ -301,11 +301,11 @@ hdspe_sysctl_input_level(SYSCTL_HANDLER_ARGS)
 	/* Set input level in settings register. */
 	settings &= HDSPE_INPUT_LEVEL_MASK;
 	if (settings != (sc->settings_register & HDSPE_INPUT_LEVEL_MASK)) {
-		snd_mtxlock(sc->lock);
+		mtx_lock(&sc->lock);
 		sc->settings_register &= ~HDSPE_INPUT_LEVEL_MASK;
 		sc->settings_register |= settings;
 		hdspe_write_4(sc, HDSPE_SETTINGS_REG, sc->settings_register);
-		snd_mtxunlock(sc->lock);
+		mtx_unlock(&sc->lock);
 	}
 	return (0);
 }
@@ -365,11 +365,11 @@ hdspe_sysctl_output_level(SYSCTL_HANDLER_ARGS)
 	/* Set output level in settings register. */
 	settings &= HDSPE_OUTPUT_LEVEL_MASK;
 	if (settings != (sc->settings_register & HDSPE_OUTPUT_LEVEL_MASK)) {
-		snd_mtxlock(sc->lock);
+		mtx_lock(&sc->lock);
 		sc->settings_register &= ~HDSPE_OUTPUT_LEVEL_MASK;
 		sc->settings_register |= settings;
 		hdspe_write_4(sc, HDSPE_SETTINGS_REG, sc->settings_register);
-		snd_mtxunlock(sc->lock);
+		mtx_unlock(&sc->lock);
 	}
 	return (0);
 }
@@ -429,11 +429,11 @@ hdspe_sysctl_phones_level(SYSCTL_HANDLER_ARGS)
 	/* Set phones level in settings register. */
 	settings &= HDSPE_PHONES_LEVEL_MASK;
 	if (settings != (sc->settings_register & HDSPE_PHONES_LEVEL_MASK)) {
-		snd_mtxlock(sc->lock);
+		mtx_lock(&sc->lock);
 		sc->settings_register &= ~HDSPE_PHONES_LEVEL_MASK;
 		sc->settings_register |= settings;
 		hdspe_write_4(sc, HDSPE_SETTINGS_REG, sc->settings_register);
-		snd_mtxunlock(sc->lock);
+		mtx_unlock(&sc->lock);
 	}
 	return (0);
 }
@@ -540,11 +540,11 @@ hdspe_sysctl_clock_preference(SYSCTL_HANDLER_ARGS)
 	/* Set preferred clock source in settings register. */
 	if (clock->name != NULL) {
 		setting = clock->setting & HDSPE_SETTING_CLOCK_MASK;
-		snd_mtxlock(sc->lock);
+		mtx_lock(&sc->lock);
 		sc->settings_register &= ~HDSPE_SETTING_CLOCK_MASK;
 		sc->settings_register |= setting;
 		hdspe_write_4(sc, HDSPE_SETTINGS_REG, sc->settings_register);
-		snd_mtxunlock(sc->lock);
+		mtx_unlock(&sc->lock);
 	}
 	return (0);
 }
@@ -568,10 +568,10 @@ hdspe_sysctl_clock_source(SYSCTL_HANDLER_ARGS)
 		return (ENXIO);
 
 	/* Read current (autosync) clock source from status register. */
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	status = hdspe_read_4(sc, HDSPE_STATUS1_REG);
 	status &= HDSPE_STATUS1_CLOCK_MASK;
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	/* Translate status register value to clock source. */
 	for (clock = clock_table; clock->name != NULL; ++clock) {
@@ -640,9 +640,9 @@ hdspe_sysctl_sync_status(SYSCTL_HANDLER_ARGS)
 		return (ENXIO);
 
 	/* Read current lock and sync bits from status register. */
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	status = hdspe_read_4(sc, HDSPE_STATUS1_REG);
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	/* List clock sources with lock and sync state. */
 	for (clock = clock_table; clock->name != NULL; ++clock) {
@@ -749,8 +749,8 @@ hdspe_attach(device_t dev)
 #endif
 
 	sc = device_get_softc(dev);
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev),
-	    "snd_hdspe softc");
+	mtx_init(&sc->lock, device_get_nameunit(dev), "snd_hdspe softc",
+	    MTX_DEF);
 	sc->dev = dev;
 
 	pci_enable_busmaster(dev);
@@ -891,8 +891,7 @@ hdspe_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
 	if (sc->cs)
 		bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(0), sc->cs);
-	if (sc->lock)
-		snd_mtxfree(sc->lock);
+	mtx_destroy(&sc->lock);
 
 	return (0);
 }

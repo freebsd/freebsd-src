@@ -64,7 +64,7 @@ struct dummy_softc {
 	int chnum;
 	struct dummy_chan chans[DUMMY_NCHAN];
 	struct callout callout;
-	struct mtx *lock;
+	struct mtx lock;
 	bool stopped;
 };
 
@@ -74,7 +74,7 @@ dummy_active(struct dummy_softc *sc)
 	struct dummy_chan *ch;
 	int i;
 
-	snd_mtxassert(sc->lock);
+	mtx_assert(&sc->lock, MA_OWNED);
 
 	for (i = 0; i < sc->chnum; i++) {
 		ch = &sc->chans[i];
@@ -109,9 +109,9 @@ dummy_chan_io(void *arg)
 			ch->ptr %= ch->buf->bufsize;
 		} else
 			sndbuf_fillsilence(ch->buf);
-		snd_mtxunlock(sc->lock);
+		mtx_unlock(&sc->lock);
 		chn_intr(ch->chan);
-		snd_mtxlock(sc->lock);
+		mtx_lock(&sc->lock);
 	}
 	if (!sc->stopped)
 		callout_schedule(&sc->callout, 1);
@@ -141,7 +141,7 @@ dummy_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 
 	sc = devinfo;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 
 	ch = &sc->chans[sc->chnum++];
 	ch->sc = sc;
@@ -150,7 +150,7 @@ dummy_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	ch->buf = b;
 	ch->caps = &sc->caps;
 
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	bufsz = pcm_getbuffersize(sc->dev, 2048, 2048, 65536);
 	buf = malloc(bufsz, M_DEVBUF, M_WAITOK | M_ZERO);
@@ -199,10 +199,10 @@ dummy_chan_trigger(kobj_t obj, void *data, int go)
 	struct dummy_chan *ch = data;
 	struct dummy_softc *sc = ch->sc;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 
 	if (sc->stopped) {
-		snd_mtxunlock(sc->lock);
+		mtx_unlock(&sc->lock);
 		return (0);
 	}
 
@@ -222,7 +222,7 @@ dummy_chan_trigger(kobj_t obj, void *data, int go)
 		break;
 	}
 
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return (0);
 }
@@ -320,8 +320,9 @@ dummy_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_dummy softc");
-	callout_init_mtx(&sc->callout, sc->lock, 0);
+	mtx_init(&sc->lock, device_get_nameunit(dev), "snd_dummy softc",
+	    MTX_DEF);
+	callout_init_mtx(&sc->callout, &sc->lock, 0);
 
 	sc->cap_fmts[0] = SND_FORMAT(AFMT_S32_LE, 2, 0);
 	sc->cap_fmts[1] = SND_FORMAT(AFMT_S24_LE, 2, 0);
@@ -362,12 +363,12 @@ dummy_detach(device_t dev)
 	struct dummy_softc *sc = device_get_softc(dev);
 	int err;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	sc->stopped = true;
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 	callout_drain(&sc->callout);
 	err = pcm_unregister(dev);
-	snd_mtxfree(sc->lock);
+	mtx_destroy(&sc->lock);
 
 	return (err);
 }

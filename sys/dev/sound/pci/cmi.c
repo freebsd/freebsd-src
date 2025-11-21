@@ -116,7 +116,7 @@ struct sc_info {
 	struct resource		*reg, *irq;
 	int			regid, irqid;
 	void 			*ih;
-	struct mtx		*lock;
+	struct mtx		lock;
 
 	int			spdif_enabled;
 	unsigned int		bufsz;
@@ -361,13 +361,13 @@ cmichan_init(kobj_t obj, void *devinfo,
 	}
 
 	ch->dir = dir;
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	if (ch->dir == PCMDIR_PLAY) {
 		cmi_dma_prog(sc, ch, CMPCI_REG_DMA0_BASE);
 	} else {
 		cmi_dma_prog(sc, ch, CMPCI_REG_DMA1_BASE);
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return ch;
 }
@@ -394,7 +394,7 @@ cmichan_setformat(kobj_t obj, void *data, u_int32_t format)
 		f |= CMPCI_REG_FORMAT_MONO;
 	}
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	if (ch->dir == PCMDIR_PLAY) {
 		cmi_partial_wr4(ch->parent,
 				CMPCI_REG_CHANNEL_FORMAT,
@@ -408,7 +408,7 @@ cmichan_setformat(kobj_t obj, void *data, u_int32_t format)
 				CMPCI_REG_CH1_FORMAT_MASK,
 				f);
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 	ch->fmt = format;
 
 	return 0;
@@ -422,7 +422,7 @@ cmichan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	u_int32_t r, rsp __unused;
 
 	r = cmpci_rate_to_regvalue(speed);
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	if (ch->dir == PCMDIR_PLAY) {
 		if (speed < 44100) {
 			/* disable if req before rate change */
@@ -450,7 +450,7 @@ cmichan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 		rsp >>= CMPCI_REG_ADC_FS_SHIFT;
 		rsp &= 	CMPCI_REG_ADC_FS_MASK;
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 	ch->spd = cmpci_regvalue_to_rate(r);
 
 	DEB(printf("cmichan_setspeed (%s) %d -> %d (%d)\n",
@@ -484,7 +484,7 @@ cmichan_trigger(kobj_t obj, void *data, int go)
 	if (!PCMTRIG_COMMON(go))
 		return 0;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	if (ch->dir == PCMDIR_PLAY) {
 		switch(go) {
 		case PCMTRIG_START:
@@ -506,7 +506,7 @@ cmichan_trigger(kobj_t obj, void *data, int go)
 			break;
 		}
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 	return 0;
 }
 
@@ -517,13 +517,13 @@ cmichan_getptr(kobj_t obj, void *data)
 	struct sc_info		*sc = ch->parent;
 	u_int32_t physptr, bufptr, sz;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	if (ch->dir == PCMDIR_PLAY) {
 		physptr = cmi_rd(sc, CMPCI_REG_DMA0_BASE, 4);
 	} else {
 		physptr = cmi_rd(sc, CMPCI_REG_DMA1_BASE, 4);
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	sz = ch->buffer->bufsize;
 	bufptr = (physptr - ch->phys_buf + sz - ch->bps) % sz;
@@ -538,7 +538,7 @@ cmi_intr(void *data)
 	u_int32_t intrstat;
 	u_int32_t toclear;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	intrstat = cmi_rd(sc, CMPCI_REG_INTR_STATUS, 4);
 	if ((intrstat & CMPCI_REG_ANY_INTR) != 0) {
 		toclear = 0;
@@ -554,7 +554,7 @@ cmi_intr(void *data)
 
 		if (toclear) {
 			cmi_clr4(sc, CMPCI_REG_INTR_CTRL, toclear);
-			snd_mtxunlock(sc->lock);
+			mtx_unlock(&sc->lock);
 
 			/* Signal interrupts to channel */
 			if (intrstat & CMPCI_REG_CH0_INTR) {
@@ -565,14 +565,14 @@ cmi_intr(void *data)
 				chn_intr(sc->rch.channel);
 			}
 
-			snd_mtxlock(sc->lock);
+			mtx_lock(&sc->lock);
 			cmi_set4(sc, CMPCI_REG_INTR_CTRL, toclear);
 		}
 	}
 	if(sc->mpu_intr) {
 		(sc->mpu_intr)(sc->mpu);
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 	return;
 }
 
@@ -799,10 +799,10 @@ cmi_muninit(struct mpu401 *arg, void *cookie)
 {
 	struct sc_info *sc = cookie;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	sc->mpu_intr = NULL;
 	sc->mpu = NULL;
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return 0;
 }
@@ -933,7 +933,8 @@ cmi_attach(device_t dev)
 	char			status[SND_STATUSLEN];
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_cmi softc");
+	mtx_init(&sc->lock, device_get_nameunit(dev), "snd_cmi softc",
+	    MTX_DEF);
 	pci_enable_busmaster(dev);
 
 	sc->dev = dev;
@@ -1007,8 +1008,7 @@ cmi_attach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
 	if (sc->reg)
 		bus_release_resource(dev, SYS_RES_IOPORT, sc->regid, sc->reg);
-	if (sc->lock)
-		snd_mtxfree(sc->lock);
+	mtx_destroy(&sc->lock);
 	if (sc)
 		free(sc, M_DEVBUF);
 
@@ -1037,7 +1037,7 @@ cmi_detach(device_t dev)
 	if (sc->mpu_reg)
 	    bus_release_resource(dev, SYS_RES_IOPORT, sc->mpu_regid, sc->mpu_reg);
 
-	snd_mtxfree(sc->lock);
+	mtx_destroy(&sc->lock);
 	free(sc, M_DEVBUF);
 
 	return 0;
@@ -1048,11 +1048,11 @@ cmi_suspend(device_t dev)
 {
 	struct sc_info *sc = pcm_getdevinfo(dev);
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	sc->pch.dma_was_active = cmi_ch0_stop(sc, &sc->pch);
 	sc->rch.dma_was_active = cmi_ch1_stop(sc, &sc->rch);
 	cmi_power(sc, 3);
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 	return 0;
 }
 
@@ -1061,17 +1061,17 @@ cmi_resume(device_t dev)
 {
 	struct sc_info *sc = pcm_getdevinfo(dev);
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	cmi_power(sc, 0);
 	if (cmi_init(sc) != 0) {
 		device_printf(dev, "unable to reinitialize the card\n");
-		snd_mtxunlock(sc->lock);
+		mtx_unlock(&sc->lock);
 		return ENXIO;
 	}
 
 	if (mixer_reinit(dev) == -1) {
 		device_printf(dev, "unable to reinitialize the mixer\n");
-		snd_mtxunlock(sc->lock);
+		mtx_unlock(&sc->lock);
                 return ENXIO;
         }
 
@@ -1086,7 +1086,7 @@ cmi_resume(device_t dev)
 		cmichan_setformat(NULL, &sc->rch, sc->rch.fmt);
 		cmi_ch1_start(sc, &sc->rch);
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 	return 0;
 }
 

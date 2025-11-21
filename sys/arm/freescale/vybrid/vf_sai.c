@@ -138,7 +138,7 @@ struct sc_info {
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
 	device_t		dev;
-	struct mtx		*lock;
+	struct mtx		lock;
 	uint32_t		speed;
 	uint32_t		period;
 	void			*ih;
@@ -206,10 +206,10 @@ saimixer_init(struct snd_mixer *m)
 
 	mask = SOUND_MASK_PCM;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	pcm_setflags(scp->dev, pcm_getflags(scp->dev) | SD_F_SOFTPCMVOL);
 	mix_setdevs(m, mask);
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return (0);
 }
@@ -252,14 +252,14 @@ saichan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	scp = (struct sc_pcminfo *)devinfo;
 	sc = scp->sc;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	ch = &scp->chan[0];
 	ch->dir = dir;
 	ch->run = 0;
 	ch->buffer = b;
 	ch->channel = c;
 	ch->parent = scp;
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	if (sndbuf_setup(ch->buffer, sc->buf_base, sc->dma_size) != 0) {
 		device_printf(scp->dev, "Can't setup sndbuf.\n");
@@ -280,9 +280,9 @@ saichan_free(kobj_t obj, void *data)
 	device_printf(scp->dev, "saichan_free()\n");
 #endif
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	/* TODO: free channel buffer */
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return (0);
 }
@@ -513,7 +513,7 @@ saichan_trigger(kobj_t obj, void *data, int go)
 	struct sc_pcminfo *scp = ch->parent;
 	struct sc_info *sc = scp->sc;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 
 	switch (go) {
 	case PCMTRIG_START:
@@ -532,7 +532,7 @@ saichan_trigger(kobj_t obj, void *data, int go)
 		break;
 	}
 
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return (0);
 }
@@ -691,7 +691,7 @@ sai_attach(device_t dev)
 	sc->sr = &rate_map[0];
 	sc->pos = 0;
 
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "sai softc");
+	mtx_init(&sc->lock, device_get_nameunit(dev), "sai softc");
 	if (sc->lock == NULL) {
 		device_printf(dev, "Cant create mtx\n");
 		return (ENXIO);
