@@ -192,8 +192,7 @@ static void	bpfif_rele(struct bpf_if *);
 static void	bpfd_ref(struct bpf_d *);
 static void	bpfd_rele(struct bpf_d *);
 static void	bpf_attachd(struct bpf_d *, struct bpf_if *);
-static void	bpf_detachd(struct bpf_d *);
-static void	bpf_detachd_locked(struct bpf_d *, bool);
+static void	bpf_detachd(struct bpf_d *, bool);
 static void	bpfd_free(epoch_context_t);
 static int	bpf_movein(struct uio *, int, struct ifnet *, struct mbuf **,
 		    struct sockaddr *, int *, struct bpf_d *);
@@ -733,7 +732,7 @@ bpf_attachd(struct bpf_d *d, struct bpf_if *bp)
 	op_w = V_bpf_optimize_writers || d->bd_writer;
 
 	if (d->bd_bif != NULL)
-		bpf_detachd_locked(d, false);
+		bpf_detachd(d, false);
 	/*
 	 * Point d at bp, and add d to the interface's list.
 	 * Since there are many applications using BPF for
@@ -843,15 +842,7 @@ bpf_check_upgrade(u_long cmd, struct bpf_d *d, struct bpf_insn *fcode,
  * Detach a file from its interface.
  */
 static void
-bpf_detachd(struct bpf_d *d)
-{
-	BPF_LOCK();
-	bpf_detachd_locked(d, false);
-	BPF_UNLOCK();
-}
-
-static void
-bpf_detachd_locked(struct bpf_d *d, bool detached_ifp)
+bpf_detachd(struct bpf_d *d, bool detached_ifp)
 {
 	struct bpf_if *bp;
 	struct ifnet *ifp;
@@ -923,7 +914,9 @@ bpf_dtor(void *data)
 	d->bd_state = BPF_IDLE;
 	BPFD_UNLOCK(d);
 	funsetown(&d->bd_sigio);
-	bpf_detachd(d);
+	BPF_LOCK();
+	bpf_detachd(d, false);
+	BPF_UNLOCK();
 #ifdef MAC
 	mac_bpfdesc_destroy(d);
 #endif /* MAC */
@@ -2839,12 +2832,12 @@ bpf_ifdetach(struct ifnet *ifp)
 
 		/* Detach common descriptors */
 		while ((d = CK_LIST_FIRST(&bp->bif_dlist)) != NULL) {
-			bpf_detachd_locked(d, true);
+			bpf_detachd(d, true);
 		}
 
 		/* Detach writer-only descriptors */
 		while ((d = CK_LIST_FIRST(&bp->bif_wlist)) != NULL) {
-			bpf_detachd_locked(d, true);
+			bpf_detachd(d, true);
 		}
 	}
 	BPF_UNLOCK();
@@ -2877,12 +2870,12 @@ bpfdetach(struct ifnet *ifp)
 
 		/* Detach common descriptors */
 		while ((d = CK_LIST_FIRST(&bp->bif_dlist)) != NULL) {
-			bpf_detachd_locked(d, true);
+			bpf_detachd(d, true);
 		}
 
 		/* Detach writer-only descriptors */
 		while ((d = CK_LIST_FIRST(&bp->bif_wlist)) != NULL) {
-			bpf_detachd_locked(d, true);
+			bpf_detachd(d, true);
 		}
 		bpfif_rele(bp);
 	}
