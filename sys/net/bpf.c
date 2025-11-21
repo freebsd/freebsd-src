@@ -2829,30 +2829,6 @@ bpfattach2(struct ifnet *ifp, u_int dlt, u_int hdrlen,
 
 #ifdef VIMAGE
 /*
- * When moving interfaces between vnet instances we need a way to
- * query the dlt and hdrlen before detach so we can re-attch the if_bpf
- * after the vmove.  We unfortunately have no device driver infrastructure
- * to query the interface for these values after creation/attach, thus
- * add this as a workaround.
- */
-int
-bpf_get_bp_params(struct bpf_if *bp, u_int *bif_dlt, u_int *bif_hdrlen)
-{
-
-	if (bp == NULL)
-		return (ENXIO);
-	if (bif_dlt == NULL && bif_hdrlen == NULL)
-		return (0);
-
-	if (bif_dlt != NULL)
-		*bif_dlt = bp->bif_dlt;
-	if (bif_hdrlen != NULL)
-		*bif_hdrlen = bp->bif_hdrlen;
-
-	return (0);
-}
-
-/*
  * Detach descriptors on interface's vmove event.
  */
 void

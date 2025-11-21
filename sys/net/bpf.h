@@ -428,7 +428,6 @@ void	bpfattach2(struct ifnet *, u_int, u_int, struct bpf_if **);
 void	bpfdetach(struct ifnet *);
 bool	bpf_peers_present_if(struct ifnet *);
 #ifdef VIMAGE
-int	bpf_get_bp_params(struct bpf_if *, u_int *, u_int *);
 void	bpf_ifdetach(struct ifnet *);
 #endif
 
