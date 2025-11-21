@@ -85,6 +85,8 @@
 #include <sys/refcount.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
+#include <sys/sched.h>
+#include <sys/sf_buf.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -1220,6 +1222,24 @@ vm_fault_zerofill(struct faultstate *fs)
 	if ((fs->m->flags & PG_ZERO) == 0) {
 		pmap_zero_page(fs->m);
 	} else {
+#ifdef INVARIANTS
+		if (vm_check_pg_zero) {
+			struct sf_buf *sf;
+			unsigned long *p;
+			int i;
+
+			sched_pin();
+			sf = sf_buf_alloc(fs->m, SFB_CPUPRIVATE);
+			p = (unsigned long *)sf_buf_kva(sf);
+			for (i = 0; i < PAGE_SIZE / sizeof(*p); i++, p++) {
+				KASSERT(*p == 0,
+				    ("zerocheck failed page %p PG_ZERO %d %jx",
+				    fs->m, i, (uintmax_t)*p));
+			}
+			sf_buf_free(sf);
+			sched_unpin();
+		}
+#endif
 		VM_CNT_INC(v_ozfod);
 	}
 	VM_CNT_INC(v_zfod);
