@@ -147,7 +147,14 @@ int main(void)
 EOF
 mycc -o /tmp/syzkaller59 -Wall -Wextra -O0 /tmp/syzkaller59.c || exit 1
 
-(cd /tmp; timeout 3m ./syzkaller59)
+(cd /tmp; ./syzkaller59) &
+start=`date +%s`
+while [ $((`date +%s` - start)) -lt 180 ]; do
+	sleep 10
+	kill -0 $! > /dev/null 2>&1 || break
+done
+while pkill syzkaller59; do sleep .1; done
+wait
 
 rm -rf /tmp/syzkaller59 /tmp/syzkaller59.c /tmp/syzkaller59.core \
     /tmp/syzkaller.??????
