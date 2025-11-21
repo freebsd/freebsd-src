@@ -407,10 +407,18 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r, struct pf_addr *naddr,
 			 */
 			key.port[sidx] = pd->nsport;
 			if (!pf_find_state_all_exists(&key, dir)) {
-				MPASS(udp_mapping == NULL ||
-				    *udp_mapping == NULL);
-				*nport = pd->nsport;
-				return (0);
+				if (udp_mapping && *udp_mapping != NULL) {
+					(*udp_mapping)->endpoints[1].port = pd->nsport;
+					if (pf_udp_mapping_insert(*udp_mapping) == 0) {
+						*nport = pd->nsport;
+						return (0);
+					}
+				} else {
+					MPASS(udp_mapping == NULL ||
+					    *udp_mapping == NULL);
+					*nport = pd->nsport;
+					return (0);
+				}
 			}
 		} else if (low == high) {
 			key.port[sidx] = htons(low);
