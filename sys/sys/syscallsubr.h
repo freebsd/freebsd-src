@@ -491,6 +491,9 @@ int	user_jail_get(struct thread *td, struct iovec *iovp,
 	    updateiov_t *updateiov_f);
 int	user_jail_set(struct thread *td, struct iovec *iovp,
 	    unsigned int iovcnt, int flags, copyinuio_t *copyinuio_f);
+int	user_wait6(struct thread *td, enum idtype idtype, id_t id,
+	    int *statusp, int options, struct __wrusage *wrusage,
+	    siginfo_t *sip);
 
 /* flags for kern_sigaction */
 #define	KSA_OSIGSET	0x0001	/* uses osigact_t */
