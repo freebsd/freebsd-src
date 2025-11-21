@@ -431,6 +431,8 @@ int	kern_utimensat(struct thread *td, int fd, const char *path,
 	    enum uio_seg tptrseg, int flag);
 int	kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	    struct rusage *rup);
+int	kern_wait4(struct thread *td, int pid, int *statusp, int options,
+	    struct rusage *rusage);
 int	kern_wait6(struct thread *td, enum idtype idtype, id_t id, int *status,
 	    int options, struct __wrusage *wrup, siginfo_t *sip);
 int	kern_writev(struct thread *td, int fd, struct uio *auio);
