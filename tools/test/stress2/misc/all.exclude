@@ -66,19 +66,12 @@ systrace.sh		WiP								20200227
 systrace2.sh		WiP								20200227
 syzkaller16.sh		zonelimit issue							20210722
 syzkaller28.sh		panic: About to free ctl:0x... so:0x... and its in 1		20201120
-syzkaller31.sh		panic: Bad tailq NEXT(0xfffffe01a0899430->tqh_last) != NULL	20220420
 syzkaller55.sh		https://people.freebsd.org/~pho/stress/log/log0533.txt		20240702
 syzkaller59.sh		Page fault							20220625
-syzkaller65.sh		panic: in_pcblookup_hash_locked: invalid local address		20230318
-syzkaller66.sh		panic: in_pcbconnect: inp is already connected			20230621
-syzkaller67.sh		panic: ASan: Invalid access, 8-byte read at ...			20230621
 syzkaller80.sh		panic								20250711
-syzkaller81.sh		panic								20250711
 syzkaller82.sh		panic: m_apply, length > size of mbuf chain			20250724
-syzkaller84.sh		panic: Assertion !(sb->sb_state & SBS_CANTRCVMORE)		20250810
 syzkaller85.sh		panic: Assertion uio->uio_resid < 0 failed			20250928
-syzkaller86.sh		Fatal trap 12: page fault while in kernel mode			20251001
-write2.sh		panic: sndbuf_acquire: count 255 > free 0			20251003
+syzkaller87.sh		watchdogd fired							20251112
 quota3.sh		https://people.freebsd.org/~pho/stress/log/log0604.txt		20250728
 quota6.sh		https://people.freebsd.org/~pho/stress/log/log0456.txt		20240707
 truss3.sh		WiP								20200915
