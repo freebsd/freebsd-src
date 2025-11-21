@@ -752,7 +752,7 @@ struct ip_fw {
 #endif
 
 #define ACTION_PTR(rule)				\
-	(ipfw_insn *)( (u_int32_t *)((rule)->cmd) + ((rule)->act_ofs) )
+	((ipfw_insn *)( (uint32_t *)((rule)->cmd) + ((rule)->act_ofs) ))
 
 #define RULESIZE(rule)  (sizeof(*(rule)) + (rule)->cmd_len * 4 - 4)
 
