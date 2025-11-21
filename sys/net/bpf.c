@@ -1609,33 +1609,28 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Set interface.
 	 */
 	case BIOCSETIF:
-		{
-			int alloc_buf, size;
+		/*
+		 * Behavior here depends on the buffering model.  If we're
+		 * using kernel memory buffers, then we can allocate them here.
+		 * If we're using zero-copy, then the user process must have
+		 * registered buffers by the time we get here.
+		 */
+		BPFD_LOCK(d);
+		if (d->bd_bufmode == BPF_BUFMODE_BUFFER &&
+		    d->bd_sbuf == NULL) {
+			u_int size;
 
-			/*
-			 * Behavior here depends on the buffering model.  If
-			 * we're using kernel memory buffers, then we can
-			 * allocate them here.  If we're using zero-copy,
-			 * then the user process must have registered buffers
-			 * by the time we get here.
-			 */
-			alloc_buf = 0;
-			BPFD_LOCK(d);
-			if (d->bd_bufmode == BPF_BUFMODE_BUFFER &&
-			    d->bd_sbuf == NULL)
-				alloc_buf = 1;
+			size = d->bd_bufsize;
 			BPFD_UNLOCK(d);
-			if (alloc_buf) {
-				size = d->bd_bufsize;
-				error = bpf_buffer_ioctl_sblen(d, &size);
-				if (error != 0)
-					break;
-			}
-			BPF_LOCK();
-			error = bpf_setif(d, (struct ifreq *)addr);
-			BPF_UNLOCK();
-			break;
-		}
+			error = bpf_buffer_ioctl_sblen(d, &size);
+			if (error != 0)
+				break;
+		} else
+			BPFD_UNLOCK(d);
+		BPF_LOCK();
+		error = bpf_setif(d, (struct ifreq *)addr);
+		BPF_UNLOCK();
+		break;
 
 	/*
 	 * Set read timeout.
