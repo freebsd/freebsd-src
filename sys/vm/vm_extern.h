@@ -164,5 +164,8 @@ vm_addr_ok(vm_paddr_t pa, vm_paddr_t size, u_long alignment,
 	return (vm_addr_align_ok(pa, alignment) &&
 	    vm_addr_bound_ok(pa, size, boundary));
 }
+
+extern bool vm_check_pg_zero;
+
 #endif				/* _KERNEL */
 #endif				/* !_VM_EXTERN_H_ */
