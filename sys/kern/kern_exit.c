@@ -922,38 +922,43 @@ kern_wait4(struct thread *td, int pid, int *statusp, int options,
 int
 sys_wait6(struct thread *td, struct wait6_args *uap)
 {
-	struct __wrusage wru, *wrup;
 	siginfo_t si, *sip;
-	idtype_t idtype;
-	id_t id;
-	int error, status;
-
-	idtype = uap->idtype;
-	id = uap->id;
-
-	if (uap->wrusage != NULL)
-		wrup = &wru;
-	else
-		wrup = NULL;
+	int error;
 
 	if (uap->info != NULL) {
 		sip = &si;
 		bzero(sip, sizeof(*sip));
 	} else
 		sip = NULL;
+	error = user_wait6(td, uap->idtype, uap->id, uap->status, uap->options,
+	    uap->wrusage, sip);
+	if (uap->info != NULL && error == 0)
+		error = copyout(&si, uap->info, sizeof(si));
+	return (error);
+}
+
+int
+user_wait6(struct thread *td, idtype_t idtype, id_t id, int *statusp,
+    int options, struct __wrusage *wrusage, siginfo_t *sip)
+{
+	struct __wrusage wru, *wrup;
+	int error, status;
+
+	if (wrusage != NULL)
+		wrup = &wru;
+	else
+		wrup = NULL;
 
 	/*
 	 *  We expect all callers of wait6() to know about WEXITED and
 	 *  WTRAPPED.
 	 */
-	error = kern_wait6(td, idtype, id, &status, uap->options, wrup, sip);
+	error = kern_wait6(td, idtype, id, &status, options, wrup, sip);
 
-	if (uap->status != NULL && error == 0 && td->td_retval[0] != 0)
-		error = copyout(&status, uap->status, sizeof(status));
-	if (uap->wrusage != NULL && error == 0 && td->td_retval[0] != 0)
-		error = copyout(&wru, uap->wrusage, sizeof(wru));
-	if (uap->info != NULL && error == 0)
-		error = copyout(&si, uap->info, sizeof(si));
+	if (statusp != NULL && error == 0 && td->td_retval[0] != 0)
+		error = copyout(&status, statusp, sizeof(status));
+	if (wrusage != NULL && error == 0 && td->td_retval[0] != 0)
+		error = copyout(&wru, wrusage, sizeof(wru));
 	return (error);
 }
 

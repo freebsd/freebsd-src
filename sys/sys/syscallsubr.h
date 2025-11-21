@@ -447,6 +447,9 @@ int	user_cpuset_setaffinity(struct thread *td, cpulevel_t level,
 	    cpuwhich_t which, id_t id, size_t cpusetsize,
 	    const cpuset_t *maskp, const struct cpuset_copy_cb *cb);
 int	user_fstat(struct thread *td, int fd, struct stat *sb);
+int	user_wait6(struct thread *td, enum idtype idtype, id_t id,
+	    int *statusp, int options, struct __wrusage *wrusage,
+	    siginfo_t *sip);
 
 /* flags for kern_sigaction */
 #define	KSA_OSIGSET	0x0001	/* uses osigact_t */
