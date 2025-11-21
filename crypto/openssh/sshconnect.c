@@ -458,6 +458,8 @@ ssh_connect_direct(struct ssh *ssh, const char *host, struct addrinfo *aitop,
 	memset(ntop, 0, sizeof(ntop));
 	memset(strport, 0, sizeof(strport));
 
+	int inet_supported = feature_present("inet");
+	int inet6_supported = feature_present("inet6");
 	for (attempt = 0; attempt < connection_attempts; attempt++) {
 		if (attempt > 0) {
 			/* Sleep a moment before retrying. */
@@ -480,6 +482,13 @@ ssh_connect_direct(struct ssh *ssh, const char *host, struct addrinfo *aitop,
 				oerrno = errno;
 				error_f("getnameinfo failed");
 				errno = oerrno;
+				continue;
+			}
+			if ((ai->ai_family == AF_INET && !inet_supported) ||
+			    (ai->ai_family == AF_INET6 && !inet6_supported)) {
+				debug2_f("skipping address [%s]:%s: "
+				    "unsupported address family", ntop, strport);
+				errno = EAFNOSUPPORT;
 				continue;
 			}
 			if (options.address_family != AF_UNSPEC &&
