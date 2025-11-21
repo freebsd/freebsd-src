@@ -470,6 +470,7 @@ int	user_cpuset_getaffinity(struct thread *td, cpulevel_t level,
 int	user_cpuset_setaffinity(struct thread *td, cpulevel_t level,
 	    cpuwhich_t which, id_t id, size_t cpusetsize,
 	    const cpuset_t *maskp, const struct cpuset_copy_cb *cb);
+int	user_fstat(struct thread *td, int fd, struct stat *sb);
 int	user_jail_get(struct thread *td, struct iovec *iovp,
 	    unsigned int iovcnt, int flags, copyinuio_t *copyinuio_f,
 	    updateiov_t *updateiov_f);
