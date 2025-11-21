@@ -464,8 +464,7 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 	struct snddev_info *d;
 	struct pcm_channel *ch;
 	int (*chn_io)(struct pcm_channel *, struct uio *);
-	int prio, ret;
-	pid_t runpid;
+	int ret;
 
 	d = priv->sc;
 	if (!DSP_REGISTERED(d))
@@ -475,37 +474,27 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 
 	switch (buf->uio_rw) {
 	case UIO_READ:
-		prio = FREAD;
 		ch = priv->rdch;
 		chn_io = chn_read;
 		break;
 	case UIO_WRITE:
-		prio = FWRITE;
 		ch = priv->wrch;
 		chn_io = chn_write;
 		break;
 	}
-
-	runpid = buf->uio_td->td_proc->p_pid;
-
-	dsp_lock_chans(priv, prio);
-
-	if (ch == NULL || !(ch->flags & CHN_F_BUSY)) {
-		if (priv->rdch != NULL || priv->wrch != NULL)
-			dsp_unlock_chans(priv, prio);
+	if (ch == NULL) {
 		PCM_GIANT_EXIT(d);
-		return (EBADF);
+		return (ENXIO);
 	}
+	CHN_LOCK(ch);
 
-	if (ch->flags & (CHN_F_MMAP | CHN_F_DEAD) ||
-	    (ch->flags & CHN_F_RUNNING && ch->pid != runpid)) {
-		dsp_unlock_chans(priv, prio);
+	if (!(ch->flags & CHN_F_BUSY) ||
+	    (ch->flags & (CHN_F_MMAP | CHN_F_DEAD))) {
+		CHN_UNLOCK(ch);
 		PCM_GIANT_EXIT(d);
-		return (EINVAL);
-	} else if (!(ch->flags & CHN_F_RUNNING)) {
+		return (ENXIO);
+	} else if (!(ch->flags & CHN_F_RUNNING))
 		ch->flags |= CHN_F_RUNNING;
-		ch->pid = runpid;
-	}
 
 	/*
 	 * chn_read/write must give up channel lock in order to copy bytes
@@ -517,8 +506,7 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 	ch->inprog--;
 
 	CHN_BROADCAST(&ch->cv);
-
-	dsp_unlock_chans(priv, prio);
+	CHN_UNLOCK(ch);
 
 	PCM_GIANT_LEAVE(d);
 
