@@ -114,9 +114,9 @@ work=/tmp/$prog.dir
 rm -rf $work
 mkdir $work
 cd /tmp/$prog.dir
-kldstat | grep -q sctp || { kldload sctp.ko && loaded=1; }
+kldstat | grep -q sctp && loaded=0 || { kldload sctp.ko && loaded=1; }
 timeout 3m /tmp/$prog > /dev/null 2>&1
 
 rm -rf /tmp/$prog /tmp/$prog.c /tmp/$prog.core /tmp/$prog.?????? $work
-[ $loaded ] && kldunload sctp.ko
+[ $loaded -eq 1 ] && kldunload sctp.ko
 exit 0
