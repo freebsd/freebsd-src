@@ -467,7 +467,7 @@ pcm_unregister(device_t dev)
 
 	d = device_get_softc(dev);
 
-	if (!PCM_ALIVE(d)) {
+	if (!PCM_REGISTERED(d)) {
 		device_printf(dev, "unregister: device not configured\n");
 		return (0);
 	}

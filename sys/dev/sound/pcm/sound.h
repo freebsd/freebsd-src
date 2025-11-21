@@ -133,8 +133,8 @@ struct snd_mixer;
 				"\015PVCHANS"				\
 				"\016RVCHANS"
 
-#define PCM_ALIVE(x)		((x) != NULL && (x)->lock != NULL)
-#define PCM_REGISTERED(x)	(PCM_ALIVE(x) && ((x)->flags & SD_F_REGISTERED))
+#define PCM_REGISTERED(x)	\
+	((x) != NULL && (x)->lock != NULL && ((x)->flags & SD_F_REGISTERED))
 
 #define	PCM_MAXCHANS		10000
 #define	PCM_CHANCOUNT(d)	\
