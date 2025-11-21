@@ -70,9 +70,9 @@
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/unistd.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
-#include <sys/unistd.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
@@ -124,6 +124,12 @@ sys_fork(struct thread *td, struct fork_args *uap)
 int
 sys_pdfork(struct thread *td, struct pdfork_args *uap)
 {
+	return (kern_pdfork(td, uap->fdp, uap->flags));
+}
+
+int
+kern_pdfork(struct thread *td, int *fdp, int flags)
+{
 	struct fork_req fr;
 	struct filecaps fcaps;
 	int error, fd, pid;
@@ -132,12 +138,12 @@ sys_pdfork(struct thread *td, struct pdfork_args *uap)
 	fr.fr_flags = RFFDG | RFPROC | RFPROCDESC;
 	fr.fr_pidp = &pid;
 	fr.fr_pd_fd = &fd;
-	fr.fr_pd_flags = uap->flags;
+	fr.fr_pd_flags = flags;
 	filecaps_fill(&fcaps);
-	if ((uap->flags & PD_PTRACE_CAP) == 0)
+	if ((flags & PD_PTRACE_CAP) == 0)
 		cap_rights_clear(&fcaps.fc_rights, CAP_PTRACE);
 	fr.fr_pd_fcaps = &fcaps;
-	AUDIT_ARG_FFLAGS(uap->flags);
+	AUDIT_ARG_FFLAGS(flags);
 	/*
 	 * It is necessary to return fd by reference because 0 is a valid file
 	 * descriptor number, and the child needs to be able to distinguish
@@ -147,7 +153,7 @@ sys_pdfork(struct thread *td, struct pdfork_args *uap)
 	if (error == 0) {
 		td->td_retval[0] = pid;
 		td->td_retval[1] = 0;
-		error = copyout(&fd, uap->fdp, sizeof(fd));
+		error = copyout(&fd, fdp, sizeof(fd));
 	}
 	return (error);
 }
