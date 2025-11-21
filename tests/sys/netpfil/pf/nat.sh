@@ -289,6 +289,35 @@ endpoint_independent_exhaust_cleanup()
 	rm -f server2.out
 }
 
+atf_test_case "endpoint_independent_static_port" "cleanup"
+endpoint_independent_static_port_head()
+{
+	atf_set descr 'Test that a client behind NAT gets the same external IP:port for different servers, with static-port'
+	atf_set require.user root
+}
+
+endpoint_independent_static_port_body()
+{
+	endpoint_independent_setup # Sets ${epair_…} variables
+
+	endpoint_independent_common \
+		"nat on ${epair_nat}a inet from ! (${epair_nat}a) to any -> (${epair_nat}a)" \
+		"nat on ${epair_nat}a inet from ! (${epair_nat}a) to any -> (${epair_nat}a) static-port sticky-address endpoint-independent"
+
+	# Exhaust the available nat ports
+	for i in $(seq 1 10); do
+		echo "ping" | jexec client nc -u 198.51.100.32 1234 -w 0
+		echo "ping" | jexec client nc -u 198.51.100.22 1234 -w 0
+	done
+}
+
+endpoint_independent_static_port_cleanup()
+{
+	pft_cleanup
+	rm -f server1.out
+	rm -f server2.out
+}
+
 atf_test_case "endpoint_independent_pass" "cleanup"
 endpoint_independent_pass_head()
 {
@@ -930,6 +959,7 @@ atf_init_test_cases()
 	atf_add_test_case "nested_anchor"
 	atf_add_test_case "endpoint_independent_compat"
 	atf_add_test_case "endpoint_independent_exhaust"
+	atf_add_test_case "endpoint_independent_static_port"
 	atf_add_test_case "endpoint_independent_pass"
 	atf_add_test_case "nat6_nolinklocal"
 	atf_add_test_case "empty_table_source_hash"
