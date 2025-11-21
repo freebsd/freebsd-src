@@ -3080,9 +3080,13 @@ em_reset(if_ctx_t ctx)
 	case e1000_82573:
 			pba = E1000_PBA_12K; /* 12K for Rx, 20K for Tx */
 		break;
+	/* 82574/82583: Total Packet Buffer is 40K */
 	case e1000_82574:
 	case e1000_82583:
-			pba = E1000_PBA_20K; /* 20K for Rx, 20K for Tx */
+		if (hw->mac.max_frame_size > 8192)
+			pba = E1000_PBA_22K; /* 22K for Rx, 18K for Tx */
+		else
+			pba = E1000_PBA_32K; /* 32K for RX, 8K for Tx */
 		break;
 	case e1000_ich8lan:
 		pba = E1000_PBA_8K;
