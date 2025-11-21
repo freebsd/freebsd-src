@@ -129,7 +129,7 @@ struct atiixp_info {
 	uint32_t blkcnt;
 	int registered_channels;
 
-	struct mtx *lock;
+	struct mtx lock;
 	struct callout poll_timer;
 	int poll_ticks, polling;
 };
@@ -139,9 +139,9 @@ struct atiixp_info {
 #define atiixp_wr(_sc, _reg, _val)	\
 		bus_space_write_4((_sc)->st, (_sc)->sh, _reg, _val)
 
-#define atiixp_lock(_sc)	snd_mtxlock((_sc)->lock)
-#define atiixp_unlock(_sc)	snd_mtxunlock((_sc)->lock)
-#define atiixp_assert(_sc)	snd_mtxassert((_sc)->lock)
+#define atiixp_lock(_sc)	mtx_lock(&(_sc)->lock)
+#define atiixp_unlock(_sc)	mtx_unlock(&(_sc)->lock)
+#define atiixp_assert(_sc)	mtx_assert(&(_sc)->lock, MA_OWNED)
 
 static uint32_t atiixp_fmt_32bit[] = {
 	SND_FORMAT(AFMT_S16_LE, 2, 0),
@@ -1019,7 +1019,7 @@ atiixp_chip_post_init(void *arg)
 	if (sc->codec_not_ready_bits == 0) {
 		/* wait for the interrupts to happen */
 		do {
-			msleep(sc, sc->lock, PWAIT, "ixpslp", max(hz / 10, 1));
+			msleep(sc, &sc->lock, PWAIT, "ixpslp", max(hz / 10, 1));
 			if (sc->codec_not_ready_bits != 0)
 				break;
 		} while (--timeout);
@@ -1157,10 +1157,7 @@ atiixp_release_resource(struct atiixp_info *sc)
 		bus_dma_tag_destroy(sc->sgd_dmat);
 		sc->sgd_dmat = NULL;
 	}
-	if (sc->lock) {
-		snd_mtxfree(sc->lock);
-		sc->lock = NULL;
-	}
+	mtx_destroy(&sc->lock);
 	free(sc, M_DEVBUF);
 }
 
@@ -1190,7 +1187,8 @@ atiixp_pci_attach(device_t dev)
 	int i;
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_atiixp softc");
+	mtx_init(&sc->lock, device_get_nameunit(dev), "snd_atiixp softc",
+	    MTX_DEF);
 	sc->dev = dev;
 
 	callout_init(&sc->poll_timer, 1);

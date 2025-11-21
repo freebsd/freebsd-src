@@ -79,7 +79,7 @@ struct sc_info {
 	struct resource		*reg, *irq;
 	int			regid, irqid;
 	void			*ih;
-	struct mtx		*lock;
+	struct mtx		lock;
 
 	unsigned int		bufsz;
 	struct sc_chinfo	pch, rch;
@@ -208,7 +208,7 @@ alschan_init(kobj_t obj, void *devinfo,
 	struct	sc_info	*sc = devinfo;
 	struct	sc_chinfo *ch;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	if (dir == PCMDIR_PLAY) {
 		ch = &sc->pch;
 		ch->gcr_fifo_status = ALS_GCR_FIFO0_STATUS;
@@ -223,7 +223,7 @@ alschan_init(kobj_t obj, void *devinfo,
 	ch->format = SND_FORMAT(AFMT_U8, 1, 0);
 	ch->speed = 8000;
 	ch->buffer = b;
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, 0, sc->bufsz) != 0)
 		return NULL;
@@ -278,9 +278,9 @@ alschan_getptr(kobj_t obj, void *data)
 	struct sc_info *sc = ch->parent;
 	int32_t pos, sz;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	pos = als_gcr_rd(ch->parent, ch->gcr_fifo_status) & 0xffff;
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 	sz  = ch->buffer->bufsize;
 	return (2 * sz - pos - 1) % sz;
 }
@@ -397,7 +397,7 @@ alspchan_trigger(kobj_t obj, void *data, int go)
 	if (!PCMTRIG_COMMON(go))
 		return 0;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	switch(go) {
 	case PCMTRIG_START:
 		als_playback_start(ch);
@@ -409,7 +409,7 @@ alspchan_trigger(kobj_t obj, void *data, int go)
 	default:
 		break;
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 	return 0;
 }
 
@@ -493,7 +493,7 @@ alsrchan_trigger(kobj_t obj, void *data, int go)
 	struct	sc_chinfo *ch = data;
 	struct sc_info *sc = ch->parent;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	switch(go) {
 	case PCMTRIG_START:
 		als_capture_start(ch);
@@ -503,7 +503,7 @@ alsrchan_trigger(kobj_t obj, void *data, int go)
 		als_capture_stop(ch);
 		break;
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 	return 0;
 }
 
@@ -637,19 +637,19 @@ als_intr(void *p)
 	struct sc_info *sc = (struct sc_info *)p;
 	u_int8_t intr, sb_status;
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	intr = als_intr_rd(sc);
 
 	if (intr & 0x80) {
-		snd_mtxunlock(sc->lock);
+		mtx_unlock(&sc->lock);
 		chn_intr(sc->pch.channel);
-		snd_mtxlock(sc->lock);
+		mtx_lock(&sc->lock);
 	}
 
 	if (intr & 0x40) {
-		snd_mtxunlock(sc->lock);
+		mtx_unlock(&sc->lock);
 		chn_intr(sc->rch.channel);
-		snd_mtxlock(sc->lock);
+		mtx_lock(&sc->lock);
 	}
 
 	/* ACK interrupt in PCI core */
@@ -667,7 +667,7 @@ als_intr(void *p)
 	if (sb_status & ALS_IRQ_CR1E)
 		als_ack_read(sc, ALS_CR1E_ACK_PORT);
 
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 	return;
 }
 
@@ -749,10 +749,7 @@ als_resource_free(device_t dev, struct sc_info *sc)
 		bus_dma_tag_destroy(sc->parent_dmat);
 		sc->parent_dmat = 0;
 	}
-	if (sc->lock) {
-		snd_mtxfree(sc->lock);
-		sc->lock = NULL;
-	}
+	mtx_destroy(&sc->lock);
 }
 
 static int
@@ -808,7 +805,8 @@ als_pci_attach(device_t dev)
 	char status[SND_STATUSLEN];
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_als4000 softc");
+	mtx_init(&sc->lock, device_get_nameunit(dev), "snd_als4000 softc",
+	    MTX_DEF);
 	sc->dev = dev;
 
 	pci_enable_busmaster(dev);
@@ -882,11 +880,11 @@ als_pci_suspend(device_t dev)
 {
 	struct sc_info *sc = pcm_getdevinfo(dev);
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	sc->pch.dma_was_active = als_playback_stop(&sc->pch);
 	sc->rch.dma_was_active = als_capture_stop(&sc->rch);
 	als_uninit(sc);
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 	return 0;
 }
 
@@ -895,16 +893,16 @@ als_pci_resume(device_t dev)
 {
 	struct sc_info *sc = pcm_getdevinfo(dev);
 
-	snd_mtxlock(sc->lock);
+	mtx_lock(&sc->lock);
 	if (als_init(sc) != 0) {
 		device_printf(dev, "unable to reinitialize the card\n");
-		snd_mtxunlock(sc->lock);
+		mtx_unlock(&sc->lock);
 		return ENXIO;
 	}
 
 	if (mixer_reinit(dev) != 0) {
 		device_printf(dev, "unable to reinitialize the mixer\n");
-		snd_mtxunlock(sc->lock);
+		mtx_unlock(&sc->lock);
 		return ENXIO;
 	}
 
@@ -915,7 +913,7 @@ als_pci_resume(device_t dev)
 	if (sc->rch.dma_was_active) {
 		als_capture_start(&sc->rch);
 	}
-	snd_mtxunlock(sc->lock);
+	mtx_unlock(&sc->lock);
 
 	return 0;
 }

@@ -2664,7 +2664,7 @@ uaudio_chan_init(struct uaudio_chan *ch, struct snd_dbuf *b,
 	/* store mutex and PCM channel */
 
 	ch->pcm_ch = c;
-	ch->pcm_mtx = c->lock;
+	ch->pcm_mtx = &c->lock;
 
 	/* compute worst case buffer */
 

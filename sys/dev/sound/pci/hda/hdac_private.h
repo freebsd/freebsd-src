@@ -162,7 +162,7 @@ struct hdac_stream {
 
 struct hdac_softc {
 	device_t	dev;
-	struct mtx	*lock;
+	struct mtx	lock;
 
 	struct intr_config_hook intrhook;
 
