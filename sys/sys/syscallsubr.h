@@ -95,6 +95,9 @@ int	kern_accessat(struct thread *td, int fd, const char *path,
 	    enum uio_seg pathseg, int flags, int mode);
 int	kern_adjtime(struct thread *td, struct timeval *delta,
 	    struct timeval *olddelta);
+int	kern_audit(struct thread *td, const void *record, u_int length);
+int	kern_auditctl(struct thread *td, const char *path);
+int	kern_auditon(struct thread *td, int cmd, void *data, u_int length);
 int	kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa);
 int	kern_break(struct thread *td, uintptr_t *addr);
 int	kern_cap_ioctls_limit(struct thread *td, int fd, u_long *cmds,
@@ -181,6 +184,10 @@ int	kern_futimes(struct thread *td, int fd, const struct timeval *tptr,
 	    enum uio_seg tptrseg);
 int	kern_futimens(struct thread *td, int fd, const struct timespec *tptr,
 	    enum uio_seg tptrseg);
+int	kern_getaudit(struct thread *td, struct auditinfo *auditinfo);
+int	kern_getaudit_addr(struct thread *td,
+	    struct auditinfo_addr *auditinfo_addr, u_int length);
+int	kern_getauid(struct thread *td, uid_t *auid);
 int	kern_getdirentries(struct thread *td, int fd, char *buf, size_t count,
 	    off_t *basep, ssize_t *residp, enum uio_seg bufseg);
 int	kern_getfhat(struct thread *td, int flags, int fd, const char *path,
@@ -325,6 +332,10 @@ int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	    fd_set *fd_ex, struct timeval *tvp, int abi_nfdbits);
 int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	    struct mbuf *control, enum uio_seg segflg);
+int	kern_setaudit(struct thread *td, struct auditinfo *auditinfo);
+int	kern_setaudit_addr(struct thread *td,
+	    struct auditinfo_addr *auditinfo_addr, u_int length);
+int	kern_setauid(struct thread *td, uid_t *auid);
 int	kern_setcred(struct thread *const td, const u_int flags,
 	    struct setcred *const wcred);
 int	kern_setgroups(struct thread *td, int *ngrpp, gid_t *groups);
