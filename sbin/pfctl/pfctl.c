@@ -376,7 +376,7 @@ pfctl_enable(int dev, int opts)
 		if (ret == EEXIST)
 			errx(1, "pf already enabled");
 		else if (ret == ESRCH)
-			errx(1, "pfil registeration failed");
+			errx(1, "pfil registration failed");
 		else
 			errc(1, ret, "DIOCSTART");
 	}
