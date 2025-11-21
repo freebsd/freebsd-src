@@ -27,17 +27,10 @@
  */
 
 #include <sys/param.h>
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/queue.h>
-#include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/kobj.h>
-#include <sys/malloc.h>
-#include <sys/bus.h>			/* to get driver_intr_t */
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_snd.h"

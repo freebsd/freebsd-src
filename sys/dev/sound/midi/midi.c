@@ -32,34 +32,29 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/queue.h>
-#include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/proc.h>
-#include <sys/signalvar.h>
 #include <sys/conf.h>
-#include <sys/selinfo.h>
-#include <sys/sysctl.h>
-#include <sys/malloc.h>
-#include <sys/sx.h>
-#include <sys/proc.h>
 #include <sys/fcntl.h>
-#include <sys/types.h>
-#include <sys/uio.h>
-#include <sys/poll.h>
-#include <sys/sbuf.h>
+#include <sys/kernel.h>
 #include <sys/kobj.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/poll.h>
+#include <sys/queue.h>
+#include <sys/selinfo.h>
+#include <sys/sx.h>
+#include <sys/sysctl.h>
+#include <sys/uio.h>
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_snd.h"
 #endif
 
 #include <dev/sound/midi/midi.h>
+#include <dev/sound/midi/midiq.h>
+
 #include "mpu_if.h"
 
-#include <dev/sound/midi/midiq.h>
 MALLOC_DEFINE(M_MIDI, "midi buffers", "Midi data allocation area");
 
 #define MIDI_NAMELEN   16
