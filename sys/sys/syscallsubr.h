@@ -98,6 +98,7 @@ int	kern_accept4(struct thread *td, int s, struct sockaddr *sa,
 	    int flags, struct file **fp);
 int	kern_accessat(struct thread *td, int fd, const char *path,
 	    enum uio_seg pathseg, int flags, int mode);
+int	kern_acct(struct thread *td, const char *path);
 int	kern_adjtime(struct thread *td, struct timeval *delta,
 	    struct timeval *olddelta);
 int	kern_audit(struct thread *td, const void *record, u_int length);
