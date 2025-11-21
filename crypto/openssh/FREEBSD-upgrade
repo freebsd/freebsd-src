@@ -179,6 +179,12 @@
    ignore HPN-related configuration options to avoid breaking existing
    configurations.
 
+9) Protocol selection
+
+   We use the non-portable feature_present(3) API to determine which
+   internet protocols are supported by the kernel before trying to
+   connect to the target host.  This avoids confusing the user with
+   spurious error messages.
 
 
 This port was brought to you by (in no particular order) DARPA, NAI
