@@ -37,7 +37,6 @@
 
 #include <sys/cdefs.h>
 #include "opt_bpf.h"
-#include "opt_ddb.h"
 #include "opt_netgraph.h"
 
 #include <sys/param.h>
@@ -67,10 +66,6 @@
 #include <sys/proc.h>
 
 #include <sys/socket.h>
-
-#ifdef DDB
-#include <ddb/ddb.h>
-#endif
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -3188,35 +3183,3 @@ bpf_validate(const struct bpf_insn *f, int len)
 }
 
 #endif /* !DEV_BPF && !NETGRAPH_BPF */
-
-#ifdef DDB
-static void
-bpf_show_bpf_if(struct bpf_if *bpf_if)
-{
-
-	if (bpf_if == NULL)
-		return;
-	db_printf("%p:\n", bpf_if);
-#define	BPF_DB_PRINTF(f, e)	db_printf("   %s = " f "\n", #e, bpf_if->e);
-#define	BPF_DB_PRINTF_RAW(f, e)	db_printf("   %s = " f "\n", #e, e);
-	/* bif_ext.bif_next */
-	/* bif_ext.bif_dlist */
-	BPF_DB_PRINTF("%#x", bif_dlt);
-	BPF_DB_PRINTF("%u", bif_hdrlen);
-	/* bif_wlist */
-	BPF_DB_PRINTF("%p", bif_ifp);
-	BPF_DB_PRINTF("%p", bif_bpf);
-	BPF_DB_PRINTF_RAW("%u", refcount_load(&bpf_if->bif_refcnt));
-}
-
-DB_SHOW_COMMAND(bpf_if, db_show_bpf_if)
-{
-
-	if (!have_addr) {
-		db_printf("usage: show bpf_if <struct bpf_if *>\n");
-		return;
-	}
-
-	bpf_show_bpf_if((struct bpf_if *)addr);
-}
-#endif
