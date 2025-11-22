@@ -747,9 +747,23 @@ dstmode_body()
 	atf_check cmp dir/file dst/file
 }
 
+atf_test_case root
+root_head()
+{
+	atf_set "descr" "Test copying the root directory"
+}
+root_body()
+{
+	atf_check mkdir dst
+	atf_check -s exit:1 \
+	    -e inline:"cp: / is a directory (not copied).\n" \
+	    cp / dst
+}
+
 atf_test_case to_root cleanup
 to_root_head()
 {
+	atf_set "descr" "Test copying to the root directory"
 	atf_set "require.user" "unprivileged"
 }
 to_root_body()
@@ -893,6 +907,7 @@ atf_init_test_cases()
 	atf_add_test_case to_deaddirlink
 	atf_add_test_case to_link_outside
 	atf_add_test_case dstmode
+	atf_add_test_case root
 	atf_add_test_case to_root
 	atf_add_test_case dirloop
 	atf_add_test_case unrdir
