@@ -12,6 +12,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20251126:
+	15.0-RC4-p1     SA-25:10.unbound
+
+	Fix DNS cache poison through YXDOMAIN and nodata non-referral
+	answers. [SA-25:10.unbound]
+
 20251115:
 	The FreeBSD-base repository is now defined in /etc/pkg/FreeBSD.conf,
 	disabled by default.  In -CURRENT and -STABLE this points at nightly
