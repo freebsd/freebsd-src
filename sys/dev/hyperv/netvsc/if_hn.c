@@ -98,9 +98,7 @@
 #include <net/if_types.h>
 #include <net/if_var.h>
 #include <net/rndis.h>
-#ifdef RSS
 #include <net/rss_config.h>
-#endif
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -620,17 +618,6 @@ static struct taskqueue		**hn_tx_taskque;/* shared TX taskqueues */
 static struct rmlock		hn_vfmap_lock;
 static int			hn_vfmap_size;
 static if_t			*hn_vfmap;
-
-#ifndef RSS
-static const uint8_t
-hn_rss_key_default[NDIS_HASH_KEYSIZE_TOEPLITZ] = {
-	0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
-	0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
-	0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b, 0x30, 0xb4,
-	0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
-	0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
-};
-#endif	/* !RSS */
 
 static const struct hyperv_guid	hn_guid = {
 	.hv_guid = {
@@ -6552,11 +6539,7 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 		 */
 		if (bootverbose)
 			if_printf(sc->hn_ifp, "setup default RSS key\n");
-#ifdef RSS
 		rss_getkey(rss->rss_key);
-#else
-		memcpy(rss->rss_key, hn_rss_key_default, sizeof(rss->rss_key));
-#endif
 		sc->hn_flags |= HN_FLAG_HAS_RSSKEY;
 	}
 
