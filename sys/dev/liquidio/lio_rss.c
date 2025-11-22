@@ -31,8 +31,6 @@
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef RSS
-
 #include "lio_bsd.h"
 #include "lio_common.h"
 #include "lio_droq.h"
@@ -69,7 +67,11 @@ lio_set_rss_info(struct lio *lio)
 	uint8_t		queue_id;
 
 	for (i = 0; i < LIO_RSS_TABLE_SZ; i++) {
+#ifdef RSS
 		queue_id = rss_get_indirection_to_bucket(i);
+#else
+		queue_id = i;
+#endif
 		queue_id = queue_id % oct->num_oqs;
 		rss_set->fw_itable[i] = queue_id;
 	}
@@ -168,5 +170,3 @@ lio_send_rss_param(struct lio *lio)
 
 	return (0);
 }
-
-#endif	/* RSS */
