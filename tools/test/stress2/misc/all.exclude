@@ -71,7 +71,6 @@ syzkaller59.sh		Page fault							20220625
 syzkaller80.sh		panic								20250711
 syzkaller82.sh		panic: m_apply, length > size of mbuf chain			20250724
 syzkaller85.sh		panic: Assertion uio->uio_resid < 0 failed			20250928
-syzkaller87.sh		watchdogd fired							20251112
 quota3.sh		https://people.freebsd.org/~pho/stress/log/log0604.txt		20250728
 quota6.sh		https://people.freebsd.org/~pho/stress/log/log0456.txt		20240707
 truss3.sh		WiP								20200915
