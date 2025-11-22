@@ -1101,12 +1101,8 @@ ixl_set_rss_key(struct ixl_pf *pf)
 	u32 rss_seed[IXL_RSS_KEY_SIZE_REG];
 	enum i40e_status_code status;
 
-#ifdef RSS
-        /* Fetch the configured RSS key */
-        rss_getkey((uint8_t *) &rss_seed);
-#else
-	ixl_get_default_rss_key(rss_seed);
-#endif
+	/* Fetch the configured RSS key */
+	rss_getkey((uint8_t *) &rss_seed);
 	/* Fill out hash function seed */
 	if (hw->mac.type == I40E_MAC_X722) {
 		struct i40e_aqc_get_set_rss_key_data key_data;
@@ -1132,7 +1128,6 @@ ixl_set_rss_pctypes(struct ixl_pf *pf)
 	struct i40e_hw *hw = &pf->hw;
 	u64		set_hena = 0, hena;
 
-#ifdef RSS
 	u32		rss_hash_config;
 
 	rss_hash_config = rss_gethashconfig();
@@ -1150,12 +1145,6 @@ ixl_set_rss_pctypes(struct ixl_pf *pf)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
         if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP);
-#else
-	if (hw->mac.type == I40E_MAC_X722)
-		set_hena = IXL_DEFAULT_RSS_HENA_X722;
-	else
-		set_hena = IXL_DEFAULT_RSS_HENA_XL710;
-#endif
 	hena = (u64)i40e_read_rx_ctl(hw, I40E_PFQF_HENA(0)) |
 	    ((u64)i40e_read_rx_ctl(hw, I40E_PFQF_HENA(1)) << 32);
 	hena |= set_hena;

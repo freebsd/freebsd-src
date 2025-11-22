@@ -98,10 +98,8 @@
 #include <sys/sbuf.h>
 #include <machine/smp.h>
 
-#ifdef RSS
 #include <net/rss_config.h>
 #include <netinet/in_rss.h>
-#endif
 
 #include "ifdi_if.h"
 #include "i40e_type.h"
