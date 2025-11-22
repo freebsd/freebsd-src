@@ -37,9 +37,7 @@
 #include <sys/types.h>
 #include "ena.h"
 
-#ifdef RSS
 #include <net/rss_config.h>
-#endif
 
 #define ENA_RX_RSS_MSG_RECORD_SZ 8
 
