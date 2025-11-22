@@ -34,8 +34,6 @@
 #ifndef __LIO_RSS_H__
 #define __LIO_RSS_H__
 
-#ifdef RSS
-
 #include <net/rss_config.h>
 #include <netinet/in_rss.h>
 
@@ -75,8 +73,6 @@ struct lio_rss_params_set {
 	uint64_t	hashinfo;
 
 };
-
-#endif	/* RSS */
 
 #define LIO_RSS_HASH_IPV4		0x100
 #define LIO_RSS_HASH_TCP_IPV4		0x200
