@@ -57,9 +57,7 @@
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/if_vlan_var.h>
-#ifdef RSS
 #include <net/rss_config.h>
-#endif
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #ifdef KERN_TLS
@@ -7035,7 +7033,6 @@ t4_setup_intr_handlers(struct adapter *sc)
 static void
 write_global_rss_key(struct adapter *sc)
 {
-#ifdef RSS
 	int i;
 	uint32_t raw_rss_key[RSS_KEYSIZE / sizeof(uint32_t)];
 	uint32_t rss_key[RSS_KEYSIZE / sizeof(uint32_t)];
@@ -7047,7 +7044,6 @@ write_global_rss_key(struct adapter *sc)
 		rss_key[i] = htobe32(raw_rss_key[nitems(rss_key) - 1 - i]);
 	}
 	t4_write_rss_key(sc, &rss_key[0], -1, 1);
-#endif
 }
 
 /*
@@ -7127,7 +7123,6 @@ adapter_full_uninit(struct adapter *sc)
 	sc->flags &= ~FULL_INIT_DONE;
 }
 
-#ifdef RSS
 #define SUPPORTED_RSS_HASHTYPES (RSS_HASHTYPE_RSS_IPV4 | \
     RSS_HASHTYPE_RSS_TCP_IPV4 | RSS_HASHTYPE_RSS_IPV6 | \
     RSS_HASHTYPE_RSS_TCP_IPV6 | RSS_HASHTYPE_RSS_UDP_IPV4 | \
@@ -7190,7 +7185,6 @@ hashen_to_hashconfig(int hashen)
 
 	return (hashconfig);
 }
-#endif
 
 /*
  * Idempotent.
@@ -7201,9 +7195,9 @@ vi_full_init(struct vi_info *vi)
 	struct adapter *sc = vi->adapter;
 	struct sge_rxq *rxq;
 	int rc, i, j;
+	int hashconfig = rss_gethashconfig();
 #ifdef RSS
 	int nbuckets = rss_getnumbuckets();
-	int hashconfig = rss_gethashconfig();
 	int extra;
 #endif
 
@@ -7259,9 +7253,9 @@ vi_full_init(struct vi_info *vi)
 		return (rc);
 	}
 
-#ifdef RSS
 	vi->hashen = hashconfig_to_hashen(hashconfig);
 
+#ifdef RSS
 	/*
 	 * We may have had to enable some hashes even though the global config
 	 * wants them disabled.  This is a potential problem that must be
@@ -7295,11 +7289,6 @@ vi_full_init(struct vi_info *vi)
 		CH_ALERT(vi, "UDP/IPv4 4-tuple hashing forced on.\n");
 	if (extra & RSS_HASHTYPE_RSS_UDP_IPV6)
 		CH_ALERT(vi, "UDP/IPv6 4-tuple hashing forced on.\n");
-#else
-	vi->hashen = F_FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN |
-	    F_FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN |
-	    F_FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN |
-	    F_FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN | F_FW_RSS_VI_CONFIG_CMD_UDPEN;
 #endif
 	rc = -t4_config_vi_rss(sc, sc->mbox, vi->viid, vi->hashen, vi->rss[0],
 	    0, 0);
