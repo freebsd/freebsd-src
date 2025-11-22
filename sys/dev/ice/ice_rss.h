@@ -42,36 +42,17 @@
 #ifndef _ICE_RSS_H_
 #define _ICE_RSS_H_
 
-#ifdef RSS
-// We have the kernel RSS interface available
 #include <net/rss_config.h>
 
 /* Make sure our key size buffer has enough space to store the kernel RSS key */
 CTASSERT(ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE >= RSS_KEYSIZE);
+
+#ifdef RSS
+/* RSS CPU/bucket mapping functions - only available with options RSS */
 #else
-/* The kernel RSS interface is not enabled. Use suitable defaults for the RSS
- * configuration functions.
- *
- * The RSS hash key will be a pre-generated random key.
- * The number of buckets will just match the number of CPUs.
- * The lookup table will be assigned using round-robin with no indirection.
- * The RSS hash configuration will be set to suitable defaults.
- */
-
-#define	RSS_HASHTYPE_RSS_IPV4		(1 << 1)	/* IPv4 2-tuple */
-#define	RSS_HASHTYPE_RSS_TCP_IPV4	(1 << 2)	/* TCPv4 4-tuple */
-#define	RSS_HASHTYPE_RSS_IPV6		(1 << 3)	/* IPv6 2-tuple */
-#define	RSS_HASHTYPE_RSS_TCP_IPV6	(1 << 4)	/* TCPv6 4-tuple */
-#define	RSS_HASHTYPE_RSS_IPV6_EX	(1 << 5)	/* IPv6 2-tuple + ext hdrs */
-#define	RSS_HASHTYPE_RSS_TCP_IPV6_EX	(1 << 6)	/* TCPv6 4-tiple + ext hdrs */
-#define	RSS_HASHTYPE_RSS_UDP_IPV4	(1 << 7)	/* IPv4 UDP 4-tuple */
-#define	RSS_HASHTYPE_RSS_UDP_IPV6	(1 << 9)	/* IPv6 UDP 4-tuple */
-#define	RSS_HASHTYPE_RSS_UDP_IPV6_EX	(1 << 10)	/* IPv6 UDP 4-tuple + ext hdrs */
-
-#define rss_getkey(key) ice_get_default_rss_key(key)
+/* Stub CPU/bucket functions when RSS not configured */
 #define rss_getnumbuckets() (mp_ncpus)
 #define rss_get_indirection_to_bucket(index) (index)
-#define rss_gethashconfig() (ICE_DEFAULT_RSS_HASH_CONFIG)
 
 /**
  * rss_hash2bucket - Determine the bucket for a given hash value
@@ -102,7 +83,6 @@ rss_hash2bucket(uint32_t hash_val, uint32_t hash_type, uint32_t *bucket_id)
 		return (-1);
 	}
 }
-
 #endif /* !RSS */
 
 #define ICE_DEFAULT_RSS_HASH_CONFIG \
