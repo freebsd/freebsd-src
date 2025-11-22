@@ -125,9 +125,7 @@ struct lio {
 	/* VLAN Filtering related */
 	eventhandler_tag	vlan_attach;
 	eventhandler_tag	vlan_detach;
-#ifdef RSS
 	struct lio_rss_params_set rss_set;
-#endif	/* RSS */
 };
 
 #define LIO_MAX_CORES	12
