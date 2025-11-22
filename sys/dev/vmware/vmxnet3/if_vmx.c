@@ -46,9 +46,7 @@
 #include <net/if_media.h>
 #include <net/if_vlan_var.h>
 #include <net/iflib.h>
-#ifdef RSS
 #include <net/rss_config.h>
-#endif
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -1141,18 +1139,6 @@ vmxnet3_init_shared_data(struct vmxnet3_softc *sc)
 static void
 vmxnet3_reinit_rss_shared_data(struct vmxnet3_softc *sc)
 {
-	/*
-	 * Use the same key as the Linux driver until FreeBSD can do
-	 * RSS (presumably Toeplitz) in software.
-	 */
-	static const uint8_t rss_key[UPT1_RSS_MAX_KEY_SIZE] = {
-	    0x3b, 0x56, 0xd1, 0x56, 0x13, 0x4a, 0xe7, 0xac,
-	    0xe8, 0x79, 0x09, 0x75, 0xe8, 0x65, 0x79, 0x28,
-	    0x35, 0x12, 0xb9, 0x56, 0x7c, 0x76, 0x4b, 0x70,
-	    0xd8, 0x56, 0xa3, 0x18, 0x9b, 0x0a, 0xee, 0xf3,
-	    0x96, 0xa6, 0x9f, 0x8f, 0x9e, 0x8c, 0x90, 0xc9,
-	};
-
 	if_softc_ctx_t scctx;
 	struct vmxnet3_rss_shared *rss;
 #ifdef RSS
@@ -1169,16 +1155,18 @@ vmxnet3_reinit_rss_shared_data(struct vmxnet3_softc *sc)
 	rss->hash_func = UPT1_RSS_HASH_FUNC_TOEPLITZ;
 	rss->hash_key_size = UPT1_RSS_MAX_KEY_SIZE;
 	rss->ind_table_size = UPT1_RSS_MAX_IND_TABLE_SIZE;
-#ifdef RSS
 	/*
-	 * If the software RSS is configured to anything else other than
-	 * Toeplitz, then just do Toeplitz in "hardware" for the sake of
-	 * the packet distribution, but report the hash as opaque to
-	 * disengage from the software RSS.
+	 * Always use the kernel RSS key for consistent hashing.
+	 * If software RSS is configured to Toeplitz and RSS CPU steering
+	 * is available, use the RSS indirection table. Otherwise use
+	 * simple round-robin but still report hash as opaque to disengage
+	 * from software RSS when CPU steering is not available.
 	 */
+	rss_getkey(rss->hash_key);
+
+#ifdef RSS
 	rss_algo = rss_gethashalgo();
 	if (rss_algo == RSS_HASH_TOEPLITZ) {
-		rss_getkey(rss->hash_key);
 		for (i = 0; i < UPT1_RSS_MAX_IND_TABLE_SIZE; i++) {
 			rss->ind_table[i] = rss_get_indirection_to_bucket(i) %
 			    scctx->isc_nrxqsets;
@@ -1187,7 +1175,6 @@ vmxnet3_reinit_rss_shared_data(struct vmxnet3_softc *sc)
 	} else
 #endif
 	{
-		memcpy(rss->hash_key, rss_key, UPT1_RSS_MAX_KEY_SIZE);
 		for (i = 0; i < UPT1_RSS_MAX_IND_TABLE_SIZE; i++)
 			rss->ind_table[i] = i % scctx->isc_nrxqsets;
 		sc->vmx_flags &= ~VMXNET3_FLAG_SOFT_RSS;
