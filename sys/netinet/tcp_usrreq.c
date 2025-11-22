@@ -75,6 +75,7 @@
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_rss.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
@@ -82,6 +83,7 @@
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/in6_pcb.h>
+#include <netinet6/in6_rss.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #endif
@@ -1487,6 +1489,10 @@ tcp_connect(struct tcpcb *tp, struct sockaddr_in *sin, struct thread *td)
 	if (error != 0)
 		return (error);
 
+	/* set the hash on the connection */
+	rss_proto_software_hash_v4(inp->inp_faddr, inp->inp_laddr,
+	    inp->inp_fport, inp->inp_lport, IPPROTO_TCP,
+	    &inp->inp_flowid, &inp->inp_flowtype);
 	/*
 	 * Compute window scaling to request:
 	 * Scale to fit into sweet spot.  See tcp_syncache.c.
@@ -1532,6 +1538,10 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr_in6 *sin6, struct thread *td)
 	if (error != 0)
 		return (error);
 
+	/* set the hash on the connection */
+	rss_proto_software_hash_v6(&inp->in6p_faddr,
+	    &inp->in6p_laddr, inp->inp_fport, inp->inp_lport, IPPROTO_TCP,
+	    &inp->inp_flowid, &inp->inp_flowtype);
 	/* Compute window scaling to request.  */
 	while (tp->request_r_scale < TCP_MAX_WINSHIFT &&
 	    (TCP_MAXWIN << tp->request_r_scale) < sb_max)
