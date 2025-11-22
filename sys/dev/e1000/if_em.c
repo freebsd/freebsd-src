@@ -3415,12 +3415,8 @@ igb_initialize_rss_mapping(struct e1000_softc *sc)
 	 */
 	mrqc = E1000_MRQC_ENABLE_RSS_MQ;
 
-#ifdef RSS
 	/* XXX ew typecasting */
 	rss_getkey((uint8_t *) &rss_key);
-#else
-	arc4rand(&rss_key, sizeof(rss_key), 0);
-#endif
 	for (i = 0; i < 10; i++)
 		E1000_WRITE_REG_ARRAY(hw, E1000_RSSRK(0), i, rss_key[i]);
 
