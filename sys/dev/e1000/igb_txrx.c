@@ -28,10 +28,8 @@
 
 #include "if_em.h"
 
-#ifdef RSS
 #include <net/rss_config.h>
 #include <netinet/in_rss.h>
-#endif
 
 #ifdef VERBOSE_DEBUG
 #define DPRINTF device_printf
