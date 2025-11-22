@@ -32,10 +32,9 @@
 #include <sys/sbuf.h>
 #include <machine/_inttypes.h>
 
-#ifdef RSS
 #include <net/rss_config.h>
 #include <netinet/in_rss.h>
-#endif
+
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -1940,12 +1939,8 @@ igc_initialize_rss_mapping(struct igc_softc *sc)
 	 */
 	mrqc = IGC_MRQC_ENABLE_RSS_4Q;
 
-#ifdef RSS
 	/* XXX ew typecasting */
 	rss_getkey((uint8_t *) &rss_key);
-#else
-	arc4rand(&rss_key, sizeof(rss_key), 0);
-#endif
 	for (i = 0; i < RSSKEYLEN; i++)
 		IGC_WRITE_REG_ARRAY(hw, IGC_RSSRK(0), i, rss_key[i]);
 
