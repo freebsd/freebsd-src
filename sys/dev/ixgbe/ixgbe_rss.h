@@ -34,30 +34,16 @@
 #ifndef _IXGBE_RSS_H_
 #define _IXGBE_RSS_H_
 
-#ifdef RSS
-
 #include <net/rss_config.h>
 #include <netinet/in_rss.h>
 
+#ifdef RSS
+/* RSS CPU/bucket mapping functions - only available with options RSS */
 #else
-
-#define RSS_HASHTYPE_RSS_IPV4          (1 << 1)
-#define RSS_HASHTYPE_RSS_TCP_IPV4      (1 << 2)
-#define RSS_HASHTYPE_RSS_IPV6          (1 << 3)
-#define RSS_HASHTYPE_RSS_TCP_IPV6      (1 << 4)
-#define RSS_HASHTYPE_RSS_IPV6_EX       (1 << 5)
-#define RSS_HASHTYPE_RSS_TCP_IPV6_EX   (1 << 6)
-#define RSS_HASHTYPE_RSS_UDP_IPV4      (1 << 7)
-#define RSS_HASHTYPE_RSS_UDP_IPV4_EX   (1 << 8)
-#define RSS_HASHTYPE_RSS_UDP_IPV6      (1 << 9)
-#define RSS_HASHTYPE_RSS_UDP_IPV6_EX   (1 << 10)
-
+/* Stub CPU/bucket functions when RSS not configured */
 #define rss_getcpu(_a) 0
 #define rss_getnumbuckets() 1
-#define rss_getkey(_a)
 #define rss_get_indirection_to_bucket(_a) 0
-#define rss_gethashconfig() 0x7E
 #define rss_hash2bucket(_a,_b,_c) -1
-
 #endif
 #endif /* _IXGBE_RSS_H_ */
