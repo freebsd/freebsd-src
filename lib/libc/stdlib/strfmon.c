@@ -106,7 +106,7 @@ vstrfmon_l(char *__restrict s, size_t maxsize, locale_t loc,
     const char *__restrict format, va_list ap)
 {
 	char		*dst;		/* output destination pointer */
-	const char	*fmt;		/* current format poistion pointer */
+	const char	*fmt;		/* current format position pointer */
 	struct lconv	*lc;		/* pointer to lconv structure */
 	char		*asciivalue;	/* formatted double pointer */
 
