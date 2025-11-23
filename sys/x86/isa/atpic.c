@@ -410,7 +410,7 @@ atpic_config_intr(device_t pic, struct intsrc *isrc, enum intr_trigger trig,
 }
 
 static int
-atpic_assign_cpu(device_t pic, struct intsrc *isrc, u_int apic_id)
+atpic_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 {
 
 	/*
