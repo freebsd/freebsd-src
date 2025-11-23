@@ -11,7 +11,9 @@ MK_SSP=		no
 WARNS?=	2
 
 LDFLAGS+=	-nodefaultlibs
+LDFLAGS+=	-Wl,-Bsymbolic
 LIBADD+=	c
+LIBADD+=	compiler_rt
 
 VERSION_DEF=	${.CURDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
