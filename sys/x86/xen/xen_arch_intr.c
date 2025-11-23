@@ -206,13 +206,12 @@ xen_intr_pic_resume(device_t pic, bool suspend_cancelled)
 
 
 static int
-xen_intr_pic_assign_cpu(device_t pic, struct intsrc *isrc, u_int apic_id)
+xen_intr_pic_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
 	    "xi_arch MUST be at top of xenisrc for x86");
-	return (xen_intr_assign_cpu((struct xenisrc *)isrc,
-	    apic_cpuid(apic_id)));
+	return (xen_intr_assign_cpu((struct xenisrc *)isrc, cpu_id));
 }
 
 /**
