@@ -474,7 +474,7 @@ intr_assign_cpu(device_t pic, interrupt_t *isrc, u_int cpu)
 	/* Nothing to do if there is only a single CPU. */
 	if (mp_ncpus > 1 && cpu != NOCPU) {
 		sx_xlock(&intrsrc_lock);
-		error = PIC_ASSIGN_CPU(isrc->is_event.ie_pic, isrc, cpu_apic_ids[cpu]);
+		error = PIC_ASSIGN_CPU(isrc->is_event.ie_pic, isrc, cpu);
 		if (error == 0)
 			isrc->is_cpu = cpu;
 		sx_xunlock(&intrsrc_lock);
@@ -834,7 +834,7 @@ intr_balance(void *dummy __unused, int pending __unused)
 			continue;
 		cpu = intr_next_cpu(isrc->is_domain);
 		if (isrc->is_cpu != cpu &&
-		    PIC_ASSIGN_CPU(isrc->is_event.ie_pic, isrc, cpu_apic_ids[cpu]) == 0)
+		    PIC_ASSIGN_CPU(isrc->is_event.ie_pic, isrc, cpu) == 0)
 			isrc->is_cpu = cpu;
 	}
 	sx_xunlock(&intrsrc_lock);
