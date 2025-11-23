@@ -15,7 +15,7 @@ export PORTSDIR="${PORTSDIR:-/usr/ports}"
 
 _DVD_PACKAGES="
 devel/git@lite
-editors/emacs
+editors/emacs@nox
 editors/vim
 misc/freebsd-doc-all
 net/mpd5
