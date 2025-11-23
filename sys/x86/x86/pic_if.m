@@ -100,7 +100,7 @@ METHOD int config_intr {
 METHOD int assign_cpu {
 	device_t	pic;
 	struct intsrc	*isrc;
-	u_int		apic_id;
+	u_int		cpu_id;
 };
 
 METHOD void reprogram_pin {

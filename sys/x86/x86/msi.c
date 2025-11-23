@@ -233,12 +233,13 @@ msi_disable_intr(device_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 }
 
 static int
-msi_assign_cpu(device_t pic, struct intsrc *isrc, u_int apic_id)
+msi_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 {
 	struct msi_intsrc *sib, *msi = (struct msi_intsrc *)isrc;
 	int old_vector;
 	u_int old_id;
 	int error, i, vector;
+	unsigned int apic_id = cpu_apic_ids[cpu_id];
 
 	/*
 	 * Only allow CPUs to be assigned to the first message for an
