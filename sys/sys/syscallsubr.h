@@ -442,6 +442,9 @@ int	kern_shm_open2(struct thread *td, const char *path, int flags,
 	    const char *name, struct shmfd *shmfd);
 int	kern_shmat(struct thread *td, int shmid, const void *shmaddr,
 	    int shmflg);
+int	kern_shm_rename(struct thread *td, const char *path_from_p,
+	    const char *path_to_p, int flags);
+int	kern_shm_unlink(struct thread *td, const char *userpath);
 int	kern_shmctl(struct thread *td, int shmid, int cmd, void *buf,
 	    size_t *bufsz);
 int	kern_shutdown(struct thread *td, int s, int how);
