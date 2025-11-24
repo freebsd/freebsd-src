@@ -570,10 +570,8 @@ kern_setcred_copyin_supp_groups(struct setcred *const wcred,
 }
 
 int
-user_setcred(struct thread *td, const u_int flags,
-    const void *const uwcred, const size_t size, bool is_32bit)
+user_setcred(struct thread *td, const u_int flags, struct setcred *const wcred)
 {
-	struct setcred wcred;
 #ifdef MAC
 	struct mac mac;
 	/* Pointer to 'struct mac' or 'struct mac32'. */
@@ -593,42 +591,18 @@ user_setcred(struct thread *td, const u_int flags,
 	if ((flags & ~SETCREDF_MASK) != 0)
 		return (EINVAL);
 
-#ifdef COMPAT_FREEBSD32
-	if (is_32bit) {
-		struct setcred32 wcred32;
-
-		if (size != sizeof(wcred32))
-			return (EINVAL);
-		error = copyin(uwcred, &wcred32, sizeof(wcred32));
-		if (error != 0)
-			return (error);
-		/* These fields have exactly the same sizes and positions. */
-		memcpy(&wcred, &wcred32, __rangeof(struct setcred32,
-		    setcred32_copy_start, setcred32_copy_end));
-		/* Remaining fields are pointers and need PTRIN*(). */
-		PTRIN_CP(wcred32, wcred, sc_supp_groups);
-		PTRIN_CP(wcred32, wcred, sc_label);
-	} else
-#endif /* COMPAT_FREEBSD32 */
-	{
-		if (size != sizeof(wcred))
-			return (EINVAL);
-		error = copyin(uwcred, &wcred, sizeof(wcred));
-		if (error != 0)
-			return (error);
-	}
 #ifdef MAC
-	umac = wcred.sc_label;
+	umac = wcred->sc_label;
 #endif
 	/* Also done on !MAC as a defensive measure. */
-	wcred.sc_label = NULL;
+	wcred->sc_label = NULL;
 
 	/*
 	 * Copy supplementary groups as needed.  There is no specific
 	 * alternative for 32-bit compatibility as 'gid_t' has the same size
 	 * everywhere.
 	 */
-	error = kern_setcred_copyin_supp_groups(&wcred, flags, smallgroups,
+	error = kern_setcred_copyin_supp_groups(wcred, flags, smallgroups,
 	    &groups);
 	if (error != 0)
 		goto free_groups;
@@ -638,15 +612,15 @@ user_setcred(struct thread *td, const u_int flags,
 		error = mac_label_copyin(umac, &mac, NULL);
 		if (error != 0)
 			goto free_groups;
-		wcred.sc_label = &mac;
+		wcred->sc_label = &mac;
 	}
 #endif
 
-	error = kern_setcred(td, flags, &wcred, groups);
+	error = kern_setcred(td, flags, wcred, groups);
 
 #ifdef MAC
-	if (wcred.sc_label != NULL)
-		free_copied_label(wcred.sc_label);
+	if (wcred->sc_label != NULL)
+		free_copied_label(wcred->sc_label);
 #endif
 
 free_groups:
@@ -667,7 +641,15 @@ struct setcred_args {
 int
 sys_setcred(struct thread *td, struct setcred_args *uap)
 {
-	return (user_setcred(td, uap->flags, uap->wcred, uap->size, false));
+	struct setcred wcred;
+	int error;
+
+	if (uap->size != sizeof(wcred))
+		return (EINVAL);
+	error = copyin(uap->wcred, &wcred, sizeof(wcred));
+	if (error != 0)
+		return (error);
+	return (user_setcred(td, uap->flags, &wcred));
 }
 
 /*

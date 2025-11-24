@@ -198,8 +198,8 @@ struct setcred32 {
 struct thread;
 
 /* Common native and 32-bit compatibility entry point. */
-int user_setcred(struct thread *td, const u_int flags,
-    const void *const uwcred, const size_t size, bool is_32bit);
+int	user_setcred(struct thread *td, const u_int flags,
+	    struct setcred *const wcred);
 
 struct proc;
 
