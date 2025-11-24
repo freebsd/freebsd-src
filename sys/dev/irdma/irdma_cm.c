@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2023 Intel Corporation
+ * Copyright (c) 2015 - 2025 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -1683,31 +1683,6 @@ irdma_get_vlan_ipv4(struct iw_cm_id *cm_id, u32 *addr)
 	return vlan_id;
 }
 
-static int
-irdma_manage_qhash_wait(struct irdma_pci_f *rf, struct irdma_cm_info *cm_info)
-{
-	struct irdma_cqp_request *cqp_request = cm_info->cqp_request;
-	int cnt = rf->sc_dev.hw_attrs.max_cqp_compl_wait_time_ms * CQP_TIMEOUT_THRESHOLD;
-	u32 ret_val;
-
-	if (!cqp_request)
-		return -ENOMEM;
-	do {
-		irdma_cqp_ce_handler(rf, &rf->ccq.sc_cq);
-		mdelay(1);
-	} while (!READ_ONCE(cqp_request->request_done) && --cnt);
-
-	ret_val = cqp_request->compl_info.op_ret_val;
-	irdma_put_cqp_request(&rf->cqp, cqp_request);
-	if (cnt) {
-		if (!ret_val)
-			return 0;
-		return -EINVAL;
-	}
-
-	return -ETIMEDOUT;
-}
-
 /**
  * irdma_add_mqh_ifa_cb - Adds multiple qhashes for IPv4/IPv6
  * @arg: Calback argument structure from irdma_add_mqh
@@ -1771,16 +1746,7 @@ irdma_add_mqh_ifa_cb(void *arg, struct ifaddr *ifa, u_int count)
 		    irdma_iw_get_vlan_prio(child_listen_node->loc_addr,
 					   cm_info->user_pri,
 					   cm_info->ipv4);
-	ret = irdma_manage_qhash(iwdev, cm_info,
-				 IRDMA_QHASH_TYPE_TCP_SYN,
-				 IRDMA_QHASH_MANAGE_TYPE_ADD,
-				 NULL, false);
-	if (ret) {
-		kfree(child_listen_node);
-		return ret;
-	}
-	/* wait for qhash finish */
-	ret = irdma_manage_qhash_wait(iwdev->rf, cm_info);
+	ret = irdma_add_qhash_wait_no_lock(iwdev, cm_info);
 	if (ret) {
 		kfree(child_listen_node);
 		return ret;
