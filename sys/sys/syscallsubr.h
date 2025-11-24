@@ -122,13 +122,14 @@ int	kern___acl_set_path(struct thread *td, const char *path,
 	    __acl_type_t type, const struct acl *aclp, int follow);
 int	kern___cap_rights_get(struct thread *td, int version, int fd,
 	    cap_rights_t *rightsp);
-int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
-	    size_t buflen, size_t path_max);
+int	kern___getcwd(struct thread *td, char *buf, size_t buflen);
 int	kern___mac_get_fd(struct thread *td, int fd, void *mac_p);
 int	kern___mac_get_pid(struct thread *td, pid_t pid, void *mac_p);
 int	kern___mac_get_proc(struct thread *td, void *mac_p);
 int	kern___mac_set_fd(struct thread *td, int fd, void *mac_p);
 int	kern___mac_set_proc(struct thread *td, void *mac_p);
+int	kern___realpathat(struct thread *td, int fd, const char *path,
+	    char *buf, size_t size, int flags, enum uio_seg pathseg);
 int	kern_abort2(struct thread *td, const char *why, int nargs,
 	    void **uargs);
 int	kern_accept(struct thread *td, int s, struct sockaddr *sa,
