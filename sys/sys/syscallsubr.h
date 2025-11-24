@@ -97,6 +97,8 @@ struct mmap_req {
 };
 
 uint64_t at2cnpflags(u_int at_flags, u_int mask);
+int	kern___cap_rights_get(struct thread *td, int version, int fd,
+	    cap_rights_t *rightsp);
 int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
 	    size_t buflen, size_t path_max);
 int	kern___mac_get_fd(struct thread *td, int fd, void *mac_p);
@@ -120,6 +122,10 @@ int	kern_auditctl(struct thread *td, const char *path);
 int	kern_auditon(struct thread *td, int cmd, void *data, u_int length);
 int	kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa);
 int	kern_break(struct thread *td, uintptr_t *addr);
+int	kern_cap_fcntls_get(struct thread *td, int fd, uint32_t *fcntlrightsp);
+int	kern_cap_getmode(struct thread *td, u_int *modep);
+int	kern_cap_ioctls_get(struct thread *td, int fd, u_long *dstcmds,
+	    size_t maxcmds);
 int	kern_cap_ioctls_limit(struct thread *td, int fd, u_long *cmds,
 	    size_t ncmds);
 int	kern_cap_rights_limit(struct thread *td, int fd, cap_rights_t *rights);
@@ -492,6 +498,9 @@ int	kern_socketpair(struct thread *td, int domain, int type, int protocol,
 	    int *rsv);
 int	kern_unmount(struct thread *td, const char *path, uint64_t flags);
 
+int	user_cap_ioctls_limit(struct thread *td, int fd, const u_long *ucmds,
+	    size_t ncmds);
+int	user_cap_rights_limit(struct thread *td, int fd, cap_rights_t *rightsp);
 int	user_clock_nanosleep(struct thread *td, clockid_t clock_id,
 	    int flags, const struct timespec *ua_rqtp,
 	    struct timespec *ua_rmtp);
