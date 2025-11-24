@@ -541,14 +541,20 @@ freebsd10_pipe(struct thread *td, struct freebsd10_pipe_args *uap __unused)
 int
 sys_pipe2(struct thread *td, struct pipe2_args *uap)
 {
+	return (kern_pipe2(td, uap->fildes, uap->flags));
+}
+
+int
+kern_pipe2(struct thread *td, int *ufildes, int flags)
+{
 	int error, fildes[2];
 
-	if ((uap->flags & ~(O_CLOEXEC | O_CLOFORK | O_NONBLOCK)) != 0)
+	if ((flags & ~(O_CLOEXEC | O_CLOFORK | O_NONBLOCK)) != 0)
 		return (EINVAL);
-	error = kern_pipe(td, fildes, uap->flags, NULL, NULL);
+	error = kern_pipe(td, fildes, flags, NULL, NULL);
 	if (error)
 		return (error);
-	error = copyout(fildes, uap->fildes, 2 * sizeof(int));
+	error = copyout(fildes, ufildes, 2 * sizeof(int));
 	if (error) {
 		(void)kern_close(td, fildes[0]);
 		(void)kern_close(td, fildes[1]);

@@ -350,6 +350,7 @@ int	kern_pathconf(struct thread *td, const char *path,
 int	kern_pdfork(struct thread *td, int *fdp, int flags);
 int	kern_pipe(struct thread *td, int fildes[2], int flags,
 	    struct filecaps *fcaps1, struct filecaps *fcaps2);
+int	kern_pipe2(struct thread *td, int *ufildes, int flags);
 int	kern_poll(struct thread *td, struct pollfd *fds, u_int nfds,
 	    struct timespec *tsp, sigset_t *uset);
 int	kern_poll_kfds(struct thread *td, struct pollfd *fds, u_int nfds,
