@@ -488,6 +488,8 @@ int	user_cpuset_setaffinity(struct thread *td, cpulevel_t level,
 	    cpuwhich_t which, id_t id, size_t cpusetsize,
 	    const cpuset_t *maskp, const struct cpuset_copy_cb *cb);
 int	user_fstat(struct thread *td, int fd, struct stat *sb);
+int	user_getrlimitusage(struct thread *td, u_int which, int flags,
+	    rlim_t *ures);
 int	user_kldload(struct thread *td, const char *file);
 int	user_setgroups(struct thread *td, int gidsetsize, const gid_t *gidset);
 int	user_wait6(struct thread *td, enum idtype idtype, id_t id,
