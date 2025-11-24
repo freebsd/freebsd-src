@@ -1,5 +1,3 @@
-ZFSTOP= ${SRCTOP}/sys/contrib/openzfs
-
 ATF_TESTS_C+=	libtpool_test
 
 TEST_METADATA+= timeout="10"
