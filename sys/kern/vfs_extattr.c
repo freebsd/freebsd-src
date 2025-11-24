@@ -34,6 +34,7 @@
 #include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/fcntl.h>
 #include <sys/namei.h>
@@ -46,17 +47,6 @@
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
-
-static int	user_extattr_set_path(struct thread *td, const char *path,
-		    int attrnamespace, const char *attrname, void *data,
-		    size_t nbytes, int follow);
-static int	user_extattr_get_path(struct thread *td, const char *path,
-		    int attrnamespace, const char *attrname, void *data,
-		    size_t nbytes, int follow);
-static int	user_extattr_delete_path(struct thread *td, const char *path,
-		    int attrnamespace, const char *attrname, int follow);
-static int	user_extattr_list_path(struct thread *td, const char *path,
-		    int attrnamespace, void *data, size_t nbytes, int follow);
 
 /*
  * Syscall to push extended attribute configuration information into the VFS.
@@ -77,20 +67,28 @@ struct extattrctl_args {
 int
 sys_extattrctl(struct thread *td, struct extattrctl_args *uap)
 {
+	return (kern_extattrctl(td, uap->path, uap->cmd, uap->filename,
+	    uap->attrnamespace, uap->attrname));
+}
+
+int
+kern_extattrctl(struct thread *td, const char *path, int cmd,
+    const char *filename, int attrnamespace, const char *uattrname)
+{
 	struct vnode *filename_vp;
 	struct nameidata nd;
 	struct mount *mp, *mp_writable;
 	char attrname[EXTATTR_MAXNAMELEN + 1];
 	int error;
 
-	AUDIT_ARG_CMD(uap->cmd);
-	AUDIT_ARG_VALUE(uap->attrnamespace);
+	AUDIT_ARG_CMD(cmd);
+	AUDIT_ARG_VALUE(attrnamespace);
 	/*
-	 * uap->attrname is not always defined.  We check again later when we
+	 * attrname is not always defined.  We check again later when we
 	 * invoke the VFS call so as to pass in NULL there if needed.
 	 */
-	if (uap->attrname != NULL) {
-		error = copyinstr(uap->attrname, attrname, sizeof(attrname),
+	if (uattrname != NULL) {
+		error = copyinstr(uattrname, attrname, sizeof(attrname),
 		    NULL);
 		if (error)
 			return (error);
@@ -99,9 +97,9 @@ sys_extattrctl(struct thread *td, struct extattrctl_args *uap)
 
 	mp = NULL;
 	filename_vp = NULL;
-	if (uap->filename != NULL) {
+	if (filename != NULL) {
 		NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE2, UIO_USERSPACE,
-		    uap->filename);
+		    filename);
 		error = namei(&nd);
 		if (error)
 			return (error);
@@ -109,9 +107,9 @@ sys_extattrctl(struct thread *td, struct extattrctl_args *uap)
 		NDFREE_PNBUF(&nd);
 	}
 
-	/* uap->path is always defined. */
+	/* path is always defined. */
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_USERSPACE,
-	    uap->path);
+	    path);
 	error = namei(&nd);
 	if (error)
 		goto out;
@@ -131,7 +129,7 @@ sys_extattrctl(struct thread *td, struct extattrctl_args *uap)
 		goto out;
 	if (filename_vp != NULL) {
 		/*
-		 * uap->filename is not always defined.  If it is,
+		 * filename is not always defined.  If it is,
 		 * grab a vnode lock, which VFS_EXTATTRCTL() will
 		 * later release.
 		 */
@@ -142,8 +140,8 @@ sys_extattrctl(struct thread *td, struct extattrctl_args *uap)
 		}
 	}
 
-	error = VFS_EXTATTRCTL(mp, uap->cmd, filename_vp, uap->attrnamespace,
-	    uap->attrname != NULL ? attrname : NULL);
+	error = VFS_EXTATTRCTL(mp, cmd, filename_vp, attrnamespace,
+	    uattrname != NULL ? attrname : NULL);
 
 	vn_finished_write(mp_writable);
 out:
@@ -230,14 +228,22 @@ struct extattr_set_fd_args {
 int
 sys_extattr_set_fd(struct thread *td, struct extattr_set_fd_args *uap)
 {
+	return (user_extattr_set_fd(td, uap->fd, uap->attrnamespace,
+	    uap->attrname, uap->data, uap->nbytes));
+}
+
+int
+user_extattr_set_fd(struct thread *td, int fd, int attrnamespace,
+    const char *uattrname, void *data, size_t nbytes)
+{
 	char attrname[EXTATTR_MAXNAMELEN + 1];
 	int error;
 
-	error = copyinstr(uap->attrname, attrname, sizeof(attrname), NULL);
+	error = copyinstr(uattrname, attrname, sizeof(attrname), NULL);
 	if (error)
 		return (error);
-	return (kern_extattr_set_fd(td, uap->fd, uap->attrnamespace,
-	    attrname, uap->data, uap->nbytes));
+	return (kern_extattr_set_fd(td, fd, attrnamespace, attrname, data,
+	    nbytes));
 }
 
 int
@@ -276,7 +282,6 @@ struct extattr_set_file_args {
 int
 sys_extattr_set_file(struct thread *td, struct extattr_set_file_args *uap)
 {
-
 	return (user_extattr_set_path(td, uap->path, uap->attrnamespace,
 	    uap->attrname, uap->data, uap->nbytes, FOLLOW));
 }
@@ -293,12 +298,11 @@ struct extattr_set_link_args {
 int
 sys_extattr_set_link(struct thread *td, struct extattr_set_link_args *uap)
 {
-
 	return (user_extattr_set_path(td, uap->path, uap->attrnamespace,
 	    uap->attrname, uap->data, uap->nbytes, NOFOLLOW));
 }
 
-static int
+int
 user_extattr_set_path(struct thread *td, const char *path, int attrnamespace,
     const char *uattrname, void *data, size_t nbytes, int follow)
 {
@@ -418,14 +422,22 @@ struct extattr_get_fd_args {
 int
 sys_extattr_get_fd(struct thread *td, struct extattr_get_fd_args *uap)
 {
+	return (user_extattr_get_fd(td, uap->fd, uap->attrnamespace,
+	    uap->attrname, uap->data, uap->nbytes));
+}
+
+int
+user_extattr_get_fd(struct thread *td, int fd, int attrnamespace,
+    const char *uattrname, void *data, size_t nbytes)
+{
 	char attrname[EXTATTR_MAXNAMELEN + 1];
 	int error;
 
-	error = copyinstr(uap->attrname, attrname, sizeof(attrname), NULL);
+	error = copyinstr(uattrname, attrname, sizeof(attrname), NULL);
 	if (error)
 		return (error);
-	return (kern_extattr_get_fd(td, uap->fd, uap->attrnamespace,
-	    attrname, uap->data, uap->nbytes));
+	return (kern_extattr_get_fd(td, fd, attrnamespace, attrname, data,
+	    nbytes));
 }
 
 int
@@ -484,7 +496,7 @@ sys_extattr_get_link(struct thread *td, struct extattr_get_link_args *uap)
 	    uap->attrname, uap->data, uap->nbytes, NOFOLLOW));
 }
 
-static int
+int
 user_extattr_get_path(struct thread *td, const char *path, int attrnamespace,
     const char *uattrname, void *data, size_t nbytes, int follow)
 {
@@ -574,14 +586,21 @@ struct extattr_delete_fd_args {
 int
 sys_extattr_delete_fd(struct thread *td, struct extattr_delete_fd_args *uap)
 {
+	return (user_extattr_delete_fd(td, uap->fd, uap->attrnamespace,
+	    uap->attrname));
+}
+
+int
+user_extattr_delete_fd(struct thread *td, int fd, int attrnamespace,
+    const char *uattrname)
+{
 	char attrname[EXTATTR_MAXNAMELEN + 1];
 	int error;
 
-	error = copyinstr(uap->attrname, attrname, sizeof(attrname), NULL);
+	error = copyinstr(uattrname, attrname, sizeof(attrname), NULL);
 	if (error)
 		return (error);
-	return (kern_extattr_delete_fd(td, uap->fd, uap->attrnamespace,
-	    attrname));
+	return (kern_extattr_delete_fd(td, fd, attrnamespace, attrname));
 }
 
 int
@@ -732,16 +751,24 @@ struct extattr_list_fd_args {
 int
 sys_extattr_list_fd(struct thread *td, struct extattr_list_fd_args *uap)
 {
+	return (user_extattr_list_fd(td, uap->fd, uap->attrnamespace,
+	    uap->data, uap->nbytes));
+}
+
+int
+user_extattr_list_fd(struct thread *td, int fd, int attrnamespace, void *data,
+    size_t nbytes)
+{
 	struct uio auio, *auiop;
 	struct iovec aiov;
 
-	if (uap->data != NULL) {
-		aiov.iov_base = uap->data;
-		aiov.iov_len = uap->nbytes;
+	if (data != NULL) {
+		aiov.iov_base = data;
+		aiov.iov_len = nbytes;
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
 		auio.uio_offset = 0;
-		auio.uio_resid = uap->nbytes;
+		auio.uio_resid = nbytes;
 		auio.uio_rw = UIO_READ;
 		auio.uio_segflg = UIO_USERSPACE;
 		auio.uio_td = td;
@@ -749,8 +776,7 @@ sys_extattr_list_fd(struct thread *td, struct extattr_list_fd_args *uap)
 	} else
 		auiop = NULL;
 
-	return (kern_extattr_list_fd(td, uap->fd, uap->attrnamespace,
-	    auiop));
+	return (kern_extattr_list_fd(td, fd, attrnamespace, auiop));
 }
 
 int
@@ -785,7 +811,6 @@ struct extattr_list_file_args {
 int
 sys_extattr_list_file(struct thread *td, struct extattr_list_file_args *uap)
 {
-
 	return (user_extattr_list_path(td, uap->path, uap->attrnamespace,
 	    uap->data, uap->nbytes, FOLLOW));
 }
@@ -801,12 +826,11 @@ struct extattr_list_link_args {
 int
 sys_extattr_list_link(struct thread *td, struct extattr_list_link_args *uap)
 {
-
 	return (user_extattr_list_path(td, uap->path, uap->attrnamespace,
 	    uap->data, uap->nbytes, NOFOLLOW));
 }
 
-static int
+int
 user_extattr_list_path(struct thread *td, const char *path, int attrnamespace,
     void *data, size_t nbytes, int follow)
 {

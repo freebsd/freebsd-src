@@ -191,6 +191,8 @@ int	kern_dup(struct thread *td, u_int mode, int flags, int old, int new);
 int	kern_execve(struct thread *td, struct image_args *args,
 	    struct mac *mac_p, struct vmspace *oldvmspace);
 void	kern_exit(struct thread *, int, int);
+int	kern_extattrctl(struct thread *td, const char *path, int cmd,
+	    const char *filename, int attrnamespace, const char *uattrname);
 int	kern_extattr_delete_fd(struct thread *td, int fd, int attrnamespace,
 	    const char *attrname);
 int	kern_extattr_delete_path(struct thread *td, const char *path,
@@ -553,6 +555,24 @@ int	user_cpuset_getaffinity(struct thread *td, cpulevel_t level,
 int	user_cpuset_setaffinity(struct thread *td, cpulevel_t level,
 	    cpuwhich_t which, id_t id, size_t cpusetsize,
 	    const cpuset_t *maskp, const struct cpuset_copy_cb *cb);
+int	user_extattr_delete_fd(struct thread *td, int fd, int attrnamespace,
+	    const char *uattrname);
+int	user_extattr_delete_path(struct thread *td, const char *path,
+	    int attrnamespace, const char *attrname, int follow);
+int	user_extattr_get_fd(struct thread *td, int fd, int attrnamespace,
+	    const char *uattrname, void *data, size_t nbytes);
+int	user_extattr_get_path(struct thread *td, const char *path,
+	    int attrnamespace, const char *attrname, void *data,
+	    size_t nbytes, int follow);
+int	user_extattr_list_fd(struct thread *td, int fd, int attrnamespace,
+	    void *data, size_t nbytes);
+int	user_extattr_list_path(struct thread *td, const char *path,
+	    int attrnamespace, void *data, size_t nbytes, int follow);
+int	user_extattr_set_fd(struct thread *td, int fd, int attrnamespace,
+	    const char *uattrname, void *data, size_t nbytes);
+int	user_extattr_set_path(struct thread *td, const char *path,
+	    int attrnamespace, const char *attrname, void *data,
+	    size_t nbytes, int follow);
 int	user_fspacectl(struct thread *td, int fd, int cmd,
 	    const struct spacectl_range *rqsrp, int flags,
 	    struct spacectl_range *rmsrp);
