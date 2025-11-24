@@ -1,5 +1,3 @@
-ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
-
 .PATH: ${ZFSTOP}/lib/libzpool
 
 # ZFS_COMMON_SRCS
