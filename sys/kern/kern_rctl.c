@@ -46,6 +46,7 @@
 #include <sys/rctl.h>
 #include <sys/resourcevar.h>
 #include <sys/sx.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -1608,6 +1609,14 @@ rctl_racct_to_sbuf(struct racct *racct, int sloppy)
 int
 sys_rctl_get_racct(struct thread *td, struct rctl_get_racct_args *uap)
 {
+	return (kern_rctl_get_racct(td, uap->inbufp, uap->inbuflen,
+	    uap->outbufp, uap->outbuflen));
+}
+
+int
+kern_rctl_get_racct(struct thread *td, const void *inbufp, size_t inbuflen,
+    void *outbufp, size_t outbuflen)
+{
 	struct rctl_rule *filter;
 	struct sbuf *outputsbuf = NULL;
 	struct proc *p;
@@ -1624,7 +1633,7 @@ sys_rctl_get_racct(struct thread *td, struct rctl_get_racct_args *uap)
 	if (error != 0)
 		return (error);
 
-	error = rctl_read_inbuf(&inputstr, uap->inbufp, uap->inbuflen);
+	error = rctl_read_inbuf(&inputstr, inbufp, inbuflen);
 	if (error != 0)
 		return (error);
 
@@ -1678,7 +1687,7 @@ out:
 	if (error != 0)
 		return (error);
 
-	error = rctl_write_outbuf(outputsbuf, uap->outbufp, uap->outbuflen);
+	error = rctl_write_outbuf(outputsbuf, outbufp, outbuflen);
 
 	return (error);
 }
@@ -1704,6 +1713,14 @@ rctl_get_rules_callback(struct racct *racct, void *arg2, void *arg3)
 int
 sys_rctl_get_rules(struct thread *td, struct rctl_get_rules_args *uap)
 {
+	return (kern_rctl_get_rules(td, uap->inbufp, uap->inbuflen,
+	    uap->outbufp, uap->outbuflen));
+}
+
+int
+kern_rctl_get_rules(struct thread *td, const void *inbufp, size_t inbuflen,
+    void *outbufp, size_t outbuflen)
+{
 	struct sbuf *sb;
 	struct rctl_rule *filter;
 	struct rctl_rule_link *link;
@@ -1719,7 +1736,7 @@ sys_rctl_get_rules(struct thread *td, struct rctl_get_rules_args *uap)
 	if (error != 0)
 		return (error);
 
-	error = rctl_read_inbuf(&inputstr, uap->inbufp, uap->inbuflen);
+	error = rctl_read_inbuf(&inputstr, inbufp, inbuflen);
 	if (error != 0)
 		return (error);
 
@@ -1731,7 +1748,7 @@ sys_rctl_get_rules(struct thread *td, struct rctl_get_rules_args *uap)
 		return (error);
 	}
 
-	bufsize = uap->outbuflen;
+	bufsize = outbuflen;
 	if (bufsize > rctl_maxbufsize) {
 		sx_sunlock(&allproc_lock);
 		return (E2BIG);
@@ -1779,7 +1796,7 @@ sys_rctl_get_rules(struct thread *td, struct rctl_get_rules_args *uap)
 	if (sbuf_len(sb) > 0)
 		sbuf_setpos(sb, sbuf_len(sb) - 1);
 
-	error = rctl_write_outbuf(sb, uap->outbufp, uap->outbuflen);
+	error = rctl_write_outbuf(sb, outbufp, outbuflen);
 out:
 	rctl_rule_release(filter);
 	sx_sunlock(&allproc_lock);
@@ -1789,6 +1806,14 @@ out:
 
 int
 sys_rctl_get_limits(struct thread *td, struct rctl_get_limits_args *uap)
+{
+	return (kern_rctl_get_limits(td, uap->inbufp, uap->inbuflen,
+	    uap->outbufp, uap->outbuflen));
+}
+
+int
+kern_rctl_get_limits(struct thread *td, const void *inbufp, size_t inbuflen,
+    void *outbufp, size_t outbuflen)
 {
 	struct sbuf *sb;
 	struct rctl_rule *filter;
@@ -1804,7 +1829,7 @@ sys_rctl_get_limits(struct thread *td, struct rctl_get_limits_args *uap)
 	if (error != 0)
 		return (error);
 
-	error = rctl_read_inbuf(&inputstr, uap->inbufp, uap->inbuflen);
+	error = rctl_read_inbuf(&inputstr, inbufp, inbuflen);
 	if (error != 0)
 		return (error);
 
@@ -1832,7 +1857,7 @@ sys_rctl_get_limits(struct thread *td, struct rctl_get_limits_args *uap)
 		return (EINVAL);
 	}
 
-	bufsize = uap->outbuflen;
+	bufsize = outbuflen;
 	if (bufsize > rctl_maxbufsize) {
 		rctl_rule_release(filter);
 		sx_sunlock(&allproc_lock);
@@ -1862,7 +1887,7 @@ sys_rctl_get_limits(struct thread *td, struct rctl_get_limits_args *uap)
 	if (sbuf_len(sb) > 0)
 		sbuf_setpos(sb, sbuf_len(sb) - 1);
 
-	error = rctl_write_outbuf(sb, uap->outbufp, uap->outbuflen);
+	error = rctl_write_outbuf(sb, outbufp, outbuflen);
 out:
 	rctl_rule_release(filter);
 	sx_sunlock(&allproc_lock);
@@ -1872,6 +1897,14 @@ out:
 
 int
 sys_rctl_add_rule(struct thread *td, struct rctl_add_rule_args *uap)
+{
+	return (kern_rctl_add_rule(td, uap->inbufp, uap->inbuflen,
+	    uap->outbufp, uap->outbuflen));
+}
+
+int
+kern_rctl_add_rule(struct thread *td, const void *inbufp, size_t inbuflen,
+    void *outbufp, size_t outbuflen)
 {
 	struct rctl_rule *rule;
 	char *inputstr;
@@ -1884,7 +1917,7 @@ sys_rctl_add_rule(struct thread *td, struct rctl_add_rule_args *uap)
 	if (error != 0)
 		return (error);
 
-	error = rctl_read_inbuf(&inputstr, uap->inbufp, uap->inbuflen);
+	error = rctl_read_inbuf(&inputstr, inbufp, inbuflen);
 	if (error != 0)
 		return (error);
 
@@ -1918,6 +1951,14 @@ out:
 int
 sys_rctl_remove_rule(struct thread *td, struct rctl_remove_rule_args *uap)
 {
+	return (kern_rctl_remove_rule(td, uap->inbufp, uap->inbuflen,
+	    uap->outbufp, uap->outbuflen));
+}
+
+int
+kern_rctl_remove_rule(struct thread *td, const void *inbufp, size_t inbuflen,
+    void *outbufp, size_t outbuflen)
+{
 	struct rctl_rule *filter;
 	char *inputstr;
 	int error;
@@ -1929,7 +1970,7 @@ sys_rctl_remove_rule(struct thread *td, struct rctl_remove_rule_args *uap)
 	if (error != 0)
 		return (error);
 
-	error = rctl_read_inbuf(&inputstr, uap->inbufp, uap->inbuflen);
+	error = rctl_read_inbuf(&inputstr, inbufp, inbuflen);
 	if (error != 0)
 		return (error);
 
