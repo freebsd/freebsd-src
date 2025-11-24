@@ -218,6 +218,7 @@ int	kern_getfhat(struct thread *td, int flags, int fd, const char *path,
 int	kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 	    size_t *countp, enum uio_seg bufseg, int mode);
 int	kern_getitimer(struct thread *, u_int, struct itimerval *);
+int	kern_getloginclass(struct thread *td, char *namebuf, size_t namelen);
 int	kern_getppid(struct thread *);
 int	kern_getpeername(struct thread *td, int fd, struct sockaddr *sa);
 int	kern_getpriority(struct thread *td, int which, int who);
@@ -380,6 +381,7 @@ int	kern_setcred(struct thread *const td, const u_int flags,
 int	kern_setgroups(struct thread *td, int *ngrpp, gid_t *groups);
 int	kern_setitimer(struct thread *, u_int, struct itimerval *,
 	    struct itimerval *);
+int	kern_setloginclass(struct thread *td, const char *namebuf);
 int	kern_setpriority(struct thread *td, int which, int who, int prio);
 int	kern_setrlimit(struct thread *, u_int, struct rlimit *);
 int	kern_setsockopt(struct thread *td, int s, int level, int name,
