@@ -48,6 +48,9 @@ CFLAGS+=	-fmacro-prefix-map=${SRCTOP}=/usr/src -fdebug-prefix-map=${SRCTOP}=/usr
 
 DEFAULTWARNS?=	6
 
+# ZFS source directory
+ZFSTOP?=	${SRCTOP}/sys/contrib/openzfs
+
 # tempting, but bsd.compiler.mk causes problems this early
 # probably need to remove dependence on bsd.own.mk 
 #.include "src.opts.mk"
