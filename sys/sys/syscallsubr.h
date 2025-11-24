@@ -60,6 +60,7 @@ struct pollfd;
 struct ogetdirentries_args;
 struct rlimit;
 struct rusage;
+struct rtprio;
 struct sched_param;
 struct sembuf;
 union semun;
@@ -373,6 +374,10 @@ int	kern_recvit(struct thread *td, int s, struct msghdr *mp,
 	    enum uio_seg fromseg, struct mbuf **controlp);
 int	kern_renameat(struct thread *td, int oldfd, const char *old, int newfd,
 	    const char *new, enum uio_seg pathseg, u_int flags);
+int	kern_rtprio(struct thread *td, int function, pid_t pid,
+	    struct rtprio *urtp);
+int	kern_rtprio_thread(struct thread *td, int function, lwpid_t lwpid,
+	    struct rtprio *urtp);
 int	kern_sched_getparam(struct thread *td, struct thread *targettd,
 	    struct sched_param *param);
 int	kern_sched_getscheduler(struct thread *td, struct thread *targettd,
