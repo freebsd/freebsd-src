@@ -57,6 +57,7 @@
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
@@ -94,15 +95,15 @@ struct mac32 {
  * after use by calling free_copied_label() (which see).  On success, 'u_string'
  * if not NULL is filled with the userspace address for 'u_mac->m_string'.
  */
-static int
-mac_label_copyin_impl(const void *const u_mac, struct mac *const mac,
-    char **const u_string, bool is_32bit)
+int
+mac_label_copyin(const void *const u_mac, struct mac *const mac,
+    char **const u_string)
 {
 	char *buffer;
 	int error;
 
 #ifdef COMPAT_FREEBSD32
-	if (is_32bit) {
+	if (SV_CURPROC_FLAG(SV_ILP32)) {
 		struct mac32 mac32;
 
 		error = copyin(u_mac, &mac32, sizeof(mac32));
@@ -138,27 +139,11 @@ mac_label_copyin_impl(const void *const u_mac, struct mac *const mac,
 	return (0);
 }
 
-int
-mac_label_copyin(const struct mac *const u_mac, struct mac *const mac,
-    char **const u_string)
-{
-	return (mac_label_copyin_impl(u_mac, mac, u_string, false));
-}
-
 void
 free_copied_label(const struct mac *const mac)
 {
 	free(mac->m_string, M_MACTEMP);
 }
-
-#ifdef COMPAT_FREEBSD32
-int
-mac_label_copyin32(const struct mac32 *const u_mac,
-    struct mac *const mac, char **const u_string)
-{
-	return (mac_label_copyin_impl(u_mac, mac, u_string, true));
-}
-#endif
 
 int
 sys___mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
