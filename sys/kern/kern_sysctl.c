@@ -58,6 +58,7 @@
 #include <sys/rmlock.h>
 #include <sys/sbuf.h>
 #include <sys/sx.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
 #ifdef KTRACE
@@ -2444,23 +2445,30 @@ struct __sysctl_args {
 int
 sys___sysctl(struct thread *td, struct __sysctl_args *uap)
 {
+	return (kern_sysctl(td, uap->name, uap->namelen, uap->old,
+	    uap->oldlenp, uap->new, uap->newlen, 0));
+}
+
+int
+kern_sysctl(struct thread *td, const int *uname, u_int namelen, void *old,
+    size_t *oldlenp, const void *new, size_t newlen, int flags)
+{
 	int error, i, name[CTL_MAXNAME];
 	size_t j;
 
-	if (uap->namelen > CTL_MAXNAME || uap->namelen < 2)
+	if (namelen > CTL_MAXNAME || namelen < 2)
 		return (EINVAL);
 
- 	error = copyin(uap->name, &name, uap->namelen * sizeof(int));
- 	if (error)
+	error = copyin(name, &name, namelen * sizeof(int));
+	if (error)
 		return (error);
 
-	error = userland_sysctl(td, name, uap->namelen,
-		uap->old, uap->oldlenp, 0,
-		uap->new, uap->newlen, &j, 0);
+	error = userland_sysctl(td, name, namelen, old, oldlenp, 0,
+	    new, newlen, &j, flags);
 	if (error && error != ENOMEM)
 		return (error);
-	if (uap->oldlenp) {
-		i = copyout(&j, uap->oldlenp, sizeof(j));
+	if (oldlenp) {
+		i = copyout(&j, oldlenp, sizeof(j));
 		if (i)
 			return (i);
 	}
