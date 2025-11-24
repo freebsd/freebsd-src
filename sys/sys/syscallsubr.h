@@ -96,6 +96,14 @@ struct mmap_req {
 	mmap_check_fp_fn	mr_check_fp_fn;
 };
 
+/*
+ * A copyinuio_t takes a pointer to an iovec in userspace along with a
+ * count and allocates a struct uio containing a copy of the iovec.
+ * The uio should be freed with freeuio().
+ */
+typedef int (copyinuio_t)(const struct iovec *iovp, unsigned int iovcnt,
+    struct uio **iov);
+
 uint64_t at2cnpflags(u_int at_flags, u_int mask);
 int	kern___cap_rights_get(struct thread *td, int version, int fd,
 	    cap_rights_t *rightsp);
