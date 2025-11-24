@@ -2478,7 +2478,7 @@ struct cpl_rx_data_ack_core {
 #define F_RX_DACK_CHANGE    V_RX_DACK_CHANGE(1U)
 
 struct cpl_rx_phys_addr {
-        __be32 RSS[2];
+        __be32 rss[2];
         __be32 op_to_tid;
         __be32 pci_rlx_order_to_len;
         __be64 phys_addr;
