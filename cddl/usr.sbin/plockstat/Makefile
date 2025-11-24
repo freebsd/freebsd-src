@@ -11,9 +11,9 @@ WARNS?=		1
 
 CFLAGS+= -DIN_BASE
 CFLAGS+= -DSKIP_SPL_SYS_CONDVAR_H
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
+CFLAGS+= -I${ZFSTOP}/include
+CFLAGS+= -I${ZFSTOP}/lib/libspl/include/
+CFLAGS+= -I${ZFSTOP}/lib/libspl/include/os/freebsd
 CFLAGS+= -I${SRCTOP}/sys
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
 CFLAGS+=	-I${SRCTOP}/sys/cddl/compat/opensolaris \

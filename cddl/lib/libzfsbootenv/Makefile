@@ -1,5 +1,5 @@
-.PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libzfsbootenv
-.PATH: ${SRCTOP}/sys/contrib/openzfs/include
+.PATH: ${ZFSTOP}/lib/libzfsbootenv
+.PATH: ${ZFSTOP}/include
 
 PACKAGE=	zfs
 LIB_PACKAGE=
@@ -20,16 +20,16 @@ SRCS= $(USER_C)
 
 CSTD=	c99
 CFLAGS+= -DIN_BASE
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libzpool/include
+CFLAGS+= -I${ZFSTOP}/include
+CFLAGS+= -I${ZFSTOP}/lib/libspl/include/
+CFLAGS+= -I${ZFSTOP}/lib/libspl/include/os/freebsd
+CFLAGS+= -I${ZFSTOP}/lib/libzpool/include
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/module/icp/include
-CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
+CFLAGS+= -I${ZFSTOP}/module/icp/include
+CFLAGS+= -include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -DHAVE_ISSETUGID
 CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/zfs
+CFLAGS+= -I${ZFSTOP}/include/os/freebsd/zfs
 CFLAGS.lzbe_device.c=	-Wno-cast-qual
 CFLAGS.lzbe_util.c=	-Wno-cast-qual
 CFLAGS.lzbe_pair.c=	-Wno-cast-qual

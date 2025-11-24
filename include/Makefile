@@ -233,7 +233,7 @@ RPCDIR=		${INCLUDEDIR}/rpc
 TEKEN=		teken.h
 TEKENDIR=	${INCLUDEDIR}/teken
 
-.PATH: ${SRCTOP}/sys/contrib/openzfs/include/sys
+.PATH: ${ZFSTOP}/include/sys
 NVPAIR=		nvpair.h
 NVPAIRDIR=	${INCLUDEDIR}/sys
 
