@@ -261,7 +261,7 @@ CFLAGS+= \
 	-I${ZFSTOP}/include \
 	-I${ZFSTOP}/lib/libspl/include \
 	-I${ZFSTOP}/lib/libspl/include/os/freebsd \
-	-I${SRCTOP}/sys/contrib/openzfs/lib/libzpool/include \
+	-I${ZFSTOP}/lib/libzpool/include \
 	-I${SRCTOP}/sys \
 	-I${ZFSTOP}/include/os/freebsd/zfs \
 	-I${SRCTOP}/cddl/compat/opensolaris/include \

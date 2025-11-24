@@ -1,11 +1,11 @@
-.PATH: ${SRCTOP}/sys/contrib/openzfs/module/icp
-.PATH: ${SRCTOP}/sys/contrib/openzfs/module/zcommon
-.PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libzfs
-.PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libzfs/os/freebsd
-.PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libshare
-.PATH: ${SRCTOP}/sys/contrib/openzfs/include
-.PATH: ${SRCTOP}/sys/contrib/openzfs/module/zstd
-.PATH: ${SRCTOP}/sys/contrib/openzfs/module/zstd/lib
+.PATH: ${ZFSTOP}/module/icp
+.PATH: ${ZFSTOP}/module/zcommon
+.PATH: ${ZFSTOP}/lib/libzfs
+.PATH: ${ZFSTOP}/lib/libzfs/os/freebsd
+.PATH: ${ZFSTOP}/lib/libshare
+.PATH: ${ZFSTOP}/include
+.PATH: ${ZFSTOP}/module/zstd
+.PATH: ${ZFSTOP}/module/zstd/lib
 
 PACKAGE=	zfs
 LIB_PACKAGE=
@@ -89,17 +89,17 @@ WARNS?=	2
 SHLIB_MAJOR= 4
 CSTD=	c99
 CFLAGS+= -DIN_BASE
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include/os/freebsd
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libshare
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libzpool/include
+CFLAGS+= -I${ZFSTOP}/include
+CFLAGS+= -I${ZFSTOP}/include/os/freebsd
+CFLAGS+= -I${ZFSTOP}/lib/libspl/include
+CFLAGS+= -I${ZFSTOP}/lib/libspl/include/os/freebsd
+CFLAGS+= -I${ZFSTOP}/lib/libshare
+CFLAGS+= -I${ZFSTOP}/lib/libzpool/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/ck/include
 CFLAGS+= -I${SRCTOP}/sys
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/module/icp/include
-CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
+CFLAGS+= -I${ZFSTOP}/module/icp/include
+CFLAGS+= -include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -DHAVE_ISSETUGID
 CFLAGS+= -DHAVE_EXECVPE
 CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h

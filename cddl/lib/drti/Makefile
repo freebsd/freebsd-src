@@ -11,11 +11,11 @@ CLEANFILES=	${FILES}
 # These FILES qualify as libraries for the purpose of LIBRARIES_ONLY.
 .undef LIBRARIES_ONLY
 CFLAGS+= -DIN_BASE
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
+CFLAGS+= -I${ZFSTOP}/include
+CFLAGS+= -I${ZFSTOP}/lib/libspl/include/
+CFLAGS+= -I${ZFSTOP}/lib/libspl/include/os/freebsd
 CFLAGS+= -I${SRCTOP}/sys
-CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
+CFLAGS+= -include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -DHAVE_ISSETUGID
 CFLAGS+=	-I${SRCTOP}/sys/cddl/compat/opensolaris \
 		-I${SRCTOP}/cddl/compat/opensolaris/include \

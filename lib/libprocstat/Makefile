@@ -55,7 +55,6 @@ MLINKS+=libprocstat.3 procstat_close.3 \
 .if ${MK_CDDL} != "no"
 CFLAGS+=	-DLIBPROCSTAT_ZFS
 SRCS+=	zfs.c
-ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
 CFLAGS.zfs.c+=	-DIN_BASE
 CFLAGS.zfs.c+=	-DHAVE_ISSETUGID
 CFLAGS.zfs.c+=	-DZFS_DEBUG
