@@ -635,12 +635,7 @@ user_setcred(struct thread *td, const u_int flags,
 
 #ifdef MAC
 	if ((flags & SETCREDF_MAC_LABEL) != 0) {
-#ifdef COMPAT_FREEBSD32
-		if (is_32bit)
-			error = mac_label_copyin32(umac, &mac, NULL);
-		else
-#endif
-			error = mac_label_copyin(umac, &mac, NULL);
+		error = mac_label_copyin(umac, &mac, NULL);
 		if (error != 0)
 			goto free_groups;
 		wcred.sc_label = &mac;
