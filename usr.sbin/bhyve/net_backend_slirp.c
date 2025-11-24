@@ -73,11 +73,12 @@ struct slirp_priv {
 	struct mevent *mevp;
 };
 
+extern char **environ;
+
 static int
 slirp_init(struct net_backend *be, const char *devname __unused,
     nvlist_t *nvl, net_be_rxeof_t cb, void *param)
 {
-	extern char **environ;
 	struct slirp_priv *priv = NET_BE_PRIV(be);
 	nvlist_t *config;
 	posix_spawn_file_actions_t fa;
