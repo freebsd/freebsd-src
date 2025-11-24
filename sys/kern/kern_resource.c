@@ -939,17 +939,22 @@ getrlimitusage_one(struct proc *p, struct vmspace *vm, u_int which, int flags,
 int
 sys_getrlimitusage(struct thread *td, struct getrlimitusage_args *uap)
 {
+	return (user_getrlimitusage(td, uap->which, uap->flags, uap->res));
+}
+
+int
+user_getrlimitusage(struct thread *td, u_int which, int flags, rlim_t *ures)
+{
 	struct proc *p;
 	rlim_t res;
 	int error;
 
-	if ((uap->flags & ~(GETRLIMITUSAGE_EUID)) != 0)
+	if ((flags & ~(GETRLIMITUSAGE_EUID)) != 0)
 		return (EINVAL);
 	p = curproc;
-	error = getrlimitusage_one(p, p->p_vmspace, uap->which, uap->flags,
-	    &res);
+	error = getrlimitusage_one(p, p->p_vmspace, which, flags, &res);
 	if (error == 0)
-		error = copyout(&res, uap->res, sizeof(res));
+		error = copyout(&res, ures, sizeof(res));
 	return (error);
 }
 
