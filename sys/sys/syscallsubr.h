@@ -503,6 +503,14 @@ int	user_fstat(struct thread *td, int fd, struct stat *sb);
 int	user_getrlimitusage(struct thread *td, u_int which, int flags,
 	    rlim_t *ures);
 int	user_kldload(struct thread *td, const char *file);
+int	user_sched_getparam(struct thread *td, pid_t pid,
+	    struct sched_param *param);
+int	user_sched_rr_get_interval(struct thread *td, pid_t pid,
+	    struct timespec *interval);
+int	user_sched_setparam(struct thread *td, pid_t pid,
+	    const struct sched_param *param);
+int	user_sched_setscheduler(struct thread *td, pid_t pid, int policy,
+	    const struct sched_param *param);
 int	user_setgroups(struct thread *td, int gidsetsize, const gid_t *gidset);
 int	user_settimeofday(struct thread *td, const struct timeval *tv,
 	    const struct timezone *tz);
