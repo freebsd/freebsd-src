@@ -460,6 +460,7 @@ int	kern_semop(struct thread *td, int usemid, struct sembuf *usops,
 int	kern_thr_alloc(struct proc *, int pages, struct thread **);
 int	kern_thr_exit(struct thread *td);
 int	kern_thr_new(struct thread *td, struct thr_param *param);
+int	kern_thr_set_name(struct thread *td, lwpid_t id, const char *uname);
 int	kern_thr_suspend(struct thread *td, struct timespec *tsp);
 int	kern_timerfd_create(struct thread *td, int clockid, int flags);
 int	kern_timerfd_gettime(struct thread *td, int fd,
