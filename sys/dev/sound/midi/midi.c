@@ -658,21 +658,19 @@ midi_poll(struct cdev *i_dev, int events, struct thread *td)
 	mtx_lock(&m->lock);
 	mtx_lock(&m->qlock);
 
-	if (events & (POLLIN | POLLRDNORM))
+	if (events & (POLLIN | POLLRDNORM)) {
 		if (!MIDIQ_EMPTY(m->inq))
-			events |= events & (POLLIN | POLLRDNORM);
-
-	if (events & (POLLOUT | POLLWRNORM))
-		if (MIDIQ_AVAIL(m->outq) < m->hiwat)
-			events |= events & (POLLOUT | POLLWRNORM);
-
-	if (revents == 0) {
-		if (events & (POLLIN | POLLRDNORM))
+			revents |= events & (POLLIN | POLLRDNORM);
+		else
 			selrecord(td, &m->rsel);
-
-		if (events & (POLLOUT | POLLWRNORM))
+	}
+	if (events & (POLLOUT | POLLWRNORM)) {
+		if (MIDIQ_AVAIL(m->outq) < m->hiwat)
+			revents |= events & (POLLOUT | POLLWRNORM);
+		else
 			selrecord(td, &m->wsel);
 	}
+
 	mtx_unlock(&m->lock);
 	mtx_unlock(&m->qlock);
 
