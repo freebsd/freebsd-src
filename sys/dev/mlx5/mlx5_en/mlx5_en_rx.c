@@ -358,7 +358,6 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe, struct mlx5e_rq *rq,
 	/* check if a Toeplitz hash was computed */
 	if (cqe->rss_hash_type != 0) {
 		mb->m_pkthdr.flowid = be32_to_cpu(cqe->rss_hash_result);
-#ifdef RSS
 		/* decode the RSS hash type */
 		switch (cqe->rss_hash_type &
 		    (CQE_RSS_DST_HTYPE_L4 | CQE_RSS_DST_HTYPE_IP)) {
@@ -386,9 +385,6 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe, struct mlx5e_rq *rq,
 			M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE_HASH);
 			break;
 		}
-#else
-		M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE_HASH);
-#endif
 #ifdef M_HASHTYPE_SETINNER
 		if (cqe_is_tunneled(cqe))
 			M_HASHTYPE_SETINNER(mb);

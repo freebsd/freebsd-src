@@ -53,10 +53,8 @@
 #include <sys/kthread.h>
 #include <sys/counter.h>
 
-#ifdef	RSS
 #include <net/rss_config.h>
 #include <netinet/in_rss.h>
-#endif
 
 #include <machine/bus.h>
 
