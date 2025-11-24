@@ -20,7 +20,7 @@ CFLAGS+= -DBHYVE_SNAPSHOT
 
 # usr.sbin/bhyve/snapshot.h needs ucl header
 CFLAGS+= -I${SRCTOP}/contrib/libucl/include
-CFLAGS+= -I${SRCTOP}/usr.sbin/bhyve
 .endif
+CFLAGS+= -I${SRCTOP}/usr.sbin/bhyve
 
 .include <bsd.prog.mk>

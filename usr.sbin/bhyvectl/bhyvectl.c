@@ -52,6 +52,7 @@
 #include <machine/vmm_dev.h>
 #include <vmmapi.h>
 
+#include "ipc.h"
 #ifdef BHYVE_SNAPSHOT
 #include "snapshot.h"
 #endif
@@ -253,12 +254,13 @@ show_memseg(struct vmctx *ctx)
 	}
 }
 
-#ifdef BHYVE_SNAPSHOT
-static int
-send_message(const char *vmname, nvlist_t *nvl, const char *rundir)
+static int __unused
+ipc_send_message(const char *vmname, nvlist_t *request, const char *rundir)
 {
+	int err = 0, socket_fd, ret;
 	struct sockaddr_un addr;
-	int err = 0, ret, socket_fd;
+	const char* errmsg;
+	nvlist_t *reply;
 
 	socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
 	if (socket_fd < 0) {
@@ -286,18 +288,27 @@ send_message(const char *vmname, nvlist_t *nvl, const char *rundir)
 		goto done;
 	}
 
-	if (nvlist_send(socket_fd, nvl) < 0) {
-		perror("nvlist_send() failed");
-		err = errno;
+	reply = nvlist_xfer(socket_fd, request, 0);
+	request = NULL;
+	if (reply == NULL) {
+		perror("nvlist_xfer() failed");
+		goto done;
+	}
+	if (nvlist_exists_string(reply, "error")) {
+		errmsg = nvlist_get_string(reply, "error");
+		fprintf(stderr, "%s: IPC command failed: %s\n", __func__, errmsg);
+		err = -1;
 	}
 done:
-	nvlist_destroy(nvl);
+	if (request != NULL)
+		nvlist_destroy(request);
 
 	if (socket_fd >= 0)
 		close(socket_fd);
 	return (err);
 }
 
+#ifdef BHYVE_SNAPSHOT
 static int
 open_directory(const char *file)
 {
@@ -329,7 +340,7 @@ snapshot_request(const char *vmname, char *file, bool suspend, const char *rundi
 	nvlist_add_bool(nvl, "suspend", suspend);
 	nvlist_move_descriptor(nvl, "fddir", fd);
 
-	return (send_message(vmname, nvl, rundir));
+	return (ipc_send_message(vmname, nvl, rundir));
 }
 #endif
 
@@ -345,8 +356,8 @@ main(int argc, char *argv[])
 	struct option *opts;
 #ifdef BHYVE_SNAPSHOT
 	char *checkpoint_file = NULL;
-	char *rundir = NULL;
 #endif
+	const char *rundir = NULL;
 
 	opts = setup_options();
 
@@ -405,6 +416,9 @@ main(int argc, char *argv[])
 
 	if (vmname == NULL)
 		usage(opts);
+
+	if (rundir == NULL)
+		rundir = BHYVE_RUN_DIR;
 
 	action_opts = create + destroy + force_reset + force_poweroff;
 #ifdef BHYVE_SNAPSHOT
@@ -546,7 +560,7 @@ main(int argc, char *argv[])
 	if (!error && checkpoint_file)
 		error = snapshot_request(vmname, checkpoint_file,
 				vm_suspend_opt,
-				rundir ? rundir : BHYVE_RUN_DIR);
+				rundir);
 #endif
 
 	if (error)
