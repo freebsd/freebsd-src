@@ -736,11 +736,7 @@ ssi_attach(device_t dev)
 	sc->pos = 0;
 	sc->conf = malloc(sizeof(struct sdma_conf), M_DEVBUF, M_WAITOK | M_ZERO);
 
-	mtx_init(&sc->lock, device_get_nameunit(dev), "ssi softc");
-	if (sc->lock == NULL) {
-		device_printf(dev, "Can't create mtx\n");
-		return (ENXIO);
-	}
+	mtx_init(&sc->lock, device_get_nameunit(dev), "ssi softc", MTX_DEF);
 
 	if (bus_alloc_resources(dev, ssi_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");

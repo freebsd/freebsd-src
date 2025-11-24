@@ -691,11 +691,7 @@ sai_attach(device_t dev)
 	sc->sr = &rate_map[0];
 	sc->pos = 0;
 
-	mtx_init(&sc->lock, device_get_nameunit(dev), "sai softc");
-	if (sc->lock == NULL) {
-		device_printf(dev, "Cant create mtx\n");
-		return (ENXIO);
-	}
+	mtx_init(&sc->lock, device_get_nameunit(dev), "sai softc", MTX_DEF);
 
 	if (bus_alloc_resources(dev, sai_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");
