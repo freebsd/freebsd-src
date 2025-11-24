@@ -39,6 +39,7 @@
 #include <sys/socket.h>
 
 struct __wrusage;
+struct acl;
 struct cpuset_copy_cb;
 struct ffclock_estimate;
 struct file;
@@ -105,6 +106,20 @@ typedef int (copyinuio_t)(const struct iovec *iovp, unsigned int iovcnt,
     struct uio **iov);
 
 uint64_t at2cnpflags(u_int at_flags, u_int mask);
+int	kern___acl_aclcheck_fd(struct thread *td, int filedes,
+	    __acl_type_t type, const struct acl *aclp);
+int	kern___acl_aclcheck_path(struct thread *td, const char *path,
+	    __acl_type_t type, struct acl *aclp, int follow);
+int	kern___acl_delete_path(struct thread *td, const char *path,
+	    __acl_type_t type, int follow);
+int	kern___acl_get_fd(struct thread *td, int filedes, __acl_type_t type,
+	    struct acl *aclp);
+int	kern___acl_get_path(struct thread *td, const char *path,
+	    __acl_type_t type, struct acl *aclp, int follow);
+int	kern___acl_set_fd(struct thread *td, int filedes, __acl_type_t type,
+	    const struct acl *aclp);
+int	kern___acl_set_path(struct thread *td, const char *path,
+	    __acl_type_t type, const struct acl *aclp, int follow);
 int	kern___cap_rights_get(struct thread *td, int version, int fd,
 	    cap_rights_t *rightsp);
 int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
