@@ -270,8 +270,11 @@ Note: this option is worthless if a public available suid or sgid
 wrapper is installed on your system.
 It is set automatically when the user does not have super-user privileges.
 .It Cm nosymfollow
-Do not follow symlinks
-on the mounted file system.
+Do not follow symlinks on the mounted file system.
+.Pp
+This option is intended to be used when mounting file systems
+from untrusted external storage systems or public writable /tmp file systems.
+You can still create or remove symlinks, or read the value of a symbolic link.
 .It Cm ro
 Mount the filesystem read-only, even the super-user may not write it.
 Equivalent to
@@ -571,6 +574,7 @@ support for a particular file system might be provided either on a static
 .Xr lsvfs 1 ,
 .Xr setfacl 1 ,
 .Xr nmount 2 ,
+.Xr symlink 2 ,
 .Xr acl 3 ,
 .Xr getmntinfo 3 ,
 .Xr libxo 3 ,
@@ -584,6 +588,7 @@ support for a particular file system might be provided either on a static
 .Xr tarfs 4 ,
 .Xr tmpfs 4 ,
 .Xr fstab 5 ,
+.Xr symlink 7 ,
 .Xr automount 8 ,
 .Xr fstyp 8 ,
 .Xr kldload 8 ,
