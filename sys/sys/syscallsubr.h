@@ -235,6 +235,8 @@ int	kern_getsid(struct thread *td, pid_t pid);
 int	kern_getsockname(struct thread *td, int fd, struct sockaddr *sa);
 int	kern_getsockopt(struct thread *td, int s, int level, int name,
 	    void *optval, enum uio_seg valseg, socklen_t *valsize);
+int	kern_gettimeofday(struct thread *td, struct timeval *tp,
+	    struct timezone *tzp);
 int	kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data);
 int	kern_jail(struct thread *td, struct jail *j);
 int	kern_jail_get(struct thread *td, struct uio *options, int flags);
@@ -487,6 +489,9 @@ int	kern_socketpair(struct thread *td, int domain, int type, int protocol,
 	    int *rsv);
 int	kern_unmount(struct thread *td, const char *path, uint64_t flags);
 
+int	user_clock_nanosleep(struct thread *td, clockid_t clock_id,
+	    int flags, const struct timespec *ua_rqtp,
+	    struct timespec *ua_rmtp);
 int	user_cpuset_getaffinity(struct thread *td, cpulevel_t level,
 	    cpuwhich_t which, id_t id, size_t cpusetsize, cpuset_t *maskp,
 	    const struct cpuset_copy_cb *cb);
@@ -498,6 +503,8 @@ int	user_getrlimitusage(struct thread *td, u_int which, int flags,
 	    rlim_t *ures);
 int	user_kldload(struct thread *td, const char *file);
 int	user_setgroups(struct thread *td, int gidsetsize, const gid_t *gidset);
+int	user_settimeofday(struct thread *td, const struct timeval *tv,
+	    const struct timezone *tz);
 int	user_sigprocmask(struct thread *td, int how, const sigset_t *uset,
 	    sigset_t *uoset);
 int	user_sigsuspend(struct thread *td, const sigset_t *sigmask);
