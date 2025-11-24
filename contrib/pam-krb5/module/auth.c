@@ -696,6 +696,12 @@ verify_creds(struct pam_args *args, krb5_creds *creds)
         if (cursor_valid)
             krb5_kt_end_seq_get(c, keytab, &cursor);
     }
+#ifdef __FreeBSD__
+    if (args->config->allow_kdc_spoof)
+	opts.flags &= ~KRB5_VERIFY_INIT_CREDS_OPT_AP_REQ_NOFAIL;
+    else
+	opts.flags |= KRB5_VERIFY_INIT_CREDS_OPT_AP_REQ_NOFAIL;
+#endif /* __FreeBSD__ */
     retval = krb5_verify_init_creds(c, creds, princ, keytab, NULL, &opts);
     if (retval != 0)
         putil_err_krb5(args, retval, "credential verification failed");
