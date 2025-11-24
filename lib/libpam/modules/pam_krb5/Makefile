@@ -30,6 +30,7 @@ SRCDIR= ${SRCTOP}/contrib/pam-krb5
 .PATH:	${SRCDIR}/module \
 	${SRCDIR}/portable \
 	${SRCDIR}/pam-util \
+	${SRCDIR}/docs \
 	${SRCDIR}
 
 PACKAGE=	kerberos
@@ -57,8 +58,8 @@ SRCS=	account.c \
 	support.c \
 	vector.c
 
-MANNODEV=	pam-krb5.8
-MANNODEVLINKS=	pam-krb5.8 pam_krb5.8
+MANNODEV=	pam_krb5.8
+MANSRC.pam_krb5.8=pam-krb5.8
 
 CFLAGS=	-I${SRCDIR} \
 	-I${.CURDIR} \
@@ -74,6 +75,13 @@ pam-util_options.c:	.PHONY
 
 module_options.c:	.PHONY
 	cp ${SRCDIR}/module/options.c module_options.c
+
+.ifdef VENDOR_IMPORT
+# Regenerate the manual page from the pod source after vendor import
+pam-krb5.8: pam_krb5.pod
+	sed -e 's/pam(7)/pam.conf(5)/' <${.ALLSRC} | \
+	    pod2mdoc -n pam_krb5 -s 8 >${.CURDIR}/${.TARGET}
+.endif
 .else
 PACKAGE=	kerberos
 

@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20251121: Remove duplicate pam_krb5 manual page
+OLD_FILES+=share/man/man8/pam-krb5.8.gz
+
 # 20251112: Remove old MLINK to apmconf(8)
 OLD_FILES+=share/man/man8/apmconf.8.gz
 
