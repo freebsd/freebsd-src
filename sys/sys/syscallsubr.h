@@ -426,6 +426,8 @@ int	kern_shutdown(struct thread *td, int s, int how);
 int	kern_sigaction(struct thread *td, int sig, const struct sigaction *act,
 	    struct sigaction *oact, int flags);
 int	kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss);
+int	kern_sigfastblock(struct thread *td, int cmd, uint32_t *ptr);
+int	kern_sigpending(struct thread *td, sigset_t *set);
 int	kern_sigprocmask(struct thread *td, int how,
 	    sigset_t *set, sigset_t *oset, int flags);
 int	kern_sigsuspend(struct thread *td, sigset_t mask);
@@ -492,6 +494,15 @@ int	user_getrlimitusage(struct thread *td, u_int which, int flags,
 	    rlim_t *ures);
 int	user_kldload(struct thread *td, const char *file);
 int	user_setgroups(struct thread *td, int gidsetsize, const gid_t *gidset);
+int	user_sigprocmask(struct thread *td, int how, const sigset_t *uset,
+	    sigset_t *uoset);
+int	user_sigsuspend(struct thread *td, const sigset_t *sigmask);
+int	user_sigtimedwait(struct thread *td, const sigset_t *uset, void *info,
+	    const struct timespec *utimeout,
+	    copyout_siginfo_t *copyout_siginfop);
+int	user_sigwait(struct thread *td, const sigset_t *uset, int *usig);
+int	user_sigwaitinfo(struct thread *td, const sigset_t *uset, void *info,
+	    copyout_siginfo_t *copyout_siginfop);
 int	user_wait6(struct thread *td, enum idtype idtype, id_t id,
 	    int *statusp, int options, struct __wrusage *wrusage,
 	    siginfo_t *sip);
