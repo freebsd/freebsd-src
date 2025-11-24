@@ -52,17 +52,17 @@
 # done
 
 # 20251121: Remove duplicate pam_krb5 manual page
-OLD_FILES+=share/man/man8/pam-krb5.8.gz
+OLD_FILES+=usr/share/man/man8/pam-krb5.8.gz
 
 # 20251112: Remove old MLINK to apmconf(8)
-OLD_FILES+=share/man/man8/apmconf.8.gz
+OLD_FILES+=usr/share/man/man8/apmconf.8.gz
 
 # 20251112: Remove pccard(4) and related
-OLD_FILES+=share/man/man4/pccard.4.gz
-OLD_FILES+=share/man/man4/pcic.4.gz
+OLD_FILES+=usr/share/man/man4/pccard.4.gz
+OLD_FILES+=usr/share/man/man4/pcic.4.gz
 
 # 20251028: Remove hifn(4)
-OLD_FILES+=share/man/man4/hifn.4.gz
+OLD_FILES+=usr/share/man/man4/hifn.4.gz
 
 # 20251006: Remove libnss_tacplus.a (it never should have been installed)
 OLD_FILES+=usr/lib/libnss_tacplus.a
