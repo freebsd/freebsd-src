@@ -52,6 +52,7 @@ struct kexec_segment;
 struct kld_file_stat;
 struct ksiginfo;
 struct mbuf;
+struct module_stat;
 struct mq_attr;
 struct msghdr;
 struct msqid_ds;
@@ -296,6 +297,8 @@ int	kern_mmap(struct thread *td, const struct mmap_req *mrp);
 int	kern_mmap_racct_check(struct thread *td, struct vm_map *map,
 	    vm_size_t size);
 int	kern_mmap_maxprot(struct proc *p, int prot);
+int	kern_modfind(struct thread *td, const char *uname);
+int	kern_modstat(struct thread *td, int modid, struct module_stat *stat);
 int	kern_mprotect(struct thread *td, uintptr_t addr, size_t size,
 	    int prot, int flags);
 int	kern_msgctl(struct thread *, int, int, struct msqid_ds *);
