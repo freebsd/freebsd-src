@@ -37,6 +37,9 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <machine/bus.h>
+#if (defined(__arm__) || defined(__aarch64__))
+#include <machine/machdep.h>
+#endif
 
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
@@ -89,9 +92,7 @@ SYSCTL_INT(_hw, OID_AUTO, uart_noise_threshold, CTLFLAG_RWTUN,
  * options EARLY_PRINTF=ns8250
 */
 #if CHECK_EARLY_PRINTF(ns8250)
-#if !(defined(__amd64__) || defined(__i386__))
-#error ns8250 early putc is x86 specific as it uses inb/outb
-#endif
+#if (defined(__amd64__) || defined(__i386__))
 static void
 uart_ns8250_early_putc(int c)
 {
@@ -103,6 +104,20 @@ uart_ns8250_early_putc(int c)
 		continue;
 	outb(tx, c);
 }
+#elif (defined(__arm__) || defined(__aarch64__))
+static void
+uart_ns8250_early_putc(int c)
+{
+	volatile uint32_t *stat = (uint32_t *)(socdev_va + REG_LSR * 4);
+	volatile uint32_t *tx = (uint32_t *)(socdev_va + REG_DATA * 4);
+	int limit = 1000000;
+	while ((*stat & LSR_THRE) == 0 && --limit > 0)
+		continue;
+	*tx =  c & 0xff;
+}
+#else
+#error ns8250 early putc is not implemented for current  architecture
+#endif
 early_putc_t *early_putc = uart_ns8250_early_putc;
 #endif /* EARLY_PRINTF */
 
