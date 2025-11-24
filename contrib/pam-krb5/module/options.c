@@ -30,6 +30,9 @@
 #define K(name) (#name), offsetof(struct pam_config, name)
 /* clang-format off */
 static const struct option options[] = {
+#ifdef __FreeBSD__
+    { K(allow_kdc_spoof),    true,  BOOL   (false) },
+#endif /* __FreeBSD__ */
     { K(alt_auth_map),       true,  STRING (NULL)  },
     { K(anon_fast),          true,  BOOL   (false) },
     { K(banner),             true,  STRING ("Kerberos") },
