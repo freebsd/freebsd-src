@@ -7194,11 +7194,10 @@ vi_full_init(struct vi_info *vi)
 {
 	struct adapter *sc = vi->adapter;
 	struct sge_rxq *rxq;
-	int rc, i, j;
+	int rc, i, j, extra;
 	int hashconfig = rss_gethashconfig();
 #ifdef RSS
 	int nbuckets = rss_getnumbuckets();
-	int extra;
 #endif
 
 	ASSERT_SYNCHRONIZED_OP(sc);
@@ -7255,7 +7254,6 @@ vi_full_init(struct vi_info *vi)
 
 	vi->hashen = hashconfig_to_hashen(hashconfig);
 
-#ifdef RSS
 	/*
 	 * We may have had to enable some hashes even though the global config
 	 * wants them disabled.  This is a potential problem that must be
@@ -7289,7 +7287,7 @@ vi_full_init(struct vi_info *vi)
 		CH_ALERT(vi, "UDP/IPv4 4-tuple hashing forced on.\n");
 	if (extra & RSS_HASHTYPE_RSS_UDP_IPV6)
 		CH_ALERT(vi, "UDP/IPv6 4-tuple hashing forced on.\n");
-#endif
+
 	rc = -t4_config_vi_rss(sc, sc->mbox, vi->viid, vi->hashen, vi->rss[0],
 	    0, 0);
 	if (rc != 0) {
