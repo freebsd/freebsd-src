@@ -2459,7 +2459,7 @@ kern_sysctl(struct thread *td, const int *uname, u_int namelen, void *old,
 	if (namelen > CTL_MAXNAME || namelen < 2)
 		return (EINVAL);
 
-	error = copyin(name, &name, namelen * sizeof(int));
+	error = copyin(uname, &name, namelen * sizeof(int));
 	if (error)
 		return (error);
 
