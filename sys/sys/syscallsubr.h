@@ -71,6 +71,7 @@ struct stat;
 struct thr_param;
 struct timex;
 struct uio;
+struct uuid;
 struct vm_map;
 struct vmspace;
 
@@ -514,6 +515,7 @@ int	user_sigtimedwait(struct thread *td, const sigset_t *uset, void *info,
 int	user_sigwait(struct thread *td, const sigset_t *uset, int *usig);
 int	user_sigwaitinfo(struct thread *td, const sigset_t *uset, void *info,
 	    copyout_siginfo_t *copyout_siginfop);
+int	user_uuidgen(struct thread *td, struct uuid *ustore, int count);
 int	user_wait6(struct thread *td, enum idtype idtype, id_t id,
 	    int *statusp, int options, struct __wrusage *wrusage,
 	    siginfo_t *sip);
