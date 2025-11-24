@@ -353,20 +353,26 @@ struct getgroups_args {
 int
 sys_getgroups(struct thread *td, struct getgroups_args *uap)
 {
+	return (kern_getgroups(td, uap->gidsetsize, uap->gidset));
+}
+
+int
+kern_getgroups(struct thread *td, int gidsetsize, gid_t *gidset)
+{
 	struct ucred *cred;
 	int ngrp, error;
 
 	cred = td->td_ucred;
 
 	ngrp = cred->cr_ngroups;
-	if (uap->gidsetsize == 0) {
+	if (gidsetsize == 0) {
 		error = 0;
 		goto out;
 	}
-	if (uap->gidsetsize < ngrp)
+	if (gidsetsize < ngrp)
 		return (EINVAL);
 
-	error = copyout(cred->cr_groups, uap->gidset, ngrp * sizeof(gid_t));
+	error = copyout(cred->cr_groups, gidset, ngrp * sizeof(gid_t));
 out:
 	td->td_retval[0] = ngrp;
 	return (error);
@@ -1254,9 +1260,15 @@ struct setgroups_args {
 int
 sys_setgroups(struct thread *td, struct setgroups_args *uap)
 {
+	return (user_setgroups(td, uap->gidsetsize, uap->gidset));
+}
+
+int
+user_setgroups(struct thread *td, int gidsetsize, const gid_t *gidset)
+{
 	gid_t smallgroups[CRED_SMALLGROUPS_NB];
 	gid_t *groups;
-	int gidsetsize, error;
+	int error;
 
 	/*
 	 * Sanity check size now to avoid passing too big a value to copyin(),
@@ -1267,7 +1279,6 @@ sys_setgroups(struct thread *td, struct setgroups_args *uap)
 	 * getgroups() to take an 'int' and it would be quite entrapping to have
 	 * setgroups() differ.
 	 */
-	gidsetsize = uap->gidsetsize;
 	if (gidsetsize > ngroups_max || gidsetsize < 0)
 		return (EINVAL);
 
@@ -1276,7 +1287,7 @@ sys_setgroups(struct thread *td, struct setgroups_args *uap)
 	else
 		groups = smallgroups;
 
-	error = copyin(uap->gidset, groups, gidsetsize * sizeof(gid_t));
+	error = copyin(gidset, groups, gidsetsize * sizeof(gid_t));
 	if (error == 0)
 		error = kern_setgroups(td, &gidsetsize, groups);
 
@@ -1664,19 +1675,22 @@ struct getresuid_args {
 int
 sys_getresuid(struct thread *td, struct getresuid_args *uap)
 {
+	return (kern_getresuid(td, uap->ruid, uap->euid, uap->suid));
+}
+
+int
+kern_getresuid(struct thread *td, uid_t *ruid, uid_t *euid, uid_t *suid)
+{
 	struct ucred *cred;
 	int error1 = 0, error2 = 0, error3 = 0;
 
 	cred = td->td_ucred;
-	if (uap->ruid)
-		error1 = copyout(&cred->cr_ruid,
-		    uap->ruid, sizeof(cred->cr_ruid));
-	if (uap->euid)
-		error2 = copyout(&cred->cr_uid,
-		    uap->euid, sizeof(cred->cr_uid));
-	if (uap->suid)
-		error3 = copyout(&cred->cr_svuid,
-		    uap->suid, sizeof(cred->cr_svuid));
+	if (ruid)
+		error1 = copyout(&cred->cr_ruid, ruid, sizeof(cred->cr_ruid));
+	if (euid)
+		error2 = copyout(&cred->cr_uid, euid, sizeof(cred->cr_uid));
+	if (suid)
+		error3 = copyout(&cred->cr_svuid, suid, sizeof(cred->cr_svuid));
 	return (error1 ? error1 : error2 ? error2 : error3);
 }
 
@@ -1691,19 +1705,22 @@ struct getresgid_args {
 int
 sys_getresgid(struct thread *td, struct getresgid_args *uap)
 {
+	return (kern_getresgid(td, uap->rgid, uap->egid, uap->sgid));
+}
+
+int
+kern_getresgid(struct thread *td, gid_t *rgid, gid_t *egid, gid_t *sgid)
+{
 	struct ucred *cred;
 	int error1 = 0, error2 = 0, error3 = 0;
 
 	cred = td->td_ucred;
-	if (uap->rgid)
-		error1 = copyout(&cred->cr_rgid,
-		    uap->rgid, sizeof(cred->cr_rgid));
-	if (uap->egid)
-		error2 = copyout(&cred->cr_gid,
-		    uap->egid, sizeof(cred->cr_gid));
-	if (uap->sgid)
-		error3 = copyout(&cred->cr_svgid,
-		    uap->sgid, sizeof(cred->cr_svgid));
+	if (rgid)
+		error1 = copyout(&cred->cr_rgid, rgid, sizeof(cred->cr_rgid));
+	if (egid)
+		error2 = copyout(&cred->cr_gid, egid, sizeof(cred->cr_gid));
+	if (sgid)
+		error3 = copyout(&cred->cr_svgid, sgid, sizeof(cred->cr_svgid));
 	return (error1 ? error1 : error2 ? error2 : error3);
 }
 
@@ -3066,20 +3083,26 @@ struct getlogin_args {
 int
 sys_getlogin(struct thread *td, struct getlogin_args *uap)
 {
+	return (kern_getlogin(td, uap->namebuf, uap->namelen));
+}
+
+int
+kern_getlogin(struct thread *td, char *namebuf, u_int namelen)
+{
 	char login[MAXLOGNAME];
 	struct proc *p = td->td_proc;
 	size_t len;
 
-	if (uap->namelen > MAXLOGNAME)
-		uap->namelen = MAXLOGNAME;
+	if (namelen > MAXLOGNAME)
+		namelen = MAXLOGNAME;
 	PROC_LOCK(p);
 	SESS_LOCK(p->p_session);
-	len = strlcpy(login, p->p_session->s_login, uap->namelen) + 1;
+	len = strlcpy(login, p->p_session->s_login, namelen) + 1;
 	SESS_UNLOCK(p->p_session);
 	PROC_UNLOCK(p);
-	if (len > uap->namelen)
+	if (len > namelen)
 		return (ERANGE);
-	return (copyout(login, uap->namebuf, len));
+	return (copyout(login, namebuf, len));
 }
 
 /*
@@ -3094,6 +3117,12 @@ struct setlogin_args {
 int
 sys_setlogin(struct thread *td, struct setlogin_args *uap)
 {
+	return (kern_setlogin(td, uap->namebuf));
+}
+
+int
+kern_setlogin(struct thread *td, const char *namebuf)
+{
 	struct proc *p = td->td_proc;
 	int error;
 	char logintmp[MAXLOGNAME];
@@ -3103,7 +3132,7 @@ sys_setlogin(struct thread *td, struct setlogin_args *uap)
 	error = priv_check(td, PRIV_PROC_SETLOGIN);
 	if (error)
 		return (error);
-	error = copyinstr(uap->namebuf, logintmp, sizeof(logintmp), NULL);
+	error = copyinstr(namebuf, logintmp, sizeof(logintmp), NULL);
 	if (error != 0) {
 		if (error == ENAMETOOLONG)
 			error = EINVAL;
