@@ -741,10 +741,8 @@ __tls_get_addr(tls_index* ti)
 void
 arch_fix_auxv(Elf_Auxinfo *aux, Elf_Auxinfo *aux_info[])
 {
-	Elf_Auxinfo *aux;
-	bool old_auxv_format;
+	Elf_Auxinfo *auxp;
 
-	old_auxv_format = true;
 	for (auxp = aux; auxp->a_type != AT_NULL; auxp++) {
 		if (auxp->a_type == 23) /* AT_STACKPROT */
 			return;
