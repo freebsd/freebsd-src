@@ -246,8 +246,11 @@ int	kern_kevent_fp(struct thread *td, struct file *fp, int nchanges,
 int	kern_kexec_load(struct thread *td, u_long entry,
 	    u_long nseg, struct kexec_segment *seg, u_long flags);
 int	kern_kill(struct thread *td, pid_t pid, int signum);
+int	kern_kldfind(struct thread *td, const char *file);
 int	kern_kldload(struct thread *td, const char *file, int *fileid);
 int	kern_kldstat(struct thread *td, int fileid, struct kld_file_stat *stat);
+int	kern_kldsym(struct thread *td, int fileid, int cmd,
+	    const char *symname, u_long *symvalue, size_t *symsize);
 int	kern_kldunload(struct thread *td, int fileid, int flags);
 int	kern_kmq_notify(struct thread *, int, struct sigevent *);
 int	kern_kmq_open(struct thread *, const char *, int, mode_t,
@@ -458,6 +461,7 @@ int	user_cpuset_setaffinity(struct thread *td, cpulevel_t level,
 	    cpuwhich_t which, id_t id, size_t cpusetsize,
 	    const cpuset_t *maskp, const struct cpuset_copy_cb *cb);
 int	user_fstat(struct thread *td, int fd, struct stat *sb);
+int	user_kldload(struct thread *td, const char *file);
 int	user_wait6(struct thread *td, enum idtype idtype, id_t id,
 	    int *statusp, int options, struct __wrusage *wrusage,
 	    siginfo_t *sip);
