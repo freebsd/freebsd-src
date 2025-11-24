@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2021 - 2023 Intel Corporation
+ * Copyright (c) 2021 - 2025 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -52,7 +52,7 @@
 /**
  *  Driver version
  */
-char irdma_driver_version[] = "1.2.36-k";
+char irdma_driver_version[] = "1.2.37-k";
 
 /**
  * irdma_init_tunable - prepare tunables
