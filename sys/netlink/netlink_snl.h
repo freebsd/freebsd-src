@@ -1082,6 +1082,7 @@ snl_init_writer(struct snl_state *ss, struct snl_writer *nw)
 static inline bool
 snl_realloc_msg_buffer(struct snl_writer *nw, size_t sz)
 {
+	void *new_base;
 	uint32_t new_size = nw->size * 2;
 
 	while (new_size < nw->size + sz)
@@ -1090,23 +1091,27 @@ snl_realloc_msg_buffer(struct snl_writer *nw, size_t sz)
 	if (nw->error)
 		return (false);
 
-	if (snl_allocz(nw->ss, new_size) == NULL) {
+	new_base = snl_allocz(nw->ss, new_size);
+	if (new_base == NULL) {
 		nw->error = true;
 		return (false);
 	}
-	nw->size = new_size;
 
-	void *new_base = nw->ss->lb->base;
-	if (new_base != nw->base) {
-		memcpy(new_base, nw->base, nw->offset);
-		if (nw->hdr != NULL) {
-			int hdr_off = (char *)(nw->hdr) - nw->base;
+	if (new_base == nw->ss->lb->base) {
+		/* Claim the entire linear buffer. */
+		nw->size = nw->ss->lb->size;
+		nw->ss->lb->offset = nw->ss->lb->size;
+	} else
+		nw->size = new_size;
 
-			nw->hdr = (struct nlmsghdr *)
-			    (void *)((char *)new_base + hdr_off);
-		}
-		nw->base = (char *)new_base;
+	memcpy(new_base, nw->base, nw->offset);
+	if (nw->hdr != NULL) {
+		int hdr_off = (char *)(nw->hdr) - nw->base;
+
+		nw->hdr = (struct nlmsghdr *)
+		    (void *)((char *)new_base + hdr_off);
 	}
+	nw->base = (char *)new_base;
 
 	return (true);
 }
