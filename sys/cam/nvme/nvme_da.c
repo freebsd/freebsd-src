@@ -648,7 +648,6 @@ static void
 ndasetgeom(struct nda_softc *softc, struct cam_periph *periph)
 {
 	struct disk *disk = softc->disk;
-	struct ccb_pathinq cpi;
 	const struct nvme_namespace_data *nsd;
 	const struct nvme_controller_data *cd;
 	uint8_t flbas_fmt, lbads, vwc_present;
@@ -667,10 +666,6 @@ ndasetgeom(struct nda_softc *softc, struct cam_periph *periph)
 	vwc_present = NVMEV(NVME_CTRLR_DATA_VWC_PRESENT, cd->vwc);
 	if (vwc_present)
 		disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
-	if ((cpi.hba_misc & PIM_UNMAPPED) != 0) {
-		disk->d_flags |= DISKFLAG_UNMAPPED_BIO;
-		softc->unmappedio = 1;
-	}
 }
 
 static void
@@ -944,6 +939,10 @@ ndaregister(struct cam_periph *periph, void *arg)
 		maxio = maxphys;	/* for safety */
 	disk->d_maxsize = maxio;
 	ndasetgeom(softc, periph);
+	if ((cpi.hba_misc & PIM_UNMAPPED) != 0) {
+		disk->d_flags |= DISKFLAG_UNMAPPED_BIO;
+		softc->unmappedio = 1;
+	}
 
 	/*
 	 * d_ident and d_descr are both far bigger than the length of either
