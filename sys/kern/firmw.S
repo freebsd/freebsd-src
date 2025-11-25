@@ -35,7 +35,7 @@
 #define	FIRMW_START(S)	__CONCAT(_binary_, __CONCAT(S, _start))
 #define	FIRMW_END(S)	__CONCAT(_binary_, __CONCAT(S, _end))
 
-	.section rodata, "a", %progbits
+	.section .rodata, "a", %progbits
 	.globl	FIRMW_START(FIRMW_SYMBOL)
 	.type	FIRMW_START(FIRMW_SYMBOL), %object
 FIRMW_START(FIRMW_SYMBOL):
