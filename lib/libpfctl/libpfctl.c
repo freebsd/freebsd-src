@@ -76,7 +76,6 @@ pfctl_open(const char *pf_device)
 	struct pfctl_handle *h;
 
 	h = calloc(1, sizeof(struct pfctl_handle));
-	h->fd = -1;
 
 	h->fd = open(pf_device, O_RDWR);
 	if (h->fd < 0)
@@ -87,7 +86,8 @@ pfctl_open(const char *pf_device)
 
 	return (h);
 error:
-	close(h->fd);
+	if (h->fd != -1)
+		close(h->fd);
 	snl_free(&h->ss);
 	free(h);
 
