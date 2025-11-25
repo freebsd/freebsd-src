@@ -3638,7 +3638,7 @@ em_initialize_transmit_unit(if_ctx_t ctx)
 		bus_addr = txr->tx_paddr;
 
 		/* Clear checksum offload context. */
-		offp = (caddr_t)&txr->csum_flags;
+		offp = (caddr_t)txr + offsetof(struct tx_ring, csum_flags);
 		endp = (caddr_t)(txr + 1);
 		bzero(offp, endp - offp);
 
