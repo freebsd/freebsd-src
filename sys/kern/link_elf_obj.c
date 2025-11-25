@@ -192,7 +192,7 @@ static struct linker_class link_elf_class = {
 	link_elf_methods, sizeof(struct elf_file)
 };
 
-static bool link_elf_obj_leak_locals = false;
+static bool link_elf_obj_leak_locals = true;
 SYSCTL_BOOL(_debug, OID_AUTO, link_elf_obj_leak_locals,
     CTLFLAG_RWTUN, &link_elf_obj_leak_locals, 0,
     "Allow local symbols to participate in global module symbol resolution");
