@@ -36,6 +36,7 @@ EXPORT_SYMS+=	intel_gtt_clear_range	\
 		intel_gtt_install_pte	\
 		intel_gtt_get		\
 		intel_gtt_chipset_flush	\
+		intel_gtt_read_pte	\
 		intel_gtt_unmap_memory	\
 		intel_gtt_map_memory	\
 		intel_gtt_insert_sg_entries \
