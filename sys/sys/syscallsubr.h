@@ -57,6 +57,7 @@ struct module_stat;
 struct mq_attr;
 struct msghdr;
 struct msqid_ds;
+struct ntptimeval;
 struct pollfd;
 struct ogetdirentries_args;
 struct rlimit;
@@ -365,6 +366,7 @@ int	kern_nmount(struct thread *td, struct iovec *iovp, u_int iovcnt,
 	    int flags32, copyinuio_t *copyinuio_f);
 int	kern_nosys(struct thread *td, int dummy);
 int	kern_ntp_adjtime(struct thread *td, struct timex *ntv, int *retvalp);
+int	kern_ntp_gettime(struct thread *td, struct ntptimeval *ntvp);
 int	kern_ogetdirentries(struct thread *td, struct ogetdirentries_args *uap,
 	    long *ploff);
 int	kern_ommap(struct thread *td, uintptr_t hint, int len, int oprot,
