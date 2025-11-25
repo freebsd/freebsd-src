@@ -551,6 +551,73 @@ class TestSCTP(VnetTestTemplate):
         assert re.search(r"epair.*sctp 192.0.2.1:.*192.0.2.3:1234", states)
         assert re.search(r"epair.*sctp 192.0.2.1:.*192.0.2.2:1234", states)
 
+class TestSCTP_SRV(VnetTestTemplate):
+    REQUIRED_MODULES = ["sctp", "pf"]
+    TOPOLOGY = {
+        "vnet1": {"ifaces": ["if1"]},
+        "vnet2": {"ifaces": ["if1"]},
+        "if1": {"prefixes4": [("192.0.2.1/24", "192.0.2.2/24")]},
+    }
+
+    def vnet2_handler(self, vnet):
+        ToolsHelper.print_output("/sbin/pfctl -e")
+        ToolsHelper.pf_rules([
+            "set state-policy if-bound",
+            "pass inet proto sctp",
+            "pass on lo"])
+
+        # Start an SCTP server process, pipe the ppid + data back to the other vnet?
+        srv = SCTPServer(socket.AF_INET, port=1234)
+        while True:
+            srv.accept(vnet)
+
+    @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
+    def test_initiate_tag_check(self):
+        # Ensure we don't send ABORTs in response to the other end's INIT_ACK
+        # That'd interfere with our test.
+        ToolsHelper.print_output("/sbin/sysctl net.inet.sctp.blackhole=2")
+
+        import scapy.all as sp
+
+        packet = sp.IP(src="192.0.2.1", dst="192.0.2.2") \
+            / sp.SCTP(sport=1234, dport=1234) \
+            / sp.SCTPChunkInit(init_tag=1, n_in_streams=1, n_out_streams=1, a_rwnd=1500)
+        packet.show()
+
+        r = sp.sr1(packet, timeout=3)
+        assert r
+        r.show()
+        assert r.getlayer(sp.SCTP)
+        assert r.getlayer(sp.SCTPChunkInitAck)
+        assert r.getlayer(sp.SCTP).tag == 1
+
+        # Send another INIT with the same initiate tag, expect another init ack
+        packet = sp.IP(src="192.0.2.1", dst="192.0.2.2") \
+            / sp.SCTP(sport=1234, dport=1234) \
+            / sp.SCTPChunkInit(init_tag=1, n_in_streams=1, n_out_streams=1, a_rwnd=1500)
+        packet.show()
+
+        r = sp.sr1(packet, timeout=3)
+        assert r
+        r.show()
+        assert r.getlayer(sp.SCTP)
+        assert r.getlayer(sp.SCTPChunkInitAck)
+        assert r.getlayer(sp.SCTP).tag == 1
+
+        # Send an INIT with a different initiate tag, expect another init ack
+        packet = sp.IP(src="192.0.2.1", dst="192.0.2.2") \
+            / sp.SCTP(sport=1234, dport=1234) \
+            / sp.SCTPChunkInit(init_tag=42, n_in_streams=1, n_out_streams=1, a_rwnd=1500)
+        packet.show()
+
+        r = sp.sr1(packet, timeout=3)
+        assert r
+        r.show()
+        assert r.getlayer(sp.SCTP)
+        assert r.getlayer(sp.SCTPChunkInitAck)
+        assert r.getlayer(sp.SCTP).tag == 42
+
 class TestSCTPv6(VnetTestTemplate):
     REQUIRED_MODULES = ["sctp", "pf"]
     TOPOLOGY = {

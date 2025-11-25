@@ -7396,7 +7396,11 @@ pf_sctp_track(struct pf_kstate *state, struct pf_pdesc *pd,
 	}
 
 	if (src->scrub != NULL) {
-		if (src->scrub->pfss_v_tag == 0)
+		/*
+		 * Allow tags to be updated, in case of retransmission of
+		 * INIT/INIT_ACK chunks.
+		 **/
+		if (src->state <= SCTP_COOKIE_WAIT)
 			src->scrub->pfss_v_tag = pd->hdr.sctp.v_tag;
 		else  if (src->scrub->pfss_v_tag != pd->hdr.sctp.v_tag)
 			return (PF_DROP);
