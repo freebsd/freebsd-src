@@ -17,6 +17,7 @@ nooptions	MALLOC_DEBUG_MAXZONES
 nooptions	QUEUE_MACRO_DEBUG_TRASH
 nooptions	KDTRACE_MIB_SDT
 nooptions	TCP_HPTS_KTEST
+nooptions	LINUXKPI_DEBUG
 
 # Net80211 debugging
 nooptions	IEEE80211_DEBUG

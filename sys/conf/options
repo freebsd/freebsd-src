@@ -908,6 +908,9 @@ TDMA_TXRATE_QUARTER_DEFAULT	opt_tdma.h
 TDMA_TXRATE_11NA_DEFAULT	opt_tdma.h
 TDMA_TXRATE_11NG_DEFAULT	opt_tdma.h
 
+# LinuxKPI
+LINUXKPI_DEBUG		opt_linuxkpi.h
+
 # VideoMode
 PICKMODE_DEBUG			opt_videomode.h
 
