@@ -6,10 +6,14 @@ COMMONDIR=	${SRCTOP}/sys/contrib/dev/mediatek/mt76
 
 WITH_CONFIG_PM=	0
 WITH_DEBUGFS=	0
+WITH_SOC_WED=	0
 
 # Other
 SRCS+=	${LINUXKPI_GENSRCS}
 SRCS+=	opt_wlan.h opt_inet6.h opt_inet.h
+
+# This is true for all architectures we build for.
+CFLAGS+=	-DCONFIG_ARCH_DMA_ADDR_T_64BIT
 
 # Helpful after fresh imports.
 #CFLAGS+=	-ferror-limit=0
@@ -22,8 +26,13 @@ CFLAGS+=	-DCONFIG_PM=${WITH_CONFIG_PM}
 CFLAGS+=	-DCONFIG_MAC80211_DEBUGFS=${WITH_DEBUGFS}
 .endif
 
+.if defined(WITH_SOC_WED) && ${WITH_SOC_WED} > 0
+CFLAGS+=	CONFIG_NET_MEDIATEK_SOC_WED
+.endif
+
 CFLAGS+=	-I${COMMONDIR}
 CFLAGS+=	${LINUXKPI_INCLUDES}
 CFLAGS+=	-DLINUXKPI_VERSION=61700
+
 
 # end
