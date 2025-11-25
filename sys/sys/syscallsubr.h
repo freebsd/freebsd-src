@@ -501,6 +501,9 @@ int	kern_statat(struct thread *td, int flag, int fd, const char *path,
 int	kern_specialfd(struct thread *td, int type, void *arg);
 int	kern_statfs(struct thread *td, const char *path, enum uio_seg pathseg,
 	    struct statfs *buf);
+int	kern_swapoff(struct thread *td, const char *name,
+	    enum uio_seg name_seg, u_int flags);
+int	kern_swapon(struct thread *td, const char *name);
 int	kern_symlinkat(struct thread *td, const char *path1, int fd,
 	    const char *path2, enum uio_seg segflg);
 int	kern_sync(struct thread *td);
