@@ -71,11 +71,8 @@
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
-static int sendit(struct thread *td, int s, struct msghdr *mp, int flags);
 static int recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp);
 
-static int accept1(struct thread *td, int s, struct sockaddr *uname,
-		   socklen_t *anamelen, int flags);
 static int sockargs(struct mbuf **, char *, socklen_t, int);
 
 /*
@@ -185,12 +182,19 @@ kern_socket(struct thread *td, int domain, int type, int protocol)
 int
 sys_bind(struct thread *td, struct bind_args *uap)
 {
+	return (user_bind(td, uap->s, uap->name, uap->namelen));
+}
+
+int
+user_bind(struct thread *td, int s, const struct sockaddr *name,
+    socklen_t namelen)
+{
 	struct sockaddr *sa;
 	int error;
 
-	error = getsockaddr(&sa, uap->name, uap->namelen);
+	error = getsockaddr(&sa, name, namelen);
 	if (error == 0) {
-		error = kern_bindat(td, AT_FDCWD, uap->s, sa);
+		error = kern_bindat(td, AT_FDCWD, s, sa);
 		free(sa, M_SONAME);
 	}
 	return (error);
@@ -240,12 +244,19 @@ kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 int
 sys_bindat(struct thread *td, struct bindat_args *uap)
 {
+	return (user_bindat(td, uap->fd, uap->s, uap->name, uap->namelen));
+}
+
+int
+user_bindat(struct thread *td, int fd, int s, const struct sockaddr *name,
+    socklen_t namelen)
+{
 	struct sockaddr *sa;
 	int error;
 
-	error = getsockaddr(&sa, uap->name, uap->namelen);
+	error = getsockaddr(&sa, name, namelen);
 	if (error == 0) {
-		error = kern_bindat(td, uap->fd, uap->s, sa);
+		error = kern_bindat(td, fd, s, sa);
 		free(sa, M_SONAME);
 	}
 	return (error);
@@ -254,7 +265,6 @@ sys_bindat(struct thread *td, struct bindat_args *uap)
 int
 sys_listen(struct thread *td, struct listen_args *uap)
 {
-
 	return (kern_listen(td, uap->s, uap->backlog));
 }
 
@@ -279,12 +289,9 @@ kern_listen(struct thread *td, int s, int backlog)
 	return (error);
 }
 
-/*
- * accept1()
- */
-static int
-accept1(struct thread *td, int s, struct sockaddr *uname, socklen_t *anamelen,
-    int flags)
+int
+user_accept(struct thread *td, int s, struct sockaddr *uname,
+    socklen_t *anamelen, int flags)
 {
 	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
 	socklen_t addrlen;
@@ -432,26 +439,24 @@ done:
 int
 sys_accept(struct thread *td, struct accept_args *uap)
 {
-
-	return (accept1(td, uap->s, uap->name, uap->anamelen, ACCEPT4_INHERIT));
+	return (user_accept(td, uap->s, uap->name, uap->anamelen,
+	    ACCEPT4_INHERIT));
 }
 
 int
 sys_accept4(struct thread *td, struct accept4_args *uap)
 {
-
 	if ((uap->flags & ~(SOCK_CLOEXEC | SOCK_CLOFORK | SOCK_NONBLOCK)) != 0)
 		return (EINVAL);
 
-	return (accept1(td, uap->s, uap->name, uap->anamelen, uap->flags));
+	return (user_accept(td, uap->s, uap->name, uap->anamelen, uap->flags));
 }
 
 #ifdef COMPAT_OLDSOCK
 int
 oaccept(struct thread *td, struct oaccept_args *uap)
 {
-
-	return (accept1(td, uap->s, uap->name, uap->anamelen,
+	return (user_accept(td, uap->s, uap->name, uap->anamelen,
 	    ACCEPT4_INHERIT | ACCEPT4_COMPAT));
 }
 #endif /* COMPAT_OLDSOCK */
@@ -459,12 +464,19 @@ oaccept(struct thread *td, struct oaccept_args *uap)
 int
 sys_connect(struct thread *td, struct connect_args *uap)
 {
+	return (user_connectat(td, AT_FDCWD, uap->s, uap->name, uap->namelen));
+}
+
+int
+user_connectat(struct thread *td, int fd, int s, const struct sockaddr *name,
+    socklen_t namelen)
+{
 	struct sockaddr *sa;
 	int error;
 
-	error = getsockaddr(&sa, uap->name, uap->namelen);
+	error = getsockaddr(&sa, name, namelen);
 	if (error == 0) {
-		error = kern_connectat(td, AT_FDCWD, uap->s, sa);
+		error = kern_connectat(td, AT_FDCWD, s, sa);
 		free(sa, M_SONAME);
 	}
 	return (error);
@@ -535,15 +547,7 @@ done1:
 int
 sys_connectat(struct thread *td, struct connectat_args *uap)
 {
-	struct sockaddr *sa;
-	int error;
-
-	error = getsockaddr(&sa, uap->name, uap->namelen);
-	if (error == 0) {
-		error = kern_connectat(td, uap->fd, uap->s, sa);
-		free(sa, M_SONAME);
-	}
-	return (error);
+	return (user_connectat(td, uap->fd, uap->s, uap->name, uap->namelen));
 }
 
 int
@@ -643,13 +647,20 @@ free1:
 int
 sys_socketpair(struct thread *td, struct socketpair_args *uap)
 {
+	return (user_socketpair(td, uap->domain, uap->type, uap->protocol,
+	    uap->rsv));
+}
+
+int
+user_socketpair(struct thread *td, int domain, int type, int protocol,
+    int *rsv)
+{
 	int error, sv[2];
 
-	error = kern_socketpair(td, uap->domain, uap->type,
-	    uap->protocol, sv);
+	error = kern_socketpair(td, domain, type, protocol, sv);
 	if (error != 0)
 		return (error);
-	error = copyout(sv, uap->rsv, 2 * sizeof(int));
+	error = copyout(sv, rsv, 2 * sizeof(int));
 	if (error != 0) {
 		(void)kern_close(td, sv[0]);
 		(void)kern_close(td, sv[1]);
@@ -657,8 +668,8 @@ sys_socketpair(struct thread *td, struct socketpair_args *uap)
 	return (error);
 }
 
-static int
-sendit(struct thread *td, int s, struct msghdr *mp, int flags)
+int
+user_sendit(struct thread *td, int s, struct msghdr *mp, int flags)
 {
 	struct mbuf *control;
 	struct sockaddr *to;
@@ -806,11 +817,19 @@ bad:
 int
 sys_sendto(struct thread *td, struct sendto_args *uap)
 {
+	return (user_sendto(td, uap->s, uap->buf, uap->len, uap->flags,
+	    uap->to, uap->tolen));
+}
+
+int
+user_sendto(struct thread *td, int s, const char *buf, size_t len, int flags,
+    const struct sockaddr *to, socklen_t tolen)
+{
 	struct msghdr msg;
 	struct iovec aiov;
 
-	msg.msg_name = __DECONST(void *, uap->to);
-	msg.msg_namelen = uap->tolen;
+	msg.msg_name = __DECONST(void *, to);
+	msg.msg_namelen = tolen;
 	msg.msg_iov = &aiov;
 	msg.msg_iovlen = 1;
 	msg.msg_control = 0;
@@ -818,9 +837,9 @@ sys_sendto(struct thread *td, struct sendto_args *uap)
 	if (SV_PROC_FLAG(td->td_proc, SV_AOUT))
 		msg.msg_flags = 0;
 #endif
-	aiov.iov_base = __DECONST(void *, uap->buf);
-	aiov.iov_len = uap->len;
-	return (sendit(td, uap->s, &msg, uap->flags));
+	aiov.iov_base = __DECONST(void *, buf);
+	aiov.iov_len = len;
+	return (user_sendit(td, s, &msg, flags));
 }
 
 #ifdef COMPAT_OLDSOCK
@@ -838,7 +857,7 @@ osend(struct thread *td, struct osend_args *uap)
 	aiov.iov_len = uap->len;
 	msg.msg_control = 0;
 	msg.msg_flags = 0;
-	return (sendit(td, uap->s, &msg, uap->flags));
+	return (user_sendit(td, uap->s, &msg, uap->flags));
 }
 
 int
@@ -856,7 +875,7 @@ osendmsg(struct thread *td, struct osendmsg_args *uap)
 		return (error);
 	msg.msg_iov = iov;
 	msg.msg_flags = MSG_COMPAT;
-	error = sendit(td, uap->s, &msg, uap->flags);
+	error = user_sendit(td, uap->s, &msg, uap->flags);
 	free(iov, M_IOV);
 	return (error);
 }
@@ -880,7 +899,7 @@ sys_sendmsg(struct thread *td, struct sendmsg_args *uap)
 	if (SV_PROC_FLAG(td->td_proc, SV_AOUT))
 		msg.msg_flags = 0;
 #endif
-	error = sendit(td, uap->s, &msg, uap->flags);
+	error = user_sendit(td, uap->s, &msg, uap->flags);
 	free(iov, M_IOV);
 	return (error);
 }
@@ -1059,7 +1078,7 @@ recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp)
 	return (error);
 }
 
-static int
+int
 kern_recvfrom(struct thread *td, int s, void *buf, size_t len, int flags,
     struct sockaddr *from, socklen_t *fromlenaddr)
 {
@@ -1270,20 +1289,28 @@ kern_setsockopt(struct thread *td, int s, int level, int name, const void *val,
 int
 sys_getsockopt(struct thread *td, struct getsockopt_args *uap)
 {
+	return (user_getsockopt(td, uap->s, uap->level, uap->name,
+	    uap->val, uap->avalsize));
+}
+
+int
+user_getsockopt(struct thread *td, int s, int level, int name, void *val,
+    socklen_t *avalsize)
+{
 	socklen_t valsize;
 	int error;
 
-	if (uap->val) {
-		error = copyin(uap->avalsize, &valsize, sizeof (valsize));
+	if (val != NULL) {
+		error = copyin(avalsize, &valsize, sizeof(valsize));
 		if (error != 0)
 			return (error);
 	}
 
-	error = kern_getsockopt(td, uap->s, uap->level, uap->name,
-	    uap->val, UIO_USERSPACE, &valsize);
+	error = kern_getsockopt(td, s, level, name, val, UIO_USERSPACE,
+	    &valsize);
 
 	if (error == 0)
-		error = copyout(&valsize, uap->avalsize, sizeof (valsize));
+		error = copyout(&valsize, avalsize, sizeof(valsize));
 	return (error);
 }
 
@@ -1334,7 +1361,7 @@ kern_getsockopt(struct thread *td, int s, int level, int name, void *val,
 	return (error);
 }
 
-static int
+int
 user_getsockname(struct thread *td, int fdes, struct sockaddr *asa,
     socklen_t *alen, bool compat)
 {
@@ -1398,7 +1425,7 @@ ogetsockname(struct thread *td, struct ogetsockname_args *uap)
 }
 #endif /* COMPAT_OLDSOCK */
 
-static int
+int
 user_getpeername(struct thread *td, int fdes, struct sockaddr *asa,
     socklen_t *alen, bool compat)
 {
