@@ -1727,7 +1727,7 @@ device		ata		# Legacy ATA/SATA controllers
 # PCI ATA chipsets
 #device		ataacard	# ACARD
 #device		ataacerlabs	# Acer Labs Inc. (ALI)
-#device		ataamd		# American Micro Devices (AMD)
+#device		ataamd		# Advanced Micro Devices (AMD)
 #device		ataati		# ATI
 #device		atacenatek	# Cenatek
 #device		atacypress	# Cypress
