@@ -286,6 +286,12 @@ struct ntp_gettime_args {
 int
 sys_ntp_gettime(struct thread *td, struct ntp_gettime_args *uap)
 {	
+	return (kern_ntp_gettime(td, uap->ntvp));
+}
+
+int
+kern_ntp_gettime(struct thread *td, struct ntptimeval *ntvp)
+{
 	struct ntptimeval ntv;
 
 	memset(&ntv, 0, sizeof(ntv));
@@ -295,7 +301,7 @@ sys_ntp_gettime(struct thread *td, struct ntp_gettime_args *uap)
 	NTP_UNLOCK();
 
 	td->td_retval[0] = ntv.time_state;
-	return (copyout(&ntv, uap->ntvp, sizeof(ntv)));
+	return (copyout(&ntv, ntvp, sizeof(ntv)));
 }
 
 static int
