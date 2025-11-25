@@ -275,12 +275,13 @@ doread(int fd, FILE *of, const char *_devname)
 				errx(EX_OSERR, "unexpected read() result: %d",
 				     rv);
 			}
+			continue;
 		}
 		if ((unsigned)rv < tracksize) {
 			/* should not happen */
 			nbytes += rv;
 			if (!quiet)
-				fprintf(stderr, "\nshort after %5d KB\r",
+				fprintf(stderr, "\nshort after %5d KB\n",
 					nbytes / 1024);
 			fwrite(trackbuf, sizeof(unsigned char), rv, of);
 			fflush(of);
