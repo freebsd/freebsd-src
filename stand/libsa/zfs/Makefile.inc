@@ -1,4 +1,4 @@
-.PATH:		${ZFSSRC}
+.PATH:		${SAZFSSRC}
 .PATH:		${SYSDIR}/crypto/skein
 .PATH:		${ZFSOSSRC}/spl
 .PATH:		${ZFSTOP}/module/zstd
@@ -30,7 +30,7 @@ SRCS+=		${ZFS_SRC} ${ZSTD_SRC} ${ZFS_SRC_AS}
 # tweak something defined in that file.
 #
 
-ZFS_EARLY=	-I${ZFSSRC}/spl					\
+ZFS_EARLY=	-I${SAZFSSRC}/spl				\
 		-I${ZFSOSINC}					\
 		-I${ZFSOSINC}/spl				\
 		-I${ZFSOSINC}/zfs

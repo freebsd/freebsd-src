@@ -32,7 +32,7 @@ SRCS+=		kbootfdt.c
 .endif
 
 .if ${MK_LOADER_ZFS} != "no"
-CFLAGS+=	-I${ZFSSRC}
+CFLAGS+=	-I${SAZFSSRC}
 CFLAGS+=        -I${SYSDIR}/contrib/openzfs/include
 CFLAGS+=        -I${SYSDIR}/contrib/openzfs/include/os/freebsd/zfs
 HAVE_ZFS=yes
