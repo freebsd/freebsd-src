@@ -703,9 +703,11 @@ linker_file_unload(linker_file_t file, int flags)
 
 	/* Give eventhandlers a chance to prevent the unload. */
 	error = 0;
-	EVENTHANDLER_INVOKE(kld_unload_try, file, &error);
-	if (error != 0)
-		return (EBUSY);
+	if ((file->flags & LINKER_FILE_LINKED) != 0) {
+		EVENTHANDLER_INVOKE(kld_unload_try, file, &error);
+		if (error != 0)
+			return (EBUSY);
+	}
 
 	KLD_DPF(FILE, ("linker_file_unload: file is unloading,"
 	    " informing modules\n"));
@@ -768,10 +770,12 @@ linker_file_unload(linker_file_t file, int flags)
 	 * Don't try to run SYSUNINITs if we are unloaded due to a
 	 * link error.
 	 */
-	if (file->flags & LINKER_FILE_LINKED) {
+	if ((file->flags & LINKER_FILE_LINKED) != 0) {
 		file->flags &= ~LINKER_FILE_LINKED;
 		linker_file_unregister_sysctls(file);
 		linker_file_sysuninit(file);
+		EVENTHANDLER_INVOKE(kld_unload, file->filename, file->address,
+		    file->size);
 	}
 	TAILQ_REMOVE(&linker_files, file, link);
 
@@ -787,9 +791,6 @@ linker_file_unload(linker_file_t file, int flags)
 	}
 
 	LINKER_UNLOAD(file);
-
-	EVENTHANDLER_INVOKE(kld_unload, file->filename, file->address,
-	    file->size);
 
 	if (file->filename) {
 		free(file->filename, M_LINKER);
