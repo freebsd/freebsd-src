@@ -974,7 +974,7 @@ ipf_nat_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 	int mode, int uid, void *ctx)
 {
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
-	int error = 0, ret, arg, getlock, interr, i;
+	int error = 0, ret, arg, getlock, interr;
 	int interr_tbl[3] = { 60077, 60081, 60078 };
 	ipnat_t *nat, *nt, *n;
 	ipnat_t natd;
