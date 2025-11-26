@@ -418,12 +418,13 @@ shorten_rrset(sldns_buffer* pkt, struct rrset_parse* rrset, int count)
  * @param qinfo: original query.
  * @param region: where to allocate synthesized CNAMEs.
  * @param env: module env with config options.
+ * @param zonename: name of server zone.
  * @return 0 on error.
  */
 static int
 scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg, 
 	struct query_info* qinfo, struct regional* region,
-	struct module_env* env)
+	struct module_env* env, uint8_t* zonename)
 {
 	uint8_t* sname = qinfo->qname;
 	size_t snamelen = qinfo->qname_len;
@@ -431,7 +432,8 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 	int cname_length = 0; /* number of CNAMEs, or DNAMEs */
 
 	if(FLAGS_GET_RCODE(msg->flags) != LDNS_RCODE_NOERROR &&
-		FLAGS_GET_RCODE(msg->flags) != LDNS_RCODE_NXDOMAIN)
+		FLAGS_GET_RCODE(msg->flags) != LDNS_RCODE_NXDOMAIN &&
+		FLAGS_GET_RCODE(msg->flags) != LDNS_RCODE_YXDOMAIN)
 		return 1;
 
 	/* For the ANSWER section, remove all "irrelevant" records and add
@@ -470,6 +472,11 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 				&aliaslen, pkt)) {
 				verbose(VERB_ALGO, "synthesized CNAME "
 					"too long");
+				if(FLAGS_GET_RCODE(msg->flags) == LDNS_RCODE_YXDOMAIN) {
+					prev = rrset;
+					rrset = rrset->rrset_all_next;
+					continue;
+				}
 				return 0;
 			}
 			cname_length++;
@@ -631,6 +638,45 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 			   (FLAGS_GET_RCODE(msg->flags) == LDNS_RCODE_NOERROR
 			    && soa_in_auth(msg) && msg->an_rrsets == 0)) {
 				remove_rrset("normalize: removing irrelevant "
+					"RRset:", pkt, msg, prev, &rrset);
+				continue;
+			}
+			/* If the NS set is a promiscuous NS set, scrub that
+			 * to remove potential for poisonous contents that
+			 * affects other names in the same zone. Remove
+			 * promiscuous NS sets in positive answers, that
+			 * thus have records in the answer section. Nodata
+			 * and nxdomain promiscuous NS sets have been removed
+			 * already. Since the NS rrset is scrubbed, its
+			 * address records are also not marked to be allowed
+			 * and are removed later. */
+			if(FLAGS_GET_RCODE(msg->flags) == LDNS_RCODE_NOERROR &&
+				msg->an_rrsets != 0 &&
+				1 /* env->cfg->iter_scrub_promiscuous */) {
+				remove_rrset("normalize: removing promiscuous "
+					"RRset:", pkt, msg, prev, &rrset);
+				continue;
+			}
+			/* Also delete promiscuous NS for other RCODEs */
+			if(FLAGS_GET_RCODE(msg->flags) != LDNS_RCODE_NOERROR
+				&& 1 /* env->cfg->iter_scrub_promiscuous */) {
+				remove_rrset("normalize: removing promiscuous "
+					"RRset:", pkt, msg, prev, &rrset);
+				continue;
+			}
+			/* Also delete promiscuous NS for NOERROR with nodata
+			 * for authoritative answers, not for delegations.
+			 * NOERROR with an_rrsets!=0 already handled.
+			 * Also NOERROR and soa_in_auth already handled.
+			 * NOERROR with an_rrsets==0, and not a referral.
+			 * referral is (NS not the zonename, noSOA).
+			 */
+			if(FLAGS_GET_RCODE(msg->flags) == LDNS_RCODE_NOERROR
+				&& msg->an_rrsets == 0
+				&& !(dname_pkt_compare(pkt, rrset->dname,
+				     zonename) != 0 && !soa_in_auth(msg))
+				&& 1 /* env->cfg->iter_scrub_promiscuous */) {
+				remove_rrset("normalize: removing promiscuous "
 					"RRset:", pkt, msg, prev, &rrset);
 				continue;
 			}
@@ -1044,7 +1090,8 @@ scrub_message(sldns_buffer* pkt, struct msg_parse* msg,
 	/* this is not required for basic operation but is a forgery 
 	 * resistance (security) feature */
 	if((FLAGS_GET_RCODE(msg->flags) == LDNS_RCODE_NOERROR ||
-		FLAGS_GET_RCODE(msg->flags) == LDNS_RCODE_NXDOMAIN) &&
+		FLAGS_GET_RCODE(msg->flags) == LDNS_RCODE_NXDOMAIN ||
+		FLAGS_GET_RCODE(msg->flags) == LDNS_RCODE_YXDOMAIN) &&
 		msg->qdcount == 0)
 		return 0;
 
@@ -1058,7 +1105,7 @@ scrub_message(sldns_buffer* pkt, struct msg_parse* msg,
 	}
 
 	/* normalize the response, this cleans up the additional.  */
-	if(!scrub_normalize(pkt, msg, qinfo, region, env))
+	if(!scrub_normalize(pkt, msg, qinfo, region, env, zonename))
 		return 0;
 	/* delete all out-of-zone information */
 	if(!scrub_sanitize(pkt, msg, qinfo, zonename, env, ie, qstate))
