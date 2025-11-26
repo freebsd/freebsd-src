@@ -27,6 +27,9 @@ required_modules="ipl:ipfilter"
 ippool_start_precmd()
 {
 	rc_flags="-f ${ippool_rules} ${rc_flags}"
+	if [ -n "${ifilter_optionlist}" ]; then
+		${ipfilter_program:-/sbin/ipf} -T "${ipfilter_optionlist}"
+	fi
 }
 
 ippool_reload()
