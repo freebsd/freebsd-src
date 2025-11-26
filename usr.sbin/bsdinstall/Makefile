@@ -16,7 +16,7 @@ FILESDIR=	${SHAREDIR}/bsdinstall
 FILES=		FreeBSD-base.conf
 
 _BRANCH!=	${MAKE} -C ${SRCTOP}/release -V BRANCH
-BRANCH?=	${_BRANCH}
+BRANCH?=	${_BRANCH:C/-p[0-9]+$//}
 _REVISION!=	${MAKE} -C ${SRCTOP}/release -V REVISION
 REVISION?=	${_REVISION}
 
