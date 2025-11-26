@@ -4403,7 +4403,7 @@ int
 frrequest(ipf_main_softc_t *softc, int unit, ioctlcmd_t req, caddr_t data,
 	int set, int makecopy)
 {
-	int error = 0, in, family, need_free = 0, interr, i;
+	int error = 0, in, family, need_free = 0, interr;
 	int interr_tbl[3] = { 152, 156, 153};
 	enum {	OP_ADD,		/* add rule */
 		OP_REM,		/* remove rule */
