@@ -30,7 +30,7 @@
 extern "C" {
 #endif
 
-#define	BOOTENV_OS		BE_POSIX_VENDOR
+#define	BOOTENV_OS		BE_FREEBSD_VENDOR
 
 #ifdef __cplusplus
 }
