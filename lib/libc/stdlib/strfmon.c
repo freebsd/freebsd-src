@@ -457,7 +457,7 @@ __setup_vars(int flags, char *cs_precedes, char *sep_by_space, char *sign_posn,
 	if (*sep_by_space == CHAR_MAX)
 		*sep_by_space = 0;
 	if (*sign_posn == CHAR_MAX)
-		*sign_posn = 0;
+		*sign_posn = 1;
 }
 
 static int
