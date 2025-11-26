@@ -34,7 +34,7 @@
 
 #include <sys/cdefs.h>
 /*
- * RealTek 8139C+/8169/8169S/8110S/8168/8111/8101E PCI NIC driver
+ * Realtek 8139C+/8169/8169S/8110S/8168/8111/8101E PCI NIC driver
  *
  * Written by Bill Paul <wpaul@windriver.com>
  * Senior Networking Software Engineer
@@ -42,7 +42,7 @@
  */
 
 /*
- * This driver is designed to support RealTek's next generation of
+ * This driver is designed to support Realtek's next generation of
  * 10/100 and 10/100/1000 PCI ethernet controllers. There are currently
  * seven devices in this family: the RTL8139C+, the RTL8169, the RTL8169S,
  * RTL8110S, the RTL8168, the RTL8111 and the RTL8101E.
@@ -97,7 +97,7 @@
  * (the 'S' stands for 'single-chip'). These devices have the same
  * programming API as the older 8169, but also have some vendor-specific
  * registers for the on-board PHY. The 8110S is a LAN-on-motherboard
- * part designed to be pin-compatible with the RealTek 8100 10/100 chip.
+ * part designed to be pin-compatible with the Realtek 8100 10/100 chip.
  *
  * This driver takes advantage of the RX and TX checksum offload and
  * VLAN tag insertion/extraction features. It also implements TX
@@ -179,21 +179,21 @@ static const struct rl_type re_devs[] = {
 	{ DLINK_VENDORID, DLINK_DEVICEID_530T_REVC, 0,
 	    "D-Link DGE-530(T) Gigabit Ethernet Adapter" },
 	{ RT_VENDORID, RT_DEVICEID_2600, 0,
-	   "RealTek Killer E2600 Gigabit Ethernet Controller" },
+	   "Realtek Killer E2600 Gigabit Ethernet Controller" },
 	{ RT_VENDORID, RT_DEVICEID_8139, 0,
-	    "RealTek 8139C+ 10/100BaseTX" },
+	    "Realtek 8139C+ 10/100BaseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8101E, 0,
-	    "RealTek 810xE PCIe 10/100baseTX" },
+	    "Realtek 810xE PCIe 10/100baseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8168, 0,
-	    "RealTek 8168/8111 B/C/CP/D/DP/E/F/G PCIe Gigabit Ethernet" },
+	    "Realtek 8168/8111 B/C/CP/D/DP/E/F/G PCIe Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8161, 0,
-	    "RealTek 8168 Gigabit Ethernet" },
+	    "Realtek 8168 Gigabit Ethernet" },
 	{ NCUBE_VENDORID, RT_DEVICEID_8168, 0,
 	    "TP-Link TG-3468 v2 (RTL8168) Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, 0,
-	    "RealTek 8169/8169S/8169SB(L)/8110S/8110SB(L) Gigabit Ethernet" },
+	    "Realtek 8169/8169S/8169SB(L)/8110S/8110SB(L) Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169SC, 0,
-	    "RealTek 8169SC/8110SC Single-chip Gigabit Ethernet" },
+	    "Realtek 8169SC/8110SC Single-chip Gigabit Ethernet" },
 	{ COREGA_VENDORID, COREGA_DEVICEID_CGLAPCIGT, 0,
 	    "Corega CG-LAPCIGT (RTL8169S) Gigabit Ethernet" },
 	{ LINKSYS_VENDORID, LINKSYS_DEVICEID_EG1032, 0,
@@ -647,7 +647,7 @@ re_miibus_statchg(device_t dev)
 		}
 	}
 	/*
-	 * RealTek controllers do not provide any interface to the RX/TX
+	 * Realtek controllers do not provide any interface to the RX/TX
 	 * MACs for resolved speed, duplex and flow-control parameters.
 	 */
 }
@@ -703,7 +703,7 @@ re_set_rxmode(struct rl_softc *sc)
 
 	if (hashes[0] != 0 || hashes[1] != 0) {
 		/*
-		 * For some unfathomable reason, RealTek decided to
+		 * For some unfathomable reason, Realtek decided to
 		 * reverse the order of the multicast hash registers
 		 * in the PCI Express parts.  This means we have to
 		 * write the hash pattern in reverse order for those
@@ -932,7 +932,7 @@ done:
 #endif
 
 /*
- * Probe for a RealTek 8139C+/8169/8110 chip. Check the PCI vendor and device
+ * Probe for a Realtek 8139C+/8169/8110 chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
 static int
@@ -1007,9 +1007,9 @@ re_allocmem(device_t dev, struct rl_softc *sc)
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 * In order to use DAC, RL_CPLUSCMD_PCI_DAC bit of RL_CPLUS_CMD
-	 * register should be set. However some RealTek chips are known
+	 * register should be set. However some Realtek chips are known
 	 * to be buggy on DAC handling, therefore disable DAC by limiting
-	 * DMA address space to 32bit. PCIe variants of RealTek chips
+	 * DMA address space to 32bit. PCIe variants of Realtek chips
 	 * may not have the limitation.
 	 */
 	lowaddr = BUS_SPACE_MAXADDR;
@@ -1957,7 +1957,7 @@ re_newbuf(struct rl_softc *sc, int idx)
 #ifdef RE_FIXUP_RX
 	/*
 	 * This is part of an evil trick to deal with non-x86 platforms.
-	 * The RealTek chip requires RX buffers to be aligned on 64-bit
+	 * The Realtek chip requires RX buffers to be aligned on 64-bit
 	 * boundaries, but that will hose non-x86 machines. To get around
 	 * this, we leave some empty space at the start of each buffer
 	 * and for non-x86 hosts, we copy the buffer back six bytes
@@ -2242,7 +2242,7 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 		 * it is 13 bits (since the max RX frame length is 16K).
 		 * Unfortunately, all 32 bits in the status word
 		 * were already used, so to make room for the extra
-		 * length bit, RealTek took out the 'frame alignment
+		 * length bit, Realtek took out the 'frame alignment
 		 * error' bit and shifted the other status bits
 		 * over one slot. The OWN, EOR, FS and LS bits are
 		 * still in the same places. We have already extracted
@@ -2742,7 +2742,7 @@ re_encap(struct rl_softc *sc, struct mbuf **m_head)
 	M_ASSERTPKTHDR((*m_head));
 
 	/*
-	 * With some of the RealTek chips, using the checksum offload
+	 * With some of the Realtek chips, using the checksum offload
 	 * support in conjunction with the autopadding feature results
 	 * in the transmission of corrupt frames. For example, if we
 	 * need to send a really small IP fragment that's less than 60
