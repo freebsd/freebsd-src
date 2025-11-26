@@ -234,11 +234,11 @@ ATF_TC_BODY(strfmon_plus_or_parenthesis, tc)
 	if (setlocale(LC_MONETARY, "C") == NULL)
 		atf_tc_skip("unable to setlocale(): %s", tests[i].locale);
 
-	/* ATF_CHECK_ERRNO(EINVAL, strfmon(actual, sizeof(actual) - 1,
-	    "[%+n] [%+n]", 123.45, -123.45)); XXX */
+	ATF_CHECK_ERRNO(EINVAL, strfmon(actual, sizeof(actual) - 1,
+	    "[%+n] [%+n]", 123.45, -123.45));
 
-	/* ATF_CHECK_ERRNO(EINVAL, strfmon(actual, sizeof(actual) - 1,
-	    "[%+i] [%+i]", 123.45, -123.45)); XXX */
+	ATF_CHECK_ERRNO(EINVAL, strfmon(actual, sizeof(actual) - 1,
+	    "[%+i] [%+i]", 123.45, -123.45));
 }
 
 ATF_TC(strfmon_l);
