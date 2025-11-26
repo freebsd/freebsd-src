@@ -187,6 +187,7 @@ v6_body()
 	jexec alcatraz pfctl -e
 
 	pft_set_rules alcatraz "block all" \
+		"pass quick inet6 proto ipv6-icmp all icmp6-type { neighbrsol, neighbradv } no state" \
 		"pass in proto icmp6" \
 		"set skip on lo"
 
