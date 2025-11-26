@@ -563,17 +563,25 @@ kern_jail(struct thread *td, struct jail *j)
 int
 sys_jail_set(struct thread *td, struct jail_set_args *uap)
 {
+	return (user_jail_set(td, uap->iovp, uap->iovcnt, uap->flags,
+	    copyinuio));
+}
+
+int
+user_jail_set(struct thread *td, struct iovec *iovp,
+    unsigned int iovcnt, int flags, copyinuio_t *copyinuio_f)
+{
 	struct uio *auio;
 	int error;
 
 	/* Check that we have an even number of iovecs. */
-	if (uap->iovcnt & 1)
+	if (iovcnt & 1)
 		return (EINVAL);
 
-	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
+	error = copyinuio_f(iovp, iovcnt, &auio);
 	if (error)
 		return (error);
-	error = kern_jail_set(td, auio, uap->flags);
+	error = kern_jail_set(td, auio, flags);
 	freeuio(auio);
 	return (error);
 }
@@ -2538,20 +2546,28 @@ get_next_deadid(struct prison **dinsprp)
 int
 sys_jail_get(struct thread *td, struct jail_get_args *uap)
 {
+	return (user_jail_get(td, uap->iovp, uap->iovcnt, uap->flags,
+	    copyinuio, updateiov));
+}
+
+int
+user_jail_get(struct thread *td, struct iovec *iovp,
+    unsigned int iovcnt, int flags, copyinuio_t *copyinuio_f,
+    updateiov_t *updateiov_f)
+{
 	struct uio *auio;
 	int error;
 
 	/* Check that we have an even number of iovecs. */
-	if (uap->iovcnt & 1)
+	if (iovcnt & 1)
 		return (EINVAL);
 
-	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
+	error = copyinuio_f(iovp, iovcnt, &auio);
 	if (error)
 		return (error);
-	error = kern_jail_get(td, auio, uap->flags);
+	error = kern_jail_get(td, auio, flags);
 	if (error == 0)
-		error = copyout(auio->uio_iov, uap->iovp,
-		    uap->iovcnt * sizeof(struct iovec));
+		error = updateiov_f(auio, iovp);
 	freeuio(auio);
 	return (error);
 }
