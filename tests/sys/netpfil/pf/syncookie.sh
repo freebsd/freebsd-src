@@ -310,7 +310,7 @@ loopback_v6_body()
 	loopback_test ::1 8080
 
 	epair=$(vnet_mkepair)
-	atf_check ifconfig ${epair}a inet6 2001:db8::1/64
+	atf_check ifconfig ${epair}a inet6 2001:db8::1/64 no_dad
 
 	loopback_test 2001:db8::1 8081
 }
