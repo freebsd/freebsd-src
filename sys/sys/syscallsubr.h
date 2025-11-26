@@ -475,8 +475,6 @@ int	kern_shm_open(struct thread *td, const char *userpath, int flags,
 int	kern_shm_open2(struct thread *td, const char *path, int flags,
 	    mode_t mode, int shmflags, struct filecaps *fcaps,
 	    const char *name, struct shmfd *shmfd);
-int	kern_shmat(struct thread *td, int shmid, const void *shmaddr,
-	    int shmflg);
 int	kern_shm_rename(struct thread *td, const char *path_from_p,
 	    const char *path_to_p, int flags);
 int	kern_shm_unlink(struct thread *td, const char *userpath);

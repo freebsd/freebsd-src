@@ -464,7 +464,7 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 	return (error);
 }
 
-int
+static int
 kern_shmat(struct thread *td, int shmid, const void *shmaddr, int shmflg)
 {
 	int error;
