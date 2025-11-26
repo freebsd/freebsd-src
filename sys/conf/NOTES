@@ -1848,9 +1848,9 @@ device  	nsphyter	# NatSemi DP83843/DP83815
 device  	pnaphy		# HomePNA
 device  	qsphy		# Quality Semiconductor QS6612
 device  	rdcphy		# RDC Semiconductor R6040
-device  	rgephy		# RealTek 8169S/8110S/8211B/8211C
-device  	rlphy		# RealTek 8139
-device  	rlswitch	# RealTek 8305
+device  	rgephy		# Realtek 8169S/8110S/8211B/8211C
+device  	rlphy		# Realtek 8139
+device  	rlswitch	# Realtek 8305
 device  	smcphy		# SMSC LAN91C111
 device  	tdkphy		# TDK 89Q2120
 device  	truephy		# LSI TruePHY
@@ -1920,17 +1920,17 @@ device		xmphy		# XaQti XMAC II
 #	EP-320G-TX and the Netgear GA622T.
 # oce:	Emulex 10 Gbit adapters (OneConnect Ethernet)
 # ral:	Ralink Technology IEEE 802.11 wireless adapter
-# re:   RealTek 8139C+/8169/816xS/811xS/8101E PCI/PCIe Ethernet adapter
-# rl:   Support for PCI fast ethernet adapters based on the RealTek 8129/8139
-#       chipset.  Note that the RealTek driver defaults to using programmed
+# re:   Realtek 8139C+/8169/816xS/811xS/8101E PCI/PCIe Ethernet adapter
+# rl:   Support for PCI fast ethernet adapters based on the Realtek 8129/8139
+#       chipset.  Note that the Realtek driver defaults to using programmed
 #       I/O to do register accesses because memory mapped mode seems to cause
 #       severe lockups on SMP hardware.  This driver also supports the
 #       Accton EN1207D `Cheetah' adapter, which uses a chip called
-#       the MPX 5030/5038, which is either a RealTek in disguise or a
-#       RealTek workalike.  Note that the D-Link DFE-530TX+ uses the RealTek
+#       the MPX 5030/5038, which is either a Realtek in disguise or a
+#       Realtek workalike.  Note that the D-Link DFE-530TX+ uses the Realtek
 #       chipset and is supported by this driver, not the 'vr' driver.
-# rtwn: RealTek wireless adapters.
-# rtwnfw: RealTek wireless firmware.
+# rtwn: Realtek wireless adapters.
+# rtwnfw: Realtek wireless firmware.
 # sge:  Silicon Integrated Systems SiS190/191 Fast/Gigabit Ethernet adapter
 # sis:  Support for NICs based on the Silicon Integrated Systems SiS 900,
 #       SiS 7016 and NS DP83815 PCI fast ethernet controller chips.
@@ -1984,8 +1984,8 @@ device		mlx5en		# Mellanox ConnectX-4 and ConnectX-4 LX
 device		msk		# Marvell/SysKonnect Yukon II Gigabit Ethernet
 device		my		# Myson Fast Ethernet (MTD80X, MTD89X)
 device		nge		# NatSemi DP83820 gigabit Ethernet
-device		re		# RealTek 8139C+/8169/8169S/8110S
-device		rl		# RealTek 8129/8139
+device		re		# Realtek 8139C+/8169/8169S/8110S
+device		rl		# Realtek 8129/8139
 device		sge		# Silicon Integrated Systems SiS190/191
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		sk		# SysKonnect SK-984x & SK-982x gigabit Ethernet
@@ -1998,8 +1998,8 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # PCI/PCI-X/PCIe Ethernet NICs that use iflib infrastructure
 device		iflib
 device		em		# Intel Pro/1000 Gigabit Ethernet
-device		ix		# Intel Pro/10Gbe PCIE Ethernet
-device		ixv		# Intel Pro/10Gbe PCIE Ethernet VF
+device		ix		# Intel Pro/10GbE PCIE Ethernet
+device		ixv		# Intel Pro/10GbE PCIE Ethernet VF
 
 # PCI Ethernet NICs.
 device		cxgb		# Chelsio T3 10 Gigabit Ethernet
@@ -2008,7 +2008,7 @@ device		cxgbe		# Chelsio T4-T6 1/10/25/40/100 Gigabit Ethernet
 device		cxgbev		# Chelsio T4-T6 Virtual Functions
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		mxge		# Myricom Myri-10G 10GbE NIC
-device		oce		# Emulex 10 GbE (OneConnect Ethernet)
+device		oce		# Emulex 10GbE (OneConnect Ethernet)
 device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
 
 # PCI IEEE 802.11 Wireless NICs
@@ -2105,7 +2105,7 @@ device		sound
 # snd_neomagic:		Neomagic 256 AV/ZX PCI.
 # snd_solo:		ESS Solo-1x PCI.
 # snd_spicds:		SPI codec driver, needed by Envy24/Envy24HT drivers.
-# snd_t4dwave:		Trident 4DWave DX/NX PCI, Sis 7018 PCI and Acer Labs
+# snd_t4dwave:		Trident 4DWave DX/NX PCI, SiS 7018 PCI and Acer Labs
 #			M5451 PCI.
 # snd_uaudio:		USB audio.
 # snd_via8233:		VIA VT8233x PCI.
@@ -2552,14 +2552,14 @@ device		cue
 # and 2104USB, and the Corega USB-T.
 device		kue
 #
-# RealTek RTL8150 USB to fast ethernet. Supports the Melco LUA-KTX
+# Realtek RTL8150 USB to fast ethernet. Supports the Melco LUA-KTX
 # and the GREEN HOUSE GH-USB100B.
 device		rue
 #
 # Davicom DM9601E USB to fast ethernet. Supports the Corega FEther USB-TXC.
 device		udav
 #
-# RealTek RTL8152/RTL8153 USB Ethernet driver
+# Realtek RTL8152/RTL8153 USB Ethernet driver
 device		ure
 #
 # Moschip MCS7730/MCS7840 USB to fast ethernet. Supports the Sitecom LN030.
