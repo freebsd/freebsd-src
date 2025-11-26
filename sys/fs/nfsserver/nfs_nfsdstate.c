@@ -1977,6 +1977,20 @@ tryagain:
 			     error = NFSERR_BADSTATEID;
 	      }
 	      
+	      /*
+	       * Sanity check the stateid for the Lock/LockU cases.
+	       */
+	      if (error == 0 && (new_stp->ls_flags & NFSLCK_LOCK) != 0 &&
+		  (((new_stp->ls_flags & NFSLCK_OPENTOLOCK) != 0 &&
+		    (stp->ls_flags & NFSLCK_OPEN) == 0) ||
+		   ((new_stp->ls_flags & NFSLCK_OPENTOLOCK) == 0 &&
+		    (stp->ls_flags & NFSLCK_LOCK) == 0)))
+			error = NFSERR_BADSTATEID;
+	      if (error == 0 && (new_stp->ls_flags & NFSLCK_UNLOCK) != 0 &&
+		  (stp->ls_flags & NFSLCK_LOCK) == 0)
+			error = NFSERR_BADSTATEID;
+
+		/* Sanity check the delegation stateid. */
 		if (error == 0 &&
 		  (stp->ls_flags & (NFSLCK_DELEGREAD | NFSLCK_DELEGWRITE)) &&
 		  getlckret == 0 && stp->ls_lfp != lfp)
