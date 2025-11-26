@@ -33,6 +33,7 @@ kern/subr_devmap.c		standard
 kern/subr_dummy_vdso_tc.c	standard
 kern/subr_efi_map.c		standard
 kern/subr_intr.c		standard
+kern/subr_intrpic.c		standard
 kern/subr_physmem.c		standard
 libkern/bcopy.c			standard
 libkern/memcmp.c		standard
