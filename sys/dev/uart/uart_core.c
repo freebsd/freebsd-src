@@ -32,7 +32,6 @@
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/fcntl.h>
-#include <sys/interrupt.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -40,8 +39,10 @@
 #include <sys/reboot.h>
 #include <sys/stdarg.h>
 #include <sys/sysctl.h>
-#include <machine/bus.h>
 #include <sys/rman.h>
+
+#include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 
 #include <dev/uart/uart.h>

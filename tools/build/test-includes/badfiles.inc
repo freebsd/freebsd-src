@@ -63,7 +63,6 @@ BADHDRS= \
 	sys/kdb.h \
 	sys/kernel.h \
 	sys/khelp.h \
-	sys/kobj.h \
 	sys/ksem.h \
 	sys/ktls.h \
 	sys/libkern.h \
@@ -100,7 +99,6 @@ BADHDRS= \
 	sys/rmlock.h \
 	sys/rtprio.h \
 	sys/runq.h \
-	sys/rwlock.h \
 	sys/sbuf.h \
 	sys/sf_buf.h \
 	sys/sglist.h \

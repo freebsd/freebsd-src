@@ -45,7 +45,6 @@
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/hash.h>
-#include <sys/interrupt.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/libkern.h>
@@ -60,6 +59,8 @@
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+
+#include <machine/interrupt.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>

@@ -37,7 +37,7 @@
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/platform.h>
 
@@ -80,14 +80,11 @@ static device_method_t  ps3pic_methods[] = {
 	DEVMETHOD(pic_mask,		ps3pic_mask),
 	DEVMETHOD(pic_unmask,		ps3pic_unmask),
 
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
-static driver_t ps3pic_driver = {
-	"ps3pic",
-	ps3pic_methods,
-	sizeof(struct ps3pic_softc)
-};
+PRIVATE_DEFINE_CLASSN(ps3pic, ps3pic_driver ps3pic_methods,
+    sizeof(struct ps3pic_softc), pic_base_class);
 
 DRIVER_MODULE(ps3pic, nexus, ps3pic_driver, 0, 0);
 

@@ -28,7 +28,6 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/kexec.h>
 #include <vm/vm.h>
@@ -39,7 +38,7 @@
 #include <vm/vm_page.h>
 #include <vm/vm_radix.h>
 
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/kexec.h>
 #include <machine/md_var.h>
 #include <machine/pmap.h>

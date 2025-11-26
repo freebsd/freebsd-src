@@ -47,7 +47,7 @@
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 
 #define	ELCR_PORT	0x4d0
 #define	ELCR_MASK(irq)	(1 << (irq))
