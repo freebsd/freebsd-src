@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20251126:
+	14.3-RELEASE-p6	SA-25:10.unbound
+
+	Fix cache poison in local-unbound service. [SA-25:10.unbound]
+
 20251022:
 	14.3-RELEASE-p5 SA-25:09.netinet
 
