@@ -92,7 +92,7 @@
 0200  Dell (wrong ID)
 # 021b is not Compaq but there is a board misprogrammed
 021b  Compaq Computer Corporation
-	8139  HNE-300 (RealTek RTL8139c) [iPaq Networking]
+	8139  HNE-300 (Realtek RTL8139c) [iPaq Networking]
 025e  Solidigm
 	0b60  NVMe DC SSD [Sentinel Rock Plus controller]
 		025e 8008  NVMe DC SSD U.2 15mm [D7-P5510]
@@ -16326,7 +16326,7 @@
 		1186 1103  DFE-520TX Fast Ethernet PCI Adapter (rev. C1)
 	4300  DGE-528T Gigabit Ethernet Adapter
 		1186 4300  DGE-528T PCI Gigabit Ethernet Adapter
-# rev. B1; RealTek RTL8168E.
+# rev. B1; Realtek RTL8168E.
 		1186 4b10  DGE-560T PCI Express (x1) Gigabit Ethernet Adapter
 	4302  DGE-530T Gigabit Ethernet Adapter (rev.C1) [Realtek RTL8169]
 	4b00  DGE-560T PCI Express Gigabit Ethernet Adapter
@@ -21801,7 +21801,7 @@
 14e9  GARNETS System CO Ltd
 14ea  Planex Communications, Inc
 	ab06  FNW-3603-TX CardBus Fast Ethernet
-	ab07  RTL81xx RealTek Ethernet
+	ab07  RTL81xx Realtek Ethernet
 	ab08  FNW-3602-TX CardBus Fast Ethernet
 14eb  SEIKO EPSON Corp
 # nee ACQIRIS
@@ -22124,7 +22124,7 @@
 14fe  ARCHTEK TELECOM Corp
 14ff  TWINHEAD INTERNATIONAL Corp
 1500  DELTA Electronics, Inc
-	1360  RTL81xx RealTek Ethernet
+	1360  RTL81xx Realtek Ethernet
 1501  BANKSOFT CANADA Ltd
 1502  MITSUBISHI ELECTRIC LOGISTICS SUPPORT Co Ltd
 1503  KAWASAKI LSI USA Inc
