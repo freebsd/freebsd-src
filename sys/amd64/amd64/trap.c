@@ -104,7 +104,7 @@ void trap_check(struct trapframe *frame);
 void dblfault_handler(struct trapframe *frame);
 
 static int trap_pfault(struct trapframe *, bool, int *, int *);
-static void trap_diag(struct trapframe *, vm_offset_t);
+static void trap_diag(struct trapframe *, vm_offset_t, const char *);
 static void trap_fatal(struct trapframe *, vm_offset_t);
 #ifdef KDTRACE_HOOKS
 static bool trap_user_dtrace(struct trapframe *,
@@ -238,7 +238,7 @@ trap_check_pcb_onfault(struct thread *td, struct trapframe *frame)
 		    print_efirt_faults == 2) {
 			printf("EFI RT fault %s\n",
 			    traptype_to_msg(frame->tf_trapno));
-			trap_diag(frame, 0);
+			trap_diag(frame, 0, "EFI runtime");
 		}
 		res = true;
 	} else if (frame->tf_trapno == T_PAGEFLT) {
@@ -940,7 +940,7 @@ after_vmfault:
 }
 
 static void
-trap_diag(struct trapframe *frame, vm_offset_t eva)
+trap_diag(struct trapframe *frame, vm_offset_t eva, const char *type_str)
 {
 	int code;
 	u_int type;
@@ -952,7 +952,7 @@ trap_diag(struct trapframe *frame, vm_offset_t eva)
 	gdt = *PCPU_PTR(gdt);
 	sdtossd(&gdt[IDXSEL(frame->tf_cs)], &softseg);
 
-	printf("\n\nFatal trap %d: %s while in %s mode\n", type,
+	printf("\n%s trap %d: %s while in %s mode\n", type_str, type,
 	    type < nitems(trap_msg) ? trap_msg[type] : UNKNOWN,
 	    TRAPF_USERMODE(frame) ? "user" : "kernel");
 	/* Print these separately in case pcpu accesses trap. */
@@ -1013,7 +1013,7 @@ trap_fatal(struct trapframe *frame, vm_offset_t eva)
 	u_int type;
 
 	type = frame->tf_trapno;
-	trap_diag(frame, eva);
+	trap_diag(frame, eva, "\nFatal");
 #ifdef KDB
 	if (debugger_on_trap) {
 		bool handled;
