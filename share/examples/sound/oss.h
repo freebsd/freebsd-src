@@ -25,6 +25,7 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/mman.h>
 #include <sys/soundcard.h>
 
 #include <err.h>
@@ -84,7 +85,7 @@ static void
 oss_init(struct config *config)
 {
 	unsigned long request = SNDCTL_DSP_GETOSPACE;
-	int tmp = 0;
+	int tmp = 0, prot = 0;
 
 	if ((config->fd = open(config->device, config->mode)) < 0)
 		err(1, "Error opening the device %s", config->device);
@@ -194,7 +195,6 @@ oss_init(struct config *config)
 	}
 	config->sample_count = config->buffer_info.bytes / config->sample_size;
 	config->chsamples = config->sample_count / config->audio_info.max_channels;
-	config->buf = malloc(config->buffer_info.bytes);
 
 	printf("bytes: %d, fragments: %d, fragsize: %d, fragstotal: %d, "
 	    "samples: %d\n",
@@ -202,21 +202,36 @@ oss_init(struct config *config)
 	    config->buffer_info.fragsize, config->buffer_info.fragstotal,
 	    config->sample_count);
 
-	/* Set the trigger */
+	/* Set trigger direction and mmap protection */
 	switch (config->mode & O_ACCMODE) {
 	case O_RDONLY:
 		tmp = PCM_ENABLE_INPUT;
+		prot = PROT_READ;
 		break;
 	case O_WRONLY:
 		tmp = PCM_ENABLE_OUTPUT;
+		prot = PROT_WRITE;
 		break;
 	case O_RDWR:
 		tmp = PCM_ENABLE_INPUT | PCM_ENABLE_OUTPUT;
+		prot = PROT_READ | PROT_WRITE;
 		break;
 	default:
 		errx(1, "Invalid mode %d", config->mode);
 		break;
 	}
+
+	/* Map or allocate the buffer */
+	if (config->mmap) {
+		config->buf = mmap(NULL, config->buffer_info.bytes, prot, MAP_SHARED, config->fd, 0);
+		if (config->buf == MAP_FAILED)
+			err(1, "Memory map failed");
+	} else {
+		if ((config->buf = malloc(config->buffer_info.bytes)) == NULL)
+			err(1, "Allocating buffer failed");
+	}
+
+	/* Set the trigger */
 	if (ioctl(config->fd, SNDCTL_DSP_SETTRIGGER, &tmp) < 0)
 		err(1, "Failed to set trigger");
 }
