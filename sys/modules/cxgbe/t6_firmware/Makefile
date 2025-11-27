@@ -1,6 +1,3 @@
-#
-#
-
 T6FW=	${SRCTOP}/sys/dev/cxgbe/firmware
 .PATH: ${T6FW}
 
