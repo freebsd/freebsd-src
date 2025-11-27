@@ -229,6 +229,7 @@ typedef	__uint32_t	__fixpt_t;	/* fixed point number */
 typedef union {
 	char		__mbstate8[128];
 	__int64_t	_mbstateL;	/* for alignment */
+	__intptr_t	_mbstateP;	/* for alignment */
 } __mbstate_t;
 
 typedef __uintmax_t     __rman_res_t;
