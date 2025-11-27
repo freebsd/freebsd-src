@@ -206,6 +206,7 @@ typedef struct {
 	long double __max_align2
 	    __attribute__((__aligned__(__alignof__(long double))));
 #endif
+	void *__max_align3 __attribute__((__aligned__(__alignof__(void *))));
 } __max_align_t;
 
 /* Types for sys/acl.h */
