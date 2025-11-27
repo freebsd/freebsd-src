@@ -315,7 +315,7 @@ create_one_review()
     printf "\nSubscribers:\n" >> "$msg"
     printf "%s\n" "${subscribers}" >> "$msg"
 
-    yes | env EDITOR=true \
+    yes | EDITOR=true \
         arc diff --message-file "$msg" --never-apply-patches --create \
         --allow-untracked $BROWSE --head "$commit" "${commit}~"
     [ $? -eq 0 ] || err "could not create Phabricator diff"
