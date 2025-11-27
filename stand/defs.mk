@@ -56,12 +56,11 @@ LIBLUASRC=	${BOOTSRC}/liblua
 LIBOFWSRC=	${BOOTSRC}/libofw
 LUASRC=		${SRCTOP}/contrib/lua/src
 SASRC=		${BOOTSRC}/libsa
+SAZFSSRC=	${SASRC}/zfs
 SYSDIR=		${SRCTOP}/sys
 UBOOTSRC=	${BOOTSRC}/uboot
-ZFSSRC=		${SASRC}/zfs
-OZFS=		${SRCTOP}/sys/contrib/openzfs
-ZFSOSSRC=	${OZFS}/module/os/freebsd/
-ZFSOSINC=	${OZFS}/include/os/freebsd
+ZFSOSSRC=	${ZFSTOP}/module/os/freebsd/
+ZFSOSINC=	${ZFSTOP}/include/os/freebsd
 LIBCSRC=	${SRCTOP}/lib/libc
 
 BOOTOBJ=	${OBJTOP}/stand
