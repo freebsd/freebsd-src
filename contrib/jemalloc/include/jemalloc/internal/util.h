@@ -40,6 +40,9 @@
 #  error JEMALLOC_INTERNAL_UNREACHABLE should have been defined by configure
 #endif
 
+#ifdef unreachable
+#  undef unreachable
+#endif
 #define unreachable() JEMALLOC_INTERNAL_UNREACHABLE()
 
 /* Set error code. */
