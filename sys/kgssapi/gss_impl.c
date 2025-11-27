@@ -88,6 +88,7 @@ kgss_load(void)
 	return (0);
 }
 
+#if 0
 static void
 kgss_unload(void)
 {
@@ -96,6 +97,7 @@ kgss_unload(void)
 	clnt_destroy(KGSS_VNET(kgss_gssd_handle));
 	KGSS_CURVNET_RESTORE();
 }
+#endif
 
 int
 kgss_oid_equal(const gss_OID oid1, const gss_OID oid2)
@@ -297,8 +299,10 @@ kgssapi_modevent(module_t mod, int type, void *data)
 		error = kgss_load();
 		break;
 	case MOD_UNLOAD:
+#if 0
 		kgss_unload();
 		mtx_destroy(&kgss_gssd_lock);
+#endif
 		/*
 		 * Unloading of the kgssapi module is not currently supported.
 		 * If somebody wants this, we would need to keep track of
