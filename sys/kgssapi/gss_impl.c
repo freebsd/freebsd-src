@@ -78,12 +78,14 @@ kgss_load(void)
 	return (0);
 }
 
+#if 0
 static void
 kgss_unload(void)
 {
 
 	syscall_helper_unregister(gssd_syscalls);
 }
+#endif
 
 int
 sys_gssd_syscall(struct thread *td, struct gssd_syscall_args *uap)
@@ -344,8 +346,10 @@ kgssapi_modevent(module_t mod, int type, void *data)
 		error = kgss_load();
 		break;
 	case MOD_UNLOAD:
+#if 0
 		kgss_unload();
 		mtx_destroy(&kgss_gssd_lock);
+#endif
 		/*
 		 * Unloading of the kgssapi module is not currently supported.
 		 * If somebody wants this, we would need to keep track of
