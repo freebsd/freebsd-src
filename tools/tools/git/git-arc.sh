@@ -786,7 +786,7 @@ shift $((OPTIND-1))
 
 [ $# -ge 1 ] || err_usage
 
-which arc >/dev/null 2>&1 || err "arc is required, install devel/arcanist"
+[ -x "${ARC_CMD}" ] || err "arc is required, install devel/arcanist-lib"
 which jq >/dev/null 2>&1 || err "jq is required, install textproc/jq"
 
 if [ "$VERBOSE" ]; then
