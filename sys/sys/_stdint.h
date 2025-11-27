@@ -78,6 +78,22 @@ typedef	__intptr_t		intptr_t;
 typedef	__uintptr_t		uintptr_t;
 #define	_UINTPTR_T_DECLARED
 #endif
+#if defined(__BSD_VISIBLE) && __BSD_VISIBLE
+/*
+ * Integer types which are 64-bits unless it needs to be larger to hold
+ * a pointer.  These are to be used when the ABI for integer targets
+ * uses a fixed 64-bit integer to hold values including pointers in
+ * order to simplify 32- and 64-bit compatibility.
+ */
+#ifndef _INT64PTR_T_DECLARED
+typedef	__int64ptr_t		int64ptr_t;
+#define	_INT64PTR_T_DECLARED
+#endif
+#ifndef _UINT64PTR_T_DECLARED
+typedef	__uint64ptr_t		uint64ptr_t;
+#define	_UINT64PTR_T_DECLARED
+#endif
+#endif
 #ifndef _INTMAX_T_DECLARED
 typedef	__intmax_t		intmax_t;
 #define	_INTMAX_T_DECLARED
