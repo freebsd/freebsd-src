@@ -103,6 +103,12 @@ typedef	__int32_t	__ptrdiff_t;	/* ptr1 - ptr2 */
 #error unsupported ptrdiff_t size
 #endif
 
+#ifdef __PTRADDR_TYPE__
+typedef	__PTRADDR_TYPE__	__ptraddr_t;
+#else
+typedef	__size_t		__ptraddr_t;
+#endif
+
 /*
  * Target-dependent type definitions.
  */
