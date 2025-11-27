@@ -131,8 +131,10 @@ main(int argc, char *argv[])
 			 * be set to 1024. Thus, if this occurs, simply break
 			 * rather than clobbering the old blocksize.
 			 */
-			if (kflag)
+			if (kflag) {
+				setenv("BLOCKSIZE", "1024", 1);
 				break;
+			}
 			setenv("BLOCKSIZE", "512", 1);
 			hflag = 0;
 			break;
@@ -154,7 +156,7 @@ main(int argc, char *argv[])
 			break;
 		case 'k':
 			kflag++;
-			setenv("BLOCKSIZE", "1024", 1);
+			setenv("BLOCKSIZE", "1k", 1);
 			hflag = 0;
 			break;
 		case 'l':
