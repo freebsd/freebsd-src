@@ -154,12 +154,22 @@ bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi)
 			lflags |= TX_BD_LONG_LFLAGS_LSO |
 			    TX_BD_LONG_LFLAGS_T_IPID;
 		}
-		else if(pi->ipi_csum_flags & CSUM_OFFLOAD) {
-			lflags |= TX_BD_LONG_LFLAGS_TCP_UDP_CHKSUM |
-			    TX_BD_LONG_LFLAGS_IP_CHKSUM;
-		}
-		else if(pi->ipi_csum_flags & CSUM_IP) {
-			lflags |= TX_BD_LONG_LFLAGS_IP_CHKSUM;
+		else {
+			if (pi->ipi_csum_flags & CSUM_IP) {
+				lflags |= TX_BD_LONG_LFLAGS_IP_CHKSUM;
+			}
+			switch (pi->ipi_ipproto) {
+				case IPPROTO_TCP:
+					if (pi->ipi_csum_flags & (CSUM_IP_TCP | CSUM_IP6_TCP)) {
+						lflags |= TX_BD_LONG_LFLAGS_TCP_UDP_CHKSUM;
+					}
+					break;
+				case IPPROTO_UDP:
+					if (pi->ipi_csum_flags & (CSUM_IP_UDP | CSUM_IP6_UDP)) {
+						lflags |= TX_BD_LONG_LFLAGS_TCP_UDP_CHKSUM;
+					}
+					break;
+			}
 		}
 		tbdh->lflags = htole16(lflags);
 	}
