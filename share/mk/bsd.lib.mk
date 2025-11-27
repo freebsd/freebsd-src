@@ -1,3 +1,18 @@
+# If INTERNALLIB is defined, we build lib<name>.a and lib<name>_pie.a,
+# i.e. only static archives without dso, in both non-PIE and PIE variants,
+# suitable for static linking into binaries.
+# INTERNALLIB library headers are not installed.  A component that uses
+# the library should add explicit -I$(LIB<name>DIR) to CFLAGS.
+#
+# If PRIVATELIB is defined, we build and install both libprivate<name>.a
+# and libprivate<name>.so, so the library can be linked dynamically, but
+# cannot be picked up by third-party configure scripts.
+# PRIVATELIB library headers are installed into include/private/<name>.
+#
+# If neither of control variables are defined, we install headers into
+# include/, and both non-pic static and shared libraries under the defined
+# name.
+
 .include <bsd.init.mk>
 .include <bsd.compiler.mk>
 .include <bsd.linker.mk>
