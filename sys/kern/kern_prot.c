@@ -529,44 +529,54 @@ gidp_cmp(const void *p1, const void *p2)
  * 'smallgroups' must be an (uninitialized) array of length CRED_SMALLGROUPS_NB.
  * Always sets 'sc_supp_groups', either to a valid kernel-space groups array
  * (which may or may not be 'smallgroups'), or NULL if SETCREDF_SUPP_GROUPS was
- * not specified, or a buffer containing garbage on copyin() failure.  In the
- * last two cases, 'sc_supp_groups_nb' is additionally set to 0 as a security
- * measure.  'sc_supp_groups' must be freed (M_TEMP) if not equal to
- * 'smallgroups' even on failure.
+ * not specified or there are too many groups, or a buffer containing garbage on
+ * copyin() failure.  In the last two cases, 'sc_supp_groups_nb' is additionally
+ * set to 0 as a security measure.  'sc_supp_groups' must be freed (M_TEMP) if
+ * not equal to 'smallgroups' even on failure.
  */
 static int
-kern_setcred_copyin_supp_groups(struct setcred *const wcred,
+user_setcred_copyin_supp_groups(struct setcred *const wcred,
     const u_int flags, gid_t *const smallgroups)
 {
 	gid_t *groups;
 	int error;
 
 	if ((flags & SETCREDF_SUPP_GROUPS) == 0) {
-		wcred->sc_supp_groups_nb = 0;
-		wcred->sc_supp_groups = NULL;
-		return (0);
+		error = 0;
+		goto reset_groups_exit;
 	}
 
 	/*
 	 * Check the number of groups' limit right now in order to limit the
 	 * amount of bytes to copy.
 	 */
-	if (wcred->sc_supp_groups_nb > ngroups_max)
-		return (EINVAL);
+	if (wcred->sc_supp_groups_nb > ngroups_max) {
+		error = EINVAL;
+		goto reset_groups_exit;
+	}
 
 	groups = wcred->sc_supp_groups_nb <= CRED_SMALLGROUPS_NB ?
 	    smallgroups : malloc(wcred->sc_supp_groups_nb * sizeof(gid_t),
 	    M_TEMP, M_WAITOK);
-
 	error = copyin(wcred->sc_supp_groups, groups,
 	    wcred->sc_supp_groups_nb * sizeof(gid_t));
 	wcred->sc_supp_groups = groups;
+
 	if (error != 0) {
 		wcred->sc_supp_groups_nb = 0;
+		/*
+		 * 'sc_supp_groups' must be freed by caller if not
+		 * 'smallgroups'.
+		 */
 		return (error);
 	}
 
 	return (0);
+
+reset_groups_exit:
+	wcred->sc_supp_groups_nb = 0;
+	wcred->sc_supp_groups = NULL;
+	return (error);
 }
 
 int
@@ -601,7 +611,7 @@ user_setcred(struct thread *td, const u_int flags, struct setcred *const wcred)
 	 * alternative for 32-bit compatibility as 'gid_t' has the same size
 	 * everywhere.
 	 */
-	error = kern_setcred_copyin_supp_groups(wcred, flags, smallgroups);
+	error = user_setcred_copyin_supp_groups(wcred, flags, smallgroups);
 	if (error != 0)
 		goto free_groups;
 

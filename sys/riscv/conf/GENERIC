@@ -96,6 +96,7 @@ device		cpufreq
 
 # Bus drivers
 device		pci
+device		xlnx_pcib		# Xilinx PCIe Controller
 
 # Block devices
 device		ahci
