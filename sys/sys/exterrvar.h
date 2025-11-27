@@ -44,7 +44,7 @@
 	(kep)->p1 = (pp1);						\
 	(kep)->p2 = (pp2);						\
 	(kep)->src_line = __LINE__;					\
-	(kep)->error;					       		\
+	(kep)->error;							\
 })
 #define	_SET_ERROR0_KE(kep, eerror, mmsg)				\
 	_SET_ERROR2_KE(kep, eerror, mmsg, 0, 0)
@@ -77,7 +77,7 @@ int exterr_set(int eerror, int category, const char *mmsg, uintptr_t pp1,
 int exterr_to_ue(struct thread *td, struct uexterror *ue);
 void ktrexterr(struct thread *td);
 
-#else	/* _KERNEL */
+#else	/* !_KERNEL */
 
 #include <sys/types.h>
 
