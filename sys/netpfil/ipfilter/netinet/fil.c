@@ -4413,9 +4413,7 @@ frrequest(ipf_main_softc_t *softc, int unit, ioctlcmd_t req, caddr_t data,
 	void *ptr, *uptr;
 	u_int *p, *pp;
 	frgroup_t *fg;
-	char *group, *name;
-	size_t v_fr_size, v_element_size;
-	int v_rem_namelen, v_fr_toend;
+	char *group;
 
 	ptr = NULL;
 	fg = NULL;
