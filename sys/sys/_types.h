@@ -155,6 +155,17 @@ typedef	int		__cpulevel_t;	/* level parameter for cpuset. */
 typedef int		__cpusetid_t;	/* cpuset identifier. */
 typedef __int64_t	__daddr_t;	/* bwrite(3), FIOBMAP2, etc */
 
+#if !__has_feature(capabilities)
+/*
+ * On non-CHERI systems, define __(u)intcap_t to __(u)intptr_t so that
+ * hybrid-C code which needs to be explicitly aware of capabilities can
+ * use it.  These types may be present in some third-party code and
+ * should not generally be used in FreeBSD code.
+ */
+typedef	__intptr_t	__intcap_t;
+typedef	__uintptr_t	__uintcap_t;
+#endif
+
 /*
  * Unusual type definitions.
  */
