@@ -29,6 +29,7 @@
 #include <sys/param.h>
 #include <sys/jail.h>
 #include <sys/linker.h>
+#include <sys/mac.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
@@ -50,20 +51,38 @@
 #define	JPSDEF_OF(jp)	\
 	((jp)->jp_structtype >= 0 ? &jp_structdefs[(jp)->jp_structtype] : NULL)
 
+static int jps_get(struct jailparam *, struct iovec *);
+static int jps_set(const struct jailparam *, struct iovec *);
+static void jps_free(struct jailparam *);
+
 typedef int (jps_import_t)(const struct jailparam *, int, const char *);
 typedef char *(jps_export_t)(const struct jailparam *, int);
+typedef int (jps_get_t)(struct jailparam *, struct iovec *);
+typedef int (jps_set_t)(const struct jailparam *, struct iovec *);
+typedef void (jps_free_t)(struct jailparam *);
 
 static jps_import_t	jps_import_in_addr;
 static jps_import_t	jps_import_in6_addr;
+static jps_import_t	jps_import_mac_label;
 
 static jps_export_t	jps_export_in_addr;
 static jps_export_t	jps_export_in6_addr;
+static jps_export_t	jps_export_mac_label;
+
+static jps_get_t	jps_get_mac_label;
+
+static jps_set_t	jps_set_mac_label;
+
+static jps_free_t	jps_free_mac_label;
 
 static const struct jp_structdef {
 	const char	*jps_type;		/* sysctl type */
 	size_t		 jps_valuelen;		/* value size */
 	jps_import_t	*jps_import;		/* jailparam_import() */
 	jps_export_t	*jps_export;		/* jailparam_export() */
+	jps_get_t	*jps_get;		/* jailparam_get() */
+	jps_set_t	*jps_set;		/* jailparam_set() */
+	jps_free_t	*jps_free;		/* jailparam_free() */
 } jp_structdefs[] = {
 	{
 		.jps_type = "S,in_addr",
@@ -76,6 +95,15 @@ static const struct jp_structdef {
 		.jps_valuelen = sizeof(struct in6_addr),
 		.jps_import = jps_import_in6_addr,
 		.jps_export = jps_export_in6_addr,
+	},
+	{
+		.jps_type = "S,mac",
+		.jps_valuelen = sizeof(mac_t *),
+		.jps_import = jps_import_mac_label,
+		.jps_export = jps_export_mac_label,
+		.jps_get = jps_get_mac_label,
+		.jps_set = jps_set_mac_label,
+		.jps_free = jps_free_mac_label,
 	},
 };
 
@@ -579,7 +607,7 @@ jailparam_set(struct jailparam *jp, unsigned njp, int flags)
 			/* No value means key removal. */
 			jiov[i].iov_base = NULL;
 			jiov[i].iov_len = 0;
-		} else {
+		} else if (jps_set(&jp[j], &jiov[i]) != 0) {
 			/*
 			 * Try to fill in missing values with an empty string.
 			 */
@@ -624,7 +652,7 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 {
 	struct iovec *jiov;
 	struct jailparam *jp_desc, *jp_lastjid, *jp_jid, *jp_name, *jp_key;
-	int i, ai, ki, jid, arrays, sanity;
+	int i, ai, ki, jid, arrays, processed, sanity;
 	unsigned j;
 
 	/*
@@ -725,6 +753,26 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 					strerror_r(errno, jail_errmsg,
 					    JAIL_ERRMSGLEN);
 					return (-1);
+				}
+
+				/*
+				 * Returns -1 on error, or # index populated on
+				 * success.  0 is perfectly valid for a type
+				 * that may want to simply initialize the value
+				 * as needed.
+				 */
+				processed = jps_get(&jp[j], &jiov[i]);
+				if (processed == -1) {
+					return (-1);
+				} else if (processed > 0) {
+					/*
+					 * The above math for jiov sizing does
+					 * not really account for one param
+					 * expanding to multiple entries.
+					 */
+					assert(processed == 1);
+					i += processed;
+					continue;
 				}
 			}
 			jiov[i].iov_base = jp[j].jp_value;
@@ -924,12 +972,15 @@ jailparam_export(struct jailparam *jp)
 void
 jailparam_free(struct jailparam *jp, unsigned njp)
 {
+
 	unsigned j;
 
 	for (j = 0; j < njp; j++) {
 		free(jp[j].jp_name);
-		if (!(jp[j].jp_flags & JP_RAWVALUE))
+		if (!(jp[j].jp_flags & JP_RAWVALUE)) {
+			jps_free(jp);
 			free(jp[j].jp_value);
+		}
 	}
 }
 
@@ -1249,6 +1300,43 @@ kvname(const char *name)
 }
 
 static int
+jps_get(struct jailparam *jp, struct iovec *jiov)
+{
+	const struct jp_structdef *jpsdef;
+
+	jpsdef = JPSDEF_OF(jp);
+	if (jpsdef == NULL || jpsdef->jps_get == NULL)
+		return (0);	/* Nop, but not an error. */
+
+	return ((jpsdef->jps_get)(jp, jiov));
+}
+
+static int
+jps_set(const struct jailparam *jp, struct iovec *jiov)
+{
+	const struct jp_structdef *jpsdef;
+
+	jpsdef = JPSDEF_OF(jp);
+	if (jpsdef == NULL || jpsdef->jps_set == NULL)
+		return (EINVAL);	/* Unhandled */
+
+	return ((jpsdef->jps_set)(jp, jiov));
+}
+
+static void
+jps_free(struct jailparam *jp)
+{
+	const struct jp_structdef *jpsdef;
+
+	jpsdef = JPSDEF_OF(jp);
+	if (jpsdef == NULL)
+		return;
+
+	if (jpsdef->jps_free != NULL)
+		jpsdef->jps_free(jp);
+}
+
+static int
 jps_import_in_addr(const struct jailparam *jp, int i, const char *value)
 {
 	struct in_addr *addr;
@@ -1274,6 +1362,24 @@ jps_import_in6_addr(const struct jailparam *jp, int i, const char *value)
 		snprintf(jail_errmsg, JAIL_ERRMSGLEN,
 		    "%s: not an IPv6 address: %s", jp->jp_name, value);
 		errno = EINVAL;
+		return (-1);
+	}
+
+	return (0);
+}
+
+static int
+jps_import_mac_label(const struct jailparam *jp, int i, const char *value)
+{
+	mac_t *pmac;
+
+	pmac = &((mac_t *)jp->jp_value)[i];
+	if (mac_from_text(pmac, value) != 0) {
+		int serrno = errno;
+
+		snprintf(jail_errmsg, JAIL_ERRMSGLEN, "%s: mac_from_text: %s",
+		    jp->jp_name, strerror(errno));
+		errno = serrno;
 		return (-1);
 	}
 
@@ -1306,4 +1412,84 @@ jps_export_in6_addr(const struct jailparam *jp, int i)
 
 	/* Error checked by caller. */
 	return (strdup(valbuf));
+}
+
+static char *
+jps_export_mac_label(const struct jailparam *jp, int i)
+{
+	mac_t *macp;
+	char *labelbuf;
+	int error;
+
+	macp = &((mac_t *)jp->jp_value)[i];
+	error = mac_to_text(*macp, &labelbuf);
+	if (error != 0)
+		return (NULL);
+
+	return (labelbuf);
+}
+
+static int
+jps_get_mac_label(struct jailparam *jp, struct iovec *jiov)
+{
+	mac_t *pmac = jp->jp_value;
+	int error;
+
+	error = mac_prepare_type(pmac, "jail");
+	if (error != 0) {
+		int serrno = errno;
+
+		free(jp->jp_value);
+		jp->jp_value = NULL;
+		if (serrno == ENOENT) {
+			snprintf(jail_errmsg, sizeof(jail_errmsg),
+			    "jail_get: no mac.conf(5) jail config");
+		} else {
+			strerror_r(serrno, jail_errmsg, JAIL_ERRMSGLEN);
+		}
+
+		errno = serrno;
+		return (-1);
+	}
+
+	/*
+	 * MAC label gets special handling because libjail internally maintains
+	 * it as a pointer to a mac_t, but we actually want to pass the mac_t
+	 * itself.  We don't want the jailparam_get() zeroing behavior, as it's
+	 * initialized by us.
+	 */
+	jiov->iov_base = *pmac;
+	jiov->iov_len = sizeof(**pmac);
+	return (1);
+}
+
+static int
+jps_set_mac_label(const struct jailparam *jp, struct iovec *jiov)
+{
+	mac_t *pmac;
+
+	/*
+	 * MAC label gets special handling because libjail internally
+	 * maintains it as a pointer to a mac_t, but we actually want to
+	 * pass the mac_t itself.
+	 */
+	pmac = jp->jp_value;
+	if (pmac != NULL) {
+		jiov->iov_base = *pmac;
+		jiov->iov_len = sizeof(**pmac);
+	} else {
+		jiov->iov_base = NULL;
+		jiov->iov_len = 0;
+	}
+
+	return (0);
+}
+
+static void
+jps_free_mac_label(struct jailparam *jp)
+{
+	mac_t *pmac = jp->jp_value;
+
+	if (pmac != NULL)
+		mac_free(*pmac);
 }
