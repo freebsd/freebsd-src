@@ -172,6 +172,20 @@ get_bool_config()
 }
 
 #
+# Invoke the actual arc command.  This allows us to only rely on the
+# devel/arcanist-lib port, which installs the actual script, rather than
+# the devel/arcanist-port, which installs a symlink in ${LOCALBASE}/bin
+# but conflicts with the archivers/arc port.
+#
+: ${LOCALBASE:=$(sysctl -n user.localbase)}
+: ${LOCALBASE:=/usr/local}
+: ${ARC_CMD:=${LOCALBASE}/lib/php/arcanist/bin/arc}
+arc()
+{
+    ${ARC_CMD} "$@"
+}
+
+#
 # Filter the output of call-conduit to remove the warnings that are generated
 # for some installations where openssl module is mysteriously installed twice so
 # a warning is generated. It's likely a local config error, but we should work
