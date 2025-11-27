@@ -72,15 +72,11 @@ typedef	__int64_t	__intptr_t;
 typedef	__int64_t	__intfptr_t;
 typedef	__uint64_t	__uintptr_t;
 typedef	__uint64_t	__uintfptr_t;
-typedef	__uint64_t	__vm_offset_t;
-typedef	__uint64_t	__vm_size_t;
 #elif __SIZEOF_POINTER__ == 4
 typedef	__int32_t	__intptr_t;
 typedef	__int32_t	__intfptr_t;
 typedef	__uint32_t	__uintptr_t;
 typedef	__uint32_t	__uintfptr_t;
-typedef	__uint32_t	__vm_offset_t;
-typedef	__uint32_t	__vm_size_t;
 #else
 #error unsupported pointer size
 #endif
@@ -108,6 +104,9 @@ typedef	__PTRADDR_TYPE__	__ptraddr_t;
 #else
 typedef	__size_t		__ptraddr_t;
 #endif
+
+typedef	__ptraddr_t	__vm_offset_t;
+typedef	__size_t	__vm_size_t;
 
 /*
  * Target-dependent type definitions.
