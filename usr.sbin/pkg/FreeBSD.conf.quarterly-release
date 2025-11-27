@@ -24,7 +24,7 @@ FreeBSD-ports-kmods: {
   enabled: yes
 }
 FreeBSD-base: {
-  url: "pkg+https://pkgbase.FreeBSD.org/${ABI}/base_release_${VERSION_MINOR}",
+  url: "pkg+https://pkg.FreeBSD.org/${ABI}/base_release_${VERSION_MINOR}",
   mirror_type: "srv",
   signature_type: "fingerprints",
   fingerprints: "/usr/share/keys/pkgbase-${VERSION_MAJOR}",
