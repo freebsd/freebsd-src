@@ -1,7 +1,3 @@
-#
-# $FreeBSD$
-#
-
 T7FW=	${SRCTOP}/sys/dev/cxgbe/firmware
 .PATH: ${T7FW}
 

@@ -1,6 +1,3 @@
-#
-#
-
 .include <kmod.opts.mk>
 
 CXGBE=	${SRCTOP}/sys/dev/cxgbe
