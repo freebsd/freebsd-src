@@ -982,9 +982,6 @@ ipf_nat_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 	int interr_tbl[3] = { 60077, 60081, 60078 };
 	ipnat_t *nat, *nt, *n;
 	ipnat_t natd;
-	char *name;
-	size_t v_in_size, v_element_size;
-	int v_rem_namelen, v_in_toend;
 	SPL_INT(s);
 
 #if !SOLARIS && defined(_KERNEL)
