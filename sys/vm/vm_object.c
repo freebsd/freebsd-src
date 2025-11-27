@@ -2202,7 +2202,8 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 	/*
 	 * Account for the charge.
 	 */
-	if (prev_object->cred != NULL) {
+	if (prev_object->cred != NULL &&
+	    next_pindex + next_size > prev_object->size) {
 		/*
 		 * If prev_object was charged, then this mapping,
 		 * although not charged now, may become writable
@@ -2213,12 +2214,14 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 		 * entry, and swap reservation for this entry is
 		 * managed in appropriate time.
 		 */
-		if (!reserved && !swap_reserve_by_cred(ptoa(next_size),
-		    prev_object->cred)) {
+		vm_size_t charge = ptoa(next_pindex + next_size -
+		    prev_object->size);
+		if (!reserved &&
+		    !swap_reserve_by_cred(charge, prev_object->cred)) {
 			VM_OBJECT_WUNLOCK(prev_object);
 			return (FALSE);
 		}
-		prev_object->charge += ptoa(next_size);
+		prev_object->charge += charge;
 	}
 
 	/*
