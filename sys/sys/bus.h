@@ -718,7 +718,7 @@ void	device_unbusy(device_t dev);
 void	device_verbose(device_t dev);
 ssize_t	device_get_property(device_t dev, const char *prop, void *val,
     size_t sz, device_property_type_t type);
-bool device_has_property(device_t dev, const char *prop);
+bool	device_has_property(device_t dev, const char *prop);
 
 /*
  * Access functions for devclass.
@@ -833,10 +833,10 @@ void	bus_set_pass(int pass);
  * Routines to lock / unlock the newbus lock.
  * Must be taken out to interact with newbus.
  */
-void bus_topo_lock(void);
-void bus_topo_unlock(void);
+void	bus_topo_lock(void);
+void	bus_topo_unlock(void);
 struct mtx * bus_topo_mtx(void);
-void bus_topo_assert(void);
+void	bus_topo_assert(void);
 
 /**
  * Shorthands for constructing method tables.
@@ -928,17 +928,17 @@ static __inline void varp ## _set_ ## var(device_t dev, type t)		\
 struct device_location_cache;
 typedef struct device_location_cache device_location_cache_t;
 device_location_cache_t *dev_wired_cache_init(void);
-void dev_wired_cache_fini(device_location_cache_t *dcp);
-bool dev_wired_cache_match(device_location_cache_t *dcp, device_t dev, const char *at);
+void	dev_wired_cache_fini(device_location_cache_t *dcp);
+bool	dev_wired_cache_match(device_location_cache_t *dcp, device_t dev, const char *at);
 
 #define	DEV_PROP_NAME_IOMMU	"iommu-unit"
 typedef void (*device_prop_dtr_t)(device_t dev, const char *name, void *val,
     void *dtr_ctx);
-int device_set_prop(device_t dev, const char *name, void *val,
+int	device_set_prop(device_t dev, const char *name, void *val,
     device_prop_dtr_t dtr, void *dtr_ctx);
-int device_get_prop(device_t dev, const char *name, void **valp);
-int device_clear_prop(device_t dev, const char *name);
-void device_clear_prop_alldev(const char *name);
+int	device_get_prop(device_t dev, const char *name, void **valp);
+int	device_clear_prop(device_t dev, const char *name);
+void	device_clear_prop_alldev(const char *name);
 
 /**
  * Shorthand macros, taking resource argument
