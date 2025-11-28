@@ -1,6 +1,7 @@
 .\" -*- nroff -*-
 .\"
 .\" Copyright (c) 1998 Doug Rabson
+.\" Copyright (c) 2025 Dag-Erling Smørgrav <des@FreeBSD.org>
 .\"
 .\" All rights reserved.
 .\"
@@ -26,21 +27,27 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd August 23, 2008
+.Dd November 28, 2025
 .Dt DEVICE_GET_CHILDREN 9
 .Os
 .Sh NAME
-.Nm device_get_children
-.Nd get a list of devices connected to a device
+.Nm device_get_children ,
+.Nm device_has_children
+.Nd examine devices connected to a device
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/bus.h
 .Ft int
 .Fn device_get_children "device_t dev" "device_t **devlistp" "int *devcountp"
+.Ft bool
+.Fn device_has_children "device_t dev"
 .Sh DESCRIPTION
-Retrieve a list of all device instances currently connected to
-.Pa dev
-and return the list in
+The
+.Nm device_get_children
+function retrieves a list of all device instances currently connected
+to
+.Fa dev .
+It returns the list in
 .Fa *devlistp
 and the count in
 .Fa *devcountp .
@@ -50,11 +57,35 @@ The memory allocated for the list should be freed using
 and
 .Fa devcountp
 are not changed when an error is returned.
+.Pp
+As a special case, if
+.Fa devlistp
+is null, no memory is allocated but the count is still returned in
+.Fa *devcountp .
+.Pp
+The
+.Nm device_has_children
+function returns
+.Dv true
+if
+.Fa dev
+has at least one child and
+.Dv false
+if it has none.
 .Sh RETURN VALUES
-Zero is returned on success, otherwise an appropriate error is returned.
+The
+.Nm device_get_children
+function returns zero on success and an appropriate error otherwise.
+The
+.Nm device_has_children
+function returns true if the specified device has at least one child
+and false otherwise.
 .Sh SEE ALSO
 .Xr devclass 9 ,
 .Xr device 9
 .Sh AUTHORS
+.An -nosplit
 This manual page was written by
-.An Doug Rabson .
+.An Doug Rabson Aq Mt dfr@FreeBSD.org
+and
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .
