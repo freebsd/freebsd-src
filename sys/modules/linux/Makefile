@@ -76,6 +76,7 @@ SRCS+=	imgact_linux.c \
 
 .if ${MACHINE_CPUARCH} == "i386"
 EXPORT_SYMS=
+EXPORT_SYMS+=	linux_device_register_handler
 EXPORT_SYMS+=	linux_get_osname
 EXPORT_SYMS+=	linux_get_osrelease
 EXPORT_SYMS+=	linux_ioctl_register_handler

@@ -13,6 +13,7 @@ SRCS+=	linux_x86.c linux_vdso_selector_x86.c
 .endif
 
 EXPORT_SYMS=
+EXPORT_SYMS+=	linux_device_register_handler
 EXPORT_SYMS+=	linux_get_osname
 EXPORT_SYMS+=	linux_get_osrelease
 
