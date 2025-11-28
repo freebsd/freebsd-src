@@ -1540,10 +1540,6 @@ sysctl_es137x_single_pcm_mixer(SYSCTL_HANDLER_ARGS)
 		PCM_RELEASE_QUICK(d);
 		return (ENODEV);
 	}
-	if (mixer_busy(m) != 0) {
-		PCM_RELEASE_QUICK(d);
-		return (EBUSY);
-	}
 	level = mix_get(m, SOUND_MIXER_PCM);
 	recsrc = mix_getrecsrc(m);
 	if (level < 0 || recsrc < 0) {
