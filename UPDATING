@@ -12,6 +12,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20251202:
+	15.0-RELEASE.
+
 20251126:
 	15.0-RC4-p1     SA-25:10.unbound
 
