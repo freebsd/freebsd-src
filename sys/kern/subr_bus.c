@@ -1855,6 +1855,10 @@ device_get_children(device_t dev, device_t **devlistp, int *devcountp)
 	TAILQ_FOREACH(child, &dev->children, link) {
 		count++;
 	}
+	if (devlistp == NULL) {
+		*devcountp = count;
+		return (0);
+	}
 	if (count == 0) {
 		*devlistp = NULL;
 		*devcountp = 0;
@@ -1875,6 +1879,20 @@ device_get_children(device_t dev, device_t **devlistp, int *devcountp)
 	*devcountp = count;
 
 	return (0);
+}
+
+/**
+ * @brief Check if a device has children
+ *
+ * @param dev		the device to examine
+ *
+ * @rerval true		the device has at least one child
+ * @retval false	the device has no children
+ */
+bool
+device_has_children(device_t dev)
+{
+	return (!TAILQ_EMPTY(&dev->children));
 }
 
 /**
