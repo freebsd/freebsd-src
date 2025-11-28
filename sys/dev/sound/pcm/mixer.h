@@ -45,8 +45,6 @@ void mixer_hwvol_mute(device_t dev);
 void mixer_hwvol_step_locked(struct snd_mixer *m, int l_step, int r_step);
 void mixer_hwvol_step(device_t dev, int left_step, int right_step);
 
-int mixer_busy(struct snd_mixer *m);
-
 int mix_set(struct snd_mixer *m, u_int dev, u_int left, u_int right);
 int mix_get(struct snd_mixer *m, u_int dev);
 int mix_setrecsrc(struct snd_mixer *m, u_int32_t src);

@@ -48,7 +48,6 @@ SYSCTL_INT(_hw_snd, OID_AUTO, vpc_mixer_bypass, CTLFLAG_RWTUN,
 struct snd_mixer {
 	KOBJ_FIELDS;
 	void *devinfo;
-	int busy;
 	int hwvol_mixer;
 	int hwvol_step;
 	int type;
@@ -651,7 +650,6 @@ mixer_obj_create(device_t dev, kobj_class_t cls, void *devinfo,
 	    "primary pcm mixer" : "secondary pcm mixer", MTX_DEF);
 	m->type = type;
 	m->devinfo = devinfo;
-	m->busy = 0;
 	m->dev = dev;
 	for (i = 0; i < nitems(m->parent); i++) {
 		m->parent[i] = SOUND_MIXER_NONE;
@@ -948,14 +946,6 @@ mixer_hwvol_step(device_t dev, int left_step, int right_step)
 }
 
 int
-mixer_busy(struct snd_mixer *m)
-{
-	KASSERT(m != NULL, ("NULL snd_mixer"));
-
-	return (m->busy);
-}
-
-int
 mix_set(struct snd_mixer *m, u_int dev, u_int left, u_int right)
 {
 	int ret;
@@ -1035,12 +1025,6 @@ mixer_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	if (!PCM_REGISTERED(d))
 		return (EBADF);
 
-	/* XXX Need Giant magic entry ??? */
-
-	mtx_lock(&m->lock);
-	m->busy = 1;
-	mtx_unlock(&m->lock);
-
 	return (0);
 }
 
@@ -1049,7 +1033,6 @@ mixer_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct snddev_info *d;
 	struct snd_mixer *m;
-	int ret;
 
 	if (i_dev == NULL || i_dev->si_drv1 == NULL)
 		return (EBADF);
@@ -1059,14 +1042,7 @@ mixer_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	if (!PCM_REGISTERED(d))
 		return (EBADF);
 
-	/* XXX Need Giant magic entry ??? */
-
-	mtx_lock(&m->lock);
-	ret = (m->busy == 0) ? EBADF : 0;
-	m->busy = 0;
-	mtx_unlock(&m->lock);
-
-	return (ret);
+	return (0);
 }
 
 static int
@@ -1262,10 +1238,6 @@ mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		return (EBADF);
 
 	mtx_lock(&m->lock);
-	if (from == MIXER_CMD_CDEV && !m->busy) {
-		mtx_unlock(&m->lock);
-		return (EBADF);
-	}
 	switch (cmd) {
 	case SNDCTL_DSP_GET_RECSRC_NAMES:
 		bcopy((void *)&m->enuminfo, arg, sizeof(oss_mixer_enuminfo));
