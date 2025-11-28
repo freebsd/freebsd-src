@@ -1228,7 +1228,7 @@ aw_gpio_intr(void *arg)
 			continue;
 
 		isrc = &sc->gpio_pic_irqsrc[irq].isrc;
-		if (intr_isrc_dispatch(isrc, curthread->td_intr_frame) != 0) {
+		if (intr_isrc_dispatch(isrc) != 0) {
 			aw_gpio_pic_disable_intr_locked(sc, isrc);
 			aw_gpio_pic_post_filter(sc->sc_dev, isrc);
 			device_printf(sc->sc_dev, "Stray irq %u disabled\n", irq);

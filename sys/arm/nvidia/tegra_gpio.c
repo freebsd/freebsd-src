@@ -393,13 +393,11 @@ tegra_gpio_intr(void *arg)
 {
 	u_int irq, i, j, val, basepin;
 	struct tegra_gpio_softc *sc;
-	struct trapframe *tf;
 	struct tegra_gpio_irqsrc *tgi;
 	struct tegra_gpio_irq_cookie *cookie;
 
 	cookie = (struct tegra_gpio_irq_cookie *)arg;
 	sc = cookie->sc;
-	tf = curthread->td_intr_frame;
 
 	for (i = 0; i < GPIO_REGS_IN_BANK; i++) {
 		basepin  = cookie->bank_num * GPIO_REGS_IN_BANK *
@@ -417,7 +415,7 @@ tegra_gpio_intr(void *arg)
 			tgi = &sc->isrcs[irq];
 			if (!tegra_gpio_isrc_is_level(tgi))
 				tegra_gpio_isrc_eoi(sc, tgi);
-			if (intr_isrc_dispatch(&tgi->isrc, tf) != 0) {
+			if (intr_isrc_dispatch(&tgi->isrc) != 0) {
 				tegra_gpio_isrc_mask(sc, tgi, 0);
 				if (tegra_gpio_isrc_is_level(tgi))
 					tegra_gpio_isrc_eoi(sc, tgi);
