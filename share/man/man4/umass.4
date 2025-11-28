@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 9, 2025
+.Dd November 28, 2025
 .Dt UMASS 4
 .Os
 .Sh NAME
@@ -87,6 +87,25 @@ USB hard disk drives
 .It
 USB floppy drives
 .El
+.Pp
+The
+.Nm
+driver tries its best to avoid issues with the drives, not all issues
+can be handled automatically, so quirks may be necessary.
+See the
+.Em USB Mass Sotrage quirks
+section of
+.Xr usb_quirk 4
+for quirks for the drives.
+The
+.Cd add_dev_quirk_vplh
+and
+.Cd add_quirk
+commands of
+.Xr usbconfig 8
+can manage these dynamically.
+Quirks can be specified via tuables, as described in
+.Xr usb_quirk 4 .
 .Sh EXAMPLES
 Rescan all slots on a multi-slot flash reader,
 where the slots map to separate LUNs on a single SCSI ID:
@@ -106,8 +125,10 @@ the flash reader is the first SCSI bus in the system and has 4 slots.
 .Xr ohci 4 ,
 .Xr uhci 4 ,
 .Xr usb 4 ,
+.Xr usb_quirk 4 ,
 .Xr xhci 4 ,
-.Xr camcontrol 8
+.Xr camcontrol 8 ,
+.Xr usbconfig 8 .
 .Sh HISTORY
 The
 .Nm
