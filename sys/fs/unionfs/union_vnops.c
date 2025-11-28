@@ -2106,6 +2106,49 @@ unionfs_getwritemount(struct vop_getwritemount_args *ap)
 }
 
 static int
+unionfs_getlowvnode(struct vop_getlowvnode_args *ap)
+{
+	struct unionfs_node *unp;
+	struct vnode *vp, *basevp;
+
+	vp = ap->a_vp;
+	VI_LOCK(vp);
+	unp = VTOUNIONFS(vp);
+	if (unp == NULL) {
+		VI_UNLOCK(vp);
+		return (EBADF);
+	}
+
+	if (ap->a_flags & FWRITE) {
+		basevp = unp->un_uppervp;
+		/*
+		 * If write access is being requested, we expect the unionfs
+		 * vnode has already been opened for write access and thus any
+		 * necessary copy-up has already been performed.  Return an
+		 * error if that expectation is not met and an upper vnode has
+		 * not been instantiated.  We could proactively do a copy-up
+		 * here, but that would require additional locking as well as
+		 * the addition of a 'cred' argument to VOP_GETLOWVNODE().
+		 */
+		if (basevp == NULL) {
+			VI_UNLOCK(vp);
+			return (EACCES);
+		}
+	} else {
+		basevp = (unp->un_uppervp != NULL) ?
+		    unp->un_uppervp : unp->un_lowervp;
+	}
+
+	VNASSERT(basevp != NULL, vp, ("%s: no upper/lower vnode", __func__));
+
+	vholdnz(basevp);
+	VI_UNLOCK(vp);
+	VOP_GETLOWVNODE(basevp, ap->a_vplp, ap->a_flags);
+	vdrop(basevp);
+	return (0);
+}
+
+static int
 unionfs_inactive(struct vop_inactive_args *ap)
 {
 	ap->a_vp->v_object = NULL;
@@ -3000,6 +3043,7 @@ struct vop_vector unionfs_vnodeops = {
 	.vop_getattr =		unionfs_getattr,
 	.vop_getextattr =	unionfs_getextattr,
 	.vop_getwritemount =	unionfs_getwritemount,
+	.vop_getlowvnode =	unionfs_getlowvnode,
 	.vop_inactive =		unionfs_inactive,
 	.vop_need_inactive =	vop_stdneed_inactive,
 	.vop_islocked =		vop_stdislocked,
@@ -3039,5 +3083,6 @@ struct vop_vector unionfs_vnodeops = {
 	.vop_unp_bind =		unionfs_unp_bind,
 	.vop_unp_connect =	unionfs_unp_connect,
 	.vop_unp_detach =	unionfs_unp_detach,
+	.vop_copy_file_range =	vop_stdcopy_file_range,
 };
 VFS_VOP_VECTOR_REGISTER(unionfs_vnodeops);

@@ -906,6 +906,7 @@ int	vop_stdunp_bind(struct vop_unp_bind_args *ap);
 int	vop_stdunp_connect(struct vop_unp_connect_args *ap);
 int	vop_stdunp_detach(struct vop_unp_detach_args *ap);
 int	vop_stdadd_writecount_nomsync(struct vop_add_writecount_args *ap);
+int	vop_stdcopy_file_range(struct vop_copy_file_range_args *ap);
 int	vop_eopnotsupp(struct vop_generic_args *ap);
 int	vop_ebadf(struct vop_generic_args *ap);
 int	vop_einval(struct vop_generic_args *ap);
