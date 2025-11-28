@@ -616,7 +616,7 @@ acpi_attach(device_t dev)
 	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	&sc->acpi_lid_switch_stype, 0, acpi_stype_sysctl, "A",
 	"Lid ACPI sleep state. Set to s2idle or s2mem if you want to suspend "
-	"your laptop when close the lid.");
+	"your laptop when you close the lid.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "suspend_state", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	NULL, 0, acpi_suspend_state_sysctl, "A",
@@ -626,7 +626,7 @@ acpi_attach(device_t dev)
 	OID_AUTO, "standby_state",
 	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	&sc->acpi_standby_sx, 0, acpi_sleep_state_sysctl, "A",
-	"ACPI Sx state to use when going standby (S1 or S2).");
+	"ACPI Sx state to use when going standby (usually S1 or S2).");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "sleep_delay", CTLFLAG_RW, &sc->acpi_sleep_delay, 0,
 	"sleep delay in seconds");
