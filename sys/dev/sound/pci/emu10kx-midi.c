@@ -173,37 +173,36 @@ emu_midi_attach(device_t dev)
 
 	if (scp->is_emu10k1) {
 		/* SB Live! - only one MIDI device here */
-		inte_val = 0;
-		/* inte_val |= EMU_INTE_MIDITXENABLE;*/
+		inte_val = EMU_INTE_MIDITXENABLE;
 		inte_val |= EMU_INTE_MIDIRXENABLE;
 		ipr_val = EMU_IPR_MIDITRANSBUFE;
 		ipr_val |= EMU_IPR_MIDIRECVBUFE;
 	} else {
 		if (scp->port == EMU_A_MUDATA1) {
 			/* EXTERNAL MIDI (AudigyDrive) */
-			inte_val = 0;
-			/* inte_val |= A_EMU_INTE_MIDITXENABLE1;*/
+			inte_val = EMU_INTE_MIDITXENABLE;
 			inte_val |= EMU_INTE_MIDIRXENABLE;
 			ipr_val = EMU_IPR_MIDITRANSBUFE;
 			ipr_val |= EMU_IPR_MIDIRECVBUFE;
 		} else {
 			/* MIDI hw config port 2 */
-			inte_val = 0;
-			/* inte_val |= A_EMU_INTE_MIDITXENABLE2;*/
+			inte_val = EMU_INTE_A_MIDITXENABLE2;
 			inte_val |= EMU_INTE_A_MIDIRXENABLE2;
 			ipr_val = EMU_IPR_A_MIDITRANSBUFE2;
 			ipr_val |= EMU_IPR_A_MIDIRECBUFE2;
 		}
 	}
 
-	scp->ihandle = emu_intr_register(scp->card, inte_val, ipr_val, &emu_midi_card_intr, scp);
 	/* Init the interface. */
-	scp->mpu = mpu401_init(&emu_mpu_class, scp, emu_midi_intr, &scp->mpu_intr);
+	scp->mpu = mpu401_init(&emu_mpu_class, scp, emu_midi_intr,
+				&scp->mpu_intr);
 	if (scp->mpu == NULL) {
 		emu_intr_unregister(scp->card, scp->ihandle);
 		mtx_destroy(&scp->mtx);
 		return (ENOMEM);
 	}
+	scp->ihandle = emu_intr_register(scp->card, inte_val, ipr_val,
+					&emu_midi_card_intr, scp);
 	/*
 	 * XXX I don't know how to check for Live!Drive / AudigyDrive
 	 * presence. Let's hope that IR enabling code will not harm if
@@ -225,8 +224,8 @@ emu_midi_detach(device_t dev)
 	struct emu_midi_softc *scp;
 
 	scp = device_get_softc(dev);
-	mpu401_uninit(scp->mpu);
 	emu_intr_unregister(scp->card, scp->ihandle);
+	mpu401_uninit(scp->mpu);
 	mtx_destroy(&scp->mtx);
 	return (0);
 }
