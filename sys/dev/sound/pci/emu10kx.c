@@ -3007,9 +3007,8 @@ emu_pci_attach(device_t dev)
 	struct sndcard_func *func;
 	struct emu_sc_info *sc;
 	struct emu_pcminfo *pcminfo;
-#if 0
 	struct emu_midiinfo *midiinfo;
-#endif
+
 	int i;
 	int device_flags;
 	char status[255];
@@ -3283,8 +3282,6 @@ emu_pci_attach(device_t dev)
 	for (i = 0; i < 2; i++)
 		sc->midi[i] = NULL;
 
-	/* MIDI has some memory mangament and (possible) locking problems */
-#if 0
 	/* Midi Interface 1: Live!, Audigy, Audigy 2 */
 	if ((sc->is_emu10k1) || (sc->is_emu10k2) || (sc->is_ca0102)) {
 		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_WAITOK | M_ZERO);
@@ -3295,7 +3292,7 @@ emu_pci_attach(device_t dev)
 			midiinfo->portnr = 1;
 		}
 		if (sc->is_emu10k1) {
-			midiinfo->port = MUDATA;
+			midiinfo->port = EMU_MUDATA;
 			midiinfo->portnr = 1;
 		}
 		func->func = SCF_MIDI;
@@ -3317,7 +3314,6 @@ emu_pci_attach(device_t dev)
 		sc->midi[1] = device_add_child(dev, "midi", DEVICE_UNIT_ANY);
 		device_set_ivars(sc->midi[1], func);
 	}
-#endif
 	bus_attach_children(dev);
 	return (0);
 
