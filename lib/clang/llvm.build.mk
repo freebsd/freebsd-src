@@ -36,7 +36,7 @@ CFLAGS+=	-DNDEBUG
 TARGET_ARCH?=	${MACHINE_ARCH}
 BUILD_ARCH?=	${MACHINE_ARCH}
 
-# Armv6 and armv7 uses hard float abi, unless the CPUTYPE has soft in it.
+# armv7 uses hard float abi, unless the CPUTYPE has soft in it.
 # For all other targets, we stick with 'unknown'.
 .if ${TARGET_ARCH:Marm*}
 .if !defined(CPUTYPE) || ${CPUTYPE:M*soft*} == ""
