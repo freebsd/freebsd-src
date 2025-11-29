@@ -13,8 +13,6 @@ MACHINE_CPU = amd64 sse2 sse mmx
 MACHINE_CPU = arm
 . elif ${MACHINE_CPUARCH} == "i386"
 MACHINE_CPU = i486
-. elif ${MACHINE_ARCH} == "powerpc"
-MACHINE_CPU = aim
 . elif ${MACHINE_ARCH} == "powerpc64"
 MACHINE_CPU = aim altivec
 . elif ${MACHINE_ARCH} == "powerpc64le"
@@ -115,12 +113,6 @@ _CPUCFLAGS = -march=${CPUTYPE}
 #       exynos-m1
 _CPUCFLAGS = -mcpu=${CPUTYPE}
 . endif
-. elif ${MACHINE_ARCH} == "powerpc"
-.  if ${CPUTYPE} == "e500"
-_CPUCFLAGS = -Wa,-me500 -msoft-float
-.  else
-_CPUCFLAGS = -mcpu=${CPUTYPE}
-.  endif
 . elif ${MACHINE_ARCH:Mpowerpc64*} != ""
 _CPUCFLAGS = -mcpu=${CPUTYPE}
 . elif ${MACHINE_CPUARCH} == "aarch64"
@@ -277,14 +269,6 @@ MACHINE_CPU = sse3
 .  endif
 MACHINE_CPU += amd64 sse2 sse mmx
 ########## powerpc
-. elif ${MACHINE_ARCH} == "powerpc"
-.  if ${CPUTYPE} == "e500"
-MACHINE_CPU = booke softfp
-.  elif ${CPUTYPE} == "g4"
-MACHINE_CPU = aim altivec
-.  else
-MACHINE_CPU= aim
-.  endif
 . elif ${MACHINE_ARCH} == "powerpc64"
 .  if ${CPUTYPE} == "e5500"
 MACHINE_CPU = booke
@@ -327,15 +311,6 @@ MACHINE_CPU += armv7
 # it was a transition tool from FreeBSD 10 to 11 and is a bit of an odd duck.
 CFLAGS += -mfloat-abi=softfp
 . endif
-.endif
-
-.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpcspe"
-LDFLAGS.bfd+= -Wl,--secure-plt
-.endif
-
-.if ${MACHINE_ARCH} == "powerpcspe"
-CFLAGS += -mcpu=8548 -mspe
-CFLAGS.gcc+= -mabi=spe -mfloat-gprs=double -Wa,-me500
 .endif
 
 .if ${MACHINE_CPUARCH} == "riscv"
@@ -385,8 +360,7 @@ CXXFLAGS += ${CXXFLAGS.${MACHINE_ARCH}}
 # Pointer type:			ptr32, ptr64
 # Size of time_t:		time32, time64
 #
-.if (${MACHINE} == "arm" && (defined(CPUTYPE) && ${CPUTYPE:M*soft*})) || \
-    (${MACHINE_ARCH} == "powerpc" && (defined(CPUTYPE) && ${CPUTYPE} == "e500"))
+.if (${MACHINE} == "arm" && (defined(CPUTYPE) && ${CPUTYPE:M*soft*}))
 MACHINE_ABI+=	soft-float
 .else
 MACHINE_ABI+=	hard-float
