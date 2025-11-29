@@ -62,12 +62,8 @@ __vdso_gettc(const struct vdso_timehands *th, u_int *tc)
 
 	if (th->th_algo != VDSO_TH_ALGO_ARM_GENTIM)
 		return (ENOSYS);
-	/*
-	 * Userspace gettimeofday() is only enabled on ARMv7 CPUs, but
-	 * libc is compiled for ARMv6.  Due to clang issues, .arch
-	 * armv7-a directive does not work.
-	 */
-	__asm __volatile(".word\t0xf57ff06f" : : : "memory"); /* isb */
+
+	__asm __volatile("isb" : : : "memory");
 	*tc = th->th_physical == 0 ? cp15_cntvct_get() : cp15_cntpct_get();
 	return (0);
 }
