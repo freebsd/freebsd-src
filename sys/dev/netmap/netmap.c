@@ -3497,16 +3497,19 @@ nmreq_copyin(struct nmreq_header *hdr, int nr_body_is_user)
 		}
 		opt_tab[opt->nro_reqtype] = opt;
 
-		/* copy the option body */
-		optsz = nmreq_opt_size_by_type(opt->nro_reqtype,
-						opt->nro_size);
-		/* check optsz and nro_size to avoid for possible integer overflows of rqsz */
-		if ((optsz > NETMAP_REQ_MAXSIZE) || (opt->nro_size > NETMAP_REQ_MAXSIZE)
-				|| (rqsz + optsz > NETMAP_REQ_MAXSIZE)
-				|| (optsz > 0 && rqsz + optsz <= rqsz)) {
-			error = EMSGSIZE;
-			goto out_restore;
-		}
+        /* copy the option body */
+        optsz = nmreq_opt_size_by_type(opt->nro_reqtype,
+                        opt->nro_size);
+        /* enforce exact option body size and overflow guards */
+        if ((optsz == 0 && opt->nro_size != 0) || (opt->nro_size != optsz)) {
+            error = EINVAL;
+            goto out_restore;
+        }
+        if ((optsz > NETMAP_REQ_MAXSIZE) || (opt->nro_size > NETMAP_REQ_MAXSIZE)
+                || (rqsz > NETMAP_REQ_MAXSIZE - optsz)) {
+            error = EMSGSIZE;
+            goto out_restore;
+        }
 		rqsz += optsz;
 		if (optsz) {
 			/* the option body follows the option header */
@@ -3584,10 +3587,15 @@ nmreq_copyout(struct nmreq_header *hdr, int rerror)
 			goto out;
 		}
 
-		/* copy the option body only if there was no error */
-		if (!rerror && !src->nro_status) {
-			optsz = nmreq_opt_size_by_type(src->nro_reqtype,
-							src->nro_size);
+        /* copy the option body only if there was no error */
+        if (!rerror && !src->nro_status) {
+            optsz = nmreq_opt_size_by_type(src->nro_reqtype,
+                            src->nro_size);
+            /* enforce symmetry for copyout */
+            if ((optsz == 0 && src->nro_size != 0) || (src->nro_size != optsz)) {
+                rerror = EINVAL;
+                goto out;
+            }
 			if (optsz) {
 				error = copyout(src + 1, dst + 1, optsz);
 				if (error) {
