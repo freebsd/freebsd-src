@@ -1,3 +1,0 @@
-OUTPUT_FORMAT("elf32-powerpc-freebsd", "elf32-powerpc-freebsd",
-	      "elf32-powerpc-freebsd")
-INCLUDE "ppc-common.ldscript"
