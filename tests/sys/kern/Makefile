@@ -9,9 +9,8 @@ TESTSDIR=	${TESTSBASE}/sys/kern
 
 ATF_TESTS_C+=	basic_signal
 ATF_TESTS_C+=	copy_file_range
-.if ${MACHINE_ARCH} != "i386" && ${MACHINE_ARCH} != "powerpc" && \
-	${MACHINE_ARCH} != "powerpcspe"
-# No support for atomic_load_64 on i386 or (32-bit) powerpc
+.if ${MACHINE_ARCH} != "i386"
+# No support for atomic_load_64 on i386
 ATF_TESTS_C+=	kcov
 .endif
 ATF_TESTS_C+=	kern_copyin

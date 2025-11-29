@@ -651,7 +651,6 @@ _rtwnfw=	rtwnfw
 .endif
 
 .if ${MK_SOURCELESS_UCODE} != "no" && ${MACHINE_CPUARCH} != "arm" && \
-	${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "powerpcspe" && \
 	${MACHINE_CPUARCH} != "riscv"
 _cxgbe=		cxgbe
 .endif
@@ -693,10 +692,8 @@ _sdhci_fdt=	sdhci_fdt
 .endif
 
 # These rely on 64bit atomics
-.if ${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "powerpcspe"
 _mps=		mps
 _mpr=		mpr
-.endif
 
 .if ${MK_TESTS} != "no" || defined(ALL_MODULES)
 SUBDIR+=	ktest
@@ -922,8 +919,7 @@ _ixl=		ixl
 _nvram=		opal_nvram
 .endif
 
-.if ${MACHINE_CPUARCH} == "powerpc" && ${MACHINE_ARCH} != "powerpcspe"
-# Don't build powermac_nvram for powerpcspe, it's never supported.
+.if ${MACHINE_CPUARCH} == "powerpc"
 _nvram+=	powermac_nvram
 .endif
 

@@ -318,7 +318,7 @@ LSUBDIRS+=	dev/vmm
 .endif
 .endif
 
-.if ${MACHINE_CPUARCH} == "powerpc" && ${MACHINE_ARCH} != "powerpcspe"
+.if ${MACHINE_CPUARCH} == "powerpc"
 _dev_powermac_nvram=	dev/powermac_nvram
 .endif
 

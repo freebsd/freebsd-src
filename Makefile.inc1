@@ -148,10 +148,8 @@ KNOWN_ARCHES?=	aarch64/arm64 \
 		amd64 \
 		armv7/arm \
 		i386 \
-		powerpc \
 		powerpc64/powerpc \
 		powerpc64le/powerpc \
-		powerpcspe/powerpc \
 		riscv64/riscv
 
 .if ${TARGET} == ${TARGET_ARCH}
@@ -176,9 +174,6 @@ LIBCOMPAT_INCLUDE_DIRS+= arm
      (!defined(X_COMPILER_TYPE) && ${COMPILER_TYPE} == "gcc"))
 .if ${TARGET} == "arm"
 _GCC_BROKEN="https://reviews.freebsd.org/D36754"
-.endif
-.if ${TARGET_ARCH} == "powerpc"
-_GCC_BROKEN=Missing atomic builtins in libc++.
 .endif
 .if ${TARGET_ARCH:Mpowerpc64*}
 _GCC_BROKEN=libsys.so.7.full has a LOAD segment with RWX permissions.
@@ -1725,7 +1720,6 @@ KERNCONF=${KERNFAST}
 .endif
 GENERIC_KERNCONF_SUFX_powerpc64=	64
 GENERIC_KERNCONF_SUFX_powerpc64le=	64LE
-GENERIC_KERNCONF_powerpcspe=	MPC85XXSPE
 GENERIC_KERNCONF?=	${GENERIC_KERNCONF_${TARGET_ARCH}:UGENERIC${GENERIC_KERNCONF_SUFX_${TARGET_ARCH}}}
 INSTKERNNAME?=	kernel
 
