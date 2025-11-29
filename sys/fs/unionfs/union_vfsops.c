@@ -73,6 +73,8 @@ unionfs_domount(struct mount *mp)
 {
 	struct vnode   *lowerrootvp;
 	struct vnode   *upperrootvp;
+	struct vnode   *lvp1;
+	struct vnode   *lvp2;
 	struct unionfs_mount *ump;
 	char           *target;
 	char           *tmp;
@@ -277,10 +279,31 @@ unionfs_domount(struct mount *mp)
 	VOP_UNLOCK(ump->um_uppervp);
 
 	/*
+	 * Detect common cases in which constructing a unionfs hierarchy
+	 * would produce deadlock (or failed locking assertions) upon
+	 * use of the resulting unionfs vnodes.  This typically happens
+	 * when the requested upper and lower filesytems (which themselves
+	 * may be unionfs instances and/or nullfs aliases) end up resolving
+	 * to the same base-layer files.  Note that this is not meant to be
+	 * an exhaustive check of all possible deadlock-producing scenarios.
+	 */
+	lvp1 = lvp2 = NULL;
+	VOP_GETLOWVNODE(ump->um_lowervp, &lvp1, FREAD);
+	VOP_GETLOWVNODE(ump->um_uppervp, &lvp2, FREAD);
+	if (lvp1 != NULL && lvp1 == lvp2)
+		error = EDEADLK;
+	if (lvp1 != NULL)
+		vrele(lvp1);
+	if (lvp2 != NULL)
+		vrele(lvp2);
+
+	/*
 	 * Get the unionfs root vnode.
 	 */
-	error = unionfs_nodeget(mp, ump->um_uppervp, ump->um_lowervp,
-	    NULL, &(ump->um_rootvp), NULL);
+	if (error == 0) {
+		error = unionfs_nodeget(mp, ump->um_uppervp, ump->um_lowervp,
+		    NULL, &(ump->um_rootvp), NULL);
+	}
 	if (error != 0) {
 		vrele(upperrootvp);
 		free(ump, M_UNIONFSMNT);
