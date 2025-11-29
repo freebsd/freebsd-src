@@ -56,12 +56,6 @@
 #else
 #define	MACHINE_ARCH	"powerpc64"
 #endif
-#else
-#ifdef	__SPE__
-#define	MACHINE_ARCH	"powerpcspe"
-#else
-#define	MACHINE_ARCH	"powerpc"
-#endif
 #endif
 #endif
 #define	MID_MACHINE	MID_POWERPC
