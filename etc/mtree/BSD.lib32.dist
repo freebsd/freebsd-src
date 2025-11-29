@@ -21,7 +21,7 @@
         ..
         pkgconfig
         ..
-	virtual_oss
-	..
+        virtual_oss
+        ..
     ..
 ..
