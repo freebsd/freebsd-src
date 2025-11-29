@@ -42,10 +42,7 @@ Not all hardware supports buffered writes; on such systems the
 .Nm
 function is a no-op.
 .Pp
-On ARMv5 systems, this executes a cp15 coprocessor
-.Dq drain write buffer
-operation.
-On ARMv6 and ARMv7 systems, this executes a
+This executes a
 .Dq DSB SY
 synchronization barrier, followed by an L2 cache drain on
 systems where the DSB does not include L2 automatically.
