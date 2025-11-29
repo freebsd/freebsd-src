@@ -45,7 +45,7 @@ TLD?=			${FTPDIR}/releases
 SNAPSHOT=		1
 .  endif
 IMAGES:=		img
-. endif # arm/armv6
+. endif # arm/riscv
 .endif # embedded
 
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
