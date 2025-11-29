@@ -73,10 +73,7 @@
 #endif
 
 /*
- * The virtual address the kernel is linked to run at.  For armv4/5 platforms
- * the low-order 30 bits of this must match the low-order bits of the physical
- * address the kernel is loaded at, so the value is most often provided as a
- * kernel config option in the std.platform file. For armv6/7 the kernel can
+ * The virtual address the kernel is linked to run at. For armv7 the kernel can
  * be loaded at any 2MB boundary, and KERNVIRTADDR can also be set to any 2MB
  * boundary.  It is typically overridden in the std.platform file only when
  * KERNBASE is also set to a lower address to provide more KVA.
