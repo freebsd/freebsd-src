@@ -814,14 +814,12 @@ dbg_get_ossr(void)
 static __inline boolean_t
 dbg_arch_supported(void)
 {
-	uint32_t dbg_didr;
-
 	switch (dbg_model) {
 	case ID_DFR0_CP_DEBUG_M_V7:
 	case ID_DFR0_CP_DEBUG_M_V7_1:	/* fall through */
 		return (TRUE);
 	default:
-		/* We only support valid v6.x/v7.x modes through CP14 */
+		/* We only support valid v7.x modes through CP14 */
 		return (FALSE);
 	}
 }
