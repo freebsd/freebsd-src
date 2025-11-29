@@ -45,8 +45,7 @@ CFLAGS+= -D__x86_64 -DHAVE_SSE2 -DHAVE_SSSE3 -DHAVE_SSE4_1 -DHAVE_SSE4_2 \
 	-DHAVE_VAES -DHAVE_VPCLMULQDQ
 .endif
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
-	${MACHINE_ARCH} == "powerpcspe" || ${MACHINE_ARCH} == "arm"
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "arm"
 CFLAGS+= -DBITS_PER_LONG=32
 .else
 CFLAGS+= -DBITS_PER_LONG=64
@@ -175,8 +174,7 @@ SRCS+=	acl_common.c \
 	spl_zone.c
 
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
-	${MACHINE_ARCH} == "powerpcspe" || ${MACHINE_ARCH} == "arm"
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "arm"
 SRCS+= spl_atomic.c
 .endif
 

@@ -21,11 +21,6 @@ ACFLAGS+=	-Wa,--noexecstack
 ATOMIC_SRCS=	opensolaris_atomic.c
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpcspe"
-# Don't waste GOT entries on small data.
-PICFLAG=	-fPIC
-.endif
-
 PACKAGE=	zfs
 LIB_PACKAGE=
 

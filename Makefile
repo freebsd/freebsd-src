@@ -536,9 +536,6 @@ packages update-packages: .PHONY
 #
 # Don't build rarely used, semi-supported architectures unless requested.
 #
-.if defined(EXTRA_TARGETS)
-EXTRA_ARCHES_powerpc=	powerpc powerpcspe
-.endif
 TARGETS?= ${TARGET_MACHINE_LIST}
 _UNIVERSE_TARGETS=	${TARGETS}
 .for target in ${TARGETS}
