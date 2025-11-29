@@ -165,7 +165,7 @@ cmdline_set_env(char *cmdline, const char *guard)
 }
 
 /*
- * Called for armv6 and newer.
+ * Called for armv7 and newer.
  */
 void arm_parse_fdt_bootargs(void)
 {
