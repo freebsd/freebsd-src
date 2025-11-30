@@ -62,7 +62,9 @@
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 
 #include <ctype.h>
@@ -112,6 +114,8 @@
 #define HTTP_BAD_RANGE		416
 #define HTTP_PROTOCOL_ERROR	999
 
+#define HTTP_SUCCESS(xyz) ((xyz) >= 200 && (xyz) <= 299)
+
 #define HTTP_REDIRECT(xyz) ((xyz) == HTTP_MOVED_PERM \
 			    || (xyz) == HTTP_MOVED_TEMP \
 			    || (xyz) == HTTP_TEMP_REDIRECT \
@@ -137,10 +141,13 @@ struct httpio
 	int		 eof;		/* end-of-file flag */
 	int		 error;		/* error flag */
 	size_t		 chunksize;	/* remaining size of current chunk */
+	struct http_fields *trailers;	/* optional trailer fields to fill */
 #ifndef NDEBUG
 	size_t		 total;
 #endif
 };
+
+static int http_filltrailers(struct httpio *);
 
 /*
  * Get next chunk header
@@ -237,8 +244,9 @@ http_fillbuf(struct httpio *io, size_t len)
 			io->error = EPROTO;
 			return (-1);
 		case 0:
-			io->eof = 1;
-			return (0);
+			/* got last-chunk */
+			io->chunked = 0;
+			return (http_filltrailers(io));
 		}
 	}
 
@@ -328,7 +336,7 @@ http_closefn(void *v)
  * Wrap a file descriptor up
  */
 static FILE *
-http_funopen(conn_t *conn, int chunked)
+http_funopen(conn_t *conn, int chunked, struct http_fields *trailers)
 {
 	struct httpio *io;
 	FILE *f;
@@ -339,6 +347,7 @@ http_funopen(conn_t *conn, int chunked)
 	}
 	io->conn = conn;
 	io->chunked = chunked;
+	io->trailers = trailers;
 	f = funopen(io, http_readfn, http_writefn, NULL, http_closefn);
 	if (f == NULL) {
 		fetch_syserr();
@@ -589,6 +598,79 @@ http_next_header(conn_t *conn, http_headerbuf_t *hbuf, const char **p)
 
 	return (hdr_unknown);
 }
+
+/*
+ * Fill the trailers list with any trailing fields, if present.
+ */
+static int
+http_filltrailers(struct httpio *io)
+{
+	conn_t *conn = io->conn;
+	const char *p;
+	http_headerbuf_t headerbuf;
+	hdr_t h;
+
+	if (io->trailers == NULL) {
+		/* Cut off any trailers, we don't want them. */
+		io->eof = 1;
+		return (0);
+	}
+
+	/* get trailers. http_next_header expects one line readahead */
+	if (fetch_getln(conn) == -1) {
+		fetch_syserr();
+		return (-1);
+	}
+
+	/* http_next_header is overkill, but convenient */
+	init_http_headerbuf(&headerbuf);
+	do {
+		switch ((h = http_next_header(conn, &headerbuf, &p))) {
+		case hdr_syserror:
+			fetch_syserr();
+			goto ouch;
+		case hdr_error:
+			http_seterr(HTTP_PROTOCOL_ERROR);
+			goto ouch;
+		default:
+			/* ignore */
+			break;
+		}
+		if (h > hdr_end) {
+			struct http_field *trl;
+			char *sep;
+
+			if ((trl = malloc(sizeof(*trl))) == NULL ||
+			    (trl->name = strdup(headerbuf.buf))
+			    == NULL) {
+				fetch_syserr();
+				free(trl);
+				goto ouch;
+			}
+			sep = strchr(trl->name, ':');
+			if (sep == NULL) {
+				DEBUGF("missing delimiter in trailer\n");
+				http_seterr(HTTP_PROTOCOL_ERROR);
+				free(__DECONST(char *, trl->name));
+				free(trl);
+				goto ouch;
+			}
+			*sep = '\0';
+			trl->value = sep + 1;
+			trl->value += strspn(trl->value, " \t");
+			TAILQ_INSERT_TAIL(io->trailers, trl, fields);
+		}
+	} while (h > hdr_end);
+	clean_http_headerbuf(&headerbuf);
+	io->eof = 1;
+	return (0);
+ouch:
+	fetchFreeResFields(io->trailers);
+	clean_http_headerbuf(&headerbuf);
+	io->eof = 1;
+	return (-1);
+}
+
 
 /**************************
  * [Proxy-]Authenticate header parsing
@@ -1560,18 +1642,23 @@ http_print_html(FILE *out, FILE *in)
 	free(line);
 }
 
+static bool
+has_field(const struct http_fields *fields, const char *name)
+{
+	struct http_field *field;
+
+	if (fields == NULL)
+		return (false);
+	TAILQ_FOREACH(field, fields, fields)
+		if (strcasecmp(field->name, name) == 0)
+			return (true);
+	return (false);
+}
+
 
 /*****************************************************************************
  * Core
  */
-
-FILE *
-http_request(struct url *URL, const char *op, struct url_stat *us,
-	struct url *purl, const char *flags)
-{
-
-	return (http_request_body(URL, op, us, purl, flags, NULL, NULL));
-}
 
 /*
  * Send a request and process the reply
@@ -1579,10 +1666,13 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
  * XXX This function is way too long, the do..while loop should be split
  * XXX off into a separate function.
  */
-FILE *
+static FILE *
 http_request_body(struct url *URL, const char *op, struct url_stat *us,
-	struct url *purl, const char *flags, const char *content_type,
-	const char *body)
+	struct url *purl, const char *flags,
+	const struct http_fields *req_headers,
+	const struct http_fields *req_trailers,
+	struct http_fields *res_headers, struct http_fields *res_trailers,
+	FILE *body)
 {
 	char timebuf[80];
 	char hbuf[MAXHOSTNAMELEN + 7], *host;
@@ -1599,7 +1689,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 	http_headerbuf_t headerbuf;
 	http_auth_challenges_t server_challenges;
 	http_auth_challenges_t proxy_challenges;
-	size_t body_len;
+	bool chunked_body;
 
 	/* The following calls don't allocate anything */
 	init_http_headerbuf(&headerbuf);
@@ -1610,6 +1700,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 	noredirect = CHECK_FLAG('A');
 	verbose = CHECK_FLAG('v');
 	ims = CHECK_FLAG('i');
+	chunked_body = CHECK_FLAG('C');
 
 	if (direct && purl) {
 		fetchFreeURL(purl);
@@ -1745,7 +1836,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 		if ((p = getenv("HTTP_ACCEPT")) != NULL) {
 			if (*p != '\0')
 				http_cmd(conn, "Accept: %s", p);
-		} else {
+		} else if (!has_field(req_headers, "Accept")) {
 			http_cmd(conn, "Accept: */*");
 		}
 		if ((p = getenv("HTTP_REFERER")) != NULL && *p != '\0') {
@@ -1759,7 +1850,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 			/* no User-Agent if defined but empty */
 			if  (*p != '\0')
 				http_cmd(conn, "User-Agent: %s", p);
-		} else {
+		} else if (!has_field(req_headers, "User-Agent")) {
 			/* default User-Agent */
 			http_cmd(conn, "User-Agent: %s " _LIBFETCH_VER,
 			    getprogname());
@@ -1767,18 +1858,92 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 		if (url->offset > 0)
 			http_cmd(conn, "Range: bytes=%lld-", (long long)url->offset);
 		http_cmd(conn, "Connection: close");
+		if (req_headers != NULL) {
+			struct http_field *hdr;
 
-		if (body) {
-			body_len = strlen(body);
-			http_cmd(conn, "Content-Length: %zu", body_len);
-			if (content_type != NULL)
-				http_cmd(conn, "Content-Type: %s", content_type);
+			TAILQ_FOREACH(hdr, req_headers, fields)
+				http_cmd(conn, "%s: %s", hdr->name, hdr->value);
+		}
+
+		if (body != NULL) {
+			off_t body_len;
+
+			/* Add a Content-Length header if possible. */
+			if (!chunked_body) {
+				struct stat st;
+				int fd;
+
+				if ((fd = fileno(body)) != -1) {
+					if (fstat(fd, &st) == 0 &&
+					    S_ISREG(st.st_mode))
+						body_len = st.st_size;
+					else
+						chunked_body = true;
+				} else if (fseek(body, 0, SEEK_END) == 0) {
+					/*
+					 * Try fseek+ftell for fmemopen streams.
+					 * We assume we are not in the middle.
+					 */
+					if ((body_len = ftello(body)) < 0)
+						chunked_body = true;
+					fseek(body, 0, SEEK_SET);
+				} else
+					chunked_body = true;
+			}
+			if (chunked_body)
+				http_cmd(conn, "Transfer-Encoding: chunked");
+			else
+				http_cmd(conn, "Content-Length: %lld",
+				    (long long)body_len);
 		}
 
 		http_cmd(conn, "");
 
-		if (body)
-			fetch_write(conn, body, body_len);
+		if (body != NULL) {
+#define CHUNK_SIZE 4096
+			char buf[CHUNK_SIZE];
+			char chunk_size[sizeof("1000\r\n")]; /* 4096 in hex */
+			struct iovec chunk[3];
+			size_t len;
+			int hdrlen, iovcnt;
+
+			while ((len = fread(buf, 1, CHUNK_SIZE, body)) > 0) {
+				if (chunked_body) {
+					hdrlen = snprintf(chunk_size,
+					    sizeof(chunk_size), "%zx\r\n", len);
+					chunk[0].iov_base = chunk_size;
+					chunk[0].iov_len = hdrlen;
+					chunk[1].iov_base = buf;
+					chunk[1].iov_len = len;
+					chunk[2].iov_base =
+					    __DECONST(char *, "\r\n");
+					chunk[2].iov_len = 2;
+					iovcnt = 3;
+					len += hdrlen + 2;
+				} else {
+					chunk[0].iov_base = buf;
+					chunk[0].iov_len = len;
+					iovcnt = 1;
+				}
+				if (fetch_writev(conn, chunk, iovcnt)
+				    != (ssize_t)len)
+					goto ouch;
+			}
+			if (chunked_body) {
+				/* last-chunk */
+				http_cmd(conn, "0");
+				/* trailer-section */
+				if (req_trailers != NULL) {
+					struct http_field *trl;
+
+					TAILQ_FOREACH(trl, req_trailers, fields)
+						http_cmd(conn, "%s: %s",
+						    trl->name, trl->value);
+				}
+				/* CRLF */
+				http_cmd(conn, "");
+			}
+		}
 
 		/*
 		 * Force the queued request to be dispatched.  Normally, one
@@ -1796,8 +1961,6 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 
 		/* get reply */
 		switch (http_get_reply(conn)) {
-		case HTTP_OK:
-		case HTTP_PARTIAL:
 		case HTTP_NOT_MODIFIED:
 			/* fine */
 			break;
@@ -1852,6 +2015,8 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 			goto ouch;
 		default:
 			http_seterr(conn->err);
+			if (HTTP_SUCCESS(conn->err))
+				break;
 			if (!verbose)
 				goto ouch;
 			/* fall through so we can get the full error message */
@@ -1942,6 +2107,30 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 				/* ignore */
 				break;
 			}
+			if (res_headers != NULL && h > hdr_end) {
+				struct http_field *hdr;
+				char *sep;
+
+				if ((hdr = malloc(sizeof(*hdr))) == NULL ||
+				    (hdr->name = strdup(headerbuf.buf))
+				    == NULL) {
+					fetch_syserr();
+					free(hdr);
+					goto ouch;
+				}
+				sep = strchr(hdr->name, ':');
+				if (sep == NULL) {
+					DEBUGF("missing delimiter in header\n");
+					http_seterr(HTTP_PROTOCOL_ERROR);
+					free(__DECONST(char *, hdr->name));
+					free(hdr);
+					goto ouch;
+				}
+				*sep = '\0';
+				hdr->value = sep + 1;
+				hdr->value += strspn(hdr->value, " \t");
+				TAILQ_INSERT_TAIL(res_headers, hdr, fields);
+			}
 		} while (h > hdr_end);
 
 		/* we need to provide authentication */
@@ -1976,9 +2165,8 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 		}
 
 		/* we have a hit or an error */
-		if (conn->err == HTTP_OK
+		if (HTTP_SUCCESS(conn->err)
 		    || conn->err == HTTP_NOT_MODIFIED
-		    || conn->err == HTTP_PARTIAL
 		    || HTTP_ERROR(conn->err))
 			break;
 
@@ -2044,7 +2232,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 	URL->length = clength;
 
 	/* wrap it up in a FILE */
-	if ((f = http_funopen(conn, chunked)) == NULL) {
+	if ((f = http_funopen(conn, chunked, res_trailers)) == NULL) {
 		fetch_syserr();
 		goto ouch;
 	}
@@ -2075,6 +2263,14 @@ ouch:
 	clean_http_auth_challenges(&server_challenges);
 	clean_http_auth_challenges(&proxy_challenges);
 	return (NULL);
+}
+
+FILE *
+http_request(struct url *URL, const char *op, struct url_stat *us,
+	struct url *purl, const char *flags)
+{
+	return (http_request_body(URL, op, us, purl, flags, NULL, NULL, NULL,
+	    NULL, NULL));
 }
 
 
@@ -2136,13 +2332,63 @@ fetchListHTTP(struct url *url __unused, const char *flags __unused)
 }
 
 /*
+ * Arbitrary HTTP verb stat and content requests with additional fields
+ */
+FILE *
+fetchXReqHTTP(struct url *URL, struct url_stat *us, const char *method,
+	const char *flags, const struct http_fields *req_headers,
+	const struct http_fields *req_trailers, struct http_fields *res_headers,
+	struct http_fields *res_trailers, FILE *body)
+{
+	return (http_request_body(URL, method, us, http_get_proxy(URL, flags),
+	    flags, req_headers, req_trailers, res_headers, res_trailers, body));
+}
+
+/*
  * Arbitrary HTTP verb and content requests
  */
 FILE *
 fetchReqHTTP(struct url *URL, const char *method, const char *flags,
 	const char *content_type, const char *body)
 {
+	struct http_fields headers;
+	struct http_field hdr;
+	FILE *b, *f;
 
-	return (http_request_body(URL, method, NULL, http_get_proxy(URL, flags),
-	    flags, content_type, body));
+	TAILQ_INIT(&headers);
+	if (content_type != NULL) {
+		hdr.name = "Content-Type";
+		hdr.value = content_type;
+		TAILQ_INSERT_TAIL(&headers, &hdr, fields);
+	}
+	if (body == NULL)
+		b = NULL;
+	else if ((b = fmemopen(__DECONST(char *, body), strlen(body), "r"))
+	    == NULL) {
+		fetch_syserr();
+		return (NULL);
+	}
+	f = fetchXReqHTTP(URL, NULL, method, flags, &headers, NULL, NULL, NULL,
+	    b);
+	if (b != NULL)
+		fclose(b);
+	return (f);
+}
+
+/*
+ * Free response fields
+ */
+void
+fetchFreeResFields(struct http_fields *fields)
+{
+	struct http_field *f1, *f2;
+
+	f1 = TAILQ_FIRST(fields);
+	while (f1 != NULL) {
+		f2 = TAILQ_NEXT(f1, fields);
+		free(__DECONST(char *, f1->name));
+		free(f1);
+		f1 = f2;
+	}
+	TAILQ_INIT(fields);
 }
