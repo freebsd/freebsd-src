@@ -441,12 +441,8 @@ dt_header_decl(dt_idhash_t *dhp, dt_ident_t *idp, void *data)
 		return (dt_set_errno(dtp, errno));
 
 	if (fprintf(infop->dthi_out,
-	    "#ifndef\t__sparc\n"
-	    "extern int __dtraceenabled_%s___%s(void);\n"
-	    "#else\n"
-	    "extern int __dtraceenabled_%s___%s(long);\n"
-	    "#endif\n",
-	    infop->dthi_pfname, fname, infop->dthi_pfname, fname) < 0)
+	    "extern int __dtraceenabled_%s___%s(void);\n",
+	    infop->dthi_pfname, fname) < 0)
 		return (dt_set_errno(dtp, errno));
 
 	return (0);
@@ -509,15 +505,8 @@ dt_header_probe(dt_idhash_t *dhp, dt_ident_t *idp, void *data)
 
 	if (!infop->dthi_empty) {
 		if (fprintf(infop->dthi_out,
-		    "#ifndef\t__sparc\n"
 		    "#define\t%s_%s_ENABLED() \\\n"
-		    "\t__dtraceenabled_%s___%s()\n"
-		    "#else\n"
-		    "#define\t%s_%s_ENABLED() \\\n"
-		    "\t__dtraceenabled_%s___%s(0)\n"
-		    "#endif\n",
-		    infop->dthi_pmname, mname,
-		    infop->dthi_pfname, fname,
+		    "\t__dtraceenabled_%s___%s()\n",
 		    infop->dthi_pmname, mname,
 		    infop->dthi_pfname, fname) < 0)
 			return (dt_set_errno(dtp, errno));

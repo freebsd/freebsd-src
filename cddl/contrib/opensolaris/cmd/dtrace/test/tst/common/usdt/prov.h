@@ -15,21 +15,12 @@ extern "C" {
 
 #define	TESTER_ENTRY() \
 	__dtrace_tester___entry()
-#ifndef	__sparc
 #define	TESTER_ENTRY_ENABLED() \
 	__dtraceenabled_tester___entry()
-#else
-#define	TESTER_ENTRY_ENABLED() \
-	__dtraceenabled_tester___entry(0)
-#endif
 
 
 extern void __dtrace_tester___entry(void);
-#ifndef	__sparc
 extern int __dtraceenabled_tester___entry(void);
-#else
-extern int __dtraceenabled_tester___entry(long);
-#endif
 
 #else
 
