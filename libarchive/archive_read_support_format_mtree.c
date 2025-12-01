@@ -1254,7 +1254,7 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 				archive_entry_filetype(entry) == AE_IFDIR) {
 			mtree->fd = open(path, O_RDONLY | O_BINARY | O_CLOEXEC);
 			__archive_ensure_cloexec_flag(mtree->fd);
-			if (mtree->fd < 0 && (
+			if (mtree->fd == -1 && (
 #if defined(_WIN32) && !defined(__CYGWIN__)
         /*
          * On Windows, attempting to open a file with an

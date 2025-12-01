@@ -17,14 +17,14 @@ FreeBSD_task:
   - ./build/ci/cirrus_ci/ci.sh prepare
   configure_script:
   - env CFLAGS=-I/usr/local/include LDFLAGS=-L/usr/local/lib ./build/ci/build.sh -a autogen
-  - env CFLAGS=-I/usr/local/include LDFLAGS=-L/usr/local/lib ./build/ci/build.sh -a configure
+  - env MAKE=gmake CFLAGS=-I/usr/local/include LDFLAGS=-L/usr/local/lib ./build/ci/build.sh -a configure
   build_script:
-  - env MAKE_ARGS="-j 2" ./build/ci/build.sh -a build
+  - env MAKE=gmake MAKE_ARGS="-j 2" ./build/ci/build.sh -a build
   test_script:
-  - env SKIP_TEST_RESTORE_ATIME=1 MAKE_ARGS="-j 2" ./build/ci/build.sh -a test
+  - env MAKE=gmake SKIP_TEST_RESTORE_ATIME=1 MAKE_ARGS="-j 2" ./build/ci/build.sh -a test
   - ./build/ci/cirrus_ci/ci.sh test
   install_script:
-  - env MAKE_ARGS="-j 2" ./build/ci/build.sh -a install
+  - env MAKE=gmake MAKE_ARGS="-j 2" ./build/ci/build.sh -a install
 
 Windows_Cygwin_task:
   windows_container:
