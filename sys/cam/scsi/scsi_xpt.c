@@ -130,6 +130,7 @@ typedef enum {
 	PROBE_TUR,
 	PROBE_INQUIRY,	/* this counts as DV0 for Basic Domain Validation */
 	PROBE_FULL_INQUIRY,
+	PROBE_REPORT_WLUNS,
 	PROBE_REPORT_LUNS,
 	PROBE_MODE_SENSE,
 	PROBE_SUPPORTED_VPD_LIST,
@@ -148,6 +149,7 @@ static char *probe_action_text[] = {
 	"PROBE_TUR",
 	"PROBE_INQUIRY",
 	"PROBE_FULL_INQUIRY",
+	"PROBE_REPORT_WLUNS",
 	"PROBE_REPORT_LUNS",
 	"PROBE_MODE_SENSE",
 	"PROBE_SUPPORTED_VPD_LIST",
@@ -567,7 +569,7 @@ static int       proberequestbackoff(struct cam_periph *periph,
 static void	 probedone(struct cam_periph *periph, union ccb *done_ccb);
 static void	 probe_purge_old(struct cam_path *path,
 				 struct scsi_report_luns_data *new,
-				 probe_flags flags);
+				 probe_flags flags, bool is_wlun);
 static void	 probecleanup(struct cam_periph *periph);
 static void	 scsi_find_quirk(struct cam_ed *device);
 static void	 scsi_scan_bus(struct cam_periph *periph, union ccb *ccb);
@@ -815,6 +817,23 @@ again:
 			     /*page_code*/0,
 			     SSD_MIN_SIZE,
 			     /*timeout*/60 * 1000);
+		break;
+	}
+	case PROBE_REPORT_WLUNS:
+	{
+		void *rp;
+
+		rp = malloc(periph->path->target->rpl_size,
+		    M_CAMXPT, M_NOWAIT | M_ZERO);
+		if (rp == NULL) {
+			xpt_print(periph->path,
+			    "Unable to alloc report wluns storage\n");
+			PROBE_SET_ACTION(softc, PROBE_REPORT_LUNS);
+			goto again;
+		}
+		scsi_report_luns(csio, 5, probedone, MSG_SIMPLE_Q_TAG,
+		    RPL_REPORT_WELLKNOWN, rp, periph->path->target->rpl_size,
+		    SSD_FULL_SIZE, 60000);
 		break;
 	}
 	case PROBE_REPORT_LUNS:
@@ -1162,6 +1181,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	struct cam_path *path;
 	struct scsi_inquiry_data *inq_buf;
 	uint32_t  priority;
+	struct ccb_pathinq cpi;
 
 	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("probedone\n"));
 
@@ -1169,6 +1189,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	path = done_ccb->ccb_h.path;
 	priority = done_ccb->ccb_h.pinfo.priority;
 	cam_periph_assert(periph, MA_OWNED);
+	xpt_path_inq(&cpi, path);
 
 	switch (softc->action) {
 	case PROBE_TUR:
@@ -1235,8 +1256,10 @@ out:
 				    SID_ANSI_REV(inq_buf) > SCSI_REV_SPC2 &&
 				    (SCSI_QUIRK(path->device)->quirks &
 				     CAM_QUIRK_NORPTLUNS) == 0) {
-					PROBE_SET_ACTION(softc,
-					    PROBE_REPORT_LUNS);
+					if (cpi.hba_misc & PIM_WLUNS)
+						PROBE_SET_ACTION(softc, PROBE_REPORT_WLUNS);
+					else
+						PROBE_SET_ACTION(softc, PROBE_REPORT_LUNS);
 					/*
 					 * Start with room for *one* lun.
 					 */
@@ -1259,7 +1282,10 @@ out:
 			    SID_ANSI_REV(inq_buf) >= SCSI_REV_SPC2 &&
 			    (SCSI_QUIRK(path->device)->quirks &
 			     CAM_QUIRK_NORPTLUNS) == 0) {
-				PROBE_SET_ACTION(softc, PROBE_REPORT_LUNS);
+				if (cpi.hba_misc & PIM_WLUNS)
+					PROBE_SET_ACTION(softc,	PROBE_REPORT_WLUNS);
+				else
+					PROBE_SET_ACTION(softc, PROBE_REPORT_LUNS);
 				periph->path->target->rpl_size = 16;
 				xpt_release_ccb(done_ccb);
 				xpt_schedule(periph, priority);
@@ -1296,11 +1322,13 @@ out:
 		xpt_release_ccb(done_ccb);
 		break;
 	}
+	case PROBE_REPORT_WLUNS:
 	case PROBE_REPORT_LUNS:
 	{
 		struct ccb_scsiio *csio;
 		struct scsi_report_luns_data *lp;
 		u_int nlun, maxlun;
+		bool is_wlun = softc->action == PROBE_REPORT_WLUNS;
 
 		csio = &done_ccb->csio;
 
@@ -1377,7 +1405,7 @@ out:
 			 * This function will also install the new list
 			 * in the target structure.
 			 */
-			probe_purge_old(path, lp, softc->flags);
+			probe_purge_old(path, lp, softc->flags, is_wlun);
 			lp = NULL;
 		}
 		/* The processing above should either exit via a `goto
@@ -1390,7 +1418,9 @@ out:
 		if (path->device->flags & CAM_DEV_INQUIRY_DATA_VALID &&
 		    (SID_QUAL(inq_buf) == SID_QUAL_LU_CONNECTED ||
 		    SID_QUAL(inq_buf) == SID_QUAL_LU_OFFLINE)) {
-			if (INQ_DATA_TQ_ENABLED(inq_buf))
+			if (is_wlun)
+				PROBE_SET_ACTION(softc, PROBE_REPORT_LUNS);
+			else if (INQ_DATA_TQ_ENABLED(inq_buf))
 				PROBE_SET_ACTION(softc, PROBE_MODE_SENSE);
 			else
 				PROBE_SET_ACTION(softc,
@@ -1815,20 +1845,22 @@ probe_device_check:
 
 static void
 probe_purge_old(struct cam_path *path, struct scsi_report_luns_data *new,
-    probe_flags flags)
+    probe_flags flags, bool is_wlun)
 {
 	struct cam_path *tp;
-	struct scsi_report_luns_data *old;
+	struct scsi_report_luns_data **luns_data, *old;
 	u_int idx1, idx2, nlun_old, nlun_new;
 	lun_id_t this_lun;
 	uint8_t *ol, *nl;
+
+	luns_data = is_wlun ? &path->target->wluns : &path->target->luns;
 
 	if (path->target == NULL) {
 		return;
 	}
 	mtx_lock(&path->target->luns_mtx);
-	old = path->target->luns;
-	path->target->luns = new;
+	old = *luns_data;
+	*luns_data = new;
 	mtx_unlock(&path->target->luns_mtx);
 	if (old == NULL)
 		return;
@@ -1909,10 +1941,15 @@ scsi_find_quirk(struct cam_ed *device)
 }
 
 typedef struct {
+	int lun;
+	int wlun;
+} lun_pair;
+
+typedef struct {
 	union	ccb *request_ccb;
 	struct 	ccb_pathinq *cpi;
 	int	counter;
-	int	lunindex[0];
+	lun_pair lunindex[0];
 } scsi_scan_bus_info;
 
 static void
@@ -1995,7 +2032,8 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 
 		/* Save some state for use while we probe for devices */
 		scan_info = (scsi_scan_bus_info *) malloc(sizeof(scsi_scan_bus_info) +
-		    (work_ccb->cpi.max_target * sizeof (u_int)), M_CAMXPT, M_ZERO|M_NOWAIT);
+		    (work_ccb->cpi.max_target * sizeof(lun_pair)),
+				M_CAMXPT, M_ZERO|M_NOWAIT);
 		if (scan_info == NULL) {
 			request_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 			xpt_free_ccb(work_ccb);
@@ -2080,6 +2118,8 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		path_id_t path_id;
 		target_id_t target_id;
 		lun_id_t lun_id;
+		u_int nwluns;
+		bool need_wlun_scan = false;
 
 		oldpath = request_ccb->ccb_h.path;
 
@@ -2093,89 +2133,124 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 
 		mtx = xpt_path_mtx(scan_info->request_ccb->ccb_h.path);
 		mtx_lock(mtx);
-		mtx_lock(&target->luns_mtx);
-		if (target->luns) {
-			lun_id_t first;
-			u_int nluns = scsi_4btoul(target->luns->length) / 8;
 
-			/*
-			 * Make sure we skip over lun 0 if it's the first member
-			 * of the list as we've actually just finished probing
-			 * it.
-			 */
-			CAM_GET_LUN(target->luns, 0, first);
-			if (first == 0 && scan_info->lunindex[target_id] == 0) {
-				scan_info->lunindex[target_id]++;
+		if (scan_info->cpi->hba_misc & PIM_WLUNS) {
+			/* Scan Well known logical units */
+			mtx_lock(&target->luns_mtx);
+
+			if (target->wluns) {
+				nwluns = scsi_4btoul(target->wluns->length) / 8;
+				if (scan_info->lunindex[target_id].wlun < nwluns)
+					need_wlun_scan = true;
 			}
 
-			/*
-			 * Skip any LUNs that the HBA can't deal with.
-			 */
-			while (scan_info->lunindex[target_id] < nluns) {
-				if (scan_info->cpi->hba_misc & PIM_EXTLUNS) {
-					CAM_GET_LUN(target->luns,
-					    scan_info->lunindex[target_id],
-					    lun_id);
-					break;
-				}
+			if (need_wlun_scan) {
+				/*
+				 * WLUN uses the Extended WLUN address format, so we can handle all of
+				 * them.
+				 */
+				CAM_GET_LUN(target->wluns, scan_info->lunindex[target_id].wlun, lun_id);
 
-				if (CAM_CAN_GET_SIMPLE_LUN(target->luns,
-				    scan_info->lunindex[target_id])) {
-					CAM_GET_SIMPLE_LUN(target->luns,
-					    scan_info->lunindex[target_id],
-					    lun_id);
-					break;
-				}
-					
-				scan_info->lunindex[target_id]++;
-			}
-
-			if (scan_info->lunindex[target_id] < nluns) {
 				mtx_unlock(&target->luns_mtx);
 				next_target = 0;
 				CAM_DEBUG(request_ccb->ccb_h.path,
-				    CAM_DEBUG_PROBE,
-				   ("next lun to try at index %u is %jx\n",
-				   scan_info->lunindex[target_id],
-				   (uintmax_t)lun_id));
-				scan_info->lunindex[target_id]++;
+						CAM_DEBUG_PROBE,
+					("next wlun to try at index %u is %jx\n",
+					scan_info->lunindex[target_id].wlun,
+					(uintmax_t)lun_id));
+				scan_info->lunindex[target_id].wlun++;
 			} else {
 				mtx_unlock(&target->luns_mtx);
-				/* We're done with scanning all luns. */
+				/* We're done with scanning all wluns. */
 			}
-		} else {
-			mtx_unlock(&target->luns_mtx);
-			device = request_ccb->ccb_h.path->device;
-			/* Continue sequential LUN scan if: */
-			/*  -- we have more LUNs that need recheck */
-			mtx_lock(&target->bus->eb_mtx);
-			nextdev = device;
-			while ((nextdev = TAILQ_NEXT(nextdev, links)) != NULL)
-				if ((nextdev->flags & CAM_DEV_UNCONFIGURED) == 0)
-					break;
-			mtx_unlock(&target->bus->eb_mtx);
-			if (nextdev != NULL) {
-				next_target = 0;
-			/*  -- stop if CAM_QUIRK_NOLUNS is set. */
-			} else if (SCSI_QUIRK(device)->quirks & CAM_QUIRK_NOLUNS) {
-				next_target = 1;
-			/*  -- this LUN is connected and its SCSI version
-			 *     allows more LUNs. */
-			} else if ((device->flags & CAM_DEV_UNCONFIGURED) == 0) {
-				if (lun_id < (CAM_SCSI2_MAXLUN-1) ||
-				    CAN_SRCH_HI_DENSE(device))
+		}
+
+		if (!need_wlun_scan) {
+			/* Scan logical units */
+			mtx_lock(&target->luns_mtx);
+			if (target->luns) {
+				lun_id_t first;
+				u_int nluns = scsi_4btoul(target->luns->length) / 8;
+
+				/*
+				* Make sure we skip over lun 0 if it's the first member
+				* of the list as we've actually just finished probing
+				* it.
+				*/
+				CAM_GET_LUN(target->luns, 0, first);
+				if (first == 0 && scan_info->lunindex[target_id].lun == 0) {
+					scan_info->lunindex[target_id].lun++;
+				}
+
+				/*
+				* Skip any LUNs that the HBA can't deal with.
+				*/
+				while (scan_info->lunindex[target_id].lun < nluns) {
+					if (scan_info->cpi->hba_misc & PIM_EXTLUNS) {
+						CAM_GET_LUN(target->luns,
+								scan_info->lunindex[target_id].lun,
+								lun_id);
+						break;
+					}
+
+					if (CAM_CAN_GET_SIMPLE_LUN(target->luns,
+							scan_info->lunindex[target_id].lun)) {
+						CAM_GET_SIMPLE_LUN(target->luns,
+								scan_info->lunindex[target_id].lun,
+								lun_id);
+						break;
+					}
+
+					scan_info->lunindex[target_id].lun++;
+				}
+
+				if (scan_info->lunindex[target_id].lun < nluns) {
+					mtx_unlock(&target->luns_mtx);
 					next_target = 0;
-			/*  -- this LUN is disconnected, its SCSI version
-			 *     allows more LUNs and we guess they may be. */
-			} else if ((device->flags & CAM_DEV_INQUIRY_DATA_VALID) != 0) {
-				if (lun_id < (CAM_SCSI2_MAXLUN-1) ||
-				    CAN_SRCH_HI_SPARSE(device))
+					CAM_DEBUG(request_ccb->ccb_h.path,
+							CAM_DEBUG_PROBE,
+						("next lun to try at index %u is %jx\n",
+						scan_info->lunindex[target_id].lun,
+						(uintmax_t)lun_id));
+					scan_info->lunindex[target_id].lun++;
+				} else {
+					mtx_unlock(&target->luns_mtx);
+					/* We're done with scanning all luns. */
+				}
+			} else {
+				mtx_unlock(&target->luns_mtx);
+				device = request_ccb->ccb_h.path->device;
+				/* Continue sequential LUN scan if: */
+				/*  -- we have more LUNs that need recheck */
+				mtx_lock(&target->bus->eb_mtx);
+				nextdev = device;
+				while ((nextdev = TAILQ_NEXT(nextdev, links)) != NULL)
+					if ((nextdev->flags & CAM_DEV_UNCONFIGURED) == 0)
+						break;
+				mtx_unlock(&target->bus->eb_mtx);
+				if (nextdev != NULL) {
 					next_target = 0;
-			}
-			if (next_target == 0) {
-				lun_id++;
-				if (lun_id > scan_info->cpi->max_lun)
+				/*  -- stop if CAM_QUIRK_NOLUNS is set. */
+				} else if (SCSI_QUIRK(device)->quirks & CAM_QUIRK_NOLUNS) {
 					next_target = 1;
+				/*  -- this LUN is connected and its SCSI version
+				 *     allows more LUNs. */
+				} else if ((device->flags & CAM_DEV_UNCONFIGURED) == 0) {
+					if (lun_id < (CAM_SCSI2_MAXLUN-1) ||
+					    CAN_SRCH_HI_DENSE(device))
+						next_target = 0;
+				/*  -- this LUN is disconnected, its SCSI version
+				 *     allows more LUNs and we guess they may be. */
+				} else if ((device->flags & CAM_DEV_INQUIRY_DATA_VALID) != 0) {
+					if (lun_id < (CAM_SCSI2_MAXLUN-1) ||
+					    CAN_SRCH_HI_SPARSE(device))
+						next_target = 0;
+				}
+				if (next_target == 0) {
+					lun_id++;
+					if (lun_id > scan_info->cpi->max_lun)
+						next_target = 1;
+				}
 			}
 		}
 
