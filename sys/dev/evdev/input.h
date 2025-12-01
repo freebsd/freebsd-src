@@ -142,6 +142,8 @@ struct input_keymap_entry {
 #define	BUS_RMI			0x1D
 #define	BUS_CEC			0x1E
 #define	BUS_INTEL_ISHTP		0x1F
+#define	BUS_AMD_SFH		0x20
+#define	BUS_SDW			0x21
 
 /*
  * MT_TOOL types
@@ -203,20 +205,6 @@ struct ff_condition_effect {
 	int16_t		center;		/* center of dead zone */
 };
 
-/*
- * Force feedback periodic effect types
- */
-
-#define	FF_SQUARE	0x58
-#define	FF_TRIANGLE	0x59
-#define	FF_SINE		0x5a
-#define	FF_SAW_UP	0x5b
-#define	FF_SAW_DOWN	0x5c
-#define	FF_CUSTOM	0x5d
-
-#define	FF_WAVEFORM_MIN	FF_SQUARE
-#define	FF_WAVEFORM_MAX	FF_CUSTOM
-
 struct ff_periodic_effect {
 	uint16_t		waveform;
 	uint16_t		period;		/* ms */
@@ -233,21 +221,14 @@ struct ff_rumble_effect {
 	uint16_t	weak_magnitude;		/* magnitude of the light motor */
 };
 
-/*
- * Force feedback effect types
- */
-
-#define	FF_RUMBLE	0x50
-#define	FF_PERIODIC	0x51
-#define	FF_CONSTANT	0x52
-#define	FF_SPRING	0x53
-#define	FF_FRICTION	0x54
-#define	FF_DAMPER	0x55
-#define	FF_INERTIA	0x56
-#define	FF_RAMP		0x57
-
-#define	FF_EFFECT_MIN	FF_RUMBLE
-#define	FF_EFFECT_MAX	FF_RAMP
+struct ff_haptic_effect {
+	uint16_t	hid_usage;
+	uint16_t	vendor_id;
+	uint8_t		vendor_waveform_page;
+	uint16_t	intensity;
+	uint16_t	repeat_count;
+	uint16_t	retrigger_period;
+};
 
 struct ff_effect {
 	uint16_t		type;
@@ -262,8 +243,40 @@ struct ff_effect {
 		struct ff_periodic_effect	periodic;
 		struct ff_condition_effect	condition[2]; /* One for each axis */
 		struct ff_rumble_effect		rumble;
+		struct ff_haptic_effect		haptic;
 	} u;
 };
+
+/*
+ * Force feedback effect types
+ */
+
+#define	FF_HAPTIC	0x4f
+#define	FF_RUMBLE	0x50
+#define	FF_PERIODIC	0x51
+#define	FF_CONSTANT	0x52
+#define	FF_SPRING	0x53
+#define	FF_FRICTION	0x54
+#define	FF_DAMPER	0x55
+#define	FF_INERTIA	0x56
+#define	FF_RAMP		0x57
+
+#define	FF_EFFECT_MIN	FF_HAPTIC
+#define	FF_EFFECT_MAX	FF_RAMP
+
+/*
+ * Force feedback periodic effect types
+ */
+
+#define	FF_SQUARE	0x58
+#define	FF_TRIANGLE	0x59
+#define	FF_SINE		0x5a
+#define	FF_SAW_UP	0x5b
+#define	FF_SAW_DOWN	0x5c
+#define	FF_CUSTOM	0x5d
+
+#define	FF_WAVEFORM_MIN	FF_SQUARE
+#define	FF_WAVEFORM_MAX	FF_CUSTOM
 
 /*
  * force feedback device properties
@@ -271,6 +284,8 @@ struct ff_effect {
 
 #define	FF_GAIN		0x60
 #define	FF_AUTOCENTER	0x61
+
+#define	FF_MAX_EFFECTS	FF_GAIN
 
 #define	FF_MAX		0x7f
 #define	FF_CNT		(FF_MAX+1)

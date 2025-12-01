@@ -39,6 +39,7 @@
 #define	INPUT_PROP_TOPBUTTONPAD		0x04	/* softbuttons at top of pad */
 #define	INPUT_PROP_POINTING_STICK	0x05	/* is a pointing stick */
 #define	INPUT_PROP_ACCELEROMETER	0x06	/* has accelerometer */
+#define	INPUT_PROP_PRESSUREPAD		0x07	/* pressure triggers clicks */
 
 #define	INPUT_PROP_MAX			0x1f
 #define	INPUT_PROP_CNT			(INPUT_PROP_MAX + 1)
@@ -531,6 +532,7 @@
 #define	KEY_NOTIFICATION_CENTER	0x1bc	/* Show/hide the notification center */
 #define	KEY_PICKUP_PHONE	0x1bd	/* Answer incoming call */
 #define	KEY_HANGUP_PHONE	0x1be	/* Decline incoming call */
+#define	KEY_LINK_PHONE		0x1bf	/* AL Phone Syncing */
 
 #define	KEY_DEL_EOL		0x1c0
 #define	KEY_DEL_EOS		0x1c1
@@ -612,8 +614,14 @@
 #define	BTN_DPAD_LEFT		0x222
 #define	BTN_DPAD_RIGHT		0x223
 
+#define	BTN_GRIPL		0x224
+#define	BTN_GRIPR		0x225
+#define	BTN_GRIPL2		0x226
+#define	BTN_GRIPR2		0x227
+
 #define	KEY_ALS_TOGGLE		0x230	/* Ambient light sensor */
 #define	KEY_ROTATE_LOCK_TOGGLE	0x231	/* Display rotation lock */
+#define	KEY_REFRESH_RATE_TOGGLE	0x232	/* Display refresh rate toggle */
 
 #define	KEY_BUTTONCONFIG		0x240	/* AL Button Configuration */
 #define	KEY_TASKMANAGER		0x241	/* AL Task/Project Manager */
@@ -629,9 +637,23 @@
 #define	KEY_CAMERA_ACCESS_ENABLE	0x24b	/* Enables programmatic access to camera devices. (HUTRR72) */
 #define	KEY_CAMERA_ACCESS_DISABLE	0x24c	/* Disables programmatic access to camera devices. (HUTRR72) */
 #define	KEY_CAMERA_ACCESS_TOGGLE	0x24d	/* Toggles the current state of the camera access control. (HUTRR72) */
+#define	KEY_ACCESSIBILITY		0x24e	/* Toggles the system bound accessibility UI/command (HUTRR116) */
+#define	KEY_DO_NOT_DISTURB		0x24f	/* Toggles the system-wide "Do Not Disturb" control (HUTRR94)*/
 
 #define	KEY_BRIGHTNESS_MIN		0x250	/* Set Brightness to Minimum */
 #define	KEY_BRIGHTNESS_MAX		0x251	/* Set Brightness to Maximum */
+
+/*
+ * Keycodes for hotkeys toggling the electronic privacy screen found on some
+ * laptops on/off. Note when the embedded-controller turns on/off the eprivacy
+ * screen itself then the state should be reported through drm connecter props:
+ * https://www.kernel.org/doc/html/latest/gpu/drm-kms.html#standard-connector-properties
+ * Except when implementing the drm connecter properties API is not possible
+ * because e.g. the firmware does not allow querying the presence and/or status
+ * of the eprivacy screen at boot.
+ */
+#define	KEY_EPRIVACY_SCREEN_ON		0x252
+#define	KEY_EPRIVACY_SCREEN_OFF		0x253
 
 #define	KEY_KBDINPUTASSIST_PREV		0x260
 #define	KEY_KBDINPUTASSIST_NEXT		0x261
@@ -772,6 +794,9 @@
 #define	KEY_KBD_LCD_MENU3		0x2ba
 #define	KEY_KBD_LCD_MENU4		0x2bb
 #define	KEY_KBD_LCD_MENU5		0x2bc
+
+/* Performance Boost key (Alienware)/G-Mode key (Dell) */
+#define	KEY_PERFORMANCE			0x2bd
 
 #define	BTN_TRIGGER_HAPPY		0x2c0
 #define	BTN_TRIGGER_HAPPY1		0x2c0
@@ -932,7 +957,8 @@
 #define	SW_MUTE_DEVICE		0x0e  /* set = device disabled */
 #define	SW_PEN_INSERTED		0x0f  /* set = pen inserted */
 #define	SW_MACHINE_COVER	0x10  /* set = cover closed */
-#define	SW_MAX			0x10
+#define	SW_USB_INSERT		0x11  /* set = USB audio device connected */
+#define	SW_MAX			0x11
 #define	SW_CNT			(SW_MAX+1)
 
 /*
