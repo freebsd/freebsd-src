@@ -79,12 +79,6 @@ ufshci_ctrlr_start(struct ufshci_controller *ctrlr, bool resetting)
 		return;
 	}
 
-	/* Initialize UFS Power Mode */
-	if (ufshci_dev_init_ufs_power_mode(ctrlr) != 0) {
-		ufshci_ctrlr_fail(ctrlr);
-		return;
-	}
-
 	/* Read Controller Descriptor (Device, Geometry) */
 	if (ufshci_dev_get_descriptor(ctrlr) != 0) {
 		ufshci_ctrlr_fail(ctrlr);
@@ -105,6 +99,12 @@ ufshci_ctrlr_start(struct ufshci_controller *ctrlr, bool resetting)
 	 * and does not need to be attached again.
 	 */
 	if (!resetting && ufshci_sim_attach(ctrlr) != 0) {
+		ufshci_ctrlr_fail(ctrlr);
+		return;
+	}
+
+	/* Initialize UFS Power Mode */
+	if (ufshci_dev_init_ufs_power_mode(ctrlr) != 0) {
 		ufshci_ctrlr_fail(ctrlr);
 		return;
 	}
