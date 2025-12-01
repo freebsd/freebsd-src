@@ -3057,7 +3057,7 @@ struct scsi_report_luns_data {
 	uint8_t length[4];	/* length of LUN inventory, in bytes */
 	uint8_t reserved[4];	/* unused */
 	/*
-	 * LUN inventory- we only support the type zero form for now.
+	 * LUN inventory- we only support type zero and extended (well-known) formats.
 	 */
 	struct scsi_report_luns_lundata luns[0];
 };
