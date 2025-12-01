@@ -197,6 +197,10 @@ ufshci_sysctl_initialize_ctrlr(struct ufshci_controller *ctrlr)
 	    &dev->wb_user_space_config_option, 0,
 	    "WriteBooster preserve user space mode");
 
+	SYSCTL_ADD_BOOL(ctrlr_ctx, ctrlr_list, OID_AUTO, "power_mode_supported",
+	    CTLFLAG_RD, &dev->power_mode_supported, 0,
+	    "Device power mode support");
+
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO, "timeout_period",
 	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, &ctrlr->timeout_period,
 	    0, ufshci_sysctl_timeout_period, "IU",

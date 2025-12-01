@@ -31,6 +31,8 @@
 
 #include <machine/bus.h>
 
+#include <cam/cam.h>
+
 #include "ufshci.h"
 
 MALLOC_DECLARE(M_UFSHCI);
@@ -247,6 +249,9 @@ struct ufshci_device {
 	uint32_t wb_user_space_config_option;
 	uint8_t wb_dedicated_lu;
 	uint32_t write_booster_flush_threshold;
+
+	/* Power mode */
+	bool power_mode_supported;
 };
 
 /*
@@ -273,6 +278,9 @@ struct ufshci_controller {
 
 	struct cam_sim *ufshci_sim;
 	struct cam_path *ufshci_path;
+
+	struct cam_periph *ufs_device_wlun_periph;
+	struct mtx ufs_device_wlun_mtx;
 
 	struct mtx sc_mtx;
 	uint32_t sc_unit;
@@ -371,8 +379,14 @@ void ufshci_completion_poll_cb(void *arg, const struct ufshci_completion *cpl,
     bool error);
 
 /* SIM */
+uint8_t ufshci_sim_translate_scsi_to_ufs_lun(lun_id_t scsi_lun);
+uint64_t ufshci_sim_translate_ufs_to_scsi_lun(uint8_t ufs_lun);
 int ufshci_sim_attach(struct ufshci_controller *ctrlr);
 void ufshci_sim_detach(struct ufshci_controller *ctrlr);
+struct cam_periph *ufshci_sim_find_periph(struct ufshci_controller *ctrlr,
+    uint8_t wlun);
+int ufshci_sim_send_ssu(struct ufshci_controller *ctrlr, bool start,
+    int pwr_cond, bool immed);
 
 /* Controller */
 int ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev);

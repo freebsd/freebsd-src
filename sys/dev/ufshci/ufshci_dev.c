@@ -455,8 +455,20 @@ ufshci_dev_init_uic_power_mode(struct ufshci_controller *ctrlr)
 int
 ufshci_dev_init_ufs_power_mode(struct ufshci_controller *ctrlr)
 {
-	/* TODO: Need to implement */
+	ctrlr->ufs_dev.power_mode_supported = false;
 
+	if (ctrlr->quirks & UFSHCI_QUIRK_SKIP_WELL_KNOWN_LUNS)
+		return (0);
+
+	ctrlr->ufs_device_wlun_periph = ufshci_sim_find_periph(ctrlr,
+	    UFSHCI_WLUN_UFS_DEVICE);
+	if (ctrlr->ufs_device_wlun_periph == NULL) {
+		ufshci_printf(ctrlr,
+		    "Well-known LUN `UFS Device (0x50)` not found\n");
+		return (0);
+	}
+
+	ctrlr->ufs_dev.power_mode_supported = true;
 	return (0);
 }
 
