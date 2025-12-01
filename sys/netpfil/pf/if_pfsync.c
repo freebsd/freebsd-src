@@ -466,13 +466,13 @@ pfsync_clone_destroy(struct ifnet *ifp)
 			    TAILQ_FIRST(&b->b_deferrals);
 
 			ret = callout_stop(&pd->pd_tmo);
-			PFSYNC_BUCKET_UNLOCK(b);
 			if (ret > 0) {
 				pfsync_undefer(pd, 1);
 			} else {
+				PFSYNC_BUCKET_UNLOCK(b);
 				callout_drain(&pd->pd_tmo);
+				PFSYNC_BUCKET_LOCK(b);
 			}
-			PFSYNC_BUCKET_LOCK(b);
 		}
 		MPASS(b->b_deferred == 0);
 		MPASS(TAILQ_EMPTY(&b->b_deferrals));
