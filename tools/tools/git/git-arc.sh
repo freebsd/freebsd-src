@@ -59,7 +59,7 @@ Usage: git arc [-vy] <command> <arguments>
 Commands:
   create [-l] [-r <reviewer1>[,<reviewer2>...]] [-s subscriber[,...]] [<commit>|<commit range>]
   list <commit>|<commit range>
-  patch [-c] <diff1> [<diff2> ...]
+  patch [-bc] <diff1> [<diff2> ...]
   stage [-b branch] [<commit>|<commit range>]
   update [-l] [-m message] [<commit>|<commit range>]
 
@@ -75,8 +75,10 @@ Description:
     create -- Create new Differential revisions from the specified commits.
     list   -- Print the associated Differential revisions for the specified
               commits.
-    patch  -- Try to apply a patch from a Differential revision to the
-              currently checked out tree.
+    patch  -- Apply patches from Differential revisions.  By default, patches
+              are applied to the currently checked-out tree, unless -b is
+              supplied, in which case a new branch is first created.  The -c
+              option commits the applied patch using the review's metadata.
     stage  -- Prepare a series of commits to be pushed to the upstream FreeBSD
               repository.  The commits are cherry-picked to a branch (main by
               default), review tags are added to the commit log message, and
@@ -145,6 +147,11 @@ Examples:
   commit it using the review's title, summary and author.
 
   $ git arc patch -c D12345
+
+  Apply the patches in reviews D12345 and D12346 in a new branch, and commit
+  them using the review titles, summaries and authors.
+
+  $ git arc patch -bc D12345 D12346
 
   List the status of reviews for all the commits in the branch "feature":
 
@@ -567,6 +574,26 @@ find_author()
     echo "${a}"
 }
 
+patch_branch()
+{
+    local base new suffix
+
+    if [ $# -eq 1 ]; then
+        base="gitarc-$1"
+    else
+        base="gitarc-$(printf "%s-" "$@" | sed 's/-$//')"
+    fi
+
+    new="$base"
+    suffix=1
+    while git show-ref --quiet --branches "$new"; do
+        new="${base}_$suffix"
+        suffix=$((suffix + 1))
+    done
+
+    git checkout -b "$new"
+}
+
 patch_commit()
 {
     local diff reviewid review_data authorid user_data user_addr user_name
@@ -626,15 +653,16 @@ patch_commit()
 
 gitarc__patch()
 {
-    local rev commit
+    local branch commit rev
 
-    if [ $# -eq 0 ]; then
-        err_usage
-    fi
-
+    branch=false
     commit=false
-    while getopts c o; do
+    while getopts bc o; do
         case "$o" in
+        b)
+            require_clean_work_tree "patch -b"
+            branch=true
+            ;;
         c)
             require_clean_work_tree "patch -c"
             commit=true
@@ -646,10 +674,18 @@ gitarc__patch()
     done
     shift $((OPTIND-1))
 
+    if [ $# -eq 0 ]; then
+        err_usage
+    fi
+
+    if ${branch}; then
+        patch_branch "$@"
+    fi
     for rev in "$@"; do
-        arc patch --skip-dependencies --nocommit --nobranch --force "$rev"
+        if ! arc patch --skip-dependencies --nobranch --nocommit --force "$rev"; then
+            break
+        fi
         echo "Applying ${rev}..."
-        [ $? -eq 0 ] || break
         if ${commit}; then
             patch_commit $rev
         fi
