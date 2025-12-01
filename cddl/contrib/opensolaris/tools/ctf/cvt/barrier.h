@@ -33,12 +33,7 @@
  * APIs for the barrier synchronization primitive.
  */
 
-#ifdef illumos
-#include <synch.h>
-#else
-#include <semaphore.h>
-typedef sem_t	sema_t;
-#endif
+#include <pthread.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,7 +43,7 @@ typedef struct barrier {
 	pthread_mutex_t bar_lock;	/* protects bar_numin */
 	int bar_numin;			/* current number of waiters */
 
-	sema_t bar_sem;			/* where everyone waits */
+	pthread_cond_t bar_cv;		/* where everyone waits */
 	int bar_nthr;			/* # of waiters to trigger release */
 } barrier_t;
 
