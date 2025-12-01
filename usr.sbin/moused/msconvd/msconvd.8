@@ -160,10 +160,11 @@ information are:
 .It Ar port
 Port (device file) name, i.e.\&
 .Pa /dev/cuau0 ,
+.Pa /dev/ums0
 and
 .Pa /dev/psm0 .
 .It Ar if
-Interface type: serial, bus, inport or ps/2.
+Interface type: serial or ps/2.
 .It Ar type
 Protocol type.
 It is one of the types listed under the
@@ -243,12 +244,6 @@ always choose
 or
 .Ar ps/2 ,
 regardless of the brand and model of the mouse.
-Likewise, if your
-mouse is attached to the bus mouse port, choose
-.Ar auto
-or
-.Ar busmouse .
-Serial mouse protocols will not work with these mice.
 .Pp
 For the USB mouse, the protocol must be
 .Ar auto .
@@ -302,14 +297,6 @@ Genius Kidspad and Easypad protocol.
 Interlink VersaPad protocol.
 .It Ar gtco_digipad
 GTCO Digipad protocol.
-.El
-.Pp
-For the bus and InPort mouse:
-.Bl -tag -compact -width mousesystemsxxx
-.It Ar busmouse
-This is the only protocol type available for
-the bus and InPort mouse and should be specified for any bus mice
-and InPort mice, regardless of the brand.
 .El
 .Pp
 For the PS/2 mouse:
@@ -401,10 +388,6 @@ You have to make a guess and try.
 There is rule of thumb:
 .Pp
 .Bl -enum -compact -width 1.X
-.It
-The bus and InPort mice always use
-.Ar busmouse
-protocol regardless of the brand of the mouse.
 .It
 The
 .Ar ps/2
