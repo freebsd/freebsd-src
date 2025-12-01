@@ -4326,7 +4326,8 @@ void scsi_unmap(struct ccb_scsiio *csio, uint32_t retries,
 void scsi_start_stop(struct ccb_scsiio *csio, uint32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
 		     uint8_t tag_action, int start, int load_eject,
-		     int immediate, uint8_t sense_len, uint32_t timeout);
+		     int immediate, uint8_t power_condition, uint8_t sense_len,
+		     uint32_t timeout);
 void scsi_read_attribute(struct ccb_scsiio *csio, uint32_t retries, 
 			 void (*cbfcnp)(struct cam_periph *, union ccb *),
 			 uint8_t tag_action, uint8_t service_action,

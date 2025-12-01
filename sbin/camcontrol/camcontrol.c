@@ -1024,6 +1024,7 @@ scsistart(struct cam_device *device, int startstop, int loadeject,
 			/* start/stop */ startstop,
 			/* load_eject */ loadeject,
 			/* immediate */ 0,
+			/* power_condition */ SSS_PC_START_VALID,
 			/* sense_len */ SSD_FULL_SIZE,
 			/* timeout */ timeout ? timeout : 120000);
 

@@ -1791,6 +1791,7 @@ camperiphscsisenseerror(union ccb *ccb, union ccb **orig,
 					/*start*/TRUE,
 					/*load/eject*/le,
 					/*immediate*/FALSE,
+					/*power_condition*/SSS_PC_START_VALID,
 					SSD_FULL_SIZE,
 					/*timeout*/50000);
 			break;

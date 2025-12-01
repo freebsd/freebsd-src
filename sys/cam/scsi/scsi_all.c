@@ -8984,7 +8984,8 @@ void
 scsi_start_stop(struct ccb_scsiio *csio, uint32_t retries,
 		void (*cbfcnp)(struct cam_periph *, union ccb *),
 		uint8_t tag_action, int start, int load_eject,
-		int immediate, uint8_t sense_len, uint32_t timeout)
+		int immediate, uint8_t power_condition, uint8_t sense_len,
+		uint32_t timeout)
 {
 	struct scsi_start_stop_unit *scsi_cmd;
 	int extra_flags = 0;
@@ -8999,6 +9000,7 @@ scsi_start_stop(struct ccb_scsiio *csio, uint32_t retries,
 	}
 	if (load_eject != 0)
 		scsi_cmd->how |= SSS_LOEJ;
+	scsi_cmd->how |= power_condition;
 	if (immediate != 0)
 		scsi_cmd->byte2 |= SSS_IMMED;
 
