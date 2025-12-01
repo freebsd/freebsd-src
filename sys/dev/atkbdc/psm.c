@@ -4666,6 +4666,13 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		mask = sc->elanaction.mask;
 		nfingers = bitcount(mask);
 
+		/* The motion packet can only update two fingers at a time.
+		 * Copy the previous state to get all active fingers. */
+		for (id = 0; id < ELANTECH_MAX_FINGERS; id++)
+			if (sc->elanaction.mask & (1 << id))
+				f[id] = sc->elanaction.fingers[id];
+
+		/* Update finger positions from the new packet */
 		scale = (pb->ipacket[0] & 0x10) ? 5 : 1;
 		for (i = 0; i <= 3; i += 3) {
 			id = ((pb->ipacket[i] & 0xe0) >> 5) - 1;
