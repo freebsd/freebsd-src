@@ -54,7 +54,7 @@ pid$1:a.out:go:
 	exit(1);
 }
 
-syscall::exit:entry
+syscall::_exit:entry
 /pid == $1/
 {
 	exit(0);
