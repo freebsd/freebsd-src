@@ -673,6 +673,40 @@ large_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "load" "cleanup"
+load_head()
+{
+	atf_set descr 'Test pfctl -T load (PR 291318)'
+	atf_set require.user root
+}
+
+load_body()
+{
+	pft_init
+
+	epair_send=$(vnet_mkepair)
+	ifconfig ${epair_send}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair_send}b
+	jexec alcatraz ifconfig ${epair_send}b 192.0.2.2/24 up
+	jexec alcatraz pfctl -e
+
+	echo -e "table <private> persist { 172.16/12 }\nblock\npass in from <private>\n" \
+	    | atf_check -s exit:0 jexec alcatraz pfctl -Tload -f -
+
+	atf_check -s exit:0 -o ignore ping -c 3 192.0.2.2
+
+	atf_check -s exit:0 -o not-match:"block" \
+	    jexec alcatraz pfctl -sr
+	atf_check -s exit:0 -o match:'172.16.0.0/12' \
+	    jexec alcatraz pfctl -Tshow -t private
+}
+
+load_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4_counters"
@@ -689,4 +723,5 @@ atf_init_test_cases()
 	atf_add_test_case "anchor"
 	atf_add_test_case "flush"
 	atf_add_test_case "large"
+	atf_add_test_case "load"
 }
