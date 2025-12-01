@@ -266,6 +266,8 @@ struct ufshci_controller {
 	8 /* Need to change the number of lanes before changing HS-GEAR. */
 #define UFSHCI_QUIRK_NOT_SUPPORT_ABORT_TASK \
 	16 /* QEMU does not support Task Management Request */
+#define UFSHCI_QUIRK_SKIP_WELL_KNOWN_LUNS \
+	32 /* QEMU does not support Well known logical units*/
 
 	uint32_t ref_clk;
 

@@ -50,7 +50,8 @@ static struct _pcsid {
 	uint32_t quirks;
 } pci_ids[] = { { 0x131b36, "QEMU UFS Host Controller", UFSHCI_REF_CLK_19_2MHz,
 		    UFSHCI_QUIRK_IGNORE_UIC_POWER_MODE |
-			UFSHCI_QUIRK_NOT_SUPPORT_ABORT_TASK },
+			UFSHCI_QUIRK_NOT_SUPPORT_ABORT_TASK |
+			UFSHCI_QUIRK_SKIP_WELL_KNOWN_LUNS },
 	{ 0x98fa8086, "Intel Lakefield UFS Host Controller",
 	    UFSHCI_REF_CLK_19_2MHz,
 	    UFSHCI_QUIRK_LONG_PEER_PA_TACTIVATE |

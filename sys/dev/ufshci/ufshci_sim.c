@@ -231,11 +231,15 @@ ufshci_cam_action(struct cam_sim *sim, union ccb *ccb)
 		return;
 	case XPT_PATH_INQ: {
 		struct ccb_pathinq *cpi = &ccb->cpi;
+		uint32_t need_scan_wluns = 0;
+
+		if (!(ctrlr->quirks & UFSHCI_QUIRK_SKIP_WELL_KNOWN_LUNS))
+			need_scan_wluns = PIM_WLUNS;
 
 		cpi->version_num = 1;
 		cpi->hba_inquiry = PI_SDTR_ABLE | PI_TAG_ABLE;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_UNMAPPED | PIM_NO_6_BYTE;
+		cpi->hba_misc = need_scan_wluns | PIM_UNMAPPED | PIM_NO_6_BYTE;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 0;
 		cpi->max_lun = ctrlr->max_lun_count;
