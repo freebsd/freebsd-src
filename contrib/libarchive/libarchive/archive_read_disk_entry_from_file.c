@@ -254,7 +254,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	if (S_ISLNK(st->st_mode)) {
 		size_t linkbuffer_len = st->st_size;
 		char *linkbuffer;
-		int lnklen;
+		ssize_t lnklen;
 
 		linkbuffer = malloc(linkbuffer_len + 1);
 		if (linkbuffer == NULL) {
@@ -892,7 +892,7 @@ setup_sparse_fiemap(struct archive_read_disk *a,
 	for (iters = 0; ; ++iters) {
 		int i, r;
 
-		r = ioctl(*fd, FS_IOC_FIEMAP, fm); 
+		r = ioctl(*fd, FS_IOC_FIEMAP, fm);
 		if (r < 0) {
 			/* When something error happens, it is better we
 			 * should return ARCHIVE_OK because an earlier
@@ -1079,4 +1079,3 @@ setup_sparse(struct archive_read_disk *a,
 #endif
 
 #endif /* !defined(_WIN32) || defined(__CYGWIN__) */
-

@@ -333,7 +333,7 @@ archive_libbsdxml_version(void)
 const char *
 archive_libxml2_version(void)
 {
-#if HAVE_LIBXML_XMLREADER_H && HAVE_LIBXML2
+#if HAVE_LIBXML_XMLVERSION_H && HAVE_LIBXML2
 	return LIBXML_DOTTED_VERSION;
 #else
 	return NULL;

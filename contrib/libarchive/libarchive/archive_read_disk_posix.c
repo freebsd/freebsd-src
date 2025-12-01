@@ -2018,11 +2018,8 @@ tree_dup(int fd)
 	}
 #endif /* F_DUPFD_CLOEXEC */
 	new_fd = dup(fd);
-	if (new_fd != -1) {
-		__archive_ensure_cloexec_flag(new_fd);
-		return (new_fd);
-	}
-	return (-1);
+	__archive_ensure_cloexec_flag(new_fd);
+	return (new_fd);
 }
 
 /*
@@ -2144,16 +2141,11 @@ tree_reopen(struct tree *t, const char *path, int restore_time)
 	 * so try again for execute. The consequences of not opening this are
 	 * unhelpful and unnecessary errors later.
 	 */
-	if (t->initial_dir_fd < 0) {
+	if (t->initial_dir_fd < 0)
 		t->initial_dir_fd = open(".", o_flag | O_CLOEXEC);
-		if (t->initial_dir_fd < 0)
-			return NULL;
-	}
 #endif
 	__archive_ensure_cloexec_flag(t->initial_dir_fd);
 	t->working_dir_fd = tree_dup(t->initial_dir_fd);
-	if (t->working_dir_fd < 0)
-		return NULL;
 	return (t);
 }
 
@@ -2359,15 +2351,20 @@ static int
 tree_dir_next_posix(struct tree *t)
 {
 	int r;
+#if defined(HAVE_FDOPENDIR)
+	int fd;
+#endif
 	const char *name;
 	size_t namelen;
 
 	if (t->d == NULL) {
 
 #if defined(HAVE_FDOPENDIR)
-		int fd = tree_dup(t->working_dir_fd);
-		if (fd != -1)
-			t->d = fdopendir(fd);
+		if (t->working_dir_fd >= 0) {
+			fd = tree_dup(t->working_dir_fd);
+			if (fd != -1)
+				t->d = fdopendir(fd);
+		}
 #else /* HAVE_FDOPENDIR */
 		if (tree_enter_working_dir(t) == 0) {
 			t->d = opendir(".");

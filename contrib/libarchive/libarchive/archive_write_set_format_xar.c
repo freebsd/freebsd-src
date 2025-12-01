@@ -1000,13 +1000,13 @@ xmlwrite_heap(struct archive_write *a, struct xml_writer *writer,
 	const char *encname;
 	int r;
 
-	r = xmlwrite_fstring(a, writer, "length", "%ju", heap->length);
+	r = xmlwrite_fstring(a, writer, "length", "%ju", (uintmax_t)heap->length);
 	if (r < 0)
 		return (ARCHIVE_FATAL);
-	r = xmlwrite_fstring(a, writer, "offset", "%ju", heap->temp_offset);
+	r = xmlwrite_fstring(a, writer, "offset", "%ju", (uintmax_t)heap->temp_offset);
 	if (r < 0)
 		return (ARCHIVE_FATAL);
-	r = xmlwrite_fstring(a, writer, "size", "%ju", heap->size);
+	r = xmlwrite_fstring(a, writer, "size", "%ju", (uintmax_t)heap->size);
 	if (r < 0)
 		return (ARCHIVE_FATAL);
 	switch (heap->compression) {
@@ -1356,7 +1356,7 @@ make_file_entry(struct archive_write *a, struct xml_writer *writer,
 	 * Make a inode entry, "<inode>".
 	 */
 	r = xmlwrite_fstring(a, writer, "inode",
-	    "%jd", archive_entry_ino64(file->entry));
+	    "%jd", (intmax_t)archive_entry_ino64(file->entry));
 	if (r < 0)
 		return (ARCHIVE_FATAL);
 	if (archive_entry_dev(file->entry) != 0) {
@@ -1378,7 +1378,7 @@ make_file_entry(struct archive_write *a, struct xml_writer *writer,
 	 * Make a user entry, "<uid>" and "<user>.
 	 */
 	r = xmlwrite_fstring(a, writer, "uid",
-	    "%d", archive_entry_uid(file->entry));
+	    "%jd", (intmax_t)archive_entry_uid(file->entry));
 	if (r < 0)
 		return (ARCHIVE_FATAL);
 	r = archive_entry_uname_l(file->entry, &p, &len, xar->sconv);
@@ -1404,7 +1404,7 @@ make_file_entry(struct archive_write *a, struct xml_writer *writer,
 	 * Make a group entry, "<gid>" and "<group>.
 	 */
 	r = xmlwrite_fstring(a, writer, "gid",
-	    "%d", archive_entry_gid(file->entry));
+	    "%jd", (intmax_t)archive_entry_gid(file->entry));
 	if (r < 0)
 		return (ARCHIVE_FATAL);
 	r = archive_entry_gname_l(file->entry, &p, &len, xar->sconv);

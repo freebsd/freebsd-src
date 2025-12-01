@@ -40,7 +40,8 @@ DEFINE_TEST(test_write_filter_bzip2)
 	size_t buffsize, datasize;
 	char path[16];
 	size_t used1, used2;
-	int i, r, use_prog;
+	ssize_t r;
+	int i, use_prog;
 
 	buffsize = 2000000;
 	assert(NULL != (buff = malloc(buffsize)));

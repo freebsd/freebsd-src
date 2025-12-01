@@ -490,9 +490,9 @@ aes_ctr_update(archive_crypto_ctx *ctx, const uint8_t * const in,
     size_t in_len, uint8_t * const out, size_t *out_len)
 {
 	uint8_t *const ebuf = ctx->encr_buf;
-	unsigned pos = ctx->encr_pos;
-	unsigned max = (unsigned)((in_len < *out_len)? in_len: *out_len);
-	unsigned i;
+	size_t pos = ctx->encr_pos;
+	size_t max = (in_len < *out_len)? in_len: *out_len;
+	size_t i;
 
 	for (i = 0; i < max; ) {
 		if (pos == AES_BLOCK_SIZE) {
