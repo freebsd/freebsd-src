@@ -42,7 +42,13 @@ DEFINE_TEST(test_option_s)
 	systemf("%s -cf test1_2.tar -s /d1/d2/ in/d1/foo", testprog);
 	systemf("%s -xf test1_2.tar -C test1", testprog);
 	assertFileContents("foo", 3, "test1/in/d2/foo");
-
+	systemf("%s -cf test1_3.tar -s /o/#/g in/d1/foo", testprog);
+	systemf("%s -xf test1_3.tar -C test1", testprog);
+	assertFileContents("foo", 3, "test1/in/d1/f##");
+	// For the 0-length pattern check, remember that "test1/" isn't part of the string affected by the regexp
+	systemf("%s -cf test1_4.tar -s /f*/\\<~\\>/g in/d1/foo", testprog);
+	systemf("%s -xf test1_4.tar -C test1", testprog);
+	assertFileContents("foo", 3, "test1/<>i<>n<>/<>d<>1<>/<f><>o<>o<>");
 	/*
 	 * Test 2: Basic substitution when extracting archive.
 	 */
