@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 12, 2025
+.Dd November 30, 2025
 .Dt HGAME 4
 .Os
 .Sh NAME
@@ -69,8 +69,9 @@ prompt, or add it to
 To give user applications access to the game controllers,
 allow user access to the
 .Pa /dev/input/event*
-nodes with
-.Xr devfs.rules 5 .
+nodes with inclusion of user in the
+.Em games
+group.
 .Sh HARDWARE
 The
 .Nm
