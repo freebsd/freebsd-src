@@ -40,9 +40,6 @@
 #define	CPU_DTRACE_KPRIV	0x0080	/* DTrace fault: bad kernel access */
 #define	CPU_DTRACE_UPRIV	0x0100	/* DTrace fault: bad user access */
 #define	CPU_DTRACE_TUPOFLOW	0x0200	/* DTrace fault: tuple stack overflow */
-#if defined(__sparc)
-#define	CPU_DTRACE_FAKERESTORE	0x0400	/* pid provider hint to getreg */
-#endif
 #define	CPU_DTRACE_ENTRY	0x0800	/* pid provider hint to ustack() */
 #define	CPU_DTRACE_BADSTACK	0x1000	/* DTrace fault: bad stack */
 

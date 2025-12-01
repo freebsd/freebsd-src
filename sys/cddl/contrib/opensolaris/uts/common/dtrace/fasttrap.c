@@ -2167,11 +2167,7 @@ fasttrap_meta_create_probe(void *arg, void *parg,
 
 		pp->ftp_tps[i].fit_tp = tp;
 		pp->ftp_tps[i].fit_id.fti_probe = pp;
-#ifdef __sparc
-		pp->ftp_tps[i].fit_id.fti_ptype = DTFTP_POST_OFFSETS;
-#else
 		pp->ftp_tps[i].fit_id.fti_ptype = DTFTP_OFFSETS;
-#endif
 	}
 
 	/*
