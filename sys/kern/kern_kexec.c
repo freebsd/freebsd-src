@@ -314,7 +314,7 @@ kern_kexec_load(struct thread *td, u_long entry, u_long nseg,
 		if (kexec_reboot_handler == NULL)
 			kexec_reboot_handler =
 			    EVENTHANDLER_REGISTER(shutdown_final, kexec_reboot, NULL,
-			    SHUTDOWN_PRI_DEFAULT - 150);
+			    SHUTDOWN_PRI_LAST - 150);
 	} else {
 		if (kexec_reboot_handler != NULL)
 			EVENTHANDLER_DEREGISTER(shutdown_final, kexec_reboot_handler);
