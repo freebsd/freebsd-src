@@ -335,6 +335,8 @@ struct ufshci_upiu_header {
 		uint8_t flags;
 	};
 	uint8_t lun;
+#define UFSHCI_UPIU_UNIT_NUMBER_ID_MASK 0x7f
+#define UFSHCI_UPIU_WLUN_ID_MASK	0x80
 	uint8_t task_tag;
 
 	/* dword 1 */

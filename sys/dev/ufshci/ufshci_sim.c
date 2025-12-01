@@ -72,6 +72,28 @@ ufshci_sim_illegal_request(union ccb *ccb)
 	xpt_done(ccb);
 }
 
+/*
+ * The SCSI LUN format and the UFS UPIU LUN format are different.
+ * This function converts the SCSI LUN format to the UFS UPIU LUN format.
+ */
+static uint8_t
+ufshci_sim_translate_scsi_to_ufs_lun(lun_id_t scsi_lun)
+{
+	const int address_format_offset = 8;
+	uint8_t address_format = scsi_lun >> address_format_offset;
+
+	/* Well known logical unit */
+	if (((address_format & RPL_LUNDATA_ATYP_MASK) ==
+		RPL_LUNDATA_ATYP_EXTLUN) &&
+	    ((address_format & RPL_LUNDATA_EXT_EAM_MASK) ==
+		RPL_LUNDATA_EXT_EAM_WK))
+		return ((scsi_lun & UFSHCI_UPIU_UNIT_NUMBER_ID_MASK) |
+		    UFSHCI_UPIU_WLUN_ID_MASK);
+
+	/* Logical unit */
+	return (scsi_lun & UFSHCI_UPIU_UNIT_NUMBER_ID_MASK);
+}
+
 static void
 ufshchi_sim_scsiio(struct cam_sim *sim, union ccb *ccb)
 {
@@ -129,7 +151,8 @@ ufshchi_sim_scsiio(struct cam_sim *sim, union ccb *ccb)
 	upiu->header.trans_type = UFSHCI_UPIU_TRANSACTION_CODE_COMMAND;
 	upiu->header.operational_flags = is_write ? UFSHCI_OPERATIONAL_FLAG_W :
 						    UFSHCI_OPERATIONAL_FLAG_R;
-	upiu->header.lun = csio->ccb_h.target_lun;
+	upiu->header.lun = ufshci_sim_translate_scsi_to_ufs_lun(
+	    csio->ccb_h.target_lun);
 	upiu->header.cmd_set_type = UFSHCI_COMMAND_SET_TYPE_SCSI;
 
 	upiu->expected_data_transfer_length = htobe32(payload_len);
