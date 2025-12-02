@@ -139,7 +139,8 @@
  * Enable superpage reservations: 1 level.
  */
 #ifndef	VM_NRESERVLEVEL
-#define	VM_NRESERVLEVEL		1
+/* CHUQ XXX disable superpages for now */
+#define	VM_NRESERVLEVEL		0
 #endif
 
 /*

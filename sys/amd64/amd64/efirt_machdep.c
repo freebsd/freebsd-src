@@ -62,19 +62,27 @@
     1u << EFI_MD_TYPE_RT_CODE | 1u << EFI_MD_TYPE_RT_DATA | \
     1u << EFI_MD_TYPE_FIRMWARE \
 )
+vm_paddr_t pmap_ptpage_pa(ptpage_t ptp);
+void *pmap_ptpage_va(ptpage_t ptp);
+void *pmap_ptpage_pa_to_va(vm_paddr_t);
+ptpage_t pmap_pa_to_ptpage(vm_paddr_t pa);
+ptpage_t pmap_va_to_ptpage(void *p);
 
 static pml5_entry_t *efi_pml5;
 static pml4_entry_t *efi_pml4;
 static vm_object_t obj_1t1_pt;
-static vm_page_t efi_pmltop_page;
+static ptpage_t efi_pmltop_page;
 static vm_pindex_t efi_1t1_idx;
 
 void
 efi_destroy_1t1_map(void)
 {
+
+#if 0
 	struct pctrie_iter pages;
 	vm_page_t m;
 
+	/* CHUQ free these at some point. */
 	if (obj_1t1_pt != NULL) {
 		vm_page_iter_init(&pages, obj_1t1_pt);
 		VM_OBJECT_RLOCK(obj_1t1_pt);
@@ -84,6 +92,7 @@ efi_destroy_1t1_map(void)
 		VM_OBJECT_RUNLOCK(obj_1t1_pt);
 		vm_object_deallocate(obj_1t1_pt);
 	}
+#endif
 
 	obj_1t1_pt = NULL;
 	efi_pml4 = NULL;
@@ -104,12 +113,14 @@ efi_phys_to_kva(vm_paddr_t paddr)
 	return (PHYS_TO_DMAP(paddr));
 }
 
-static vm_page_t
+static ptpage_t
 efi_1t1_page(void)
 {
+	vm_page_t m;
 
-	return (vm_page_grab(obj_1t1_pt, efi_1t1_idx++, VM_ALLOC_NOBUSY |
-	    VM_ALLOC_WIRED | VM_ALLOC_ZERO));
+	/* CHUQ don't worry about freeing this for now */
+	m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+	return (pmap_pa_to_ptpage(VM_PAGE_TO_PHYS(m)));
 }
 
 static pt_entry_t *
@@ -120,7 +131,7 @@ efi_1t1_pte(vm_offset_t va)
 	pdp_entry_t *pdpe;
 	pd_entry_t *pde;
 	pt_entry_t *pte;
-	vm_page_t m;
+	ptpage_t m;
 	vm_pindex_t pml5_idx, pml4_idx, pdp_idx, pd_idx;
 	vm_paddr_t mphys;
 
@@ -130,12 +141,12 @@ efi_1t1_pte(vm_offset_t va)
 		pml5e = &efi_pml5[pml5_idx];
 		if (*pml5e == 0) {
 			m = efi_1t1_page();
-			mphys = VM_PAGE_TO_PHYS(m);
+			mphys = pmap_ptpage_pa(m);
 			*pml5e = mphys | X86_PG_RW | X86_PG_V;
 		} else {
 			mphys = *pml5e & PG_FRAME;
 		}
-		pml4e = (pml4_entry_t *)PHYS_TO_DMAP(mphys);
+		pml4e = pmap_ptpage_pa_to_va(mphys);
 		pml4e = &pml4e[pml4_idx];
 	} else {
 		pml4e = &efi_pml4[pml4_idx];
@@ -143,35 +154,35 @@ efi_1t1_pte(vm_offset_t va)
 
 	if (*pml4e == 0) {
 		m = efi_1t1_page();
-		mphys =  VM_PAGE_TO_PHYS(m);
+		mphys =  pmap_ptpage_pa(m);
 		*pml4e = mphys | X86_PG_RW | X86_PG_V;
 	} else {
 		mphys = *pml4e & PG_FRAME;
 	}
 
-	pdpe = (pdp_entry_t *)PHYS_TO_DMAP(mphys);
+	pdpe = pmap_ptpage_pa_to_va(mphys);
 	pdp_idx = pmap_pdpe_index(va);
 	pdpe += pdp_idx;
 	if (*pdpe == 0) {
 		m = efi_1t1_page();
-		mphys =  VM_PAGE_TO_PHYS(m);
+		mphys =  pmap_ptpage_pa(m);
 		*pdpe = mphys | X86_PG_RW | X86_PG_V;
 	} else {
 		mphys = *pdpe & PG_FRAME;
 	}
 
-	pde = (pd_entry_t *)PHYS_TO_DMAP(mphys);
+	pde = pmap_ptpage_pa_to_va(mphys);
 	pd_idx = pmap_pde_index(va);
 	pde += pd_idx;
 	if (*pde == 0) {
 		m = efi_1t1_page();
-		mphys = VM_PAGE_TO_PHYS(m);
+		mphys = pmap_ptpage_pa(m);
 		*pde = mphys | X86_PG_RW | X86_PG_V;
 	} else {
 		mphys = *pde & PG_FRAME;
 	}
 
-	pte = (pt_entry_t *)PHYS_TO_DMAP(mphys);
+	pte = pmap_ptpage_pa_to_va(mphys);
 	pte += pmap_pte_index(va);
 	KASSERT(*pte == 0, ("va %#jx *pt %#jx", va, *pte));
 
@@ -184,11 +195,17 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	struct efi_md *p;
 	pt_entry_t *pte;
 	void *pml;
+#if 1
 	vm_page_t m;
+#endif
 	vm_offset_t va;
 	uint64_t idx;
 	int bits, i, mode;
 	bool map_pz = true;
+#if 0 && PAGE_SIZE != PAGE_SIZE_4K
+	vm_paddr_t lastpa = 0;
+	int lastmode = 0;
+#endif
 
 	obj_1t1_pt = vm_pager_allocate(OBJT_PHYS, NULL, ptoa(1 +
 	    NPML4EPG + NPML4EPG * NPDPEPG + NPML4EPG * NPDPEPG * NPDEPG),
@@ -197,19 +214,13 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	VM_OBJECT_WLOCK(obj_1t1_pt);
 	efi_pmltop_page = efi_1t1_page();
 	VM_OBJECT_WUNLOCK(obj_1t1_pt);
-	pml = (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(efi_pmltop_page));
+	pml = pmap_ptpage_va(efi_pmltop_page);
 	if (la57) {
 		efi_pml5 = pml;
 		pmap_pinit_pml5(efi_pmltop_page);
 	} else {
 		efi_pml4 = pml;
 		pmap_pinit_pml4(efi_pmltop_page);
-	}
-
-	if ((efi_map_regs & ~EFI_ALLOWED_TYPES_MASK) != 0) {
-		printf("Ignoring the following runtime EFI regions: %#x\n",
-		    efi_map_regs & ~EFI_ALLOWED_TYPES_MASK);
-		efi_map_regs &= EFI_ALLOWED_TYPES_MASK;
 	}
 
 	for (i = 0, p = map; i < ndesc; i++, p = efi_next_descriptor(p,
@@ -257,17 +268,24 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 		    X86_PG_V;
 		VM_OBJECT_WLOCK(obj_1t1_pt);
 		for (va = p->md_phys, idx = 0; idx < p->md_pages; idx++,
-		    va += PAGE_SIZE) {
+		    va += EFI_PAGE_SIZE) {
 			pte = efi_1t1_pte(va);
 			pte_store(pte, va | bits);
 
-			m = PHYS_TO_VM_PAGE(va);
-			if (m != NULL && VM_PAGE_TO_PHYS(m) == 0) {
+			m = PHYS_TO_VM_PAGE(trunc_page(va));
+			if (m == NULL)
+				continue;
+			if (VM_PAGE_TO_PHYS(m) == 0) {
 				vm_page_init_page(m, va, -1,
 				    VM_FREEPOOL_DEFAULT);
 				m->order = VM_NFREEORDER + 1; /* invalid */
 				m->pool = VM_NFREEPOOL + 1; /* invalid */
 				pmap_page_set_memattr_noflush(m, mode);
+			} else {
+				KASSERT(m->md.pat_mode == mode,
+				    ("pa 0x%lx idx 0x%lx m %p "
+				    "m->md.pat_mode 0x%x == mode 0x%x",
+				    va, idx, m, m->md.pat_mode, mode));
 			}
 		}
 		VM_OBJECT_WUNLOCK(obj_1t1_pt);
@@ -338,7 +356,7 @@ efi_arch_enter(void)
 	if (pmap_pcid_enabled && !invpcid_works)
 		PCPU_SET(curpmap, NULL);
 
-	cr3 = VM_PAGE_TO_PHYS(efi_pmltop_page);
+	cr3 = pmap_ptpage_pa(efi_pmltop_page);
 	if (pmap_pcid_enabled)
 		cr3 |= pmap_get_pcid(curpmap);
 	load_cr3(cr3);
