@@ -67,15 +67,24 @@ package.
 For the package
 .Sy FreeBSD-foo ,
 the following subpackages may be available:
-.Bl -column "FreeBSD-foo-dev-lib32" "Description"
-.It Sy "Package name" Ta Sy "Description"
-.It FreeBSD-foo Ta Base files for the package (typically executables)
-.It FreeBSD-foo-lib Ta Native runtime libraries
-.It FreeBSD-foo-lib32 Ta 32-bit compatibility runtime libraries
-.It FreeBSD-foo-dev Ta Development files (headers and static libraries)
-.It FreeBSD-foo-dev-lib32 Ta 32-bit development files
-.It FreeBSD-foo-dbg Ta Debugging symbols
-.It FreeBSD-foo-man Ta Manual pages.
+.Pp
+.Bl -tag -width "FreeBSD-foo-dev-lib32" -compact
+.It Sy "Package name"
+.Sy "Description"
+.It FreeBSD-foo
+Base files for the package (typically executables)
+.It FreeBSD-foo-lib
+Native runtime libraries
+.It FreeBSD-foo-lib32
+32-bit compatibility runtime libraries
+.It FreeBSD-foo-dev
+Development files (headers and static libraries)
+.It FreeBSD-foo-dev-lib32
+32-bit development files
+.It FreeBSD-foo-dbg
+Debugging symbols
+.It FreeBSD-foo-man
+Manual pages.
 Manual pages are only packaged separately if the
 .Sy WITH_MANSPLITPKG
 .Xr src.conf 5
