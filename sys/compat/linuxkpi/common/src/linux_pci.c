@@ -1223,13 +1223,6 @@ lkpi_pci_request_region(struct pci_dev *pdev, int bar, const char *res_name,
 	if (!lkpi_pci_bar_id_valid(bar))
 		return (-EINVAL);
 
-	/*
-	 * If the bar is not valid, return success without adding the BAR;
-	 * otherwise linuxkpi_pcim_request_all_regions() will error.
-	 */
-	if (pci_resource_len(pdev, bar) == 0)
-		return (0);
-	/* Likewise if it is neither IO nor MEM, nothing to do for us. */
 	type = pci_resource_type(pdev, bar);
 	if (type < 0)
 		return (0);
@@ -1241,7 +1234,7 @@ lkpi_pci_request_region(struct pci_dev *pdev, int bar, const char *res_name,
 		device_printf(pdev->dev.bsddev, "%s: failed to alloc "
 		    "bar %d type %d rid %d\n",
 		    __func__, bar, type, PCIR_BAR(bar));
-		return (-ENODEV);
+		return (-EBUSY);
 	}
 
 	/*
@@ -1285,7 +1278,7 @@ linuxkpi_pci_request_regions(struct pci_dev *pdev, const char *res_name)
 
 	for (i = 0; i <= PCIR_MAX_BAR_0; i++) {
 		error = pci_request_region(pdev, i, res_name);
-		if (error && error != -ENODEV) {
+		if (error && error != -EBUSY) {
 			pci_release_regions(pdev);
 			return (error);
 		}
@@ -1300,7 +1293,7 @@ linuxkpi_pcim_request_all_regions(struct pci_dev *pdev, const char *res_name)
 
 	for (bar = 0; bar <= PCIR_MAX_BAR_0; bar++) {
 		error = lkpi_pci_request_region(pdev, bar, res_name, true);
-		if (error != 0) {
+		if (error != 0 && error != -EBUSY) {
 			device_printf(pdev->dev.bsddev, "%s: bar %d res_name '%s': "
 			    "lkpi_pci_request_region returned %d\n", __func__,
 			    bar, res_name, error);
