@@ -83,7 +83,9 @@
 #define	PRISON0_HOSTUUID_MODULE	"hostuuid"
 
 MALLOC_DEFINE(M_PRISON, "prison", "Prison structures");
+#ifdef RACCT
 static MALLOC_DEFINE(M_PRISON_RACCT, "prison_racct", "Prison racct structures");
+#endif
 
 /* Keep struct prison prison0 and some code in kern_jail_set() readable. */
 #ifdef INET
