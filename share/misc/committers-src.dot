@@ -377,6 +377,7 @@ thompsa [label="Andrew Thompson\nthompsa@FreeBSD.org\n2005/05/25"]
 ticso [label="Bernd Walter\nticso@FreeBSD.org\n2002/01/31"]
 tijl [label="Tijl Coosemans\ntijl@FreeBSD.org\n2010/07/16"]
 tmunro [label="Thomas Munro\ntmunro@FreeBSD.org\n2018/10/15"]
+tpearson [label="Timothy Pearson\ntpearson@FreeBSD.org\n2025/12/02"]
 tsoome [label="Toomas Soome\ntsoome@FreeBSD.org\n2016/08/10"]
 trasz [label="Edward Tomasz Napierala\ntrasz@FreeBSD.org\n2008/08/22"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/05/28"]
@@ -678,6 +679,7 @@ jhibbits -> alfredo
 jhibbits -> bdragon
 jhibbits -> leitao
 jhibbits -> luporl
+jhibbits -> tpearson
 
 jimharris -> carl
 
