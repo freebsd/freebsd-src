@@ -2005,7 +2005,7 @@ nvme_cdata_get_disk_ident(const struct nvme_controller_data *cdata, uint8_t *sn)
 	_Static_assert(NVME_SERIAL_NUMBER_LENGTH < DISK_IDENT_SIZE,
 		"NVME serial number too big for disk ident");
 
-	memmove(sn, cdata->sn, NVME_SERIAL_NUMBER_LENGTH);
+	memcpy(sn, cdata->sn, NVME_SERIAL_NUMBER_LENGTH);
 	sn[NVME_SERIAL_NUMBER_LENGTH] = '\0';
 	for (int i = 0; sn[i] != '\0'; i++) {
 		if (sn[i] < 0x20 || sn[i] >= 0x80)
