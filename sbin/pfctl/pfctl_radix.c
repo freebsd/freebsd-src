@@ -194,25 +194,7 @@ int
 pfr_get_astats(struct pfr_table *tbl, struct pfr_astats *addr, int *size,
     int flags)
 {
-	struct pfioc_table io;
-
-	if (tbl == NULL || size == NULL || *size < 0 ||
-	    (*size && addr == NULL)) {
-		errno = EINVAL;
-		return (-1);
-	}
-	bzero(&io, sizeof io);
-	io.pfrio_flags = flags;
-	io.pfrio_table = *tbl;
-	io.pfrio_buffer = addr;
-	io.pfrio_esize = sizeof(*addr);
-	io.pfrio_size = *size;
-	if (ioctl(dev, DIOCRGETASTATS, &io)) {
-		pfr_report_error(tbl, &io, "get astats from");
-		return (-1);
-	}
-	*size = io.pfrio_size;
-	return (0);
+	return (pfctl_get_astats(pfh, tbl, addr, size, flags));
 }
 
 int
