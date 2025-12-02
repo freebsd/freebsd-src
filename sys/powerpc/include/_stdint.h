@@ -167,14 +167,14 @@
  * ISO/IEC 9899:1999
  * 7.18.3  Limits of other integer types
  */
+/* Limits of sig_atomic_t. */
+#define	SIG_ATOMIC_MIN	INT32_MIN
+#define	SIG_ATOMIC_MAX	INT32_MAX
+
 #ifdef __LP64__
 /* Limits of ptrdiff_t. */
 #define	PTRDIFF_MIN	INT64_MIN	
 #define	PTRDIFF_MAX	INT64_MAX
-
-/* Limits of sig_atomic_t. */
-#define	SIG_ATOMIC_MIN	INT64_MIN
-#define	SIG_ATOMIC_MAX	INT64_MAX
 
 /* Limit of size_t. */
 #define	SIZE_MAX	UINT64_MAX
@@ -182,10 +182,6 @@
 /* Limits of ptrdiff_t. */
 #define	PTRDIFF_MIN	INT32_MIN	
 #define	PTRDIFF_MAX	INT32_MAX
-
-/* Limits of sig_atomic_t. */
-#define	SIG_ATOMIC_MIN	INT32_MIN
-#define	SIG_ATOMIC_MAX	INT32_MAX
 
 /* Limit of size_t. */
 #define	SIZE_MAX	UINT32_MAX
@@ -217,13 +213,12 @@
  */
 #ifdef	__LP64__
 #define PTRDIFF_WIDTH		INT64_WIDTH
-#define SIG_ATOMIC_WIDTH	INT64_WIDTH
 #define SIZE_WIDTH		INT64_WIDTH
 #else
 #define PTRDIFF_WIDTH		INT32_WIDTH
-#define SIG_ATOMIC_WIDTH	INT32_WIDTH
 #define SIZE_WIDTH		INT32_WIDTH
 #endif
+#define SIG_ATOMIC_WIDTH	INT32_WIDTH
 #define WCHAR_WIDTH		INT32_WIDTH
 #define WINT_WIDTH		INT32_WIDTH
 #endif /* __ISO_C_VISIBLE >= 2023 */
