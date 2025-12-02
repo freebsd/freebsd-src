@@ -28,7 +28,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 7, 2023
+.Dd September 30, 2025
 .Dt FETCH 1
 .Os
 .Sh NAME
@@ -36,13 +36,15 @@
 .Nd retrieve a file by Uniform Resource Locator
 .Sh SYNOPSIS
 .Nm
-.Op Fl 146AadFlMmnPpqRrsUv
+.Op Fl 146AaCdFlMmnPpqRrsUv
 .Op Fl B Ar bytes
 .Op Fl -bind-address= Ns Ar host
 .Op Fl -ca-cert= Ns Ar file
 .Op Fl -ca-path= Ns Ar dir
 .Op Fl -cert= Ns Ar file
 .Op Fl -crl= Ns Ar file
+.Op Fl D Ar file
+.Op Fl H Ar header
 .Op Fl i Ar file
 .Op Fl -key= Ns Ar file
 .Op Fl N Ar file
@@ -58,15 +60,18 @@
 .Op Fl T Ar seconds
 .Op Fl -user-agent= Ns Ar agent-string
 .Op Fl w Ar seconds
+.Op Fl X Ar method
 .Ar URL ...
 .Nm
-.Op Fl 146AadFlMmnPpqRrsUv
+.Op Fl 146AaCdFlMmnPpqRrsUv
 .Op Fl B Ar bytes
 .Op Fl -bind-address= Ns Ar host
 .Op Fl -ca-cert= Ns Ar file
 .Op Fl -ca-path= Ns Ar dir
 .Op Fl -cert= Ns Ar file
 .Op Fl -crl= Ns Ar file
+.Op Fl D Ar file
+.Op Fl H Ar header
 .Op Fl i Ar file
 .Op Fl -key= Ns Ar file
 .Op Fl N Ar file
@@ -82,6 +87,7 @@
 .Op Fl T Ar seconds
 .Op Fl -user-agent= Ns Ar agent-string
 .Op Fl w Ar seconds
+.Op Fl X Ar method
 .Fl h Ar host Fl f Ar file Oo Fl c Ar dir Oc
 .Sh DESCRIPTION
 The
@@ -122,6 +128,10 @@ flag).
 .It Fl -bind-address= Ns Ar host
 Specifies a hostname or IP address to which sockets used for outgoing
 connections will be bound.
+.It Fl C , -chunked
+Force chunked transfer of HTTP request body contents.
+By default, the transfer is automatically chunk-encoded when the body size
+cannot be predetermined.
 .It Fl c Ar dir
 The file to retrieve is in directory
 .Ar dir
@@ -149,6 +159,16 @@ Points to certificate revocation list
 .Ar file ,
 which has to be in PEM format and may contain peer certificates that have
 been revoked.
+.It Fl D Ar file , Fl -data= Ns Ar file
+Send the contents of
+.Ar file
+as the body of HTTP requests.
+If
+.Ar file
+is a single dash
+.Pq Sq Fl ,
+.Nm
+reads the body from the standard input.
 .It Fl d , -direct
 Use a direct connection even if a proxy is configured.
 .It Fl F , -force-restart
@@ -164,6 +184,11 @@ The file to retrieve is named
 on the remote host.
 This option is deprecated and is provided for backward compatibility
 only.
+.It Fl H Ar header , Fl -header= Ns Ar header
+Send
+.Ar header
+as an additional header line with the HTTP request.
+This option may be specified multiple times.
 .It Fl h Ar host
 The file to retrieve is located on the host
 .Ar host .
@@ -306,6 +331,10 @@ Increase verbosity level.
 When the
 .Fl a
 flag is specified, wait this many seconds between successive retries.
+.It Fl X Ar method , Fl -request= Ns Ar method
+Use the given
+.Ar method
+for HTTP requests.
 .El
 .Pp
 If
