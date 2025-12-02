@@ -3751,4 +3751,26 @@ pfctl_clear_addrs(struct pfctl_handle *h, const struct pfr_table *filter,
 
 	return (e.error);
 }
+int
+pfctl_get_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
+    struct pfr_astats *addr, int *size, int flags)
+{
+	struct pfioc_table io;
 
+	if (tbl == NULL || size == NULL || *size < 0 ||
+	    (*size && addr == NULL)) {
+		errno = EINVAL;
+		return (-1);
+	}
+	bzero(&io, sizeof io);
+	io.pfrio_flags = flags;
+	io.pfrio_table = *tbl;
+	io.pfrio_buffer = addr;
+	io.pfrio_esize = sizeof(*addr);
+	io.pfrio_size = *size;
+	if (ioctl(h->fd, DIOCRGETASTATS, &io)) {
+		return (-1);
+	}
+	*size = io.pfrio_size;
+	return (0);
+}
