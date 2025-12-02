@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #ifdef _KERNEL
 #include <sys/systm.h>
+#include <sys/disk.h>
 #else
 #include <stdbool.h>
 #endif
@@ -1907,8 +1908,6 @@ void	nvme_sc_sbuf(const struct nvme_completion *cpl, struct sbuf *sbuf);
 void	nvme_strvis(uint8_t *dst, const uint8_t *src, int dstlen, int srclen);
 
 #ifdef _KERNEL
-#include <sys/disk.h>
-
 struct bio;
 struct thread;
 
