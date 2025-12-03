@@ -174,7 +174,9 @@ MLINKS+=strcoll.3 strcoll_l.3
 MLINKS+=strcpy.3 stpcpy.3 \
 	strcpy.3 stpncpy.3 \
 	strcpy.3 strncpy.3
-MLINKS+=strdup.3 strndup.3
+MLINKS+=strdup.3 strndup.3 \
+	strdup.3 strdupa.3 \
+	strdup.3 strndupa.3
 MLINKS+=strerror.3 perror.3 \
 	strerror.3 strerror_l.3 \
 	strerror.3 strerror_r.3 \
