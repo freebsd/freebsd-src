@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 18, 2023
+.Dd December 2, 2025
 .Dt KQUEUE 9
 .Os
 .Sh NAME
@@ -197,6 +197,18 @@ function of the
 that the
 .Va knote
 was added to.
+.It Va f_copy
+The
+.Va f_copy
+function is called to copy notes when the process forks.
+When
+.Dv NULL ,
+the current node is not duplicated to the child process.
+Filter might set
+.Dv f_copy
+to
+.Fn knote_triv_copy
+if there is no additional handling required, besides shallow copying of the knote itself.
 .El
 .Pp
 The function
