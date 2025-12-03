@@ -433,9 +433,6 @@ ufshci_dev_init_uic_power_mode(struct ufshci_controller *ctrlr)
 		return (ENXIO);
 	}
 
-	/* Clear 'Power Mode completion status' */
-	ufshci_mmio_write_4(ctrlr, is, UFSHCIM(UFSHCI_IS_REG_UPMS));
-
 	if (ctrlr->quirks & UFSHCI_QUIRK_WAIT_AFTER_POWER_MODE_CHANGE) {
 		/*
 		 * Intel Lake-field UFSHCI has a quirk.
@@ -450,6 +447,12 @@ ufshci_dev_init_uic_power_mode(struct ufshci_controller *ctrlr)
 	}
 
 	return (0);
+}
+
+void
+ufshci_dev_init_uic_link_state(struct ufshci_controller *ctrlr)
+{
+	ctrlr->ufs_dev.link_state = UFSHCI_UIC_LINK_STATE_ACTIVE;
 }
 
 int
@@ -802,6 +805,74 @@ ufshci_dev_get_current_power_mode(struct ufshci_controller *ctrlr,
 		return (err);
 
 	*power_mode = (uint8_t)value;
+
+	return (0);
+}
+
+static int
+ufshci_dev_hibernate_enter(struct ufshci_controller *ctrlr)
+{
+	int error;
+
+	error = ufshci_uic_send_dme_hibernate_enter(ctrlr);
+	if (error)
+		return (error);
+
+	return (ufshci_uic_hibernation_ready(ctrlr));
+}
+
+static int
+ufshci_dev_hibernate_exit(struct ufshci_controller *ctrlr)
+{
+	int error;
+
+	error = ufshci_uic_send_dme_hibernate_exit(ctrlr);
+	if (error)
+		return (error);
+
+	return (ufshci_uic_hibernation_ready(ctrlr));
+}
+
+int
+ufshci_dev_link_state_transition(struct ufshci_controller *ctrlr,
+    enum ufshci_uic_link_state target_state)
+{
+	struct ufshci_device *dev = &ctrlr->ufs_dev;
+	int error = 0;
+
+	if (dev->link_state == target_state)
+		return (0);
+
+	switch (target_state) {
+	case UFSHCI_UIC_LINK_STATE_OFF:
+		error = ufshci_dev_hibernate_enter(ctrlr);
+		if (error)
+			break;
+		error = ufshci_ctrlr_disable(ctrlr);
+		break;
+	case UFSHCI_UIC_LINK_STATE_ACTIVE:
+		if (dev->link_state == UFSHCI_UIC_LINK_STATE_HIBERNATE)
+			error = ufshci_dev_hibernate_exit(ctrlr);
+		else
+			error = EINVAL;
+		break;
+	case UFSHCI_UIC_LINK_STATE_HIBERNATE:
+		if (dev->link_state == UFSHCI_UIC_LINK_STATE_ACTIVE)
+			error = ufshci_dev_hibernate_enter(ctrlr);
+		else
+			error = EINVAL;
+		break;
+	case UFSHCI_UIC_LINK_STATE_BROKEN:
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+
+	if (error)
+		return (error);
+
+	dev->link_state = target_state;
 
 	return (0);
 }

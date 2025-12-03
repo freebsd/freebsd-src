@@ -243,20 +243,33 @@ enum ufshci_dev_pwr {
 	UFSHCI_DEV_PWR_COUNT,
 };
 
+enum ufshci_uic_link_state {
+	UFSHCI_UIC_LINK_STATE_OFF = 0,
+	UFSHCI_UIC_LINK_STATE_ACTIVE,
+	UFSHCI_UIC_LINK_STATE_HIBERNATE,
+	UFSHCI_UIC_LINK_STATE_BROKEN,
+};
+
 struct ufshci_power_entry {
 	enum ufshci_dev_pwr dev_pwr;
 	uint8_t ssu_pc; /* SSU Power Condition */
+	enum ufshci_uic_link_state link_state;
 };
 
 /* SSU Power Condition 0x40 is defined in the UFS specification */
 static const struct ufshci_power_entry power_map[POWER_STYPE_COUNT] = {
-	[POWER_STYPE_AWAKE] = { UFSHCI_DEV_PWR_ACTIVE, SSS_PC_ACTIVE },
-	[POWER_STYPE_STANDBY] = { UFSHCI_DEV_PWR_SLEEP, SSS_PC_IDLE },
+	[POWER_STYPE_AWAKE] = { UFSHCI_DEV_PWR_ACTIVE, SSS_PC_ACTIVE,
+	    UFSHCI_UIC_LINK_STATE_ACTIVE },
+	[POWER_STYPE_STANDBY] = { UFSHCI_DEV_PWR_SLEEP, SSS_PC_IDLE,
+	    UFSHCI_UIC_LINK_STATE_HIBERNATE },
 	[POWER_STYPE_SUSPEND_TO_MEM] = { UFSHCI_DEV_PWR_POWERDOWN,
-	    SSS_PC_STANDBY },
-	[POWER_STYPE_SUSPEND_TO_IDLE] = { UFSHCI_DEV_PWR_SLEEP, SSS_PC_IDLE },
-	[POWER_STYPE_HIBERNATE] = { UFSHCI_DEV_PWR_DEEPSLEEP, 0x40 },
-	[POWER_STYPE_POWEROFF] = { UFSHCI_DEV_PWR_POWERDOWN, SSS_PC_STANDBY },
+	    SSS_PC_STANDBY, UFSHCI_UIC_LINK_STATE_HIBERNATE },
+	[POWER_STYPE_SUSPEND_TO_IDLE] = { UFSHCI_DEV_PWR_SLEEP, SSS_PC_IDLE,
+	    UFSHCI_UIC_LINK_STATE_HIBERNATE },
+	[POWER_STYPE_HIBERNATE] = { UFSHCI_DEV_PWR_DEEPSLEEP, 0x40,
+	    UFSHCI_UIC_LINK_STATE_OFF },
+	[POWER_STYPE_POWEROFF] = { UFSHCI_DEV_PWR_POWERDOWN, SSS_PC_STANDBY,
+	    UFSHCI_UIC_LINK_STATE_OFF },
 };
 
 struct ufshci_device {
@@ -279,6 +292,7 @@ struct ufshci_device {
 	/* Power mode */
 	bool power_mode_supported;
 	enum ufshci_dev_pwr power_mode;
+	enum ufshci_uic_link_state link_state;
 };
 
 /*
@@ -423,6 +437,7 @@ int ufshci_ctrlr_suspend(struct ufshci_controller *ctrlr,
     enum power_stype stype);
 int ufshci_ctrlr_resume(struct ufshci_controller *ctrlr,
     enum power_stype stype);
+int ufshci_ctrlr_disable(struct ufshci_controller *ctrlr);
 /* ctrlr defined as void * to allow use with config_intrhook. */
 void ufshci_ctrlr_start_config_hook(void *arg);
 void ufshci_ctrlr_poll(struct ufshci_controller *ctrlr);
@@ -443,11 +458,14 @@ int ufshci_dev_reset(struct ufshci_controller *ctrlr);
 int ufshci_dev_init_reference_clock(struct ufshci_controller *ctrlr);
 int ufshci_dev_init_unipro(struct ufshci_controller *ctrlr);
 int ufshci_dev_init_uic_power_mode(struct ufshci_controller *ctrlr);
+void ufshci_dev_init_uic_link_state(struct ufshci_controller *ctrlr);
 int ufshci_dev_init_ufs_power_mode(struct ufshci_controller *ctrlr);
 int ufshci_dev_get_descriptor(struct ufshci_controller *ctrlr);
 int ufshci_dev_config_write_booster(struct ufshci_controller *ctrlr);
 int ufshci_dev_get_current_power_mode(struct ufshci_controller *ctrlr,
     uint8_t *power_mode);
+int ufshci_dev_link_state_transition(struct ufshci_controller *ctrlr,
+    enum ufshci_uic_link_state target_state);
 
 /* Controller Command */
 void ufshci_ctrlr_cmd_send_task_mgmt_request(struct ufshci_controller *ctrlr,
@@ -508,6 +526,7 @@ int ufshci_req_sdb_get_inflight_io(struct ufshci_controller *ctrlr);
 
 /* UIC Command */
 int ufshci_uic_power_mode_ready(struct ufshci_controller *ctrlr);
+int ufshci_uic_hibernation_ready(struct ufshci_controller *ctrlr);
 int ufshci_uic_cmd_ready(struct ufshci_controller *ctrlr);
 int ufshci_uic_send_dme_link_startup(struct ufshci_controller *ctrlr);
 int ufshci_uic_send_dme_get(struct ufshci_controller *ctrlr, uint16_t attribute,
@@ -519,6 +538,8 @@ int ufshci_uic_send_dme_peer_get(struct ufshci_controller *ctrlr,
 int ufshci_uic_send_dme_peer_set(struct ufshci_controller *ctrlr,
     uint16_t attribute, uint32_t value);
 int ufshci_uic_send_dme_endpoint_reset(struct ufshci_controller *ctrlr);
+int ufshci_uic_send_dme_hibernate_enter(struct ufshci_controller *ctrlr);
+int ufshci_uic_send_dme_hibernate_exit(struct ufshci_controller *ctrlr);
 
 /* SYSCTL */
 void ufshci_sysctl_initialize_ctrlr(struct ufshci_controller *ctrlr);
