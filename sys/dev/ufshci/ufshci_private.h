@@ -293,6 +293,10 @@ struct ufshci_device {
 	bool power_mode_supported;
 	enum ufshci_dev_pwr power_mode;
 	enum ufshci_uic_link_state link_state;
+
+	/* Auto Hibernation */
+	bool auto_hibernation_supported;
+	uint32_t ahit;
 };
 
 /*
@@ -314,6 +318,9 @@ struct ufshci_controller {
 	16 /* QEMU does not support Task Management Request */
 #define UFSHCI_QUIRK_SKIP_WELL_KNOWN_LUNS \
 	32 /* QEMU does not support Well known logical units*/
+#define UFSHCI_QUIRK_BROKEN_AUTO_HIBERNATE                                    \
+	64 /* Some controllers have the Auto hibernate feature enabled but it \
+	      does not work. */
 
 	uint32_t ref_clk;
 
@@ -457,6 +464,8 @@ int ufshci_dev_init(struct ufshci_controller *ctrlr);
 int ufshci_dev_reset(struct ufshci_controller *ctrlr);
 int ufshci_dev_init_reference_clock(struct ufshci_controller *ctrlr);
 int ufshci_dev_init_unipro(struct ufshci_controller *ctrlr);
+void ufshci_dev_enable_auto_hibernate(struct ufshci_controller *ctrlr);
+void ufshci_dev_init_auto_hibernate(struct ufshci_controller *ctrlr);
 int ufshci_dev_init_uic_power_mode(struct ufshci_controller *ctrlr);
 void ufshci_dev_init_uic_link_state(struct ufshci_controller *ctrlr);
 int ufshci_dev_init_ufs_power_mode(struct ufshci_controller *ctrlr);
