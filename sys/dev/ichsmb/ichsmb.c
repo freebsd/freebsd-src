@@ -703,4 +703,15 @@ ichsmb_detach(device_t dev)
 	return 0;
 }
 
+int
+ichsmb_shutdown(device_t dev)
+{
+	const sc_p sc = device_get_softc(dev);
+
+	/* Disable interrupts */
+	bus_write_1(sc->io_res, ICH_HST_CNT, 0);
+
+	return (0);
+}
+
 DRIVER_MODULE(smbus, ichsmb, smbus_driver, 0, 0);
