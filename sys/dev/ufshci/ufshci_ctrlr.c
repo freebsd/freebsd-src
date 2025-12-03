@@ -92,6 +92,8 @@ ufshci_ctrlr_start(struct ufshci_controller *ctrlr, bool resetting)
 		return;
 	}
 
+	ufshci_dev_init_auto_hibernate(ctrlr);
+
 	/* TODO: Configure Write Protect */
 
 	/* TODO: Configure Background Operations */
@@ -673,6 +675,8 @@ ufshci_ctrlr_resume(struct ufshci_controller *ctrlr, enum power_stype stype)
 			return (error);
 		}
 	}
+
+	ufshci_dev_enable_auto_hibernate(ctrlr);
 
 	return (0);
 }

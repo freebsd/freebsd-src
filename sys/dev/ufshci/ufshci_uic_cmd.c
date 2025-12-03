@@ -196,8 +196,9 @@ ufshci_uic_send_cmd(struct ufshci_controller *ctrlr,
 	config_result_code = ufshci_mmio_read_4(ctrlr, ucmdarg2);
 	if (config_result_code) {
 		ufshci_printf(ctrlr,
-		    "Failed to send UIC command. (config result code = 0x%x)\n",
-		    config_result_code);
+		    "Failed to send UIC command (Opcode: 0x%x"
+		    ", config result code = 0x%x)\n",
+		    uic_cmd->opcode, config_result_code);
 	}
 
 	if (return_value != NULL)
