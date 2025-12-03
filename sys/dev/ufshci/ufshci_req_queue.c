@@ -147,7 +147,8 @@ ufshci_req_queue_response_is_error(struct ufshci_req_queue *req_queue,
 	/* Check response UPIU header */
 	if (response->header.response != UFSHCI_RESPONSE_CODE_TARGET_SUCCESS) {
 		ufshci_printf(req_queue->ctrlr,
-		    "Invalid response code = 0x%x\n",
+		    "Function(0x%x) Invalid response code = 0x%x\n",
+		    response->header.ext_iid_or_function,
 		    response->header.response);
 		is_error = true;
 	}

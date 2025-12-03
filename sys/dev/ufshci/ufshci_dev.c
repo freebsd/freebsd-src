@@ -469,6 +469,8 @@ ufshci_dev_init_ufs_power_mode(struct ufshci_controller *ctrlr)
 	}
 
 	ctrlr->ufs_dev.power_mode_supported = true;
+	ctrlr->ufs_dev.power_mode = UFSHCI_DEV_PWR_ACTIVE;
+
 	return (0);
 }
 
@@ -785,4 +787,21 @@ ufshci_dev_config_write_booster(struct ufshci_controller *ctrlr)
 out:
 	ufshci_dev_disable_write_booster(ctrlr);
 	return (error);
+}
+
+int
+ufshci_dev_get_current_power_mode(struct ufshci_controller *ctrlr,
+    uint8_t *power_mode)
+{
+	uint64_t value;
+	int err;
+
+	err = ufshci_dev_read_attribute(ctrlr, UFSHCI_ATTR_B_CURRENT_POWER_MODE,
+	    /*index*/ 0, /*selector*/ 0, &value);
+	if (err)
+		return (err);
+
+	*power_mode = (uint8_t)value;
+
+	return (0);
 }

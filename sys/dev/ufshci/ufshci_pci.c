@@ -23,6 +23,8 @@
 static int ufshci_pci_probe(device_t);
 static int ufshci_pci_attach(device_t);
 static int ufshci_pci_detach(device_t);
+static int ufshci_pci_suspend(device_t);
+static int ufshci_pci_resume(device_t);
 
 static int ufshci_pci_setup_interrupts(struct ufshci_controller *ctrlr);
 
@@ -31,8 +33,8 @@ static device_method_t ufshci_pci_methods[] = {
 	DEVMETHOD(device_probe, ufshci_pci_probe),
 	DEVMETHOD(device_attach, ufshci_pci_attach),
 	DEVMETHOD(device_detach, ufshci_pci_detach),
-	/* TODO: Implement Suspend, Resume */
-	{ 0, 0 }
+	DEVMETHOD(device_suspend, ufshci_pci_suspend),
+	DEVMETHOD(device_resume, ufshci_pci_resume), { 0, 0 }
 };
 
 static driver_t ufshci_pci_driver = {
@@ -260,4 +262,21 @@ msi:
 
 intx:
 	return (ufshci_pci_setup_shared(ctrlr, ctrlr->msi_count > 0 ? 1 : 0));
+}
+
+static int
+ufshci_pci_suspend(device_t dev)
+{
+	struct ufshci_controller *ctrlr = device_get_softc(dev);
+
+	/* Currently, PCI-based ufshci only supports POWER_STYPE_STANDBY */
+	return (ufshci_ctrlr_suspend(ctrlr, POWER_STYPE_STANDBY));
+}
+
+static int
+ufshci_pci_resume(device_t dev)
+{
+	struct ufshci_controller *ctrlr = device_get_softc(dev);
+
+	return (ufshci_ctrlr_resume(ctrlr, POWER_STYPE_AWAKE));
 }

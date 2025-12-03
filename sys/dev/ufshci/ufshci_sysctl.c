@@ -201,6 +201,9 @@ ufshci_sysctl_initialize_ctrlr(struct ufshci_controller *ctrlr)
 	    CTLFLAG_RD, &dev->power_mode_supported, 0,
 	    "Device power mode support");
 
+	SYSCTL_ADD_UINT(ctrlr_ctx, ctrlr_list, OID_AUTO, "power_mode",
+	    CTLFLAG_RD, &dev->power_mode, 0, "Current device power mode");
+
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO, "timeout_period",
 	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, &ctrlr->timeout_period,
 	    0, ufshci_sysctl_timeout_period, "IU",
