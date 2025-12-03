@@ -31,7 +31,6 @@
  *	$KAME: nd6.c,v 1.144 2001/05/24 07:44:00 itojun Exp $
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_route.h"

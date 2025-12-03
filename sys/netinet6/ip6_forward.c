@@ -31,7 +31,6 @@
  *	$KAME: ip6_forward.c,v 1.69 2001/05/17 03:48:30 itojun Exp $
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"

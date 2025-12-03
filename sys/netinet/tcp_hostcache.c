@@ -65,7 +65,6 @@
  * followed here.
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet6.h"
 
 #include <sys/param.h>

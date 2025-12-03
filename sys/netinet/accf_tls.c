@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #define ACCEPT_FILTER_MOD
 
 #include <sys/param.h>

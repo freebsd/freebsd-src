@@ -34,7 +34,6 @@
  * Normative references: RFC 2292, RFC 3492, RFC 3542, RFC 3678, RFC 3810.
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet6.h"
 
 #include <sys/param.h>
