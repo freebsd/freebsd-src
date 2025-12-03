@@ -2278,6 +2278,8 @@ static int rtw89_core_rx_parse_phy_sts(struct rtw89_dev *rtwdev,
 	end = phy_ppdu->buf + phy_ppdu->len;
 #elif defined(__FreeBSD__)
 	pos = (u8 *)phy_ppdu->buf + PHY_STS_HDR_LEN;
+	if (phy_ppdu->hdr_2_en)
+		pos += PHY_STS_HDR_LEN;
 	end = (u8 *)phy_ppdu->buf + phy_ppdu->len;
 #endif
 	while (pos < end) {
