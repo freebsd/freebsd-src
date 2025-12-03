@@ -545,6 +545,7 @@ static inline void
 device_release_driver(struct device *dev)
 {
 
+	pr_debug("%s: TODO\n", __func__);
 #if 0
 	/* This leads to panics. Disable temporarily. Keep to rework. */
 
