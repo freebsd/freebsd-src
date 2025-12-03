@@ -43,8 +43,7 @@ int	 syncache_expand(struct in_conninfo *, struct tcpopt *,
 struct socket *	 syncache_add(struct in_conninfo *, struct tcpopt *,
 	     struct tcphdr *, struct inpcb *, struct socket *, struct mbuf *,
 	     void *, void *, uint8_t, uint16_t);
-void	 syncache_chkrst(struct in_conninfo *, struct tcphdr *, struct mbuf *,
-	     uint16_t);
+void	 syncache_chkrst(struct in_conninfo *, struct tcphdr *, uint16_t);
 int	 syncache_pcblist(struct sysctl_req *);
 
 struct syncache {
@@ -65,6 +64,7 @@ struct syncache {
 	u_int8_t	sc_ip_tos;		/* TOS / Traffic Class */
 	u_int8_t	sc_requested_s_scale:4,
 			sc_requested_r_scale:4;
+	uint8_t		sc_numa_domain;
 	u_int16_t	sc_flags;
 	u_int32_t	sc_challenge_ack_cnt;	/* chall. ACKs sent in epoch */
 	sbintime_t	sc_challenge_ack_end;	/* End of chall. ack epoch */
@@ -75,8 +75,8 @@ struct syncache {
 	struct label	*sc_label;		/* MAC label reference */
 	struct ucred	*sc_cred;		/* cred cache for jail checks */
 	void		*sc_tfo_cookie;		/* for TCP Fast Open response */
-	void		*sc_pspare;		/* TCP_SIGNATURE */
-	u_int32_t	sc_spare[2];		/* UTO */
+	uint32_t	sc_flowtype;		/* flowid from SYN packet .. */
+	uint32_t	sc_flowid;		/* .. or calculated by RSS */
 };
 
 /*
