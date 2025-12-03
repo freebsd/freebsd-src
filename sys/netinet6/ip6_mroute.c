@@ -78,7 +78,6 @@
  * MROUTING Revision: 3.5.1.2 + PIM-SMv2 (pimd) Support
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet6.h"
 
 #include <sys/param.h>

@@ -67,7 +67,6 @@
  * is being followed here.
  */
 
-#include <sys/cdefs.h>
 #include "opt_ipstealth.h"
 #include "opt_sctp.h"
 

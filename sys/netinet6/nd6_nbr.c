@@ -31,7 +31,6 @@
  *	$KAME: nd6_nbr.c,v 1.86 2002/01/21 02:33:04 jinmei Exp $
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"

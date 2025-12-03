@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_bootp.h"
 #include "opt_inet.h"
 #include "opt_ipstealth.h"

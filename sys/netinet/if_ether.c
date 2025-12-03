@@ -35,7 +35,6 @@
  *	add "inuse/lock" bit (or ref. count) along with valid bit
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 
 #include <sys/param.h>

@@ -67,7 +67,6 @@
  * TODO: Sync ip6_mroute.c with this file.
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_mrouting.h"
 
