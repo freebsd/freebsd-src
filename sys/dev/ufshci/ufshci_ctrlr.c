@@ -610,3 +610,53 @@ ufshci_reg_dump(struct ufshci_controller *ctrlr)
 
 	ufshci_printf(ctrlr, "========================================\n");
 }
+
+int
+ufshci_ctrlr_suspend(struct ufshci_controller *ctrlr, enum power_stype stype)
+{
+	int error;
+
+	if (!ctrlr->ufs_dev.power_mode_supported)
+		return (0);
+
+	/* TODO: Need to flush the request queue */
+
+	if (ctrlr->ufs_device_wlun_periph) {
+		ctrlr->ufs_dev.power_mode = power_map[stype].dev_pwr;
+		error = ufshci_sim_send_ssu(ctrlr, /*start*/ false,
+		    power_map[stype].ssu_pc, /*immed*/ false);
+		if (error) {
+			ufshci_printf(ctrlr,
+			    "Failed to send SSU in suspend handler\n");
+			return (error);
+		}
+	}
+
+	/* TODO: Change the link state to Hibernate if necessary. */
+
+	return (0);
+}
+
+int
+ufshci_ctrlr_resume(struct ufshci_controller *ctrlr, enum power_stype stype)
+{
+	int error;
+
+	if (!ctrlr->ufs_dev.power_mode_supported)
+		return (0);
+
+	/* TODO: Change the link state to Active if necessary. */
+
+	if (ctrlr->ufs_device_wlun_periph) {
+		ctrlr->ufs_dev.power_mode = power_map[stype].dev_pwr;
+		error = ufshci_sim_send_ssu(ctrlr, /*start*/ false,
+		    power_map[stype].ssu_pc, /*immed*/ false);
+		if (error) {
+			ufshci_printf(ctrlr,
+			    "Failed to send SSU in resume handler\n");
+			return (error);
+		}
+	}
+
+	return (0);
+}

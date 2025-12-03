@@ -46,6 +46,11 @@ ufshci_sim_scsiio_done(void *ccb_arg, const struct ufshci_completion *cpl,
 
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	if (error) {
+		printf("ufshci: SCSI command completion error, Status(0x%x)"
+		       " Key(0x%x), ASC(0x%x), ASCQ(0x%x)\n",
+		    cpl->response_upiu.cmd_response_upiu.header
+			.ext_iid_or_status,
+		    sense_data[2], sense_data[12], sense_data[13]);
 		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 		xpt_done(ccb);
 	} else {
@@ -455,7 +460,7 @@ ufshci_sim_find_periph(struct ufshci_controller *ctrlr, uint8_t wlun)
 /* This function is called during suspend/resume. */
 int
 ufshci_sim_send_ssu(struct ufshci_controller *ctrlr, bool start,
-    int power_condition, bool immed)
+    uint8_t power_condition, bool immed)
 {
 	struct cam_periph *periph = ctrlr->ufs_device_wlun_periph;
 	union ccb *ccb;
