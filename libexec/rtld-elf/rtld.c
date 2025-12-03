@@ -400,7 +400,7 @@ static struct ld_env_var_desc ld_env_vars[] = {
 	LD_ENV_DESC(TRACE_LOADED_OBJECTS_FMT1, false),
 	LD_ENV_DESC(TRACE_LOADED_OBJECTS_FMT2, false),
 	LD_ENV_DESC(TRACE_LOADED_OBJECTS_ALL, false),
-	LD_ENV_DESC(SHOW_AUXV, false),
+	LD_ENV_DESC(SHOW_AUXV, true),
 	LD_ENV_DESC(STATIC_TLS_EXTRA, false),
 };
 
