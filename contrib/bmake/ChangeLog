@@ -1,3 +1,40 @@
+2025-11-15  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* boot-strap: unset more things from env and save a copy
+	to env.out for debugging.
+
+2025-11-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20251111
+	Merge with NetBSD make, pick up
+	o var.c: add :sh1 which only evaluates command on first reference.
+
+2025-11-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* configure.in: Force filemon=no for Cygwin and MINGW64_NT
+
+2025-11-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* unit-tests/Makefile: handle MINGW64_NT
+	mark some tests broken, filter others as per Cygwin.
+
+2025-10-23  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* make.1: document MAKE_VERSION.
+
+2025-10-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20251022
+
+	* configure.in: Add a check that lua is version 5.2 or later
+	if not we want to skip running check-expect.lua
+
+2025-09-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250916
+	Merge with NetBSD make, pick up
+	o var.c: avoid compiler warning from hexdigits
+
 2025-08-04  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20250804

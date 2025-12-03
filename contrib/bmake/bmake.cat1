@@ -607,6 +607,11 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
      _._M_A_K_E_._E_X_P_O_R_T_E_D
              The list of variables exported by bbmmaakkee.
 
+     _M_A_K_E___V_E_R_S_I_O_N
+             This variable indicates the version of bbmmaakkee.  It is typically
+             the date of last import from NetBSD.  It is useful for checking
+             whether certain features are available.
+
      _M_A_K_E_F_I_L_E
              The top-level makefile that is currently read, as given in the
              command line.
@@ -1189,6 +1194,11 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
           The output of running _c_m_d is the value.
 
      ::sshh  The value is run as a command, and the output becomes the new value.
+
+     ::sshh11
+          The value is run as a command, for the first reference only, and the
+          output is cached for subsequent references.  This modifier is useful
+          when the result is not expected to change.
 
      ::::==_s_t_r
           The variable is assigned the value _s_t_r after substitution.  This
@@ -1864,4 +1874,4 @@ BBUUGGSS
      attempt to suppress a cascade of unnecessary errors, can result in a
      seemingly unexplained `*** Error code 6'
 
-FreeBSD 14.2-RELEASE-p1          July 2, 2025          FreeBSD 14.2-RELEASE-p1
+FreeBSD 14.3-RELEASE-p3        November 11, 2025       FreeBSD 14.3-RELEASE-p3

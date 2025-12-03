@@ -1,21 +1,39 @@
-# SPDX-License-Identifier: BSD-2-Clause
+# $Id: options.mk,v 1.25 2025/09/18 05:11:59 sjg Exp $
 #
-# $Id: options.mk,v 1.22 2024/10/27 17:33:03 sjg Exp $
+#	@(#) Copyright (c) 2012-2025, Simon J. Gerraty
 #
-#	@(#) Copyright (c) 2012, Simon J. Gerraty
-#
-#	This file is provided in the hope that it will
-#	be of use.  There is absolutely NO WARRANTY.
-#	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that
-#	the above copyright notice and this notice are
-#	left intact.
+#	SPDX-License-Identifier: BSD-2-Clause
 #
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #
 
 # Inspired by FreeBSD bsd.own.mk, but intentionally simpler and more flexible.
+
+OPTION_PREFIX ?= MK_
+
+# Options to be forced either "yes" or "no"
+OPTIONS_FORCED_VALUES += \
+	${OPTIONS_BROKEN:U:O:u:S,$,/no,:N/no} \
+	${OPTIONS_FORCED_NO:U:O:u:S,$,/no,:N/no} \
+	${OPTIONS_FORCED_YES:U:O:u:S,$,/yes,:N/yes} \
+	${OPTIONS_REQUIRED:U:O:u:S,$,/yes,:N/yes} \
+
+.for o v in ${OPTIONS_FORCED_VALUES:M*/*:S,/, ,g}
+.if !make(show-options)
+.if ${v:tl} == "yes"
+.if defined(WITHOUT_$o)
+.warning WITHOUT_$o ignored
+.endif
+.elif defined(WITH_$o)
+.warning WITH_$o ignored
+.endif
+.endif
+${OPTION_PREFIX}$o := ${v:tl}
+.if defined(DEBUG_OPTIONS) && ${DEBUG_OPTIONS:@x@${o:M$x}@} != ""
+.info ${.INCLUDEDFROMFILE}: ${OPTION_PREFIX}$o=${${OPTION_PREFIX}$o}
+.endif
+.endfor
 
 # Options are normally listed in either OPTIONS_DEFAULT_{YES,NO}
 # We convert these to ${OPTION}/{yes,no} in OPTIONS_DEFAULT_VALUES.
@@ -28,72 +46,104 @@
 # User sets WITH_* and WITHOUT_* to indicate what they want.
 # We set ${OPTION_PREFIX:UMK_}* which is then all we need care about.
 OPTIONS_DEFAULT_VALUES += \
-	${OPTIONS_DEFAULT_NO:U:O:u:S,$,/no,} \
-	${OPTIONS_DEFAULT_YES:U:O:u:S,$,/yes,}
-
-OPTION_PREFIX ?= MK_
+	${OPTIONS_DEFAULT_NO:U:O:u:S,$,/no,:N/no} \
+	${OPTIONS_DEFAULT_YES:U:O:u:S,$,/yes,:N/yes} \
 
 # NO_* takes precedence
 # If both WITH_* and WITHOUT_* are defined, WITHOUT_ wins unless
-# DOMINANT_* is set to "yes"
+# OPTION_DOMINANT_* is set to "yes"
 # Otherwise WITH_* and WITHOUT_* override the default.
-.for o in ${OPTIONS_DEFAULT_VALUES:M*/*}
-.if defined(WITH_${o:H}) && ${WITH_${o:H}} == "no"
+.for o v in ${OPTIONS_DEFAULT_VALUES:M*/*:S,/, ,}
+.if defined(WITH_$o) && ${WITH_$o:tl} == "no"
 # a common miss-use - point out correct usage
-.warning use WITHOUT_${o:H}=1 not WITH_${o:H}=no
+.warning use WITHOUT_$o=1 not WITH_$o=no
+WITHOUT_$o = 1
 .endif
-.if defined(NO_${o:H}) || defined(NO${o:H})
+.if defined(NO_$o) || defined(NO$o)
 # we cannot do it
-${OPTION_PREFIX}${o:H} ?= no
-.elif defined(WITH_${o:H}) && defined(WITHOUT_${o:H})
+${OPTION_PREFIX}$o ?= no
+.elif defined(WITH_$o) && defined(WITHOUT_$o)
 # normally WITHOUT_ wins
-DOMINANT_${o:H} ?= no
-${OPTION_PREFIX}${o:H} ?= ${DOMINANT_${o:H}}
-.elif ${o:T:tl} == "no"
-.if defined(WITH_${o:H})
-${OPTION_PREFIX}${o:H} ?= yes
+OPTION_DOMINANT_$o ?= no
+${OPTION_PREFIX}$o ?= ${OPTION_DOMINANT_$o}
+.elif ${v:tl} == "no"
+.if defined(WITH_$o)
+${OPTION_PREFIX}$o ?= yes
 .else
-${OPTION_PREFIX}${o:H} ?= no
+${OPTION_PREFIX}$o ?= no
 .endif
 .else
-.if defined(WITHOUT_${o:H})
-${OPTION_PREFIX}${o:H} ?= no
+.if defined(WITHOUT_$o)
+${OPTION_PREFIX}$o ?= no
 .else
-${OPTION_PREFIX}${o:H} ?= yes
+${OPTION_PREFIX}$o ?= yes
 .endif
 .endif
-.if defined(DEBUG_OPTIONS) && ${DEBUG_OPTIONS:@x@${o:H:M$x}@} != ""
-.info ${.INCLUDEDFROMFILE}: ${OPTION_PREFIX}${o:H}=${${OPTION_PREFIX}${o:H}}
+.if defined(DEBUG_OPTIONS) && ${DEBUG_OPTIONS:@x@${o:M$x}@} != ""
+.info ${.INCLUDEDFROMFILE}: ${OPTION_PREFIX}$o=${${OPTION_PREFIX}$o}
 .endif
 .endfor
 
 # OPTIONS_DEFAULT_DEPENDENT += FOO_UTILS/FOO
 # If neither WITH[OUT]_FOO_UTILS is set, (see rules above)
 # use the value of ${OPTION_PREFIX}FOO
-.for o in ${OPTIONS_DEFAULT_DEPENDENT:M*/*:O:u}
-.if defined(NO_${o:H}) || defined(NO${o:H})
+# Add OPTIONS_DEFAULT_DEPENDENT_REQUIRED (sans any trailing /{yes,no})
+# to OPTIONS_DEFAULT_DEPENDENT to avoid the need to duplicate entries
+OPTIONS_DEFAULT_DEPENDENT += ${OPTIONS_DEFAULT_DEPENDENT_REQUIRED:U:S,/yes$,,:S,/no$,,}
+
+.for o d in ${OPTIONS_DEFAULT_DEPENDENT:M*/*:S,/, ,}
+.if defined(NO_$o) || defined(NO$o)
 # we cannot do it
-${OPTION_PREFIX}${o:H} ?= no
-.elif defined(WITH_${o:H}) && defined(WITHOUT_${o:H})
+${OPTION_PREFIX}$o ?= no
+.elif defined(WITH_$o) && defined(WITHOUT_$o)
 # normally WITHOUT_ wins
-DOMINANT_${o:H} ?= no
-${OPTION_PREFIX}${o:H} ?= ${DOMINANT_${o:H}}
-.elif defined(WITH_${o:H})
-${OPTION_PREFIX}${o:H} ?= yes
-.elif defined(WITHOUT_${o:H})
-${OPTION_PREFIX}${o:H} ?= no
+OPTION_DOMINANT_$o ?= no
+${OPTION_PREFIX}$o ?= ${OPTION_DOMINANT_$o}
+.elif defined(WITH_$o)
+${OPTION_PREFIX}$o ?= yes
+.elif defined(WITHOUT_$o)
+${OPTION_PREFIX}$o ?= no
 .else
-${OPTION_PREFIX}${o:H} ?= ${${OPTION_PREFIX}${o:T}}
+${OPTION_PREFIX}$o ?= ${${OPTION_PREFIX}$d}
 .endif
-.if defined(DEBUG_OPTIONS) && ${DEBUG_OPTIONS:@x@${o:H:M$x}@} != ""
-.info ${.INCLUDEDFROMFILE}: ${OPTION_PREFIX}${o:H}=${${OPTION_PREFIX}${o:H}} (${OPTION_PREFIX}${o:T}=${${OPTION_PREFIX}${o:T}})
+.if defined(DEBUG_OPTIONS) && ${DEBUG_OPTIONS:@x@${o:M$x}@} != ""
+.info ${.INCLUDEDFROMFILE}: ${OPTION_PREFIX}$o=${${OPTION_PREFIX}$o} (${OPTION_PREFIX}$d=${${OPTION_PREFIX}$d})
 .endif
+.endfor
+
+# OPTIONS_DEFAULT_DEPENDENT_REQUIRED += FOO_UTILS/FOO[/{yes,no}]
+# first processed with OPTIONS_DEFAULT_DEPENDENT above,
+# but if ${OPTION_PREFIX}${o:H:H} is ${o:T},
+# then ${OPTION_PREFIX}${o:H:T} must be too
+.for o in ${OPTIONS_DEFAULT_DEPENDENT_REQUIRED:M*/*:O:u}
+# This dance allows /{yes,no} to be optional
+.if ${o:T:tl:Nno:Nyes} == ""
+$o.H := ${o:H:H}
+$o.R := ${o:T}
+$o.T := ${o:H:T}
+.else
+$o.H := ${o:H}
+$o.R := ${OPTION_REQUIRED_${o:H}:Uyes}
+$o.T := ${o:T}
+.endif
+.if defined(DEBUG_OPTIONS) && ${DEBUG_OPTIONS:@x@${$o.H:M$x}@} != ""
+.info ${.INCLUDEDFROMFILE}: ${OPTION_PREFIX}${$o.H}=${${OPTION_PREFIX}${$o.H}} (${OPTION_PREFIX}${$o.T}=${${OPTION_PREFIX}${$o.T}} require=${$o.R})
+.endif
+.if ${${OPTION_PREFIX}${$o.H}} != ${${OPTION_PREFIX}${$o.T}}
+.if ${${OPTION_PREFIX}${$o.H}} == ${$o.R}
+.error ${OPTION_PREFIX}${$o.H}=${${OPTION_PREFIX}${$o.H}} requires ${OPTION_PREFIX}${$o.T}=${${OPTION_PREFIX}${$o.H}}
+.endif
+.endif
+.undef $o.H
+.undef $o.R
+.undef $o.T
 .endfor
 
 # allow displaying/describing set options
 .set_options := ${.set_options} \
-	${OPTIONS_DEFAULT_VALUES:H:N.} \
+	${OPTIONS_DEFAULT_VALUES:U:H:N.} \
 	${OPTIONS_DEFAULT_DEPENDENT:U:H:N.} \
+	${OPTIONS_FORCED_VALUES:U:H:N.} \
 
 # this can be used in .info as well as target below
 OPTIONS_SHOW ?= ${.set_options:O:u:@o@${OPTION_PREFIX}$o=${${OPTION_PREFIX}$o}@}
@@ -114,7 +164,13 @@ describe-options: .NOTMAIN .PHONY
 .endif
 
 # we expect to be included more than once
+.undef OPTIONS_BROKEN
 .undef OPTIONS_DEFAULT_DEPENDENT
+.undef OPTIONS_DEFAULT_DEPENDENT_REQUIRED
 .undef OPTIONS_DEFAULT_NO
 .undef OPTIONS_DEFAULT_VALUES
 .undef OPTIONS_DEFAULT_YES
+.undef OPTIONS_FORCED_NO
+.undef OPTIONS_FORCED_VALUES
+.undef OPTIONS_FORCED_YES
+.undef OPTIONS_REQUIRED
