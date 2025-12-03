@@ -17,7 +17,7 @@
 # Errors that are not related to opening the file are still reported.
 # expect: make: directive-include-error.inc:1: Invalid line "syntax error"
 _!=	echo 'syntax error' > directive-include-error.inc
-.sinclude "${.CURDIR}/directive-include-error.inc"
+.sinclude "${.OBJDIR}/directive-include-error.inc"
 _!=	rm directive-include-error.inc
 
 all: .PHONY

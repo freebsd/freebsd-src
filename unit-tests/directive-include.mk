@@ -82,7 +82,7 @@ include
 # Buf_InitSize, which assumes that bmake_malloc never returns NULL, just like
 # all other places in the code.
 _!=		> directive-include-empty
-.include "${.CURDIR}/directive-include-empty"
+.include "${.OBJDIR}/directive-include-empty"
 _!=		rm directive-include-empty
 
 
