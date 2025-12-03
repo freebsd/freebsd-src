@@ -410,11 +410,6 @@ SYSCTL_DECL(_net_bpf);
 struct bpf_if;
 CK_LIST_HEAD(bpfd_list, bpf_d);
 
-struct bpf_if_ext {
-	CK_LIST_ENTRY(bpf_if)	bif_next;	/* list of all interfaces */
-	struct bpfd_list	bif_dlist;	/* descriptor list */
-};
-
 void	bpf_bufheld(struct bpf_d *d);
 int	bpf_validate(const struct bpf_insn *, int);
 void	bpf_tap(struct bpf_if *, u_char *, u_int);
@@ -435,12 +430,12 @@ void	bpfilterattach(int);
 u_int	bpf_filter(const struct bpf_insn *, u_char *, u_int, u_int);
 
 static __inline bool
-bpf_peers_present(struct bpf_if *bpf)
+bpf_peers_present(const struct bpf_if *bpf)
 {
-	struct bpf_if_ext *ext;
+	const struct bpfd_list *dlist;
 
-	ext = (struct bpf_if_ext *)bpf;
-	return (!CK_LIST_EMPTY(&ext->bif_dlist));
+	dlist = (const struct bpfd_list *)bpf;
+	return (!CK_LIST_EMPTY(dlist));
 }
 
 #define BPF_TAP(_ifp, _pkt, _pktlen)				\
