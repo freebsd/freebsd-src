@@ -450,6 +450,33 @@ ufshci_dev_init_uic_power_mode(struct ufshci_controller *ctrlr)
 }
 
 void
+ufshci_dev_enable_auto_hibernate(struct ufshci_controller *ctrlr)
+{
+	if (!ctrlr->ufs_dev.auto_hibernation_supported)
+		return;
+
+	ufshci_mmio_write_4(ctrlr, ahit, ctrlr->ufs_dev.ahit);
+}
+
+void
+ufshci_dev_init_auto_hibernate(struct ufshci_controller *ctrlr)
+{
+	ctrlr->ufs_dev.auto_hibernation_supported =
+	    UFSHCIV(UFSHCI_CAP_REG_AUTOH8, ctrlr->cap) &&
+	    !(ctrlr->quirks & UFSHCI_QUIRK_BROKEN_AUTO_HIBERNATE);
+
+	if (!ctrlr->ufs_dev.auto_hibernation_supported)
+		return;
+
+	/* The default value for auto hibernation is 150 ms */
+	ctrlr->ufs_dev.ahit = 0;
+	ctrlr->ufs_dev.ahit |= UFSHCIF(UFSHCI_AHIT_REG_AH8ITV, 150);
+	ctrlr->ufs_dev.ahit |= UFSHCIF(UFSHCI_AHIT_REG_TS, 3);
+
+	ufshci_dev_enable_auto_hibernate(ctrlr);
+}
+
+void
 ufshci_dev_init_uic_link_state(struct ufshci_controller *ctrlr)
 {
 	ctrlr->ufs_dev.link_state = UFSHCI_UIC_LINK_STATE_ACTIVE;

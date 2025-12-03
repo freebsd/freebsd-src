@@ -11,6 +11,7 @@
 #include <sys/sysctl.h>
 
 #include "ufshci_private.h"
+#include "ufshci_reg.h"
 
 static int
 ufshci_sysctl_timeout_period(SYSCTL_HANDLER_ARGS)
@@ -104,6 +105,22 @@ ufshci_sysctl_num_failures(SYSCTL_HANDLER_ARGS)
 	}
 
 	return (sysctl_handle_64(oidp, &num_failures, 0, req));
+}
+
+static int
+ufshci_sysctl_ahit(SYSCTL_HANDLER_ARGS)
+{
+	struct ufshci_controller *ctrlr = arg1;
+	int64_t scale, timer;
+	const int64_t scale_factor = 10;
+
+	scale = UFSHCIV(UFSHCI_AHIT_REG_TS, ctrlr->ufs_dev.ahit);
+	timer = UFSHCIV(UFSHCI_AHIT_REG_AH8ITV, ctrlr->ufs_dev.ahit);
+
+	while (scale--)
+		timer *= scale_factor;
+
+	return (sysctl_handle_64(oidp, &timer, 0, req));
 }
 
 static void
@@ -200,6 +217,17 @@ ufshci_sysctl_initialize_ctrlr(struct ufshci_controller *ctrlr)
 	SYSCTL_ADD_BOOL(ctrlr_ctx, ctrlr_list, OID_AUTO, "power_mode_supported",
 	    CTLFLAG_RD, &dev->power_mode_supported, 0,
 	    "Device power mode support");
+
+	SYSCTL_ADD_BOOL(ctrlr_ctx, ctrlr_list, OID_AUTO,
+	    "auto_hibernation_supported", CTLFLAG_RD,
+	    &dev->auto_hibernation_supported, 0,
+	    "Device auto hibernation support");
+
+	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
+	    "auto_hibernate_idle_timer_value",
+	    CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_MPSAFE, ctrlr, 0,
+	    ufshci_sysctl_ahit, "IU",
+	    "Auto-Hibernate Idle Timer Value (in microseconds)");
 
 	SYSCTL_ADD_UINT(ctrlr_ctx, ctrlr_list, OID_AUTO, "power_mode",
 	    CTLFLAG_RD, &dev->power_mode, 0, "Current device power mode");
