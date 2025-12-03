@@ -175,7 +175,7 @@ linux_free_pages(struct page *page, unsigned int order)
 			 * contexts.
 			 *
 			 * Some pages are allocated by `linux_alloc_pages()`
-			 * above, but not all of them are. For instance in the
+			 * above, but not all of them are. For instance in the
 			 * DRM drivers, some pages come from
 			 * `shmem_read_mapping_page_gfp()`.
 			 *
