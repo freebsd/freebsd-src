@@ -93,14 +93,11 @@
 
 MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
 
-static const struct bpf_if_ext dead_bpf_if = {
-	.bif_dlist = CK_LIST_HEAD_INITIALIZER()
-};
+static const struct bpfd_list dead_bpf_if = CK_LIST_HEAD_INITIALIZER();
 
 struct bpf_if {
-#define	bif_next	bif_ext.bif_next
-#define	bif_dlist	bif_ext.bif_dlist
-	struct bpf_if_ext bif_ext;	/* public members */
+	struct bpfd_list	bif_dlist;	/* list of all interfaces */
+	CK_LIST_ENTRY(bpf_if)	bif_next;	/* descriptor list */
 	u_int		bif_dlt;	/* link layer type */
 	u_int		bif_hdrlen;	/* length of link header */
 	struct bpfd_list bif_wlist;	/* writer-only list */
@@ -110,7 +107,9 @@ struct bpf_if {
 	struct epoch_context epoch_ctx;
 };
 
-CTASSERT(offsetof(struct bpf_if, bif_ext) == 0);
+/* See bpf_peers_present() in bpf.h. */
+_Static_assert(offsetof(struct bpf_if, bif_dlist) == 0,
+    "bpf_if shall start with bif_dlist");
 
 struct bpf_program_buffer {
 	struct epoch_context	epoch_ctx;
