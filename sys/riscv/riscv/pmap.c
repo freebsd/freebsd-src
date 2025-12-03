@@ -1134,19 +1134,29 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 vm_page_t
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
+	pd_entry_t *l2p, l2;
 	pt_entry_t *l3p, l3;
 	vm_page_t m;
 
 	m = NULL;
 	PMAP_LOCK(pmap);
-	l3p = pmap_l3(pmap, va);
-	if (l3p != NULL && (l3 = pmap_load(l3p)) != 0) {
-		if ((l3 & PTE_W) != 0 || (prot & VM_PROT_WRITE) == 0) {
-			m = PTE_TO_VM_PAGE(l3);
-			if (!vm_page_wire_mapped(m))
-				m = NULL;
+	l2p = pmap_l2(pmap, va);
+	if (l2p == NULL || ((l2 = pmap_load(l2p)) & PTE_V) == 0) {
+		;
+	} else if ((l2 & PTE_RWX) != 0) {
+		if ((l2 & PTE_W) != 0 || (prot & VM_PROT_WRITE) == 0) {
+			m = PHYS_TO_VM_PAGE(L2PTE_TO_PHYS(l2) +
+			    (va & L2_OFFSET));
+		}
+	} else {
+		l3p = pmap_l2_to_l3(l2p, va);
+		if ((l3 = pmap_load(l3p)) != 0) {
+			if ((l3 & PTE_W) != 0 || (prot & VM_PROT_WRITE) == 0)
+				m = PTE_TO_VM_PAGE(l3);
 		}
 	}
+	if (m != NULL && !vm_page_wire_mapped(m))
+		m = NULL;
 	PMAP_UNLOCK(pmap);
 	return (m);
 }
