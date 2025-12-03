@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.245 2025/08/05 16:18:07 sjg Exp $
+# $Id: Makefile,v 1.251 2025/11/15 17:17:18 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.372 2025/08/04 22:44:49 sjg Exp $
+# $NetBSD: Makefile,v 1.373 2025/11/12 22:14:08 sjg Exp $
 #
 # Unit tests for make(1)
 #
@@ -403,6 +403,7 @@ TESTS+=		varmod-shell
 TESTS+=		varmod-subst
 TESTS+=		varmod-subst-regex
 TESTS+=		varmod-sun-shell
+TESTS+=		varmod-sun-shell1
 TESTS+=		varmod-sysv
 TESTS+=		varmod-tail
 TESTS+=		varmod-to-abs
@@ -519,6 +520,14 @@ BROKEN_TESTS+= \
 
 .endif
 
+.if ${.MAKE.OS:NMINGW*} == ""
+BROKEN_TESTS+= \
+	cmdline \
+	objdir-writable \
+	varname-dot-make-level \
+
+.endif
+
 .if ${.MAKE.OS} == "SCO_SV"
 BROKEN_TESTS+= \
 	opt-debug-graph[23] \
@@ -594,8 +603,12 @@ SED_CMDS.directive-include-guard= \
 	-e '/^ParseEOF:/d'
 SED_CMDS.export=	-e '/^[^=_A-Za-z0-9]*=/d'
 SED_CMDS.export+=	-e '/^DIFF/d'
-.if ${.MAKE.OS:NCygwin} == ""
-SED_CMDS.export+=	-e '/^WINDIR=/d' -e '/^SYSTEMROOT=/d'
+.if ${.MAKE.OS:NCygwin:NMINGW*} == ""
+SED_CMDS.export+= \
+	-e '/MSYSTEM=/d' \
+	-e '/^SYSTEMROOT=/d' \
+	-e '/^WINDIR=/d' \
+
 .endif
 SED_CMDS.export-all=	${SED_CMDS.export}
 SED_CMDS.export-env=	${SED_CMDS.export}
@@ -847,6 +860,12 @@ _SED_CMDS+=	-e 's,${.CURDIR},<curdir>,g'
 # which we get depending on how MAKEOBJDIR is set.
 _SED_CMDS+=	-e 's,${.OBJDIR},<curdir>,g' -e 's,${.OBJDIR:tA},<curdir>,g'
 .endif
+
+# At the end, make sure we cleanup any dregs...
+.for d in ${MAKEOBJDIRPREFIX:S,/$,,} /usr/obj
+_SED_CMDS_LAST+=	-e 's,$d,,'
+.endfor
+
 # always pretend .MAKE was called 'make'
 _SED_CMDS+=	-e 's,^${TEST_MAKE:T:S,.,\\.,g}[][0-9]*:,make:,'
 _SED_CMDS+=	-e 's,${TEST_MAKE:S,.,\\.,g},make,'
@@ -868,7 +887,7 @@ SED_CMDS.opt-debug-jobs+= -e 's,Command: <shell> -v,Command: <shell>,'
 .endif
 
 .rawout.out:
-	@${TOOL_SED} ${_SED_CMDS} ${SED_CMDS.${.PREFIX:T}} \
+	@${TOOL_SED} ${_SED_CMDS} ${SED_CMDS.${.PREFIX:T}} ${_SED_CMDS_LAST} \
 	  < ${.IMPSRC} > ${.TARGET}.tmp
 	@${POSTPROC.${.PREFIX:T}:D \
 	    ${POSTPROC.${.PREFIX:T}} < ${.TARGET}.tmp > ${.TARGET}.post \
@@ -895,7 +914,7 @@ test:	${OUTFILES} .PHONY
 	  echo "Failed tests: $${failed}" ; false ; \
 	else \
 	  echo "All tests passed" ; \
-	  lua=${LUA:Ulua} ; \
+	  lua=${LUA} ; lua=$${lua:-lua}; \
 	  have_lua=$$("$$lua" -e 'print "yes"' 2>&1) ; \
 	  if [ "$$have_lua" = "yes" -a -s ${.CURDIR}/check-expect.lua ]; then \
 	    (cd ${.CURDIR} && "$$lua" ./check-expect.lua *.mk); \

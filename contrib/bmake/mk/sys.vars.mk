@@ -1,15 +1,8 @@
-# SPDX-License-Identifier: BSD-2-Clause
-#
-# $Id: sys.vars.mk,v 1.18 2025/03/09 02:47:59 sjg Exp $
+# $Id: sys.vars.mk,v 1.24 2025/11/19 17:44:15 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2023, Simon J. Gerraty
 #
-#	This file is provided in the hope that it will
-#	be of use.  There is absolutely NO WARRANTY.
-#	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that
-#	the above copyright notice and this notice are
-#	left intact.
+#	SPDX-License-Identifier: BSD-2-Clause
 #
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
@@ -37,6 +30,22 @@ _this = ${.PARSEDIR}/${.PARSEFILE}
 _this = ${.PARSEDIR:tA}/${.PARSEFILE}
 .endif
 
+# This is a boolean we can use in makefiles as below
+.ifndef MAKE_POSIX_SHELL
+MAKE_POSIX_SHELL != (echo $${PATH%:*}) > /dev/null 2>&1 && echo 1 || echo 0
+.export MAKE_POSIX_SHELL
+.endif
+
+# This is a boolean we can use in target scripts
+.ifndef isPOSIX_SHELL
+.if ${MAKE_POSIX_SHELL}
+isPOSIX_SHELL = :
+.else
+isPOSIX_SHELL = false
+.endif
+.export isPOSIX_SHELL
+.endif
+
 # some useful modifiers
 
 # A useful trick for testing multiple :M's against something
@@ -56,8 +65,15 @@ M_ListToSkip= O:u:S,^,N,:ts:
 _type_sh = which
 .endif
 
+# :sh1 evaluates command only once and caches the result.
+.if ${MAKE_VERSION} < 20251111
+M_sh1 = sh
+.else
+M_sh1 = sh1
+.endif
+
 # AUTOCONF := ${autoconf:L:${M_whence}}
-M_type = @x@(${_type_sh:Utype} $$x) 2> /dev/null; echo;@:sh:[0]:N* found*:[@]:C,[()],,g
+M_type = @x@(${_type_sh:Utype} $$x) 2> /dev/null; echo;@:${M_sh1:Ush}:[0]:N* found*:[@]:C,[()],,g
 M_whence = ${M_type}:M/*:[1]
 
 # produce similar output to jot(1) or seq(1)
