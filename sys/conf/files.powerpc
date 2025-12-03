@@ -75,7 +75,7 @@ crypto/openssl/powerpc64/sha512p8-ppc.S			optional	ossl powerpc64
 crypto/openssl/powerpc64/vpaes-ppc.S			optional	ossl powerpc64
 crypto/openssl/powerpc64/x25519-ppc64.S			optional	ossl powerpc64
 
-cddl/compat/opensolaris/kern/opensolaris_atomic.c			optional zfs powerpc | dtrace powerpc | zfs powerpcspe | dtrace powerpcspe compile-with "${ZFS_C}"
+cddl/compat/opensolaris/kern/opensolaris_atomic.c			optional zfs powerpc | dtrace powerpc compile-with "${ZFS_C}"
 cddl/dev/dtrace/powerpc/dtrace_asm.S		optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/powerpc/dtrace_subr.c		optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/fbt/powerpc/fbt_isa.c			optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
@@ -235,25 +235,25 @@ dev/tsec/if_tsec_fdt.c		optional	tsec
 dev/uart/uart_cpu_powerpc.c	optional	uart
 dev/usb/controller/ehci_fsl.c	optional	ehci mpc85xx
 dev/vt/hw/ofwfb/ofwfb.c		optional	vt aim
-kern/subr_atomic64.c		optional	powerpc | powerpcspe
+kern/subr_atomic64.c		optional	powerpc
 kern/subr_dummy_vdso_tc.c	standard
 kern/subr_sfbuf.c		standard
-libkern/ashldi3.c		optional	powerpc | powerpcspe
-libkern/ashrdi3.c		optional	powerpc | powerpcspe
+libkern/ashldi3.c		optional	powerpc
+libkern/ashrdi3.c		optional	powerpc
 libkern/bcopy.c			standard
-libkern/cmpdi2.c		optional	powerpc | powerpcspe
-libkern/divdi3.c		optional	powerpc | powerpcspe
-libkern/lshrdi3.c		optional	powerpc | powerpcspe
+libkern/cmpdi2.c		optional	powerpc
+libkern/divdi3.c		optional	powerpc
+libkern/lshrdi3.c		optional	powerpc
 libkern/memcmp.c		standard
 libkern/memset.c		standard
-libkern/moddi3.c		optional	powerpc | powerpcspe
-libkern/qdivrem.c		optional	powerpc | powerpcspe
+libkern/moddi3.c		optional	powerpc
+libkern/qdivrem.c		optional	powerpc
 libkern/strcmp.c		standard
 libkern/strlen.c		standard
 libkern/strncmp.c		standard
-libkern/ucmpdi2.c		optional	powerpc | powerpcspe
-libkern/udivdi3.c		optional	powerpc | powerpcspe
-libkern/umoddi3.c		optional	powerpc | powerpcspe
+libkern/ucmpdi2.c		optional	powerpc
+libkern/udivdi3.c		optional	powerpc
+libkern/umoddi3.c		optional	powerpc
 powerpc/aim/locore.S		optional	aim no-obj
 powerpc/aim/aim_machdep.c	optional	aim
 powerpc/aim/mmu_oea.c		optional	aim powerpc
@@ -263,29 +263,28 @@ powerpc/aim/moea64_native.c	optional	aim
 powerpc/aim/mp_cpudep.c		optional	aim
 powerpc/aim/slb.c		optional	aim powerpc64 | aim powerpc64le
 powerpc/amigaone/platform_amigaone.c	optional	amigaone
-powerpc/amigaone/cpld_a1222.c	optional	powerpc amigaone | powerpcspe amigaone
-powerpc/amigaone/cpld_x5000.c	optional	powerpc amigaone | powerpc64 amigaone
+powerpc/amigaone/cpld_a1222.c	optional	powerpc amigaone
+powerpc/amigaone/cpld_x5000.c	optional	powerpc amigaone
 powerpc/booke/locore.S		optional	booke no-obj
 powerpc/booke/booke_machdep.c	optional	booke
 powerpc/booke/machdep_e500.c	optional	booke_e500
 powerpc/booke/mp_cpudep.c	optional	booke smp
 powerpc/booke/platform_bare.c	optional	booke
 powerpc/booke/pmap.c		optional	booke
-powerpc/booke/spe.c		optional	powerpcspe
 powerpc/cpufreq/dfs.c		optional	cpufreq
 powerpc/cpufreq/mpc85xx_jog.c	optional	cpufreq mpc85xx
 powerpc/cpufreq/pcr.c		optional	cpufreq aim
 powerpc/cpufreq/pmcr.c		optional	cpufreq aim powerpc64 | cpufreq aim powerpc64le
 powerpc/cpufreq/pmufreq.c	optional	cpufreq aim pmu
-powerpc/fpu/fpu_add.c		optional	fpu_emu | powerpcspe
-powerpc/fpu/fpu_compare.c	optional	fpu_emu | powerpcspe
-powerpc/fpu/fpu_div.c		optional	fpu_emu | powerpcspe
+powerpc/fpu/fpu_add.c		optional	fpu_emu
+powerpc/fpu/fpu_compare.c	optional	fpu_emu
+powerpc/fpu/fpu_div.c		optional	fpu_emu
 powerpc/fpu/fpu_emu.c		optional	fpu_emu
-powerpc/fpu/fpu_explode.c	optional	fpu_emu | powerpcspe
-powerpc/fpu/fpu_implode.c	optional	fpu_emu | powerpcspe
-powerpc/fpu/fpu_mul.c		optional	fpu_emu | powerpcspe
+powerpc/fpu/fpu_explode.c	optional	fpu_emu
+powerpc/fpu/fpu_implode.c	optional	fpu_emu
+powerpc/fpu/fpu_mul.c		optional	fpu_emu
 powerpc/fpu/fpu_sqrt.c		optional	fpu_emu
-powerpc/fpu/fpu_subr.c		optional	fpu_emu | powerpcspe
+powerpc/fpu/fpu_subr.c		optional	fpu_emu
 powerpc/mambo/mambocall.S	optional	mambo
 powerpc/mambo/mambo.c		optional	mambo
 powerpc/mambo/mambo_console.c	optional	mambo
@@ -358,7 +357,7 @@ powerpc/powernv/platform_powernv.c optional	powernv
 powerpc/powernv/powernv_centaur.c	optional	powernv
 powerpc/powernv/powernv_xscom.c	optional	powernv
 powerpc/powernv/xive.c		optional	powernv
-powerpc/powerpc/altivec.c	optional	!powerpcspe
+powerpc/powerpc/altivec.c	standard
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bus_machdep.c	standard
 powerpc/powerpc/busdma_machdep.c standard
@@ -371,7 +370,7 @@ powerpc/powerpc/db_hwwatch.c	optional	ddb
 powerpc/powerpc/db_interface.c	optional	ddb
 powerpc/powerpc/db_trace.c	optional	ddb
 powerpc/powerpc/dump_machdep.c	standard
-powerpc/powerpc/elf32_machdep.c	optional	powerpc | powerpcspe | compat_freebsd32
+powerpc/powerpc/elf32_machdep.c	optional	powerpc | compat_freebsd32
 powerpc/powerpc/elf64_machdep.c	optional	powerpc64 | powerpc64le
 powerpc/powerpc/exec_machdep.c	standard
 powerpc/powerpc/fpu.c		standard
@@ -393,9 +392,9 @@ powerpc/powerpc/ptrace_machdep.c	standard
 powerpc/powerpc/sc_machdep.c	optional	sc
 powerpc/powerpc/sdt_machdep.c	optional	powerpc64 kdtrace_hooks
 powerpc/powerpc/setjmp.S	standard
-powerpc/powerpc/sigcode32.S	optional	powerpc | powerpcspe | compat_freebsd32
+powerpc/powerpc/sigcode32.S	optional	powerpc | compat_freebsd32
 powerpc/powerpc/sigcode64.S	optional	powerpc64 | powerpc64le
-powerpc/powerpc/swtch32.S	optional	powerpc | powerpcspe
+powerpc/powerpc/swtch32.S	optional	powerpc
 powerpc/powerpc/swtch64.S	optional	powerpc64 | powerpc64le
 powerpc/powerpc/stack_machdep.c	optional	ddb | stack
 powerpc/powerpc/support.S	optional	powerpc64 | powerpc64le | booke
