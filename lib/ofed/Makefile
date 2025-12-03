@@ -10,6 +10,7 @@ SUBDIR= \
 	libcxgb4 \
 	libmlx4 \
 	libmlx5 \
+	libbnxtre \
 	libirdma \
 	libibnetdisc \
 	libopensm
