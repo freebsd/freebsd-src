@@ -3358,10 +3358,12 @@ _prebuild_libs+= \
 	lib/ofed/libibmad \
 	lib/ofed/libibumad \
 	lib/ofed/complib \
+	lib/ofed/libbnxtre \
 	lib/ofed/libmlx5
 
 lib/ofed/libibmad__L:	lib/ofed/libibumad__L
 lib/ofed/complib__L:	lib/libthr__L
+lib/ofed/libbnxt__L:	lib/ofed/libibverbs__L lib/libthr__L
 lib/ofed/libmlx5__L:	lib/ofed/libibverbs__L lib/libthr__L
 .endif
 
