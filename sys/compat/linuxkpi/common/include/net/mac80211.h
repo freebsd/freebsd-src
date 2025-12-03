@@ -2291,7 +2291,7 @@ static __inline void
 ieee80211_sta_register_airtime(struct ieee80211_sta *sta,
     uint8_t tid, uint32_t duration, int x)
 {
-	TODO();
+	IMPROVE("NL80211_EXT_FEATURE_AIRTIME_FAIRNESS and TX queus");
 }
 
 static __inline void
