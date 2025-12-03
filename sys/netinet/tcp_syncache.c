@@ -35,6 +35,7 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -120,8 +121,8 @@ SYSCTL_BOOL(_net_inet_tcp, OID_AUTO, syncookies_only, CTLFLAG_VNET | CTLFLAG_RW,
 static void	 syncache_drop(struct syncache *, struct syncache_head *);
 static void	 syncache_free(struct syncache *);
 static void	 syncache_insert(struct syncache *, struct syncache_head *);
-static int	 syncache_respond(struct syncache *, const struct mbuf *, int);
-static void	 syncache_send_challenge_ack(struct syncache *, struct mbuf *);
+static int	 syncache_respond(struct syncache *, int);
+static void	 syncache_send_challenge_ack(struct syncache *);
 static struct	 socket *syncache_socket(struct syncache *, struct socket *,
 		    struct mbuf *m);
 static void	 syncache_timeout(struct syncache *sc, struct syncache_head *sch,
@@ -528,7 +529,7 @@ syncache_timer(void *xsch)
 		}
 
 		NET_EPOCH_ENTER(et);
-		if (syncache_respond(sc, NULL, TH_SYN|TH_ACK) == 0) {
+		if (syncache_respond(sc, TH_SYN|TH_ACK) == 0) {
 			syncache_timeout(sc, sch, 0);
 			TCPSTAT_INC(tcps_sndacks);
 			TCPSTAT_INC(tcps_sndtotal);
@@ -611,8 +612,7 @@ syncache_lookup(struct in_conninfo *inc, struct syncache_head **schp)
  * If required send a challenge ACK.
  */
 void
-syncache_chkrst(struct in_conninfo *inc, struct tcphdr *th, struct mbuf *m,
-    uint16_t port)
+syncache_chkrst(struct in_conninfo *inc, struct tcphdr *th, uint16_t port)
 {
 	struct syncache *sc;
 	struct syncache_head *sch;
@@ -698,7 +698,7 @@ syncache_chkrst(struct in_conninfo *inc, struct tcphdr *th, struct mbuf *m,
 				    "sending challenge ACK\n",
 				    s, __func__,
 				    th->th_seq, sc->sc_irs + 1, sc->sc_wnd);
-			syncache_send_challenge_ack(sc, m);
+			syncache_send_challenge_ack(sc);
 		}
 	} else {
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
@@ -807,19 +807,6 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 #ifdef INET6
 	}
 #endif
-
-	/*
-	 * If there's an mbuf and it has a flowid, then let's initialise the
-	 * inp with that particular flowid.
-	 */
-	if (m != NULL && M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
-		inp->inp_flowid = m->m_pkthdr.flowid;
-		inp->inp_flowtype = M_HASHTYPE_GET(m);
-#ifdef NUMA
-		inp->inp_numa_domain = m->m_pkthdr.numa_domain;
-#endif
-	}
-
 	inp->inp_lport = sc->sc_inc.inc_lport;
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6PROTO) {
@@ -890,6 +877,38 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	if (ipsec_copy_pcbpolicy(sotoinpcb(lso), inp) != 0)
 		printf("syncache_socket: could not copy policy\n");
 #endif
+	if (sc->sc_flowtype != M_HASHTYPE_NONE) {
+		inp->inp_flowid = sc->sc_flowid;
+		inp->inp_flowtype = sc->sc_flowtype;
+#ifdef	RSS
+	} else {
+		  /* assign flowid by software RSS hash */
+#ifdef INET6
+		  if (sc->sc_inc.inc_flags & INC_ISIPV6) {
+			rss_proto_software_hash_v6(&inp->in6p_faddr,
+						   &inp->in6p_laddr,
+						   inp->inp_fport,
+						   inp->inp_lport,
+						   IPPROTO_TCP,
+						   &inp->inp_flowid,
+						   &inp->inp_flowtype);
+		  } else
+#endif	/* INET6 */
+		  {
+			rss_proto_software_hash_v4(inp->inp_faddr,
+						   inp->inp_laddr,
+						   inp->inp_fport,
+						   inp->inp_lport,
+						   IPPROTO_TCP,
+						   &inp->inp_flowid,
+						   &inp->inp_flowtype);
+		  }
+#endif	/* RSS */
+	}
+#ifdef NUMA
+	inp->inp_numa_domain = sc->sc_numa_domain;
+#endif
+
 	tp->t_state = TCPS_SYN_RECEIVED;
 	tp->iss = sc->sc_iss;
 	tp->irs = sc->sc_irs;
@@ -1144,6 +1163,13 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			return (-1); /* Do not send RST */
 		}
 #endif /* TCP_SIGNATURE */
+		if (m != NULL && M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
+			sc->sc_flowid = m->m_pkthdr.flowid;
+			sc->sc_flowtype = M_HASHTYPE_GET(m);
+		}
+#ifdef NUMA
+		sc->sc_numa_domain = m ? m->m_pkthdr.numa_domain : M_NODOM;
+#endif
 		TCPSTATES_INC(TCPS_SYN_RECEIVED);
 	} else {
 		if (sc->sc_port != port) {
@@ -1262,7 +1288,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 				log(LOG_DEBUG, "%s; %s: SEQ %u != IRS+1 %u, "
 				    "sending challenge ACK\n",
 				    s, __func__, th->th_seq, sc->sc_irs + 1);
-			syncache_send_challenge_ack(sc, m);
+			syncache_send_challenge_ack(sc);
 			SCH_UNLOCK(sch);
 			free(s, M_TCPLOG);
 			return (-1);  /* Do not send RST */
@@ -1559,7 +1585,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			    s, __func__);
 			free(s, M_TCPLOG);
 		}
-		if (syncache_respond(sc, m, TH_SYN|TH_ACK) == 0) {
+		if (syncache_respond(sc, TH_SYN|TH_ACK) == 0) {
 			sc->sc_rxmits = 0;
 			syncache_timeout(sc, sch, 1);
 			TCPSTAT_INC(tcps_sndacks);
@@ -1735,6 +1761,13 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		sc->sc_flowlabel = htonl(sc->sc_flowlabel) & IPV6_FLOWLABEL_MASK;
 	}
 #endif
+	if (m != NULL && M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
+		sc->sc_flowid = m->m_pkthdr.flowid;
+		sc->sc_flowtype = M_HASHTYPE_GET(m);
+	}
+#ifdef NUMA
+	sc->sc_numa_domain = m ? m->m_pkthdr.numa_domain : M_NODOM;
+#endif
 	if (locked)
 		SCH_UNLOCK(sch);
 
@@ -1748,7 +1781,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	/*
 	 * Do a standard 3-way handshake.
 	 */
-	if (syncache_respond(sc, m, TH_SYN|TH_ACK) == 0) {
+	if (syncache_respond(sc, TH_SYN|TH_ACK) == 0) {
 		if (sc != &scs)
 			syncache_insert(sc, sch);   /* locks and unlocks sch */
 		TCPSTAT_INC(tcps_sndacks);
@@ -1791,11 +1824,11 @@ tfo_expanded:
 }
 
 /*
- * Send SYN|ACK or ACK to the peer.  Either in response to a peer's segment,
- * i.e. m0 != NULL, or upon 3WHS ACK timeout, i.e. m0 == NULL.
+ * Send SYN|ACK or ACK to the peer.  Either in response to a peer's segment
+ * or upon 3WHS ACK timeout.
  */
 static int
-syncache_respond(struct syncache *sc, const struct mbuf *m0, int flags)
+syncache_respond(struct syncache *sc, int flags)
 {
 	struct ip *ip = NULL;
 	struct mbuf *m;
@@ -1985,15 +2018,11 @@ syncache_respond(struct syncache *sc, const struct mbuf *m0, int flags)
 		udp->uh_ulen = htons(ulen);
 	}
 	M_SETFIB(m, sc->sc_inc.inc_fibnum);
-	/*
-	 * If we have peer's SYN and it has a flowid, then let's assign it to
-	 * our SYN|ACK.  ip6_output() and ip_output() will not assign flowid
-	 * to SYN|ACK due to lack of inp here.
-	 */
-	if (m0 != NULL && M_HASHTYPE_GET(m0) != M_HASHTYPE_NONE) {
-		m->m_pkthdr.flowid = m0->m_pkthdr.flowid;
-		M_HASHTYPE_SET(m, M_HASHTYPE_GET(m0));
-	}
+	m->m_pkthdr.flowid = sc->sc_flowid;
+	M_HASHTYPE_SET(m, sc->sc_flowtype);
+#ifdef NUMA
+	m->m_pkthdr.numa_domain = sc->sc_numa_domain;
+#endif
 #ifdef INET6
 	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
 		if (sc->sc_port) {
@@ -2056,11 +2085,11 @@ syncache_respond(struct syncache *sc, const struct mbuf *m0, int flags)
 }
 
 static void
-syncache_send_challenge_ack(struct syncache *sc, struct mbuf *m)
+syncache_send_challenge_ack(struct syncache *sc)
 {
 	if (tcp_challenge_ack_check(&sc->sc_challenge_ack_end,
 	    &sc->sc_challenge_ack_cnt)) {
-		if (syncache_respond(sc, m, TH_ACK) == 0) {
+		if (syncache_respond(sc, TH_ACK) == 0) {
 			TCPSTAT_INC(tcps_sndacks);
 			TCPSTAT_INC(tcps_sndtotal);
 		}
