@@ -26,12 +26,14 @@
 #include <sys/memdesc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/power.h>
 #include <sys/rman.h>
 #include <sys/taskqueue.h>
 
 #include <machine/bus.h>
 
 #include <cam/cam.h>
+#include <cam/scsi/scsi_all.h>
 
 #include "ufshci.h"
 
@@ -233,6 +235,30 @@ struct ufshci_req_queue {
 	bus_dmamap_t ucdmem_map;
 };
 
+enum ufshci_dev_pwr {
+	UFSHCI_DEV_PWR_ACTIVE = 0,
+	UFSHCI_DEV_PWR_SLEEP,
+	UFSHCI_DEV_PWR_POWERDOWN,
+	UFSHCI_DEV_PWR_DEEPSLEEP,
+	UFSHCI_DEV_PWR_COUNT,
+};
+
+struct ufshci_power_entry {
+	enum ufshci_dev_pwr dev_pwr;
+	uint8_t ssu_pc; /* SSU Power Condition */
+};
+
+/* SSU Power Condition 0x40 is defined in the UFS specification */
+static const struct ufshci_power_entry power_map[POWER_STYPE_COUNT] = {
+	[POWER_STYPE_AWAKE] = { UFSHCI_DEV_PWR_ACTIVE, SSS_PC_ACTIVE },
+	[POWER_STYPE_STANDBY] = { UFSHCI_DEV_PWR_SLEEP, SSS_PC_IDLE },
+	[POWER_STYPE_SUSPEND_TO_MEM] = { UFSHCI_DEV_PWR_POWERDOWN,
+	    SSS_PC_STANDBY },
+	[POWER_STYPE_SUSPEND_TO_IDLE] = { UFSHCI_DEV_PWR_SLEEP, SSS_PC_IDLE },
+	[POWER_STYPE_HIBERNATE] = { UFSHCI_DEV_PWR_DEEPSLEEP, 0x40 },
+	[POWER_STYPE_POWEROFF] = { UFSHCI_DEV_PWR_POWERDOWN, SSS_PC_STANDBY },
+};
+
 struct ufshci_device {
 	uint32_t max_lun_count;
 
@@ -252,6 +278,7 @@ struct ufshci_device {
 
 	/* Power mode */
 	bool power_mode_supported;
+	enum ufshci_dev_pwr power_mode;
 };
 
 /*
@@ -386,12 +413,16 @@ void ufshci_sim_detach(struct ufshci_controller *ctrlr);
 struct cam_periph *ufshci_sim_find_periph(struct ufshci_controller *ctrlr,
     uint8_t wlun);
 int ufshci_sim_send_ssu(struct ufshci_controller *ctrlr, bool start,
-    int pwr_cond, bool immed);
+    uint8_t pwr_cond, bool immed);
 
 /* Controller */
 int ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev);
 void ufshci_ctrlr_destruct(struct ufshci_controller *ctrlr, device_t dev);
 void ufshci_ctrlr_reset(struct ufshci_controller *ctrlr);
+int ufshci_ctrlr_suspend(struct ufshci_controller *ctrlr,
+    enum power_stype stype);
+int ufshci_ctrlr_resume(struct ufshci_controller *ctrlr,
+    enum power_stype stype);
 /* ctrlr defined as void * to allow use with config_intrhook. */
 void ufshci_ctrlr_start_config_hook(void *arg);
 void ufshci_ctrlr_poll(struct ufshci_controller *ctrlr);
@@ -415,6 +446,8 @@ int ufshci_dev_init_uic_power_mode(struct ufshci_controller *ctrlr);
 int ufshci_dev_init_ufs_power_mode(struct ufshci_controller *ctrlr);
 int ufshci_dev_get_descriptor(struct ufshci_controller *ctrlr);
 int ufshci_dev_config_write_booster(struct ufshci_controller *ctrlr);
+int ufshci_dev_get_current_power_mode(struct ufshci_controller *ctrlr,
+    uint8_t *power_mode);
 
 /* Controller Command */
 void ufshci_ctrlr_cmd_send_task_mgmt_request(struct ufshci_controller *ctrlr,
