@@ -285,6 +285,7 @@ _LIBRARIES+= \
 		irdma \
 		mlx4 \
 		mlx5 \
+		bnxtre \
 		rdmacm \
 		osmcomp \
 		opensm \
@@ -360,7 +361,7 @@ _DP_cap_sysctl=	nv
 _DP_cap_syslog=	nv
 _DP_crypt=	md
 .if ${MK_OFED} != "no"
-_DP_pcap=	ibverbs mlx5
+_DP_pcap=	ibverbs mlx5 bnxtre
 .endif
 _DP_pjdlog=	util
 _DP_usb=	pthread
@@ -511,11 +512,12 @@ _DP_cxgb4=	ibverbs pthread
 _DP_ibcm=	ibverbs
 _DP_ibmad=	ibumad
 _DP_ibnetdisc=	osmcomp ibmad ibumad
-_DP_ibumad=	
+_DP_ibumad=
 _DP_ibverbs=
 _DP_irdma=	ibverbs pthread
 _DP_mlx4=	ibverbs pthread
 _DP_mlx5=	ibverbs pthread
+_DP_bnxtre=	ibverbs pthread
 _DP_rdmacm=	ibverbs
 _DP_osmcomp=	pthread
 _DP_opensm=	pthread
@@ -810,6 +812,7 @@ LIBIBVERBSDIR=	${_LIB_OBJTOP}/lib/ofed/libibverbs
 LIBIRDMADIR=	${_LIB_OBJTOP}/lib/ofed/libirdma
 LIBMLX4DIR=	${_LIB_OBJTOP}/lib/ofed/libmlx4
 LIBMLX5DIR=	${_LIB_OBJTOP}/lib/ofed/libmlx5
+LIBBNXTREDIR=	${_LIB_OBJTOP}/lib/ofed/libbnxtre
 LIBRDMACMDIR=	${_LIB_OBJTOP}/lib/ofed/librdmacm
 LIBOSMCOMPDIR=	${_LIB_OBJTOP}/lib/ofed/complib
 LIBOPENSMDIR=	${_LIB_OBJTOP}/lib/ofed/libopensm
