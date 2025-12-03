@@ -923,37 +923,6 @@ findpcb:
 	}
 	INP_LOCK_ASSERT(inp);
 
-	if ((inp->inp_flowtype == M_HASHTYPE_NONE) &&
-	    !SOLISTENING(inp->inp_socket)) {
-		if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
-			inp->inp_flowid = m->m_pkthdr.flowid;
-			inp->inp_flowtype = M_HASHTYPE_GET(m);
-#ifdef	RSS
-		} else {
-			  /* assign flowid by software RSS hash */
-#ifdef INET6
-			  if (isipv6) {
-				rss_proto_software_hash_v6(&inp->in6p_faddr,
-							   &inp->in6p_laddr,
-							   inp->inp_fport,
-							   inp->inp_lport,
-							   IPPROTO_TCP,
-							   &inp->inp_flowid,
-							   &inp->inp_flowtype);
-			  } else
-#endif	/* INET6 */
-			  {
-				rss_proto_software_hash_v4(inp->inp_faddr,
-							   inp->inp_laddr,
-							   inp->inp_fport,
-							   inp->inp_lport,
-							   IPPROTO_TCP,
-							   &inp->inp_flowid,
-							   &inp->inp_flowtype);
-			  }
-#endif	/* RSS */
-		}
-	}
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 #ifdef INET6
 	if (isipv6 && IPSEC_ENABLED(ipv6) &&
