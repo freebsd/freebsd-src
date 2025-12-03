@@ -3,6 +3,10 @@
  * Copyright (C) 2022 MediaTek Inc.
  */
 
+#if defined(__FreeBSD__)
+#define	LINUXKPI_PARAM_PREFIX	mt7996_
+#endif
+
 #include <linux/firmware.h>
 #include <linux/fs.h>
 #include "mt7996.h"
