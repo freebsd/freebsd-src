@@ -186,7 +186,6 @@ _RF0(cp14_dbgoslsr_get, CP14_DBGOSLSR(%0))
 _RF0(cp14_dbgosdlr_get, CP14_DBGOSDLR(%0))
 _RF0(cp14_dbgdscrint_get, CP14_DBGDSCRint(%0))
 
-_WF1(cp14_dbgdscr_v6_set, CP14_DBGDSCRext_V6(%0))
 _WF1(cp14_dbgdscr_v7_set, CP14_DBGDSCRext_V7(%0))
 _WF1(cp14_dbgvcr_set, CP14_DBGVCR(%0))
 _WF1(cp14_dbgoslar_set, CP14_DBGOSLAR(%0))

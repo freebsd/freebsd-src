@@ -83,6 +83,8 @@ static uint32_t dbg_breakpoint_num;
 #define	ID_DFR0_CP_DEBUG_M_SHIFT	0
 #define	ID_DFR0_CP_DEBUG_M_MASK		(0xF << ID_DFR0_CP_DEBUG_M_SHIFT)
 #define	ID_DFR0_CP_DEBUG_M_NS		(0x0) /* Not supported */
+#define	ID_DFR0_CP_DEBUG_M_V6		(0x2) /* v6 Debug arch. CP14 access */
+#define	ID_DFR0_CP_DEBUG_M_V6_1		(0x3) /* v6.1 Debug arch. CP14 access */
 #define	ID_DFR0_CP_DEBUG_M_V7		(0x4) /* v7 Debug arch. CP14 access */
 #define	ID_DFR0_CP_DEBUG_M_V7_1		(0x5) /* v7.1 Debug arch. CP14 access */
 
