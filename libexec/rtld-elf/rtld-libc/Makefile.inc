@@ -69,7 +69,7 @@ _libc_other_objects+=aeabi_unwind_cpp
 .elif ${LIBC_ARCH} == "i386"
 # i386 needs i386_set_gsbase for allocate_initial_tls()
 _libsys_other_objects+=i386_set_gsbase
-.elif ${LIBC_ARCH} == "powerpc" || ${LIBC_ARCH} == "powerpcspe"
+.elif ${LIBC_ARCH} == "powerpc"
 # ppc needs __syncicache and abs for reloc.c
 _libc_other_objects+=syncicache abs
 .elif ${LIBC_ARCH} == "powerpc64"
