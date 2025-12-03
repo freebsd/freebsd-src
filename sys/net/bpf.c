@@ -178,7 +178,6 @@ struct bpf_dltlist32 {
 CK_LIST_HEAD(bpf_iflist, bpf_if);
 static struct bpf_iflist bpf_iflist = CK_LIST_HEAD_INITIALIZER();
 static struct sx	bpf_sx;		/* bpf global lock */
-static int		bpf_bpfd_cnt;
 
 static void	bpfif_ref(struct bpf_if *);
 static void	bpfif_rele(struct bpf_if *);
@@ -760,7 +759,6 @@ bpf_attachd(struct bpf_d *d, struct bpf_if *bp)
 	bpf_wakeup(d);
 
 	BPFD_UNLOCK(d);
-	bpf_bpfd_cnt++;
 
 	CTR3(KTR_NET, "%s: bpf_attach called by pid %d, adding to %s list",
 	    __func__, d->bd_pid, d->bd_writer ? "writer" : "active");
@@ -864,7 +862,6 @@ bpf_detachd(struct bpf_d *d, bool detached_ifp)
 		bpf_wakeup(d);
 	}
 	BPFD_UNLOCK(d);
-	bpf_bpfd_cnt--;
 
 	/* Call event handler iff d is attached */
 	if (error == 0)
@@ -3044,7 +3041,8 @@ bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	static const struct xbpf_d zerostats;
 	struct xbpf_d *xbdbuf, *xbd, tempstats;
-	int index, error;
+	u_int bpfd_cnt, index;
+	int error;
 	struct bpf_if *bp;
 	struct bpf_d *bd;
 
@@ -3074,25 +3072,33 @@ bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 		bpf_zero_counters();
 		return (0);
 	}
-	if (req->oldptr == NULL)
-		return (SYSCTL_OUT(req, 0, bpf_bpfd_cnt * sizeof(*xbd)));
-	if (bpf_bpfd_cnt == 0)
-		return (SYSCTL_OUT(req, 0, 0));
-	xbdbuf = malloc(req->oldlen, M_BPF, M_WAITOK);
+	bpfd_cnt = 0;
 	BPF_LOCK();
-	if (req->oldlen < (bpf_bpfd_cnt * sizeof(*xbd))) {
+	CK_LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+		CK_LIST_FOREACH(bd, &bp->bif_wlist, bd_next)
+			bpfd_cnt++;
+		CK_LIST_FOREACH(bd, &bp->bif_dlist, bd_next)
+			bpfd_cnt++;
+	}
+	if (bpfd_cnt == 0 || req->oldptr == NULL) {
 		BPF_UNLOCK();
-		free(xbdbuf, M_BPF);
+		return (SYSCTL_OUT(req, 0, bpfd_cnt * sizeof(*xbd)));
+	}
+	if (req->oldlen < bpfd_cnt * sizeof(*xbd)) {
+		BPF_UNLOCK();
 		return (ENOMEM);
 	}
+	xbdbuf = malloc(bpfd_cnt * sizeof(*xbd), M_BPF, M_WAITOK);
 	index = 0;
 	CK_LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		/* Send writers-only first */
 		CK_LIST_FOREACH(bd, &bp->bif_wlist, bd_next) {
+			MPASS(index <= bpfd_cnt);
 			xbd = &xbdbuf[index++];
 			bpfstats_fill_xbpf(xbd, bd);
 		}
 		CK_LIST_FOREACH(bd, &bp->bif_dlist, bd_next) {
+			MPASS(index <= bpfd_cnt);
 			xbd = &xbdbuf[index++];
 			bpfstats_fill_xbpf(xbd, bd);
 		}
