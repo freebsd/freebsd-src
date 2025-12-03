@@ -6,19 +6,11 @@
  */
 /*
  * RCSid:
- *	$Id: wait.h,v 1.6 2002/11/26 07:53:06 sjg Exp $
+ *	$Id: wait.h,v 1.7 2025/08/09 22:11:45 sjg Exp $
  *
- *      @(#)Copyright (c) 1994, Simon J. Gerraty.
+ *      @(#)Copyright (c) 1994-2025, Simon J. Gerraty.
  *      
- *      This is free software.  It comes with NO WARRANTY.
- *      Permission to use, modify and distribute this source code 
- *      is granted subject to the following conditions.
- *      1/ that the above copyright notice and this notice 
- *      are preserved in all copies and that due credit be given 
- *      to the author.  
- *      2/ that any changes to this code are clearly commented 
- *      as such so that the author does not get blamed for bugs 
- *      other than his own.
+ *      SPDX-License-Identifier: BSD-2-Clause
  *      
  *      Please send copies of changes and bug-fixes to:
  *      sjg@crufty.net

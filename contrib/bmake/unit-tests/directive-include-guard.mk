@@ -636,9 +636,9 @@ LINES.multiline= \
 _:=	${fname:H:N.:@dir@${:!mkdir -p ${dir}!}@}
 _!=	printf '%s\n' ${LINES.$i} > ${fname}
 .MAKEFLAGS: -dp
-.include "${.CURDIR}/${fname}"
+.include "${.OBJDIR}/${fname}"
 .undef ${UNDEF_BETWEEN.$i:U}
-.include "${.CURDIR}/${fname}"
+.include "${.OBJDIR}/${fname}"
 .MAKEFLAGS: -d0
 _!=	rm ${fname}
 _:=	${fname:H:N.:@dir@${:!rmdir ${dir}!}@}

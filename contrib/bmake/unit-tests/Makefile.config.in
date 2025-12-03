@@ -1,7 +1,8 @@
-# $Id: Makefile.config.in,v 1.4 2022/09/09 18:44:56 sjg Exp $
+# $Id: Makefile.config.in,v 1.5 2025/10/22 23:20:41 sjg Exp $
 
-srcdir= @srcdir@
-EGREP= @egrep@
-TOOL_DIFF?= @diff@
 DIFF_FLAGS?= @diff_u@
+EGREP= @egrep@
+LUA?= @lua@
+TOOL_DIFF?= @diff@
 UTC_1= @UTC_1@
+srcdir= @srcdir@

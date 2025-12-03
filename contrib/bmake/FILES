@@ -760,6 +760,8 @@ unit-tests/varmod-subst.exp
 unit-tests/varmod-subst.mk
 unit-tests/varmod-sun-shell.exp
 unit-tests/varmod-sun-shell.mk
+unit-tests/varmod-sun-shell1.exp
+unit-tests/varmod-sun-shell1.mk
 unit-tests/varmod-sysv.exp
 unit-tests/varmod-sysv.mk
 unit-tests/varmod-tail.exp

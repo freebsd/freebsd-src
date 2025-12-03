@@ -1,3 +1,52 @@
+2025-11-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* sys.vars.mk: set MAKE_POSIX_SHELL to 1 if .SHELL is POSIX, 0 if not.
+	set isPOSIX_SHELL for use in target scripts.
+
+	* meta.stage.mk: set MAKE_POSIX_SHELL if needed.
+
+	* install-new.mk: use ${isPOSIX_SHELL:Ufalse} to see if we can
+	avoid running 'expr'.
+
+	* install-new.mk: Allow use of cp or mv - controlled by CPMV_OP
+	(default mv).
+
+2025-11-13  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* sys.vars.mk: add M_sh1 so we can handle older bmake that does
+	not support :sh1
+
+2025-11-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20251111
+
+	* meta2deps.sh: reset some vars for each new meta file
+	set meta_file to path of meta file.
+	If meta2deps appears in DEBUG_SH set -x.
+
+2025-09-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* options.mk: Add OPTIONS_DEFAULT_DEPENDENT_REQUIRED of the form
+	OPTION/REQUIRED[/VALUE]
+	if OPTION is $VALUE (default is "yes"), then REQUIRED must be too.
+	We add OPTIONS_DEFAULT_DEPENDENT_REQUIRED (sans any /{yes,no}) to
+	OPTIONS_DEFAULT_DEPENDENT so DEPENDENT/REQUIRED follow the same
+	processing.
+
+	Also add OPTIONS_FORCED_VALUES of the form OPTION/{yes,no}
+	we add any OPTIONS_FORCED_NO and OPTIONS_FORCED_YES before
+	processing.
+
+	Simplify the processing of OPTIONS_DEFAULT_VALUES and
+	OPTIONS_DEFAULT_DEPENDENT by splitting the tuples and use two
+	iterator variables in the .for loops.
+
+2025-08-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20250808
+
+	* replace sjg license with just BSD-2-Clause SPDX tag
+
 2025-07-24  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20250724

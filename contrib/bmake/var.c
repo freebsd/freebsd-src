@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.1171 2025/06/29 11:02:17 rillig Exp $	*/
+/*	$NetBSD: var.c,v 1.1173 2025/11/12 22:14:07 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -143,7 +143,7 @@
 #endif
 
 /*	"@(#)var.c	8.3 (Berkeley) 3/19/94" */
-MAKE_RCSID("$NetBSD: var.c,v 1.1171 2025/06/29 11:02:17 rillig Exp $");
+MAKE_RCSID("$NetBSD: var.c,v 1.1173 2025/11/12 22:14:07 sjg Exp $");
 
 /*
  * Variables are defined using one of the VAR=value assignments.  Their
@@ -1866,7 +1866,7 @@ QuoteShell(const char *str, bool quoteDollar, LazyBuf *buf)
 static char *
 Hash(const char *str)
 {
-	static const char hexdigits[16] = "0123456789abcdef";
+	static const char hexdigits[] = "0123456789abcdef";
 	const unsigned char *ustr = (const unsigned char *)str;
 
 	uint32_t h = 0x971e137bU;
@@ -3810,6 +3810,44 @@ ApplyModifier_SunShell(const char **pp, ModChain *ch)
 	return AMR_OK;
 }
 
+/* :sh1 */
+static ApplyModifierResult
+ApplyModifier_SunShell1(const char **pp, ModChain *ch)
+{
+	Expr *expr = ch->expr;
+	const char *p = *pp;
+
+	if (!(p[1] == 'h' && p[2] == '1' && IsDelimiter(p[3], ch)))
+		return AMR_UNKNOWN;
+	*pp = p + 3;
+
+	if (Expr_ShouldEval(expr)) {
+		char *cache_varname;
+		Var *v;
+
+		cache_varname = str_concat2(".MAKE.SH1.", expr->name);
+		v = VarFind(cache_varname, SCOPE_GLOBAL, false);
+		if (v == NULL) {
+			char *output, *error;
+			
+			output = Cmd_Exec(Expr_Str(expr), &error);
+			if (error != NULL) {
+				Parse_Error(PARSE_WARNING, "%s", error);
+				free(error);
+			}
+			Var_SetWithFlags(SCOPE_GLOBAL, cache_varname, output,
+			    VAR_SET_NO_EXPORT);
+			Expr_SetValueOwn(expr, output);
+		} else {
+			Expr_SetValueRefer(expr, v->val.data);
+		}
+		free(cache_varname);
+	}
+
+	return AMR_OK;
+}
+	
+
 /*
  * In cases where the evaluation mode and the definedness are the "standard"
  * ones, don't log them, to keep the logs readable.
@@ -3925,6 +3963,8 @@ ApplyModifier(const char **pp, ModChain *ch)
 	case 'S':
 		return ApplyModifier_Subst(pp, ch);
 	case 's':
+		if ((*pp)[1] == 'h' && (*pp)[2] == '1')
+			return ApplyModifier_SunShell1(pp, ch);
 		return ApplyModifier_SunShell(pp, ch);
 	case 'T':
 		return ApplyModifier_WordFunc(pp, ch, ModifyWord_Tail);

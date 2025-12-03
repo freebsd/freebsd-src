@@ -1,19 +1,11 @@
-# SPDX-License-Identifier: BSD-2-Clause
+# $Id: dirdeps-targets.mk,v 1.29 2025/08/09 22:42:24 sjg Exp $
 #
-# RCSid:
-#       $Id: dirdeps-targets.mk,v 1.28 2024/10/19 00:47:38 sjg Exp $
+#	@(#) Copyright (c) 2019-2020 Simon J. Gerraty
 #
-#       @(#) Copyright (c) 2019-2020 Simon J. Gerraty
+#	SPDX-License-Identifier: BSD-2-Clause
 #
-#       This file is provided in the hope that it will
-#       be of use.  There is absolutely NO WARRANTY.
-#       Permission to copy, redistribute or otherwise
-#       use this file is hereby granted provided that
-#       the above copyright notice and this notice are
-#       left intact.
-#
-#       Please send copies of changes and bug-fixes to:
-#       sjg@crufty.net
+#	Please send copies of changes and bug-fixes to:
+#	sjg@crufty.net
 #
 
 ##
