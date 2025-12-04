@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 30, 2024
+.Dd January 15, 2026
 .Dt MAC 4
 .Os
 .Sh NAME
@@ -165,6 +165,7 @@ and modifying its MAC policy label.
 .Bl -column "user (by login class)" "Xr setfmac 8 , Xr setfsmac 8" -offset indent
 .It Sy "Subject/Object" Ta Sy "Utility"
 .It "File system object" Ta Xr setfmac 8 , Xr setfsmac 8
+.It Jail Ta Xr jail 8
 .It "Network interface" Ta Xr ifconfig 8
 .It "TTY (by login class)" Ta Xr login.conf 5
 .It "User (by login class)" Ta Xr login.conf 5
@@ -221,6 +222,7 @@ man page.
 .Xr mac_test 4 ,
 .Xr login.conf 5 ,
 .Xr maclabel 7 ,
+.Xr jail 8 ,
 .Xr getfmac 8 ,
 .Xr getpmac 8 ,
 .Xr setfmac 8 ,
