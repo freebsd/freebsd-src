@@ -43,7 +43,7 @@ wait_for_carp()
 
 	while [ -z "$(is_master ${jail1} ${itf1})" ] &&
 	    [ -z "$(is_master ${jail2} ${itf2})" ]; do
-		sleep 1
+		sleep 0.1
 	done
 
 	if [ -n "$(is_master ${jail1} ${itf1})" ] &&
