@@ -119,9 +119,6 @@ in_inithead(uint32_t fibnum)
 	struct rib_head *rh;
 
 	rh = rt_table_init(32, AF_INET, fibnum);
-	if (rh == NULL)
-		return (NULL);
-
 	rh->rnh_set_nh_pfxflags = rib4_set_nh_pfxflags;
 	rh->rnh_augment_nh = rib4_augment_nh;
 
