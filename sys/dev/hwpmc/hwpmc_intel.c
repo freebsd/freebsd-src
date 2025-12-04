@@ -211,6 +211,9 @@ pmc_intel_initialize(void)
 			break;
 		case 0x97:
 		case 0x9A:
+		case 0xB7:
+		case 0xBA:
+		case 0xBF:
 			cputype = PMC_CPU_INTEL_ALDERLAKE;
 			nclasses = 3;
 			break;
