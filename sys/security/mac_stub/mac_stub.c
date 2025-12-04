@@ -319,7 +319,7 @@ stub_cred_create_init(struct ucred *cred)
 }
 
 static void
-stub_cred_create_swapper(struct ucred *cred)
+stub_cred_create_kproc0(struct ucred *cred)
 {
 
 }
@@ -1720,7 +1720,7 @@ static struct mac_policy_ops stub_ops =
 	.mpo_cred_check_visible = stub_cred_check_visible,
 	.mpo_cred_copy_label = stub_copy_label,
 	.mpo_cred_create_init = stub_cred_create_init,
-	.mpo_cred_create_swapper = stub_cred_create_swapper,
+	.mpo_cred_create_kproc0 = stub_cred_create_kproc0,
 	.mpo_cred_destroy_label = stub_destroy_label,
 	.mpo_cred_externalize_label = stub_externalize_label,
 	.mpo_cred_init_label = stub_init_label,

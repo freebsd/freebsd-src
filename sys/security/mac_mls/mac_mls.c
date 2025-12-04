@@ -875,7 +875,7 @@ mls_cred_create_init(struct ucred *cred)
 }
 
 static void
-mls_cred_create_swapper(struct ucred *cred)
+mls_cred_create_kproc0(struct ucred *cred)
 {
 	struct mac_mls *dest;
 
@@ -3203,7 +3203,7 @@ static struct mac_policy_ops mls_ops =
 	.mpo_cred_check_visible = mls_cred_check_visible,
 	.mpo_cred_copy_label = mls_copy_label,
 	.mpo_cred_create_init = mls_cred_create_init,
-	.mpo_cred_create_swapper = mls_cred_create_swapper,
+	.mpo_cred_create_kproc0 = mls_cred_create_kproc0,
 	.mpo_cred_destroy_label = mls_destroy_label,
 	.mpo_cred_externalize_label = mls_externalize_label,
 	.mpo_cred_init_label = mls_init_label,

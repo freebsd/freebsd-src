@@ -560,7 +560,7 @@ proc0_init(void *dummy __unused)
 	audit_cred_kproc0(newcred);
 #endif
 #ifdef MAC
-	mac_cred_create_swapper(newcred);
+	mac_cred_create_kproc0(newcred);
 #endif
 	/* Create sigacts. */
 	p->p_sigacts = sigacts_alloc();
