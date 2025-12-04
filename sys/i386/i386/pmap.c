@@ -2026,7 +2026,7 @@ pmap_abort_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 }
 
 /*
- * Initialize the pmap for the swapper process.
+ * Initialize the pmap for proc0.
  */
 static void
 __CONCAT(PMTYPE, pinit0)(pmap_t pmap)
