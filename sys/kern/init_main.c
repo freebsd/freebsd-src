@@ -336,7 +336,7 @@ mi_startup(void)
 	 * the need arises.
 	 */
 	for (;;)
-		tsleep(__builtin_frame_address(0), PNOLOCK, "parked", 0);
+		tsleep(__builtin_frame_address(0), PNOLOCK, "-", 0);
 }
 
 static void
@@ -486,7 +486,7 @@ proc0_init(void *dummy __unused)
 	schedinit();	/* scheduler gets its house in order */
 
 	/*
-	 * Create process 0 (the swapper).
+	 * Create process 0.
 	 */
 	LIST_INSERT_HEAD(&allproc, p, p_list);
 	LIST_INSERT_HEAD(PIDHASH(0), p, p_hash);
@@ -531,7 +531,7 @@ proc0_init(void *dummy __unused)
 	LIST_INIT(&p->p_reaplist);
 
 	strncpy(p->p_comm, "kernel", sizeof (p->p_comm));
-	strncpy(td->td_name, "swapper", sizeof (td->td_name));
+	strncpy(td->td_name, "kernel", sizeof (td->td_name));
 
 	callout_init_mtx(&p->p_itcallout, &p->p_mtx, 0);
 	callout_init_mtx(&p->p_limco, &p->p_mtx, 0);
