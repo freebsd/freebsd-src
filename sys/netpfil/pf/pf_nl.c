@@ -1179,7 +1179,7 @@ nlattr_add_fcounters(struct nl_writer *nw, int attr, size_t number, char **names
 }
 
 static bool
-nlattr_add_u64_array(struct nl_writer *nw, int attr, size_t number, uint64_t *array)
+nlattr_add_u64_array(struct nl_writer *nw, int attr, size_t number, const uint64_t *array)
 {
 	int off = nlattr_add_nested(nw, attr);
 
@@ -2327,6 +2327,104 @@ out:
 	return (error);
 }
 
+static int
+nlattr_add_pfr_astats(struct nl_writer *nw, int attr, const struct pfr_astats *a)
+{
+	int off = nlattr_add_nested(nw, attr);
+	if (off == 0)
+		return (false);
+
+	nlattr_add_pfr_addr(nw, PF_AS_ADDR, &a->pfras_a);
+	nlattr_add_u64_array(nw, PF_AS_PACKETS, PFR_DIR_MAX * PFR_OP_ADDR_MAX,
+	    (const uint64_t *)a->pfras_packets);
+	nlattr_add_u64_array(nw,PF_AS_BYTES, PFR_DIR_MAX * PFR_OP_ADDR_MAX,
+	    (const uint64_t *)a->pfras_bytes);
+	nlattr_add_time_t(nw, PF_AS_TZERO, a->pfras_tzero);
+
+	nlattr_set_len(nw, off);
+
+	return (true);
+}
+
+struct nl_parsed_table_astats {
+	struct pfr_table table;
+	uint32_t flags;
+};
+#define _OUT(_field)	offsetof(struct nl_parsed_table_astats, _field)
+static const struct nlattr_parser nla_p_table_astats[] = {
+	{ .type = PF_TAS_TABLE, .off = _OUT(table), .arg = &nested_table_parser, .cb = nlattr_get_nested },
+	{ .type = PF_TAS_FLAGS, .off = _OUT(flags), .cb = nlattr_get_uint32 },
+};
+NL_DECLARE_PARSER(table_astats_parser, struct genlmsghdr, nlf_p_empty, nla_p_table_astats);
+#undef _OUT
+
+static int
+pf_handle_table_get_astats(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct nl_parsed_table_astats attrs = { 0 };
+	struct nl_writer *nw = npt->nw;
+	struct pfr_astats *pfrastats;
+	struct genlmsghdr *ghdr_new;
+	int size = 0;
+	int error;
+
+	PF_RULES_RLOCK_TRACKER;
+
+	error = nl_parse_nlmsg(hdr, &table_astats_parser, npt, &attrs);
+	if (error != 0)
+		return  (error);
+
+	PF_RULES_RLOCK();
+
+	/* Get required size. */
+	error = pfr_get_astats(&attrs.table, NULL,
+	    &size, attrs.flags | PFR_FLAG_USERIOCTL);
+	if (error != 0) {
+		PF_RULES_RUNLOCK();
+		return (error);
+	}
+
+	pfrastats = mallocarray(size, sizeof(struct pfr_astats), M_PF,
+	    M_NOWAIT | M_ZERO);
+	if (pfrastats == NULL) {
+		PF_RULES_RUNLOCK();
+		return (ENOMEM);
+	}
+
+	/* Now get the astats. */
+	error = pfr_get_astats(&attrs.table, pfrastats,
+	    &size, attrs.flags | PFR_FLAG_USERIOCTL);
+	PF_RULES_RUNLOCK();
+	if (error != 0)
+		goto out;
+
+	for (int i = 0; i < size; i++) {
+		if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr))) {
+			nlmsg_abort(nw);
+			error = ENOMEM;
+			goto out;
+		}
+		ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+		ghdr_new->cmd = PFNL_CMD_TABLE_GET_ASTATS;
+		ghdr_new->version = 0;
+		ghdr_new->reserved = 0;
+
+		if (i == 0)
+			nlattr_add_u32(nw, PF_TAS_ASTATS_COUNT, size);
+
+		nlattr_add_pfr_astats(nw, PF_TAS_ASTATS, &pfrastats[i]);
+		if (!nlmsg_end(nw)) {
+			nlmsg_abort(nw);
+			error = ENOMEM;
+			goto out;
+		}
+	}
+
+out:
+	free(pfrastats, M_PF);
+	return (error);
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
@@ -2342,6 +2440,7 @@ static const struct nlhdr_parser *all_parsers[] = {
 	&ruleset_parser,
 	&table_parser,
 	&table_addr_parser,
+	&table_astats_parser,
 };
 
 static uint16_t family_id;
@@ -2589,6 +2688,13 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_num = PFNL_CMD_TABLE_GET_ADDR,
 		.cmd_name = "TABLE_GET_ADDRS",
 		.cmd_cb = pf_handle_table_get_addrs,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_TABLE_GET_ASTATS,
+		.cmd_name = "TABLE_GET_ASTATS",
+		.cmd_cb = pf_handle_table_get_astats,
 		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},
