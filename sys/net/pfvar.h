@@ -571,7 +571,11 @@ extern struct sx pf_end_lock;
 
 #ifdef _KERNEL
 
-void				 unhandled_af(int) __dead2;
+static inline __dead2 void
+unhandled_af(int af)
+{
+	panic("unhandled af %d", af);
+}
 
 static void inline
 pf_addrcpy(struct pf_addr *dst, const struct pf_addr *src, sa_family_t af)
