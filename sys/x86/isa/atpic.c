@@ -133,8 +133,6 @@ struct atpic_intsrc {
 	inthand_t *at_intr, *at_intr_pti;
 	int	at_irq;			/* Relative to PIC base. */
 	enum intr_trigger at_trigger;
-	u_long	at_count;
-	u_long	at_straycount;
 };
 
 static void atpic_register_sources(struct pic *pic);
@@ -466,8 +464,6 @@ atpic_startup(void)
 	for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++) {
 		if (i == ICU_SLAVEID)
 			continue;
-		ai->at_intsrc.is_count = &ai->at_count;
-		ai->at_intsrc.is_straycount = &ai->at_straycount;
 		setidt(((struct atpic *)ai->at_intsrc.is_pic)->at_intbase +
 		    ai->at_irq, pti ? ai->at_intr_pti : ai->at_intr, SDT_ATPIC,
 		    SEL_KPL, GSEL_ATPIC);
