@@ -61,10 +61,6 @@ typedef	__max_align_t	max_align_t;
 #endif
 #endif
 
-#if __ISO_C_VISIBLE >= 2023
-#define unreachable(x) __unreachable(x)
-#endif
-
 #ifndef offsetof
 #define	offsetof(type, field)	__builtin_offsetof(type, field)
 #endif
