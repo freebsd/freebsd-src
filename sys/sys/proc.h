@@ -1081,7 +1081,7 @@ extern int allproc_gen;
 extern struct sx proctree_lock;
 extern struct mtx ppeers_lock;
 extern struct mtx procid_lock;
-extern struct proc proc0;		/* Process slot for swapper. */
+extern struct proc proc0;		/* Initial kernel process. */
 extern struct thread0_storage thread0_st;	/* Primary thread in proc0. */
 #define	thread0 (thread0_st.t0st_thread)
 extern struct vmspace vmspace0;		/* VM space for proc0. */
