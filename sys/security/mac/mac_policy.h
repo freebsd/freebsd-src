@@ -167,7 +167,7 @@ typedef int	(*mpo_cred_check_visible_t)(struct ucred *cr1,
 typedef void	(*mpo_cred_copy_label_t)(struct label *src,
 		    struct label *dest);
 typedef void	(*mpo_cred_create_init_t)(struct ucred *cred);
-typedef void	(*mpo_cred_create_swapper_t)(struct ucred *cred);
+typedef void	(*mpo_cred_create_kproc0_t)(struct ucred *cred);
 typedef void	(*mpo_cred_destroy_label_t)(struct label *label);
 typedef int	(*mpo_cred_externalize_label_t)(struct label *label,
 		    char *element_name, struct sbuf *sb, int *claimed);
@@ -738,7 +738,7 @@ struct mac_policy_ops {
 	mpo_cred_check_setresgid_t		mpo_cred_check_setresgid;
 	mpo_cred_check_visible_t		mpo_cred_check_visible;
 	mpo_cred_copy_label_t			mpo_cred_copy_label;
-	mpo_cred_create_swapper_t		mpo_cred_create_swapper;
+	mpo_cred_create_kproc0_t		mpo_cred_create_kproc0;
 	mpo_cred_create_init_t			mpo_cred_create_init;
 	mpo_cred_destroy_label_t		mpo_cred_destroy_label;
 	mpo_cred_externalize_label_t		mpo_cred_externalize_label;

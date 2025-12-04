@@ -416,13 +416,13 @@ test_cred_create_init(struct ucred *cred)
 	COUNTER_INC(cred_create_init);
 }
 
-COUNTER_DECL(cred_create_swapper);
+COUNTER_DECL(cred_create_kproc0);
 static void
-test_cred_create_swapper(struct ucred *cred)
+test_cred_create_kproc0(struct ucred *cred)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(cred_create_swapper);
+	COUNTER_INC(cred_create_kproc0);
 }
 
 COUNTER_DECL(cred_destroy_label);
@@ -3074,7 +3074,7 @@ static struct mac_policy_ops test_ops =
 	.mpo_cred_check_visible = test_cred_check_visible,
 	.mpo_cred_copy_label = test_cred_copy_label,
 	.mpo_cred_create_init = test_cred_create_init,
-	.mpo_cred_create_swapper = test_cred_create_swapper,
+	.mpo_cred_create_kproc0 = test_cred_create_kproc0,
 	.mpo_cred_destroy_label = test_cred_destroy_label,
 	.mpo_cred_externalize_label = test_cred_externalize_label,
 	.mpo_cred_init_label = test_cred_init_label,
