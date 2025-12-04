@@ -1,10 +1,6 @@
 #!/bin/sh
 
 #
-# Full list of all arches we don't build.
-#
-#	powerpc/powerpcspe
-#
 # This script is expected to be run in stand (though you could run it anywhere
 # in the tree). It does a full clean build. For stand you can do all the archs in
 # about a minute or two on a fast machine. It's also possible that you need a full
