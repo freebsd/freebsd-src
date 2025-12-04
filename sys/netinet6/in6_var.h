@@ -869,7 +869,7 @@ int	in6if_do_dad(struct ifnet *);
 void	in6_savemkludge(struct in6_ifaddr *);
 void	*in6_domifattach(struct ifnet *);
 void	in6_domifdetach(struct ifnet *, void *);
-int	in6_domifmtu(struct ifnet *);
+uint32_t in6_ifmtu(struct ifnet *);
 struct rib_head *in6_inithead(uint32_t fibnum);
 void	in6_detachhead(struct rib_head *rh);
 int	in6_if2idlen(struct ifnet *);

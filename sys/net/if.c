@@ -4467,19 +4467,6 @@ if_getmtu(const if_t ifp)
 	return (ifp->if_mtu);
 }
 
-int
-if_getmtu_family(const if_t ifp, int family)
-{
-	struct domain *dp;
-
-	SLIST_FOREACH(dp, &domains, dom_next) {
-		if (dp->dom_family == family && dp->dom_ifmtu != NULL)
-			return (dp->dom_ifmtu(ifp));
-	}
-
-	return (ifp->if_mtu);
-}
-
 void
 if_setppromisc(if_t ifp, bool ppromisc)
 {
