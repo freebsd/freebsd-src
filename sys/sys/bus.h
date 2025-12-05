@@ -904,7 +904,7 @@ DECLARE_MODULE(name##_##busname, name##_##busname##_mod,		\
 									\
 static __inline type varp ## _get_ ## var(device_t dev)			\
 {									\
-	uintptr_t v;							\
+	uintptr_t v = 0;						\
 	int e __diagused;						\
 	e = BUS_READ_IVAR(device_get_parent(dev), dev,			\
 	    ivarp ## _IVAR_ ## ivar, &v);				\
