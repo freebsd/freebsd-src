@@ -1230,10 +1230,10 @@ nvme_ctrlr_aer_task(void *arg, int pending)
 				break;
 
 			ns = &ctrlr->ns[id - 1];
-			ns->flags |= NVME_NS_CHANGED;
+			ns->flags |= NVME_NS_DELTA;
 			nvme_ns_construct(ns, id, ctrlr);
 			nvme_notify_ns(ctrlr, id);
-			ns->flags &= ~NVME_NS_CHANGED;
+			ns->flags &= ~NVME_NS_DELTA;
 		}
 	}
 

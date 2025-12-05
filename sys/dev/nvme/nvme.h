@@ -1927,8 +1927,8 @@ typedef void (*nvme_cons_fail_fn_t)(void *);
 enum nvme_namespace_flags {
 	NVME_NS_DEALLOCATE_SUPPORTED	= 0x01,
 	NVME_NS_FLUSH_SUPPORTED		= 0x02,
-	NVME_NS_ADDED			= 0x04,
-	NVME_NS_CHANGED			= 0x08,
+	NVME_NS_ALIVE			= 0x04,
+	NVME_NS_DELTA			= 0x08,
 	NVME_NS_GONE			= 0x10,
 };
 

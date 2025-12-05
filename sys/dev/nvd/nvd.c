@@ -541,7 +541,7 @@ nvd_ns_changed(struct nvme_namespace *ns, void *ctrlr_arg)
 	struct nvd_disk		*ndisk;
 	struct nvd_controller	*ctrlr = ctrlr_arg;
 
-	if ((ns->flags & NVME_NS_CHANGED) == 0)
+	if ((ns->flags & NVME_NS_DELTA) == 0)
 		return (nvd_new_disk(ns, ctrlr_arg));
 
 	mtx_lock(&nvd_lock);
