@@ -253,6 +253,9 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
  * interface to see whether they are all advertising the "S"
  * (IPv6-Only) flag.  If they do set, otherwise unset, the
  * interface flag we later use to filter on.
+ *
+ * XXXGL: The use of IF_ADDR_WLOCK (previously it was IF_AFDATA_LOCK) in this
+ * function is quite strange.
  */
 static void
 defrtr_ipv6_only_ifp(struct ifnet *ifp)
@@ -276,9 +279,9 @@ defrtr_ipv6_only_ifp(struct ifnet *ifp)
 			ipv6_only = false;
 	ND6_RUNLOCK();
 
-	IF_AFDATA_WLOCK(ifp);
+	IF_ADDR_WLOCK(ifp);
 	ipv6_only_old = ND_IFINFO(ifp)->flags & ND6_IFF_IPV6_ONLY;
-	IF_AFDATA_WUNLOCK(ifp);
+	IF_ADDR_WUNLOCK(ifp);
 
 	/* If nothing changed, we have an early exit. */
 	if (ipv6_only == ipv6_only_old)
@@ -312,12 +315,12 @@ defrtr_ipv6_only_ifp(struct ifnet *ifp)
 	}
 #endif
 
-	IF_AFDATA_WLOCK(ifp);
+	IF_ADDR_WLOCK(ifp);
 	if (ipv6_only)
 		ND_IFINFO(ifp)->flags |= ND6_IFF_IPV6_ONLY;
 	else
 		ND_IFINFO(ifp)->flags &= ~ND6_IFF_IPV6_ONLY;
-	IF_AFDATA_WUNLOCK(ifp);
+	IF_ADDR_WUNLOCK(ifp);
 
 #ifdef notyet
 	/* Send notification of flag change. */
@@ -328,9 +331,9 @@ static void
 defrtr_ipv6_only_ipf_down(struct ifnet *ifp)
 {
 
-	IF_AFDATA_WLOCK(ifp);
+	IF_ADDR_WLOCK(ifp);
 	ND_IFINFO(ifp)->flags &= ~ND6_IFF_IPV6_ONLY;
-	IF_AFDATA_WUNLOCK(ifp);
+	IF_ADDR_WUNLOCK(ifp);
 }
 #endif	/* EXPERIMENTAL */
 
