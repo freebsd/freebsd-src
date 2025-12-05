@@ -126,28 +126,6 @@ SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, enable, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_sack), 0,
     "Enable/Disable TCP SACK support");
 
-VNET_DEFINE(int, tcp_do_newsack) = 1;
-
-static int
-sysctl_net_inet_tcp_sack_revised(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-	int new;
-
-	new = V_tcp_do_newsack;
-	error = sysctl_handle_int(oidp, &new, 0, req);
-	if (error == 0 && req->newptr) {
-		V_tcp_do_newsack = new;
-		gone_in(16, "net.inet.tcp.sack.revised will be deprecated."
-		    " net.inet.tcp.sack.enable will always follow RFC6675 SACK.\n");
-	}
-	return (error);
-}
-
-SYSCTL_PROC(_net_inet_tcp_sack, OID_AUTO, revised, CTLFLAG_VNET | CTLFLAG_RW | CTLTYPE_INT,
-    &VNET_NAME(tcp_do_newsack), 0, sysctl_net_inet_tcp_sack_revised, "CU",
-    "Use revised SACK loss recovery per RFC 6675");
-
 VNET_DEFINE(int, tcp_do_lrd) = 1;
 SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, lrd, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_lrd), 1,
@@ -1013,8 +991,7 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th, u_int *maxsegp)
 	 * the trailing packets of a window are lost and no further data
 	 * is available for sending.
 	 */
-	if ((V_tcp_do_newsack) &&
-	    SEQ_LT(th->th_ack, tp->snd_recover) &&
+	if (SEQ_LT(th->th_ack, tp->snd_recover) &&
 	    TAILQ_EMPTY(&tp->snd_holes) &&
 	    (tp->sackhint.delivered_data > 0)) {
 		/*
@@ -1079,22 +1056,6 @@ tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt)
 	}
 	KASSERT(SEQ_LT(hole->start, hole->end),
 	    ("%s: SEQ_GEQ(hole.start, hole.end)", __func__));
-	if (!(V_tcp_do_newsack)) {
-		KASSERT(SEQ_LT(hole->start, tp->snd_fack),
-		    ("%s: SEG_GEQ(hole.start, snd.fack)", __func__));
-		KASSERT(SEQ_LT(hole->end, tp->snd_fack),
-		    ("%s: SEG_GEQ(hole.end, snd.fack)", __func__));
-		KASSERT(SEQ_LT(hole->rxmit, tp->snd_fack),
-		    ("%s: SEQ_GEQ(hole.rxmit, snd.fack)", __func__));
-		if (SEQ_GEQ(hole->start, hole->end) ||
-		    SEQ_GEQ(hole->start, tp->snd_fack) ||
-		    SEQ_GEQ(hole->end, tp->snd_fack) ||
-		    SEQ_GEQ(hole->rxmit, tp->snd_fack)) {
-			log(LOG_CRIT,"tcp: invalid SACK hole (%u-%u,%u) vs fwd ack %u, ignoring.\n",
-					hole->start, hole->end, hole->rxmit, tp->snd_fack);
-			return (NULL);
-		}
-	}
 	return (hole);
 }
 

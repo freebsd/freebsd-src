@@ -2535,8 +2535,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 		}
 		if (th->th_ack == tp->snd_una) {
 			/* Check if this is a duplicate ACK. */
-			if ((tp->t_flags & TF_SACK_PERMIT) &&
-			    V_tcp_do_newsack) {
+			if (tp->t_flags & TF_SACK_PERMIT) {
 				/*
 				 * If SEG.ACK == SND.UNA, RFC 6675 requires a
 				 * duplicate ACK to selectively acknowledge
@@ -2613,7 +2612,6 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 				goto drop;
 			} else if (tp->t_dupacks == tcprexmtthresh ||
 				    (tp->t_flags & TF_SACK_PERMIT &&
-				     V_tcp_do_newsack &&
 				     tp->sackhint.sacked_bytes >
 				     (tcprexmtthresh - 1) * maxseg)) {
 enter_recovery:
@@ -2780,8 +2778,7 @@ enter_recovery:
 		 * from the left side. Such partial ACKs should not be
 		 * counted as dupacks here.
 		 */
-		if (V_tcp_do_newsack &&
-		    tcp_is_sack_recovery(tp, &to) &&
+		if (tcp_is_sack_recovery(tp, &to) &&
 		    (((tp->t_rxtshift == 0) && (sack_changed != SACK_NOCHANGE)) ||
 		     ((tp->t_rxtshift > 0) && (sack_changed == SACK_NEWLOSS))) &&
 		    (tp->snd_nxt == tp->snd_max)) {
@@ -4120,13 +4117,11 @@ tcp_compute_pipe(struct tcpcb *tp)
 
 	if (tp->t_fb->tfb_compute_pipe != NULL) {
 		pipe = (*tp->t_fb->tfb_compute_pipe)(tp);
-	} else if (V_tcp_do_newsack) {
+	} else {
 		pipe = tp->snd_max - tp->snd_una +
 			tp->sackhint.sack_bytes_rexmit -
 			tp->sackhint.sacked_bytes -
 			tp->sackhint.lost_bytes;
-	} else {
-		pipe = tp->snd_nxt - tp->snd_fack + tp->sackhint.sack_bytes_rexmit;
 	}
 	return (imax(pipe, 0));
 }
