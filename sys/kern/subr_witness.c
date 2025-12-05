@@ -567,6 +567,12 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "so_snd", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
+	 * IPv6 Addr
+	 */
+	{ "tcphash", &lock_class_mtx_sleep },
+	{ "in6_ifaddr_lock", &lock_class_rm },
+	{ NULL, NULL },
+	/*
 	 * BPF
 	 */
 	{ "bpf global lock", &lock_class_sx },
