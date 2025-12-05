@@ -563,16 +563,14 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 		return ((ns->flags & NVME_NS_ADDED) ? 0 : ENXIO);
 	}
 
-	flbas_fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, ns->data.flbas);
-
 	/*
-	 * Note: format is a 0-based value, so > is appropriate here,
-	 *  not >=.
+	 * Check the validity of the format specified. Note: format is a 0-based
+	 * value, so > is appropriate here, not >=.
 	 */
+	flbas_fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, ns->data.flbas);
 	if (flbas_fmt > ns->data.nlbaf) {
-		nvme_printf(ctrlr,
-		    "lba format %d exceeds number supported (%d)\n",
-		    flbas_fmt, ns->data.nlbaf + 1);
+		nvme_printf(ctrlr, "nsid %d lba format %d invalid (> %d)\n",
+		    id, flbas_fmt, ns->data.nlbaf + 1);
 		return (ENXIO);
 	}
 
