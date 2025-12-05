@@ -50,6 +50,7 @@
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+
 #include <x86/apicreg.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
@@ -58,6 +59,8 @@
 #include <x86/apicvar.h>
 #include <x86/iommu/iommu_intrmap.h>
 #include <machine/specialreg.h>
+#include <x86/x86_smp.h>
+
 #include <dev/pci/pcivar.h>
 
 #include "pic_if.h"
@@ -444,7 +447,7 @@ again:
 	KASSERT(cnt == count, ("count mismatch"));
 
 	/* Allocate 'count' IDT vectors. */
-	cpu = intr_next_cpu(domain);
+	cpu = cpu_apic_ids[intr_next_cpu(domain)];
 	vector = apic_alloc_vectors(cpu, irqs, count, maxcount);
 	if (vector == 0) {
 		mtx_unlock(&msi_lock);
@@ -690,7 +693,7 @@ again:
 	}
 
 	/* Allocate an IDT vector. */
-	cpu = intr_next_cpu(domain);
+	cpu = cpu_apic_ids[intr_next_cpu(domain)];
 	vector = apic_alloc_vector(cpu, i);
 	if (vector == 0) {
 		mtx_unlock(&msi_lock);
