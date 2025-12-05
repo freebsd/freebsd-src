@@ -53,6 +53,7 @@
 #include <x86/apicvar.h>
 #include <machine/resource.h>
 #include <machine/segments.h>
+#include <x86/x86_smp.h>
 #include <x86/iommu/iommu_intrmap.h>
 
 #include "pic_if.h"
@@ -508,7 +509,7 @@ ioapic_enable_intr(device_t pic, struct intsrc *isrc)
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 
 	if (intpin->io_vector == 0)
-		if (ioapic_assign_cpu(pic, isrc, intr_next_cpu(isrc->is_domain)) != 0)
+		if (ioapic_assign_cpu(pic, isrc, cpu_apic_ids[intr_next_cpu(isrc->is_domain)]) != 0)
 			panic("Couldn't find an APIC vector for IRQ %d",
 			    intpin->io_irq);
 	apic_enable_vector(intpin->io_cpu, intpin->io_vector);
