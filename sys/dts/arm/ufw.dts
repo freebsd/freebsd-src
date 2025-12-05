@@ -27,7 +27,7 @@
 
 /dts-v1/;
 
-#include "am33xx.dtsi"
+#include "ti/omap/am33xx.dtsi"
 
 / {
 	model = "AM335x uFW";
