@@ -137,6 +137,10 @@ scope6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 	}
 }
 
+/*
+ * XXXGL: The use of IF_ADDR_WLOCK (previously it was IF_AFDATA_LOCK) in this
+ * function is quite strange.
+ */
 static int
 scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 {
@@ -144,11 +148,11 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 	int error = 0;
 	struct scope6_id *sid = NULL;
 
-	IF_AFDATA_WLOCK(ifp);
+	IF_ADDR_WLOCK(ifp);
 	sid = SID(ifp);
 
 	if (!sid) {	/* paranoid? */
-		IF_AFDATA_WUNLOCK(ifp);
+		IF_ADDR_WUNLOCK(ifp);
 		return (EINVAL);
 	}
 
@@ -171,7 +175,7 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 			 */
 			if (i == IPV6_ADDR_SCOPE_INTFACELOCAL &&
 			    idlist->s6id_list[i] != ifp->if_index) {
-				IF_AFDATA_WUNLOCK(ifp);
+				IF_ADDR_WUNLOCK(ifp);
 				return (EINVAL);
 			}
 
@@ -187,7 +191,7 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 					 * consistency for safety in later use.
 					 */
 					NET_EPOCH_EXIT(et);
-					IF_AFDATA_WUNLOCK(ifp);
+					IF_ADDR_WUNLOCK(ifp);
 					return (EINVAL);
 				}
 				NET_EPOCH_EXIT(et);
@@ -201,7 +205,7 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 			sid->s6id_list[i] = idlist->s6id_list[i];
 		}
 	}
-	IF_AFDATA_WUNLOCK(ifp);
+	IF_ADDR_WUNLOCK(ifp);
 
 	return (error);
 }
