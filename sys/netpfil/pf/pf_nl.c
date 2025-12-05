@@ -363,7 +363,7 @@ pf_handle_getcreators(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	bzero(creators, sizeof(creators));
 
-	for (int i = 0; i < V_pf_hashmask; i++) {
+	for (int i = 0; i <= V_pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
 		struct pf_kstate *s;
 
