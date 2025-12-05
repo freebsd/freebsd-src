@@ -181,6 +181,8 @@ xhci_pci_match(device_t self)
 	case 0x4b7d8086:
 		return ("Intel Elkhart Lake USB 3.1 controller");
 	case 0x51ed8086:
+	case 0x54ed8086:
+	case 0x5fed8086:
 		return ("Intel Alder Lake USB 3.2 controller");
 	case 0x5aa88086:
 		return ("Intel Apollo Lake USB 3.0 controller");
