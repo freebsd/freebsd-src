@@ -13,6 +13,7 @@ export PKGCMD="/usr/sbin/pkg -d --rootdir ${ROOTDIR}"
 export PORTSDIR="${PORTSDIR:-/usr/ports}"
 
 _DVD_PACKAGES="
+comms/usbmuxd
 devel/git@lite
 misc/freebsd-doc-all
 net/mpd5
