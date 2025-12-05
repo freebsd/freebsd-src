@@ -1628,7 +1628,7 @@ int
 main(int argc, char *argv[])
 {
 	char *vmname;
-	int error, ch, vcpuid, ptenum;
+	int action_opts, error, ch, vcpuid, ptenum;
 	vm_paddr_t gpa_pmap;
 	struct vm_run vmrun;
 	uint64_t rax, cr0, cr2, cr3, cr4, dr0, dr1, dr2, dr3, dr6, dr7;
@@ -1648,6 +1648,7 @@ main(int argc, char *argv[])
 	cpu_intel = cpu_vendor_intel();
 	opts = setup_options(cpu_intel);
 
+	action_opts = 0;
 	vcpuid = 0;
 	vmname = NULL;
 	assert_lapic_lvt = -1;
@@ -1821,6 +1822,17 @@ main(int argc, char *argv[])
 
 	if (vmname == NULL)
 		usage(opts);
+
+	action_opts = create + destroy + force_reset + force_poweroff;
+#ifdef BHYVE_SNAPSHOT
+	if (checkpoint_file)
+		action_opts++;
+#endif
+
+	if (action_opts > 1) {
+		fprintf(stderr, "mutually exclusive actions specified\n");
+		exit(1);
+	}
 
 	error = 0;
 
@@ -2290,16 +2302,16 @@ main(int argc, char *argv[])
 	if (!error && force_poweroff)
 		error = vm_suspend(ctx, VM_SUSPEND_POWEROFF);
 
+#ifdef BHYVE_SNAPSHOT
+	if (!error && checkpoint_file)
+		error = snapshot_request(vmname, checkpoint_file, vm_suspend_opt);
+#endif
+
 	if (error)
 		printf("errno = %d\n", errno);
 
 	if (!error && destroy)
 		vm_destroy(ctx);
-
-#ifdef BHYVE_SNAPSHOT
-	if (!error && checkpoint_file)
-		error = snapshot_request(vmname, checkpoint_file, vm_suspend_opt);
-#endif
 
 	free (opts);
 	exit(error);
