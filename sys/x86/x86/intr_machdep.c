@@ -688,16 +688,16 @@ intr_init_cpus(void)
 u_int
 intr_next_cpu(int domain)
 {
-	u_int apic_id;
+	u_int cpu_id;
 
 	MPASS(mp_ncpus == 1 || smp_started);
 	if (mp_ncpus == 1)
-		return (PCPU_GET(apic_id));
+		return (0);
 
 	if (intr_no_domain)
 		domain = 0;
 	mtx_lock_spin(&icu_lock);
-	apic_id = cpu_apic_ids[current_cpu[domain]];
+	cpu_id = current_cpu[domain];
 	do {
 		current_cpu[domain]++;
 		if (current_cpu[domain] > mp_maxid)
@@ -706,7 +706,7 @@ intr_next_cpu(int domain)
 	    (!CPU_ISSET(current_cpu[domain], &cpuset_domain[domain]) &&
 	    !intr_no_domain));
 	mtx_unlock_spin(&icu_lock);
-	return (apic_id);
+	return (cpu_id);
 }
 
 /*
@@ -832,8 +832,7 @@ intr_balance(void *dummy __unused, int pending __unused)
 		isrc = interrupt_sorted[i];
 		if (isrc == NULL  || isrc->is_event.ie_cpu != NOCPU)
 			continue;
-		cpu = current_cpu[isrc->is_domain];
-		intr_next_cpu(isrc->is_domain);
+		cpu = intr_next_cpu(isrc->is_domain);
 		if (isrc->is_cpu != cpu &&
 		    PIC_ASSIGN_CPU(isrc->is_event.ie_pic, isrc, cpu_apic_ids[cpu]) == 0)
 			isrc->is_cpu = cpu;
