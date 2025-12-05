@@ -1308,7 +1308,7 @@ vm_checkpoint(struct vmctx *ctx, int fddir, const char *checkpoint_file,
 
 	if (stop_vm) {
 		vm_destroy(ctx);
-		exit(0);
+		exit(5);
 	}
 
 done:
