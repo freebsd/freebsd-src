@@ -5393,7 +5393,7 @@ rack_ack_received(struct tcpcb *tp, struct tcp_rack *rack, uint32_t th_ack, uint
 		log.u_bbr.flex4 = tp->t_ccv.nsegs;
 		log.u_bbr.flex5 = labc_to_use;
 		log.u_bbr.flex6 = prior_cwnd;
-		log.u_bbr.flex7 = V_tcp_do_newsack;
+		log.u_bbr.flex7 = 1;  /* always doing RFC6675 SACK */
 		log.u_bbr.flex8 = 1;
 		lgb = tcp_log_event(tp, NULL, NULL, NULL, BBR_LOG_CWND, 0,
 				     0, &log, false, NULL, __func__, __LINE__,&tv);
@@ -5508,7 +5508,7 @@ rack_post_recovery(struct tcpcb *tp, uint32_t th_ack)
 		log.u_bbr.flex4 = tp->t_ccv.nsegs;
 		log.u_bbr.flex5 = V_tcp_abc_l_var;
 		log.u_bbr.flex6 = orig_cwnd;
-		log.u_bbr.flex7 = V_tcp_do_newsack;
+		log.u_bbr.flex7 = 1;  /* always doing RFC6675 SACK */
 		log.u_bbr.pkts_out = rack->r_ctl.rc_prr_sndcnt;
 		log.u_bbr.flex8 = 2;
 		tcp_log_event(tp, NULL, NULL, NULL, BBR_LOG_CWND, 0,
