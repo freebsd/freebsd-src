@@ -8001,9 +8001,9 @@ scsi_read_capacity_16(struct ccb_scsiio *csio, uint32_t retries,
 	scsi_u64to8b(lba, scsi_cmd->addr);
 	scsi_ulto4b(rcap_buf_len, scsi_cmd->alloc_len);
 	if (pmi)
-		reladr |= SRC16_PMI;
+		scsi_cmd->reladr |= SRC16_PMI;
 	if (reladr)
-		reladr |= SRC16_RELADR;
+		scsi_cmd->reladr |= SRC16_RELADR;
 }
 
 void
