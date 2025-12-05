@@ -1472,6 +1472,7 @@ struct ib_cq {
 	void                   *cq_context;
 	int               	cqe;
 	atomic_t          	usecnt; /* count number of work queues */
+	struct ib_wc		*wc;
 	enum ib_poll_context	poll_ctx;
 	struct work_struct	work;
 };
@@ -3353,6 +3354,8 @@ static inline void ib_free_cq(struct ib_cq *cq)
 {
 	ib_free_cq_user(cq, NULL);
 }
+
+int ib_process_cq_direct(struct ib_cq *cq, int budget);
 
 /**
  * ib_create_cq - Creates a CQ on the specified device.
