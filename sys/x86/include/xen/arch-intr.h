@@ -30,7 +30,6 @@
 #define	_MACHINE__XEN_ARCH_INTR_H_
 
 #include <machine/interrupt.h>
-#include <x86/apicvar.h>
 
 typedef struct {
 	struct intsrc		intsrc;		/* @TOP -> *xen_arch_isrc */
@@ -49,7 +48,7 @@ static inline u_int
 xen_arch_intr_next_cpu(struct xenisrc *isrc)
 {
 
-	return (apic_cpuid(intr_next_cpu(0)));
+	return (intr_next_cpu(0));
 }
 
 static inline u_long
