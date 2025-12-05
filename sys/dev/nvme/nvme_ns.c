@@ -560,7 +560,7 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	 */
 	if (ns->data.nsze == 0) {
 		ns->flags |= NVME_NS_GONE;
-		return ((ns->flags & NVME_NS_ADDED) ? 0 : ENXIO);
+		return ((ns->flags & NVME_NS_ALIVE) ? 0 : ENXIO);
 	}
 
 	/*
@@ -623,7 +623,7 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	ns->cdev->si_drv2 = make_dev_alias(ns->cdev, "%sns%d",
 	    device_get_nameunit(ctrlr->dev), ns->id);
 	ns->cdev->si_flags |= SI_UNMAPPED;
-	ns->flags |= NVME_NS_ADDED;
+	ns->flags |= NVME_NS_ALIVE;
 
 	return (0);
 }
