@@ -549,7 +549,7 @@ xhci_init(struct xhci_softc *sc, device_t self, uint8_t dma32)
 		return (ENXIO);
 	}
 
-	temp = XREAD4(sc, capa, XHCI_HCSPARAMS0);
+	temp = XREAD4(sc, capa, XHCI_HCCPARAMS1);
 
 	DPRINTF("HCS0 = 0x%08x\n", temp);
 
@@ -665,7 +665,7 @@ xhci_get_xecp(struct xhci_softc *sc)
 	uint32_t eecp;
 	bool first = true;
 
-	hccp1 = XREAD4(sc, capa, XHCI_HCSPARAMS0);
+	hccp1 = XREAD4(sc, capa, XHCI_HCCPARAMS1);
 
 	if (XHCI_HCS0_XECP(hccp1) == 0)  {
 		device_printf(sc->sc_bus.parent,
@@ -3511,7 +3511,7 @@ xhci_roothub_exec(struct usb_device *udev,
 			goto done;
 		}
 
-		v = XREAD4(sc, capa, XHCI_HCSPARAMS0);
+		v = XREAD4(sc, capa, XHCI_HCCPARAMS1);
 
 		sc->sc_hub_desc.hubd = xhci_hubd;
 

@@ -58,7 +58,7 @@
 #define	XHCI_HCSPARAMS3		0x0C	/* RO structural parameters 3 */
 #define	XHCI_HCS3_U1_DEL(x)	((x) & 0xFF)
 #define	XHCI_HCS3_U2_DEL(x)	(((x) >> 16) & 0xFFFF)
-#define	XHCI_HCSPARAMS0		0x10	/* RO capability parameters */
+#define	XHCI_HCCPARAMS1		0x10	/* RO capability parameters */
 #define	XHCI_HCS0_AC64(x)	((x) & 0x1)		/* 64-bit capable */
 #define	XHCI_HCS0_BNC(x)	(((x) >> 1) & 0x1)	/* BW negotiation */
 #define	XHCI_HCS0_CSZ(x)	(((x) >> 2) & 0x1)	/* context size */

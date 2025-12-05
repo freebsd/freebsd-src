@@ -524,7 +524,7 @@ xhci_pci_take_controller(device_t self)
 	uint16_t to;
 	uint8_t bios_sem;
 
-	cparams = XREAD4(sc, capa, XHCI_HCSPARAMS0);
+	cparams = XREAD4(sc, capa, XHCI_HCCPARAMS1);
 
 	eec = -1;
 
