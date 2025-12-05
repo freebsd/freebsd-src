@@ -912,8 +912,12 @@ list_one_provider(struct gprovider *pp, const char *padding)
 	}
 	xo_emit("{P:/%s}{Lcw:Mode}{:mode}\n", padding, pp->lg_mode);
 	LIST_FOREACH(conf, &pp->lg_config, lg_config) {
-		xo_emit("{P:/%s}{Lcwa:}{a:}\n", padding, conf->lg_name,
-		    conf->lg_name, conf->lg_val ? conf->lg_val : "");
+		if (strcmp(conf->lg_name, "attrib") != 0)
+			xo_emit("{P:/%s}{Lcwa:}{a:}\n", padding, conf->lg_name,
+			    conf->lg_name, conf->lg_val ? conf->lg_val : "");
+		else
+			xo_emit("{P:/%s}{Lcw:attrib}{l:attribute}\n", padding,
+			    conf->lg_val ? conf->lg_val : "");
 	}
 }
 
