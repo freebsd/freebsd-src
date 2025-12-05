@@ -728,6 +728,8 @@ int rtw89_regd_init_hint(struct rtw89_dev *rtwdev)
 #if defined(__linux__)
 		rtwdev->regulatory.regd = chip_regd;
 #endif
+		rtwdev->regulatory.programmed = true;
+
 		/* Ignore country ie if there is a country domain programmed in chip */
 		wiphy->regulatory_flags |= REGULATORY_COUNTRY_IE_IGNORE;
 		wiphy->regulatory_flags |= REGULATORY_STRICT_REG;
@@ -872,11 +874,6 @@ static void rtw89_regd_notifier_apply(struct rtw89_dev *rtwdev,
 		wiphy->regulatory_flags |= REGULATORY_COUNTRY_IE_IGNORE;
 	else
 		wiphy->regulatory_flags &= ~REGULATORY_COUNTRY_IE_IGNORE;
-
-	rtw89_regd_apply_policy_unii4(rtwdev, wiphy);
-	rtw89_regd_apply_policy_6ghz(rtwdev, wiphy);
-	rtw89_regd_apply_policy_tas(rtwdev);
-	rtw89_regd_apply_policy_ant_gain(rtwdev);
 }
 
 static
@@ -888,19 +885,22 @@ void rtw89_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request
 	wiphy_lock(wiphy);
 	rtw89_leave_ps_mode(rtwdev);
 
-	if (wiphy->regd) {
-		rtw89_debug(rtwdev, RTW89_DBG_REGD,
-			    "There is a country domain programmed in chip, ignore notifications\n");
-		goto exit;
-	}
+	if (rtwdev->regulatory.programmed)
+		goto policy;
+
 	rtw89_regd_notifier_apply(rtwdev, wiphy, request);
 	rtw89_debug_regd(rtwdev, rtwdev->regulatory.regd,
 			 "get from initiator %d, alpha2",
 			 request->initiator);
 
+policy:
+	rtw89_regd_apply_policy_unii4(rtwdev, wiphy);
+	rtw89_regd_apply_policy_6ghz(rtwdev, wiphy);
+	rtw89_regd_apply_policy_tas(rtwdev);
+	rtw89_regd_apply_policy_ant_gain(rtwdev);
+
 	rtw89_core_set_chip_txpwr(rtwdev);
 
-exit:
 	wiphy_unlock(wiphy);
 }
 

@@ -39,7 +39,8 @@ CFLAGS+=	-DCONFIG_ACPI
 CFLAGS+=	-DLINUXKPI_WANT_LINUX_ACPI
 
 # USB parts
-#SRCS+=	rtw8851bu.c rtw8852bu.c
+#SRCS+=	rtw8851bu.c
+#SRCS+= rtw8852au.c rtw8852bu.c rtw8852cu.c
 #SRCS+=	usb.c
 
 # CONFIG_RTW89_DEBUG (always on for now)
@@ -55,7 +56,7 @@ SRCS+=	${LINUXKPI_GENSRCS}
 SRCS+=	opt_wlan.h opt_inet6.h opt_inet.h opt_acpi.h
 
 CFLAGS+=	-DKBUILD_MODNAME='"rtw89"'
-CFLAGS+=	-DLINUXKPI_VERSION=61700
+CFLAGS+=	-DLINUXKPI_VERSION=61900
 
 CFLAGS+=	-I${DEVRTW89DIR}
 CFLAGS+=	${LINUXKPI_INCLUDES}
@@ -64,6 +65,6 @@ CFLAGS+=	-DCONFIG_RTW89_DEBUGMSG
 CFLAGS+=	-DCONFIG_RTW89_DEBUGFS
 .endif
 
-#CFLAGS+=	-ferror-limit=0
+#CFLAGS+=	-ferror-limit=0 -fmacro-backtrace-limit=0
 
 .include <bsd.kmod.mk>
