@@ -109,6 +109,12 @@ table_body()
 	    bsnmpwalk -s public@192.0.2.1 -i pf_tree.def pfTables
 	atf_check -s exit:0 -o match:'pfTablesAddrPrefix.* = 24' \
 	    bsnmpwalk -s public@192.0.2.1 -i pf_tree.def pfTables
+
+	# Give bsnmp time to refresh the table
+	sleep 6
+	# Expect non-zero packet count
+	atf_check -s exit:0 -o match:'pfTablesAddrPktsInPass.* = [1-9][0-9]*' \
+	    bsnmpwalk -s public@192.0.2.1 -i pf_tree.def pfTables
 }
 
 table_cleanup()
