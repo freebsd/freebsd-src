@@ -1356,17 +1356,16 @@ err1:
 static int
 pfa_table_addrs(u_int sidx, struct pfr_table *pt)
 {
-	struct pfioc_table io;
+	struct pfr_table tbl = { 0 };
 	struct pfr_astats *t = NULL;
 	struct pfa_entry *e;
-	int i, numaddrs = 1;
+	int i, numaddrs = 1, outnum;
 
 	if (pt == NULL)
 		return (-1);
 
-	memset(&io, 0, sizeof(io));
-	strlcpy(io.pfrio_table.pfrt_name, pt->pfrt_name,
-	    sizeof(io.pfrio_table.pfrt_name));
+	strlcpy(tbl.pfrt_name, pt->pfrt_name,
+	    sizeof(tbl.pfrt_name));
 
 	for (;;) {
 		t = reallocf(t, numaddrs * sizeof(struct pfr_astats));
@@ -1377,22 +1376,18 @@ pfa_table_addrs(u_int sidx, struct pfr_table *pt)
 			goto error;
 		}
 
-		memset(t, 0, sizeof(*t));
-		io.pfrio_size = numaddrs;
-		io.pfrio_buffer = t;
-		io.pfrio_esize = sizeof(struct pfr_astats);
-
-		if (ioctl(pfctl_fd(pfh), DIOCRGETASTATS, &io)) {
+		outnum = numaddrs;
+		if (pfctl_get_astats(pfh, &tbl, t, &outnum, 0) != 0) {
 			syslog(LOG_ERR, "pfa_table_addrs(): ioctl() on %s: %s",
 			    pt->pfrt_name, strerror(errno));
 			numaddrs = -1;
 			break;
 		}
 
-		if (numaddrs >= io.pfrio_size)
+		if (numaddrs >= outnum)
 			break;
 
-		numaddrs = io.pfrio_size;
+		numaddrs = outnum;
 	}
 
 	for (i = 0; i < numaddrs; i++) {
