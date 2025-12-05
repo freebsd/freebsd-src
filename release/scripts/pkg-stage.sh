@@ -14,6 +14,7 @@ export ROOTDIR="$PWD/dvd"
 export PORTSDIR="${PORTSDIR:-/usr/ports}"
 
 _DVD_PACKAGES="
+comms/usbmuxd
 devel/git@lite
 editors/emacs@nox
 editors/vim
