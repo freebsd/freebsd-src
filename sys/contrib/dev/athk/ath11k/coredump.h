@@ -6,6 +6,10 @@
 #ifndef _ATH11K_COREDUMP_H_
 #define _ATH11K_COREDUMP_H_
 
+#if defined(__FreeBSD__)
+#include <linux/uuid.h>
+#endif
+
 #define ATH11K_FW_CRASH_DUMP_V2      2
 
 enum ath11k_fw_crash_dump_type {
