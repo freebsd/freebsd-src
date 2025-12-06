@@ -106,6 +106,7 @@ SYMLINKS+=	../$f/${FILESNAME} \
 
 .for f in ${LOCALES}
 FILESDIR_${f}.out= ${LOCALEDIR}/${f}
+FILESDIR_${f}.outPACKAGE= locales
 .endfor
 
 .include <bsd.prog.mk>
