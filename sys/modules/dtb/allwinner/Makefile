@@ -71,6 +71,9 @@ DTS=	\
 	allwinner/sun20i-d1-lichee-rv.dts \
 	allwinner/sun20i-d1-mangopi-mq-pro.dts \
 	allwinner/sun20i-d1-nezha.dts
+
+.elif ${MACHINE_ARCH} == "aarch64"
+DTS=	allwinner/sun55i-a527-cubie-a5e.dts
 .endif
 
 .include <bsd.dtb.mk>
