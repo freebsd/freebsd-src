@@ -383,9 +383,9 @@ sub resolve_enc_addition {
 
 sub get_languages {
 	my %data = get_xmldata($ETCDIR);
-	%languages = %{$data{L}}; 
-	%translations = %{$data{T}}; 
-	%alternativemonths = %{$data{AM}}; 
+	%languages = %{$data{L}};
+	%translations = %{$data{T}};
+	%alternativemonths = %{$data{AM}};
 }
 
 sub transform_ctypes {
@@ -826,7 +826,7 @@ EOF
 #						$rv = translate($enc, $cm)
 #							if (!defined $rv);
 						if (!defined $rv) {
-							print STDERR 
+							print STDERR
 "Could not convert $k ($cm) from $DEFENCODING to $enc\n";
 							$okay = 0;
 							next;
@@ -854,7 +854,7 @@ EOF
 #							    $cm)
 #							    if (!defined $rv);
 							if (!defined $rv) {
-								print STDERR 
+								print STDERR
 "Could not convert $k ($cm) from $DEFENCODING to $enc\n";
 								$okay = 0;
 								next;
