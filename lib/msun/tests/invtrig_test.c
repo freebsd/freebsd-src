@@ -52,8 +52,8 @@
 #define	test_tol(func, x, result, tol, excepts) do {			\
 	volatile long double _in = (x), _out = (result);		\
 	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));		\
-	CHECK_FPEQUAL_TOL(func(_in), _out, (tol), CS_BOTH);		\
-	CHECK_FP_EXCEPTIONS_MSG(excepts, ALL_STD_EXCEPT, "for %s(%s)",	\
+	REQUIRE_FPEQUAL_TOL(func(_in), _out, (tol), CS_BOTH);		\
+	REQUIRE_FP_EXCEPTIONS_MSG(excepts, ALL_STD_EXCEPT, "for %s(%s)",	\
 	    #func, #x);							\
 } while (0)
 #define test(func, x, result, excepts)					\
@@ -82,8 +82,8 @@
 #define	test2_tol(func, y, x, result, tol, excepts) do {		\
 	volatile long double _iny = (y), _inx = (x), _out = (result);	\
 	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));		\
-	CHECK_FPEQUAL_TOL(func(_iny, _inx), _out, (tol), CS_BOTH);	\
-	CHECK_FP_EXCEPTIONS_MSG(excepts, ALL_STD_EXCEPT, "for %s(%s)",	\
+	REQUIRE_FPEQUAL_TOL(func(_iny, _inx), _out, (tol), CS_BOTH);	\
+	REQUIRE_FP_EXCEPTIONS_MSG(excepts, ALL_STD_EXCEPT, "for %s(%s)",	\
 	    #func, #x);							\
 } while (0)
 #define test2(func, y, x, result, excepts)				\
@@ -125,7 +125,9 @@ sqrt2m1 = 4.14213562373095048801688724209698081e-01L;
 ATF_TC_WITHOUT_HEAD(special);
 ATF_TC_BODY(special, tc)
 {
-
+#if defined(__aarch64__) || defined(__riscv)
+	atf_tc_expect_fail("https://bugs.freebsd.org/283017");
+#endif
 	testall(asin, 0.0, 0.0, 0);
 	testall(acos, 0.0, pi / 2, FE_INEXACT);
 	testall(atan, 0.0, 0.0, 0);
@@ -238,7 +240,9 @@ ATF_TC_BODY(special_atan2, tc)
 ATF_TC_WITHOUT_HEAD(accuracy);
 ATF_TC_BODY(accuracy, tc)
 {
-
+#if defined(__riscv)
+	atf_tc_expect_fail("https://bugs.freebsd.org/290099");
+#endif
 	/* We expect correctly rounded results for these basic cases. */
 	testall(asin, 1.0, pi / 2, FE_INEXACT);
 	testall(acos, 1.0, 0, 0);
@@ -276,7 +280,9 @@ ATF_TC_BODY(accuracy, tc)
 ATF_TC_WITHOUT_HEAD(p2x_atan2);
 ATF_TC_BODY(p2x_atan2, tc)
 {
-
+#if defined(__riscv)
+	atf_tc_expect_fail("https://bugs.freebsd.org/290099");
+#endif
 	testall2(atan2, 1.0, 1.0, pi / 4, FE_INEXACT);
 	testall2(atan2, 1.0, -1.0, c3pi / 4, FE_INEXACT);
 	testall2(atan2, -1.0, 1.0, -pi / 4, FE_INEXACT);
@@ -299,6 +305,9 @@ ATF_TC_BODY(p2x_atan2, tc)
 ATF_TC_WITHOUT_HEAD(tiny);
 ATF_TC_BODY(tiny, tc)
 {
+#if defined(__aarch64__) || defined(__riscv)
+	atf_tc_expect_fail("https://bugs.freebsd.org/283017");
+#endif
 	float tiny = 0x1.23456p-120f;
 
 	testall(asin, tiny, tiny, FE_INEXACT);
@@ -436,6 +445,9 @@ tanatanl(long double x)
 ATF_TC_WITHOUT_HEAD(inverse);
 ATF_TC_BODY(inverse, tc)
 {
+#if defined(__riscv)
+	atf_tc_expect_death("https://bugs.freebsd.org/290099");
+#endif
 	float i;
 
 	for (i = -1; i <= 1; i += 0x1.0p-12f) {

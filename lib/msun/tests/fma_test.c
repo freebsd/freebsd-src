@@ -121,6 +121,9 @@ test_zeroes(void)
 static void
 test_infinities(void)
 {
+#if defined(__aarch64__) || defined(__riscv)
+	atf_tc_expect_fail("https://bugs.freebsd.org/290099");
+#endif
 	testall(INFINITY, 1.0, -1.0, INFINITY, ALL_STD_EXCEPT, 0);
 	testall(-1.0, INFINITY, 0.0, -INFINITY, ALL_STD_EXCEPT, 0);
 	testall(0.0, 0.0, INFINITY, INFINITY, ALL_STD_EXCEPT, 0);
@@ -471,8 +474,11 @@ static const int rmodes[] = {
 ATF_TC_WITHOUT_HEAD(zeroes);
 ATF_TC_BODY(zeroes, tc)
 {
+#if defined(__aarch64__) || defined(__riscv)
+	atf_tc_expect_fail("https://bugs.freebsd.org/290099");
+#endif
 	for (size_t i = 0; i < nitems(rmodes); i++) {
-		printf("rmode = %d\n", rmodes[i]);
+		debug("rmode = %d\n", rmodes[i]);
 		fesetround(rmodes[i]);
 		test_zeroes();
 	}
@@ -481,8 +487,11 @@ ATF_TC_BODY(zeroes, tc)
 ATF_TC_WITHOUT_HEAD(infinities);
 ATF_TC_BODY(infinities, tc)
 {
+#if defined(__powerpc64__)
+	atf_tc_expect_fail("https://bugs.freebsd.org/290099");
+#endif
 	for (size_t i = 0; i < nitems(rmodes); i++) {
-		printf("rmode = %d\n", rmodes[i]);
+		debug("rmode = %d\n", rmodes[i]);
 		fesetround(rmodes[i]);
 		test_infinities();
 	}
@@ -500,7 +509,7 @@ ATF_TC_WITHOUT_HEAD(small_z);
 ATF_TC_BODY(small_z, tc)
 {
 	for (size_t i = 0; i < nitems(rmodes); i++) {
-		printf("rmode = %d\n", rmodes[i]);
+		debug("rmode = %d\n", rmodes[i]);
 		fesetround(rmodes[i]);
 		test_small_z();
 	}
@@ -511,7 +520,7 @@ ATF_TC_WITHOUT_HEAD(big_z);
 ATF_TC_BODY(big_z, tc)
 {
 	for (size_t i = 0; i < nitems(rmodes); i++) {
-		printf("rmode = %d\n", rmodes[i]);
+		debug("rmode = %d\n", rmodes[i]);
 		fesetround(rmodes[i]);
 		test_big_z();
 	}
