@@ -114,11 +114,13 @@ SYMLINKS+=	../$f/${FILESNAME} \
 
 .for f in ${LOCALES}
 FILESDIR_${f}.LC_COLLATE= ${LOCALEDIR}/${f}
+FILESDIR_${f}.LC_COLLATEPACKAGE= locales
 .endfor
 
 .for f t in ${LOCALES_MAPPED}
 FILES+=	$t.LC_COLLATE
 FILESDIR_$t.LC_COLLATE=	${LOCALEDIR}/$t
+FILESDIR_$t.LC_COLLATEPACKAGE=	locales
 $t.LC_COLLATE: ${.CURDIR}/$f.src
 	localedef ${LOCALEDEF_ENDIAN} -D -U -i ${.ALLSRC} \
 	-V ${CLDR_VERSION} \
