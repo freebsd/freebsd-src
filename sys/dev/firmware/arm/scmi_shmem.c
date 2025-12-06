@@ -32,18 +32,16 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/cpu.h>
+#include <sys/rman.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
 #include <sys/module.h>
 
 #include <machine/atomic.h>
+#include <machine/bus.h>
 
 #include <dev/fdt/simplebus.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include "mmio_sram_if.h"
 
 #include "scmi_shmem.h"
 #include "scmi.h"
@@ -53,7 +51,7 @@
 
 struct shmem_softc {
 	device_t		dev;
-	device_t		parent;
+	struct resource		*res;
 	int			reg;
 	int			inflight;
 };
@@ -88,19 +86,16 @@ shmem_attach(device_t dev)
 {
 	struct shmem_softc *sc;
 	phandle_t node;
-	int reg;
-
-	sc = device_get_softc(dev);
-	sc->dev = dev;
-	sc->parent = device_get_parent(dev);
+	int rid;
 
 	node = ofw_bus_get_node(dev);
-	if (node == -1)
-		return (ENXIO);
+	sc = device_get_softc(dev);
+	sc->dev = dev;
 
-	OF_getencprop(node, "reg", &reg, sizeof(reg));
+	rid = 0;
+	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE | RF_SHAREABLE);
 
-	sc->reg = reg;
 	atomic_store_rel_int(&sc->inflight, INFLIGHT_NONE);
 
 	OF_device_register_xref(OF_xref_from_node(node), dev);
@@ -111,7 +106,10 @@ shmem_attach(device_t dev)
 static int
 shmem_detach(device_t dev)
 {
+	struct shmem_softc *sc;
 
+	sc = device_get_softc(dev);
+	bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->res);
 	return (0);
 }
 
@@ -119,15 +117,9 @@ static void
 scmi_shmem_read(device_t dev, bus_size_t offset, void *buf, bus_size_t len)
 {
 	struct shmem_softc *sc;
-	uint8_t *addr;
-	int i;
 
 	sc = device_get_softc(dev);
-
-	addr = (uint8_t *)buf;
-
-	for (i = 0; i < len; i++)
-		addr[i] = MMIO_SRAM_READ_1(sc->parent, sc->reg + offset + i);
+	bus_read_region_1(sc->res, offset, buf, len);
 }
 
 static void
@@ -135,15 +127,10 @@ scmi_shmem_write(device_t dev, bus_size_t offset, const void *buf,
     bus_size_t len)
 {
 	struct shmem_softc *sc;
-	const uint8_t *addr;
-	int i;
 
 	sc = device_get_softc(dev);
-
-	addr = (const uint8_t *)buf;
-
-	for (i = 0; i < len; i++)
-		MMIO_SRAM_WRITE_1(sc->parent, sc->reg + offset + i, addr[i]);
+	sc = device_get_softc(dev);
+	bus_write_region_1(sc->res, offset, buf, len);
 }
 
 device_t
@@ -321,5 +308,7 @@ DEFINE_CLASS_1(shmem, shmem_driver, shmem_methods, sizeof(struct shmem_softc),
     simplebus_driver);
 
 EARLY_DRIVER_MODULE(shmem, mmio_sram, shmem_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(shmem, simplebus, shmem_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(scmi_shmem, 1);

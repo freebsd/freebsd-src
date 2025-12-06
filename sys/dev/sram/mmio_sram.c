@@ -46,7 +46,7 @@
 #define	dprintf(fmt, ...)
 
 static struct resource_spec mmio_sram_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
+	{ SYS_RES_MEMORY,	0,	RF_ACTIVE | RF_SHAREABLE},
 	{ -1, 0 }
 };
 
