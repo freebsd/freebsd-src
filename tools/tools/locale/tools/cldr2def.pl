@@ -923,6 +923,7 @@ sub make_makefile {
 			".for f t in \${LOCALES_MAPPED}\n" .
 			"FILES+=\t\$t.LC_COLLATE\n" .
 			"FILESDIR_\$t.LC_COLLATE=\t\${LOCALEDIR}/\$t\n" .
+			"FILESDIR_\$t.LC_COLLATEPACKAGE=\tlocales\n" .
 			"\$t.LC_COLLATE: \${.CURDIR}/\$f.src\n" .
 			"\tlocaledef \${LOCALEDEF_ENDIAN} -D -U " .
 			"-i \${.ALLSRC} \\\n" .
@@ -1102,6 +1103,7 @@ SYMLINKS+=	../\$f/\${FILESNAME} \\
 
 .for f in \${LOCALES}
 FILESDIR_\${f}.${SRCOUT2}= \${LOCALEDIR}/\${f}
+FILESDIR_\${f}.${SRCOUT2}PACKAGE= locales
 .endfor
 
 ${SRCOUT3}.include <bsd.prog.mk>
