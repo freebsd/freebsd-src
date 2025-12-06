@@ -515,7 +515,6 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 void
 rt_updatemtu(struct ifnet *ifp)
 {
-	struct rib_head *rnh;
 #ifdef INET6
 	uint32_t in6mtu;
 
@@ -524,12 +523,11 @@ rt_updatemtu(struct ifnet *ifp)
 
 	for (u_int j = 0; j < rt_numfibs; j++) {
 #ifdef INET
-		rnh = rt_tables_get_rnh(j, AF_INET);
-		nhops_update_ifmtu(rnh, ifp, ifp->if_mtu);
+		nhops_update_ifmtu(rt_tables_get_rnh(j, AF_INET), ifp,
+		    ifp->if_mtu);
 #endif
 #ifdef INET6
-		rnh = rt_tables_get_rnh(j, AF_INET6);
-		nhops_update_ifmtu(rnh, ifp, in6mtu);
+		nhops_update_ifmtu(rt_tables_get_rnh(j, AF_INET6), ifp, in6mtu);
 #endif
 	}
 }
