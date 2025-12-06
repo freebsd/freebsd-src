@@ -992,17 +992,10 @@ next:
 		argv++;
 	}
 
-	free_dev(dp);
-
 	if (show) {
-		/*
-		 * Re-read dev to reflect new state in case we changed some
-		 * property.
-		 */
-		dp = read_dev(path);
 		print_dev(dp);
-		free_dev(dp);
 	}
+	free_dev(dp);
 
 	return (0);
 }
