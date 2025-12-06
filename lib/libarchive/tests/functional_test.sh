@@ -40,7 +40,7 @@ atf_init_test_cases()
 	# Redirect stderr to stdout for the usage message because if you don't
 	# kyua list/kyua test will break:
 	# https://github.com/jmmv/kyua/issues/149
-	testcases=$(${TESTER} -h 2>&1 | awk 'p != 0 && $1 ~ /^[0-9]+:/ { print $NF } /Available tests:/ { p=1 }')
+	testcases=$(${TESTER} -l 2>&1 | awk '/^  [0-9]+: / { print $2 }')
 	for testcase in ${testcases}; do
 		atf_test_case ${testcase}
 		eval "${testcase}_body() { check ${testcase}; }"
