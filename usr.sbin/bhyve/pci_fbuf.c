@@ -28,6 +28,8 @@
 
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 
 #include <dev/vmm/vmm_mem.h>
 #include <machine/vmm.h>
@@ -94,6 +96,7 @@ struct pci_fbuf_softc {
 	} __packed memregs;
 
 	/* rfb server */
+	sa_family_t rfb_family;
 	char      *rfb_host;
 	char      *rfb_password;
 	int       rfb_port;
@@ -252,11 +255,13 @@ pci_fbuf_parse_config(struct pci_fbuf_softc *sc, nvlist_t *nvl)
 		value = get_config_value_node(nvl, "tcp");
 	if (value != NULL) {
 		/*
+		 * UNIX -- unix:path/to/socket.sock
 		 * IPv4 -- host-ip:port
 		 * IPv6 -- [host-ip%zone]:port
 		 * XXX for now port is mandatory for IPv4.
 		 */
 		if (value[0] == '[') {
+			sc->rfb_family = AF_INET6;
 			cp = strchr(value + 1, ']');
 			if (cp == NULL || cp == value + 1) {
 				EPRINTLN("fbuf: Invalid IPv6 address: \"%s\"",
@@ -279,7 +284,21 @@ pci_fbuf_parse_config(struct pci_fbuf_softc *sc, nvlist_t *nvl)
 				    value);
 				return (-1);
 			}
+		} else if (strncmp("unix:", value, 5) == 0) {
+			if (strlen(value + 5) > SUNPATHLEN) {
+				EPRINTLN(
+				    "fbuf: UNIX socket path too long: \"%s\"",
+				    value + 5);
+				return (-1);
+			} else if (*(value + 5) == '\0') {
+				EPRINTLN("fbuf: UNIX socket path is empty");
+				return (-1);
+			} else {
+				sc->rfb_family = AF_UNIX;
+				sc->rfb_host = strdup(value + 5);
+			}
 		} else {
+			sc->rfb_family = AF_UNSPEC;
 			cp = strchr(value, ':');
 			if (cp == NULL) {
 				sc->rfb_port = atoi(value);
@@ -433,7 +452,8 @@ pci_fbuf_init(struct pci_devinst *pi, nvlist_t *nvl)
 
 	memset((void *)sc->fb_base, 0, FB_SIZE);
 
-	error = rfb_init(sc->rfb_host, sc->rfb_port, sc->rfb_wait, sc->rfb_password);
+	error = rfb_init(sc->rfb_family, sc->rfb_host, sc->rfb_port,
+	    sc->rfb_wait, sc->rfb_password);
 done:
 	if (error)
 		free(sc);
