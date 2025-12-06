@@ -3,6 +3,7 @@ DEVATH10KDIR=	${SRCTOP}/sys/contrib/dev/athk/ath10k
 .PATH: ${DEVATH10KDIR}
 
 WITH_CONFIG_FWLOG=	1
+WITH_LEDS=		0
 
 KMOD=	if_ath10k
 
@@ -20,6 +21,11 @@ SRCS+=	opt_wlan.h opt_inet6.h opt_inet.h opt_acpi.h
 .if defined(WITH_CONFIG_FWLOG) && ${WITH_CONFIG_FWLOG} > 0
 SRCS+=	fwlog.c
 CFLAGS+=	-DCONFIG_FWLOG=${WITH_CONFIG_FWLOG}
+.endif
+
+.if defined(WITH_LEDS) && ${WITH_LEDS} > 0
+CFLAGS+=	-DCONFIG_ATH10K_LEDS
+SRCS+=		leds.c
 .endif
 
 CFLAGS+=	-DKBUILD_MODNAME='"ath10k"'
