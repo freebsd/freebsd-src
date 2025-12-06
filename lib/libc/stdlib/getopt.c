@@ -107,13 +107,17 @@ getopt(int nargc, char * const nargv[], const char *ostr)
 		   entire next argument. */
 		if (*place)
 			optarg = place;
-		else if (oli[2] == ':')
+		else if (oli[2] == ':') {
 			/*
 			 * GNU Extension, for optional arguments if the rest of
 			 * the argument is empty, we return NULL
 			 */
-			optarg = NULL;
-		else if (nargc > ++optind)
+			if (nargc > (optind + 1) && nargv[optind + 1][0] != '-') {
+				optarg = nargv[++optind];
+			} else {
+				optarg = NULL;
+			}
+		} else if (nargc > ++optind)
 			optarg = nargv[optind];
 		else {
 			/* option-argument absent */
