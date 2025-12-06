@@ -112,7 +112,11 @@ getopt(int nargc, char * const nargv[], const char *ostr)
 			 * GNU Extension, for optional arguments if the rest of
 			 * the argument is empty, we return NULL
 			 */
-			optarg = NULL;
+			if (nargc > (optind + 1)) {
+				optarg = nargv[++optind];
+			} else {
+				optarg = NULL;
+			}
 		else if (nargc > ++optind)
 			optarg = nargv[optind];
 		else {
