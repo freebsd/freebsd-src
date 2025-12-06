@@ -11,6 +11,7 @@ SRCS+=	core.c hal.c hal_tx.c hal_rx.c
 SRCS+=	wmi.c mac.c reg.c htc.c qmi.c
 SRCS+=	dp.c dp_tx.c dp_rx.c debug.c
 SRCS+=	ce.c peer.c dbring.c hw.c
+SRCS+=	coredump.c fw.c p2p.c
 
 SRCS+=	mhi.c pci.c pcic.c
 
