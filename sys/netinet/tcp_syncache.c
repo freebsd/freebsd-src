@@ -71,6 +71,7 @@
 #include <netinet/ip.h>
 #include <netinet/in_var.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_rss.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
 #ifdef INET6
@@ -79,6 +80,7 @@
 #include <netinet6/nd6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_pcb.h>
+#include <netinet6/in6_rss.h>
 #endif
 #include <netinet/tcp.h>
 #include <netinet/tcp_fastopen.h>
