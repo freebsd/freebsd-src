@@ -5,7 +5,7 @@
 #include <sys/systm.h>
 
 #include <sys/types.h>
-#include <sys/interrupt.h>
+#include <machine/interrupt.h>
 #include <dev/pci/pcivar.h>
 #include <sys/param.h>
 #include <linux/workqueue.h>

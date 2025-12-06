@@ -25,15 +25,17 @@
 #
 #
 
-#include <sys/types.h>
-#include <sys/bus.h>
-#include <dev/ofw/openfirm.h>
-
 #
 # This is the interface that fdt_pinctrl drivers provide to other drivers.
 #
 
 INTERFACE fdt_pinctrl;
+
+HEADER {
+	#include <sys/types.h>
+	#include <sys/bus.h>
+	#include <dev/ofw/openfirm.h>
+};
 
 CODE {
 	static int

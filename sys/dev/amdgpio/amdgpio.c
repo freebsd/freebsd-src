@@ -37,7 +37,6 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/gpio.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
@@ -47,6 +46,7 @@
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 
 #include <contrib/dev/acpica/include/acpi.h>

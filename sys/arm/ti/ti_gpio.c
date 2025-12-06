@@ -44,7 +44,7 @@
 #include <sys/interrupt.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 
 #include <arm/ti/ti_cpuid.h>
@@ -1052,6 +1052,11 @@ static device_method_t ti_gpio_methods[] = {
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	ti_gpio_pic_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	ti_gpio_pic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	ti_gpio_pic_pre_ithread),
+
 	/* GPIO protocol */
 	DEVMETHOD(gpio_get_bus, ti_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max, ti_gpio_pin_max),
@@ -1069,18 +1074,12 @@ static device_method_t ti_gpio_methods[] = {
 	DEVMETHOD(pic_map_intr,		ti_gpio_pic_map_intr),
 	DEVMETHOD(pic_setup_intr,	ti_gpio_pic_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	ti_gpio_pic_teardown_intr),
-	DEVMETHOD(pic_post_filter,	ti_gpio_pic_post_filter),
-	DEVMETHOD(pic_post_ithread,	ti_gpio_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	ti_gpio_pic_pre_ithread),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node, ti_gpio_get_node),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
-driver_t ti_gpio_driver = {
-	"gpio",
-	ti_gpio_methods,
-	sizeof(struct ti_gpio_softc),
-};
+PRIVATE_DEFINE_CLASSN(gpio, ti_gpio_driver, ti_gpio_methods,
+    sizeof(struct ti_gpio_softc), pic_base_class);

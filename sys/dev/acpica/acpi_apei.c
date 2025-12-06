@@ -33,7 +33,6 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/callout.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -41,6 +40,8 @@
 #include <sys/rman.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
+
+#include <machine/interrupt.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>

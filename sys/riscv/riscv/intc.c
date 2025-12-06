@@ -42,14 +42,13 @@
 #include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/cpuset.h>
-#include <sys/interrupt.h>
 #include <sys/smp.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <dev/fdt/simplebus.h>
 

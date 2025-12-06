@@ -19,7 +19,7 @@
 #include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 
 #include <dev/clk/clk.h>
@@ -1015,12 +1015,14 @@ static device_method_t jh7110_pcie_methods[] = {
 	DEVMETHOD(msi_release_msix,	jh7110_pcie_msi_release_msix),
 	DEVMETHOD(msi_map_msi,		jh7110_pcie_msi_map_msi),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	jh7110_pcie_msi_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	jh7110_pcie_msi_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	jh7110_pcie_msi_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_enable_intr,	jh7110_pcie_msi_enable_intr),
 	DEVMETHOD(pic_disable_intr,	jh7110_pcie_msi_disable_intr),
-	DEVMETHOD(pic_post_filter,	jh7110_pcie_msi_post_filter),
-	DEVMETHOD(pic_post_ithread,	jh7110_pcie_msi_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	jh7110_pcie_msi_pre_ithread),
 
 	/* OFW bus interface */
 	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
@@ -1032,6 +1034,7 @@ static device_method_t jh7110_pcie_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(pcib, jh7110_pcie_driver, jh7110_pcie_methods,
-    sizeof(struct jh7110_pcie_softc), ofw_pcib_driver);
+PRIVATE_DEFINE_CLASSN(pcib, jh7110_pcie_driver, jh7110_pcie_methods,
+    sizeof(struct jh7110_pcie_softc), pic_base_class, ofw_pcib_driver);
+
 DRIVER_MODULE(jh7110_pcie, simplebus, jh7110_pcie_driver, NULL, NULL);
