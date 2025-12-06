@@ -55,7 +55,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_NEW 3ossl"
-.TH EVP_PKEY_NEW 3ossl 2025-07-01 3.5.1 OpenSSL
+.TH EVP_PKEY_NEW 3ossl 2025-09-30 3.5.4 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -276,7 +276,19 @@ general private key without reference to any particular algorithm.
 The structure returned by \fBEVP_PKEY_new()\fR is empty. To add a private or public
 key to this empty structure use the appropriate functions described in
 \&\fBEVP_PKEY_set1_RSA\fR\|(3), \fBEVP_PKEY_set1_DSA\fR\|(3), \fBEVP_PKEY_set1_DH\fR\|(3) or
-\&\fBEVP_PKEY_set1_EC_KEY\fR\|(3).
+\&\fBEVP_PKEY_set1_EC_KEY\fR\|(3) for legacy key types implemented in internal
+OpenSSL providers.
+.PP
+For fully provider-managed key types (see \fBprovider\-keymgmt\fR\|(7)),
+possibly implemented in external providers, use functions such as
+\&\fBEVP_PKEY_set1_encoded_public_key\fR\|(3) or \fBEVP_PKEY_fromdata\fR\|(3)
+to populate key data.
+.PP
+Generally caution is advised for using an \fBEVP_PKEY\fR structure across
+different library contexts: In order for an \fBEVP_PKEY\fR to be shared by
+multiple library contexts the providers associated with the library contexts
+must have key managers that support the key type and implement the
+\&\fBOSSL_FUNC_keymgmt_import()\fR and \fBOSSL_FUNC_keymgmt_export()\fR functions.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBEVP_PKEY_new()\fR, \fBEVP_PKEY_new_raw_private_key()\fR, \fBEVP_PKEY_new_raw_public_key()\fR,

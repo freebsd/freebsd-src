@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.368 2024/04/30 02:10:49 djm Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.369 2024/12/06 16:21:48 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -458,6 +458,8 @@ ssh_connect_direct(struct ssh *ssh, const char *host, struct addrinfo *aitop,
 	memset(ntop, 0, sizeof(ntop));
 	memset(strport, 0, sizeof(strport));
 
+	int inet_supported = feature_present("inet");
+	int inet6_supported = feature_present("inet6");
 	for (attempt = 0; attempt < connection_attempts; attempt++) {
 		if (attempt > 0) {
 			/* Sleep a moment before retrying. */
@@ -480,6 +482,13 @@ ssh_connect_direct(struct ssh *ssh, const char *host, struct addrinfo *aitop,
 				oerrno = errno;
 				error_f("getnameinfo failed");
 				errno = oerrno;
+				continue;
+			}
+			if ((ai->ai_family == AF_INET && !inet_supported) ||
+			    (ai->ai_family == AF_INET6 && !inet6_supported)) {
+				debug2_f("skipping address [%s]:%s: "
+				    "unsupported address family", ntop, strport);
+				errno = EAFNOSUPPORT;
 				continue;
 			}
 			if (options.address_family != AF_UNSPEC &&
@@ -1604,7 +1613,8 @@ ssh_login(struct ssh *ssh, Sensitive *sensitive, const char *orighost,
 	lowercase(host);
 
 	/* Exchange protocol version identification strings with the server. */
-	if ((r = kex_exchange_identification(ssh, timeout_ms, NULL)) != 0)
+	if ((r = kex_exchange_identification(ssh, timeout_ms,
+	    options.version_addendum)) != 0)
 		sshpkt_fatal(ssh, r, "banner exchange");
 
 	/* Put the connection into non-blocking mode. */

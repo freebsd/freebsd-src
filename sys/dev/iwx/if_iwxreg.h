@@ -5176,6 +5176,10 @@ enum {
 #define IWX_RATE_HT_MCS_INDEX(r)	((((r) & IWX_RATE_MCS_NSS_MSK) >> 1) | \
 					 ((r) & IWX_RATE_HT_MCS_CODE_MSK))
 
+#define IWX_RATE_VHT_MCS_CODE(r)	((r) & IWX_RATE_HT_MCS_CODE_MSK)
+#define IWX_RATE_VHT_MCS_NSS(r)		\
+	    ((((r) & IWX_RATE_MCS_NSS_MSK) == 0) >> IWX_RATE_MCS_NSS_POS)
+
 /* Bits 7-5: reserved */
 
 /*

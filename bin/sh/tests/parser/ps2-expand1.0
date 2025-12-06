@@ -1,0 +1,12 @@
+# Test variable expansion in PS2 (continuation prompt)
+testvar=continue
+# Send incomplete command (backslash at end) to trigger PS2
+output=$(testvar=continue PS2='$testvar>' ENV=/dev/null ${SH} +m -i <<EOF 2>&1
+echo \\
+done
+EOF
+)
+case $output in
+*continue\>*) exit 0 ;;
+*) echo "Expected 'continue>' in PS2 output"; exit 1 ;;
+esac

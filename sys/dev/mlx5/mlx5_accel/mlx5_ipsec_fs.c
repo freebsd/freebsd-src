@@ -1134,6 +1134,11 @@ static int tx_add_kspi_rule(struct mlx5e_ipsec_sa_entry *sa_entry,
 	setup_fte_no_frags(spec);
 	setup_fte_reg_a_with_tag(spec, sa_entry->kspi);
 
+	if (sa_entry->vid != VLAN_NONE)
+		setup_fte_vid(spec, sa_entry->vid);
+	else
+		setup_fte_no_vid(spec);
+
 	rule = mlx5_add_flow_rules(tx->ft.sa_kspi, spec, flow_act, dest, num_dest);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
@@ -1169,6 +1174,10 @@ static int tx_add_reqid_ip_rules(struct mlx5e_ipsec_sa_entry *sa_entry,
 	flow_act->flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
 
 	if(attrs->reqid) {
+		if (sa_entry->vid != VLAN_NONE)
+			setup_fte_vid(spec, sa_entry->vid);
+		else
+			setup_fte_no_vid(spec);
 		setup_fte_no_frags(spec);
 		setup_fte_reg_c0(spec, attrs->reqid);
 		rule = mlx5_add_flow_rules(tx->ft.sa, spec, flow_act, dest, num_dest);
@@ -1180,6 +1189,11 @@ static int tx_add_reqid_ip_rules(struct mlx5e_ipsec_sa_entry *sa_entry,
 		ipsec_rule->reqid_rule = rule;
 		memset(spec, 0, sizeof(*spec));
 	}
+
+	if (sa_entry->vid != VLAN_NONE)
+		setup_fte_vid(spec, sa_entry->vid);
+	else
+		setup_fte_no_vid(spec);
 
 	if (attrs->family == AF_INET)
 		setup_fte_addr4(spec, &attrs->saddr.a4, &attrs->daddr.a4);
@@ -1321,6 +1335,11 @@ static int tx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
                 err = -EINVAL;
                 goto err_mod_header;
         }
+
+        if (attrs->vid != VLAN_NONE)
+                setup_fte_vid(spec, attrs->vid);
+        else
+                setup_fte_no_vid(spec);
 
         flow_act.flags |= FLOW_ACT_NO_APPEND;
         dest[dstn].ft = tx->ft.sa;

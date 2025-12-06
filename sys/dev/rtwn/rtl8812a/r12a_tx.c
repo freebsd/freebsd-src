@@ -101,12 +101,12 @@ r12a_tx_set_vht_bw(struct rtwn_softc *sc, void *buf, struct ieee80211_node *ni)
 
 	prim_chan = r12a_get_primary_channel(sc, ni->ni_chan);
 
-	if (ieee80211_vht_check_tx_bw(ni, IEEE80211_STA_RX_BW_80)) {
+	if (ieee80211_vht_check_tx_bw(ni, NET80211_STA_RX_BW_80)) {
 		txd->txdw5 |= htole32(SM(R12A_TXDW5_DATA_BW,
 		    R12A_TXDW5_DATA_BW80));
 		txd->txdw5 |= htole32(SM(R12A_TXDW5_DATA_PRIM_CHAN,
 		    prim_chan));
-	} else if (ieee80211_vht_check_tx_bw(ni, IEEE80211_STA_RX_BW_40)) {
+	} else if (ieee80211_vht_check_tx_bw(ni, NET80211_STA_RX_BW_40)) {
 		txd->txdw5 |= htole32(SM(R12A_TXDW5_DATA_BW,
 		    R12A_TXDW5_DATA_BW40));
 		txd->txdw5 |= htole32(SM(R12A_TXDW5_DATA_PRIM_CHAN,
@@ -433,12 +433,9 @@ r12a_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	} else {
 		uint16_t seqno;
 
-		if (m->m_flags & M_AMPDU_MPDU) {
-			seqno = ni->ni_txseqs[tid];
-			ni->ni_txseqs[tid]++;
-		} else
-			seqno = M_SEQNO_GET(m) % IEEE80211_SEQ_RANGE;
-
+		if (m->m_flags & M_AMPDU_MPDU)
+			ieee80211_output_seqno_assign(ni, -1, m);
+		seqno = M_SEQNO_GET(m);
 		/* Set sequence number. */
 		txd->txdw9 |= htole32(SM(R12A_TXDW9_SEQ, seqno));
 	}
@@ -493,8 +490,7 @@ r12a_fill_tx_desc_raw(struct rtwn_softc *sc, struct ieee80211_node *ni,
 		txd->txdw3 |= htole32(SM(R12A_TXDW3_SEQ_SEL, uvp->id));
 	} else {
 		/* Set sequence number. */
-		txd->txdw9 |= htole32(SM(R12A_TXDW9_SEQ,
-		    M_SEQNO_GET(m) % IEEE80211_SEQ_RANGE));
+		txd->txdw9 |= htole32(SM(R12A_TXDW9_SEQ, M_SEQNO_GET(m)));
 	}
 }
 

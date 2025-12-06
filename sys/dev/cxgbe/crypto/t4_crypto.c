@@ -208,6 +208,7 @@ struct ccr_softc {
 	counter_u64_t stats_pad_error;
 	counter_u64_t stats_sglist_error;
 	counter_u64_t stats_process_error;
+	counter_u64_t stats_pointer_error;
 	counter_u64_t stats_sw_fallback;
 
 	struct sysctl_ctx_list ctx;
@@ -458,8 +459,9 @@ ccr_populate_wreq(struct ccr_softc *sc, struct ccr_session *s,
 
 	crwr->ulptx.cmd_dest = htobe32(V_ULPTX_CMD(ULP_TX_PKT) |
 	    V_ULP_TXPKT_DATAMODIFY(0) |
-	    V_ULP_TXPKT_CHANNELID(s->port->tx_channel_id) |
+	    V_T7_ULP_TXPKT_CHANNELID(s->port->tx_channel_id) |
 	    V_ULP_TXPKT_DEST(0) |
+	    (is_t7(sc->adapter) ? V_ULP_TXPKT_CMDMORE(1) : 0) |
 	    V_ULP_TXPKT_FID(sc->first_rxq_id) | V_ULP_TXPKT_RO(1));
 	crwr->ulptx.len = htobe32(
 	    ((wr_len - sizeof(struct fw_crypto_lookaside_wr)) / 16));
@@ -545,7 +547,7 @@ ccr_hash(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 
 	crwr->sec_cpl.op_ivinsrtofst = htobe32(
 	    V_CPL_TX_SEC_PDU_OPCODE(CPL_TX_SEC_PDU) |
-	    V_CPL_TX_SEC_PDU_RXCHID(s->port->rx_channel_id) |
+	    V_T7_CPL_TX_SEC_PDU_RXCHID(s->port->rx_channel_id) |
 	    V_CPL_TX_SEC_PDU_ACKFOLLOWS(0) | V_CPL_TX_SEC_PDU_ULPTXLPBK(1) |
 	    V_CPL_TX_SEC_PDU_CPLLEN(2) | V_CPL_TX_SEC_PDU_PLACEHOLDER(0) |
 	    V_CPL_TX_SEC_PDU_IVINSRTOFST(0));
@@ -705,7 +707,7 @@ ccr_cipher(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 
 	crwr->sec_cpl.op_ivinsrtofst = htobe32(
 	    V_CPL_TX_SEC_PDU_OPCODE(CPL_TX_SEC_PDU) |
-	    V_CPL_TX_SEC_PDU_RXCHID(s->port->rx_channel_id) |
+	    V_T7_CPL_TX_SEC_PDU_RXCHID(s->port->rx_channel_id) |
 	    V_CPL_TX_SEC_PDU_ACKFOLLOWS(0) | V_CPL_TX_SEC_PDU_ULPTXLPBK(1) |
 	    V_CPL_TX_SEC_PDU_CPLLEN(2) | V_CPL_TX_SEC_PDU_PLACEHOLDER(0) |
 	    V_CPL_TX_SEC_PDU_IVINSRTOFST(1));
@@ -1006,7 +1008,7 @@ ccr_eta(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 
 	crwr->sec_cpl.op_ivinsrtofst = htobe32(
 	    V_CPL_TX_SEC_PDU_OPCODE(CPL_TX_SEC_PDU) |
-	    V_CPL_TX_SEC_PDU_RXCHID(s->port->rx_channel_id) |
+	    V_T7_CPL_TX_SEC_PDU_RXCHID(s->port->rx_channel_id) |
 	    V_CPL_TX_SEC_PDU_ACKFOLLOWS(0) | V_CPL_TX_SEC_PDU_ULPTXLPBK(1) |
 	    V_CPL_TX_SEC_PDU_CPLLEN(2) | V_CPL_TX_SEC_PDU_PLACEHOLDER(0) |
 	    V_CPL_TX_SEC_PDU_IVINSRTOFST(1));
@@ -1293,7 +1295,7 @@ ccr_gcm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 
 	crwr->sec_cpl.op_ivinsrtofst = htobe32(
 	    V_CPL_TX_SEC_PDU_OPCODE(CPL_TX_SEC_PDU) |
-	    V_CPL_TX_SEC_PDU_RXCHID(s->port->rx_channel_id) |
+	    V_T7_CPL_TX_SEC_PDU_RXCHID(s->port->rx_channel_id) |
 	    V_CPL_TX_SEC_PDU_ACKFOLLOWS(0) | V_CPL_TX_SEC_PDU_ULPTXLPBK(1) |
 	    V_CPL_TX_SEC_PDU_CPLLEN(2) | V_CPL_TX_SEC_PDU_PLACEHOLDER(0) |
 	    V_CPL_TX_SEC_PDU_IVINSRTOFST(1));
@@ -1645,7 +1647,7 @@ ccr_ccm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 
 	crwr->sec_cpl.op_ivinsrtofst = htobe32(
 	    V_CPL_TX_SEC_PDU_OPCODE(CPL_TX_SEC_PDU) |
-	    V_CPL_TX_SEC_PDU_RXCHID(s->port->rx_channel_id) |
+	    V_T7_CPL_TX_SEC_PDU_RXCHID(s->port->rx_channel_id) |
 	    V_CPL_TX_SEC_PDU_ACKFOLLOWS(0) | V_CPL_TX_SEC_PDU_ULPTXLPBK(1) |
 	    V_CPL_TX_SEC_PDU_CPLLEN(2) | V_CPL_TX_SEC_PDU_PLACEHOLDER(0) |
 	    V_CPL_TX_SEC_PDU_IVINSRTOFST(1));
@@ -1883,6 +1885,9 @@ ccr_sysctls(struct ccr_softc *sc)
 	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "process_error",
 	    CTLFLAG_RD, &sc->stats_process_error,
 	    "Requests failed during queueing");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "pointer_error",
+	    CTLFLAG_RD, &sc->stats_pointer_error,
+	    "Requests with a misaligned request pointer");
 	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "sw_fallback",
 	    CTLFLAG_RD, &sc->stats_sw_fallback,
 	    "Requests processed by falling back to software");
@@ -1932,13 +1937,15 @@ ccr_init_port(struct ccr_softc *sc, int port)
 	    "Too many ports to fit in port_mask");
 
 	/*
-	 * Completions for crypto requests on port 1 can sometimes
+	 * Completions for crypto requests on port 1 on T6 can sometimes
 	 * return a stale cookie value due to a firmware bug.  Disable
 	 * requests on port 1 by default on affected firmware.
 	 */
-	if (sc->adapter->params.fw_vers >= FW_VERSION32(1, 25, 4, 0) ||
-	    port == 0)
-		sc->port_mask |= 1u << port;
+	if (port != 0 && is_t6(sc->adapter) &&
+	    sc->adapter->params.fw_vers < FW_VERSION32(1, 25, 4, 0))
+		return;
+
+	sc->port_mask |= 1u << port;
 }
 
 static int
@@ -1988,6 +1995,7 @@ ccr_attach(device_t dev)
 	sc->stats_pad_error = counter_u64_alloc(M_WAITOK);
 	sc->stats_sglist_error = counter_u64_alloc(M_WAITOK);
 	sc->stats_process_error = counter_u64_alloc(M_WAITOK);
+	sc->stats_pointer_error = counter_u64_alloc(M_WAITOK);
 	sc->stats_sw_fallback = counter_u64_alloc(M_WAITOK);
 	ccr_sysctls(sc);
 
@@ -2034,6 +2042,7 @@ ccr_detach(device_t dev)
 	counter_u64_free(sc->stats_pad_error);
 	counter_u64_free(sc->stats_sglist_error);
 	counter_u64_free(sc->stats_process_error);
+	counter_u64_free(sc->stats_pointer_error);
 	counter_u64_free(sc->stats_sw_fallback);
 	for_each_port(sc->adapter, i) {
 		ccr_free_port(sc, i);
@@ -2531,6 +2540,16 @@ ccr_process(device_t dev, struct cryptop *crp, int hint)
 	s = crypto_get_driver_session(crp->crp_session);
 	sc = device_get_softc(dev);
 
+	/*
+	 * Request pointers with the low bit set in the pointer can't
+	 * be stored as the cookie in the CPL_FW6_PLD reply.
+	 */
+	if (((uintptr_t)crp & CPL_FW6_COOKIE_MASK) != 0) {
+		counter_u64_add(sc->stats_pointer_error, 1);
+		error = EINVAL;
+		goto out_unlocked;
+	}
+
 	mtx_lock(&s->lock);
 	error = ccr_populate_sglist(s->sg_input, &crp->crp_buf);
 	if (error == 0 && CRYPTO_HAS_OUTPUT_BUFFER(crp))
@@ -2637,6 +2656,7 @@ ccr_process(device_t dev, struct cryptop *crp, int hint)
 out:
 	mtx_unlock(&s->lock);
 
+out_unlocked:
 	if (error) {
 		crp->crp_etype = error;
 		crypto_done(crp);
@@ -2646,7 +2666,7 @@ out:
 }
 
 static int
-do_cpl6_fw_pld(struct sge_iq *iq, const struct rss_header *rss,
+fw6_pld_ccr(struct sge_iq *iq, const struct rss_header *rss,
     struct mbuf *m)
 {
 	struct ccr_softc *sc;
@@ -2661,7 +2681,7 @@ do_cpl6_fw_pld(struct sge_iq *iq, const struct rss_header *rss,
 	else
 		cpl = (const void *)(rss + 1);
 
-	crp = (struct cryptop *)(uintptr_t)be64toh(cpl->data[1]);
+	crp = (struct cryptop *)(uintptr_t)CPL_FW6_PLD_COOKIE(cpl);
 	s = crypto_get_driver_session(crp->crp_session);
 	status = be64toh(cpl->data[0]);
 	if (CHK_MAC_ERR_BIT(status) || CHK_PAD_ERR_BIT(status))
@@ -2715,10 +2735,12 @@ ccr_modevent(module_t mod, int cmd, void *arg)
 
 	switch (cmd) {
 	case MOD_LOAD:
-		t4_register_cpl_handler(CPL_FW6_PLD, do_cpl6_fw_pld);
+		t4_register_shared_cpl_handler(CPL_FW6_PLD, fw6_pld_ccr,
+		    CPL_FW6_COOKIE_CCR);
 		return (0);
 	case MOD_UNLOAD:
-		t4_register_cpl_handler(CPL_FW6_PLD, NULL);
+		t4_register_shared_cpl_handler(CPL_FW6_PLD, NULL,
+		    CPL_FW6_COOKIE_CCR);
 		return (0);
 	default:
 		return (EOPNOTSUPP);
@@ -2745,7 +2767,9 @@ static driver_t ccr_driver = {
 	sizeof(struct ccr_softc)
 };
 
-DRIVER_MODULE(ccr, t6nex, ccr_driver, ccr_modevent, NULL);
+DRIVER_MODULE(ccr, chnex, ccr_driver, ccr_modevent, NULL);
+DRIVER_MODULE(ccr, t6nex, ccr_driver, NULL, NULL);
 MODULE_VERSION(ccr, 1);
 MODULE_DEPEND(ccr, crypto, 1, 1, 1);
+MODULE_DEPEND(ccr, chnex, 1, 1, 1);
 MODULE_DEPEND(ccr, t6nex, 1, 1, 1);

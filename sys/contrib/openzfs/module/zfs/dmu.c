@@ -635,7 +635,7 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 int
 dmu_buf_hold_array(objset_t *os, uint64_t object, uint64_t offset,
     uint64_t length, int read, const void *tag, int *numbufsp,
-    dmu_buf_t ***dbpp)
+    dmu_buf_t ***dbpp, dmu_flags_t flags)
 {
 	dnode_t *dn;
 	int err;
@@ -645,7 +645,7 @@ dmu_buf_hold_array(objset_t *os, uint64_t object, uint64_t offset,
 		return (err);
 
 	err = dmu_buf_hold_array_by_dnode(dn, offset, length, read, tag,
-	    numbufsp, dbpp, DMU_READ_PREFETCH);
+	    numbufsp, dbpp, flags);
 
 	dnode_rele(dn, FTAG);
 
@@ -655,14 +655,14 @@ dmu_buf_hold_array(objset_t *os, uint64_t object, uint64_t offset,
 int
 dmu_buf_hold_array_by_bonus(dmu_buf_t *db_fake, uint64_t offset,
     uint64_t length, boolean_t read, const void *tag, int *numbufsp,
-    dmu_buf_t ***dbpp)
+    dmu_buf_t ***dbpp, dmu_flags_t flags)
 {
 	dmu_buf_impl_t *db = (dmu_buf_impl_t *)db_fake;
 	int err;
 
 	DB_DNODE_ENTER(db);
 	err = dmu_buf_hold_array_by_dnode(DB_DNODE(db), offset, length, read,
-	    tag, numbufsp, dbpp, DMU_READ_PREFETCH);
+	    tag, numbufsp, dbpp, flags);
 	DB_DNODE_EXIT(db);
 
 	return (err);
@@ -759,6 +759,8 @@ dmu_prefetch_by_dnode(dnode_t *dn, int64_t level, uint64_t offset,
 		 */
 		uint8_t ibps = ibs - SPA_BLKPTRSHIFT;
 		limit = P2ROUNDUP(dmu_prefetch_max, 1 << ibs) >> ibs;
+		if (limit == 0)
+			end2 = start2;
 		do {
 			level2++;
 			start2 = P2ROUNDUP(start2, 1 << ibps) >> ibps;
@@ -848,12 +850,15 @@ dmu_prefetch_wait(objset_t *os, uint64_t object, uint64_t offset, uint64_t size)
 		return (err);
 
 	/*
-	 * Chunk the requests (16 indirects worth) so that we can be interrupted
+	 * Chunk the requests (16 indirects worth) so that we can be
+	 * interrupted.  Prefetch at least SPA_MAXBLOCKSIZE at a time
+	 * to better utilize pools with smaller block sizes.
 	 */
 	uint64_t chunksize;
 	if (dn->dn_indblkshift) {
 		uint64_t nbps = bp_span_in_blocks(dn->dn_indblkshift, 1);
 		chunksize = (nbps * 16) << dn->dn_datablkshift;
+		chunksize = MAX(chunksize, SPA_MAXBLOCKSIZE);
 	} else {
 		chunksize = dn->dn_datablksz;
 	}
@@ -1291,7 +1296,7 @@ dmu_write_impl(dmu_buf_t **dbp, int numbufs, uint64_t offset, uint64_t size,
 
 void
 dmu_write(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
-    const void *buf, dmu_tx_t *tx)
+    const void *buf, dmu_tx_t *tx, dmu_flags_t flags)
 {
 	dmu_buf_t **dbp;
 	int numbufs;
@@ -1300,8 +1305,8 @@ dmu_write(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 		return;
 
 	VERIFY0(dmu_buf_hold_array(os, object, offset, size,
-	    FALSE, FTAG, &numbufs, &dbp));
-	dmu_write_impl(dbp, numbufs, offset, size, buf, tx, DMU_READ_PREFETCH);
+	    FALSE, FTAG, &numbufs, &dbp, flags));
+	dmu_write_impl(dbp, numbufs, offset, size, buf, tx, flags);
 	dmu_buf_rele_array(dbp, numbufs, FTAG);
 }
 
@@ -1343,8 +1348,8 @@ dmu_prealloc(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 	if (size == 0)
 		return;
 
-	VERIFY(0 == dmu_buf_hold_array(os, object, offset, size,
-	    FALSE, FTAG, &numbufs, &dbp));
+	VERIFY0(dmu_buf_hold_array(os, object, offset, size,
+	    FALSE, FTAG, &numbufs, &dbp, DMU_READ_PREFETCH));
 
 	for (i = 0; i < numbufs; i++) {
 		dmu_buf_t *db = dbp[i];
@@ -1381,7 +1386,7 @@ dmu_redact(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 	dmu_buf_t **dbp;
 
 	VERIFY0(dmu_buf_hold_array(os, object, offset, size, FALSE, FTAG,
-	    &numbufs, &dbp));
+	    &numbufs, &dbp, DMU_READ_PREFETCH));
 	for (i = 0; i < numbufs; i++)
 		dmu_buf_redact(dbp[i], tx);
 	dmu_buf_rele_array(dbp, numbufs, FTAG);
@@ -1689,8 +1694,8 @@ dmu_object_cached_size(objset_t *os, uint64_t object,
 
 	dmu_object_info_from_dnode(dn, &doi);
 
-	for (uint64_t off = 0; off < doi.doi_max_offset;
-	    off += dmu_prefetch_max) {
+	for (uint64_t off = 0; off < doi.doi_max_offset &&
+	    dmu_prefetch_max > 0; off += dmu_prefetch_max) {
 		/* dbuf_read doesn't prefetch L1 blocks. */
 		dmu_prefetch_by_dnode(dn, 1, off,
 		    dmu_prefetch_max, ZIO_PRIORITY_SYNC_READ);
@@ -1872,7 +1877,7 @@ dmu_sync_ready(zio_t *zio, arc_buf_t *buf, void *varg)
 			 */
 			BP_SET_LSIZE(bp, db->db_size);
 		} else if (!BP_IS_EMBEDDED(bp)) {
-			ASSERT(BP_GET_LEVEL(bp) == 0);
+			ASSERT0(BP_GET_LEVEL(bp));
 			BP_SET_FILL(bp, 1);
 		}
 	}
@@ -2405,7 +2410,7 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 			}
 		}
 	} else if (wp & WP_NOFILL) {
-		ASSERT(level == 0);
+		ASSERT0(level);
 
 		/*
 		 * If we're writing preallocated blocks, we aren't actually
@@ -2590,7 +2595,7 @@ dmu_read_l0_bps(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 	int error, numbufs;
 
 	error = dmu_buf_hold_array(os, object, offset, length, FALSE, FTAG,
-	    &numbufs, &dbp);
+	    &numbufs, &dbp, DMU_READ_PREFETCH);
 	if (error != 0) {
 		if (error == ESRCH) {
 			error = SET_ERROR(ENXIO);
@@ -2691,7 +2696,7 @@ dmu_brt_clone(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 	spa = os->os_spa;
 
 	VERIFY0(dmu_buf_hold_array(os, object, offset, length, FALSE, FTAG,
-	    &numbufs, &dbp));
+	    &numbufs, &dbp, DMU_READ_PREFETCH));
 	ASSERT3U(nbps, ==, numbufs);
 
 	/*
@@ -2865,7 +2870,7 @@ byteswap_uint64_array(void *vbuf, size_t size)
 	size_t count = size >> 3;
 	int i;
 
-	ASSERT((size & 7) == 0);
+	ASSERT0((size & 7));
 
 	for (i = 0; i < count; i++)
 		buf[i] = BSWAP_64(buf[i]);
@@ -2878,7 +2883,7 @@ byteswap_uint32_array(void *vbuf, size_t size)
 	size_t count = size >> 2;
 	int i;
 
-	ASSERT((size & 3) == 0);
+	ASSERT0((size & 3));
 
 	for (i = 0; i < count; i++)
 		buf[i] = BSWAP_32(buf[i]);
@@ -2891,7 +2896,7 @@ byteswap_uint16_array(void *vbuf, size_t size)
 	size_t count = size >> 1;
 	int i;
 
-	ASSERT((size & 1) == 0);
+	ASSERT0((size & 1));
 
 	for (i = 0; i < count; i++)
 		buf[i] = BSWAP_16(buf[i]);

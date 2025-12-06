@@ -1638,7 +1638,7 @@ enum _ecore_status_t ecore_mcp_set_link(struct ecore_hwfn *p_hwfn,
 
 	if (b_up)
 		DP_VERBOSE(p_hwfn, ECORE_MSG_LINK,
-			   "Configuring Link: Speed 0x%08x, Pause 0x%08x, adv_speed 0x%08x, loopback 0x%08x\n",
+			   "Configuring Link: Speed %u Mb/sec, Pause 0x%08x, adv_speed 0x%08x, loopback 0x%08x\n",
 			   phy_cfg.speed, phy_cfg.pause, phy_cfg.adv_speed,
 			   phy_cfg.loopback_mode);
 	else

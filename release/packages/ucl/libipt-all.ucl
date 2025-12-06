@@ -4,3 +4,7 @@ The Intel Processor Trace (Intel PT) Decoder Library is Intel's reference
 implementation for decoding Intel PT.  It can be used as a standalone library
 or it can be partially or fully integrated into your tool.
 EOD
+
+annotations {
+	set = "optional,optional-jail"
+}

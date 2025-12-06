@@ -54,7 +54,7 @@ syscall::getpid:return
 	timeout = timestamp + 500000000;
 }
 
-syscall::exit:entry
+syscall::_exit:entry
 /pid == $1/
 {
 	exit(0);

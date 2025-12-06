@@ -156,7 +156,6 @@ drop_privs(const struct hast_resource *res)
 	struct passwd *pw;
 	uid_t ruid, euid, suid;
 	gid_t rgid, egid, sgid;
-	gid_t gidset[1];
 	bool capsicum, jailed;
 
 	/*
@@ -207,10 +206,8 @@ drop_privs(const struct hast_resource *res)
 		}
 	}
 	PJDLOG_VERIFY(chdir("/") == 0);
-	gidset[0] = pw->pw_gid;
-	if (setgroups(1, gidset) == -1) {
-		pjdlog_errno(LOG_ERR, "Unable to set groups to gid %u",
-		    (unsigned int)pw->pw_gid);
+	if (setgroups(0, NULL) == -1) {
+		pjdlog_errno(LOG_ERR, "Unable to drop supplementary groups");
 		return (-1);
 	}
 	if (setgid(pw->pw_gid) == -1) {
@@ -286,9 +283,7 @@ drop_privs(const struct hast_resource *res)
 	PJDLOG_VERIFY(rgid == pw->pw_gid);
 	PJDLOG_VERIFY(egid == pw->pw_gid);
 	PJDLOG_VERIFY(sgid == pw->pw_gid);
-	PJDLOG_VERIFY(getgroups(0, NULL) == 1);
-	PJDLOG_VERIFY(getgroups(1, gidset) == 1);
-	PJDLOG_VERIFY(gidset[0] == pw->pw_gid);
+	PJDLOG_VERIFY(getgroups(0, NULL) == 0);
 
 	pjdlog_debug(1,
 	    "Privileges successfully dropped using %s%s+setgid+setuid.",

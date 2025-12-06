@@ -167,6 +167,14 @@ int	at_quick_exit(void (*)(void)) __noexcept;
 _Noreturn void
 	quick_exit(int) /* __noexcept -- not ready ABI issues? */;
 #endif /* __ISO_C_VISIBLE >= 2011 */
+
+/*
+ * C23 extensions
+ */
+#if __ISO_C_VISIBLE >= 2023
+size_t	memalignment(const void *) __pure2;
+#endif /* __ISO_C_VISIBLE >= 2023 */
+
 /*
  * Extensions made by POSIX relative to C.
  */
@@ -314,6 +322,8 @@ int	 radixsort(const unsigned char **, int, const unsigned char *,
 	    unsigned);
 void	*reallocarray(void *, size_t, size_t) __result_use_check
 	    __alloc_size2(2, 3);
+void	*recallocarray(void *, size_t, size_t, size_t) __result_use_check
+	    __alloc_size2(3, 4);
 void	*reallocf(void *, size_t) __result_use_check __alloc_size(2);
 int	 rpmatch(const char *);
 char	*secure_getenv(const char *);

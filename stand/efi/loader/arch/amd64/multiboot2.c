@@ -79,7 +79,6 @@ loadfile(char *filename, uint64_t dest, struct preloaded_file **result)
 	void			*multiboot = NULL;
 	ssize_t			 search_size;
 	struct multiboot_header	*header;
-	char			*cmdline;
 	struct mb2hdr		 hdr;
 	bool			 keep_bs = false;
 
@@ -344,7 +343,7 @@ exec(struct preloaded_file *fp)
 	    EFI_SIZE_TO_PAGES(PAGE_SIZE), &addr);
 	if (EFI_ERROR(status)) {
 		printf("Failed to allocate pages for multiboot2 header: %lu\n",
-		    EFI_ERROR_CODE(status));
+		    DECODE_ERROR(status));
 		error = ENOMEM;
 		goto error;
 	}
@@ -352,7 +351,7 @@ exec(struct preloaded_file *fp)
 	    EFI_SIZE_TO_PAGES(128 * 1024), &stack);
 	if (EFI_ERROR(status)) {
 		printf("Failed to allocate pages for Xen stack: %lu\n",
-		    EFI_ERROR_CODE(status));
+		    DECODE_ERROR(status));
 		error = ENOMEM;
 		goto error;
 	}
@@ -495,7 +494,6 @@ static int
 obj_loadfile(char *filename, uint64_t dest, struct preloaded_file **result)
 {
 	struct preloaded_file	*mfp, *kfp, *rfp;
-	struct kernel_module	*kmp;
 	int			 error;
 
 	/* See if there's a multiboot kernel loaded */

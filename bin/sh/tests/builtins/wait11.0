@@ -1,0 +1,6 @@
+sleep 3 | sleep 2 &
+sleep 3 &
+kill %1
+wait %1
+r=$?
+[ "$r" -gt 128 ] && [ "$(kill -l "$r")" = TERM ]

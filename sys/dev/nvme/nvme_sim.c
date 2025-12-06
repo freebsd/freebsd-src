@@ -301,7 +301,6 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 static void
 nvme_sim_poll(struct cam_sim *sim)
 {
-
 	nvme_ctrlr_poll(sim2ctrlr(sim));
 }
 
@@ -353,25 +352,35 @@ static void *
 nvme_sim_ns_change(struct nvme_namespace *ns, void *sc_arg)
 {
 	struct nvme_sim_softc *sc = sc_arg;
+	struct cam_path *tmppath;
 	union ccb *ccb;
+
+	if (xpt_create_path(&tmppath, /*periph*/NULL,
+	    cam_sim_path(sc->s_sim), 0, ns->id) != CAM_REQ_CMP) {
+		printf("unable to create path for rescan\n");
+		return (NULL);
+	}
+	/*
+	 * If it's gone, then signal that and leave.
+	 */
+	if (ns->flags & NVME_NS_GONE) {
+		xpt_async(AC_LOST_DEVICE, tmppath, NULL);
+		xpt_free_path(tmppath);
+		return (sc_arg);
+	}
 
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
 		printf("unable to alloc CCB for rescan\n");
 		return (NULL);
 	}
+	ccb->ccb_h.path = tmppath;
 
 	/*
-	 * We map the NVMe namespace idea onto the CAM unit LUN. For
-	 * each new namespace, we create a new CAM path for it. We then
-	 * rescan the path to get it to enumerate.
+	 * We map the NVMe namespace idea onto the CAM unit LUN. For each new
+	 * namespace, scan or rescan the path to enumerate it. tmppath freed at
+	 * end of scan.
 	 */
-	if (xpt_create_path(&ccb->ccb_h.path, /*periph*/NULL,
-	    cam_sim_path(sc->s_sim), 0, ns->id) != CAM_REQ_CMP) {
-		printf("unable to create path for rescan\n");
-		xpt_free_ccb(ccb);
-		return (NULL);
-	}
 	xpt_rescan(ccb);
 
 	return (sc_arg);
@@ -392,7 +401,7 @@ nvme_sim_controller_fail(void *ctrlr_arg)
 struct nvme_consumer *consumer_cookie;
 
 static void
-nvme_sim_init(void)
+nvme_sim_init(void *dummy __unused)
 {
 	if (nvme_use_nvd)
 		return;
@@ -405,7 +414,7 @@ SYSINIT(nvme_sim_register, SI_SUB_DRIVERS, SI_ORDER_ANY,
     nvme_sim_init, NULL);
 
 static void
-nvme_sim_uninit(void)
+nvme_sim_uninit(void *dummy __unused)
 {
 	if (nvme_use_nvd)
 		return;

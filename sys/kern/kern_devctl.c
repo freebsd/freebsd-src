@@ -130,6 +130,7 @@ static const struct filterops devctl_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_devctl_detach,
 	.f_event = filt_devctl_read,
+	.f_copy = knote_triv_copy,
 };
 
 static struct cdev *devctl_dev;
@@ -140,7 +141,7 @@ static struct devctlbridge {
 } devctl_notify_hook = { .send_f = NULL };
 
 static void
-devctl_init(void)
+devctl_init(void *dummy __unused)
 {
 	int reserve;
 	uma_zone_t z;

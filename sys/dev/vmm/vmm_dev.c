@@ -14,8 +14,11 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
+#include <sys/module.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/smp.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/ucred.h>
@@ -77,6 +80,8 @@ struct vmmdev_softc {
 	int		flags;
 };
 
+static bool vmm_initialized = false;
+
 static SLIST_HEAD(, vmmdev_softc) head;
 
 static unsigned pr_allow_flag;
@@ -86,6 +91,10 @@ SX_SYSINIT(vmmdev_mtx, &vmmdev_mtx, "vmm device mutex");
 static MALLOC_DEFINE(M_VMMDEV, "vmmdev", "vmmdev");
 
 SYSCTL_DECL(_hw_vmm);
+
+u_int vm_maxcpu;
+SYSCTL_UINT(_hw_vmm, OID_AUTO, maxcpu, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &vm_maxcpu, 0, "Maximum number of vCPUs");
 
 static void devmem_destroy(void *arg);
 static int devmem_create_cdev(struct vmmdev_softc *sc, int id, char *devmem);
@@ -120,18 +129,18 @@ vcpu_unlock_one(struct vcpu *vcpu)
 	vcpu_set_state(vcpu, VCPU_IDLE, false);
 }
 
+#ifndef __amd64__
 static int
-vcpu_lock_all(struct vmmdev_softc *sc)
+vcpu_set_state_all(struct vm *vm, enum vcpu_state newstate)
 {
 	struct vcpu *vcpu;
 	int error;
 	uint16_t i, j, maxcpus;
 
 	error = 0;
-	vm_slock_vcpus(sc->vm);
-	maxcpus = vm_get_maxcpus(sc->vm);
+	maxcpus = vm_get_maxcpus(vm);
 	for (i = 0; i < maxcpus; i++) {
-		vcpu = vm_vcpu(sc->vm, i);
+		vcpu = vm_vcpu(vm, i);
 		if (vcpu == NULL)
 			continue;
 		error = vcpu_lock_one(vcpu);
@@ -141,14 +150,30 @@ vcpu_lock_all(struct vmmdev_softc *sc)
 
 	if (error) {
 		for (j = 0; j < i; j++) {
-			vcpu = vm_vcpu(sc->vm, j);
+			vcpu = vm_vcpu(vm, j);
 			if (vcpu == NULL)
 				continue;
 			vcpu_unlock_one(vcpu);
 		}
-		vm_unlock_vcpus(sc->vm);
 	}
 
+	return (error);
+}
+#endif
+
+static int
+vcpu_lock_all(struct vmmdev_softc *sc)
+{
+	int error;
+
+	/*
+	 * Serialize vcpu_lock_all() callers.  Individual vCPUs are not locked
+	 * in a consistent order so we need to serialize to avoid deadlocks.
+	 */
+	vm_lock_vcpus(sc->vm);
+	error = vcpu_set_state_all(sc->vm, VCPU_FROZEN);
+	if (error != 0)
+		vm_unlock_vcpus(sc->vm);
 	return (error);
 }
 
@@ -454,6 +479,12 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	if (ioctl == NULL)
 		return (ENOTTY);
 
+	if ((ioctl->flags & VMMDEV_IOCTL_PRIV_CHECK_DRIVER) != 0) {
+		error = priv_check(td, PRIV_DRIVER);
+		if (error != 0)
+			return (error);
+	}
+
 	if ((ioctl->flags & VMMDEV_IOCTL_XLOCK_MEMSEGS) != 0)
 		vm_xlock_memsegs(sc->vm);
 	else if ((ioctl->flags & VMMDEV_IOCTL_SLOCK_MEMSEGS) != 0)
@@ -596,20 +627,16 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			}
 			error = domainset_populate(&domain, mask, mseg->ds_policy,
 			    mseg->ds_mask_size);
-			if (error) {
-				free(mask, M_VMMDEV);
+			free(mask, M_VMMDEV);
+			if (error)
 				break;
-			}
 			domainset = domainset_create(&domain);
 			if (domainset == NULL) {
 				error = EINVAL;
-				free(mask, M_VMMDEV);
 				break;
 			}
-			free(mask, M_VMMDEV);
 		}
 		error = alloc_memseg(sc, mseg, sizeof(mseg->name), domainset);
-
 		break;
 	}
 	case VM_GET_MEMSEG:
@@ -640,10 +667,10 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			error = EINVAL;
 			break;
 		}
-		regvals = malloc(sizeof(regvals[0]) * vmregset->count, M_VMMDEV,
-		    M_WAITOK);
-		regnums = malloc(sizeof(regnums[0]) * vmregset->count, M_VMMDEV,
-		    M_WAITOK);
+		regvals = mallocarray(vmregset->count, sizeof(regvals[0]),
+		    M_VMMDEV, M_WAITOK);
+		regnums = mallocarray(vmregset->count, sizeof(regnums[0]),
+		    M_VMMDEV, M_WAITOK);
 		error = copyin(vmregset->regnums, regnums, sizeof(regnums[0]) *
 		    vmregset->count);
 		if (error == 0)
@@ -666,10 +693,10 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			error = EINVAL;
 			break;
 		}
-		regvals = malloc(sizeof(regvals[0]) * vmregset->count, M_VMMDEV,
-		    M_WAITOK);
-		regnums = malloc(sizeof(regnums[0]) * vmregset->count, M_VMMDEV,
-		    M_WAITOK);
+		regvals = mallocarray(vmregset->count, sizeof(regvals[0]),
+		    M_VMMDEV, M_WAITOK);
+		regnums = mallocarray(vmregset->count, sizeof(regnums[0]),
+		    M_VMMDEV, M_WAITOK);
 		error = copyin(vmregset->regnums, regnums, sizeof(regnums[0]) *
 		    vmregset->count);
 		if (error == 0)
@@ -901,6 +928,7 @@ vmmdev_lookup_and_destroy(const char *name, struct ucred *cred)
 	sc->cdev = NULL;
 	sx_xunlock(&vmmdev_mtx);
 
+	vm_suspend(sc->vm, VM_SUSPEND_DESTROY);
 	destroy_dev(cdev);
 	vmmdev_destroy(sc);
 
@@ -961,6 +989,9 @@ vmmdev_create(const char *name, struct ucred *cred)
 	struct vm *vm;
 	int error;
 
+	if (name == NULL || strlen(name) > VM_MAX_NAMELEN)
+		return (EINVAL);
+
 	sx_xlock(&vmmdev_mtx);
 	sc = vmmdev_lookup(name, cred);
 	if (sc != NULL) {
@@ -1000,6 +1031,9 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 {
 	char *buf;
 	int error, buflen;
+
+	if (!vmm_initialized)
+		return (ENXIO);
 
 	error = vmm_priv_check(req->td->td_ucred);
 	if (error != 0)
@@ -1086,7 +1120,7 @@ static struct cdevsw vmmctlsw = {
 	.d_ioctl	= vmmctl_ioctl,
 };
 
-int
+static int
 vmmdev_init(void)
 {
 	int error;
@@ -1102,7 +1136,7 @@ vmmdev_init(void)
 	return (error);
 }
 
-int
+static int
 vmmdev_cleanup(void)
 {
 	sx_xlock(&vmmdev_mtx);
@@ -1118,6 +1152,71 @@ vmmdev_cleanup(void)
 
 	return (0);
 }
+
+static int
+vmm_handler(module_t mod, int what, void *arg)
+{
+	int error;
+
+	switch (what) {
+	case MOD_LOAD:
+		error = vmmdev_init();
+		if (error != 0)
+			break;
+
+		vm_maxcpu = mp_ncpus;
+		TUNABLE_INT_FETCH("hw.vmm.maxcpu", &vm_maxcpu);
+		if (vm_maxcpu > VM_MAXCPU) {
+			printf("vmm: vm_maxcpu clamped to %u\n", VM_MAXCPU);
+			vm_maxcpu = VM_MAXCPU;
+		}
+		if (vm_maxcpu == 0)
+			vm_maxcpu = 1;
+
+		error = vmm_modinit();
+		if (error == 0)
+			vmm_initialized = true;
+		else {
+			error = vmmdev_cleanup();
+			KASSERT(error == 0,
+			    ("%s: vmmdev_cleanup failed: %d", __func__, error));
+		}
+		break;
+	case MOD_UNLOAD:
+		error = vmmdev_cleanup();
+		if (error == 0 && vmm_initialized) {
+			error = vmm_modcleanup();
+			if (error) {
+				/*
+				 * Something bad happened - prevent new
+				 * VMs from being created
+				 */
+				vmm_initialized = false;
+			}
+		}
+		break;
+	default:
+		error = 0;
+		break;
+	}
+	return (error);
+}
+
+static moduledata_t vmm_kmod = {
+	"vmm",
+	vmm_handler,
+	NULL
+};
+
+/*
+ * vmm initialization has the following dependencies:
+ *
+ * - Initialization requires smp_rendezvous() and therefore must happen
+ *   after SMP is fully functional (after SI_SUB_SMP).
+ * - vmm device initialization requires an initialized devfs.
+ */
+DECLARE_MODULE(vmm, vmm_kmod, MAX(SI_SUB_SMP, SI_SUB_DEVFS) + 1, SI_ORDER_ANY);
+MODULE_VERSION(vmm, 1);
 
 static int
 devmem_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t len,

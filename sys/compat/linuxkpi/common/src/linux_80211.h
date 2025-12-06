@@ -59,6 +59,8 @@
 #define	D80211_IMPROVE_TXQ	0x00000004
 #define	D80211_TRACE		0x00000010
 #define	D80211_TRACEOK		0x00000020
+#define	D80211_SCAN		0x00000040
+#define	D80211_SCAN_BEACON	0x00000080
 #define	D80211_TRACE_TX		0x00000100
 #define	D80211_TRACE_TX_DUMP	0x00000200
 #define	D80211_TRACE_RX		0x00001000
@@ -74,6 +76,20 @@
 #define	D80211_TRACE_MODE_VHT	0x02000000
 #define	D80211_TRACE_MODE_HE	0x04000000
 #define	D80211_TRACE_MODE_EHT	0x08000000
+
+#ifdef	LINUXKPI_DEBUG_80211
+#define	TRACE_SCAN(ic, fmt, ...)					\
+    if (linuxkpi_debug_80211 & D80211_SCAN)				\
+	printf("%s:%d: %s SCAN " fmt "\n",				\
+	    __func__, __LINE__, ic->ic_name, ##__VA_ARGS__)
+#define	TRACE_SCAN_BEACON(ic, fmt, ...)					\
+    if (linuxkpi_debug_80211 & D80211_SCAN_BEACON)			\
+	printf("%s:%d: %s SCAN " fmt "\n",				\
+	    __func__, __LINE__, ic->ic_name, ##__VA_ARGS__)
+#else
+#define	TRACE_SCAN(...)		do {} while (0)
+#define	TRACE_SCAN_BEACON(...)	do {} while (0)
+#endif
 
 #define	IMPROVE_TXQ(...)						\
     if (linuxkpi_debug_80211 & D80211_IMPROVE_TXQ)			\
@@ -187,6 +203,12 @@ struct lkpi_vif {
 				    enum ieee80211_state, int);
 	struct ieee80211_node *	(*iv_update_bss)(struct ieee80211vap *,
 				    struct ieee80211_node *);
+	void			(*iv_recv_mgmt)(struct ieee80211_node *,
+				    struct mbuf *, int,
+				    const struct ieee80211_rx_stats *,
+				    int, int);
+	struct task		sw_scan_task;
+
 	struct list_head	lsta_list;
 
 	struct lkpi_sta		*lvif_bss;
@@ -194,6 +216,7 @@ struct lkpi_vif {
 	struct ieee80211_node	*key_update_iv_bss;
 	int			ic_unlocked;			/* Count of ic unlocks pending (*mo_set_key) */
 	int			nt_unlocked;			/* Count of nt unlocks pending (*mo_set_key) */
+	int			beacons;			/* # of beacons since assoc */
 	bool			lvif_bss_synched;
 	bool			added_to_drv;			/* Driver knows; i.e. we called add_interface(). */
 
@@ -223,10 +246,14 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 	struct sx			lvif_sx;
 
 	struct list_head		lchanctx_list;
+	struct netdev_hw_addr_list	mc_list;
+	unsigned int			mc_flags;
+	struct sx			mc_sx;
 
 	struct mtx			txq_mtx;
 	uint32_t			txq_generation[IEEE80211_NUM_ACS];
 	TAILQ_HEAD(, lkpi_txq)		scheduled_txqs[IEEE80211_NUM_ACS];
+	spinlock_t			txq_lock;
 
 	/* Deferred RX path. */
 	struct task		rxq_task;
@@ -279,7 +306,7 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 	int				max_rates;	/* Maximum number of bitrates supported in any channel. */
 	int				scan_ie_len;	/* Length of common per-band scan IEs. */
 
-	bool				update_mc;
+	bool				mc_all_multi;
 	bool				update_wme;
 	bool				rxq_stopped;
 
@@ -288,6 +315,9 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 };
 #define	LHW_TO_HW(_lhw)		(&(_lhw)->hw)
 #define	HW_TO_LHW(_hw)		container_of(_hw, struct lkpi_hw, hw)
+
+#define	LKPI_LHW_SCAN_BITS				\
+    "\010\1RUNING\2HW"
 
 struct lkpi_chanctx {
 	struct list_head		entry;
@@ -368,6 +398,13 @@ struct lkpi_wiphy {
 
 #define	LKPI_80211_LHW_LVIF_LOCK(_lhw)	sx_xlock(&(_lhw)->lvif_sx)
 #define	LKPI_80211_LHW_LVIF_UNLOCK(_lhw) sx_xunlock(&(_lhw)->lvif_sx)
+
+#define	LKPI_80211_LHW_MC_LOCK_INIT(_lhw)		\
+    sx_init_flags(&lhw->mc_sx, "lhw-mc", 0);
+#define	LKPI_80211_LHW_MC_LOCK_DESTROY(_lhw)		\
+    sx_destroy(&lhw->mc_sx);
+#define	LKPI_80211_LHW_MC_LOCK(_lhw)	sx_xlock(&(_lhw)->mc_sx)
+#define	LKPI_80211_LHW_MC_UNLOCK(_lhw)	sx_xunlock(&(_lhw)->mc_sx)
 
 #define	LKPI_80211_LVIF_LOCK(_lvif)	mtx_lock(&(_lvif)->mtx)
 #define	LKPI_80211_LVIF_UNLOCK(_lvif)	mtx_unlock(&(_lvif)->mtx)

@@ -1334,14 +1334,14 @@ ext2_fhtovp(struct mount *mp, struct fid *fhp, int flags, struct vnode **vpp)
 
 	error = VFS_VGET(mp, ufhp->ufid_ino, LK_EXCLUSIVE, &nvp);
 	if (error) {
-		*vpp = NULLVP;
+		*vpp = NULL;
 		return (error);
 	}
 	ip = VTOI(nvp);
 	if (ip->i_mode == 0 ||
 	    ip->i_gen != ufhp->ufid_gen || ip->i_nlink <= 0) {
 		vput(nvp);
-		*vpp = NULLVP;
+		*vpp = NULL;
 		return (ESTALE);
 	}
 	*vpp = nvp;

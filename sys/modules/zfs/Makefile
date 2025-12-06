@@ -15,6 +15,7 @@ KMOD=	zfs
 	${SRCDIR}/icp/asm-ppc64/sha2 \
 	${SRCDIR}/icp/asm-ppc64/blake3 \
 	${SRCDIR}/icp/asm-x86_64/blake3 \
+	${SRCDIR}/icp/asm-x86_64/modes \
 	${SRCDIR}/icp/asm-x86_64/sha2 \
 	${SRCDIR}/os/freebsd/spl \
 	${SRCDIR}/os/freebsd/zfs \
@@ -40,7 +41,8 @@ CFLAGS+= -D__KERNEL__ -DFREEBSD_NAMECACHE -DBUILDING_ZFS \
 
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+= -D__x86_64 -DHAVE_SSE2 -DHAVE_SSSE3 -DHAVE_SSE4_1 -DHAVE_SSE4_2 \
-	-DHAVE_AVX -DHAVE_AVX2 -DHAVE_AVX512F -DHAVE_AVX512VL -DHAVE_AVX512BW
+	-DHAVE_AVX -DHAVE_AVX2 -DHAVE_AVX512F -DHAVE_AVX512VL -DHAVE_AVX512BW \
+	-DHAVE_VAES -DHAVE_VPCLMULQDQ
 .endif
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
@@ -82,6 +84,9 @@ SRCS+=	blake3_avx2.S \
 	blake3_avx512.S \
 	blake3_sse2.S \
 	blake3_sse41.S
+
+#icp/asm-x86_64/modes
+SRCS+=	aesni-gcm-avx2-vaes.S
 .endif
 
 #icp/algs/sha2
@@ -470,8 +475,6 @@ CFLAGS.zstd_ldm.c= -U__BMI__ -fno-tree-vectorize ${NO_WBITWISE_INSTEAD_OF_LOGICA
 CFLAGS.zstd_opt.c= -U__BMI__ -fno-tree-vectorize ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
 
 .if ${MACHINE_ARCH} == "aarch64"
-__ZFS_ZSTD_AARCH64_FLAGS= -include ${SRCDIR}/zstd/include/aarch64_compat.h
-CFLAGS.zstd.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
 CFLAGS.entropy_common.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
 CFLAGS.error_private.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
 CFLAGS.fse_compress.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}

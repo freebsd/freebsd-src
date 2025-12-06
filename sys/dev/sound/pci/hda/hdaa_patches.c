@@ -341,7 +341,8 @@ hdac_pin_patch(struct hdaa_widget *w)
 	} else if (id == HDA_CODEC_ALC257 &&
 	    (subid == LENOVO_L5AMD_SUBVENDOR ||
 	    subid == LENOVO_L5INTEL_SUBVENDOR ||
-	    subid == LENOVO_IDEAPAD3_SUBVENDOR)) {
+	    subid == LENOVO_IDEAPAD3_SUBVENDOR ||
+	    subid == LENOVO_V15_SUBVENDOR)) {
 		switch (nid) {
 		case 20:
 			patch_str = "as=1 seq=0";
@@ -362,8 +363,10 @@ hdac_pin_patch(struct hdaa_widget *w)
 			patch_str = "as=3 seq=15 color=Black loc=Left";
 			break;
 		}
-	} else if (id == HDA_CODEC_ALC295 &&
-	    subid == FRAMEWORK_LAPTOP_0005_SUBVENDOR) {
+	} else if ((id == HDA_CODEC_ALC295 &&
+	    subid == FRAMEWORK_LAPTOP_0005_SUBVENDOR) ||
+	    (id == HDA_CODEC_ALC285 &&
+	    subid == FRAMEWORK_LAPTOP_000D_SUBVENDOR)) {
 		switch (nid) {
 		case 20:
 			/*

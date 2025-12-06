@@ -336,13 +336,6 @@ ppt_teardown_msix(struct pptdev *ppt)
 }
 
 int
-ppt_avail_devices(void)
-{
-
-	return (num_pptdevs);
-}
-
-int
 ppt_assigned_devices(struct vm *vm)
 {
 	struct pptdev *ppt;

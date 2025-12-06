@@ -84,6 +84,7 @@ extern void	ichsmb_release_resources(sc_p sc);
 extern int	ichsmb_probe(device_t dev);
 extern int	ichsmb_attach(device_t dev);
 extern int	ichsmb_detach(device_t dev);
+extern int	ichsmb_shutdown(device_t dev);
 
 #endif /* _DEV_ICHSMB_ICHSMB_VAR_H */
 

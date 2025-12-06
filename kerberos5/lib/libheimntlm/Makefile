@@ -1,5 +1,3 @@
-PACKAGE=	kerberos-lib
-
 LIB=	heimntlm
 LDFLAGS+=	-Wl,--no-undefined
 LIBADD=	crypto com_err krb5 roken

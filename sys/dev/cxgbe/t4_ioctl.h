@@ -64,6 +64,7 @@ enum {
 	T4_SET_FILTER_MASK,		/* set filter mask (hashfilter mode) */
 	T4_HOLD_CLIP_ADDR,		/* add ref on an IP in the CLIP */
 	T4_RELEASE_CLIP_ADDR,		/* remove ref from an IP in the CLIP */
+	T4_GET_SGE_CTXT,		/* get SGE context for a queue */
 };
 
 struct t4_reg {
@@ -119,6 +120,10 @@ struct t4_i2c_data {
 #define T4_FILTER_MAC_IDX	0x2000	/* MPS MAC address match index */
 #define T4_FILTER_MPS_HIT_TYPE	0x4000	/* MPS match type */
 #define T4_FILTER_IP_FRAGMENT	0x8000	/* IP fragment */
+#define T4_FILTER_IPSECIDX	0x10000
+#define T4_FILTER_ROCE		0x20000
+#define T4_FILTER_SYNONLY	0x40000
+#define T4_FILTER_TCPFLAGS	0x80000
 /*
  * T4_FILTER_VNIC's real meaning depends on the ingress config.
  */
@@ -199,6 +204,10 @@ struct t4_filter_tuple {
 	uint32_t vlan_vld:1;	/* VLAN valid */
 	uint32_t ovlan_vld:1;	/* outer VLAN tag valid, value in "vnic" */
 	uint32_t pfvf_vld:1;	/* VNIC id (PF/VF) valid, value in "vnic" */
+	uint32_t roce:1;
+	uint32_t synonly:1;
+	uint32_t tcpflags:6;
+	uint32_t ipsecidx:12;
 };
 
 struct t4_filter_specification {
@@ -322,6 +331,7 @@ struct t4_sched_queue {
 };
 
 #define T4_SGE_CONTEXT_SIZE 24
+#define T7_SGE_CONTEXT_SIZE 28
 enum {
 	SGE_CONTEXT_EGRESS,
 	SGE_CONTEXT_INGRESS,
@@ -333,6 +343,12 @@ struct t4_sge_context {
 	uint32_t mem_id;
 	uint32_t cid;
 	uint32_t data[T4_SGE_CONTEXT_SIZE / 4];
+};
+
+struct t4_sge_ctxt {
+	uint32_t mem_id;
+	uint32_t cid;
+	uint32_t data[T7_SGE_CONTEXT_SIZE / 4];
 };
 
 struct t4_mem_range {
@@ -444,4 +460,5 @@ struct t4_clip_addr {
 #define CHELSIO_T4_SET_FILTER_MASK _IOW('f', T4_SET_FILTER_MASK, uint32_t)
 #define CHELSIO_T4_HOLD_CLIP_ADDR _IOW('f', T4_HOLD_CLIP_ADDR, struct t4_clip_addr)
 #define CHELSIO_T4_RELEASE_CLIP_ADDR _IOW('f', T4_RELEASE_CLIP_ADDR, struct t4_clip_addr)
+#define CHELSIO_T4_GET_SGE_CTXT _IOWR('f', T4_GET_SGE_CTXT, struct t4_sge_ctxt)
 #endif

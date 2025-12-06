@@ -93,12 +93,22 @@ typedef struct {
 } while (0)
 #define	IEEE80211_TX_LOCK_OBJ(_ic)	(&(_ic)->ic_txlock.mtx)
 #define	IEEE80211_TX_LOCK_DESTROY(_ic) mtx_destroy(IEEE80211_TX_LOCK_OBJ(_ic))
-#define	IEEE80211_TX_LOCK(_ic)	   mtx_lock(IEEE80211_TX_LOCK_OBJ(_ic))
-#define	IEEE80211_TX_UNLOCK(_ic)	   mtx_unlock(IEEE80211_TX_LOCK_OBJ(_ic))
-#define	IEEE80211_TX_LOCK_ASSERT(_ic) \
-	mtx_assert(IEEE80211_TX_LOCK_OBJ(_ic), MA_OWNED)
-#define	IEEE80211_TX_UNLOCK_ASSERT(_ic) \
-	mtx_assert(IEEE80211_TX_LOCK_OBJ(_ic), MA_NOTOWNED)
+#define	IEEE80211_TX_LOCK(_ic) do { \
+	if (!IEEE80211_CONF_SEQNO_OFFLOAD(_ic)) \
+		mtx_lock(IEEE80211_TX_LOCK_OBJ(_ic)); \
+	} while (0);
+#define	IEEE80211_TX_UNLOCK(_ic) do { \
+	if (!IEEE80211_CONF_SEQNO_OFFLOAD(_ic)) \
+		mtx_unlock(IEEE80211_TX_LOCK_OBJ(_ic)); \
+	} while (0);
+#define	IEEE80211_TX_LOCK_ASSERT(_ic) do { \
+	if (!IEEE80211_CONF_SEQNO_OFFLOAD(_ic)) \
+		mtx_assert(IEEE80211_TX_LOCK_OBJ(_ic), MA_OWNED); \
+	} while (0)
+#define	IEEE80211_TX_UNLOCK_ASSERT(_ic) { \
+	if (!IEEE80211_CONF_SEQNO_OFFLOAD(_ic)) \
+		mtx_assert(IEEE80211_TX_LOCK_OBJ(_ic), MA_NOTOWNED); \
+	} while (0)
 
 /*
  * Stageq / ni_tx_superg lock
@@ -331,11 +341,16 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 #define	M_AGE_SUB(m,adj)	(m->m_pkthdr.csum_data -= adj)
 
 /*
- * Store the sequence number.
+ * Store / retrieve the sequence number in an mbuf.
+ *
+ * The sequence number being stored/retreived is the 12 bit
+ * base sequence number, not the 16 bit sequence number field.
+ * I.e., it's from 0..4095 inclusive, with no 4 bit padding for
+ * fragment numbers.
  */
 #define	M_SEQNO_SET(m, seqno) \
-	((m)->m_pkthdr.tso_segsz = (seqno))
-#define	M_SEQNO_GET(m)	((m)->m_pkthdr.tso_segsz)
+	((m)->m_pkthdr.tso_segsz = ((seqno) % IEEE80211_SEQ_RANGE))
+#define	M_SEQNO_GET(m)	(((m)->m_pkthdr.tso_segsz) % IEEE80211_SEQ_RANGE)
 
 #define	MTAG_ABI_NET80211	1132948340	/* net80211 ABI */
 

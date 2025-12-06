@@ -75,7 +75,7 @@ fileargs_init(int argc __unused, char *argv[] __unused, int flags, mode_t mode,
     cap_rights_t *rightsp __unused, int operations __unused) {
 	fileargs_t *fa;
 
-	fa = malloc(sizeof(*fa));
+	fa = (fileargs_t *)malloc(sizeof(*fa));
 	if (fa != NULL) {
 		fa->fa_flags = flags;
 		fa->fa_mode = mode;

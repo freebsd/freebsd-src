@@ -1,7 +1,5 @@
 .include <src.opts.mk>
 
-ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
-
 .PATH: ${ZFSTOP}/cmd
 .PATH: ${ZFSTOP}/man/man1
 
@@ -15,7 +13,7 @@ CFLAGS+= \
 	-I${ZFSTOP}/include \
 	-I${ZFSTOP}/lib/libspl/include \
 	-I${ZFSTOP}/lib/libspl/include/os/freebsd \
-	-I${SRCTOP}/sys/contrib/openzfs/lib/libzpool/include \
+	-I${ZFSTOP}/lib/libzpool/include \
 	-I${SRCTOP}/cddl/compat/opensolaris/include \
 	-I${ZFSTOP}/module/icp/include \
 	-include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h \

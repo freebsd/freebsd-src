@@ -1171,12 +1171,14 @@ static const struct filterops linux_dev_kqfiltops_read = {
 	.f_isfd = 1,
 	.f_detach = linux_file_kqfilter_detach,
 	.f_event = linux_file_kqfilter_read_event,
+	.f_copy = knote_triv_copy,
 };
 
 static const struct filterops linux_dev_kqfiltops_write = {
 	.f_isfd = 1,
 	.f_detach = linux_file_kqfilter_detach,
 	.f_event = linux_file_kqfilter_write_event,
+	.f_copy = knote_triv_copy,
 };
 
 static void
@@ -2120,7 +2122,7 @@ add_timer_on(struct timer_list *timer, int cpu)
 }
 
 int
-del_timer(struct timer_list *timer)
+timer_delete(struct timer_list *timer)
 {
 
 	if (callout_stop(&(timer)->callout) == -1)
@@ -2129,19 +2131,12 @@ del_timer(struct timer_list *timer)
 }
 
 int
-del_timer_sync(struct timer_list *timer)
+timer_delete_sync(struct timer_list *timer)
 {
 
 	if (callout_drain(&(timer)->callout) == -1)
 		return (0);
 	return (1);
-}
-
-int
-timer_delete_sync(struct timer_list *timer)
-{
-
-	return (del_timer_sync(timer));
 }
 
 int

@@ -107,7 +107,10 @@ mount(const char *dev, const char *path, int flags __unused, void *data)
 		fs = file_system[i];
 		if (fs->fo_mount == NULL)
 			continue;
-
+		DEBUG_PRINTF(1,("%s: fs=%s path=%s\n",
+			__func__, fs->fs_name, path));
+		if (is_tftp())
+			break;
 		if (fs->fo_mount(dev, path, &data) != 0)
 			continue;
 

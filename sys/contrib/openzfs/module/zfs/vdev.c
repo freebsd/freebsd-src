@@ -29,7 +29,7 @@
  * Copyright 2017 Joyent, Inc.
  * Copyright (c) 2017, Intel Corporation.
  * Copyright (c) 2019, Datto Inc. All rights reserved.
- * Copyright (c) 2021, Klara Inc.
+ * Copyright (c) 2021, 2025, Klara, Inc.
  * Copyright (c) 2021, 2023 Hewlett Packard Enterprise Development LP.
  */
 
@@ -449,6 +449,23 @@ vdev_get_nparity(vdev_t *vd)
 }
 
 static int
+vdev_prop_get_objid(vdev_t *vd, uint64_t *objid)
+{
+
+	if (vd->vdev_root_zap != 0) {
+		*objid = vd->vdev_root_zap;
+	} else if (vd->vdev_top_zap != 0) {
+		*objid = vd->vdev_top_zap;
+	} else if (vd->vdev_leaf_zap != 0) {
+		*objid = vd->vdev_leaf_zap;
+	} else {
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+static int
 vdev_prop_get_int(vdev_t *vd, vdev_prop_t prop, uint64_t *value)
 {
 	spa_t *spa = vd->vdev_spa;
@@ -456,21 +473,25 @@ vdev_prop_get_int(vdev_t *vd, vdev_prop_t prop, uint64_t *value)
 	uint64_t objid;
 	int err;
 
-	if (vd->vdev_root_zap != 0) {
-		objid = vd->vdev_root_zap;
-	} else if (vd->vdev_top_zap != 0) {
-		objid = vd->vdev_top_zap;
-	} else if (vd->vdev_leaf_zap != 0) {
-		objid = vd->vdev_leaf_zap;
-	} else {
+	if (vdev_prop_get_objid(vd, &objid) != 0)
 		return (EINVAL);
-	}
 
 	err = zap_lookup(mos, objid, vdev_prop_to_name(prop),
 	    sizeof (uint64_t), 1, value);
-
 	if (err == ENOENT)
 		*value = vdev_prop_default_numeric(prop);
+
+	return (err);
+}
+
+static int
+vdev_prop_get_bool(vdev_t *vd, vdev_prop_t prop, boolean_t *bvalue)
+{
+	int err;
+	uint64_t ivalue;
+
+	err = vdev_prop_get_int(vd, prop, &ivalue);
+	*bvalue = ivalue != 0;
 
 	return (err);
 }
@@ -554,7 +575,7 @@ vdev_add_child(vdev_t *pvd, vdev_t *cvd)
 	vdev_t **newchild;
 
 	ASSERT(spa_config_held(cvd->vdev_spa, SCL_ALL, RW_WRITER) == SCL_ALL);
-	ASSERT(cvd->vdev_parent == NULL);
+	ASSERT0P(cvd->vdev_parent);
 
 	cvd->vdev_parent = pvd;
 
@@ -578,7 +599,7 @@ vdev_add_child(vdev_t *pvd, vdev_t *cvd)
 	pvd->vdev_nonrot &= cvd->vdev_nonrot;
 
 	cvd->vdev_top = (pvd->vdev_top ? pvd->vdev_top: cvd);
-	ASSERT(cvd->vdev_top->vdev_parent->vdev_parent == NULL);
+	ASSERT0P(cvd->vdev_top->vdev_parent->vdev_parent);
 
 	/*
 	 * Walk up all ancestors to update guid sum.
@@ -737,8 +758,12 @@ vdev_alloc_common(spa_t *spa, uint_t id, uint64_t guid, vdev_ops_t *ops)
 	 */
 	vd->vdev_checksum_n = vdev_prop_default_numeric(VDEV_PROP_CHECKSUM_N);
 	vd->vdev_checksum_t = vdev_prop_default_numeric(VDEV_PROP_CHECKSUM_T);
+
 	vd->vdev_io_n = vdev_prop_default_numeric(VDEV_PROP_IO_N);
 	vd->vdev_io_t = vdev_prop_default_numeric(VDEV_PROP_IO_T);
+
+	vd->vdev_slow_io_events = vdev_prop_default_numeric(
+	    VDEV_PROP_SLOW_IO_EVENTS);
 	vd->vdev_slow_io_n = vdev_prop_default_numeric(VDEV_PROP_SLOW_IO_N);
 	vd->vdev_slow_io_t = vdev_prop_default_numeric(VDEV_PROP_SLOW_IO_T);
 
@@ -1086,6 +1111,10 @@ vdev_alloc(spa_t *spa, vdev_t **vdp, nvlist_t *nv, vdev_t *parent, uint_t id,
 		}
 	}
 
+	if (top_level && (ops == &vdev_raidz_ops || ops == &vdev_draid_ops))
+		vd->vdev_autosit =
+		    vdev_prop_default_numeric(VDEV_PROP_AUTOSIT);
+
 	/*
 	 * Add ourselves to the parent's list of children.
 	 */
@@ -1101,10 +1130,10 @@ vdev_free(vdev_t *vd)
 {
 	spa_t *spa = vd->vdev_spa;
 
-	ASSERT3P(vd->vdev_initialize_thread, ==, NULL);
-	ASSERT3P(vd->vdev_trim_thread, ==, NULL);
-	ASSERT3P(vd->vdev_autotrim_thread, ==, NULL);
-	ASSERT3P(vd->vdev_rebuild_thread, ==, NULL);
+	ASSERT0P(vd->vdev_initialize_thread);
+	ASSERT0P(vd->vdev_trim_thread);
+	ASSERT0P(vd->vdev_autotrim_thread);
+	ASSERT0P(vd->vdev_rebuild_thread);
 
 	/*
 	 * Scan queues are normally destroyed at the end of a scan. If the
@@ -1133,7 +1162,7 @@ vdev_free(vdev_t *vd)
 	for (int c = 0; c < vd->vdev_children; c++)
 		vdev_free(vd->vdev_child[c]);
 
-	ASSERT(vd->vdev_child == NULL);
+	ASSERT0P(vd->vdev_child);
 	ASSERT(vd->vdev_guid_sum == vd->vdev_guid);
 
 	if (vd->vdev_ops->vdev_op_fini != NULL)
@@ -1162,7 +1191,7 @@ vdev_free(vdev_t *vd)
 	 */
 	vdev_remove_child(vd->vdev_parent, vd);
 
-	ASSERT(vd->vdev_parent == NULL);
+	ASSERT0P(vd->vdev_parent);
 	ASSERT(!list_link_active(&vd->vdev_leaf_node));
 
 	/*
@@ -1187,6 +1216,9 @@ vdev_free(vdev_t *vd)
 		spa_spare_remove(vd);
 	if (vd->vdev_isl2cache)
 		spa_l2cache_remove(vd);
+	if (vd->vdev_prev_histo)
+		kmem_free(vd->vdev_prev_histo,
+		    sizeof (uint64_t) * VDEV_L_HISTO_BUCKETS);
 
 	txg_list_destroy(&vd->vdev_ms_list);
 	txg_list_destroy(&vd->vdev_dtl_list);
@@ -1309,9 +1341,9 @@ vdev_top_transfer(vdev_t *svd, vdev_t *tvd)
 	ASSERT0(tvd->vdev_indirect_config.vic_births_object);
 	ASSERT0(tvd->vdev_indirect_config.vic_mapping_object);
 	ASSERT3U(tvd->vdev_indirect_config.vic_prev_indirect_vdev, ==, -1ULL);
-	ASSERT3P(tvd->vdev_indirect_mapping, ==, NULL);
-	ASSERT3P(tvd->vdev_indirect_births, ==, NULL);
-	ASSERT3P(tvd->vdev_obsolete_sm, ==, NULL);
+	ASSERT0P(tvd->vdev_indirect_mapping);
+	ASSERT0P(tvd->vdev_indirect_births);
+	ASSERT0P(tvd->vdev_obsolete_sm);
 	ASSERT0(tvd->vdev_noalloc);
 	ASSERT0(tvd->vdev_removing);
 	ASSERT0(tvd->vdev_rebuilding);
@@ -1464,7 +1496,7 @@ vdev_remove_parent(vdev_t *cvd)
 	if (cvd == cvd->vdev_top)
 		vdev_top_transfer(mvd, cvd);
 
-	ASSERT(mvd->vdev_children == 0);
+	ASSERT0(mvd->vdev_children);
 	vdev_free(mvd);
 }
 
@@ -1490,12 +1522,14 @@ vdev_spa_set_alloc(spa_t *spa, uint64_t min_alloc)
 {
 	if (min_alloc < spa->spa_min_alloc)
 		spa->spa_min_alloc = min_alloc;
-	if (spa->spa_gcd_alloc == INT_MAX) {
+
+	if (min_alloc > spa->spa_max_alloc)
+		spa->spa_max_alloc = min_alloc;
+
+	if (spa->spa_gcd_alloc == INT_MAX)
 		spa->spa_gcd_alloc = min_alloc;
-	} else {
-		spa->spa_gcd_alloc = vdev_gcd(min_alloc,
-		    spa->spa_gcd_alloc);
-	}
+	else
+		spa->spa_gcd_alloc = vdev_gcd(min_alloc, spa->spa_gcd_alloc);
 }
 
 void
@@ -1553,8 +1587,7 @@ vdev_metaslab_group_create(vdev_t *vd)
 			if (vd->vdev_ashift < spa->spa_min_ashift)
 				spa->spa_min_ashift = vd->vdev_ashift;
 
-			uint64_t min_alloc = vdev_get_min_alloc(vd);
-			vdev_spa_set_alloc(spa, min_alloc);
+			vdev_spa_set_alloc(spa, vdev_get_min_alloc(vd));
 		}
 	}
 }
@@ -2134,14 +2167,14 @@ vdev_open(vdev_t *vd)
 	 * faulted, bail out of the open.
 	 */
 	if (!vd->vdev_removed && vd->vdev_faulted) {
-		ASSERT(vd->vdev_children == 0);
+		ASSERT0(vd->vdev_children);
 		ASSERT(vd->vdev_label_aux == VDEV_AUX_ERR_EXCEEDED ||
 		    vd->vdev_label_aux == VDEV_AUX_EXTERNAL);
 		vdev_set_state(vd, B_TRUE, VDEV_STATE_FAULTED,
 		    vd->vdev_label_aux);
 		return (SET_ERROR(ENXIO));
 	} else if (vd->vdev_offline) {
-		ASSERT(vd->vdev_children == 0);
+		ASSERT0(vd->vdev_children);
 		vdev_set_state(vd, B_TRUE, VDEV_STATE_OFFLINE, VDEV_AUX_NONE);
 		return (SET_ERROR(ENXIO));
 	}
@@ -2197,7 +2230,7 @@ vdev_open(vdev_t *vd)
 	 * the vdev is accessible.  If we're faulted, bail.
 	 */
 	if (vd->vdev_faulted) {
-		ASSERT(vd->vdev_children == 0);
+		ASSERT0(vd->vdev_children);
 		ASSERT(vd->vdev_label_aux == VDEV_AUX_ERR_EXCEEDED ||
 		    vd->vdev_label_aux == VDEV_AUX_EXTERNAL);
 		vdev_set_state(vd, B_TRUE, VDEV_STATE_FAULTED,
@@ -2206,7 +2239,7 @@ vdev_open(vdev_t *vd)
 	}
 
 	if (vd->vdev_degraded) {
-		ASSERT(vd->vdev_children == 0);
+		ASSERT0(vd->vdev_children);
 		vdev_set_state(vd, B_TRUE, VDEV_STATE_DEGRADED,
 		    VDEV_AUX_ERR_EXCEEDED);
 	} else {
@@ -3857,6 +3890,26 @@ vdev_load(vdev_t *vd)
 		}
 	}
 
+	if (vd == vd->vdev_top && vd->vdev_top_zap != 0) {
+		spa_t *spa = vd->vdev_spa;
+		uint64_t autosit;
+
+		error = zap_lookup(spa->spa_meta_objset, vd->vdev_top_zap,
+		    vdev_prop_to_name(VDEV_PROP_AUTOSIT), sizeof (autosit),
+		    1, &autosit);
+		if (error == 0) {
+			vd->vdev_autosit = autosit == 1;
+		} else if (error == ENOENT) {
+			vd->vdev_autosit = vdev_prop_default_numeric(
+			    VDEV_PROP_AUTOSIT);
+		} else {
+			vdev_dbgmsg(vd,
+			    "vdev_load: zap_lookup(top_zap=%llu) "
+			    "failed [error=%d]",
+			    (u_longlong_t)vd->vdev_top_zap, error);
+		}
+	}
+
 	/*
 	 * Load any rebuild state from the top-level vdev zap.
 	 */
@@ -3903,6 +3956,11 @@ vdev_load(vdev_t *vd)
 			vdev_dbgmsg(vd, "vdev_load: zap_lookup(zap=%llu) "
 			    "failed [error=%d]", (u_longlong_t)zapobj, error);
 
+		error = vdev_prop_get_bool(vd, VDEV_PROP_SLOW_IO_EVENTS,
+		    &vd->vdev_slow_io_events);
+		if (error && error != ENOENT)
+			vdev_dbgmsg(vd, "vdev_load: zap_lookup(zap=%llu) "
+			    "failed [error=%d]", (u_longlong_t)zapobj, error);
 		error = vdev_prop_get_int(vd, VDEV_PROP_SLOW_IO_N,
 		    &vd->vdev_slow_io_n);
 		if (error && error != ENOENT)
@@ -3945,7 +4003,7 @@ vdev_load(vdev_t *vd)
 		if (error == 0 && checkpoint_sm_obj != 0) {
 			objset_t *mos = spa_meta_objset(vd->vdev_spa);
 			ASSERT(vd->vdev_asize != 0);
-			ASSERT3P(vd->vdev_checkpoint_sm, ==, NULL);
+			ASSERT0P(vd->vdev_checkpoint_sm);
 
 			error = space_map_open(&vd->vdev_checkpoint_sm,
 			    mos, checkpoint_sm_obj, 0, vd->vdev_asize,
@@ -3993,7 +4051,7 @@ vdev_load(vdev_t *vd)
 	if (error == 0 && obsolete_sm_object != 0) {
 		objset_t *mos = vd->vdev_spa->spa_meta_objset;
 		ASSERT(vd->vdev_asize != 0);
-		ASSERT3P(vd->vdev_obsolete_sm, ==, NULL);
+		ASSERT0P(vd->vdev_obsolete_sm);
 
 		if ((error = space_map_open(&vd->vdev_obsolete_sm, mos,
 		    obsolete_sm_object, 0, vd->vdev_asize, 0))) {
@@ -4521,7 +4579,7 @@ top:
 			/*
 			 * Prevent any future allocations.
 			 */
-			ASSERT3P(tvd->vdev_log_mg, ==, NULL);
+			ASSERT0P(tvd->vdev_log_mg);
 			metaslab_group_passivate(mg);
 			(void) spa_vdev_state_exit(spa, vd, 0);
 
@@ -4616,6 +4674,8 @@ vdev_clear(spa_t *spa, vdev_t *vd)
 	vd->vdev_stat.vs_checksum_errors = 0;
 	vd->vdev_stat.vs_dio_verify_errors = 0;
 	vd->vdev_stat.vs_slow_ios = 0;
+	atomic_store_64(&vd->vdev_outlier_count, 0);
+	vd->vdev_read_sit_out_expire = 0;
 
 	for (int c = 0; c < vd->vdev_children; c++)
 		vdev_clear(spa, vd->vdev_child[c]);
@@ -5194,7 +5254,7 @@ vdev_stat_update(zio_t *zio, uint64_t psize)
 int64_t
 vdev_deflated_space(vdev_t *vd, int64_t space)
 {
-	ASSERT((space & (SPA_MINBLOCKSIZE-1)) == 0);
+	ASSERT0((space & (SPA_MINBLOCKSIZE-1)));
 	ASSERT(vd->vdev_deflate_ratio != 0 || vd->vdev_isl2cache);
 
 	return ((space >> SPA_MINBLOCKSHIFT) * vd->vdev_deflate_ratio);
@@ -5286,8 +5346,8 @@ vdev_config_dirty(vdev_t *vd)
 
 		if (nvlist_lookup_nvlist_array(sav->sav_config,
 		    ZPOOL_CONFIG_L2CACHE, &aux, &naux) != 0) {
-			VERIFY(nvlist_lookup_nvlist_array(sav->sav_config,
-			    ZPOOL_CONFIG_SPARES, &aux, &naux) == 0);
+			VERIFY0(nvlist_lookup_nvlist_array(sav->sav_config,
+			    ZPOOL_CONFIG_SPARES, &aux, &naux));
 		}
 
 		ASSERT(c < naux);
@@ -5675,7 +5735,7 @@ vdev_expand(vdev_t *vd, uint64_t txg)
 	    (vd->vdev_asize >> vd->vdev_ms_shift) > vd->vdev_ms_count &&
 	    vdev_is_concrete(vd)) {
 		vdev_metaslab_group_create(vd);
-		VERIFY(vdev_metaslab_init(vd, txg) == 0);
+		VERIFY0(vdev_metaslab_init(vd, txg));
 		vdev_config_dirty(vd);
 	}
 }
@@ -5950,15 +6010,8 @@ vdev_props_set_sync(void *arg, dmu_tx_t *tx)
 	/*
 	 * Set vdev property values in the vdev props mos object.
 	 */
-	if (vd->vdev_root_zap != 0) {
-		objid = vd->vdev_root_zap;
-	} else if (vd->vdev_top_zap != 0) {
-		objid = vd->vdev_top_zap;
-	} else if (vd->vdev_leaf_zap != 0) {
-		objid = vd->vdev_leaf_zap;
-	} else {
+	if (vdev_prop_get_objid(vd, &objid) != 0)
 		panic("unexpected vdev type");
-	}
 
 	mutex_enter(&spa->spa_props_lock);
 
@@ -6107,6 +6160,56 @@ vdev_prop_set(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 			}
 			vd->vdev_failfast = intval & 1;
 			break;
+		case VDEV_PROP_SIT_OUT:
+			/* Only expose this for a draid or raidz leaf */
+			if (!vd->vdev_ops->vdev_op_leaf ||
+			    vd->vdev_top == NULL ||
+			    (vd->vdev_top->vdev_ops != &vdev_raidz_ops &&
+			    vd->vdev_top->vdev_ops != &vdev_draid_ops)) {
+				error = ENOTSUP;
+				break;
+			}
+			if (nvpair_value_uint64(elem, &intval) != 0) {
+				error = EINVAL;
+				break;
+			}
+			if (intval == 1) {
+				vdev_t *ancestor = vd;
+				while (ancestor->vdev_parent != vd->vdev_top)
+					ancestor = ancestor->vdev_parent;
+				vdev_t *pvd = vd->vdev_top;
+				uint_t sitouts = 0;
+				for (int i = 0; i < pvd->vdev_children; i++) {
+					if (pvd->vdev_child[i] == ancestor)
+						continue;
+					if (vdev_sit_out_reads(
+					    pvd->vdev_child[i], 0)) {
+						sitouts++;
+					}
+				}
+				if (sitouts >= vdev_get_nparity(pvd)) {
+					error = ZFS_ERR_TOO_MANY_SITOUTS;
+					break;
+				}
+				if (error == 0)
+					vdev_raidz_sit_child(vd,
+					    INT64_MAX - gethrestime_sec());
+			} else {
+				vdev_raidz_unsit_child(vd);
+			}
+			break;
+		case VDEV_PROP_AUTOSIT:
+			if (vd->vdev_ops != &vdev_raidz_ops &&
+			    vd->vdev_ops != &vdev_draid_ops) {
+				error = ENOTSUP;
+				break;
+			}
+			if (nvpair_value_uint64(elem, &intval) != 0) {
+				error = EINVAL;
+				break;
+			}
+			vd->vdev_autosit = intval == 1;
+			break;
 		case VDEV_PROP_CHECKSUM_N:
 			if (nvpair_value_uint64(elem, &intval) != 0) {
 				error = EINVAL;
@@ -6134,6 +6237,13 @@ vdev_prop_set(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 				break;
 			}
 			vd->vdev_io_t = intval;
+			break;
+		case VDEV_PROP_SLOW_IO_EVENTS:
+			if (nvpair_value_uint64(elem, &intval) != 0) {
+				error = EINVAL;
+				break;
+			}
+			vd->vdev_slow_io_events = intval != 0;
 			break;
 		case VDEV_PROP_SLOW_IO_N:
 			if (nvpair_value_uint64(elem, &intval) != 0) {
@@ -6176,6 +6286,7 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 	nvpair_t *elem = NULL;
 	nvlist_t *nvprops = NULL;
 	uint64_t intval = 0;
+	boolean_t boolval = 0;
 	char *strval = NULL;
 	const char *propname = NULL;
 	vdev_prop_t prop;
@@ -6189,15 +6300,8 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 
 	nvlist_lookup_nvlist(innvl, ZPOOL_VDEV_PROPS_GET_PROPS, &nvprops);
 
-	if (vd->vdev_root_zap != 0) {
-		objid = vd->vdev_root_zap;
-	} else if (vd->vdev_top_zap != 0) {
-		objid = vd->vdev_top_zap;
-	} else if (vd->vdev_leaf_zap != 0) {
-		objid = vd->vdev_leaf_zap;
-	} else {
+	if (vdev_prop_get_objid(vd, &objid) != 0)
 		return (SET_ERROR(EINVAL));
-	}
 	ASSERT(objid != 0);
 
 	mutex_enter(&spa->spa_props_lock);
@@ -6456,6 +6560,19 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 					    ZPROP_SRC_NONE);
 				}
 				continue;
+			case VDEV_PROP_SIT_OUT:
+				/* Only expose this for a draid or raidz leaf */
+				if (vd->vdev_ops->vdev_op_leaf &&
+				    vd->vdev_top != NULL &&
+				    (vd->vdev_top->vdev_ops ==
+				    &vdev_raidz_ops ||
+				    vd->vdev_top->vdev_ops ==
+				    &vdev_draid_ops)) {
+					vdev_prop_add_list(outnvl, propname,
+					    NULL, vdev_sit_out_reads(vd, 0),
+					    ZPROP_SRC_NONE);
+				}
+				continue;
 			case VDEV_PROP_TRIM_SUPPORT:
 				/* only valid for leaf vdevs */
 				if (vd->vdev_ops->vdev_op_leaf) {
@@ -6505,6 +6622,41 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 
 				vdev_prop_add_list(outnvl, propname, strval,
 				    intval, src);
+				break;
+			case VDEV_PROP_AUTOSIT:
+				/* Only raidz vdevs cannot have this property */
+				if (vd->vdev_ops != &vdev_raidz_ops &&
+				    vd->vdev_ops != &vdev_draid_ops) {
+					src = ZPROP_SRC_NONE;
+					intval = ZPROP_BOOLEAN_NA;
+				} else {
+					err = vdev_prop_get_int(vd, prop,
+					    &intval);
+					if (err && err != ENOENT)
+						break;
+
+					if (intval ==
+					    vdev_prop_default_numeric(prop))
+						src = ZPROP_SRC_DEFAULT;
+					else
+						src = ZPROP_SRC_LOCAL;
+				}
+
+				vdev_prop_add_list(outnvl, propname, NULL,
+				    intval, src);
+				break;
+
+			case VDEV_PROP_SLOW_IO_EVENTS:
+				err = vdev_prop_get_bool(vd, prop, &boolval);
+				if (err && err != ENOENT)
+					break;
+
+				src = ZPROP_SRC_LOCAL;
+				if (boolval == vdev_prop_default_numeric(prop))
+					src = ZPROP_SRC_DEFAULT;
+
+				vdev_prop_add_list(outnvl, propname, NULL,
+				    boolval, src);
 				break;
 			case VDEV_PROP_CHECKSUM_N:
 			case VDEV_PROP_CHECKSUM_T:

@@ -21,6 +21,7 @@ examples_library/msgbox
 examples_library/pause
 examples_library/radiolist
 examples_library/rangebox
+examples_library/textbox
 examples_library/theme
 examples_library/timebox
 examples_library/yesno

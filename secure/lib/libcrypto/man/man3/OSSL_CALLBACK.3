@@ -55,7 +55,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_CALLBACK 3ossl"
-.TH OSSL_CALLBACK 3ossl 2025-07-01 3.5.1 OpenSSL
+.TH OSSL_CALLBACK 3ossl 2025-09-30 3.5.4 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -99,6 +99,10 @@ store the pass phrase needs to be given with \fIpass\fR, and its size with
 \&\fI*pass_len\fR.
 .Sp
 Additional parameters can be passed with the \fBOSSL_PARAM\fR\|(3) array \fIparams\fR,
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+Functions of type \fBOSSL_CALLBACK\fR and \fBOSSL_PASSPHRASE_CALLBACK\fR
+must return 1 on success and 0 on failure.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBopenssl\-core.h\fR\|(7)
@@ -107,7 +111,7 @@ Additional parameters can be passed with the \fBOSSL_PARAM\fR\|(3) array \fIpara
 The types described here were added in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2022\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -119,6 +119,28 @@ struct {
 	{0x6085, "Chelsio T6240-SO 85"},
 	{0x6086, "Chelsio T6225-SO-CR 86"},
 	{0x6087, "Chelsio T6225-CR 87"},
+}, t7iov_pciids[] = {
+	{0xd000, "Chelsio Terminator 7 FPGA"},	/* T7 PE12K FPGA */
+	{0x7000, "Chelsio T72200-DBG"},		/* 2 x 200G, debug */
+	{0x7001, "Chelsio T7250"},		/* 2 x 10/25/50G, 1 mem */
+	{0x7002, "Chelsio S7250"},		/* 2 x 10/25/50G, nomem */
+	{0x7003, "Chelsio T7450"},		/* 4 x 10/25/50G, 1 mem */
+	{0x7004, "Chelsio S7450"},		/* 4 x 10/25/50G, nomem */
+	{0x7005, "Chelsio T72200"},		/* 2 x 40/100/200G, 1 mem */
+	{0x7006, "Chelsio S72200"},		/* 2 x 40/100/200G, nomem */
+	{0x7007, "Chelsio T72200-FH"},		/* 2 x 40/100/200G, 2 mem */
+	{0x7008, "Chelsio T71400"},		/* 1 x 400G, nomem */
+	{0x7009, "Chelsio S7210-BT"},		/* 2 x 10GBASE-T, nomem */
+	{0x700a, "Chelsio T7450-RC"},		/* 4 x 10/25/50G, 1 mem, RC */
+	{0x700b, "Chelsio T72200-RC"},		/* 2 x 40/100/200G, 1 mem, RC */
+	{0x700c, "Chelsio T72200-FH-RC"},	/* 2 x 40/100/200G, 2 mem, RC */
+	{0x700d, "Chelsio S72200-OCP3"},	/* 2 x 40/100/200G OCP3 */
+	{0x700e, "Chelsio S7450-OCP3"},		/* 4 x 1/20/25/50G OCP3 */
+	{0x700f, "Chelsio S7410-BT-OCP3"},	/* 4 x 10GBASE-T OCP3 */
+	{0x7010, "Chelsio S7210-BT-A"},		/* 2 x 10GBASE-T */
+	{0x7011, "Chelsio T7_MAYRA_7"},		/* Motherboard */
+
+	{0x7080, "Custom T7"},
 };
 
 static inline uint32_t
@@ -183,6 +205,26 @@ t6iov_probe(device_t dev)
 	for (i = 0; i < nitems(t6iov_pciids); i++) {
 		if (d == t6iov_pciids[i].device) {
 			device_set_desc(dev, t6iov_pciids[i].desc);
+			device_quiet(dev);
+			return (BUS_PROBE_DEFAULT);
+		}
+	}
+	return (ENXIO);
+}
+
+static int
+chiov_probe(device_t dev)
+{
+	uint16_t d;
+	size_t i;
+
+	if (pci_get_vendor(dev) != PCI_VENDOR_ID_CHELSIO)
+		return (ENXIO);
+
+	d = pci_get_device(dev);
+	for (i = 0; i < nitems(t7iov_pciids); i++) {
+		if (d == t7iov_pciids[i].device) {
+			device_set_desc(dev, t7iov_pciids[i].desc);
 			device_quiet(dev);
 			return (BUS_PROBE_DEFAULT);
 		}
@@ -460,6 +502,28 @@ static driver_t t6iov_driver = {
 	sizeof(struct t4iov_softc)
 };
 
+static device_method_t chiov_methods[] = {
+	DEVMETHOD(device_probe,		chiov_probe),
+	DEVMETHOD(device_attach,	t4iov_attach),
+	DEVMETHOD(device_detach,	t4iov_detach),
+
+#ifdef PCI_IOV
+	DEVMETHOD(pci_iov_init,		t4iov_iov_init),
+	DEVMETHOD(pci_iov_uninit,	t4iov_iov_uninit),
+	DEVMETHOD(pci_iov_add_vf,	t4iov_add_vf),
+#endif
+
+	DEVMETHOD(t4_attach_child,	t4iov_attach_child),
+	DEVMETHOD(t4_detach_child,	t4iov_detach_child),
+
+	DEVMETHOD_END
+};
+
+static driver_t chiov_driver = {
+	"chiov",
+	chiov_methods,
+	sizeof(struct t4iov_softc)
+};
 DRIVER_MODULE(t4iov, pci, t4iov_driver, 0, 0);
 MODULE_VERSION(t4iov, 1);
 
@@ -468,3 +532,6 @@ MODULE_VERSION(t5iov, 1);
 
 DRIVER_MODULE(t6iov, pci, t6iov_driver, 0, 0);
 MODULE_VERSION(t6iov, 1);
+
+DRIVER_MODULE(chiov, pci, chiov_driver, 0, 0);
+MODULE_VERSION(chiov, 1);

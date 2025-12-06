@@ -1175,7 +1175,7 @@ zfs_aclset_common(znode_t *zp, zfs_acl_t *aclp, cred_t *cr, dmu_tx_t *tx)
 	int			count = 0;
 	zfs_acl_phys_t		acl_phys;
 
-	if (zp->z_zfsvfs->z_replay == B_FALSE) {
+	if (ZTOV(zp) != NULL && zp->z_zfsvfs->z_replay == B_FALSE) {
 		ASSERT_VOP_IN_SEQC(ZTOV(zp));
 	}
 
@@ -1262,7 +1262,8 @@ zfs_aclset_common(znode_t *zp, zfs_acl_t *aclp, cred_t *cr, dmu_tx_t *tx)
 				if (aclnode->z_ace_count == 0)
 					continue;
 				dmu_write(zfsvfs->z_os, aoid, off,
-				    aclnode->z_size, aclnode->z_acldata, tx);
+				    aclnode->z_size, aclnode->z_acldata, tx,
+				    DMU_READ_NO_PREFETCH);
 				off += aclnode->z_size;
 			}
 		} else {
@@ -1632,7 +1633,7 @@ zfs_acl_ids_create(znode_t *dzp, int flag, vattr_t *vap, cred_t *cr,
 		if (zfsvfs->z_replay == B_FALSE)
 			ASSERT_VOP_ELOCKED(ZTOV(dzp), __func__);
 	} else
-		ASSERT3P(dzp->z_vnode, ==, NULL);
+		ASSERT0P(dzp->z_vnode);
 	memset(acl_ids, 0, sizeof (zfs_acl_ids_t));
 	acl_ids->z_mode = MAKEIMODE(vap->va_type, vap->va_mode);
 
@@ -2014,7 +2015,7 @@ top:
 
 	error = zfs_aclset_common(zp, aclp, cr, tx);
 	ASSERT0(error);
-	ASSERT3P(zp->z_acl_cached, ==, NULL);
+	ASSERT0P(zp->z_acl_cached);
 	zp->z_acl_cached = aclp;
 
 	if (fuid_dirtied)

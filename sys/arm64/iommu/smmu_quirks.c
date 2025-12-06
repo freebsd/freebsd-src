@@ -56,7 +56,7 @@ struct smmu_quirk_entry {
 
 /* List of events that are known and will be silenced. */
 static const struct smmu_quirk_entry smmu_quirk_table[] = {
-	{ 0x10ec, 0x8168, "RealTek 8168/8111", 0x10 /* F_TRANSLATION */, 0x0 },
+	{ 0x10ec, 0x8168, "Realtek 8168/8111", 0x10 /* F_TRANSLATION */, 0x0 },
 	{ 0, 0, NULL, 0, 0 },
 };
 

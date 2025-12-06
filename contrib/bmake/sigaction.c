@@ -104,24 +104,16 @@
  *      Simon J. Gerraty <sjg@crufty.net>
  */
 /* COPYRIGHT:
- *      @(#)Copyright (c) 1992-2021, Simon J. Gerraty
+ *      @(#)Copyright (c) 1992-2025, Simon J. Gerraty
  *
- *      This is free software.  It comes with NO WARRANTY.
- *      Permission to use, modify and distribute this source code
- *      is granted subject to the following conditions.
- *      1/ that that the above copyright notice and this notice
- *      are preserved in all copies and that due credit be given
- *      to the author.
- *      2/ that any changes to this code are clearly commented
- *      as such so that the author does get blamed for bugs
- *      other than his own.
+ *      SPDX-License-Identifier: BSD-2-Clause
  *
  *      Please send copies of changes and bug-fixes to:
  *      sjg@crufty.net
  *
  */
 #ifndef lint
-static char *RCSid = "$Id: sigact.c,v 1.8 2021/10/14 19:39:17 sjg Exp $";
+static char *RCSid = "$Id: sigact.c,v 1.9 2025/08/09 22:11:45 sjg Exp $";
 #endif
 
 #undef _ANSI_SOURCE		/* causes problems */

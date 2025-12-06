@@ -1,4 +1,5 @@
-PACKAGE?=	openssl-lib
+PACKAGE?=	openssl
+LIB_PACKAGE=
 
 SHLIBDIR=	${LIBDIR}/engines-3
 

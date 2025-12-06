@@ -60,9 +60,7 @@
 #include <net/if_media.h>
 #include <net/if_types.h>
 
-#ifdef RSS
 #include <net/rss_config.h>
-#endif
 
 #include "common/efx.h"
 

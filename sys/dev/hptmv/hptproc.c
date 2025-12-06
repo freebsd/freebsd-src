@@ -107,7 +107,7 @@ hpt_set_asc_info(IAL_ADAPTER_T *pAdapter, char *buffer,int length)
 				return -EINVAL;
 			}
 
-            for (i=0;i<MV_SATA_CHANNELS_NUM;i++)
+            for (i = 0; i < MV_SATA_CHANNELS_NUM; i++)
 				if(i == ichan)
 				    goto rebuild;
 

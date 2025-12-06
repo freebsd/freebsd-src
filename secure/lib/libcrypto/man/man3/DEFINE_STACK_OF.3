@@ -55,7 +55,7 @@
 .\" ========================================================================
 .\"
 .IX Title "DEFINE_STACK_OF 3ossl"
-.TH DEFINE_STACK_OF 3ossl 2025-07-01 3.5.1 OpenSSL
+.TH DEFINE_STACK_OF 3ossl 2025-09-30 3.5.4 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -235,15 +235,14 @@ to:
 element. The new element value is returned or NULL if an error occurred:
 this will only happen if \fIsk\fR is NULL or \fIidx\fR is out of range.
 .PP
-\&\fBsk_\fR\f(BITYPE\fR\fB_find\fR() searches \fIsk\fR for the element \fIptr\fR.  In the case
-where no comparison function has been specified, the function performs
-a linear search for a pointer equal to \fIptr\fR. The index of the first
-matching element is returned or \fB\-1\fR if there is no match. In the case
-where a comparison function has been specified, \fIsk\fR is sorted and
-\&\fBsk_\fR\f(BITYPE\fR\fB_find\fR() returns the index of a matching element or \fB\-1\fR if there
-is no match. Note that, in this case the comparison function will usually
-compare the values pointed to rather than the pointers themselves and
-the order of elements in \fIsk\fR can change.
+\&\fBsk_\fR\f(BITYPE\fR\fB_find\fR() searches \fIsk\fR for the element \fIptr\fR. In the
+case where no comparison function has been specified, the function
+performs a linear search for a pointer equal to \fIptr\fR. In the case
+where a comparison function has been specified, the function performs
+a search for a element that the comparison function indicates is a
+match. If the stack is sorted, a binary search is used, otherwise, a
+linear search is used. \fBsk_\fR\f(BITYPE\fR\fB_find\fR() returns the index of a
+matching element or \fB\-1\fR if there is no match.
 .PP
 \&\fBsk_\fR\f(BITYPE\fR\fB_find_ex\fR() operates like \fBsk_\fR\f(BITYPE\fR\fB_find\fR() except when a
 comparison function has been specified and no matching element is found.
@@ -362,7 +361,7 @@ Before OpenSSL 3.3.0 \fBsk_\fR\f(BITYPE\fR\fB_push\fR() returned \-1 if \fIsk\fR
 was changed to return 0 in this condition as for other errors.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

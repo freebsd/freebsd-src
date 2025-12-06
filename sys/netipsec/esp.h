@@ -32,7 +32,7 @@
  */
 
 /*
- * RFC1827/2406 Encapsulated Security Payload.
+ * RFC 1827 & RFC 2406: Encapsulating Security Payload.
  */
 
 #ifndef _NETIPSEC_ESP_H_

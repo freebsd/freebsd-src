@@ -57,7 +57,10 @@ cpowl(long double complex a, long double complex z)
 	y = cimagl(z);
 	absa = cabsl(a);
 	if (absa == 0.0L) {
-		return (CMPLXL(0.0L, 0.0L));
+		if (x == 0 && y == 0)
+		    return (CMPLXL(1.L, 0.L));
+		else
+		    return (CMPLXL(0.L, 0.L));
 	}
 	arga = cargl(a);
 	r = powl(absa, x);

@@ -271,7 +271,7 @@ cc_check_default(struct cc_algo *remove_cc)
  * Initialise CC subsystem on system boot.
  */
 static void
-cc_init(void)
+cc_init(void *dummy __unused)
 {
 	CC_LIST_LOCK_INIT();
 	STAILQ_INIT(&cc_list);
@@ -659,7 +659,7 @@ cc_modevent(module_t mod, int event_type, void *data)
 	case MOD_SHUTDOWN:
 		break;
 	case MOD_QUIESCE:
-		/* Stop any new assigments */
+		/* Stop any new assignments */
 		err = cc_stop_new_assignments(algo);
 		break;
 	case MOD_UNLOAD:

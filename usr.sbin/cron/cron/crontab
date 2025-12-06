@@ -1,4 +1,4 @@
-# /etc/crontab - root's crontab for FreeBSD
+# /etc/crontab - system crontab for FreeBSD
 #
 #
 SHELL=/bin/sh

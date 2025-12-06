@@ -55,6 +55,8 @@ typedef	struct	iphtable_s	{
 	char	iph_name[FR_GROUPLEN];	/* hash table number */
 } iphtable_t;
 
+#define IPHTABLE_MAX_SIZE	1024
+
 /* iph_type */
 #define	IPHASH_LOOKUP	0
 #define	IPHASH_GROUPMAP	1

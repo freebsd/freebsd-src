@@ -260,7 +260,7 @@ mmp_thread_stop(spa_t *spa)
 	zfs_dbgmsg("MMP thread stopped pool '%s' gethrtime %llu",
 	    spa_name(spa), gethrtime());
 
-	ASSERT(mmp->mmp_thread == NULL);
+	ASSERT0P(mmp->mmp_thread);
 	mmp->mmp_thread_exiting = 0;
 }
 
@@ -446,7 +446,7 @@ mmp_write_uberblock(spa_t *spa)
 	uint64_t offset;
 
 	hrtime_t lock_acquire_time = gethrtime();
-	spa_config_enter_mmp(spa, SCL_STATE, mmp_tag, RW_READER);
+	spa_config_enter_priority(spa, SCL_STATE, mmp_tag, RW_READER);
 	lock_acquire_time = gethrtime() - lock_acquire_time;
 	if (lock_acquire_time > (MSEC2NSEC(MMP_MIN_INTERVAL) / 10))
 		zfs_dbgmsg("MMP SCL_STATE acquisition pool '%s' took %llu ns "
@@ -729,12 +729,12 @@ mmp_signal_all_threads(void)
 {
 	spa_t *spa = NULL;
 
-	mutex_enter(&spa_namespace_lock);
+	spa_namespace_enter(FTAG);
 	while ((spa = spa_next(spa))) {
 		if (spa->spa_state == POOL_STATE_ACTIVE)
 			mmp_signal_thread(spa);
 	}
-	mutex_exit(&spa_namespace_lock);
+	spa_namespace_exit(FTAG);
 }
 
 ZFS_MODULE_PARAM_CALL(zfs_multihost, zfs_multihost_, interval,

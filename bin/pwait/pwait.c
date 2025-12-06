@@ -33,23 +33,40 @@
 
 #include <sys/types.h>
 #include <sys/event.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/tree.h>
 #include <sys/wait.h>
 
 #include <err.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
 
+struct pid {
+	RB_ENTRY(pid) entry;
+	pid_t pid;
+};
+
+static int
+pidcmp(const struct pid *a, const struct pid *b)
+{
+	return (a->pid > b->pid ? 1 : a->pid < b->pid ? -1 : 0);
+}
+
+RB_HEAD(pidtree, pid);
+static struct pidtree pids = RB_INITIALIZER(&pids);
+RB_GENERATE_STATIC(pidtree, pid, entry, pidcmp);
+
 static void
 usage(void)
 {
-
-	fprintf(stderr, "usage: pwait [-t timeout] [-ov] pid ...\n");
+	fprintf(stderr, "usage: pwait [-t timeout] [-opv] pid ...\n");
 	exit(EX_USAGE);
 }
 
@@ -61,40 +78,53 @@ main(int argc, char *argv[])
 {
 	struct itimerval itv;
 	struct kevent *e;
-	int oflag, tflag, verbose;
-	int i, kq, n, nleft, opt, status;
-	long pid;
+	struct pid k, *p;
 	char *end, *s;
 	double timeout;
+	size_t sz;
+	long pid;
+	pid_t mypid;
+	int i, kq, n, ndone, nleft, opt, pid_max, ret, status;
+	bool oflag, pflag, tflag, verbose;
 
-	oflag = 0;
-	tflag = 0;
-	verbose = 0;
+	oflag = false;
+	pflag = false;
+	tflag = false;
+	verbose = false;
 	memset(&itv, 0, sizeof(itv));
 
-	while ((opt = getopt(argc, argv, "ot:v")) != -1) {
+	while ((opt = getopt(argc, argv, "opt:v")) != -1) {
 		switch (opt) {
 		case 'o':
-			oflag = 1;
+			oflag = true;
+			break;
+		case 'p':
+			pflag = true;
 			break;
 		case 't':
-			tflag = 1;
+			tflag = true;
 			errno = 0;
 			timeout = strtod(optarg, &end);
 			if (end == optarg || errno == ERANGE || timeout < 0) {
 				errx(EX_DATAERR, "timeout value");
 			}
-			switch(*end) {
-			case 0:
+			switch (*end) {
+			case '\0':
+				break;
 			case 's':
+				end++;
 				break;
 			case 'h':
 				timeout *= 60;
 				/* FALLTHROUGH */
 			case 'm':
 				timeout *= 60;
+				end++;
 				break;
 			default:
+				errx(EX_DATAERR, "timeout unit");
+			}
+			if (*end != '\0') {
 				errx(EX_DATAERR, "timeout unit");
 			}
 			if (timeout > 100000000L) {
@@ -106,7 +136,7 @@ main(int argc, char *argv[])
 			    (suseconds_t)(timeout * 1000000UL);
 			break;
 		case 'v':
-			verbose = 1;
+			verbose = true;
 			break;
 		default:
 			usage();
@@ -121,53 +151,57 @@ main(int argc, char *argv[])
 		usage();
 	}
 
-	kq = kqueue();
-	if (kq == -1) {
+	if ((kq = kqueue()) < 0)
 		err(EX_OSERR, "kqueue");
-	}
 
-	e = malloc((argc + tflag) * sizeof(struct kevent));
-	if (e == NULL) {
+	sz = sizeof(pid_max);
+	if (sysctlbyname("kern.pid_max", &pid_max, &sz, NULL, 0) != 0) {
+		pid_max = 99999;
+	}
+	if ((e = malloc((argc + tflag) * sizeof(*e))) == NULL) {
 		err(EX_OSERR, "malloc");
 	}
-	nleft = 0;
+	ndone = nleft = 0;
+	mypid = getpid();
 	for (n = 0; n < argc; n++) {
 		s = argv[n];
 		/* Undocumented Solaris compat */
-		if (!strncmp(s, "/proc/", 6)) {
+		if (strncmp(s, "/proc/", 6) == 0) {
 			s += 6;
 		}
 		errno = 0;
 		pid = strtol(s, &end, 10);
-		if (pid < 0 || *end != '\0' || errno != 0) {
+		if (pid < 0 || pid > pid_max || *end != '\0' || errno != 0) {
 			warnx("%s: bad process id", s);
 			continue;
 		}
-		if (pid == getpid()) {
+		if (pid == mypid) {
 			warnx("%s: skipping my own pid", s);
 			continue;
 		}
-		for (i = 0; i < nleft; i++) {
-			if (e[i].ident == (uintptr_t)pid) {
-				break;
-			}
+		if ((p = malloc(sizeof(*p))) == NULL) {
+			err(EX_OSERR, NULL);
 		}
-		if (i < nleft) {
+		p->pid = pid;
+		if (RB_INSERT(pidtree, &pids, p) != NULL) {
 			/* Duplicate. */
+			free(p);
 			continue;
 		}
 		EV_SET(e + nleft, pid, EVFILT_PROC, EV_ADD, NOTE_EXIT, 0, NULL);
 		if (kevent(kq, e + nleft, 1, NULL, 0, NULL) == -1) {
+			if (errno != ESRCH)
+				err(EX_OSERR, "kevent()");
 			warn("%ld", pid);
-			if (oflag) {
-				exit(EX_OK);
-			}
+			RB_REMOVE(pidtree, &pids, p);
+			free(p);
+			ndone++;
 		} else {
 			nleft++;
 		}
 	}
 
-	if (nleft > 0 && tflag) {
+	if ((ndone == 0 || !oflag) && nleft > 0 && tflag) {
 		/*
 		 * Explicitly detect SIGALRM so that an exit status of 124
 		 * can be returned rather than 142.
@@ -182,7 +216,8 @@ main(int argc, char *argv[])
 			err(EX_OSERR, "setitimer");
 		}
 	}
-	while (nleft > 0) {
+	ret = EX_OK;
+	while ((ndone == 0 || !oflag) && ret == EX_OK && nleft > 0) {
 		n = kevent(kq, NULL, 0, e, nleft + tflag, NULL);
 		if (n == -1) {
 			err(EX_OSERR, "kevent");
@@ -192,29 +227,34 @@ main(int argc, char *argv[])
 				if (verbose) {
 					printf("timeout\n");
 				}
-				exit(124);
+				ret = 124;
 			}
+			pid = e[i].ident;
 			if (verbose) {
 				status = e[i].data;
 				if (WIFEXITED(status)) {
 					printf("%ld: exited with status %d.\n",
-					    (long)e[i].ident,
-					    WEXITSTATUS(status));
+					    pid, WEXITSTATUS(status));
 				} else if (WIFSIGNALED(status)) {
 					printf("%ld: killed by signal %d.\n",
-					    (long)e[i].ident,
-					    WTERMSIG(status));
+					    pid, WTERMSIG(status));
 				} else {
-					printf("%ld: terminated.\n",
-					    (long)e[i].ident);
+					printf("%ld: terminated.\n", pid);
 				}
 			}
-			if (oflag) {
-				exit(EX_OK);
+			k.pid = pid;
+			if ((p = RB_FIND(pidtree, &pids, &k)) != NULL) {
+				RB_REMOVE(pidtree, &pids, p);
+				free(p);
+				ndone++;
 			}
 			--nleft;
 		}
 	}
-
-	exit(EX_OK);
+	if (pflag) {
+		RB_FOREACH(p, pidtree, &pids) {
+			printf("%d\n", p->pid);
+		}
+	}
+	exit(ret);
 }

@@ -575,7 +575,7 @@ is the following structure:
 .Bd -literal
 struct ip_mreqn {
     struct in_addr imr_multiaddr; /* IP multicast address of group */
-    struct in_addr imr_interface; /* local IP address of interface */
+    struct in_addr imr_address;   /* local IP address of interface */
     int            imr_ifindex;   /* interface index */
 }
 .Ed

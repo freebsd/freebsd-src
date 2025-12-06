@@ -30,7 +30,7 @@ function.
 List of functions:
 .Bl -tag -width XXXX
 .It Dv table = freebsd.kenv.get()
-Dump the kernel environnement into a key/value
+Dump the kernel environment into a key/value
 .Fa table .
 .It Dv value = freebsd.kenv.get(key)
 Return the

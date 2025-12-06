@@ -1,4 +1,4 @@
-/*	$NetBSD: bl.c,v 1.28 2016/07/29 17:13:09 christos Exp $	*/
+/*	$NetBSD: bl.c,v 1.9 2025/03/30 01:53:59 christos Exp $	*/
 
 /*-
  * Copyright (c) 2014 The NetBSD Foundation, Inc.
@@ -32,8 +32,10 @@
 #include "config.h"
 #endif
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: bl.c,v 1.28 2016/07/29 17:13:09 christos Exp $");
+#endif
+__RCSID("$NetBSD: bl.c,v 1.9 2025/03/30 01:53:59 christos Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -57,6 +59,10 @@ __RCSID("$NetBSD: bl.c,v 1.28 2016/07/29 17:13:09 christos Exp $");
 #include <pthread.h>
 #endif
 
+#if defined(SO_RECVUCRED)
+#include <ucred.h>
+#endif
+
 #include "bl.h"
 
 typedef struct {
@@ -68,7 +74,7 @@ typedef struct {
 	char bl_data[];
 } bl_message_t;
 
-struct blacklist {
+struct blocklist {
 #ifdef _REENTRANT
 	pthread_mutex_t b_mutex;
 # define BL_INIT(b)	pthread_mutex_init(&b->b_mutex, NULL)
@@ -82,7 +88,8 @@ struct blacklist {
 	int b_fd;
 	int b_connected;
 	struct sockaddr_un b_sun;
-	void (*b_fun)(int, const char *, va_list);
+	struct syslog_data b_syslog_data;
+	void (*b_fun)(int, struct syslog_data *, const char *, va_list);
 	bl_info_t b_info;
 };
 
@@ -115,14 +122,16 @@ bl_reset(bl_t b, bool locked)
 }
 
 static void
-bl_log(void (*fun)(int, const char *, va_list), int level,
-    const char *fmt, ...)
+bl_log(bl_t b, int level, const char *fmt, ...)
 {
 	va_list ap;
 	int serrno = errno;
 
+	if (b->b_fun == NULL)
+		return;
+
 	va_start(ap, fmt);
-	(*fun)(level, fmt, ap);
+	(*b->b_fun)(level, &b->b_syslog_data, fmt, ap);
 	va_end(ap);
 	errno = serrno;
 }
@@ -152,7 +161,7 @@ bl_init(bl_t b, bool srv)
 		b->b_fd = socket(PF_LOCAL,
 		    SOCK_DGRAM|SOCK_CLOEXEC|SOCK_NONBLOCK|SOCK_NOSIGPIPE, 0);
 		if (b->b_fd == -1) {
-			bl_log(b->b_fun, LOG_ERR, "%s: socket failed (%s)",
+			bl_log(b, LOG_ERR, "%s: socket failed (%s)",
 			    __func__, strerror(errno));
 			BL_UNLOCK(b);
 			return -1;
@@ -186,7 +195,7 @@ bl_init(bl_t b, bool srv)
 	rv = connect(b->b_fd, (const void *)sun, (socklen_t)sizeof(*sun));
 	if (rv == 0) {
 		if (srv) {
-			bl_log(b->b_fun, LOG_ERR,
+			bl_log(b, LOG_ERR,
 			    "%s: another daemon is handling `%s'",
 			    __func__, sun->sun_path);
 			goto out;
@@ -199,7 +208,7 @@ bl_init(bl_t b, bool srv)
 			 * and only log once.
 			 */
 			if (b->b_connected != 1) {
-				bl_log(b->b_fun, LOG_DEBUG,
+				bl_log(b, LOG_DEBUG,
 				    "%s: connect failed for `%s' (%s)",
 				    __func__, sun->sun_path, strerror(errno));
 				b->b_connected = 1;
@@ -207,8 +216,7 @@ bl_init(bl_t b, bool srv)
 			BL_UNLOCK(b);
 			return -1;
 		}
-		bl_log(b->b_fun, LOG_DEBUG, "Connected to blacklist server",
-		    __func__);
+		bl_log(b, LOG_DEBUG, "Connected to blocklist server", __func__);
 	}
 
 	if (srv) {
@@ -219,8 +227,7 @@ bl_init(bl_t b, bool srv)
 		(void)umask(om);
 		errno = serrno;
 		if (rv == -1) {
-			bl_log(b->b_fun, LOG_ERR,
-			    "%s: bind failed for `%s' (%s)",
+			bl_log(b, LOG_ERR, "%s: bind failed for `%s' (%s)",
 			    __func__, sun->sun_path, strerror(errno));
 			goto out;
 		}
@@ -231,8 +238,8 @@ bl_init(bl_t b, bool srv)
 #if defined(LOCAL_CREDS)
 #define CRED_LEVEL	0
 #define	CRED_NAME	LOCAL_CREDS
-#define CRED_SC_UID	sc_euid
-#define CRED_SC_GID	sc_egid
+#define CRED_SC_UID(x)	(x)->sc_euid
+#define CRED_SC_GID(x)	(x)->sc_egid
 #define CRED_MESSAGE	SCM_CREDS
 #define CRED_SIZE	SOCKCREDSIZE(NGROUPS_MAX)
 #define CRED_TYPE	struct sockcred
@@ -240,11 +247,20 @@ bl_init(bl_t b, bool srv)
 #elif defined(SO_PASSCRED)
 #define CRED_LEVEL	SOL_SOCKET
 #define	CRED_NAME	SO_PASSCRED
-#define CRED_SC_UID	uid
-#define CRED_SC_GID	gid
+#define CRED_SC_UID(x)	(x)->uid
+#define CRED_SC_GID(x)	(x)->gid
 #define CRED_MESSAGE	SCM_CREDENTIALS
 #define CRED_SIZE	sizeof(struct ucred)
 #define CRED_TYPE	struct ucred
+#define GOT_CRED	2
+#elif defined(SO_RECVUCRED)
+#define CRED_LEVEL	SOL_SOCKET
+#define CRED_NAME	SO_RECVUCRED
+#define CRED_SC_UID(x)	ucred_geteuid(x)
+#define CRED_SC_GID(x)	ucred_getegid(x)
+#define CRED_MESSAGE	SCM_UCRED
+#define CRED_SIZE	ucred_size()
+#define CRED_TYPE	ucred_t
 #define GOT_CRED	2
 #else
 #define GOT_CRED	0
@@ -259,7 +275,7 @@ bl_init(bl_t b, bool srv)
 #ifdef CRED_LEVEL
 	if (setsockopt(b->b_fd, CRED_LEVEL, CRED_NAME,
 	    &one, (socklen_t)sizeof(one)) == -1) {
-		bl_log(b->b_fun, LOG_ERR, "%s: setsockopt %s "
+		bl_log(b, LOG_ERR, "%s: setsockopt %s "
 		    "failed (%s)", __func__, __STRING(CRED_NAME),
 		    strerror(errno));
 		goto out;
@@ -275,12 +291,15 @@ out:
 }
 
 bl_t
-bl_create(bool srv, const char *path, void (*fun)(int, const char *, va_list))
+bl_create(bool srv, const char *path,
+    void (*fun)(int, struct syslog_data *, const char *, va_list))
 {
+	static struct syslog_data sd = SYSLOG_DATA_INIT;
 	bl_t b = calloc(1, sizeof(*b));
 	if (b == NULL)
-		goto out;
-	b->b_fun = fun == NULL ? vsyslog : fun;
+		return NULL;
+	b->b_fun = fun;
+	b->b_syslog_data = sd;
 	b->b_fd = -1;
 	b->b_connected = -1;
 	BL_INIT(b);
@@ -295,11 +314,6 @@ bl_create(bool srv, const char *path, void (*fun)(int, const char *, va_list))
 
 	bl_init(b, srv);
 	return b;
-out:
-	free(b);
-	bl_log(fun, LOG_ERR, "%s: malloc failed (%s)", __func__,
-	    strerror(errno));
-	return NULL;
 }
 
 void
@@ -327,7 +341,7 @@ bl_getsock(bl_t b, struct sockaddr_storage *ss, const struct sockaddr *sa,
 		family = AF_INET6;
 		break;
 	default:
-		bl_log(b->b_fun, LOG_ERR, "%s: invalid socket len %u (%s)",
+		bl_log(b, LOG_ERR, "%s: invalid socket len %u (%s)",
 		    __func__, (unsigned)slen, ctx);
 		errno = EINVAL;
 		return -1;
@@ -336,7 +350,7 @@ bl_getsock(bl_t b, struct sockaddr_storage *ss, const struct sockaddr *sa,
 	memcpy(ss, sa, slen);
 
 	if (ss->ss_family != family) {
-		bl_log(b->b_fun, LOG_INFO,
+		bl_log(b, LOG_INFO,
 		    "%s: correcting socket family %d to %d (%s)",
 		    __func__, ss->ss_family, family, ctx);
 		ss->ss_family = family;
@@ -344,7 +358,7 @@ bl_getsock(bl_t b, struct sockaddr_storage *ss, const struct sockaddr *sa,
 
 #ifdef HAVE_STRUCT_SOCKADDR_SA_LEN
 	if (ss->ss_len != slen) {
-		bl_log(b->b_fun, LOG_INFO,
+		bl_log(b, LOG_INFO,
 		    "%s: correcting socket len %u to %u (%s)",
 		    __func__, ss->ss_len, (unsigned)slen, ctx);
 		ss->ss_len = (uint8_t)slen;
@@ -424,10 +438,11 @@ bl_recv(bl_t b)
 	union {
 		char ctrl[CMSG_SPACE(sizeof(int)) + CMSG_SPACE(CRED_SIZE)];
 		uint32_t fd;
-		CRED_TYPE sc;
 	} ua;
 	struct cmsghdr *cmsg;
+#if GOT_CRED != 0
 	CRED_TYPE *sc;
+#endif
 	union {
 		bl_message_t bl;
 		char buf[512];
@@ -450,18 +465,18 @@ bl_recv(bl_t b)
 	msg.msg_flags = 0;
 
 	msg.msg_control = ua.ctrl;
-	msg.msg_controllen = sizeof(ua.ctrl) + 100;
+	msg.msg_controllen = sizeof(ua.ctrl);
 
         rlen = recvmsg(b->b_fd, &msg, 0);
         if (rlen == -1) {
-		bl_log(b->b_fun, LOG_ERR, "%s: recvmsg failed (%s)", __func__,
+		bl_log(b, LOG_ERR, "%s: recvmsg failed (%s)", __func__,
 		    strerror(errno));
 		return NULL;
         }
 
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
 		if (cmsg->cmsg_level != SOL_SOCKET) {
-			bl_log(b->b_fun, LOG_ERR,
+			bl_log(b, LOG_ERR,
 			    "%s: unexpected cmsg_level %d",
 			    __func__, cmsg->cmsg_level);
 			continue;
@@ -469,10 +484,15 @@ bl_recv(bl_t b)
 		switch (cmsg->cmsg_type) {
 		case SCM_RIGHTS:
 			if (cmsg->cmsg_len != CMSG_LEN(sizeof(int))) {
-				bl_log(b->b_fun, LOG_ERR,
+				int *fd = (void *)CMSG_DATA(cmsg);
+				size_t len = cmsg->cmsg_len / sizeof(int);
+				bl_log(b, LOG_ERR,
 				    "%s: unexpected cmsg_len %d != %zu",
 				    __func__, cmsg->cmsg_len,
-				    CMSG_LEN(2 * sizeof(int)));
+				    CMSG_LEN(sizeof(int)));
+
+				for (size_t i = 0;  i < len; i++)
+					(void)close(fd[i]);
 				continue;
 			}
 			memcpy(&bi->bi_fd, CMSG_DATA(cmsg), sizeof(bi->bi_fd));
@@ -481,13 +501,13 @@ bl_recv(bl_t b)
 #ifdef CRED_MESSAGE
 		case CRED_MESSAGE:
 			sc = (void *)CMSG_DATA(cmsg);
-			bi->bi_uid = sc->CRED_SC_UID;
-			bi->bi_gid = sc->CRED_SC_GID;
+			bi->bi_uid = CRED_SC_UID(sc);
+			bi->bi_gid = CRED_SC_GID(sc);
 			got |= GOT_CRED;
 			break;
 #endif
 		default:
-			bl_log(b->b_fun, LOG_ERR,
+			bl_log(b, LOG_ERR,
 			    "%s: unexpected cmsg_type %d",
 			    __func__, cmsg->cmsg_type);
 			continue;
@@ -496,7 +516,7 @@ bl_recv(bl_t b)
 	}
 
 	if (got != (GOT_CRED|GOT_FD)) {
-		bl_log(b->b_fun, LOG_ERR, "message missing %s %s",
+		bl_log(b, LOG_ERR, "message missing %s %s",
 #if GOT_CRED != 0
 		    (got & GOT_CRED) == 0 ? "cred" :
 #endif
@@ -506,13 +526,13 @@ bl_recv(bl_t b)
 
 	rem = (size_t)rlen;
 	if (rem < sizeof(ub.bl)) {
-		bl_log(b->b_fun, LOG_ERR, "message too short %zd", rlen);
+		bl_log(b, LOG_ERR, "message too short %zd", rlen);
 		return NULL;
 	}
 	rem -= sizeof(ub.bl);
 
 	if (ub.bl.bl_version != BL_VERSION) {
-		bl_log(b->b_fun, LOG_ERR, "bad version %d", ub.bl.bl_version);
+		bl_log(b, LOG_ERR, "bad version %d", ub.bl.bl_version);
 		return NULL;
 	}
 
@@ -523,10 +543,12 @@ bl_recv(bl_t b)
 	bi->bi_uid = -1;
 	bi->bi_gid = -1;
 #endif
-	rem = MIN(sizeof(bi->bi_msg), rem);
 	if (rem == 0)
 		bi->bi_msg[0] = '\0';
-	else
-		strlcpy(bi->bi_msg, ub.bl.bl_data, rem);
+	else {
+		rem = MIN(sizeof(bi->bi_msg) - 1, rem);
+		memcpy(bi->bi_msg, ub.bl.bl_data, rem);
+		bi->bi_msg[rem] = '\0';
+	}
 	return bi;
 }

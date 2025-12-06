@@ -41,14 +41,14 @@
 #endif
 
 /*
- * On FreeBSD we demand that memcmp returns the difference between the
- * characters at the first site of mismatch.  However, ISO/IEC 9899:1990
- * only specifies that a number greater than, equal to, or less than
- * zero shall be returned.  If a unit test for this less strict
- * behaviour is desired, define RES(x) to be (((x) > 0) - ((x) < 0)).
+ * On FreeBSD we previously demanded that memcmp returns the difference
+ * between the characters at the first site of mismatch.  However,
+ * ISO/IEC 9899:1990 only specifies that a number greater than, equal
+ * to, or less than zero shall be returned.  If a unit test for the
+ * more strict behaviour is desired, define RES(x) to be (x).
  */
 #ifndef RES
-#define RES(x) (x)
+#define RES(x) (((x) > 0) - ((x) < 0))
 #endif
 
 static int (*memcmp_fn)(const void *, const void *, size_t);

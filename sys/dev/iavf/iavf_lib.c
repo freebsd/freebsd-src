@@ -1079,9 +1079,7 @@ iavf_config_rss_reg(struct iavf_sc *sc)
 	u64		set_hena = 0, hena;
 	int		i, j, que_id;
 	u32		rss_seed[IAVF_RSS_KEY_SIZE_REG];
-#ifdef RSS
 	u32		rss_hash_config;
-#endif
 
 	/* Don't set up RSS if using a single queue */
 	if (IAVF_NRXQS(vsi) == 1) {
@@ -1091,19 +1089,14 @@ iavf_config_rss_reg(struct iavf_sc *sc)
 		return;
 	}
 
-#ifdef RSS
 	/* Fetch the configured RSS key */
 	rss_getkey((uint8_t *) &rss_seed);
-#else
-	iavf_get_default_rss_key(rss_seed);
-#endif
 
 	/* Fill out hash function seed */
 	for (i = 0; i < IAVF_RSS_KEY_SIZE_REG; i++)
                 wr32(hw, IAVF_VFQF_HKEY(i), rss_seed[i]);
 
 	/* Enable PCTYPES for RSS: */
-#ifdef RSS
 	rss_hash_config = rss_gethashconfig();
 	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV4)
                 set_hena |= ((u64)1 << IAVF_FILTER_PCTYPE_NONF_IPV4_OTHER);
@@ -1119,9 +1112,6 @@ iavf_config_rss_reg(struct iavf_sc *sc)
                 set_hena |= ((u64)1 << IAVF_FILTER_PCTYPE_NONF_IPV6_TCP);
         if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6)
                 set_hena |= ((u64)1 << IAVF_FILTER_PCTYPE_NONF_IPV6_UDP);
-#else
-	set_hena = IAVF_DEFAULT_RSS_HENA_XL710;
-#endif
 	hena = (u64)rd32(hw, IAVF_VFQF_HENA(0)) |
 	    ((u64)rd32(hw, IAVF_VFQF_HENA(1)) << 32);
 	hena |= set_hena;

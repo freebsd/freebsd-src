@@ -37,6 +37,7 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/proc.h>
+#include <sys/stat.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -94,8 +95,14 @@ static int evdev_check_event(struct evdev_dev *, uint16_t, uint16_t, int32_t);
 struct evdev_dev *
 evdev_alloc(void)
 {
+	struct evdev_dev *evdev;
 
-	return malloc(sizeof(struct evdev_dev), M_EVDEV, M_WAITOK | M_ZERO);
+	evdev = malloc(sizeof(struct evdev_dev), M_EVDEV, M_WAITOK | M_ZERO);
+	evdev->ev_cdev_uid = UID_ROOT;
+	evdev->ev_cdev_gid = GID_WHEEL;
+	evdev->ev_cdev_mode = S_IRUSR | S_IWUSR;
+
+	return (evdev);
 }
 
 void
@@ -582,6 +589,14 @@ evdev_set_flag(struct evdev_dev *evdev, uint16_t flag)
 
 	KASSERT(flag < EVDEV_FLAG_CNT, ("invalid evdev flag property"));
 	bit_set(evdev->ev_flags, flag);
+}
+
+void
+evdev_set_cdev_mode(struct evdev_dev *evdev, uid_t uid, gid_t gid, int mode)
+{
+	evdev->ev_cdev_uid = uid;
+	evdev->ev_cdev_gid = gid;
+	evdev->ev_cdev_mode = mode;
 }
 
 static int

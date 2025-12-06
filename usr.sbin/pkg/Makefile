@@ -1,5 +1,6 @@
 PACKAGE=	pkg-bootstrap
 
+.MAKEFLAGS: -W
 _BRANCH!=	${MAKE} -C ${SRCTOP}/release -V BRANCH
 BRANCH?=	${_BRANCH}
 .if ${BRANCH:MCURRENT} != ""

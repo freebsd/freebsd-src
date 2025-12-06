@@ -64,10 +64,8 @@ static int	num_queues_per_pf1;
 TUNABLE_INT("hw.lio.num_queues_per_pf0", &num_queues_per_pf0);
 TUNABLE_INT("hw.lio.num_queues_per_pf1", &num_queues_per_pf1);
 
-#ifdef RSS
 static int	lio_rss = 1;
 TUNABLE_INT("hw.lio.rss", &lio_rss);
-#endif	/* RSS */
 
 /* Hardware LRO */
 unsigned int	lio_hwlro = 0;
@@ -1437,13 +1435,10 @@ lio_setup_nic_devices(struct octeon_device *octeon_dev)
 		lio_set_feature(ifp, LIO_CMD_TNL_TX_CSUM_CTL,
 				LIO_CMD_TXCSUM_ENABLE);
 
-#ifdef RSS
 		if (lio_rss) {
 			if (lio_send_rss_param(lio))
 				goto setup_nic_dev_fail;
 		} else
-#endif	/* RSS */
-
 			lio_set_feature(ifp, LIO_CMD_SET_FNV,
 					LIO_CMD_FNV_ENABLE);
 

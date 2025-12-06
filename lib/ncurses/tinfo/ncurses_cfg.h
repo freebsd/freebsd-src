@@ -61,7 +61,7 @@
 #define MIXEDCASE_FILENAMES 1
 #define STDC_HEADERS 1
 #define USE_GETCAP 1
-#define USE_BSD_TPUTS 1
+#define BSD_TPUTS 1
 #define HAVE_BSD_CGETENT 1
 #define HAVE_SYS_TYPES_H 1
 #define HAVE_SYS_STAT_H 1

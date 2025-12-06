@@ -186,6 +186,37 @@
 		i2c-digital-filter-width-ns = <35>;
 		status = "okay";
 
+		power-monitor@1f {
+			compatible = "microchip,pac1934";
+			reg = <0x1f>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			channel@1 {
+				reg = <0x1>;
+				shunt-resistor-micro-ohms = <47000>;
+				label = "VDD3V3";
+			};
+
+			channel@2 {
+				reg = <0x2>;
+				shunt-resistor-micro-ohms = <47000>;
+				label = "VDDIODDR";
+			};
+
+			channel@3 {
+				reg = <0x3>;
+				shunt-resistor-micro-ohms = <47000>;
+				label = "VDDCORE";
+			};
+
+			channel@4 {
+				reg = <0x4>;
+				shunt-resistor-micro-ohms = <47000>;
+				label = "VDDCPU";
+			};
+		};
+
 		eeprom@51 {
 			compatible = "atmel,24c02";
 			reg = <0x51>;
@@ -338,6 +369,38 @@
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
 		m25p,fast-read;
+		label = "at91-qspi";
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			at91bootstrap@0 {
+				label = "qspi1: at91bootstrap";
+				reg = <0x0 0x40000>;
+			};
+
+			bootloader@40000 {
+				label = "qspi1: u-boot";
+				reg = <0x40000 0x100000>;
+			};
+
+			bootloaderenv@140000 {
+				label = "qspi1: u-boot env";
+				reg = <0x140000 0x40000>;
+			};
+
+			dtb@180000 {
+				label = "qspi1: device tree";
+				reg = <0x180000 0x80000>;
+			};
+
+			kernel@200000 {
+				label = "qspi1: kernel";
+				reg = <0x200000 0x600000>;
+			};
+		};
 	};
 };
 

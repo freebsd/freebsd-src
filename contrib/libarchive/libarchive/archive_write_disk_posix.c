@@ -412,12 +412,14 @@ static ssize_t	_archive_write_disk_data_block(struct archive *, const void *,
 static int
 la_mktemp(struct archive_write_disk *a)
 {
+	struct archive_string *tmp = &a->_tmpname_data;
 	int oerrno, fd;
 	mode_t mode;
 
-	archive_string_empty(&a->_tmpname_data);
-	archive_string_sprintf(&a->_tmpname_data, "%s.XXXXXX", a->name);
-	a->tmpname = a->_tmpname_data.s;
+	archive_strcpy(tmp, a->name);
+	archive_string_dirname(tmp);
+	archive_strcat(tmp, "/tar.XXXXXXXX");
+	a->tmpname = tmp->s;
 
 	fd = __archive_mkstemp(a->tmpname);
 	if (fd == -1)
@@ -2204,7 +2206,7 @@ restore_entry(struct archive_write_disk *a)
 				(void)clear_nochange_fflags(a);
 
 			if ((a->flags & ARCHIVE_EXTRACT_SAFE_WRITES) &&
-			    S_ISREG(a->st.st_mode)) {
+			    S_ISREG(a->mode)) {
 				/* Use a temporary file to extract */
 				if ((a->fd = la_mktemp(a)) == -1) {
 					archive_set_error(&a->archive, errno,
@@ -3930,10 +3932,14 @@ clear_nochange_fflags(struct archive_write_disk *a)
 #ifdef UF_APPEND
 	    | UF_APPEND
 #endif
-#ifdef EXT2_APPEND_FL
+#if defined(FS_APPEND_FL)
+	    | FS_APPEND_FL
+#elif defined(EXT2_APPEND_FL)
 	    | EXT2_APPEND_FL
 #endif
-#ifdef EXT2_IMMUTABLE_FL
+#if defined(FS_IMMUTABLE_FL)
+	    | FS_IMMUTABLE_FL
+#elif defined(EXT2_IMMUTABLE_FL)
 	    | EXT2_IMMUTABLE_FL
 #endif
 	;
@@ -4283,8 +4289,10 @@ create_tempdatafork(struct archive_write_disk *a, const char *pathname)
 	int tmpfd;
 
 	archive_string_init(&tmpdatafork);
-	archive_strcpy(&tmpdatafork, "tar.md.XXXXXX");
-	tmpfd = mkstemp(tmpdatafork.s);
+	archive_strcpy(&tmpdatafork, pathname);
+	archive_string_dirname(&tmpdatafork);
+	archive_strcat(&tmpdatafork, "/tar.XXXXXXXX");
+	tmpfd = __archive_mkstemp(tmpdatafork.s);
 	if (tmpfd < 0) {
 		archive_set_error(&a->archive, errno,
 		    "Failed to mkstemp");
@@ -4363,8 +4371,10 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 	 * silly dance of writing the data to disk just so that
 	 * copyfile() can read it back in again. */
 	archive_string_init(&tmp);
-	archive_strcpy(&tmp, "tar.mmd.XXXXXX");
-	fd = mkstemp(tmp.s);
+	archive_strcpy(&tmp, pathname);
+	archive_string_dirname(&tmp);
+	archive_strcat(&tmp, "/tar.XXXXXXXX");
+	fd = __archive_mkstemp(tmp.s);
 
 	if (fd < 0) {
 		archive_set_error(&a->archive, errno,

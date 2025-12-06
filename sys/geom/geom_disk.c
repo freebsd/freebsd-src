@@ -235,8 +235,14 @@ g_disk_done(struct bio *bp)
 	bp2 = bp->bio_parent;
 	binuptime(&now);
 	mtx_lock(&sc->done_mtx);
-	if (bp2->bio_error == 0)
-		bp2->bio_error = bp->bio_error;
+	if (bp2->bio_error == 0) {
+		if ((bp->bio_flags & BIO_EXTERR) != 0) {
+			bp2->bio_flags |= BIO_EXTERR;
+			bp2->bio_exterr = bp->bio_exterr;
+		} else {
+			bp2->bio_error = bp->bio_error;
+		}
+	}
 	bp2->bio_completed += bp->bio_length - bp->bio_resid;
 
 	if (bp->bio_cmd == BIO_READ)

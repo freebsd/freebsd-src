@@ -27,9 +27,10 @@ PACKAGE=	kerberos
 
 .include <src.opts.mk>
 
-LIB=	pam_ksu
-SRCS=	pam_ksu.c
-MAN=	pam_ksu.8
+LIB=		pam_ksu
+SRCS=		pam_ksu.c
+MANNODEV=	pam_ksu.8
+
 WARNS?=	3
 
 LIBADD+=	krb5

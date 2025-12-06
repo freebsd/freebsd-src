@@ -134,7 +134,7 @@ int	mac_cred_check_setuid(struct ucred *cred, uid_t uid);
 int	mac_cred_check_visible(struct ucred *cr1, struct ucred *cr2);
 void	mac_cred_copy(struct ucred *cr1, struct ucred *cr2);
 void	mac_cred_create_init(struct ucred *cred);
-void	mac_cred_create_swapper(struct ucred *cred);
+void	mac_cred_create_kproc0(struct ucred *cred);
 void	mac_cred_destroy(struct ucred *);
 void	mac_cred_init(struct ucred *);
 

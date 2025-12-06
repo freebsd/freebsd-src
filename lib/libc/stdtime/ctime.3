@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 26, 2024
+.Dd September 23, 2025
 .Dt CTIME 3
 .Os
 .Sh NAME
@@ -41,6 +41,8 @@
 .Nm localtime ,
 .Nm localtime_r ,
 .Nm mktime ,
+.Nm offtime ,
+.Nm offtime_r ,
 .Nm timegm
 .Nd transform binary date and time values
 .Sh LIBRARY
@@ -68,14 +70,19 @@
 .Fn localtime_r "const time_t *clock" "struct tm *result"
 .Ft time_t
 .Fn mktime "struct tm *tm"
+.Ft struct tm *
+.Fn offtime "const time_t *clock" "long offset"
+.Ft struct tm *
+.Fn offtime_r "const time_t *clock" "long offset" "struct tm *result"
 .Ft time_t
 .Fn timegm "struct tm *tm"
 .Sh DESCRIPTION
 The
 .Fn ctime ,
 .Fn gmtime ,
+.Fn localtime ,
 and
-.Fn localtime
+.Fn offtime
 functions all take as argument a pointer to a time value representing
 the time in seconds since the Epoch (00:00:00 UTC on January 1, 1970;
 see
@@ -123,6 +130,18 @@ adjustment, and returns a pointer to a
 .Vt struct tm .
 .Pp
 The
+.Fn offtime
+function similarly converts the time value with a time zone adjustment
+corresponding to the provided
+.Fa offset ,
+which is expressed in seconds, with positive values indicating a time
+zone ahead of UTC (east of the Prime Meridian).
+It does not call
+.Xr tzset 3
+or modify
+.Va tzname .
+.Pp
+The
 .Fn ctime
 function
 adjusts the time value for the current time zone in the same manner as
@@ -155,13 +174,15 @@ except the caller must provide the output buffer
 .Fa buf ,
 which must be at least 26 characters long, to store the result in.
 The
-.Fn localtime_r
+.Fn localtime_r ,
+.Fn gmtime_r ,
 and
-.Fn gmtime_r
+.Fn offtime_r
 functions provide the same functionality as
-.Fn localtime
+.Fn localtime ,
+.Fn gmtime ,
 and
-.Fn gmtime
+.Fn offtime
 respectively, except the caller must provide the output buffer
 .Fa result .
 .Pp
@@ -368,6 +389,12 @@ and
 .Fn localtime_r
 functions have been available since
 .Fx 8.0 .
+The
+.Fn offtime
+and
+.Fn offtime_r
+functions were added in
+.Fx 15.0 .
 .Sh BUGS
 Except for
 .Fn difftime ,

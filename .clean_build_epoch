@@ -1,0 +1,7 @@
+# Add a new line containing a larger number than the last (e.g. YYYYMMDD) for
+# every change that breaks ABI or requires a full rebuild for some other reason.
+# Only the last entry is required, but having the full list may be useful for
+# looking at frequency of ABI breakage, etc.
+
+# 4757b351ea9: openssl: Import version 3.5.1
+20250807	# All OpenSSL-using bits need rebuilt

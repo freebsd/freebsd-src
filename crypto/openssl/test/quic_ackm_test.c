@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -104,7 +104,8 @@ static int helper_init(struct helper *h, size_t num_pkts)
 
     /* Initialise ACK manager. */
     h->ackm = ossl_ackm_new(fake_now, NULL, &h->statm,
-                            &ossl_cc_dummy_method, h->ccdata);
+                            &ossl_cc_dummy_method, h->ccdata,
+                            /* is_server */0);
     if (!TEST_ptr(h->ackm))
         goto err;
 

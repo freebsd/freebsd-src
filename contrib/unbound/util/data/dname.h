@@ -262,9 +262,22 @@ int dname_is_root(uint8_t* dname);
  * Snip off first label from a dname, returning the parent zone.
  * @param dname: from what to strip off. uncompressed wireformat.
  * @param len: length, adjusted to become less.
- * return stripped off, or "." if input was ".".
+ * return dname stripped off, or "." if input was ".".
  */
 void dname_remove_label(uint8_t** dname, size_t* len);
+
+/**
+ * Same as dname_remove_label but fails if removal would surpass lenlimit.
+ * If no failure,
+ * snip off first label from a dname, returning the parent zone.
+ * @param dname: from what to strip off. uncompressed wireformat.
+ * @param len: length, adjusted to become less.
+ * @param lenlimit: length limit that we can't surpass (usually the zone apex).
+ * @return
+ *	o 1,  and dname stripped off, or "." if input was ".", else
+ *	o 0, if going up would surpass lenlimit.
+ */
+int dname_remove_label_limit_len(uint8_t** dname, size_t* len, size_t lenlimit);
 
 /**
  * Snip off first N labels from a dname, returning the parent zone.

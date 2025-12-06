@@ -3,6 +3,6 @@ _spath=${SRCTOP}/contrib/ofed/librdmacm
 
 BINDIR?=	/usr/bin
 CFLAGS+=	-I${SRCTOP}/contrib/ofed
-LIBADD+=	ibverbs rdmacm irdma mlx4 mlx5 cxgb4 pthread
+LIBADD+=	ibverbs rdmacm irdma mlx4 mlx5 bnxtre cxgb4 pthread
 
 WARNS?=	0

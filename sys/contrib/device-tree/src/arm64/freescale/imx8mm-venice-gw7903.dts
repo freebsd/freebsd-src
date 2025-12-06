@@ -18,6 +18,8 @@
 
 	aliases {
 		ethernet0 = &fec1;
+		rtc0 = &gsc_rtc;
+		rtc1 = &snvs_rtc;
 		usb0 = &usbotg1;
 	};
 
@@ -394,7 +396,7 @@
 		pagesize = <16>;
 	};
 
-	rtc@68 {
+	gsc_rtc: rtc@68 {
 		compatible = "dallas,ds1672";
 		reg = <0x68>;
 	};
@@ -619,6 +621,8 @@
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
+	assigned-clocks = <&clk IMX8MM_CLK_USDHC3>;
+	assigned-clock-rates = <400000000>;
 	bus-width = <8>;
 	non-removable;
 	status = "okay";

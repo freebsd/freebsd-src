@@ -50,6 +50,7 @@ static int	splitfs_stat(struct open_file *f, struct stat *sb);
 
 struct fs_ops splitfs_fsops = {
 	.fs_name = "split",
+	.fs_flags = 0,
 	.fo_open = splitfs_open,
 	.fo_close = splitfs_close,
 	.fo_read = splitfs_read,

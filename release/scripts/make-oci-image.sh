@@ -39,15 +39,23 @@ install_packages() {
 	local abi=$1; shift
 	local workdir=$1; shift
 	local rootdir=${workdir}/rootfs
+
+	# Make sure we have the keys needed for verifying package integrity if
+	# not already added by a parent image.
 	if [ ! -d ${rootdir}/usr/share/keys/pkg/trusted ]; then
 		mkdir -p ${rootdir}/usr/share/keys/pkg/trusted
 	fi
-	cp /usr/share/keys/pkg/trusted/* ${rootdir}/usr/share/keys/pkg/trusted
+	for i in ${curdir}/../share/keys/pkg/trusted/pkg.*; do
+		if [ ! -f ${rootdir}/usr/share/keys/pkg/trusted/$(basename $i) ]; then
+			cp $i ${rootdir}/usr/share/keys/pkg/trusted
+		fi
+	done
+
 	# We install the packages and then remove repository metadata (keeping the
 	# metadata for what was installed). This trims more than 40Mb from the
 	# resulting image.
 	env IGNORE_OSVERSION=yes ABI=${abi} pkg --rootdir ${rootdir} --repo-conf-dir ${workdir}/repos \
-		install -yq "$@" || exit $?
+		install -yq -g "$@" || exit $?
 	rm -rf ${rootdir}/var/db/pkg/repos
 }
 

@@ -1,7 +1,5 @@
 .PATH: ${SRCTOP}/sys/dev/rtwn
-
-SYSDIR?=${SRCTOP}/sys
-.include "${SYSDIR}/conf/kern.opts.mk"
+.include "${SRCTOP}/sys/conf/kern.opts.mk"
 
 KMOD     = rtwn
 SRCS     = if_rtwn.c if_rtwn_tx.c if_rtwn_rx.c if_rtwn_beacon.c \

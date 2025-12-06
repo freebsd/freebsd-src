@@ -123,8 +123,9 @@ If geolocation information is available, a selection interface can
 locate the user on a timezone map or prioritize names that are
 geographically close. For an example selection interface, see the
 <code>tzselect</code> program in the <code><abbr>tz</abbr></code> code.
-The <a href="https://cldr.unicode.org">Unicode Common Locale Data
-Repository</a> contains data that may be useful for other selection
+Unicode's <a href="https://cldr.unicode.org">Common Locale Data
+Repository (<abbr>CLDR</abbr>)</a>
+contains data that may be useful for other selection
 interfaces; it maps timezone names like <code>Europe/Prague</code> to
 locale-dependent strings like "Prague", "Praha", "Прага", and "布拉格".
 </p>
@@ -200,6 +201,8 @@ in decreasing order of importance:
   <li>
     A name must not be empty, or contain '<code>//</code>', or
     start or end with '<code>/</code>'.
+    Also, a name must not be '<code>Etc/Unknown</code>', as
+    <abbr>CLDR</abbr> uses that string for an unknown or invalid timezone.
   </li>
   <li>
     Do not use names that differ only in case.
@@ -220,10 +223,18 @@ in decreasing order of importance:
     do not need locations, since local time is not defined there.
   </li>
   <li>
-    If all the clocks in a timezone have agreed since 1970,
-    do not bother to include more than one timezone
-    even if some of the clocks disagreed before 1970.
+    If all clocks in a region have agreed since 1970,
+    give them just one name even if some of the clocks disagreed before 1970,
+    or reside in different countries or in notable or faraway locations.
     Otherwise these tables would become annoyingly large.
+    For example, do not create a name <code>Indian/Crozet</code>
+    as a near-duplicate or alias of <code>Asia/Dubai</code>
+    merely because they are different countries or territories,
+    or their clocks disagreed before 1970, or the
+    <a href="https://en.wikipedia.org/wiki/Crozet_Islands">Crozet Islands</a>
+    are notable in their own right,
+    or the Crozet Islands are not adjacent to other locations
+    that use <code>Asia/Dubai</code>.
   </li>
   <li>
     If boundaries between regions are fluid, such as during a war or
@@ -579,10 +590,10 @@ in decreasing order of importance:
     locations while uninhabited.
     The leading '<code>-</code>' is a flag that the <abbr>UT</abbr> offset is in
     some sense undefined; this notation is derived
-    from <a href="https://datatracker.ietf.org/doc/html/rfc3339">Internet
+    from <a href="https://www.rfc-editor.org/rfc/rfc3339">Internet
     <abbr title="Request For Comments">RFC</abbr> 3339</a>.
     (The abbreviation 'Z' that
-    <a href="https://datatracker.ietf.org/doc/html/rfc9557">Internet
+    <a href="https://www.rfc-editor.org/rfc/rfc9557">Internet
     <abbr>RFC</abbr> 9557</a> uses for this concept
     would violate the POSIX requirement
     of at least three characters in an abbreviation.)
@@ -1115,8 +1126,8 @@ However POSIX.1-2024, like earlier POSIX editions, has some limitations:
     the name of a file from which time-related information is read.
     The file's format is <dfn><abbr>TZif</abbr></dfn>,
     a timezone information format that contains binary data; see
-    <a href="https://datatracker.ietf.org/doc/html/8536">Internet
-    <abbr>RFC</abbr> 8536</a>.
+    <a href="https://www.rfc-editor.org/rfc/9636">Internet
+    <abbr>RFC</abbr> 9636</a>.
     The daylight saving time rules to be used for a
     particular timezone are encoded in the
     <abbr>TZif</abbr> file; the format of the file allows <abbr>US</abbr>,
@@ -1201,12 +1212,15 @@ The vestigial <abbr>API</abbr>s are:
     The <code>tm_isdst</code> member is almost never needed and most of
     its uses should be discouraged in favor of the abovementioned
     <abbr>API</abbr>s.
+    It was intended as an index into the <code>tzname</code> variable,
+    but as mentioned previously that usage is obsolete.
     Although it can still be used in arguments to
     <code>mktime</code> to disambiguate timestamps near
     a <abbr>DST</abbr> transition when the clock jumps back on
     platforms lacking <code>tm_gmtoff</code>, this
-    disambiguation does not work when standard time itself jumps back,
-    which can occur when a location changes to a time zone with a
+    disambiguation works only for proleptic <code>TZ</code> strings;
+    it does not work in general for geographical timezones,
+    such as when a location changes to a time zone with a
     lesser <abbr>UT</abbr> offset.
   </li>
 </ul>
@@ -1223,8 +1237,8 @@ The vestigial <abbr>API</abbr>s are:
     Programs that in the past used the <code>timezone</code> function
     may now examine <code>localtime(&amp;clock)-&gt;tm_zone</code>
     (if <code>TM_ZONE</code> is defined) or
-    <code>tzname[localtime(&amp;clock)-&gt;tm_isdst]</code>
-    (if <code>HAVE_TZNAME</code> is nonzero) to learn the correct time
+    use <code>strftime</code> with a <code>%Z</code> conversion specification
+    to learn the correct time
     zone abbreviation to use.
   </li>
   <li>

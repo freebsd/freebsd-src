@@ -858,7 +858,7 @@ mps_detach_sas(struct mps_softc *sc)
 	if (sassc->devq != NULL)
 		cam_simq_free(sassc->devq);
 
-	for(i=0; i< sassc->maxtargets ;i++) {
+	for (i = 0; i < sassc->maxtargets; i++) {
 		targ = &sassc->targets[i];
 		SLIST_FOREACH_SAFE(lun, &targ->luns, lun_link, lun_tmp) {
 			free(lun, M_MPT2);
@@ -3396,7 +3396,7 @@ mpssas_realloc_targets(struct mps_softc *sc, int maxtargets)
 	 * the allocated LUNs for each target and then the target buffer
 	 * itself.
 	 */
-	for (i=0; i< maxtargets; i++) {
+	for (i = 0; i < maxtargets; i++) {
 		targ = &sassc->targets[i];
 		SLIST_FOREACH_SAFE(lun, &targ->luns, lun_link, lun_tmp) {
 			free(lun, M_MPT2);

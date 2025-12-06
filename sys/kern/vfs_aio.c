@@ -345,12 +345,14 @@ static const struct filterops aio_filtops = {
 	.f_attach = filt_aioattach,
 	.f_detach = filt_aiodetach,
 	.f_event = filt_aio,
+	.f_copy = knote_triv_copy,
 };
 static const struct filterops lio_filtops = {
 	.f_isfd = 0,
 	.f_attach = filt_lioattach,
 	.f_detach = filt_liodetach,
-	.f_event = filt_lio
+	.f_event = filt_lio,
+	.f_copy = knote_triv_copy,
 };
 
 static eventhandler_tag exit_tag, exec_tag;
@@ -2485,7 +2487,7 @@ aio_biowakeup(struct bio *bp)
 	long bcount = bp->bio_bcount;
 	long resid = bp->bio_resid;
 	int opcode, nblks;
-	int bio_error = bp->bio_error;
+	int abio_error = bp->bio_error;
 	uint16_t flags = bp->bio_flags;
 
 	opcode = job->uaiocb.aio_lio_opcode;
@@ -2501,16 +2503,16 @@ aio_biowakeup(struct bio *bp)
 	 * error of whichever failed bio completed last.
 	 */
 	if (flags & BIO_ERROR)
-		atomic_store_int(&job->error, bio_error);
+		atomic_store_int(&job->error, abio_error);
 	if (opcode & LIO_WRITE)
 		atomic_add_int(&job->outblock, nblks);
 	else
 		atomic_add_int(&job->inblock, nblks);
 
 	if (refcount_release(&job->nbio)) {
-		bio_error = atomic_load_int(&job->error);
-		if (bio_error != 0)
-			aio_complete(job, -1, bio_error);
+		abio_error = atomic_load_int(&job->error);
+		if (abio_error != 0)
+			aio_complete(job, -1, abio_error);
 		else
 			aio_complete(job, atomic_load_long(&job->nbytes), 0);
 	}
@@ -2750,7 +2752,11 @@ struct __aiocb_private32 {
 #ifdef COMPAT_FREEBSD6
 typedef struct oaiocb32 {
 	int	aio_fildes;		/* File descriptor */
+#ifdef __amd64__
 	uint64_t aio_offset __packed;	/* File offset for I/O */
+#else
+	uint64_t aio_offset;		/* File offset for I/O */
+#endif
 	uint32_t aio_buf;		/* I/O buffer in process space */
 	uint32_t aio_nbytes;		/* Number of bytes for I/O */
 	struct	osigevent32 aio_sigevent; /* Signal to deliver */
@@ -2762,7 +2768,11 @@ typedef struct oaiocb32 {
 
 typedef struct aiocb32 {
 	int32_t	aio_fildes;		/* File descriptor */
+#ifdef __amd64__
 	uint64_t aio_offset __packed;	/* File offset for I/O */
+#else
+	uint64_t aio_offset;		/* File offset for I/O*/
+#endif
 	uint32_t aio_buf;	/* I/O buffer in process space */
 	uint32_t aio_nbytes;	/* Number of bytes for I/O */
 	int	__spare__[2];

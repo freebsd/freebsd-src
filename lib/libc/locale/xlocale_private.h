@@ -200,11 +200,9 @@ extern _Thread_local locale_t __thread_locale;
  */
 static inline locale_t __get_locale(void)
 {
-
-	if (!__has_thread_locale) {
+	if (!__has_thread_locale || __thread_locale == NULL)
 		return (&__xlocale_global_locale);
-	}
-	return (__thread_locale ? __thread_locale : &__xlocale_global_locale);
+	return (__thread_locale);
 }
 
 /**

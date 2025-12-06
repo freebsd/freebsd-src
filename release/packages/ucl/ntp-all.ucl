@@ -1,4 +1,43 @@
-comment = "Network Time Protocol server and client"
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+comment = "Network Time Protocol (NTP) daemon"
+
 desc = <<EOD
-Network Time Protocol server and client
+The Network Time Protocol (NTP, RFC 5905) allows a system to set its time-of-day
+clock automatically by contacting a remote system known to have accurate time.
+NTP servers are typically organised in a hierarchy in which the highest-level
+servers receive time from a reliable external timekeeping device (such as an
+atomic clock or a GPS receiver), and each subordinate server in the hierarchy
+knows its distance from the timekeeping device it is ultimately synchronised to.
+
+Unlike earlier protocols such as the Time Protocol (RFC 868), NTP can provide
+very accurate (sub-millisecond) time synchronisation even over high-latency
+networks.  Many NTP servers are accessible over the public Internet, most of
+which participate in the NTP Pool system.
+
+This package provides the ntpd(8) daemon which implements both the client
+and server part of NTP depending on its configuration, and the ntpdate(8)
+utility which can be used for testing or one-off time synchronisation.
+
+A periodic(8) script to monitor the status of the NTP daemon is also provided.
 EOD
+
+annotations {
+	set = "optional,optional-jail"
+}

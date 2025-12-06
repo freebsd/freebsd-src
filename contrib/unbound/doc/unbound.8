@@ -1,4 +1,4 @@
-.TH "unbound" "8" "Feb 10, 2022" "NLnet Labs" "unbound 1.15.0"
+.TH "unbound" "8" "Jul 16, 2025" "NLnet Labs" "unbound 1.23.1"
 .\"
 .\" unbound.8 -- unbound manual
 .\"
@@ -9,7 +9,7 @@
 .\"
 .SH "NAME"
 .B unbound
-\- Unbound DNS validating resolver 1.15.0.
+\- Unbound DNS validating resolver 1.23.1.
 .SH "SYNOPSIS"
 .B unbound
 .RB [ \-h ]
@@ -58,7 +58,7 @@ Show the version number and commandline option help, and exit.
 .TP
 .B \-c\fI cfgfile
 Set the config file with settings for Unbound to read instead of reading the
-file at the default location, @ub_conf_file@. The syntax is
+file at the default location, /var/unbound/unbound.conf. The syntax is
 described in \fIunbound.conf\fR(5).
 .TP
 .B \-d
@@ -75,7 +75,7 @@ concurrently.
 .TP
 .B \-v
 Increase verbosity. If given multiple times, more information is logged.
-This is in addition to the verbosity (if any) from the config file.
+This is added to the verbosity (if any) from the config file.
 .TP
 .B \-V
 Show the version number and build options, and exit.

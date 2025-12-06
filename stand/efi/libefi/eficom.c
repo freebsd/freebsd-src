@@ -30,8 +30,9 @@
 
 #include <efi.h>
 #include <efilib.h>
+#include <Protocol/SerialIo.h>
 
-static EFI_GUID serial = SERIAL_IO_PROTOCOL;
+static EFI_GUID serial = EFI_SERIAL_IO_PROTOCOL_GUID;
 
 #define	COMC_TXWAIT	0x40000		/* transmit timeout */
 
@@ -510,7 +511,7 @@ comc_port_set(struct env_var *ev, int flags, const void *value)
 	    (void**)&sio, IH, NULL, EFI_OPEN_PROTOCOL_GET_PROTOCOL);
 
 	if (EFI_ERROR(status)) {
-		printf("OpenProtocol: %lu\n", EFI_ERROR_CODE(status));
+		printf("OpenProtocol: %lu\n", DECODE_ERROR(status));
 		return (CMD_ERROR);
 	}
 

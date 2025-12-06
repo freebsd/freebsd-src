@@ -37,6 +37,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 
 #ifndef _UEFI_DEVICE_PATH_LIB_H_
 #define _UEFI_DEVICE_PATH_LIB_H_
+
 #include <Uefi.h>
 #include <Protocol/DevicePathUtilities.h>
 #include <Protocol/DebugPort.h>
@@ -174,8 +175,7 @@ typedef struct {
 
 #pragma pack()
 
-#ifdef FreeBSD		/* Remove these on FreeBSD */
-
+#ifndef __FreeBSD__		/* Remove these on FreeBSD */
 /**
   Returns the size of a device path in bytes.
 

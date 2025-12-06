@@ -13,6 +13,8 @@ printpooldata(ip_pool_t *pool, int opts)
 {
 
 	if (opts & OPT_SAVEOUT) {
+		if ((pool->ipo_flags & IPOOL_DELETE) != 0)
+			PRINTF("# ");
 		PRINTF("pool ");
 	} else if ((opts & OPT_DEBUG) == 0) {
 		if ((pool->ipo_flags & IPOOL_ANON) != 0)

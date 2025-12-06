@@ -55,7 +55,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_ARIA_128_GCM 3ossl"
-.TH EVP_ARIA_128_GCM 3ossl 2025-07-01 3.5.1 OpenSSL
+.TH EVP_ARIA_128_GCM 3ossl 2025-09-30 3.5.4 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -113,7 +113,7 @@ ARIA for 128, 192 and 256 bit keys in the following modes: CBC, CFB with
 .IX Item "EVP_aria_128_ccm(), EVP_aria_192_ccm(), EVP_aria_256_ccm(), EVP_aria_128_gcm(), EVP_aria_192_gcm(), EVP_aria_256_gcm(),"
 ARIA for 128, 192 and 256 bit keys in CBC-MAC Mode (CCM) and Galois Counter
 Mode (GCM). These ciphers require additional control operations to function
-correctly, see the "AEAD Interface" in \fBEVP_EncryptInit\fR\|(3) section for details.
+correctly, see the "AEAD INTERFACE" in \fBEVP_EncryptInit\fR\|(3) section for details.
 .SH NOTES
 .IX Header "NOTES"
 Developers should be aware of the negative performance implications of
@@ -132,7 +132,7 @@ details of the \fBEVP_CIPHER\fR structure.
 \&\fBEVP_CIPHER_meth_new\fR\|(3)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2017\-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

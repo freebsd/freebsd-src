@@ -2088,7 +2088,7 @@ create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp)
 		break;
 	}
 	default:
-		printf("Unknow flags: %d\n", ccb->ccb_h.flags);
+		printf("Unknown flags: %d\n", ccb->ccb_h.flags);
 		return(EINVAL);
 	}
 

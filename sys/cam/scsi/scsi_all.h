@@ -3057,7 +3057,7 @@ struct scsi_report_luns_data {
 	uint8_t length[4];	/* length of LUN inventory, in bytes */
 	uint8_t reserved[4];	/* unused */
 	/*
-	 * LUN inventory- we only support the type zero form for now.
+	 * LUN inventory- we only support type zero and extended (well-known) formats.
 	 */
 	struct scsi_report_luns_lundata luns[0];
 };
@@ -4326,7 +4326,8 @@ void scsi_unmap(struct ccb_scsiio *csio, uint32_t retries,
 void scsi_start_stop(struct ccb_scsiio *csio, uint32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
 		     uint8_t tag_action, int start, int load_eject,
-		     int immediate, uint8_t sense_len, uint32_t timeout);
+		     int immediate, uint8_t power_condition, uint8_t sense_len,
+		     uint32_t timeout);
 void scsi_read_attribute(struct ccb_scsiio *csio, uint32_t retries, 
 			 void (*cbfcnp)(struct cam_periph *, union ccb *),
 			 uint8_t tag_action, uint8_t service_action,

@@ -4,8 +4,9 @@
 
 /set type=dir uname=root gname=wheel mode=0755
 .
-    bin
+    bin     tags=package=runtime
     ..
+/set tags=package=bootloader
     boot
         defaults
         ..
@@ -27,7 +28,7 @@
         ..
         kernel
         ..
-        loader.conf.d   tags=package=bootloader
+        loader.conf.d
         ..
         lua
         ..
@@ -38,108 +39,109 @@
         zfs
         ..
     ..
+/unset tags
     dev             mode=0555 tags=package=runtime
     ..
-    etc
-        X11
+    etc                 tags=package=runtime
+        X11             tags=package=runtime
         ..
-        authpf
+        authpf          tags=package=pf
         ..
-        autofs
+        autofs          tags=package=autofs
         ..
-        bluetooth
+        bluetooth       tags=package=bluetooth
         ..
-        cron.d
+        cron.d          tags=package=cron
         ..
-        defaults
+        defaults        tags=package=runtime
         ..
-        devd
+        devd            tags=package=devd
         ..
-        dma
+        dma             tags=package=dma
         ..
-        gss
+        gss             tags=package=runtime
         ..
-        jail.conf.d
+        jail.conf.d     tags=package=jail
         ..
         kyua            tags=package=tests
         ..
-        mail
+        mail            tags=package=runtime
         ..
-        mtree
+        mtree           tags=package=mtree
         ..
-        newsyslog.conf.d
+        newsyslog.conf.d tags=package=newsyslog
         ..
-        ntp             mode=0700
+        ntp             mode=0700 tags=package=ntp
         ..
-        pam.d
+        pam.d           tags=package=runtime
         ..
-        periodic
-            daily
+        periodic        tags=package=periodic
+            daily       tags=package=periodic
             ..
-            monthly
+            monthly     tags=package=periodic
             ..
-            security
+            security    tags=package=periodic
             ..
-            weekly
-            ..
-        ..
-        pkg
-        ..
-        ppp
-        ..
-        profile.d
-        ..
-        rc.conf.d
-        ..
-        rc.d
-        ..
-        security
-        ..
-        ssh
-        ..
-        ssl
-            certs
-            ..
-            untrusted
+            weekly      tags=package=periodic
             ..
         ..
-        sysctl.kld.d
+        pkg             tags=package=pkg-bootstrap
         ..
-        syslog.d
+        ppp             tags=package=ppp
         ..
-        zfs
-            compatibility.d
+        profile.d       tags=package=runtime
+        ..
+        rc.conf.d       tags=package=rc
+        ..
+        rc.d            tags=package=rc
+        ..
+        security        tags=package=audit
+        ..
+        ssh             tags=package=ssh
+        ..
+        ssl             tags=package=caroot
+            certs		tags=package=caroot
+            ..
+            untrusted		tags=package=caroot
+            ..
+        ..
+        sysctl.kld.d    tags=package=runtime
+        ..
+        syslog.d        tags=package=syslogd
+        ..
+        zfs                     tags=package=zfs
+            compatibility.d     tags=package=zfs
             ..
         ..
     ..
-    lib
-        geom
+    lib                 tags=package=clibs
+        geom            tags=package=geom
         ..
-        nvmecontrol
-        ..
-    ..
-    libexec
-        resolvconf
+        nvmecontrol     tags=package=nvme-tools
         ..
     ..
-    media
+    libexec             tags=package=clibs
+        resolvconf      tags=package=resolvconf
+        ..
     ..
-    mnt
+    media           tags=package=runtime
     ..
-    net
+    mnt             tags=package=runtime
     ..
-    proc            mode=0555
+    net             tags=package=autofs
     ..
-    rescue
+    proc            mode=0555 tags=package=runtime
     ..
-    root            mode=0750
+    rescue          tags=package=rescue
     ..
-    sbin
+    root            mode=0750 tags=package=runtime
+    ..
+    sbin            tags=package=runtime
     ..
     tmp             mode=01777 tags=package=runtime
     ..
-    usr
+    usr             tags=package=runtime
     ..
-    var
+    var             tags=package=runtime
     ..
 ..

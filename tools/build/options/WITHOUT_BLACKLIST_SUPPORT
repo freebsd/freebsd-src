@@ -1,7 +1,2 @@
-Build some programs without
-.Xr libblacklist 3
-support, like
-.Xr fingerd 8 ,
-.Xr ftpd 8 ,
-and
-.Xr sshd 8 .
+This option has been renamed to
+.Va WITHOUT_BLOCKLIST_SUPPORT .

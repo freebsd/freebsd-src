@@ -359,7 +359,7 @@ public void forw(int n, POSITION pos, lbool force, lbool only_last, lbool to_new
 	}
 	if (!first_line)
 		add_forw_pos(pos, FALSE);
-	if (nlines == 0 && !ignore_eoi)
+	if (nlines == 0 && !ignore_eoi && !ABORT_SIGS())
 		eof_bell();
 	else if (do_repaint)
 		repaint();

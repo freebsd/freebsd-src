@@ -49,7 +49,7 @@ struct spicds_info {
 	unsigned int dvc;    /* De-emphasis and Volume Control */
 	unsigned int left, right;
 	char name[SPICDS_NAMELEN];
-	struct mtx *lock;
+	struct mtx lock;
 };
 
 static void
@@ -149,7 +149,7 @@ spicds_create(device_t dev, void *devinfo, int num, spicds_ctrl ctrl)
 		return NULL;
 
 	snprintf(codec->name, SPICDS_NAMELEN, "%s:spicds%d", device_get_nameunit(dev), num);
-	codec->lock = snd_mtxcreate(codec->name, codec->name);
+	mtx_init(&codec->lock, codec->name, codec->name, MTX_DEF);
 	codec->dev = dev;
 	codec->ctrl = ctrl;
 	codec->devinfo = devinfo;
@@ -165,40 +165,40 @@ spicds_create(device_t dev, void *devinfo, int num, spicds_ctrl ctrl)
 void
 spicds_destroy(struct spicds_info *codec)
 {
-	snd_mtxfree(codec->lock);
+	mtx_destroy(&codec->lock);
 	free(codec, M_SPICDS);
 }
 
 void
 spicds_settype(struct spicds_info *codec, unsigned int type)
 {
-	snd_mtxlock(codec->lock);
+	mtx_lock(&codec->lock);
 	codec->type = type;
-	snd_mtxunlock(codec->lock);
+	mtx_unlock(&codec->lock);
 }
 
 void
 spicds_setcif(struct spicds_info *codec, unsigned int cif)
 {
-	snd_mtxlock(codec->lock);
+	mtx_lock(&codec->lock);
 	codec->cif = cif;
-	snd_mtxunlock(codec->lock);
+	mtx_unlock(&codec->lock);
 }
 
 void
 spicds_setformat(struct spicds_info *codec, unsigned int format)
 {
-	snd_mtxlock(codec->lock);
+	mtx_lock(&codec->lock);
 	codec->format = format;
-	snd_mtxunlock(codec->lock);
+	mtx_unlock(&codec->lock);
 }
 
 void
 spicds_setdvc(struct spicds_info *codec, unsigned int dvc)
 {
-	snd_mtxlock(codec->lock);
+	mtx_lock(&codec->lock);
 	codec->dvc = dvc;
-	snd_mtxunlock(codec->lock);
+	mtx_unlock(&codec->lock);
 }
 
 void
@@ -207,7 +207,7 @@ spicds_init(struct spicds_info *codec)
 #if(0)
 	device_printf(codec->dev, "spicds_init(codec)\n");
 #endif
-	snd_mtxlock(codec->lock);
+	mtx_lock(&codec->lock);
 	if (codec->type == SPICDS_TYPE_AK4524 ||\
 	    codec->type == SPICDS_TYPE_AK4528) {
 		/* power off */
@@ -244,13 +244,13 @@ spicds_init(struct spicds_info *codec)
 		spicds_wrcd(codec, 0x00, 0x8f);		/* I2S, 24bit, power-up */
 	if (codec->type == SPICDS_TYPE_AK4396)
 		spicds_wrcd(codec, 0x00, 0x07);		/* I2S, 24bit, power-up */
-	snd_mtxunlock(codec->lock);
+	mtx_unlock(&codec->lock);
 }
 
 void
 spicds_reinit(struct spicds_info *codec)
 {
-	snd_mtxlock(codec->lock);
+	mtx_lock(&codec->lock);
 	if (codec->type != SPICDS_TYPE_WM8770) {
 		/* reset */
 		spicds_wrcd(codec, AK4524_RESET, 0);
@@ -265,7 +265,7 @@ spicds_reinit(struct spicds_info *codec)
 		/* AK4358 reinit */
 		/* AK4381 reinit */
 	}
-	snd_mtxunlock(codec->lock);
+	mtx_unlock(&codec->lock);
 }
 
 void
@@ -274,7 +274,7 @@ spicds_set(struct spicds_info *codec, int dir, unsigned int left, unsigned int r
 #if(0)
 	device_printf(codec->dev, "spicds_set(codec, %d, %d, %d)\n", dir, left, right);
 #endif
-	snd_mtxlock(codec->lock);
+	mtx_lock(&codec->lock);
 	if (left >= 100)
 		if ((codec->type == SPICDS_TYPE_AK4381) || \
 		(codec->type == SPICDS_TYPE_AK4396))
@@ -362,7 +362,7 @@ spicds_set(struct spicds_info *codec, int dir, unsigned int left, unsigned int r
                 spicds_wrcd(codec, AK4396_ROATT, right);
         }
 
-	snd_mtxunlock(codec->lock);
+	mtx_unlock(&codec->lock);
 }
 
 MODULE_DEPEND(snd_spicds, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);

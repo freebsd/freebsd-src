@@ -234,6 +234,8 @@ dmar_ir_find(device_t src, uint16_t *rid, int *is_dmar)
 {
 	devclass_t src_class;
 	struct dmar_unit *unit;
+	device_t requester;
+	int error __diagused;
 
 	/*
 	 * We need to determine if the interrupt source generates FSB
@@ -253,8 +255,10 @@ dmar_ir_find(device_t src, uint16_t *rid, int *is_dmar)
 		unit = dmar_find_hpet(src, rid);
 	} else {
 		unit = dmar_find(src, bootverbose);
-		if (unit != NULL && rid != NULL)
-			iommu_get_requester(src, rid);
+		if (unit != NULL && rid != NULL) {
+			error = iommu_get_requester(src, &requester, rid);
+			MPASS(error == 0);
+		}
 	}
 	return (unit);
 }

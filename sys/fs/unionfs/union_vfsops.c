@@ -256,7 +256,7 @@ unionfs_domount(struct mount *mp)
 		ump->um_lowervp = lowerrootvp;
 		ump->um_uppervp = upperrootvp;
 	}
-	ump->um_rootvp = NULLVP;
+	ump->um_rootvp = NULL;
 	ump->um_uid = uid;
 	ump->um_gid = gid;
 	ump->um_udir = udir;
@@ -280,7 +280,7 @@ unionfs_domount(struct mount *mp)
 	 * Get the unionfs root vnode.
 	 */
 	error = unionfs_nodeget(mp, ump->um_uppervp, ump->um_lowervp,
-	    NULLVP, &(ump->um_rootvp), NULL);
+	    NULL, &(ump->um_rootvp), NULL);
 	if (error != 0) {
 		vrele(upperrootvp);
 		free(ump, M_UNIONFSMNT);
@@ -558,7 +558,7 @@ unionfs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
 	ump = MOUNTTOUNIONFSMOUNT(mp);
 	unp = VTOUNIONFS(filename_vp);
 
-	if (unp->un_uppervp != NULLVP) {
+	if (unp->un_uppervp != NULL) {
 		return (VFS_EXTATTRCTL(ump->um_uppermp, cmd,
 		    unp->un_uppervp, namespace, attrname));
 	} else {

@@ -1037,7 +1037,7 @@ dsl_livelist_iterate(void *arg, const blkptr_t *bp, boolean_t bp_freed,
 	avl_tree_t *avl = lia->avl;
 	bplist_t *to_free = lia->to_free;
 	zthr_t *t = lia->t;
-	ASSERT(tx == NULL);
+	ASSERT0P(tx);
 
 	if ((t != NULL) && (zthr_has_waiters(t) || zthr_iscancelled(t)))
 		return (SET_ERROR(EINTR));
@@ -1049,7 +1049,8 @@ dsl_livelist_iterate(void *arg, const blkptr_t *bp, boolean_t bp_freed,
 		ASSERT3U(BP_GET_PSIZE(bp), ==, BP_GET_PSIZE(&found->le_bp));
 		ASSERT3U(BP_GET_CHECKSUM(bp), ==,
 		    BP_GET_CHECKSUM(&found->le_bp));
-		ASSERT3U(BP_GET_BIRTH(bp), ==, BP_GET_BIRTH(&found->le_bp));
+		ASSERT3U(BP_GET_PHYSICAL_BIRTH(bp), ==,
+		    BP_GET_PHYSICAL_BIRTH(&found->le_bp));
 	}
 	if (bp_freed) {
 		if (found == NULL) {

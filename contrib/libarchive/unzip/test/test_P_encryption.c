@@ -14,9 +14,13 @@ DEFINE_TEST(test_P_encryption)
 
 	extract_reference_file(reffile);
 	r = systemf("%s -P password %s >test.out 2>test.err", testprog, reffile);
-	assertEqualInt(0, r);
-	assertNonEmptyFile("test.out");
-	assertEmptyFile("test.err");
+	if (r == 256) {
+		assertTextFileContents("unzip: Decryption is unsupported due to lack of crypto library\n", "test.err");
+	} else {
+		assertEqualInt(0, r);
+		assertNonEmptyFile("test.out");
+		assertEmptyFile("test.err");
 
-	assertTextFileContents("plaintext\n", "encrypted/file.txt");
+		assertTextFileContents("plaintext\n", "encrypted/file.txt");
+	}
 }

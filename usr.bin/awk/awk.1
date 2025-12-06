@@ -21,7 +21,7 @@
 .\" IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
 .\" ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 .\" THIS SOFTWARE.
-.Dd July 30, 2021
+.Dd September 3, 2025
 .Dt AWK 1
 .Os
 .Sh NAME
@@ -32,7 +32,7 @@
 .Op Fl safe
 .Op Fl version
 .Op Fl d Ns Op Ar n
-.Op Fl F Ar fs
+.Op Fl F Ar fs | Fl -csv
 .Op Fl v Ar var Ns = Ns Ar value
 .Op Ar prog | Fl f Ar progfile
 .Ar
@@ -42,9 +42,11 @@ scans each input
 .Ar file
 for lines that match any of a set of patterns specified literally in
 .Ar prog
-or in one or more files specified as
+or in one or more files
+specified as
 .Fl f Ar progfile .
-With each pattern there can be an associated action that will be performed
+With each pattern
+there can be an associated action that will be performed
 when a line of a
 .Ar file
 matches the pattern.
@@ -76,6 +78,11 @@ to dump core on fatal errors.
 .It Fl F Ar fs
 Define the input field separator to be the regular expression
 .Ar fs .
+.It Fl -csv
+causes
+.Nm
+to process records using (more or less) standard comma-separated values
+(CSV) format.
 .It Fl f Ar progfile
 Read program code from the specified file
 .Ar progfile
@@ -178,7 +185,7 @@ as the field separator, use the
 option with a value of
 .Sq [t] .
 .Pp
-A pattern-action statement has the form
+A pattern-action statement has the form:
 .Pp
 .D1 Ar pattern Ic \&{ Ar action Ic \&}
 .Pp
@@ -347,7 +354,7 @@ in a pattern.
 A pattern may consist of two patterns separated by a comma;
 in this case, the action is performed for all lines
 from an occurrence of the first pattern
-through an occurrence of the second.
+through an occurrence of the second, inclusive.
 .Pp
 A relational expression is one of the following:
 .Pp
@@ -363,7 +370,8 @@ A relational expression is one of the following:
 .Pp
 where a
 .Ar relop
-is any of the six relational operators in C, and a
+is any of the six relational operators in C,
+and a
 .Ar matchop
 is either
 .Ic ~
@@ -386,6 +394,9 @@ and after the last.
 and
 .Ic END
 do not combine with other patterns.
+They may appear multiple times in a program and execute
+in the order they are read by
+.Nm
 .Pp
 Variable names with special meanings:
 .Pp
@@ -428,6 +439,11 @@ The length of the string matched by the
 function.
 .It Va RS
 Input record separator (default newline).
+If empty, blank lines separate records.
+If more than one character long,
+.Va RS
+is treated as a regular expression, and records are
+separated by text matching the expression.
 .It Va RSTART
 The starting position of the string matched by the
 .Fn match
@@ -515,7 +531,8 @@ occurs, or 0 if it does not.
 The length of
 .Fa s
 taken as a string,
-or of
+number of elements in an array for an array argument,
+or length of
 .Va $0
 if no argument is given.
 .It Fn match s r
@@ -696,10 +713,44 @@ records from
 .Ar file
 remains open until explicitly closed with a call to
 .Fn close .
+.It Fn systime
+returns the current date and time as a standard
+.Dq seconds since the epoch
+value.
+.It Fn strftime fmt timestamp
+formats
+.Fa timestamp
+(a value in seconds since the epoch)
+according to
+Fa fmt ,
+which is a format string as supported by
+.Xr strftime 3 .
+Both
+.Fa timestamp
+and
+.Fa fmt
+may be omitted; if no
+.Fa timestamp ,
+the current time of day is used, and if no
+.Fa fmt ,
+a default format of
+.Dq %a %b %e %H:%M:%S %Z %Y
+is used.
 .It Fn system cmd
 Executes
 .Fa cmd
 and returns its exit status.
+This will be -1 upon error,
+.Fa cmd 's
+exit status upon a normal exit,
+256 +
+.Va sig
+upon death-by-signal, where
+.Va sig
+is the number of the murdering signal,
+or 512 +
+.Va sig
+if there was a core dump.
 .El
 .Ss Bit-Operation Functions
 .Bl -tag -width "lshift(a, b)"
@@ -725,6 +776,16 @@ Returns integer argument x shifted by n bits to the right.
 But note that the
 .Ic exit
 expression can modify the exit status.
+.Sh ENVIRONMENT VARIABLES
+If
+.Va POSIXLY_CORRECT
+is set in the environment, then
+.Nm
+follows the POSIX rules for
+.Fn sub
+and
+.Fn gsub
+with respect to consecutive backslashes and ampersands.
 .Sh EXAMPLES
 Print lines longer than 72 characters:
 .Pp
@@ -734,7 +795,7 @@ Print first two fields in opposite order:
 .Pp
 .Dl { print $2, $1 }
 .Pp
-Same, with input fields separated by comma and/or blanks and tabs:
+Same, with input fields separated by comma and/or spaces and tabs:
 .Bd -literal -offset indent
 BEGIN { FS = ",[ \et]*|[ \et]+" }
       { print $2, $1 }
@@ -810,6 +871,63 @@ to it.
 .Pp
 The scope rules for variables in functions are a botch;
 the syntax is worse.
+.Pp
+Input is expected to be UTF-8 encoded.
+Other multibyte character sets are not handled.
+However, in eight-bit locales,
+.Nm
+treats each input byte as a separate character.
+.Sh UNUSUAL FLOATING-POINT VALUES
+.Nm
+was designed before IEEE 754 arithmetic defined Not-A-Number (NaN)
+and Infinity values, which are supported by all modern floating-point
+hardware.
+.Pp
+Because
+.Nm
+uses
+.Xr strtod 3
+and
+.Xr atof 3
+to convert string values to double-precision floating-point values,
+modern C libraries also convert strings starting with
+.Va inf
+and
+.Va nan
+into infinity and NaN values respectively.
+This led to strange results,
+with something like this:
+.Bd -literal -offset indent
+echo nancy | awk '{ print $1 + 0 }'
+.Ed
+.Pp
+printing
+.Dq nan
+instead of zero.
+.Pp
+.Nm
+now follows GNU AWK, and prefilters string values before attempting
+to convert them to numbers, as follows:
+.Bl -tag -width "Hexadecimal values"
+.It Hexadecimal values
+Hexadecimal values (allowed since C99) convert to zero, as they did
+prior to C99.
+.It NaN values
+The two strings
+.Dq +nan
+and
+.Dq -nan
+(case independent) convert to NaN.
+No others do.
+(NaNs can have signs.)
+.It Infinity values
+The two strings
+.Dq +inf
+and
+.Dq -inf
+(case independent) convert to positive and negative infinity, respectively.
+No others do.
+.El
 .Sh DEPRECATED BEHAVIOR
 One True Awk has accepted
 .Fl F Ar t

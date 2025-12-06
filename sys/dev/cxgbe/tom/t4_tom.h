@@ -113,6 +113,7 @@ struct conn_params {
 	int8_t mtu_idx;
 	int8_t ulp_mode;
 	int8_t tx_align;
+	int8_t ctrlq_idx;	/* ctrlq = &sc->sge.ctrlq[ctrlq_idx] */
 	int16_t txq_idx;	/* ofld_txq = &sc->sge.ofld_txq[txq_idx] */
 	int16_t rxq_idx;	/* ofld_rxq = &sc->sge.ofld_rxq[rxq_idx] */
 	int16_t l2t_idx;
@@ -122,9 +123,12 @@ struct conn_params {
 };
 
 struct ofld_tx_sdesc {
-	uint32_t plen;		/* payload length */
-	uint8_t tx_credits;	/* firmware tx credits (unit is 16B) */
+	uint32_t plen : 26;		/* payload length */
+	uint32_t tx_credits : 6;	/* firmware tx credits (unit is 16B) */
 };
+
+#define	MAX_OFLD_TX_SDESC_PLEN		((1u << 26) - 1)
+#define	MAX_OFLD_TX_SDESC_CREDITS	((1u << 6) - 1)
 
 struct ppod_region {
 	u_int pr_start;
@@ -474,11 +478,14 @@ int select_rcv_wscale(void);
 void init_conn_params(struct vi_info *, struct offload_settings *,
     struct in_conninfo *, struct socket *, const struct tcp_options *, int16_t,
     struct conn_params *cp);
+void update_tid_qid_sel(struct vi_info *, struct conn_params *, int);
 __be64 calc_options0(struct vi_info *, struct conn_params *);
 __be32 calc_options2(struct vi_info *, struct conn_params *);
 uint64_t select_ntuple(struct vi_info *, struct l2t_entry *);
 int negative_advice(int);
 int add_tid_to_history(struct adapter *, u_int);
+struct adapter *find_offload_adapter(struct socket *);
+void send_txdataplen_max_flowc_wr(struct adapter *, struct toepcb *, int);
 void t4_pcb_detach(struct toedev *, struct tcpcb *);
 
 /* t4_connect.c */
@@ -526,6 +533,10 @@ int t4_send_rst(struct toedev *, struct tcpcb *);
 void t4_set_tcb_field(struct adapter *, struct sge_wrq *, struct toepcb *,
     uint16_t, uint64_t, uint64_t, int, int);
 void t4_push_pdus(struct adapter *, struct toepcb *, int);
+bool t4_push_raw_wr(struct adapter *, struct toepcb *, struct mbuf *);
+void t4_raw_wr_tx(struct adapter *, struct toepcb *, struct mbuf *);
+void write_set_tcb_field(struct adapter *, void *, struct toepcb *, uint16_t,
+    uint64_t, uint64_t, int, int);
 
 /* t4_ddp.c */
 int t4_init_ppod_region(struct ppod_region *, struct t4_range *, u_int,
@@ -551,6 +562,7 @@ int t4_aio_queue_ddp(struct socket *, struct kaiocb *);
 int t4_enable_ddp_rcv(struct socket *, struct toepcb *);
 void t4_ddp_mod_load(void);
 void t4_ddp_mod_unload(void);
+struct mbuf *alloc_raw_wr_mbuf(int);
 void ddp_assert_empty(struct toepcb *);
 void ddp_uninit_toep(struct toepcb *);
 void ddp_queue_toep(struct toepcb *);
@@ -573,5 +585,11 @@ void tls_init_toep(struct toepcb *);
 int tls_tx_key(struct toepcb *);
 void tls_uninit_toep(struct toepcb *);
 int tls_alloc_ktls(struct toepcb *, struct ktls_session *, int);
+
+/* t4_tpt.c */
+uint32_t t4_pblpool_alloc(struct adapter *, int);
+void t4_pblpool_free(struct adapter *, uint32_t, int);
+int t4_pblpool_create(struct adapter *);
+void t4_pblpool_destroy(struct adapter *);
 
 #endif

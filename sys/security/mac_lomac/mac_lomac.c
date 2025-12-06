@@ -1008,7 +1008,7 @@ lomac_cred_create_init(struct ucred *cred)
 }
 
 static void
-lomac_cred_create_swapper(struct ucred *cred)
+lomac_cred_create_kproc0(struct ucred *cred)
 {
 	struct mac_lomac *dest;
 
@@ -2910,7 +2910,7 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_cred_check_relabel = lomac_cred_check_relabel,
 	.mpo_cred_check_visible = lomac_cred_check_visible,
 	.mpo_cred_copy_label = lomac_copy_label,
-	.mpo_cred_create_swapper = lomac_cred_create_swapper,
+	.mpo_cred_create_kproc0 = lomac_cred_create_kproc0,
 	.mpo_cred_create_init = lomac_cred_create_init,
 	.mpo_cred_destroy_label = lomac_destroy_label,
 	.mpo_cred_externalize_label = lomac_externalize_label,

@@ -89,6 +89,12 @@ do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
 	INP_WLOCK(inp);
 	toep->tid = tid;
 	insert_tid(sc, tid, toep, inp->inp_vflag & INP_IPV6 ? 2 : 1);
+	if (sc->params.tid_qid_sel_mask != 0) {
+		update_tid_qid_sel(toep->vi, &toep->params, tid);
+		toep->ofld_txq = &sc->sge.ofld_txq[toep->params.txq_idx];
+		toep->ctrlq = &sc->sge.ctrlq[toep->params.ctrlq_idx];
+	}
+
 	if (inp->inp_flags & INP_DROPPED) {
 
 		/* socket closed by the kernel before hw told us it connected */
@@ -205,7 +211,7 @@ static inline int
 act_open_cpl_size(struct adapter *sc, int isipv6)
 {
 	int idx;
-	static const int sz_table[3][2] = {
+	static const int sz_table[4][2] = {
 		{
 			sizeof (struct cpl_act_open_req),
 			sizeof (struct cpl_act_open_req6)
@@ -218,10 +224,14 @@ act_open_cpl_size(struct adapter *sc, int isipv6)
 			sizeof (struct cpl_t6_act_open_req),
 			sizeof (struct cpl_t6_act_open_req6)
 		},
+		{
+			sizeof (struct cpl_t7_act_open_req),
+			sizeof (struct cpl_t7_act_open_req6)
+		},
 	};
 
 	MPASS(chip_id(sc) >= CHELSIO_T4);
-	idx = min(chip_id(sc) - CHELSIO_T4, 2);
+	idx = min(chip_id(sc) - CHELSIO_T4, 3);
 
 	return (sz_table[idx][!!isipv6]);
 }
@@ -255,6 +265,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct nhop_object *nh,
 	struct offload_settings settings;
 	struct epoch_tracker et;
 	uint16_t vid = 0xfff, pcp = 0;
+	uint64_t ntuple;
 
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(nam->sa_family == AF_INET || nam->sa_family == AF_INET6,
@@ -308,10 +319,12 @@ t4_connect(struct toedev *tod, struct socket *so, struct nhop_object *nh,
 	qid_atid = V_TID_QID(toep->ofld_rxq->iq.abs_id) | V_TID_TID(toep->tid) |
 	    V_TID_COOKIE(CPL_COOKIE_TOM);
 
+	ntuple = select_ntuple(vi, toep->l2te);
 	if (isipv6) {
 		struct cpl_act_open_req6 *cpl = wrtod(wr);
 		struct cpl_t5_act_open_req6 *cpl5 = (void *)cpl;
 		struct cpl_t6_act_open_req6 *cpl6 = (void *)cpl;
+		struct cpl_t7_act_open_req6 *cpl7 = (void *)cpl;
 
 		if ((inp->inp_vflag & INP_IPV6) == 0)
 			DONT_OFFLOAD_ACTIVE_OPEN(ENOTSUP);
@@ -323,18 +336,23 @@ t4_connect(struct toedev *tod, struct socket *so, struct nhop_object *nh,
 		switch (chip_id(sc)) {
 		case CHELSIO_T4:
 			INIT_TP_WR(cpl, 0);
-			cpl->params = select_ntuple(vi, toep->l2te);
+			cpl->params = htobe32((uint32_t)ntuple);
 			break;
 		case CHELSIO_T5:
 			INIT_TP_WR(cpl5, 0);
 			cpl5->iss = htobe32(tp->iss);
-			cpl5->params = select_ntuple(vi, toep->l2te);
+			cpl5->params = htobe64(V_FILTER_TUPLE(ntuple));
 			break;
 		case CHELSIO_T6:
-		default:
 			INIT_TP_WR(cpl6, 0);
 			cpl6->iss = htobe32(tp->iss);
-			cpl6->params = select_ntuple(vi, toep->l2te);
+			cpl6->params = htobe64(V_FILTER_TUPLE(ntuple));
+			break;
+		case CHELSIO_T7:
+		default:
+			INIT_TP_WR(cpl7, 0);
+			cpl7->iss = htobe32(tp->iss);
+			cpl7->params = htobe64(V_T7_FILTER_TUPLE(ntuple));
 			break;
 		}
 		OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ6,
@@ -356,23 +374,28 @@ t4_connect(struct toedev *tod, struct socket *so, struct nhop_object *nh,
 		struct cpl_act_open_req *cpl = wrtod(wr);
 		struct cpl_t5_act_open_req *cpl5 = (void *)cpl;
 		struct cpl_t6_act_open_req *cpl6 = (void *)cpl;
+		struct cpl_t7_act_open_req *cpl7 = (void *)cpl;
 
 		switch (chip_id(sc)) {
 		case CHELSIO_T4:
 			INIT_TP_WR(cpl, 0);
-			cpl->params = select_ntuple(vi, toep->l2te);
+			cpl->params = htobe32((uint32_t)ntuple);
 			break;
 		case CHELSIO_T5:
 			INIT_TP_WR(cpl5, 0);
 			cpl5->iss = htobe32(tp->iss);
-			cpl5->params = select_ntuple(vi, toep->l2te);
+			cpl5->params = htobe64(V_FILTER_TUPLE(ntuple));
 			break;
 		case CHELSIO_T6:
-		default:
 			INIT_TP_WR(cpl6, 0);
 			cpl6->iss = htobe32(tp->iss);
-			cpl6->params = select_ntuple(vi, toep->l2te);
+			cpl6->params = htobe64(V_FILTER_TUPLE(ntuple));
 			break;
+		case CHELSIO_T7:
+		default:
+			INIT_TP_WR(cpl7, 0);
+			cpl7->iss = htobe32(tp->iss);
+			cpl7->params = htobe64(V_T7_FILTER_TUPLE(ntuple));
 		}
 		OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ,
 		    qid_atid));

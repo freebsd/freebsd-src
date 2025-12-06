@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: InvenSense ICM-426xx Inertial Measurement Unit
 
 maintainers:
-  - Jean-Baptiste Maneyrol <jmaneyrol@invensense.com>
+  - Jean-Baptiste Maneyrol <jean-baptiste.maneyrol@tdk.com>
 
 description: |
   6-axis MotionTracking device that combines a 3-axis gyroscope and a 3-axis
@@ -39,7 +39,16 @@ properties:
     maxItems: 1
 
   interrupts:
-    maxItems: 1
+    minItems: 1
+    maxItems: 2
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 2
+    items:
+      enum:
+        - INT1
+        - INT2
 
   drive-open-drain:
     type: boolean
@@ -76,6 +85,7 @@ examples:
             reg = <0x68>;
             interrupt-parent = <&gpio2>;
             interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+            interrupt-names = "INT1";
             vdd-supply = <&vdd>;
             vddio-supply = <&vddio>;
         };
@@ -95,6 +105,7 @@ examples:
             spi-cpol;
             interrupt-parent = <&gpio1>;
             interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+            interrupt-names = "INT1";
             vdd-supply = <&vdd>;
             vddio-supply = <&vddio>;
         };

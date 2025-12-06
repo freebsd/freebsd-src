@@ -33,7 +33,8 @@ CFLAGS+=-fomit-frame-pointer \
 
 CFLAGS.gcc+=	-Os \
 		-fno-asynchronous-unwind-tables \
-		--param max-inline-insns-single=100
+		--param max-inline-insns-single=100 \
+		--param min-pagesize=1024
 
 CFLAGS.clang+=	-Oz ${CLANG_OPT_SMALL}
 

@@ -34,7 +34,7 @@ SSHDGID=67	# Default privsep gid
 #USR_LOCAL_IS_SYMLINK=yes
 # System V init run levels
 SYSVINITSTART=S98
-SYSVINITSTOPT=K30
+SYSVINITSTOP=K30
 # We will source these if they exist
 POST_MAKE_INSTALL_FIXES=./pkg-post-make-install-fixes.sh
 POST_PROTOTYPE_EDITS=./pkg-post-prototype-edit.sh
@@ -270,13 +270,13 @@ else
 	cat > space << _EOF
 # extra space required by start/stop links added by installf
 # in postinstall
-$TEST_DIR/etc/rc0.d/${SYSVINITSTOPT}${SYSVINIT_NAME} 0 1
+$TEST_DIR/etc/rc0.d/${SYSVINITSTOP}${SYSVINIT_NAME} 0 1
 $TEST_DIR/etc/rc2.d/${SYSVINITSTART}${SYSVINIT_NAME} 0 1
 _EOF
 	[ "$RC1_D" = no ]  ||  \
-	echo "$TEST_DIR/etc/rc1.d/${SYSVINITSTOPT}${SYSVINIT_NAME} 0 1" >> space
+	echo "$TEST_DIR/etc/rc1.d/${SYSVINITSTOP}${SYSVINIT_NAME} 0 1" >> space
 	[ "$RCS_D" = yes ]  &&  \
-	echo "$TEST_DIR/etc/rcS.d/${SYSVINITSTOPT}${SYSVINIT_NAME} 0 1" >> space
+	echo "$TEST_DIR/etc/rcS.d/${SYSVINITSTOP}${SYSVINIT_NAME} 0 1" >> space
 fi
 
 ## Build preinstall file
@@ -338,17 +338,17 @@ else
 	if [ "\${USE_SYM_LINKS}" = yes ]
 	then
 		[ "$RCS_D" = yes ]  &&  \\
-	installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rcS.d/${SYSVINITSTOPT}${SYSVINIT_NAME}=../init.d/${SYSVINIT_NAME} s
-		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc0.d/${SYSVINITSTOPT}${SYSVINIT_NAME}=../init.d/${SYSVINIT_NAME} s
+	installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rcS.d/${SYSVINITSTOP}${SYSVINIT_NAME}=../init.d/${SYSVINIT_NAME} s
+		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc0.d/${SYSVINITSTOP}${SYSVINIT_NAME}=../init.d/${SYSVINIT_NAME} s
 		[ "$RC1_D" = no ]  ||  \\
-		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc1.d/${SYSVINITSTOPT}${SYSVINIT_NAME}=../init.d/${SYSVINIT_NAME} s
+		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc1.d/${SYSVINITSTOP}${SYSVINIT_NAME}=../init.d/${SYSVINIT_NAME} s
 		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc2.d/${SYSVINITSTART}${SYSVINIT_NAME}=../init.d/${SYSVINIT_NAME} s
 	else
 		[ "$RCS_D" = yes ]  &&  \\
-	installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rcS.d/${SYSVINITSTOPT}${SYSVINIT_NAME}=\${PKG_INSTALL_ROOT}$TEST_DIR/etc/init.d/${SYSVINIT_NAME} l
-		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc0.d/${SYSVINITSTOPT}${SYSVINIT_NAME}=\${PKG_INSTALL_ROOT}$TEST_DIR/etc/init.d/${SYSVINIT_NAME} l
+	installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rcS.d/${SYSVINITSTOP}${SYSVINIT_NAME}=\${PKG_INSTALL_ROOT}$TEST_DIR/etc/init.d/${SYSVINIT_NAME} l
+		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc0.d/${SYSVINITSTOP}${SYSVINIT_NAME}=\${PKG_INSTALL_ROOT}$TEST_DIR/etc/init.d/${SYSVINIT_NAME} l
 		[ "$RC1_D" = no ]  ||  \\
-		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc1.d/${SYSVINITSTOPT}${SYSVINIT_NAME}=\${PKG_INSTALL_ROOT}$TEST_DIR/etc/init.d/${SYSVINIT_NAME} l
+		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc1.d/${SYSVINITSTOP}${SYSVINIT_NAME}=\${PKG_INSTALL_ROOT}$TEST_DIR/etc/init.d/${SYSVINIT_NAME} l
 		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc2.d/${SYSVINITSTART}${SYSVINIT_NAME}=\${PKG_INSTALL_ROOT}$TEST_DIR/etc/init.d/${SYSVINIT_NAME} l
 	fi
 fi

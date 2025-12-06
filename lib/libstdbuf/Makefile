@@ -1,6 +1,5 @@
 .include <bsd.own.mk>
 
-PACKAGE=lib${LIB}
 LIB=		stdbuf
 SRCS=		stdbuf.c
 SHLIB_MAJOR=	1

@@ -55,7 +55,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_SIGNATURE-ML-DSA 7ossl"
-.TH EVP_SIGNATURE-ML-DSA 7ossl 2025-07-01 3.5.1 OpenSSL
+.TH EVP_SIGNATURE-ML-DSA 7ossl 2025-09-30 3.5.4 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -156,7 +156,7 @@ To sign a message using an ML-DSA EVP_PKEY structure:
 \&        EVP_PKEY_sign(sctx, sig, &sig_len, msg, msg_len);
 \&        ...
 \&        OPENSSL_free(sig);
-\&        EVP_SIGNATURE(sig_alg);
+\&        EVP_SIGNATURE_free(sig_alg);
 \&        EVP_PKEY_CTX_free(sctx);
 \&    }
 .Ve

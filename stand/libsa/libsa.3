@@ -781,6 +781,10 @@ The same as
 but for
 .Xr bzip2 1 Ns -compressed
 files.
+.It Va pkgfs_fsops
+File access from a tar file typically streamed via TFTP.
+The order of files in the tar file must match the order they are
+to be consumed as rewind is not practical.
 .El
 .Pp
 The array of

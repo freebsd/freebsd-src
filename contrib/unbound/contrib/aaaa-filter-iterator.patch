@@ -1,10 +1,10 @@
 diff --git a/doc/unbound.conf.5.in b/doc/unbound.conf.5.in
-index 5a75e319..c6c6dbe2 100644
+index 172eb26c..2921c87f 100644
 --- a/doc/unbound.conf.5.in
 +++ b/doc/unbound.conf.5.in
-@@ -970,6 +970,13 @@ potentially broken nameservers. A lot of domains will not be resolvable when
- this option in enabled. Only use if you know what you are doing.
- This option only has effect when qname-minimisation is enabled. Default is no.
+@@ -2146,6 +2146,13 @@ Default: no
+ .UNINDENT
+ .INDENT 0.0
  .TP
 +.B aaaa\-filter: \fI<yes or no>
 +Activate behavior similar to BIND's AAAA-filter.
@@ -13,14 +13,14 @@ index 5a75e319..c6c6dbe2 100644
 +This also causes an additional A query to be sent for each AAAA query.
 +This breaks DNSSEC!
 +.TP
- .B aggressive\-nsec: \fI<yes or no>
- Aggressive NSEC uses the DNSSEC NSEC chain to synthesize NXDOMAIN
- and other denials, using information from previous NXDOMAINs answers.
+ .B aggressive\-nsec: \fI<yes or no>\fP 
+ Aggressive NSEC uses the DNSSEC NSEC chain to synthesize NXDOMAIN and other
+ denials, using information from previous NXDOMAINs answers.
 diff --git a/iterator/iter_scrub.c b/iterator/iter_scrub.c
-index f093c1bf..e55a2246 100644
+index 49a5f5da..fbe434fa 100644
 --- a/iterator/iter_scrub.c
 +++ b/iterator/iter_scrub.c
-@@ -679,6 +679,32 @@ static int sanitize_nsec_is_overreach(sldns_buffer* pkt,
+@@ -849,6 +849,32 @@ scrub_sanitize_rr_length(sldns_buffer* pkt, struct msg_parse* msg,
  	return 0;
  }
  
@@ -53,15 +53,15 @@ index f093c1bf..e55a2246 100644
  /**
   * Given a response event, remove suspect RRsets from the response.
   * "Suspect" rrsets are potentially poison. Note that this routine expects
-@@ -698,6 +724,7 @@ scrub_sanitize(sldns_buffer* pkt, struct msg_parse* msg,
+@@ -869,6 +895,7 @@ scrub_sanitize(sldns_buffer* pkt, struct msg_parse* msg,
  	struct query_info* qinfo, uint8_t* zonename, struct module_env* env,
- 	struct iter_env* ie)
+ 	struct iter_env* ie, struct module_qstate* qstate)
  {
 +	int found_a_record = 0; /* ASN: do we have a A record? */
  	int del_addi = 0; /* if additional-holding rrsets are deleted, we
  		do not trust the normalized additional-A-AAAA any more */
- 	struct rrset_parse* rrset, *prev;
-@@ -733,6 +760,13 @@ scrub_sanitize(sldns_buffer* pkt, struct msg_parse* msg,
+ 	uint8_t* ns_rrset_dname = NULL;
+@@ -906,6 +933,13 @@ scrub_sanitize(sldns_buffer* pkt, struct msg_parse* msg,
  		rrset = rrset->rrset_all_next;
  	}
  
@@ -75,9 +75,9 @@ index f093c1bf..e55a2246 100644
  	/* At this point, we brutally remove ALL rrsets that aren't 
  	 * children of the originating zone. The idea here is that, 
  	 * as far as we know, the server that we contacted is ONLY 
-@@ -744,6 +778,24 @@ scrub_sanitize(sldns_buffer* pkt, struct msg_parse* msg,
- 	rrset = msg->rrset_first;
- 	while(rrset) {
+@@ -925,6 +959,24 @@ scrub_sanitize(sldns_buffer* pkt, struct msg_parse* msg,
+ 				continue;
+ 		}
  
 +		/* ASN: For AAAA records only... */
 +		if((ie->aaaa_filter) && (rrset->type == LDNS_RR_TYPE_AAAA)) {
@@ -101,10 +101,10 @@ index f093c1bf..e55a2246 100644
  		if( (rrset->type == LDNS_RR_TYPE_A || 
  			rrset->type == LDNS_RR_TYPE_AAAA)) {
 diff --git a/iterator/iter_utils.c b/iterator/iter_utils.c
-index 2482a1f4..bd5ba243 100644
+index 1da21896..6583dd0e 100644
 --- a/iterator/iter_utils.c
 +++ b/iterator/iter_utils.c
-@@ -177,6 +177,7 @@ iter_apply_cfg(struct iter_env* iter_env, struct config_file* cfg)
+@@ -250,6 +250,7 @@ iter_apply_cfg(struct iter_env* iter_env, struct config_file* cfg)
  	iter_env->outbound_msg_retry = cfg->outbound_msg_retry;
  	iter_env->max_sent_count = cfg->max_sent_count;
  	iter_env->max_query_restarts = cfg->max_query_restarts;
@@ -113,12 +113,12 @@ index 2482a1f4..bd5ba243 100644
  }
  
 diff --git a/iterator/iterator.c b/iterator/iterator.c
-index 54006940..768fe202 100644
+index 71e64655..735f4ca0 100644
 --- a/iterator/iterator.c
 +++ b/iterator/iterator.c
-@@ -2155,6 +2155,53 @@ processDSNSFind(struct module_qstate* qstate, struct iter_qstate* iq, int id)
- 
- 	return 0;
+@@ -2412,6 +2412,53 @@ check_waiting_queries(struct iter_qstate* iq, struct module_qstate* qstate,
+ 		qstate->ext_state[id] = module_wait_reply;
+ 	}
  }
 +
 +/**
@@ -170,8 +170,8 @@ index 54006940..768fe202 100644
  	
  /** 
   * This is the request event state where the request will be sent to one of
-@@ -2216,6 +2263,13 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
- 		return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
+@@ -2554,6 +2601,13 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
+ 		}
  	}
  	
 +	/* ASN: If we have a AAAA query, then also query for A records */
@@ -184,7 +184,7 @@ index 54006940..768fe202 100644
  	/* Make sure we have a delegation point, otherwise priming failed
  	 * or another failure occurred */
  	if(!iq->dp) {
-@@ -3648,6 +3702,61 @@ processFinished(struct module_qstate* qstate, struct iter_qstate* iq,
+@@ -4178,6 +4232,61 @@ processFinished(struct module_qstate* qstate, struct iter_qstate* iq,
  	return 0;
  }
  
@@ -246,7 +246,7 @@ index 54006940..768fe202 100644
  /*
   * Return priming query results to interested super querystates.
   * 
-@@ -3667,6 +3776,9 @@ iter_inform_super(struct module_qstate* qstate, int id,
+@@ -4197,6 +4306,9 @@ iter_inform_super(struct module_qstate* qstate, int id,
  	else if(super->qinfo.qtype == LDNS_RR_TYPE_DS && ((struct iter_qstate*)
  		super->minfo[id])->state == DSNS_FIND_STATE)
  		processDSNSResponse(qstate, id, super);
@@ -256,7 +256,7 @@ index 54006940..768fe202 100644
  	else if(qstate->return_rcode != LDNS_RCODE_NOERROR)
  		error_supers(qstate, id, super);
  	else if(qstate->is_priming)
-@@ -3704,6 +3816,9 @@ iter_handle(struct module_qstate* qstate, struct iter_qstate* iq,
+@@ -4234,6 +4346,9 @@ iter_handle(struct module_qstate* qstate, struct iter_qstate* iq,
  			case INIT_REQUEST_3_STATE:
  				cont = processInitRequest3(qstate, iq, id);
  				break;
@@ -266,7 +266,7 @@ index 54006940..768fe202 100644
  			case QUERYTARGETS_STATE:
  				cont = processQueryTargets(qstate, iq, ie, id);
  				break;
-@@ -4040,6 +4155,8 @@ iter_state_to_string(enum iter_state state)
+@@ -4578,6 +4693,8 @@ iter_state_to_string(enum iter_state state)
  		return "INIT REQUEST STATE (stage 2)";
  	case INIT_REQUEST_3_STATE:
  		return "INIT REQUEST STATE (stage 3)";
@@ -275,7 +275,7 @@ index 54006940..768fe202 100644
  	case QUERYTARGETS_STATE :
  		return "QUERY TARGETS STATE";
  	case PRIME_RESP_STATE :
-@@ -4064,6 +4181,7 @@ iter_state_is_responsestate(enum iter_state s)
+@@ -4602,6 +4719,7 @@ iter_state_is_responsestate(enum iter_state s)
  		case INIT_REQUEST_STATE :
  		case INIT_REQUEST_2_STATE :
  		case INIT_REQUEST_3_STATE :
@@ -284,10 +284,10 @@ index 54006940..768fe202 100644
  		case COLLECT_CLASS_STATE :
  			return 0;
 diff --git a/iterator/iterator.h b/iterator/iterator.h
-index 8b840528..a61c4195 100644
+index ae4b4e45..a44f9d27 100644
 --- a/iterator/iterator.h
 +++ b/iterator/iterator.h
-@@ -133,6 +133,9 @@ struct iter_env {
+@@ -157,6 +157,9 @@ struct iter_env {
  	 */
  	int* target_fetch_policy;
  
@@ -297,7 +297,7 @@ index 8b840528..a61c4195 100644
  	/** lock on ratelimit counter */
  	lock_basic_type queries_ratelimit_lock;
  	/** number of queries that have been ratelimited */
-@@ -187,6 +190,14 @@ enum iter_state {
+@@ -217,6 +220,14 @@ enum iter_state {
  	 */
  	INIT_REQUEST_3_STATE,
  
@@ -312,9 +312,9 @@ index 8b840528..a61c4195 100644
  	/**
  	 * Each time a delegation point changes for a given query or a 
  	 * query times out and/or wakes up, this state is (re)visited. 
-@@ -376,6 +387,13 @@ struct iter_qstate {
- 	 */
- 	int refetch_glue;
+@@ -434,6 +445,13 @@ struct iter_qstate {
+ 	 * already so that it is accepted later. */
+ 	int empty_nodata_found;
  
 +	/**
 +	 * ASN: This is a flag that, if true, means that this query is
@@ -327,10 +327,10 @@ index 8b840528..a61c4195 100644
  	struct outbound_list outlist;
  
 diff --git a/pythonmod/interface.i b/pythonmod/interface.i
-index 1ca8686a..d91b19ec 100644
+index 2040fb9e..f073c3dc 100644
 --- a/pythonmod/interface.i
 +++ b/pythonmod/interface.i
-@@ -995,6 +995,7 @@ struct config_file {
+@@ -1013,6 +1013,7 @@ struct config_file {
     int harden_dnssec_stripped;
     int harden_referral_path;
     int use_caps_bits_for_id;
@@ -339,23 +339,23 @@ index 1ca8686a..d91b19ec 100644
     struct config_strlist* private_domain;
     size_t unwanted_threshold;
 diff --git a/util/config_file.c b/util/config_file.c
-index 969d664b..8d94b008 100644
+index b1e767b3..5eb3c099 100644
 --- a/util/config_file.c
 +++ b/util/config_file.c
-@@ -231,6 +231,7 @@ config_create(void)
- 	cfg->harden_referral_path = 0;
+@@ -247,6 +247,7 @@ config_create(void)
  	cfg->harden_algo_downgrade = 0;
+ 	cfg->harden_unknown_additional = 0;
  	cfg->use_caps_bits_for_id = 0;
 +	cfg->aaaa_filter = 0; /* ASN: default is disabled */
  	cfg->caps_whitelist = NULL;
  	cfg->private_address = NULL;
  	cfg->private_domain = NULL;
 diff --git a/util/config_file.h b/util/config_file.h
-index c7c9a0a4..e3aa15b0 100644
+index 44ac036b..1e59ab07 100644
 --- a/util/config_file.h
 +++ b/util/config_file.h
-@@ -285,6 +285,8 @@ struct config_file {
- 	int harden_algo_downgrade;
+@@ -311,6 +311,8 @@ struct config_file {
+ 	int harden_unknown_additional;
  	/** use 0x20 bits in query as random ID bits */
  	int use_caps_bits_for_id;
 +	/** ASN: enable AAAA filter? */
@@ -364,10 +364,10 @@ index c7c9a0a4..e3aa15b0 100644
  	struct config_strlist* caps_whitelist;
  	/** strip away these private addrs from answers, no DNS Rebinding */
 diff --git a/util/configlexer.lex b/util/configlexer.lex
-index 34a0e5dd..c890be2a 100644
+index bc258673..76aab170 100644
 --- a/util/configlexer.lex
 +++ b/util/configlexer.lex
-@@ -317,6 +317,7 @@ use-caps-for-id{COLON}		{ YDVAR(1, VAR_USE_CAPS_FOR_ID) }
+@@ -327,6 +327,7 @@ use-caps-for-id{COLON}		{ YDVAR(1, VAR_USE_CAPS_FOR_ID) }
  caps-whitelist{COLON}		{ YDVAR(1, VAR_CAPS_WHITELIST) }
  caps-exempt{COLON}		{ YDVAR(1, VAR_CAPS_WHITELIST) }
  unwanted-reply-threshold{COLON}	{ YDVAR(1, VAR_UNWANTED_REPLY_THRESHOLD) }
@@ -376,10 +376,10 @@ index 34a0e5dd..c890be2a 100644
  private-domain{COLON}		{ YDVAR(1, VAR_PRIVATE_DOMAIN) }
  prefetch-key{COLON}		{ YDVAR(1, VAR_PREFETCH_KEY) }
 diff --git a/util/configparser.y b/util/configparser.y
-index d4f965f9..8cc237c6 100644
+index 82e1d878..dc19bed5 100644
 --- a/util/configparser.y
 +++ b/util/configparser.y
-@@ -97,6 +97,7 @@ extern struct config_parser_state* cfg_parser;
+@@ -100,6 +100,7 @@ extern struct config_parser_state* cfg_parser;
  %token VAR_STATISTICS_CUMULATIVE VAR_OUTGOING_PORT_PERMIT
  %token VAR_OUTGOING_PORT_AVOID VAR_DLV_ANCHOR_FILE VAR_DLV_ANCHOR
  %token VAR_NEG_CACHE_SIZE VAR_HARDEN_REFERRAL_PATH VAR_PRIVATE_ADDRESS
@@ -387,7 +387,7 @@ index d4f965f9..8cc237c6 100644
  %token VAR_PRIVATE_DOMAIN VAR_REMOTE_CONTROL VAR_CONTROL_ENABLE
  %token VAR_CONTROL_INTERFACE VAR_CONTROL_PORT VAR_SERVER_KEY_FILE
  %token VAR_SERVER_CERT_FILE VAR_CONTROL_KEY_FILE VAR_CONTROL_CERT_FILE
-@@ -247,6 +248,7 @@ content_server: server_num_threads | server_verbosity | server_port |
+@@ -276,6 +277,7 @@ content_server: server_num_threads | server_verbosity | server_port |
  	server_dlv_anchor_file | server_dlv_anchor | server_neg_cache_size |
  	server_harden_referral_path | server_private_address |
  	server_private_domain | server_extended_statistics |
@@ -395,7 +395,7 @@ index d4f965f9..8cc237c6 100644
  	server_local_data_ptr | server_jostle_timeout |
  	server_unwanted_reply_threshold | server_log_time_ascii |
  	server_domain_insecure | server_val_sig_skew_min |
-@@ -1754,6 +1756,15 @@ server_caps_whitelist: VAR_CAPS_WHITELIST STRING_ARG
+@@ -1932,6 +1934,15 @@ server_caps_whitelist: VAR_CAPS_WHITELIST STRING_ARG
  			yyerror("out of memory");
  	}
  	;

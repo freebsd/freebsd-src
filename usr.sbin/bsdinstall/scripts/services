@@ -40,21 +40,44 @@ fi
 
 echo -n > $BSDINSTALL_TMPETC/rc.conf.services
 
+DAEMON_OPTIONS=""
+
+if [ -x "${BSDINSTALL_CHROOT}/etc/rc.d/sshd" ]; then
+	DAEMON_OPTIONS="$DAEMON_OPTIONS \
+	    sshd \"Secure shell daemon\" ${sshd_enable:-off}"
+fi
+
+if [ -x "${BSDINSTALL_CHROOT}/etc/rc.d/ntpd" ]; then
+	DAEMON_OPTIONS="$DAEMON_OPTIONS \
+	    ntpd \"Synchronize system and network time\" ${ntpd_enable:-off} \
+	    ntpd_sync_on_start \"Sync time on ntpd startup, even if offset is high\" \
+		${ntpd_sync_on_start:-off}"
+fi
+
+if [ -x "${BSDINSTALL_CHROOT}/etc/rc.d/local_unbound" ]; then
+	DAEMON_OPTIONS="$DAEMON_OPTIONS \
+	    local_unbound \"Local caching validating resolver\" \
+		${local_unbound_enable:-off}"
+fi
+
+if [ -x "${BSDINSTALL_CHROOT}/etc/rc.d/powerd" ]; then
+	DAEMON_OPTIONS="$DAEMON_OPTIONS \
+	    powerd \"Adjust CPU frequency dynamically if supported\" \
+		${powerd_enable:-off}"
+fi
+
+if [ -x "${BSDINSTALL_CHROOT}/etc/rc.d/moused" ]; then
+	DAEMON_OPTIONS="$DAEMON_OPTIONS \
+	    moused \"PS/2 mouse pointer on console\" ${moused_enable:-off}"
+fi
+
 exec 5>&1
-DAEMONS=$( bsddialog --backtitle "$OSNAME Installer" \
-    --title "System Configuration" --no-cancel --separate-output \
-    --checklist "Choose the services you would like to be started at boot:" \
+DAEMONS=$(eval bsddialog --backtitle \"$OSNAME Installer\" \
+    --title \"System Configuration\" --no-cancel --separate-output \
+    --checklist \"Choose the services you would like to be started at boot:\" \
     0 0 0 \
-	local_unbound "Local caching validating resolver" \
-		${local_unbound_enable:-off} \
-	sshd	"Secure shell daemon" ${sshd_enable:-off} \
-	moused	"PS/2 mouse pointer on console" ${moused_enable:-off} \
-	ntpd	"Synchronize system and network time" ${ntpd_enable:-off} \
-	ntpd_sync_on_start	"Sync time on ntpd startup, even if offset is high" \
-		${ntpd_sync_on_start:-off} \
-	powerd	"Adjust CPU frequency dynamically if supported" \
-		${powerd_enable:-off} \
-	dumpdev "Enable kernel crash dumps to /var/crash" ${dumpdev:-on} \
+	$DAEMON_OPTIONS \
+	dumpdev \"Enable kernel crash dumps to /var/crash\" ${dumpdev:-on} \
 2>&1 1>&5 )
 retval=$?
 exec 5>&-

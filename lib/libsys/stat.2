@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 30, 2021
+.Dd August 17, 2025
 .Dt STAT 2
 .Os
 .Sh NAME
@@ -169,6 +169,9 @@ Flags enabled for the file.
 See
 .Xr chflags 2
 for the list of flags and their description.
+.It Va st_rdev
+Numeric ID of the device referenced by the file, if the file is a
+character or block special; otherwise unspecified.
 .El
 .Pp
 The

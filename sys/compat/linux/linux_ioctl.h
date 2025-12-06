@@ -823,4 +823,16 @@ int	linux32_ioctl_register_handler(struct linux_ioctl_handler *h);
 int	linux32_ioctl_unregister_handler(struct linux_ioctl_handler *h);
 #endif
 
+#define LINUX_IOCTL_SET(n, low, high)				\
+static linux_ioctl_function_t n##_linux_ioctl;			\
+static struct linux_ioctl_handler n##_linux_handler = {		\
+	n##_linux_ioctl,					\
+	low,							\
+	high							\
+};								\
+SYSINIT(n##_ioctl_register, SI_SUB_KLD, SI_ORDER_MIDDLE,	\
+    linux_ioctl_register_handler, &n##_linux_handler);		\
+SYSUNINIT(n##_ioctl_unregister, SI_SUB_KLD, SI_ORDER_MIDDLE,	\
+    linux_ioctl_unregister_handler, &n##_linux_handler)
+
 #endif /* !_LINUX_IOCTL_H_ */

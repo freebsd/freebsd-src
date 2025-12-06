@@ -1,7 +1,8 @@
-.\" $Id: man.7,v 1.150 2023/10/23 22:57:54 schwarze Exp $
+.\" $Id: man.7,v 1.154 2025/08/05 21:16:20 schwarze Exp $
 .\"
+.\" Copyright (c) 2011-2015, 2017-2020, 2023, 2025
+.\"               Ingo Schwarze <schwarze@openbsd.org>
 .\" Copyright (c) 2009, 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2011-2015,2017-2020,2023 Ingo Schwarze <schwarze@openbsd.org>
 .\" Copyright (c) 2017 Anthony Bentley <bentley@openbsd.org>
 .\" Copyright (c) 2010 Joerg Sonnenberger <joerg@netbsd.org>
 .\"
@@ -17,7 +18,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: October 23 2023 $
+.Dd $Mdocdate: August 5 2025 $
 .Dt MAN 7
 .Os
 .Sh NAME
@@ -89,7 +90,7 @@ but can be found in the alphabetical reference below.
 .Ss Page header and footer meta-data
 .Bl -column "RS, RE" description
 .It Ic TH Ta set the title: Ar name section date Op Ar source Op Ar volume
-.It Ic AT Ta display AT&T UNIX version in the page footer (<= 1 argument)
+.It Ic AT Ta display AT&T UNIX version in the page footer (<= 2 arguments)
 .It Ic UC Ta display BSD version in the page footer (<= 1 argument)
 .El
 .Ss Sections and paragraphs
@@ -99,6 +100,7 @@ but can be found in the alphabetical reference below.
 .It Ic PP Ta start an undecorated paragraph (no arguments)
 .It Ic IP Ta indented paragraph: Op Ar head Op Ar width
 .It Ic TP Ta tagged paragraph: Op Ar width
+.It Ic HP Ta hanged paragraph: Op Ar width
 .It Ic PD Ta set vertical paragraph distance: Op Ar height
 .It Ic EX , EE Ta display an example (no arguments)
 .It Ic RS , RE Ta reset the left margin: Op Ar width
@@ -198,11 +200,6 @@ argument is a
 scaling width.
 If specified, it's saved for later paragraph left margins;
 if unspecified, the saved or default width is used.
-.Pp
-This macro is portable, but deprecated
-because it has no good representation in HTML output,
-usually ending up indistinguishable from
-.Ic PP .
 .It Ic I
 Text is rendered in italics.
 .It Ic IB
@@ -239,6 +236,17 @@ A synonym for
 End a mailto block started with
 .Ic MT .
 This is a GNU extension.
+.It Ic MR
+Reference another manual page.
+This is a Plan 9 extension also supported by GNU.
+It has the following syntax:
+.Pp
+.D1 Pf . Ic MR Ar name section Op Ar suffix
+.Pp
+The optional, single
+.Ar suffix
+argument is appended without preceding whitespace
+and typically used for trailing punctuation.
 .It Ic MT
 Begin a mailto block.
 This is a GNU extension.
@@ -250,8 +258,12 @@ link description to be shown
 .Ed
 .It Ic OP
 Optional command-line argument.
-This is a rarely used DWB extension.
-It has the following syntax:
+This is a deprecated GNU extension.
+The name and purpose of the macro match an earlier DWB extension,
+but both the syntax and semantics are incompatible.
+In GNU and
+.Xr mandoc 1 ,
+it has the following syntax:
 .Pp
 .D1 Pf . Ic OP Ar key Op Ar value
 .Pp
@@ -503,43 +515,56 @@ raised.
 .Pp
 The syntax is as follows:
 .Bd -literal -offset indent
-\&.YO \(lBbody...\(rB
-\(lBbody...\(rB
+\&.\e" current-line syntax
+\&.YO \(lBbody ...\(rB
+
+\&.\e" next-line syntax
+\&.YO
+body ...
 .Ed
-.Bl -column "MacroX" "ArgumentsX" "ScopeXXXXX" "CompatX" -offset indent
-.It Em Macro Ta Em Arguments Ta Em Scope     Ta Em Notes
-.It Ic AT  Ta    <=1       Ta    current   Ta    \&
-.It Ic B   Ta    n         Ta    next-line Ta    \&
-.It Ic BI  Ta    n         Ta    current   Ta    \&
-.It Ic BR  Ta    n         Ta    current   Ta    \&
-.It Ic DT  Ta    0         Ta    current   Ta    \&
-.It Ic EE  Ta    0         Ta    current   Ta    Version 9 At
-.It Ic EX  Ta    0         Ta    current   Ta    Version 9 At
-.It Ic I   Ta    n         Ta    next-line Ta    \&
-.It Ic IB  Ta    n         Ta    current   Ta    \&
-.It Ic IR  Ta    n         Ta    current   Ta    \&
-.It Ic OP  Ta    >=1       Ta    current   Ta    DWB
-.It Ic PD  Ta    1         Ta    current   Ta    \&
-.It Ic RB  Ta    n         Ta    current   Ta    \&
-.It Ic RI  Ta    n         Ta    current   Ta    \&
-.It Ic SB  Ta    n         Ta    next-line Ta    \&
-.It Ic SM  Ta    n         Ta    next-line Ta    \&
-.It Ic TH  Ta    >1, <6    Ta    current   Ta    \&
-.It Ic UC  Ta    <=1       Ta    current   Ta    \&
-.It Ic in  Ta    1         Ta    current   Ta    Xr roff 7
+.Bl -column -offset indent\
+      "Macro"     "Arguments"     "curr and next"     "Version 9 AT&T UNIX"
+.It Em Macro Ta Em Arguments Ta Em Line Scope    Ta Em Notes
+.It Ic AT    Ta    0 to 2    Ta    current       Ta    \&
+.It Ic B     Ta    1 or more Ta    curr or next  Ta    \&
+.It Ic BI    Ta    2 or more Ta    current       Ta    \&
+.It Ic BR    Ta    2 or more Ta    current       Ta    \&
+.It Ic DT    Ta    0         Ta    none          Ta    \&
+.It Ic EE    Ta    0         Ta    none          Ta    Version 9 At
+.It Ic EX    Ta    0         Ta    none          Ta    Version 9 At
+.It Ic I     Ta    1 or more Ta    curr or next  Ta    \&
+.It Ic IB    Ta    2 or more Ta    current       Ta    \&
+.It Ic IR    Ta    2 or more Ta    current       Ta    \&
+.It Ic MR    Ta    2 or 3    Ta    current       Ta    Plan 9
+.It Ic OP    Ta    1 or 2    Ta    current       Ta    GNU
+.It Ic PD    Ta    0 or 1    Ta    current       Ta    \&
+.It Ic RB    Ta    2 or more Ta    current       Ta    \&
+.It Ic RI    Ta    2 or more Ta    current       Ta    \&
+.It Ic SB    Ta    1 or more Ta    curr or next  Ta    \&
+.It Ic SM    Ta    1 or more Ta    curr or next  Ta    \&
+.It Ic TH    Ta    3 to 5    Ta    current       Ta    \&
+.It Ic UC    Ta    0 or 1    Ta    current       Ta    \&
+.It Ic in    Ta    0 or 1    Ta    current       Ta    Xr roff 7
 .El
 .Ss Block Macros
 Block macros comprise a head and body.
-As with in-line macros, the head is scoped to the current line and, in
-one circumstance, the next line (the next-line stipulations as in
+As with in-line macros, the head is scoped to the current line or,
+for some macros, to the next line (the next-line stipulations as in
 .Sx Line Macros
 apply here as well).
 .Pp
 The syntax is as follows:
 .Bd -literal -offset indent
-\&.YO \(lBhead...\(rB
-\(lBhead...\(rB
-\(lBbody...\(rB
+\&.\e" current-line syntax
+\&.YO \(lBhead ...\(rB
+body ...
+\&...
+
+\&.\e" next-line syntax
+\&.YO \(lBhead\(rB
+head ...
+body ...
+\&...
 .Ed
 .Pp
 The closure of body scope may be to the section, where a macro is closed
@@ -547,40 +572,42 @@ by
 .Ic SH ;
 sub-section, closed by a section or
 .Ic SS ;
-or paragraph, closed by a section, sub-section,
+paragraph, closed by a section, sub-section,
 .Ic HP ,
 .Ic IP ,
 .Ic LP ,
 .Ic P ,
 .Ic PP ,
-.Ic RE ,
+.Ic RS ,
 .Ic SY ,
+.Ic TP ,
 or
-.Ic TP .
-No closure refers to an explicit block closing macro.
+.Ic TQ ;
+or to an explicit block closing macro.
 .Pp
 As a rule, block macros may not be nested; thus, calling a block macro
 while another block macro scope is open, and the open scope is not
 implicitly closed, is syntactically incorrect.
-.Bl -column "MacroX" "ArgumentsX" "Head ScopeX" "sub-sectionX" "compatX" -offset indent
-.It Em Macro Ta Em Arguments Ta Em Head Scope Ta Em Body Scope  Ta Em Notes
-.It Ic HP  Ta    <2        Ta    current    Ta    paragraph   Ta    \&
-.It Ic IP  Ta    <3        Ta    current    Ta    paragraph   Ta    \&
-.It Ic LP  Ta    0         Ta    current    Ta    paragraph   Ta    \&
-.It Ic ME  Ta    0         Ta    none       Ta    none        Ta    GNU
-.It Ic MT  Ta    1         Ta    current    Ta    to \&ME     Ta    GNU
-.It Ic P   Ta    0         Ta    current    Ta    paragraph   Ta    \&
-.It Ic PP  Ta    0         Ta    current    Ta    paragraph   Ta    \&
-.It Ic RE  Ta    <=1       Ta    current    Ta    none        Ta    \&
-.It Ic RS  Ta    1         Ta    current    Ta    to \&RE     Ta    \&
-.It Ic SH  Ta    >0        Ta    next-line  Ta    section     Ta    \&
-.It Ic SS  Ta    >0        Ta    next-line  Ta    sub-section Ta    \&
-.It Ic SY  Ta    1         Ta    current    Ta    to \&YS     Ta    GNU
-.It Ic TP  Ta    n         Ta    next-line  Ta    paragraph   Ta    \&
-.It Ic TQ  Ta    n         Ta    next-line  Ta    paragraph   Ta    GNU
-.It Ic UE  Ta    0         Ta    current    Ta    none        Ta    GNU
-.It Ic UR  Ta    1         Ta    current    Ta    part        Ta    GNU
-.It Ic YS  Ta    0         Ta    none       Ta    none        Ta    GNU
+.Bl -column -offset indent\
+      "Macro"     "Arguments"     "curr and next"     "sub-section"     "Notes"
+.It Em Macro Ta Em Arguments Ta Em Head Scope    Ta Em Body Scope  Ta Em Notes
+.It Ic HP    Ta    0 or 1    Ta    current       Ta    paragraph   Ta    \&
+.It Ic IP    Ta    0 to 2    Ta    current       Ta    paragraph   Ta    \&
+.It Ic LP    Ta    0         Ta    none          Ta    paragraph   Ta    \&
+.It Ic ME    Ta    0 or 1    Ta    current       Ta    none        Ta    GNU
+.It Ic MT    Ta    1         Ta    current       Ta    to \&ME     Ta    GNU
+.It Ic P     Ta    0         Ta    none          Ta    paragraph   Ta    \&
+.It Ic PP    Ta    0         Ta    none          Ta    paragraph   Ta    \&
+.It Ic RE    Ta    0 or 1    Ta    current       Ta    none        Ta    \&
+.It Ic RS    Ta    0 or 1    Ta    current       Ta    to \&RE     Ta    \&
+.It Ic SH    Ta    1 or more Ta    curr or next  Ta    section     Ta    \&
+.It Ic SS    Ta    1 or more Ta    curr or next  Ta    sub-section Ta    \&
+.It Ic SY    Ta    1         Ta    current       Ta    to \&YS     Ta    GNU
+.It Ic TP    Ta    0 or 1    Ta    curr and next Ta    paragraph   Ta    \&
+.It Ic TQ    Ta    0 or 1    Ta    curr and next Ta    paragraph   Ta    GNU
+.It Ic UE    Ta    0 or 1    Ta    current       Ta    none        Ta    GNU
+.It Ic UR    Ta    1         Ta    current       Ta    to \&UE     Ta    GNU
+.It Ic YS    Ta    0         Ta    none          Ta    none        Ta    GNU
 .El
 .Pp
 If a block macro is next-line scoped, it may only be followed by in-line

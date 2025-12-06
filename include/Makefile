@@ -29,8 +29,8 @@ INCS=	a.out.h ar.h assert.h bitstring.h byteswap.h \
 	pthread_np.h pwd.h ranlib.h readpassphrase.h regex.h \
 	res_update.h resolv.h runetype.h sched.h \
 	search.h semaphore.h setjmp.h \
-	signal.h spawn.h stab.h stdalign.h stdbool.h stdckdint.h stddef.h \
-	stdnoreturn.h stdio.h stdlib.h string.h stringlist.h \
+	signal.h spawn.h stab.h stdalign.h stdbit.h stdbool.h stdckdint.h \
+	stddef.h stdnoreturn.h stdio.h stdlib.h string.h stringlist.h \
 	strings.h sysexits.h tar.h termios.h tgmath.h \
 	time.h timeconv.h timers.h ttyent.h \
 	uchar.h ulimit.h unistd.h utime.h utmpx.h uuid.h varargs.h \
@@ -94,14 +94,14 @@ BSM=		audit.h \
 		audit_fcntl.h \
 		audit_kevents.h \
 		audit_socket_type.h
-BSMPACKAGE=	libbsm
+BSMPACKAGE=	audit
 BSMDIR=		${INCLUDEDIR}/bsm
 
 .PATH: ${SRCTOP}/sys/security
 SECAUDIT=	audit/audit.h \
 		audit/audit_ioctl.h \
 		audit/audit_private.h
-SECAUDITPACKAGE=	libbsm
+SECAUDITPACKAGE=	audit
 SECAUDITDIR=	${INCLUDEDIR}/security/audit
 
 .PATH:	${SRCTOP}/sys/cam
@@ -233,7 +233,7 @@ RPCDIR=		${INCLUDEDIR}/rpc
 TEKEN=		teken.h
 TEKENDIR=	${INCLUDEDIR}/teken
 
-.PATH: ${SRCTOP}/sys/contrib/openzfs/include/sys
+.PATH: ${ZFSTOP}/include/sys
 NVPAIR=		nvpair.h
 NVPAIRDIR=	${INCLUDEDIR}/sys
 
@@ -293,7 +293,7 @@ LSUBSUBDIRS+=	netgraph/bluetooth/include
 LSUBDIRS+=	fs/cuse
 .endif
 
-.if ${MK_GSSAPI} != "no" && ${MK_MITKRB5} == "no"
+.if ${MK_KERBEROS} != "no" && ${MK_MITKRB5} == "no"
 SUBDIR+=	gssapi
 INCS+=		gssapi.h
 .endif

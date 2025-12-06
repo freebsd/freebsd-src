@@ -302,6 +302,13 @@ envvar		hint.pcf.0.irq="5"
 #
 device		glxsb		# AMD Geode LX Security Block
 
+#
+# padlock is a driver for the cryptographic functions and RNG in
+# VIA C3, C7, and Eden processors.
+# Requires 'device crypto'.
+#
+device		padlock_rng	# VIA Padlock RNG
+
 #####################################################################
 # ABI Emulation
 

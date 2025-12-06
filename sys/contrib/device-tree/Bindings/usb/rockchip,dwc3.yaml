@@ -18,7 +18,7 @@ description:
   Documentation/devicetree/bindings/phy/rockchip,inno-usb2phy.yaml
 
   Type-C PHY
-  Documentation/devicetree/bindings/phy/phy-rockchip-typec.txt
+  Documentation/devicetree/bindings/phy/rockchip,rk3399-typec-phy.yaml
 
 select:
   properties:
@@ -26,7 +26,9 @@ select:
       contains:
         enum:
           - rockchip,rk3328-dwc3
+          - rockchip,rk3562-dwc3
           - rockchip,rk3568-dwc3
+          - rockchip,rk3576-dwc3
           - rockchip,rk3588-dwc3
   required:
     - compatible
@@ -36,7 +38,9 @@ properties:
     items:
       - enum:
           - rockchip,rk3328-dwc3
+          - rockchip,rk3562-dwc3
           - rockchip,rk3568-dwc3
+          - rockchip,rk3576-dwc3
           - rockchip,rk3588-dwc3
       - const: snps,dwc3
 
@@ -70,6 +74,7 @@ properties:
       - enum:
           - grf_clk
           - utmi
+          - pipe
       - const: pipe
 
   power-domains:
@@ -113,7 +118,25 @@ allOf:
       properties:
         compatible:
           contains:
-            const: rockchip,rk3568-dwc3
+            const: rockchip,rk3562-dwc3
+    then:
+      properties:
+        clocks:
+          minItems: 4
+          maxItems: 4
+        clock-names:
+          items:
+            - const: ref_clk
+            - const: suspend_clk
+            - const: bus_clk
+            - const: pipe
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - rockchip,rk3568-dwc3
+              - rockchip,rk3576-dwc3
     then:
       properties:
         clocks:

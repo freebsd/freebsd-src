@@ -1,982 +1,1548 @@
-.TH "unbound-control" "8" "Apr 24, 2025" "NLnet Labs" "unbound 1.23.0"
-.\"
-.\" unbound-control.8 -- unbound remote control manual
-.\"
-.\" Copyright (c) 2008, NLnet Labs. All rights reserved.
-.\"
-.\" See LICENSE for the license.
-.\"
-.\"
-.SH "NAME"
-.B unbound\-control,
-.B unbound\-control\-setup
-\- Unbound remote server control utility.
-.SH "SYNOPSIS"
-.B unbound\-control
-.RB [ \-hq ]
-.RB [ \-c
-.IR cfgfile ]
-.RB [ \-s
-.IR server ]
-.IR command
-.SH "DESCRIPTION"
-.B Unbound\-control
-performs remote administration on the \fIunbound\fR(8) DNS server.
-It reads the configuration file, contacts the Unbound server over SSL
-sends the command and displays the result.
-.P
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "UNBOUND-CONTROL" "8" "Oct 22, 2025" "1.24.1" "Unbound"
+.SH NAME
+unbound-control \- Unbound 1.24.1 remote server control utility.
+.SH SYNOPSIS
+.sp
+\fBunbound\-control\fP [\fB\-hq\fP] [\fB\-c cfgfile\fP] [\fB\-s server\fP] command
+.SH DESCRIPTION
+.sp
+\fBunbound\-control\fP performs remote administration on the
+\fI\%unbound(8)\fP DNS server.
+It reads the configuration file, contacts the Unbound server over TLS sends the
+command and displays the result.
+.sp
 The available options are:
+.INDENT 0.0
 .TP
 .B \-h
 Show the version and commandline option help.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B \-c \fIcfgfile
-The config file to read with settings.  If not given the default
-config file @ub_conf_file@ is used.
+.B \-c <cfgfile>
+The config file to read with settings.
+If not given the default config file
+\fB@ub_conf_file@\fP is used.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B \-s \fIserver[@port]
-IPv4 or IPv6 address of the server to contact.  If not given, the
-address is read from the config file.
+.B \-s <server[@port]>
+IPv4 or IPv6 address of the server to contact.
+If not given, the address is read from the config file.
+.UNINDENT
+.INDENT 0.0
 .TP
 .B \-q
-quiet, if the option is given it does not print anything if it works ok.
-.SH "COMMANDS"
+Quiet, if the option is given it does not print anything if it works ok.
+.UNINDENT
+.SH COMMANDS
+.sp
 There are several commands that the server understands.
+.INDENT 0.0
 .TP
-.B start
-Start the server. Simply execs \fIunbound\fR(8).  The Unbound executable
-is searched for in the \fBPATH\fR set in the environment.  It is started
-with the config file specified using \fI\-c\fR or the default config file.
+.B start 
+Start the server.
+Simply execs \fI\%unbound(8)\fP\&.
+The \fBunbound\fP executable is searched for in the \fBPATH\fP set in the
+environment.
+It is started with the config file specified using \fI\%\-c\fP or the
+default config file.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B stop
-Stop the server. The server daemon exits.
+.B stop 
+Stop the server.
+The server daemon exits.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B reload
-Reload the server. This flushes the cache and reads the config file fresh.
+.B reload 
+Reload the server.
+This flushes the cache and reads the config file fresh.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B reload_keep_cache
+.B reload_keep_cache 
 Reload the server but try to keep the RRset and message cache if
 (re)configuration allows for it.
-That means the caches sizes and the number of threads must not change between
-reloads.
+That means the caches sizes and the number of threads must not change
+between reloads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B fast_reload \fR[\fI+dpv\fR]
+.B fast_reload [\fB+dpv\fP] 
 Reload the server, but keep downtime to a minimum, so that user queries
-keep seeing service. This needs the code compiled with threads. The config
-is loaded in a thread, and prepared, then it briefly pauses the existing
-server and updates config options. The intent is that the pause does not
-impact the service of user queries. The cache is kept. Also user queries
-worked on are kept and continue, but with the new config options.
-.IP
+keep seeing service.
+This needs the code compiled with threads.
+The config is loaded in a thread, and prepared, then it briefly pauses the
+existing server and updates config options.
+The intent is that the pause does not impact the service of user queries.
+The cache is kept.
+Also user queries worked on are kept and continue, but with the new config
+options.
+.sp
+\fBNOTE:\fP
+.INDENT 7.0
+.INDENT 3.5
 This command is experimental at this time.
-.IP
+.UNINDENT
+.UNINDENT
+.sp
 The amount of temporal memory needed during a fast_reload is twice the
 amount needed for configuration.
-This is because Unbound temporarily needs to store both current configuration
-values and new ones while trying to fast_reload.
+This is because Unbound temporarily needs to store both current
+configuration values and new ones while trying to fast_reload.
 Zones loaded from disk (authority zones and RPZ zones) are included in such
 memory needs.
-.IP
+.sp
 Options that can be changed are for
-forwards,
-stubs,
-views,
-authority zones,
-RPZ zones and
-local zones.
-.IP
+\fI\%forwards\fP,
+\fI\%stubs\fP,
+\fI\%views\fP,
+\fI\%authority zones\fP,
+\fI\%RPZ zones\fP and
+\fI\%local zones\fP\&.
+.sp
 Also
-access-control and similar options,
-interface-action and similar options and
-tcp-connection-limit.
+\fI\%access\-control\fP and similar options,
+\fI\%interface\-action\fP and similar
+options and
+\fI\%tcp\-connection\-limit\fP\&.
 It can reload some
-define-tag
+\fI\%define\-tag\fP
 changes, more on that below.
 Further options include
-insecure-lan-zones,
-domain-insecure,
-trust-anchor-file,
-trust-anchor,
-trusted-keys-file,
-auto-trust-anchor-file,
-edns-client-string,
+\fI\%insecure\-lan\-zones\fP,
+\fI\%domain\-insecure\fP,
+\fI\%trust\-anchor\-file\fP,
+\fI\%trust\-anchor\fP,
+\fI\%trusted\-keys\-file\fP,
+\fI\%auto\-trust\-anchor\-file\fP,
+\fI\%edns\-client\-string\fP,
 ipset,
-log-identity,
-infra-cache-numhosts,
-msg-cache-size,
-rrset-cache-size,
-key-cache-size,
-ratelimit-size,
-neg-cache-size,
-num-queries-per-thread,
-jostle-timeout,
-use-caps-for-id,
-unwanted-reply-threshold,
-tls-use-sni,
-outgoing-tcp-mss,
-ip-dscp,
-max-reuse-tcp-queries,
-tcp-reuse-timeout,
-tcp-auth-query-timeout,
-delay-close.
-.IP
+\fI\%log\-identity\fP,
+\fI\%infra\-cache\-numhosts\fP,
+\fI\%msg\-cache\-size\fP,
+\fI\%rrset\-cache\-size\fP,
+\fI\%key\-cache\-size\fP,
+\fI\%ratelimit\-size\fP,
+\fI\%neg\-cache\-size\fP,
+\fI\%num\-queries\-per\-thread\fP,
+\fI\%jostle\-timeout\fP,
+\fI\%use\-caps\-for\-id\fP,
+\fI\%unwanted\-reply\-threshold\fP,
+\fI\%tls\-use\-sni\fP,
+\fI\%outgoing\-tcp\-mss\fP,
+\fI\%ip\-dscp\fP,
+\fI\%max\-reuse\-tcp\-queries\fP,
+\fI\%tcp\-reuse\-timeout\fP,
+\fI\%tcp\-auth\-query\-timeout\fP,
+\fI\%delay\-close\fP\&.
+\fI\%iter\-scrub\-promiscuous\fP\&.
+.sp
 It does not work with
-interface and
-outgoing-interface changes,
+\fI\%interface\fP and
+\fI\%outgoing\-interface\fP changes,
 also not with
-remote control,
-outgoing-port-permit,
-outgoing-port-avoid,
-msg-buffer-size,
-any **\*-slabs** options and
-statistics-interval changes.
-.IP
-For dnstap these options can be changed:
-dnstap-log-resolver-query-messages,
-dnstap-log-resolver-response-messages,
-dnstap-log-client-query-messages,
-dnstap-log-client-response-messages,
-dnstap-log-forwarder-query-messages and
-dnstap-log-forwarder-response-messages.
-.IP
+\fI\%remote control\fP,
+\fI\%outgoing\-port\-permit\fP,
+\fI\%outgoing\-port\-avoid\fP,
+\fI\%msg\-buffer\-size\fP,
+any \fB*\-slabs\fP options and
+\fI\%statistics\-interval\fP changes.
+.sp
+For \fI\%dnstap\fP these options can be changed:
+\fI\%dnstap\-log\-resolver\-query\-messages\fP,
+\fI\%dnstap\-log\-resolver\-response\-messages\fP,
+\fI\%dnstap\-log\-client\-query\-messages\fP,
+\fI\%dnstap\-log\-client\-response\-messages\fP,
+\fI\%dnstap\-log\-forwarder\-query\-messages\fP and
+\fI\%dnstap\-log\-forwarder\-response\-messages\fP\&.
+.sp
 It does not work with these options:
-dnstap-enable,
-dnstap-bidirectional,
-dnstap-socket-path,
-dnstap-ip,
-dnstap-tls,
-dnstap-tls-server-name,
-dnstap-tls-cert-bundle,
-dnstap-tls-client-key-file and
-dnstap-tls-client-cert-file.
-.IP
+\fI\%dnstap\-enable\fP,
+\fI\%dnstap\-bidirectional\fP,
+\fI\%dnstap\-socket\-path\fP,
+\fI\%dnstap\-ip\fP,
+\fI\%dnstap\-tls\fP,
+\fI\%dnstap\-tls\-server\-name\fP,
+\fI\%dnstap\-tls\-cert\-bundle\fP,
+\fI\%dnstap\-tls\-client\-key\-file\fP and
+\fI\%dnstap\-tls\-client\-cert\-file\fP\&.
+.sp
 The options
-dnstap-send-identity,
-dnstap-send-version,
-dnstap-identity, and
-dnstap-version can be loaded
-when ``+p`` is not used.
-.IP
-The '+v' option makes the output verbose which includes the time it took to do
-the reload.
-With '+vv' it is more verbose which includes the amount of memory that was
-allocated temporarily to perform the reload; this amount of memory can be big
-if the config has large contents.
-In the timing output the 'reload' time is the time during which the server was
-paused.
-.IP
-The '+p' option makes the reload not pause threads, they keep running.
+\fI\%dnstap\-send\-identity\fP,
+\fI\%dnstap\-send\-version\fP,
+\fI\%dnstap\-identity\fP, and
+\fI\%dnstap\-version\fP can be loaded
+when \fB+p\fP is not used.
+.sp
+The \fB+v\fP option makes the output verbose which includes the time it took
+to do the reload.
+With \fB+vv\fP it is more verbose which includes the amount of memory that
+was allocated temporarily to perform the reload; this amount of memory can
+be big if the config has large contents.
+In the timing output the \(aqreload\(aq time is the time during which the server
+was paused.
+.sp
+The \fB+p\fP option makes the reload not pause threads, they keep running.
 Locks are acquired, but items are updated in sequence, so it is possible
 for threads to see an inconsistent state with some options from the old
 and some options from the new config, such as cache TTL parameters from the
-old config and forwards from the new config. The stubs and forwards are
-updated at the same time, so that they are viewed consistently, either old
-or new values together. The option makes the reload time take eg. 3
-microseconds instead of 0.3 milliseconds during which the worker threads are
-interrupted. So, the interruption is much shorter, at the expense of some
-inconsistency. After the reload itself, every worker thread is briefly
-contacted to make them release resources, this makes the delete timing
-a little longer, and takes up time from the remote control servicing
-worker thread.
-.IP
-With the nopause option, the reload does not work to reload some options,
-that fast reload works on without the nopause option: val-bogus-ttl,
-val-override-date, val-sig-skew-min, val-sig-skew-max, val-max-restart,
-val-nsec3-keysize-iterations, target-fetch-policy, outbound-msg-retry,
-max-sent-count, max-query-restarts, do-not-query-address,
-do-not-query-localhost, private-address, private-domain, caps-exempt,
-nat64-prefix, do-nat64, infra-host-ttl, infra-keep-probing, ratelimit,
-ip-ratelimit, ip-ratelimit-cookie, wait-limit-netblock,
-wait-limit-cookie-netblock, ratelimit-below-domain, ratelimit-for-domain.
-.IP
-The '+d' option makes the reload drop queries that the worker threads are
-working on. This is like flush_requestlist. Without it the queries are kept
-so that users keep getting answers for those queries that are currently
-processed. The drop makes it so that queries during the life time of the
+old config and forwards from the new config.
+The stubs and forwards are updated at the same time, so that they are
+viewed consistently, either old or new values together.
+The option makes the reload time take eg. 3 microseconds instead of 0.3
+milliseconds during which the worker threads are interrupted.
+So, the interruption is much shorter, at the expense of some inconsistency.
+After the reload itself, every worker thread is briefly contacted to make
+them release resources, this makes the delete timing a little longer, and
+takes up time from the remote control servicing worker thread.
+.sp
+With the nopause option (\fB+p\fP), the reload does not work to reload some
+options, that fast reload works on without the nopause option:
+\fI\%val\-bogus\-ttl\fP,
+\fI\%val\-override\-date\fP,
+\fI\%val\-sig\-skew\-min\fP,
+\fI\%val\-sig\-skew\-max\fP,
+\fI\%val\-max\-restart\fP,
+\fI\%val\-nsec3\-keysize\-iterations\fP,
+\fI\%target\-fetch\-policy\fP,
+\fI\%outbound\-msg\-retry\fP,
+\fI\%max\-sent\-count\fP,
+\fI\%max\-query\-restarts\fP,
+\fI\%do\-not\-query\-address\fP,
+\fI\%do\-not\-query\-localhost\fP,
+\fI\%private\-address\fP,
+\fI\%private\-domain\fP,
+\fI\%caps\-exempt\fP,
+\fI\%nat64\-prefix\fP,
+\fI\%do\-nat64\fP,
+\fI\%infra\-host\-ttl\fP,
+\fI\%infra\-keep\-probing\fP,
+\fI\%ratelimit\fP,
+\fI\%ip\-ratelimit\fP,
+\fI\%ip\-ratelimit\-cookie\fP,
+\fI\%wait\-limit\-netblock\fP,
+\fI\%wait\-limit\-cookie\-netblock\fP,
+\fI\%ratelimit\-below\-domain\fP,
+\fI\%ratelimit\-for\-domain\fP\&.
+.sp
+The \fB+d\fP option makes the reload drop queries that the worker threads are
+working on.
+This is like
+\fI\%flush_requestlist\fP\&.
+Without it the queries are kept so that users keep getting answers for
+those queries that are currently processed.
+The drop makes it so that queries during the life time of the
 query processing see only old, or only new config options.
-.IP
-When there are changes to the config tags, from the \fBdefine\-tag\fR option,
-then the '+d' option is implicitly turned on with a warning printout, and
+.sp
+When there are changes to the config tags, from the
+\fI\%define\-tag\fP option,
+then the \fB+d\fP option is implicitly turned on with a warning printout, and
 queries are dropped.
 This is to stop references to the old tag information, by the old
-queries. If the number of tags is increased in the newly loaded config, by
-adding tags at the end, then the implicit '+d' option is not needed.
-.IP
+queries.
+If the number of tags is increased in the newly loaded config, by
+adding tags at the end, then the implicit \fB+d\fP option is not needed.
+.sp
 For response ip, that is actions associated with IP addresses, and perhaps
 intersected with access control tag and action information, those settings
 are stored with a query when it comes in based on its source IP address.
 The old information is kept with the query until the queries are done.
-This is gone when those queries are resolved and finished, or it is possible
-to flush the requestlist with '+d'.
+This is gone when those queries are resolved and finished, or it is
+possible to flush the requestlist with \fB+d\fP\&.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B verbosity \fInumber
-Change verbosity value for logging. Same values as \fBverbosity\fR keyword in
-\fIunbound.conf\fR(5).  This new setting lasts until the server is issued
-a reload (taken from config file again), or the next verbosity control command.
+.B verbosity \fInumber\fP 
+Change verbosity value for logging.
+Same values as the \fBverbosity:\fP keyword in
+\fI\%unbound.conf(5)\fP\&.
+This new setting lasts until the server is issued a reload (taken from
+config file again), or the next verbosity control command.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B log_reopen
-Reopen the logfile, close and open it.  Useful for logrotation to make the
-daemon release the file it is logging to.  If you are using syslog it will
-attempt to close and open the syslog (which may not work if chrooted).
+.B log_reopen 
+Reopen the logfile, close and open it.
+Useful for logrotation to make the daemon release the file it is logging
+to.
+If you are using syslog it will attempt to close and open the syslog (which
+may not work if chrooted).
+.UNINDENT
+.INDENT 0.0
 .TP
-.B stats
-Print statistics. Resets the internal counters to zero, this can be
-controlled using the \fBstatistics\-cumulative\fR config statement.
-Statistics are printed with one [name]: [value] per line.
+.B stats 
+Print statistics.
+Resets the internal counters to zero, this can be controlled using the
+\fBstatistics\-cumulative:\fP config statement.
+Statistics are printed with one \fB[name]: [value]\fP per line.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B stats_noreset
-Peek at statistics. Prints them like the \fBstats\fR command does, but does not
-reset the internal counters to zero.
+.B stats_noreset 
+Peek at statistics.
+Prints them like the stats command does, but does not reset the internal
+counters to zero.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B status
-Display server status. Exit code 3 if not running (the connection to the
-port is refused), 1 on error, 0 if running.
+.B status 
+Display server status.
+Exit code 3 if not running (the connection to the port is refused), 1 on
+error, 0 if running.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B local_zone \fIname\fR \fItype
-Add new local zone with name and type. Like \fBlocal\-zone\fR config statement.
+.B local_zone \fIname type\fP 
+Add new local zone with name and type.
+Like local\-zone config statement.
 If the zone already exists, the type is changed to the given argument.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B local_zone_remove \fIname
-Remove the local zone with the given name.  Removes all local data inside
-it.  If the zone does not exist, the command succeeds.
+.B local_zone_remove \fIname\fP 
+Remove the local zone with the given name.
+Removes all local data inside it.
+If the zone does not exist, the command succeeds.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B local_data \fIRR data...
-Add new local data, the given resource record. Like \fBlocal\-data\fR
-config statement, except for when no covering zone exists.  In that case
-this remote control command creates a transparent zone with the same
-name as this record.
+.B local_data \fIRR data...\fP 
+Add new local data, the given resource record.
+Like \fBlocal\-data:\fP keyword, except for when no covering zone exists.
+In that case this remote control command creates a transparent zone with
+the same name as this record.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B local_data_remove \fIname
-Remove all RR data from local name.  If the name already has no items,
-nothing happens.  Often results in NXDOMAIN for the name (in a static zone),
-but if the name has become an empty nonterminal (there is still data in
-domain names below the removed name), NOERROR nodata answers are the
-result for that name.
+.B local_data_remove \fIname\fP 
+Remove all RR data from local name.
+If the name already has no items, nothing happens.
+Often results in NXDOMAIN for the name (in a static zone), but if the name
+has become an empty nonterminal (there is still data in domain names below
+the removed name), NOERROR nodata answers are the result for that name.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B local_zones
-Add local zones read from stdin of unbound\-control. Input is read per line,
-with name space type on a line. For bulk additions.
+.B local_zones 
+Add local zones read from stdin of unbound\-control.
+Input is read per line, with name space type on a line.
+For bulk additions.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B local_zones_remove
-Remove local zones read from stdin of unbound\-control. Input is one name per
-line. For bulk removals.
+.B local_zones_remove 
+Remove local zones read from stdin of unbound\-control.
+Input is one name per line.
+For bulk removals.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B local_datas
-Add local data RRs read from stdin of unbound\-control. Input is one RR per
-line. For bulk additions.
+.B local_datas 
+Add local data RRs read from stdin of unbound\-control.
+Input is one RR per line.
+For bulk additions.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B local_datas_remove
-Remove local data RRs read from stdin of unbound\-control. Input is one name per
-line. For bulk removals.
+.B local_datas_remove 
+Remove local data RRs read from stdin of unbound\-control.
+Input is one name per line.
+For bulk removals.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B dump_cache
-The content of the cache is printed in a text format to stdout.
+.B dump_cache 
+The contents of the cache is printed in a text format to stdout.
 You can redirect it to a file to store the cache in a file.
-Not supported in remote Unbounds in multi-process operation.
+Not supported in remote Unbounds in multi\-process operation.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B load_cache
-The content of the cache is loaded from stdin.
+.B load_cache 
+The contents of the cache is loaded from stdin.
 Uses the same format as dump_cache uses.
 Loading the cache with old, or wrong data can result in old or wrong data
 returned to clients.
 Loading data into the cache in this way is supported in order to aid with
 debugging.
-Not supported in remote Unbounds in multi-process operation.
+Not supported in remote Unbounds in multi\-process operation.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B lookup \fIname
-Print to stdout the name servers that would be used to look up the
-name specified.
+.B cache_lookup [\fB+t\fP] \fInames\fP 
+Print to stdout the RRsets and messages that are in the cache.
+For every name listed the content at or under the name is printed.
+Several names separated by spaces can be given, each is printed.
+When subnetcache is enabled, also matching entries from the subnet
+cache are printed.
+.sp
+The \fB+t\fP option allows tld and root names.
+With it names like \(aqcom\(aq and \(aq.\(aq can be used, but it takes a lot of
+effort to look up in the cache.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B flush \fR[\fI+c\fR] \fIname
-Remove the name from the cache. Removes the types
-A, AAAA, NS, SOA, CNAME, DNAME, MX, PTR, SRV, NAPTR, SVCB and HTTPS.
-Because that is fast to do. Other record types can be removed using
-.B flush_type
-or
-.B flush_zone\fR.
-.IP
-The '+c' option removes the items also from the cachedb cache. If
-cachedb is in use.
+.B lookup \fIname\fP 
+Print to stdout the name servers that would be used to look up the name
+specified.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B flush_type \fR[\fI+c\fR] \fIname\fR \fItype
+.B flush [\fB+c\fP] \fIname\fP 
+Remove the name from the cache.
+Removes the types A, AAAA, NS, SOA, CNAME, DNAME, MX, PTR, SRV, NAPTR,
+SVCB and HTTPS.
+Because that is fast to do.
+Other record types can be removed using \fBflush_type\fP or \fBflush_zone\fP\&.
+.sp
+The \fB+c\fP option removes the items also from the cachedb cache.
+If cachedb is in use.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B flush_type [\fB+c\fP] \fIname type\fP 
 Remove the name, type information from the cache.
+.sp
+The \fB+c\fP option removes the items also from the cachedb cache.
+If cachedb is in use.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B flush_zone \fR[\fI+c\fR] \fIname
+.B flush_zone [\fB+c\fP] name 
 Remove all information at or below the name from the cache.
-The rrsets and key entries are removed so that new lookups will be performed.
+The rrsets and key entries are removed so that new lookups will be
+performed.
 This needs to walk and inspect the entire cache, and is a slow operation.
 The entries are set to expired in the implementation of this command (so,
-with serve\-expired enabled, it'll serve that information but schedule a
+with serve\-expired enabled, it\(aqll serve that information but schedule a
 prefetch for new information).
+.sp
+The \fB+c\fP option removes the items also from the cachedb cache.
+If cachedb is in use.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B flush_bogus \fR[\fI+c\fR]
+.B flush_bogus [\fB+c\fP] 
 Remove all bogus data from the cache.
+.sp
+The \fB+c\fP option removes the items also from the cachedb cache.
+If cachedb is in use.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B flush_negative \fR[\fI+c\fR]
-Remove all negative data from the cache.  This is nxdomain answers,
-nodata answers and servfail answers.  Also removes bad key entries
-(which could be due to failed lookups) from the dnssec key cache, and
-iterator last-resort lookup failures from the rrset cache.
+.B flush_negative [\fB+c\fP] 
+Remove all negative data from the cache.
+This is nxdomain answers, nodata answers and servfail answers.
+Also removes bad key entries (which could be due to failed lookups) from
+the dnssec key cache, and iterator last\-resort lookup failures from the
+rrset cache.
+.sp
+The \fB+c\fP option removes the items also from the cachedb cache.
+If cachedb is in use.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B flush_stats
+.B flush_stats 
 Reset statistics to zero.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B flush_requestlist
-Drop the queries that are worked on.  Stops working on the queries that the
-server is working on now.  The cache is unaffected.  No reply is sent for
-those queries, probably making those users request again later.
+.B flush_requestlist 
+Drop the queries that are worked on.
+Stops working on the queries that the server is working on now.
+The cache is unaffected.
+No reply is sent for those queries, probably making those users request
+again later.
 Useful to make the server restart working on queries with new settings,
 such as a higher verbosity level.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B dump_requestlist
-Show what is worked on.  Prints all queries that the server is currently
-working on.  Prints the time that users have been waiting.  For internal
-requests, no time is printed.  And then prints out the module status.
+.B dump_requestlist 
+Show what is worked on.
+Prints all queries that the server is currently working on.
+Prints the time that users have been waiting.
+For internal requests, no time is printed.
+And then prints out the module status.
 This prints the queries from the first thread, and not queries that are
 being serviced from other threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B flush_infra \fIall|IP
-If all then entire infra cache is emptied.  If a specific IP address, the
-entry for that address is removed from the cache.  It contains EDNS, ping
-and lameness data.
+.B flush_infra \fIall|IP\fP 
+If all then entire infra cache is emptied.
+If a specific IP address, the entry for that address is removed from the
+cache.
+It contains EDNS, ping and lameness data.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B dump_infra
+.B dump_infra 
 Show the contents of the infra cache.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B set_option \fIopt: val
-Set the option to the given value without a reload.  The cache is
-therefore not flushed.  The option must end with a ':' and whitespace
-must be between the option and the value.  Some values may not have an
-effect if set this way, the new values are not written to the config file,
-not all options are supported.  This is different from the set_option call
-in libunbound, where all values work because Unbound has not been initialized.
-.IP
+.B set_option \fIopt: val\fP 
+Set the option to the given value without a reload.
+The cache is therefore not flushed.
+The option must end with a \fB\(aq:\(aq\fP and whitespace must be between the
+option and the value.
+Some values may not have an effect if set this way, the new values are not
+written to the config file, not all options are supported.
+This is different from the set_option call in libunbound, where all values
+work because Unbound has not been initialized.
+.sp
 The values that work are: statistics\-interval, statistics\-cumulative,
-do\-not\-query\-localhost, harden\-short\-bufsize, harden\-large\-queries,
+do\-not\-query\-localhost,  harden\-short\-bufsize, harden\-large\-queries,
 harden\-glue, harden\-dnssec\-stripped, harden\-below\-nxdomain,
-harden\-referral\-path, prefetch, prefetch\-key, log\-queries,
-hide\-identity, hide\-version, identity, version, val\-log\-level,
-val\-log\-squelch, ignore\-cd\-flag, add\-holddown, del\-holddown,
-keep\-missing, tcp\-upstream, ssl\-upstream, max\-udp\-size, ratelimit,
-ip\-ratelimit, cache\-max\-ttl, cache\-min\-ttl, cache\-max\-negative\-ttl.
+harden\-referral\-path,  prefetch, prefetch\-key, log\-queries, hide\-identity,
+hide\-version, identity, version, val\-log\-level, val\-log\-squelch,
+ignore\-cd\-flag, add\-holddown, del\-holddown, keep\-missing, tcp\-upstream,
+ssl\-upstream, max\-udp\-size, ratelimit, ip\-ratelimit, cache\-max\-ttl,
+cache\-min\-ttl, cache\-max\-negative\-ttl.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B get_option \fIopt
-Get the value of the option.  Give the option name without a trailing ':'.
-The value is printed.  If the value is "", nothing is printed
-and the connection closes.  On error 'error ...' is printed (it gives
-a syntax error on unknown option).  For some options a list of values,
-one on each line, is printed.  The options are shown from the config file
-as modified with set_option.  For some options an override may have been
-taken that does not show up with this command, not results from e.g. the
-verbosity and forward control commands.  Not all options work, see list_stubs,
-list_forwards, list_local_zones and list_local_data for those.
+.B get_option \fIopt\fP 
+Get the value of the option.
+Give the option name without a trailing \fB\(aq:\(aq\fP\&.
+The value is printed.
+If the value is \fB\(dq\(dq\fP, nothing is printed and the connection closes.
+On error \fB\(aqerror ...\(aq\fP is printed (it gives a syntax error on unknown
+option).
+For some options a list of values, one on each line, is printed.
+The options are shown from the config file as modified with set_option.
+For some options an override may have been taken that does not show up with
+this command, not results from e.g. the verbosity and forward control
+commands.
+Not all options work, see list_stubs, list_forwards, list_local_zones and
+list_local_data for those.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B list_stubs
-List the stub zones in use.  These are printed one by one to the output.
+.B list_stubs 
+List the stub zones in use.
+These are printed one by one to the output.
 This includes the root hints in use.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B list_forwards
-List the forward zones in use.  These are printed zone by zone to the output.
+.B list_forwards 
+List the forward zones in use.
+These are printed zone by zone to the output.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B list_insecure
+.B list_insecure 
 List the zones with domain\-insecure.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B list_local_zones
-List the local zones in use.  These are printed one per line with zone type.
+.B list_local_zones 
+List the local zones in use.
+These are printed one per line with zone type.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B list_local_data
-List the local data RRs in use.  The resource records are printed.
+.B list_local_data 
+List the local data RRs in use.
+The resource records are printed.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B insecure_add \fIzone
-Add a \fBdomain\-insecure\fR for the given zone, like the statement in unbound.conf.
-Adds to the running Unbound without affecting the cache contents (which may
-still be bogus, use \fBflush_zone\fR to remove it), does not affect the config file.
+.B insecure_add \fIzone\fP 
+Add a domain\-insecure for the given zone, like the statement in
+unbound.conf.
+Adds to the running Unbound without affecting the cache
+contents (which may still be bogus, use flush_zone to remove it), does not
+affect the config file.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B insecure_remove \fIzone
+.B insecure_remove \fIzone\fP 
 Removes domain\-insecure for the given zone.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B forward_add \fR[\fI+it\fR] \fIzone addr ...
-Add a new forward zone to running Unbound.  With +i option also adds a
-\fIdomain\-insecure\fR for the zone (so it can resolve insecurely if you have
-a DNSSEC root trust anchor configured for other names).
-The addr can be IP4, IP6 or nameserver names, like \fIforward-zone\fR config
-in unbound.conf.
-The +t option sets it to use tls upstream, like \fIforward\-tls\-upstream\fR: yes.
+.B forward_add [\fB+it\fP] \fIzone addr ...\fP 
+Add a new forward zone to running Unbound.
+With \fB+i\fP option also adds a domain\-insecure for the zone (so it can
+resolve insecurely if you have a DNSSEC root trust anchor configured for
+other names).
+The addr can be IP4, IP6 or nameserver names, like forward\-zone config in
+unbound.conf.
+The \fB+t\fP option sets it to use TLS upstream, like
+\fI\%forward\-tls\-upstream: yes\fP\&.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B forward_remove \fR[\fI+i\fR] \fIzone
-Remove a forward zone from running Unbound.  The +i also removes a
-\fIdomain\-insecure\fR for the zone.
+.B forward_remove [\fB+i\fP] \fIzone\fP 
+Remove a forward zone from running Unbound.
+The \fB+i\fP also removes a domain\-insecure for the zone.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B stub_add \fR[\fI+ipt\fR] \fIzone addr ...
-Add a new stub zone to running Unbound.  With +i option also adds a
-\fIdomain\-insecure\fR for the zone.  With +p the stub zone is set to prime,
-without it it is set to notprime.  The addr can be IP4, IP6 or nameserver
-names, like the \fIstub-zone\fR config in unbound.conf.
-The +t option sets it to use tls upstream, like \fIstub\-tls\-upstream\fR: yes.
+.B stub_add [\fB+ipt\fP] \fIzone addr ...\fP 
+Add a new stub zone to running Unbound.
+With \fB+i\fP option also adds a domain\-insecure for the zone.
+With \fB+p\fP the stub zone is set to prime, without it it is set to
+notprime.
+The addr can be IP4, IP6 or nameserver names, like the \fBstub\-zone:\fP
+config in unbound.conf.
+The \fB+t\fP option sets it to use TLS upstream, like
+\fI\%stub\-tls\-upstream: yes\fP\&.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B stub_remove \fR[\fI+i\fR] \fIzone
-Remove a stub zone from running Unbound.  The +i also removes a
-\fIdomain\-insecure\fR for the zone.
+.B stub_remove [\fB+i\fP] \fIzone\fP 
+Remove a stub zone from running Unbound.
+The \fB+i\fP also removes a domain\-insecure for the zone.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B forward \fR[\fIoff\fR | \fIaddr ...\fR ]
-Setup forwarding mode.  Configures if the server should ask other upstream
-nameservers, should go to the internet root nameservers itself, or show
-the current config.  You could pass the nameservers after a DHCP update.
-.IP
+.B forward [\fIoff\fP | \fIaddr ...\fP ] 
+Setup forwarding mode.
+Configures if the server should ask other upstream nameservers, should go
+to the internet root nameservers itself, or show the current config.
+You could pass the nameservers after a DHCP update.
+.sp
 Without arguments the current list of addresses used to forward all queries
-to is printed.  On startup this is from the forward\-zone "." configuration.
-Afterwards it shows the status.  It prints off when no forwarding is used.
-.IP
-If \fIoff\fR is passed, forwarding is disabled and the root nameservers
-are used.  This can be used to avoid to avoid buggy or non\-DNSSEC supporting
-nameservers returned from DHCP.  But may not work in hotels or hotspots.
-.IP
-If one or more IPv4 or IPv6 addresses are given, those are then used to forward
-queries to.  The addresses must be separated with spaces.  With '@port' the
-port number can be set explicitly (default port is 53 (DNS)).
-.IP
-By default the forwarder information from the config file for the root "." is
-used.  The config file is not changed, so after a reload these changes are
-gone.  Other forward zones from the config file are not affected by this command.
+to is printed.
+On startup this is from the forward\-zone \fB\(dq.\(dq\fP configuration.
+Afterwards it shows the status.
+It prints off when no forwarding is used.
+.sp
+If off is passed, forwarding is disabled and the root nameservers are
+used.
+This can be used to avoid to avoid buggy or non\-DNSSEC supporting
+nameservers returned from DHCP.
+But may not work in hotels or hotspots.
+.sp
+If one or more IPv4 or IPv6 addresses are given, those are then used to
+forward queries to.
+The addresses must be separated with spaces.
+With \fB\(aq@port\(aq\fP the port number can be set explicitly (default port is 53
+(DNS)).
+.sp
+By default the forwarder information from the config file for the root
+\fB\(dq.\(dq\fP is used.
+The config file is not changed, so after a reload these changes are gone.
+Other forward zones from the config file are not affected by this command.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B ratelimit_list \fR[\fI+a\fR]
-List the domains that are ratelimited.  Printed one per line with current
-estimated qps and qps limit from config.  With +a it prints all domains, not
-just the ratelimited domains, with their estimated qps.  The ratelimited
-domains return an error for uncached (new) queries, but cached queries work
-as normal.
+.B ratelimit_list [\fB+a\fP] 
+List the domains that are ratelimited.
+Printed one per line with current estimated qps and qps limit from config.
+With \fB+a\fP it prints all domains, not just the ratelimited domains, with
+their estimated qps.
+The ratelimited domains return an error for uncached (new) queries, but
+cached queries work as normal.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B ip_ratelimit_list \fR[\fI+a\fR]
-List the ip addresses that are ratelimited.  Printed one per line with current
-estimated qps and qps limit from config.  With +a it prints all ips, not
-just the ratelimited ips, with their estimated qps.  The ratelimited
-ips are dropped before checking the cache.
+.B ip_ratelimit_list [\fB+a\fP] 
+List the ip addresses that are ratelimited.
+Printed one per line with current estimated qps and qps limit from config.
+With \fB+a\fP it prints all ips, not just the ratelimited ips, with their
+estimated qps.
+The ratelimited ips are dropped before checking the cache.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B list_auth_zones
-List the auth zones that are configured.  Printed one per line with a status,
-indicating if the zone is expired and current serial number.  Configured RPZ
-zones are included.
+.B list_auth_zones 
+List the auth zones that are configured.
+Printed one per line with a status, indicating if the zone is expired and
+current serial number.
+Configured RPZ zones are included.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B auth_zone_reload \fIzone\fR
-Reload the auth zone (or RPZ zone) from zonefile.  The zonefile is read in
-overwriting the current contents of the zone in memory.  This changes the auth
-zone contents itself, not the cache contents.  Such cache contents exists if
-you set Unbound to validate with for-upstream yes and that can be cleared with
-\fBflush_zone\fR \fIzone\fR.
+.B auth_zone_reload \fIzone\fP 
+Reload the auth zone (or RPZ zone) from zonefile.
+The zonefile is read in overwriting the current contents of the zone in
+memory.
+This changes the auth zone contents itself, not the cache contents.
+Such cache contents exists if you set Unbound to validate with
+\fBfor\-upstream: yes\fP and that can be cleared with \fBflush_zone\fP \fIzone\fP\&.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B auth_zone_transfer \fIzone\fR
-Transfer the auth zone (or RPZ zone) from master.  The auth zone probe sequence
-is started, where the masters are probed to see if they have an updated zone
-(with the SOA serial check).  And then the zone is transferred for a newer zone
-version.
+.B auth_zone_transfer \fIzone\fP 
+Transfer the auth zone (or RPZ zone) from master.
+The auth zone probe sequence is started, where the masters are probed to
+see if they have an updated zone (with the SOA serial check).
+And then the zone is transferred for a newer zone version.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B rpz_enable \fIzone\fR
+.B rpz_enable \fIzone\fP 
 Enable the RPZ zone if it had previously been disabled.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B rpz_disable \fIzone\fR
+.B rpz_disable \fIzone\fP 
 Disable the RPZ zone.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B view_list_local_zones \fIview\fR
-\fIlist_local_zones\fR for given view.
+.B view_list_local_zones \fIview\fP 
+\fIlist_local_zones\fP for given view.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B view_local_zone \fIview\fR \fIname\fR \fItype
-\fIlocal_zone\fR for given view.
+.B view_local_zone \fIview name type\fP 
+\fIlocal_zone\fP for given view.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B view_local_zone_remove \fIview\fR \fIname
-\fIlocal_zone_remove\fR for given view.
+.B view_local_zone_remove \fIview name\fP 
+\fIlocal_zone_remove\fP for given view.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B view_list_local_data \fIview\fR
-\fIlist_local_data\fR for given view.
+.B view_list_local_data \fIview\fP 
+\fIlist_local_data\fP for given view.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B view_local_data \fIview\fR \fIRR data...
-\fIlocal_data\fR for given view.
+.B view_local_data \fIview RR data...\fP 
+\fIlocal_data\fP for given view.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B view_local_data_remove \fIview\fR \fIname
-\fIlocal_data_remove\fR for given view.
+.B view_local_data_remove \fIview name\fP 
+\fIlocal_data_remove\fP for given view.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B view_local_datas_remove \fIview\fR
-Remove a list of \fIlocal_data\fR for given view from stdin. Like local_datas_remove.
+.B view_local_datas_remove \fIview\fP 
+Remove a list of \fIlocal_data\fP for given view from stdin.
+Like \fIlocal_datas_remove\fP\&.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B view_local_datas \fIview\fR
-Add a list of \fIlocal_data\fR for given view from stdin.  Like local_datas.
+.B view_local_datas \fIview\fP 
+Add a list of \fIlocal_data\fP for given view from stdin.
+Like \fIlocal_datas\fP\&.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B add_cookie_secret <secret>
-Add or replace a cookie secret persistently. <secret> needs to be an 128 bit
-hex string.
-.IP
-Cookie secrets can be either \fIactive\fR or \fIstaging\fR. \fIActive\fR cookie
-secrets are used to create DNS Cookies, but verification of a DNS Cookie
-succeeds with any of the \fIactive\fR or \fIstaging\fR cookie secrets. The
-state of the current cookie secrets can be printed with the
-\fBprint_cookie_secrets\fR command.
-.IP
-When there are no cookie secrets configured yet, the <secret> is added as
-\fIactive\fR. If there is already an \fIactive\fR cookie secret, the <secret>
-is added as \fIstaging\fR or replacing an existing \fIstaging\fR secret.
-.IP
-To "roll" a cookie secret used in an anycast set. The new secret has to be
-added as staging secret to \fBall\fR nodes in the anycast set. When \fBall\fR
-nodes can verify DNS Cookies with the new secret, the new secret can be
-activated with the \fBactivate_cookie_secret\fR command. After \fBall\fR nodes
-have the new secret \fIactive\fR for at least one hour, the previous secret can
-be dropped with the \fBdrop_cookie_secret\fR command.
-.IP
-Persistence is accomplished by writing to a file which if configured with the
-\fBcookie\-secret\-file\fR option in the server section of the config file.
-This is disabled by default, "".
+.B add_cookie_secret \fIsecret\fP 
+Add or replace a cookie secret persistently.
+\fIsecret\fP needs to be an 128 bit hex string.
+.sp
+Cookie secrets can be either \fBactive\fP or \fBstaging\fP\&.
+\fBActive\fP cookie secrets are used to create DNS Cookies, but verification
+of a DNS Cookie succeeds with any of the \fBactive\fP or \fBstaging\fP cookie
+secrets.
+The state of the current cookie secrets can be printed with the
+\fI\%print_cookie_secrets\fP
+command.
+.sp
+When there are no cookie secrets configured yet, the \fIsecret\fP is added as
+\fBactive\fP\&.
+If there is already an \fBactive\fP cookie secret, the \fIsecret\fP is added as
+\fBstaging\fP or replacing an existing \fBstaging\fP secret.
+.sp
+To \(dqroll\(dq a cookie secret used in an anycast set.
+The new secret has to be added as \fBstaging\fP secret to \fBall\fP nodes in
+the anycast set.
+When \fBall\fP nodes can verify DNS Cookies with the new secret, the new
+secret can be activated with the
+\fI\%activate_cookie_secret\fP
+command.
+After \fBall\fP nodes have the new secret \fBactive\fP for at least one hour,
+the previous secret can be dropped with the
+\fI\%drop_cookie_secret\fP
+command.
+.sp
+Persistence is accomplished by writing to a file which is configured with
+the
+\fI\%cookie\-secret\-file\fP
+option in the server section of the config file.
+This is disabled by default, \(dq\(dq.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B drop_cookie_secret
-Drop the \fIstaging\fR cookie secret.
+.B drop_cookie_secret 
+Drop the \fBstaging\fP cookie secret.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B activate_cookie_secret
-Make the current \fIstaging\fR cookie secret \fIactive\fR, and the current
-\fIactive\fR cookie secret \fIstaging\fR.
+.B activate_cookie_secret 
+Make the current \fBstaging\fP cookie secret \fBactive\fP, and the current
+\fBactive\fP cookie secret \fBstaging\fP\&.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B print_cookie_secrets
+.B print_cookie_secrets 
 Show the current configured cookie secrets with their status.
-.SH "EXIT CODE"
-The unbound\-control program exits with status code 1 on error, 0 on success.
-.SH "SET UP"
-The setup requires a self\-signed certificate and private keys for both
-the server and client.  The script \fIunbound\-control\-setup\fR generates
-these in the default run directory, or with \-d in another directory.
+.UNINDENT
+.SH EXIT CODE
+.sp
+The \fBunbound\-control\fP program exits with status code 1 on error, 0 on
+success.
+.SH SET UP
+.sp
+The setup requires a self\-signed certificate and private keys for both the
+server and client.
+The script \fBunbound\-control\-setup\fP generates these in the default run
+directory, or with \fB\-d\fP in another directory.
 If you change the access control permissions on the key files you can decide
-who can use unbound\-control, by default owner and group but not all users.
-Run the script under the same username as you have configured in unbound.conf
-or as root, so that the daemon is permitted to read the files, for example with:
+who can use \fBunbound\-control\fP, by default owner and group but not all users.
+Run the script under the same username as you have configured in
+\fBunbound.conf\fP or as root, so that the daemon is permitted to read the
+files, for example with:
+.INDENT 0.0
+.INDENT 3.5
+.sp
 .nf
-    sudo \-u unbound unbound\-control\-setup
+.ft C
+sudo \-u unbound unbound\-control\-setup
+.ft P
 .fi
-If you have not configured
-a username in unbound.conf, the keys need read permission for the user
-credentials under which the daemon is started.
+.UNINDENT
+.UNINDENT
+.sp
+If you have not configured a username in \fBunbound.conf\fP, the keys need
+read permission for the user credentials under which the daemon is started.
 The script preserves private keys present in the directory.
-After running the script as root, turn on \fBcontrol\-enable\fR in
-\fIunbound.conf\fR.
-.SH "STATISTIC COUNTERS"
-The \fIstats\fR command shows a number of statistic counters.
+After running the script as root, turn on
+\fI\%control\-enable\fP in
+\fBunbound.conf\fP\&.
+.SH STATISTIC COUNTERS
+.sp
+The \fI\%stats\fP and
+\fI\%stats_noreset\fP commands show a
+number of statistic counters:
+.INDENT 0.0
 .TP
-.I threadX.num.queries
+.B threadX.num.queries 
 number of queries received by thread
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.num.queries_ip_ratelimited
+.B threadX.num.queries_ip_ratelimited 
 number of queries rate limited by thread
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.num.queries_cookie_valid
+.B threadX.num.queries_cookie_valid 
 number of queries with a valid DNS Cookie by thread
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.num.queries_cookie_client
+.B threadX.num.queries_cookie_client 
 number of queries with a client part only DNS Cookie by thread
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.num.queries_cookie_invalid
+.B threadX.num.queries_cookie_invalid 
 number of queries with an invalid DNS Cookie by thread
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.num.queries_discard_timeout
-number of queries removed due to discard-timeout by thread
+.B threadX.num.queries_discard_timeout 
+number of queries removed due to discard\-timeout by thread
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.num.queries_wait_limit
-number of queries removed due to wait-limit by thread
+.B threadX.num.queries_wait_limit 
+number of queries removed due to wait\-limit by thread
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.num.cachehits
+.B threadX.num.cachehits 
 number of queries that were successfully answered using a cache lookup
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.num.cachemiss
+.B threadX.num.cachemiss 
 number of queries that needed recursive processing
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.num.dnscrypt.crypted
-number of queries that were encrypted and successfully decapsulated by dnscrypt.
+.B threadX.num.dnscrypt.crypted 
+number of queries that were encrypted and successfully decapsulated by
+dnscrypt.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.num.dnscrypt.cert
+.B threadX.num.dnscrypt.cert 
 number of queries that were requesting dnscrypt certificates.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.num.dnscrypt.cleartext
+.B threadX.num.dnscrypt.cleartext 
 number of queries received on dnscrypt port that were cleartext and not a
 request for certificates.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.num.dnscrypt.malformed
+.B threadX.num.dnscrypt.malformed 
 number of request that were neither cleartext, not valid dnscrypt messages.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.num.dns_error_reports
+.B threadX.num.dns_error_reports 
 number of DNS Error Reports generated by thread
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.num.prefetch
-number of cache prefetches performed.  This number is included in
-cachehits, as the original query had the unprefetched answer from cache,
-and resulted in recursive processing, taking a slot in the requestlist.
+.B threadX.num.prefetch 
+number of cache prefetches performed.
+This number is included in cachehits, as the original query had the
+unprefetched answer from cache, and resulted in recursive processing,
+taking a slot in the requestlist.
 Not part of the recursivereplies (or the histogram thereof) or cachemiss,
 as a cache response was sent.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.num.expired
+.B threadX.num.expired 
 number of replies that served an expired cache entry.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.num.queries_timed_out
-number of queries that are dropped because they waited in the UDP socket buffer
-for too long.
+.B threadX.num.queries_timed_out 
+number of queries that are dropped because they waited in the UDP socket
+buffer for too long.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.query.queue_time_us.max
-The maximum wait time for packets in the socket buffer, in microseconds. This
-is only reported when sock-queue-timeout is enabled.
+.B threadX.query.queue_time_us.max 
+The maximum wait time for packets in the socket buffer, in microseconds.
+This is only reported when
+\fI\%sock\-queue\-timeout\fP is enabled.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.num.recursivereplies
-The number of replies sent to queries that needed recursive processing. Could be smaller than threadX.num.cachemiss if due to timeouts no replies were sent for some queries.
+.B threadX.num.recursivereplies 
+The number of replies sent to queries that needed recursive processing.
+Could be smaller than threadX.num.cachemiss if due to timeouts no replies
+were sent for some queries.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.requestlist.avg
-The average number of requests in the internal recursive processing request list on insert of a new incoming recursive processing query.
+.B threadX.requestlist.avg 
+The average number of requests in the internal recursive processing request
+list on insert of a new incoming recursive processing query.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.requestlist.max
+.B threadX.requestlist.max 
 Maximum size attained by the internal recursive processing request list.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.requestlist.overwritten
-Number of requests in the request list that were overwritten by newer entries. This happens if there is a flood of queries that recursive processing and the server has a hard time.
+.B threadX.requestlist.overwritten 
+Number of requests in the request list that were overwritten by newer
+entries.
+This happens if there is a flood of queries that recursive processing and
+the server has a hard time.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.requestlist.exceeded
-Queries that were dropped because the request list was full. This happens if a flood of queries need recursive processing, and the server can not keep up.
+.B threadX.requestlist.exceeded 
+Queries that were dropped because the request list was full.
+This happens if a flood of queries need recursive processing, and the
+server can not keep up.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.requestlist.current.all
-Current size of the request list, includes internally generated queries (such
-as priming queries and glue lookups).
+.B threadX.requestlist.current.all 
+Current size of the request list, includes internally generated queries
+(such as priming queries and glue lookups).
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.requestlist.current.user
+.B threadX.requestlist.current.user 
 Current size of the request list, only the requests from client queries.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.recursion.time.avg
-Average time it took to answer queries that needed recursive processing. Note that queries that were answered from the cache are not in this average.
+.B threadX.recursion.time.avg 
+Average time it took to answer queries that needed recursive processing.
+Note that queries that were answered from the cache are not in this average.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.recursion.time.median
+.B threadX.recursion.time.median 
 The median of the time it took to answer queries that needed recursive
-processing.  The median means that 50% of the user queries were answered in
-less than this time.  Because of big outliers (usually queries to non
-responsive servers), the average can be bigger than the median.  This median
-has been calculated by interpolation from a histogram.
+processing.
+The median means that 50% of the user queries were answered in less than
+this time.
+Because of big outliers (usually queries to non responsive servers), the
+average can be bigger than the median.
+This median has been calculated by interpolation from a histogram.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I threadX.tcpusage
-The currently held tcp buffers for incoming connections.  A spot value on
-the time of the request.  This helps you spot if the incoming\-num\-tcp
-buffers are full.
+.B threadX.tcpusage 
+The currently held tcp buffers for incoming connections.
+A spot value on the time of the request.
+This helps you spot if the incoming\-num\-tcp buffers are full.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.num.queries
+.B total.num.queries 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.num.queries_ip_ratelimited
+.B total.num.queries_ip_ratelimited 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.num.queries_cookie_valid
+.B total.num.queries_cookie_valid 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.num.queries_cookie_client
+.B total.num.queries_cookie_client 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.num.queries_cookie_invalid
+.B total.num.queries_cookie_invalid 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.num.queries_discard_timeout
+.B total.num.queries_discard_timeout 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.num.queries_wait_limit
+.B total.num.queries_wait_limit 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.num.cachehits
+.B total.num.cachehits 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.num.cachemiss
+.B total.num.cachemiss 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.num.dnscrypt.crypted
+.B total.num.dnscrypt.crypted 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.num.dnscrypt.cert
+.B total.num.dnscrypt.cert 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.num.dnscrypt.cleartext
+.B total.num.dnscrypt.cleartext 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.num.dnscrypt.malformed
+.B total.num.dnscrypt.malformed 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.num.dns_error_reports
+.B total.num.dns_error_reports 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.num.prefetch
+.B total.num.prefetch 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.num.expired
+.B total.num.expired 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.num.queries_timed_out
+.B total.num.queries_timed_out 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.query.queue_time_us.max
+.B total.query.queue_time_us.max 
 the maximum of the thread values.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.num.recursivereplies
+.B total.num.recursivereplies 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.requestlist.avg
+.B total.requestlist.avg 
 averaged over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.requestlist.max
+.B total.requestlist.max 
 the maximum of the thread requestlist.max values.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.requestlist.overwritten
+.B total.requestlist.overwritten 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.requestlist.exceeded
+.B total.requestlist.exceeded 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.requestlist.current.all
+.B total.requestlist.current.all 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.recursion.time.median
+.B total.recursion.time.median 
 averaged over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I total.tcpusage
+.B total.tcpusage 
 summed over threads.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I time.now
+.B time.now 
 current time in seconds since 1970.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I time.up
+.B time.up 
 uptime since server boot in seconds.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I time.elapsed
+.B time.elapsed 
 time since last statistics printout, in seconds.
+.UNINDENT
 .SH EXTENDED STATISTICS
+.INDENT 0.0
 .TP
-.I mem.cache.rrset
+.B mem.cache.rrset 
 Memory in bytes in use by the RRset cache.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I mem.cache.message
+.B mem.cache.message 
 Memory in bytes in use by the message cache.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I mem.cache.dnscrypt_shared_secret
+.B mem.cache.dnscrypt_shared_secret 
 Memory in bytes in use by the dnscrypt shared secrets cache.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I mem.cache.dnscrypt_nonce
+.B mem.cache.dnscrypt_nonce 
 Memory in bytes in use by the dnscrypt nonce cache.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I mem.mod.iterator
+.B mem.mod.iterator 
 Memory in bytes in use by the iterator module.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I mem.mod.validator
-Memory in bytes in use by the validator module. Includes the key cache and
-negative cache.
+.B mem.mod.validator 
+Memory in bytes in use by the validator module.
+Includes the key cache and negative cache.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I mem.streamwait
-Memory in bytes in used by the TCP and TLS stream wait buffers.  These are
-answers waiting to be written back to the clients.
+.B mem.streamwait 
+Memory in bytes in used by the TCP and TLS stream wait buffers.
+These are answers waiting to be written back to the clients.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I mem.http.query_buffer
-Memory in bytes used by the HTTP/2 query buffers. Containing (partial) DNS
-queries waiting for request stream completion.
+.B mem.http.query_buffer 
+Memory in bytes used by the HTTP/2 query buffers.
+Containing (partial) DNS queries waiting for request stream completion.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I mem.http.response_buffer
-Memory in bytes used by the HTTP/2 response buffers. Containing DNS responses
-waiting to be written back to the clients.
+.B mem.http.response_buffer 
+Memory in bytes used by the HTTP/2 response buffers.
+Containing DNS responses waiting to be written back to the clients.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I mem.quic
-Memory in bytes used by QUIC. Containing connection information, stream
-information, queries read and responses written back to the clients.
+.B mem.quic 
+Memory in bytes used by QUIC.
+Containing connection information, stream information, queries read and
+responses written back to the clients.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I histogram.<sec>.<usec>.to.<sec>.<usec>
-Shows a histogram, summed over all threads. Every element counts the
-recursive queries whose reply time fit between the lower and upper bound.
+.B histogram.<sec>.<usec>.to.<sec>.<usec> 
+Shows a histogram, summed over all threads.
+Every element counts the recursive queries whose reply time fit between the
+lower and upper bound.
 Times larger or equal to the lowerbound, and smaller than the upper bound.
 There are 40 buckets, with bucket sizes doubling.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.type.A
+.B num.query.type.A 
 The total number of queries over all threads with query type A.
 Printed for the other query types as well, but only for the types for which
 queries were received, thus =0 entries are omitted for brevity.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.type.other
+.B num.query.type.other 
 Number of queries with query types 256\-65535.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.class.IN
-The total number of queries over all threads with query class IN (internet).
+.B num.query.class.IN 
+The total number of queries over all threads with query class IN
+(internet).
 Also printed for other classes (such as CH (CHAOS) sometimes used for
 debugging), or NONE, ANY, used by dynamic update.
 num.query.class.other is printed for classes 256\-65535.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.opcode.QUERY
+.B num.query.opcode.QUERY 
 The total number of queries over all threads with query opcode QUERY.
 Also printed for other opcodes, UPDATE, ...
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.tcp
+.B num.query.tcp 
 Number of queries that were made using TCP towards the Unbound server.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.tcpout
+.B num.query.tcpout 
 Number of queries that the Unbound server made using TCP outgoing towards
 other servers.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.udpout
+.B num.query.udpout 
 Number of queries that the Unbound server made using UDP outgoing towards
 other servers.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.tls
+.B num.query.tls 
 Number of queries that were made using TLS towards the Unbound server.
 These are also counted in num.query.tcp, because TLS uses TCP.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.tls.resume
-Number of TLS session resumptions, these are queries over TLS towards
-the Unbound server where the client negotiated a TLS session resumption key.
+.B num.query.tls.resume 
+Number of TLS session resumptions, these are queries over TLS towards the
+Unbound server where the client negotiated a TLS session resumption key.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.https
+.B num.query.https 
 Number of queries that were made using HTTPS towards the Unbound server.
 These are also counted in num.query.tcp and num.query.tls, because HTTPS
 uses TLS and TCP.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.quic
+.B num.query.quic 
 Number of queries that were made using QUIC towards the Unbound server.
-These are also counted in num.query.tls, because TLS is used for these queries.
+These are also counted in num.query.tls, because TLS is used for these
+queries.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.ipv6
+.B num.query.ipv6 
 Number of queries that were made using IPv6 towards the Unbound server.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.flags.RD
+.B num.query.flags.RD 
 The number of queries that had the RD flag set in the header.
 Also printed for flags QR, AA, TC, RA, Z, AD, CD.
-Note that queries with flags QR, AA or TC may have been rejected
-because of that.
+Note that queries with flags QR, AA or TC may have been rejected because of
+that.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.edns.present
+.B num.query.edns.present 
 number of queries that had an EDNS OPT record present.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.edns.DO
-number of queries that had an EDNS OPT record with the DO (DNSSEC OK) bit set.
+.B num.query.edns.DO 
+number of queries that had an EDNS OPT record with the DO (DNSSEC OK) bit
+set.
 These queries are also included in the num.query.edns.present number.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.ratelimited
-The number of queries that are turned away from being send to nameserver due to
-ratelimiting.
+.B num.query.ratelimited 
+The number of queries that are turned away from being send to nameserver
+due to ratelimiting.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.dnscrypt.shared_secret.cachemiss
-The number of dnscrypt queries that did not find a shared secret in the cache.
-This can be used to compute the shared secret hitrate.
+.B num.query.dnscrypt.shared_secret.cachemiss 
+The number of dnscrypt queries that did not find a shared secret in the
+cache.
+This can be use to compute the shared secret hitrate.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.dnscrypt.replay
-The number of dnscrypt queries that found a nonce hit in the nonce cache and
-hence are considered a query replay.
+.B num.query.dnscrypt.replay 
+The number of dnscrypt queries that found a nonce hit in the nonce cache
+and hence are considered a query replay.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.answer.rcode.NXDOMAIN
-The number of answers to queries, from cache or from recursion, that had the
-return code NXDOMAIN. Also printed for the other return codes.
+.B num.answer.rcode.NXDOMAIN 
+The number of answers to queries, from cache or from recursion, that had
+the return code NXDOMAIN.
+Also printed for the other return codes.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.answer.rcode.nodata
+.B num.answer.rcode.nodata 
 The number of answers to queries that had the pseudo return code nodata.
-This means the actual return code was NOERROR, but additionally, no data was
-carried in the answer (making what is called a NOERROR/NODATA answer).
+This means the actual return code was NOERROR, but additionally, no data
+was carried in the answer (making what is called a NOERROR/NODATA answer).
 These queries are also included in the num.answer.rcode.NOERROR number.
 Common for AAAA lookups when an A record exists, and no AAAA.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.answer.secure
-Number of answers that were secure.  The answer validated correctly.
+.B num.answer.secure 
+Number of answers that were secure.
+The answer validated correctly.
 The AD bit might have been set in some of these answers, where the client
 signalled (with DO or AD bit in the query) that they were ready to accept
 the AD bit in the answer.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.answer.bogus
-Number of answers that were bogus.  These answers resulted in SERVFAIL
-to the client because the answer failed validation.
+.B num.answer.bogus 
+Number of answers that were bogus.
+These answers resulted in SERVFAIL to the client because the answer failed
+validation.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.rrset.bogus
-The number of rrsets marked bogus by the validator.  Increased for every
-RRset inspection that fails.
+.B num.rrset.bogus 
+The number of rrsets marked bogus by the validator.
+Increased for every RRset inspection that fails.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I unwanted.queries
+.B num.valops 
+The number of validation operations performed by the validator.
+Increased for every RRSIG verification operation regardless of the
+validation result.
+The RRSIG and key combination needs to first pass some sanity checks before
+Unbound even performs the verification, e.g., length/protocol checks.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B unwanted.queries 
 Number of queries that were refused or dropped because they failed the
 access control settings.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I unwanted.replies
-Replies that were unwanted or unsolicited.  Could have been random traffic,
-delayed duplicates, very late answers, or could be spoofing attempts.
+.B unwanted.replies 
+Replies that were unwanted or unsolicited.
+Could have been random traffic, delayed duplicates, very late answers, or
+could be spoofing attempts.
 Some low level of late answers and delayed duplicates are to be expected
-with the UDP protocol.  Very high values could indicate a threat (spoofing).
+with the UDP protocol.
+Very high values could indicate a threat (spoofing).
+.UNINDENT
+.INDENT 0.0
 .TP
-.I msg.cache.count
+.B msg.cache.count 
 The number of items (DNS replies) in the message cache.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I rrset.cache.count
-The number of RRsets in the rrset cache.  This includes rrsets used by
-the messages in the message cache, but also delegation information.
+.B rrset.cache.count 
+The number of RRsets in the rrset cache.
+This includes rrsets used by the messages in the message cache, but also
+delegation information.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I infra.cache.count
-The number of items in the infra cache.  These are IP addresses with their
-timing and protocol support information.
+.B infra.cache.count 
+The number of items in the infra cache.
+These are IP addresses with their timing and protocol support information.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I key.cache.count
-The number of items in the key cache.  These are DNSSEC keys, one item
-per delegation point, and their validation status.
+.B key.cache.count 
+The number of items in the key cache.
+These are DNSSEC keys, one item per delegation point, and their validation
+status.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I msg.cache.max_collisions
-The maximum number of hash table collisions in the msg cache. This is the
-number of hashes that are identical when a new element is inserted in the
-hash table. If the value is very large, like hundreds, something is wrong
-with the performance of the hash table, hash values are incorrect or malicious.
+.B msg.cache.max_collisions 
+The maximum number of hash table collisions in the msg cache.
+This is the number of hashes that are identical when a new element is
+inserted in the hash table.
+If the value is very large, like hundreds, something is wrong with the
+performance of the hash table, hash values are incorrect or malicious.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I rrset.cache.max_collisions
-The maximum number of hash table collisions in the rrset cache. This is the
-number of hashes that are identical when a new element is inserted in the
-hash table. If the value is very large, like hundreds, something is wrong
-with the performance of the hash table, hash values are incorrect or malicious.
+.B rrset.cache.max_collisions 
+The maximum number of hash table collisions in the rrset cache.
+This is the number of hashes that are identical when a new element is
+inserted in the hash table.
+If the value is very large, like hundreds, something is wrong with the
+performance of the hash table, hash values are incorrect or malicious.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I dnscrypt_shared_secret.cache.count
-The number of items in the shared secret cache. These are precomputed shared
-secrets for a given client public key/server secret key pair. Shared secrets
-are CPU intensive and this cache allows Unbound to avoid recomputing the
-shared secret when multiple dnscrypt queries are sent from the same client.
+.B dnscrypt_shared_secret.cache.count 
+The number of items in the shared secret cache.
+These are precomputed shared secrets for a given client public key/server
+secret key pair.
+Shared secrets are CPU intensive and this cache allows Unbound to avoid
+recomputing the shared secret when multiple dnscrypt queries are sent from
+the same client.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I dnscrypt_nonce.cache.count
-The number of items in the client nonce cache. This cache is used to prevent
-dnscrypt queries replay. The client nonce must be unique for each client public
-key/server secret key pair. This cache should be able to host QPS * `replay
-window` interval keys to prevent replay of a query during `replay window`
-seconds.
+.B dnscrypt_nonce.cache.count 
+The number of items in the client nonce cache.
+This cache is used to prevent dnscrypt queries replay.
+The client nonce must be unique for each client public key/server secret
+key pair.
+This cache should be able to host QPS * \fIreplay window\fP interval keys to
+prevent replay of a query during \fIreplay window\fP seconds.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.authzone.up
+.B num.query.authzone.up 
 The number of queries answered from auth\-zone data, upstream queries.
-These queries would otherwise have been sent (with fallback enabled) to
-the internet, but are now answered from the auth zone.
+These queries would otherwise have been sent (with fallback enabled) to the
+internet, but are now answered from the auth zone.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.authzone.down
+.B num.query.authzone.down 
 The number of queries for downstream answered from auth\-zone data.
-These queries are from downstream clients, and have had an answer from
-the data in the auth zone.
+These queries are from downstream clients, and have had an answer from the
+data in the auth zone.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.aggressive.NOERROR
+.B num.query.aggressive.NOERROR 
 The number of queries answered using cached NSEC records with NODATA RCODE.
 These queries would otherwise have been sent to the internet, but are now
 answered using cached data.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.aggressive.NXDOMAIN
-The number of queries answered using cached NSEC records with NXDOMAIN RCODE.
+.B num.query.aggressive.NXDOMAIN 
+The number of queries answered using cached NSEC records with NXDOMAIN
+RCODE.
 These queries would otherwise have been sent to the internet, but are now
 answered using cached data.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.subnet
-Number of queries that got an answer that contained EDNS client subnet data.
+.B num.query.subnet 
+Number of queries that got an answer that contained EDNS client subnet
+data.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.subnet_cache
-Number of queries answered from the edns client subnet cache.  These are
-counted as cachemiss by the main counters, but hit the client subnet
-specific cache after getting processed by the edns client subnet module.
+.B num.query.subnet_cache 
+Number of queries answered from the edns client subnet cache.
+These are counted as cachemiss by the main counters, but hit the client
+subnet specific cache after getting processed by the edns client subnet
+module.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.query.cachedb
+.B num.query.cachedb 
 Number of queries answered from the external cache of cachedb.
 These are counted as cachemiss by the main counters, but hit the cachedb
 external cache after getting processed by the cachedb module.
+.UNINDENT
+.INDENT 0.0
 .TP
-.I num.rpz.action.<rpz_action>
-Number of queries answered using configured RPZ policy, per RPZ action type.
-Possible actions are: nxdomain, nodata, passthru, drop, tcp\-only, local\-data,
-disabled, and cname\-override.
-.SH "FILES"
+.B num.rpz.action.<rpz_action> 
+Number of queries answered using configured RPZ policy, per RPZ action
+type.
+Possible actions are: nxdomain, nodata, passthru, drop, tcp\-only,
+local\-data, disabled, and cname\-override.
+.UNINDENT
+.SH FILES
+.INDENT 0.0
 .TP
-.I @ub_conf_file@
+.B @ub_conf_file@
 Unbound configuration file.
 .TP
-.I @UNBOUND_RUN_DIR@
-directory with private keys (unbound_server.key and unbound_control.key) and
-self\-signed certificates (unbound_server.pem and unbound_control.pem).
-.SH "SEE ALSO"
-\fIunbound.conf\fR(5),
-\fIunbound\fR(8).
+.B @UNBOUND_RUN_DIR@
+directory with private keys (\fBunbound_server.key\fP and
+\fBunbound_control.key\fP) and self\-signed certificates
+(\fBunbound_server.pem\fP and \fBunbound_control.pem\fP).
+.UNINDENT
+.SH SEE ALSO
+.sp
+\fI\%unbound.conf(5)\fP,
+\fI\%unbound(8)\fP\&.
+.SH AUTHOR
+Unbound developers are mentioned in the CREDITS file in the distribution.
+.SH COPYRIGHT
+1999-2025, NLnet Labs
+.\" Generated by docutils manpage writer.
+.

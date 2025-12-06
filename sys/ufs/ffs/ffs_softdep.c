@@ -2148,7 +2148,7 @@ retry_flush:
 #ifdef QUOTA
 			UFS_LOCK(ump);
 			for (i = 0; i < MAXQUOTAS; i++) {
-				if (ump->um_quotas[i] != NULLVP)
+				if (ump->um_quotas[i] != NULL)
 					morework = 1;
 			}
 			UFS_UNLOCK(ump);

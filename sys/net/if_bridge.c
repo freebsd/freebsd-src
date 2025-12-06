@@ -522,11 +522,11 @@ SYSCTL_BOOL(_net_link_bridge, OID_AUTO, log_mac_flap,
     "Log MAC address port flapping");
 
 /* allow IP addresses on bridge members */
-VNET_DEFINE_STATIC(bool, member_ifaddrs) = false;
+VNET_DEFINE_STATIC(bool, member_ifaddrs) = true;
 #define	V_member_ifaddrs	VNET(member_ifaddrs)
 SYSCTL_BOOL(_net_link_bridge, OID_AUTO, member_ifaddrs,
     CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(member_ifaddrs), false,
-    "Allow layer 3 addresses on bridge members");
+    "Allow layer 3 addresses on bridge members (deprecated)");
 
 static bool
 bridge_member_ifaddrs(void)
@@ -1448,24 +1448,30 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 
 	/*
 	 * If member_ifaddrs is disabled, do not allow an interface with
-	 * assigned IP addresses to be added to a bridge.
+	 * assigned IP addresses to be added to a bridge.  Skip this check
+	 * for gif interfaces, because the IP address assigned to a gif
+	 * interface is separate from the bridge's Ethernet segment.
 	 */
-	if (!V_member_ifaddrs) {
+	if (ifs->if_type != IFT_GIF) {
 		struct ifaddr *ifa;
 
 		CK_STAILQ_FOREACH(ifa, &ifs->if_addrhead, ifa_link) {
-#ifdef INET
-			if (ifa->ifa_addr->sa_family == AF_INET)
+			if (ifa->ifa_addr->sa_family != AF_INET &&
+			    ifa->ifa_addr->sa_family != AF_INET6)
+				continue;
+
+			if (V_member_ifaddrs) {
+				if_printf(sc->sc_ifp,
+				    "WARNING: Adding member interface %s which "
+				    "has an IP address assigned is deprecated "
+				    "and will be unsupported in a future "
+				    "release.\n", ifs->if_xname);
+				break;
+			} else {
 				return (EXTERROR(EINVAL,
 				    "Member interface may not have "
-				    "an IPv4 address configured"));
-#endif
-#ifdef INET6
-			if (ifa->ifa_addr->sa_family == AF_INET6)
-				return (EXTERROR(EINVAL,
-				    "Member interface may not have "
-				    "an IPv6 address configured"));
-#endif
+				    "an IP address assigned"));
+			}
 		}
 	}
 
@@ -2398,6 +2404,12 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m,
 		return (EINVAL);
 	}
 
+	/* Do VLAN filtering. */
+	if (!bridge_vfilter_out(bif, m)) {
+		m_freem(m);
+		return (0);
+	}
+
 	/* We may be sending a fragment so traverse the mbuf */
 	for (; m; m = m0) {
 		m0 = m->m_nextpkt;
@@ -2817,10 +2829,6 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	if (sbif->bif_flags & dbif->bif_flags & IFBIF_PRIVATE)
 		goto drop;
 
-	/* Do VLAN filtering. */
-	if (!bridge_vfilter_out(dbif, m))
-		goto drop;
-
 	if ((dbif->bif_flags & IFBIF_STP) &&
 	    dbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING)
 		goto drop;
@@ -3189,10 +3197,6 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 		if (sbif && (sbif->bif_flags & dbif->bif_flags & IFBIF_PRIVATE))
 			continue;
 
-		/* Do VLAN filtering. */
-		if (!bridge_vfilter_out(dbif, m))
-			continue;
-
 		if ((dbif->bif_flags & IFBIF_STP) &&
 		    dbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING)
 			continue;
@@ -3357,6 +3361,14 @@ bridge_vfilter_out(const struct bridge_iflist *dbif, const struct mbuf *m)
 	ether_vlanid_t vlan;
 
 	NET_EPOCH_ASSERT();
+
+	/*
+	 * If the interface is in span mode, then bif_sc will be NULL.
+	 * Since the purpose of span interfaces is to receive all frames,
+	 * pass everything.
+	 */
+	if (dbif->bif_sc == NULL)
+		return (true);
 
 	/* If VLAN filtering isn't enabled, pass everything. */
 	if ((dbif->bif_sc->sc_flags & IFBRF_VLANFILTER) == 0)

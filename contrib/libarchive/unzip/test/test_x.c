@@ -9,6 +9,7 @@
 /* Test x arg with single exclude path */
 DEFINE_TEST(test_x_single)
 {
+#ifdef HAVE_LIBZ
 	const char *reffile = "test_basic.zip";
 	int r;
 
@@ -22,11 +23,15 @@ DEFINE_TEST(test_x_single)
 	assertTextFileContents("contents b\n", "test_basic/b");
 	assertFileNotExists("test_basic/c");
 	assertTextFileContents("contents CAPS\n", "test_basic/CAPS");
+#else
+	skipping("zlib not available");
+#endif
 }
 
 /* Test x arg with multiple exclude paths */
 DEFINE_TEST(test_x_multiple)
 {
+#ifdef HAVE_LIBZ
 	const char *reffile = "test_basic.zip";
 	int r;
 
@@ -40,11 +45,15 @@ DEFINE_TEST(test_x_multiple)
 	assertFileNotExists("test_basic/b");
 	assertFileNotExists("test_basic/c");
 	assertTextFileContents("contents CAPS\n", "test_basic/CAPS");
+#else
+	skipping("zlib not available");
+#endif
 }
 
 /* Test x arg with multiple exclude paths and a d arg afterwards */
 DEFINE_TEST(test_x_multiple_with_d)
 {
+#ifdef HAVE_LIBZ
 	const char *reffile = "test_basic.zip";
 	int r;
 
@@ -58,4 +67,7 @@ DEFINE_TEST(test_x_multiple_with_d)
 	assertFileNotExists("foobar/test_basic/b");
 	assertFileNotExists("foobar/test_basic/c");
 	assertTextFileContents("contents CAPS\n", "foobar/test_basic/CAPS");
+#else
+	skipping("zlib not available");
+#endif
 }

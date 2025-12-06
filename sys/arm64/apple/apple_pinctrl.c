@@ -171,12 +171,13 @@ apple_pinctrl_attach(device_t dev)
 		    OF_xref_from_node(ofw_bus_get_node(dev)));
 	}
 
-	sc->sc_busdev = gpiobus_attach_bus(dev);
+	sc->sc_busdev = gpiobus_add_bus(dev);
 	if (sc->sc_busdev == NULL) {
 		device_printf(dev, "failed to attach gpiobus\n");
 		goto error;
 	}
 
+	bus_attach_children(dev);
 	return (0);
 error:
 	mtx_destroy(&sc->sc_mtx);

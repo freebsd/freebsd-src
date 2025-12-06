@@ -462,7 +462,6 @@ struct rack_control {
 	uint64_t rc_gp_output_ts; /* chg*/
 	uint64_t rc_gp_cumack_ts; /* chg*/
 	struct timeval act_rcv_time;
-	struct timeval rc_last_time_decay;	/* SAD time decay happened here */
 	uint64_t gp_bw;
 	uint64_t init_rate;
 #ifdef NETFLIX_SHARED_CWND

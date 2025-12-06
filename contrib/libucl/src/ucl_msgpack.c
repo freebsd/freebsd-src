@@ -1246,8 +1246,8 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 		/* Empty container at the end */
 		if (len != 0) {
 			ucl_create_err (&parser->err,
-					"invalid non-empty container at the end; len=%zu",
-					(size_t)len);
+					"invalid non-empty container at the end; len=%ju",
+					(uintmax_t)len);
 
 			return false;
 		}

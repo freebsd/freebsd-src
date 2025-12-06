@@ -398,6 +398,18 @@ ATF_TC_BODY(subnormal_float, tc)
 	testfmt("-0X1P-149", "%A", negative);
 }
 
+ATF_TC_WITHOUT_HEAD(hexadecimal_rounding_fullprec);
+ATF_TC_BODY(hexadecimal_rounding_fullprec, tc)
+{
+	/* Double: %.13a with binary64 mantissa=53 */
+	testfmt("0x1.1234567890bbbp+0", "%.13a", 0x1.1234567890bbbp+0);
+
+#if defined(__aarch64__)
+	/* On arm64, long double is IEEE binary128 (mantissa=113) */
+	testfmt("0x1.3c0ca428c59fbbbbbbbbbbbbbbbbp+0", "%.28La", 0x1.3c0ca428c59fbbbbbbbbbbbbbbbbp+0L);
+#endif
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -414,6 +426,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, hexadecimal_rounding);
 	ATF_TP_ADD_TC(tp, subnormal_double);
 	ATF_TP_ADD_TC(tp, subnormal_float);
+	ATF_TP_ADD_TC(tp, hexadecimal_rounding_fullprec);
 
 	return (atf_no_error());
 }

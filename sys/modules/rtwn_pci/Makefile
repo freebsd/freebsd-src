@@ -1,7 +1,5 @@
 .PATH: ${SRCTOP}/sys/dev/rtwn/pci
-
-SYSDIR?=${SRCTOP}/sys
-.include "${SYSDIR}/conf/kern.opts.mk"
+.include "${SRCTOP}/sys/conf/kern.opts.mk"
 
 KMOD     = if_rtwn_pci
 SRCS	 = rtwn_pci_attach.c rtwn_pci_reg.c rtwn_pci_rx.c rtwn_pci_tx.c \

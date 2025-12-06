@@ -1,4 +1,4 @@
-.\"-
+.\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2000
@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 8, 2025
+.Dd September 25, 2025
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -36,34 +36,28 @@ system
 .Sh DESCRIPTION
 The sources for the
 .Fx
-system and its applications are contained in three different directories,
-normally
-.Pa /usr/src ,
-.Pa /usr/doc ,
-and
-.Pa /usr/ports .
-These directories may be initially empty or non-existent until updated with
-Git
-.Po installed from packages with
-.Xr pkg 7
-or from
-.Xr ports 7 Pc .
-Directory
-.Pa /usr/src
-contains the
-.Dq "base system"
-sources, which is loosely defined as the things required to rebuild
-the system to a useful state.
-Directory
-.Pa /usr/doc
-contains the source for the system documentation, excluding the manual
-pages.
-Directory
-.Pa /usr/ports
-contains a tree that provides a consistent interface for building and
-installing third party applications.
-For more information about the ports build process, see
-.Xr ports 7 .
+system and its applications are contained in three directories,
+normally:
+.Bl -tag -width "/usr/ports"
+.It Pa /usr/src
+.Dq base system ,
+loosely defined as everything required to build the system
+to a useful state
+.It Pa /usr/doc
+system documentation, excluding manual pages
+.It Pa /usr/ports
+third-party software, with a consistent interface for building and
+installing them; see
+.Xr ports 7
+.El
+.Pp
+These directories may be initially empty or non-existent until updated
+with Git
+.Po Pa devel/git
+from the
+.Fx
+Ports Collection
+.Pc .
 .Pp
 The
 .Xr make 1
@@ -92,7 +86,9 @@ The canonical object directory is described in the documentation for the
 .Cm buildworld
 target below.
 .Pp
-The build may be controlled by defining
+The
+.Nm
+may be controlled by defining
 .Xr make 1
 variables described in the
 .Sx ENVIRONMENT
@@ -193,6 +189,20 @@ the compiler, linker, assembler, headers and libraries) has been
 built; see the
 .Cm toolchain
 target below.
+.Pp
+.Va BUILDENV_SHELL ,
+which defaults to
+.Pa /bin/sh ,
+is executed.
+This can be set to a command that does something in this build environment,
+like cross build an application.
+If that application has dependencies, though, the
+.Pa devel/poudriere
+package or port provides a more generic solution.
+.It Cm buildenvvars
+Print the shell variables that are set for a
+.Cm buildenv
+environment and exit.
 .It Cm buildworld
 Build everything but the kernel, configure files in
 .Pa etc ,
@@ -268,13 +278,31 @@ defaults to
 and
 .Sy TARGET_ARCH
 must be defined.
+.It Cm packages
+Create a
+.Xr freebsd-base 7
+package repository containing packages that can be
+used to install or upgrade the base system.
+The repository is created in the object directory, under
+.Pa ${REPODIR}/${PKG_ABI}
+where
+.Ev REPODIR
+is the base directory where the repository will be created, and
+.Va PKG_ABI
+is the
+.Xr pkg 7
+ABI for the build target, for example,
+.Pa /usr/obj/${SRCDIR}/repo/FreeBSD:15:amd64 .
 .It Cm packageworld
 Archive the results of
 .Cm distributeworld ,
 placing the results in
 .Va DISTDIR .
-This target is used while building a release; see
-.Xr release 7 .
+This target is used while building a
+.Xr release 7
+and is unrelated to building
+.Xr freebsd-base 7
+packages.
 .It Cm installworld
 Install everything built by a preceding
 .Cm buildworld
@@ -355,6 +383,14 @@ and
 .Va XDDIR
 defaults to
 .Pa ${TARGET_ARCH}-freebsd .
+.It Cm update-packages
+Create or update the
+.Xr freebsd-base 7
+package repository for the base system.
+If an old repository is being updated,
+then packages whose contents have not changed since the previous version
+will be copied into the new repository to avoid needless updating of the
+version number.
 .It Cm xdev-build
 Builds for the
 .Cm xdev
@@ -392,7 +428,7 @@ The target directory under
 .Pa ${DESTDIR}
 may be modified using the
 .Va INSTKERNNAME
-and
+or
 .Va KODIR
 .Xr make 1
 variables.
@@ -401,26 +437,16 @@ Install the kernel to the directory
 .Pa ${DISTDIR}/kernel/boot/kernel .
 This target is used while building a release; see
 .Xr release 7 .
-.It Cm packages
-Create a
-.Xr pkg 7
-repository containing packages that can be used to create or upgrade an
-installation of the base system.
-The output repository is placed in the object directory, under
-.Pa repo/${PKG_ABI}
-where
-.Va PKG_ABI
-is the
-.Xr pkg 7
-ABI for the build target, for example,
-.Pa /usr/obj/${SRCDIR}/repo/FreeBSD:15:amd64 .
 .It Cm packagekernel
 Archive the results of
 .Cm distributekernel ,
 placing the results in
 .Va DISTDIR .
-This target is used while building a release; see
-.Xr release 7 .
+This target is used while building a
+.Xr release 7
+and is unrelated to building
+.Xr freebsd-base 7
+packages.
 .It Cm kernel
 Equivalent to
 .Cm buildkernel
@@ -549,6 +575,9 @@ should be set to the name of the package.
 LLVM toolchain packages use the name llvm<major version>.
 GCC toolchains provide separate packages for each architecture and use the
 name ${MACHINE_ARCH}-gcc<major version>.
+.It Va INSTKERNNAME
+If set, specify an alternative name to build and install for the various
+kernel make targets.
 .It Va KERNCONF
 Overrides which kernel to build and install for the various kernel
 make targets.
@@ -583,6 +612,9 @@ then
 .Va KERNCONF
 is set to the value of
 .Va KERNFAST .
+.It Va KODIR
+If set,
+this variable specifies an alternative directory to install the kernel.
 .It Va LOCAL_DIRS
 If set, this variable supplies a list of additional directories relative to
 the root of the source tree to build as part of the
@@ -642,11 +674,15 @@ If set, this variable supplies a list of additional directories relative to
 the root of the source tree to build as part of the
 .Cm cross-tools
 target.
+.It Va OBJROOT
+The object directory root is defined as 
+.Pa ${OBJDIR}/${SRCDIR}/ .
+See
+.Pa share/mk/src.sys.obj.mk .
 .It Va PKG_FORMAT
 Specify a package compression format when building
-.Pa src
-into
-.Cm packages .
+.Xr freebsd-base 7
+packages.
 Default:
 .Ql tzst .
 Consider using
@@ -664,9 +700,8 @@ and
 .Cm installkernel
 process.
 This is currently incompatible with building
-.Pa src
-into
-.Cm packages .
+.Xr freebsd-base 7
+packages.
 Each port must be specified as
 .Ar category Ns Li / Ns Ar port Ns Op Li @ Ns Ar flavor ,
 e.g.
@@ -695,6 +730,13 @@ Specify a file to override the default
 The src.conf file controls the components to build.
 See
 .Xr src.conf 5
+.It Va REPODIR
+The root directory used to create the package repository for building
+.Xr packages 7 .
+Defaults to
+.Pa ${OBJROOT}/repo/ .
+This can also be set in
+.Xr src-env.conf 5 .
 .It Va STRIPBIN
 Command to use at install time when stripping binaries.
 Be sure to add any additional tools required to run
@@ -931,26 +973,159 @@ fringe uses that do not have a wide appeal.
 .It Pa /usr/doc/share/mk/doc.project.mk
 .It Pa /usr/ports/Mk/bsd.port.mk
 .It Pa /usr/ports/Mk/bsd.sites.mk
-.It Pa /usr/share/examples/etc/make.conf
 .It Pa /usr/src/Makefile
 .It Pa /usr/src/Makefile.inc1
+.Xr make 1
+infrastructure for each tree
+.It Pa /usr/ports/UPDATING
+.It Pa /usr/src/UPDATING
+notable changes in each tree
+.It Pa /usr/share/examples/etc/make.conf
+example
+.Xr make.conf 5
+.It Pa /etc/src.conf
+src build configuration, see
+.Xr src.conf 5
 .El
 .Sh EXAMPLES
-For an
-.Dq approved
-method of updating your system from the latest sources, please see the
-.Sx COMMON ITEMS
-section in
-.Pa src/UPDATING .
+This section describes best practices for common situations.
+When manual intervention is necessary, it will be mentioned in
+.Pa UPDATING .
+Make sure you have full backups before proceeding!
+.Ss Example 1: Build and upgrade system in place
+If using installed drivers such as graphics or virtual machine guest
+drivers, check out the
+.Xr ports 7
+tree, and specify the drivers in
+.Xr src.conf 5
+so they are built and installed automatically after the kernel:
+.Bd -literal -offset indent
+git clone https://git.FreeBSD.org/ports.git /usr/ports
+cat << EOF >> /etc/src.conf
+PORTS_MODULES+=graphics/drm-kmod emulators/virtualbox-ose-kmod
+EOF
+.Ed
 .Pp
-The following sequence of commands can be used to cross-build the system for
-the arm64 (aarch64) architecture on a different host architecture, such as
-amd64:
+Check out the CURRENT branch, build it, and install,
+overwriting the current system:
+.Bd -literal -offset indent
+git clone https://git.FreeBSD.org/src.git /usr/src
+cd /usr/src
+make buildworld buildkernel
+make installkernel
+shutdown -r now
+.Ed
+.Pp
+For major version upgrades, boot into single-user mode.
+After restarting, install userspace, and merge configurations.
+After verifying that you do not need them, delete old files
+and libraries:
 .Bd -literal -offset indent
 cd /usr/src
-make TARGET=arm64 buildworld buildkernel
-make TARGET=arm64 DESTDIR=/clients/arm64 installworld installkernel
+etcupdate -p
+make installworld
+etcupdate -B
+make delete-old delete-old-libs
+shutdown -r now
 .Ed
+.Ss Example 2: Build and upgrade a custom kernel in place
+Create a custom kernel configuration,
+.Va MYKERNEL ,
+by including an existing configuration and using
+.Cm device Ns / Ns Cm nodevice
+and
+.Cm options Ns / Ns Cm nooption
+to select and configure components:
+.Bd -literal -offset indent
+cd /usr/src
+cat << EOF > sys/amd64/conf/MYKERNEL
+include GENERIC
+ident MYKERNEL
+nodevice sound
+EOF
+.Ed
+.Pp
+After creating the new kernel configuration, build a fresh toolchain,
+build the kernel, and install it, moving the old kernel to
+.Pa /boot/kernel.old/ :
+.Bd -literal -offset indent
+make kernel-toolchain
+make -DALWAYS_CHECK_MAKE buildkernel KERNCONF=MYKERNEL
+make -DALWAYS_CHECK_MAKE installkernel KERNCONF=MYKERNEL
+shutdown -r now
+.Ed
+.Pp
+To build the kernel to an alternate location, use the
+.Va INSTKERNNAME
+variable and boot it once to test via
+.Xr nextboot 8 :
+.Bd -literal -offset indent
+make installkernel KERNCONF=MYKERNEL INSTKERNNAME=testkernel
+nextboot -k testkernel
+shutdown -r now
+.Ed
+.Ss Example 3: Build and upgrade a single piece of userspace
+Rebuild and reinstall a single piece of userspace, in this case
+.Xr ls 1 :
+.Bd -literal -offset indent
+cd /usr/src/bin/ls
+make clean all
+make install
+.Ed
+.Ss Example 4: Build and upgrade a loadable kernel module
+Rebuild and reinstall a single loadable kernel module, in this case
+.Xr sound 4 :
+.Bd -literal -offset indent
+cd /usr/src/sys/modules/sound
+make all install clean cleandepend KMODDIR=/boot/kernel
+.Ed
+.Ss Example 5: Quickly rebuild a kernel in place
+Quickly rebuild and reinstall the kernel, only recompiling the files
+changed since last build; note that this will only work if the full
+kernel build has been completed in the past, not on a fresh source tree:
+.Bd -literal -offset indent
+cd /usr/src
+make kernel KERNFAST=1
+.Ed
+.Ss Example 6: Cross-compiling for different architectures
+To rebuild parts of
+.Fx
+for another CPU architecture,
+first prepare your source tree by building the cross-toolchain:
+.Bd -literal -offset indent
+cd src
+make toolchain TARGET_ARCH=aarch64
+.Ed
+.Pp
+The following sequence of commands can be used to cross-build the system
+for the arm64 (aarch64) architecture on a different host architecture,
+such as amd64:
+.Bd -literal -offset indent
+cd /usr/src
+make TARGET_ARCH=aarch64 buildworld buildkernel
+make TARGET_ARCH=aarch64 DESTDIR=/armclient installworld installkernel
+.Ed
+.Pp
+Afterwards, to build and install a single piece of userspace, use:
+.Bd -literal -offset indent
+cd src/bin/ls
+make buildenv TARGET_ARCH=aarch64
+make clean all install DESTDIR=/armclient
+.Ed
+.Pp
+Likewise, to quickly rebuild and reinstall the kernel, use:
+.Bd -literal -offset indent
+cd src
+make buildenv TARGET_ARCH=aarch64
+make kernel KERNFAST=1 DESTDIR=/armclient
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It Bad system call (core dumped)
+.It rescue/sh check failed, installation aborted
+.Pp
+The kernel was not updated due to incorrect build procedure.
+Study the examples above.
 .Sh SEE ALSO
 .Xr cc 1 ,
 .Xr install 1 ,
@@ -959,13 +1134,14 @@ make TARGET=arm64 DESTDIR=/clients/arm64 installworld installkernel
 .Xr src.conf 5 ,
 .Xr arch 7 ,
 .Xr development 7 ,
+.Xr freebsd-base 7 ,
 .Xr pkg 7 ,
 .Xr ports 7 ,
 .Xr release 7 ,
 .Xr tests 7 ,
 .Xr config 8 ,
 .Xr etcupdate 8 ,
-.Xr reboot 8 ,
+.Xr nextboot 8 ,
 .Xr shutdown 8
 .Sh HISTORY
 The
@@ -974,3 +1150,23 @@ manpage first appeared in
 .Fx 4.3 .
 .Sh AUTHORS
 .An Mike W. Meyer Aq Mt mwm@mired.org
+.Sh CAVEATS
+Old objects can cause obscure build problems; try
+.Ql make cleandir cleandir .
+.Pp
+Environment poisioning can cause obscure build problems; try prefixing
+.Xr make 1
+commands with
+.Ql env -i
+.Pp
+When doing a major release upgrade,
+booting into single user mode for
+.Cm installworld
+is required.
+.Pp
+Updating the boot
+.Xr loader 8
+is architecture specific.
+Consult
+.Xr boot 8
+for your architecture for more details.

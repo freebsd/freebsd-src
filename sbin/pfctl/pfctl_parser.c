@@ -242,7 +242,7 @@ copy_satopfaddr(struct pf_addr *pfa, struct sockaddr *sa)
 const struct icmptypeent *
 geticmptypebynumber(u_int8_t type, sa_family_t af)
 {
-	unsigned int	i;
+	size_t	i;
 
 	if (af != AF_INET6) {
 		for (i=0; i < nitems(icmp_type); i++) {
@@ -261,7 +261,7 @@ geticmptypebynumber(u_int8_t type, sa_family_t af)
 const struct icmptypeent *
 geticmptypebyname(char *w, sa_family_t af)
 {
-	unsigned int	i;
+	size_t	i;
 
 	if (af != AF_INET6) {
 		for (i=0; i < nitems(icmp_type); i++) {
@@ -280,7 +280,7 @@ geticmptypebyname(char *w, sa_family_t af)
 const struct icmpcodeent *
 geticmpcodebynumber(u_int8_t type, u_int8_t code, sa_family_t af)
 {
-	unsigned int	i;
+	size_t	i;
 
 	if (af != AF_INET6) {
 		for (i=0; i < nitems(icmp_code); i++) {
@@ -301,7 +301,7 @@ geticmpcodebynumber(u_int8_t type, u_int8_t code, sa_family_t af)
 const struct icmpcodeent *
 geticmpcodebyname(u_long type, char *w, sa_family_t af)
 {
-	unsigned int	i;
+	size_t	i;
 
 	if (af != AF_INET6) {
 		for (i=0; i < nitems(icmp_code); i++) {
@@ -389,9 +389,11 @@ print_flags(uint16_t f)
 
 void
 print_fromto(struct pf_rule_addr *src, pf_osfp_t osfp, struct pf_rule_addr *dst,
-    sa_family_t af, u_int8_t proto, int verbose, int numeric)
+    sa_family_t af, u_int8_t proto, int opts, int numeric)
 {
 	char buf[PF_OSFP_LEN*3];
+	int verbose = opts & (PF_OPT_VERBOSE2 | PF_OPT_DEBUG);
+
 	if (src->addr.type == PF_ADDR_ADDRMASK &&
 	    dst->addr.type == PF_ADDR_ADDRMASK &&
 	    PF_AZERO(&src->addr.v.a.addr, AF_INET6) &&
@@ -508,6 +510,8 @@ print_pool(struct pfctl_pool *pool, u_int16_t p1, u_int16_t p2, int id)
 	if (pool->mape.offset > 0)
 		printf(" map-e-portset %u/%u/%u",
 		    pool->mape.offset, pool->mape.psidlen, pool->mape.psid);
+	if (pool->opts & PF_POOL_IPV6NH)
+		printf(" prefer-ipv6-nexthop");
 }
 
 void
@@ -605,6 +609,20 @@ print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 		    s->src_nodes, "");
 		TAILQ_FOREACH(c, &s->scounters, entry) {
 			printf("  %-25s %14ju ", c->name, c->counter);
+			if (runtime > 0)
+				printf("%14.1f/s\n",
+				    (double)c->counter / (double)runtime);
+			else
+				printf("%14s\n", "");
+		}
+	}
+	if (opts & PF_OPT_VERBOSE) {
+		printf("Fragments\n");
+		printf("  %-25s %14ju %14s\n", "current entries",
+		    s->fragments, "");
+		TAILQ_FOREACH(c, &s->ncounters, entry) {
+			printf("  %-25s %14ju ", c->name,
+			    c->counter);
 			if (runtime > 0)
 				printf("%14.1f/s\n",
 				    (double)c->counter / (double)runtime);
@@ -838,34 +856,39 @@ print_eth_rule(struct pfctl_eth_rule *r, const char *anchor_call,
 }
 
 void
-print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numeric)
+print_rule(struct pfctl_rule *r, const char *anchor_call, int opts, int numeric)
 {
 	static const char *actiontypes[] = { "pass", "block", "scrub",
 	    "no scrub", "nat", "no nat", "binat", "no binat", "rdr", "no rdr",
-	    "", "", "match"};
+	    "synproxy drop", "defer", "match", "af-rt", "route-to" };
 	static const char *anchortypes[] = { "anchor", "anchor", "anchor",
 	    "anchor", "nat-anchor", "nat-anchor", "binat-anchor",
 	    "binat-anchor", "rdr-anchor", "rdr-anchor" };
-	int	i, ropts;
+	int	 i, ropts;
+	int	 verbose = opts & (PF_OPT_VERBOSE2 | PF_OPT_DEBUG);
 	char	*p;
+
+	if ((r->rule_flag & PFRULE_EXPIRED) && (!verbose))
+		return;
 
 	if (verbose)
 		printf("@%d ", r->nr);
-	if (r->action == PF_MATCH)
-		printf("match");
-	else if (r->action > PF_NORDR)
-		printf("action(%d)", r->action);
-	else if (anchor_call[0]) {
-		p = strrchr(anchor_call, '/');
-		if (p ? p[1] == '_' : anchor_call[0] == '_')
-			printf("%s", anchortypes[r->action]);
-		else
-			printf("%s \"%s\"", anchortypes[r->action],
-			    anchor_call);
+	if (anchor_call[0]) {
+		if (r->action >= nitems(anchortypes)) {
+			printf("anchor(%d)", r->action);
+		} else {
+			p = strrchr(anchor_call, '/');
+			if (p ? p[1] == '_' : anchor_call[0] == '_')
+				printf("%s", anchortypes[r->action]);
+			else
+				printf("%s \"%s\"", anchortypes[r->action],
+				    anchor_call);
+		}
 	} else {
-		printf("%s", actiontypes[r->action]);
-		if (r->natpass)
-			printf(" pass");
+		if (r->action >= nitems(actiontypes))
+			printf("action(%d)", r->action);
+	else
+			printf("%s", actiontypes[r->action]);
 	}
 	if (r->action == PF_DROP) {
 		if (r->rule_flag & PFRULE_RETURN)
@@ -968,7 +991,7 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 			printf(" proto %u", r->proto);
 	}
 	print_fromto(&r->src, r->os_fingerprint, &r->dst, r->af, r->proto,
-	    verbose, numeric);
+	    opts, numeric);
 	if (r->rcv_ifname[0])
 		printf(" %sreceived-on %s", r->rcvifnot ? "!" : "",
 		    r->rcv_ifname);
@@ -1217,6 +1240,8 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 		printf(" %s %d",
 		    r->free_flags & PFRULE_DN_IS_PIPE ? "dnpipe" : "dnqueue",
 		    r->dnpipe);
+	if (r->rule_flag & PFRULE_ONCE)
+		printf(" once");
 	if (r->qname[0] && r->pqname[0])
 		printf(" queue(%s, %s)", r->qname, r->pqname);
 	else if (r->qname[0])
@@ -1268,6 +1293,13 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 			print_pool(&r->rdr, r->rdr.proxy_port[0],
 			    r->rdr.proxy_port[1], PF_RDR);
 		}
+	}
+
+	if (r->rule_flag & PFRULE_EXPIRED) {
+		printf(" # expired");
+
+		if (r->exptime != 0)
+			printf(" %s", ctime(&r->exptime));
 	}
 }
 
@@ -1438,7 +1470,7 @@ ifa_add_groups_to_map(char *ifa_name)
 			ENTRY	 		 item;
 			ENTRY			*ret_item;
 			int			*answer;
-	
+
 			item.key = ifg->ifgrq_group;
 			if (hsearch_r(item, FIND, &ret_item, &isgroup_map) == 0) {
 				struct ifgroupreq	 ifgr2;
@@ -1580,7 +1612,7 @@ is_a_group(char *name)
 {
 	ENTRY	 		 item;
 	ENTRY			*ret_item;
-	
+
 	item.key = name;
 	if (hsearch_r(item, FIND, &ret_item, &isgroup_map) == 0)
 		return (0);

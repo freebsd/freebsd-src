@@ -1246,7 +1246,7 @@ pmap_bootstrap(vm_offset_t firstaddr)
 }
 
 static void
-pmap_init_reserved_pages(void)
+pmap_init_reserved_pages(void *dummy __unused)
 {
 	struct pcpu *pc;
 	vm_offset_t pages;
@@ -2158,7 +2158,7 @@ SYSCTL_PROC(_vm, OID_AUTO, kvm_free,
  ***********************************************/
 
 /*
- *  Initialize the pmap for the swapper process.
+ *  Initialize the pmap for proc0.
  */
 void
 pmap_pinit0(pmap_t pmap)

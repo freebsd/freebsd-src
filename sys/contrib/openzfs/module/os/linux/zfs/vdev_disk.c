@@ -471,13 +471,17 @@ vdev_disk_close(vdev_t *v)
 	if (v->vdev_reopening || vd == NULL)
 		return;
 
+	rw_enter(&vd->vd_lock, RW_WRITER);
+
 	if (vd->vd_bdh != NULL)
 		vdev_blkdev_put(vd->vd_bdh, spa_mode(v->vdev_spa),
 		    zfs_vdev_holder);
 
+	v->vdev_tsd = NULL;
+
+	rw_exit(&vd->vd_lock);
 	rw_destroy(&vd->vd_lock);
 	kmem_free(vd, sizeof (vdev_disk_t));
-	v->vdev_tsd = NULL;
 }
 
 /*
@@ -552,7 +556,7 @@ vdev_bio_associate_blkg(struct bio *bio)
 #endif
 
 	ASSERT3P(q, !=, NULL);
-	ASSERT3P(bio->bi_blkg, ==, NULL);
+	ASSERT0P(bio->bi_blkg);
 
 	if (q->root_blkg && vdev_blkg_tryget(q->root_blkg))
 		bio->bi_blkg = q->root_blkg;
@@ -574,7 +578,7 @@ vdev_bio_set_dev(struct bio *bio, struct block_device *bdev)
 	bio->bi_bdev = bdev;
 
 	ASSERT3P(q, !=, NULL);
-	ASSERT3P(bio->bi_blkg, ==, NULL);
+	ASSERT0P(bio->bi_blkg);
 
 	if (q->root_blkg && vdev_blkg_tryget(q->root_blkg))
 		bio->bi_blkg = q->root_blkg;
@@ -806,7 +810,7 @@ vbio_completion(struct bio *bio)
 	 * here; instead we stash vbio on the zio and take care of it in the
 	 * done callback.
 	 */
-	ASSERT3P(zio->io_bio, ==, NULL);
+	ASSERT0P(zio->io_bio);
 	zio->io_bio = vbio;
 
 	zio_delay_interrupt(zio);

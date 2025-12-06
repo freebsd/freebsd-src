@@ -1,0 +1,97 @@
+.\"
+.\" Copyright (c) 2025 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd November 3, 2025
+.Dt DTRACE_VFS 4
+.Os
+.Sh NAME
+.Nm dtrace_vfs
+.Nd a DTrace provider for Virtual File System
+.Sh SYNOPSIS
+.Sm off
+.Nm vfs Cm : fplookup : Ar function Cm : Ar name
+.Nm vfs Cm : namecache : Ar function Cm : Ar name
+.Nm vfs Cm : namei : Ar function Cm : Ar name
+.Nm vfs Cm : vop : Ar function Cm : Ar name
+.Sm on
+.Sh DESCRIPTION
+The DTrace
+.Nm vfs
+provider allows users to trace events in the
+.Xr VFS 9
+layer, the kernel interface for file systems on
+.Fx .
+.Pp
+Run
+.Ql dtrace -l -P vfs
+to list all
+.Nm vfs
+probes.
+Add
+.Fl v
+to generate program stability reports,
+which contain information about the number of probe arguments and their types.
+.Pp
+The
+.Cm fplookup
+module defines a single probe,
+.Fn vfs:fplookup:lookup:done "struct nameidata *ndp" "int line" "bool status_code" ,
+that instruments the fast path lookup code in
+.Xr VFS 9 .
+.Pp
+The
+.Cm namecache
+module provides probes related to the
+.Xr VFS 9
+cache.
+Consult the source code in
+.Pa src/sys/kern/vfs_cache.c
+for more details.
+.Pp
+The
+.Cm namei
+module manages probes related to pathname translation and lookup operations.
+Refer to
+.Xr namei 9
+to learn more.
+.Pp
+The
+.Cm vop
+module contains probes related to the functions responsible for
+.Xr vnode 9
+operations.
+.Sh COMPATIBILITY
+This provider is specific to
+.Fx .
+.Sh EXAMPLES
+Check what lookups failed to be handled in a lockless manner:
+.Bd -literal -offset 2n
+# dtrace -n 'vfs:fplookup:lookup:done { @[arg1, arg2] = count(); }'
+.Ed
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr d 7 ,
+.Xr SDT 9 ,
+.Xr namei 9 ,
+.Xr VFS 9
+.Rs
+.%A Brendan Gregg
+.%A Jim Mauro
+.%B DTrace: Dynamic Tracing in Oracle Solaris, Mac OS X and FreeBSD
+.%I Prentice Hall
+.%P pp. 335\(en351
+.%D 2011
+.%U https://www.brendangregg.com/dtracebook/
+.Re
+.Sh AUTHORS
+.An -nosplit
+The
+.Fx
+.Nm vfs
+provider was written by
+.An Robert Watson Aq Mt rwatson@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .

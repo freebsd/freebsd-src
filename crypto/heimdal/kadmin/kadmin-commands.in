@@ -76,6 +76,12 @@ command = {
 		type = "flag"
 		help = "decrypt keys"
 	}
+	option = {
+		long = "format"
+		short = "f"
+		type = "string"
+		help = "dump format, mit or heimdal (default: heimdal)"
+	}
 	argument = "[dump-file]"
 	min_args = "0"
 	max_args = "1"

@@ -57,6 +57,62 @@ module_param_named(support_vht, rtw_vht_support, bool, 0644);
 MODULE_PARM_DESC(support_vht, "Set to Y to enable VHT support");
 #endif
 
+#if defined(__FreeBSD__)
+/* Macros based on rtw89::core.c. */
+#define	RTW88_DEF_CHAN(_freq, _hw_val, _flags, _band)		\
+	{ .center_freq = _freq, .hw_value = _hw_val, .flags = _flags, .band = _band, }
+#define	RTW88_DEF_CHAN_2G(_freq, _hw_val)			\
+        RTW88_DEF_CHAN(_freq, _hw_val, 0, NL80211_BAND_2GHZ)
+#define	RTW88_DEF_CHAN_5G(_freq, _hw_val)			\
+        RTW88_DEF_CHAN(_freq, _hw_val, 0, NL80211_BAND_5GHZ)
+#define	RTW88_DEF_CHAN_5G_NO_HT40MINUS(_freq, _hw_val)		\
+        RTW88_DEF_CHAN(_freq, _hw_val, IEEE80211_CHAN_NO_HT40MINUS, NL80211_BAND_5GHZ)
+
+static struct ieee80211_channel rtw_channeltable_2g[] = {
+	RTW88_DEF_CHAN_2G(2412, 1),
+	RTW88_DEF_CHAN_2G(2417, 2),
+	RTW88_DEF_CHAN_2G(2422, 3),
+	RTW88_DEF_CHAN_2G(2427, 4),
+	RTW88_DEF_CHAN_2G(2432, 5),
+	RTW88_DEF_CHAN_2G(2437, 6),
+	RTW88_DEF_CHAN_2G(2442, 7),
+	RTW88_DEF_CHAN_2G(2447, 8),
+	RTW88_DEF_CHAN_2G(2452, 9),
+	RTW88_DEF_CHAN_2G(2457, 10),
+	RTW88_DEF_CHAN_2G(2462, 11),
+	RTW88_DEF_CHAN_2G(2467, 12),
+	RTW88_DEF_CHAN_2G(2472, 13),
+	RTW88_DEF_CHAN_2G(2484, 14),
+};
+
+static struct ieee80211_channel rtw_channeltable_5g[] = {
+	RTW88_DEF_CHAN_5G(5180, 36),
+	RTW88_DEF_CHAN_5G(5200, 40),
+	RTW88_DEF_CHAN_5G(5220, 44),
+	RTW88_DEF_CHAN_5G(5240, 48),
+	RTW88_DEF_CHAN_5G(5260, 52),
+	RTW88_DEF_CHAN_5G(5280, 56),
+	RTW88_DEF_CHAN_5G(5300, 60),
+	RTW88_DEF_CHAN_5G(5320, 64),
+	RTW88_DEF_CHAN_5G(5500, 100),
+	RTW88_DEF_CHAN_5G(5520, 104),
+	RTW88_DEF_CHAN_5G(5540, 108),
+	RTW88_DEF_CHAN_5G(5560, 112),
+	RTW88_DEF_CHAN_5G(5580, 116),
+	RTW88_DEF_CHAN_5G(5600, 120),
+	RTW88_DEF_CHAN_5G(5620, 124),
+	RTW88_DEF_CHAN_5G(5640, 128),
+	RTW88_DEF_CHAN_5G(5660, 132),
+	RTW88_DEF_CHAN_5G(5680, 136),
+	RTW88_DEF_CHAN_5G(5700, 140),
+	RTW88_DEF_CHAN_5G(5720, 144),
+	RTW88_DEF_CHAN_5G(5745, 149),
+	RTW88_DEF_CHAN_5G(5765, 153),
+	RTW88_DEF_CHAN_5G(5785, 157),
+	RTW88_DEF_CHAN_5G(5805, 161),
+	RTW88_DEF_CHAN_5G_NO_HT40MINUS(5825, 165),
+};
+#elif deifned(__linux__)
 static struct ieee80211_channel rtw_channeltable_2g[] = {
 	{.center_freq = 2412, .hw_value = 1,},
 	{.center_freq = 2417, .hw_value = 2,},
@@ -102,6 +158,7 @@ static struct ieee80211_channel rtw_channeltable_5g[] = {
 	{.center_freq = 5825, .hw_value = 165,
 	 .flags = IEEE80211_CHAN_NO_HT40MINUS},
 };
+#endif
 
 static struct ieee80211_rate rtw_ratetable[] = {
 	{.bitrate = 10, .hw_value = 0x00,},
@@ -150,7 +207,7 @@ u16 rtw_desc_to_bitrate(u8 desc_rate)
 	return rate.bitrate;
 }
 
-static struct ieee80211_supported_band rtw_band_2ghz = {
+static const struct ieee80211_supported_band rtw_band_2ghz = {
 	.band = NL80211_BAND_2GHZ,
 
 	.channels = rtw_channeltable_2g,
@@ -163,7 +220,7 @@ static struct ieee80211_supported_band rtw_band_2ghz = {
 	.vht_cap = {0},
 };
 
-static struct ieee80211_supported_band rtw_band_5ghz = {
+static const struct ieee80211_supported_band rtw_band_5ghz = {
 	.band = NL80211_BAND_5GHZ,
 
 	.channels = rtw_channeltable_5g,
@@ -363,7 +420,7 @@ int rtw_sta_add(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
 	int i;
 
-	if (vif->type == NL80211_IFTYPE_STATION) {
+	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
 		si->mac_id = rtwvif->mac_id;
 	} else {
 		si->mac_id = rtw_acquire_macid(rtwdev);
@@ -405,7 +462,7 @@ void rtw_sta_remove(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 
 	cancel_work_sync(&si->rc_work);
 
-	if (vif->type != NL80211_IFTYPE_STATION)
+	if (vif->type != NL80211_IFTYPE_STATION || sta->tdls)
 		rtw_release_macid(rtwdev, si->mac_id);
 	if (fw_exist)
 		rtw_fw_media_status_report(rtwdev, si->mac_id, false);
@@ -660,6 +717,7 @@ void rtw_fw_recovery(struct rtw_dev *rtwdev)
 	if (!test_bit(RTW_FLAG_RESTARTING, rtwdev->flags))
 		ieee80211_queue_work(rtwdev->hw, &rtwdev->fw_recovery_work);
 }
+EXPORT_SYMBOL(rtw_fw_recovery);
 
 static void __fw_recovery_work(struct rtw_dev *rtwdev)
 {
@@ -1258,7 +1316,9 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si,
 		if (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC)
 			ldpc_en = VHT_LDPC_EN;
 	} else if (sta->deflink.ht_cap.ht_supported) {
-		ra_mask |= (sta->deflink.ht_cap.mcs.rx_mask[1] << 20) |
+		ra_mask |= ((u64)sta->deflink.ht_cap.mcs.rx_mask[3] << 36) |
+			   ((u64)sta->deflink.ht_cap.mcs.rx_mask[2] << 28) |
+			   (sta->deflink.ht_cap.mcs.rx_mask[1] << 20) |
 			   (sta->deflink.ht_cap.mcs.rx_mask[0] << 12);
 		if (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_RX_STBC)
 			stbc_en = HT_STBC_EN;
@@ -1268,6 +1328,9 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si,
 
 	if (efuse->hw_cap.nss == 1 || rtwdev->hal.txrx_1ss)
 		ra_mask &= RA_MASK_VHT_RATES_1SS | RA_MASK_HT_RATES_1SS;
+	else if (efuse->hw_cap.nss == 2)
+		ra_mask &= RA_MASK_VHT_RATES_2SS | RA_MASK_HT_RATES_2SS |
+			   RA_MASK_VHT_RATES_1SS | RA_MASK_HT_RATES_1SS;
 
 	if (hal->current_band_type == RTW_BAND_5G) {
 		ra_mask |= (u64)sta->deflink.supp_rates[NL80211_BAND_5GHZ] << 4;
@@ -1330,10 +1393,9 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si,
 		break;
 	}
 
-	if (sta->deflink.vht_cap.vht_supported && ra_mask & 0xffc00000)
-		tx_num = 2;
-	else if (sta->deflink.ht_cap.ht_supported && ra_mask & 0xfff00000)
-		tx_num = 2;
+	if (sta->deflink.vht_cap.vht_supported ||
+	    sta->deflink.ht_cap.ht_supported)
+		tx_num = efuse->hw_cap.nss;
 
 	rate_id = get_rate_id(wireless_set, bw_mode, tx_num);
 
@@ -1434,6 +1496,12 @@ int rtw_power_on(struct rtw_dev *rtwdev)
 	}
 
 	chip->ops->phy_set_param(rtwdev);
+
+	ret = rtw_mac_postinit(rtwdev);
+	if (ret) {
+		rtw_err(rtwdev, "failed to configure mac in postinit\n");
+		goto err_off;
+	}
 
 	ret = rtw_hci_start(rtwdev);
 	if (ret) {
@@ -1589,6 +1657,7 @@ static void rtw_init_ht_cap(struct rtw_dev *rtwdev,
 {
 	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_efuse *efuse = &rtwdev->efuse;
+	int i;
 
 	ht_cap->ht_supported = true;
 	ht_cap->cap = 0;
@@ -1608,25 +1677,20 @@ static void rtw_init_ht_cap(struct rtw_dev *rtwdev,
 	ht_cap->ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
 	ht_cap->ampdu_density = chip->ampdu_density;
 	ht_cap->mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
-	if (efuse->hw_cap.nss > 1) {
-		ht_cap->mcs.rx_mask[0] = 0xFF;
-		ht_cap->mcs.rx_mask[1] = 0xFF;
-		ht_cap->mcs.rx_mask[4] = 0x01;
-		ht_cap->mcs.rx_highest = cpu_to_le16(300);
-	} else {
-		ht_cap->mcs.rx_mask[0] = 0xFF;
-		ht_cap->mcs.rx_mask[1] = 0x00;
-		ht_cap->mcs.rx_mask[4] = 0x01;
-		ht_cap->mcs.rx_highest = cpu_to_le16(150);
-	}
+
+	for (i = 0; i < efuse->hw_cap.nss; i++)
+		ht_cap->mcs.rx_mask[i] = 0xFF;
+	ht_cap->mcs.rx_mask[4] = 0x01;
+	ht_cap->mcs.rx_highest = cpu_to_le16(150 * efuse->hw_cap.nss);
 }
 
 static void rtw_init_vht_cap(struct rtw_dev *rtwdev,
 			     struct ieee80211_sta_vht_cap *vht_cap)
 {
 	struct rtw_efuse *efuse = &rtwdev->efuse;
-	u16 mcs_map;
+	u16 mcs_map = 0;
 	__le16 highest;
+	int i;
 
 	if (efuse->hw_cap.ptcl != EFUSE_HW_CAP_IGNORE &&
 	    efuse->hw_cap.ptcl != EFUSE_HW_CAP_PTCL_VHT)
@@ -1649,20 +1713,14 @@ static void rtw_init_vht_cap(struct rtw_dev *rtwdev,
 	if (rtw_chip_has_rx_ldpc(rtwdev))
 		vht_cap->cap |= IEEE80211_VHT_CAP_RXLDPC;
 
-	mcs_map = IEEE80211_VHT_MCS_SUPPORT_0_9 << 0 |
-		  IEEE80211_VHT_MCS_NOT_SUPPORTED << 4 |
-		  IEEE80211_VHT_MCS_NOT_SUPPORTED << 6 |
-		  IEEE80211_VHT_MCS_NOT_SUPPORTED << 8 |
-		  IEEE80211_VHT_MCS_NOT_SUPPORTED << 10 |
-		  IEEE80211_VHT_MCS_NOT_SUPPORTED << 12 |
-		  IEEE80211_VHT_MCS_NOT_SUPPORTED << 14;
-	if (efuse->hw_cap.nss > 1) {
-		highest = cpu_to_le16(780);
-		mcs_map |= IEEE80211_VHT_MCS_SUPPORT_0_9 << 2;
-	} else {
-		highest = cpu_to_le16(390);
-		mcs_map |= IEEE80211_VHT_MCS_NOT_SUPPORTED << 2;
+	for (i = 0; i < 8; i++) {
+		if (i < efuse->hw_cap.nss)
+			mcs_map |= IEEE80211_VHT_MCS_SUPPORT_0_9 << (i * 2);
+		else
+			mcs_map |= IEEE80211_VHT_MCS_NOT_SUPPORTED << (i * 2);
 	}
+
+	highest = cpu_to_le16(390 * efuse->hw_cap.nss);
 
 	vht_cap->vht_mcs.rx_mcs_map = cpu_to_le16(mcs_map);
 	vht_cap->vht_mcs.tx_mcs_map = cpu_to_le16(mcs_map);
@@ -1815,7 +1873,7 @@ static void __update_firmware_info_legacy(struct rtw_dev *rtwdev,
 static void update_firmware_info(struct rtw_dev *rtwdev,
 				 struct rtw_fw_state *fw)
 {
-	if (rtw_chip_wcpu_11n(rtwdev))
+	if (rtw_chip_wcpu_8051(rtwdev))
 		__update_firmware_info_legacy(rtwdev, fw);
 	else
 		__update_firmware_info(rtwdev, fw);
@@ -2272,7 +2330,6 @@ EXPORT_SYMBOL(rtw_core_deinit);
 
 int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 {
-	bool sta_mode_only = rtwdev->hci.type == RTW_HCI_TYPE_SDIO;
 	struct rtw_hal *hal = &rtwdev->hal;
 	int max_tx_headroom = 0;
 	int ret;
@@ -2296,17 +2353,15 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, SUPPORTS_PS);
 	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
 	ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
-	ieee80211_hw_set(hw, SUPPORTS_AMSDU_IN_AMPDU);
+	if (rtwdev->chip->amsdu_in_ampdu)
+		ieee80211_hw_set(hw, SUPPORTS_AMSDU_IN_AMPDU);
 	ieee80211_hw_set(hw, HAS_RATE_CONTROL);
 	ieee80211_hw_set(hw, TX_AMSDU);
 	ieee80211_hw_set(hw, SINGLE_SCAN_ON_ALL_BANDS);
 
-	if (sta_mode_only)
-		hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
-	else
-		hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
-					     BIT(NL80211_IFTYPE_AP) |
-					     BIT(NL80211_IFTYPE_ADHOC);
+	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
+				     BIT(NL80211_IFTYPE_AP) |
+				     BIT(NL80211_IFTYPE_ADHOC);
 	hw->wiphy->available_antennas_tx = hal->antenna_tx;
 	hw->wiphy->available_antennas_rx = hal->antenna_rx;
 
@@ -2317,7 +2372,7 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 	hw->wiphy->max_scan_ssids = RTW_SCAN_MAX_SSIDS;
 	hw->wiphy->max_scan_ie_len = rtw_get_max_scan_ie_len(rtwdev);
 
-	if (!sta_mode_only && rtwdev->chip->id == RTW_CHIP_TYPE_8822C) {
+	if (rtwdev->chip->id == RTW_CHIP_TYPE_8822C) {
 		hw->wiphy->iface_combinations = rtw_iface_combs;
 		hw->wiphy->n_iface_combinations = ARRAY_SIZE(rtw_iface_combs);
 	}
@@ -2499,6 +2554,38 @@ void rtw_core_enable_beacon(struct rtw_dev *rtwdev, bool enable)
 		rtw_write32_clr(rtwdev, REG_BCN_CTRL, BIT_EN_BCN_FUNCTION);
 		rtw_write32_set(rtwdev, REG_TXPAUSE, BIT_HIGH_QUEUE);
 	}
+}
+
+void rtw_set_ampdu_factor(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
+			  struct ieee80211_bss_conf *bss_conf)
+{
+	const struct rtw_chip_ops *ops = rtwdev->chip->ops;
+	struct ieee80211_sta *sta;
+	u8 factor = 0xff;
+
+	if (!ops->set_ampdu_factor)
+		return;
+
+	rcu_read_lock();
+
+	sta = ieee80211_find_sta(vif, bss_conf->bssid);
+	if (!sta) {
+		rcu_read_unlock();
+		rtw_warn(rtwdev, "%s: failed to find station %pM\n",
+			 __func__, bss_conf->bssid);
+		return;
+	}
+
+	if (sta->deflink.vht_cap.vht_supported)
+		factor = u32_get_bits(sta->deflink.vht_cap.cap,
+				      IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK);
+	else if (sta->deflink.ht_cap.ht_supported)
+		factor = sta->deflink.ht_cap.ampdu_factor;
+
+	rcu_read_unlock();
+
+	if (factor != 0xff)
+		ops->set_ampdu_factor(rtwdev, factor);
 }
 
 MODULE_AUTHOR("Realtek Corporation");

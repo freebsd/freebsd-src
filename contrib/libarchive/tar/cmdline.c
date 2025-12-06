@@ -22,7 +22,7 @@
 #endif
 
 #include "bsdtar.h"
-#include "err.h"
+#include "lafe_err.h"
 
 /*
  * Short options for tar.  Please keep this sorted.

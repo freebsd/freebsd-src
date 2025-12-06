@@ -960,7 +960,7 @@ struct ngnf_show_header *resp)
 
 		list_id = 0;
 		TAILQ_FOREACH(fle, &hsh->head, fle_hash) {
-			if (hsh->mtx.mtx_lock & MTX_CONTESTED) {
+			if (hsh->mtx.mtx_lock & MTX_WAITERS) {
 				resp->hash_id = i;
 				resp->list_id = list_id;
 				mtx_unlock(&hsh->mtx);
@@ -1111,7 +1111,7 @@ ng_netflow_expire(void *arg)
 			 * Interrupt thread wants this entry!
 			 * Quick! Quick! Bail out!
 			 */
-			if (hsh->mtx.mtx_lock & MTX_CONTESTED)
+			if (hsh->mtx.mtx_lock & MTX_WAITERS)
 				break;
 
 			/*
@@ -1150,7 +1150,7 @@ ng_netflow_expire(void *arg)
 			 * Interrupt thread wants this entry!
 			 * Quick! Quick! Bail out!
 			 */
-			if (hsh->mtx.mtx_lock & MTX_CONTESTED)
+			if (hsh->mtx.mtx_lock & MTX_WAITERS)
 				break;
 
 			/*

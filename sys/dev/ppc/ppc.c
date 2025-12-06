@@ -1389,7 +1389,7 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 
 		/* let's suppose the next instr. is the same */
 		prefetch:
-			for (;mi->opcode == MS_OP_RASSERT; INCR_PC)
+			for (; mi->opcode == MS_OP_RASSERT; INCR_PC)
 				w_reg(mi->arg[0].i, ppc, (char)mi->arg[1].i);
 
 			if (mi->opcode == MS_OP_DELAY) {

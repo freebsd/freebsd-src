@@ -37,7 +37,6 @@ struct vtmmio_virtqueue;
 
 struct vtmmio_softc {
 	device_t			dev;
-	device_t			platform;
 	struct resource			*res[2];
 
 	uint64_t			vtmmio_features;

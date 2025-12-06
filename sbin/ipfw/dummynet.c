@@ -680,7 +680,7 @@ ipfw_delete_pipe(int do_pipe, int i)
 	i = do_cmd(IP_DUMMYNET3, &cmd, cmd.oid.len);
 	if (i) {
 		i = 1;
-		warn("rule %u: setsockopt(IP_DUMMYNET_DEL)", i);
+		warn("rule %u: setsockopt(IP_DUMMYNET3)", i);
 	}
 	return i;
 }
@@ -1863,7 +1863,7 @@ end_mask:
 	i = do_cmd(IP_DUMMYNET3, base, (char *)buf - (char *)base);
 
 	if (i)
-		err(1, "setsockopt(%s)", "IP_DUMMYNET_CONFIGURE");
+		err(1, "setsockopt(%s)", "IP_DUMMYNET3");
 }
 
 void

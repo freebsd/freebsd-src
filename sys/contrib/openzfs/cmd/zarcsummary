@@ -1,0 +1,1073 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2008 Ben Rockwood <benr@cuddletech.com>,
+# Copyright (c) 2010 Martin Matuska <mm@FreeBSD.org>,
+# Copyright (c) 2010-2011 Jason J. Hellenthal <jhell@DataIX.net>,
+# Copyright (c) 2017 Scot W. Stevenson <scot.stevenson@gmail.com>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+"""Print statistics on the ZFS ARC Cache and other information
+
+Provides basic information on the ARC, its efficiency, the L2ARC (if present),
+the Data Management Unit (DMU), Virtual Devices (VDEVs), and tunables. See
+the in-source documentation and code at
+https://github.com/openzfs/zfs/blob/master/module/zfs/arc.c for details.
+The original introduction to zarcsummary can be found at
+http://cuddletech.com/?p=454
+"""
+
+import argparse
+import os
+import subprocess
+import sys
+import time
+import errno
+
+# We can't use env -S portably, and we need python3 -u to handle pipes in
+# the shell abruptly closing the way we want to, so...
+import io
+if isinstance(sys.__stderr__.buffer, io.BufferedWriter):
+    os.execv(sys.executable, [sys.executable, "-u"] + sys.argv)
+
+DESCRIPTION = 'Print ARC and other statistics for OpenZFS'
+INDENT = ' '*8
+LINE_LENGTH = 72
+DATE_FORMAT = '%a %b %d %H:%M:%S %Y'
+TITLE = 'ZFS Subsystem Report'
+
+SECTIONS = 'arc archits dmu l2arc spl tunables vdev zil'.split()
+SECTION_HELP = 'print info from one section ('+' '.join(SECTIONS)+')'
+
+# Tunables and SPL are handled separately because they come from
+# different sources
+SECTION_PATHS = {'arc': 'arcstats',
+                 'dmu': 'dmu_tx',
+                 'l2arc': 'arcstats',  # L2ARC stuff lives in arcstats
+                 'zfetch': 'zfetchstats',
+                 'zil': 'zil'}
+
+parser = argparse.ArgumentParser(description=DESCRIPTION)
+parser.add_argument('-a', '--alternate', action='store_true', default=False,
+                    help='use alternate formatting for tunables and SPL',
+                    dest='alt')
+parser.add_argument('-d', '--description', action='store_true', default=False,
+                    help='print descriptions with tunables and SPL',
+                    dest='desc')
+parser.add_argument('-g', '--graph', action='store_true', default=False,
+                    help='print graph on ARC use and exit', dest='graph')
+parser.add_argument('-p', '--page', type=int, dest='page',
+                    help='print page by number (DEPRECATED, use "-s")')
+parser.add_argument('-r', '--raw', action='store_true', default=False,
+                    help='dump all available data with minimal formatting',
+                    dest='raw')
+parser.add_argument('-s', '--section', dest='section', help=SECTION_HELP)
+ARGS = parser.parse_args()
+
+
+if sys.platform.startswith('freebsd'):
+    # Requires py36-sysctl on FreeBSD
+    import sysctl
+
+    def is_value(ctl):
+        return ctl.type != sysctl.CTLTYPE_NODE
+
+    def namefmt(ctl, base='vfs.zfs.'):
+        # base is removed from the name
+        cut = len(base)
+        return ctl.name[cut:]
+
+    def load_kstats(section):
+        base = 'kstat.zfs.misc.{section}.'.format(section=section)
+        fmt = lambda kstat: '{name} : {value}'.format(name=namefmt(kstat, base),
+                                                      value=kstat.value)
+        kstats = sysctl.filter(base)
+        return [fmt(kstat) for kstat in kstats if is_value(kstat)]
+
+    def get_params(base):
+        ctls = sysctl.filter(base)
+        return {namefmt(ctl): str(ctl.value) for ctl in ctls if is_value(ctl)}
+
+    def get_tunable_params():
+        return get_params('vfs.zfs')
+
+    def get_vdev_params():
+        return get_params('vfs.zfs.vdev')
+
+    def get_version_impl(request):
+        # FreeBSD reports versions for zpl and spa instead of zfs and spl.
+        name = {'zfs': 'zpl',
+                'spl': 'spa'}[request]
+        mib = 'vfs.zfs.version.{}'.format(name)
+        version = sysctl.filter(mib)[0].value
+        return '{} version {}'.format(name, version)
+
+    def get_descriptions(_request):
+        ctls = sysctl.filter('vfs.zfs')
+        return {namefmt(ctl): ctl.description for ctl in ctls if is_value(ctl)}
+
+
+elif sys.platform.startswith('linux'):
+    KSTAT_PATH = '/proc/spl/kstat/zfs'
+    SPL_PATH = '/sys/module/spl/parameters'
+    TUNABLES_PATH = '/sys/module/zfs/parameters'
+
+    def load_kstats(section):
+        path = os.path.join(KSTAT_PATH, section)
+        with open(path) as f:
+            return list(f)[2:] # Get rid of header
+
+    def get_params(basepath):
+        """Collect information on the Solaris Porting Layer (SPL) or the
+        tunables, depending on the PATH given. Does not check if PATH is
+        legal.
+        """
+        result = {}
+        for name in os.listdir(basepath):
+            path = os.path.join(basepath, name)
+            with open(path) as f:
+                value = f.read()
+                result[name] = value.strip()
+        return result
+
+    def get_spl_params():
+        return get_params(SPL_PATH)
+
+    def get_tunable_params():
+        return get_params(TUNABLES_PATH)
+
+    def get_vdev_params():
+        return get_params(TUNABLES_PATH)
+
+    def get_version_impl(request):
+        # The original zarcsummary called /sbin/modinfo/{spl,zfs} to get
+        # the version information. We switch to /sys/module/{spl,zfs}/version
+        # to make sure we get what is really loaded in the kernel
+        try:
+            with open("/sys/module/{}/version".format(request)) as f:
+                return f.read().strip()
+        except:
+            return "(unknown)"
+
+    def get_descriptions(request):
+        """Get the descriptions of the Solaris Porting Layer (SPL) or the
+        tunables, return with minimal formatting.
+        """
+
+        if request not in ('spl', 'zfs'):
+            print('ERROR: description of "{0}" requested)'.format(request))
+            sys.exit(1)
+
+        descs = {}
+        target_prefix = 'parm:'
+
+        # We would prefer to do this with /sys/modules -- see the discussion at
+        # get_version() -- but there isn't a way to get the descriptions from
+        # there, so we fall back on modinfo
+        command = ["/sbin/modinfo", request, "-0"]
+
+        info = ''
+
+        try:
+
+            info = subprocess.run(command, stdout=subprocess.PIPE,
+                                  check=True, universal_newlines=True)
+            raw_output = info.stdout.split('\0')
+
+        except subprocess.CalledProcessError:
+            print("Error: Descriptions not available",
+                  "(can't access kernel module)")
+            sys.exit(1)
+
+        for line in raw_output:
+
+            if not line.startswith(target_prefix):
+                continue
+
+            line = line[len(target_prefix):].strip()
+            name, raw_desc = line.split(':', 1)
+            desc = raw_desc.rsplit('(', 1)[0]
+
+            if desc == '':
+                desc = '(No description found)'
+
+            descs[name.strip()] = desc.strip()
+
+        return descs
+
+def handle_unraisableException(exc_type, exc_value=None, exc_traceback=None,
+                               err_msg=None, object=None):
+   handle_Exception(exc_type, object, exc_traceback)
+
+def handle_Exception(ex_cls, ex, tb):
+    if ex_cls is KeyboardInterrupt:
+        sys.exit()
+
+    if ex_cls is BrokenPipeError:
+        # It turns out that while sys.exit() triggers an exception
+        # not handled message on Python 3.8+, os._exit() does not.
+        os._exit(0)
+
+    if ex_cls is OSError:
+      if ex.errno == errno.ENOTCONN:
+        sys.exit()
+
+    raise ex
+
+if hasattr(sys,'unraisablehook'): # Python 3.8+
+    sys.unraisablehook = handle_unraisableException
+sys.excepthook = handle_Exception
+
+
+def cleanup_line(single_line):
+    """Format a raw line of data from /proc and isolate the name value
+    part, returning a tuple with each. Currently, this gets rid of the
+    middle '4'. For example "arc_no_grow    4    0" returns the tuple
+    ("arc_no_grow", "0").
+    """
+    name, _, value = single_line.split()
+
+    return name, value
+
+
+def draw_graph(kstats_dict):
+    """Draw a primitive graph representing the basic information on the
+    ARC -- its size and the proportion used by MFU and MRU -- and quit.
+    We use max size of the ARC to calculate how full it is. This is a
+    very rough representation.
+    """
+
+    arc_stats = isolate_section('arcstats', kstats_dict)
+
+    GRAPH_INDENT = ' '*4
+    GRAPH_WIDTH = 70
+    arc_max = int(arc_stats['c_max'])
+    arc_size = f_bytes(arc_stats['size'])
+    arc_perc = f_perc(arc_stats['size'], arc_max)
+    data_size = f_bytes(arc_stats['data_size'])
+    meta_size = f_bytes(arc_stats['metadata_size'])
+    dnode_size = f_bytes(arc_stats['dnode_size'])
+
+    info_form = ('ARC: {0} ({1}) Data: {2} Meta: {3} Dnode: {4}')
+    info_line = info_form.format(arc_size, arc_perc, data_size, meta_size,
+                                 dnode_size)
+    info_spc = ' '*int((GRAPH_WIDTH-len(info_line))/2)
+    info_line = GRAPH_INDENT+info_spc+info_line
+
+    graph_line = GRAPH_INDENT+'+'+('-'*(GRAPH_WIDTH-2))+'+'
+
+    arc_perc = float(int(arc_stats['size'])/arc_max)
+    data_perc = float(int(arc_stats['data_size'])/arc_max)
+    meta_perc = float(int(arc_stats['metadata_size'])/arc_max)
+    dnode_perc = float(int(arc_stats['dnode_size'])/arc_max)
+    total_ticks = float(arc_perc)*GRAPH_WIDTH
+    data_ticks = data_perc*GRAPH_WIDTH
+    meta_ticks = meta_perc*GRAPH_WIDTH
+    dnode_ticks = dnode_perc*GRAPH_WIDTH
+    other_ticks = total_ticks-(data_ticks+meta_ticks+dnode_ticks)
+
+    core_form = 'D'*int(data_ticks)+'M'*int(meta_ticks)+'N'*int(dnode_ticks)+\
+        'O'*int(other_ticks)
+    core_spc = ' '*(GRAPH_WIDTH-(2+len(core_form)))
+    core_line = GRAPH_INDENT+'|'+core_form+core_spc+'|'
+
+    for line in ('', info_line, graph_line, core_line, graph_line, ''):
+        print(line)
+
+
+def f_bytes(byte_string):
+    """Return human-readable representation of a byte value in
+    powers of 2 (eg "KiB" for "kibibytes", etc) to two decimal
+    points. Values smaller than one KiB are returned without
+    decimal points. Note "bytes" is a reserved keyword.
+    """
+
+    prefixes = ([2**80, "YiB"],   # yobibytes (yotta)
+                [2**70, "ZiB"],   # zebibytes (zetta)
+                [2**60, "EiB"],   # exbibytes (exa)
+                [2**50, "PiB"],   # pebibytes (peta)
+                [2**40, "TiB"],   # tebibytes (tera)
+                [2**30, "GiB"],   # gibibytes (giga)
+                [2**20, "MiB"],   # mebibytes (mega)
+                [2**10, "KiB"])   # kibibytes (kilo)
+
+    bites = int(byte_string)
+
+    if bites >= 2**10:
+        for limit, unit in prefixes:
+
+            if bites >= limit:
+                value = bites / limit
+                break
+
+        result = '{0:.1f} {1}'.format(value, unit)
+    else:
+        result = '{0} Bytes'.format(bites)
+
+    return result
+
+
+def f_hits(hits_string):
+    """Create a human-readable representation of the number of hits.
+    The single-letter symbols used are SI to avoid the confusion caused
+    by the different "short scale" and "long scale" representations in
+    English, which use the same words for different values. See
+    https://en.wikipedia.org/wiki/Names_of_large_numbers and:
+    https://physics.nist.gov/cuu/Units/prefixes.html
+    """
+
+    numbers = ([10**24, 'Y'],  # yotta (septillion)
+               [10**21, 'Z'],  # zetta (sextillion)
+               [10**18, 'E'],  # exa   (quintrillion)
+               [10**15, 'P'],  # peta  (quadrillion)
+               [10**12, 'T'],  # tera  (trillion)
+               [10**9, 'G'],   # giga  (billion)
+               [10**6, 'M'],   # mega  (million)
+               [10**3, 'k'])   # kilo  (thousand)
+
+    hits = int(hits_string)
+
+    if hits >= 1000:
+        for limit, symbol in numbers:
+
+            if hits >= limit:
+                value = hits/limit
+                break
+
+        result = "%0.1f%s" % (value, symbol)
+    else:
+        result = "%d" % hits
+
+    return result
+
+
+def f_perc(value1, value2):
+    """Calculate percentage and return in human-readable form. If
+    rounding produces the result '0.0' though the first number is
+    not zero, include a 'less-than' symbol to avoid confusion.
+    Division by zero is handled by returning 'n/a'; no error
+    is called.
+    """
+
+    v1 = float(value1)
+    v2 = float(value2)
+
+    try:
+        perc = 100 * v1/v2
+    except ZeroDivisionError:
+        result = 'n/a'
+    else:
+        result = '{0:0.1f} %'.format(perc)
+
+    if result == '0.0 %' and v1 > 0:
+        result = '< 0.1 %'
+
+    return result
+
+
+def format_raw_line(name, value):
+    """For the --raw option for the tunable and SPL outputs, decide on the
+    correct formatting based on the --alternate flag.
+    """
+
+    if ARGS.alt:
+        result = '{0}{1}={2}'.format(INDENT, name, value)
+    else:
+        # Right-align the value within the line length if it fits,
+        # otherwise just separate it from the name by a single space.
+        fit = LINE_LENGTH - len(INDENT) - len(name)
+        overflow = len(value) + 1
+        w = max(fit, overflow)
+        result = '{0}{1}{2:>{w}}'.format(INDENT, name, value, w=w)
+
+    return result
+
+
+def get_kstats():
+    """Collect information on the ZFS subsystem. The step does not perform any
+    further processing, giving us the option to only work on what is actually
+    needed. The name "kstat" is a holdover from the Solaris utility of the same
+    name.
+    """
+
+    result = {}
+
+    for section in SECTION_PATHS.values():
+        if section not in result:
+            result[section] = load_kstats(section)
+
+    return result
+
+
+def get_version(request):
+    """Get the version number of ZFS or SPL on this machine for header.
+    Returns an error string, but does not raise an error, if we can't
+    get the ZFS/SPL version.
+    """
+
+    if request not in ('spl', 'zfs'):
+        error_msg = '(ERROR: "{0}" requested)'.format(request)
+        return error_msg
+
+    return get_version_impl(request)
+
+
+def print_header():
+    """Print the initial heading with date and time as well as info on the
+    kernel and ZFS versions. This is not called for the graph.
+    """
+
+    # datetime is now recommended over time but we keep the exact formatting
+    # from the older version of zarcsummary in case there are scripts
+    # that expect it in this way
+    daydate = time.strftime(DATE_FORMAT)
+    spc_date = LINE_LENGTH-len(daydate)
+    sys_version = os.uname()
+
+    sys_msg = sys_version.sysname+' '+sys_version.release
+    zfs = get_version('zfs')
+    spc_zfs = LINE_LENGTH-len(zfs)
+
+    machine_msg = 'Machine: '+sys_version.nodename+' ('+sys_version.machine+')'
+    spl = get_version('spl')
+    spc_spl = LINE_LENGTH-len(spl)
+
+    print('\n'+('-'*LINE_LENGTH))
+    print('{0:<{spc}}{1}'.format(TITLE, daydate, spc=spc_date))
+    print('{0:<{spc}}{1}'.format(sys_msg, zfs, spc=spc_zfs))
+    print('{0:<{spc}}{1}\n'.format(machine_msg, spl, spc=spc_spl))
+
+
+def print_raw(kstats_dict):
+    """Print all available data from the system in a minimally sorted format.
+    This can be used as a source to be piped through 'grep'.
+    """
+
+    sections = sorted(kstats_dict.keys())
+
+    for section in sections:
+
+        print('\n{0}:'.format(section.upper()))
+        lines = sorted(kstats_dict[section])
+
+        for line in lines:
+            name, value = cleanup_line(line)
+            print(format_raw_line(name, value))
+
+    # Tunables and SPL must be handled separately because they come from a
+    # different source and have descriptions the user might request
+    print()
+    section_spl()
+    section_tunables()
+
+
+def isolate_section(section_name, kstats_dict):
+    """From the complete information on all sections, retrieve only those
+    for one section.
+    """
+
+    try:
+        section_data = kstats_dict[section_name]
+    except KeyError:
+        print('ERROR: Data on {0} not available'.format(section_data))
+        sys.exit(1)
+
+    section_dict = dict(cleanup_line(l) for l in section_data)
+
+    return section_dict
+
+
+# Formatted output helper functions
+
+
+def prt_1(text, value):
+    """Print text and one value, no indent"""
+    spc = ' '*(LINE_LENGTH-(len(text)+len(value)))
+    print('{0}{spc}{1}'.format(text, value, spc=spc))
+
+
+def prt_i1(text, value):
+    """Print text and one value, with indent"""
+    spc = ' '*(LINE_LENGTH-(len(INDENT)+len(text)+len(value)))
+    print(INDENT+'{0}{spc}{1}'.format(text, value, spc=spc))
+
+
+def prt_2(text, value1, value2):
+    """Print text and two values, no indent"""
+    values = '{0:>9}  {1:>9}'.format(value1, value2)
+    spc = ' '*(LINE_LENGTH-(len(text)+len(values)+2))
+    print('{0}{spc}  {1}'.format(text, values, spc=spc))
+
+
+def prt_i2(text, value1, value2):
+    """Print text and two values, with indent"""
+    values = '{0:>9}  {1:>9}'.format(value1, value2)
+    spc = ' '*(LINE_LENGTH-(len(INDENT)+len(text)+len(values)+2))
+    print(INDENT+'{0}{spc}  {1}'.format(text, values, spc=spc))
+
+
+# The section output concentrates on important parameters instead of
+# being exhaustive (that is what the --raw parameter is for)
+
+
+def section_arc(kstats_dict):
+    """Give basic information on the ARC, MRU and MFU. This is the first
+    and most used section.
+    """
+
+    arc_stats = isolate_section('arcstats', kstats_dict)
+
+    memory_all = arc_stats['memory_all_bytes']
+    memory_free = arc_stats['memory_free_bytes']
+    memory_avail = arc_stats['memory_available_bytes']
+    arc_size = arc_stats['size']
+    arc_target_size = arc_stats['c']
+    arc_max = arc_stats['c_max']
+    arc_min = arc_stats['c_min']
+    dnode_limit = arc_stats['arc_dnode_limit']
+
+    print('ARC status:')
+    prt_i1('Total memory size:', f_bytes(memory_all))
+    prt_i2('Min target size:', f_perc(arc_min, memory_all), f_bytes(arc_min))
+    prt_i2('Max target size:', f_perc(arc_max, memory_all), f_bytes(arc_max))
+    prt_i2('Target size (adaptive):',
+           f_perc(arc_size, arc_max), f_bytes(arc_target_size))
+    prt_i2('Current size:', f_perc(arc_size, arc_max), f_bytes(arc_size))
+    prt_i1('Free memory size:', f_bytes(memory_free))
+    prt_i1('Available memory size:', f_bytes(memory_avail))
+    print()
+
+    compressed_size = arc_stats['compressed_size']
+    uncompressed_size = arc_stats['uncompressed_size']
+    overhead_size = arc_stats['overhead_size']
+    bonus_size = arc_stats['bonus_size']
+    dnode_size = arc_stats['dnode_size']
+    dbuf_size = arc_stats['dbuf_size']
+    hdr_size = arc_stats['hdr_size']
+    l2_hdr_size = arc_stats['l2_hdr_size']
+    abd_chunk_waste_size = arc_stats['abd_chunk_waste_size']
+
+    prt_1('ARC structural breakdown (current size):', f_bytes(arc_size))
+    prt_i2('Compressed size:',
+           f_perc(compressed_size, arc_size), f_bytes(compressed_size))
+    prt_i2('Overhead size:',
+           f_perc(overhead_size, arc_size), f_bytes(overhead_size))
+    prt_i2('Bonus size:',
+           f_perc(bonus_size, arc_size), f_bytes(bonus_size))
+    prt_i2('Dnode size:',
+           f_perc(dnode_size, arc_size), f_bytes(dnode_size))
+    prt_i2('Dbuf size:',
+           f_perc(dbuf_size, arc_size), f_bytes(dbuf_size))
+    prt_i2('Header size:',
+           f_perc(hdr_size, arc_size), f_bytes(hdr_size))
+    prt_i2('L2 header size:',
+           f_perc(l2_hdr_size, arc_size), f_bytes(l2_hdr_size))
+    prt_i2('ABD chunk waste size:',
+           f_perc(abd_chunk_waste_size, arc_size), f_bytes(abd_chunk_waste_size))
+    print()
+
+    meta = arc_stats['meta']
+    pd = arc_stats['pd']
+    pm = arc_stats['pm']
+    data_size = arc_stats['data_size']
+    metadata_size = arc_stats['metadata_size']
+    anon_data = arc_stats['anon_data']
+    anon_metadata = arc_stats['anon_metadata']
+    mfu_data = arc_stats['mfu_data']
+    mfu_metadata = arc_stats['mfu_metadata']
+    mfu_edata = arc_stats['mfu_evictable_data']
+    mfu_emetadata = arc_stats['mfu_evictable_metadata']
+    mru_data = arc_stats['mru_data']
+    mru_metadata = arc_stats['mru_metadata']
+    mru_edata = arc_stats['mru_evictable_data']
+    mru_emetadata = arc_stats['mru_evictable_metadata']
+    mfug_data = arc_stats['mfu_ghost_data']
+    mfug_metadata = arc_stats['mfu_ghost_metadata']
+    mrug_data = arc_stats['mru_ghost_data']
+    mrug_metadata = arc_stats['mru_ghost_metadata']
+    unc_data = arc_stats['uncached_data']
+    unc_metadata = arc_stats['uncached_metadata']
+    caches_size = int(anon_data)+int(anon_metadata)+\
+        int(mfu_data)+int(mfu_metadata)+int(mru_data)+int(mru_metadata)+\
+        int(unc_data)+int(unc_metadata)
+
+    prt_1('ARC types breakdown (compressed + overhead):', f_bytes(caches_size))
+    prt_i2('Data size:',
+           f_perc(data_size, caches_size), f_bytes(data_size))
+    prt_i2('Metadata size:',
+           f_perc(metadata_size, caches_size), f_bytes(metadata_size))
+    print()
+
+    prt_1('ARC states breakdown (compressed + overhead):', f_bytes(caches_size))
+    prt_i2('Anonymous data size:',
+           f_perc(anon_data, caches_size), f_bytes(anon_data))
+    prt_i2('Anonymous metadata size:',
+           f_perc(anon_metadata, caches_size), f_bytes(anon_metadata))
+    s = 4294967296
+    v = (s-int(pd))*(s-int(meta))/s
+    prt_i2('MFU data target:', f_perc(v, s),
+        f_bytes(v / 65536 * caches_size / 65536))
+    prt_i2('MFU data size:',
+           f_perc(mfu_data, caches_size), f_bytes(mfu_data))
+    prt_i2('MFU evictable data size:',
+           f_perc(mfu_edata, caches_size), f_bytes(mfu_edata))
+    prt_i1('MFU ghost data size:', f_bytes(mfug_data))
+    v = (s-int(pm))*int(meta)/s
+    prt_i2('MFU metadata target:', f_perc(v, s),
+        f_bytes(v / 65536 * caches_size / 65536))
+    prt_i2('MFU metadata size:',
+           f_perc(mfu_metadata, caches_size), f_bytes(mfu_metadata))
+    prt_i2('MFU evictable metadata size:',
+           f_perc(mfu_emetadata, caches_size), f_bytes(mfu_emetadata))
+    prt_i1('MFU ghost metadata size:', f_bytes(mfug_metadata))
+    v = int(pd)*(s-int(meta))/s
+    prt_i2('MRU data target:', f_perc(v, s),
+        f_bytes(v / 65536 * caches_size / 65536))
+    prt_i2('MRU data size:',
+           f_perc(mru_data, caches_size), f_bytes(mru_data))
+    prt_i2('MRU evictable data size:',
+           f_perc(mru_edata, caches_size), f_bytes(mru_edata))
+    prt_i1('MRU ghost data size:', f_bytes(mrug_data))
+    v = int(pm)*int(meta)/s
+    prt_i2('MRU metadata target:', f_perc(v, s),
+        f_bytes(v / 65536 * caches_size / 65536))
+    prt_i2('MRU metadata size:',
+           f_perc(mru_metadata, caches_size), f_bytes(mru_metadata))
+    prt_i2('MRU evictable metadata size:',
+           f_perc(mru_emetadata, caches_size), f_bytes(mru_emetadata))
+    prt_i1('MRU ghost metadata size:', f_bytes(mrug_metadata))
+    prt_i2('Uncached data size:',
+           f_perc(unc_data, caches_size), f_bytes(unc_data))
+    prt_i2('Uncached metadata size:',
+           f_perc(unc_metadata, caches_size), f_bytes(unc_metadata))
+    print()
+
+    print('ARC hash breakdown:')
+    prt_i1('Elements:', f_hits(arc_stats['hash_elements']))
+    prt_i1('Collisions:', f_hits(arc_stats['hash_collisions']))
+
+    prt_i1('Chain max:', f_hits(arc_stats['hash_chain_max']))
+    prt_i1('Chains:', f_hits(arc_stats['hash_chains']))
+    print()
+
+    print('ARC misc:')
+    prt_i2('Uncompressed size:', f_perc(uncompressed_size, compressed_size),
+           f_bytes(uncompressed_size))
+    prt_i1('Memory throttles:', arc_stats['memory_throttle_count'])
+    prt_i1('Memory direct reclaims:', arc_stats['memory_direct_count'])
+    prt_i1('Memory indirect reclaims:', arc_stats['memory_indirect_count'])
+    prt_i1('Deleted:', f_hits(arc_stats['deleted']))
+    prt_i1('Mutex misses:', f_hits(arc_stats['mutex_miss']))
+    prt_i1('Eviction skips:', f_hits(arc_stats['evict_skip']))
+    prt_i1('Eviction skips due to L2 writes:',
+           f_hits(arc_stats['evict_l2_skip']))
+    prt_i1('L2 cached evictions:', f_bytes(arc_stats['evict_l2_cached']))
+    prt_i1('L2 eligible evictions:', f_bytes(arc_stats['evict_l2_eligible']))
+    prt_i2('L2 eligible MFU evictions:',
+           f_perc(arc_stats['evict_l2_eligible_mfu'],
+           arc_stats['evict_l2_eligible']),
+           f_bytes(arc_stats['evict_l2_eligible_mfu']))
+    prt_i2('L2 eligible MRU evictions:',
+           f_perc(arc_stats['evict_l2_eligible_mru'],
+           arc_stats['evict_l2_eligible']),
+           f_bytes(arc_stats['evict_l2_eligible_mru']))
+    prt_i1('L2 ineligible evictions:',
+           f_bytes(arc_stats['evict_l2_ineligible']))
+    print()
+
+
+def section_archits(kstats_dict):
+    """Print information on how the caches are accessed ("arc hits").
+    """
+
+    arc_stats = isolate_section('arcstats', kstats_dict)
+    all_accesses = int(arc_stats['hits'])+int(arc_stats['iohits'])+\
+        int(arc_stats['misses'])
+
+    prt_1('ARC total accesses:', f_hits(all_accesses))
+    ta_todo = (('Total hits:', arc_stats['hits']),
+               ('Total I/O hits:', arc_stats['iohits']),
+               ('Total misses:', arc_stats['misses']))
+    for title, value in ta_todo:
+        prt_i2(title, f_perc(value, all_accesses), f_hits(value))
+    print()
+
+    dd_total = int(arc_stats['demand_data_hits']) +\
+        int(arc_stats['demand_data_iohits']) +\
+        int(arc_stats['demand_data_misses'])
+    prt_2('ARC demand data accesses:', f_perc(dd_total, all_accesses),
+         f_hits(dd_total))
+    dd_todo = (('Demand data hits:', arc_stats['demand_data_hits']),
+               ('Demand data I/O hits:', arc_stats['demand_data_iohits']),
+               ('Demand data misses:', arc_stats['demand_data_misses']))
+    for title, value in dd_todo:
+        prt_i2(title, f_perc(value, dd_total), f_hits(value))
+    print()
+
+    dm_total = int(arc_stats['demand_metadata_hits']) +\
+        int(arc_stats['demand_metadata_iohits']) +\
+        int(arc_stats['demand_metadata_misses'])
+    prt_2('ARC demand metadata accesses:', f_perc(dm_total, all_accesses),
+          f_hits(dm_total))
+    dm_todo = (('Demand metadata hits:', arc_stats['demand_metadata_hits']),
+               ('Demand metadata I/O hits:',
+                arc_stats['demand_metadata_iohits']),
+               ('Demand metadata misses:', arc_stats['demand_metadata_misses']))
+    for title, value in dm_todo:
+        prt_i2(title, f_perc(value, dm_total), f_hits(value))
+    print()
+
+    pd_total = int(arc_stats['prefetch_data_hits']) +\
+        int(arc_stats['prefetch_data_iohits']) +\
+        int(arc_stats['prefetch_data_misses'])
+    prt_2('ARC prefetch data accesses:', f_perc(pd_total, all_accesses),
+          f_hits(pd_total))
+    pd_todo = (('Prefetch data hits:', arc_stats['prefetch_data_hits']),
+               ('Prefetch data I/O hits:', arc_stats['prefetch_data_iohits']),
+               ('Prefetch data misses:', arc_stats['prefetch_data_misses']))
+    for title, value in pd_todo:
+        prt_i2(title, f_perc(value, pd_total), f_hits(value))
+    print()
+
+    pm_total = int(arc_stats['prefetch_metadata_hits']) +\
+        int(arc_stats['prefetch_metadata_iohits']) +\
+        int(arc_stats['prefetch_metadata_misses'])
+    prt_2('ARC prefetch metadata accesses:', f_perc(pm_total, all_accesses),
+          f_hits(pm_total))
+    pm_todo = (('Prefetch metadata hits:',
+                arc_stats['prefetch_metadata_hits']),
+               ('Prefetch metadata I/O hits:',
+                arc_stats['prefetch_metadata_iohits']),
+               ('Prefetch metadata misses:',
+                arc_stats['prefetch_metadata_misses']))
+    for title, value in pm_todo:
+        prt_i2(title, f_perc(value, pm_total), f_hits(value))
+    print()
+
+    all_prefetches = int(arc_stats['predictive_prefetch'])+\
+        int(arc_stats['prescient_prefetch'])
+    prt_2('ARC predictive prefetches:',
+           f_perc(arc_stats['predictive_prefetch'], all_prefetches),
+           f_hits(arc_stats['predictive_prefetch']))
+    prt_i2('Demand hits after predictive:',
+           f_perc(arc_stats['demand_hit_predictive_prefetch'],
+                  arc_stats['predictive_prefetch']),
+           f_hits(arc_stats['demand_hit_predictive_prefetch']))
+    prt_i2('Demand I/O hits after predictive:',
+           f_perc(arc_stats['demand_iohit_predictive_prefetch'],
+                  arc_stats['predictive_prefetch']),
+           f_hits(arc_stats['demand_iohit_predictive_prefetch']))
+    never = int(arc_stats['predictive_prefetch']) -\
+        int(arc_stats['demand_hit_predictive_prefetch']) -\
+        int(arc_stats['demand_iohit_predictive_prefetch'])
+    prt_i2('Never demanded after predictive:',
+           f_perc(never, arc_stats['predictive_prefetch']),
+           f_hits(never))
+    print()
+
+    prt_2('ARC prescient prefetches:',
+           f_perc(arc_stats['prescient_prefetch'], all_prefetches),
+           f_hits(arc_stats['prescient_prefetch']))
+    prt_i2('Demand hits after prescient:',
+           f_perc(arc_stats['demand_hit_prescient_prefetch'],
+                  arc_stats['prescient_prefetch']),
+           f_hits(arc_stats['demand_hit_prescient_prefetch']))
+    prt_i2('Demand I/O hits after prescient:',
+           f_perc(arc_stats['demand_iohit_prescient_prefetch'],
+                  arc_stats['prescient_prefetch']),
+           f_hits(arc_stats['demand_iohit_prescient_prefetch']))
+    never = int(arc_stats['prescient_prefetch'])-\
+        int(arc_stats['demand_hit_prescient_prefetch'])-\
+        int(arc_stats['demand_iohit_prescient_prefetch'])
+    prt_i2('Never demanded after prescient:',
+           f_perc(never, arc_stats['prescient_prefetch']),
+           f_hits(never))
+    print()
+
+    print('ARC states hits of all accesses:')
+    cl_todo = (('Most frequently used (MFU):', arc_stats['mfu_hits']),
+               ('Most recently used (MRU):', arc_stats['mru_hits']),
+               ('Most frequently used (MFU) ghost:',
+                arc_stats['mfu_ghost_hits']),
+               ('Most recently used (MRU) ghost:',
+                arc_stats['mru_ghost_hits']),
+               ('Uncached:', arc_stats['uncached_hits']))
+    for title, value in cl_todo:
+        prt_i2(title, f_perc(value, all_accesses), f_hits(value))
+    print()
+
+
+def section_dmu(kstats_dict):
+    """Collect information on the DMU"""
+
+    zfetch_stats = isolate_section('zfetchstats', kstats_dict)
+
+    zfetch_access_total = int(zfetch_stats['hits']) +\
+        int(zfetch_stats['future']) + int(zfetch_stats['stride']) +\
+        int(zfetch_stats['past']) + int(zfetch_stats['misses'])
+
+    prt_1('DMU predictive prefetcher calls:', f_hits(zfetch_access_total))
+    prt_i2('Stream hits:',
+           f_perc(zfetch_stats['hits'], zfetch_access_total),
+           f_hits(zfetch_stats['hits']))
+    future = int(zfetch_stats['future']) + int(zfetch_stats['stride'])
+    prt_i2('Hits ahead of stream:', f_perc(future, zfetch_access_total),
+           f_hits(future))
+    prt_i2('Hits behind stream:',
+           f_perc(zfetch_stats['past'], zfetch_access_total),
+           f_hits(zfetch_stats['past']))
+    prt_i2('Stream misses:',
+           f_perc(zfetch_stats['misses'], zfetch_access_total),
+           f_hits(zfetch_stats['misses']))
+    prt_i2('Streams limit reached:',
+           f_perc(zfetch_stats['max_streams'], zfetch_stats['misses']),
+           f_hits(zfetch_stats['max_streams']))
+    prt_i1('Stream strides:', f_hits(zfetch_stats['stride']))
+    prt_i1('Prefetches issued', f_hits(zfetch_stats['io_issued']))
+    print()
+
+
+def section_l2arc(kstats_dict):
+    """Collect information on L2ARC device if present. If not, tell user
+    that we're skipping the section.
+    """
+
+    # The L2ARC statistics live in the same section as the normal ARC stuff
+    arc_stats = isolate_section('arcstats', kstats_dict)
+
+    if arc_stats['l2_size'] == '0':
+        print('L2ARC not detected, skipping section\n')
+        return
+
+    l2_errors = int(arc_stats['l2_writes_error']) +\
+        int(arc_stats['l2_cksum_bad']) +\
+        int(arc_stats['l2_io_error'])
+
+    l2_access_total = int(arc_stats['l2_hits'])+int(arc_stats['l2_misses'])
+    health = 'HEALTHY'
+
+    if l2_errors > 0:
+        health = 'DEGRADED'
+
+    prt_1('L2ARC status:', health)
+
+    l2_todo = (('Low memory aborts:', 'l2_abort_lowmem'),
+               ('Free on write:', 'l2_free_on_write'),
+               ('R/W clashes:', 'l2_rw_clash'),
+               ('Bad checksums:', 'l2_cksum_bad'),
+               ('Read errors:', 'l2_io_error'),
+               ('Write errors:', 'l2_writes_error'))
+
+    for title, value in l2_todo:
+        prt_i1(title, f_hits(arc_stats[value]))
+
+    print()
+    prt_1('L2ARC size (adaptive):', f_bytes(arc_stats['l2_size']))
+    prt_i2('Compressed:', f_perc(arc_stats['l2_asize'], arc_stats['l2_size']),
+           f_bytes(arc_stats['l2_asize']))
+    prt_i2('Header size:',
+           f_perc(arc_stats['l2_hdr_size'], arc_stats['l2_size']),
+           f_bytes(arc_stats['l2_hdr_size']))
+    prt_i2('MFU allocated size:',
+           f_perc(arc_stats['l2_mfu_asize'], arc_stats['l2_asize']),
+           f_bytes(arc_stats['l2_mfu_asize']))
+    prt_i2('MRU allocated size:',
+           f_perc(arc_stats['l2_mru_asize'], arc_stats['l2_asize']),
+           f_bytes(arc_stats['l2_mru_asize']))
+    prt_i2('Prefetch allocated size:',
+           f_perc(arc_stats['l2_prefetch_asize'], arc_stats['l2_asize']),
+           f_bytes(arc_stats['l2_prefetch_asize']))
+    prt_i2('Data (buffer content) allocated size:',
+           f_perc(arc_stats['l2_bufc_data_asize'], arc_stats['l2_asize']),
+           f_bytes(arc_stats['l2_bufc_data_asize']))
+    prt_i2('Metadata (buffer content) allocated size:',
+           f_perc(arc_stats['l2_bufc_metadata_asize'], arc_stats['l2_asize']),
+           f_bytes(arc_stats['l2_bufc_metadata_asize']))
+
+    print()
+    prt_1('L2ARC breakdown:', f_hits(l2_access_total))
+    prt_i2('Hit ratio:',
+           f_perc(arc_stats['l2_hits'], l2_access_total),
+           f_hits(arc_stats['l2_hits']))
+    prt_i2('Miss ratio:',
+           f_perc(arc_stats['l2_misses'], l2_access_total),
+           f_hits(arc_stats['l2_misses']))
+
+    print()
+    print('L2ARC I/O:')
+    prt_i2('Reads:',
+           f_bytes(arc_stats['l2_read_bytes']),
+           f_hits(arc_stats['l2_hits']))
+    prt_i2('Writes:',
+           f_bytes(arc_stats['l2_write_bytes']),
+           f_hits(arc_stats['l2_writes_sent']))
+
+    print()
+    print('L2ARC evicts:')
+    prt_i1('L1 cached:', f_hits(arc_stats['l2_evict_l1cached']))
+    prt_i1('While reading:', f_hits(arc_stats['l2_evict_reading']))
+    print()
+
+
+def section_spl(*_):
+    """Print the SPL parameters, if requested with alternative format
+    and/or descriptions. This does not use kstats.
+    """
+
+    if sys.platform.startswith('freebsd'):
+        # No SPL support in FreeBSD
+        return
+
+    spls = get_spl_params()
+    keylist = sorted(spls.keys())
+    print('Solaris Porting Layer (SPL):')
+
+    if ARGS.desc:
+        descriptions = get_descriptions('spl')
+
+    for key in keylist:
+        value = spls[key]
+
+        if ARGS.desc:
+            try:
+                print(INDENT+'#', descriptions[key])
+            except KeyError:
+                print(INDENT+'# (No description found)')  # paranoid
+
+        print(format_raw_line(key, value))
+
+    print()
+
+
+def section_tunables(*_):
+    """Print the tunables, if requested with alternative format and/or
+    descriptions. This does not use kstasts.
+    """
+
+    tunables = get_tunable_params()
+    keylist = sorted(tunables.keys())
+    print('Tunables:')
+
+    if ARGS.desc:
+        descriptions = get_descriptions('zfs')
+
+    for key in keylist:
+        value = tunables[key]
+
+        if ARGS.desc:
+            try:
+                print(INDENT+'#', descriptions[key])
+            except KeyError:
+                print(INDENT+'# (No description found)')  # paranoid
+
+        print(format_raw_line(key, value))
+
+    print()
+
+
+def section_zil(kstats_dict):
+    """Collect information on the ZFS Intent Log. Some of the information
+    taken from https://github.com/openzfs/zfs/blob/master/include/sys/zil.h
+    """
+
+    zil_stats = isolate_section('zil', kstats_dict)
+
+    prt_1('ZIL committed transactions:',
+          f_hits(zil_stats['zil_itx_count']))
+    prt_i1('Commit requests:', f_hits(zil_stats['zil_commit_count']))
+    prt_i1('Flushes to stable storage:',
+           f_hits(zil_stats['zil_commit_writer_count']))
+    prt_i2('Transactions to SLOG storage pool:',
+           f_bytes(zil_stats['zil_itx_metaslab_slog_bytes']),
+           f_hits(zil_stats['zil_itx_metaslab_slog_count']))
+    prt_i2('Transactions to non-SLOG storage pool:',
+           f_bytes(zil_stats['zil_itx_metaslab_normal_bytes']),
+           f_hits(zil_stats['zil_itx_metaslab_normal_count']))
+    print()
+
+
+section_calls = {'arc': section_arc,
+                 'archits': section_archits,
+                 'dmu': section_dmu,
+                 'l2arc': section_l2arc,
+                 'spl': section_spl,
+                 'tunables': section_tunables,
+                 'zil': section_zil}
+
+
+def main():
+    """Run program. The options to draw a graph and to print all data raw are
+    treated separately because they come with their own call.
+    """
+
+    kstats = get_kstats()
+
+    if ARGS.graph:
+        draw_graph(kstats)
+        sys.exit(0)
+
+    print_header()
+
+    if ARGS.raw:
+        print_raw(kstats)
+
+    elif ARGS.section:
+
+        try:
+            section_calls[ARGS.section](kstats)
+        except KeyError:
+            print('Error: Section "{0}" unknown'.format(ARGS.section))
+            sys.exit(1)
+
+    elif ARGS.page:
+        print('WARNING: Pages are deprecated, please use "--section"\n')
+
+        pages_to_calls = {1: 'arc',
+                          2: 'archits',
+                          3: 'l2arc',
+                          4: 'dmu',
+                          5: 'vdev',
+                          6: 'tunables'}
+
+        try:
+            call = pages_to_calls[ARGS.page]
+        except KeyError:
+            print('Error: Page "{0}" not supported'.format(ARGS.page))
+            sys.exit(1)
+        else:
+            section_calls[call](kstats)
+
+    else:
+        # If no parameters were given, we print all sections. We might want to
+        # change the sequence by hand
+        calls = sorted(section_calls.keys())
+
+        for section in calls:
+            section_calls[section](kstats)
+
+    sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()

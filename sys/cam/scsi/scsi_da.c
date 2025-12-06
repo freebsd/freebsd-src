@@ -2408,11 +2408,11 @@ dasysctlinit(void *context, int pending)
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "rotating", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    &softc->flags, (u_int)DA_FLAG_ROTATING, dabitsysctl, "I",
-	    "Rotating media *DEPRECATED* gone in FreeBSD 15");
+	    "Rotating media *DEPRECATED* gone in FreeBSD 16");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "unmapped_io", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    &softc->flags, (u_int)DA_FLAG_UNMAPPEDIO, dabitsysctl, "I",
-	    "Unmapped I/O support *DEPRECATED* gone in FreeBSD 15");
+	    "Unmapped I/O support *DEPRECATED* gone in FreeBSD 16");
 
 #ifdef CAM_TEST_FAILURE
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
@@ -3369,11 +3369,32 @@ static void
 dastart(struct cam_periph *periph, union ccb *start_ccb)
 {
 	struct da_softc *softc;
+	uint32_t priority = start_ccb->ccb_h.pinfo.priority;
 
 	cam_periph_assert(periph, MA_OWNED);
 	softc = (struct da_softc *)periph->softc;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dastart\n"));
+
+	/*
+	 * When we're running the state machine, we should only accept DEV CCBs.
+	 * When we're doing normal I/O we should only accept NORMAL CCBs.
+	 *
+	 * While in the state machine, we carefully single step the queue, but
+	 * there's no protection for 'extra' calls to xpt_schedule() at the
+	 * wrong priority. Guard against that so that we filter any CCBs that
+	 * are offered at the wrong priority. This avoids generating requests
+	 * that are at normal priority. In addition, though we can't easily
+	 * enforce it, one must not transition to the NORMAL state via the
+	 * skipstate mechanism.
+`        */
+	if ((softc->state != DA_STATE_NORMAL && priority != CAM_PRIORITY_DEV) ||
+	    (softc->state == DA_STATE_NORMAL && priority != CAM_PRIORITY_NORMAL)) {
+		xpt_print(periph->path, "Bad priority for state %d prio %d\n",
+		    softc->state, priority);
+		xpt_release_ccb(start_ccb);
+		return;
+	}
 
 skipstate:
 	switch (softc->state) {
@@ -6830,7 +6851,7 @@ scsi_ata_zac_mgmt_out(struct ccb_scsiio *csio, uint32_t retries,
 			/*
 			 * For SEND FPDMA QUEUED, the transfer length is
 			 * encoded in the FEATURE register, and 0 means
-			 * that 65536 512 byte blocks are to be tranferred.
+			 * that 65536 512 byte blocks are to be transferred.
 			 * In practice, it seems unlikely that we'll see
 			 * a transfer that large, and it may confuse the
 			 * the SAT layer, because generally that means that
@@ -6916,7 +6937,7 @@ scsi_ata_zac_mgmt_in(struct ccb_scsiio *csio, uint32_t retries,
 		/*
 		 * For RECEIVE FPDMA QUEUED, the transfer length is
 		 * encoded in the FEATURE register, and 0 means
-		 * that 65536 512 byte blocks are to be tranferred.
+		 * that 65536 512 byte blocks are to be transferred.
 		 * In practice, it seems unlikely that we'll see
 		 * a transfer that large, and it may confuse the
 		 * the SAT layer, because generally that means that

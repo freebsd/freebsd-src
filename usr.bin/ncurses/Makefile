@@ -1,4 +1,4 @@
-PACKAGE=	runtime
+PACKAGE=	ncurses
 
 .include <bsd.own.mk>
 .include "${SRCTOP}/lib/ncurses/config.mk"

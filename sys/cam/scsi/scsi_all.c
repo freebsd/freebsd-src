@@ -112,7 +112,7 @@ static void	fetchtableentries(int sense_key, int asc, int ascq,
 				  const struct asc_table_entry **);
 
 #ifdef _KERNEL
-static void	init_scsi_delay(void);
+static void	init_scsi_delay(void *);
 static int	sysctl_scsi_delay(SYSCTL_HANDLER_ARGS);
 static int	set_scsi_delay(int delay);
 #endif
@@ -686,7 +686,7 @@ scsi_op_desc(uint16_t opcode, struct scsi_inquiry_data *inq_data)
 	opmask = 1 << pd_type;
 
 	for (j = 0; j < num_tables; j++) {
-		for (i = 0;i < num_ops[j] && table[j][i].opcode <= opcode; i++){
+		for (i = 0; i < num_ops[j] && table[j][i].opcode <= opcode; i++) {
 			if ((table[j][i].opcode == opcode)
 			 && ((table[j][i].opmask & opmask) != 0))
 				return(table[j][i].desc);
@@ -8001,9 +8001,9 @@ scsi_read_capacity_16(struct ccb_scsiio *csio, uint32_t retries,
 	scsi_u64to8b(lba, scsi_cmd->addr);
 	scsi_ulto4b(rcap_buf_len, scsi_cmd->alloc_len);
 	if (pmi)
-		reladr |= SRC16_PMI;
+		scsi_cmd->reladr |= SRC16_PMI;
 	if (reladr)
-		reladr |= SRC16_RELADR;
+		scsi_cmd->reladr |= SRC16_RELADR;
 }
 
 void
@@ -8984,7 +8984,8 @@ void
 scsi_start_stop(struct ccb_scsiio *csio, uint32_t retries,
 		void (*cbfcnp)(struct cam_periph *, union ccb *),
 		uint8_t tag_action, int start, int load_eject,
-		int immediate, uint8_t sense_len, uint32_t timeout)
+		int immediate, uint8_t power_condition, uint8_t sense_len,
+		uint32_t timeout)
 {
 	struct scsi_start_stop_unit *scsi_cmd;
 	int extra_flags = 0;
@@ -8999,6 +9000,7 @@ scsi_start_stop(struct ccb_scsiio *csio, uint32_t retries,
 	}
 	if (load_eject != 0)
 		scsi_cmd->how |= SSS_LOEJ;
+	scsi_cmd->how |= power_condition;
 	if (immediate != 0)
 		scsi_cmd->byte2 |= SSS_IMMED;
 
@@ -9379,7 +9381,7 @@ scsi_vpd_supported_page(struct cam_periph *periph, uint8_t page_id)
 }
 
 static void
-init_scsi_delay(void)
+init_scsi_delay(void *dummy __unused)
 {
 	int delay;
 

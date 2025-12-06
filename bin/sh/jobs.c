@@ -573,6 +573,7 @@ waitcmdloop(struct job *job)
 					freejob(job);
 				else {
 					job->remembered = 0;
+					deljob(job);
 					if (job == bgjob)
 						bgjob = NULL;
 				}
@@ -599,7 +600,7 @@ waitcmdloop(struct job *job)
 					break;
 			}
 		}
-	} while (dowait(DOWAIT_BLOCK | DOWAIT_SIG, (struct job *)NULL) != -1);
+	} while (dowait(DOWAIT_BLOCK | DOWAIT_SIG, job) != -1);
 
 	sig = pendingsig_waitcmd;
 	pendingsig_waitcmd = 0;
@@ -1077,6 +1078,7 @@ waitforjob(struct job *jp, int *signaled)
 #if JOBS
 	int propagate_int = jp->jobctl && jp->foreground;
 #endif
+	int jobindex;
 	int status;
 	int st;
 
@@ -1084,8 +1086,11 @@ waitforjob(struct job *jp, int *signaled)
 	TRACE(("waitforjob(%%%td) called\n", jp - jobtab + 1));
 	while (jp->state == 0)
 		if (dowait(DOWAIT_BLOCK | (Tflag ? DOWAIT_SIG |
-		    DOWAIT_SIG_TRAP : 0), jp) == -1)
+		    DOWAIT_SIG_TRAP : 0), jp) == -1) {
+			jobindex = jp - jobtab;
 			dotrap();
+			jp = jobtab + jobindex;
+		}
 #if JOBS
 	if (jp->jobctl) {
 		if (ttyfd >= 0 && tcsetpgrp(ttyfd, rootpid) < 0)

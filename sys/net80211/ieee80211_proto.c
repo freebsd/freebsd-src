@@ -459,7 +459,7 @@ static const struct ieee80211_authenticator auth_internal = {
  * Setup internal authenticators once; they are never unregistered.
  */
 static void
-ieee80211_auth_setup(void)
+ieee80211_auth_setup(void *dummy __unused)
 {
 	ieee80211_authenticator_register(IEEE80211_AUTH_OPEN, &auth_internal);
 	ieee80211_authenticator_register(IEEE80211_AUTH_SHARED, &auth_internal);

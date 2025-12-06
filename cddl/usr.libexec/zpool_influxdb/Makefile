@@ -1,5 +1,3 @@
-ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
-
 .PATH: ${ZFSTOP}/cmd/zpool_influxdb
 .PATH: ${ZFSTOP}/man/man8
 
@@ -22,6 +20,6 @@ CFLAGS+= \
 	-DSYSCONFDIR=\"/etc\" \
 	-DPKGDATADIR=\"/usr/share/zfs\"
 
-LIBADD=	nvpair spl zfs
+LIBADD=	nvpair spl zfs pthread
 
 .include <bsd.prog.mk>

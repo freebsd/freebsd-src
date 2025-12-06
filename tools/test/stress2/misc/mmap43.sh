@@ -180,7 +180,7 @@ cd $here
 
 umount $mntpoint
 mdconfig -d -u $mdstart
-rm /tmp/$prog /tmp/$prog.c /tmp/$prog.sort
+rm /tmp/$prog /tmp/$prog.c /tmp/$prog.sort /tmp/$prog.serial.c /tmp/$prog.serial $log
 [ $s -eq 0 ] &&
 	printf "OK   File size is %9d, tail is %4d bytes. (%3d loops)\n" $size $tail $counter ||
 	printf "FAIL File size is %9d, tail is %4d bytes. (%3d loops)\n" $size $tail $counter

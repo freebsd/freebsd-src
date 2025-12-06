@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 7, 2024
+.Dd November 21, 2025
 .Dt VT 4
 .Os
 .Sh NAME
@@ -352,6 +352,12 @@ Notification that the console bell has rung.
 .It Li hz Ta Tone that was requested in Hz.
 .El
 .Sh EXAMPLES
+To increase the scrollback buffer size to 22500 lines,
+add the following line to
+.Pa /etc/rc.conf :
+.Pp
+.Dl allscreens_flags="-h 22500"
+.Pp
 This example changes the default color of normal text to green on a
 black background, or black on a green background when reversed.
 Note that white space cannot be used inside the attribute string
@@ -414,6 +420,7 @@ at boot:
 .Xr getty 8 ,
 .Xr kldload 8 ,
 .Xr moused 8 ,
+.Xr vidcontrol 8 ,
 .Xr vtfontcvt 8
 .Sh HISTORY
 The

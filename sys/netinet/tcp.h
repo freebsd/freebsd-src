@@ -541,7 +541,6 @@ struct tcp_log_user {
 #define TCP_HYBRID_PACING_H_MS		0x0008		/* A client hint for maxseg is present  */
 #define TCP_HYBRID_PACING_ENABLE	0x0010		/* We are enabling hybrid pacing else disable */
 #define TCP_HYBRID_PACING_S_MSS		0x0020		/* Clent wants us to set the mss overriding gp est in CU */
-#define TCP_HAS_PLAYOUT_MS		0x0040		/* The client included the chunk playout milliseconds: deprecate */
 /* the below are internal only flags */
 #define TCP_HYBRID_PACING_USER_MASK	0x0FFF		/* Non-internal flags mask */
 #define TCP_HYBRID_PACING_SETMSS	0x1000		/* Internal flag that tells us we set the mss on this entry */

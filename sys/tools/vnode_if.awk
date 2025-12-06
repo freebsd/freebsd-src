@@ -324,6 +324,10 @@ while ((getline < srcfile) > 0) {
 		printh("extern struct vnodeop_desc " name "_desc;");
 		printh("");
 
+		printh("SDT_PROBE_DECLARE(vfs, vop, " name ", entry);\n");
+		printh("SDT_PROBE_DECLARE(vfs, vop, " name ", return);\n");
+		printh("");
+
 		# Print out function prototypes.
 		printh("int " uname "_AP(struct " name "_args *);");
 		printh("int " uname "_APV(const struct vop_vector *vop, struct " name "_args *);");
@@ -341,10 +345,11 @@ while ((getline < srcfile) > 0) {
 			printh("\ta.a_" args[i] " = " args[i] ";");
 		if (can_inline(name)) {
 			printh("\n#if !defined(INVARIANTS) && !defined(KTR)");
-			printh("\tif (!SDT_PROBES_ENABLED())");
-			printh("\t\treturn (" args[0]"->v_op->"name"(&a));");
-			printh("\telse");
-			printh("\t\treturn (" uname "_APV("args[0]"->v_op, &a));");
+			printh("\tint rc;")
+			printh("\tSDT_PROBE2(vfs, vop, " name ", entry, a.a_" args[0] ", &a);");
+			printh("\trc = " args[0]"->v_op->"name"(&a);");
+			printh("\tSDT_PROBE3(vfs, vop, " name ", return, a.a_" args[0] ", &a, rc);");
+			printh("\treturn (rc);")
 			printh("#else");
 		}
 		printh("\treturn (" uname "_APV("args[0]"->v_op, &a));");

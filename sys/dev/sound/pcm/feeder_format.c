@@ -172,11 +172,6 @@ feed_format_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 	return (dst - b);
 }
 
-static struct pcm_feederdesc feeder_format_desc[] = {
-	{ FEEDER_FORMAT, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0 }
-};
-
 static kobj_method_t feeder_format_methods[] = {
 	KOBJMETHOD(feeder_init,		feed_format_init),
 	KOBJMETHOD(feeder_free,		feed_format_free),
@@ -185,4 +180,4 @@ static kobj_method_t feeder_format_methods[] = {
 	KOBJMETHOD_END
 };
 
-FEEDER_DECLARE(feeder_format, NULL);
+FEEDER_DECLARE(feeder_format, FEEDER_FORMAT);

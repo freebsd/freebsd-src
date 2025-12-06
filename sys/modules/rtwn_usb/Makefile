@@ -1,7 +1,5 @@
 .PATH: ${SRCTOP}/sys/dev/rtwn/usb
-
-SYSDIR?=${SRCTOP}/sys
-.include "${SYSDIR}/conf/kern.opts.mk"
+.include "${SRCTOP}/sys/conf/kern.opts.mk"
 
 KMOD     = if_rtwn_usb
 SRCS	 = rtwn_usb_attach.c rtwn_usb_ep.c rtwn_usb_reg.c rtwn_usb_rx.c \

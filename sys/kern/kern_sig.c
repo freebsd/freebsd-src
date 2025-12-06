@@ -113,7 +113,7 @@ static int	filt_sigattach(struct knote *kn);
 static void	filt_sigdetach(struct knote *kn);
 static int	filt_signal(struct knote *kn, long hint);
 static struct thread *sigtd(struct proc *p, int sig, bool fast_sigblock);
-static void	sigqueue_start(void);
+static void	sigqueue_start(void *);
 static void	sigfastblock_setpend(struct thread *td, bool resched);
 static void	sig_handle_first_stop(struct thread *td, struct proc *p,
     int sig);
@@ -124,6 +124,7 @@ const struct filterops sig_filtops = {
 	.f_attach = filt_sigattach,
 	.f_detach = filt_sigdetach,
 	.f_event = filt_signal,
+	.f_copy = knote_triv_copy,
 };
 
 static int	kern_forcesigexit = 1;
@@ -344,7 +345,7 @@ ast_sigsuspend(struct thread *td, int tda __unused)
 }
 
 static void
-sigqueue_start(void)
+sigqueue_start(void *dummy __unused)
 {
 	ksiginfo_zone = uma_zcreate("ksiginfo", sizeof(ksiginfo_t),
 		NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
@@ -2656,9 +2657,11 @@ ptrace_coredumpreq(struct thread *td, struct proc *p,
 		return;
 	}
 
+	memset(&wctx, 0, sizeof(wctx));
 	wctx.vp = tcq->tc_vp;
 	wctx.fcred = NOCRED;
 
+	memset(&cdw, 0, sizeof(wctx));
 	cdw.ctx = &wctx;
 	cdw.write_fn = core_vn_write;
 	cdw.extend_fn = core_vn_extend;

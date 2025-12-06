@@ -257,7 +257,7 @@ mv_cp110_icu_init(struct mv_cp110_icu_softc *sc, uint64_t addr)
 		WR4(sc, ICU_SETSPI_SEI_AH, (addr >> 32) & UINT32_MAX);
 		break;
 	default:
-		panic("Unkown ICU type.");
+		panic("Unknown ICU type.");
 	}
 
 	sc->initialized = true;

@@ -29,7 +29,7 @@
  * Copyright 2017 Joyent, Inc.
  * Copyright (c) 2017, Intel Corporation.
  * Copyright (c) 2019, Allan Jude
- * Copyright (c) 2019, Klara Inc.
+ * Copyright (c) 2019, 2025, Klara, Inc.
  * Copyright (c) 2019, Datto Inc.
  */
 
@@ -867,10 +867,14 @@ uint_t spa_acq_allocator(spa_t *spa);
 void spa_rel_allocator(spa_t *spa, uint_t allocator);
 void spa_select_allocator(zio_t *zio);
 
-/* spa namespace global mutex */
-extern kmutex_t spa_namespace_lock;
-extern avl_tree_t spa_namespace_avl;
-extern kcondvar_t spa_namespace_cv;
+/* spa namespace global lock */
+extern void spa_namespace_enter(const void *tag);
+extern boolean_t spa_namespace_tryenter(const void *tag);
+extern int spa_namespace_enter_interruptible(const void *tag);
+extern void spa_namespace_exit(const void *tag);
+extern boolean_t spa_namespace_held(void);
+extern void spa_namespace_wait(void);
+extern void spa_namespace_broadcast(void);
 
 /*
  * SPA configuration functions in spa_config.c
@@ -880,7 +884,6 @@ extern kcondvar_t spa_namespace_cv;
 #define	SPA_CONFIG_UPDATE_VDEVS	1
 
 extern void spa_write_cachefile(spa_t *, boolean_t, boolean_t, boolean_t);
-extern void spa_config_load(void);
 extern int spa_all_configs(uint64_t *generation, nvlist_t **pools);
 extern void spa_config_set(spa_t *spa, nvlist_t *config);
 extern nvlist_t *spa_config_generate(spa_t *spa, vdev_t *vd, uint64_t txg,
@@ -1031,7 +1034,7 @@ extern void spa_import_progress_set_notes_nolog(spa_t *spa,
 extern int spa_config_tryenter(spa_t *spa, int locks, const void *tag,
     krw_t rw);
 extern void spa_config_enter(spa_t *spa, int locks, const void *tag, krw_t rw);
-extern void spa_config_enter_mmp(spa_t *spa, int locks, const void *tag,
+extern void spa_config_enter_priority(spa_t *spa, int locks, const void *tag,
     krw_t rw);
 extern void spa_config_exit(spa_t *spa, int locks, const void *tag);
 extern int spa_config_held(spa_t *spa, int locks, krw_t rw);
@@ -1085,6 +1088,7 @@ extern pool_state_t spa_state(spa_t *spa);
 extern spa_load_state_t spa_load_state(spa_t *spa);
 extern uint64_t spa_freeze_txg(spa_t *spa);
 extern uint64_t spa_get_worst_case_asize(spa_t *spa, uint64_t lsize);
+extern void spa_get_min_alloc_range(spa_t *spa, uint64_t *min, uint64_t *max);
 extern uint64_t spa_get_dspace(spa_t *spa);
 extern uint64_t spa_get_checkpoint_space(spa_t *spa);
 extern uint64_t spa_get_slop_space(spa_t *spa);
@@ -1244,7 +1248,6 @@ extern void vdev_mirror_stat_fini(void);
 /* Initialization and termination */
 extern void spa_init(spa_mode_t mode);
 extern void spa_fini(void);
-extern void spa_boot_init(void *);
 
 /* properties */
 extern int spa_prop_set(spa_t *spa, nvlist_t *nvp);

@@ -246,7 +246,7 @@ g_union_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 			return;
 		}
 	}
-	gp = g_new_geomf(mp, "%s", name);
+	gp = g_new_geom(mp, name);
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	rw_init(&sc->sc_rwlock, "gunion");
 	TAILQ_INIT(&sc->sc_wiplist);
@@ -358,6 +358,8 @@ fail2:
 fail1:
 	g_destroy_consumer(lowercp);
 	g_destroy_provider(newpp);
+	rw_destroy(&sc->sc_rwlock);
+	g_free(sc);
 	g_destroy_geom(gp);
 }
 

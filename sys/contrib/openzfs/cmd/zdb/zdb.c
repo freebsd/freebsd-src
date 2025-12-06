@@ -89,6 +89,7 @@
 #include <sys/zstd/zstd.h>
 #include <sys/backtrace.h>
 
+#include <libzpool.h>
 #include <libnvpair.h>
 #include <libzutil.h>
 #include <libzfs_core.h>
@@ -106,8 +107,14 @@ extern boolean_t spa_mode_readable_spacemaps;
 extern uint_t zfs_reconstruct_indirect_combinations_max;
 extern uint_t zfs_btree_verify_intensity;
 
+enum {
+	ARG_ALLOCATED = 256,
+	ARG_BLOCK_BIN_MODE,
+	ARG_BLOCK_CLASSES,
+};
+
 static const char cmdname[] = "zdb";
-uint8_t dump_opt[256];
+uint8_t dump_opt[512];
 
 typedef void object_viewer_t(objset_t *, uint64_t, void *data, size_t size);
 
@@ -127,6 +134,21 @@ static zfs_range_tree_t *mos_refd_objs;
 static spa_t *spa;
 static objset_t *os;
 static boolean_t kernel_init_done;
+static boolean_t corruption_found = B_FALSE;
+
+static enum {
+	BIN_AUTO = 0,
+	BIN_PSIZE,
+	BIN_LSIZE,
+	BIN_ASIZE,
+} block_bin_mode = BIN_AUTO;
+
+static enum {
+	CLASS_NORMAL = 1 << 1,
+	CLASS_SPECIAL = 1 << 2,
+	CLASS_DEDUP = 1 << 3,
+	CLASS_OTHER = 1 << 4,
+} block_classes = 0;
 
 static void snprintf_blkptr_compact(char *, size_t, const blkptr_t *,
     boolean_t);
@@ -176,7 +198,7 @@ static int
 sublivelist_verify_blkptr(void *arg, const blkptr_t *bp, boolean_t free,
     dmu_tx_t *tx)
 {
-	ASSERT3P(tx, ==, NULL);
+	ASSERT0P(tx);
 	struct sublivelist_verify *sv = arg;
 	sublivelist_verify_block_refcnt_t current = {
 			.svbr_blk = *bp,
@@ -250,6 +272,7 @@ sublivelist_verify_func(void *args, dsl_deadlist_entry_t *dle)
 		    &e->svbr_blk, B_TRUE);
 		(void) printf("\tERROR: %d unmatched FREE(s): %s\n",
 		    e->svbr_refcnt, blkbuf);
+		corruption_found = B_TRUE;
 	}
 	zfs_btree_destroy(&sv->sv_pair);
 
@@ -381,7 +404,7 @@ verify_livelist_allocs(metaslab_verify_t *mv, uint64_t txg,
 	sublivelist_verify_block_t svb = {{{0}}};
 	DVA_SET_VDEV(&svb.svb_dva, mv->mv_vdid);
 	DVA_SET_OFFSET(&svb.svb_dva, offset);
-	DVA_SET_ASIZE(&svb.svb_dva, size);
+	DVA_SET_ASIZE(&svb.svb_dva, 0);
 	zfs_btree_index_t where;
 	uint64_t end_offset = offset + size;
 
@@ -405,6 +428,7 @@ verify_livelist_allocs(metaslab_verify_t *mv, uint64_t txg,
 			    (u_longlong_t)DVA_GET_ASIZE(&found->svb_dva),
 			    (u_longlong_t)found->svb_allocated_txg,
 			    (u_longlong_t)txg);
+			corruption_found = B_TRUE;
 		}
 	}
 }
@@ -426,6 +450,7 @@ metaslab_spacemap_validation_cb(space_map_entry_t *sme, void *arg)
 			    (u_longlong_t)txg, (u_longlong_t)offset,
 			    (u_longlong_t)size, (u_longlong_t)mv->mv_vdid,
 			    (u_longlong_t)mv->mv_msid);
+			corruption_found = B_TRUE;
 		} else {
 			zfs_range_tree_add(mv->mv_allocated,
 			    offset, size);
@@ -439,6 +464,7 @@ metaslab_spacemap_validation_cb(space_map_entry_t *sme, void *arg)
 			    (u_longlong_t)txg, (u_longlong_t)offset,
 			    (u_longlong_t)size, (u_longlong_t)mv->mv_vdid,
 			    (u_longlong_t)mv->mv_msid);
+			corruption_found = B_TRUE;
 		} else {
 			zfs_range_tree_remove(mv->mv_allocated,
 			    offset, size);
@@ -526,6 +552,7 @@ mv_populate_livelist_allocs(metaslab_verify_t *mv, sublivelist_verify_t *sv)
 			    (u_longlong_t)DVA_GET_VDEV(&svb->svb_dva),
 			    (u_longlong_t)DVA_GET_OFFSET(&svb->svb_dva),
 			    (u_longlong_t)DVA_GET_ASIZE(&svb->svb_dva));
+			corruption_found = B_TRUE;
 			continue;
 		}
 
@@ -542,6 +569,7 @@ mv_populate_livelist_allocs(metaslab_verify_t *mv, sublivelist_verify_t *sv)
 			    (u_longlong_t)DVA_GET_VDEV(&svb->svb_dva),
 			    (u_longlong_t)DVA_GET_OFFSET(&svb->svb_dva),
 			    (u_longlong_t)DVA_GET_ASIZE(&svb->svb_dva));
+			corruption_found = B_TRUE;
 			continue;
 		}
 
@@ -655,6 +683,7 @@ livelist_metaslab_validate(spa_t *spa)
 	}
 	(void) printf("ERROR: Found livelist blocks marked as allocated "
 	    "for indirect vdevs:\n");
+	corruption_found = B_TRUE;
 
 	zfs_btree_index_t *where = NULL;
 	sublivelist_verify_block_t *svb;
@@ -739,6 +768,12 @@ usage(void)
 	(void) fprintf(stderr, "    Options to control amount of output:\n");
 	(void) fprintf(stderr, "        -b --block-stats             "
 	    "block statistics\n");
+	(void) fprintf(stderr, "           --bin=(lsize|psize|asize) "
+	    "bin blocks based on this size in all three columns\n");
+	(void) fprintf(stderr,
+	    "           --class=(normal|special|dedup|other)[,...]\n"
+	    "                                     only consider blocks from "
+	    "these allocation classes\n");
 	(void) fprintf(stderr, "        -B --backup                  "
 	    "backup stream\n");
 	(void) fprintf(stderr, "        -c --checksum                "
@@ -827,7 +862,7 @@ usage(void)
 	(void) fprintf(stderr, "Specify an option more than once (e.g. -bb) "
 	    "to make only that option verbose\n");
 	(void) fprintf(stderr, "Default is to dump everything non-verbosely\n");
-	zdb_exit(1);
+	zdb_exit(2);
 }
 
 static void
@@ -892,9 +927,9 @@ dump_packed_nvlist(objset_t *os, uint64_t object, void *data, size_t size)
 	size_t nvsize = *(uint64_t *)data;
 	char *packed = umem_alloc(nvsize, UMEM_NOFAIL);
 
-	VERIFY(0 == dmu_read(os, object, 0, nvsize, packed, DMU_READ_PREFETCH));
+	VERIFY0(dmu_read(os, object, 0, nvsize, packed, DMU_READ_PREFETCH));
 
-	VERIFY(nvlist_unpack(packed, nvsize, &nv, 0) == 0);
+	VERIFY0(nvlist_unpack(packed, nvsize, &nv, 0));
 
 	umem_free(packed, nvsize);
 
@@ -1455,8 +1490,8 @@ get_obsolete_refcount(vdev_t *vd)
 			refcount++;
 		}
 	} else {
-		ASSERT3P(vd->vdev_obsolete_sm, ==, NULL);
-		ASSERT3U(obsolete_sm_object, ==, 0);
+		ASSERT0P(vd->vdev_obsolete_sm);
+		ASSERT0(obsolete_sm_object);
 	}
 	for (unsigned c = 0; c < vd->vdev_children; c++) {
 		refcount += get_obsolete_refcount(vd->vdev_child[c]);
@@ -1578,9 +1613,8 @@ dump_spacemap(objset_t *os, space_map_t *sm)
 			continue;
 		}
 
-		uint8_t words;
 		char entry_type;
-		uint64_t entry_off, entry_run, entry_vdev = SM_NO_VDEVID;
+		uint64_t entry_off, entry_run, entry_vdev;
 
 		if (sm_entry_is_single_word(word)) {
 			entry_type = (SM_TYPE_DECODE(word) == SM_ALLOC) ?
@@ -1588,18 +1622,23 @@ dump_spacemap(objset_t *os, space_map_t *sm)
 			entry_off = (SM_OFFSET_DECODE(word) << mapshift) +
 			    sm->sm_start;
 			entry_run = SM_RUN_DECODE(word) << mapshift;
-			words = 1;
+
+			(void) printf("\t    [%6llu] %c "
+			    "range: %012llx-%012llx size: %08llx\n",
+			    (u_longlong_t)entry_id, entry_type,
+			    (u_longlong_t)entry_off,
+			    (u_longlong_t)(entry_off + entry_run - 1),
+			    (u_longlong_t)entry_run);
 		} else {
 			/* it is a two-word entry so we read another word */
 			ASSERT(sm_entry_is_double_word(word));
 
 			uint64_t extra_word;
 			offset += sizeof (extra_word);
+			ASSERT3U(offset, <, space_map_length(sm));
 			VERIFY0(dmu_read(os, space_map_object(sm), offset,
 			    sizeof (extra_word), &extra_word,
 			    DMU_READ_PREFETCH));
-
-			ASSERT3U(offset, <=, space_map_length(sm));
 
 			entry_run = SM2_RUN_DECODE(word) << mapshift;
 			entry_vdev = SM2_VDEV_DECODE(word);
@@ -1607,16 +1646,19 @@ dump_spacemap(objset_t *os, space_map_t *sm)
 			    'A' : 'F';
 			entry_off = (SM2_OFFSET_DECODE(extra_word) <<
 			    mapshift) + sm->sm_start;
-			words = 2;
-		}
 
-		(void) printf("\t    [%6llu]    %c  range:"
-		    " %010llx-%010llx  size: %06llx vdev: %06llu words: %u\n",
-		    (u_longlong_t)entry_id,
-		    entry_type, (u_longlong_t)entry_off,
-		    (u_longlong_t)(entry_off + entry_run),
-		    (u_longlong_t)entry_run,
-		    (u_longlong_t)entry_vdev, words);
+			if (zopt_metaslab_args == 0 ||
+			    zopt_metaslab[0] == entry_vdev) {
+				(void) printf("\t    [%6llu] %c "
+				    "range: %012llx-%012llx size: %08llx "
+				    "vdev: %llu\n",
+				    (u_longlong_t)entry_id, entry_type,
+				    (u_longlong_t)entry_off,
+				    (u_longlong_t)(entry_off + entry_run - 1),
+				    (u_longlong_t)entry_run,
+				    (u_longlong_t)entry_vdev);
+			}
+		}
 
 		if (entry_type == 'A')
 			alloc += entry_run;
@@ -1652,6 +1694,16 @@ dump_metaslab_stats(metaslab_t *msp)
 }
 
 static void
+dump_allocated(void *arg, uint64_t start, uint64_t size)
+{
+	uint64_t *off = arg;
+	if (*off != start)
+		(void) printf("ALLOC: %"PRIu64" %"PRIu64"\n", *off,
+		    start - *off);
+	*off = start + size;
+}
+
+static void
 dump_metaslab(metaslab_t *msp)
 {
 	vdev_t *vd = msp->ms_group->mg_vd;
@@ -1667,13 +1719,24 @@ dump_metaslab(metaslab_t *msp)
 	    (u_longlong_t)msp->ms_id, (u_longlong_t)msp->ms_start,
 	    (u_longlong_t)space_map_object(sm), freebuf);
 
-	if (dump_opt['m'] > 2 && !dump_opt['L']) {
+	if (dump_opt[ARG_ALLOCATED] ||
+	    (dump_opt['m'] > 2 && !dump_opt['L'])) {
 		mutex_enter(&msp->ms_lock);
 		VERIFY0(metaslab_load(msp));
+	}
+
+	if (dump_opt['m'] > 2 && !dump_opt['L']) {
 		zfs_range_tree_stat_verify(msp->ms_allocatable);
 		dump_metaslab_stats(msp);
-		metaslab_unload(msp);
-		mutex_exit(&msp->ms_lock);
+	}
+
+	if (dump_opt[ARG_ALLOCATED]) {
+		uint64_t off = msp->ms_start;
+		zfs_range_tree_walk(msp->ms_allocatable, dump_allocated,
+		    &off);
+		if (off != msp->ms_start + msp->ms_size)
+			(void) printf("ALLOC: %"PRIu64" %"PRIu64"\n", off,
+			    msp->ms_size - off);
 	}
 
 	if (dump_opt['m'] > 1 && sm != NULL &&
@@ -1686,6 +1749,12 @@ dump_metaslab(metaslab_t *msp)
 		    (u_longlong_t)msp->ms_fragmentation);
 		dump_histogram(sm->sm_phys->smp_histogram,
 		    SPACE_MAP_HISTOGRAM_SIZE, sm->sm_shift);
+	}
+
+	if (dump_opt[ARG_ALLOCATED] ||
+	    (dump_opt['m'] > 2 && !dump_opt['L'])) {
+		metaslab_unload(msp);
+		mutex_exit(&msp->ms_lock);
 	}
 
 	if (vd->vdev_ops == &vdev_draid_ops)
@@ -1724,8 +1793,9 @@ print_vdev_metaslab_header(vdev_t *vd)
 		}
 	}
 
-	(void) printf("\tvdev %10llu   %s",
-	    (u_longlong_t)vd->vdev_id, bias_str);
+	(void) printf("\tvdev %10llu\t%s  metaslab shift %4llu",
+	    (u_longlong_t)vd->vdev_id, bias_str,
+	    (u_longlong_t)vd->vdev_ms_shift);
 
 	if (ms_flush_data_obj != 0) {
 		(void) printf("   ms_unflushed_phys object %llu",
@@ -1792,7 +1862,7 @@ print_vdev_indirect(vdev_t *vd)
 	vdev_indirect_births_t *vib = vd->vdev_indirect_births;
 
 	if (vim == NULL) {
-		ASSERT3P(vib, ==, NULL);
+		ASSERT0P(vib);
 		return;
 	}
 
@@ -1865,7 +1935,7 @@ dump_metaslabs(spa_t *spa)
 
 	(void) printf("\nMetaslabs:\n");
 
-	if (!dump_opt['d'] && zopt_metaslab_args > 0) {
+	if (zopt_metaslab_args > 0) {
 		c = zopt_metaslab[0];
 
 		if (c >= children)
@@ -2043,10 +2113,10 @@ dump_ddt_object(ddt_t *ddt, ddt_type_t type, ddt_class_t class)
 
 	if (error == ENOENT)
 		return;
-	ASSERT(error == 0);
+	ASSERT0(error);
 
 	error = ddt_object_count(ddt, type, class, &count);
-	ASSERT(error == 0);
+	ASSERT0(error);
 	if (count == 0)
 		return;
 
@@ -2583,19 +2653,17 @@ snprintf_blkptr_compact(char *blkbuf, size_t buflen, const blkptr_t *bp,
 	}
 }
 
-static void
+static u_longlong_t
 print_indirect(spa_t *spa, blkptr_t *bp, const zbookmark_phys_t *zb,
     const dnode_phys_t *dnp)
 {
 	char blkbuf[BP_SPRINTF_LEN];
+	u_longlong_t offset;
 	int l;
 
-	if (!BP_IS_EMBEDDED(bp)) {
-		ASSERT3U(BP_GET_TYPE(bp), ==, dnp->dn_type);
-		ASSERT3U(BP_GET_LEVEL(bp), ==, zb->zb_level);
-	}
+	offset = (u_longlong_t)blkid2offset(dnp, bp, zb);
 
-	(void) printf("%16llx ", (u_longlong_t)blkid2offset(dnp, bp, zb));
+	(void) printf("%16llx ", offset);
 
 	ASSERT(zb->zb_level >= 0);
 
@@ -2610,19 +2678,38 @@ print_indirect(spa_t *spa, blkptr_t *bp, const zbookmark_phys_t *zb,
 	snprintf_blkptr_compact(blkbuf, sizeof (blkbuf), bp, B_FALSE);
 	if (dump_opt['Z'] && BP_GET_COMPRESS(bp) == ZIO_COMPRESS_ZSTD)
 		snprintf_zstd_header(spa, blkbuf, sizeof (blkbuf), bp);
-	(void) printf("%s\n", blkbuf);
+	(void) printf("%s", blkbuf);
+
+	if (!BP_IS_EMBEDDED(bp)) {
+		if (BP_GET_TYPE(bp) != dnp->dn_type) {
+			(void) printf(" (ERROR: Block pointer type "
+			    "(%llu) does not match dnode type (%hhu))",
+			    BP_GET_TYPE(bp), dnp->dn_type);
+			corruption_found = B_TRUE;
+		}
+		if (BP_GET_LEVEL(bp) != zb->zb_level) {
+			(void) printf(" (ERROR: Block pointer level "
+			    "(%llu) does not match bookmark level (%lld))",
+			    BP_GET_LEVEL(bp), (longlong_t)zb->zb_level);
+			corruption_found = B_TRUE;
+		}
+	}
+	(void) printf("\n");
+
+	return (offset);
 }
 
 static int
 visit_indirect(spa_t *spa, const dnode_phys_t *dnp,
     blkptr_t *bp, const zbookmark_phys_t *zb)
 {
+	u_longlong_t offset;
 	int err = 0;
 
 	if (BP_GET_BIRTH(bp) == 0)
 		return (0);
 
-	print_indirect(spa, bp, zb, dnp);
+	offset = print_indirect(spa, bp, zb, dnp);
 
 	if (BP_GET_LEVEL(bp) > 0 && !BP_IS_HOLE(bp)) {
 		arc_flags_t flags = ARC_FLAG_WAIT;
@@ -2652,8 +2739,15 @@ visit_indirect(spa_t *spa, const dnode_phys_t *dnp,
 				break;
 			fill += BP_GET_FILL(cbp);
 		}
-		if (!err)
-			ASSERT3U(fill, ==, BP_GET_FILL(bp));
+		if (!err) {
+			if (fill != BP_GET_FILL(bp)) {
+				(void) printf("%16llx: Block pointer "
+				    "fill (%llu) does not match calculated "
+				    "value (%llu)\n", offset, BP_GET_FILL(bp),
+				    (u_longlong_t)fill);
+				corruption_found = B_TRUE;
+			}
+		}
 		arc_buf_destroy(buf, &buf);
 	}
 
@@ -2909,6 +3003,7 @@ dump_full_bpobj(bpobj_t *bpo, const char *name, int indent)
 				(void) printf("ERROR %u while trying to open "
 				    "subobj id %llu\n",
 				    error, (u_longlong_t)subobj);
+				corruption_found = B_TRUE;
 				continue;
 			}
 			dump_full_bpobj(&subbpo, "subobj", indent + 1);
@@ -3088,6 +3183,7 @@ bpobj_count_refd(bpobj_t *bpo)
 				(void) printf("ERROR %u while trying to open "
 				    "subobj id %llu\n",
 				    error, (u_longlong_t)subobj);
+				corruption_found = B_TRUE;
 				continue;
 			}
 			bpobj_count_refd(&subbpo);
@@ -3109,7 +3205,7 @@ dsl_deadlist_entry_count_refd(void *arg, dsl_deadlist_entry_t *dle)
 static int
 dsl_deadlist_entry_dump(void *arg, dsl_deadlist_entry_t *dle)
 {
-	ASSERT(arg == NULL);
+	ASSERT0P(arg);
 	if (dump_opt['d'] >= 5) {
 		char buf[128];
 		(void) snprintf(buf, sizeof (buf),
@@ -3230,6 +3326,7 @@ zdb_derive_key(dsl_dir_t *dd, uint8_t *key_out)
 	uint64_t keyformat, salt, iters;
 	int i;
 	unsigned char c;
+	FILE *f;
 
 	VERIFY0(zap_lookup(dd->dd_pool->dp_meta_objset, dd->dd_crypto_obj,
 	    zfs_prop_to_name(ZFS_PROP_KEYFORMAT), sizeof (uint64_t),
@@ -3260,6 +3357,25 @@ zdb_derive_key(dsl_dir_t *dd, uint8_t *key_out)
 		    WRAPPING_KEY_LEN, key_out) != 1)
 			return (B_FALSE);
 
+		break;
+
+	case ZFS_KEYFORMAT_RAW:
+		if ((f = fopen(key_material, "r")) == NULL)
+			return (B_FALSE);
+
+		if (fread(key_out, 1, WRAPPING_KEY_LEN, f) !=
+		    WRAPPING_KEY_LEN) {
+			(void) fclose(f);
+			return (B_FALSE);
+		}
+
+		/* Check the key length */
+		if (fgetc(f) != EOF) {
+			(void) fclose(f);
+			return (B_FALSE);
+		}
+
+		(void) fclose(f);
 		break;
 
 	default:
@@ -3347,7 +3463,7 @@ open_objset(const char *path, const void *tag, objset_t **osp)
 	uint64_t sa_attrs = 0;
 	uint64_t version = 0;
 
-	VERIFY3P(sa_os, ==, NULL);
+	VERIFY0P(sa_os);
 
 	/*
 	 * We can't own an objset if it's redacted.  Therefore, we do this
@@ -3520,8 +3636,8 @@ dump_uidgid(objset_t *os, uint64_t uid, uint64_t gid)
 		uint64_t fuid_obj;
 
 		/* first find the fuid object.  It lives in the master node */
-		VERIFY(zap_lookup(os, MASTER_NODE_OBJ, ZFS_FUID_TABLES,
-		    8, 1, &fuid_obj) == 0);
+		VERIFY0(zap_lookup(os, MASTER_NODE_OBJ, ZFS_FUID_TABLES,
+		    8, 1, &fuid_obj));
 		zfs_fuid_avl_tree_create(&idx_tree, &domain_tree);
 		(void) zfs_fuid_table_load(os, fuid_obj,
 		    &idx_tree, &domain_tree);
@@ -5723,6 +5839,34 @@ dump_size_histograms(zdb_cb_t *zcb)
 
 
 	(void) printf("\nBlock Size Histogram\n");
+	switch (block_bin_mode) {
+	case BIN_PSIZE:
+		printf("(note: all categories are binned by %s)\n", "psize");
+		break;
+	case BIN_LSIZE:
+		printf("(note: all categories are binned by %s)\n", "lsize");
+		break;
+	case BIN_ASIZE:
+		printf("(note: all categories are binned by %s)\n", "asize");
+		break;
+	default:
+		printf("(note: all categories are binned separately)\n");
+		break;
+	}
+	if (block_classes != 0) {
+		char buf[256] = "";
+		if (block_classes & CLASS_NORMAL)
+			strlcat(buf, "\"normal\", ", sizeof (buf));
+		if (block_classes & CLASS_SPECIAL)
+			strlcat(buf, "\"special\", ", sizeof (buf));
+		if (block_classes & CLASS_DEDUP)
+			strlcat(buf, "\"dedup\", ", sizeof (buf));
+		if (block_classes & CLASS_OTHER)
+			strlcat(buf, "\"other\", ", sizeof (buf));
+		buf[strlen(buf)-2] = '\0';
+		printf("(note: only blocks in these classes are counted: %s)\n",
+		    buf);
+	}
 	/*
 	 * Print the first line titles
 	 */
@@ -6071,29 +6215,85 @@ skipped:
 		    [BPE_GET_PSIZE(bp)]++;
 		return;
 	}
+
+	if (block_classes != 0) {
+		spa_config_enter(zcb->zcb_spa, SCL_CONFIG, FTAG, RW_READER);
+
+		uint64_t vdev = DVA_GET_VDEV(&bp->blk_dva[0]);
+		uint64_t offset = DVA_GET_OFFSET(&bp->blk_dva[0]);
+		vdev_t *vd = vdev_lookup_top(zcb->zcb_spa, vdev);
+		ASSERT(vd != NULL);
+		metaslab_t *ms = vd->vdev_ms[offset >> vd->vdev_ms_shift];
+		ASSERT(ms != NULL);
+		metaslab_group_t *mg = ms->ms_group;
+		ASSERT(mg != NULL);
+		metaslab_class_t *mc = mg->mg_class;
+		ASSERT(mc != NULL);
+
+		spa_config_exit(zcb->zcb_spa, SCL_CONFIG, FTAG);
+
+		int class;
+		if (mc == spa_normal_class(zcb->zcb_spa)) {
+			class = CLASS_NORMAL;
+		} else if (mc == spa_special_class(zcb->zcb_spa)) {
+			class = CLASS_SPECIAL;
+		} else if (mc == spa_dedup_class(zcb->zcb_spa)) {
+			class = CLASS_DEDUP;
+		} else {
+			class = CLASS_OTHER;
+		}
+
+		if (!(block_classes & class)) {
+			goto hist_skipped;
+		}
+	}
+
 	/*
 	 * The binning histogram bins by powers of two up to
 	 * SPA_MAXBLOCKSIZE rather than creating bins for
 	 * every possible blocksize found in the pool.
 	 */
-	int bin = highbit64(BP_GET_PSIZE(bp)) - 1;
+	int bin;
+
+	/*
+	 * Binning strategy: each bin includes blocks up to and including
+	 * the given size (excluding blocks that fit into the previous bin).
+	 * This way, the "4K" bin includes blocks within the (2K; 4K] range.
+	 */
+#define	BIN(size) (highbit64((size) - 1))
+
+	switch (block_bin_mode) {
+	case BIN_PSIZE: bin = BIN(BP_GET_PSIZE(bp)); break;
+	case BIN_LSIZE: bin = BIN(BP_GET_LSIZE(bp)); break;
+	case BIN_ASIZE: bin = BIN(BP_GET_ASIZE(bp)); break;
+	case BIN_AUTO: break;
+	default: PANIC("bad block_bin_mode"); abort();
+	}
+
+	if (block_bin_mode == BIN_AUTO)
+		bin = BIN(BP_GET_PSIZE(bp));
 
 	zcb->zcb_psize_count[bin]++;
 	zcb->zcb_psize_len[bin] += BP_GET_PSIZE(bp);
 	zcb->zcb_psize_total += BP_GET_PSIZE(bp);
 
-	bin = highbit64(BP_GET_LSIZE(bp)) - 1;
+	if (block_bin_mode == BIN_AUTO)
+		bin = BIN(BP_GET_LSIZE(bp));
 
 	zcb->zcb_lsize_count[bin]++;
 	zcb->zcb_lsize_len[bin] += BP_GET_LSIZE(bp);
 	zcb->zcb_lsize_total += BP_GET_LSIZE(bp);
 
-	bin = highbit64(BP_GET_ASIZE(bp)) - 1;
+	if (block_bin_mode == BIN_AUTO)
+		bin = BIN(BP_GET_ASIZE(bp));
 
 	zcb->zcb_asize_count[bin]++;
 	zcb->zcb_asize_len[bin] += BP_GET_ASIZE(bp);
 	zcb->zcb_asize_total += BP_GET_ASIZE(bp);
 
+#undef BIN
+
+hist_skipped:
 	if (!do_claim)
 		return;
 
@@ -7016,7 +7216,7 @@ deleted_livelists_count_blocks(spa_t *spa, zdb_cb_t *zbc)
 static void
 dump_livelist_cb(dsl_deadlist_t *ll, void *arg)
 {
-	ASSERT3P(arg, ==, NULL);
+	ASSERT0P(arg);
 	global_feature_count[SPA_FEATURE_LIVELIST]++;
 	dump_blkptr_list(ll, "Deleted Livelist");
 	dsl_deadlist_iterate(ll, sublivelist_verify_lightweight, NULL);
@@ -7700,11 +7900,11 @@ zdb_set_skip_mmp(char *target)
 	 * Disable the activity check to allow examination of
 	 * active pools.
 	 */
-	mutex_enter(&spa_namespace_lock);
+	spa_namespace_enter(FTAG);
 	if ((spa = spa_lookup(target)) != NULL) {
 		spa->spa_import_flags |= ZFS_IMPORT_SKIP_MMP;
 	}
-	mutex_exit(&spa_namespace_lock);
+	spa_namespace_exit(FTAG);
 }
 
 #define	BOGUS_SUFFIX "_CHECKPOINTED_UNIVERSE"
@@ -7913,7 +8113,7 @@ verify_checkpoint_vdev_spacemaps(spa_t *checkpoint, spa_t *current)
 		for (uint64_t c = ckpoint_rvd->vdev_children;
 		    c < current_rvd->vdev_children; c++) {
 			vdev_t *current_vd = current_rvd->vdev_child[c];
-			VERIFY3P(current_vd->vdev_checkpoint_sm, ==, NULL);
+			VERIFY0P(current_vd->vdev_checkpoint_sm);
 		}
 	}
 
@@ -9334,6 +9534,12 @@ main(int argc, char **argv)
 		{"all-reconstruction",	no_argument,		NULL, 'Y'},
 		{"livelist",		no_argument,		NULL, 'y'},
 		{"zstd-headers",	no_argument,		NULL, 'Z'},
+		{"allocated-map",	no_argument,		NULL,
+		    ARG_ALLOCATED},
+		{"bin",			required_argument,	NULL,
+		    ARG_BLOCK_BIN_MODE},
+		{"class",		required_argument,	NULL,
+		    ARG_BLOCK_CLASSES},
 		{0, 0, 0, 0}
 	};
 
@@ -9364,6 +9570,7 @@ main(int argc, char **argv)
 		case 'u':
 		case 'y':
 		case 'Z':
+		case ARG_ALLOCATED:
 			dump_opt[c]++;
 			dump_all = 0;
 			break;
@@ -9446,6 +9653,59 @@ main(int argc, char **argv)
 		case 'x':
 			vn_dumpdir = optarg;
 			break;
+		case ARG_BLOCK_BIN_MODE:
+			if (strcmp(optarg, "lsize") == 0) {
+				block_bin_mode = BIN_LSIZE;
+			} else if (strcmp(optarg, "psize") == 0) {
+				block_bin_mode = BIN_PSIZE;
+			} else if (strcmp(optarg, "asize") == 0) {
+				block_bin_mode = BIN_ASIZE;
+			} else {
+				(void) fprintf(stderr,
+				    "--bin=\"%s\" must be one of \"lsize\", "
+				    "\"psize\" or \"asize\"\n", optarg);
+				usage();
+			}
+			break;
+
+		case ARG_BLOCK_CLASSES: {
+			char *buf = strdup(optarg), *tok = buf, *next,
+			    *save = NULL;
+
+			while ((next = strtok_r(tok, ",", &save)) != NULL) {
+				tok = NULL;
+
+				if (strcmp(next, "normal") == 0) {
+					block_classes |= CLASS_NORMAL;
+				} else if (strcmp(next, "special") == 0) {
+					block_classes |= CLASS_SPECIAL;
+				} else if (strcmp(next, "dedup") == 0) {
+					block_classes |= CLASS_DEDUP;
+				} else if (strcmp(next, "other") == 0) {
+					block_classes |= CLASS_OTHER;
+				} else {
+					(void) fprintf(stderr,
+					    "--class=\"%s\" must be a "
+					    "comma-separated list of either "
+					    "\"normal\", \"special\", "
+					    "\"asize\" or \"other\"; "
+					    "got \"%s\"\n",
+					    optarg, next);
+					usage();
+				}
+			}
+
+			if (block_classes == 0) {
+				(void) fprintf(stderr,
+				    "--class= must be a comma-separated "
+				    "list of either \"normal\", \"special\", "
+				    "\"asize\" or \"other\"; got empty\n");
+				usage();
+			}
+
+			free(buf);
+			break;
+		}
 		default:
 			usage();
 			break;
@@ -9488,6 +9748,9 @@ main(int argc, char **argv)
 	 */
 	spa_mode_readable_spacemaps = B_TRUE;
 
+	libspl_set_assert_ok((dump_opt['A'] == 1) || (dump_opt['A'] > 2));
+	zfs_recover = (dump_opt['A'] > 1);
+
 	if (dump_all)
 		verbose = MAX(verbose, 1);
 
@@ -9497,9 +9760,6 @@ main(int argc, char **argv)
 		if (dump_opt[c])
 			dump_opt[c] += verbose;
 	}
-
-	libspl_set_assert_ok((dump_opt['A'] == 1) || (dump_opt['A'] > 2));
-	zfs_recover = (dump_opt['A'] > 1);
 
 	argc -= optind;
 	argv += optind;
@@ -9634,7 +9894,7 @@ main(int argc, char **argv)
 		} else if (objset_str && !zdb_numeric(objset_str + 1) &&
 		    dump_opt['N']) {
 			printf("Supply a numeric objset ID with -N\n");
-			error = 1;
+			error = 2;
 			goto fini;
 		}
 	} else {
@@ -9743,7 +10003,7 @@ main(int argc, char **argv)
 	if (error == 0) {
 		if (dump_opt['k'] && (target_is_spa || dump_opt['R'])) {
 			ASSERT(checkpoint_pool != NULL);
-			ASSERT(checkpoint_target == NULL);
+			ASSERT0P(checkpoint_target);
 
 			error = spa_open(checkpoint_pool, &spa, FTAG);
 			if (error != 0) {
@@ -9763,13 +10023,13 @@ main(int argc, char **argv)
 				 * try opening the pool after clearing the
 				 * log state.
 				 */
-				mutex_enter(&spa_namespace_lock);
+				spa_namespace_enter(FTAG);
 				if ((spa = spa_lookup(target)) != NULL &&
 				    spa->spa_log_state == SPA_LOG_MISSING) {
 					spa->spa_log_state = SPA_LOG_CLEAR;
 					error = 0;
 				}
-				mutex_exit(&spa_namespace_lock);
+				spa_namespace_exit(FTAG);
 
 				if (!error) {
 					error = spa_open_rewind(target, &spa,
@@ -9935,6 +10195,9 @@ fini:
 
 	if (kernel_init_done)
 		kernel_fini();
+
+	if (corruption_found && error == 0)
+		error = 3;
 
 	return (error);
 }

@@ -2121,8 +2121,17 @@ rpz_synthesize_nsdname_localdata(struct rpz* r, struct module_qstate* ms,
 	rpz_log_dname("nsdname local data", key.name, key.namelen);
 
 	ld = (struct local_data*)rbtree_search(&z->data, &key.node);
+	if(ld == NULL && dname_is_wild(z->name)) {
+		key.name = z->name;
+		key.namelen = z->namelen;
+		key.namelabs = z->namelabs;
+		ld = (struct local_data*)rbtree_search(&z->data, &key.node);
+		/* rpz_synthesize_localdata_from_rrset is going to make
+		 * the rrset source name equal to the query name. So no need
+		 * to make the wildcard rrset here. */
+	}
 	if(ld == NULL) {
-		verbose(VERB_ALGO, "rpz: nsdname: impossible: qname not found");
+		verbose(VERB_ALGO, "rpz: nsdname: qname not found");
 		return NULL;
 	}
 
@@ -2148,6 +2157,15 @@ rpz_synthesize_qname_localdata_msg(struct rpz* r, struct module_qstate* ms,
 	key.namelen = qinfo->qname_len;
 	key.namelabs = dname_count_labels(qinfo->qname);
 	ld = (struct local_data*)rbtree_search(&z->data, &key.node);
+	if(ld == NULL && dname_is_wild(z->name)) {
+		key.name = z->name;
+		key.namelen = z->namelen;
+		key.namelabs = z->namelabs;
+		ld = (struct local_data*)rbtree_search(&z->data, &key.node);
+		/* rpz_synthesize_localdata_from_rrset is going to make
+		 * the rrset source name equal to the query name. So no need
+		 * to make the wildcard rrset here. */
+	}
 	if(ld == NULL) {
 		verbose(VERB_ALGO, "rpz: qname: name not found");
 		return NULL;

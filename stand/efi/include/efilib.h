@@ -32,6 +32,8 @@
 #include <stdbool.h>
 #include <sys/queue.h>
 
+#include <Protocol/BlockIo.h>
+
 extern EFI_HANDLE		IH;
 extern EFI_SYSTEM_TABLE		*ST;
 extern EFI_BOOT_SERVICES	*BS;
@@ -119,7 +121,7 @@ int parse_uefi_con_out(void);
 EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab);
 
 EFI_STATUS main(int argc, CHAR16 *argv[]);
-void efi_exit(EFI_STATUS status) __dead2;
+void efi_exit(EFI_STATUS status);
 
 /* EFI environment initialization. */
 void efi_init_environment(void);

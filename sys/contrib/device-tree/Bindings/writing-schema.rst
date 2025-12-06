@@ -43,6 +43,36 @@ description
   or device does, standards the device conforms to, and links to datasheets for
   more information.
 
+  The YAML format has several options for defining the formatting of the text
+  block. The options are controlled with indicator characters following the key
+  (e.g. "description: \|"). The minimum formatting needed for a block should be
+  used. The formatting controls can not only affect whether the YAML can be
+  parsed correctly, but are important when the text blocks are rendered to
+  another form. The options are as follows.
+
+  The default without any indicators is flowed, plain scalar style where single
+  line breaks and leading whitespace are stripped. Paragraphs are delimited by
+  blank lines (i.e. double line break). This style cannot contain ": " in it as
+  it will be interpretted as a key. Any " #" sequence will be interpretted as
+  a comment. There's other restrictions on characters as well. Most
+  restrictions are on what the first character can be.
+
+  The second style is folded which is indicated by ">" character. In addition
+  to maintaining line breaks on double line breaks, the folded style also
+  maintains leading whitespace beyond indentation of the first line. The line
+  breaks on indented lines are also maintained.
+
+  The third style is literal which is indicated by "\|" character. The literal
+  style maintains all line breaks and whitespace (beyond indentation of the
+  first line).
+
+  The above is not a complete description of YAML text blocks. More details on
+  multi-line YAML text blocks can be found online:
+
+  https://yaml-multiline.info/
+
+  https://www.yaml.info/learn/quote.html
+
 select
   Optional. A json-schema used to match nodes for applying the
   schema. By default, without 'select', nodes are matched against their possible
@@ -87,9 +117,14 @@ additionalProperties / unevaluatedProperties
       should be allowed.
 
   * additionalProperties: true
-      Rare case, used for schemas implementing common set of properties. Such
-      schemas are supposed to be referenced by other schemas, which then use
-      'unevaluatedProperties: false'.  Typically bus or common-part schemas.
+      - Top-level part:
+        Rare case, used for schemas implementing common set of properties. Such
+        schemas are supposed to be referenced by other schemas, which then use
+        'unevaluatedProperties: false'.  Typically bus or common-part schemas.
+      - Nested node:
+        When listing only the expected compatible of the nested node and there
+        is an another schema matching that compatible which ends with one of
+        two above cases ('false').
 
 examples
   Optional. A list of one or more DTS hunks implementing this binding only.
@@ -135,6 +170,9 @@ Coding style
 
 Use YAML coding style (two-space indentation). For DTS examples in the schema,
 preferred is four-space indentation.
+
+Place entries in 'properties' and 'required' sections in the same order, using
+style from Documentation/devicetree/bindings/dts-coding-style.rst.
 
 Testing
 -------

@@ -83,8 +83,8 @@ my $tagged_patterns = q(
 	man/man?/*.?.in
 
 	# Unsuffixed programs (or generated of same)
-	cmd/arcstat.in
-	cmd/arc_summary
+	cmd/zarcstat.in
+	cmd/zarcsummary
 	cmd/dbufstat.in
 	cmd/zilstat.in
 	cmd/zpool/zpool.d/*
@@ -124,14 +124,12 @@ my $untagged_patterns = q(
 	include/os/freebsd/spl/sys/inttypes.h
 	include/os/freebsd/spl/sys/mode.h
 	include/os/freebsd/spl/sys/trace.h
-	include/os/freebsd/spl/sys/trace_zfs.h
+	include/os/freebsd/zfs/sys/trace_zfs.h
 	include/os/freebsd/zfs/sys/zpl.h
 	include/os/linux/kernel/linux/page_compat.h
-	lib/libspl/include/os/freebsd/sys/sysmacros.h
 	lib/libspl/include/sys/string.h
-	lib/libspl/include/sys/trace_spl.h
-	lib/libspl/include/sys/trace_zfs.h
 	lib/libzdb/libzdb.c
+	lib/libzpool/include/sys/trace_zfs.h
 	module/lua/setjmp/setjmp.S
 	module/lua/setjmp/setjmp_ppc.S
 	module/zstd/include/sparc_compat.h
@@ -190,6 +188,7 @@ my @path_license_tags = (
 	    ['BSD-2-Clause OR GPL-2.0-only', 'CDDL-1.0'],
 
 	'module/icp' => ['Apache-2.0', 'CDDL-1.0'],
+	'contrib/icp' => ['Apache-2.0', 'CDDL-1.0'],
 
 	# Python bindings are always Apache-2.0
 	'contrib/pyzfs' => ['Apache-2.0'],

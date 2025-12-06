@@ -39,7 +39,7 @@
  */
 
 void
-hdb_free_keys (krb5_context context, int len, Key *keys)
+hdb_free_keys(krb5_context context, int len, Key *keys)
 {
     int i;
 
@@ -54,6 +54,19 @@ hdb_free_keys (krb5_context context, int len, Key *keys)
 	krb5_free_keyblock_contents(context, &keys[i].key);
     }
     free (keys);
+}
+
+void
+hdb_free_keysets(krb5_context context, int len, hdb_keyset *keysets)
+{
+    int i;
+
+    for (i = 0; i < len; i++) {
+	hdb_free_keys(context, keysets[i].keys.len, keysets[i].keys.val);
+	keysets[i].keys.val = NULL;
+	keysets[i].keys.len = 0;
+    }
+    free (keysets);
 }
 
 /*
@@ -195,6 +208,60 @@ parse_key_set(krb5_context context, const char *key,
 
     return 0;
 }
+
+
+krb5_error_code
+hdb_add_current_keys_to_history(krb5_context context, hdb_entry *entry)
+{
+    krb5_error_code ret;
+    HDB_extension *ext;
+    HDB_Ext_KeySet *hist_keys;
+    hdb_keyset *tmp_keysets;
+    int add = 0;
+
+    ext = hdb_find_extension(entry, choice_HDB_extension_data_hist_keys);
+    if (ext != NULL) {
+	hist_keys = &ext->data.u.hist_keys;
+	tmp_keysets = realloc(hist_keys->val,
+			      sizeof (*hist_keys->val) * (hist_keys->len + 1));
+	if (tmp_keysets == NULL)
+	    return ENOMEM;
+	hist_keys->val = tmp_keysets;
+	memmove(&hist_keys->val[1], hist_keys->val,
+		sizeof (*hist_keys->val) * hist_keys->len++);
+    } else {
+	add = 1;
+	ext = calloc(1, sizeof (*ext));
+	if (ext == NULL)
+	    return ENOMEM;
+	ext->data.element = choice_HDB_extension_data_hist_keys;
+	hist_keys = &ext->data.u.hist_keys;
+	hist_keys->val = calloc(1, sizeof (*hist_keys->val));
+	if (hist_keys->val == NULL) {
+	    free(hist_keys);
+	    return ENOMEM;
+	}
+	hist_keys->len = 1;
+    }
+
+    hist_keys->val[0].keys.val = entry->keys.val;
+    hist_keys->val[0].keys.len = entry->keys.len;
+    hist_keys->val[0].kvno = entry->kvno;
+    hist_keys->val[0].replace_time = time(NULL);
+
+    if (add) {
+	ret = hdb_replace_extension(context, entry, ext);
+	if (ret) {
+	    free_HDB_extension(ext);
+	    return ret;
+	}
+    }
+
+    /* hdb_replace_extension() copies ext, so we have to free it */
+    free_HDB_extension(ext);
+    return 0;
+}
+
 
 static krb5_error_code
 add_enctype_to_key_set(Key **key_set, size_t *nkeyset,

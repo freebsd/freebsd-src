@@ -530,10 +530,10 @@ aw_i2s_dai_intr(device_t dev, struct snd_dbuf *play_buf, struct snd_dbuf *rec_bu
 		val  = I2S_READ(sc, DA_FSTA);
 		empty = DA_FSTA_TXE_CNT(val);
 		count = sndbuf_getready(play_buf);
-		size = sndbuf_getsize(play_buf);
+		size = play_buf->bufsize;
 		readyptr = sndbuf_getreadyptr(play_buf);
 
-		samples = (uint8_t*)sndbuf_getbuf(play_buf);
+		samples = play_buf->buf;
 		written = 0;
 		if (empty > count / 2)
 			empty = count / 2;
@@ -556,9 +556,9 @@ aw_i2s_dai_intr(device_t dev, struct snd_dbuf *play_buf, struct snd_dbuf *rec_bu
 		available = DA_FSTA_RXA_CNT(val);
 
 		count = sndbuf_getfree(rec_buf);
-		size = sndbuf_getsize(rec_buf);
+		size = rec_buf->bufsize;
 		freeptr = sndbuf_getfreeptr(rec_buf);
-		samples = (uint8_t*)sndbuf_getbuf(rec_buf);
+		samples = rec_buf->buf;
 		recorded = 0;
 		if (available > count / 2)
 			available = count / 2;

@@ -1,5 +1,3 @@
-ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
-
 .PATH: ${ZFSTOP}/lib/libzpool
 
 # ZFS_COMMON_SRCS
@@ -29,12 +27,13 @@ PICFLAG=	-fPIC
 .endif
 
 PACKAGE=	zfs
+LIB_PACKAGE=
+
 LIB=		zpool
 
 USER_C = \
 	arc_os.c \
 	kernel.c \
-	taskq.c \
 	util.c \
 	zfs_debug.c
 
@@ -179,6 +178,7 @@ KERNEL_C = \
 	zfs_debug_common.c \
 	zfs_fm.c \
 	zfs_fuid.c \
+	zfs_impl.c \
 	zfs_sa.c \
 	zfs_znode.c \
 	zfs_racct.c \
@@ -261,9 +261,8 @@ CFLAGS+= \
 	-I${ZFSTOP}/include \
 	-I${ZFSTOP}/lib/libspl/include \
 	-I${ZFSTOP}/lib/libspl/include/os/freebsd \
-	-I${SRCTOP}/sys/contrib/openzfs/lib/libzpool/include \
+	-I${ZFSTOP}/lib/libzpool/include \
 	-I${SRCTOP}/sys \
-	-I${ZFSTOP}/include/os/freebsd/zfs \
 	-I${SRCTOP}/cddl/compat/opensolaris/include \
 	-I${ZFSTOP}/module/icp/include \
 	-I${SRCTOP}/compat/linuxkpi/common/include/linux \

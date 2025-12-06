@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2016 The Go Authors. All rights reserved.
- * Copyright (c) 2024 Robert Clausecker <fuz@freebsd.org>
+ * Copyright (c) 2024 Robert Clausecker <fuz@FreeBSD.org>
  *
  * Adapted from Go's crypto/sha1/sha1block_amd64.go.
  *

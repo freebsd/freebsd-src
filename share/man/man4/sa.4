@@ -82,21 +82,19 @@ the case where a control mode device is opened.
 In the latter case, exclusive
 access is only sought when needed (e.g., to set parameters).
 .Sh SUB-MODES
-Bits 0 and 1 of the minor number are interpreted as
-.Sq sub-modes .
 The sub-modes differ in the action taken when the device is closed:
 .Bl -tag -width XXXX
-.It 00
+.It Pa /dev/sa*
 A close will rewind the device; if the tape has been
 written, then a file mark will be written before the rewind is requested.
 The device is unmounted.
-.It 01
+.It Pa /dev/nsa*
 A close will leave the tape mounted.
 If the tape was written to, a file mark will be written.
 No other head positioning takes place.
 Any further reads or writes will occur directly after the
 last read, or the written file mark.
-.It 10
+.It Pa /dev/esa*
 A close will rewind the device.
 If the tape has been
 written, then a file mark will be written before the rewind is requested.

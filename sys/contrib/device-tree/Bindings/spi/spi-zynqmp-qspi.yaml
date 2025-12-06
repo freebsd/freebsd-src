@@ -9,9 +9,6 @@ title: Xilinx Zynq UltraScale+ MPSoC GQSPI controller
 maintainers:
   - Michal Simek <michal.simek@amd.com>
 
-allOf:
-  - $ref: spi-controller.yaml#
-
 properties:
   compatible:
     enum:
@@ -19,6 +16,7 @@ properties:
       - xlnx,zynqmp-qspi-1.0
 
   reg:
+    minItems: 1
     maxItems: 2
 
   interrupts:
@@ -47,16 +45,33 @@ required:
 
 unevaluatedProperties: false
 
+allOf:
+  - $ref: spi-controller.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: xlnx,zynqmp-qspi-1.0
+    then:
+      properties:
+        reg:
+          minItems: 2
+
+    else:
+      properties:
+        reg:
+          maxItems: 1
+
 examples:
   - |
-    #include <dt-bindings/clock/xlnx-zynqmp-clk.h>
     soc {
       #address-cells = <2>;
       #size-cells = <2>;
 
       qspi: spi@ff0f0000 {
         compatible = "xlnx,zynqmp-qspi-1.0";
-        clocks = <&zynqmp_clk QSPI_REF>, <&zynqmp_clk LPD_LSBUS>;
+        clocks = <&zynqmp_clk 53>, <&zynqmp_clk 82>;
         clock-names = "ref_clk", "pclk";
         interrupts = <0 15 4>;
         interrupt-parent = <&gic>;

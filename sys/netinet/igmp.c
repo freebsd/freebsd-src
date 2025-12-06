@@ -47,7 +47,6 @@
  * MULTICAST Revision: 3.5.1.4
  */
 
-#include <sys/cdefs.h>
 #include "opt_ddb.h"
 
 #include <sys/param.h>

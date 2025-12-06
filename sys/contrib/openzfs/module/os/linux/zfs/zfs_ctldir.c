@@ -494,9 +494,9 @@ zfsctl_inode_alloc(zfsvfs_t *zfsvfs, uint64_t id,
 	if (!creation)
 		now = current_time(ip);
 	zp = ITOZ(ip);
-	ASSERT3P(zp->z_dirlocks, ==, NULL);
-	ASSERT3P(zp->z_acl_cached, ==, NULL);
-	ASSERT3P(zp->z_xattr_cached, ==, NULL);
+	ASSERT0P(zp->z_dirlocks);
+	ASSERT0P(zp->z_acl_cached);
+	ASSERT0P(zp->z_xattr_cached);
 	zp->z_id = id;
 	zp->z_unlinked = B_FALSE;
 	zp->z_atime_dirty = B_FALSE;
@@ -590,7 +590,7 @@ zfsctl_inode_lookup(zfsvfs_t *zfsvfs, uint64_t id,
 int
 zfsctl_create(zfsvfs_t *zfsvfs)
 {
-	ASSERT(zfsvfs->z_ctldir == NULL);
+	ASSERT0P(zfsvfs->z_ctldir);
 
 	zfsvfs->z_ctldir = zfsctl_inode_alloc(zfsvfs, ZFSCTL_INO_ROOT,
 	    &zpl_fops_root, &zpl_ops_root, 0);

@@ -19,7 +19,18 @@
 		reg = <0x60000000 0x40000000>;
 	};
 
-	vdd_log: vdd-log {
+	hdmi_con {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
+	};
+
+	vdd_log: regulator-vdd-log {
 		compatible = "pwm-regulator";
 		pwms = <&pwm3 0 1000>;
 		regulator-name = "vdd_log";
@@ -31,7 +42,7 @@
 		status = "okay";
 	};
 
-	vcc_sd0: sdmmc-regulator {
+	vcc_sd0: regulator-sdmmc {
 		compatible = "regulator-fixed";
 		regulator-name = "sdmmc-supply";
 		regulator-min-microvolt = <3000000>;
@@ -41,7 +52,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vsys: vsys-regulator {
+	vsys: regulator-vsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vsys";
 		regulator-min-microvolt = <5000000>;
@@ -56,6 +67,28 @@
 
 &cpu1 {
 	cpu-supply = <&vdd_arm>;
+};
+
+&gpu {
+	status = "okay";
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_in_vop1 {
+	status = "disabled";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
+};
+
+&hdmi_sound {
+	status = "okay";
 };
 
 &i2c1 {
@@ -213,6 +246,10 @@
 };
 
 &usb_otg {
+	status = "okay";
+};
+
+&vop0 {
 	status = "okay";
 };
 

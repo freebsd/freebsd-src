@@ -85,13 +85,16 @@ static int	filt_eventfdwrite(struct knote *kn, long hint);
 static const struct filterops eventfd_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_eventfddetach,
-	.f_event = filt_eventfdread
+	.f_event = filt_eventfdread,
+	.f_copy = knote_triv_copy,
 };
+
 
 static const struct filterops eventfd_wfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_eventfddetach,
-	.f_event = filt_eventfdwrite
+	.f_event = filt_eventfdwrite,
+	.f_copy = knote_triv_copy,
 };
 
 struct eventfd {

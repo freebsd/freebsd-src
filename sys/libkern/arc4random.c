@@ -156,7 +156,7 @@ chacha20_randomstir(struct chacha20_s *chacha20)
  * Initialize the contexts.
  */
 static void
-chacha20_init(void)
+chacha20_init(void *dummy __unused)
 {
 	struct chacha20_s *chacha20;
 
@@ -176,7 +176,7 @@ SYSINIT(chacha20, SI_SUB_LOCK, SI_ORDER_ANY, chacha20_init, NULL);
 
 
 static void
-chacha20_uninit(void)
+chacha20_uninit(void *dummy __unused)
 {
 	struct chacha20_s *chacha20;
 

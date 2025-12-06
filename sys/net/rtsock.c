@@ -309,7 +309,7 @@ rtsock_notify_event(uint32_t fibnum, const struct rib_cmd_info *rc)
 }
 
 static void
-rtsock_init(void)
+rtsock_init(void *dummy __unused)
 {
 	rtsbridge_orig_p = rtsock_callback_p;
 	rtsock_callback_p = &rtsbridge;

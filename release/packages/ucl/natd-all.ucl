@@ -1,4 +1,32 @@
-comment = "Network Address Translation (NAT) daemon for ipfw"
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+comment = "Userland Network Address Translation (NAT) for ipfw"
+
 desc = <<EOD
-natd provides userland NAT support for ipfw using divert(4) sockets.
+The natd(8) daemon provides a NAT implementation in userland using ipfw
+divert(4) sockets.  In most cases, ipfw's in-kernel NAT implementation
+is preferred over natd.  natd(8) is provided for backward compatibility
+with existing installations, or for users who require functionality not
+available in ipfw, such as Application Level Gateway (ALG) for the FTP
+or IRC protocols.
 EOD
+
+annotations {
+	set = "optional,optional-jail"
+}

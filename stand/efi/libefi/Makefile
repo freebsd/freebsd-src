@@ -47,13 +47,13 @@ CFLAGS+=	-mgeneral-regs-only
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+= -fPIC -mno-red-zone
 .endif
-CFLAGS+= -I${EFIINC}
+CFLAGS+= -I${EFIINC} -I${EDK2INC}
 CFLAGS+= -I${EFIINCMD}
 CFLAGS.efi_console.c+= -I${SRCTOP}/sys/teken -I${SRCTOP}/contrib/pnglite
 CFLAGS.efi_console.c+= -I${.CURDIR}/../loader
 CFLAGS.teken.c+= -I${SRCTOP}/sys/teken
 .if ${MK_LOADER_ZFS} != "no"
-CFLAGS+=	-I${ZFSSRC}
+CFLAGS+=	-I${SAZFSSRC}
 CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
 CFLAGS+=	-I${SYSDIR}/cddl/contrib/opensolaris/uts/common
 CFLAGS+=	-DEFI_ZFS_BOOT

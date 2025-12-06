@@ -241,6 +241,7 @@ static int norotate = 0;	/* Don't rotate */
 static int nosignal;		/* Do not send any signals */
 static int enforcepid = 0;	/* If PID file does not exist or empty, do nothing */
 static int force = 0;		/* Force the trim no matter what */
+static int defsignal = SIGHUP;	/* -I Signal to send by default */
 static int rotatereq = 0;	/* -R = Always rotate the file(s) as given */
 				/*    on the command (this also requires   */
 				/*    that a list of files *are* given on  */
@@ -309,7 +310,6 @@ static int age_old_log(const char *file);
 static void savelog(char *from, char *to);
 static void createdir(const struct conf_entry *ent, char *dirpart);
 static void createlog(const struct conf_entry *ent);
-static int parse_signal(const char *str);
 
 /*
  * All the following take a parameter of 'int', but expect values in the
@@ -456,7 +456,7 @@ init_entry(const char *fname, struct conf_entry *src_entry)
 		tempwork->permissions = 0;
 		tempwork->flags = 0;
 		tempwork->compress = COMPRESS_NONE;
-		tempwork->sig = SIGHUP;
+		tempwork->sig = defsignal;
 		tempwork->def_cfg = 0;
 	}
 
@@ -701,18 +701,11 @@ parse_args(int argc, char **argv)
 	hostname_shortlen = strcspn(hostname, ".");
 
 	/* Parse command line options. */
-	while ((ch = getopt(argc, argv, "a:c:d:f:nrst:vCD:FNPR:S:")) != -1)
+	while ((ch = getopt(argc, argv, "a:d:f:nrst:vCD:FI:NPR:S:")) != -1)
 		switch (ch) {
 		case 'a':
 			archtodir++;
 			archdirname = optarg;
-			break;
-		case 'c':
-			if (!parse_compression_type(optarg, &compress_type_override)) {
-				warnx("Unrecognized compression method '%s'.", optarg);
-				usage();
-			}
-			compress_type_set = true;
 			break;
 		case 'd':
 			destdir = optarg;
@@ -755,6 +748,10 @@ parse_args(int argc, char **argv)
 			/* NOTREACHED */
 		case 'F':
 			force++;
+			break;
+		case 'I':
+			if (str2sig(optarg, &defsignal) != 0)
+				usage();
 			break;
 		case 'N':
 			norotate++;
@@ -844,13 +841,6 @@ parse_doption(const char *doption)
 		return (1);			/* successfully parsed */
 	}
 
-	/* XXX - This check could probably be dropped. */
-	if ((strcmp(doption, "neworder") == 0) || (strcmp(doption, "oldorder")
-	    == 0)) {
-		warnx("NOTE: newsyslog always uses 'neworder'.");
-		return (1);			/* successfully parsed */
-	}
-
 	warnx("Unknown -D (debug) option: '%s'", doption);
 	return (0);				/* failure */
 }
@@ -858,26 +848,10 @@ parse_doption(const char *doption)
 static void
 usage(void)
 {
-	int i;
-	char *alltypes = NULL, *tmp = NULL;
-
-	for (i = 0; i < COMPRESS_TYPES; i++) {
-		if (i == COMPRESS_NONE) {
-			(void)asprintf(&tmp, "%s|legacy", compress_type[i].name);
-		} else {
-			(void)asprintf(&tmp, "%s|%s", alltypes, compress_type[i].name);
-		}
-		if (alltypes)
-			free(alltypes);
-		alltypes = tmp;
-		tmp = NULL;
-	}
 
 	fprintf(stderr,
-	    "usage: newsyslog [-CFNPnrsv] [-a directory] [-c %s]\n"
-	    "                 [-d directory] [-f config_file]\n"
-	    "                 [-S pidfile] [-t timefmt] [[-R tagname] file ...]\n",
-	    alltypes);
+	    "usage: newsyslog [-CFNPnrsv] [-a directory] [-d directory] [-f config_file]\n"
+	    "                 [-I signal] [-S pidfile] [-t timefmt] [[-R tagname] file ...]\n");
 	exit(1);
 }
 
@@ -1512,11 +1486,10 @@ no_trimat:
 			*parse = '\0';
 		}
 
-		working->sig = SIGHUP;
+		working->sig = defsignal;
 		if (q && *q) {
 got_sig:
-			working->sig = parse_signal(q);
-			if (working->sig < 1 || working->sig >= sys_nsig) {
+			if (str2sig(q, &working->sig) != 0) {
 				badline(
 				    "illegal signal in config file:\n%s",
 				    errline);
@@ -2642,7 +2615,7 @@ age_old_log(const char *file)
 		mtime = sb.st_mtime;
 	}
 
-	return ((int)(ptimeget_secs(timenow) - mtime + 1800) / 3600);
+	return ((int)(ptimeget_secs(timenow) - mtime + 180) / 3600);
 }
 
 /* Skip Over Blanks */
@@ -2913,29 +2886,4 @@ change_attrs(const char *fname, const struct conf_entry *ent)
 		if (failed)
 			warn("can't chflags %s NODUMP", fname);
 	}
-}
-
-/*
- * Parse a signal number or signal name. Returns the signal number parsed or -1
- * on failure.
- */
-static int
-parse_signal(const char *str)
-{
-	int sig, i;
-	const char *errstr;
-
-	sig = strtonum(str, 1, sys_nsig - 1, &errstr);
-
-	if (errstr == NULL)
-		return (sig);
-	if (strncasecmp(str, "SIG", 3) == 0)
-		str += 3;
-
-	for (i = 1; i < sys_nsig; i++) {
-		if (strcasecmp(str, sys_signame[i]) == 0)
-			return (i);
-	}
-
-	return (-1);
 }

@@ -34,8 +34,10 @@
 #include <sys/uio.h>
 #include <sys/wait.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include <atf-c.h>
@@ -105,6 +107,19 @@ skip_ltncpu(int ncpu, cpuset_t *mask)
 	    -1, sizeof(*mask), mask));
 	if (CPU_COUNT(mask) < ncpu)
 		atf_tc_skip("Test requires %d or more cores.", ncpu);
+}
+
+static void
+skip_ltncpu_root(int ncpu, cpuset_t *mask)
+{
+
+	CPU_ZERO(mask);
+	ATF_REQUIRE_EQ(0, cpuset_getaffinity(CPU_LEVEL_ROOT, CPU_WHICH_PID,
+	    -1, sizeof(*mask), mask));
+	if (CPU_COUNT(mask) < ncpu) {
+		atf_tc_skip("Test requires cpuset root with %d or more cores.",
+		    ncpu);
+	}
 }
 
 ATF_TC(newset);
@@ -234,9 +249,8 @@ ATF_TC_BODY(deadlk, tc)
 }
 
 static int
-do_jail(int sock)
+create_jail(void)
 {
-	struct jail_test_info info;
 	struct iovec iov[2];
 	char *name;
 	int error;
@@ -250,8 +264,22 @@ do_jail(int sock)
 	iov[1].iov_base = name;
 	iov[1].iov_len = strlen(name) + 1;
 
-	if (jail_set(iov, 2, JAIL_CREATE | JAIL_ATTACH) < 0)
+	error = jail_set(iov, 2, JAIL_CREATE | JAIL_ATTACH);
+	free(name);
+	if (error < 0)
 		return (FAILURE_JAIL);
+	return (0);
+}
+
+static int
+do_jail(int sock)
+{
+	struct jail_test_info info;
+	int error;
+
+	error = create_jail();
+	if (error != 0)
+		return (error);
 
 	/* Record parameters, kick them over, then make a swift exit. */
 	CPU_ZERO(&info.jail_tidmask);
@@ -641,6 +669,111 @@ ATF_TC_BODY(jail_attach_disjoint, tc)
 	try_attach(jid, &smask);
 }
 
+struct nproc_info {
+	long		nproc_init;
+	long		nproc_final;
+	long		nproc_global;
+};
+
+ATF_TC(jail_nproc);
+ATF_TC_HEAD(jail_nproc, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test that _SC_PROCESSORS_ONLN reflects jail cpuset constraints");
+}
+ATF_TC_BODY(jail_nproc, tc)
+{
+	cpuset_t jmask;
+	struct nproc_info ninfo = { };
+	int sockpair[2];
+	cpusetid_t setid;
+	ssize_t readsz;
+	pid_t pid;
+	int fcpu, error, pfd, sock;
+	char okb = 0x7f, rcvb;
+
+	skip_ltncpu_root(2, &jmask);
+	fcpu = CPU_FFS(&jmask) - 1;
+
+	/*
+	 * Just adjusting our affinity should not affect the number of
+	 * processors considered online- we want to be sure that it's only
+	 * adjusted if our jail's root set is.
+	 */
+	CPU_CLR(fcpu, &jmask);
+	error = cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1,
+	    sizeof(jmask), &jmask);
+	ATF_REQUIRE_EQ(0, error);
+	ATF_REQUIRE(sysconf(_SC_NPROCESSORS_ONLN) > CPU_COUNT(&jmask));
+
+	ATF_REQUIRE_EQ(0, socketpair(PF_UNIX, SOCK_STREAM, 0, sockpair));
+
+	/* We'll wait on the procdesc, too, so we can fail faster if it dies. */
+	ATF_REQUIRE((pid = pdfork(&pfd, 0)) != -1);
+
+	if (pid == 0) {
+		/* First child sets up the jail. */
+		sock = sockpair[SP_CHILD];
+		close(sockpair[SP_PARENT]);
+
+		error = create_jail();
+		if (error != 0)
+			_exit(error);
+
+		ninfo.nproc_init = sysconf(_SC_NPROCESSORS_ONLN);
+
+		/* Signal the parent that we're jailed. */
+		readsz = write(sock, &okb, sizeof(okb));
+		assert(readsz == sizeof(okb));
+
+		/* Wait for parent to adjust our mask and signal OK. */
+		readsz = read(sock, &rcvb, sizeof(rcvb));
+		assert(readsz == sizeof(rcvb));
+		assert(rcvb == okb);
+
+		ninfo.nproc_final = sysconf(_SC_NPROCESSORS_ONLN);
+		ninfo.nproc_global = sysconf(_SC_NPROCESSORS_CONF);
+		readsz = write(sock, &ninfo, sizeof(ninfo));
+		assert(readsz == sizeof(ninfo));
+
+		_exit(0);
+	}
+
+	close(sockpair[SP_CHILD]);
+	sock = sockpair[SP_PARENT];
+
+	/* Wait for signal that they are jailed. */
+	readsz = read(sock, &rcvb, sizeof(rcvb));
+	assert(readsz == sizeof(rcvb));
+	assert(rcvb == okb);
+
+	/* Grab the cpuset id and adjust it. */
+	error = cpuset_getid(CPU_LEVEL_ROOT, CPU_WHICH_PID, pid, &setid);
+	ATF_REQUIRE_EQ(0, error);
+	error = cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_CPUSET,
+	    setid, sizeof(jmask), &jmask);
+	ATF_REQUIRE_EQ(0, error);
+
+	/* Signal OK to proceed. */
+	readsz = write(sock, &okb, sizeof(okb));
+	ATF_REQUIRE_EQ(sizeof(okb), readsz);
+
+	/* Grab our final nproc info. */
+	readsz = read(sock, &ninfo, sizeof(ninfo));
+	ATF_REQUIRE_EQ(sizeof(ninfo), readsz);
+
+	/*
+	 * We set our own affinity to jmask, which is derived from *our* root
+	 * set, at the beginning of the test.  The jail would inherit from this
+	 * set, so we just re-use that mask here to confirm that
+	 * _SC_NPROCESSORS_ONLN did actually drop in response to us limiting the
+	 * jail, and that its _SC_NPROCESSORS_CONF did not.
+	 */
+	ATF_REQUIRE_EQ(CPU_COUNT(&jmask) + 1, ninfo.nproc_init);
+	ATF_REQUIRE_EQ(CPU_COUNT(&jmask) + 1, ninfo.nproc_global);
+	ATF_REQUIRE_EQ(CPU_COUNT(&jmask), ninfo.nproc_final);
+}
+
 ATF_TC(badparent);
 ATF_TC_HEAD(badparent, tc)
 {
@@ -686,6 +819,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, jail_attach_prevbase);
 	ATF_TP_ADD_TC(tp, jail_attach_plain);
 	ATF_TP_ADD_TC(tp, jail_attach_disjoint);
+	ATF_TP_ADD_TC(tp, jail_nproc);
 	ATF_TP_ADD_TC(tp, badparent);
 	return (atf_no_error());
 }

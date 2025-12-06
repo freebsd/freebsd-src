@@ -1,6 +1,3 @@
-#
-#
-
 CXGBE=	${SRCTOP}/sys/dev/cxgbe
 .PATH: ${CXGBE}/tom
 
@@ -21,5 +18,7 @@ SRCS+=	t4_tom.c
 SRCS+=	t4_tom_l2t.c
 
 CFLAGS+= -I${CXGBE}
+
+EXPORT_SYMS=	YES
 
 .include <bsd.kmod.mk>

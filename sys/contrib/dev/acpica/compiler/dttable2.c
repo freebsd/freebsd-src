@@ -1929,24 +1929,30 @@ DtCompileRhct (
 {
     ACPI_STATUS             Status;
     ACPI_RHCT_NODE_HEADER   *RhctHeader;
-    ACPI_RHCT_HART_INFO     *RhctHartInfo = NULL;
+    ACPI_RHCT_HART_INFO     *RhctHartInfo;
     DT_SUBTABLE             *Subtable;
     DT_SUBTABLE             *ParentTable;
     ACPI_DMTABLE_INFO       *InfoTable;
     DT_FIELD                **PFieldList = (DT_FIELD **) List;
     DT_FIELD                *SubtableStart;
+    ACPI_TABLE_RHCT         *Table;
+    BOOLEAN                 FirstNode = TRUE;
 
 
     /* Compile the main table */
 
+    ParentTable = DtPeekSubtable ();
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoRhct,
         &Subtable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
     }
+    DtInsertSubtable (ParentTable, Subtable);
+    Table = ACPI_CAST_PTR (ACPI_TABLE_RHCT, ParentTable->Buffer);
+    Table->NodeCount = 0;
+    Table->NodeOffset = sizeof (ACPI_TABLE_RHCT);
 
-    ParentTable = DtPeekSubtable ();
     while (*PFieldList)
     {
         SubtableStart = *PFieldList;
@@ -1961,7 +1967,10 @@ DtCompileRhct (
         }
         DtInsertSubtable (ParentTable, Subtable);
         RhctHeader = ACPI_CAST_PTR (ACPI_RHCT_NODE_HEADER, Subtable->Buffer);
-        RhctHeader->Length = (UINT16)(Subtable->Length);
+
+        DtPushSubtable (Subtable);
+        ParentTable = DtPeekSubtable ();
+        Table->NodeCount++;
 
         switch (RhctHeader->Type)
         {
@@ -1999,37 +2008,54 @@ DtCompileRhct (
             return (Status);
         }
         DtInsertSubtable (ParentTable, Subtable);
-        RhctHeader->Length += (UINT16)(Subtable->Length);
+        if (FirstNode)
+        {
+            Table->NodeOffset = ACPI_PTR_DIFF(ParentTable->Buffer, Table);
+            FirstNode = FALSE;
+        }
 
         /* Compile RHCT subtable additionals */
 
         switch (RhctHeader->Type)
         {
+        case ACPI_RHCT_NODE_TYPE_ISA_STRING:
+
+            /*
+             * Padding - Variable-length data
+             * Optionally allows the padding of the ISA string to be used
+             * for filling this field.
+             */
+            Status = DtCompileTable (PFieldList, AcpiDmTableInfoRhctIsaPad,
+                                     &Subtable);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+            if (Subtable)
+            {
+                DtInsertSubtable (ParentTable, Subtable);
+            }
+            break;
+
         case ACPI_RHCT_NODE_TYPE_HART_INFO:
 
-            RhctHartInfo = ACPI_SUB_PTR (ACPI_RHCT_HART_INFO,
-                Subtable->Buffer, sizeof (ACPI_RHCT_NODE_HEADER));
-            if (RhctHartInfo)
+            RhctHartInfo = ACPI_CAST_PTR (ACPI_RHCT_HART_INFO,
+                Subtable->Buffer);
+            RhctHartInfo->NumOffsets = 0;
+            while (*PFieldList)
             {
-
-                RhctHartInfo->NumOffsets = 0;
-                while (*PFieldList)
+                Status = DtCompileTable (PFieldList,
+                    AcpiDmTableInfoRhctHartInfo2, &Subtable);
+                if (ACPI_FAILURE (Status))
                 {
-                    Status = DtCompileTable (PFieldList,
-                        AcpiDmTableInfoRhctHartInfo2, &Subtable);
-                    if (ACPI_FAILURE (Status))
-                    {
-                        return (Status);
-                    }
-                    if (!Subtable)
-                    {
-                        break;
-                    }
-
-                    DtInsertSubtable (ParentTable, Subtable);
-                    RhctHeader->Length += (UINT16)(Subtable->Length);
-                    RhctHartInfo->NumOffsets++;
+                    return (Status);
                 }
+                if (!Subtable)
+                {
+                    break;
+                }
+                DtInsertSubtable (ParentTable, Subtable);
+                RhctHartInfo->NumOffsets++;
             }
             break;
 
@@ -2037,6 +2063,9 @@ DtCompileRhct (
 
             break;
         }
+
+        DtPopSubtable ();
+        ParentTable = DtPeekSubtable ();
     }
 
     return (AE_OK);

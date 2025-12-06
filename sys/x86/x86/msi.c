@@ -219,6 +219,14 @@ msi_disable_intr(struct intsrc *isrc)
 	struct msi_intsrc *msi = (struct msi_intsrc *)isrc;
 
 	msi = msi->msi_first;
+
+	/*
+	 * Interrupt sources are always registered, but never unregistered.
+	 * Handle the case where MSIs have all been unregistered.
+	 */
+	if (msi == NULL)
+		return;
+
 	msi->msi_enabled--;
 	if (msi->msi_enabled == 0) {
 		for (u_int i = 0; i < msi->msi_count; i++)

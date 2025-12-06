@@ -539,7 +539,7 @@ verify_file(int fd, const char *filename, off_t off, int severity,
 		return (0);
 
 	if (rc != VE_FINGERPRINT_WRONG && loaded_manifests) {
-		if (rc != VE_NOT_CHECKED)
+		if (rc != VE_NOT_CHECKED && rc != VE_FINGERPRINT_NONE)
 			return (rc);
 
 		if (severity <= VE_GUESS)

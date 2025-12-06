@@ -40,6 +40,25 @@ ovpn_init()
 	fi
 }
 
+ovpn_check_version()
+{
+	expected=$1
+
+	expected_minor=$(echo $expected |
+	    awk '{ split($1, ver, "\."); print(ver[2]); }')
+	actual_minor=$(openvpn --version 2>&1 |
+	    awk 'NR == 1 \
+	    { \
+	        split($2, ver, "\."); \
+	        split(ver[2], minor, "_"); \
+	        print(minor[1]); \
+	    }')
+
+	if [ ${actual_minor} -lt ${expected_minor} ]; then
+		atf_skip "OpenVPN version < ${expected}"
+	fi
+}
+
 ovpn_cleanup()
 {
 	for jail in `cat ovpn_jails.lst | sort -u`

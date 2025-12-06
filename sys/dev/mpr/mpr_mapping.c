@@ -2785,6 +2785,8 @@ mpr_mapping_enclosure_dev_status_change_event(struct mpr_softc *sc,
 		 * DPM, if it's being used.
 		 */
 		if (enc_idx != MPR_ENCTABLE_BAD_IDX) {
+			u16 new_num_slots;
+
 			et_entry = &sc->enclosure_table[enc_idx];
 			if (et_entry->init_complete &&
 			    !et_entry->missing_count) {
@@ -2796,6 +2798,17 @@ mpr_mapping_enclosure_dev_status_change_event(struct mpr_softc *sc,
 			et_entry->enc_handle = le16toh(event_data->
 			    EnclosureHandle);
 			et_entry->start_slot = le16toh(event_data->StartSlot);
+			new_num_slots = le16toh(event_data->NumSlots);
+			if (new_num_slots < sc->encl_min_slots) {
+				mpr_dprint(sc, MPR_MAPPING, "%s: Enclosure %d num_slots %d, overriding with %d.\n",
+					   __func__, enc_idx, new_num_slots, sc->encl_min_slots);
+				new_num_slots = sc->encl_min_slots;
+			}
+			if (et_entry->num_slots != new_num_slots) {
+				mpr_dprint(sc, MPR_MAPPING, "%s: Enclosure %d old num_slots %d, new %d.\n",
+					   __func__, enc_idx, et_entry->num_slots, sc->encl_min_slots);
+				et_entry->num_slots = new_num_slots;
+			}
 			saved_phy_bits = et_entry->phy_bits;
 			et_entry->phy_bits |= le32toh(event_data->PhyBits);
 			if (saved_phy_bits != et_entry->phy_bits)
@@ -2858,6 +2871,11 @@ mpr_mapping_enclosure_dev_status_change_event(struct mpr_softc *sc,
 			et_entry->start_index = MPR_MAPTABLE_BAD_IDX;
 			et_entry->dpm_entry_num = MPR_DPM_BAD_IDX;
 			et_entry->num_slots = le16toh(event_data->NumSlots);
+			if (et_entry->num_slots < sc->encl_min_slots) {
+				mpr_dprint(sc, MPR_ERROR | MPR_MAPPING, "%s: Enclosure %d num_slots is %d, overriding with %d.\n",
+					   __func__, enc_idx, et_entry->num_slots, sc->encl_min_slots);
+				et_entry->num_slots = sc->encl_min_slots;
+			}
 			et_entry->start_slot = le16toh(event_data->StartSlot);
 			et_entry->phy_bits = le32toh(event_data->PhyBits);
 		}

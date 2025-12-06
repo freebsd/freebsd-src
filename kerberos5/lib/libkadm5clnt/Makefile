@@ -1,5 +1,3 @@
-PACKAGE=	kerberos-lib
-
 LIB=	kadm5clnt
 LDFLAGS+=	-Wl,--no-undefined
 LIBADD=	com_err krb5 roken

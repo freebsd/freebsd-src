@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 30, 2025
+.Dd October 6, 2025
 .Dt FTS 3
 .Os
 .Sh NAME
@@ -69,14 +69,15 @@ on a file hierarchy, which is then supplied to
 the other
 .Nm
 functions.
-The function
+The
 .Fn fts_read
-returns a pointer to a structure describing one of the files in the file
-hierarchy.
-The function
+function returns a pointer to a structure describing one of the files
+in the file hierarchy.
+The
 .Fn fts_children
-returns a pointer to a linked list of structures, each of which describes
-one of the files contained in a directory in the hierarchy.
+function returns a pointer to a linked list of structures, each of
+which describes one of the files contained in a directory in the
+hierarchy.
 In general, directories are visited two distinguishable times; in pre-order
 (before any of their descendants are visited) and in post-order (after all
 of their descendants have been visited).
@@ -376,7 +377,44 @@ The
 .Fa fts_name
 field is always
 .Dv NUL Ns -terminated .
-.Sh FTS_OPEN
+.Ss Thread Safety
+The
+.Nm
+functions can safely be used in multi-threaded programs provided no
+two threads access the same
+.Vt FTS
+or
+.Vt FTSENT
+structure simultaneously.
+However, unless the
+.Dv FTS_NOCHDIR
+flag was passed to
+.Fn fts_open
+or
+.Fn fts_open_b ,
+calls to
+.Fn fts_read
+and
+.Fn fts_children
+may change the current working directory, which will affect all
+threads.
+Conversely, changing the current working directory either during or
+between calls to
+.Fn fts_read
+or
+.Fn fts_children
+(even in a single-thread program) may cause
+.Nm
+to malfunction unless the
+.Dv FTS_NOCHDIR
+flag was passed to
+.Fn fts_open
+or
+.Fn fts_open_b
+and all paths in
+.Va path_argv
+were absolute.
+.Ss Fn fts_open
 The
 .Fn fts_open
 function takes a pointer to an array of character pointers naming one
@@ -507,10 +545,10 @@ from descending into directories that have a different device number
 than the file from which the descent began.
 .El
 .Pp
-The argument
-.Fn compar
-specifies a user-defined function which may be used to order the traversal
-of the hierarchy.
+The
+.Fa compar
+argument points to a user-defined function which may be used to order
+the traversal of the hierarchy.
 It
 takes two pointers to pointers to
 .Vt FTSENT
@@ -545,7 +583,7 @@ the directory traversal order is in the order listed in
 .Fa path_argv
 for the root paths, and in the order listed in the directory for
 everything else.
-.Sh FTS_OPEN_B
+.Ss Fn fts_open_b
 The
 .Fn fts_open_b
 function is identical to
@@ -554,7 +592,7 @@ except that it takes a block pointer instead of a function pointer.
 The block is copied before
 .Fn fts_open_b
 returns, so the original can safely go out of scope or be released.
-.Sh FTS_READ
+.Ss Fn fts_read
 The
 .Fn fts_read
 function returns a pointer to an
@@ -588,6 +626,15 @@ structure is returned, and
 .Va errno
 may or may not have been set (see
 .Fa fts_info ) .
+Note that
+.Fn fts_read
+will not set
+.Va errno
+to 0 if called again with the same
+.Fa ftsp
+argument after the
+.Dv FTS_STOP
+flag has been set or the end of the stream has been reached.
 .Pp
 The
 .Vt FTSENT
@@ -602,10 +649,10 @@ directory, in which case they will not be overwritten until after a call to
 .Fn fts_read
 after the
 .Vt FTSENT
-structure has been returned by the function
+structure has been returned by the
 .Fn fts_read
-in post-order.
-.Sh FTS_CHILDREN
+function in post-order.
+.Ss Fn fts_children
 The
 .Fn fts_children
 function returns a pointer to an
@@ -679,11 +726,11 @@ and
 .Fa fts_namelen
 fields.
 .El
-.Sh FTS_SET
-The function
+.Ss Fn fts_set
+The
 .Fn fts_set
-allows the user application to determine further processing for the
-file
+function allows the user application to determine further processing
+for the file
 .Fa f
 of the stream
 .Fa ftsp .
@@ -749,7 +796,40 @@ The file may be one of those most recently returned by either
 or
 .Fn fts_read .
 .El
-.Sh FTS_CLOSE
+.Ss Fn fts_set_clientptr , Fn fts_get_clientptr
+The
+.Fn fts_set_clientptr
+function sets the client data pointer for the stream
+.Fa ftsp
+to
+.Fa clientdata .
+The
+.Fn fts_get_clientptr
+function returns the client data pointer associated with
+.Fa ftsp .
+This can be used to pass per-stream data to the comparison function.
+.Pp
+For performance reasons,
+.Fn fts_get_clientptr
+may be shadowed by a preprocessor macro.
+.Ss Fn fts_get_stream
+The
+.Fn fts_get_stream
+function returns the
+.Nm
+stream associated with the file entry
+.Fa f .
+A typical use for this would be for a comparison function to first call
+.Fn fts_get_stream
+on one of its arguments, then call
+.Fn fts_get_clientptr
+to obtain the client data pointer, which in turn points to information
+necessary to correctly order the two entries.
+.Pp
+For performance reasons,
+.Fn fts_get_stream
+may be shadowed by a preprocessor macro.
+.Ss Fn fts_close
 The
 .Fn fts_close
 function closes a file hierarchy stream
@@ -760,6 +840,75 @@ or
 .Fn fts_open_b
 was called to open
 .Fa ftsp .
+.Sh RETURN VALUES
+The
+.Fn fts_open
+and
+.Fn fts_open_b
+functions return a pointer to the new
+.Nm
+stream on success and
+.Dv NULL
+on failure.
+.Pp
+The
+.Fn fts_read
+function returns a pointer to the next file entry on success, or if an
+error occurs that relates specifically to that file entry.
+On reaching the end of the file hierarchy, it returns
+.Dv NULL
+and sets the external variable
+.Va errno
+to 0.
+On failure, it returns
+.Dv NULL
+and sets
+.Va errno
+to an appropriate non-zero value.
+If called again after the
+.Dv FTS_STOP
+flag has been set or the end of the stream has been reached,
+.Fn fts_read
+returns
+.Dv NULL
+and leaves
+.Va errno
+untouched.
+.Pp
+The
+.Fn fts_children
+function returns a pointer to a linked list of file entries on
+success.
+On reaching the end of the file hierarchy, it returns
+.Dv NULL
+and sets the external variable
+.Va errno
+to 0.
+On failure, it returns
+.Dv NULL
+and sets
+.Va errno
+to an appropriate non-zero value.
+.Pp
+The
+.Fn fts_set
+function returns 0 on success and \-1 if its
+.Fa instr
+argument is invalid.
+.Pp
+The
+.Fn fts_get_clientptr
+function returns the client data pointer associated with its argument,
+or
+.Dv NULL
+if none has been set.
+.Pp
+The
+.Fn fts_get_stream
+function returns a pointer to the
+.Nm
+stream associated with its argument.
+.Pp
 The
 .Fn fts_close
 function
@@ -816,7 +965,7 @@ functions may fail and set
 as follows:
 .Bl -tag -width Er
 .It Bq Er EINVAL
-The options were invalid, or the list were empty.
+The options were invalid, or the list was empty.
 .El
 .Sh SEE ALSO
 .Xr find 1 ,

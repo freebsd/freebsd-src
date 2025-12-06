@@ -37,7 +37,7 @@
 /* Darwin/OS X sandbox */
 
 struct ssh_sandbox {
-	pid_t child_pid;
+	int junk;
 };
 
 struct ssh_sandbox *
@@ -51,8 +51,6 @@ ssh_sandbox_init(struct monitor *monitor)
 	 */
 	debug3("%s: preparing Darwin sandbox", __func__);
 	box = xcalloc(1, sizeof(*box));
-	box->child_pid = 0;
-
 	return box;
 }
 
@@ -81,19 +79,6 @@ ssh_sandbox_child(struct ssh_sandbox *box)
 	if (setrlimit(RLIMIT_NPROC, &rl_zero) == -1)
 		fatal("%s: setrlimit(RLIMIT_NPROC, { 0, 0 }): %s",
 			__func__, strerror(errno));
-}
-
-void
-ssh_sandbox_parent_finish(struct ssh_sandbox *box)
-{
-	free(box);
-	debug3("%s: finished", __func__);
-}
-
-void
-ssh_sandbox_parent_preauth(struct ssh_sandbox *box, pid_t child_pid)
-{
-	box->child_pid = child_pid;
 }
 
 #endif /* SANDBOX_DARWIN */

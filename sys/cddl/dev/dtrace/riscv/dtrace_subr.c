@@ -127,33 +127,6 @@ dtrace_toxic_ranges(void (*func)(uintptr_t base, uintptr_t limit))
 	(*func)(0, (uintptr_t)VM_MIN_KERNEL_ADDRESS);
 }
 
-void
-dtrace_xcall(processorid_t cpu, dtrace_xcall_t func, void *arg)
-{
-	cpuset_t cpus;
-
-	if (cpu == DTRACE_CPUALL)
-		cpus = all_cpus;
-	else
-		CPU_SETOF(cpu, &cpus);
-
-	smp_rendezvous_cpus(cpus, smp_no_rendezvous_barrier, func,
-	    smp_no_rendezvous_barrier, arg);
-}
-
-static void
-dtrace_sync_func(void)
-{
-
-}
-
-void
-dtrace_sync(void)
-{
-
-	dtrace_xcall(DTRACE_CPUALL, (dtrace_xcall_t)dtrace_sync_func, NULL);
-}
-
 /*
  * DTrace needs a high resolution time function which can
  * be called from a probe context and guaranteed not to have

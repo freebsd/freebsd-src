@@ -40,6 +40,7 @@
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/power.h>
 #include <sys/selinfo.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
@@ -53,20 +54,19 @@ struct acpi_softc {
     struct cdev		*acpi_dev_t;
 
     int			acpi_enabled;
-    int			acpi_sstate;
+    enum power_stype	acpi_stype;
     int			acpi_sleep_disabled;
 
     struct sysctl_ctx_list acpi_sysctl_ctx;
     struct sysctl_oid	*acpi_sysctl_tree;
-    int			acpi_power_button_sx;
-    int			acpi_sleep_button_sx;
-    int			acpi_lid_switch_sx;
+    enum power_stype	acpi_power_button_stype;
+    enum power_stype	acpi_sleep_button_stype;
+    enum power_stype	acpi_lid_switch_stype;
 
     int			acpi_standby_sx;
-    int			acpi_suspend_sx;
+    int			acpi_s4bios;
 
     int			acpi_sleep_delay;
-    int			acpi_s4bios;
     int			acpi_do_disable;
     int			acpi_verbose;
     int			acpi_handle_reboot;
@@ -74,7 +74,7 @@ struct acpi_softc {
     vm_offset_t		acpi_wakeaddr;
     vm_paddr_t		acpi_wakephys;
 
-    int			acpi_next_sstate;	/* Next suspend Sx state. */
+    enum power_stype	acpi_next_stype;	/* Next suspend sleep type. */
     struct apm_clone_data *acpi_clone;		/* Pseudo-dev for devd(8). */
     STAILQ_HEAD(,apm_clone_data) apm_cdevs;	/* All apm/apmctl/acpi cdevs. */
     struct callout	susp_force_to;		/* Force suspend if no acks. */
@@ -411,7 +411,7 @@ ACPI_STATUS	acpi_EvaluateOSC(ACPI_HANDLE handle, uint8_t *uuid,
 		    uint32_t *caps_out, bool query);
 ACPI_STATUS	acpi_OverrideInterruptLevel(UINT32 InterruptNumber);
 ACPI_STATUS	acpi_SetIntrModel(int model);
-int		acpi_ReqSleepState(struct acpi_softc *sc, int state);
+int		acpi_ReqSleepState(struct acpi_softc *sc, enum power_stype stype);
 int		acpi_AckSleepState(struct apm_clone_data *clone, int error);
 ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
 int		acpi_wake_set_enable(device_t dev, int enable);

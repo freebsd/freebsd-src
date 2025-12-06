@@ -1111,6 +1111,18 @@ DEFINE_TEST(test_read_format_rar5_nonempty_dir_stream)
 	EPILOGUE();
 }
 
+DEFINE_TEST(test_read_format_rar5_nonempty_dir_data)
+{
+	PROLOGUE("test_read_format_rar5_dirdata.rar");
+
+	/* This archive is invalid. It declares a directory entry with nonzero
+	   data size. */
+
+	assertA(archive_read_next_header(a, &ae) == ARCHIVE_FATAL);
+
+	EPILOGUE();
+}
+
 DEFINE_TEST(test_read_format_rar5_fileattr)
 {
 	unsigned long set, clear, flag;
@@ -1425,6 +1437,60 @@ DEFINE_TEST(test_read_format_rar5_data_ready_pointer_leak)
 	(void) archive_read_next_header(a, &ae);
 	/* This call shouldn't produce SIGSEGV. */
 	(void) archive_read_data(a, buf, sizeof(buf));
+
+	EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_only_crypt_exfld)
+{
+	/* GH #2711 */
+
+	char buf[4096];
+	PROLOGUE("test_read_format_rar5_only_crypt_exfld.rar");
+
+	/* The reader should allow iteration through files, but should fail
+	   during data extraction. */
+
+	assertA(archive_read_next_header(a, &ae) == ARCHIVE_OK);
+	assertA(archive_read_data(a, buf, sizeof(buf)) == ARCHIVE_FATAL);
+
+	/* The reader should also provide a valid error message. */
+	assertA(archive_error_string(a) != NULL);
+
+	EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_only_unsupported_exfld)
+{
+	/* GH #2711 */
+
+	char buf[4096];
+	PROLOGUE("test_read_format_rar5_unsupported_exfld.rar");
+
+	/* The reader should allow iteration through files, and it should
+	   succeed with data extraction. */
+
+	assertA(archive_read_next_header(a, &ae) == ARCHIVE_OK);
+
+	/* 48 is the expected number of bytes that should be extracted */
+	assertA(archive_read_data(a, buf, sizeof(buf)) == 48);
+
+	EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_invalidhash_and_validhtime_exfld)
+{
+	/* GH #2711 */
+
+	char buf[4096];
+	PROLOGUE("test_read_format_rar5_invalid_hash_valid_htime_exfld.rar");
+
+	/* The reader should report an error when trying to process this data.
+	   Returning EOF here means that the reader has failed to identify
+	   malformed structure. */
+
+	assertA(archive_read_next_header(a, &ae) < 0);
+	assertA(archive_read_data(a, buf, sizeof(buf)) < 0);
 
 	EPILOGUE();
 }

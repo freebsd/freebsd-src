@@ -1,0 +1,2 @@
+usr/lib/@DEB_HOST_MULTIARCH@/libzfs.so.*
+usr/lib/@DEB_HOST_MULTIARCH@/libzfs_core.so.*

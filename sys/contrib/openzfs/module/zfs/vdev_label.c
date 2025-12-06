@@ -163,7 +163,7 @@ uint64_t
 vdev_label_offset(uint64_t psize, int l, uint64_t offset)
 {
 	ASSERT(offset < sizeof (vdev_label_t));
-	ASSERT(P2PHASE_TYPED(psize, sizeof (vdev_label_t), uint64_t) == 0);
+	ASSERT0(P2PHASE_TYPED(psize, sizeof (vdev_label_t), uint64_t));
 
 	return (offset + l * sizeof (vdev_label_t) + (l < VDEV_LABELS / 2 ?
 	    0 : psize - VDEV_LABELS * sizeof (vdev_label_t)));
@@ -511,6 +511,8 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 		fnvlist_add_uint64(nv, ZPOOL_CONFIG_ASHIFT, vd->vdev_ashift);
 		fnvlist_add_uint64(nv, ZPOOL_CONFIG_ASIZE,
 		    vd->vdev_asize);
+		fnvlist_add_uint64(nv, ZPOOL_CONFIG_MIN_ALLOC,
+		    vdev_get_min_alloc(vd));
 		fnvlist_add_uint64(nv, ZPOOL_CONFIG_IS_LOG, vd->vdev_islog);
 		if (vd->vdev_noalloc) {
 			fnvlist_add_uint64(nv, ZPOOL_CONFIG_NONALLOCATING,
@@ -768,12 +770,12 @@ vdev_top_config_generate(spa_t *spa, nvlist_t *config)
 	}
 
 	if (idx) {
-		VERIFY(nvlist_add_uint64_array(config, ZPOOL_CONFIG_HOLE_ARRAY,
-		    array, idx) == 0);
+		VERIFY0(nvlist_add_uint64_array(config,
+		    ZPOOL_CONFIG_HOLE_ARRAY, array, idx));
 	}
 
-	VERIFY(nvlist_add_uint64(config, ZPOOL_CONFIG_VDEV_CHILDREN,
-	    rvd->vdev_children) == 0);
+	VERIFY0(nvlist_add_uint64(config, ZPOOL_CONFIG_VDEV_CHILDREN,
+	    rvd->vdev_children));
 
 	kmem_free(array, rvd->vdev_children * sizeof (uint64_t));
 }
@@ -860,8 +862,8 @@ retry:
 		}
 	}
 
-	if (config == NULL && !(flags & ZIO_FLAG_TRYHARD)) {
-		flags |= ZIO_FLAG_TRYHARD;
+	if (config == NULL && !(flags & ZIO_FLAG_IO_RETRY)) {
+		flags |= ZIO_FLAG_IO_RETRY;
 		goto retry;
 	}
 
@@ -1077,7 +1079,8 @@ vdev_label_init(vdev_t *vd, uint64_t crtxg, vdev_labeltype_t reason)
 	size_t buflen;
 	int error;
 	uint64_t spare_guid = 0, l2cache_guid = 0;
-	int flags = ZIO_FLAG_CONFIG_WRITER | ZIO_FLAG_CANFAIL;
+	int flags = ZIO_FLAG_CONFIG_WRITER | ZIO_FLAG_CANFAIL |
+	    ZIO_FLAG_TRYHARD;
 	boolean_t reason_spare = (reason == VDEV_LABEL_SPARE || (reason ==
 	    VDEV_LABEL_REMOVE && vd->vdev_isspare));
 	boolean_t reason_l2cache = (reason == VDEV_LABEL_L2CACHE || (reason ==
@@ -1189,8 +1192,8 @@ vdev_label_init(vdev_t *vd, uint64_t crtxg, vdev_labeltype_t reason)
 		 * vdev uses as described above, and automatically expires if we
 		 * fail.
 		 */
-		VERIFY(nvlist_add_uint64(label, ZPOOL_CONFIG_CREATE_TXG,
-		    crtxg) == 0);
+		VERIFY0(nvlist_add_uint64(label, ZPOOL_CONFIG_CREATE_TXG,
+		    crtxg));
 	}
 
 	buf = vp->vp_nvlist;
@@ -1221,7 +1224,6 @@ vdev_label_init(vdev_t *vd, uint64_t crtxg, vdev_labeltype_t reason)
 	/*
 	 * Write everything in parallel.
 	 */
-retry:
 	zio = zio_root(spa, NULL, NULL, flags);
 
 	for (int l = 0; l < VDEV_LABELS; l++) {
@@ -1245,11 +1247,6 @@ retry:
 	}
 
 	error = zio_wait(zio);
-
-	if (error != 0 && !(flags & ZIO_FLAG_TRYHARD)) {
-		flags |= ZIO_FLAG_TRYHARD;
-		goto retry;
-	}
 
 	nvlist_free(label);
 	abd_free(bootenv);
@@ -1396,7 +1393,8 @@ vdev_label_write_bootenv(vdev_t *vd, nvlist_t *env)
 	zio_t *zio;
 	spa_t *spa = vd->vdev_spa;
 	vdev_boot_envblock_t *bootenv;
-	int flags = ZIO_FLAG_CONFIG_WRITER | ZIO_FLAG_CANFAIL;
+	int flags = ZIO_FLAG_CONFIG_WRITER | ZIO_FLAG_CANFAIL |
+	    ZIO_FLAG_TRYHARD;
 	int error;
 	size_t nvsize;
 	char *nvbuf;
@@ -1464,7 +1462,6 @@ vdev_label_write_bootenv(vdev_t *vd, nvlist_t *env)
 		return (SET_ERROR(error));
 	}
 
-retry:
 	zio = zio_root(spa, NULL, NULL, flags);
 	for (int l = 0; l < VDEV_LABELS; l++) {
 		vdev_label_write(zio, vd, l, abd,
@@ -1473,10 +1470,6 @@ retry:
 	}
 
 	error = zio_wait(zio);
-	if (error != 0 && !(flags & ZIO_FLAG_TRYHARD)) {
-		flags |= ZIO_FLAG_TRYHARD;
-		goto retry;
-	}
 
 	abd_free(abd);
 	return (error);
@@ -2054,13 +2047,13 @@ retry:
 	 * Normally, we don't want to try too hard to write every label and
 	 * uberblock.  If there is a flaky disk, we don't want the rest of the
 	 * sync process to block while we retry.  But if we can't write a
-	 * single label out, we should retry with ZIO_FLAG_TRYHARD before
+	 * single label out, we should retry with ZIO_FLAG_IO_RETRY before
 	 * bailing out and declaring the pool faulted.
 	 */
 	if (error != 0) {
-		if ((flags & ZIO_FLAG_TRYHARD) != 0)
+		if ((flags & ZIO_FLAG_IO_RETRY) != 0)
 			return (error);
-		flags |= ZIO_FLAG_TRYHARD;
+		flags |= ZIO_FLAG_IO_RETRY;
 	}
 
 	ASSERT(ub->ub_txg <= txg);
@@ -2111,7 +2104,7 @@ retry:
 	 * are committed to stable storage before the uberblock update.
 	 */
 	if ((error = vdev_label_sync_list(spa, 0, txg, flags)) != 0) {
-		if ((flags & ZIO_FLAG_TRYHARD) != 0) {
+		if ((flags & ZIO_FLAG_IO_RETRY) != 0) {
 			zfs_dbgmsg("vdev_label_sync_list() returned error %d "
 			    "for pool '%s' when syncing out the even labels "
 			    "of dirty vdevs", error, spa_name(spa));
@@ -2135,7 +2128,7 @@ retry:
 	 *	to the new uberblocks.
 	 */
 	if ((error = vdev_uberblock_sync_list(svd, svdcount, ub, flags)) != 0) {
-		if ((flags & ZIO_FLAG_TRYHARD) != 0) {
+		if ((flags & ZIO_FLAG_IO_RETRY) != 0) {
 			zfs_dbgmsg("vdev_uberblock_sync_list() returned error "
 			    "%d for pool '%s'", error, spa_name(spa));
 		}
@@ -2156,7 +2149,7 @@ retry:
 	 * stable storage before the next transaction group begins.
 	 */
 	if ((error = vdev_label_sync_list(spa, 1, txg, flags)) != 0) {
-		if ((flags & ZIO_FLAG_TRYHARD) != 0) {
+		if ((flags & ZIO_FLAG_IO_RETRY) != 0) {
 			zfs_dbgmsg("vdev_label_sync_list() returned error %d "
 			    "for pool '%s' when syncing out the odd labels of "
 			    "dirty vdevs", error, spa_name(spa));

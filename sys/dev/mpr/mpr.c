@@ -1729,6 +1729,7 @@ mpr_get_tunables(struct mpr_softc *sc)
 	sc->enable_ssu = MPR_SSU_ENABLE_SSD_DISABLE_HDD;
 	sc->spinup_wait_time = DEFAULT_SPINUP_WAIT;
 	sc->use_phynum = 1;
+	sc->encl_min_slots = 0;
 	sc->max_reqframes = MPR_REQ_FRAMES;
 	sc->max_prireqframes = MPR_PRI_REQ_FRAMES;
 	sc->max_replyframes = MPR_REPLY_FRAMES;
@@ -1748,6 +1749,7 @@ mpr_get_tunables(struct mpr_softc *sc)
 	TUNABLE_INT_FETCH("hw.mpr.enable_ssu", &sc->enable_ssu);
 	TUNABLE_INT_FETCH("hw.mpr.spinup_wait_time", &sc->spinup_wait_time);
 	TUNABLE_INT_FETCH("hw.mpr.use_phy_num", &sc->use_phynum);
+	TUNABLE_INT_FETCH("hw.mpr.encl_min_slots", &sc->encl_min_slots);
 	TUNABLE_INT_FETCH("hw.mpr.max_reqframes", &sc->max_reqframes);
 	TUNABLE_INT_FETCH("hw.mpr.max_prireqframes", &sc->max_prireqframes);
 	TUNABLE_INT_FETCH("hw.mpr.max_replyframes", &sc->max_replyframes);
@@ -1796,6 +1798,10 @@ mpr_get_tunables(struct mpr_softc *sc)
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mpr.%d.use_phy_num",
 	    device_get_unit(sc->mpr_dev));
 	TUNABLE_INT_FETCH(tmpstr, &sc->use_phynum);
+
+	snprintf(tmpstr, sizeof(tmpstr), "dev.mpr.%d.encl_min_slots",
+	    device_get_unit(sc->mpr_dev));
+	TUNABLE_INT_FETCH(tmpstr, &sc->encl_min_slots);
 
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mpr.%d.max_reqframes",
 	    device_get_unit(sc->mpr_dev));
@@ -1951,6 +1957,10 @@ mpr_setup_sysctl(struct mpr_softc *sc)
 	SYSCTL_ADD_UQUAD(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "prp_page_alloc_fail", CTLFLAG_RD,
 	    &sc->prp_page_alloc_fail, "PRP page allocation failures");
+
+	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "encl_min_slots", CTLFLAG_RW, &sc->encl_min_slots, 0,
+	    "force enclosure minimum slots");
 }
 
 static struct mpr_debug_string {

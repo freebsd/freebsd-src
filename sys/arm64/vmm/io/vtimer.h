@@ -66,7 +66,7 @@ struct vtimer_cpu {
 	uint32_t	cntkctl_el1;
 };
 
-int 	vtimer_init(uint64_t cnthctl_el2);
+int 	vtimer_init(void);
 void 	vtimer_vminit(struct hyp *);
 void 	vtimer_cpuinit(struct hypctx *);
 void 	vtimer_cpucleanup(struct hypctx *);

@@ -81,6 +81,7 @@ static ISO_SUSP_HEADER *susp_lookup_record(struct open_file *f,
 
 struct fs_ops cd9660_fsops = {
 	.fs_name = "cd9660",
+	.fs_flags = 0,
 	.fo_open = cd9660_open,
 	.fo_close = cd9660_close,
 	.fo_read = cd9660_read,

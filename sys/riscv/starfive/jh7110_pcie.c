@@ -483,6 +483,16 @@ jh7110_pcie_msi_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static void
+jh7110_pcie_msi_post_filter(device_t dev, struct intr_irqsrc *isrc)
+{
+}
+
+static void
+jh7110_pcie_msi_post_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+}
+
+static void
 jh7110_pcie_msi_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct jh7110_pcie_softc *sc;
@@ -1008,6 +1018,8 @@ static device_method_t jh7110_pcie_methods[] = {
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_enable_intr,	jh7110_pcie_msi_enable_intr),
 	DEVMETHOD(pic_disable_intr,	jh7110_pcie_msi_disable_intr),
+	DEVMETHOD(pic_post_filter,	jh7110_pcie_msi_post_filter),
+	DEVMETHOD(pic_post_ithread,	jh7110_pcie_msi_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	jh7110_pcie_msi_pre_ithread),
 
 	/* OFW bus interface */

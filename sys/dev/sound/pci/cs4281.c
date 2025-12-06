@@ -326,9 +326,9 @@ cs4281chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channe
     ch->channel = c;
 
     ch->fmt = SND_FORMAT(AFMT_U8, 1, 0);
-    ch->spd = DSP_DEFAULT_SPEED;
+    ch->spd = 8000;
     ch->bps = 1;
-    ch->blksz = sndbuf_getsize(ch->buffer);
+    ch->blksz = ch->buffer->bufsize;
 
     ch->dma_chan = (dir == PCMDIR_PLAY) ? CS4281_DMA_PLAY : CS4281_DMA_REC;
     ch->dma_setup = 0;
@@ -412,7 +412,7 @@ cs4281chan_getptr(kobj_t obj, void *data)
     u_int32_t  dba, dca, ptr;
     int sz;
 
-    sz  = sndbuf_getsize(ch->buffer);
+    sz  = ch->buffer->bufsize;
     dba = cs4281_rd(sc, CS4281PCI_DBA(ch->dma_chan));
     dca = cs4281_rd(sc, CS4281PCI_DCA(ch->dma_chan));
     ptr = (dca - dba + sz) % sz;
@@ -493,9 +493,9 @@ adcdac_prog(struct sc_chinfo *ch)
     if (!ch->dma_setup) {
 	go = adcdac_go(ch, 0);
 	cs4281_wr(sc, CS4281PCI_DBA(ch->dma_chan),
-		  sndbuf_getbufaddr(ch->buffer));
+		  ch->buffer->buf_addr);
 	cs4281_wr(sc, CS4281PCI_DBC(ch->dma_chan),
-		  sndbuf_getsize(ch->buffer) / ch->bps - 1);
+		  ch->buffer->bufsize / ch->bps - 1);
 	ch->dma_setup = 1;
 	adcdac_go(ch, go);
     }

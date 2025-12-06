@@ -159,7 +159,7 @@ partition_cred_create_init(struct ucred *cred)
 }
 
 static void
-partition_cred_create_swapper(struct ucred *cred)
+partition_cred_create_kproc0(struct ucred *cred)
 {
 
 	SLOT_SET(cred->cr_label, 0);
@@ -298,7 +298,7 @@ static struct mac_policy_ops partition_ops =
 	.mpo_cred_check_visible = partition_cred_check_visible,
 	.mpo_cred_copy_label = partition_cred_copy_label,
 	.mpo_cred_create_init = partition_cred_create_init,
-	.mpo_cred_create_swapper = partition_cred_create_swapper,
+	.mpo_cred_create_kproc0 = partition_cred_create_kproc0,
 	.mpo_cred_destroy_label = partition_cred_destroy_label,
 	.mpo_cred_externalize_label = partition_cred_externalize_label,
 	.mpo_cred_init_label = partition_cred_init_label,

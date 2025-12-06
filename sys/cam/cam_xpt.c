@@ -1046,6 +1046,7 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	sbuf_set_drain(&sb, sbuf_printf_drain, NULL);
 	xpt_announce_periph_sbuf(periph, &sb, announce_string);
 	(void)sbuf_finish(&sb);
+	(void)sbuf_delete(&sb);
 }
 
 void
@@ -1122,6 +1123,7 @@ xpt_denounce_periph(struct cam_periph *periph)
 	sbuf_set_drain(&sb, sbuf_printf_drain, NULL);
 	xpt_denounce_periph_sbuf(periph, &sb);
 	(void)sbuf_finish(&sb);
+	(void)sbuf_delete(&sb);
 }
 
 void
@@ -4680,6 +4682,7 @@ xpt_alloc_target(struct cam_eb *bus, target_id_t target_id)
 	target->refcount = 1;
 	target->generation = 0;
 	target->luns = NULL;
+	target->wluns = NULL;
 	mtx_init(&target->luns_mtx, "CAM LUNs lock", NULL, MTX_DEF);
 	timevalclear(&target->last_reset);
 	/*
@@ -5547,7 +5550,7 @@ xpt_cam_path_debug(struct cam_path *path, const char *fmt, ...)
 {
 	struct sbuf sbuf;
 	char buf[XPT_PRINT_LEN]; /* balance to not eat too much stack */
-	struct sbuf *sb = sbuf_new(&sbuf, buf, sizeof(buf), SBUF_FIXEDLEN);
+	struct sbuf *sb = sbuf_new(&sbuf, buf, sizeof(buf), SBUF_FIXEDLEN | SBUF_INCLUDENUL);
 	va_list ap;
 
 	sbuf_set_drain(sb, sbuf_printf_drain, NULL);
@@ -5566,7 +5569,7 @@ xpt_cam_dev_debug(struct cam_ed *dev, const char *fmt, ...)
 {
 	struct sbuf sbuf;
 	char buf[XPT_PRINT_LEN]; /* balance to not eat too much stack */
-	struct sbuf *sb = sbuf_new(&sbuf, buf, sizeof(buf), SBUF_FIXEDLEN);
+	struct sbuf *sb = sbuf_new(&sbuf, buf, sizeof(buf), SBUF_FIXEDLEN | SBUF_INCLUDENUL);
 	va_list ap;
 
 	sbuf_set_drain(sb, sbuf_printf_drain, NULL);
@@ -5585,7 +5588,7 @@ xpt_cam_debug(const char *fmt, ...)
 {
 	struct sbuf sbuf;
 	char buf[XPT_PRINT_LEN]; /* balance to not eat too much stack */
-	struct sbuf *sb = sbuf_new(&sbuf, buf, sizeof(buf), SBUF_FIXEDLEN);
+	struct sbuf *sb = sbuf_new(&sbuf, buf, sizeof(buf), SBUF_FIXEDLEN | SBUF_INCLUDENUL);
 	va_list ap;
 
 	sbuf_set_drain(sb, sbuf_printf_drain, NULL);

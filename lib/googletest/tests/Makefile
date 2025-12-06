@@ -1,4 +1,7 @@
 .PATH:		${SRCTOP}/tests
+
+PACKAGE=	tests
+
 KYUAFILE=	yes
 
 # Note: we start the gmock_main and gmock tests first since those take up to

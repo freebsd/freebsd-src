@@ -90,7 +90,7 @@ static struct ichwd_device ichwd_devices[] = {
 	{ DEVICEID_82801E,   "Intel 82801E watchdog timer",	5, 1 },
 	{ DEVICEID_82801EB,  "Intel 82801EB watchdog timer",	5, 1 },
 	{ DEVICEID_82801EBR, "Intel 82801EB/ER watchdog timer",	5, 1 },
-	{ DEVICEID_6300ESB,  "Intel 6300ESB watchdog timer",	5, 1 },
+	{ DEVICEID_6300ESB_1,  "Intel 6300ESB watchdog timer",	5, 1 },
 	{ DEVICEID_82801FBR, "Intel 82801FB/FR watchdog timer",	6, 2 },
 	{ DEVICEID_ICH6M,    "Intel ICH6M watchdog timer",	6, 2 },
 	{ DEVICEID_ICH6W,    "Intel ICH6W watchdog timer",	6, 2 },

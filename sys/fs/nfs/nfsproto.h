@@ -411,10 +411,13 @@
 /* Do a NFSv4 Openattr. */
 #define	NFSPROC_OPENATTR	70
 
+/* Do a NFSv4.2 Clone. */
+#define	NFSPROC_CLONE		71
+
 /*
  * Must be defined as one higher than the last NFSv4.2 Proc# above.
  */
-#define	NFSV42_NPROCS		71
+#define	NFSV42_NPROCS		72
 
 /* Value of NFSV42_NPROCS for old nfsstats structure. (Always 69) */
 #define	NFSV42_OLDNPROCS	69
@@ -1132,6 +1135,7 @@ struct nfsv3_sattr {
  	NFSATTRBM_RDATTRERROR |						\
  	NFSATTRBM_ACL |							\
  	NFSATTRBM_ACLSUPPORT |						\
+	NFSATTRBM_ARCHIVE |						\
  	NFSATTRBM_CANSETTIME |						\
  	NFSATTRBM_CASEINSENSITIVE |					\
  	NFSATTRBM_CASEPRESERVING |					\
@@ -1194,6 +1198,7 @@ struct nfsv3_sattr {
 	NFSATTRBM_LAYOUTBLKSIZE |					\
 	NFSATTRBM_LAYOUTALIGNMENT |					\
 	NFSATTRBM_SUPPATTREXCLCREAT |					\
+	NFSATTRBM_CLONEBLKSIZE |					\
 	NFSATTRBM_CHANGEATTRTYPE |					\
 	NFSATTRBM_XATTRSUPPORT)
 
@@ -1213,6 +1218,7 @@ struct nfsv3_sattr {
 #define	NFSATTRBIT_SETABLE0						\
 	(NFSATTRBM_SIZE |						\
 	NFSATTRBM_HIDDEN |						\
+	NFSATTRBM_ARCHIVE |						\
 	NFSATTRBM_ACL)
 #define	NFSATTRBIT_SETABLE1						\
  	(NFSATTRBM_MODE |						\
@@ -1242,7 +1248,8 @@ struct nfsv3_sattr {
  * NFSATTRBIT_NFSV42 - Attributes only supported by NFSv4.2.
  */
 #define	NFSATTRBIT_NFSV42_2						\
-	(NFSATTRBM_CHANGEATTRTYPE |					\
+	(NFSATTRBM_CLONEBLKSIZE |					\
+	NFSATTRBM_CHANGEATTRTYPE |					\
 	NFSATTRBM_XATTRSUPPORT |					\
 	NFSATTRBM_MODEUMASK)
 
@@ -1257,6 +1264,7 @@ struct nfsv3_sattr {
  	NFSATTRBM_CHANGE |						\
  	NFSATTRBM_SIZE |						\
  	NFSATTRBM_FSID |						\
+	NFSATTRBM_ARCHIVE |						\
  	NFSATTRBM_FILEID |						\
 	NFSATTRBM_HIDDEN |						\
  	NFSATTRBM_MAXREAD)
@@ -1293,6 +1301,7 @@ struct nfsv3_sattr {
  	NFSATTRBM_CHANGE |						\
  	NFSATTRBM_SIZE |						\
  	NFSATTRBM_FSID |						\
+	NFSATTRBM_ARCHIVE |						\
  	NFSATTRBM_FILEID |						\
 	NFSATTRBM_HIDDEN |						\
  	NFSATTRBM_MAXREAD)
@@ -1415,7 +1424,7 @@ struct nfsv3_sattr {
 /*
  * NFSGETATTRBIT_STATFS2 - bits 64<->95
  */
-#define	NFSGETATTRBIT_STATFS2		0
+#define	NFSGETATTRBIT_STATFS2	(NFSATTRBM_CLONEBLKSIZE)
 
 /*
  * Set of attributes for the equivalent of an nfsv3 pathconf rpc.
@@ -1438,7 +1447,7 @@ struct nfsv3_sattr {
 /*
  * NFSGETATTRBIT_PATHCONF2 - bits 64<->95
  */
-#define	NFSGETATTRBIT_PATHCONF2		0
+#define	NFSGETATTRBIT_PATHCONF2	(NFSATTRBM_CLONEBLKSIZE)
 
 /*
  * Sets of attributes required by readdir and readdirplus.

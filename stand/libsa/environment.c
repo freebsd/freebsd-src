@@ -66,6 +66,17 @@ env_setenv(const char *name, int flags, const void *value,
 
 	if ((ev = env_getenv(name)) != NULL) {
 		/*
+		 * If the new value doesn't have NOKENV set, we'll drop the flag
+		 * if it's set on the entry so that the override propagates
+		 * correctly.  We do this *before* sending it to the hook in
+		 * case the hook declines to operate on it (e.g., because the
+		 * value matches what was already set) -- we would still want
+		 * the explicitly set value to propagate.
+		 */
+		if (!(flags & EV_NOKENV))
+			ev->ev_flags &= ~EV_NOKENV;
+
+		/*
 		 * If there's a set hook, let it do the work
 		 * (unless we are working for one already).
 		 */
@@ -77,7 +88,6 @@ env_setenv(const char *name, int flags, const void *value,
 			free(ev->ev_value);
 		ev->ev_value = NULL;
 		ev->ev_flags &= ~EV_DYNAMIC;
-
 	} else {
 
 		/*
@@ -123,11 +133,12 @@ env_setenv(const char *name, int flags, const void *value,
 	/* If we have a new value, use it */
 	if (flags & EV_VOLATILE) {
 		ev->ev_value = strdup(value);
-		ev->ev_flags |= EV_DYNAMIC;
+		flags |= EV_DYNAMIC;
 	} else {
 		ev->ev_value = (char *)value;
-		ev->ev_flags |= flags & EV_DYNAMIC;
 	}
+
+	ev->ev_flags |= flags & (EV_DYNAMIC | EV_NOKENV);
 
 	return (0);
 }

@@ -696,22 +696,6 @@ extern int qlnx_alloc_mem_sb(qlnx_host_t *ha, struct ecore_sb_info *sb_info,
  * Some OS specific stuff
  */
 
-#if (defined IFM_100G_SR4)
-#define QLNX_IFM_100G_SR4 IFM_100G_SR4
-#define QLNX_IFM_100G_LR4 IFM_100G_LR4
-#define QLNX_IFM_100G_CR4 IFM_100G_CR4
-#else
-#define QLNX_IFM_100G_SR4 IFM_UNKNOWN
-#define QLNX_IFM_100G_LR4 IFM_UNKNOWN
-#endif /* #if (defined IFM_100G_SR4) */
-
-#if (defined IFM_25G_SR)
-#define QLNX_IFM_25G_SR IFM_25G_SR
-#define QLNX_IFM_25G_CR IFM_25G_CR
-#else
-#define QLNX_IFM_25G_SR IFM_UNKNOWN
-#define QLNX_IFM_25G_CR IFM_UNKNOWN
-#endif /* #if (defined IFM_25G_SR) */
 
 #define QLNX_INC_IERRORS(ifp)	if_inc_counter(ifp, IFCOUNTER_IERRORS, 1)
 #define QLNX_INC_IQDROPS(ifp)	if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1)

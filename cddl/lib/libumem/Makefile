@@ -1,6 +1,8 @@
 .PATH: ${SRCTOP}/cddl/compat/opensolaris/lib/libumem
 
-PACKAGE=	libzfs
+PACKAGE=	zfs
+LIB_PACKAGE=
+
 LIB=	umem
 SRCS=	umem.c
 WARNS?=	3

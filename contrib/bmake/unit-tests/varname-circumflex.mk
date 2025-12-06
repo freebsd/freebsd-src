@@ -1,7 +1,9 @@
-# $NetBSD: varname-circumflex.mk,v 1.1 2025/06/27 20:20:56 rillig Exp $
+# $NetBSD: varname-circumflex.mk,v 1.2 2025/08/09 23:13:29 rillig Exp $
 #
 # Tests for the target-local variable "^", which is required by POSIX 2024
 # and provided by GNU make.
+#
+# https://gnats.netbsd.org/59018
 
 # TODO: Support $^.
 

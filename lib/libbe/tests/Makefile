@@ -10,15 +10,16 @@ LIBADD+= zfs \
 	spl \
 	nvpair \
 	be \
+	pthread
 
 CFLAGS+= -I${SRCTOP}/lib/libbe
 CFLAGS+= -DIN_BASE -DHAVE_RPC_TYPES
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
+CFLAGS+= -I${ZFSTOP}/include
+CFLAGS+= -I${ZFSTOP}/lib/libspl/include/
+CFLAGS+= -I${ZFSTOP}/lib/libspl/include/os/freebsd
 CFLAGS+= -I${SRCTOP}/sys
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
-CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
+CFLAGS+= -include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -DHAVE_ISSETUGID 
 
 .include <bsd.test.mk>

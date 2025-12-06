@@ -157,13 +157,14 @@ sfgpio_attach(device_t dev)
 		sc->gpio_pins[i].gp_name[GPIOMAXNAME - 1] = '\0';
 	}
 
-	sc->busdev = gpiobus_attach_bus(dev);
+	sc->busdev = gpiobus_add_bus(dev);
 	if (sc->busdev == NULL) {
 		device_printf(dev, "Cannot attach gpiobus\n");
 		error = ENXIO;
 		goto fail;
 	}
 
+	bus_attach_children(dev);
 	return (0);
 
 fail:

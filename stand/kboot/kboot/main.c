@@ -229,6 +229,7 @@ static struct mapping
 	uintptr_t pa;
 	caddr_t va;
 } map[MAX_MAP];
+static bool smbios_mmap_file;
 static int smbios_fd;
 static int nmap;
 
@@ -238,12 +239,17 @@ caddr_t ptov(uintptr_t pa)
 	uintptr_t pa2;
 	struct mapping *m = map;
 
-	pa2 = rounddown(pa, PAGE);
+	if (smbios_mmap_file)
+		pa2 = rounddown(pa, PAGE);
+	else
+		pa2 = pa;
 	for (int i = 0; i < nmap; i++, m++) {
 		if (m->pa == pa2) {
 			return (m->va + pa - m->pa);
 		}
 	}
+	if (!smbios_mmap_file)
+		panic("Out of bounds smbios access");
 	if (nmap == MAX_MAP)
 		panic("Too many maps for smbios");
 
@@ -298,6 +304,7 @@ static void
 find_smbios(void)
 {
 	char buf[40];
+	void *dmi_data;
 	uintptr_t pa;
 	caddr_t va;
 
@@ -306,17 +313,47 @@ find_smbios(void)
 	if (pa == 0)
 		return;
 
+	dmi_data = NULL;
+	smbios_fd = host_open("/sys/firmware/dmi/tables/DMI", O_RDONLY, 0);
+	if (smbios_fd >= 0) {
+		struct host_kstat sb;
+		struct mapping *m;
+
+		if (host_fstat(smbios_fd, &sb) < 0) {
+			host_close(smbios_fd);
+			goto try_dev_mem;
+		}
+
+		dmi_data = malloc(sb.st_size);
+		if (dmi_data == NULL) {
+			host_close(smbios_fd);
+			goto try_dev_mem;
+		}
+
+		host_read(smbios_fd, dmi_data, sb.st_size);
+
+		m = &map[nmap++];
+		m->pa = pa;
+		m->va = dmi_data;
+		smbios_mmap_file = false;
+	} else {
+try_dev_mem:
+		smbios_fd = host_open("/dev/mem", O_RDONLY, 0);
+		if (smbios_fd < 0) {
+			printf("Can't open /sys/firmware/dmi/tables/DMI or "
+			    "/dev/mem to read smbios\n");
+			return;
+		}
+		smbios_mmap_file = true;
+	}
 	snprintf(buf, sizeof(buf), "%#jx", (uintmax_t)pa);
 	setenv("hint.smbios.0.mem", buf, 1);
-	smbios_fd = host_open("/dev/mem", O_RDONLY, 0);
-	if (smbios_fd < 0) {
-		printf("Can't open /dev/mem to read smbios\n");
-		return;
-	}
+
 	va = ptov(pa);
 	printf("Start of smbios at pa %p va %p\n", (void *)pa, va);
 	smbios_detect(va);
 	smbios_cleanup();
+	free(dmi_data);
 	host_close(smbios_fd);
 }
 

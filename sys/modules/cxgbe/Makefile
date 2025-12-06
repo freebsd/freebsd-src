@@ -1,6 +1,3 @@
-#
-#
-
 SYSDIR?=${SRCTOP}/sys
 .include "${SYSDIR}/conf/kern.opts.mk"
 
@@ -13,14 +10,17 @@ SUBDIR+=	if_ccv
 SUBDIR+=	t4_firmware
 SUBDIR+=	t5_firmware
 SUBDIR+=	t6_firmware
+SUBDIR+=	t7_firmware
 SUBDIR+=	${_tom}
 SUBDIR+=	${_iw_cxgbe}
 SUBDIR+=	${_cxgbei}
 SUBDIR+=	ccr
+SUBDIR+=	${_nvmf_che}
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64"
 _tom=	tom
 _cxgbei=	cxgbei
+_nvmf_che=	nvmf_che
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _iw_cxgbe=	iw_cxgbe
 .endif

@@ -92,11 +92,6 @@ nodevice	mps
 
 nodevice	bnxt
 
-# Build SOC-specific modules...
-
-makeoptions	MODULES_EXTRA+="allwinner"
-makeoptions	MODULES_EXTRA+="imx"
-
 # Build dtb files...
 
 makeoptions	MODULES_EXTRA+="dtb/allwinner"

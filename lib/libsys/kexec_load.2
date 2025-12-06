@@ -1,0 +1,119 @@
+.\"
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
+.\" Copyright (c) 2025	Juniper Networks, Inc.
+.\"
+.Dd October 29, 2025
+.Dt KEXEC_LOAD 2
+.Os
+.Sh NAME
+.Nm kexec_load
+.Nd prepare new kernel to reboot into
+.Sh SYNOPSIS
+.Lb libc
+.In sys/kexec.h
+.Ft int
+.Fn kexec_load "uint64_t entry" "unsigned long count" \
+ "struct kexec_segment *segments" "unsigned long flags"
+.Sh DESCRIPTION
+The
+.Fn kexec_load
+system call loads a new kernel that can be executed later by
+.Xr reboot 2 .
+Subsequent calls will replace previously loaded images.
+.Pp
+The
+.Fa flags
+argument is a bitmask of flags that control the operation of the call.
+This argument is present for compatibility with Linux, although it is currently
+unused and must be 0.
+.Pp
+The
+.Fa entry
+argument is the physical address of the entry point of the new kernel image.
+.Pp
+The
+.Fa count
+argument is the number of segments in the image, currently limited to 16.
+A value of 0 will unload the currently staged image, if one exists, without
+staging a new image.
+.Pp
+The
+.Fa segments
+argument is an array of
+.Fa count
+members of the following structure:
+.Bd -literal -offset indent
+struct  kexec_segment {
+    void *buf;
+    size_t bufsz;
+    vm_paddr_t mem;
+    vm_size_t memsz;
+};
+.Ed
+.Pp
+The
+.Va buf
+and
+.Va bufsz
+members specify a memory region in the caller's address space containing the
+source of the segment.
+The
+.Va mem
+and
+.Va memsz
+members specify the target physical region of the segment.
+.Va bufsz
+must be less than or equal to
+.Va memsz ,
+and
+.Va mem
+and
+.Va memsz
+must be page aligned.
+The region covered by
+.Va mem
+must be in the list covered by the
+.Va vm.phys_segs
+sysctl.
+.Pp
+The
+.Fn kexec_load
+system call stages the kernel image in safe memory along with all
+machine-dependent image data until
+.Xr reboot 2
+is called with the
+.Va RB_KEXEC
+flag to load the image and execute the new kernel.
+.Sh RETURN VALUES
+The
+.Fn kexec_load
+system call returns 0 on success.
+On failure, -1 is returned, and
+.Va errno
+is set to indicate the error.
+On success any previously loaded image is unloaded and replaced with the new
+image.
+On failure, the previously loaded image is unchanged.
+.Sh ERRORS
+The following errors may be returned:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Too many segments in image.
+.It Bq Er EINVAL
+The value of
+.Va bufsz
+is larger than
+.Va memsz
+in one or more segments.
+.It Bq Er EINVAL
+Machine-dependent load error.
+.It Bq Er EBUSY
+Another
+.Fn kexec_load
+call is in progress.
+.Sh HISTORY
+The
+.Nm
+system call appeared in
+.Fx 16.0 .

@@ -29,12 +29,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_sctp.h"
 
 #include <sys/param.h>
+#include <sys/ck.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -137,7 +137,7 @@ static int div_output_outbound(int family, struct socket *so, struct mbuf *m);
 
 struct divcb {
 	union {
-		SLIST_ENTRY(divcb)	dcb_next;
+		CK_SLIST_ENTRY(divcb)	dcb_next;
 		intptr_t		dcb_bound;
 #define	DCB_UNBOUND	((intptr_t)-1)
 	};
@@ -147,7 +147,7 @@ struct divcb {
 	struct epoch_context	 dcb_epochctx;
 };
 
-SLIST_HEAD(divhashhead, divcb);
+CK_SLIST_HEAD(divhashhead, divcb);
 
 VNET_DEFINE_STATIC(struct divhashhead, divhash[DIVHASHSIZE]) = {};
 #define	V_divhash	VNET(divhash)
@@ -273,7 +273,7 @@ divert_packet(struct mbuf *m, bool incoming)
 	}
 
 	/* Put packet on socket queue, if any */
-	SLIST_FOREACH(dcb, &V_divhash[DIVHASH(nport)], dcb_next)
+	CK_SLIST_FOREACH(dcb, &V_divhash[DIVHASH(nport)], dcb_next)
 		if (dcb->dcb_port == nport)
 			break;
 
@@ -601,7 +601,7 @@ div_detach(struct socket *so)
 	so->so_pcb = NULL;
 	DIVERT_LOCK();
 	if (dcb->dcb_bound != DCB_UNBOUND)
-		SLIST_REMOVE(&V_divhash[DCBHASH(dcb)], dcb, divcb, dcb_next);
+		CK_SLIST_REMOVE(&V_divhash[DCBHASH(dcb)], dcb, divcb, dcb_next);
 	V_dcb_count--;
 	V_dcb_gencnt++;
 	DIVERT_UNLOCK();
@@ -620,16 +620,16 @@ div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return EINVAL;
 	port = ((struct sockaddr_in *)nam)->sin_port;
 	DIVERT_LOCK();
-	SLIST_FOREACH(dcb, &V_divhash[DIVHASH(port)], dcb_next)
+	CK_SLIST_FOREACH(dcb, &V_divhash[DIVHASH(port)], dcb_next)
 		if (dcb->dcb_port == port) {
 			DIVERT_UNLOCK();
 			return (EADDRINUSE);
 		}
 	dcb = so->so_pcb;
 	if (dcb->dcb_bound != DCB_UNBOUND)
-		SLIST_REMOVE(&V_divhash[DCBHASH(dcb)], dcb, divcb, dcb_next);
+		CK_SLIST_REMOVE(&V_divhash[DCBHASH(dcb)], dcb, divcb, dcb_next);
 	dcb->dcb_port = port;
-	SLIST_INSERT_HEAD(&V_divhash[DIVHASH(port)], dcb, dcb_next);
+	CK_SLIST_INSERT_HEAD(&V_divhash[DIVHASH(port)], dcb, dcb_next);
 	DIVERT_UNLOCK();
 
 	return (0);
@@ -668,7 +668,7 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 
 	DIVERT_LOCK();
 	for (int i = 0; i < DIVHASHSIZE; i++)
-		SLIST_FOREACH(dcb, &V_divhash[i], dcb_next) {
+		CK_SLIST_FOREACH(dcb, &V_divhash[i], dcb_next) {
 			if (dcb->dcb_gencnt <= xig.xig_gen) {
 				struct xinpcb xi;
 

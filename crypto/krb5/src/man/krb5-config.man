@@ -28,7 +28,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "KRB5-CONFIG" "1" " " "1.22" "MIT Kerberos"
+.TH "KRB5-CONFIG" "1" " " "1.22.1" "MIT Kerberos"
 .SH NAME
 krb5-config \- tool for linking against MIT Kerberos libraries
 .SH SYNOPSIS

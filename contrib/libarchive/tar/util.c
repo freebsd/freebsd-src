@@ -41,7 +41,7 @@
 #endif
 
 #include "bsdtar.h"
-#include "err.h"
+#include "lafe_err.h"
 #include "passphrase.h"
 
 static size_t	bsdtar_expand_char(char *, size_t, size_t, char);
@@ -314,7 +314,10 @@ set_chdir(struct bsdtar *bsdtar, const char *newdir)
 		/* The -C /foo -C bar case; concatenate */
 		char *old_pending = bsdtar->pending_chdir;
 		size_t old_len = strlen(old_pending);
-        size_t new_len = old_len + strlen(newdir) + 2;
+		size_t newdir_len = strlen(newdir);
+		size_t new_len = old_len + newdir_len + 2;
+		if (old_len > SIZE_MAX - newdir_len - 2)
+		    lafe_errc(1, errno, "Path too long");
 		bsdtar->pending_chdir = malloc(new_len);
 		if (old_pending[old_len - 1] == '/')
 			old_pending[old_len - 1] = '\0';
@@ -682,6 +685,7 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 {
 	char			 tmp[100];
 	size_t			 w;
+	size_t			 sw;
 	const char		*p;
 	const char		*fmt;
 	time_t			 tim;
@@ -769,8 +773,8 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	ltime = localtime(&tim);
 #endif
 	if (ltime)
-		strftime(tmp, sizeof(tmp), fmt, ltime);
-	else
+		sw = strftime(tmp, sizeof(tmp), fmt, ltime);
+	if (!ltime || !sw)
 		sprintf(tmp, "-- -- ----");
 	fprintf(out, " %s ", tmp);
 	safe_fprintf(out, "%s", archive_entry_pathname(entry));

@@ -73,7 +73,7 @@ msg_yes="YES"
 # error [$msg]
 #
 # Display generic error message when a script fails. An optional message
-# argument can preceed the generic message. User is given the choice of
+# argument can precede the generic message. User is given the choice of
 # restarting the installer or exiting.
 #
 error()
@@ -178,6 +178,9 @@ environment_save
 rm -rf $BSDINSTALL_TMPETC
 mkdir $BSDINSTALL_TMPETC
 
+# Reset the ESP list
+: > ${TMPDIR:-"/tmp"}/bsdinstall-esps
+
 # With pkgbase, pkg OOM has been observed with QEMU-default 128 MiB memory size.
 # Ensure we have at least about 256 MiB (with an allowance for rounding etc.).
 physmem=$(($(sysctl -n hw.physmem) / 1048576))
@@ -206,9 +209,9 @@ if [ ! -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
 	PKGBASE=yes
 else
 	bsddialog --backtitle "$OSNAME Installer" --title "Select Installation Type" \
-		--yes-label "Traditional" --no-label "Packages (Experimental)" --yesno \
+		--yes-label "Distribution Sets" --no-label "Packages (Tech Preview)" --yesno \
 		$PKGBASE_DEFAULT_BUTTON \
-		"Would you like to install the base system using traditional distribution sets or packages (experimental)?" 0 0
+		"Would you like to install the base system using traditional distribution sets or packages (technology preview)?" 0 0
 	if [ $? -eq 1 ]; then
 		PKGBASE=yes
 	fi

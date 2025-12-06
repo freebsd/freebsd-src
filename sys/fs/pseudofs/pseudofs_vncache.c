@@ -202,7 +202,7 @@ alloc:
 	error = insmntque(*vpp, mp);
 	if (error != 0) {
 		free(pvd, M_PFSVNCACHE);
-		*vpp = NULLVP;
+		*vpp = NULL;
 		return (error);
 	}
 	vn_set_state(*vpp, VSTATE_CONSTRUCTED);

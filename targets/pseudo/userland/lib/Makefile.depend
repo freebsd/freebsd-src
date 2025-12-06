@@ -255,6 +255,10 @@ DIRDEPS+= \
 DIRDEPS+=	lib/libblacklist
 .endif
 
+.if ${MK_BLOCKLIST_SUPPORT} != "no"
+DIRDEPS+=	lib/libblocklist
+.endif
+
 .if ${MK_ZFS} != "no"
 DIRDEPS+=	cddl/lib/libzutil
 .endif

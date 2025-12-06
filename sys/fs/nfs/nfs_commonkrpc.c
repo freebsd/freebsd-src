@@ -239,6 +239,7 @@ static bool nfscl_use_gss[NFSV42_NPROCS] = {
 	true,
 	true,
 	true,
+	true,
 };
 
 /*

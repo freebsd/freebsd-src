@@ -106,9 +106,11 @@ struct in6_ifextra {
 	struct scope6_id *scope6_id;
 	struct lltable *lltable;
 	struct mld_ifsoftc *mld_ifinfo;
+	u_int dad_failures;	/* DAD failures when using RFC 7217 stable addresses */
 };
 
 #define	LLTABLE6(ifp)	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->lltable)
+#define	DAD_FAILURES(ifp)	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->dad_failures)
 
 #ifdef _KERNEL
 
@@ -867,7 +869,7 @@ int	in6if_do_dad(struct ifnet *);
 void	in6_savemkludge(struct in6_ifaddr *);
 void	*in6_domifattach(struct ifnet *);
 void	in6_domifdetach(struct ifnet *, void *);
-int	in6_domifmtu(struct ifnet *);
+uint32_t in6_ifmtu(struct ifnet *);
 struct rib_head *in6_inithead(uint32_t fibnum);
 void	in6_detachhead(struct rib_head *rh);
 int	in6_if2idlen(struct ifnet *);

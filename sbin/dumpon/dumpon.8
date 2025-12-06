@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 23, 2020
+.Dd November 6, 2025
 .Dt DUMPON 8
 .Os
 .Sh NAME
@@ -228,6 +228,20 @@ total amount of physical memory as reported by the
 .Va hw.physmem
 .Xr sysctl 8
 variable.
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables can be used to modify or monitor the behavior of crash dumps:
+.Bl -tag -width "machdep.dump_retry_count"
+.It Va debug.minidump
+Set the type of kernel crash dump.
+Possible values are 0 for a full crash dump or 1 for a minidump.
+The default is minidump.
+.It Va machdep.dump_retry_count
+The maximum number of times dump will retry before giving up.
+The default value is 5.
+This sysctl is only supported on PowerPC and AMD64.
+.El
 .Sh IMPLEMENTATION NOTES
 Because the file system layer is already dead by the time a crash dump
 is taken, it is not possible to send crash dumps directly to a file.
@@ -339,7 +353,7 @@ when
 binds to a server,
 .Xr dhclient-script 8
 can be used to run
-.Xr dumpon 8 .
+.Nm .
 For example, to automatically configure
 .Xr netdump 4
 on the vtnet0 interface, add the following to
@@ -377,6 +391,7 @@ needed.
 .Xr loader 8 ,
 .Xr rc 8 ,
 .Xr savecore 8 ,
+.Xr sysctl 8 ,
 .Xr swapon 8 ,
 .Xr panic 9
 .Sh HISTORY

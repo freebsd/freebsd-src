@@ -210,6 +210,7 @@ struct nvmf_host_qpair *nvmf_init_qp(struct nvmf_softc *sc,
     enum nvmf_trtype trtype, const nvlist_t *nvl, const char *name, u_int qid);
 void	nvmf_shutdown_qp(struct nvmf_host_qpair *qp);
 void	nvmf_destroy_qp(struct nvmf_host_qpair *qp);
+uint64_t nvmf_max_xfer_size_qp(struct nvmf_host_qpair *qp);
 struct nvmf_request *nvmf_allocate_request(struct nvmf_host_qpair *qp,
     void *sqe, nvmf_request_complete_t *cb, void *cb_arg, int how);
 void	nvmf_submit_request(struct nvmf_request *req);

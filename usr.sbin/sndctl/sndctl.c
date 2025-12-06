@@ -830,6 +830,8 @@ mod_play_vchans(struct snd_dev *dp, void *arg)
 
 	if (dp->from_user)
 		return (-1);
+	if (!dp->play.pchans)
+		return (0);
 
 	snprintf(buf, sizeof(buf), "dev.pcm.%d.play.vchans", dp->unit);
 
@@ -873,6 +875,8 @@ mod_rec_vchans(struct snd_dev *dp, void *arg)
 
 	if (dp->from_user)
 		return (-1);
+	if (!dp->rec.pchans)
+		return (0);
 
 	snprintf(buf, sizeof(buf), "dev.pcm.%d.rec.vchans", dp->unit);
 

@@ -174,7 +174,7 @@ static void
 checkrlimits(struct config_file* cfg)
 {
 #ifndef S_SPLINT_S
-#ifdef HAVE_GETRLIMIT
+#if defined(HAVE_GETRLIMIT) && !defined(unbound_testbound)
 	/* list has number of ports to listen to, ifs number addresses */
 	int list = ((cfg->do_udp?1:0) + (cfg->do_tcp?1 + 
 			(int)cfg->incoming_num_tcp:0));
@@ -463,11 +463,11 @@ detach(void)
 #endif /* HAVE_DAEMON */
 }
 
+#ifdef HAVE_SSL
 /* setup a listening ssl context, fatal_exit() on any failure */
 static void
 setup_listen_sslctx(void** ctx, int is_dot, int is_doh, struct config_file* cfg)
 {
-#ifdef HAVE_SSL
 	if(!(*ctx = listen_sslctx_create(
 		cfg->ssl_service_key, cfg->ssl_service_pem, NULL,
 		cfg->tls_ciphers, cfg->tls_ciphersuites,
@@ -476,10 +476,8 @@ setup_listen_sslctx(void** ctx, int is_dot, int is_doh, struct config_file* cfg)
 		is_dot, is_doh))) {
 		fatal_exit("could not set up listen SSL_CTX");
 	}
-#else /* HAVE_SSL */
-	(void)ctx;(void)is_dot;(void)is_doh;(void)cfg;
-#endif /* HAVE_SSL */
 }
+#endif /* HAVE_SSL */
 
 /* setups the needed ssl contexts, fatal_exit() on any failure */
 static void
@@ -747,6 +745,7 @@ run_daemon(const char* cfgfile, int cmdline_verbose, int debug_mode, int need_pi
 					"the commandline to see more errors, "
 					"or unbound-checkconf", cfgfile);
 			log_warn("Continuing with default config settings");
+			config_auto_slab_values(cfg);
 		}
 		apply_settings(daemon, cfg, cmdline_verbose, debug_mode);
 		if(!done_setup)

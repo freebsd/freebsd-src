@@ -47,7 +47,6 @@
 
 #include <dev/ofw/openfirm.h>
 
-#include <machine/armreg.h>
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/cpufunc.h>

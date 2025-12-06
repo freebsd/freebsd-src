@@ -43,7 +43,7 @@ int __libarchive_cryptor_build_hack(void);
 #ifdef __APPLE__
 # include <AvailabilityMacros.h>
 # if MAC_OS_X_VERSION_MAX_ALLOWED >= 1080
-#  define ARCHIVE_CRYPTOR_USE_Apple_CommonCrypto
+#  define ARCHIVE_CRYPTOR_USE_Apple_CommonCrypto 1
 # endif
 #endif
 
@@ -56,10 +56,10 @@ int __libarchive_cryptor_build_hack(void);
 typedef struct {
 	CCCryptorRef	ctx;
 	uint8_t		key[AES_MAX_KEY_SIZE];
-	unsigned	key_len;
+	size_t		key_len;
 	uint8_t		nonce[AES_BLOCK_SIZE];
 	uint8_t		encr_buf[AES_BLOCK_SIZE];
-	unsigned	encr_pos;
+	size_t		encr_pos;
 } archive_crypto_ctx;
 
 #elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
@@ -144,8 +144,14 @@ typedef struct {
 
 #else
 
+#if defined(ARCHIVE_CRYPTO_MD5_WIN)    ||\
+	defined(ARCHIVE_CRYPTO_SHA1_WIN)   ||\
+	defined(ARCHIVE_CRYPTO_SHA256_WIN) ||\
+	defined(ARCHIVE_CRYPTO_SHA384_WIN) ||\
+	defined(ARCHIVE_CRYPTO_SHA512_WIN)
 #if defined(_WIN32) && !defined(__CYGWIN__) && !(defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA)
 #define ARCHIVE_CRYPTOR_USE_WINCRYPT 1
+#endif
 #endif
 
 #define AES_BLOCK_SIZE	16
@@ -171,6 +177,9 @@ typedef int archive_crypto_ctx;
   __archive_cryptor.encrypto_aes_ctr_update(ctx, in, in_len, out, out_len)
 #define archive_encrypto_aes_ctr_release(ctx) \
   __archive_cryptor.encrypto_aes_ctr_release(ctx)
+
+/* Stub return value if no encryption support exists. */
+#define CRYPTOR_STUB_FUNCTION	-2
 
 /* Minimal interface to cryptographic functionality for internal use in
  * libarchive */

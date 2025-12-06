@@ -312,7 +312,7 @@
 	/*Y0-Y7*/	"","","","","","","","",
 	/*Z0-Z7*/   "","","","","","","","";
 
-	usb_power {
+	usb-power-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(O, 3) GPIO_ACTIVE_LOW>;
 		output-high;
@@ -352,6 +352,33 @@
 			"presence-lcd-op",
 			"presence-base-op",
 			"";
+	};
+
+	led-controller@63 {
+		compatible = "nxp,pca9552";
+		reg = <0x63>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		gpio-line-names =
+			"presence-vrm-c12",
+			"presence-vrm-c13",
+			"presence-vrm-c15",
+			"presence-vrm-c16",
+			"presence-vrm-c17",
+			"presence-vrm-c18",
+			"presence-vrm-c20",
+			"presence-vrm-c21",
+			"presence-vrm-c54",
+			"presence-vrm-c55",
+			"presence-vrm-c57",
+			"presence-vrm-c58",
+			"presence-vrm-c59",
+			"presence-vrm-c60",
+			"presence-vrm-c62",
+			"presence-vrm-c63";
 	};
 };
 

@@ -30,6 +30,12 @@
 			linux,code = <KEY_BATTERY>;
 		};
 
+		button-pwrbtn-n {
+			gpios = <&gpio0 RK_PA1 GPIO_ACTIVE_LOW>;
+			label = "PWRBTN#";
+			linux,code = <KEY_POWER>;
+		};
+
 		button-slp-btn-n {
 			gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_LOW>;
 			label = "SLP_BTN#";
@@ -85,7 +91,7 @@
 			clock-frequency = <24576000>;
 	};
 
-	dc_12v: dc-12v {
+	dc_12v: regulator-dc-12v {
 		compatible = "regulator-fixed";
 		regulator-name = "dc_12v";
 		regulator-always-on;
@@ -94,7 +100,7 @@
 		regulator-max-microvolt = <12000000>;
 	};
 
-	vcc3v3_baseboard: vcc3v3-baseboard {
+	vcc3v3_baseboard: regulator-vcc3v3-baseboard {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_baseboard";
 		regulator-always-on;
@@ -104,7 +110,7 @@
 		vin-supply = <&dc_12v>;
 	};
 
-	vcc5v0_baseboard: vcc5v0-baseboard {
+	vcc5v0_baseboard: regulator-vcc5v0-baseboard {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_baseboard";
 		regulator-always-on;
@@ -114,7 +120,7 @@
 		vin-supply = <&dc_12v>;
 	};
 
-	vcc5v0_otg: vcc5v0-otg-regulator {
+	vcc5v0_otg: regulator-vcc5v0-otg {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PA2 GPIO_ACTIVE_HIGH>;
@@ -124,7 +130,7 @@
 		regulator-always-on;
 	};
 
-	vdda_codec: vdda-codec {
+	vdda_codec: regulator-vdda-codec {
 		compatible = "regulator-fixed";
 		regulator-name = "vdda_codec";
 		regulator-boot-on;
@@ -133,7 +139,7 @@
 		vin-supply = <&vcc5v0_baseboard>;
 	};
 
-	vddd_codec: vddd-codec {
+	vddd_codec: regulator-vddd-codec {
 		compatible = "regulator-fixed";
 		regulator-name = "vddd_codec";
 		regulator-boot-on;
@@ -143,8 +149,15 @@
 	};
 };
 
+&gmac {
+	status = "okay";
+};
+
 &hdmi {
-	ddc-i2c-bus = <&i2c3>;
+	status = "okay";
+};
+
+&hdmi_sound {
 	status = "okay";
 };
 
@@ -180,9 +193,22 @@
 	};
 };
 
-&i2c6 {
+&i2c7 {
+	eeprom@50 {
+		reg = <0x50>;
+		compatible = "atmel,24c01";
+		pagesize = <8>;
+		size = <128>;
+		vcc-supply = <&vcc3v3_baseboard>;
+	};
+};
+
+&i2s0 {
 	status = "okay";
-	clock-frequency = <400000>;
+};
+
+&i2s2 {
+	status = "okay";
 };
 
 &pcie_phy {
@@ -203,6 +229,8 @@
 	buttons {
 		haikou_keys_pin: haikou-keys-pin {
 			rockchip,pins =
+			  /* PWRBTN# */
+			  <0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>,
 			  /* LID_BTN */
 			  <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>,
 			  /* BATLOW# */
@@ -281,14 +309,6 @@
 
 &uart2 {
 	rts-gpios = <&gpio2 RK_PC3 GPIO_ACTIVE_HIGH>;
-	status = "okay";
-};
-
-&usb_host0_ehci {
-	status = "okay";
-};
-
-&usb_host0_ohci {
 	status = "okay";
 };
 

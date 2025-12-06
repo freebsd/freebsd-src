@@ -829,7 +829,7 @@ STATIC_ASSERT (sizeof (CHAR16)  == 2, "sizeof (CHAR16) does not meet UEFI Specif
  * fail, but it also takes lengths to never use either of these constructs. The
  * boot loader, however, uses them and needs these assertionst o be correct.
  */
-#ifdef _STANDALONE
+#if 0
 STATIC_ASSERT (sizeof (L'A')    == 2, "sizeof (L'A') does not meet UEFI Specification Data Type requirements");
 STATIC_ASSERT (sizeof (L"A")    == 4, "sizeof (L\"A\") does not meet UEFI Specification Data Type requirements");
 #endif
@@ -841,8 +841,10 @@ STATIC_ASSERT (ALIGNOF (INT16)   == sizeof (INT16), "Alignment of INT16 does not
 STATIC_ASSERT (ALIGNOF (UINT16)  == sizeof (UINT16), "Alignment of UINT16 does not meet UEFI Specification Data Type requirements");
 STATIC_ASSERT (ALIGNOF (INT32)   == sizeof (INT32), "Alignment of INT32 does not meet UEFI Specification Data Type requirements");
 STATIC_ASSERT (ALIGNOF (UINT32)  == sizeof (UINT32), "Alignment of UINT32 does not meet UEFI Specification Data Type requirements");
+#ifndef _STANDALONE
 STATIC_ASSERT (ALIGNOF (INT64)   == sizeof (INT64), "Alignment of INT64 does not meet UEFI Specification Data Type requirements");
 STATIC_ASSERT (ALIGNOF (UINT64)  == sizeof (UINT64), "Alignment of UINT64 does not meet UEFI Specification Data Type requirements");
+#endif
 STATIC_ASSERT (ALIGNOF (CHAR8)   == sizeof (CHAR8), "Alignment of CHAR8 does not meet UEFI Specification Data Type requirements");
 STATIC_ASSERT (ALIGNOF (CHAR16)  == sizeof (CHAR16), "Alignment of CHAR16 does not meet UEFI Specification Data Type requirements");
 STATIC_ASSERT (ALIGNOF (INTN)    == sizeof (INTN), "Alignment of INTN does not meet UEFI Specification Data Type requirements");

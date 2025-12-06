@@ -93,3 +93,9 @@ class TestIGMP(VnetTestTemplate):
             options=[sp.IPOption_Router_Alert()]) \
             / sc.igmp.IGMP(type=0x11, mrcode=1)
         assert not self.find_igmp_reply(pkt, ifname)
+
+        # Or with the wrong destination address
+        pkt = sp.IP(dst="224.0.0.2%%%s" % ifname, ttl=2,
+            options=[sp.IPOption_Router_Alert()]) \
+            / sc.igmp.IGMP(type=0x11, mrcode=1)
+        assert not self.find_igmp_reply(pkt, ifname)

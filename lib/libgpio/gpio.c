@@ -274,3 +274,23 @@ gpio_pin_pulsate(gpio_handle_t handle, gpio_pin_t pin)
 {
 	return (gpio_pin_set_flag(handle, pin, GPIO_PIN_PULSATE));
 }
+
+int
+gpio_configure_events(gpio_handle_t handle, uint32_t report_type,
+    uint32_t fifo_size)
+{
+	struct gpio_event_config gpevent_config;
+
+	gpevent_config.gp_report_type = report_type;
+	gpevent_config.gp_fifo_size = fifo_size;
+	if (ioctl(handle, GPIOCONFIGEVENTS, &gpevent_config) < 0)
+		return (-1);
+
+	return (0);
+}
+
+int
+gpio_fileno(gpio_handle_t handle)
+{
+	return (handle);
+}

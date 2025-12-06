@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include "iwl-trans.h"
@@ -499,8 +499,6 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 	if (!(rate_n_flags & RATE_MCS_CCK_MSK_V1) &&
 	    rate_n_flags & RATE_MCS_SGI_MSK_V1)
 		rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
-	if (rate_n_flags & RATE_HT_MCS_GF_MSK)
-		rx_status->enc_flags |= RX_ENC_FLAG_HT_GF;
 	if (rate_n_flags & RATE_MCS_LDPC_MSK_V1)
 		rx_status->enc_flags |= RX_ENC_FLAG_LDPC;
 	if (rate_n_flags & RATE_MCS_HT_MSK_V1) {
@@ -569,7 +567,8 @@ static void iwl_mvm_update_link_sig(struct ieee80211_vif *vif, int sig,
 				    struct iwl_mvm_vif_link_info *link_info,
 				    struct ieee80211_bss_conf *bss_conf)
 {
-	struct iwl_mvm *mvm = iwl_mvm_vif_from_mac80211(vif)->mvm;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
 	int thold = bss_conf->cqm_rssi_thold;
 	int hyst = bss_conf->cqm_rssi_hyst;
 	int last_event;
@@ -634,6 +633,13 @@ static void iwl_mvm_update_link_sig(struct ieee80211_vif *vif, int sig,
 	if (!vif->cfg.assoc || !ieee80211_vif_is_mld(vif))
 		return;
 
+	/* We're not in EMLSR and our signal is bad, try to switch link maybe */
+	if (sig < IWL_MVM_LOW_RSSI_MLO_SCAN_THRESH && !mvmvif->esr_active) {
+		iwl_mvm_int_mlo_scan(mvm, vif);
+		return;
+	}
+
+	/* We are in EMLSR, check if we need to exit */
 	exit_esr_thresh =
 		iwl_mvm_get_esr_rssi_thresh(mvm,
 					    &bss_conf->chanreq.oper,
@@ -751,8 +757,8 @@ static void iwl_mvm_stats_energy_iter(void *_data,
 	u8 *energy = _data;
 	u32 sta_id = mvmsta->deflink.sta_id;
 
-	if (WARN_ONCE(sta_id >= IWL_MVM_STATION_COUNT_MAX, "sta_id %d >= %d",
-		      sta_id, IWL_MVM_STATION_COUNT_MAX))
+	if (WARN_ONCE(sta_id >= IWL_STATION_COUNT_MAX, "sta_id %d >= %d",
+		      sta_id, IWL_STATION_COUNT_MAX))
 		return;
 
 	if (energy[sta_id])
@@ -794,6 +800,8 @@ static void iwl_mvm_handle_per_phy_stats(struct iwl_mvm *mvm,
 			continue;
 		mvm->phy_ctxts[i].channel_load_by_us =
 			le32_to_cpu(per_phy[i].channel_load_by_us);
+		mvm->phy_ctxts[i].channel_load_not_by_us =
+			le32_to_cpu(per_phy[i].channel_load_not_by_us);
 	}
 }
 
@@ -882,28 +890,28 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 	u32 rx_bytes[MAC_INDEX_AUX] = {};
 	int fw_link_id;
 
-	for (fw_link_id = 0; fw_link_id < ARRAY_SIZE(mvm->link_id_to_link_conf);
+	/* driver uses link ID == MAC ID */
+	for (fw_link_id = 0; fw_link_id < ARRAY_SIZE(mvm->vif_id_to_mac);
 	     fw_link_id++) {
 		struct iwl_stats_ntfy_per_link *link_stats;
-		struct ieee80211_bss_conf *bss_conf;
-		struct iwl_mvm_vif *mvmvif;
 		struct iwl_mvm_vif_link_info *link_info;
+		struct iwl_mvm_vif *mvmvif;
+		struct ieee80211_vif *vif;
 		int link_id;
 		int sig;
 
-		bss_conf = iwl_mvm_rcu_fw_link_id_to_link_conf(mvm, fw_link_id,
-							       false);
-		if (!bss_conf)
+		vif = iwl_mvm_rcu_dereference_vif_id(mvm, fw_link_id, false);
+		if (!vif)
 			continue;
 
-		if (bss_conf->vif->type != NL80211_IFTYPE_STATION)
+		if (vif->type != NL80211_IFTYPE_STATION)
 			continue;
 
-		link_id = bss_conf->link_id;
+		link_id = vif->bss_conf.link_id;
 		if (link_id >= ARRAY_SIZE(mvmvif->link))
 			continue;
 
-		mvmvif = iwl_mvm_vif_from_mac80211(bss_conf->vif);
+		mvmvif = iwl_mvm_vif_from_mac80211(vif);
 		link_info = mvmvif->link[link_id];
 		if (!link_info)
 			continue;
@@ -921,8 +929,7 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 
 		if (link_info->phy_ctxt &&
 		    link_info->phy_ctxt->channel->band == NL80211_BAND_2GHZ)
-			iwl_mvm_bt_coex_update_link_esr(mvm, bss_conf->vif,
-							link_id);
+			iwl_mvm_bt_coex_update_link_esr(mvm, vif, link_id);
 
 		/* make sure that beacon statistics don't go backwards with TCM
 		 * request to clear statistics
@@ -932,8 +939,7 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 				mvmvif->link[link_id]->beacon_stats.num_beacons;
 
 		sig = -le32_to_cpu(link_stats->beacon_filter_average_energy);
-		iwl_mvm_update_link_sig(bss_conf->vif, sig, link_info,
-					bss_conf);
+		iwl_mvm_update_link_sig(vif, sig, link_info, &vif->bss_conf);
 
 		if (WARN_ONCE(mvmvif->id >= MAC_INDEX_AUX,
 			      "invalid mvmvif id: %d", mvmvif->id))
@@ -967,6 +973,9 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 #define SEC_LINK_MIN_TX 3000
 #define SEC_LINK_MIN_RX 400
 
+/* Accept a ~20% short window to avoid issues due to jitter */
+#define IWL_MVM_TPT_MIN_COUNT_WINDOW (IWL_MVM_TPT_COUNT_WINDOW_SEC * HZ * 4 / 5)
+
 static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 {
 	struct ieee80211_vif *bss_vif = iwl_mvm_get_bss_vif(mvm);
@@ -976,6 +985,7 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 	unsigned long sec_link_tx = 0, sec_link_rx = 0;
 	u8 sec_link_tx_perc, sec_link_rx_perc;
 	u8 sec_link;
+	bool skip = false;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -1000,11 +1010,11 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 	sec_link = mvmvif->link[sec_link]->fw_link_id;
 
 	/* Sum up RX and TX MPDUs from the different queues/links */
-	for (int q = 0; q < mvm->trans->num_rx_queues; q++) {
+	for (int q = 0; q < mvm->trans->info.num_rxqs; q++) {
 		spin_lock_bh(&mvmsta->mpdu_counters[q].lock);
 
 		/* The link IDs that doesn't exist will contain 0 */
-		for (int link = 0; link < IWL_MVM_FW_MAX_LINK_ID; link++) {
+		for (int link = 0; link < IWL_FW_MAX_LINK_ID; link++) {
 			total_tx += mvmsta->mpdu_counters[q].per_link[link].tx;
 			total_rx += mvmsta->mpdu_counters[q].per_link[link].rx;
 		}
@@ -1015,15 +1025,27 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 		/*
 		 * In EMLSR we have statistics every 5 seconds, so we can reset
 		 * the counters upon every statistics notification.
+		 * The FW sends the notification regularly, but it will be
+		 * misaligned at the start. Skipping the measurement if it is
+		 * short will synchronize us.
 		 */
+		if (jiffies - mvmsta->mpdu_counters[q].window_start <
+		    IWL_MVM_TPT_MIN_COUNT_WINDOW)
+			skip = true;
+		mvmsta->mpdu_counters[q].window_start = jiffies;
 		memset(mvmsta->mpdu_counters[q].per_link, 0,
 		       sizeof(mvmsta->mpdu_counters[q].per_link));
 
 		spin_unlock_bh(&mvmsta->mpdu_counters[q].lock);
 	}
 
-	IWL_DEBUG_STATS(mvm, "total Tx MPDUs: %ld. total Rx MPDUs: %ld\n",
-			total_tx, total_rx);
+	if (skip) {
+		IWL_DEBUG_INFO(mvm, "MPDU statistics window was short\n");
+		return;
+	}
+
+	IWL_DEBUG_INFO(mvm, "total Tx MPDUs: %ld. total Rx MPDUs: %ld\n",
+		       total_tx, total_rx);
 
 	/* If we don't have enough MPDUs - exit EMLSR */
 	if (total_tx < IWL_MVM_ENTER_ESR_TPT_THRESH &&
@@ -1032,6 +1054,9 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 				  iwl_mvm_get_primary_link(bss_vif));
 		return;
 	}
+
+	IWL_DEBUG_INFO(mvm, "Secondary Link %d: Tx MPDUs: %ld. Rx MPDUs: %ld\n",
+		       sec_link, sec_link_tx, sec_link_rx);
 
 	/* Calculate the percentage of the secondary link TX/RX */
 	sec_link_tx_perc = total_tx ? sec_link_tx * 100 / total_tx : 0;
@@ -1052,7 +1077,7 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 void iwl_mvm_handle_rx_system_oper_stats(struct iwl_mvm *mvm,
 					 struct iwl_rx_cmd_buffer *rxb)
 {
-	u8 average_energy[IWL_MVM_STATION_COUNT_MAX];
+	u8 average_energy[IWL_STATION_COUNT_MAX];
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_system_statistics_notif_oper *stats;
 	int i;
@@ -1111,7 +1136,7 @@ static void
 iwl_mvm_handle_rx_statistics_tlv(struct iwl_mvm *mvm,
 				 struct iwl_rx_packet *pkt)
 {
-	u8 average_energy[IWL_MVM_STATION_COUNT_MAX];
+	u8 average_energy[IWL_STATION_COUNT_MAX];
 	__le32 air_time[MAC_INDEX_AUX];
 	__le32 rx_bytes[MAC_INDEX_AUX];
 	__le32 flags = 0;

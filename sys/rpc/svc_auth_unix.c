@@ -41,17 +41,11 @@
  */
 
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/systm.h>
 #include <sys/ucred.h>
 
 #include <rpc/rpc.h>
 
 #include <rpc/rpc_com.h>
-
-#define MAX_MACHINE_NAME	255
-#define NGRPS			16
 
 /*
  * Unix longhand authenticator
@@ -62,11 +56,8 @@ _svcauth_unix(struct svc_req *rqst, struct rpc_msg *msg)
 	enum auth_stat stat;
 	XDR xdrs;
 	int32_t *buf;
-	uint32_t time;
 	struct xucred *xcr;
-	u_int auth_len;
-	size_t str_len, gid_len;
-	u_int i;
+	uint32_t auth_len, time;
 
 	xcr = rqst->rq_clntcred;
 	auth_len = (u_int)msg->rm_call.cb_cred.oa_length;
@@ -74,51 +65,58 @@ _svcauth_unix(struct svc_req *rqst, struct rpc_msg *msg)
 	    XDR_DECODE);
 	buf = XDR_INLINE(&xdrs, auth_len);
 	if (buf != NULL) {
+		/* 'time', 'str_len', UID, GID and 'supp_ngroups'. */
+		const uint32_t min_len = 5 * BYTES_PER_XDR_UNIT;
+		uint32_t str_len, supp_ngroups;
+
+		if (auth_len < min_len)
+			goto badcred;
 		time = IXDR_GET_UINT32(buf);
-		str_len = (size_t)IXDR_GET_UINT32(buf);
-		if (str_len > MAX_MACHINE_NAME) {
-			stat = AUTH_BADCRED;
-			goto done;
-		}
+		str_len = IXDR_GET_UINT32(buf);
+		if (str_len > AUTH_SYS_MAX_HOSTNAME)
+			goto badcred;
 		str_len = RNDUP(str_len);
+		/*
+		 * Recheck message length now that we know the value of
+		 * 'str_len' (and that it won't cause an overflow in additions
+		 * below) to protect access to the credentials part.
+		 */
+		if (auth_len < min_len + str_len)
+			goto badcred;
 		buf += str_len / sizeof (int32_t);
 		xcr->cr_uid = IXDR_GET_UINT32(buf);
 		xcr->cr_gid = IXDR_GET_UINT32(buf);
-		gid_len = (size_t)IXDR_GET_UINT32(buf);
-		if (gid_len > NGRPS) {
-			stat = AUTH_BADCRED;
-			goto done;
-		}
-		for (i = 0; i < gid_len; i++) {
-			/*
-			 * Note that this is a `struct xucred`, which maintains
-			 * its historical layout of preserving the egid in
-			 * cr_ngroups and cr_groups[0] == egid.
-			 */
-			if (i + 1 < XU_NGROUPS)
-				xcr->cr_groups[i + 1] = IXDR_GET_INT32(buf);
+		supp_ngroups = IXDR_GET_UINT32(buf);
+		/*
+		 * See the herald comment before a similar test at the end of
+		 * xdr_authunix_parms() for why we strictly respect RFC 5531 and
+		 * why we may have to drop the last supplementary group when
+		 * there are AUTH_SYS_MAX_GROUPS of them.
+		 */
+		if (supp_ngroups > AUTH_SYS_MAX_GROUPS)
+			goto badcred;
+		/*
+		 * Final message length check, as we now know how much we will
+		 * read in total.
+		 */
+		if (auth_len < min_len + str_len +
+		    supp_ngroups * BYTES_PER_XDR_UNIT)
+			goto badcred;
+
+		/*
+		 * Note that 'xcr' is a 'struct xucred', which still has the
+		 * historical layout where the effective GID is in cr_groups[0]
+		 * and is accounted in 'cr_ngroups'.
+		 */
+		for (uint32_t i = 0; i < supp_ngroups; ++i) {
+			if (i < XU_NGROUPS - 1)
+				xcr->cr_sgroups[i] = IXDR_GET_INT32(buf);
 			else
 				buf++;
 		}
-		if (gid_len + 1 > XU_NGROUPS)
-			xcr->cr_ngroups = XU_NGROUPS;
-		else
-			xcr->cr_ngroups = gid_len + 1;
-
-		/*
-		 * five is the smallest unix credentials structure -
-		 * timestamp, hostname len (0), uid, gid, and gids len (0).
-		 */
-		if ((5 + gid_len) * BYTES_PER_XDR_UNIT + str_len > auth_len) {
-			(void) printf("bad auth_len gid %ld str %ld auth %u\n",
-			    (long)gid_len, (long)str_len, auth_len);
-			stat = AUTH_BADCRED;
-			goto done;
-		}
-	} else if (! xdr_authunix_parms(&xdrs, &time, xcr)) {
-		stat = AUTH_BADCRED;
-		goto done;
-	}
+		xcr->cr_ngroups = MIN(supp_ngroups + 1, XU_NGROUPS);
+	} else if (!xdr_authunix_parms(&xdrs, &time, xcr))
+		goto badcred;
 
 	rqst->rq_verf = _null_auth;
 	stat = AUTH_OK;
@@ -126,6 +124,10 @@ done:
 	XDR_DESTROY(&xdrs);
 
 	return (stat);
+
+badcred:
+	stat = AUTH_BADCRED;
+	goto done;
 }
 
 

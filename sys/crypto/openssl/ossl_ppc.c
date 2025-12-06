@@ -38,8 +38,11 @@ unsigned int OPENSSL_ppccap_P = 0;
 
 ossl_cipher_setkey_t aes_p8_set_encrypt_key;
 ossl_cipher_setkey_t aes_p8_set_decrypt_key;
+
 ossl_cipher_setkey_t vpaes_set_encrypt_key;
 ossl_cipher_setkey_t vpaes_set_decrypt_key;
+
+ossl_cipher_setkey_t ossl_aes_gcm_setkey;
 
 void
 ossl_cpuid(struct ossl_softc *sc)
@@ -75,7 +78,11 @@ ossl_cpuid(struct ossl_softc *sc)
 		ossl_cipher_aes_cbc.set_encrypt_key = aes_p8_set_encrypt_key;
 		ossl_cipher_aes_cbc.set_decrypt_key = aes_p8_set_decrypt_key;
 		sc->has_aes = true;
-	} else if (OPENSSL_ppccap_P & PPC_ALTIVEC) {
+
+		ossl_cipher_aes_gcm.set_encrypt_key = ossl_aes_gcm_setkey;
+		ossl_cipher_aes_gcm.set_decrypt_key = ossl_aes_gcm_setkey;
+		sc->has_aes_gcm = true;
+    } else if (OPENSSL_ppccap_P & PPC_ALTIVEC) {
 		ossl_cipher_aes_cbc.set_encrypt_key = vpaes_set_encrypt_key;
 		ossl_cipher_aes_cbc.set_decrypt_key = vpaes_set_decrypt_key;
 		sc->has_aes = true;

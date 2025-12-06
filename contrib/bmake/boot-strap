@@ -133,7 +133,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: boot-strap,v 1.61 2024/03/10 17:51:10 sjg Exp $
+#	$Id: boot-strap,v 1.62 2025/11/15 16:53:14 sjg Exp $
 #
 #	@(#) Copyright (c) 2001 Simon J. Gerraty
 #
@@ -179,12 +179,25 @@ source_rc() {
 	done
 }
 
+have() {
+	case `(type "$1") 2>&1` in
+	*" found") return 1;;
+	esac
+	return 0
+}
+
+Env() {
+	have env && env || set
+}
+
 cmd_args="$@"
 
 # clear some things from the environment that we care about
-unset MAKEOBJDIR MAKEOBJDIRPREFIX
-# or that might be incompatible
-unset MAKE MAKEFLAGS
+# any variable starting with any of these prefixes will be unset
+for p in MAKE OBJ SB WITH
+do
+	unset ENV `Env | sed -n "/^$p/s,=.*,,p"`
+done
 
 # --install[-host-target] will set this
 INSTALL_PREFIX=
@@ -381,6 +394,8 @@ objdir="${objdir:-$OBJROOT$HOST_TARGET}"
 cd "$objdir" || exit 1
 # make it absolute
 objdir=`'pwd'`
+# save a copy of our env for debugging
+Env > env.out
 
 ShareDir() {
 	case "/$1" in

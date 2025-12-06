@@ -393,7 +393,7 @@ set_dunit(struct mixer *m, int dunit, char *vctl)
 			warn("fork");
 			break;
 		case 0:
-			rc = execl("/usr/local/sbin/virtual_oss_cmd",
+			rc = execl("/usr/sbin/virtual_oss_cmd",
 			    "virtual_oss_cmd", dev, opt, buf, NULL);
 			if (rc < 0)
 				warn("virtual_oss_cmd");

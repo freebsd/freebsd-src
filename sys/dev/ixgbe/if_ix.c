@@ -45,7 +45,7 @@
 /************************************************************************
  * Driver version
  ************************************************************************/
-static const char ixgbe_driver_version[] = "4.0.1-k";
+static const char ixgbe_driver_version[] = "5.0.1-k";
 
 /************************************************************************
  * PCI Device ID Table
@@ -144,6 +144,16 @@ static const pci_vendor_info_t ixgbe_vendor_info_array[] =
     "Intel(R) X540-T2 (Bypass)"),
 	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_BYPASS,
     "Intel(R) X520 82599 (Bypass)"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_E610_BACKPLANE,
+     "Intel(R) E610 (Backplane)"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_E610_SFP,
+     "Intel(R) E610 (SFP)"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_E610_2_5G_T,
+     "Intel(R) E610 (2.5 GbE)"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_E610_10G_T,
+     "Intel(R) E610 (10 GbE)"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_E610_SGMII,
+     "Intel(R) E610 (SGMII)"),
 	/* required last entry */
 	PVID_END
 };
@@ -174,12 +184,15 @@ static int  ixgbe_if_rx_queues_alloc(if_ctx_t, caddr_t *, uint64_t *, int,
    int);
 static void ixgbe_if_queues_free(if_ctx_t);
 static void ixgbe_if_timer(if_ctx_t, uint16_t);
+static const char *ixgbe_link_speed_to_str(u32 link_speed);
 static void ixgbe_if_update_admin_status(if_ctx_t);
 static void ixgbe_if_vlan_register(if_ctx_t, u16);
 static void ixgbe_if_vlan_unregister(if_ctx_t, u16);
 static int  ixgbe_if_i2c_req(if_ctx_t, struct ifi2creq *);
 static bool ixgbe_if_needs_restart(if_ctx_t, enum iflib_restart_event);
 int ixgbe_intr(void *);
+
+static int ixgbe_if_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data);
 
 /************************************************************************
  * Function prototypes
@@ -228,6 +241,13 @@ static void ixgbe_setup_vlan_hw_support(if_ctx_t);
 static void ixgbe_config_gpie(struct ixgbe_softc *);
 static void ixgbe_config_delay_values(struct ixgbe_softc *);
 
+static void ixgbe_add_debug_sysctls(struct ixgbe_softc *sc);
+static void ixgbe_add_debug_dump_sysctls(struct ixgbe_softc *sc);
+static int  ixgbe_debug_dump_ioctl(struct ixgbe_softc *sc, struct ifdrv *ifd);
+static u8   ixgbe_debug_dump_print_cluster(struct ixgbe_softc *sc,
+    struct sbuf *sbuf, u8 cluster_id);
+static int ixgbe_nvm_access_ioctl(struct ixgbe_softc *sc, struct ifdrv *ifd);
+
 /* Sysctl handlers */
 static int  ixgbe_sysctl_flowcntl(SYSCTL_HANDLER_ARGS);
 static int  ixgbe_sysctl_advertise(SYSCTL_HANDLER_ARGS);
@@ -249,10 +269,17 @@ static int  ixgbe_sysctl_wol_enable(SYSCTL_HANDLER_ARGS);
 static int  ixgbe_sysctl_wufc(SYSCTL_HANDLER_ARGS);
 static int  ixgbe_sysctl_tso_tcp_flags_mask(SYSCTL_HANDLER_ARGS);
 
+static int  ixgbe_sysctl_debug_dump_set_clusters(SYSCTL_HANDLER_ARGS);
+static int  ixgbe_sysctl_dump_debug_dump(SYSCTL_HANDLER_ARGS);
+
 /* Deferred interrupt tasklets */
 static void ixgbe_handle_msf(void *);
 static void ixgbe_handle_mod(void *);
 static void ixgbe_handle_phy(void *);
+static void ixgbe_handle_fw_event(void *);
+
+static int ixgbe_enable_lse(struct ixgbe_softc *sc);
+static int ixgbe_disable_lse(struct ixgbe_softc *sc);
 
 /************************************************************************
  *  FreeBSD Device Interface Entry Points
@@ -315,6 +342,7 @@ static device_method_t ixgbe_if_methods[] = {
 	DEVMETHOD(ifdi_get_counter, ixgbe_if_get_counter),
 	DEVMETHOD(ifdi_i2c_req, ixgbe_if_i2c_req),
 	DEVMETHOD(ifdi_needs_restart, ixgbe_if_needs_restart),
+	DEVMETHOD(ifdi_priv_ioctl, ixgbe_if_priv_ioctl),
 #ifdef PCI_IOV
 	DEVMETHOD(ifdi_iov_init, ixgbe_if_iov_init),
 	DEVMETHOD(ifdi_iov_uninit, ixgbe_if_iov_uninit),
@@ -621,6 +649,7 @@ ixgbe_initialize_rss_mapping(struct ixgbe_softc *sc)
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
 	case ixgbe_mac_X550EM_a:
+	case ixgbe_mac_E610:
 		table_size = 512;
 		break;
 	default:
@@ -902,6 +931,32 @@ ixgbe_initialize_transmit_units(if_ctx_t ctx)
 
 } /* ixgbe_initialize_transmit_units */
 
+static int
+ixgbe_check_fw_api_version(struct ixgbe_softc *sc)
+{
+	struct ixgbe_hw *hw = &sc->hw;
+	if (hw->api_maj_ver > IXGBE_FW_API_VER_MAJOR) {
+		device_printf(sc->dev,
+		    "The driver for the device stopped because the NVM "
+		    "image is newer than expected. You must install the "
+		    "most recent version of the network driver.\n");
+		return (EOPNOTSUPP);
+	} else if (hw->api_maj_ver == IXGBE_FW_API_VER_MAJOR &&
+		   hw->api_min_ver > (IXGBE_FW_API_VER_MINOR + 2)) {
+		device_printf(sc->dev,
+		    "The driver for the device detected a newer version of "
+		    "the NVM image than expected. Please install the most "
+		    "recent version of the network driver.\n");
+	} else if (hw->api_maj_ver < IXGBE_FW_API_VER_MAJOR ||
+		   hw->api_min_ver < IXGBE_FW_API_VER_MINOR - 2) {
+		device_printf(sc->dev,
+			"The driver for the device detected an older version "
+			"of the NVM image than expected. "
+			"Please update the NVM image.\n");
+	}
+	return (0);
+}
+
 /************************************************************************
  * ixgbe_register
  ************************************************************************/
@@ -969,6 +1024,11 @@ ixgbe_if_attach_pre(if_ctx_t ctx)
 		error = ENXIO;
 		goto err_pci;
 	}
+
+	if (hw->mac.type == ixgbe_mac_E610)
+		ixgbe_init_aci(hw);
+
+	sc->do_debug_dump = false;
 
 	if (hw->mac.ops.fw_recovery_mode &&
 	    hw->mac.ops.fw_recovery_mode(hw)) {
@@ -1058,6 +1118,12 @@ ixgbe_if_attach_pre(if_ctx_t ctx)
 		break;
 	}
 
+	/* Check the FW API version */
+	if (hw->mac.type == ixgbe_mac_E610 && ixgbe_check_fw_api_version(sc)) {
+		error = EIO;
+		goto err_pci;
+	}
+
 	/* Most of the iflib initialization... */
 
 	iflib_set_mac(ctx, hw->mac.addr);
@@ -1110,6 +1176,9 @@ err_pci:
 	ctrl_ext &= ~IXGBE_CTRL_EXT_DRV_LOAD;
 	IXGBE_WRITE_REG(&sc->hw, IXGBE_CTRL_EXT, ctrl_ext);
 	ixgbe_free_pci_resources(ctx);
+
+	if (hw->mac.type == ixgbe_mac_E610)
+		ixgbe_shutdown_aci(hw);
 
 	return (error);
 } /* ixgbe_if_attach_pre */
@@ -1296,8 +1365,6 @@ ixgbe_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 		return (0);
 	case IFCOUNTER_IQDROPS:
 		return (sc->iqdrops);
-	case IFCOUNTER_OQDROPS:
-		return (0);
 	case IFCOUNTER_IERRORS:
 		return (sc->ierrors);
 	default:
@@ -1343,6 +1410,248 @@ ixgbe_if_needs_restart(if_ctx_t ctx __unused, enum iflib_restart_event event)
 }
 
 /************************************************************************
+ * ixgbe_if_priv_ioctl - Ioctl handler for driver
+ *
+ *   Handler for custom driver specific ioctls
+ *
+ *   return 0 on success, positive on failure
+ ************************************************************************/
+static int
+ixgbe_if_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
+{
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
+	struct ifdrv *ifd;
+	device_t dev = sc->dev;
+
+	/* Make sure the command type is valid */
+	switch (command) {
+	case SIOCSDRVSPEC:
+	case SIOCGDRVSPEC:
+		/* Accepted commands */
+		break;
+	case SIOCGPRIVATE_0:
+		/*
+		 * Although we do not support this ioctl command, it's expected
+		 * that iflib will forward it to the IFDI_PRIV_IOCTL handler.
+		 * Do not print a message in this case.
+		 */
+		return (ENOTSUP);
+	default:
+		/*
+		 * If we get a different command for this function, it's
+		 * definitely unexpected, so log a message indicating what
+		 * command we got for debugging purposes.
+		 */
+		device_printf(dev,
+			"%s: unexpected ioctl command %08lx\n",
+			__func__, command);
+		return (EINVAL);
+	}
+
+	ifd = (struct ifdrv *)data;
+
+	switch (ifd->ifd_cmd) {
+	case IXGBE_NVM_ACCESS:
+		IOCTL_DEBUGOUT("ioctl: NVM ACCESS");
+		return (ixgbe_nvm_access_ioctl(sc, ifd));
+	case IXGBE_DEBUG_DUMP:
+		IOCTL_DEBUGOUT("ioctl: DEBUG DUMP");
+		return (ixgbe_debug_dump_ioctl(sc, ifd));
+	default:
+		IOCTL_DEBUGOUT1(
+		    "ioctl: UNKNOWN SIOC(S|G)DRVSPEC (0x%X) command\n",
+		    (int)ifd->ifd_cmd);
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+/************************************************************************
+ * ixgbe_nvm_access_ioctl
+ *
+ *   Handles an NVM access ioctl request
+ ************************************************************************/
+static int
+ixgbe_nvm_access_ioctl(struct ixgbe_softc *sc, struct ifdrv *ifd)
+{
+	struct ixgbe_nvm_access_data *data;
+	struct ixgbe_nvm_access_cmd *cmd;
+	struct ixgbe_hw *hw = &sc->hw;
+	size_t ifd_len = ifd->ifd_len;
+	size_t malloc_len;
+	device_t dev = sc->dev;
+	u8 *nvm_buffer;
+	s32 error = 0;
+
+	/*
+	 * ifioctl forwards SIOCxDRVSPEC to iflib without conducting
+	 * a privilege check. Subsequently, iflib passes the ioctl to the driver
+	 * without verifying privileges. To prevent non-privileged threads from
+	 * accessing this interface, perform a privilege check at this point.
+	 */
+	error = priv_check(curthread, PRIV_DRIVER);
+	if (error)
+		return (error);
+
+	if (ifd_len < sizeof(*cmd)) {
+		device_printf(dev,
+		    "%s: ifdrv length is too small. Got %zu, "
+		    "but expected %zu\n",
+		    __func__, ifd_len, sizeof(*cmd));
+		return (EINVAL);
+	}
+
+	if (ifd->ifd_data == NULL) {
+		device_printf(dev, "%s: No ifd data buffer.\n",
+		     __func__);
+		return (EINVAL);
+	}
+
+	malloc_len = max(ifd_len, sizeof(*data) + sizeof(*cmd));
+
+	nvm_buffer = (u8 *)malloc(malloc_len, M_IXGBE, M_ZERO | M_NOWAIT);
+	if (!nvm_buffer)
+		return (ENOMEM);
+
+	/* Copy the NVM access command and data in from user space */
+	error = copyin(ifd->ifd_data, nvm_buffer, ifd_len);
+	if (error) {
+		device_printf(dev, "%s: Failed to copy data in, error: %d\n",
+		    __func__, error);
+		goto cleanup_free_nvm_buffer;
+	}
+
+	/*
+	 * The NVM command structure is immediately followed by data which
+	 * varies in size based on the command.
+	 */
+	cmd = (struct ixgbe_nvm_access_cmd *)nvm_buffer;
+	data = (struct ixgbe_nvm_access_data *)
+	    (nvm_buffer + sizeof(struct ixgbe_nvm_access_cmd));
+
+	/* Handle the NVM access request */
+	error = ixgbe_handle_nvm_access(hw, cmd, data);
+	if (error) {
+		device_printf(dev, "%s: NVM access request failed, error %d\n",
+		    __func__, error);
+	}
+
+	/* Copy the possibly modified contents of the handled request out */
+	error = copyout(nvm_buffer, ifd->ifd_data, ifd_len);
+	if (error) {
+		device_printf(dev, "%s: Copying response back to "
+		    "user space failed, error %d\n",
+		    __func__, error);
+		goto cleanup_free_nvm_buffer;
+	}
+
+cleanup_free_nvm_buffer:
+	free(nvm_buffer, M_IXGBE);
+	return (error);
+}
+
+/************************************************************************
+ * ixgbe_debug_dump_ioctl
+ *
+ *   Makes debug dump of internal FW/HW data.
+ ************************************************************************/
+static int
+ixgbe_debug_dump_ioctl(struct ixgbe_softc *sc, struct ifdrv *ifd)
+{
+	struct ixgbe_debug_dump_cmd *dd_cmd;
+	struct ixgbe_hw *hw = &sc->hw;
+	size_t ifd_len = ifd->ifd_len;
+	device_t dev = sc->dev;
+	s32 error = 0;
+
+	if (!(sc->feat_en & IXGBE_FEATURE_DBG_DUMP))
+		return (ENODEV);
+
+	/* Data returned from ACI command */
+	u16 ret_buf_size = 0;
+	u16 ret_next_cluster = 0;
+	u16 ret_next_table = 0;
+	u32 ret_next_index = 0;
+
+	/*
+	 * ifioctl forwards SIOCxDRVSPEC to iflib without conducting
+	 * a privilege check. Subsequently, iflib passes the ioctl to the driver
+	 * without verifying privileges. To prevent non-privileged threads from
+	 * accessing this interface, perform a privilege check at this point.
+	 */
+	error = priv_check(curthread, PRIV_DRIVER);
+	if (error)
+		return (error);
+
+	if (ifd_len < sizeof(*dd_cmd)) {
+		device_printf(dev,
+		    "%s: ifdrv length is too small. Got %zu, "
+		    "but expected %zu\n",
+		    __func__, ifd_len, sizeof(*dd_cmd));
+		return (EINVAL);
+	}
+
+	if (ifd->ifd_data == NULL) {
+		device_printf(dev, "%s: No ifd data buffer.\n",
+		     __func__);
+		return (EINVAL);
+	}
+
+	dd_cmd = (struct ixgbe_debug_dump_cmd *)malloc(ifd_len, M_IXGBE,
+	    M_NOWAIT | M_ZERO);
+	if (!dd_cmd) {
+		error = -ENOMEM;
+		goto out;
+	}
+	/* copy data from userspace */
+	error = copyin(ifd->ifd_data, dd_cmd, ifd_len);
+	if (error) {
+		device_printf(dev, "%s: Failed to copy data in, error: %d\n",
+		    __func__, error);
+		goto out;
+	}
+
+	/* ACI command requires buf_size arg to be grater than 0 */
+	if (dd_cmd->data_size == 0) {
+		device_printf(dev, "%s: data_size must be greater than 0\n",
+		    __func__);
+		error = EINVAL;
+		goto out;
+	}
+
+	/* Zero the data buffer memory space */
+	memset(dd_cmd->data, 0, ifd_len - sizeof(*dd_cmd));
+
+	error = ixgbe_aci_get_internal_data(hw, dd_cmd->cluster_id,
+	    dd_cmd->table_id, dd_cmd->offset, dd_cmd->data, dd_cmd->data_size,
+	    &ret_buf_size, &ret_next_cluster, &ret_next_table, &ret_next_index);
+	if (error) {
+		device_printf(dev,
+		    "%s: Failed to get internal FW/HW data, error: %d\n",
+		    __func__, error);
+		goto out;
+	}
+
+	dd_cmd->cluster_id = ret_next_cluster;
+	dd_cmd->table_id = ret_next_table;
+	dd_cmd->offset = ret_next_index;
+	dd_cmd->data_size = ret_buf_size;
+
+	error = copyout(dd_cmd, ifd->ifd_data, ifd->ifd_len);
+	if (error) {
+		device_printf(dev,
+		    "%s: Failed to copy data out, error: %d\n",
+		    __func__, error);
+	}
+
+out:
+	free(dd_cmd, M_IXGBE);
+
+	return (error);
+}
+
+/************************************************************************
  * ixgbe_add_media_types
  ************************************************************************/
 static void
@@ -1358,6 +1667,10 @@ ixgbe_add_media_types(if_ctx_t ctx)
 	/* Media types with matching FreeBSD media defines */
 	if (layer & IXGBE_PHYSICAL_LAYER_10GBASE_T)
 		ifmedia_add(sc->media, IFM_ETHER | IFM_10G_T, 0, NULL);
+	if (layer & IXGBE_PHYSICAL_LAYER_5000BASE_T)
+		ifmedia_add(sc->media, IFM_ETHER | IFM_5000_T, 0, NULL);
+	if (layer & IXGBE_PHYSICAL_LAYER_2500BASE_T)
+		ifmedia_add(sc->media, IFM_ETHER | IFM_2500_T, 0, NULL);
 	if (layer & IXGBE_PHYSICAL_LAYER_1000BASE_T)
 		ifmedia_add(sc->media, IFM_ETHER | IFM_1000_T, 0, NULL);
 	if (layer & IXGBE_PHYSICAL_LAYER_100BASE_TX)
@@ -1459,6 +1772,7 @@ ixgbe_is_sfp(struct ixgbe_hw *hw)
 		}
 	case ixgbe_mac_X550EM_x:
 	case ixgbe_mac_X550EM_a:
+	case ixgbe_mac_E610:
 		if (hw->mac.ops.get_media_type(hw) == ixgbe_media_type_fiber)
 			return (true);
 		return (false);
@@ -1523,6 +1837,15 @@ ixgbe_config_link(if_ctx_t ctx)
 			 */
 			autoneg &= ~(IXGBE_LINK_SPEED_2_5GB_FULL |
 			    IXGBE_LINK_SPEED_5GB_FULL);
+		}
+
+		if (hw->mac.type == ixgbe_mac_E610) {
+			hw->phy.ops.init(hw);
+			err = ixgbe_enable_lse(sc);
+			if (err)
+				device_printf(sc->dev,
+				    "Failed to enable Link Status Event, "
+				    "error: %d", err);
 		}
 
 		if (hw->mac.ops.setup_link)
@@ -2158,14 +2481,15 @@ get_parent_info:
 	ixgbe_set_pci_config_data_generic(hw, link);
 
 display:
-	device_printf(dev, "PCI Express Bus: Speed %s %s\n",
-	    ((hw->bus.speed == ixgbe_bus_speed_8000)    ? "8.0GT/s"  :
+	device_printf(dev, "PCI Express Bus: Speed %s Width %s\n",
+	    ((hw->bus.speed == ixgbe_bus_speed_16000)   ? "16.0GT/s" :
+	     (hw->bus.speed == ixgbe_bus_speed_8000)    ? "8.0GT/s"  :
 	     (hw->bus.speed == ixgbe_bus_speed_5000)    ? "5.0GT/s"  :
 	     (hw->bus.speed == ixgbe_bus_speed_2500)    ? "2.5GT/s"  :
 	     "Unknown"),
-	    ((hw->bus.width == ixgbe_bus_width_pcie_x8) ? "Width x8" :
-	     (hw->bus.width == ixgbe_bus_width_pcie_x4) ? "Width x4" :
-	     (hw->bus.width == ixgbe_bus_width_pcie_x1) ? "Width x1" :
+	    ((hw->bus.width == ixgbe_bus_width_pcie_x8) ? "x8" :
+	     (hw->bus.width == ixgbe_bus_width_pcie_x4) ? "x4" :
+	     (hw->bus.width == ixgbe_bus_width_pcie_x1) ? "x1" :
 	     "Unknown"));
 
 	if (bus_info_valid) {
@@ -2372,13 +2696,16 @@ ixgbe_if_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 	ifmr->ifm_status |= IFM_ACTIVE;
 	layer = sc->phy_layer;
 
-	if (layer & IXGBE_PHYSICAL_LAYER_10GBASE_T ||
-	    layer & IXGBE_PHYSICAL_LAYER_1000BASE_T ||
-	    layer & IXGBE_PHYSICAL_LAYER_100BASE_TX ||
-	    layer & IXGBE_PHYSICAL_LAYER_10BASE_T)
+	if (layer & IXGBE_PHYSICAL_LAYERS_BASE_T_ALL)
 		switch (sc->link_speed) {
 		case IXGBE_LINK_SPEED_10GB_FULL:
 			ifmr->ifm_active |= IFM_10G_T | IFM_FDX;
+			break;
+		case IXGBE_LINK_SPEED_5GB_FULL:
+			ifmr->ifm_active |= IFM_5000_T | IFM_FDX;
+			break;
+		case IXGBE_LINK_SPEED_2_5GB_FULL:
+			ifmr->ifm_active |= IFM_2500_T | IFM_FDX;
 			break;
 		case IXGBE_LINK_SPEED_1GB_FULL:
 			ifmr->ifm_active |= IFM_1000_T | IFM_FDX;
@@ -2388,15 +2715,6 @@ ixgbe_if_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 			break;
 		case IXGBE_LINK_SPEED_10_FULL:
 			ifmr->ifm_active |= IFM_10_T | IFM_FDX;
-			break;
-		}
-	if (hw->mac.type == ixgbe_mac_X550)
-		switch (sc->link_speed) {
-		case IXGBE_LINK_SPEED_5GB_FULL:
-			ifmr->ifm_active |= IFM_5000_T | IFM_FDX;
-			break;
-		case IXGBE_LINK_SPEED_2_5GB_FULL:
-			ifmr->ifm_active |= IFM_2500_T | IFM_FDX;
 			break;
 		}
 	if (layer & IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU ||
@@ -2676,6 +2994,11 @@ ixgbe_msix_link(void *arg)
 		sc->task_requests |= IXGBE_REQUEST_TASK_LSC;
 	}
 
+	if (eicr & IXGBE_EICR_FW_EVENT) {
+		IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_EICR_FW_EVENT);
+		sc->task_requests |= IXGBE_REQUEST_TASK_FWEVENT;
+	}
+
 	if (sc->hw.mac.type != ixgbe_mac_82598EB) {
 		if ((sc->feat_en & IXGBE_FEATURE_FDIR) &&
 		    (eicr & IXGBE_EICR_FLOW_DIR)) {
@@ -2734,11 +3057,16 @@ ixgbe_msix_link(void *arg)
 
 		/* Check for VF message */
 		if ((sc->feat_en & IXGBE_FEATURE_SRIOV) &&
-		    (eicr & IXGBE_EICR_MAILBOX))
+		    (eicr & IXGBE_EICR_MAILBOX)) {
 			sc->task_requests |= IXGBE_REQUEST_TASK_MBX;
+		}
 	}
 
-	if (ixgbe_is_sfp(hw)) {
+	/*
+	 * On E610, the firmware handles PHY configuration, so
+	 * there is no need to perform any SFP-specific tasks.
+	 */
+	if (hw->mac.type != ixgbe_mac_E610 && ixgbe_is_sfp(hw)) {
 		/* Pluggable optics-related interrupt */
 		if (hw->mac.type >= ixgbe_mac_X540)
 			eicr_mask = IXGBE_EICR_GPI_SDP0_X540;
@@ -2810,6 +3138,264 @@ ixgbe_sysctl_interrupt_rate_handler(SYSCTL_HANDLER_ARGS)
 
 	return (0);
 } /* ixgbe_sysctl_interrupt_rate_handler */
+
+/************************************************************************
+ * ixgbe_debug_dump_print_cluster
+ ************************************************************************/
+static u8
+ixgbe_debug_dump_print_cluster(struct ixgbe_softc *sc, struct sbuf *sbuf,
+    u8 cluster_id)
+{
+	u16 data_buf_size = IXGBE_ACI_MAX_BUFFER_SIZE;
+	device_t dev = sc->dev;
+	struct ixgbe_hw *hw = &sc->hw;
+	const u8 reserved_buf[8] = {};
+	int max_aci_calls = 1000;
+	int error, counter = 0;
+	u8 *data_buf;
+
+	/* Input parameters / loop variables */
+	u16 table_id = 0;
+	u32 offset = 0;
+
+	/* Data returned from ACI command */
+	u16 ret_buf_size = 0;
+	u16 ret_next_cluster = 0;
+	u16 ret_next_table = 0;
+	u32 ret_next_index = 0;
+
+	data_buf = (u8 *)malloc(data_buf_size, M_IXGBE, M_NOWAIT | M_ZERO);
+	if (!data_buf)
+		return (0);
+
+	DEBUGOUT2("%s: dumping cluster id (relative) %d\n",
+	    __func__, cluster_id);
+
+	do {
+		DEBUGOUT3("table_id 0x%04x offset 0x%08x buf_size %d\n",
+		    table_id, offset, data_buf_size);
+
+		error = ixgbe_aci_get_internal_data(hw, cluster_id, table_id,
+		    offset, data_buf, data_buf_size, &ret_buf_size,
+		    &ret_next_cluster, &ret_next_table, &ret_next_index);
+		if (error) {
+			device_printf(dev,
+			    "%s: Failed to get internal FW/HW data, error: %d, "
+			    "last aci status: %d\n",
+			    __func__, error, hw->aci.last_status);
+			break;
+		}
+
+		DEBUGOUT3("ret_table_id 0x%04x ret_offset 0x%08x "
+		    "ret_buf_size %d\n",
+		    ret_next_table, ret_next_index, ret_buf_size);
+
+		/* Print cluster id */
+		u32 print_cluster_id = (u32)cluster_id;
+		sbuf_bcat(sbuf, &print_cluster_id, sizeof(print_cluster_id));
+		/* Print table id */
+		u32 print_table_id = (u32)table_id;
+		sbuf_bcat(sbuf, &print_table_id, sizeof(print_table_id));
+		/* Print table length */
+		u32 print_table_length = (u32)ret_buf_size;
+		sbuf_bcat(sbuf, &print_table_length,
+		    sizeof(print_table_length));
+		/* Print current offset */
+		u32 print_curr_offset = offset;
+		sbuf_bcat(sbuf, &print_curr_offset, sizeof(print_curr_offset));
+		/* Print reserved bytes */
+		sbuf_bcat(sbuf, reserved_buf, sizeof(reserved_buf));
+		/* Print data */
+		sbuf_bcat(sbuf, data_buf, ret_buf_size);
+
+		/* Prepare for the next loop spin */
+		memset(data_buf, 0, data_buf_size);
+
+		bool last_index = (ret_next_index == 0xffffffff);
+		bool last_table = ((ret_next_table == 0xff ||
+				    ret_next_table == 0xffff) &&
+				   last_index);
+
+		if (last_table) {
+			/* End of the cluster */
+			DEBUGOUT1("End of the cluster ID %d\n", cluster_id);
+			break;
+		} else if (last_index) {
+			/* End of the table */
+			table_id = ret_next_table;
+			offset = 0;
+		} else {
+			/* More data left in the table */
+			offset = ret_next_index;
+		}
+	} while (++counter < max_aci_calls);
+
+	if (counter >= max_aci_calls)
+		device_printf(dev, "Exceeded nr of ACI calls for cluster %d\n",
+		    cluster_id);
+
+	free(data_buf, M_IXGBE);
+
+	return (++cluster_id);
+} /* ixgbe_print_debug_dump_cluster */
+
+/************************************************************************
+ * ixgbe_sysctl_debug_dump_set_clusters
+ *
+ *   Sets the cluster to dump from FW when Debug Dump requested.
+ ************************************************************************/
+static int
+ixgbe_sysctl_debug_dump_set_clusters(SYSCTL_HANDLER_ARGS)
+{
+	struct ixgbe_softc *sc = (struct ixgbe_softc *)arg1;
+	u32 clusters = sc->debug_dump_cluster_mask;
+	device_t dev = sc->dev;
+	int error;
+
+	error = sysctl_handle_32(oidp, &clusters, 0, req);
+	if ((error) || !req->newptr)
+		return (error);
+
+	if (clusters & ~(IXGBE_DBG_DUMP_VALID_CLUSTERS_MASK)) {
+		device_printf(dev,
+		    "%s: Unrecognized parameter: %u\n",
+		    __func__, clusters);
+		sc->debug_dump_cluster_mask =
+			IXGBE_ACI_DBG_DUMP_CLUSTER_ID_INVALID;
+		return (EINVAL);
+	}
+
+	sc->debug_dump_cluster_mask = clusters;
+
+	return (0);
+} /* ixgbe_sysctl_debug_dump_set_clusters */
+
+/************************************************************************
+ * ixgbe_sysctl_dump_debug_dump
+ ************************************************************************/
+static int
+ixgbe_sysctl_dump_debug_dump(SYSCTL_HANDLER_ARGS)
+{
+	struct ixgbe_softc *sc = (struct ixgbe_softc *)arg1;
+	device_t dev = sc->dev;
+	struct sbuf *sbuf;
+	int error = 0;
+
+	UNREFERENCED_PARAMETER(arg2);
+
+	if (!sc->do_debug_dump) {
+		if (req->oldptr == NULL && req->newptr == NULL) {
+			error = SYSCTL_OUT(req, 0, 0);
+			return (error);
+		}
+
+		char input_buf[2] = "";
+		error = sysctl_handle_string(oidp, input_buf,
+				sizeof(input_buf), req);
+		if ((error) || (req->newptr == NULL))
+			return (error);
+
+		if (input_buf[0] == '1') {
+			if (sc->debug_dump_cluster_mask ==
+				IXGBE_ACI_DBG_DUMP_CLUSTER_ID_INVALID) {
+				device_printf(dev,
+				    "Debug Dump failed because an invalid "
+				    "cluster was specified.\n");
+				return (EINVAL);
+			}
+
+			sc->do_debug_dump = true;
+			return (0);
+		}
+
+		return (EINVAL);
+	}
+
+	/* Caller just wants the upper bound for size */
+	if (req->oldptr == NULL && req->newptr == NULL) {
+		size_t est_output_len = IXGBE_DBG_DUMP_BASE_SIZE;
+		if (sc->debug_dump_cluster_mask & 0x2)
+			est_output_len += IXGBE_DBG_DUMP_BASE_SIZE;
+		error = SYSCTL_OUT(req, 0, est_output_len);
+		return (error);
+	}
+
+	sbuf = sbuf_new_for_sysctl(NULL, NULL, 128, req);
+	sbuf_clear_flags(sbuf, SBUF_INCLUDENUL);
+
+	DEBUGOUT("FW Debug Dump running...\n");
+
+	if (sc->debug_dump_cluster_mask) {
+		for (u8 id = 0; id <= IXGBE_ACI_DBG_DUMP_CLUSTER_ID_MAX; id++) {
+			if (sc->debug_dump_cluster_mask & BIT(id)) {
+				DEBUGOUT1("Dumping cluster ID %u...\n", id);
+				ixgbe_debug_dump_print_cluster(sc, sbuf, id);
+			}
+		}
+	} else {
+		u8 next_cluster_id = 0;
+		do {
+			DEBUGOUT1("Dumping cluster ID %u...\n",
+			    next_cluster_id);
+			next_cluster_id = ixgbe_debug_dump_print_cluster(sc,
+				sbuf, next_cluster_id);
+		} while (next_cluster_id != 0 &&
+			next_cluster_id <= IXGBE_ACI_DBG_DUMP_CLUSTER_ID_MAX);
+	}
+
+	sbuf_finish(sbuf);
+	sbuf_delete(sbuf);
+
+	sc->do_debug_dump = false;
+
+	return (error);
+} /* ixgbe_sysctl_dump_debug_dump */
+
+/************************************************************************
+ * ixgbe_add_debug_dump_sysctls
+ ************************************************************************/
+static void
+ixgbe_add_debug_dump_sysctls(struct ixgbe_softc *sc)
+{
+	struct sysctl_oid_list *debug_list, *dump_list;
+	struct sysctl_oid *dump_node;
+	struct sysctl_ctx_list *ctx;
+	device_t dev = sc->dev;
+
+	ctx = device_get_sysctl_ctx(dev);
+	debug_list = SYSCTL_CHILDREN(sc->debug_sysctls);
+
+	dump_node = SYSCTL_ADD_NODE(ctx, debug_list, OID_AUTO, "dump",
+	    CTLFLAG_RD, NULL, "Internal FW/HW Dump");
+	dump_list = SYSCTL_CHILDREN(dump_node);
+
+	SYSCTL_ADD_PROC(ctx, dump_list, OID_AUTO, "clusters",
+	    CTLTYPE_U32 | CTLFLAG_RW, sc, 0,
+	    ixgbe_sysctl_debug_dump_set_clusters, "SU",
+	    IXGBE_SYSCTL_DESC_DEBUG_DUMP_SET_CLUSTER);
+
+	SYSCTL_ADD_PROC(ctx, dump_list, OID_AUTO, "dump",
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+	    ixgbe_sysctl_dump_debug_dump, "",
+	    IXGBE_SYSCTL_DESC_DUMP_DEBUG_DUMP);
+} /* ixgbe_add_debug_dump_sysctls */
+
+static void
+ixgbe_add_debug_sysctls(struct ixgbe_softc *sc)
+{
+	struct sysctl_oid_list *ctx_list;
+	struct sysctl_ctx_list *ctx;
+	device_t dev = sc->dev;
+
+	ctx = device_get_sysctl_ctx(dev);
+	ctx_list  = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
+
+	sc->debug_sysctls = SYSCTL_ADD_NODE(ctx, ctx_list, OID_AUTO, "debug",
+	    CTLFLAG_RD, NULL, "Debug Sysctls");
+
+	if (sc->feat_en & IXGBE_FEATURE_DBG_DUMP)
+		ixgbe_add_debug_dump_sysctls(sc);
+} /* ixgbe_add_debug_sysctls */
 
 /************************************************************************
  * ixgbe_add_device_sysctls
@@ -2921,6 +3507,8 @@ ixgbe_add_device_sysctls(if_ctx_t ctx)
 		    CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		    ixgbe_sysctl_eee_state, "I", "EEE Power Save State");
 	}
+
+	ixgbe_add_debug_sysctls(sc);
 } /* ixgbe_add_device_sysctls */
 
 /************************************************************************
@@ -2985,7 +3573,13 @@ ixgbe_if_detach(if_ctx_t ctx)
 
 	callout_drain(&sc->fw_mode_timer);
 
+	if (sc->hw.mac.type == ixgbe_mac_E610) {
+		ixgbe_disable_lse(sc);
+		ixgbe_shutdown_aci(&sc->hw);
+	}
+
 	ixgbe_free_pci_resources(ctx);
+
 	free(sc->mta, M_IXGBE);
 
 	return (0);
@@ -3404,6 +3998,7 @@ ixgbe_set_ivar(struct ixgbe_softc *sc, u8 entry, u8 vector, s8 type)
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
 	case ixgbe_mac_X550EM_a:
+	case ixgbe_mac_E610:
 		if (type == -1) { /* MISC IVAR */
 			index = (entry & 1) * 8;
 			ivar = IXGBE_READ_REG(hw, IXGBE_IVAR_MISC);
@@ -3826,6 +4421,96 @@ ixgbe_handle_phy(void *context)
 } /* ixgbe_handle_phy */
 
 /************************************************************************
+ * ixgbe_enable_lse - enable link status events
+ *
+ *   Sets mask and enables link status events
+ ************************************************************************/
+s32 ixgbe_enable_lse(struct ixgbe_softc *sc)
+{
+	s32 error;
+
+	u16 mask = ~((u16)(IXGBE_ACI_LINK_EVENT_UPDOWN |
+			   IXGBE_ACI_LINK_EVENT_MEDIA_NA |
+			   IXGBE_ACI_LINK_EVENT_MODULE_QUAL_FAIL |
+			   IXGBE_ACI_LINK_EVENT_PHY_FW_LOAD_FAIL));
+
+	error = ixgbe_configure_lse(&sc->hw, TRUE, mask);
+	if (error)
+		return (error);
+
+	sc->lse_mask = mask;
+	return (IXGBE_SUCCESS);
+} /* ixgbe_enable_lse */
+
+/************************************************************************
+ * ixgbe_disable_lse - disable link status events
+ ************************************************************************/
+s32 ixgbe_disable_lse(struct ixgbe_softc *sc)
+{
+	s32 error;
+
+	error = ixgbe_configure_lse(&sc->hw, false, sc->lse_mask);
+	if (error)
+		return (error);
+
+	sc->lse_mask = 0;
+	return (IXGBE_SUCCESS);
+} /* ixgbe_disable_lse */
+
+/************************************************************************
+ * ixgbe_handle_fw_event - Tasklet for MSI-X Link Status Event interrupts
+ ************************************************************************/
+static void
+ixgbe_handle_fw_event(void *context)
+{
+	if_ctx_t ctx = context;
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
+	struct ixgbe_hw *hw = &sc->hw;
+	struct ixgbe_aci_event event;
+	bool pending = false;
+	s32 error;
+
+	event.buf_len = IXGBE_ACI_MAX_BUFFER_SIZE;
+	event.msg_buf = malloc(event.buf_len, M_IXGBE, M_ZERO | M_NOWAIT);
+	if (!event.msg_buf) {
+		device_printf(sc->dev, "Can not allocate buffer for "
+		    "event message\n");
+		return;
+	}
+
+	do {
+		error = ixgbe_aci_get_event(hw, &event, &pending);
+		if (error) {
+			device_printf(sc->dev, "Error getting event from "
+			    "FW:%d\n", error);
+			break;
+		}
+
+		switch (le16toh(event.desc.opcode)) {
+		case ixgbe_aci_opc_get_link_status:
+			sc->task_requests |= IXGBE_REQUEST_TASK_LSC;
+			break;
+
+		case ixgbe_aci_opc_temp_tca_event:
+			if (hw->adapter_stopped == FALSE)
+				ixgbe_if_stop(ctx);
+			device_printf(sc->dev,
+			    "CRITICAL: OVER TEMP!! PHY IS SHUT DOWN!!\n");
+			device_printf(sc->dev, "System shutdown required!\n");
+			break;
+
+		default:
+			device_printf(sc->dev,
+			    "Unknown FW event captured, opcode=0x%04X\n",
+			    le16toh(event.desc.opcode));
+			break;
+		}
+	} while (pending);
+
+	free(event.msg_buf, M_IXGBE);
+} /* ixgbe_handle_fw_event */
+
+/************************************************************************
  * ixgbe_if_stop - Stop the hardware
  *
  *   Disables all traffic on the adapter by issuing a
@@ -3858,6 +4543,33 @@ ixgbe_if_stop(if_ctx_t ctx)
 } /* ixgbe_if_stop */
 
 /************************************************************************
+ * ixgbe_link_speed_to_str - Convert link speed to string
+ *
+ *   Helper function to convert link speed constants to human-readable
+ *   string representations in conventional Gbps or Mbps.
+ ************************************************************************/
+static const char *
+ixgbe_link_speed_to_str(u32 link_speed)
+{
+    switch (link_speed) {
+    case IXGBE_LINK_SPEED_10GB_FULL:
+        return "10 Gbps";
+    case IXGBE_LINK_SPEED_5GB_FULL:
+        return "5 Gbps";
+    case IXGBE_LINK_SPEED_2_5GB_FULL:
+        return "2.5 Gbps";
+    case IXGBE_LINK_SPEED_1GB_FULL:
+        return "1 Gbps";
+    case IXGBE_LINK_SPEED_100_FULL:
+        return "100 Mbps";
+    case IXGBE_LINK_SPEED_10_FULL:
+        return "10 Mbps";
+    default:
+        return "Unknown";
+    }
+} /* ixgbe_link_speed_to_str */
+
+/************************************************************************
  * ixgbe_update_link_status - Update OS on link state
  *
  * Note: Only updates the OS on the cached link state.
@@ -3873,9 +4585,9 @@ ixgbe_if_update_admin_status(if_ctx_t ctx)
 	if (sc->link_up) {
 		if (sc->link_active == false) {
 			if (bootverbose)
-				device_printf(dev, "Link is up %d Gbps %s \n",
-				    ((sc->link_speed == 128) ? 10 : 1),
-				    "Full Duplex");
+				device_printf(dev,
+				    "Link is up %s Full Duplex\n",
+				    ixgbe_link_speed_to_str(sc->link_speed));
 			sc->link_active = true;
 			/* Update any Flow Control changes */
 			ixgbe_fc_enable(&sc->hw);
@@ -3899,6 +4611,8 @@ ixgbe_if_update_admin_status(if_ctx_t ctx)
 	}
 
 	/* Handle task requests from msix_link() */
+	if (sc->task_requests & IXGBE_REQUEST_TASK_FWEVENT)
+		ixgbe_handle_fw_event(ctx);
 	if (sc->task_requests & IXGBE_REQUEST_TASK_MOD)
 		ixgbe_handle_mod(ctx);
 	if (sc->task_requests & IXGBE_REQUEST_TASK_MSF)
@@ -3986,6 +4700,9 @@ ixgbe_if_enable_intr(if_ctx_t ctx)
 			mask |= IXGBE_EICR_GPI_SDP0_X540;
 		mask |= IXGBE_EIMS_ECC;
 		break;
+	case ixgbe_mac_E610:
+		mask |= IXGBE_EIMS_FW_EVENT;
+		break;
 	default:
 		break;
 	}
@@ -4008,6 +4725,7 @@ ixgbe_if_enable_intr(if_ctx_t ctx)
 		/* Don't autoclear Link */
 		mask &= ~IXGBE_EIMS_OTHER;
 		mask &= ~IXGBE_EIMS_LSC;
+		mask &= ~IXGBE_EIMS_FW_EVENT;
 		if (sc->feat_cap & IXGBE_FEATURE_SRIOV)
 			mask &= ~IXGBE_EIMS_MAILBOX;
 		IXGBE_WRITE_REG(hw, IXGBE_EIAC, mask);
@@ -4026,7 +4744,7 @@ ixgbe_if_enable_intr(if_ctx_t ctx)
 } /* ixgbe_if_enable_intr */
 
 /************************************************************************
- * ixgbe_disable_intr
+ * ixgbe_if_disable_intr
  ************************************************************************/
 static void
 ixgbe_if_disable_intr(if_ctx_t ctx)
@@ -4176,8 +4894,9 @@ ixgbe_intr(void *arg)
 
 	/* External PHY interrupt */
 	if ((hw->phy.type == ixgbe_phy_x550em_ext_t) &&
-	    (eicr & IXGBE_EICR_GPI_SDP0_X540))
+	    (eicr & IXGBE_EICR_GPI_SDP0_X540)) {
 		sc->task_requests |= IXGBE_REQUEST_TASK_PHY;
+	}
 
 	return (FILTER_SCHEDULE_THREAD);
 } /* ixgbe_intr */
@@ -4219,7 +4938,7 @@ ixgbe_sysctl_flowcntl(SYSCTL_HANDLER_ARGS)
 	int error, fc;
 
 	sc = (struct ixgbe_softc *)arg1;
-	fc = sc->hw.fc.current_mode;
+	fc = sc->hw.fc.requested_mode;
 
 	error = sysctl_handle_int(oidp, &fc, 0, req);
 	if ((error) || (req->newptr == NULL))
@@ -4248,18 +4967,18 @@ ixgbe_set_flowcntl(struct ixgbe_softc *sc, int fc)
 	case ixgbe_fc_rx_pause:
 	case ixgbe_fc_tx_pause:
 	case ixgbe_fc_full:
-		sc->hw.fc.requested_mode = fc;
 		if (sc->num_rx_queues > 1)
 			ixgbe_disable_rx_drop(sc);
 		break;
 	case ixgbe_fc_none:
-		sc->hw.fc.requested_mode = ixgbe_fc_none;
 		if (sc->num_rx_queues > 1)
 			ixgbe_enable_rx_drop(sc);
 		break;
 	default:
 		return (EINVAL);
 	}
+
+	sc->hw.fc.requested_mode = fc;
 
 	/* Don't autoneg if forcing a value */
 	sc->hw.fc.disable_fc_autoneg = true;
@@ -4978,6 +5697,10 @@ ixgbe_init_device_features(struct ixgbe_softc *sc)
 		if (sc->hw.device_id == IXGBE_DEV_ID_82599_QSFP_SF_QP)
 			sc->feat_cap &= ~IXGBE_FEATURE_LEGACY_IRQ;
 		break;
+	case ixgbe_mac_E610:
+		sc->feat_cap |= IXGBE_FEATURE_RECOVERY_MODE;
+		sc->feat_cap |= IXGBE_FEATURE_DBG_DUMP;
+		break;
 	default:
 		break;
 	}
@@ -4998,6 +5721,9 @@ ixgbe_init_device_features(struct ixgbe_softc *sc)
 	/* Recovery mode */
 	if (sc->feat_cap & IXGBE_FEATURE_RECOVERY_MODE)
 		sc->feat_en |= IXGBE_FEATURE_RECOVERY_MODE;
+	/* FW Debug Dump */
+	if (sc->feat_cap & IXGBE_FEATURE_DBG_DUMP)
+		sc->feat_en |= IXGBE_FEATURE_DBG_DUMP;
 
 	/* Enabled via global sysctl... */
 	/* Flow Director */

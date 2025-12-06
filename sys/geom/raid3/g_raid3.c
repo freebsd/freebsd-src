@@ -3164,7 +3164,7 @@ g_raid3_create(struct g_class *mp, const struct g_raid3_metadata *md)
 	/*
 	 * Action geom.
 	 */
-	gp = g_new_geomf(mp, "%s", md->md_name);
+	gp = g_new_geom(mp, md->md_name);
 	sc = malloc(sizeof(*sc), M_RAID3, M_WAITOK | M_ZERO);
 	sc->sc_disks = malloc(sizeof(struct g_raid3_disk) * md->md_all, M_RAID3,
 	    M_WAITOK | M_ZERO);
@@ -3338,7 +3338,7 @@ g_raid3_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	G_RAID3_DEBUG(2, "Tasting %s.", pp->name);
 
-	gp = g_new_geomf(mp, "raid3:taste");
+	gp = g_new_geom(mp, "raid3:taste");
 	/* This orphan function should be never called. */
 	gp->orphan = g_raid3_taste_orphan;
 	cp = g_new_consumer(gp);

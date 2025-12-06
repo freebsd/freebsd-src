@@ -113,7 +113,7 @@ coresight_get_output_device(struct endpoint *endp, struct endpoint **out_endp)
 }
 
 static void
-coresight_init(void)
+coresight_init(void *dummy __unused)
 {
 
 	mtx_init(&cs_mtx, "ARM Coresight", NULL, MTX_DEF);

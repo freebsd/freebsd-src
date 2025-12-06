@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet6.h"
 
 #include <sys/param.h>
@@ -351,7 +350,7 @@ struct fib_lookup_module flm_radix6 = {
 };
 
 static void
-fib6_algo_init(void)
+fib6_algo_init(void *dummy __unused)
 {
 
 	fib_module_register(&flm_radix6_lockless);

@@ -10,7 +10,7 @@
    Copyright (c) 2003      Greg Stein <gstein@users.sourceforge.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
    Copyright (c) 2005-2012 Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2023 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2025 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017-2022 Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2017      Joe Orton <jorton@redhat.com>
    Copyright (c) 2017      José Gutiérrez de la Concha <jose@zeroc.com>
@@ -83,7 +83,7 @@ START_TEST(test_nsalloc_xmlns) {
   const unsigned int max_alloc_count = 30;
 
   for (i = 0; i < max_alloc_count; i++) {
-    g_allocation_count = i;
+    g_allocation_count = (int)i;
     /* Exercise more code paths with a default handler */
     XML_SetDefaultHandler(g_parser, dummy_default_handler);
     if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
@@ -454,10 +454,15 @@ START_TEST(test_nsalloc_realloc_attributes) {
     nsalloc_teardown();
     nsalloc_setup();
   }
+#if XML_GE == 1
+  assert_true(
+      i == 0); // because expat_realloc relies on expat_malloc to some extent
+#else
   if (i == 0)
     fail("Parsing worked despite failing reallocations");
   else if (i == max_realloc_count)
     fail("Parsing failed at max reallocation count");
+#endif
 }
 END_TEST
 
@@ -523,7 +528,7 @@ START_TEST(test_nsalloc_realloc_binding_uri) {
   /* Now repeat with a longer URI and a duff reallocator */
   for (i = 0; i < max_realloc_count; i++) {
     XML_ParserReset(g_parser, NULL);
-    g_reallocation_count = i;
+    g_reallocation_count = (int)i;
     if (_XML_Parse_SINGLE_BYTES(g_parser, second, (int)strlen(second), XML_TRUE)
         != XML_STATUS_ERROR)
       break;

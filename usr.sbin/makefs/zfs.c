@@ -596,7 +596,7 @@ pool_labels_write(zfs_opt_t *zfs)
 	 * checksum is calculated in vdev_label_write().
 	 */
 	for (size_t uoff = 0; uoff < sizeof(label->vl_uberblock);
-	    uoff += (1 << zfs->ashift)) {
+	    uoff += ASHIFT_UBERBLOCK_SIZE(zfs->ashift)) {
 		ub = (uberblock_t *)(&label->vl_uberblock[0] + uoff);
 		ub->ub_magic = UBERBLOCK_MAGIC;
 		ub->ub_version = SPA_VERSION;

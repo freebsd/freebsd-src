@@ -60,9 +60,6 @@ FONT:en:8x16v.fnt
 16x32.fnt:en:Terminus BSD Console, size 32
 16x32.fnt:da:Terminus BSD-konsol, størrelse 32
 16x32.fnt:de:Terminus BSD Console, Größe 32
-32x64.fnt:en:Spleen BSD Console, size 64
-32x64.fnt:da:Spleen BSD-konsol, størrelse 64
-32x64.fnt:de:Spleen BSD Console, Größe 64
 
 # (fset 'langnew
 #   "\M-}\C-p\C-k\C-y\C-m\C-y\M-}")

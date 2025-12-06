@@ -28,6 +28,9 @@
 
 /* Driver for VirtIO network devices. */
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+
 #include <sys/param.h>
 #include <sys/eventhandler.h>
 #include <sys/systm.h>
@@ -82,9 +85,6 @@
 #include <dev/virtio/network/if_vtnetvar.h>
 #include "virtio_if.h"
 
-#include "opt_inet.h"
-#include "opt_inet6.h"
-
 #if defined(INET) || defined(INET6)
 #include <machine/in_cksum.h>
 #endif
@@ -133,12 +133,14 @@ static int	vtnet_rxq_replace_lro_nomrg_buf(struct vtnet_rxq *,
 static int	vtnet_rxq_replace_buf(struct vtnet_rxq *, struct mbuf *, int);
 static int	vtnet_rxq_enqueue_buf(struct vtnet_rxq *, struct mbuf *);
 static int	vtnet_rxq_new_buf(struct vtnet_rxq *);
+#if defined(INET) || defined(INET6)
 static int	vtnet_rxq_csum_needs_csum(struct vtnet_rxq *, struct mbuf *,
-		     uint16_t, int, struct virtio_net_hdr *);
-static int	vtnet_rxq_csum_data_valid(struct vtnet_rxq *, struct mbuf *,
-		     uint16_t, int, struct virtio_net_hdr *);
+		     bool, int, struct virtio_net_hdr *);
+static void	vtnet_rxq_csum_data_valid(struct vtnet_rxq *, struct mbuf *,
+		    int);
 static int	vtnet_rxq_csum(struct vtnet_rxq *, struct mbuf *,
 		     struct virtio_net_hdr *);
+#endif
 static void	vtnet_rxq_discard_merged_bufs(struct vtnet_rxq *, int);
 static void	vtnet_rxq_discard_buf(struct vtnet_rxq *, struct mbuf *);
 static int	vtnet_rxq_merged_eof(struct vtnet_rxq *, struct mbuf *, int);
@@ -279,7 +281,7 @@ static int vtnet_tso_disable = 0;
 SYSCTL_INT(_hw_vtnet, OID_AUTO, tso_disable, CTLFLAG_RDTUN,
     &vtnet_tso_disable, 0, "Disables TSO");
 
-static int vtnet_lro_disable = 0;
+static int vtnet_lro_disable = 1;
 SYSCTL_INT(_hw_vtnet, OID_AUTO, lro_disable, CTLFLAG_RDTUN,
     &vtnet_lro_disable, 0, "Disables hardware LRO");
 
@@ -1151,11 +1153,9 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	}
 
 	if (virtio_with_feature(dev, VIRTIO_NET_F_GUEST_CSUM)) {
-		if_setcapabilitiesbit(ifp, IFCAP_RXCSUM, 0);
-#ifdef notyet
 		/* BMV: Rx checksums not distinguished between IPv4 and IPv6. */
+		if_setcapabilitiesbit(ifp, IFCAP_RXCSUM, 0);
 		if_setcapabilitiesbit(ifp, IFCAP_RXCSUM_IPV6, 0);
-#endif
 
 		if (vtnet_tunable_int(sc, "fixup_needs_csum",
 		    vtnet_fixup_needs_csum) != 0)
@@ -1178,6 +1178,7 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	if (sc->vtnet_max_mtu >= ETHERMTU_JUMBO)
 		if_setcapabilitiesbit(ifp, IFCAP_JUMBO_MTU, 0);
 	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
+	if_setcapabilitiesbit(ifp, IFCAP_HWSTATS, 0);
 
 	/*
 	 * Capabilities after here are not enabled by default.
@@ -1344,14 +1345,42 @@ vtnet_ioctl_ifcap(struct vtnet_softc *sc, struct ifreq *ifr)
 
 	VTNET_CORE_LOCK_ASSERT(sc);
 
-	if (mask & IFCAP_TXCSUM)
+	if (mask & IFCAP_TXCSUM) {
+		if (if_getcapenable(ifp) & IFCAP_TXCSUM &&
+		    if_getcapenable(ifp) & IFCAP_TSO4) {
+			/* Disable tso4, because txcsum will be disabled. */
+			if_setcapenablebit(ifp, 0, IFCAP_TSO4);
+			if_sethwassistbits(ifp, 0, CSUM_IP_TSO);
+			mask &= ~IFCAP_TSO4;
+		}
 		if_togglecapenable(ifp, IFCAP_TXCSUM);
-	if (mask & IFCAP_TXCSUM_IPV6)
+		if_togglehwassist(ifp, VTNET_CSUM_OFFLOAD);
+	}
+	if (mask & IFCAP_TXCSUM_IPV6) {
+		if (if_getcapenable(ifp) & IFCAP_TXCSUM_IPV6 &&
+		    if_getcapenable(ifp) & IFCAP_TSO6) {
+			/* Disable tso6, because txcsum6 will be disabled. */
+			if_setcapenablebit(ifp, 0, IFCAP_TSO6);
+			if_sethwassistbits(ifp, 0, CSUM_IP6_TSO);
+			mask &= ~IFCAP_TSO6;
+		}
 		if_togglecapenable(ifp, IFCAP_TXCSUM_IPV6);
-	if (mask & IFCAP_TSO4)
-		if_togglecapenable(ifp, IFCAP_TSO4);
-	if (mask & IFCAP_TSO6)
-		if_togglecapenable(ifp, IFCAP_TSO6);
+		if_togglehwassist(ifp, VTNET_CSUM_OFFLOAD_IPV6);
+	}
+	if (mask & IFCAP_TSO4) {
+		if (if_getcapenable(ifp) & (IFCAP_TXCSUM | IFCAP_TSO4)) {
+			/* tso4 can only be enabled, if txcsum is enabled. */
+			if_togglecapenable(ifp, IFCAP_TSO4);
+			if_togglehwassist(ifp, CSUM_IP_TSO);
+		}
+	}
+	if (mask & IFCAP_TSO6) {
+		if (if_getcapenable(ifp) & (IFCAP_TXCSUM_IPV6 | IFCAP_TSO6)) {
+			/* tso6 can only be enabled, if txcsum6 is enabled. */
+			if_togglecapenable(ifp, IFCAP_TSO6);
+			if_togglehwassist(ifp, CSUM_IP6_TSO);
+		}
+	}
 
 	if (mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_LRO)) {
 		/*
@@ -1367,27 +1396,20 @@ vtnet_ioctl_ifcap(struct vtnet_softc *sc, struct ifreq *ifr)
 		if ((mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_LRO)) ==
 		    IFCAP_LRO && vtnet_software_lro(sc))
 			reinit = update = 0;
-
-		if (mask & IFCAP_RXCSUM)
+		/*
+		 * VirtIO does not distinguish between receive checksum offload
+		 * for IPv4 and IPv6 packets, so treat them as a pair.
+		 */
+		if (mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
 			if_togglecapenable(ifp, IFCAP_RXCSUM);
-		if (mask & IFCAP_RXCSUM_IPV6)
 			if_togglecapenable(ifp, IFCAP_RXCSUM_IPV6);
+		}
 		if (mask & IFCAP_LRO)
 			if_togglecapenable(ifp, IFCAP_LRO);
-
-		/*
-		 * VirtIO does not distinguish between IPv4 and IPv6 checksums
-		 * so treat them as a pair. Guest TSO (LRO) requires receive
-		 * checksums.
-		 */
-		if (if_getcapenable(ifp) & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
-			if_setcapenablebit(ifp, IFCAP_RXCSUM, 0);
-#ifdef notyet
-			if_setcapenablebit(ifp, IFCAP_RXCSUM_IPV6, 0);
-#endif
-		} else
-			if_setcapenablebit(ifp, 0,
-			    (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_LRO));
+		/* Both SW and HW TCP LRO require receive checksum offload. */
+		if ((if_getcapenable(ifp) &
+		    (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) == 0)
+			if_setcapenablebit(ifp, 0, IFCAP_LRO);
 	}
 
 	if (mask & IFCAP_VLAN_HWFILTER) {
@@ -1760,138 +1782,84 @@ vtnet_rxq_new_buf(struct vtnet_rxq *rxq)
 	return (error);
 }
 
+#if defined(INET) || defined(INET6)
 static int
-vtnet_rxq_csum_needs_csum(struct vtnet_rxq *rxq, struct mbuf *m, uint16_t etype,
-    int hoff, struct virtio_net_hdr *hdr)
+vtnet_rxq_csum_needs_csum(struct vtnet_rxq *rxq, struct mbuf *m, bool isipv6,
+    int protocol, struct virtio_net_hdr *hdr)
 {
 	struct vtnet_softc *sc;
-	int error;
-
-	sc = rxq->vtnrx_sc;
 
 	/*
-	 * NEEDS_CSUM corresponds to Linux's CHECKSUM_PARTIAL, but FreeBSD does
-	 * not have an analogous CSUM flag. The checksum has been validated,
-	 * but is incomplete (TCP/UDP pseudo header).
-	 *
-	 * The packet is likely from another VM on the same host that itself
-	 * performed checksum offloading so Tx/Rx is basically a memcpy and
-	 * the checksum has little value.
-	 *
-	 * Default to receiving the packet as-is for performance reasons, but
-	 * this can cause issues if the packet is to be forwarded because it
-	 * does not contain a valid checksum. This patch may be helpful:
-	 * https://reviews.freebsd.org/D6611. In the meantime, have the driver
-	 * compute the checksum if requested.
-	 *
-	 * BMV: Need to add an CSUM_PARTIAL flag?
+	 * The packet is likely from another VM on the same host or from the
+	 * host that itself performed checksum offloading so Tx/Rx is basically
+	 * a memcpy and the checksum has little value so far.
 	 */
+
+	KASSERT(protocol == IPPROTO_TCP || protocol == IPPROTO_UDP,
+	    ("%s: unsupported IP protocol %d", __func__, protocol));
+
+	/*
+	 * If the user don't want us to fix it up here by computing the
+	 * checksum, just forward the order to compute the checksum by setting
+	 * the corresponding mbuf flag (e.g., CSUM_TCP).
+	 */
+	sc = rxq->vtnrx_sc;
 	if ((sc->vtnet_flags & VTNET_FLAG_FIXUP_NEEDS_CSUM) == 0) {
-		error = vtnet_rxq_csum_data_valid(rxq, m, etype, hoff, hdr);
-		return (error);
+		switch (protocol) {
+		case IPPROTO_TCP:
+			m->m_pkthdr.csum_flags |=
+			    (isipv6 ? CSUM_TCP_IPV6 : CSUM_TCP);
+			break;
+		case IPPROTO_UDP:
+			m->m_pkthdr.csum_flags |=
+			    (isipv6 ? CSUM_UDP_IPV6 : CSUM_UDP);
+			break;
+		}
+		m->m_pkthdr.csum_data = hdr->csum_offset;
+		return (0);
 	}
 
 	/*
 	 * Compute the checksum in the driver so the packet will contain a
 	 * valid checksum. The checksum is at csum_offset from csum_start.
 	 */
-	switch (etype) {
-#if defined(INET) || defined(INET6)
-	case ETHERTYPE_IP:
-	case ETHERTYPE_IPV6: {
-		int csum_off, csum_end;
-		uint16_t csum;
+	int csum_off, csum_end;
+	uint16_t csum;
 
-		csum_off = hdr->csum_start + hdr->csum_offset;
-		csum_end = csum_off + sizeof(uint16_t);
+	csum_off = hdr->csum_start + hdr->csum_offset;
+	csum_end = csum_off + sizeof(uint16_t);
 
-		/* Assume checksum will be in the first mbuf. */
-		if (m->m_len < csum_end || m->m_pkthdr.len < csum_end)
-			return (1);
-
-		/*
-		 * Like in_delayed_cksum()/in6_delayed_cksum(), compute the
-		 * checksum and write it at the specified offset. We could
-		 * try to verify the packet: csum_start should probably
-		 * correspond to the start of the TCP/UDP header.
-		 *
-		 * BMV: Need to properly handle UDP with zero checksum. Is
-		 * the IPv4 header checksum implicitly validated?
-		 */
-		csum = in_cksum_skip(m, m->m_pkthdr.len, hdr->csum_start);
-		*(uint16_t *)(mtodo(m, csum_off)) = csum;
-		m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-		m->m_pkthdr.csum_data = 0xFFFF;
-		break;
-	}
-#endif
-	default:
-		sc->vtnet_stats.rx_csum_bad_ethtype++;
+	/* Assume checksum will be in the first mbuf. */
+	if (m->m_len < csum_end || m->m_pkthdr.len < csum_end) {
+		sc->vtnet_stats.rx_csum_bad_offset++;
 		return (1);
 	}
+
+	/*
+	 * Like in_delayed_cksum()/in6_delayed_cksum(), compute the
+	 * checksum and write it at the specified offset. We could
+	 * try to verify the packet: csum_start should probably
+	 * correspond to the start of the TCP/UDP header.
+	 *
+	 * BMV: Need to properly handle UDP with zero checksum. Is
+	 * the IPv4 header checksum implicitly validated?
+	 */
+	csum = in_cksum_skip(m, m->m_pkthdr.len, hdr->csum_start);
+	*(uint16_t *)(mtodo(m, csum_off)) = csum;
+	m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+	m->m_pkthdr.csum_data = 0xFFFF;
 
 	return (0);
 }
 
-static int
-vtnet_rxq_csum_data_valid(struct vtnet_rxq *rxq, struct mbuf *m,
-    uint16_t etype, int hoff, struct virtio_net_hdr *hdr __unused)
+static void
+vtnet_rxq_csum_data_valid(struct vtnet_rxq *rxq, struct mbuf *m, int protocol)
 {
-#if 0
-	struct vtnet_softc *sc;
-#endif
-	int protocol;
+	KASSERT(protocol == IPPROTO_TCP || protocol == IPPROTO_UDP,
+	    ("%s: unsupported IP protocol %d", __func__, protocol));
 
-#if 0
-	sc = rxq->vtnrx_sc;
-#endif
-
-	switch (etype) {
-#if defined(INET)
-	case ETHERTYPE_IP:
-		if (__predict_false(m->m_len < hoff + sizeof(struct ip)))
-			protocol = IPPROTO_DONE;
-		else {
-			struct ip *ip = (struct ip *)(m->m_data + hoff);
-			protocol = ip->ip_p;
-		}
-		break;
-#endif
-#if defined(INET6)
-	case ETHERTYPE_IPV6:
-		if (__predict_false(m->m_len < hoff + sizeof(struct ip6_hdr))
-		    || ip6_lasthdr(m, hoff, IPPROTO_IPV6, &protocol) < 0)
-			protocol = IPPROTO_DONE;
-		break;
-#endif
-	default:
-		protocol = IPPROTO_DONE;
-		break;
-	}
-
-	switch (protocol) {
-	case IPPROTO_TCP:
-	case IPPROTO_UDP:
-		m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-		m->m_pkthdr.csum_data = 0xFFFF;
-		break;
-	default:
-		/*
-		 * FreeBSD does not support checksum offloading of this
-		 * protocol. Let the stack re-verify the checksum later
-		 * if the protocol is supported.
-		 */
-#if 0
-		if_printf(sc->vtnet_ifp,
-		    "%s: checksum offload of unsupported protocol "
-		    "etype=%#x protocol=%d csum_start=%d csum_offset=%d\n",
-		    __func__, etype, protocol, hdr->csum_start,
-		    hdr->csum_offset);
-#endif
-		break;
-	}
-
-	return (0);
+	m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+	m->m_pkthdr.csum_data = 0xFFFF;
 }
 
 static int
@@ -1899,8 +1867,14 @@ vtnet_rxq_csum(struct vtnet_rxq *rxq, struct mbuf *m,
     struct virtio_net_hdr *hdr)
 {
 	const struct ether_header *eh;
-	int hoff;
+	struct vtnet_softc *sc;
+	int hoff, protocol;
 	uint16_t etype;
+	bool isipv6;
+
+	KASSERT(hdr->flags &
+	    (VIRTIO_NET_HDR_F_NEEDS_CSUM | VIRTIO_NET_HDR_F_DATA_VALID),
+	    ("%s: missing checksum offloading flag %x", __func__, hdr->flags));
 
 	eh = mtod(m, const struct ether_header *);
 	etype = ntohs(eh->ether_type);
@@ -1913,11 +1887,60 @@ vtnet_rxq_csum(struct vtnet_rxq *rxq, struct mbuf *m,
 	} else
 		hoff = sizeof(struct ether_header);
 
+	sc = rxq->vtnrx_sc;
+
+	/* Check whether ethernet type is IP or IPv6, and get protocol. */
+	switch (etype) {
+#if defined(INET)
+	case ETHERTYPE_IP:
+		if (__predict_false(m->m_len < hoff + sizeof(struct ip))) {
+			sc->vtnet_stats.rx_csum_inaccessible_ipproto++;
+			return (1);
+		} else {
+			struct ip *ip = (struct ip *)(m->m_data + hoff);
+			protocol = ip->ip_p;
+		}
+		isipv6 = false;
+		break;
+#endif
+#if defined(INET6)
+	case ETHERTYPE_IPV6:
+		if (__predict_false(m->m_len < hoff + sizeof(struct ip6_hdr))
+		    || ip6_lasthdr(m, hoff, IPPROTO_IPV6, &protocol) < 0) {
+			sc->vtnet_stats.rx_csum_inaccessible_ipproto++;
+			return (1);
+		}
+		isipv6 = true;
+		break;
+#endif
+	default:
+		sc->vtnet_stats.rx_csum_bad_ethtype++;
+		return (1);
+	}
+
+	/* Check whether protocol is TCP or UDP. */
+	switch (protocol) {
+	case IPPROTO_TCP:
+	case IPPROTO_UDP:
+		break;
+	default:
+		/*
+		 * FreeBSD does not support checksum offloading of this
+		 * protocol here.
+		 */
+		sc->vtnet_stats.rx_csum_bad_ipproto++;
+		return (1);
+	}
+
 	if (hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM)
-		return (vtnet_rxq_csum_needs_csum(rxq, m, etype, hoff, hdr));
+		return (vtnet_rxq_csum_needs_csum(rxq, m, isipv6, protocol,
+		    hdr));
 	else /* VIRTIO_NET_HDR_F_DATA_VALID */
-		return (vtnet_rxq_csum_data_valid(rxq, m, etype, hoff, hdr));
+		vtnet_rxq_csum_data_valid(rxq, m, protocol);
+
+	return (0);
 }
+#endif
 
 static void
 vtnet_rxq_discard_merged_bufs(struct vtnet_rxq *rxq, int nbufs)
@@ -2040,10 +2063,15 @@ vtnet_rxq_input(struct vtnet_rxq *rxq, struct mbuf *m,
 
 	if (hdr->flags &
 	    (VIRTIO_NET_HDR_F_NEEDS_CSUM | VIRTIO_NET_HDR_F_DATA_VALID)) {
+#if defined(INET) || defined(INET6)
 		if (vtnet_rxq_csum(rxq, m, hdr) == 0)
 			rxq->vtnrx_stats.vrxs_csum++;
 		else
 			rxq->vtnrx_stats.vrxs_csum_failed++;
+#else
+		sc->vtnet_stats.rx_csum_bad_ethtype++;
+		rxq->vtnrx_stats.vrxs_csum_failed++;
+#endif
 	}
 
 	if (hdr->gso_size != 0) {
@@ -2551,8 +2579,10 @@ vtnet_txq_enqueue_buf(struct vtnet_txq *txq, struct mbuf **m_head,
 	error = sglist_append_mbuf(sg, m);
 	if (error) {
 		m = m_defrag(m, M_NOWAIT);
-		if (m == NULL)
+		if (m == NULL) {
+			sc->vtnet_stats.tx_defrag_failed++;
 			goto fail;
+		}
 
 		*m_head = m;
 		sc->vtnet_stats.tx_defragged++;
@@ -2568,7 +2598,6 @@ vtnet_txq_enqueue_buf(struct vtnet_txq *txq, struct mbuf **m_head,
 	return (error);
 
 fail:
-	sc->vtnet_stats.tx_defrag_failed++;
 	m_freem(*m_head);
 	*m_head = NULL;
 
@@ -3031,16 +3060,14 @@ vtnet_get_counter(if_t ifp, ift_counter cnt)
 		return (rxaccum.vrxs_iqdrops);
 	case IFCOUNTER_IERRORS:
 		return (rxaccum.vrxs_ierrors);
+	case IFCOUNTER_IBYTES:
+		return (rxaccum.vrxs_ibytes);
 	case IFCOUNTER_OPACKETS:
 		return (txaccum.vtxs_opackets);
 	case IFCOUNTER_OBYTES:
-		if (!VTNET_ALTQ_ENABLED)
-			return (txaccum.vtxs_obytes);
-		/* FALLTHROUGH */
+		return (txaccum.vtxs_obytes);
 	case IFCOUNTER_OMCASTS:
-		if (!VTNET_ALTQ_ENABLED)
-			return (txaccum.vtxs_omcasts);
-		/* FALLTHROUGH */
+		return (txaccum.vtxs_omcasts);
 	default:
 		return (if_get_counter_default(ifp, cnt));
 	}
@@ -3813,9 +3840,9 @@ vtnet_rx_filter_mac(struct vtnet_softc *sc)
 		if_printf(ifp, "error setting host MAC filter table\n");
 
 out:
-	if (promisc != 0 && vtnet_set_promisc(sc, true) != 0)
+	if (promisc && vtnet_set_promisc(sc, true) != 0)
 		if_printf(ifp, "cannot enable promiscuous mode\n");
-	if (allmulti != 0 && vtnet_set_allmulti(sc, true) != 0)
+	if (allmulti && vtnet_set_allmulti(sc, true) != 0)
 		if_printf(ifp, "cannot enable all-multicast mode\n");
 }
 
@@ -4100,21 +4127,29 @@ vtnet_setup_rxq_sysctl(struct sysctl_ctx_list *ctx,
 
 	stats = &rxq->vtnrx_stats;
 
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "ipackets", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "ipackets",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vrxs_ipackets, "Receive packets");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "ibytes", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "ibytes",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vrxs_ibytes, "Receive bytes");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "iqdrops", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "iqdrops",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vrxs_iqdrops, "Receive drops");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "ierrors", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "ierrors",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vrxs_ierrors, "Receive errors");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "csum", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "csum",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vrxs_csum, "Receive checksum offloaded");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "csum_failed", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "csum_failed",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vrxs_csum_failed, "Receive checksum offload failed");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "host_lro", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "host_lro",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vrxs_host_lro, "Receive host segmentation offloaded");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "rescheduled", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "rescheduled",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vrxs_rescheduled,
 	    "Receive interrupt handler rescheduled");
 }
@@ -4135,17 +4170,23 @@ vtnet_setup_txq_sysctl(struct sysctl_ctx_list *ctx,
 
 	stats = &txq->vtntx_stats;
 
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "opackets", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "opackets",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vtxs_opackets, "Transmit packets");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "obytes", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "obytes",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vtxs_obytes, "Transmit bytes");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "omcasts", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "omcasts",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vtxs_omcasts, "Transmit multicasts");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "csum", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "csum",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vtxs_csum, "Transmit checksum offloaded");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "tso", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "tso",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vtxs_tso, "Transmit TCP segmentation offloaded");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "rescheduled", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "rescheduled",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vtxs_rescheduled,
 	    "Transmit interrupt handler rescheduled");
 }
@@ -4170,6 +4211,102 @@ vtnet_setup_queue_sysctl(struct vtnet_softc *sc)
 	}
 }
 
+static int
+vtnet_sysctl_rx_csum_failed(SYSCTL_HANDLER_ARGS)
+{
+	struct vtnet_softc *sc = (struct vtnet_softc *)arg1;
+	struct vtnet_statistics *stats = &sc->vtnet_stats;
+	struct vtnet_rxq_stats *rxst;
+	int i;
+
+	stats->rx_csum_failed = 0;
+	for (i = 0; i < sc->vtnet_max_vq_pairs; i++) {
+		rxst = &sc->vtnet_rxqs[i].vtnrx_stats;
+		stats->rx_csum_failed += rxst->vrxs_csum_failed;
+	}
+	return (sysctl_handle_64(oidp, NULL, stats->rx_csum_failed, req));
+}
+
+static int
+vtnet_sysctl_rx_csum_offloaded(SYSCTL_HANDLER_ARGS)
+{
+	struct vtnet_softc *sc = (struct vtnet_softc *)arg1;
+	struct vtnet_statistics *stats = &sc->vtnet_stats;
+	struct vtnet_rxq_stats *rxst;
+	int i;
+
+	stats->rx_csum_offloaded = 0;
+	for (i = 0; i < sc->vtnet_max_vq_pairs; i++) {
+		rxst = &sc->vtnet_rxqs[i].vtnrx_stats;
+		stats->rx_csum_offloaded += rxst->vrxs_csum;
+	}
+	return (sysctl_handle_64(oidp, NULL, stats->rx_csum_offloaded, req));
+}
+
+static int
+vtnet_sysctl_rx_task_rescheduled(SYSCTL_HANDLER_ARGS)
+{
+	struct vtnet_softc *sc = (struct vtnet_softc *)arg1;
+	struct vtnet_statistics *stats = &sc->vtnet_stats;
+	struct vtnet_rxq_stats *rxst;
+	int i;
+
+	stats->rx_task_rescheduled = 0;
+	for (i = 0; i < sc->vtnet_max_vq_pairs; i++) {
+		rxst = &sc->vtnet_rxqs[i].vtnrx_stats;
+		stats->rx_task_rescheduled += rxst->vrxs_rescheduled;
+	}
+	return (sysctl_handle_64(oidp, NULL, stats->rx_task_rescheduled, req));
+}
+
+static int
+vtnet_sysctl_tx_csum_offloaded(SYSCTL_HANDLER_ARGS)
+{
+	struct vtnet_softc *sc = (struct vtnet_softc *)arg1;
+	struct vtnet_statistics *stats = &sc->vtnet_stats;
+	struct vtnet_txq_stats *txst;
+	int i;
+
+	stats->tx_csum_offloaded = 0;
+	for (i = 0; i < sc->vtnet_max_vq_pairs; i++) {
+		txst = &sc->vtnet_txqs[i].vtntx_stats;
+		stats->tx_csum_offloaded += txst->vtxs_csum;
+	}
+	return (sysctl_handle_64(oidp, NULL, stats->tx_csum_offloaded, req));
+}
+
+static int
+vtnet_sysctl_tx_tso_offloaded(SYSCTL_HANDLER_ARGS)
+{
+	struct vtnet_softc *sc = (struct vtnet_softc *)arg1;
+	struct vtnet_statistics *stats = &sc->vtnet_stats;
+	struct vtnet_txq_stats *txst;
+	int i;
+
+	stats->tx_tso_offloaded = 0;
+	for (i = 0; i < sc->vtnet_max_vq_pairs; i++) {
+		txst = &sc->vtnet_txqs[i].vtntx_stats;
+		stats->tx_tso_offloaded += txst->vtxs_tso;
+	}
+	return (sysctl_handle_64(oidp, NULL, stats->tx_tso_offloaded, req));
+}
+
+static int
+vtnet_sysctl_tx_task_rescheduled(SYSCTL_HANDLER_ARGS)
+{
+	struct vtnet_softc *sc = (struct vtnet_softc *)arg1;
+	struct vtnet_statistics *stats = &sc->vtnet_stats;
+	struct vtnet_txq_stats *txst;
+	int i;
+
+	stats->tx_task_rescheduled = 0;
+	for (i = 0; i < sc->vtnet_max_vq_pairs; i++) {
+		txst = &sc->vtnet_txqs[i].vtntx_stats;
+		stats->tx_task_rescheduled += txst->vtxs_rescheduled;
+	}
+	return (sysctl_handle_64(oidp, NULL, stats->tx_task_rescheduled, req));
+}
+
 static void
 vtnet_setup_stat_sysctl(struct sysctl_ctx_list *ctx,
     struct sysctl_oid_list *child, struct vtnet_softc *sc)
@@ -4189,69 +4326,75 @@ vtnet_setup_stat_sysctl(struct sysctl_ctx_list *ctx,
 	stats->tx_task_rescheduled = txaccum.vtxs_rescheduled;
 
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "mbuf_alloc_failed",
-	    CTLFLAG_RD, &stats->mbuf_alloc_failed,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->mbuf_alloc_failed,
 	    "Mbuf cluster allocation failures");
 
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_frame_too_large",
-	    CTLFLAG_RD, &stats->rx_frame_too_large,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_frame_too_large,
 	    "Received frame larger than the mbuf chain");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_enq_replacement_failed",
-	    CTLFLAG_RD, &stats->rx_enq_replacement_failed,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_enq_replacement_failed,
 	    "Enqueuing the replacement receive mbuf failed");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_mergeable_failed",
-	    CTLFLAG_RD, &stats->rx_mergeable_failed,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_mergeable_failed,
 	    "Mergeable buffers receive failures");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_csum_bad_ethtype",
-	    CTLFLAG_RD, &stats->rx_csum_bad_ethtype,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_csum_bad_ethtype,
 	    "Received checksum offloaded buffer with unsupported "
 	    "Ethernet type");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_csum_bad_ipproto",
-	    CTLFLAG_RD, &stats->rx_csum_bad_ipproto,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_csum_bad_ipproto,
 	    "Received checksum offloaded buffer with incorrect IP protocol");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_csum_bad_offset",
-	    CTLFLAG_RD, &stats->rx_csum_bad_offset,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_csum_bad_offset,
 	    "Received checksum offloaded buffer with incorrect offset");
-	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_csum_bad_proto",
-	    CTLFLAG_RD, &stats->rx_csum_bad_proto,
-	    "Received checksum offloaded buffer with incorrect protocol");
-	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_csum_failed",
-	    CTLFLAG_RD, &stats->rx_csum_failed,
+	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_csum_inaccessible_ipproto",
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_csum_inaccessible_ipproto,
+	    "Received checksum offloaded buffer with inaccessible IP protocol");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_csum_failed",
+	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_STATS,
+	    sc, 0, vtnet_sysctl_rx_csum_failed, "QU",
 	    "Received buffer checksum offload failed");
-	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_csum_offloaded",
-	    CTLFLAG_RD, &stats->rx_csum_offloaded,
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_csum_offloaded",
+	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_STATS,
+	    sc, 0, vtnet_sysctl_rx_csum_offloaded, "QU",
 	    "Received buffer checksum offload succeeded");
-	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_task_rescheduled",
-	    CTLFLAG_RD, &stats->rx_task_rescheduled,
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_task_rescheduled",
+	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_STATS,
+	    sc, 0, vtnet_sysctl_rx_task_rescheduled, "QU",
 	    "Times the receive interrupt task rescheduled itself");
 
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_csum_unknown_ethtype",
-	    CTLFLAG_RD, &stats->tx_csum_unknown_ethtype,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->tx_csum_unknown_ethtype,
 	    "Aborted transmit of checksum offloaded buffer with unknown "
 	    "Ethernet type");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_csum_proto_mismatch",
-	    CTLFLAG_RD, &stats->tx_csum_proto_mismatch,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->tx_csum_proto_mismatch,
 	    "Aborted transmit of checksum offloaded buffer because mismatched "
 	    "protocols");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_tso_not_tcp",
-	    CTLFLAG_RD, &stats->tx_tso_not_tcp,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->tx_tso_not_tcp,
 	    "Aborted transmit of TSO buffer with non TCP protocol");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_tso_without_csum",
-	    CTLFLAG_RD, &stats->tx_tso_without_csum,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->tx_tso_without_csum,
 	    "Aborted transmit of TSO buffer without TCP checksum offload");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_defragged",
-	    CTLFLAG_RD, &stats->tx_defragged,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->tx_defragged,
 	    "Transmit mbufs defragged");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_defrag_failed",
-	    CTLFLAG_RD, &stats->tx_defrag_failed,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->tx_defrag_failed,
 	    "Aborted transmit of buffer because defrag failed");
-	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_csum_offloaded",
-	    CTLFLAG_RD, &stats->tx_csum_offloaded,
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_csum_offloaded",
+	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_STATS,
+	    sc, 0, vtnet_sysctl_tx_csum_offloaded, "QU",
 	    "Offloaded checksum of transmitted buffer");
-	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_tso_offloaded",
-	    CTLFLAG_RD, &stats->tx_tso_offloaded,
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_tso_offloaded",
+	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_STATS,
+	    sc, 0, vtnet_sysctl_tx_tso_offloaded, "QU",
 	    "Segmentation offload of transmitted buffer");
-	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_task_rescheduled",
-	    CTLFLAG_RD, &stats->tx_task_rescheduled,
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_task_rescheduled",
+	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_STATS,
+	    sc, 0, vtnet_sysctl_tx_task_rescheduled, "QU",
 	    "Times the transmit interrupt task rescheduled itself");
 }
 

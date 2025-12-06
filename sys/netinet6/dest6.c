@@ -31,7 +31,6 @@
  *	$KAME: dest6.c,v 1.59 2003/07/11 13:21:16 t-momose Exp $
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
 

@@ -22,6 +22,8 @@
 /*
  * Copyright (c) 2011, Lawrence Livermore National Security, LLC.
  * Copyright (c) 2015 by Chunwei Chen. All rights reserved.
+ * Copyright (c) 2025, Klara, Inc.
+ * Copyright (c) 2025, Rob Norris <robn@despairlabs.com>
  */
 
 
@@ -106,6 +108,10 @@ zpl_iterate(struct file *filp, struct dir_context *ctx)
 	return (error);
 }
 
+static inline int
+zpl_write_cache_pages(struct address_space *mapping,
+    struct writeback_control *wbc, void *data);
+
 static int
 zpl_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
 {
@@ -115,9 +121,38 @@ zpl_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
 	int error;
 	fstrans_cookie_t cookie;
 
-	error = filemap_write_and_wait_range(inode->i_mapping, start, end);
-	if (error)
-		return (error);
+	/*
+	 * Force dirty pages in the range out to the DMU and the log, ready
+	 * for zil_commit() to write down.
+	 *
+	 * We call write_cache_pages() directly to ensure that zpl_putpage() is
+	 * called with the flags we need. We need WB_SYNC_NONE to avoid a call
+	 * to zil_commit() (since we're doing this as a kind of pre-sync); but
+	 * we do need for_sync so that the pages remain in writeback until
+	 * they're on disk, and so that we get an error if the DMU write fails.
+	 */
+	if (filemap_range_has_page(inode->i_mapping, start, end)) {
+		int for_sync = 1;
+		struct writeback_control wbc = {
+			.sync_mode = WB_SYNC_NONE,
+			.nr_to_write = LONG_MAX,
+			.range_start = start,
+			.range_end = end,
+		};
+		error =
+		    zpl_write_cache_pages(inode->i_mapping, &wbc, &for_sync);
+		if (error != 0) {
+			/*
+			 * Unclear what state things are in. zfs_putpage() will
+			 * ensure the pages remain dirty if they haven't been
+			 * written down to the DMU, but because there may be
+			 * nothing logged, we can't assume that zfs_sync() ->
+			 * zil_commit() will give us a useful error. It's
+			 * safest if we just error out here.
+			 */
+			return (error);
+		}
+	}
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
@@ -444,6 +479,7 @@ zpl_putpage(struct page *pp, struct writeback_control *wbc, void *data)
 	return (ret);
 }
 
+#ifdef HAVE_WRITE_CACHE_PAGES
 #ifdef HAVE_WRITEPAGE_T_FOLIO
 static int
 zpl_putfolio(struct folio *pp, struct writeback_control *wbc, void *data)
@@ -465,6 +501,78 @@ zpl_write_cache_pages(struct address_space *mapping,
 #endif
 	return (result);
 }
+#else
+static inline int
+zpl_write_cache_pages(struct address_space *mapping,
+    struct writeback_control *wbc, void *data)
+{
+	pgoff_t start = wbc->range_start >> PAGE_SHIFT;
+	pgoff_t end = wbc->range_end >> PAGE_SHIFT;
+
+	struct folio_batch fbatch;
+	folio_batch_init(&fbatch);
+
+	/*
+	 * This atomically (-ish) tags all DIRTY pages in the range with
+	 * TOWRITE, allowing users to continue dirtying or undirtying pages
+	 * while we get on with writeback, without us treading on each other.
+	 */
+	tag_pages_for_writeback(mapping, start, end);
+
+	int err = 0;
+	unsigned int npages;
+
+	/*
+	 * Grab references to the TOWRITE pages just flagged. This may not get
+	 * all of them, so we do it in a loop until there are none left.
+	 */
+	while ((npages = filemap_get_folios_tag(mapping, &start, end,
+	    PAGECACHE_TAG_TOWRITE, &fbatch)) != 0) {
+
+		/* Loop over each page and write it out. */
+		struct folio *folio;
+		while ((folio = folio_batch_next(&fbatch)) != NULL) {
+			folio_lock(folio);
+
+			/*
+			 * If the folio has been remapped, or is no longer
+			 * dirty, then there's nothing to do.
+			 */
+			if (folio->mapping != mapping ||
+			    !folio_test_dirty(folio)) {
+				folio_unlock(folio);
+				continue;
+			}
+
+			/*
+			 * If writeback is already in progress, wait for it to
+			 * finish. We continue after this even if the page
+			 * ends up clean; zfs_putpage() will skip it if no
+			 * further work is required.
+			 */
+			while (folio_test_writeback(folio))
+				folio_wait_bit(folio, PG_writeback);
+
+			/*
+			 * Write it out and collect any error. zfs_putpage()
+			 * will clear the TOWRITE and DIRTY flags, and return
+			 * with the page unlocked.
+			 */
+			int ferr = zpl_putpage(&folio->page, wbc, data);
+			if (err == 0 && ferr != 0)
+				err = ferr;
+
+			/* Housekeeping for the caller. */
+			wbc->nr_to_write -= folio_nr_pages(folio);
+		}
+
+		/* Release any remaining references on the batch. */
+		folio_batch_release(&fbatch);
+	}
+
+	return (err);
+}
+#endif
 
 static int
 zpl_writepages(struct address_space *mapping, struct writeback_control *wbc)
@@ -494,9 +602,28 @@ zpl_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	if (sync_mode != wbc->sync_mode) {
 		if ((result = zpl_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
 			return (result);
-		if (zfsvfs->z_log != NULL)
-			zil_commit(zfsvfs->z_log, zp->z_id);
+
+		if (zfsvfs->z_log != NULL) {
+			/*
+			 * We don't want to block here if the pool suspends,
+			 * because this is not a syncing op by itself, but
+			 * might be part of one that the caller will
+			 * coordinate.
+			 */
+			result = -zil_commit_flags(zfsvfs->z_log, zp->z_id,
+			    ZIL_COMMIT_NOW);
+		}
+
 		zpl_exit(zfsvfs, FTAG);
+
+		/*
+		 * If zil_commit_flags() failed, it's unclear what state things
+		 * are currently in. putpage() has written back out what it can
+		 * to the DMU, but it may not be on disk. We have little choice
+		 * but to escape.
+		 */
+		if (result != 0)
+			return (result);
 
 		/*
 		 * We need to call write_cache_pages() again (we can't just
@@ -684,28 +811,44 @@ zpl_fadvise(struct file *filp, loff_t offset, loff_t len, int advice)
 	return (error);
 }
 
-#define	ZFS_FL_USER_VISIBLE	(FS_FL_USER_VISIBLE | ZFS_PROJINHERIT_FL)
-#define	ZFS_FL_USER_MODIFIABLE	(FS_FL_USER_MODIFIABLE | ZFS_PROJINHERIT_FL)
+#define	ZFS_FL_USER_VISIBLE	(FS_FL_USER_VISIBLE | FS_PROJINHERIT_FL)
+#define	ZFS_FL_USER_MODIFIABLE	(FS_FL_USER_MODIFIABLE | FS_PROJINHERIT_FL)
+
+
+static struct {
+	uint64_t zfs_flag;
+	uint32_t fs_flag;
+	uint32_t xflag;
+} flags_lookup[] = {
+	{ZFS_IMMUTABLE, FS_IMMUTABLE_FL, FS_XFLAG_IMMUTABLE},
+	{ZFS_APPENDONLY, FS_APPEND_FL, FS_XFLAG_APPEND},
+	{ZFS_NODUMP, FS_NODUMP_FL, FS_XFLAG_NODUMP},
+	{ZFS_PROJINHERIT, FS_PROJINHERIT_FL, FS_XFLAG_PROJINHERIT}
+};
 
 static uint32_t
 __zpl_ioctl_getflags(struct inode *ip)
 {
 	uint64_t zfs_flags = ITOZ(ip)->z_pflags;
 	uint32_t ioctl_flags = 0;
+	for (int i = 0; i < ARRAY_SIZE(flags_lookup); i++)
+		if (zfs_flags & flags_lookup[i].zfs_flag)
+			ioctl_flags |= flags_lookup[i].fs_flag;
 
-	if (zfs_flags & ZFS_IMMUTABLE)
-		ioctl_flags |= FS_IMMUTABLE_FL;
+	return (ioctl_flags);
+}
 
-	if (zfs_flags & ZFS_APPENDONLY)
-		ioctl_flags |= FS_APPEND_FL;
+static uint32_t
+__zpl_ioctl_getxflags(struct inode *ip)
+{
+	uint64_t zfs_flags = ITOZ(ip)->z_pflags;
+	uint32_t ioctl_flags = 0;
 
-	if (zfs_flags & ZFS_NODUMP)
-		ioctl_flags |= FS_NODUMP_FL;
+	for (int i = 0; i < ARRAY_SIZE(flags_lookup); i++)
+		if (zfs_flags & flags_lookup[i].zfs_flag)
+			ioctl_flags |= flags_lookup[i].xflag;
 
-	if (zfs_flags & ZFS_PROJINHERIT)
-		ioctl_flags |= ZFS_PROJINHERIT_FL;
-
-	return (ioctl_flags & ZFS_FL_USER_VISIBLE);
+	return (ioctl_flags);
 }
 
 /*
@@ -719,6 +862,7 @@ zpl_ioctl_getflags(struct file *filp, void __user *arg)
 	int err;
 
 	flags = __zpl_ioctl_getflags(file_inode(filp));
+	flags = flags & ZFS_FL_USER_VISIBLE;
 	err = copy_to_user(arg, &flags, sizeof (flags));
 
 	return (err);
@@ -742,7 +886,7 @@ __zpl_ioctl_setflags(struct inode *ip, uint32_t ioctl_flags, xvattr_t *xva)
 	xoptattr_t *xoap;
 
 	if (ioctl_flags & ~(FS_IMMUTABLE_FL | FS_APPEND_FL | FS_NODUMP_FL |
-	    ZFS_PROJINHERIT_FL))
+	    FS_PROJINHERIT_FL))
 		return (-EOPNOTSUPP);
 
 	if (ioctl_flags & ~ZFS_FL_USER_MODIFIABLE)
@@ -773,7 +917,51 @@ __zpl_ioctl_setflags(struct inode *ip, uint32_t ioctl_flags, xvattr_t *xva)
 	    xoap->xoa_appendonly);
 	FLAG_CHANGE(FS_NODUMP_FL, ZFS_NODUMP, XAT_NODUMP,
 	    xoap->xoa_nodump);
-	FLAG_CHANGE(ZFS_PROJINHERIT_FL, ZFS_PROJINHERIT, XAT_PROJINHERIT,
+	FLAG_CHANGE(FS_PROJINHERIT_FL, ZFS_PROJINHERIT, XAT_PROJINHERIT,
+	    xoap->xoa_projinherit);
+
+#undef	FLAG_CHANGE
+
+	return (0);
+}
+
+static int
+__zpl_ioctl_setxflags(struct inode *ip, uint32_t ioctl_flags, xvattr_t *xva)
+{
+	uint64_t zfs_flags = ITOZ(ip)->z_pflags;
+	xoptattr_t *xoap;
+
+	if (ioctl_flags & ~(FS_XFLAG_IMMUTABLE | FS_XFLAG_APPEND |
+	    FS_XFLAG_NODUMP | FS_XFLAG_PROJINHERIT))
+		return (-EOPNOTSUPP);
+
+	if ((fchange(ioctl_flags, zfs_flags, FS_XFLAG_IMMUTABLE,
+	    ZFS_IMMUTABLE) ||
+	    fchange(ioctl_flags, zfs_flags, FS_XFLAG_APPEND, ZFS_APPENDONLY)) &&
+	    !capable(CAP_LINUX_IMMUTABLE))
+		return (-EPERM);
+
+	if (!zpl_inode_owner_or_capable(zfs_init_idmap, ip))
+		return (-EACCES);
+
+	xva_init(xva);
+	xoap = xva_getxoptattr(xva);
+
+#define	FLAG_CHANGE(iflag, zflag, xflag, xfield)	do {	\
+	if (((ioctl_flags & (iflag)) && !(zfs_flags & (zflag))) ||	\
+	    ((zfs_flags & (zflag)) && !(ioctl_flags & (iflag)))) {	\
+		XVA_SET_REQ(xva, (xflag));	\
+		(xfield) = ((ioctl_flags & (iflag)) != 0);	\
+	}	\
+} while (0)
+
+	FLAG_CHANGE(FS_XFLAG_IMMUTABLE, ZFS_IMMUTABLE, XAT_IMMUTABLE,
+	    xoap->xoa_immutable);
+	FLAG_CHANGE(FS_XFLAG_APPEND, ZFS_APPENDONLY, XAT_APPENDONLY,
+	    xoap->xoa_appendonly);
+	FLAG_CHANGE(FS_XFLAG_NODUMP, ZFS_NODUMP, XAT_NODUMP,
+	    xoap->xoa_nodump);
+	FLAG_CHANGE(FS_XFLAG_PROJINHERIT, ZFS_PROJINHERIT, XAT_PROJINHERIT,
 	    xoap->xoa_projinherit);
 
 #undef	FLAG_CHANGE
@@ -814,7 +1002,7 @@ zpl_ioctl_getxattr(struct file *filp, void __user *arg)
 	struct inode *ip = file_inode(filp);
 	int err;
 
-	fsx.fsx_xflags = __zpl_ioctl_getflags(ip);
+	fsx.fsx_xflags = __zpl_ioctl_getxflags(ip);
 	fsx.fsx_projid = ITOZ(ip)->z_projid;
 	err = copy_to_user(arg, &fsx, sizeof (fsx));
 
@@ -838,7 +1026,7 @@ zpl_ioctl_setxattr(struct file *filp, void __user *arg)
 	if (!zpl_is_valid_projid(fsx.fsx_projid))
 		return (-EINVAL);
 
-	err = __zpl_ioctl_setflags(ip, fsx.fsx_xflags, &xva);
+	err = __zpl_ioctl_setxflags(ip, fsx.fsx_xflags, &xva);
 	if (err)
 		return (err);
 

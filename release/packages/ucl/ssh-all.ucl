@@ -1,5 +1,41 @@
-comment = "Secure Shell Utilities"
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+comment = "OpenSSH Secure Shell client and server"
+
 desc = <<EOD
-Secure Shell Utilities
+SSH (Secure Shell) is a protocol for connecting to remote systems in a secure
+manner over a potentially untrusted network.  SSH supports remote login, file
+transfer, forwarding of TCP and X11 connections, and several other features.
+SSH allows authentication by a variety of methods, including passwords, public
+keys, and Kerberos (GSSAPI).  SSH is supported by most Unix systems, as well
+as many non-Unix platforms and network devices.
+
+This implementation of SSH comes from OpenSSH, which is maintained by the
+OpenBSD project.
+
+This package provides the ssh(1) remote login client, along with the scp(1)
+and sftp(1) file transfer utilities, the ssh-agent(1) key management agent
+and related utilities for managing SSH keys, and the sshd(8) server daemon.
 EOD
+
 licenses = [ ISCL ]
+
+annotations {
+	set = "optional,optional-jail"
+}

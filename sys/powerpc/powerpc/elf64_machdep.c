@@ -154,7 +154,7 @@ static bool ppc64_elfv1_header_match(const struct image_params *params,
 static bool ppc64_elfv2_header_match(const struct image_params *params,
     const int32_t *, const uint32_t *);
 
-static Elf64_Brandinfo freebsd_brand_info_elfv1 = {
+static const Elf64_Brandinfo freebsd_brand_info_elfv1 = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_PPC64,
 	.compat_3_brand	= "FreeBSD",
@@ -166,11 +166,11 @@ static Elf64_Brandinfo freebsd_brand_info_elfv1 = {
 	.header_supported = &ppc64_elfv1_header_match
 };
 
-SYSINIT(elf64v1, SI_SUB_EXEC, SI_ORDER_ANY,
+C_SYSINIT(elf64v1, SI_SUB_EXEC, SI_ORDER_ANY,
     (sysinit_cfunc_t) elf64_insert_brand_entry,
     &freebsd_brand_info_elfv1);
 
-static Elf64_Brandinfo freebsd_brand_info_elfv2 = {
+static const Elf64_Brandinfo freebsd_brand_info_elfv2 = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_PPC64,
 	.compat_3_brand	= "FreeBSD",
@@ -182,11 +182,11 @@ static Elf64_Brandinfo freebsd_brand_info_elfv2 = {
 	.header_supported = &ppc64_elfv2_header_match
 };
 
-SYSINIT(elf64v2, SI_SUB_EXEC, SI_ORDER_ANY,
+C_SYSINIT(elf64v2, SI_SUB_EXEC, SI_ORDER_ANY,
     (sysinit_cfunc_t) elf64_insert_brand_entry,
     &freebsd_brand_info_elfv2);
 
-static Elf64_Brandinfo freebsd_brand_oinfo = {
+static const Elf64_Brandinfo freebsd_brand_oinfo = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_PPC64,
 	.compat_3_brand	= "FreeBSD",
@@ -198,7 +198,7 @@ static Elf64_Brandinfo freebsd_brand_oinfo = {
 	.header_supported = &ppc64_elfv1_header_match
 };
 
-SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
+C_SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
 	(sysinit_cfunc_t) elf64_insert_brand_entry,
 	&freebsd_brand_oinfo);
 

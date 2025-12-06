@@ -21,7 +21,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 30, 2025
+.Dd October 2, 2025
 .Dt USBHID 4
 .Os
 .Sh NAME
@@ -67,9 +67,13 @@ Default is 1.
 Debug output level, where 0 is debugging disabled and larger values increase
 debug message verbosity.
 Default is 0.
+Debug messages are printed on the system console and can be viewed using
+.Xr dmesg 8 .
 .El
 .Sh SEE ALSO
 .Xr ehci 4 ,
+.Xr hkbd 4 ,
+.Xr hms 4 ,
 .Xr ohci 4 ,
 .Xr uhci 4 ,
 .Xr usb 4 ,
@@ -80,6 +84,8 @@ The
 .Nm
 driver first appeared in
 .Fx 13.0 .
+It was enabled by default in
+.Fx 15.0 .
 .Sh AUTHORS
 .An -nosplit
 The

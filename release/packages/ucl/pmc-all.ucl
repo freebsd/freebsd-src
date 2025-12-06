@@ -1,0 +1,16 @@
+comment = "Support for hardware performance counters"
+
+desc = <<EOD
+The Performance Counters Library (libpmc, -lpmc) provides a programming
+interface that allows applications to use hardware performance counters
+to gather performance data about specific processes or for the system as
+a whole.  The library is implemented using the lower-level facilities
+offered by the hwpmc(4) driver.
+
+The utilities pmc(8), pmcannotate(8), pmccontrol(8) and pmcstat(8) provide
+command-line access to the facilities provided by libpmc.
+EOD
+
+annotations {
+	set = "optional,optional-jail"
+}

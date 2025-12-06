@@ -16,4 +16,4 @@ Please provide the following information in your report:
 - How to reproduce the issue
 
 This project is maintained by volunteers on a reasonable-effort basis. As such, we ask
-that you give me 90 days to work on a fix before public exposure.
+that you give us 90 days to work on a fix before public exposure.

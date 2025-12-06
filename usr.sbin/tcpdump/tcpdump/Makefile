@@ -186,9 +186,9 @@ SRCS=	addrtoname.c \
 	print-unsupported.c \
 	print-vsock.c \
 	print-whois.c \
-	print-zep.c \
-	version.c
-CLEANFILES+=	version.c ${MAN}
+	print-zep.c
+
+CLEANFILES+=	${MAN}
 
 CFLAGS+= -I${.CURDIR} -I${TCPDUMP_DISTDIR}
 CFLAGS+= -DHAVE_CONFIG_H
@@ -196,9 +196,6 @@ CFLAGS+= -D_U_="__attribute__((unused))"
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=	-DINET6 -DHAVE_OS_IPV6_SUPPORT
-.endif
-.if ${MACHINE_CPUARCH} != "i386"
-CFLAGS+=	-DLBL_ALIGN
 .endif
 
 LIBADD=	pcap
@@ -219,11 +216,6 @@ SRCS+=	print-pflog.c \
 	print-pfsync.c
 CFLAGS+= -DHAVE_NET_PFVAR_H -DHAVE_NET_IF_PFLOG_H
 .endif
-
-version.c: ${TCPDUMP_DISTDIR}/VERSION
-	rm -f version.c ; \
-	    sed 's/.*/char version[] = "&";/' ${TCPDUMP_DISTDIR}/VERSION \
-		> version.c
 
 .include <bsd.prog.mk>
 

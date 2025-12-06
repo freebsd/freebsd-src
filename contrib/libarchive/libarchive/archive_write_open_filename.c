@@ -108,6 +108,7 @@ open_filename(struct archive *a, int mbs_fn, const void *filename)
 	else
 		r = archive_mstring_copy_wcs(&mine->filename, filename);
 	if (r < 0) {
+		free(mine);
 		if (errno == ENOMEM) {
 			archive_set_error(a, ENOMEM, "No memory");
 			return (ARCHIVE_FATAL);
@@ -190,6 +191,8 @@ file_open(struct archive *a, void *client_data)
 			archive_set_error(a, errno, "Couldn't stat '%s'", mbs);
 		else
 			archive_set_error(a, errno, "Couldn't stat '%ls'", wcs);
+		close(mine->fd);
+		mine->fd = -1;
 		return (ARCHIVE_FATAL);
 	}
 
@@ -227,7 +230,7 @@ file_write(struct archive *a, void *client_data, const void *buff,
 	mine = (struct write_file_data *)client_data;
 	for (;;) {
 		bytesWritten = write(mine->fd, buff, length);
-		if (bytesWritten <= 0) {
+		if (bytesWritten < 0) {
 			if (errno == EINTR)
 				continue;
 			archive_set_error(a, errno, "Write error");

@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_mrouting.h"
 #include "opt_ipsec.h"
 #include "opt_inet.h"
@@ -108,6 +107,8 @@ SYSCTL_NODE(_net_inet, IPPROTO_ICMP, icmp, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "ICMP");
 SYSCTL_NODE(_net_inet, IPPROTO_UDP, udp, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "UDP");
+SYSCTL_NODE(_net_inet, IPPROTO_UDPLITE, udplite, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "UDP-Lite");
 SYSCTL_NODE(_net_inet, IPPROTO_TCP, tcp, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP");
 #if defined(SCTP) || defined(SCTP_SUPPORT)

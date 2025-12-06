@@ -561,10 +561,8 @@ fbsdrun_start_thread(void *param)
 #endif
 
 	vm_loop(vi->ctx, vi->vcpu);
-
-	/* not reached */
-	exit(1);
-	return (NULL);
+	/* We get here if the VM was destroyed asynchronously. */
+	exit(4);
 }
 
 void

@@ -32,7 +32,6 @@
  *	$KAME: in_gif.c,v 1.54 2001/05/14 14:02:16 itojun Exp $
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
 

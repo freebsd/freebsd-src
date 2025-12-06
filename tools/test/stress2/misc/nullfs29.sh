@@ -73,5 +73,5 @@ while mount | grep $mp1 | grep -q /dev/md; do
 	[ $n -gt 30 ] && { echo FAIL; s=2; }
 done
 mdconfig -d -u $mdstart
-rm -f /tmp/nullfs29.c
+rm -f /tmp/nullfs29.c /tmp/nullfs29
 exit $s

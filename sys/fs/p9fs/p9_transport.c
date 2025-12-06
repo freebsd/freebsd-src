@@ -34,9 +34,8 @@
 TAILQ_HEAD(, p9_trans_module) transports;
 
 static void
-p9_transport_init(void)
+p9_transport_init(void *dummy __unused)
 {
-
         TAILQ_INIT(&transports);
 }
 

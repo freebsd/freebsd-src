@@ -1529,6 +1529,7 @@ typedef struct ipf_main_softc_s {
 	int		ipf_pass;
 	int		ipf_minttl;
 	int		ipf_icmpminfragmtu;
+	int		ipf_max_namelen;
 	int		ipf_interror;	/* Should be in a struct that is per  */
 					/* thread or process. Does not belong */
 					/* here but there's a lot more work   */
@@ -1859,5 +1860,6 @@ extern	int	ipf_ht_node_del(host_track_t *, int, i6addr_t *);
 extern	void	ipf_rb_ht_flush(host_track_t *);
 extern	void	ipf_rb_ht_freenode(host_node_t *, void *);
 extern	void	ipf_rb_ht_init(host_track_t *);
+extern	int	ipf_check_names_string(char *, int, int);
 
 #endif	/* __IP_FIL_H__ */

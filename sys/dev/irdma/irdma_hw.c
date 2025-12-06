@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2023 Intel Corporation
+ * Copyright (c) 2015 - 2025 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -2581,35 +2581,22 @@ irdma_send_syn_cqp_callback(struct irdma_cqp_request *cqp_request)
 }
 
 /**
- * irdma_manage_qhash - add or modify qhash
+ * irdma_qhash_info_prepare - fill info for qhash op
  * @iwdev: irdma device
+ * @cqp_info: cqp info
  * @cminfo: cm info for qhash
  * @etype: type (syn or quad)
  * @mtype: type of qhash
- * @cmnode: cmnode associated with connection
- * @wait: wait for completion
  */
-int
-irdma_manage_qhash(struct irdma_device *iwdev, struct irdma_cm_info *cminfo,
-		   enum irdma_quad_entry_type etype,
-		   enum irdma_quad_hash_manage_type mtype, void *cmnode,
-		   bool wait)
+static void
+irdma_qhash_info_prepare(struct irdma_device *iwdev,
+			 struct cqp_cmds_info *cqp_info,
+			 struct irdma_cm_info *cminfo,
+			 enum irdma_quad_entry_type etype,
+			 enum irdma_quad_hash_manage_type mtype)
 {
 	struct irdma_qhash_table_info *info;
-	struct irdma_cqp *iwcqp = &iwdev->rf->cqp;
-	struct irdma_cqp_request *cqp_request;
-	struct cqp_cmds_info *cqp_info;
-	struct irdma_cm_node *cm_node = cmnode;
-	int status;
 
-	cqp_request = irdma_alloc_and_get_cqp_request(iwcqp, wait);
-	if (!cqp_request)
-		return -ENOMEM;
-
-	cminfo->cqp_request = cqp_request;
-	if (!wait)
-		atomic_inc(&cqp_request->refcnt);
-	cqp_info = &cqp_request->info;
 	info = &cqp_info->in.u.manage_qhash_table_entry.info;
 	memset(info, 0, sizeof(*info));
 	info->vsi = &iwdev->vsi;
@@ -2641,6 +2628,105 @@ irdma_manage_qhash(struct irdma_device *iwdev, struct irdma_cm_info *cminfo,
 		info->src_ip[2] = cminfo->rem_addr[2];
 		info->src_ip[3] = cminfo->rem_addr[3];
 	}
+	cqp_info->cqp_cmd = IRDMA_OP_MANAGE_QHASH_TABLE_ENTRY;
+	cqp_info->post_sq = 1;
+}
+
+/**
+ * irdma_add_qhash_wait_no_lock - add qhash, blocking w/o lock
+ * @iwdev: irdma device
+ * @cminfo: cm info for qhash
+ */
+int
+irdma_add_qhash_wait_no_lock(struct irdma_device *iwdev,
+			     struct irdma_cm_info *cminfo)
+{
+	struct irdma_qhash_table_info *info;
+	struct irdma_cqp *iwcqp = &iwdev->rf->cqp;
+	struct irdma_cqp_request *cqp_request;
+	struct cqp_cmds_info *cqp_info;
+	int cnt = iwdev->rf->sc_dev.hw_attrs.max_cqp_compl_wait_time_ms * CQP_TIMEOUT_THRESHOLD;
+	int status;
+	int ret_val;
+
+	cqp_request = irdma_alloc_and_get_cqp_request(iwcqp, false);
+	if (!cqp_request)
+		return -ENOMEM;
+
+	cqp_info = &cqp_request->info;
+	info = &cqp_info->in.u.manage_qhash_table_entry.info;
+	irdma_qhash_info_prepare(iwdev, cqp_info, cminfo, IRDMA_QHASH_TYPE_TCP_SYN,
+				 IRDMA_QHASH_MANAGE_TYPE_ADD);
+	if (info->ipv4_valid)
+		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_CM,
+			    "ADD caller: %pS loc_port=0x%04x rem_port=0x%04x loc_addr=%x rem_addr=%x mac=%x:%x:%x:%x:%x:%x, vlan_id=%d\n",
+			    __builtin_return_address(0), info->src_port,
+			    info->dest_port, info->src_ip[0], info->dest_ip[0],
+			    info->mac_addr[0], info->mac_addr[1],
+			    info->mac_addr[2], info->mac_addr[3],
+			    info->mac_addr[4], info->mac_addr[5],
+			    cminfo->vlan_id);
+	else
+		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_CM,
+			    "ADD caller: %pS loc_port=0x%04x rem_port=0x%04x loc_addr=%x:%x:%x:%x rem_addr=%x:%x:%x:%x mac=%x:%x:%x:%x:%x:%x, vlan_id=%d\n",
+			    __builtin_return_address(0), info->src_port,
+			    info->dest_port, IRDMA_PRINT_IP6(info->src_ip),
+			    IRDMA_PRINT_IP6(info->dest_ip), info->mac_addr[0],
+			    info->mac_addr[1], info->mac_addr[2],
+			    info->mac_addr[3], info->mac_addr[4],
+			    info->mac_addr[5], cminfo->vlan_id);
+
+	cqp_info->in.u.manage_qhash_table_entry.cqp = &iwdev->rf->cqp.sc_cqp;
+	cqp_info->in.u.manage_qhash_table_entry.scratch = (uintptr_t)cqp_request;
+	status = irdma_handle_cqp_op(iwdev->rf, cqp_request);
+	if (status) {
+		irdma_put_cqp_request(iwcqp, cqp_request);
+		irdma_dev_warn(&iwdev->ibdev, "manage_qhash cqp op failure %d\n", status);
+		return status;
+	}
+
+	do {
+		irdma_cqp_ce_handler(iwdev->rf, &iwdev->rf->ccq.sc_cq);
+		mdelay(1);
+	} while (!READ_ONCE(cqp_request->request_done) && --cnt);
+
+	ret_val = cqp_request->compl_info.op_ret_val;
+	status = (cnt) ? ret_val : -ETIMEDOUT;
+
+	irdma_put_cqp_request(iwcqp, cqp_request);
+
+	return status;
+}
+
+/**
+ * irdma_manage_qhash - add or modify qhash
+ * @iwdev: irdma device
+ * @cminfo: cm info for qhash
+ * @etype: type (syn or quad)
+ * @mtype: type of qhash
+ * @cmnode: cmnode associated with connection
+ * @wait: wait for completion
+ */
+int
+irdma_manage_qhash(struct irdma_device *iwdev, struct irdma_cm_info *cminfo,
+		   enum irdma_quad_entry_type etype,
+		   enum irdma_quad_hash_manage_type mtype, void *cmnode,
+		   bool wait)
+{
+	struct irdma_qhash_table_info *info;
+	struct irdma_cqp *iwcqp = &iwdev->rf->cqp;
+	struct irdma_cqp_request *cqp_request;
+	struct cqp_cmds_info *cqp_info;
+	struct irdma_cm_node *cm_node = cmnode;
+	int status;
+
+	cqp_request = irdma_alloc_and_get_cqp_request(iwcqp, wait);
+	if (!cqp_request)
+		return -ENOMEM;
+
+	cqp_info = &cqp_request->info;
+	info = &cqp_info->in.u.manage_qhash_table_entry.info;
+	irdma_qhash_info_prepare(iwdev, cqp_info, cminfo, etype, mtype);
 	if (cmnode) {
 		cqp_request->callback_fcn = irdma_send_syn_cqp_callback;
 		cqp_request->param = cmnode;
@@ -2671,8 +2757,6 @@ irdma_manage_qhash(struct irdma_device *iwdev, struct irdma_cm_info *cminfo,
 
 	cqp_info->in.u.manage_qhash_table_entry.cqp = &iwdev->rf->cqp.sc_cqp;
 	cqp_info->in.u.manage_qhash_table_entry.scratch = (uintptr_t)cqp_request;
-	cqp_info->cqp_cmd = IRDMA_OP_MANAGE_QHASH_TABLE_ENTRY;
-	cqp_info->post_sq = 1;
 	status = irdma_handle_cqp_op(iwdev->rf, cqp_request);
 	if (status && cm_node && !wait)
 		irdma_rem_ref_cm_node(cm_node);

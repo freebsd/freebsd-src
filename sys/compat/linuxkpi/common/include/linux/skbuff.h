@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2020-2025 The FreeBSD Foundation
- * Copyright (c) 2021-2023 Bjoern A. Zeeb
+ * Copyright (c) 2021-2025 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -47,13 +47,11 @@
 #include <linux/ktime.h>
 #include <linux/compiler.h>
 
-#include "opt_wlan.h"
-
-/* Currently this is only used for wlan so we can depend on that. */
-#if defined(IEEE80211_DEBUG) && !defined(SKB_DEBUG)
-#define	SKB_DEBUG
-#endif
-
+/*
+ * At least the net/intel-irdma-kmod port pulls this header in; likely through
+ * if_ether.h (see PR289268).  This means we no longer can rely on
+ * IEEE80211_DEBUG (opt_wlan.h) to automatically set SKB_DEBUG.
+ */
 /* #define	SKB_DEBUG */
 
 #ifdef SKB_DEBUG
@@ -120,7 +118,7 @@ enum sk_checksum_flags {
 	CHECKSUM_NONE			= 0x00,
 	CHECKSUM_UNNECESSARY		= 0x01,
 	CHECKSUM_PARTIAL		= 0x02,
-	CHECKSUM_COMPLETE		= 0x04,
+	CHECKSUM_COMPLETE		= 0x03,
 };
 
 struct skb_frag {
@@ -170,7 +168,7 @@ struct sk_buff {
 		};
 	};
 	uint16_t		protocol;
-	uint8_t			ip_summed;
+	uint8_t			ip_summed;		/* 2 bit only. */
 	/* uint8_t */
 
 	/* "Scratch" area for layers to store metadata. */
@@ -1160,6 +1158,9 @@ skb_cow_head(struct sk_buff *skb, unsigned int headroom)
 	SKB_TODO();
 	return (-1);
 }
+
+/* Misplaced here really but sock comes from skbuff. */
+#define	sk_pacing_shift_update(sock, n)
 
 #define	SKB_WITH_OVERHEAD(_s)						\
 	(_s) - ALIGN(sizeof(struct skb_shared_info), CACHE_LINE_SIZE)

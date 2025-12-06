@@ -741,7 +741,7 @@ struct proc {
 					       reaper which spawned
 					       our subtree. */
 	uint64_t	p_elf_flags;	/* (x) ELF flags */
-	void		*p_elf_brandinfo; /* (x) Elf_Brandinfo, NULL for
+	const void	*p_elf_brandinfo; /* (x) Elf_Brandinfo, NULL for
 						 non ELF binaries. */
 	sbintime_t	p_umtx_min_timeout;
 /* End area that is copied on creation. */
@@ -1081,7 +1081,7 @@ extern int allproc_gen;
 extern struct sx proctree_lock;
 extern struct mtx ppeers_lock;
 extern struct mtx procid_lock;
-extern struct proc proc0;		/* Process slot for swapper. */
+extern struct proc proc0;		/* Initial kernel process. */
 extern struct thread0_storage thread0_st;	/* Primary thread in proc0. */
 #define	thread0 (thread0_st.t0st_thread)
 extern struct vmspace vmspace0;		/* VM space for proc0. */

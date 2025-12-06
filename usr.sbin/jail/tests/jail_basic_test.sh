@@ -198,7 +198,7 @@ clean_jails()
 	fi
 
 	while read jail; do
-		if jls -e -j "$jail"; then
+		if jls -c -j "$jail"; then
 			jail -r "$jail"
 		fi
 	done < jails.lst
@@ -211,10 +211,23 @@ jid_name_set_body()
 	echo "basejail" >> jails.lst
 	echo "$jid { name = basejail; persist; }" > jail.conf
 	atf_check -o match:"$jid: created" jail -f jail.conf -c "$jid"
+	# Confirm that we didn't override the explicitly-set name with the jid
+	# as the name.
+	atf_check -o match:"basejail" jls -j "$jid" name
+	atf_check -o match:"$jid: removed" jail -f jail.conf -r "$jid"
+
+	echo "$jid { host.hostname = \"\${name}\"; persist; }" > jail.conf
+	atf_check -o match:"$jid: created" jail -f jail.conf -c "$jid"
+	# Confirm that ${name} expanded and expanded correctly to the
+	# jid-implied name.
+	atf_check -o match:"$jid" jls -j "$jid" host.hostname
 	atf_check -o match:"$jid: removed" jail -f jail.conf -r "$jid"
 
 	echo "basejail { jid = $jid; persist; }" > jail.conf
 	atf_check -o match:"basejail: created" jail -f jail.conf -c basejail
+	# Confirm that our jid assigment in the definition worked out and we
+	# did in-fact create the jail there.
+	atf_check -o match:"$jid" jls -j "basejail" jid
 	atf_check -o match:"basejail: removed" jail -f jail.conf -r basejail
 }
 
@@ -293,6 +306,25 @@ param_consistency_cleanup()
 	fi
 }
 
+atf_test_case "setaudit"
+setaudit_head()
+{
+	atf_set descr 'Test that setaudit works in a jail when configured with allow.setaudit'
+	atf_set require.user root
+	atf_set require.progs setaudit
+}
+
+setaudit_body()
+{
+	# Try to modify the audit mask within a jail without
+	# allow.setaudit configured.
+	atf_check -s not-exit:0 -o empty -e not-empty jail -c name=setaudit_jail \
+	    command=setaudit -m fr ls /
+	# The command should succeed if allow.setaudit is configured.
+	atf_check -s exit:0 -o ignore -e empty jail -c name=setaudit_jail \
+	    allow.setaudit command=setaudit -m fr ls /
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
@@ -301,4 +333,5 @@ atf_init_test_cases()
 	atf_add_test_case "commands"
 	atf_add_test_case "jid_name_set"
 	atf_add_test_case "param_consistency"
+	atf_add_test_case "setaudit"
 }

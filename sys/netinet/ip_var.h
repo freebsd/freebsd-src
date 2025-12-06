@@ -271,6 +271,7 @@ VNET_DECLARE(struct pfil_head *, inet_local_pfil_head);
 #define	PFIL_INET_LOCAL_NAME	"inet-local"
 
 void	in_delayed_cksum(struct mbuf *m);
+void	in_delayed_cksum_o(struct mbuf *m, uint16_t o);
 
 /* Hooks for ipfw, dummynet, divert etc. Most are declared in raw_ip.c */
 /*

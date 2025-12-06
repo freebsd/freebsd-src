@@ -40,6 +40,7 @@
 
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
+#include <machine/md_var.h>
 #include <x86/specialreg.h>
 #include <x86/ucode.h>
 #include <x86/x86_smp.h>
@@ -58,7 +59,7 @@ static const void	*ucode_amd_match(const uint8_t *data, size_t *len);
 
 static struct ucode_ops {
 	const char *vendor;
-	int (*load)(const void *, bool, uint64_t *, uint64_t *);
+	int (*load)(const void *, ucode_load_how how, uint64_t *, uint64_t *);
 	const void *(*match)(const uint8_t *, size_t *);
 } loaders[] = {
 	{
@@ -83,6 +84,7 @@ enum {
 	NO_ERROR,
 	NO_MATCH,
 	VERIFICATION_FAILED,
+	LOAD_FAILED,
 } ucode_error = NO_ERROR;
 static uint64_t ucode_nrev, ucode_orev;
 
@@ -103,6 +105,9 @@ log_msg(void *arg __unused)
 	case VERIFICATION_FAILED:
 		printf("CPU microcode: microcode verification failed\n");
 		break;
+	case LOAD_FAILED:
+		printf("CPU microcode load failed. BIOS update advised\n");
+		break;
 	default:
 		break;
 	}
@@ -110,7 +115,8 @@ log_msg(void *arg __unused)
 SYSINIT(ucode_log, SI_SUB_CPU, SI_ORDER_FIRST, log_msg, NULL);
 
 int
-ucode_intel_load(const void *data, bool unsafe, uint64_t *nrevp, uint64_t *orevp)
+ucode_intel_load(const void *data, ucode_load_how how, uint64_t *nrevp,
+    uint64_t *orevp)
 {
 	uint64_t nrev, orev;
 	uint32_t cpuid[4];
@@ -122,10 +128,23 @@ ucode_intel_load(const void *data, bool unsafe, uint64_t *nrevp, uint64_t *orevp
 	 * undocumented errata applying to some Broadwell CPUs.
 	 */
 	wbinvd();
-	if (unsafe)
+	switch (how) {
+	case SAFE:
 		wrmsr_safe(MSR_BIOS_UPDT_TRIG, (uint64_t)(uintptr_t)data);
-	else
+		break;
+	case EARLY:
+#ifdef __amd64__
+		wrmsr_early_safe_start();
+		if (wrmsr_early_safe(MSR_BIOS_UPDT_TRIG,
+		    (uint64_t)(uintptr_t)data) != 0)
+			ucode_error = LOAD_FAILED;
+		wrmsr_early_safe_end();
+		break;
+#endif
+	case UNSAFE:
 		wrmsr(MSR_BIOS_UPDT_TRIG, (uint64_t)(uintptr_t)data);
+		break;
+	}
 	wrmsr(MSR_BIOS_SIGN, 0);
 
 	/*
@@ -233,20 +252,31 @@ ucode_intel_match(const uint8_t *data, size_t *len)
 }
 
 int
-ucode_amd_load(const void *data, bool unsafe, uint64_t *nrevp, uint64_t *orevp)
+ucode_amd_load(const void *data, ucode_load_how how, uint64_t *nrevp,
+    uint64_t *orevp)
 {
 	uint64_t nrev, orev;
 	uint32_t cpuid[4];
 
 	orev = rdmsr(MSR_BIOS_SIGN);
 
-	/*
-	 * Perform update.
-	 */
-	if (unsafe)
+	switch (how) {
+	case SAFE:
 		wrmsr_safe(MSR_K8_UCODE_UPDATE, (uint64_t)(uintptr_t)data);
-	else
+		break;
+	case EARLY:
+#ifdef __amd64__
+		wrmsr_early_safe_start();
+		if (wrmsr_early_safe(MSR_K8_UCODE_UPDATE,
+		    (uint64_t)(uintptr_t)data) != 0)
+			ucode_error = LOAD_FAILED;
+		wrmsr_early_safe_end();
+		break;
+#endif
+	case UNSAFE:
 		wrmsr(MSR_K8_UCODE_UPDATE, (uint64_t)(uintptr_t)data);
+		break;
+	}
 
 	/*
 	 * Serialize instruction flow.
@@ -277,7 +307,8 @@ ucode_amd_match(const uint8_t *data, size_t *len)
 	signature = regs[0];
 	revision = rdmsr(MSR_BIOS_SIGN);
 
-	return (ucode_amd_find("loader blob", signature, revision, data, *len, len));
+	return (ucode_amd_find("loader blob", signature, &revision, data, *len,
+	    len));
 }
 
 /*
@@ -326,8 +357,8 @@ ucode_load_ap(int cpu)
 		return;
 #endif
 
-	if (ucode_data != NULL)
-		(void)ucode_loader->load(ucode_data, false, NULL, NULL);
+	if (ucode_data != NULL && ucode_error != LOAD_FAILED)
+		(void)ucode_loader->load(ucode_data, UNSAFE, NULL, NULL);
 }
 
 static void *
@@ -414,7 +445,7 @@ ucode_load_bsp(uintptr_t free)
 			memcpy_early(addr, match, len);
 			match = addr;
 
-			error = ucode_loader->load(match, false, &nrev, &orev);
+			error = ucode_loader->load(match, EARLY, &nrev, &orev);
 			if (error == 0) {
 				ucode_data = early_ucode_data = match;
 				ucode_nrev = nrev;

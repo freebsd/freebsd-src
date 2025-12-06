@@ -16,6 +16,9 @@ LOCALBASE?=	/usr/local
 TESTSDIR?=	${TESTSBASE}/${RELDIR:H}
 
 PACKAGE?=	tests
+# Prevent creating a -dev package for tests.  Sometimes tests include static
+# libraries or other artifacts which are not actually "development" files.
+NO_DEV_PACKAGE=
 
 FILESGROUPS+=	${PACKAGE}FILES
 ${PACKAGE}FILESPACKAGE=	${PACKAGE}

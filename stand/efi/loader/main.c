@@ -50,7 +50,14 @@
 #include <efi.h>
 #include <efilib.h>
 #include <efichar.h>
-#include <efirng.h>
+
+#include <Guid/DebugImageInfoTable.h>
+#include <Guid/DxeServices.h>
+#include <Guid/Mps.h>
+#include <Guid/SmBios.h>
+#include <Protocol/Rng.h>
+#include <Protocol/SimpleNetwork.h>
+#include <Protocol/SimpleTextIn.h>
 
 #include <uuid.h>
 
@@ -69,6 +76,8 @@
 #include "actypes.h"
 #include "actbl.h"
 
+#include <acpi_detect.h>
+
 #include "loader_efi.h"
 
 struct arch_switch archsw = {	/* MI/MD interface boundary */
@@ -83,12 +92,25 @@ struct arch_switch archsw = {	/* MI/MD interface boundary */
 	.arch_zfs_probe = efi_zfs_probe,
 };
 
-EFI_GUID acpi = ACPI_TABLE_GUID;
-EFI_GUID acpi20 = ACPI_20_TABLE_GUID;
+// XXX These are from ???? Maybe ACPI which needs to define them?
+// XXX EDK2 doesn't (or didn't as of Feb 2025)
+#define HOB_LIST_TABLE_GUID \
+    { 0x7739f24c, 0x93d7, 0x11d4, {0x9a, 0x3a, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d} }
+#define LZMA_DECOMPRESSION_GUID \
+	{ 0xee4e5898, 0x3914, 0x4259, {0x9d, 0x6e, 0xdc, 0x7b, 0xd7, 0x94, 0x3, 0xcf} }
+#define ARM_MP_CORE_INFO_TABLE_GUID \
+	{ 0xa4ee0728, 0xe5d7, 0x4ac5, {0xb2, 0x1e, 0x65, 0x8e, 0xd8, 0x57, 0xe8, 0x34} }
+#define ESRT_TABLE_GUID \
+	{ 0xb122a263, 0x3661, 0x4f68, {0x99, 0x29, 0x78, 0xf8, 0xb0, 0xd6, 0x21, 0x80} }
+#define MEMORY_TYPE_INFORMATION_TABLE_GUID \
+    { 0x4c19049f, 0x4137, 0x4dd3, {0x9c, 0x10, 0x8b, 0x97, 0xa8, 0x3f, 0xfd, 0xfa} }
+#define FDT_TABLE_GUID \
+    { 0xb1b621d5, 0xf19c, 0x41a5, {0x83, 0x0b, 0xd9, 0x15, 0x2c, 0x69, 0xaa, 0xe0} }
+
 EFI_GUID devid = DEVICE_PATH_PROTOCOL;
 EFI_GUID imgid = LOADED_IMAGE_PROTOCOL;
 EFI_GUID mps = MPS_TABLE_GUID;
-EFI_GUID netid = EFI_SIMPLE_NETWORK_PROTOCOL;
+EFI_GUID netid = EFI_SIMPLE_NETWORK_PROTOCOL_GUID;
 EFI_GUID smbios = SMBIOS_TABLE_GUID;
 EFI_GUID smbios3 = SMBIOS3_TABLE_GUID;
 EFI_GUID dxe = DXE_SERVICES_TABLE_GUID;
@@ -97,9 +119,10 @@ EFI_GUID lzmadecomp = LZMA_DECOMPRESSION_GUID;
 EFI_GUID mpcore = ARM_MP_CORE_INFO_TABLE_GUID;
 EFI_GUID esrt = ESRT_TABLE_GUID;
 EFI_GUID memtype = MEMORY_TYPE_INFORMATION_TABLE_GUID;
-EFI_GUID debugimg = DEBUG_IMAGE_INFO_TABLE_GUID;
+EFI_GUID debugimg = EFI_DEBUG_IMAGE_INFO_TABLE_GUID;
 EFI_GUID fdtdtb = FDT_TABLE_GUID;
-EFI_GUID inputid = SIMPLE_TEXT_INPUT_PROTOCOL;
+EFI_GUID inputid = EFI_SIMPLE_TEXT_INPUT_PROTOCOL_GUID;
+EFI_GUID rng_guid = EFI_RNG_PROTOCOL_GUID;
 
 /*
  * Number of seconds to wait for a keystroke before exiting with failure
@@ -119,11 +142,6 @@ UINT16 boot_current;
  * Image that we booted from.
  */
 EFI_LOADED_IMAGE *boot_img;
-
-/*
- * RSDP base table.
- */
-ACPI_TABLE_RSDP *rsdp;
 
 static bool
 has_keyboard(void)
@@ -315,9 +333,9 @@ probe_md_currdev(void)
 static bool
 try_as_currdev(pdinfo_t *hd, pdinfo_t *pp)
 {
+#ifdef EFI_ZFS_BOOT
 	uint64_t guid;
 
-#ifdef EFI_ZFS_BOOT
 	/*
 	 * If there's a zpool on this device, try it as a ZFS
 	 * filesystem, which has somewhat different setup than all
@@ -505,8 +523,7 @@ match_boot_info(char *boot_info, size_t bisz)
  * a drop to the OK boot loader prompt is possible.
  */
 static int
-find_currdev(bool do_bootmgr, bool is_last,
-    char *boot_info, size_t boot_info_sz)
+find_currdev(bool do_bootmgr, char *boot_info, size_t boot_info_sz)
 {
 	pdinfo_t *dp, *pp;
 	EFI_DEVICE_PATH *devpath, *copy;
@@ -864,7 +881,7 @@ static int
 check_acpi_spcr(void)
 {
 	ACPI_TABLE_SPCR *spcr;
-	int br, db, io, rs, rw, sb, xo, pv, pd;
+	int br, db, io, rs, rw, xo, pv, pd;
 	uintmax_t mm;
 	const char *dt, *pa;
 	char *val = NULL;
@@ -896,7 +913,6 @@ check_acpi_spcr(void)
 
 	/* Uart settings */
 	pa = acpi_uart_parity(spcr->Parity);
-	sb = spcr->StopBits;
 	db = 8;
 
 	/*
@@ -1121,45 +1137,14 @@ read_loader_env(const char *name, char *def_fn, bool once)
 		printf("    Reading loader env vars from %s\n", fn);
 		parse_loader_efi_config(boot_img->DeviceHandle, fn);
 	}
+
+	free(freeme);
 }
 
 caddr_t
 ptov(uintptr_t x)
 {
 	return ((caddr_t)x);
-}
-
-static void
-acpi_detect(void)
-{
-	char buf[24];
-	int revision;
-
-	feature_enable(FEATURE_EARLY_ACPI);
-	if ((rsdp = efi_get_table(&acpi20)) == NULL)
-		if ((rsdp = efi_get_table(&acpi)) == NULL)
-			return;
-
-	sprintf(buf, "0x%016"PRIxPTR, (uintptr_t)rsdp);
-	setenv("acpi.rsdp", buf, 1);
-	revision = rsdp->Revision;
-	if (revision == 0)
-		revision = 1;
-	sprintf(buf, "%d", revision);
-	setenv("acpi.revision", buf, 1);
-	strncpy(buf, rsdp->OemId, sizeof(rsdp->OemId));
-	buf[sizeof(rsdp->OemId)] = '\0';
-	setenv("acpi.oem", buf, 1);
-	sprintf(buf, "0x%016x", rsdp->RsdtPhysicalAddress);
-	setenv("acpi.rsdt", buf, 1);
-	if (revision >= 2) {
-		/* XXX extended checksum? */
-		sprintf(buf, "0x%016llx",
-		    (unsigned long long)rsdp->XsdtPhysicalAddress);
-		setenv("acpi.xsdt", buf, 1);
-		sprintf(buf, "%d", rsdp->Length);
-		setenv("acpi.xsdt_length", buf, 1);
-	}
 }
 
 static void
@@ -1201,12 +1186,12 @@ EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
 	int howto, i, uhowto;
-	bool has_kbd, is_last;
+	bool has_kbd;
 	char *s;
 	EFI_DEVICE_PATH *imgpath;
 	CHAR16 *text;
 	EFI_STATUS rv;
-	size_t sz, bosz = 0, bisz = 0;
+	size_t sz, bisz = 0;
 	UINT16 boot_order[100];
 	char boot_info[4096];
 	char buf[32];
@@ -1404,17 +1389,13 @@ main(int argc, CHAR16 *argv[])
 				printf(" %04x%s", boot_order[i],
 				    boot_order[i] == boot_current ? "[*]" : "");
 			printf("\n");
-			is_last = boot_order[(sz / sizeof(boot_order[0])) - 1] == boot_current;
-			bosz = sz;
 		} else if (uefi_boot_mgr) {
 			/*
 			 * u-boot doesn't set BootOrder, but otherwise participates in the
 			 * boot manager protocol. So we fake it here and don't consider it
 			 * a failure.
 			 */
-			bosz = sizeof(boot_order[0]);
 			boot_order[0] = boot_current;
-			is_last = true;
 		}
 	}
 
@@ -1463,7 +1444,7 @@ main(int argc, CHAR16 *argv[])
 	 * the boot protocol and also allow an escape hatch for users wishing
 	 * to try something different.
 	 */
-	if (find_currdev(uefi_boot_mgr, is_last, boot_info, bisz) != 0)
+	if (find_currdev(uefi_boot_mgr, boot_info, bisz) != 0)
 		if (uefi_boot_mgr &&
 		    !interactive_interrupt("Failed to find bootable partition"))
 			return (EFI_NOT_FOUND);
@@ -1858,6 +1839,8 @@ command_chain(int argc, char *argv[])
 	EFI_GUID LoadedImageGUID = LOADED_IMAGE_PROTOCOL;
 	EFI_HANDLE loaderhandle;
 	EFI_LOADED_IMAGE *loaded_image;
+	UINTN ExitDataSize;
+	CHAR16 *ExitData = NULL;
 	EFI_STATUS status;
 	struct stat st;
 	struct devdesc *dev;
@@ -1973,9 +1956,16 @@ command_chain(int argc, char *argv[])
 	}
 
 	dev_cleanup();
-	status = BS->StartImage(loaderhandle, NULL, NULL);
+
+	status = BS->StartImage(loaderhandle, &ExitDataSize, &ExitData);
 	if (status != EFI_SUCCESS) {
-		command_errmsg = "StartImage failed";
+		printf("StartImage failed (%lu)", DECODE_ERROR(status));
+		if (ExitData != NULL) {
+			printf(": %S", ExitData);
+			BS->FreePool(ExitData);
+		}
+		putchar('\n');
+		command_errmsg = "";
 		free(loaded_image->LoadOptions);
 		loaded_image->LoadOptions = NULL;
 		status = BS->UnloadImage(loaded_image);

@@ -1,8 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2011 Chelsio Communications, Inc.
- * All rights reserved.
+ * Copyright (c) 2011, 2025 Chelsio Communications.
  * Written by: Navdeep Parhar <np@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -259,17 +258,20 @@ static void free_ofld_rxq(struct vi_info *, struct sge_ofld_rxq *);
 static void add_ofld_rxq_sysctls(struct sysctl_ctx_list *, struct sysctl_oid *,
     struct sge_ofld_rxq *);
 #endif
-static int ctrl_eq_alloc(struct adapter *, struct sge_eq *);
-static int eth_eq_alloc(struct adapter *, struct vi_info *, struct sge_eq *);
+static int ctrl_eq_alloc(struct adapter *, struct sge_eq *, int);
+static int eth_eq_alloc(struct adapter *, struct vi_info *, struct sge_eq *,
+    int);
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
-static int ofld_eq_alloc(struct adapter *, struct vi_info *, struct sge_eq *);
+static int ofld_eq_alloc(struct adapter *, struct vi_info *, struct sge_eq *,
+    int);
 #endif
 static int alloc_eq(struct adapter *, struct sge_eq *, struct sysctl_ctx_list *,
     struct sysctl_oid *);
 static void free_eq(struct adapter *, struct sge_eq *);
 static void add_eq_sysctls(struct adapter *, struct sysctl_ctx_list *,
     struct sysctl_oid *, struct sge_eq *);
-static int alloc_eq_hwq(struct adapter *, struct vi_info *, struct sge_eq *);
+static int alloc_eq_hwq(struct adapter *, struct vi_info *, struct sge_eq *,
+    int);
 static int free_eq_hwq(struct adapter *, struct vi_info *, struct sge_eq *);
 static int alloc_wrq(struct adapter *, struct vi_info *, struct sge_wrq *,
     struct sysctl_ctx_list *, struct sysctl_oid *);
@@ -348,6 +350,7 @@ cpl_handler_t l2t_write_rpl_handlers[NUM_CPL_COOKIES];
 cpl_handler_t act_open_rpl_handlers[NUM_CPL_COOKIES];
 cpl_handler_t abort_rpl_rss_handlers[NUM_CPL_COOKIES];
 cpl_handler_t fw4_ack_handlers[NUM_CPL_COOKIES];
+cpl_handler_t fw6_pld_handlers[NUM_CPL_FW6_COOKIES];
 
 void
 t4_register_an_handler(an_handler_t h)
@@ -477,6 +480,21 @@ fw4_ack_handler(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	return (fw4_ack_handlers[cookie](iq, rss, m));
 }
 
+static int
+fw6_pld_handler(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
+{
+	const struct cpl_fw6_pld *cpl;
+	uint64_t cookie;
+
+	if (m != NULL)
+		cpl = mtod(m, const void *);
+	else
+		cpl = (const void *)(rss + 1);
+	cookie = be64toh(cpl->data[1]) & CPL_FW6_COOKIE_MASK;
+
+	return (fw6_pld_handlers[cookie](iq, rss, m));
+}
+
 static void
 t4_init_shared_cpl_handlers(void)
 {
@@ -486,6 +504,7 @@ t4_init_shared_cpl_handlers(void)
 	t4_register_cpl_handler(CPL_ACT_OPEN_RPL, act_open_rpl_handler);
 	t4_register_cpl_handler(CPL_ABORT_RPL_RSS, abort_rpl_rss_handler);
 	t4_register_cpl_handler(CPL_FW4_ACK, fw4_ack_handler);
+	t4_register_cpl_handler(CPL_FW6_PLD, fw6_pld_handler);
 }
 
 void
@@ -494,8 +513,12 @@ t4_register_shared_cpl_handler(int opcode, cpl_handler_t h, int cookie)
 	uintptr_t *loc;
 
 	MPASS(opcode < nitems(t4_cpl_handler));
-	MPASS(cookie > CPL_COOKIE_RESERVED);
-	MPASS(cookie < NUM_CPL_COOKIES);
+	if (opcode == CPL_FW6_PLD) {
+		MPASS(cookie < NUM_CPL_FW6_COOKIES);
+	} else {
+		MPASS(cookie > CPL_COOKIE_RESERVED);
+		MPASS(cookie < NUM_CPL_COOKIES);
+	}
 	MPASS(t4_cpl_handler[opcode] != NULL);
 
 	switch (opcode) {
@@ -513,6 +536,9 @@ t4_register_shared_cpl_handler(int opcode, cpl_handler_t h, int cookie)
 		break;
 	case CPL_FW4_ACK:
 		loc = (uintptr_t *)&fw4_ack_handlers[cookie];
+		break;
+	case CPL_FW6_PLD:
+		loc = (uintptr_t *)&fw6_pld_handlers[cookie];
 		break;
 	default:
 		MPASS(0);
@@ -826,6 +852,11 @@ t4_tweak_chip_settings(struct adapter *sc)
 
 	/* We use multiple DDP page sizes both in plain-TOE and ISCSI modes. */
 	m = v = F_TDDPTAGTCB | F_ISCSITAGTCB;
+	if (sc->nvmecaps != 0) {
+		/* Request DDP status bit for NVMe PDU completions. */
+		m |= F_NVME_TCP_DDP_VAL_EN;
+		v |= F_NVME_TCP_DDP_VAL_EN;
+	}
 	t4_set_reg_field(sc, A_ULP_RX_CTL, m, v);
 
 	m = V_INDICATESIZE(M_INDICATESIZE) | F_REARMDDPOFFSET |
@@ -1064,9 +1095,9 @@ t4_setup_adapter_queues(struct adapter *sc)
 	 */
 
 	/*
-	 * Control queues, one per port.
+	 * Control queues.  At least one per port and per internal core.
 	 */
-	for_each_port(sc, i) {
+	for (i = 0; i < sc->sge.nctrlq; i++) {
 		rc = alloc_ctrlq(sc, i);
 		if (rc != 0)
 			return (rc);
@@ -1087,7 +1118,7 @@ t4_teardown_adapter_queues(struct adapter *sc)
 
 	if (sc->sge.ctrlq != NULL) {
 		MPASS(!(sc->flags & IS_VF));	/* VFs don't allocate ctrlq. */
-		for_each_port(sc, i)
+		for (i = 0; i < sc->sge.nctrlq; i++)
 			free_ctrlq(sc, i);
 	}
 	free_fwq(sc);
@@ -1309,7 +1340,6 @@ t4_intr_err(void *arg)
 {
 	struct adapter *sc = arg;
 	uint32_t v;
-	const bool verbose = (sc->debug_flags & DF_VERBOSE_SLOWINTR) != 0;
 
 	if (atomic_load_int(&sc->error_flags) & ADAP_FATAL_ERR)
 		return;
@@ -1320,7 +1350,7 @@ t4_intr_err(void *arg)
 		t4_write_reg(sc, MYPF_REG(A_PL_PF_INT_CAUSE), v);
 	}
 
-	if (t4_slow_intr_handler(sc, verbose))
+	if (t4_slow_intr_handler(sc, sc->intr_flags))
 		t4_fatal_err(sc, false);
 }
 
@@ -2701,9 +2731,14 @@ restart:
 #endif
 #ifdef KERN_TLS
 	if (mst != NULL && mst->sw->type == IF_SND_TAG_TYPE_TLS) {
+		struct vi_info *vi = if_getsoftc(mst->ifp);
+
 		cflags |= MC_TLS;
 		set_mbuf_cflags(m0, cflags);
-		rc = t6_ktls_parse_pkt(m0);
+		if (is_t6(vi->pi->adapter))
+			rc = t6_ktls_parse_pkt(m0);
+		else
+			rc = t7_ktls_parse_pkt(m0);
 		if (rc != 0)
 			goto fail;
 		return (EINPROGRESS);
@@ -3273,7 +3308,10 @@ skip_coalescing:
 #ifdef KERN_TLS
 		} else if (mbuf_cflags(m0) & MC_TLS) {
 			ETHER_BPF_MTAP(ifp, m0);
-			n = t6_ktls_write_wr(txq, wr, m0, avail);
+			if (is_t6(sc))
+				n = t6_ktls_write_wr(txq, wr, m0, avail);
+			else
+				n = t7_ktls_write_wr(txq, wr, m0, avail);
 #endif
 		} else {
 			ETHER_BPF_MTAP(ifp, m0);
@@ -3414,6 +3452,7 @@ init_eq(struct adapter *sc, struct sge_eq *eq, int eqtype, int qsize,
 	eq->type = eqtype;
 	eq->port_id = port_id;
 	eq->tx_chan = sc->port[port_id]->tx_chan;
+	eq->hw_port = sc->port[port_id]->hw_port;
 	eq->iq = iq;
 	eq->sidx = qsize - sc->params.sge.spg_len / EQ_ESIZE;
 	strlcpy(eq->lockname, name, sizeof(eq->lockname));
@@ -3577,7 +3616,7 @@ alloc_iq_fl_hwq(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl)
 	    V_FW_IQ_CMD_TYPE(FW_IQ_TYPE_FL_INT_CAP) |
 	    V_FW_IQ_CMD_VIID(vi->viid) |
 	    V_FW_IQ_CMD_IQANUD(X_UPDATEDELIVERY_INTERRUPT));
-	c.iqdroprss_to_iqesize = htobe16(V_FW_IQ_CMD_IQPCIECH(pi->tx_chan) |
+	c.iqdroprss_to_iqesize = htobe16(V_FW_IQ_CMD_IQPCIECH(pi->hw_port) |
 	    F_FW_IQ_CMD_IQGTSMODE |
 	    V_FW_IQ_CMD_IQINTCNTTHRESH(iq->intr_pktc_idx) |
 	    V_FW_IQ_CMD_IQESIZE(ilog2(IQ_ESIZE) - 4));
@@ -3585,7 +3624,13 @@ alloc_iq_fl_hwq(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl)
 	c.iqaddr = htobe64(iq->ba);
 	c.iqns_to_fl0congen = htobe32(V_FW_IQ_CMD_IQTYPE(iq->qtype));
 	if (iq->cong_drop != -1) {
-		cong_map = iq->qtype == IQ_ETH ? pi->rx_e_chan_map : 0;
+		if (iq->qtype == IQ_ETH) {
+			if (chip_id(sc) >= CHELSIO_T7)
+				cong_map = 1 << pi->hw_port;
+			else
+				cong_map = pi->rx_e_chan_map;
+		} else
+			cong_map = 0;
 		c.iqns_to_fl0congen |= htobe32(F_FW_IQ_CMD_IQFLINTCONGEN);
 	}
 
@@ -3842,7 +3887,7 @@ alloc_ctrlq(struct adapter *sc, int idx)
 	struct sysctl_oid *oid;
 	struct sge_wrq *ctrlq = &sc->sge.ctrlq[idx];
 
-	MPASS(idx < sc->params.nports);
+	MPASS(idx < sc->sge.nctrlq);
 
 	if (!(ctrlq->eq.flags & EQ_SW_ALLOCATED)) {
 		MPASS(!(ctrlq->eq.flags & EQ_HW_ALLOCATED));
@@ -3854,8 +3899,8 @@ alloc_ctrlq(struct adapter *sc, int idx)
 
 		snprintf(name, sizeof(name), "%s ctrlq%d",
 		    device_get_nameunit(sc->dev), idx);
-		init_eq(sc, &ctrlq->eq, EQ_CTRL, CTRL_EQ_QSIZE, idx,
-		    &sc->sge.fwq, name);
+		init_eq(sc, &ctrlq->eq, EQ_CTRL, CTRL_EQ_QSIZE,
+		    idx % sc->params.nports, &sc->sge.fwq, name);
 		rc = alloc_wrq(sc, NULL, ctrlq, &sc->ctx, oid);
 		if (rc != 0) {
 			CH_ERR(sc, "failed to allocate ctrlq%d: %d\n", idx, rc);
@@ -3870,7 +3915,7 @@ alloc_ctrlq(struct adapter *sc, int idx)
 		MPASS(ctrlq->nwr_pending == 0);
 		MPASS(ctrlq->ndesc_needed == 0);
 
-		rc = alloc_eq_hwq(sc, NULL, &ctrlq->eq);
+		rc = alloc_eq_hwq(sc, NULL, &ctrlq->eq, idx);
 		if (rc != 0) {
 			CH_ERR(sc, "failed to create hw ctrlq%d: %d\n", idx, rc);
 			return (rc);
@@ -3938,14 +3983,19 @@ t4_sge_set_conm_context(struct adapter *sc, int cntxt_id, int cong_drop,
 	param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
 	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
 	    V_FW_PARAMS_PARAM_YZ(cntxt_id);
-	val = V_CONMCTXT_CNGTPMODE(cong_mode);
-	if (cong_mode == X_CONMCTXT_CNGTPMODE_CHANNEL ||
-	    cong_mode == X_CONMCTXT_CNGTPMODE_BOTH) {
-		for (i = 0, ch_map = 0; i < 4; i++) {
-			if (cong_map & (1 << i))
-				ch_map |= 1 << (i << cng_ch_bits_log);
+	if (chip_id(sc) >= CHELSIO_T7) {
+		val = V_T7_DMAQ_CONM_CTXT_CNGTPMODE(cong_mode) |
+		    V_T7_DMAQ_CONM_CTXT_CH_VEC(cong_map);
+	} else {
+		val = V_CONMCTXT_CNGTPMODE(cong_mode);
+		if (cong_mode == X_CONMCTXT_CNGTPMODE_CHANNEL ||
+		    cong_mode == X_CONMCTXT_CNGTPMODE_BOTH) {
+			for (i = 0, ch_map = 0; i < 4; i++) {
+				if (cong_map & (1 << i))
+					ch_map |= 1 << (i << cng_ch_bits_log);
+			}
+			val |= V_CONMCTXT_CNGCHMAP(ch_map);
 		}
-		val |= V_CONMCTXT_CNGCHMAP(ch_map);
 	}
 	rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
 	if (rc != 0) {
@@ -4124,6 +4174,20 @@ alloc_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq, int idx,
 		ofld_rxq->rx_iscsi_ddp_setup_ok = counter_u64_alloc(M_WAITOK);
 		ofld_rxq->rx_iscsi_ddp_setup_error =
 		    counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_ddp_setup_ok = counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_ddp_setup_no_stag =
+		    counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_ddp_setup_error =
+		    counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_ddp_octets = counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_ddp_pdus = counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_fl_octets = counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_fl_pdus = counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_invalid_headers = counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_header_digest_errors =
+		    counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_nvme_data_digest_errors =
+		    counter_u64_alloc(M_WAITOK);
 		ofld_rxq->ddp_buffer_alloc = counter_u64_alloc(M_WAITOK);
 		ofld_rxq->ddp_buffer_reuse = counter_u64_alloc(M_WAITOK);
 		ofld_rxq->ddp_buffer_free = counter_u64_alloc(M_WAITOK);
@@ -4161,6 +4225,16 @@ free_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq)
 		MPASS(!(ofld_rxq->iq.flags & IQ_SW_ALLOCATED));
 		counter_u64_free(ofld_rxq->rx_iscsi_ddp_setup_ok);
 		counter_u64_free(ofld_rxq->rx_iscsi_ddp_setup_error);
+		counter_u64_free(ofld_rxq->rx_nvme_ddp_setup_ok);
+		counter_u64_free(ofld_rxq->rx_nvme_ddp_setup_no_stag);
+		counter_u64_free(ofld_rxq->rx_nvme_ddp_setup_error);
+		counter_u64_free(ofld_rxq->rx_nvme_ddp_octets);
+		counter_u64_free(ofld_rxq->rx_nvme_ddp_pdus);
+		counter_u64_free(ofld_rxq->rx_nvme_fl_octets);
+		counter_u64_free(ofld_rxq->rx_nvme_fl_pdus);
+		counter_u64_free(ofld_rxq->rx_nvme_invalid_headers);
+		counter_u64_free(ofld_rxq->rx_nvme_header_digest_errors);
+		counter_u64_free(ofld_rxq->rx_nvme_data_digest_errors);
 		counter_u64_free(ofld_rxq->ddp_buffer_alloc);
 		counter_u64_free(ofld_rxq->ddp_buffer_reuse);
 		counter_u64_free(ofld_rxq->ddp_buffer_free);
@@ -4172,12 +4246,12 @@ static void
 add_ofld_rxq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
     struct sge_ofld_rxq *ofld_rxq)
 {
-	struct sysctl_oid_list *children;
+	struct sysctl_oid_list *children, *top;
 
 	if (ctx == NULL || oid == NULL)
 		return;
 
-	children = SYSCTL_CHILDREN(oid);
+	top = children = SYSCTL_CHILDREN(oid);
 	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "rx_aio_ddp_jobs",
 	    CTLFLAG_RD, &ofld_rxq->rx_aio_ddp_jobs, 0,
 	    "# of aio_read(2) jobs completed via DDP");
@@ -4234,6 +4308,41 @@ add_ofld_rxq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
 	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "data_digest_errors",
 	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_data_digest_errors, 0,
 	    "# of PDUs with invalid data digests");
+
+	oid = SYSCTL_ADD_NODE(ctx, top, OID_AUTO, "nvme",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "TOE NVMe statistics");
+	children = SYSCTL_CHILDREN(oid);
+
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "ddp_setup_ok",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_ddp_setup_ok,
+	    "# of times DDP buffer was setup successfully");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "ddp_setup_no_stag",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_ddp_setup_no_stag,
+	    "# of times STAG was not available for DDP buffer setup");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "ddp_setup_error",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_ddp_setup_error,
+	    "# of times DDP buffer setup failed");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "ddp_octets",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_ddp_octets,
+	    "# of octets placed directly");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "ddp_pdus",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_ddp_pdus,
+	    "# of PDUs with data placed directly");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "fl_octets",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_fl_octets,
+	    "# of data octets delivered in freelist");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "fl_pdus",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_fl_pdus,
+	    "# of PDUs with data delivered in freelist");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "invalid_headers",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_invalid_headers,
+	    "# of PDUs with invalid header field");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "header_digest_errors",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_header_digest_errors,
+	    "# of PDUs with invalid header digests");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "data_digest_errors",
+	    CTLFLAG_RD, &ofld_rxq->rx_nvme_data_digest_errors,
+	    "# of PDUs with invalid data digests");
 }
 #endif
 
@@ -4253,24 +4362,26 @@ qsize_to_fthresh(int qsize)
 }
 
 static int
-ctrl_eq_alloc(struct adapter *sc, struct sge_eq *eq)
+ctrl_eq_alloc(struct adapter *sc, struct sge_eq *eq, int idx)
 {
-	int rc, cntxt_id;
+	int rc, cntxt_id, core;
 	struct fw_eq_ctrl_cmd c;
 	int qsize = eq->sidx + sc->params.sge.spg_len / EQ_ESIZE;
 
+	core = sc->params.tid_qid_sel_mask != 0 ? idx % sc->params.ncores : 0;
 	bzero(&c, sizeof(c));
 
 	c.op_to_vfn = htobe32(V_FW_CMD_OP(FW_EQ_CTRL_CMD) | F_FW_CMD_REQUEST |
 	    F_FW_CMD_WRITE | F_FW_CMD_EXEC | V_FW_EQ_CTRL_CMD_PFN(sc->pf) |
 	    V_FW_EQ_CTRL_CMD_VFN(0));
 	c.alloc_to_len16 = htobe32(F_FW_EQ_CTRL_CMD_ALLOC |
+	    V_FW_EQ_CTRL_CMD_COREGROUP(core) |
 	    F_FW_EQ_CTRL_CMD_EQSTART | FW_LEN16(c));
 	c.cmpliqid_eqid = htonl(V_FW_EQ_CTRL_CMD_CMPLIQID(eq->iqid));
 	c.physeqid_pkd = htobe32(0);
 	c.fetchszm_to_iqid =
 	    htobe32(V_FW_EQ_CTRL_CMD_HOSTFCMODE(X_HOSTFCMODE_STATUS_PAGE) |
-		V_FW_EQ_CTRL_CMD_PCIECHN(eq->tx_chan) |
+		V_FW_EQ_CTRL_CMD_PCIECHN(eq->hw_port) |
 		F_FW_EQ_CTRL_CMD_FETCHRO | V_FW_EQ_CTRL_CMD_IQID(eq->iqid));
 	c.dcaen_to_eqsize =
 	    htobe32(V_FW_EQ_CTRL_CMD_FBMIN(chip_id(sc) <= CHELSIO_T5 ?
@@ -4282,8 +4393,8 @@ ctrl_eq_alloc(struct adapter *sc, struct sge_eq *eq)
 
 	rc = -t4_wr_mbox(sc, sc->mbox, &c, sizeof(c), &c);
 	if (rc != 0) {
-		CH_ERR(sc, "failed to create hw ctrlq for tx_chan %d: %d\n",
-		    eq->tx_chan, rc);
+		CH_ERR(sc, "failed to create hw ctrlq for port %d: %d\n",
+		    eq->port_id, rc);
 		return (rc);
 	}
 
@@ -4299,24 +4410,26 @@ ctrl_eq_alloc(struct adapter *sc, struct sge_eq *eq)
 }
 
 static int
-eth_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
+eth_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq, int idx)
 {
-	int rc, cntxt_id;
+	int rc, cntxt_id, core;
 	struct fw_eq_eth_cmd c;
 	int qsize = eq->sidx + sc->params.sge.spg_len / EQ_ESIZE;
 
+	core = sc->params.ncores > 1 ? idx % sc->params.ncores : 0;
 	bzero(&c, sizeof(c));
 
 	c.op_to_vfn = htobe32(V_FW_CMD_OP(FW_EQ_ETH_CMD) | F_FW_CMD_REQUEST |
 	    F_FW_CMD_WRITE | F_FW_CMD_EXEC | V_FW_EQ_ETH_CMD_PFN(sc->pf) |
 	    V_FW_EQ_ETH_CMD_VFN(0));
 	c.alloc_to_len16 = htobe32(F_FW_EQ_ETH_CMD_ALLOC |
+	    V_FW_EQ_ETH_CMD_COREGROUP(core) |
 	    F_FW_EQ_ETH_CMD_EQSTART | FW_LEN16(c));
 	c.autoequiqe_to_viid = htobe32(F_FW_EQ_ETH_CMD_AUTOEQUIQE |
 	    F_FW_EQ_ETH_CMD_AUTOEQUEQE | V_FW_EQ_ETH_CMD_VIID(vi->viid));
 	c.fetchszm_to_iqid =
 	    htobe32(V_FW_EQ_ETH_CMD_HOSTFCMODE(X_HOSTFCMODE_NONE) |
-		V_FW_EQ_ETH_CMD_PCIECHN(eq->tx_chan) | F_FW_EQ_ETH_CMD_FETCHRO |
+		V_FW_EQ_ETH_CMD_PCIECHN(eq->hw_port) | F_FW_EQ_ETH_CMD_FETCHRO |
 		V_FW_EQ_ETH_CMD_IQID(eq->iqid));
 	c.dcaen_to_eqsize =
 	    htobe32(V_FW_EQ_ETH_CMD_FBMIN(chip_id(sc) <= CHELSIO_T5 ?
@@ -4344,12 +4457,32 @@ eth_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 }
 
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
-static int
-ofld_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
+/*
+ * ncores	number of uP cores.
+ * nq		number of queues for this VI
+ * idx		queue index
+ */
+static inline int
+qidx_to_core(int ncores, int nq, int idx)
 {
-	int rc, cntxt_id;
+	MPASS(nq % ncores == 0);
+	MPASS(idx >= 0 && idx < nq);
+
+	return (idx * ncores / nq);
+}
+
+static int
+ofld_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq,
+    int idx)
+{
+	int rc, cntxt_id, core;
 	struct fw_eq_ofld_cmd c;
 	int qsize = eq->sidx + sc->params.sge.spg_len / EQ_ESIZE;
+
+	if (sc->params.tid_qid_sel_mask != 0)
+		core = qidx_to_core(sc->params.ncores, vi->nofldtxq, idx);
+	else
+		core = 0;
 
 	bzero(&c, sizeof(c));
 
@@ -4357,10 +4490,11 @@ ofld_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 	    F_FW_CMD_WRITE | F_FW_CMD_EXEC | V_FW_EQ_OFLD_CMD_PFN(sc->pf) |
 	    V_FW_EQ_OFLD_CMD_VFN(0));
 	c.alloc_to_len16 = htonl(F_FW_EQ_OFLD_CMD_ALLOC |
+	    V_FW_EQ_OFLD_CMD_COREGROUP(core) |
 	    F_FW_EQ_OFLD_CMD_EQSTART | FW_LEN16(c));
 	c.fetchszm_to_iqid =
 		htonl(V_FW_EQ_OFLD_CMD_HOSTFCMODE(X_HOSTFCMODE_STATUS_PAGE) |
-		    V_FW_EQ_OFLD_CMD_PCIECHN(eq->tx_chan) |
+		    V_FW_EQ_OFLD_CMD_PCIECHN(eq->hw_port) |
 		    F_FW_EQ_OFLD_CMD_FETCHRO | V_FW_EQ_OFLD_CMD_IQID(eq->iqid));
 	c.dcaen_to_eqsize =
 	    htobe32(V_FW_EQ_OFLD_CMD_FBMIN(chip_id(sc) <= CHELSIO_T5 ?
@@ -4449,7 +4583,7 @@ add_eq_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
 }
 
 static int
-alloc_eq_hwq(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
+alloc_eq_hwq(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq, int idx)
 {
 	int rc;
 
@@ -4464,16 +4598,16 @@ alloc_eq_hwq(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 
 	switch (eq->type) {
 	case EQ_CTRL:
-		rc = ctrl_eq_alloc(sc, eq);
+		rc = ctrl_eq_alloc(sc, eq, idx);
 		break;
 
 	case EQ_ETH:
-		rc = eth_eq_alloc(sc, vi, eq);
+		rc = eth_eq_alloc(sc, vi, eq, idx);
 		break;
 
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 	case EQ_OFLD:
-		rc = ofld_eq_alloc(sc, vi, eq);
+		rc = ofld_eq_alloc(sc, vi, eq, idx);
 		break;
 #endif
 
@@ -4653,7 +4787,7 @@ failed:
 
 	if (!(eq->flags & EQ_HW_ALLOCATED)) {
 		MPASS(eq->flags & EQ_SW_ALLOCATED);
-		rc = alloc_eq_hwq(sc, vi, eq);
+		rc = alloc_eq_hwq(sc, vi, eq, idx);
 		if (rc != 0) {
 			CH_ERR(vi, "failed to create hw txq%d: %d\n", idx, rc);
 			return (rc);
@@ -4678,10 +4812,10 @@ failed:
 
 		if (vi->flags & TX_USES_VM_WR)
 			txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT_XT) |
-			    V_TXPKT_INTF(pi->tx_chan));
+			    V_TXPKT_INTF(pi->hw_port));
 		else
 			txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT_XT) |
-			    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(sc->pf) |
+			    V_TXPKT_INTF(pi->hw_port) | V_TXPKT_PF(sc->pf) |
 			    V_TXPKT_VF(vi->vin) | V_TXPKT_VF_VLD(vi->vfvld));
 
 		txq->tc_idx = -1;
@@ -4788,18 +4922,46 @@ add_txq_sysctls(struct vi_info *vi, struct sysctl_ctx_list *ctx,
 		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_waste",
 		    CTLFLAG_RD, &txq->kern_tls_waste,
 		    "# of octets DMAd but not transmitted in NIC TLS records");
-		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_options",
-		    CTLFLAG_RD, &txq->kern_tls_options,
-		    "# of NIC TLS options-only packets transmitted");
 		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_header",
 		    CTLFLAG_RD, &txq->kern_tls_header,
 		    "# of NIC TLS header-only packets transmitted");
-		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_fin",
-		    CTLFLAG_RD, &txq->kern_tls_fin,
-		    "# of NIC TLS FIN-only packets transmitted");
 		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_fin_short",
 		    CTLFLAG_RD, &txq->kern_tls_fin_short,
 		    "# of NIC TLS padded FIN packets on short TLS records");
+		if (is_t6(sc)) {
+			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
+			    "kern_tls_options", CTLFLAG_RD,
+			    &txq->kern_tls_options,
+			    "# of NIC TLS options-only packets transmitted");
+			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
+			    "kern_tls_fin", CTLFLAG_RD, &txq->kern_tls_fin,
+			    "# of NIC TLS FIN-only packets transmitted");
+		} else {
+			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
+			    "kern_tls_ghash_received", CTLFLAG_RD,
+			    &txq->kern_tls_ghash_received,
+			    "# of NIC TLS GHASHes received");
+			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
+			    "kern_tls_ghash_requested", CTLFLAG_RD,
+			    &txq->kern_tls_ghash_requested,
+			    "# of NIC TLS GHASHes requested");
+			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
+			    "kern_tls_lso", CTLFLAG_RD,
+			    &txq->kern_tls_lso,
+			    "# of NIC TLS records transmitted using LSO");
+			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
+			    "kern_tls_partial_ghash", CTLFLAG_RD,
+			    &txq->kern_tls_partial_ghash,
+			    "# of NIC TLS records encrypted using a partial GHASH");
+			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
+			    "kern_tls_splitmode", CTLFLAG_RD,
+			    &txq->kern_tls_splitmode,
+			    "# of NIC TLS records using SplitMode");
+			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
+			    "kern_tls_trailer", CTLFLAG_RD,
+			    &txq->kern_tls_trailer,
+			    "# of NIC TLS trailer-only packets transmitted");
+		}
 		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_cbc",
 		    CTLFLAG_RD, &txq->kern_tls_cbc,
 		    "# of NIC TLS sessions using AES-CBC");
@@ -4858,6 +5020,9 @@ alloc_ofld_txq(struct vi_info *vi, struct sge_ofld_txq *ofld_txq, int idx)
 		ofld_txq->tx_iscsi_pdus = counter_u64_alloc(M_WAITOK);
 		ofld_txq->tx_iscsi_octets = counter_u64_alloc(M_WAITOK);
 		ofld_txq->tx_iscsi_iso_wrs = counter_u64_alloc(M_WAITOK);
+		ofld_txq->tx_nvme_pdus = counter_u64_alloc(M_WAITOK);
+		ofld_txq->tx_nvme_octets = counter_u64_alloc(M_WAITOK);
+		ofld_txq->tx_nvme_iso_wrs = counter_u64_alloc(M_WAITOK);
 		ofld_txq->tx_aio_jobs = counter_u64_alloc(M_WAITOK);
 		ofld_txq->tx_aio_octets = counter_u64_alloc(M_WAITOK);
 		ofld_txq->tx_toe_tls_records = counter_u64_alloc(M_WAITOK);
@@ -4869,7 +5034,7 @@ alloc_ofld_txq(struct vi_info *vi, struct sge_ofld_txq *ofld_txq, int idx)
 		MPASS(eq->flags & EQ_SW_ALLOCATED);
 		MPASS(ofld_txq->wrq.nwr_pending == 0);
 		MPASS(ofld_txq->wrq.ndesc_needed == 0);
-		rc = alloc_eq_hwq(sc, vi, eq);
+		rc = alloc_eq_hwq(sc, vi, eq, idx);
 		if (rc != 0) {
 			CH_ERR(vi, "failed to create hw ofld_txq%d: %d\n", idx,
 			    rc);
@@ -4901,6 +5066,9 @@ free_ofld_txq(struct vi_info *vi, struct sge_ofld_txq *ofld_txq)
 		counter_u64_free(ofld_txq->tx_iscsi_pdus);
 		counter_u64_free(ofld_txq->tx_iscsi_octets);
 		counter_u64_free(ofld_txq->tx_iscsi_iso_wrs);
+		counter_u64_free(ofld_txq->tx_nvme_pdus);
+		counter_u64_free(ofld_txq->tx_nvme_octets);
+		counter_u64_free(ofld_txq->tx_nvme_iso_wrs);
 		counter_u64_free(ofld_txq->tx_aio_jobs);
 		counter_u64_free(ofld_txq->tx_aio_octets);
 		counter_u64_free(ofld_txq->tx_toe_tls_records);
@@ -4930,6 +5098,15 @@ add_ofld_txq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
 	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "tx_iscsi_iso_wrs",
 	    CTLFLAG_RD, &ofld_txq->tx_iscsi_iso_wrs,
 	    "# of iSCSI segmentation offload work requests");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "tx_nvme_pdus",
+	    CTLFLAG_RD, &ofld_txq->tx_nvme_pdus,
+	    "# of NVMe PDUs transmitted");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "tx_nvme_octets",
+	    CTLFLAG_RD, &ofld_txq->tx_nvme_octets,
+	    "# of payload octets in transmitted NVMe PDUs");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "tx_nvme_iso_wrs",
+	    CTLFLAG_RD, &ofld_txq->tx_nvme_iso_wrs,
+	    "# of NVMe segmentation offload work requests");
 	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "tx_aio_jobs",
 	    CTLFLAG_RD, &ofld_txq->tx_aio_jobs,
 	    "# of zero-copy aio_write(2) jobs transmitted");
@@ -5418,7 +5595,8 @@ write_tnl_lso_cpl(void *cpl, struct mbuf *m0)
 			m0->m_pkthdr.l3hlen + m0->m_pkthdr.l4hlen +
 			m0->m_pkthdr.l5hlen) |
 		    V_CPL_TX_TNL_LSO_TNLTYPE(TX_TNL_TYPE_VXLAN));
-	tnl_lso->r1 = 0;
+	tnl_lso->ipsecen_to_rocev2 = 0;
+	tnl_lso->roce_eth = 0;
 
 	/* Inner headers. */
 	ctrl = V_CPL_TX_TNL_LSO_ETHHDRLEN(
@@ -6583,10 +6761,11 @@ send_etid_flowc_wr(struct cxgbe_rate_tag *cst, struct port_info *pi,
 	    V_FW_WR_FLOWID(cst->etid));
 	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_PFNVFN;
 	flowc->mnemval[0].val = htobe32(pfvf);
+	/* Firmware expects hw port and will translate to channel itself. */
 	flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
-	flowc->mnemval[1].val = htobe32(pi->tx_chan);
+	flowc->mnemval[1].val = htobe32(pi->hw_port);
 	flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
-	flowc->mnemval[2].val = htobe32(pi->tx_chan);
+	flowc->mnemval[2].val = htobe32(pi->hw_port);
 	flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
 	flowc->mnemval[3].val = htobe32(cst->iqid);
 	flowc->mnemval[4].mnemonic = FW_FLOWC_MNEM_EOSTATE;

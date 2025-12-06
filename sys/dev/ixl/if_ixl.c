@@ -1151,13 +1151,20 @@ ixl_if_enable_intr(if_ctx_t ctx)
 	struct ixl_pf *pf = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &pf->vsi;
 	struct i40e_hw		*hw = vsi->hw;
-	struct ixl_rx_queue	*que = vsi->rx_queues;
+	struct ixl_rx_queue	*rx_que = vsi->rx_queues;
 
 	ixl_enable_intr0(hw);
 	/* Enable queue interrupts */
-	for (int i = 0; i < vsi->num_rx_queues; i++, que++)
-		/* TODO: Queue index parameter is probably wrong */
-		ixl_enable_queue(hw, que->rxr.me);
+	if (vsi->shared->isc_intr == IFLIB_INTR_MSIX) {
+		for (int i = 0; i < vsi->num_rx_queues; i++, rx_que++)
+			ixl_enable_queue(hw, rx_que->rxr.me);
+	} else {
+		/*
+		 * Set PFINT_LNKLST0 FIRSTQ_INDX to 0x0 to enable
+		 * triggering interrupts by queues.
+		 */
+		wr32(hw, I40E_PFINT_LNKLST0, 0x0);
+	}
 }
 
 /*
@@ -1175,11 +1182,13 @@ ixl_if_disable_intr(if_ctx_t ctx)
 
 	if (vsi->shared->isc_intr == IFLIB_INTR_MSIX) {
 		for (int i = 0; i < vsi->num_rx_queues; i++, rx_que++)
-			ixl_disable_queue(hw, rx_que->msix - 1);
+			ixl_disable_queue(hw, rx_que->rxr.me);
 	} else {
-		// Set PFINT_LNKLST0 FIRSTQ_INDX to 0x7FF
-		// stops queues from triggering interrupts
-		wr32(hw, I40E_PFINT_LNKLST0, 0x7FF);
+		/*
+		 * Set PFINT_LNKLST0 FIRSTQ_INDX to End of List (0x7FF)
+		 * to stop queues from triggering interrupts.
+		 */
+		wr32(hw, I40E_PFINT_LNKLST0, IXL_QUEUE_EOL);
 	}
 }
 
@@ -1471,17 +1480,33 @@ ixl_if_multi_set(if_ctx_t ctx)
 	struct ixl_pf *pf = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &pf->vsi;
 	struct i40e_hw *hw = vsi->hw;
+	enum i40e_status_code status;
 	int mcnt;
+	if_t ifp = iflib_get_ifp(ctx);
 
 	IOCTL_DEBUGOUT("ixl_if_multi_set: begin");
 
 	/* Delete filters for removed multicast addresses */
 	ixl_del_multi(vsi, false);
 
-	mcnt = min(if_llmaddr_count(iflib_get_ifp(ctx)), MAX_MULTICAST_ADDR);
+	mcnt = min(if_llmaddr_count(ifp), MAX_MULTICAST_ADDR);
 	if (__predict_false(mcnt == MAX_MULTICAST_ADDR)) {
-		i40e_aq_set_vsi_multicast_promiscuous(hw,
+		/* Check if promisc mode is already enabled, if yes return */
+		if (vsi->flags & IXL_FLAGS_MC_PROMISC)
+			return;
+
+		status = i40e_aq_set_vsi_multicast_promiscuous(hw,
 		    vsi->seid, TRUE, NULL);
+		if (status != I40E_SUCCESS)
+			if_printf(ifp, "Failed to enable multicast promiscuous "
+			    "mode, status: %s\n", i40e_stat_str(hw, status));
+		else {
+			if_printf(ifp, "Enabled multicast promiscuous mode\n");
+
+			/* Set the flag to track promiscuous mode */
+			vsi->flags |= IXL_FLAGS_MC_PROMISC;
+		}
+		/* Delete all existing MC filters */
 		ixl_del_multi(vsi, true);
 		return;
 	}
@@ -1684,6 +1709,13 @@ ixl_if_promisc_set(if_ctx_t ctx, int flags)
 		return (err);
 	err = i40e_aq_set_vsi_multicast_promiscuous(hw,
 	    vsi->seid, multi, NULL);
+
+	/* Update the multicast promiscuous flag based on the new state */
+	if (multi)
+		vsi->flags |= IXL_FLAGS_MC_PROMISC;
+	else
+		vsi->flags &= ~IXL_FLAGS_MC_PROMISC;
+
 	return (err);
 }
 
@@ -1776,7 +1808,7 @@ ixl_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 	case IFCOUNTER_OPACKETS:
 		return (vsi->opackets);
 	case IFCOUNTER_OERRORS:
-		return (vsi->oerrors);
+		return (if_get_counter_default(ifp, cnt) + vsi->oerrors);
 	case IFCOUNTER_COLLISIONS:
 		/* Collisions are by standard impossible in 40G/10G Ethernet */
 		return (0);
@@ -1791,7 +1823,7 @@ ixl_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 	case IFCOUNTER_IQDROPS:
 		return (vsi->iqdrops);
 	case IFCOUNTER_OQDROPS:
-		return (vsi->oqdrops);
+		return (if_get_counter_default(ifp, cnt) + vsi->oqdrops);
 	case IFCOUNTER_NOPROTO:
 		return (vsi->noproto);
 	default:

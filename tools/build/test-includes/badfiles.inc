@@ -31,6 +31,7 @@ BADHDRS= \
 	sys/domainset.h \
 	sys/dtrace_bsd.h \
 	sys/dvdio.h \
+	sys/efitcg.h \
 	sys/elf32.h \
 	sys/elf64.h \
 	sys/elf_common.h \

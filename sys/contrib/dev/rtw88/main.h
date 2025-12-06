@@ -70,7 +70,7 @@ enum rtw_hci_type {
 };
 
 struct rtw_hci {
-	struct rtw_hci_ops *ops;
+	const struct rtw_hci_ops *ops;
 	enum rtw_hci_type type;
 
 	u32 rpwm_addr;
@@ -175,9 +175,14 @@ enum rtw_rate_section {
 	RTW_RATE_SECTION_HT_2S,
 	RTW_RATE_SECTION_VHT_1S,
 	RTW_RATE_SECTION_VHT_2S,
+	__RTW_RATE_SECTION_2SS_MAX = RTW_RATE_SECTION_VHT_2S,
+	RTW_RATE_SECTION_HT_3S,
+	RTW_RATE_SECTION_HT_4S,
+	RTW_RATE_SECTION_VHT_3S,
+	RTW_RATE_SECTION_VHT_4S,
 
 	/* keep last */
-	RTW_RATE_SECTION_MAX,
+	RTW_RATE_SECTION_NUM,
 };
 
 enum rtw_wireless_set {
@@ -200,6 +205,7 @@ enum rtw_chip_type {
 	RTW_CHIP_TYPE_8703B,
 	RTW_CHIP_TYPE_8821A,
 	RTW_CHIP_TYPE_8812A,
+	RTW_CHIP_TYPE_8814A,
 };
 
 enum rtw_tx_queue_type {
@@ -389,6 +395,9 @@ enum rtw_evm {
 	RTW_EVM_1SS,
 	RTW_EVM_2SS_A,
 	RTW_EVM_2SS_B,
+	RTW_EVM_3SS_A,
+	RTW_EVM_3SS_B,
+	RTW_EVM_3SS_C,
 	/* keep it last */
 	RTW_EVM_NUM
 };
@@ -406,6 +415,10 @@ enum rtw_snr {
 	RTW_SNR_2SS_B,
 	RTW_SNR_2SS_C,
 	RTW_SNR_2SS_D,
+	RTW_SNR_3SS_A,
+	RTW_SNR_3SS_B,
+	RTW_SNR_3SS_C,
+	RTW_SNR_3SS_D,
 	/* keep it last */
 	RTW_SNR_NUM
 };
@@ -831,7 +844,7 @@ struct rtw_vif {
 };
 
 struct rtw_regulatory {
-	char alpha2[2];
+	char alpha2[2] __nonstring;
 	u8 txpwr_regd_2g;
 	u8 txpwr_regd_5g;
 };
@@ -854,6 +867,7 @@ struct rtw_chip_ops {
 	int (*power_on)(struct rtw_dev *rtwdev);
 	void (*power_off)(struct rtw_dev *rtwdev);
 	int (*mac_init)(struct rtw_dev *rtwdev);
+	int (*mac_postinit)(struct rtw_dev *rtwdev);
 	int (*dump_fw_crash)(struct rtw_dev *rtwdev);
 	void (*shutdown)(struct rtw_dev *rtwdev);
 	int (*read_efuse)(struct rtw_dev *rtwdev, u8 *map);
@@ -869,11 +883,12 @@ struct rtw_chip_ops {
 	void (*set_tx_power_index)(struct rtw_dev *rtwdev);
 	int (*rsvd_page_dump)(struct rtw_dev *rtwdev, u8 *buf, u32 offset,
 			      u32 size);
-	int (*set_antenna)(struct rtw_dev *rtwdev,
+	int (*set_antenna)(struct rtw_dev *rtwdev, int radio_idx,
 			   u32 antenna_tx,
 			   u32 antenna_rx);
 	void (*cfg_ldo25)(struct rtw_dev *rtwdev, bool enable);
 	void (*efuse_grant)(struct rtw_dev *rtwdev, bool enable);
+	void (*set_ampdu_factor)(struct rtw_dev *rtwdev, u8 factor);
 	void (*false_alarm_statistics)(struct rtw_dev *rtwdev);
 	void (*phy_calibration)(struct rtw_dev *rtwdev);
 	void (*dpk_track)(struct rtw_dev *rtwdev);
@@ -1139,14 +1154,26 @@ struct rtw_rfe_def {
  * For 2G there are cck rate and ofdm rate with different settings.
  */
 struct rtw_pwr_track_tbl {
+	const u8 *pwrtrk_5gd_n[RTW_PWR_TRK_5G_NUM];
+	const u8 *pwrtrk_5gd_p[RTW_PWR_TRK_5G_NUM];
+	const u8 *pwrtrk_5gc_n[RTW_PWR_TRK_5G_NUM];
+	const u8 *pwrtrk_5gc_p[RTW_PWR_TRK_5G_NUM];
 	const u8 *pwrtrk_5gb_n[RTW_PWR_TRK_5G_NUM];
 	const u8 *pwrtrk_5gb_p[RTW_PWR_TRK_5G_NUM];
 	const u8 *pwrtrk_5ga_n[RTW_PWR_TRK_5G_NUM];
 	const u8 *pwrtrk_5ga_p[RTW_PWR_TRK_5G_NUM];
+	const u8 *pwrtrk_2gd_n;
+	const u8 *pwrtrk_2gd_p;
+	const u8 *pwrtrk_2gc_n;
+	const u8 *pwrtrk_2gc_p;
 	const u8 *pwrtrk_2gb_n;
 	const u8 *pwrtrk_2gb_p;
 	const u8 *pwrtrk_2ga_n;
 	const u8 *pwrtrk_2ga_p;
+	const u8 *pwrtrk_2g_cckd_n;
+	const u8 *pwrtrk_2g_cckd_p;
+	const u8 *pwrtrk_2g_cckc_n;
+	const u8 *pwrtrk_2g_cckc_p;
 	const u8 *pwrtrk_2g_cckb_n;
 	const u8 *pwrtrk_2g_cckb_p;
 	const u8 *pwrtrk_2g_ccka_n;
@@ -1156,8 +1183,8 @@ struct rtw_pwr_track_tbl {
 };
 
 enum rtw_wlan_cpu {
-	RTW_WCPU_11AC,
-	RTW_WCPU_11N,
+	RTW_WCPU_3081,
+	RTW_WCPU_8051,
 };
 
 enum rtw_fw_fifo_sel {
@@ -1213,6 +1240,7 @@ struct rtw_chip_info {
 	u16 fw_fifo_addr[RTW_FW_FIFO_MAX];
 	const struct rtw_fwcd_segs *fwcd_segs;
 
+	bool amsdu_in_ampdu;
 	u8 usb_tx_agg_desc_num;
 	bool hw_feature_report;
 	u8 c2h_ra_report_size;
@@ -1236,8 +1264,8 @@ struct rtw_chip_info {
 
 	const struct rtw_hw_reg *dig;
 	const struct rtw_hw_reg *dig_cck;
-	u32 rf_base_addr[2];
-	u32 rf_sipi_addr[2];
+	u32 rf_base_addr[RTW_RF_PATH_MAX];
+	u32 rf_sipi_addr[RTW_RF_PATH_MAX];
 	const struct rtw_rf_sipi_addr *rf_sipi_read_addr;
 	u8 fix_rf_phy_num;
 	const struct rtw_ltecoex_addr *ltecoex_addr;
@@ -1933,7 +1961,7 @@ union rtw_sar_cfg {
 
 struct rtw_sar {
 	enum rtw_sar_sources src;
-	union rtw_sar_cfg cfg[RTW_RF_PATH_MAX][RTW_RATE_SECTION_MAX];
+	union rtw_sar_cfg cfg[RTW_RF_PATH_MAX][RTW_RATE_SECTION_NUM];
 };
 
 struct rtw_hal {
@@ -1977,16 +2005,16 @@ struct rtw_hal {
 	s8 tx_pwr_by_rate_offset_5g[RTW_RF_PATH_MAX]
 				   [DESC_RATE_MAX];
 	s8 tx_pwr_by_rate_base_2g[RTW_RF_PATH_MAX]
-				 [RTW_RATE_SECTION_MAX];
+				 [RTW_RATE_SECTION_NUM];
 	s8 tx_pwr_by_rate_base_5g[RTW_RF_PATH_MAX]
-				 [RTW_RATE_SECTION_MAX];
+				 [RTW_RATE_SECTION_NUM];
 	s8 tx_pwr_limit_2g[RTW_REGD_MAX]
 			  [RTW_CHANNEL_WIDTH_MAX]
-			  [RTW_RATE_SECTION_MAX]
+			  [RTW_RATE_SECTION_NUM]
 			  [RTW_MAX_CHANNEL_NUM_2G];
 	s8 tx_pwr_limit_5g[RTW_REGD_MAX]
 			  [RTW_CHANNEL_WIDTH_MAX]
-			  [RTW_RATE_SECTION_MAX]
+			  [RTW_RATE_SECTION_NUM]
 			  [RTW_MAX_CHANNEL_NUM_5G];
 	s8 tx_pwr_tbl[RTW_RF_PATH_MAX]
 		     [DESC_RATE_MAX];
@@ -2148,14 +2176,14 @@ static inline void rtw_chip_efuse_grant_off(struct rtw_dev *rtwdev)
 		rtwdev->chip->ops->efuse_grant(rtwdev, false);
 }
 
-static inline bool rtw_chip_wcpu_11n(struct rtw_dev *rtwdev)
+static inline bool rtw_chip_wcpu_8051(struct rtw_dev *rtwdev)
 {
-	return rtwdev->chip->wlan_cpu == RTW_WCPU_11N;
+	return rtwdev->chip->wlan_cpu == RTW_WCPU_8051;
 }
 
-static inline bool rtw_chip_wcpu_11ac(struct rtw_dev *rtwdev)
+static inline bool rtw_chip_wcpu_3081(struct rtw_dev *rtwdev)
 {
-	return rtwdev->chip->wlan_cpu == RTW_WCPU_11AC;
+	return rtwdev->chip->wlan_cpu == RTW_WCPU_3081;
 }
 
 static inline bool rtw_chip_has_rx_ldpc(struct rtw_dev *rtwdev)
@@ -2256,6 +2284,9 @@ void rtw_update_channel(struct rtw_dev *rtwdev, u8 center_channel,
 void rtw_core_port_switch(struct rtw_dev *rtwdev, struct ieee80211_vif *vif);
 bool rtw_core_check_sta_active(struct rtw_dev *rtwdev);
 void rtw_core_enable_beacon(struct rtw_dev *rtwdev, bool enable);
+void rtw_set_ampdu_factor(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
+			  struct ieee80211_bss_conf *bss_conf);
+
 #if defined(__linux__)
 #define	rtw88_static_assert(_x)		static_assert(_x)
 #elif defined(__FreeBSD__)

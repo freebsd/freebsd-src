@@ -52,6 +52,11 @@
 	};
 };
 
+&codec {
+	allwinner,audio-routing = "Line Out", "LINEOUT";
+	status = "okay";
+};
+
 &cpu0 {
 	cpu-supply = <&reg_dcdc2>;
 };
@@ -64,6 +69,11 @@
 	status = "okay";
 };
 
+&gpu {
+	mali-supply = <&reg_dcdc1>;
+	status = "okay";
+};
+
 &ir {
 	status = "okay";
 };
@@ -71,6 +81,7 @@
 &mmc0 {
 	vmmc-supply = <&reg_dldo1>;
 	cd-gpios = <&pio 8 16 GPIO_ACTIVE_LOW>;	/* PI16 */
+	disable-wp;
 	bus-width = <4>;
 	status = "okay";
 };

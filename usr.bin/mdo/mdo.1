@@ -1,49 +1,270 @@
 .\"-
-.\" Copyright(c) 2024 Baptiste Daroussin <bapt@FreeBSD.org>
-.\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd May 26, 2025
+.\" Copyright (c) 2024 Baptiste Daroussin <bapt@FreeBSD.org>
+.\" Copyright (c) 2025 Kushagra Srivastava <kushagra1403@gmail.com>
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Olivier Certner
+.\" <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the FreeBSD
+.\" Foundation.
+.\"
+.Dd November 26, 2025
 .Dt MDO 1
 .Os
 .Sh NAME
 .Nm mdo
-.Nd execute commands as another user
+.Nd execute commands with specific credentials
 .Sh SYNOPSIS
 .Nm
-.Op Fl u Ar username
+.Op Fl u Ar user | Fl k
 .Op Fl i
-.Op command Op args
+.Op Fl g Ar group
+.Op Fl G Ar group1,group2,...
+.Op Fl s Ar groups_mod1,groups_mod2,...
+.Op Fl h
+.Op Fl -ruid Ar user
+.Op Fl -svuid Ar user
+.Op Fl -euid Ar user
+.Op Fl -rgid Ar group
+.Op Fl -svgid Ar group
+.Op Fl -egid Ar group
+.Op --
+.Op Ar command Op Ar args ...
 .Sh DESCRIPTION
 The
 .Nm
-utility executes the specified
+utility executes the passed
 .Ar command
-as user
-.Ar username .
-.Pp
-If no
-.Ar username
-is provided it defaults to the
-.Va root
-user.
-If no
+with the requested process credentials or, if no
 .Ar command
-is specified, it will execute the shell specified as
-.Va SHELL
-environnement variable, falling back on
-.Pa /bin/sh .
+was specified, the program whose path is the value of the
+.Ev SHELL
+environment variable or
+.Pa /bin/sh
+if that variable is unset.
+The calling user must either be the superuser
+.Pq effective user ID of 0
+or the credentials transition from the caller's to the requested ones must be
+authorized by a MAC module such as
+.Xr mac_do 4 .
+The target process credentials are applied atomically using
+.Xr setcred 2 .
 .Pp
+Process credentials comprise the real, effective and saved user IDs, the real,
+effective and saved group IDs, hereby called the
+.Dq primary
+groups, and the supplementary groups as a set of group IDs.
+Below, the
+.Dq user
+phrase implies that the real, effective and saved user IDs all have or are going
+to be set to the same value.
 The
+.Dq primary group
+phrase is used similarly with respect to primary groups.
+.Pp
+The target process credentials have to be fully specified, either explicitly by
+listing all attributes and their requested values, or indirectly by establishing
+a baseline that provides a default value for each attribute, which can then be
+amended by additional options.
+.Pp
+Possible baselines are either the full set of credentials established at login
+for a specific named user, the current credentials, or the current credentials'
+primary and supplementary groups which implies some user is specified
+explicitly.
+They are respectively established by using either option
+.Fl u
+with a named user argument, option
+.Fl k ,
+or option
 .Fl i
-option can be used to only call
-.Fn setuid
-and keep the group from the calling user.
+in conjunction with
+.Fl u
+or no other options.
+If no other option than
+.Fl i
+appears, a default of
+.Fl u Cm root
+is implied.
+.Pp
+The primary group can be set or amended with option
+.Fl g ,
+whereas the supplementary groups can be either fully replaced with an explicit
+list using option
+.Fl G
+or amended through set-like operations with option
+.Fl s .
+.Pp
+Any of the individual real, effective and saved user and group IDs can be
+overridden separately if desired through the options
+.Fl -ruid ,
+.Fl -euid ,
+and
+.Fl -svuid
+for users, and
+.Fl -rgid ,
+.Fl -egid ,
+and
+.Fl -svgid
+for groups respectively.
+.Pp
+The options are:
+.Bl -tag -width indent
+.It Fl -euid Ar user
+Override the effective user.
+As for
+.Fl u ,
+.Ar user
+may either be a name or a numerical ID.
+.It Fl -egid Ar group
+Override the effective group.
+As for
+.Fl g ,
+.Ar group
+may either be a name or a numerical ID.
+.It Fl G Ar group1,group2,...
+Set or replace the full set of supplementary groups.
+As for
+.Fl g ,
+groups can be specified by name or numerical ID.
+Groups must be separated by commas, and spaces around commas are not allowed.
+.It Fl g Ar group
+Set or amend the primary group.
+.Ar group
+may be the name of a group in the group database, else will be interpreted as
+a numerical group ID.
+.It Fl h
+Display usage information and exit.
+.It Fl i
+Uses the current credentials' primary and supplementary groups as the baseline.
+If no other option is present, the target user is assumed to be
+.Dq root .
+Otherwise,
+.Fl u
+or
+.Fl k
+must be specified.
+.It Fl k
+Use the current credentials as the baseline.
+Incompatible with
+.Fl u .
+Implies
+.Fl i .
+.It Fl -ruid Ar user
+Override the real user.
+As for
+.Fl u ,
+.Ar user
+may either be a name or a numerical ID.
+.It Fl -rgid Ar group
+Override the real group.
+As for
+.Fl g ,
+.Ar group
+may either be a name or a numerical ID.
+.It Fl s Ar groups_mod1,groups_mod2,...
+Incrementally modify the supplementary groups set.
+The argument is a comma-separated list of directives:
+.Bl -tag -width indent -compact
+.It Cm @
+Reset the set to the empty set.
+When present, must be the first directive.
+.It Cm + Ns Ar group
+Include a group.
+.It Cm - Ns Ar group
+Exclude a group.
+.El
+If
+.Fl G
+is also specified,
+.Fl s
+applies on the list installed by it.
+In this case, the
+.Cm @
+directive cannot be used
+.Pq this limitation may be lifted in the future .
+.It Fl -svuid Ar user
+Override the saved user.
+As for
+.Fl u ,
+.Ar user
+may either be a name or a numerical ID.
+.It Fl -svgid Ar group
+Override the saved group.
+As for
+.Fl g ,
+.Ar group
+may either be a name or a numerical ID.
+.It Fl u Ar user
+Specify a target user.
+If
+.Ar user
+is the name of some user in the user database,
+this option establishes his full login credentials, as specified by the user and
+group databases, as the baseline.
+Else,
+.Ar user
+is interpreted as a numerical user ID, and that ID is used to set the target
+user only.
+.El
+.Sh EXAMPLES
+Run a command as another user:
+.Bd -literal -offset indent
+mdo -u alice id
+.Ed
+.Pp
+Run with explicit primary and supplementary groups:
+.Bd -literal -offset indent
+mdo -u 1001 -g wheel -G staff,operator /bin/sh
+.Ed
+.Pp
+Modify only supplementary groups for the current user:
+.Bd -literal -offset indent
+mdo -k -s +wheel,+operator /usr/bin/id
+.Ed
+.Pp
+Emulate the effect of a set-user-ID bit on the process image file, assuming its
+user ID is
+.Dq root :
+.Bd -literal -offset indent
+mdo -k --euid root --svuid root id
+.Ed
 .Sh SEE ALSO
 .Xr su 1 ,
+.Xr setcred 2 ,
 .Xr mac_do 4
 .Sh HISTORY
 The
 .Nm
-command appeared in
+command first appeared in
 .Fx 14.2 .
+.Pp
+Support for specifying or amending groups, group-only transitions and
+fine-grained control of real, effective and saved variants of user and primary
+group first appeared in
+.Fx 15.0 .
+.Sh AUTHORS
+The
+.Nm
+program was originally created by
+.An -nosplit
+.An Baptiste Daroussin Aq Mt bapt@FreeBSD.org .
+It was modified to use the
+.Xr setcred 2
+system call by
+.An Olivier Certner Aq Mt olce@FreeBSD.org ,
+who designed the group-related and fine-grained-control-of-target-credentials
+functionalities and supervised
+.An Kushagra Srivastava Aq Mt kushagra1403@gmail.com
+to add them during Google Summer of Code 2025.
+.Sh SECURITY CONSIDERATIONS
+The
+.Nm
+program is geared to role-based scenarios.
+Consequently, it does not ask for any password or request other form of
+authentication before trying to establish new credentials, instead relying
+solely on the requester's credentials for this purpose.
+.Pp
+Specific unprivileged uses may be enabled by using the
+.Xr mac_do 4
+security policy.

@@ -90,7 +90,7 @@ hardlink_body()
 	echo "foo" >foo
 	atf_check cp -l foo bar
 	atf_check -o inline:"foo\n" cat bar
-	atf_check_equal "$(stat -f%d,%i foo)" "$(stat -f%d,%i bar)"
+	atf_check test foo -ef bar
 }
 
 atf_test_case hardlink_exists
@@ -105,7 +105,7 @@ hardlink_exists_body()
 	echo "bar" >bar
 	atf_check -s not-exit:0 -e match:exists cp -l foo bar
 	atf_check -o inline:"bar\n" cat bar
-	atf_check_not_equal "$(stat -f%d,%i foo)" "$(stat -f%d,%i bar)"
+	atf_check test ! foo -ef bar
 }
 
 atf_test_case hardlink_exists_force
@@ -120,7 +120,7 @@ hardlink_exists_force_body()
 	echo "bar" >bar
 	atf_check cp -fl foo bar
 	atf_check -o inline:"foo\n" cat bar
-	atf_check_equal "$(stat -f%d,%i foo)" "$(stat -f%d,%i bar)"
+	atf_check test foo -ef bar
 }
 
 atf_test_case matching_srctgt
@@ -384,12 +384,12 @@ samefile_body()
 
 file_is_sparse()
 {
-	atf_check ${0%/*}/sparse "$1"
+	atf_check -o match:"^[0-9]+-[0-9]" stat -h "$1"
 }
 
 files_are_equal()
 {
-	atf_check_not_equal "$(stat -f%d,%i "$1")" "$(stat -f%d,%i "$2")"
+	atf_check test ! "$1" -ef "$2"
 	atf_check cmp "$1" "$2"
 }
 
@@ -747,9 +747,23 @@ dstmode_body()
 	atf_check cmp dir/file dst/file
 }
 
+atf_test_case root
+root_head()
+{
+	atf_set "descr" "Test copying the root directory"
+}
+root_body()
+{
+	atf_check mkdir dst
+	atf_check -s exit:1 \
+	    -e inline:"cp: / is a directory (not copied).\n" \
+	    cp / dst
+}
+
 atf_test_case to_root cleanup
 to_root_head()
 {
+	atf_set "descr" "Test copying to the root directory"
 	atf_set "require.user" "unprivileged"
 }
 to_root_body()
@@ -893,6 +907,7 @@ atf_init_test_cases()
 	atf_add_test_case to_deaddirlink
 	atf_add_test_case to_link_outside
 	atf_add_test_case dstmode
+	atf_add_test_case root
 	atf_add_test_case to_root
 	atf_add_test_case dirloop
 	atf_add_test_case unrdir

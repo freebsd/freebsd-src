@@ -319,13 +319,13 @@ SE_SCSI_TARGET= \
 
 SE_DIRS+=	sound
 SE_SOUND= \
-	  sndstat_nv.c \
-	  midi.c
-
-SE_DIRS+=	sound/oss
-SE_SOUND_OSS= \
-	README \
-	audio.c
+	kqueue.c \
+	midi.c \
+	oss.h \
+	poll.c \
+	select.c \
+	simple.c \
+	sndstat_nv.c
 
 SE_DIRS+=	sunrpc
 SE_SUNRPC=	Makefile

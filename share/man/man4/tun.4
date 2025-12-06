@@ -282,6 +282,21 @@ The argument should be a pointer to an
 the ioctl sets the value to one if the device is in
 .Dq multi-af
 mode, and zero otherwise.
+.It Dv TUNSTRANSIENT
+The argument should be a pointer to an
+.Va int ;
+this sets the transient flag on
+the
+.Nm
+device.
+A transient
+.Nm
+will be destroyed upon last close.
+.It Dv TUNGTRANSIENT
+The argument should be a pointer to an
+.Va int ;
+this stores the current state (enabled or disabled) of the transient flag into
+it.
 .It Dv FIONBIO
 Turn non-blocking I/O for reads off or on, according as the argument
 .Vt int Ns 's

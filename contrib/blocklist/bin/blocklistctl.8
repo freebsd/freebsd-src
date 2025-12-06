@@ -1,0 +1,134 @@
+.\" $NetBSD: blocklistctl.8,v 1.6 2025/10/26 13:49:22 christos Exp $
+.\"
+.\" Copyright (c) 2015 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Christos Zoulas.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd October 25, 2025
+.Dt BLOCKLISTCTL 8
+.Os
+.Sh NAME
+.Nm blocklistctl
+.Nd display and change the state of the blocklistd database
+.Sh SYNOPSIS
+.Nm
+.Cm dump
+.Op Fl abdnrw
+.Op Fl D Ar dbname
+.Sh DESCRIPTION
+.Nm
+is a program used to display and change the state of the
+.Xr blocklistd 8
+database.
+The following sub-commands are supported:
+.Ss dump
+The following options are available for the
+.Cm dump
+sub-command:
+.Bl -tag -width indent
+.It Fl a
+Show all database entries, by default it shows only the active ones.
+Inactive entries will be shown with a last-access (or, with
+.Fl r ,
+the remaining) time of
+.Ql never .
+.It Fl b
+Show only the blocked entries.
+.It Fl D Ar dbname
+Specify the location of the
+.Ic blocklistd
+database file to use.
+The default is
+.Pa /var/db/blocklistd.db .
+.It Fl d
+Increase debugging level.
+.It Fl n
+Don't display a header.
+.It Fl r
+Show the remaining blocked time instead of the last activity time.
+.It Fl w
+Normally the width of addresses is good for IPv4, the
+.Fl w
+flag, makes the display wide enough for IPv6 addresses.
+.El
+.Pp
+The output of the
+.Cm dump
+sub-command consists of a header (unless
+.Fl n
+was given) and one line for each record in the database, where each line
+has the following columns:
+.Bl -tag -width indent
+.It Ql rulename
+The packet filter rule name associated with the database entry,
+usually
+.Dv blocklistd .
+.It Ql address/ma:port
+The remote address, mask, and local port number of the client connection
+associated with the database entry.
+.It Ql id
+column will show the identifier for the packet filter rule associated
+with the database entry, though this may only be the word
+.Ql OK
+for packet filters which do not create a unique identifier for each rule.
+.It Ql nfail
+The number of
+.Em failures
+reported for the client on the noted port, as well as the number of
+failures allowed before blocking (or, with
+.Fl a ,
+an asterisk
+.Aq * )
+.It So last access Sc | So remaining time Sc
+The last time a the client was reported as attempting access, or, with
+.Fl r ,
+the time remaining before the rule blocking the client will be removed.
+.El
+.Sh SEE ALSO
+.Xr blocklistd 8
+.Sh NOTES
+Sometimes the reported number of failed attempts can exceed the number
+of attempts that
+.Xr blocklistd 8
+is configured to block.
+This can happen either because the rule has been removed manually, or
+because there were more attempts in flight while the rule block was being
+added.
+This condition is normal; in that case
+.Xr blocklistd 8
+will first attempt to remove the existing rule, and then it will re-add
+it to make sure that there is only one rule active.
+.Sh HISTORY
+.Nm
+first appeared in
+.Nx 7 .
+.Fx
+support for
+.Nm
+was implemented in
+.Fx 11 .
+.Sh AUTHORS
+.An Christos Zoulas

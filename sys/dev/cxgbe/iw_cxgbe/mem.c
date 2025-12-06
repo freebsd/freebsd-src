@@ -56,46 +56,23 @@ mr_exceeds_hw_limits(struct c4iw_dev *dev, u64 length)
 
 static int
 _c4iw_write_mem_dma_aligned(struct c4iw_rdev *rdev, u32 addr, u32 len,
-				void *data, int wait)
+			    dma_addr_t data, int wait)
 {
 	struct adapter *sc = rdev->adap;
-	struct ulp_mem_io *ulpmc;
-	struct ulptx_sgl *sgl;
 	u8 wr_len;
 	int ret = 0;
 	struct c4iw_wr_wait wr_wait;
 	struct wrqe *wr;
 
-	addr &= 0x7FFFFFF;
-
 	if (wait)
 		c4iw_init_wr_wait(&wr_wait);
-	wr_len = roundup(sizeof *ulpmc + sizeof *sgl, 16);
+	wr_len = T4_WRITE_MEM_DMA_LEN;
 
 	wr = alloc_wrqe(wr_len, &sc->sge.ctrlq[0]);
 	if (wr == NULL)
 		return -ENOMEM;
-	ulpmc = wrtod(wr);
-
-	memset(ulpmc, 0, wr_len);
-	INIT_ULPTX_WR(ulpmc, wr_len, 0, 0);
-	ulpmc->wr.wr_hi = cpu_to_be32(V_FW_WR_OP(FW_ULPTX_WR) |
-				    (wait ? F_FW_WR_COMPL : 0));
-	ulpmc->wr.wr_lo = wait ? (u64)(unsigned long)&wr_wait : 0;
-	ulpmc->wr.wr_mid = cpu_to_be32(V_FW_WR_LEN16(DIV_ROUND_UP(wr_len, 16)));
-	ulpmc->cmd = cpu_to_be32(V_ULPTX_CMD(ULP_TX_MEM_WRITE) |
-			       V_T5_ULP_MEMIO_ORDER(1) |
-			V_T5_ULP_MEMIO_FID(sc->sge.ofld_rxq[0].iq.abs_id));
-	ulpmc->dlen = cpu_to_be32(V_ULP_MEMIO_DATA_LEN(len>>5));
-	ulpmc->len16 = cpu_to_be32(DIV_ROUND_UP(wr_len-sizeof(ulpmc->wr), 16));
-	ulpmc->lock_addr = cpu_to_be32(V_ULP_MEMIO_ADDR(addr));
-
-	sgl = (struct ulptx_sgl *)(ulpmc + 1);
-	sgl->cmd_nsge = cpu_to_be32(V_ULPTX_CMD(ULP_TX_SC_DSGL) |
-				    V_ULPTX_NSGE(1));
-	sgl->len0 = cpu_to_be32(len);
-	sgl->addr0 = cpu_to_be64((u64)data);
-
+	t4_write_mem_dma_wr(sc, wrtod(wr), wr_len, 0, addr, len, data,
+	    wait ? (u64)(unsigned long)&wr_wait : 0);
 	t4_wrq_tx(sc, wr);
 
 	if (wait)
@@ -108,70 +85,32 @@ static int
 _c4iw_write_mem_inline(struct c4iw_rdev *rdev, u32 addr, u32 len, void *data)
 {
 	struct adapter *sc = rdev->adap;
-	struct ulp_mem_io *ulpmc;
-	struct ulptx_idata *ulpsc;
-	u8 wr_len, *to_dp, *from_dp;
+	u8 wr_len, *from_dp;
 	int copy_len, num_wqe, i, ret = 0;
 	struct c4iw_wr_wait wr_wait;
 	struct wrqe *wr;
-	u32 cmd;
 
-	cmd = cpu_to_be32(V_ULPTX_CMD(ULP_TX_MEM_WRITE));
-
-	cmd |= cpu_to_be32(F_T5_ULP_MEMIO_IMM);
-
-	addr &= 0x7FFFFFF;
 	CTR3(KTR_IW_CXGBE, "%s addr 0x%x len %u", __func__, addr, len);
-	num_wqe = DIV_ROUND_UP(len, C4IW_MAX_INLINE_SIZE);
 	c4iw_init_wr_wait(&wr_wait);
+	num_wqe = DIV_ROUND_UP(len, T4_MAX_INLINE_SIZE);
+	from_dp = data;
 	for (i = 0; i < num_wqe; i++) {
-
-		copy_len = min(len, C4IW_MAX_INLINE_SIZE);
-		wr_len = roundup(sizeof *ulpmc + sizeof *ulpsc +
-				 roundup(copy_len, T4_ULPTX_MIN_IO), 16);
+		copy_len = min(len, T4_MAX_INLINE_SIZE);
+		wr_len = T4_WRITE_MEM_INLINE_LEN(copy_len);
 
 		wr = alloc_wrqe(wr_len, &sc->sge.ctrlq[0]);
 		if (wr == NULL)
 			return -ENOMEM;
-		ulpmc = wrtod(wr);
-
-		memset(ulpmc, 0, wr_len);
-		INIT_ULPTX_WR(ulpmc, wr_len, 0, 0);
-
-		if (i == (num_wqe-1)) {
-			ulpmc->wr.wr_hi = cpu_to_be32(V_FW_WR_OP(FW_ULPTX_WR) |
-						    F_FW_WR_COMPL);
-			ulpmc->wr.wr_lo =
-				       (__force __be64)(unsigned long) &wr_wait;
-		} else
-			ulpmc->wr.wr_hi = cpu_to_be32(V_FW_WR_OP(FW_ULPTX_WR));
-		ulpmc->wr.wr_mid = cpu_to_be32(
-				       V_FW_WR_LEN16(DIV_ROUND_UP(wr_len, 16)));
-
-		ulpmc->cmd = cmd;
-		ulpmc->dlen = cpu_to_be32(V_ULP_MEMIO_DATA_LEN(
-		    DIV_ROUND_UP(copy_len, T4_ULPTX_MIN_IO)));
-		ulpmc->len16 = cpu_to_be32(DIV_ROUND_UP(wr_len-sizeof(ulpmc->wr),
-						      16));
-		ulpmc->lock_addr = cpu_to_be32(V_ULP_MEMIO_ADDR(addr + i * 3));
-
-		ulpsc = (struct ulptx_idata *)(ulpmc + 1);
-		ulpsc->cmd_more = cpu_to_be32(V_ULPTX_CMD(ULP_TX_SC_IMM));
-		ulpsc->len = cpu_to_be32(roundup(copy_len, T4_ULPTX_MIN_IO));
-
-		to_dp = (u8 *)(ulpsc + 1);
-		from_dp = (u8 *)data + i * C4IW_MAX_INLINE_SIZE;
-		if (data)
-			memcpy(to_dp, from_dp, copy_len);
-		else
-			memset(to_dp, 0, copy_len);
-		if (copy_len % T4_ULPTX_MIN_IO)
-			memset(to_dp + copy_len, 0, T4_ULPTX_MIN_IO -
-			       (copy_len % T4_ULPTX_MIN_IO));
+		t4_write_mem_inline_wr(sc, wrtod(wr), wr_len, 0, addr, copy_len,
+		    from_dp, i == (num_wqe - 1) ?
+		    (__force __be64)(unsigned long) &wr_wait : 0);
 		t4_wrq_tx(sc, wr);
-		len -= C4IW_MAX_INLINE_SIZE;
-	}
 
+		if (from_dp != NULL)
+			from_dp += T4_MAX_INLINE_SIZE;
+		addr += T4_MAX_INLINE_SIZE >> 5;
+		len -= T4_MAX_INLINE_SIZE;
+	}
 	ret = c4iw_wait_for_reply(rdev, &wr_wait, 0, 0, NULL, __func__);
 	return ret;
 }
@@ -201,7 +140,7 @@ _c4iw_write_mem_dma(struct c4iw_rdev *rdev, u32 addr, u32 len, void *data)
 			dmalen = T4_ULPTX_MAX_DMA;
 		remain -= dmalen;
 		ret = _c4iw_write_mem_dma_aligned(rdev, addr, dmalen,
-				(void *)daddr, !remain);
+				daddr, !remain);
 		if (ret)
 			goto out;
 		addr += dmalen >> 5;
@@ -263,8 +202,8 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 	stag_idx = (*stag) >> 8;
 
 	if ((!reset_tpt_entry) && (*stag == T4_STAG_UNSET)) {
-		stag_idx = c4iw_get_resource(&rdev->resource.tpt_table);
-		if (!stag_idx) {
+		stag_idx = t4_stag_alloc(rdev->adap, 1);
+		if (stag_idx == T4_STAG_UNSET) {
 			mutex_lock(&rdev->stats.lock);
 			rdev->stats.stag.fail++;
 			mutex_unlock(&rdev->stats.lock);
@@ -309,7 +248,7 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 				sizeof(tpt), &tpt);
 
 	if (reset_tpt_entry) {
-		c4iw_put_resource(&rdev->resource.tpt_table, stag_idx);
+		t4_stag_free(rdev->adap, stag_idx, 1);
 		mutex_lock(&rdev->stats.lock);
 		rdev->stats.stag.cur -= 32;
 		mutex_unlock(&rdev->stats.lock);

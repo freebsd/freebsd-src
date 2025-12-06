@@ -2180,7 +2180,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoRhct[] =
 ACPI_DMTABLE_INFO           AcpiDmTableInfoRhctNodeHdr[] =
 {
     {ACPI_DMT_RHCT,      ACPI_RHCTH_OFFSET (Type),            "Subtable Type", 0},
-    {ACPI_DMT_UINT16,    ACPI_RHCTH_OFFSET (Length),          "Length", 0},
+    {ACPI_DMT_UINT16,    ACPI_RHCTH_OFFSET (Length),          "Length", DT_LENGTH},
     {ACPI_DMT_UINT16,    ACPI_RHCTH_OFFSET (Revision),        "Revision", 0},
     ACPI_DMT_TERMINATOR
 };

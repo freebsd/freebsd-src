@@ -283,6 +283,8 @@ ipw_attach(device_t dev)
 		| IEEE80211_C_WPA		/* 802.11i supported */
 		;
 
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
+
 	/* read MAC address from EEPROM */
 	val = ipw_read_prom_word(sc, IPW_EEPROM_MAC + 0);
 	ic->ic_macaddr[0] = val >> 8;
@@ -1557,6 +1559,7 @@ ipw_tx_start(struct ipw_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 	wh = mtod(m0, struct ieee80211_frame *);
 
+	ieee80211_output_seqno_assign(ni, -1, m0);
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {

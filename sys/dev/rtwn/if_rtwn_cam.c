@@ -182,6 +182,7 @@ end:
 static int
 rtwn_key_set_cb0(struct rtwn_softc *sc, const struct ieee80211_key *k)
 {
+	const char *key_data;
 	uint8_t algo, keyid;
 	int i, error;
 
@@ -194,7 +195,7 @@ rtwn_key_set_cb0(struct rtwn_softc *sc, const struct ieee80211_key *k)
 	/* Map net80211 cipher to HW crypto algorithm. */
 	switch (k->wk_cipher->ic_cipher) {
 	case IEEE80211_CIPHER_WEP:
-		if (k->wk_keylen < 8)
+		if (ieee80211_crypto_get_key_len(k) < 8)
 			algo = R92C_CAM_ALGO_WEP40;
 		else
 			algo = R92C_CAM_ALGO_WEP104;
@@ -211,11 +212,18 @@ rtwn_key_set_cb0(struct rtwn_softc *sc, const struct ieee80211_key *k)
 		return (EINVAL);
 	}
 
+	/* Get key data. */
+	key_data = ieee80211_crypto_get_key_data(k);
+	if (key_data == NULL) {
+		error = ENXIO;
+		goto fail;
+	}
+
 	RTWN_DPRINTF(sc, RTWN_DEBUG_KEY,
 	    "%s: keyix %u, keyid %u, algo %u/%u, flags %04X, len %u, "
 	    "macaddr %s\n", __func__, k->wk_keyix, keyid,
-	    k->wk_cipher->ic_cipher, algo, k->wk_flags, k->wk_keylen,
-	    ether_sprintf(k->wk_macaddr));
+	    k->wk_cipher->ic_cipher, algo, k->wk_flags,
+	    ieee80211_crypto_get_key_len(k), ether_sprintf(k->wk_macaddr));
 
 	/* Clear high bits. */
 	rtwn_cam_write(sc, R92C_CAM_CTL6(k->wk_keyix), 0);
@@ -224,7 +232,7 @@ rtwn_key_set_cb0(struct rtwn_softc *sc, const struct ieee80211_key *k)
 	/* Write key. */
 	for (i = 0; i < 4; i++) {
 		error = rtwn_cam_write(sc, R92C_CAM_KEY(k->wk_keyix, i),
-		    le32dec(&k->wk_key[i * 4]));
+		    le32dec(&key_data[i * 4]));
 		if (error != 0)
 			goto fail;
 	}

@@ -1,0 +1,1 @@
+pass in on vtnet0 route-to ( vtnet1 2001:db8::1 ) prefer-ipv6-nexthop inet

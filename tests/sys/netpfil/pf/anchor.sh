@@ -123,6 +123,51 @@ nested_anchor_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "deeply_nested" "cleanup"
+deeply_nested_head()
+{
+	atf_set descr 'Test setting and retrieving deeply nested anchors'
+	atf_set require.user root
+}
+
+deeply_nested_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}a
+
+	pft_set_rules alcatraz \
+		"anchor \"foo\" { \n\
+			anchor \"bar\" { \n\
+				anchor \"foobar\" { \n\
+					pass on ${epair}a \n\
+				} \n\
+				anchor \"quux\" { \n\
+					pass on ${epair}a \n\
+				} \n\
+			} \n\
+			anchor \"baz\" { \n\
+				pass on ${epair}a \n\
+			} \n\
+			anchor \"qux\" { \n\
+				pass on ${epair}a \n\
+			} \n\
+		}"
+
+	atf_check -s exit:0 -o \
+	    inline:"  foo\n  foo/bar\n  foo/bar/foobar\n  foo/bar/quux\n  foo/baz\n  foo/qux\n" \
+	    jexec alcatraz pfctl -sA
+
+	atf_check -s exit:0 -o inline:"  foo/bar/foobar\n  foo/bar/quux\n" \
+	    jexec alcatraz pfctl -a foo/bar -sA
+}
+
+deeply_nested_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "wildcard" "cleanup"
 wildcard_head()
 {
@@ -498,6 +543,7 @@ atf_init_test_cases()
 	atf_add_test_case "pr183198"
 	atf_add_test_case "pr279225"
 	atf_add_test_case "nested_anchor"
+	atf_add_test_case "deeply_nested"
 	atf_add_test_case "wildcard"
 	atf_add_test_case "nested_label"
 	atf_add_test_case "quick"

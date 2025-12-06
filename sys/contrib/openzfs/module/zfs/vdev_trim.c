@@ -1010,7 +1010,7 @@ vdev_trim(vdev_t *vd, uint64_t rate, boolean_t partial, boolean_t secure)
 	ASSERT(MUTEX_HELD(&vd->vdev_trim_lock));
 	ASSERT(vd->vdev_ops->vdev_op_leaf);
 	ASSERT(vdev_is_concrete(vd));
-	ASSERT3P(vd->vdev_trim_thread, ==, NULL);
+	ASSERT0P(vd->vdev_trim_thread);
 	ASSERT(!vd->vdev_detached);
 	ASSERT(!vd->vdev_trim_exit_wanted);
 	ASSERT(!vd->vdev_top->vdev_removing);
@@ -1032,7 +1032,7 @@ vdev_trim_stop_wait_impl(vdev_t *vd)
 	while (vd->vdev_trim_thread != NULL)
 		cv_wait(&vd->vdev_trim_cv, &vd->vdev_trim_lock);
 
-	ASSERT3P(vd->vdev_trim_thread, ==, NULL);
+	ASSERT0P(vd->vdev_trim_thread);
 	vd->vdev_trim_exit_wanted = B_FALSE;
 }
 
@@ -1045,7 +1045,7 @@ vdev_trim_stop_wait(spa_t *spa, list_t *vd_list)
 	(void) spa;
 	vdev_t *vd;
 
-	ASSERT(MUTEX_HELD(&spa_namespace_lock) ||
+	ASSERT(spa_namespace_held() ||
 	    spa->spa_export_thread == curthread);
 
 	while ((vd = list_remove_head(vd_list)) != NULL) {
@@ -1085,7 +1085,7 @@ vdev_trim_stop(vdev_t *vd, vdev_trim_state_t tgt_state, list_t *vd_list)
 	if (vd_list == NULL) {
 		vdev_trim_stop_wait_impl(vd);
 	} else {
-		ASSERT(MUTEX_HELD(&spa_namespace_lock) ||
+		ASSERT(spa_namespace_held() ||
 		    vd->vdev_spa->spa_export_thread == curthread);
 		list_insert_tail(vd_list, vd);
 	}
@@ -1122,7 +1122,7 @@ vdev_trim_stop_all(vdev_t *vd, vdev_trim_state_t tgt_state)
 	list_t vd_list;
 	vdev_t *vd_l2cache;
 
-	ASSERT(MUTEX_HELD(&spa_namespace_lock) ||
+	ASSERT(spa_namespace_held() ||
 	    spa->spa_export_thread == curthread);
 
 	list_create(&vd_list, sizeof (vdev_t),
@@ -1156,7 +1156,7 @@ vdev_trim_stop_all(vdev_t *vd, vdev_trim_state_t tgt_state)
 void
 vdev_trim_restart(vdev_t *vd)
 {
-	ASSERT(MUTEX_HELD(&spa_namespace_lock) ||
+	ASSERT(spa_namespace_held() ||
 	    vd->vdev_spa->spa_load_thread == curthread);
 	ASSERT(!spa_config_held(vd->vdev_spa, SCL_ALL, RW_WRITER));
 
@@ -1539,7 +1539,7 @@ vdev_autotrim_stop_wait(vdev_t *tvd)
 		cv_wait(&tvd->vdev_autotrim_cv,
 		    &tvd->vdev_autotrim_lock);
 
-		ASSERT3P(tvd->vdev_autotrim_thread, ==, NULL);
+		ASSERT0P(tvd->vdev_autotrim_thread);
 		tvd->vdev_autotrim_exit_wanted = B_FALSE;
 	}
 	mutex_exit(&tvd->vdev_autotrim_lock);
@@ -1582,7 +1582,7 @@ vdev_autotrim_stop_all(spa_t *spa)
 void
 vdev_autotrim_restart(spa_t *spa)
 {
-	ASSERT(MUTEX_HELD(&spa_namespace_lock) ||
+	ASSERT(spa_namespace_held() ||
 	    spa->spa_load_thread == curthread);
 	if (spa->spa_autotrim)
 		vdev_autotrim(spa);
@@ -1689,7 +1689,7 @@ vdev_trim_l2arc_thread(void *arg)
 void
 vdev_trim_l2arc(spa_t *spa)
 {
-	ASSERT(MUTEX_HELD(&spa_namespace_lock));
+	ASSERT(spa_namespace_held());
 
 	/*
 	 * Locate the spa's l2arc devices and kick off TRIM threads.
@@ -1712,7 +1712,7 @@ vdev_trim_l2arc(spa_t *spa)
 		mutex_enter(&vd->vdev_trim_lock);
 		ASSERT(vd->vdev_ops->vdev_op_leaf);
 		ASSERT(vdev_is_concrete(vd));
-		ASSERT3P(vd->vdev_trim_thread, ==, NULL);
+		ASSERT0P(vd->vdev_trim_thread);
 		ASSERT(!vd->vdev_detached);
 		ASSERT(!vd->vdev_trim_exit_wanted);
 		ASSERT(!vd->vdev_top->vdev_removing);

@@ -112,12 +112,11 @@ hwt_priv_check(struct proc *o, struct proc *t)
 			error = EPERM;
 			goto done;
 		}
-
-	/* Check the read and saved GIDs too. */
-	if (!groupmember(tc->cr_rgid, oc) ||
+	if (!groupmember(tc->cr_gid, oc) ||
+	    !groupmember(tc->cr_rgid, oc) ||
 	    !groupmember(tc->cr_svgid, oc)) {
-			error = EPERM;
-			goto done;
+		error = EPERM;
+		goto done;
 	}
 
 done:

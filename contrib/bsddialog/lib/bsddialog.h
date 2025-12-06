@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021-2024 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2025 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,7 +30,7 @@
 
 #include <stdbool.h>
 
-#define LIBBSDDIALOG_VERSION     "1.0.4"
+#define LIBBSDDIALOG_VERSION     "1.1"
 
 /* Return values */
 #define BSDDIALOG_ERROR          -1
@@ -179,6 +179,7 @@ int bsddialog_init_notheme(void);
 bool bsddialog_inmode(void);
 int bsddialog_end(void);
 int bsddialog_backtitle(struct bsddialog_conf *conf, const char *backtitle);
+int bsddialog_backtitle_rf(struct bsddialog_conf *conf, const char *backtitle);
 int bsddialog_initconf(struct bsddialog_conf *conf);
 void bsddialog_clear(unsigned int y);
 void bsddialog_refresh(void);
@@ -242,6 +243,12 @@ bsddialog_radiolist(struct bsddialog_conf *conf, const char *text, int rows,
 int
 bsddialog_rangebox(struct bsddialog_conf *conf, const char *text, int rows,
     int cols, int min, int max, int *value);
+
+int
+bsddialog_slider(struct bsddialog_conf *conf, const char *text, int rows,
+    int cols, const char *unit, unsigned long length, unsigned long *start,
+    unsigned long *end, bool resize, unsigned int nblocks,
+    unsigned long blocks[][2]);
 
 int
 bsddialog_textbox(struct bsddialog_conf *conf, const char *file, int rows,

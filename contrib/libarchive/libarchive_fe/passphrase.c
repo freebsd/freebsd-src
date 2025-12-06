@@ -61,7 +61,7 @@
 #include <readpassphrase.h>
 #endif
 
-#include "err.h"
+#include "lafe_err.h"
 #include "passphrase.h"
 
 #ifndef HAVE_READPASSPHRASE

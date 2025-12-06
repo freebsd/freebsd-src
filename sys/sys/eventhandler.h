@@ -33,6 +33,7 @@
 #include <sys/lock.h>
 #include <sys/ktr.h>
 #include <sys/mutex.h>
+#include <sys/power.h>
 #include <sys/queue.h>
 
 #ifdef VIMAGE
@@ -201,7 +202,7 @@ EVENTHANDLER_DECLARE(shutdown_post_sync, shutdown_fn);	/* after fs sync */
 EVENTHANDLER_DECLARE(shutdown_final, shutdown_fn);
 
 /* Power state change events */
-typedef void (*power_change_fn)(void *);
+typedef void (*power_change_fn)(void *, enum power_stype stype);
 EVENTHANDLER_DECLARE(power_resume, power_change_fn);
 EVENTHANDLER_DECLARE(power_suspend, power_change_fn);
 EVENTHANDLER_DECLARE(power_suspend_early, power_change_fn);

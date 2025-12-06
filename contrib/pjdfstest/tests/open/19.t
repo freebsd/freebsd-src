@@ -24,7 +24,7 @@ while :; do
 	if [ $? -ne 0 ]; then
 		break
 	fi
-	i=`expr $i + 1`
+	i=$((i + 1))
 done
 expect ENOSPC open ${n0}/${i} O_RDONLY,O_CREAT 0644
 umount /dev/md${n}

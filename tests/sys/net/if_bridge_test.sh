@@ -145,6 +145,7 @@ stp_vlan_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req vlan
 
 	epair_one=$(vnet_mkepair)
 	epair_two=$(vnet_mkepair)
@@ -538,6 +539,7 @@ gif_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req gif
 
 	epair=$(vnet_mkepair)
 
@@ -586,6 +588,25 @@ gif_body()
 		jexec one ping -c 1 -s 1200 198.51.100.2
 	atf_check -s exit:0 -o ignore \
 		jexec one ping -c 1 -s 2000 198.51.100.2
+
+	# Assigning IP addresses on the gif tunneling interfaces
+	jexec one sysctl net.link.bridge.member_ifaddrs=1
+	atf_check -s exit:0 -o ignore \
+		jexec one ifconfig ${gif_one} 192.168.0.224/24 192.168.169.254
+	atf_check -s exit:0 -o ignore \
+		jexec one ifconfig ${gif_one} inet6 no_dad 2001:db8::1/64
+	jexec one ifconfig ${bridge_one} deletem ${gif_one}
+	atf_check -s exit:0 -o ignore \
+		jexec one ifconfig ${bridge_one} addm ${gif_one}
+
+	jexec two sysctl net.link.bridge.member_ifaddrs=0
+	atf_check -s exit:0 -o ignore \
+		jexec two ifconfig ${gif_two} 192.168.169.254/24 192.168.0.224
+	atf_check -s exit:0 -o ignore \
+		jexec two ifconfig ${gif_two} inet6 no_dad 2001:db8::2/64
+	jexec two ifconfig ${bridge_two} deletem ${gif_two}
+	atf_check -s exit:0 -o ignore \
+		jexec two ifconfig ${bridge_two} addm ${gif_two}
 }
 
 gif_cleanup()
@@ -623,6 +644,7 @@ mtu_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req gif
 
 	epair=$(vnet_mkepair)
 	gif=$(ifconfig gif create)
@@ -685,6 +707,7 @@ vlan_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req vlan
 
 	vid=1
 
@@ -861,6 +884,7 @@ member_ifaddrs_vlan_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req vlan
 
 	epone=$(vnet_mkepair)
 	eptwo=$(vnet_mkepair)
@@ -989,6 +1013,7 @@ vlan_pvid_tagged_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req vlan
 
 	epone=$(vnet_mkepair)
 	eptwo=$(vnet_mkepair)
@@ -1033,6 +1058,7 @@ vlan_pvid_1q_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req vlan
 
 	epone=$(vnet_mkepair)
 	eptwo=$(vnet_mkepair)
@@ -1080,6 +1106,7 @@ vlan_filtering_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req vlan
 
 	epone=$(vnet_mkepair)
 	eptwo=$(vnet_mkepair)
@@ -1210,6 +1237,7 @@ vlan_svi_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req vlan
 
 	epone=$(vnet_mkepair)
 
@@ -1251,6 +1279,7 @@ vlan_qinq_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req vlan
 
 	epone=$(vnet_mkepair)
 	eptwo=$(vnet_mkepair)
@@ -1316,6 +1345,7 @@ bridge_svi_in_bridge_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req vlan
 
 	bridge=$(vnet_mkbridge)
 	atf_check -s exit:0 ifconfig ${bridge}.1 create

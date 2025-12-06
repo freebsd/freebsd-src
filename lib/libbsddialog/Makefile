@@ -13,6 +13,7 @@ SRCS=	barbox.c \
 	libbsddialog.c \
 	menubox.c \
 	messagebox.c \
+	slider.c \
 	textbox.c \
 	theme.c \
 	timebox.c

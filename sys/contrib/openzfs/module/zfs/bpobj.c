@@ -160,8 +160,8 @@ bpobj_open(bpobj_t *bpo, objset_t *os, uint64_t object)
 	memset(bpo, 0, sizeof (*bpo));
 	mutex_init(&bpo->bpo_lock, NULL, MUTEX_DEFAULT, NULL);
 
-	ASSERT(bpo->bpo_dbuf == NULL);
-	ASSERT(bpo->bpo_phys == NULL);
+	ASSERT0P(bpo->bpo_dbuf);
+	ASSERT0P(bpo->bpo_phys);
 	ASSERT(object != 0);
 	ASSERT3U(doi.doi_type, ==, DMU_OT_BPOBJ);
 	ASSERT3U(doi.doi_bonus_type, ==, DMU_OT_BPOBJ_HDR);
@@ -478,7 +478,7 @@ bpobj_iterate_impl(bpobj_t *initial_bpo, bpobj_itor_t func, void *arg,
 			 * We have unprocessed subobjs. Process the next one.
 			 */
 			ASSERT(bpo->bpo_havecomp);
-			ASSERT3P(bpobj_size, ==, NULL);
+			ASSERT0P(bpobj_size);
 
 			/* Add the last subobj to stack. */
 			int64_t i = bpi->bpi_unprocessed_subobjs - 1;
@@ -752,7 +752,8 @@ bpobj_enqueue_subobj(bpobj_t *bpo, uint64_t subobj, dmu_tx_t *tx)
 		}
 		dmu_write(bpo->bpo_os, bpo->bpo_phys->bpo_subobjs,
 		    bpo->bpo_phys->bpo_num_subobjs * sizeof (subobj),
-		    numsubsub * sizeof (subobj), subdb->db_data, tx);
+		    numsubsub * sizeof (subobj), subdb->db_data, tx,
+		    DMU_READ_NO_PREFETCH);
 		dmu_buf_rele(subdb, FTAG);
 		bpo->bpo_phys->bpo_num_subobjs += numsubsub;
 
@@ -777,7 +778,7 @@ bpobj_enqueue_subobj(bpobj_t *bpo, uint64_t subobj, dmu_tx_t *tx)
 		dmu_write(bpo->bpo_os, bpo->bpo_object,
 		    bpo->bpo_phys->bpo_num_blkptrs * sizeof (blkptr_t),
 		    numbps * sizeof (blkptr_t),
-		    bps->db_data, tx);
+		    bps->db_data, tx, DMU_READ_NO_PREFETCH);
 		dmu_buf_rele(bps, FTAG);
 		bpo->bpo_phys->bpo_num_blkptrs += numbps;
 
@@ -794,7 +795,7 @@ bpobj_enqueue_subobj(bpobj_t *bpo, uint64_t subobj, dmu_tx_t *tx)
 
 		dmu_write(bpo->bpo_os, bpo->bpo_phys->bpo_subobjs,
 		    bpo->bpo_phys->bpo_num_subobjs * sizeof (subobj),
-		    sizeof (subobj), &subobj, tx);
+		    sizeof (subobj), &subobj, tx, DMU_READ_NO_PREFETCH);
 		bpo->bpo_phys->bpo_num_subobjs++;
 	}
 

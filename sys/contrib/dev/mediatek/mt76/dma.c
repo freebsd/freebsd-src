@@ -6,7 +6,7 @@
 #include <linux/dma-mapping.h>
 #if defined(__FreeBSD__)
 #include <linux/cache.h>
-#include <net/page_pool.h>
+#include <net/page_pool/helpers.h>
 #endif
 #include "mt76.h"
 #include "dma.h"
@@ -647,10 +647,8 @@ mt76_dma_rx_fill_buf(struct mt76_dev *dev, struct mt76_queue *q,
 
 	while (q->queued < q->ndesc - 1) {
 		struct mt76_queue_buf qbuf = {};
-		enum dma_data_direction dir;
-		dma_addr_t addr;
-		int offset;
 		void *buf = NULL;
+		int offset;
 
 		if (mt76_queue_is_wed_rro_ind(q))
 			goto done;
@@ -659,11 +657,8 @@ mt76_dma_rx_fill_buf(struct mt76_dev *dev, struct mt76_queue *q,
 		if (!buf)
 			break;
 
-		addr = page_pool_get_dma_addr(virt_to_head_page(buf)) + offset;
-		dir = page_pool_get_dma_dir(q->page_pool);
-		dma_sync_single_for_device(dev->dma_dev, addr, len, dir);
-
-		qbuf.addr = addr + q->buf_offset;
+		qbuf.addr = page_pool_get_dma_addr(virt_to_head_page(buf)) +
+			    offset + q->buf_offset;
 done:
 		qbuf.len = len - q->buf_offset;
 		qbuf.skip_unmap = false;
@@ -1023,6 +1018,7 @@ void mt76_dma_cleanup(struct mt76_dev *dev)
 	int i;
 
 	mt76_worker_disable(&dev->tx_worker);
+	napi_disable(&dev->tx_napi);
 	netif_napi_del(&dev->tx_napi);
 
 	for (i = 0; i < ARRAY_SIZE(dev->phys); i++) {

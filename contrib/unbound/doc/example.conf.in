@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.23.0.
+# See unbound.conf(5) man page, version 1.24.1.
 #
 # this is a comment.
 
@@ -116,8 +116,8 @@ server:
 	# so-rcvbuf: 0
 
 	# buffer size for UDP port 53 outgoing (SO_SNDBUF socket option).
-	# 0 is system default.  Use 4m to handle spikes on very busy servers.
-	# so-sndbuf: 0
+	# 0 is system default. Set larger to handle spikes on very busy servers.
+	# so-sndbuf: 4m
 
 	# use SO_REUSEPORT to distribute queries over threads.
 	# at extreme load it could be better to turn it off to distribute even.
@@ -163,7 +163,7 @@ server:
 	# msg-cache-slabs: 4
 
 	# the number of queries that a thread gets to service.
-	# num-queries-per-thread: 1024
+	# num-queries-per-thread: 2048
 
 	# if very busy, 50% queries run to completion, 50% get timeout in msec
 	# jostle-timeout: 200
@@ -195,6 +195,10 @@ server:
 
 	# Limit on upstream queries for an incoming query and its recursion.
 	# max-global-quota: 200
+
+	# Should the scrubber remove promiscuous NS from positive answers,
+	# protects against poison attempts.
+	# iter-scrub-promiscuous: yes
 
 	# msec for waiting for an unknown server to reply.  Increase if you
 	# are behind a slow satellite link, to eg. 1128.
@@ -279,7 +283,7 @@ server:
 	# do-ip6: yes
 
 	# If running unbound on an IPv6-only host, domains that only have
-	# IPv4 servers would become unresolveable.  If NAT64 is available in
+	# IPv4 servers would become unresolvable.  If NAT64 is available in
 	# the network, unbound can use NAT64 to reach these servers with
 	# the following option.  This is NOT needed for enabling DNS64 on a
 	# system that has IPv4 connectivity.

@@ -22,6 +22,7 @@ description: |
   If the panel is more advanced a dedicated binding file is required.
 
 allOf:
+  - $ref: /schemas/display/lvds-dual-ports.yaml#
   - $ref: panel-common.yaml#
 
 properties:
@@ -39,6 +40,8 @@ properties:
       - auo,g185han01
         # AU Optronics Corporation 19.0" (1280x1024) TFT LCD panel
       - auo,g190ean01
+        # BOE AV123Z7M-N17 12.3" (1920x720) LVDS TFT LCD panel
+      - boe,av123z7m-n17
         # Kaohsiung Opto-Electronics Inc. 10.1" WUXGA (1920 x 1200) LVDS TFT LCD panel
       - koe,tx26d202vm0bwa
         # Lincoln Technology Solutions, LCD185-101CT 10.1" TFT 1920x1200
@@ -55,28 +58,10 @@ properties:
 
     properties:
       port@0:
-        $ref: /schemas/graph.yaml#/$defs/port-base
-        unevaluatedProperties: false
-        description: The first sink port.
-
-        properties:
-          dual-lvds-odd-pixels:
-            type: boolean
-            description: The first sink port for odd pixels.
-
         required:
           - dual-lvds-odd-pixels
 
       port@1:
-        $ref: /schemas/graph.yaml#/$defs/port-base
-        unevaluatedProperties: false
-        description: The second sink port.
-
-        properties:
-          dual-lvds-even-pixels:
-            type: boolean
-            description: The second sink port for even pixels.
-
         required:
           - dual-lvds-even-pixels
 
@@ -88,7 +73,6 @@ unevaluatedProperties: false
 
 required:
   - compatible
-  - ports
   - power-supply
 
 examples:

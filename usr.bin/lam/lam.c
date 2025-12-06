@@ -213,11 +213,8 @@ gatherline(struct openfile *ip)
 	*p = '\0';
 	if (c == EOF) {
 		ip->eof = 1;
-		if (ferror(ip->fp)) {
+		if (ferror(ip->fp))
 			err(EX_IOERR, NULL);
-		}
-		if (ip->fp == stdin)
-			fclose(stdin);
 		morefiles--;
 		return (pad(ip));
 	}

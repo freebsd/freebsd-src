@@ -25,6 +25,12 @@ struct nvmf_transport_ops {
 	    const nvlist_t *nvl);
 	void (*free_qpair)(struct nvmf_qpair *qp);
 
+	/* Limit on I/O command capsule size. */
+	uint32_t (*max_ioccsz)(struct nvmf_qpair *qp);
+
+	/* Limit on transfer size. */
+	uint64_t (*max_xfer_size)(struct nvmf_qpair *qp);
+
 	/* Capsule operations. */
 	struct nvmf_capsule *(*allocate_capsule)(struct nvmf_qpair *qp,
 	    int how);

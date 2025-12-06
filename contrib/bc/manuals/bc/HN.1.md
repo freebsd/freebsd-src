@@ -2,7 +2,7 @@
 
 SPDX-License-Identifier: BSD-2-Clause
 
-Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+Copyright (c) 2018-2025 Gavin D. Howard and contributors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -1766,16 +1766,6 @@ The extended library is a **non-portable extension**.
     If you want to a use signed two's complement argument, use **s2u(x)** to
     convert.
 
-**bunrev(t)**
-
-:   Assumes **t** is a bitwise-reversed number with an extra set bit one place
-    more significant than the real most significant bit (which was the least
-    significant bit in the original number). This number is reversed and
-    returned without the extra set bit.
-
-    This function is used to implement other bitwise functions; it is not meant
-    to be used by users, but it can be.
-
 **plz(x)**
 
 :   If **x** is not equal to **0** and greater that **-1** and less than **1**,
@@ -2487,7 +2477,7 @@ use a period (**.**) as a radix point, regardless of the value of
 Before version **6.1.0**, this bc(1) had incorrect behavior for the **quit**
 statement.
 
-No other bugs are known. Report bugs at https://git.gavinhoward.com/gavin/bc .
+No other bugs are known. Report bugs at https://github.com/gavinhoward/bc .
 
 # AUTHORS
 

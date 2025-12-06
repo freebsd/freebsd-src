@@ -1,4 +1,4 @@
-/*	$NetBSD: popenve.c,v 1.2 2015/01/22 03:10:50 christos Exp $	*/
+/*	$NetBSD: popenve.c,v 1.2 2025/02/11 17:48:30 christos Exp $	*/
 
 /*
  * Copyright (c) 1988, 1993
@@ -36,12 +36,14 @@
 #include "config.h"
 #endif
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
+#endif
 #if defined(LIBC_SCCS) && !defined(lint)
 #if 0
 static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 5/3/95";
 #else
-__RCSID("$NetBSD: popenve.c,v 1.2 2015/01/22 03:10:50 christos Exp $");
+__RCSID("$NetBSD: popenve.c,v 1.2 2025/02/11 17:48:30 christos Exp $");
 #endif
 #endif /* LIBC_SCCS and not lint */
 

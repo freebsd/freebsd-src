@@ -9,9 +9,9 @@ SYM_MAPS+=${LIBC_SRCTOP}/regex/Symbol.map
 
 # manpages only included in libc version
 .if ${LIB} == "c"
-MAN+=	regex.3
-MAN+=	re_format.7
+MAN+=		regex.3
+MLINKS+=	regex.3 regcomp.3 regex.3 regexec.3 regex.3 regerror.3
+MLINKS+=	regexec.3 regfree.3
 
-MLINKS+=regex.3 regcomp.3 regex.3 regexec.3 regex.3 regerror.3
-MLINKS+=regexec.3 regfree.3
+MANNODEV+=	re_format.7
 .endif

@@ -131,6 +131,8 @@ struct mesh_area {
 	size_t ans_secure;
 	/** (extended stats) bogus replies */
 	size_t ans_bogus;
+	/** (extended stats) number of validation operations */
+	size_t val_ops;
 	/** (extended stats) rcodes in replies */
 	size_t ans_rcode[UB_STATS_RCODE_NUM];
 	/** (extended stats) rcode nodata in replies */

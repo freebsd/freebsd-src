@@ -10,7 +10,7 @@ device		uart_ns8250		# ns8250-type UART driver
 device		uart_snps
 
 # Ethernet NICs
-device		re			# RealTek 8139C+/8169/8169S/8110S
+device		re			# Realtek 8139C+/8169/8169S/8110S
 
 # USB support
 device		tegra210_xusb_fw	# Tegra XUSB firmware

@@ -49,6 +49,7 @@
 
 static int do_fips = 0;
 static char *privkey;
+static char *storedir;
 static char *config_file = NULL;
 static int multidefault_run = 0;
 
@@ -182,13 +183,16 @@ static void rwreader_fn(int *iterations)
         CRYPTO_atomic_add(&rwwriter2_done, 0, &lw2, atomiclock);
 
         count++;
-        if (rwwriter_ptr != NULL && old > *rwwriter_ptr) {
-            TEST_info("rwwriter pointer went backwards\n");
-            rw_torture_result = 0;
+        if (rwwriter_ptr != NULL) {
+            if (old > *rwwriter_ptr) {
+                TEST_info("rwwriter pointer went backwards! %d : %d\n",
+                          old, *rwwriter_ptr);
+                rw_torture_result = 0;
+            }
+            old = *rwwriter_ptr;
         }
         if (CRYPTO_THREAD_unlock(rwtorturelock) == 0)
             abort();
-        *iterations = count;
         if (rw_torture_result == 0) {
             *iterations = count;
             return;
@@ -320,7 +324,8 @@ static void writer_fn(int id, int *iterations)
     t1 = ossl_time_now();
 
     for (count = 0; ; count++) {
-        new = CRYPTO_zalloc(sizeof(uint64_t), NULL, 0);
+        new = CRYPTO_malloc(sizeof(uint64_t), NULL, 0);
+        *new = (uint64_t)0xBAD;
         if (contention == 0)
             OSSL_sleep(1000);
         ossl_rcu_write_lock(rcu_lock);
@@ -380,6 +385,8 @@ static void reader_fn(int *iterations)
 
         if (oldval > val) {
             TEST_info("rcu torture value went backwards! %llu : %llu", (unsigned long long)oldval, (unsigned long long)val);
+            if (valp == NULL)
+                TEST_info("ossl_rcu_deref did return NULL!");
             rcu_torture_result = 0;
         }
         oldval = val; /* just try to deref the pointer */
@@ -1135,7 +1142,7 @@ static int test_multi_default(void)
     multidefault_run = 1;
 
     return thread_run_test(&thread_multi_simple_fetch,
-                           2, &thread_multi_simple_fetch, 0, default_provider);
+                           2, &thread_multi_simple_fetch, 0, NULL);
 }
 
 static int test_multi_load(void)
@@ -1295,6 +1302,62 @@ static int test_pem_read(void)
                            &test_pem_read_one, 1, default_provider);
 }
 
+static X509_STORE *store = NULL;
+
+static void test_x509_store_by_subject(void)
+{
+    X509_STORE_CTX *ctx;
+    X509_OBJECT *obj = NULL;
+    X509_NAME *name = NULL;
+    int success = 0;
+
+    ctx = X509_STORE_CTX_new();
+    if (!TEST_ptr(ctx))
+        goto err;
+
+    if (!TEST_true(X509_STORE_CTX_init(ctx, store, NULL, NULL)))
+        goto err;
+
+    name = X509_NAME_new();
+    if (!TEST_ptr(name))
+        goto err;
+    if (!TEST_true(X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
+                                              (unsigned char *)"Root CA",
+                                              -1, -1, 0)))
+        goto err;
+    obj = X509_STORE_CTX_get_obj_by_subject(ctx, X509_LU_X509, name);
+    if (!TEST_ptr(obj))
+        goto err;
+
+    success = 1;
+ err:
+    X509_OBJECT_free(obj);
+    X509_STORE_CTX_free(ctx);
+    X509_NAME_free(name);
+    if (!success)
+        multi_set_success(0);
+}
+
+/* Test accessing an X509_STORE from multiple threads */
+static int test_x509_store(void)
+{
+    int ret = 0;
+
+    store = X509_STORE_new();
+    if (!TEST_ptr(store))
+        return 0;
+    if (!TEST_true(X509_STORE_load_store(store, storedir)))
+        goto err;
+
+    ret = thread_run_test(&test_x509_store_by_subject, MAXIMUM_THREADS,
+                          &test_x509_store_by_subject, 0, NULL);
+
+ err:
+    X509_STORE_free(store);
+    store = NULL;
+    return ret;
+}
+
 typedef enum OPTION_choice {
     OPT_ERR = -1,
     OPT_EOF = 0,
@@ -1341,6 +1404,10 @@ int setup_tests(void)
     if (!TEST_ptr(privkey))
         return 0;
 
+    storedir = test_mk_file_path(datadir, "store");
+    if (!TEST_ptr(storedir))
+        return 0;
+
     if (!TEST_ptr(global_lock = CRYPTO_THREAD_lock_new()))
         return 0;
 
@@ -1379,12 +1446,14 @@ int setup_tests(void)
     ADD_TEST(test_bio_dgram_pair);
 #endif
     ADD_TEST(test_pem_read);
+    ADD_TEST(test_x509_store);
     return 1;
 }
 
 void cleanup_tests(void)
 {
     OPENSSL_free(privkey);
+    OPENSSL_free(storedir);
 #ifdef TSAN_REQUIRES_LOCKING
     CRYPTO_THREAD_lock_free(tsan_lock);
 #endif

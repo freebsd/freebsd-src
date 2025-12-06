@@ -328,6 +328,7 @@ service_init(int r, struct daemon** d, struct config_file** c)
 			return 0;
 		}
 		log_warn("could not open config file, using defaults");
+		config_auto_slab_values(cfg);
 	}
 	if(!r) report_status(SERVICE_START_PENDING, NO_ERROR, 2600);
 

@@ -37,7 +37,6 @@
 
 #include <sys/cdefs.h>
 #include "opt_bpf.h"
-#include "opt_ddb.h"
 #include "opt_netgraph.h"
 
 #include <sys/param.h>
@@ -68,10 +67,6 @@
 
 #include <sys/socket.h>
 
-#ifdef DDB
-#include <ddb/ddb.h>
-#endif
-
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_private.h>
@@ -98,14 +93,11 @@
 
 MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
 
-static const struct bpf_if_ext dead_bpf_if = {
-	.bif_dlist = CK_LIST_HEAD_INITIALIZER()
-};
+static const struct bpfd_list dead_bpf_if = CK_LIST_HEAD_INITIALIZER();
 
 struct bpf_if {
-#define	bif_next	bif_ext.bif_next
-#define	bif_dlist	bif_ext.bif_dlist
-	struct bpf_if_ext bif_ext;	/* public members */
+	struct bpfd_list	bif_dlist;	/* list of all interfaces */
+	LIST_ENTRY(bpf_if)	bif_next;	/* descriptor list */
 	u_int		bif_dlt;	/* link layer type */
 	u_int		bif_hdrlen;	/* length of link header */
 	struct bpfd_list bif_wlist;	/* writer-only list */
@@ -115,7 +107,9 @@ struct bpf_if {
 	struct epoch_context epoch_ctx;
 };
 
-CTASSERT(offsetof(struct bpf_if, bif_ext) == 0);
+/* See bpf_peers_present() in bpf.h. */
+_Static_assert(offsetof(struct bpf_if, bif_dlist) == 0,
+    "bpf_if shall start with bif_dlist");
 
 struct bpf_program_buffer {
 	struct epoch_context	epoch_ctx;
@@ -181,10 +175,9 @@ struct bpf_dltlist32 {
  * structures registered by different layers in the stack (i.e., 802.11
  * frames, ethernet frames, etc).
  */
-CK_LIST_HEAD(bpf_iflist, bpf_if);
-static struct bpf_iflist bpf_iflist = CK_LIST_HEAD_INITIALIZER();
+LIST_HEAD(bpf_iflist, bpf_if);
+static struct bpf_iflist bpf_iflist = LIST_HEAD_INITIALIZER();
 static struct sx	bpf_sx;		/* bpf global lock */
-static int		bpf_bpfd_cnt;
 
 static void	bpfif_ref(struct bpf_if *);
 static void	bpfif_rele(struct bpf_if *);
@@ -192,8 +185,7 @@ static void	bpfif_rele(struct bpf_if *);
 static void	bpfd_ref(struct bpf_d *);
 static void	bpfd_rele(struct bpf_d *);
 static void	bpf_attachd(struct bpf_d *, struct bpf_if *);
-static void	bpf_detachd(struct bpf_d *);
-static void	bpf_detachd_locked(struct bpf_d *, bool);
+static void	bpf_detachd(struct bpf_d *, bool);
 static void	bpfd_free(epoch_context_t);
 static int	bpf_movein(struct uio *, int, struct ifnet *, struct mbuf **,
 		    struct sockaddr *, int *, struct bpf_d *);
@@ -253,12 +245,14 @@ static const struct filterops bpfread_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_bpfdetach,
 	.f_event = filt_bpfread,
+	.f_copy = knote_triv_copy,
 };
 
 static const struct filterops bpfwrite_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_bpfdetach,
 	.f_event = filt_bpfwrite,
+	.f_copy = knote_triv_copy,
 };
 
 /*
@@ -731,7 +725,7 @@ bpf_attachd(struct bpf_d *d, struct bpf_if *bp)
 	op_w = V_bpf_optimize_writers || d->bd_writer;
 
 	if (d->bd_bif != NULL)
-		bpf_detachd_locked(d, false);
+		bpf_detachd(d, false);
 	/*
 	 * Point d at bp, and add d to the interface's list.
 	 * Since there are many applications using BPF for
@@ -765,7 +759,6 @@ bpf_attachd(struct bpf_d *d, struct bpf_if *bp)
 	bpf_wakeup(d);
 
 	BPFD_UNLOCK(d);
-	bpf_bpfd_cnt++;
 
 	CTR3(KTR_NET, "%s: bpf_attach called by pid %d, adding to %s list",
 	    __func__, d->bd_pid, d->bd_writer ? "writer" : "active");
@@ -841,15 +834,7 @@ bpf_check_upgrade(u_long cmd, struct bpf_d *d, struct bpf_insn *fcode,
  * Detach a file from its interface.
  */
 static void
-bpf_detachd(struct bpf_d *d)
-{
-	BPF_LOCK();
-	bpf_detachd_locked(d, false);
-	BPF_UNLOCK();
-}
-
-static void
-bpf_detachd_locked(struct bpf_d *d, bool detached_ifp)
+bpf_detachd(struct bpf_d *d, bool detached_ifp)
 {
 	struct bpf_if *bp;
 	struct ifnet *ifp;
@@ -877,7 +862,6 @@ bpf_detachd_locked(struct bpf_d *d, bool detached_ifp)
 		bpf_wakeup(d);
 	}
 	BPFD_UNLOCK(d);
-	bpf_bpfd_cnt--;
 
 	/* Call event handler iff d is attached */
 	if (error == 0)
@@ -921,7 +905,9 @@ bpf_dtor(void *data)
 	d->bd_state = BPF_IDLE;
 	BPFD_UNLOCK(d);
 	funsetown(&d->bd_sigio);
-	bpf_detachd(d);
+	BPF_LOCK();
+	bpf_detachd(d, false);
+	BPF_UNLOCK();
 #ifdef MAC
 	mac_bpfdesc_destroy(d);
 #endif /* MAC */
@@ -1607,33 +1593,28 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Set interface.
 	 */
 	case BIOCSETIF:
-		{
-			int alloc_buf, size;
+		/*
+		 * Behavior here depends on the buffering model.  If we're
+		 * using kernel memory buffers, then we can allocate them here.
+		 * If we're using zero-copy, then the user process must have
+		 * registered buffers by the time we get here.
+		 */
+		BPFD_LOCK(d);
+		if (d->bd_bufmode == BPF_BUFMODE_BUFFER &&
+		    d->bd_sbuf == NULL) {
+			u_int size;
 
-			/*
-			 * Behavior here depends on the buffering model.  If
-			 * we're using kernel memory buffers, then we can
-			 * allocate them here.  If we're using zero-copy,
-			 * then the user process must have registered buffers
-			 * by the time we get here.
-			 */
-			alloc_buf = 0;
-			BPFD_LOCK(d);
-			if (d->bd_bufmode == BPF_BUFMODE_BUFFER &&
-			    d->bd_sbuf == NULL)
-				alloc_buf = 1;
+			size = d->bd_bufsize;
 			BPFD_UNLOCK(d);
-			if (alloc_buf) {
-				size = d->bd_bufsize;
-				error = bpf_buffer_ioctl_sblen(d, &size);
-				if (error != 0)
-					break;
-			}
-			BPF_LOCK();
-			error = bpf_setif(d, (struct ifreq *)addr);
-			BPF_UNLOCK();
-			break;
-		}
+			error = bpf_buffer_ioctl_sblen(d, &size);
+			if (error != 0)
+				break;
+		} else
+			BPFD_UNLOCK(d);
+		BPF_LOCK();
+		error = bpf_setif(d, (struct ifreq *)addr);
+		BPF_UNLOCK();
+		break;
 
 	/*
 	 * Set read timeout.
@@ -2097,7 +2078,7 @@ bpf_setif(struct bpf_d *d, struct ifreq *ifr)
 	/*
 	 * Look through attached interfaces for the named one.
 	 */
-	CK_LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		if (bp->bif_ifp == theywant &&
 		    bp->bif_bpf == &theywant->if_bpf)
 			break;
@@ -2818,7 +2799,7 @@ bpfattach2(struct ifnet *ifp, u_int dlt, u_int hdrlen,
 	 */
 	if_ref(ifp);
 	BPF_LOCK();
-	CK_LIST_INSERT_HEAD(&bpf_iflist, bp, bif_next);
+	LIST_INSERT_HEAD(&bpf_iflist, bp, bif_next);
 	BPF_UNLOCK();
 
 	if (bootverbose && IS_DEFAULT_VNET(curvnet))
@@ -2826,30 +2807,6 @@ bpfattach2(struct ifnet *ifp, u_int dlt, u_int hdrlen,
 }
 
 #ifdef VIMAGE
-/*
- * When moving interfaces between vnet instances we need a way to
- * query the dlt and hdrlen before detach so we can re-attch the if_bpf
- * after the vmove.  We unfortunately have no device driver infrastructure
- * to query the interface for these values after creation/attach, thus
- * add this as a workaround.
- */
-int
-bpf_get_bp_params(struct bpf_if *bp, u_int *bif_dlt, u_int *bif_hdrlen)
-{
-
-	if (bp == NULL)
-		return (ENXIO);
-	if (bif_dlt == NULL && bif_hdrlen == NULL)
-		return (0);
-
-	if (bif_dlt != NULL)
-		*bif_dlt = bp->bif_dlt;
-	if (bif_hdrlen != NULL)
-		*bif_hdrlen = bp->bif_hdrlen;
-
-	return (0);
-}
-
 /*
  * Detach descriptors on interface's vmove event.
  */
@@ -2860,18 +2817,18 @@ bpf_ifdetach(struct ifnet *ifp)
 	struct bpf_d *d;
 
 	BPF_LOCK();
-	CK_LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		if (bp->bif_ifp != ifp)
 			continue;
 
 		/* Detach common descriptors */
 		while ((d = CK_LIST_FIRST(&bp->bif_dlist)) != NULL) {
-			bpf_detachd_locked(d, true);
+			bpf_detachd(d, true);
 		}
 
 		/* Detach writer-only descriptors */
 		while ((d = CK_LIST_FIRST(&bp->bif_wlist)) != NULL) {
-			bpf_detachd_locked(d, true);
+			bpf_detachd(d, true);
 		}
 	}
 	BPF_UNLOCK();
@@ -2891,11 +2848,11 @@ bpfdetach(struct ifnet *ifp)
 
 	BPF_LOCK();
 	/* Find all bpf_if struct's which reference ifp and detach them. */
-	CK_LIST_FOREACH_SAFE(bp, &bpf_iflist, bif_next, bp_temp) {
+	LIST_FOREACH_SAFE(bp, &bpf_iflist, bif_next, bp_temp) {
 		if (ifp != bp->bif_ifp)
 			continue;
 
-		CK_LIST_REMOVE(bp, bif_next);
+		LIST_REMOVE(bp, bif_next);
 		*bp->bif_bpf = __DECONST(struct bpf_if *, &dead_bpf_if);
 
 		CTR4(KTR_NET,
@@ -2904,12 +2861,12 @@ bpfdetach(struct ifnet *ifp)
 
 		/* Detach common descriptors */
 		while ((d = CK_LIST_FIRST(&bp->bif_dlist)) != NULL) {
-			bpf_detachd_locked(d, true);
+			bpf_detachd(d, true);
 		}
 
 		/* Detach writer-only descriptors */
 		while ((d = CK_LIST_FIRST(&bp->bif_wlist)) != NULL) {
-			bpf_detachd_locked(d, true);
+			bpf_detachd(d, true);
 		}
 		bpfif_rele(bp);
 	}
@@ -2937,7 +2894,7 @@ bpf_getdltlist(struct bpf_d *d, struct bpf_dltlist *bfl)
 
 	ifp = d->bd_bif->bif_ifp;
 	n1 = 0;
-	CK_LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		if (bp->bif_ifp == ifp)
 			n1++;
 	}
@@ -2950,7 +2907,7 @@ bpf_getdltlist(struct bpf_d *d, struct bpf_dltlist *bfl)
 
 	lst = malloc(n1 * sizeof(u_int), M_TEMP, M_WAITOK);
 	n = 0;
-	CK_LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		if (bp->bif_ifp != ifp)
 			continue;
 		lst[n++] = bp->bif_dlt;
@@ -2982,7 +2939,7 @@ bpf_setdlt(struct bpf_d *d, u_int dlt)
 		return (0);
 
 	ifp = d->bd_bif->bif_ifp;
-	CK_LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		if (bp->bif_ifp == ifp && bp->bif_dlt == dlt)
 			break;
 	}
@@ -3029,7 +2986,7 @@ bpf_zero_counters(void)
 	 * We are protected by global lock here, interfaces and
 	 * descriptors can not be deleted while we hold it.
 	 */
-	CK_LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		CK_LIST_FOREACH(bd, &bp->bif_dlist, bd_next) {
 			counter_u64_zero(bd->bd_rcount);
 			counter_u64_zero(bd->bd_dcount);
@@ -3084,7 +3041,8 @@ bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	static const struct xbpf_d zerostats;
 	struct xbpf_d *xbdbuf, *xbd, tempstats;
-	int index, error;
+	u_int bpfd_cnt, index;
+	int error;
 	struct bpf_if *bp;
 	struct bpf_d *bd;
 
@@ -3114,25 +3072,33 @@ bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 		bpf_zero_counters();
 		return (0);
 	}
-	if (req->oldptr == NULL)
-		return (SYSCTL_OUT(req, 0, bpf_bpfd_cnt * sizeof(*xbd)));
-	if (bpf_bpfd_cnt == 0)
-		return (SYSCTL_OUT(req, 0, 0));
-	xbdbuf = malloc(req->oldlen, M_BPF, M_WAITOK);
+	bpfd_cnt = 0;
 	BPF_LOCK();
-	if (req->oldlen < (bpf_bpfd_cnt * sizeof(*xbd))) {
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+		CK_LIST_FOREACH(bd, &bp->bif_wlist, bd_next)
+			bpfd_cnt++;
+		CK_LIST_FOREACH(bd, &bp->bif_dlist, bd_next)
+			bpfd_cnt++;
+	}
+	if (bpfd_cnt == 0 || req->oldptr == NULL) {
 		BPF_UNLOCK();
-		free(xbdbuf, M_BPF);
+		return (SYSCTL_OUT(req, 0, bpfd_cnt * sizeof(*xbd)));
+	}
+	if (req->oldlen < bpfd_cnt * sizeof(*xbd)) {
+		BPF_UNLOCK();
 		return (ENOMEM);
 	}
+	xbdbuf = malloc(bpfd_cnt * sizeof(*xbd), M_BPF, M_WAITOK);
 	index = 0;
-	CK_LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		/* Send writers-only first */
 		CK_LIST_FOREACH(bd, &bp->bif_wlist, bd_next) {
+			MPASS(index <= bpfd_cnt);
 			xbd = &xbdbuf[index++];
 			bpfstats_fill_xbpf(xbd, bd);
 		}
 		CK_LIST_FOREACH(bd, &bp->bif_dlist, bd_next) {
+			MPASS(index <= bpfd_cnt);
 			xbd = &xbdbuf[index++];
 			bpfstats_fill_xbpf(xbd, bd);
 		}
@@ -3222,35 +3188,3 @@ bpf_validate(const struct bpf_insn *f, int len)
 }
 
 #endif /* !DEV_BPF && !NETGRAPH_BPF */
-
-#ifdef DDB
-static void
-bpf_show_bpf_if(struct bpf_if *bpf_if)
-{
-
-	if (bpf_if == NULL)
-		return;
-	db_printf("%p:\n", bpf_if);
-#define	BPF_DB_PRINTF(f, e)	db_printf("   %s = " f "\n", #e, bpf_if->e);
-#define	BPF_DB_PRINTF_RAW(f, e)	db_printf("   %s = " f "\n", #e, e);
-	/* bif_ext.bif_next */
-	/* bif_ext.bif_dlist */
-	BPF_DB_PRINTF("%#x", bif_dlt);
-	BPF_DB_PRINTF("%u", bif_hdrlen);
-	/* bif_wlist */
-	BPF_DB_PRINTF("%p", bif_ifp);
-	BPF_DB_PRINTF("%p", bif_bpf);
-	BPF_DB_PRINTF_RAW("%u", refcount_load(&bpf_if->bif_refcnt));
-}
-
-DB_SHOW_COMMAND(bpf_if, db_show_bpf_if)
-{
-
-	if (!have_addr) {
-		db_printf("usage: show bpf_if <struct bpf_if *>\n");
-		return;
-	}
-
-	bpf_show_bpf_if((struct bpf_if *)addr);
-}
-#endif

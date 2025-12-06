@@ -80,23 +80,39 @@ static const char *mlx5e_tls_stats_desc[] = {
 };
 
 static void mlx5e_tls_work(struct work_struct *);
+static void mlx5e_tls_prealloc_work(struct work_struct *);
 
 /*
- * Expand the tls tag UMA zone in a sleepable context
+ * Expand the tls tag UMA zone in an async context
  */
 
 static void
-mlx5e_prealloc_tags(struct mlx5e_priv *priv, int nitems)
+mlx5e_tls_prealloc_work(struct work_struct *work)
 {
+	struct mlx5e_priv *priv;
+	struct mlx5e_tls *ptls;
 	struct mlx5e_tls_tag **tags;
-	int i;
+	int i, nitems;
+
+	ptls = container_of(work, struct mlx5e_tls, prealloc_work);
+	priv = container_of(ptls, struct mlx5e_priv, tls);
+	nitems = ptls->zone_max;
 
 	tags = malloc(sizeof(tags[0]) * nitems,
-	    M_MLX5E_TLS, M_WAITOK);
-	for (i = 0; i < nitems; i++)
-		tags[i] = uma_zalloc(priv->tls.zone, M_WAITOK);
+	    M_MLX5E_TLS, M_WAITOK | M_ZERO);
+	for (i = 0; i < nitems; i++) {
+		tags[i] = uma_zalloc(priv->tls.zone, M_NOWAIT);
+		/*
+		 * If the allocation fails, its likely we are competing
+		 * with real consumers of tags and the zone is full,
+		 * so exit the loop, and release the tags like we would
+		 * if we allocated all "nitems"
+		 */
+		if (tags[i] == NULL)
+			break;
+	}
 	__compiler_membar();
-	for (i = 0; i < nitems; i++)
+	for (i = 0; i < nitems && tags[i] != NULL; i++)
 		uma_zfree(priv->tls.zone, tags[i]);
 	free(tags, M_MLX5E_TLS);
 }
@@ -244,8 +260,6 @@ mlx5e_tls_init(struct mlx5e_priv *priv)
 	}
 
 	uma_zone_set_max(ptls->zone, ptls->zone_max);
-	if (prealloc_tags != 0)
-		mlx5e_prealloc_tags(priv, ptls->zone_max);
 
 	for (x = 0; x != MLX5E_TLS_STATS_NUM; x++)
 		ptls->stats.arg[x] = counter_u64_alloc(M_WAITOK);
@@ -271,6 +285,23 @@ mlx5e_tls_init(struct mlx5e_priv *priv)
 }
 
 void
+mlx5e_tls_prealloc_tags(struct mlx5e_priv *priv)
+{
+	struct mlx5e_tls *ptls = &priv->tls;
+	int prealloc_tags = 0;
+
+	if (ptls->prealloc_wq != NULL)
+		return;
+
+	TUNABLE_INT_FETCH("hw.mlx5.tls_prealloc_tags", &prealloc_tags);
+	if (prealloc_tags == 0)
+		return;
+	ptls->prealloc_wq = create_singlethread_workqueue("mlx5-tls-prealloc_wq");
+	INIT_WORK(&ptls->prealloc_work, mlx5e_tls_prealloc_work);
+	queue_work(ptls->prealloc_wq, &ptls->prealloc_work);
+}
+
+void
 mlx5e_tls_cleanup(struct mlx5e_priv *priv)
 {
 	struct mlx5e_tls *ptls = &priv->tls;
@@ -280,6 +311,10 @@ mlx5e_tls_cleanup(struct mlx5e_priv *priv)
 		return;
 
 	ptls->init = 0;
+	if (ptls->prealloc_wq != NULL) {
+		flush_workqueue(ptls->prealloc_wq);
+		destroy_workqueue(ptls->prealloc_wq);
+	}
 	flush_workqueue(ptls->wq);
 	sysctl_ctx_free(&ptls->ctx);
 	uma_zdestroy(ptls->zone);

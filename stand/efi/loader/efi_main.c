@@ -43,13 +43,15 @@ efi_exit(EFI_STATUS exit_code)
 	} else {
 		RS->ResetSystem(EfiResetCold, EFI_SUCCESS, 0, NULL);
 	}
+	__unreachable();
 }
 
 void
 exit(int status)
 {
 
-	efi_exit(EFI_LOAD_ERROR);
+	efi_exit(errno_to_efi_status(status));
+	__unreachable();
 }
 
 static CHAR16 *

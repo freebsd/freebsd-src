@@ -811,7 +811,7 @@ unsetbridge_private(if_ctx *ctx, const char *val, int dummy __unused)
 static int
 parse_vlans(ifbvlan_set_t *set, const char *str)
 {
-	char *s, *token;
+	char *s, *free_s, *token;
 
 	/* "none" means the empty vlan set */
 	if (strcmp(str, "none") == 0) {
@@ -829,6 +829,8 @@ parse_vlans(ifbvlan_set_t *set, const char *str)
 
 	if ((s = strdup(str)) == NULL)
 		return (-1);
+	/* Keep the original value of s, since strsep() will modify it */
+	free_s = s;
 
 	while ((token = strsep(&s, ",")) != NULL) {
 		unsigned long first, last;
@@ -856,11 +858,11 @@ parse_vlans(ifbvlan_set_t *set, const char *str)
 			BRVLAN_SET(set, vlan);
 	}
 
-	free(s);
+	free(free_s);
 	return (0);
 
 err:
-	free(s);
+	free(free_s);
 	return (-1);
 }
 

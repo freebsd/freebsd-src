@@ -39,17 +39,12 @@ extern bool snd_vchans_enable;
 int vchan_create(struct pcm_channel *, struct pcm_channel **);
 int vchan_destroy(struct pcm_channel *);
 
-#ifdef SND_DEBUG
-int vchan_passthrough(struct pcm_channel *, const char *);
-#define vchan_sync(c)		vchan_passthrough(c, __func__)
-#else
 int vchan_sync(struct pcm_channel *);
-#endif
 
 #define VCHAN_SYNC_REQUIRED(c)						\
 	(((c)->flags & CHN_F_VIRTUAL) && (((c)->flags & CHN_F_DIRTY) ||	\
-	sndbuf_getfmt((c)->bufhard) != (c)->parentchannel->format ||	\
-	sndbuf_getspd((c)->bufhard) != (c)->parentchannel->speed))
+	(c)->bufhard->fmt != (c)->parentchannel->format ||		\
+	(c)->bufhard->spd != (c)->parentchannel->speed))
 
 void vchan_initsys(device_t);
 

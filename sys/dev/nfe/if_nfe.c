@@ -2078,7 +2078,7 @@ nfe_rxeof(struct nfe_softc *sc, int count, int *rx_npktsp)
 	bus_dmamap_sync(sc->rxq.rx_desc_tag, sc->rxq.rx_desc_map,
 	    BUS_DMASYNC_POSTREAD);
 
-	for (prog = 0;;NFE_INC(sc->rxq.cur, NFE_RX_RING_COUNT), vtag = 0) {
+	for (prog = 0; ; NFE_INC(sc->rxq.cur, NFE_RX_RING_COUNT), vtag = 0) {
 		if (count <= 0)
 			break;
 		count--;
@@ -2192,7 +2192,7 @@ nfe_jrxeof(struct nfe_softc *sc, int count, int *rx_npktsp)
 	bus_dmamap_sync(sc->jrxq.jrx_desc_tag, sc->jrxq.jrx_desc_map,
 	    BUS_DMASYNC_POSTREAD);
 
-	for (prog = 0;;NFE_INC(sc->jrxq.jcur, NFE_JUMBO_RX_RING_COUNT),
+	for (prog = 0; ; NFE_INC(sc->jrxq.jcur, NFE_JUMBO_RX_RING_COUNT),
 	    vtag = 0) {
 		if (count <= 0)
 			break;

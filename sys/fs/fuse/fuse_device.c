@@ -126,11 +126,13 @@ static const struct filterops fuse_device_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = fuse_device_filt_detach,
 	.f_event = fuse_device_filt_read,
+	.f_copy = knote_triv_copy,
 };
 
 static const struct filterops fuse_device_wfiltops = {
 	.f_isfd = 1,
 	.f_event = fuse_device_filt_write,
+	.f_copy = knote_triv_copy,
 };
 
 /****************************
@@ -548,6 +550,13 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 	} else if (ohead.unique == 0){
 		/* unique == 0 means asynchronous notification */
 		SDT_PROBE1(fusefs, , device, fuse_device_write_notify, &ohead);
+		if (data->mp == NULL) {
+			SDT_PROBE2(fusefs, , device, trace, 1,
+				"asynchronous notification before mount"
+				" or after unmount");
+			return (EXTERROR(ENODEV,
+				"This FUSE session is not mounted"));
+		}
 		mp = data->mp;
 		vfs_ref(mp);
 		err = vfs_busy(mp, 0);

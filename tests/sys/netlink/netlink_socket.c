@@ -116,7 +116,11 @@ fullsocket(void)
 	return (fd);
 }
 
-ATF_TC_WITHOUT_HEAD(overflow);
+ATF_TC(overflow);
+ATF_TC_HEAD(overflow, tc)
+{
+	atf_tc_set_md_var(tc, "require.kmods", "netlink");
+}
 ATF_TC_BODY(overflow, tc)
 {
 	char buf[BUFLEN];
@@ -143,7 +147,11 @@ ATF_TC_BODY(overflow, tc)
 	ATF_REQUIRE(timer_done == 0);
 }
 
-ATF_TC_WITHOUT_HEAD(peek);
+ATF_TC(peek);
+ATF_TC_HEAD(peek, tc)
+{
+	atf_tc_set_md_var(tc, "require.kmods", "netlink");
+}
 ATF_TC_BODY(peek, tc)
 {
 	char *buf;
@@ -185,7 +193,11 @@ cmsg_check(struct msghdr *msg)
 	ATF_REQUIRE((msg->msg_flags & MSG_CTRUNC) == 0);
 }
 
-ATF_TC_WITHOUT_HEAD(sizes);
+ATF_TC(sizes);
+ATF_TC_HEAD(sizes, tc)
+{
+	atf_tc_set_md_var(tc, "require.kmods", "netlink");
+}
 ATF_TC_BODY(sizes, tc)
 {
 #define	NLMSG_LARGE 2048		/* XXX: match kernel nl_buf */
@@ -199,9 +211,22 @@ ATF_TC_BODY(sizes, tc)
 		.msg_controllen = sizeof(cbuf),
 	};
 	ssize_t ss;
-	int fd, size, rsize;
+	int fd, size, msize, rsize;
 
-	fd = fullsocket();
+	/*
+	 * Create a socket with NMSGS messages in the receive buffer.
+	 */
+#define	NMSGS 5
+	ATF_REQUIRE((fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_ROUTE)) != -1);
+	ATF_REQUIRE(send(fd, &hdr, sizeof(hdr), 0) == sizeof(hdr));
+	ATF_REQUIRE(recv(fd, buf, sizeof(hdr), MSG_WAITALL | MSG_PEEK) ==
+	    sizeof(hdr));
+	ATF_REQUIRE(ioctl(fd, FIONREAD, &msize) != -1);
+	for (u_int i = 0; i < NMSGS; i++)
+		ATF_REQUIRE(send(fd, &hdr, sizeof(hdr), 0) == sizeof(hdr));
+	do {
+		ATF_REQUIRE(ioctl(fd, FIONREAD, &rsize) != -1);
+	} while (rsize < msize * (NMSGS + 1));
 
 	/*
 	 * Set NETLINK_MSG_INFO, so that later cmsg_check will check that any
@@ -252,6 +277,7 @@ ATF_TC_BODY(sizes, tc)
 		.iov_len = sizeof(buf) < rsize ? sizeof(buf) : rsize,
 	};
 	ss = recvmsg(fd, &msg, 0);
+	ATF_REQUIRE(ss > hdr.nlmsg_len);
 	ATF_REQUIRE(ss > NLMSG_LARGE * 9 || ss == rsize);
 	cmsg_check(&msg);
 }
@@ -273,7 +299,11 @@ nla_RTA_DST(struct nlattr *start, ssize_t len)
  * Check that NETLINK_ADD_MEMBERSHIP subscribes us.  Add & delete a temporary
  * route and check if announcements came in.
  */
-ATF_TC_WITHOUT_HEAD(membership);
+ATF_TC(membership);
+ATF_TC_HEAD(membership, tc)
+{
+	atf_tc_set_md_var(tc, "require.kmods", "netlink");
+}
 ATF_TC_BODY(membership, tc)
 {
 	struct {
@@ -329,9 +359,6 @@ ATF_TC_BODY(membership, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
-	if (modfind("netlink") == -1)
-		atf_tc_skip("netlink module not loaded");
-
 	ATF_TP_ADD_TC(tp, overflow);
 	ATF_TP_ADD_TC(tp, peek);
 	ATF_TP_ADD_TC(tp, sizes);

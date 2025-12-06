@@ -100,8 +100,7 @@ static char	*filename = NULL;
 int
 main(int argc, char *argv[])
 {
-	int ngroups; 
-	gid_t mygid, gidset[NGROUPS];
+	int ngroups;
 	int i, ch, gflag = 0, uflag = 0, errflag = 0;
 
 	while ((ch = getopt(argc, argv, "f:ghlrquv")) != -1) {
@@ -142,11 +141,15 @@ main(int argc, char *argv[])
 		if (uflag)
 			errflag += showuid(getuid());
 		if (gflag) {
+			gid_t mygid, myegid, gidset[NGROUPS_MAX];
+
 			mygid = getgid();
-			ngroups = getgroups(NGROUPS, gidset);
+			errflag += showgid(mygid);
+			myegid = getegid();
+			errflag += showgid(myegid);
+			ngroups = getgroups(NGROUPS_MAX, gidset);
 			if (ngroups < 0)
 				err(1, "getgroups");
-			errflag += showgid(mygid);
 			for (i = 0; i < ngroups; i++)
 				if (gidset[i] != mygid)
 					errflag += showgid(gidset[i]);

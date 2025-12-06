@@ -55,7 +55,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_ENCRYPTINIT 3ossl"
-.TH EVP_ENCRYPTINIT 3ossl 2025-07-01 3.5.1 OpenSSL
+.TH EVP_ENCRYPTINIT 3ossl 2025-09-30 3.5.4 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -831,7 +831,7 @@ See also \fBEVP_CIPHER_CTX_get_key_length()\fR and \fBEVP_CIPHER_CTX_set_key_len
 .IP """tag"" (\fBOSSL_CIPHER_PARAM_AEAD_TAG\fR) <octet string>" 4
 .IX Item """tag"" (OSSL_CIPHER_PARAM_AEAD_TAG) <octet string>"
 Gets or sets the AEAD tag for the associated cipher context \fIctx\fR.
-See "AEAD Interface" in \fBEVP_EncryptInit\fR\|(3).
+See "AEAD INTERFACE" in \fBEVP_EncryptInit\fR\|(3).
 .IP """pipeline-tag"" (\fBOSSL_CIPHER_PARAM_PIPELINE_AEAD_TAG\fR) <octet ptr>" 4
 .IX Item """pipeline-tag"" (OSSL_CIPHER_PARAM_PIPELINE_AEAD_TAG) <octet ptr>"
 Gets or sets the AEAD tag when using cipher pipelining. The pointer must 

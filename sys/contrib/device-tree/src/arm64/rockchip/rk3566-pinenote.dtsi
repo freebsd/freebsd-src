@@ -9,6 +9,8 @@
 #include "rk3566.dtsi"
 
 / {
+	chassis-type = "tablet";
+
 	aliases {
 		mmc0 = &sdhci;
 	};
@@ -53,7 +55,7 @@
 			label = "cover";
 			gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
-			linux,code = <SW_MACHINE_COVER>;
+			linux,code = <SW_LID>;
 			linux,can-disable;
 			wakeup-event-action = <EV_ACT_DEASSERTED>;
 			wakeup-source;
@@ -129,7 +131,7 @@
 		};
 	};
 
-	vbat_4g: vbat-4g {
+	vbat_4g: regulator-vbat-4g {
 		compatible = "regulator-fixed";
 		regulator-name = "vbat_4g";
 		regulator-min-microvolt = <3800000>;
@@ -138,7 +140,7 @@
 		vin-supply = <&vbat_4g_en>;
 	};
 
-	vcc_1v8: vcc-1v8 {
+	vcc_1v8: regulator-vcc-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v8";
 		regulator-always-on;
@@ -148,7 +150,7 @@
 		vin-supply = <&vcc_1v8_en>;
 	};
 
-	vcc_bat: vcc-bat {
+	vcc_bat: regulator-vcc-bat {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_bat";
 		regulator-always-on;
@@ -156,7 +158,7 @@
 		regulator-max-microvolt = <3800000>;
 	};
 
-	vcc_hall_3v3: vcc-hall-3v3 {
+	vcc_hall_3v3: regulator-vcc-hall-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_hall_3v3";
 		regulator-always-on;
@@ -165,7 +167,7 @@
 		vin-supply = <&vcc_sys>;
 	};
 
-	vcc_sys: vcc-sys {
+	vcc_sys: regulator-vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
 		regulator-always-on;
@@ -174,7 +176,7 @@
 		vin-supply = <&vcc_bat>;
 	};
 
-	vcc_wl: vcc-wl {
+	vcc_wl: regulator-vcc-wl {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
@@ -186,7 +188,7 @@
 		vin-supply = <&vcc_bat>;
 	};
 
-	vdda_0v9: vdda-0v9 {
+	vdda_0v9: regulator-vdda-0v9 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdda_0v9";
 		regulator-always-on;
@@ -244,7 +246,7 @@
 		#clock-cells = <1>;
 		pinctrl-0 = <&i2s1m0_mclk>, <&pmic_int_l>, <&pmic_sleep>;
 		pinctrl-names = "default";
-		rockchip,system-power-controller;
+		system-power-controller;
 		#sound-dai-cells = <0>;
 		wakeup-source;
 

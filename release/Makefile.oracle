@@ -24,21 +24,28 @@
 # Syncing to all sites should take 2-3 hours after this final step.
 
 ORACLE_BASENAME=	${OSRELEASE}-${BUILDDATE}${GITREV:C/^(.+)/-\1/}
-ORACLE_PORTS_LIST=	ftp/curl emulators/qemu@tools
 CLEANFILES+=	cw-oracle-portinstall
 
 cw-oracle-portinstall: .PHONY
-.if !exists(/usr/local/bin/curl) || !exists(/usr/local/bin/qemu-img)
-. if !exists(${PORTSDIR}/Makefile)
-.  if !exists(/usr/local/sbin/pkg-static)
+.if (!exists(/usr/local/bin/curl) || !exists(/usr/local/bin/qemu-img)) && !exists(${PORTSDIR}/Makefile)
+. if !exists(/usr/local/sbin/pkg-static)
 	env ASSUME_ALWAYS_YES=yes pkg bootstrap -yf
-.  endif
-	env ASSUME_ALWAYS_YES=yes pkg install -y ${ORACLE_PORTS_LIST}
+. endif
+.endif
+.if !exists(/usr/local/bin/curl)
+. if !exists(${PORTSDIR}/Makefile)
+	env ASSUME_ALWAYS_YES=yes pkg install -y ftp/curl
 . else
 	env UNAME_r=${UNAME_r} make -C \
 		${PORTSDIR}/ftp/curl \
 		BATCH=1 WRKDIRPREFIX=/tmp/ports DISTDIR=/tmp/distfiles \
 		all install clean
+. endif
+.endif
+.if !exists(/usr/local/bin/qemu-img)
+. if !exists(${PORTSDIR}/Makefile)
+	env ASSUME_ALWAYS_YES=yes pkg install -y emulators/qemu@tools
+. else
 	env UNAME_r=${UNAME_r} FLAVOR=tools make -C \
 		${PORTSDIR}/emulators/qemu \
 		BATCH=1 WRKDIRPREFIX=/tmp/ports DISTDIR=/tmp/distfiles \

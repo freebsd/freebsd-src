@@ -13,11 +13,13 @@ description: |
   Qualcomm global clock control module provides the clocks, resets and power
   domains on SM8450
 
-  See also:: include/dt-bindings/clock/qcom,gcc-sm8450.h
+  See also: include/dt-bindings/clock/qcom,gcc-sm8450.h
 
 properties:
   compatible:
-    const: qcom,gcc-sm8450
+    enum:
+      - qcom,gcc-sm8450
+      - qcom,sm8475-gcc
 
   clocks:
     items:

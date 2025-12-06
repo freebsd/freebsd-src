@@ -246,4 +246,5 @@ pkill -9 syzkaller13
 wait
 
 rm -f /tmp/syzkaller13 /tmp/syzkaller13.* /tmp/file0
+rm -rf /tmp/syzkaller.*
 exit 0

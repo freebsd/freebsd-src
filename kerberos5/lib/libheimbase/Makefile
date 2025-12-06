@@ -1,5 +1,3 @@
-PACKAGE=	kerberos-lib
-
 LIB=	heimbase
 LDFLAGS+=	-Wl,--no-undefined
 LIBADD=	pthread

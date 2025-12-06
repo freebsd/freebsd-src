@@ -143,6 +143,7 @@ ${PACKAGE}FILES+=		read8.0
 ${PACKAGE}FILES+=		read9.0
 ${PACKAGE}FILES+=		read10.0
 ${PACKAGE}FILES+=		read11.0
+${PACKAGE}FILES+=		read12.0
 ${PACKAGE}FILES+=		return1.0
 ${PACKAGE}FILES+=		return2.1
 ${PACKAGE}FILES+=		return3.1
@@ -188,5 +189,6 @@ ${PACKAGE}FILES+=		wait7.0
 ${PACKAGE}FILES+=		wait8.0
 ${PACKAGE}FILES+=		wait9.127
 ${PACKAGE}FILES+=		wait10.0
+${PACKAGE}FILES+=		wait11.0
 
 .include <bsd.test.mk>

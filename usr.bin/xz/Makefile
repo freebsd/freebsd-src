@@ -1,5 +1,7 @@
 .include <src.opts.mk>
 
+PACKAGE=xz
+
 PROG=	xz
 
 LINKS=	${BINDIR}/xz ${BINDIR}/unxz

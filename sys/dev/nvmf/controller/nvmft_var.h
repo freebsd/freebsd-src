@@ -145,6 +145,7 @@ struct nvmft_controller *nvmft_qpair_ctrlr(struct nvmft_qpair *qp);
 void	nvmft_qpair_datamove(struct nvmft_qpair *qp, union ctl_io *io);
 uint16_t nvmft_qpair_id(struct nvmft_qpair *qp);
 const char *nvmft_qpair_name(struct nvmft_qpair *qp);
+uint32_t nvmft_max_ioccsz(struct nvmft_qpair *qp);
 void	nvmft_command_completed(struct nvmft_qpair *qp,
     struct nvmf_capsule *nc);
 int	nvmft_send_response(struct nvmft_qpair *qp, const void *cqe);

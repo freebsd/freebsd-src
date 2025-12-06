@@ -58,7 +58,6 @@ char *copybuf;			       /* buffer to copy snapshot blocks */
 static int sbhashfailed;
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
 
-static int calcsb(char *dev, int devfd, struct fs *fs);
 static void saverecovery(int readfd, int writefd);
 static int chkrecovery(int devfd);
 static int getlbnblkno(struct inodesc *);
@@ -498,52 +497,6 @@ sblock_init(void)
 	if (sblk.b_un.b_buf == NULL)
 		errx(EEXIT, "cannot allocate space for superblock");
 	dev_bsize = secsize = DEV_BSIZE;
-}
-
-/*
- * Calculate a prototype superblock based on information in the boot area.
- * When done the cgsblock macro can be calculated and the fs_ncg field
- * can be used. Do NOT attempt to use other macros without verifying that
- * their needed information is available!
- */
-static int
-calcsb(char *dev, int devfd, struct fs *fs)
-{
-	struct fsrecovery *fsr;
-	char *fsrbuf;
-	u_int secsize;
-
-	/*
-	 * We need fragments-per-group and the partition-size.
-	 *
-	 * Newfs stores these details at the end of the boot block area
-	 * at the start of the filesystem partition. If they have been
-	 * overwritten by a boot block, we fail. But usually they are
-	 * there and we can use them.
-	 */
-	if (ioctl(devfd, DIOCGSECTORSIZE, &secsize) == -1)
-		return (0);
-	fsrbuf = Balloc(secsize);
-	if (fsrbuf == NULL)
-		errx(EEXIT, "calcsb: cannot allocate recovery buffer");
-	if (blread(devfd, fsrbuf,
-	    (SBLOCK_UFS2 - secsize) / dev_bsize, secsize) != 0) {
-		free(fsrbuf);
-		return (0);
-	}
-	fsr = (struct fsrecovery *)&fsrbuf[secsize - sizeof *fsr];
-	if (fsr->fsr_magic != FS_UFS2_MAGIC) {
-		free(fsrbuf);
-		return (0);
-	}
-	memset(fs, 0, sizeof(struct fs));
-	fs->fs_fpg = fsr->fsr_fpg;
-	fs->fs_fsbtodb = fsr->fsr_fsbtodb;
-	fs->fs_sblkno = fsr->fsr_sblkno;
-	fs->fs_magic = fsr->fsr_magic;
-	fs->fs_ncg = fsr->fsr_ncg;
-	free(fsrbuf);
-	return (1);
 }
 
 /*

@@ -4,6 +4,7 @@
  * Copyright (c) 2020, AngeloGioacchino Del Regno <kholk11@gmail.com>
  */
 
+#include <dt-bindings/clock/qcom,dsi-phy-28nm.h>
 #include <dt-bindings/clock/qcom,gcc-sdm660.h>
 #include <dt-bindings/clock/qcom,gpucc-sdm660.h>
 #include <dt-bindings/clock/qcom,mmcc-sdm660.h>
@@ -49,170 +50,170 @@
 		#address-cells = <2>;
 		#size-cells = <0>;
 
-		CPU0: cpu@100 {
+		cpu0: cpu@100 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0 0x100>;
 			enable-method = "psci";
-			cpu-idle-states = <&PERF_CPU_SLEEP_0
-						&PERF_CPU_SLEEP_1
-						&PERF_CLUSTER_SLEEP_0
-						&PERF_CLUSTER_SLEEP_1
-						&PERF_CLUSTER_SLEEP_2>;
+			cpu-idle-states = <&perf_cpu_sleep_0
+						&perf_cpu_sleep_1
+						&perf_cluster_sleep_0
+						&perf_cluster_sleep_1
+						&perf_cluster_sleep_2>;
 			capacity-dmips-mhz = <1126>;
 			#cooling-cells = <2>;
-			next-level-cache = <&L2_1>;
-			L2_1: l2-cache {
+			next-level-cache = <&l2_1>;
+			l2_1: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
 				cache-unified;
 			};
 		};
 
-		CPU1: cpu@101 {
+		cpu1: cpu@101 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0 0x101>;
 			enable-method = "psci";
-			cpu-idle-states = <&PERF_CPU_SLEEP_0
-						&PERF_CPU_SLEEP_1
-						&PERF_CLUSTER_SLEEP_0
-						&PERF_CLUSTER_SLEEP_1
-						&PERF_CLUSTER_SLEEP_2>;
+			cpu-idle-states = <&perf_cpu_sleep_0
+						&perf_cpu_sleep_1
+						&perf_cluster_sleep_0
+						&perf_cluster_sleep_1
+						&perf_cluster_sleep_2>;
 			capacity-dmips-mhz = <1126>;
 			#cooling-cells = <2>;
-			next-level-cache = <&L2_1>;
+			next-level-cache = <&l2_1>;
 		};
 
-		CPU2: cpu@102 {
+		cpu2: cpu@102 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0 0x102>;
 			enable-method = "psci";
-			cpu-idle-states = <&PERF_CPU_SLEEP_0
-						&PERF_CPU_SLEEP_1
-						&PERF_CLUSTER_SLEEP_0
-						&PERF_CLUSTER_SLEEP_1
-						&PERF_CLUSTER_SLEEP_2>;
+			cpu-idle-states = <&perf_cpu_sleep_0
+						&perf_cpu_sleep_1
+						&perf_cluster_sleep_0
+						&perf_cluster_sleep_1
+						&perf_cluster_sleep_2>;
 			capacity-dmips-mhz = <1126>;
 			#cooling-cells = <2>;
-			next-level-cache = <&L2_1>;
+			next-level-cache = <&l2_1>;
 		};
 
-		CPU3: cpu@103 {
+		cpu3: cpu@103 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0 0x103>;
 			enable-method = "psci";
-			cpu-idle-states = <&PERF_CPU_SLEEP_0
-						&PERF_CPU_SLEEP_1
-						&PERF_CLUSTER_SLEEP_0
-						&PERF_CLUSTER_SLEEP_1
-						&PERF_CLUSTER_SLEEP_2>;
+			cpu-idle-states = <&perf_cpu_sleep_0
+						&perf_cpu_sleep_1
+						&perf_cluster_sleep_0
+						&perf_cluster_sleep_1
+						&perf_cluster_sleep_2>;
 			capacity-dmips-mhz = <1126>;
 			#cooling-cells = <2>;
-			next-level-cache = <&L2_1>;
+			next-level-cache = <&l2_1>;
 		};
 
-		CPU4: cpu@0 {
+		cpu4: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
-			cpu-idle-states = <&PWR_CPU_SLEEP_0
-						&PWR_CPU_SLEEP_1
-						&PWR_CLUSTER_SLEEP_0
-						&PWR_CLUSTER_SLEEP_1
-						&PWR_CLUSTER_SLEEP_2>;
+			cpu-idle-states = <&pwr_cpu_sleep_0
+						&pwr_cpu_sleep_1
+						&pwr_cluster_sleep_0
+						&pwr_cluster_sleep_1
+						&pwr_cluster_sleep_2>;
 			capacity-dmips-mhz = <1024>;
 			#cooling-cells = <2>;
-			next-level-cache = <&L2_0>;
-			L2_0: l2-cache {
+			next-level-cache = <&l2_0>;
+			l2_0: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
 				cache-unified;
 			};
 		};
 
-		CPU5: cpu@1 {
+		cpu5: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
-			cpu-idle-states = <&PWR_CPU_SLEEP_0
-						&PWR_CPU_SLEEP_1
-						&PWR_CLUSTER_SLEEP_0
-						&PWR_CLUSTER_SLEEP_1
-						&PWR_CLUSTER_SLEEP_2>;
+			cpu-idle-states = <&pwr_cpu_sleep_0
+						&pwr_cpu_sleep_1
+						&pwr_cluster_sleep_0
+						&pwr_cluster_sleep_1
+						&pwr_cluster_sleep_2>;
 			capacity-dmips-mhz = <1024>;
 			#cooling-cells = <2>;
-			next-level-cache = <&L2_0>;
+			next-level-cache = <&l2_0>;
 		};
 
-		CPU6: cpu@2 {
+		cpu6: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
-			cpu-idle-states = <&PWR_CPU_SLEEP_0
-						&PWR_CPU_SLEEP_1
-						&PWR_CLUSTER_SLEEP_0
-						&PWR_CLUSTER_SLEEP_1
-						&PWR_CLUSTER_SLEEP_2>;
+			cpu-idle-states = <&pwr_cpu_sleep_0
+						&pwr_cpu_sleep_1
+						&pwr_cluster_sleep_0
+						&pwr_cluster_sleep_1
+						&pwr_cluster_sleep_2>;
 			capacity-dmips-mhz = <1024>;
 			#cooling-cells = <2>;
-			next-level-cache = <&L2_0>;
+			next-level-cache = <&l2_0>;
 		};
 
-		CPU7: cpu@3 {
+		cpu7: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
-			cpu-idle-states = <&PWR_CPU_SLEEP_0
-						&PWR_CPU_SLEEP_1
-						&PWR_CLUSTER_SLEEP_0
-						&PWR_CLUSTER_SLEEP_1
-						&PWR_CLUSTER_SLEEP_2>;
+			cpu-idle-states = <&pwr_cpu_sleep_0
+						&pwr_cpu_sleep_1
+						&pwr_cluster_sleep_0
+						&pwr_cluster_sleep_1
+						&pwr_cluster_sleep_2>;
 			capacity-dmips-mhz = <1024>;
 			#cooling-cells = <2>;
-			next-level-cache = <&L2_0>;
+			next-level-cache = <&l2_0>;
 		};
 
 		cpu-map {
 			cluster0 {
 				core0 {
-					cpu = <&CPU4>;
+					cpu = <&cpu4>;
 				};
 
 				core1 {
-					cpu = <&CPU5>;
+					cpu = <&cpu5>;
 				};
 
 				core2 {
-					cpu = <&CPU6>;
+					cpu = <&cpu6>;
 				};
 
 				core3 {
-					cpu = <&CPU7>;
+					cpu = <&cpu7>;
 				};
 			};
 
 			cluster1 {
 				core0 {
-					cpu = <&CPU0>;
+					cpu = <&cpu0>;
 				};
 
 				core1 {
-					cpu = <&CPU1>;
+					cpu = <&cpu1>;
 				};
 
 				core2 {
-					cpu = <&CPU2>;
+					cpu = <&cpu2>;
 				};
 
 				core3 {
-					cpu = <&CPU3>;
+					cpu = <&cpu3>;
 				};
 			};
 		};
@@ -220,7 +221,7 @@
 		idle-states {
 			entry-method = "psci";
 
-			PWR_CPU_SLEEP_0: cpu-sleep-0-0 {
+			pwr_cpu_sleep_0: cpu-sleep-0-0 {
 				compatible = "arm,idle-state";
 				idle-state-name = "pwr-retention";
 				arm,psci-suspend-param = <0x40000002>;
@@ -229,7 +230,7 @@
 				min-residency-us = <200>;
 			};
 
-			PWR_CPU_SLEEP_1: cpu-sleep-0-1 {
+			pwr_cpu_sleep_1: cpu-sleep-0-1 {
 				compatible = "arm,idle-state";
 				idle-state-name = "pwr-power-collapse";
 				arm,psci-suspend-param = <0x40000003>;
@@ -239,7 +240,7 @@
 				local-timer-stop;
 			};
 
-			PERF_CPU_SLEEP_0: cpu-sleep-1-0 {
+			perf_cpu_sleep_0: cpu-sleep-1-0 {
 				compatible = "arm,idle-state";
 				idle-state-name = "perf-retention";
 				arm,psci-suspend-param = <0x40000002>;
@@ -248,7 +249,7 @@
 				min-residency-us = <200>;
 			};
 
-			PERF_CPU_SLEEP_1: cpu-sleep-1-1 {
+			perf_cpu_sleep_1: cpu-sleep-1-1 {
 				compatible = "arm,idle-state";
 				idle-state-name = "perf-power-collapse";
 				arm,psci-suspend-param = <0x40000003>;
@@ -258,7 +259,7 @@
 				local-timer-stop;
 			};
 
-			PWR_CLUSTER_SLEEP_0: cluster-sleep-0-0 {
+			pwr_cluster_sleep_0: cluster-sleep-0-0 {
 				compatible = "arm,idle-state";
 				idle-state-name = "pwr-cluster-dynamic-retention";
 				arm,psci-suspend-param = <0x400000F2>;
@@ -268,7 +269,7 @@
 				local-timer-stop;
 			};
 
-			PWR_CLUSTER_SLEEP_1: cluster-sleep-0-1 {
+			pwr_cluster_sleep_1: cluster-sleep-0-1 {
 				compatible = "arm,idle-state";
 				idle-state-name = "pwr-cluster-retention";
 				arm,psci-suspend-param = <0x400000F3>;
@@ -278,7 +279,7 @@
 				local-timer-stop;
 			};
 
-			PWR_CLUSTER_SLEEP_2: cluster-sleep-0-2 {
+			pwr_cluster_sleep_2: cluster-sleep-0-2 {
 				compatible = "arm,idle-state";
 				idle-state-name = "pwr-cluster-retention";
 				arm,psci-suspend-param = <0x400000F4>;
@@ -288,7 +289,7 @@
 				local-timer-stop;
 			};
 
-			PERF_CLUSTER_SLEEP_0: cluster-sleep-1-0 {
+			perf_cluster_sleep_0: cluster-sleep-1-0 {
 				compatible = "arm,idle-state";
 				idle-state-name = "perf-cluster-dynamic-retention";
 				arm,psci-suspend-param = <0x400000F2>;
@@ -298,7 +299,7 @@
 				local-timer-stop;
 			};
 
-			PERF_CLUSTER_SLEEP_1: cluster-sleep-1-1 {
+			perf_cluster_sleep_1: cluster-sleep-1-1 {
 				compatible = "arm,idle-state";
 				idle-state-name = "perf-cluster-retention";
 				arm,psci-suspend-param = <0x400000F3>;
@@ -308,7 +309,7 @@
 				local-timer-stop;
 			};
 
-			PERF_CLUSTER_SLEEP_2: cluster-sleep-1-2 {
+			perf_cluster_sleep_2: cluster-sleep-1-2 {
 				compatible = "arm,idle-state";
 				idle-state-name = "perf-cluster-retention";
 				arm,psci-suspend-param = <0x400000F4>;
@@ -508,6 +509,12 @@
 			reg = <0x0 0xfed00000 0x0 0xa00000>;
 			no-map;
 		};
+
+		mdata_mem: mpss-metadata {
+			alloc-ranges = <0x0 0xa0000000 0x0 0x20000000>;
+			size = <0x0 0x4000>;
+			no-map;
+		};
 	};
 
 	smem: smem {
@@ -665,8 +672,6 @@
 				<GIC_SPI 472 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 473 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 474 IRQ_TYPE_LEVEL_HIGH>;
-
-			status = "disabled";
 		};
 
 		a2noc: interconnect@1704000 {
@@ -1057,7 +1062,7 @@
 					<&rpmpd SDM660_VDDMX>;
 			power-domain-names = "cx", "mx";
 
-			memory-region = <&mba_region>, <&mpss_region>;
+			memory-region = <&mba_region>, <&mpss_region>, <&mdata_mem>;
 
 			status = "disabled";
 
@@ -1150,6 +1155,10 @@
 					opp-supported-hw = <0xff>;
 				};
 			};
+
+			adreno_gpu_zap: zap-shader {
+				memory-region = <&zap_shader_region>;
+			};
 		};
 
 		kgsl_smmu: iommu@5040000 {
@@ -1186,8 +1195,6 @@
 				<GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 349 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 350 IRQ_TYPE_LEVEL_HIGH>;
-
-			status = "disabled";
 		};
 
 		gpucc: clock-controller@5065000 {
@@ -1203,7 +1210,6 @@
 			clock-names = "xo",
 				      "gcc_gpu_gpll0_clk",
 				      "gcc_gpu_gpll0_div_clk";
-			status = "disabled";
 		};
 
 		lpass_smmu: iommu@5100000 {
@@ -1233,8 +1239,6 @@
 				<GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 310 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 404 IRQ_TYPE_LEVEL_HIGH>;
-
-			status = "disabled";
 		};
 
 		sram@290000 {
@@ -1303,6 +1307,8 @@
 				snps,dis_u2_susphy_quirk;
 				snps,dis_enblslpm_quirk;
 				snps,parkmode-disable-ss-quirk;
+				snps,dis-u1-entry-quirk;
+				snps,dis-u2-entry-quirk;
 
 				phys = <&qusb2phy0>, <&usb3_qmpphy>;
 				phy-names = "usb2-phy", "usb3-phy";
@@ -1380,6 +1386,7 @@
 					<&xo_board>;
 			clock-names = "iface", "core", "xo";
 
+			resets = <&gcc GCC_SDCC2_BCR>;
 
 			interconnects = <&a2noc 3 &a2noc 10>,
 					<&gnoc 0 &cnoc 28>;
@@ -1433,6 +1440,8 @@
 				 <&xo_board>,
 				 <&gcc GCC_SDCC1_ICE_CORE_CLK>;
 			clock-names = "iface", "core", "xo", "ice";
+
+			resets = <&gcc GCC_SDCC1_BCR>;
 
 			interconnects = <&a2noc 2 &a2noc 10>,
 					<&gnoc 0 &cnoc 27>;
@@ -1508,6 +1517,8 @@
 				interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
 				snps,dis_u2_susphy_quirk;
 				snps,dis_enblslpm_quirk;
+				snps,dis-u1-entry-quirk;
+				snps,dis-u2-entry-quirk;
 
 				/* This is the HS-only host */
 				maximum-speed = "high-speed";
@@ -1537,8 +1548,8 @@
 					<&sleep_clk>,
 					<&gcc GCC_MMSS_GPLL0_CLK>,
 					<&gcc GCC_MMSS_GPLL0_DIV_CLK>,
-					<&mdss_dsi0_phy 1>,
-					<&mdss_dsi0_phy 0>,
+					<&mdss_dsi0_phy DSI_PIXEL_PLL_CLK>,
+					<&mdss_dsi0_phy DSI_BYTE_PLL_CLK>,
 					<0>,
 					<0>,
 					<0>,
@@ -1660,8 +1671,8 @@
 
 				assigned-clocks = <&mmcc BYTE0_CLK_SRC>,
 						  <&mmcc PCLK0_CLK_SRC>;
-				assigned-clock-parents = <&mdss_dsi0_phy 0>,
-							 <&mdss_dsi0_phy 1>;
+				assigned-clock-parents = <&mdss_dsi0_phy DSI_BYTE_PLL_CLK>,
+							 <&mdss_dsi0_phy DSI_PIXEL_PLL_CLK>;
 
 				clocks = <&mmcc MDSS_MDP_CLK>,
 					 <&mmcc MDSS_BYTE0_CLK>,
@@ -2414,6 +2425,33 @@
 			#redistributor-regions = <1>;
 			redistributor-stride = <0x0 0x20000>;
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		wifi: wifi@18800000 {
+			compatible = "qcom,wcn3990-wifi";
+			reg = <0x18800000 0x800000>;
+			reg-names = "membase";
+			memory-region = <&wlan_msa_mem>;
+			clocks = <&rpmcc RPM_SMD_RF_CLK1_PIN>;
+			clock-names = "cxo_ref_clk_pin";
+			interrupts =
+				<GIC_SPI 413 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 414 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 415 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 416 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 417 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 418 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 420 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 422 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 423 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 424 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 425 IRQ_TYPE_LEVEL_HIGH>;
+			iommus = <&anoc2_smmu 0x1a00>,
+				 <&anoc2_smmu 0x1a01>;
+			qcom,snoc-host-cap-8bit-quirk;
+			qcom,no-msa-ready-indicator;
+			status = "disabled";
 		};
 	};
 

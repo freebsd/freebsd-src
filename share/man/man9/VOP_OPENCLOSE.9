@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd December 2, 2009
+.Dd October 17, 2025
 .Dt VOP_OPEN 9
 .Os
 .Sh NAME
@@ -78,6 +78,17 @@ The access mode is a set of flags, including
 .Dv FWRITE ,
 .Dv O_NONBLOCK ,
 .Dv O_APPEND .
+.Pp
+The thread
+.Fa td
+passed to
+.Fn VOP_CLOSE
+may be
+.Ql NULL
+if the last reference to the open file is released from a kernel context, e.g.,
+the destruction of a socket buffer containing the file reference in a
+.Dv SCM_RIGHTS
+message.
 .Sh LOCKS
 .Fn VOP_OPEN
 expects

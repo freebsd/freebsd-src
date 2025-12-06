@@ -147,6 +147,7 @@ void	kmod_udpstat_inc(int statnum);
 	} while (0)
 
 SYSCTL_DECL(_net_inet_udp);
+SYSCTL_DECL(_net_inet_udplite);
 
 VNET_DECLARE(struct inpcbinfo, udbinfo);
 VNET_DECLARE(struct inpcbinfo, ulitecbinfo);

@@ -1,3 +1,3 @@
-BINDIR?=	/usr/sbin
-
 WARNS?=		3
+
+.include "../Makefile.inc"

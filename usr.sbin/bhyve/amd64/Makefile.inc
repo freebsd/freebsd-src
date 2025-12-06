@@ -13,6 +13,7 @@ SRCS+=	\
 	pci_gvt-d.c	\
 	pci_lpc.c	\
 	pci_passthru.c	\
+	pci_passthru_quirks.c	\
 	pctestdev.c	\
 	pm.c		\
 	post.c		\

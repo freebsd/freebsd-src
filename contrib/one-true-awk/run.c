@@ -1567,6 +1567,8 @@ Cell *assign(Node **a, int n)	/* a[0] = a[1], a[0] += a[1], etc. */
 		xf *= yf;
 		break;
 	case DIVEQ:
+		if ((x->tval & CON) != 0)
+			FATAL("non-constant required for left side of /=");
 		if (yf == 0)
 			FATAL("division by zero in /=");
 		xf /= yf;
@@ -2188,7 +2190,7 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 		/* random() returns numbers in [0..2^31-1]
 		 * in order to get a number in [0, 1), divide it by 2^31
 		 */
-		u = (Awkfloat) random() / (0x7fffffffL + 0x1UL);
+		u = (Awkfloat) random() / RAND_MAX;
 		break;
 	case FSRAND:
 		if (isrec(x))	/* no argument provided */

@@ -31,7 +31,7 @@
 .\" If you integrate this manpage in another OS, I'd appreciate a note
 .\"	- eivind@FreeBSD.org
 .\"
-.Dd May 16, 2025
+.Dd September 30, 2025
 .Dt NAMEI 9
 .Os
 .Sh NAME
@@ -199,12 +199,6 @@ If a lock is enforced, it should be released using
 or
 .Xr VOP_UNLOCK 9
 and
-.Xr vrele 9 .
-.It Dv WANTPARENT
-This flag allows the
-.Fn namei
-function to return the parent (directory) vnode in an unlocked state.
-The parent vnode must be released separately by using
 .Xr vrele 9 .
 .It Dv WANTPARENT
 This flag allows the

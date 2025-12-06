@@ -1,6 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
+ * Copyright (c) 2025 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 2018 Alan Somers
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +31,7 @@
 #include <sys/event.h>
 #include <sys/select.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
 #include <sys/un.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -467,6 +469,53 @@ ATF_TC_BODY(peershutdown_wakeup_kevent, tc)
 	});
 }
 
+ATF_TC_WITHOUT_HEAD(ourshutdown_kevent);
+ATF_TC_BODY(ourshutdown_kevent, tc)
+{
+	struct kevent kev;
+	int sv[2], kq;
+
+	do_socketpair(sv);
+	ATF_REQUIRE(kq = kqueue());
+
+	EV_SET(&kev, sv[1], EVFILT_WRITE, EV_ADD, 0, 0, NULL);
+	ATF_REQUIRE(kevent(kq, &kev, 1, NULL, 0, NULL) == 0);
+
+	ATF_REQUIRE(shutdown(sv[1], SHUT_WR) == 0);
+
+	ATF_REQUIRE(kevent(kq, NULL, 0, &kev, 1, NULL) == 1);
+	ATF_REQUIRE(kev.ident == (uintptr_t)sv[1] &&
+	    kev.filter == EVFILT_WRITE &&
+	    kev.flags == EV_EOF);
+
+	close(sv[0]);
+	close(sv[1]);
+}
+
+ATF_TC_WITHOUT_HEAD(SO_SNDTIMEO);
+ATF_TC_BODY(SO_SNDTIMEO, tc)
+{
+	struct timespec tp1, tp2, rtp, sleep = { .tv_nsec = 100000000 };
+	int sv[2];
+	char buf[10];
+
+	full_socketpair(sv);
+	ATF_REQUIRE_EQ(0, setsockopt(sv[0], SOL_SOCKET, SO_SNDTIMEO,
+	  &(struct timeval){ .tv_usec = sleep.tv_nsec / 1000 },
+	  sizeof(struct timeval)));
+	ATF_REQUIRE_EQ(0, clock_gettime(CLOCK_MONOTONIC_PRECISE, &tp1));
+	ATF_REQUIRE_EQ(-1, send(sv[0], buf, sizeof(buf), 0));
+	ATF_REQUIRE(errno == EAGAIN);
+	ATF_REQUIRE_EQ(0, clock_gettime(CLOCK_MONOTONIC_PRECISE, &tp2));
+	timespecsub(&tp2, &tp1, &rtp);
+	ATF_REQUIRE(timespeccmp(&rtp, &sleep, >=));
+	ATF_REQUIRE_EQ(sizeof(buf), recv(sv[1], buf, sizeof(buf), 0));
+	ATF_REQUIRE_EQ(sizeof(buf), send(sv[0], buf, sizeof(buf), 0));
+
+	close(sv[0]);
+	close(sv[1]);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, getpeereid);
@@ -482,6 +531,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, peershutdown_wakeup_select);
 	ATF_TP_ADD_TC(tp, peershutdown_wakeup_poll);
 	ATF_TP_ADD_TC(tp, peershutdown_wakeup_kevent);
+	ATF_TP_ADD_TC(tp, ourshutdown_kevent);
+	ATF_TP_ADD_TC(tp, SO_SNDTIMEO);
 
 	return atf_no_error();
 }

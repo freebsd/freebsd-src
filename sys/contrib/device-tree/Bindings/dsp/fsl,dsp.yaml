@@ -82,6 +82,18 @@ properties:
     description:
       Phandle to syscon block which provide access for processor enablement
 
+  resets:
+    minItems: 1
+
+  reset-names:
+    minItems: 1
+    items:
+      - const: runstall
+      - const: softreset
+
+  access-controllers:
+    maxItems: 1
+
 required:
   - compatible
   - reg
@@ -99,14 +111,35 @@ allOf:
           contains:
             enum:
               - fsl,imx8qxp-dsp
-              - fsl,imx8qm-dsp
               - fsl,imx8qxp-hifi4
+    then:
+      properties:
+        power-domains:
+          minItems: 2
+          maxItems: 2
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx8qm-dsp
               - fsl,imx8qm-hifi4
     then:
       properties:
         power-domains:
           minItems: 4
-    else:
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx8mp-dsp
+              - fsl,imx8mp-hifi4
+              - fsl,imx8ulp-dsp
+              - fsl,imx8ulp-hifi4
+    then:
       properties:
         power-domains:
           maxItems: 1
@@ -143,6 +176,17 @@ allOf:
             - const: txdb1
             - const: rxdb0
             - const: rxdb1
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx8mp-dsp
+              - fsl,imx8mp-hifi4
+    then:
+      required:
+        - resets
+        - reset-names
 
 additionalProperties: false
 
@@ -157,16 +201,15 @@ examples:
                  <&adma_lpcg IMX_ADMA_LPCG_OCRAM_IPG_CLK>,
                  <&adma_lpcg IMX_ADMA_LPCG_DSP_CORE_CLK>;
         clock-names = "ipg", "ocram", "core";
-        power-domains = <&pd IMX_SC_R_MU_13A>,
-                        <&pd IMX_SC_R_MU_13B>,
-                        <&pd IMX_SC_R_DSP>,
-                        <&pd IMX_SC_R_DSP_RAM>;
+        power-domains = <&pd IMX_SC_R_MU_13B>,
+                        <&pd IMX_SC_R_MU_2A>;
         mbox-names = "txdb0", "txdb1", "rxdb0", "rxdb1";
         mboxes = <&lsio_mu13 2 0>, <&lsio_mu13 2 1>, <&lsio_mu13 3 0>, <&lsio_mu13 3 1>;
         memory-region = <&dsp_reserved>;
     };
   - |
     #include <dt-bindings/clock/imx8mp-clock.h>
+    #include <dt-bindings/reset/imx8mp-reset-audiomix.h>
     dsp_reserved: dsp@92400000 {
       reg = <0x92400000 0x1000000>;
       no-map;
@@ -201,5 +244,6 @@ examples:
                <&mu2 3 0>;
       memory-region = <&dsp_vdev0buffer>, <&dsp_vdev0vring0>,
                       <&dsp_vdev0vring1>, <&dsp_reserved>;
-      fsl,dsp-ctrl = <&audio_blk_ctrl>;
+      resets = <&audio_blk_ctrl IMX8MP_AUDIOMIX_DSP_RUNSTALL>;
+      reset-names = "runstall";
     };

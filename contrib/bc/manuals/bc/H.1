@@ -1,7 +1,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.\" Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+.\" Copyright (c) 2018-2025 Gavin D. Howard and contributors.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions are met:
@@ -2109,17 +2109,6 @@ If you want to a use signed two\[cq]s complement argument, use
 \f[B]s2u(x)\f[R] to convert.
 .RE
 .TP
-\f[B]bunrev(t)\f[R]
-Assumes \f[B]t\f[R] is a bitwise\-reversed number with an extra set bit
-one place more significant than the real most significant bit (which was
-the least significant bit in the original number).
-This number is reversed and returned without the extra set bit.
-.RS
-.PP
-This function is used to implement other bitwise functions; it is not
-meant to be used by users, but it can be.
-.RE
-.TP
 \f[B]plz(x)\f[R]
 If \f[B]x\f[R] is not equal to \f[B]0\f[R] and greater that
 \f[B]\-1\f[R] and less than \f[B]1\f[R], it is printed with a leading
@@ -2916,7 +2905,7 @@ Before version \f[B]6.1.0\f[R], this bc(1) had incorrect behavior for
 the \f[B]quit\f[R] statement.
 .PP
 No other bugs are known.
-Report bugs at https://git.gavinhoward.com/gavin/bc .
+Report bugs at https://github.com/gavinhoward/bc .
 .SH AUTHORS
 Gavin D. Howard \c
 .MT gavin@gavinhoward.com

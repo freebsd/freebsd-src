@@ -2003,7 +2003,7 @@ t6_ktls_write_wr(struct sge_txq *txq, void *dst, struct mbuf *m,
 		if (tlsp->l2te)
 			t4_l2t_release(tlsp->l2te);
 		tlsp->l2te = t4_l2t_alloc_tls(tlsp->sc, txq, dst, &ndesc,
-		    vlan_tag, tlsp->vi->pi->lport, eh->ether_dhost);
+		    vlan_tag, tlsp->vi->pi->hw_port, eh->ether_dhost);
 		if (tlsp->l2te == NULL)
 			CXGBE_UNIMPLEMENTED("failed to allocate TLS L2TE");
 		if (ndesc != 0) {

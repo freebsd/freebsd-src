@@ -146,6 +146,7 @@ dev/hyperv/vmbus/vmbus_et.c				optional	hyperv
 dev/hyperv/vmbus/vmbus_if.m				optional	hyperv
 dev/hyperv/vmbus/vmbus_res.c				optional	hyperv
 dev/hyperv/vmbus/vmbus_xact.c				optional	hyperv
+dev/ichwd/i6300esbwd.c		optional	ichwd
 dev/ichwd/ichwd.c		optional	ichwd
 dev/imcsmb/imcsmb.c		optional	imcsmb
 dev/imcsmb/imcsmb_pci.c		optional	imcsmb pci
@@ -309,7 +310,7 @@ dev/ntb/ntb_hw/ntb_hw_plx.c	optional	ntb_hw_plx | ntb_hw
 dev/ntb/test/ntb_tool.c		optional	ntb_tool
 dev/nvram/nvram.c		optional	nvram isa
 dev/random/ivy.c		optional	rdrand_rng !random_loadable
-dev/random/nehemiah.c		optional	padlock_rng !random_loadable
+dev/random/rdseed.c		optional	rdrand_rng !random_loadable
 dev/qat_c2xxx/qat.c		optional	qat_c2xxx
 dev/qat_c2xxx/qat_ae.c		optional	qat_c2xxx
 dev/qat_c2xxx/qat_c2xxx.c	optional	qat_c2xxx

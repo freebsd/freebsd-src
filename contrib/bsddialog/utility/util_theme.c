@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2022-2024 Alfonso Sabato Siciliano
+ * Copyright (c) 2022-2025 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -279,7 +279,7 @@ void loadtheme(const char *file, bool compatibility)
 			break;
 		case BOOL:
 			boolvalue = (strstr(value, "true") != NULL) ?
-			    true :false;
+			    true : false;
 			*((bool*)p[i].value) = boolvalue;
 			break;
 		case COLOR:

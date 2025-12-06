@@ -144,7 +144,7 @@ else
 		# 
 		# Work around this in an extremely lame way for the specific
 		# case of EFI system partitions only. This *ONLY WORKS* if
-		# /boot/efi is empty and does not handle analagous problems on
+		# /boot/efi is empty and does not handle analogous problems on
 		# other systems (ARM, PPC64).
 		tar -xf "$BSDINSTALL_DISTDIR/$set" -C $BSDINSTALL_CHROOT --exclude boot/efi
 		mkdir -p $BSDINSTALL_CHROOT/boot/efi

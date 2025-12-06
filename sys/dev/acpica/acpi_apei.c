@@ -754,7 +754,7 @@ apei_detach(device_t dev)
 	apei_nmi = NULL;
 	apei_nmi_nges = NULL;
 	if (sc->nges.swi_ih != NULL) {
-		swi_remove(&sc->nges.swi_ih);
+		swi_remove(sc->nges.swi_ih);
 		sc->nges.swi_ih = NULL;
 	}
 	if (acpi_get_handle(dev) != NULL) {

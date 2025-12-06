@@ -84,7 +84,7 @@ in_cksum_skip(struct mbuf *m, int len, int skip)
 		}
 	}
 
-	for (;m && len; m = m->m_next) {
+	for (; m && len; m = m->m_next) {
 		if (m->m_len == 0)
 			continue;
 		w = mtod(m, u_short *);

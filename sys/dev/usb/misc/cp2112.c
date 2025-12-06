@@ -708,11 +708,12 @@ cp2112gpio_attach(device_t dev)
 		}
 	}
 
-	sc->busdev = gpiobus_attach_bus(dev);
+	sc->busdev = gpiobus_add_bus(dev);
 	if (sc->busdev == NULL) {
-		device_printf(dev, "gpiobus_attach_bus failed\n");
+		device_printf(dev, "gpiobus_add_bus failed\n");
 		goto detach;
 	}
+	bus_attach_children(dev);
 	return (0);
 
 detach:

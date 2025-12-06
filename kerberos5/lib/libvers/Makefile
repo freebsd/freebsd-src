@@ -1,5 +1,3 @@
-PACKAGE=	kerberos-lib
-
 LIB=	vers
 INTERNALLIB=
 SRCS=	print_version.c roken.h

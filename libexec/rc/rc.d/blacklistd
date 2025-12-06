@@ -29,18 +29,26 @@
 #
 
 # PROVIDE: blacklistd
-# REQUIRE: netif pf
+# REQUIRE: netif ipfilter ipfw pf
 
 . /etc/rc.subr
 
 name="blacklistd"
-desc="System blacklist daemon"
+desc="The blacklist daemon has been renamed to blocklist"
 rcvar="blacklistd_enable"
 command="/usr/sbin/${name}"
 required_files="/etc/blacklistd.conf"
+start_precmd="blacklistd_prestart"
 
 # no svcj options needed
 : ${blacklistd_svcj_options:=""}
+
+blacklistd_prestart()
+{
+	echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+	echo "@  WARNING: blacklistd has been renamed to blocklistd      @"
+	echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+}
 
 load_rc_config $name
 run_rc_command "$1"

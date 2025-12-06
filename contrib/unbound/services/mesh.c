@@ -2265,6 +2265,7 @@ mesh_stats_clear(struct mesh_area* mesh)
 	timehist_clear(mesh->histogram);
 	mesh->ans_secure = 0;
 	mesh->ans_bogus = 0;
+	mesh->val_ops = 0;
 	mesh->ans_expired = 0;
 	mesh->ans_cachedb = 0;
 	memset(&mesh->ans_rcode[0], 0, sizeof(size_t)*UB_STATS_RCODE_NUM);

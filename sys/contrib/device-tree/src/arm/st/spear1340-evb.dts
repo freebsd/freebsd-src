@@ -157,7 +157,7 @@
 			};
 		};
 
-		gmac0: eth@e2000000 {
+		gmac0: ethernet@e2000000 {
 			phy-mode = "rgmii";
 			status = "okay";
 		};
@@ -203,7 +203,7 @@
 			};
 		};
 
-		ehci@e4800000 {
+		usb@e4800000 {
 			status = "okay";
 		};
 
@@ -221,7 +221,7 @@
 			};
 		};
 
-		ehci@e5800000 {
+		usb@e5800000 {
 			status = "okay";
 		};
 
@@ -238,11 +238,11 @@
 			status = "okay";
 		};
 
-		ohci@e4000000 {
+		usb@e4000000 {
 			status = "okay";
 		};
 
-		ohci@e5000000 {
+		usb@e5000000 {
 			status = "okay";
 		};
 
@@ -446,7 +446,6 @@
 					spi-cpol;
 					spi-cpha;
 					pl022,interface = <0>;
-					pl022,slave-tx-disable;
 					pl022,com-mode = <0x2>;
 					pl022,rx-level-trig = <0>;
 					pl022,tx-level-trig = <0>;
@@ -461,7 +460,6 @@
 					spi-cpha;
 					reg = <1>;
 					pl022,interface = <0>;
-					pl022,slave-tx-disable;
 					pl022,com-mode = <0>;
 					pl022,rx-level-trig = <0>;
 					pl022,tx-level-trig = <0>;

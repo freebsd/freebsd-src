@@ -1,0 +1,8 @@
+# Test positional parameter $0 in PS1
+output=$(PS1='shell:$0:' ENV=/dev/null ${SH} +m -i </dev/null 2>&1)
+# $0 should contain the shell name/path
+case $output in
+*shell:\$0:*) echo "Positional parameter not expanded, got literal \$0"; exit 1 ;;
+*shell:*sh*:*) exit 0 ;;
+*) echo "Expected shell name after 'shell:' in output"; exit 1 ;;
+esac

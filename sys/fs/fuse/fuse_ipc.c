@@ -193,7 +193,6 @@ fuse_interrupt_send(struct fuse_ticket *otick, int err)
 	struct fuse_data *data = otick->tk_data;
 	struct fuse_ticket *tick, *xtick;
 	struct ucred reused_creds;
-	gid_t reused_groups[1];
 
 	if (otick->irq_unique == 0) {
 		/* 
@@ -237,8 +236,7 @@ fuse_interrupt_send(struct fuse_ticket *otick, int err)
 		 */
 		ftick_hdr = fticket_in_header(otick);
 		reused_creds.cr_uid = ftick_hdr->uid;
-		reused_groups[0] = ftick_hdr->gid;
-		reused_creds.cr_groups = reused_groups;
+		reused_creds.cr_gid = ftick_hdr->gid;
 		fdisp_init(&fdi, sizeof(*fii));
 		fdisp_make_pid(&fdi, FUSE_INTERRUPT, data, ftick_hdr->nodeid,
 			ftick_hdr->pid, &reused_creds);
@@ -696,7 +694,7 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 		break;
 
 	case FUSE_FORGET:
-		panic("FUSE: a handler has been intalled for FUSE_FORGET");
+		panic("FUSE: a handler has been installed for FUSE_FORGET");
 		break;
 
 	case FUSE_GETATTR:

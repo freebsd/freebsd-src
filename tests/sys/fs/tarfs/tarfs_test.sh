@@ -67,9 +67,9 @@ tarfs_basic_body() {
 	mktar "${tarball}"
 	atf_check mount -rt tarfs "${tarball}" "${mnt}"
 	atf_check -o match:"^${tarball} on ${mnt} \(tarfs," mount
-	atf_check_equal "$(stat -f%d,%i "${mnt}"/sparse_file)" "$(stat -f%d,%i "${mnt}"/hard_link)"
-	atf_check_equal "$(stat -f%d,%i "${mnt}"/sparse_file)" "$(stat -L -f%d,%i "${mnt}"/short_link)"
-	atf_check_equal "$(stat -f%d,%i "${mnt}"/sparse_file)" "$(stat -L -f%d,%i "${mnt}"/long_link)"
+	atf_check test "${mnt}"/sparse_file -ef "${mnt}"/hard_link
+	atf_check test "${mnt}"/sparse_file -ef "${mnt}"/short_link
+	atf_check test "${mnt}"/sparse_file -ef "${mnt}"/long_link
 	atf_check -o inline:"${sum}\n" sha256 -q "${mnt}"/sparse_file
 	atf_check -o inline:"2,40755\n" stat -f%l,%p "${mnt}"/directory
 	atf_check -o inline:"1,100644\n" stat -f%l,%p "${mnt}"/file
@@ -396,6 +396,32 @@ tarfs_git_archive_cleanup() {
 	tarfs_cleanup
 }
 
+atf_test_case tarfs_large cleanup
+tarfs_large_head() {
+	atf_set "descr" "Test support for large files"
+	atf_set "require.user" "root"
+	atf_set "require.kmods" "tarfs"
+	atf_set "timeout" "600"
+}
+tarfs_large_body() {
+	tarfs_setup
+	local tarball="${PWD}/tarfs_test.tar.zst"
+	local exp off
+	for exp in 31 32 33 34 35 36 ; do
+		for off in 1 0 ; do
+			local size=$(((1<<exp)-off))
+			atf_check truncate -s ${size} file
+			atf_check bsdtar -cf "${tarball}" --no-read-sparse --zstd file
+			atf_check mount -rt tarfs "${tarball}" "${mnt}"
+			atf_check -o inline:"${size}\n" stat -f%z "${mnt}"/file
+			atf_check umount "${mnt}"
+		done
+	done
+}
+tarfs_large_cleanup() {
+	tarfs_cleanup
+}
+
 atf_init_test_cases() {
 	atf_add_test_case tarfs_basic
 	atf_add_test_case tarfs_basic_gnu
@@ -414,4 +440,5 @@ atf_init_test_cases() {
 	atf_add_test_case tarfs_long_names
 	atf_add_test_case tarfs_long_paths
 	atf_add_test_case tarfs_git_archive
+	atf_add_test_case tarfs_large
 }

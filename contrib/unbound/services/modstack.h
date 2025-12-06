@@ -67,7 +67,7 @@ void modstack_init(struct module_stack* stack);
 void modstack_free(struct module_stack* stack);
 
 /**
- * Initialises modules and assignes ids. Calls module_startup().
+ * Initialises modules and assigns ids. Calls module_startup().
  * @param stack: Expected empty, filled according to module_conf
  * @param module_conf: string what modules to initialize
  * @param env: module environment which is inited by the modules.

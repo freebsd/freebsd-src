@@ -1,0 +1,14 @@
+Global: _ = # (empty)
+Var_Parse: ${THE_ANSWER} (eval-keep-dollar-and-undefined)
+Var_Parse: ${ANSWER:sh1} (eval-keep-dollar-and-undefined)
+Evaluating modifier ${ANSWER:s...} on value "echo 42; (exit 13)" (eval-keep-dollar-and-undefined, regular)
+Capturing the output of command "echo 42; (exit 13)"
+Global: ignoring delete '.SHELL' as it is not found
+Command: .SHELL = /bin/sh
+make: varmod-sun-shell1.mk:17: warning: Command "echo 42; (exit 13)" exited with status 13
+Global: .MAKE.SH1.ANSWER = 42
+Result of ${ANSWER:sh1} is "42" (eval-keep-dollar-and-undefined, regular)
+Global: _ = 42
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
+exit status 0

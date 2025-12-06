@@ -17,7 +17,7 @@
 # Errors that are not related to opening the file are still reported.
 # expect: make: directive-hyphen-include-error.inc:1: Invalid line "syntax error"
 _!=	echo 'syntax error' > directive-hyphen-include-error.inc
-.-include "${.CURDIR}/directive-hyphen-include-error.inc"
+.-include "${.OBJDIR}/directive-hyphen-include-error.inc"
 _!=	rm directive-hyphen-include-error.inc
 
 all: .PHONY

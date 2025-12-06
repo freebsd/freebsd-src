@@ -2689,13 +2689,18 @@ ieee80211_channel_type_char(const struct ieee80211_channel *c)
 	return 'f';
 }
 
-/*
- * Determine whether the given key in the given VAP is a global key.
+/**
+ * @brief Determine whether the given key in the given VAP is a global key.
+ *
  * (key index 0..3, shared between all stations on a VAP.)
  *
  * This is either a WEP key or a GROUP key.
  *
  * Note this will NOT return true if it is a IGTK key.
+ *
+ * @param vap the current VAP
+ * @param key ieee80211_key to use/check
+ * @returns true if it's a global/WEP key, false otherwise
  */
 bool
 ieee80211_is_key_global(const struct ieee80211vap *vap,
@@ -2705,8 +2710,23 @@ ieee80211_is_key_global(const struct ieee80211vap *vap,
 	    key < &vap->iv_nw_keys[IEEE80211_WEP_NKID]);
 }
 
-/*
- * Determine whether the given key in the given VAP is a unicast key.
+/**
+ * @brief Determine whether the given key in the given VAP is a unicast key.
+ *
+ * This only returns true if it's a unicast key.
+ *
+ * Note: For now net80211 only supports a single unicast key, stored in
+ * an ieee80211_node entry.
+ *
+ * Code should use this to know if it's a unicast key and then call
+ * ieee80211_crypto_get_keyid() to get the 802.11 key ID (0..3 for
+ * unicast/global keys, 4..5 for IGTK keys.)  Since the unicast
+ * and global key indexes "overlap", callers will need to check
+ * both the type and id.
+ *
+ * @param vap the current VAP
+ * @param key ieee80211_key to use/check
+ * @returns true if the key is a unicast key, false if it is not
  */
 bool
 ieee80211_is_key_unicast(const struct ieee80211vap *vap,

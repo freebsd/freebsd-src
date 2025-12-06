@@ -9,6 +9,7 @@
 /* Test L arg - make names lowercase */
 DEFINE_TEST(test_L)
 {
+#ifdef HAVE_LIBZ
 	const char *reffile = "test_basic.zip";
 	int r;
 
@@ -22,4 +23,7 @@ DEFINE_TEST(test_L)
 	assertTextFileContents("contents b\n", "test_basic/b");
 	assertTextFileContents("contents c\n", "test_basic/c");
 	assertTextFileContents("contents CAPS\n", "test_basic/caps");
+#else
+	skipping("zlib not available");
+#endif
 }

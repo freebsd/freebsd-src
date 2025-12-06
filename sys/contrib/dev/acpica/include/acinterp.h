@@ -280,6 +280,10 @@ AcpiExTracePoint (
     UINT8                   *Aml,
     char                    *Pathname);
 
+void
+AcpiExTraceArgs(
+    ACPI_OPERAND_OBJECT     **Params,
+    UINT32                  Count);
 
 /*
  * exfield - ACPI AML (p-code) execution - field manipulation

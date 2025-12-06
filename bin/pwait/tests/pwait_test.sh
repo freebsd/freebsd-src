@@ -310,6 +310,43 @@ or_flag_cleanup()
 	wait $p2 $p4 $p6 >/dev/null 2>&1
 }
 
+atf_test_case print
+print_head()
+{
+	atf_set "descr" "Test the -p flag"
+}
+
+print_body()
+{
+	sleep 1 &
+	p1=$!
+
+	sleep 5 &
+	p5=$!
+
+	sleep 10 &
+	p10=$!
+
+	atf_check \
+		-o inline:"$p5\n$p10\n" \
+		-s exit:124 \
+		pwait -t 2 -p $p10 $p5 $p1 $p5 $p10
+
+	atf_check \
+		-e inline:"kill: $p1: No such process\n" \
+		-s exit:1 \
+		kill -0 $p1
+
+	atf_check kill -0 $p5
+	atf_check kill -0 $p10
+}
+
+print_cleanup()
+{
+	kill $p1 $p5 $p10 >/dev/null 2>&1
+	wait $p1 $p5 $p10 >/dev/null 2>&1
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case basic
@@ -318,4 +355,5 @@ atf_init_test_cases()
 	atf_add_test_case timeout_no_timeout
 	atf_add_test_case timeout_many
 	atf_add_test_case or_flag
+	atf_add_test_case print
 }

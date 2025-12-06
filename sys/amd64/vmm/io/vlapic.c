@@ -456,7 +456,7 @@ vlapic_fire_lvt(struct vlapic *vlapic, u_int lvt)
 			return (0);
 		}
 		if (vlapic_set_intr_ready(vlapic, vec, false))
-			vcpu_notify_event(vlapic->vcpu, true);
+			vcpu_notify_lapic(vlapic->vcpu);
 		break;
 	case APIC_LVT_DM_NMI:
 		vm_inject_nmi(vlapic->vcpu);

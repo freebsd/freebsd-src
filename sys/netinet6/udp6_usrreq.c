@@ -67,7 +67,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
@@ -341,7 +340,7 @@ udp6_multi_input(struct mbuf *m, int off, int proto,
 		/*
 		 * No matching pcb found; discard datagram.  (No need
 		 * to send an ICMP Port Unreachable for a broadcast
-		 * or multicast datgram.)
+		 * or multicast datagram.)
 		 */
 		UDPSTAT_INC(udps_noport);
 		UDPSTAT_INC(udps_noportmcast);

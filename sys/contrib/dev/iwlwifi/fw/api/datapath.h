@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024-2025 Intel Corporation
  * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
@@ -92,7 +92,7 @@ enum iwl_data_path_subcmd_ids {
 
 	/**
 	 * @ESR_MODE_NOTIF: notification to recommend/force a wanted esr mode,
-	 *	uses &struct iwl_mvm_esr_mode_notif
+	 *	uses &struct iwl_esr_mode_notif or &struct iwl_esr_mode_notif_v1
 	 */
 	ESR_MODE_NOTIF = 0xF3,
 
@@ -117,6 +117,11 @@ enum iwl_data_path_subcmd_ids {
 	 * @TLC_MNG_UPDATE_NOTIF: &struct iwl_tlc_update_notif
 	 */
 	TLC_MNG_UPDATE_NOTIF = 0xF7,
+
+	/**
+	 * @BEACON_FILTER_IN_NOTIF: &struct iwl_beacon_filter_notif
+	 */
+	BEACON_FILTER_IN_NOTIF = 0xF8,
 
 	/**
 	 * @STA_PM_NOTIF: &struct iwl_mvm_pm_state_notification
@@ -391,7 +396,7 @@ enum iwl_datapath_monitor_notif_type {
 
 struct iwl_datapath_monitor_notif {
 	__le32 type;
-	u8 mac_id;
+	u8 link_id;
 	u8 reserved[3];
 } __packed; /* MONITOR_NTF_API_S_VER_1 */
 

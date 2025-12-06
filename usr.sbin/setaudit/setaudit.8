@@ -1,0 +1,88 @@
+.\" Copyright (c) 2018-2022 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.Dd March 21, 2018
+.Dt SETAUDIT 8
+.Os
+.Sh NAME
+.Nm setaudit
+.Nd "specify audit configurations on a process"
+.Sh SYNOPSIS
+.Nm
+.Op Fl 46U
+.Op Fl a Ar auid
+.Op Fl m Ar mask
+.Op Fl s Ar source
+.Op Fl p Ar port
+.Ar command ...
+.Sh DESCRIPTION
+.Nm
+is a tool to specify audit configurations on a process.
+.Pp
+The following options are available:
+.Bl -tag -width ".Fl d Ar argument"
+.It Fl 4
+Use IPv4.
+.It Fl 6
+Use IPv6.
+.It Fl U
+Update audit session state rather than overwriting it.
+By default,
+.Nm
+will overwrite the entire audit session state using the specified
+parameters.
+If
+.Fl U
+is specified, only the parameters given on the command line will be
+updated, leaving the rest unchanged.
+.It Fl a Ar auid
+Audit user ID or user name.
+.It Fl m Ar mask
+String representation of an audit mask.
+.It Fl s Ar source
+IPv4 or IPv6 address of a Terminal ID.
+.It Fl p Ar port
+Port of a Terminal ID.
+.Xr
+.El
+.Sh EXAMPLES
+Enable all exe related audit events performed by
+.Ar command
+and its child processes:
+.Pp
+.Dl # setaudit -m ex command
+.Sh SEE ALSO
+.Xr getaudit 2 ,
+.Xr setaudit 2 ,
+.Xr au_mask 3 ,
+.Xr libbsm 3 ,
+.Xr audit_user 5 ,
+.Xr audit 8
+.Sh HISTORY
+The
+.Nm
+utility was written by
+.An Christian S.J. Peron Aq Mt csjp@FreeBSD.org .
+.Sh AUTHORS
+This
+manual page was written by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .

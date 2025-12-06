@@ -55,7 +55,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_AES_128_GCM 3ossl"
-.TH EVP_AES_128_GCM 3ossl 2025-07-01 3.5.1 OpenSSL
+.TH EVP_AES_128_GCM 3ossl 2025-09-30 3.5.4 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -145,7 +145,7 @@ interface.
 .IX Item "EVP_aes_128_ccm(), EVP_aes_192_ccm(), EVP_aes_256_ccm(), EVP_aes_128_gcm(), EVP_aes_192_gcm(), EVP_aes_256_gcm(), EVP_aes_128_ocb(), EVP_aes_192_ocb(), EVP_aes_256_ocb()"
 AES for 128, 192 and 256 bit keys in CBC-MAC Mode (CCM), Galois Counter Mode
 (GCM) and OCB Mode respectively. These ciphers require additional control
-operations to function correctly, see the "AEAD Interface" in \fBEVP_EncryptInit\fR\|(3)
+operations to function correctly, see the "AEAD INTERFACE" in \fBEVP_EncryptInit\fR\|(3)
 section for details.
 .IP "\fBEVP_aes_128_wrap()\fR, \fBEVP_aes_192_wrap()\fR, \fBEVP_aes_256_wrap()\fR, \fBEVP_aes_128_wrap_pad()\fR, \fBEVP_aes_192_wrap_pad()\fR, \fBEVP_aes_256_wrap_pad()\fR" 4
 .IX Item "EVP_aes_128_wrap(), EVP_aes_192_wrap(), EVP_aes_256_wrap(), EVP_aes_128_wrap_pad(), EVP_aes_192_wrap_pad(), EVP_aes_256_wrap_pad()"
@@ -188,7 +188,7 @@ details of the \fBEVP_CIPHER\fR structure.
 \&\fBEVP_CIPHER_meth_new\fR\|(3)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2017\-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -49,7 +49,7 @@ do_prep_image=true
 . "${topdir}/legacy.sh"
 
 set +e
-args=`getopt BKXWbc:fhiIknqvw $*`
+args=`getopt BKXWbc:fhiIknpqvw $*`
 if [ $? -ne 0 ] ; then
 	usage
 	exit 2
@@ -64,6 +64,15 @@ do
 	-B)
 		do_installworld=false
 		do_installkernel=false
+		shift
+		;;
+	-I)
+		do_world=false
+		do_kernel=false
+		do_installworld=false
+		do_installkernel=false
+		do_prep_image=false
+		do_image=true
 		shift
 		;;
 	-K)
@@ -112,6 +121,10 @@ do
 		do_clean=false
 		shift
 		;;
+	-p)
+		do_prep_image=false
+		shift
+		;;
 	-q)
 		PPLEVEL=$(($PPLEVEL - 1))
 		shift
@@ -122,15 +135,6 @@ do
 		;;
 	-w)
 		do_world=false
-		shift
-		;;
-	-I)
-		do_world=false
-		do_kernel=false
-		do_installworld=false
-		do_installkernel=false
-		do_prep_image=false
-		do_image=true
 		shift
 		;;
 	--)
@@ -158,7 +162,11 @@ fi
 
 pprint 1 "NanoBSD image ${NANO_NAME} build starting"
 
-run_early_customize
+if $do_prep_image ; then
+	run_early_customize
+else
+	pprint 2 "Skipping early customization for image prep (as instructed)"
+fi
 
 if $do_world ; then
 	if $do_clean ; then

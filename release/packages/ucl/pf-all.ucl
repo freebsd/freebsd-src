@@ -1,4 +1,38 @@
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
 comment = "OpenBSD packet filter"
+
 desc = <<EOD
 pf is an advanced stateful packet filter developed by the OpenBSD project.
+In addition to basic packet filtering, pf supports connection redirection,
+Network Address Translation (NAT), traffic normalisation, synchronisation
+of filter state between hosts (for redundant failover), and queueing via
+altq(9) or dummynet(4).  This version of pf also supports basic layer 2
+Ethernet filtering.
+
+This package provides the pfctl(8) configuration utility used to monitor and
+change the pf configuration, as well as rc(8) scripts to configure pf during
+system startup, and a periodic(8) script to report connections denied by pf.
+
+Several example pf rulesets are also provided in /usr/share/examples/pf.
 EOD
+
+annotations {
+	set = "optional,optional-jail"
+}

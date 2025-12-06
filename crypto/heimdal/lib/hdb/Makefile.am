@@ -29,6 +29,7 @@ gen_files_hdb = \
 	asn1_HDB_Ext_Lan_Manager_OWF.x \
 	asn1_HDB_Ext_Password.x \
 	asn1_HDB_Ext_Aliases.x \
+	asn1_HDB_Ext_KeySet.x \
 	asn1_HDB_extension.x \
 	asn1_HDB_extensions.x \
 	asn1_hdb_entry.x \

@@ -34,7 +34,7 @@
 
 #include <sys/cdefs.h>
 /*
- * driver for RealTek 8139 internal PHYs
+ * driver for Realtek 8139 internal PHYs
  */
 
 #include <sys/param.h>
@@ -82,11 +82,11 @@ static int	rlphy_service(struct mii_softc *, struct mii_data *, int);
 static void	rlphy_status(struct mii_softc *);
 
 /*
- * RealTek internal PHYs don't have vendor/device ID registers;
+ * Realtek internal PHYs don't have vendor/device ID registers;
  * re(4) and rl(4) fake up a return value of all zeros.
  */
 static const struct mii_phydesc rlintphys[] = {
-	{ 0, 0, "RealTek internal media interface" },
+	{ 0, 0, "Realtek internal media interface" },
 	MII_PHY_END
 };
 
@@ -122,7 +122,7 @@ rlphy_attach(device_t dev)
 {
 
 	/*
-	 * The RealTek PHY can never be isolated.
+	 * The Realtek PHY can never be isolated.
 	 */
 	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE,
 	    &rlphy_funcs, 1);
@@ -143,7 +143,7 @@ rlphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 	case MII_TICK:
 		/*
-		 * The RealTek PHY's autonegotiation doesn't need to be
+		 * The Realtek PHY's autonegotiation doesn't need to be
 		 * kicked; it continues in the background.
 		 */
 		break;
@@ -222,20 +222,20 @@ rlphy_status(struct mii_softc *phy)
 		 */
 
 		/*
-		 * The RealTek PHY supports non-NWAY link speed
+		 * The Realtek PHY supports non-NWAY link speed
 		 * detection, however it does not report the link
 		 * detection results via the ANLPAR or BMSR registers.
-		 * (What? RealTek doesn't do things the way everyone
+		 * (What? Realtek doesn't do things the way everyone
 		 * else does? I'm just shocked, shocked I tell you.)
 		 * To determine the link speed, we have to do one
 		 * of two things:
 		 *
-		 * - If this is a standalone RealTek RTL8201(L) or
+		 * - If this is a standalone Realtek RTL8201(L) or
 		 *   workalike PHY, we can determine the link speed by
 		 *   testing bit 0 in the magic, vendor-specific register
 		 *   at offset 0x19.
 		 *
-		 * - If this is a RealTek MAC with integrated PHY, we
+		 * - If this is a Realtek MAC with integrated PHY, we
 		 *   can test the 'SPEED10' bit of the MAC's media status
 		 *   register.
 		 */

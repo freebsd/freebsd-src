@@ -85,6 +85,10 @@ nullfs_mount(struct mount *mp)
 	char *target;
 	int error, len;
 	bool isvnunlocked;
+	static const char cache_opt_name[] = "cache";
+	static const char nocache_opt_name[] = "nocache";
+	static const char unixbypass_opt_name[] = "unixbypass";
+	static const char nounixbypass_opt_name[] = "nounixbypass";
 
 	NULLFSDEBUG("nullfs_mount(mp = %p)\n", (void *)mp);
 
@@ -116,7 +120,7 @@ nullfs_mount(struct mount *mp)
 	/*
 	 * Unlock lower node to avoid possible deadlock.
 	 */
-	if (mp->mnt_vnodecovered->v_op == &null_vnodeops &&
+	if (null_is_nullfs_vnode(mp->mnt_vnodecovered) &&
 	    VOP_ISLOCKED(mp->mnt_vnodecovered) == LK_EXCLUSIVE) {
 		VOP_UNLOCK(mp->mnt_vnodecovered);
 		isvnunlocked = true;
@@ -150,7 +154,7 @@ nullfs_mount(struct mount *mp)
 	/*
 	 * Check multi null mount to avoid `lock against myself' panic.
 	 */
-	if (mp->mnt_vnodecovered->v_op == &null_vnodeops) {
+	if (null_is_nullfs_vnode(mp->mnt_vnodecovered)) {
 		nn = VTONULL(mp->mnt_vnodecovered);
 		if (nn == NULL || lowerrootvp == nn->null_lowervp) {
 			NULLFSDEBUG("nullfs_mount: multi null mount?\n");
@@ -205,9 +209,10 @@ nullfs_mount(struct mount *mp)
 		MNT_IUNLOCK(mp);
 	}
 
-	if (vfs_getopt(mp->mnt_optnew, "cache", NULL, NULL) == 0) {
+	if (vfs_getopt(mp->mnt_optnew, cache_opt_name, NULL, NULL) == 0) {
 		xmp->nullm_flags |= NULLM_CACHE;
-	} else if (vfs_getopt(mp->mnt_optnew, "nocache", NULL, NULL) == 0) {
+	} else if (vfs_getopt(mp->mnt_optnew, nocache_opt_name, NULL,
+	    NULL) == 0) {
 		;
 	} else if (null_cache_vnodes &&
 	    (xmp->nullm_vfs->mnt_kern_flag & MNTK_NULL_NOCACHE) == 0) {
@@ -217,6 +222,13 @@ nullfs_mount(struct mount *mp)
 	if ((xmp->nullm_flags & NULLM_CACHE) != 0) {
 		vfs_register_for_notification(xmp->nullm_vfs, mp,
 		    &xmp->notify_node);
+	}
+
+	if (vfs_getopt(mp->mnt_optnew, unixbypass_opt_name, NULL, NULL) == 0) {
+		;
+	} else if (vfs_getopt(mp->mnt_optnew, nounixbypass_opt_name, NULL,
+	    NULL) == 0) {
+		xmp->nullm_flags |= NULLM_NOUNPBYPASS;
 	}
 
 	if (lowerrootvp == mp->mnt_vnodecovered) {

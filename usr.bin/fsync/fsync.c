@@ -49,7 +49,7 @@ main(int argc, char *argv[])
 	
 	rval = EX_OK;
 	for (i = 1; i < argc; ++i) {
-		if ((fd = open(argv[i], O_RDONLY)) == -1) {
+		if ((fd = open(argv[i], O_RDONLY | O_NONBLOCK)) == -1) {
 			warn("open %s", argv[i]);
 			if (rval == EX_OK)
 				rval = EX_NOINPUT;

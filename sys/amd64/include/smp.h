@@ -30,6 +30,7 @@ inthand_t
 	IDTVEC(ipi_intr_bitmap_handler_pti),
 	IDTVEC(ipi_swi_pti),
 	IDTVEC(cpustop_pti),
+	IDTVEC(cpuoff_pti),
 	IDTVEC(cpususpend_pti),
 	IDTVEC(rendezvous_pti);
 

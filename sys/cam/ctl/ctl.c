@@ -2123,7 +2123,7 @@ ctl_remove_initiator(struct ctl_port *port, int iid)
 	mtx_assert(&softc->ctl_lock, MA_NOTOWNED);
 
 	if (iid > CTL_MAX_INIT_PER_PORT) {
-		printf("%s: initiator ID %u > maximun %u!\n",
+		printf("%s: initiator ID %u > maximum %u!\n",
 		       __func__, iid, CTL_MAX_INIT_PER_PORT);
 		return (-1);
 	}

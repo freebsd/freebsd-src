@@ -1,13 +1,11 @@
 #
-# SPDX-License-Idendifier: BSD-2-Clause
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2025 FreeBSD Foundation
 #
 # This sofware was developed by Cy Schubert <cy@FreeBSD.org>
 # under sponsorship from the FreeBSD Foundation.
 #
-
-PACKAGE=	kerberos-lib
 
 .include <src.opts.mk>
 
@@ -87,7 +85,7 @@ ${GEN_SS_ERR_C}: ${GEN_SS_ERR}
 	rm -f et-c-${.PREFIX}.et et-c-${.PREFIX}.c
 
 std_rqs.c: mk_cmds std_rqs.ct ss_err.h
-	./mk_cmds ${KRB5_DIR}/util/ss/std_rqs.ct
+	sh mk_cmds ${KRB5_DIR}/util/ss/std_rqs.ct
 
 .include <bsd.lib.mk>
 

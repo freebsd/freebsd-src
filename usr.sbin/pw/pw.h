@@ -70,6 +70,11 @@ struct userconf *get_userconfig(const char *cfg);
 struct userconf *read_userconfig(char const * file);
 int write_userconfig(struct userconf *cnf, char const * file);
 
+void metalog_emit(const char *path, mode_t mode, uid_t uid, gid_t gid,
+    int flags);
+void metalog_emit_symlink(const char *path, const char *target, mode_t mode,
+    uid_t uid, gid_t gid);
+
 int pw_group_add(int argc, char **argv, char *name);
 int pw_group_del(int argc, char **argv, char *name);
 int pw_group_mod(int argc, char **argv, char *name);

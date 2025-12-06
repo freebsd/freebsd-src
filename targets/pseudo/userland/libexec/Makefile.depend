@@ -38,8 +38,8 @@ DIRDEPS = \
 	libexec/ypxfr \
 
 
-.if ${MK_BLACKLIST_SUPPORT} != "no"
-DIRDEPS+=	libexec/blacklistd-helper
+.if ${MK_BLOCKLIST_SUPPORT} != "no"
+DIRDEPS+=	libexec/blocklistd-helper
 .endif
 
 .if ${MK_DMAGENT} != "no"

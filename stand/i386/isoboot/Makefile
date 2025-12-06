@@ -29,7 +29,8 @@ CFLAGS+=-DBOOTPROG=\"isoboot\" \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Wno-pointer-sign
 
-CFLAGS.gcc+=	--param max-inline-insns-single=100
+CFLAGS.gcc+=	--param max-inline-insns-single=100 \
+		--param min-pagesize=1024
 CFLAGS.clang+=  -Oz ${CLANG_OPT_SMALL}
 
 LD_FLAGS+=${LD_FLAGS_BIN}

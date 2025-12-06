@@ -107,7 +107,7 @@ efi_verify_staging_size(unsigned long *nr_pages)
 
 		if (status != EFI_BUFFER_TOO_SMALL) {
 			printf("Can't read memory map: %lu\n",
-			    EFI_ERROR_CODE(status));
+			    DECODE_ERROR(status));
 			goto out;
 		}
 
@@ -248,7 +248,7 @@ static int
 command_staging_slop(int argc, char *argv[])
 {
 	char *endp;
-	u_long new, prev;
+	u_long new;
 
 	if (argc > 2) {
 		goto err;
@@ -334,7 +334,7 @@ efi_copy_init(void)
 	    nr_pages, &staging);
 	if (EFI_ERROR(status)) {
 		printf("failed to allocate staging area: %lu\n",
-		    EFI_ERROR_CODE(status));
+		    DECODE_ERROR(status));
 		return (status);
 	}
 	staging_base = staging;
@@ -405,7 +405,9 @@ efi_check_space(vm_offset_t end)
 		return (true);
 	}
 
+#if defined(__amd64__) || defined(__i386__)
 before_staging:
+#endif
 	/* Try allocating space before the previous allocation */
 	if (staging < nr_pages * EFI_PAGE_SIZE)
 		goto expand;

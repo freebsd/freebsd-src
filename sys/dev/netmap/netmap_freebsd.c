@@ -738,6 +738,7 @@ nm_os_extmem_create(unsigned long p, struct nmreq_pools_info *pi, int *perror)
 
 out_rem:
 	vm_map_remove(kernel_map, e->kva, e->kva + e->size);
+	e->obj = NULL; /* reference consumed by vm_map_remove() */
 out_rel:
 	vm_object_deallocate(e->obj);
 	e->obj = NULL;
@@ -1406,18 +1407,33 @@ netmap_knwrite(struct knote *kn, long hint)
 	return netmap_knrw(kn, hint, POLLOUT);
 }
 
+static int
+netmap_kncopy(struct knote *kn, struct proc *p1)
+{
+	struct netmap_priv_d *priv;
+	struct nm_selinfo *si;
+
+	priv = kn->kn_hook;
+	si = priv->np_si[kn->kn_filter == EVFILT_WRITE ? NR_TX : NR_RX];
+	NMG_LOCK();
+	si->kqueue_users++;
+	NMG_UNLOCK();
+	return (0);
+}
+
 static const struct filterops netmap_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = netmap_knrdetach,
 	.f_event = netmap_knread,
+	.f_copy = netmap_kncopy,
 };
 
 static const struct filterops netmap_wfiltops = {
 	.f_isfd = 1,
 	.f_detach = netmap_knwdetach,
 	.f_event = netmap_knwrite,
+	.f_copy = netmap_kncopy,
 };
-
 
 /*
  * This is called when a thread invokes kevent() to record

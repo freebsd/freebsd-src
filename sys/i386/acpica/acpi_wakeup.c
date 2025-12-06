@@ -84,7 +84,7 @@ static cpuset_t		suspcpus;
 static struct susppcb	**susppcbs;
 #endif
 
-static void		acpi_stop_beep(void *);
+static void		acpi_stop_beep(void *, enum power_stype);
 
 #ifdef SMP
 static int		acpi_wakeup_ap(struct acpi_softc *, int);
@@ -100,7 +100,7 @@ static void		acpi_wakeup_cpus(struct acpi_softc *);
 } while (0)
 
 static void
-acpi_stop_beep(void *arg)
+acpi_stop_beep(void *arg, enum power_stype stype)
 {
 
 	if (acpi_resume_beep != 0)

@@ -141,6 +141,8 @@ static const struct pci_id pci_ns8250_ids[] = {
 	0x10, 16384000 },
 { 0x1415, 0xc120, 0xffff, 0, "Oxford Semiconductor OXPCIe952 PCIe 16950 UART",
 	0x10 },
+{ 0x14a1, 0x0008, 0x14a1, 0x0008, "Systembase SB16C1058",
+	0x10, 8 * DEFAULT_RCLK, },
 { 0x14e4, 0x160a, 0xffff, 0, "Broadcom TruManage UART", 0x10,
 	128 * DEFAULT_RCLK, 2},
 { 0x14e4, 0x4344, 0xffff, 0, "Sony Ericsson GC89 PC Card", 0x10},

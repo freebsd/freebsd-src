@@ -136,7 +136,6 @@ MLINKS+=quotafile.3 quota_on.3
 MLINKS+=quotafile.3 quota_open.3
 MLINKS+=quotafile.3 quota_qfname.3
 MLINKS+=quotafile.3 quota_read.3
-MLINKS+=quotafile.3 quota_statfs.3
 MLINKS+=quotafile.3 quota_write_limits.3
 MLINKS+=quotafile.3 quota_write_usage.3
 MAN+=	realhostname.3
@@ -148,7 +147,8 @@ MLINKS+=uucplock.3 uu_lock.3
 MLINKS+=uucplock.3 uu_lock_txfr.3
 MLINKS+=uucplock.3 uu_lockerr.3
 MLINKS+=uucplock.3 uu_unlock.3
-MAN+=	login.conf.5
+
+MANNODEV=	login.conf.5
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests

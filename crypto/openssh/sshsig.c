@@ -1,4 +1,4 @@
-/* $OpenBSD: sshsig.c,v 1.35 2024/03/08 22:16:32 djm Exp $ */
+/* $OpenBSD: sshsig.c,v 1.38 2025/02/18 08:02:48 djm Exp $ */
 /*
  * Copyright (c) 2019 Google LLC
  *
@@ -40,9 +40,9 @@
 #define MAGIC_PREAMBLE_LEN	(sizeof(MAGIC_PREAMBLE) - 1)
 #define BEGIN_SIGNATURE		"-----BEGIN SSH SIGNATURE-----"
 #define END_SIGNATURE		"-----END SSH SIGNATURE-----"
-#define RSA_SIGN_ALG		"rsa-sha2-512" /* XXX maybe make configurable */
+#define RSA_SIGN_ALG		"rsa-sha2-512"
 #define RSA_SIGN_ALLOWED	"rsa-sha2-512,rsa-sha2-256"
-#define HASHALG_DEFAULT		"sha512" /* XXX maybe make configurable */
+#define HASHALG_DEFAULT		"sha512"
 #define HASHALG_ALLOWED		"sha256,sha512"
 
 int
@@ -190,8 +190,13 @@ sshsig_wrap_sign(struct sshkey *key, const char *hashalg,
 	}
 
 	/* If using RSA keys then default to a good signature algorithm */
-	if (sshkey_type_plain(key->type) == KEY_RSA)
+	if (sshkey_type_plain(key->type) == KEY_RSA) {
 		sign_alg = RSA_SIGN_ALG;
+		if (strcmp(hashalg, "sha256") == 0)
+			sign_alg = "rsa-sha2-256";
+		else if (strcmp(hashalg, "sha512") == 0)
+			sign_alg = "rsa-sha2-512";
+	}
 
 	if (signer != NULL) {
 		if ((r = signer(key, &sig, &slen,

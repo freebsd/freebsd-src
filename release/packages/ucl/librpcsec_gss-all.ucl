@@ -1,5 +1,47 @@
-comment = "RPC GSS-API authentication library"
+/*
+ * Copyright (c) 2008 Isilon Inc http://www.isilon.com/
+ * Authors: Doug Rabson <dfr@rabson.org>
+ * Developed with Red Inc: Alfred Perlstein <alfred@FreeBSD.org>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+comment = "RPCSEC_GSS library"
+
 desc = <<EOD
-librpcsec_gss provides an API to allow applications to interact with the
+RPCSEC_GSS is a security mechanism for the RPC protocol.  It uses the Generic
+Security Service API (GSS-API) to establish a security context between a client
+and a server and to ensure that all subsequent communication between client and
+server are properly authenticated.
+
+Optionally, extra protection can be applied to the connection.  The integrity
+service uses checksums to ensure that all data sent by a peer is received
+without modification.  The privacy service uses encryption to ensure that
+no third party can access the data for a connection.
+
+The librpcsec_gss provides an API to allow applications to interact with the
 RPCSEC_GSS security mechanism.
 EOD
+
+annotations {
+	set = "optional,optional-jail"
+}

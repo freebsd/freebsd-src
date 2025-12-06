@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 10, 2023
+.Dd November 16, 2025
 .Dt FDC 4
 .Os
 .Sh NAME
@@ -47,6 +47,12 @@ In
 .Cd hint.fd.1.at="fdc0"
 .Cd hint.fd.1.drive="1"
 .Cd hint.fd.1.flags="0x0"
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is deprecated and may not be present in
+.Fx 16.0
+and later.
 .Sh DESCRIPTION
 .Ss Device Usage
 This driver provides access to floppy disk drives.
@@ -350,13 +356,15 @@ Print when an unknown IOCTL is used.
 .El
 .It Dv debug.fdc.fifo
 For enhanced controllers, allows a non-default FIFO
-threshold setting. The default is 8 bytes.
+threshold setting.
+The default is 8 bytes.
 .It Dv debug.fdc.retries
-Maximum number of retries to attempt. The default is 10.
+Maximum number of retries to attempt.
+The default is 10.
 .It Dv debug.fdc.spec1
 Specification byte one (step-rate + head unload).
-The default step rate is 6 ms. The default head unload
-time is 240 ms.
+The default step rate is 6 ms.
+The default head unload time is 240 ms.
 .It Dv debug.fdc.spec2
 Specification byte two (head load time + no-dma).
 The default head load time is 16 ms, and no-dma is 0

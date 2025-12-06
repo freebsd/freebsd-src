@@ -55,7 +55,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL_VERSION 3ossl"
-.TH OPENSSL_VERSION 3ossl 2025-07-01 3.5.1 OpenSSL
+.TH OPENSSL_VERSION 3ossl 2025-09-30 3.5.4 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -276,9 +276,15 @@ For any of them that is undefined, the empty string is returned.
 .IX Header "HISTORY"
 The macros and functions described here were added in OpenSSL 3.0,
 except for OPENSSL_VERSION_NUMBER and \fBOpenSSL_version_num()\fR.
+.SH BUGS
+.IX Header "BUGS"
+There was a discrepancy between this manual and commentary + code
+in \fI<openssl/opensslv.h>\fR, where the latter suggested that the
+four least significant bits of \fBOPENSSL_VERSION_NUMBER\fR could be
+\&\f(CW0x0f\fR in released OpenSSL versions.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2018\-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2018\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

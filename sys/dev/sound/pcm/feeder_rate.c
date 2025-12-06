@@ -1705,11 +1705,6 @@ z_resampler_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 	return (count - left);
 }
 
-static struct pcm_feederdesc feeder_rate_desc[] = {
-	{ FEEDER_RATE, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0 },
-};
-
 static kobj_method_t feeder_rate_methods[] = {
 	KOBJMETHOD(feeder_init,		z_resampler_init),
 	KOBJMETHOD(feeder_free,		z_resampler_free),
@@ -1719,4 +1714,4 @@ static kobj_method_t feeder_rate_methods[] = {
 	KOBJMETHOD_END
 };
 
-FEEDER_DECLARE(feeder_rate, NULL);
+FEEDER_DECLARE(feeder_rate, FEEDER_RATE);

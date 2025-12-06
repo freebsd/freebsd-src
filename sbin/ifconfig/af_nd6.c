@@ -66,6 +66,7 @@ static const char *ND6BITS[] = {
 	[9]  = "IPV6_ONLY",
 	[10] = "IPV6_ONLY_MANUAL",
 #endif
+	[11]  = "STABLEADDR",
 	[15] = "DEFAULTIF",
 };
 

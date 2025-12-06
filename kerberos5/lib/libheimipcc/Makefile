@@ -1,5 +1,3 @@
-PACKAGE=	kerberos-lib
-
 LIB=	heimipcc
 PRIVATELIB=
 LIBADD=	heimbase roken pthread

@@ -67,6 +67,11 @@ __enum_uint8_decl(vtype) {
 	VLASTTYPE = VMARKER,
 };
 
+/*
+ * We frequently need to test is something is a device node.
+ */
+#define VTYPE_ISDEV(vtype)	((vtype) == VCHR || (vtype) == VBLK)
+
 __enum_uint8_decl(vstate) {
 	VSTATE_UNINITIALIZED,
 	VSTATE_CONSTRUCTED,
@@ -199,6 +204,8 @@ struct vnode {
 	int	v_seqc_users;			/* i modifications pending */
 };
 
+#define VN_ISDEV(vp)		VTYPE_ISDEV((vp)->v_type)
+
 #ifndef DEBUG_LOCKS
 #ifdef _LP64
 /*
@@ -308,6 +315,8 @@ struct vattr {
 	u_int		va_vaflags;	/* operations flags, see below */
 	long		va_spare;	/* remain quad aligned */
 };
+
+#define VATTR_ISDEV(vap)	VTYPE_ISDEV((vap)->va_type)
 
 /*
  * Flags for va_vaflags.
@@ -442,15 +451,11 @@ extern int		vttoif_tab[];
 #define	VS_SKIP_UNMOUNT	0x0001	/* vfs_write_suspend: fail if the
 				   filesystem is being unmounted */
 
-#define	VREF(vp)	vref(vp)
-
 #ifdef DIAGNOSTIC
 #define	VATTR_NULL(vap)	vattr_null(vap)
 #else
 #define	VATTR_NULL(vap)	(*(vap) = va_null)	/* initialize a vattr */
 #endif /* DIAGNOSTIC */
-
-#define	NULLVP	((struct vnode *)NULL)
 
 /*
  * Global vnode data.
@@ -585,11 +590,6 @@ void	assert_vop_unlocked(struct vnode *vp, const char *str);
 
 #endif /* INVARIANTS */
 
-/*
- * This call works for vnodes in the kernel.
- */
-#define VCALL(c) ((c)->a_desc->vdesc_call(c))
-
 #define DOINGASYNC(vp)	   					\
 	(((vp)->v_mount->mnt_kern_flag & MNTK_ASYNC) != 0 &&	\
 	 ((curthread->td_pflags & TDP_SYNCIO) == 0))
@@ -714,6 +714,7 @@ int	speedup_syncer(void);
 int	vn_vptocnp(struct vnode **vp, char *buf, size_t *buflen);
 int	vn_getcwd(char *buf, char **retbuf, size_t *buflen);
 int	vn_fullpath(struct vnode *vp, char **retbuf, char **freebuf);
+int	vn_fullpath_jail(struct vnode *vp, char **retbuf, char **freebuf);
 int	vn_fullpath_global(struct vnode *vp, char **retbuf, char **freebuf);
 int	vn_fullpath_hardlink(struct vnode *vp, struct vnode *dvp,
 	    const char *hdrl_name, size_t hrdl_name_length, char **retbuf,

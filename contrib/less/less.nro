@@ -1,5 +1,5 @@
 '\" t
-.TH LESS 1 "Version 679: 28 May 2025"
+.TH LESS 1 "Version 685: 04 Oct 2025"
 .SH NAME
 less \- display the contents of a file in a terminal
 .SH SYNOPSIS
@@ -203,8 +203,11 @@ Followed by another single quote, returns to the position at
 which the last "large" movement command was executed.
 Followed by a \(ha or $, jumps to the beginning or end of the
 file respectively.
-Marks are preserved when a new file is examined,
+Marks are preserved when a new file is examined within a single invocation of
+.BR less ,
 so the \(aq command can be used to switch between input files.
+The \-\-save-marks option causes marks to be preserved across different invocations of
+.BR less .
 .IP "\(haX\(haX"
 Same as single quote.
 .IP "ESC-m"
@@ -800,8 +803,9 @@ where the first integer specifies the foreground color and
 the second specifies the background color.
 Each integer is a value between 0 and 255 inclusive which selects
 a "CSI 38;5" color value (see
-.UR https://en.wikipedia.org/wiki/ANSI_escape_code#SGR
-.UE ).
+.nh
+https://en.wikipedia.org/wiki/ANSI_escape_code#SGR).
+.hy
 If either integer is a "-" or is omitted,
 the corresponding color is set to that of normal text.
 .PP
@@ -835,8 +839,9 @@ CHAR_INFO.Attributes
 .hy
 value, between 0 and 15 inclusive
 (see 
-.UR https://learn.microsoft.com/en-us/windows/console/char-info-str
-.UE ).
+.nh
+https://learn.microsoft.com/en-us/windows/console/char-info-str).
+.hy
 
 To avoid confusion, it is recommended that the equivalent letters rather than numbers
 be used after a lowercase color selector on MS-DOS/Windows.
@@ -1213,8 +1218,9 @@ the name of a command compatible with
 .BR global (1),
 and that command is executed to find the tag.
 (See 
-.UR http://www.gnu.org/software/global/global.html
-.UE ).
+.nh
+http://www.gnu.org/software/global/global.html).
+.hy
 The \-t option may also be specified from within
 .B less
 (using the \- command) as a way of examining a new file.
@@ -1328,6 +1334,16 @@ of the screen, starting with a decimal point: \&.5 is half of the
 screen width, \&.3 is three tenths of the screen width, and so on.
 If the number is specified as a fraction, the actual number of
 scroll positions is recalculated if the terminal window is resized.
+.IP "\-\-cmd=\fIcommands\fP
+The specified string is taken to be an initial command to
+.BR less .
+This is similar to specifying "+\fIcommands\fP", except that
+commands specified by \-\-cmd are not executed if
+.B less
+exits immediately due to the use of the \-E or \-F option, while
+commands specified by the \fB+\fP option are executed even if
+.B less
+exits immediately.
 .IP "\-\-exit-follow-on-close"
 When using the "F" command on a pipe,
 .B less
@@ -1583,8 +1599,9 @@ Enables colored text in various places.
 The \-D option can be used to change the colors.
 Colored text works only if the terminal supports 
 ANSI color escape sequences (as defined in 
-.UR https://www.ecma-international.org/publications-and-standards/standards/ecma-48
-.UE ).
+.nh
+https://www.ecma-international.org/publications-and-standards/standards/ecma-48).
+.hy
 .IP "\-\-wheel-lines=\fIn\fP"
 Set the number of lines to scroll when the mouse wheel is scrolled
 and the \-\-mouse or \-\-MOUSE option is in effect.
@@ -1598,6 +1615,9 @@ The default is to wrap at any character.
 A command line argument of "\-\-" marks the end of option arguments.
 Any arguments following this are interpreted as filenames.
 This can be useful when viewing a file whose name begins with a "\-" or "+".
+Otherwise, option arguments and filename arguments can be intermixed;
+that is, option arguments do not need to appear before filename arguments,
+unless the environment variable POSIXLY_CORRECT is set.
 .IP +
 If a command line option begins with \fB+\fP,
 the remainder of that option is taken to be an initial command to
@@ -1613,6 +1633,7 @@ If the option starts with ++, the initial command applies to
 every file being viewed, not just the first one.
 The + command described previously
 may also be used to set (or change) an initial command for every file.
+Also see the \-\-cmd option.
 .
 .SH "LINE EDITING"
 When entering a command line at the bottom of the screen
@@ -1913,7 +1934,7 @@ Again, in this case the dash is not considered to be part of
 the input pipe command.
 .
 .SH "NATIONAL CHARACTER SETS"
-There are three types of characters in the input file:
+There are five types of characters in the input file:
 .IP "normal characters"
 can be displayed directly to the screen.
 .IP "control characters"
@@ -1922,6 +1943,12 @@ in ordinary text files (such as backspace and tab).
 .IP "binary characters"
 should not be displayed directly and are not expected to be found
 in text files.
+.IP "composing characters"
+are not displayed separately, but modify the display of the
+preceding character. (Only when LESSCHARSET is "utf8".)
+.IP "deleted characters"
+are simply deleted from the input and not displayed.
+(Only when LESSCHARSET is "utf8".)
 .PP
 A "character set" is simply a description of which characters are to
 be considered normal, control, and binary.
@@ -2049,7 +2076,7 @@ of how the UTF-8 file is ill-formed.
 .PP
 When the character set is utf-8, in rare cases it may be desirable to
 override the Unicode definition of the type of certain characters.
-For example, characters in a Private Use Area are normally treated as control
+For example, characters in a Private Use Area are normally treated as binary
 characters, but if you are using a custom font with printable characters
 in that range, it may be desirable to tell
 .B less
@@ -2076,6 +2103,8 @@ A wide (2-space) printable character.
 A binary (non-printable) character.
 .IP "c"
 A composing (zero width) character.
+.IP "d"
+A deleted character (deleted from the input and not displayed).
 .RE
 .PP
 For example, setting LESSUTFCHARDEF to
@@ -2085,6 +2114,18 @@ For example, setting LESSUTFCHARDEF to
 .sp
 .fi
 would make all Private Use Area characters be treated as printable.
+.PP
+By default, emoji modifiers, components and variation selectors
+are deleted because many terminals do not display them correctly.
+If you use a terminal which does display some or all of them correctly,
+you can cause to be displayed by setting LESSUTFCHARDEF
+to treat them as composing characters.
+For example, this sets them all to composing characters:
+.nf
+.sp
+	FE00-FE0F:c,1F3FB-1F3FF:c,1F9B0-1F9B3:c,E0100-E01EF:c
+.sp
+.fi
 .SH "PROMPTS"
 The \-P option allows you to tailor the prompt to your preference.
 The string given to the \-P option replaces the specified prompt string.
@@ -2407,8 +2448,8 @@ end character in an ANSI color escape sequence
 (default "0123456789:;[?!"\(aq#%()*+\ ").
 .IP LESSANSIOSCALLOW
 A comma-separated list of OSC types which are output directly to the
-terminal when \-R is in effect.
-By default, only OSC 8 sequences are output directly.
+terminal when \-R is in effect
+(default "8"; that is, only OSC 8 sequences are output directly).
 .IP LESSANSIOSCCHARS
 Characters which may follow an ESC character to mark the start
 of an "OS Command" sequence. 
@@ -2480,9 +2521,7 @@ file. (Not used if "$LESSKEYIN_SYSTEM" exists.)
 List of characters which are considered "metacharacters" by the shell.
 .IP LESSMETAESCAPE
 Prefix which less will add before each metacharacter in a
-command sent to the shell.
-If LESSMETAESCAPE is an empty string, commands containing
-metacharacters will not be passed to the shell.
+command sent to the shell (default "\\").
 .IP LESSOPEN
 Command line to invoke the (optional) input-preprocessor.
 .IP LESSSECURE
@@ -2492,7 +2531,8 @@ See discussion under SECURITY.
 Enables individual features which are normally disabled by LESSSECURE.
 See discussion under SECURITY.
 .IP LESSSEPARATOR
-String to be appended to a directory name in filename completion.
+String to be appended to a directory name in filename completion
+(default "\\" on MS-DOS, Windows, and OS/2; otherwise "/").
 .IP LESSUTFBINFMT
 Format for displaying non-printable Unicode code points.
 .IP LESSUTFCHARDEF 
@@ -2550,6 +2590,24 @@ receives a SIGUSR1 signal.
 .IP LESS_TERMCAP_xx
 Where "xx" is any two characters, overrides the definition 
 of the termcap "xx" capability for the terminal.
+.IP LESS_TERMCAP_BRACKETED_PASTE_START
+Overrides the standard ANSI escape sequence to enable bracketed paste.
+This is used when the \-\-no-paste option is in effect.
+.IP LESS_TERMCAP_BRACKETED_PASTE_END
+Overrides the standard ANSI escape sequence to disable bracketed paste.
+.IP LESS_TERMCAP_MOUSE_START
+Overrides the standard ANSI escape sequence to enable mouse reporting.
+This is used when the \-\-mouse option is in effect.
+.IP LESS_TERMCAP_MOUSE_END
+Overrides the standard ANSI escape sequence to disable mouse reporting.
+.IP LESS_TERMCAP_SUSPEND
+Defines an escape sequence to temporarily suspend screen updates.
+This is sent to the terminal before clearing the screen.
+This can be used to avoid screen tearing when the screen is redrawn
+on certain terminals.
+.IP LESS_TERMCAP_RESUME
+Defines an escape sequence to resume screen updates.
+This is sent to the terminal after displaying the prompt.
 .IP LESS_UNSUPPORT
 A space-separated list of command line options.
 These options will be ignored (with no error message) if they appear 
@@ -2571,6 +2629,12 @@ automatically when running in
 .IP PATH
 User's search path (used to find a lesskey file
 on MS-DOS, Windows, and OS/2 systems).
+.IP POSIXLY_CORRECT
+If set to any value, all option arguments on the command line
+are expected to appear before any filename arguments.
+This must be set as an actual environment variable, not in a
+.B lesskey
+file.
 .IP SHELL
 The shell used to execute the !\& command, as well as to expand filenames.
 .IP TERM
@@ -2619,10 +2683,12 @@ See the GNU General Public License for more details.
 Mark Nudelman
 .br
 Report bugs at 
-.UR https://github.com/gwsw/less/issues
-.UE .
+.nh
+https://github.com/gwsw/less/issues.
+.hy
 .br
 For more information, see the less homepage at
 .br
-.UR https://greenwoodsoftware.com/less
-.UE .
+.nh
+https://greenwoodsoftware.com/less.
+.hy

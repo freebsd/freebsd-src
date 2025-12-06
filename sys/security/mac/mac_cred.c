@@ -132,10 +132,10 @@ mac_cred_associate_nfsd(struct ucred *cred)
  * processes and threads are spawned.
  */
 void
-mac_cred_create_swapper(struct ucred *cred)
+mac_cred_create_kproc0(struct ucred *cred)
 {
 
-	MAC_POLICY_PERFORM_NOSLEEP(cred_create_swapper, cred);
+	MAC_POLICY_PERFORM_NOSLEEP(cred_create_kproc0, cred);
 }
 
 /*

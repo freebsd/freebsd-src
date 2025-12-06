@@ -38,9 +38,11 @@
 #include <sys/cdefs.h>
 #include "opt_ddb.h"
 
+#define	EXTERR_CATEGORY	EXTERR_CAT_GEOM
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/devicestat.h>
+#include <sys/exterrvar.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
@@ -368,20 +370,15 @@ g_retaste(struct g_class *mp)
 }
 
 struct g_geom *
-g_new_geomf(struct g_class *mp, const char *fmt, ...)
+g_new_geom(struct g_class *mp, const char *name)
 {
+	int len;
 	struct g_geom *gp;
-	va_list ap;
-	struct sbuf *sb;
 
 	g_topology_assert();
 	G_VALID_CLASS(mp);
-	sb = sbuf_new_auto();
-	va_start(ap, fmt);
-	sbuf_vprintf(sb, fmt, ap);
-	va_end(ap);
-	sbuf_finish(sb);
-	gp = g_malloc(sizeof(*gp) + sbuf_len(sb) + 1, M_WAITOK | M_ZERO);
+	len = strlen(name);
+	gp = g_malloc(sizeof(*gp) + len + 1, M_WAITOK | M_ZERO);
 	gp->name = (char *)(gp + 1);
 	gp->class = mp;
 	gp->rank = 1;
@@ -389,8 +386,7 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	LIST_INIT(&gp->provider);
 	LIST_INSERT_HEAD(&mp->geom, gp, geom);
 	TAILQ_INSERT_HEAD(&geoms, gp, geoms);
-	strcpy(gp->name, sbuf_data(sb));
-	sbuf_delete(sb);
+	memcpy(gp->name, name, len);
 	/* Fill in defaults from class */
 	gp->start = mp->start;
 	gp->spoiled = mp->spoiled;
@@ -401,6 +397,23 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	gp->orphan = mp->orphan;
 	gp->ioctl = mp->ioctl;
 	gp->resize = mp->resize;
+	return (gp);
+}
+
+struct g_geom *
+g_new_geomf(struct g_class *mp, const char *fmt, ...)
+{
+	struct g_geom *gp;
+	va_list ap;
+	struct sbuf *sb;
+
+	sb = sbuf_new_auto();
+	va_start(ap, fmt);
+	sbuf_vprintf(sb, fmt, ap);
+	va_end(ap);
+	sbuf_finish(sb);
+	gp = g_new_geom(mp, sbuf_data(sb));
+	sbuf_delete(sb);
 	return (gp);
 }
 
@@ -1151,8 +1164,14 @@ g_std_done(struct bio *bp)
 	struct bio *bp2;
 
 	bp2 = bp->bio_parent;
-	if (bp2->bio_error == 0)
-		bp2->bio_error = bp->bio_error;
+	if (bp2->bio_error == 0) {
+		if ((bp->bio_flags & BIO_EXTERR) != 0) {
+			bp2->bio_flags |= BIO_EXTERR;
+			bp2->bio_exterr = bp->bio_exterr;
+		} else {
+			bp2->bio_error = bp->bio_error;
+		}
+	}
 	bp2->bio_completed += bp->bio_completed;
 	g_destroy_bio(bp);
 	bp2->bio_inbed++;
@@ -1657,6 +1676,8 @@ DB_SHOW_COMMAND(bio, db_show_bio)
 		db_printf("  caller2: %p\n", bp->bio_caller2);
 		db_printf("  bio_from: %p\n", bp->bio_from);
 		db_printf("  bio_to: %p\n", bp->bio_to);
+		if ((bp->bio_flags & BIO_EXTERR) != 0)
+			exterr_db_print(&bp->bio_exterr);
 
 #if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
 		db_printf("  bio_track_bp: %p\n", bp->bio_track_bp);

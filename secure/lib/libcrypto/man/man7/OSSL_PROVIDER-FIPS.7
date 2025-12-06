@@ -55,7 +55,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_PROVIDER-FIPS 7ossl"
-.TH OSSL_PROVIDER-FIPS 7ossl 2025-07-01 3.5.1 OpenSSL
+.TH OSSL_PROVIDER-FIPS 7ossl 2025-09-30 3.5.4 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -71,7 +71,7 @@ accredited testing laboratory.
 .SS Properties
 .IX Subsection "Properties"
 The implementations in this provider specifically have these properties
-defined:
+defined for approved algorithms:
 .IP """provider=fips""" 4
 .IX Item """provider=fips"""
 .PD 0
@@ -95,15 +95,16 @@ It is not mandatory to include \f(CW\*(C`provider=fips\*(C'\fR as part of your p
 query.  Including \f(CW\*(C`provider=fips\*(C'\fR in your property query guarantees
 that the OpenSSL FIPS provider is used for cryptographic operations
 rather than other FIPS capable providers.
+.SS "Approved algorithms"
+.IX Subsection "Approved algorithms"
+Algorithms that are fetched using "fips=yes" may still be unapproved if certain
+conditions are not met. See "FIPS indicators" in \fBfips_module\fR\|(7) for additional
+information.
 .SS "Provider parameters"
 .IX Subsection "Provider parameters"
 See "Provider parameters" in \fBprovider\-base\fR\|(7) for a list of base parameters.
-Additionally the OpenSSL FIPS provider also supports the following gettable
-parameters:
-.IP """security-checks"" (\fBOSSL_OSSL_PROV_PARAM_SECURITY_CHECKS\fR) <unsigned integer>" 4
-.IX Item """security-checks"" (OSSL_OSSL_PROV_PARAM_SECURITY_CHECKS) <unsigned integer>"
-For further information refer to the \fBopenssl\-fipsinstall\fR\|(1) option
-\&\fB\-no_security_checks\fR.
+The OpenSSL FIPS provider also handles FIPS indicator related parameters as
+specified by "FIPS indicator options" in \fBfips_config\fR\|(5).
 .SH "OPERATIONS AND ALGORITHMS"
 .IX Header "OPERATIONS AND ALGORITHMS"
 The OpenSSL FIPS provider supports these operations and algorithms:
@@ -129,7 +130,6 @@ The OpenSSL FIPS provider supports these operations and algorithms:
 .IP "3DES, see \fBEVP_CIPHER\-DES\fR\|(7)" 4
 .IX Item "3DES, see EVP_CIPHER-DES"
 .PD
-This is an unapproved algorithm.
 .SS "Message Authentication Code (MAC)"
 .IX Subsection "Message Authentication Code (MAC)"
 .IP "CMAC, see \fBEVP_MAC\-CMAC\fR\|(7)" 4
@@ -238,19 +238,21 @@ for signature generation, but may be used for verification for legacy use cases.
 .IX Item "RSA-PSS"
 .IP "EC, see \fBEVP_KEYMGMT\-EC\fR\|(7)" 4
 .IX Item "EC, see EVP_KEYMGMT-EC"
+.IP "ED25519, see \fBEVP_KEYMGMT\-ED25519\fR\|(7)" 4
+.IX Item "ED25519, see EVP_KEYMGMT-ED25519"
+.IP "ED448, see \fBEVP_KEYMGMT\-ED448\fR\|(7)" 4
+.IX Item "ED448, see EVP_KEYMGMT-ED448"
 .IP "X25519, see \fBEVP_KEYMGMT\-X25519\fR\|(7)" 4
 .IX Item "X25519, see EVP_KEYMGMT-X25519"
 .PD
 This is an unapproved algorithm.
+The FIPS 140\-3 IG states that "Curves that are included in SP 800\-186 but not
+included in SP 800\-56Arev3 are not approved for key agreement".
 .IP "X448, see \fBEVP_KEYMGMT\-X448\fR\|(7)" 4
 .IX Item "X448, see EVP_KEYMGMT-X448"
 This is an unapproved algorithm.
-.IP "ED25519, see \fBEVP_KEYMGMT\-ED25519\fR\|(7)" 4
-.IX Item "ED25519, see EVP_KEYMGMT-ED25519"
-This is an unapproved algorithm.
-.IP "ED448, see \fBEVP_KEYMGMT\-ED448\fR\|(7)" 4
-.IX Item "ED448, see EVP_KEYMGMT-ED448"
-This is an unapproved algorithm.
+The FIPS 140\-3 IG states that "Curves that are included in SP 800\-186 but not"
+included in SP 800\-56Arev3 are not approved for key agreement".
 .IP TLS1\-PRF 4
 .IX Item "TLS1-PRF"
 .PD 0
@@ -308,8 +310,11 @@ This is an unapproved algorithm.
 TEST-RAND is an unapproved algorithm.
 .SH "SELF TESTING"
 .IX Header "SELF TESTING"
-One of the requirements for the FIPS module is self testing. An optional callback
-mechanism is available to return information to the user using
+A requirement of FIPS modules is to run cryptographic algorithm self tests.
+FIPS 140\-3 requires known answer tests to be run on startup as well as
+conditional tests that run during cryptographic operations.
+.PP
+An optional callback mechanism is available to return information to the user using
 \&\fBOSSL_SELF_TEST_set_callback\fR\|(3).
 .PP
 The parameters passed to the callback are described in \fBOSSL_SELF_TEST_new\fR\|(3)
@@ -327,12 +332,10 @@ The FIPS module passes the following type(s) to \fBOSSL_SELF_TEST_onbegin()\fR.
 Uses HMAC SHA256 on the module file to validate that the module has not been
 modified. The integrity value is compared to a value written to a configuration
 file during installation.
-.IP """Install_Integrity"" (\fBOSSL_SELF_TEST_TYPE_INSTALL_INTEGRITY\fR)" 4
-.IX Item """Install_Integrity"" (OSSL_SELF_TEST_TYPE_INSTALL_INTEGRITY)"
-Uses HMAC SHA256 on a fixed string to validate that the installation process
-has already been performed and the self test KATS have already been tested,
-The integrity value is compared to a value written to a configuration
-file after successfully running the self tests during installation.
+.IP """KAT_Integrity"" (\fBOSSL_SELF_TEST_TYPE_KAT_INTEGRITY\fR)" 4
+.IX Item """KAT_Integrity"" (OSSL_SELF_TEST_TYPE_KAT_INTEGRITY)"
+Used during the Module Integrity test to perform a known answer test on
+HMAC SHA256 prior to using it.
 .IP """KAT_Cipher"" (\fBOSSL_SELF_TEST_TYPE_KAT_CIPHER\fR)" 4
 .IX Item """KAT_Cipher"" (OSSL_SELF_TEST_TYPE_KAT_CIPHER)"
 Known answer test for a symmetric cipher.
@@ -365,25 +368,27 @@ Known answer test for key encapsulation.
 Known answer test for a Deterministic Random Bit Generator.
 .IP """Conditional_PCT"" (\fBOSSL_SELF_TEST_TYPE_PCT\fR)" 4
 .IX Item """Conditional_PCT"" (OSSL_SELF_TEST_TYPE_PCT)"
-Conditional test that is run during the generation or importing of key pairs.
+Conditional test that is run during the generation of key pairs.
+.IP """Import_PCT"" (\fBOSSL_SELF_TEST_TYPE_PCT_IMPORT\fR)" 4
+.IX Item """Import_PCT"" (OSSL_SELF_TEST_TYPE_PCT_IMPORT)"
+Conditional test that is run during the import of key pairs.
+.IP """Conditional_KAT"" (\fBOSSL_SELF_TEST_TYPE_PCT_KAT\fR)" 4
+.IX Item """Conditional_KAT"" (OSSL_SELF_TEST_TYPE_PCT_KAT)"
+Conditional test run during generation that derive the public key from the
+private key and checks that the public key matches. This is a SP 800\-56A requirement.
 .IP """Continuous_RNG_Test"" (\fBOSSL_SELF_TEST_TYPE_CRNG\fR)" 4
 .IX Item """Continuous_RNG_Test"" (OSSL_SELF_TEST_TYPE_CRNG)"
 Continuous random number generator test.
-.PP
-The "Module_Integrity" self test is always run at startup.
-The "Install_Integrity" self test is used to check if the self tests have
-already been run at installation time. If they have already run then the
-self tests are not run on subsequent startups.
-All other self test categories are run once at installation time, except for the
-"Pairwise_Consistency_Test".
-.PP
-There is only one instance of the "Module_Integrity" and "Install_Integrity"
-self tests. All other self tests may have multiple instances.
+.IP """Install_Integrity"" (\fBOSSL_SELF_TEST_TYPE_INSTALL_INTEGRITY\fR)" 4
+.IX Item """Install_Integrity"" (OSSL_SELF_TEST_TYPE_INSTALL_INTEGRITY)"
+This is deprecated. The option is no longer used since FIPS 140\-3 requires
+self tests to always run on startup. Previous FIPS 140\-2 validations allowed
+the self tests to be run just once.
 .PP
 The FIPS module passes the following descriptions(s) to \fBOSSL_SELF_TEST_onbegin()\fR.
 .IP """HMAC"" (\fBOSSL_SELF_TEST_DESC_INTEGRITY_HMAC\fR)" 4
 .IX Item """HMAC"" (OSSL_SELF_TEST_DESC_INTEGRITY_HMAC)"
-"Module_Integrity" and "Install_Integrity" use this.
+"Module_Integrity" uses this.
 .IP """RSA"" (\fBOSSL_SELF_TEST_DESC_PCT_RSA_PKCS1\fR)" 4
 .IX Item """RSA"" (OSSL_SELF_TEST_DESC_PCT_RSA_PKCS1)"
 .PD 0
@@ -563,18 +568,6 @@ it is possible to utilize a FIPS provider constructed from one of the
 validated versions alongside \fIlibcrypto\fR and \fIlibssl\fR compiled from any
 release within the same major release series.  This flexibility enables
 you to address bug fixes and CVEs that fall outside the FIPS boundary.
-.PP
-The FIPS provider in OpenSSL 3.1 includes some non-FIPS validated algorithms,
-consequently the property query \f(CW\*(C`fips=yes\*(C'\fR is mandatory for applications that
-want to operate in a FIPS approved manner.  The algorithms are:
-.IP "Triple DES ECB" 4
-.IX Item "Triple DES ECB"
-.PD 0
-.IP "Triple DES CBC" 4
-.IX Item "Triple DES CBC"
-.IP EdDSA 4
-.IX Item "EdDSA"
-.PD
 .PP
 You can load the FIPS provider into multiple library contexts as any other
 provider. However the following restriction applies. The FIPS provider cannot

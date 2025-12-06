@@ -47,7 +47,7 @@
 			status = "okay";
 		};
 
-		usb1: ohci@400000 {
+		usb1: usb@400000 {
 			num-ports = <3>;
 			atmel,vbus-gpio = <0
 					   &pioA PIN_PB12 GPIO_ACTIVE_HIGH
@@ -58,7 +58,7 @@
 			status = "okay";
 		};
 
-		usb2: ehci@500000 {
+		usb2: usb@500000 {
 			status = "okay";
 		};
 
@@ -231,7 +231,7 @@
 				scl-gpios = <&pioA PIN_PC7 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 				status = "okay";
 
-				at24@50 {
+				eeprom@50 {
 					compatible = "atmel,24c02";
 					reg = <0x50>;
 					pagesize = <8>;

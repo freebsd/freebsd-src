@@ -371,8 +371,6 @@ nfsrv_atroot(struct vnode *vp, uint64_t *retp)
 
 /*
  * Set the credentials to refer to root.
- * If only the various BSDen could agree on whether cr_gid is a separate
- * field or cr_groups[0]...
  */
 void
 newnfs_setroot(struct ucred *cred)

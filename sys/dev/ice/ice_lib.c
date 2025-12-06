@@ -7818,7 +7818,8 @@ ice_get_ifnet_counter(struct ice_vsi *vsi, ift_counter counter)
 	case IFCOUNTER_OPACKETS:
 		return (es->tx_unicast + es->tx_multicast + es->tx_broadcast);
 	case IFCOUNTER_OERRORS:
-		return (es->tx_errors);
+		return (if_get_counter_default(vsi->sc->ifp, counter) +
+		    es->tx_errors);
 	case IFCOUNTER_COLLISIONS:
 		return (0);
 	case IFCOUNTER_IBYTES:
@@ -7832,7 +7833,8 @@ ice_get_ifnet_counter(struct ice_vsi *vsi, ift_counter counter)
 	case IFCOUNTER_IQDROPS:
 		return (es->rx_discards);
 	case IFCOUNTER_OQDROPS:
-		return (hs->tx_dropped_link_down);
+		return (if_get_counter_default(vsi->sc->ifp, counter) +
+		    hs->tx_dropped_link_down);
 	case IFCOUNTER_NOPROTO:
 		return (es->rx_unknown_protocol);
 	default:
@@ -11342,10 +11344,10 @@ ice_get_port_topology(struct ice_hw *hw, u8 lport,
 		return err;
 
 	if (cage_type == 0x11 ||  /* SFP */
-	   cage_type == 0x12) {   /* SFP28 */
+	    cage_type == 0x12) {   /* SFP28 */
 		port_topology->serdes_lane_count = 1;
 	} else if (cage_type == 0x13 ||  /* QSFP */
-		  cage_type == 0x14) {   /* QSFP28 */
+	    cage_type == 0x14) {   /* QSFP28 */
 		u8 max_speed = 0;
 
 		err = ice_get_maxspeed(hw, port_topology->primary_serdes_lane,
@@ -11360,7 +11362,8 @@ ice_get_port_topology(struct ice_hw *hw, u8 lport,
 
 		if (max_speed == ICE_AQC_PORT_OPT_MAX_LANE_100G)
 			port_topology->serdes_lane_count = 4;
-		else if (max_speed == ICE_AQC_PORT_OPT_MAX_LANE_50G)
+		else if (max_speed == ICE_AQC_PORT_OPT_MAX_LANE_50G ||
+		    max_speed == ICE_AQC_PORT_OPT_MAX_LANE_40G)
 			port_topology->serdes_lane_count = 2;
 		else
 			port_topology->serdes_lane_count = 1;

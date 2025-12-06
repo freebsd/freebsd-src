@@ -109,7 +109,6 @@ NOASM=
 .include "${LIBC_SRCTOP}/inet/Makefile.inc"
 .include "${LIBC_SRCTOP}/isc/Makefile.inc"
 .include "${LIBC_SRCTOP}/locale/Makefile.inc"
-.include "${LIBC_SRCTOP}/md/Makefile.inc"
 .include "${LIBC_SRCTOP}/nameser/Makefile.inc"
 .include "${LIBC_SRCTOP}/net/Makefile.inc"
 .include "${LIBC_SRCTOP}/nls/Makefile.inc"
@@ -119,6 +118,7 @@ NOASM=
 .endif
 .include "${LIBC_SRCTOP}/regex/Makefile.inc"
 .include "${LIBC_SRCTOP}/resolv/Makefile.inc"
+.include "${LIBC_SRCTOP}/stdbit/Makefile.inc"
 .include "${LIBC_SRCTOP}/stdio/Makefile.inc"
 .include "${LIBC_SRCTOP}/stdlib/Makefile.inc"
 .include "${LIBC_SRCTOP}/stdtime/Makefile.inc"

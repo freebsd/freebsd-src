@@ -548,7 +548,7 @@ mesh_gatemode_cb(void *arg)
 }
 
 static void
-ieee80211_mesh_init(void)
+ieee80211_mesh_init(void *dummy __unused)
 {
 
 	memset(mesh_proto_paths, 0, sizeof(mesh_proto_paths));

@@ -1988,7 +1988,7 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	    (options & (OBJPR_CLEANONLY | OBJPR_NOTMAPPED)) == OBJPR_NOTMAPPED,
 	    ("vm_object_page_remove: illegal options for object %p", object));
 	if (object->resident_page_count == 0)
-		return;
+		goto remove_pager;
 	vm_object_pip_add(object, 1);
 	vm_page_iter_limit_init(&pages, object, end);
 again:
@@ -2061,6 +2061,7 @@ wired:
 	}
 	vm_object_pip_wakeup(object);
 
+remove_pager:
 	vm_pager_freespace(object, start, (end == 0 ? object->size : end) -
 	    start);
 }
@@ -2522,15 +2523,13 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 			continue;
 		}
 		mtx_unlock(&vm_object_list_mtx);
+
+		memset(kvo, 0, sizeof(*kvo));
 		kvo->kvo_size = ptoa(obj->size);
 		kvo->kvo_resident = obj->resident_page_count;
 		kvo->kvo_ref_count = obj->ref_count;
 		kvo->kvo_shadow_count = atomic_load_int(&obj->shadow_count);
 		kvo->kvo_memattr = obj->memattr;
-		kvo->kvo_active = 0;
-		kvo->kvo_inactive = 0;
-		kvo->kvo_laundry = 0;
-		kvo->kvo_flags = 0;
 		if (!swap_only) {
 			vm_page_iter_init(&pages, obj);
 			VM_RADIX_FOREACH(m, &pages) {
@@ -2549,12 +2548,12 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 					kvo->kvo_inactive++;
 				else if (vm_page_in_laundry(m))
 					kvo->kvo_laundry++;
+
+				if (vm_page_wired(m))
+					kvo->kvo_wired++;
 			}
 		}
 
-		kvo->kvo_vn_fileid = 0;
-		kvo->kvo_vn_fsid = 0;
-		kvo->kvo_vn_fsid_freebsd11 = 0;
 		freepath = NULL;
 		fullpath = "";
 		vp = NULL;

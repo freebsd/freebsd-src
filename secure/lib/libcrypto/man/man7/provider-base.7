@@ -55,7 +55,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PROVIDER-BASE 7ossl"
-.TH PROVIDER-BASE 7ossl 2025-07-01 3.5.1 OpenSSL
+.TH PROVIDER-BASE 7ossl 2025-09-30 3.5.4 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -216,6 +216,10 @@ provider):
 \& core_new_error                 OSSL_FUNC_CORE_NEW_ERROR
 \& core_set_error_debug           OSSL_FUNC_CORE_SET_ERROR_DEBUG
 \& core_vset_error                OSSL_FUNC_CORE_VSET_ERROR
+\& core_set_error_mark            OSSL_FUNC_CORE_SET_ERROR_MARK
+\& core_clear_last_error_mark     OSSL_FUNC_CORE_CLEAR_LAST_ERROR_MARK
+\& core_pop_error_to_mark         OSSL_FUNC_CORE_POP_ERROR_TO_MARK
+\& core_count_to_mark             OSSL_FUNC_CORE_COUNT_TO_MARK
 \& core_obj_add_sigid             OSSL_FUNC_CORE_OBJ_ADD_SIGID
 \& core_obj_create                OSSL_FUNC_CORE_OBJ_CREATE
 \& CRYPTO_malloc                  OSSL_FUNC_CRYPTO_MALLOC
@@ -328,6 +332,29 @@ arguments \fIargs\fR, which are treated in the same manner as with
 error occurred or was reported.
 .Sp
 This corresponds to the OpenSSL function \fBERR_vset_error\fR\|(3).
+.IP \fBcore_set_error_mark()\fR 4
+.IX Item "core_set_error_mark()"
+sets a mark on the current topmost error record if there is one.
+.Sp
+This corresponds to the OpenSSL function \fBERR_set_mark\fR\|(3).
+.IP \fBcore_clear_last_error_mark()\fR 4
+.IX Item "core_clear_last_error_mark()"
+removes the last mark added if there is one.
+.Sp
+This corresponds to the OpenSSL function \fBERR_clear_last_mark\fR\|(3).
+.IP \fBcore_pop_error_to_mark()\fR 4
+.IX Item "core_pop_error_to_mark()"
+pops the top of the error stack until a mark is found. The mark is then removed.
+If there is no mark, the whole stack is removed.
+.Sp
+This corresponds to the OpenSSL function \fBERR_pop_to_mark\fR\|(3).
+.IP \fBcore_count_to_mark()\fR 4
+.IX Item "core_count_to_mark()"
+returns the number of entries on the error stack above the most recently
+marked entry, not including that entry. If there is no mark in the error stack,
+the number of entries in the error stack is returned.
+.Sp
+This corresponds to the OpenSSL function \fBERR_count_to_mark\fR\|(3).
 .PP
 The \fBcore_obj_create()\fR function registers a new OID and associated short name
 \&\fIsn\fR and long name \fIln\fR for the given \fIhandle\fR. It is similar to the OpenSSL

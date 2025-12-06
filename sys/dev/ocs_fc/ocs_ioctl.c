@@ -796,7 +796,7 @@ ocs_sys_fwupgrade(SYSCTL_HANDLER_ARGS)
                                 break;
                         default:
                                 ocs_log_warn(ocs,
-                                        "Unexected value change_status: %d\n",
+                                        "Unexpected value change_status: %d\n",
                                         fw_change_status);
                                 break;
                 }

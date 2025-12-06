@@ -14,7 +14,10 @@ export ROOTDIR="$PWD/dvd"
 export PORTSDIR="${PORTSDIR:-/usr/ports}"
 
 _DVD_PACKAGES="
+comms/usbmuxd
 devel/git@lite
+editors/emacs@nox
+editors/vim
 misc/freebsd-doc-all
 net/mpd5
 net/rsync
@@ -29,7 +32,6 @@ sysutils/tmux
 www/firefox
 www/links
 x11/gnome
-x11/kde
 x11/sddm
 x11/xorg
 x11-wm/sway
@@ -110,7 +112,7 @@ ${PKGCMD} repo ${PKG_REPODIR}
 
 if [ $NO_ROOT ]; then
 	mtree -c -p $ROOTDIR | mtree -C -k type,mode,link,size | \
-	    grep '^./packages/' >> $ROOTDIR/METALOG
+	    grep '^./packages[/ ]' >> $ROOTDIR/METALOG
 fi
 
 # Always exit '0', even if pkg(8) complains about conflicts.

@@ -158,7 +158,7 @@ typedef void			irqreturn_t;
 #else
 #define DRM_MSG "WARNING! drm2 module is deprecated.\n"
 #endif
-#define DRM_OBSOLETE(dev)	gone_in_dev(dev, 13, DRM_MSG)
+#define DRM_OBSOLETE(dev)	gone_in_dev(dev, 16, DRM_MSG)
 #endif /* __arm__ */
 
 /* DRM_READMEMORYBARRIER() prevents reordering of reads.

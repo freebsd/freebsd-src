@@ -1,6 +1,7 @@
 # $Id: Makefile,v 1.2 2003/09/07 20:34:19 max Exp $
 
-PACKAGE=lib${LIB}
+PACKAGE=	bluetooth
+LIB_PACKAGE=
 LIB=		sdp
 MAN=		sdp.3
 

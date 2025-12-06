@@ -5,6 +5,9 @@ set -eux
 #brew update > /dev/null
 #brew upgrade > /dev/null
 
+# Workaround for cmake in local/pinned tap issue
+brew uninstall cmake
+
 # This does an upgrade if the package is already installed
 brew install \
 	autoconf \

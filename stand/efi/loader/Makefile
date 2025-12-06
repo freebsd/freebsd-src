@@ -30,9 +30,13 @@ SRCS=	autoload.c \
 	gfx_fb.c \
 	8x16.c
 
+SRCS+= acpi_detect.c
+.PATH: ${EFISRC}/acpica
+CFLAGS+=	-I${EFISRC}/acpica/include
+
 CFLAGS+=	-I${.CURDIR}/../loader
 .if ${MK_LOADER_ZFS} != "no"
-CFLAGS+=	-I${ZFSSRC}
+CFLAGS+=	-I${SAZFSSRC}
 CFLAGS+=        -I${SYSDIR}/contrib/openzfs/include
 CFLAGS+=        -I${SYSDIR}/contrib/openzfs/include/os/freebsd/zfs
 CFLAGS+=	-DEFI_ZFS_BOOT
@@ -61,10 +65,12 @@ CWARNFLAGS.main.c+=	-Wno-format
 .PATH: ${.CURDIR}/../loader/arch/${__arch}
 .include "${.CURDIR}/../loader/arch/${__arch}/Makefile.inc"
 
+CFLAGS+=	-Wall
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/arch/${__arch}
 CFLAGS+=	-I${EFISRC}/include
 CFLAGS+=	-I${EFISRC}/include/${__arch}
+CFLAGS+=	-I${EDK2INC}
 CFLAGS+=	-I${SYSDIR}/contrib/dev/acpica/include
 CFLAGS+=	-I${BOOTSRC}/i386/libi386
 CFLAGS+=	-DEFI

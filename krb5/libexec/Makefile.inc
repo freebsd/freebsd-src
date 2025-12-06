@@ -1,5 +1,5 @@
 #
-# SPDX-License-Idendifier: BSD-2-Clause
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2025 FreeBSD Foundation
 #
@@ -9,5 +9,5 @@
 
 .include "../Makefile.inc"
 
-PACKAGE?=	kerberos-kdc
+PACKAGE=	kerberos-kdc
 BINDIR?=	/usr/libexec

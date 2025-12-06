@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 10, 2024
+.Dd November 10, 2025
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -129,7 +129,7 @@ format.
 Parsing is done using
 .Xr strptime 3 .
 .It Fl I Ns Op Ar FMT
-Use
+Use extended
 .St -iso8601
 output format.
 .Ar FMT
@@ -143,7 +143,8 @@ values are
 .Cm minutes ,
 .Cm seconds ,
 and
-.Cm ns No Pq for nanoseconds .
+.Cm ns
+.Pq for nanoseconds .
 The date and time is formatted to the specified precision.
 When
 .Ar FMT
@@ -154,9 +155,9 @@ is
 .Cm seconds ,
 or
 .Cm ns Pc ,
-the
+the extended
 .St -iso8601
-format includes the timezone.
+format includes the timezone offset.
 .It Fl j
 Do not try to set the date.
 This allows you to use the
@@ -172,7 +173,7 @@ Obsolete flag, accepted and ignored for compatibility.
 .It Fl R
 Use RFC 2822 date and time output format.
 This is equivalent to using
-.Dq Li %a, %d %b %Y \&%T %z
+.Ql %a, %d %b %Y \&%T %z
 as
 .Ar output_fmt
 while
@@ -185,7 +186,7 @@ Print the date and time represented by
 .Ar seconds ,
 where
 .Ar seconds
-is the number of seconds since the Epoch
+is the number of seconds since the Unix Epoch
 (00:00:00 UTC, January 1, 1970;
 see
 .Xr time 3 ) ,
@@ -194,9 +195,7 @@ and can be specified in decimal, octal, or hex.
 Print the date and time of the last modification of
 .Ar filename .
 .It Fl u
-Display or set the date in
-.Tn UTC
-(Coordinated Universal) time.
+Display or set the date in UTC (Coordinated Universal) time.
 By default
 .Nm
 displays the time in the time zone described by
@@ -322,20 +321,43 @@ Refer to the examples below for further details.
 .Pp
 An operand with a leading plus
 .Pq Sq +
-sign signals a user-defined format string
+sign specifies a user-defined format string
 which specifies the format in which to display the date and time.
 The format string may contain any of the conversion specifications
 described in the
 .Xr strftime 3
-manual page and
-.Ql %N
-for nanoseconds, as well as any arbitrary text.
+manual page, as well as any arbitrary text.
+.Pp
+The following extensions to the regular
+.Xr strftime 3
+syntax are supported:
+.Bl -tag -width "xxxx"
+.It Cm \&% Ns Ar n Ns Cm N
+Replaced by the
+.Ar n Ns
+-digit fractional part of the number of seconds since the Unix Epoch.
+If
+.Ar n
+is omitted or zero, a default value of 9 is used, resulting in a
+number with nanosecond resolution (hence the choice of the letter
+.Sq N
+for this conversion).
+Note that the underlying clock may not necessarily support nanosecond
+resolution.
+.It Cm \&%-N
+As above, but automatically choose the precision based on the reported
+resolution of the underlying clock.
+If the
+.Fl r
+option was specified, the default precision of 9 digits is used.
+.El
+.Pp
 A newline
 .Pq Ql \en
 character is always output after the characters specified by
 the format string.
 The format string for the default display is
-.Dq +%+ .
+.Dq %+ .
 .Pp
 If an operand does not have a leading plus sign, it is interpreted as
 a value for setting the system's notion of the current date and time.
@@ -449,6 +471,13 @@ The
 utility exits 0 on success, 1 if unable to set the date, and 2
 if able to set the local date, but unable to set it globally.
 .Sh EXAMPLES
+The command
+.Pp
+.Dl "date +%s.%3N"
+.Pp
+will print the time elapsed since the Unix Epoch with millisecond
+precision.
+.Pp
 The command:
 .Pp
 .Dl "date ""+DATE: %Y-%m-%d%nTIME: %H:%M:%S"""
@@ -468,7 +497,7 @@ will display:
 .Dl "Sun Jan  4 04:15:24 GMT 1998"
 .Pp
 where it is currently
-.Li "Mon Aug  4 04:15:24 BST 1997" .
+.Ql "Mon Aug  4 04:15:24 BST 1997" .
 .Pp
 The command:
 .Pp
@@ -493,29 +522,31 @@ will display the last Friday of the month:
 .Dl "Fri Aug 29 04:31:11 BST 1997"
 .Pp
 where it is currently
-.Li "Mon Aug  4 04:31:11 BST 1997" .
+.Ql "Mon Aug  4 04:31:11 BST 1997" .
 .Pp
 The command:
 .Pp
 .Dl "date 8506131627"
 .Pp
 sets the date to
-.Dq Li "June 13, 1985, 4:27 PM" .
+.Ql "June 13, 1985, 4:27 PM" .
 .Pp
 .Dl "date ""+%Y%m%d%H%M.%S"""
 .Pp
 may be used on one machine to print out the date
 suitable for setting on another.
-.Qq ( Li "+%m%d%H%M%Y.%S"
-for use on
-.Tn Linux . )
+.Po Use
+.Ql "+%m%d%H%M%Y.%S"
+with GNU date on
+Linux .
+.Pc
 .Pp
 The command:
 .Pp
 .Dl "date 1432"
 .Pp
 sets the time to
-.Li "2:32 PM" ,
+.Ql "2:32 PM" ,
 without modifying the date.
 .Pp
 The command
@@ -591,10 +622,10 @@ flag is compatible with
 .St -iso8601 .
 .Pp
 The
-.Ql %N
+.Ql \&%N
 conversion specification for nanoseconds is a non-standard extension.
 It is compatible with GNU date's
-.Ql %N .
+.Ql \&%N .
 .Sh HISTORY
 A
 .Nm
@@ -615,6 +646,12 @@ flag was added in
 .Fx 12.0 .
 .Pp
 The
-.Ql %N
+.Ql \&%N
 conversion specification was added in
 .Fx 14.1 .
+Support for the
+.Ql \&% Ns Ar n Ns Cm N
+and
+.Ql \&%-N
+variants was added in
+.Fx 15.1 .

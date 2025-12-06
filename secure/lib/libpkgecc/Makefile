@@ -128,7 +128,6 @@ CONFLICTS=	-Dsha256_init=_libecc_sha256_init \
 		-Dsha512_256_init=_libecc_sha512_256_init
 
 CFLAGS=		-I$(SRCTOP)/crypto/libecc/include \
-		-ffreestanding \
 		-fno-builtin \
 		-DUSE_WARN_UNUSED_RET \
 		-DWITH_STDLIB \

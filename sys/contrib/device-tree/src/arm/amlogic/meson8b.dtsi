@@ -173,7 +173,7 @@
 	};
 
 	thermal-zones {
-		soc {
+		soc-thermal {
 			polling-delay-passive = <250>; /* milliseconds */
 			polling-delay = <1000>; /* milliseconds */
 			thermal-sensors = <&thermal_sensor>;
@@ -308,17 +308,16 @@
 		reg = <0xe0 0x18>;
 	};
 
-	pinctrl_aobus: pinctrl@84 {
+	pinctrl_aobus: pinctrl@14 {
 		compatible = "amlogic,meson8b-aobus-pinctrl";
-		reg = <0x84 0xc>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges;
+		ranges = <0x0 0x14 0x1c>;
 
-		gpio_ao: ao-bank@14 {
-			reg = <0x14 0x4>,
-				<0x2c 0x4>,
-				<0x24 0x8>;
+		gpio_ao: bank@0 {
+			reg = <0x0 0x4>,
+			      <0x18 0x4>,
+			      <0x10 0x8>;
 			reg-names = "mux", "pull", "gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -369,7 +368,7 @@
 			mux {
 				groups = "uart_tx_ao_a", "uart_rx_ao_a";
 				function = "uart_ao";
-				bias-disable;
+				bias-pull-up;
 			};
 		};
 
@@ -404,8 +403,12 @@
 	};
 
 	pwm_ef: pwm@86c0 {
-		compatible = "amlogic,meson8b-pwm";
+		compatible = "amlogic,meson8b-pwm-v2", "amlogic,meson8-pwm-v2";
 		reg = <0x86c0 0x10>;
+		clocks = <&xtal>,
+			 <0>, /* unknown/untested, the datasheet calls it "Video PLL" */
+			 <&clkc CLKID_FCLK_DIV4>,
+			 <&clkc CLKID_FCLK_DIV3>;
 		#pwm-cells = <3>;
 		status = "disabled";
 	};
@@ -415,18 +418,17 @@
 		reg = <0x8758 0x1c>;
 	};
 
-	pinctrl_cbus: pinctrl@9880 {
+	pinctrl_cbus: pinctrl@8030 {
 		compatible = "amlogic,meson8b-cbus-pinctrl";
-		reg = <0x9880 0x10>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges;
+		ranges = <0x0 0x8030 0x108>;
 
-		gpio: banks@80b0 {
-			reg = <0x80b0 0x28>,
-				<0x80e8 0x18>,
-				<0x8120 0x18>,
-				<0x8030 0x38>;
+		gpio: bank@80 {
+			reg = <0x80 0x28>,
+			      <0xb8 0x18>,
+			      <0xf0 0x18>,
+			      <0x00 0x38>;
 			reg-names = "mux", "pull", "pull-enable", "gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -519,7 +521,7 @@
 				groups = "uart_tx_b0",
 				       "uart_rx_b0";
 				function = "uart_b";
-				bias-disable;
+				bias-pull-up;
 			};
 		};
 
@@ -535,7 +537,7 @@
 };
 
 &ahb_sram {
-	ao_arc_sram: ao-arc-sram@0 {
+	ao_arc_sram: aoarc-sram@0 {
 		compatible = "amlogic,meson8b-ao-arc-sram";
 		reg = <0x0 0x8000>;
 		pool;
@@ -676,11 +678,19 @@
 };
 
 &pwm_ab {
-	compatible = "amlogic,meson8b-pwm";
+	compatible = "amlogic,meson8b-pwm-v2", "amlogic,meson8-pwm-v2";
+	clocks = <&xtal>,
+		 <0>, /* unknown/untested, the datasheet calls it "Video PLL" */
+		 <&clkc CLKID_FCLK_DIV4>,
+		 <&clkc CLKID_FCLK_DIV3>;
 };
 
 &pwm_cd {
-	compatible = "amlogic,meson8b-pwm";
+	compatible = "amlogic,meson8b-pwm-v2", "amlogic,meson8-pwm-v2";
+	clocks = <&xtal>,
+		 <0>, /* unknown/untested, the datasheet calls it "Video PLL" */
+		 <&clkc CLKID_FCLK_DIV4>,
+		 <&clkc CLKID_FCLK_DIV3>;
 };
 
 &rtc {

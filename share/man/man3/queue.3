@@ -1420,13 +1420,13 @@ while in userland builds it prints the diagnostic message on
 .Dv stderr
 and then calls
 .Fn abort .
-These behaviors can be overriden by defining a custom
+These behaviors can be overridden by defining a custom
 .Fn QMD_PANIC
 macro before first inclusion of
 .In sys/queue.h .
 The diagnostic messages automatically include the source file, line and function
-where the failing check occured.
-This behavior can be overriden by defining a custom
+where the failing check occurred.
+This behavior can be overridden by defining a custom
 .Fn QMD_ASSERT
 macro before first inclusion of
 .In sys/queue.h .

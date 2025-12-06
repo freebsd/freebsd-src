@@ -208,31 +208,33 @@ nvme_opcode_sbuf(bool admin, uint8_t opc, struct sbuf *sb)
 	if (s == NULL)
 		sbuf_printf(sb, "%s (%02x)", type, opc);
 	else
-		sbuf_printf(sb, "%s", s);
+		sbuf_printf(sb, "%s (%02x)", s, opc);
 }
 
 void
 nvme_sc_sbuf(const struct nvme_completion *cpl, struct sbuf *sb)
 {
 	const char *s, *type;
-	uint16_t status;
+	uint16_t status, sc, sct;
 
 	status = le16toh(cpl->status);
-	switch (NVME_STATUS_GET_SCT(status)) {
+	sc = NVME_STATUS_GET_SC(status);
+	sct = NVME_STATUS_GET_SCT(status);
+	switch (sct) {
 	case NVME_SCT_GENERIC:
-		s = generic_status[NVME_STATUS_GET_SC(status)];
+		s = generic_status[sc];
 		type = "GENERIC";
 		break;
 	case NVME_SCT_COMMAND_SPECIFIC:
-		s = command_specific_status[NVME_STATUS_GET_SC(status)];
+		s = command_specific_status[sc];
 		type = "COMMAND SPECIFIC";
 		break;
 	case NVME_SCT_MEDIA_ERROR:
-		s = media_error_status[NVME_STATUS_GET_SC(status)];
+		s = media_error_status[sc];
 		type = "MEDIA ERROR";
 		break;
 	case NVME_SCT_PATH_RELATED:
-		s = path_related_status[NVME_STATUS_GET_SC(status)];
+		s = path_related_status[sc];
 		type = "PATH RELATED";
 		break;
 	case NVME_SCT_VENDOR_SPECIFIC:
@@ -246,12 +248,11 @@ nvme_sc_sbuf(const struct nvme_completion *cpl, struct sbuf *sb)
 	}
 
 	if (type == NULL)
-		sbuf_printf(sb, "RESERVED (%02x/%02x)",
-		    NVME_STATUS_GET_SCT(status), NVME_STATUS_GET_SC(status));
+		sbuf_printf(sb, "RESERVED (%02x/%02x)", sct, sc);
 	else if (s == NULL)
-		sbuf_printf(sb, "%s (%02x)", type, NVME_STATUS_GET_SC(status));
+		sbuf_printf(sb, "%s (%02x/%02x)", type, sct, sc);
 	else
-		sbuf_printf(sb, "%s", s);
+		sbuf_printf(sb, "%s (%02x/%02x)", s, sct, sc);
 }
 
 void

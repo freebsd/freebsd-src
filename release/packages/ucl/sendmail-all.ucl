@@ -1,4 +1,38 @@
-comment = "Sendmail Utilities"
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+comment = "sendmail mail transport agent"
+
 desc = <<EOD
-Sendmail Utilities
+The sendmail mail transport agent allows the system to send and receive mail
+for both local and remote users.   sendmail can also act as a mail exchanger
+for other hosts, and has a flexible configuration format that can be used to
+rewrite, filter or otherwise process mail before delivering it.
+
+sendmail supports multiple mail transport protocols, including Internet SMTP,
+LMTP, UUCP and DECnet.  Support for protocols other than SMTP and LMTP needs
+third-party software not shipped with the base system.
+
+When the full functionality of sendmail is not required, consider using the
+$PKG_NAME_PREFIX-dma package instead, a lightweight MTA which can send (but
+not receive) mail over SMTP.
 EOD
+
+annotations {
+	set = "optional,optional-jail"
+}

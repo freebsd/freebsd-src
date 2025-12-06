@@ -22,7 +22,7 @@
 #endif
 
 #include "bsdcat.h"
-#include "err.h"
+#include "lafe_err.h"
 
 /*
  * Short options for bsdcat.  Please keep this sorted.

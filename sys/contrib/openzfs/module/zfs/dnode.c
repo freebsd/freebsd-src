@@ -173,9 +173,7 @@ dnode_cons(void *arg, void *unused, int kmflag)
 	dn->dn_allocated_txg = 0;
 	dn->dn_free_txg = 0;
 	dn->dn_assigned_txg = 0;
-	dn->dn_dirty_txg = 0;
-	dn->dn_dirtyctx = 0;
-	dn->dn_dirtyctx_firstset = NULL;
+	dn->dn_dirtycnt = 0;
 	dn->dn_bonus = NULL;
 	dn->dn_have_spill = B_FALSE;
 	dn->dn_zio = NULL;
@@ -214,7 +212,7 @@ dnode_dest(void *arg, void *unused)
 
 	for (int i = 0; i < TXG_SIZE; i++) {
 		ASSERT(!multilist_link_active(&dn->dn_dirty_link[i]));
-		ASSERT3P(dn->dn_free_ranges[i], ==, NULL);
+		ASSERT0P(dn->dn_free_ranges[i]);
 		list_destroy(&dn->dn_dirty_records[i]);
 		ASSERT0(dn->dn_next_nblkptr[i]);
 		ASSERT0(dn->dn_next_nlevels[i]);
@@ -229,12 +227,10 @@ dnode_dest(void *arg, void *unused)
 	ASSERT0(dn->dn_allocated_txg);
 	ASSERT0(dn->dn_free_txg);
 	ASSERT0(dn->dn_assigned_txg);
-	ASSERT0(dn->dn_dirty_txg);
-	ASSERT0(dn->dn_dirtyctx);
-	ASSERT3P(dn->dn_dirtyctx_firstset, ==, NULL);
-	ASSERT3P(dn->dn_bonus, ==, NULL);
+	ASSERT0(dn->dn_dirtycnt);
+	ASSERT0P(dn->dn_bonus);
 	ASSERT(!dn->dn_have_spill);
-	ASSERT3P(dn->dn_zio, ==, NULL);
+	ASSERT0P(dn->dn_zio);
 	ASSERT0(dn->dn_oldused);
 	ASSERT0(dn->dn_oldflags);
 	ASSERT0(dn->dn_olduid);
@@ -318,7 +314,7 @@ dnode_kstats_update(kstat_t *ksp, int rw)
 void
 dnode_init(void)
 {
-	ASSERT(dnode_cache == NULL);
+	ASSERT0P(dnode_cache);
 	dnode_cache = kmem_cache_create("dnode_t", sizeof (dnode_t),
 	    0, dnode_cons, dnode_dest, NULL, NULL, NULL, KMC_RECLAIMABLE);
 	kmem_cache_set_move(dnode_cache, dnode_move);
@@ -509,7 +505,7 @@ dnode_buf_byteswap(void *vbuf, size_t size)
 	int i = 0;
 
 	ASSERT3U(sizeof (dnode_phys_t), ==, (1<<DNODE_SHIFT));
-	ASSERT((size & (sizeof (dnode_phys_t)-1)) == 0);
+	ASSERT0((size & (sizeof (dnode_phys_t)-1)));
 
 	while (i < size) {
 		dnode_phys_t *dnp = (void *)(((char *)vbuf) + i);
@@ -673,7 +669,7 @@ dnode_destroy(dnode_t *dn)
 	objset_t *os = dn->dn_objset;
 	boolean_t complete_os_eviction = B_FALSE;
 
-	ASSERT((dn->dn_id_flags & DN_ID_NEW_EXIST) == 0);
+	ASSERT0((dn->dn_id_flags & DN_ID_NEW_EXIST));
 
 	mutex_enter(&os->os_lock);
 	POINTER_INVALIDATE(&dn->dn_objset);
@@ -692,10 +688,8 @@ dnode_destroy(dnode_t *dn)
 	dn->dn_allocated_txg = 0;
 	dn->dn_free_txg = 0;
 	dn->dn_assigned_txg = 0;
-	dn->dn_dirty_txg = 0;
+	dn->dn_dirtycnt = 0;
 
-	dn->dn_dirtyctx = 0;
-	dn->dn_dirtyctx_firstset = NULL;
 	if (dn->dn_bonus != NULL) {
 		mutex_enter(&dn->dn_bonus->db_mtx);
 		dbuf_destroy(dn->dn_bonus);
@@ -780,7 +774,7 @@ dnode_allocate(dnode_t *dn, dmu_object_type_t ot, int blocksize, int ibs,
 		ASSERT0(dn->dn_next_maxblkid[i]);
 		ASSERT(!multilist_link_active(&dn->dn_dirty_link[i]));
 		ASSERT3P(list_head(&dn->dn_dirty_records[i]), ==, NULL);
-		ASSERT3P(dn->dn_free_ranges[i], ==, NULL);
+		ASSERT0P(dn->dn_free_ranges[i]);
 	}
 
 	dn->dn_type = ot;
@@ -800,11 +794,9 @@ dnode_allocate(dnode_t *dn, dmu_object_type_t ot, int blocksize, int ibs,
 	dn->dn_bonuslen = bonuslen;
 	dn->dn_checksum = ZIO_CHECKSUM_INHERIT;
 	dn->dn_compress = ZIO_COMPRESS_INHERIT;
-	dn->dn_dirtyctx = 0;
 
 	dn->dn_free_txg = 0;
-	dn->dn_dirtyctx_firstset = NULL;
-	dn->dn_dirty_txg = 0;
+	dn->dn_dirtycnt = 0;
 
 	dn->dn_allocated_txg = tx->tx_txg;
 	dn->dn_id_flags = 0;
@@ -955,10 +947,8 @@ dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 	ndn->dn_allocated_txg = odn->dn_allocated_txg;
 	ndn->dn_free_txg = odn->dn_free_txg;
 	ndn->dn_assigned_txg = odn->dn_assigned_txg;
-	ndn->dn_dirty_txg = odn->dn_dirty_txg;
-	ndn->dn_dirtyctx = odn->dn_dirtyctx;
-	ndn->dn_dirtyctx_firstset = odn->dn_dirtyctx_firstset;
-	ASSERT(zfs_refcount_count(&odn->dn_tx_holds) == 0);
+	ndn->dn_dirtycnt = odn->dn_dirtycnt;
+	ASSERT0(zfs_refcount_count(&odn->dn_tx_holds));
 	zfs_refcount_transfer(&ndn->dn_holds, &odn->dn_holds);
 	ASSERT(avl_is_empty(&ndn->dn_dbufs));
 	avl_swap(&ndn->dn_dbufs, &odn->dn_dbufs);
@@ -1020,9 +1010,7 @@ dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 	odn->dn_allocated_txg = 0;
 	odn->dn_free_txg = 0;
 	odn->dn_assigned_txg = 0;
-	odn->dn_dirty_txg = 0;
-	odn->dn_dirtyctx = 0;
-	odn->dn_dirtyctx_firstset = NULL;
+	odn->dn_dirtycnt = 0;
 	odn->dn_have_spill = B_FALSE;
 	odn->dn_zio = NULL;
 	odn->dn_oldused = 0;
@@ -1273,8 +1261,8 @@ dnode_check_slots_free(dnode_children_t *children, int idx, int slots)
 		} else if (DN_SLOT_IS_PTR(dn)) {
 			mutex_enter(&dn->dn_mtx);
 			boolean_t can_free = (dn->dn_type == DMU_OT_NONE &&
-			    zfs_refcount_is_zero(&dn->dn_holds) &&
-			    !DNODE_IS_DIRTY(dn));
+			    dn->dn_dirtycnt == 0 &&
+			    zfs_refcount_is_zero(&dn->dn_holds));
 			mutex_exit(&dn->dn_mtx);
 
 			if (!can_free)
@@ -1757,17 +1745,23 @@ dnode_hold(objset_t *os, uint64_t object, const void *tag, dnode_t **dnp)
  * reference on the dnode.  Returns FALSE if unable to add a
  * new reference.
  */
+static boolean_t
+dnode_add_ref_locked(dnode_t *dn, const void *tag)
+{
+	ASSERT(MUTEX_HELD(&dn->dn_mtx));
+	if (zfs_refcount_is_zero(&dn->dn_holds))
+		return (FALSE);
+	VERIFY(1 < zfs_refcount_add(&dn->dn_holds, tag));
+	return (TRUE);
+}
+
 boolean_t
 dnode_add_ref(dnode_t *dn, const void *tag)
 {
 	mutex_enter(&dn->dn_mtx);
-	if (zfs_refcount_is_zero(&dn->dn_holds)) {
-		mutex_exit(&dn->dn_mtx);
-		return (FALSE);
-	}
-	VERIFY(1 < zfs_refcount_add(&dn->dn_holds, tag));
+	boolean_t r = dnode_add_ref_locked(dn, tag);
 	mutex_exit(&dn->dn_mtx);
-	return (TRUE);
+	return (r);
 }
 
 void
@@ -1830,31 +1824,20 @@ dnode_try_claim(objset_t *os, uint64_t object, int slots)
 }
 
 /*
- * Checks if the dnode itself is dirty, or is carrying any uncommitted records.
- * It is important to check both conditions, as some operations (eg appending
- * to a file) can dirty both as a single logical unit, but they are not synced
- * out atomically, so checking one and not the other can result in an object
- * appearing to be clean mid-way through a commit.
+ * Test if the dnode is dirty, or carrying uncommitted records.
  *
- * Do not change this lightly! If you get it wrong, dmu_offset_next() can
- * detect a hole where there is really data, leading to silent corruption.
+ * dn_dirtycnt is the number of txgs this dnode is dirty on. It's incremented
+ * in dnode_setdirty() the first time the dnode is dirtied on a txg, and
+ * decremented in either dnode_rele_task() or userquota_updates_task() when the
+ * txg is synced out.
  */
 boolean_t
 dnode_is_dirty(dnode_t *dn)
 {
 	mutex_enter(&dn->dn_mtx);
-
-	for (int i = 0; i < TXG_SIZE; i++) {
-		if (multilist_link_active(&dn->dn_dirty_link[i]) ||
-		    !list_is_empty(&dn->dn_dirty_records[i])) {
-			mutex_exit(&dn->dn_mtx);
-			return (B_TRUE);
-		}
-	}
-
+	boolean_t dirty = (dn->dn_dirtycnt != 0);
 	mutex_exit(&dn->dn_mtx);
-
-	return (B_FALSE);
+	return (dirty);
 }
 
 void
@@ -1916,7 +1899,11 @@ dnode_setdirty(dnode_t *dn, dmu_tx_t *tx)
 	 * dnode will hang around after we finish processing its
 	 * children.
 	 */
-	VERIFY(dnode_add_ref(dn, (void *)(uintptr_t)tx->tx_txg));
+	mutex_enter(&dn->dn_mtx);
+	VERIFY(dnode_add_ref_locked(dn, (void *)(uintptr_t)tx->tx_txg));
+	dn->dn_dirtycnt++;
+	ASSERT3U(dn->dn_dirtycnt, <=, 3);
+	mutex_exit(&dn->dn_mtx);
 
 	(void) dbuf_dirty(dn->dn_dbuf, tx);
 
@@ -2221,32 +2208,6 @@ dnode_dirty_l1range(dnode_t *dn, uint64_t start_blkid, uint64_t end_blkid,
 	mutex_exit(&dn->dn_dbufs_mtx);
 }
 
-void
-dnode_set_dirtyctx(dnode_t *dn, dmu_tx_t *tx, const void *tag)
-{
-	/*
-	 * Don't set dirtyctx to SYNC if we're just modifying this as we
-	 * initialize the objset.
-	 */
-	if (dn->dn_dirtyctx == DN_UNDIRTIED) {
-		dsl_dataset_t *ds = dn->dn_objset->os_dsl_dataset;
-
-		if (ds != NULL) {
-			rrw_enter(&ds->ds_bp_rwlock, RW_READER, tag);
-		}
-		if (!BP_IS_HOLE(dn->dn_objset->os_rootbp)) {
-			if (dmu_tx_is_syncing(tx))
-				dn->dn_dirtyctx = DN_DIRTY_SYNC;
-			else
-				dn->dn_dirtyctx = DN_DIRTY_OPEN;
-			dn->dn_dirtyctx_firstset = tag;
-		}
-		if (ds != NULL) {
-			rrw_exit(&ds->ds_bp_rwlock, tag);
-		}
-	}
-}
-
 static void
 dnode_partial_zero(dnode_t *dn, uint64_t off, uint64_t blkoff, uint64_t len,
     dmu_tx_t *tx)
@@ -2304,7 +2265,7 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 		if ((off >> blkshift) > dn->dn_maxblkid)
 			return;
 	} else {
-		ASSERT(dn->dn_maxblkid == 0);
+		ASSERT0(dn->dn_maxblkid);
 		if (off == 0 && len >= blksz) {
 			/*
 			 * Freeing the whole block; fast-track this request.
@@ -2524,7 +2485,7 @@ dnode_diduse_space(dnode_t *dn, int64_t delta)
 	}
 	space += delta;
 	if (spa_version(dn->dn_objset->os_spa) < SPA_VERSION_DNODE_BYTES) {
-		ASSERT((dn->dn_phys->dn_flags & DNODE_FLAG_USED_BYTES) == 0);
+		ASSERT0((dn->dn_phys->dn_flags & DNODE_FLAG_USED_BYTES));
 		ASSERT0(P2PHASE(space, 1<<DEV_BSHIFT));
 		dn->dn_phys->dn_used = space >> DEV_BSHIFT;
 	} else {
@@ -2535,26 +2496,27 @@ dnode_diduse_space(dnode_t *dn, int64_t delta)
 }
 
 /*
- * Scans a block at the indicated "level" looking for a hole or data,
- * depending on 'flags'.
+ * Scans the block at the indicated "level" looking for a hole or data,
+ * depending on 'flags' starting from array position given by *index.
  *
- * If level > 0, then we are scanning an indirect block looking at its
- * pointers.  If level == 0, then we are looking at a block of dnodes.
+ * If lvl > 0, then we are scanning an indirect block looking at its
+ * pointers. If lvl == 0, then we are looking at a block of dnodes.
  *
  * If we don't find what we are looking for in the block, we return ESRCH.
- * Otherwise, return with *offset pointing to the beginning (if searching
- * forwards) or end (if searching backwards) of the range covered by the
- * block pointer we matched on (or dnode).
+ * Otherwise, return with *index set to the matching array position.
  *
- * The basic search algorithm used below by dnode_next_offset() is to
- * use this function to search up the block tree (widen the search) until
- * we find something (i.e., we don't return ESRCH) and then search back
- * down the tree (narrow the search) until we reach our original search
- * level.
+ * In both cases, *offset is updated to point at the matched BP/dnode or
+ * the next offset to search (unless at the limit of possible offsets).
+ *
+ * The basic search algorithm used below by dnode_next_offset() uses this
+ * function to perform a block-order tree traversal. We search up the block
+ * tree (widen the search) until we find something (i.e., we don't return
+ * ESRCH) and then search back down the tree (narrow the search) until we
+ * reach our original search level or backtrack up because nothing matches.
  */
 static int
-dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
-    int lvl, uint64_t blkfill, uint64_t txg)
+dnode_next_offset_level(dnode_t *dn, int flags, int lvl, uint64_t blkid,
+    int *index, uint64_t blkfill, uint64_t txg, uint64_t *offset)
 {
 	dmu_buf_impl_t *db = NULL;
 	void *data = NULL;
@@ -2580,20 +2542,12 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 			rrw_enter(&dmu_objset_ds(dn->dn_objset)->ds_bp_rwlock,
 			    RW_READER, FTAG);
 	} else {
-		uint64_t blkid = dbuf_whichblock(dn, lvl, *offset);
 		error = dbuf_hold_impl(dn, lvl, blkid, TRUE, FALSE, FTAG, &db);
 		if (error) {
 			if (error != ENOENT)
 				return (error);
 			if (hole)
 				return (0);
-			/*
-			 * This can only happen when we are searching up
-			 * the block tree for data.  We don't really need to
-			 * adjust the offset, as we will just end up looking
-			 * at the pointer to this block in its parent, and its
-			 * going to be unallocated, so we will skip over it.
-			 */
 			return (SET_ERROR(ESRCH));
 		}
 		error = dbuf_read(db, NULL,
@@ -2621,8 +2575,7 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 		ASSERT(dn->dn_type == DMU_OT_DNODE);
 		ASSERT(!(flags & DNODE_FIND_BACKWARDS));
 
-		for (i = (*offset >> DNODE_SHIFT) & (blkfill - 1);
-		    i < blkfill; i += dnp[i].dn_extra_slots + 1) {
+		for (i = *index; i < blkfill; i += dnp[i].dn_extra_slots + 1) {
 			if ((dnp[i].dn_type == DMU_OT_NONE) == hole)
 				break;
 		}
@@ -2630,11 +2583,11 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 		if (i == blkfill)
 			error = SET_ERROR(ESRCH);
 
+		*index = i;
 		*offset = (*offset & ~(DNODE_BLOCK_SIZE - 1)) +
 		    (i << DNODE_SHIFT);
 	} else {
 		blkptr_t *bp = data;
-		uint64_t start = *offset;
 		span = (lvl - 1) * epbs + dn->dn_datablkshift;
 		minfill = 0;
 		maxfill = blkfill << ((lvl - 1) * epbs);
@@ -2644,40 +2597,27 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 		else
 			minfill++;
 
-		if (span >= 8 * sizeof (*offset)) {
-			/* This only happens on the highest indirection level */
-			ASSERT3U((lvl - 1), ==, dn->dn_phys->dn_nlevels - 1);
-			*offset = 0;
-		} else {
-			*offset = *offset >> span;
-		}
-
-		for (i = BF64_GET(*offset, 0, epbs);
-		    i >= 0 && i < epb; i += inc) {
+		for (i = *index; i >= 0 && i < epb; i += inc) {
 			if (BP_GET_FILL(&bp[i]) >= minfill &&
 			    BP_GET_FILL(&bp[i]) <= maxfill &&
 			    (hole || BP_GET_LOGICAL_BIRTH(&bp[i]) > txg))
 				break;
-			if (inc > 0 || *offset > 0)
-				*offset += inc;
 		}
 
-		if (span >= 8 * sizeof (*offset)) {
-			*offset = start;
-		} else {
-			*offset = *offset << span;
-		}
-
-		if (inc < 0) {
-			/* traversing backwards; position offset at the end */
-			if (span < 8 * sizeof (*offset))
-				*offset = MIN(*offset + (1ULL << span) - 1,
-				    start);
-		} else if (*offset < start) {
-			*offset = start;
-		}
 		if (i < 0 || i >= epb)
 			error = SET_ERROR(ESRCH);
+
+		*index = i;
+		if (span < 8 * sizeof (*offset)) {
+			uint64_t nblk = blkid << epbs;
+			if (i >= 0 || blkid != 0)
+				nblk += i;
+			if ((nblk >> (8 * sizeof (*offset) - span)) == 0)
+				*offset = (flags & DNODE_FIND_BACKWARDS) ?
+				    /* backwards: position offset at the end */
+				    MIN(*offset, ((nblk + 1) << span) - 1) :
+				    MAX(*offset, nblk << span);
+		}
 	}
 
 	if (db != NULL) {
@@ -2701,6 +2641,18 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
  * DNODES_PER_BLOCK for the meta dnode, and some fraction of
  * DNODES_PER_BLOCK when searching for sparse regions thereof.
  *
+ * If minlvl == 0, this searches for dnodes or unallocated dnodes.
+ * If found, *offset points to the first offset of the matched dnode.
+ * Backwards search is not allowed for dnodes.
+ *
+ * If minlvl > 0, this searches for blocks at the given level.
+ * If found, *offset points to the first L0 offset of the block
+ * (or for backwards search, the last offset, inclusive).
+ *
+ * If not found, in both cases, *offset is set to the first (or last)
+ * offset of the unallocated indirect block where the search ended or
+ * the initial offset if no such block was encountered.
+ *
  * Examples:
  *
  * dnode_next_offset(dn, flags, offset, 1, 1, 0);
@@ -2721,7 +2673,8 @@ int
 dnode_next_offset(dnode_t *dn, int flags, uint64_t *offset,
     int minlvl, uint64_t blkfill, uint64_t txg)
 {
-	uint64_t initial_offset = *offset;
+	uint64_t blkid;
+	int index, epbs;
 	int lvl, maxlvl;
 	int error = 0;
 
@@ -2743,18 +2696,52 @@ dnode_next_offset(dnode_t *dn, int flags, uint64_t *offset,
 		goto out;
 	}
 
+	epbs = dn->dn_indblkshift - SPA_BLKPTRSHIFT;
 	maxlvl = dn->dn_phys->dn_nlevels;
 
-	for (lvl = minlvl; lvl <= maxlvl; lvl++) {
-		error = dnode_next_offset_level(dn,
-		    flags, offset, lvl, blkfill, txg);
-		if (error != ESRCH)
-			break;
+	if (minlvl > 0) {
+		uint64_t n = dbuf_whichblock(dn, minlvl - 1, *offset);
+		blkid = n >> epbs;
+		index = BF64_GET(n, 0, epbs);
+	} else {
+		blkid = dbuf_whichblock(dn, 0, *offset);
+		index = (*offset >> DNODE_SHIFT) & (blkfill - 1);
+		ASSERT3U(BF64_GET(*offset, 0, DNODE_SHIFT), ==, 0);
 	}
 
-	while (error == 0 && --lvl >= minlvl) {
+	for (lvl = minlvl; lvl <= maxlvl; ) {
 		error = dnode_next_offset_level(dn,
-		    flags, offset, lvl, blkfill, txg);
+		    flags, lvl, blkid, &index, blkfill, txg, offset);
+
+		if (error == 0 && lvl > minlvl) {
+			/* Continue search at matched block in lvl-1. */
+			blkid = (blkid << epbs) + index;
+			index = 0;
+			--lvl;
+		} else if (error == ESRCH && lvl < maxlvl) {
+			/*
+			 * Continue search at next/prev index in lvl+1 block.
+			 *
+			 * Usually we only search upwards at the start of the
+			 * search as higher level blocks point at a matching
+			 * minlvl block in most cases, but we backtrack if not.
+			 *
+			 * This can happen for txg > 0 searches if the block
+			 * contains only BPs/dnodes freed at that txg. It also
+			 * happens if we are still syncing out the tree, and
+			 * some BP's at higher levels are not updated yet.
+			 *
+			 * We must adjust index to avoid coming back to the
+			 * same offset and getting stuck looping forever. The
+			 * next loop goes up again if index is -1 or (1<<epbs).
+			 */
+			index = BF64_GET(blkid, 0, epbs) +
+			    ((flags & DNODE_FIND_BACKWARDS) ? -1 : 1);
+			blkid = blkid >> epbs;
+			++lvl;
+		} else {
+			break;
+		}
 	}
 
 	/*
@@ -2766,9 +2753,6 @@ dnode_next_offset(dnode_t *dn, int flags, uint64_t *offset,
 		error = 0;
 	}
 
-	if (error == 0 && (flags & DNODE_FIND_BACKWARDS ?
-	    initial_offset < *offset : initial_offset > *offset))
-		error = SET_ERROR(ESRCH);
 out:
 	if (!(flags & DNODE_FIND_HAVELOCK))
 		rw_exit(&dn->dn_struct_rwlock);

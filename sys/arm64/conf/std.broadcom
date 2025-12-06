@@ -33,5 +33,8 @@ device		sdhci
 options 	FDT
 device		acpi
 
+# Sound support
+device		vchiq
+
 # DTBs
 makeoptions	MODULES_EXTRA+="dtb/rpi"

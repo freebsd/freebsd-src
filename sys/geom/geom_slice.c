@@ -529,7 +529,7 @@ g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_co
 
 	g_topology_assert();
 	vp = (void **)extrap;
-	gp = g_new_geomf(mp, "%s", pp->name);
+	gp = g_new_geom(mp, pp->name);
 	gsp = g_slice_alloc(slices, extra);
 	gsp->start = start;
 	gp->softc = gsp;

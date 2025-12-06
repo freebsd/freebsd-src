@@ -43,6 +43,7 @@
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/cons.h>
+#include <sys/power.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/sbuf.h>
@@ -159,7 +160,7 @@ static	void		ndadone(struct cam_periph *periph,
 static  int		ndaerror(union ccb *ccb, uint32_t cam_flags,
 				uint32_t sense_flags);
 static void		ndashutdown(void *arg, int howto);
-static void		ndasuspend(void *arg);
+static void		ndasuspend(void *arg, enum power_stype stype);
 
 #ifndef	NDA_DEFAULT_SEND_ORDERED
 #define	NDA_DEFAULT_SEND_ORDERED	1
@@ -644,12 +645,35 @@ ndacleanup(struct cam_periph *periph)
 }
 
 static void
-ndaasync(void *callback_arg, uint32_t code,
-	struct cam_path *path, void *arg)
+ndasetgeom(struct nda_softc *softc, struct cam_periph *periph)
 {
-	struct cam_periph *periph;
+	struct disk *disk = softc->disk;
+	const struct nvme_namespace_data *nsd;
+	const struct nvme_controller_data *cd;
+	uint8_t flbas_fmt, lbads, vwc_present;
 
-	periph = (struct cam_periph *)callback_arg;
+	nsd = nvme_get_identify_ns(periph);
+        cd = nvme_get_identify_cntrl(periph);
+
+	flbas_fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, nsd->flbas);
+	lbads = NVMEV(NVME_NS_DATA_LBAF_LBADS, nsd->lbaf[flbas_fmt]);
+	disk->d_sectorsize = 1 << lbads;
+	disk->d_mediasize = (off_t)(disk->d_sectorsize * nsd->nsze);
+	disk->d_delmaxsize = disk->d_mediasize;
+	disk->d_flags = DISKFLAG_DIRECT_COMPLETION;
+	if (nvme_ctrlr_has_dataset_mgmt(cd))
+		disk->d_flags |= DISKFLAG_CANDELETE;
+	vwc_present = NVMEV(NVME_CTRLR_DATA_VWC_PRESENT, cd->vwc);
+	if (vwc_present)
+		disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
+}
+
+static void
+ndaasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
+{
+	struct cam_periph *periph = callback_arg;
+	struct nda_softc *softc;
+
 	switch (code) {
 	case AC_FOUND_DEVICE:
 	{
@@ -680,17 +704,29 @@ ndaasync(void *callback_arg, uint32_t code,
 				"due to status 0x%x\n", status);
 		break;
 	}
+	case AC_GETDEV_CHANGED:
+	{
+		int error;
+
+		softc = periph->softc;
+		ndasetgeom(softc, periph);
+		error = disk_resize(softc->disk, M_NOWAIT);
+		if (error != 0) {
+			xpt_print(periph->path, "disk_resize(9) failed, error = %d\n", error);
+			break;
+		}
+		break;
+
+	}
 	case AC_ADVINFO_CHANGED:
 	{
 		uintptr_t buftype;
 
+		softc = periph->softc;
 		buftype = (uintptr_t)arg;
 		if (buftype == CDAI_TYPE_PHYS_PATH) {
-			struct nda_softc *softc;
-
-			softc = periph->softc;
 			disk_attr_changed(softc->disk, "GEOM::physpath",
-					  M_NOWAIT);
+			    M_NOWAIT);
 		}
 		break;
 	}
@@ -846,7 +882,6 @@ ndaregister(struct cam_periph *periph, void *arg)
 	const struct nvme_namespace_data *nsd;
 	const struct nvme_controller_data *cd;
 	char   announce_buf[80];
-	uint8_t flbas_fmt, lbads, vwc_present;
 	u_int maxio;
 	int quirks;
 
@@ -903,21 +938,12 @@ ndaregister(struct cam_periph *periph, void *arg)
 	else if (maxio > maxphys)
 		maxio = maxphys;	/* for safety */
 	disk->d_maxsize = maxio;
-	flbas_fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, nsd->flbas);
-	lbads = NVMEV(NVME_NS_DATA_LBAF_LBADS, nsd->lbaf[flbas_fmt]);
-	disk->d_sectorsize = 1 << lbads;
-	disk->d_mediasize = (off_t)(disk->d_sectorsize * nsd->nsze);
-	disk->d_delmaxsize = disk->d_mediasize;
-	disk->d_flags = DISKFLAG_DIRECT_COMPLETION;
-	if (nvme_ctrlr_has_dataset_mgmt(cd))
-		disk->d_flags |= DISKFLAG_CANDELETE;
-	vwc_present = NVMEV(NVME_CTRLR_DATA_VWC_PRESENT, cd->vwc);
-	if (vwc_present)
-		disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
+	ndasetgeom(softc, periph);
 	if ((cpi.hba_misc & PIM_UNMAPPED) != 0) {
 		disk->d_flags |= DISKFLAG_UNMAPPED_BIO;
 		softc->unmappedio = 1;
 	}
+
 	/*
 	 * d_ident and d_descr are both far bigger than the length of either
 	 *  the serial or model number strings.
@@ -982,7 +1008,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 	 * Register for device going away and info about the drive
 	 * changing (though with NVMe, it can't)
 	 */
-	xpt_register_async(AC_LOST_DEVICE | AC_ADVINFO_CHANGED,
+	xpt_register_async(AC_LOST_DEVICE | AC_ADVINFO_CHANGED | AC_GETDEV_CHANGED,
 	    ndaasync, periph, periph->path);
 
 	softc->state = NDA_STATE_NORMAL;
@@ -1365,7 +1391,7 @@ ndashutdown(void *arg, int howto)
 }
 
 static void
-ndasuspend(void *arg)
+ndasuspend(void *arg, enum power_stype stype)
 {
 
 	ndaflush();

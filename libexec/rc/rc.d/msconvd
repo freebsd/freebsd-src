@@ -1,0 +1,61 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: msconvd
+# REQUIRE: DAEMON FILESYSTEMS
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="msconvd"
+desc="Mouse protocol conversion daemon"
+command="/usr/sbin/${name}"
+start_cmd="msconvd_start"
+pidprefix="/var/run/msconvd"
+load_rc_config $name
+
+: ${msconvd_enable="NO"}
+: ${msconvd_type="auto"}
+
+# doesn't make sense to run in a svcj: nojail keyword
+# XXX: How does msconvd communiacte with the kernel?
+# XXX: Does the kernel prevent this communcation in jails?
+msconvd_svcj="NO"
+
+# Set the pid file and variable name. The second argument, if it exists, is
+# expected to be the mouse device.
+#
+if [ -n "$2" ]; then
+	eval msconvd_$2_enable=\${msconvd_$2_enable-${msconvd_enable}}
+	rcvar="msconvd_$2_enable"
+	pidfile="${pidprefix}.$2.pid"
+else
+	for ms in ${msconvd_ports}; do
+		/etc/rc.d/msconvd $1 ${ms}
+	done
+	exit 0
+fi
+
+msconvd_start()
+{
+	local ms myflags myport mytype
+
+	# Set the mouse device and get any related variables. If
+	# a msconvd device has been specified on the commandline, then
+	# rc.conf(5) variables defined for that device take precedence
+	# over the generic msconvd_* variables. The only exception is
+	# the msconvd_port variable, which if not defined sets it to
+	# the passed in device name.
+	#
+	ms=$1
+	eval myflags=\${msconvd_${ms}_flags-$msconvd_flags}
+	eval myport=\${msconvd_${ms}_port-/dev/${ms}}
+	eval mytype=\${msconvd_${ms}_type-$msconvd_type}
+
+	startmsg -n "Starting ${ms} ${name}"
+	${command} ${myflags} -p ${myport} -t ${mytype} -I ${pidfile}
+	startmsg '.'
+}
+
+run_rc_command $*

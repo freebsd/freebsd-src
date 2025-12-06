@@ -205,9 +205,11 @@ state_max_body()
 	epair=$(vnet_mkepair)
 
 	vnet_mkjail alcatraz ${epair}a
+	jexec alcatraz ifconfig ${epair}a inet6 ifdisabled
 	jexec alcatraz ifconfig ${epair}a 192.0.2.1/24 up
 
 	ifconfig ${epair}b 192.0.2.2/24 up
+	ifconfig ${epair}b inet6 ifdisabled
 
 	# Sanity check
 	atf_check -s exit:0 -o ignore \
@@ -353,6 +355,11 @@ rdr_action_body()
 	vnet_mkjail ${j}gw ${epair_srv}b ${epair_c}a
 	vnet_mkjail ${j}c ${epair_c}b
 
+	jexec ${j}srv ifconfig ${epair_srv}a inet6 ifdisabled
+	jexec ${j}gw ifconfig ${epair_srv}b inet6 ifdisabled
+	jexec ${j}gw ifconfig ${epair_c}a inet6 ifdisabled
+	jexec ${j}c ifconfig ${epair_c}b inet6 ifdisabled
+
 	jexec ${j}srv ifconfig ${epair_srv}a 198.51.100.1/24 up
 	# No default route in srv jail, to ensure we're NAT-ing
 	jexec ${j}gw ifconfig ${epair_srv}b 198.51.100.2/24 up
@@ -394,6 +401,64 @@ rdr_action_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "rule_number" "cleanup"
+rule_number_head()
+{
+	atf_set descr 'Test rule numbers with anchors'
+	atf_set require.user root
+}
+
+rule_number_body()
+{
+	pflog_init
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.1/24 up
+
+	ifconfig ${epair}a 192.0.2.2/24 up
+	ifconfig ${epair}a inet alias 192.0.2.3/24 up
+	ifconfig ${epair}a inet alias 192.0.2.4/24 up
+
+	jexec alcatraz pfctl -e
+	jexec alcatraz ifconfig pflog0 up
+	pft_set_rules alcatraz \
+		"pass log from 192.0.2.2" \
+		"anchor \"foo\" {\n \
+			pass log from 192.0.2.3\n \
+		}" \
+		"pass log from 192.0.2.4"
+
+	jexec alcatraz tcpdump -n -e -ttt --immediate-mode -l -U -i pflog0 >> pflog.txt &
+	sleep 1 # Wait for tcpdump to start
+
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 -S 192.0.2.2 192.0.2.1
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 -S 192.0.2.3 192.0.2.1
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 -S 192.0.2.4 192.0.2.1
+
+	jexec alcatraz pfctl -sr -a '*' -vv
+
+	# Give tcpdump a little time to finish writing to the file
+	sleep 1
+	cat pflog.txt
+
+	atf_check -o match:"rule 0/0\(match\): pass in.*: 192.0.2.2.*ICMP echo request" \
+	    cat pflog.txt
+	atf_check -o match:"rule 1.foo.0/0\(match\): pass in.*: 192.0.2.3.*: ICMP echo request" \
+	    cat pflog.txt
+	atf_check -o match:"rule 2/0\(match\): pass in.*: 192.0.2.4.*: ICMP echo request" \
+	    cat pflog.txt
+}
+
+rule_number_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "malformed"
@@ -403,4 +468,5 @@ atf_init_test_cases()
 	atf_add_test_case "unspecified_v4"
 	atf_add_test_case "unspecified_v6"
 	atf_add_test_case "rdr_action"
+	atf_add_test_case "rule_number"
 }

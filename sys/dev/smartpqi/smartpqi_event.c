@@ -115,7 +115,7 @@ pqisrc_ack_all_events(void *arg1)
 
 
 	pending_event = &softs->pending_events[0];
-	for (i=0; i < PQI_NUM_SUPPORTED_EVENTS; i++) {
+	for (i = 0; i < PQI_NUM_SUPPORTED_EVENTS; i++) {
 		if (pending_event->pending == true) {
 			pending_event->pending = false;
 			pqisrc_acknowledge_event(softs, pending_event);
@@ -417,7 +417,7 @@ pqisrc_report_event_config(pqisrc_softstate_t *softs)
 	softs->event_config.num_event_descriptors = MIN(event_config_p->num_event_descriptors,
 		                                            PQI_MAX_EVENT_DESCRIPTORS) ;
 
-        for (i=0; i < softs->event_config.num_event_descriptors ;i++){
+        for (i = 0; i < softs->event_config.num_event_descriptors; i++) {
 		softs->event_config.descriptors[i].event_type =
 					event_config_p->descriptors[i].event_type;
 	}
@@ -477,7 +477,7 @@ pqisrc_set_event_config(pqisrc_softstate_t *softs)
 	event_config_p->num_event_descriptors = softs->event_config.num_event_descriptors;
 
 
-	for (i=0; i < softs->event_config.num_event_descriptors ; i++){
+	for (i = 0; i < softs->event_config.num_event_descriptors; i++) {
 		event_config_p->descriptors[i].event_type =
 					softs->event_config.descriptors[i].event_type;
 		if( pqisrc_event_type_to_event_index(event_config_p->descriptors[i].event_type) != -1)

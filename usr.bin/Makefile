@@ -219,7 +219,7 @@ SUBDIR.${MK_ISCSI}+=	iscsictl
 SUBDIR.${MK_KDUMP}+=	kdump
 SUBDIR.${MK_KDUMP}+=	truss
 .if ${MK_MITKRB5} == "no"
-SUBDIR.${MK_KERBEROS_SUPPORT}+=	compile_et
+SUBDIR.${MK_KERBEROS}+=	compile_et
 .endif
 SUBDIR.${MK_LDNS_UTILS}+=	drill
 SUBDIR.${MK_LDNS_UTILS}+=	host

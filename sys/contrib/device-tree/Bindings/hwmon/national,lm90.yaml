@@ -20,6 +20,7 @@ properties:
       - dallas,max6646
       - dallas,max6647
       - dallas,max6649
+      - dallas,max6654
       - dallas,max6657
       - dallas,max6658
       - dallas,max6659
@@ -32,7 +33,13 @@ properties:
       - national,lm89
       - national,lm90
       - national,lm99
+      - nuvoton,nct7716
+      - nuvoton,nct7717
+      - nuvoton,nct7718
       - nxp,sa56004
+      - onnn,nct72
+      - onnn,nct214
+      - onnn,nct218
       - onnn,nct1008
       - ti,tmp451
       - ti,tmp461
@@ -115,11 +122,14 @@ allOf:
               - dallas,max6646
               - dallas,max6647
               - dallas,max6649
+              - dallas,max6654
               - dallas,max6657
               - dallas,max6658
               - dallas,max6659
               - dallas,max6695
               - dallas,max6696
+              - nuvoton,nct7716
+              - nuvoton,nct7717
     then:
       patternProperties:
         "^channel@([0-2])$":
@@ -134,6 +144,9 @@ allOf:
               - adi,adt7461
               - adi,adt7461a
               - adi,adt7481
+              - onnn,nct72
+              - onnn,nct214
+              - onnn,nct218
               - onnn,nct1008
     then:
       patternProperties:
@@ -155,6 +168,7 @@ allOf:
               - national,lm89
               - national,lm90
               - national,lm99
+              - nuvoton,nct7718
               - nxp,sa56004
               - winbond,w83l771
     then:

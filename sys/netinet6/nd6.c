@@ -31,7 +31,6 @@
  *	$KAME: nd6.c,v 1.144 2001/05/24 07:44:00 itojun Exp $
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_route.h"
@@ -323,6 +322,11 @@ nd6_ifattach(struct ifnet *ifp)
 
 	/* XXX: we cannot call nd6_setmtu since ifp is not fully initialized */
 	nd6_setmtu0(ifp, nd);
+
+	/* Configure default value for stable addresses algorithm, skip loopback interface */
+	if (V_ip6_use_stableaddr && !(ifp->if_flags & IFF_LOOPBACK)) {
+		nd->flags |= ND6_IFF_STABLEADDR;
+	}
 
 	return nd;
 }

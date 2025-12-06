@@ -1745,9 +1745,13 @@ zpool_prefetch(zpool_handle_t *zhp, zpool_prefetch_type_t type)
 
 	error = lzc_pool_prefetch(zhp->zpool_name, type);
 	if (error != 0) {
+		const char *typename = "unknown";
+		if (type == ZPOOL_PREFETCH_DDT)
+			typename = "ddt";
+		else if (type == ZPOOL_PREFETCH_BRT)
+			typename = "brt";
 		(void) snprintf(msg, sizeof (msg), dgettext(TEXT_DOMAIN,
-		    "cannot prefetch %s in '%s'"),
-		    type == ZPOOL_PREFETCH_DDT ? "ddt" : "", zhp->zpool_name);
+		    "cannot prefetch %s in '%s'"), typename, zhp->zpool_name);
 		(void) zpool_standard_error(hdl, error, msg);
 		return (-1);
 	}
@@ -5549,6 +5553,8 @@ zpool_get_vdev_prop_value(nvlist_t *nvprop, vdev_prop_t prop, char *prop_name,
 			/* Only use if provided by the RAIDZ VDEV above */
 			if (prop == VDEV_PROP_RAIDZ_EXPANDING)
 				return (ENOENT);
+			if (prop == VDEV_PROP_SIT_OUT)
+				return (ENOENT);
 		}
 		if (vdev_prop_index_to_string(prop, intval,
 		    (const char **)&strval) != 0)
@@ -5718,8 +5724,16 @@ zpool_set_vdev_prop(zpool_handle_t *zhp, const char *vdevname,
 	nvlist_free(nvl);
 	nvlist_free(outnvl);
 
-	if (ret)
-		(void) zpool_standard_error(zhp->zpool_hdl, errno, errbuf);
+	if (ret) {
+		if (errno == ENOTSUP) {
+			zfs_error_aux(zhp->zpool_hdl, dgettext(TEXT_DOMAIN,
+			    "property not supported for this vdev"));
+			(void) zfs_error(zhp->zpool_hdl, EZFS_PROPTYPE, errbuf);
+		} else {
+			(void) zpool_standard_error(zhp->zpool_hdl, errno,
+			    errbuf);
+		}
+	}
 
 	return (ret);
 }

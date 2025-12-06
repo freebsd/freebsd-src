@@ -48,6 +48,8 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a5";
 			reg = <0x0>;
+			d-cache-size = <0x8000>;	// L1, 32 KB
+			i-cache-size = <0x8000>;	// L1, 32 KB
 		};
 	};
 
@@ -419,7 +421,7 @@
 				clock-names = "tdes_clk";
 			};
 
-			trng@f8040000 {
+			trng: rng@f8040000 {
 				compatible = "atmel,at91sam9g45-trng";
 				reg = <0xf8040000 0x100>;
 				interrupts = <45 IRQ_TYPE_LEVEL_HIGH 0>;
@@ -1074,7 +1076,7 @@
 			status = "disabled";
 		};
 
-		usb1: ohci@600000 {
+		usb1: usb@600000 {
 			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
 			reg = <0x00600000 0x100000>;
 			interrupts = <32 IRQ_TYPE_LEVEL_HIGH 2>;
@@ -1083,7 +1085,7 @@
 			status = "disabled";
 		};
 
-		usb2: ehci@700000 {
+		usb2: usb@700000 {
 			compatible = "atmel,at91sam9g45-ehci", "usb-ehci";
 			reg = <0x00700000 0x100000>;
 			interrupts = <32 IRQ_TYPE_LEVEL_HIGH 2>;

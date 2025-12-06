@@ -3,7 +3,6 @@
 LIB=		ssl
 SHLIB_MAJOR=	35
 VERSION_MAP=	${.CURDIR}/Version.map
-PACKAGE=	openssl-lib
 
 NO_LINT=
 
@@ -71,11 +70,13 @@ SRSC+=	tls_pad.c
 SRCS+=	poll_immediate.c
 SRCS+=	rio_notifier.c poll_builder.c
 
-.if ${MK_OPENSSL_KTLS} == "no"
+.if ${MK_OPENSSL_KTLS} == "no" || defined(BOOTSTRAPPING)
 CFLAGS+=-DOPENSSL_NO_KTLS
+.else
+SRCS+=	ktls_meth.c
 .endif
 
-LIBADD=	crypto
+LIBADD=	pthread crypto
 
 CFLAGS+=	-I${LCRYPTO_SRC}/ssl
 CFLAGS+=	-I${.OBJDIR:H}/libcrypto

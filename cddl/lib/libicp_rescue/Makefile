@@ -1,4 +1,4 @@
-.PATH: ${SRCTOP}/sys/contrib/openzfs/module/icp
+.PATH: ${ZFSTOP}/module/icp
 
 PACKAGE=	utilities
 LIB=	icp_rescue
@@ -11,6 +11,7 @@ ASM_SOURCES_AS = \
         asm-x86_64/aes/aes_aesni.S \
         asm-x86_64/modes/gcm_pclmulqdq.S \
         asm-x86_64/modes/aesni-gcm-x86_64.S \
+        asm-x86_64/modes/aesni-gcm-avx2-vaes.S \
         asm-x86_64/sha2/sha256-x86_64.S \
         asm-x86_64/sha2/sha512-x86_64.S \
         asm-x86_64/blake3/blake3_avx2.S \
@@ -85,7 +86,7 @@ KERNEL_C = \
         core/kcf_prov_tabs.c \
         $(ASM_SOURCES_C)
 
-.PATH: ${SRCTOP}/sys/contrib/openzfs/module/zfs
+.PATH: ${ZFSTOP}/module/zfs
 KERNEL_C+=	zfs_impl.c
 
 SRCS= $(ASM_SOURCES_AS) $(KERNEL_C)
@@ -94,14 +95,14 @@ WARNS?=	2
 SHLIB_MAJOR= 3
 CSTD=	c99
 CFLAGS+= -DIN_BASE
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
+CFLAGS+= -I${ZFSTOP}/include
+CFLAGS+= -I${ZFSTOP}/lib/libspl/include/
+CFLAGS+= -I${ZFSTOP}/lib/libspl/include/os/freebsd
 CFLAGS+= -I${SRCTOP}/sys
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/module/icp/include
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libzpool/include
-CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
+CFLAGS+= -I${ZFSTOP}/module/icp/include
+CFLAGS+= -I${ZFSTOP}/lib/libzpool/include
+CFLAGS+= -include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -DHAVE_ISSETUGID -UHAVE_AVX -DRESCUE
 CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
 
@@ -109,6 +110,7 @@ CFLAGS.aes_amd64.S+= -DLOCORE
 CFLAGS.aes_aesni.S+= -DLOCORE
 CFLAGS.gcm_pclmulqdq.S+= -DLOCORE
 CFLAGS.aesni-gcm-x86_64.S+= -DLOCORE
+CFLAGS.aesni-gcm-avx2-vaes.S+= -DLOCORE
 CFLAGS.ghash-x86_64.S+= -DLOCORE
 CFLAGS.sha256-x86_64.S+= -DLOCORE
 CFLAGS.sha512-x86_64.S+= -DLOCORE

@@ -44,6 +44,7 @@
 #include <sys/malloc.h>
 #include <sys/endian.h>
 #include <sys/cons.h>
+#include <sys/power.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/sbuf.h>
@@ -878,8 +879,8 @@ static  int		adaerror(union ccb *ccb, uint32_t cam_flags,
 				uint32_t sense_flags);
 static callout_func_t	adasendorderedtag;
 static void		adashutdown(void *arg, int howto);
-static void		adasuspend(void *arg);
-static void		adaresume(void *arg);
+static void		adasuspend(void *arg, enum power_stype stype);
+static void		adaresume(void *arg, enum power_stype stype);
 
 #ifndef ADA_DEFAULT_TIMEOUT
 #define ADA_DEFAULT_TIMEOUT 30	/* Timeout in seconds */
@@ -1556,11 +1557,11 @@ adasysctlinit(void *context, int pending)
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "unmapped_io", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    &softc->flags, (u_int)ADA_FLAG_UNMAPPEDIO, adabitsysctl, "I",
-	    "Use unmapped I/O. This sysctl is *DEPRECATED*, gone in FreeBSD 15");
+	    "Use unmapped I/O. This sysctl is *DEPRECATED*, gone in FreeBSD 16");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "rotating", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    &softc->flags, (u_int)ADA_FLAG_ROTATING, adabitsysctl, "I",
-	    "Rotating media. This sysctl is *DEPRECATED*, gone in FreeBSD 15");
+	    "Rotating media. This sysctl is *DEPRECATED*, gone in FreeBSD 16");
 
 #ifdef CAM_TEST_FAILURE
 	/*
@@ -2327,14 +2328,37 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 {
 	struct ada_softc *softc = (struct ada_softc *)periph->softc;
 	struct ccb_ataio *ataio = &start_ccb->ataio;
+	uint32_t priority = start_ccb->ccb_h.pinfo.priority;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("adastart\n"));
+
+	/*
+	 * When we're running the state machine, we should only accept DEV CCBs.
+	 * When we're doing normal I/O we should only accept NORMAL CCBs.
+	 *
+	 * While in the state machine, we carefully single step the queue, but
+	 * there's no protection for 'extra' calls to xpt_schedule() at the
+	 * wrong priority. Guard against that so that we filter any CCBs that
+	 * are offered at the wrong priority. This avoids generating requests
+	 * that are at normal priority.
+`        */
+	if ((softc->state != ADA_STATE_NORMAL && priority != CAM_PRIORITY_DEV) ||
+	    (softc->state == ADA_STATE_NORMAL && priority != CAM_PRIORITY_NORMAL)) {
+		xpt_print(periph->path, "Bad priority for state %d prio %d\n",
+		    softc->state, priority);
+		xpt_release_ccb(start_ccb);
+		return;
+	}
 
 	switch (softc->state) {
 	case ADA_STATE_NORMAL:
 	{
 		struct bio *bp;
 		uint8_t tag_code;
+
+		KASSERT(priority == CAM_PRIORITY_NORMAL,
+		    ("Expected priority %d, found %d in state normal",
+			CAM_PRIORITY_NORMAL, priority));
 
 		bp = cam_iosched_next_bio(softc->cam_iosched);
 		if (bp == NULL) {
@@ -2554,6 +2578,11 @@ out:
 	case ADA_STATE_RAHEAD:
 	case ADA_STATE_WCACHE:
 	{
+		KASSERT(priority == CAM_PRIORITY_DEV,
+		    ("Expected priority %d, found %d in state %s",
+			CAM_PRIORITY_DEV, priority,
+			softc->state == ADA_STATE_RAHEAD ? "rahead" : "wcache"));
+
 		cam_fill_ataio(ataio,
 		    1,
 		    adadone,
@@ -2579,6 +2608,10 @@ out:
 	case ADA_STATE_LOGDIR:
 	{
 		struct ata_gp_log_dir *log_dir;
+
+		KASSERT(priority == CAM_PRIORITY_DEV,
+		    ("Expected priority %d, found %d in state logdir",
+			CAM_PRIORITY_DEV, priority));
 
 		if ((softc->flags & ADA_FLAG_CAN_LOG) == 0) {
 			adaprobedone(periph, start_ccb);
@@ -2614,6 +2647,10 @@ out:
 	{
 		struct ata_identify_log_pages *id_dir;
 
+		KASSERT(priority == CAM_PRIORITY_DEV,
+		    ("Expected priority %d, found %d in state iddir",
+			CAM_PRIORITY_DEV, priority));
+
 		id_dir = malloc(sizeof(*id_dir), M_ATADA, M_NOWAIT | M_ZERO);
 		if (id_dir == NULL) {
 			xpt_print(periph->path, "Couldn't malloc id_dir "
@@ -2642,6 +2679,10 @@ out:
 	{
 		struct ata_identify_log_sup_cap *sup_cap;
 
+		KASSERT(priority == CAM_PRIORITY_DEV,
+		    ("Expected priority %d, found %d in state sup_cap",
+			CAM_PRIORITY_DEV, priority));
+
 		sup_cap = malloc(sizeof(*sup_cap), M_ATADA, M_NOWAIT|M_ZERO);
 		if (sup_cap == NULL) {
 			xpt_print(periph->path, "Couldn't malloc sup_cap "
@@ -2669,6 +2710,10 @@ out:
 	case ADA_STATE_ZONE:
 	{
 		struct ata_zoned_info_log *ata_zone;
+
+		KASSERT(priority == CAM_PRIORITY_DEV,
+		    ("Expected priority %d, found %d in state zone",
+			CAM_PRIORITY_DEV, priority));
 
 		ata_zone = malloc(sizeof(*ata_zone), M_ATADA, M_NOWAIT|M_ZERO);
 		if (ata_zone == NULL) {
@@ -2895,6 +2940,10 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 		struct bio *bp;
 		int error;
 
+		KASSERT(priority == CAM_PRIORITY_NORMAL,
+		    ("Expected priority %d, found %d for normal I/O",
+			CAM_PRIORITY_NORMAL, priority));
+
 		cam_periph_lock(periph);
 		bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
@@ -2999,6 +3048,10 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 	}
 	case ADA_CCB_RAHEAD:
 	{
+		KASSERT(priority == CAM_PRIORITY_DEV,
+		    ("Expected priority %d, found %d in ccb state rahead",
+			CAM_PRIORITY_DEV, priority));
+
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			if (adaerror(done_ccb, 0, 0) == ERESTART) {
 				/* Drop freeze taken due to CAM_DEV_QFREEZE */
@@ -3022,6 +3075,10 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 	}
 	case ADA_CCB_WCACHE:
 	{
+		KASSERT(priority == CAM_PRIORITY_DEV,
+		    ("Expected priority %d, found %d in ccb state wcache",
+			CAM_PRIORITY_DEV, priority));
+
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			if (adaerror(done_ccb, 0, 0) == ERESTART) {
 				/* Drop freeze taken due to CAM_DEV_QFREEZE */
@@ -3052,6 +3109,10 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 	case ADA_CCB_LOGDIR:
 	{
 		int error;
+
+		KASSERT(priority == CAM_PRIORITY_DEV,
+		    ("Expected priority %d, found %d in ccb state logdir",
+			CAM_PRIORITY_DEV, priority));
 
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 			error = 0;
@@ -3121,6 +3182,10 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 	}
 	case ADA_CCB_IDDIR: {
 		int error;
+
+		KASSERT(priority == CAM_PRIORITY_DEV,
+		    ("Expected priority %d, found %d in ccb state iddir",
+			CAM_PRIORITY_DEV, priority));
 
 		if ((ataio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 			off_t entries_offset, max_entries;
@@ -3206,6 +3271,10 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 	}
 	case ADA_CCB_SUP_CAP: {
 		int error;
+
+		KASSERT(priority == CAM_PRIORITY_DEV,
+		    ("Expected priority %d, found %d in ccb state sup_cap",
+			CAM_PRIORITY_DEV, priority));
 
 		if ((ataio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 			uint32_t valid_len;
@@ -3310,6 +3379,10 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 	}
 	case ADA_CCB_ZONE: {
 		int error;
+
+		KASSERT(priority == CAM_PRIORITY_DEV,
+		    ("Expected priority %d, found %d in ccb state zone",
+			CAM_PRIORITY_DEV, priority));
 
 		if ((ataio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 			struct ata_zoned_info_log *zi_log;
@@ -3747,7 +3820,7 @@ adashutdown(void *arg, int howto)
 }
 
 static void
-adasuspend(void *arg)
+adasuspend(void *arg, enum power_stype stype)
 {
 
 	adaflush();
@@ -3760,7 +3833,7 @@ adasuspend(void *arg)
 }
 
 static void
-adaresume(void *arg)
+adaresume(void *arg, enum power_stype stype)
 {
 	struct cam_periph *periph;
 	struct ada_softc *softc;

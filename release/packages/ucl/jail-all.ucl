@@ -1,4 +1,36 @@
-comment = "Jail Utilities"
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+comment = "Jail management tools"
+
 desc = <<EOD
-Jail Utilities
+The FreeBSD jail facility allow a set of processes to be run inside a restricted
+environment.  Processes running inside a jail can only access system resources
+which have been made available to the jail, and cannot observe or interact with
+processes outside the jail even if running as the root user.  Jails can be used
+to isolate a single daemon process, or to run a complete FreeBSD system as a
+lightweight alternative to virtualisation.
+
+This package provides the jail(8), jexec(8) and jls(8) utilities for managing
+jails, and an optional rc(8) service to start jails during system startup using
+the /etc/jail.conf configuration file.
 EOD
+
+annotations {
+	set = "optional,optional-jail"
+}

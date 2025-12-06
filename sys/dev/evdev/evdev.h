@@ -153,6 +153,7 @@ void evdev_support_sw(struct evdev_dev *, uint16_t);
 void evdev_set_repeat_params(struct evdev_dev *, uint16_t, int);
 int evdev_set_report_size(struct evdev_dev *, size_t);
 void evdev_set_flag(struct evdev_dev *, uint16_t);
+void evdev_set_cdev_mode(struct evdev_dev *, uid_t, gid_t, int);
 void *evdev_get_softc(struct evdev_dev *);
 bool evdev_is_grabbed(struct evdev_dev *);
 

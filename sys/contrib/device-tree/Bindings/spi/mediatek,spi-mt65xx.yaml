@@ -35,8 +35,14 @@ properties:
           - enum:
               - mediatek,mt7981-spi-ipm
               - mediatek,mt7986-spi-ipm
+              - mediatek,mt7988-spi-quad
+              - mediatek,mt7988-spi-single
               - mediatek,mt8188-spi-ipm
           - const: mediatek,spi-ipm
+      - items:
+          - enum:
+              - mediatek,mt8196-spi
+          - const: mediatek,mt6991-spi
       - items:
           - enum:
               - mediatek,mt2701-spi
@@ -44,6 +50,7 @@ properties:
               - mediatek,mt6589-spi
               - mediatek,mt6765-spi
               - mediatek,mt6893-spi
+              - mediatek,mt6991-spi
               - mediatek,mt7622-spi
               - mediatek,mt8135-spi
               - mediatek,mt8173-spi

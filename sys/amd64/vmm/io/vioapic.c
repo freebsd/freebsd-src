@@ -130,6 +130,15 @@ vioapic_send_intr(struct vioapic *vioapic, int pin)
 
 	vector = low & IOART_INTVEC;
 	dest = high >> APIC_ID_SHIFT;
+	/*
+	 * Ideally we'd just call lapic_intr_msi() here with the
+	 * constructed MSI instead of interpreting it for ourselves.
+	 * But until/unless we support emulated IOMMUs with interrupt
+	 * remapping, interpretation is simple. We just need to mask
+	 * in the Extended Destination ID bits for the 15-bit
+	 * enlightenment (http://david.woodhou.se/ExtDestId.pdf)
+	 */
+	dest |= ((high & APIC_EXT_ID_MASK) >> APIC_EXT_ID_SHIFT) << 8;
 	vlapic_deliver_intr(vioapic->vm, level, dest, phys, delmode, vector);
 }
 

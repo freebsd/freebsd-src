@@ -63,6 +63,7 @@
 #include "bhyvegc.h"
 #include "debug.h"
 #include "console.h"
+#include "config.h"
 #include "rfb.h"
 #include "sockstream.h"
 
@@ -152,6 +153,8 @@ struct rfb_softc {
 	struct pixfmt	pixfmt;		/* owned by the write thread */
 	struct pixfmt	new_pixfmt;	/* managed with pixfmt_mtx */
 	uint32_t	*pixrow;
+	char		*fbname;
+	int		fbnamelen;
 };
 
 struct rfb_pixfmt {
@@ -262,7 +265,7 @@ struct rfb_cuttext_msg {
 };
 
 static void
-rfb_send_server_init_msg(int cfd)
+rfb_send_server_init_msg(struct rfb_softc *rc, int cfd)
 {
 	struct bhyvegc_image *gc_image;
 	struct rfb_srvr_info sinfo;
@@ -284,9 +287,9 @@ rfb_send_server_init_msg(int cfd)
 	sinfo.pixfmt.pad[0] = 0;
 	sinfo.pixfmt.pad[1] = 0;
 	sinfo.pixfmt.pad[2] = 0;
-	sinfo.namelen = htonl(strlen("bhyve"));
+	sinfo.namelen = htonl(rc->fbnamelen);
 	(void)stream_write(cfd, &sinfo, sizeof(sinfo));
-	(void)stream_write(cfd, "bhyve", strlen("bhyve"));
+	(void)stream_write(cfd, rc->fbname, rc->fbnamelen);
 }
 
 static void
@@ -1144,7 +1147,7 @@ report_and_done:
 	len = stream_read(cfd, buf, 1);
 
 	/* 4a. Write server-init info */
-	rfb_send_server_init_msg(cfd);
+	rfb_send_server_init_msg(rc, cfd);
 
 	if (!rc->zbuf) {
 		rc->zbuf = malloc(RFB_ZLIB_BUFSZ + 16);
@@ -1276,6 +1279,13 @@ rfb_init(const char *hostname, int port, int wait, const char *password)
 
 	rc->password = password;
 
+	rc->fbnamelen = asprintf(&rc->fbname, "bhyve:%s",
+	    get_config_value("name"));
+	if (rc->fbnamelen < 0) {
+		EPRINTLN("rfb: failed to allocate memory for VNC title");
+		goto error;
+	}
+
 	rc->pixrow = malloc(RFB_MAX_WIDTH * sizeof(uint32_t));
 	if (rc->pixrow == NULL) {
 		EPRINTLN("rfb: failed to allocate memory for pixrow buffer");
@@ -1358,6 +1368,7 @@ rfb_init(const char *hostname, int port, int wait, const char *password)
 	free(rc->crc);
 	free(rc->crc_tmp);
 	free(rc->pixrow);
+	free(rc->fbname);
 	free(rc);
 	return (-1);
 }

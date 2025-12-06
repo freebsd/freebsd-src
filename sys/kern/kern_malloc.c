@@ -303,7 +303,7 @@ sysctl_vm_malloc_zone_sizes(SYSCTL_HANDLER_ARGS)
  */
 #if MALLOC_DEBUG_MAXZONES > 1
 static void
-tunable_set_numzones(void)
+tunable_set_numzones(void *dummy __unused)
 {
 
 	TUNABLE_INT_FETCH("debug.malloc.numzones",
@@ -751,11 +751,14 @@ malloc_domainset(size_t size, struct malloc_type *mtp, struct domainset *ds,
 		return (malloc_large(size, mtp, DOMAINSET_RR(), flags
 		    DEBUG_REDZONE_ARG));
 
-	vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
-	do {
-		va = malloc_domain(&size, &indx, mtp, domain, flags);
-	} while (va == NULL && vm_domainset_iter_policy(&di, &domain) == 0);
+	indx = -1;
+	va = NULL;
+	if (vm_domainset_iter_policy_init(&di, ds, &domain, &flags) == 0)
+		do {
+			va = malloc_domain(&size, &indx, mtp, domain, flags);
+		} while (va == NULL && vm_domainset_iter_policy(&di, &domain) == 0);
 	malloc_type_zone_allocated(mtp, va == NULL ? 0 : size, indx);
+
 	if (__predict_false(va == NULL)) {
 		KASSERT((flags & M_WAITOK) == 0,
 		    ("malloc(M_WAITOK) returned NULL"));
@@ -1299,7 +1302,7 @@ mallocinit(void *dummy)
 #endif
 			    align, UMA_ZONE_MALLOC);
 		}
-		for (;i <= size; i+= KMEM_ZBASE)
+		for (; i <= size; i+= KMEM_ZBASE)
 			kmemsize[i >> KMEM_ZSHIFT] = indx;
 	}
 }

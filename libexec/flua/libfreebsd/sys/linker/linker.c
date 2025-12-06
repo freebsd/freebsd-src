@@ -15,6 +15,8 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
+#include "bootstrap.h"
+
 int luaopen_freebsd_sys_linker(lua_State *L);
 
 static int
@@ -80,3 +82,5 @@ luaopen_freebsd_sys_linker(lua_State *L)
 
 	return (1);
 }
+
+FLUA_MODULE_NAMED(freebsd_sys_linker, "freebsd.sys.linker");

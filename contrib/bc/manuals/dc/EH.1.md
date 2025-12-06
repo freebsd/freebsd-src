@@ -2,7 +2,7 @@
 
 SPDX-License-Identifier: BSD-2-Clause
 
-Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+Copyright (c) 2018-2025 Gavin D. Howard and contributors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -1323,7 +1323,7 @@ https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html .
 
 # BUGS
 
-None are known. Report bugs at https://git.gavinhoward.com/gavin/bc .
+None are known. Report bugs at https://github.com/gavinhoward/bc .
 
 # AUTHOR
 

@@ -32,14 +32,19 @@
 
 #include <efi.h>
 #include <efilib.h>
-#include <efiuga.h>
 #include <efipciio.h>
 #include <Protocol/EdidActive.h>
 #include <Protocol/EdidDiscovered.h>
+#include <Protocol/GraphicsOutput.h>
+#include <Protocol/UgaDraw.h>
 #include <machine/metadata.h>
 
 #include "bootstrap.h"
 #include "framebuffer.h"
+
+/* XXX This may be obsolete -- edk2 doesn't define it anywhere */
+#define EFI_CONSOLE_OUT_DEVICE_GUID    \
+{ 0xd3b36f2c, 0xd551, 0x11d4, {0x9a, 0x46, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d} }
 
 static EFI_GUID conout_guid = EFI_CONSOLE_OUT_DEVICE_GUID;
 EFI_GUID gop_guid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
@@ -52,7 +57,7 @@ static EFI_HANDLE gop_handle;
 /* Cached EDID. */
 struct vesa_edid_info *edid_info = NULL;
 
-static EFI_GRAPHICS_OUTPUT *gop;
+static EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
 static EFI_UGA_DRAW_PROTOCOL *uga;
 
 static struct named_resolution {
@@ -239,7 +244,7 @@ efifb_uga_find_pixel(EFI_UGA_DRAW_PROTOCOL *uga, u_int line,
 	printf("No change detected in frame buffer");
 
  fail:
-	printf(" -- error %lu\n", EFI_ERROR_CODE(status));
+	printf(" -- error %lu\n", DECODE_ERROR(status));
 	free(data1);
 	return (-1);
 }
@@ -595,7 +600,7 @@ efi_find_framebuffer(teken_gfx_t *gfx_state)
 	 */
 	gop_handle = NULL;
 	for (i = 0; i < nhandles; i++) {
-		EFI_GRAPHICS_OUTPUT *tgop;
+		EFI_GRAPHICS_OUTPUT_PROTOCOL *tgop;
 		void *dummy;
 
 		status = OpenProtocolByHandle(hlist[i], &gop_guid, (void **)&tgop);
@@ -630,7 +635,7 @@ efi_find_framebuffer(teken_gfx_t *gfx_state)
 			gfx_state->tg_fb_type = FB_UGA;
 			gfx_state->tg_private = uga;
 		} else {
-			return (1);
+			return (efi_status_to_errno(status));
 		}
 	}
 
@@ -644,8 +649,11 @@ efi_find_framebuffer(teken_gfx_t *gfx_state)
 		break;
 
 	default:
-		return (1);
+		return (EINVAL);
 	}
+
+	if (rv != 0)
+		return (rv);
 
 	gfx_state->tg_fb.fb_addr = efifb.fb_addr;
 	gfx_state->tg_fb.fb_size = efifb.fb_size;
@@ -778,7 +786,7 @@ gop_autoresize(void)
 		if (EFI_ERROR(status)) {
 			snprintf(command_errbuf, sizeof(command_errbuf),
 			    "gop_autoresize: Unable to set mode to %u (error=%lu)",
-			    mode, EFI_ERROR_CODE(status));
+			    mode, DECODE_ERROR(status));
 			return (CMD_ERROR);
 		}
 		(void) cons_update_mode(true);
@@ -881,7 +889,7 @@ command_gop(int argc, char *argv[])
 		if (EFI_ERROR(status)) {
 			snprintf(command_errbuf, sizeof(command_errbuf),
 			    "%s: Unable to set mode to %u (error=%lu)",
-			    argv[0], mode, EFI_ERROR_CODE(status));
+			    argv[0], mode, DECODE_ERROR(status));
 			return (CMD_ERROR);
 		}
 		(void) cons_update_mode(true);

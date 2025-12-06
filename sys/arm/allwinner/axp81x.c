@@ -1609,7 +1609,8 @@ axp8xx_attach(device_t dev)
 	EVENTHANDLER_REGISTER(shutdown_final, axp8xx_shutdown, dev,
 	    SHUTDOWN_PRI_LAST);
 
-	sc->gpiodev = gpiobus_attach_bus(dev);
+	sc->gpiodev = gpiobus_add_bus(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }

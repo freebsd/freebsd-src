@@ -1,4 +1,4 @@
-/*	$NetBSD: pidfile.c,v 1.2 2016/04/05 12:28:57 christos Exp $	*/
+/*	$NetBSD: pidfile.c,v 1.2 2025/02/11 17:48:30 christos Exp $	*/
 
 /*-
  * Copyright (c) 1999 The NetBSD Foundation, Inc.
@@ -32,9 +32,11 @@
 #include "config.h"
 #endif
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
+#endif
 #if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: pidfile.c,v 1.2 2016/04/05 12:28:57 christos Exp $");
+__RCSID("$NetBSD: pidfile.c,v 1.2 2025/02/11 17:48:30 christos Exp $");
 #endif
 
 #include <sys/param.h>

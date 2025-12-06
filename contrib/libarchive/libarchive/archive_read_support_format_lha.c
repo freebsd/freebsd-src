@@ -689,7 +689,7 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	 * a pathname and a symlink has '\' character, a directory
 	 * separator in DOS/Windows. So we should convert it to '/'.
 	 */
-	if (p[H_LEVEL_OFFSET] == 0)
+	if (lha->level == 0)
 		lha_replace_path_separator(lha, entry);
 
 	archive_entry_set_mode(entry, lha->mode);

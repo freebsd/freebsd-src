@@ -249,15 +249,8 @@ struct sysinit_tslog {
 	const void *data;
 	const char *name;
 };
-static inline void
-sysinit_tslog_shim(const void *data)
-{
-	const struct sysinit_tslog *x = data;
+void sysinit_tslog_shim(const void *);
 
-	TSRAW(curthread, TS_ENTER, "SYSINIT", x->name);
-	(x->func)(x->data);
-	TSRAW(curthread, TS_EXIT, "SYSINIT", x->name);
-}
 #define	C_SYSINIT(uniquifier, subsystem, order, func, ident)	\
 	static struct sysinit_tslog uniquifier ## _sys_init_tslog = {	\
 		func,						\
@@ -322,7 +315,7 @@ void	sysinit_add(struct sysinit **set, struct sysinit **set_end);
  * int
  * please avoid using for new tunables!
  */
-extern void tunable_int_init(void *);
+extern void tunable_int_init(const void *);
 struct tunable_int {
 	const char *path;
 	int *var;
@@ -341,7 +334,7 @@ struct tunable_int {
 /*
  * long
  */
-extern void tunable_long_init(void *);
+extern void tunable_long_init(const void *);
 struct tunable_long {
 	const char *path;
 	long *var;
@@ -360,7 +353,7 @@ struct tunable_long {
 /*
  * unsigned long
  */
-extern void tunable_ulong_init(void *);
+extern void tunable_ulong_init(const void *);
 struct tunable_ulong {
 	const char *path;
 	unsigned long *var;
@@ -379,7 +372,7 @@ struct tunable_ulong {
 /*
  * int64_t
  */
-extern void tunable_int64_init(void *);
+extern void tunable_int64_init(const void *);
 struct tunable_int64 {
 	const char *path;
 	int64_t *var;
@@ -398,7 +391,7 @@ struct tunable_int64 {
 /*
  * uint64_t
  */
-extern void tunable_uint64_init(void *);
+extern void tunable_uint64_init(const void *);
 struct tunable_uint64 {
 	const char *path;
 	uint64_t *var;
@@ -417,7 +410,7 @@ struct tunable_uint64 {
 /*
  * quad
  */
-extern void tunable_quad_init(void *);
+extern void tunable_quad_init(const void *);
 struct tunable_quad {
 	const char *path;
 	quad_t *var;
@@ -436,7 +429,7 @@ struct tunable_quad {
 /*
  * bool
  */
-extern void tunable_bool_init(void *);
+extern void tunable_bool_init(const void *);
 struct tunable_bool {
 	const char *path;
 	bool *var;
@@ -452,7 +445,7 @@ struct tunable_bool {
 
 #define	TUNABLE_BOOL_FETCH(path, var)	getenv_bool((path), (var))
 
-extern void tunable_str_init(void *);
+extern void tunable_str_init(const void *);
 struct tunable_str {
 	const char *path;
 	char *var;

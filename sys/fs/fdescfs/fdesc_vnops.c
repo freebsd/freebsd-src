@@ -196,7 +196,7 @@ loop:
 	if (error != 0) {
 		vgone(vp);
 		vput(vp);
-		*vpp = NULLVP;
+		*vpp = NULL;
 		return (error);
 	}
 
@@ -211,7 +211,7 @@ loop:
 		mtx_unlock(&fdesc_hashmtx);
 		vgone(vp);
 		vput(vp);
-		*vpp = NULLVP;
+		*vpp = NULL;
 		return (-1);
 	}
 
@@ -227,7 +227,7 @@ loop:
 			vput(vp);
 			/* If we didn't get it, return no vnode. */
 			if (error)
-				vp2 = NULLVP;
+				vp2 = NULL;
 			*vpp = vp2;
 			return (error);
 		}
@@ -301,7 +301,7 @@ fdesc_lookup(struct vop_lookup_args *ap)
 
 	if (cnp->cn_namelen == 1 && *pname == '.') {
 		*vpp = dvp;
-		VREF(dvp);
+		vref(dvp);
 		return (0);
 	}
 

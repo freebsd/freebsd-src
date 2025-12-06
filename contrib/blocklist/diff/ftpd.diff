@@ -2,17 +2,17 @@
 +++ pfilter.c	2015-01-23 17:12:02.000000000 -0500
 @@ -0,0 +1,24 @@
 +#include <stdio.h>
-+#include <blacklist.h>
++#include <blocklist.h>
 +
 +#include "pfilter.h"
 +
-+static struct blacklist *blstate;
++static struct blocklist *blstate;
 +
 +void
 +pfilter_open(void)
 +{
 +	if (blstate == NULL)
-+		blstate = blacklist_open();
++		blstate = blocklist_open();
 +}
 +
 +void
@@ -23,7 +23,7 @@
 +	if (blstate == NULL)
 +		return;
 +
-+	blacklist_r(blstate, what, 0, msg);
++	blocklist_r(blstate, what, 0, msg);
 +}
 --- /dev/null	2015-01-23 17:30:40.000000000 -0500
 +++ pfilter.h	2015-01-23 17:07:25.000000000 -0500
@@ -42,8 +42,8 @@ diff -u -p -u -r1.63 Makefile
  MLINKS=	ftpusers.5 ftpchroot.5
  
 +SRCS+=	pfilter.c
-+LDADD+=	-lblacklist
-+DPADD+=	${LIBBLACKLIST}
++LDADD+=	-lblocklist
++DPADD+=	${LIBBLOCKLIST}
 +
  .if defined(NO_INTERNAL_LS)
  CPPFLAGS+=-DNO_INTERNAL_LS

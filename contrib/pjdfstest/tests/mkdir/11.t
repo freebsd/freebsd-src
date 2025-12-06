@@ -24,7 +24,7 @@ while :; do
 	if [ $? -ne 0 ]; then
 		break
 	fi
-	i=`expr $i + 1`
+	i=$((i + 1))
 done
 expect ENOSPC mkdir ${n0}/${n1} 0755
 umount /dev/md${n}

@@ -433,6 +433,8 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 				sep = strchr(to.base, '\0');
 				sep[0] = '/';
 				sep[1] = '\0';
+			} else if (strcmp(curr->fts_name, "/") == 0) {
+				/* special case when source is the root directory */
 			} else {
 				/* entering a directory; append its name to to.path */
 				len = snprintf(to.end, END(to.path) - to.end, "%s%s",
@@ -520,6 +522,8 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 				if (type == DIR_TO_DNE &&
 				    curr->fts_level == FTS_ROOTLEVEL) {
 					/* this is actually our created root */
+				} else if (strcmp(curr->fts_name, "/") == 0) {
+					/* special case when source is the root directory */
 				} else {
 					while (to.end > to.path && *to.end != '/')
 						to.end--;
@@ -551,7 +555,8 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 		/* Not an error but need to remember it happened. */
 		if (to.path[0] == '\0') {
 			/*
-			 * This can happen in two cases:
+			 * This can happen in three cases:
+			 * - The source path is the root directory.
 			 * - DIR_TO_DNE; we created the directory and
 			 *   populated root_stat earlier.
 			 * - FILE_TO_DIR if a source has a trailing slash;

@@ -1,13 +1,11 @@
 #
-# SPDX-License-Idendifier: BSD-2-Clause
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2025 FreeBSD Foundation
 #
 # This sofware was developed by Cy Schubert <cy@FreeBSD.org>
 # under sponsorship from the FreeBSD Foundation.
 #
-
-PACKAGE=	kerberos-lib
 
 .include <src.opts.mk>
 
@@ -19,7 +17,6 @@ LDFLAGS=-Wl,--no-undefined
 INCSDIR=${INCLUDEDIR}
 LIBADD=	krb5support
 VERSION_MAP=	${.CURDIR}/version.map
-
 
 SRCS=	com_err.c \
 	error_message.c \
@@ -37,6 +34,15 @@ CFLAGS+=-I${KRB5_DIR}/util/et \
 	-I${KRB5_DIR}/include \
 	-I${.CURDIR:H:H}/include \
 	-I${.OBJDIR}
+
+FILESGROUPS=	ETSCRIPTS
+
+ETSCRIPTS=	et_c.awk \
+		et_h.awk
+
+ETSCRIPTSDIR=	${KRB5_ETDIR}
+ETSCRIPTSMODE=	0444
+ETSCRIPTSTAGS=	dev
 
 .include <bsd.lib.mk>
 

@@ -55,7 +55,7 @@
 .\" ========================================================================
 .\"
 .IX Title "RAND_LOAD_FILE 3ossl"
-.TH RAND_LOAD_FILE 3ossl 2025-07-01 3.5.1 OpenSSL
+.TH RAND_LOAD_FILE 3ossl 2025-09-30 3.5.4 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -78,7 +78,11 @@ RAND_load_file, RAND_write_file, RAND_file_name \- PRNG seed file
 \&\fBRAND_load_file()\fR reads a number of bytes from file \fBfilename\fR and
 adds them to the PRNG. If \fBmax_bytes\fR is nonnegative,
 up to \fBmax_bytes\fR are read;
-if \fBmax_bytes\fR is \-1, the complete file is read.
+if \fBmax_bytes\fR is \-1, the complete file is read (unless the file
+is not a regular file, in that case a fixed number of bytes,
+256 in the current implementation, is attempted to be read).
+\&\fBRAND_load_file()\fR can read less than the complete file or the requested number
+of bytes if it doesn't fit in the return value type.
 Do not load the same file multiple times unless its contents have
 been updated by \fBRAND_write_file()\fR between reads.
 Also, note that \fBfilename\fR should be adequately protected so that an
@@ -132,7 +136,7 @@ error.
 \&\fBRAND\fR\|(7)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

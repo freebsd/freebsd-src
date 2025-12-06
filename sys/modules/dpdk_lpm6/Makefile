@@ -1,6 +1,3 @@
-SYSDIR?=${SRCTOP}/sys
-.include "${SYSDIR}/conf/kern.opts.mk"
-
 .PATH: ${SYSDIR}/contrib/dpdk_rte_lpm
 
 KMOD=	dpdk_lpm6

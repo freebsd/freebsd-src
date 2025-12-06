@@ -55,7 +55,7 @@
 .\" ========================================================================
 .\"
 .IX Title "D2I_X509 3ossl"
-.TH D2I_X509 3ossl 2025-07-01 3.5.1 OpenSSL
+.TH D2I_X509 3ossl 2025-09-30 3.5.4 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -624,8 +624,9 @@ freed in the event of error and \fI*a\fR is set to NULL.
 \&\fBi2d_\fR\f(BITYPE\fR() returns the number of bytes successfully encoded or a negative
 value if an error occurs.
 .PP
-\&\fBi2d_\fR\f(BITYPE\fR\fB_bio\fR() and \fBi2d_\fR\f(BITYPE\fR\fB_fp\fR() return 1 for success and 0 if an
-error occurs.
+\&\fBi2d_\fR\f(BITYPE\fR\fB_bio\fR() and \fBi2d_\fR\f(BITYPE\fR\fB_fp\fR(),
+as well as \fBi2d_ASN1_bio_stream()\fR,
+return 1 for success and 0 if an error occurs.
 .SH EXAMPLES
 .IX Header "EXAMPLES"
 Allocate and encode the DER encoding of an X509 structure:

@@ -256,7 +256,6 @@
     <ClInclude Include="..\include\read.h" />
     <ClInclude Include="..\include\status.h" />
     <ClInclude Include="..\include\vector.h" />
-    <ClInclude Include="..\include\version.h" />
     <ClInclude Include="..\include\vm.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -30,7 +30,7 @@
 .\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
 .\" OF SUCH DAMAGE.
 .\"
-.Dd January 21, 2021
+.Dd October 22, 2025
 .Dt PWAIT 1
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl t Ar duration
-.Op Fl ov
+.Op Fl opv
 .Ar pid
 \&...
 .Sh DESCRIPTION
@@ -51,6 +51,8 @@ The following option is available:
 .Bl -tag -width indent
 .It Fl o
 Exit when any of the given processes has terminated.
+.It Fl p
+On exit, print a list of processes that have not terminated.
 .It Fl t Ar duration
 If any process is still running after
 .Ar duration ,

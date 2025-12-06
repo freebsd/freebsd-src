@@ -37,17 +37,9 @@
  *      Simon J. Gerraty <sjg@crufty.net>
  */
 /*
- *      @(#)Copyright (c) 1994, Simon J. Gerraty.
+ *      @(#)Copyright (c) 1994-2025, Simon J. Gerraty.
  *
- *      This is free software.  It comes with NO WARRANTY.
- *      Permission to use, modify and distribute this source code
- *      is granted subject to the following conditions.
- *      1/ that the above copyright notice and this notice
- *      are preserved in all copies and that due credit be given
- *      to the author.
- *      2/ that any changes to this code are clearly commented
- *      as such so that the author does not get blamed for bugs
- *      other than his own.
+ *      SPDX-License-Identifier: BSD-2-Clause
  *
  *      Please send copies of changes and bug-fixes to:
  *      sjg@crufty.net
@@ -104,7 +96,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)sigcompat.c	5.3 (Berkeley) 2/24/91";*/
-static char *rcsid = "$Id: sigcompat.c,v 1.24 2022/09/26 17:38:10 sjg Exp $";
+static char *rcsid = "$Id: sigcompat.c,v 1.25 2025/08/09 22:11:45 sjg Exp $";
 #endif				/* LIBC_SCCS and not lint */
 
 #undef signal

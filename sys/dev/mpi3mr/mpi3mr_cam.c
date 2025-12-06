@@ -1856,10 +1856,11 @@ int mpi3mr_remove_device_from_os(struct mpi3mr_softc *sc, U16 handle)
 			      "Poll reply queue once\n", target_outstanding, target->per_id);
  		mpi3mr_poll_pend_io_completions(sc);
 		target_outstanding = mpi3mr_atomic_read(&target->outstanding);
-		if (target_outstanding)
+		if (target_outstanding) {
 			target_outstanding = mpi3mr_atomic_read(&target->outstanding);
 			mpi3mr_dprint(sc, MPI3MR_ERROR, "[%2d] outstanding IOs present on target: %d "
-				      "despite poll\n", target_outstanding, target->per_id);
+			    "despite poll\n", target_outstanding, target->per_id);
+		}
  	}
 
 	if (target->exposed_to_os && !sc->reset_in_progress) {

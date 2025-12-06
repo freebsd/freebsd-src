@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
+#include <linux/export.h>
 #include <linux/vmalloc.h>
 
 #include "debugfs.h"
@@ -92,57 +95,14 @@ void ath11k_debugfs_add_dbring_entry(struct ath11k *ar,
 	spin_unlock_bh(&dbr_data->lock);
 }
 
-static void ath11k_debugfs_fw_stats_reset(struct ath11k *ar)
-{
-	spin_lock_bh(&ar->data_lock);
-	ar->fw_stats_done = false;
-	ath11k_fw_stats_pdevs_free(&ar->fw_stats.pdevs);
-	ath11k_fw_stats_vdevs_free(&ar->fw_stats.vdevs);
-	spin_unlock_bh(&ar->data_lock);
-}
-
 void ath11k_debugfs_fw_stats_process(struct ath11k *ar, struct ath11k_fw_stats *stats)
 {
 	struct ath11k_base *ab = ar->ab;
-	struct ath11k_pdev *pdev;
-	bool is_end;
-	static unsigned int num_vdev, num_bcn;
-	size_t total_vdevs_started = 0;
-	int i;
+	bool is_end = true;
 
-	/* WMI_REQUEST_PDEV_STAT request has been already processed */
-
-	if (stats->stats_id == WMI_REQUEST_RSSI_PER_CHAIN_STAT) {
-		ar->fw_stats_done = true;
-		return;
-	}
-
-	if (stats->stats_id == WMI_REQUEST_VDEV_STAT) {
-		if (list_empty(&stats->vdevs)) {
-			ath11k_warn(ab, "empty vdev stats");
-			return;
-		}
-		/* FW sends all the active VDEV stats irrespective of PDEV,
-		 * hence limit until the count of all VDEVs started
-		 */
-		for (i = 0; i < ab->num_radios; i++) {
-			pdev = rcu_dereference(ab->pdevs_active[i]);
-			if (pdev && pdev->ar)
-				total_vdevs_started += ar->num_started_vdevs;
-		}
-
-		is_end = ((++num_vdev) == total_vdevs_started);
-
-		list_splice_tail_init(&stats->vdevs,
-				      &ar->fw_stats.vdevs);
-
-		if (is_end) {
-			ar->fw_stats_done = true;
-			num_vdev = 0;
-		}
-		return;
-	}
-
+	/* WMI_REQUEST_PDEV_STAT, WMI_REQUEST_RSSI_PER_CHAIN_STAT and
+	 * WMI_REQUEST_VDEV_STAT requests have been already processed.
+	 */
 	if (stats->stats_id == WMI_REQUEST_BCN_STAT) {
 		if (list_empty(&stats->bcn)) {
 			ath11k_warn(ab, "empty bcn stats");
@@ -151,95 +111,16 @@ void ath11k_debugfs_fw_stats_process(struct ath11k *ar, struct ath11k_fw_stats *
 		/* Mark end until we reached the count of all started VDEVs
 		 * within the PDEV
 		 */
-		is_end = ((++num_bcn) == ar->num_started_vdevs);
+		if (ar->num_started_vdevs)
+			is_end = ((++ar->fw_stats.num_bcn_recvd) ==
+				  ar->num_started_vdevs);
 
 		list_splice_tail_init(&stats->bcn,
 				      &ar->fw_stats.bcn);
 
-		if (is_end) {
-			ar->fw_stats_done = true;
-			num_bcn = 0;
-		}
+		if (is_end)
+			complete(&ar->fw_stats_done);
 	}
-}
-
-static int ath11k_debugfs_fw_stats_request(struct ath11k *ar,
-					   struct stats_request_params *req_param)
-{
-	struct ath11k_base *ab = ar->ab;
-	unsigned long timeout, time_left;
-	int ret;
-
-	lockdep_assert_held(&ar->conf_mutex);
-
-	/* FW stats can get split when exceeding the stats data buffer limit.
-	 * In that case, since there is no end marking for the back-to-back
-	 * received 'update stats' event, we keep a 3 seconds timeout in case,
-	 * fw_stats_done is not marked yet
-	 */
-	timeout = jiffies + msecs_to_jiffies(3 * 1000);
-
-	ath11k_debugfs_fw_stats_reset(ar);
-
-	reinit_completion(&ar->fw_stats_complete);
-
-	ret = ath11k_wmi_send_stats_request_cmd(ar, req_param);
-
-	if (ret) {
-		ath11k_warn(ab, "could not request fw stats (%d)\n",
-			    ret);
-		return ret;
-	}
-
-	time_left = wait_for_completion_timeout(&ar->fw_stats_complete, 1 * HZ);
-
-	if (!time_left)
-		return -ETIMEDOUT;
-
-	for (;;) {
-		if (time_after(jiffies, timeout))
-			break;
-
-		spin_lock_bh(&ar->data_lock);
-		if (ar->fw_stats_done) {
-			spin_unlock_bh(&ar->data_lock);
-			break;
-		}
-		spin_unlock_bh(&ar->data_lock);
-	}
-	return 0;
-}
-
-int ath11k_debugfs_get_fw_stats(struct ath11k *ar, u32 pdev_id,
-				u32 vdev_id, u32 stats_id)
-{
-	struct ath11k_base *ab = ar->ab;
-	struct stats_request_params req_param;
-	int ret;
-
-	mutex_lock(&ar->conf_mutex);
-
-	if (ar->state != ATH11K_STATE_ON) {
-		ret = -ENETDOWN;
-		goto err_unlock;
-	}
-
-	req_param.pdev_id = pdev_id;
-	req_param.vdev_id = vdev_id;
-	req_param.stats_id = stats_id;
-
-	ret = ath11k_debugfs_fw_stats_request(ar, &req_param);
-	if (ret)
-		ath11k_warn(ab, "failed to request fw stats: %d\n", ret);
-
-	ath11k_dbg(ab, ATH11K_DBG_WMI,
-		   "debug get fw stat pdev id %d vdev id %d stats id 0x%x\n",
-		   pdev_id, vdev_id, stats_id);
-
-err_unlock:
-	mutex_unlock(&ar->conf_mutex);
-
-	return ret;
 }
 
 static int ath11k_open_pdev_stats(struct inode *inode, struct file *file)
@@ -267,7 +148,7 @@ static int ath11k_open_pdev_stats(struct inode *inode, struct file *file)
 	req_param.vdev_id = 0;
 	req_param.stats_id = WMI_REQUEST_PDEV_STAT;
 
-	ret = ath11k_debugfs_fw_stats_request(ar, &req_param);
+	ret = ath11k_mac_fw_stats_request(ar, &req_param);
 	if (ret) {
 		ath11k_warn(ab, "failed to request fw pdev stats: %d\n", ret);
 		goto err_free;
@@ -338,7 +219,7 @@ static int ath11k_open_vdev_stats(struct inode *inode, struct file *file)
 	req_param.vdev_id = 0;
 	req_param.stats_id = WMI_REQUEST_VDEV_STAT;
 
-	ret = ath11k_debugfs_fw_stats_request(ar, &req_param);
+	ret = ath11k_mac_fw_stats_request(ar, &req_param);
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to request fw vdev stats: %d\n", ret);
 		goto err_free;
@@ -414,7 +295,7 @@ static int ath11k_open_bcn_stats(struct inode *inode, struct file *file)
 			continue;
 
 		req_param.vdev_id = arvif->vdev_id;
-		ret = ath11k_debugfs_fw_stats_request(ar, &req_param);
+		ret = ath11k_mac_fw_stats_request(ar, &req_param);
 		if (ret) {
 			ath11k_warn(ar->ab, "failed to request fw bcn stats: %d\n", ret);
 			goto err_free;
@@ -494,7 +375,7 @@ static ssize_t ath11k_write_simulate_fw_crash(struct file *file,
 	struct ath11k_base *ab = file->private_data;
 	struct ath11k_pdev *pdev;
 	struct ath11k *ar = ab->pdevs[0].ar;
-	char buf[32] = {0};
+	char buf[32] = {};
 	ssize_t rc;
 	int i, ret, radioup = 0;
 
@@ -592,7 +473,7 @@ static ssize_t ath11k_read_enable_extd_tx_stats(struct file *file,
 						size_t count, loff_t *ppos)
 
 {
-	char buf[32] = {0};
+	char buf[32] = {};
 	struct ath11k *ar = file->private_data;
 	int len = 0;
 
@@ -616,7 +497,7 @@ static ssize_t ath11k_write_extd_rx_stats(struct file *file,
 {
 	struct ath11k *ar = file->private_data;
 	struct ath11k_base *ab = ar->ab;
-	struct htt_rx_ring_tlv_filter tlv_filter = {0};
+	struct htt_rx_ring_tlv_filter tlv_filter = {};
 	u32 enable, rx_filter = 0, ring_id;
 	int i;
 	int ret;
@@ -667,7 +548,7 @@ static ssize_t ath11k_write_extd_rx_stats(struct file *file,
 
 	ar->debug.rx_filter = tlv_filter.rx_filter;
 
-	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++) {
 		ring_id = ar->dp.rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
 		ret = ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id, ar->dp.mac_id,
 						       HAL_RXDMA_MONITOR_STATUS,
@@ -856,7 +737,7 @@ static ssize_t ath11k_write_fw_dbglog(struct file *file,
 				      size_t count, loff_t *ppos)
 {
 	struct ath11k *ar = file->private_data;
-	char buf[128] = {0};
+	char buf[128] = {};
 	struct ath11k_fw_dbglog dbglog;
 	unsigned int param, mod_id_index, is_end;
 	u64 value;
@@ -979,7 +860,7 @@ int ath11k_debugfs_pdev_create(struct ath11k_base *ab)
 	debugfs_create_file("simulate_fw_crash", 0600, ab->debugfs_soc, ab,
 			    &fops_simulate_fw_crash);
 
-	debugfs_create_file("soc_dp_stats", 0600, ab->debugfs_soc, ab,
+	debugfs_create_file("soc_dp_stats", 0400, ab->debugfs_soc, ab,
 			    &fops_soc_dp_stats);
 
 	if (ab->hw_params.sram_dump.start != 0)
@@ -1069,9 +950,9 @@ static ssize_t ath11k_write_pktlog_filter(struct file *file,
 {
 	struct ath11k *ar = file->private_data;
 	struct ath11k_base *ab = ar->ab;
-	struct htt_rx_ring_tlv_filter tlv_filter = {0};
+	struct htt_rx_ring_tlv_filter tlv_filter = {};
 	u32 rx_filter = 0, ring_id, filter, mode;
-	u8 buf[128] = {0};
+	u8 buf[128] = {};
 	int i, ret, rx_buf_sz = 0;
 	ssize_t rc;
 
@@ -1111,7 +992,7 @@ static ssize_t ath11k_write_pktlog_filter(struct file *file,
 	}
 
 	/* Clear rx filter set for monitor mode and rx status */
-	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++) {
 		ring_id = ar->dp.rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
 		ret = ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id, ar->dp.mac_id,
 						       HAL_RXDMA_MONITOR_STATUS,
@@ -1170,7 +1051,7 @@ static ssize_t ath11k_write_pktlog_filter(struct file *file,
 					       HTT_RX_FP_DATA_FILTER_FLASG3;
 	}
 
-	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++) {
 		ring_id = ar->dp.rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
 		ret = ath11k_dp_tx_htt_rx_filter_setup(ab, ring_id,
 						       ar->dp.mac_id + i,
@@ -1200,7 +1081,7 @@ static ssize_t ath11k_read_pktlog_filter(struct file *file,
 					 size_t count, loff_t *ppos)
 
 {
-	char buf[32] = {0};
+	char buf[32] = {};
 	struct ath11k *ar = file->private_data;
 	int len = 0;
 
@@ -1354,7 +1235,7 @@ static ssize_t ath11k_debugfs_write_enable_dbr_dbg(struct file *file,
 						   size_t count, loff_t *ppos)
 {
 	struct ath11k *ar = file->private_data;
-	char buf[32] = {0};
+	char buf[32] = {};
 	u32 dbr_id, enable;
 	int ret;
 
@@ -1459,7 +1340,7 @@ static void ath11k_reset_peer_ps_duration(void *data,
 					  struct ieee80211_sta *sta)
 {
 	struct ath11k *ar = data;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 
 	spin_lock_bh(&ar->data_lock);
 	arsta->ps_total_duration = 0;
@@ -1510,7 +1391,7 @@ static void ath11k_peer_ps_state_disable(void *data,
 					 struct ieee80211_sta *sta)
 {
 	struct ath11k *ar = data;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 
 	spin_lock_bh(&ar->data_lock);
 	arsta->peer_ps_state = WMI_PEER_PS_STATE_DISABLED;
@@ -1591,10 +1472,10 @@ static const struct file_operations fops_ps_state_enable = {
 int ath11k_debugfs_register(struct ath11k *ar)
 {
 	struct ath11k_base *ab = ar->ab;
-	char pdev_name[5];
-	char buf[100] = {0};
+	char pdev_name[10];
+	char buf[100] = {};
 
-	snprintf(pdev_name, sizeof(pdev_name), "%s%d", "mac", ar->pdev_idx);
+	snprintf(pdev_name, sizeof(pdev_name), "%s%u", "mac", ar->pdev_idx);
 
 	ar->debug.debugfs_pdev = debugfs_create_dir(pdev_name, ab->debugfs_soc);
 	if (IS_ERR(ar->debug.debugfs_pdev))
@@ -1675,10 +1556,10 @@ static ssize_t ath11k_write_twt_add_dialog(struct file *file,
 					   size_t count, loff_t *ppos)
 {
 	struct ath11k_vif *arvif = file->private_data;
-	struct wmi_twt_add_dialog_params params = { 0 };
-	struct wmi_twt_enable_params twt_params = {0};
+	struct wmi_twt_add_dialog_params params = {};
+	struct wmi_twt_enable_params twt_params = {};
 	struct ath11k *ar = arvif->ar;
-	u8 buf[128] = {0};
+	u8 buf[128] = {};
 	int ret;
 
 	if (ar->twt_enabled == 0) {
@@ -1751,10 +1632,10 @@ static ssize_t ath11k_write_twt_del_dialog(struct file *file,
 					   size_t count, loff_t *ppos)
 {
 	struct ath11k_vif *arvif = file->private_data;
-	struct wmi_twt_del_dialog_params params = { 0 };
-	struct wmi_twt_enable_params twt_params = {0};
+	struct wmi_twt_del_dialog_params params = {};
+	struct wmi_twt_enable_params twt_params = {};
 	struct ath11k *ar = arvif->ar;
-	u8 buf[64] = {0};
+	u8 buf[64] = {};
 	int ret;
 
 	if (ar->twt_enabled == 0) {
@@ -1798,8 +1679,8 @@ static ssize_t ath11k_write_twt_pause_dialog(struct file *file,
 					     size_t count, loff_t *ppos)
 {
 	struct ath11k_vif *arvif = file->private_data;
-	struct wmi_twt_pause_dialog_params params = { 0 };
-	u8 buf[64] = {0};
+	struct wmi_twt_pause_dialog_params params = {};
+	u8 buf[64] = {};
 	int ret;
 
 	if (arvif->ar->twt_enabled == 0) {
@@ -1837,8 +1718,8 @@ static ssize_t ath11k_write_twt_resume_dialog(struct file *file,
 					      size_t count, loff_t *ppos)
 {
 	struct ath11k_vif *arvif = file->private_data;
-	struct wmi_twt_resume_dialog_params params = { 0 };
-	u8 buf[64] = {0};
+	struct wmi_twt_resume_dialog_params params = {};
+	u8 buf[64] = {};
 	int ret;
 
 	if (arvif->ar->twt_enabled == 0) {
@@ -1893,35 +1774,30 @@ static const struct file_operations ath11k_fops_twt_resume_dialog = {
 	.open = simple_open
 };
 
-void ath11k_debugfs_add_interface(struct ath11k_vif *arvif)
+void ath11k_debugfs_op_vif_add(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif)
 {
+	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	struct ath11k_base *ab = arvif->ar->ab;
+	struct dentry *debugfs_twt;
 
 	if (arvif->vif->type != NL80211_IFTYPE_AP &&
 	    !(arvif->vif->type == NL80211_IFTYPE_STATION &&
 	      test_bit(WMI_TLV_SERVICE_STA_TWT, ab->wmi_ab.svc_map)))
 		return;
 
-	arvif->debugfs_twt = debugfs_create_dir("twt",
-						arvif->vif->debugfs_dir);
-	debugfs_create_file("add_dialog", 0200, arvif->debugfs_twt,
+	debugfs_twt = debugfs_create_dir("twt",
+					 arvif->vif->debugfs_dir);
+	debugfs_create_file("add_dialog", 0200, debugfs_twt,
 			    arvif, &ath11k_fops_twt_add_dialog);
 
-	debugfs_create_file("del_dialog", 0200, arvif->debugfs_twt,
+	debugfs_create_file("del_dialog", 0200, debugfs_twt,
 			    arvif, &ath11k_fops_twt_del_dialog);
 
-	debugfs_create_file("pause_dialog", 0200, arvif->debugfs_twt,
+	debugfs_create_file("pause_dialog", 0200, debugfs_twt,
 			    arvif, &ath11k_fops_twt_pause_dialog);
 
-	debugfs_create_file("resume_dialog", 0200, arvif->debugfs_twt,
+	debugfs_create_file("resume_dialog", 0200, debugfs_twt,
 			    arvif, &ath11k_fops_twt_resume_dialog);
 }
 
-void ath11k_debugfs_remove_interface(struct ath11k_vif *arvif)
-{
-	if (!arvif->debugfs_twt)
-		return;
-
-	debugfs_remove_recursive(arvif->debugfs_twt);
-	arvif->debugfs_twt = NULL;
-}

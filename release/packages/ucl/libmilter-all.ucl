@@ -1,0 +1,11 @@
+comment = "sendmail Mail Filter API library"
+desc = <<EOD
+The sendmail Mail Filter API (Milter) is designed to allow third-party
+programs access to mail messages as they are being processed in order
+to filter meta-information and content.  libmilter provides support for
+applications implementing the milter interface.
+EOD
+
+annotations {
+	set = "optional,optional-jail"
+}

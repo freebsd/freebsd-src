@@ -474,6 +474,19 @@ psci_cpu_on(unsigned long cpu, unsigned long entry, unsigned long context_id)
 	return (psci_call(fnid, cpu, entry, context_id));
 }
 
+int
+psci_cpu_off(void)
+{
+	uint32_t fnid;
+
+	fnid = PSCI_FNID_CPU_OFF;
+	if (psci_softc != NULL)
+		fnid = psci_softc->psci_fnids[PSCI_FN_CPU_OFF];
+
+	/* Returns PSCI_RETVAL_DENIED on error. */
+	return (psci_call(fnid, 0, 0, 0));
+}
+
 static void
 psci_shutdown(void *xsc, int howto)
 {

@@ -366,8 +366,10 @@ genl_register_family(const char *family_name, size_t hdrsize,
 	GENL_LOCK();
 	for (u_int i = 0; i < MAX_FAMILIES; i++)
 		if (families[i].family_name != NULL &&
-		    strcmp(families[i].family_name, family_name) == 0)
+		    strcmp(families[i].family_name, family_name) == 0) {
+			GENL_UNLOCK();
 			return (0);
+		}
 
 	/* Microoptimization: index 0 is reserved for the control family. */
 	gf = NULL;

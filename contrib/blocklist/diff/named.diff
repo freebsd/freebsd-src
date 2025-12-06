@@ -8,17 +8,17 @@
 +#include <named/types.h>
 +#include <named/client.h>
 +
-+#include <blacklist.h>
++#include <blocklist.h>
 +
 +#include "pfilter.h"
 +
-+static struct blacklist *blstate;
++static struct blocklist *blstate;
 +
 +void
 +pfilter_open(void)
 +{
 +	if (blstate == NULL)
-+		blstate = blacklist_open();
++		blstate = blocklist_open();
 +}
 +
 +#define TCP_CLIENT(c)  (((c)->attributes & NS_CLIENTATTR_TCP) != 0)
@@ -39,7 +39,7 @@
 +	}
 +	if (socket == NULL)
 +		return;
-+	blacklist_sa_r(blstate, 
++	blocklist_sa_r(blstate, 
 +	    res != ISC_R_SUCCESS, isc_socket_getfd(socket),
 +	    &client->peeraddr.type.sa, client->peeraddr.length, msg);
 +}
@@ -63,8 +63,8 @@ diff -u -u -r1.8 Makefile
 +	pfilter.c tkeyconf.c tsigconf.c \
  	update.c xfrout.c zoneconf.c ${SRCS_UNIX}
  
-+LDADD+=-lblacklist
-+DPADD+=${LIBBLACKLIST}
++LDADD+=-lblocklist
++DPADD+=${LIBBLOCKLIST}
  .include <bsd.prog.mk>
 Index: dist/bin/named/client.c
 ===================================================================

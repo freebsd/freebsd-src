@@ -5,10 +5,6 @@
 ipacl_test_init()
 {
 	vnet_init
-
-	if ! kldstat -q -m mac_ipacl; then
-		atf_skip "mac_ipacl is not loaded"
-	fi
 }
 
 ipacl_test_cleanup()

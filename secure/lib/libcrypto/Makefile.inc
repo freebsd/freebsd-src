@@ -1,8 +1,7 @@
 .include <bsd.own.mk>
 
-# OpenSSL version used for manual page generation
-OPENSSL_VER=	3.5.0
-OPENSSL_DATE=	2025-07-01
+PACKAGE?=	openssl
+LIB_PACKAGE=
 
 LCRYPTO_SRC=	${SRCTOP}/crypto/openssl
 LCRYPTO_DOC=	${LCRYPTO_SRC}/doc
@@ -13,10 +12,7 @@ CFLAGS+=	-I${LCRYPTO_SRC}/providers/common/include
 CFLAGS+=	-I${LCRYPTO_SRC}/providers/fips/include
 CFLAGS+=	-I${LCRYPTO_SRC}/providers/implementations/include
 
-.include "Makefile.common"
+.SUFFIXES: .pc
+.PATH.pc:	${LCRYPTO_SRC}/exporters
 
-.for pcfile in ${PCFILES}
-${pcfile}:	${pcfile}.in
-	sed -e 's,@openssl_ver@,${OPENSSL_VER},g' ${.ALLSRC} > ${.TARGET}
-.endfor
-CLEANFILES+=	${PCFILES}
+.include "Makefile.common"

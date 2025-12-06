@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -145,7 +145,7 @@ int iwl_mvm_legacy_hw_idx_to_mac80211_idx(u32 rate_n_flags,
 	int rate = rate_n_flags & RATE_LEGACY_RATE_MSK;
 	bool is_LB = band == NL80211_BAND_2GHZ;
 
-	if (format == RATE_MCS_LEGACY_OFDM_MSK)
+	if (format == RATE_MCS_MOD_TYPE_LEGACY_OFDM)
 		return is_LB ? rate + IWL_FIRST_OFDM_RATE :
 			rate;
 
@@ -172,15 +172,9 @@ int iwl_mvm_legacy_rate_to_mac80211_idx(u32 rate_n_flags,
 
 u8 iwl_mvm_mac80211_idx_to_hwrate(const struct iwl_fw *fw, int rate_idx)
 {
-	if (iwl_fw_lookup_cmd_ver(fw, TX_CMD, 0) > 8)
-		/* In the new rate legacy rates are indexed:
-		 * 0 - 3 for CCK and 0 - 7 for OFDM.
-		 */
-		return (rate_idx >= IWL_FIRST_OFDM_RATE ?
-			rate_idx - IWL_FIRST_OFDM_RATE :
-			rate_idx);
-
-	return iwl_fw_rate_idx_to_plcp(rate_idx);
+	return (rate_idx >= IWL_FIRST_OFDM_RATE ?
+		rate_idx - IWL_FIRST_OFDM_RATE :
+		rate_idx);
 }
 
 u8 iwl_mvm_mac80211_ac_to_ucode_ac(enum ieee80211_ac_numbers ac)
@@ -264,7 +258,7 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq)
 		.data = { lq, },
 	};
 
-	if (WARN_ON(lq->sta_id == IWL_MVM_INVALID_STA ||
+	if (WARN_ON(lq->sta_id == IWL_INVALID_STA ||
 		    iwl_mvm_has_tlc_offload(mvm)))
 		return -EINVAL;
 
@@ -298,6 +292,10 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return;
 
 	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	/* SMPS is handled by firmware */
+	if (iwl_mvm_has_rlc_offload(mvm))
 		return;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -678,10 +676,8 @@ struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm)
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_bss_iface_iterator, &bss_iter_data);
 
-	if (bss_iter_data.error) {
-		IWL_ERR(mvm, "More than one managed interface active!\n");
+	if (bss_iter_data.error)
 		return ERR_PTR(-EINVAL);
-	}
 
 	return bss_iter_data.vif;
 }
@@ -746,58 +742,20 @@ bool iwl_mvm_is_vif_assoc(struct iwl_mvm *mvm)
 }
 
 unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
-				    struct ieee80211_vif *vif,
-				    bool tdls, bool cmd_q)
+				    struct ieee80211_vif *vif)
 {
-	struct iwl_fw_dbg_trigger_tlv *trigger;
-	struct iwl_fw_dbg_trigger_txq_timer *txq_timer;
-	unsigned int default_timeout = cmd_q ?
-		IWL_DEF_WD_TIMEOUT :
-		mvm->trans->trans_cfg->base_params->wd_timeout;
+	unsigned int default_timeout =
+		mvm->trans->mac_cfg->base->wd_timeout;
 
-	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS)) {
-		/*
-		 * We can't know when the station is asleep or awake, so we
-		 * must disable the queue hang detection.
-		 */
-		if (fw_has_capa(&mvm->fw->ucode_capa,
-				IWL_UCODE_TLV_CAPA_STA_PM_NOTIF) &&
-		    vif && vif->type == NL80211_IFTYPE_AP)
-			return IWL_WATCHDOG_DISABLED;
-		return default_timeout;
-	}
-
-	trigger = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS);
-	txq_timer = (void *)trigger->data;
-
-	if (tdls)
-		return le32_to_cpu(txq_timer->tdls);
-
-	if (cmd_q)
-		return le32_to_cpu(txq_timer->command_queue);
-
-	if (WARN_ON(!vif))
-		return default_timeout;
-
-	switch (ieee80211_vif_type_p2p(vif)) {
-	case NL80211_IFTYPE_ADHOC:
-		return le32_to_cpu(txq_timer->ibss);
-	case NL80211_IFTYPE_STATION:
-		return le32_to_cpu(txq_timer->bss);
-	case NL80211_IFTYPE_AP:
-		return le32_to_cpu(txq_timer->softap);
-	case NL80211_IFTYPE_P2P_CLIENT:
-		return le32_to_cpu(txq_timer->p2p_client);
-	case NL80211_IFTYPE_P2P_GO:
-		return le32_to_cpu(txq_timer->p2p_go);
-	case NL80211_IFTYPE_P2P_DEVICE:
-		return le32_to_cpu(txq_timer->p2p_device);
-	case NL80211_IFTYPE_MONITOR:
-		return default_timeout;
-	default:
-		WARN_ON(1);
-		return mvm->trans->trans_cfg->base_params->wd_timeout;
-	}
+	/*
+	 * We can't know when the station is asleep or awake, so we
+	 * must disable the queue hang detection.
+	 */
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_STA_PM_NOTIF) &&
+	    vif->type == NL80211_IFTYPE_AP)
+		return IWL_WATCHDOG_DISABLED;
+	return default_timeout;
 }
 
 void iwl_mvm_connection_loss(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -1226,9 +1184,9 @@ u32 iwl_mvm_get_systime(struct iwl_mvm *mvm)
 {
 	u32 reg_addr = DEVICE_SYSTEM_TIME_REG;
 
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000 &&
-	    mvm->trans->cfg->gp2_reg_addr)
-		reg_addr = mvm->trans->cfg->gp2_reg_addr;
+	if (mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_22000 &&
+	    mvm->trans->mac_cfg->base->gp2_reg_addr)
+		reg_addr = mvm->trans->mac_cfg->base->gp2_reg_addr;
 
 	return iwl_read_prph(mvm->trans, reg_addr);
 }
@@ -1277,6 +1235,170 @@ bool iwl_mvm_have_links_same_channel(struct iwl_mvm_vif *vif1,
 	}
 
 	return false;
+}
+
+static u32 iwl_legacy_rate_to_fw_idx(u32 rate_n_flags)
+{
+	int rate = rate_n_flags & RATE_LEGACY_RATE_MSK_V1;
+	int idx;
+	bool ofdm = !(rate_n_flags & RATE_MCS_CCK_MSK_V1);
+	int offset = ofdm ? IWL_FIRST_OFDM_RATE : 0;
+	int last = ofdm ? IWL_RATE_COUNT_LEGACY : IWL_FIRST_OFDM_RATE;
+
+	for (idx = offset; idx < last; idx++)
+		if (iwl_fw_rate_idx_to_plcp(idx) == rate)
+			return idx - offset;
+	return IWL_RATE_INVALID;
+}
+
+u32 iwl_mvm_v3_rate_from_fw(__le32 rate, u8 rate_ver)
+{
+	u32 rate_v3 = 0, rate_v1;
+	u32 dup = 0;
+
+	if (rate_ver > 1)
+		return iwl_v3_rate_from_v2_v3(rate, rate_ver >= 3);
+
+	rate_v1 = le32_to_cpu(rate);
+	if (rate_v1 == 0)
+		return rate_v1;
+	/* convert rate */
+	if (rate_v1 & RATE_MCS_HT_MSK_V1) {
+		u32 nss;
+
+		rate_v3 |= RATE_MCS_MOD_TYPE_HT;
+		rate_v3 |=
+			rate_v1 & RATE_HT_MCS_RATE_CODE_MSK_V1;
+		nss = u32_get_bits(rate_v1, RATE_HT_MCS_MIMO2_MSK);
+		rate_v3 |= u32_encode_bits(nss, RATE_MCS_NSS_MSK);
+	} else if (rate_v1 & RATE_MCS_VHT_MSK_V1 ||
+		   rate_v1 & RATE_MCS_HE_MSK_V1) {
+		u32 nss = u32_get_bits(rate_v1, RATE_VHT_MCS_NSS_MSK);
+
+		rate_v3 |= rate_v1 & RATE_VHT_MCS_RATE_CODE_MSK;
+
+		rate_v3 |= u32_encode_bits(nss, RATE_MCS_NSS_MSK);
+
+		if (rate_v1 & RATE_MCS_HE_MSK_V1) {
+			u32 he_type_bits = rate_v1 & RATE_MCS_HE_TYPE_MSK_V1;
+			u32 he_type = he_type_bits >> RATE_MCS_HE_TYPE_POS_V1;
+			u32 he_106t = (rate_v1 & RATE_MCS_HE_106T_MSK_V1) >>
+				RATE_MCS_HE_106T_POS_V1;
+			u32 he_gi_ltf = (rate_v1 & RATE_MCS_HE_GI_LTF_MSK_V1) >>
+				RATE_MCS_HE_GI_LTF_POS;
+
+			if ((he_type_bits == RATE_MCS_HE_TYPE_SU ||
+			     he_type_bits == RATE_MCS_HE_TYPE_EXT_SU) &&
+			    he_gi_ltf == RATE_MCS_HE_SU_4_LTF)
+				/* the new rate have an additional bit to
+				 * represent the value 4 rather then using SGI
+				 * bit for this purpose - as it was done in the
+				 * old rate
+				 */
+				he_gi_ltf += (rate_v1 & RATE_MCS_SGI_MSK_V1) >>
+					RATE_MCS_SGI_POS_V1;
+
+			rate_v3 |= he_gi_ltf << RATE_MCS_HE_GI_LTF_POS;
+			rate_v3 |= he_type << RATE_MCS_HE_TYPE_POS;
+			rate_v3 |= he_106t << RATE_MCS_HE_106T_POS;
+			rate_v3 |= rate_v1 & RATE_HE_DUAL_CARRIER_MODE_MSK;
+			rate_v3 |= RATE_MCS_MOD_TYPE_HE;
+		} else {
+			rate_v3 |= RATE_MCS_MOD_TYPE_VHT;
+		}
+	/* if legacy format */
+	} else {
+		u32 legacy_rate = iwl_legacy_rate_to_fw_idx(rate_v1);
+
+		if (WARN_ON_ONCE(legacy_rate == IWL_RATE_INVALID))
+			legacy_rate = (rate_v1 & RATE_MCS_CCK_MSK_V1) ?
+				IWL_FIRST_CCK_RATE : IWL_FIRST_OFDM_RATE;
+
+		rate_v3 |= legacy_rate;
+		if (!(rate_v1 & RATE_MCS_CCK_MSK_V1))
+			rate_v3 |= RATE_MCS_MOD_TYPE_LEGACY_OFDM;
+	}
+
+	/* convert flags */
+	if (rate_v1 & RATE_MCS_LDPC_MSK_V1)
+		rate_v3 |= RATE_MCS_LDPC_MSK;
+	rate_v3 |= (rate_v1 & RATE_MCS_CHAN_WIDTH_MSK_V1) |
+		(rate_v1 & RATE_MCS_ANT_AB_MSK) |
+		(rate_v1 & RATE_MCS_STBC_MSK) |
+		(rate_v1 & RATE_MCS_BF_MSK);
+
+	dup = (rate_v1 & RATE_MCS_DUP_MSK_V1) >> RATE_MCS_DUP_POS_V1;
+	if (dup) {
+		rate_v3 |= RATE_MCS_DUP_MSK;
+		rate_v3 |= dup << RATE_MCS_CHAN_WIDTH_POS;
+	}
+
+	if ((!(rate_v1 & RATE_MCS_HE_MSK_V1)) &&
+	    (rate_v1 & RATE_MCS_SGI_MSK_V1))
+		rate_v3 |= RATE_MCS_SGI_MSK;
+
+	return rate_v3;
+}
+
+__le32 iwl_mvm_v3_rate_to_fw(u32 rate, u8 rate_ver)
+{
+	u32 result = 0;
+	int rate_idx;
+
+	if (rate_ver > 1)
+		return iwl_v3_rate_to_v2_v3(rate, rate_ver > 2);
+
+	switch (rate & RATE_MCS_MOD_TYPE_MSK) {
+	case RATE_MCS_MOD_TYPE_CCK:
+		result = RATE_MCS_CCK_MSK_V1;
+		fallthrough;
+	case RATE_MCS_MOD_TYPE_LEGACY_OFDM:
+		rate_idx = u32_get_bits(rate, RATE_LEGACY_RATE_MSK);
+		if (!(result & RATE_MCS_CCK_MSK_V1))
+			rate_idx += IWL_FIRST_OFDM_RATE;
+		result |= u32_encode_bits(iwl_fw_rate_idx_to_plcp(rate_idx),
+					  RATE_LEGACY_RATE_MSK_V1);
+		break;
+	case RATE_MCS_MOD_TYPE_HT:
+		result = RATE_MCS_HT_MSK_V1;
+		result |= u32_encode_bits(u32_get_bits(rate,
+						       RATE_HT_MCS_CODE_MSK),
+					  RATE_HT_MCS_RATE_CODE_MSK_V1);
+		result |= u32_encode_bits(u32_get_bits(rate,
+						       RATE_MCS_NSS_MSK),
+					  RATE_HT_MCS_MIMO2_MSK);
+		break;
+	case RATE_MCS_MOD_TYPE_VHT:
+		result = RATE_MCS_VHT_MSK_V1;
+		result |= u32_encode_bits(u32_get_bits(rate,
+						       RATE_VHT_MCS_NSS_MSK),
+					  RATE_MCS_CODE_MSK);
+		result |= u32_encode_bits(u32_get_bits(rate, RATE_MCS_NSS_MSK),
+					  RATE_VHT_MCS_NSS_MSK);
+		break;
+	case RATE_MCS_MOD_TYPE_HE: /* not generated */
+	default:
+		WARN_ONCE(1, "bad modulation type %d\n",
+			  u32_get_bits(rate, RATE_MCS_MOD_TYPE_MSK));
+		return 0;
+	}
+
+	if (rate & RATE_MCS_LDPC_MSK)
+		result |= RATE_MCS_LDPC_MSK_V1;
+	WARN_ON_ONCE(u32_get_bits(rate, RATE_MCS_CHAN_WIDTH_MSK) >
+			RATE_MCS_CHAN_WIDTH_160_VAL);
+	result |= (rate & RATE_MCS_CHAN_WIDTH_MSK_V1) |
+		  (rate & RATE_MCS_ANT_AB_MSK) |
+		  (rate & RATE_MCS_STBC_MSK) |
+		  (rate & RATE_MCS_BF_MSK);
+
+	/* not handling DUP since we don't use it */
+	WARN_ON_ONCE(rate & RATE_MCS_DUP_MSK);
+
+	if (rate & RATE_MCS_SGI_MSK)
+		result |= RATE_MCS_SGI_MSK_V1;
+
+	return cpu_to_le32(result);
 }
 
 bool iwl_mvm_vif_is_active(struct iwl_mvm_vif *mvmvif)

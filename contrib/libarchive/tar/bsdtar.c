@@ -55,7 +55,7 @@
 #endif
 
 #include "bsdtar.h"
-#include "err.h"
+#include "lafe_err.h"
 
 #if ARCHIVE_VERSION_NUMBER < 4000000 && !defined(_PATH_DEFTAPE)
 // Libarchive 4.0 and later will NOT define _PATH_DEFTAPE
@@ -182,6 +182,11 @@ main(int argc, char **argv)
 		/* Ignore SIGPIPE signals. */
 		sa.sa_handler = SIG_IGN;
 		sigaction(SIGPIPE, &sa, NULL);
+#endif
+#ifdef SIGCHLD
+		/* Do not ignore SIGCHLD. */
+		sa.sa_handler = SIG_DFL;
+		sigaction(SIGCHLD, &sa, NULL);
 #endif
 	}
 #endif

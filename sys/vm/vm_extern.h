@@ -91,6 +91,8 @@ void vm_fault_copy_entry(vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t,
     vm_ooffset_t *);
 int vm_fault_disable_pagefaults(void);
 void vm_fault_enable_pagefaults(int save);
+int vm_fault_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
+    vm_prot_t prot, vm_page_t *ma, int max_count, int *ppages_count);
 int vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
     vm_prot_t prot, vm_page_t *ma, int max_count);
 int vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
@@ -162,5 +164,8 @@ vm_addr_ok(vm_paddr_t pa, vm_paddr_t size, u_long alignment,
 	return (vm_addr_align_ok(pa, alignment) &&
 	    vm_addr_bound_ok(pa, size, boundary));
 }
+
+extern bool vm_check_pg_zero;
+
 #endif				/* _KERNEL */
 #endif				/* !_VM_EXTERN_H_ */

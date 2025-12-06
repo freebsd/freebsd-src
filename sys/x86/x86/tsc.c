@@ -650,7 +650,7 @@ retry:
 #endif /* SMP */
 
 static void
-init_TSC_tc(void)
+init_TSC_tc(void *dummy __unused)
 {
 	uint64_t max_freq;
 	int shift;

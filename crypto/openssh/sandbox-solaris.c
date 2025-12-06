@@ -97,18 +97,4 @@ ssh_sandbox_child(struct ssh_sandbox *box)
 		fatal("setppriv: %s", strerror(errno));
 }
 
-void
-ssh_sandbox_parent_finish(struct ssh_sandbox *box)
-{
-	priv_freeset(box->pset);
-	box->pset = NULL;
-	free(box);
-}
-
-void
-ssh_sandbox_parent_preauth(struct ssh_sandbox *box, pid_t child_pid)
-{
-	/* Nothing to do here */
-}
-
 #endif /* SANDBOX_SOLARIS */

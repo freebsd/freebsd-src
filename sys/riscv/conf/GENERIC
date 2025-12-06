@@ -31,6 +31,7 @@ options 	INET6			# IPv6 communications protocols
 options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
 options 	ROUTE_MPATH		# Multipath routing support
+options		FIB_ALGO		# Modular fib lookups
 options 	TCP_OFFLOAD		# TCP offload
 options 	TCP_BLACKBOX		# Enhanced TCP event logging
 options 	TCP_RFC7413		# TCP Fast Open
@@ -95,6 +96,7 @@ device		cpufreq
 
 # Bus drivers
 device		pci
+device		xlnx_pcib		# Xilinx PCIe Controller
 
 # Block devices
 device		ahci
@@ -197,12 +199,20 @@ device		mmcsd			# MMC/SD flash cards
 # Note that 'bpf' is required for DHCP.
 device		bpf		# Berkeley packet filter
 
+# random(4)
+options 	RANDOM_ENABLE_KBD
+options 	RANDOM_ENABLE_MOUSE
+
 # Flattened Device Tree
 options 	FDT
 
 # I2C support
 device		iicbus		# Bus support, required for iicoc below.
 device		iicoc		# OpenCores I2C controller support
+
+# random(4)
+device		tpm			# Trusted Platform Module
+options 	RANDOM_ENABLE_TPM	# enable entropy from TPM 2.0
 
 # Include SoC specific configuration
 include		"std.allwinner"

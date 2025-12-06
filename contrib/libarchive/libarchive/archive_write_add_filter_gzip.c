@@ -191,7 +191,8 @@ static int
 archive_compressor_gzip_open(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
-	int ret;
+	int ret = ARCHIVE_OK;
+	int init_success;
 
 	if (data->compressed == NULL) {
 		size_t bs = 65536, bpb;
@@ -221,44 +222,66 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 	data->compressed[0] = 0x1f; /* GZip signature bytes */
 	data->compressed[1] = 0x8b;
 	data->compressed[2] = 0x08; /* "Deflate" compression */
-	data->compressed[3] = data->original_filename == NULL ? 0 : 0x8;
+	data->compressed[3] = 0x00; /* Flags */
 	if (data->timestamp >= 0) {
 		time_t t = time(NULL);
 		data->compressed[4] = (uint8_t)(t)&0xff;  /* Timestamp */
 		data->compressed[5] = (uint8_t)(t>>8)&0xff;
 		data->compressed[6] = (uint8_t)(t>>16)&0xff;
 		data->compressed[7] = (uint8_t)(t>>24)&0xff;
-	} else
+	} else {
 		memset(&data->compressed[4], 0, 4);
-    if (data->compression_level == 9)
-	    data->compressed[8] = 2;
-    else if(data->compression_level == 1)
-	    data->compressed[8] = 4;
-    else
-	    data->compressed[8] = 0;
+	}
+	if (data->compression_level == 9) {
+		data->compressed[8] = 2;
+	} else if(data->compression_level == 1) {
+		data->compressed[8] = 4;
+	} else {
+		data->compressed[8] = 0;
+	}
 	data->compressed[9] = 3; /* OS=Unix */
 	data->stream.next_out += 10;
 	data->stream.avail_out -= 10;
 
 	if (data->original_filename != NULL) {
-		strcpy((char*)data->compressed + 10, data->original_filename);
-		data->stream.next_out += strlen(data->original_filename) + 1;
-		data->stream.avail_out -= strlen(data->original_filename) + 1;
+		/* Limit "original filename" to 32k or the
+		 * remaining space in the buffer, whichever is smaller.
+		 */
+		int ofn_length = strlen(data->original_filename);
+		int ofn_max_length = 32768;
+		int ofn_space_available = data->compressed
+			+ data->compressed_buffer_size
+			- data->stream.next_out
+			- 1;
+		if (ofn_max_length > ofn_space_available) {
+			ofn_max_length = ofn_space_available;
+		}
+		if (ofn_length < ofn_max_length) {
+			data->compressed[3] |= 0x8;
+			strcpy((char*)data->compressed + 10,
+			       data->original_filename);
+			data->stream.next_out += ofn_length + 1;
+			data->stream.avail_out -= ofn_length + 1;
+		} else {
+			archive_set_error(f->archive, ARCHIVE_ERRNO_MISC,
+					  "Gzip 'Original Filename' ignored because it is too long");
+			ret = ARCHIVE_WARN;
+		}
 	}
 
 	f->write = archive_compressor_gzip_write;
 
 	/* Initialize compression library. */
-	ret = deflateInit2(&(data->stream),
+	init_success = deflateInit2(&(data->stream),
 	    data->compression_level,
 	    Z_DEFLATED,
 	    -15 /* < 0 to suppress zlib header */,
 	    8,
 	    Z_DEFAULT_STRATEGY);
 
-	if (ret == Z_OK) {
+	if (init_success == Z_OK) {
 		f->data = data;
-		return (ARCHIVE_OK);
+		return (ret);
 	}
 
 	/* Library setup failed: clean up. */
@@ -266,7 +289,7 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 	    "initializing compression library");
 
 	/* Override the error message if we know what really went wrong. */
-	switch (ret) {
+	switch (init_success) {
 	case Z_STREAM_ERROR:
 		archive_set_error(f->archive, ARCHIVE_ERRNO_MISC,
 		    "Internal error initializing "

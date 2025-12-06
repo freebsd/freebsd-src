@@ -458,6 +458,7 @@ vop_stdpathconf(struct vop_pathconf_args *ap)
 		case _PC_HAS_NAMEDATTR:
 		case _PC_HAS_HIDDENSYSTEM:
 		case _PC_CLONE_BLKSIZE:
+		case _PC_CASE_INSENSITIVE:
 			*ap->a_retval = 0;
 			return (0);
 		default:
@@ -708,7 +709,7 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 	if (error)
 		return (error);
 
-	VREF(vp);
+	vref(vp);
 	locked = VOP_ISLOCKED(vp);
 	VOP_UNLOCK(vp);
 	NDINIT_ATVP(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF, UIO_SYSSPACE,
@@ -727,10 +728,10 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 	    ((*dvp)->v_vflag & VV_ROOT) &&
 	    ((*dvp)->v_mount->mnt_flag & MNT_UNION)) {
 		*dvp = (*dvp)->v_mount->mnt_vnodecovered;
-		VREF(mvp);
+		vref(mvp);
 		VOP_UNLOCK(mvp);
 		vn_close(mvp, FREAD, cred, td);
-		VREF(*dvp);
+		vref(*dvp);
 		vn_lock(*dvp, LK_SHARED | LK_RETRY);
 		covered = 1;
 	}

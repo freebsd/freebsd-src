@@ -1,12 +1,15 @@
 .include <src.opts.mk>
 
 MANGROUPS=	MAN
-MANPACKAGE=	kernel
+MANPACKAGE=	kernel-man
 
 # If you add a new file here, please consider adding an entry to the
 # hardware notes template (website/archetypes/release/hardware.adoc in
 # the doc repository); otherwise the automatically generated hardware
 # notes will not include your driver.
+
+# If you enable a driver for a different architecture, please remember
+# to update the arch specifier in the document title of the manual.
 
 MAN=	aac.4 \
 	aacraid.4 \
@@ -66,6 +69,12 @@ MAN=	aac.4 \
 	audit.4 \
 	auditpipe.4 \
 	aue.4 \
+	${_aw_gpio.4} \
+	${_aw_mmc.4} \
+	${_aw_rtc.4} \
+	${_aw_sid.4} \
+	${_aw_spi.4} \
+	${_aw_syscon.4} \
 	axe.4 \
 	axge.4 \
 	axp.4 \
@@ -180,6 +189,7 @@ MAN=	aac.4 \
 	geom.4 \
 	geom_linux_lvm.4 \
 	geom_uzip.4 \
+	geom_zero.4 \
 	gif.4 \
 	${_gve.4} \
 	gpio.4 \
@@ -195,7 +205,6 @@ MAN=	aac.4 \
 	hidbus.4 \
 	hidquirk.4 \
 	hidraw.4 \
-	hifn.4 \
 	hkbd.4 \
 	hms.4 \
 	hmt.4 \
@@ -450,7 +459,6 @@ MAN=	aac.4 \
 	p9fs.4 \
 	pass.4 \
 	pca954x.4 \
-	pccard.4 \
 	pccbb.4 \
 	pcf.4 \
 	pcf8574.4 \
@@ -458,7 +466,6 @@ MAN=	aac.4 \
 	${_pchtherm.4} \
 	pci.4 \
 	pcib.4 \
-	pcic.4 \
 	pcm.4 \
 	${_pf.4} \
 	${_pflog.4} \
@@ -586,6 +593,7 @@ MAN=	aac.4 \
 	tdfx.4 \
 	termios.4 \
 	textdump.4 \
+	thunderbolt.4 \
 	ti.4 \
 	timecounters.4 \
 	tmpfs.4 \
@@ -594,6 +602,7 @@ MAN=	aac.4 \
 	tty.4 \
 	tun.4 \
 	tws.4 \
+	u2f.4 \
 	udp.4 \
 	udplite.4 \
 	${_ufshci.4} \
@@ -846,7 +855,7 @@ _cpuctl.4=	cpuctl.4
 _dpms.4=	dpms.4
 _ftgpio.4=	ftgpio.4
 _ftwd.4=	ftwd.4
-_hn.4=		_hn.4
+_hn.4=		hn.4
 _hpt27xx.4=	hpt27xx.4
 _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4
@@ -882,7 +891,6 @@ _ntb_hw_intel.4=	ntb_hw_intel.4
 _ntb_hw_plx.4=	ntb_hw_plx.4
 _ntb_transport.4=ntb_transport.4
 _nvram.4=	nvram.4
-_padlock.4=	padlock.4
 _pchtherm.4=	pchtherm.4
 _qat.4=		qat.4
 _qat_c2xxx.4=	qat_c2xxx.4
@@ -929,6 +937,10 @@ _vmm.4=		vmm.4
 .endif
 .endif
 
+.if ${MACHINE_CPUARCH} == "i386"
+_padlock.4=	padlock.4
+.endif
+
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64"
 _hwt.4=		hwt.4
 .if ${MACHINE_CPUARCH} == "amd64"
@@ -957,6 +969,12 @@ _vmx.4=		vmx.4
 
 .if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "aarch64" || \
 	 ${MACHINE_CPUARCH} == "riscv"
+_aw_gpio.4=	aw_gpio.4
+_aw_mmc.4=	aw_mmc.4
+_aw_rtc.4=	aw_rtc.4
+_aw_sid.4=	aw_sid.4
+_aw_spi.4=	aw_spi.4
+_aw_syscon.4=	aw_syscon.4
 _cgem.4=	cgem.4
 MLINKS+=cgem.4 if_cgem.4
 .endif
@@ -986,19 +1004,23 @@ _ccd.4=		ccd.4
 
 .if ${MK_CDDL} != "no"
 _dtrace_provs=	dtrace_audit.4 \
+		dtrace_callout_execute.4 \
 		dtrace_dtrace.4 \
 		dtrace_fbt.4 \
 		dtrace_io.4 \
 		dtrace_ip.4 \
 		dtrace_kinst.4 \
 		dtrace_lockstat.4 \
+		dtrace_pid.4 \
+		dtrace_priv.4 \
 		dtrace_proc.4 \
 		dtrace_profile.4 \
 		dtrace_sched.4 \
 		dtrace_sctp.4 \
 		dtrace_tcp.4 \
 		dtrace_udp.4 \
-		dtrace_udplite.4
+		dtrace_udplite.4 \
+		dtrace_vfs.4
 
 MLINKS+=	dtrace_audit.4 dtaudit.4
 .endif
@@ -1061,6 +1083,7 @@ MAN+=	\
 	ucom.4 \
 	ucycom.4 \
 	udav.4 \
+	udbc.4 \
 	udbp.4 \
 	udl.4 \
 	uep.4 \
@@ -1100,6 +1123,7 @@ MAN+=	\
 	veriexec.4 \
 	zyd.4
 
+MLINKS+=geom_zero.4 gzero.4
 MLINKS+=mtw.4 if_mtw.4
 MLINKS+=otus.4 if_otus.4
 MLINKS+=rsu.4 if_rsu.4

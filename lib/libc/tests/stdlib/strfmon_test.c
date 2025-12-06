@@ -1,31 +1,14 @@
-/*-
- * Copyright (C) 2018 Conrad Meyer <cem@FreeBSD.org>
+/*
+ * Copyright (c) 2018 Conrad Meyer <cem@FreeBSD.org>
  * All rights reserved.
+ * Copyright (c) 2022-2025 Jose Luis Duran <jlduran@FreeBSD.org>
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <sys/param.h>
 
+#include <errno.h>
 #include <locale.h>
 #include <monetary.h>
 #include <stdio.h>
@@ -208,6 +191,56 @@ ATF_TC_BODY(strfmon_international_currency_code, tc)
 	}
 }
 
+ATF_TC_WITHOUT_HEAD(strfmon_plus_or_parenthesis);
+ATF_TC_BODY(strfmon_plus_or_parenthesis, tc)
+{
+	const struct {
+		const char *format;
+		const char *locale;
+		const char *expected;
+	} tests[] = {
+	    { "%+n", "en_US.UTF-8", "[$123.45] [-$123.45]" },
+	    { "%+i", "en_US.UTF-8", "[USD123.45] [-USD123.45]" },
+	    { "%(n", "C", "[123.45] [(123.45)]" },
+	    { "%(i", "C", "[123.45] [(123.45)]" },
+	    { "%(n", "en_US.UTF-8", "[$123.45] [($123.45)]" },
+	    { "%(i", "en_US.UTF-8", "[USD123.45] [(USD123.45)]" },
+	    { "%n", "C", "[123.45] [-123.45]" },
+	    { "%i", "C", "[123.45] [-123.45]" },
+	    { "%n", "en_US.UTF-8", "[$123.45] [-$123.45]" },
+	    { "%i", "en_US.UTF-8", "[USD123.45] [-USD123.45]" },
+	};
+	size_t i;
+	char actual[100], format[50];
+
+	for (i = 0; i < nitems(tests); ++i) {
+		if (setlocale(LC_MONETARY, tests[i].locale) == NULL)
+			atf_tc_skip("unable to setlocale(): %s",
+			    tests[i].locale);
+
+		snprintf(format, sizeof(format), "[%s] [%s]",
+		    tests[i].format, tests[i].format);
+		strfmon(actual, sizeof(actual) - 1, format,
+		    123.45, -123.45);
+		ATF_CHECK_STREQ_MSG(tests[i].expected, actual,
+		    "[%s] %s", tests[i].format, tests[i].locale);
+	}
+
+	/*
+	 * The '+' flag was included in a conversion specification and
+	 * the locale's positive_sign and negative_sign values would
+	 * both be returned by localeconv() as empty strings.
+	 */
+	if (setlocale(LC_MONETARY, "C") == NULL)
+		atf_tc_skip("unable to setlocale(): %s", tests[i].locale);
+
+	ATF_CHECK_ERRNO(EINVAL, strfmon(actual, sizeof(actual) - 1,
+	    "[%+n] [%+n]", 123.45, -123.45));
+
+	ATF_CHECK_ERRNO(EINVAL, strfmon(actual, sizeof(actual) - 1,
+	    "[%+i] [%+i]", 123.45, -123.45));
+}
+
 ATF_TC(strfmon_l);
 ATF_TC_HEAD(strfmon_l, tc)
 {
@@ -220,7 +253,7 @@ ATF_TC_BODY(strfmon_l, tc)
 		const char *locale;
 		const char *expected;
 	} tests[] = {
-	    { "C", "[ **1234.57 ] [ **1234.57 ]" },
+	    { "C", "[ **1234.57] [ **1234.57]" },
 	    { "de_DE.UTF-8", "[ **1234,57 €] [ **1.234,57 EUR]" },
 	    { "en_GB.UTF-8", "[ £**1234.57] [ GBP**1,234.57]" },
 	};
@@ -247,6 +280,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, strfmon_cs_precedes_0);
 	ATF_TP_ADD_TC(tp, strfmon_cs_precedes_1);
 	ATF_TP_ADD_TC(tp, strfmon_international_currency_code);
+	ATF_TP_ADD_TC(tp, strfmon_plus_or_parenthesis);
 	ATF_TP_ADD_TC(tp, strfmon_l);
 	return (atf_no_error());
 }

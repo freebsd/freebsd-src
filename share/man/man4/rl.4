@@ -33,7 +33,7 @@
 .Os
 .Sh NAME
 .Nm rl
-.Nd "RealTek 8129/8139 Fast Ethernet device driver"
+.Nd "Realtek 8129/8139 Fast Ethernet device driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -53,10 +53,10 @@ if_rl_load="YES"
 The
 .Nm
 driver provides support for PCI Ethernet adapters and embedded
-controllers based on the RealTek 8129 and 8139 Fast Ethernet controller
+controllers based on the Realtek 8129 and 8139 Fast Ethernet controller
 chips.
 .Pp
-The RealTek 8129/8139 series controllers use bus master DMA but do not use a
+The Realtek 8129/8139 series controllers use bus master DMA but do not use a
 descriptor-based data transfer mechanism.
 The receiver uses a
 single fixed size ring buffer from which packets must be copied
@@ -86,7 +86,7 @@ driver supports the following media types:
 .It autoselect
 Enable autoselection of the media type and options.
 This is only
-supported if the PHY chip attached to the RealTek controller
+supported if the PHY chip attached to the Realtek controller
 supports NWAY autonegotiation.
 The user can manually override
 the autoselected mode by adding media options to the
@@ -135,7 +135,7 @@ driver include:
 .It
 Accton
 .Dq Cheetah
-EN1207D (MPX 5030/5038; RealTek 8139 clone)
+EN1207D (MPX 5030/5038; Realtek 8139 clone)
 .It
 Allied Telesyn AT2550
 .It
@@ -259,7 +259,7 @@ the card should be configured correctly.
 .Xr polling 4 ,
 .Xr ifconfig 8
 .Rs
-.%B The RealTek 8129, 8139 and 8139C+ datasheets
+.%B The Realtek 8129, 8139 and 8139C+ datasheets
 .%U https://www.realtek.com
 .Re
 .Sh HISTORY
@@ -284,7 +284,7 @@ longword aligned by definition.
 The driver probably should not be
 depending on this characteristic.
 .Pp
-The RealTek data sheets are of especially poor quality,
+The Realtek data sheets are of especially poor quality,
 and there is a lot of information missing
 particularly concerning the receiver operation.
 One particularly
@@ -307,4 +307,4 @@ When the driver encounters
 this value, it knows that it has finished processing all currently
 available packets.
 Neither this magic value nor its significance are
-documented anywhere in the RealTek data sheets.
+documented anywhere in the Realtek data sheets.

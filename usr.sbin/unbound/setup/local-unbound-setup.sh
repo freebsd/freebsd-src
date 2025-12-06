@@ -118,8 +118,8 @@ set_chrootdir() {
 get_nameservers() {
 	while read line ; do
 		local bareline=${line%%\#*}
-		local key=${bareline%% *}
-		local value=${bareline#* }
+		local key=${bareline%%[[:space:]]*}
+		local value=${bareline#*[[:space:]]}
 		case ${key} in
 		nameserver)
 			case ${value} in
@@ -145,8 +145,8 @@ gen_resolv_conf() {
 	local edns0=no
 	while read line ; do
 		local bareline=${line%%\#*}
-		local key=${bareline%% *}
-		local value=${bareline#* }
+		local key=${bareline%%[[:space:]]*}
+		local value=${bareline#*[[:space:]]}
 		case ${key} in
 		nameserver)
 			case ${value} in
@@ -259,8 +259,9 @@ gen_unbound_conf() {
 	echo "        pidfile: ${pidfile}"
 	echo "        auto-trust-anchor-file: ${anchor}"
 	if [ "${use_tls}" = "yes" ] ; then
-		echo "        tls-system-cert: yes"
+		echo "        tls-cert-bundle: /etc/ssl/cert.pem"
 	fi
+	echo "        so-sndbuf: 0"
 	echo ""
 	if [ -f "${forward_conf}" ] ; then
 		echo "include: ${forward_conf}"

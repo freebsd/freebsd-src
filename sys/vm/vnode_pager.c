@@ -901,8 +901,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 	int error, before, after, rbehind, rahead, poff, i;
 	int bytecount, secmask;
 
-	KASSERT(vp->v_type != VCHR && vp->v_type != VBLK,
-	    ("%s does not support devices", __func__));
+	KASSERT(!VN_ISDEV(vp), ("%s does not support devices", __func__));
 
 	if (VN_IS_DOOMED(vp))
 		return (VM_PAGER_BAD);
@@ -1265,7 +1264,7 @@ vnode_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 	 * Force synchronous operation if we are extremely low on memory
 	 * to prevent a low-memory deadlock.  VOP operations often need to
 	 * allocate more memory to initiate the I/O ( i.e. do a BMAP
-	 * operation ).  The swapper handles the case by limiting the amount
+	 * operation ).  The swap pager handles the case by limiting the amount
 	 * of asynchronous I/O, but that sort of solution doesn't scale well
 	 * for the vnode pager without a lot of work.
 	 *

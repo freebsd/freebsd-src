@@ -289,7 +289,7 @@ print_ext6hdr(struct buf_pr *bp, const ipfw_insn *cmd )
 		sep = ',';
 	}
 	if (cmd->arg1 & EXT_ESP) {
-		bprintf(bp, "%cencapsulated security payload", sep);
+		bprintf(bp, "%cencapsulating security payload", sep);
 	}
 }
 

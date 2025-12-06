@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: ISC
 /* Copyright (C) 2020 MediaTek Inc. */
 
+#if defined(__FreeBSD__)
+#define	LINUXKPI_PARAM_PREFIX	mt7921_
+#endif
+
 #include <linux/fs.h>
 #include <linux/firmware.h>
 #include "mt7921.h"

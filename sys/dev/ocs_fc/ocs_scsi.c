@@ -720,7 +720,7 @@ ocs_scsi_build_sgls(ocs_hw_t *hw, ocs_hw_io_t *hio, ocs_hw_dif_info_t *hw_dif, o
 			case OCS_HW_DIF_BK_SIZE_520:	blocksize = 520; break;
 			case OCS_HW_DIF_BK_SIZE_4104:	blocksize = 4104; break;
 			default:
-				ocs_log_test(hw->os, "Inavlid hw_dif blocksize %d\n", hw_dif->blk_size);
+				ocs_log_test(hw->os, "Invalid hw_dif blocksize %d\n", hw_dif->blk_size);
 				return -1;
 			}
 			for (i = 0; i < sgl_count; i++) {

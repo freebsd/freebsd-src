@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 25, 2023
+.Dd September 30, 2025
 .Dt TZSET 3
 .Os
 .Sh NAME
@@ -58,8 +58,8 @@ specifies how this is done.
 .Pp
 If
 .Ev TZ
-does not appear in the environment, the best available approximation to
-local wall clock time, as specified by the
+does not appear in the environment, the best available approximation
+to local wall clock time, as specified by the
 .Xr tzfile 5 Ns -format
 file
 .Pa /etc/localtime
@@ -68,9 +68,7 @@ is used.
 If
 .Ev TZ
 appears in the environment but its value is a null string, Coordinated
-Universal Time
-.Pq Tn UTC
-is used (without leap second correction).
+Universal Time (UTC) is used (without leap second correction).
 .Pp
 If
 .Ev TZ
@@ -81,13 +79,12 @@ the rest of its value is used as a pathname of a
 file from which to read the time conversion information.
 If the first character of the pathname is a slash
 .Pq Ql /
-it is used as
-an absolute pathname; otherwise, it is used as a pathname relative to
-the system time conversion information directory.
+it is used as an absolute pathname; otherwise, it is used as a
+pathname relative to the system time conversion information directory.
 .Pp
-If its value does not begin with a colon, it is first used as the pathname
-of a file (as described above) from which to read the time conversion
-information.
+If its value does not begin with a colon, it is first used as the
+pathname of a file (as described above) from which to read the time
+conversion information.
 If that file cannot be read, the value is then interpreted as a direct
 specification (the format is described below) of the time conversion
 information.
@@ -96,24 +93,23 @@ If the
 .Ev TZ
 environment variable does not specify a
 .Xr tzfile 5 Ns -format
-file and cannot be interpreted as a direct specification,
-.Tn UTC
-is used.
+file and cannot be interpreted as a direct specification, UTC is used.
 .Pp
 After the first call to
 .Nm tzset ,
 the
 .Vt timezone
-variable is set to the difference, in seconds, between Coordinated Universal
-Time (UTC) and the local time.
+variable is set to the difference, in seconds, between Coordinated
+Universal Time (UTC) and the local time.
 The
 .Vt daylight
 variable is set to 0 if the local timezone is observing standard time.
-It is set to 1 if the local timezone ever observes an alternate time, such as summer time.
+It is set to 1 if the local timezone ever observes an alternate time,
+such as summer time.
 The first element of the
 .Vt tzname
-array is the timezone name of standard time, while the second element is the
-name of the altnerative time zone.
+array is the timezone name of standard time, while the second element
+is the name of the altnerative time zone.
 .Sh SPECIFICATION FORMAT
 When
 .Ev TZ
@@ -151,8 +147,7 @@ minus
 .Pq Ql \- ,
 plus
 .Pq Ql + ,
-and
-.Tn ASCII
+and ASCII
 .Dv NUL
 are allowed.
 .It Em offset
@@ -294,10 +289,8 @@ by the
 file
 .Em posixrules
 in the system time conversion information directory are used, with the
-standard and summer time offsets from
-.Tn UTC
-replaced by those specified by
-the
+standard and summer time offsets from UTC replaced by those specified
+by the
 .Em offset
 values in
 .Ev TZ .
@@ -315,20 +308,14 @@ local time zone file
 .It Pa /usr/share/zoneinfo
 time zone directory
 .It Pa /usr/share/zoneinfo/posixrules
-rules for
-.Tn POSIX Ns -style
-.Tn TZ Ns 's
+rules for POSIX-style TZs
 .It Pa /usr/share/zoneinfo/Etc/GMT
-for
-.Tn UTC
-leap seconds
+for UTC leap seconds
 .El
 .Pp
 If the file
 .Pa /usr/share/zoneinfo/UTC
-does not exist,
-.Tn UTC
-leap seconds are loaded from
+does not exist, UTC leap seconds are loaded from
 .Pa /usr/share/zoneinfo/posixrules .
 .Sh SEE ALSO
 .Xr date 1 ,

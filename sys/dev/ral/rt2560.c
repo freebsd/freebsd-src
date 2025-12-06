@@ -281,6 +281,8 @@ rt2560_attach(device_t dev, int id)
 #endif
 		;
 
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
+
 	rt2560_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
 	    ic->ic_channels);
 
@@ -1515,6 +1517,8 @@ rt2560_tx_mgt(struct rt2560_softc *sc, struct mbuf *m0,
 	rate = ni->ni_txparms->mgmtrate;
 
 	wh = mtod(m0, struct ieee80211_frame *);
+
+	ieee80211_output_seqno_assign(ni, -1, m0);
 
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);

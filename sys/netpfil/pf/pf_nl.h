@@ -69,6 +69,9 @@ enum {
 	PFNL_CMD_CLR_ADDRS = 31,
 	PFNL_CMD_TABLE_ADD_ADDR = 32,
 	PFNL_CMD_TABLE_DEL_ADDR = 33,
+	PFNL_CMD_TABLE_SET_ADDR = 34,
+	PFNL_CMD_TABLE_GET_ADDR = 35,
+	PFNL_CMD_TABLE_GET_ASTATS = 36,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -283,6 +286,9 @@ enum pf_rule_type_t {
 	PF_RT_SRC_NODES_ROUTE	= 81, /* u64 */
 	PF_RT_PKTRATE		= 82, /* nested, pf_threshold_type_t */
 	PF_RT_MAX_PKT_SIZE	= 83, /* u16 */
+	PF_RT_TYPE_2		= 84, /* u16 */
+	PF_RT_CODE_2		= 85, /* u16 */
+	PF_RT_EXPTIME		= 86, /* time_t */
 };
 
 enum pf_addrule_type_t {
@@ -350,6 +356,8 @@ enum pf_get_status_types_t {
 	PF_GS_CHKSUM		= 14, /* byte array */
 	PF_GS_PCOUNTERS		= 15, /* u64 array */
 	PF_GS_BCOUNTERS		= 16, /* u64 array */
+	PF_GS_NCOUNTERS		= 17, /* nested, */
+	PF_GS_FRAGMENTS		= 18, /* u64, */
 };
 
 enum pf_natlook_types_t {
@@ -478,8 +486,25 @@ enum pf_table_addrs_t {
 	PF_TA_FLAGS		= 3, /* u32 */
 	PF_TA_NBR_ADDED		= 4, /* u32 */
 	PF_TA_NBR_DELETED	= 5, /* u32 */
+	PF_TA_NBR_CHANGED	= 6, /* u32 */
+	PF_TA_ADDR_COUNT	= 7, /* u32 */
 };
 
+enum pf_astats_t {
+	PF_AS_UNSPEC,
+	PF_AS_ADDR		= 1, /* nested, pfr_addr_t */
+	PF_AS_PACKETS		= 2, /* u64 array */
+	PF_AS_BYTES		= 3, /* u64 array */
+	PF_AS_TZERO		= 4, /* time_t */
+};
+
+enum pf_table_astats_t {
+	PF_TAS_UNSPEC,
+	PF_TAS_TABLE		= 1, /* nested pf_table_t */
+	PF_TAS_ASTATS		= 2, /* nested, pfr_astats_t */
+	PF_TAS_FLAGS		= 3, /* u32 */
+	PF_TAS_ASTATS_COUNT	= 4, /* u32 */
+};
 #ifdef _KERNEL
 
 void	pf_nl_register(void);

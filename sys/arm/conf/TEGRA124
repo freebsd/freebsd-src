@@ -98,7 +98,7 @@ device		ums			# USB mouse
 #device		cdce			# Generic USB over Ethernet
 #device		cue			# CATC USB Ethernet
 #device		kue			# Kawasaki LSI USB Ethernet
-#device		rue			# RealTek RTL8150 USB Ethernet
+#device		rue			# Realtek RTL8150 USB Ethernet
 #device		udav			# Davicom DM9601E USB
 
 # USB Wireless
@@ -107,9 +107,9 @@ device		ums			# USB mouse
 # Wireless NIC cards
 #device		wlan			# 802.11 support
 #device		wlan_wep		# 802.11 WEP support
+#device		wlan_tkip		# 802.11 TKIP support
 #device		wlan_ccmp		# 802.11 CCMP support
 #device		wlan_gcmp		# 802.11 GCMP support
-#device		wlan_tkip		# 802.11 TKIP support
 #device		wlan_amrr		# AMRR transmit rate control algorithm
 
 # PCI
@@ -117,7 +117,7 @@ device		pci
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
-device		re			# RealTek 8139C+/8169/8169S/8110S
+device		re			# Realtek 8139C+/8169/8169S/8110S
 
 # DRM2
 device		fbd

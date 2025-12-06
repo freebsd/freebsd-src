@@ -112,15 +112,21 @@ struct xucred {
 	short	cr_ngroups;		/* number of groups (incl. cr_gid). */
 	union {
 		/*
-		 * Special little hack to avoid needing a cr_gid macro, which
-		 * would cause problems if one were to use it with struct ucred
-		 * which also has a cr_groups member.
+		 * The effective GID has been the first element of cr_groups[]
+		 * for historical reasons.  It should be accessed using the
+		 * 'cr_gid' identifier.  Supplementary groups should be accessed
+		 * using cr_sgroups[].  Note that 'cr_ngroups' currently
+		 * includes the effective GID.
+		 *
+		 * XXXOC: On the next API change (requires versioning), please
+		 * replace this union with a true unaliased field 'cr_gid' and
+		 * make sure that cr_groups[]/'cr_ngroups' only account for
+		 * supplementary groups.
 		 */
 		struct {
 			gid_t	cr_gid;		/* effective group id */
 			gid_t	cr_sgroups[XU_NGROUPS - 1];
 		};
-
 		gid_t	cr_groups[XU_NGROUPS];	/* groups */
 	};
 	union {
@@ -175,7 +181,6 @@ struct setcred {
     SETCREDF_MAC_LABEL)
 
 struct setcred32 {
-#define	setcred32_copy_start	sc_uid
 	uid_t	 sc_uid;
 	uid_t	 sc_ruid;
 	uid_t	 sc_svuid;
@@ -184,7 +189,6 @@ struct setcred32 {
 	gid_t	 sc_svgid;
 	u_int	 sc_pad;
 	u_int	 sc_supp_groups_nb;
-#define	setcred32_copy_end	sc_supp_groups
 	uint32_t sc_supp_groups;	/* gid_t [*] */
 	uint32_t sc_label;		/* struct mac32 [*] */
 };
@@ -192,8 +196,8 @@ struct setcred32 {
 struct thread;
 
 /* Common native and 32-bit compatibility entry point. */
-int user_setcred(struct thread *td, const u_int flags,
-    const void *const uwcred, const size_t size, bool is_32bit);
+int	user_setcred(struct thread *td, const u_int flags,
+	    struct setcred *const wcred);
 
 struct proc;
 

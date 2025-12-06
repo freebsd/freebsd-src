@@ -89,7 +89,7 @@ SRCS+=	interp_lua.c
 .include "${BOOTSRC}/lua.mk"
 LDR_INTERP=	${LIBLUA}
 LDR_INTERP32=	${LIBLUA32}
-CFLAGS.interp_lua.c= -DLUA_PATH=\"${LUAPATH}\" -I${FLUASRC}/modules
+CFLAGS.interp_lua.c= -DLUA_PATH=\"${LUAPATH}\" -I${FLUASRC}/lfs
 .elif ${LOADER_INTERP} == "4th"
 SRCS+=	interp_forth.c
 .include "${BOOTSRC}/ficl.mk"
@@ -100,8 +100,6 @@ SRCS+=	interp_simple.c
 .else
 .error Unknown interpreter ${LOADER_INTERP}
 .endif
-
-.include "${BOOTSRC}/veriexec.mk"
 
 .if defined(BOOT_PROMPT_123)
 CFLAGS+=	-DBOOT_PROMPT_123
@@ -154,7 +152,7 @@ CFLAGS+= -DLOADER_MBR_SUPPORT
 
 .if ${HAVE_ZFS:Uno} == "yes"
 CFLAGS+=	-DLOADER_ZFS_SUPPORT
-CFLAGS+=	-I${ZFSSRC}
+CFLAGS+=	-I${SAZFSSRC}
 CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
 CFLAGS+=	-I${SYSDIR}/cddl/contrib/opensolaris/uts/common
 SRCS+=		zfs_cmd.c

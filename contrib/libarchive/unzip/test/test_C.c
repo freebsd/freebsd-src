@@ -9,6 +9,7 @@
 /* Test C arg - match case-insensitive */
 DEFINE_TEST(test_C)
 {
+#ifdef HAVE_LIBZ
 	const char *reffile = "test_basic.zip";
 	int r;
 
@@ -19,4 +20,7 @@ DEFINE_TEST(test_C)
 	assertEmptyFile("test.err");
 
 	assertTextFileContents("contents CAPS\n", "test_basic/CAPS");
+#else
+	skipping("zlib not available");
+#endif
 }

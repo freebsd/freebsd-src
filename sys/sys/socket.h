@@ -396,6 +396,7 @@ struct sockproto {
 #define	PF_NETLINK	AF_NETLINK
 #define	PF_INET_SDP	AF_INET_SDP
 #define	PF_INET6_SDP	AF_INET6_SDP
+#define	PF_HYPERV	AF_HYPERV
 #define	PF_DIVERT	AF_DIVERT
 #define	PF_IPFWLOG	AF_IPFWLOG
 
@@ -661,7 +662,7 @@ struct sf_hdtr {
  */
 #define	SF_NODISKIO     0x00000001
 #define	SF_MNOWAIT	0x00000002	/* obsolete */
-#define	SF_SYNC		0x00000004
+/* was	SF_SYNC		0x00000004	*/
 #define	SF_USER_READAHEAD	0x00000008
 #define	SF_NOCACHE	0x00000010
 #define	SF_FLAGS(rh, flags)	(((rh) << 16) | (flags))

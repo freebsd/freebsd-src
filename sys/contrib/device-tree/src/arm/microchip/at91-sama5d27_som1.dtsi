@@ -44,7 +44,7 @@
 					compatible = "jedec,spi-nor";
 					reg = <0>;
 					spi-max-frequency = <104000000>;
-					spi-cs-setup-ns = <7>;
+					spi-cs-setup-delay-ns = <7>;
 					spi-tx-bus-width = <4>;
 					spi-rx-bus-width = <4>;
 					m25p,fast-read;
@@ -106,7 +106,7 @@
 				scl-gpios = <&pioA PIN_PD22 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 				status = "okay";
 
-				at24@50 {
+				eeprom@50 {
 					compatible = "atmel,24c02";
 					reg = <0x50>;
 					pagesize = <8>;

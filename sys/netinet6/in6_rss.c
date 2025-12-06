@@ -29,6 +29,7 @@
 
 
 #include "opt_inet6.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/mbuf.h>
@@ -375,6 +376,7 @@ rss_mbuf_software_hash_v6(const struct mbuf *m, int dir, uint32_t *hashval,
 	}
 }
 
+#ifdef RSS
 /*
  * Similar to rss_m2cpuid, but designed to be used by the IPv6 NETISR
  * on incoming frames.
@@ -412,3 +414,4 @@ rss_soft_m2cpuid_v6(struct mbuf *m, uintptr_t source, u_int *cpuid)
 	}
 	return (m);
 }
+#endif

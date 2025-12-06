@@ -1,7 +1,5 @@
 .include <src.opts.mk>
 
-PACKAGE=	runtime
-
 NO_OBJ=
 
 CONFGROUPS=	CONFS
@@ -17,20 +15,16 @@ CONFDIR=	/etc/pam.d
 CONFSMODE_README=	444
 
 CONFGROUPS+=	CRON
-CRON+=		cron
+CRON=		cron
 CRONPACKAGE=	cron
 
-.if ${MK_AT} != "no"
-CONFGROUPS+=	AT
-AT+=		atrun
-ATPACKAGE+=	at
-.endif
+CONFGROUPS.${MK_AT}+=	AT
+AT=		atrun
+ATPACKAGE=	at
 
-.if ${MK_FTP} != "no"
-CONFGROUPS+=	FTP
-FTP+=		ftp ftpd
+CONFGROUPS.${MK_FTP}+=	FTP
+FTP=		ftp ftpd
 # Do not put these in the ftp package, since ports also use them.
-FTPPACKAGE=	runtime
-.endif
+FTPPACKAGE=	pam
 
 .include <bsd.prog.mk>

@@ -62,6 +62,9 @@ struct pam_config {
     long minimum_uid;    /* Ignore users below this UID. */
     bool only_alt_auth;  /* Alt principal must be used. */
     bool search_k5login; /* Try password with each line of .k5login. */
+#ifdef __FreeBSD__
+    bool allow_kdc_spoof;/* Allow auth even if KDC cannot be verified */
+#endif /* __FreeBSD__ */
 
     /* Kerberos behavior. */
     char *fast_ccache;           /* Cache containing armor ticket. */

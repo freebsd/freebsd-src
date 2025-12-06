@@ -59,7 +59,7 @@
  */
 
 /*
- * RealTek RTL8150 USB to fast ethernet controller driver.
+ * Realtek RTL8150 USB to fast ethernet controller driver.
  * Datasheet is available from
  * ftp://ftp.realtek.com.tw/lancard/data_sheet/8150/.
  */

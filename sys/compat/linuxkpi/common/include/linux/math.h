@@ -56,7 +56,7 @@
 	__ret;						\
 })
 
-#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 60600
+#if !defined(LINUXKPI_VERSION) || (LINUXKPI_VERSION >= 60600)
 #define abs_diff(x, y) ({		\
 	__typeof(x) _x = (x);		\
 	__typeof(y) _y = (y);		\

@@ -1,0 +1,99 @@
+.\"
+.\" Copyright (c) 2025 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd November 6, 2025
+.Dt DTRACE_PID 4
+.Os
+.Sh NAME
+.Nm dtrace_pid
+.Nd a DTrace provider for dynamic userspace tracing based on function boundary instrumentation
+.Sh SYNOPSIS
+.Nm pid Ns Ar PID Ns Cm \&: Ns Ar module Ns Cm \&: Ns Ar function Ns Cm \&:entry
+.\" XXX: For some reason Op renders here in bold, so use literal square
+.\"      brackets instead.
+.Nm pid Ns Ar PID Ns Cm \&: Ns Ar module Ns Cm \&: Ns Ar function Ns Cm \&: Ns No \&[ Ns Ar offset Ns No \&]
+.Nm pid Ns Ar PID Ns Cm \&: Ns Ar module Ns Cm \&: Ns Ar function Ns Cm \&:return
+.Sh DESCRIPTION
+The
+.Nm pid
+provider implements userspace dynamic tracing
+by instrumenting the entry and return of functions in userspace programs.
+Refer to
+.Xr dtrace_fbt 4
+for more details about function boundary instrumentation.
+.Pp
+The
+.Nm pid
+provider provides the following probes:
+.Bl -inset
+.It Nm pid Ns Ar PID Ns Cm \&: Ns Ar module Ns Cm \&: Ns Ar function Ns Cm \&:entry
+instruments the entry of the
+.Ar function .
+.It Nm pid Ns Ar PID Ns Cm \&: Ns Ar module Ns Cm \&: Ns Ar function Ns Cm \&: Ns Op Ar offset
+instruments the instruction within the
+.Ar function
+located at
+.Ar offset
+bytes (expressed as a hexadecimal integer).
+.It Nm pid Ns Ar PID Ns Cm \&: Ns Ar module Ns Cm \&: Ns Ar function Ns Cm \&:return
+instruments the return from the
+.Ar function .
+.El
+.Ss Probe Arguments
+The arguments of the entry probe
+.Pq Nm pid Ns Ar PID Ns Cm \&: Ns Ar module Ns Cm \&: Ns Ar function Ns Cm \&:entry
+are the arguments of the traced function call.
+.Bl -column -offset indent "Entry Probe Argument" "Definition"
+.It Sy Entry Probe Argument Ta Sy Definition
+.It Ft uint64_t Fa arg0  Ta Function's first argument
+.It Ft uint64_t Fa arg1  Ta Function's second argument
+.It Ft uint64_t Fa arg2  Ta Function's third argument
+.It Fa ...      Ta ...
+.El
+.Pp
+The offset probes
+.Pq Nm pid Ns Ar PID Ns Cm \&: Ns Ar module Ns Cm \&: Ns Ar function Ns Cm \&: Ns Op Ar offset
+do not define any arguments.
+Use
+.Va uregs[]
+to inspect the registers.
+.Pp
+The arguments of the return probe
+.Pq Nm pid Ns Ar PID Ns Cm \&: Ns Ar module Ns Cm \&: Ns Ar function Ns Cm \&:return
+are the program counter and the function's return value.
+.Bl -column -offset indent "Return Probe Argument" "Definition"
+.It Sy Return Probe Argument Ta Sy Definition
+.It Ft uint64_t Fa arg0  Ta Program counter
+.It Ft uint64_t Fa arg1  Ta Function's return value
+.El
+.Pp
+Note that all probe arguments within the
+.Nm pid
+provider are of type
+.Ft uint64_t .
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr dtrace_fbt 4 ,
+.Xr dtrace_kinst 4 ,
+.Xr elf 5 ,
+.Xr d 7 ,
+.Xr tracing 7
+.Rs
+.%A Brendan Gregg
+.%A Jim Mauro
+.%B DTrace: Dynamic Tracing in Oracle Solaris, Mac OS X and FreeBSD
+.%I Prentice Hall
+.%D 2011
+.%U https://www.brendangregg.com/dtracebook/
+.Re
+.Rs
+.%B The illumos Dynamic Tracing Guide
+.%O Chapter pid Provider
+.%D 2008
+.%U https://illumos.org/books/dtrace/chp-pid.html
+.Re
+.Sh AUTHORS
+This manual page was written by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .

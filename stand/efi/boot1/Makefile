@@ -32,7 +32,7 @@ CWARNFLAGS.zfs_module.c += -Wno-unused-function
 SRCS+=	boot1.c proto.c self_reloc.c start.S ufs_module.c
 .if ${MK_LOADER_ZFS} != "no"
 SRCS+=		zfs_module.c
-CFLAGS.zfs_module.c+=	-I${ZFSSRC}
+CFLAGS.zfs_module.c+=	-I${SAZFSSRC}
 CFLAGS.zfs_module.c+=	-I${SYSDIR}/cddl/boot/zfs
 CFLAGS.zfs_module.c+=	-I${SYSDIR}/crypto/skein
 CFLAGS.zfs_module.c+=	-I${SYSDIR}/contrib/openzfs/include
@@ -44,7 +44,7 @@ CFLAGS.zfs_module.c+=	-include ${ZFSOSINC}/spl/sys/ccompile.h
 CFLAGS+=	-DEFI_ZFS_BOOT
 .endif
 
-CFLAGS+=	-I${EFIINC}
+CFLAGS+=	-I${EFIINC} -I${EDK2INC}
 CFLAGS+=	-I${EFIINCMD}
 CFLAGS+=	-I${SYSDIR}/contrib/dev/acpica/include
 CFLAGS+=	-DEFI_UFS_BOOT

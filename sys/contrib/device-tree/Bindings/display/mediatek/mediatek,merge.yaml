@@ -26,6 +26,10 @@ properties:
           - mediatek,mt8195-disp-merge
           - mediatek,mt8195-mdp3-merge
       - items:
+          - enum:
+              - mediatek,mt8188-mdp3-merge
+          - const: mediatek,mt8195-mdp3-merge
+      - items:
           - const: mediatek,mt6795-disp-merge
           - const: mediatek,mt8173-disp-merge
       - items:
@@ -76,6 +80,29 @@ properties:
       defined in the header include/dt-bindings/gce/<chip>-gce.h.
     $ref: /schemas/types.yaml#/definitions/phandle-array
     maxItems: 1
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    description:
+      Input and output ports can have multiple endpoints, each of those
+      connects to either the primary, secondary, etc, display pipeline.
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          MERGE input port, usually from DITHER, DPI, DSC, DSI, MDP_RDMA,
+          ETHDR or even from a different MERGE block
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          MERGE output to a DSC, DPI, DP_INTF, DSI, ETHDR, Write DMA, or
+          a different MERGE block, or others.
+
+    required:
+      - port@0
+      - port@1
 
   resets:
     description: reset controller

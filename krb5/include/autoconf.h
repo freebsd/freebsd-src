@@ -641,7 +641,7 @@
 #define PACKAGE_NAME "Kerberos 5"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Kerberos 5 1.21.1"
+#define PACKAGE_STRING "Kerberos 5 1.22.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "krb5"
@@ -650,7 +650,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.21.1"
+#define PACKAGE_VERSION "1.22.1"
 
 /* Default PKCS11 module name */
 #define PKCS11_MODNAME "opensc-pkcs11.so"
@@ -691,7 +691,15 @@
 #define STDC_HEADERS 1
 
 /* Define to 1 if strerror_r returns char *. */
+#ifdef __linux__
+#include <features.h>
+#endif
+#ifdef __GLIBC__
+/* Bootstrapping on GNU/Linux */
+#define STRERROR_R_CHAR_P 1
+#else
 /* #undef STRERROR_R_CHAR_P */
+#endif
 
 /* Define if sys_errlist is defined in errno.h */
 #define SYS_ERRLIST_DECLARED 1

@@ -23,10 +23,25 @@ description: |
 properties:
   compatible:
     enum:
+      - ti,ucd9000
+      - ti,ucd9090
+      - ti,ucd90120
+      - ti,ucd90124
+      - ti,ucd90160
       - ti,ucd90320
+      - ti,ucd90910
 
   reg:
     maxItems: 1
+
+  gpio-controller: true
+
+  gpio-line-names:
+    minItems: 84
+    maxItems: 84
+
+  '#gpio-cells':
+    const: 1
 
 required:
   - compatible

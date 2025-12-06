@@ -473,6 +473,8 @@ ural_attach(device_t self)
 	    | IEEE80211_C_WPA		/* 802.11i */
 	    ;
 
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
+
 	ural_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
 	    ic->ic_channels);
 
@@ -1073,6 +1075,8 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	STAILQ_REMOVE_HEAD(&sc->tx_free, next);
 	sc->tx_nfree--;
 
+	ieee80211_output_seqno_assign(ni, -1, m0);
+
 	wh = mtod(m0, struct ieee80211_frame *);
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
@@ -1228,6 +1232,8 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
 		rate = ieee80211_node_get_txrate_dot11rate(ni);
 	}
+
+	ieee80211_output_seqno_assign(ni, -1, m0);
 
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);

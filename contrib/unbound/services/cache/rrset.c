@@ -68,6 +68,8 @@ struct rrset_cache* rrset_cache_create(struct config_file* cfg,
 	struct rrset_cache *r = (struct rrset_cache*)slabhash_create(slabs,
 		startarray, maxmem, ub_rrset_sizefunc, ub_rrset_compare,
 		ub_rrset_key_delete, rrset_data_delete, alloc);
+	if(!r)
+		return NULL;
 	slabhash_setmarkdel(&r->table, &rrset_markdel);
 	return r;
 }

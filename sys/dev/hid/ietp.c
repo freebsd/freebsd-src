@@ -102,6 +102,7 @@ struct ietp_softc {
 	device_t		dev;
 
 	struct evdev_dev	*evdev;
+	bool			open;
 	uint8_t			report_id;
 	hid_size_t		report_len;
 
@@ -198,12 +199,27 @@ static const struct hid_device_id ietp_iic_devs[] = {
 	IETP_IIC_DEV("ELAN1000"),
 };
 
-static uint8_t const ietp_dummy_rdesc[] = {
+static uint8_t const ietp_dummy_rdesc_lo[] = {
 	0x05, HUP_GENERIC_DESKTOP,	/* Usage Page (Generic Desktop Ctrls)	*/
 	0x09, HUG_MOUSE,		/* Usage (Mouse)			*/
 	0xA1, 0x01,			/* Collection (Application)		*/
 	0x09, 0x01,			/*   Usage (0x01)			*/
+	0x15, 0x00,			/*   Logical Minimum (0)                */
+	0x26, 0xFF, 0x00,		/*   Logical Maximum (255)              */
 	0x95, IETP_REPORT_LEN_LO,	/*   Report Count (IETP_REPORT_LEN_LO)	*/
+	0x75, 0x08,			/*   Report Size (8)			*/
+	0x81, 0x02,			/*   Input (Data,Var,Abs)		*/
+	0xC0,				/* End Collection			*/
+};
+
+static uint8_t const ietp_dummy_rdesc_hi[] = {
+	0x05, HUP_GENERIC_DESKTOP,	/* Usage Page (Generic Desktop Ctrls)	*/
+	0x09, HUG_MOUSE,		/* Usage (Mouse)			*/
+	0xA1, 0x01,			/* Collection (Application)		*/
+	0x09, 0x01,			/*   Usage (0x01)			*/
+	0x15, 0x00,			/*   Logical Minimum (0)                */
+	0x26, 0xFF, 0x00,		/*   Logical Maximum (255)              */
+	0x95, IETP_REPORT_LEN_HI,	/*   Report Count (IETP_REPORT_LEN_HI)	*/
 	0x75, 0x08,			/*   Report Size (8)			*/
 	0x81, 0x02,			/*   Input (Data,Var,Abs)		*/
 	0xC0,				/* End Collection			*/
@@ -217,13 +233,25 @@ static const struct evdev_methods ietp_evdev_methods = {
 static int
 ietp_ev_open(struct evdev_dev *evdev)
 {
-	return (hid_intr_start(evdev_get_softc(evdev)));
+	struct ietp_softc *sc = evdev_get_softc(evdev);
+	int error;
+
+	error = hid_intr_start(sc->dev);
+	if (error == 0)
+		sc->open = true;
+	return (error);
 }
 
 static int
 ietp_ev_close(struct evdev_dev *evdev)
 {
-	return (hid_intr_stop(evdev_get_softc(evdev)));
+	struct ietp_softc *sc = evdev_get_softc(evdev);
+	int error;
+
+	error = hid_intr_stop(sc->dev);
+	if (error == 0)
+		sc->open = false;
+	return (error);
 }
 
 static int
@@ -275,7 +303,7 @@ ietp_attach(struct ietp_softc *sc)
 	evdev_set_id(sc->evdev, hw->idBus, hw->idVendor, hw->idProduct,
 	    hw->idVersion);
 	evdev_set_serial(sc->evdev, hw->serial);
-	evdev_set_methods(sc->evdev, sc->dev, &ietp_evdev_methods);
+	evdev_set_methods(sc->evdev, sc, &ietp_evdev_methods);
 	evdev_set_flag(sc->evdev, EVDEV_FLAG_MT_STCOMPAT);
 	evdev_set_flag(sc->evdev, EVDEV_FLAG_EXT_EPOCH); /* hidbus child */
 
@@ -420,28 +448,38 @@ ietp_res2dpmm(uint8_t res, bool hi_precision)
 static void
 ietp_iic_identify(driver_t *driver, device_t parent)
 {
-	void *d_ptr;
-	hid_size_t d_len;
-	int isize;
-	uint8_t iid;
+	device_t iichid = device_get_parent(parent);
+	static const uint16_t reg = IETP_PATTERN;
+	uint16_t addr = iicbus_get_addr(iichid) << 1;
+	uint8_t resp[2];
+	uint8_t cmd[2] = { reg & 0xff, (reg >> 8) & 0xff };
+	struct iic_msg msgs[2] = {
+	    { addr, IIC_M_WR | IIC_M_NOSTOP,  sizeof(cmd), cmd },
+	    { addr, IIC_M_RD, sizeof(resp), resp },
+	};
+	struct iic_rdwr_data ird = { msgs, nitems(msgs) };
+	uint8_t pattern;
 
 	if (HIDBUS_LOOKUP_ID(parent, ietp_iic_devs) == NULL)
 		return;
-	if (hid_get_report_descr(parent, &d_ptr, &d_len) != 0)
+
+	if (device_get_devclass(iichid) != devclass_find("iichid"))
 		return;
 
-	/*
-	 * Some Elantech trackpads have a mangled HID report descriptor, which
-	 * reads as having an incorrect input size (i.e. < IETP_REPORT_LEN_LO).
-	 * If the input size is incorrect, load a dummy report descriptor.
-	 */
+	DPRINTF("Read reg 0x%04x with size %zu\n", reg, sizeof(resp));
 
-	isize = hid_report_size_max(d_ptr, d_len, hid_input, &iid);
-	if (isize >= IETP_REPORT_LEN_LO)
+	if (hid_ioctl(parent, I2CRDWR, (uintptr_t)&ird) != 0)
 		return;
 
-	hid_set_report_descr(parent, ietp_dummy_rdesc,
-	    sizeof(ietp_dummy_rdesc));
+	DPRINTF("Response: %*D\n", (int)size(resp), resp, " ");
+
+	pattern = (resp[0] == 0xFF && resp[1] == 0xFF) ? 0 : resp[1];
+	if (pattern >= 0x02)
+		hid_set_report_descr(parent, ietp_dummy_rdesc_hi,
+		    sizeof(ietp_dummy_rdesc_hi));
+	else
+		hid_set_report_descr(parent, ietp_dummy_rdesc_lo,
+		    sizeof(ietp_dummy_rdesc_lo));
 }
 
 static int
@@ -584,11 +622,13 @@ ietp_iic_set_absolute_mode(device_t dev, bool enable)
 	 * Some ASUS touchpads need to be powered on to enter absolute mode.
 	 */
 	require_wakeup = false;
-	for (i = 0; i < nitems(special_fw); i++) {
-		if (sc->ic_type == special_fw[i].ic_type &&
-		    sc->product_id == special_fw[i].product_id) {
-			require_wakeup = true;
-			break;
+	if (!sc->open) {
+		for (i = 0; i < nitems(special_fw); i++) {
+			if (sc->ic_type == special_fw[i].ic_type &&
+			    sc->product_id == special_fw[i].product_id) {
+				require_wakeup = true;
+				break;
+			}
 		}
 	}
 

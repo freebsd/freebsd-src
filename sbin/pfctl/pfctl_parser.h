@@ -36,6 +36,8 @@
 
 #include <libpfctl.h>
 
+#include <pfctl.h>
+
 #define PF_OSFP_FILE		"/etc/pf.os"
 
 #define PF_OPT_DISABLE		0x00001
@@ -56,6 +58,7 @@
 #define PF_OPT_KILLMATCH	0x08000
 #define PF_OPT_NODNS		0x10000
 #define PF_OPT_IGNFAIL		0x20000
+#define PF_OPT_CALLSHOW		0x40000
 
 #define PF_NAT_PROXY_PORT_LOW	50001
 #define PF_NAT_PROXY_PORT_HIGH	65535
@@ -89,6 +92,7 @@ struct pfctl {
 	struct pfioc_queue *pqueue;
 	struct pfr_buffer *trans;
 	struct pfctl_anchor *anchor, *alast;
+	struct pfr_ktablehead pfr_ktlast;
 	int eth_nr;
 	struct pfctl_eth_anchor *eanchor, *ealast;
 	struct pfctl_eth_anchor *eastack[PFCTL_ANCHOR_STACK_DEPTH];
@@ -276,13 +280,15 @@ struct pf_opt_rule {
 
 TAILQ_HEAD(pf_opt_queue, pf_opt_rule);
 
+struct pfr_uktable;
+
 void	copy_satopfaddr(struct pf_addr *, struct sockaddr *);
 
 int	pfctl_rules(int, char *, int, int, char *, struct pfr_buffer *);
 int	pfctl_optimize_ruleset(struct pfctl *, struct pfctl_ruleset *);
 
 void	pfctl_init_rule(struct pfctl_rule *r);
-int	pfctl_append_rule(struct pfctl *, struct pfctl_rule *, const char *);
+void	pfctl_append_rule(struct pfctl *, struct pfctl_rule *);
 int	pfctl_append_eth_rule(struct pfctl *, struct pfctl_eth_rule *,
 	    const char *);
 int	pfctl_add_altq(struct pfctl *, struct pf_altq *);
@@ -302,7 +308,7 @@ int	pfctl_cfg_syncookies(struct pfctl *, uint8_t, struct pfctl_watermarks *);
 
 int	parse_config(char *, struct pfctl *);
 int	parse_flags(char *);
-int	pfctl_load_anchors(int, struct pfctl *, struct pfr_buffer *);
+int	pfctl_load_anchors(int, struct pfctl *);
 
 void	print_pool(struct pfctl_pool *, u_int16_t, u_int16_t, int);
 void	print_src_node(struct pfctl_src_node *, int);
@@ -323,7 +329,7 @@ void	 print_queue(const struct pf_altq *, unsigned, struct node_queue_bw *,
 	    int, struct node_queue_opt *);
 
 int	pfctl_define_table(char *, int, int, const char *, struct pfr_buffer *,
-	    u_int32_t);
+	    u_int32_t, struct pfr_uktable *);
 
 void		 pfctl_clear_fingerprints(int, int);
 int		 pfctl_file_fingerprints(int, int, const char *);
@@ -379,5 +385,8 @@ struct node_host	*host(const char *, int);
 int			 append_addr(struct pfr_buffer *, char *, int, int);
 int			 append_addr_host(struct pfr_buffer *,
 			    struct node_host *, int, int);
+int			 pfr_ktable_compare(struct pfr_ktable *,
+			    struct pfr_ktable *);
+RB_PROTOTYPE(pfr_ktablehead, pfr_ktable, pfrkt_tree, pfr_ktable_compare);
 
 #endif /* _PFCTL_PARSER_H_ */

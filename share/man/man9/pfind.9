@@ -22,11 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 3, 2024
+.Dd November 3, 2025
 .Dt PFIND 9
 .Os
 .Sh NAME
-.Nm pfind , zpfind
+.Nm pfind ,
+.Nm pfind_any ,
+.Nm pfind_any_locked
 .Nd locate a process by number
 .Sh SYNOPSIS
 .In sys/param.h
@@ -38,16 +40,13 @@
 .Ft "struct proc *"
 .Fn pfind_any_locked "pid_t pid"
 .Sh DESCRIPTION
+The
 .Fn pfind
-takes a
-.Fa pid
-as its argument and returns a pointer to the
-.Vt proc
-structure whose PID is specified in the argument only if the
-.Fa pid
-is on the
-.Va allproc
-list.
+function walks the list of processes in the system, looking for the one with a
+process ID of
+.Fa pid .
+If the process exists, and is not in the zombie state, a pointer to the process
+structure will be returned.
 .Pp
 .Fn pfind_any
 takes a
@@ -56,21 +55,21 @@ as its argument.
 .Fn pfind_any
 searches the
 .Va allproc
-list and returns the first process whose PID matches and whose state is
-.Va PRS_ZOMBIE .
+list and returns the first process with a matching PID, whose state may be
+.Dv PRS_ZOMBIE .
 .Pp
 .Fn pfind_any_locked
 is similar to
-.Fn pfind_any
-,but it does not lock the process hash bucket
-for the given
+.Fn pfind_any ,
+but it does not lock the process hash bucket for the given
 .Vt pid .
 Instead, it asserts the corresponding process hash bucket is already locked.
+.Pp
 All three functions
 .Fn pfind ,
 .Fn pfind_any ,
 and
-.Fn pgfind_any_locked
+.Fn pfind_any_locked
 lock the
 .Vt proc
 structure before returning.
@@ -85,6 +84,7 @@ structure on success or
 .Dv NULL
 on failure.
 .Sh SEE ALSO
+.Xr pget 9 ,
 .Xr pgfind 9
 .Sh AUTHORS
 This manual page was written by

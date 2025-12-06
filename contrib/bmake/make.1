@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.387 2025/07/02 17:11:56 rillig Exp $
+.\"	$NetBSD: make.1,v 1.388 2025/11/12 22:14:07 sjg Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd July 2, 2025
+.Dd November 11, 2025
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -956,6 +956,11 @@ include additional unexpanded variable references) are shown.
 .It Va .MAKE.EXPORTED
 The list of variables exported by
 .Nm .
+.It Va MAKE_VERSION
+This variable indicates the version of
+.Nm .
+It is typically the date of last import from NetBSD.
+It is useful for checking whether certain features are available.
 .It Va MAKEFILE
 The top-level makefile that is currently read,
 as given in the command line.
@@ -1892,6 +1897,10 @@ The output of running
 is the value.
 .It Cm \&:sh
 The value is run as a command, and the output becomes the new value.
+.It Cm \&:sh1
+The value is run as a command, for the first reference only, and
+the output is cached for subsequent references.
+This modifier is useful when the result is not expected to change.
 .It Cm \&::= Ns Ar str
 The variable is assigned the value
 .Ar str

@@ -1,0 +1,11 @@
+comment = "System power control utility"
+
+desc = <<EOD
+The powerd utility monitors the system state and sets various power control
+options accordingly.  It offers power-saving modes that can be individually
+selected for operation on AC power or batteries.
+EOD
+
+annotations {
+	set = minimal
+}

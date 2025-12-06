@@ -38,7 +38,6 @@
 #include <atf-c.h>
 
 #include "local.h"
-#include "freebsd_test_suite/macros.h"
 
 static sem_t completions; 
 
@@ -71,7 +70,6 @@ ATF_TC_BODY(lio_listio_eagain_kevent, tc)
 	const char *path="tempfile";
 	void *udata[2];
 
-	ATF_REQUIRE_KERNEL_MODULE("aio");
 	ATF_REQUIRE_UNSAFE_AIO();
 
 	max_queue_per_proc_size = sizeof(max_queue_per_proc);

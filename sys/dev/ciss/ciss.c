@@ -3140,7 +3140,7 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
     }
 
     default:		/* we can't do this */
-	debug(1, "unspported func_code = 0x%x", ccb->ccb_h.func_code);
+	debug(1, "unsupported func_code = 0x%x", ccb->ccb_h.func_code);
 	ccb->ccb_h.status = CAM_REQ_INVALID;
 	break;
     }

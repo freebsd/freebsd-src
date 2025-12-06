@@ -15,7 +15,7 @@
 #endif
 
 #include "bsdtar.h"
-#include "err.h"
+#include "lafe_err.h"
 
 struct creation_set {
 	char		 *create_format;

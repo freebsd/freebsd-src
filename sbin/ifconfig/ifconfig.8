@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 10, 2025
+.Dd October 12, 2025
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd configure network interface parameters
 .Sh SYNOPSIS
 .Nm
-.Op Fl j Ar jail
+.Op Fl j Ar jid
 .Op Fl DkLmn
 .Op Fl f Ar type Ns Cm \&: Ns Ar format
 .Ar interface
@@ -50,11 +50,11 @@
 .Oc
 .Op Ar parameters
 .Nm
-.Op Fl j Ar jail
+.Op Fl j Ar jid
 .Ar interface
 .Cm destroy
 .Nm
-.Op Fl j Ar jail
+.Op Fl j Ar jid
 .Fl a
 .Op Fl dDkLmuv
 .Op Fl f Ar type Ns Cm \&: Ns Ar format
@@ -64,16 +64,16 @@
 .Nm
 .Fl C
 .Nm
-.Op Fl j Ar jail
+.Op Fl j Ar jid
 .Fl g Ar groupname
 .Nm
-.Op Fl j Ar jail
+.Op Fl j Ar jid
 .Fl l
 .Op Fl du
 .Op Fl g Ar groupname
 .Op Ar address_family
 .Nm
-.Op Fl j Ar jail
+.Op Fl j Ar jid
 .Op Fl dkLmuv
 .Op Fl f Ar type Ns Cm \&: Ns Ar format
 .Sh DESCRIPTION
@@ -257,22 +257,22 @@ Setting
 to
 .Cm all
 selects all interfaces.
-.It Fl j Ar jail
-Perform the actions inside the
-.Ar jail .
+.It Fl j Ar jid
+Perform the actions inside the jail specified by
+.Ar jid ,
+which may be either a jail name or a numeric jail ID.
 .Pp
 The
-.Cm ifconfig
-will first attach to the
-.Ar jail
-(by jail id or jail name) before performing the effects.
+.Nm
+utility will attach to the specified jail immediately upon
+encountering the option on the command line.
+The option may be specified multiple times to attach to a nested jail
+(jail within a jail).
 .Pp
-This allow network interfaces of
-.Ar jail
-to be configured even if the
-.Cm ifconfig
-binary is not available in
-.Ar jail .
+This makes it possible to configure network interfaces within a vnet
+jail even if the
+.Nm
+binary is not available inside the jail.
 .It Fl k
 Print keying information for the
 .Ar interface ,
@@ -630,6 +630,9 @@ This is useful for devices which have multiple physical layer interfaces
 .It Cm name Ar name
 Set the interface name to
 .Ar name .
+The
+.Ar name
+may not be longer than 15 characters.
 .It Cm rxcsum , txcsum , rxcsum6 , txcsum6
 If the driver supports user-configurable checksum offloading,
 enable receive (or transmit) checksum offloading on the interface.
@@ -1004,6 +1007,36 @@ Set a flag to disable Duplicate Address Detection.
 .It Cm -no_dad
 Clear a flag
 .Cm no_dad .
+.It Cm stableaddr
+Set a flag to create SLAAC addresses using a stable algorithm according to RFC 7217
+The
+.Xr sysctl 8
+variable
+.Va net.inet6.ip6.use_stableaddr
+controls whether this flag is set by default or not for newly created interfaces.
+To get consistent defaults for interfaces created at boot it should be set as a tunable via loader.conf(8).
+The
+.Xr sysctl 8
+variable
+.Va net.inet6.ip6.stableaddr_maxretries
+sets the maximum number of retries to generate a unique IPv6 address to be performed in case of DAD failures.
+This defaults to 3 which is also the reccommended minimum value.
+The interface ID source can be configured using the
+.Xr sysctl 8
+variable
+.Va net.inet6.ip6.stableaddr_netifsource:
+.Bl -tag -compact
+.It Cm 0
+uses the interface name string (the default)
+.It Cm 1
+uses the interface ID
+.It Cm 2
+uses the MAC address of the interface (if one can be obtained for it)
+.El
+.Pp
+.It Cm -stableaddr
+Clear the flag
+.Cm stableaddr .
 .El
 .Ss IPv6 Parameters
 The following parameters are specific for IPv6 addresses.
@@ -2769,7 +2802,7 @@ Set the untagged VLAN identifier for an interface.
 Frames received on this interface without an 802.1Q tag will be assigned
 to this VLAN instead of the default VLAN 0,
 and outgoing frames on this VLAN will have their 802.1Q tag removed.
-.It Cm -ifuntagged Ar interface Ar vlan-id
+.It Cm -ifuntagged Ar interface
 Clear the untagged VLAN identifier for an interface.
 .It Cm defuntagged Ar vlan-id
 Enable the

@@ -904,9 +904,11 @@ ovpn_create_kkey_dir(struct ovpn_kkey_dir **kdirp,
 	kdir->cipher = cipher;
 	kdir->keylen = keylen;
 	kdir->tx_seq = 1;
-	memcpy(kdir->key, key, keylen);
+	if (keylen != 0)
+		memcpy(kdir->key, key, keylen);
 	kdir->noncelen = ivlen;
-	memcpy(kdir->nonce, iv, ivlen);
+	if (ivlen != 0)
+		memcpy(kdir->nonce, iv, ivlen);
 
 	if (kdir->cipher != OVPN_CIPHER_ALG_NONE) {
 		/* Crypto init */
@@ -2689,7 +2691,7 @@ ovpn_clone_create(struct if_clone *ifc, char *name, size_t len,
 		return (EEXIST);
 
 	sc = malloc(sizeof(struct ovpn_softc), M_OVPN, M_WAITOK | M_ZERO);
-	sc->ifp = if_alloc(IFT_ENC);
+	sc->ifp = if_alloc(IFT_TUNNEL);
 	rm_init_flags(&sc->lock, "if_ovpn_lock", RM_RECURSE);
 	sc->refcount = 0;
 

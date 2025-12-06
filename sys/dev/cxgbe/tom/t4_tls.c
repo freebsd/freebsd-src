@@ -61,11 +61,21 @@
 
 static void
 t4_set_tls_tcb_field(struct toepcb *toep, uint16_t word, uint64_t mask,
-    uint64_t val)
+    uint64_t val, int reply, int cookie)
 {
 	struct adapter *sc = td_adapter(toep->td);
+	struct mbuf *m;
 
-	t4_set_tcb_field(sc, &toep->ofld_txq->wrq, toep, word, mask, val, 0, 0);
+	m = alloc_raw_wr_mbuf(sizeof(struct cpl_set_tcb_field));
+	if (m == NULL) {
+		/* XXX */
+		panic("%s: out of memory", __func__);
+	}
+
+	write_set_tcb_field(sc, mtod(m, void *), toep, word, mask, val, reply,
+	    cookie);
+
+	t4_raw_wr_tx(sc, toep, m);
 }
 
 /* TLS and DTLS common routines */
@@ -88,10 +98,9 @@ tls_tx_key(struct toepcb *toep)
 static void
 t4_set_rx_quiesce(struct toepcb *toep)
 {
-	struct adapter *sc = td_adapter(toep->td);
 
-	t4_set_tcb_field(sc, &toep->ofld_txq->wrq, toep, W_TCB_T_FLAGS,
-	    V_TF_RX_QUIESCE(1), V_TF_RX_QUIESCE(1), 1, CPL_COOKIE_TOM);
+	t4_set_tls_tcb_field(toep, W_TCB_T_FLAGS, V_TF_RX_QUIESCE(1),
+	    V_TF_RX_QUIESCE(1), 1, CPL_COOKIE_TOM);
 }
 
 /* Clear TF_RX_QUIESCE to re-enable receive. */
@@ -99,7 +108,7 @@ static void
 t4_clear_rx_quiesce(struct toepcb *toep)
 {
 
-	t4_set_tls_tcb_field(toep, W_TCB_T_FLAGS, V_TF_RX_QUIESCE(1), 0);
+	t4_set_tls_tcb_field(toep, W_TCB_T_FLAGS, V_TF_RX_QUIESCE(1), 0, 0, 0);
 }
 
 /* TLS/DTLS content type  for CPL SFO */
@@ -145,16 +154,15 @@ get_tp_plen_max(struct ktls_session *tls)
 	return (tls->params.max_frame_len <= 8192 ? plen : FC_TP_PLEN_MAX);
 }
 
-/* Send request to get the key-id */
+/* Send request to save the key in on-card memory. */
 static int
 tls_program_key_id(struct toepcb *toep, struct ktls_session *tls,
     int direction)
 {
 	struct tls_ofld_info *tls_ofld = &toep->tls;
 	struct adapter *sc = td_adapter(toep->td);
-	struct ofld_tx_sdesc *txsd;
 	int keyid;
-	struct wrqe *wr;
+	struct mbuf *m;
 	struct tls_key_req *kwr;
 	struct tls_keyctx *kctx;
 
@@ -173,12 +181,12 @@ tls_program_key_id(struct toepcb *toep, struct ktls_session *tls,
 		return (ENOSPC);
 	}
 
-	wr = alloc_wrqe(TLS_KEY_WR_SZ, &toep->ofld_txq->wrq);
-	if (wr == NULL) {
+	m = alloc_raw_wr_mbuf(TLS_KEY_WR_SZ);
+	if (m == NULL) {
 		t4_free_tls_keyid(sc, keyid);
 		return (ENOMEM);
 	}
-	kwr = wrtod(wr);
+	kwr = mtod(m, struct tls_key_req *);
 	memset(kwr, 0, TLS_KEY_WR_SZ);
 
 	t4_write_tlskey_wr(tls, direction, toep->tid, F_FW_WR_COMPL, keyid,
@@ -190,15 +198,7 @@ tls_program_key_id(struct toepcb *toep, struct ktls_session *tls,
 		tls_ofld->rx_key_addr = keyid;
 	t4_tls_key_ctx(tls, direction, kctx);
 
-	txsd = &toep->txsd[toep->txsd_pidx];
-	txsd->tx_credits = DIV_ROUND_UP(TLS_KEY_WR_SZ, 16);
-	txsd->plen = 0;
-	toep->tx_credits -= txsd->tx_credits;
-	if (__predict_false(++toep->txsd_pidx == toep->txsd_total))
-		toep->txsd_pidx = 0;
-	toep->txsd_avail--;
-
-	t4_wrq_tx(sc, wr);
+	t4_raw_wr_tx(sc, toep, m);
 
 	return (0);
 }
@@ -207,7 +207,7 @@ int
 tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 {
 	struct adapter *sc = td_adapter(toep->td);
-	int error, explicit_iv_size, mac_first;
+	int error, iv_size, mac_first;
 
 	if (!can_tls_offload(sc))
 		return (EINVAL);
@@ -228,6 +228,21 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 		}
 	}
 
+	/* TLS 1.1 through TLS 1.3 are currently supported. */
+	if (tls->params.tls_vmajor != TLS_MAJOR_VER_ONE ||
+	    tls->params.tls_vminor < TLS_MINOR_VER_ONE ||
+	    tls->params.tls_vminor > TLS_MINOR_VER_THREE) {
+		return (EPROTONOSUPPORT);
+	}
+
+	/* TLS 1.3 is only supported on T7+. */
+	if (tls->params.tls_vminor == TLS_MINOR_VER_THREE) {
+		if (is_t6(sc)) {
+			return (EPROTONOSUPPORT);
+		}
+	}
+
+	/* Sanity check values in *tls. */
 	switch (tls->params.cipher_algorithm) {
 	case CRYPTO_AES_CBC:
 		/* XXX: Explicitly ignore any provided IV. */
@@ -247,13 +262,10 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 		default:
 			return (EPROTONOSUPPORT);
 		}
-		explicit_iv_size = AES_BLOCK_LEN;
+		iv_size = AES_BLOCK_LEN;
 		mac_first = 1;
 		break;
 	case CRYPTO_AES_NIST_GCM_16:
-		if (tls->params.iv_len != SALT_SIZE) {
-			return (EINVAL);
-		}
 		switch (tls->params.cipher_key_len) {
 		case 128 / 8:
 		case 192 / 8:
@@ -262,17 +274,16 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 		default:
 			return (EINVAL);
 		}
-		explicit_iv_size = 8;
+
+		/*
+		 * The IV size for TLS 1.2 is the explicit IV in the
+		 * record header.  For TLS 1.3 it is the size of the
+		 * sequence number.
+		 */
+		iv_size = 8;
 		mac_first = 0;
 		break;
 	default:
-		return (EPROTONOSUPPORT);
-	}
-
-	/* Only TLS 1.1 and TLS 1.2 are currently supported. */
-	if (tls->params.tls_vmajor != TLS_MAJOR_VER_ONE ||
-	    tls->params.tls_vminor < TLS_MINOR_VER_ONE ||
-	    tls->params.tls_vminor > TLS_MINOR_VER_TWO) {
 		return (EPROTONOSUPPORT);
 	}
 
@@ -289,6 +300,7 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 	if (error)
 		return (error);
 
+	toep->tls.tls13 = tls->params.tls_vminor == TLS_MINOR_VER_THREE;
 	if (direction == KTLS_TX) {
 		toep->tls.scmd0.seqno_numivs =
 			(V_SCMD_SEQ_NO_CTRL(3) |
@@ -298,14 +310,14 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 			 V_SCMD_CIPH_MODE(t4_tls_cipher_mode(tls)) |
 			 V_SCMD_AUTH_MODE(t4_tls_auth_mode(tls)) |
 			 V_SCMD_HMAC_CTRL(t4_tls_hmac_ctrl(tls)) |
-			 V_SCMD_IV_SIZE(explicit_iv_size / 2));
+			 V_SCMD_IV_SIZE(iv_size / 2));
 
 		toep->tls.scmd0.ivgen_hdrlen =
 			(V_SCMD_IV_GEN_CTRL(1) |
 			 V_SCMD_KEY_CTX_INLINE(0) |
 			 V_SCMD_TLS_FRAG_ENABLE(1));
 
-		toep->tls.iv_len = explicit_iv_size;
+		toep->tls.iv_len = iv_size;
 		toep->tls.frag_size = tls->params.max_frame_len;
 		toep->tls.fcplenmax = get_tp_plen_max(tls);
 		toep->tls.expn_per_ulp = tls->params.tls_hlen +
@@ -352,7 +364,8 @@ tls_uninit_toep(struct toepcb *toep)
 
 static void
 write_tlstx_wr(struct fw_tlstx_data_wr *txwr, struct toepcb *toep,
-    unsigned int plen, unsigned int expn, uint8_t credits, int shove)
+    unsigned int plen, unsigned int expn, uint8_t credits, int shove,
+    int num_ivs)
 {
 	struct tls_ofld_info *tls_ofld = &toep->tls;
 	unsigned int len = plen + expn;
@@ -365,7 +378,7 @@ write_tlstx_wr(struct fw_tlstx_data_wr *txwr, struct toepcb *toep,
 	txwr->plen = htobe32(len);
 	txwr->lsodisable_to_flags = htobe32(V_TX_ULP_MODE(ULP_MODE_TLS) |
 	    V_TX_URG(0) | /* F_T6_TX_FORCE | */ V_TX_SHOVE(shove));
-	txwr->ctxloc_to_exp = htobe32(V_FW_TLSTX_DATA_WR_NUMIVS(1) |
+	txwr->ctxloc_to_exp = htobe32(V_FW_TLSTX_DATA_WR_NUMIVS(num_ivs) |
 	    V_FW_TLSTX_DATA_WR_EXP(expn) |
 	    V_FW_TLSTX_DATA_WR_CTXLOC(TLS_SFO_WR_CONTEXTLOC_DDR) |
 	    V_FW_TLSTX_DATA_WR_IVDSGL(0) |
@@ -381,20 +394,20 @@ write_tlstx_wr(struct fw_tlstx_data_wr *txwr, struct toepcb *toep,
 
 static void
 write_tlstx_cpl(struct cpl_tx_tls_sfo *cpl, struct toepcb *toep,
-    struct tls_hdr *tls_hdr, unsigned int plen, uint64_t seqno)
+    struct tls_hdr *tls_hdr, unsigned int plen, uint8_t rec_type,
+    uint64_t seqno)
 {
 	struct tls_ofld_info *tls_ofld = &toep->tls;
 	int data_type, seglen;
 
 	seglen = plen;
-	data_type = tls_content_type(tls_hdr->type);
+	data_type = tls_content_type(rec_type);
 	cpl->op_to_seg_len = htobe32(V_CPL_TX_TLS_SFO_OPCODE(CPL_TX_TLS_SFO) |
 	    V_CPL_TX_TLS_SFO_DATA_TYPE(data_type) |
 	    V_CPL_TX_TLS_SFO_CPL_LEN(2) | V_CPL_TX_TLS_SFO_SEG_LEN(seglen));
 	cpl->pld_len = htobe32(plen);
 	if (data_type == CPL_TX_TLS_SFO_TYPE_CUSTOM)
-		cpl->type_protover = htobe32(
-		    V_CPL_TX_TLS_SFO_TYPE(tls_hdr->type));
+		cpl->type_protover = htobe32(V_CPL_TX_TLS_SFO_TYPE(rec_type));
 	cpl->seqno_numivs = htobe32(tls_ofld->scmd0.seqno_numivs |
 	    V_SCMD_NUM_IVS(1));
 	cpl->ivgen_hdrlen = htobe32(tls_ofld->scmd0.ivgen_hdrlen);
@@ -494,9 +507,11 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 	struct tcpcb *tp = intotcpcb(inp);
 	struct socket *so = inp->inp_socket;
 	struct sockbuf *sb = &so->so_snd;
+	struct mbufq *pduq = &toep->ulp_pduq;
 	int tls_size, tx_credits, shove, sowwakeup;
 	struct ofld_tx_sdesc *txsd;
 	char *buf;
+	bool tls13;
 
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
@@ -532,9 +547,22 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 		return;
 	}
 
+	tls13 = toep->tls.tls13;
 	txsd = &toep->txsd[toep->txsd_pidx];
 	for (;;) {
 		tx_credits = min(toep->tx_credits, MAX_OFLD_TX_CREDITS);
+
+		if (__predict_false((m = mbufq_first(pduq)) != NULL)) {
+			if (!t4_push_raw_wr(sc, toep, m)) {
+				toep->flags |= TPF_TX_SUSPENDED;
+				return;
+			}
+
+			(void)mbufq_dequeue(pduq);
+
+			txsd = &toep->txsd[toep->txsd_pidx];
+			continue;
+		}
 
 		SOCKBUF_LOCK(sb);
 		sowwakeup = drop;
@@ -586,9 +614,11 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 		    sizeof(struct cpl_tx_tls_sfo) +
 		    sizeof(struct ulptx_idata) + sizeof(struct ulptx_sc_memrd);
 
-		/* Explicit IVs for AES-CBC and AES-GCM are <= 16. */
-		MPASS(toep->tls.iv_len <= AES_BLOCK_LEN);
-		wr_len += AES_BLOCK_LEN;
+		if (!tls13) {
+			/* Explicit IVs for AES-CBC and AES-GCM are <= 16. */
+			MPASS(toep->tls.iv_len <= AES_BLOCK_LEN);
+			wr_len += AES_BLOCK_LEN;
+		}
 
 		/* Account for SGL in work request length. */
 		nsegs = count_ext_pgs_segs(m);
@@ -658,8 +688,10 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 		expn_size = m->m_epg_hdrlen +
 		    m->m_epg_trllen;
 		tls_size = m->m_len - expn_size;
-		write_tlstx_wr(txwr, toep, tls_size, expn_size, credits, shove);
-		write_tlstx_cpl(cpl, toep, thdr, tls_size, m->m_epg_seqno);
+		write_tlstx_wr(txwr, toep, tls_size, expn_size, credits, shove,
+		    tls13 ? 0 : 1);
+		write_tlstx_cpl(cpl, toep, thdr, tls_size,
+		    tls13 ? m->m_epg_record_type : thdr->type, m->m_epg_seqno);
 
 		idata = (struct ulptx_idata *)(cpl + 1);
 		idata->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_NOOP));
@@ -670,10 +702,12 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 		    V_ULPTX_LEN16(toep->tls.tx_key_info_size >> 4));
 		memrd->addr = htobe32(toep->tls.tx_key_addr >> 5);
 
-		/* Copy IV. */
 		buf = (char *)(memrd + 1);
-		memcpy(buf, thdr + 1, toep->tls.iv_len);
-		buf += AES_BLOCK_LEN;
+		if (!tls13) {
+			/* Copy IV. */
+			memcpy(buf, thdr + 1, toep->tls.iv_len);
+			buf += AES_BLOCK_LEN;
+		}
 
 		write_ktlstx_sgl(buf, m, nsegs);
 
@@ -694,6 +728,8 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 			toep->flags |= TPF_TX_SUSPENDED;
 
 		KASSERT(toep->txsd_avail > 0, ("%s: no txsd", __func__));
+		KASSERT(m->m_len <= MAX_OFLD_TX_SDESC_PLEN,
+		    ("%s: plen %u too large", __func__, m->m_len));
 		txsd->plen = m->m_len;
 		txsd->tx_credits = credits;
 		txsd++;
@@ -793,8 +829,8 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct sockbuf *sb;
 	struct mbuf *tls_data;
 	struct tls_get_record *tgr;
-	struct mbuf *control;
-	int pdu_length, trailer_len;
+	struct mbuf *control, *n;
+	int pdu_length, resid, trailer_len;
 #if defined(KTR) || defined(INVARIANTS)
 	int len;
 #endif
@@ -842,7 +878,9 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	/*
 	 * The payload of this CPL is the TLS header followed by
-	 * additional fields.
+	 * additional fields.  For TLS 1.3 the type field holds the
+	 * inner record type and the length field has been updated to
+	 * strip the inner record type, padding, and MAC.
 	 */
 	KASSERT(m->m_len >= sizeof(*tls_hdr_pkt),
 	    ("%s: payload too small", __func__));
@@ -854,7 +892,14 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		    ("%s: sequence mismatch", __func__));
 	}
 
-	/* Report decryption errors as EBADMSG. */
+	/*
+	 * Report decryption errors as EBADMSG.
+	 *
+	 * XXX: To support rekeying for TLS 1.3 this will eventually
+	 * have to be updated to recrypt the data with the old key and
+	 * then decrypt with the new key.  Punt for now as KTLS
+	 * doesn't yet support rekeying.
+	 */
 	if ((tls_hdr_pkt->res_to_mac_error & M_TLSRX_HDR_PKT_ERROR) != 0) {
 		CTR4(KTR_CXGBE, "%s: tid %u TLS error %#x ddp_vld %#x",
 		    __func__, toep->tid, tls_hdr_pkt->res_to_mac_error,
@@ -870,6 +915,33 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		CURVNET_RESTORE();
 
 		return (0);
+	}
+
+	/* For TLS 1.3 trim the header and trailer. */
+	if (toep->tls.tls13) {
+		KASSERT(tls_data != NULL, ("%s: TLS 1.3 record without data",
+		    __func__));
+		MPASS(tls_data->m_pkthdr.len == pdu_length);
+		m_adj(tls_data, sizeof(struct tls_record_layer));
+		if (tls_data->m_pkthdr.len > be16toh(tls_hdr_pkt->length))
+			tls_data->m_pkthdr.len = be16toh(tls_hdr_pkt->length);
+		resid = tls_data->m_pkthdr.len;
+		if (resid == 0) {
+			m_freem(tls_data);
+			tls_data = NULL;
+		} else {
+			for (n = tls_data;; n = n->m_next) {
+				if (n->m_len < resid) {
+					resid -= n->m_len;
+					continue;
+				}
+
+				n->m_len = resid;
+				m_freem(n->m_next);
+				n->m_next = NULL;
+				break;
+			}
+		}
 	}
 
 	/* Handle data received after the socket is closed. */
@@ -1076,33 +1148,60 @@ out:
 }
 
 /*
- * Send a work request setting multiple TCB fields to enable
- * ULP_MODE_TLS.
+ * Send a work request setting one or more TCB fields to partially or
+ * fully enable ULP_MODE_TLS.
+ *
+ * - If resid == 0, the socket buffer ends at a record boundary
+ *   (either empty or contains one or more complete records).  Switch
+ *   to ULP_MODE_TLS (if not already) and enable TLS decryption.
+ *
+ * - If resid != 0, the socket buffer contains a partial record.  In
+ *   this case, switch to ULP_MODE_TLS partially and configure the TCB
+ *   to pass along the remaining resid bytes undecrypted.  Once they
+ *   arrive, this is called again with resid == 0 and enables TLS
+ *   decryption.
  */
 static void
-tls_update_tcb(struct adapter *sc, struct toepcb *toep, uint64_t seqno)
+tls_update_tcb(struct adapter *sc, struct toepcb *toep, uint64_t seqno,
+    size_t resid)
 {
-	struct wrqe *wr;
+	struct mbuf *m;
 	struct work_request_hdr *wrh;
 	struct ulp_txpkt *ulpmc;
 	int fields, key_offset, len;
 
-	KASSERT(ulp_mode(toep) == ULP_MODE_NONE,
-	    ("%s: tid %d already ULP_MODE_TLS", __func__, toep->tid));
+	/*
+	 * If we are already in ULP_MODE_TLS, then we should now be at
+	 * a record boundary and ready to finish enabling TLS RX.
+	 */
+	KASSERT(resid == 0 || ulp_mode(toep) == ULP_MODE_NONE,
+	    ("%s: tid %d needs %zu more data but already ULP_MODE_TLS",
+	    __func__, toep->tid, resid));
 
 	fields = 0;
+	if (ulp_mode(toep) == ULP_MODE_NONE) {
+		/* 2 writes for the overlay region */
+		fields += 2;
+	}
 
-	/* 2 writes for the overlay region */
-	fields += 2;
+	if (resid == 0) {
+		/* W_TCB_TLS_SEQ */
+		fields++;
 
-	/* W_TCB_TLS_SEQ */
-	fields++;
+		/* W_TCB_ULP_RAW */
+		fields++;
+	} else {
+		/* W_TCB_PDU_LEN */
+		fields++;
 
-	/* W_TCB_ULP_RAW */
-	fields++;
+		/* W_TCB_ULP_RAW */
+		fields++;
+	}
 
-	/* W_TCB_ULP_TYPE */
-	fields ++;
+	if (ulp_mode(toep) == ULP_MODE_NONE) {
+		/* W_TCB_ULP_TYPE */
+		fields ++;
+	}
 
 	/* W_TCB_T_FLAGS */
 	fields++;
@@ -1111,59 +1210,94 @@ tls_update_tcb(struct adapter *sc, struct toepcb *toep, uint64_t seqno)
 	KASSERT(len <= SGE_MAX_WR_LEN,
 	    ("%s: WR with %d TCB field updates too large", __func__, fields));
 
-	wr = alloc_wrqe(len, toep->ctrlq);
-	if (wr == NULL) {
+	m = alloc_raw_wr_mbuf(len);
+	if (m == NULL) {
 		/* XXX */
 		panic("%s: out of memory", __func__);
 	}
 
-	wrh = wrtod(wr);
-	INIT_ULPTX_WRH(wrh, len, 1, 0);	/* atomic */
+	wrh = mtod(m, struct work_request_hdr *);
+	INIT_ULPTX_WRH(wrh, len, 1, toep->tid);	/* atomic */
 	ulpmc = (struct ulp_txpkt *)(wrh + 1);
 
-	/*
-	 * Clear the TLS overlay region: 1023:832.
-	 *
-	 * Words 26/27 are always set to zero.  Words 28/29
-	 * contain seqno and are set when enabling TLS
-	 * decryption.  Word 30 is zero and Word 31 contains
-	 * the keyid.
-	 */
-	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, 26,
-	    0xffffffffffffffff, 0);
+	if (ulp_mode(toep) == ULP_MODE_NONE) {
+		/*
+		 * Clear the TLS overlay region: 1023:832.
+		 *
+		 * Words 26/27 are always set to zero.  Words 28/29
+		 * contain seqno and are set when enabling TLS
+		 * decryption.  Word 30 is zero and Word 31 contains
+		 * the keyid.
+		 */
+		ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, 26,
+		    0xffffffffffffffff, 0);
 
-	/*
-	 * RX key tags are an index into the key portion of MA
-	 * memory stored as an offset from the base address in
-	 * units of 64 bytes.
-	 */
-	key_offset = toep->tls.rx_key_addr - sc->vres.key.start;
-	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, 30,
-	    0xffffffffffffffff,
-	    (uint64_t)V_TCB_RX_TLS_KEY_TAG(key_offset / 64) << 32);
+		/*
+		 * RX key tags are an index into the key portion of MA
+		 * memory stored as an offset from the base address in
+		 * units of 64 bytes.
+		 */
+		key_offset = toep->tls.rx_key_addr - sc->vres.key.start;
+		ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, 30,
+		    0xffffffffffffffff,
+		    (uint64_t)V_TCB_RX_TLS_KEY_TAG(key_offset / 64) << 32);
+	}
 
-	CTR3(KTR_CXGBE, "%s: tid %d enable TLS seqno %lu", __func__,
-	    toep->tid, seqno);
-	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_TLS_SEQ,
-	    V_TCB_TLS_SEQ(M_TCB_TLS_SEQ), V_TCB_TLS_SEQ(seqno));
-	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_ULP_RAW,
-	    V_TCB_ULP_RAW(M_TCB_ULP_RAW),
-	    V_TCB_ULP_RAW((V_TF_TLS_KEY_SIZE(3) | V_TF_TLS_CONTROL(1) |
-	    V_TF_TLS_ACTIVE(1) | V_TF_TLS_ENABLE(1))));
+	if (resid == 0) {
+		/*
+		 * The socket buffer is empty or only contains
+		 * complete TLS records: Set the sequence number and
+		 * enable TLS decryption.
+		 */
+		CTR3(KTR_CXGBE, "%s: tid %d enable TLS seqno %lu", __func__,
+		    toep->tid, seqno);
+		ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid,
+		    W_TCB_RX_TLS_SEQ, V_TCB_RX_TLS_SEQ(M_TCB_RX_TLS_SEQ),
+		    V_TCB_RX_TLS_SEQ(seqno));
+		ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid,
+		    W_TCB_ULP_RAW, V_TCB_ULP_RAW(M_TCB_ULP_RAW),
+		    V_TCB_ULP_RAW((V_TF_TLS_KEY_SIZE(3) | V_TF_TLS_CONTROL(1) |
+		    V_TF_TLS_ACTIVE(1) | V_TF_TLS_ENABLE(1))));
 
-	toep->flags &= ~TPF_TLS_STARTING;
-	toep->flags |= TPF_TLS_RECEIVE;
+		toep->flags &= ~TPF_TLS_STARTING;
+		toep->flags |= TPF_TLS_RECEIVE;
+	} else {
+		/*
+		 * The socket buffer ends with a partial record with a
+		 * full header and needs at least 6 bytes.
+		 *
+		 * Set PDU length.  This is treating the 'resid' bytes
+		 * as a TLS PDU, so the first 5 bytes are a fake
+		 * header and the rest are the PDU length.
+		 */
+		ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid,
+		    W_TCB_PDU_LEN, V_TCB_PDU_LEN(M_TCB_PDU_LEN),
+		    V_TCB_PDU_LEN(resid - sizeof(struct tls_hdr)));
+		CTR3(KTR_CXGBE, "%s: tid %d setting PDU_LEN to %zu",
+		    __func__, toep->tid, resid - sizeof(struct tls_hdr));
 
-	/* Set the ULP mode to ULP_MODE_TLS. */
-	toep->params.ulp_mode = ULP_MODE_TLS;
-	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_ULP_TYPE,
-	    V_TCB_ULP_TYPE(M_TCB_ULP_TYPE), V_TCB_ULP_TYPE(ULP_MODE_TLS));
+		/* Clear all bits in ULP_RAW except for ENABLE. */
+		ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid,
+		    W_TCB_ULP_RAW, V_TCB_ULP_RAW(M_TCB_ULP_RAW),
+		    V_TCB_ULP_RAW(V_TF_TLS_ENABLE(1)));
+
+		/* Wait for 'resid' bytes to be delivered as CPL_RX_DATA. */
+		toep->tls.rx_resid = resid;
+	}
+
+	if (ulp_mode(toep) == ULP_MODE_NONE) {
+		/* Set the ULP mode to ULP_MODE_TLS. */
+		toep->params.ulp_mode = ULP_MODE_TLS;
+		ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid,
+		    W_TCB_ULP_TYPE, V_TCB_ULP_TYPE(M_TCB_ULP_TYPE),
+		    V_TCB_ULP_TYPE(ULP_MODE_TLS));
+	}
 
 	/* Clear TF_RX_QUIESCE. */
 	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_T_FLAGS,
 	    V_TF_RX_QUIESCE(1), 0);
 
-	t4_wrq_tx(sc, wr);
+	t4_raw_wr_tx(sc, toep, m);
 }
 
 /*
@@ -1190,7 +1324,8 @@ tls_check_rx_sockbuf(struct adapter *sc, struct toepcb *toep,
 	 * size of a TLS record, re-enable receive and pause again once
 	 * we get more data to try again.
 	 */
-	if (!have_header || resid != 0) {
+	if (!have_header || (resid != 0 && (resid < sizeof(struct tls_hdr) ||
+	    is_t6(sc)))) {
 		CTR(KTR_CXGBE, "%s: tid %d waiting for more data", __func__,
 		    toep->tid);
 		toep->flags &= ~TPF_TLS_RX_QUIESCED;
@@ -1198,7 +1333,7 @@ tls_check_rx_sockbuf(struct adapter *sc, struct toepcb *toep,
 		return;
 	}
 
-	tls_update_tcb(sc, toep, seqno);
+	tls_update_tcb(sc, toep, seqno, resid);
 }
 
 void

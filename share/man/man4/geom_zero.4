@@ -1,0 +1,174 @@
+.\"
+.\" Copyright (c) 2019 Greg White <gkwhite@gmail.com>. All rights reserved.
+.\" Copyright (c) 2025 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd November 9, 2025
+.Dt GEOM_ZERO 4
+.Os
+.Sh NAME
+.Nm gzero ,
+.Nm geom_zero
+.Nd GEOM-based zero disk/block device
+.Sh SYNOPSIS
+.Cd "options GEOM_ZERO"
+.Pp
+In
+.Xr loader.conf 5
+or
+.Xr sysctl.conf 5 :
+.Cd kern.geom.zero.byte
+.Cd kern.geom.zero.clear
+.Sh DESCRIPTION
+.Nm
+is a
+.Xr GEOM 4
+device simulating a one-exabyte disk.
+It throws away any data written to it,
+and returns the value of
+.Va kern.geom.zero.byte
+for every byte read from it.
+.Pp
+.Nm
+differs from
+.Xr zero 4 ,
+which is a regular character device and has an infinite length,
+while
+.Pa /dev/gzero
+is a
+.Xr GEOM 4
+provider of large, but limited, size.
+.Pp
+Consult
+.Xr geom 8
+for instructions on how to use the supported commands of the
+.Xr GEOM 4
+.Nm ZERO
+class.
+.Pp
+.Nm
+is useful for benchmarking performance of GEOM and GEOM classes
+where compression of the data does not affect the results
+.Po blocks from
+.Pa /dev/gzero
+compress exceptionally well
+.Pc .
+Examples of such benchmarks include
+comparing the speed of two disk encryption algorithms and
+comparing a hardware versus software implementation
+of a single encryption algorithm.
+.Sh MIB VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width "kern.geom.zero.clear"
+.It Va kern.geom.zero.byte
+This variable sets the fill byte of the
+.Nm
+device.
+Default:
+.Ql 0 .
+.It Va kern.geom.zero.clear
+This variable controls the clearing of the read data buffer.
+If set to
+.Ql 0 ,
+.Nm
+will not copy any data into the read data buffers
+and just return the read data buffers as they are without modifying them.
+In particular, it will not fill the read buffer with the value of
+.Va kern.geom.zero.byte .
+This is useful for read benchmarking to reduce the measurement noise
+caused by extra memory initialization.
+Default:
+.Ql 1 .
+.El
+.Sh FILES
+.Bl -tag -width /dev/gzero
+.It Pa /dev/gzero
+The
+.Nm
+device.
+.El
+.Sh EXAMPLES
+Create the
+.Pa /dev/gzero
+device by loading the
+.Nm geom_zero
+kernel module:
+.Bd -literal -offset indent
+# geom zero load
+.Ed
+.Pp
+Show information about the
+.Nm
+device:
+.Bd -literal -offset indent
+# geom zero list
+Geom name: gzero
+Providers:
+1. Name: gzero
+   Mediasize: 1152921504606846976 (1.0E)
+   Sectorsize: 512
+   Mode: r0w0egzero0
+.Ed
+.Pp
+Set the fill byte of the
+.Nm
+device to 70
+.Po decimal for letter
+.Dq F
+in
+.Xr ascii 7
+.Pc :
+.Bd -literal -offset indent
+# sysctl kern.geom.zero.byte=70
+kern.geom.zero.byte: 0 -> 70
+# head -c 1 /dev/gzero
+F
+.Ed
+.Pp
+Benchmark read and write throughput of
+.Xr geli 8 Ap s
+default encryption algorithm with a 4-KiB sector size:
+.Bd -literal -offset indent
+# geom zero load
+# geli onetime -s 4096 gzero
+# sysctl kern.geom.zero.clear=0
+# dd if=/dev/gzero.eli of=/dev/zero bs=4k count=$((1024 * 256))
+262144+0 records in
+262144+0 records out
+1073741824 bytes transferred in 1.258195 secs (853398307 bytes/sec)
+# dd if=/dev/zero of=/dev/gzero.eli bs=4k count=$((1024 * 256))
+262144+0 records in
+262144+0 records out
+1073741824 bytes transferred in 1.663118 secs (645619658 bytes/sec)
+.Ed
+.Sh SEE ALSO
+.Xr GEOM 4 ,
+.Xr zero 4 ,
+.Xr geom 8 ,
+.Xr sysctl 8 ,
+.Xr bio 9
+.Sh HISTORY
+A
+.Nm
+device first appeared in
+.Fx 6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device was written by
+.An Paweł Jakub Dawidek Aq Mt pjd@FreeBSD.org .
+.Pp
+The
+.Nm
+manual page was originally written by
+.An Greg White Aq Mt gkwhite@gmail.com
+and rewritten by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org
+before landing in
+.Fx .

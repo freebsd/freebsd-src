@@ -45,7 +45,7 @@
 static int32_t sdp_receive_error_pdu(sdp_session_p ss);
 
 int32_t
-sdp_register_service(void *xss, uint16_t uuid, bdaddr_p const bdaddr,
+sdp_register_service(void *xss, uint16_t uuid, const bdaddr_t *bdaddr,
 		uint8_t const *data, uint32_t datalen, uint32_t *handle)
 {
 	sdp_session_p	ss = (sdp_session_p) xss;

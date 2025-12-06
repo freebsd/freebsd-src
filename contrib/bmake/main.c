@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.661 2025/07/06 07:11:31 rillig Exp $	*/
+/*	$NetBSD: main.c,v 1.662 2025/08/09 23:13:28 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -111,7 +111,7 @@
 #include "trace.h"
 
 /*	"@(#)main.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: main.c,v 1.661 2025/07/06 07:11:31 rillig Exp $");
+MAKE_RCSID("$NetBSD: main.c,v 1.662 2025/08/09 23:13:28 rillig Exp $");
 #if defined(MAKE_NATIVE)
 __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993 "
 	    "The Regents of the University of California.  "
@@ -390,8 +390,8 @@ MainParseArgJobsInternal(const char *argvalue)
 		    progname, argvalue, curdir);
 		exit(2);
 	}
-	if ((fcntl(tokenPoolReader, F_GETFD, 0) < 0) ||
-	    (fcntl(tokenPoolWriter, F_GETFD, 0) < 0)) {
+	if (fcntl(tokenPoolReader, F_GETFD, 0) < 0 ||
+	    fcntl(tokenPoolWriter, F_GETFD, 0) < 0) {
 		tokenPoolReader = -1;
 		tokenPoolWriter = -1;
 		bogusJflag = true;
@@ -601,7 +601,7 @@ MainParseArgs(int argc, char **argv)
 	bool inOption, dashDash = false;
 
 	const char *optspecs = "BC:D:I:J:NST:V:WXd:ef:ij:km:nqrstv:w";
-/* Can't actually use getopt(3) because rescanning is not portable */
+	/* Can't actually use getopt(3) because rescanning is not portable */
 
 rearg:
 	inOption = false;
@@ -1709,7 +1709,7 @@ ReadMakefile(const char *fname)
 		 * placement of the setting here means it gets set to the last
 		 * makefile specified, as it is set by SysV make.
 		 */
-found:
+	found:
 		if (!doing_depend)
 			Var_Set(SCOPE_INTERNAL, "MAKEFILE", fname);
 		Parse_File(fname, fd);
@@ -1802,7 +1802,6 @@ Cmd_Exec(const char *cmd, char **error)
 
 		(void)execv(shellPath, UNCONST(args));
 		_exit(1);
-		/* NOTREACHED */
 
 	case -1:
 		*error = str_concat3("Couldn't exec \"", cmd, "\"");

@@ -3,6 +3,8 @@
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/skbuff.h>
@@ -1769,12 +1771,32 @@ void ath10k_wmi_put_wmi_channel(struct ath10k *ar, struct wmi_channel *ch,
 
 int ath10k_wmi_wait_for_service_ready(struct ath10k *ar)
 {
-	unsigned long time_left;
+	unsigned long time_left, i;
 
 	time_left = wait_for_completion_timeout(&ar->wmi.service_ready,
 						WMI_SERVICE_READY_TIMEOUT_HZ);
-	if (!time_left)
-		return -ETIMEDOUT;
+	if (!time_left) {
+		/* Sometimes the PCI HIF doesn't receive interrupt
+		 * for the service ready message even if the buffer
+		 * was completed. PCIe sniffer shows that it's
+		 * because the corresponding CE ring doesn't fires
+		 * it. Workaround here by polling CE rings once.
+		 */
+		ath10k_warn(ar, "failed to receive service ready completion, polling..\n");
+
+		for (i = 0; i < CE_COUNT; i++)
+			ath10k_hif_send_complete_check(ar, i, 1);
+
+		time_left = wait_for_completion_timeout(&ar->wmi.service_ready,
+							WMI_SERVICE_READY_TIMEOUT_HZ);
+		if (!time_left) {
+			ath10k_warn(ar, "polling timed out\n");
+			return -ETIMEDOUT;
+		}
+
+		ath10k_warn(ar, "service ready completion received, continuing normally\n");
+	}
+
 	return 0;
 }
 
@@ -1923,10 +1945,16 @@ int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id)
 	if (cmd_id == WMI_CMD_UNSUPPORTED) {
 		ath10k_warn(ar, "wmi command %d is not supported by firmware\n",
 			    cmd_id);
+		dev_kfree_skb_any(skb);
 		return ret;
 	}
 
 	wait_event_timeout(ar->wmi.tx_credits_wq, ({
+		if (ar->state == ATH10K_STATE_WEDGED) {
+			ret = -ESHUTDOWN;
+			ath10k_dbg(ar, ATH10K_DBG_WMI,
+				   "drop wmi command %d, hardware is wedged\n", cmd_id);
+		}
 		/* try to send pending beacons first. they take priority */
 		ath10k_wmi_tx_beacons_nowait(ar);
 
@@ -2015,7 +2043,7 @@ ath10k_wmi_op_gen_mgmt_tx(struct ath10k *ar, struct sk_buff *msdu)
 	ether_addr_copy(cmd->hdr.peer_macaddr.addr, ieee80211_get_DA(hdr));
 	memcpy(cmd->buf, msdu->data, msdu->len);
 
-	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi mgmt tx skb %pK len %d ftype %02x stype %02x\n",
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi mgmt tx skb %p len %d ftype %02x stype %02x\n",
 		   msdu, skb->len, fc & IEEE80211_FCTL_FTYPE,
 		   fc & IEEE80211_FCTL_STYPE);
 	trace_ath10k_tx_hdr(ar, skb->data, skb->len);
@@ -2427,6 +2455,7 @@ wmi_process_mgmt_tx_comp(struct ath10k *ar, struct mgmt_tx_compl_params *param)
 	dma_unmap_single(ar->dev, pkt_addr->paddr,
 			 msdu->len, DMA_TO_DEVICE);
 	info = IEEE80211_SKB_CB(msdu);
+	kfree(pkt_addr);
 
 	if (param->status) {
 		info->flags &= ~IEEE80211_TX_STAT_ACK;
@@ -2622,7 +2651,7 @@ int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 		status->boottime_ns = ktime_get_boottime_ns();
 
 	ath10k_dbg(ar, ATH10K_DBG_MGMT,
-		   "event mgmt rx skb %pK len %d ftype %02x stype %02x\n",
+		   "event mgmt rx skb %p len %d ftype %02x stype %02x\n",
 		   skb, skb->len,
 		   fc & IEEE80211_FCTL_FTYPE, fc & IEEE80211_FCTL_STYPE);
 
@@ -3912,8 +3941,8 @@ void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 		 * actual channel switch is done
 		 */
 		if (arvif->vif->bss_conf.csa_active &&
-		    ieee80211_beacon_cntdwn_is_complete(arvif->vif)) {
-			ieee80211_csa_finish(arvif->vif);
+		    ieee80211_beacon_cntdwn_is_complete(arvif->vif, 0)) {
+			ieee80211_csa_finish(arvif->vif, 0);
 			continue;
 		}
 
@@ -3998,7 +4027,7 @@ static void ath10k_radar_detected(struct ath10k *ar)
 	if (ar->dfs_block_radar_events)
 		ath10k_info(ar, "DFS Radar detected, but ignored as requested\n");
 	else
-		ieee80211_radar_detected(ar->hw);
+		ieee80211_radar_detected(ar->hw, NULL);
 }
 
 static void ath10k_radar_confirmation_work(struct work_struct *work)
@@ -7016,7 +7045,7 @@ void ath10k_wmi_put_start_scan_common(struct wmi_start_scan_common *cmn,
 }
 
 static void
-ath10k_wmi_put_start_scan_tlvs(struct wmi_start_scan_tlvs *tlvs,
+ath10k_wmi_put_start_scan_tlvs(u8 *tlvs,
 			       const struct wmi_start_scan_arg *arg)
 {
 	struct wmi_ie_data *ie;
@@ -7024,9 +7053,9 @@ ath10k_wmi_put_start_scan_tlvs(struct wmi_start_scan_tlvs *tlvs,
 	struct wmi_ssid_list *ssids;
 	struct wmi_bssid_list *bssids;
 #if defined(__linux__)
-	void *ptr = tlvs->tlvs;
+	void *ptr = tlvs;
 #elif defined(__FreeBSD__)
-	u8 *ptr = (void *)tlvs->tlvs;
+	u8 *ptr = tlvs;
 #endif
 	int i;
 
@@ -7121,7 +7150,7 @@ ath10k_wmi_op_gen_start_scan(struct ath10k *ar,
 	cmd = (struct wmi_start_scan_cmd *)skb->data;
 
 	ath10k_wmi_put_start_scan_common(&cmd->common, arg);
-	ath10k_wmi_put_start_scan_tlvs(&cmd->tlvs, arg);
+	ath10k_wmi_put_start_scan_tlvs(cmd->tlvs, arg);
 
 	cmd->burst_duration_ms = __cpu_to_le32(0);
 
@@ -7150,7 +7179,7 @@ ath10k_wmi_10x_op_gen_start_scan(struct ath10k *ar,
 	cmd = (struct wmi_10x_start_scan_cmd *)skb->data;
 
 	ath10k_wmi_put_start_scan_common(&cmd->common, arg);
-	ath10k_wmi_put_start_scan_tlvs(&cmd->tlvs, arg);
+	ath10k_wmi_put_start_scan_tlvs(cmd->tlvs, arg);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi 10x start scan\n");
 	return skb;
@@ -7579,6 +7608,49 @@ ath10k_wmi_op_gen_peer_set_param(struct ath10k *ar, u32 vdev_id,
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "wmi vdev %d peer 0x%pM set param %d value %d\n",
 		   vdev_id, peer_addr, param_id, param_value);
+	return skb;
+}
+
+static struct sk_buff *ath10k_wmi_op_gen_gpio_config(struct ath10k *ar,
+						     u32 gpio_num, u32 input,
+						     u32 pull_type, u32 intr_mode)
+{
+	struct wmi_gpio_config_cmd *cmd;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*cmd));
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	cmd = (struct wmi_gpio_config_cmd *)skb->data;
+	cmd->pull_type = __cpu_to_le32(pull_type);
+	cmd->gpio_num = __cpu_to_le32(gpio_num);
+	cmd->input = __cpu_to_le32(input);
+	cmd->intr_mode = __cpu_to_le32(intr_mode);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi gpio_config gpio_num 0x%08x input 0x%08x pull_type 0x%08x intr_mode 0x%08x\n",
+		   gpio_num, input, pull_type, intr_mode);
+
+	return skb;
+}
+
+static struct sk_buff *ath10k_wmi_op_gen_gpio_output(struct ath10k *ar,
+						     u32 gpio_num, u32 set)
+{
+	struct wmi_gpio_output_cmd *cmd;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*cmd));
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	cmd = (struct wmi_gpio_output_cmd *)skb->data;
+	cmd->gpio_num = __cpu_to_le32(gpio_num);
+	cmd->set = __cpu_to_le32(set);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi gpio_output gpio_num 0x%08x set 0x%08x\n",
+		   gpio_num, set);
+
 	return skb;
 }
 
@@ -8856,9 +8928,9 @@ int ath10k_wmi_op_get_vdev_subtype(struct ath10k *ar,
 		return WMI_VDEV_SUBTYPE_LEGACY_PROXY_STA;
 	case WMI_VDEV_SUBTYPE_MESH_11S:
 	case WMI_VDEV_SUBTYPE_MESH_NON_11S:
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static int ath10k_wmi_10_2_4_op_get_vdev_subtype(struct ath10k *ar,
@@ -8878,9 +8950,9 @@ static int ath10k_wmi_10_2_4_op_get_vdev_subtype(struct ath10k *ar,
 	case WMI_VDEV_SUBTYPE_MESH_11S:
 		return WMI_VDEV_SUBTYPE_10_2_4_MESH_11S;
 	case WMI_VDEV_SUBTYPE_MESH_NON_11S:
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static int ath10k_wmi_10_4_op_get_vdev_subtype(struct ath10k *ar,
@@ -8902,7 +8974,7 @@ static int ath10k_wmi_10_4_op_get_vdev_subtype(struct ath10k *ar,
 	case WMI_VDEV_SUBTYPE_MESH_NON_11S:
 		return WMI_VDEV_SUBTYPE_10_4_MESH_NON_11S;
 	}
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static struct sk_buff *
@@ -9040,8 +9112,6 @@ ath10k_wmi_10_4_gen_tdls_peer_update(struct ath10k *ar,
 	skb = ath10k_wmi_alloc_skb(ar, len);
 	if (!skb)
 		return ERR_PTR(-ENOMEM);
-
-	memset(skb->data, 0, sizeof(*cmd));
 
 	cmd = (struct wmi_10_4_tdls_peer_update_cmd *)skb->data;
 	cmd->vdev_id = __cpu_to_le32(arg->vdev_id);
@@ -9262,6 +9332,9 @@ static const struct wmi_ops wmi_ops = {
 	.fw_stats_fill = ath10k_wmi_main_op_fw_stats_fill,
 	.get_vdev_subtype = ath10k_wmi_op_get_vdev_subtype,
 	.gen_echo = ath10k_wmi_op_gen_echo,
+	.gen_gpio_config = ath10k_wmi_op_gen_gpio_config,
+	.gen_gpio_output = ath10k_wmi_op_gen_gpio_output,
+
 	/* .gen_bcn_tmpl not implemented */
 	/* .gen_prb_tmpl not implemented */
 	/* .gen_p2p_go_bcn_ie not implemented */
@@ -9332,6 +9405,8 @@ static const struct wmi_ops wmi_10_1_ops = {
 	.fw_stats_fill = ath10k_wmi_10x_op_fw_stats_fill,
 	.get_vdev_subtype = ath10k_wmi_op_get_vdev_subtype,
 	.gen_echo = ath10k_wmi_op_gen_echo,
+	.gen_gpio_config = ath10k_wmi_op_gen_gpio_config,
+	.gen_gpio_output = ath10k_wmi_op_gen_gpio_output,
 	/* .gen_bcn_tmpl not implemented */
 	/* .gen_prb_tmpl not implemented */
 	/* .gen_p2p_go_bcn_ie not implemented */
@@ -9404,6 +9479,8 @@ static const struct wmi_ops wmi_10_2_ops = {
 	.gen_delba_send = ath10k_wmi_op_gen_delba_send,
 	.fw_stats_fill = ath10k_wmi_10x_op_fw_stats_fill,
 	.get_vdev_subtype = ath10k_wmi_op_get_vdev_subtype,
+	.gen_gpio_config = ath10k_wmi_op_gen_gpio_config,
+	.gen_gpio_output = ath10k_wmi_op_gen_gpio_output,
 	/* .gen_pdev_enable_adaptive_cca not implemented */
 };
 
@@ -9475,6 +9552,8 @@ static const struct wmi_ops wmi_10_2_4_ops = {
 		ath10k_wmi_op_gen_pdev_enable_adaptive_cca,
 	.get_vdev_subtype = ath10k_wmi_10_2_4_op_get_vdev_subtype,
 	.gen_bb_timing = ath10k_wmi_10_2_4_op_gen_bb_timing,
+	.gen_gpio_config = ath10k_wmi_op_gen_gpio_config,
+	.gen_gpio_output = ath10k_wmi_op_gen_gpio_output,
 	/* .gen_bcn_tmpl not implemented */
 	/* .gen_prb_tmpl not implemented */
 	/* .gen_p2p_go_bcn_ie not implemented */
@@ -9556,6 +9635,8 @@ static const struct wmi_ops wmi_10_4_ops = {
 	.gen_pdev_bss_chan_info_req = ath10k_wmi_10_2_op_gen_pdev_bss_chan_info,
 	.gen_echo = ath10k_wmi_op_gen_echo,
 	.gen_pdev_get_tpc_config = ath10k_wmi_10_2_4_op_gen_pdev_get_tpc_config,
+	.gen_gpio_config = ath10k_wmi_op_gen_gpio_config,
+	.gen_gpio_output = ath10k_wmi_op_gen_gpio_output,
 };
 
 int ath10k_wmi_attach(struct ath10k *ar)
@@ -9663,6 +9744,7 @@ static int ath10k_wmi_mgmt_tx_clean_up_pending(int msdu_id, void *ptr,
 	dma_unmap_single(ar->dev, pkt_addr->paddr,
 			 msdu->len, DMA_TO_DEVICE);
 	ieee80211_free_txskb(ar->hw, msdu);
+	kfree(pkt_addr);
 
 	return 0;
 }

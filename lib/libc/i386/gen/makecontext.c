@@ -124,7 +124,7 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 
 		/*
 		 * Setup the top of the stack with the user start routine
-		 * followed by all of its aguments and the pointer to the
+		 * followed by all of its arguments and the pointer to the
 		 * ucontext.  We need to leave a spare spot at the top of
 		 * the stack because setcontext will move eip to the top
 		 * of the stack before returning.

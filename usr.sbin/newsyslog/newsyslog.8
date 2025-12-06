@@ -14,7 +14,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd December 22, 2023
+.Dd September 22, 2025
 .Dt NEWSYSLOG 8
 .Os
 .Sh NAME
@@ -24,9 +24,9 @@
 .Nm
 .Op Fl CFNPnrsv
 .Op Fl a Ar directory
-.Op Fl c Ar none Ns | Ns Ar legacy Ns | Ns Ar bzip2 Ns | Ns Ar gzip Ns | Ns Ar xz Ns | Ns Ar zstd
 .Op Fl d Ar directory
 .Op Fl f Ar config_file
+.Op Fl I Ar signal
 .Op Fl S Ar pidfile
 .Op Fl t Ar timefmt
 .Op Oo Fl R Ar tagname Oc Ar
@@ -79,25 +79,6 @@ and mode three (above) assumes that this is so.
 The following options can be used with
 .Nm :
 .Bl -tag -width indent
-.It Fl c Ar none Ns | Ns Ar legacy Ns | Ns Ar bzip2 Ns | Ns Ar gzip Ns | Ns Ar xz Ns | Ns Ar zstd
-Instructs
-.Nm
-to use the specified compression method when a file is flagged for compression.
-The default method is
-.Dq legacy ,
-which interprets the
-.Sy J, X, Y, Z
-flags in the configuration file according to their historical meanings.
-This default setting can be overridden by specifying
-.Fl c Ar none ,
-which causes
-.Nm
-to ignore all compression flags.
-Alternatively, specifying one of the compression methods:
-.Sy bzip2 , gzip , xz ,
-or
-.Sy zstd ,
-will apply the chosen method to all files flagged for compression.
 .It Fl f Ar config_file
 Instruct
 .Nm
@@ -152,7 +133,7 @@ Remove the restriction that
 must be running as root.
 Of course,
 .Nm
-will not be able to send a HUP signal to
+will not be able to send a signal to
 .Xr syslogd 8
 so this option should only be used in debugging.
 .It Fl s
@@ -267,6 +248,10 @@ Skipping the signal step will also mean that
 will return faster, since
 .Nm
 normally waits a few seconds after any signal that is sent.
+.It Fl I Ar signal
+Specify signal to send for entries that do not have signal configured.
+This option accepts either a signal number or a name as argument.
+The default value is HUP.
 .It Fl S Ar pidfile
 Use
 .Ar pidfile

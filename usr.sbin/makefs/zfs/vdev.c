@@ -200,7 +200,7 @@ vdev_label_write(zfs_opt_t *zfs, int ind, const vdev_label_t *labelp)
 	 * per sector; for example, with an ashift of 12 we end up with
 	 * 128KB/4KB=32 copies of the uberblock in the ring.
 	 */
-	blksz = 1 << zfs->ashift;
+	blksz = ASHIFT_UBERBLOCK_SIZE(zfs->ashift);
 	assert(sizeof(label->vl_uberblock) % blksz == 0);
 	for (size_t roff = 0; roff < sizeof(label->vl_uberblock);
 	    roff += blksz) {

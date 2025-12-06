@@ -13,6 +13,7 @@ trap restore_settings EXIT INT TERM
 
 sysctl security.mac.portacl.suser_exempt=1 >/dev/null
 sysctl net.inet.ip.portrange.reservedhigh=78 >/dev/null
+sysctl security.mac.portacl.enabled=1 >/dev/null
 
 bind_test fl fl uid nobody tcp 77
 bind_test ok ok uid nobody tcp 7777

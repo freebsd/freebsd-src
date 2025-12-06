@@ -57,12 +57,10 @@ is vulnerable to KDC spoofing, but it requires that the system have a
 local key and that the PAM module be running as a user that can read the
 keytab file (normally F</etc/krb5.keytab>.  You can point the Kerberos PAM
 module at a different keytab with the I<keytab> option.  If that keytab
-cannot be read or if no keys are found in it, the default (potentially
-insecure) behavior is to skip this check.  If you want to instead fail
-authentication if the obtained tickets cannot be checked, set
-C<verify_ap_req_nofail> to true in the [libdefaults] section of
-F</etc/krb5.conf>.  Note that this will affect applications other than
-this PAM module.
+cannot be read or if no keys are found in it, the default behavior is to
+fail authentication. If you want to skip this check, set the
+C<allow_kdc_spoof> option to true either in the [appdefaults] section of
+F</etc/krb5.conf> or in the PAM policy.
 
 By default, whenever the user is authenticated, a basic authorization
 check will also be done using krb5_kuserok().  The default behavior of
@@ -217,6 +215,11 @@ pam-krb5 in which that option was added with the current meaning.
 =head2 Authorization
 
 =over 4
+
+=item allow_kdc_spoof
+
+Allow authentication to succeed even if there is no host or service
+key available in a keytab to authenticate the Kerberos KDC's ticket.
 
 =item alt_auth_map=<format>
 

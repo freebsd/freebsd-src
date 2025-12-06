@@ -2354,7 +2354,7 @@ pci_xhci_hostcap_read(struct pci_xhci_softc *sc, uint64_t offset)
 		value = sc->hcsparams3;
 		break;
 
-	case XHCI_HCSPARAMS0:	/* 0x10 */
+	case XHCI_HCCPARAMS1:	/* 0x10 */
 		value = sc->hccparams1;
 		break;
 

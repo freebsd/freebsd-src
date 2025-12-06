@@ -1,0 +1,226 @@
+.\" SPDX-License-Identifier: ISC
+.\"
+.\" Copyright (c) 2025 Lexi Winter.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd December 4, 2025
+.Dt FREEBSD-BASE 7
+.Os
+.Sh NAME
+.\" .Nm pkgbase
+.Nm freebsd-base
+.Nd base system packages
+.Sh DESCRIPTION
+The
+.Fx
+base system may be installed as a set of
+.Xr pkg 8
+packages, which supersedes the traditional method of installing using
+.Xr tar 1
+archives.
+.Pp
+All base packages have names beginning with the string
+.Dq "FreeBSD-" ,
+and have an origin beginning with
+.Dq base/ .
+In the default system configuration, the repository containing these
+packages is called
+.Dq FreeBSD-base ,
+but any name may be used.
+The repository name can be used with
+.Xr pkg 8
+to restrict package operations to the base system packages.
+.Pp
+Packages for all supported
+.Fx
+releases as well as active
+.Dq STABLE
+and
+.Dq CURRENT
+.\" re@ will provide their own repository before release, at which
+.\" point this text will need updating.
+branches are hosted on the Internet at 
+.Lk https://pkg.freebsd.org .
+These packages are updated when new errata or security updates are
+released (for supported release versions), or twice daily for
+development branches.
+.Pp
+Alternatively, packages may be built from the system source tree
+according to the instructions in
+.Xr build 7 ,
+allowing the system to be updated from source code using packages.
+.Sh PACKAGE ORGANISATION
+To allow customisation of the installed system, each package is split
+into several subpackages which contain different components of the
+package.
+For the package
+.Sy FreeBSD-foo ,
+the following subpackages may be available:
+.Pp
+.Bl -tag -width "FreeBSD-foo-dev-lib32" -compact
+.It Sy "Package name"
+.Sy "Description"
+.It FreeBSD-foo
+Base files for the package (typically executables)
+.It FreeBSD-foo-lib
+Native runtime libraries
+.It FreeBSD-foo-lib32
+32-bit compatibility runtime libraries
+.It FreeBSD-foo-dev
+Development files (headers and static libraries)
+.It FreeBSD-foo-dev-lib32
+32-bit development files
+.It FreeBSD-foo-dbg
+Debugging symbols
+.It FreeBSD-foo-man
+Manual pages.
+Manual pages are only packaged separately if the
+.Sy WITH_MANSPLITPKG
+.Xr src.conf 5
+option was enabled when building the system, which is not the default.
+.El
+.Pp
+The exact set of available subpackages differs for each individual
+package.  For example, some packages may not provide any development
+files, in which case the
+.Sy -dev
+subpackage is not present.
+.Sh PACKAGE SETS
+Package sets are meta-packages which do not contain any files
+themselves, but depend on a selection of other packages, such that each
+package set allows the complete set of packages for a supported workload
+to be installed.
+.Pp
+Package sets are provided as packages named
+.Sy FreeBSD-set-<name> .
+The following package sets are available in the base system:
+.Bl -tag -width "minimal-jail"
+.It minimal
+The minimal set of packages required to bring up a multi-user
+.Fx
+system.
+This includes the core system, along with packages required for
+hardware support (such as
+.Xr devmatch 8
+and downloadable firmware), and basic networking, including DHCP and
+IEEE Std 802.11\(tm wireless networks.
+.It minimal-jail
+The equivalent of
+.Sy minimal
+for systems running in a
+.Xr jail 8
+environment.
+This set excludes hardware support not typically required for jails.
+.It devel
+Development tools, including C/C++ compilers, the link loader, and
+other tools such as
+.Xr ar 1
+and
+.Xr nm 1 .
+This set also includes native development files (headers and static
+libraries) for all packages.
+.It optional
+Optional software which is not part of either the
+.Sy devel
+or
+.Sy minimal
+sets.
+.It optional-jail
+The equivalent of
+.Sy optional
+for systems running in a
+.Xr jail 8
+environment.
+This set excludes system functionality which typically does not work
+or is not useful in a jail.
+.It lib32
+32-compatibility libraries, for running 32-bit applications on a
+64-bit host system.
+This set includes both runtime libraries and development files.
+.It base
+The complete base system, excluding tests, the system source code,
+and debugging symbols.
+Installing the
+.Sy base
+set is equivalent to installing
+.Sy minimal ,
+.Sy devel
+and
+.Sy optional .
+.It base-jail
+The equivalent of
+.Sy base
+for systems running in a
+.Xr jail 8
+environment.
+This set excludes system functionality which typically does not work
+or is not useful in a jail.
+Installing the
+.Sy base-jail
+set is equivalent to installing
+.Sy minimal-jail ,
+.Sy devel
+and
+.Sy optional-jail .
+.It src
+The system source tree for the userland and kernel, installed in
+.Pa /usr/src .
+.It tests
+The system test suite, installed in
+.Pa /usr/tests .
+.It kernels
+All available system kernels.
+.El
+.Sh EXAMPLES
+Install the
+.Xr vi 1
+text editor on the running system:
+.Bd -literal -offset indent
+pkg install FreeBSD-vi
+.Ed
+.Pp
+Install a new
+.Xr jail 8
+system using the
+.Sy minimal-jail
+package set:
+.Bd -literal -offset indent
+pkg -r /jails/myjail install FreeBSD-set-minimal-jail
+.Ed
+.Pp
+Install C/C++ compilers on the running system:
+.Bd -literal -offset indent
+pkg install FreeBSD-set-devel
+.Ed
+.Pp
+Apply available updates to the running system:
+.Bd -literal -offset indent
+pkg update -r FreeBSD-base
+.Ed
+.Pp
+Install the development toolchain for FreeBSD/powerpc64le in an
+alternate root (for example, to support cross-compiling software
+for a different target than the host system):
+.Bd -literal -offset indent
+pkg -r /ppcdev -oABI=FreeBSD:16:powerpc64le \e
+    install -r FreeBSD-set-devel
+.Ed
+.Sh SEE ALSO
+.Xr build 7 ,
+.Xr pkg 8 ,
+.Xr src.conf 5
+.Sh HISTORY
+Support for installing the base system as packages was introduced in
+.Fx 15.0 .
+Earlier releases supported a subset of this functionality.

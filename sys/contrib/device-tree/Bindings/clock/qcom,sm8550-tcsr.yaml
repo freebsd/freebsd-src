@@ -16,13 +16,17 @@ description: |
   See also:
   - include/dt-bindings/clock/qcom,sm8550-tcsr.h
   - include/dt-bindings/clock/qcom,sm8650-tcsr.h
+  - include/dt-bindings/clock/qcom,sm8750-tcsr.h
 
 properties:
   compatible:
     items:
       - enum:
+          - qcom,milos-tcsr
+          - qcom,sar2130p-tcsr
           - qcom,sm8550-tcsr
           - qcom,sm8650-tcsr
+          - qcom,sm8750-tcsr
           - qcom,x1e80100-tcsr
       - const: syscon
 

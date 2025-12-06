@@ -96,6 +96,7 @@ static const struct filterops evdev_cdev_filterops = {
 	.f_attach = NULL,
 	.f_detach = evdev_kqdetach,
 	.f_event = evdev_kqread,
+	.f_copy = knote_triv_copy,
 };
 
 static int
@@ -771,9 +772,9 @@ evdev_cdev_create(struct evdev_dev *evdev)
 	make_dev_args_init(&mda);
 	mda.mda_flags = MAKEDEV_WAITOK | MAKEDEV_CHECKNAME;
 	mda.mda_devsw = &evdev_cdevsw;
-	mda.mda_uid = UID_ROOT;
-	mda.mda_gid = GID_WHEEL;
-	mda.mda_mode = 0600;
+	mda.mda_uid = evdev->ev_cdev_uid;
+	mda.mda_gid = evdev->ev_cdev_gid;
+	mda.mda_mode = evdev->ev_cdev_mode;
 	mda.mda_si_drv1 = evdev;
 
 	/* Try to coexist with cuse-backed input/event devices */

@@ -126,6 +126,13 @@
 		regulator-name = "usb-phy-dummy";
 	};
 
+	reg_vref_1v8: regulator-vref-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "+V1.8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -198,11 +205,32 @@
 		};
 	};
 
-	/* TODO: Apalis Analogue Audio */
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,bitclock-master = <&dailink_master>;
+		simple-audio-card,format = "i2s";
+		simple-audio-card,frame-master = <&dailink_master>;
+		simple-audio-card,name = "apalis-imx8qm";
+
+		simple-audio-card,cpu {
+			sound-dai = <&sai1>;
+		};
+
+		dailink_master: simple-audio-card,codec {
+			sound-dai = <&sgtl5000>;
+		};
+	};
 
 	/* TODO: HDMI Audio */
 
-	/* TODO: Apalis SPDIF1 */
+	/* Apalis SPDIF1 */
+	sound-spdif {
+		compatible = "fsl,imx-audio-spdif";
+		model = "imx-spdif";
+		spdif-controller = <&spdif0>;
+		spdif-in;
+		spdif-out;
+	};
 
 	touchscreen: touchscreen {
 		compatible = "toradex,vf50-touchscreen";
@@ -227,6 +255,10 @@
 
 };
 
+&asrc0 {
+	fsl,asrc-rate  = <48000>;
+};
+
 &adc0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_adc0>;
@@ -238,6 +270,30 @@
 };
 
 /* TODO: Asynchronous Sample Rate Converter (ASRC) */
+
+&cpu_alert0 {
+	temperature = <95000>;
+};
+
+&cpu_alert1 {
+	temperature = <95000>;
+};
+
+&cpu_crit0 {
+	temperature = <105000>;
+};
+
+&cpu_crit1 {
+	temperature = <105000>;
+};
+
+&drc_alert0 {
+	temperature = <95000>;
+};
+
+&drc_crit0 {
+	temperature = <105000>;
+};
 
 /* Apalis ETH1 */
 &fec1 {
@@ -283,7 +339,42 @@
 	pinctrl-0 = <&pinctrl_flexcan3>;
 };
 
+&hsio_phy {
+	fsl,hsio-cfg = "pciea-pcieb-sata";
+	fsl,refclk-pad-mode = "input";
+	status = "okay";
+};
+
+&hsio_refa_clk {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie_sata_refclk>;
+	enable-gpios = <&lsio_gpio4 11 GPIO_ACTIVE_HIGH>;
+};
+
+&hsio_refb_clk {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie_wifi_refclk>;
+	clocks = <&hsio_refa_clk>;
+	enable-gpios = <&lsio_gpio2 11 GPIO_ACTIVE_HIGH>;
+};
+
 /* TODO: Apalis HDMI1 */
+
+&gpu_alert0 {
+	temperature = <95000>;
+};
+
+&gpu_alert1 {
+	temperature = <95000>;
+};
+
+&gpu_crit0 {
+	temperature = <105000>;
+};
+
+&gpu_crit1 {
+	temperature = <105000>;
+};
 
 /* On-module I2C */
 &i2c1 {
@@ -293,8 +384,6 @@
 	#size-cells = <0>;
 	clock-frequency = <100000>;
 	status = "okay";
-
-	/* TODO: Audio Codec */
 
 	/* USB3503A */
 	usb-hub@8 {
@@ -307,6 +396,24 @@
 		intn-gpios = <&lsio_gpio1 1 GPIO_ACTIVE_HIGH>;
 		refclk-frequency = <25000000>;
 		reset-gpios = <&lsio_gpio1 2 GPIO_ACTIVE_LOW>;
+	};
+	
+	/* On Module Audio Codec */
+	sgtl5000: audio-codec@a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+		assigned-clocks = <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_PLL>,
+				  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>,
+				  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>,
+				  <&mclkout0_lpcg IMX_LPCG_CLK_0>;
+		assigned-clock-rates = <786432000>, <49152000>, <12288000>, <12288000>;
+		clocks = <&mclkout0_lpcg IMX_LPCG_CLK_0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sgtl5000>;
+		#sound-dai-cells = <0>;
+		VDDA-supply = <&reg_module_3v3_avdd>;
+		VDDD-supply = <&reg_vref_1v8>;
+		VDDIO-supply = <&reg_module_3v3>;
 	};
 };
 
@@ -426,7 +533,10 @@
 			  "MXM3_112",
 			  "MXM3_118",
 			  "MXM3_114",
-			  "MXM3_116";
+			  "MXM3_116",
+			  "",
+			  "",
+			  "MXM3_26";
 };
 
 &lsio_gpio1 {
@@ -498,15 +608,6 @@
 			  "MXM3_183",
 			  "MXM3_185",
 			  "MXM3_187";
-
-	pcie-wifi-hog {
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_pcie_wifi_refclk>;
-		gpio-hog;
-		gpios = <11 GPIO_ACTIVE_HIGH>;
-		line-name = "PCIE_WIFI_CLK";
-		output-high;
-	};
 };
 
 &lsio_gpio3 {
@@ -572,16 +673,6 @@
 			  "MXM3_291",
 			  "MXM3_289",
 			  "MXM3_287";
-
-	/* Enable pcie root / sata ref clock unconditionally */
-	pcie-sata-hog {
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_pcie_sata_refclk>;
-		gpio-hog;
-		gpios = <11 GPIO_ACTIVE_HIGH>;
-		line-name = "PCIE_SATA_CLK";
-		output-high;
-	};
 };
 
 &lsio_gpio5 {
@@ -683,25 +774,89 @@
 	status = "okay";
 };
 
-/* TODO: Apalis PCIE1 */
+/* Apalis PCIE1 */
+&pciea {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_reset_moci>;
+	phys = <&hsio_phy 0 PHY_TYPE_PCIE 0>;
+	phy-names = "pcie-phy";
+	reset-gpio = <&lsio_gpio0 30 GPIO_ACTIVE_LOW>;
+	vpcie-supply = <&reg_pcie_switch>;
+};
 
-/* TODO: On-module Wi-Fi */
+/* On-module Wi-Fi */
+&pcieb {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcieb>, <&pinctrl_wifi>;
+	phys = <&hsio_phy 1 PHY_TYPE_PCIE 1>;
+	phy-names = "pcie-phy";
+	reset-gpio = <&lsio_gpio5 0 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&phyx2_lpcg {
+	clocks = <&hsio_refa_clk>, <&hsio_refb_clk>,
+		 <&hsio_refa_clk>, <&hsio_per_clk>;
+};
 
 /* TODO: Apalis BKL1_PWM */
 
-/* TODO: Apalis DAP1 */
+/* Apalis DAP1 */
+&sai1 {
+	assigned-clocks = <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_PLL>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>,
+			  <&sai1_lpcg IMX_LPCG_CLK_0>;
+	assigned-clock-rates = <786432000>, <49152000>, <12288000>, <49152000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai1>;
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
 
-/* TODO: Analogue Audio */
+/* Apalis HDMI Audio */
+&sai5 {
+	assigned-clocks = <&acm IMX_ADMA_ACM_SAI5_MCLK_SEL>,
+			  <&acm IMX_ADMA_ACM_AUD_CLK1_SEL>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_PLL>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>,
+			  <&clk IMX_SC_R_AUDIO_PLL_1 IMX_SC_PM_CLK_PLL>,
+			  <&clk IMX_SC_R_AUDIO_PLL_1 IMX_SC_PM_CLK_SLV_BUS>,
+			  <&clk IMX_SC_R_AUDIO_PLL_1 IMX_SC_PM_CLK_MST_BUS>,
+			  <&sai5_lpcg 0>;
+	assigned-clock-parents = <&aud_pll_div0_lpcg 0>, <&aud_rec1_lpcg 0>;
+	assigned-clock-rates = <0>, <0>, <786432000>, <49152000>, <12288000>,
+			       <722534400>, <45158400>, <11289600>, <49152000>;
+};
 
-/* TODO: Apalis SATA1 */
-
-/* TODO: Apalis SPDIF1 */
+/* Apalis SPDIF1 */
+&spdif0 {
+	assigned-clocks = <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_PLL>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>;
+	assigned-clock-rates = <786432000>, <49152000>, <12288000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spdif0>;
+	status = "okay";
+};
 
 /* TODO: Thermal Zones */
 
 /* TODO: Apalis USBH2, Apalis USBH3 and on-module Wi-Fi via on-module HSIC Hub */
 
-/* TODO: Apalis USBH4 */
+/* Apalis USBH4 */
+&usb3_phy {
+	status = "okay";
+};
+
+&usbotg3 {
+	status = "okay";
+};
+
+&usbotg3_cdns3 {
+	dr_mode = "host";
+};
 
 /* Apalis USBO1 */
 &usbphy1 {

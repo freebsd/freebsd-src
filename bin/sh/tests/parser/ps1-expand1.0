@@ -1,0 +1,7 @@
+# Test simple variable expansion in PS1
+testvar=abcdef
+output=$(testvar=abcdef PS1='$testvar:' ENV=/dev/null ${SH} +m -i </dev/null 2>&1)
+case $output in
+*abcdef*) exit 0 ;;
+*) echo "Expected 'abcdef' in prompt output"; exit 1 ;;
+esac

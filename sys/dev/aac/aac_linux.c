@@ -52,15 +52,7 @@
 #define AAC_LINUX_IOCTL_MIN  0x0000
 #define AAC_LINUX_IOCTL_MAX  0x21ff
 
-static linux_ioctl_function_t aac_linux_ioctl;
-static struct linux_ioctl_handler aac_linux_handler = {aac_linux_ioctl,
-						       AAC_LINUX_IOCTL_MIN,
-						       AAC_LINUX_IOCTL_MAX};
-
-SYSINIT  (aac_linux_register,   SI_SUB_KLD, SI_ORDER_MIDDLE,
-	  linux_ioctl_register_handler, &aac_linux_handler);
-SYSUNINIT(aac_linux_unregister, SI_SUB_KLD, SI_ORDER_MIDDLE,
-	  linux_ioctl_unregister_handler, &aac_linux_handler);
+LINUX_IOCTL_SET(aac, AAC_LINUX_IOCTL_MIN, AAC_LINUX_IOCTL_MAX);
 
 static int
 aac_linux_modevent(module_t mod, int type, void *data)

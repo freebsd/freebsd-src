@@ -1,7 +1,7 @@
-/* $Id: out.h,v 1.35 2022/09/11 09:13:48 schwarze Exp $ */
+/* $Id: out.h,v 1.36 2025/07/16 14:33:08 schwarze Exp $ */
 /*
+ * Copyright (c) 2011,2014,2017,2018,2025 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014, 2017, 2018 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -33,11 +33,11 @@ enum	roffscale {
 };
 
 struct	roffcol {
-	size_t		 width; /* width of cell */
-	size_t		 nwidth; /* max. width of number in cell */
-	size_t		 decimal; /* decimal position in cell */
-	size_t		 spacing; /* spacing after the column */
-	int		 flags; /* layout flags, see tbl_cell */
+	size_t		 width;    /* Width of cell [BU]. */
+	size_t		 nwidth;   /* Maximum width of number [BU]. */
+	size_t		 decimal;  /* Decimal position [BU]. */
+	size_t		 spacing;  /* Spacing after the column [EN]. */
+	int		 flags;    /* Layout flags, see tbl_cell. */
 };
 
 struct	roffsu {
@@ -45,16 +45,14 @@ struct	roffsu {
 	double		  scale;
 };
 
-typedef	size_t	(*tbl_sulen)(const struct roffsu *, void *);
 typedef	size_t	(*tbl_strlen)(const char *, void *);
 typedef	size_t	(*tbl_len)(size_t, void *);
 
 struct	rofftbl {
-	tbl_sulen	 sulen; /* calculate scaling unit length */
-	tbl_strlen	 slen; /* calculate string length */
-	tbl_len		 len; /* produce width of empty space */
-	struct roffcol	*cols; /* master column specifiers */
-	void		*arg; /* passed to sulen, slen, and len */
+	tbl_strlen	 slen;	/* Calculate string length [BU]. */
+	tbl_len		 len;	/* Produce width of empty space [BU]. */
+	struct roffcol	*cols;	/* Master column specifiers. */
+	void		*arg;	/* Passed to slen() and len(). */
 };
 
 

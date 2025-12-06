@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 28, 2023
+.Dd August 16, 2025
 .Dt COPY_FILE_RANGE 2
 .Os
 .Sh NAME
@@ -74,6 +74,7 @@ argument must be opened for reading and the
 .Fa outfd
 argument must be opened for writing, but not
 .Dv O_APPEND .
+.Pp
 If
 .Fa inoffp
 or
@@ -101,9 +102,29 @@ respectively will be used/updated and the file offset for
 or
 .Fa outfd
 respectively will not be affected.
-The
+.Pp
+The only
 .Fa flags
-argument must be 0.
+argument currently defined is
+.Dv COPY_FILE_RANGE_CLONE .
+When this flag is set,
+.Fn copy_file_range
+will return
+.Er EOPNOTSUPP
+if the copy cannot be done via
+block cloning.
+When
+.Fa flags
+is 0, a file system may do the copy via block cloning
+or by data copying.
+Block cloning is only possible when the offsets (plus
+.Fa len
+if not to EOF on the input file) are block
+aligned.
+The correct block alignment can normally be acquired via the
+.Dv _PC_CLONE_BLKSIZE
+query for
+.Xr pathconf 2 .
 .Pp
 This system call attempts to maintain holes in the output file for
 the byte range being copied.
@@ -203,9 +224,15 @@ refers to a directory.
 File system that stores
 .Fa outfd
 is full.
+.It Bq Er EOPNOTSUPP
+Cannot do the copy via block cloning and the
+.Dv COPY_FILE_RANGE_CLONE
+.Fa flags
+argument is specified.
 .El
 .Sh SEE ALSO
-.Xr lseek 2
+.Xr lseek 2 ,
+.Xr pathconf 2
 .Sh STANDARDS
 The
 .Fn copy_file_range

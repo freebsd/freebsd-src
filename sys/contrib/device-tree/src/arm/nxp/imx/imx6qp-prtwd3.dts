@@ -384,7 +384,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	brcmf: bcrmf@1 {
+	brcmf: wifi@1 {
 		reg = <1>;
 		compatible = "brcm,bcm4329-fmac";
 	};
@@ -548,7 +548,7 @@
 		>;
 	};
 
-	pinctrl_wifi_npd: wifinpd {
+	pinctrl_wifi_npd: wifinpdgrp {
 		fsl,pins = <
 			/* WL_REG_ON */
 			MX6QDL_PAD_NANDF_RB0__GPIO6_IO10		0x13069

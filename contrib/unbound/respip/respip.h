@@ -276,7 +276,7 @@ void respip_inform_print(struct respip_action_info* respip_actinfo,
  * @param addrlen: length of addr.
  * @param net: netblock to lookup.
  * @param create: create node if it does not exist when 1.
- * @param ipstr: human redable ip string, for logging.
+ * @param ipstr: human readable ip string, for logging.
  * @return newly created of found node, not holding lock.
  */
 struct resp_addr*

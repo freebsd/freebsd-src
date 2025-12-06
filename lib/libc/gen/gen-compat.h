@@ -40,16 +40,50 @@ struct freebsd11_statfs;
 struct freebsd11_dirent *freebsd11_readdir(DIR *);
 int	freebsd11_readdir_r(DIR *, struct freebsd11_dirent *,
 	    struct freebsd11_dirent **);
-int	freebsd11_stat(const char *, struct freebsd11_stat *);
-int	freebsd11_lstat(const char *, struct freebsd11_stat *);
-int	freebsd11_fstat(int, struct freebsd11_stat *);
-int	freebsd11_fstatat(int, const char *, struct freebsd11_stat *, int);
 
-int	freebsd11_statfs(const char *, struct freebsd11_statfs *);
-int	freebsd11_getfsstat(struct freebsd11_statfs *, long, int);
 int	freebsd11_getmntinfo(struct freebsd11_statfs **, int);
 
 char	*freebsd11_devname(__uint32_t dev, __mode_t type);
-char	*freebsd11_devname_r(__uint32_t dev, __mode_t type, char *buf, int len);
+char	*freebsd11_devname_r(__uint32_t dev, __mode_t type, char *buf,
+	    int len);
+
+/*
+ * We want freebsd11_fstat in C source to result in resolution to
+ * - fstat@FBSD_1.0 for libc.so (but we do not need the _definition_
+ *   of this fstat, it is provided by libsys.so which we want to use).
+ * - freebsd11_fstat for libc.a (since if we make it fstat@FBSD_1.0
+ *   for libc.a, then final linkage into static object ignores version
+ *   and would reference fstat, which is the current syscall, not the
+ *   compat syscall). libc.a provides the freebsd11_fstat implementation.
+ *   Note that freebsd11_fstat from libc.a is not used for anything, but
+ *   we make it correct nonetheless, just in case it would.
+ * This is arranged by COMPAT_SYSCALL, and libc can just use freebsd11_fstat.
+ */
+#ifdef PIC
+#define	COMPAT_SYSCALL(rtype, fun, args, sym, ver)			\
+    rtype fun args; __sym_compat(sym, fun, ver);
+#else
+#define	COMPAT_SYSCALL(rtype, fun, args, sym, ver)			\
+    rtype fun args;
+#endif
+
+COMPAT_SYSCALL(int, freebsd11_stat, (const char *, struct freebsd11_stat *),
+    stat, FBSD_1.0);
+COMPAT_SYSCALL(int, freebsd11_lstat, (const char *, struct freebsd11_stat *),
+    lstat, FBSD_1.0);
+COMPAT_SYSCALL(int, freebsd11_fstat, (int, struct freebsd11_stat *),
+    fstat, FBSD_1.0);
+COMPAT_SYSCALL(int, freebsd11_fstatat, (int, const char *,
+    struct freebsd11_stat *, int), fstatat, FBSD_1.1);
+
+COMPAT_SYSCALL(int, freebsd11_statfs, (const char *,
+    struct freebsd11_statfs *), statfs, FBSD_1.0);
+COMPAT_SYSCALL(int, freebsd11_getfsstat, (struct freebsd11_statfs *, long,
+    int), getfsstat, FBSD_1.0);
+
+COMPAT_SYSCALL(int, freebsd14_setgroups, (int gidsize, const __gid_t *gidset),
+    setgroups, FBSD_1.0);
+
+#undef COMPAT_SYSCALL
 
 #endif /* _GEN_COMPAT_H_ */

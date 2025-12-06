@@ -124,6 +124,5 @@ bad:
 static int
 nvme_ahci_detach(device_t dev)
 {
-
 	return (nvme_detach(dev));
 }

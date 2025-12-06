@@ -485,7 +485,7 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 	if (namelen == 1 && pname[0] == '.') {
 		pn = pd;
 		*vpp = vn;
-		VREF(vn);
+		vref(vn);
 		PFS_RETURN (0);
 	}
 

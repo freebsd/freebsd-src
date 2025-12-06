@@ -59,6 +59,11 @@
 	};
 };
 
+&codec {
+	allwinner,audio-routing = "Line Out", "LINEOUT";
+	status = "okay";
+};
+
 &ehci1 {
 	status = "okay";
 };
@@ -72,6 +77,10 @@
 	status = "okay";
 };
 
+&gpu {
+	status = "okay";
+};
+
 &mdio0 {
 	ext_rgmii_phy: ethernet-phy@1 {
 		compatible = "ethernet-phy-ieee802.3-c22";
@@ -81,6 +90,7 @@
 
 &mmc0 {
 	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>;	/* PF6 */
+	disable-wp;
 	bus-width = <4>;
 	status = "okay";
 };

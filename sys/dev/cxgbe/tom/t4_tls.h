@@ -74,6 +74,7 @@ struct tls_ofld_info {
 	unsigned short adjusted_plen;
 	unsigned short expn_per_ulp;
 	unsigned short pdus_per_ulp;
+	bool tls13;
 	struct tls_scmd scmd0;
 	u_int iv_len;
 	unsigned int tx_key_info_size;

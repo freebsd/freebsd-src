@@ -1119,7 +1119,7 @@ flags_to_rights(int flags, cap_rights_t *rightsp)
 	if (flags & O_TRUNC)
 		cap_rights_set_one(rightsp, CAP_FTRUNCATE);
 
-	if (flags & (O_SYNC | O_FSYNC))
+	if (flags & (O_SYNC | O_FSYNC | O_DSYNC))
 		cap_rights_set_one(rightsp, CAP_FSYNC);
 
 	if (flags & (O_EXLOCK | O_SHLOCK))
@@ -1932,7 +1932,7 @@ restart:
 	if (error != 0)
 		return (error);
 
-	if (nd.ni_vp != NULLVP || !(nd.ni_cnd.cn_flags & ISWHITEOUT)) {
+	if (nd.ni_vp != NULL || !(nd.ni_cnd.cn_flags & ISWHITEOUT)) {
 		NDFREE_PNBUF(&nd);
 		if (nd.ni_vp == nd.ni_dvp)
 			vrele(nd.ni_dvp);
@@ -2839,7 +2839,7 @@ setfflags(struct thread *td, struct vnode *vp, u_long flags)
 	 * if they are allowed to set flags and programs assume that
 	 * chown can't fail when done as root.
 	 */
-	if (vp->v_type == VCHR || vp->v_type == VBLK) {
+	if (VN_ISDEV(vp)) {
 		error = priv_check(td, PRIV_VFS_CHFLAGS_DEV);
 		if (error != 0)
 			return (error);
@@ -4363,7 +4363,7 @@ unionread:
 		struct vnode *tvp = vp;
 
 		vp = vp->v_mount->mnt_vnodecovered;
-		VREF(vp);
+		vref(vp);
 		fp->f_vnode = vp;
 		foffset = 0;
 		vput(tvp);

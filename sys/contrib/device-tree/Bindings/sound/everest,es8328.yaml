@@ -24,9 +24,13 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - everest,es8328
-      - everest,es8388
+    oneOf:
+      - enum:
+          - everest,es8328
+      - items:
+          - enum:
+              - everest,es8388
+          - const: everest,es8328
 
   reg:
     maxItems: 1
@@ -50,8 +54,13 @@ properties:
   HPVDD-supply:
     description: Regulator providing analog output voltage 3.3V
 
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
 required:
   - compatible
+  - reg
   - clocks
   - DVDD-supply
   - AVDD-supply

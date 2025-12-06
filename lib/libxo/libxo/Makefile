@@ -51,7 +51,7 @@ MAN+=	xo_attr.3 \
 
 MAN+=	xo_format.5
 
-MAN+=	xo_options.7
+MANNODEV=	xo_options.7
 
 MLINKS=	xo_attr.3 xo_attr_h.3 \
 	xo_attr.3 xo_attr_hv.3 \

@@ -26,12 +26,12 @@ IGNORE_PRAGMA=  YES
 
 CFLAGS+= -DHAVE_ZFS
 CFLAGS.zfs.c+= -DIN_BASE
-CFLAGS.zfs.c+= -I${SRCTOP}/sys/contrib/openzfs/include
-CFLAGS.zfs.c+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include
-CFLAGS.zfs.c+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
-CFLAGS.zfs.c+= -I${SRCTOP}/sys/contrib/openzfs/lib/libzpool/include
-CFLAGS.zfs.c+= -I${SRCTOP}/sys/contrib/openzfs/module/icp/include
-CFLAGS.zfs.c+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
+CFLAGS.zfs.c+= -I${ZFSTOP}/include
+CFLAGS.zfs.c+= -I${ZFSTOP}/lib/libspl/include
+CFLAGS.zfs.c+= -I${ZFSTOP}/lib/libspl/include/os/freebsd
+CFLAGS.zfs.c+= -I${ZFSTOP}/lib/libzpool/include
+CFLAGS.zfs.c+= -I${ZFSTOP}/module/icp/include
+CFLAGS.zfs.c+= -include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h
 CFLAGS.zfs.c+= -DHAVE_ISSETUGID
 CFLAGS.zfs.c+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
 CFLAGS.zfs.c+= -Wno-cast-qual
@@ -47,7 +47,7 @@ CFLAGS.${src}+=-I${SRCTOP}/sys
 LIBADD=	geom md ufs
 
 .if ${MK_ZFS} != "no"
-LIBADD+=nvpair zfs spl
+LIBADD+=nvpair zfs spl pthread
 .endif
 
 .include <bsd.prog.mk>

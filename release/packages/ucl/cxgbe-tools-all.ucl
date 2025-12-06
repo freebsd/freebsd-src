@@ -1,4 +1,31 @@
-comment = "Chelsio cxbge Utilities"
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+comment = "Configuration utility for Chelsio cxbge(4) network interfaces"
+
 desc = <<EOD
-Chelsio cxbge Utilities
+The cxgbetool(8) utility is used to manage Chelsio network interfaces
+supported by the cxgbe(4) driver.  This includes examining the current
+state of the interface, loading firmware, and configuring features such
+as the hardware packet filter, Quality-of-Service (QoS) scheduler, and
+TCP offload engine.
 EOD
+
+annotations {
+	set = "optional"
+}

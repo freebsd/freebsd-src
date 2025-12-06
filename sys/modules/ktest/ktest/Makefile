@@ -1,9 +1,5 @@
 PACKAGE=	tests
-
-SYSDIR?=${SRCTOP}/sys
-.include "${SYSDIR}/conf/kern.opts.mk"
-
-.PATH: ${SYSDIR}/tests
+.PATH: ${SRCTOP}/sys/tests
 
 KMOD=	ktest
 SRCS=	ktest.c

@@ -249,7 +249,6 @@ struct ifconfig_args {
 	const char *matchgroup;		/* Group name to match */
 	const char *nogroup;		/* Group name to exclude */
 	const struct afswtch *afp;	/* AF we're operating on */
-	const char *jail_name;	/* Jail name or jail id specified */
 };
 
 struct option {

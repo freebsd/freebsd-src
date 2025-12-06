@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2023 Intel Corporation
+ * Copyright (c) 2015 - 2025 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -563,6 +563,7 @@ int irdma_manage_qhash(struct irdma_device *iwdev, struct irdma_cm_info *cminfo,
 		       enum irdma_quad_entry_type etype,
 		       enum irdma_quad_hash_manage_type mtype, void *cmnode,
 		       bool wait);
+int irdma_add_qhash_wait_no_lock(struct irdma_device *iwdev, struct irdma_cm_info *cminfo);
 void irdma_receive_ilq(struct irdma_sc_vsi *vsi, struct irdma_puda_buf *rbuf);
 void irdma_free_sqbuf(struct irdma_sc_vsi *vsi, void *bufp);
 void irdma_free_qp_rsrc(struct irdma_qp *iwqp);

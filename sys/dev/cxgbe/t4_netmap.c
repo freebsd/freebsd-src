@@ -232,7 +232,7 @@ alloc_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq, int iqidx, int idx)
 	nm_txq->nid = idx;
 	nm_txq->iqidx = iqidx;
 	nm_txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
-	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(sc->pf) |
+	    V_TXPKT_INTF(pi->hw_port) | V_TXPKT_PF(sc->pf) |
 	    V_TXPKT_VF(vi->vin) | V_TXPKT_VF_VLD(vi->vfvld));
 	if (sc->params.fw_vers >= FW_VERSION32(1, 24, 11, 0))
 		nm_txq->op_pkd = htobe32(V_FW_WR_OP(FW_ETH_TX_PKTS2_WR));
@@ -276,7 +276,7 @@ free_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
 static int
 alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq)
 {
-	int rc, cntxt_id;
+	int rc, cntxt_id, cong_map;
 	__be32 v;
 	struct adapter *sc = vi->adapter;
 	struct port_info *pi = vi->pi;
@@ -284,7 +284,6 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq)
 	struct netmap_adapter *na = NA(vi->ifp);
 	struct fw_iq_cmd c;
 	const int cong_drop = nm_cong_drop;
-	const int cong_map = pi->rx_e_chan_map;
 
 	MPASS(na != NULL);
 	MPASS(nm_rxq->iq_desc != NULL);
@@ -314,13 +313,17 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq)
 	    V_FW_IQ_CMD_TYPE(FW_IQ_TYPE_FL_INT_CAP) |
 	    V_FW_IQ_CMD_VIID(vi->viid) |
 	    V_FW_IQ_CMD_IQANUD(X_UPDATEDELIVERY_INTERRUPT));
-	c.iqdroprss_to_iqesize = htobe16(V_FW_IQ_CMD_IQPCIECH(pi->tx_chan) |
+	c.iqdroprss_to_iqesize = htobe16(V_FW_IQ_CMD_IQPCIECH(pi->hw_port) |
 	    F_FW_IQ_CMD_IQGTSMODE |
 	    V_FW_IQ_CMD_IQINTCNTTHRESH(0) |
 	    V_FW_IQ_CMD_IQESIZE(ilog2(IQ_ESIZE) - 4));
 	c.iqsize = htobe16(vi->qsize_rxq);
 	c.iqaddr = htobe64(nm_rxq->iq_ba);
 	if (cong_drop != -1) {
+		if (chip_id(sc) >= CHELSIO_T7)
+			cong_map = 1 << pi->hw_port;
+		else
+			cong_map = pi->rx_e_chan_map;
 		c.iqns_to_fl0congen = htobe32(F_FW_IQ_CMD_IQFLINTCONGEN |
 		    V_FW_IQ_CMD_FL0CNGCHMAP(cong_map) | F_FW_IQ_CMD_FL0CONGCIF |
 		    F_FW_IQ_CMD_FL0CONGEN);
@@ -421,15 +424,19 @@ alloc_nm_txq_hwq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
 	    F_FW_CMD_WRITE | F_FW_CMD_EXEC | V_FW_EQ_ETH_CMD_PFN(sc->pf) |
 	    V_FW_EQ_ETH_CMD_VFN(0));
 	c.alloc_to_len16 = htobe32(F_FW_EQ_ETH_CMD_EQSTART | FW_LEN16(c));
-	if (nm_txq->cntxt_id == INVALID_NM_TXQ_CNTXT_ID)
-		c.alloc_to_len16 |= htobe32(F_FW_EQ_ETH_CMD_ALLOC);
-	else
+	if (nm_txq->cntxt_id == INVALID_NM_TXQ_CNTXT_ID) {
+		const int core = sc->params.ncores > 1 ?
+		    nm_txq->nid % sc->params.ncores : 0;
+
+		c.alloc_to_len16 |= htobe32(F_FW_EQ_ETH_CMD_ALLOC |
+		    V_FW_EQ_ETH_CMD_COREGROUP(core));
+	} else
 		c.eqid_pkd = htobe32(V_FW_EQ_ETH_CMD_EQID(nm_txq->cntxt_id));
 	c.autoequiqe_to_viid = htobe32(F_FW_EQ_ETH_CMD_AUTOEQUIQE |
 	    F_FW_EQ_ETH_CMD_AUTOEQUEQE | V_FW_EQ_ETH_CMD_VIID(vi->viid));
 	c.fetchszm_to_iqid =
 	    htobe32(V_FW_EQ_ETH_CMD_HOSTFCMODE(X_HOSTFCMODE_NONE) |
-		V_FW_EQ_ETH_CMD_PCIECHN(vi->pi->tx_chan) | F_FW_EQ_ETH_CMD_FETCHRO |
+		V_FW_EQ_ETH_CMD_PCIECHN(vi->pi->hw_port) | F_FW_EQ_ETH_CMD_FETCHRO |
 		V_FW_EQ_ETH_CMD_IQID(sc->sge.nm_rxq[nm_txq->iqidx].iq_cntxt_id));
 	c.dcaen_to_eqsize =
 	    htobe32(V_FW_EQ_ETH_CMD_FBMIN(chip_id(sc) <= CHELSIO_T5 ?

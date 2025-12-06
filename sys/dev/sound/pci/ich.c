@@ -77,9 +77,9 @@
 #define AMD_768		0x7445
 #define AMD_8111	0x746d
 
-#define ICH_LOCK(sc)		snd_mtxlock((sc)->ich_lock)
-#define ICH_UNLOCK(sc)		snd_mtxunlock((sc)->ich_lock)
-#define ICH_LOCK_ASSERT(sc)	snd_mtxassert((sc)->ich_lock)
+#define ICH_LOCK(sc)		mtx_lock(&(sc)->ich_lock)
+#define ICH_UNLOCK(sc)		mtx_unlock(&(sc)->ich_lock)
+#define ICH_LOCK_ASSERT(sc)	mtx_assert(&(sc)->ich_lock, MA_OWNED)
 
 #if 0
 #define ICH_DEBUG(stmt)		do {	\
@@ -196,7 +196,7 @@ struct sc_info {
 	uint16_t vendor;
 	uint16_t devid;
 	uint32_t flags;
-	struct mtx *ich_lock;
+	struct mtx ich_lock;
 };
 
 /* -------------------------------------------------------------------- */
@@ -301,15 +301,15 @@ ich_filldtbl(struct sc_chinfo *ch)
 	uint32_t base;
 	int i;
 
-	base = sndbuf_getbufaddr(ch->buffer);
-	if ((ch->blksz * ch->blkcnt) > sndbuf_getmaxsize(ch->buffer))
-		ch->blksz = sndbuf_getmaxsize(ch->buffer) / ch->blkcnt;
-	if ((sndbuf_getblksz(ch->buffer) != ch->blksz ||
-	    sndbuf_getblkcnt(ch->buffer) != ch->blkcnt) &&
+	base = ch->buffer->buf_addr;
+	if ((ch->blksz * ch->blkcnt) > ch->buffer->maxsize)
+		ch->blksz = ch->buffer->maxsize / ch->blkcnt;
+	if ((ch->buffer->blksz != ch->blksz ||
+	    ch->buffer->blkcnt != ch->blkcnt) &&
 	    sndbuf_resize(ch->buffer, ch->blkcnt, ch->blksz) != 0)
 		device_printf(sc->dev, "%s: failed blksz=%u blkcnt=%u\n",
 		    __func__, ch->blksz, ch->blkcnt);
-	ch->blksz = sndbuf_getblksz(ch->buffer);
+	ch->blksz = ch->buffer->blksz;
 
 	for (i = 0; i < ICH_DTBL_LENGTH; i++) {
 		ch->dtbl[i].buffer = base + (ch->blksz * (i % ch->blkcnt));
@@ -491,7 +491,7 @@ ichchan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 	);
 
 	if (sc->flags & ICH_HIGH_LATENCY)
-		blocksize = sndbuf_getmaxsize(ch->buffer) / ch->blkcnt;
+		blocksize = ch->buffer->maxsize / ch->blkcnt;
 
 	if (blocksize < ICH_MIN_BLKSZ)
 		blocksize = ICH_MIN_BLKSZ;
@@ -734,7 +734,7 @@ ich_calibrate(void *arg)
 	ch->blkcnt = 2;
 	sc->flags |= ICH_CALIBRATE_DONE;
 	ICH_UNLOCK(sc);
-	ichchan_setblocksize(0, ch, sndbuf_getmaxsize(ch->buffer) >> 1);
+	ichchan_setblocksize(0, ch, ch->buffer->maxsize >> 1);
 	ICH_LOCK(sc);
 	sc->flags &= ~ICH_CALIBRATE_DONE;
 
@@ -888,7 +888,8 @@ ich_pci_attach(device_t dev)
 	int			i;
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
-	sc->ich_lock = snd_mtxcreate(device_get_nameunit(dev), "snd_ich softc");
+	mtx_init(&sc->ich_lock, device_get_nameunit(dev), "snd_ich softc",
+	    MTX_DEF);
 	sc->dev = dev;
 
 	vendor = sc->vendor = pci_get_vendor(dev);
@@ -1111,8 +1112,7 @@ bad:
 		bus_dma_tag_destroy(sc->chan_dmat);
 	if (sc->dmat)
 		bus_dma_tag_destroy(sc->dmat);
-	if (sc->ich_lock)
-		snd_mtxfree(sc->ich_lock);
+	mtx_destroy(&sc->ich_lock);
 	free(sc, M_DEVBUF);
 	return (ENXIO);
 }
@@ -1136,7 +1136,7 @@ ich_pci_detach(device_t dev)
 	bus_dmamem_free(sc->dmat, sc->dtbl, sc->dtmap);
 	bus_dma_tag_destroy(sc->chan_dmat);
 	bus_dma_tag_destroy(sc->dmat);
-	snd_mtxfree(sc->ich_lock);
+	mtx_destroy(&sc->ich_lock);
 	free(sc, M_DEVBUF);
 	return (0);
 }

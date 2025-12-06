@@ -65,7 +65,7 @@ struct ac97_info {
 	u_int32_t flags;
 	struct ac97mixtable_entry mix[AC97_MIXER_SIZE];
 	char name[16];
-	struct mtx *lock;
+	struct mtx lock;
 };
 
 struct ac97_vendorid {
@@ -364,7 +364,7 @@ ac97_setrate(struct ac97_info *codec, int which, int rate)
 		return -1;
 	}
 
-	snd_mtxlock(codec->lock);
+	mtx_lock(&codec->lock);
 	if (rate != 0) {
 		v = rate;
 		if (codec->extstat & AC97_EXTCAP_DRA)
@@ -374,7 +374,7 @@ ac97_setrate(struct ac97_info *codec, int which, int rate)
 	v = ac97_rdcd(codec, which);
 	if (codec->extstat & AC97_EXTCAP_DRA)
 		v <<= 1;
-	snd_mtxunlock(codec->lock);
+	mtx_unlock(&codec->lock);
 	return v;
 }
 
@@ -387,10 +387,10 @@ ac97_setextmode(struct ac97_info *codec, u_int16_t mode)
 			      mode);
 		return -1;
 	}
-	snd_mtxlock(codec->lock);
+	mtx_lock(&codec->lock);
 	ac97_wrcd(codec, AC97_REGEXT_STAT, mode);
 	codec->extstat = ac97_rdcd(codec, AC97_REGEXT_STAT) & AC97_EXTCAPS;
-	snd_mtxunlock(codec->lock);
+	mtx_unlock(&codec->lock);
 	return (mode == codec->extstat)? 0 : -1;
 }
 
@@ -426,9 +426,9 @@ ac97_setrecsrc(struct ac97_info *codec, int channel)
 	if (e->recidx > 0) {
 		int val = e->recidx - 1;
 		val |= val << 8;
-		snd_mtxlock(codec->lock);
+		mtx_lock(&codec->lock);
 		ac97_wrcd(codec, AC97_REG_RECSEL, val);
-		snd_mtxunlock(codec->lock);
+		mtx_unlock(&codec->lock);
 		return 0;
 	} else
 		return -1;
@@ -497,13 +497,13 @@ ac97_setmixer(struct ac97_info *codec, unsigned channel, unsigned left, unsigned
 		/*
 		 * If the mask bit is set, do not alter the other bits.
 		 */
-		snd_mtxlock(codec->lock);
+		mtx_lock(&codec->lock);
 		if (e->mask) {
 			int cur = ac97_rdcd(codec, reg);
 			val |= cur & ~(mask);
 		}
 		ac97_wrcd(codec, reg, val);
-		snd_mtxunlock(codec->lock);
+		mtx_unlock(&codec->lock);
 		return left | (right << 8);
 	} else {
 		return -1;
@@ -603,11 +603,11 @@ ac97_initmixer(struct ac97_info *codec)
 	u_int32_t id;
 	int reg;
 
-	snd_mtxlock(codec->lock);
+	mtx_lock(&codec->lock);
 	codec->count = AC97_INIT(codec->methods, codec->devinfo);
 	if (codec->count == 0) {
 		device_printf(codec->dev, "ac97 codec init failed\n");
-		snd_mtxunlock(codec->lock);
+		mtx_unlock(&codec->lock);
 		return ENODEV;
 	}
 
@@ -633,7 +633,7 @@ ac97_initmixer(struct ac97_info *codec)
 	id = (ac97_rdcd(codec, AC97_REG_ID1) << 16) | ac97_rdcd(codec, AC97_REG_ID2);
 	if (id == 0 || id == 0xffffffff) {
 		device_printf(codec->dev, "ac97 codec invalid or not present (id == %x)\n", id);
-		snd_mtxunlock(codec->lock);
+		mtx_unlock(&codec->lock);
 		return ENODEV;
 	}
 
@@ -780,18 +780,18 @@ ac97_initmixer(struct ac97_info *codec)
 	}
 	if (bootverbose)
 		device_printf(codec->dev, "ac97 codec dac ready count: %d\n", i);
-	snd_mtxunlock(codec->lock);
+	mtx_unlock(&codec->lock);
 	return 0;
 }
 
 static unsigned
 ac97_reinitmixer(struct ac97_info *codec)
 {
-	snd_mtxlock(codec->lock);
+	mtx_lock(&codec->lock);
 	codec->count = AC97_INIT(codec->methods, codec->devinfo);
 	if (codec->count == 0) {
 		device_printf(codec->dev, "ac97 codec init failed\n");
-		snd_mtxunlock(codec->lock);
+		mtx_unlock(&codec->lock);
 		return ENODEV;
 	}
 
@@ -811,7 +811,7 @@ ac97_reinitmixer(struct ac97_info *codec)
 
 	if ((ac97_rdcd(codec, AC97_REG_POWER) & 2) == 0)
 		device_printf(codec->dev, "ac97 codec reports dac not ready\n");
-	snd_mtxunlock(codec->lock);
+	mtx_unlock(&codec->lock);
 	return 0;
 }
 
@@ -824,7 +824,7 @@ ac97_create(device_t dev, void *devinfo, kobj_class_t cls)
 	codec = malloc(sizeof(*codec), M_AC97, M_WAITOK | M_ZERO);
 	snprintf(codec->name, sizeof(codec->name), "%s:ac97",
 	    device_get_nameunit(dev));
-	codec->lock = snd_mtxcreate(codec->name, "ac97 codec");
+	mtx_init(&codec->lock, codec->name, "ac97 codec", MTX_DEF);
 	codec->methods = kobj_create(cls, M_AC97, M_WAITOK | M_ZERO);
 	codec->dev = dev;
 	codec->devinfo = devinfo;
@@ -844,10 +844,10 @@ ac97_create(device_t dev, void *devinfo, kobj_class_t cls)
 void
 ac97_destroy(struct ac97_info *codec)
 {
-	snd_mtxlock(codec->lock);
+	mtx_lock(&codec->lock);
 	if (codec->methods != NULL)
 		kobj_delete(codec->methods, M_AC97);
-	snd_mtxfree(codec->lock);
+	mtx_destroy(&codec->lock);
 	free(codec, M_AC97);
 }
 
@@ -960,21 +960,21 @@ sysctl_hw_snd_ac97_eapd(SYSCTL_HANDLER_ARGS)
 	u_int16_t val;
 
 	codec = oidp->oid_arg1;
-	if (codec == NULL || codec->id == 0 || codec->lock == NULL)
+	if (codec == NULL || codec->id == 0)
 		return EINVAL;
-	snd_mtxlock(codec->lock);
+	mtx_lock(&codec->lock);
 	val = ac97_rdcd(codec, AC97_REG_POWER);
 	inv = (codec->flags & AC97_F_EAPD_INV) ? 0 : 1;
 	ea = (val >> 15) ^ inv;
-	snd_mtxunlock(codec->lock);
+	mtx_unlock(&codec->lock);
 	err = sysctl_handle_int(oidp, &ea, 0, req);
 	if (err == 0 && req->newptr != NULL) {
 		if (ea != 0 && ea != 1)
 			return EINVAL;
 		if (ea != ((val >> 15) ^ inv)) {
-			snd_mtxlock(codec->lock);
+			mtx_lock(&codec->lock);
 			ac97_wrcd(codec, AC97_REG_POWER, val ^ 0x8000);
-			snd_mtxunlock(codec->lock);
+			mtx_unlock(&codec->lock);
 		}
 	}
 	return err;
@@ -987,12 +987,12 @@ ac97_init_sysctl(struct ac97_info *codec)
 
 	if (codec == NULL || codec->dev == NULL)
 		return;
-	snd_mtxlock(codec->lock);
+	mtx_lock(&codec->lock);
 	orig = ac97_rdcd(codec, AC97_REG_POWER);
 	ac97_wrcd(codec, AC97_REG_POWER, orig ^ 0x8000);
 	val = ac97_rdcd(codec, AC97_REG_POWER);
 	ac97_wrcd(codec, AC97_REG_POWER, orig);
-	snd_mtxunlock(codec->lock);
+	mtx_unlock(&codec->lock);
 	if ((val & 0x8000) == (orig & 0x8000))
 		return;
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(codec->dev),

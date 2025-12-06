@@ -25,10 +25,11 @@ SRCS.arm= \
 	sha256-armv4.S \
 	sha512-armv4.S \
 	ossl_arm.c \
-	ossl_aes_gcm.c
+	ossl_aes_gcm_neon.c
 
 SRCS.aarch64= \
 	chacha-armv8.S \
+	chacha-armv8-sve.S \
 	poly1305-armv8.S \
 	sha1-armv8.S \
 	sha256-armv8.S \
@@ -47,6 +48,7 @@ SRCS.amd64= \
 	sha256-x86_64.S \
 	sha512-x86_64.S \
 	ossl_aes_gcm.c \
+	ossl_aes_gcm_avx512.c \
 	ossl_x86.c
 
 SRCS.i386= \
@@ -59,6 +61,8 @@ SRCS.i386= \
 	ossl_x86.c
 
 SRCS.powerpc64le= \
+	aes-gcm-ppc.S \
+	ossl_aes_gcm.c \
 	ossl_ppccap.c \
 	aes-ppc.S \
 	aesp8-ppc.S \
@@ -80,6 +84,8 @@ SRCS.powerpc64le= \
 	x25519-ppc64.S
 
 SRCS.powerpc64= \
+	aes-gcm-ppc.S \
+	ossl_aes_gcm.c \
 	ossl_ppccap.c \
 	aes-ppc.S \
 	aesp8-ppc.S \

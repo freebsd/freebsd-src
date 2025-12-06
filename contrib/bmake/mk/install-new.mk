@@ -1,15 +1,8 @@
-# SPDX-License-Identifier: BSD-2-Clause
-#
-# $Id: install-new.mk,v 1.5 2024/02/17 17:26:57 sjg Exp $
+# $Id: install-new.mk,v 1.9 2025/11/19 17:44:15 sjg Exp $
 #
 #	@(#) Copyright (c) 2009, Simon J. Gerraty
 #
-#	This file is provided in the hope that it will
-#	be of use.  There is absolutely NO WARRANTY.
-#	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that
-#	the above copyright notice and this notice are
-#	left intact.
+#	SPDX-License-Identifier: BSD-2-Clause
 #
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
@@ -17,25 +10,32 @@
 
 .if !defined(InstallNew)
 
-# copy if src and target are different making a backup if desired
-CmpCp= CmpCp() { \
+# How do we want CmpCpMv to do the final operation?
+# the backup (if any) will use the opposite.
+CPMV_OP ?= mv
+# clear this if not supported
+CPMV_f ?= -f
+
+# copy/move if src and target are different making a backup if desired
+CmpCpMv= CmpCpMv() { \
 	src=$$1 target=$$2 _bak=$$3; \
 	if ! test -s $$target || ! cmp -s $$target $$src; then \
 		trap "" 1 2 3 15; \
+		case "/${CPMV_OP}" in */cp) bop=mv;; */mv) bop=cp;; esac; \
 		if test -s $$target; then \
 			if test "x$$_bak" != x; then \
 				rm -f $$target$$_bak; \
-				mv $$target $$target$$_bak; \
+				$$bop ${CPMV_f} $$target $$target$$_bak; \
 			else \
 				rm -f $$target; \
 			fi; \
 		fi; \
-		cp $$src $$target; \
+		${CPMV_OP} ${CPMV_f} $$src $$target; \
 	fi; }
 
 # If the .new file is different, we want it.
 # Note: this function will work as is for *.new$RANDOM"
-InstallNew= ${CmpCp}; InstallNew() { \
+InstallNew= ${CmpCpMv}; InstallNew() { \
 	_t=-e; _bak=; \
 	while :; do \
 		case "$$1" in \
@@ -46,8 +46,12 @@ InstallNew= ${CmpCp}; InstallNew() { \
 	done; \
 	for new in "$$@"; do \
 		if test $$_t $$new; then \
-			target=`expr $$new : '\(.*\).new'`; \
-			CmpCp $$new $$target $$_bak; \
+			if ${isPOSIX_SHELL:Ufalse}; then \
+				target=$${new%.new}; \
+			else \
+				target=`expr $$new : '\(.*\).new'`; \
+			fi; \
+			CmpCpMv $$new $$target $$_bak; \
 		fi; \
 		rm -f $$new; \
 	done; :; }

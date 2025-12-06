@@ -2015,7 +2015,7 @@ archive_strncat_l(struct archive_string *as, const void *_p, size_t n,
 	/* We must allocate memory even if there is no data for conversion
 	 * or copy. This simulates archive_string_append behavior. */
 	if (length == 0) {
-		int tn = 1;
+		size_t tn = 1;
 		if (sc != NULL && (sc->flag & SCONV_TO_UTF16))
 			tn = 2;
 		if (archive_string_ensure(as, as->length + tn) == NULL)
@@ -2052,6 +2052,26 @@ archive_strncat_l(struct archive_string *as, const void *_p, size_t n,
 	if (r > r2)
 		r = r2;
 	return (r);
+}
+
+struct archive_string *
+archive_string_dirname(struct archive_string *as)
+{
+	/* strip trailing separators */
+	while (as->length > 1 && as->s[as->length - 1] == '/')
+		as->length--;
+	/* strip final component */
+	while (as->length > 0 && as->s[as->length - 1] != '/')
+		as->length--;
+	/* empty path -> cwd */
+	if (as->length == 0)
+		return (archive_strcat(as, "."));
+	/* strip separator(s) */
+	while (as->length > 1 && as->s[as->length - 1] == '/')
+		as->length--;
+	/* terminate */
+	as->s[as->length] = '\0';
+	return (as);
 }
 
 #if HAVE_ICONV
@@ -2752,7 +2772,8 @@ archive_string_append_unicode(struct archive_string *as, const void *_p,
 	char *p, *endp;
 	uint32_t uc;
 	size_t w;
-	int n, ret = 0, ts, tm;
+	size_t ts, tm;
+	int n, ret = 0;
 	int (*parse)(uint32_t *, const char *, size_t);
 	size_t (*unparse)(char *, size_t, uint32_t);
 

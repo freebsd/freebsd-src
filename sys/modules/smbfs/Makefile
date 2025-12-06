@@ -1,6 +1,6 @@
-.PATH:	${SRCTOP}/sys/crypto/des \
+.PATH:	${SRCTOP}/sys/crypto \
+	${SRCTOP}/sys/crypto/des \
 	${SRCTOP}/sys/crypto/des/arch/${MACHINE_CPUARCH} \
-	${SRCTOP}/sys/kern \
 	${SRCTOP}/sys/libkern \
 	${SRCTOP}/sys/netsmb \
 	${SRCTOP}/sys/fs/smbfs

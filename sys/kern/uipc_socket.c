@@ -54,7 +54,8 @@
  * consumer of a socket is starting to tear down the socket, and that the
  * protocol should terminate the connection.  Historically, pr_abort() also
  * detached protocol state from the socket state, but this is no longer the
- * case.
+ * case.  pr_fdclose() is called when userspace invokes close(2) on a socket
+ * file descriptor.
  *
  * socreate() creates a socket and attaches protocol state.  This is a public
  * interface that may be used by socket layer consumers to create new
@@ -191,16 +192,19 @@ static const struct filterops soread_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_sordetach,
 	.f_event = filt_soread,
+	.f_copy = knote_triv_copy,
 };
 static const struct filterops sowrite_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_sowdetach,
 	.f_event = filt_sowrite,
+	.f_copy = knote_triv_copy,
 };
 static const struct filterops soempty_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_sowdetach,
 	.f_event = filt_soempty,
+	.f_copy = knote_triv_copy,
 };
 
 so_gen_t	so_gencnt;	/* generation count for sockets */

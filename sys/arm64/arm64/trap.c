@@ -246,6 +246,7 @@ external_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 
 	print_registers(frame);
 	print_gp_register("far", far);
+	printf(" esr: 0x%.16lx\n", esr);
 	panic("Unhandled external data abort");
 }
 

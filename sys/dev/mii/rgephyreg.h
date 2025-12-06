@@ -41,7 +41,7 @@
 #define	RGEPHY_8211FVD		8
 
 /*
- * RealTek 8169S/8110S gigE PHY registers
+ * Realtek 8169S/8110S gigE PHY registers
  */
 
 #define RGEPHY_MII_BMCR		0x00

@@ -1,88 +1,123 @@
-.TH "unbound" "8" "Apr 24, 2025" "NLnet Labs" "unbound 1.23.0"
-.\"
-.\" unbound.8 -- unbound manual
-.\"
-.\" Copyright (c) 2007, NLnet Labs. All rights reserved.
-.\"
-.\" See LICENSE for the license.
-.\"
-.\"
-.SH "NAME"
-.B unbound
-\- Unbound DNS validating resolver 1.23.0.
-.SH "SYNOPSIS"
-.B unbound
-.RB [ \-h ]
-.RB [ \-d ]
-.RB [ \-p ]
-.RB [ \-v ]
-.RB [ \-c
-.IR cfgfile ]
-.SH "DESCRIPTION"
-.B Unbound
-is a caching DNS resolver.
-.P
-It uses a built in list of authoritative nameservers for the root zone (.),
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "UNBOUND" "8" "Oct 22, 2025" "1.24.1" "Unbound"
+.SH NAME
+unbound \- Unbound DNS validating resolver 1.24.1.
+.SH SYNOPSIS
+.sp
+\fBunbound\fP [\fB\-hdpv\fP] [\fB\-c <cfgfile>\fP]
+.SH DESCRIPTION
+.sp
+\fBunbound\fP is a caching DNS resolver.
+.sp
+It uses a built in list of authoritative nameservers for the root zone (\fB\&.\fP),
 the so called root hints.
-On receiving a DNS query it will ask the root nameservers for
-an answer and will in almost all cases receive a delegation to a top level
-domain (TLD) authoritative nameserver.
+On receiving a DNS query it will ask the root nameservers for an answer and
+will in almost all cases receive a delegation to a top level domain (TLD)
+authoritative nameserver.
 It will then ask that nameserver for an answer.
-It will recursively continue until an answer is found or no answer is
-available (NXDOMAIN).
-For performance and efficiency reasons that answer is cached for a
-certain time (the answer's time\-to\-live or TTL).
+It will recursively continue until an answer is found or no answer is available
+(NXDOMAIN).
+For performance and efficiency reasons that answer is cached for a certain time
+(the answer\(aqs time\-to\-live or TTL).
 A second query for the same name will then be answered from the cache.
 Unbound can also do DNSSEC validation.
-.P
-To use a locally running
-.B Unbound
-for resolving put
 .sp
-.RS 6n
+To use a locally running Unbound for resolving put:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
 nameserver 127.0.0.1
-.RE
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
 .sp
-into
-.IR resolv.conf (5).
-.P
-If authoritative DNS is needed as well using
-.IR nsd (8),
-careful setup is required because authoritative nameservers and
-resolvers are using the same port number (53).
-.P
+into \fIresolv.conf(5)\fP\&.
+.sp
+If authoritative DNS is needed as well using \fI\%nsd(8)\fP,
+careful setup is required because authoritative nameservers and resolvers are
+using the same port number (53).
+.sp
 The available options are:
+.INDENT 0.0
 .TP
 .B \-h
 Show the version number and commandline option help, and exit.
+.UNINDENT
+.INDENT 0.0
 .TP
-.B \-c\fI cfgfile
-Set the config file with settings for Unbound to read instead of reading the
-file at the default location, @ub_conf_file@. The syntax is
-described in \fIunbound.conf\fR(5).
+.B \-c <cfgfile>
+Set the config file with settings for unbound to read instead of reading the
+file at the default location, \fB@ub_conf_file@\fP\&.
+The syntax is described in \fI\%unbound.conf(5)\fP\&.
+.UNINDENT
+.INDENT 0.0
 .TP
 .B \-d
-Debug flag: do not fork into the background, but stay attached to
-the console.  This flag will also delay writing to the log file until
-the thread\-spawn time, so that most config and setup errors appear on
-stderr. If given twice or more, logging does not switch to the log file
-or to syslog, but the log messages are printed to stderr all the time.
+Debug flag: do not fork into the background, but stay attached to the
+console.
+This flag will also delay writing to the log file until the thread\-spawn
+time, so that most config and setup errors appear on stderr.
+If given twice or more, logging does not switch to the log file or to
+syslog, but the log messages are printed to stderr all the time.
+.UNINDENT
+.INDENT 0.0
 .TP
 .B \-p
-Don't use a pidfile.  This argument should only be used by supervision
-systems which can ensure that only one instance of Unbound will run
-concurrently.
+Don\(aqt use a pidfile.
+This argument should only be used by supervision systems which can ensure
+that only one instance of Unbound will run concurrently.
+.UNINDENT
+.INDENT 0.0
 .TP
 .B \-v
-Increase verbosity. If given multiple times, more information is logged.
-This is added to the verbosity (if any) from the config file.
+Increase verbosity.
+If given multiple times, more information is logged.
+This is in addition to the verbosity (if any) from the config file.
+.UNINDENT
+.INDENT 0.0
 .TP
 .B \-V
 Show the version number and build options, and exit.
-.SH "SEE ALSO"
-\fIunbound.conf\fR(5),
-\fIunbound\-checkconf\fR(8),
-\fInsd\fR(8).
-.SH "AUTHORS"
-.B Unbound
-developers are mentioned in the CREDITS file in the distribution.
+.UNINDENT
+.SH SEE ALSO
+.sp
+\fI\%unbound.conf(5)\fP,
+\fI\%unbound\-checkconf(8)\fP,
+\fI\%nsd(8)\fP\&.
+.SH AUTHOR
+Unbound developers are mentioned in the CREDITS file in the distribution.
+.SH COPYRIGHT
+1999-2025, NLnet Labs
+.\" Generated by docutils manpage writer.
+.

@@ -515,7 +515,7 @@ foundroot:
 		 * Save directory inode pointer in ndp->ni_dvp for dirremove().
 		 */
 		if (dp->de_StartCluster == scn && isadir) {	/* "." */
-			VREF(vdp);
+			vref(vdp);
 			*vpp = vdp;
 			return (0);
 		}
@@ -602,7 +602,7 @@ foundroot:
 			msdosfs_integrity_error(pmp);
 			return (EBADF);
 		}
-		VREF(vdp);	/* we want ourself, ie "." */
+		vref(vdp);	/* we want ourself, ie "." */
 		*vpp = vdp;
 	} else {
 		if ((error = deget(pmp, cluster, blkoff, LK_EXCLUSIVE,

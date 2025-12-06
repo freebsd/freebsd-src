@@ -1,4 +1,4 @@
-/*	$NetBSD: run.h,v 1.5 2015/01/27 19:40:37 christos Exp $	*/
+/*	$NetBSD: run.h,v 1.1.1.1 2020/06/15 01:52:53 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.

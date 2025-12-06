@@ -9,6 +9,7 @@
 /* Test double dash arg - swallow "--" and use next argument as file name  */
 DEFINE_TEST(test_doubledash)
 {
+#ifdef HAVE_LIBZ
 	const char *reffile = "test_basic.zip";
 	int r;
 
@@ -22,4 +23,7 @@ DEFINE_TEST(test_doubledash)
 	assertTextFileContents("contents b\n", "test_basic/b");
 	assertTextFileContents("contents c\n", "test_basic/c");
 	assertTextFileContents("contents CAPS\n", "test_basic/CAPS");
+#else
+	skipping("zlib not available");
+#endif
 }

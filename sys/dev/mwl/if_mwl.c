@@ -433,6 +433,8 @@ mwl_attach(uint16_t devid, struct mwl_softc *sc)
 		| IEEE80211_HTC_SMPS		/* SMPS available */
 		;
 
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
+
 	/*
 	 * Mark h/w crypto support.
 	 * XXX no way to query h/w support.
@@ -1797,7 +1799,7 @@ mwl_updateslot(struct ieee80211com *ic)
 		return;
 
 	/*
-	 * Calculate the ERP flags.  The firwmare will use
+	 * Calculate the ERP flags.  The firmware will use
 	 * this to carry out the appropriate measures.
 	 */
 	prot = 0;
@@ -3087,6 +3089,8 @@ mwl_tx_start(struct mwl_softc *sc, struct ieee80211_node *ni, struct mwl_txbuf *
 	} else
 		qos = 0;
 
+	ieee80211_output_seqno_assign(ni, -1, m0);
+
 	if (iswep) {
 		const struct ieee80211_cipher *cip;
 		struct ieee80211_key *k;
@@ -4017,7 +4021,7 @@ mkpeerinfo(MWL_HAL_PEERINFO *pi, const struct ieee80211_node *ni)
 			pi->HTCapabilitiesInfo &= ~IEEE80211_HTCAP_SHORTGI40;
 		if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20) == 0)
 			pi->HTCapabilitiesInfo &= ~IEEE80211_HTCAP_SHORTGI20;
-		if (ni->ni_chw != IEEE80211_STA_RX_BW_40)
+		if (ni->ni_chw != NET80211_STA_RX_BW_40)
 			pi->HTCapabilitiesInfo &= ~IEEE80211_HTCAP_CHWIDTH40;
 	}
 	return pi;

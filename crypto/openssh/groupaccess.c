@@ -1,4 +1,4 @@
-/* $OpenBSD: groupaccess.c,v 1.17 2019/03/06 22:14:23 dtucker Exp $ */
+/* $OpenBSD: groupaccess.c,v 1.18 2024/11/04 21:59:15 jca Exp $ */
 /*
  * Copyright (c) 2001 Kevin Steves.  All rights reserved.
  *

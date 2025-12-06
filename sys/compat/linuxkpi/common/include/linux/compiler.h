@@ -31,6 +31,7 @@
 #define	_LINUXKPI_LINUX_COMPILER_H_
 
 #include <sys/cdefs.h>
+#include <sys/endian.h>
 
 #define __user
 #define __kernel
@@ -78,6 +79,13 @@
 #define	__counted_by(_x)		__attribute__((__counted_by__(_x)))
 #else
 #define	__counted_by(_x)
+#endif
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define	__counted_by_le(_x)		__counted_by(_x)
+#define	__counted_by_be(_x)
+#else
+#define	__counted_by_le(_x)
+#define	__counted_by_be(_x)		__counted_by(_x)
 #endif
 
 #define	likely(x)			__builtin_expect(!!(x), 1)
@@ -129,5 +137,11 @@
 
 #define is_signed_type(t)	((t)-1 < (t)1)
 #define is_unsigned_type(t)	((t)-1 > (t)1)
+
+#if __has_builtin(__builtin_dynamic_object_size)
+#define	__struct_size(_s)	__builtin_dynamic_object_size(_s, 0)
+#else
+#define	__struct_size(_s)	__builtin_object_size(_s, 0)
+#endif
 
 #endif	/* _LINUXKPI_LINUX_COMPILER_H_ */

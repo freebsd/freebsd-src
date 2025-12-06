@@ -3773,6 +3773,10 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 
 	rinfo = iwm_tx_fill_cmd(sc, in, m, tx);
 
+	/* Offloaded sequence number assignment; non-AMPDU case */
+	if ((m->m_flags & M_AMPDU_MPDU) == 0)
+		ieee80211_output_seqno_assign(ni, -1, m);
+
 	/* Encrypt the frame if need be. */
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		/* Retrieve key for TX && do software encryption. */
@@ -6142,7 +6146,8 @@ iwm_attach(device_t dev)
 //	    IEEE80211_C_BGSCAN		/* capable of bg scanning */
 	    ;
 	/* Advertise full-offload scanning */
-	ic->ic_flags_ext = IEEE80211_FEXT_SCAN_OFFLOAD;
+	ic->ic_flags_ext |= IEEE80211_FEXT_SCAN_OFFLOAD;
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
 	for (i = 0; i < nitems(sc->sc_phyctxt); i++) {
 		sc->sc_phyctxt[i].id = i;
 		sc->sc_phyctxt[i].color = 0;

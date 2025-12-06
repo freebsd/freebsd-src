@@ -949,8 +949,10 @@ racct_proc_exit(struct proc *p)
 }
 
 /*
- * Called after credentials change, to move resource utilisation
- * between raccts.
+ * Called to signal credentials change, to move resource utilisation
+ * between raccts.  Must be called with the proc lock held, in the same span as
+ * the credentials change itself (i.e., without the proc lock being unlocked
+ * between the two), but the order does not matter.
  */
 void
 racct_proc_ucred_changed(struct proc *p, struct ucred *oldcred,
@@ -1236,15 +1238,19 @@ racct_updatepcpu_containers(void)
 	    racct_updatepcpu_post, NULL, NULL);
 }
 
+static bool
+racct_proc_to_skip(const struct proc *p)
+{
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	return (p->p_state != PRS_NORMAL || (p->p_flag & P_IDLEPROC) != 0);
+}
+
 static void
 racctd(void)
 {
 	struct proc *p;
-	struct proc *idle;
 
 	ASSERT_RACCT_ENABLED();
-
-	idle = STAILQ_FIRST(&cpuhead)->pc_idlethread->td_proc;
 
 	for (;;) {
 		racct_decay();
@@ -1253,12 +1259,7 @@ racctd(void)
 
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
-			if (p == idle) {
-				PROC_UNLOCK(p);
-				continue;
-			}
-			if (p->p_state != PRS_NORMAL ||
-			    (p->p_flag & P_IDLEPROC) != 0) {
+			if (racct_proc_to_skip(p)) {
 				PROC_UNLOCK(p);
 				continue;
 			}
@@ -1284,7 +1285,7 @@ racctd(void)
 		 */
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
-			if (p->p_state != PRS_NORMAL) {
+			if (racct_proc_to_skip(p)) {
 				PROC_UNLOCK(p);
 				continue;
 			}
@@ -1312,7 +1313,7 @@ static struct kproc_desc racctd_kp = {
 };
 
 static void
-racctd_init(void)
+racctd_init(void *dummy __unused)
 {
 	if (!racct_enable)
 		return;
@@ -1322,7 +1323,7 @@ racctd_init(void)
 SYSINIT(racctd, SI_SUB_RACCTD, SI_ORDER_FIRST, racctd_init, NULL);
 
 static void
-racct_init(void)
+racct_init(void *dummy __unused)
 {
 	if (!racct_enable)
 		return;

@@ -35,6 +35,7 @@
 #include <sys/malloc.h>
 #include <sys/bus.h>
 #include <sys/cpu.h>
+#include <sys/smp.h>
 #include <machine/bus.h>
 
 #include <dev/ofw/openfirm.h>
@@ -85,7 +86,8 @@ static driver_t ofw_cpulist_driver = {
 	sizeof(struct ofw_cpulist_softc)
 };
 
-DRIVER_MODULE(ofw_cpulist, ofwbus, ofw_cpulist_driver, 0, 0);
+EARLY_DRIVER_MODULE(ofw_cpulist, ofwbus, ofw_cpulist_driver, 0, 0,
+    BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);
 
 static int
 ofw_cpulist_probe(device_t dev)
@@ -180,7 +182,8 @@ static driver_t ofw_cpu_driver = {
 	sizeof(struct ofw_cpu_softc)
 };
 
-DRIVER_MODULE(ofw_cpu, cpulist, ofw_cpu_driver, 0, 0);
+EARLY_DRIVER_MODULE(ofw_cpu, cpulist, ofw_cpu_driver, 0, 0,
+    BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);
 
 static bool
 ofw_cpu_is_runnable(phandle_t node)
@@ -278,6 +281,28 @@ ofw_cpu_attach(device_t dev)
 	} else
 		sc->sc_reg_valid = true;
 
+#ifdef __aarch64__
+	if (sc->sc_reg_valid) {
+		uint64_t target_mpidr;
+
+		target_mpidr = sc->sc_reg[0];
+		if (psc->sc_addr_cells > 1) {
+			MPASS(psc->sc_addr_cells == 2);
+			target_mpidr <<= 32;
+			target_mpidr |= sc->sc_reg[1];
+		}
+		target_mpidr &= CPU_AFF_MASK;
+		for (int cpu = 0; cpu <= mp_maxid; cpu++) {
+			if (cpuid_to_pcpu[cpu] == NULL)
+				continue;
+
+			if (cpuid_to_pcpu[cpu]->pc_mpidr == target_mpidr) {
+				sc->sc_cpu_pcpu = cpuid_to_pcpu[cpu];
+				break;
+			}
+		}
+	}
+#endif
 #ifdef __powerpc__
 	/*
 	 * On powerpc, "interrupt-servers" denotes a SMT CPU.  Look for any
@@ -313,9 +338,10 @@ ofw_cpu_attach(device_t dev)
 			device_printf(dev, "No CPU found for this device.\n");
 			return (ENXIO);
 		}
-	} else
+	}
 #endif
-	sc->sc_cpu_pcpu = pcpu_find(device_get_unit(dev));
+	if (sc->sc_cpu_pcpu == NULL)
+		sc->sc_cpu_pcpu = pcpu_find(device_get_unit(dev));
 
 	if (OF_getencprop(node, "clock-frequency", &cell, sizeof(cell)) < 0) {
 		if (get_freq_from_clk(dev, sc) != 0) {
@@ -330,6 +356,7 @@ ofw_cpu_attach(device_t dev)
 		device_printf(dev, "Nominal frequency %dMhz\n",
 		    sc->sc_nominal_mhz);
 
+	OF_device_register_xref(OF_xref_from_node(node), dev);
 	bus_identify_children(dev);
 	bus_attach_children(dev);
 	return (0);

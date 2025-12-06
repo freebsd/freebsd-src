@@ -58,7 +58,10 @@ cpow(double complex a, double complex z)
 	y = cimag (z);
 	absa = cabs (a);
 	if (absa == 0.0) {
-		return (CMPLX(0.0, 0.0));
+		if (x == 0 && y == 0)
+		    return (CMPLX(1., 0.));
+		else
+		    return (CMPLX(0., 0.));
 	}
 	arga = carg (a);
 	r = pow (absa, x);

@@ -419,11 +419,6 @@ feed_eq_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 	return (dst - b);
 }
 
-static struct pcm_feederdesc feeder_eq_desc[] = {
-	{ FEEDER_EQ, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0 }
-};
-
 static kobj_method_t feeder_eq_methods[] = {
 	KOBJMETHOD(feeder_init,		feed_eq_init),
 	KOBJMETHOD(feeder_free,		feed_eq_free),
@@ -432,7 +427,7 @@ static kobj_method_t feeder_eq_methods[] = {
 	KOBJMETHOD_END
 };
 
-FEEDER_DECLARE(feeder_eq, NULL);
+FEEDER_DECLARE(feeder_eq, FEEDER_EQ);
 
 static int32_t
 feed_eq_scan_preamp_arg(const char *s)

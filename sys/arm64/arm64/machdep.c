@@ -173,16 +173,20 @@ SYSINIT(ssp_warn, SI_SUB_COPYRIGHT, SI_ORDER_ANY, print_ssp_warning, NULL);
 SYSINIT(ssp_warn2, SI_SUB_LAST, SI_ORDER_ANY, print_ssp_warning, NULL);
 #endif
 
-static bool
+static cpu_feat_en
 pan_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 {
 	uint64_t id_aa64mfr1;
 
-	id_aa64mfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
-	return (ID_AA64MMFR1_PAN_VAL(id_aa64mfr1) != ID_AA64MMFR1_PAN_NONE);
+	if (!get_kernel_reg(ID_AA64MMFR1_EL1, &id_aa64mfr1))
+		return (FEAT_ALWAYS_DISABLE);
+	if (ID_AA64MMFR1_PAN_VAL(id_aa64mfr1) == ID_AA64MMFR1_PAN_NONE)
+		return (FEAT_ALWAYS_DISABLE);
+
+	return (FEAT_DEFAULT_ENABLE);
 }
 
-static void
+static bool
 pan_enable(const struct cpu_feat *feat __unused,
     cpu_feat_errata errata_status __unused, u_int *errata_list __unused,
     u_int errata_count __unused)
@@ -200,15 +204,20 @@ pan_enable(const struct cpu_feat *feat __unused,
 	    ".arch_extension pan	\n"
 	    "msr pan, #1		\n"
 	    ".arch_extension nopan	\n");
+
+	return (true);
 }
 
-static struct cpu_feat feat_pan = {
-	.feat_name		= "FEAT_PAN",
-	.feat_check		= pan_check,
-	.feat_enable		= pan_enable,
-	.feat_flags		= CPU_FEAT_EARLY_BOOT | CPU_FEAT_PER_CPU,
-};
-DATA_SET(cpu_feat_set, feat_pan);
+static void
+pan_disabled(const struct cpu_feat *feat __unused)
+{
+	if (PCPU_GET(cpuid) == 0)
+		update_special_reg(ID_AA64MMFR1_EL1, ID_AA64MMFR1_PAN_MASK, 0);
+}
+
+CPU_FEAT(feat_pan, "Privileged access never",
+    pan_check, NULL, pan_enable, pan_disabled,
+    CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU);
 
 bool
 has_hyp(void)
@@ -857,7 +866,7 @@ initarm(struct arm64_bootparams *abp)
 
 	cninit();
 	set_ttbr0(abp->kern_ttbr0);
-	cpu_tlb_flushID();
+	pmap_s1_invalidate_all_kernel();
 
 	if (!valid)
 		panic("Invalid bus configuration: %s",

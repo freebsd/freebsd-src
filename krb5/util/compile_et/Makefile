@@ -1,13 +1,11 @@
 #
-# SPDX-License-Idendifier: BSD-2-Clause
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2025 FreeBSD Foundation
 #
 # This sofware was developed by Cy Schubert <cy@FreeBSD.org>
 # under sponsorship from the FreeBSD Foundation.
 #
-
-PACKAGE=	kerberos
 
 .include "../Makefile.inc"
 
@@ -18,6 +16,7 @@ SCRIPTS=	compile_et
 BINDIR?=	/usr/bin
 MAN=		compile_et.1
 CLEANFILES=	compile_et
+TAGS+=		dev
 
 compile_et: compile_et.sh
 	sh ${SRC_ETDIR}/config_script ${SRC_ETDIR}/compile_et.sh \

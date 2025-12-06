@@ -4,7 +4,7 @@
 
 ZFS_MODULE_CFLAGS += -std=gnu99 -Wno-declaration-after-statement
 ZFS_MODULE_CFLAGS += -Wmissing-prototypes
-ZFS_MODULE_CFLAGS += @KERNEL_DEBUG_CFLAGS@  @NO_FORMAT_ZERO_LENGTH@
+ZFS_MODULE_CFLAGS += @KERNEL_DEBUG_CFLAGS@ @KERNEL_NO_FORMAT_ZERO_LENGTH@
 
 ifneq ($(KBUILD_EXTMOD),)
 zfs_include = @abs_top_srcdir@/include
@@ -135,6 +135,7 @@ ICP_OBJS_X86_64 := \
 	asm-x86_64/sha2/sha256-x86_64.o \
 	asm-x86_64/sha2/sha512-x86_64.o \
 	asm-x86_64/modes/aesni-gcm-x86_64.o \
+	asm-x86_64/modes/aesni-gcm-avx2-vaes.o \
 	asm-x86_64/modes/gcm_pclmulqdq.o \
 	asm-x86_64/modes/ghash-x86_64.o
 
@@ -292,10 +293,9 @@ ZSTD_UPSTREAM_OBJS := \
 
 zfs-objs += $(addprefix zstd/,$(ZSTD_OBJS) $(ZSTD_UPSTREAM_OBJS))
 
-# Disable aarch64 neon SIMD instructions for kernel mode
 $(addprefix $(obj)/zstd/,$(ZSTD_OBJS) $(ZSTD_UPSTREAM_OBJS)) : ccflags-y += -I$(zstd_include) $(ZFS_ZSTD_FLAGS)
 $(addprefix $(obj)/zstd/,$(ZSTD_OBJS) $(ZSTD_UPSTREAM_OBJS)) : asflags-y += -I$(zstd_include)
-$(addprefix $(obj)/zstd/,$(ZSTD_UPSTREAM_OBJS)) : ccflags-y += -include $(zstd_include)/aarch64_compat.h -include $(zstd_include)/zstd_compat_wrapper.h -Wp,-w
+$(addprefix $(obj)/zstd/,$(ZSTD_UPSTREAM_OBJS)) : ccflags-y += -include $(zstd_include)/zstd_compat_wrapper.h -Wp,-w
 $(obj)/zstd/zfs_zstd.o : ccflags-y += -include $(zstd_include)/zstd_compat_wrapper.h
 
 

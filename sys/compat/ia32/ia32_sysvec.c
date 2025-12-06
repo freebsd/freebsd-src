@@ -145,7 +145,7 @@ struct sysentvec ia32_freebsd_sysvec = {
 };
 INIT_SYSENTVEC(elf_ia32_sysvec, &ia32_freebsd_sysvec);
 
-static Elf32_Brandinfo ia32_brand_info = {
+static const Elf32_Brandinfo ia32_brand_info = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_386,
 	.compat_3_brand	= "FreeBSD",
@@ -155,12 +155,10 @@ static Elf32_Brandinfo ia32_brand_info = {
 	.brand_note	= &elf32_freebsd_brandnote,
 	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
+C_SYSINIT(ia32, SI_SUB_EXEC, SI_ORDER_MIDDLE,
+    (sysinit_cfunc_t)elf32_insert_brand_entry, &ia32_brand_info);
 
-SYSINIT(ia32, SI_SUB_EXEC, SI_ORDER_MIDDLE,
-	(sysinit_cfunc_t) elf32_insert_brand_entry,
-	&ia32_brand_info);
-
-static Elf32_Brandinfo ia32_brand_oinfo = {
+static const Elf32_Brandinfo ia32_brand_oinfo = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_386,
 	.compat_3_brand	= "FreeBSD",
@@ -170,12 +168,10 @@ static Elf32_Brandinfo ia32_brand_oinfo = {
 	.brand_note	= &elf32_freebsd_brandnote,
 	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
+C_SYSINIT(oia32, SI_SUB_EXEC, SI_ORDER_ANY,
+    (sysinit_cfunc_t)elf32_insert_brand_entry, &ia32_brand_oinfo);
 
-SYSINIT(oia32, SI_SUB_EXEC, SI_ORDER_ANY,
-	(sysinit_cfunc_t) elf32_insert_brand_entry,
-	&ia32_brand_oinfo);
-
-static Elf32_Brandinfo kia32_brand_info = {
+static const Elf32_Brandinfo kia32_brand_info = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_386,
 	.compat_3_brand	= "FreeBSD",
@@ -184,10 +180,8 @@ static Elf32_Brandinfo kia32_brand_info = {
 	.brand_note	= &elf32_kfreebsd_brandnote,
 	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE_MANDATORY
 };
-
-SYSINIT(kia32, SI_SUB_EXEC, SI_ORDER_ANY,
-	(sysinit_cfunc_t) elf32_insert_brand_entry,
-	&kia32_brand_info);
+C_SYSINIT(kia32, SI_SUB_EXEC, SI_ORDER_ANY,
+    (sysinit_cfunc_t)elf32_insert_brand_entry, &kia32_brand_info);
 
 void
 elf32_dump_thread(struct thread *td, void *dst, size_t *off)

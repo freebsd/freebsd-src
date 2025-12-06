@@ -17,7 +17,7 @@ typedef	struct	{
 
 static ipf_error_entry_t *find_error(int);
 
-#define	IPF_NUM_ERRORS	477
+#define	IPF_NUM_ERRORS	sizeof(ipf_errors) / sizeof(ipf_error_entry_t)
 
 /*
  * NO REUSE OF NUMBERS!
@@ -25,7 +25,7 @@ static ipf_error_entry_t *find_error(int);
  * IF YOU WANT TO ADD AN ERROR TO THIS TABLE, _ADD_ A NEW NUMBER.
  * DO _NOT_ USE AN EMPTY NUMBER OR FILL IN A GAP.
  */
-static ipf_error_entry_t ipf_errors[IPF_NUM_ERRORS] = {
+static ipf_error_entry_t ipf_errors[] = {
 	{	1,	"auth table locked/full" },
 	{	2,	"" },
 	{	3,	"copyinptr received bad address" },
@@ -177,6 +177,11 @@ static ipf_error_entry_t ipf_errors[IPF_NUM_ERRORS] = {
 	{	149,	"object size validation failed for kernel copyout" },
 	{	150,	"error copying data out for kernel copyout" },
 	{	151,	"version mismatch for kernel copyout" },
+	{	152,	"fr_names offset is wrapped negative" },
+	{	153,	"fr_names larger than fr_namelen" },
+	{	154,	"frentry larger than fr_size" },
+	{	155,	"frentry and fr_namelen mismatch fr_size" },
+	{	156,	"fr_namelen too large" },
 /* -------------------------------------------------------------------------- */
 	{	10001,	"could not find token for auth iterator" },
 	{	10002,	"write permissions require to add/remove auth rule" },
@@ -228,6 +233,8 @@ static ipf_error_entry_t ipf_errors[IPF_NUM_ERRORS] = {
 	{	30024,	"object size incorrect for hash table" },
 	{	30025,	"hash table size must be at least 1"},
 	{	30026,	"cannot allocate memory for hash table context" },
+	{	30027,	"hash table larger than maximum allowed" },
+	{	30028,	"hash table multiplication overflow" },
 /* -------------------------------------------------------------------------- */
 	{	40001,	"invalid minor device number for log read" },
 	{	40002,	"read size too small" },
@@ -356,6 +363,12 @@ log" },
 	{	60074,	"unknown next address type (ipv6)" },
 	{	60075,	"one object at a time must be copied" },
 	{	60076,	"NAT ioctl denied in jail without VNET" },
+	{	60077,	"in_names offset is wrapped negative" },
+	{	60078,	"in_names larger than in_namelen" },
+	{	60079,	"ipnat larger than in_size" },
+	{	60080,	"ipnat and in_namelen mismatch in_size" },
+	{	60081,	"ip_names runs off the end of ipnat" },
+	{	60082,	"in_namelen too large" },
 /* -------------------------------------------------------------------------- */
 	{	70001,	"incorrect object size to get pool stats" },
 	{	70002,	"could not malloc memory for new pool node" },

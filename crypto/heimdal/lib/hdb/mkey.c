@@ -32,6 +32,7 @@
  */
 
 #include "hdb_locl.h"
+#include <assert.h>
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
@@ -40,6 +41,7 @@ struct hdb_master_key_data {
     krb5_keytab_entry keytab;
     krb5_crypto crypto;
     struct hdb_master_key_data *next;
+    unsigned int key_usage;
 };
 
 void
@@ -68,6 +70,7 @@ hdb_process_master_key(krb5_context context,
 	krb5_set_error_message(context, ENOMEM, "malloc: out of memory");
 	return ENOMEM;
     }
+    (*mkey)->key_usage = HDB_KU_MKEY;
     (*mkey)->keytab.vno = kvno;
     ret = krb5_parse_name(context, "K/M", &(*mkey)->keytab.principal);
     if(ret)
@@ -362,6 +365,15 @@ hdb_write_master_key(krb5_context context, const char *filename,
     return ret;
 }
 
+krb5_error_code
+_hdb_set_master_key_usage(krb5_context context, HDB *db, unsigned int key_usage)
+{
+    if (db->hdb_master_key_set == 0)
+	return HDB_ERR_NO_MKEY;
+    db->hdb_master_key->key_usage = key_usage;
+    return 0;
+}
+
 hdb_master_key
 _hdb_find_master_key(uint32_t *mkvno, hdb_master_key mkey)
 {
@@ -403,15 +415,20 @@ _hdb_mkey_encrypt(krb5_context context, hdb_master_key key,
 			ptr, size, res);
 }
 
-krb5_error_code
-hdb_unseal_key_mkey(krb5_context context, Key *k, hdb_master_key mkey)
+/*
+ * Unseal and optionally reseal the key in the MIT KDC master key.
+ * If mit_key != NULL, the key is sealed using this key.
+ */
+static krb5_error_code
+_hdb_reseal_key_mkey(krb5_context context, Key *k, hdb_master_key mkey,
+    hdb_master_key mit_key)
 {
 
     krb5_error_code ret;
-    krb5_data res;
+    krb5_data mitres, res;
     size_t keysize;
 
-    hdb_master_key key;
+    hdb_master_key key, mitkey;
 
     if(k->mkvno == NULL)
 	return 0;
@@ -428,9 +445,9 @@ hdb_unseal_key_mkey(krb5_context context, Key *k, hdb_master_key mkey)
     if(ret == KRB5KRB_AP_ERR_BAD_INTEGRITY) {
 	/* try to decrypt with MIT key usage */
 	ret = _hdb_mkey_decrypt(context, key, 0,
-				k->key.keyvalue.data,
-				k->key.keyvalue.length,
-				&res);
+			    k->key.keyvalue.data,
+			    k->key.keyvalue.length,
+			    &res);
     }
     if (ret)
 	return ret;
@@ -446,25 +463,81 @@ hdb_unseal_key_mkey(krb5_context context, Key *k, hdb_master_key mkey)
 	return KRB5_BAD_KEYSIZE;
     }
 
-    memset(k->key.keyvalue.data, 0, k->key.keyvalue.length);
-    free(k->key.keyvalue.data);
-    k->key.keyvalue = res;
-    k->key.keyvalue.length = keysize;
-    free(k->mkvno);
-    k->mkvno = NULL;
+    /* For mit_key != NULL, re-encrypt the key using the mitkey. */
+    if (mit_key != NULL) {
+	mitkey = _hdb_find_master_key(NULL, mit_key);
+	if (mitkey == NULL) {
+	    krb5_data_free(&res);
+	    return HDB_ERR_NO_MKEY;
+	}
+
+	ret = _hdb_mkey_encrypt(context, mitkey, 0,
+			    res.data,
+			    keysize,
+			    &mitres);
+	krb5_data_free(&res);
+	if (ret)
+	    return ret;
+    }
+
+    krb5_data_free(&k->key.keyvalue);
+    if (mit_key == NULL) {
+	k->key.keyvalue = res;
+	k->key.keyvalue.length = keysize;
+	free(k->mkvno);
+	k->mkvno = NULL;
+    } else {
+	k->key.keyvalue = mitres;
+	*k->mkvno = mitkey->keytab.vno;
+    }
 
     return 0;
 }
 
 krb5_error_code
-hdb_unseal_keys_mkey(krb5_context context, hdb_entry *ent, hdb_master_key mkey)
+hdb_unseal_key_mkey(krb5_context context, Key *k, hdb_master_key mkey)
 {
+
+    krb5_error_code ret;
+
+    ret = _hdb_reseal_key_mkey(context, k, mkey, NULL);
+    return ret;
+}
+
+static krb5_error_code
+_hdb_unseal_keys_mkey(krb5_context context, hdb_entry *ent, hdb_master_key mkey,
+    hdb_master_key mitkey)
+{
+    krb5_error_code ret;
     size_t i;
+    int got_one = 0;
 
     for(i = 0; i < ent->keys.len; i++){
-	krb5_error_code ret;
+	if (mitkey == NULL || mit_strong_etype(ent->keys.val[i].key.keytype)) {
+	    ret = _hdb_reseal_key_mkey(context, &ent->keys.val[i], mkey,
+		mitkey);
+	    if (ret)
+		return ret;
+	    got_one = 1;
+	}
+    }
 
-	ret = hdb_unseal_key_mkey(context, &ent->keys.val[i], mkey);
+    /*
+     * If none of the keys were string enough, create a strong key,
+     * but one that is not encrypted in the MIT master key.  As such,
+     * it will require a "change_password" once in the MIT KDC to
+     * make it work.
+     */
+    if (got_one == 0 && mitkey != NULL && ent->keys.len > 0) {
+	krb5_keyblock key;
+	krb5_salt salt;
+
+	krb5_free_keyblock_contents(context, &ent->keys.val[0].key);
+	salt.salttype = KRB5_PW_SALT;
+	salt.saltvalue.data = NULL;
+	salt.saltvalue.length = 0;
+	ret = krb5_string_to_key_salt(context, ETYPE_AES256_CTS_HMAC_SHA1_96,
+	    "XXXX", salt, &ent->keys.val[0].key);
 	if (ret)
 	    return ret;
     }
@@ -472,19 +545,114 @@ hdb_unseal_keys_mkey(krb5_context context, hdb_entry *ent, hdb_master_key mkey)
 }
 
 krb5_error_code
+hdb_unseal_keys_mkey(krb5_context context, hdb_entry *ent, hdb_master_key mkey)
+{
+    krb5_error_code ret;
+
+    ret = _hdb_unseal_keys_mkey(context, ent, mkey, NULL);
+    return ret;
+}
+
+krb5_error_code
 hdb_unseal_keys(krb5_context context, HDB *db, hdb_entry *ent)
 {
     if (db->hdb_master_key_set == 0)
 	return 0;
-    return hdb_unseal_keys_mkey(context, ent, db->hdb_master_key);
+    if (db->hdb_mit_key_set != 0)
+	return _hdb_unseal_keys_mkey(context, ent, db->hdb_master_key,
+	    db->hdb_mit_key);
+    else
+	return _hdb_unseal_keys_mkey(context, ent, db->hdb_master_key,
+	    NULL);
 }
+
+#ifdef notnow
+krb5_error_code
+hdb_unseal_keys_kvno(krb5_context context, HDB *db, krb5_kvno kvno,
+		     hdb_entry *ent)
+{
+    krb5_error_code ret = KRB5KRB_AP_ERR_NOKEY;	/* XXX need a better code? */
+    HDB_extension *tmp;
+    HDB_Ext_KeySet *hist_keys;
+    hdb_keyset *tmp_keys;
+    Key *tmp_val;
+    unsigned int tmp_len;
+    krb5_kvno tmp_kvno;
+    int i, k;
+
+    assert(kvno == 0 || kvno < ent->kvno);
+
+    tmp = hdb_find_extension(ent, choice_HDB_extension_data_hist_keys);
+    if (tmp == NULL)
+	return ret;
+
+    tmp_len = ent->keys.len;
+    tmp_val = ent->keys.val;
+    tmp_kvno = ent->kvno;
+
+    hist_keys = &tmp->data.u.hist_keys;
+
+    for (i = hist_keys->len - 1; i >= 0; i++) {
+	if (kvno != 0 && hist_keys->val[i].kvno != kvno)
+	    continue;
+	for (k = 0; k < hist_keys->val[i].keys.len; k++) {
+	    ret = _hdb_reseal_key_mkey(context,
+				      &hist_keys->val[i].keys.val[k],
+				      db->hdb_master_key, NULL);
+	    if (ret)
+		return (ret);
+	}
+
+	if (kvno == 0)
+	    continue;
+
+	/*
+	 * NOTE: What follows is a bit of an ugly hack.
+	 *
+	 * This is the keyset we're being asked for, so we add the
+	 * current keyset to the history, leave the one we were asked
+	 * for in the history, and pretend the one we were asked for is
+	 * also the current keyset.
+	 *
+	 * This is a bit of a defensive hack in case an entry fetched
+	 * this way ever gets modified then stored: if the keyset is not
+	 * changed we can detect this and put things back, else we won't
+	 * drop any keysets from history by accident.
+	 *
+	 * Note too that we only ever get called with a non-zero kvno
+	 * either in the KDC or in cases where we aren't changing the
+	 * HDB entry anyways, which is why this is just a defensive
+	 * hack.  We also don't fetch specific kvnos in the dump case,
+	 * so there's no danger that we'll dump this entry and load it
+	 * again, repeatedly causing the history to grow boundelessly.
+	 */
+	tmp_keys = realloc(hist_keys->val,
+		      sizeof (*hist_keys->val) * (hist_keys->len + 1));
+	if (tmp_keys == NULL)
+	    return ENOMEM;
+
+	memmove(&tmp_keys[1], tmp_keys,
+		sizeof (*hist_keys->val) * hist_keys->len++);
+	tmp_keys[0].keys.len = ent->keys.len;
+	tmp_keys[0].keys.val = ent->keys.val;
+	tmp_keys[0].kvno = ent->kvno;
+	tmp_keys[0].replace_time = time(NULL);
+	i++;
+	ent->keys.len = hist_keys->val[i].keys.len;
+	ent->keys.val = hist_keys->val[i].keys.val;
+	ent->kvno = kvno;
+    }
+
+    return (ret);
+}
+#endif
 
 krb5_error_code
 hdb_unseal_key(krb5_context context, HDB *db, Key *k)
 {
     if (db->hdb_master_key_set == 0)
 	return 0;
-    return hdb_unseal_key_mkey(context, k, db->hdb_master_key);
+    return _hdb_reseal_key_mkey(context, k, db->hdb_master_key, NULL);
 }
 
 krb5_error_code
@@ -556,9 +724,9 @@ hdb_seal_key(krb5_context context, HDB *db, Key *k)
 }
 
 krb5_error_code
-hdb_set_master_key (krb5_context context,
-		    HDB *db,
-		    krb5_keyblock *key)
+hdb_set_master_key(krb5_context context,
+		   HDB *db,
+		   krb5_keyblock *key)
 {
     krb5_error_code ret;
     hdb_master_key mkey;
@@ -571,6 +739,7 @@ hdb_set_master_key (krb5_context context,
     des_set_random_generator_seed(key.keyvalue.data);
 #endif
     db->hdb_master_key_set = 1;
+    db->hdb_master_key->key_usage = HDB_KU_MKEY;
     return 0;
 }
 

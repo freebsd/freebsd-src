@@ -1118,7 +1118,8 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	case e1000_82574:
 	case e1000_82583:
 		reg_data = E1000_READ_REG(hw, E1000_GCR);
-		reg_data |= E1000_GCR_L1_ACT_WITHOUT_L0S_RX;
+		/* 82574 Errata 25, 82583 Errata 12 */
+		reg_data &= ~E1000_GCR_L1_ACT_WITHOUT_L0S_RX;
 		E1000_WRITE_REG(hw, E1000_GCR, reg_data);
 		break;
 	default:

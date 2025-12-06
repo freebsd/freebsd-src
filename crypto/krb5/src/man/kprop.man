@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "KPROP" "8" " " "1.22" "MIT Kerberos"
+.TH "KPROP" "8" " " "1.22.1" "MIT Kerberos"
 .SH NAME
 kprop \- propagate a Kerberos V5 principal database to a replica server
 .SH SYNOPSIS

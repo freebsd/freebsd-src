@@ -39,6 +39,23 @@
 
 #define	VIRT_BITS	48
 
+/*
+ * Loads a 64-bit value into reg using 1 to 4 mov/movk instructions.
+ * This can be used early on when we don't know the CPUs endianness.
+ */
+.macro	mov_q reg, val
+	mov	\reg, :abs_g0_nc:\val
+.if (\val >> 16) & 0xffff != 0
+	movk	\reg, :abs_g1_nc:\val
+.endif
+.if (\val >> 32) & 0xffff != 0
+	movk	\reg, :abs_g2_nc:\val
+.endif
+.if (\val >> 48) & 0xffff != 0
+	movk	\reg, :abs_g3:\val
+.endif
+.endm
+
 #if PAGE_SIZE == PAGE_SIZE_16K
 /*
  * The number of level 3 tables to create. 32 will allow for 1G of address
@@ -308,6 +325,19 @@ mp_virtdone:
 
 	b	init_secondary
 LEND(mpentry_common)
+
+ENTRY(mp_cpu_spinloop)
+0:
+	wfe
+	ldr	x0, mp_cpu_spin_table_release_addr
+	cbz	x0, 0b
+	blr	x0
+	.globl mp_cpu_spin_table_release_addr
+mp_cpu_spin_table_release_addr:
+	.quad	0
+	.globl mp_cpu_spinloop_end
+mp_cpu_spinloop_end:
+END(mp_cpu_spinloop)
 #endif
 
 /*
@@ -324,15 +354,23 @@ LENTRY(enter_kernel_el)
 	cmp	x23, #(CURRENTEL_EL_EL2)
 	b.eq	1f
 
-	ldr	x2, =SCTLR_MMU_OFF
+	/*
+	 * Ensure there are no memory operations here. If the boot loader
+	 * enters the kernel in big-endian mode then loading sctlr will
+	 * be incorrect. As instructions are the same in both endians it is
+	 * safe to use mov instructions.
+	 */
+	mov_q	x2, SCTLR_MMU_OFF
 	msr	sctlr_el1, x2
-	/* SCTLR_EOS is set so eret is a context synchronizing event so we
+	/*
+	 * SCTLR_EOS is set to make eret a context synchronizing event. We
 	 * need an isb here to ensure it's observed by later instructions,
 	 * but don't need it in the eret below.
 	 */
 	isb
 
-	/* Ensure SPSR_EL1 and pstate are in sync. The only wat to set the
+	/*
+	 * Ensure SPSR_EL1 and pstate are in sync. The only way to set the
 	 * latter is to set the former and return from an exception with eret.
 	 */
 	mov	x2, #(PSR_DAIF | PSR_M_EL1h)
@@ -346,10 +384,18 @@ LENTRY(enter_kernel_el)
 	 * Set just the reserved bits in sctlr_el2. This will disable the
 	 * MMU which may have broken the kernel if we enter the kernel in
 	 * EL2, e.g. when using VHE.
+	 *
+	 * As with sctlr_el1 above use mov instructions to ensure there are
+	 * no memory operations.
 	 */
-	ldr	x2, =(SCTLR_EL2_RES1 | SCTLR_EL2_EIS | SCTLR_EL2_EOS)
+	mov_q	x2, (SCTLR_EL2_RES1 | SCTLR_EL2_EIS | SCTLR_EL2_EOS)
 	msr	sctlr_el2, x2
 	isb
+
+	/*
+	 * The hardware is now in little-endian mode so memory operations
+	 * are safe.
+	 */
 
 	/* Configure the Hypervisor */
 	ldr	x2, =(HCR_RW | HCR_APK | HCR_API)
@@ -385,7 +431,7 @@ LENTRY(enter_kernel_el)
 
 	msr	SCTLR_EL12_REG, x2
 	mov	x2, xzr /* CPTR_EL2 is managed by vfp.c */
-	ldr	x3, =(CNTHCTL_E2H_EL1PCTEN | CNTHCTL_E2H_EL1PTEN)
+	ldr	x3, =(CNTHCTL_E2H_EL1PCTEN_NOTRAP | CNTHCTL_E2H_EL1PTEN_NOTRAP)
 	ldr	x5, =(PSR_DAIF | PSR_M_EL2h)
 	b	.Ldone_vhe
 
@@ -396,8 +442,12 @@ LENTRY(enter_kernel_el)
 	msr	vbar_el2, x2
 
 	ldr	x2, =(CPTR_RES1)
-	ldr	x3, =(CNTHCTL_EL1PCTEN | CNTHCTL_EL1PCEN)
+	ldr	x3, =(CNTHCTL_EL1PCTEN_NOTRAP | CNTHCTL_EL1PCEN_NOTRAP)
 	ldr	x5, =(PSR_DAIF | PSR_M_EL1h)
+
+	/* Enable SPE at EL1 via Monitor Debug Configuration Register */
+	mov     x6, MDCR_EL2_E2PB_EL1_0_NO_TRAP
+	msr     mdcr_el2, x6
 
 .Ldone_vhe:
 
@@ -442,6 +492,29 @@ LENTRY(enter_kernel_el)
 	eret
 LEND(enter_kernel_el)
 
+/* Turn off the MMU.  Install ttbr0 from the bootstrap page table, and go there.
+ * Does not return.
+ * - x0 - target address to jump to after stopping the MMU.
+ * - x1 - kernel load address
+ */
+ENTRY(stop_mmu)
+	mov	x16, x0	/* Save target. */
+	ldr	x2, =(1f - KERNBASE)
+	add	x17, x1, x2
+	ldr	x3, =(pagetable_l0_ttbr0_bootstrap - KERNBASE)
+	add	x1, x1, x3
+	msr	ttbr0_el1, x1
+	isb
+	br	x17
+1:
+	BTI_J
+	mrs	x0, sctlr_el1
+	bic	x0, x0, SCTLR_M
+	bic	x0, x0, SCTLR_C
+	msr	sctlr_el1, x0
+	isb
+	br	x16
+END(stop_mmu)
 /*
  * Get the physical address the kernel was loaded at.
  */
@@ -1061,12 +1134,19 @@ tcr:
 	    TCR_SH0_IS | TCR_ORGN0_WBWA | TCR_IRGN0_WBWA)
 LEND(start_mmu)
 
+ENTRY(switch_stack)
+	mov	sp, x0
+	mov 	x16, x1
+	br	x16
+END(switch_stack)
+
 ENTRY(abort)
 	b abort
 END(abort)
 
 .bss
 	.align	PAGE_SHIFT
+	.globl	initstack_end
 initstack:
 	.space	BOOT_STACK_SIZE
 initstack_end:
@@ -1083,6 +1163,7 @@ initstack_end:
 	 *           L0 for user
 	 */
 	.globl pagetable_l0_ttbr1
+	.globl pagetable_l0_ttbr0_bootstrap
 pagetable:
 pagetable_l3_ttbr1:
 	.space	(PAGE_SIZE * L3_PAGE_COUNT)

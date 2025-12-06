@@ -107,6 +107,7 @@ properties:
               - compulab,cm-t335
               - moxa,uc-8100-me-t
               - novatech,am335x-lxm
+              - seeed,am335x-bone-green-eco
               - ti,am335x-bone
               - ti,am335x-evm
               - ti,am3359-icev2
@@ -138,6 +139,13 @@ properties:
               - motorola,xyboard-mz617
               - ti,omap4-panda
               - ti,omap4-sdp
+          - const: ti,omap4430
+          - const: ti,omap4
+
+      - description: OMAP4 PandaBoard Revision A4 and later
+        items:
+          - const: ti,omap4-panda-a4
+          - const: ti,omap4-panda
           - const: ti,omap4430
           - const: ti,omap4
 

@@ -26,6 +26,10 @@ arm64/acpica/OsdEnvironment.c			optional acpi
 arm64/acpica/acpi_wakeup.c			optional acpi
 arm64/acpica/pci_cfgreg.c			optional acpi pci
 arm64/arm64/autoconf.c				standard
+arm64/spe/arm_spe_backend.c			optional hwt spe
+arm64/spe/arm_spe_dev.c				optional hwt spe
+arm64/spe/arm_spe_acpi.c			optional hwt spe acpi
+arm64/spe/arm_spe_fdt.c				optional hwt spe fdt
 arm64/arm64/bus_machdep.c			standard
 arm64/arm64/bus_space_asm.S			standard
 arm64/arm64/busdma_bounce.c			standard
@@ -55,6 +59,7 @@ arm64/arm64/gic_v3_acpi.c			optional acpi
 arm64/arm64/gic_v3_fdt.c			optional fdt
 arm64/arm64/hyp_stub.S				standard
 arm64/arm64/identcpu.c				standard
+arm64/arm64/kexec_support.c			standard
 arm64/arm64/locore.S				standard no-obj
 arm64/arm64/machdep.c				standard
 arm64/arm64/machdep_boot.c			standard
@@ -73,6 +78,7 @@ arm64/arm64/pmap.c				standard
 arm64/arm64/ptrace_machdep.c			standard
 arm64/arm64/sdt_machdep.c			optional kdtrace_hooks
 arm64/arm64/sigtramp.S				standard
+arm64/arm64/spec_workaround.c			standard
 arm64/arm64/stack_machdep.c			optional ddb | stack
 arm64/arm64/strcmp.S				standard
 arm64/arm64/strncmp.S				standard
@@ -127,9 +133,11 @@ arm64/vmm/vmm_reset.c				optional vmm
 arm64/vmm/vmm_handlers.c			optional vmm
 arm64/vmm/vmm_call.S				optional vmm
 arm64/vmm/vmm_nvhe_exception.S			optional vmm		\
+	dependency	"$S/arm64/vmm/vmm_hyp_exception.S"		\
 	compile-with "${NOSAN_C} -fpie"					\
 	no-obj
 arm64/vmm/vmm_nvhe.c				optional vmm		\
+	dependency	"$S/arm64/vmm/vmm_hyp.c"			\
 	compile-with "${NOSAN_C} -fpie"					\
 	no-obj
 vmm_hyp_blob.elf.full				optional vmm		\
@@ -178,6 +186,8 @@ crypto/des/des_enc.c				optional netsmb
 crypto/openssl/ossl_aarch64.c			optional ossl
 crypto/openssl/aarch64/chacha-armv8.S		optional ossl		\
 	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} -I$S/crypto/openssl ${WERROR} ${.IMPSRC}"
+crypto/openssl/aarch64/chacha-armv8-sve.S	optional ossl		\
+	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} -I$S/crypto/openssl ${WERROR} ${.IMPSRC}"
 crypto/openssl/aarch64/poly1305-armv8.S		optional ossl		\
 	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} -I$S/crypto/openssl ${WERROR} ${.IMPSRC}"
 crypto/openssl/aarch64/sha1-armv8.S		optional ossl		\
@@ -198,6 +208,7 @@ dev/acpica/acpi_pxm.c				optional acpi
 dev/ahci/ahci_generic.c				optional ahci
 
 cddl/dev/dtrace/aarch64/dtrace_asm.S		optional dtrace compile-with "${DTRACE_S}"
+cddl/dev/dtrace/aarch64/dtrace_isa.c		optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/dtrace/aarch64/dtrace_subr.c		optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/fbt/aarch64/fbt_isa.c			optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 
@@ -584,23 +595,23 @@ arm/broadcom/bcm2835/bcm283x_dwc_fdt.c			optional dwcotg fdt soc_brcm_bcm2837 | 
 arm/broadcom/bcm2835/bcm2838_pci.c			optional soc_brcm_bcm2838 fdt pci
 arm/broadcom/bcm2835/bcm2838_xhci.c			optional soc_brcm_bcm2838 fdt pci xhci
 arm/broadcom/bcm2835/raspberrypi_gpio.c			optional soc_brcm_bcm2837 gpio fdt | soc_brcm_bcm2838 gpio fdt
-contrib/vchiq/interface/compat/vchi_bsd.c		optional vchiq soc_brcm_bcm2837 \
+contrib/vchiq/interface/compat/vchi_bsd.c		optional vchiq soc_brcm_bcm2837 fdt \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
-contrib/vchiq/interface/vchiq_arm/vchiq_2835_arm.c	optional vchiq soc_brcm_bcm2837 \
+contrib/vchiq/interface/vchiq_arm/vchiq_2835_arm.c	optional vchiq soc_brcm_bcm2837 fdt \
 	compile-with "${NORMAL_C} -Wno-unused -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
-contrib/vchiq/interface/vchiq_arm/vchiq_arm.c		optional vchiq soc_brcm_bcm2837 \
+contrib/vchiq/interface/vchiq_arm/vchiq_arm.c		optional vchiq soc_brcm_bcm2837 fdt \
 	compile-with "${NORMAL_C} -Wno-unused -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
-contrib/vchiq/interface/vchiq_arm/vchiq_connected.c	optional vchiq soc_brcm_bcm2837 \
+contrib/vchiq/interface/vchiq_arm/vchiq_connected.c	optional vchiq soc_brcm_bcm2837 fdt \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
-contrib/vchiq/interface/vchiq_arm/vchiq_core.c		optional vchiq soc_brcm_bcm2837 \
+contrib/vchiq/interface/vchiq_arm/vchiq_core.c		optional vchiq soc_brcm_bcm2837 fdt \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
-contrib/vchiq/interface/vchiq_arm/vchiq_kern_lib.c	optional vchiq soc_brcm_bcm2837 \
+contrib/vchiq/interface/vchiq_arm/vchiq_kern_lib.c	optional vchiq soc_brcm_bcm2837 fdt \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
-contrib/vchiq/interface/vchiq_arm/vchiq_kmod.c		optional vchiq soc_brcm_bcm2837 \
+contrib/vchiq/interface/vchiq_arm/vchiq_kmod.c		optional vchiq soc_brcm_bcm2837 fdt \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
-contrib/vchiq/interface/vchiq_arm/vchiq_shim.c		optional vchiq soc_brcm_bcm2837 \
+contrib/vchiq/interface/vchiq_arm/vchiq_shim.c		optional vchiq soc_brcm_bcm2837 fdt \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
-contrib/vchiq/interface/vchiq_arm/vchiq_util.c		optional vchiq soc_brcm_bcm2837 \
+contrib/vchiq/interface/vchiq_arm/vchiq_util.c		optional vchiq soc_brcm_bcm2837 fdt \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
 
 # Cavium

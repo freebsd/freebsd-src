@@ -42,15 +42,15 @@
  */
 
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/hwt.h>
+#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/sdt.h>
 #include <sys/smp.h>
-#include <sys/taskqueue.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -94,12 +94,7 @@
 
 MALLOC_DEFINE(M_PT, "pt", "Intel Processor Trace");
 
-SDT_PROVIDER_DEFINE(pt);
-SDT_PROBE_DEFINE(pt, , , topa__intr);
-
-TASKQUEUE_FAST_DEFINE_THREAD(pt);
-
-static void pt_send_buffer_record(void *arg, int pending __unused);
+static void pt_send_buffer_record(void *arg);
 static int pt_topa_intr(struct trapframe *tf);
 
 /*
@@ -122,29 +117,24 @@ struct pt_buffer {
 	size_t size;
 	struct mtx lock; /* Lock for fields below. */
 	vm_offset_t offset;
-	uint64_t wrap_count;
-	int curpage;
 };
 
 struct pt_ctx {
 	int id;
 	struct pt_buffer buf; /* ToPA buffer metadata */
-	struct task task;     /* ToPA buffer notification task */
 	struct hwt_context *hwt_ctx;
 	uint8_t *save_area; /* PT XSAVE area */
 };
 /* PT tracing contexts used for CPU mode. */
 static struct pt_ctx *pt_pcpu_ctx;
 
-enum pt_cpu_state {
-	PT_DISABLED = 0,
-	PT_STOPPED,
-	PT_ACTIVE
-};
+enum pt_cpu_state { PT_INACTIVE = 0, PT_ACTIVE };
 
 static struct pt_cpu {
 	struct pt_ctx *ctx;	 /* active PT tracing context */
 	enum pt_cpu_state state; /* used as part of trace stop protocol */
+	void *swi_cookie;	 /* Software interrupt handler context */
+	int in_pcint_handler;
 } *pt_pcpu;
 
 /*
@@ -199,31 +189,28 @@ static __inline void
 pt_update_buffer(struct pt_buffer *buf)
 {
 	uint64_t reg;
-	int curpage;
+	uint64_t offset;
 
 	/* Update buffer offset. */
 	reg = rdmsr(MSR_IA32_RTIT_OUTPUT_MASK_PTRS);
-	curpage = (reg & PT_TOPA_PAGE_MASK) >> PT_TOPA_PAGE_SHIFT;
-	mtx_lock_spin(&buf->lock);
-	/* Check if the output wrapped. */
-	if (buf->curpage > curpage)
-		buf->wrap_count++;
-	buf->curpage = curpage;
-	buf->offset = reg >> 32;
-	mtx_unlock_spin(&buf->lock);
+	offset = ((reg & PT_TOPA_PAGE_MASK) >> PT_TOPA_PAGE_SHIFT) * PAGE_SIZE;
+	offset += (reg >> 32);
 
-	dprintf("%s: wrap_cnt: %lu, curpage: %d, offset: %zu\n", __func__,
-	    buf->wrap_count, buf->curpage, buf->offset);
+	atomic_store_rel_64(&buf->offset, offset);
 }
 
 static __inline void
 pt_fill_buffer_record(int id, struct pt_buffer *buf,
     struct hwt_record_entry *rec)
 {
+	vm_offset_t offset;
+
+	offset = atomic_load_acq_64(&buf->offset);
+
 	rec->record_type = HWT_RECORD_BUFFER;
 	rec->buf_id = id;
-	rec->curpage = buf->curpage;
-	rec->offset = buf->offset + (buf->wrap_count * buf->size);
+	rec->curpage = offset / PAGE_SIZE;
+	rec->offset = offset & PAGE_MASK;
 }
 
 /*
@@ -273,9 +260,9 @@ pt_cpu_start(void *dummy)
 	MPASS(cpu->ctx != NULL);
 
 	dprintf("%s: curcpu %d\n", __func__, curcpu);
+	pt_cpu_set_state(curcpu, PT_ACTIVE);
 	load_cr4(rcr4() | CR4_XSAVE);
 	wrmsr(MSR_IA32_RTIT_STATUS, 0);
-	pt_cpu_set_state(curcpu, PT_ACTIVE);
 	pt_cpu_toggle_local(cpu->ctx->save_area, true);
 }
 
@@ -291,16 +278,16 @@ pt_cpu_stop(void *dummy)
 	struct pt_cpu *cpu;
 	struct pt_ctx *ctx;
 
-	/* Shutdown may occur before PT gets properly configured. */
-	if (pt_cpu_get_state(curcpu) == PT_DISABLED)
-		return;
-
 	cpu = &pt_pcpu[curcpu];
 	ctx = cpu->ctx;
-	MPASS(ctx != NULL);
-	dprintf("%s: curcpu %d\n", __func__, curcpu);
 
-	pt_cpu_set_state(curcpu, PT_STOPPED);
+	dprintf("%s: curcpu %d\n", __func__, curcpu);
+	/* Shutdown may occur before PT gets properly configured. */
+	if (ctx == NULL) {
+		dprintf("%s: missing context on cpu %d; bailing\n", __func__,
+		    curcpu);
+		return;
+	}
 	pt_cpu_toggle_local(cpu->ctx->save_area, false);
 	pt_update_buffer(&ctx->buf);
 }
@@ -406,13 +393,11 @@ pt_init_ctx(struct pt_ctx *pt_ctx, struct hwt_vm *vm, int ctx_id)
 		return (ENOMEM);
 	dprintf("%s: preparing ToPA buffer\n", __func__);
 	if (pt_topa_prepare(pt_ctx, vm) != 0) {
-		dprintf("%s: failed to prepare ToPA buffer\n", __func__);
 		free(pt_ctx->save_area, M_PT);
 		return (ENOMEM);
 	}
 
 	pt_ctx->id = ctx_id;
-	TASK_INIT(&pt_ctx->task, 0, pt_send_buffer_record, pt_ctx);
 
 	return (0);
 }
@@ -426,7 +411,6 @@ pt_deinit_ctx(struct pt_ctx *pt_ctx)
 	if (pt_ctx->save_area != NULL)
 		free(pt_ctx->save_area, M_PT);
 	memset(pt_ctx, 0, sizeof(*pt_ctx));
-	pt_ctx->buf.topa_hw = NULL;
 }
 
 /*
@@ -519,7 +503,6 @@ pt_backend_configure(struct hwt_context *ctx, int cpu_id, int thread_id)
 	    XSTATE_XCOMP_BV_COMPACT;
 	pt_ext->rtit_ctl |= RTIT_CTL_TRACEEN;
 	pt_pcpu[cpu_id].ctx = pt_ctx;
-	pt_cpu_set_state(cpu_id, PT_STOPPED);
 
 	return (0);
 }
@@ -549,12 +532,19 @@ pt_backend_disable(struct hwt_context *ctx, int cpu_id)
 
 	if (ctx->mode == HWT_MODE_CPU)
 		return;
-
 	KASSERT(curcpu == cpu_id,
 	    ("%s: attempting to disable PT on another cpu", __func__));
+
+	cpu = &pt_pcpu[cpu_id];
+
+	dprintf("%s: waiting for cpu %d to exit interrupt handler\n", __func__,
+	    cpu_id);
+	pt_cpu_set_state(cpu_id, PT_INACTIVE);
+	while (atomic_cmpset_int(&cpu->in_pcint_handler, 1, 0))
+		;
+
 	pt_cpu_stop(NULL);
 	CPU_CLR(cpu_id, &ctx->cpu_map);
-	cpu = &pt_pcpu[cpu_id];
 	cpu->ctx = NULL;
 }
 
@@ -564,14 +554,14 @@ pt_backend_disable(struct hwt_context *ctx, int cpu_id)
 static int
 pt_backend_enable_smp(struct hwt_context *ctx)
 {
-
 	dprintf("%s\n", __func__);
+
+	KASSERT(ctx->mode == HWT_MODE_CPU,
+	    ("%s: should only be used for CPU mode", __func__));
 	if (ctx->mode == HWT_MODE_CPU &&
 	    atomic_swap_32(&cpu_mode_ctr, 1) != 0)
 		return (-1);
 
-	KASSERT(ctx->mode == HWT_MODE_CPU,
-	    ("%s: should only be used for CPU mode", __func__));
 	smp_rendezvous_cpus(ctx->cpu_map, NULL, pt_cpu_start, NULL, NULL);
 
 	return (0);
@@ -583,6 +573,7 @@ pt_backend_enable_smp(struct hwt_context *ctx)
 static int
 pt_backend_disable_smp(struct hwt_context *ctx)
 {
+	struct pt_cpu *cpu;
 
 	dprintf("%s\n", __func__);
 	if (ctx->mode == HWT_MODE_CPU &&
@@ -592,6 +583,14 @@ pt_backend_disable_smp(struct hwt_context *ctx)
 	if (CPU_EMPTY(&ctx->cpu_map)) {
 		dprintf("%s: empty cpu map\n", __func__);
 		return (-1);
+	}
+	CPU_FOREACH_ISSET(cpu_id, &ctx->cpu_map) {
+		cpu = &pt_pcpu[cpu_id];
+		dprintf("%s: waiting for cpu %d to exit interrupt handler\n",
+		    __func__, cpu_id);
+		pt_cpu_set_state(cpu_id, PT_INACTIVE);
+		while (atomic_cmpset_int(&cpu->in_pcint_handler, 1, 0))
+			;
 	}
 	smp_rendezvous_cpus(ctx->cpu_map, NULL, pt_cpu_stop, NULL, NULL);
 
@@ -611,13 +610,13 @@ pt_backend_init(struct hwt_context *ctx)
 	int error;
 
 	dprintf("%s\n", __func__);
-	if (ctx->mode == HWT_MODE_CPU) {
-		TAILQ_FOREACH(hwt_cpu, &ctx->cpus, next) {
-			error = pt_init_ctx(&pt_pcpu_ctx[hwt_cpu->cpu_id],
-			    hwt_cpu->vm, hwt_cpu->cpu_id);
-			if (error)
-				return (error);
-		}
+	if (ctx->mode != HWT_MODE_CPU)
+		return (0);
+	TAILQ_FOREACH(hwt_cpu, &ctx->cpus, next) {
+		error = pt_init_ctx(&pt_pcpu_ctx[hwt_cpu->cpu_id], hwt_cpu->vm,
+		    hwt_cpu->cpu_id);
+		if (error)
+			return (error);
 	}
 
 	return (0);
@@ -647,20 +646,16 @@ pt_backend_deinit(struct hwt_context *ctx)
 			pt_deinit_ctx(pt_ctx);
 		}
 	} else {
-		CPU_FOREACH(cpu_id) {
-			if (!CPU_ISSET(cpu_id, &ctx->cpu_map))
+		CPU_FOREACH_ISSET(cpu_id, &ctx->cpu_map) {
+			if (pt_pcpu[cpu_id].ctx == NULL)
 				continue;
-			if (pt_pcpu[cpu_id].ctx != NULL) {
-				KASSERT(pt_pcpu[cpu_id].ctx ==
-					&pt_pcpu_ctx[cpu_id],
-				    ("%s: CPU mode tracing with non-cpu mode PT"
-				     "context active",
-					__func__));
-				pt_pcpu[cpu_id].ctx = NULL;
-			}
-			pt_ctx = &pt_pcpu_ctx[cpu_id];
-			pt_deinit_ctx(pt_ctx);
-			memset(&pt_pcpu[cpu_id], 0, sizeof(struct pt_cpu));
+			KASSERT(pt_pcpu[cpu_id].ctx == &pt_pcpu_ctx[cpu_id],
+			    ("%s: CPU mode tracing with non-cpu mode PT"
+			     "context active",
+				__func__));
+			pt_deinit_ctx(pt_pcpu[cpu_id].ctx);
+			pt_pcpu[cpu_id].ctx = NULL;
+			atomic_set_int(&pt_pcpu[cpu_id].in_pcint_handler, 0);
 		}
 	}
 
@@ -675,15 +670,15 @@ pt_backend_read(struct hwt_vm *vm, int *curpage, vm_offset_t *curpage_offset,
     uint64_t *data)
 {
 	struct pt_buffer *buf;
+	uint64_t offset;
 
 	if (vm->ctx->mode == HWT_MODE_THREAD)
 		buf = &((struct pt_ctx *)vm->thr->private)->buf;
 	else
 		buf = &pt_pcpu[vm->cpu->cpu_id].ctx->buf;
-	mtx_lock_spin(&buf->lock);
-	*curpage = buf->curpage;
-	*curpage_offset = buf->offset + (buf->wrap_count * vm->ctx->bufsize);
-	mtx_unlock_spin(&buf->lock);
+	offset = atomic_load_acq_64(&buf->offset);
+	*curpage = offset / PAGE_SIZE;
+	*curpage_offset = offset & PAGE_MASK;
 
 	return (0);
 }
@@ -762,15 +757,13 @@ static struct hwt_backend backend = {
  * Used as a taskqueue routine from the ToPA interrupt handler.
  */
 static void
-pt_send_buffer_record(void *arg, int pending __unused)
+pt_send_buffer_record(void *arg)
 {
+	struct pt_cpu *cpu = (struct pt_cpu *)arg;
 	struct hwt_record_entry record;
-	struct pt_ctx *ctx = (struct pt_ctx *)arg;
 
-	/* Prepare buffer record. */
-	mtx_lock_spin(&ctx->buf.lock);
+	struct pt_ctx *ctx = cpu->ctx;
 	pt_fill_buffer_record(ctx->id, &ctx->buf, &record);
-	mtx_unlock_spin(&ctx->buf.lock);
 	hwt_record_ctx(ctx->hwt_ctx, &record, M_ZERO | M_NOWAIT);
 }
 static void
@@ -795,36 +788,40 @@ static int
 pt_topa_intr(struct trapframe *tf)
 {
 	struct pt_buffer *buf;
+	struct pt_cpu *cpu;
 	struct pt_ctx *ctx;
 	uint64_t reg;
 
-	SDT_PROBE0(pt, , , topa__intr);
-
-	if (pt_cpu_get_state(curcpu) != PT_ACTIVE) {
-		return (0);
-	}
+	cpu = &pt_pcpu[curcpu];
 	reg = rdmsr(MSR_IA_GLOBAL_STATUS);
 	if ((reg & GLOBAL_STATUS_FLAG_TRACETOPAPMI) == 0) {
-		/* ACK spurious or leftover interrupt. */
 		pt_topa_status_clear();
-		return (1);
+		return (0);
 	}
 
-	ctx = pt_pcpu[curcpu].ctx;
+	if (pt_cpu_get_state(curcpu) != PT_ACTIVE) {
+		return (1);
+	}
+	atomic_set_int(&cpu->in_pcint_handler, 1);
+
+	ctx = cpu->ctx;
+	KASSERT(ctx != NULL,
+	    ("%s: cpu %d: ToPA PMI interrupt without an active context",
+		__func__, curcpu));
 	buf = &ctx->buf;
 	KASSERT(buf->topa_hw != NULL,
-	    ("%s: ToPA PMI interrupt with invalid buffer", __func__));
-
+	    ("%s: cpu %d: ToPA PMI interrupt with invalid buffer", __func__,
+		curcpu));
 	pt_cpu_toggle_local(ctx->save_area, false);
 	pt_update_buffer(buf);
 	pt_topa_status_clear();
-	taskqueue_enqueue_flags(taskqueue_pt, &ctx->task,
-	    TASKQUEUE_FAIL_IF_PENDING);
 
 	if (pt_cpu_get_state(curcpu) == PT_ACTIVE) {
+		swi_sched(cpu->swi_cookie, SWI_FROMNMI);
 		pt_cpu_toggle_local(ctx->save_area, true);
 		lapic_reenable_pcint();
 	}
+	atomic_set_int(&cpu->in_pcint_handler, 0);
 	return (1);
 }
 
@@ -839,7 +836,7 @@ static int
 pt_init(void)
 {
 	u_int cp[4];
-	int error;
+	int error, i;
 
 	dprintf("pt: Enumerating part 1\n");
 	cpuid_count(CPUID_PT_LEAF, 0, cp);
@@ -869,20 +866,38 @@ pt_init(void)
 	pt_pcpu_ctx = mallocarray(mp_ncpus, sizeof(struct pt_ctx), M_PT,
 	    M_ZERO | M_WAITOK);
 
-	nmi_register_handler(pt_topa_intr);
-	if (!lapic_enable_pcint()) {
-		nmi_remove_handler(pt_topa_intr);
-		hwt_backend_unregister(&backend);
-		free(pt_pcpu, M_PT);
-		free(pt_pcpu_ctx, M_PT);
-		pt_pcpu = NULL;
-		pt_pcpu_ctx = NULL;
-		printf("pt: failed to setup interrupt line\n");
-		return (error);
+	for (i = 0; i < mp_ncpus; i++) {
+		error = swi_add(&clk_intr_event, "pt", pt_send_buffer_record,
+		    &pt_pcpu[i], SWI_CLOCK, INTR_MPSAFE,
+		    &pt_pcpu[i].swi_cookie);
+		if (error != 0) {
+			dprintf(
+			    "%s: failed to add interrupt handler for cpu: %d\n",
+			    __func__, error);
+			goto err;
+		}
 	}
-	initialized = true;
 
-	return (0);
+	nmi_register_handler(pt_topa_intr);
+	if (lapic_enable_pcint()) {
+		initialized = true;
+		return (0);
+	} else
+		printf("pt: failed to setup interrupt line\n");
+err:
+	nmi_remove_handler(pt_topa_intr);
+	hwt_backend_unregister(&backend);
+
+	for (i = 0; i < mp_ncpus; i++) {
+		if (pt_pcpu[i].swi_cookie != 0)
+			swi_remove(pt_pcpu[i].swi_cookie);
+	}
+	free(pt_pcpu, M_PT);
+	free(pt_pcpu_ctx, M_PT);
+	pt_pcpu = NULL;
+	pt_pcpu_ctx = NULL;
+
+	return (error);
 }
 
 /*
@@ -941,14 +956,24 @@ pt_supported(void)
 static void
 pt_deinit(void)
 {
+	int i;
+	struct pt_cpu *cpu;
+
 	if (!initialized)
 		return;
 	nmi_remove_handler(pt_topa_intr);
 	lapic_disable_pcint();
 	hwt_backend_unregister(&backend);
+
+	for (i = 0; i < mp_ncpus; i++) {
+		cpu = &pt_pcpu[i];
+		swi_remove(cpu->swi_cookie);
+	}
+
 	free(pt_pcpu, M_PT);
 	free(pt_pcpu_ctx, M_PT);
 	pt_pcpu = NULL;
+	pt_pcpu_ctx = NULL;
 	initialized = false;
 }
 

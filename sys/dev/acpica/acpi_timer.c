@@ -34,6 +34,7 @@
 #include <sys/module.h>
 #include <sys/sysctl.h>
 #include <sys/timetc.h>
+#include <sys/power.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -69,8 +70,10 @@ bool acpi_timer_disabled = false;
 static void	acpi_timer_identify(driver_t *driver, device_t parent);
 static int	acpi_timer_probe(device_t dev);
 static int	acpi_timer_attach(device_t dev);
-static void	acpi_timer_resume_handler(struct timecounter *);
-static void	acpi_timer_suspend_handler(struct timecounter *);
+static void	acpi_timer_resume_handler(struct timecounter *,
+		    enum power_stype);
+static void	acpi_timer_suspend_handler(struct timecounter *,
+		    enum power_stype);
 static u_int	acpi_timer_get_timecount(struct timecounter *tc);
 static u_int	acpi_timer_get_timecount_safe(struct timecounter *tc);
 static int	acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS);
@@ -235,7 +238,7 @@ acpi_timer_attach(device_t dev)
 }
 
 static void
-acpi_timer_resume_handler(struct timecounter *newtc)
+acpi_timer_resume_handler(struct timecounter *newtc, enum power_stype stype)
 {
 	struct timecounter *tc;
 
@@ -251,7 +254,7 @@ acpi_timer_resume_handler(struct timecounter *newtc)
 }
 
 static void
-acpi_timer_suspend_handler(struct timecounter *newtc)
+acpi_timer_suspend_handler(struct timecounter *newtc, enum power_stype stype)
 {
 	struct timecounter *tc;
 

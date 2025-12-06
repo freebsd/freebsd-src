@@ -584,7 +584,7 @@ linux_vdso_reloc(char *mapping, Elf_Addr offset)
 	}
 }
 
-static Elf_Brandnote linux64_brandnote = {
+static const Elf_Brandnote linux64_brandnote = {
 	.hdr.n_namesz	= sizeof(GNU_ABI_VENDOR),
 	.hdr.n_descsz	= 16,
 	.hdr.n_type	= 1,
@@ -593,7 +593,7 @@ static Elf_Brandnote linux64_brandnote = {
 	.trans_osrel	= linux_trans_osrel
 };
 
-static Elf64_Brandinfo linux_glibc2brand = {
+static const Elf64_Brandinfo linux_glibc2brand = {
 	.brand		= ELFOSABI_LINUX,
 	.machine	= EM_AARCH64,
 	.compat_3_brand	= "Linux",
@@ -604,7 +604,7 @@ static Elf64_Brandinfo linux_glibc2brand = {
 	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
 
-Elf64_Brandinfo *linux_brandlist[] = {
+const Elf64_Brandinfo *linux_brandlist[] = {
 	&linux_glibc2brand,
 	NULL
 };
@@ -612,8 +612,8 @@ Elf64_Brandinfo *linux_brandlist[] = {
 static int
 linux64_elf_modevent(module_t mod, int type, void *data)
 {
-	Elf64_Brandinfo **brandinfo;
-	struct linux_ioctl_handler**lihp;
+	const Elf64_Brandinfo **brandinfo;
+	struct linux_ioctl_handler **lihp;
 	int error;
 
 	error = 0;

@@ -28,18 +28,14 @@
 
 /* Number of useconds represented by an hpts slot */
 #define HPTS_USECS_PER_SLOT 10
-#define HPTS_MS_TO_SLOTS(x) ((x * 100) + 1)
-#define HPTS_USEC_TO_SLOTS(x) ((x+9) /10)
 #define HPTS_USEC_IN_SEC 1000000
 #define HPTS_MSEC_IN_SEC 1000
 #define HPTS_USEC_IN_MSEC 1000
 
-static inline uint32_t
-tcp_tv_to_hpts_slot(const struct timeval *sv)
-{
-	return ((sv->tv_sec * 100000) + (sv->tv_usec / HPTS_USECS_PER_SLOT));
-}
-
+/*
+ * The following functions should also be available
+ * to userspace as well.
+ */
 static inline uint32_t
 tcp_tv_to_usec(const struct timeval *sv)
 {
@@ -58,6 +54,13 @@ tcp_tv_to_lusec(const struct timeval *sv)
 	return ((uint64_t)((sv->tv_sec * HPTS_USEC_IN_SEC) + sv->tv_usec));
 }
 
+static inline uint64_t
+tcp_tv_to_lusectick(const struct timeval *sv)
+{
+        return ((uint64_t)((sv->tv_sec * HPTS_USEC_IN_SEC) + sv->tv_usec));
+}
+
+
 struct hpts_diag {
 	uint32_t p_hpts_active; 	/* bbr->flex7 x */
 	uint32_t p_nxt_slot;		/* bbr->flex1 x */
@@ -66,7 +69,7 @@ struct hpts_diag {
 	uint32_t p_runningslot;		/* bbr->inflight */
 	uint32_t slot_req;		/* bbr->flex3 x */
 	uint32_t inp_hptsslot;		/* bbr->flex4 x */
-	uint32_t slot_remaining;	/* bbr->flex5 x */
+	uint32_t time_remaining;	/* bbr->flex5 x */
 	uint32_t have_slept;		/* bbr->epoch x */
 	uint32_t hpts_sleep_time;	/* bbr->applimited x */
 	uint32_t yet_to_sleep;		/* bbr->lt_epoch x */
@@ -75,8 +78,6 @@ struct hpts_diag {
 	uint32_t maxslots;		/* bbr->delRate x */
 	uint32_t wheel_cts;		/* bbr->rttProp x */
 	int32_t co_ret; 		/* bbr->pkts_out x */
-	uint32_t p_curtick;		/* upper bbr->cur_del_rate */
-	uint32_t p_lasttick;		/* lower bbr->cur_del_rate */
 	uint8_t p_on_min_sleep; 	/* bbr->flex8 x */
 };
 
@@ -92,13 +93,18 @@ struct hpts_diag {
 
 #ifdef _KERNEL
 
+extern struct tcp_hptsi *tcp_hptsi_pace;
+
 /*
  * The following are the definitions for the kernel HPTS interface for managing
  * the HPTS ring and the TCBs on it.
 */
 
-void tcp_hpts_init(struct tcpcb *);
-void tcp_hpts_remove(struct tcpcb *);
+void __tcp_hpts_init(struct tcp_hptsi *pace, struct tcpcb *);
+#define tcp_hpts_init(tp) __tcp_hpts_init(tcp_hptsi_pace, tp)
+
+void __tcp_hpts_remove(struct tcp_hptsi *pace, struct tcpcb *);
+#define tcp_hpts_remove(tp) __tcp_hpts_remove(tcp_hptsi_pace, tp)
 
 static inline bool
 tcp_in_hpts(struct tcpcb *tp)
@@ -132,12 +138,13 @@ tcp_in_hpts(struct tcpcb *tp)
  * that INP_WLOCK() or from destroying your TCB where again
  * you should already have the INP_WLOCK().
  */
-uint32_t tcp_hpts_insert_diag(struct tcpcb *tp, uint32_t slot, int32_t line,
-    struct hpts_diag *diag);
-#define	tcp_hpts_insert(inp, slot)	\
-	tcp_hpts_insert_diag((inp), (slot), __LINE__, NULL)
+void __tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t usecs,
+	struct hpts_diag *diag);
+#define	tcp_hpts_insert(tp, usecs, diag)	\
+	__tcp_hpts_insert(tcp_hptsi_pace, (tp), (usecs), (diag))
 
-void tcp_set_hpts(struct tcpcb *tp);
+void __tcp_set_hpts(struct tcp_hptsi *pace, struct tcpcb *tp);
+#define tcp_set_hpts(tp) __tcp_set_hpts(tcp_hptsi_pace, tp)
 
 extern int32_t tcp_min_hptsi_time;
 
@@ -145,17 +152,6 @@ static inline int32_t
 get_hpts_min_sleep_time(void)
 {
 	return (tcp_min_hptsi_time + HPTS_USECS_PER_SLOT);
-}
-
-static inline uint32_t
-tcp_gethptstick(struct timeval *sv)
-{
-	struct timeval tv;
-
-	if (sv == NULL)
-		sv = &tv;
-	microuptime(sv);
-	return (tcp_tv_to_hpts_slot(sv));
 }
 
 static inline uint64_t
@@ -179,13 +175,6 @@ tcp_get_usecs(struct timeval *tv)
 	microuptime(tv);
 	return (tcp_tv_to_usec(tv));
 }
-
-/*
- * LRO HPTS initialization and uninitialization, only for internal use by the
- * HPTS code.
- */
-void tcp_lro_hpts_init(void);
-void tcp_lro_hpts_uninit(void);
 
 #endif /* _KERNEL */
 #endif /* __tcp_hpts_h__ */

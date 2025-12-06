@@ -36,10 +36,11 @@
 
 #include <efi.h>
 #include <efilib.h>
+#include <Protocol/SimpleNetwork.h>
 
 #include "dev_net.h"
 
-static EFI_GUID sn_guid = EFI_SIMPLE_NETWORK_PROTOCOL;
+static EFI_GUID sn_guid = EFI_SIMPLE_NETWORK_PROTOCOL_GUID;
 
 static void efinet_end(struct netif *);
 static ssize_t efinet_get(struct iodesc *, void **, time_t);
@@ -122,7 +123,7 @@ efinet_probe(struct netif *nif, void *machdep_hint)
 	if (status != EFI_SUCCESS) {
 		printf("Unable to open network interface %d for "
 		    "exclusive access: %lu\n", nif->nif_unit,
-		    EFI_ERROR_CODE(status));
+		    DECODE_ERROR(status));
 		return (efi_status_to_errno(status));
 	}
 
@@ -287,7 +288,7 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 	status = OpenProtocolByHandle(h, &sn_guid, (void **)&nif->nif_devdata);
 	if (status != EFI_SUCCESS) {
 		printf("net%d: cannot fetch interface data (status=%lu)\n",
-		    nif->nif_unit, EFI_ERROR_CODE(status));
+		    nif->nif_unit, DECODE_ERROR(status));
 		return;
 	}
 
@@ -296,7 +297,7 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 		status = net->Start(net);
 		if (status != EFI_SUCCESS) {
 			printf("net%d: cannot start interface (status=%lu)\n",
-			    nif->nif_unit, EFI_ERROR_CODE(status));
+			    nif->nif_unit, DECODE_ERROR(status));
 			return;
 		}
 	}
@@ -305,7 +306,7 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 		status = net->Initialize(net, 0, 0);
 		if (status != EFI_SUCCESS) {
 			printf("net%d: cannot init. interface (status=%lu)\n",
-			    nif->nif_unit, EFI_ERROR_CODE(status));
+			    nif->nif_unit, DECODE_ERROR(status));
 			return;
 		}
 	}
@@ -316,7 +317,7 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 	status = net->ReceiveFilters(net, mask, 0, FALSE, 0, NULL);
 	if (status != EFI_SUCCESS)
 		printf("net%d: cannot set rx. filters (status=%lu)\n",
-		    nif->nif_unit, EFI_ERROR_CODE(status));
+		    nif->nif_unit, DECODE_ERROR(status));
 
 #ifdef EFINET_DEBUG
 	dump_mode(net->Mode);

@@ -50,7 +50,8 @@ struct debug_monitor_state;
 	struct pmap *pc_curvmpmap;					\
 	uint64_t pc_mpidr;						\
 	u_int	pc_bcast_tlbi_workaround;				\
-	char __pad[197]
+	uint64_t pc_release_addr;					\
+	char __pad[189]
 
 #ifdef _KERNEL
 

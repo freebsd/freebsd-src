@@ -41,6 +41,9 @@
 #include <sys/endian.h>
 #include <sys/stdarg.h>
 #include <vm/vm.h>
+#include <vm/vm_page.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_map.h>
 
 #include "nvme_private.h"
 #include "nvme_linux.h"
@@ -597,7 +600,6 @@ nvme_ctrlr_construct_namespaces(struct nvme_controller *ctrlr)
 static bool
 is_log_page_id_valid(uint8_t page_id)
 {
-
 	switch (page_id) {
 	case NVME_LOG_ERROR:
 	case NVME_LOG_HEALTH_INFORMATION:
@@ -653,7 +655,6 @@ static void
 nvme_ctrlr_log_critical_warnings(struct nvme_controller *ctrlr,
     uint8_t state)
 {
-
 	if (state & NVME_CRIT_WARN_ST_AVAILABLE_SPARE)
 		nvme_printf(ctrlr, "SMART WARNING: available spare space below threshold\n");
 
@@ -676,7 +677,7 @@ nvme_ctrlr_log_critical_warnings(struct nvme_controller *ctrlr,
 		nvme_printf(ctrlr, "SMART WARNING: unknown critical warning(s): state = 0x%02x\n",
 		    state & NVME_CRIT_WARN_ST_RESERVED_MASK);
 
-	nvme_ctrlr_devctl(ctrlr, "critical", "SMART_ERROR", "state=0x%02x", state);
+	nvme_ctrlr_devctl(ctrlr, "SMART_ERROR", "state=0x%02x", state);
 }
 
 static void
@@ -781,7 +782,6 @@ nvme_ctrlr_configure_aer(struct nvme_controller *ctrlr)
 static void
 nvme_ctrlr_configure_int_coalescing(struct nvme_controller *ctrlr)
 {
-
 	ctrlr->int_coal_time = 0;
 	TUNABLE_INT_FETCH("hw.nvme.int_coal_time",
 	    &ctrlr->int_coal_time);
@@ -907,7 +907,7 @@ again:
 
 	size = sizeof(struct nvme_hmb_desc) * ctrlr->hmb_nchunks;
 	err = bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev),
-	    16, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
 	    size, 1, size, 0, NULL, NULL, &ctrlr->hmb_desc_tag);
 	if (err != 0) {
 		nvme_printf(ctrlr, "HMB desc tag create failed %d\n", err);
@@ -1143,6 +1143,10 @@ nvme_ctrlr_aer_task(void *arg, int pending)
 		goto out;
 	}
 
+	nvme_ctrlr_devctl(ctrlr, "aen", "type=0x%x info=0x%x page=0x%x",
+	    NVMEV(NVME_ASYNC_EVENT_TYPE, aer->cpl.cdw0),
+	    NVMEV(NVME_ASYNC_EVENT_INFO, aer->cpl.cdw0), aer->log_page_id);
+
 	aer->log_page_size = 0;
 	len = nvme_ctrlr_get_log_page_size(aer->ctrlr, aer->log_page_id);
 	nvme_ctrlr_cmd_get_log_page(aer->ctrlr, aer->log_page_id,
@@ -1153,7 +1157,7 @@ nvme_ctrlr_aer_task(void *arg, int pending)
 		mtx_sleep(aer, &aer->mtx, PRIBIO, "nvme_pt", 0);
 	mtx_unlock(&aer->mtx);
 
-	if (aer->log_page_size != (uint32_t)-1) {
+	if (aer->log_page_size == (uint32_t)-1) {
 		/*
 		 * If the log page fetch for some reason completed with an
 		 * error, don't pass log page data to the consumers.  In
@@ -1216,10 +1220,20 @@ nvme_ctrlr_aer_task(void *arg, int pending)
 	} else if (aer->log_page_id == NVME_LOG_CHANGED_NAMESPACE) {
 		struct nvme_ns_list *nsl =
 		    (struct nvme_ns_list *)aer->log_page_buffer;
+		struct nvme_controller *ctrlr = aer->ctrlr;
+
 		for (int i = 0; i < nitems(nsl->ns) && nsl->ns[i] != 0; i++) {
+			struct nvme_namespace *ns;
+			uint32_t id = nsl->ns[i];
+
 			if (nsl->ns[i] > NVME_MAX_NAMESPACES)
 				break;
-			nvme_notify_ns(aer->ctrlr, nsl->ns[i]);
+
+			ns = &ctrlr->ns[id - 1];
+			ns->flags |= NVME_NS_DELTA;
+			nvme_ns_construct(ns, id, ctrlr);
+			nvme_notify_ns(ctrlr, id);
+			ns->flags &= ~NVME_NS_DELTA;
 		}
 	}
 
@@ -1268,6 +1282,34 @@ nvme_ctrlr_shared_handler(void *arg)
 	nvme_mmio_write_4(ctrlr, intmc, 1);
 }
 
+#define NVME_MAX_PAGES  (int)(1024 / sizeof(vm_page_t))
+
+static int
+nvme_user_ioctl_req(vm_offset_t addr, size_t len, bool is_read,
+    vm_page_t *upages, int max_pages, int *npagesp, struct nvme_request **req,
+    nvme_cb_fn_t cb_fn, void *cb_arg)
+{
+	vm_prot_t prot = VM_PROT_READ;
+	int err;
+
+	if (is_read)
+		prot |= VM_PROT_WRITE;	/* Device will write to host memory */
+	err = vm_fault_hold_pages(&curproc->p_vmspace->vm_map,
+	    addr, len, prot, upages, max_pages, npagesp);
+	if (err != 0)
+		return (err);
+	*req = nvme_allocate_request_null(M_WAITOK, cb_fn, cb_arg);
+	(*req)->payload = memdesc_vmpages(upages, len, addr & PAGE_MASK);
+	(*req)->payload_valid = true;
+	return (0);
+}
+
+static void
+nvme_user_ioctl_free(vm_page_t *pages, int npage)
+{
+	vm_page_unhold_pages(pages, npage);
+}
+
 static void
 nvme_pt_done(void *arg, const struct nvme_completion *cpl)
 {
@@ -1290,30 +1332,28 @@ nvme_pt_done(void *arg, const struct nvme_completion *cpl)
 
 int
 nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
-    struct nvme_pt_command *pt, uint32_t nsid, int is_user_buffer,
+    struct nvme_pt_command *pt, uint32_t nsid, int is_user,
     int is_admin_cmd)
 {
-	struct nvme_request	*req;
-	struct mtx		*mtx;
-	struct buf		*buf = NULL;
-	int			ret = 0;
+	struct nvme_request *req;
+	struct mtx *mtx;
+	int ret = 0;
+	int npages = 0;
+	vm_page_t upages[NVME_MAX_PAGES];
 
 	if (pt->len > 0) {
 		if (pt->len > ctrlr->max_xfer_size) {
-			nvme_printf(ctrlr, "pt->len (%d) "
-			    "exceeds max_xfer_size (%d)\n", pt->len,
-			    ctrlr->max_xfer_size);
-			return EIO;
+			nvme_printf(ctrlr,
+			    "len (%d) exceeds max_xfer_size (%d)\n",
+			    pt->len, ctrlr->max_xfer_size);
+			return (EIO);
 		}
-		if (is_user_buffer) {
-			buf = uma_zalloc(pbuf_zone, M_WAITOK);
-			buf->b_iocmd = pt->is_read ? BIO_READ : BIO_WRITE;
-			if (vmapbuf(buf, pt->buf, pt->len, 1) < 0) {
-				ret = EFAULT;
-				goto err;
-			}
-			req = nvme_allocate_request_vaddr(buf->b_data, pt->len,
-			    M_WAITOK, nvme_pt_done, pt);
+		if (is_user) {
+			ret = nvme_user_ioctl_req((vm_offset_t)pt->buf, pt->len,
+			    pt->is_read, upages, nitems(upages), &npages, &req,
+			    nvme_pt_done, pt);
+			if (ret != 0)
+				return (ret);
 		} else
 			req = nvme_allocate_request_vaddr(pt->buf, pt->len,
 			    M_WAITOK, nvme_pt_done, pt);
@@ -1347,11 +1387,8 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 		mtx_sleep(pt, mtx, PRIBIO, "nvme_pt", 0);
 	mtx_unlock(mtx);
 
-	if (buf != NULL) {
-		vunmapbuf(buf);
-err:
-		uma_zfree(pbuf_zone, buf);
-	}
+	if (npages > 0)
+		nvme_user_ioctl_free(upages, npages);
 
 	return (ret);
 }
@@ -1377,8 +1414,9 @@ nvme_ctrlr_linux_passthru_cmd(struct nvme_controller *ctrlr,
 {
 	struct nvme_request	*req;
 	struct mtx		*mtx;
-	struct buf		*buf = NULL;
 	int			ret = 0;
+	int			npages = 0;
+	vm_page_t		upages[NVME_MAX_PAGES];
 
 	/*
 	 * We don't support metadata.
@@ -1389,28 +1427,16 @@ nvme_ctrlr_linux_passthru_cmd(struct nvme_controller *ctrlr,
 	if (npc->data_len > 0 && npc->addr != 0) {
 		if (npc->data_len > ctrlr->max_xfer_size) {
 			nvme_printf(ctrlr,
-			    "npc->data_len (%d) exceeds max_xfer_size (%d)\n",
+			    "data_len (%d) exceeds max_xfer_size (%d)\n",
 			    npc->data_len, ctrlr->max_xfer_size);
 			return (EIO);
 		}
-		/*
-		 * We only support data out or data in commands, but not both at
-		 * once. However, there's some comands with lower bit cleared
-		 * that are really read commands, so we should filter & 3 == 0,
-		 * but don't.
-		 */
-		if ((npc->opcode & 0x3) == 3)
-			return (EINVAL);
 		if (is_user) {
-			buf = uma_zalloc(pbuf_zone, M_WAITOK);
-			buf->b_iocmd = npc->opcode & 1 ? BIO_WRITE : BIO_READ;
-			if (vmapbuf(buf, (void *)(uintptr_t)npc->addr,
-			    npc->data_len, 1) < 0) {
-				ret = EFAULT;
-				goto err;
-			}
-			req = nvme_allocate_request_vaddr(buf->b_data,
-			    npc->data_len, M_WAITOK, nvme_npc_done, npc);
+			ret = nvme_user_ioctl_req(npc->addr, npc->data_len,
+			    npc->opcode & 0x1, upages, nitems(upages), &npages,
+			    &req, nvme_npc_done, npc);
+			if (ret != 0)
+				return (ret);
 		} else
 			req = nvme_allocate_request_vaddr(
 			    (void *)(uintptr_t)npc->addr, npc->data_len,
@@ -1420,8 +1446,8 @@ nvme_ctrlr_linux_passthru_cmd(struct nvme_controller *ctrlr,
 
 	req->cmd.opc = npc->opcode;
 	req->cmd.fuse = npc->flags;
-	req->cmd.rsvd2 = htole16(npc->cdw2);
-	req->cmd.rsvd3 = htole16(npc->cdw3);
+	req->cmd.rsvd2 = htole32(npc->cdw2);
+	req->cmd.rsvd3 = htole32(npc->cdw3);
 	req->cmd.cdw10 = htole32(npc->cdw10);
 	req->cmd.cdw11 = htole32(npc->cdw11);
 	req->cmd.cdw12 = htole32(npc->cdw12);
@@ -1445,11 +1471,8 @@ nvme_ctrlr_linux_passthru_cmd(struct nvme_controller *ctrlr,
 		mtx_sleep(npc, mtx, PRIBIO, "nvme_npc", 0);
 	mtx_unlock(mtx);
 
-	if (buf != NULL) {
-		vunmapbuf(buf);
-err:
-		uma_zfree(pbuf_zone, buf);
-	}
+	if (npages > 0)
+		nvme_user_ioctl_free(upages, npages);
 
 	return (ret);
 }
@@ -1486,6 +1509,11 @@ nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 	case NVME_GET_CONTROLLER_DATA:
 		memcpy(arg, &ctrlr->cdata, sizeof(ctrlr->cdata));
 		break;
+	case DIOCGIDENT: {
+		uint8_t *sn = arg;
+		nvme_cdata_get_disk_ident(&ctrlr->cdata, sn);
+		break;
+	}
 	/* Linux Compatible (see nvme_linux.h) */
 	case NVME_IOCTL_ID:
 		td->td_retval[0] = 0xfffffffful;
@@ -1729,9 +1757,14 @@ noadminq:
 		bus_release_resource(ctrlr->dev, SYS_RES_IRQ,
 		    rman_get_rid(ctrlr->res), ctrlr->res);
 
-	if (ctrlr->bar4_resource != NULL) {
+	if (ctrlr->msix_table_resource != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    ctrlr->bar4_resource_id, ctrlr->bar4_resource);
+		    ctrlr->msix_table_resource_id, ctrlr->msix_table_resource);
+	}
+
+	if (ctrlr->msix_pba_resource != NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    ctrlr->msix_pba_resource_id, ctrlr->msix_pba_resource);
 	}
 
 	bus_release_resource(dev, SYS_RES_MEMORY,
@@ -1776,7 +1809,6 @@ void
 nvme_ctrlr_submit_admin_request(struct nvme_controller *ctrlr,
     struct nvme_request *req)
 {
-
 	nvme_qpair_submit_request(&ctrlr->adminq, req);
 }
 
@@ -1793,14 +1825,12 @@ nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
 device_t
 nvme_ctrlr_get_device(struct nvme_controller *ctrlr)
 {
-
 	return (ctrlr->dev);
 }
 
 const struct nvme_controller_data *
 nvme_ctrlr_get_data(struct nvme_controller *ctrlr)
 {
-
 	return (&ctrlr->cdata);
 }
 
@@ -1853,7 +1883,6 @@ nvme_ctrlr_suspend(struct nvme_controller *ctrlr)
 int
 nvme_ctrlr_resume(struct nvme_controller *ctrlr)
 {
-
 	/*
 	 * Can't touch failed controllers, so nothing to do to resume.
 	 */

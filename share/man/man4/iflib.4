@@ -1,4 +1,4 @@
-.Dd September 27, 2018
+.Dd August 20, 2025
 .Dt IFLIB 4
 .Os
 .Sh NAME
@@ -64,6 +64,18 @@ If this is zero or not set, an RX and TX queue pair will be assigned to each
 core.
 When set to a non-zero value, TX queues are assigned to cores following the
 last RX queue.
+.It Va simple_tx
+When set to one, iflib uses a simple transmit routine with no queuing at all.
+By default, iflib uses a highly optimized, lockless, transmit queue called
+mp_ring.
+This performs well when there are more CPU cores than NIC
+queues and prevents lock contention for transmit resources.
+Unfortunately, mp_ring incurs unneeded overheads on workloads where
+resource contention is not a problem (well behaved applications on
+systems where there are as many NIC queues as CPU cores).
+Note that when this is enabled, the tx_abdicate sysctl is no longer
+applicable and is ignored.
+Defaults to zero.
 .El
 .Pp
 These

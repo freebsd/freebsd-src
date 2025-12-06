@@ -76,7 +76,7 @@ static void process_ds_response(struct module_qstate* qstate,
 	struct module_qstate* sub_qstate);
 
 
-/* Updates the suplied EDE (RFC8914) code selectively so we don't lose
+/* Updates the supplied EDE (RFC8914) code selectively so we don't lose
  * a more specific code */
 static void
 update_reason_bogus(struct reply_info* rep, sldns_ede_code reason_bogus)
@@ -399,7 +399,7 @@ needs_validation(struct module_qstate* qstate, int ret_rc,
 	 * For DNS64 bit_cd signals no dns64 processing, but we want to
 	 * provide validation there too */
 	/*
-	if(qstate->query_flags & BIT_CD) {
+	if((qstate->query_flags & BIT_CD)) {
 		verbose(VERB_ALGO, "not validating response due to CD bit");
 		return 0;
 	}
@@ -2593,8 +2593,17 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 
 	/* Update rep->reason_bogus as it is the one being cached */
 	update_reason_bogus(vq->orig_msg->rep, errinf_to_reason_bogus(qstate));
+	if(vq->orig_msg->rep->security != sec_status_bogus &&
+		vq->orig_msg->rep->security != sec_status_secure_sentinel_fail
+		&& vq->orig_msg->rep->reason_bogus == LDNS_EDE_DNSSEC_BOGUS) {
+		/* Not interested in any DNSSEC EDE here, validator by default
+		 * uses LDNS_EDE_DNSSEC_BOGUS;
+		 * TODO revisit default value for the module */
+		vq->orig_msg->rep->reason_bogus = LDNS_EDE_NONE;
+	}
+
 	/* store results in cache */
-	if(qstate->query_flags&BIT_RD) {
+	if((qstate->query_flags&BIT_RD)) {
 		/* if secure, this will override cache anyway, no need
 		 * to check if from parentNS */
 		if(!qstate->no_cache_store) {
@@ -2908,7 +2917,7 @@ ds_response_to_ke(struct module_qstate* qstate, struct val_qstate* vq,
 		struct ub_packed_rrset_key* ds;
 		enum sec_status sec;
 		ds = reply_find_answer_rrset(qinfo, msg->rep);
-		/* If there was no DS rrset, then we have mis-classified 
+		/* If there was no DS rrset, then we have misclassified
 		 * this message. */
 		if(!ds) {
 			log_warn("internal error: POSITIVE DS response was "
@@ -3460,7 +3469,7 @@ val_inform_super(struct module_qstate* qstate, int id,
 		if(suspend) {
 			/* deep copy the return_msg to vq->sub_ds_msg; it will
 			 * be resumed later in the super state with the caveat
-			 * that the initial calculations will be re-caclulated
+			 * that the initial calculations will be re-calculated
 			 * and re-suspended there before continuing. */
 			vq->sub_ds_msg = dns_msg_deepcopy_region(
 				qstate->return_msg, super->region);

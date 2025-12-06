@@ -47,6 +47,7 @@ struct image_args;
 struct jail;
 struct kevent;
 struct kevent_copyops;
+struct kexec_segment;
 struct kld_file_stat;
 struct ksiginfo;
 struct mbuf;
@@ -211,19 +212,20 @@ int	kern_kevent_fp(struct thread *td, struct file *fp, int nchanges,
 	    int nevents, struct kevent_copyops *k_ops,
 	    const struct timespec *timeout);
 int	kern_kill(struct thread *td, pid_t pid, int signum);
-int	kern_kqueue(struct thread *td, int flags, struct filecaps *fcaps);
+int	kern_kqueue(struct thread *td, int flags, bool cponfork,
+	    struct filecaps *fcaps);
 int	kern_kldload(struct thread *td, const char *file, int *fileid);
 int	kern_kldstat(struct thread *td, int fileid, struct kld_file_stat *stat);
 int	kern_kldunload(struct thread *td, int fileid, int flags);
 int	kern_kmq_notify(struct thread *, int, struct sigevent *);
 int	kern_kmq_open(struct thread *, const char *, int, mode_t,
-		const struct mq_attr *);
+	    const struct mq_attr *);
 int	kern_kmq_setattr(struct thread *, int, const struct mq_attr *,
-		struct mq_attr *);
+	    struct mq_attr *);
 int	kern_kmq_timedreceive(struct thread *, int, char *,
-		size_t, unsigned int *, const struct timespec *);
+	    size_t, unsigned int *, const struct timespec *);
 int	kern_kmq_timedsend(struct thread *td, int, const char *,
-		size_t, unsigned int, const struct timespec *);
+	    size_t, unsigned int, const struct timespec *);
 int	kern_linkat(struct thread *td, int fd1, int fd2, const char *path1,
 	    const char *path2, enum uio_seg segflg, int flag);
 int	kern_listen(struct thread *td, int s, int backlog);
@@ -324,7 +326,7 @@ int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	    struct mbuf *control, enum uio_seg segflg);
 int	kern_setcred(struct thread *const td, const u_int flags,
-	    struct setcred *const wcred, gid_t *preallocated_groups);
+	    struct setcred *const wcred);
 int	kern_setgroups(struct thread *td, int *ngrpp, gid_t *groups);
 int	kern_setitimer(struct thread *, u_int, struct itimerval *,
 	    struct itimerval *);
@@ -400,6 +402,8 @@ int	kern_writev(struct thread *td, int fd, struct uio *auio);
 int	kern_socketpair(struct thread *td, int domain, int type, int protocol,
 	    int *rsv);
 int	kern_unmount(struct thread *td, const char *path, int flags);
+int	kern_kexec_load(struct thread *td, u_long entry,
+	    u_long nseg, struct kexec_segment *seg, u_long flags);
 
 /* flags for kern_sigaction */
 #define	KSA_OSIGSET	0x0001	/* uses osigact_t */
@@ -407,7 +411,7 @@ int	kern_unmount(struct thread *td, const char *path, int flags);
 
 struct freebsd11_dirent;
 
-int	freebsd11_kern_getdirentries(struct thread *td, int fd, char *ubuf, u_int
-	    count, long *basep, void (*func)(struct freebsd11_dirent *));
+int	freebsd11_kern_getdirentries(struct thread *td, int fd, char *ubuf,
+	    u_int count, long *basep, void (*func)(struct freebsd11_dirent *));
 
 #endif /* !_SYS_SYSCALLSUBR_H_ */

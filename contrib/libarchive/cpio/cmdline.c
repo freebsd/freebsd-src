@@ -26,7 +26,7 @@
 #endif
 
 #include "cpio.h"
-#include "err.h"
+#include "lafe_err.h"
 
 /*
  * Short options for cpio.  Please keep this sorted.

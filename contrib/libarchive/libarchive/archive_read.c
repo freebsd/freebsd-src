@@ -575,8 +575,7 @@ choose_filters(struct archive_read *a)
 			return (ARCHIVE_OK);
 		}
 
-		filter
-		    = calloc(1, sizeof(*filter));
+		filter = calloc(1, sizeof(*filter));
 		if (filter == NULL)
 			return (ARCHIVE_FATAL);
 		filter->bidder = best_bidder;
@@ -834,7 +833,9 @@ archive_read_data(struct archive *_a, void *buff, size_t s)
 			r = archive_read_data_block(a, &read_buf,
 			    &a->read_data_remaining, &a->read_data_offset);
 			a->read_data_block = read_buf;
-			if (r == ARCHIVE_EOF)
+			if (r == ARCHIVE_EOF &&
+			    a->read_data_offset == a->read_data_output_offset &&
+			    a->read_data_remaining == 0)
 				return (bytes_read);
 			/*
 			 * Error codes are all negative, so the status

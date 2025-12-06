@@ -597,7 +597,7 @@ found:
 			return (error);
 		}
 		if (dp->i_number == ino) {
-			VREF(vdp);
+			vref(vdp);
 			*vpp = vdp;
 			vput(tdp);
 			return (0);
@@ -707,7 +707,7 @@ found:
 
 		*vpp = tdp;
 	} else if (dp->i_number == ino) {
-		VREF(vdp);	/* we want ourself, ie "." */
+		vref(vdp);	/* we want ourself, ie "." */
 		/*
 		 * When we lookup "." we still can be asked to lock it
 		 * differently.

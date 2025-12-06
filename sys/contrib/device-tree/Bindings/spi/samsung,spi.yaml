@@ -26,6 +26,11 @@ properties:
           - samsung,exynos850-spi
           - samsung,exynosautov9-spi
           - tesla,fsd-spi
+      - items:
+          - enum:
+              - samsung,exynos8895-spi
+              - samsung,exynosautov920-spi
+          - const: samsung,exynos850-spi
       - const: samsung,exynos7-spi
         deprecated: true
 

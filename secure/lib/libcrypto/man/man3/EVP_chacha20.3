@@ -55,7 +55,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_CHACHA20 3ossl"
-.TH EVP_CHACHA20 3ossl 2025-07-01 3.5.1 OpenSSL
+.TH EVP_CHACHA20 3ossl 2025-09-30 3.5.4 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -91,7 +91,7 @@ With an initial counter of 42 (2a in hex) would be expressed as:
 Authenticated encryption with ChaCha20\-Poly1305. Like \fBEVP_chacha20()\fR, the key
 is 256 bits and the IV is 96 bits. This supports additional authenticated data
 (AAD) and produces a 128\-bit authentication tag. See the
-"AEAD Interface" in \fBEVP_EncryptInit\fR\|(3) section for more information.
+"AEAD INTERFACE" in \fBEVP_EncryptInit\fR\|(3) section for more information.
 .SH NOTES
 .IX Header "NOTES"
 Developers should be aware of the negative performance implications of
@@ -113,7 +113,7 @@ details of the \fBEVP_CIPHER\fR structure.
 \&\fBEVP_CIPHER_meth_new\fR\|(3)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2017\-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

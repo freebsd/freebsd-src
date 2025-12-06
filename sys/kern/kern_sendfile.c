@@ -68,7 +68,6 @@
 
 static MALLOC_DEFINE(M_SENDFILE, "sendfile", "sendfile dynamic memory");
 
-#define	EXT_FLAG_SYNC		EXT_FLAG_VENDOR1
 #define	EXT_FLAG_NOCACHE	EXT_FLAG_VENDOR2
 #define	EXT_FLAG_CACHE_LAST	EXT_FLAG_VENDOR3
 
@@ -99,43 +98,6 @@ struct sf_io {
 #endif
 	vm_page_t	pa[];
 };
-
-/*
- * Structure used to track requests with SF_SYNC flag.
- */
-struct sendfile_sync {
-	struct mtx	mtx;
-	struct cv	cv;
-	unsigned	count;
-	bool		waiting;
-};
-
-static void
-sendfile_sync_destroy(struct sendfile_sync *sfs)
-{
-	KASSERT(sfs->count == 0, ("sendfile sync %p still busy", sfs));
-
-	cv_destroy(&sfs->cv);
-	mtx_destroy(&sfs->mtx);
-	free(sfs, M_SENDFILE);
-}
-
-static void
-sendfile_sync_signal(struct sendfile_sync *sfs)
-{
-	mtx_lock(&sfs->mtx);
-	KASSERT(sfs->count > 0, ("sendfile sync %p not busy", sfs));
-	if (--sfs->count == 0) {
-		if (!sfs->waiting) {
-			/* The sendfile() waiter was interrupted by a signal. */
-			sendfile_sync_destroy(sfs);
-			return;
-		} else {
-			cv_signal(&sfs->cv);
-		}
-	}
-	mtx_unlock(&sfs->mtx);
-}
 
 counter_u64_t sfstat[sizeof(struct sfstat) / sizeof(uint64_t)];
 
@@ -179,11 +141,6 @@ sendfile_free_mext(struct mbuf *m)
 
 	sf_buf_free(sf);
 	vm_page_release(pg, flags);
-
-	if (m->m_ext.ext_flags & EXT_FLAG_SYNC) {
-		struct sendfile_sync *sfs = m->m_ext.ext_arg2;
-		sendfile_sync_signal(sfs);
-	}
 }
 
 static void
@@ -203,11 +160,6 @@ sendfile_free_mext_pg(struct mbuf *m)
 			flags = 0;
 		pg = PHYS_TO_VM_PAGE(m->m_epg_pa[i]);
 		vm_page_release(pg, flags);
-	}
-
-	if (m->m_ext.ext_flags & EXT_FLAG_SYNC) {
-		struct sendfile_sync *sfs = m->m_ext.ext_arg1;
-		sendfile_sync_signal(sfs);
 	}
 }
 
@@ -763,7 +715,6 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	struct mbuf *m, *mh, *mhtail;
 	struct sf_buf *sf;
 	struct shmfd *shmfd;
-	struct sendfile_sync *sfs;
 	struct vattr va;
 	off_t off, sbytes, rem, obj_size, nobj_size;
 	int bsize, error, ext_pgs_idx, hdrlen, max_pgs, softerr;
@@ -775,7 +726,6 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	obj = NULL;
 	so = NULL;
 	m = mh = NULL;
-	sfs = NULL;
 #ifdef KERN_TLS
 	tls = NULL;
 #endif
@@ -800,17 +750,6 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 
 	SFSTAT_INC(sf_syscalls);
 	SFSTAT_ADD(sf_rhpages_requested, SF_READAHEAD(flags));
-
-	if (__predict_false(flags & SF_SYNC)) {
-		gone_in(16, "Warning! %s[%u] uses SF_SYNC sendfile(2) flag. "
-		    "Please follow up to https://bugs.freebsd.org/"
-		    "bugzilla/show_bug.cgi?id=287348. ",
-		    td->td_proc->p_comm, td->td_proc->p_pid);
-		sfs = malloc(sizeof(*sfs), M_SENDFILE, M_WAITOK | M_ZERO);
-		mtx_init(&sfs->mtx, "sendfile", NULL, MTX_DEF);
-		cv_init(&sfs->cv, "sendfile");
-		sfs->waiting = true;
-	}
 
 	rem = nbytes ? omin(nbytes, obj_size - offset) : obj_size - offset;
 
@@ -1042,14 +981,6 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 							m0->m_ext.ext_flags |=
 							    EXT_FLAG_CACHE_LAST;
 					}
-					if (sfs != NULL) {
-						m0->m_ext.ext_flags |=
-						    EXT_FLAG_SYNC;
-						m0->m_ext.ext_arg1 = sfs;
-						mtx_lock(&sfs->mtx);
-						sfs->count++;
-						mtx_unlock(&sfs->mtx);
-					}
 					ext_pgs_idx = 0;
 
 					/* Append to mbuf chain. */
@@ -1120,13 +1051,6 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 			    !((off + space) & PAGE_MASK) ||
 			    !(rem > space || rhpages > 0)))
 				m0->m_ext.ext_flags |= EXT_FLAG_NOCACHE;
-			if (sfs != NULL) {
-				m0->m_ext.ext_flags |= EXT_FLAG_SYNC;
-				m0->m_ext.ext_arg2 = sfs;
-				mtx_lock(&sfs->mtx);
-				sfs->count++;
-				mtx_unlock(&sfs->mtx);
-			}
 			m0->m_ext.ext_count = 1;
 			m0->m_flags |= (M_EXT | M_RDONLY);
 			if (nios)
@@ -1263,18 +1187,6 @@ out:
 		m_freem(m);
 	if (mh)
 		m_freem(mh);
-
-	if (sfs != NULL) {
-		mtx_lock(&sfs->mtx);
-		if (sfs->count != 0)
-			error = cv_wait_sig(&sfs->cv, &sfs->mtx);
-		if (sfs->count == 0) {
-			sendfile_sync_destroy(sfs);
-		} else {
-			sfs->waiting = false;
-			mtx_unlock(&sfs->mtx);
-		}
-	}
 #ifdef KERN_TLS
 	if (tls != NULL)
 		ktls_free(tls);

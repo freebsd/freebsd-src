@@ -26,6 +26,10 @@
 #include <assert.h>
 #include "ucl.h"
 
+#include <sys/types.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 int
 main (int argc, char **argv)
 {
@@ -34,7 +38,28 @@ main (int argc, char **argv)
 	const char *fname_out = NULL;
 	struct ucl_emitter_context *ctx;
 	struct ucl_emitter_functions *f;
-	int ret = 0;
+	int ret = 0, opt, json = 0, compact = 0, yaml = 0;
+
+	while ((opt = getopt(argc, argv, "jcy")) != -1) {
+		switch (opt) {
+		case 'j':
+			json = 1;
+			break;
+		case 'c':
+			compact = 1;
+			break;
+		case 'y':
+			yaml = 1;
+			break;
+		default: /* '?' */
+			fprintf (stderr, "Usage: %s [-jcy] [out]\n",
+				argv[0]);
+			exit (EXIT_FAILURE);
+		}
+	}
+
+	argc -= optind;
+	argv += optind;
 
 	switch (argc) {
 	case 2:
@@ -63,7 +88,21 @@ main (int argc, char **argv)
 	ucl_object_insert_key (obj, cur, "key3", 0, false);
 
 	f = ucl_object_emit_file_funcs (out);
-	ctx = ucl_object_emit_streamline_new (obj, UCL_EMIT_CONFIG, f);
+
+	if (yaml) {
+		ctx = ucl_object_emit_streamline_new (obj, UCL_EMIT_YAML, f);
+	}
+	else if (json) {
+		if (compact) {
+			ctx = ucl_object_emit_streamline_new (obj, UCL_EMIT_JSON_COMPACT, f);
+		}
+		else {
+			ctx = ucl_object_emit_streamline_new (obj, UCL_EMIT_JSON, f);
+		}
+	}
+	else {
+		ctx = ucl_object_emit_streamline_new (obj, UCL_EMIT_CONFIG, f);
+	}
 
 	assert (ctx != NULL);
 

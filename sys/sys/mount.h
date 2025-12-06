@@ -1007,6 +1007,7 @@ struct mntarg *mount_argsu(struct mntarg *ma, const char *name, const void *val,
 void	statfs_scale_blocks(struct statfs *sf, long max_size);
 struct vfsconf *vfs_byname(const char *);
 struct vfsconf *vfs_byname_kld(const char *, struct thread *td, int *);
+void	vfs_unref_vfsconf(struct vfsconf *vfsp);
 void	vfs_mount_destroy(struct mount *);
 void	vfs_event_signal(fsid_t *, u_int32_t, intptr_t);
 void	vfs_freeopts(struct vfsoptlist *opts);

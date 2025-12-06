@@ -4240,6 +4240,24 @@ ofreebsd32_sethostid(struct thread *td, struct ofreebsd32_sethostid_args *uap)
 int
 freebsd32_setcred(struct thread *td, struct freebsd32_setcred_args *uap)
 {
-	/* Last argument is 'is_32bit'. */
-	return (user_setcred(td, uap->flags, uap->wcred, uap->size, true));
+	struct setcred wcred;
+	struct setcred32 wcred32;
+	int error;
+
+	if (uap->size != sizeof(wcred32))
+		return (EINVAL);
+	error = copyin(uap->wcred, &wcred32, sizeof(wcred32));
+	if (error != 0)
+		return (error);
+	memset(&wcred, 0, sizeof(wcred));
+	CP(wcred32, wcred, sc_uid);
+	CP(wcred32, wcred, sc_ruid);
+	CP(wcred32, wcred, sc_svuid);
+	CP(wcred32, wcred, sc_gid);
+	CP(wcred32, wcred, sc_rgid);
+	CP(wcred32, wcred, sc_svgid);
+	CP(wcred32, wcred, sc_supp_groups_nb);
+	PTRIN_CP(wcred32, wcred, sc_supp_groups);
+	PTRIN_CP(wcred32, wcred, sc_label);
+	return (user_setcred(td, uap->flags, &wcred));
 }

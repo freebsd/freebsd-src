@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2019 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2019-2025 Ruslan Bukin <br@bsdpad.com>
  *
  * This software was developed by SRI International and the University of
  * Cambridge Computer Laboratory (Department of Computer Science and
@@ -58,11 +58,6 @@
 #define	AXI_TAILDESC_MSB(n)	(0x14 + 0x30 * (n)) /* Tail Descriptor Pointer. Upper 32 bits of address. */
 #define	AXI_SG_CTL		0x2C /* Scatter/Gather User and Cache */
 
-#define	AXIDMA_NCHANNELS	2
-#define	AXIDMA_DESCS_NUM	512
-#define	AXIDMA_TX_CHAN		0
-#define	AXIDMA_RX_CHAN		1
-
 struct axidma_desc {
 	uint32_t next;
 	uint32_t reserved1;
@@ -85,10 +80,6 @@ struct axidma_desc {
 	uint32_t app3;
 	uint32_t app4;
 	uint32_t reserved[3];
-};
-
-struct axidma_fdt_data {
-	int id;
 };
 
 #endif /* !_DEV_XILINX_AXIDMA_H_ */

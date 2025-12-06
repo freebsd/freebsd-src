@@ -3,6 +3,7 @@
  * Copyright 2024 NXP
  */
 
+#include <dt-bindings/clock/nxp,imx95-clock.h>
 #include <dt-bindings/dma/fsl-edma.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
@@ -22,12 +23,27 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		idle-states {
+			entry-method = "psci";
+
+			cpu_pd_wait: cpu-pd-wait {
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x0010033>;
+				local-timer-stop;
+				entry-latency-us = <10000>;
+				exit-latency-us = <7000>;
+				min-residency-us = <27000>;
+				wakeup-latency-us = <15000>;
+			};
+		};
+
 		A55_0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a55";
 			reg = <0x0>;
 			enable-method = "psci";
 			#cooling-cells = <2>;
+			cpu-idle-states = <&cpu_pd_wait>;
 			power-domains = <&scmi_perf IMX95_PERF_A55>;
 			power-domain-names = "perf";
 			i-cache-size = <32768>;
@@ -45,6 +61,7 @@
 			reg = <0x100>;
 			enable-method = "psci";
 			#cooling-cells = <2>;
+			cpu-idle-states = <&cpu_pd_wait>;
 			power-domains = <&scmi_perf IMX95_PERF_A55>;
 			power-domain-names = "perf";
 			i-cache-size = <32768>;
@@ -62,6 +79,7 @@
 			reg = <0x200>;
 			enable-method = "psci";
 			#cooling-cells = <2>;
+			cpu-idle-states = <&cpu_pd_wait>;
 			power-domains = <&scmi_perf IMX95_PERF_A55>;
 			power-domain-names = "perf";
 			i-cache-size = <32768>;
@@ -79,6 +97,7 @@
 			reg = <0x300>;
 			enable-method = "psci";
 			#cooling-cells = <2>;
+			cpu-idle-states = <&cpu_pd_wait>;
 			power-domains = <&scmi_perf IMX95_PERF_A55>;
 			power-domain-names = "perf";
 			i-cache-size = <32768>;
@@ -98,6 +117,7 @@
 			power-domain-names = "perf";
 			enable-method = "psci";
 			#cooling-cells = <2>;
+			cpu-idle-states = <&cpu_pd_wait>;
 			i-cache-size = <32768>;
 			i-cache-line-size = <64>;
 			i-cache-sets = <128>;
@@ -115,6 +135,7 @@
 			power-domain-names = "perf";
 			enable-method = "psci";
 			#cooling-cells = <2>;
+			cpu-idle-states = <&cpu_pd_wait>;
 			i-cache-size = <32768>;
 			i-cache-line-size = <64>;
 			i-cache-sets = <128>;
@@ -271,6 +292,13 @@
 		clock-output-names = "sai5_mclk";
 	};
 
+	clk_sys100m: clock-sys100m {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
+		clock-output-names = "clk_sys100m";
+	};
+
 	osc_24m: clock-24m {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -293,10 +321,15 @@
 			shmem = <&scmi_buf0>, <&scmi_buf1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			arm,max-rx-timeout-ms = <5000>;
 
 			scmi_devpd: protocol@11 {
 				reg = <0x11>;
 				#power-domain-cells = <1>;
+			};
+
+			scmi_sys_power: protocol@12 {
+				reg = <0x12>;
 			};
 
 			scmi_perf: protocol@13 {
@@ -318,6 +351,13 @@
 				reg = <0x19>;
 			};
 
+			scmi_bbm: protocol@81 {
+				reg = <0x81>;
+			};
+
+			scmi_misc: protocol@84 {
+				reg = <0x84>;
+			};
 		};
 	};
 
@@ -334,13 +374,13 @@
 
 			trips {
 				cpu_alert0: trip0 {
-					temperature = <85000>;
+					temperature = <105000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
 
 				cpu_crit0: trip1 {
-					temperature = <95000>;
+					temperature = <125000>;
 					hysteresis = <2000>;
 					type = "critical";
 				};
@@ -349,6 +389,38 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu_alert0>;
+					cooling-device =
+						<&A55_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&A55_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&A55_2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&A55_3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&A55_4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&A55_5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+
+		ana-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <2000>;
+			thermal-sensors = <&scmi_sensor 0>;
+			trips {
+				ana_alert: trip0 {
+					temperature = <105000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				ana_crit0: trip1 {
+					temperature = <125000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&ana_alert>;
 					cooling-device =
 						<&A55_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 						<&A55_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
@@ -397,6 +469,13 @@
 			#msi-cells = <1>;
 			dma-noncoherent;
 		};
+	};
+
+	usbphynop: usbphynop {
+		compatible = "usb-nop-xceiv";
+		clocks = <&scmi_clk IMX95_CLK_HSIO>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
 	};
 
 	soc {
@@ -606,6 +685,18 @@
 				reg = <0x42510000 0x1000>;
 				clocks = <&scmi_clk IMX95_CLK_TPM6>;
 				#pwm-cells = <3>;
+				status = "disabled";
+			};
+
+			i3c2: i3c@42520000 {
+				compatible = "nxp,imx95-i3c", "silvaco,i3c-master-v1";
+				reg = <0x42520000 0x10000>;
+				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <3>;
+				#size-cells = <0>;
+				clocks = <&scmi_clk IMX95_CLK_BUSAON>,
+					 <&scmi_clk IMX95_CLK_I3C2SLOW>;
+				clock-names = "pclk", "fast_clk";
 				status = "disabled";
 			};
 
@@ -1061,6 +1152,7 @@
 				 <&scmi_clk IMX95_CLK_BUSWAKEUP>;
 			clock-names = "gpio", "port";
 			gpio-ranges = <&scmi_iomuxc 0 4 32>;
+			ngpios = <32>;
 		};
 
 		gpio3: gpio@43820000 {
@@ -1077,6 +1169,7 @@
 			clock-names = "gpio", "port";
 			gpio-ranges = <&scmi_iomuxc 0 104 8>, <&scmi_iomuxc 8 74 18>,
 				      <&scmi_iomuxc 26 42 2>, <&scmi_iomuxc 28 0 4>;
+			ngpios = <32>;
 		};
 
 		gpio4: gpio@43840000 {
@@ -1092,6 +1185,7 @@
 				 <&scmi_clk IMX95_CLK_BUSWAKEUP>;
 			clock-names = "gpio", "port";
 			gpio-ranges = <&scmi_iomuxc 0 46 28>, <&scmi_iomuxc 28 44 2>;
+			ngpios = <30>;
 		};
 
 		gpio5: gpio@43850000 {
@@ -1107,6 +1201,7 @@
 				 <&scmi_clk IMX95_CLK_BUSWAKEUP>;
 			clock-names = "gpio", "port";
 			gpio-ranges = <&scmi_iomuxc 0 92 12>, <&scmi_iomuxc 12 36 6>;
+			ngpios = <18>;
 		};
 
 		aips1: bus@44000000 {
@@ -1178,6 +1273,18 @@
 				reg = <0x44320000 0x1000>;
 				clocks = <&scmi_clk IMX95_CLK_TPM2>;
 				#pwm-cells = <3>;
+				status = "disabled";
+			};
+
+			i3c1: i3c@44330000 {
+				compatible = "nxp,imx95-i3c", "silvaco,i3c-master-v1";
+				reg = <0x44330000 0x10000>;
+				interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <3>;
+				#size-cells = <0>;
+				clocks = <&scmi_clk IMX95_CLK_BUSAON>,
+					 <&scmi_clk IMX95_CLK_I3C1SLOW>;
+				clock-names = "pclk", "fast_clk";
 				status = "disabled";
 			};
 
@@ -1315,6 +1422,7 @@
 					     <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&scmi_clk IMX95_CLK_ADC>;
 				clock-names = "ipg";
+				#io-channel-cells = <1>;
 				status = "disabled";
 			};
 
@@ -1403,6 +1511,7 @@
 				 <&scmi_clk IMX95_CLK_M33>;
 			clock-names = "gpio", "port";
 			gpio-ranges = <&scmi_iomuxc 0 112 16>;
+			ngpios = <16>;
 			status = "disabled";
 		};
 
@@ -1473,12 +1582,85 @@
 			};
 		};
 
+		usb3: usb@4c010010 {
+			compatible = "fsl,imx95-dwc3", "fsl,imx8mp-dwc3";
+			reg = <0x0 0x4c010010 0x0 0x04>,
+			      <0x0 0x4c1f0000 0x0 0x20>;
+			clocks = <&scmi_clk IMX95_CLK_HSIO>,
+				 <&scmi_clk IMX95_CLK_32K>;
+			clock-names = "hsio", "suspend";
+			interrupts = <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+			power-domains = <&scmi_devpd IMX95_PD_HSIO_TOP>;
+			dma-ranges = <0x0 0x0 0x0 0x0 0x10 0x0>;
+			status = "disabled";
+
+			usb3_dwc3: usb@4c100000 {
+				compatible = "snps,dwc3";
+				reg = <0x0 0x4c100000 0x0 0x10000>;
+				clocks = <&scmi_clk IMX95_CLK_HSIO>,
+					 <&scmi_clk IMX95_CLK_24M>,
+					 <&scmi_clk IMX95_CLK_32K>;
+				clock-names = "bus_early", "ref", "suspend";
+				interrupts = <GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH>;
+				phys = <&usb3_phy>, <&usb3_phy>;
+				phy-names = "usb2-phy", "usb3-phy";
+				snps,gfladj-refclk-lpm-sel-quirk;
+				snps,parkmode-disable-ss-quirk;
+				iommus = <&smmu 0xe>;
+			};
+		};
+
+		hsio_blk_ctl: syscon@4c0100c0 {
+			compatible = "nxp,imx95-hsio-blk-ctl", "syscon";
+			reg = <0x0 0x4c0100c0 0x0 0x1>;
+			#clock-cells = <1>;
+			clocks = <&clk_sys100m>;
+			power-domains = <&scmi_devpd IMX95_PD_HSIO_TOP>;
+		};
+
+		usb3_phy: phy@4c1f0040 {
+			compatible = "fsl,imx95-usb-phy", "fsl,imx8mp-usb-phy";
+			reg = <0x0 0x4c1f0040 0x0 0x40>,
+			      <0x0 0x4c1fc000 0x0 0x100>;
+			clocks = <&scmi_clk IMX95_CLK_HSIO>;
+			clock-names = "phy";
+			#phy-cells = <0>;
+			power-domains = <&scmi_devpd IMX95_PD_HSIO_TOP>;
+			status = "disabled";
+		};
+
+		usb2: usb@4c200000 {
+			compatible = "fsl,imx95-usb", "fsl,imx7d-usb", "fsl,imx27-usb";
+			reg = <0x0 0x4c200000 0x0 0x200>;
+			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_HSIO>,
+				 <&scmi_clk IMX95_CLK_32K>;
+			clock-names = "usb_ctrl_root", "usb_wakeup";
+			iommus = <&smmu 0xf>;
+			phys = <&usbphynop>;
+			power-domains = <&scmi_devpd IMX95_PD_HSIO_TOP>;
+			fsl,usbmisc = <&usbmisc 0>;
+			status = "disabled";
+		};
+
+		usbmisc: usbmisc@4c200200 {
+			compatible = "fsl,imx95-usbmisc", "fsl,imx7d-usbmisc",
+				     "fsl,imx6q-usbmisc";
+			reg = <0x0 0x4c200200 0x0 0x200>,
+			      <0x0 0x4c010014 0x0 0x04>;
+			#index-cells = <1>;
+		};
+
 		pcie0: pcie@4c300000 {
 			compatible = "fsl,imx95-pcie";
 			reg = <0 0x4c300000 0 0x10000>,
 			      <0 0x60100000 0 0xfe00000>,
 			      <0 0x4c360000 0 0x10000>,
-			      <0 0x4c340000 0 0x2000>;
+			      <0 0x4c340000 0 0x4000>;
 			reg-names = "dbi", "config", "atu", "app";
 			ranges = <0x81000000 0x0 0x00000000 0x0 0x6ff00000 0 0x00100000>,
 				 <0x82000000 0x0 0x10000000 0x9 0x10000000 0 0x10000000>;
@@ -1500,8 +1682,9 @@
 			clocks = <&scmi_clk IMX95_CLK_HSIO>,
 				 <&scmi_clk IMX95_CLK_HSIOPLL>,
 				 <&scmi_clk IMX95_CLK_HSIOPLL_VCO>,
-				 <&scmi_clk IMX95_CLK_HSIOPCIEAUX>;
-			clock-names = "pcie", "pcie_bus", "pcie_phy", "pcie_aux";
+				 <&scmi_clk IMX95_CLK_HSIOPCIEAUX>,
+				 <&hsio_blk_ctl 0>;
+			clock-names = "pcie", "pcie_bus", "pcie_phy", "pcie_aux", "ref";
 			assigned-clocks =<&scmi_clk IMX95_CLK_HSIOPLL_VCO>,
 					 <&scmi_clk IMX95_CLK_HSIOPLL>,
 					 <&scmi_clk IMX95_CLK_HSIOPCIEAUX>;
@@ -1509,6 +1692,12 @@
 			assigned-clock-parents = <0>, <0>,
 						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>;
 			power-domains = <&scmi_devpd IMX95_PD_HSIO_TOP>;
+			/* pcie0's Devid(BIT[7:6]) is 0x00, stream id(BIT[5:0]) is 0x10~0x17 */
+			msi-map = <0x0 &its 0x10 0x1>,
+				  <0x100 &its 0x11 0x7>;
+			iommu-map = <0x000 &smmu 0x10 0x1>,
+				    <0x100 &smmu 0x11 0x7>;
+			iommu-map-mask = <0x1ff>;
 			fsl,max-link-speed = <3>;
 			status = "disabled";
 		};
@@ -1518,12 +1707,12 @@
 			reg = <0 0x4c300000 0 0x10000>,
 			      <0 0x4c360000 0 0x1000>,
 			      <0 0x4c320000 0 0x1000>,
-			      <0 0x4c340000 0 0x2000>,
+			      <0 0x4c340000 0 0x4000>,
 			      <0 0x4c370000 0 0x10000>,
 			      <0x9 0 1 0>;
 			reg-names = "dbi","atu", "dbi2", "app", "dma", "addr_space";
 			num-lanes = <1>;
-			interrupts = <GIC_SPI 317 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 311 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "dma";
 			clocks = <&scmi_clk IMX95_CLK_HSIO>,
 				 <&scmi_clk IMX95_CLK_HSIOPLL>,
@@ -1545,7 +1734,7 @@
 			reg = <0 0x4c380000 0 0x10000>,
 			      <8 0x80100000 0 0xfe00000>,
 			      <0 0x4c3e0000 0 0x10000>,
-			      <0 0x4c3c0000 0 0x2000>;
+			      <0 0x4c3c0000 0 0x4000>;
 			reg-names = "dbi", "config", "atu", "app";
 			ranges = <0x81000000 0 0x00000000 0x8 0x8ff00000 0 0x00100000>,
 				 <0x82000000 0 0x10000000 0xa 0x10000000 0 0x10000000>;
@@ -1567,8 +1756,9 @@
 			clocks = <&scmi_clk IMX95_CLK_HSIO>,
 				 <&scmi_clk IMX95_CLK_HSIOPLL>,
 				 <&scmi_clk IMX95_CLK_HSIOPLL_VCO>,
-				 <&scmi_clk IMX95_CLK_HSIOPCIEAUX>;
-			clock-names = "pcie", "pcie_bus", "pcie_phy", "pcie_aux";
+				 <&scmi_clk IMX95_CLK_HSIOPCIEAUX>,
+				 <&hsio_blk_ctl 0>;
+			clock-names = "pcie", "pcie_bus", "pcie_phy", "pcie_aux", "ref";
 			assigned-clocks =<&scmi_clk IMX95_CLK_HSIOPLL_VCO>,
 					 <&scmi_clk IMX95_CLK_HSIOPLL>,
 					 <&scmi_clk IMX95_CLK_HSIOPCIEAUX>;
@@ -1576,6 +1766,14 @@
 			assigned-clock-parents = <0>, <0>,
 						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>;
 			power-domains = <&scmi_devpd IMX95_PD_HSIO_TOP>;
+			/* pcie1's Devid(BIT[7:6]) is 0x10, stream id(BIT[5:0]) is 0x18~0x1f */
+			msi-map = <0x0 &its 0x98 0x1>,
+				  <0x100 &its 0x99 0x7>;
+			msi-map-mask = <0x1ff>;
+			/* smmu have not Devid(BIT[7:6]) */
+			iommu-map = <0x000 &smmu 0x18 0x1>,
+				    <0x100 &smmu 0x19 0x7>;
+			iommu-map-mask = <0x1ff>;
 			fsl,max-link-speed = <3>;
 			status = "disabled";
 		};
@@ -1585,7 +1783,7 @@
 			reg = <0 0x4c380000 0 0x10000>,
 			      <0 0x4c3e0000 0 0x1000>,
 			      <0 0x4c3a0000 0 0x1000>,
-			      <0 0x4c3c0000 0 0x2000>,
+			      <0 0x4c3c0000 0 0x4000>,
 			      <0 0x4c3f0000 0 0x10000>,
 			      <0xa 0 1 0>;
 			reg-names = "dbi", "atu", "dbi2", "app", "dma", "addr_space";
@@ -1607,9 +1805,52 @@
 			status = "disabled";
 		};
 
+		vpu_blk_ctrl: clock-controller@4c410000 {
+			compatible = "nxp,imx95-vpu-csr", "syscon";
+			reg = <0x0 0x4c410000 0x0 0x10000>;
+			#clock-cells = <1>;
+			clocks = <&scmi_clk IMX95_CLK_VPUAPB>;
+			power-domains = <&scmi_devpd IMX95_PD_VPU>;
+			assigned-clocks = <&scmi_clk IMX95_CLK_VPUAPB>,
+					  <&scmi_clk IMX95_CLK_VPU>,
+					  <&scmi_clk IMX95_CLK_VPUJPEG>;
+			assigned-clock-parents = <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>,
+						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD2>,
+						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD0>;
+			assigned-clock-rates = <133333333>, <667000000>, <500000000>;
+		};
+
+		jpegdec: jpegdec@4c500000 {
+			compatible = "nxp,imx95-jpgdec", "nxp,imx8qxp-jpgdec";
+			reg = <0x0 0x4C500000 0x0 0x00050000>;
+			interrupts = <GIC_SPI 295 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 296 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_VPU>,
+				 <&vpu_blk_ctrl IMX95_CLK_VPUBLK_JPEG_DEC>;
+			assigned-clocks = <&vpu_blk_ctrl IMX95_CLK_VPUBLK_JPEG_DEC>;
+			assigned-clock-parents = <&scmi_clk IMX95_CLK_VPUJPEG>;
+			power-domains = <&scmi_devpd IMX95_PD_VPU>;
+		};
+
+		jpegenc: jpegenc@4c550000 {
+			compatible = "nxp,imx95-jpgenc", "nxp,imx8qxp-jpgenc";
+			reg = <0x0 0x4C550000 0x0 0x00050000>;
+			interrupts = <GIC_SPI 291 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 292 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 293 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 294 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_VPU>,
+				 <&vpu_blk_ctrl IMX95_CLK_VPUBLK_JPEG_ENC>;
+			assigned-clocks = <&vpu_blk_ctrl IMX95_CLK_VPUBLK_JPEG_ENC>;
+			assigned-clock-parents = <&scmi_clk IMX95_CLK_VPUJPEG>;
+			power-domains = <&scmi_devpd IMX95_PD_VPU>;
+		};
+
 		netcmix_blk_ctrl: syscon@4c810000 {
 			compatible = "nxp,imx95-netcmix-blk-ctrl", "syscon";
-			reg = <0x0 0x4c810000 0x0 0x10000>;
+			reg = <0x0 0x4c810000 0x0 0x8>;
 			#clock-cells = <1>;
 			clocks = <&scmi_clk IMX95_CLK_BUSNETCMIX>;
 			assigned-clocks = <&scmi_clk IMX95_CLK_BUSNETCMIX>;
@@ -1631,6 +1872,107 @@
 			dmas = <&edma2 59 0 FSL_EDMA_RX>, <&edma2 58 0 0>;
 			dma-names = "rx", "tx";
 			status = "disabled";
+		};
+
+		netc_blk_ctrl: system-controller@4cde0000 {
+			compatible = "nxp,imx95-netc-blk-ctrl";
+			reg = <0x0 0x4cde0000 0x0 0x10000>,
+			      <0x0 0x4cdf0000 0x0 0x10000>,
+			      <0x0 0x4c81000c 0x0 0x18>;
+			reg-names = "ierb", "prb", "netcmix";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+			power-domains = <&scmi_devpd IMX95_PD_NETC>;
+			assigned-clocks = <&scmi_clk IMX95_CLK_ENET>,
+					  <&scmi_clk IMX95_CLK_ENETREF>;
+			assigned-clock-parents = <&scmi_clk IMX95_CLK_SYSPLL1_PFD2>,
+						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD0>;
+			assigned-clock-rates = <666666666>, <250000000>;
+			clocks = <&scmi_clk IMX95_CLK_ENET>;
+			clock-names = "ipg";
+			status = "disabled";
+
+			netc_bus0: pcie@4ca00000 {
+				compatible = "pci-host-ecam-generic";
+				reg = <0x0 0x4ca00000 0x0 0x100000>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				device_type = "pci";
+				bus-range = <0x0 0x0>;
+				msi-map = <0x0 &its 0x60 0x1>,	//ENETC0 PF
+					  <0x10 &its 0x61 0x1>, //ENETC0 VF0
+					  <0x20 &its 0x62 0x1>, //ENETC0 VF1
+					  <0x40 &its 0x63 0x1>, //ENETC1 PF
+					  <0x80 &its 0x64 0x1>, //ENETC2 PF
+					  <0x90 &its 0x65 0x1>, //ENETC2 VF0
+					  <0xa0 &its 0x66 0x1>, //ENETC2 VF1
+					  <0xc0 &its 0x67 0x1>; //NETC Timer
+				iommu-map = <0x0 &smmu 0x20 0x1>,
+					    <0x10 &smmu 0x21 0x1>,
+					    <0x20 &smmu 0x22 0x1>,
+					    <0x40 &smmu 0x23 0x1>,
+					    <0x80 &smmu 0x24 0x1>,
+					    <0x90 &smmu 0x25 0x1>,
+					    <0xa0 &smmu 0x26 0x1>,
+					    <0xc0 &smmu 0x27 0x1>;
+					 /* ENETC0~2 and Timer BAR0 - non-prefetchable memory */
+				ranges = <0x82000000 0x0 0x4cc00000  0x0 0x4cc00000  0x0 0xe0000
+					 /* Timer BAR2 - prefetchable memory */
+					 0xc2000000 0x0 0x4cd00000  0x0 0x4cd00000  0x0 0x10000
+					 /* ENETC0~2: VF0-1 BAR0 - non-prefetchable memory */
+					 0x82000000 0x0 0x4cd20000  0x0 0x4cd20000  0x0 0x60000
+					 /* ENETC0~2: VF0-1 BAR2 - prefetchable memory */
+					 0xc2000000 0x0 0x4cd80000  0x0 0x4cd80000  0x0 0x60000>;
+
+				enetc_port0: ethernet@0,0 {
+					compatible = "pci1131,e101";
+					reg = <0x000000 0 0 0 0>;
+					clocks = <&scmi_clk IMX95_CLK_ENETREF>;
+					clock-names = "ref";
+					status = "disabled";
+				};
+
+				enetc_port1: ethernet@8,0 {
+					compatible = "pci1131,e101";
+					reg = <0x004000 0 0 0 0>;
+					clocks = <&scmi_clk IMX95_CLK_ENETREF>;
+					clock-names = "ref";
+					status = "disabled";
+				};
+
+				enetc_port2: ethernet@10,0 {
+					compatible = "pci1131,e101";
+					reg = <0x008000 0 0 0 0>;
+					status = "disabled";
+				};
+
+				netc_timer: ethernet@18,0 {
+					reg = <0x00c000 0 0 0 0>;
+					status = "disabled";
+				};
+			};
+
+			netc_bus1: pcie@4cb00000 {
+				compatible = "pci-host-ecam-generic";
+				reg = <0x0 0x4cb00000 0x0 0x100000>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				device_type = "pci";
+				bus-range = <0x1 0x1>;
+					 /* EMDIO BAR0 - non-prefetchable memory */
+				ranges = <0x82000000 0x0 0x4cce0000  0x0 0x4cce0000  0x0 0x20000
+					 /* EMDIO BAR2 - prefetchable memory */
+					 0xc2000000 0x0 0x4cd10000  0x0 0x4cd10000  0x0 0x10000>;
+
+				netc_emdio: mdio@0,0 {
+					compatible = "pci1131,ee00";
+					reg = <0x010000 0 0 0 0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					status = "disabled";
+				};
+			};
 		};
 
 		ddr-pmu@4e090dc0 {

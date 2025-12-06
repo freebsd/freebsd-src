@@ -1,0 +1,23 @@
+/*
+ * Copyright 2018-2023,2024 Thomas E. Dickey
+ * Copyright 1998-2017,2018 Free Software Foundation, Inc.
+ *
+ * SPDX-License-Identifier: X11
+ *
+ * See contrib/ncurses/COPYING for the full license text.
+ */
+
+comment = "ncurses terminal control library"
+desc = <<EOD
+The ncurses package is a subroutine library for terminal-independent
+screen-painting and input-event handling which presents a high level screen
+model to the programmer.  ncurses implements the System V Release 4.0 (SVR4)
+curses interface, and is also backward compatible with traditional BSD curses.
+
+This package ships with a limited termcap database, but it is designed to use
+a terminfo database provided by ports, such as in misc/terminfo-db.
+EOD
+
+annotations {
+	set = "minimal,minimal-jail"
+}

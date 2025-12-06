@@ -1,4 +1,40 @@
-comment = "ACPI Utilities"
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+comment = "Advanced Configuration and Power Interface (ACPI) utilities"
+
 desc = <<EOD
-ACPI Utilities
+ACPI is a hardware standard allowing the operating system to monitor various
+hardware devices and system state.  For example, ACPI can report whether the
+system is on AC or battery power.
+
+This package provides several utilities that can be used to interact with the
+ACPI implementation in the kernel:
+
+* The /etc/rc.d/power_profile service can be used to change system performance
+  targets based on on the system power state.  This service is typically
+  invoked automatically by devd(8) when the system power state changes.
+* acpiconf(8) can monitor or change the system power state.
+* acpidb(8) is a debugging tool for working with ACPI DSDT files.
+* acpidump(8) dumps the system's raw ACPI data.
+* iasl(8) is the Intel ACPI compiler/decompiler
 EOD
+
+annotations {
+	set = "optional"
+}

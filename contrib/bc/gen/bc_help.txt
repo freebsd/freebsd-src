@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2025 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -37,7 +37,7 @@ usage: %s [options] [file...]
 
 bc is a command-line, arbitrary-precision calculator with a Turing-complete
 language. For details, use `man %s` or see the online documentation at
-https://git.gavinhoward.com/gavin/bc/src/tag/%s/manuals/bc/%s.1.md.
+https://github.com/gavinhoward/bc/tree/%s/manuals/bc/%s.1.md .
 
 This bc is compatible with both the GNU bc and the POSIX bc spec. See the GNU bc
 manual (https://www.gnu.org/software/bc/manual/bc.html) and bc spec

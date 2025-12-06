@@ -210,7 +210,7 @@ cpufreq_dt_set(device_t dev, const struct cf_setting *set)
 	} else
 		uvolt = 0;
 
-	opp = cpufreq_dt_find_opp(sc->dev, set->freq * 1000000);
+	opp = cpufreq_dt_find_opp(sc->dev, (uint64_t)set->freq * 1000000);
 	if (opp == NULL) {
 		device_printf(dev, "Couldn't find an opp for this freq\n");
 		return (EINVAL);

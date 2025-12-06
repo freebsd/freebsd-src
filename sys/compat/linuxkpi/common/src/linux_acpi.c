@@ -33,6 +33,7 @@
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
+#include <sys/power.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
@@ -118,20 +119,32 @@ acpi_evaluate_dsm(ACPI_HANDLE ObjHandle, const guid_t *guid,
 }
 
 static void
-linux_handle_power_suspend_event(void *arg __unused)
+linux_handle_power_suspend_event(void *arg __unused, enum power_stype stype)
 {
-	/*
-	 * Only support S3 for now.
-	 * acpi_sleep_event isn't always called so we use power_suspend_early
-	 * instead which means we don't know what state we're switching to.
-	 * TODO: Make acpi_sleep_event consistent
-	 */
-	linux_acpi_target_sleep_state = ACPI_STATE_S3;
-	pm_suspend_target_state = PM_SUSPEND_MEM;
+	switch (stype) {
+	case POWER_STYPE_SUSPEND_TO_IDLE:
+		/*
+		 * XXX: obiwac Not 100% sure this is correct, but
+		 * acpi_target_sleep_state does seem to be set to
+		 * ACPI_STATE_S3 during s2idle on Linux.
+		 */
+		linux_acpi_target_sleep_state = ACPI_STATE_S3;
+		pm_suspend_target_state = PM_SUSPEND_TO_IDLE;
+		break;
+	case POWER_STYPE_SUSPEND_TO_MEM:
+		linux_acpi_target_sleep_state = ACPI_STATE_S3;
+		pm_suspend_target_state = PM_SUSPEND_MEM;
+		break;
+	default:
+		printf("%s: sleep type %d not yet supported\n",
+		    __func__, stype);
+		break;
+	}
 }
 
 static void
-linux_handle_power_resume_event(void *arg __unused)
+linux_handle_power_resume_event(void *arg __unused,
+    enum power_stype stype __unused)
 {
 	linux_acpi_target_sleep_state = ACPI_STATE_S0;
 	pm_suspend_target_state = PM_SUSPEND_ON;

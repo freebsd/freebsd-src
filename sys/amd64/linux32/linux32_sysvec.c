@@ -954,7 +954,7 @@ linux_vdso_reloc(char *mapping, Elf_Addr offset)
 	}
 }
 
-static Elf_Brandnote linux32_brandnote = {
+static const Elf_Brandnote linux32_brandnote = {
 	.hdr.n_namesz	= sizeof(GNU_ABI_VENDOR),
 	.hdr.n_descsz	= 16,	/* XXX at least 16 */
 	.hdr.n_type	= 1,
@@ -963,7 +963,7 @@ static Elf_Brandnote linux32_brandnote = {
 	.trans_osrel	= linux_trans_osrel
 };
 
-static Elf32_Brandinfo linux_brand = {
+static const Elf32_Brandinfo linux_brand = {
 	.brand		= ELFOSABI_LINUX,
 	.machine	= EM_386,
 	.compat_3_brand	= "Linux",
@@ -974,7 +974,7 @@ static Elf32_Brandinfo linux_brand = {
 	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
 
-static Elf32_Brandinfo linux_glibc2brand = {
+static const Elf32_Brandinfo linux_glibc2brand = {
 	.brand		= ELFOSABI_LINUX,
 	.machine	= EM_386,
 	.compat_3_brand	= "Linux",
@@ -985,7 +985,7 @@ static Elf32_Brandinfo linux_glibc2brand = {
 	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
 
-static Elf32_Brandinfo linux_muslbrand = {
+static const Elf32_Brandinfo linux_muslbrand = {
 	.brand		= ELFOSABI_LINUX,
 	.machine	= EM_386,
 	.compat_3_brand	= "Linux",
@@ -997,7 +997,7 @@ static Elf32_Brandinfo linux_muslbrand = {
 			    LINUX_BI_FUTEX_REQUEUE
 };
 
-static Elf32_Brandinfo *linux_brandlist[] = {
+static const Elf32_Brandinfo *linux_brandlist[] = {
 	&linux_brand,
 	&linux_glibc2brand,
 	&linux_muslbrand,
@@ -1007,7 +1007,7 @@ static Elf32_Brandinfo *linux_brandlist[] = {
 static int
 linux_elf_modevent(module_t mod, int type, void *data)
 {
-	Elf32_Brandinfo **brandinfo;
+	const Elf32_Brandinfo **brandinfo;
 	int error;
 	struct linux_ioctl_handler **lihp;
 

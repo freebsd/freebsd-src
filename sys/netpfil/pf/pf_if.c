@@ -655,8 +655,10 @@ pfi_kkif_update(struct pfi_kkif *kif)
 	/* again for all groups kif is member of */
 	if (kif->pfik_ifp != NULL) {
 		CK_STAILQ_FOREACH(ifgl, &kif->pfik_ifp->if_groups, ifgl_next)
-			pfi_kkif_update((struct pfi_kkif *)
-			    ifgl->ifgl_group->ifg_pf_kif);
+			if (ifgl->ifgl_group->ifg_pf_kif) {
+				pfi_kkif_update((struct pfi_kkif *)
+				    ifgl->ifgl_group->ifg_pf_kif);
+			}
 	}
 }
 
@@ -700,7 +702,7 @@ pfi_table_update(struct pfr_ktable *kt, struct pfi_kkif *kif, uint8_t net,
 	}
 
 	if ((e = pfr_set_addrs(&kt->pfrkt_t, V_pfi_buffer, V_pfi_buffer_cnt, &size2,
-	    NULL, NULL, NULL, 0, PFR_TFLAG_ALLMASK)))
+	    NULL, NULL, NULL, PFR_FLAG_START | PFR_FLAG_DONE, PFR_TFLAG_ALLMASK)))
 		printf("%s: cannot set %d new addresses into table %s: %d\n",
 		    __func__, V_pfi_buffer_cnt, kt->pfrkt_name, e);
 }

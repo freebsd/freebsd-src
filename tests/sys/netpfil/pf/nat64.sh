@@ -213,12 +213,14 @@ tcp_in_if_bound_body()
 		atf_fail "Failed to connect to TCP server"
 	fi
 
+	sleep 1
+
 	# Interfaces of the state are reversed when doing inbound NAT64!
-	# FIXME: Packets counters seem wrong!
+	# FIXME: Packets from both directions are counted only on the inbound direction!
 	states=$(mktemp) || exit 1
 	jexec rtr pfctl -qvvss | normalize_pfctl_s > $states
 	for state_regexp in \
-		"${epair_link}a tcp 192.0.2.1:[0-9]+ \(2001:db8::2\[[0-9]+\]\) -> 192.0.2.2:1234 \(64:ff9b::c000:202\[1234\]\) .* 9:9 pkts.* rule 3 .* origif: ${epair}b" \
+		"${epair_link}a tcp 192.0.2.1:[0-9]+ \(2001:db8::2\[[0-9]+\]\) -> 192.0.2.2:1234 \(64:ff9b::c000:202\[1234\]\) .* 5:4 pkts.* rule 3 .* origif: ${epair}b" \
 	; do
 		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
 	done
@@ -253,6 +255,8 @@ tcp_out_if_bound_body()
 		echo "rcv=${rcv}"
 		atf_fail "Failed to connect to TCP server"
 	fi
+
+	sleep 1
 
 	# Origif is not printed when identical as if.
 	states=$(mktemp) || exit 1
@@ -295,12 +299,14 @@ tcp_in_floating_body()
 		atf_fail "Failed to connect to TCP server"
 	fi
 
+	sleep 1
+
 	# Interfaces of the state are reversed when doing inbound NAT64!
-	# FIXME: Packets counters seem wrong!
+	# FIXME: Packets from both directions are counted only on the inbound direction!
 	states=$(mktemp) || exit 1
 	jexec rtr pfctl -qvvss | normalize_pfctl_s > $states
 	for state_regexp in \
-		"all tcp 192.0.2.1:[0-9]+ \(2001:db8::2\[[0-9]+\]\) -> 192.0.2.2:1234 \(64:ff9b::c000:202\[1234\]\).* 9:9 pkts.* rule 3 .* origif: ${epair}b" \
+		"all tcp 192.0.2.1:[0-9]+ \(2001:db8::2\[[0-9]+\]\) -> 192.0.2.2:1234 \(64:ff9b::c000:202\[1234\]\).* 5:4 pkts.* rule 3 .* origif: ${epair}b" \
 	; do
 		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
 	done
@@ -335,6 +341,8 @@ tcp_out_floating_body()
 		echo "rcv=${rcv}"
 		atf_fail "Failed to connect to TCP server"
 	fi
+
+	sleep 1
 
 	# Origif is not printed when identical as if.
 	states=$(mktemp) || exit 1
@@ -1011,20 +1019,19 @@ route_to_body()
 	pft_init
 
 	epair_link=$(vnet_mkepair)
-	epair_null=$(vnet_mkepair)
 	epair=$(vnet_mkepair)
 
 	ifconfig ${epair}a inet6 2001:db8::2/64 up no_dad
 	route -6 add default 2001:db8::1
 
-	vnet_mkjail rtr ${epair}b ${epair_link}a ${epair_null}a
+	vnet_mkjail rtr ${epair}b ${epair_link}a
 	jexec rtr ifconfig ${epair}b inet6 2001:db8::1/64 up no_dad
-	jexec rtr ifconfig ${epair_null}a 192.0.2.3/24 up
 	jexec rtr ifconfig ${epair_link}a 192.0.2.1/24 up
 
 	vnet_mkjail dst ${epair_link}b
 	jexec dst ifconfig ${epair_link}b 192.0.2.2/24 up
-	jexec dst route add default 192.0.2.1
+	jexec dst ifconfig lo0 203.0.113.1/32 alias
+	jexec dst route add default 192.0.2.2
 
 	# Sanity checks
 	atf_check -s exit:0 -o ignore \
@@ -1033,19 +1040,23 @@ route_to_body()
 	jexec rtr pfctl -e
 	pft_set_rules rtr \
 	    "set reassemble yes" \
+	    "set debug loud" \
 	    "set state-policy if-bound" \
-	    "block" \
+	    "block log (all)" \
 	    "pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
 	    "pass in on ${epair}b route-to (${epair_link}a 192.0.2.2) inet6 from any to 64:ff9b::/96 af-to inet from (${epair_link}a)"
 
 	atf_check -s exit:0 -o ignore \
+	    -o match:'3 packets transmitted, 3 packets received, 0.0% packet loss' \
 	    ping6 -c 3 64:ff9b::192.0.2.2
 
 	states=$(mktemp) || exit 1
 	jexec rtr pfctl -qvvss | normalize_pfctl_s > $states
+	cat $states
 
+	# Interfaces of the state are reversed when doing inbound NAT64!
 	for state_regexp in \
-		"${epair}b ipv6-icmp 192.0.2.1:.* \(2001:db8::2\[[0-9]+\]\) -> 192.0.2.2:8 \(64:ff9b::c000:202\[[0-9]+\]\).*4:2 pkts.*route-to: 192.0.2.2@${epair_link}a" \
+		"${epair_link}a ipv6-icmp 192.0.2.1:.* \(2001:db8::2\[[0-9]+\]\) -> 192.0.2.2:8 \(64:ff9b::c000:202\[[0-9]+\]\).* 3:3 pkts.*route-to: 192.0.2.2@${epair_link}a origif: ${epair}b" \
 	; do
 		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
 	done
@@ -1094,6 +1105,7 @@ reply_to_body()
 	    "pass in on ${epair}b reply-to (${epair}b 2001:db8::2) inet6 from any to 64:ff9b::/96 af-to inet from 192.0.2.1"
 
 	atf_check -s exit:0 -o ignore \
+	    -o match:'3 packets transmitted, 3 packets received, 0.0% packet loss' \
 	    ping6 -c 3 64:ff9b::192.0.2.2
 }
 
@@ -1155,8 +1167,10 @@ v6_gateway_body()
 	    "pass in on ${epair_lan}b inet6 from any to 64:ff9b::/96 af-to inet from (${epair_wan_one}a)"
 
 	atf_check -s exit:0 -o ignore \
+	    -o match:'3 packets transmitted, 3 packets received, 0.0% packet loss' \
 	    ping6 -c 3 64:ff9b::192.0.2.2
 	atf_check -s exit:0 -o ignore \
+	    -o match:'3 packets transmitted, 3 packets received, 0.0% packet loss' \
 	    ping6 -c 3 64:ff9b::198.51.100.1
 }
 

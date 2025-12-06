@@ -508,6 +508,9 @@ long double	lgammal_r(long double, int *);
 void		sincos(double, double *, double *);
 void		sincosf(float, float *, float *);
 void		sincosl(long double, long double *, long double *);
+#endif /* __BSD_VISIBLE */
+
+#if __ISO_C_VISIBLE >= 2023
 double		cospi(double);
 float		cospif(float);
 long double 	cospil(long double);
@@ -517,7 +520,7 @@ long double 	sinpil(long double);
 double		tanpi(double);
 float		tanpif(float);
 long double	tanpil(long double);
-#endif
+#endif /* __ISO_C_VISIBLE >= 2023 */
 
 __END_DECLS
 

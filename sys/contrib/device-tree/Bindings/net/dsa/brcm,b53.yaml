@@ -16,6 +16,7 @@ properties:
   compatible:
     oneOf:
       - const: brcm,bcm5325
+      - const: brcm,bcm53101
       - const: brcm,bcm53115
       - const: brcm,bcm53125
       - const: brcm,bcm53128
@@ -65,6 +66,12 @@ properties:
               - brcm,bcm63268-switch
           - const: brcm,bcm63xx-switch
 
+  brcm,gpio-ctrl:
+    description:
+      A phandle to the syscon node of the bcm63xx gpio controller
+      which contains phy control registers
+    $ref: /schemas/types.yaml#/definitions/phandle
+
 required:
   - compatible
   - reg
@@ -77,6 +84,7 @@ allOf:
           contains:
             enum:
               - brcm,bcm5325
+              - brcm,bcm53101
               - brcm,bcm53115
               - brcm,bcm53125
               - brcm,bcm53128

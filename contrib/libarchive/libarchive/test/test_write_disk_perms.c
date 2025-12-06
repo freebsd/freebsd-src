@@ -94,21 +94,21 @@ searchgid(void)
 	close(fd);
 }
 
-static int
+static long
 altgid(void)
 {
 	searchgid();
 	return (_alt_gid);
 }
 
-static int
+static long
 invalidgid(void)
 {
 	searchgid();
 	return (_invalid_gid);
 }
 
-static int
+static long
 defaultgid(void)
 {
 	searchgid();

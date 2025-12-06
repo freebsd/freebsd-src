@@ -141,13 +141,9 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		(u_long)cr->cr_uid,
 		(u_long)cr->cr_ruid,
 		(u_long)cr->cr_rgid);
-
-	/* egid (cr->cr_svgid) is equal to cr_ngroups[0]
-	   see also getegid(2) in /sys/kern/kern_prot.c */
-
-	for (i = 0; i < cr->cr_ngroups; i++) {
+	sbuf_printf(sb, ",%lu", (u_long)cr->cr_gid);
+	for (i = 0; i < cr->cr_ngroups; i++)
 		sbuf_printf(sb, ",%lu", (u_long)cr->cr_groups[i]);
-	}
 
 	if (jailed(cr)) {
 		mtx_lock(&cr->cr_prison->pr_mtx);

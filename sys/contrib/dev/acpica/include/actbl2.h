@@ -201,6 +201,7 @@
 #define ACPI_SIG_SDEI           "SDEI"      /* Software Delegated Exception Interface Table */
 #define ACPI_SIG_SDEV           "SDEV"      /* Secure Devices table */
 #define ACPI_SIG_SVKL           "SVKL"      /* Storage Volume Key Location Table */
+#define ACPI_SIG_SWFT           "SWFT"      /* SoundWire File Table */
 #define ACPI_SIG_TDEL           "TDEL"      /* TD Event Log Table */
 
 
@@ -4094,6 +4095,30 @@ enum acpi_svkl_format
     ACPI_SVKL_FORMAT_RESERVED   = 1 /* 1 and greater are reserved */
 };
 
+/*******************************************************************************
+ *
+ * SWFT - SoundWire File Table
+ *        as described in Discovery and Configuration (DisCo) Specification
+ *        for SoundWire®
+ *        Version 1
+ *
+ ******************************************************************************/
+
+typedef struct acpi_table_swft
+{
+    ACPI_TABLE_HEADER       Header; /* Common ACPI table header */
+
+} ACPI_TABLE_SWFT;
+
+typedef struct acpi_swft_file
+{
+    UINT16                  VendorID;
+    UINT32                  FileID;
+    UINT16                  FileVersion;
+    UINT16                  FileLength;
+    UINT8                   FileData[];
+
+} ACPI_SWFT_FILE;
 
 /*******************************************************************************
  *

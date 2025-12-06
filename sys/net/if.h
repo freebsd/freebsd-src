@@ -253,8 +253,8 @@ struct if_data {
 #define	IFCAP_B_VXLAN_HWCSUM	29 /* can do IFCAN_HWCSUM on VXLANs */
 #define	IFCAP_B_VXLAN_HWTSO	30 /* can do IFCAP_TSO on VXLANs */
 #define	IFCAP_B_TXTLS_RTLMT	31 /* can do TLS with rate limiting */
-#define	IFCAP_B_RXTLS4		32 /* can to TLS receive for TCP */
-#define	IFCAP_B_RXTLS6		33 /* can to TLS receive for TCP6 */
+#define	IFCAP_B_RXTLS4		32 /* can do TLS receive for TCP */
+#define	IFCAP_B_RXTLS6		33 /* can do TLS receive for TCP6 */
 #define	IFCAP_B_IPSEC_OFFLOAD	34 /* inline IPSEC offload */
 #define	__IFCAP_B_SIZE		35
 

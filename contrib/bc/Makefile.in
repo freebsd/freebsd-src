@@ -1,7 +1,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2025 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -37,6 +37,8 @@ SCRIPTSDIR = $(ROOTDIR)/scripts
 GENDIR = $(ROOTDIR)/gen
 
 BUILDDIR = %%BUILDDIR%%
+
+VERSION = %%VERSION%%
 
 SRC = %%SRC%%
 OBJ = %%OBJ%%
@@ -99,17 +101,16 @@ BC_FUZZER_C = $(BIN)/$(BC)_fuzzer_C
 DC_FUZZER = $(BIN)/$(DC)_fuzzer_c
 DC_FUZZER_C = $(BIN)/$(DC)_fuzzer_C
 
-BC_TEST_OUTPUTS = tests/bc_outputs
 BC_FUZZ_OUTPUTS = tests/fuzzing/bc_outputs1 tests/fuzzing/bc_outputs2 tests/fuzzing/bc_outputs3
-DC_TEST_OUTPUTS = tests/dc_outputs
 DC_FUZZ_OUTPUTS = tests/fuzzing/dc_outputs
 
 LIB = libbcl
 LIB_NAME = $(LIB).a
 LIBBC = $(BIN)/$(LIB_NAME)
 BCL = bcl
-BCL_TEST = $(BIN)/$(BCL)
-BCL_TEST_C = $(TESTSDIR)/$(BCL).c
+
+GENERATE_TESTS = %%GENERATE_TESTS%%
+PROBLEMATIC_TESTS = %%PROBLEMATIC_TESTS%%
 
 MANUALS = manuals
 BC_MANPAGE_NAME = $(EXEC_PREFIX)$(BC)$(EXEC_SUFFIX).1
@@ -152,11 +153,11 @@ BC_ENABLE_EXTRA_MATH = %%EXTRA_MATH%%
 BC_ENABLE_NLS = %%NLS%%
 BC_EXCLUDE_EXTRA_MATH = %%EXCLUDE_EXTRA_MATH%%
 
-BC_ENABLE_AFL = %%FUZZ%%
-BC_ENABLE_OSSFUZZ = %%OSSFUZZ%%
-BC_ENABLE_MEMCHECK = %%MEMCHECK%%
+BC_ENABLE_AFL = 0
+BC_ENABLE_OSSFUZZ = 0
+BC_ENABLE_MEMCHECK = 0
 
-LIB_FUZZING_ENGINE = %%LIB_FUZZING_ENGINE%%
+LIB_FUZZING_ENGINE = 0
 
 BC_DEFAULT_BANNER = %%BC_DEFAULT_BANNER%%
 BC_DEFAULT_SIGINT_RESET = %%BC_DEFAULT_SIGINT_RESET%%
@@ -189,10 +190,6 @@ KARATSUBA = $(SCRIPTSDIR)/karatsuba.py
 LOCALE_INSTALL = $(SCRIPTSDIR)/locale_install.sh
 LOCALE_UNINSTALL = $(SCRIPTSDIR)/locale_uninstall.sh
 
-VALGRIND_ARGS = --error-exitcode=100 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all
-
-TEST_STARS = ***********************************************************************
-
 BC_NUM_KARATSUBA_LEN = %%KARATSUBA_LEN%%
 
 BC_DEFS0 = -DBC_DEFAULT_BANNER=$(BC_DEFAULT_BANNER)
@@ -218,7 +215,7 @@ CPPFLAGS6 = $(CPPFLAGS5) -DBC_ENABLE_NLS=$(BC_ENABLE_NLS)
 CPPFLAGS7 = $(CPPFLAGS6) -D$(BC_ENABLE_EXTRA_MATH_NAME)=$(BC_ENABLE_EXTRA_MATH)
 CPPFLAGS8 = $(CPPFLAGS7) -DBC_ENABLE_HISTORY=$(BC_ENABLE_HISTORY) -DBC_ENABLE_LIBRARY=$(BC_ENABLE_LIBRARY)
 CPPFLAGS9 = $(CPPFLAGS8) -DBC_ENABLE_MEMCHECK=$(BC_ENABLE_MEMCHECK) -DBC_ENABLE_AFL=$(BC_ENABLE_AFL)
-CPPFLAGS = $(CPPFLAGS9) -DBC_ENABLE_OSSFUZZ=$(BC_ENABLE_OSSFUZZ)
+CPPFLAGS = -DVERSION=$(VERSION) $(CPPFLAGS9) -DBC_ENABLE_OSSFUZZ=$(BC_ENABLE_OSSFUZZ)
 CFLAGS = $(CPPFLAGS) $(BC_DEFS) $(DC_DEFS) %%CPPFLAGS%% %%CFLAGS%%
 LDFLAGS = %%LDFLAGS%%
 
@@ -293,236 +290,10 @@ help:
 	@printf '    check           alias for `make test`\n'
 	@printf '    clean           removes all build files\n'
 	@printf '    clean_config    removes all build files as well as the generated Makefile\n'
-	@printf '    clean_tests     removes all build files, the generated Makefile,\n'
-	@printf '                    and generated tests\n'
 	@printf '    install         installs binaries to "%s%s"\n' "$(DESTDIR)" "$(BINDIR)"
 	@printf '                    and (if enabled) manpages to "%s%s"\n' "$(DESTDIR)" "$(MAN1DIR)"
-	@printf '    karatsuba       runs the karatsuba script (requires Python 3)\n'
-	@printf '    karatsuba_test  runs the karatsuba script while running tests\n'
-	@printf '                    (requires Python 3)\n'
 	@printf '    uninstall       uninstalls binaries from "%s%s"\n' "$(DESTDIR)" "$(BINDIR)"
 	@printf '                    and (if enabled) manpages from "%s%s"\n' "$(DESTDIR)" "$(MAN1DIR)"
-	@printf '    test            runs the test suite\n'
-	@printf '    test_bc         runs the bc test suite, if bc has been built\n'
-	@printf '    test_dc         runs the dc test suite, if dc has been built\n'
-	@printf '    time_test       runs the test suite, displaying times for some things\n'
-	@printf '    time_test_bc    runs the bc test suite, displaying times for some things\n'
-	@printf '    time_test_dc    runs the dc test suite, displaying times for some things\n'
-	@printf '    timeconst       runs the test on the Linux timeconst.bc script,\n'
-	@printf '                    if it exists and bc has been built\n'
-
-run_all_tests: bc_all_tests timeconst_all_tests dc_all_tests
-
-run_all_tests_np: bc_all_tests_np timeconst_all_tests dc_all_tests_np
-
-bc_all_tests:
-	%%BC_ALL_TESTS%%
-
-bc_all_tests_np:
-	%%BC_ALL_TESTS_NP%%
-
-timeconst_all_tests:
-	%%TIMECONST_ALL_TESTS%%
-
-dc_all_tests:
-	%%DC_ALL_TESTS%%
-
-dc_all_tests_np:
-	%%DC_ALL_TESTS_NP%%
-
-history_all_tests:
-	%%HISTORY_TESTS%%
-
-check: test
-
-test: %%TESTS%%
-
-test_bc: test_bc_header test_bc_tests test_bc_scripts test_bc_errors test_bc_stdin test_bc_read test_bc_other
-	@printf '\nAll bc tests passed.\n\n$(TEST_STARS)\n'
-
-test_bc_tests:%%BC_TESTS%%
-
-test_bc_scripts:%%BC_SCRIPT_TESTS%%
-
-test_bc_stdin:
-	@export BC_TEST_OUTPUT_DIR="$(BUILDDIR)/tests"; sh $(TESTSDIR)/stdin.sh bc %%BC_TEST_EXEC%%
-
-test_bc_read:
-	@export BC_TEST_OUTPUT_DIR="$(BUILDDIR)/tests"; sh $(TESTSDIR)/read.sh bc %%BC_TEST_EXEC%%
-
-test_bc_errors: test_bc_error_lines%%BC_ERROR_TESTS%%
-
-test_bc_error_lines:
-	@export BC_TEST_OUTPUT_DIR="$(BUILDDIR)/tests"; sh $(TESTSDIR)/errors.sh bc %%BC_TEST_EXEC%%
-
-test_bc_other:
-	@export BC_TEST_OUTPUT_DIR="$(BUILDDIR)/tests"; sh $(TESTSDIR)/other.sh bc $(BC_ENABLE_EXTRA_MATH) %%BC_TEST_EXEC%%
-
-test_bc_header:
-	@printf '$(TEST_STARS)\n\nRunning bc tests...\n\n'
-
-test_dc: test_dc_header test_dc_tests test_dc_scripts test_dc_errors test_dc_stdin test_dc_read test_dc_other
-	@printf '\nAll dc tests passed.\n\n$(TEST_STARS)\n'
-
-test_dc_tests:%%DC_TESTS%%
-
-test_dc_scripts:%%DC_SCRIPT_TESTS%%
-
-test_dc_stdin:
-	@export BC_TEST_OUTPUT_DIR="$(BUILDDIR)/tests"; sh $(TESTSDIR)/stdin.sh dc %%DC_TEST_EXEC%%
-
-test_dc_read:
-	@export BC_TEST_OUTPUT_DIR="$(BUILDDIR)/tests"; sh $(TESTSDIR)/read.sh dc %%DC_TEST_EXEC%%
-
-test_dc_errors: test_dc_error_lines%%DC_ERROR_TESTS%%
-
-test_dc_error_lines:
-	@export BC_TEST_OUTPUT_DIR="$(BUILDDIR)/tests"; sh $(TESTSDIR)/errors.sh dc %%DC_TEST_EXEC%%
-
-test_dc_other:
-	@export BC_TEST_OUTPUT_DIR="$(BUILDDIR)/tests"; sh $(TESTSDIR)/other.sh dc $(BC_ENABLE_EXTRA_MATH) %%DC_TEST_EXEC%%
-
-test_dc_header:
-	@printf '$(TEST_STARS)\n\nRunning dc tests...\n\n'
-
-timeconst:
-	%%TIMECONST%%
-
-test_history: test_history_header test_bc_history test_dc_history
-	@printf '\nAll history tests passed.\n\n$(TEST_STARS)\n'
-
-test_bc_history:%%BC_HISTORY_TEST_PREREQS%%
-
-test_bc_history_all: test_bc_history0 test_bc_history1 test_bc_history2 test_bc_history3 test_bc_history4 test_bc_history5 test_bc_history6 test_bc_history7 test_bc_history8 test_bc_history9 test_bc_history10 test_bc_history11 test_bc_history12 test_bc_history13 test_bc_history14 test_bc_history15 test_bc_history16 test_bc_history17 test_bc_history18 test_bc_history19 test_bc_history20 test_bc_history21
-
-test_bc_history_skip:
-	@printf 'No bc history tests to run\n'
-
-test_bc_history0:
-	@sh $(TESTSDIR)/history.sh bc 0 %%BC_TEST_EXEC%%
-
-test_bc_history1:
-	@sh $(TESTSDIR)/history.sh bc 1 %%BC_TEST_EXEC%%
-
-test_bc_history2:
-	@sh $(TESTSDIR)/history.sh bc 2 %%BC_TEST_EXEC%%
-
-test_bc_history3:
-	@sh $(TESTSDIR)/history.sh bc 3 %%BC_TEST_EXEC%%
-
-test_bc_history4:
-	@sh $(TESTSDIR)/history.sh bc 4 %%BC_TEST_EXEC%%
-
-test_bc_history5:
-	@sh $(TESTSDIR)/history.sh bc 5 %%BC_TEST_EXEC%%
-
-test_bc_history6:
-	@sh $(TESTSDIR)/history.sh bc 6 %%BC_TEST_EXEC%%
-
-test_bc_history7:
-	@sh $(TESTSDIR)/history.sh bc 7 %%BC_TEST_EXEC%%
-
-test_bc_history8:
-	@sh $(TESTSDIR)/history.sh bc 8 %%BC_TEST_EXEC%%
-
-test_bc_history9:
-	@sh $(TESTSDIR)/history.sh bc 9 %%BC_TEST_EXEC%%
-
-test_bc_history10:
-	@sh $(TESTSDIR)/history.sh bc 10 %%BC_TEST_EXEC%%
-
-test_bc_history11:
-	@sh $(TESTSDIR)/history.sh bc 11 %%BC_TEST_EXEC%%
-
-test_bc_history12:
-	@sh $(TESTSDIR)/history.sh bc 12 %%BC_TEST_EXEC%%
-
-test_bc_history13:
-	@sh $(TESTSDIR)/history.sh bc 13 %%BC_TEST_EXEC%%
-
-test_bc_history14:
-	@sh $(TESTSDIR)/history.sh bc 14 %%BC_TEST_EXEC%%
-
-test_bc_history15:
-	@sh $(TESTSDIR)/history.sh bc 15 %%BC_TEST_EXEC%%
-
-test_bc_history16:
-	@sh $(TESTSDIR)/history.sh bc 16 %%BC_TEST_EXEC%%
-
-test_bc_history17:
-	@sh $(TESTSDIR)/history.sh bc 17 %%BC_TEST_EXEC%%
-
-test_bc_history18:
-	@sh $(TESTSDIR)/history.sh bc 18 %%BC_TEST_EXEC%%
-
-test_bc_history19:
-	@sh $(TESTSDIR)/history.sh bc 19 %%BC_TEST_EXEC%%
-
-test_bc_history20:
-	@sh $(TESTSDIR)/history.sh bc 20 %%BC_TEST_EXEC%%
-
-test_bc_history21:
-	@sh $(TESTSDIR)/history.sh bc 21 %%BC_TEST_EXEC%%
-
-test_dc_history:%%DC_HISTORY_TEST_PREREQS%%
-
-test_dc_history_all: test_dc_history0 test_dc_history1 test_dc_history2 test_dc_history3 test_dc_history4 test_dc_history5 test_dc_history6 test_dc_history7 test_dc_history8 test_dc_history9 test_dc_history10
-
-test_dc_history_skip:
-	@printf 'No dc history tests to run\n'
-
-test_dc_history0:
-	@sh $(TESTSDIR)/history.sh dc 0 %%DC_TEST_EXEC%%
-
-test_dc_history1:
-	@sh $(TESTSDIR)/history.sh dc 1 %%DC_TEST_EXEC%%
-
-test_dc_history2:
-	@sh $(TESTSDIR)/history.sh dc 2 %%DC_TEST_EXEC%%
-
-test_dc_history3:
-	@sh $(TESTSDIR)/history.sh dc 3 %%DC_TEST_EXEC%%
-
-test_dc_history4:
-	@sh $(TESTSDIR)/history.sh dc 4 %%DC_TEST_EXEC%%
-
-test_dc_history5:
-	@sh $(TESTSDIR)/history.sh dc 5 %%DC_TEST_EXEC%%
-
-test_dc_history6:
-	@sh $(TESTSDIR)/history.sh dc 6 %%DC_TEST_EXEC%%
-
-test_dc_history7:
-	@sh $(TESTSDIR)/history.sh dc 7 %%DC_TEST_EXEC%%
-
-test_dc_history8:
-	@sh $(TESTSDIR)/history.sh dc 8 %%DC_TEST_EXEC%%
-
-test_dc_history9:
-	@sh $(TESTSDIR)/history.sh dc 9 %%DC_TEST_EXEC%%
-
-test_dc_history10:
-	@sh $(TESTSDIR)/history.sh dc 10 %%DC_TEST_EXEC%%
-
-test_history_header:
-	@printf '$(TEST_STARS)\n\nRunning history tests...\n\n'
-
-library_test: $(LIBBC)
-	$(CC) $(CFLAGS) -lpthread $(BCL_TEST_C) $(LIBBC) -o $(BCL_TEST)
-
-test_library: library_test
-	%%BCL_TEST_EXEC%%
-
-karatsuba:
-	%%KARATSUBA%%
-
-karatsuba_test:
-	%%KARATSUBA_TEST%%
-
-coverage_output:
-	%%COVERAGE_OUTPUT%%
-
-coverage:%%COVERAGE_PREREQS%%
 
 manpages:
 	$(MANPAGE) bc
@@ -559,37 +330,25 @@ clean_config: clean clean_benchmarks
 	@$(RM) -f compile_commands.json
 	@$(RM) -f $(BCL_PC)
 
-clean_coverage:
-	@printf 'Cleaning coverage files...\n'
-	@$(RM) -f *.gcov
-	@$(RM) -f *.html *.css
-	@$(RM) -f *.gcda *.gcno
-	@$(RM) -f *.profraw
-	@$(RM) -f $(GCDA) $(GCNO)
-	@$(RM) -f $(BC_GCDA) $(BC_GCNO)
-	@$(RM) -f $(DC_GCDA) $(DC_GCNO)
-	@$(RM) -f $(HISTORY_GCDA) $(HISTORY_GCNO)
-	@$(RM) -f $(RAND_GCDA) $(RAND_GCNO)
-	@$(RM) -f $(BC_LIB_GCDA) $(BC_LIB_GCNO)
-	@$(RM) -f $(BC_LIB2_GCDA) $(BC_LIB2_GCNO)
-	@$(RM) -f $(BC_HELP_GCDA) $(BC_HELP_GCNO)
-	@$(RM) -f $(DC_HELP_GCDA) $(DC_HELP_GCNO)
+test:
+	@if [ $(BC_ENABLED) -ne 0 ]; then $(TESTSDIR)/all.sh -n bc $(BC_ENABLE_EXTRA_MATH) 1 $(GENERATE_TESTS) $(PROBLEMATIC_TESTS) $(BC_EXEC); fi
+	@if [ $(DC_ENABLED) -ne 0 ]; then $(TESTSDIR)/all.sh -n dc $(BC_ENABLE_EXTRA_MATH) 1 $(GENERATE_TESTS) $(PROBLEMATIC_TESTS) $(DC_EXEC); fi
 
-clean_tests: clean clean_config clean_coverage
+clean_tests: clean clean_config
 	@printf 'Cleaning test files...\n'
 	@$(RM) -fr $(BC_TEST_OUTPUTS) $(DC_TEST_OUTPUTS)
 	@$(RM) -fr $(BC_FUZZ_OUTPUTS) $(DC_FUZZ_OUTPUTS)
-	@$(RM) -f $(TESTSDIR)/bc/parse.txt $(TESTSDIR)/bc/parse_results.txt
-	@$(RM) -f $(TESTSDIR)/bc/print.txt $(TESTSDIR)/bc/print_results.txt
+	@$(RM) -f $(TESTSDIR)/bc/parse_*.txt $(TESTSDIR)/bc/parse_*_results.txt
+	@$(RM) -f $(TESTSDIR)/bc/print_*.txt $(TESTSDIR)/bc/print_*_results.txt
 	@$(RM) -f $(TESTSDIR)/bc/bessel.txt $(TESTSDIR)/bc/bessel_results.txt
 	@$(RM) -f $(TESTSDIR)/bc/strings2.txt $(TESTSDIR)/bc/strings2_results.txt
 	@$(RM) -f $(TESTSDIR)/bc/scripts/bessel.txt
 	@$(RM) -f $(TESTSDIR)/bc/scripts/parse.txt
 	@$(RM) -f $(TESTSDIR)/bc/scripts/print.txt
-	@$(RM) -f $(TESTSDIR)/bc/scripts/add.txt
-	@$(RM) -f $(TESTSDIR)/bc/scripts/divide.txt
-	@$(RM) -f $(TESTSDIR)/bc/scripts/multiply.txt
-	@$(RM) -f $(TESTSDIR)/bc/scripts/subtract.txt
+	@$(RM) -f $(TESTSDIR)/bc/scripts/add_*.txt
+	@$(RM) -f $(TESTSDIR)/bc/scripts/divide_*.txt
+	@$(RM) -f $(TESTSDIR)/bc/scripts/multiply_*.txt
+	@$(RM) -f $(TESTSDIR)/bc/scripts/subtract_*.txt
 	@$(RM) -f $(TESTSDIR)/bc/scripts/strings2.txt
 	@$(RM) -f $(TESTSDIR)/dc/scripts/prime.txt
 	@$(RM) -f .log_*.txt

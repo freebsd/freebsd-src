@@ -112,13 +112,13 @@ Link	\fItimezone\fP		posixrules
 If
 .Ar timezone
 is
-.Dq "\*-"
+.Dq "\-"
 (the default), any already-existing link is removed.
 .Pp
 Unless
 .Ar timezone
 is
-.Dq "\*-" ,
+.Dq "\-" ,
 this option is obsolete and poorly supported.
 Among other things it should not be used for timestamps after the year 2037,
 and it should not be combined with
@@ -148,6 +148,10 @@ omits data intended for negative timestamps (i.e., before the Epoch), and
 .Fl r @0/@2147483648
 outputs data intended only for nonnegative timestamps that fit into
 31-bit signed integers.
+On platforms with GNU
+.Nm date ,
+.Dq "zic \-r @$(date +%s)"
+omits data intended for past timestamps.
 Although this option typically reduces the output file's size,
 the size can increase due to the need to represent the timestamp range
 boundaries, particularly if
@@ -366,7 +370,15 @@ separate script to further restrict in which
 of years the rule would apply.
 .It IN
 Names the month in which the rule takes effect.
-Month names may be abbreviated.
+Month names may be abbreviated as mentioned previously;
+for example, January can appear as
+.Dq January ,
+.Dq JANU
+or
+.Dq Ja ,
+but not as
+.Dq j
+which would be ambiguous with both June and July.
 .It ON
 Gives the day on which the rule takes effect.
 Recognized forms include:
@@ -389,7 +401,12 @@ or a weekday name preceded by
 .Dq "last"
 (e.g.,
 .Ql "lastSunday" )
-may be abbreviated or spelled out in full.
+may be abbreviated as mentioned previously,
+e.g.,
+.Dq Su
+for Sunday and
+.Dq lastsa
+for the last Saturday.
 There must be no white space characters within the
 .Ar ON
 field.
@@ -540,7 +557,7 @@ field,
 giving the amount of time to be added to local standard time
 and whether the resulting time is standard or daylight saving.
 Standard time applies if this field is
-.Ql \*-
+.Ql \-
 or for timestamps occurring before any rule takes effect.
 When an amount of time is given, only the sum of standard time and
 this amount matters.

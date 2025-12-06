@@ -29,6 +29,9 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
+#ifdef __FreeBSD__
+#include <sys/_mutex.h>
+#endif
 #include <sys/proc.h>
 #ifdef illumos
 #include <sys/cmn_err.h>

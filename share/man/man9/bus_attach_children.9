@@ -105,7 +105,7 @@ Detached devices are not deleted.
 .Pp
 .Fn bus_detach_children
 is typically called at the start of a bus driver's
-.Xr DEVICE_ATTACH 9
+.Xr DEVICE_DETACH 9
 method to give child devices a chance to veto the detach request.
 It is usually paired with a later call to
 .Fn device_delete_children 9

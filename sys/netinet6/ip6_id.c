@@ -63,7 +63,6 @@
  * $OpenBSD: ip6_id.c,v 1.3 2003/12/12 06:57:12 itojun Exp $
  */
 
-#include <sys/cdefs.h>
 /*
  * seed = random (bits - 1) bit
  * n = prime, g0 = generator to n,

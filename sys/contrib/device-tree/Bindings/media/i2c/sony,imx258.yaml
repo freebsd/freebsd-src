@@ -18,15 +18,13 @@ description: |-
   The camera module does not expose the model through registers, so the
   exact model needs to be specified.
 
+$ref: /schemas/media/video-interface-devices.yaml#
+
 properties:
   compatible:
     enum:
       - sony,imx258
       - sony,imx258-pdaf
-
-  assigned-clocks: true
-  assigned-clock-parents: true
-  assigned-clock-rates: true
 
   clocks:
     description:
@@ -85,7 +83,7 @@ required:
   - reg
   - port
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
@@ -124,9 +122,6 @@ examples:
             compatible = "sony,imx258";
             reg = <0x6c>;
             clocks = <&imx258_clk>;
-
-            assigned-clocks = <&imx258_clk>;
-            assigned-clock-rates = <19200000>;
 
             port {
                 endpoint {

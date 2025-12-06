@@ -1,6 +1,8 @@
 .PATH: ${SRCTOP}/share/termcap
 
-PACKAGE=	runtime
+# Note: This is in ncurses-lib rather than ncurses because without it, ncurses
+# doesn't work, and the base ncurses package is optional.
+PACKAGE=	ncurses-lib
 CLEANFILES+=	termcap.small
 CONFS=		termcap.small
 

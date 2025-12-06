@@ -1,6 +1,9 @@
 -Weverything
 -pedantic
 -Wno-unsafe-buffer-usage
+-Wno-pre-c11-compat
+-Wno-unknown-warning-option
+-Wno-switch-default
 -D_POSIX_C_SOURCE=200809L
 -D_XOPEN_SOURCE=700
 -D_BSD_SOURCE

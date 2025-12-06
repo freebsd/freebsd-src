@@ -145,13 +145,6 @@ FEATURE(invariants, "Kernel compiled with INVARIANTS, may affect performance");
 #endif
 
 /*
- * This ensures that there is at least one entry so that the sysinit_set
- * symbol is not undefined.  A sybsystem ID of SI_SUB_DUMMY is never
- * executed.
- */
-SYSINIT(placeholder, SI_SUB_DUMMY, SI_ORDER_ANY, NULL, NULL);
-
-/*
  * The sysinit linker set compiled into the kernel.  These are placed onto the
  * sysinit list by mi_startup; sysinit_add can add (e.g., from klds) additional
  * sysinits to the linked list but the linker set here does not change.
@@ -296,7 +289,7 @@ mi_startup(void)
 			BOOTTRACE_INIT("sysinit 0x%7x", sip->subsystem);
 
 #if defined(VERBOSE_SYSINIT)
-		if (sip->subsystem > last && verbose_sysinit != 0) {
+		if (sip->subsystem != last && verbose_sysinit != 0) {
 			verbose = 1;
 			printf("subsystem %x\n", sip->subsystem);
 		}
@@ -343,7 +336,7 @@ mi_startup(void)
 	 * the need arises.
 	 */
 	for (;;)
-		tsleep(__builtin_frame_address(0), PNOLOCK, "parked", 0);
+		tsleep(__builtin_frame_address(0), PNOLOCK, "-", 0);
 }
 
 static void
@@ -391,7 +384,7 @@ C_SYSINIT(diagwarn2, SI_SUB_LAST, SI_ORDER_FIFTH,
 
 #if __SIZEOF_LONG__ == 4
 static const char ilp32_warn[] =
-    "WARNING: 32-bit kernels are deprecated and may be removed in FreeBSD 15.0.\n";
+    "WARNING: 32-bit kernels are deprecated and may be removed in FreeBSD 16.0.\n";
 C_SYSINIT(ilp32warn, SI_SUB_COPYRIGHT, SI_ORDER_FIFTH,
     print_caddr_t, ilp32_warn);
 C_SYSINIT(ilp32warn2, SI_SUB_LAST, SI_ORDER_FIFTH,
@@ -493,7 +486,7 @@ proc0_init(void *dummy __unused)
 	schedinit();	/* scheduler gets its house in order */
 
 	/*
-	 * Create process 0 (the swapper).
+	 * Create process 0.
 	 */
 	LIST_INSERT_HEAD(&allproc, p, p_list);
 	LIST_INSERT_HEAD(PIDHASH(0), p, p_hash);
@@ -538,7 +531,7 @@ proc0_init(void *dummy __unused)
 	LIST_INIT(&p->p_reaplist);
 
 	strncpy(p->p_comm, "kernel", sizeof (p->p_comm));
-	strncpy(td->td_name, "swapper", sizeof (td->td_name));
+	strncpy(td->td_name, "kernel", sizeof (td->td_name));
 
 	callout_init_mtx(&p->p_itcallout, &p->p_mtx, 0);
 	callout_init_mtx(&p->p_limco, &p->p_mtx, 0);
@@ -567,7 +560,7 @@ proc0_init(void *dummy __unused)
 	audit_cred_kproc0(newcred);
 #endif
 #ifdef MAC
-	mac_cred_create_swapper(newcred);
+	mac_cred_create_kproc0(newcred);
 #endif
 	/* Create sigacts. */
 	p->p_sigacts = sigacts_alloc();

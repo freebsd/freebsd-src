@@ -55,7 +55,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-FIPSINSTALL 1ossl"
-.TH OPENSSL-FIPSINSTALL 1ossl 2025-07-24 3.5.1 OpenSSL
+.TH OPENSSL-FIPSINSTALL 1ossl 2025-09-30 3.5.4 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -265,9 +265,7 @@ Configure the module to enforce signature algorithms to use digests that are
 explicitly permitted by the various standards.
 .IP \fB\-hkdf_digest_check\fR 4
 .IX Item "-hkdf_digest_check"
-Configure the module to enable a run-time digest check when deriving a key by
-HKDF.
-See NIST SP 800\-56Cr2 for details.
+This option is deprecated.
 .IP \fB\-tls13_kdf_digest_check\fR 4
 .IX Item "-tls13_kdf_digest_check"
 Configure the module to enable a run-time digest check when deriving a key by
@@ -285,9 +283,7 @@ SSHKDF.
 See NIST SP 800\-135r1 for details.
 .IP \fB\-sskdf_digest_check\fR 4
 .IX Item "-sskdf_digest_check"
-Configure the module to enable a run-time digest check when deriving a key by
-SSKDF.
-See NIST SP 800\-56Cr2 for details.
+This option is deprecated.
 .IP \fB\-x963kdf_digest_check\fR 4
 .IX Item "-x963kdf_digest_check"
 Configure the module to enable a run-time digest check when deriving a key by
@@ -495,7 +491,7 @@ The following options were added in OpenSSL 3.4:
 \&\fB\-ecdh_cofactor_check\fR
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2019\-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

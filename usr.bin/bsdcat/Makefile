@@ -11,7 +11,7 @@ BSDCAT_VERSION_STRING!=	sed -n '/define.*ARCHIVE_VERSION_ONLY_STRING/{s,[^0-9.],
 SRCS=	bsdcat.c cmdline.c
 
 .PATH:	${_LIBARCHIVEDIR}/libarchive_fe
-SRCS+=	err.c
+SRCS+=	lafe_err.c
 
 CFLAGS+= -DBSDCAT_VERSION_STRING=\"${BSDCAT_VERSION_STRING}\"
 CFLAGS+= -DPLATFORM_CONFIG_H=\"${_LIBARCHIVECONFDIR}/config_freebsd.h\"

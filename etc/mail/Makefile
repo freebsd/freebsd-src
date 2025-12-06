@@ -241,5 +241,7 @@ restart restart-mta restart-mspq:
 .include "Makefile.local"
 .endif
 
-# For the definition of $SHAREMODE
+# For the definition of $SHAREMODE.  Define _WITHOUT_SRCCONF to prevent this
+# including <bsd.compiler.mk>, which requires clang.
+_WITHOUT_SRCCONF=yes
 .include <bsd.own.mk>

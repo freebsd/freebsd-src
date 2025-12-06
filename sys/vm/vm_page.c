@@ -84,6 +84,7 @@
 #include <sys/sleepqueue.h>
 #include <sys/sbuf.h>
 #include <sys/sched.h>
+#include <sys/sf_buf.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
@@ -144,6 +145,13 @@ static unsigned long nofreeq_size;
 SYSCTL_ULONG(_vm_stats_page, OID_AUTO, nofreeq_size, CTLFLAG_RD,
     &nofreeq_size, 0,
     "Size of the nofree queue");
+
+#ifdef INVARIANTS
+bool vm_check_pg_zero = false;
+SYSCTL_BOOL(_debug, OID_AUTO, vm_check_pg_zero, CTLFLAG_RWTUN,
+    &vm_check_pg_zero, 0,
+    "verify content of freed zero-filled pages");
+#endif
 
 /*
  * bogus page -- for I/O to/from partially complete buffers,
@@ -2015,8 +2023,9 @@ vm_page_alloc_iter(vm_object_t object, vm_pindex_t pindex, int req,
 	vm_page_t m;
 	int domain;
 
-	vm_domainset_iter_page_init(&di, object, pindex, &domain, &req,
-	    pages);
+	if (vm_domainset_iter_page_init(&di, object, pindex, &domain, &req) != 0)
+		return (NULL);
+
 	do {
 		m = vm_page_alloc_domain_iter(object, pindex, domain, req,
 		    pages);
@@ -2268,7 +2277,9 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 
 	start_segind = -1;
 
-	vm_domainset_iter_page_init(&di, object, pindex, &domain, &req, NULL);
+	if (vm_domainset_iter_page_init(&di, object, pindex, &domain, &req) != 0)
+		return (NULL);
+
 	do {
 		m = vm_page_alloc_contig_domain(object, pindex, domain, req,
 		    npages, low, high, alignment, boundary, memattr);
@@ -2596,7 +2607,9 @@ vm_page_alloc_noobj(int req)
 	vm_page_t m;
 	int domain;
 
-	vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req, NULL);
+	if (vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req) != 0)
+		return (NULL);
+
 	do {
 		m = vm_page_alloc_noobj_domain(domain, req);
 		if (m != NULL)
@@ -2615,7 +2628,9 @@ vm_page_alloc_noobj_contig(int req, u_long npages, vm_paddr_t low,
 	vm_page_t m;
 	int domain;
 
-	vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req, NULL);
+	if (vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req) != 0)
+		return (NULL);
+
 	do {
 		m = vm_page_alloc_noobj_contig_domain(domain, req, npages, low,
 		    high, alignment, boundary, memattr);
@@ -3334,7 +3349,9 @@ vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
 
 	ret = ERANGE;
 
-	vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req, NULL);
+	if (vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req) != 0)
+		return (ret);
+
 	do {
 		status = vm_page_reclaim_contig_domain(domain, req, npages, low,
 		    high, alignment, boundary);
@@ -4041,14 +4058,24 @@ vm_page_free_prep(vm_page_t m)
 	 */
 	atomic_thread_fence_acq();
 
-#if defined(DIAGNOSTIC) && defined(PHYS_TO_DMAP)
-	if (PMAP_HAS_DMAP && (m->flags & PG_ZERO) != 0) {
-		uint64_t *p;
+#ifdef INVARIANTS
+	if (vm_check_pg_zero && (m->flags & PG_ZERO) != 0) {
+		struct sf_buf *sf;
+		unsigned long *p;
 		int i;
-		p = (uint64_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-		for (i = 0; i < PAGE_SIZE / sizeof(uint64_t); i++, p++)
-			KASSERT(*p == 0, ("vm_page_free_prep %p PG_ZERO %d %jx",
-			    m, i, (uintmax_t)*p));
+
+		sched_pin();
+		sf = sf_buf_alloc(m, SFB_CPUPRIVATE | SFB_NOWAIT);
+		if (sf != NULL) {
+			p = (unsigned long *)sf_buf_kva(sf);
+			for (i = 0; i < PAGE_SIZE / sizeof(*p); i++, p++) {
+				KASSERT(*p == 0,
+				    ("zerocheck failed page %p PG_ZERO %d %jx",
+				    m, i, (uintmax_t)*p));
+			}
+			sf_buf_free(sf);
+		}
+		sched_unpin();
 	}
 #endif
 	if ((m->oflags & VPO_UNMANAGED) == 0) {

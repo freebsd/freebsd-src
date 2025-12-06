@@ -1,5 +1,5 @@
 #
-# SPDX-License-Idendifier: BSD-2-Clause
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2025 FreeBSD Foundation
 #
@@ -10,12 +10,14 @@
 .include <src.opts.mk>
 
 .include "../Makefile.inc"
+.include "${KRB5_SRCTOP}/Makefile.pc"
 
 LIB=		kadm5clnt_mit
-# SHLIB_MAJOR=	12
-LDFLAGS=-Wl,--no-undefined
-LIBADD=	krb5profile gssrpc gssapi_krb5 krb5 k5crypto krb5support com_err
+LDFLAGS=	-Wl,--no-undefined
+LIBADD=		krb5profile gssrpc gssapi_krb5 krb5 k5crypto krb5support com_err
 VERSION_MAP=	${.CURDIR}/version.map
+PCFILES=	kadm-client.pc
+CLEANFILES+=	${PCFILES}
 
 SRCS=	alt_prof.c \
 	chpass_util.c \
@@ -84,10 +86,14 @@ ${CHPASS_UTIL_STRINGS_ERR_C}: ${CHPASS_UTIL_STRINGS_ERR}
 	rm -f et-c-${.PREFIX}.et et-c-${.PREFIX}.c
 
 afterinstall:
-	${INSTALL_LIBSYMLINK} ${SHLIB_LINK} ${DESTDIR}${LIBDIR}/libkadm5clnt.so
+	${INSTALL_LIBSYMLINK} ${DEV_TAG_ARGS} ${SHLIB_LINK} \
+	    ${DESTDIR}${LIBDIR}/libkadm5clnt.so
 
 .include <bsd.lib.mk>
 
+all: ${PCFILES}
+
 .SUFFIXES: .h .c
 
-.PATH:	${KRB5_DIR}/lib/kadm5
+.PATH:	${KRB5_DIR}/build-tools \
+	${KRB5_DIR}/lib/kadm5

@@ -4070,6 +4070,7 @@ product QUECTEL RG500		0x0800	Quectel RG500/RM500/RG510/RM510
 product QUECTEL RG520		0x0801	Quectel RG520/RM520/SG520
 product QUECTEL EC200		0x6000	Quectel EC200/UC200
 product QUECTEL EC200S		0x6002	Quectel EC200S
+product QUECTEL EM060K		0x6008	Quectel EM060K
 product QUECTEL EC200T		0x6026	Quectel EC200T
 product QUECTEL UC200		0x6120	Quectel UC200
 
@@ -4431,6 +4432,7 @@ product SIERRA EM7455		0x9078	Sierra Wireless EM7455 Qualcomm Snapdragon X7 LTE-
 product SIERRA EM7455_2		0x9079	Sierra Wireless EM7455 Qualcomm Snapdragon X7 LTE-A
 product SIERRA EM7565		0x9090	Sierra Wireless EM7565 Qualcomm Snapdragon X7 LTE-A
 product SIERRA EM7565_2		0x9091	Sierra Wireless EM7565 Qualcomm Snapdragon X7 LTE-A
+product SIERRA EM7590		0xc081	Sierra Wireless EM7590 Qualcomm Snapdragon X7 LTE-A
 
 /* Sigmatel products */
 product SIGMATEL WBT_3052	0x4200	WBT-3052 IrDA/USB Bridge

@@ -75,7 +75,7 @@
 
 
 # RCSid:
-#	$Id: meta2deps.sh,v 1.24 2025/07/24 15:55:48 sjg Exp $
+#	$Id: meta2deps.sh,v 1.25 2025/11/11 18:08:02 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -103,6 +103,10 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+case ",$DEBUG_SH," in
+*,meta2deps*) set -x;;
+esac
 
 meta2src() {
     cat /dev/null "$@" |
@@ -257,7 +261,14 @@ meta2deps() {
 	# first a sanity check - filemon on Linux is not very reliable
 	# path2 should only be non-empty for op L or M
 	# and it should not contain spaces.
+        # It will also be non-empty for # Meta line
+        # which tells us which meta_file we are processing
 	case "$op,$path2" in
+	\#*,*.meta) # new file, reset some vars
+	    version=no epids= xpids= eof_token=no lpid=
+	    meta_file=`set -- $path2; echo $2`
+	    continue
+	    ;;
 	\#*) ;;			# ok
 	[LM],) error "missing path2 in: '$op $pid $path'";;
 	[LMX],*" "*) error "wrong number of words in: '$op $pid $path $path2'";;
@@ -266,6 +277,7 @@ meta2deps() {
 	esac
 	# we track cwd and ldir (of interest) per pid
 	# CWD is bmake's cwd
+	: lpid=$lpid,pid=$pid
 	case "$lpid,$pid" in
 	,C) CWD=$path cwd=$path ldir=$path
 	    if [ -z "$SB" ]; then
@@ -274,13 +286,13 @@ meta2deps() {
 	    SRCTOP=${SRCTOP:-$SB/src}
 	    case "$verion" in
 	    no) ;;		# ignore
-	    0) error "no filemon data";;
+	    0) error "no filemon data: $meta_file";;
 	    *) ;;
 	    esac
 	    version=0
 	    case "$eof_token" in
 	    no) ;;		# ignore
-	    0) error "truncated filemon data";;
+	    0) error "truncated filemon data: $meta_file";;
 	    esac
 	    eof_token=0
 	    continue
@@ -422,18 +434,18 @@ meta2deps() {
     done > $tf.dirdep
     : version=$version
     case "$version" in
-    0) error "no filemon data";;
+    0) error "no filemon data: $meta_file";;
     esac
     : eof_token=$eof_token
     case "$eof_token" in
-    0) error "truncated filemon data";;
+    0) error "truncated filemon data: $meta_file";;
     esac
     for p in $epids
     do
 	: p=$p
 	case " $xpids " in
 	*" $p "*) ;;
-	*) error "missing eXit for pid $p";;
+	*) error "missing eXit for pid $p: $meta_file";;
 	esac
     done ) || exit 1
     _nl=echo

@@ -84,6 +84,18 @@
 #if HAVE_MEMBERSHIP_H
 #include <membership.h>
 #endif
+#if !defined(_WIN32) || defined(__CYGWIN__)
+# if HAVE_POSIX_SPAWN
+#  if HAVE_SYS_WAIT_H
+#   include <sys/wait.h>
+#  endif
+#  if HAVE_SPAWN_H
+#   include <spawn.h>
+#  endif
+extern char **environ;
+#  define USE_POSIX_SPAWN 1
+# endif
+#endif
 
 #ifndef nitems
 #define nitems(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -2523,167 +2535,77 @@ static const char *redirectArgs = ">NUL 2>NUL"; /* Win32 cmd.exe */
 #else
 static const char *redirectArgs = ">/dev/null 2>/dev/null"; /* POSIX 'sh' */
 #endif
+
+/*
+ * Can this platform run the specified command?
+ */
+int
+canRunCommand(const char *cmd, int *tested)
+{
+  int value = tested ? *tested : 0;
+  if (!value) {
+    value = systemf("%s %s", cmd, redirectArgs) ? -1 : +1;
+    if (tested)
+      *tested = value;
+  }
+  return (value > 0);
+}
+
+#define CAN_RUN_FUNC(Program, Command) \
+    int can##Program(void) { \
+            static int tested = 0; \
+            return canRunCommand((Command), &tested); \
+    }
+
 /*
  * Can this platform run the bzip2 program?
  */
-int
-canBzip2(void)
-{
-	static int tested = 0, value = 0;
-	if (!tested) {
-		tested = 1;
-		if (systemf("bzip2 --help %s", redirectArgs) == 0)
-			value = 1;
-	}
-	return (value);
-}
+CAN_RUN_FUNC(Bzip2, "bzip2 --help")
 
 /*
  * Can this platform run the grzip program?
  */
-int
-canGrzip(void)
-{
-	static int tested = 0, value = 0;
-	if (!tested) {
-		tested = 1;
-		if (systemf("grzip -V %s", redirectArgs) == 0)
-			value = 1;
-	}
-	return (value);
-}
+CAN_RUN_FUNC(Grzip, "grzip -V")
 
 /*
  * Can this platform run the gzip program?
  */
-int
-canGzip(void)
-{
-	static int tested = 0, value = 0;
-	if (!tested) {
-		tested = 1;
-		if (systemf("gzip --help %s", redirectArgs) == 0)
-			value = 1;
-	}
-	return (value);
-}
+CAN_RUN_FUNC(Gzip, "gzip --help")
 
 /*
  * Can this platform run the lrzip program?
  */
-int
-canRunCommand(const char *cmd)
-{
-  static int tested = 0, value = 0;
-  if (!tested) {
-    tested = 1;
-    if (systemf("%s %s", cmd, redirectArgs) == 0)
-      value = 1;
-  }
-  return (value);
-}
-
-int
-canLrzip(void)
-{
-	static int tested = 0, value = 0;
-	if (!tested) {
-		tested = 1;
-		if (systemf("lrzip -V %s", redirectArgs) == 0)
-			value = 1;
-	}
-	return (value);
-}
+CAN_RUN_FUNC(Lrzip, "lrzip -V")
 
 /*
  * Can this platform run the lz4 program?
  */
-int
-canLz4(void)
-{
-	static int tested = 0, value = 0;
-	if (!tested) {
-		tested = 1;
-		if (systemf("lz4 --help %s", redirectArgs) == 0)
-			value = 1;
-	}
-	return (value);
-}
+CAN_RUN_FUNC(Lz4, "lz4 --help")
 
 /*
  * Can this platform run the zstd program?
  */
-int
-canZstd(void)
-{
-	static int tested = 0, value = 0;
-	if (!tested) {
-		tested = 1;
-		if (systemf("zstd --help %s", redirectArgs) == 0)
-			value = 1;
-	}
-	return (value);
-}
+CAN_RUN_FUNC(Zstd, "zstd --help")
 
 /*
  * Can this platform run the lzip program?
  */
-int
-canLzip(void)
-{
-	static int tested = 0, value = 0;
-	if (!tested) {
-		tested = 1;
-		if (systemf("lzip --help %s", redirectArgs) == 0)
-			value = 1;
-	}
-	return (value);
-}
+CAN_RUN_FUNC(Lzip, "lzip --help")
 
 /*
  * Can this platform run the lzma program?
  */
-int
-canLzma(void)
-{
-	static int tested = 0, value = 0;
-	if (!tested) {
-		tested = 1;
-		if (systemf("lzma --help %s", redirectArgs) == 0)
-			value = 1;
-	}
-	return (value);
-}
+CAN_RUN_FUNC(Lzma, "lzma --help")
 
 /*
  * Can this platform run the lzop program?
  */
-int
-canLzop(void)
-{
-	static int tested = 0, value = 0;
-	if (!tested) {
-		tested = 1;
-		if (systemf("lzop --help %s", redirectArgs) == 0)
-			value = 1;
-	}
-	return (value);
-}
+CAN_RUN_FUNC(Lzop, "lzop --help")
 
 /*
  * Can this platform run the xz program?
  */
-int
-canXz(void)
-{
-	static int tested = 0, value = 0;
-	if (!tested) {
-		tested = 1;
-		if (systemf("xz --help %s", redirectArgs) == 0)
-			value = 1;
-	}
-	return (value);
-}
+CAN_RUN_FUNC(Xz, "xz --help")
 
 /*
  * Can this filesystem handle nodump flags.
@@ -3099,15 +3021,28 @@ int
 systemf(const char *fmt, ...)
 {
 	char buff[8192];
+#if USE_POSIX_SPAWN
+	char *argv[] = { "/bin/sh", "-c", buff, NULL };
+	pid_t pid;
+#endif
 	va_list ap;
 	int r;
 
 	va_start(ap, fmt);
 	vsnprintf(buff, sizeof(buff), fmt, ap);
+	va_end(ap);
 	if (verbosity > VERBOSITY_FULL)
 		logprintf("Cmd: %s\n", buff);
+#if USE_POSIX_SPAWN
+	if ((r = posix_spawn(&pid, *argv, NULL, NULL, argv, environ)) == 0) {
+		while (waitpid(pid, &r, 0) == -1) {
+			if (errno != EINTR)
+				return (-1);
+		}
+	}
+#else
 	r = system(buff);
-	va_end(ap);
+#endif
 	return (r);
 }
 
@@ -4184,6 +4119,9 @@ main(int argc, char **argv)
 	if (testprogfile == NULL)
 	{
 		tmp2_len = strlen(testprogdir) + 1 + strlen(PROGRAM) + 1;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		tmp2_len += 4;
+#endif
 		if ((tmp2 = malloc(tmp2_len)) == NULL)
 		{
 			fprintf(stderr, "ERROR: Out of memory.");
@@ -4192,6 +4130,9 @@ main(int argc, char **argv)
 		strncpy(tmp2, testprogdir, tmp2_len);
 		strncat(tmp2, "/", tmp2_len);
 		strncat(tmp2, PROGRAM, tmp2_len);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		strncat(tmp2, ".exe", tmp2_len);
+#endif
 		testprogfile = tmp2;
 	}
 

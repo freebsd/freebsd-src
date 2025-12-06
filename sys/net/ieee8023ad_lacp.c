@@ -1264,6 +1264,8 @@ lacp_compose_key(struct lacp_port *lp)
 		case IFM_400G_DR4:
 		case IFM_400G_AUI8_AC:
 		case IFM_400G_AUI8:
+		case IFM_400G_SR8:
+		case IFM_400G_CR8:
 			key = IFM_400G_FR8;
 			break;
 		default:

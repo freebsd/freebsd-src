@@ -166,8 +166,7 @@
 			     "ethernet-phy-ieee802.3-c22";
 		rxc-skew-ps = <1500>;
 		reg = <0>;
-		interrupt-parent = <&gpio4>;
-		interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&gpio4 23 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&gpio4 22 GPIO_ACTIVE_LOW>;
 	};
 };
@@ -175,6 +174,7 @@
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "default";
+	bootph-all;
 
 	status = "okay";
 	clock-frequency = <400000>;
@@ -196,8 +196,7 @@
 	hdmi@39 {
 		compatible = "adi,adv7511w";
 		reg = <0x39>;
-		interrupt-parent = <&gpio1>;
-		interrupts = <20 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&gpio1 20 IRQ_TYPE_LEVEL_LOW>;
 		avdd-supply = <&d1_8v>;
 		dvdd-supply = <&d1_8v>;
 		pvdd-supply = <&d1_8v>;
@@ -232,6 +231,7 @@
 		compatible = "rohm,br24t01", "atmel,24c01";
 		reg = <0x50>;
 		pagesize = <8>;
+		bootph-all;
 	};
 };
 
@@ -546,6 +546,7 @@
 &scif0 {
 	pinctrl-0 = <&scif0_pins>, <&scif_clk_pins>;
 	pinctrl-names = "default";
+	bootph-all;
 
 	status = "okay";
 };

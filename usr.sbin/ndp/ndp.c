@@ -1059,6 +1059,9 @@ ifinfo(char *ifname, int argc, char **argv)
 #ifdef ND6_IFF_NO_PREFER_IFACE
 		SETFLAG("no_prefer_iface", ND6_IFF_NO_PREFER_IFACE);
 #endif
+#ifdef ND6_IFF_STABLEADDR
+		SETFLAG("stableaddr", ND6_IFF_STABLEADDR);
+#endif
 		SETVALUE("basereachable", ND.basereachable);
 		SETVALUE("retrans", ND.retrans);
 		SETVALUE("curhlim", ND.chlim);
@@ -1143,6 +1146,10 @@ ifinfo(char *ifname, int argc, char **argv)
 #ifdef ND6_IFF_AUTO_LINKLOCAL
 		if ((ND.flags & ND6_IFF_AUTO_LINKLOCAL))
 			xo_emit("{l:%s} ", "auto_linklocal");
+#endif
+#ifdef ND6_IFF_STABLEADDR
+		if ((ND.flags & ND6_IFF_STABLEADDR))
+			xo_emit("{l:%s} ", "stableaddr");
 #endif
 #ifdef ND6_IFF_NO_PREFER_IFACE
 		if ((ND.flags & ND6_IFF_NO_PREFER_IFACE))

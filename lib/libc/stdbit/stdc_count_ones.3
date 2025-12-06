@@ -1,0 +1,85 @@
+.\"
+.\" Copyright (c) 2025 Robert Clausecker <fuz@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd November 9, 2025
+.Dt STDC_COUNT_ONES 3
+.Os
+.Sh NAME
+.Nm stdc_count_ones
+.Nd count the ones in an integer
+.Sh SYNOPSIS
+.Lb libc
+.In stdbit.h
+.Ft unsigned int
+.Fn stdc_count_ones_uc "unsigned char value"
+.Ft unsigned int
+.Fn stdc_count_ones_us "unsigned short value"
+.Ft unsigned int
+.Fn stdc_count_ones_ui "unsigned int value"
+.Ft unsigned int
+.Fn stdc_count_ones_ul "unsigned long value"
+.Ft unsigned int
+.Fn stdc_count_ones_ull "unsigned long long value"
+.Ft unsigned int
+.Fn stdc_count_ones "value"
+.Sh DESCRIPTION
+The
+.Nm stdc_count_ones_ Ns Em type Ns ()
+family of functions returns the number of bits set to\~1 in
+.Fa value ,
+where 
+.Fa value
+is of type
+.Va unsigned char ,
+.Va unsigned short ,
+.Va unsigned int ,
+.Va unsigned long ,
+or
+.Va unsigned long long
+for
+.Em type
+being
+.Sy uc ,
+.Sy us ,
+.Sy ui ,
+.Sy ul ,
+or
+.Sy ull
+respectively.
+This is also known as the
+.Dq population count
+(popcount) or
+.Dq Hamming weight
+operation.
+The
+.Fn stdc_count_ones "value"
+type-generic macro picks the appropriate
+.Nm stdc_count_ones_ Ns Em type Ns ()
+function based on the type of
+.Fa value .
+.Sh RETURN VALUES
+Returns the number of bits set to\~1 in
+.Fa value .
+.Sh SEE ALSO
+.Xr bit_count 3 ,
+.Xr stdbit 3 ,
+.Xr stdc_count_zeros 3 ,
+.Xr stdc_has_single_bit 3
+.Sh STANDARDS
+The
+.Nm stdc_count_ones_ Ns Em type Ns ()
+family of functions and the
+.Fn stdc_count_ones
+type-generic macro conform to
+.St -isoC-2023 .
+.Sh HISTORY
+The
+.Nm stdc_count_ones_ Ns Em type Ns ()
+family of functions and the
+.Fn stdc_count_ones
+type-generic macro were added in
+.Fx 15.1.
+.Sh AUTHOR
+.An Robert Clausecker Aq Mt fuz@FreeBSD.org

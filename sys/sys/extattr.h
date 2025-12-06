@@ -71,8 +71,6 @@ int	extattr_check_cred(struct vnode *vp, int attrnamespace,
 #else
 #include <sys/cdefs.h>
 
-struct iovec;
-
 __BEGIN_DECLS
 int	extattrctl(const char *_path, int _cmd, const char *_filename,
 	    int _attrnamespace, const char *_attrname);

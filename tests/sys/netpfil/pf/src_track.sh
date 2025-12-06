@@ -526,10 +526,12 @@ mixed_af_body()
 		"block" \
 		"pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
 		"pass in on ${epair_tester}b \
-			route-to { (${epair_server1}a ${net_server1_4_host_server}) \
-		} sticky-address \
-		inet6 proto tcp from any to 64:ff9b::/96 \
-		af-to inet from ${net_clients_4}.0/${net_clients_4_mask} round-robin sticky-address"
+			route-to { \
+				(${epair_server1}a ${net_server1_4_host_server}) \
+				(${epair_server2}a ${net_server2_6_host_server}) \
+			} prefer-ipv6-nexthop sticky-address \
+			inet6 proto tcp from any to 64:ff9b::/96 \
+			af-to inet from ${net_clients_4}.0/${net_clients_4_mask} round-robin sticky-address"
 
 	atf_check -s exit:0 ${common_dir}/pft_ping.py \
 		--sendif ${epair_tester}a \
@@ -538,6 +540,20 @@ mixed_af_body()
 		--to 64:ff9b::192.0.2.100 \
 		--ping-type=tcp3way \
 		--send-sport=4201
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
+		--sendif ${epair_tester}a \
+		--replyif ${epair_tester}a \
+		--fromaddr 2001:db8:44::1 \
+		--to 64:ff9b::192.0.2.100 \
+		--ping-type=tcp3way \
+		--send-sport=4202
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
+		--sendif ${epair_tester}a \
+		--replyif ${epair_tester}a \
+		--fromaddr 2001:db8:44::2 \
+		--to 64:ff9b::192.0.2.100 \
+		--ping-type=tcp3way \
+		--send-sport=4203
 
 	states=$(mktemp) || exit 1
 	jexec router pfctl -qvvss | normalize_pfctl_s > $states
@@ -546,16 +562,22 @@ mixed_af_body()
 
 	# States are checked for proper route-to information.
 	# The route-to gateway is IPv4.
+	# FIXME: Sticky-address is broken for af-to pools!
+	#        The SN is created but apparently not used, as seen in states.
 	for state_regexp in \
-		"${epair_tester}b tcp 203.0.113.0:4201 \(2001:db8:44::1\[4201\]\) -> 192.0.2.100:9 \(64:ff9b::c000:264\[9\]\) .* route-to: 198.51.100.18@${epair_server1}a" \
+		"${epair_server2}a tcp 203.0.113.0:4201 \(2001:db8:44::1\[4201\]\) -> 192.0.2.100:9 \(64:ff9b::c000:264\[9\]\) .* route-to: 2001:db8:4202::2@${epair_server2}a origif: ${epair_tester}b" \
+		"${epair_server2}a tcp 203.0.113.1:4202 \(2001:db8:44::1\[4202\]\) -> 192.0.2.100:9 \(64:ff9b::c000:264\[9\]\) .* route-to: 2001:db8:4202::2@${epair_server2}a origif: ${epair_tester}b" \
+		"${epair_server1}a tcp 203.0.113.2:4203 \(2001:db8:44::2\[4203\]\) -> 192.0.2.100:9 \(64:ff9b::c000:264\[9\]\) .* route-to: 198.51.100.18@${epair_server1}a origif: ${epair_tester}b" \
 	; do
 		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
 	done
 
 	# Source nodes map IPv6 source address onto IPv4 gateway and IPv4 SNAT address.
 	for node_regexp in \
-		'2001:db8:44::1 -> 203.0.113.0 .* states 1, .* NAT/RDR sticky-address' \
-		'2001:db8:44::1 -> 198.51.100.18 .* states 1, .* route sticky-address' \
+		'2001:db8:44::2 -> 203.0.113.2 .* states 1, .* NAT/RDR sticky-address' \
+		'2001:db8:44::2 -> 198.51.100.18 .* states 1, .* route sticky-address' \
+		'2001:db8:44::1 -> 203.0.113.0 .* states 2, .* NAT/RDR sticky-address' \
+		'2001:db8:44::1 -> 2001:db8:4202::2 .* states 2, .* route sticky-address' \
 	; do
 		grep -qE "${node_regexp}" $nodes || atf_fail "Source node not found for '${node_regexp}'"
 	done
@@ -565,6 +587,79 @@ mixed_af_cleanup()
 {
 	pft_cleanup
 }
+
+atf_test_case "check_valid" "cleanup"
+check_valid_head()
+{
+	atf_set descr 'Test if source node is invalidated on change in redirection pool'
+	atf_set require.user root
+	atf_set require.progs python3 scapy
+}
+
+check_valid_body()
+{
+	setup_router_server_nat64
+
+	# Clients will connect from another network behind the router.
+	# This allows for using multiple source addresses.
+	jexec router route add -6 ${net_clients_6}::/${net_clients_6_mask} ${net_tester_6_host_tester}
+
+	jexec server1 ifconfig ${epair_server1}b inet6 ${net_server1_6}::42:1/128 alias
+	jexec server1 ifconfig ${epair_server1}b inet6 ${net_server1_6}::42:2/128 alias
+
+	jexec router pfctl -e
+	pft_set_rules router \
+		"set debug loud " \
+		"set state-policy if-bound" \
+		"table <targets> { ${net_server1_6}::42:1 }" \
+		"pass in on ${epair_tester}b \
+			route-to { (${epair_server1}a <targets>) } \
+			sticky-address \
+			proto tcp \
+			keep state"
+
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
+		--sendif ${epair_tester}a --replyif ${epair_tester}a \
+		--fromaddr ${net_clients_6}::1 --to ${host_server_6} \
+		--ping-type=tcp3way --send-sport=4201
+
+	# A source node is created using the original redirection target
+	nodes=$(mktemp) || exit 1
+	jexec router pfctl -qvvsS | normalize_pfctl_s > $nodes
+	node_regexp='2001:db8:44::1 -> 2001:db8:4201::42:1 .* states 1,.* route sticky-address'
+	grep -qE "${node_regexp}" $nodes || atf_fail "Source node not found for '${node_regexp}'"
+
+	# Change contents of the redirection table
+	echo ${net_server1_6}::42:2 | jexec router pfctl -Tr -t targets -f -
+
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
+		--sendif ${epair_tester}a --replyif ${epair_tester}a \
+		--fromaddr ${net_clients_6}::1 --to ${host_server_6} \
+		--ping-type=tcp3way --send-sport=4202
+
+	# The original source node was deleted, a new one was created.
+	# It has 1 states.
+	jexec router pfctl -qvvsS | normalize_pfctl_s > $nodes
+	node_regexp='2001:db8:44::1 -> 2001:db8:4201::42:2 .* states 1,.* route sticky-address'
+	grep -qE "${node_regexp}" $nodes || atf_fail "Source node not found for '${node_regexp}'"
+
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
+		--sendif ${epair_tester}a --replyif ${epair_tester}a \
+		--fromaddr ${net_clients_6}::1 --to ${host_server_6} \
+		--ping-type=tcp3way --send-sport=4203
+
+	# Without redirection table change the source node is reused.
+	# It has 2 states.
+	jexec router pfctl -qvvsS | normalize_pfctl_s > $nodes
+	node_regexp='2001:db8:44::1 -> 2001:db8:4201::42:2 .* states 2,.* route sticky-address'
+	grep -qE "${node_regexp}" $nodes || atf_fail "Source node not found for '${node_regexp}'"
+}
+
+check_valid_cleanup()
+{
+	pft_cleanup
+}
+
 
 atf_init_test_cases()
 {
@@ -576,4 +671,5 @@ atf_init_test_cases()
 	atf_add_test_case "sn_types_compat"
 	atf_add_test_case "sn_types_pass"
 	atf_add_test_case "mixed_af"
+	atf_add_test_case "check_valid"
 }

@@ -3,7 +3,6 @@
 
 LIB=		nvmf
 INTERNALLIB=
-PACKAGE=	nvmf
 
 INCS=		libnvmf.h
 

@@ -199,7 +199,10 @@ env_check() {
 		KERNCONF=\"${KERNEL}\" ${CONF_FILES} ${SRCPORTS} \
 		WITH_DVD=${WITH_DVD} WITH_VMIMAGES=${WITH_VMIMAGES} \
 		WITH_CLOUDWARE=${WITH_CLOUDWARE} WITH_OCIIMAGES=${WITH_OCIIMAGES} \
-		XZ_THREADS=${XZ_THREADS}"
+		XZ_THREADS=${XZ_THREADS} NOPKGBASE=${NOPKGBASE}"
+	if [ -n "${NO_ROOT}" ]; then
+		RELEASE_RMAKEFLAGS="${RELEASE_RMAKEFLAGS} NO_ROOT=1 WITHOUT_QEMU=1"
+	fi
 
 	return 0
 } # env_check()
@@ -328,7 +331,9 @@ chroot_build_target() {
 	eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} buildworld
 	eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_KMAKEFLAGS} buildkernel
 	if [ -n "${WITH_OCIIMAGES}" ]; then
-		eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} packages
+		mkdir -p ${CHROOT}/tmp/ports ${CHROOT}/tmp/distfiles
+		eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} \
+		    BOOTSTRAP_PKG_FROM_PORTS=YES packages
 	fi
 
 	return 0

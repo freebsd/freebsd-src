@@ -1,4 +1,4 @@
-# $Id: gendirdeps.mk,v 1.53 2025/05/20 17:42:49 sjg Exp $
+# $Id: gendirdeps.mk,v 1.54 2025/08/12 21:36:43 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -298,7 +298,8 @@ M2D_OBJROOTS := ${M2D_OBJROOTS:O:u:[-1..1]}
 # anything we use from an object dir other than ours
 # needs to be qualified with its .<machine> suffix
 # (we used the pseudo machine "host" for the HOST_TARGET).
-skip_ql= ${SRCTOP}* ${_objtops:@o@$o*@}
+skip_ql = ${SRCTOP}* ${_objtops:@o@$o*@}
+M_ListToSkip ?= O:u:S,^,N,:ts:
 .for o in ${M2D_OBJROOTS:${skip_ql:${M_ListToSkip}}}
 # we need := so only skip_ql to this point applies
 ql.$o := ${dir_list:${skip_ql:${M_ListToSkip}}:M$o*/*/*:C,$o([^/]+)/(.*),\2.\1,:S,.${HOST_TARGET},.host,}

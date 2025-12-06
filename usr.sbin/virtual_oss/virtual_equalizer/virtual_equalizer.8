@@ -1,0 +1,127 @@
+.\"
+.\" Copyright (c) 2019 Google LLC, written by Richard Kralovic <riso@google.com>
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.Dd February 12, 2025
+.Dt VIRTUAL_EQUALIZER 8
+.Os
+.Sh NAME
+.Nm virtual_equalizer
+.Nd audio equalizer
+.Sh SYNOPSIS
+.Nm
+.Op Fl h
+.Op Fl o
+.Op Fl q
+.Op Fl d Ar devname
+.Op Fl w Ar what
+.Op Fl p Ar part
+.Op Fl c Ar channels
+.Op Fl f Ar file
+.Sh DESCRIPTION
+.Nm
+sets the given frequency response for the given
+.Xr virtual_oss 8
+instance via the control character device given by the -d option.
+The design goal of this equalizer is to provide precise equalization
+for arbitrary requested frequency response at the expense of higher
+latency, utilizing a so-called finite impulse response, FIR, filter.
+.Pp
+The requested frequency response is configured via standard input or
+the file specified by the -f option.
+There is one control point in per line.
+Each line consists of two numbers, frequency in Hz and requested
+amplification.
+Amplification between two consecutive control points is a linear
+interpolation of the given control point values.
+.Pp
+To make the filter finite, it is windowed in time domain using a Hann
+window.
+The windowing actually modifies the frequency response - the actual
+response is a convolution of the requested response and spectrum of
+the window.
+This is, however, very close to the requested response.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl q
+Be quiet and don't print anything to standard output.
+.It Fl d Ar device
+The
+.Xr virtual_oss 8
+control character device.
+.It Fl w Ar what
+Select what part the FIR filter should apply to.
+Valid values are: rx_dev, tx_dev, rx_loop and tx_loop.
+The default value is tx_dev.
+.It Fl p Ar part
+Select the index of the part given by the -w option to apply the filter to.
+Default is zero.
+.It Fl c Ar channels
+Select number of channels to apply filter to, starting at channel zero.
+By default all channels of the given part are updated.
+.It Fl f Ar file
+Read filter coefficients from the given file instead of standard input.
+.It Fl o
+Turn equalizer off.
+.It Fl h
+Show usage.
+.El
+.Sh EXAMPLES
+To pass only frequencies between 200Hz and 400Hz:
+.Bd -literal -offset indent
+# Note that the -F and -G options enable FIR filtering.
+virtual_oss -B -C 2 -c 2 -S -Q 0 -b 32 -r 48000 -s 8ms -F 80ms -G 80ms \\
+    -f /dev/dsp -d dsp.virtual -t vdsp.ctl
+
+# For simplex operation use this:
+virtual_oss -B -C 2 -c 2 -S -Q 0 -b 32 -r 48000 -s 8ms -F 80ms -G 80ms \\
+    -R /dev/null -O /dev/dsp -d dsp.virtual -t vdsp.ctl
+
+# Load normalized filter points to avoid sample value overflow
+cat << EOF | virtual_equalizer -d /dev/vdsp.ctl -w tx_dev -p 0 -c 2
+NORMALIZE
+199 0.0
+200 1.0
+400 1.0
+401 0.0
+EOF
+
+# Load FIR filter based on sine frequency points
+cat << EOF | virtual_equalizer -d /dev/vdsp.ctl -w tx_dev -p 0 -c 2
+199 0.0
+200 1.0
+400 1.0
+401 0.0
+EOF
+
+.Ed
+.Sh SEE ALSO
+.Xr virtual_oss 8
+.Sh AUTHORS
+.Nm
+was written by
+.An Richard Kralovic riso@google.com .

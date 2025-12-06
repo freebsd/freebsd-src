@@ -188,7 +188,7 @@ struct __res_state {
 			struct __res_state_ext *ext;	/*%< extension for IPv6 */
 		} _ext;
 	} _u;
-	u_char	*_rnd;			/*%< PRIVATE: random state */
+	u_char	*_rnd;			/*%< PRIVATE: random state (unused) */
 };
 
 typedef struct __res_state *res_state;
@@ -380,7 +380,6 @@ extern const struct res_sym __p_rcode_syms[];
 #define res_nisourserver	__res_nisourserver
 #define res_ownok		__res_ownok
 #define res_queriesmatch	__res_queriesmatch
-#define res_rndinit		__res_rndinit
 #define res_randomid		__res_randomid
 #define res_nrandomid		__res_nrandomid
 #define sym_ntop		__sym_ntop
@@ -445,7 +444,6 @@ int		dn_count_labels(const char *);
 int		dn_comp(const char *, u_char *, int, u_char **, u_char **);
 int		dn_expand(const u_char *, const u_char *, const u_char *,
 			  char *, int);
-void		res_rndinit(res_state);
 u_int		res_randomid(void);
 u_int		res_nrandomid(res_state);
 int		res_nameinquery(const char *, int, int, const u_char *,

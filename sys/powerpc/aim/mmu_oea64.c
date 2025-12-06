@@ -297,7 +297,7 @@ static u_int		moea64_clear_bit(vm_page_t, uint64_t);
 static void		moea64_kremove(vm_offset_t);
 static void		moea64_syncicache(pmap_t pmap, vm_offset_t va,
 			    vm_paddr_t pa, vm_size_t sz);
-static void		moea64_pmap_init_qpages(void);
+static void		moea64_pmap_init_qpages(void *);
 static void		moea64_remove_locked(pmap_t, vm_offset_t,
 			    vm_offset_t, struct pvo_dlist *);
 
@@ -1284,7 +1284,7 @@ moea64_late_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 }
 
 static void
-moea64_pmap_init_qpages(void)
+moea64_pmap_init_qpages(void *dummy __unused)
 {
 	struct pcpu *pc;
 	int i;
@@ -1567,15 +1567,14 @@ void
 moea64_zero_page(vm_page_t m)
 {
 	vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
-	vm_offset_t va, off;
+	vm_offset_t va;
 
 	mtx_lock(&moea64_scratchpage_mtx);
 
 	moea64_set_scratchpage_pa(0, pa);
 	va = moea64_scratchpage_va[0];
 
-	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
-		__asm __volatile("dcbz 0,%0" :: "r"(va + off));
+	bzero((void *)va, PAGE_SIZE);
 
 	mtx_unlock(&moea64_scratchpage_mtx);
 }
@@ -1584,11 +1583,10 @@ void
 moea64_zero_page_dmap(vm_page_t m)
 {
 	vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
-	vm_offset_t va, off;
+	vm_offset_t va;
 
 	va = PHYS_TO_DMAP(pa);
-	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
-		__asm __volatile("dcbz 0,%0" :: "r"(va + off));
+	bzero((void *)va, PAGE_SIZE);
 }
 
 vm_offset_t

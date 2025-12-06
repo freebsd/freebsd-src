@@ -53,7 +53,6 @@
 #include <dev/virtio/virtqueue.h>
 #include <dev/virtio/mmio/virtio_mmio.h>
 
-#include "virtio_mmio_if.h"
 #include "virtio_bus_if.h"
 #include "virtio_if.h"
 
@@ -79,7 +78,6 @@ static int	vtmmio_alloc_virtqueues(device_t, int,
 		    struct vq_alloc_info *);
 static int	vtmmio_setup_intr(device_t, enum intr_type);
 static void	vtmmio_stop(device_t);
-static void	vtmmio_poll(device_t);
 static int	vtmmio_reinit(device_t, uint64_t);
 static void	vtmmio_reinit_complete(device_t);
 static void	vtmmio_notify_virtqueue(device_t, uint16_t, bus_size_t);
@@ -104,29 +102,11 @@ static void	vtmmio_vq_intr(void *);
  * I/O port read/write wrappers.
  */
 #define vtmmio_write_config_1(sc, o, v)				\
-do {								\
-	if (sc->platform != NULL)				\
-		VIRTIO_MMIO_PREWRITE(sc->platform, (o), (v));	\
-	bus_write_1((sc)->res[0], (o), (v)); 			\
-	if (sc->platform != NULL)				\
-		VIRTIO_MMIO_NOTE(sc->platform, (o), (v));	\
-} while (0)
+	bus_write_1((sc)->res[0], (o), (v))
 #define vtmmio_write_config_2(sc, o, v)				\
-do {								\
-	if (sc->platform != NULL)				\
-		VIRTIO_MMIO_PREWRITE(sc->platform, (o), (v));	\
-	bus_write_2((sc)->res[0], (o), (v));			\
-	if (sc->platform != NULL)				\
-		VIRTIO_MMIO_NOTE(sc->platform, (o), (v));	\
-} while (0)
+	bus_write_2((sc)->res[0], (o), (v))
 #define vtmmio_write_config_4(sc, o, v)				\
-do {								\
-	if (sc->platform != NULL)				\
-		VIRTIO_MMIO_PREWRITE(sc->platform, (o), (v));	\
-	bus_write_4((sc)->res[0], (o), (v));			\
-	if (sc->platform != NULL)				\
-		VIRTIO_MMIO_NOTE(sc->platform, (o), (v));	\
-} while (0)
+	bus_write_4((sc)->res[0], (o), (v))
 
 #define vtmmio_read_config_1(sc, o) \
 	bus_read_1((sc)->res[0], (o))
@@ -157,7 +137,6 @@ static device_method_t vtmmio_methods[] = {
 	DEVMETHOD(virtio_bus_alloc_virtqueues,	  vtmmio_alloc_virtqueues),
 	DEVMETHOD(virtio_bus_setup_intr,	  vtmmio_setup_intr),
 	DEVMETHOD(virtio_bus_stop,		  vtmmio_stop),
-	DEVMETHOD(virtio_bus_poll,		  vtmmio_poll),
 	DEVMETHOD(virtio_bus_reinit,		  vtmmio_reinit),
 	DEVMETHOD(virtio_bus_reinit_complete,	  vtmmio_reinit_complete),
 	DEVMETHOD(virtio_bus_notify_vq,		  vtmmio_notify_virtqueue),
@@ -220,18 +199,8 @@ vtmmio_setup_intr(device_t dev, enum intr_type type)
 {
 	struct vtmmio_softc *sc;
 	int rid;
-	int err;
 
 	sc = device_get_softc(dev);
-
-	if (sc->platform != NULL) {
-		err = VIRTIO_MMIO_SETUP_INTR(sc->platform, sc->dev,
-					vtmmio_vq_intr, sc);
-		if (err == 0) {
-			/* Okay we have backend-specific interrupts */
-			return (0);
-		}
-	}
 
 	rid = 0;
 	sc->res[1] = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
@@ -595,17 +564,6 @@ vtmmio_stop(device_t dev)
 {
 
 	vtmmio_reset(device_get_softc(dev));
-}
-
-static void
-vtmmio_poll(device_t dev)
-{
-	struct vtmmio_softc *sc;
-
-	sc = device_get_softc(dev);
-
-	if (sc->platform != NULL)
-		VIRTIO_MMIO_POLL(sc->platform);
 }
 
 static int

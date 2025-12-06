@@ -23,21 +23,111 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/param.h>
 #include <stand.h>
 #include <string.h>
 #include <efi.h>
 #include <efichar.h>
 #include <efilib.h>
-#include <efigpt.h>	/* Partition GUIDS */
-#include <Guid/MemoryTypeInformation.h>
-#include <Guid/MtcVendor.h>
-#include <Guid/ZeroGuid.h>
+#include <Guid/Acpi.h>
+#include <Guid/DxeServices.h>
+#include <Guid/DebugImageInfoTable.h>
+#include <Guid/GlobalVariable.h>
+#include <Guid/Gpt.h>
+#include <Guid/Mps.h>
+#include <Guid/SmBios.h>
+#include <Pi/PiFirmwareFile.h>
+#include <Pi/PiFirmwareVolume.h>
+#include <Pi/PiMultiPhase.h>
+#include <Protocol/AbsolutePointer.h>
+#include <Protocol/Arp.h>
+#include <Protocol/Bds.h>
+#include <Protocol/Capsule.h>
+#include <Protocol/ComponentName.h>
+#include <Protocol/Cpu.h>
+#include <Protocol/CpuIo2.h>
+#include <Protocol/Decompress.h>
+#include <Protocol/DeviceIo.h>
+#include <Protocol/DevicePathToText.h>
+#include <Protocol/Dhcp4.h>
+#include <Protocol/Dhcp6.h>
+#include <Protocol/DiskInfo.h>
+#include <Protocol/DiskIo.h>
+#include <Protocol/DriverBinding.h>
+#include <Protocol/DriverConfiguration2.h>
+#include <Protocol/DriverDiagnostics.h>
+#include <Protocol/DriverDiagnostics2.h>
+#include <Protocol/Ebc.h>
+#include <Protocol/EdidActive.h>
 #include <Protocol/EdidActive.h>
 #include <Protocol/EdidDiscovered.h>
+#include <Protocol/EdidDiscovered.h>
+#include <Protocol/FirmwareVolume2.h>
+#include <Protocol/FirmwareVolumeBlock.h>
+#include <Protocol/FormBrowser2.h>
+#include <Protocol/GraphicsOutput.h>
+#include <Protocol/HiiConfigRouting.h>
+#include <Protocol/HiiDatabase.h>
+#include <Protocol/HiiFont.h>
+#include <Protocol/HiiImage.h>
+#include <Protocol/HiiString.h>
+#include <Protocol/IdeControllerInit.h>
+#include <Protocol/Ip4.h>
+#include <Protocol/Ip4Config.h>
+#include <Protocol/LoadFile.h>
+#include <Protocol/ManagedNetwork.h>
+#include <Protocol/Metronome.h>
+#include <Protocol/MonotonicCounter.h>
+#include <Protocol/MpService.h>
+#include <Protocol/Mtftp4.h>
+#include <Protocol/Mtftp6.h>
+#include <Protocol/NetworkInterfaceIdentifier.h>
+#include <Protocol/Pcd.h>
+#include <Protocol/PciEnumerationComplete.h>
+#include <Protocol/PciHostBridgeResourceAllocation.h>
+#include <Protocol/PciHotPlugInit.h>
+#include <Protocol/PciHotPlugRequest.h>
+#include <Protocol/PciIo.h>
+#include <Protocol/PciOverride.h>
+#include <Protocol/PciPlatform.h>
+#include <Protocol/PciRootBridgeIo.h>
+#include <Protocol/PiPcd.h>
+#include <Protocol/PxeBaseCode.h>
+#include <Protocol/PxeBaseCodeCallBack.h>
+#include <Protocol/Reset.h>
+#include <Protocol/Runtime.h>
+#include <Protocol/ScsiIo.h>
+#include <Protocol/ScsiPassThru.h>
+#include <Protocol/ScsiPassThruExt.h>
+#include <Protocol/Security.h>
+#include <Protocol/Security2.h>
+#include <Protocol/SerialIo.h>
+#include <Protocol/SimpleFileSystem.h>
+#include <Protocol/SimpleNetwork.h>
+#include <Protocol/SimplePointer.h>
+#include <Protocol/SimpleTextIn.h>
+#include <Protocol/SimpleTextInEx.h>
+#include <Protocol/SimpleTextOut.h>
+#include <Protocol/StatusCode.h>
+#include <Protocol/Tcp4.h>
+#include <Protocol/Tcp6.h>
+#include <Protocol/Timer.h>
+#include <Protocol/UgaDraw.h>
+#include <Protocol/UgaIo.h>
+#include <Protocol/UnicodeCollation.h>
+#include <Protocol/Usb2HostController.h>
+#include <Protocol/UsbIo.h>
+#include <Protocol/Variable.h>
+#include <Protocol/VariableWrite.h>
+#include <Protocol/VlanConfig.h>
+#include <Protocol/WatchdogTimer.h>
 #include <uuid.h>
 #include <stdbool.h>
-#include <sys/param.h>
 #include "bootstrap.h"
+
+
+
+#define ZERO_GUID { 0x0, 0x0, 0x0, {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0} }
 
 /*
  * About ENABLE_UPDATES
@@ -66,64 +156,64 @@ static struct efi_uuid_mapping {
 	/* EFI Systab entry names. */
 	{ .efi_guid_name = "MPS Table", .efi_guid = MPS_TABLE_GUID },
 	{ .efi_guid_name = "ACPI Table", .efi_guid = ACPI_TABLE_GUID },
-	{ .efi_guid_name = "ACPI 2.0 Table", .efi_guid = ACPI_20_TABLE_GUID },
+	{ .efi_guid_name = "ACPI 2.0 Table", .efi_guid = EFI_ACPI_20_TABLE_GUID },
 	{ .efi_guid_name = "SMBIOS Table", .efi_guid = SMBIOS_TABLE_GUID },
 	{ .efi_guid_name = "SMBIOS3 Table", .efi_guid = SMBIOS3_TABLE_GUID },
 	{ .efi_guid_name = "DXE Table", .efi_guid = DXE_SERVICES_TABLE_GUID },
-	{ .efi_guid_name = "HOB List Table", .efi_guid = HOB_LIST_TABLE_GUID },
-	{ .efi_guid_name = EFI_MEMORY_TYPE_INFORMATION_VARIABLE_NAME,
-	    .efi_guid = EFI_MEMORY_TYPE_INFORMATION_GUID },
+//	{ .efi_guid_name = "HOB List Table", .efi_guid = HOB_LIST_TABLE_GUID },
+//	{ .efi_guid_name = EFI_MEMORY_TYPE_INFORMATION_VARIABLE_NAME,
+//	    .efi_guid = EFI_MEMORY_TYPE_INFORMATION_GUID },
 	{ .efi_guid_name = "Debug Image Info Table",
-	    .efi_guid = DEBUG_IMAGE_INFO_TABLE_GUID },
-	{ .efi_guid_name = "FDT Table", .efi_guid = FDT_TABLE_GUID },
+	    .efi_guid = EFI_DEBUG_IMAGE_INFO_TABLE_GUID },
+//	{ .efi_guid_name = "FDT Table", .efi_guid = FDT_TABLE_GUID },
 	/*
 	 * Protocol names for debug purposes.
 	 * Can be removed along with lsefi command.
 	 */
 	{ .efi_guid_name = "device path", .efi_guid = DEVICE_PATH_PROTOCOL },
 	{ .efi_guid_name = "block io", .efi_guid = BLOCK_IO_PROTOCOL },
-	{ .efi_guid_name = "disk io", .efi_guid = DISK_IO_PROTOCOL },
+	{ .efi_guid_name = "disk io", .efi_guid = EFI_DISK_IO_PROTOCOL_GUID },
 	{ .efi_guid_name = "disk info", .efi_guid =
 	    EFI_DISK_INFO_PROTOCOL_GUID },
 	{ .efi_guid_name = "simple fs",
-	    .efi_guid = SIMPLE_FILE_SYSTEM_PROTOCOL },
+	    .efi_guid = EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID },
 	{ .efi_guid_name = "load file", .efi_guid = LOAD_FILE_PROTOCOL },
 	{ .efi_guid_name = "device io", .efi_guid = DEVICE_IO_PROTOCOL },
 	{ .efi_guid_name = "unicode collation",
-	    .efi_guid = UNICODE_COLLATION_PROTOCOL },
+	    .efi_guid = EFI_UNICODE_COLLATION_PROTOCOL_GUID },
 	{ .efi_guid_name = "unicode collation2",
-	    .efi_guid = EFI_UNICODE_COLLATION2_PROTOCOL_GUID },
+	    .efi_guid = EFI_UNICODE_COLLATION_PROTOCOL2_GUID },
 	{ .efi_guid_name = "simple network",
-	    .efi_guid = EFI_SIMPLE_NETWORK_PROTOCOL },
+	    .efi_guid = EFI_SIMPLE_NETWORK_PROTOCOL_GUID },
 	{ .efi_guid_name = "simple text output",
-	    .efi_guid = SIMPLE_TEXT_OUTPUT_PROTOCOL },
+	    .efi_guid = EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL_GUID },
 	{ .efi_guid_name = "simple text input",
-	    .efi_guid = SIMPLE_TEXT_INPUT_PROTOCOL },
+	    .efi_guid = EFI_SIMPLE_TEXT_INPUT_PROTOCOL_GUID },
 	{ .efi_guid_name = "simple text ex input",
 	    .efi_guid = EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL_GUID },
-	{ .efi_guid_name = "console control",
-	    .efi_guid = EFI_CONSOLE_CONTROL_PROTOCOL_GUID },
-	{ .efi_guid_name = "stdin", .efi_guid = EFI_CONSOLE_IN_DEVICE_GUID },
-	{ .efi_guid_name = "stdout", .efi_guid = EFI_CONSOLE_OUT_DEVICE_GUID },
-	{ .efi_guid_name = "stderr",
-	    .efi_guid = EFI_STANDARD_ERROR_DEVICE_GUID },
+//	{ .efi_guid_name = "console control",
+//	    .efi_guid = EFI_CONSOLE_CONTROL_PROTOCOL_GUID },
+//	{ .efi_guid_name = "stdin", .efi_guid = EFI_CONSOLE_IN_DEVICE_GUID },
+//	{ .efi_guid_name = "stdout", .efi_guid = EFI_CONSOLE_OUT_DEVICE_GUID },
+//	{ .efi_guid_name = "stderr",
+//	    .efi_guid = EFI_STANDARD_ERROR_DEVICE_GUID },
 	{ .efi_guid_name = "GOP",
 	    .efi_guid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID },
 	{ .efi_guid_name = "UGA draw", .efi_guid = EFI_UGA_DRAW_PROTOCOL_GUID },
 	{ .efi_guid_name = "PXE base code",
-	    .efi_guid = EFI_PXE_BASE_CODE_PROTOCOL },
+	    .efi_guid = EFI_PXE_BASE_CODE_PROTOCOL_GUID },
 	{ .efi_guid_name = "PXE base code callback",
-	    .efi_guid = EFI_PXE_BASE_CODE_CALLBACK_PROTOCOL },
-	{ .efi_guid_name = "serial io", .efi_guid = SERIAL_IO_PROTOCOL },
-	{ .efi_guid_name = "loaded image", .efi_guid = LOADED_IMAGE_PROTOCOL },
+	    .efi_guid = EFI_PXE_BASE_CODE_CALLBACK_PROTOCOL_GUID },
+	{ .efi_guid_name = "serial io", .efi_guid = EFI_SERIAL_IO_PROTOCOL_GUID },
+	{ .efi_guid_name = "loaded image", .efi_guid = EFI_LOADED_IMAGE_PROTOCOL_GUID },
 	{ .efi_guid_name = "loaded image device path",
 	    .efi_guid = EFI_LOADED_IMAGE_DEVICE_PATH_PROTOCOL_GUID },
-	{ .efi_guid_name = "ISA io", .efi_guid = EFI_ISA_IO_PROTOCOL_GUID },
+//	{ .efi_guid_name = "ISA io", .efi_guid = EFI_ISA_IO_PROTOCOL_GUID },
 	{ .efi_guid_name = "IDE controller init",
 	    .efi_guid = EFI_IDE_CONTROLLER_INIT_PROTOCOL_GUID },
-	{ .efi_guid_name = "ISA ACPI", .efi_guid = EFI_ISA_ACPI_PROTOCOL_GUID },
+//	{ .efi_guid_name = "ISA ACPI", .efi_guid = EFI_ISA_ACPI_PROTOCOL_GUID },
 	{ .efi_guid_name = "PCI", .efi_guid = EFI_PCI_IO_PROTOCOL_GUID },
-	{ .efi_guid_name = "PCI root", .efi_guid = EFI_PCI_ROOT_IO_GUID },
+//	{ .efi_guid_name = "PCI root", .efi_guid = EFI_PCI_ROOT_IO_GUID },
 	{ .efi_guid_name = "PCI enumeration",
 	    .efi_guid = EFI_PCI_ENUMERATION_COMPLETE_GUID },
         { .efi_guid_name = "Driver diagnostics",
@@ -140,42 +230,42 @@ static struct efi_uuid_mapping {
 	    .efi_guid = EFI_ARP_SERVICE_BINDING_PROTOCOL_GUID },
         { .efi_guid_name = "ARP", .efi_guid = EFI_ARP_PROTOCOL_GUID },
         { .efi_guid_name = "IPv4 service binding",
-	    .efi_guid = EFI_IP4_SERVICE_BINDING_PROTOCOL },
-        { .efi_guid_name = "IPv4", .efi_guid = EFI_IP4_PROTOCOL },
+	    .efi_guid = EFI_IP4_SERVICE_BINDING_PROTOCOL_GUID },
+        { .efi_guid_name = "IPv4", .efi_guid = EFI_IP4_PROTOCOL_GUID },
         { .efi_guid_name = "IPv4 config",
 	    .efi_guid = EFI_IP4_CONFIG_PROTOCOL_GUID },
-        { .efi_guid_name = "IPv6 service binding",
-	    .efi_guid = EFI_IP6_SERVICE_BINDING_PROTOCOL },
-        { .efi_guid_name = "IPv6", .efi_guid = EFI_IP6_PROTOCOL },
-        { .efi_guid_name = "IPv6 config",
-	    .efi_guid = EFI_IP6_CONFIG_PROTOCOL_GUID },
-        { .efi_guid_name = "UDPv4", .efi_guid = EFI_UDP4_PROTOCOL },
-        { .efi_guid_name = "UDPv4 service binding",
-	    .efi_guid = EFI_UDP4_SERVICE_BINDING_PROTOCOL },
-        { .efi_guid_name = "UDPv6", .efi_guid = EFI_UDP6_PROTOCOL },
-        { .efi_guid_name = "UDPv6 service binding",
-	    .efi_guid = EFI_UDP6_SERVICE_BINDING_PROTOCOL },
-        { .efi_guid_name = "TCPv4", .efi_guid = EFI_TCP4_PROTOCOL },
+//        { .efi_guid_name = "IPv6 service binding",
+//	    .efi_guid = EFI_IP6_SERVICE_BINDING_PROTOCOL_GUID },
+//        { .efi_guid_name = "IPv6", .efi_guid = EFI_IP6_PROTOCOL },
+//        { .efi_guid_name = "IPv6 config",
+//	    .efi_guid = EFI_IP6_CONFIG_PROTOCOL_GUID },
+//        { .efi_guid_name = "UDPv4", .efi_guid = EFI_UDP4_PROTOCOL },
+//        { .efi_guid_name = "UDPv4 service binding",
+//	    .efi_guid = EFI_UDP4_SERVICE_BINDING_PROTOCOL_GUID },
+//        { .efi_guid_name = "UDPv6", .efi_guid = EFI_UDP6_PROTOCOL },
+//        { .efi_guid_name = "UDPv6 service binding",
+//	    .efi_guid = EFI_UDP6_SERVICE_BINDING_PROTOCOL_GUID },
+        { .efi_guid_name = "TCPv4", .efi_guid = EFI_TCP4_PROTOCOL_GUID },
         { .efi_guid_name = "TCPv4 service binding",
-	    .efi_guid = EFI_TCP4_SERVICE_BINDING_PROTOCOL },
-        { .efi_guid_name = "TCPv6", .efi_guid = EFI_TCP6_PROTOCOL },
+	    .efi_guid = EFI_TCP4_SERVICE_BINDING_PROTOCOL_GUID },
+        { .efi_guid_name = "TCPv6", .efi_guid = EFI_TCP6_PROTOCOL_GUID },
         { .efi_guid_name = "TCPv6 service binding",
-	    .efi_guid = EFI_TCP6_SERVICE_BINDING_PROTOCOL },
+	    .efi_guid = EFI_TCP6_SERVICE_BINDING_PROTOCOL_GUID },
         { .efi_guid_name = "EFI System partition",
 	    .efi_guid = EFI_PART_TYPE_EFI_SYSTEM_PART_GUID },
         { .efi_guid_name = "MBR legacy",
 	    .efi_guid = EFI_PART_TYPE_LEGACY_MBR_GUID },
-        { .efi_guid_name = "device tree", .efi_guid = EFI_DEVICE_TREE_GUID },
+//        { .efi_guid_name = "device tree", .efi_guid = EFI_DEVICE_TREE_GUID },
         { .efi_guid_name = "USB io", .efi_guid = EFI_USB_IO_PROTOCOL_GUID },
         { .efi_guid_name = "USB2 HC", .efi_guid = EFI_USB2_HC_PROTOCOL_GUID },
         { .efi_guid_name = "component name",
 	    .efi_guid = EFI_COMPONENT_NAME_PROTOCOL_GUID },
-        { .efi_guid_name = "component name2",
-	    .efi_guid = EFI_COMPONENT_NAME2_PROTOCOL_GUID },
+//        { .efi_guid_name = "component name2",
+//	    .efi_guid = EFI_COMPONENT_NAME2_PROTOCOL_GUID },
         { .efi_guid_name = "driver binding",
 	    .efi_guid = EFI_DRIVER_BINDING_PROTOCOL_GUID },
-        { .efi_guid_name = "driver configuration",
-	    .efi_guid = EFI_DRIVER_CONFIGURATION_PROTOCOL_GUID },
+//        { .efi_guid_name = "driver configuration",
+//	    .efi_guid = EFI_DRIVER_CONFIGURATION_PROTOCOL_GUID },
         { .efi_guid_name = "driver configuration2",
 	    .efi_guid = EFI_DRIVER_CONFIGURATION2_PROTOCOL_GUID },
         { .efi_guid_name = "decompress",
@@ -183,9 +273,9 @@ static struct efi_uuid_mapping {
         { .efi_guid_name = "ebc interpreter",
 	    .efi_guid = EFI_EBC_INTERPRETER_PROTOCOL_GUID },
         { .efi_guid_name = "network interface identifier",
-	    .efi_guid = EFI_NETWORK_INTERFACE_IDENTIFIER_PROTOCOL },
+	    .efi_guid = EFI_NETWORK_INTERFACE_IDENTIFIER_PROTOCOL_GUID },
         { .efi_guid_name = "network interface identifier_31",
-	    .efi_guid = EFI_NETWORK_INTERFACE_IDENTIFIER_PROTOCOL_31 },
+	    .efi_guid = EFI_NETWORK_INTERFACE_IDENTIFIER_PROTOCOL_GUID_31 },
         { .efi_guid_name = "managed network service binding",
 	    .efi_guid = EFI_MANAGED_NETWORK_SERVICE_BINDING_PROTOCOL_GUID },
         { .efi_guid_name = "managed network",
@@ -201,8 +291,8 @@ static struct efi_uuid_mapping {
         { .efi_guid_name = "HII image",
 	    .efi_guid = EFI_HII_IMAGE_PROTOCOL_GUID },
         { .efi_guid_name = "HII font", .efi_guid = EFI_HII_FONT_PROTOCOL_GUID },
-        { .efi_guid_name = "HII config",
-	    .efi_guid = EFI_HII_CONFIGURATION_ACCESS_PROTOCOL_GUID },
+//        { .efi_guid_name = "HII config",
+//	    .efi_guid = EFI_HII_CONFIGURATION_ACCESS_PROTOCOL_GUID },
         { .efi_guid_name = "MTFTP4 service binding",
 	    .efi_guid = EFI_MTFTP4_SERVICE_BINDING_PROTOCOL_GUID },
         { .efi_guid_name = "MTFTP4", .efi_guid = EFI_MTFTP4_PROTOCOL_GUID },
@@ -224,31 +314,31 @@ static struct efi_uuid_mapping {
 	    .efi_guid = EFI_CAPSULE_ARCH_PROTOCOL_GUID },
         { .efi_guid_name = "monotonic counter arch",
 	    .efi_guid = EFI_MONOTONIC_COUNTER_ARCH_PROTOCOL_GUID },
-        { .efi_guid_name = "realtime clock arch",
-	    .efi_guid = EFI_REALTIME_CLOCK_ARCH_PROTOCOL_GUID },
+//        { .efi_guid_name = "realtime clock arch",
+//	    .efi_guid = EFI_REALTIME_CLOCK_ARCH_PROTOCOL_GUID },
         { .efi_guid_name = "variable arch",
 	    .efi_guid = EFI_VARIABLE_ARCH_PROTOCOL_GUID },
         { .efi_guid_name = "variable write arch",
 	    .efi_guid = EFI_VARIABLE_WRITE_ARCH_PROTOCOL_GUID },
         { .efi_guid_name = "watchdog timer arch",
 	    .efi_guid = EFI_WATCHDOG_TIMER_ARCH_PROTOCOL_GUID },
-        { .efi_guid_name = "ACPI support",
-	    .efi_guid = EFI_ACPI_SUPPORT_PROTOCOL_GUID },
+//        { .efi_guid_name = "ACPI support",
+//	    .efi_guid = EFI_ACPI_SUPPORT_PROTOCOL_GUID },
         { .efi_guid_name = "BDS arch", .efi_guid = EFI_BDS_ARCH_PROTOCOL_GUID },
         { .efi_guid_name = "metronome arch",
 	    .efi_guid = EFI_METRONOME_ARCH_PROTOCOL_GUID },
         { .efi_guid_name = "timer arch",
 	    .efi_guid = EFI_TIMER_ARCH_PROTOCOL_GUID },
-        { .efi_guid_name = "DPC", .efi_guid = EFI_DPC_PROTOCOL_GUID },
-        { .efi_guid_name = "print2", .efi_guid = EFI_PRINT2_PROTOCOL_GUID },
+//        { .efi_guid_name = "DPC", .efi_guid = EFI_DPC_PROTOCOL_GUID },
+//        { .efi_guid_name = "print2", .efi_guid = EFI_PRINT2_PROTOCOL_GUID },
         { .efi_guid_name = "device path to text",
 	    .efi_guid = EFI_DEVICE_PATH_TO_TEXT_PROTOCOL_GUID },
         { .efi_guid_name = "reset arch",
 	    .efi_guid = EFI_RESET_ARCH_PROTOCOL_GUID },
         { .efi_guid_name = "CPU arch", .efi_guid = EFI_CPU_ARCH_PROTOCOL_GUID },
         { .efi_guid_name = "CPU IO2", .efi_guid = EFI_CPU_IO2_PROTOCOL_GUID },
-        { .efi_guid_name = "Legacy 8259",
-	    .efi_guid = EFI_LEGACY_8259_PROTOCOL_GUID },
+//        { .efi_guid_name = "Legacy 8259",
+//	    .efi_guid = EFI_LEGACY_8259_PROTOCOL_GUID },
         { .efi_guid_name = "Security arch",
 	    .efi_guid = EFI_SECURITY_ARCH_PROTOCOL_GUID },
         { .efi_guid_name = "Security2 arch",
@@ -257,19 +347,19 @@ static struct efi_uuid_mapping {
 	    .efi_guid = EFI_RUNTIME_ARCH_PROTOCOL_GUID },
         { .efi_guid_name = "status code runtime",
 	    .efi_guid = EFI_STATUS_CODE_RUNTIME_PROTOCOL_GUID },
-        { .efi_guid_name = "data hub", .efi_guid = EFI_DATA_HUB_PROTOCOL_GUID },
+//        { .efi_guid_name = "data hub", .efi_guid = EFI_DATA_HUB_PROTOCOL_GUID },
         { .efi_guid_name = "PCD", .efi_guid = PCD_PROTOCOL_GUID },
         { .efi_guid_name = "EFI PCD", .efi_guid = EFI_PCD_PROTOCOL_GUID },
         { .efi_guid_name = "firmware volume block",
 	    .efi_guid = EFI_FIRMWARE_VOLUME_BLOCK_PROTOCOL_GUID },
         { .efi_guid_name = "firmware volume2",
 	    .efi_guid = EFI_FIRMWARE_VOLUME2_PROTOCOL_GUID },
-        { .efi_guid_name = "firmware volume dispatch",
-	    .efi_guid = EFI_FIRMWARE_VOLUME_DISPATCH_PROTOCOL_GUID },
-        { .efi_guid_name = "lzma compress", .efi_guid = LZMA_COMPRESS_GUID },
+//        { .efi_guid_name = "firmware volume dispatch",
+//	    .efi_guid = EFI_FIRMWARE_VOLUME_DISPATCH_PROTOCOL_GUID },
+//        { .efi_guid_name = "lzma compress", .efi_guid = LZMA_COMPRESS_GUID },
         { .efi_guid_name = "MP services",
 	    .efi_guid = EFI_MP_SERVICES_PROTOCOL_GUID },
-        { .efi_guid_name = MTC_VARIABLE_NAME, .efi_guid = MTC_VENDOR_GUID },
+//        { .efi_guid_name = MTC_VARIABLE_NAME, .efi_guid = MTC_VENDOR_GUID },
         { .efi_guid_name = "RTC", .efi_guid = { 0x378D7B65, 0x8DA9, 0x4773,
 	    { 0xB6, 0xE4, 0xA4, 0x78, 0x26, 0xA8, 0x33, 0xE1} } },
         { .efi_guid_name = "Active EDID",
@@ -441,6 +531,7 @@ efi_memory_type(EFI_MEMORY_TYPE type)
 	}
 }
 
+#if 0
 /* Print memory type table. */
 static int
 efi_print_mem_type(const CHAR16 *varnamearg __unused, uint8_t *data,
@@ -463,6 +554,7 @@ efi_print_mem_type(const CHAR16 *varnamearg __unused, uint8_t *data,
 
 	return (CMD_OK);
 }
+#endif
 
 /*
  * Print FreeBSD variables.
@@ -679,7 +771,7 @@ efi_print_var(CHAR16 *varnamearg, EFI_GUID *matchguid, int lflag)
 	status = RS->GetVariable(varnamearg, matchguid, &attr, &datasz, NULL);
 	if (status != EFI_BUFFER_TOO_SMALL) {
 		printf("Can't get the variable: error %#lx\n",
-		    EFI_ERROR_CODE(status));
+		    DECODE_ERROR(status));
 		return (CMD_ERROR);
 	}
 	data = malloc(datasz);
@@ -691,7 +783,7 @@ efi_print_var(CHAR16 *varnamearg, EFI_GUID *matchguid, int lflag)
 	status = RS->GetVariable(varnamearg, matchguid, &attr, &datasz, data);
 	if (status != EFI_SUCCESS) {
 		printf("Can't get the variable: error %#lx\n",
-		    EFI_ERROR_CODE(status));
+		    DECODE_ERROR(status));
 		free(data);
 		return (CMD_ERROR);
 	}
@@ -710,18 +802,21 @@ efi_print_var(CHAR16 *varnamearg, EFI_GUID *matchguid, int lflag)
 		else if (strcmp(str, "freebsd") == 0)
 			rv = efi_print_freebsd(varnamearg, data, datasz);
 		else if (strcmp(str,
-		    EFI_MEMORY_TYPE_INFORMATION_VARIABLE_NAME) == 0)
-			rv = efi_print_mem_type(varnamearg, data, datasz);
-		else if (strcmp(str,
 		    "47c7b227-c42a-11d2-8e57-00a0c969723b") == 0)
 			rv = efi_print_shell_str(varnamearg, data, datasz);
+#if 0
+		else if (strcmp(str,
+		    EFI_MEMORY_TYPE_INFORMATION_VARIABLE_NAME) == 0)
+			rv = efi_print_mem_type(varnamearg, data, datasz);
 		else if (strcmp(str, MTC_VARIABLE_NAME) == 0) {
 			printf(" = ");
 			printf("%u", *((uint32_t *)data));	/* UINT32 */
 			rv = CMD_OK;
 			if (pager_output("\n"))
 				rv = CMD_WARN;
-		} else
+		}
+#endif
+		else
 			rv = efi_print_other_value(data, datasz);
 	} else if (pager_output("\n"))
 		rv =  CMD_WARN;
@@ -954,7 +1049,7 @@ command_efi_set(int argc, char *argv[])
 	    strlen(val) + 1, val);
 	if (EFI_ERROR(err)) {
 		printf("Failed to set variable: error %lu\n",
-		    EFI_ERROR_CODE(err));
+		    DECODE_ERROR(err));
 		return (CMD_ERROR);
 	}
 #else
@@ -990,7 +1085,7 @@ command_efi_unset(int argc, char *argv[])
 	err = RS->SetVariable(wvar, &guid, 0, 0, NULL);
 	if (EFI_ERROR(err)) {
 		printf("Failed to unset variable: error %lu\n",
-		    EFI_ERROR_CODE(err));
+		    DECODE_ERROR(err));
 		return (CMD_ERROR);
 	}
 #else

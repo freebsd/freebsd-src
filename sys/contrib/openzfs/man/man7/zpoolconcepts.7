@@ -27,7 +27,7 @@
 .\" Copyright 2017 Nexenta Systems, Inc.
 .\" Copyright (c) 2017 Open-E, Inc. All Rights Reserved.
 .\"
-.Dd April 7, 2023
+.Dd August 6, 2025
 .Dt ZPOOLCONCEPTS 7
 .Os
 .
@@ -468,6 +468,11 @@ To later rewind to its checkpointed state, you need to first export it and
 then rewind it during import:
 .Dl # Nm zpool Cm export Ar pool
 .Dl # Nm zpool Cm import Fl -rewind-to-checkpoint Ar pool
+.Pp
+Note that rewinding to a checkpoint will
+.Sy permanently discard it.
+Once the pool has been successfully imported with the above rewind command,
+you cannot rewind to the same checkpoint.
 .Pp
 To discard the checkpoint from a pool:
 .Dl # Nm zpool Cm checkpoint Fl d Ar pool

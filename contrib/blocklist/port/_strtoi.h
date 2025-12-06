@@ -1,4 +1,4 @@
-/*	$NetBSD: _strtoi.h,v 1.1 2015/01/22 02:15:59 christos Exp $	*/
+/*	$NetBSD: _strtoi.h,v 1.1.1.1 2020/06/15 01:52:53 christos Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993

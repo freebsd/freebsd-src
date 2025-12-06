@@ -61,6 +61,7 @@
 #include <sys/fs/zfs.h>
 #include <sys/dmu.h>
 #include <sys/dmu_objset.h>
+#include <sys/dsl_dataset.h>
 #include <sys/spa.h>
 #include <sys/txg.h>
 #include <sys/dbuf.h>
@@ -277,7 +278,7 @@ zfs_ioctl_getxattr(vnode_t *vp, zfsxattr_t *fsx)
 
 	memset(fsx, 0, sizeof (*fsx));
 	fsx->fsx_xflags = (zp->z_pflags & ZFS_PROJINHERIT) ?
-	    ZFS_PROJINHERIT_FL : 0;
+	    FS_PROJINHERIT_FL : 0;
 	fsx->fsx_projid = zp->z_projid;
 
 	return (0);
@@ -289,7 +290,7 @@ zfs_ioctl_setflags(vnode_t *vp, uint32_t ioctl_flags, xvattr_t *xva)
 	uint64_t zfs_flags = VTOZ(vp)->z_pflags;
 	xoptattr_t *xoap;
 
-	if (ioctl_flags & ~(ZFS_PROJINHERIT_FL))
+	if (ioctl_flags & ~(FS_PROJINHERIT_FL))
 		return (SET_ERROR(EOPNOTSUPP));
 
 	xva_init(xva);
@@ -303,7 +304,7 @@ zfs_ioctl_setflags(vnode_t *vp, uint32_t ioctl_flags, xvattr_t *xva)
 	}								\
 } while (0)
 
-	FLAG_CHANGE(ZFS_PROJINHERIT_FL, ZFS_PROJINHERIT, XAT_PROJINHERIT,
+	FLAG_CHANGE(FS_PROJINHERIT_FL, ZFS_PROJINHERIT, XAT_PROJINHERIT,
 	    xoap->xoa_projinherit);
 
 #undef	FLAG_CHANGE
@@ -388,7 +389,9 @@ zfs_ioctl(vnode_t *vp, ulong_t com, intptr_t data, int flag, cred_t *cred,
 		error = vn_lock(vp, LK_EXCLUSIVE);
 		if (error)
 			return (error);
+		vn_seqc_write_begin(vp);
 		error = zfs_ioctl_setxattr(vp, fsx, cred);
+		vn_seqc_write_end(vp);
 		VOP_UNLOCK(vp);
 		return (error);
 	}
@@ -1101,7 +1104,7 @@ zfs_create(znode_t *dzp, const char *name, vattr_t *vap, int excl, int mode,
 		zfs_exit(zfsvfs, FTAG);
 		return (error);
 	}
-	ASSERT3P(zp, ==, NULL);
+	ASSERT0P(zp);
 
 	/*
 	 * Create a new file object and update the directory
@@ -1193,8 +1196,8 @@ out:
 		*zpp = zp;
 	}
 
-	if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
-		zil_commit(zilog, 0);
+	if (error == 0 && zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
+		error = zil_commit(zilog, 0);
 
 	zfs_exit(zfsvfs, FTAG);
 	return (error);
@@ -1323,9 +1326,8 @@ out:
 	if (xzp)
 		vrele(ZTOV(xzp));
 
-	if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
-		zil_commit(zilog, 0);
-
+	if (error == 0 && zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
+		error = zil_commit(zilog, 0);
 
 	zfs_exit(zfsvfs, FTAG);
 	return (error);
@@ -1482,7 +1484,7 @@ zfs_mkdir(znode_t *dzp, const char *dirname, vattr_t *vap, znode_t **zpp,
 		zfs_exit(zfsvfs, FTAG);
 		return (error);
 	}
-	ASSERT3P(zp, ==, NULL);
+	ASSERT0P(zp);
 
 	if ((error = zfs_zaccess(dzp, ACE_ADD_SUBDIRECTORY, 0, B_FALSE, cr,
 	    mnt_ns))) {
@@ -1556,8 +1558,8 @@ out:
 
 	getnewvnode_drop_reserve();
 
-	if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
-		zil_commit(zilog, 0);
+	if (error == 0 && zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
+		error = zil_commit(zilog, 0);
 
 	zfs_exit(zfsvfs, FTAG);
 	return (error);
@@ -1637,8 +1639,8 @@ zfs_rmdir_(vnode_t *dvp, vnode_t *vp, const char *name, cred_t *cr)
 	if (zfsvfs->z_use_namecache)
 		cache_vop_rmdir(dvp, vp);
 out:
-	if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
-		zil_commit(zilog, 0);
+	if (error == 0 && zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
+		error = zil_commit(zilog, 0);
 
 	zfs_exit(zfsvfs, FTAG);
 	return (error);
@@ -1736,7 +1738,7 @@ zfs_readdir(vnode_t *vp, zfs_uio_t *uio, cred_t *cr, int *eofp,
 	/*
 	 * Quit if directory has been removed (posix)
 	 */
-	if ((*eofp = zp->z_unlinked) != 0) {
+	if ((*eofp = (zp->z_unlinked != 0)) != 0) {
 		zfs_exit(zfsvfs, FTAG);
 		return (0);
 	}
@@ -2014,7 +2016,7 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr)
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		vap->va_rdev = zfs_cmpldev(rdev);
 	else
-		vap->va_rdev = 0;
+		vap->va_rdev = NODEV;
 	vap->va_gen = zp->z_gen;
 	vap->va_flags = 0;	/* FreeBSD: Reset chflags(2) flags. */
 	vap->va_filerev = zp->z_seq;
@@ -2204,6 +2206,7 @@ zfs_setattr_dir(znode_t *dzp)
 		if (err)
 			break;
 
+		vn_seqc_write_begin(ZTOV(zp));
 		mutex_enter(&dzp->z_lock);
 
 		if (zp->z_uid != dzp->z_uid) {
@@ -2253,6 +2256,7 @@ sa_add_projid_err:
 			dmu_tx_abort(tx);
 		}
 		tx = NULL;
+		vn_seqc_write_end(ZTOV(zp));
 		if (err != 0 && err != ENOENT)
 			break;
 
@@ -3009,8 +3013,8 @@ out:
 	}
 
 out2:
-	if (os->os_sync == ZFS_SYNC_ALWAYS)
-		zil_commit(zilog, 0);
+	if (err == 0 && os->os_sync == ZFS_SYNC_ALWAYS)
+		err = zil_commit(zilog, 0);
 
 	zfs_exit(zfsvfs, FTAG);
 	return (err);
@@ -3539,7 +3543,7 @@ out_seq:
 
 out:
 	if (error == 0 && zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
-		zil_commit(zilog, 0);
+		error = zil_commit(zilog, 0);
 	zfs_exit(zfsvfs, FTAG);
 
 	return (error);
@@ -3731,7 +3735,7 @@ zfs_symlink(znode_t *dzp, const char *name, vattr_t *vap,
 		*zpp = zp;
 
 		if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
-			zil_commit(zilog, 0);
+			error = zil_commit(zilog, 0);
 	}
 
 	zfs_exit(zfsvfs, FTAG);
@@ -3921,8 +3925,8 @@ zfs_link(znode_t *tdzp, znode_t *szp, const char *name, cred_t *cr,
 		vnevent_link(ZTOV(szp), ct);
 	}
 
-	if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
-		zil_commit(zilog, 0);
+	if (error == 0 && zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
+		error = zil_commit(zilog, 0);
 
 	zfs_exit(zfsvfs, FTAG);
 	return (error);
@@ -4112,6 +4116,7 @@ zfs_pathconf(vnode_t *vp, int cmd, ulong_t *valp, cred_t *cr,
 {
 	znode_t *zp;
 	zfsvfs_t *zfsvfs;
+	uint_t blksize, iosize;
 	int error;
 
 	switch (cmd) {
@@ -4123,8 +4128,20 @@ zfs_pathconf(vnode_t *vp, int cmd, ulong_t *valp, cred_t *cr,
 		*valp = 64;
 		return (0);
 	case _PC_MIN_HOLE_SIZE:
-		*valp = (int)SPA_MINBLOCKSIZE;
-		return (0);
+		iosize = vp->v_mount->mnt_stat.f_iosize;
+		if (vp->v_type == VREG) {
+			zp = VTOZ(vp);
+			blksize = zp->z_blksz;
+			if (zp->z_size <= blksize)
+				blksize = MAX(blksize, iosize);
+			*valp = (int)blksize;
+			return (0);
+		}
+		if (vp->v_type == VDIR) {
+			*valp = (int)iosize;
+			return (0);
+		}
+		return (EINVAL);
 	case _PC_ACL_EXTENDED:
 #if 0		/* POSIX ACLs are not implemented for ZFS on FreeBSD yet. */
 		zp = VTOZ(vp);
@@ -4206,8 +4223,20 @@ zfs_getpages(struct vnode *vp, vm_page_t *ma, int count, int *rbehind,
 
 			zfs_vmobject_wlock(object);
 			(void) vm_page_grab_pages(object, OFF_TO_IDX(start),
-			    VM_ALLOC_NORMAL | VM_ALLOC_WAITOK | VM_ALLOC_ZERO,
+			    VM_ALLOC_NORMAL | VM_ALLOC_WAITOK,
 			    ma, count);
+			if (!vm_page_all_valid(ma[count - 1])) {
+				/*
+				 * Later in this function, we copy DMU data to
+				 * invalid pages only. The last page may not be
+				 * entirely filled though, if the file does not
+				 * end on a page boundary. Therefore, we zero
+				 * that last page here to make sure it does not
+				 * contain garbage after the end of file.
+				 */
+				ASSERT(vm_page_none_valid(ma[count - 1]));
+				vm_page_zero_invalid(ma[count - 1], FALSE);
+			}
 			zfs_vmobject_wunlock(object);
 		}
 		if (blksz == zp->z_blksz)
@@ -4313,7 +4342,7 @@ typedef struct {
 } putpage_commit_arg_t;
 
 static void
-zfs_putpage_commit_cb(void *arg)
+zfs_putpage_commit_cb(void *arg, int err)
 {
 	putpage_commit_arg_t *pca = arg;
 	vm_object_t object = pca->pca_pages[0]->object;
@@ -4322,7 +4351,17 @@ zfs_putpage_commit_cb(void *arg)
 
 	for (uint_t i = 0; i < pca->pca_npages; i++) {
 		vm_page_t pp = pca->pca_pages[i];
-		vm_page_undirty(pp);
+
+		if (err == 0) {
+			/*
+			 * Writeback succeeded, so undirty the page. If it
+			 * fails, we leave it in the same state it was. That's
+			 * most likely dirty, so it will get tried again some
+			 * other time.
+			 */
+			vm_page_undirty(pp);
+		}
+
 		vm_page_sunbusy(pp);
 	}
 
@@ -4440,7 +4479,8 @@ zfs_putpages(struct vnode *vp, vm_page_t *ma, size_t len, int flags,
 		for (i = 0; wlen > 0; woff += tocopy, wlen -= tocopy, i++) {
 			tocopy = MIN(PAGE_SIZE, wlen);
 			va = zfs_map_page(ma[i], &sf);
-			dmu_write(zfsvfs->z_os, zp->z_id, woff, tocopy, va, tx);
+			dmu_write(zfsvfs->z_os, zp->z_id, woff, tocopy, va, tx,
+			    DMU_READ_PREFETCH);
 			zfs_unmap_page(sf);
 		}
 	} else {
@@ -4510,8 +4550,13 @@ zfs_putpages(struct vnode *vp, vm_page_t *ma, size_t len, int flags,
 
 out:
 	zfs_rangelock_exit(lr);
-	if (commit)
-		zil_commit(zfsvfs->z_log, zp->z_id);
+	if (commit) {
+		err = zil_commit(zfsvfs->z_log, zp->z_id);
+		if (err != 0) {
+			zfs_exit(zfsvfs, FTAG);
+			return (err);
+		}
+	}
 
 	dataset_kstats_update_write_kstats(&zfsvfs->z_kstat, len);
 
@@ -5223,8 +5268,32 @@ struct vop_fsync_args {
 static int
 zfs_freebsd_fsync(struct vop_fsync_args *ap)
 {
+	vnode_t *vp = ap->a_vp;
+	int err = 0;
 
-	return (zfs_fsync(VTOZ(ap->a_vp), 0, ap->a_td->td_ucred));
+	/*
+	 * Push any dirty mmap()'d data out to the DMU and ZIL, ready for
+	 * zil_commit() to be called in zfs_fsync().
+	 */
+	if (vm_object_mightbedirty(vp->v_object)) {
+		zfs_vmobject_wlock(vp->v_object);
+		if (!vm_object_page_clean(vp->v_object, 0, 0, 0))
+			err = SET_ERROR(EIO);
+		zfs_vmobject_wunlock(vp->v_object);
+		if (err) {
+			/*
+			 * Unclear what state things are in. zfs_putpages()
+			 * will ensure the pages remain dirty if they haven't
+			 * been written down to the DMU, but because there may
+			 * be nothing logged, we can't assume that zfs_sync()
+			 * -> zil_commit() will give us a useful error. It's
+			 *  safest if we just error out here.
+			 */
+			return (err);
+		}
+	}
+
+	return (zfs_fsync(VTOZ(vp), 0, ap->a_td->td_ucred));
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -5689,6 +5758,9 @@ zfs_freebsd_pathconf(struct vop_pathconf_args *ap)
 {
 	ulong_t val;
 	int error;
+#if defined(_PC_CLONE_BLKSIZE) || defined(_PC_CASE_INSENSITIVE)
+	zfsvfs_t *zfsvfs;
+#endif
 
 	error = zfs_pathconf(ap->a_vp, ap->a_name, &val,
 	    curthread->td_ucred, NULL);
@@ -5733,6 +5805,30 @@ zfs_freebsd_pathconf(struct vop_pathconf_args *ap)
 #ifdef _PC_HAS_HIDDENSYSTEM
 	case _PC_HAS_HIDDENSYSTEM:
 		*ap->a_retval = 1;
+		return (0);
+#endif
+#ifdef _PC_CLONE_BLKSIZE
+	case _PC_CLONE_BLKSIZE:
+		zfsvfs = (zfsvfs_t *)ap->a_vp->v_mount->mnt_data;
+		if (zfs_bclone_enabled &&
+		    spa_feature_is_enabled(dmu_objset_spa(zfsvfs->z_os),
+		    SPA_FEATURE_BLOCK_CLONING))
+			*ap->a_retval = dsl_dataset_feature_is_active(
+			    zfsvfs->z_os->os_dsl_dataset,
+			    SPA_FEATURE_LARGE_BLOCKS) ?
+			    SPA_MAXBLOCKSIZE :
+			    SPA_OLD_MAXBLOCKSIZE;
+		else
+			*ap->a_retval = 0;
+		return (0);
+#endif
+#ifdef _PC_CASE_INSENSITIVE
+	case _PC_CASE_INSENSITIVE:
+		zfsvfs = (zfsvfs_t *)ap->a_vp->v_mount->mnt_data;
+		if (zfsvfs->z_case == ZFS_CASE_INSENSITIVE)
+			*ap->a_retval = 1;
+		else
+			*ap->a_retval = 0;
 		return (0);
 #endif
 	default:
@@ -6773,9 +6869,11 @@ zfs_deallocate(struct vop_deallocate_args *ap)
 	if (error == 0) {
 		if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS ||
 		    (ap->a_ioflag & IO_SYNC) != 0)
-			zil_commit(zilog, zp->z_id);
-		*ap->a_offset = off + len;
-		*ap->a_len = 0;
+			error = zil_commit(zilog, zp->z_id);
+		if (error == 0) {
+			*ap->a_offset = off + len;
+			*ap->a_len = 0;
+		}
 	}
 
 	zfs_exit(zfsvfs, FTAG);

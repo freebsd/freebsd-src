@@ -1,13 +1,17 @@
-.Dd May 15, 1994
+.Dd August 31, 2025
 .Dt COMCONTROL 8
 .Os
 .Sh NAME
 .Nm comcontrol
 .Nd control a special tty device
+.Sh DEPRECATION NOTICE
+The
+.Nm
+utility is deprecated and will be removed in
+.Fx 16.0 .
 .Sh SYNOPSIS
 .Nm
 .Ar special_device
-.Op dtrwait Ar number
 .Op drainwait Ar number
 .Sh DESCRIPTION
 The
@@ -22,13 +26,6 @@ Only the superuser can change the settings.
 .Pp
 The following options are available:
 .Bl -tag -width indent
-.It Cm dtrwait Ar number
-Set the time to wait after dropping DTR
-to the given number.
-The units are hundredths of a second.
-The default is 300 hundredths, i.e., 3 seconds.
-This option needed mainly to set proper recover time after
-modem reset.
 .It Cm drainwait Ar number
 Set the time to wait for output drain
 to the given number.
@@ -57,7 +54,6 @@ dialout devices
 Originally part of cgd's com package patches, version 0.2.1, to
 .Bx 386 0.1 .
 Once controlled bidirectional capabilities.
-Little is left to control now
-that these capabilities are standard.
+Little is left to control now that these capabilities are standard.
 .Sh AUTHORS
 .An Christopher G. Demetriou

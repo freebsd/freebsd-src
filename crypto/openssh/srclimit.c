@@ -386,7 +386,7 @@ srclimit_penalise(struct xaddr *addr, int penalty_type)
 		reason = "penalty: connection prohibited by RefuseConnection";
 		break;
 	case SRCLIMIT_PENALTY_GRACE_EXCEEDED:
-		penalty_secs = penalty_cfg.penalty_crash;
+		penalty_secs = penalty_cfg.penalty_grace;
 		reason = "penalty: exceeded LoginGraceTime";
 		break;
 	default:

@@ -14,9 +14,6 @@ maintainers:
   - Chen-Yu Tsai <wens@csie.org>
   - Sebastian Reichel <sre@kernel.org>
 
-allOf:
-  - $ref: power-supply.yaml#
-
 properties:
   compatible:
     oneOf:
@@ -29,13 +26,26 @@ properties:
           - const: x-powers,axp813-battery-power-supply
       - const: x-powers,axp813-battery-power-supply
 
-  monitored-battery:
-    description:
-      Specifies the phandle of an optional simple-battery connected to
-      this gauge.
-    $ref: /schemas/types.yaml#/definitions/phandle
+  monitored-battery: true
+
+  x-powers,no-thermistor:
+    type: boolean
+    description: Indicates that no thermistor is connected to the TS pin
 
 required:
   - compatible
+
+allOf:
+  - $ref: power-supply.yaml#
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - x-powers,axp717-battery-power-supply
+    then:
+      properties:
+        x-powers,no-thermistor: false
 
 additionalProperties: false

@@ -206,7 +206,7 @@ debugfs_create_file(const char *name, umode_t mode,
 		pnode = debugfs_root;
 
 	flags = fops->write ? PFS_RDWR : PFS_RD;
-	dnode->d_pfs_node = pfs_create_file(pnode, name, debugfs_fill,
+	pfs_create_file(pnode, &dnode->d_pfs_node, name, debugfs_fill,
 	    debugfs_attr, NULL, debugfs_destroy, flags | PFS_NOWAIT);
 	if (dnode->d_pfs_node == NULL) {
 		free(dm, M_DFSINT);
@@ -283,7 +283,8 @@ debugfs_create_dir(const char *name, struct dentry *parent)
 	else
 		pnode = debugfs_root;
 
-	dnode->d_pfs_node = pfs_create_dir(pnode, name, debugfs_attr, NULL, debugfs_destroy, PFS_RD | PFS_NOWAIT);
+	pfs_create_dir(pnode, &dnode->d_pfs_node, name, debugfs_attr, NULL,
+	    debugfs_destroy, PFS_RD | PFS_NOWAIT);
 	if (dnode->d_pfs_node == NULL) {
 		free(dm, M_DFSINT);
 		return (NULL);
@@ -316,7 +317,8 @@ debugfs_create_symlink(const char *name, struct dentry *parent,
 	else
 		pnode = debugfs_root;
 
-	dnode->d_pfs_node = pfs_create_link(pnode, name, &debugfs_fill_data, NULL, NULL, NULL, PFS_NOWAIT);
+	pfs_create_link(pnode, &dnode->d_pfs_node, name, &debugfs_fill_data,
+	    NULL, NULL, NULL, PFS_NOWAIT);
 	if (dnode->d_pfs_node == NULL)
 		goto fail;
 	dnode->d_pfs_node->pn_data = dm;

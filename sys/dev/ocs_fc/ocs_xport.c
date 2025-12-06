@@ -482,12 +482,12 @@ ocs_xport_initialize(ocs_xport_t *xport)
 	 /* Setup persistent topology based on topology mod-param value */
         rc = ocs_topology_setup(ocs);
         if (rc) {
-                ocs_log_err(ocs, "%s: Can't set the toplogy\n", ocs->desc);
+                ocs_log_err(ocs, "%s: Can't set the topology\n", ocs->desc);
                 return -1;
         }
 
 	if (ocs_hw_set(&ocs->hw, OCS_HW_TOPOLOGY, ocs->topology) != OCS_HW_RTN_SUCCESS) {
-		ocs_log_err(ocs, "%s: Can't set the toplogy\n", ocs->desc);
+		ocs_log_err(ocs, "%s: Can't set the topology\n", ocs->desc);
 		return -1;
 	}
 	ocs_hw_set(&ocs->hw, OCS_HW_RQ_DEFAULT_BUFFER_SIZE, OCS_FC_RQ_SIZE_DEFAULT);

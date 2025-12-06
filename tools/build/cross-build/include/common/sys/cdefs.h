@@ -270,6 +270,16 @@
 #define	__ISO_C_VISIBLE		2011
 #define	__EXT1_VISIBLE		1
 
+/*
+ * Macro to test if we're using a specific version of gcc or later.
+ */
+#if defined(__GNUC__)
+#define	__GNUC_PREREQ__(ma, mi)	\
+	(__GNUC__ > (ma) || __GNUC__ == (ma) && __GNUC_MINOR__ >= (mi))
+#else
+#define	__GNUC_PREREQ__(ma, mi)	0
+#endif
+
 /* Alignment builtins for better type checking and improved code generation. */
 /* Provide fallback versions for other compilers (GCC/Clang < 10): */
 #if !__has_builtin(__builtin_is_aligned)

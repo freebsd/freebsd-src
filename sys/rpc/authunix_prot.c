@@ -30,7 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * authunix_prot.c
  * XDR for UNIX style authentication parameters for RPC
@@ -40,8 +39,7 @@
 
 #include <sys/param.h>
 #include <sys/jail.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
+#include <sys/libkern.h>
 #include <sys/ucred.h>
 
 #include <rpc/types.h>
@@ -50,9 +48,6 @@
 
 #include <rpc/rpc_com.h>
 
-/* gids compose part of a credential; there may not be more than 16 of them */
-#define NGRPS 16
-
 /*
  * XDR for unix authentication parameters.
  */
@@ -60,25 +55,23 @@ bool_t
 xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 {
 	uint32_t namelen;
-	uint32_t ngroups, i;
+	uint32_t supp_ngroups, i;
 	uint32_t junk;
 	char hostbuf[MAXHOSTNAMELEN];
 
+	if (xdrs->x_op == XDR_FREE)
+		/* This function does not allocate auxiliary memory. */
+		return (TRUE);
+
 	if (xdrs->x_op == XDR_ENCODE) {
-		/*
-		 * Restrict name length to 255 according to RFC 1057.
-		 */
 		getcredhostname(NULL, hostbuf, sizeof(hostbuf));
 		namelen = strlen(hostbuf);
-		if (namelen > 255)
-			namelen = 255;
-	} else {
+		if (namelen > AUTH_SYS_MAX_HOSTNAME)
+			namelen = AUTH_SYS_MAX_HOSTNAME;
+	} else
 		namelen = 0;
-	}
-	junk = 0;
 
-	if (!xdr_uint32_t(xdrs, time)
-	    || !xdr_uint32_t(xdrs, &namelen))
+	if (!xdr_uint32_t(xdrs, time) || !xdr_uint32_t(xdrs, &namelen))
 		return (FALSE);
 
 	/*
@@ -88,43 +81,65 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 		if (!xdr_opaque(xdrs, hostbuf, namelen))
 			return (FALSE);
 	} else {
+		if (namelen > AUTH_SYS_MAX_HOSTNAME)
+			return (FALSE);
 		xdr_setpos(xdrs, xdr_getpos(xdrs) + RNDUP(namelen));
 	}
 
 	if (!xdr_uint32_t(xdrs, &cred->cr_uid))
+		return (FALSE);
+
+	/*
+	 * Safety check: The protocol needs at least one group (access to
+	 * 'cr_gid', decrementation of 'cr_ngroups' below).
+	 */
+	if (xdrs->x_op == XDR_ENCODE && cred->cr_ngroups == 0)
 		return (FALSE);
 	if (!xdr_uint32_t(xdrs, &cred->cr_gid))
 		return (FALSE);
 
 	if (xdrs->x_op == XDR_ENCODE) {
 		/*
-		 * Note that this is a `struct xucred`, which maintains its
-		 * historical layout of preserving the egid in cr_ngroups and
-		 * cr_groups[0] == egid.
+		 * Note that this is a 'struct xucred', which still has the
+		 * historical layout where the effective GID is in cr_groups[0]
+		 * and is accounted in 'cr_ngroups'.  We substract 1 to obtain
+		 * the number of "supplementary" groups, passed in the AUTH_SYS
+		 * credentials variable-length array called gids[] in RFC 5531.
 		 */
-		ngroups = cred->cr_ngroups - 1;
-		if (ngroups > NGRPS)
-			ngroups = NGRPS;
+		MPASS(cred->cr_ngroups <= XU_NGROUPS);
+		supp_ngroups = cred->cr_ngroups - 1;
+		if (supp_ngroups > AUTH_SYS_MAX_GROUPS)
+			/* With current values, this should never execute. */
+			supp_ngroups = AUTH_SYS_MAX_GROUPS;
 	}
 
-	if (!xdr_uint32_t(xdrs, &ngroups))
+	if (!xdr_uint32_t(xdrs, &supp_ngroups))
 		return (FALSE);
-	for (i = 0; i < ngroups; i++) {
-		if (i < ngroups_max) {
-			if (!xdr_uint32_t(xdrs, &cred->cr_groups[i + 1]))
-				return (FALSE);
-		} else {
-			if (!xdr_uint32_t(xdrs, &junk))
-				return (FALSE);
-		}
-	}
 
-	if (xdrs->x_op == XDR_DECODE) {
-		if (ngroups > ngroups_max)
-			cred->cr_ngroups = ngroups_max + 1;
-		else
-			cred->cr_ngroups = ngroups + 1;
-	}
+	/*
+	 * Because we cannot store more than XU_NGROUPS in total (16 at time of
+	 * this writing), for now we choose to be strict with respect to RFC
+	 * 5531's maximum number of supplementary groups (AUTH_SYS_MAX_GROUPS).
+	 * That would also be an accidental DoS prevention measure if the
+	 * request handling code didn't try to reassemble it in full without any
+	 * size limits.  Although AUTH_SYS_MAX_GROUPS and XU_NGROUPS are equal,
+	 * since the latter includes the "effective" GID, we cannot store the
+	 * last group of a message with exactly AUTH_SYS_MAX_GROUPS
+	 * supplementary groups.  We accept such messages so as not to violate
+	 * the protocol, silently dropping the last group on the floor.
+	 */
+
+	if (xdrs->x_op != XDR_ENCODE && supp_ngroups > AUTH_SYS_MAX_GROUPS)
+		return (FALSE);
+
+	junk = 0;
+	for (i = 0; i < supp_ngroups; ++i)
+		if (!xdr_uint32_t(xdrs, i < XU_NGROUPS - 1 ?
+		    &cred->cr_sgroups[i] : &junk))
+			return (FALSE);
+
+	if (xdrs->x_op != XDR_ENCODE)
+		cred->cr_ngroups = MIN(supp_ngroups + 1, XU_NGROUPS);
 
 	return (TRUE);
 }

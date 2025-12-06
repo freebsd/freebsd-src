@@ -120,7 +120,7 @@ static void mlx5e_ipsec_packet_setup(void *obj, u32 pdn,
 
 	switch (attrs->dir) {
 	case IPSEC_DIR_OUTBOUND:
-		if (attrs->replay_esn.replay_window != 0)
+		if (attrs->replay_esn.trigger)
 			MLX5_SET(ipsec_aso, aso_ctx, mode, MLX5_IPSEC_ASO_INC_SN);
 		else
 			MLX5_SET(ipsec_aso, aso_ctx, mode, MLX5_IPSEC_ASO_MODE);

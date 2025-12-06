@@ -714,7 +714,7 @@ int bnxt_hwrm_func_backing_store_cfg(struct bnxt_softc *softc, uint32_t enables)
 		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem, pg_attr, pg_dir);
 	}
 	req.flags = cpu_to_le32(flags);
-	return hwrm_send_message(softc, &req, sizeof(req));
+	return hwrm_send_message(softc, &req, req_len);
 }
 
 int bnxt_hwrm_func_resc_qcaps(struct bnxt_softc *softc, bool all)

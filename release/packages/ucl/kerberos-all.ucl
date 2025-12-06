@@ -1,4 +1,38 @@
-comment = "Kerberos utilities"
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+comment = "Kerberos client"
+
 desc = <<EOD
-The Kerberos command-line utilities, including kinit and kadmin.
+Kerberos is a secure network authentication protocol which allows clients
+and servers to authenticate each other over a potentially insecure network.
+The Kerberos protocol is platform-agnostic and is supported by nearly all
+Unix systems, as well as many other platforms.
+
+This package provides the Kerberos client, including the kinit(1) utility
+used to obtain Kerberos tickets, the kadmin(1) utility for managing the
+Kerberos realm, and PAM modules pam_krb5 and pam_ksu which allow PAM-aware
+applications to be integrated with Kerberos.
+
+This version of Kerberos implements version 5 of the Kerberos protocol,
+sometimes called Kerberos V.
 EOD
+
+annotations {
+	set = "optional,optional-jail"
+}

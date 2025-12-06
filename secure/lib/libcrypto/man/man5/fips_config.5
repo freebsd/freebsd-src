@@ -55,7 +55,7 @@
 .\" ========================================================================
 .\"
 .IX Title "FIPS_CONFIG 5ossl"
-.TH FIPS_CONFIG 5ossl 2025-07-01 3.5.1 OpenSSL
+.TH FIPS_CONFIG 5ossl 2025-09-30 3.5.4 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -107,16 +107,10 @@ The calculated MAC of the FIPS provider file.
 A version number for the fips install process. Should be 1.
 .IP \fBinstall-status\fR 4
 .IX Item "install-status"
-An indicator that the self-tests were successfully run.
-This should only be written after the module has
-successfully passed its self tests during installation.
-If this field is not present, then the self tests will run when the module
-loads.
+This field is deprecated and is no longer used.
 .IP \fBinstall-mac\fR 4
 .IX Item "install-mac"
-A MAC of the value of the \fBinstall-status\fR option, to prevent accidental
-changes to that value.
-It is written-to at the same time as \fBinstall-status\fR is updated.
+This field is deprecated and is no longer used.
 .SS "FIPS indicator options"
 .IX Subsection "FIPS indicator options"
 The following FIPS configuration options indicate if run-time checks related to
@@ -145,7 +139,7 @@ See "OPTIONS" in \fBopenssl\-fipsinstall\fR\|(1) \fB\-no_drbg_truncated_digests\
 See "OPTIONS" in \fBopenssl\-fipsinstall\fR\|(1) \fB\-signature_digest_check\fR
 .IP \fBhkdf-digest-check\fR 4
 .IX Item "hkdf-digest-check"
-See "OPTIONS" in \fBopenssl\-fipsinstall\fR\|(1) \fB\-hkdf_digest_check\fR
+This option is deprecated.
 .IP \fBtls13\-kdf\-digest\-check\fR 4
 .IX Item "tls13-kdf-digest-check"
 See "OPTIONS" in \fBopenssl\-fipsinstall\fR\|(1) \fB\-tls13_kdf_digest_check\fR
@@ -157,7 +151,7 @@ See "OPTIONS" in \fBopenssl\-fipsinstall\fR\|(1) \fB\-tls1_prf_digest_check\fR
 See "OPTIONS" in \fBopenssl\-fipsinstall\fR\|(1) \fB\-sshkdf_digest_check\fR
 .IP \fBsskdf-digest-check\fR 4
 .IX Item "sskdf-digest-check"
-See "OPTIONS" in \fBopenssl\-fipsinstall\fR\|(1) \fB\-sskdf_digest_check\fR
+This option is deprecated.
 .IP \fBx963kdf\-digest\-check\fR 4
 .IX Item "x963kdf-digest-check"
 See "OPTIONS" in \fBopenssl\-fipsinstall\fR\|(1) \fB\-x963kdf_digest_check\fR
@@ -240,7 +234,7 @@ See \fBconfig\fR\|(5).
 This functionality was added in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2019\-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

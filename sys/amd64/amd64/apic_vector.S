@@ -204,6 +204,17 @@ IDTVEC(spuriousint)
 	jmp	doreti
 
 /*
+ * Executed by a CPU when it receives an IPI_OFF from another CPU.
+ * Should never return
+ */
+	INTR_HANDLER cpuoff
+	KMSAN_ENTER
+	call	cpuoff_handler
+	call	as_lapic_eoi
+	KMSAN_LEAVE
+	jmp	doreti
+
+/*
  * Executed by a CPU when it receives an IPI_SWI.
  */
 	INTR_HANDLER ipi_swi

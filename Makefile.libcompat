@@ -56,6 +56,7 @@ build${libcompat}: .PHONY
 	    -p ${WORLDTMP}/usr/lib/debug/usr >/dev/null
 .endif
 	${_+_}cd ${.CURDIR}; \
+	    PATH=${BPATH:Q}:${PATH:Q} \
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
 	    ${MAKE} -f Makefile.inc1 \
@@ -93,6 +94,11 @@ _LC_LIBDIRS.${MK_CDDL:tl}+=	cddl/lib
 _LC_LIBDIRS.${MK_CRYPT:tl}+=	secure/lib
 .if ${MK_MITKRB5} != "no"
 _LC_LIBDIRS.${MK_KERBEROS:tl}+=	krb5/lib
+# Only include the parts of krb5/util that build libraries, not executables.
+_LC_LIBDIRS.${MK_KERBEROS:tl}+=	krb5/util/et
+_LC_LIBDIRS.${MK_KERBEROS:tl}+=	krb5/util/profile
+_LC_LIBDIRS.${MK_KERBEROS:tl}+=	krb5/util/support
+_LC_LIBDIRS.${MK_KERBEROS:tl}+=	krb5/util/verto
 .else
 _LC_LIBDIRS.${MK_KERBEROS:tl}+=	kerberos5/lib
 .endif

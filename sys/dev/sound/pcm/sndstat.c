@@ -491,29 +491,29 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_RIGHTVOL,
 		    CHN_GETVOLUME(c, SND_VOL_C_PCM, SND_CHN_T_FR));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_FORMAT,
-		    sndbuf_getfmt(c->bufhard));
+		    c->bufhard->fmt);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_RATE,
-		    sndbuf_getspd(c->bufhard));
+		    c->bufhard->spd);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_SIZE,
-		    sndbuf_getsize(c->bufhard));
+		    c->bufhard->bufsize);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_BLKSZ,
-		    sndbuf_getblksz(c->bufhard));
+		    c->bufhard->blksz);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_BLKCNT,
-		    sndbuf_getblkcnt(c->bufhard));
+		    c->bufhard->blkcnt);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_FREE,
 		    sndbuf_getfree(c->bufhard));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_READY,
 		    sndbuf_getready(c->bufhard));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_FORMAT,
-		    sndbuf_getfmt(c->bufsoft));
+		    c->bufsoft->fmt);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_RATE,
-		    sndbuf_getspd(c->bufsoft));
+		    c->bufsoft->spd);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_SIZE,
-		    sndbuf_getsize(c->bufsoft));
+		    c->bufsoft->bufsize);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_BLKSZ,
-		    sndbuf_getblksz(c->bufsoft));
+		    c->bufsoft->blksz);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_BLKCNT,
-		    sndbuf_getblkcnt(c->bufsoft));
+		    c->bufsoft->blkcnt);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_FREE,
 		    sndbuf_getfree(c->bufsoft));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_READY,
@@ -524,7 +524,8 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 			    c->parentchannel->name : "userland");
 		} else {
 			sbuf_printf(&sb, "[%s", (c->direction == PCMDIR_REC) ?
-			    "hardware" : "userland");
+			    "hardware" :
+			    ((d->flags & SD_F_PVCHANS) ? "vchans" : "userland"));
 		}
 		sbuf_printf(&sb, " -> ");
 		f = c->feeder;
@@ -532,12 +533,12 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 			f = f->source;
 		while (f != NULL) {
 			sbuf_printf(&sb, "%s", f->class->name);
-			if (f->desc->type == FEEDER_FORMAT) {
+			if (f->class->type == FEEDER_FORMAT) {
 				snd_afmt2str(f->desc->in, buf, sizeof(buf));
 				sbuf_printf(&sb, "(%s -> ", buf);
 				snd_afmt2str(f->desc->out, buf, sizeof(buf));
 				sbuf_printf(&sb, "%s)", buf);
-			} else if (f->desc->type == FEEDER_MATRIX) {
+			} else if (f->class->type == FEEDER_MATRIX) {
 				sbuf_printf(&sb, "(%d.%dch -> %d.%dch)",
 				    AFMT_CHANNEL(f->desc->in) -
 				    AFMT_EXTCHANNEL(f->desc->in),
@@ -545,7 +546,7 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 				    AFMT_CHANNEL(f->desc->out) -
 				    AFMT_EXTCHANNEL(f->desc->out),
 				    AFMT_EXTCHANNEL(f->desc->out));
-			} else if (f->desc->type == FEEDER_RATE) {
+			} else if (f->class->type == FEEDER_RATE) {
 				sbuf_printf(&sb, "(%d -> %d)",
 				    FEEDER_GET(f, FEEDRATE_SRC),
 				    FEEDER_GET(f, FEEDRATE_DST));
@@ -561,7 +562,8 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 			    "userland" : c->parentchannel->name);
 		} else {
 			sbuf_printf(&sb, "%s]", (c->direction == PCMDIR_REC) ?
-			    "userland" : "hardware");
+			    ((d->flags & SD_F_RVCHANS) ? "vchans" : "userland") :
+			    "hardware");
 		}
 
 		CHN_UNLOCK(c);
@@ -1265,14 +1267,11 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 		    (c->parentchannel != NULL) ?
 		    c->parentchannel->name : "", c->name);
 		sbuf_printf(s, "spd %d", c->speed);
-		if (c->speed != sndbuf_getspd(c->bufhard)) {
-			sbuf_printf(s, "/%d",
-			    sndbuf_getspd(c->bufhard));
-		}
+		if (c->speed != c->bufhard->spd)
+			sbuf_printf(s, "/%d", c->bufhard->spd);
 		sbuf_printf(s, ", fmt 0x%08x", c->format);
-		if (c->format != sndbuf_getfmt(c->bufhard)) {
-			sbuf_printf(s, "/0x%08x",
-			    sndbuf_getfmt(c->bufhard));
+		if (c->format != c->bufhard->fmt) {
+			sbuf_printf(s, "/0x%08x", c->bufhard->fmt);
 		}
 		sbuf_printf(s, ", flags 0x%08x, 0x%08x",
 		    c->flags, c->feederflags);
@@ -1291,24 +1290,24 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 				c->xruns, c->feedcount,
 				sndbuf_getfree(c->bufhard),
 				sndbuf_getfree(c->bufsoft),
-				sndbuf_getsize(c->bufhard),
-				sndbuf_getblksz(c->bufhard),
-				sndbuf_getblkcnt(c->bufhard),
-				sndbuf_getsize(c->bufsoft),
-				sndbuf_getblksz(c->bufsoft),
-				sndbuf_getblkcnt(c->bufsoft));
+				c->bufhard->bufsize,
+				c->bufhard->blksz,
+				c->bufhard->blkcnt,
+				c->bufsoft->bufsize,
+				c->bufsoft->blksz,
+				c->bufsoft->blkcnt);
 		} else {
 			sbuf_printf(s,
 			    "underruns %d, feed %u, ready %d "
 			    "\n\t\t[b:%d/%d/%d|bs:%d/%d/%d]",
 				c->xruns, c->feedcount,
 				sndbuf_getready(c->bufsoft),
-				sndbuf_getsize(c->bufhard),
-				sndbuf_getblksz(c->bufhard),
-				sndbuf_getblkcnt(c->bufhard),
-				sndbuf_getsize(c->bufsoft),
-				sndbuf_getblksz(c->bufsoft),
-				sndbuf_getblkcnt(c->bufsoft));
+				c->bufhard->bufsize,
+				c->bufhard->blksz,
+				c->bufhard->blkcnt,
+				c->bufsoft->bufsize,
+				c->bufsoft->blksz,
+				c->bufsoft->blkcnt);
 		}
 		sbuf_printf(s, "\n\t");
 
@@ -1320,7 +1319,8 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 			    c->parentchannel->name : "userland");
 		} else {
 			sbuf_printf(s, "\t{%s}", (c->direction == PCMDIR_REC) ?
-			    "hardware" : "userland");
+			    "hardware" :
+			    ((d->flags & SD_F_PVCHANS) ? "vchans" : "userland"));
 		}
 		sbuf_printf(s, " -> ");
 		f = c->feeder;
@@ -1328,10 +1328,10 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 			f = f->source;
 		while (f != NULL) {
 			sbuf_printf(s, "%s", f->class->name);
-			if (f->desc->type == FEEDER_FORMAT) {
+			if (f->class->type == FEEDER_FORMAT) {
 				sbuf_printf(s, "(0x%08x -> 0x%08x)",
 				    f->desc->in, f->desc->out);
-			} else if (f->desc->type == FEEDER_MATRIX) {
+			} else if (f->class->type == FEEDER_MATRIX) {
 				sbuf_printf(s, "(%d.%d -> %d.%d)",
 				    AFMT_CHANNEL(f->desc->in) -
 				    AFMT_EXTCHANNEL(f->desc->in),
@@ -1339,7 +1339,7 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 				    AFMT_CHANNEL(f->desc->out) -
 				    AFMT_EXTCHANNEL(f->desc->out),
 				    AFMT_EXTCHANNEL(f->desc->out));
-			} else if (f->desc->type == FEEDER_RATE) {
+			} else if (f->class->type == FEEDER_RATE) {
 				sbuf_printf(s,
 				    "(0x%08x q:%d %d -> %d)",
 				    f->desc->out,
@@ -1358,7 +1358,8 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 			    "userland" : c->parentchannel->name);
 		} else {
 			sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC) ?
-			    "userland" : "hardware");
+			    ((d->flags & SD_F_RVCHANS) ? "vchans" : "userland") :
+			    "hardware");
 		}
 
 		CHN_UNLOCK(c);

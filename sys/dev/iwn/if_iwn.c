@@ -584,6 +584,11 @@ iwn_attach(device_t dev)
 		| IEEE80211_C_PMGT		/* Station-side power mgmt */
 		;
 
+	/* Driver / firmware assigned sequence numbers */
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
+	/* Don't originate null data frames in net80211 */
+	ic->ic_flags_ext |= IEEE80211_FEXT_NO_NULLDATA;
+
 	/* Read MAC address, channels, etc from EEPROM. */
 	if ((error = iwn_read_eeprom(sc, ic->ic_macaddr)) != 0) {
 		device_printf(dev, "could not read EEPROM, error %d\n",
@@ -4577,6 +4582,9 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	 * XXX TODO: Group addressed frames aren't aggregated and must
 	 * go to the normal non-aggregation queue, and have a NONQOS TID
 	 * assigned from net80211.
+	 *
+	 * TODO: same with NULL QOS frames, which we shouldn't be sending
+	 * anyway ourselves (and should stub out / warn / etc.)
 	 */
 
 	ac = M_WME_GETAC(m);
@@ -4588,6 +4596,10 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 		ac = *(int *)tap->txa_private;
 	}
+
+	/* Only assign if not A-MPDU; the A-MPDU TX path will do its own */
+	if ((m->m_flags & M_AMPDU_MPDU) == 0)
+		ieee80211_output_seqno_assign(ni, -1, m);
 
 	/* Encrypt the frame if need be. */
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {

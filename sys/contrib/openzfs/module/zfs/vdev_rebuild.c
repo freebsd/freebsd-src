@@ -256,7 +256,7 @@ vdev_rebuild_initiate_sync(void *arg, dmu_tx_t *tx)
 	    "vdev_id=%llu vdev_guid=%llu started",
 	    (u_longlong_t)vd->vdev_id, (u_longlong_t)vd->vdev_guid);
 
-	ASSERT3P(vd->vdev_rebuild_thread, ==, NULL);
+	ASSERT0P(vd->vdev_rebuild_thread);
 	vd->vdev_rebuild_thread = thread_create(NULL, 0,
 	    vdev_rebuild_thread, vd, 0, &p0, TS_RUN, maxclsyspri);
 
@@ -413,7 +413,7 @@ vdev_rebuild_reset_sync(void *arg, dmu_tx_t *tx)
 	mutex_enter(&vd->vdev_rebuild_lock);
 
 	ASSERT(vrp->vrp_rebuild_state == VDEV_REBUILD_ACTIVE);
-	ASSERT3P(vd->vdev_rebuild_thread, ==, NULL);
+	ASSERT0P(vd->vdev_rebuild_thread);
 
 	vrp->vrp_last_offset = 0;
 	vrp->vrp_min_txg = 0;
@@ -1079,7 +1079,7 @@ vdev_rebuild_restart_impl(vdev_t *vd)
 void
 vdev_rebuild_restart(spa_t *spa)
 {
-	ASSERT(MUTEX_HELD(&spa_namespace_lock) ||
+	ASSERT(spa_namespace_held() ||
 	    spa->spa_load_thread == curthread);
 
 	vdev_rebuild_restart_impl(spa->spa_root_vdev);
@@ -1094,7 +1094,7 @@ vdev_rebuild_stop_wait(vdev_t *vd)
 {
 	spa_t *spa = vd->vdev_spa;
 
-	ASSERT(MUTEX_HELD(&spa_namespace_lock) ||
+	ASSERT(spa_namespace_held() ||
 	    spa->spa_export_thread == curthread);
 
 	if (vd == spa->spa_root_vdev) {

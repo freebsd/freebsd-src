@@ -195,6 +195,11 @@ AcpiEvInitGlobalLockHandler (
         return_ACPI_STATUS (AE_OK);
     }
 
+    if (!AcpiGbl_UseGlobalLock)
+    {
+        return_ACPI_STATUS (AE_OK);
+    }
+
     /* Attempt installation of the global lock handler */
 
     Status = AcpiInstallFixedEventHandler (ACPI_EVENT_GLOBAL,

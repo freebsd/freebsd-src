@@ -1,7 +1,4 @@
-#
-#
-
-PACKAGE=	runtime
+PACKAGE=	zlib
 LIB=		z
 SHLIBDIR?=	/lib
 SHLIB_MAJOR=	6

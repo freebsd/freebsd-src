@@ -1,0 +1,32 @@
+# Verify that `read -t 3 v` succeeds immediately if input is available
+# and times out after 3 s if not
+
+set -e
+
+T=$(mktemp -d ${TMPDIR:-/tmp}/sh-test.XXXXXX)
+trap 'rm -rf "$T"' 0
+cd $T
+mkfifo fifo1
+# Open fifo1 for writing
+{ echo new_value; sleep 10; } >fifo1 &
+# Wait for the child to open fifo1 for writing
+exec 3<fifo1
+
+v=original_value
+r=0
+ts=$(date +%s%3N)
+read -t 3 v <&3 || r=$?
+te=$(date +%s%3N)
+[ "$r" -eq 0 ]
+[ $((te-ts)) -lt 250 ]
+[ "$v" = "new_value" ]
+
+v=original_value
+r=0
+ts=$(date +%s%3N)
+read -t 3 v <&3 || r=$?
+te=$(date +%s%3N)
+kill -TERM "$!" || :
+[ "$r" -gt 128 ] && [ "$(kill -l "$r")" = ALRM ]
+[ $((te-ts)) -gt 3000 ] && [ $((te-ts)) -lt 3250 ]
+[ -z "$v" ]

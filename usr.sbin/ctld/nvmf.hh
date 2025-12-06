@@ -38,12 +38,11 @@ using nvmf_qpair_up = std::unique_ptr<nvmf_qpair, nvmf_qpair_deleter>;
 
 struct nvmf_portal : public portal {
 	nvmf_portal(struct portal_group *pg, const char *listen,
-	    portal_protocol protocol, freebsd::addrinfo_up ai,
-	    const struct nvmf_association_params &aparams,
-	    nvmf_association_up na) :
-		portal(pg, listen, protocol, std::move(ai)),
-		p_aparams(aparams), p_association(std::move(na)) {}
+	    portal_protocol protocol, freebsd::addrinfo_up ai) :
+		portal(pg, listen, protocol, std::move(ai)) {}
 	virtual ~nvmf_portal() override = default;
+
+	virtual bool prepare() override;
 
 	const struct nvmf_association_params *aparams() const
 	{ return &p_aparams; }
@@ -58,11 +57,8 @@ private:
 
 struct nvmf_discovery_portal final : public nvmf_portal {
 	nvmf_discovery_portal(struct portal_group *pg, const char *listen,
-	    portal_protocol protocol, freebsd::addrinfo_up ai,
-	    const struct nvmf_association_params &aparams,
-	    nvmf_association_up na) :
-		nvmf_portal(pg, listen, protocol, std::move(ai), aparams,
-		    std::move(na)) {}
+	    portal_protocol protocol, freebsd::addrinfo_up ai) :
+		nvmf_portal(pg, listen, protocol, std::move(ai)) {}
 
 	void handle_connection(freebsd::fd_up fd, const char *host,
 	    const struct sockaddr *client_sa) override;

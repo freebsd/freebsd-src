@@ -1090,10 +1090,9 @@ moea_copy_pages(vm_page_t *ma, vm_offset_t a_offset,
 void
 moea_zero_page(vm_page_t m)
 {
-	vm_offset_t off, pa = VM_PAGE_TO_PHYS(m);
+	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
 
-	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
-		__asm __volatile("dcbz 0,%0" :: "r"(pa + off));
+	bzero((void *)pa, PAGE_SIZE);
 }
 
 void

@@ -27,7 +27,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_ddb.h"
 #include <sys/param.h>
@@ -61,6 +60,9 @@
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#ifdef DDB
+#include <netinet/in_kdtrace.h>
+#endif
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 #include <netinet/tcp_var.h>

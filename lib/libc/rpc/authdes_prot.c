@@ -42,16 +42,44 @@
 #include <rpc/auth_des.h>
 #include "un-namespace.h"
 
-static bool_t
-__xdr_authdes_cred(XDR *xdrs, void *cred)
-{
-	return (FALSE);
-}
-__sym_compat(xdr_authdes_cred, __xdr_authdes_cred, FBSD_1.0);
+#define ATTEMPT(xdr_op) if (!(xdr_op)) return (FALSE)
 
-static bool_t
-__xdr_authdes_verf(XDR *xdrs, void *verf)
+bool_t
+xdr_authdes_cred(XDR *xdrs, struct authdes_cred *cred)
 {
-	return (FALSE);
+	enum authdes_namekind *padc_namekind = &cred->adc_namekind;
+	/*
+	 * Unrolled xdr
+	 */
+	ATTEMPT(xdr_enum(xdrs, (enum_t *) padc_namekind));
+	switch (cred->adc_namekind) {
+	case ADN_FULLNAME:
+		ATTEMPT(xdr_string(xdrs, &cred->adc_fullname.name,
+		    MAXNETNAMELEN));
+		ATTEMPT(xdr_opaque(xdrs, (caddr_t)&cred->adc_fullname.key,
+		    sizeof(des_block)));
+		ATTEMPT(xdr_opaque(xdrs, (caddr_t)&cred->adc_fullname.window,
+		    sizeof(cred->adc_fullname.window)));
+		return (TRUE);
+	case ADN_NICKNAME:
+		ATTEMPT(xdr_opaque(xdrs, (caddr_t)&cred->adc_nickname,
+		    sizeof(cred->adc_nickname)));
+		return (TRUE);
+	default:
+		return (FALSE);
+	}
 }
-__sym_compat(xdr_authdes_verf, __xdr_authdes_verf, FBSD_1.0);
+
+
+bool_t
+xdr_authdes_verf(XDR *xdrs, struct authdes_verf *verf)
+{
+	/*
+ 	 * Unrolled xdr
+ 	 */
+	ATTEMPT(xdr_opaque(xdrs, (caddr_t)&verf->adv_xtimestamp,
+	    sizeof(des_block)));
+	ATTEMPT(xdr_opaque(xdrs, (caddr_t)&verf->adv_int_u,
+	    sizeof(verf->adv_int_u)));
+	return (TRUE);
+}

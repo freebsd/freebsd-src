@@ -45,22 +45,22 @@
  * Entries EAI_ADDRFAMILY (1) and EAI_NODATA (7) were omitted from RFC 3493,
  * but are or may be used as extensions or in old code.
  */
-static const char *ai_errlist[] = {
-	"Success",					/* 0 */
-	"Address family for hostname not supported",	/* EAI_ADDRFAMILY */
-	"Name could not be resolved at this time",	/* EAI_AGAIN */
-	"Flags parameter had an invalid value",		/* EAI_BADFLAGS */
-	"Non-recoverable failure in name resolution",	/* EAI_FAIL */
-	"Address family not recognized",		/* EAI_FAMILY */
-	"Memory allocation failure", 			/* EAI_MEMORY */
-	"No address associated with hostname",		/* EAI_NODATA*/
-	"Name does not resolve",			/* EAI_NONAME */
-	"Service was not recognized for socket type",	/* EAI_SERVICE */
-	"Intended socket type was not recognized",	/* EAI_SOCKTYPE */
-	"System error returned in errno", 		/* EAI_SYSTEM */
-	"Invalid value for hints",			/* EAI_BADHINTS */
-	"Resolved protocol is unknown",			/* EAI_PROTOCOL */
-	"Argument buffer overflow"			/* EAI_OVERFLOW */
+static const char *const ai_errlist[] = {
+	[0] =			"Success",
+	[EAI_ADDRFAMILY] =	"Address family for hostname not supported",
+	[EAI_AGAIN] =		"Name could not be resolved at this time",
+	[EAI_BADFLAGS] =	"Flags parameter had an invalid value",
+	[EAI_FAIL] =		"Non-recoverable failure in name resolution",
+	[EAI_FAMILY] =		"Address family not recognized",
+	[EAI_MEMORY] =		"Memory allocation failure",
+	[EAI_NODATA] =		"No address associated with hostname",
+	[EAI_NONAME] =		"Name does not resolve",
+	[EAI_SERVICE] =		"Service was not recognized for socket type",
+	[EAI_SOCKTYPE] =	"Intended socket type was not recognized",
+	[EAI_SYSTEM] =		"System error returned in errno",
+	[EAI_BADHINTS] =	"Invalid value for hints",
+	[EAI_PROTOCOL] =	"Resolved protocol is unknown",
+	[EAI_OVERFLOW] =	"Argument buffer overflow",
 };
 
 #if defined(NLS)
@@ -72,7 +72,7 @@ static int		gai_keycreated = 0;
 static void
 gai_keycreate(void)
 {
-	gai_keycreated = (thr_keycreate(&gai_key, free) == 0);
+	gai_keycreated = thr_keycreate(&gai_key, free) == 0;
 }
 #endif
 
@@ -82,7 +82,9 @@ gai_strerror(int ecode)
 #if defined(NLS)
 	nl_catd catd;
 	char *buf;
+	int saved_errno;
 
+	saved_errno = errno;
 	if (thr_main() != 0)
 		buf = gai_buf;
 	else {
@@ -110,11 +112,13 @@ gai_strerror(int ecode)
 		strlcpy(buf, catgets(catd, 3, NL_MSGMAX, "Unknown error"),
 		    sizeof(gai_buf));
 	catclose(catd);
-	return buf;
+	errno = saved_errno;
+	return (buf);
 
 thr_err:
+	errno = saved_errno;
 #endif
 	if (ecode >= 0 && ecode < EAI_MAX)
-		return ai_errlist[ecode];
-	return "Unknown error";
+		return (ai_errlist[ecode]);
+	return ("Unknown error");
 }

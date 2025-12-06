@@ -152,7 +152,7 @@
 				nand@3 {
 					reg = <0x3 0x0 0x800000>;
 					rb-gpios = <&pioA 22 GPIO_ACTIVE_HIGH>;
-					cs-gpios = <&pioA 15 GPIO_ACTIVE_HIGH>;
+					cs-gpios = <&pioD 15 GPIO_ACTIVE_HIGH>;
 					nand-bus-width = <8>;
 					nand-ecc-mode = "soft";
 					nand-on-flash-bbt;
@@ -207,7 +207,7 @@
 			};
 		};
 
-		usb0: ohci@a00000 {
+		usb0: usb@a00000 {
 			num-ports = <2>;
 			status = "okay";
 			atmel,vbus-gpio = <&pioA 24 GPIO_ACTIVE_HIGH
@@ -219,13 +219,13 @@
 	leds {
 		compatible = "gpio-leds";
 
-		d3 {
+		led-d3 {
 			label = "d3";
 			gpios = <&pioB 7 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 
-		d2 {
+		led-d2 {
 			label = "d2";
 			gpios = <&pioC 29 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "nand-disk";
@@ -253,7 +253,7 @@
 	i2c-gpio-0 {
 		status = "okay";
 
-		24c512@50 {
+		eeprom@50 {
 			compatible = "atmel,24c512";
 			reg = <0x50>;
 			pagesize = <128>;

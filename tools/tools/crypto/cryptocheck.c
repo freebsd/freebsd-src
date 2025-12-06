@@ -362,9 +362,11 @@ enable_user_soft(void)
 	size_t cursize = sizeof(curstate);
 
 	if (sysctlbyname(CRYPT_SOFT_ALLOW, &curstate, &cursize,
-		&on, sizeof(on)) == 0) {
+	    &on, sizeof(on)) == 0) {
 		if (curstate == 0)
 			atexit(reset_user_soft);
+	} else {
+		err(1, "sysctl(%s)", CRYPT_SOFT_ALLOW);
 	}
 }
 
@@ -373,7 +375,10 @@ crlookup(const char *devname)
 {
 	struct crypt_find_op find;
 
-	if (strncmp(devname, "soft", 4) == 0) {
+	if (strncmp(devname, "soft", 4) == 0 ||
+	    strncmp(devname, "ossl", 4) == 0 ||
+	    strncmp(devname, "aesni", 5) == 0 ||
+	    strncmp(devname, "armv8crypto", 11) == 0) {
 		enable_user_soft();
 		return CRYPTO_FLAG_SOFTWARE;
 	}

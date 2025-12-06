@@ -55,7 +55,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PEM_READ_CMS 3ossl"
-.TH PEM_READ_CMS 3ossl 2025-07-01 3.5.1 OpenSSL
+.TH PEM_READ_CMS 3ossl 2025-09-30 3.5.4 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -143,9 +143,9 @@ see \fBopenssl_user_macros\fR\|(7):
 .Ve
 .SH DESCRIPTION
 .IX Header "DESCRIPTION"
-All of the functions described on this page are deprecated.
-Applications should use \fBOSSL_ENCODER_to_bio()\fR and \fBOSSL_DECODER_from_bio()\fR
-instead.
+To replace the deprecated functions listed above, applications should use the
+\&\fBEVP_PKEY\fR type and \fBOSSL_DECODER_from_bio()\fR and \fBOSSL_ENCODER_to_bio()\fR to
+read and write PEM data containing key parameters or private and public keys.
 .PP
 In the description below, \fR\f(BITYPE\fR\fB\fR is used
 as a placeholder for any of the OpenSSL datatypes, such as \fBX509\fR.
@@ -196,7 +196,7 @@ The functions \fBPEM_write_DHxparams()\fR, \fBPEM_write_bio_DHxparams()\fR,
 were deprecated in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 1998\-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 1998\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

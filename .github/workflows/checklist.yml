@@ -88,7 +88,7 @@ jobs:
 
               /* Loop for each key in "checklist". */
               for (const c in checklist)
-                msg += "- " + c + "<sup>" + checklist[c].join(", ") + "</sup>\n";
+                msg += "- " + c + " (" + checklist[c].join(", ") + ")\n";
               msg += "\nPlease review [CONTRIBUTING.md](https://github.com/freebsd/freebsd-src/blob/main/CONTRIBUTING.md), then update and push your branch again.\n"
 
               comment_func({

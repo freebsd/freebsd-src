@@ -1,4 +1,40 @@
-comment = "UFS Libraries and Utilities"
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2025 Lexi Winter <ivy@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+comment = "UFS filesystem support"
+
 desc = <<EOD
-UFS Libraries and Utilities
+The Unix File System (UFS) is the standard filesystem used for storing
+data on block storage devices, such as hard disks.  This implementation
+of UFS is the Berkeley Fast File System (FFS), developed as part of the
+Berkeley UNIX distribution (BSD), and has been extended to support new
+features such as Soft Updates, journaling, and snapshots.
+
+This package provides various utilities used to manage UFS filesystems,
+including the dump(8) and restore(8) programs used to manage filesystem
+backups, the newfs(8) utility for creating new filesystems, and the fsck(8)
+utilities used to check the consistency of an existing filesystem after
+an unclean shutdown or panic.
+
+The libufs library is also provided, which allows applications to access
+UFS filesystems programmatically.
 EOD
+
+annotations {
+	set = minimal
+}

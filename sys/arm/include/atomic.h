@@ -1103,11 +1103,9 @@ atomic_thread_fence_seq_cst(void)
 #define atomic_store_rel_int		atomic_store_rel_32
 #define atomic_swap_int			atomic_swap_32
 
-/*
- * For:
- *  - atomic_load_acq_8
- *  - atomic_load_acq_16
- */
 #include <sys/_atomic_subword.h>
+
+#define	atomic_set_short		atomic_set_16
+#define	atomic_clear_short		atomic_clear_16
 
 #endif /* _MACHINE_ATOMIC_H_ */

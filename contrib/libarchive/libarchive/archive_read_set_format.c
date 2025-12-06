@@ -37,7 +37,7 @@ int
 archive_read_set_format(struct archive *_a, int code)
 {
   int r1, r2, slots, i;
-  char str[10];
+  const char *str;
   struct archive_read *a = (struct archive_read *)_a;
 
   if ((r1 = archive_read_support_format_by_code(_a, code)) < (ARCHIVE_OK))
@@ -49,49 +49,49 @@ archive_read_set_format(struct archive *_a, int code)
   switch (code & ARCHIVE_FORMAT_BASE_MASK)
   {
     case ARCHIVE_FORMAT_7ZIP:
-      strcpy(str, "7zip");
+      str = "7zip";
       break;
     case ARCHIVE_FORMAT_AR:
-      strcpy(str, "ar");
+      str = "ar";
       break;
     case ARCHIVE_FORMAT_CAB:
-      strcpy(str, "cab");
+      str = "cab";
       break;
     case ARCHIVE_FORMAT_CPIO:
-      strcpy(str, "cpio");
+      str = "cpio";
       break;
     case ARCHIVE_FORMAT_EMPTY:
-      strcpy(str, "empty");
+      str = "empty";
       break;
     case ARCHIVE_FORMAT_ISO9660:
-      strcpy(str, "iso9660");
+      str = "iso9660";
       break;
     case ARCHIVE_FORMAT_LHA:
-      strcpy(str, "lha");
+      str = "lha";
       break;
     case ARCHIVE_FORMAT_MTREE:
-      strcpy(str, "mtree");
+      str = "mtree";
       break;
     case ARCHIVE_FORMAT_RAR:
-      strcpy(str, "rar");
+      str = "rar";
       break;
     case ARCHIVE_FORMAT_RAR_V5:
-      strcpy(str, "rar5");
+      str = "rar5";
       break;
     case ARCHIVE_FORMAT_RAW:
-      strcpy(str, "raw");
+      str = "raw";
       break;
     case ARCHIVE_FORMAT_TAR:
-      strcpy(str, "tar");
+      str = "tar";
       break;
     case ARCHIVE_FORMAT_WARC:
-      strcpy(str, "warc");
+      str = "warc";
       break;
     case ARCHIVE_FORMAT_XAR:
-      strcpy(str, "xar");
+      str = "xar";
       break;
     case ARCHIVE_FORMAT_ZIP:
-      strcpy(str, "zip");
+      str = "zip";
       break;
     default:
       archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,

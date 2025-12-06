@@ -1,8 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2011, 2016 Chelsio Communications, Inc.
- * All rights reserved.
+ * Copyright (c) 2011, 2016, 2025 Chelsio Communications.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,30 +41,36 @@ enum {
 	EEPROMPFSIZE    = 1024,  /* EEPROM writable area size for PFn, n>0 */
 	RSS_NENTRIES    = 2048,  /* # of entries in RSS mapping table */
 	T6_RSS_NENTRIES = 4096,
+	T7_RSS_NENTRIES = 16384,
 	TCB_SIZE        = 128,   /* TCB size */
 	NMTUS           = 16,    /* size of MTU table */
 	NCCTRL_WIN      = 32,    /* # of congestion control windows */
 	NTX_SCHED       = 8,     /* # of HW Tx scheduling queues */
 	PM_NSTATS       = 5,     /* # of PM stats */
-	T6_PM_NSTATS    = 7,
+	T6_PM_NSTATS    = 7,     /* # of PM stats in T6 */
 	MAX_PM_NSTATS   = 7,
+	T7_PM_RX_CACHE_NSTATS = 27, /* # of PM Rx Cache stats in T7 */
 	MBOX_LEN        = 64,    /* mailbox size in bytes */
 	NTRACE          = 4,     /* # of tracing filters */
 	TRACE_LEN       = 112,   /* length of trace data and mask */
 	FILTER_OPT_LEN  = 36,    /* filter tuple width of optional components */
 	T5_FILTER_OPT_LEN = 40,
+	T7_FILTER_OPT_LEN = 63,
 	NWOL_PAT        = 8,     /* # of WoL patterns */
 	WOL_PAT_LEN     = 128,   /* length of WoL patterns */
 	UDBS_SEG_SIZE   = 128,   /* Segment size of BAR2 doorbells */
 	UDBS_SEG_SHIFT  = 7,     /* log2(UDBS_SEG_SIZE) */
 	UDBS_DB_OFFSET  = 8,     /* offset of the 4B doorbell in a segment */
 	UDBS_WR_OFFSET  = 64,    /* offset of the work request in a segment */
+	MAX_UP_CORES = 8, /* Max # of uP cores that can be enabled */
 };
 
 enum {
 	CIM_NUM_IBQ    = 6,     /* # of CIM IBQs */
+	CIM_NUM_IBQ_T7 = 16,    /* # of CIM IBQs for T7 */
 	CIM_NUM_OBQ    = 6,     /* # of CIM OBQs */
 	CIM_NUM_OBQ_T5 = 8,     /* # of CIM OBQs for T5 adapter */
+	CIM_NUM_OBQ_T7 = 16,    /* # of CIM OBQs for T7 adapter */
 	CIMLA_SIZE     = 256 * 8,  /* 256 rows * ceil(235/32) 32-bit words */
 	CIMLA_SIZE_T6  = 256 * 10, /* 256 rows * ceil(311/32) 32-bit words */
 	CIM_PIFLA_SIZE = 64,    /* # of 192-bit words in CIM PIF LA */
@@ -91,6 +96,7 @@ enum { MBOX_OWNER_NONE, MBOX_OWNER_FW, MBOX_OWNER_DRV };    /* mailbox owners */
 enum {
 	SGE_MAX_WR_LEN = 512,     /* max WR size in bytes */
 	SGE_CTXT_SIZE = 24,       /* size of SGE context */
+	SGE_CTXT_SIZE_T7 = 28,    /* size of SGE context for T7 */
 	SGE_NTIMERS = 6,          /* # of interrupt holdoff timer values */
 	SGE_NCOUNTERS = 4,        /* # of interrupt packet counter values */
 	SGE_NDBQTIMERS = 8,       /* # of Doorbell Queue Timer values */
@@ -161,6 +167,18 @@ struct rsp_ctrl {
 #define V_QINTR_TIMER_IDX(x) ((x) << S_QINTR_TIMER_IDX)
 #define G_QINTR_TIMER_IDX(x) (((x) >> S_QINTR_TIMER_IDX) & M_QINTR_TIMER_IDX)
 
+#define S_ARM_QTYPE	11
+#define M_ARM_QTYPE	1
+#define V_ARM_QTYPE(x)	((x) << S_ARM_QTYPE)
+
+#define S_ARM_PIDX    0
+#define M_ARM_PIDX    0x7ffU
+#define V_ARM_PIDX(x) ((x) << S_ARM_PIDX)
+
+#define S_ARM_CIDXINC    0
+#define M_ARM_CIDXINC    0x7ffU
+#define V_ARM_CIDXINC(x) ((x) << S_ARM_CIDXINC)
+
 /* # of pages a pagepod can hold without needing another pagepod */
 #define PPOD_PAGES 4U
 
@@ -206,95 +224,116 @@ struct pagepod {
  */
 #define FLASH_START(start)	((start) * SF_SEC_SIZE)
 #define FLASH_MAX_SIZE(nsecs)	((nsecs) * SF_SEC_SIZE)
+#define FLASH_MIN_SIZE	FLASH_START(32)
 
-enum {
+enum t4_flash_loc {
 	/*
 	 * Various Expansion-ROM boot images, etc.
 	 */
-	FLASH_EXP_ROM_START_SEC = 0,
-	FLASH_EXP_ROM_NSECS = 6,
-	FLASH_EXP_ROM_START = FLASH_START(FLASH_EXP_ROM_START_SEC),
-	FLASH_EXP_ROM_MAX_SIZE = FLASH_MAX_SIZE(FLASH_EXP_ROM_NSECS),
+	FLASH_LOC_EXP_ROM = 0,
 
 	/*
 	 * iSCSI Boot Firmware Table (iBFT) and other driver-related
 	 * parameters ...
 	 */
-	FLASH_IBFT_START_SEC = 6,
-	FLASH_IBFT_NSECS = 1,
-	FLASH_IBFT_START = FLASH_START(FLASH_IBFT_START_SEC),
-	FLASH_IBFT_MAX_SIZE = FLASH_MAX_SIZE(FLASH_IBFT_NSECS),
+	FLASH_LOC_IBFT,
 
 	/*
 	 * Boot configuration data.
 	 */
-	FLASH_BOOTCFG_START_SEC = 7,
-	FLASH_BOOTCFG_NSECS = 1,
-	FLASH_BOOTCFG_START = FLASH_START(FLASH_BOOTCFG_START_SEC),
-	FLASH_BOOTCFG_MAX_SIZE = FLASH_MAX_SIZE(FLASH_BOOTCFG_NSECS),
+	FLASH_LOC_BOOTCFG,
 
 	/*
 	 * Location of firmware image in FLASH.
 	 */
-	FLASH_FW_START_SEC = 8,
-	FLASH_FW_NSECS = 16,
-	FLASH_FW_START = FLASH_START(FLASH_FW_START_SEC),
-	FLASH_FW_MAX_SIZE = FLASH_MAX_SIZE(FLASH_FW_NSECS),
+	FLASH_LOC_FW,
 
 	/*
 	 * Location of bootstrap firmware image in FLASH.
 	 */
-	FLASH_FWBOOTSTRAP_START_SEC = 27,
-	FLASH_FWBOOTSTRAP_NSECS = 1,
-	FLASH_FWBOOTSTRAP_START = FLASH_START(FLASH_FWBOOTSTRAP_START_SEC),
-	FLASH_FWBOOTSTRAP_MAX_SIZE = FLASH_MAX_SIZE(FLASH_FWBOOTSTRAP_NSECS),
+	FLASH_LOC_FWBOOTSTRAP,
 
 	/*
 	 * iSCSI persistent/crash information.
 	 */
-	FLASH_ISCSI_CRASH_START_SEC = 29,
-	FLASH_ISCSI_CRASH_NSECS = 1,
-	FLASH_ISCSI_CRASH_START = FLASH_START(FLASH_ISCSI_CRASH_START_SEC),
-	FLASH_ISCSI_CRASH_MAX_SIZE = FLASH_MAX_SIZE(FLASH_ISCSI_CRASH_NSECS),
+	FLASH_LOC_ISCSI_CRASH,
 
 	/*
 	 * FCoE persistent/crash information.
 	 */
-	FLASH_FCOE_CRASH_START_SEC = 30,
-	FLASH_FCOE_CRASH_NSECS = 1,
-	FLASH_FCOE_CRASH_START = FLASH_START(FLASH_FCOE_CRASH_START_SEC),
-	FLASH_FCOE_CRASH_MAX_SIZE = FLASH_MAX_SIZE(FLASH_FCOE_CRASH_NSECS),
+	FLASH_LOC_FCOE_CRASH,
 
 	/*
 	 * Location of Firmware Configuration File in FLASH.
 	 */
-	FLASH_CFG_START_SEC = 31,
-	FLASH_CFG_NSECS = 1,
-	FLASH_CFG_START = FLASH_START(FLASH_CFG_START_SEC),
-	FLASH_CFG_MAX_SIZE = FLASH_MAX_SIZE(FLASH_CFG_NSECS),
+	FLASH_LOC_CFG,
 
 	/*
-	 * We don't support FLASH devices which can't support the full
-	 * standard set of sections which we need for normal operations.
+	 * CUDBG chip dump.
 	 */
-	FLASH_MIN_SIZE = FLASH_CFG_START + FLASH_CFG_MAX_SIZE,
+	FLASH_LOC_CUDBG,
 
 	/*
-	 * Sectors 32-63 for CUDBG.
+	 * FW chip dump.
 	 */
-	FLASH_CUDBG_START_SEC = 32,
-	FLASH_CUDBG_NSECS = 32,
-	FLASH_CUDBG_START = FLASH_START(FLASH_CUDBG_START_SEC),
-	FLASH_CUDBG_MAX_SIZE = FLASH_MAX_SIZE(FLASH_CUDBG_NSECS),
+	FLASH_LOC_CHIP_DUMP,
 
 	/*
-	 * Size of defined FLASH regions.
+	 * DPU boot information store.
 	 */
-	FLASH_END_SEC = 64,
+	FLASH_LOC_DPU_BOOT,
+
+	/*
+	 * DPU peristent information store.
+	 */
+	FLASH_LOC_DPU_AREA,
+
+	/*
+	 * VPD location.
+	 */
+	FLASH_LOC_VPD,
+
+	/*
+	 * Backup init/vpd.
+	 */
+	FLASH_LOC_VPD_BACKUP,
+
+	/*
+	 * Backup firmware image.
+	 */
+	FLASH_LOC_FW_BACKUP,
+
+	/*
+	 * Backup bootstrap firmware image.
+	 */
+	FLASH_LOC_FWBOOTSTRAP_BACKUP,
+
+	/*
+	 * Backup Location of Firmware Configuration File in FLASH.
+	 */
+	FLASH_LOC_CFG_BACK,
+
+	/*
+	 * Helper to retrieve info that spans the entire Boot related area.
+	 */
+	FLASH_LOC_BOOT_AREA,
+
+	/*
+	 * Helper to determine minimum standard set of sections needed for
+	 * normal operations.
+	 */
+	FLASH_LOC_MIN_SIZE,
+
+	/*
+	 * End of FLASH regions.
+	 */
+	FLASH_LOC_END
 };
 
-#undef FLASH_START
-#undef FLASH_MAX_SIZE
+struct t4_flash_loc_entry {
+	u16 start_sec;
+	u16 nsecs;
+};
 
 #define S_SGE_TIMESTAMP 0
 #define M_SGE_TIMESTAMP 0xfffffffffffffffULL

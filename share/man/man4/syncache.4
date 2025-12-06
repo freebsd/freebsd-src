@@ -10,7 +10,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\"
-.Dd April 12, 2021
+.Dd August 30, 2025
 .Dt SYNCACHE 4
 .Os
 .Sh NAME
@@ -39,6 +39,8 @@ MIBs for controlling TCP SYN caching
 .Nm sysctl Cm net.inet.tcp.syncache.count
 .It
 .Nm sysctl Cm net.inet.tcp.syncache.see_other
+.It
+.Nm sysctl Cm net.inet.tcp.syncache.rst_on_sock_fail
 .El
 .Sh DESCRIPTION
 The
@@ -107,6 +109,18 @@ and run only with
 set
 .Va net.inet.tcp.syncookies_only
 to 1.
+To use
+.Nm syncookies
+to handle bucket overflows in the
+.Nm syncache
+set
+.Va net.inet.tcp.syncookies
+to 1.
+The default value for
+.Va net.inet.tcp.syncookies_only
+is 0 and the default value for
+.Va net.inet.tcp.syncookies
+is 1.
 .Pp
 The
 .Nm
@@ -169,6 +183,9 @@ However, extra
 .Xr ucred 9
 referencing is required on every incoming SYN packet processed.
 The default is off.
+.It Va rst_on_sock_fail
+Send a TCP RST segment if the socket allocation fails.
+The default is on.
 .El
 .Pp
 Statistics on the performance of the
@@ -206,8 +223,16 @@ Entries dropped due to ICMP unreachable messages.
 Failures to allocate new
 .Nm
 entry.
+.It Li "cookies sent"
+SYN cookies sent in SYN ACK segments.
 .It Li "cookies received"
-Connections created from segment containing ACK.
+ACK segments with valid syncookies which resulted in TCP connection
+establishment.
+.It Li "spurious cookies rejected"
+Received ACKs, for which the syncache lookup failed and also no syncookie was
+recently sent.
+.It Li "failed cookies rejected"
+Received ACKs for which the syncookie validation failed.
 .El
 .Sh SEE ALSO
 .Xr netstat 1 ,

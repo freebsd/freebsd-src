@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 
 #include <sys/param.h>
@@ -767,7 +766,7 @@ struct fib_lookup_module flm_radix4 = {
 };
 
 static void
-fib4_algo_init(void)
+fib4_algo_init(void *dummy __unused)
 {
 
 	fib_module_register(&flm_bsearch4);

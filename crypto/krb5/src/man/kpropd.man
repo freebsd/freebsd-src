@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "KPROPD" "8" " " "1.22" "MIT Kerberos"
+.TH "KPROPD" "8" " " "1.22.1" "MIT Kerberos"
 .SH NAME
 kpropd \- Kerberos V5 replica KDC update server
 .SH SYNOPSIS

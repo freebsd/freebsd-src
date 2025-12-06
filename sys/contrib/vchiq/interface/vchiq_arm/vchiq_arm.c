@@ -386,7 +386,7 @@ static void
 user_service_free(void *userdata)
 {
 	USER_SERVICE_T *user_service = userdata;
-	
+
 	_sema_destroy(&user_service->insert_event);
 	_sema_destroy(&user_service->remove_event);
 
@@ -410,7 +410,7 @@ static void close_delivered(USER_SERVICE_T *user_service)
 
 		/* Wake the user-thread blocked in close_ or remove_service */
 		up(&user_service->close_event);
- 
+
 		user_service->close_pending = 0;
 	}
 }
@@ -442,12 +442,28 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 #define	_IOC_TYPE(x)	IOCGROUP(x)
 
 	vchiq_log_trace(vchiq_arm_log_level,
-		 "vchiq_ioctl - instance %x, cmd %s, arg %p",
-		(unsigned int)instance,
+		 "vchiq_ioctl - instance %zx, cmd %s, arg %p",
+		(size_t)instance,
 		((_IOC_TYPE(cmd) == VCHIQ_IOC_MAGIC) &&
 		(_IOC_NR(cmd) <= VCHIQ_IOC_MAX)) ?
 		ioctl_names[_IOC_NR(cmd)] : "<invalid>", arg);
 
+#ifdef COMPAT_FREEBSD32
+/* A fork in the road to freebsd32 compatibilty */
+#define _CF32_FORK(compat_c, native_c) {			\
+		int _____dont_call_your_vars_this = 0;		\
+		switch (cmd) {					\
+		    _CF32_CASE {_____dont_call_your_vars_this = 1;} \
+		    break;					\
+		}						\
+		if (_____dont_call_your_vars_this)		\
+			{ compat_c }				\
+		else						\
+			{ native_c }				\
+	}
+#else
+#define _CF32_FORK(compat_c, native_c) { native_c }
+#endif
 	switch (cmd) {
 	case VCHIQ_IOC_SHUTDOWN:
 		if (!instance->connected)
@@ -496,13 +512,33 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 				"vchiq: could not connect: %d", status);
 		break;
 
+#ifdef COMPAT_FREEBSD32
+#define _CF32_CASE \
+	case VCHIQ_IOC_CREATE_SERVICE32:
+	_CF32_CASE
+#endif
 	case VCHIQ_IOC_CREATE_SERVICE: {
 		VCHIQ_CREATE_SERVICE_T args;
 		USER_SERVICE_T *user_service = NULL;
 		void *userdata;
 		int srvstate;
 
+_CF32_FORK(
+		VCHIQ_CREATE_SERVICE32_T args32;
+		memcpy(&args32, (const void*)arg, sizeof(args32));
+		args.params.fourcc = args32.params.fourcc;
+		/* XXXMDC not actually used? overwritten straight away */
+		args.params.callback =
+		    (VCHIQ_CALLBACK_T)(uintptr_t) args32.params.callback;
+		args.params.userdata = (void*)(uintptr_t)args32.params.userdata;
+		args.params.version = args32.params.version;
+		args.params.version_min = args32.params.version_min;
+		args.is_open = args32.is_open;
+		args.is_vchi = args32.is_vchi;
+		args.handle  = args32.handle;
+,
 		memcpy(&args, (const void*)arg, sizeof(args));
+)
 
 		user_service = kmalloc(sizeof(USER_SERVICE_T), GFP_KERNEL);
 		if (!user_service) {
@@ -558,15 +594,22 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 					break;
 				}
 			}
-
 #ifdef VCHIQ_IOCTL_DEBUG
 			printf("%s: [CREATE SERVICE] handle = %08x\n", __func__, service->handle);
 #endif
+_CF32_FORK(
+			memcpy((void *)
+				&(((VCHIQ_CREATE_SERVICE32_T*)
+					arg)->handle),
+				(const void *)&service->handle,
+				sizeof(service->handle));
+,
 			memcpy((void *)
 				&(((VCHIQ_CREATE_SERVICE_T*)
 					arg)->handle),
 				(const void *)&service->handle,
 				sizeof(service->handle));
+);
 
 			service = NULL;
 		} else {
@@ -574,6 +617,7 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 			kfree(user_service);
 		}
 	} break;
+#undef _CF32_CASE
 
 	case VCHIQ_IOC_CLOSE_SERVICE: {
 		VCHIQ_SERVICE_HANDLE_T handle;
@@ -673,9 +717,22 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 			ret = -EINVAL;
 	} break;
 
+#ifdef COMPAT_FREEBSD32
+#define _CF32_CASE \
+		case VCHIQ_IOC_QUEUE_MESSAGE32:
+	_CF32_CASE
+#endif
 	case VCHIQ_IOC_QUEUE_MESSAGE: {
 		VCHIQ_QUEUE_MESSAGE_T args;
+_CF32_FORK(
+		VCHIQ_QUEUE_MESSAGE32_T args32;
+		memcpy(&args32, (const void*)arg, sizeof(args32));
+		args.handle = args32.handle;
+		args.count = args32.count;
+		args.elements = (VCHIQ_ELEMENT_T *)(uintptr_t)args32.elements;
+,
 		memcpy(&args, (const void*)arg, sizeof(args));
+)
 
 #ifdef VCHIQ_IOCTL_DEBUG
 		printf("%s: [QUEUE MESSAGE] handle = %08x\n", __func__, args.handle);
@@ -686,8 +743,22 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 		if ((service != NULL) && (args.count <= MAX_ELEMENTS)) {
 			/* Copy elements into kernel space */
 			VCHIQ_ELEMENT_T elements[MAX_ELEMENTS];
-			if (copy_from_user(elements, args.elements,
-				args.count * sizeof(VCHIQ_ELEMENT_T)) == 0)
+			long cp_ret;
+_CF32_FORK(
+			VCHIQ_ELEMENT32_T elements32[MAX_ELEMENTS];
+			cp_ret = copy_from_user(elements32, args.elements,
+					args.count * sizeof(VCHIQ_ELEMENT32_T));
+			for(int i=0;cp_ret == 0 && i < args.count;++i){
+				elements[i].data =
+					(void *)(uintptr_t)elements32[i].data;
+				elements[i].size = elements32[i].size;
+			}
+
+,
+			cp_ret = copy_from_user(elements, args.elements,
+				args.count * sizeof(VCHIQ_ELEMENT_T));
+)
+			if (cp_ret == 0)
 				status = vchiq_queue_message
 					(args.handle,
 					elements, args.count);
@@ -697,16 +768,38 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 			ret = -EINVAL;
 		}
 	} break;
+#undef _CF32_CASE
 
+#ifdef COMPAT_FREEBSD32
+#define _CF32_CASE \
+		case VCHIQ_IOC_QUEUE_BULK_TRANSMIT32: \
+		case VCHIQ_IOC_QUEUE_BULK_RECEIVE32:
+	_CF32_CASE
+#endif
 	case VCHIQ_IOC_QUEUE_BULK_TRANSMIT:
 	case VCHIQ_IOC_QUEUE_BULK_RECEIVE: {
 		VCHIQ_QUEUE_BULK_TRANSFER_T args;
+
 		struct bulk_waiter_node *waiter = NULL;
 		VCHIQ_BULK_DIR_T dir =
-			(cmd == VCHIQ_IOC_QUEUE_BULK_TRANSMIT) ?
-			VCHIQ_BULK_TRANSMIT : VCHIQ_BULK_RECEIVE;
+			(cmd == VCHIQ_IOC_QUEUE_BULK_TRANSMIT) ||
+			    (cmd == VCHIQ_IOC_QUEUE_BULK_TRANSMIT32)?
+			    VCHIQ_BULK_TRANSMIT : VCHIQ_BULK_RECEIVE;
 
+_CF32_FORK(
+		VCHIQ_QUEUE_BULK_TRANSFER32_T args32;
+		memcpy(&args32, (const void*)arg, sizeof(args32));
+		/* XXXMDC parens needed (macro parsing?) */
+		args = ((VCHIQ_QUEUE_BULK_TRANSFER_T) {
+			.handle = args32.handle,
+			.data = (void *)(uintptr_t) args32.data,
+			.size = args32.size,
+			.userdata = (void *)(uintptr_t) args32.userdata,
+			.mode = args32.mode,
+		});
+,
 		memcpy(&args, (const void*)arg, sizeof(args));
+)
 
 		service = find_service_for_instance(instance, args.handle);
 		if (!service) {
@@ -734,7 +827,6 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 					list_del(pos);
 					break;
 				}
-
 			}
 			lmutex_unlock(&instance->bulk_waiter_list_mutex);
 			if (!waiter) {
@@ -745,10 +837,11 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 				break;
 			}
 			vchiq_log_info(vchiq_arm_log_level,
-				"found bulk_waiter %x for pid %d",
-				(unsigned int)waiter, current->p_pid);
+				"found bulk_waiter %zx for pid %d",
+				(size_t)waiter, current->p_pid);
 			args.userdata = &waiter->bulk_waiter;
 		}
+
 		status = vchiq_bulk_transfer
 			(args.handle,
 			 VCHI_MEM_HANDLE_INVALID,
@@ -776,17 +869,31 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 			list_add(&waiter->list, &instance->bulk_waiter_list);
 			lmutex_unlock(&instance->bulk_waiter_list_mutex);
 			vchiq_log_info(vchiq_arm_log_level,
-				"saved bulk_waiter %x for pid %d",
-				(unsigned int)waiter, current->p_pid);
+				"saved bulk_waiter %zx for pid %d",
+				(size_t)waiter, current->p_pid);
 
+_CF32_FORK(
+			memcpy((void *)
+				&(((VCHIQ_QUEUE_BULK_TRANSFER32_T *)
+					arg)->mode),
+				(const void *)&mode_waiting,
+				sizeof(mode_waiting));
+,
 			memcpy((void *)
 				&(((VCHIQ_QUEUE_BULK_TRANSFER_T *)
 					arg)->mode),
 				(const void *)&mode_waiting,
 				sizeof(mode_waiting));
+)
 		}
 	} break;
+#undef _CF32_CASE
 
+#ifdef COMPAT_FREEBSD32
+#define _CF32_CASE \
+		case VCHIQ_IOC_AWAIT_COMPLETION32:
+	_CF32_CASE
+#endif
 	case VCHIQ_IOC_AWAIT_COMPLETION: {
 		VCHIQ_AWAIT_COMPLETION_T args;
 		int count = 0;
@@ -797,7 +904,17 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 			break;
 		}
 
+_CF32_FORK(
+		VCHIQ_AWAIT_COMPLETION32_T args32;
+                memcpy(&args32, (const void*)arg, sizeof(args32));
+		args.count = args32.count;
+		args.buf = (VCHIQ_COMPLETION_DATA_T *)(uintptr_t)args32.buf;
+		args.msgbufsize = args32.msgbufsize;
+		args.msgbufcount = args32.msgbufcount;
+		args.msgbufs = (void **)(uintptr_t)args32.msgbufs;
+,
                 memcpy(&args, (const void*)arg, sizeof(args));
+)
 
 		lmutex_lock(&instance->completion_mutex);
 
@@ -860,9 +977,9 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 					if (args.msgbufsize < msglen) {
 						vchiq_log_error(
 							vchiq_arm_log_level,
-							"header %x: msgbufsize"
+							"header %zx: msgbufsize"
 							" %x < msglen %x",
-							(unsigned int)header,
+							(size_t)header,
 							args.msgbufsize,
 							msglen);
 						WARN(1, "invalid message "
@@ -877,6 +994,20 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 						break;
 					/* Get the pointer from user space */
 					msgbufcount--;
+_CF32_FORK(
+					uint32_t *msgbufs32 =
+					    (uint32_t *) args.msgbufs;
+					uint32_t msgbuf32 = 0;
+					if (copy_from_user(&msgbuf32,
+						(const uint32_t __user *)
+						&msgbufs32[msgbufcount],
+						sizeof(msgbuf32)) != 0) {
+						if (count == 0)
+							ret = -EFAULT;
+						break;
+					}
+					msgbuf = (void __user *)(uintptr_t)msgbuf32;
+,
 					if (copy_from_user(&msgbuf,
 						(const void __user *)
 						&args.msgbufs[msgbufcount],
@@ -885,6 +1016,7 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 							ret = -EFAULT;
 						break;
 					}
+)
 
 					/* Copy the message to user space */
 					if (copy_to_user(msgbuf, header,
@@ -908,7 +1040,30 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 					VCHIQ_SERVICE_CLOSED) &&
 					!instance->use_close_delivered)
 					unlock_service(service1);
+_CF32_FORK(
+				VCHIQ_COMPLETION_DATA32_T comp32 = {0};
+				comp32.reason =
+				    (uint32_t)(size_t) completion->reason;
+				comp32.service_userdata =
+				    (uint32_t)(size_t)
+				      completion->service_userdata;
+				comp32.bulk_userdata =
+				    (uint32_t)(size_t)
+				    completion->bulk_userdata;
+				comp32.header =
+				    (uint32_t)(size_t)completion->header;
 
+				VCHIQ_COMPLETION_DATA32_T __user *buf_loc;
+				buf_loc = (VCHIQ_COMPLETION_DATA32_T __user *)
+				    args.buf;
+				buf_loc += count;
+				if (copy_to_user(
+						buf_loc, &comp32, sizeof(comp32)
+					) != 0) {
+						if (ret == 0)
+							ret = -EFAULT;
+				}
+,
 				if (copy_to_user((void __user *)(
 					(size_t)args.buf +
 					count * sizeof(VCHIQ_COMPLETION_DATA_T)),
@@ -918,6 +1073,7 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 							ret = -EFAULT;
 					break;
 				}
+)
 
 				/* Ensure that the above copy has completed
 				** before advancing the remove pointer. */
@@ -927,18 +1083,33 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 			}
 
 			if (msgbufcount != args.msgbufcount) {
+_CF32_FORK(
+				memcpy(
+					(void __user *)
+					&((VCHIQ_AWAIT_COMPLETION32_T *)arg)->
+						msgbufcount,
+					&msgbufcount,
+					sizeof(msgbufcount));
+,
 				memcpy((void __user *)
 					&((VCHIQ_AWAIT_COMPLETION_T *)arg)->
 						msgbufcount,
 					&msgbufcount,
 					sizeof(msgbufcount));
+)
 			}
 
 			 if (count != args.count)
 			 {
+_CF32_FORK(
+				memcpy((void __user *)
+					&((VCHIQ_AWAIT_COMPLETION32_T *)arg)->count,
+					&count, sizeof(count));
+,
 				memcpy((void __user *)
 					&((VCHIQ_AWAIT_COMPLETION_T *)arg)->count,
 					&count, sizeof(count));
+)
 			}
 		}
 
@@ -947,9 +1118,9 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 
 		if ((ret == 0) && instance->closing)
 			ret = -ENOTCONN;
-		/* 
+		/*
 		 * XXXBSD: ioctl return codes are not negative as in linux, so
-		 * we can not indicate success with positive number of passed 
+		 * we can not indicate success with positive number of passed
 		 * messages
 		 */
 		if (ret > 0)
@@ -958,14 +1129,29 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 		lmutex_unlock(&instance->completion_mutex);
 		DEBUG_TRACE(AWAIT_COMPLETION_LINE);
 	} break;
+#undef _CF32_CASE
 
+#ifdef COMPAT_FREEBSD32
+#define _CF32_CASE \
+		case VCHIQ_IOC_DEQUEUE_MESSAGE32:
+	_CF32_CASE
+#endif
 	case VCHIQ_IOC_DEQUEUE_MESSAGE: {
 		VCHIQ_DEQUEUE_MESSAGE_T args;
 		USER_SERVICE_T *user_service;
 		VCHIQ_HEADER_T *header;
 
 		DEBUG_TRACE(DEQUEUE_MESSAGE_LINE);
+_CF32_FORK(
+		VCHIQ_DEQUEUE_MESSAGE32_T args32;
+		memcpy(&args32, (const void*)arg, sizeof(args32));
+		args.handle = args32.handle;
+		args.blocking = args32.blocking;
+		args.bufsize = args32.bufsize;
+		args.buf = (void *)(uintptr_t)args32.buf;
+,
 		memcpy(&args, (const void*)arg, sizeof(args));
+)
 		service = find_service_for_instance(instance, args.handle);
 		if (!service) {
 			ret = -EINVAL;
@@ -1022,8 +1208,19 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 				header->data,
 				header->size) == 0)) {
 				args.bufsize = header->size;
+_CF32_FORK(
+				VCHIQ_DEQUEUE_MESSAGE32_T args32;
+				args32.handle = args.handle;
+				args32.blocking = args.blocking;
+				args32.bufsize = args.bufsize;
+				args32.buf = (uintptr_t)(void *)args.buf;
+
+				memcpy((void *)arg, &args32,
+				    sizeof(args32));
+,
 				memcpy((void *)arg, &args,
 				    sizeof(args));
+)
 				vchiq_release_message(
 					service->handle,
 					header);
@@ -1031,14 +1228,15 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 				ret = -EFAULT;
 		} else {
 			vchiq_log_error(vchiq_arm_log_level,
-				"header %x: bufsize %x < size %x",
-				(unsigned int)header, args.bufsize,
+				"header %zx: bufsize %x < size %x",
+				(size_t)header, args.bufsize,
 				header->size);
 			WARN(1, "invalid size\n");
 			ret = -EMSGSIZE;
 		}
 		DEBUG_TRACE(DEQUEUE_MESSAGE_LINE);
 	} break;
+#undef _CF32_CASE
 
 	case VCHIQ_IOC_GET_CLIENT_ID: {
 		VCHIQ_SERVICE_HANDLE_T handle;
@@ -1048,11 +1246,24 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 		ret = vchiq_get_client_id(handle);
 	} break;
 
+#ifdef COMPAT_FREEBSD32
+#define _CF32_CASE \
+		case VCHIQ_IOC_GET_CONFIG32:
+	_CF32_CASE
+#endif
 	case VCHIQ_IOC_GET_CONFIG: {
 		VCHIQ_GET_CONFIG_T args;
 		VCHIQ_CONFIG_T config;
+_CF32_FORK(
+		VCHIQ_GET_CONFIG32_T args32;
 
+		memcpy(&args32, (const void*)arg, sizeof(args32));
+		args.config_size = args32.config_size;
+		args.pconfig = (VCHIQ_CONFIG_T *)
+			(uintptr_t)args32.pconfig;
+,
 		memcpy(&args, (const void*)arg, sizeof(args));
+)
 		if (args.config_size > sizeof(config)) {
 			ret = -EINVAL;
 			break;
@@ -1066,6 +1277,7 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 			}
 		}
 	} break;
+#undef _CF32_CASE
 
 	case VCHIQ_IOC_SET_SERVICE_OPTION: {
 		VCHIQ_SET_SERVICE_OPTION_T args;
@@ -1082,18 +1294,31 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 				args.handle, args.option, args.value);
 	} break;
 
+#ifdef COMPAT_FREEBSD32
+#define _CF32_CASE \
+		case VCHIQ_IOC_DUMP_PHYS_MEM32:
+	_CF32_CASE
+#endif
 	case VCHIQ_IOC_DUMP_PHYS_MEM: {
 		VCHIQ_DUMP_MEM_T  args;
 
+_CF32_FORK(
+		VCHIQ_DUMP_MEM32_T args32;
+		memcpy(&args32, (const void*)arg, sizeof(args32));
+		args.virt_addr = (void *)(uintptr_t)args32.virt_addr;
+		args.num_bytes = (size_t)args32.num_bytes;
+,
 		memcpy(&args, (const void*)arg, sizeof(args));
+)
 		printf("IMPLEMENT ME: %s:%d\n", __FILE__, __LINE__);
 #if 0
 		dump_phys_mem(args.virt_addr, args.num_bytes);
 #endif
 	} break;
+#undef _CF32_CASE
 
 	case VCHIQ_IOC_LIB_VERSION: {
-		unsigned int lib_version = (unsigned int)arg;
+		size_t lib_version = (size_t)arg;
 
 		if (lib_version < VCHIQ_VERSION_MIN)
 			ret = -EINVAL;
@@ -1119,6 +1344,7 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 		ret = -ENOTTY;
 		break;
 	}
+#undef _CF32_FORK
 
 	if (service)
 		unlock_service(service);
@@ -1155,18 +1381,14 @@ vchiq_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 	return ret;
 }
 
-static void
-instance_dtr(void *data)
-{
 
-	kfree(data);
-}
 
 /****************************************************************************
 *
 *   vchiq_open
 *
 ***************************************************************************/
+static void instance_dtr(void *data);
 
 static int
 vchiq_open(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
@@ -1206,7 +1428,7 @@ vchiq_open(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 		INIT_LIST_HEAD(&instance->bulk_waiter_list);
 
 		devfs_set_cdevpriv(instance, instance_dtr);
-	} 
+	}
 	else {
 		vchiq_log_error(vchiq_arm_log_level,
 			"Unknown minor device");
@@ -1222,143 +1444,151 @@ vchiq_open(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 *
 ***************************************************************************/
 
+
 static int
-vchiq_close(struct cdev *dev, int flags __unused, int fmt __unused,
-                struct thread *td)
+_vchiq_close_instance(VCHIQ_INSTANCE_T instance)
 {
 	int ret = 0;
-	if (1) {
-		VCHIQ_INSTANCE_T instance;
-		VCHIQ_STATE_T *state = vchiq_get_state();
-		VCHIQ_SERVICE_T *service;
-		int i;
+	VCHIQ_STATE_T *state = vchiq_get_state();
+	VCHIQ_SERVICE_T *service;
+	int i;
 
-		if ((ret = devfs_get_cdevpriv((void**)&instance))) {
-			printf("devfs_get_cdevpriv failed: error %d\n", ret);
-			return (ret);
-		}
+	vchiq_log_info(vchiq_arm_log_level,
+		"vchiq_release: instance=%lx",
+		(unsigned long)instance);
 
-		vchiq_log_info(vchiq_arm_log_level,
-			"vchiq_release: instance=%lx",
-			(unsigned long)instance);
+	if (!state) {
+		ret = -EPERM;
+		goto out;
+	}
 
-		if (!state) {
-			ret = -EPERM;
-			goto out;
-		}
+	/* Ensure videocore is awake to allow termination. */
+	vchiq_use_internal(instance->state, NULL,
+			USE_TYPE_VCHIQ);
 
-		/* Ensure videocore is awake to allow termination. */
-		vchiq_use_internal(instance->state, NULL,
-				USE_TYPE_VCHIQ);
+	lmutex_lock(&instance->completion_mutex);
 
-		lmutex_lock(&instance->completion_mutex);
+	/* Wake the completion thread and ask it to exit */
+	instance->closing = 1;
+	up(&instance->insert_event);
 
-		/* Wake the completion thread and ask it to exit */
-		instance->closing = 1;
-		up(&instance->insert_event);
+	lmutex_unlock(&instance->completion_mutex);
 
-		lmutex_unlock(&instance->completion_mutex);
+	/* Wake the slot handler if the completion queue is full. */
+	up(&instance->remove_event);
 
-		/* Wake the slot handler if the completion queue is full. */
-		up(&instance->remove_event);
+	/* Mark all services for termination... */
+	i = 0;
+	while ((service = next_service_by_instance(state, instance,
+		&i)) !=	NULL) {
+		USER_SERVICE_T *user_service = service->base.userdata;
 
-		/* Mark all services for termination... */
-		i = 0;
-		while ((service = next_service_by_instance(state, instance,
-			&i)) !=	NULL) {
-			USER_SERVICE_T *user_service = service->base.userdata;
+		/* Wake the slot handler if the msg queue is full. */
+		up(&user_service->remove_event);
 
-			/* Wake the slot handler if the msg queue is full. */
-			up(&user_service->remove_event);
+		vchiq_terminate_service_internal(service);
+		unlock_service(service);
+	}
 
-			vchiq_terminate_service_internal(service);
-			unlock_service(service);
-		}
+	/* ...and wait for them to die */
+	i = 0;
+	while ((service = next_service_by_instance(state, instance, &i))
+		!= NULL) {
+		USER_SERVICE_T *user_service = service->base.userdata;
 
-		/* ...and wait for them to die */
-		i = 0;
-		while ((service = next_service_by_instance(state, instance, &i))
-			!= NULL) {
-			USER_SERVICE_T *user_service = service->base.userdata;
+		down(&service->remove_event);
 
-			down(&service->remove_event);
+		BUG_ON(service->srvstate != VCHIQ_SRVSTATE_FREE);
 
-			BUG_ON(service->srvstate != VCHIQ_SRVSTATE_FREE);
+		spin_lock(&msg_queue_spinlock);
 
-			spin_lock(&msg_queue_spinlock);
-
-			while (user_service->msg_remove !=
-				user_service->msg_insert) {
-				VCHIQ_HEADER_T *header = user_service->
-					msg_queue[user_service->msg_remove &
-						(MSG_QUEUE_SIZE - 1)];
-				user_service->msg_remove++;
-				spin_unlock(&msg_queue_spinlock);
-
-				if (header)
-					vchiq_release_message(
-						service->handle,
-						header);
-				spin_lock(&msg_queue_spinlock);
-			}
-
+		while (user_service->msg_remove !=
+			user_service->msg_insert) {
+			VCHIQ_HEADER_T *header = user_service->
+				msg_queue[user_service->msg_remove &
+					(MSG_QUEUE_SIZE - 1)];
+			user_service->msg_remove++;
 			spin_unlock(&msg_queue_spinlock);
 
+			if (header)
+				vchiq_release_message(
+					service->handle,
+					header);
+			spin_lock(&msg_queue_spinlock);
+		}
+
+		spin_unlock(&msg_queue_spinlock);
+
+		unlock_service(service);
+	}
+
+	/* Release any closed services */
+	while (instance->completion_remove !=
+		instance->completion_insert) {
+		VCHIQ_COMPLETION_DATA_T *completion;
+		VCHIQ_SERVICE_T *service;
+		completion = &instance->completions[
+			instance->completion_remove &
+			(MAX_COMPLETIONS - 1)];
+		service = completion->service_userdata;
+		if (completion->reason == VCHIQ_SERVICE_CLOSED)
+		{
+			USER_SERVICE_T *user_service =
+				service->base.userdata;
+
+			/* Wake any blocked user-thread */
+			if (instance->use_close_delivered)
+				up(&user_service->close_event);
+
 			unlock_service(service);
 		}
-
-		/* Release any closed services */
-		while (instance->completion_remove !=
-			instance->completion_insert) {
-			VCHIQ_COMPLETION_DATA_T *completion;
-			VCHIQ_SERVICE_T *service1;
-			completion = &instance->completions[
-				instance->completion_remove &
-				(MAX_COMPLETIONS - 1)];
-			service1 = completion->service_userdata;
-			if (completion->reason == VCHIQ_SERVICE_CLOSED)
-			{
-				USER_SERVICE_T *user_service =
-					service->base.userdata;
-
-				/* Wake any blocked user-thread */
-				if (instance->use_close_delivered)
-					up(&user_service->close_event);
-				unlock_service(service1);
-			}
-			instance->completion_remove++;
-		}
-
-		/* Release the PEER service count. */
-		vchiq_release_internal(instance->state, NULL);
-
-		{
-			struct list_head *pos, *next;
-			list_for_each_safe(pos, next,
-				&instance->bulk_waiter_list) {
-				struct bulk_waiter_node *waiter;
-				waiter = list_entry(pos,
-					struct bulk_waiter_node,
-					list);
-				list_del(pos);
-				vchiq_log_info(vchiq_arm_log_level,
-					"bulk_waiter - cleaned up %x "
-					"for pid %d",
-					(unsigned int)waiter, waiter->pid);
-		                _sema_destroy(&waiter->bulk_waiter.event);
-				kfree(waiter);
-			}
-		}
-
+		instance->completion_remove++;
 	}
-	else {
-		vchiq_log_error(vchiq_arm_log_level,
-			"Unknown minor device");
-		ret = -ENXIO;
+
+	/* Release the PEER service count. */
+	vchiq_release_internal(instance->state, NULL);
+
+	{
+		struct list_head *pos, *next;
+		list_for_each_safe(pos, next,
+			&instance->bulk_waiter_list) {
+			struct bulk_waiter_node *waiter;
+			waiter = list_entry(pos,
+				struct bulk_waiter_node,
+				list);
+			list_del(pos);
+			vchiq_log_info(vchiq_arm_log_level,
+				"bulk_waiter - cleaned up %zx "
+				"for pid %d",
+				(size_t)waiter, waiter->pid);
+			_sema_destroy(&waiter->bulk_waiter.event);
+			kfree(waiter);
+		}
 	}
 
 out:
 	return ret;
+
+}
+
+static void
+instance_dtr(void *data)
+{
+	VCHIQ_INSTANCE_T instance =  data;
+	_vchiq_close_instance(instance);
+	kfree(data);
+}
+
+static int
+vchiq_close(struct cdev *dev, int flags __unused, int fmt __unused,
+                struct thread *td)
+{
+
+	/* XXXMDC it's privdata that tracks opens */
+	/* XXXMDC only get closes when there are no more open fds on a vnode */
+
+	return(0);
+
 }
 
 /****************************************************************************
@@ -1435,9 +1665,9 @@ vchiq_dump_platform_instances(void *dump_context)
 			instance = service->instance;
 			if (instance && !instance->mark) {
 				len = snprintf(buf, sizeof(buf),
-					"Instance %x: pid %d,%s completions "
+					"Instance %zx: pid %d,%s completions "
 						"%d/%d",
-					(unsigned int)instance, instance->pid,
+					(size_t)instance, instance->pid,
 					instance->connected ? " connected, " :
 						"",
 					instance->completion_insert -
@@ -1465,8 +1695,8 @@ vchiq_dump_platform_service_state(void *dump_context, VCHIQ_SERVICE_T *service)
 	char buf[80];
 	int len;
 
-	len = snprintf(buf, sizeof(buf), "  instance %x",
-		(unsigned int)service->instance);
+	len = snprintf(buf, sizeof(buf), "  instance %zx",
+		(size_t)service->instance);
 
 	if ((service->base.callback == service_callback) &&
 		user_service->is_vchi) {

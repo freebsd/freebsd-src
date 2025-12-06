@@ -32,4 +32,5 @@ MLINKS+=strftime.3 strftime_l.3
 MLINKS+=strptime.3 strptime_l.3
 MLINKS+=time2posix.3 posix2time.3
 MLINKS+=tzset.3 daylight.3 \
-	tzset.3 timezone.3
+	tzset.3 timezone.3 \
+	tzset.3 tzname.3

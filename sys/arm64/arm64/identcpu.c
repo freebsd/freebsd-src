@@ -232,6 +232,10 @@ static const struct cpu_parts cpu_parts_arm[] = {
 	{ CPU_PART_CORTEX_X2, "Cortex-X2" },
 	{ CPU_PART_CORTEX_X3, "Cortex-X3" },
 	{ CPU_PART_CORTEX_X4, "Cortex-X4" },
+	{ CPU_PART_C1_NANO, "C1-Nano" },
+	{ CPU_PART_C1_PRO, "C1-Pro" },
+	{ CPU_PART_C1_PREMIUM, "C1-Premium" },
+	{ CPU_PART_C1_ULTRA, "C1-Ultra" },
 	{ CPU_PART_NEOVERSE_E1, "Neoverse-E1" },
 	{ CPU_PART_NEOVERSE_N1, "Neoverse-N1" },
 	{ CPU_PART_NEOVERSE_N2, "Neoverse-N2" },
@@ -2272,37 +2276,25 @@ static const struct mrs_user_reg user_regs[] = {
 static bool
 user_ctr_has_neoverse_n1_1542419(uint32_t midr, uint64_t ctr)
 {
-	/* Skip non-Neoverse-N1 */
-	if (!CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK, CPU_IMPL_ARM,
-	    CPU_PART_NEOVERSE_N1, 0, 0))
-		return (false);
-
-	switch (CPU_VAR(midr)) {
-	default:
-		break;
-	case 4:
-		/* Fixed in r4p1 */
-		if (CPU_REV(midr) > 0)
-			break;
-		/* FALLTHROUGH */
-	case 3:
-		/* If DIC is enabled (coherent icache) then we are affected */
-		return (CTR_DIC_VAL(ctr) != 0);
-	}
-
-	return (false);
+	/*
+	 * Neoverse-N1 erratum 1542419
+	 * Present in r3p0 - r4p0
+	 * Fixed in r4p1
+	 */
+	return (midr_check_var_part_range(midr, CPU_IMPL_ARM,
+	    CPU_PART_NEOVERSE_N1, 3, 0, 4, 0) && CTR_DIC_VAL(ctr) != 0);
 }
 
-static bool
-user_ctr_check(const struct cpu_feat *feat __unused, u_int midr __unused)
+static cpu_feat_en
+user_ctr_check(const struct cpu_feat *feat __unused, u_int midr)
 {
 	if (emulate_ctr)
-		return (true);
+		return (FEAT_DEFAULT_ENABLE);
 
 	if (user_ctr_has_neoverse_n1_1542419(midr, READ_SPECIALREG(ctr_el0)))
-		return (true);
+		return (FEAT_DEFAULT_ENABLE);
 
-	return (false);
+	return (FEAT_ALWAYS_DISABLE);
 }
 
 static bool
@@ -2320,7 +2312,7 @@ user_ctr_has_errata(const struct cpu_feat *feat __unused, u_int midr,
 	return (false);
 }
 
-static void
+static bool
 user_ctr_enable(const struct cpu_feat *feat __unused,
     cpu_feat_errata errata_status, u_int *errata_list, u_int errata_count)
 {
@@ -2356,16 +2348,13 @@ user_ctr_enable(const struct cpu_feat *feat __unused,
 	WRITE_SPECIALREG(sctlr_el1,
 	    READ_SPECIALREG(sctlr_el1) & ~SCTLR_UCT);
 	isb();
+
+	return (true);
 }
 
-static struct cpu_feat user_ctr = {
-	.feat_name		= "Trap CTR_EL0",
-	.feat_check		= user_ctr_check,
-	.feat_has_errata	= user_ctr_has_errata,
-	.feat_enable		= user_ctr_enable,
-	.feat_flags		= CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU,
-};
-DATA_SET(cpu_feat_set, user_ctr);
+CPU_FEAT(trap_ctr, "Trap CTR_EL0",
+    user_ctr_check, user_ctr_has_errata, user_ctr_enable, NULL,
+    CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU);
 
 static bool
 user_ctr_handler(uint64_t esr, struct trapframe *frame)

@@ -31,6 +31,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl b Ar bigsize
+.Op Fl i Ar interval
 .Op Fl r Ar readlist
 .Op Fl s Ar interval
 .Op Fl u Ar pattern
@@ -54,7 +55,7 @@ sessions can be resumed, for instance when a marginal
 source hard-disk shuts down.
 .Pp
 The work-list is initialized with a single item which covers the entire
-.Ar source 
+.Ar source
 and
 .Nm
 always chips away at the first item on the work-list.
@@ -70,9 +71,9 @@ is specified, the corresponding range is filled with '_UNREAD_'.
 .Pp
 The first pass attempts to read everything in "big-size" chunks,
 the second pass reads in "medium-size" chunks and third and subsequent
-passes read in "small-size" chunks.  This three stage process is
-an attempt to optimize the case where only a few bad blocks exist
-on
+passes read in "small-size" chunks.
+This three stage process is an attempt to optimize the case where only
+a few bad blocks exist on
 .Ar source .
 If too many read-errors are encountered,
 .Nm
@@ -102,23 +103,31 @@ every minute.
 .It Fl l Ar log-file
 Each successful read is logged with timestamp, offset and length.
 .It Fl t Ar totalsize
-How many bytes should be recovered.  The default is what
+How many bytes should be recovered.
+The default is what
 .Dv DIOCGMEDIASIZE
 reports for character and block devices or
 .Dv st_size
 if
 .Ar source
 is a regular file.
+.It Fl i Ar pause
+.Xr sleep 3
+this long between reads.  This reduces the load on the
+.Ar source
+device and the system in general.
 .It Fl p Ar pause
 .Xr sleep 3
-this long whenever a read fails.  This makes the
+this long whenever a read fails.
+This makes the
 .Ar source
 device look less sick to the operating system.
 .It Fl u Ar pattern
 By default blocks which cannot be read are filled with the pattern
 .Ql _UNREAD_
-in the output file.  This option can be used to specify a different
-pattern.  If the pattern is the empty string, nothing is written.
+in the output file.
+This option can be used to specify a different pattern.
+If the pattern is the empty string, nothing is written.
 .It Fl v
 Produce a detailed progress report with ANSI escapes and UTF-8.
 .El
@@ -176,7 +185,7 @@ Keep the drive cool with a fan.
 .It
 If possible, power the drive from a laboratory power supply.
 .It
-Do not loose patience:  Let
+Do not lose patience:  Let
 .Nm
 run as long as possible.
 .It
@@ -186,7 +195,7 @@ is a problem, use a USB-(S)ATA adapter instead.
 The
 .Nm
 source code is deliberately written to be easily portable to
-older versions of 
+older versions of
 .Fx
 and to other operating systems.
 .It
@@ -227,7 +236,7 @@ to the size of a track.
 The
 .Nm
 utility first appeared in
-.Fx 7.0 
+.Fx 7.0
 because Somebody™ forgot to make a backup copy.
 .Sh AUTHORS
 .An -nosplit

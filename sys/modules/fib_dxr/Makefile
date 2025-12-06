@@ -1,6 +1,3 @@
-SYSDIR?=${SRCTOP}/sys
-.include "${SYSDIR}/conf/kern.opts.mk"
-
 .PATH: ${SYSDIR}/netinet
 
 KMOD=	fib_dxr

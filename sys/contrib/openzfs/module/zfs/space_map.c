@@ -537,7 +537,7 @@ space_map_write_intro_debug(space_map_t *sm, maptype_t maptype, dmu_tx_t *tx)
 	    SM_DEBUG_TXG_ENCODE(dmu_tx_get_txg(tx));
 
 	dmu_write(sm->sm_os, space_map_object(sm), sm->sm_phys->smp_length,
-	    sizeof (dentry), &dentry, tx);
+	    sizeof (dentry), &dentry, tx, DMU_READ_NO_PREFETCH);
 
 	sm->sm_phys->smp_length += sizeof (dentry);
 }
@@ -817,7 +817,7 @@ space_map_open(space_map_t **smp, objset_t *os, uint64_t object,
 	space_map_t *sm;
 	int error;
 
-	ASSERT(*smp == NULL);
+	ASSERT0P(*smp);
 	ASSERT(os != NULL);
 	ASSERT(object != 0);
 

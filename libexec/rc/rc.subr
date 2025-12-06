@@ -55,6 +55,7 @@ JAIL_CMD=/usr/sbin/jail
 _svcj_generic_params="path=/ mount.nodevfs host=inherit"
 JID=0
 CPUSET="/bin/cpuset"
+SETAUDIT="/usr/sbin/setaudit"
 
 # Cache the services that we loaded with load_rc_config.
 _loaded_services=""
@@ -121,11 +122,22 @@ dotted=
 dot()
 {
 	local f verify
+	local dot_dir dot_file
 
 	o_verify_set off verify
 	for f in "$@"; do
 		if [ -f $f -a -s $f ]; then
 			dotted="$dotted $f"
+			case $f in
+			*/*)
+				dot_dir=${f%/*}
+				dot_file=${f##*/}
+				;;
+			*)
+				dot_dir=.
+				dot_file=$f
+				;;
+			esac
 			. $f
 		fi
 	done
@@ -152,8 +164,7 @@ vdot()
 	for f in "$@"; do
 		[ -f $f -a -s $f ] || continue
 		if is_verified $f 2> /dev/null; then
-			dotted="$dotted $f"
-			. $f
+			dot $f
 		else
 			rc=80	# EAUTH
 		fi
@@ -792,28 +803,18 @@ sort_lite()
 #
 wait_for_pids()
 {
-	local _list _prefix _nlist _j
+	local _list _prefix _j
 
-	_list="$@"
-	if [ -z "$_list" ]; then
-		return
-	fi
-	_prefix=
-	while true; do
-		_nlist=""
-		for _j in $_list; do
-			if kill -0 $_j 2>/dev/null; then
-				_nlist="${_nlist}${_nlist:+ }$_j"
-				[ -n "$_prefix" ] && sleep 1
-			fi
-		done
-		if [ -z "$_nlist" ]; then
-			break
+	for _j in "$@"; do
+		if kill -0 $_j 2>/dev/null; then
+			_list="${_list}${_list:+ }$_j"
 		fi
-		_list=$_nlist
+	done
+	_prefix=
+	while [ -n "$_list" ]; do
 		echo -n ${_prefix:-"Waiting for PIDS: "}$_list
 		_prefix=", "
-		pwait -o $_list 2>/dev/null
+		_list=$(pwait -op $_list 2>/dev/null)
 	done
 	if [ -n "$_prefix" ]; then
 		echo "."
@@ -932,6 +933,9 @@ startmsg()
 #	${name}_program	n	Full path to command.
 #				Meant to be used in /etc/rc.conf to override
 #				${command}.
+#
+#	${name}_audit_user n    Override the audit user for ${command},
+#				specified as a user name or UID.
 #
 #	${name}_chroot	n	Directory to chroot to before running ${command}
 #				Requires /usr to be mounted.
@@ -1151,6 +1155,15 @@ run_rc_command()
 		_cpusetcmd="$CPUSET -l $_cpuset"
 	fi
 
+	eval _audit_user=\$${name}_audit_user
+	if [ -z "$_audit_user" -a -n "$audit_user" ]; then
+		_audit_user=$audit_user
+	fi
+	_setauditcmd=
+	if [ -n "$_audit_user" ]; then
+		_setauditcmd="setaudit -U -a $_audit_user"
+	fi
+
 	# If a specific jail has a specific svcj request, honor it (YES/NO).
 	# If not (variable empty), evaluate the global svcj catch-all.
 	# A global YES can be overriden by a specific NO, and a global NO is overriden
@@ -1256,49 +1269,55 @@ run_rc_command()
 	if [ -n "$_svcj_options" ]; then	# translate service jail options
 		_svcj_sysvipc_x=0
 		for _svcj_option in $_svcj_options; do
+			_opts=
 			case "$_svcj_option" in
-				mlock)
-					_svcj_cmd_options="allow.mlock ${_svcj_cmd_options}"
-					;;
-				netv4)
-					_svcj_cmd_options="${_svcj_ip4} allow.reserved_ports ${_svcj_cmd_options}"
-					;;
-				netv6)
-					_svcj_cmd_options="${_svcj_ip6} allow.reserved_ports ${_svcj_cmd_options}"
-					;;
-				net_basic)
-					_svcj_cmd_options="${_svcj_ip4} ${_svcj_ip6} allow.reserved_ports ${_svcj_cmd_options}"
-					;;
-				net_raw)
-					_svcj_cmd_options="allow.raw_sockets ${_svcj_cmd_options}"
-					;;
-				net_all)
-					_svcj_cmd_options="allow.socket_af allow.raw_sockets allow.reserved_ports ${_svcj_ip4} ${_svcj_ip6} ${_svcj_cmd_options}"
-					;;
-				nfsd)
-					_svcj_cmd_options="allow.nfsd enforce_statfs=1 ${_svcj_cmd_options}"
-					;;
-				routing)
-					_svcj_cmd_options="allow.routing ${_svcj_cmd_options}"
-					;;
-				settime)
-					_svcj_cmd_options="allow.settime ${_svcj_cmd_options}"
-					;;
-				sysvipc)
-					_svcj_sysvipc_x=$((${_svcj_sysvipc_x} + 1))
-					_svcj_cmd_options="sysvmsg=inherit sysvsem=inherit sysvshm=inherit  ${_svcj_cmd_options}"
-					;;
-				sysvipcnew)
-					_svcj_sysvipc_x=$((${_svcj_sysvipc_x} + 1))
-					_svcj_cmd_options="sysvmsg=new sysvsem=new sysvshm=new ${_svcj_cmd_options}"
-					;;
-				vmm)
-					_svcj_cmd_options="allow.vmm ${_svcj_cmd_options}"
-					;;
-				*)
-					echo ${name}: unknown service jail option: $_svcj_option
-					;;
+			mlock)
+				_opts="allow.mlock"
+				;;
+			netv4)
+				_opts="${_svcj_ip4} allow.reserved_ports"
+				;;
+			netv6)
+				_opts="${_svcj_ip6} allow.reserved_ports"
+				;;
+			net_basic)
+				_opts="${_svcj_ip4} ${_svcj_ip6}"
+				_opts="${_opts} allow.reserved_ports"
+				;;
+			net_raw)
+				_opts="allow.raw_sockets"
+				;;
+			net_all)
+				_opts="allow.socket_af"
+				_opts="${_opts} allow.raw_sockets"
+				_opts="${_opts} allow.reserved_ports"
+				_opts="${_opts} ${_svcj_ip4} ${_svcj_ip6}"
+				;;
+			nfsd)
+				_opts="allow.nfsd enforce_statfs=1"
+				;;
+			routing)
+				_opts="allow.routing"
+				;;
+			settime)
+				_opts="allow.settime"
+				;;
+			sysvipc)
+				_svcj_sysvipc_x=$((${_svcj_sysvipc_x} + 1))
+				_opts="sysvmsg=inherit sysvsem=inherit sysvshm=inherit"
+				;;
+			sysvipcnew)
+				_svcj_sysvipc_x=$((${_svcj_sysvipc_x} + 1))
+				_opts="sysvmsg=new sysvsem=new sysvshm=new"
+				;;
+			vmm)
+				_opts="allow.vmm"
+				;;
+			*)
+				echo ${name}: unknown service jail option: $_svcj_option
+				;;
 			esac
+			_svcj_cmd_options="${_opts} ${_svcj_cmd_options}"
 		done
 		if [ ${_svcj_sysvipc_x} -gt 1 ]; then
 			echo -n "ERROR: more than one sysvipc option is "
@@ -1369,7 +1388,7 @@ run_rc_command()
 				_run_rc_precmd || return 1
 			fi
 			if ! checkyesno ${name}_svcj; then
-				_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || return 1
+				_run_rc_doit "$_cmd $rc_extra_args" || return 1
 			else
 				case "$rc_arg" in
 				start)
@@ -1398,7 +1417,7 @@ run_rc_command()
 							    name=svcj-${name} && _return=0
 						fi
 					else
-						_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || _return=1
+						_run_rc_doit "$_cmd $rc_extra_args" || _return=1
 					fi
 					;;
 				stop)
@@ -1406,7 +1425,7 @@ run_rc_command()
 						$SERVICE -E _rc_svcj=jailing -j svcj-${name} ${name} ${_rc_prefix}stop $rc_extra_args || _return=1
 						$JAIL_CMD -r svcj-${name} 2>/dev/null
 					else
-						_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || _return=1
+						_run_rc_doit "$_cmd $rc_extra_args" || _return=1
 					fi
 					;;
 				restart|status) ;; # no special case needed for svcj or handled somewhere else
@@ -1416,7 +1435,7 @@ run_rc_command()
 					if checkyesno _rc_svcj_extra_cmd && [ "${_rc_svcj}" != jailing ]; then
 						$SERVICE -v -E _rc_svcj=jailing -j svcj-${name} ${name} ${_rc_prefix}${rc_arg} $rc_extra_args || _return=1
 					else
-						_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || _return=1
+						_run_rc_doit "$_cmd $rc_extra_args" || _return=1
 					fi
 					;;
 				esac
@@ -1509,6 +1528,7 @@ run_rc_command()
 				_doit="\
 ${_nice:+nice -n $_nice }\
 $_cpusetcmd \
+$_setauditcmd \
 ${_fib:+setfib -F $_fib }\
 ${_env:+env $_env }\
 chroot ${_user:+-u $_user }${_group:+-g $_group }${_groups:+-G $_groups }\
@@ -1518,7 +1538,9 @@ $_chroot $command $rc_flags $command_args"
 				_doit="\
 ${_fib:+setfib -F $_fib }\
 ${_env:+env $_env }\
-$_cpusetcmd $command $rc_flags $command_args"
+$_cpusetcmd \
+$_setauditcmd \
+$command $rc_flags $command_args"
 				if [ -n "$_user" ]; then
 				    _doit="su -m $_user -c 'sh -c \"$_doit\"'"
 				fi

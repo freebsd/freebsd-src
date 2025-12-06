@@ -412,13 +412,13 @@ START_TEST(test_utf16_le_epilog_newline) {
 
   if (first_chunk_bytes >= sizeof(text) - 1)
     fail("bad value of first_chunk_bytes");
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, first_chunk_bytes, XML_FALSE)
+  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)first_chunk_bytes, XML_FALSE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
   else {
     enum XML_Status rc;
     rc = _XML_Parse_SINGLE_BYTES(g_parser, text + first_chunk_bytes,
-                                 sizeof(text) - first_chunk_bytes - 1,
+                                 (int)(sizeof(text) - first_chunk_bytes - 1),
                                  XML_TRUE);
     if (rc == XML_STATUS_ERROR)
       xml_failure(g_parser);
@@ -3123,6 +3123,10 @@ START_TEST(test_buffer_can_grow_to_max) {
   for (int i = 0; i < num_prefixes; ++i) {
     set_subtest("\"%s\"", prefixes[i]);
     XML_Parser parser = XML_ParserCreate(NULL);
+#if XML_GE == 1
+    assert_true(XML_SetAllocTrackerActivationThreshold(parser, (size_t)-1)
+                == XML_TRUE); // i.e. deactivate
+#endif
     const int prefix_len = (int)strlen(prefixes[i]);
     const enum XML_Status s
         = _XML_Parse_SINGLE_BYTES(parser, prefixes[i], prefix_len, XML_FALSE);

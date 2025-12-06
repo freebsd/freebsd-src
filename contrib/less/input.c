@@ -96,6 +96,8 @@ public POSITION forw_line_seg(POSITION curr_pos, lbool skipeol, lbool rscroll, l
 
 	if (p_linepos != NULL)
 		*p_linepos = NULL_POSITION;
+	if (p_newline != NULL)
+		*p_newline = TRUE;
 
 get_forw_line:
 	if (curr_pos == NULL_POSITION)
@@ -104,7 +106,7 @@ get_forw_line:
 		return (NULL_POSITION);
 	}
 #if HILITE_SEARCH
-	if (hilite_search == OPT_ONPLUS || is_filtering() || status_col)
+	if (hilite_search == OPT_ONPLUS || is_filtering() || (status_col && hilite_search != OPT_ON))
 	{
 		/*
 		 * If we are ignoring EOI (command F), only prepare
@@ -142,39 +144,48 @@ get_forw_line:
 	/*
 	 * Read forward again to the position we should start at.
 	 */
-	prewind();
-	plinestart(base_pos);
-	(void) ch_seek(base_pos);
-	new_pos = base_pos;
-	while (new_pos < curr_pos)
+	if (is_line_contig_pos(curr_pos))
 	{
-		c = ch_forw_get();
-		if (c == EOI)
+		prewind(TRUE);
+		plinestart(base_pos);
+		ch_seek(curr_pos);
+		new_pos = curr_pos;
+	} else
+	{
+		prewind(FALSE);
+		plinestart(base_pos);
+		ch_seek(base_pos);
+		new_pos = base_pos;
+		while (new_pos < curr_pos)
 		{
-			null_line();
-			return (NULL_POSITION);
-		}
-		backchars = pappend((char) c, new_pos);
-		new_pos++;
-		if (backchars > 0)
-		{
-			pshift_all();
-			if (wordwrap && (c == ' ' || c == '\t'))
+			c = ch_forw_get();
+			if (c == EOI)
 			{
-				do
-				{
-					new_pos++;
-					c = ch_forw_get(); /* {{ what if c == EOI? }} */
-				} while (c == ' ' || c == '\t');
-				backchars = 1;
+				null_line();
+				return (NULL_POSITION);
 			}
-			new_pos -= backchars;
-			while (--backchars >= 0)
-				(void) ch_back_get();
+			backchars = pappend((char) c, new_pos);
+			new_pos++;
+			if (backchars > 0)
+			{
+				pshift_all();
+				if (wordwrap && (c == ' ' || c == '\t'))
+				{
+					do
+					{
+						new_pos++;
+						c = ch_forw_get(); /* {{ what if c == EOI? }} */
+					} while (c == ' ' || c == '\t');
+					backchars = 1;
+				}
+				new_pos -= backchars;
+				while (--backchars >= 0)
+					(void) ch_back_get();
+			}
 		}
+		pshift_all();
 	}
 	(void) pflushmbc();
-	pshift_all();
 
 	/*
 	 * Read the first character to display.
@@ -329,6 +340,7 @@ get_forw_line:
 		*p_linepos = curr_pos;
 	if (p_newline != NULL)
 		*p_newline = endline;
+	set_line_contig_pos(endline ? NULL_POSITION : new_pos);
 	return (new_pos);
 }
 
@@ -358,6 +370,8 @@ public POSITION back_line(POSITION curr_pos, lbool *p_newline)
 	lbool skipped_leading;
 
 get_back_line:
+	if (p_newline != NULL)
+		*p_newline = TRUE;
 	if (curr_pos == NULL_POSITION || curr_pos <= ch_zero())
 	{
 		null_line();
@@ -426,7 +440,7 @@ get_back_line:
 	}
 
 #if HILITE_SEARCH
-	if (hilite_search == OPT_ONPLUS || is_filtering() || status_col)
+	if (hilite_search == OPT_ONPLUS || is_filtering() || (status_col && hilite_search != OPT_ON))
 		prep_hilite(base_pos, NULL_POSITION, 1);
 #endif
 
@@ -446,10 +460,8 @@ get_back_line:
 		return (NULL_POSITION);
 	}
 	endline = FALSE;
-	prewind();
+	prewind(FALSE);
 	plinestart(new_pos);
-	if (p_newline != NULL)
-		*p_newline = TRUE;
     loop:
 	wrap_pos = NULL_POSITION;
 	skipped_leading = FALSE;

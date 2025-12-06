@@ -34,6 +34,13 @@ platform_pre_listen(void)
 	/* Adjust out-of-memory killer so listening process is not killed */
 	oom_adjust_setup();
 #endif
+#ifdef LINUX_MEMLOCK_ONFAULT
+	/*
+	 * Protect ourselves against kcompactd so that we are able to process
+	 * new connections while it is active and migrating pages.
+	 */
+	memlock_onfault_setup();
+#endif
 }
 
 void
@@ -82,3 +89,13 @@ platform_post_fork_child(void)
 #endif
 }
 
+void platform_pre_session_start(void)
+{
+#ifdef LINUX_MEMLOCK_ONFAULT
+	/*
+	 * Memlock flags are dropped on fork, lock the memory again so that the
+	 * child connection is also protected against kcompactd.
+	 */
+	memlock_onfault_setup();
+#endif
+}

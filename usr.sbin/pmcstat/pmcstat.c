@@ -215,7 +215,7 @@ pmcstat_find_targets(const char *spec)
 			SLIST_INSERT_HEAD(&args.pa_targets, pt, pt_next);
 		} else if (rv != REG_NOMATCH) {
 			regerror(rv, &reg, errbuf, sizeof(errbuf));
-			errx(EX_SOFTWARE, "ERROR: Regex evalation failed: %s",
+			errx(EX_SOFTWARE, "ERROR: Regex evaluation failed: %s",
 			    errbuf);
 		}
 	}
@@ -519,7 +519,7 @@ main(int argc, char **argv)
 	CPU_COPY(&rootmask, &cpumask);
 
 	while ((option = getopt(argc, argv,
-	    "ACD:EF:G:ILM:NO:P:R:S:TUWZa:c:def:gi:k:l:m:n:o:p:qr:s:t:u:vw:z:")) != -1)
+	    "ACD:EF:G:ILM:NO:P:R:S:TUWZa:c:def:gi:l:m:n:o:p:qr:s:t:u:vw:z:")) != -1)
 		switch (option) {
 		case 'A':
 			args.pa_flags |= FLAG_SKIP_TOP_FN_RES;
@@ -605,11 +605,6 @@ main(int argc, char **argv)
 
 		case 'I':
 			args.pa_flags |= FLAG_SHOW_OFFSET;
-			break;
-
-		case 'k':	/* pathname to the kernel */
-			warnx("WARNING: -k is obsolete, has no effect "
-			    "and will be removed in FreeBSD 15.");
 			break;
 
 		case 'L':

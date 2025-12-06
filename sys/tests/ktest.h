@@ -57,12 +57,16 @@ struct ktest_test_info {
 	ktest_parse_t	parse;
 };
 
+#define KTEST_FUNC(X) static int __ktest_##X(struct ktest_test_context *ctx)
+
 struct ktest_module_info {
 	const char			*name;
 	const struct ktest_test_info	*tests;
 	int				num_tests;
 	void				*module_ptr;
 };
+
+#define KTEST_INFO(X) { "test_" #X, "Test " #X, __ktest_##X, NULL }
 
 int ktest_default_modevent(module_t mod, int type, void *arg);
 
@@ -84,6 +88,9 @@ void ktest_end_msg(struct ktest_test_context *ctx);
 #define	KTEST_LOG(_ctx, _fmt, ...)					\
 	KTEST_LOG_LEVEL(_ctx, LOG_DEBUG, _fmt, ## __VA_ARGS__)
 
+#define	KTEST_ERR(_ctx, _fmt, ...)	\
+	KTEST_LOG_LEVEL(_ctx, LOG_ERR, _fmt, ## __VA_ARGS__)
+
 #define KTEST_MAX_BUF	512
 
 #define	KTEST_MODULE_DECLARE(_n, _t) 					\
@@ -103,6 +110,9 @@ DECLARE_MODULE(ktest_##_n, _module_data, SI_SUB_PSEUDO, SI_ORDER_ANY);	\
 MODULE_VERSION(ktest_##_n, 1);						\
 MODULE_DEPEND(ktest_##_n, ktestmod, 1, 1, 1);				\
 MODULE_DEPEND(ktest_##_n, netlink, 1, 1, 1);				\
+
+#define	KTEST_MODULE_DEPEND(_n, _d)		\
+MODULE_DEPEND(ktest_##_n, _d, 1, 1, 1);	\
 
 #endif /* _KERNEL */
 

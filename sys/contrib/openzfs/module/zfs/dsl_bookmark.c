@@ -243,7 +243,7 @@ dsl_bookmark_create_check_impl(dsl_pool_t *dp,
 	/* error is retval of the following if-cascade */
 	if (strchr(source, '@') != NULL) {
 		dsl_dataset_t *source_snap_ds;
-		ASSERT3S(snapshot_namecheck(source, NULL, NULL), ==, 0);
+		ASSERT0(snapshot_namecheck(source, NULL, NULL));
 		error = dsl_dataset_hold(dp, source, FTAG, &source_snap_ds);
 		if (error == 0) {
 			VERIFY(source_snap_ds->ds_is_snapshot);
@@ -258,7 +258,7 @@ dsl_bookmark_create_check_impl(dsl_pool_t *dp,
 		}
 	} else if (strchr(source, '#') != NULL) {
 		zfs_bookmark_phys_t source_phys;
-		ASSERT3S(bookmark_namecheck(source, NULL, NULL), ==, 0);
+		ASSERT0(bookmark_namecheck(source, NULL, NULL));
 		/*
 		 * Source must exists and be an earlier point in newbm_ds's
 		 * timeline (newbm_ds's origin may be a snap of source's ds)
@@ -501,7 +501,7 @@ dsl_bookmark_create_sync_impl_snap(const char *bookmark, const char *snapshot,
 		    sizeof (uint64_t) * num_redact_snaps);
 		local_rl->rl_phys->rlp_num_snaps = num_redact_snaps;
 		if (bookmark_redacted) {
-			ASSERT3P(redaction_list, ==, NULL);
+			ASSERT0P(redaction_list);
 			local_rl->rl_phys->rlp_last_blkid = UINT64_MAX;
 			local_rl->rl_phys->rlp_last_object = UINT64_MAX;
 			dsl_redaction_list_long_rele(local_rl, tag);

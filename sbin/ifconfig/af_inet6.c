@@ -726,6 +726,8 @@ static struct cmd inet6_cmds[] = {
 	DEF_CMD_ARG("pltime",        			setip6pltime),
 	DEF_CMD_ARG("vltime",        			setip6vltime),
 	DEF_CMD("eui64",	0,			setip6eui64),
+	DEF_CMD("stableaddr",	ND6_IFF_STABLEADDR,	setnd6flags),
+	DEF_CMD("-stableaddr",	-ND6_IFF_STABLEADDR,	setnd6flags),
 #ifdef EXPERIMENTAL
 	DEF_CMD("ipv6_only",	ND6_IFF_IPV6_ONLY_MANUAL,setnd6flags),
 	DEF_CMD("-ipv6_only",	-ND6_IFF_IPV6_ONLY_MANUAL,setnd6flags),
@@ -753,7 +755,7 @@ static struct afswtch af_inet6 = {
 #ifdef WITHOUT_NETLINK
 	.af_difaddr	= SIOCDIFADDR_IN6,
 	.af_aifaddr	= SIOCAIFADDR_IN6,
-	.af_ridreq	= &in6_addreq,
+	.af_ridreq	= &in6_ridreq,
 	.af_addreq	= &in6_addreq,
 	.af_exec	= af_exec_ioctl,
 #else

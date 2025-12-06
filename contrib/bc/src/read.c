@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2025 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -171,34 +171,23 @@ bc_read_chars(BcVec* vec, const char* prompt)
 			// If interupted...
 			if (errno == EINTR)
 			{
-				int sig;
-
 				// Jump out if we are supposed to quit, which certain signals
 				// will require.
 				if (vm->status == (sig_atomic_t) BC_STATUS_QUIT) BC_JMP;
 
 				assert(vm->sig != 0);
 
-				sig = (int) vm->sig;
-
 				// Clear the signal and status.
 				vm->sig = 0;
 				vm->status = (sig_atomic_t) BC_STATUS_SUCCESS;
 
-#ifndef _WIN32
-				// We don't want to print anything on a SIGWINCH.
-				if (sig != SIGWINCH)
-#endif // _WIN32
+				// Print the ready message and prompt again.
+				bc_file_puts(&vm->fout, bc_flush_none, bc_program_ready_msg);
+				if (BC_PROMPT)
 				{
-					// Print the ready message and prompt again.
-					bc_file_puts(&vm->fout, bc_flush_none,
-					             bc_program_ready_msg);
-					if (BC_PROMPT)
-					{
-						bc_file_puts(&vm->fout, bc_flush_none, prompt);
-					}
-					bc_file_flush(&vm->fout, bc_flush_none);
+					bc_file_puts(&vm->fout, bc_flush_none, prompt);
 				}
+				bc_file_flush(&vm->fout, bc_flush_none);
 
 				BC_SIG_UNLOCK;
 

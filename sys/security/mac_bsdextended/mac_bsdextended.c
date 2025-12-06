@@ -246,7 +246,9 @@ ugidfw_rulecheck(struct mac_bsdextended_rule *rule,
 	}
 
 	if (rule->mbr_subject.mbs_flags & MBS_GID_DEFINED) {
-		match = ((cred->cr_rgid <= rule->mbr_subject.mbs_gid_max &&
+		match = ((cred->cr_gid <= rule->mbr_subject.mbs_gid_max &&
+		    cred->cr_gid >= rule->mbr_subject.mbs_gid_min) ||
+		    (cred->cr_rgid <= rule->mbr_subject.mbs_gid_max &&
 		    cred->cr_rgid >= rule->mbr_subject.mbs_gid_min) ||
 		    (cred->cr_svgid <= rule->mbr_subject.mbs_gid_max &&
 		    cred->cr_svgid >= rule->mbr_subject.mbs_gid_min));

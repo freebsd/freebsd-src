@@ -56,6 +56,8 @@
 #include <security/audit/audit.h>
 #include <security/audit/audit_private.h>
 
+#include <contrib/ck/include/ck_queue.h>
+
 /*
  * Hash table functions for the audit event number to event class mask
  * mapping.
@@ -64,21 +66,21 @@
 struct evclass_elem {
 	au_event_t event;
 	au_class_t class;
-	LIST_ENTRY(evclass_elem) entry;
+	CK_LIST_ENTRY(evclass_elem) entry;
 };
 struct evclass_list {
-	LIST_HEAD(, evclass_elem) head;
+	CK_LIST_HEAD(, evclass_elem) head;
 };
 
 static MALLOC_DEFINE(M_AUDITEVCLASS, "audit_evclass", "Audit event class");
-static struct rwlock		evclass_lock;
 static struct evclass_list	evclass_hash[EVCLASSMAP_HASH_TABLE_SIZE];
-
-#define	EVCLASS_LOCK_INIT()	rw_init(&evclass_lock, "evclass_lock")
-#define	EVCLASS_RLOCK()		rw_rlock(&evclass_lock)
-#define	EVCLASS_RUNLOCK()	rw_runlock(&evclass_lock)
-#define	EVCLASS_WLOCK()		rw_wlock(&evclass_lock)
-#define	EVCLASS_WUNLOCK()	rw_wunlock(&evclass_lock)
+static struct mtx evclass_mtx;
+#define	EVCLASS_LOCK_INIT()	mtx_init(&evclass_mtx, "evclass_lock", NULL, MTX_DEF)
+#define	EVCLASS_WLOCK()		mtx_lock(&evclass_mtx);
+#define	EVCLASS_WUNLOCK()	mtx_unlock(&evclass_mtx);
+/* make these do something if we ever remove entries from the hash */
+#define	EVCLASS_RLOCK()		{}
+#define	EVCLASS_RUNLOCK()	{}
 
 /*
  * Hash table maintaining a mapping from audit event numbers to audit event
@@ -118,7 +120,7 @@ au_event_class(au_event_t event)
 	EVCLASS_RLOCK();
 	evcl = &evclass_hash[event % EVCLASSMAP_HASH_TABLE_SIZE];
 	class = 0;
-	LIST_FOREACH(evc, &evcl->head, entry) {
+	CK_LIST_FOREACH(evc, &evcl->head, entry) {
 		if (evc->event == event) {
 			class = evc->class;
 			goto out;
@@ -150,7 +152,7 @@ au_evclassmap_insert(au_event_t event, au_class_t class)
 
 	EVCLASS_WLOCK();
 	evcl = &evclass_hash[event % EVCLASSMAP_HASH_TABLE_SIZE];
-	LIST_FOREACH(evc, &evcl->head, entry) {
+	CK_LIST_FOREACH(evc, &evcl->head, entry) {
 		if (evc->event == event) {
 			evc->class = class;
 			EVCLASS_WUNLOCK();
@@ -161,7 +163,7 @@ au_evclassmap_insert(au_event_t event, au_class_t class)
 	evc = evc_new;
 	evc->event = event;
 	evc->class = class;
-	LIST_INSERT_HEAD(&evcl->head, evc, entry);
+	CK_LIST_INSERT_HEAD(&evcl->head, evc, entry);
 	EVCLASS_WUNLOCK();
 }
 
@@ -172,7 +174,7 @@ au_evclassmap_init(void)
 
 	EVCLASS_LOCK_INIT();
 	for (i = 0; i < EVCLASSMAP_HASH_TABLE_SIZE; i++)
-		LIST_INIT(&evclass_hash[i].head);
+		CK_LIST_INIT(&evclass_hash[i].head);
 
 	/*
 	 * Set up the initial event to class mapping for system calls.

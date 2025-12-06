@@ -132,11 +132,13 @@ struct tuntap_softc {
 #define	TUN_DYING	0x0200
 #define	TUN_L2		0x0400
 #define	TUN_VMNET	0x0800
+#define	TUN_TRANSIENT	0x1000
 
 #define	TUN_DRIVER_IDENT_MASK	(TUN_L2 | TUN_VMNET)
 #define	TUN_READY		(TUN_OPEN | TUN_INITED)
 
 	pid_t			 tun_pid;	/* owning pid */
+	struct epoch_context	 tun_epoch_ctx;
 	struct ifnet		*tun_ifp;	/* the interface */
 	struct sigio		*tun_sigio;	/* async I/O info */
 	struct tuntap_driver	*tun_drv;	/* appropriate driver */
@@ -260,6 +262,7 @@ static const struct filterops tun_read_filterops = {
 	.f_attach =	NULL,
 	.f_detach =	tunkqdetach,
 	.f_event =	tunkqread,
+	.f_copy =	knote_triv_copy,
 };
 
 static const struct filterops tun_write_filterops = {
@@ -267,6 +270,7 @@ static const struct filterops tun_write_filterops = {
 	.f_attach =	NULL,
 	.f_detach =	tunkqdetach,
 	.f_event =	tunkqwrite,
+	.f_copy =	knote_triv_copy,
 };
 
 static struct tuntap_driver {
@@ -443,6 +447,18 @@ tuntap_name2info(const char *name, int *outunit, int *outflags)
 	return (0);
 }
 
+static struct if_clone *
+tuntap_cloner_from_flags(int tun_flags)
+{
+
+	for (u_int i = 0; i < NDRV; i++)
+		if ((tun_flags & TUN_DRIVER_IDENT_MASK) ==
+		    tuntap_drivers[i].ident_flags)
+			return (V_tuntap_driver_cloners[i]);
+
+	return (NULL);
+}
+
 /*
  * Get driver information from a set of flags specified.  Masks the identifying
  * part of the flags and compares it against all of the available
@@ -616,20 +632,62 @@ out:
 }
 
 static void
-tun_destroy(struct tuntap_softc *tp)
+tunfree(struct epoch_context *ctx)
 {
+	struct tuntap_softc *tp;
+
+	tp = __containerof(ctx, struct tuntap_softc, tun_epoch_ctx);
+
+	/* Any remaining resources that would be needed by a concurrent open. */
+	mtx_destroy(&tp->tun_mtx);
+	free(tp, M_TUN);
+}
+
+static int
+tun_destroy(struct tuntap_softc *tp, bool may_intr)
+{
+	int error;
 
 	TUN_LOCK(tp);
+
+	/*
+	 * Transient tunnels may have set TUN_DYING if we're being destroyed as
+	 * a result of the last close, which we'll allow.
+	 */
+	MPASS((tp->tun_flags & (TUN_DYING | TUN_TRANSIENT)) != TUN_DYING);
 	tp->tun_flags |= TUN_DYING;
-	if (tp->tun_busy != 0)
-		cv_wait_unlock(&tp->tun_cv, &tp->tun_mtx);
-	else
-		TUN_UNLOCK(tp);
+	error = 0;
+	while (tp->tun_busy != 0) {
+		if (may_intr)
+			error = cv_wait_sig(&tp->tun_cv, &tp->tun_mtx);
+		else
+			cv_wait(&tp->tun_cv, &tp->tun_mtx);
+		if (error != 0 && tp->tun_busy != 0) {
+			tp->tun_flags &= ~TUN_DYING;
+			TUN_UNLOCK(tp);
+			return (error);
+		}
+	}
+	TUN_UNLOCK(tp);
 
 	CURVNET_SET(TUN2IFP(tp)->if_vnet);
 
-	/* destroy_dev will take care of any alias. */
-	destroy_dev(tp->tun_dev);
+	mtx_lock(&tunmtx);
+	TAILQ_REMOVE(&tunhead, tp, tun_list);
+	mtx_unlock(&tunmtx);
+
+	/*
+	 * destroy_dev will take care of any alias.  For transient tunnels,
+	 * we're being called from close(2) so we can't destroy it ourselves
+	 * without deadlocking, but we already know that we can cleanup
+	 * everything else and just continue to prevent it from being reopened.
+	 */
+	if ((tp->tun_flags & TUN_TRANSIENT) != 0) {
+		atomic_store_ptr(&tp->tun_dev->si_drv1, tp->tun_dev);
+		destroy_dev_sched(tp->tun_dev);
+	} else {
+		destroy_dev(tp->tun_dev);
+	}
 	seldrain(&tp->tun_rsel);
 	knlist_clear(&tp->tun_rsel.si_note, 0);
 	knlist_destroy(&tp->tun_rsel.si_note);
@@ -644,10 +702,11 @@ tun_destroy(struct tuntap_softc *tp)
 	sx_xunlock(&tun_ioctl_sx);
 	free_unr(tp->tun_drv->unrhdr, TUN2IFP(tp)->if_dunit);
 	if_free(TUN2IFP(tp));
-	mtx_destroy(&tp->tun_mtx);
 	cv_destroy(&tp->tun_cv);
-	free(tp, M_TUN);
+	NET_EPOCH_CALL(tunfree, &tp->tun_epoch_ctx);
 	CURVNET_RESTORE();
+
+	return (0);
 }
 
 static int
@@ -655,12 +714,7 @@ tun_clone_destroy(struct if_clone *ifc __unused, struct ifnet *ifp, uint32_t fla
 {
 	struct tuntap_softc *tp = ifp->if_softc;
 
-	mtx_lock(&tunmtx);
-	TAILQ_REMOVE(&tunhead, tp, tun_list);
-	mtx_unlock(&tunmtx);
-	tun_destroy(tp);
-
-	return (0);
+	return (tun_destroy(tp, true));
 }
 
 static void
@@ -702,17 +756,19 @@ tun_uninit(const void *unused __unused)
 
 	mtx_lock(&tunmtx);
 	while ((tp = TAILQ_FIRST(&tunhead)) != NULL) {
-		TAILQ_REMOVE(&tunhead, tp, tun_list);
 		mtx_unlock(&tunmtx);
-		tun_destroy(tp);
+		/* tun_destroy() will remove it from the tailq. */
+		tun_destroy(tp, false);
 		mtx_lock(&tunmtx);
 	}
 	mtx_unlock(&tunmtx);
 	for (i = 0; i < nitems(tuntap_drivers); ++i) {
 		drv = &tuntap_drivers[i];
+		destroy_dev_drain(&drv->cdevsw);
 		delete_unrhdr(drv->unrhdr);
 		clone_cleanup(&drv->clones);
 	}
+	NET_EPOCH_DRAIN_CALLBACKS();
 	mtx_destroy(&tunmtx);
 }
 SYSUNINIT(tun_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY, tun_uninit, NULL);
@@ -1072,19 +1128,43 @@ out:
 static int
 tunopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
+	struct epoch_tracker et;
 	struct ifnet	*ifp;
 	struct tuntap_softc *tp;
+	void		*p;
 	int error __diagused, tunflags;
+
+	/*
+	 * Transient tunnels do deferred destroy of the tun device but want
+	 * to immediately cleanup state, so they clobber si_drv1 to avoid a
+	 * use-after-free in case someone does happen to open it in the interim.
+	 * We avoid using NULL to be able to distinguish from an uninitialized
+	 * cdev.
+	 *
+	 * We use the net epoch here to let a concurrent tun_destroy() schedule
+	 * freeing our tuntap_softc, in case we entered here and loaded si_drv1
+	 * before it was swapped out.  If we managed to load this while it was
+	 * still a softc, then the concurrent tun_destroy() hasn't yet scheduled
+	 * it to be free- that will take place sometime after the epoch we just
+	 * entered, so we can safely use it.
+	 */
+	NET_EPOCH_ENTER(et);
+	p = atomic_load_ptr(&dev->si_drv1);
+	if (p == dev) {
+		NET_EPOCH_EXIT(et);
+		return (ENXIO);
+	}
 
 	tunflags = 0;
 	CURVNET_SET(TD_TO_VNET(td));
 	error = tuntap_name2info(dev->si_name, NULL, &tunflags);
 	if (error != 0) {
 		CURVNET_RESTORE();
+		NET_EPOCH_EXIT(et);
 		return (error);	/* Shouldn't happen */
 	}
 
-	tp = dev->si_drv1;
+	tp = p;
 	KASSERT(tp != NULL,
 	    ("si_drv1 should have been initialized at creation"));
 
@@ -1092,14 +1172,17 @@ tunopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	if ((tp->tun_flags & TUN_INITED) == 0) {
 		TUN_UNLOCK(tp);
 		CURVNET_RESTORE();
+		NET_EPOCH_EXIT(et);
 		return (ENXIO);
 	}
 	if ((tp->tun_flags & (TUN_OPEN | TUN_DYING)) != 0) {
 		TUN_UNLOCK(tp);
 		CURVNET_RESTORE();
+		NET_EPOCH_EXIT(et);
 		return (EBUSY);
 	}
 
+	NET_EPOCH_EXIT(et);
 	error = tun_busy_locked(tp);
 	KASSERT(error == 0, ("Must be able to busy an unopen tunnel"));
 	ifp = TUN2IFP(tp);
@@ -1217,6 +1300,23 @@ out:
 	tun_vnethdr_set(ifp, 0);
 
 	tun_unbusy_locked(tp);
+	if ((tp->tun_flags & TUN_TRANSIENT) != 0) {
+		struct if_clone *cloner;
+		int error __diagused;
+
+		/* Mark it busy so that nothing can re-open it. */
+		tp->tun_flags |= TUN_DYING;
+		TUN_UNLOCK(tp);
+
+		CURVNET_SET_QUIET(ifp->if_home_vnet);
+		cloner = tuntap_cloner_from_flags(tp->tun_flags);
+		CURVNET_RESTORE();
+
+		error = if_clone_destroyif(cloner, ifp);
+		MPASS(error == 0 || error == EINTR || error == ERESTART);
+		return;
+	}
+
 	TUN_UNLOCK(tp);
 }
 
@@ -1667,6 +1767,19 @@ tunioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 		break;
 	case TUNGDEBUG:
 		*(int *)data = tundebug;
+		break;
+	case TUNSTRANSIENT:
+		TUN_LOCK(tp);
+		if (*(int *)data)
+			tp->tun_flags |= TUN_TRANSIENT;
+		else
+			tp->tun_flags &= ~TUN_TRANSIENT;
+		TUN_UNLOCK(tp);
+		break;
+	case TUNGTRANSIENT:
+		TUN_LOCK(tp);
+		*(int *)data = (tp->tun_flags & TUN_TRANSIENT) != 0;
+		TUN_UNLOCK(tp);
 		break;
 	case FIONBIO:
 		break;

@@ -597,7 +597,7 @@ int edns_opt_list_append(struct edns_option** list, uint16_t code, size_t len,
 			char text[sizeof(TXT) - 1];			\
 		} ede = { htons(CODE), TXT };				\
                 verbose(VERB_ALGO, "attached EDE code: %d with"		\
-                        " message: %s", CODE, TXT);			\
+                        " message: '%s'", CODE, TXT);			\
 		edns_opt_list_append((LIST), LDNS_EDNS_EDE, 		\
 			sizeof(uint16_t) + sizeof(TXT) - 1,		\
 			(void *)&ede, (REGION));			\
@@ -800,5 +800,15 @@ int edns_opt_compare(struct edns_option* p, struct edns_option* q);
  * Compare edns option lists, also the order and contents of edns-options.
  */
 int edns_opt_list_compare(struct edns_option* p, struct edns_option* q);
+
+/**
+ * Swallow copy the local_alias into the given qname and qname_len.
+ * @param local_alias: the local_alias.
+ * @param qname: the qname to copy to.
+ * @param qname_len: the qname_len to copy to.
+ * @return false on current local_alias assumptions, true otherwise.
+ */
+int local_alias_shallow_copy_qname(struct local_rrset* local_alias, uint8_t** qname,
+	size_t* qname_len);
 
 #endif /* UTIL_DATA_MSGREPLY_H */

@@ -205,6 +205,8 @@ net_test(void)
 		unit_assert(memcmp(&a6.sin6_addr, "\377\377\377\377\377\377\377\377\377\377\377\377\377\377\377\000", 16) == 0);
 		addr_mask((struct sockaddr_storage*)&a6, l6, 64);
 		unit_assert(memcmp(&a6.sin6_addr, "\377\377\377\377\377\377\377\377\000\000\000\000\000\000\000\000", 16) == 0);
+		/* Check that negative value in net is not problematic. */
+		addr_mask((struct sockaddr_storage*)&a6, l6, -100);
 		addr_mask((struct sockaddr_storage*)&a6, l6, 0);
 		unit_assert(memcmp(&a6.sin6_addr, "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000", 16) == 0);
 	}
@@ -265,6 +267,28 @@ net_test(void)
 				(struct sockaddr_storage*)&a6, i,
 				(struct sockaddr_storage*)&b6, i, l6) == i);
 		}
+	}
+	/* test netblockstrtoaddr */
+	unit_show_func("util/net_help.c", "netblockstrtoaddr");
+	if(1) {
+		struct sockaddr_storage a;
+		socklen_t alen = 0;
+		int net = 0, res;
+		char astr[128];
+		memset(&a, 0, sizeof(a));
+
+		res = netblockstrtoaddr("1.2.3.0/24", 53, &a, &alen, &net);
+		unit_assert(res!=0 && net == 24);
+		addr_to_str(&a, alen, astr, sizeof(astr));
+		unit_assert(strcmp(astr, "1.2.3.0") == 0);
+		unit_assert(ntohs(((struct sockaddr_in*)&a)->sin_port)==53);
+
+		res = netblockstrtoaddr("2001:DB8:33:44::/64", 53,
+			&a, &alen, &net);
+		unit_assert(res!=0 && net == 64);
+		addr_to_str(&a, alen, astr, sizeof(astr));
+		unit_assert(strcmp(astr, "2001:db8:33:44::") == 0);
+		unit_assert(ntohs(((struct sockaddr_in6*)&a)->sin6_port)==53);
 	}
 	/* test sockaddr_cmp_addr */
 	unit_show_func("util/net_help.c", "sockaddr_cmp_addr");
