@@ -1350,7 +1350,9 @@ static inline void ath11k_core_create_firmware_path(struct ath11k_base *ab,
 {
 	const char *fw_name = NULL;
 
+#if defined(CONFIG_OF)
 	of_property_read_string(ab->dev->of_node, "firmware-name", &fw_name);
+#endif
 
 	if (fw_name && strncmp(filename, "board", 5))
 		snprintf(buf, buf_len, "%s/%s/%s/%s", ATH11K_FW_DIR,
