@@ -2866,6 +2866,10 @@ dev/regulator/regnode_if.m	optional regulator
 dev/regulator/regulator.c	optional regulator
 dev/regulator/regulator_bus.c	optional regulator fdt
 dev/regulator/regulator_fixed.c	optional regulator
+dev/rge/if_rge.c		optional rge
+dev/rge/if_rge_hw.c		optional rge
+dev/rge/if_rge_stats.c		optional rge
+dev/rge/if_rge_sysctl.c		optional rge
 dev/rl/if_rl.c			optional rl pci
 dev/rndtest/rndtest.c		optional rndtest
 #

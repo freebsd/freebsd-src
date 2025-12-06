@@ -501,6 +501,7 @@ MAN=	aac.4 \
 	random.4 \
 	rctl.4 \
 	re.4 \
+	rge.4 \
 	rgephy.4 \
 	rights.4 \
 	rl.4 \
