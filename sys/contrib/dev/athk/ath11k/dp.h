@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_DP_H
@@ -20,7 +20,6 @@ struct ath11k_ext_irq_grp;
 
 struct dp_rx_tid {
 	u8 tid;
-	u32 *vaddr;
 	dma_addr_t paddr;
 	u32 size;
 	u32 ba_win_sz;
@@ -37,6 +36,9 @@ struct dp_rx_tid {
 	/* Timer info related to fragments */
 	struct timer_list frag_timer;
 	struct ath11k_base *ab;
+	u32 *vaddr_unaligned;
+	dma_addr_t paddr_unaligned;
+	u32 unaligned_size;
 };
 
 #define DP_REO_DESC_FREE_THRESHOLD  64
@@ -165,7 +167,6 @@ struct ath11k_mon_data {
 	struct ath11k_pdev_mon_stats rx_mon_stats;
 	/* lock for monitor data */
 	spinlock_t mon_lock;
-	struct sk_buff_head rx_status_q;
 };
 
 struct ath11k_pdev_dp {
@@ -635,7 +636,7 @@ enum htt_ppdu_stats_tag_type {
  *          b'24    - status_swap: 1 is to swap status TLV
  *          b'25    - pkt_swap:  1 is to swap packet TLV
  *          b'26:31 - rsvd1:  reserved for future use
- * dword1 - b'0:16  - ring_buffer_size: size of bufferes referenced by rx ring,
+ * dword1 - b'0:16  - ring_buffer_size: size of buffers referenced by rx ring,
  *                    in byte units.
  *                    Valid only for HW_TO_SW_RING and SW_TO_HW_RING
  *        - b'16:31 - rsvd2: Reserved for future use
@@ -1309,18 +1310,6 @@ struct htt_ppdu_stats_user_rate {
 #define HTT_TX_INFO_PEERID(_flags) \
 			FIELD_GET(HTT_PPDU_STATS_TX_INFO_FLAGS_PEERID_M, _flags)
 
-struct htt_tx_ppdu_stats_info {
-	struct htt_tlv tlv_hdr;
-	u32 tx_success_bytes;
-	u32 tx_retry_bytes;
-	u32 tx_failed_bytes;
-	u32 flags; /* %HTT_PPDU_STATS_TX_INFO_FLAGS_ */
-	u16 tx_success_msdus;
-	u16 tx_retry_msdus;
-	u16 tx_failed_msdus;
-	u16 tx_duration; /* united in us */
-} __packed;
-
 enum  htt_ppdu_stats_usr_compln_status {
 	HTT_PPDU_STATS_USER_STATUS_OK,
 	HTT_PPDU_STATS_USER_STATUS_FILTERED,
@@ -1366,17 +1355,6 @@ struct htt_ppdu_stats_usr_cmpltn_ack_ba_status {
 	u16 current_seq;
 	u16 start_seq;
 	u32 success_bytes;
-} __packed;
-
-struct htt_ppdu_stats_usr_cmn_array {
-	struct htt_tlv tlv_hdr;
-	u32 num_ppdu_stats;
-	/* tx_ppdu_stats_info is filled by multiple struct htt_tx_ppdu_stats_info
-	 * elements.
-	 * tx_ppdu_stats_info is variable length, with length =
-	 *     number_of_ppdu_stats * sizeof (struct htt_tx_ppdu_stats_info)
-	 */
-	struct htt_tx_ppdu_stats_info tx_ppdu_info[];
 } __packed;
 
 struct htt_ppdu_user_stats {

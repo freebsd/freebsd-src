@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/rtnetlink.h>
 
@@ -48,12 +49,24 @@ ath11k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct wmi_init_country_params init_country_param;
-	struct wmi_set_current_country_params set_current_param = {};
 	struct ath11k *ar = hw->priv;
 	int ret;
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_REG,
 		   "Regulatory Notification received for %s\n", wiphy_name(wiphy));
+
+	if (request->initiator == NL80211_REGDOM_SET_BY_DRIVER) {
+		ath11k_dbg(ar->ab, ATH11K_DBG_REG,
+			   "driver initiated regd update\n");
+		if (ar->state != ATH11K_STATE_ON)
+			return;
+
+		ret = ath11k_reg_update_chan_list(ar, true);
+		if (ret)
+			ath11k_warn(ar->ab, "failed to update channel list: %d\n", ret);
+
+		return;
+	}
 
 	/* Currently supporting only General User Hints. Cell base user
 	 * hints to be handled later.
@@ -82,9 +95,8 @@ ath11k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 	 * reg info
 	 */
 	if (ar->ab->hw_params.current_cc_support) {
-		memcpy(&set_current_param.alpha2, request->alpha2, 2);
-		memcpy(&ar->alpha2, &set_current_param.alpha2, 2);
-		ret = ath11k_wmi_send_set_current_country_cmd(ar, &set_current_param);
+		memcpy(&ar->alpha2, request->alpha2, 2);
+		ret = ath11k_reg_set_cc(ar);
 		if (ret)
 			ath11k_warn(ar->ab,
 				    "failed set current country code: %d\n", ret);
@@ -112,32 +124,7 @@ int ath11k_reg_update_chan_list(struct ath11k *ar, bool wait)
 	struct channel_param *ch;
 	enum nl80211_band band;
 	int num_channels = 0;
-	int i, ret, left;
-
-	if (wait && ar->state_11d != ATH11K_11D_IDLE) {
-		left = wait_for_completion_timeout(&ar->completed_11d_scan,
-						   ATH11K_SCAN_TIMEOUT_HZ);
-		if (!left) {
-			ath11k_dbg(ar->ab, ATH11K_DBG_REG,
-				   "failed to receive 11d scan complete: timed out\n");
-			ar->state_11d = ATH11K_11D_IDLE;
-		}
-		ath11k_dbg(ar->ab, ATH11K_DBG_REG,
-			   "11d scan wait left time %d\n", left);
-	}
-
-	if (wait &&
-	    (ar->scan.state == ATH11K_SCAN_STARTING ||
-	    ar->scan.state == ATH11K_SCAN_RUNNING)) {
-		left = wait_for_completion_timeout(&ar->scan.completed,
-						   ATH11K_SCAN_TIMEOUT_HZ);
-		if (!left)
-			ath11k_dbg(ar->ab, ATH11K_DBG_REG,
-				   "failed to receive hw scan complete: timed out\n");
-
-		ath11k_dbg(ar->ab, ATH11K_DBG_REG,
-			   "hw scan wait left time %d\n", left);
-	}
+	int i, ret = 0;
 
 	if (ar->state == ATH11K_STATE_RESTARTING)
 		return 0;
@@ -217,6 +204,16 @@ int ath11k_reg_update_chan_list(struct ath11k *ar, bool wait)
 			 * set_agile, reg_class_idx
 			 */
 		}
+	}
+
+	if (wait) {
+		spin_lock_bh(&ar->data_lock);
+		list_add_tail(&params->list, &ar->channel_update_queue);
+		spin_unlock_bh(&ar->data_lock);
+
+		queue_work(ar->ab->workqueue, &ar->channel_update_work);
+
+		return 0;
 	}
 
 	ret = ath11k_wmi_send_scan_chan_list_cmd(ar, params);
@@ -307,12 +304,6 @@ int ath11k_regd_update(struct ath11k *ar)
 	if (ret)
 		goto err;
 
-	if (ar->state == ATH11K_STATE_ON) {
-		ret = ath11k_reg_update_chan_list(ar, true);
-		if (ret)
-			goto err;
-	}
-
 	return 0;
 err:
 	ath11k_warn(ab, "failed to perform regd update : %d\n", ret);
@@ -361,6 +352,16 @@ static u32 ath11k_map_fw_reg_flags(u16 reg_flags)
 
 	if (reg_flags & REGULATORY_CHAN_NO_160MHZ)
 		flags |= NL80211_RRF_NO_160MHZ;
+
+	return flags;
+}
+
+static u32 ath11k_map_fw_phy_flags(u32 phy_flags)
+{
+	u32 flags = 0;
+
+	if (phy_flags & ATH11K_REG_PHY_BITMAP_NO11AX)
+		flags |= NL80211_RRF_NO_HE;
 
 	return flags;
 }
@@ -426,6 +427,11 @@ static void ath11k_reg_intersect_rules(struct ieee80211_reg_rule *rule1,
 
 	/* Use the flags of both the rules */
 	new_rule->flags = rule1->flags | rule2->flags;
+
+	if ((rule1->flags & NL80211_RRF_PSD) && (rule2->flags & NL80211_RRF_PSD))
+		new_rule->psd = min_t(s8, rule1->psd, rule2->psd);
+	else
+		new_rule->flags &= ~NL80211_RRF_PSD;
 
 	/* To be safe, lts use the max cac timeout of both rules */
 	new_rule->dfs_cac_ms = max_t(u32, rule1->dfs_cac_ms,
@@ -529,13 +535,14 @@ ath11k_reg_adjust_bw(u16 start_freq, u16 end_freq, u16 max_bw)
 static void
 ath11k_reg_update_rule(struct ieee80211_reg_rule *reg_rule, u32 start_freq,
 		       u32 end_freq, u32 bw, u32 ant_gain, u32 reg_pwr,
-		       u32 reg_flags)
+		       s8 psd, u32 reg_flags)
 {
 	reg_rule->freq_range.start_freq_khz = MHZ_TO_KHZ(start_freq);
 	reg_rule->freq_range.end_freq_khz = MHZ_TO_KHZ(end_freq);
 	reg_rule->freq_range.max_bandwidth_khz = MHZ_TO_KHZ(bw);
 	reg_rule->power_rule.max_antenna_gain = DBI_TO_MBI(ant_gain);
 	reg_rule->power_rule.max_eirp = DBM_TO_MBM(reg_pwr);
+	reg_rule->psd = psd;
 	reg_rule->flags = reg_flags;
 }
 
@@ -565,7 +572,7 @@ ath11k_reg_update_weather_radar_band(struct ath11k_base *ab,
 				       reg_rule->start_freq,
 				       ETSI_WEATHER_RADAR_BAND_LOW, bw,
 				       reg_rule->ant_gain, reg_rule->reg_power,
-				       flags);
+				       reg_rule->psd_eirp, flags);
 
 		ath11k_dbg(ab, ATH11K_DBG_REG,
 			   "\t%d. (%d - %d @ %d) (%d, %d) (%d ms) (FLAGS %d)\n",
@@ -586,7 +593,7 @@ ath11k_reg_update_weather_radar_band(struct ath11k_base *ab,
 
 		ath11k_reg_update_rule(regd->reg_rules + i, start_freq,
 				       end_freq, bw, reg_rule->ant_gain,
-				       reg_rule->reg_power, flags);
+				       reg_rule->reg_power, reg_rule->psd_eirp, flags);
 
 		regd->reg_rules[i].dfs_cac_ms = ETSI_WEATHER_RADAR_BAND_CAC_TIMEOUT;
 
@@ -607,7 +614,7 @@ ath11k_reg_update_weather_radar_band(struct ath11k_base *ab,
 				       ETSI_WEATHER_RADAR_BAND_HIGH,
 				       reg_rule->end_freq, bw,
 				       reg_rule->ant_gain, reg_rule->reg_power,
-				       flags);
+				       reg_rule->psd_eirp, flags);
 
 		ath11k_dbg(ab, ATH11K_DBG_REG,
 			   "\t%d. (%d - %d @ %d) (%d, %d) (%d ms) (FLAGS %d)\n",
@@ -620,25 +627,68 @@ ath11k_reg_update_weather_radar_band(struct ath11k_base *ab,
 	*rule_idx = i;
 }
 
+enum wmi_reg_6ghz_ap_type
+ath11k_reg_ap_pwr_convert(enum ieee80211_ap_reg_power power_type)
+{
+	switch (power_type) {
+	case IEEE80211_REG_LPI_AP:
+		return WMI_REG_INDOOR_AP;
+	case IEEE80211_REG_SP_AP:
+		return WMI_REG_STANDARD_POWER_AP;
+	case IEEE80211_REG_VLP_AP:
+		return WMI_REG_VERY_LOW_POWER_AP;
+	default:
+		return WMI_REG_MAX_AP_TYPE;
+	}
+}
+
 struct ieee80211_regdomain *
 ath11k_reg_build_regd(struct ath11k_base *ab,
-		      struct cur_regulatory_info *reg_info, bool intersect)
+		      struct cur_regulatory_info *reg_info, bool intersect,
+		      enum wmi_vdev_type vdev_type,
+		      enum ieee80211_ap_reg_power power_type)
 {
 	struct ieee80211_regdomain *tmp_regd, *default_regd, *new_regd = NULL;
-	struct cur_reg_rule *reg_rule;
+	struct cur_reg_rule *reg_rule, *reg_rule_6ghz;
 	u8 i = 0, j = 0, k = 0;
 	u8 num_rules;
 	u16 max_bw;
-	u32 flags;
+	u32 flags, reg_6ghz_number, max_bw_6ghz;
 	char alpha2[3];
 
 	num_rules = reg_info->num_5ghz_reg_rules + reg_info->num_2ghz_reg_rules;
 
-	/* FIXME: Currently taking reg rules for 6 GHz only from Indoor AP mode list.
-	 * This can be updated after complete 6 GHz regulatory support is added.
-	 */
-	if (reg_info->is_ext_reg_event)
-		num_rules += reg_info->num_6ghz_rules_ap[WMI_REG_INDOOR_AP];
+	if (reg_info->is_ext_reg_event) {
+		if (vdev_type == WMI_VDEV_TYPE_STA) {
+			enum wmi_reg_6ghz_ap_type ap_type;
+
+			ap_type = ath11k_reg_ap_pwr_convert(power_type);
+
+			if (ap_type == WMI_REG_MAX_AP_TYPE)
+				ap_type = WMI_REG_INDOOR_AP;
+
+			reg_6ghz_number = reg_info->num_6ghz_rules_client
+					[ap_type][WMI_REG_DEFAULT_CLIENT];
+
+			if (reg_6ghz_number == 0) {
+				ap_type = WMI_REG_INDOOR_AP;
+				reg_6ghz_number = reg_info->num_6ghz_rules_client
+						[ap_type][WMI_REG_DEFAULT_CLIENT];
+			}
+
+			reg_rule_6ghz = reg_info->reg_rules_6ghz_client_ptr
+					[ap_type][WMI_REG_DEFAULT_CLIENT];
+			max_bw_6ghz = reg_info->max_bw_6ghz_client
+					[ap_type][WMI_REG_DEFAULT_CLIENT];
+		} else {
+			reg_6ghz_number = reg_info->num_6ghz_rules_ap[WMI_REG_INDOOR_AP];
+			reg_rule_6ghz =
+				reg_info->reg_rules_6ghz_ap_ptr[WMI_REG_INDOOR_AP];
+			max_bw_6ghz = reg_info->max_bw_6ghz_ap[WMI_REG_INDOOR_AP];
+		}
+
+		num_rules += reg_6ghz_number;
+	}
 
 	if (!num_rules)
 		goto ret;
@@ -685,25 +735,25 @@ ath11k_reg_build_regd(struct ath11k_base *ab,
 			 * per other BW rule flags we pass from here
 			 */
 			flags = NL80211_RRF_AUTO_BW;
-		} else if (reg_info->is_ext_reg_event &&
-			   reg_info->num_6ghz_rules_ap[WMI_REG_INDOOR_AP] &&
-			   (k < reg_info->num_6ghz_rules_ap[WMI_REG_INDOOR_AP])) {
-			reg_rule = reg_info->reg_rules_6ghz_ap_ptr[WMI_REG_INDOOR_AP] +
-				   k++;
-			max_bw = min_t(u16, reg_rule->max_bw,
-				       reg_info->max_bw_6ghz_ap[WMI_REG_INDOOR_AP]);
+		} else if (reg_info->is_ext_reg_event && reg_6ghz_number &&
+			   k < reg_6ghz_number) {
+			reg_rule = reg_rule_6ghz + k++;
+			max_bw = min_t(u16, reg_rule->max_bw, max_bw_6ghz);
 			flags = NL80211_RRF_AUTO_BW;
+			if (reg_rule->psd_flag)
+				flags |= NL80211_RRF_PSD;
 		} else {
 			break;
 		}
 
 		flags |= ath11k_map_fw_reg_flags(reg_rule->flags);
+		flags |= ath11k_map_fw_phy_flags(reg_info->phybitmap);
 
 		ath11k_reg_update_rule(tmp_regd->reg_rules + i,
 				       reg_rule->start_freq,
 				       reg_rule->end_freq, max_bw,
 				       reg_rule->ant_gain, reg_rule->reg_power,
-				       flags);
+				       reg_rule->psd_eirp, flags);
 
 		/* Update dfs cac timeout if the dfs domain is ETSI and the
 		 * new rule covers weather radar band.
@@ -759,6 +809,207 @@ ret:
 	return new_regd;
 }
 
+void ath11k_regd_update_chan_list_work(struct work_struct *work)
+{
+	struct ath11k *ar = container_of(work, struct ath11k,
+					 channel_update_work);
+	struct scan_chan_list_params *params;
+	struct list_head local_update_list;
+	int left;
+
+	INIT_LIST_HEAD(&local_update_list);
+
+	spin_lock_bh(&ar->data_lock);
+	list_splice_tail_init(&ar->channel_update_queue, &local_update_list);
+	spin_unlock_bh(&ar->data_lock);
+
+	while ((params = list_first_entry_or_null(&local_update_list,
+						  struct scan_chan_list_params,
+						  list))) {
+		if (ar->state_11d != ATH11K_11D_IDLE) {
+			left = wait_for_completion_timeout(&ar->completed_11d_scan,
+							   ATH11K_SCAN_TIMEOUT_HZ);
+			if (!left) {
+				ath11k_dbg(ar->ab, ATH11K_DBG_REG,
+					   "failed to receive 11d scan complete: timed out\n");
+				ar->state_11d = ATH11K_11D_IDLE;
+			}
+
+			ath11k_dbg(ar->ab, ATH11K_DBG_REG,
+				   "reg 11d scan wait left time %d\n", left);
+		}
+
+		if ((ar->scan.state == ATH11K_SCAN_STARTING ||
+		     ar->scan.state == ATH11K_SCAN_RUNNING)) {
+			left = wait_for_completion_timeout(&ar->scan.completed,
+							   ATH11K_SCAN_TIMEOUT_HZ);
+			if (!left)
+				ath11k_dbg(ar->ab, ATH11K_DBG_REG,
+					   "failed to receive hw scan complete: timed out\n");
+
+			ath11k_dbg(ar->ab, ATH11K_DBG_REG,
+				   "reg hw scan wait left time %d\n", left);
+		}
+
+		ath11k_wmi_send_scan_chan_list_cmd(ar, params);
+		list_del(&params->list);
+		kfree(params);
+	}
+}
+
+static bool ath11k_reg_is_world_alpha(char *alpha)
+{
+	if (alpha[0] == '0' && alpha[1] == '0')
+		return true;
+
+	if (alpha[0] == 'n' && alpha[1] == 'a')
+		return true;
+
+	return false;
+}
+
+static enum wmi_vdev_type ath11k_reg_get_ar_vdev_type(struct ath11k *ar)
+{
+	struct ath11k_vif *arvif;
+
+	/* Currently each struct ath11k maps to one struct ieee80211_hw/wiphy
+	 * and one struct ieee80211_regdomain, so it could only store one group
+	 * reg rules. It means multi-interface concurrency in the same ath11k is
+	 * not support for the regdomain. So get the vdev type of the first entry
+	 * now. After concurrency support for the regdomain, this should change.
+	 */
+	arvif = list_first_entry_or_null(&ar->arvifs, struct ath11k_vif, list);
+	if (arvif)
+		return arvif->vdev_type;
+
+	return WMI_VDEV_TYPE_UNSPEC;
+}
+
+int ath11k_reg_handle_chan_list(struct ath11k_base *ab,
+				struct cur_regulatory_info *reg_info,
+				enum ieee80211_ap_reg_power power_type)
+{
+	struct ieee80211_regdomain *regd;
+	bool intersect = false;
+	int pdev_idx;
+	struct ath11k *ar;
+	enum wmi_vdev_type vdev_type;
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI, "event reg handle chan list");
+
+	if (reg_info->status_code != REG_SET_CC_STATUS_PASS) {
+		/* In case of failure to set the requested ctry,
+		 * fw retains the current regd. We print a failure info
+		 * and return from here.
+		 */
+		ath11k_warn(ab, "Failed to set the requested Country regulatory setting\n");
+		return -EINVAL;
+	}
+
+	pdev_idx = reg_info->phy_id;
+
+	/* Avoid default reg rule updates sent during FW recovery if
+	 * it is already available
+	 */
+	spin_lock_bh(&ab->base_lock);
+	if (test_bit(ATH11K_FLAG_RECOVERY, &ab->dev_flags) &&
+	    ab->default_regd[pdev_idx]) {
+		spin_unlock_bh(&ab->base_lock);
+		goto retfail;
+	}
+	spin_unlock_bh(&ab->base_lock);
+
+	if (pdev_idx >= ab->num_radios) {
+		/* Process the event for phy0 only if single_pdev_only
+		 * is true. If pdev_idx is valid but not 0, discard the
+		 * event. Otherwise, it goes to fallback. In either case
+		 * ath11k_reg_reset_info() needs to be called to avoid
+		 * memory leak issue.
+		 */
+		ath11k_reg_reset_info(reg_info);
+
+		if (ab->hw_params.single_pdev_only &&
+		    pdev_idx < ab->hw_params.num_rxdma_per_pdev)
+			return 0;
+		goto fallback;
+	}
+
+	/* Avoid multiple overwrites to default regd, during core
+	 * stop-start after mac registration.
+	 */
+	if (ab->default_regd[pdev_idx] && !ab->new_regd[pdev_idx] &&
+	    !memcmp((char *)ab->default_regd[pdev_idx]->alpha2,
+		    (char *)reg_info->alpha2, 2))
+		goto retfail;
+
+	/* Intersect new rules with default regd if a new country setting was
+	 * requested, i.e a default regd was already set during initialization
+	 * and the regd coming from this event has a valid country info.
+	 */
+	if (ab->default_regd[pdev_idx] &&
+	    !ath11k_reg_is_world_alpha((char *)
+		ab->default_regd[pdev_idx]->alpha2) &&
+	    !ath11k_reg_is_world_alpha((char *)reg_info->alpha2))
+		intersect = true;
+
+	ar = ab->pdevs[pdev_idx].ar;
+	vdev_type = ath11k_reg_get_ar_vdev_type(ar);
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI,
+		   "wmi handle chan list power type %d vdev type %d intersect %d\n",
+		   power_type, vdev_type, intersect);
+
+	regd = ath11k_reg_build_regd(ab, reg_info, intersect, vdev_type, power_type);
+	if (!regd) {
+		ath11k_warn(ab, "failed to build regd from reg_info\n");
+		goto fallback;
+	}
+
+	if (power_type == IEEE80211_REG_UNSET_AP) {
+		ath11k_reg_reset_info(&ab->reg_info_store[pdev_idx]);
+		ab->reg_info_store[pdev_idx] = *reg_info;
+	}
+
+	spin_lock_bh(&ab->base_lock);
+	if (ab->default_regd[pdev_idx]) {
+		/* The initial rules from FW after WMI Init is to build
+		 * the default regd. From then on, any rules updated for
+		 * the pdev could be due to user reg changes.
+		 * Free previously built regd before assigning the newly
+		 * generated regd to ar. NULL pointer handling will be
+		 * taken care by kfree itself.
+		 */
+		ar = ab->pdevs[pdev_idx].ar;
+		kfree(ab->new_regd[pdev_idx]);
+		ab->new_regd[pdev_idx] = regd;
+		queue_work(ab->workqueue, &ar->regd_update_work);
+	} else {
+		/* This regd would be applied during mac registration and is
+		 * held constant throughout for regd intersection purpose
+		 */
+		ab->default_regd[pdev_idx] = regd;
+	}
+	ab->dfs_region = reg_info->dfs_region;
+	spin_unlock_bh(&ab->base_lock);
+
+	return 0;
+
+fallback:
+	/* Fallback to older reg (by sending previous country setting
+	 * again if fw has succeeded and we failed to process here.
+	 * The Regdomain should be uniform across driver and fw. Since the
+	 * FW has processed the command and sent a success status, we expect
+	 * this function to succeed as well. If it doesn't, CTRY needs to be
+	 * reverted at the fw and the old SCAN_CHAN_LIST cmd needs to be sent.
+	 */
+	/* TODO: This is rare, but still should also be handled */
+	WARN_ON(1);
+
+retfail:
+
+	return -EINVAL;
+}
+
 void ath11k_regd_update_work(struct work_struct *work)
 {
 	struct ath11k *ar = container_of(work, struct ath11k,
@@ -779,15 +1030,50 @@ void ath11k_regd_update_work(struct work_struct *work)
 void ath11k_reg_init(struct ath11k *ar)
 {
 	ar->hw->wiphy->regulatory_flags = REGULATORY_WIPHY_SELF_MANAGED;
+	ar->hw->wiphy->flags |= WIPHY_FLAG_NOTIFY_REGDOM_BY_DRIVER;
 	ar->hw->wiphy->reg_notifier = ath11k_reg_notifier;
+}
+
+void ath11k_reg_reset_info(struct cur_regulatory_info *reg_info)
+{
+	int i, j;
+
+	if (!reg_info)
+		return;
+
+	kfree(reg_info->reg_rules_2ghz_ptr);
+	kfree(reg_info->reg_rules_5ghz_ptr);
+
+	for (i = 0; i < WMI_REG_CURRENT_MAX_AP_TYPE; i++) {
+		kfree(reg_info->reg_rules_6ghz_ap_ptr[i]);
+
+		for (j = 0; j < WMI_REG_MAX_CLIENT_TYPE; j++)
+			kfree(reg_info->reg_rules_6ghz_client_ptr[i][j]);
+	}
+
+	memset(reg_info, 0, sizeof(*reg_info));
 }
 
 void ath11k_reg_free(struct ath11k_base *ab)
 {
 	int i;
 
+	for (i = 0; i < ab->num_radios; i++)
+		ath11k_reg_reset_info(&ab->reg_info_store[i]);
+
+	kfree(ab->reg_info_store);
+	ab->reg_info_store = NULL;
+
 	for (i = 0; i < ab->hw_params.max_radios; i++) {
 		kfree(ab->default_regd[i]);
 		kfree(ab->new_regd[i]);
 	}
+}
+
+int ath11k_reg_set_cc(struct ath11k *ar)
+{
+	struct wmi_set_current_country_params set_current_param = {};
+
+	memcpy(&set_current_param.alpha2, ar->alpha2, 2);
+	return ath11k_wmi_send_set_current_country_cmd(ar, &set_current_param);
 }
