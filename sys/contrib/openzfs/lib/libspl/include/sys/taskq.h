@@ -31,6 +31,8 @@
 
 #include <pthread.h>
 #include <stdint.h>
+#include <sys/kmem.h>
+#include <sys/thread.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
 #include <sys/condvar.h>
@@ -112,7 +114,7 @@ extern void	taskq_wait_id(taskq_t *, taskqid_t);
 extern void	taskq_wait_outstanding(taskq_t *, taskqid_t);
 extern int	taskq_member(taskq_t *, kthread_t *);
 extern taskq_t	*taskq_of_curthread(void);
-extern int	taskq_cancel_id(taskq_t *, taskqid_t);
+extern int	taskq_cancel_id(taskq_t *, taskqid_t, boolean_t);
 extern void	system_taskq_init(void);
 extern void	system_taskq_fini(void);
 

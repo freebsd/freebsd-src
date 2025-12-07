@@ -33,6 +33,7 @@
 #include <sys/fs/zfs.h>
 #include <sys/zio.h>
 #include <sys/dmu.h>
+#include <sys/wmsum.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -218,6 +219,9 @@ typedef enum {
  * because its relatively rarely used.
  */
 typedef struct {
+	/* protects dde_phys, dde_orig_phys and dde_lead_zio during I/O */
+	kmutex_t	dde_io_lock;
+
 	/* copy of data after a repair read, to be rewritten */
 	abd_t		*dde_repair_abd;
 
@@ -295,6 +299,20 @@ typedef struct {
 	uint64_t	ddt_flush_force_txg;	/* flush hard before this txg */
 
 	kstat_t		*ddt_ksp;	/* kstats context */
+
+	/* wmsums for hot-path lookup counters */
+	wmsum_t		ddt_kstat_dds_lookup;
+	wmsum_t		ddt_kstat_dds_lookup_live_hit;
+	wmsum_t		ddt_kstat_dds_lookup_live_wait;
+	wmsum_t		ddt_kstat_dds_lookup_live_miss;
+	wmsum_t		ddt_kstat_dds_lookup_existing;
+	wmsum_t		ddt_kstat_dds_lookup_new;
+	wmsum_t		ddt_kstat_dds_lookup_log_hit;
+	wmsum_t		ddt_kstat_dds_lookup_log_active_hit;
+	wmsum_t		ddt_kstat_dds_lookup_log_flushing_hit;
+	wmsum_t		ddt_kstat_dds_lookup_log_miss;
+	wmsum_t		ddt_kstat_dds_lookup_stored_hit;
+	wmsum_t		ddt_kstat_dds_lookup_stored_miss;
 
 	enum zio_checksum ddt_checksum;	/* checksum algorithm in use */
 	spa_t		*ddt_spa;	/* pool this ddt is on */

@@ -184,16 +184,12 @@ KERNEL_H = \
 
 USER_H = \
 	libnvpair.h \
-	libuutil.h \
-	libuutil_common.h \
-	libuutil_impl.h \
 	libzdb.h \
 	libzfs.h \
 	libzfs_core.h \
 	libzfsbootenv.h \
 	libzpool.h \
-	libzutil.h \
-	thread_pool.h
+	libzutil.h
 
 
 if CONFIG_USER
