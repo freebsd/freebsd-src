@@ -95,7 +95,7 @@
  * seem to be compatible, so we use the same function for both.
  */
 #define	INTEL_ADDR(msi)							\
-	(MSI_INTEL_ADDR_BASE | (msi)->msi_cpu << 12 |			\
+	(MSI_INTEL_ADDR_BASE | cpu_apic_ids[(msi)->msi_cpu] << 12 |	\
 	    MSI_INTEL_ADDR_RH_OFF | MSI_INTEL_ADDR_DM_PHYSICAL)
 #define	INTEL_DATA(msi)							\
 	(MSI_INTEL_DATA_TRGREDG | MSI_INTEL_DATA_DELFIXED | (msi)->msi_vector)
@@ -120,7 +120,7 @@ struct msi_intsrc {
 	device_t msi_dev;		/* Owning device. (g) */
 	struct msi_intsrc *msi_first;	/* First source in group. */
 	u_int *msi_irqs;		/* Group's IRQ list. (g) */
-	u_int msi_cpu;			/* Local APIC ID. (g) */
+	u_int msi_cpu;			/* CPU ID. (g) */
 	u_int msi_remap_cookie;		/* IOMMU cookie. */
 	u_int msi_vector:8;		/* IDT vector. */
 	u_int msi_count:8;		/* Messages in this group. (g) */
@@ -203,7 +203,7 @@ msi_enable_intr(device_t pic, struct intsrc *isrc)
 	msi = msi->msi_first;
 	if (msi->msi_enabled == 0) {
 		for (u_int i = 0; i < msi->msi_count; i++)
-			apic_enable_vector(apic_cpuid(msi->msi_cpu), msi->msi_vector + i);
+			apic_enable_vector(msi->msi_cpu, msi->msi_vector + i);
 	}
 	msi->msi_enabled++;
 }
@@ -228,7 +228,7 @@ msi_disable_intr(device_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 	msi->msi_enabled--;
 	if (msi->msi_enabled == 0) {
 		for (u_int i = 0; i < msi->msi_count; i++)
-			apic_disable_vector(apic_cpuid(msi->msi_cpu), msi->msi_vector + i);
+			apic_disable_vector(msi->msi_cpu, msi->msi_vector + i);
 	}
 }
 
@@ -239,7 +239,6 @@ msi_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 	int old_vector;
 	u_int old_id;
 	int error, i, vector;
-	unsigned int apic_id = cpu_apic_ids[cpu_id];
 
 	/*
 	 * Only allow CPUs to be assigned to the first message for an
@@ -256,7 +255,7 @@ msi_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 	/* Store information to free existing irq. */
 	old_vector = msi->msi_vector;
 	old_id = msi->msi_cpu;
-	if (old_id == apic_id)
+	if (old_id == cpu_id)
 		return (0);
 
 	/* Allocate IDT vectors on this cpu. */
@@ -271,7 +270,7 @@ msi_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 		return (ENOSPC);
 
 	/* Must be set before BUS_REMAP_INTR as it may call back into MSI. */
-	msi->msi_cpu = apic_id;
+	msi->msi_cpu = cpu_id;
 	msi->msi_vector = vector;
 	if (msi->msi_enabled > 0) {
 		for (i = 0; i < msi->msi_count; i++)
@@ -284,25 +283,26 @@ msi_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 			printf("msi: Assigning %s IRQ %d to local APIC %u vector %u\n",
 			    msi->msi_msix ? "MSI-X" : "MSI",
 			    msi->msi_intsrc.is_event.ie_irq,
-			    msi->msi_cpu, msi->msi_vector);
+			    cpu_apic_ids[msi->msi_cpu], msi->msi_vector);
 		}
 		for (i = 1; i < msi->msi_count; i++) {
 			sib = (struct msi_intsrc *)intr_lookup_source(
 			    msi->msi_irqs[i]);
-			sib->msi_cpu = apic_id;
+			sib->msi_cpu = cpu_id;
 			sib->msi_vector = vector + i;
 			if (bootverbose)
 				printf("msi: Assigning MSI IRQ %d to local APIC %u vector %u\n",
 				    sib->msi_intsrc.is_event.ie_irq,
-				    sib->msi_cpu, sib->msi_vector);
+				    cpu_apic_ids[sib->msi_cpu], sib->msi_vector);
 		}
 	} else {
 		device_printf(msi->msi_dev,
 		    "remap irq %u to APIC ID %u failed (error %d)\n",
-		    msi->msi_intsrc.is_event.ie_irq, apic_id, error);
+		    msi->msi_intsrc.is_event.ie_irq, cpu_apic_ids[cpu_id],
+		    error);
 		msi->msi_cpu = old_id;
 		msi->msi_vector = old_vector;
-		old_id = apic_id;
+		old_id = cpu_id;
 		old_vector = vector;
 	}
 
@@ -313,11 +313,11 @@ msi_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 	 */
 	if (msi->msi_enabled > 0) {
 		for (i = 0; i < msi->msi_count; i++)
-			apic_disable_vector(apic_cpuid(old_id), old_vector + i);
+			apic_disable_vector(old_id, old_vector + i);
 	}
-	apic_free_vector(apic_cpuid(old_id), old_vector, msi->msi_intsrc.is_event.ie_irq);
+	apic_free_vector(old_id, old_vector, msi->msi_intsrc.is_event.ie_irq);
 	for (i = 1; i < msi->msi_count; i++)
-		apic_free_vector(apic_cpuid(old_id), old_vector + i, msi->msi_irqs[i]);
+		apic_free_vector(old_id, old_vector + i, msi->msi_irqs[i]);
 	return (error);
 }
 
@@ -475,7 +475,6 @@ again:
 	}
 #endif
 
-	cpu = cpu_apic_ids[cpu];
 	/* Assign IDT vectors and make these messages owned by 'dev'. */
 	fsrc = (struct msi_intsrc *)intr_lookup_source(irqs[0]);
 	for (i = 0; i < count; i++) {
@@ -486,8 +485,8 @@ again:
 		if (bootverbose)
 			printf(
 		    "msi: routing MSI IRQ %d to local APIC %u vector %u\n",
-			    msi->msi_intsrc.is_event.ie_irq, msi->msi_cpu,
-			    msi->msi_vector);
+			    msi->msi_intsrc.is_event.ie_irq,
+			    cpu_apic_ids[msi->msi_cpu], msi->msi_vector);
 		msi->msi_first = fsrc;
 		KASSERT(msi->msi_intsrc.is_handlers == 0,
 		    ("dead MSI has handlers"));
@@ -548,7 +547,7 @@ msi_release(int *irqs, int count)
 #endif
 		msi->msi_first = NULL;
 		msi->msi_dev = NULL;
-		apic_free_vector(apic_cpuid(msi->msi_cpu), msi->msi_vector,
+		apic_free_vector(msi->msi_cpu, msi->msi_vector,
 		    msi->msi_intsrc.is_event.ie_irq);
 		msi->msi_vector = 0;
 	}
@@ -561,7 +560,7 @@ msi_release(int *irqs, int count)
 #endif
 	first->msi_first = NULL;
 	first->msi_dev = NULL;
-	apic_free_vector(apic_cpuid(first->msi_cpu), first->msi_vector,
+	apic_free_vector(first->msi_cpu, first->msi_vector,
 	    first->msi_intsrc.is_event.ie_irq);
 	first->msi_vector = 0;
 	first->msi_count = 0;
@@ -619,7 +618,7 @@ msi_map(int irq, uint64_t *addr, uint32_t *data)
 			if (!msi1->msi_msix && msi1->msi_first == msi) {
 				mtx_unlock(&msi_lock);
 				iommu_map_msi_intr(msi1->msi_dev,
-				    apic_cpuid(msi1->msi_cpu), msi1->msi_vector,
+				    msi1->msi_cpu, msi1->msi_vector,
 				    msi1->msi_remap_cookie, NULL, NULL);
 				k--;
 				mtx_lock(&msi_lock);
@@ -627,15 +626,15 @@ msi_map(int irq, uint64_t *addr, uint32_t *data)
 		}
 	}
 	mtx_unlock(&msi_lock);
-	error = iommu_map_msi_intr(msi->msi_dev, apic_cpuid(msi->msi_cpu),
+	error = iommu_map_msi_intr(msi->msi_dev, msi->msi_cpu,
 	    msi->msi_vector, msi->msi_remap_cookie, addr, data);
 #else
 	mtx_unlock(&msi_lock);
 	error = EOPNOTSUPP;
 #endif
-	if (error == EOPNOTSUPP && msi->msi_cpu > 0xff) {
+	if (error == EOPNOTSUPP && cpu_apic_ids[msi->msi_cpu] > 0xff) {
 		printf("%s: unsupported destination APIC ID %u\n", __func__,
-		    msi->msi_cpu);
+		    cpu_apic_ids[msi->msi_cpu]);
 		error = EINVAL;
 	}
 	if (error == EOPNOTSUPP) {
@@ -718,10 +717,9 @@ again:
 	msi->msi_remap_cookie = cookie;
 #endif
 
-	cpu = cpu_apic_ids[cpu];
 	if (bootverbose)
 		printf("msi: routing MSI-X IRQ %d to local APIC %u vector %u\n",
-		    msi->msi_intsrc.is_event.ie_irq, cpu, vector);
+		    msi->msi_intsrc.is_event.ie_irq, cpu_apic_ids[cpu], vector);
 
 	/* Setup source. */
 	msi->msi_cpu = cpu;
@@ -767,7 +765,7 @@ msix_release(int irq)
 #endif
 	msi->msi_first = NULL;
 	msi->msi_dev = NULL;
-	apic_free_vector(apic_cpuid(msi->msi_cpu), msi->msi_vector,
+	apic_free_vector(msi->msi_cpu, msi->msi_vector,
 	    msi->msi_intsrc.is_event.ie_irq);
 	msi->msi_vector = 0;
 	msi->msi_msix = false;
