@@ -482,7 +482,7 @@ ioapic_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 	intpin->io_cpu = apic_id;
 	intpin->io_vector = new_vector;
 	if (isrc->is_handlers > 0)
-		apic_enable_vector(intpin->io_cpu, intpin->io_vector);
+		apic_enable_vector(cpu_id, intpin->io_vector);
 	if (bootverbose) {
 		device_printf(pic, "routing intpin %u (", intpin->io_intpin);
 		ioapic_print_irq(intpin);
@@ -498,7 +498,7 @@ ioapic_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 	 */
 	if (old_vector) {
 		if (isrc->is_handlers > 0)
-			apic_disable_vector(old_id, old_vector);
+			apic_disable_vector(apic_cpuid(old_id), old_vector);
 		apic_free_vector(apic_cpuid(old_id), old_vector, intpin->io_irq);
 	}
 	return (0);
@@ -513,7 +513,7 @@ ioapic_enable_intr(device_t pic, struct intsrc *isrc)
 		if (ioapic_assign_cpu(pic, isrc, intr_next_cpu(isrc->is_domain)) != 0)
 			panic("Couldn't find an APIC vector for IRQ %d",
 			    intpin->io_irq);
-	apic_enable_vector(intpin->io_cpu, intpin->io_vector);
+	apic_enable_vector(apic_cpuid(intpin->io_cpu), intpin->io_vector);
 }
 
 static void
@@ -540,7 +540,7 @@ ioapic_disable_intr(device_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 	if (intpin->io_vector != 0) {
 		/* Mask this interrupt pin and free its APIC vector. */
 		vector = intpin->io_vector;
-		apic_disable_vector(intpin->io_cpu, vector);
+		apic_disable_vector(apic_cpuid(intpin->io_cpu), vector);
 		mtx_lock_spin(&icu_lock);
 		intpin->io_masked = 1;
 		intpin->io_vector = 0;
