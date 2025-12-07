@@ -460,7 +460,7 @@ ioapic_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 	 * Allocate an APIC vector for this interrupt pin.  Once
 	 * we have a vector we program the interrupt pin.
 	 */
-	new_vector = apic_alloc_vector(apic_id, intpin->io_irq);
+	new_vector = apic_alloc_vector(cpu_id, intpin->io_irq);
 	if (new_vector == 0)
 		return (ENOSPC);
 
