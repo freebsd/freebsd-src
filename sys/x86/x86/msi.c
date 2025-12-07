@@ -315,9 +315,9 @@ msi_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 		for (i = 0; i < msi->msi_count; i++)
 			apic_disable_vector(old_id, old_vector + i);
 	}
-	apic_free_vector(old_id, old_vector, msi->msi_intsrc.is_event.ie_irq);
+	apic_free_vector(apic_cpuid(old_id), old_vector, msi->msi_intsrc.is_event.ie_irq);
 	for (i = 1; i < msi->msi_count; i++)
-		apic_free_vector(old_id, old_vector + i, msi->msi_irqs[i]);
+		apic_free_vector(apic_cpuid(old_id), old_vector + i, msi->msi_irqs[i]);
 	return (error);
 }
 
@@ -455,7 +455,6 @@ again:
 		free(mirqs, M_MSI);
 		return (ENOSPC);
 	}
-	cpu = cpu_apic_ids[cpu];
 
 #ifdef IOMMU
 	mtx_unlock(&msi_lock);
@@ -476,6 +475,7 @@ again:
 	}
 #endif
 
+	cpu = cpu_apic_ids[cpu];
 	/* Assign IDT vectors and make these messages owned by 'dev'. */
 	fsrc = (struct msi_intsrc *)intr_lookup_source(irqs[0]);
 	for (i = 0; i < count; i++) {
@@ -548,7 +548,7 @@ msi_release(int *irqs, int count)
 #endif
 		msi->msi_first = NULL;
 		msi->msi_dev = NULL;
-		apic_free_vector(msi->msi_cpu, msi->msi_vector,
+		apic_free_vector(apic_cpuid(msi->msi_cpu), msi->msi_vector,
 		    msi->msi_intsrc.is_event.ie_irq);
 		msi->msi_vector = 0;
 	}
@@ -561,7 +561,7 @@ msi_release(int *irqs, int count)
 #endif
 	first->msi_first = NULL;
 	first->msi_dev = NULL;
-	apic_free_vector(first->msi_cpu, first->msi_vector,
+	apic_free_vector(apic_cpuid(first->msi_cpu), first->msi_vector,
 	    first->msi_intsrc.is_event.ie_irq);
 	first->msi_vector = 0;
 	first->msi_count = 0;
@@ -701,7 +701,6 @@ again:
 		mtx_unlock(&msi_lock);
 		return (ENOSPC);
 	}
-	cpu = cpu_apic_ids[cpu];
 
 	msi->msi_dev = dev;
 #ifdef IOMMU
@@ -719,6 +718,7 @@ again:
 	msi->msi_remap_cookie = cookie;
 #endif
 
+	cpu = cpu_apic_ids[cpu];
 	if (bootverbose)
 		printf("msi: routing MSI-X IRQ %d to local APIC %u vector %u\n",
 		    msi->msi_intsrc.is_event.ie_irq, cpu, vector);
@@ -767,7 +767,7 @@ msix_release(int irq)
 #endif
 	msi->msi_first = NULL;
 	msi->msi_dev = NULL;
-	apic_free_vector(msi->msi_cpu, msi->msi_vector,
+	apic_free_vector(apic_cpuid(msi->msi_cpu), msi->msi_vector,
 	    msi->msi_intsrc.is_event.ie_irq);
 	msi->msi_vector = 0;
 	msi->msi_msix = false;

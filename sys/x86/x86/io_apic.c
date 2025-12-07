@@ -499,7 +499,7 @@ ioapic_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 	if (old_vector) {
 		if (isrc->is_handlers > 0)
 			apic_disable_vector(old_id, old_vector);
-		apic_free_vector(old_id, old_vector, intpin->io_irq);
+		apic_free_vector(apic_cpuid(old_id), old_vector, intpin->io_irq);
 	}
 	return (0);
 }
@@ -546,7 +546,7 @@ ioapic_disable_intr(device_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 		intpin->io_vector = 0;
 		_ioapic_program_intpin(io, intpin);
 		mtx_unlock_spin(&icu_lock);
-		apic_free_vector(intpin->io_cpu, vector, intpin->io_irq);
+		apic_free_vector(apic_cpuid(intpin->io_cpu), vector, intpin->io_irq);
 	}
 }
 
