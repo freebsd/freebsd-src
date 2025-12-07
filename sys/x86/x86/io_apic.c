@@ -347,7 +347,7 @@ _ioapic_program_intpin(struct ioapic *io, struct ioapic_intsrc *intpin)
 #ifdef IOMMU
 	mtx_unlock_spin(&icu_lock);
 	error = iommu_map_ioapic_intr(io->io_apic_id,
-	    apic_cpuid(intpin->io_cpu), intpin->io_vector, intpin->io_edgetrigger,
+	    intpin->io_cpu, intpin->io_vector, intpin->io_edgetrigger,
 	    intpin->io_activehi, intpin->io_irq, &intpin->io_remap_cookie,
 	    &high, &low);
 	mtx_lock_spin(&icu_lock);
@@ -369,7 +369,7 @@ _ioapic_program_intpin(struct ioapic *io, struct ioapic_intsrc *intpin)
 	 * these are zero.
 	 */
 	low = IOART_DESTPHY;
-	high = intpin->io_cpu << APIC_ID_SHIFT;
+	high = cpu_apic_ids[intpin->io_cpu] << APIC_ID_SHIFT;
 
 	/* Program the rest of the low word. */
 	if (intpin->io_edgetrigger)
@@ -428,7 +428,6 @@ ioapic_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 	struct ioapic *io = device_get_softc(isrc->is_event.ie_pic);
 	u_int old_vector, new_vector;
 	u_int old_id;
-	unsigned int apic_id = cpu_apic_ids[cpu_id];
 
 	/*
 	 * On Hyper-V:
@@ -439,21 +438,21 @@ ioapic_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 		if (intpin->io_vector)
 			return (EINVAL);
 		else
-			apic_id = cpu_id = 0;
+			cpu_id = 0;
 	}
 
 	/*
 	 * keep 1st core as the destination for NMI
 	 */
 	if (intpin->io_irq == IRQ_NMI)
-		apic_id = cpu_id = 0;
+		cpu_id = 0;
 
 	/*
 	 * Set us up to free the old irq.
 	 */
 	old_vector = intpin->io_vector;
 	old_id = intpin->io_cpu;
-	if (old_vector && apic_id == old_id)
+	if (old_vector && cpu_id == old_id)
 		return (0);
 
 	/*
@@ -479,15 +478,15 @@ ioapic_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 		mtx_lock_spin(&icu_lock);
 	}
 
-	intpin->io_cpu = apic_id;
+	intpin->io_cpu = cpu_id;
 	intpin->io_vector = new_vector;
 	if (isrc->is_handlers > 0)
 		apic_enable_vector(cpu_id, intpin->io_vector);
 	if (bootverbose) {
 		device_printf(pic, "routing intpin %u (", intpin->io_intpin);
 		ioapic_print_irq(intpin);
-		printf(") to lapic %u vector %u\n", intpin->io_cpu,
-		    intpin->io_vector);
+		printf(") to lapic %u vector %u\n",
+		    cpu_apic_ids[intpin->io_cpu], intpin->io_vector);
 	}
 	_ioapic_program_intpin(io, intpin);
 	mtx_unlock_spin(&icu_lock);
@@ -498,8 +497,8 @@ ioapic_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 	 */
 	if (old_vector) {
 		if (isrc->is_handlers > 0)
-			apic_disable_vector(apic_cpuid(old_id), old_vector);
-		apic_free_vector(apic_cpuid(old_id), old_vector, intpin->io_irq);
+			apic_disable_vector(old_id, old_vector);
+		apic_free_vector(old_id, old_vector, intpin->io_irq);
 	}
 	return (0);
 }
@@ -513,7 +512,7 @@ ioapic_enable_intr(device_t pic, struct intsrc *isrc)
 		if (ioapic_assign_cpu(pic, isrc, intr_next_cpu(isrc->is_domain)) != 0)
 			panic("Couldn't find an APIC vector for IRQ %d",
 			    intpin->io_irq);
-	apic_enable_vector(apic_cpuid(intpin->io_cpu), intpin->io_vector);
+	apic_enable_vector(intpin->io_cpu, intpin->io_vector);
 }
 
 static void
@@ -540,13 +539,13 @@ ioapic_disable_intr(device_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 	if (intpin->io_vector != 0) {
 		/* Mask this interrupt pin and free its APIC vector. */
 		vector = intpin->io_vector;
-		apic_disable_vector(apic_cpuid(intpin->io_cpu), vector);
+		apic_disable_vector(intpin->io_cpu, vector);
 		mtx_lock_spin(&icu_lock);
 		intpin->io_masked = 1;
 		intpin->io_vector = 0;
 		_ioapic_program_intpin(io, intpin);
 		mtx_unlock_spin(&icu_lock);
-		apic_free_vector(apic_cpuid(intpin->io_cpu), vector, intpin->io_irq);
+		apic_free_vector(intpin->io_cpu, vector, intpin->io_irq);
 	}
 }
 
@@ -728,14 +727,14 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 		 * Route interrupts to the BSP by default.  Interrupts may
 		 * be routed to other CPUs later after they are enabled.
 		 */
-		intpin->io_cpu = PCPU_GET(apic_id);
+		intpin->io_cpu = apic_cpuid(PCPU_GET(apic_id));
 		value = ioapic_read(apic, IOAPIC_REDTBL_LO(i));
 		ioapic_write(apic, IOAPIC_REDTBL_LO(i), value | IOART_INTMSET);
 #ifdef IOMMU
 		/* dummy, but sets cookie */
 		mtx_unlock_spin(&icu_lock);
 		iommu_map_ioapic_intr(io->io_apic_id,
-		    apic_cpuid(intpin->io_cpu), intpin->io_vector, intpin->io_edgetrigger,
+		    intpin->io_cpu, intpin->io_vector, intpin->io_edgetrigger,
 		    intpin->io_activehi, intpin->io_irq,
 		    &intpin->io_remap_cookie, NULL, NULL);
 		mtx_lock_spin(&icu_lock);
