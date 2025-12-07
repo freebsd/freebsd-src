@@ -347,7 +347,7 @@ _ioapic_program_intpin(struct ioapic *io, struct ioapic_intsrc *intpin)
 #ifdef IOMMU
 	mtx_unlock_spin(&icu_lock);
 	error = iommu_map_ioapic_intr(io->io_apic_id,
-	    intpin->io_cpu, intpin->io_vector, intpin->io_edgetrigger,
+	    apic_cpuid(intpin->io_cpu), intpin->io_vector, intpin->io_edgetrigger,
 	    intpin->io_activehi, intpin->io_irq, &intpin->io_remap_cookie,
 	    &high, &low);
 	mtx_lock_spin(&icu_lock);
@@ -735,7 +735,7 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 		/* dummy, but sets cookie */
 		mtx_unlock_spin(&icu_lock);
 		iommu_map_ioapic_intr(io->io_apic_id,
-		    intpin->io_cpu, intpin->io_vector, intpin->io_edgetrigger,
+		    apic_cpuid(intpin->io_cpu), intpin->io_vector, intpin->io_edgetrigger,
 		    intpin->io_activehi, intpin->io_irq,
 		    &intpin->io_remap_cookie, NULL, NULL);
 		mtx_lock_spin(&icu_lock);

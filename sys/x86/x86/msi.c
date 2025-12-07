@@ -619,7 +619,7 @@ msi_map(int irq, uint64_t *addr, uint32_t *data)
 			if (!msi1->msi_msix && msi1->msi_first == msi) {
 				mtx_unlock(&msi_lock);
 				iommu_map_msi_intr(msi1->msi_dev,
-				    msi1->msi_cpu, msi1->msi_vector,
+				    apic_cpuid(msi1->msi_cpu), msi1->msi_vector,
 				    msi1->msi_remap_cookie, NULL, NULL);
 				k--;
 				mtx_lock(&msi_lock);
@@ -627,7 +627,7 @@ msi_map(int irq, uint64_t *addr, uint32_t *data)
 		}
 	}
 	mtx_unlock(&msi_lock);
-	error = iommu_map_msi_intr(msi->msi_dev, msi->msi_cpu,
+	error = iommu_map_msi_intr(msi->msi_dev, apic_cpuid(msi->msi_cpu),
 	    msi->msi_vector, msi->msi_remap_cookie, addr, data);
 #else
 	mtx_unlock(&msi_lock);
