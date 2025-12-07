@@ -1,0 +1,277 @@
+.\"
+.\" Copyright (c) 2026 The FreeBSD Project
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd January 14, 2026
+.Dt MCA 4 amd64
+.Os
+.Sh NAME
+.Nm mca
+.Nd Machine Check Architecture
+.Sh DESCRIPTION
+The
+.Nm
+subsystem provides support for the x86 Machine Check Architecture.
+The CPU uses this architecture to report various hardware problems,
+ranging from correctible errors to uncorrectible fatal errors.
+The
+.Nm
+subsystem processes the errors reported by the CPU and logs them
+according to the user-supplied configuration.
+.Pp
+The
+.Nm
+subsystem is automatically compiled into every x86 kernel.
+.Sh LOGGING
+By default, every message is logged to four locations:
+.Bl -bullet
+.It
+The console
+.It
+The system log (using the
+.Dv LOG_KERN
+.Xr syslog 3
+facility)
+.It
+An in-kernel cache of event records
+.It
+A statistics array
+.El
+.Pp
+An administrator can disable console logging of non-fatal errors using the
+.Va hw.mca.uselog
+.Xr sysctl 8
+or tunable setting.
+Fatal errors are always logged to the console.
+.Pp
+The in-kernel cache of event records can be accessed from userspace using the
+.Va hw.mca.records
+.Xr sysctl 8
+node.
+By default, the in-kernel cache of event records grows without bound and
+contains records for all
+.Nm
+events received since system boot.
+The cache can be limited (in which case it turns into a ring buffer) or
+disabled altogether using the
+.Va hw.mca.maxcount
+.Xr sysctl 8
+or tunable setting.
+.Pp
+The statistics array can be retrieved using the
+.Va hw.mca.stats
+.Xr sysctl 8
+node.
+.Sh SYSCTL VARIABLES
+The subsystem has a number of configuration options to control the
+way events are processed and logged.
+These options are configured via
+.Xr sysctl 8
+variables or tunables.
+These settings control things such as log destination, event limiting,
+and sampling.
+These settings directly impact both the completeness of logs and the performance
+impact of processing
+.Nm
+events.
+A system administrator may want to review these and modify them to obtain
+the appropriate behavior in their environment.
+.Bl -tag -width indent
+.It Va hw.mca.enabled
+(Only settable as a tunable.)
+.Pp
+If set to 0, the CPU is not configured to send
+.Nm
+messages to the kernel.
+.Pp
+Default is 1 (enabled).
+.It Va hw.mca.log_corrected
+(Settable as a tunable or sysctl.)
+.Pp
+If enabled, corrected messages are logged to console, syslog, the in-kernel
+event cache, and the statistics array (subject to separate configuration
+controlling those facilities).
+If disabled, corrected messages are only logged to the in-kernel event
+cache (subject to separate configuration controlling that facility).
+.Pp
+Default is 1 (enabled).
+.It Va hw.mca.intel6h_HSD131
+(Only settable as a tunable.)
+.Pp
+This setting enables a workaround for benign corrected parity errors which
+may be reported by certain Intel desktop Haswell CPUs.
+(The name "HSD131" comes from the name of the Intel erratum report about this
+issue.)
+.Pp
+Default is 0 (disabled).
+.It Va hw.mca.amd10h_L1TP
+(Only settable as a tunable.)
+.Pp
+Enable logging of level one TLB parity errors on certain AMD CPUs.
+This option has no impact on other CPUs.
+.Pp
+Default is 1 (enabled).
+.It Va hw.mca.erratum383
+(Only settable as a tunable.)
+.Pp
+This setting enables a workaround for Erratum 383 on AMD Family 10h CPUs.
+The erratum changes the way pages are promoted to or demoted from being
+super-pages.
+On affected AMD CPUs, either
+.Va hw.mca.amd10h_L1TP
+or
+.Va hw.mca.erratum383
+must be on.
+If both are off, the system will dynamically enable
+.Va hw.mca.erratum383
+at boot time.
+.Pp
+Default is 0 (disabled).
+.It Va hw.mca.uselog
+(Settable as a tunable or sysctl.)
+.Pp
+If enabled, the system will send messages about non-fatal
+.Nm
+events to syslog and not to the console.
+If disabled, the system will send messages about non-fatal
+.Nm
+events to both syslog and the console.
+Fatal events are always logged to the console.
+.Pp
+Default is false (disabled).
+.It Va hw.mca.stats
+(Read-only sysctl.)
+.Pp
+This returns an array of
+.Va MCA_T_COUNT
+uint64_t values.
+The
+.Vt "enum mca_stat_types"
+definition in
+.In x86/mca.h
+provides the value of
+.Va MCA_T_COUNT
+and the index values for various event types.
+.It Va hw.mca.log_interval
+(Settable as a tunable or sysctl.)
+.Pp
+This sets the minimum time (in seconds) between logging correctible errors.
+The rate limit is only applied after the system records a reasonable
+number of errors of the same type.
+The goal is to reduce the impact of the system seeing and attempting to log
+a burst of similar errors, which can be expensive (especially when printed
+to the console).
+If this setting is 0, no rate limit is applied.
+.Pp
+Default is 0 (no rate limit).
+.It Va hw.mca.cmc_throttle
+(Settable as a tunable or sysctl. Only available if
+.Xr apic 4
+support is enabled and the hardware supports CMC interrupt throttling.)
+.Pp
+This sets the maximum time (in seconds) to throttle CMC interrupts.
+In normal operation, the system attempts to receive CMC interrupts as soon as
+an event occurs.
+However, if a high rate of events occurs in a short time, the system will
+begin throttling the CMC interrupts.
+While the events continue to occur at a high rate, the system will gradually
+increase the throttling interval until it reaches the
+.Va hw.mca.cmc_throttle
+setting.
+.Pp
+Default is 60 seconds.
+.It Va hw.mca.count
+(Read-only sysctl.)
+.Pp
+This returns the current number of
+.Nm
+records in the in-kernel cache.
+This can be used to determine how many records are available to read with the
+.Va hw.mca.records
+.Xr sysctl 8
+interface.
+It can also be used to monitor the amount of memory used by the in-kernel
+record cache.
+.It Va hw.mca.maxcount
+(Settable as a tunable or sysctl.)
+.Pp
+This setting controls the size and behavior of the in-kernel cache of
+.Nm
+records.
+If the setting is -1, the in-kernel cache grows without bounds and contains a
+complete record events since boot or the last time the
+.Va hw.mca.maxcount
+setting was changed.
+If the setting is 0, the in-kernel cache is disabled.
+If the setting is a positive integer, the in-kernel cache functions as a ring
+buffer with the number of entries defined by the setting.
+.Pp
+Default is -1 (unlimited).
+.It Va hw.mca.interval
+(Settable as a tunable or sysctl.)
+.Pp
+This setting controls how often (in seconds) the kernel should proactively
+scan for new
+.Nm
+events.
+In many circumstances, the CPU will send an interrupt to signal new events.
+However, there are cases where the periodic scan for events will discover
+new events.
+.Pp
+Default is 300 seconds.
+.It Va hw.mca.force_scan
+(Settable only as a sysctl.)
+.Pp
+Setting this to any non-zero value will force an immediate scan for
+.Nm
+events.
+Setting this to zero has no effect.
+This is functionally a write-only setting.
+The current value is always 0, even when a scan is running.
+.Pp
+Default is 0 (no scan requested).
+.It Va hw.mca.records.n
+(Read-only sysctl.)
+.Pp
+This is used to copy
+.Nm
+records from the in-kernel cache to a user space process.
+The
+.Va n
+value in the
+.Xr sysctl 8
+node is an integer index into the in-kernel cache.
+(Or, put differently, the "new" value describes how many records the kernel
+should skip to find the desired record.)
+The return value is a
+.Vt "struct mca_record" ,
+which is defined in
+.In x86/mca.h .
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Pa /boot/loader.conf .
+The tunables all have corresponding
+.Xr sysctl 8
+entries.
+The tunables are listed above in the
+.Sx SYSCTL VARIABLES
+section.
+.Sh COMPATIBILITY
+.Nm
+is only available on x86 systems.
+.Sh SEE ALSO
+.Xr loader.conf 5 ,
+.Xr sysctl 8 ,
+.Xr syslogd 8
+.Sh AUTHORS
+The
+.Nm
+subsystem was originally written by
+.An John Baldwin Aq Mt jhb@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Jonathan Looney Aq Mt jtl@FreeBSD.org .
