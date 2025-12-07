@@ -207,6 +207,10 @@ typedef	__uint_least32_t __char32_t;
 #define	_CHAR16_T_DECLARED
 #define	_CHAR32_T_DECLARED
 #endif
+/* and so is char8_t in C++20 */
+#if defined(__cplusplus) && __cplusplus >= 202002L
+#define _CHAR8_T_DECLARED
+#endif
 
 typedef struct {
 	long long __max_align1
