@@ -230,7 +230,7 @@ u_int	apic_alloc_vector(u_int cpu_id, u_int irq);
 u_int	apic_alloc_vectors(u_int cpu_id, u_int *irqs, u_int count, u_int align);
 void	apic_enable_vector(u_int apic_id, u_int vector);
 void	apic_disable_vector(u_int apic_id, u_int vector);
-void	apic_free_vector(u_int apic_id, u_int vector, u_int irq);
+void	apic_free_vector(u_int cpu_id, u_int vector, u_int irq);
 void	lapic_calibrate_timer(void);
 int	lapic_enable_pcint(void);
 void	lapic_disable_pcint(void);
