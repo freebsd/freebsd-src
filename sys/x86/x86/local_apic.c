@@ -1606,8 +1606,9 @@ apic_alloc_vectors(u_int cpu_id, u_int *irqs, u_int count, u_int align)
  * should it fire.
  */
 void
-apic_enable_vector(u_int apic_id, u_int vector)
+apic_enable_vector(u_int cpu_id, u_int vector)
 {
+	u_int apic_id = cpu_apic_ids[cpu_id];
 
 	KASSERT(vector != IDT_SYSCALL, ("Attempt to overwrite syscall entry"));
 	KASSERT(ioint_handlers[vector / 32] != NULL,
@@ -1621,8 +1622,9 @@ apic_enable_vector(u_int apic_id, u_int vector)
 }
 
 void
-apic_disable_vector(u_int apic_id, u_int vector)
+apic_disable_vector(u_int cpu_id, u_int vector)
 {
+	u_int apic_id = cpu_apic_ids[cpu_id];
 
 	KASSERT(vector != IDT_SYSCALL, ("Attempt to overwrite syscall entry"));
 #ifdef KDTRACE_HOOKS

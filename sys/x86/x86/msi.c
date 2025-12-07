@@ -203,7 +203,7 @@ msi_enable_intr(device_t pic, struct intsrc *isrc)
 	msi = msi->msi_first;
 	if (msi->msi_enabled == 0) {
 		for (u_int i = 0; i < msi->msi_count; i++)
-			apic_enable_vector(msi->msi_cpu, msi->msi_vector + i);
+			apic_enable_vector(apic_cpuid(msi->msi_cpu), msi->msi_vector + i);
 	}
 	msi->msi_enabled++;
 }
@@ -228,7 +228,7 @@ msi_disable_intr(device_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 	msi->msi_enabled--;
 	if (msi->msi_enabled == 0) {
 		for (u_int i = 0; i < msi->msi_count; i++)
-			apic_disable_vector(msi->msi_cpu, msi->msi_vector + i);
+			apic_disable_vector(apic_cpuid(msi->msi_cpu), msi->msi_vector + i);
 	}
 }
 
@@ -275,7 +275,7 @@ msi_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 	msi->msi_vector = vector;
 	if (msi->msi_enabled > 0) {
 		for (i = 0; i < msi->msi_count; i++)
-			apic_enable_vector(apic_id, vector + i);
+			apic_enable_vector(cpu_id, vector + i);
 	}
 	error = BUS_REMAP_INTR(device_get_parent(msi->msi_dev), msi->msi_dev,
 	    msi->msi_intsrc.is_event.ie_irq);
@@ -313,7 +313,7 @@ msi_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 	 */
 	if (msi->msi_enabled > 0) {
 		for (i = 0; i < msi->msi_count; i++)
-			apic_disable_vector(old_id, old_vector + i);
+			apic_disable_vector(apic_cpuid(old_id), old_vector + i);
 	}
 	apic_free_vector(apic_cpuid(old_id), old_vector, msi->msi_intsrc.is_event.ie_irq);
 	for (i = 1; i < msi->msi_count; i++)
