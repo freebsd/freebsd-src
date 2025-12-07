@@ -4789,6 +4789,32 @@ scsi_sense_forwarded_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 	    sense_key_desc, asc, ascq, asc_desc);
 }
 
+void
+scsi_sense_dabd_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+		     u_int sense_len, uint8_t *cdb, int cdb_len,
+		     struct scsi_inquiry_data *inq_data,
+		     struct scsi_sense_desc_header *header)
+{
+	struct scsi_sense_direct_access_block_device *dabd;
+	int error_code, sense_key, asc, ascq;
+
+	dabd = (struct scsi_sense_direct_access_block_device *)header;
+
+	sbuf_printf(sb, "Direct Access Block Device: fru: %d ",
+	    dabd->fru);
+	if (dabd->sks_byte & SSD_DESC_DABD_SKS_VALID) {
+		scsi_extract_sense_len(sense, sense_len, &error_code, &sense_key,
+		    &asc, &ascq, /*show_errors*/ 1);
+		scsi_sks_sbuf(sb, sense_key, dabd->data);
+	}
+	if (dabd->byte2 & SSD_DESC_DABD_VALID) {
+		scsi_info_sbuf(sb, cdb, cdb_len, inq_data,
+		    scsi_8btou64(dabd->info));
+		scsi_command_sbuf(sb, cdb, cdb_len, inq_data,
+		    scsi_8btou64(dabd->command_info));
+	}
+}
+
 /*
  * Generic sense descriptor printing routine.  This is used when we have
  * not yet implemented a specific printing routine for this descriptor.
@@ -4837,7 +4863,8 @@ struct scsi_sense_desc_printer {
 	{SSD_DESC_BLOCK, scsi_sense_block_sbuf},
 	{SSD_DESC_ATA, scsi_sense_ata_sbuf},
 	{SSD_DESC_PROGRESS, scsi_sense_progress_sbuf},
-	{SSD_DESC_FORWARDED, scsi_sense_forwarded_sbuf}
+	{SSD_DESC_DABD, scsi_sense_dabd_sbuf},
+	{SSD_DESC_FORWARDED, scsi_sense_forwarded_sbuf},
 };
 
 void
@@ -9507,7 +9534,7 @@ scsi_format_sense_devd(struct ccb_scsiio *csio, struct sbuf *sb)
 				struct scsi_sense_fru *fru;
 
 				fru = (struct scsi_sense_fru *)hdr;
-				sbuf_printf(sb, "fru=%ju ", (uintmax_t)fru->fru);
+				sbuf_printf(sb, "fru=%u ", fru->fru);
 				break;
 			}
 			case SSD_DESC_ATA:
@@ -9535,6 +9562,22 @@ scsi_format_sense_devd(struct ccb_scsiio *csio, struct sbuf *sb)
 				}
 				sbuf_printf(sb, "count=%d lba=0x%jx ", count, (uintmax_t)lba);
 				break;
+			}
+			case SSD_DESC_DABD:
+			{
+				struct scsi_sense_direct_access_block_device *dabd;
+
+				dabd = (struct scsi_sense_direct_access_block_device *)hdr;
+
+				if (dabd->sks_byte & SSD_DESC_DABD_SKS_VALID)
+					decode_sks(sb, sk, dabd->data);
+				sbuf_printf(sb, "fru=%u ", dabd->fru);
+				if (dabd->byte2 & SSD_DESC_DABD_VALID) {
+					sbuf_printf(sb, "info=0x%jx ",
+					    scsi_8btou64(dabd->info));
+					sbuf_printf(sb, "cmd_info=0x%jx ",
+					    scsi_8btou64(dabd->command_info));
+				}
 			}
 			default:
 			{
