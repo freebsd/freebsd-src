@@ -6,7 +6,7 @@ LIB=		pam_zfs_key
 
 SHLIBDIR?=	/usr/lib
 
-LIBADD=		zfs zfs_core nvpair uutil crypto
+LIBADD=		zfs zfs_core nvpair crypto
 
 SRCS= pam_zfs_key.c
 

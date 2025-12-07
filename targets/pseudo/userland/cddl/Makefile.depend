@@ -12,7 +12,6 @@ DIRDEPS = \
 	cddl/lib/libdtrace \
 	cddl/lib/libnvpair \
 	cddl/lib/libumem \
-	cddl/lib/libuutil \
 	cddl/usr.bin/ctfconvert \
 	cddl/usr.bin/ctfdump \
 	cddl/usr.bin/ctfmerge \

@@ -20,7 +20,7 @@ CFLAGS+= \
 	-DHAVE_ISSETUGID \
 	-include ${SRCTOP}/sys/modules/zfs/zfs_config.h
 
-LIBADD=	geom m nvpair umem zpool pthread avl zfs_core spl zutil zfs uutil icp
+LIBADD=	geom m nvpair umem zpool pthread avl zfs_core spl zutil zfs icp
 
 CSTD=	c99
 

@@ -2,7 +2,6 @@
 
 DIRDEPS = \
 	cddl/lib/libavl \
-	cddl/lib/libtpool \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \
