@@ -1643,9 +1643,10 @@ apic_disable_vector(u_int apic_id, u_int vector)
 
 /* Release an APIC vector when it's no longer in use. */
 void
-apic_free_vector(u_int apic_id, u_int vector, u_int irq)
+apic_free_vector(u_int cpu_id, u_int vector, u_int irq)
 {
 	struct thread *td;
+	u_int apic_id = cpu_apic_ids[cpu_id];
 
 	KASSERT(vector >= APIC_IO_INTS && vector != IDT_SYSCALL &&
 	    vector <= APIC_IO_INTS + APIC_NUM_IOINTS,
