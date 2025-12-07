@@ -262,10 +262,10 @@ msi_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 	/* Allocate IDT vectors on this cpu. */
 	if (msi->msi_count > 1) {
 		KASSERT(!msi->msi_msix, ("MSI-X message group"));
-		vector = apic_alloc_vectors(apic_id, msi->msi_irqs,
+		vector = apic_alloc_vectors(cpu_id, msi->msi_irqs,
 		    msi->msi_count, msi->msi_maxcount);
 	} else
-		vector = apic_alloc_vector(apic_id,
+		vector = apic_alloc_vector(cpu_id,
 		     msi->msi_intsrc.is_event.ie_irq);
 	if (vector == 0)
 		return (ENOSPC);
@@ -448,13 +448,14 @@ again:
 	KASSERT(cnt == count, ("count mismatch"));
 
 	/* Allocate 'count' IDT vectors. */
-	cpu = cpu_apic_ids[intr_next_cpu(domain)];
+	cpu = intr_next_cpu(domain);
 	vector = apic_alloc_vectors(cpu, irqs, count, maxcount);
 	if (vector == 0) {
 		mtx_unlock(&msi_lock);
 		free(mirqs, M_MSI);
 		return (ENOSPC);
 	}
+	cpu = cpu_apic_ids[cpu];
 
 #ifdef IOMMU
 	mtx_unlock(&msi_lock);
@@ -694,12 +695,13 @@ again:
 	}
 
 	/* Allocate an IDT vector. */
-	cpu = cpu_apic_ids[intr_next_cpu(domain)];
+	cpu = intr_next_cpu(domain);
 	vector = apic_alloc_vector(cpu, i);
 	if (vector == 0) {
 		mtx_unlock(&msi_lock);
 		return (ENOSPC);
 	}
+	cpu = cpu_apic_ids[cpu];
 
 	msi->msi_dev = dev;
 #ifdef IOMMU
