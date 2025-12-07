@@ -6,7 +6,7 @@ PACKAGE=	zfs
 LIB_PACKAGE=
 
 LIB=	zutil
-LIBADD=	avl geom m tpool
+LIBADD=	avl geom m
 
 INCS = zutil_import.h
 

@@ -23,7 +23,6 @@ LIBADD= \
 	rt \
 	umem \
 	util \
-	uutil \
 	z \
 	zfs_core \
 	zutil
