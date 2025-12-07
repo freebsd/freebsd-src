@@ -144,7 +144,7 @@ ioctl.c.tmp: .PHONY
 .endif
 ioctl.c.tmp: mkioctls .META
 	env CPP="${CPP}" MK_PF="${MK_PF}" \
-	    /bin/sh ${.CURDIR}/mkioctls ${SYSROOT:U${DESTDIR}}${INCLUDEDIR} > ${.TARGET}
+	    /bin/sh ${.CURDIR}/mkioctls ${MKTABLES_INCLUDEDIR} > ${.TARGET}
 
 ioctl.c: ioctl.c.tmp
 	if [ ! -e ${.TARGET} ] || ! cmp -s ${.TARGET} ${.TARGET}.tmp; then \
