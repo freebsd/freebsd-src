@@ -1516,9 +1516,10 @@ apic_cpuid(u_int apic_id)
 
 /* Request a free IDT vector to be used by the specified IRQ. */
 u_int
-apic_alloc_vector(u_int apic_id, u_int irq)
+apic_alloc_vector(u_int cpu_id, u_int irq)
 {
 	u_int vector;
+	u_int apic_id = cpu_apic_ids[cpu_id];
 
 	KASSERT(irq < num_io_irqs, ("Invalid IRQ %u", irq));
 
@@ -1545,9 +1546,10 @@ apic_alloc_vector(u_int apic_id, u_int irq)
  * satisfied, 0 is returned.
  */
 u_int
-apic_alloc_vectors(u_int apic_id, u_int *irqs, u_int count, u_int align)
+apic_alloc_vectors(u_int cpu_id, u_int *irqs, u_int count, u_int align)
 {
 	u_int first, run, vector;
+	u_int apic_id = cpu_apic_ids[cpu_id];
 
 	KASSERT(powerof2(count), ("bad count"));
 	KASSERT(powerof2(align), ("bad align"));
