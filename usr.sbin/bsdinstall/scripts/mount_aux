@@ -28,28 +28,12 @@
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 
-TMP_FSTAB=${TMPDIR:-"/tmp"}/bsdinstall-tmp-fstab
+# User might want a shell and require devfs, so mount it
+mkdir $BSDINSTALL_CHROOT/dev 2>/dev/null
+mount -t devfs devfs $BSDINSTALL_CHROOT/dev
 
-cat $PATH_FSTAB | awk -v BSDINSTALL_CHROOT=$BSDINSTALL_CHROOT '{
-	if ($2 ~ "^/.*") {
-		fsname = $2;
-		if (fsname == "/")
-			fsname = ""
-		printf("%s\t%s%s\t%s\t%s\t%s\t%s\n", $1, BSDINSTALL_CHROOT,
-		    fsname, $3, $4, $5, $6);
-	}
-}' > $TMP_FSTAB
-
-FILESYSTEMS=`cat $TMP_FSTAB | awk '/^[^#].*/ {if ($2 ~ "^/.*") printf("%s\n", $2);}' | sort -t /`
-
-for i in $FILESYSTEMS; do
-	mkdir -p $i 2>/dev/null
-	MNTERROR=`mount -F $TMP_FSTAB $i 2>&1`
-	if [ $? -ne 0 ]; then
-		bsddialog --backtitle "$OSNAME Installer" --title "Error" \
-		    --msgbox "Error mounting partition $i:\n$MNTERROR" 0 0
-		exit 1
-	fi
-done
-
-bsdinstall mount_aux
+# If installing from the DVD, mount packages where they'll be accessible
+if [ -d /packages ]; then
+	mkdir -p $BSDINSTALL_CHROOT/dist/packages
+	mount -t nullfs /packages $BSDINSTALL_CHROOT/dist/packages
+fi
