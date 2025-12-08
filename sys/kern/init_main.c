@@ -662,10 +662,7 @@ proc0_post(void *dummy __unused)
 		microuptime(&p->p_stats->p_start);
 		PROC_STATLOCK(p);
 		rufetch(p, &ru);	/* Clears thread stats */
-		p->p_rux.rux_runtime = 0;
-		p->p_rux.rux_uticks = 0;
-		p->p_rux.rux_sticks = 0;
-		p->p_rux.rux_iticks = 0;
+		ruxreset(&p->p_rux);
 		PROC_STATUNLOCK(p);
 		FOREACH_THREAD_IN_PROC(p, td) {
 			td->td_runtime = 0;

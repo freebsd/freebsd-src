@@ -1338,6 +1338,18 @@ td_get_sched(struct thread *td)
 	return ((struct td_sched *)&td[1]);
 }
 
+static __inline void
+ruxreset(struct rusage_ext *rux)
+{
+	rux->rux_runtime = 0;
+	rux->rux_uticks = 0;
+	rux->rux_sticks = 0;
+	rux->rux_iticks = 0;
+	rux->rux_uu = 0;
+	rux->rux_su = 0;
+	rux->rux_tu = 0;
+}
+
 #define	PROC_ID_PID	0
 #define	PROC_ID_GROUP	1
 #define	PROC_ID_SESSION	2
