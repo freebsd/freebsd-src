@@ -1457,6 +1457,14 @@ fcntl_common(struct thread *td, struct linux_fcntl_args *args)
 		fdrop(fp, td);
 		return (0);
 
+	case LINUX_F_DUPFD_QUERY:
+		error = kern_kcmp(td, td->td_proc->p_pid, td->td_proc->p_pid,
+		    KCMP_FILE, args->fd, args->arg);
+		if (error != 0)
+			return (error);
+		td->td_retval[0] = (td->td_retval[0] == 0) ? 1 : 0;
+		return (0);
+
 	default:
 		linux_msg(td, "unsupported fcntl cmd %d", args->cmd);
 		return (EINVAL);
