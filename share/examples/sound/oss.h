@@ -112,16 +112,28 @@ oss_init(struct config *config)
 	}
 
 	/* Set sample format */
-	if (ioctl(config->fd, SNDCTL_DSP_SETFMT, &config->format) < 0)
+	tmp = config->format;
+	if (ioctl(config->fd, SNDCTL_DSP_SETFMT, &tmp) < 0)
 		err(1, "Unable to set sample format");
+	if (tmp != config->format)
+		warnx("Format: requested=%08x, got=%08x", config->format, tmp);
+	config->format = tmp;
 
 	/* Set sample channels */
-	if (ioctl(config->fd, SNDCTL_DSP_CHANNELS, &config->audio_info.max_channels) < 0)
+	tmp = config->audio_info.max_channels;
+	if (ioctl(config->fd, SNDCTL_DSP_CHANNELS, &tmp) < 0)
 		err(1, "Unable to set channels");
+	if (tmp != config->audio_info.max_channels)
+		warnx("Channels: requested=%d, got=%d", config->audio_info.max_channels, tmp);
+	config->audio_info.max_channels = tmp;
 
 	/* Set sample rate */
+	tmp = config->sample_rate;
 	if (ioctl(config->fd, SNDCTL_DSP_SPEED, &config->sample_rate) < 0)
 		err(1, "Unable to set sample rate");
+	if (tmp != config->sample_rate)
+		warnx("Sample rate: requested=%d, got=%d", config->sample_rate, tmp);
+	config->sample_rate = tmp;
 
 	/* Calculate sample size */
 	switch (config->format) {
@@ -197,10 +209,12 @@ oss_init(struct config *config)
 	config->chsamples = config->sample_count / config->audio_info.max_channels;
 
 	printf("bytes: %d, fragments: %d, fragsize: %d, fragstotal: %d, "
-	    "samples: %d\n",
+	    "samples: %d, channels: %d, sample size: %d, sample rate: %d, "
+	    "format: %08x\n",
 	    config->buffer_info.bytes, config->buffer_info.fragments,
 	    config->buffer_info.fragsize, config->buffer_info.fragstotal,
-	    config->sample_count);
+	    config->sample_count, config->audio_info.max_channels,
+	    config->sample_size, config->sample_rate, config->format);
 
 	/* Set trigger direction and mmap protection */
 	switch (config->mode & O_ACCMODE) {
