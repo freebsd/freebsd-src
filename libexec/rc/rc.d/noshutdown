@@ -3,7 +3,7 @@
 #
 
 # PROVIDE: noshutdown
-# REQUIRE: var
+# REQUIRE: FILESYSTEMS
 # BEFORE:  LOGIN
 
 . /etc/rc.subr
