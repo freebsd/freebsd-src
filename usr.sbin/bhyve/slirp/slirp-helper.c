@@ -38,8 +38,6 @@
 #include "config.h"
 #include "libslirp.h"
 
-#define	SLIRP_MTU	2048
-
 struct slirp_priv {
 	Slirp *slirp;		/* libslirp handle */
 	int sock;		/* data and control socket */
@@ -47,6 +45,8 @@ struct slirp_priv {
 	struct pollfd *pollfds;
 	size_t npollfds;
 	size_t lastpollfd;
+	size_t mtu;
+	uint8_t *buf;
 };
 
 typedef int (*slirp_add_hostxfwd_p_t)(Slirp *,
@@ -104,7 +104,7 @@ slirp_cb_send_packet(const void *buf, size_t len, void *param)
 
 	priv = param;
 
-	assert(len <= SLIRP_MTU);
+	assert(len <= priv->mtu);
 	n = send(priv->sock, buf, len, MSG_EOR);
 	if (n < 0) {
 		warn("slirp_cb_send_packet: send");
@@ -289,16 +289,14 @@ slirp_pollfd_loop(struct slirp_priv *priv)
 			ssize_t n;
 
 			do {
-				uint8_t buf[SLIRP_MTU];
-
-				n = recv(priv->sock, buf, sizeof(buf),
+				n = recv(priv->sock, priv->buf, priv->mtu,
 				    MSG_DONTWAIT);
 				if (n < 0) {
 					if (errno == EWOULDBLOCK)
 						break;
 					err(1, "recv");
 				}
-				slirp_input_p(priv->slirp, buf, (int)n);
+				slirp_input_p(priv->slirp, priv->buf, (int)n);
 			} while (n >= 0);
 		}
 	}
@@ -464,6 +462,7 @@ main(int argc, char **argv)
 	const char *hostfwd, *vmname;
 	int ch, fd, sd;
 	bool restricted;
+	size_t mtu;
 
 	sd = -1;
 	while ((ch = getopt(argc, argv, "S:")) != -1) {
@@ -514,6 +513,13 @@ main(int argc, char **argv)
 	config = nvlist_recv(sd, 0);
 	if (config == NULL)
 		err(1, "nvlist_recv");
+
+	mtu = nvlist_get_number(config, "mtui");
+	priv.mtu = mtu;
+	priv.buf = malloc(mtu);
+	if (priv.buf == NULL)
+		err(1, "malloc");
+
 	vmname = get_config_value_node(config, "vmname");
 	if (vmname != NULL)
 		setproctitle("%s", vmname);
@@ -521,7 +527,7 @@ main(int argc, char **argv)
 
 	slirpconfig = (SlirpConfig){
 		.version = 4,
-		.if_mtu = SLIRP_MTU,
+		.if_mtu = mtu,
 		.restricted = restricted,
 		.in_enabled = true,
 		.vnetwork.s_addr = htonl(0x0a000200),	/* 10.0.2.0/24 */
