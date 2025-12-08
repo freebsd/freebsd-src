@@ -288,7 +288,7 @@ arptimer(void *arg)
 
 	/* XXX: LOR avoidance. We still have ref on lle. */
 	LLE_WUNLOCK(lle);
-	IF_AFDATA_LOCK(ifp);
+	LLTABLE_LOCK(LLTABLE(ifp));
 	LLE_WLOCK(lle);
 
 	/* Guard against race with other llentry_free(). */
@@ -296,7 +296,7 @@ arptimer(void *arg)
 		LLE_REMREF(lle);
 		lltable_unlink_entry(lle->lle_tbl, lle);
 	}
-	IF_AFDATA_UNLOCK(ifp);
+	LLTABLE_UNLOCK(LLTABLE(ifp));
 
 	size_t pkts_dropped = llentry_free(lle);
 
@@ -488,13 +488,13 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int flags, struct mbuf *m,
 			return (EINVAL);
 		}
 
-		IF_AFDATA_WLOCK(ifp);
+		LLTABLE_LOCK(LLTABLE(ifp));
 		LLE_WLOCK(la);
 		la_tmp = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
 		/* Prefer ANY existing lle over newly-created one */
 		if (la_tmp == NULL)
 			lltable_link_entry(LLTABLE(ifp), la);
-		IF_AFDATA_WUNLOCK(ifp);
+		LLTABLE_UNLOCK(LLTABLE(ifp));
 		if (la_tmp != NULL) {
 			lltable_free_entry(LLTABLE(ifp), la);
 			la = la_tmp;
@@ -961,7 +961,7 @@ match:
 		lltable_set_entry_addr(ifp, la, linkhdr, linkhdrsize,
 		    lladdr_off);
 
-		IF_AFDATA_WLOCK(ifp);
+		LLTABLE_LOCK(LLTABLE(ifp));
 		LLE_WLOCK(la);
 		la_tmp = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
 
@@ -983,7 +983,7 @@ match:
 		 */
 		if (la_tmp == NULL)
 			lltable_link_entry(LLTABLE(ifp), la);
-		IF_AFDATA_WUNLOCK(ifp);
+		LLTABLE_UNLOCK(LLTABLE(ifp));
 
 		if (la_tmp == NULL) {
 			arp_mark_lle_reachable(la, ifp);
@@ -1301,7 +1301,7 @@ arp_add_ifa_lle(struct ifnet *ifp, const struct sockaddr *dst)
 		return;
 	}
 
-	IF_AFDATA_WLOCK(ifp);
+	LLTABLE_LOCK(LLTABLE(ifp));
 	LLE_WLOCK(lle);
 	/* Unlink any entry if exists */
 	lle_tmp = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
@@ -1309,7 +1309,7 @@ arp_add_ifa_lle(struct ifnet *ifp, const struct sockaddr *dst)
 		lltable_unlink_entry(LLTABLE(ifp), lle_tmp);
 
 	lltable_link_entry(LLTABLE(ifp), lle);
-	IF_AFDATA_WUNLOCK(ifp);
+	LLTABLE_UNLOCK(LLTABLE(ifp));
 
 	if (lle_tmp != NULL)
 		EVENTHANDLER_INVOKE(lle_event, lle_tmp, LLENTRY_EXPIRED);

@@ -206,7 +206,7 @@ htable_link_entry(struct lltable *llt, struct llentry *lle)
 	if ((lle->la_flags & LLE_LINKED) != 0)
 		return (0);
 
-	IF_AFDATA_WLOCK_ASSERT(llt->llt_ifp);
+	LLTABLE_LOCK_ASSERT(llt);
 
 	if (llt->llt_maxentries > 0 &&
 	    llt->llt_entries >= llt->llt_maxentries)
@@ -233,7 +233,7 @@ htable_unlink_entry(struct llentry *lle)
 		return (0);
 
 	llt = lle->lle_tbl;
-	IF_AFDATA_WLOCK_ASSERT(llt->llt_ifp);
+	LLTABLE_LOCK_ASSERT(llt);
 	KASSERT(llt->llt_entries > 0, ("%s: lltable %p (%s) entries %d <= 0",
 	    __func__, llt, if_name(llt->llt_ifp), llt->llt_entries));
 
@@ -283,12 +283,12 @@ htable_prefix_free(struct lltable *llt, const struct sockaddr *addr,
 	pmd.flags = flags;
 	CK_LIST_INIT(&pmd.dchain);
 
-	IF_AFDATA_WLOCK(llt->llt_ifp);
+	LLTABLE_LOCK(llt);
 	/* Push matching lles to chain */
 	lltable_foreach_lle(llt, htable_prefix_free_cb, &pmd);
 
 	llentries_unlink(llt, &pmd.dchain);
-	IF_AFDATA_WUNLOCK(llt->llt_ifp);
+	LLTABLE_UNLOCK(llt);
 
 	CK_LIST_FOREACH_SAFE(lle, &pmd.dchain, lle_chain, next)
 		lltable_free_entry(llt, lle);
@@ -298,6 +298,7 @@ static void
 htable_free_tbl(struct lltable *llt)
 {
 
+	mtx_destroy(&llt->llt_lock);
 	free(llt->lle_head, M_LLTABLE);
 	free(llt, M_LLTABLE);
 }
@@ -357,14 +358,12 @@ lltable_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
  * On failure, false is returned and lle wlock is still held.
  */
 bool
-lltable_acquire_wlock(struct ifnet *ifp, struct llentry *lle)
+lltable_trylock(struct llentry *lle)
 {
 	NET_EPOCH_ASSERT();
 
-	/* Perform real LLE update */
-	/* use afdata WLOCK to update fields */
 	LLE_WUNLOCK(lle);
-	IF_AFDATA_WLOCK(ifp);
+	LLTABLE_LOCK(lle->lle_tbl);
 	LLE_WLOCK(lle);
 
 	/*
@@ -372,7 +371,7 @@ lltable_acquire_wlock(struct ifnet *ifp, struct llentry *lle)
 	 * this lle. Check and return
 	 */
 	if ((lle->la_flags & LLE_DELETED) != 0) {
-		IF_AFDATA_WUNLOCK(ifp);
+		LLTABLE_UNLOCK(lle->lle_tbl);
 		return (false);
 	}
 
@@ -392,13 +391,13 @@ lltable_try_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
     const char *linkhdr, size_t linkhdrsize, int lladdr_off)
 {
 
-	if (!lltable_acquire_wlock(ifp, lle))
+	if (!lltable_trylock(lle))
 		return (0);
 
 	/* Update data */
 	lltable_set_entry_addr(ifp, lle, linkhdr, linkhdrsize, lladdr_off);
 
-	IF_AFDATA_WUNLOCK(ifp);
+	LLTABLE_UNLOCK(lle->lle_tbl);
 
 	return (1);
 }
@@ -630,9 +629,9 @@ lltable_update_ifaddr(struct lltable *llt)
 	if (llt->llt_ifp->if_flags & IFF_LOOPBACK)
 		return;
 
-	IF_AFDATA_WLOCK(llt->llt_ifp);
+	LLTABLE_LOCK(llt);
 	lltable_foreach_lle(llt, llentry_update_ifaddr, llt->llt_ifp);
-	IF_AFDATA_WUNLOCK(llt->llt_ifp);
+	LLTABLE_UNLOCK(llt);
 }
 
 /*
@@ -696,11 +695,11 @@ lltable_free(struct lltable *llt)
 	lltable_unlink(llt);
 
 	CK_LIST_INIT(&dchain);
-	IF_AFDATA_WLOCK(llt->llt_ifp);
+	LLTABLE_LOCK(llt);
 	/* Push all lles to @dchain */
 	lltable_foreach_lle(llt, lltable_free_cb, &dchain);
 	llentries_unlink(llt, &dchain);
-	IF_AFDATA_WUNLOCK(llt->llt_ifp);
+	LLTABLE_UNLOCK(llt);
 
 	CK_LIST_FOREACH_SAFE(lle, &dchain, lle_chain, next) {
 		llentry_free(lle);
@@ -722,24 +721,22 @@ lltable_delete_addr(struct lltable *llt, u_int flags,
     const struct sockaddr *l3addr)
 {
 	struct llentry *lle;
-	struct ifnet *ifp;
 
-	ifp = llt->llt_ifp;
-	IF_AFDATA_WLOCK(ifp);
+	LLTABLE_LOCK(llt);
 	lle = lla_lookup(llt, LLE_SF(l3addr->sa_family, LLE_EXCLUSIVE), l3addr);
 
 	if (lle == NULL) {
-		IF_AFDATA_WUNLOCK(ifp);
+		LLTABLE_UNLOCK(llt);
 		return (ENOENT);
 	}
 	if ((lle->la_flags & LLE_IFADDR) != 0 && (flags & LLE_IFADDR) == 0) {
-		IF_AFDATA_WUNLOCK(ifp);
+		LLTABLE_UNLOCK(llt);
 		LLE_WUNLOCK(lle);
 		return (EPERM);
 	}
 
 	lltable_unlink_entry(llt, lle);
-	IF_AFDATA_WUNLOCK(ifp);
+	LLTABLE_UNLOCK(llt);
 
 	llt->llt_delete_entry(llt, lle);
 
@@ -798,10 +795,10 @@ lltable_delete_conditional(struct lltable *llt, llt_match_cb_t *func,
 	lmd.func = func;
 	lmd.farg = farg;
 
-	IF_AFDATA_WLOCK(llt->llt_ifp);
+	LLTABLE_LOCK(llt);
 	lltable_foreach_lle(llt, lltable_delete_conditional_cb, &lmd);
 	llentries_unlink(llt, &lmd.dchain);
-	IF_AFDATA_WUNLOCK(llt->llt_ifp);
+	LLTABLE_UNLOCK(llt);
 
 	CK_LIST_FOREACH_SAFE(lle, &lmd.dchain, lle_chain, next)
 		llt->llt_delete_entry(llt, lle);
@@ -817,6 +814,7 @@ lltable_allocate_htbl(uint32_t hsize)
 	llt->llt_hsize = hsize;
 	llt->lle_head = malloc(sizeof(struct llentries) * hsize,
 	    M_LLTABLE, M_WAITOK | M_ZERO);
+	mtx_init(&llt->llt_lock, "lltable", NULL, MTX_DEF);
 
 	for (i = 0; i < llt->llt_hsize; i++)
 		CK_LIST_INIT(&llt->lle_head[i]);
@@ -1021,13 +1019,13 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 
 		/* Try to link new entry */
 		lle_tmp = NULL;
-		IF_AFDATA_WLOCK(ifp);
+		LLTABLE_LOCK(llt);
 		LLE_WLOCK(lle);
 		lle_tmp = lla_lookup(llt, LLE_EXCLUSIVE, dst);
 		if (lle_tmp != NULL) {
 			/* Check if we are trying to replace immutable entry */
 			if ((lle_tmp->la_flags & LLE_IFADDR) != 0) {
-				IF_AFDATA_WUNLOCK(ifp);
+				LLTABLE_UNLOCK(llt);
 				LLE_WUNLOCK(lle_tmp);
 				lltable_free_entry(llt, lle);
 				return (EPERM);
@@ -1036,7 +1034,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 			lltable_unlink_entry(llt, lle_tmp);
 		}
 		lltable_link_entry(llt, lle);
-		IF_AFDATA_WUNLOCK(ifp);
+		LLTABLE_UNLOCK(llt);
 
 		if (lle_tmp != NULL) {
 			EVENTHANDLER_INVOKE(lle_event, lle_tmp,LLENTRY_EXPIRED);
