@@ -420,6 +420,7 @@ OLD_FILES+=usr/libexec/bsdinstall/jail
 OLD_FILES+=usr/libexec/bsdinstall/keymap
 OLD_FILES+=usr/libexec/bsdinstall/mirrorselect
 OLD_FILES+=usr/libexec/bsdinstall/mount
+OLD_FILES+=usr/libexec/bsdinstall/mount_aux
 OLD_FILES+=usr/libexec/bsdinstall/netconfig
 OLD_FILES+=usr/libexec/bsdinstall/netconfig_ipv4
 OLD_FILES+=usr/libexec/bsdinstall/netconfig_ipv6
