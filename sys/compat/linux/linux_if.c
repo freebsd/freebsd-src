@@ -24,7 +24,9 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/ctype.h>
+#include <sys/eventhandler.h>
 #include <sys/jail.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
@@ -32,6 +34,8 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
+#include <net/vnet.h>
 
 #include <compat/linux/linux.h>
 #include <compat/linux/linux_common.h>
@@ -44,33 +48,67 @@ SYSCTL_BOOL(_compat_linux, OID_AUTO, use_real_ifnames, CTLFLAG_RWTUN,
     &use_real_ifnames, 0,
     "Use FreeBSD interface names instead of generating ethN aliases");
 
-/*
- * Criteria for interface name translation
- */
-#define	IFP_IS_ETH(ifp)		(if_gettype(ifp) == IFT_ETHER)
-#define	IFP_IS_LOOP(ifp)	(if_gettype(ifp) == IFT_LOOP)
+VNET_DEFINE_STATIC(struct unrhdr *, linux_eth_unr);
+#define	V_linux_eth_unr	VNET(linux_eth_unr)
 
-/*
- * Translate a FreeBSD interface name to a Linux interface name
- * by interface name, and return the number of bytes copied to lxname.
- */
-int
-ifname_bsd_to_linux_name(const char *bsdname, char *lxname, size_t len)
+static eventhandler_tag ifnet_arrival_tag;
+static eventhandler_tag ifnet_departure_tag;
+
+static void
+linux_ifnet_arrival(void *arg __unused, struct ifnet *ifp)
+{
+	if (ifp->if_type == IFT_ETHER)
+		ifp->if_linux_ethno = alloc_unr(V_linux_eth_unr);
+}
+
+static void
+linux_ifnet_departure(void *arg __unused, struct ifnet *ifp)
+{
+	if (ifp->if_type == IFT_ETHER)
+		free_unr(V_linux_eth_unr, ifp->if_linux_ethno);
+}
+
+void
+linux_ifnet_init(void)
+{
+	ifnet_arrival_tag = EVENTHANDLER_REGISTER(ifnet_arrival_event,
+	    linux_ifnet_arrival, NULL, EVENTHANDLER_PRI_FIRST);
+	ifnet_departure_tag = EVENTHANDLER_REGISTER(ifnet_departure_event,
+	    linux_ifnet_departure, NULL, EVENTHANDLER_PRI_LAST);
+}
+
+void
+linux_ifnet_uninit(void)
+{
+	EVENTHANDLER_DEREGISTER(ifnet_arrival_event, ifnet_arrival_tag);
+	EVENTHANDLER_DEREGISTER(ifnet_departure_event, ifnet_departure_tag);
+}
+
+static void
+linux_ifnet_vnet_init(void *arg __unused)
 {
 	struct epoch_tracker et;
-	struct ifnet *ifp;
-	int ret;
+	struct if_iter it;
+	if_t ifp;
 
-	CURVNET_ASSERT_SET();
-
-	ret = 0;
+	V_linux_eth_unr = new_unrhdr(0, INT_MAX, NULL);
 	NET_EPOCH_ENTER(et);
-	ifp = ifunit(bsdname);
-	if (ifp != NULL)
-		ret = ifname_bsd_to_linux_ifp(ifp, lxname, len);
+	for (ifp = if_iter_start(&it); ifp != NULL; ifp = if_iter_next(&it))
+		linux_ifnet_arrival(NULL, ifp);
 	NET_EPOCH_EXIT(et);
-	return (ret);
 }
+VNET_SYSINIT(linux_ifnet_vnet_init, SI_SUB_PROTO_IF, SI_ORDER_ANY,
+    linux_ifnet_vnet_init, NULL);
+
+#ifdef VIMAGE
+static void
+linux_ifnet_vnet_uninit(void *arg __unused)
+{
+	delete_unrhdr(V_linux_eth_unr);
+}
+VNET_SYSUNINIT(linux_ifnet_vnet_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY,
+    linux_ifnet_vnet_uninit, NULL);
+#endif
 
 /*
  * Translate a FreeBSD interface name to a Linux interface name
@@ -99,50 +137,23 @@ ifname_bsd_to_linux_idx(u_int idx, char *lxname, size_t len)
  * and return the number of bytes copied to lxname, 0 if interface
  * not found, -1 on error.
  */
-struct ifname_bsd_to_linux_ifp_cb_s {
-	struct ifnet	*ifp;
-	int		ethno;
-	char		*lxname;
-	size_t		len;
-};
-
-static int
-ifname_bsd_to_linux_ifp_cb(if_t ifp, void *arg)
-{
-	struct ifname_bsd_to_linux_ifp_cb_s *cbs = arg;
-
-	if (ifp == cbs->ifp)
-		return (snprintf(cbs->lxname, cbs->len, "eth%d", cbs->ethno));
-	if (IFP_IS_ETH(ifp))
-		cbs->ethno++;
-	return (0);
-}
-
 int
-ifname_bsd_to_linux_ifp(struct ifnet *ifp, char *lxname, size_t len)
+ifname_bsd_to_linux_ifp(const struct ifnet *ifp, char *lxname, size_t len)
 {
-	struct ifname_bsd_to_linux_ifp_cb_s arg = {
-		.ifp = ifp,
-		.ethno = 0,
-		.lxname = lxname,
-		.len = len,
-	};
-
-	NET_EPOCH_ASSERT();
-
 	/*
 	 * Linux loopback interface name is lo (not lo0),
 	 * we translate lo to lo0, loX to loX.
 	 */
-	if (IFP_IS_LOOP(ifp) && strncmp(if_name(ifp), "lo0", IFNAMSIZ) == 0)
+	if (ifp->if_type == IFT_LOOP &&
+	    strncmp(ifp->if_xname, "lo0", IFNAMSIZ) == 0)
 		return (strlcpy(lxname, "lo", len));
 
 	/* Short-circuit non ethernet interfaces. */
-	if (!IFP_IS_ETH(ifp) || use_real_ifnames)
-		return (strlcpy(lxname, if_name(ifp), len));
+	if (ifp->if_type != IFT_ETHER || use_real_ifnames)
+		return (strlcpy(lxname, ifp->if_xname, len));
 
 	/* Determine the (relative) unit number for ethernet interfaces. */
-	return (if_foreach(ifname_bsd_to_linux_ifp_cb, &arg));
+	return (snprintf(lxname, len, "eth%d", ifp->if_linux_ethno));
 }
 
 /*
@@ -154,7 +165,6 @@ ifname_bsd_to_linux_ifp(struct ifnet *ifp, char *lxname, size_t len)
 struct ifname_linux_to_ifp_cb_s {
 	bool		is_lo;
 	bool		is_eth;
-	int		ethno;
 	int		unit;
 	const char	*lxname;
 	if_t		ifp;
@@ -174,12 +184,11 @@ ifname_linux_to_ifp_cb(if_t ifp, void *arg)
 	 */
 	if (strncmp(if_name(ifp), cbs->lxname, LINUX_IFNAMSIZ) == 0)
 		goto out;
-	if (cbs->is_eth && IFP_IS_ETH(ifp) && cbs->unit == cbs->ethno)
+	if (cbs->is_eth && ifp->if_type == IFT_ETHER &&
+	    ifp->if_linux_ethno == cbs->unit)
 		goto out;
-	if (cbs->is_lo && IFP_IS_LOOP(ifp))
+	if (cbs->is_lo && ifp->if_type == IFT_LOOP)
 		goto out;
-	if (IFP_IS_ETH(ifp))
-		cbs->ethno++;
 	return (0);
 
 out:
@@ -188,12 +197,10 @@ out:
 }
 
 struct ifnet *
-ifname_linux_to_ifp(struct thread *td, const char *lxname)
+ifname_linux_to_ifp(const char *lxname)
 {
 	struct ifname_linux_to_ifp_cb_s arg = {
-		.ethno = 0,
 		.lxname = lxname,
-		.ifp = NULL,
 	};
 	int len;
 	char *ep;
@@ -228,7 +235,7 @@ ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 
 	CURVNET_SET(TD_TO_VNET(td));
 	NET_EPOCH_ENTER(et);
-	ifp = ifname_linux_to_ifp(td, lxname);
+	ifp = ifname_linux_to_ifp(lxname);
 	if (ifp != NULL && bsdname != NULL)
 		strlcpy(bsdname, if_name(ifp), IFNAMSIZ);
 	NET_EPOCH_EXIT(et);
@@ -297,12 +304,12 @@ linux_ifhwaddr(struct ifnet *ifp, struct l_sockaddr *lsa)
 
 	NET_EPOCH_ASSERT();
 
-	if (IFP_IS_LOOP(ifp)) {
+	if (ifp->if_type == IFT_LOOP) {
 		bzero(lsa, sizeof(*lsa));
 		lsa->sa_family = LINUX_ARPHRD_LOOPBACK;
 		return (0);
 	}
-	if (!IFP_IS_ETH(ifp))
+	if (ifp->if_type != IFT_ETHER)
 		return (ENOENT);
 	if (if_foreach_addr_type(ifp, AF_LINK, linux_ifhwaddr_cb, lsa) > 0)
 		return (0);

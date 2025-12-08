@@ -359,6 +359,8 @@ struct l_statx {
 	ktrstruct("l_sigset_t", (s), l)
 #endif
 
+void linux_ifnet_init(void);
+void linux_ifnet_uninit(void);
 void linux_netlink_register(void);
 void linux_netlink_deregister(void);
 

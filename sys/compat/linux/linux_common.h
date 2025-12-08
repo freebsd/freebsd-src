@@ -28,10 +28,9 @@
 #ifndef _LINUX_COMMON_H_
 #define _LINUX_COMMON_H_
 
-int	ifname_bsd_to_linux_ifp(struct ifnet *, char *, size_t);
+int	ifname_bsd_to_linux_ifp(const struct ifnet *, char *, size_t);
 int	ifname_bsd_to_linux_idx(u_int, char *, size_t);
-int	ifname_bsd_to_linux_name(const char *, char *, size_t);
-struct ifnet *ifname_linux_to_ifp(struct thread *, const char *);
+struct ifnet *ifname_linux_to_ifp( const char *);
 int	ifname_linux_to_bsd(struct thread *, const char *, char *);
 
 unsigned short	linux_ifflags(struct ifnet *);

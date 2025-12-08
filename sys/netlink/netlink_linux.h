@@ -37,7 +37,8 @@ struct nlpcb;
 struct nl_pstate;
 struct nl_writer;
 
-typedef struct nl_buf * msgs_to_linux_cb_t(struct nl_buf *, struct nlpcb *);
+typedef struct nl_buf * msgs_to_linux_cb_t(struct nl_buf *, struct nlpcb *,
+			    const struct ifnet *);
 typedef int msg_from_linux_cb_t(int netlink_family, struct nlmsghdr **hdr,
     struct nl_pstate *npt);
 
