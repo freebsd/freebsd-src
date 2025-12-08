@@ -2340,8 +2340,11 @@ static int ath10k_pci_bmi_wait(struct ath10k *ar,
 #if defined(__linux__)
 		schedule();
 #elif defined(__FreeBSD__)
-		/* Using LinuxKPI we'll hang for-ever as there's no wake_up */
-		kern_yield(PRI_USER);
+		/*
+		 * Using LinuxKPI's schedule() will hang for-ever as there is
+		 * no wake_up.  Poll about 100 times per second until timeout.
+		 */
+		schedule_timeout(BMI_COMMUNICATION_TIMEOUT_HZ/300);
 #endif
 	}
 
