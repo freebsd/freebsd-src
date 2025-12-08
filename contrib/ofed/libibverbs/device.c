@@ -40,7 +40,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <alloca.h>
 #include <errno.h>
 
 #include "ibverbs.h"
