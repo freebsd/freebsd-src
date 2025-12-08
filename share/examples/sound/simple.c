@@ -29,6 +29,7 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/soundcard.h>
 #include "oss.h"
 
 /*
@@ -115,6 +116,9 @@ main(int argc, char *argv[])
 	int rc, bytes;
 
 	oss_init(&config);
+	if (config.format != AFMT_S32_NE)
+		errx(1, "Device doesn't support signed 32bit samples. "
+			"Check with 'sndctl' if it can be configured for 's32le' format.");
 	bytes = config.buffer_info.bytes;
 	channels = malloc(bytes);
 
