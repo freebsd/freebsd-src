@@ -90,7 +90,7 @@ linsysfs_if_addr(PFS_FILL_ARGS)
 
 	CURVNET_SET(TD_TO_VNET(td));
 	NET_EPOCH_ENTER(et);
-	ifp = ifname_linux_to_ifp(td, pn->pn_parent->pn_name);
+	ifp = ifname_linux_to_ifp(pn->pn_parent->pn_name);
 	if (ifp != NULL && (error = linux_ifhwaddr(ifp, &lsa)) == 0)
 		error = sbuf_printf(sb, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
 		    lsa.sa_data[0], lsa.sa_data[1], lsa.sa_data[2],
@@ -119,7 +119,7 @@ linsysfs_if_flags(PFS_FILL_ARGS)
 
 	CURVNET_SET(TD_TO_VNET(td));
 	NET_EPOCH_ENTER(et);
-	ifp = ifname_linux_to_ifp(td, pn->pn_parent->pn_name);
+	ifp = ifname_linux_to_ifp(pn->pn_parent->pn_name);
 	if (ifp != NULL)
 		error = sbuf_printf(sb, "0x%x\n", linux_ifflags(ifp));
 	else
@@ -138,7 +138,7 @@ linsysfs_if_ifindex(PFS_FILL_ARGS)
 
 	CURVNET_SET(TD_TO_VNET(td));
 	NET_EPOCH_ENTER(et);
-	ifp = ifname_linux_to_ifp(td, pn->pn_parent->pn_name);
+	ifp = ifname_linux_to_ifp(pn->pn_parent->pn_name);
 	if (ifp != NULL)
 		error = sbuf_printf(sb, "%u\n", if_getindex(ifp));
 	else
@@ -157,7 +157,7 @@ linsysfs_if_mtu(PFS_FILL_ARGS)
 
 	CURVNET_SET(TD_TO_VNET(td));
 	NET_EPOCH_ENTER(et);
-	ifp = ifname_linux_to_ifp(td, pn->pn_parent->pn_name);
+	ifp = ifname_linux_to_ifp( pn->pn_parent->pn_name);
 	if (ifp != NULL)
 		error = sbuf_printf(sb, "%u\n", if_getmtu(ifp));
 	else
@@ -186,7 +186,7 @@ linsysfs_if_type(PFS_FILL_ARGS)
 
 	CURVNET_SET(TD_TO_VNET(td));
 	NET_EPOCH_ENTER(et);
-	ifp = ifname_linux_to_ifp(td, pn->pn_parent->pn_name);
+	ifp = ifname_linux_to_ifp(pn->pn_parent->pn_name);
 	if (ifp != NULL && (error = linux_ifhwaddr(ifp, &lsa)) == 0)
 		error = sbuf_printf(sb, "%d\n", lsa.sa_family);
 	else
@@ -207,7 +207,7 @@ linsysfs_if_visible(PFS_VIS_ARGS)
 	visible = 0;
 	CURVNET_SET(TD_TO_VNET(td));
 	NET_EPOCH_ENTER(et);
-	ifp = ifname_linux_to_ifp(td, pn->pn_name);
+	ifp = ifname_linux_to_ifp(pn->pn_name);
 	if (ifp != NULL) {
 		TAILQ_FOREACH_SAFE(nq, &ifp_nodes_q, ifp_nodes_next, nq_tmp) {
 			if (nq->ifp == ifp && nq->vnet == curvnet) {

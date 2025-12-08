@@ -65,6 +65,7 @@ struct ifnet {
 	void	*if_linkmib;		/* link-type-specific MIB data */
 	size_t	if_linkmiblen;		/* length of above data */
 	u_int	if_refcount;		/* reference count */
+	u_int	if_linux_ethno;		/* linux name id for IFT_ETHER */
 
 	/* These fields are shared with struct if_data. */
 	uint8_t		if_type;	/* ethernet, tokenring, etc */
