@@ -112,12 +112,13 @@ zfsbootcfg(const char *pool, bool force)
 }
 
 static void
-write_nextboot(const char *fn, const char *env, bool force)
+write_nextboot(const char *fn, const char *env, bool append, bool force)
 {
 	char tmp[PATH_MAX];
 	FILE *fp;
 	struct statfs sfs;
-	int tmpfd;
+	ssize_t ret;
+	int fd, tmpfd;
 	bool supported = false;
 	bool zfs = false;
 
@@ -145,6 +146,7 @@ write_nextboot(const char *fn, const char *env, bool force)
 		E("Path too long %s", fn);
 	if (strlcat(tmp, ".XXXXXX", sizeof(tmp)) >= sizeof(tmp))
 		E("Path too long %s", fn);
+
 	tmpfd = mkstemp(tmp);
 	if (tmpfd == -1)
 		E("mkstemp %s", tmp);
@@ -152,6 +154,21 @@ write_nextboot(const char *fn, const char *env, bool force)
 	fp = fdopen(tmpfd, "w");
 	if (fp == NULL)
 		E("fdopen %s", tmp);
+
+	if (append) {
+		if ((fd = open(fn, O_RDONLY)) < 0) {
+			if (errno != ENOENT)
+				E("open %s", fn);
+		} else {
+			do {
+				ret = copy_file_range(fd, NULL, tmpfd, NULL,
+				    SSIZE_MAX, 0);
+				if (ret < 0)
+					E("copy %s to %s", fn, tmp);
+			} while (ret > 0);
+			close(fd);
+		}
+	}
 
 	if (fprintf(fp, "%s%s",
 	    supported ? "nextboot_enable=\"YES\"\n" : "",
@@ -216,7 +233,7 @@ add_env(char **env, const char *key, const char *value)
  * Different options are valid for different programs.
  */
 #define GETOPT_REBOOT "cDde:fk:lNno:pqr"
-#define GETOPT_NEXTBOOT "De:fk:o:"
+#define GETOPT_NEXTBOOT "aDe:fk:o:"
 
 int
 main(int argc, char *argv[])
@@ -225,7 +242,7 @@ main(int argc, char *argv[])
 	const struct passwd *pw;
 	struct stat st;
 	int ch, howto = 0, i, sverrno;
-	bool Dflag, fflag, lflag, Nflag, nflag, qflag;
+	bool aflag, Dflag, fflag, lflag, Nflag, nflag, qflag;
 	uint64_t pageins;
 	const char *user, *kernel = NULL, *getopts = GETOPT_REBOOT;
 	char *env = NULL, *v;
@@ -240,9 +257,12 @@ main(int argc, char *argv[])
 		/* reboot */
 		howto = 0;
 	}
-	Dflag = fflag = lflag = Nflag = nflag = qflag = false;
+	aflag = Dflag = fflag = lflag = Nflag = nflag = qflag = false;
 	while ((ch = getopt(argc, argv, getopts)) != -1) {
 		switch(ch) {
+		case 'a':
+			aflag = true;
+			break;
 		case 'c':
 			howto |= RB_POWERCYCLE;
 			break;
@@ -363,7 +383,7 @@ main(int argc, char *argv[])
 	}
 
 	if (env != NULL)
-		write_nextboot(PATH_NEXTBOOT, env, fflag);
+		write_nextboot(PATH_NEXTBOOT, env, aflag, fflag);
 	if (donextboot)
 		exit (0);
 
@@ -483,10 +503,14 @@ restart:
 static void
 usage(void)
 {
-
-	(void)fprintf(stderr, dohalt ?
-	    "usage: halt [-clNnpq] [-k kernel]\n" :
-	    "usage: reboot [-cdlNnpqr] [-k kernel]\n");
+	if (donextboot) {
+		fprintf(stderr, "usage: nextboot [-aDf] "
+		    "[-e name=value] [-k kernel] [-o options]\n");
+	} else {
+		fprintf(stderr, dohalt ?
+		    "usage: halt [-clNnpq] [-k kernel]\n" :
+		    "usage: reboot [-cdlNnpqr] [-k kernel]\n");
+	}
 	exit(1);
 }
 
