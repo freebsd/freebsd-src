@@ -650,7 +650,8 @@ proc0_post(void *dummy __unused)
 
 	/*
 	 * Now we can look at the time, having had a chance to verify the
-	 * time from the filesystem.  Pretend that proc0 started now.
+	 * time from the filesystem.  Pretend that all current threads
+	 * started now.
 	 */
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
@@ -663,10 +664,13 @@ proc0_post(void *dummy __unused)
 		PROC_STATLOCK(p);
 		rufetch(p, &ru);	/* Clears thread stats */
 		ruxreset(&p->p_rux);
-		PROC_STATUNLOCK(p);
 		FOREACH_THREAD_IN_PROC(p, td) {
 			td->td_runtime = 0;
+			thread_lock(td);
+			ruxreset(&td->td_rux);
+			thread_unlock(td);
 		}
+		PROC_STATUNLOCK(p);
 		PROC_UNLOCK(p);
 	}
 	sx_sunlock(&allproc_lock);
