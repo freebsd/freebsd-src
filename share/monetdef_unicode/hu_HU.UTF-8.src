@@ -25,10 +25,10 @@ Ft
 -
 #
 # int_frac_digits
-2
+0
 #
 # frac_digits
-2
+0
 #
 # p_cs_precedes
 0
