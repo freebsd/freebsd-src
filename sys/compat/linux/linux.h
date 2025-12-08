@@ -359,16 +359,6 @@ struct l_statx {
 	ktrstruct("l_sigset_t", (s), l)
 #endif
 
-/*
- * Criteria for interface name translation
- */
-#define	IFP_IS_ETH(ifp)		(if_gettype(ifp) == IFT_ETHER)
-#define	IFP_IS_LOOP(ifp)	(if_gettype(ifp) == IFT_LOOP)
-
-struct ifnet;
-
-bool linux_use_real_ifname(const struct ifnet *);
-
 void linux_netlink_register(void);
 void linux_netlink_deregister(void);
 
