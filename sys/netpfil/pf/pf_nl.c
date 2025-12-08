@@ -1954,8 +1954,18 @@ pf_handle_get_tstats(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	PF_RULES_RLOCK();
 
 	n = pfr_table_count(&attrs.pfrio_table, attrs.pfrio_flags);
+	if (n < 0) {
+		PF_RULES_RUNLOCK();
+		PF_TABLE_STATS_UNLOCK();
+		return (EINVAL);
+	}
 	pfrtstats = mallocarray(n,
 	    sizeof(struct pfr_tstats), M_PF, M_NOWAIT | M_ZERO);
+	if (pfrtstats == NULL) {
+		PF_RULES_RUNLOCK();
+		PF_TABLE_STATS_UNLOCK();
+		return (ENOMEM);
+	}
 
 	error = pfr_get_tstats(&attrs.pfrio_table, pfrtstats,
 	    &n, attrs.pfrio_flags | PFR_FLAG_USERIOCTL);
