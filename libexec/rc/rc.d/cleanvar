@@ -4,6 +4,7 @@
 
 # PROVIDE: cleanvar
 # REQUIRE: var
+# BEFORE:  FILESYSTEMS
 
 . /etc/rc.subr
 
