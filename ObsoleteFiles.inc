@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20251208: Rename iwm8000C to correct name.
+OLD_FILES+=boot/firmware/iwm8000C
+
 # 20251207: removed libuutil and libtpool
 OLD_LIBS+=	lib/libuutil.so.2
 OLD_LIBS+=	lib/libtpool.so.2

@@ -41,7 +41,7 @@ iwm7265DMODE=	644
 iwm7265DPACKAGE=	firmware-iwm
 
 iwm8000C=	${SRCTOP}/sys/contrib/dev/iwm/iwm-8000C-22.fw
-iwm8000CNAME=	iwm8000C
+iwm8000CNAME=	iwm8000Cfw
 iwm8000CDIR=	/boot/firmware
 iwm8000CMODE=	644
 iwm8000CPACKAGE=	firmware-iwm
