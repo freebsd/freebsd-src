@@ -54,6 +54,7 @@
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/time.h>
+#include <sys/unistd.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 
@@ -3065,6 +3066,32 @@ linux_mq_getsetattr(struct thread *td, struct linux_mq_getsetattr_args *args)
 	}
 
 	return (error);
+}
+
+int
+linux_kcmp(struct thread *td, struct linux_kcmp_args *args)
+{
+	int type;
+
+	switch (args->type) {
+	case LINUX_KCMP_FILE:
+		type = KCMP_FILE;
+		break;
+	case LINUX_KCMP_FILES:
+		type = KCMP_FILES;
+		break;
+	case LINUX_KCMP_SIGHAND:
+		type = KCMP_SIGHAND;
+		break;
+	case LINUX_KCMP_VM:
+		type = KCMP_VM;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (kern_kcmp(td, args->pid1, args->pid2, type, args->idx1,
+	    args->idx));
 }
 
 MODULE_DEPEND(linux, mqueuefs, 1, 1, 1);

@@ -96,8 +96,6 @@ DUMMY(setns);
 /* Linux 3.2: */
 DUMMY(process_vm_readv);
 DUMMY(process_vm_writev);
-/* Linux 3.5: */
-DUMMY(kcmp);
 /* Linux 3.8: */
 DUMMY(finit_module);
 DUMMY(sched_setattr);
