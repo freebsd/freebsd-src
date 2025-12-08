@@ -2840,7 +2840,7 @@ __elfN(parse_notes)(const struct image_params *imgp, const Elf_Note *checknote,
 			goto nextnote;
 		note_name = (const char *)(note + 1);
 		if (note_name + roundup2(note->n_namesz, ELF_NOTE_ROUNDSIZE) +
-		    note->n_descsz >= (const char *)note_end ||
+		    note->n_descsz > (const char *)note_end ||
 		    strncmp(note_vendor, note_name, checknote->n_namesz) != 0)
 			goto nextnote;
 
