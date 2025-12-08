@@ -645,7 +645,6 @@ static void
 proc0_post(void *dummy __unused)
 {
 	struct proc *p;
-	struct rusage ru;
 	struct thread *td;
 
 	/*
@@ -662,11 +661,15 @@ proc0_post(void *dummy __unused)
 		}
 		microuptime(&p->p_stats->p_start);
 		PROC_STATLOCK(p);
-		rufetch(p, &ru);	/* Clears thread stats */
 		ruxreset(&p->p_rux);
 		FOREACH_THREAD_IN_PROC(p, td) {
-			td->td_runtime = 0;
 			thread_lock(td);
+			td->td_incruntime = 0;
+			td->td_runtime = 0;
+			td->td_pticks = 0;
+			td->td_sticks = 0;
+			td->td_iticks = 0;
+			td->td_uticks = 0;
 			ruxreset(&td->td_rux);
 			thread_unlock(td);
 		}
