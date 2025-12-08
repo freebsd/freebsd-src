@@ -14,10 +14,20 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#if defined(__FreeBSD__)
+#define	LINUXKPI_PARAM_PREFIX	ath10k_fwlog_
+#endif
+
 #include "core.h"
 #include "debug.h"
 #if defined(__FreeBSD__)
 #include "fwlog.h"
+
+#include <linux/module.h>	/* modparam */
+
+static bool enable;
+module_param(enable, bool, 0644);
+MODULE_PARM_DESC(enable, "Enable firmware loggging.");
 #endif
 
 #define FW_DBGLOG_TIMESTAMP_OFFSET	0
@@ -1525,6 +1535,13 @@ static void ath10k_fwlog_print_work(struct work_struct *work) {
 }
 
 void ath10k_handle_fwlog_msg(struct ath10k *ar, struct sk_buff *skb) {
+
+#if defined(__FreeBSD__)
+	if (!enable) {
+		dev_kfree_skb(skb);
+		return;
+	}
+#endif
 
 	if (!test_bit(ATH10K_FLAG_CORE_REGISTERED, &ar->dev_flags)) {
 		ath10k_warn(ar, "ignoring fwlog event!!!\n");
