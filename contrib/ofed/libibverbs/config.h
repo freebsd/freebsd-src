@@ -1,6 +1,5 @@
-/* $FreeBSD$ */
-
-#include "alloca.h"
+#ifndef _OFED_IBVERBS_CONFIG_H_
+#define	_OFED_IBVERBS_CONFIG_H_
 
 #define	memalign(align, size) ({			\
 	void *__ptr;					\
@@ -39,3 +38,4 @@
 #define	MADV_DOFORK MADV_NORMAL
 #define	SWITCH_FALLTHROUGH (void)0
 
+#endif	/* _OFED_IBVERBS_CONFIG_H_ */
