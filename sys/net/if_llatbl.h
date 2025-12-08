@@ -174,6 +174,7 @@ struct lltable {
 	int			llt_maxentries;
 	struct llentries	*lle_head;
 	struct ifnet		*llt_ifp;
+	struct mtx		llt_lock;
 
 	llt_lookup_t		*llt_lookup;
 	llt_alloc_t		*llt_alloc_entry;
@@ -191,6 +192,12 @@ struct lltable {
 	llt_mark_used_t		*llt_mark_used;
 	llt_post_resolved_t	*llt_post_resolved;
 };
+
+#define	LLTABLE_LOCK(llt)	mtx_lock(&(llt)->llt_lock)
+#define	LLTABLE_UNLOCK(llt)	mtx_unlock(&(llt)->llt_lock)
+#define	LLTABLE_LOCK_ASSERT(llt)	mtx_assert(&(llt)->llt_lock, MA_OWNED)
+#define	LLTABLE_RLOCK_ASSERT(llt)	MPASS(in_epoch(net_epoch_preempt) || \
+					mtx_owned(&(llt)->llt_lock))
 
 MALLOC_DECLARE(M_LLTABLE);
 
@@ -261,7 +268,7 @@ void lltable_fill_sa_entry(const struct llentry *lle, struct sockaddr *sa);
 struct ifnet *lltable_get_ifp(const struct lltable *llt);
 int lltable_get_af(const struct lltable *llt);
 
-bool lltable_acquire_wlock(struct ifnet *ifp, struct llentry *lle);
+bool lltable_trylock(struct llentry *lle);
 
 int lltable_foreach_lle(struct lltable *llt, llt_foreach_cb_t *f,
     void *farg);

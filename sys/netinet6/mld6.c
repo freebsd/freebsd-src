@@ -165,8 +165,8 @@ static int	sysctl_mld_ifinfo(SYSCTL_HANDLER_ARGS);
  *  scope ID is only used by MLD to select the outgoing interface.
  *
  *  During interface attach and detach, MLD will take MLD_LOCK *after*
- *  the IF_AFDATA_LOCK.
- *  As in6_setscope() takes IF_AFDATA_LOCK then SCOPE_LOCK, we can't call
+ *  the LLTABLE_LOCK.
+ *  As in6_setscope() takes LLTABLE_LOCK then SCOPE_LOCK, we can't call
  *  it with MLD_LOCK held without triggering an LOR. A netisr with indirect
  *  dispatch could work around this, but we'd rather not do that, as it
  *  can introduce other races.
@@ -182,7 +182,7 @@ static int	sysctl_mld_ifinfo(SYSCTL_HANDLER_ARGS);
  *  calls in6_setscope() internally whilst MLD_LOCK is held. This will
  *  trigger a LOR warning in WITNESS when the ifnet is detached.
  *
- *  The right answer is probably to make IF_AFDATA_LOCK an rwlock, given
+ *  The right answer is probably to make LLTABLE_LOCK an rwlock, given
  *  how it's used across the network stack. Here we're simply exploiting
  *  the fact that MLD runs at a similar layer in the stack to scope6.c.
  *
@@ -553,7 +553,7 @@ mld_ifdetach(struct ifnet *ifp, struct in6_multi_head *inmh)
  * Hook for domifdetach.
  * Runs after link-layer cleanup; free MLD state.
  *
- * SMPng: Normally called with IF_AFDATA_LOCK held.
+ * SMPng: Normally called with LLTABLE_LOCK held.
  */
 void
 mld_domifdetach(struct ifnet *ifp)
