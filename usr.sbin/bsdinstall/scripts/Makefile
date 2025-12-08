@@ -16,6 +16,7 @@ SCRIPTS=auto \
 	keymap \
 	mirrorselect \
 	mount \
+	mount_aux \
 	netconfig \
 	netconfig_ipv4 \
 	netconfig_ipv6 \
