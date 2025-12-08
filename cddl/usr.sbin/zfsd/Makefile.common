@@ -25,7 +25,7 @@ CFLAGS+= -I${SRCTOP}/cddl/usr.sbin
 CFLAGS+= -DHAVE_ISSETUGID
 CFLAGS+= -DHAVE_EXECVPE
 
-LIBADD+=	devdctl zfs util geom bsdxml sbuf nvpair avl zutil
+LIBADD+=	devdctl zfs util geom bsdxml sbuf nvpair avl zutil spl pthread
 
 cscope:
 	find ${.CURDIR} -type f -a \( -name "*.[ch]" -o -name "*.cc" \) \
