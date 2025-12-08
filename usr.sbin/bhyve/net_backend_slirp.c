@@ -62,15 +62,18 @@
 #include "config.h"
 #include "debug.h"
 #include "mevent.h"
+#include "net_utils.h"
 #include "net_backends.h"
 #include "net_backends_priv.h"
 
-#define	SLIRP_MTU	2048
+#define	DEFAULT_MTU	2048
 
 struct slirp_priv {
 	int s;
 	pid_t helper;
 	struct mevent *mevp;
+	size_t mtu;
+	uint8_t *buf;
 };
 
 extern char **environ;
@@ -86,6 +89,8 @@ slirp_init(struct net_backend *be, const char *devname __unused,
 	const char **argv;
 	char sockname[32];
 	int error, s[2];
+	const char *mtu_value;
+	size_t mtu;
 
 	if (socketpair(PF_LOCAL, SOCK_SEQPACKET | SOCK_NONBLOCK, 0, s) != 0) {
 		EPRINTLN("socketpair");
@@ -124,6 +129,25 @@ slirp_init(struct net_backend *be, const char *devname __unused,
 		EPRINTLN("nvlist_clone");
 		goto err;
 	}
+
+	mtu_value = get_config_value_node(config, "mtu");
+	if (mtu_value != NULL) {
+		if (net_parsemtu(mtu_value, &mtu)) {
+		    	EPRINTLN("Could not parse MTU");
+		    	goto err;
+		}
+	} else {
+		mtu = DEFAULT_MTU;
+	}
+	nvlist_add_number(config, "mtui", mtu);
+
+	priv->mtu = mtu;
+	priv->buf = malloc(mtu);
+	if (priv->buf == NULL) {
+		EPRINTLN("Could not allocate buffer");
+		goto err;
+	}
+
 	nvlist_add_string(config, "vmname", get_config_value("name"));
 	error = nvlist_send(s[0], config);
 	nvlist_destroy(config);
@@ -146,6 +170,7 @@ slirp_init(struct net_backend *be, const char *devname __unused,
 	return (0);
 
 err:
+	free(priv->buf);
 	(void)close(s[0]);
 	(void)close(s[1]);
 	return (-1);
@@ -168,6 +193,8 @@ slirp_cleanup(struct net_backend *be)
 {
 	struct slirp_priv *priv = NET_BE_PRIV(be);
 
+	free(priv->buf);
+
 	if (priv->helper > 0) {
 		int status;
 
@@ -184,17 +211,15 @@ static ssize_t
 slirp_peek_recvlen(struct net_backend *be)
 {
 	struct slirp_priv *priv = NET_BE_PRIV(be);
-	uint8_t buf[SLIRP_MTU];
 	ssize_t n;
 
 	/*
 	 * Copying into the buffer is totally unnecessary, but we don't
 	 * implement MSG_TRUNC for SEQPACKET sockets.
 	 */
-	n = recv(priv->s, buf, sizeof(buf), MSG_PEEK | MSG_DONTWAIT);
+	n = recv(priv->s, priv->buf, priv->mtu, MSG_PEEK | MSG_DONTWAIT);
 	if (n < 0)
 		return (errno == EWOULDBLOCK ? 0 : -1);
-	assert((size_t)n <= SLIRP_MTU);
 	return (n);
 }
 
@@ -218,7 +243,7 @@ slirp_recv(struct net_backend *be, const struct iovec *iov, int iovcnt)
 			return (0);
 		return (-1);
 	}
-	assert(n <= SLIRP_MTU);
+	assert((size_t)n <= priv->mtu);
 	return (n);
 }
 
