@@ -119,7 +119,6 @@ struct chipc_gpio_softc {
 	device_t		 dev;
 	device_t		 gpiobus;	/**< attached gpiobus child */
 	struct bhnd_resource	*mem_res;	/**< chipcommon register block */
-	int			 mem_rid;	/**< resource ID of mem_res */
 	uint32_t		 quirks;	/**< device quirks (see CC_GPIO_QUIRK_*) */
 	struct mtx		 mtx;		/**< lock protecting RMW register access */
 };

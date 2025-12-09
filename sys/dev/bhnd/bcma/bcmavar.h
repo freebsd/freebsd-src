@@ -180,7 +180,6 @@ struct bcma_devinfo {
 
 	struct bhnd_resource	*res_agent;	/**< Agent (wrapper) resource, or NULL. Not
 						  *  all bcma(4) cores have or require an agent. */
-	int			 rid_agent;	/**< Agent resource ID, or -1 */
 
 	u_int			 num_intrs;	/**< number of interrupt descriptors. */
 	struct bcma_intr_list	 intrs;		/**< interrupt descriptors */

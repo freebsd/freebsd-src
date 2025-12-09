@@ -211,7 +211,6 @@ struct siba_devinfo {
 	struct siba_intr	 intr;				/**< interrupt flag mapping, if any */
 
 	struct bhnd_resource	*cfg_res[SIBA_MAX_CFG];		/**< bus-mapped config block registers */
-	int			 cfg_rid[SIBA_MAX_CFG];		/**< bus-mapped config block resource IDs */
 	siba_pmu_state		 pmu_state;			/**< per-core PMU state */
 	union {
 		void		*bhnd_info;	/**< if SIBA_PMU_BHND, bhnd(4)-managed per-core PMU info. */
