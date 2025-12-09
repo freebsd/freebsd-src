@@ -128,6 +128,7 @@ struct lvt {
 	u_int lvt_active:1;
 	u_int lvt_mode:16;
 	u_int lvt_vector:8;
+	u_int lvt_reg;
 };
 
 struct lapic {
@@ -156,6 +157,7 @@ static struct lvt lvts[] = {
 		.lvt_active = 1,
 		.lvt_mode = APIC_LVT_DM_EXTINT,
 		.lvt_vector = 0,
+		.lvt_reg = LAPIC_LVT_LINT0,
 	},
 	/* LINT1: NMI */
 	[APIC_LVT_LINT1] = {
@@ -165,6 +167,7 @@ static struct lvt lvts[] = {
 		.lvt_active = 1,
 		.lvt_mode = APIC_LVT_DM_NMI,
 		.lvt_vector = 0,
+		.lvt_reg = LAPIC_LVT_LINT1,
 	},
 	[APIC_LVT_TIMER] = {
 		.lvt_edgetrigger = 1,
@@ -173,6 +176,7 @@ static struct lvt lvts[] = {
 		.lvt_active = 1,
 		.lvt_mode = APIC_LVT_DM_FIXED,
 		.lvt_vector = APIC_TIMER_INT,
+		.lvt_reg = LAPIC_LVT_TIMER,
 	},
 	[APIC_LVT_ERROR] = {
 		.lvt_edgetrigger = 1,
@@ -181,6 +185,7 @@ static struct lvt lvts[] = {
 		.lvt_active = 1,
 		.lvt_mode = APIC_LVT_DM_FIXED,
 		.lvt_vector = APIC_ERROR_INT,
+		.lvt_reg = LAPIC_LVT_ERROR,
 	},
 	[APIC_LVT_PMC] = {
 		.lvt_edgetrigger = 1,
@@ -189,6 +194,7 @@ static struct lvt lvts[] = {
 		.lvt_active = 1,
 		.lvt_mode = APIC_LVT_DM_NMI,
 		.lvt_vector = 0,
+		.lvt_reg = LAPIC_LVT_PCINT,
 	},
 	[APIC_LVT_THERMAL] = {
 		.lvt_edgetrigger = 1,
@@ -197,6 +203,7 @@ static struct lvt lvts[] = {
 		.lvt_active = 1,
 		.lvt_mode = APIC_LVT_DM_FIXED,
 		.lvt_vector = APIC_THERMAL_INT,
+		.lvt_reg = LAPIC_LVT_THERMAL,
 	},
 	[APIC_LVT_CMCI] = {
 		.lvt_edgetrigger = 1,
@@ -205,6 +212,7 @@ static struct lvt lvts[] = {
 		.lvt_active = 1,
 		.lvt_mode = APIC_LVT_DM_FIXED,
 		.lvt_vector = APIC_CMC_INT,
+		.lvt_reg = LAPIC_LVT_CMCI,
 	},
 };
 
@@ -217,6 +225,7 @@ static struct lvt elvts[] = {
 		.lvt_active = 0,
 		.lvt_mode = APIC_LVT_DM_FIXED,
 		.lvt_vector = 0,
+		.lvt_reg = LAPIC_EXT_LVT0,
 	},
 	[APIC_ELVT_MCA] = {
 		.lvt_edgetrigger = 1,
@@ -225,6 +234,7 @@ static struct lvt elvts[] = {
 		.lvt_active = 0,
 		.lvt_mode = APIC_LVT_DM_FIXED,
 		.lvt_vector = APIC_CMC_INT,
+		.lvt_reg = LAPIC_EXT_LVT1,
 	},
 	[APIC_ELVT_DEI] = {
 		.lvt_edgetrigger = 1,
@@ -233,6 +243,7 @@ static struct lvt elvts[] = {
 		.lvt_active = 0,
 		.lvt_mode = APIC_LVT_DM_FIXED,
 		.lvt_vector = 0,
+		.lvt_reg = LAPIC_EXT_LVT2,
 	},
 	[APIC_ELVT_SBI] = {
 		.lvt_edgetrigger = 1,
@@ -241,6 +252,7 @@ static struct lvt elvts[] = {
 		.lvt_active = 0,
 		.lvt_mode = APIC_LVT_DM_FIXED,
 		.lvt_vector = 0,
+		.lvt_reg = LAPIC_EXT_LVT3,
 	},
 };
 
