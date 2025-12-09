@@ -98,7 +98,7 @@ pci_hostb_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 }
 
 static struct resource *
-pci_hostb_alloc_resource(device_t dev, device_t child, int type, int *rid,
+pci_hostb_alloc_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 

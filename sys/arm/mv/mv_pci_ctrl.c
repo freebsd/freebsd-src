@@ -54,7 +54,7 @@ static int mv_pcib_ctrl_attach(device_t);
 static device_t mv_pcib_ctrl_add_child(device_t, u_int, const char *, int);
 static const struct ofw_bus_devinfo * mv_pcib_ctrl_get_devinfo(device_t, device_t);
 static struct resource * mv_pcib_ctrl_alloc_resource(device_t, device_t, int,
-    int *, rman_res_t, rman_res_t, rman_res_t, u_int);
+    int, rman_res_t, rman_res_t, rman_res_t, u_int);
 void mv_pcib_ctrl_init(device_t, phandle_t);
 static int mv_pcib_ofw_bus_attach(device_t);
 
@@ -236,7 +236,7 @@ mv_pcib_ctrl_add_child(device_t dev, u_int order, const char *name, int unit)
 }
 
 static struct resource *
-mv_pcib_ctrl_alloc_resource(device_t bus, device_t child, int type, int *rid,
+mv_pcib_ctrl_alloc_resource(device_t bus, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct mv_pcib_ctrl_devinfo *di;
@@ -251,7 +251,7 @@ mv_pcib_ctrl_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			return (NULL);
 
 		/* Find defaults for this rid */
-		rle = resource_list_find(&di->di_rl, type, *rid);
+		rle = resource_list_find(&di->di_rl, type, rid);
 
 		if (rle == NULL)
 			return (NULL);

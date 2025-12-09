@@ -343,7 +343,7 @@ static int mv_pcib_probe(device_t);
 static int mv_pcib_attach(device_t);
 
 static struct rman *mv_pcib_get_rman(device_t, int, u_int);
-static struct resource *mv_pcib_alloc_resource(device_t, device_t, int, int *,
+static struct resource *mv_pcib_alloc_resource(device_t, device_t, int, int,
     rman_res_t, rman_res_t, rman_res_t, u_int);
 static int mv_pcib_adjust_resource(device_t, device_t, struct resource *,
     rman_res_t, rman_res_t);
@@ -905,7 +905,7 @@ mv_pcib_get_rman(device_t dev, int type, u_int flags)
 }
 
 static struct resource *
-mv_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
+mv_pcib_alloc_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct mv_pcib_softc *sc = device_get_softc(dev);

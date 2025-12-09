@@ -654,7 +654,7 @@ int ahci_attach(device_t dev);
 int ahci_detach(device_t dev);
 int ahci_setup_interrupt(device_t dev);
 int ahci_print_child(device_t dev, device_t child);
-struct resource *ahci_alloc_resource(device_t dev, device_t child, int type, int *rid,
+struct resource *ahci_alloc_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags);
 int ahci_release_resource(device_t dev, device_t child, struct resource *r);
 int ahci_setup_intr(device_t dev, device_t child, struct resource *irq, 

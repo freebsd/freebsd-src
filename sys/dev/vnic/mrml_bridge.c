@@ -49,7 +49,7 @@ static MALLOC_DEFINE(M_MRMLB, "MRML bridge", "Cavium MRML bridge");
 static device_probe_t mrmlb_fdt_probe;
 static device_attach_t mrmlb_fdt_attach;
 
-static struct resource * mrmlb_ofw_bus_alloc_res(device_t, device_t, int, int *,
+static struct resource * mrmlb_ofw_bus_alloc_res(device_t, device_t, int, int,
     rman_res_t, rman_res_t, rman_res_t, u_int);
 
 static const struct ofw_bus_devinfo * mrmlb_ofw_get_devinfo(device_t, device_t);
@@ -128,7 +128,7 @@ mrmlb_ofw_get_devinfo(device_t bus __unused, device_t child)
 }
 
 static struct resource *
-mrmlb_ofw_bus_alloc_res(device_t bus, device_t child, int type, int *rid,
+mrmlb_ofw_bus_alloc_res(device_t bus, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct simplebus_softc *sc;
@@ -143,7 +143,7 @@ mrmlb_ofw_bus_alloc_res(device_t bus, device_t child, int type, int *rid,
 		    type = SYS_RES_MEMORY;
 
 		/* Find defaults for this rid */
-		rle = resource_list_find(&di->di_rl, type, *rid);
+		rle = resource_list_find(&di->di_rl, type, rid);
 		if (rle == NULL)
 			return (NULL);
 

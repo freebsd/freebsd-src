@@ -2025,7 +2025,7 @@ agp_i915_chipset_flush_alloc_page(device_t dev, uint64_t start, uint64_t end)
 	vga = device_get_parent(dev);
 	sc->sc_flush_page_rid = 100;
 	sc->sc_flush_page_res = BUS_ALLOC_RESOURCE(device_get_parent(vga), dev,
-	    SYS_RES_MEMORY, &sc->sc_flush_page_rid, start, end, PAGE_SIZE,
+	    SYS_RES_MEMORY, sc->sc_flush_page_rid, start, end, PAGE_SIZE,
 	    RF_ACTIVE);
 	if (sc->sc_flush_page_res == NULL) {
 		device_printf(dev, "Failed to allocate flush page at 0x%jx\n",

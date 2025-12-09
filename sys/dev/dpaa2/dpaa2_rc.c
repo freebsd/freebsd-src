@@ -225,7 +225,7 @@ dpaa2_rc_delete_resource(device_t rcdev, device_t child, int type, int rid)
 }
 
 static struct resource *
-dpaa2_rc_alloc_multi_resource(device_t rcdev, device_t child, int type, int *rid,
+dpaa2_rc_alloc_multi_resource(device_t rcdev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource_list *rl;
@@ -243,7 +243,7 @@ dpaa2_rc_alloc_multi_resource(device_t rcdev, device_t child, int type, int *rid
 	 *	 dedicated software portal interrupt wire.
 	 *	 See registers SWP_INTW0_CFG to SWP_INTW3_CFG for details.
 	 */
-	if (type == SYS_RES_IRQ && *rid == 0)
+	if (type == SYS_RES_IRQ && rid == 0)
 		return (NULL);
 
 	return (resource_list_alloc(rl, rcdev, child, type, rid,
@@ -251,7 +251,7 @@ dpaa2_rc_alloc_multi_resource(device_t rcdev, device_t child, int type, int *rid
 }
 
 static struct resource *
-dpaa2_rc_alloc_resource(device_t rcdev, device_t child, int type, int *rid,
+dpaa2_rc_alloc_resource(device_t rcdev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	if (device_get_parent(child) != rcdev)

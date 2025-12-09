@@ -300,7 +300,7 @@ dpaa2_mc_detach(device_t dev)
  */
 
 struct resource *
-dpaa2_mc_alloc_resource(device_t mcdev, device_t child, int type, int *rid,
+dpaa2_mc_alloc_resource(device_t mcdev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *res;
@@ -333,7 +333,7 @@ dpaa2_mc_alloc_resource(device_t mcdev, device_t child, int type, int *rid,
 	return (res);
  fail:
 	device_printf(mcdev, "%s() failed: type=%d, rid=%d, start=%#jx, "
-	    "end=%#jx, count=%#jx, flags=%x\n", __func__, type, *rid, start, end,
+	    "end=%#jx, count=%#jx, flags=%x\n", __func__, type, rid, start, end,
 	    count, flags);
 	return (NULL);
 }

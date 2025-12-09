@@ -226,7 +226,7 @@ nexus_get_rman(device_t bus, int type, u_int flags)
  * child of one of our descendants, not a direct child of nexus0.
  */
 static struct resource *
-nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
+nexus_alloc_resource(device_t bus, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct nexus_device *ndev = DEVTONX(child);
@@ -241,7 +241,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (RMAN_IS_DEFAULT_RANGE(start, end) && (count == 1)) {
 		if (device_get_parent(child) != bus || ndev == NULL)
 			return (NULL);
-		rle = resource_list_find(&ndev->nx_resources, type, *rid);
+		rle = resource_list_find(&ndev->nx_resources, type, rid);
 		if (rle == NULL)
 			return (NULL);
 		start = rle->start;

@@ -432,14 +432,14 @@ vmd_get_rman(device_t dev, int type, u_int flags)
 }
 
 static struct resource *
-vmd_alloc_resource(device_t dev, device_t child, int type, int *rid,
+vmd_alloc_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *res;
 
 	if (type == SYS_RES_IRQ) {
 		/* VMD hardware does not support legacy interrupts. */
-		if (*rid == 0)
+		if (rid == 0)
 			return (NULL);
 		return (bus_generic_alloc_resource(dev, child, type, rid,
 		    start, end, count, flags | RF_SHAREABLE));
@@ -451,13 +451,13 @@ vmd_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		case SYS_RES_MEMORY:
 			device_printf(dev,
 			    "allocated memory range (%#jx-%#jx) for rid %d of %s\n",
-			    rman_get_start(res), rman_get_end(res), *rid,
+			    rman_get_start(res), rman_get_end(res), rid,
 			    pcib_child_name(child));
 			break;
 		case PCI_RES_BUS:
 			device_printf(dev,
 			    "allocated bus range (%ju-%ju) for rid %d of %s\n",
-			    rman_get_start(res), rman_get_end(res), *rid,
+			    rman_get_start(res), rman_get_end(res), rid,
 			    pcib_child_name(child));
 			break;
 		}

@@ -576,7 +576,7 @@ ahci_intr_one_edge(void *data)
 }
 
 struct resource *
-ahci_alloc_resource(device_t dev, device_t child, int type, int *rid,
+ahci_alloc_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
@@ -606,14 +606,14 @@ ahci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			size = 128;
 		} else if ((ctlr->caps & AHCI_CAP_EMS) == 0) {
 			break;
-		} else if (*rid == 0) {
+		} else if (rid == 0) {
 			offset = AHCI_EM_CTL;
 			size = 4;
 		} else {
 			offset = (ctlr->emloc & 0xffff0000) >> 14;
 			size = (ctlr->emloc & 0x0000ffff) << 2;
-			if (*rid != 1) {
-				if (*rid == 2 && (ctlr->capsem &
+			if (rid != 1) {
+				if (rid == 2 && (ctlr->capsem &
 				    (AHCI_EM_XMT | AHCI_EM_SMB)) == 0)
 					offset += size;
 				else
@@ -634,7 +634,7 @@ ahci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		}
 		break;
 	case SYS_RES_IRQ:
-		if (*rid == ATA_IRQ_RID)
+		if (rid == ATA_IRQ_RID)
 			res = ctlr->irqs[0].r_irq;
 		break;
 	}

@@ -749,7 +749,7 @@ cbb_pci_filt(void *arg)
 }
 
 static struct resource *
-cbb_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
+cbb_pci_alloc_resource(device_t bus, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct cbb_softc *sc;

@@ -503,7 +503,7 @@ generic_pcie_translate_resource(device_t dev, int type, rman_res_t start,
 
 struct resource *
 pci_host_generic_core_alloc_resource(device_t dev, device_t child, int type,
-    int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+    int rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct generic_pcie_core_softc *sc;
 	struct resource *res;
@@ -528,7 +528,7 @@ pci_host_generic_core_alloc_resource(device_t dev, device_t child, int type,
 	if (res == NULL) {
 		device_printf(dev, "%s FAIL: type=%d, rid=%d, "
 		    "start=%016jx, end=%016jx, count=%016jx, flags=%x\n",
-		    __func__, type, *rid, start, end, count, flags);
+		    __func__, type, rid, start, end, count, flags);
 	}
 	return (res);
 }

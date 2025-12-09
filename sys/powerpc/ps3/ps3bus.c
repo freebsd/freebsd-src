@@ -59,7 +59,7 @@ static int	ps3bus_read_ivar(device_t bus, device_t child, int which,
 		    uintptr_t *result);
 static struct rman *ps3bus_get_rman(device_t bus, int type, u_int flags);
 static struct resource *ps3bus_alloc_resource(device_t bus, device_t child,
-		    int type, int *rid, rman_res_t start, rman_res_t end,
+		    int type, int rid, rman_res_t start, rman_res_t end,
 		    rman_res_t count, u_int flags);
 static int	ps3bus_map_resource(device_t bus, device_t child,
 		    struct resource *r, struct resource_map_request *argsp,
@@ -548,7 +548,7 @@ ps3bus_get_rman(device_t bus, int type, u_int flags)
 }
 
 static struct resource *
-ps3bus_alloc_resource(device_t bus, device_t child, int type, int *rid,
+ps3bus_alloc_resource(device_t bus, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct	ps3bus_devinfo *dinfo;
@@ -560,10 +560,10 @@ ps3bus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	switch (type) {
 	case SYS_RES_MEMORY:
 		rle = resource_list_find(&dinfo->resources, SYS_RES_MEMORY,
-		    *rid);
+		    rid);
 		if (rle == NULL) {
 			device_printf(bus, "no rle for %s memory %d\n",
-				      device_get_nameunit(child), *rid);
+				      device_get_nameunit(child), rid);
 			return (NULL);
 		}
 
@@ -585,7 +585,7 @@ ps3bus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		break;
 	case SYS_RES_IRQ:
 		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ,
-		    *rid);
+		    rid);
 		adjstart = rle->start;
 		adjcount = ulmax(count, rle->count);
 		adjend = ulmax(rle->end, rle->start + adjcount - 1);

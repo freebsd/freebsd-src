@@ -67,7 +67,7 @@ SYSCTL_DECL(_hw_pci);
 
 static struct vga_resource *lookup_res(struct vga_pci_softc *sc, int rid);
 static struct resource *vga_pci_alloc_resource(device_t dev, device_t child,
-    int type, int *rid, rman_res_t start, rman_res_t end, rman_res_t count,
+    int type, int rid, rman_res_t start, rman_res_t end, rman_res_t count,
     u_int flags);
 static int	vga_pci_release_resource(device_t dev, device_t child,
     struct resource *r);
@@ -212,7 +212,7 @@ vga_pci_map_bios(device_t dev, size_t *size)
 	}
 	if (rid == 0)
 		return (NULL);
-	res = vga_pci_alloc_resource(dev, NULL, SYS_RES_MEMORY, &rid, 0,
+	res = vga_pci_alloc_resource(dev, NULL, SYS_RES_MEMORY, rid, 0,
 	    ~0, 1, RF_ACTIVE);
 
 	if (res == NULL) {
@@ -246,7 +246,7 @@ vga_pci_map_bios(device_t dev, size_t *size)
 	/*
 	 * re-allocate
 	 */
-	res = vga_pci_alloc_resource(dev, NULL, SYS_RES_MEMORY, &rid, 0,
+	res = vga_pci_alloc_resource(dev, NULL, SYS_RES_MEMORY, rid, 0,
 	    ~0, 1, RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(dev, "vga_pci_alloc_resource failed\n");
@@ -424,7 +424,7 @@ lookup_res(struct vga_pci_softc *sc, int rid)
 }
 
 static struct resource *
-vga_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
+vga_pci_alloc_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct vga_resource *vr;
@@ -436,7 +436,7 @@ vga_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		 * For BARs, we cache the resource so that we only allocate it
 		 * from the PCI bus once.
 		 */
-		vr = lookup_res(device_get_softc(dev), *rid);
+		vr = lookup_res(device_get_softc(dev), rid);
 		if (vr == NULL)
 			return (NULL);
 		if (vr->vr_res == NULL)

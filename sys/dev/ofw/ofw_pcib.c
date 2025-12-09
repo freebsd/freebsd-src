@@ -66,7 +66,7 @@
  */
 static struct rman *ofw_pcib_get_rman(device_t, int, u_int);
 static struct resource * ofw_pcib_alloc_resource(device_t, device_t,
-    int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
+    int, int, rman_res_t, rman_res_t, rman_res_t, u_int);
 static int ofw_pcib_release_resource(device_t, device_t, struct resource *);
 static int ofw_pcib_activate_resource(device_t, device_t, struct resource *);
 static int ofw_pcib_deactivate_resource(device_t, device_t, struct resource *);
@@ -419,7 +419,7 @@ ofw_pcib_nranges(phandle_t node, struct ofw_pci_cell_info *info)
 }
 
 static struct resource *
-ofw_pcib_alloc_resource(device_t bus, device_t child, int type, int *rid,
+ofw_pcib_alloc_resource(device_t bus, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct ofw_pci_softc *sc;

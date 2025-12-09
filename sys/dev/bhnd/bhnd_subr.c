@@ -2201,7 +2201,7 @@ bhnd_bus_generic_alloc_resource(device_t dev, device_t child, int type,
 	res = NULL;
 
 	/* Allocate the real bus resource (without activating it) */
-	res = BUS_ALLOC_RESOURCE(dev, child, type, rid, start, end, count,
+	res = BUS_ALLOC_RESOURCE(dev, child, type, *rid, start, end, count,
 	    (flags & ~RF_ACTIVE));
 	if (res == NULL)
 		return (NULL);

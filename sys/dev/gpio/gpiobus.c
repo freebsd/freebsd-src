@@ -864,7 +864,7 @@ gpiobus_get_rman(device_t bus, int type, u_int flags)
 }
 
 static struct resource *
-gpiobus_alloc_resource(device_t bus, device_t child, int type, int *rid,
+gpiobus_alloc_resource(device_t bus, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource_list *rl;
@@ -876,7 +876,7 @@ gpiobus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		rl = BUS_GET_RESOURCE_LIST(bus, child);
 		if (rl == NULL)
 			return (NULL);
-		rle = resource_list_find(rl, type, *rid);
+		rle = resource_list_find(rl, type, rid);
 		if (rle == NULL)
 			return (NULL);
 		start = rle->start;

@@ -469,7 +469,7 @@ puc_bfe_probe(device_t dev, const struct puc_cfg *cfg)
 }
 
 struct resource *
-puc_bus_alloc_resource(device_t dev, device_t child, int type, int *rid,
+puc_bus_alloc_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct puc_port *port;
@@ -487,7 +487,7 @@ puc_bus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	port = device_get_ivars(child);
 	KASSERT(port != NULL, ("%s %d", __func__, __LINE__));
 
-	if (rid == NULL || *rid != 0)
+	if (rid != 0)
 		return (NULL);
 
 	/* We only support default allocations. */

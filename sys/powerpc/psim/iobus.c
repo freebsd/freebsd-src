@@ -71,7 +71,7 @@ static void iobus_probe_nomatch(device_t, device_t);
 static int  iobus_read_ivar(device_t, device_t, int, uintptr_t *);
 static int  iobus_write_ivar(device_t, device_t, int, uintptr_t);
 static struct rman *iobus_get_rman(device_t, int, u_int);
-static struct   resource *iobus_alloc_resource(device_t, device_t, int, int *,
+static struct   resource *iobus_alloc_resource(device_t, device_t, int, int,
 					       rman_res_t, rman_res_t, rman_res_t,
 					       u_int);
 static int  iobus_adjust_resource(device_t, device_t, struct resource *,
@@ -319,7 +319,7 @@ iobus_get_rman(device_t bus, int type, u_int flags)
 }
 
 static struct resource *
-iobus_alloc_resource(device_t bus, device_t child, int type, int *rid,
+iobus_alloc_resource(device_t bus, device_t child, int type, int rid,
 		     rman_res_t start, rman_res_t end, rman_res_t count,
 		     u_int flags)
 {

@@ -543,7 +543,7 @@ gic_v3_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 }
 
 static struct resource *
-gic_v3_alloc_resource(device_t bus, device_t child, int type, int *rid,
+gic_v3_alloc_resource(device_t bus, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct gic_v3_softc *sc;
@@ -563,7 +563,7 @@ gic_v3_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			return (NULL);
 
 		/* Find defaults for this rid */
-		rle = resource_list_find(rl, type, *rid);
+		rle = resource_list_find(rl, type, rid);
 		if (rle == NULL)
 			return (NULL);
 
