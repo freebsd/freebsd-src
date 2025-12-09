@@ -404,7 +404,8 @@ typedef __char32_t char32_t;
 #      define _LIBCPP_TEMPLATE_VIS
 #    endif
 
-#    if !defined(_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS) && __has_attribute(__type_visibility__)
+#    if !defined(_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS) && __has_attribute(__type_visibility__) && \
+        _LIBCPP_CLANG_VER >= 1500 // FreeBSD customization
 #      define _LIBCPP_TYPE_VISIBILITY_DEFAULT __attribute__((__type_visibility__("default")))
 #    else
 #      define _LIBCPP_TYPE_VISIBILITY_DEFAULT
