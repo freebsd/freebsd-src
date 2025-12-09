@@ -544,12 +544,10 @@ cmi_intr(void *data)
 		toclear = 0;
 		if (intrstat & CMPCI_REG_CH0_INTR) {
 			toclear |= CMPCI_REG_CH0_INTR_ENABLE;
-			//cmi_clr4(sc, CMPCI_REG_INTR_CTRL, CMPCI_REG_CH0_INTR_ENABLE);
 		}
 
 		if (intrstat & CMPCI_REG_CH1_INTR) {
 			toclear |= CMPCI_REG_CH1_INTR_ENABLE;
-			//cmi_clr4(sc, CMPCI_REG_INTR_CTRL, CMPCI_REG_CH1_INTR_ENABLE);
 		}
 
 		if (toclear) {
@@ -569,8 +567,10 @@ cmi_intr(void *data)
 			cmi_set4(sc, CMPCI_REG_INTR_CTRL, toclear);
 		}
 	}
-	if(sc->mpu_intr) {
-		(sc->mpu_intr)(sc->mpu);
+	if ((intrstat & CMPCI_REG_UART_INTR) != 0) {
+		if (sc->mpu_intr) {
+			(sc->mpu_intr)(sc->mpu);
+		}
 	}
 	mtx_unlock(&sc->lock);
 	return;
@@ -948,8 +948,7 @@ cmi_attach(device_t dev)
 	sc->st = rman_get_bustag(sc->reg);
 	sc->sh = rman_get_bushandle(sc->reg);
 
-	if (0)
-		cmi_midiattach(sc);
+	cmi_midiattach(sc);
 
 	sc->irqid = 0;
 	sc->irq   = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqid,
