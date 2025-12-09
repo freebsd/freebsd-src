@@ -3481,7 +3481,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	 * driver for this device will later inherit this resource in
 	 * pci_alloc_resource().
 	 */
-	res = resource_list_reserve(rl, bus, dev, type, &reg, start, end, count,
+	res = resource_list_reserve(rl, bus, dev, type, reg, start, end, count,
 	    flags);
 	if ((pci_do_realloc_bars
 		|| pci_has_quirk(pci_get_devid(dev), PCI_QUIRK_REALLOC_BAR))
@@ -3494,7 +3494,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 		 */
 		resource_list_delete(rl, type, reg);
 		resource_list_add(rl, type, reg, 0, ~0, count);
-		res = resource_list_reserve(rl, bus, dev, type, &reg, 0, ~0,
+		res = resource_list_reserve(rl, bus, dev, type, reg, 0, ~0,
 		    count, flags);
 	}
 	if (res == NULL) {
@@ -3553,11 +3553,11 @@ pci_ata_maps(device_t bus, device_t dev, struct resource_list *rl, int force,
 	} else {
 		rid = PCIR_BAR(0);
 		resource_list_add(rl, type, rid, 0x1f0, 0x1f7, 8);
-		(void)resource_list_reserve(rl, bus, dev, type, &rid, 0x1f0,
+		(void)resource_list_reserve(rl, bus, dev, type, rid, 0x1f0,
 		    0x1f7, 8, 0);
 		rid = PCIR_BAR(1);
 		resource_list_add(rl, type, rid, 0x3f6, 0x3f6, 1);
-		(void)resource_list_reserve(rl, bus, dev, type, &rid, 0x3f6,
+		(void)resource_list_reserve(rl, bus, dev, type, rid, 0x3f6,
 		    0x3f6, 1, 0);
 	}
 	if (progif & PCIP_STORAGE_IDE_MODESEC) {
@@ -3568,11 +3568,11 @@ pci_ata_maps(device_t bus, device_t dev, struct resource_list *rl, int force,
 	} else {
 		rid = PCIR_BAR(2);
 		resource_list_add(rl, type, rid, 0x170, 0x177, 8);
-		(void)resource_list_reserve(rl, bus, dev, type, &rid, 0x170,
+		(void)resource_list_reserve(rl, bus, dev, type, rid, 0x170,
 		    0x177, 8, 0);
 		rid = PCIR_BAR(3);
 		resource_list_add(rl, type, rid, 0x376, 0x376, 1);
-		(void)resource_list_reserve(rl, bus, dev, type, &rid, 0x376,
+		(void)resource_list_reserve(rl, bus, dev, type, rid, 0x376,
 		    0x376, 1, 0);
 	}
 	pci_add_map(bus, dev, PCIR_BAR(4), rl, force,
@@ -3815,7 +3815,7 @@ pci_reserve_secbus(device_t bus, device_t dev, pcicfgregs *cfg,
 	struct resource *res;
 	char *cp;
 	rman_res_t start, end, count;
-	int rid, sec_bus, sec_reg, sub_bus, sub_reg, sup_bus;
+	int sec_bus, sec_reg, sub_bus, sub_reg, sup_bus;
 
 	switch (cfg->hdrtype & PCIM_HDRTYPE) {
 	case PCIM_HDRTYPE_BRIDGE:
@@ -3895,8 +3895,7 @@ pci_reserve_secbus(device_t bus, device_t dev, pcicfgregs *cfg,
 		if (pci_clear_buses)
 			goto clear;
 
-		rid = 0;
-		res = resource_list_reserve(rl, bus, dev, PCI_RES_BUS, &rid,
+		res = resource_list_reserve(rl, bus, dev, PCI_RES_BUS, 0,
 		    start, end, count, 0);
 		if (res != NULL)
 			return;
@@ -3945,7 +3944,7 @@ pci_alloc_secbus(device_t dev, device_t child, int rid, rman_res_t start,
 	if (resource_list_find(rl, PCI_RES_BUS, rid) == NULL)
 		resource_list_add(rl, PCI_RES_BUS, rid, start, end, count);
 	if (!resource_list_reserved(rl, PCI_RES_BUS, rid)) {
-		res = resource_list_reserve(rl, dev, child, PCI_RES_BUS, &rid,
+		res = resource_list_reserve(rl, dev, child, PCI_RES_BUS, rid,
 		    start, end, count, flags & ~RF_ACTIVE);
 		if (res == NULL) {
 			resource_list_delete(rl, PCI_RES_BUS, rid);
@@ -4106,7 +4105,7 @@ pci_add_resources_ea(device_t bus, device_t dev, int alloc_iov)
 			continue;
 
 		resource_list_add(rl, type, rid, start, end, count);
-		res = resource_list_reserve(rl, bus, dev, type, &rid, start, end, count,
+		res = resource_list_reserve(rl, bus, dev, type, rid, start, end, count,
 		    flags);
 		if (res == NULL) {
 			resource_list_delete(rl, type, rid);
@@ -5591,7 +5590,7 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 	 * appropriate BAR for that resource.
 	 */
 	resource_list_add(rl, type, *rid, start, end, count);
-	res = resource_list_reserve(rl, dev, child, type, rid, start, end,
+	res = resource_list_reserve(rl, dev, child, type, *rid, start, end,
 	    count, flags & ~RF_ACTIVE);
 	if (res == NULL) {
 		resource_list_delete(rl, type, *rid);

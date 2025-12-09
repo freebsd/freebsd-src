@@ -3096,7 +3096,7 @@ resource_list_delete(struct resource_list *rl, int type, int rid)
  */
 struct resource *
 resource_list_reserve(struct resource_list *rl, device_t bus, device_t child,
-    int type, int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+    int type, int rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource_list_entry *rle = NULL;
 	int passthrough = (device_get_parent(child) != bus);
@@ -3109,10 +3109,10 @@ resource_list_reserve(struct resource_list *rl, device_t bus, device_t child,
 		panic(
     "resource_list_reserve() should only reserve inactive resources");
 
-	r = resource_list_alloc(rl, bus, child, type, *rid, start, end, count,
+	r = resource_list_alloc(rl, bus, child, type, rid, start, end, count,
 	    flags);
 	if (r != NULL) {
-		rle = resource_list_find(rl, type, *rid);
+		rle = resource_list_find(rl, type, rid);
 		rle->flags |= RLE_RESERVED;
 	}
 	return (r);
