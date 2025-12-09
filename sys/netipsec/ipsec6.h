@@ -60,12 +60,15 @@ VNET_DECLARE(int, ip6_ipsec_ecn);
 #define	V_ip6_ipsec_ecn		VNET(ip6_ipsec_ecn)
 
 struct inpcb;
+struct rm_priotracker;
+
 struct secpolicy *ipsec6_checkpolicy(const struct mbuf *,
     struct inpcb *, int *, int);
 
 void ipsec6_setsockaddrs(const struct mbuf *, union sockaddr_union *,
     union sockaddr_union *);
-int ipsec6_common_input_cb(struct mbuf *, struct secasvar *, int, int);
+int ipsec6_common_input_cb(struct mbuf *, struct secasvar *, int, int,
+    struct rm_priotracker *sahtree_tracker);
 int ipsec6_check_pmtu(struct ifnet *, struct mbuf *, struct secpolicy *, int);
 int ipsec6_process_packet(struct ifnet *, struct mbuf *, struct secpolicy *,
     struct inpcb *, u_long);

@@ -330,12 +330,14 @@ VNET_DECLARE(int, natt_cksum_policy);
 struct inpcb;
 struct ip;
 struct m_tag;
+struct rm_priotracker;
 struct secasvar;
 struct sockopt;
 struct tcphdr;
 union sockaddr_union;
 
-int ipsec_if_input(struct mbuf *, struct secasvar *, uint32_t);
+int ipsec_if_input(struct mbuf *, struct secasvar *, uint32_t,
+    struct rm_priotracker *);
 
 struct ipsecrequest *ipsec_newisr(void);
 void ipsec_delisr(struct ipsecrequest *);
@@ -357,7 +359,8 @@ void ipsec_setspidx_inpcb(struct inpcb *, struct secpolicyindex *, u_int);
 
 void ipsec4_setsockaddrs(const struct mbuf *, const struct ip *,
     union sockaddr_union *, union sockaddr_union *);
-int ipsec4_common_input_cb(struct mbuf *, struct secasvar *, int, int);
+int ipsec4_common_input_cb(struct mbuf *, struct secasvar *, int, int,
+    struct rm_priotracker *sahtree_tracker);
 int ipsec4_check_pmtu(struct ifnet *, struct mbuf *, struct ip *ip1,
     struct secpolicy *, int);
 int ipsec4_process_packet(struct ifnet *, struct mbuf *, struct ip *ip1,
