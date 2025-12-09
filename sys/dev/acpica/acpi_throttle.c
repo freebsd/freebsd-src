@@ -275,7 +275,7 @@ acpi_throttle_evaluate(struct acpi_throttle_softc *sc)
 			return (ENXIO);
 		}
 		memcpy(&gas, obj.Buffer.Pointer + 3, sizeof(gas));
-		acpi_bus_alloc_gas(sc->cpu_dev, &sc->cpu_p_type, &thr_rid,
+		acpi_bus_alloc_gas(sc->cpu_dev, &sc->cpu_p_type, thr_rid,
 		    &gas, &sc->cpu_p_cnt, 0);
 		if (sc->cpu_p_cnt != NULL && bootverbose) {
 			device_printf(sc->cpu_dev, "P_CNT from _PTC %#jx\n",
@@ -295,7 +295,7 @@ acpi_throttle_evaluate(struct acpi_throttle_softc *sc)
 		gas.Address = sc->cpu_p_blk;
 		gas.SpaceId = ACPI_ADR_SPACE_SYSTEM_IO;
 		gas.BitWidth = 32;
-		acpi_bus_alloc_gas(sc->cpu_dev, &sc->cpu_p_type, &thr_rid,
+		acpi_bus_alloc_gas(sc->cpu_dev, &sc->cpu_p_type, thr_rid,
 		    &gas, &sc->cpu_p_cnt, 0);
 		if (sc->cpu_p_cnt != NULL) {
 			if (bootverbose)

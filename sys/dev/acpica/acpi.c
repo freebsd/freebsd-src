@@ -1770,13 +1770,13 @@ acpi_unmap_resource(device_t bus, device_t child, struct resource *r,
 
 /* Allocate an IO port or memory resource, given its GAS. */
 int
-acpi_bus_alloc_gas(device_t dev, int *type, int *rid, ACPI_GENERIC_ADDRESS *gas,
+acpi_bus_alloc_gas(device_t dev, int *type, int rid, ACPI_GENERIC_ADDRESS *gas,
     struct resource **res, u_int flags)
 {
     int error, res_type;
 
     error = ENOMEM;
-    if (type == NULL || rid == NULL || gas == NULL || res == NULL)
+    if (type == NULL || gas == NULL || res == NULL)
 	return (EINVAL);
 
     /* We only support memory and IO spaces. */
@@ -1802,14 +1802,14 @@ acpi_bus_alloc_gas(device_t dev, int *type, int *rid, ACPI_GENERIC_ADDRESS *gas,
     if (gas->Address == 0 || gas->BitWidth == 0)
 	return (EINVAL);
 
-    bus_set_resource(dev, res_type, *rid, gas->Address,
+    bus_set_resource(dev, res_type, rid, gas->Address,
 	gas->BitWidth / 8);
     *res = bus_alloc_resource_any(dev, res_type, rid, RF_ACTIVE | flags);
     if (*res != NULL) {
 	*type = res_type;
 	error = 0;
     } else
-	bus_delete_resource(dev, res_type, *rid);
+	bus_delete_resource(dev, res_type, rid);
 
     return (error);
 }

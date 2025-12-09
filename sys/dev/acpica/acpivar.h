@@ -419,7 +419,7 @@ int		acpi_parse_prw(ACPI_HANDLE h, struct acpi_prw_data *prw);
 ACPI_STATUS	acpi_Startup(void);
 void		acpi_UserNotify(const char *subsystem, ACPI_HANDLE h,
 		    uint8_t notify);
-int		acpi_bus_alloc_gas(device_t dev, int *type, int *rid,
+int		acpi_bus_alloc_gas(device_t dev, int *type, int rid,
 		    ACPI_GENERIC_ADDRESS *gas, struct resource **res,
 		    u_int flags);
 void		acpi_walk_subtables(void *first, void *end,
