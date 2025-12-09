@@ -1,4 +1,4 @@
-# $NetBSD: t_mtree.sh,v 1.7 2017/01/14 20:45:16 christos Exp $
+# $NetBSD: t_mtree.sh,v 1.10 2023/12/02 16:18:17 christos Exp $
 #
 # Copyright (c) 2009, 2012 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -447,6 +447,42 @@ mtree_specspec_type_body()
 	fi
 }
 
+atf_test_case mtree_onlyfile
+atf_test_case netbsd6_onlyfile
+onlyfile_head()
+{
+	atf_set "descr" "Test -O with same hash value in directory and leaf"
+}
+
+onlyfile_body()
+{
+	mkdir -p ab/no
+	echo ./ab/no >onlyfile
+	mtree -F ${FLAVOR} -c -n -O onlyfile >output
+	if [ ! -s output ]; then
+		atf_fail "mtree did not find path in onlyfile"
+	fi
+}
+
+mtree_onlyfile_head()
+{
+	FLAVOR=mtree onlyfile_head
+}
+netbsd6_onlyfile_head()
+{
+	FLAVOR=netbsd6 onlyfile_head
+}
+
+mtree_onlyfile_body()
+{
+	FLAVOR=mtree onlyfile_body
+}
+netbsd6_onlyfile_body()
+{
+	FLAVOR=netbsd6 onlyfile_body
+}
+
+
 atf_init_test_cases()
 {
 	atf_add_test_case mtree_create
@@ -459,6 +495,7 @@ atf_init_test_cases()
 	atf_add_test_case mtree_merge
 	atf_add_test_case mtree_nonemptydir
 	atf_add_test_case mtree_specspec_type
+	atf_add_test_case mtree_onlyfile
 
 	atf_add_test_case netbsd6_create
 	atf_add_test_case netbsd6_check
@@ -469,4 +506,5 @@ atf_init_test_cases()
 	atf_add_test_case netbsd6_ignore
 	atf_add_test_case netbsd6_merge
 	atf_add_test_case netbsd6_nonemptydir
+	atf_add_test_case netbsd6_onlyfile
 }
