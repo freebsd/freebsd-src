@@ -547,7 +547,7 @@ linux_pci_reserve_bar(struct pci_dev *pdev, struct resource_list *rl,
 
 	dev = pdev->pdrv != NULL && pdev->pdrv->isdrm ?
 	    device_get_parent(pdev->dev.bsddev) : pdev->dev.bsddev;
-	res = pci_reserve_map(device_get_parent(dev), dev, type, &rid, 0, ~0,
+	res = pci_reserve_map(device_get_parent(dev), dev, type, rid, 0, ~0,
 	    1, 1, 0);
 	if (res == NULL)
 		return (NULL);
