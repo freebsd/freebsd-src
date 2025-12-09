@@ -161,6 +161,7 @@ struct ovpn_kpeer {
 	struct callout		 ping_rcv;
 
 	counter_u64_t		 counters[OVPN_PEER_COUNTER_SIZE];
+	struct epoch_context	 epoch_ctx;
 };
 
 struct ovpn_counters {
@@ -569,6 +570,15 @@ ovpn_notify_float(struct ovpn_softc *sc, uint32_t peerid,
 }
 
 static void
+_ovpn_free_peer(struct epoch_context *ctx) {
+	struct ovpn_kpeer *peer = __containerof(ctx, struct ovpn_kpeer,
+	    epoch_ctx);
+
+	uma_zfree_pcpu(pcpu_zone_4, peer->last_active);
+	free(peer, M_OVPN);
+}
+
+static void
 ovpn_peer_release_ref(struct ovpn_kpeer *peer, bool locked)
 {
 	struct ovpn_softc *sc;
@@ -606,8 +616,8 @@ ovpn_peer_release_ref(struct ovpn_kpeer *peer, bool locked)
 
 	callout_stop(&peer->ping_send);
 	callout_stop(&peer->ping_rcv);
-	uma_zfree_pcpu(pcpu_zone_4, peer->last_active);
-	free(peer, M_OVPN);
+
+	NET_EPOCH_CALL(_ovpn_free_peer, &peer->epoch_ctx);
 
 	if (! locked)
 		OVPN_WUNLOCK(sc);
