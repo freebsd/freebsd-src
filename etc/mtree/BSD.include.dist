@@ -19,6 +19,8 @@
             __algorithm
             ..
             __atomic
+                support
+                ..
             ..
             __bit
             ..
@@ -36,6 +38,70 @@
             ..
             __coroutine
             ..
+            __cstddef
+            ..
+            __cxx03
+                __algorithm
+                ..
+                __atomic
+                ..
+                __bit
+                ..
+                __chrono
+                ..
+                __condition_variable
+                ..
+                __configuration
+                ..
+                __debug_utils
+                ..
+                __exception
+                ..
+                __functional
+                ..
+                __fwd
+                ..
+                __ios
+                ..
+                __iterator
+                ..
+                __locale_dir
+                    locale_base_api
+                    ..
+                ..
+                __math
+                ..
+                __memory
+                ..
+                __mutex
+                ..
+                __numeric
+                ..
+                __ostream
+                ..
+                __random
+                ..
+                __string
+                ..
+                __system_error
+                ..
+                __thread
+                    support
+                    ..
+                ..
+                __tuple
+                ..
+                __type_traits
+                ..
+                __utility
+                ..
+                __variant
+                ..
+                experimental
+                ..
+                ext
+                ..
+            ..
             __debug_utils
             ..
             __exception
@@ -43,6 +109,10 @@
             __expected
             ..
             __filesystem
+            ..
+            __flat_map
+            ..
+            __flat_set
             ..
             __format
             ..
@@ -57,6 +127,10 @@
             __locale_dir
                 locale_base_api
                 ..
+                support
+                    no_locale
+                    ..
+                ..
             ..
             __math
             ..
@@ -67,6 +141,8 @@
             __memory_resource
             ..
             __mutex
+            ..
+            __new
             ..
             __numeric
             ..
@@ -99,6 +175,8 @@
             __utility
             ..
             __variant
+            ..
+            __vector
             ..
             experimental
                 __simd

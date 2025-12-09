@@ -76,7 +76,6 @@
 #define PPC_LINUX_DEFAULT_IEEELONGDOUBLE 0
 
 /* Enable each functionality of modules */
-/* #undef CLANG_ENABLE_ARCMT */
 /* #undef CLANG_ENABLE_OBJC_REWRITER */
 /* #undef CLANG_ENABLE_STATIC_ANALYZER */
 

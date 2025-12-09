@@ -9,6 +9,8 @@
 #ifndef LLDB_API_SBLANGUAGE_H
 #define LLDB_API_SBLANGUAGE_H
 
+#include <cstdint>
+
 namespace lldb {
 /// Used by \ref SBExpressionOptions.
 /// These enumerations use the same language enumerations as the DWARF
@@ -94,6 +96,8 @@ enum SBSourceLanguageName : uint16_t {
   eLanguageNameMove = 0x0027,
   /// Hylo.
   eLanguageNameHylo = 0x0028,
+  /// Metal.
+  eLanguageNameMetal = 0x002c,
 };
 
 } // namespace lldb

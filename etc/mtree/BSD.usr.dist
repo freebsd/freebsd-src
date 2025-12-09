@@ -42,7 +42,7 @@
     ..
     lib
         clang
-            19
+            21
                 include
                     cuda_wrappers
                         bits
