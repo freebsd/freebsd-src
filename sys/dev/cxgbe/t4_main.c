@@ -2660,8 +2660,8 @@ reset_adapter_with_pl_rst(struct adapter *sc)
 {
 	/* This is a t4_write_reg without the hw_off_limits check. */
 	MPASS(sc->error_flags & HW_OFF_LIMITS);
-	bus_space_write_4(sc->bt, sc->bh, A_PL_RST,
-			  F_PIORSTMODE | F_PIORST | F_AUTOPCIEPAUSE);
+	bus_write_4(sc->regs_res, A_PL_RST,
+	    F_PIORSTMODE | F_PIORST | F_AUTOPCIEPAUSE);
 	pause("pl_rst", 1 * hz);		/* Wait 1s for reset */
 	return (0);
 }
@@ -3997,8 +3997,6 @@ t4_map_bars_0_and_4(struct adapter *sc)
 		device_printf(sc->dev, "cannot map registers.\n");
 		return (ENXIO);
 	}
-	sc->bt = rman_get_bustag(sc->regs_res);
-	sc->bh = rman_get_bushandle(sc->regs_res);
 	sc->mmio_len = rman_get_size(sc->regs_res);
 	setbit(&sc->doorbells, DOORBELL_KDB);
 
