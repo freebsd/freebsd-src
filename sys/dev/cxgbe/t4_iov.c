@@ -54,8 +54,6 @@ struct t4iov_softc {
 	int pf;
 	int regs_rid;
 	struct resource *regs_res;
-	bus_space_handle_t bh;
-	bus_space_tag_t bt;
 };
 
 struct {
@@ -147,7 +145,7 @@ static inline uint32_t
 t4iov_read_reg(struct t4iov_softc *sc, uint32_t reg)
 {
 
-	return bus_space_read_4(sc->bt, sc->bh, reg);
+	return bus_read_4(sc->regs_res, reg);
 }
 
 static int	t4iov_attach_child(device_t dev);
@@ -249,8 +247,6 @@ t4iov_attach(device_t dev)
 		device_printf(dev, "cannot map registers.\n");
 		return (ENXIO);
 	}
-	sc->bt = rman_get_bustag(sc->regs_res);
-	sc->bh = rman_get_bushandle(sc->regs_res);
 
 	pl_rev = t4iov_read_reg(sc, A_PL_REV);
 	whoami = t4iov_read_reg(sc, A_PL_WHOAMI);
