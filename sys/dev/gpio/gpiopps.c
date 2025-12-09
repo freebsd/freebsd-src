@@ -218,7 +218,7 @@ gpiopps_fdt_attach(device_t dev)
 	 * Transform our 'gpios' property into an interrupt resource and set up
 	 * the interrupt.
 	 */
-	if ((sc->ires = gpio_alloc_intr_resource(dev, &sc->irid, RF_ACTIVE,
+	if ((sc->ires = gpio_alloc_intr_resource(dev, sc->irid, RF_ACTIVE,
 	    sc->gpin, edge)) == NULL) {
 		device_printf(dev, "Cannot allocate an IRQ for the GPIO\n");
 		gpiopps_detach(dev);
