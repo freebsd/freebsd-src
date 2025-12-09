@@ -35,6 +35,7 @@
 #ifndef	_KERNEL
 #include <sys/queue.h>
 #else
+#include <sys/_mutex.h>
 #include <machine/_bus.h>
 #include <machine/resource.h>
 #endif
@@ -112,7 +113,7 @@ TAILQ_HEAD(resource_head, resource_i);
 
 struct rman {
 	struct	resource_head 	rm_list;
-	struct	mtx *rm_mtx;	/* mutex used to protect rm_list */
+	struct	mtx rm_mtx;	/* mutex used to protect rm_list */
 	TAILQ_ENTRY(rman)	rm_link; /* link in list of all rmans */
 	rman_res_t	rm_start;	/* index of globally first entry */
 	rman_res_t	rm_end;	/* index of globally last entry */
