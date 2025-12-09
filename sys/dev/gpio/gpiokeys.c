@@ -334,7 +334,7 @@ gpiokeys_attach_key(struct gpiokeys_softc *sc, phandle_t node,
 		return;
 	}
 
-	key->irq_res = gpio_alloc_intr_resource(sc->sc_dev, &key->irq_rid,
+	key->irq_res = gpio_alloc_intr_resource(sc->sc_dev, key->irq_rid,
 	    RF_ACTIVE, key->pin, GPIO_INTR_EDGE_BOTH);
 	if (!key->irq_res) {
 		device_printf(sc->sc_dev, "<%s> cannot allocate interrupt\n", key_name);

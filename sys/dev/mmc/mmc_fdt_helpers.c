@@ -212,7 +212,7 @@ cd_setup(struct mmc_helper *helper, phandle_t node)
 	/*
 	 * Create an interrupt resource from the pin and set up the interrupt.
 	 */
-	if ((helper->cd_ires = gpio_alloc_intr_resource(dev, &helper->cd_irid,
+	if ((helper->cd_ires = gpio_alloc_intr_resource(dev, helper->cd_irid,
 	    RF_ACTIVE, helper->cd_pin, GPIO_INTR_EDGE_BOTH)) == NULL) {
 		if (bootverbose)
 			device_printf(dev, "Cannot allocate an IRQ for card "

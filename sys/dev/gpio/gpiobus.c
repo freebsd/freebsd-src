@@ -92,7 +92,7 @@ static int gpiobus_pin_toggle(device_t, device_t, uint32_t);
 #ifdef INTRNG
 
 struct resource *
-gpio_alloc_intr_resource(device_t consumer_dev, int *rid, u_int alloc_flags,
+gpio_alloc_intr_resource(device_t consumer_dev, int rid, u_int alloc_flags,
     gpio_pin_t pin, uint32_t intr_mode)
 {
 	u_int irq;
@@ -116,7 +116,7 @@ gpio_alloc_intr_resource(device_t consumer_dev, int *rid, u_int alloc_flags,
 }
 #else
 struct resource *
-gpio_alloc_intr_resource(device_t consumer_dev, int *rid, u_int alloc_flags,
+gpio_alloc_intr_resource(device_t consumer_dev, int rid, u_int alloc_flags,
     gpio_pin_t pin, uint32_t intr_mode)
 {
 

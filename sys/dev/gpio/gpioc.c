@@ -208,7 +208,7 @@ gpioc_allocate_pin_intr(struct gpioc_softc *sc,
 		goto error_exit;
 
 	intr_conf->intr_res = gpio_alloc_intr_resource(sc->sc_dev,
-	    &intr_conf->intr_rid, RF_ACTIVE, intr_conf->pin, flags);
+	    intr_conf->intr_rid, RF_ACTIVE, intr_conf->pin, flags);
 	if (intr_conf->intr_res == NULL) {
 		err = ENXIO;
 		goto error_pin;
