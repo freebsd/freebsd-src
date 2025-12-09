@@ -1,0 +1,80 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Chelsio Communications, Inc.
+.\"
+.Dd November 14, 2025
+.Dt NVMF_CHE 4
+.Os
+.Sh NAME
+.Nm nvmf_che
+.Nd TCP transport for NVM Express over Fabrics on Chelsio NICs
+.Sh SYNOPSIS
+In
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+nvmf_che_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+module implements the a TCP/IP transport for NVM Express over Fabrics
+using PDU offload on Chelsio T7 adapters.
+It can be used by either the in-kernel NVMeoF host driver or controller.
+In order to use PDU offload,
+the initial socket connection must be using the TCP offload engine (TOE)
+on a supported network interface.
+In addition,
+controller connections must negotiate a suitable
+.Dv MAXH2CDATA
+limit to ensure that received PDUs do not exceeed the maximum size
+supported by the adapter.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va kern.nvmf.che.max_transmit_pdu
+The maximum size of a transmitted PDU including all headers, payload,
+and checksums.
+This is an upper limit enforced when queues are created.
+Individual adapters may empose a smaller limit.
+The default size is 32 kilobytes.
+.It Va kern.nvmf.che.max_receive_pdu
+As above, but for received PDUs.
+.It Va kern.nvmf.che.use_dsgl
+Enable the use of a S/G list for large writes into adapter memory when
+writing control structures for DDP (not used for PDU payload data).
+S/G lists are enabled by default.
+.It Va kern.nvmf.che.inline_threshold
+Writes of control structures into adapter memory use a S/G list instead
+of immediate data placed in work requests.
+The default threshold is 256 bytes.
+.It Va kern.nvmf.che.ddp_tags_per_qp
+The number of STAGs reserved for use by DDP buffers for each queue pair.
+Each command sent on a queue that requests data from the remote peer can
+use DDP to place received data directly into the associated data buffer.
+Each buffer requires a STAG to enable DDP.
+If an STAG is not available when command requesting remote data is sent,
+the data will be received in free list buffers and copied into the data
+buffer by the driver instead.
+The default size is 256 kilobytes.
+.El
+.Sh SEE ALSO
+.Xr cxgbe 4 ,
+.Xr nvmf 4 ,
+.Xr nvmf_tcp 4 ,
+.Xr nvmft 4
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+The
+.Nm
+module was developed by
+.An John Baldwin Aq Mt jhb@FreeBSD.org
+under sponsorship from Chelsio Communications, Inc.
