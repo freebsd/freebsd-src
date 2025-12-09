@@ -7,6 +7,7 @@ SRCS+=		ASTTableGen.cpp
 SRCS+=		ClangASTNodesEmitter.cpp
 SRCS+=		ClangASTPropertiesEmitter.cpp
 SRCS+=		ClangAttrEmitter.cpp
+SRCS+=		ClangBuiltinTemplatesEmitter.cpp
 SRCS+=		ClangBuiltinsEmitter.cpp
 SRCS+=		ClangCommentCommandInfoEmitter.cpp
 SRCS+=		ClangCommentHTMLNamedCharacterReferenceEmitter.cpp
