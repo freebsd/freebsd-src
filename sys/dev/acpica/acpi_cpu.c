@@ -926,7 +926,7 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
 	{
 	    cx_ptr->res_rid = sc->cpu_cx_count;
 	    acpi_PkgGas(sc->cpu_dev, pkg, 0, &cx_ptr->res_type,
-		&cx_ptr->res_rid, &cx_ptr->p_lvlx, RF_SHAREABLE);
+		cx_ptr->res_rid, &cx_ptr->p_lvlx, RF_SHAREABLE);
 	    if (cx_ptr->p_lvlx) {
 		cx_ptr->do_mwait = false;
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
