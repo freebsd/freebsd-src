@@ -1220,7 +1220,7 @@ siba_map_cfg_resources(device_t dev, struct siba_devinfo *dinfo)
 		/* Map the config resource for bus-level access */
 		dinfo->cfg_rid[i] = SIBA_CFG_RID(dinfo, i);
 		dinfo->cfg_res[i] = BHND_BUS_ALLOC_RESOURCE(dev, dev,
-		    SYS_RES_MEMORY, &dinfo->cfg_rid[i], r_start, r_end,
+		    SYS_RES_MEMORY, dinfo->cfg_rid[i], r_start, r_end,
 		    r_count, RF_ACTIVE|RF_SHAREABLE);
 
 		if (dinfo->cfg_res[i] == NULL) {

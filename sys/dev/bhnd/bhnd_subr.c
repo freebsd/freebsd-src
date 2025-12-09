@@ -1015,7 +1015,7 @@ bhnd_alloc_resources(device_t dev, struct resource_spec *rs,
 		res[i] = NULL;
 
 	for (u_int i = 0; rs[i].type != -1; i++) {
-		res[i] = bhnd_alloc_resource_any(dev, rs[i].type, &rs[i].rid,
+		res[i] = bhnd_alloc_resource_any(dev, rs[i].type, rs[i].rid,
 		    rs[i].flags);
 
 		/* Clean up all allocations on failure */
@@ -2190,7 +2190,7 @@ bhnd_bus_generic_get_nvram_var(device_t dev, device_t child, const char *name,
  */
 struct bhnd_resource *
 bhnd_bus_generic_alloc_resource(device_t dev, device_t child, int type,
-	int *rid, rman_res_t start, rman_res_t end, rman_res_t count,
+	int rid, rman_res_t start, rman_res_t end, rman_res_t count,
 	u_int flags)
 {
 	struct bhnd_resource	*br;
@@ -2201,7 +2201,7 @@ bhnd_bus_generic_alloc_resource(device_t dev, device_t child, int type,
 	res = NULL;
 
 	/* Allocate the real bus resource (without activating it) */
-	res = BUS_ALLOC_RESOURCE(dev, child, type, *rid, start, end, count,
+	res = BUS_ALLOC_RESOURCE(dev, child, type, rid, start, end, count,
 	    (flags & ~RF_ACTIVE));
 	if (res == NULL)
 		return (NULL);
@@ -2216,7 +2216,7 @@ bhnd_bus_generic_alloc_resource(device_t dev, device_t child, int type,
 
 	/* Attempt activation */
 	if (flags & RF_ACTIVE) {
-		error = BHND_BUS_ACTIVATE_RESOURCE(dev, child, type, *rid, br);
+		error = BHND_BUS_ACTIVATE_RESOURCE(dev, child, type, rid, br);
 		if (error)
 			goto failed;
 	}

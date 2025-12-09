@@ -239,7 +239,7 @@ bcma_dinfo_init_agent(device_t bus, device_t child, struct bcma_devinfo *dinfo)
 
 	dinfo->rid_agent = BCMA_AGENT_RID(dinfo);
 	dinfo->res_agent = BHND_BUS_ALLOC_RESOURCE(bus, bus, SYS_RES_MEMORY,
-	    &dinfo->rid_agent, r_start, r_end, r_count, RF_ACTIVE|RF_SHAREABLE);
+	    dinfo->rid_agent, r_start, r_end, r_count, RF_ACTIVE|RF_SHAREABLE);
 	if (dinfo->res_agent == NULL) {
 		device_printf(bus, "failed allocating agent register block for "
 		    "core %u\n", BCMA_DINFO_COREIDX(dinfo));

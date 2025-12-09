@@ -87,7 +87,7 @@ bhnd_pmu_core_attach(device_t dev)
 
 	/* Allocate register block */
 	rid = 0;
-	res = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	res = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY, rid, RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(dev, "failed to allocate resources\n");
 		return (ENXIO);

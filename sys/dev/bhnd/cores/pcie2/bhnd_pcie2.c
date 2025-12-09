@@ -96,7 +96,7 @@ bhnd_pcie2_generic_attach(device_t dev)
 	    sizeof(bhnd_pcie2_devs[0]));
 
 	/* Allocate bus resources */
-	sc->mem_res = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
+	sc->mem_res = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY, sc->mem_rid,
 	    RF_ACTIVE);
 	if (sc->mem_res == NULL)
 		return (ENXIO);

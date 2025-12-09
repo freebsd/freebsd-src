@@ -923,7 +923,7 @@ METHOD struct bhnd_resource * alloc_resource {
 	device_t dev;
 	device_t child;
 	int type;
-	int *rid;
+	int rid;
 	rman_res_t start;
 	rman_res_t end;
 	rman_res_t count;

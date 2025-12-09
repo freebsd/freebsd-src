@@ -617,7 +617,7 @@ int				 bhnd_bus_generic_read_board_info(device_t dev,
 				     device_t child,
 				     struct bhnd_board_info *info);
 struct bhnd_resource		*bhnd_bus_generic_alloc_resource (device_t dev,
-				     device_t child, int type, int *rid,
+				     device_t child, int type, int rid,
 				     rman_res_t start, rman_res_t end,
 				     rman_res_t count, u_int flags);
 int				 bhnd_bus_generic_release_resource (device_t dev,
@@ -1292,7 +1292,7 @@ bhnd_nvram_getvar(device_t dev, const char *name, void *buf, size_t *len,
  * @retval resource The allocated resource.
  */
 static inline struct bhnd_resource *
-bhnd_alloc_resource(device_t dev, int type, int *rid, rman_res_t start,
+bhnd_alloc_resource(device_t dev, int type, int rid, rman_res_t start,
     rman_res_t end, rman_res_t count, u_int flags)
 {
 	return BHND_BUS_ALLOC_RESOURCE(device_get_parent(dev), dev, type, rid,
@@ -1314,7 +1314,7 @@ bhnd_alloc_resource(device_t dev, int type, int *rid, rman_res_t start,
  * @retval resource The allocated resource.
  */
 static inline struct bhnd_resource *
-bhnd_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
+bhnd_alloc_resource_any(device_t dev, int type, int rid, u_int flags)
 {
 	return bhnd_alloc_resource(dev, type, rid, 0, ~0, 1, flags);
 }

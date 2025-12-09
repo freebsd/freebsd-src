@@ -139,7 +139,7 @@ chipc_gpio_attach(device_t dev)
 	CC_GPIO_LOCK_INIT(sc);
 
 	sc->mem_rid = 0;
-	sc->mem_res = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
+	sc->mem_res = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY, sc->mem_rid,
 	    RF_ACTIVE|RF_SHAREABLE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "failed to allocate chipcommon registers\n");

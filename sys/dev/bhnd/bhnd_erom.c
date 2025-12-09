@@ -429,7 +429,7 @@ bhnd_erom_iores_map(struct bhnd_erom_io *eio, bhnd_addr_t addr,
 	/* Try to allocate the new mapping */
 	iores->mapped_rid = iores->owner_rid;
 	iores->mapped = bhnd_alloc_resource(iores->owner, SYS_RES_MEMORY,
-	    &iores->mapped_rid, addr, addr+size-1, size,
+	    iores->mapped_rid, addr, addr+size-1, size,
 	    RF_ACTIVE|RF_SHAREABLE);
 	if (iores->mapped == NULL) {
 		iores->mapped_rid = -1;
