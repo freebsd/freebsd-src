@@ -803,7 +803,7 @@ addchild(NODE *pathparent, NODE *centry)
 		 *
 		 * Make centry point to the just-replaced node.	 Unlink
 		 * the just-replaced node from the list, and allow it to
-		 * be insterted in the correct position later.
+		 * be inserted in the correct position later.
 		 */
 		centry = samename;
 		if (centry->prev)
