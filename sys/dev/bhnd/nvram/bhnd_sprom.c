@@ -108,7 +108,7 @@ bhnd_sprom_attach(device_t dev, bus_size_t offset)
 
 	/* Allocate SPROM resource */
 	rid = 0;
-	r = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	r = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY, rid, RF_ACTIVE);
 	if (r == NULL) {
 		device_printf(dev, "failed to allocate resources\n");
 		return (ENXIO);
