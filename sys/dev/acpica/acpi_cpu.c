@@ -732,7 +732,7 @@ acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc)
     if (AcpiGbl_FADT.C2Latency <= 100) {
 	gas.Address = sc->cpu_p_blk + 4;
 	cx_ptr->res_rid = 0;
-	acpi_bus_alloc_gas(sc->cpu_dev, &cx_ptr->res_type, &cx_ptr->res_rid,
+	acpi_bus_alloc_gas(sc->cpu_dev, &cx_ptr->res_type, cx_ptr->res_rid,
 	    &gas, &cx_ptr->p_lvlx, RF_SHAREABLE);
 	if (cx_ptr->p_lvlx != NULL) {
 	    cx_ptr->type = ACPI_STATE_C2;
@@ -749,7 +749,7 @@ acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc)
     if (AcpiGbl_FADT.C3Latency <= 1000 && !(cpu_quirks & CPU_QUIRK_NO_C3)) {
 	gas.Address = sc->cpu_p_blk + 5;
 	cx_ptr->res_rid = 1;
-	acpi_bus_alloc_gas(sc->cpu_dev, &cx_ptr->res_type, &cx_ptr->res_rid,
+	acpi_bus_alloc_gas(sc->cpu_dev, &cx_ptr->res_type, cx_ptr->res_rid,
 	    &gas, &cx_ptr->p_lvlx, RF_SHAREABLE);
 	if (cx_ptr->p_lvlx != NULL) {
 	    cx_ptr->type = ACPI_STATE_C3;

@@ -126,7 +126,7 @@ acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *type, int *rid,
 
     memcpy(&gas, obj->Buffer.Pointer + 3, sizeof(gas));
 
-    return (acpi_bus_alloc_gas(dev, type, rid, &gas, dst, flags));
+    return (acpi_bus_alloc_gas(dev, type, *rid, &gas, dst, flags));
 }
 
 int

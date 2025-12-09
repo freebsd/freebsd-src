@@ -612,7 +612,7 @@ wdatwd_probe(device_t dev)
 		int		type, rid = 0;
 		struct resource *res;
 
-		if (acpi_bus_alloc_gas(dev, &type, &rid,
+		if (acpi_bus_alloc_gas(dev, &type, rid,
 		    &((ACPI_WDAT_ENTRY *)(wdat + 1))->RegisterRegion,
 		    &res, 0))
 			return (ENXIO);
