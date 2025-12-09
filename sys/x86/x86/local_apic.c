@@ -428,6 +428,7 @@ lapic_is_x2apic(void)
 	    (APICBASE_X2APIC | APICBASE_ENABLED));
 }
 
+static void	lapic_early_mask_vecs(void);
 static void	lapic_enable(void);
 static void	lapic_resume(struct pic *pic, bool suspend_cancelled);
 static void	lapic_timer_oneshot(struct lapic *);
@@ -553,6 +554,7 @@ lapic_init(vm_paddr_t addr)
 
 	/* Perform basic initialization of the BSP's local APIC. */
 	lapic_enable();
+	lapic_early_mask_vecs();
 
 	/* Set BSP's per-CPU local APIC ID. */
 	PCPU_SET(apic_id, lapic_id());
@@ -789,6 +791,32 @@ lapic_xapic_mode(void)
 	if (x2apic_mode)
 		lapic_enable_x2apic();
 	intr_restore(saveintr);
+}
+
+static void
+lapic_early_mask_vec(const struct lvt *l)
+{
+	uint32_t v;
+
+	if (l->lvt_masked != 0) {
+		v = lapic_read32(l->lvt_reg);
+		v |= APIC_LVT_M;
+		lapic_write32(l->lvt_reg, v);
+	}
+}
+
+/* Done on BSP only */
+static void
+lapic_early_mask_vecs(void)
+{
+	int elvt_count, i;
+
+	for (i = 0; i < APIC_LVT_MAX; i++)
+		lapic_early_mask_vec(&lvts[i]);
+
+	elvt_count = amd_read_elvt_count();
+	for (i = 0; i < elvt_count; i++)
+		lapic_early_mask_vec(&elvts[i]);
 }
 
 void
