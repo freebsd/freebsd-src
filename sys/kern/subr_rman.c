@@ -102,8 +102,10 @@ SYSCTL_INT(_debug, OID_AUTO, rman_debug, CTLFLAG_RWTUN,
 
 static MALLOC_DEFINE(M_RMAN, "rman", "Resource manager");
 
-struct rman_head rman_head;
+struct rman_head rman_head = TAILQ_HEAD_INITIALIZER(rman_head);
 static struct mtx rman_mtx; /* mutex to protect rman_head */
+MTX_SYSINIT(rman_mtx, &rman_mtx, "rman head", MTX_DEF);
+
 static int int_rman_release_resource(struct rman *rm, struct resource_i *r);
 
 static __inline struct resource_i *
@@ -121,14 +123,6 @@ int_alloc_resource(int malloc_flag)
 int
 rman_init(struct rman *rm)
 {
-	static int once = 0;
-
-	if (once == 0) {
-		once = 1;
-		TAILQ_INIT(&rman_head);
-		mtx_init(&rman_mtx, "rman head", NULL, MTX_DEF);
-	}
-
 	if (rm->rm_start == 0 && rm->rm_end == 0)
 		rm->rm_end = ~0;
 	if (rm->rm_type == RMAN_UNINIT)
