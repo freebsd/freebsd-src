@@ -175,8 +175,8 @@ fi
 
 if [ ! "$nonInteractive" == "YES" ]; then
 	bsddialog --backtitle "$OSNAME Installer" --title "Select Installation Type" \
-	    --yes-label "Distribution Sets" --no-label "Packages (Tech Preview)" --yesno \
-	    "Would you like to install the base system using traditional distribution sets or packages (technology preview)?" 0 0
+	    --yes-label "Distribution Sets" --no-label "Packages" --yesno \
+	    "Would you like to install the base system using legacy distribution sets or packages?" 0 0
 	if [ $? -eq 1 ]; then
 		PKGBASE=yes
 	fi
