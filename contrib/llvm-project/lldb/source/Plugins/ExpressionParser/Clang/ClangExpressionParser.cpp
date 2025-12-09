@@ -94,7 +94,9 @@
 #include "lldb/Utility/StringList.h"
 
 #include "Plugins/LanguageRuntime/ObjC/ObjCLanguageRuntime.h"
+#ifdef LLDB_ENABLE_ALL
 #include "Plugins/Platform/MacOSX/PlatformDarwin.h"
+#endif // LLDB_ENABLE_ALL
 #include "lldb/Utility/XcodeSDK.h"
 
 #include <cctype>
