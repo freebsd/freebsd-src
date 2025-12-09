@@ -1,5 +1,4 @@
 SRCDIR=${SRCTOP}/sys/contrib/openzfs/module
-INCDIR=${SRCTOP}/sys/contrib/openzfs/include
 
 KMOD=	zfs
 
@@ -27,11 +26,11 @@ KMOD=	zfs
 	${SRCDIR}/zstd/lib/compress \
 	${SRCDIR}/zstd/lib/decompress
 
-CFLAGS+= -I${INCDIR}
+CFLAGS+= -I${ZINCDIR}
 CFLAGS+= -I${SRCDIR}/icp/include
-CFLAGS+= -I${INCDIR}/os/freebsd
-CFLAGS+= -I${INCDIR}/os/freebsd/spl
-CFLAGS+= -I${INCDIR}/os/freebsd/zfs
+CFLAGS+= -I${ZINCDIR}/os/freebsd
+CFLAGS+= -I${ZINCDIR}/os/freebsd/spl
+CFLAGS+= -I${ZINCDIR}/os/freebsd/zfs
 CFLAGS+= -I${SRCDIR}/zstd/include
 CFLAGS+= -I${.CURDIR}
 
@@ -388,7 +387,7 @@ SRCS+=	zfs_zstd.c \
 .include <bsd.kmod.mk>
 
 CFLAGS+= -include ${SRCTOP}/sys/cddl/compat/opensolaris/sys/debug_compat.h
-CFLAGS+= -include ${INCDIR}/os/freebsd/spl/sys/ccompile.h
+CFLAGS+= -include ${ZINCDIR}/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/static_ccompile.h
 
 CFLAGS.sysctl_os.c= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
