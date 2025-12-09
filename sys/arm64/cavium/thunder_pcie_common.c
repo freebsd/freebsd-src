@@ -169,7 +169,7 @@ thunder_pcie_identify_ecam(device_t dev, int *ecam)
 
 #ifdef THUNDERX_PASS_1_1_ERRATA
 struct resource *
-thunder_pcie_alloc_resource(device_t dev, device_t child, int type, int *rid,
+thunder_pcie_alloc_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	pci_addr_t map, testval;
@@ -183,7 +183,7 @@ thunder_pcie_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	if (((type == SYS_RES_IOPORT) || (type == SYS_RES_MEMORY)) &&
 	    RMAN_IS_DEFAULT_RANGE(start, end)) {
 		/* Read BAR manually to get resource address and size */
-		pci_read_bar(child, *rid, &map, &testval, NULL);
+		pci_read_bar(child, rid, &map, &testval, NULL);
 
 		/* Mask the information bits */
 		if (PCI_BAR_MEM(map))

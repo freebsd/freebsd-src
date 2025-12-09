@@ -58,7 +58,7 @@
 static  int  ata_iobus_attach(device_t dev);
 static  int  ata_iobus_probe(device_t dev);
 static  int  ata_iobus_print_child(device_t dev, device_t child);
-struct resource *ata_iobus_alloc_resource(device_t, device_t, int, int *,
+struct resource *ata_iobus_alloc_resource(device_t, device_t, int, int,
 					  rman_res_t, rman_res_t, rman_res_t,
 					  u_int);
 static int ata_iobus_release_resource(device_t, device_t, struct resource *);
@@ -129,7 +129,7 @@ ata_iobus_print_child(device_t dev, device_t child)
 }
 
 struct resource *
-ata_iobus_alloc_resource(device_t dev, device_t child, int type, int *rid,
+ata_iobus_alloc_resource(device_t dev, device_t child, int type, int rid,
 			 rman_res_t start, rman_res_t end, rman_res_t count,
 			 u_int flags)
 {
@@ -152,14 +152,14 @@ ata_iobus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	 *  The resource values are calculated from these registers
 	 */
 	if (type == SYS_RES_IOPORT) {
-		switch (*rid) {
+		switch (rid) {
 		case ATA_IOADDR_RID:
 			myrid = 0;
 			start = ofw_regs[4];
 			end = start + ATA_IOSIZE - 1;
 			count = ATA_IOSIZE;
 			res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-						 SYS_RES_MEMORY, &myrid,
+						 SYS_RES_MEMORY, myrid,
 						 start, end, count, flags);
 			break;
 
@@ -169,7 +169,7 @@ ata_iobus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			end = start + ATA_CTLIOSIZE - 1;
 			count = ATA_CTLIOSIZE;
 			res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-						 SYS_RES_MEMORY, &myrid,
+						 SYS_RES_MEMORY, myrid,
 						 start, end, count, flags);
 			break;
 
@@ -179,7 +179,7 @@ ata_iobus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		}
 		return (res);
 
-	} else if (type == SYS_RES_IRQ && *rid == ATA_IRQ_RID) {
+	} else if (type == SYS_RES_IRQ && rid == ATA_IRQ_RID) {
 		/*
 		 * Pass this on to the parent
 		 */

@@ -251,7 +251,7 @@ quicc_bfe_probe(device_t dev, u_int clock)
 }
 
 struct resource *
-quicc_bus_alloc_resource(device_t dev, device_t child, int type, int *rid,
+quicc_bus_alloc_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct quicc_device *qd;
@@ -265,7 +265,7 @@ quicc_bus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		return (NULL);
 
 	qd = device_get_ivars(child);
-	rle = resource_list_find(&qd->qd_rlist, type, *rid);
+	rle = resource_list_find(&qd->qd_rlist, type, rid);
 	if (rle == NULL)
 		return (NULL);
 

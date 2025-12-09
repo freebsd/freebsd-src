@@ -90,7 +90,7 @@ static int		acpi_pcib_map_msi(device_t pcib, device_t dev,
 static int		acpi_pcib_alloc_msix(device_t pcib, device_t dev,
 			    int *irq);
 static struct resource *acpi_pcib_acpi_alloc_resource(device_t dev,
-			    device_t child, int type, int *rid,
+			    device_t child, int type, int rid,
 			    rman_res_t start, rman_res_t end, rman_res_t count,
 			    u_int flags);
 static int		acpi_pcib_acpi_adjust_resource(device_t dev,
@@ -423,7 +423,7 @@ acpi_pcib_acpi_attach(device_t dev)
 		    sc->ap_bus = start;
 	    else {
 		    rid = 0;
-		    bus_res = pci_domain_alloc_bus(sc->ap_segment, dev, &rid, 0,
+		    bus_res = pci_domain_alloc_bus(sc->ap_segment, dev, rid, 0,
 			PCI_BUSMAX, 1, 0);
 		    if (bus_res == NULL) {
 			    device_printf(dev,
@@ -605,7 +605,7 @@ acpi_pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
 }
 
 struct resource *
-acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
+acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
     struct acpi_hpcib_softc *sc;

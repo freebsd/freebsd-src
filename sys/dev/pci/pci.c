@@ -3914,7 +3914,7 @@ clear:
 }
 
 static struct resource *
-pci_alloc_secbus(device_t dev, device_t child, int *rid, rman_res_t start,
+pci_alloc_secbus(device_t dev, device_t child, int rid, rman_res_t start,
     rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct pci_devinfo *dinfo;
@@ -3939,16 +3939,16 @@ pci_alloc_secbus(device_t dev, device_t child, int *rid, rman_res_t start,
 		return (NULL);
 	}
 
-	if (*rid != 0)
+	if (rid != 0)
 		return (NULL);
 
-	if (resource_list_find(rl, PCI_RES_BUS, *rid) == NULL)
-		resource_list_add(rl, PCI_RES_BUS, *rid, start, end, count);
-	if (!resource_list_reserved(rl, PCI_RES_BUS, *rid)) {
-		res = resource_list_reserve(rl, dev, child, PCI_RES_BUS, rid,
+	if (resource_list_find(rl, PCI_RES_BUS, rid) == NULL)
+		resource_list_add(rl, PCI_RES_BUS, rid, start, end, count);
+	if (!resource_list_reserved(rl, PCI_RES_BUS, rid)) {
+		res = resource_list_reserve(rl, dev, child, PCI_RES_BUS, &rid,
 		    start, end, count, flags & ~RF_ACTIVE);
 		if (res == NULL) {
-			resource_list_delete(rl, PCI_RES_BUS, *rid);
+			resource_list_delete(rl, PCI_RES_BUS, rid);
 			device_printf(child, "allocating %ju bus%s failed\n",
 			    count, count == 1 ? "" : "es");
 			return (NULL);
@@ -5620,7 +5620,7 @@ out:
 }
 
 struct resource *
-pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
+pci_alloc_multi_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_long num,
     u_int flags)
 {
@@ -5645,7 +5645,7 @@ pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
 		 * Can't alloc legacy interrupt once MSI messages have
 		 * been allocated.
 		 */
-		if (*rid == 0 && (cfg->msi.msi_alloc > 0 ||
+		if (rid == 0 && (cfg->msi.msi_alloc > 0 ||
 		    cfg->msix.msix_alloc > 0))
 			return (NULL);
 
@@ -5654,7 +5654,7 @@ pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
 		 * routed and is deserving of an interrupt, try to
 		 * assign it one.
 		 */
-		if (*rid == 0 && !PCI_INTERRUPT_VALID(cfg->intline) &&
+		if (rid == 0 && !PCI_INTERRUPT_VALID(cfg->intline) &&
 		    (cfg->intpin != 0))
 			pci_assign_interrupt(dev, child, 0);
 		break;
@@ -5666,7 +5666,7 @@ pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
 		 * tree.
 		 */
 		if (cfg->hdrtype == PCIM_HDRTYPE_BRIDGE) {
-			switch (*rid) {
+			switch (rid) {
 			case PCIR_IOBASEL_1:
 			case PCIR_MEMBASE_1:
 			case PCIR_PMBASEL_1:
@@ -5679,9 +5679,9 @@ pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
 			}
 		}
 		/* Reserve resources for this BAR if needed. */
-		rle = resource_list_find(rl, type, *rid);
+		rle = resource_list_find(rl, type, rid);
 		if (rle == NULL) {
-			res = pci_reserve_map(dev, child, type, rid, start, end,
+			res = pci_reserve_map(dev, child, type, &rid, start, end,
 			    count, num, flags);
 			if (res == NULL)
 				return (NULL);
@@ -5692,7 +5692,7 @@ pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 struct resource *
-pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
+pci_alloc_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 #ifdef PCI_IOV

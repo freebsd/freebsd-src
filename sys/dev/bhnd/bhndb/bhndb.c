@@ -937,7 +937,7 @@ bhndb_get_service_registry(device_t dev, device_t child)
  */
 static struct resource *
 bhndb_alloc_resource(device_t dev, device_t child, int type,
-    int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+    int rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct bhndb_softc		*sc;
 	struct resource_list_entry	*rle;
@@ -964,11 +964,11 @@ bhndb_alloc_resource(device_t dev, device_t child, int type,
 	if (!passthrough && isdefault) {
 		/* Fetch the resource list entry. */
 		rle = resource_list_find(BUS_GET_RESOURCE_LIST(dev, child),
-		    type, *rid);
+		    type, rid);
 		if (rle == NULL) {
 			device_printf(dev,
 			    "default resource %#x type %d for child %s "
-			    "not found\n", *rid, type,
+			    "not found\n", rid, type,
 			    device_get_nameunit(child));
 			
 			return (NULL);
@@ -977,7 +977,7 @@ bhndb_alloc_resource(device_t dev, device_t child, int type,
 		if (rle->res != NULL) {
 			device_printf(dev,
 			    "resource entry %#x type %d for child %s is busy\n",
-			    *rid, type, device_get_nameunit(child));
+			    rid, type, device_get_nameunit(child));
 			
 			return (NULL);
 		}
@@ -997,17 +997,17 @@ bhndb_alloc_resource(device_t dev, device_t child, int type,
 	if (rv == NULL)
 		return (NULL);
 
-	rman_set_rid(rv, *rid);
+	rman_set_rid(rv, rid);
 	rman_set_type(rv, type);
 
 	/* Activate */
 	if (flags & RF_ACTIVE) {
-		error = bus_activate_resource(child, type, *rid, rv);
+		error = bus_activate_resource(child, type, rid, rv);
 		if (error) {
 			device_printf(dev,
 			    "failed to activate entry %#x type %d for "
 				"child %s: %d\n",
-			     *rid, type, device_get_nameunit(child), error);
+			     rid, type, device_get_nameunit(child), error);
 
 			rman_release_resource(rv);
 

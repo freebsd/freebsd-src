@@ -159,7 +159,7 @@ static int	cbb_cardbus_activate_resource(device_t brdev, device_t child,
 static int	cbb_cardbus_deactivate_resource(device_t brdev,
 		    device_t child, struct resource *res);
 static struct resource	*cbb_cardbus_alloc_resource(device_t brdev,
-		    device_t child, int type, int *rid, rman_res_t start,
+		    device_t child, int type, int rid, rman_res_t start,
 		    rman_res_t end, rman_res_t count, u_int flags);
 static int	cbb_cardbus_release_resource(device_t brdev, device_t child,
 		    struct resource *res);
@@ -1174,7 +1174,7 @@ cbb_cardbus_deactivate_resource(device_t brdev, device_t child,
 
 static struct resource *
 cbb_cardbus_alloc_resource(device_t brdev, device_t child, int type,
-    int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+    int rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
 	int tmp;
@@ -1219,13 +1219,13 @@ cbb_cardbus_alloc_resource(device_t brdev, device_t child, int type,
 	res = BUS_ALLOC_RESOURCE(device_get_parent(brdev), child, type, rid,
 	    start, end, count, flags & ~RF_ACTIVE);
 	if (res == NULL) {
-		printf("cbb alloc res fail type %d rid %x\n", type, *rid);
+		printf("cbb alloc res fail type %d rid %x\n", type, rid);
 		return (NULL);
 	}
-	cbb_insert_res(sc, res, type, *rid);
+	cbb_insert_res(sc, res, type, rid);
 	if (flags & RF_ACTIVE)
-		if (bus_activate_resource(child, type, *rid, res) != 0) {
-			bus_release_resource(child, type, *rid, res);
+		if (bus_activate_resource(child, type, rid, res) != 0) {
+			bus_release_resource(child, type, rid, res);
 			return (NULL);
 		}
 
@@ -1338,7 +1338,7 @@ cbb_pcic_deactivate_resource(device_t brdev, device_t child,
 }
 
 static struct resource *
-cbb_pcic_alloc_resource(device_t brdev, device_t child, int type, int *rid,
+cbb_pcic_alloc_resource(device_t brdev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *res = NULL;
@@ -1382,10 +1382,10 @@ cbb_pcic_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 	    start, end, count, flags & ~RF_ACTIVE);
 	if (res == NULL)
 		return (NULL);
-	cbb_insert_res(sc, res, type, *rid);
+	cbb_insert_res(sc, res, type, rid);
 	if (flags & RF_ACTIVE) {
-		if (bus_activate_resource(child, type, *rid, res) != 0) {
-			bus_release_resource(child, type, *rid, res);
+		if (bus_activate_resource(child, type, rid, res) != 0) {
+			bus_release_resource(child, type, rid, res);
 			return (NULL);
 		}
 	}
@@ -1475,7 +1475,7 @@ cbb_deactivate_resource(device_t brdev, device_t child, struct resource *r)
 }
 
 struct resource *
-cbb_alloc_resource(device_t brdev, device_t child, int type, int *rid,
+cbb_alloc_resource(device_t brdev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);

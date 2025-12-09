@@ -381,7 +381,7 @@ void	resource_list_delete(struct resource_list *rl,
 struct resource *
 	resource_list_alloc(struct resource_list *rl,
 			    device_t bus, device_t child,
-			    int type, int *rid,
+			    int type, int rid,
 			    rman_res_t start, rman_res_t end,
 			    rman_res_t count, u_int flags);
 int	resource_list_release(struct resource_list *rl,
@@ -427,7 +427,7 @@ int	bus_generic_adjust_resource(device_t bus, device_t child,
 				    rman_res_t end);
 struct resource *
 	bus_generic_alloc_resource(device_t bus, device_t child, int type,
-				   int *rid, rman_res_t start, rman_res_t end,
+				   int rid, rman_res_t start, rman_res_t end,
 				   rman_res_t count, u_int flags);
 int	bus_generic_translate_resource(device_t dev, int type, rman_res_t start,
 			      rman_res_t *newstart);
@@ -480,7 +480,7 @@ int	bus_generic_setup_intr(device_t dev, device_t child,
 			       void *arg, void **cookiep);
 
 struct resource *
-	bus_generic_rl_alloc_resource(device_t, device_t, int, int *,
+	bus_generic_rl_alloc_resource(device_t, device_t, int, int,
 				      rman_res_t, rman_res_t, rman_res_t, u_int);
 void	bus_generic_rl_delete_resource(device_t, device_t, int, int);
 int	bus_generic_rl_get_resource(device_t, device_t, int, int, rman_res_t *,
@@ -490,7 +490,7 @@ int	bus_generic_rl_set_resource(device_t, device_t, int, int, rman_res_t,
 int	bus_generic_rl_release_resource(device_t, device_t, struct resource *);
 struct resource *
 	bus_generic_rman_alloc_resource(device_t dev, device_t child, int type,
-					int *rid, rman_res_t start,
+					int rid, rman_res_t start,
 					rman_res_t end, rman_res_t count,
 					u_int flags);
 int	bus_generic_rman_adjust_resource(device_t dev, device_t child,
@@ -544,7 +544,7 @@ int	bus_adjust_resource(device_t child, struct resource *r,
 			    rman_res_t start, rman_res_t end);
 int	bus_translate_resource(device_t child, int type, rman_res_t start,
 			       rman_res_t *newstart);
-struct	resource *bus_alloc_resource(device_t dev, int type, int *rid,
+struct	resource *bus_alloc_resource(device_t dev, int type, int rid,
 				     rman_res_t start, rman_res_t end,
 				     rman_res_t count, u_int flags);
 int	bus_activate_resource(device_t dev, struct resource *r);
@@ -588,13 +588,13 @@ void	bus_enumerate_hinted_children(device_t bus);
 void	bus_identify_children(device_t dev);
 
 static __inline struct resource *
-bus_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
+bus_alloc_resource_any(device_t dev, int type, int rid, u_int flags)
 {
 	return (bus_alloc_resource(dev, type, rid, 0, ~0, 1, flags));
 }
 
 static __inline struct resource *
-bus_alloc_resource_anywhere(device_t dev, int type, int *rid,
+bus_alloc_resource_anywhere(device_t dev, int type, int rid,
     rman_res_t count, u_int flags)
 {
 	return (bus_alloc_resource(dev, type, rid, 0, ~0, count, flags));
@@ -602,44 +602,44 @@ bus_alloc_resource_anywhere(device_t dev, int type, int *rid,
 
 /* Compat shims for bus_alloc_resource API. */
 static __inline struct resource *
-bus_alloc_resource_const(device_t dev, int type, int rid, rman_res_t start,
+bus_alloc_resource_var(device_t dev, int type, int *rid, rman_res_t start,
     rman_res_t end, rman_res_t count, u_int flags)
 {
-	return (bus_alloc_resource(dev, type, &rid, start, end, count, flags));
+	return (bus_alloc_resource(dev, type, *rid, start, end, count, flags));
 }
 
 static __inline struct resource *
-bus_alloc_resource_any_const(device_t dev, int type, int rid, u_int flags)
+bus_alloc_resource_any_var(device_t dev, int type, int *rid, u_int flags)
 {
-	return (bus_alloc_resource(dev, type, &rid, 0, ~0, 1, flags));
+	return (bus_alloc_resource(dev, type, *rid, 0, ~0, 1, flags));
 }
 
 static __inline struct resource *
-bus_alloc_resource_anywhere_const(device_t dev, int type, int rid,
+bus_alloc_resource_anywhere_var(device_t dev, int type, int *rid,
     rman_res_t count, u_int flags)
 {
-	return (bus_alloc_resource(dev, type, &rid, 0, ~0, count, flags));
+	return (bus_alloc_resource(dev, type, *rid, 0, ~0, count, flags));
 }
 
 #define	bus_alloc_resource(dev, type, rid, start, end, count, flags)	\
 	_Generic((rid),							\
-	    int *: bus_alloc_resource,					\
-	    unsigned int *: bus_alloc_resource,				\
-	    default: bus_alloc_resource_const)				\
+	    int *: bus_alloc_resource_var,				\
+	    unsigned int *: bus_alloc_resource_var,			\
+	    default: bus_alloc_resource)				\
 	((dev), (type), (rid), (start), (end), (count), (flags))
 
 #define	bus_alloc_resource_any(dev, type, rid, flags)			\
 	_Generic((rid),							\
-	    int *: bus_alloc_resource_any,				\
-	    unsigned int *: bus_alloc_resource_any,			\
-	    default: bus_alloc_resource_any_const)			\
+	    int *: bus_alloc_resource_any_var,				\
+	    unsigned int *: bus_alloc_resource_any_var,			\
+	    default: bus_alloc_resource_any)				\
 	((dev), (type), (rid), (flags))
 
 #define	bus_alloc_resource_anywhere(dev, type, rid, count, flags)	\
 	_Generic((rid),							\
-	    int *: bus_alloc_resource_anywhere,				\
-	    unsigned int *: bus_alloc_resource_anywhere,		\
-	    default: bus_alloc_resource_anywhere_const)			\
+	    int *: bus_alloc_resource_anywhere_var,			\
+	    unsigned int *: bus_alloc_resource_anywhere_var,		\
+	    default: bus_alloc_resource_anywhere)			\
 	((dev), (type), (rid), (count), (flags))
 
 /* Compat shims for simpler bus resource API. */

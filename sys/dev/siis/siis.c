@@ -314,7 +314,7 @@ siis_intr(void *data)
 }
 
 static struct resource *
-siis_alloc_resource(device_t dev, device_t child, int type, int *rid,
+siis_alloc_resource(device_t dev, device_t child, int type, int rid,
 		    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct siis_controller *ctlr = device_get_softc(dev);
@@ -339,7 +339,7 @@ siis_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		}
 		break;
 	case SYS_RES_IRQ:
-		if (*rid == ATA_IRQ_RID)
+		if (rid == ATA_IRQ_RID)
 			res = ctlr->irq.r_irq;
 		break;
 	}

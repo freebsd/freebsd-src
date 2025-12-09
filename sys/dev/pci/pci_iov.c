@@ -350,7 +350,7 @@ pci_iov_alloc_bar(struct pci_devinfo *dinfo, int bar, pci_addr_t bar_shift)
 	rid = iov->iov_pos + PCIR_SRIOV_BAR(bar);
 	bar_size = 1 << bar_shift;
 
-	res = pci_alloc_multi_resource(bus, dev, SYS_RES_MEMORY, &rid, 0,
+	res = pci_alloc_multi_resource(bus, dev, SYS_RES_MEMORY, rid, 0,
 	    ~0, 1, iov->iov_num_vfs, RF_ACTIVE);
 
 	if (res == NULL)
@@ -1016,7 +1016,7 @@ pci_iov_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 }
 
 struct resource *
-pci_vf_alloc_mem_resource(device_t dev, device_t child, int *rid,
+pci_vf_alloc_mem_resource(device_t dev, device_t child, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct pci_devinfo *dinfo;
@@ -1031,7 +1031,7 @@ pci_vf_alloc_mem_resource(device_t dev, device_t child, int *rid,
 	dinfo = device_get_ivars(child);
 	iov = dinfo->cfg.iov;
 
-	map = pci_find_bar(child, *rid);
+	map = pci_find_bar(child, rid);
 	if (map == NULL)
 		return (NULL);
 
@@ -1055,21 +1055,21 @@ pci_vf_alloc_mem_resource(device_t dev, device_t child, int *rid,
 	if (res == NULL)
 		return (NULL);
 
-	rle = resource_list_add(&dinfo->resources, SYS_RES_MEMORY, *rid,
+	rle = resource_list_add(&dinfo->resources, SYS_RES_MEMORY, rid,
 	    bar_start, bar_end, 1);
 	if (rle == NULL) {
 		rman_release_resource(res);
 		return (NULL);
 	}
 
-	rman_set_rid(res, *rid);
+	rman_set_rid(res, rid);
 	rman_set_type(res, SYS_RES_MEMORY);
 
 	if (flags & RF_ACTIVE) {
-		error = bus_activate_resource(child, SYS_RES_MEMORY, *rid, res);
+		error = bus_activate_resource(child, SYS_RES_MEMORY, rid, res);
 		if (error != 0) {
 			resource_list_delete(&dinfo->resources, SYS_RES_MEMORY,
-			    *rid);
+			    rid);
 			rman_release_resource(res);
 			return (NULL);
 		}

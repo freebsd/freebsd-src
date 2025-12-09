@@ -59,7 +59,7 @@ int quicc_bfe_attach(device_t);
 int quicc_bfe_detach(device_t);
 int quicc_bfe_probe(device_t, u_int);
 
-struct resource *quicc_bus_alloc_resource(device_t, device_t, int, int *,
+struct resource *quicc_bus_alloc_resource(device_t, device_t, int, int,
     rman_res_t, rman_res_t, rman_res_t, u_int);
 int quicc_bus_get_resource(device_t, device_t, int, int,
     rman_res_t *, rman_res_t *);

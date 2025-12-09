@@ -765,7 +765,7 @@ chipc_get_rman(device_t dev, int type, u_int flags)
 
 static struct resource *
 chipc_alloc_resource(device_t dev, device_t child, int type,
-    int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+    int rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct chipc_softc		*sc;
 	struct chipc_region		*cr;
@@ -793,11 +793,11 @@ chipc_alloc_resource(device_t dev, device_t child, int type,
 	if (!passthrough && isdefault) {
 		/* Fetch the resource list entry. */
 		rle = resource_list_find(BUS_GET_RESOURCE_LIST(dev, child),
-		    type, *rid);
+		    type, rid);
 		if (rle == NULL) {
 			device_printf(dev,
 			    "default resource %#x type %d for child %s "
-			    "not found\n", *rid, type,
+			    "not found\n", rid, type,
 			    device_get_nameunit(child));			
 			return (NULL);
 		}
@@ -806,7 +806,7 @@ chipc_alloc_resource(device_t dev, device_t child, int type,
 			device_printf(dev,
 			    "resource entry %#x type %d for child %s is busy "
 			    "[%d]\n",
-			    *rid, type, device_get_nameunit(child),
+			    rid, type, device_get_nameunit(child),
 			    rman_get_flags(rle->res));
 			
 			return (NULL);

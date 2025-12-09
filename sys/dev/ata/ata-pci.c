@@ -216,7 +216,7 @@ ata_pci_write_config(device_t dev, device_t child, int reg,
 }
 
 struct resource *
-ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
+ata_pci_alloc_resource(device_t dev, device_t child, int type, int rid,
 		       rman_res_t start, rman_res_t end, rman_res_t count,
 		       u_int flags)
 {
@@ -228,7 +228,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		int myrid;
 
 		if (type == SYS_RES_IOPORT) {
-			switch (*rid) {
+			switch (rid) {
 			case ATA_IOADDR_RID:
 			    if (controller->legacy) {
 				start = (unit ? ATA_SECONDARY : ATA_PRIMARY);
@@ -237,7 +237,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			    }
 			    myrid = PCIR_BAR(0) + (unit << 3);
 			    res = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
-				SYS_RES_IOPORT, &myrid,
+				SYS_RES_IOPORT, myrid,
 				start, end, count, flags);
 			    break;
 			case ATA_CTLADDR_RID:
@@ -249,12 +249,12 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			    }
 			    myrid = PCIR_BAR(1) + (unit << 3);
 			    res = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
-				SYS_RES_IOPORT, &myrid,
+				SYS_RES_IOPORT, myrid,
 				start, end, count, flags);
 			    break;
 			}
 		}
-		if (type == SYS_RES_IRQ && *rid == ATA_IRQ_RID) {
+		if (type == SYS_RES_IRQ && rid == ATA_IRQ_RID) {
 			if (controller->legacy) {
 			    int irq = (unit == 0 ? 14 : 15);
 	    
@@ -265,7 +265,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		}
 	} else {
 		if (type == SYS_RES_IRQ) {
-			if (*rid != ATA_IRQ_RID)
+			if (rid != ATA_IRQ_RID)
 				return (NULL);
 			res = controller->r_irq;
 		} else {

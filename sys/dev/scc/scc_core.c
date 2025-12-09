@@ -406,7 +406,7 @@ scc_bfe_probe(device_t dev, u_int regshft, u_int rclk, u_int rid)
 }
 
 struct resource *
-scc_bus_alloc_resource(device_t dev, device_t child, int type, int *rid,
+scc_bus_alloc_resource(device_t dev, device_t child, int type, int rid __unused,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource_list_entry *rle;
@@ -425,7 +425,6 @@ scc_bus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	rle = resource_list_find(&ch->ch_rlist, type, 0);
 	if (rle == NULL)
 		return (NULL);
-	*rid = 0;
 	return (rle->res);
 }
 

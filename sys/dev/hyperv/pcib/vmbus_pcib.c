@@ -1663,7 +1663,7 @@ vmbus_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t val)
 }
 
 static struct resource *
-vmbus_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
+vmbus_pcib_alloc_resource(device_t dev, device_t child, int type, int rid,
 	rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	unsigned int bar_no;
@@ -1687,7 +1687,7 @@ vmbus_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		if (!hpdev)
 			return (NULL);
 
-		bar_no = PCI_RID2BAR(*rid);
+		bar_no = PCI_RID2BAR(rid);
 		if (bar_no >= MAX_NUM_BARS)
 			return (NULL);
 

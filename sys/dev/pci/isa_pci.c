@@ -52,7 +52,7 @@
 static int	isab_pci_probe(device_t dev);
 static int	isab_pci_attach(device_t dev);
 static struct resource *	isab_pci_alloc_resource(device_t dev,
-    device_t child, int type, int *rid, rman_res_t start, rman_res_t end,
+    device_t child, int type, int rid, rman_res_t start, rman_res_t end,
     rman_res_t count, u_int flags);
 static int	isab_pci_release_resource(device_t dev, device_t child,
     struct resource *r);
@@ -165,7 +165,7 @@ isab_pci_attach(device_t dev)
 }
 
 static struct resource *
-isab_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
+isab_pci_alloc_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct isab_pci_softc *sc;
@@ -182,7 +182,7 @@ isab_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		 * For BARs, we cache the resource so that we only allocate it
 		 * from the PCI bus once.
 		 */
-		bar = PCI_RID2BAR(*rid);
+		bar = PCI_RID2BAR(rid);
 		if (bar < 0 || bar > PCIR_MAX_BAR_0)
 			return (NULL);
 		sc = device_get_softc(dev);

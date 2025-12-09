@@ -592,7 +592,7 @@ hostb_alloc_start(int type, rman_res_t start, rman_res_t end, rman_res_t count)
 }
 
 struct resource *
-legacy_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
+legacy_pcib_alloc_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 

@@ -1562,7 +1562,7 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
 }
 
 static struct resource *
-acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
+acpi_alloc_resource(device_t bus, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 #ifndef INTRNG
@@ -1590,8 +1590,8 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * add the resource before allocating it.  Note that these
 	 * resources will not be reserved.
 	 */
-	if (!isdefault && resource_list_find(rl, type, *rid) == NULL)
-		resource_list_add(rl, type, *rid, start, end, count);
+	if (!isdefault && resource_list_find(rl, type, rid) == NULL)
+		resource_list_add(rl, type, rid, start, end, count);
 	res = resource_list_alloc(rl, bus, child, type, rid, start, end, count,
 	    flags);
 #ifndef INTRNG
@@ -1604,7 +1604,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	     *
 	     * XXX: Should we handle the lookup failing?
 	     */
-	    if (ACPI_SUCCESS(acpi_lookup_irq_resource(child, *rid, res, &ares)))
+	    if (ACPI_SUCCESS(acpi_lookup_irq_resource(child, rid, res, &ares)))
 		acpi_config_intr(child, &ares);
 	}
 #endif
@@ -1616,7 +1616,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * system resource regions.
 	 */
 	if (res == NULL && isdefault) {
-	    rle = resource_list_find(rl, type, *rid);
+	    rle = resource_list_find(rl, type, rid);
 	    if (rle != NULL) {
 		start = rle->start;
 		end = rle->end;

@@ -55,7 +55,7 @@
 
 #ifdef THUNDERX_PASS_1_1_ERRATA
 static struct resource * thunder_pcie_fdt_alloc_resource(device_t, device_t,
-    int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
+    int, int, rman_res_t, rman_res_t, rman_res_t, u_int);
 static int thunder_pcie_fdt_release_resource(device_t, device_t,
     struct resource*);
 #endif
@@ -228,7 +228,7 @@ thunder_pcie_fdt_get_id(device_t pci, device_t child, enum pci_id_type type,
 #ifdef THUNDERX_PASS_1_1_ERRATA
 struct resource *
 thunder_pcie_fdt_alloc_resource(device_t dev, device_t child, int type,
-    int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+    int rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct generic_pcie_fdt_softc *sc;
 	struct thunder_pcie_ofw_devinfo *di;
@@ -253,7 +253,7 @@ thunder_pcie_fdt_alloc_resource(device_t dev, device_t child, int type,
 		    type = SYS_RES_MEMORY;
 
 		/* Find defaults for this rid */
-		rle = resource_list_find(&di->di_rl, type, *rid);
+		rle = resource_list_find(&di->di_rl, type, rid);
 		if (rle == NULL)
 			return (NULL);
 

@@ -3109,7 +3109,7 @@ resource_list_reserve(struct resource_list *rl, device_t bus, device_t child,
 		panic(
     "resource_list_reserve() should only reserve inactive resources");
 
-	r = resource_list_alloc(rl, bus, child, type, rid, start, end, count,
+	r = resource_list_alloc(rl, bus, child, type, *rid, start, end, count,
 	    flags);
 	if (r != NULL) {
 		rle = resource_list_find(rl, type, *rid);
@@ -3153,7 +3153,7 @@ resource_list_reserve(struct resource_list *rl, device_t bus, device_t child,
  */
 struct resource *
 resource_list_alloc(struct resource_list *rl, device_t bus, device_t child,
-    int type, int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+    int type, int rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource_list_entry *rle = NULL;
 	int passthrough = (device_get_parent(child) != bus);
@@ -3164,7 +3164,7 @@ resource_list_alloc(struct resource_list *rl, device_t bus, device_t child,
 		    type, rid, start, end, count, flags));
 	}
 
-	rle = resource_list_find(rl, type, *rid);
+	rle = resource_list_find(rl, type, rid);
 
 	if (!rle)
 		return (NULL);		/* no resource of that type/rid */
@@ -3174,14 +3174,14 @@ resource_list_alloc(struct resource_list *rl, device_t bus, device_t child,
 			if (rle->flags & RLE_ALLOCATED)
 				return (NULL);
 			if ((flags & RF_ACTIVE) &&
-			    bus_activate_resource(child, type, *rid,
+			    bus_activate_resource(child, type, rid,
 			    rle->res) != 0)
 				return (NULL);
 			rle->flags |= RLE_ALLOCATED;
 			return (rle->res);
 		}
 		device_printf(bus,
-		    "resource entry %#x type %d for child %s is busy\n", *rid,
+		    "resource entry %#x type %d for child %s is busy\n", rid,
 		    type, device_get_nameunit(child));
 		return (NULL);
 	}
@@ -4033,7 +4033,7 @@ bus_generic_translate_resource(device_t dev, int type, rman_res_t start,
  * BUS_ALLOC_RESOURCE() method of the parent of @p dev.
  */
 struct resource *
-bus_generic_alloc_resource(device_t dev, device_t child, int type, int *rid,
+bus_generic_alloc_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	/* Propagate up the bus hierarchy until someone handles it. */
@@ -4324,7 +4324,7 @@ bus_generic_rl_release_resource(device_t dev, device_t child,
  */
 struct resource *
 bus_generic_rl_alloc_resource(device_t dev, device_t child, int type,
-    int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+    int rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource_list *		rl = NULL;
 
@@ -4349,7 +4349,7 @@ bus_generic_rl_alloc_resource(device_t dev, device_t child, int type,
  */
 struct resource *
 bus_generic_rman_alloc_resource(device_t dev, device_t child, int type,
-    int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+    int rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *r;
 	struct rman *rm;
@@ -4362,11 +4362,11 @@ bus_generic_rman_alloc_resource(device_t dev, device_t child, int type,
 	    child);
 	if (r == NULL)
 		return (NULL);
-	rman_set_rid(r, *rid);
+	rman_set_rid(r, rid);
 	rman_set_type(r, type);
 
 	if (flags & RF_ACTIVE) {
-		if (bus_activate_resource(child, type, *rid, r) != 0) {
+		if (bus_activate_resource(child, type, rid, r) != 0) {
 			rman_release_resource(r);
 			return (NULL);
 		}
@@ -4651,7 +4651,7 @@ bus_release_resources(device_t dev, const struct resource_spec *rs,
  * parent of @p dev.
  */
 struct resource *
-(bus_alloc_resource)(device_t dev, int type, int *rid, rman_res_t start,
+(bus_alloc_resource)(device_t dev, int type, int rid, rman_res_t start,
     rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *res;

@@ -436,7 +436,7 @@ arm_gic_print_child(device_t bus, device_t child)
 }
 
 static struct resource *
-arm_gic_alloc_resource(device_t bus, device_t child, int type, int *rid,
+arm_gic_alloc_resource(device_t bus, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct arm_gic_softc *sc;
@@ -458,11 +458,11 @@ arm_gic_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		if (type == SYS_RES_IOPORT)
 			type = SYS_RES_MEMORY;
 
-		rle = resource_list_find(rl, type, *rid);
+		rle = resource_list_find(rl, type, rid);
 		if (rle == NULL) {
 			if (bootverbose)
 				device_printf(bus, "no default resources for "
-				    "rid = %d, type = %d\n", *rid, type);
+				    "rid = %d, type = %d\n", rid, type);
 			return (NULL);
 		}
 		start = rle->start;
