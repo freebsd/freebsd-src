@@ -285,7 +285,7 @@ typeerr:		LABEL;
 
 		LABEL;
 		printf(flavor == F_FREEBSD9 ?
-		    "%spermissions expcted %#lo found %#lo" :
+		    "%spermissions expected %#lo found %#lo" :
 		    "%spermissions (%#lo, %#lo",
 		    tab, (u_long)s->st_mode,
 		    (u_long)p->fts_statp->st_mode & MBITS);
