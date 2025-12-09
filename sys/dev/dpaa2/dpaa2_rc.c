@@ -3321,7 +3321,7 @@ dpaa2_rc_add_res(device_t rcdev, device_t child, enum dpaa2_dev_type devtype,
 
 	/* Reserve a newly added DPAA2 resource. */
 	res = resource_list_reserve(&dinfo->resources, rcdev, child, devtype,
-	    rid, (rman_res_t) dpaa2_dev, (rman_res_t) dpaa2_dev, 1,
+	    *rid, (rman_res_t) dpaa2_dev, (rman_res_t) dpaa2_dev, 1,
 	    flags & ~RF_ACTIVE);
 	if (!res) {
 		device_printf(rcdev, "%s: failed to reserve %s (rid=%d) for: %s "

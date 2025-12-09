@@ -393,7 +393,7 @@ int	resource_list_release_active(struct resource_list *rl,
 struct resource *
 	resource_list_reserve(struct resource_list *rl,
 			      device_t bus, device_t child,
-			      int type, int *rid,
+			      int type, int rid,
 			      rman_res_t start, rman_res_t end,
 			      rman_res_t count, u_int flags);
 int	resource_list_unreserve(struct resource_list *rl,
