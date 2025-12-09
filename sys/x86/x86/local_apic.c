@@ -147,22 +147,101 @@ struct lapic {
 } static *lapics;
 
 /* Global defaults for local APIC LVT entries. */
-static struct lvt lvts[APIC_LVT_MAX + 1] = {
-	{ 1, 1, 1, 1, APIC_LVT_DM_EXTINT, 0 },	/* LINT0: masked ExtINT */
-	{ 1, 1, 0, 1, APIC_LVT_DM_NMI, 0 },	/* LINT1: NMI */
-	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_TIMER_INT },	/* Timer */
-	{ 1, 1, 0, 1, APIC_LVT_DM_FIXED, APIC_ERROR_INT },	/* Error */
-	{ 1, 1, 1, 1, APIC_LVT_DM_NMI, 0 },	/* PMC */
-	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_THERMAL_INT },	/* Thermal */
-	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_CMC_INT },	/* CMCI */
+static struct lvt lvts[] = {
+	/* LINT0: masked ExtINT */
+	[APIC_LVT_LINT0] = {
+		.lvt_edgetrigger = 1,
+		.lvt_activehi = 1,
+		.lvt_masked = 1,
+		.lvt_active = 1,
+		.lvt_mode = APIC_LVT_DM_EXTINT,
+		.lvt_vector = 0,
+	},
+	/* LINT1: NMI */
+	[APIC_LVT_LINT1] = {
+		.lvt_edgetrigger = 1,
+		.lvt_activehi = 1,
+		.lvt_masked = 0,
+		.lvt_active = 1,
+		.lvt_mode = APIC_LVT_DM_NMI,
+		.lvt_vector = 0,
+	},
+	[APIC_LVT_TIMER] = {
+		.lvt_edgetrigger = 1,
+		.lvt_activehi = 1,
+		.lvt_masked = 1,
+		.lvt_active = 1,
+		.lvt_mode = APIC_LVT_DM_FIXED,
+		.lvt_vector = APIC_TIMER_INT,
+	},
+	[APIC_LVT_ERROR] = {
+		.lvt_edgetrigger = 1,
+		.lvt_activehi = 1,
+		.lvt_masked = 0,
+		.lvt_active = 1,
+		.lvt_mode = APIC_LVT_DM_FIXED,
+		.lvt_vector = APIC_ERROR_INT,
+	},
+	[APIC_LVT_PMC] = {
+		.lvt_edgetrigger = 1,
+		.lvt_activehi = 1,
+		.lvt_masked = 1,
+		.lvt_active = 1,
+		.lvt_mode = APIC_LVT_DM_NMI,
+		.lvt_vector = 0,
+	},
+	[APIC_LVT_THERMAL] = {
+		.lvt_edgetrigger = 1,
+		.lvt_activehi = 1,
+		.lvt_masked = 1,
+		.lvt_active = 1,
+		.lvt_mode = APIC_LVT_DM_FIXED,
+		.lvt_vector = APIC_THERMAL_INT,
+	},
+	[APIC_LVT_CMCI] = {
+		.lvt_edgetrigger = 1,
+		.lvt_activehi = 1,
+		.lvt_masked = 1,
+		.lvt_active = 1,
+		.lvt_mode = APIC_LVT_DM_FIXED,
+		.lvt_vector = APIC_CMC_INT,
+	},
 };
 
 /* Global defaults for AMD local APIC ELVT entries. */
-static struct lvt elvts[APIC_ELVT_MAX + 1] = {
-	{ 1, 1, 1, 0, APIC_LVT_DM_FIXED, 0 },
-	{ 1, 1, 1, 0, APIC_LVT_DM_FIXED, APIC_CMC_INT },
-	{ 1, 1, 1, 0, APIC_LVT_DM_FIXED, 0 },
-	{ 1, 1, 1, 0, APIC_LVT_DM_FIXED, 0 },
+static struct lvt elvts[] = {
+	[APIC_ELVT_IBS] = {
+		.lvt_edgetrigger = 1,
+		.lvt_activehi = 1,
+		.lvt_masked = 1,
+		.lvt_active = 0,
+		.lvt_mode = APIC_LVT_DM_FIXED,
+		.lvt_vector = 0,
+	},
+	[APIC_ELVT_MCA] = {
+		.lvt_edgetrigger = 1,
+		.lvt_activehi = 1,
+		.lvt_masked = 1,
+		.lvt_active = 0,
+		.lvt_mode = APIC_LVT_DM_FIXED,
+		.lvt_vector = APIC_CMC_INT,
+	},
+	[APIC_ELVT_DEI] = {
+		.lvt_edgetrigger = 1,
+		.lvt_activehi = 1,
+		.lvt_masked = 1,
+		.lvt_active = 0,
+		.lvt_mode = APIC_LVT_DM_FIXED,
+		.lvt_vector = 0,
+	},
+	[APIC_ELVT_SBI] = {
+		.lvt_edgetrigger = 1,
+		.lvt_activehi = 1,
+		.lvt_masked = 1,
+		.lvt_active = 0,
+		.lvt_mode = APIC_LVT_DM_FIXED,
+		.lvt_vector = 0,
+	},
 };
 
 static inthand_t *ioint_handlers[] = {
