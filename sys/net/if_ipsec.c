@@ -450,7 +450,8 @@ ipsec_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 }
 
 int
-ipsec_if_input(struct mbuf *m, struct secasvar *sav, uint32_t af)
+ipsec_if_input(struct mbuf *m, struct secasvar *sav, uint32_t af,
+    struct rm_priotracker *sahtree_tracker)
 {
 	IPSEC_RLOCK_TRACKER;
 	struct secasindex *saidx;
@@ -459,13 +460,16 @@ ipsec_if_input(struct mbuf *m, struct secasvar *sav, uint32_t af)
 
 	if (sav->state != SADB_SASTATE_MATURE &&
 	    sav->state != SADB_SASTATE_DYING) {
+		ipsec_sahtree_runlock(sahtree_tracker);
 		m_freem(m);
 		return (ENETDOWN);
 	}
 
 	if (sav->sah->saidx.mode != IPSEC_MODE_TUNNEL ||
-	    sav->sah->saidx.proto != IPPROTO_ESP)
+	    sav->sah->saidx.proto != IPPROTO_ESP) {
+		ipsec_sahtree_runlock(sahtree_tracker);
 		return (0);
+	}
 
 	IPSEC_RLOCK();
 	CK_LIST_FOREACH(sc, ipsec_idhash(sav->sah->saidx.reqid), idhash) {
@@ -487,6 +491,7 @@ ipsec_if_input(struct mbuf *m, struct secasvar *sav, uint32_t af)
 	}
 	if (sc == NULL) {
 		IPSEC_RUNLOCK();
+		ipsec_sahtree_runlock(sahtree_tracker);
 		/* Tunnel was not found. Nothing to do. */
 		return (0);
 	}
@@ -494,6 +499,7 @@ ipsec_if_input(struct mbuf *m, struct secasvar *sav, uint32_t af)
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
 	    (ifp->if_flags & IFF_UP) == 0) {
 		IPSEC_RUNLOCK();
+		ipsec_sahtree_runlock(sahtree_tracker);
 		m_freem(m);
 		return (ENETDOWN);
 	}
@@ -502,6 +508,8 @@ ipsec_if_input(struct mbuf *m, struct secasvar *sav, uint32_t af)
 	 * Set its ifnet as receiving interface.
 	 */
 	m->m_pkthdr.rcvif = ifp;
+
+	ipsec_sahtree_runlock(sahtree_tracker);
 
 	m_clrprotoflags(m);
 	M_SETFIB(m, ifp->if_fib);
