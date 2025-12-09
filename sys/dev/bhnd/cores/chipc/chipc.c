@@ -1005,17 +1005,16 @@ cleanup:
 }
 
 static int
-chipc_activate_bhnd_resource(device_t dev, device_t child, int type,
-    int rid, struct bhnd_resource *r)
+chipc_activate_bhnd_resource(device_t dev, device_t child,
+    struct bhnd_resource *r)
 {
 	struct rman		*rm;
 	int			 error;
 
 	/* Delegate non-locally managed resources to parent */
-	rm = chipc_get_rman(dev, type, rman_get_flags(r->res));
+	rm = chipc_get_rman(dev, rman_get_type(r->res), rman_get_flags(r->res));
 	if (rm == NULL || !rman_is_region_manager(r->res, rm)) {
-		return (bhnd_bus_generic_activate_resource(dev, child, type,
-		    rid, r));
+		return (bhnd_bus_generic_activate_resource(dev, child, r));
 	}
 
 	/* Try activating the chipc region resource */

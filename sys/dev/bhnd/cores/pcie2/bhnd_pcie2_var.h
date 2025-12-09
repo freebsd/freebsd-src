@@ -83,7 +83,6 @@ struct bhnd_pcie2_softc {
 						     accesses. */
 
 	struct bhnd_resource	*mem_res;	/**< device register block. */
-	int			 mem_rid;	/**< register block RID */
 };
 
 #define	BHND_PCIE2_LOCK_INIT(sc) \

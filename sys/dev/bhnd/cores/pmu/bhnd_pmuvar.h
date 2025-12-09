@@ -105,7 +105,6 @@ struct bhnd_pmu_softc {
 	device_t			 chipc_dev;	/**< chipcommon device */
 
 	struct bhnd_resource		*res;		/**< pmu register block. */
-	int				 rid;		/**< pmu register RID */
 	struct bhnd_core_clkctl		*clkctl;	/**< pmu clkctl register */
 
 	struct mtx			 mtx;		/**< state mutex */
