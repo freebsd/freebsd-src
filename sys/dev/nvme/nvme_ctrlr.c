@@ -256,7 +256,7 @@ nvme_ctrlr_fail(struct nvme_controller *ctrlr, bool admin_also)
 			nvme_qpair_fail(&ctrlr->ioq[i]);
 		}
 	}
-	nvme_notify_fail_consumers(ctrlr);
+	nvme_notify_fail(ctrlr);
 }
 
 /*
@@ -1723,7 +1723,7 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 	if (gone)
 		nvme_ctrlr_fail(ctrlr, true);
 	else
-		nvme_notify_fail_consumers(ctrlr);
+		nvme_notify_fail(ctrlr);
 
 	for (i = 0; i < NVME_MAX_NAMESPACES; i++)
 		nvme_ns_destruct(&ctrlr->ns[i]);
