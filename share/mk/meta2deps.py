@@ -39,9 +39,9 @@ We only pay attention to a subset of the information in the
 SPDX-License-Identifier: BSD-2-Clause
 
 RCSid:
-	$Id: meta2deps.py,v 1.50 2024/09/27 00:08:36 sjg Exp $
+	$Id: meta2deps.py,v 1.54 2025/07/24 16:05:48 sjg Exp $
 
-	Copyright (c) 2011-2020, Simon J. Gerraty
+	Copyright (c) 2011-2025, Simon J. Gerraty
 	Copyright (c) 2011-2017, Juniper Networks, Inc.
 	All rights reserved.
 
@@ -441,7 +441,7 @@ class MetaFile:
         # Bye bye
 
         We go to some effort to avoid processing a dependency more than once.
-        Of the above record types only C,E,F,L,R,V and W are of interest.
+        Of the above record types only C,E,F,L,M,R,V,W and X are of interest.
         """
 
         version = 0                     # unknown
@@ -465,8 +465,8 @@ class MetaFile:
         if self.sb and self.name.startswith(self.sb):
             error_name = self.name.replace(self.sb+'/','')
         else:
-            error_name = self.name 
-        interesting = '#CEFLRVX'
+            error_name = self.name
+        interesting = '#CEFLMRVX'
         for line in f:
             self.line += 1
             # ignore anything we don't care about
@@ -475,6 +475,7 @@ class MetaFile:
             if self.debug > 2:
                 print("input:", line, end=' ', file=self.debug_out)
             w = line.split()
+            wlen = len(w)
 
             if skip:
                 if w[0] == 'V':
@@ -498,6 +499,23 @@ class MetaFile:
                 if line.find('Bye') > 0:
                     eof_token = True
                 continue
+            else:
+                # before we go further check we have a sane number of args
+                # the Linux filemon module is rather unreliable.
+                if w[0] in 'LM':
+                    elen = 4
+                elif w[0] == 'X':
+                    # at least V4 on Linux does 3 args
+                    if wlen == 3:
+                        elen = 3
+                    else:
+                        elen = 4
+                else:
+                    elen = 3
+                if self.debug > 2:
+                    print('op={} elen={} wlen={} line="{}"'.format(w[0], elen, wlen, line.strip()), file=self.debug_out)
+                if wlen != elen:
+                    raise AssertionError('corrupted filemon data: wrong number of words: expected {} got {} in: {}'.format(elen, wlen, line))
 
             pid = int(w[1])
             if pid != last_pid:
@@ -540,11 +558,11 @@ class MetaFile:
                     print("seen:", w[2], file=self.debug_out)
                 continue
             # file operations
-            if w[0] in 'ML':
+            if w[0] in 'LM':
                 # these are special, tread src as read and
                 # target as write
-                self.parse_path(w[2].strip("'"), cwd, 'R', w)
                 self.parse_path(w[3].strip("'"), cwd, 'W', w)
+                self.parse_path(w[2].strip("'"), cwd, 'R', w)
                 continue
             elif w[0] in 'ERWS':
                 path = w[2]
@@ -611,9 +629,19 @@ class MetaFile:
                 return
         # we don't want to resolve the last component if it is
         # a symlink
-        path = resolve(path, cwd, self.last_dir, self.debug, self.debug_out)
-        if not path:
-            return
+        npath = resolve(path, cwd, self.last_dir, self.debug, self.debug_out)
+        if not npath:
+            if len(w) > 3 and w[0] in 'ML' and op == 'R' and path.startswith('../'):
+                # we already resolved the target of the M/L
+                # so it makes sense to try and resolve relative to that dir.
+                if os.path.isdir(self.last_path):
+                    dir = self.last_path
+                else:
+                    dir,junk = os.path.split(self.last_path)
+                npath = resolve(path, cwd, dir, self.debug, self.debug_out)
+            if not npath:
+                return
+        path = npath
         dir,base = os.path.split(path)
         if dir in self.seen:
             if self.debug > 2:
@@ -631,6 +659,7 @@ class MetaFile:
             rdir = None
         # now put path back together
         path = '/'.join([dir,base])
+        self.last_path = path
         if self.debug > 1:
             print("raw=%s rdir=%s dir=%s path=%s" % (w[2], rdir, dir, path), file=self.debug_out)
         if op in 'RWS':

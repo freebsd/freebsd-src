@@ -1,8 +1,8 @@
-# $Id: gendirdeps.mk,v 1.51 2025/01/05 01:16:19 sjg Exp $
+# $Id: gendirdeps.mk,v 1.54 2025/08/12 21:36:43 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2011-2020, Simon J. Gerraty
+# Copyright (c) 2011-2025, Simon J. Gerraty
 # Copyright (c) 2010-2018, Juniper Networks, Inc.
 # All rights reserved.
 #
@@ -76,6 +76,12 @@
 # 
 .MAIN: all
 
+.if ${DEBUG_GENDIRDEPS:Uno:@m@${RELDIR:M$m}@} != ""
+_debug.gendirdeps = 1
+.else
+_debug.gendirdeps = 0
+.endif
+
 # keep this simple
 .MAKE.MODE = compat
 
@@ -108,6 +114,9 @@ META_FILES += ${META_XTRAS:N\*.meta}
 .endif
 
 .if !empty(META_FILES)
+.if ${_debug.gendirdeps} && ${DEBUG_GENDIRDEPS:Mmeta*} != ""
+.info ${RELDIR}: META_FILES=${META_FILES}
+.endif
 
 .if ${.MAKE.LEVEL} > 0 && !empty(GENDIRDEPS_FILTER)
 # so we can compare below
@@ -146,7 +155,7 @@ GENDIRDEPS_FILTER += ${GENDIRDEPS_FILTER_VARS:@v@S,/${$v}/,/_{${v}}/,@:NS,//,*:u
 META2DEPS ?= ${.PARSEDIR}/meta2deps.sh
 META2DEPS := ${META2DEPS}
 
-.if ${DEBUG_GENDIRDEPS:Uno:@x@${RELDIR:M$x}@} != "" && ${DEBUG_GENDIRDEPS:Uno:Mmeta2d*} != ""
+.if ${_debug.gendirdeps} && ${DEBUG_GENDIRDEPS:Mmeta2d*} != ""
 _time = time
 _sh_x = sh -x
 _py_d = -ddd
@@ -260,7 +269,7 @@ dpadd_dir_list += ${f:H:tA}
 ddeps != cat ${ddep_list:O:u} | ${META2DEPS_FILTER} ${_skip_gendirdeps} \
 	sed ${GENDIRDEPS_SEDCMDS}
 
-.if ${DEBUG_GENDIRDEPS:Uno:@x@${RELDIR:M$x}@} != ""
+.if ${_debug.gendirdeps}
 .info ${RELDIR}: raw_dir_list='${dir_list}'
 .info ${RELDIR}: ddeps='${ddeps}'
 .endif
@@ -289,12 +298,13 @@ M2D_OBJROOTS := ${M2D_OBJROOTS:O:u:[-1..1]}
 # anything we use from an object dir other than ours
 # needs to be qualified with its .<machine> suffix
 # (we used the pseudo machine "host" for the HOST_TARGET).
-skip_ql= ${SRCTOP}* ${_objtops:@o@$o*@}
+skip_ql = ${SRCTOP}* ${_objtops:@o@$o*@}
+M_ListToSkip ?= O:u:S,^,N,:ts:
 .for o in ${M2D_OBJROOTS:${skip_ql:${M_ListToSkip}}}
 # we need := so only skip_ql to this point applies
 ql.$o := ${dir_list:${skip_ql:${M_ListToSkip}}:M$o*/*/*:C,$o([^/]+)/(.*),\2.\1,:S,.${HOST_TARGET},.host,}
 qualdir_list += ${ql.$o}
-.if ${DEBUG_GENDIRDEPS:Uno:@x@${RELDIR:M$x}@} != ""
+.if ${_debug.gendirdeps}
 .info ${RELDIR}: o=$o ${ql.$o qualdir_list:L:@v@$v=${$v}@}
 .endif
 skip_ql+= $o*
@@ -323,7 +333,7 @@ DIRDEPS += \
 GENDIRDEPS_FILTER_MASK += @CMNS
 DIRDEPS := ${DIRDEPS:${GENDIRDEPS_FILTER:UNno:M[${GENDIRDEPS_FILTER_MASK:O:u:ts}]*:ts:}:C,//+,/,g:O:u}
 
-.if ${DEBUG_GENDIRDEPS:Uno:@x@${RELDIR:M$x}@} != ""
+.if ${_debug.gendirdeps}
 .info ${RELDIR}: M2D_OBJROOTS=${M2D_OBJROOTS}
 .info ${RELDIR}: M2D_EXCLUDES=${M2D_EXCLUDES}
 .info ${RELDIR}: dir_list='${dir_list}'
