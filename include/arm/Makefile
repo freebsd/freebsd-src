@@ -2,8 +2,7 @@
 
 .PATH: ${SRCTOP}/sys/arm/include ${SRCTOP}/lib/msun/arm
 
-INCS=	_align.h \
-	_inttypes.h \
+INCS=	_inttypes.h \
 	_limits.h \
 	_stdint.h \
 	_types.h \

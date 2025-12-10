@@ -36,7 +36,7 @@
 #include <sys/_types.h>
 #include <sys/_iovec.h>
 #include <sys/_timeval.h>
-#include <machine/_align.h>
+#include <sys/_align.h>
 
 /*
  * Definitions related to sockets: types, address families, options.

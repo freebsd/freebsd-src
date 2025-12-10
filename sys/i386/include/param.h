@@ -35,7 +35,7 @@
 #ifndef _I386_INCLUDE_PARAM_H_
 #define	_I386_INCLUDE_PARAM_H_
 
-#include <machine/_align.h>
+#include <sys/_align.h>
 
 /*
  * Machine dependent constants for Intel 386.

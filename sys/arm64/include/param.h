@@ -38,7 +38,7 @@
  * Machine dependent constants for arm64.
  */
 
-#include <machine/_align.h>
+#include <sys/_align.h>
 
 #define	STACKALIGNBYTES	(16 - 1)
 #define	STACKALIGN(p)	((uint64_t)(p) & ~STACKALIGNBYTES)

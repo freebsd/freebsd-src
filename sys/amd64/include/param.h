@@ -41,7 +41,7 @@
 #ifndef _AMD64_INCLUDE_PARAM_H_
 #define	_AMD64_INCLUDE_PARAM_H_
 
-#include <machine/_align.h>
+#include <sys/_align.h>
 
 /*
  * Machine dependent constants for AMD64.
