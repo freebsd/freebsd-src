@@ -560,7 +560,7 @@ void	nvme_notify_async(struct nvme_controller *ctrlr,
 	    const struct nvme_completion *async_cpl,
 	    uint32_t log_page_id, void *log_page_buffer,
 	    uint32_t log_page_size);
-void	nvme_notify_fail_consumers(struct nvme_controller *ctrlr);
+void	nvme_notify_fail(struct nvme_controller *ctrlr);
 
 void	nvme_ctrlr_shared_handler(void *arg);
 void	nvme_ctrlr_poll(struct nvme_controller *ctrlr);

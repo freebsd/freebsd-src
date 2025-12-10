@@ -208,11 +208,10 @@ nvme_notify_async(struct nvme_controller *ctrlr,
 }
 
 void
-nvme_notify_fail_consumers(struct nvme_controller *ctrlr)
+nvme_notify_fail(struct nvme_controller *ctrlr)
 {
-	struct nvme_consumer	*cons;
-	void			*ctrlr_cookie;
-	uint32_t		i;
+	device_t *children;
+	int n_children;
 
 	/*
 	 * This controller failed during initialization (i.e. IDENTIFY
@@ -223,15 +222,13 @@ nvme_notify_fail_consumers(struct nvme_controller *ctrlr)
 	if (!ctrlr->is_initialized)
 		return;
 
-	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
-		cons = &nvme_consumer[i];
-		if (cons->id != INVALID_CONSUMER_ID &&
-		    (ctrlr_cookie = ctrlr->cons_cookie[i]) != NULL) {
-			ctrlr->cons_cookie[i] = NULL;
-			if (cons->fail_fn != NULL)
-				cons->fail_fn(ctrlr_cookie);
-		}
-	}
+	if (device_get_children(ctrlr->dev, &children, &n_children) != 0)
+		return;
+
+	for (int i = 0; i < n_children; i++)
+		NVME_CONTROLLER_FAILED(children[i]);
+
+	free(children, M_TEMP);
 }
 
 struct nvme_consumer *
