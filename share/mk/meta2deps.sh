@@ -49,8 +49,10 @@
 #	The output, is a set of absolute paths with "SB" like:
 #.nf
 #
+#	$SB/obj-i386/bsd/gnu/lib/csu
+#	$SB/obj-i386/bsd/gnu/lib/libgcc
 #	$SB/obj-i386/bsd/include
-#	$SB/obj-i386/bsd/lib/csu/i386
+#	$SB/obj-i386/bsd/lib/csu/i386-elf
 #	$SB/obj-i386/bsd/lib/libc
 #	$SB/src/bsd/include
 #	$SB/src/bsd/sys/i386/include
@@ -75,10 +77,11 @@
 
 
 # RCSid:
-#	$Id: meta2deps.sh,v 1.21 2024/02/17 17:26:57 sjg Exp $
+#	$Id: meta2deps.sh,v 1.26 2025/12/08 17:34:02 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
+# Copyright (c) 2011-2025, Simon J. Gerraty
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
 #
@@ -102,6 +105,10 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+case ",$DEBUG_SH," in
+*,meta2deps*) set -x;;
+esac
 
 meta2src() {
     cat /dev/null "$@" |
@@ -248,13 +255,31 @@ meta2deps() {
 	;;
     *) cat /dev/null "$@";;
     esac 2> /dev/null |
-    sed -e 's,^CWD,C C,;/^[#CREFLMVX] /!d' -e "s,',,g" |
+    sed -e 's,^CWD,C C,;/^[#CREFLMVWX] /!d' -e "s,',,g" |
     $_excludes | ( version=no epids= xpids= eof_token=no
-    while read op pid path junk
+    while read op pid path path2
     do
-	: op=$op pid=$pid path=$path
+	: op=$op pid=$pid path=$path path2=$path2
+	# first a sanity check - filemon on Linux is not very reliable
+	# path2 should only be non-empty for op L or M
+	# and it should not contain spaces.
+	# It will also be non-empty for # Meta line
+	# which tells us which meta_file we are processing
+	case "$op,$path2" in
+	\#*,*.meta) # new file, reset some vars
+	    version=no epids= xpids= eof_token=no lpid=
+	    meta_file=`set -- $path2; echo $2`
+	    continue
+	    ;;
+	\#*) ;;			# ok
+	[LM],) error "missing path2 in: '$op $pid $path'";;
+	[LMX],*" "*) error "wrong number of words in: '$op $pid $path $path2'";;
+	*,|[LMX],*) ;;		# ok
+	*) error "wrong number of words in: '$op $pid $path $path2'";;
+	esac
 	# we track cwd and ldir (of interest) per pid
 	# CWD is bmake's cwd
+	: lpid=$lpid,pid=$pid
 	case "$lpid,$pid" in
 	,C) CWD=$path cwd=$path ldir=$path
 	    if [ -z "$SB" ]; then
@@ -263,13 +288,13 @@ meta2deps() {
 	    SRCTOP=${SRCTOP:-$SB/src}
 	    case "$verion" in
 	    no) ;;		# ignore
-	    0) error "no filemon data";;
+	    0) error "no filemon data: $meta_file";;
 	    *) ;;
 	    esac
 	    version=0
 	    case "$eof_token" in
 	    no) ;;		# ignore
-	    0) error "truncated filemon data";;
+	    0) error "truncated filemon data: $meta_file";;
 	    esac
 	    eof_token=0
 	    continue
@@ -319,9 +344,14 @@ meta2deps() {
 	    $src_re|$obj_re) ;;
 	    /*/stage/*) ;;
 	    /*) continue;;
-	    *)	for path in $ldir/$path $cwd/$path
+	    *)
+		rlist="$ldir/$path $cwd/$path"
+		case "$op,$path" in
+		[ML],../*) rlist="$rlist $path2/$path `dirname $path2`/$path";;
+		esac
+		for path in $rlist
 		do
-			test -e $path && break
+		    test -e $path && break
 		done
 		dir=${path%/*}
 		;;
@@ -406,18 +436,18 @@ meta2deps() {
     done > $tf.dirdep
     : version=$version
     case "$version" in
-    0) error "no filemon data";;
+    0) error "no filemon data: $meta_file";;
     esac
     : eof_token=$eof_token
     case "$eof_token" in
-    0) error "truncated filemon data";;
+    0) error "truncated filemon data: $meta_file";;
     esac
     for p in $epids
     do
 	: p=$p
 	case " $xpids " in
 	*" $p "*) ;;
-	*) error "missing eXit for pid $p";;
+	*) error "missing eXit for pid $p: $meta_file";;
 	esac
     done ) || exit 1
     _nl=echo
