@@ -2518,7 +2518,6 @@ int	pf_socket_lookup(struct pf_pdesc *);
 struct pf_state_key *pf_alloc_state_key(int);
 int	pf_translate(struct pf_pdesc *, struct pf_addr *, u_int16_t,
 	    struct pf_addr *, u_int16_t, u_int16_t, int);
-int	pf_translate_af(struct pf_pdesc *);
 bool	pf_init_threshold(struct pf_kthreshold *, uint32_t, uint32_t);
 uint16_t	pf_tagname2tag(const char *);
 #ifdef ALTQ
