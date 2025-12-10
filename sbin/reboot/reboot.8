@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 12, 2025
+.Dd December 8, 2025
 .Dt REBOOT 8
 .Os
 .Sh NAME
@@ -60,16 +60,25 @@ The
 .Nm halt
 and
 .Nm
-utilities flush the file system cache to disk, send all running processes
-a
+utilities stop and restart the system, respectively.
+.Pp
+Both utilities have two distinct modes of operation.
+In normal mode, they send a signal to the
+.Xr init 8
+process, which shuts down running services and stops or restarts the
+system.
+In fast mode, they flush the file system cache to disk, send all
+running processes a
 .Dv SIGTERM
 (and subsequently a
 .Dv SIGKILL )
-and, respectively, halt or restart the system.
-The action is logged, including entering a shutdown record into the user
-accounting database.
+and stop or restart the system themselves.
+Services are killed, not shut down, which may result in data loss.
 .Pp
-The options are as follows:
+In either mode, the action is logged, including entering a shutdown
+record into the user accounting database.
+.Pp
+The following options are available:
 .Bl -tag -width indent
 .It Fl c
 The system will turn off the power and then turn it back on if it can.
@@ -111,14 +120,17 @@ Care should be taken if
 contains any characters that are special to the shell or loader's configuration
 parsing code.
 .It Fl f
-Force reboot.
+Forced mode.
 Normally,
+.Nm halt
+or
 .Nm
 checks for the presence of the next kernel,
 and absence of the
 .Pa /var/run/noshutdown
 file.
-Without this flag, reboot is denied if one of the conditions failed.
+Without this flag, the operation is rejected if one of these checks
+fails.
 .It Fl k Ar kname
 Boot the specified kernel
 .Ar kname
@@ -195,17 +207,20 @@ The
 .Nm fasthalt
 and
 .Nm fastboot
-utilities are nothing more than aliases for the
+utilities invoke
 .Nm halt
 and
-.Nm
-utilities.
+.Nm ,
+respectively, in fast mode.
 .Pp
-Normally, the
+The
 .Xr shutdown 8
-utility is used when the system needs to be halted or restarted, giving
-users advance warning of their impending doom and cleanly terminating
-specific programs.
+utility can be used to not only stop or restart the system right away,
+but also schedule a stop or restart in the future, and will, unlike
+.Nm halt
+and
+.Nm ,
+give users advance warning of their impending doom.
 .Sh EXAMPLES
 Replace current root filesystem with UFS mounted from
 .Pa /dev/ada0s1a :
@@ -236,3 +251,18 @@ A
 .Nm
 utility appeared in
 .Bx 4.0 .
+.Pp
+Historically, the
+.Xr shutdown 8
+utility was used when the system needed to be halted or restarted
+cleanly in the normal course of operations, and the
+.Nm halt
+and
+.Nm
+utilities were blunt instruments used only in single-user mode or if
+exceptional circumstances made a normal shutdown impractical.
+As other operating systems did away with this distinction, and it
+became clear that many users were unaware of it and were using
+.Nm
+in the belief that it performed a clean shutdown, it was rewritten to
+conform to that expectation.
