@@ -101,7 +101,6 @@ linux_ifnet_vnet_init(void *arg __unused)
 VNET_SYSINIT(linux_ifnet_vnet_init, SI_SUB_PROTO_IF, SI_ORDER_ANY,
     linux_ifnet_vnet_init, NULL);
 
-#ifdef VIMAGE
 static void
 linux_ifnet_vnet_uninit(void *arg __unused)
 {
@@ -116,7 +115,6 @@ linux_ifnet_vnet_uninit(void *arg __unused)
 }
 VNET_SYSUNINIT(linux_ifnet_vnet_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY,
     linux_ifnet_vnet_uninit, NULL);
-#endif
 
 /*
  * Translate a FreeBSD interface name to a Linux interface name
