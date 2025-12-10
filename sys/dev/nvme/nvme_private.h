@@ -76,7 +76,6 @@ MALLOC_DECLARE(M_NVME);
 #define NVME_INT_COAL_THRESHOLD (0)	/* 0-based */
 
 #define NVME_MAX_NAMESPACES	(16)
-#define NVME_MAX_CONSUMERS	(2)
 #define NVME_MAX_ASYNC_EVENTS	(8)
 
 #define NVME_ADMIN_TIMEOUT_PERIOD	(60)    /* in seconds */
@@ -205,7 +204,6 @@ struct nvme_namespace {
 	uint32_t			id;
 	uint32_t			flags;
 	struct cdev			*cdev;
-	void				*cons_cookie[NVME_MAX_CONSUMERS];
 	uint32_t			boundary;
 	struct mtx			lock;
 };
@@ -299,10 +297,7 @@ struct nvme_controller {
 	uint32_t			num_aers;
 	struct nvme_async_event_request	aer[NVME_MAX_ASYNC_EVENTS];
 
-	void				*cons_cookie[NVME_MAX_CONSUMERS];
-
 	uint32_t			is_resetting;
-	uint32_t			notification_sent;
 	u_int				fail_on_reset;
 
 	bool				is_failed;

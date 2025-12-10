@@ -1665,7 +1665,6 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 
 	ctrlr->is_resetting = 0;
 	ctrlr->is_initialized = false;
-	ctrlr->notification_sent = 0;
 	TASK_INIT(&ctrlr->reset_task, 0, nvme_ctrlr_reset_task, ctrlr);
 	for (int i = 0; i < NVME_MAX_ASYNC_EVENTS; i++) {
 		struct nvme_async_event_request *aer = &ctrlr->aer[i];
