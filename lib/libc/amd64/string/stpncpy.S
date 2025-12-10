@@ -100,7 +100,7 @@ ARCHENTRY(__stpncpy, baseline)
 	movdqa		(%rsi), %xmm0		# load head
 	and		$0xf, %ecx		# offset from alignment
 	mov		$-1, %r9d
-	lea		-32(%rcx), %rax		# set up overflow-proof comparison rdx+rcx<=32
+	lea		-33(%rcx), %rax		# set up overflow-proof comparison rdx+rcx<=32
 	shl		%cl, %r9d		# mask of bytes belonging to the string
 	sub		%rcx, %rdi		# adjust RDI to correspond to RSI
 	pxor		%xmm1, %xmm1
@@ -223,8 +223,9 @@ ARCHENTRY(__stpncpy, baseline)
 
 	/* 1--32 bytes to copy, bounce through the stack */
 .Lrunt:	movdqa		%xmm1, bounce+16(%rsp)	# clear out rest of on-stack copy
-	bts		%r10d, %r8d		# treat end of buffer as end of string
-	and		%r9w, %r8w		# end of string within first buffer?
+	bts		%r10, %r8		# treat end of buffer as end of string
+	and		%r9d, %r8d		# mask out head before string
+	test		$0x1ffff, %r8d		# end of string within first chunk or right after?
 	jnz		0f			# if yes, do not inspect second buffer
 
 	movdqa		16(%rsi), %xmm0		# load second chunk of input
