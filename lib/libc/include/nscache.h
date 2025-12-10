@@ -29,6 +29,8 @@
 #ifndef __NS_CACHE_H__
 #define __NS_CACHE_H__
 
+#include <sys/_align.h>
+
 #include "nscachedcli.h"
 
 typedef int (*nss_cache_id_func_t)(char *, size_t *, va_list, void *);
@@ -178,6 +180,12 @@ typedef struct _nss_cache_data {
 } nss_cache_data;
 
 __BEGIN_DECLS
+static inline __ptrdiff_t
+__nss_buf_misalignment(const void *p)
+{
+	return ((char *)_ALIGN(p) - (char *)p);
+}
+
 /* dummy function, which is needed to make nss_method_lookup happy */
 extern	int	__nss_cache_handler(void *, void *, va_list);
 
