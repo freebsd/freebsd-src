@@ -174,8 +174,6 @@ nvd_unload(void)
 	}
 	mtx_unlock(&nvd_lock);
 
-	nvme_unregister_consumer(consumer_handle);
-
 	mtx_destroy(&nvd_lock);
 }
 
