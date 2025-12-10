@@ -707,6 +707,7 @@ static inline bool
 snl_realloc_msg_buffer(struct snl_writer *nw, size_t sz)
 {
 	uint32_t new_size = nw->size * 2;
+	char *new_base;
 
 	while (new_size < nw->size + sz)
 		new_size *= 2;
@@ -714,23 +715,20 @@ snl_realloc_msg_buffer(struct snl_writer *nw, size_t sz)
 	if (nw->error)
 		return (false);
 
-	if (snl_allocz(nw->ss, new_size) == NULL) {
+	new_base = snl_allocz(nw->ss, new_size);
+	if (new_base == NULL) {
 		nw->error = true;
 		return (false);
 	}
-	nw->size = new_size;
 
-	void *new_base = nw->ss->lb->base;
-	if (new_base != nw->base) {
-		memcpy(new_base, nw->base, nw->offset);
-		if (nw->hdr != NULL) {
-			int hdr_off = (char *)(nw->hdr) - nw->base;
+	memcpy(new_base, nw->base, nw->offset);
+	if (nw->hdr != NULL) {
+		int hdr_off = (char *)(nw->hdr) - nw->base;
 
-			nw->hdr = (struct nlmsghdr *)
-			    (void *)((char *)new_base + hdr_off);
-		}
-		nw->base = new_base;
+		nw->hdr = (struct nlmsghdr *)(void *)(new_base + hdr_off);
 	}
+	nw->base = new_base;
+	nw->size = new_size;
 
 	return (true);
 }
