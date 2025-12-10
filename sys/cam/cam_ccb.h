@@ -650,7 +650,7 @@ struct ccb_pathinq_settings_nvme {
 	uint8_t  bus;
 	uint8_t  slot;
 	uint8_t  function;
-	uint8_t  extra;
+	uint8_t  progif;
 	char	 dev_name[NVME_DEV_NAME_LEN]; /* nvme controller dev name for this device */
 };
 _Static_assert(sizeof(struct ccb_pathinq_settings_nvme) == 64,
