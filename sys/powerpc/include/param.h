@@ -44,7 +44,7 @@
  * Machine dependent constants for PowerPC
  */
 
-#include <machine/_align.h>
+#include <sys/_align.h>
 
 #ifndef MACHINE
 #define	MACHINE		"powerpc"

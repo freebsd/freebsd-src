@@ -44,7 +44,7 @@
  * Machine dependent constants for StrongARM
  */
 
-#include <machine/_align.h>
+#include <sys/_align.h>
 
 #define STACKALIGNBYTES	(8 - 1)
 #define STACKALIGN(p)	((u_int)(p) & ~STACKALIGNBYTES)
