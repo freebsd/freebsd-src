@@ -48,6 +48,8 @@
 #include "nvme_private.h"
 #include "nvme_linux.h"
 
+#include "nvme_if.h"
+
 #define B4_CHK_RDY_DELAY_MS	2300		/* work around controller bug */
 
 static void nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
@@ -1082,10 +1084,20 @@ nvme_ctrlr_start_config_hook(void *arg)
 		device_t child;
 
 		ctrlr->is_initialized = true;
-		nvme_notify_new_controller(ctrlr);
 		child = device_add_child(ctrlr->dev, NULL, DEVICE_UNIT_ANY);
 		device_set_ivars(child, ctrlr);
 		bus_attach_children(ctrlr->dev);
+
+		/*
+		 * Now notify the child of all the known namepsaces
+		 */
+		for (int i = 0; i < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); i++) {
+			struct nvme_namespace	*ns = &ctrlr->ns[i];
+
+			if (ns->data.nsze == 0)
+				continue;
+			NVME_NS_ADDED(child, ns);
+		}
 	}
 	TSEXIT();
 }
@@ -1223,23 +1235,26 @@ nvme_ctrlr_aer_task(void *arg, int pending)
 		nvme_ctrlr_cmd_set_async_event_config(aer->ctrlr,
 		    aer->ctrlr->async_event_config, NULL, NULL);
 	} else if (aer->log_page_id == NVME_LOG_CHANGED_NAMESPACE) {
-		struct nvme_ns_list *nsl =
-		    (struct nvme_ns_list *)aer->log_page_buffer;
-		struct nvme_controller *ctrlr = aer->ctrlr;
+		device_t *children;
+		int n_children;
+		struct nvme_ns_list *nsl;
 
-		for (int i = 0; i < nitems(nsl->ns) && nsl->ns[i] != 0; i++) {
-			struct nvme_namespace *ns;
-			uint32_t id = nsl->ns[i];
-
-			if (nsl->ns[i] > NVME_MAX_NAMESPACES)
-				break;
-
-			ns = &ctrlr->ns[id - 1];
-			ns->flags |= NVME_NS_DELTA;
-			nvme_ns_construct(ns, id, ctrlr);
-			nvme_notify_ns(ctrlr, id);
-			ns->flags &= ~NVME_NS_DELTA;
+		if (device_get_children(aer->ctrlr->dev, &children, &n_children) != 0) {
+			children = NULL;
+			n_children = 0;
 		}
+		nsl = (struct nvme_ns_list *)aer->log_page_buffer;
+		for (int i = 0; i < nitems(nsl->ns) && nsl->ns[i] != 0; i++) {
+			/*
+			 * I think we need to query the name space here and see
+			 * if it went away, arrived, or changed in size and call
+			 * the nuanced routine (after constructing or before
+			 * destructing the namespace). XXX needs more work XXX.
+			 */
+			for (int j = 0; j < n_children; j++)
+				NVME_NS_CHANGED(children[j], nsl->ns[i]);
+		}
+		free(children, M_TEMP);
 	}
 
 	/*
