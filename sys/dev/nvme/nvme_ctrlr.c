@@ -1154,8 +1154,7 @@ nvme_ctrlr_aer_task(void *arg, int pending)
 		 * Repost another asynchronous event request to replace the one
 		 * that just completed.
 		 */
-		nvme_notify_async_consumers(ctrlr, &aer->cpl, aer->log_page_id,
-		    NULL, 0);
+		nvme_notify_async(ctrlr, &aer->cpl, aer->log_page_id, NULL, 0);
 		nvme_ctrlr_construct_and_submit_aer(ctrlr, aer);
 		goto out;
 	}
@@ -1180,8 +1179,8 @@ nvme_ctrlr_aer_task(void *arg, int pending)
 		 * error, don't pass log page data to the consumers.  In
 		 * practice, this case should never happen.
 		 */
-		nvme_notify_async_consumers(aer->ctrlr, &aer->cpl,
-		    aer->log_page_id, NULL, 0);
+		nvme_notify_async(aer->ctrlr, &aer->cpl, aer->log_page_id,
+		    NULL, 0);
 		goto out;
 	}
 
@@ -1261,8 +1260,8 @@ nvme_ctrlr_aer_task(void *arg, int pending)
 	 * Pass the cpl data from the original async event completion, not the
 	 * log page fetch.
 	 */
-	nvme_notify_async_consumers(aer->ctrlr, &aer->cpl,
-	    aer->log_page_id, aer->log_page_buffer, aer->log_page_size);
+	nvme_notify_async(aer->ctrlr, &aer->cpl, aer->log_page_id,
+	    aer->log_page_buffer, aer->log_page_size);
 
 	/*
 	 * Repost another asynchronous event request to replace the one

@@ -34,6 +34,7 @@
 #include <vm/uma.h>
 
 #include "nvme_private.h"
+#include "nvme_if.h"
 
 struct nvme_consumer {
 	uint32_t		id;
@@ -189,23 +190,21 @@ nvme_notify_new_consumer(struct nvme_consumer *cons)
 }
 
 void
-nvme_notify_async_consumers(struct nvme_controller *ctrlr,
-			    const struct nvme_completion *async_cpl,
-			    uint32_t log_page_id, void *log_page_buffer,
-			    uint32_t log_page_size)
+nvme_notify_async(struct nvme_controller *ctrlr,
+    const struct nvme_completion *async_cpl,
+    uint32_t log_page_id, void *log_page_buffer, uint32_t log_page_size)
 {
-	struct nvme_consumer	*cons;
-	void			*ctrlr_cookie;
-	uint32_t		i;
+	device_t *children;
+	int n_children;
 
-	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
-		cons = &nvme_consumer[i];
-		if (cons->id != INVALID_CONSUMER_ID && cons->async_fn != NULL &&
-		    (ctrlr_cookie = ctrlr->cons_cookie[i]) != NULL) {
-			(*cons->async_fn)(ctrlr_cookie, async_cpl,
-			    log_page_id, log_page_buffer, log_page_size);
-		}
-	}
+	if (device_get_children(ctrlr->dev, &children, &n_children) != 0)
+		return;
+
+	for (int i = 0; i < n_children; i++)
+		NVME_HANDLE_AEN(children[i], async_cpl, log_page_id,
+		    log_page_buffer, log_page_size);
+
+	free(children, M_TEMP);
 }
 
 void
