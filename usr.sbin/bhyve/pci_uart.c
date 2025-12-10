@@ -104,6 +104,8 @@ pci_uart_init(struct pci_devinst *pi, nvlist_t *nvl)
 	pci_set_cfgdata16(pi, PCIR_DEVICE, COM_DEV);
 	pci_set_cfgdata16(pi, PCIR_VENDOR, COM_VENDOR);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_SIMPLECOMM);
+	pci_set_cfgdata8(pi, PCIR_SUBCLASS, PCIS_SIMPLECOMM_UART);
+	pci_set_cfgdata8(pi, PCIR_PROGIF, PCIP_SIMPLECOMM_UART_16550A);
 
 	sc = uart_ns16550_init(pci_uart_intr_assert, pci_uart_intr_deassert,
 	    pi);
