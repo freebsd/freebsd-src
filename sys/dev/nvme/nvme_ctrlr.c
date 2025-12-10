@@ -1079,8 +1079,13 @@ nvme_ctrlr_start_config_hook(void *arg)
 	config_intrhook_disestablish(&ctrlr->config_hook);
 
 	if (!ctrlr->is_failed) {
+		device_t child;
+
 		ctrlr->is_initialized = true;
 		nvme_notify_new_controller(ctrlr);
+		child = device_add_child(ctrlr->dev, NULL, DEVICE_UNIT_ANY);
+		device_set_ivars(child, ctrlr);
+		bus_attach_children(ctrlr->dev);
 	}
 	TSEXIT();
 }

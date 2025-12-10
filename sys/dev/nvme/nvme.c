@@ -104,8 +104,13 @@ int
 nvme_detach(device_t dev)
 {
 	struct nvme_controller	*ctrlr = DEVICE2SOFTC(dev);
+	int error;
 
 	config_intrhook_drain(&ctrlr->config_hook);
+
+	error = bus_generic_detach(dev);
+	if (error)
+		return (error);
 
 	nvme_ctrlr_destruct(ctrlr, dev);
 	return (0);
