@@ -1214,7 +1214,14 @@ out:
 }
 
 static int
-sendfile(struct thread *td, struct sendfile_args *uap, int compat)
+copyin_hdtr(const struct sf_hdtr *uhdtr, struct sf_hdtr *hdtr)
+{
+	return (copyin(uhdtr, hdtr, sizeof(*hdtr)));
+}
+
+int
+kern_sendfile(struct thread *td, struct sendfile_args *uap, bool compat,
+    copyin_hdtr_t *copyin_hdtr_f, copyinuio_t *copyinuio_f)
 {
 	struct sf_hdtr hdtr;
 	struct uio *hdr_uio, *trl_uio;
@@ -1233,11 +1240,11 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	hdr_uio = trl_uio = NULL;
 
 	if (uap->hdtr != NULL) {
-		error = copyin(uap->hdtr, &hdtr, sizeof(hdtr));
+		error = copyin_hdtr_f(uap->hdtr, &hdtr);
 		if (error != 0)
 			goto out;
 		if (hdtr.headers != NULL) {
-			error = copyinuio(hdtr.headers, hdtr.hdr_cnt,
+			error = copyinuio_f(hdtr.headers, hdtr.hdr_cnt,
 			    &hdr_uio);
 			if (error != 0)
 				goto out;
@@ -1256,7 +1263,7 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 #endif
 		}
 		if (hdtr.trailers != NULL) {
-			error = copyinuio(hdtr.trailers, hdtr.trl_cnt,
+			error = copyinuio_f(hdtr.trailers, hdtr.trl_cnt,
 			    &trl_uio);
 			if (error != 0)
 				goto out;
@@ -1300,23 +1307,22 @@ int
 sys_sendfile(struct thread *td, struct sendfile_args *uap)
 {
 
-	return (sendfile(td, uap, 0));
+	return (kern_sendfile(td, uap, false, (copyin_hdtr_t *)copyin_hdtr,
+	    copyinuio));
 }
 
 #ifdef COMPAT_FREEBSD4
 int
 freebsd4_sendfile(struct thread *td, struct freebsd4_sendfile_args *uap)
 {
-	struct sendfile_args args;
-
-	args.fd = uap->fd;
-	args.s = uap->s;
-	args.offset = uap->offset;
-	args.nbytes = uap->nbytes;
-	args.hdtr = uap->hdtr;
-	args.sbytes = uap->sbytes;
-	args.flags = uap->flags;
-
-	return (sendfile(td, &args, 1));
+	return (kern_sendfile(td, &(struct sendfile_args){
+		.fd = uap->fd,
+		.s = uap->s,
+		.offset = uap->offset,
+		.nbytes = uap->nbytes,
+		.hdtr = uap->hdtr,
+		.sbytes = uap->sbytes,
+		.flags = uap->flags,
+	    }, true, (copyin_hdtr_t *)copyin_hdtr, copyinuio));
 }
 #endif /* COMPAT_FREEBSD4 */
