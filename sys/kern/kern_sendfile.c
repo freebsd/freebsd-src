@@ -735,7 +735,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 
 	error = sendfile_getobj(td, fp, &obj, &vp, &shmfd, &obj_size, &bsize);
 	if (error != 0)
-		return (error);
+		goto out;
 
 	error = sendfile_getsock(td, sockfd, &sock_fp, &so);
 	if (error != 0)
