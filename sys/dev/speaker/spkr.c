@@ -24,7 +24,7 @@ static	d_ioctl_t	spkrioctl;
 
 static struct cdevsw spkr_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
+	.d_flags =	0,
 	.d_open =	spkropen,
 	.d_close =	spkrclose,
 	.d_write =	spkrwrite,
@@ -78,10 +78,8 @@ tone(unsigned int thz, unsigned int centisecs)
 	if (timer_spkr_acquire()) {
 		return;
 	}
-	disable_intr();
 	/* Configure the speaker with the tone frequency. */
 	timer_spkr_setfreq(thz);
-	enable_intr();
 
 	/*
 	 * Make the current thread sleep while the tone is being
