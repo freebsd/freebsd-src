@@ -197,7 +197,7 @@ do_scan()
 			eolcvt "$CFILE" | egrep '^(---|[0-9A-Za-z/+=]+$)' | \
 				split -p '^-+BEGIN CERTIFICATE-+$' - "$SPLITDIR/x"
 			for CERT in $(find "$SPLITDIR" -type f) ; do
-				"$CFUNC" "$CERT"
+				LINK=-c "$CFUNC" "$CERT"
 			done
 			rm -rf "$SPLITDIR"
 			;;
