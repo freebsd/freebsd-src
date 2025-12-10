@@ -561,8 +561,6 @@ void	nvme_notify_async_consumers(struct nvme_controller *ctrlr,
 				    uint32_t log_page_id, void *log_page_buffer,
 				    uint32_t log_page_size);
 void	nvme_notify_fail_consumers(struct nvme_controller *ctrlr);
-void	nvme_notify_new_controller(struct nvme_controller *ctrlr);
-void	nvme_notify_ns(struct nvme_controller *ctrlr, int nsid);
 
 void	nvme_ctrlr_shared_handler(void *arg);
 void	nvme_ctrlr_poll(struct nvme_controller *ctrlr);

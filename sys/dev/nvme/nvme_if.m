@@ -33,7 +33,7 @@ METHOD int ns_removed {
 #
 METHOD int ns_changed {
 	device_t	dev;		/* nvme device */
-	struct nvme_namespace *ns;	/* information about the namespace */
+	uint32_t	nsid;		/* nsid that just changed */
 };
 
 #

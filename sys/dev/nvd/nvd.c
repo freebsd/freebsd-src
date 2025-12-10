@@ -29,6 +29,7 @@
 
 #include <sys/param.h>
 #include <sys/bio.h>
+#include <sys/bus.h>
 #include <sys/devicestat.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -46,6 +47,8 @@
 #include <dev/nvme/nvme_private.h>
 
 #include <dev/pci/pcivar.h>
+
+#include "nvme_if.h"
 
 #define NVD_STR		"nvd"
 
@@ -385,17 +388,96 @@ nvd_bioq_process(void *arg, int pending)
 	}
 }
 
-static void
-nvd_new_disk(struct nvme_namespace *ns, struct nvd_controller *ctrlr)
+static int
+nvdc_controller_failed(device_t dev)
 {
+	struct nvd_controller	*nvd_ctrlr = device_get_softc(dev);
+	struct nvd_disk		*ndisk;
+
+	mtx_lock(&nvd_lock);
+	TAILQ_REMOVE(&ctrlr_head, nvd_ctrlr, tailq);
+	TAILQ_FOREACH(ndisk, &nvd_ctrlr->disk_head, ctrlr_tailq)
+		nvd_gone(ndisk);
+	while (!TAILQ_EMPTY(&nvd_ctrlr->disk_head))
+		msleep(&nvd_ctrlr->disk_head, &nvd_lock, 0, "nvd_fail", 0);
+	mtx_unlock(&nvd_lock);
+	return (0);
+}
+
+static int
+nvdc_probe(device_t dev)
+{
+	if (!nvme_use_nvd)
+		return (ENXIO);
+
+	device_set_desc(dev, "nvme storage namespace");
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+nvdc_attach(device_t dev)
+{
+	struct nvd_controller	*nvd_ctrlr = device_get_softc(dev);
+	struct nvme_controller	*ctrlr = device_get_ivars(dev);
+
+	nvd_ctrlr->ctrlr = ctrlr;
+	TAILQ_INIT(&nvd_ctrlr->disk_head);
+	mtx_lock(&nvd_lock);
+	TAILQ_INSERT_TAIL(&ctrlr_head, nvd_ctrlr, tailq);
+	mtx_unlock(&nvd_lock);
+
+	return (0);
+}
+
+static int
+nvdc_detach(device_t dev)
+{
+	return (nvdc_controller_failed(dev));
+}
+
+static struct nvd_disk *
+nvd_nsid_to_disk(struct nvd_controller *nvd_ctrlr, uint32_t nsid)
+{
+	struct nvd_disk		*ndisk;
+
+	mtx_lock(&nvd_lock);
+	TAILQ_FOREACH(ndisk, &nvd_ctrlr->disk_head, ctrlr_tailq) {
+		if (ndisk->ns->id != nsid)
+			continue;
+		break;
+	}
+	mtx_unlock(&nvd_lock);
+	return ndisk;
+}
+
+static struct nvd_disk *
+nvd_ns_to_disk(struct nvd_controller *nvd_ctrlr, struct nvme_namespace *ns)
+{
+	struct nvd_disk		*ndisk;
+
+	mtx_lock(&nvd_lock);
+	TAILQ_FOREACH(ndisk, &nvd_ctrlr->disk_head, ctrlr_tailq) {
+		if (ndisk->ns != ns)
+			continue;
+		break;
+	}
+	mtx_unlock(&nvd_lock);
+	return ndisk;
+}
+
+static int
+nvdc_ns_added(device_t dev, struct nvme_namespace *ns)
+{
+	struct nvd_controller	*nvd_ctrlr = device_get_softc(dev);
+	struct nvd_disk		*ndisk;
 	uint8_t			descr[NVME_MODEL_NUMBER_LENGTH+1];
-	struct nvd_disk		*ndisk, *tnd;
+	struct nvd_disk		*tnd;
 	struct disk		*disk;
-	device_t		 dev = ctrlr->ctrlr->dev;
-	int unit;
+	device_t		 pdev = nvd_ctrlr->ctrlr->dev;
+	int			 unit;
 
 	ndisk = malloc(sizeof(struct nvd_disk), M_NVD, M_ZERO | M_WAITOK);
-	ndisk->ctrlr = ctrlr;
+	ndisk->ctrlr = nvd_ctrlr;
 	ndisk->ns = ns;
 	ndisk->cur_depth = 0;
 	ndisk->ordered_in_flight = 0;
@@ -415,7 +497,7 @@ nvd_new_disk(struct nvme_namespace *ns, struct nvd_controller *ctrlr)
 		TAILQ_INSERT_BEFORE(tnd, ndisk, global_tailq);
 	else
 		TAILQ_INSERT_TAIL(&disk_head, ndisk, global_tailq);
-	TAILQ_INSERT_TAIL(&ctrlr->disk_head, ndisk, ctrlr_tailq);
+	TAILQ_INSERT_TAIL(&nvd_ctrlr->disk_head, ndisk, ctrlr_tailq);
 	mtx_unlock(&nvd_lock);
 
 	ndisk->tq = taskqueue_create("nvd_taskq", M_WAITOK,
@@ -464,14 +546,14 @@ nvd_new_disk(struct nvme_namespace *ns, struct nvd_controller *ctrlr)
 	 * which has no access to the config space for this controller, report
 	 * the AHCI controller's data.
 	 */
-	if (ctrlr->ctrlr->quirks & QUIRK_AHCI)
-		dev = device_get_parent(dev);
-	disk->d_hba_vendor = pci_get_vendor(dev);
-	disk->d_hba_device = pci_get_device(dev);
-	disk->d_hba_subvendor = pci_get_subvendor(dev);
-	disk->d_hba_subdevice = pci_get_subdevice(dev);
+	if (nvd_ctrlr->ctrlr->quirks & QUIRK_AHCI)
+		pdev = device_get_parent(pdev);
+	disk->d_hba_vendor = pci_get_vendor(pdev);
+	disk->d_hba_device = pci_get_device(pdev);
+	disk->d_hba_subvendor = pci_get_subvendor(pdev);
+	disk->d_hba_subdevice = pci_get_subdevice(pdev);
 	disk->d_rotation_rate = DISK_RR_NON_ROTATING;
-	strlcpy(disk->d_attachment, device_get_nameunit(dev),
+	strlcpy(disk->d_attachment, device_get_nameunit(pdev),
 	    sizeof(disk->d_attachment));
 
 	disk_create(disk, DISK_VERSION);
@@ -481,14 +563,35 @@ nvd_new_disk(struct nvme_namespace *ns, struct nvd_controller *ctrlr)
 		(uintmax_t)disk->d_mediasize / (1024*1024),
 		(uintmax_t)disk->d_mediasize / disk->d_sectorsize,
 		disk->d_sectorsize);
+
+	return (0);
 }
 
-#if 0
-static void
-nvd_resize(struct nvd_disk *ndisk)
+static int
+nvdc_ns_removed(device_t dev, struct nvme_namespace *ns)
 {
-	struct disk		*disk = ndisk->disk;
-	struct nvme_namespace	*ns = ndisk->ns;
+	struct nvd_controller	*nvd_ctrlr = device_get_softc(dev);
+	struct nvd_disk		*ndisk = nvd_ns_to_disk(nvd_ctrlr, ns);
+
+	if (ndisk == NULL)
+		panic("nvdc: no namespace found for ns  %p", ns);
+	nvd_gone(ndisk);
+	/* gonecb removes it from the list -- no need to wait */
+	return (0);
+}
+
+static int
+nvdc_ns_changed(device_t dev, uint32_t nsid)
+{
+	struct nvd_controller	*nvd_ctrlr = device_get_softc(dev);
+	struct nvd_disk		*ndisk = nvd_nsid_to_disk(nvd_ctrlr, nsid);
+	struct disk		*disk;
+	struct nvme_namespace	*ns;
+
+	if (ndisk == NULL)
+		panic("nvdc: no namespace found for %d", nsid);
+	disk = ndisk->disk;
+	ns = ndisk->ns;
 
 	disk->d_sectorsize = nvme_ns_get_sector_size(ns);
 	disk->d_mediasize = (off_t)nvme_ns_get_size(ns);
@@ -504,98 +607,28 @@ nvd_resize(struct nvd_disk *ndisk)
 		(uintmax_t)disk->d_mediasize / (1024*1024),
 		(uintmax_t)disk->d_mediasize / disk->d_sectorsize,
 		disk->d_sectorsize);
-}
-#endif
-
-static int
-nvdc_fail(device_t dev)
-{
-	return ENXIO;
-}
-
-#if 0
-static void *
-nvd_ns_changed(struct nvme_namespace *ns, void *ctrlr_arg)
-{
-	struct nvd_disk		*ndisk;
-	struct nvd_controller	*ctrlr = ctrlr_arg;
-
-	if ((ns->flags & NVME_NS_DELTA) == 0) {
-		nvd_new_disk(ns, ctrlr_arg);
-		return (ctrlr_arg);
-	}
-
-	mtx_lock(&nvd_lock);
-	TAILQ_FOREACH(ndisk, &ctrlr->disk_head, ctrlr_tailq) {
-		if (ndisk->ns->id != ns->id)
-			continue;
-		nvd_resize(ndisk);
-		break;
-	}
-	mtx_unlock(&nvd_lock);
-	return (ctrlr_arg);
-}
-
-static void
-nvd_controller_fail(void *ctrlr_arg)
-{
-	struct nvd_controller	*ctrlr = ctrlr_arg;
-	struct nvd_disk		*ndisk;
-
-	mtx_lock(&nvd_lock);
-	TAILQ_REMOVE(&ctrlr_head, ctrlr, tailq);
-	TAILQ_FOREACH(ndisk, &ctrlr->disk_head, ctrlr_tailq)
-		nvd_gone(ndisk);
-	while (!TAILQ_EMPTY(&ctrlr->disk_head))
-		msleep(&ctrlr->disk_head, &nvd_lock, 0, "nvd_fail", 0);
-	mtx_unlock(&nvd_lock);
-}
-#endif
-
-static int
-nvdc_probe(device_t dev)
-{
-	if (!nvme_use_nvd)
-		return (ENXIO);
-
-	device_set_desc(dev, "nvme storage namespace");
-	return (BUS_PROBE_DEFAULT);
-}
-
-static int
-nvdc_attach(device_t dev)
-{
-	struct nvd_controller	*nvd_ctrlr = device_get_softc(dev);
-	struct nvme_controller	*ctrlr = device_get_ivars(dev);
-
-	nvd_ctrlr->ctrlr = ctrlr;
-	TAILQ_INIT(&nvd_ctrlr->disk_head);
-	mtx_lock(&nvd_lock);
-	TAILQ_INSERT_TAIL(&ctrlr_head, nvd_ctrlr, tailq);
-	mtx_unlock(&nvd_lock);
-
-	for (int i = 0; i < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); i++) {
-		struct nvme_namespace	*ns = &ctrlr->ns[i];
-
-		if (ns->data.nsze == 0)
-			continue;
-		nvd_new_disk(ns, nvd_ctrlr);
-	}
-
 	return (0);
 }
 
 static int
-nvdc_detach(device_t dev)
+nvdc_handle_aen(device_t dev, const struct nvme_completion *cpl,
+    uint32_t pg_nr, void *page, uint32_t page_len)
 {
-	return (nvdc_fail(dev));
+	/* Do nothing */
+	return (0);
 }
 
 static device_method_t nvdc_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,     nvdc_probe),
-	DEVMETHOD(device_attach,    nvdc_attach),
-	DEVMETHOD(device_detach,    nvdc_detach),
+	DEVMETHOD(device_probe,		nvdc_probe),
+	DEVMETHOD(device_attach,	nvdc_attach),
+	DEVMETHOD(device_detach,	nvdc_detach),
+	/* Nvme controller messages */
+	DEVMETHOD(nvme_ns_added,	nvdc_ns_added),
+	DEVMETHOD(nvme_ns_removed,	nvdc_ns_removed),
+	DEVMETHOD(nvme_ns_changed,	nvdc_ns_changed),
+	DEVMETHOD(nvme_controller_failed, nvdc_controller_failed),
+	DEVMETHOD(nvme_handle_aen,   	nvdc_handle_aen),
 	{ 0, 0 }
 };
 

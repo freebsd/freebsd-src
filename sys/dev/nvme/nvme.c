@@ -170,18 +170,6 @@ nvme_notify(struct nvme_consumer *cons,
 	}
 }
 
-void
-nvme_notify_new_controller(struct nvme_controller *ctrlr)
-{
-	int i;
-
-	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
-		if (nvme_consumer[i].id != INVALID_CONSUMER_ID) {
-			nvme_notify(&nvme_consumer[i], ctrlr);
-		}
-	}
-}
-
 static void
 nvme_notify_new_consumer(struct nvme_consumer *cons)
 {
@@ -244,30 +232,6 @@ nvme_notify_fail_consumers(struct nvme_controller *ctrlr)
 			if (cons->fail_fn != NULL)
 				cons->fail_fn(ctrlr_cookie);
 		}
-	}
-}
-
-void
-nvme_notify_ns(struct nvme_controller *ctrlr, int nsid)
-{
-	struct nvme_consumer	*cons;
-	struct nvme_namespace	*ns;
-	void			*ctrlr_cookie;
-	uint32_t		i;
-
-	KASSERT(nsid <= NVME_MAX_NAMESPACES,
-	    ("%s: Namespace notification to nsid %d exceeds range\n",
-		device_get_nameunit(ctrlr->dev), nsid));
-
-	if (!ctrlr->is_initialized)
-		return;
-
-	ns = &ctrlr->ns[nsid - 1];
-	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
-		cons = &nvme_consumer[i];
-		if (cons->id != INVALID_CONSUMER_ID && cons->ns_fn != NULL &&
-		    (ctrlr_cookie = ctrlr->cons_cookie[i]) != NULL)
-			ns->cons_cookie[i] = (*cons->ns_fn)(ns, ctrlr_cookie);
 	}
 }
 
