@@ -91,6 +91,7 @@ struct mprsas_softc {
 #define MPRSAS_IN_STARTUP	(1 << 1)
 #define MPRSAS_QUEUE_FROZEN	(1 << 3)
 #define	MPRSAS_TOREMOVE		(1 << 5)
+#define MPRSAS_STARTUP_ARMED	(1 << 6)
 	u_int			maxtargets;
 	struct mprsas_target	*targets;
 	struct cam_devq		*devq;
@@ -101,6 +102,8 @@ struct mprsas_softc {
 
 	u_int                   startup_refcount;
 	struct proc             *sysctl_proc;
+
+	struct callout		startup_timeout;
 
 	struct taskqueue	*ev_tq;
 	struct task		ev_task;

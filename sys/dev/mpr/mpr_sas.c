@@ -152,6 +152,25 @@ mprsas_find_target_by_handle(struct mprsas_softc *sassc, int start,
 	return (NULL);
 }
 
+static void
+mprsas_startup_timeout(void *_sassc)
+{
+	struct mprsas_softc *sassc = _sassc;
+
+	/*
+	 * Things have taken far too long. We have to get on with it. However,
+	 * we're still processing events. We'll release the boot here only.
+	 * We're called with the mpr lock held, which the rest of these
+	 * functions take. This may cause mountroot to fail, but we'll at least
+	 * proceed with the boot if this isn't holding up the system disk.
+	 */
+	callout_stop(&sassc->startup_timeout);
+	sassc->flags &= ~MPRSAS_STARTUP_ARMED;
+	xpt_release_boot();
+	printf("Gave up all the devices...\n");
+};
+
+
 /* we need to freeze the simq during attach and diag reset, to avoid failing
  * commands before device handles have been found by discovery.  Since
  * discovery involves reading config pages and possibly sending commands,
@@ -171,6 +190,10 @@ mprsas_startup_increment(struct mprsas_softc *sassc)
 			    "%s freezing simq\n", __func__);
 			xpt_hold_boot();
 			xpt_freeze_simq(sassc->sim, 1);
+			callout_init_mtx(&sassc->startup_timeout,
+			    &sassc->sc->mpr_mtx, 0);
+			callout_reset(&sassc->startup_timeout, 60 * hz,
+			    mprsas_startup_timeout, sassc);
 		}
 		mpr_dprint(sassc->sc, MPR_INIT, "%s refcount %u\n", __func__,
 		    sassc->startup_refcount);
@@ -197,11 +220,15 @@ mprsas_startup_decrement(struct mprsas_softc *sassc)
 			/* finished all discovery-related actions, release
 			 * the simq and rescan for the latest topology.
 			 */
+			bool need_release = sassc->flags & MPRSAS_STARTUP_ARMED;
 			mpr_dprint(sassc->sc, MPR_INIT,
 			    "%s releasing simq\n", __func__);
-			sassc->flags &= ~MPRSAS_IN_STARTUP;
+			if (need_release) /* stop to prevent deadlock */
+				callout_stop(&sassc->startup_timeout);
+			sassc->flags &= ~(MPRSAS_IN_STARTUP | MPRSAS_STARTUP_ARMED);
 			xpt_release_simq(sassc->sim, 1);
-			xpt_release_boot();
+			if (need_release)
+				xpt_release_boot();
 		}
 		mpr_dprint(sassc->sc, MPR_INIT, "%s refcount %u\n", __func__,
 		    sassc->startup_refcount);
