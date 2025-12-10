@@ -556,10 +556,10 @@ nvme_allocate_request_ccb(union ccb *ccb, const int how, nvme_cb_fn_t cb_fn,
 
 #define nvme_free_request(req)	free(req, M_NVME)
 
-void	nvme_notify_async_consumers(struct nvme_controller *ctrlr,
-				    const struct nvme_completion *async_cpl,
-				    uint32_t log_page_id, void *log_page_buffer,
-				    uint32_t log_page_size);
+void	nvme_notify_async(struct nvme_controller *ctrlr,
+	    const struct nvme_completion *async_cpl,
+	    uint32_t log_page_id, void *log_page_buffer,
+	    uint32_t log_page_size);
 void	nvme_notify_fail_consumers(struct nvme_controller *ctrlr);
 
 void	nvme_ctrlr_shared_handler(void *arg);
