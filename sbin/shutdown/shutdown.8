@@ -105,9 +105,9 @@ or
 options is specified,
 .Nm
 will execute
-.Xr halt 8
+.Xr fasthalt 8
 or
-.Xr reboot 8
+.Xr fastboot 8
 instead of sending a signal to
 .Xr init 8 .
 .It Fl n
@@ -116,9 +116,9 @@ If the
 option is specified, prevent the file system cache from being flushed by passing
 .Fl n
 to
-.Xr halt 8
+.Xr fasthalt 8
 or
-.Xr reboot 8 .
+.Xr fastboot 8 .
 This option should probably not be used.
 .It Fl q
 Shut down quietly.
