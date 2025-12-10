@@ -71,23 +71,29 @@ tone(unsigned int thz, unsigned int centisecs)
 	(void) printf("tone: thz=%d centisecs=%d\n", thz, centisecs);
 #endif /* DEBUG */
 
-	/* set timer to generate clicks at given frequency in Hertz */
+	/*
+	 * Acquire the i8254 clock, configure it to drive the speaker
+	 * signal, and turn on the speaker.
+	 */
 	if (timer_spkr_acquire()) {
-		/* enter list of waiting procs ??? */
 		return;
 	}
 	disable_intr();
+	/* Configure the speaker with the tone frequency. */
 	timer_spkr_setfreq(thz);
 	enable_intr();
 
 	/*
-	 * Set timeout to endtone function, then give up the timeslice.
-	 * This is so other processes can execute while the tone is being
+	 * Make the current thread sleep while the tone is being
 	 * emitted.
 	 */
 	timo = centisecs * hz / 100;
 	if (timo > 0)
 		tsleep(&endtone, SPKRPRI | PCATCH, "spkrtn", timo);
+
+	/*
+	 * Turn off the speaker and release the i8254 clock.
+	 */
 	timer_spkr_release();
 }
 
