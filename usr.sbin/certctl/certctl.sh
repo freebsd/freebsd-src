@@ -46,7 +46,7 @@ VERBOSE=false
 
 info()
 {
-	echo "${0##*/}: $@" >&2
+	echo "${SCRIPTNAME}: $@" >&2
 }
 
 verbose()
@@ -228,6 +228,15 @@ do_list()
 
 cmd_rehash()
 {
+	local flag
+
+	while getopts "" flag; do
+		case "$flag" in
+		*) usage ;;
+		esac
+	done
+	shift $((OPTIND - 1))
+	[ $# -eq 0 ] || usage
 
 	if [ -e "$CERTDESTDIR" ] ; then
 		perform find "$CERTDESTDIR" \( -type f -or -type l \) -delete
@@ -246,31 +255,59 @@ cmd_rehash()
 
 cmd_list()
 {
+	local flag
+
+	while getopts "" flag; do
+		case "$flag" in
+		*) usage ;;
+		esac
+	done
+	shift $((OPTIND - 1))
+	[ $# -eq 0 ] || usage
+
 	info "Listing Trusted Certificates:"
 	do_list "$CERTDESTDIR"
 }
 
 cmd_untrust()
 {
-	local UTFILE
+	local flag filename
 
-	shift # verb
+	while getopts "" flag; do
+	    case "$flag" in
+	    *) usage ;;
+	    esac
+	done
+	shift $((OPTIND - 1))
+	[ $# -gt 0 ] || usage
+
 	perform install -d -m 0755 "$UNTRUSTDESTDIR"
-	for UTFILE in "$@"; do
-		info "Adding $UTFILE to untrusted list"
-		create_untrusted "$UTFILE"
+	for filename in "$@"; do
+		if [ -s "$filename" ] ; then
+			info "Adding $filename to untrusted list"
+			create_untrusted "$filename"
+		else
+			info "Cannot find $filename"
+			ERRORS=$((ERRORS + 1))
+		fi
 	done
 }
 
 cmd_trust()
 {
-	local UTFILE untrustedhash certhash hash
+	local flag filename untrustedhash certhash hash
 
-	shift # verb
-	for UTFILE in "$@"; do
-		if [ -s "$UTFILE" ] ; then
-			hash=$(do_hash "$UTFILE")
-			certhash=$(openssl x509 -sha1 -in "$UTFILE" -noout -fingerprint)
+	while getopts "" flag; do
+		case "$flag" in
+		*) usage ;;
+		esac
+	done
+	shift $((OPTIND - 1))
+	[ $# -gt 0 ] || usage
+	for filename in "$@"; do
+		if [ -s "$filename" ] ; then
+			hash=$(do_hash "$filename")
+			certhash=$(openssl x509 -sha1 -in "$filename" -noout -fingerprint)
 			for UNTRUSTEDFILE in $(find $UNTRUSTDESTDIR -name "$hash.*") ; do
 				untrustedhash=$(openssl x509 -sha1 -in "$UNTRUSTEDFILE" -noout -fingerprint)
 				if [ "$certhash" = "$untrustedhash" ] ; then
@@ -278,11 +315,11 @@ cmd_trust()
 					perform rm -f $UNTRUSTEDFILE
 				fi
 			done
-		elif [ -e "$UNTRUSTDESTDIR/$UTFILE" ] ; then
-			info "Removing $UTFILE from untrusted list"
-			perform rm -f "$UNTRUSTDESTDIR/$UTFILE"
+		elif [ -e "$UNTRUSTDESTDIR/$filename" ] ; then
+			info "Removing $filename from untrusted list"
+			perform rm -f "$UNTRUSTDESTDIR/$filename"
 		else
-			info "Cannot find $UTFILE"
+			info "Cannot find $filename"
 			ERRORS=$((ERRORS + 1))
 		fi
 	done
@@ -290,6 +327,16 @@ cmd_trust()
 
 cmd_untrusted()
 {
+	local flag
+
+	while getopts "" flag; do
+		case "$flag" in
+		*) usage ;;
+		esac
+	done
+	shift $((OPTIND - 1))
+	[ $# -eq 0 ] || usage
+
 	info "Listing Untrusted Certificates:"
 	do_list "$UNTRUSTDESTDIR"
 }
@@ -322,6 +369,7 @@ while getopts cD:d:M:nUv flag; do
 	n) NOOP=true ;;
 	U) UNPRIV=true ;;
 	v) VERBOSE=true ;;
+	*) usage ;;
 	esac
 done
 shift $((OPTIND - 1))
@@ -343,15 +391,18 @@ fi
 : ${UNTRUSTDESTDIR:=${DESTDIR}${DISTBASE}/etc/ssl/untrusted}
 
 [ $# -gt 0 ] || usage
-case "$1" in
-list)		cmd_list ;;
-rehash)		cmd_rehash ;;
+CMD=$1
+shift
+OPTIND=1
+case "${CMD}" in
+list)		cmd_list "$@" ;;
+rehash)		cmd_rehash "$@" ;;
 blacklist)	cmd_untrust "$@" ;;
 untrust)	cmd_untrust "$@" ;;
 trust)		cmd_trust "$@" ;;
 unblacklist)	cmd_trust "$@" ;;
-untrusted)	cmd_untrusted ;;
-blacklisted)	cmd_untrusted ;;
+untrusted)	cmd_untrusted "$@" ;;
+blacklisted)	cmd_untrusted "$@" ;;
 *)		usage # NOTREACHED
 esac
 
