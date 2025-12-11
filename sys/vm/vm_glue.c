@@ -321,10 +321,12 @@ vm_thread_alloc_kstack_kva(vm_size_t size, int domain)
 	rv = vmem_alloc(arena, size, M_BESTFIT | M_NOWAIT, &addr);
 	if (rv == ENOMEM)
 		return (0);
-	KASSERT(atop(addr - VM_MIN_KERNEL_ADDRESS) %
-	    (kstack_pages + KSTACK_GUARD_PAGES) == 0,
-	    ("%s: allocated kstack KVA not aligned to multiple of kstack size",
-	    __func__));
+	if (size == ptoa(kstack_pages + KSTACK_GUARD_PAGES)) {
+		/* This expectation only applies to kstack arenas */
+		KASSERT((addr - VM_MIN_KERNEL_ADDRESS) % size == 0,
+		    ("%s: allocated kstack KVA not aligned to multiple of kstack size",
+		    __func__));
+	}
 
 	return (addr);
 #else
