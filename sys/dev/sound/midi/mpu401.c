@@ -225,18 +225,6 @@ mpu401_init(kobj_class_t cls, void *cookie, driver_intr_t softintr,
 	if (!m->mid)
 		goto err;
 	*cb = mpu401_intr;
-	/*
-	 * Setting up the MPU in UART mode must be done before the interrupt
-	 * handler is enabled by the caller, else we may miss the ACK, which
-	 * is read back from the data port of the MPU.
-	 */
-	if (mpu401_setup(m) == 0) {
-		/*
-		 * We don't know the exact state of the device, or the device
-		 * is not responsive.
-		 */
-		goto err;
-	}
 	return (m);
 err:
 	printf("mpu401: init error\n");
@@ -260,10 +248,20 @@ mpu401_uninit(struct mpu401 *m)
 static int
 mpu401_minit(struct snd_midi *sm, void *arg)
 {
+	struct mpu401 *m = arg;
+
 	/*
-	 * Hardware init is done in mpu401_init, before the interrupt handler
-	 * is active.
+	 * Setting up the MPU in UART mode must be done before the interrupt
+	 * handler is enabled by the caller, else we may miss the ACK, which
+	 * is read back from the data port of the MPU.
 	 */
+	if (mpu401_setup(m) == 0) {
+		/*
+		 * We don't know the exact state of the device, or the device
+		 * is not responsive.
+		 */
+		return (1);
+	}
 	return (0);
 }
 
