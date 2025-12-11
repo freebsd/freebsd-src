@@ -913,17 +913,6 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	struct socket *so;
 	int error;
 
-	/*
-	 * XXX: divert(4) historically abused PF_INET.  Keep this compatibility
-	 * shim until all applications have been updated.
-	 */
-	if (__predict_false(dom == PF_INET && type == SOCK_RAW &&
-	    proto == IPPROTO_DIVERT)) {
-		dom = PF_DIVERT;
-		printf("%s uses obsolete way to create divert(4) socket\n",
-		    td->td_proc->p_comm);
-	}
-
 	prp = pffindproto(dom, type, proto);
 	if (prp == NULL) {
 		/* No support for domain. */
