@@ -39,6 +39,7 @@ HEIMDAL_GSS_2.0 {
 		gss_inquire_cred;
 		gss_inquire_cred_by_mech;
 		gss_inquire_cred_by_oid;
+		gss_inquire_sec_context_by_oid;
 		gss_inquire_mech_for_saslname;
 		gss_inquire_mechs_for_name;
 		gss_inquire_name;
