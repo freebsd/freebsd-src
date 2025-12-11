@@ -27,6 +27,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20251212:
+	Timeouts for SCSI bus probing have been drastically reduced. They are
+	now tuneables that can be set in the boot loader should you have a
+	device that requires a longer-than-standards imply timeout but
+	none-the-less works.
+
+	kern.cam.tur_timeout		(default was 60s, now 1s)
+	kern.cam.inquiry_timeout	(default was 60s, now 1s)
+	kern.cam.reportluns_timeout	(default is 60s)
+	kern.cam.modesense_timeout	(default was 60s, now 1s)
+
 20251115:
 	The FreeBSD-base repository is now defined in /etc/pkg/FreeBSD.conf,
 	disabled by default.  In -CURRENT and -STABLE this points at nightly

@@ -78,6 +78,22 @@ static int cam_srch_hi = 0;
 SYSCTL_INT(_kern_cam, OID_AUTO, cam_srch_hi, CTLFLAG_RWTUN,
     &cam_srch_hi, 0, "Search above LUN 7 for SCSI3 and greater devices");
 
+static int tur_timeout = 1000;	/* 1s now, 60s before */
+SYSCTL_INT(_kern_cam, OID_AUTO, tur_timeout, CTLFLAG_RWTUN,
+    &tur_timeout, 0, "TESTUNITREADY timeout on probing");
+
+static int inquiry_timeout = 1000; /* 1s now, 60s before */
+SYSCTL_INT(_kern_cam, OID_AUTO, inquiry_timeout, CTLFLAG_RWTUN,
+    &inquiry_timeout, 0, "INQUIRY timeout on probing");
+
+static int reportluns_timeout = 60000; /* 60s */
+SYSCTL_INT(_kern_cam, OID_AUTO, reportluns_timeout, CTLFLAG_RWTUN,
+    &reportluns_timeout, 0, "REPORTLUNS timeout on probing");
+
+static int modesense_timeout = 1000; /* 1s now, 60s */
+SYSCTL_INT(_kern_cam, OID_AUTO, modesense_timeout, CTLFLAG_RWTUN,
+    &modesense_timeout, 0, "MODESENSE timeout on probing");
+
 #define	CAM_SCSI2_MAXLUN	8
 #define	CAM_CAN_GET_SIMPLE_LUN(x, i)				\
 	((((x)->luns[i].lundata[0] & RPL_LUNDATA_ATYP_MASK) ==	\
@@ -760,7 +776,7 @@ again:
 				     probedone,
 				     MSG_SIMPLE_Q_TAG,
 				     SSD_FULL_SIZE,
-				     /*timeout*/60000);
+				     /*timeout*/tur_timeout);
 		break;
 	}
 	case PROBE_INQUIRY:
@@ -816,7 +832,7 @@ again:
 			     /*evpd*/FALSE,
 			     /*page_code*/0,
 			     SSD_MIN_SIZE,
-			     /*timeout*/60 * 1000);
+			     /*timeout*/inquiry_timeout);
 		break;
 	}
 	case PROBE_REPORT_WLUNS:
@@ -856,7 +872,7 @@ again:
 		}
 		scsi_report_luns(csio, 5, probedone, MSG_SIMPLE_Q_TAG,
 		    RPL_REPORT_DEFAULT, rp, periph->path->target->rpl_size,
-		    SSD_FULL_SIZE, 60000);
+		    SSD_FULL_SIZE, reportluns_timeout);
 		break;
 	}
 	case PROBE_MODE_SENSE:
@@ -879,7 +895,7 @@ again:
 					mode_buf,
 					mode_buf_len,
 					SSD_FULL_SIZE,
-					/*timeout*/60000);
+					/*timeout*/modesense_timeout);
 			break;
 		}
 		xpt_print(periph->path,
@@ -1026,7 +1042,7 @@ done:
 					     probedone,
 					     MSG_SIMPLE_Q_TAG,
 					     SSD_FULL_SIZE,
-					     /*timeout*/60000);
+					     /*timeout*/tur_timeout);
 			break;
 		}
 
@@ -1039,7 +1055,7 @@ done:
 			     /*evpd*/FALSE,
 			     /*page_code*/0,
 			     SSD_MIN_SIZE,
-			     /*timeout*/60 * 1000);
+			     /*timeout*/inquiry_timeout);
 		break;
 	}
 	default:
