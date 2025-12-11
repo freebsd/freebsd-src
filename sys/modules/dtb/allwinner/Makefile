@@ -54,7 +54,8 @@ DTS=	\
 	allwinner/sun50i-h5-orangepi-pc2.dts \
 	allwinner/sun50i-h5-nanopi-neo2.dts \
 	allwinner/sun50i-h6-pine-h64.dts \
-	allwinner/sun50i-h6-pine-h64-model-b.dts
+	allwinner/sun50i-h6-pine-h64-model-b.dts \
+	allwinner/sun55i-a527-cubie-a5e.dts
 
 DTSO=	sun50i-a64-mmc0-disable.dtso \
 	sun50i-a64-mmc1-disable.dtso \
