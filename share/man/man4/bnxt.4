@@ -23,12 +23,12 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd August 18, 2020
+.Dd December 10, 2025
 .Dt BNXT 4
 .Os
 .Sh NAME
 .Nm bnxt
-.Nd "Broadcom NetXtreme-C/NetXtreme-E Family Ethernet driver"
+.Nd Broadcom NetXtreme family 10Gb to 400Gb Ethernet driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -47,17 +47,16 @@ if_bnxt_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for various NICs based on the Broadcom BCM57301/2/4,
-BCM57402/4/6, and BCM57502/4/8 Ethernet controller chips.
+driver provides support for PCIe NICs based on the Broadcom BCM573XX,
+BCM574XX, BCM575XX, and BCM576XX Ethernet controllers.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Sh HARDWARE
 The
 .Nm
-driver provides support for various NICs based on the Broadcom NetXtreme-C and
-NetXtreme-E families of Gigabit Ethernet controller chips, including the
-following:
+driver supports the following
+Broadcom 10Gb to 400Gb Ethernet controllers:
 .Pp
 .Bl -bullet -compact
 .It
@@ -103,11 +102,25 @@ Broadcom BCM57417 NetXtreme-E Ethernet Partition
 .It
 Broadcom BCM57454 NetXtreme-E 10Gb/25Gb/40Gb/50Gb/100Gb Ethernet
 .It
-Broadcom BCM57502 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet
+Broadcom BCM57502 NetXtreme-E 10Gb/25Gb/50Gb Ethernet
 .It
-Broadcom BCM57504 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet
+Broadcom N425 BCM57504 NetXtreme-E 10Gb/25Gb Ethernet
 .It
-Broadcom BCM57508 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet
+Broadcom P425 BCM57504 NetXtreme-E 10Gb/25Gb Ethernet
+.It
+Broadcom N1100 BCM57504 NetXtreme-E 10Gb/25Gb/50Gb/100Gb Ethernet
+.It
+Broadcom N2100 BCM57508 Thor 10Gb/25Gb/50Gb/100Gb Ethernet
+.It
+Broadcom P2100 BCM57508 Thor 10Gb/25Gb/50Gb/100Gb Ethernet
+.It
+Broadcom N2200 BCM57608 Thor 2 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet
+.It
+Broadcom P2200 BCM57608 Thor 2 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet
+.It
+Broadcom N1400 BCM57608 Thor 2 25Gb/50Gb/100Gb/200Gb/400Gb Ethernet
+.It
+Broadcom P1400 BCM57608 Thor 2 25Gb/50Gb/100Gb/200Gb/400Gb Ethernet
 .El
 .Sh SYSCTL VARIABLES
 These variables must be set before loading the driver, either via
