@@ -4,8 +4,6 @@
 
 set -e
 
-unset NO_ROOT
-
 export ASSUME_ALWAYS_YES="YES"
 export PKG_DBDIR="/tmp/pkg"
 export PERMISSIVE="YES"
@@ -53,15 +51,13 @@ usage()
 
 while getopts N opt; do
 	case "$opt" in
-	N)	NO_ROOT=1 ;;
+	N)	;;
 	*)	usage ;;
 	esac
 done
 
 PKG_ARGS="-d --rootdir ${ROOTDIR}"
-if [ $NO_ROOT ]; then
-	PKG_ARGS="$PKG_ARGS -o INSTALL_AS_USER=1"
-fi
+PKG_ARGS="$PKG_ARGS -o INSTALL_AS_USER=1"
 PKGCMD="/usr/sbin/pkg ${PKG_ARGS}"
 
 if [ ! -x /usr/local/sbin/pkg ]; then
@@ -110,10 +106,8 @@ ln -s ../All/$(${PKGCMD} rquery %n-%v pkg).pkg ${LATEST_DIR}/pkg.pkg
 
 ${PKGCMD} repo ${PKG_REPODIR}
 
-if [ $NO_ROOT ]; then
-	mtree -c -p $ROOTDIR | mtree -C -k type,mode,link,size | \
-	    grep '^./packages[/ ]' >> $ROOTDIR/METALOG
-fi
+mtree -c -p $ROOTDIR | mtree -C -k type,mode,link,size | \
+    grep '^./packages[/ ]' >> $ROOTDIR/METALOG
 
 # Always exit '0', even if pkg(8) complains about conflicts.
 exit 0

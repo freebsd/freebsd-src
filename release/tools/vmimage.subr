@@ -41,21 +41,19 @@ cleanup() {
 metalog_add_data() {
 	local file mode type
 
-	if [ -n "${NO_ROOT}" ]; then
-		file=$1
-		if [ -f ${DESTDIR}/${file} ]; then
-			type=file
-			mode=${2:-0644}
-		elif [ -d ${DESTDIR}/${file} ]; then
-			type=dir
-			mode=${2:-0755}
-		else
-			echo "metalog_add_data: ${file} not found" >&2
-			return 1
-		fi
-		echo "${file} type=${type} uname=root gname=wheel mode=${mode}" >> \
-		    ${DESTDIR}/METALOG
+	file=$1
+	if [ -f ${DESTDIR}/${file} ]; then
+		type=file
+		mode=${2:-0644}
+	elif [ -d ${DESTDIR}/${file} ]; then
+		type=dir
+		mode=${2:-0755}
+	else
+		echo "metalog_add_data: ${file} not found" >&2
+		return 1
 	fi
+	echo "${file} type=${type} uname=root gname=wheel mode=${mode}" >> \
+	    ${DESTDIR}/METALOG
 }
 
 vm_create_base() {
@@ -103,9 +101,7 @@ vm_install_base() {
 		pkg_cmd="${PKG_CMD} --rootdir ${DESTDIR} --repo-conf-dir ${PKGBASE_REPO_DIR}
 			-o ASSUME_ALWAYS_YES=yes -o IGNORE_OSVERSION=yes
 			-o ABI=${PKG_ABI} -o INSTALL_AS_USER=yes "
-		if [ -n "${NO_ROOT}" ]; then
-			pkg_cmd="$pkg_cmd -o METALOG=METALOG"
-		fi
+		pkg_cmd="$pkg_cmd -o METALOG=METALOG"
 		$pkg_cmd update
 		selected=$(vm_base_packages_list | vm_extra_filter_base_packages)
 		$pkg_cmd install -U -r FreeBSD-base $selected
@@ -126,14 +122,12 @@ vm_install_base() {
 	etcupdate extract -B \
 		-M "TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH}" \
 		-s ${WORLDDIR} -d ${DESTDIR}/var/db/etcupdate \
-		-L /dev/stdout ${NO_ROOT:+-N}
-	if [ -n "${NO_ROOT}" ]; then
-		# Reroot etcupdate's internal METALOG to the whole tree
-		sed -n 's,^\.,./var/db/etcupdate/current,p' \
-		    ${DESTDIR}/var/db/etcupdate/current/METALOG | \
-		    env -i LC_COLLATE=C sort >> ${DESTDIR}/METALOG
-		rm ${DESTDIR}/var/db/etcupdate/current/METALOG
-	fi
+		-L /dev/stdout -N
+	# Reroot etcupdate's internal METALOG to the whole tree
+	sed -n 's,^\.,./var/db/etcupdate/current,p' \
+	    ${DESTDIR}/var/db/etcupdate/current/METALOG | \
+	    env -i LC_COLLATE=C sort >> ${DESTDIR}/METALOG
+	rm ${DESTDIR}/var/db/etcupdate/current/METALOG
 
 	echo '# Custom /etc/fstab for FreeBSD VM images' \
 		> ${DESTDIR}/etc/fstab
@@ -209,40 +203,25 @@ vm_extra_install_packages() {
 	if [ -z "${VM_EXTRA_PACKAGES}" ]; then
 		return 0
 	fi
-	if [ -n "${NO_ROOT}" ]; then
-		for pkg in ${VM_EXTRA_PACKAGES}; do
-			INSTALL_AS_USER=yes \
-			${PKG_CMD} \
-			    -o ABI=${PKG_ABI} \
-			    -o METALOG=${DESTDIR}/METALOG.pkg \
-			    -o REPOS_DIR=${PKG_REPOS_DIR} \
-			    -o PKG_DBDIR=${DESTDIR}/var/db/pkg \
-			    -r ${DESTDIR} \
-			    install -y -r ${PKG_REPO_NAME} $pkg
-		done
+	for pkg in ${VM_EXTRA_PACKAGES}; do
 		INSTALL_AS_USER=yes \
-		${PKG_CMD} \
+		    ${PKG_CMD} \
 		    -o ABI=${PKG_ABI} \
+		    -o METALOG=${DESTDIR}/METALOG.pkg \
 		    -o REPOS_DIR=${PKG_REPOS_DIR} \
 		    -o PKG_DBDIR=${DESTDIR}/var/db/pkg \
 		    -r ${DESTDIR} \
-		    autoremove -y
-		if [ -n "${NOPKGBASE}" ]; then
-			metalog_add_data ./var/db/pkg/local.sqlite
-		fi
-	else
-		if [ -n "${WITHOUT_QEMU}" ]; then
-			return 0
-		fi
-
-		chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
-			/usr/sbin/pkg bootstrap -y
-		for p in ${VM_EXTRA_PACKAGES}; do
-			chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
-				/usr/sbin/pkg install -y ${p}
-		done
-		chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
-		    /usr/sbin/pkg autoremove -y
+		    install -y -r ${PKG_REPO_NAME} $pkg
+	done
+	INSTALL_AS_USER=yes \
+	    ${PKG_CMD} \
+	    -o ABI=${PKG_ABI} \
+	    -o REPOS_DIR=${PKG_REPOS_DIR} \
+	    -o PKG_DBDIR=${DESTDIR}/var/db/pkg \
+	    -r ${DESTDIR} \
+	    autoremove -y
+	if [ -n "${NOPKGBASE}" ]; then
+		metalog_add_data ./var/db/pkg/local.sqlite
 	fi
 
 	return 0
@@ -276,18 +255,11 @@ vm_emulation_cleanup() {
 }
 
 vm_extra_pkg_rmcache() {
-	if [ -n "${NO_ROOT}" ]; then
-		${PKG_CMD} \
-		    -o ASSUME_ALWAYS_YES=yes \
-		    -o INSTALL_AS_USER=yes \
-		    -r ${DESTDIR} \
-		    clean -y -a
-	else
-		if [ -e ${DESTDIR}/usr/local/sbin/pkg ]; then
-			chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
-			    /usr/local/sbin/pkg clean -y -a
-		fi
-	fi
+	${PKG_CMD} \
+	    -o ASSUME_ALWAYS_YES=yes \
+	    -o INSTALL_AS_USER=yes \
+	    -r ${DESTDIR} \
+	    clean -y -a
 
 	return 0
 }
@@ -306,57 +278,55 @@ buildfs() {
 		done < ${DESTDIR}/METALOG.pkg
 	fi
 
-	if [ -n "${NO_ROOT}" ]; then
-		# Check for any directories in the staging tree which weren't
-		# recorded in METALOG, and record them now.  This is a quick hack
-		# to avoid creating unusable VM images and should go away once
-		# the bugs which produce such unlogged directories are gone.
-		grep type=dir ${DESTDIR}/METALOG |
-		    cut -f 1 -d ' ' |
-		    sort -u > ${DESTDIR}/METALOG.dirs
-		( cd ${DESTDIR} && find . -type d ) |
-		    sort |
-		    comm -23 - ${DESTDIR}/METALOG.dirs > ${DESTDIR}/METALOG.missingdirs
-		if [ -s ${DESTDIR}/METALOG.missingdirs ]; then
-			echo "WARNING: Directories exist but were not in METALOG"
-			cat ${DESTDIR}/METALOG.missingdirs
-		fi
-		while read DIR; do
-			metalog_add_data ${DIR}
-		done < ${DESTDIR}/METALOG.missingdirs
-
-		if [ -z "${NOPKGBASE}" ]; then
-			# Add some database files which are created by pkg triggers;
-			# at some point in the future the tools which create these
-			# files should probably learn how to record them in METALOG
-			# (which would simplify no-root installworld as well).
-			metalog_add_data ./etc/login.conf.db
-			metalog_add_data ./etc/passwd
-			metalog_add_data ./etc/pwd.db
-			metalog_add_data ./etc/spwd.db 600
-			metalog_add_data ./var/db/services.db
-		fi
-
-		if [ -n "${MISSING_METALOGS}" ]; then
-			# Hack to allow VM configurations to add files which
-			# weren't being added to METALOG appropriately.  This
-			# is mainly a workaround for the @sample bug and it
-			# should go away before FreeBSD 15.1 ships.
-			for P in ${MISSING_METALOGS}; do
-				metalog_add_data ${P}
-			done
-		fi
-
-		# Sort METALOG file; makefs produces directories with 000 permissions
-		# if their contents are seen before the directories themselves.
-		env -i LC_COLLATE=C sort -u ${DESTDIR}/METALOG > ${DESTDIR}/METALOG.sorted
-		mv ${DESTDIR}/METALOG.sorted ${DESTDIR}/METALOG
+	# Check for any directories in the staging tree which weren't
+	# recorded in METALOG, and record them now.  This is a quick hack
+	# to avoid creating unusable VM images and should go away once
+	# the bugs which produce such unlogged directories are gone.
+	grep type=dir ${DESTDIR}/METALOG |
+	    cut -f 1 -d ' ' |
+	    sort -u > ${DESTDIR}/METALOG.dirs
+	( cd ${DESTDIR} && find . -type d ) |
+	    sort |
+	    comm -23 - ${DESTDIR}/METALOG.dirs > ${DESTDIR}/METALOG.missingdirs
+	if [ -s ${DESTDIR}/METALOG.missingdirs ]; then
+		echo "WARNING: Directories exist but were not in METALOG"
+		cat ${DESTDIR}/METALOG.missingdirs
 	fi
+	while read DIR; do
+		metalog_add_data ${DIR}
+	done < ${DESTDIR}/METALOG.missingdirs
+
+	if [ -z "${NOPKGBASE}" ]; then
+		# Add some database files which are created by pkg triggers;
+		# at some point in the future the tools which create these
+		# files should probably learn how to record them in METALOG
+		# (which would simplify no-root installworld as well).
+		metalog_add_data ./etc/login.conf.db
+		metalog_add_data ./etc/passwd
+		metalog_add_data ./etc/pwd.db
+		metalog_add_data ./etc/spwd.db 600
+		metalog_add_data ./var/db/services.db
+	fi
+
+	if [ -n "${MISSING_METALOGS}" ]; then
+		# Hack to allow VM configurations to add files which
+		# weren't being added to METALOG appropriately.  This
+		# is mainly a workaround for the @sample bug and it
+		# should go away before FreeBSD 15.1 ships.
+		for P in ${MISSING_METALOGS}; do
+			metalog_add_data ${P}
+		done
+	fi
+
+	# Sort METALOG file; makefs produces directories with 000 permissions
+	# if their contents are seen before the directories themselves.
+	env -i LC_COLLATE=C sort -u ${DESTDIR}/METALOG > ${DESTDIR}/METALOG.sorted
+	mv ${DESTDIR}/METALOG.sorted ${DESTDIR}/METALOG
 
 	case "${VMFS}" in
 	ufs)
 		cd ${DESTDIR} && ${MAKEFS} ${MAKEFSARGS} -o label=rootfs -o version=2 -o softupdates=1 \
-			${VMBASE} .${NO_ROOT:+/METALOG}
+			${VMBASE} ./METALOG
 		;;
 	zfs)
 		cd ${DESTDIR} && ${MAKEFS} -t zfs ${MAKEFSARGS} \
@@ -376,7 +346,7 @@ buildfs() {
 			-o fs=zroot/var/log\;setuid=off\;exec=off \
 			-o fs=zroot/var/mail\;atime=on \
 			-o fs=zroot/var/tmp\;setuid=off \
-			${VMBASE} .${NO_ROOT:+/METALOG}
+			${VMBASE} ./METALOG
 		;;
 	*)
 		echo "Unexpected VMFS value '${VMFS}'"
