@@ -9,3 +9,53 @@ specified as a comma separated list and/or range, followed by a colon and a
 newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
+
+dbac191956f9, fe21dbf70aa8:
+	Support for the kcmp(2) system call and fcntl(F_DUPFD_QUERY) for Linux
+	binaries.
+
+a86dc94b84d1:
+	tzdata2025c was imported.
+
+a98e5d785001:
+	Add strdupa(3) and strndupa(3) macros for compatability with glibc.
+
+e967a2a03677:
+	divert socket compat removal, consumers must use PF_DIVERT instead of
+	PF_INET.
+
+4453ec5b8716b, 2a3b1641756a:
+	The reboot(8) and halt(8) commands now perform a graceful shutdown similar
+	to the shutdown(8) command including invoking rc.d scripts to shutdown
+	services.  The fastboot(8) and fasthalt(8) commands still perform a "fast"
+	reboot or shutdown.
+
+d9788eabffa4:
+	ipfilter cannot be used in a jail by default.
+
+0ff0c19e7f70:
+	ipfs(8) is no longer built by default.
+
+575efcfff22f:
+	sendfile(2)'s SF_SYNC flag was removed.
+
+057dae35ffc6, 51a01f3debff, ca3e47b0ea68:
+	hwpmc(4) support for Intel Alder Lake 6-B7, 6-BA, and 6-BF CPU
+	hwpmc(4) support for Intel Emerald Rapids CPUs
+	hwpmc(4) support for Intel Alder Lake-N CPUs
+
+1ecf01065b45:
+	New library libuvmem provides the vmem(9) API to userspace applications.
+
+b6cad334e64:
+	Make game controller devices accessible by members of the "game" group
+	by default.
+
+791c531402bd:
+	Add driver for Feature Integration Technology Inc. (aka Fintek) F81232
+	USB to serial devices.
+
+ec0cd287f55f:
+	Support for NVMe/TCP offload on Chelsio T7 adapters.  The nvmf_che(4)
+	module enables T7 adapters to process NVMe/TCP PDUs directly similar to
+	the PDU offload provided by cxgbei(4) for iSCSI.
