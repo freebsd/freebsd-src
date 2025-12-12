@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 5, 2014
+.Dd December 14, 2025
 .Dt GETOPT 3
 .Os
 .Sh NAME
@@ -60,30 +60,49 @@ if it has been specified in the string of accepted option characters,
 The option string
 .Fa optstring
 may contain the following elements: individual characters, and
-characters followed by a colon to indicate an option argument
-is to follow.
-If an individual character is followed by two colons, then the
-option argument is optional;
+characters followed by a colon
+.Pq Ql \&:
+to indicate an option argument is to follow.
+If an individual character is followed by two colons
+.Pq Ql \&:\&: ,
+then the option argument is optional;
 .Va optarg
 is set to the rest of the current
-.Va argv
+.Fa argv
 word, or
 .Dv NULL
 if there were no more characters in the current word.
-This is a
-.Tn GNU
-extension.
+This is an extension not covered by POSIX.
+.Pp
 For example, an option string
 .Li \&"x"
 recognizes an option
-.Dq Fl x ,
-and an option string
+.Dq Fl x .
+.Pp
+An option string
 .Li \&"x:"
-recognizes an option and argument
-.Dq Fl x Ar argument .
+recognizes an option with an argument, both
+.Dq Fl x Ns Ar arg\^ ,
+and
+.Dq Fl x Ar arg\^ .
 It does not matter to
 .Fn getopt
-if a following argument has leading white space.
+if the option's argument is a separate word or not.
+.Pp
+An option string
+.Li \&"x::"
+recognizes the option both without an argument
+.Dq Fl x ,
+and with an argument
+.Dq Fl x Ns Ar arg\^ .
+In the latter case the argument must be part of the same
+.Fa argv
+word.
+The
+.Dq Fl x
+and
+.Dq Ar arg\^
+must not be separated by a whitespace on the command line.
 .Pp
 On return from
 .Fn getopt ,
@@ -267,7 +286,7 @@ Care should be taken not to use
 as the first character in
 .Fa optstring
 to avoid a semantic conflict with
-.Tn GNU
+GNU
 .Fn getopt ,
 which assigns different meaning to an
 .Fa optstring
