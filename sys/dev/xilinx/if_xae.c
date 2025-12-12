@@ -544,11 +544,6 @@ xae_get_phyaddr(phandle_t node, int *phy_addr)
 }
 
 static void
-xae_qflush(if_t ifp)
-{
-}
-
-static void
 xae_stop_locked(struct xae_softc *sc)
 {
 	uint32_t reg;
@@ -1239,7 +1234,6 @@ xae_attach(device_t dev)
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 	if_setcapabilities(ifp, IFCAP_VLAN_MTU);
 	if_setcapenable(ifp, if_getcapabilities(ifp));
-	if_setqflushfn(ifp, xae_qflush);
 	if_setioctlfn(ifp, xae_ioctl);
 	if_setstartfn(ifp, xae_txstart);
 	if_setinitfn(ifp, xae_init);
