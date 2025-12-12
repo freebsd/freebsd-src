@@ -280,7 +280,7 @@
     ..
     libipt
     ..
-    libmilter           tags=package=libmilter-dev
+    libmilter
     ..
     libxo               tags=package=runtime-dev
     ..
