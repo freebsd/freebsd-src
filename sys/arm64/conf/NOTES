@@ -69,6 +69,9 @@ device		gve		# Google Virtual NIC (gVNIC) driver
 # Microsoft Hyper-V
 device		hyperv
 
+# Xen HVM Guest support
+options		XENHVM			# Xen HVM kernel infrastructure
+
 # CPU frequency control
 device		cpufreq
 
