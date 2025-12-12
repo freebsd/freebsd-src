@@ -849,7 +849,7 @@ again:
 		}
 		scsi_report_luns(csio, 5, probedone, MSG_SIMPLE_Q_TAG,
 		    RPL_REPORT_WELLKNOWN, rp, periph->path->target->rpl_size,
-		    SSD_FULL_SIZE, 60000);
+		    SSD_FULL_SIZE, reportluns_timeout);
 		break;
 	}
 	case PROBE_REPORT_LUNS:
