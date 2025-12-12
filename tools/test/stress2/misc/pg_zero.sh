@@ -42,7 +42,7 @@ wr(void *arg __unused)
 	int n;
 
 	while (done != 1) {
-		while (go == 0) {
+		while (go == 0 && done != 1) {
 			usleep(10);
 		}
 		go = 2;
@@ -184,7 +184,7 @@ mdconfig -a -t vnode -f $diskimage -u $mdstart
 ../testcases/swap/swap -t 3m -i 20 -l 100 > /dev/null &
 sleep 3
 cd /tmp; ./$prog; s=$?; cd -
-pkill swap
+while pkill swap; do sleep .1; done
 wait
 rm -f /tmp/$prog.c /tmp/$prog $diskimage
 mdconfig -d -u $mdstart
