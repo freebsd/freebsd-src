@@ -324,13 +324,8 @@ print_state(struct pfctl_state *s, int opts)
 	} else if (proto == IPPROTO_SCTP) {
 		printf("   %s:%s\n", sctp_state_name(src->state),
 		    sctp_state_name(dst->state));
-#ifndef INET6
-	} else if (proto != IPPROTO_ICMP && src->state < PFOTHERS_NSTATES &&
-	    dst->state < PFOTHERS_NSTATES) {
-#else
 	} else if (proto != IPPROTO_ICMP && proto != IPPROTO_ICMPV6 &&
 	    src->state < PFOTHERS_NSTATES && dst->state < PFOTHERS_NSTATES) {
-#endif
 		/* XXX ICMP doesn't really have state levels */
 		const char *states[] = PFOTHERS_NAMES;
 
