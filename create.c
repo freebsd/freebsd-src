@@ -1,4 +1,4 @@
-/*	$NetBSD: create.c,v 1.73 2014/04/24 17:22:41 christos Exp $	*/
+/*	$NetBSD: create.c,v 1.79 2024/12/05 17:17:43 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)create.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: create.c,v 1.73 2014/04/24 17:22:41 christos Exp $");
+__RCSID("$NetBSD: create.c,v 1.79 2024/12/05 17:17:43 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -84,13 +84,6 @@ static uid_t uid;
 static mode_t mode;
 static u_long flags;
 
-#ifdef __FreeBSD__
-#define	FTS_CONST const
-#else
-#define	FTS_CONST
-#endif
-
-static int	dcmp(const FTSENT *FTS_CONST *, const FTSENT *FTS_CONST *);
 static void	output(FILE *, int, int *, const char *, ...)
     __printflike(4, 5);
 static int	statd(FILE *, FTS *, FTSENT *, uid_t *, gid_t *, mode_t *,
@@ -117,7 +110,7 @@ cwalk(FILE *fp)
 	host[sizeof(host) - 1] = '\0';
 	if ((user = getlogin()) == NULL) {
 		struct passwd *pw;
-		user = (pw = getpwuid(getuid())) == NULL ? pw->pw_name :
+		user = (pw = getpwuid(getuid())) != NULL ? pw->pw_name :
 		    "<unknown>";
 	}
 
@@ -173,20 +166,66 @@ cwalk(FILE *fp)
 
 		}
 	}
+	if (errno != 0)
+		mtree_err("fts_read: %s", strerror(errno));
 	fts_close(t);
 	if (sflag && keys & F_CKSUM)
 		mtree_err("%s checksum: %u", fullpath, crc_total);
 }
 
 static void
+dosum(FILE *fp, int indent, FTSENT *p, int *offset, int flag,
+    char * (*func)(const char *, char *), const char *key)
+{
+	char *digestbuf;
+
+	if ((keys & flag) == 0)
+		return;
+
+	digestbuf = (*func)(p->fts_accpath, NULL);
+	if (digestbuf != NULL) {
+		output(fp, indent, offset, "%s=%s", key, digestbuf);
+		free(digestbuf);
+		return;
+	}
+
+	if (qflag) {
+		warn("%s: %s failed", p->fts_path, key);
+		return;
+	}
+
+	mtree_err("%s: %s failed: %s", p->fts_path, key, strerror(errno));
+}
+
+static char *
+crcFile(const char *fname, char *dummy __unused)
+{
+	char *ptr;
+	uint32_t val, len;
+	int fd, e;
+
+	if ((fd = open(fname, O_RDONLY)) == -1)
+		goto out;
+
+	e = crc(fd, &val, &len);
+	close(fd);
+	if (e)
+		goto out;
+
+	if (asprintf(&ptr, "%u", val) < 0)
+		goto out;
+
+	return ptr;
+out:
+	mtree_err("%s: %s", fname, strerror(errno));
+	return NULL;
+}
+
+static void
 statf(FILE *fp, int indent, FTSENT *p)
 {
-	u_int32_t len, val;
-	int fd, offset;
+	int offset;
 	const char *name = NULL;
-#if !defined(NO_MD5) || !defined(NO_RMD160) || !defined(NO_SHA1) || !defined(NO_SHA2)
-	char *digestbuf;
-#endif
 
 	offset = fprintf(fp, "%*s%s%s", indent, "",
 	    S_ISDIR(p->fts_statp->st_mode) ? "" : "    ", vispath(p->fts_name));
@@ -224,7 +263,8 @@ statf(FILE *fp, int indent, FTSENT *p)
 		output(fp, indent, &offset, "device=%#jx",
 		    (uintmax_t)p->fts_statp->st_rdev);
 	if (keys & F_NLINK && p->fts_statp->st_nlink != 1)
-		output(fp, indent, &offset, "nlink=%u", p->fts_statp->st_nlink);
+		output(fp, indent, &offset, "nlink=%ju",
+		    (uintmax_t)p->fts_statp->st_nlink);
 	if (keys & F_SIZE &&
 	    (flavor == F_FREEBSD9 || S_ISREG(p->fts_statp->st_mode)))
 		output(fp, indent, &offset, "size=%ju",
@@ -238,65 +278,25 @@ statf(FILE *fp, int indent, FTSENT *p)
 		output(fp, indent, &offset, "time=%jd.%09ld",
 		    (intmax_t)p->fts_statp->st_mtime, (long)0);
 #endif
-	if (keys & F_CKSUM && S_ISREG(p->fts_statp->st_mode)) {
-		if ((fd = open(p->fts_accpath, O_RDONLY, 0)) < 0 ||
-		    crc(fd, &val, &len))
-			mtree_err("%s: %s", p->fts_accpath, strerror(errno));
-		close(fd);
-		output(fp, indent, &offset, "cksum=%lu", (long)val);
-	}
+	if (S_ISREG(p->fts_statp->st_mode))  {
+		dosum(fp, indent, p, &offset, F_CKSUM, crcFile, "cksum");
 #ifndef NO_MD5
-	if (keys & F_MD5 && S_ISREG(p->fts_statp->st_mode)) {
-		if ((digestbuf = MD5File(p->fts_accpath, NULL)) == NULL)
-			mtree_err("%s: MD5File failed: %s", p->fts_accpath,
-			    strerror(errno));
-		output(fp, indent, &offset, "%s=%s", MD5KEY, digestbuf);
-		free(digestbuf);
-	}
+		dosum(fp, indent, p, &offset, F_MD5, MD5File, MD5KEY);
 #endif	/* ! NO_MD5 */
 #ifndef NO_RMD160
-	if (keys & F_RMD160 && S_ISREG(p->fts_statp->st_mode)) {
-		if ((digestbuf = RMD160File(p->fts_accpath, NULL)) == NULL)
-			mtree_err("%s: RMD160File failed: %s", p->fts_accpath,
-			    strerror(errno));
-		output(fp, indent, &offset, "%s=%s", RMD160KEY, digestbuf);
-		free(digestbuf);
-	}
+		dosum(fp, indent, p, &offset, F_RMD160, RMD160File, RMD160KEY);
 #endif	/* ! NO_RMD160 */
 #ifndef NO_SHA1
-	if (keys & F_SHA1 && S_ISREG(p->fts_statp->st_mode)) {
-		if ((digestbuf = SHA1File(p->fts_accpath, NULL)) == NULL)
-			mtree_err("%s: SHA1File failed: %s", p->fts_accpath,
-			    strerror(errno));
-		output(fp, indent, &offset, "%s=%s", SHA1KEY, digestbuf);
-		free(digestbuf);
-	}
+		dosum(fp, indent, p, &offset, F_SHA1, SHA1File, SHA1KEY);
 #endif	/* ! NO_SHA1 */
 #ifndef NO_SHA2
-	if (keys & F_SHA256 && S_ISREG(p->fts_statp->st_mode)) {
-		if ((digestbuf = SHA256_File(p->fts_accpath, NULL)) == NULL)
-			mtree_err("%s: SHA256_File failed: %s", p->fts_accpath,
-			    strerror(errno));
-		output(fp, indent, &offset, "%s=%s", SHA256KEY, digestbuf);
-		free(digestbuf);
-	}
+		dosum(fp, indent, p, &offset, F_SHA256, SHA256_File, SHA256KEY);
 #ifdef SHA384_BLOCK_LENGTH
-	if (keys & F_SHA384 && S_ISREG(p->fts_statp->st_mode)) {
-		if ((digestbuf = SHA384_File(p->fts_accpath, NULL)) == NULL)
-			mtree_err("%s: SHA384_File failed: %s", p->fts_accpath,
-			    strerror(errno));
-		output(fp, indent, &offset, "%s=%s", SHA384KEY, digestbuf);
-		free(digestbuf);
-	}
+		dosum(fp, indent, p, &offset, F_SHA384, SHA384_File, SHA384KEY);
 #endif
-	if (keys & F_SHA512 && S_ISREG(p->fts_statp->st_mode)) {
-		if ((digestbuf = SHA512_File(p->fts_accpath, NULL)) == NULL)
-			mtree_err("%s: SHA512_File failed: %s", p->fts_accpath,
-			    strerror(errno));
-		output(fp, indent, &offset, "%s=%s", SHA512KEY, digestbuf);
-		free(digestbuf);
-	}
+		dosum(fp, indent, p, &offset, F_SHA512, SHA512_File, SHA512KEY);
 #endif	/* ! NO_SHA2 */
+	}
 	if (keys & F_SLINK &&
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE))
 		output(fp, indent, &offset, "link=%s",
@@ -435,27 +435,6 @@ statd(FILE *fp, FTS *t, FTSENT *parent, uid_t *puid, gid_t *pgid, mode_t *pmode,
 		*pflags = saveflags;
 	}
 	return (0);
-}
-
-/*
- * dcmp --
- *	used as a comparison function passed to fts_open() to control
- *	the order in which fts_read() returns results.	We make
- *	directories sort after non-directories, but otherwise sort in
- *	strcmp() order.
- *
- * Keep this in sync with nodecmp() in spec.c.
- */
-static int
-dcmp(const FTSENT *FTS_CONST *a, const FTSENT *FTS_CONST *b)
-{
-
-	if (S_ISDIR((*a)->fts_statp->st_mode)) {
-		if (!S_ISDIR((*b)->fts_statp->st_mode))
-			return (1);
-	} else if (S_ISDIR((*b)->fts_statp->st_mode))
-		return (-1);
-	return (strcmp((*a)->fts_name, (*b)->fts_name));
 }
 
 void

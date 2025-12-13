@@ -1,4 +1,4 @@
-/*	$NetBSD: only.c,v 1.2 2013/02/05 00:59:03 christos Exp $	*/
+/*	$NetBSD: only.c,v 1.3 2017/09/07 04:04:13 nakayama Exp $	*/
 
 /*-
  * Copyright (c) 2013 The NetBSD Foundation, Inc.
@@ -38,7 +38,7 @@
 #include <sys/cdefs.h>
 
 #if defined(__RCSID) && !defined(lint)
-__RCSID("$NetBSD: only.c,v 1.2 2013/02/05 00:59:03 christos Exp $");
+__RCSID("$NetBSD: only.c,v 1.3 2017/09/07 04:04:13 nakayama Exp $");
 #endif
 
 #include <sys/param.h>
@@ -89,11 +89,14 @@ static void
 hash_insert(char *str, uint32_t h)
 {
 	struct hentry *e;
+	char *x;
 
 	if ((e = malloc(sizeof(*e))) == NULL)
 		mtree_err("memory allocation error");
+	if ((x = strdup(str)) == NULL)
+		mtree_err("memory allocation error");
 
-	e->str = str;
+	e->str = x;
 	e->hash = h;
 	e->next = table[h];
 	table[h] = e;
@@ -110,10 +113,7 @@ fill(char *str)
 
 	*ptr = '\0';
 	if (!hash_find(str, &h)) {
-		char *x = strdup(str);
-		if (x == NULL)
-			mtree_err("memory allocation error");
-		hash_insert(x, h);
+		hash_insert(str, h);
 		fill(str);
 	}
 	*ptr = '/';
@@ -135,6 +135,7 @@ load_only(const char *fname)
 			err(1, "Duplicate entry %s", line);
 		hash_insert(line, h);
 		fill(line);
+		free(line);
 	}
 
 	fclose(fp);
