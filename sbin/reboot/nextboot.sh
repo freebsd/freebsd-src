@@ -115,6 +115,10 @@ set -e
 
 nextboot_tmp=$(mktemp $(dirname ${nextboot_file})/nextboot.XXXXXX)
 
+if [ ${append} = "YES" -a -f ${nextboot_file} ]; then
+	cp -f ${nextboot_file} ${nextboot_tmp}
+fi
+
 if [ -n "${zfs}" ]; then
 	zfsbootcfg -z ${zfs} -n freebsd:nvstore -k nextboot_enable -v YES
 	cat >> ${nextboot_tmp} << EOF
