@@ -55,7 +55,7 @@
 #define	ALTQT_CODEL		14      /* CoDel */
 #define	ALTQT_MAX		15	/* should be max discipline type + 1 */
 
-/* simple token backet meter profile */
+/* simple token bucket meter profile */
 struct	tb_profile {
 	u_int64_t	rate;	/* rate in bit-per-sec */
 	u_int32_t	depth;	/* depth in bytes */
