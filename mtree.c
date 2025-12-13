@@ -1,4 +1,4 @@
-/*	$NetBSD: mtree.c,v 1.49 2014/04/24 17:22:41 christos Exp $	*/
+/*	$NetBSD: mtree.c,v 1.51 2024/12/05 17:17:15 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1990, 1993
@@ -43,7 +43,7 @@ __COPYRIGHT("@(#) Copyright (c) 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)mtree.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: mtree.c,v 1.49 2014/04/24 17:22:41 christos Exp $");
+__RCSID("$NetBSD: mtree.c,v 1.51 2024/12/05 17:17:15 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -195,7 +195,7 @@ main(int argc, char **argv)
 			qflag = 1;
 			break;
 		case 'r':
-			rflag = 1;
+			rflag++;
 			break;
 		case 'R':
 			while ((p = strsep(&optarg, " \t,")) != NULL)
@@ -204,7 +204,7 @@ main(int argc, char **argv)
 			break;
 		case 's':
 			sflag = 1;
-			crc_total = ~strtol(optarg, &p, 0);
+			crc_total = (uint32_t)~strtol(optarg, &p, 0);
 			if (*p)
 				mtree_err("illegal seed value -- %s", optarg);
 			break;

@@ -1,4 +1,4 @@
-/*	$NetBSD: crc.c,v 1.9 2012/10/05 00:40:51 christos Exp $	*/
+/*	$NetBSD: crc.c,v 1.11 2024/12/05 17:17:43 christos Exp $	*/
 
 /*-
  * Copyright (c) 1991, 1993
@@ -41,7 +41,7 @@
 #if 0
 static char sccsid[] = "@(#)crc.c	8.1 (Berkeley) 6/17/93";
 #else
-__RCSID("$NetBSD: crc.c,v 1.9 2012/10/05 00:40:51 christos Exp $");
+__RCSID("$NetBSD: crc.c,v 1.11 2024/12/05 17:17:43 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -53,7 +53,7 @@ __RCSID("$NetBSD: crc.c,v 1.9 2012/10/05 00:40:51 christos Exp $");
 
 #include "extern.h"
 
-static const u_int32_t crctab[] = {
+static const uint32_t crctab[] = {
 	0x0,
 	0x04c11db7, 0x09823b6e, 0x0d4326d9, 0x130476dc, 0x17c56b6b,
 	0x1a864db2, 0x1e475005, 0x2608edb8, 0x22c9f00f, 0x2f8ad6d6,
@@ -114,15 +114,15 @@ static const u_int32_t crctab[] = {
  * locations to store the crc and the number of bytes read.  It returns 0 on
  * success and 1 on failure.  Errno is set on failure.
  */
-u_int32_t crc_total = ~0;		/* The crc over a number of files. */
+uint32_t crc_total = ~0u;		/* The crc over a number of files. */
 
 int
-crc(int fd, u_int32_t *cval, u_int32_t *clen)
+crc(int fd, uint32_t *cval, uint32_t *clen)
 {
 	u_char *p;
-	int nr;
-	u_int32_t thecrc, len;
-	u_int32_t crctot;
+	ssize_t nr;
+	uint32_t thecrc, len;
+	uint32_t crctot;
 	u_char buf[16 * 1024];
 
 #define	COMPUTE(var, ch)	(var) = (var) << 8 ^ crctab[(var) >> 24 ^ (ch)]
@@ -132,12 +132,12 @@ crc(int fd, u_int32_t *cval, u_int32_t *clen)
 		crctot = ~crc_total;
 	while ((nr = read(fd, buf, sizeof(buf))) > 0)
 		if (sflag) {
-			for (len += nr, p = buf; nr--; ++p) {
+			for (len += (uint32_t)nr, p = buf; nr--; ++p) {
 				COMPUTE(thecrc, *p);
 				COMPUTE(crctot, *p);
 			}
 		} else {
-			for (len += nr, p = buf; nr--; ++p)
+			for (len += (uint32_t)nr, p = buf; nr--; ++p)
 				COMPUTE(thecrc, *p);
 		}
 	if (nr < 0)
