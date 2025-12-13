@@ -632,7 +632,7 @@ mmcprobe_start(struct cam_periph *periph, union ccb *start_ccb)
 		if (host_caps & MMC_CAP_SIGNALING_180)
 			softc->flags |= PROBE_FLAG_HOST_CAN_DO_18V;
 		uint32_t hv = mmc_highest_voltage(softc->host_ocr);
-		CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_PROBE, ("reseting the bus\n"));
+		CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_PROBE, ("resetting the bus\n"));
 		init_standard_ccb(start_ccb, XPT_MMC_SET_TRAN_SETTINGS);
 		cts->ios.vdd = hv;
 		cts->ios.bus_mode = opendrain;
