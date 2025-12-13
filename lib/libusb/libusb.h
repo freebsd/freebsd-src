@@ -293,7 +293,6 @@ struct libusb_context;
 struct libusb_device;
 struct libusb_transfer;
 struct libusb_device_handle;
-struct libusb_hotplug_callback_handle_struct;
 
 struct libusb_pollfd {
 	int	fd;
@@ -322,7 +321,7 @@ typedef struct libusb_device_handle libusb_device_handle;
 typedef struct libusb_pollfd libusb_pollfd;
 typedef void (*libusb_pollfd_added_cb) (int fd, short events, void *user_data);
 typedef void (*libusb_pollfd_removed_cb) (int fd, void *user_data);
-typedef struct libusb_hotplug_callback_handle_struct *libusb_hotplug_callback_handle;
+typedef int libusb_hotplug_callback_handle;
 
 typedef struct libusb_device_descriptor {
 	uint8_t	bLength;
@@ -632,7 +631,7 @@ typedef int (*libusb_hotplug_callback_fn)(libusb_context *ctx,
     libusb_device *device, libusb_hotplug_event event, void *user_data);
 
 int	libusb_hotplug_register_callback(libusb_context *ctx, libusb_hotplug_event events, libusb_hotplug_flag flags, int vendor_id, int product_id, int dev_class, libusb_hotplug_callback_fn cb_fn, void *user_data, libusb_hotplug_callback_handle *handle);
-void	libusb_hotplug_deregister_callback(libusb_context *ctx, libusb_hotplug_callback_handle handle);
+void	libusb_hotplug_deregister_callback(libusb_context *ctx, libusb_hotplug_callback_handle callback_handle);
 void   *libusb_hotplug_get_user_data(struct libusb_context *ctx,
     libusb_hotplug_callback_handle callback_handle);
 

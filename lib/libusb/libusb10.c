@@ -205,6 +205,7 @@ libusb_init_context(libusb_context **context,
 
 	memset(ctx, 0, sizeof(*ctx));
 	ctx->devd_pipe = -1;
+	ctx->next_callback_id = 1;
 
 	debug = getenv("LIBUSB_DEBUG");
 	if (debug != NULL) {
