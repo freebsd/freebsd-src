@@ -1007,7 +1007,7 @@ error:
  * @param *stats        pointer to where to store statistics
  * @param reset_stats   resets statistics of set
  * @returns             0 on success, EIO on failure
- * @note                command depricated in Lancer
+ * @note                command deprecated in Lancer
  */
 #define OCE_MBOX_GET_NIC_STATS(sc, pstats_dma_mem, version) 				\
 int 											\
