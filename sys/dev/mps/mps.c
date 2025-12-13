@@ -518,7 +518,7 @@ mps_iocfacts_allocate(struct mps_softc *sc, uint8_t attaching)
 	 */
 	if (attaching && ((sc->facts->IOCCapabilities &
 	    MPI2_IOCFACTS_CAPABILITY_EVENT_REPLAY) == 0)) {
-		mps_dprint(sc, MPS_INIT, "No event replay, reseting\n");
+		mps_dprint(sc, MPS_INIT, "No event replay, resetting\n");
 		mps_diag_reset(sc, NO_SLEEP);
 		if ((error = mps_transition_ready(sc)) != 0) {
 			mps_dprint(sc, MPS_INIT|MPS_FAULT, "Failed to "
