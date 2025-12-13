@@ -80,6 +80,7 @@ struct libusb_hotplug_callback_handle_struct {
 	int devclass;
 	libusb_hotplug_callback_fn fn;
 	void *user_data;
+	int id;
 };
 
 TAILQ_HEAD(libusb_device_head, libusb_device);
@@ -120,6 +121,7 @@ struct libusb_context {
 	void   *fd_cb_user_data;
 	libusb_log_cb log_cb;
 	int no_discovery;
+	int next_callback_id;
 
 	/* backend context holding the USB file descriptors */
 	struct libusb20_be_ctx *be_ctx;
