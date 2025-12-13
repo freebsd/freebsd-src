@@ -63,11 +63,16 @@ struct bpf_d {
 	caddr_t		bd_sbuf;	/* store slot */
 	caddr_t		bd_hbuf;	/* hold slot */
 	caddr_t		bd_fbuf;	/* free slot */
-	int		bd_hbuf_in_use;	/* don't rotate buffers */
 	int 		bd_slen;	/* current length of store buffer */
 	int 		bd_hlen;	/* current length of hold buffer */
-
 	int		bd_bufsize;	/* absolute length of buffers */
+	int		bd_flags;
+#define	BPFD_HBUF_INUSE	0x00000001	/* don't rotate buffers */
+#define	BPFD_IMMEDIATE	0x00000002	/* return on packet arrival */
+#define	BPFD_HDRCMPLT	0x00000004	/* header already filled in */
+#define	BPFD_FEEDBACK	0x00000008	/* feed back sent packets */
+#define	BPFD_ASYNC	0x00000010	/* packet reception generates signal */
+#define	BPFD_LOCKED	0x00000020	/* descriptor is locked */
 
 	struct bpf_if *	bd_bif;		/* interface descriptor */
 	u_long		bd_rtout;	/* Read timeout in 'ticks' */
@@ -79,13 +84,9 @@ struct bpf_d {
 
 	u_char		bd_promisc;	/* true if listening promiscuously */
 	u_char		bd_state;	/* idle, waiting, or timed out */
-	u_char		bd_immediate;	/* true to return on packet arrival */
 	u_char		bd_writer;	/* non-zero if d is writer-only */
-	int		bd_hdrcmplt;	/* false to fill in src lladdr automatically */
 	int		bd_direction;	/* select packet direction */
 	int		bd_tstamp;	/* select time stamping function */
-	int		bd_feedback;	/* true to feed back sent packets */
-	int		bd_async;	/* non-zero if packet reception should generate signal */
 	int		bd_sig;		/* signal to send upon packet reception */
 	int		bd_pcp;		/* VLAN pcp tag */
 	struct sigio *	bd_sigio;	/* information for async I/O */
@@ -95,7 +96,6 @@ struct bpf_d {
 	struct label	*bd_label;	/* MAC label for descriptor */
 	counter_u64_t	bd_fcount;	/* number of packets which matched filter */
 	pid_t		bd_pid;		/* PID which created descriptor */
-	int		bd_locked;	/* true if descriptor is locked */
 	u_int		bd_bufmode;	/* Current buffer mode. */
 	counter_u64_t	bd_wcount;	/* number of packets written */
 	counter_u64_t	bd_wfcount;	/* number of packets that matched write filter */

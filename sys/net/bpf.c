@@ -669,7 +669,7 @@ bpf_movein(struct uio *uio, int linktype, struct ifnet *ifp, struct mbuf **mp,
 			else
 				m->m_flags |= M_MCAST;
 		}
-		if (d->bd_hdrcmplt == 0) {
+		if (!(d->bd_flags & BPFD_HDRCMPLT)) {
 			memcpy(eh->ether_shost, IF_LLADDR(ifp),
 			    sizeof(eh->ether_shost));
 		}
@@ -952,7 +952,6 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	bpf_buffer_init(d);
 	if ((flags & FREAD) == 0)
 		d->bd_writer = 2;
-	d->bd_hbuf_in_use = 0;
 	d->bd_bufmode = BPF_BUFMODE_BUFFER;
 	d->bd_sig = SIGIO;
 	d->bd_direction = BPF_D_INOUT;
@@ -1006,9 +1005,9 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 		callout_stop(&d->bd_callout);
 	timed_out = (d->bd_state == BPF_TIMED_OUT);
 	d->bd_state = BPF_IDLE;
-	while (d->bd_hbuf_in_use) {
-		error = mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
-		    PRINET | PCATCH, "bd_hbuf", 0);
+	while (d->bd_flags & BPFD_HBUF_INUSE) {
+		error = mtx_sleep(&d->bd_hbuf, &d->bd_lock, PRINET | PCATCH,
+		    "bd_hbuf", 0);
 		if (error != 0) {
 			BPFD_UNLOCK(d);
 			return (error);
@@ -1025,7 +1024,8 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 			 * A packet(s) either arrived since the previous
 			 * read or arrived while we were asleep.
 			 */
-			if (d->bd_immediate || non_block || timed_out) {
+			if ((d->bd_flags & BPFD_IMMEDIATE) || non_block ||
+			    timed_out) {
 				/*
 				 * Rotate the buffers and return what's here
 				 * if we are in immediate mode, non-blocking
@@ -1082,7 +1082,7 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 	/*
 	 * At this point, we know we have something in the hold slot.
 	 */
-	d->bd_hbuf_in_use = 1;
+	d->bd_flags |= BPFD_HBUF_INUSE;
 	BPFD_UNLOCK(d);
 
 	/*
@@ -1096,14 +1096,14 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 	error = bpf_uiomove(d, d->bd_hbuf, d->bd_hlen, uio);
 
 	BPFD_LOCK(d);
-	if (d->bd_hbuf_in_use) {
+	if (d->bd_flags & BPFD_HBUF_INUSE) {
 		KASSERT(d->bd_hbuf != NULL, ("bpfread: lost bd_hbuf"));
 		d->bd_fbuf = d->bd_hbuf;
 		d->bd_hbuf = NULL;
 		d->bd_hlen = 0;
 		bpf_buf_reclaimed(d);
-		d->bd_hbuf_in_use = 0;
-		wakeup(&d->bd_hbuf_in_use);
+		d->bd_flags &= ~BPFD_HBUF_INUSE;
+		wakeup(&d->bd_hbuf);
 	}
 	BPFD_UNLOCK(d);
 
@@ -1123,7 +1123,7 @@ bpf_wakeup(struct bpf_d *d)
 		d->bd_state = BPF_IDLE;
 	}
 	wakeup(d);
-	if (d->bd_async && d->bd_sig && d->bd_sigio)
+	if ((d->bd_flags & BPFD_ASYNC) && d->bd_sig && d->bd_sigio)
 		pgsigio(&d->bd_sigio, d->bd_sig, 0);
 
 	selwakeuppri(&d->bd_sel, PRINET);
@@ -1155,7 +1155,7 @@ bpf_ready(struct bpf_d *d)
 
 	if (!bpf_canfreebuf(d) && d->bd_hlen != 0)
 		return (1);
-	if ((d->bd_immediate || d->bd_state == BPF_TIMED_OUT) &&
+	if (((d->bd_flags & BPFD_IMMEDIATE) || d->bd_state == BPF_TIMED_OUT) &&
 	    d->bd_slen != 0)
 		return (1);
 	return (0);
@@ -1230,10 +1230,10 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		return (ENXIO);
 	}
 	counter_u64_add(d->bd_wfcount, 1);
-	if (d->bd_hdrcmplt)
+	if (d->bd_flags & BPFD_HDRCMPLT)
 		dst.sa_family = pseudo_AF_HDRCMPLT;
 
-	if (d->bd_feedback) {
+	if (d->bd_flags & BPFD_FEEDBACK) {
 		mc = m_dup(m, M_NOWAIT);
 		if (mc != NULL)
 			mc->m_pkthdr.rcvif = ifp;
@@ -1302,9 +1302,8 @@ reset_d(struct bpf_d *d)
 
 	BPFD_LOCK_ASSERT(d);
 
-	while (d->bd_hbuf_in_use)
-		mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock, PRINET,
-		    "bd_hbuf", 0);
+	while (d->bd_flags & BPFD_HBUF_INUSE)
+		mtx_sleep(&d->bd_hbuf, &d->bd_lock, PRINET, "bd_hbuf", 0);
 	if ((d->bd_hbuf != NULL) &&
 	    (d->bd_bufmode != BPF_BUFMODE_ZBUF || bpf_canfreebuf(d))) {
 		/* Free the hold buffer. */
@@ -1377,7 +1376,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	d->bd_state = BPF_IDLE;
 	BPFD_UNLOCK(d);
 
-	if (d->bd_locked == 1) {
+	if (d->bd_flags & BPFD_LOCKED) {
 		switch (cmd) {
 		case BIOCGBLEN:
 		case BIOCFLUSH:
@@ -1446,8 +1445,8 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 
 			BPFD_LOCK(d);
 			n = d->bd_slen;
-			while (d->bd_hbuf_in_use)
-				mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
+			while (d->bd_flags & BPFD_HBUF_INUSE)
+				mtx_sleep(&d->bd_hbuf, &d->bd_lock,
 				    PRINET, "bd_hbuf", 0);
 			if (d->bd_hbuf)
 				n += d->bd_hlen;
@@ -1697,7 +1696,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 */
 	case BIOCIMMEDIATE:
 		BPFD_LOCK(d);
-		d->bd_immediate = *(u_int *)addr;
+		d->bd_flags |= *(u_int *)addr ? BPFD_IMMEDIATE : 0;
 		BPFD_UNLOCK(d);
 		break;
 
@@ -1715,7 +1714,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 */
 	case BIOCGHDRCMPLT:
 		BPFD_LOCK(d);
-		*(u_int *)addr = d->bd_hdrcmplt;
+		*(u_int *)addr = d->bd_flags & BPFD_HDRCMPLT ? 1 : 0;
 		BPFD_UNLOCK(d);
 		break;
 
@@ -1724,7 +1723,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 */
 	case BIOCSHDRCMPLT:
 		BPFD_LOCK(d);
-		d->bd_hdrcmplt = *(u_int *)addr ? 1 : 0;
+		d->bd_flags |= *(u_int *)addr ? BPFD_HDRCMPLT : 0;
 		BPFD_UNLOCK(d);
 		break;
 
@@ -1785,13 +1784,13 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 
 	case BIOCFEEDBACK:
 		BPFD_LOCK(d);
-		d->bd_feedback = *(u_int *)addr;
+		d->bd_flags |= *(u_int *)addr ? BPFD_FEEDBACK : 0;
 		BPFD_UNLOCK(d);
 		break;
 
 	case BIOCLOCK:
 		BPFD_LOCK(d);
-		d->bd_locked = 1;
+		d->bd_flags |= BPFD_LOCKED;
 		BPFD_UNLOCK(d);
 		break;
 
@@ -1800,7 +1799,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 
 	case FIOASYNC:		/* Send signal on receive packets */
 		BPFD_LOCK(d);
-		d->bd_async = *(int *)addr;
+		d->bd_flags |= *(u_int *)addr ? BPFD_ASYNC : 0;
 		BPFD_UNLOCK(d);
 		break;
 
@@ -2208,7 +2207,7 @@ filt_bpfread(struct knote *kn, long hint)
 		/*
 		 * Ignore the hold buffer if it is being copied to user space.
 		 */
-		if (!d->bd_hbuf_in_use && d->bd_hbuf)
+		if (!(d->bd_flags & BPFD_HBUF_INUSE) && d->bd_hbuf)
 			kn->kn_data += d->bd_hlen;
 	} else if (d->bd_rtout > 0 && d->bd_state == BPF_IDLE) {
 		callout_reset(&d->bd_callout, d->bd_rtout,
@@ -2627,12 +2626,14 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 			counter_u64_add(d->bd_dcount, 1);
 			return;
 		}
-		KASSERT(!d->bd_hbuf_in_use, ("hold buffer is in use"));
+		KASSERT(!(d->bd_flags & BPFD_HBUF_INUSE),
+		    ("hold buffer is in use"));
 		ROTATE_BUFFERS(d);
 		do_wakeup = 1;
 		curlen = 0;
 	} else {
-		if (d->bd_immediate || d->bd_state == BPF_TIMED_OUT) {
+		if ((d->bd_flags & BPFD_IMMEDIATE) ||
+		    d->bd_state == BPF_TIMED_OUT) {
 			/*
 			 * Immediate mode is set, or the read timeout has
 			 * already expired during a select call.  A packet
@@ -3009,12 +3010,12 @@ bpfstats_fill_xbpf(struct xbpf_d *d, struct bpf_d *bd)
 	BPF_LOCK_ASSERT();
 	bzero(d, sizeof(*d));
 	d->bd_structsize = sizeof(*d);
-	d->bd_immediate = bd->bd_immediate;
+	d->bd_immediate = bd->bd_flags & BPFD_IMMEDIATE ? 1 : 0;
 	d->bd_promisc = bd->bd_promisc;
-	d->bd_hdrcmplt = bd->bd_hdrcmplt;
+	d->bd_hdrcmplt = bd->bd_flags & BPFD_HDRCMPLT ? 1 : 0;
 	d->bd_direction = bd->bd_direction;
-	d->bd_feedback = bd->bd_feedback;
-	d->bd_async = bd->bd_async;
+	d->bd_feedback = bd->bd_flags & BPFD_FEEDBACK ? 1 : 0;
+	d->bd_async = bd->bd_flags & BPFD_ASYNC ? 1 : 0;
 	d->bd_rcount = counter_u64_fetch(bd->bd_rcount);
 	d->bd_dcount = counter_u64_fetch(bd->bd_dcount);
 	d->bd_fcount = counter_u64_fetch(bd->bd_fcount);
@@ -3025,7 +3026,7 @@ bpfstats_fill_xbpf(struct xbpf_d *d, struct bpf_d *bd)
 	d->bd_pid = bd->bd_pid;
 	strlcpy(d->bd_ifname,
 	    bd->bd_bif->bif_ifp->if_xname, IFNAMSIZ);
-	d->bd_locked = bd->bd_locked;
+	d->bd_locked = bd->bd_flags & BPFD_LOCKED ? 1 : 0;
 	d->bd_wcount = counter_u64_fetch(bd->bd_wcount);
 	d->bd_wdcount = counter_u64_fetch(bd->bd_wdcount);
 	d->bd_wfcount = counter_u64_fetch(bd->bd_wfcount);
