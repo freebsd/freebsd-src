@@ -1,4 +1,4 @@
-/*	$NetBSD: extern.h,v 1.39 2014/04/24 17:22:41 christos Exp $	*/
+/*	$NetBSD: extern.h,v 1.41 2024/12/05 17:17:43 christos Exp $	*/
 
 /*-
  * Copyright (c) 1991, 1993
@@ -49,6 +49,12 @@
 #include <netdb.h>
 #endif
 
+#if defined(__FreeBSD__) && !defined(HAVE_NBTOOL_CONFIG_H)
+#define    FTS_CONST const
+#else
+#define    FTS_CONST
+#endif
+
 #ifndef MAXHOSTNAMELEN
 #define MAXHOSTNAMELEN 256
 #endif
@@ -62,8 +68,9 @@ enum flavor {
 void	 addtag(slist_t *, char *);
 int	 check_excludes(const char *, const char *);
 int	 compare(NODE *, FTSENT *);
-int	 crc(int, u_int32_t *, u_int32_t *);
+int	 crc(int, uint32_t *, uint32_t *);
 void	 cwalk(FILE *);
+int	dcmp(const FTSENT *FTS_CONST *, const FTSENT *FTS_CONST *);
 void	 dump_nodes(FILE *, const char *, NODE *, int);
 void	 init_excludes(void);
 int	 matchtags(NODE *);
@@ -83,7 +90,7 @@ extern int	bflag, dflag, eflag, iflag, jflag, lflag, mflag,
 extern int	mtree_Mflag, mtree_Sflag, mtree_Wflag;
 extern size_t	mtree_lineno;
 extern enum flavor	flavor;
-extern u_int32_t crc_total;
+extern uint32_t crc_total;
 extern int	ftsoptions, keys;
 extern char	fullpath[];
 extern slist_t	includetags, excludetags;

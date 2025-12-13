@@ -1,4 +1,4 @@
-/*	$NetBSD: specspec.c,v 1.2 2012/10/05 01:27:29 christos Exp $	*/
+/*	$NetBSD: specspec.c,v 1.5 2023/12/02 13:24:00 christos Exp $	*/
 
 /*-
  * Copyright (c) 2003 Poul-Henning Kamp
@@ -31,7 +31,7 @@
 #endif
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: specspec.c,v 1.2 2012/10/05 01:27:29 christos Exp $");
+__RCSID("$NetBSD: specspec.c,v 1.5 2023/12/02 13:24:00 christos Exp $");
 
 #include <err.h>
 #include <grp.h>
