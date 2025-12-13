@@ -652,10 +652,10 @@ vm_iommu_map(struct vm *vm)
 
 	pmap = vmspace_pmap(vm_vmspace(vm));
 	for (i = 0; i < VM_MAX_MEMMAPS; i++) {
-		if (!vm_memseg_sysmem(vm, i))
+		mm = &vm->mem.mem_maps[i];
+		if (!vm_memseg_sysmem(vm, mm->segid))
 			continue;
 
-		mm = &vm->mem.mem_maps[i];
 		KASSERT((mm->flags & VM_MEMMAP_F_IOMMU) == 0,
 		    ("iommu map found invalid memmap %#lx/%#lx/%#x",
 		    mm->gpa, mm->len, mm->flags));
@@ -700,10 +700,10 @@ vm_iommu_unmap(struct vm *vm)
 	sx_assert(&vm->mem.mem_segs_lock, SX_LOCKED);
 
 	for (i = 0; i < VM_MAX_MEMMAPS; i++) {
-		if (!vm_memseg_sysmem(vm, i))
+		mm = &vm->mem.mem_maps[i];
+		if (!vm_memseg_sysmem(vm, mm->segid))
 			continue;
 
-		mm = &vm->mem.mem_maps[i];
 		if ((mm->flags & VM_MEMMAP_F_IOMMU) == 0)
 			continue;
 		mm->flags &= ~VM_MEMMAP_F_IOMMU;
