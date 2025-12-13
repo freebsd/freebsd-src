@@ -1391,7 +1391,7 @@ typedef struct {
 
 typedef ng_hci_status_rp	ng_hci_write_iac_lap_rp;
 
-/*0x003b-0x003e commands are depricated v2.0 or later*/
+/*0x003b-0x003e commands are deprecated v2.0 or later*/
 #define NG_HCI_OCF_READ_PAGE_SCAN_PERIOD	0x003b
 /* No command parameter(s) */
 typedef struct {
