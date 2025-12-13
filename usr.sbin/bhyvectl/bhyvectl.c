@@ -390,8 +390,10 @@ main(int argc, char *argv[])
 		usage(opts);
 
 	action_opts = create + destroy + force_reset + force_poweroff;
+#ifdef BHYVE_SNAPSHOT
 	if (checkpoint_file)
 		action_opts++;
+#endif
 
 	if (action_opts > 1) {
 		fprintf(stderr, "mutually exclusive actions specified\n");
