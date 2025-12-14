@@ -3729,8 +3729,7 @@ DIOCCHANGERULE_error:
 			break;
 		}
 
-		pfsync_state_export((union pfsync_state_union*)&ps->state,
-		    s, PFSYNC_MSG_VERSION_1301);
+		pfsync_state_export_1301(&ps->state, s);
 		PF_STATE_UNLOCK(s);
 		break;
 	}
@@ -3795,8 +3794,7 @@ DIOCGETSTATES_retry:
 				if (s->timeout == PFTM_UNLINKED)
 					continue;
 
-				pfsync_state_export((union pfsync_state_union*)p,
-				    s, PFSYNC_MSG_VERSION_1301);
+				pfsync_state_export_1301(p, s);
 				p++;
 				nr++;
 			}
@@ -5656,11 +5654,9 @@ fail:
 	return (error);
 }
 
-void
+static void
 pfsync_state_export(union pfsync_state_union *sp, struct pf_kstate *st, int msg_version)
 {
-	bzero(sp, sizeof(union pfsync_state_union));
-
 	/* copy from state key */
 	sp->pfs_1301.key[PF_SK_WIRE].addr[0] = st->key[PF_SK_WIRE]->addr[0];
 	sp->pfs_1301.key[PF_SK_WIRE].addr[1] = st->key[PF_SK_WIRE]->addr[1];
@@ -5741,6 +5737,22 @@ pfsync_state_export(union pfsync_state_union *sp, struct pf_kstate *st, int msg_
 	pf_state_counter_hton(st->packets[1], sp->pfs_1301.packets[1]);
 	pf_state_counter_hton(st->bytes[0], sp->pfs_1301.bytes[0]);
 	pf_state_counter_hton(st->bytes[1], sp->pfs_1301.bytes[1]);
+}
+
+void
+pfsync_state_export_1301(struct pfsync_state_1301 *sp, struct pf_kstate *st)
+{
+	bzero(sp, sizeof(*sp));
+	pfsync_state_export((union pfsync_state_union *)sp, st,
+	    PFSYNC_MSG_VERSION_1301);
+}
+
+void
+pfsync_state_export_1400(struct pfsync_state_1400 *sp, struct pf_kstate *st)
+{
+	bzero(sp, sizeof(*sp));
+	pfsync_state_export((union pfsync_state_union *)sp, st,
+	    PFSYNC_MSG_VERSION_1400);
 }
 
 void

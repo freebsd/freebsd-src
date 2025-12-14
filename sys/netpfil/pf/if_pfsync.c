@@ -1700,17 +1700,19 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static void
 pfsync_out_state_1301(struct pf_kstate *st, void *buf)
 {
-	union pfsync_state_union *sp = buf;
+	struct pfsync_state_1301 *sp;
 
-	pfsync_state_export(sp, st, PFSYNC_MSG_VERSION_1301);
+	sp = buf;
+	pfsync_state_export_1301(sp, st);
 }
 
 static void
 pfsync_out_state_1400(struct pf_kstate *st, void *buf)
 {
-	union pfsync_state_union *sp = buf;
+	struct pfsync_state_1400 *sp;
 
-	pfsync_state_export(sp, st, PFSYNC_MSG_VERSION_1400);
+	sp = buf;
+	pfsync_state_export_1400(sp, st);
 }
 
 static void

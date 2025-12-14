@@ -1198,8 +1198,10 @@ VNET_DECLARE(pfsync_defer_t *, pfsync_defer_ptr);
 #define V_pfsync_defer_ptr		VNET(pfsync_defer_ptr)
 extern pfsync_detach_ifnet_t	*pfsync_detach_ifnet_ptr;
 
-void			pfsync_state_export(union pfsync_state_union *,
-			    struct pf_kstate *, int);
+void			pfsync_state_export_1301(struct pfsync_state_1301 *,
+			    struct pf_kstate *);
+void			pfsync_state_export_1400(struct pfsync_state_1400 *,
+			    struct pf_kstate *);
 void			pf_state_export(struct pf_state_export *,
 			    struct pf_kstate *);
 
