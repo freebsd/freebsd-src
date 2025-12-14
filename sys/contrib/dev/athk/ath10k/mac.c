@@ -13,9 +13,7 @@
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
 #include <linux/acpi.h>
-#if defined(__linux__) || (defined(__FreeBSD__) && defined(CONFIG_OF))
 #include <linux/of.h>
-#endif
 #include <linux/bitfield.h>
 #include <linux/random.h>
 
@@ -5130,7 +5128,7 @@ static int __ath10k_fetch_bb_timing_dt(struct ath10k *ar,
 		   bb_timing->bb_tx_timing, bb_timing->bb_xpa_timing);
 	return 0;
 #else
-	return -EINVAL;
+	return -ENOENT;
 #endif
 }
 
@@ -9914,22 +9912,14 @@ static u32 ath10k_mac_wrdd_get_mcc(struct ath10k *ar, union acpi_object *wrdd)
 	union acpi_object *mcc_value;
 	u32 i;
 
-#if defined(__linux__)
 	if (wrdd->type != ACPI_TYPE_PACKAGE ||
 	    wrdd->package.count < 2 ||
 	    wrdd->package.elements[0].type != ACPI_TYPE_INTEGER ||
 	    wrdd->package.elements[0].integer.value != 0) {
-#elif defined(__FreeBSD__)
-	if (wrdd->Type != ACPI_TYPE_PACKAGE ||
-	    wrdd->Package.Count < 2 ||
-	    wrdd->Package.Elements[0].Type != ACPI_TYPE_INTEGER ||
-	    wrdd->Package.Elements[0].Integer.Value != 0) {
-#endif
 		ath10k_warn(ar, "ignoring malformed/unsupported wrdd structure\n");
 		return 0;
 	}
 
-#if defined(__linux__)
 	for (i = 1; i < wrdd->package.count; ++i) {
 		mcc_pkg = &wrdd->package.elements[i];
 
@@ -9947,25 +9937,6 @@ static u32 ath10k_mac_wrdd_get_mcc(struct ath10k *ar, union acpi_object *wrdd)
 
 		mcc_value = &mcc_pkg->package.elements[1];
 		return mcc_value->integer.value;
-#elif defined(__FreeBSD__)
-	for (i = 1; i < wrdd->Package.Count; ++i) {
-		mcc_pkg = &wrdd->Package.Elements[i];
-
-		if (mcc_pkg->Type != ACPI_TYPE_PACKAGE)
-			continue;
-		if (mcc_pkg->Package.Count < 2)
-			continue;
-		if (mcc_pkg->Package.Elements[0].Type != ACPI_TYPE_INTEGER ||
-		    mcc_pkg->Package.Elements[1].Type != ACPI_TYPE_INTEGER)
-			continue;
-
-		domain_type = &mcc_pkg->Package.Elements[0];
-		if (domain_type->Integer.Value != WRDD_WIFI)
-			continue;
-
-		mcc_value = &mcc_pkg->Package.Elements[1];
-		return mcc_value->Integer.Value;
-#endif
 	}
 	return 0;
 }
@@ -9997,13 +9968,8 @@ static int ath10k_mac_get_wrdd_regulatory(struct ath10k *ar, u16 *rd)
 		return -EIO;
 	}
 
-#if defined(__linux__)
 	alpha2_code = ath10k_mac_wrdd_get_mcc(ar, wrdd.pointer);
 	kfree(wrdd.pointer);
-#elif defined(__FreeBSD__)
-	alpha2_code = ath10k_mac_wrdd_get_mcc(ar, wrdd.Pointer);
-	kfree(wrdd.Pointer);
-#endif
 	if (!alpha2_code)
 		return -EIO;
 
