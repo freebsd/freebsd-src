@@ -241,11 +241,9 @@ proc_dtor(void *mem, int size, void *arg)
 	p = (struct proc *)mem;
 	td = FIRST_THREAD_IN_PROC(p);
 	if (td != NULL) {
-#ifdef INVARIANTS
 		KASSERT((p->p_numthreads == 1),
-		    ("bad number of threads in exiting process"));
-		KASSERT(STAILQ_EMPTY(&p->p_ktr), ("proc_dtor: non-empty p_ktr"));
-#endif
+		    ("too many threads in exiting process"));
+
 		/* Free all OSD associated to this thread. */
 		osd_thread_exit(td);
 		ast_kclear(td);
@@ -253,6 +251,7 @@ proc_dtor(void *mem, int size, void *arg)
 		/* Make sure all thread destructors are executed */
 		EVENTHANDLER_DIRECT_INVOKE(thread_dtor, td);
 	}
+	KASSERT(STAILQ_EMPTY(&p->p_ktr), ("proc_dtor: non-empty p_ktr"));
 	EVENTHANDLER_DIRECT_INVOKE(process_dtor, p);
 #ifdef KDTRACE_HOOKS
 	kdtrace_proc_dtor(p);
@@ -281,6 +280,7 @@ proc_init(void *mem, int size, int flags)
 	p->p_stats = pstats_alloc();
 	p->p_pgrp = NULL;
 	TAILQ_INIT(&p->p_kqtim_stop);
+	STAILQ_INIT(&p->p_ktr);
 	return (0);
 }
 

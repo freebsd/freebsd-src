@@ -1063,8 +1063,6 @@ fork1(struct thread *td, struct fork_req *fr)
 #ifdef MAC
 	mac_proc_init(newproc);
 #endif
-	newproc->p_klist = knlist_alloc(&newproc->p_mtx);
-	STAILQ_INIT(&newproc->p_ktr);
 
 	/*
 	 * Increment the count of procs running with this uid. Don't allow
@@ -1076,6 +1074,8 @@ fork1(struct thread *td, struct fork_req *fr)
 			goto fail0;
 		chgproccnt(cred->cr_ruidinfo, 1, 0);
 	}
+
+	newproc->p_klist = knlist_alloc(&newproc->p_mtx);
 
 	do_fork(td, fr, newproc, td2, vm2, fp_procdesc);
 	error = 0;
