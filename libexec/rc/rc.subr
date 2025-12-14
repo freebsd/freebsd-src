@@ -1161,7 +1161,7 @@ run_rc_command()
 	fi
 	_setauditcmd=
 	if [ -n "$_audit_user" ]; then
-		_setauditcmd="setaudit -U -a $_audit_user"
+		_setauditcmd="$SETAUDIT -U -a $_audit_user"
 	fi
 
 	# If a specific jail has a specific svcj request, honor it (YES/NO).
