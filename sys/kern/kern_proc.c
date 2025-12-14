@@ -237,11 +237,10 @@ proc_dtor(void *mem, int size, void *arg)
 	struct proc *p;
 	struct thread *td;
 
-	/* INVARIANTS checks go here */
-	p = (struct proc *)mem;
+	p = mem;
 	td = FIRST_THREAD_IN_PROC(p);
 	if (td != NULL) {
-		KASSERT((p->p_numthreads == 1),
+		KASSERT(p->p_numthreads == 1,
 		    ("too many threads in exiting process"));
 
 		/* Free all OSD associated to this thread. */
@@ -256,8 +255,7 @@ proc_dtor(void *mem, int size, void *arg)
 #ifdef KDTRACE_HOOKS
 	kdtrace_proc_dtor(p);
 #endif
-	if (p->p_ksi != NULL)
-		KASSERT(! KSI_ONQ(p->p_ksi), ("SIGCHLD queue"));
+	KASSERT(p->p_ksi == NULL || !KSI_ONQ(p->p_ksi), ("SIGCHLD queue"));
 }
 
 /*
