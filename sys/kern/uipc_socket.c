@@ -2749,7 +2749,7 @@ sockbuf_pushsync(struct sockbuf *sb, struct mbuf *nextrecord)
  * time.
  *
  * The caller may receive the data as a single mbuf chain by supplying an
- * mbuf **mp0 for use in returning the chain.  The uio is then used only for
+ * mbuf **mp for use in returning the chain.  The uio is then used only for
  * the count in uio_resid.
  */
 static int
