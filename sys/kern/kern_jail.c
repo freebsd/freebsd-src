@@ -4117,11 +4117,14 @@ prison_enforce_statfs(struct ucred *cred, struct mount *mp, struct statfs *sp)
 	if (pr->pr_enforce_statfs == 0)
 		return;
 	if (prison_canseemount(cred, mp) != 0) {
+		bzero(&sp->f_fsid, sizeof(sp->f_fsid));
 		bzero(sp->f_mntonname, sizeof(sp->f_mntonname));
 		strlcpy(sp->f_mntonname, "[restricted]",
 		    sizeof(sp->f_mntonname));
 		return;
 	}
+	if (pr->pr_enforce_statfs > 1)
+		bzero(&sp->f_fsid, sizeof(sp->f_fsid));
 	if (pr->pr_root->v_mount == mp) {
 		/*
 		 * Clear current buffer data, so we are sure nothing from
