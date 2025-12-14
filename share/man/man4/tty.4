@@ -37,9 +37,9 @@
 This section describes the interface to the terminal drivers
 in the system.
 .Ss Terminal Special Files
-Each hardware terminal port on the system usually has a terminal special device
-file associated with it in the directory ``/dev/'' (for
-example, ``/dev/tty03'').
+Each hardware terminal port on the system has several terminal special device
+files associated with it in the directory ``/dev/'' (for
+example, ``/dev/tty03'' and ``/dev/cua03'').
 When a user logs into
 the system on one of these hardware terminal ports, the system has already
 opened the associated device and prepared the line for normal interactive
@@ -375,6 +375,7 @@ variables.
 .Xr pts 4 ,
 .Xr pty 4 ,
 .Xr termios 4 ,
+.Xr uart 4 ,
 .Xr getty 8
 .Sh HISTORY
 A console typewriter device
@@ -383,3 +384,12 @@ and asynchronous communication interfaces
 .Pa /dev/tty[0-5]
 first appeared in
 .At v1 .
+.Sh BUGS
+Before the Internet, serial ports were primarily used for inbound
+connections from terminals, either directly or through modems, these
+days serial ports are primarily used for outbound connections to
+devices, an evolution which unfortunately has spread the relevant
+documentation over three different manual pages:
+.Xr termios 4 ,
+.Xr uart 4 and
+.Xr tty 4 .

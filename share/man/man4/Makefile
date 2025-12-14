@@ -809,6 +809,7 @@ MLINKS+=tap.4 if_tap.4 \
 	tap.4 if_vmnet.4
 MLINKS+=tdfx.4 tdfx_linux.4
 MLINKS+=ti.4 if_ti.4
+MLINKS+=tty.4 cua.4
 MLINKS+=tun.4 if_tun.4
 MLINKS+=ure.4 if_ure.4
 MLINKS+=vge.4 if_vge.4
