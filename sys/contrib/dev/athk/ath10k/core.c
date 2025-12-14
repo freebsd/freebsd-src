@@ -13,9 +13,7 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/firmware.h>
-#if defined(__linux__) || (defined(__FreeBSD__) && defined(CONFIG_OF))
 #include <linux/of.h>
-#endif
 #include <linux/property.h>
 #include <linux/dmi.h>
 #include <linux/ctype.h>
@@ -2048,7 +2046,7 @@ static int ath10k_download_cal_nvmem(struct ath10k *ar, const char *cell_name)
 	ret = ath10k_download_board_data(ar, buf, len);
 	kfree(buf);
 #elif defined(__FreeBSD__)
-	ret = -ENXIO;
+	ret = -EOPNOTSUPP;
 #endif
 	if (ret)
 		ath10k_warn(ar, "failed to download calibration data from nvmem-cell '%s': %d\n",
