@@ -1874,10 +1874,6 @@ lkpi_update_mcast_filter(struct ieee80211com *ic)
 
 	lhw = ic->ic_softc;
 
-	if (lhw->ops->prepare_multicast == NULL ||
-	    lhw->ops->configure_filter == NULL)
-		return;
-
 	LKPI_80211_LHW_SCAN_LOCK(lhw);
 	scanning = (lhw->scan_flags & LKPI_LHW_SCAN_RUNNING) != 0;
 	LKPI_80211_LHW_SCAN_UNLOCK(lhw);
@@ -1887,7 +1883,8 @@ lkpi_update_mcast_filter(struct ieee80211com *ic)
 	flags = 0;
 	if (scanning)
 		flags |= FIF_BCN_PRBRESP_PROMISC;
-	if (lhw->mc_all_multi)
+	/* The latter condition may not be as expected but seems wise. */
+	if (lhw->mc_all_multi || lhw->ops->prepare_multicast == NULL)
 		flags |= FIF_ALLMULTI;
 
 	hw = LHW_TO_HW(lhw);
@@ -4246,9 +4243,6 @@ lkpi_ic_update_mcast(struct ieee80211com *ic)
 	struct lkpi_hw *lhw;
 
 	lhw = ic->ic_softc;
-	if (lhw->ops->prepare_multicast == NULL ||
-	    lhw->ops->configure_filter == NULL)
-		return;
 
 	LKPI_80211_LHW_MC_LOCK(lhw);
 	/* Cleanup anything on the current list. */
