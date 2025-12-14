@@ -628,22 +628,26 @@ static const struct netmap_mem_d nm_blueprint = {
 
 #define STRINGIFY(x) #x
 
-#define DECLARE_SYSCTLS(id, name) \
-	SYSBEGIN(mem2_ ## name); \
-	SYSCTL_INT(_dev_netmap, OID_AUTO, name##_size, \
-	    CTLFLAG_RW, &nm_mem.params[id].size, 0, "Requested size of netmap " STRINGIFY(name) "s"); \
-	SYSCTL_INT(_dev_netmap, OID_AUTO, name##_curr_size, \
-	    CTLFLAG_RD, &nm_mem.pools[id]._objsize, 0, "Current size of netmap " STRINGIFY(name) "s"); \
-	SYSCTL_INT(_dev_netmap, OID_AUTO, name##_num, \
-	    CTLFLAG_RW, &nm_mem.params[id].num, 0, "Requested number of netmap " STRINGIFY(name) "s"); \
-	SYSCTL_INT(_dev_netmap, OID_AUTO, name##_curr_num, \
-	    CTLFLAG_RD, &nm_mem.pools[id].objtotal, 0, "Current number of netmap " STRINGIFY(name) "s"); \
-	SYSCTL_INT(_dev_netmap, OID_AUTO, priv_##name##_size, \
-	    CTLFLAG_RW, &netmap_min_priv_params[id].size, 0, \
+#define DECLARE_SYSCTLS(id, name)				\
+	SYSBEGIN(mem2_ ## name);				\
+	SYSCTL_INT(_dev_netmap, OID_AUTO, name##_size,		\
+	    CTLFLAG_RWTUN, &nm_mem.params[id].size, 0,		\
+	    "Requested size of netmap " STRINGIFY(name) "s");	\
+	SYSCTL_INT(_dev_netmap, OID_AUTO, name##_curr_size,	\
+	    CTLFLAG_RD, &nm_mem.pools[id]._objsize, 0,		\
+	    "Current size of netmap " STRINGIFY(name) "s");	\
+	SYSCTL_INT(_dev_netmap, OID_AUTO, name##_num,		\
+	    CTLFLAG_RWTUN, &nm_mem.params[id].num, 0,		\
+	    "Requested number of netmap " STRINGIFY(name) "s"); \
+	SYSCTL_INT(_dev_netmap, OID_AUTO, name##_curr_num,	\
+	    CTLFLAG_RD, &nm_mem.pools[id].objtotal, 0,		\
+	    "Current number of netmap " STRINGIFY(name) "s");	\
+	SYSCTL_INT(_dev_netmap, OID_AUTO, priv_##name##_size,	\
+	    CTLFLAG_RWTUN, &netmap_min_priv_params[id].size, 0,	\
 	    "Default size of private netmap " STRINGIFY(name) "s"); \
-	SYSCTL_INT(_dev_netmap, OID_AUTO, priv_##name##_num, \
-	    CTLFLAG_RW, &netmap_min_priv_params[id].num, 0, \
-	    "Default number of private netmap " STRINGIFY(name) "s");	\
+	SYSCTL_INT(_dev_netmap, OID_AUTO, priv_##name##_num,	\
+	    CTLFLAG_RWTUN, &netmap_min_priv_params[id].num, 0,	\
+	    "Default number of private netmap " STRINGIFY(name) "s"); \
 	SYSEND
 
 SYSCTL_DECL(_dev_netmap);
