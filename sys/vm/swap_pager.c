@@ -2460,7 +2460,8 @@ swap_pager_seek_data(vm_object_t object, vm_pindex_t pindex)
 	vm_page_t m;
 	vm_pindex_t swap_index;
 
-	VM_OBJECT_ASSERT_RLOCKED(object);
+	VM_OBJECT_ASSERT_LOCKED(object);
+	KASSERT((object->flags & OBJ_SWAP) != 0, ("non-swap obj %p", object));
 	vm_page_iter_init(&pages, object);
 	m = vm_radix_iter_lookup_ge(&pages, pindex);
 	if (m != NULL && pages.index == pindex && vm_page_any_valid(m))
