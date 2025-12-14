@@ -310,9 +310,6 @@ lkpi_80211_mo_configure_filter(struct ieee80211_hw *hw, unsigned int changed_fla
 	if (lhw->ops->configure_filter == NULL)
 		return;
 
-	if (mc_ptr == 0)
-		return;
-
 	LKPI_80211_TRACE_MO("hw %p changed_flags %#x total_flags %p mc_ptr %ju", hw, changed_flags, total_flags, (uintmax_t)mc_ptr);
 	lhw->ops->configure_filter(hw, changed_flags, total_flags, mc_ptr);
 }
