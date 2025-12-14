@@ -102,7 +102,7 @@ test_stpncpy(const char *s, size_t size)
 					assert(dst[x] == '\0');
 
 				freebuf(dst, bufsize, j);
-				freebuf(src, MIN(bufsize, size));
+				freebuf(src, MIN(bufsize, size), i);
 			}
 		}
 	}
