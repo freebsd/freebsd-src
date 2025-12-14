@@ -84,19 +84,19 @@ static void unionfs_deferred_rele(void *, int);
 /*
  * Initialize
  */
-int 
+int
 unionfs_init(struct vfsconf *vfsp)
 {
 	UNIONFSDEBUG("unionfs_init\n");	/* printed during system boot */
 	TASK_INIT(&unionfs_deferred_rele_task, 0, unionfs_deferred_rele, NULL);
-	mtx_init(&unionfs_deferred_rele_lock, "uniondefr", NULL, MTX_DEF); 
+	mtx_init(&unionfs_deferred_rele_lock, "uniondefr", NULL, MTX_DEF);
 	return (0);
 }
 
 /*
  * Uninitialize
  */
-int 
+int
 unionfs_uninit(struct vfsconf *vfsp)
 {
 	taskqueue_quiesce(taskqueue_unionfs_rele);
@@ -290,7 +290,7 @@ unionfs_nodeget_cleanup(struct vnode *vp, struct unionfs_node *unp)
 
 /*
  * Make a new or get existing unionfs node.
- * 
+ *
  * uppervp and lowervp should be unlocked. Because if new unionfs vnode is
  * locked, uppervp or lowervp is locked too. In order to prevent dead lock,
  * you should not lock plurality simultaneously.
@@ -709,9 +709,9 @@ unionfs_create_uppervattr(struct unionfs_mount *ump, struct vnode *lvp,
 
 /*
  * relookup
- * 
+ *
  * dvp should be locked on entry and will be locked on return.
- * 
+ *
  * If an error is returned, *vpp will be invalid, otherwise it will hold a
  * locked, referenced vnode. If *vpp == dvp then remember that only one
  * LK_EXCLUSIVE lock is held.
@@ -756,7 +756,7 @@ unionfs_relookup(struct vnode *dvp, struct vnode **vpp,
 
 /*
  * Update the unionfs_node.
- * 
+ *
  * uvp is new locked upper vnode. unionfs vnode's lock will be exchanged to the
  * uvp's lock and lower's lock will be unlocked.
  */
@@ -875,10 +875,10 @@ unionfs_clear_in_progress_flag(struct vnode *vp, unsigned int flag)
 
 /*
  * Create a new shadow dir.
- * 
+ *
  * dvp and vp are unionfs vnodes representing a parent directory and
  * child file, should be locked on entry, and will be locked on return.
- * 
+ *
  * If no error returned, unp will be updated.
  */
 int
@@ -1201,7 +1201,7 @@ unionfs_forward_vop_finish_pair(
 
 /*
  * Create a new whiteout.
- * 
+ *
  * dvp and vp are unionfs vnodes representing a parent directory and
  * child file, should be locked on entry, and will be locked on return.
  */
@@ -1259,11 +1259,11 @@ unionfs_mkwhiteout_cleanup:
 }
 
 /*
- * Create a new vnode for create a new shadow file.
- * 
+ * Create a new regular file on upper.
+ *
  * If an error is returned, *vpp will be invalid, otherwise it will hold a
  * locked, referenced and opened vnode.
- * 
+ *
  * unp is never updated.
  */
 static int
@@ -1343,8 +1343,8 @@ unionfs_vn_create_on_upper_cleanup:
 }
 
 /*
- * Copy from lvp to uvp.
- * 
+ * Copy contents of lvp to uvp.
+ *
  * lvp and uvp should be locked and opened on entry and will be locked and
  * opened on return.
  */
@@ -1410,13 +1410,12 @@ unionfs_copyfile_core(struct vnode *lvp, struct vnode *uvp,
 
 /*
  * Copy file from lower to upper.
- * 
- * If you need copy of the contents, set 1 to docopy. Otherwise, set 0 to
- * docopy.
+ *
+ * If docopy is non-zero, copy the contents as well.
  *
  * vp is a unionfs vnode that should be locked on entry and will be
  * locked on return.
- * 
+ *
  * If no error returned, unp will be updated.
  */
 int

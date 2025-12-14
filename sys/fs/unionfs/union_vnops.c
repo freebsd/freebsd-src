@@ -1183,7 +1183,7 @@ unionfs_ioctl(struct vop_ioctl_args *ap)
 
 	KASSERT_UNIONFS_VNODE(ap->a_vp);
 
- 	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY);
 	unp = VTOUNIONFS(ap->a_vp);
 	unionfs_get_node_status(unp, ap->a_td, &unsp);
 	ovp = (unsp->uns_upper_opencnt ? unp->un_uppervp : unp->un_lowervp);
@@ -1210,7 +1210,7 @@ unionfs_poll(struct vop_poll_args *ap)
 
 	KASSERT_UNIONFS_VNODE(ap->a_vp);
 
- 	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY);
 	unp = VTOUNIONFS(ap->a_vp);
 	unionfs_get_node_status(unp, ap->a_td, &unsp);
 	ovp = (unsp->uns_upper_opencnt ? unp->un_uppervp : unp->un_lowervp);
@@ -3089,7 +3089,7 @@ struct vop_vector unionfs_vnodeops = {
 	.vop_add_writecount =	unionfs_add_writecount,
 	.vop_vput_pair =	unionfs_vput_pair,
 	.vop_set_text =		unionfs_set_text,
-	.vop_unset_text = 	unionfs_unset_text,
+	.vop_unset_text =	unionfs_unset_text,
 	.vop_unp_bind =		unionfs_unp_bind,
 	.vop_unp_connect =	unionfs_unp_connect,
 	.vop_unp_detach =	unionfs_unp_detach,

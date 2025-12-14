@@ -139,9 +139,8 @@ void	unionfs_get_node_status(struct unionfs_node *, struct thread *,
 	    struct unionfs_node_status **);
 void	unionfs_tryrem_node_status(struct unionfs_node *,
 	    struct unionfs_node_status *);
-int	unionfs_check_rmdir(struct vnode *, struct ucred *, struct thread *td);
-int	unionfs_copyfile(struct vnode *, int, struct ucred *,
-	    struct thread *);
+int	unionfs_check_rmdir(struct vnode *, struct ucred *, struct thread *);
+int	unionfs_copyfile(struct vnode *, int, struct ucred *, struct thread *);
 int	unionfs_copylink(struct vnode *, struct ucred *, struct thread *);
 void	unionfs_create_uppervattr_core(struct unionfs_mount *, struct vattr *,
 	    struct vattr *, struct thread *);
