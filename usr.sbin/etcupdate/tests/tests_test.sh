@@ -596,7 +596,6 @@ EOF
 	cat > $NEW/etc/login.conf <<EOF
 default:\\
 	:passwd_format=md5:\\
-	:copyright=/etc/COPYRIGHT
 EOF
 	cp $OLD/etc/login.conf $TEST/etc/login.conf
 
