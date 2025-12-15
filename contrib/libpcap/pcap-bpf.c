@@ -2864,18 +2864,50 @@ check_bpf_bindable(const char *name)
 	return (1);
 }
 
-#if defined(__FreeBSD__) && defined(SIOCIFCREATE2)
+#if defined(__FreeBSD__)
 static int
-get_usb_if_flags(const char *name _U_, bpf_u_int32 *flags _U_, char *errbuf _U_)
+get_flags_stub(const char *name _U_, bpf_u_int32 *flags _U_, char *errbuf _U_)
 {
-	/*
-	 * XXX - if there's a way to determine whether there's something
-	 * plugged into a given USB bus, use that to determine whether
-	 * this device is "connected" or not.
-	 */
 	return (0);
 }
 
+#if __FreeBSD_version >= 1600006
+static int
+finddevs_bpf(pcap_if_list_t *devlistp, char *errbuf)
+{
+	struct bpf_iflist bi;
+	const char *name;
+	int fd;
+
+	if ((fd = bpf_open(errbuf)) < 0)
+		return (-1);
+
+	memset(&bi, 0, sizeof(bi));
+	if (ioctl(fd, BIOCGETIFLIST, (caddr_t)&bi) != 0 || bi.bi_size == 0)
+		return (-1);
+
+	if ((bi.bi_ubuf = malloc(bi.bi_size)) == NULL)
+		return (-1);
+
+	if (ioctl(fd, BIOCGETIFLIST, (caddr_t)&bi) != 0)
+		return (-1);
+
+	for (name = bi.bi_ubuf; bi.bi_count > 0;
+	    bi.bi_count--, name += strlen(name) + 1)
+		/*
+		 * Add only those devices that were not added via the
+		 * getifaddrs() loop in pcapint_findalldevs_interfaces().
+		 */
+		if (pcapint_find_or_add_dev(devlistp, name, PCAP_IF_UP,
+		    get_flags_stub, NULL, errbuf) == NULL) {
+			free(bi.bi_ubuf);
+			return (-1);
+		}
+
+	free(bi.bi_ubuf);
+	return (0);
+}
+#else
 static int
 finddevs_usb(pcap_if_list_t *devlistp, char *errbuf)
 {
@@ -2940,7 +2972,7 @@ finddevs_usb(pcap_if_list_t *devlistp, char *errbuf)
 		 * for each bus.
 		 */
 		if (pcapint_find_or_add_dev(devlistp, name, PCAP_IF_UP,
-		    get_usb_if_flags, NULL, errbuf) == NULL) {
+		    get_flags_stub, NULL, errbuf) == NULL) {
 			free(name);
 			closedir(usbdir);
 			return (PCAP_ERROR);
@@ -2951,6 +2983,7 @@ finddevs_usb(pcap_if_list_t *devlistp, char *errbuf)
 	return (0);
 }
 #endif
+#endif	/* FreeBSD */
 
 /*
  * Get additional flags for a device, using SIOCGIFMEDIA.
@@ -3093,9 +3126,14 @@ pcapint_platform_finddevs(pcap_if_list_t *devlistp, char *errbuf)
 		return (-1);
 #endif
 
-#if defined(__FreeBSD__) && defined(SIOCIFCREATE2)
+#if defined(__FreeBSD__)
+#if __FreeBSD_version >= 1600006
+	if (finddevs_bpf(devlistp, errbuf) == -1)
+		return (-1);
+#else
 	if (finddevs_usb(devlistp, errbuf) == -1)
 		return (-1);
+#endif
 #endif
 
 	return (0);
