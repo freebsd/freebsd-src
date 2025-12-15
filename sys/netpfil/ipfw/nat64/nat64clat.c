@@ -77,7 +77,7 @@ nat64clat_log(struct pfloghdr *plog, struct mbuf *m, sa_family_t family,
 	plog->subrulenr = htonl(pktid);
 	plog->ruleset[0] = '\0';
 	strlcpy(plog->ifname, "NAT64CLAT", sizeof(plog->ifname));
-	ipfw_bpf_mtap2(plog, PFLOG_HDRLEN, m);
+	ipfw_pflog_tap(plog, m);
 }
 
 static int

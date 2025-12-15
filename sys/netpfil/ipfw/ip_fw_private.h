@@ -161,9 +161,10 @@ struct ip_fw_chain;
 
 void ipfw_bpf_init(int);
 void ipfw_bpf_uninit(int);
-void ipfw_bpf_tap(u_char *, u_int);
-void ipfw_bpf_mtap(struct mbuf *);
-void ipfw_bpf_mtap2(void *, u_int, struct mbuf *);
+void ipfw_tap_alloc(uint32_t);
+void ipfw_tap_free(uint32_t);
+void ipfw_bpf_tap(struct ip_fw_args *, struct ip *, uint32_t);
+void ipfw_pflog_tap(void *, struct mbuf *);
 void ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
     struct ip_fw_args *args, u_short offset, uint32_t tablearg, struct ip *ip,
     void *eh);

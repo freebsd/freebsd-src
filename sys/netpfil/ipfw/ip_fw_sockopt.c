@@ -210,6 +210,8 @@ ipfw_free_rule(struct ip_fw *rule)
 	 */
 	if (rule->refcnt > 1)
 		return;
+	if (ACTION_PTR(rule)->opcode == O_LOG)
+		ipfw_tap_free(rule->rulenum);
 	uma_zfree_pcpu(V_ipfw_cntr_zone, rule->cntr);
 	free(rule, M_IPFW);
 }
@@ -2511,6 +2513,9 @@ import_rule_v1(struct ip_fw_chain *chain, struct rule_check_info *ci)
 
 	/* Copy opcodes */
 	memcpy(krule->cmd, urule->cmd, krule->cmd_len * sizeof(uint32_t));
+
+	if (ACTION_PTR(krule)->opcode == O_LOG)
+		ipfw_tap_alloc(krule->rulenum);
 }
 
 /*

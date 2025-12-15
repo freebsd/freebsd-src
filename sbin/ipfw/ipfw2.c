@@ -2013,7 +2013,7 @@ print_logdst(struct buf_pr *bp, uint16_t arg1)
 		comma = ",";
 	}
 	if (arg1 & IPFW_LOG_IPFW0) {
-		bprintf(bp, "%sipfw0", comma);
+		bprintf(bp, "%sbpf", comma);
 		comma = ",";
 	}
 	if (arg1 & IPFW_LOG_RTSOCK) {
@@ -4066,8 +4066,9 @@ parse_logdst(char *logdst_iter)
 			ret |= IPFW_LOG_SYSLOG;
 			continue;
 		}
-		if (_substrcmp(token, "ipfw0") == 0) {
-			/* XXX add multiple ipfw* */
+		/* ipfw0 is compatibility keyword. */
+		if (_substrcmp(token, "bpf") == 0 ||
+		    _substrcmp(token, "ipfw0") == 0) {
 			ret |= IPFW_LOG_IPFW0;
 			continue;
 		}

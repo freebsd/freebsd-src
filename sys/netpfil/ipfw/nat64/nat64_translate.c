@@ -151,7 +151,7 @@ nat64_log(struct pfloghdr *logdata, struct mbuf *m, sa_family_t family)
 
 	logdata->dir = PF_OUT;
 	logdata->af = family;
-	ipfw_bpf_mtap2(logdata, PFLOG_HDRLEN, m);
+	ipfw_pflog_tap(logdata, m);
 }
 
 static int

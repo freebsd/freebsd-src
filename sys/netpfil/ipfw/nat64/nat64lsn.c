@@ -187,7 +187,7 @@ nat64lsn_log(struct pfloghdr *plog, struct mbuf *m, sa_family_t family,
 	    (state->proto << 8) | (state->ip_dst & 0xff));
 	plog->ruleset[0] = '\0';
 	strlcpy(plog->ifname, "NAT64LSN", sizeof(plog->ifname));
-	ipfw_bpf_mtap2(plog, PFLOG_HDRLEN, m);
+	ipfw_pflog_tap(plog, m);
 }
 
 #define	HVAL(p, n, s)	jenkins_hash32((const uint32_t *)(p), (n), (s))
