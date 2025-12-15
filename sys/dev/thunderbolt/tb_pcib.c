@@ -550,8 +550,6 @@ DEFINE_CLASS_1(tbolt, tb_pcib_driver, tb_pcib_methods,
 DRIVER_MODULE_ORDERED(tb_pcib, pci, tb_pcib_driver,
     NULL, NULL, SI_ORDER_MIDDLE);
 MODULE_DEPEND(tb_pcib, pci, 1, 1, 1);
-MODULE_PNP_INFO("U16:vendor;U16:device;U16:subvendor;U16:subdevice;U32:#;D:#",
-    pci, tb_pcib, tb_pcib_identifiers, nitems(tb_pcib_identifiers) - 1);
 
 static int
 tb_pci_probe(device_t dev)
