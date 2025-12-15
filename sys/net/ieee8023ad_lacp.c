@@ -1036,6 +1036,18 @@ lacp_select_active_aggregator(struct lacp_softc *lsc)
 	}
 }
 
+static int
+lacp_pm_compare(const void *p1, const void *p2)
+{
+	struct lacp_port *const *a = p1;
+	struct lacp_port *const *b = p2;
+	int left, right;
+
+	left = (*a)->lp_ifp->if_index;
+	right = (*b)->lp_ifp->if_index;
+	return ((left > right) - (left < right));
+}
+
 /*
  * Updated the inactive portmap array with the new list of ports and
  * make it live.
@@ -1079,11 +1091,23 @@ lacp_update_portmap(struct lacp_softc *lsc)
 
 #ifdef NUMA
 		for (i = 0; i < MAXMEMDOM; i++) {
-			if (p->pm_numa[i].count != 0)
+			if (p->pm_numa[i].count != 0) {
 				p->pm_num_dom++;
+				if (p->pm_numa[i].count > 1) {
+					qsort(&p->pm_numa[i].map[0],
+					    p->pm_numa[i].count,
+					    sizeof(p->pm_numa[i].map[0]),
+					    lacp_pm_compare);
+				}
+			}
 		}
 #endif
 		speed = lacp_aggregator_bandwidth(la);
+	}
+
+	if (p->pm_count > 1) {
+		qsort(&p->pm_map[0], p->pm_count,
+		    sizeof(p->pm_map[0]), lacp_pm_compare);
 	}
 	sc->sc_ifp->if_baudrate = speed;
 	EVENTHANDLER_INVOKE(ifnet_event, sc->sc_ifp,
