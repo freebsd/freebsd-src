@@ -1,5 +1,5 @@
 .\"
-.Dd December 4, 2025
+.Dd December 10, 2025
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -704,7 +704,18 @@ option (see below), packets are logged in two ways: if the sysctl variable
 is set to 0 (default), one can use the
 .Xr bpf 4
 tap named
-.Li ipfw0 .
+.Li ipfwXXXXX ,
+where XXXXX is the number of the rule that has the
+.Cm log
+keyword.
+The compatibility
+.Xr bpf 4
+tap named
+.Li ipfw0
+still exists.
+It will catch packets in case if there are no
+.Xr bpf 4
+listener(s) on a per-rule tap.
 There is zero overhead when no
 .Xr bpf 4
 listener is attached to the tap.
@@ -746,10 +757,12 @@ Logs a packet to
 with a
 .Dv LOG_SECURITY
 facility.
-.It Ar ipfw0
+.It Ar bpf
 Logs a packet to the
-.Li ipfw0
-pseudo interface.
+.Xr bpf 4
+tap named
+.Li ipfwXXXXX ,
+where XXXXX is the rule number.
 .It Ar rtsock
 Logs a packet to the
 .Xr route 4
@@ -769,7 +782,7 @@ I.e. A packet matching a rule with
 .Cm log logamount
 100
 .Cm logdst
-syslog,ipfw0 ...
+syslog,bpf ...
 .Ed
 .Pp
 will log upto 50 packets.
@@ -3663,9 +3676,9 @@ Default value is
 .It Cm log
 Turn on logging of all handled packets via BPF tap named
 .Ar ipfwlog0 .
-Note that it has different purpose than
-.Ar ipfw0
-tap.
+Note that it has different purpose than per-rule
+.Xr bpf 4
+taps.
 Translators sends to BPF an additional information with each packet.
 With
 .Cm tcpdump
