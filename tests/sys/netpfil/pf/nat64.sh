@@ -1179,6 +1179,74 @@ v6_gateway_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "scrub_min_ttl" "cleanup"
+scrub_min_ttl_head()
+{
+	atf_set descr 'Ensure scrub min-ttl applies to nat64 traffic'
+	atf_set require.user root
+}
+
+scrub_min_ttl_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	epair_link=$(vnet_mkepair)
+	epair_link_two=$(vnet_mkepair)
+
+	ifconfig ${epair}a inet6 2001:db8::2/64 up no_dad
+	route -6 add default 2001:db8::1
+
+	vnet_mkjail rtr ${epair}b ${epair_link}a
+	jexec rtr ifconfig ${epair}b inet6 2001:db8::1/64 up no_dad
+	jexec rtr ifconfig ${epair_link}a 192.0.2.1/24 up
+	jexec rtr route add default 192.0.2.2
+
+	vnet_mkjail rtr2 ${epair_link}b ${epair_link_two}a
+	jexec rtr2 ifconfig ${epair_link}b 192.0.2.2/24 up
+	jexec rtr2 ifconfig ${epair_link_two}a 198.51.100.2/24 up
+	jexec rtr2 sysctl net.inet.ip.forwarding=1
+
+	vnet_mkjail dst ${epair_link_two}b
+	jexec dst ifconfig ${epair_link_two}b 198.51.100.1/24 up
+	jexec dst route add default 198.51.100.2
+
+	# Sanity checks
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 2001:db8::1
+	atf_check -s exit:0 -o ignore \
+	    jexec rtr ping -c 1 192.0.2.2
+	atf_check -s exit:0 -o ignore \
+	    jexec rtr ping -c 1 198.51.100.2
+	atf_check -s exit:0 -o ignore \
+	    jexec rtr ping -c 1 198.51.100.1
+
+	jexec rtr pfctl -e
+	pft_set_rules rtr \
+	    "pass" \
+	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 af-to inet from (${epair_link}a)"
+
+	# Ping works with a normal TTL
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 64:ff9b::198.51.100.1
+
+	# If we set a TTL of two the packet gets dropped
+	atf_check -s exit:2 -o ignore \
+	    ping6 -c 1 -m 2 64:ff9b::198.51.100.1
+
+	# But if we have pf enforce a minimum ttl of 10 the ping does pass
+	pft_set_rules rtr \
+	    "pass" \
+	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 af-to inet from (${epair_link}a) scrub (min-ttl 10)"
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 -m 2 64:ff9b::198.51.100.1
+}
+
+scub_min_ttl_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "icmp_echo_in"
@@ -1206,4 +1274,5 @@ atf_init_test_cases()
 	atf_add_test_case "route_to"
 	atf_add_test_case "reply_to"
 	atf_add_test_case "v6_gateway"
+	atf_add_test_case "scrub_min_ttl"
 }

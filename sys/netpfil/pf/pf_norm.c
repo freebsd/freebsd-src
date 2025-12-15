@@ -2244,14 +2244,14 @@ pf_scrub(struct pf_pdesc *pd)
 	    h->ip_ttl < pd->act.min_ttl) {
 		u_int16_t ip_ttl = h->ip_ttl;
 
-		h->ip_ttl = pd->act.min_ttl;
+		pd->ttl = h->ip_ttl = pd->act.min_ttl;
 		h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_ttl, h->ip_ttl, 0);
 	}
 #ifdef INET6
 	/* Enforce a minimum ttl, may cause endless packet loops */
 	if (pd->af == AF_INET6 && pd->act.min_ttl &&
 	    h6->ip6_hlim < pd->act.min_ttl)
-		h6->ip6_hlim = pd->act.min_ttl;
+		pd->ttl = h6->ip6_hlim = pd->act.min_ttl;
 #endif /* INET6 */
 	/* Enforce tos */
 	if (pd->act.flags & PFSTATE_SETTOS) {
@@ -2261,6 +2261,7 @@ pf_scrub(struct pf_pdesc *pd)
 
 			ov = *(u_int16_t *)h;
 			h->ip_tos = pd->act.set_tos | (h->ip_tos & IPTOS_ECN_MASK);
+			pd->tos = h->ip_tos & ~IPTOS_ECN_MASK;
 			nv = *(u_int16_t *)h;
 
 			h->ip_sum = pf_cksum_fixup(h->ip_sum, ov, nv, 0);
@@ -2270,6 +2271,7 @@ pf_scrub(struct pf_pdesc *pd)
 		case AF_INET6:
 			h6->ip6_flow &= IPV6_FLOWLABEL_MASK | IPV6_VERSION_MASK;
 			h6->ip6_flow |= htonl((pd->act.set_tos | IPV6_ECN(h6)) << 20);
+			pd->tos = IPV6_DSCP(h6);
 			break;
 #endif /* INET6 */
 		}
