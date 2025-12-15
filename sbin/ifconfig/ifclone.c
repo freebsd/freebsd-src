@@ -117,6 +117,15 @@ ifclonecreate(if_ctx *ctx, void *arg __unused)
 {
 	struct ifreq ifr = {};
 	struct clone_defcb *dcp;
+	u_int u;
+
+	/* Warning to be removed in FreeBSD 17.0 */
+	if (sscanf(ctx->ifname, "ipfw%u", &u) == 1 ||
+	    sscanf(ctx->ifname, "ipfwlog%u", &u) == 1) {
+		warnx("ipfw(4) logging does not need interface creation "
+		     "in FreeBSD 16.0");
+		return;
+	}
 
 	strlcpy(ifr.ifr_name, ctx->ifname, sizeof(ifr.ifr_name));
 
