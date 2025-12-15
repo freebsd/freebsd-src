@@ -535,10 +535,11 @@ ifc_attach_cloner(const char *name, struct if_clone_addreq *req)
 
 		ifc->create_nl = req2->create_nl_f;
 		ifc->modify_nl = req2->modify_nl_f;
-		ifc->dump_nl = req2->dump_nl_f;
+		if (req2->dump_nl_f != NULL)
+			ifc->dump_nl = req2->dump_nl_f;
+		else
+			ifc->dump_nl = ifc_dump_ifp_nl_default;
 	}
-
-	ifc->dump_nl = ifc_dump_ifp_nl_default;
 
 	if (if_clone_attach(ifc) != 0)
 		return (NULL);

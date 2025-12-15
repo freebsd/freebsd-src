@@ -241,6 +241,7 @@ johalun [label="Johannes Lundberg\njohalun@FreeBSD.org\n2019/01/19"]
 jon [label="Jonathan Chen\njon@FreeBSD.org\n2000/10/17"]
 jonathan [label="Jonathan Anderson\njonathan@FreeBSD.org\n2010/10/07"]
 jpaetzel [label="Josh Paetzel\njpaetzel@FreeBSD.org\n2011/01/21"]
+jrhall [label="John Hall\njrhall@FreeBSD.org\n2025/11/18"
 jrtc27 [label="Jessica Clarke\njrtc27@FreeBSD.org\n2020/01/23"]
 jtl [label="Jonathan T. Looney\njtl@FreeBSD.org\n2015/10/26"]
 julian [label="Julian Elischer\njulian@FreeBSD.org\n1993/04/19"]
@@ -627,6 +628,7 @@ imp -> jfree
 imp -> joe
 imp -> johalun
 imp -> jon
+imp -> jrhall
 imp -> keichii
 imp -> kibab
 imp -> mb
