@@ -34,13 +34,10 @@
 .Nd print information about system device configuration
 .Sh SYNOPSIS
 .Nm
-.Op Fl -libxo
 .Op Fl rv
 .Nm
-.Op Fl -libxo
 .Fl p Ar dev Op Fl v
 .Nm
-.Op Fl -libxo
 .Fl u Op Fl v
 .Sh DESCRIPTION
 The
@@ -51,14 +48,7 @@ in the system, starting from the
 device.
 .Pp
 The following options are accepted:
-.Bl -tag -width "--libxo"
-.It Fl -libxo
-Generate output via
-.Xr libxo 3
-in a selection of different human and machine readable formats.
-See
-.Xr xo_options 7
-for details on command line arguments.
+.Bl -tag -width indent
 .It Fl p Ar dev
 Display the path of
 .Ar dev
@@ -83,8 +73,6 @@ This flag also displays verbose information about each device.
 .Sh SEE ALSO
 .Xr systat 1 ,
 .Xr devinfo 3 ,
-.Xr libxo 3 ,
-.Xr xo_options 7 ,
 .Xr devctl 8 ,
 .Xr iostat 8 ,
 .Xr pciconf 8 ,
