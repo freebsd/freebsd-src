@@ -181,6 +181,14 @@ mt7622_pcie_port_start(device_t dev, int port)
     int timeout;
     uint32_t val;
 
+    val = SYSCON_READ_4(sc->syscon, PCIE_SYS_CFG_V2);
+    val |= PCIE_CSR_LTSSM_EN(port);
+    val |= PCIE_CSR_ASPM_L1_EN(port);
+    SYSCON_WRITE_4(sc->syscon, PCIE_SYS_CFG_V2, val);
+    device_printf(sc->dev,
+                  "enabled LTSSM+ASPM L1 for port %u (0x%08x)\n",
+                  port, val);
+
     /* Assert all reset signals */
     bus_write_4(sc->res_mem, PCIE_RST_CTRL, 0x0);
 
@@ -364,7 +372,7 @@ mt7622_pcib_write_config(device_t dev, u_int bus, u_int slot, u_int func,
     val |= APP_CFG_REQ;
     bus_write_4(sc->res_mem, PCIE_APP_TLP_REQ, val);
 }
-
+/*
 static void
 mt7622_pcie_port_enable(struct mt7622_pcie_softc *sc, int port)
 {
@@ -377,7 +385,7 @@ mt7622_pcie_port_enable(struct mt7622_pcie_softc *sc, int port)
                   "enabled LTSSM+ASPM L1 for port %u (0x%08x)\n",
                   port, val);
 }
-
+*/
 static int
 mt7622_pcie_detach(device_t dev)
 {
@@ -549,7 +557,7 @@ mt7622_pcie_attach(device_t dev) {
             return (ENXIO);
         }
 
-        mt7622_pcie_port_enable(sc, port);
+        //mt7622_pcie_port_enable(sc, port);
     }
     else if (port == 1) {
         if (clk_get_by_ofw_name(dev, 0, "sys_ck1", &sc->sys_ck0)) {
@@ -618,7 +626,7 @@ mt7622_pcie_attach(device_t dev) {
             return (ENXIO);
         }
 
-        mt7622_pcie_port_enable(sc, port);
+        //mt7622_pcie_port_enable(sc, port);
 
     } else {
         device_printf(dev, "CLocks not found.\n");
