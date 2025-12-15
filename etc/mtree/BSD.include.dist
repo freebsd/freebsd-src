@@ -6,9 +6,9 @@
 .
     arpa
     ..
-    atf-c               tags=package=atf-dev
+    atf-c
     ..
-    atf-c++             tags=package=atf-dev
+    atf-c++
     ..
     bsm                 tags=package=audit-dev
     ..
