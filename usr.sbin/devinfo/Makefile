@@ -2,6 +2,6 @@ PACKAGE=	devmatch
 PROG=	devinfo
 MAN=	devinfo.8
 
-LIBADD=	xo devinfo
+LIBADD=	devinfo
 
 .include <bsd.prog.mk>
