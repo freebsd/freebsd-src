@@ -1088,35 +1088,7 @@ ieee80211_load_module(const char *modname)
 #endif
 }
 
-static eventhandler_tag wlan_bpfevent;
 static eventhandler_tag wlan_ifllevent;
-
-static void
-bpf_track(void *arg, struct ifnet *ifp, int dlt, int attach)
-{
-	/* NB: identify vap's by if_init */
-	if (dlt == DLT_IEEE802_11_RADIO &&
-	    ifp->if_init == ieee80211_init) {
-		struct ieee80211vap *vap = ifp->if_softc;
-		/*
-		 * Track bpf radiotap listener state.  We mark the vap
-		 * to indicate if any listener is present and the com
-		 * to indicate if any listener exists on any associated
-		 * vap.  This flag is used by drivers to prepare radiotap
-		 * state only when needed.
-		 */
-		if (attach) {
-			ieee80211_syncflag_ext(vap, IEEE80211_FEXT_BPF);
-			if (vap->iv_opmode == IEEE80211_M_MONITOR)
-				atomic_add_int(&vap->iv_ic->ic_montaps, 1);
-		} else if (!bpf_peers_present(vap->iv_rawbpf)) {
-			ieee80211_syncflag_ext(vap, -IEEE80211_FEXT_BPF);
-			if (vap->iv_opmode == IEEE80211_M_MONITOR)
-				atomic_subtract_int(&vap->iv_ic->ic_montaps, 1);
-		}
-	}
-}
-
 /*
  * Change MAC address on the vap (if was not started).
  */
@@ -1385,8 +1357,6 @@ wlan_modevent(module_t mod, int type, void *unused)
 	case MOD_LOAD:
 		if (bootverbose)
 			printf("wlan: <802.11 Link Layer>\n");
-		wlan_bpfevent = EVENTHANDLER_REGISTER(bpf_track,
-		    bpf_track, 0, EVENTHANDLER_PRI_ANY);
 		wlan_ifllevent = EVENTHANDLER_REGISTER(iflladdr_event,
 		    wlan_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
 		struct if_clone_addreq req = {
@@ -1398,7 +1368,6 @@ wlan_modevent(module_t mod, int type, void *unused)
 		return 0;
 	case MOD_UNLOAD:
 		ifc_detach_cloner(wlan_cloner);
-		EVENTHANDLER_DEREGISTER(bpf_track, wlan_bpfevent);
 		EVENTHANDLER_DEREGISTER(iflladdr_event, wlan_ifllevent);
 		return 0;
 	}

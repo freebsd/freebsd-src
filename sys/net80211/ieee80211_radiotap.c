@@ -43,8 +43,10 @@
 #include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/if_media.h>
 #include <net/ethernet.h>
+#include <net/route.h>
 
 #include <net80211/ieee80211_var.h>
 
@@ -106,20 +108,6 @@ ieee80211_radiotap_attachv(struct ieee80211com *ic,
 void
 ieee80211_radiotap_detach(struct ieee80211com *ic)
 {
-}
-
-void
-ieee80211_radiotap_vattach(struct ieee80211vap *vap)
-{
-	struct ieee80211com *ic = vap->iv_ic;
-	struct ieee80211_radiotap_header *th = ic->ic_th;
-
-	if (th != NULL && ic->ic_rh != NULL) {
-		/* radiotap DLT for raw 802.11 frames */
-		bpfattach2(vap->iv_ifp, DLT_IEEE802_11_RADIO,
-		    sizeof(struct ieee80211_frame) + le16toh(th->it_len),
-		    &vap->iv_rawbpf);
-	}
 }
 
 void
@@ -371,4 +359,116 @@ radiotap_offset(struct ieee80211_radiotap_header *rh,
 		off += items[i].width;
 	}
 	return -1;
+}
+
+static bool
+bpf_ieee80211_chkdir(void *arg, const struct mbuf *m, int dir)
+{
+	struct ifnet *ifp = arg;
+	struct ifnet *rcvif = m_rcvif(m);
+
+	return ((dir == BPF_D_IN && ifp != rcvif) ||
+	    (dir == BPF_D_OUT && ifp == rcvif));
+}
+
+static void
+bpf_ieee80211_attach(void *sc)
+{
+	struct ieee80211vap *vap = if_getsoftc((if_t)sc);
+
+	/*
+	 * Track bpf radiotap listener state.  We mark the vap
+	 * to indicate if any listener is present and the com
+	 * to indicate if any listener exists on any associated
+	 * vap.  This flag is used by drivers to prepare radiotap
+	 * state only when needed.
+	 */
+	ieee80211_syncflag_ext(vap, IEEE80211_FEXT_BPF);
+	if (vap->iv_opmode == IEEE80211_M_MONITOR)
+		atomic_add_int(&vap->iv_ic->ic_montaps, 1);
+}
+
+static void
+bpf_ieee80211_detach(void *sc)
+{
+	struct ieee80211vap *vap = if_getsoftc((if_t)sc);
+
+	if (!bpf_peers_present(vap->iv_rawbpf)) {
+		ieee80211_syncflag_ext(vap, -IEEE80211_FEXT_BPF);
+		if (vap->iv_opmode == IEEE80211_M_MONITOR)
+			atomic_subtract_int(&vap->iv_ic->ic_montaps, 1);
+	}
+}
+
+static int
+bpf_ieee80211_write(void *arg, struct mbuf *m, struct mbuf *mc, int flags)
+{
+	struct ifnet *ifp = arg;
+	struct sockaddr dst = {
+		.sa_family = AF_IEEE80211,
+		/* XXXGL: value and XXX comment from 246b5467621a */
+		.sa_len = 12,	/* XXX != 0 */
+	};
+	struct route ro = {
+		.ro_prepend = (char *)&dst.sa_data,
+		.ro_flags = RT_HAS_HEADER,
+	};
+	const struct ieee80211_bpf_params *p;
+	u_int hlen;
+	int error;
+
+	NET_EPOCH_ASSERT();
+
+	/*
+	 * Collect true length from the parameter header.
+	 * XXX check ibp_vers
+	 */
+	p = mtod(m, const struct ieee80211_bpf_params *);
+	if (p->ibp_len > sizeof(dst.sa_data)) {
+		m_freem(m);
+		m_freem(mc);
+		return (EMSGSIZE);
+	}
+	hlen = ro.ro_plen = p->ibp_len;
+	bcopy(mtod(m, const void *), &dst.sa_data, hlen);
+	m->m_pkthdr.len -= hlen;
+	m->m_len -= hlen;
+	m->m_data += hlen;
+
+	CURVNET_SET(ifp->if_vnet);
+	error = ifp->if_output(ifp, m, &dst, &ro);
+	if (error != 0) {
+		m_freem(mc);
+	} else if (mc != NULL) {
+		mc->m_pkthdr.rcvif = ifp;
+		(void)ifp->if_input(ifp, mc);
+	}
+	CURVNET_RESTORE();
+
+	return (error);
+}
+
+static const struct bif_methods bpf_ieee80211_methods = {
+	.bif_chkdir = bpf_ieee80211_chkdir,
+	.bif_attachd = bpf_ieee80211_attach,
+	.bif_detachd = bpf_ieee80211_detach,
+	.bif_promisc = bpf_ifnet_promisc,
+	.bif_wrsize = bpf_ifnet_wrsize,
+	.bif_write = bpf_ieee80211_write,
+};
+
+void
+ieee80211_radiotap_vattach(struct ieee80211vap *vap)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+	struct ieee80211_radiotap_header *th = ic->ic_th;
+
+	if (th != NULL && ic->ic_rh != NULL) {
+		/* radiotap DLT for raw 802.11 frames */
+		vap->iv_rawbpf = bpf_attach(if_name(vap->iv_ifp),
+		    DLT_IEEE802_11_RADIO,
+		    sizeof(struct ieee80211_frame) + le16toh(th->it_len),
+		    &bpf_ieee80211_methods, vap->iv_ifp);
+		if_ref(vap->iv_ifp);
+	}
 }
