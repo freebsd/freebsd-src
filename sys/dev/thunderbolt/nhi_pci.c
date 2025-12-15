@@ -118,8 +118,6 @@ struct nhi_ident {
 
 DRIVER_MODULE_ORDERED(nhi, pci, nhi_pci_driver, NULL, NULL,
     SI_ORDER_ANY);
-MODULE_PNP_INFO("U16:vendor;U16:device;V16:subvendor;V16:subdevice;U32:#;D:#",
-    pci, nhi, nhi_identifiers, nitems(nhi_identifiers) - 1);
 
 static struct nhi_ident *
 nhi_find_ident(device_t dev)
