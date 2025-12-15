@@ -221,8 +221,7 @@ struct bpf_dltlist32 {
  * structures registered by different layers in the stack (i.e., 802.11
  * frames, ethernet frames, etc).
  */
-LIST_HEAD(bpf_iflist, bpf_if);
-static struct bpf_iflist bpf_iflist = LIST_HEAD_INITIALIZER();
+static LIST_HEAD(, bpf_if) bpf_iflist = LIST_HEAD_INITIALIZER();
 static struct sx	bpf_sx;		/* bpf global lock */
 
 static void	bpfif_ref(struct bpf_if *);
@@ -240,6 +239,7 @@ static void	catchpacket(struct bpf_d *, u_char *, u_int, u_int,
 		    void (*)(struct bpf_d *, caddr_t, u_int, void *, u_int),
 		    struct bintime *);
 static void	reset_d(struct bpf_d *);
+static int	bpf_getiflist(struct bpf_iflist *);
 static int	bpf_setf(struct bpf_d *, struct bpf_program *, u_long cmd);
 static int	bpf_getdltlist(struct bpf_d *, struct bpf_dltlist *);
 static int	bpf_setdlt(struct bpf_d *, u_int);
@@ -1100,6 +1100,7 @@ reset_d(struct bpf_d *d)
 
 /*
  *  FIONREAD		Check for read packet available.
+ *  BIOCGETIFLIST	Get list of all tap points.
  *  BIOCGBLEN		Get buffer len [for read()].
  *  BIOCSETF		Set read filter.
  *  BIOCSETFNR		Set read filter without resetting descriptor.
@@ -1153,6 +1154,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 
 	if (d->bd_flags & BPFD_LOCKED) {
 		switch (cmd) {
+		case BIOCGETIFLIST:
 		case BIOCGBLEN:
 		case BIOCFLUSH:
 		case BIOCGDLT:
@@ -1230,6 +1232,12 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 			*(int *)addr = n;
 			break;
 		}
+	/*
+	 * Get list of all tap points.
+	 */
+	case BIOCGETIFLIST:
+		error = bpf_getiflist((struct bpf_iflist *)addr);
+		break;
 
 	/*
 	 * Get buffer len [for read()].
@@ -1704,6 +1712,59 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	}
 	CURVNET_RESTORE();
 	return (error);
+}
+
+/*
+ * Return list of available tapping points, or report how much space is
+ * required for a successful return.
+ */
+static int
+bpf_getiflist(struct bpf_iflist *bi)
+{
+	struct bpf_if *bp;
+	u_int allsize, size, cnt;
+	char *uaddr;
+
+	BPF_LOCK();
+
+	cnt = allsize = size = 0;
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+		allsize += strlen(bp->bif_name) + 1;
+		if (++cnt == bi->bi_count)
+			size = allsize;
+	}
+	if (size == 0)
+		size = allsize;
+
+	if (bi->bi_size == 0) {
+		BPF_UNLOCK();
+		bi->bi_size = size;
+		bi->bi_count = cnt;
+		return (0);
+	} else if (bi->bi_size < size) {
+		BPF_UNLOCK();
+		return (ENOSPC);
+	}
+
+	uaddr = bi->bi_ubuf;
+	cnt = 0;
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+		u_int len;
+		int error;
+
+		len = strlen(bp->bif_name) + 1;
+		if ((error = copyout(bp->bif_name, uaddr, len)) != 0) {
+			BPF_UNLOCK();
+			return (error);
+		}
+		if (++cnt == bi->bi_count)
+			break;
+		uaddr += len;
+	}
+	BPF_UNLOCK();
+	bi->bi_count = cnt;
+
+	return (0);
 }
 
 /*
