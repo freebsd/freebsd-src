@@ -2584,7 +2584,6 @@ in6_domifattach(struct ifnet *ifp)
 	switch (ifp->if_type) {
 	case IFT_PFLOG:
 	case IFT_PFSYNC:
-	case IFT_USB:
 		return (NULL);
 	}
 	ext = (struct in6_ifextra *)malloc(sizeof(*ext), M_IFADDR, M_WAITOK);

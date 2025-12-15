@@ -106,7 +106,7 @@ struct usb_bus {
 	const struct usb_bus_methods *methods;	/* filled by HC driver */
 	struct usb_device **devices;
 
-	struct ifnet *ifp;	/* only for USB Packet Filter */
+	struct bpf_if *bpf;	/* USB Packet Filter */
 
 	usb_power_mask_t hw_power_state;	/* see USB_HW_POWER_XXX */
 	usb_size_t uframe_usage[USB_HS_MICRO_FRAMES_MAX];
