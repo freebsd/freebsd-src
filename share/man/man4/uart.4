@@ -377,6 +377,8 @@ COM2 instead of COM1 and set the baud rate to 115200.
 .Xr cu 1 ,
 .Xr puc 4 ,
 .Xr scc 4 ,
+.Xr termios 4 ,
+.Xr tty 4 ,
 .Xr ttys 5
 .\"
 .Sh HISTORY
@@ -389,3 +391,13 @@ The
 .Nm
 device driver and this manual page were written by
 .An Marcel Moolenaar Aq Mt marcel@xcllnt.net .
+.Sh BUGS
+Before the Internet, serial ports were primarily used for inbound
+connections from terminals, either directly or through modems, these
+days serial ports are primarily used for outbound connections to
+devices, an evolution which unfortunately has spread the relevant
+documentation over three different manual pages:
+.Xr termios 4 ,
+.Xr uart 4 and
+.Xr tty 4 .
+

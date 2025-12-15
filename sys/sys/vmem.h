@@ -33,8 +33,6 @@
 
 #include <sys/types.h>
 
-#ifdef _KERNEL
-
 typedef struct vmem vmem_t;
 
 typedef uintptr_t	vmem_addr_t;
@@ -44,9 +42,23 @@ typedef size_t		vmem_size_t;
 #define	VMEM_ADDR_QCACHE_MIN	1
 #define	VMEM_ADDR_MAX		(~(vmem_addr_t)0)
 
+/* vmem_size typemask */
+#define VMEM_ALLOC	0x01
+#define VMEM_FREE	0x02
+#define VMEM_MAXFREE	0x10
+
 typedef int (vmem_import_t)(void *, vmem_size_t, int, vmem_addr_t *);
 typedef void (vmem_release_t)(void *, vmem_addr_t, vmem_size_t);
 typedef void (vmem_reclaim_t)(vmem_t *, int);
+
+#ifndef _KERNEL
+#define	M_NOWAIT	0x0800		/* userspace hack */
+#define	M_FIRSTFIT	0x1000		/* only for vmem, fast fit */
+#define	M_BESTFIT	0x2000		/* only for vmem, low fragmentation */
+#define	M_NEXTFIT	0x8000		/* only for vmem, follow cursor */
+#endif
+
+__BEGIN_DECLS
 
 /*
  * Create a vmem:
@@ -134,11 +146,6 @@ void vmem_printall(const char *, int (*fn)(const char *, ...)
     __printflike(1, 2));
 void vmem_startup(void);
 
-/* vmem_size typemask */
-#define VMEM_ALLOC	0x01
-#define VMEM_FREE	0x02
-#define VMEM_MAXFREE	0x10
-
-#endif /* _KERNEL */
+__END_DECLS
 
 #endif /* !_SYS_VMEM_H_ */

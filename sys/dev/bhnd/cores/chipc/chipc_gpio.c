@@ -138,8 +138,7 @@ chipc_gpio_attach(device_t dev)
 
 	CC_GPIO_LOCK_INIT(sc);
 
-	sc->mem_rid = 0;
-	sc->mem_res = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
+	sc->mem_res = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY, 0,
 	    RF_ACTIVE|RF_SHAREABLE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "failed to allocate chipcommon registers\n");
@@ -195,8 +194,7 @@ failed:
 	device_delete_children(dev);
 
 	if (sc->mem_res != NULL) {
-		bhnd_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid,
-		    sc->mem_res);
+		bhnd_release_resource(dev, sc->mem_res);
 	}
 
 	CC_GPIO_LOCK_DESTROY(sc);
@@ -218,7 +216,7 @@ chipc_gpio_detach(device_t dev)
 	if ((error = bhnd_deregister_provider(dev, BHND_SERVICE_ANY)))
 		return (error);
 
-	bhnd_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem_res);
+	bhnd_release_resource(dev, sc->mem_res);
 	CC_GPIO_LOCK_DESTROY(sc);
 
 	return (0);

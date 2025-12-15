@@ -43,7 +43,7 @@ INTERFACE bus;
 CODE {
 	static struct resource *
 	null_alloc_resource(device_t dev, device_t child,
-	    int type, int *rid, rman_res_t start, rman_res_t end,
+	    int type, int rid, rman_res_t start, rman_res_t end,
 	    rman_res_t count, u_int flags)
 	{
 	    return (0);
@@ -273,16 +273,15 @@ METHOD int rescan {
  *
  * This method is called by child devices of a bus to allocate resources.
  * The types are defined in <machine/resource.h>; the meaning of the
- * resource-ID field varies from bus to bus (but @p *rid == 0 is always
- * valid if the resource type is). If a resource was allocated and the
- * caller did not use the RF_ACTIVE to specify that it should be
+ * resource-ID field varies from bus to bus. If a resource was allocated
+ * and the caller did not use the RF_ACTIVE to specify that it should be
  * activated immediately, the caller is responsible for calling
  * BUS_ACTIVATE_RESOURCE() when it actually uses the resource.
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which is requesting an allocation
  * @param _type		the type of resource to allocate
- * @param _rid		a pointer to the resource identifier
+ * @param _rid		the resource identifier
  * @param _start	hint at the start of the resource range - pass
  *			@c 0 for any start address
  * @param _end		hint at the end of the resource range - pass
@@ -300,7 +299,7 @@ METHOD struct resource * alloc_resource {
 	device_t	_dev;
 	device_t	_child;
 	int		_type;
-	int	       *_rid;
+	int	        _rid;
 	rman_res_t	_start;
 	rman_res_t	_end;
 	rman_res_t	_count;

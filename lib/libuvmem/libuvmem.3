@@ -1,0 +1,71 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.Dd October 16, 2025
+.Dt LIBUVMEM 3
+.Os
+.Sh NAME
+.Nm libuvmem
+.Nd userspace general purpose resource allocator
+.Sh SYNOPSIS
+.Lb libuvmem
+.In sys/vmem.h
+.Sh DESCRIPTION
+The
+.Nm
+is a general purpose resource allocator.
+It is a port of the kernel facility of the similar name
+.Nm vmem .
+.Pp
+Refer to the description of the kernel allocator
+.Xr vmem 9
+to get the documentation for it.
+.Sh NOTES
+The
+.Dq quantum cache
+feature is not implemented for userspace, and the
+.Fa quantum
+and
+.Fa qcache_max
+arguments of the
+.Fn vmem_create
+function are ignored.
+.Pp
+The library internally uses
+.Xr malloc 3
+to allocate structures tracking allocations.
+.Pp
+The allocator is thread-safe.
+Locks for separate
+.Nm vmem's
+are independent between each other.
+.Pp
+The supported
+.Fa flags
+for the
+.Fn vmem_xalloc
+function are
+.Bl -bullet
+.It
+.Dv M_NOWAIT
+.It
+.Dv M_FIRSTFIT
+.It
+.Dv M_BESTFIT
+.It
+.Dv M_NEXTFIT
+.El
+.Sh AUTHORS
+See
+.Xr vmem 9
+for the history of the kernel allocator.
+.Pp
+The userspace port for
+.Fx
+was done by
+.An Konstantin Belousov Aq Mt kib@FreeBSD.org .

@@ -102,8 +102,10 @@ SYSCTL_INT(_debug, OID_AUTO, rman_debug, CTLFLAG_RWTUN,
 
 static MALLOC_DEFINE(M_RMAN, "rman", "Resource manager");
 
-struct rman_head rman_head;
+struct rman_head rman_head = TAILQ_HEAD_INITIALIZER(rman_head);
 static struct mtx rman_mtx; /* mutex to protect rman_head */
+MTX_SYSINIT(rman_mtx, &rman_mtx, "rman head", MTX_DEF);
+
 static int int_rman_release_resource(struct rman *rm, struct resource_i *r);
 
 static __inline struct resource_i *
@@ -121,14 +123,6 @@ int_alloc_resource(int malloc_flag)
 int
 rman_init(struct rman *rm)
 {
-	static int once = 0;
-
-	if (once == 0) {
-		once = 1;
-		TAILQ_INIT(&rman_head);
-		mtx_init(&rman_mtx, "rman head", NULL, MTX_DEF);
-	}
-
 	if (rm->rm_start == 0 && rm->rm_end == 0)
 		rm->rm_end = ~0;
 	if (rm->rm_type == RMAN_UNINIT)
@@ -137,10 +131,7 @@ rman_init(struct rman *rm)
 		panic("implement RMAN_GAUGE");
 
 	TAILQ_INIT(&rm->rm_list);
-	rm->rm_mtx = malloc(sizeof *rm->rm_mtx, M_RMAN, M_NOWAIT | M_ZERO);
-	if (rm->rm_mtx == NULL)
-		return ENOMEM;
-	mtx_init(rm->rm_mtx, "rman", NULL, MTX_DEF);
+	mtx_init(&rm->rm_mtx, "rman", NULL, MTX_DEF);
 
 	mtx_lock(&rman_mtx);
 	TAILQ_INSERT_TAIL(&rman_head, rm, rm_link);
@@ -165,7 +156,7 @@ rman_manage_region(struct rman *rm, rman_res_t start, rman_res_t end)
 	r->r_end = end;
 	r->r_rm = rm;
 
-	mtx_lock(rm->rm_mtx);
+	mtx_lock(&rm->rm_mtx);
 
 	/* Skip entries before us. */
 	TAILQ_FOREACH(s, &rm->rm_list, r_link) {
@@ -222,7 +213,7 @@ rman_manage_region(struct rman *rm, rman_res_t start, rman_res_t end)
 		}
 	}
 out:
-	mtx_unlock(rm->rm_mtx);
+	mtx_unlock(&rm->rm_mtx);
 	return rv;
 }
 
@@ -241,10 +232,10 @@ rman_fini(struct rman *rm)
 {
 	struct resource_i *r;
 
-	mtx_lock(rm->rm_mtx);
+	mtx_lock(&rm->rm_mtx);
 	TAILQ_FOREACH(r, &rm->rm_list, r_link) {
 		if (r->r_flags & RF_ALLOCATED) {
-			mtx_unlock(rm->rm_mtx);
+			mtx_unlock(&rm->rm_mtx);
 			return EBUSY;
 		}
 	}
@@ -258,12 +249,11 @@ rman_fini(struct rman *rm)
 		TAILQ_REMOVE(&rm->rm_list, r, r_link);
 		free(r, M_RMAN);
 	}
-	mtx_unlock(rm->rm_mtx);
+	mtx_unlock(&rm->rm_mtx);
 	mtx_lock(&rman_mtx);
 	TAILQ_REMOVE(&rman_head, rm, rm_link);
 	mtx_unlock(&rman_mtx);
-	mtx_destroy(rm->rm_mtx);
-	free(rm->rm_mtx, M_RMAN);
+	mtx_destroy(&rm->rm_mtx);
 
 	return 0;
 }
@@ -273,16 +263,16 @@ rman_first_free_region(struct rman *rm, rman_res_t *start, rman_res_t *end)
 {
 	struct resource_i *r;
 
-	mtx_lock(rm->rm_mtx);
+	mtx_lock(&rm->rm_mtx);
 	TAILQ_FOREACH(r, &rm->rm_list, r_link) {
 		if (!(r->r_flags & RF_ALLOCATED)) {
 			*start = r->r_start;
 			*end = r->r_end;
-			mtx_unlock(rm->rm_mtx);
+			mtx_unlock(&rm->rm_mtx);
 			return (0);
 		}
 	}
-	mtx_unlock(rm->rm_mtx);
+	mtx_unlock(&rm->rm_mtx);
 	return (ENOENT);
 }
 
@@ -291,16 +281,16 @@ rman_last_free_region(struct rman *rm, rman_res_t *start, rman_res_t *end)
 {
 	struct resource_i *r;
 
-	mtx_lock(rm->rm_mtx);
+	mtx_lock(&rm->rm_mtx);
 	TAILQ_FOREACH_REVERSE(r, &rm->rm_list, resource_head, r_link) {
 		if (!(r->r_flags & RF_ALLOCATED)) {
 			*start = r->r_start;
 			*end = r->r_end;
-			mtx_unlock(rm->rm_mtx);
+			mtx_unlock(&rm->rm_mtx);
 			return (0);
 		}
 	}
-	mtx_unlock(rm->rm_mtx);
+	mtx_unlock(&rm->rm_mtx);
 	return (ENOENT);
 }
 
@@ -329,7 +319,7 @@ rman_adjust_resource(struct resource *rr, rman_res_t start, rman_res_t end)
 	 * allocated resource.
 	 */
 	rm = r->r_rm;
-	mtx_lock(rm->rm_mtx);
+	mtx_lock(&rm->rm_mtx);
 #ifdef INVARIANTS
 	TAILQ_FOREACH(s, &rm->rm_list, r_link) {
 		if (s == r)
@@ -351,12 +341,12 @@ rman_adjust_resource(struct resource *rr, rman_res_t start, rman_res_t end)
 	 */
 	if (start < r->r_start && (s == NULL || (s->r_flags & RF_ALLOCATED) ||
 	    s->r_start > start)) {
-		mtx_unlock(rm->rm_mtx);
+		mtx_unlock(&rm->rm_mtx);
 		return (EBUSY);
 	}
 	if (end > r->r_end && (t == NULL || (t->r_flags & RF_ALLOCATED) ||
 	    t->r_end < end)) {
-		mtx_unlock(rm->rm_mtx);
+		mtx_unlock(&rm->rm_mtx);
 		return (EBUSY);
 	}
 
@@ -386,7 +376,7 @@ rman_adjust_resource(struct resource *rr, rman_res_t start, rman_res_t end)
 		} else
 			t->r_start = end + 1;
 	}
-	mtx_unlock(rm->rm_mtx);
+	mtx_unlock(&rm->rm_mtx);
 
 	/*
 	 * Handle the shrinking cases that require allocating a new
@@ -398,7 +388,7 @@ rman_adjust_resource(struct resource *rr, rman_res_t start, rman_res_t end)
 		new->r_start = r->r_start;
 		new->r_end = start - 1;
 		new->r_rm = rm;
-		mtx_lock(rm->rm_mtx);
+		mtx_lock(&rm->rm_mtx);
 		r->r_start = start;
 		s = TAILQ_PREV(r, resource_head, r_link);
 		if (s != NULL && !(s->r_flags & RF_ALLOCATED)) {
@@ -406,14 +396,14 @@ rman_adjust_resource(struct resource *rr, rman_res_t start, rman_res_t end)
 			free(new, M_RMAN);
 		} else
 			TAILQ_INSERT_BEFORE(r, new, r_link);
-		mtx_unlock(rm->rm_mtx);
+		mtx_unlock(&rm->rm_mtx);
 	}
 	if (end < r->r_end) {
 		new = int_alloc_resource(M_WAITOK);
 		new->r_start = end + 1;
 		new->r_end = r->r_end;
 		new->r_rm = rm;
-		mtx_lock(rm->rm_mtx);
+		mtx_lock(&rm->rm_mtx);
 		r->r_end = end;
 		t = TAILQ_NEXT(r, r_link);
 		if (t != NULL && !(t->r_flags & RF_ALLOCATED)) {
@@ -421,7 +411,7 @@ rman_adjust_resource(struct resource *rr, rman_res_t start, rman_res_t end)
 			free(new, M_RMAN);
 		} else
 			TAILQ_INSERT_AFTER(&rm->rm_list, r, new, r_link);
-		mtx_unlock(rm->rm_mtx);
+		mtx_unlock(&rm->rm_mtx);
 	}
 	return (0);
 }
@@ -447,7 +437,7 @@ rman_reserve_resource(struct rman *rm, rman_res_t start, rman_res_t end,
 	    ("invalid flags %#x", flags));
 	new_rflags = (flags & ~RF_FIRSTSHARE) | RF_ALLOCATED;
 
-	mtx_lock(rm->rm_mtx);
+	mtx_lock(&rm->rm_mtx);
 
 	r = TAILQ_FIRST(&rm->rm_list);
 	if (r == NULL)
@@ -634,7 +624,7 @@ rman_reserve_resource(struct rman *rm, rman_res_t start, rman_res_t end,
 	 */
 
 out:
-	mtx_unlock(rm->rm_mtx);
+	mtx_unlock(&rm->rm_mtx);
 	return (rv == NULL ? NULL : &rv->r_r);
 }
 
@@ -646,9 +636,9 @@ rman_activate_resource(struct resource *re)
 
 	r = re->__r_i;
 	rm = r->r_rm;
-	mtx_lock(rm->rm_mtx);
+	mtx_lock(&rm->rm_mtx);
 	r->r_flags |= RF_ACTIVE;
-	mtx_unlock(rm->rm_mtx);
+	mtx_unlock(&rm->rm_mtx);
 	return 0;
 }
 
@@ -658,9 +648,9 @@ rman_deactivate_resource(struct resource *r)
 	struct rman *rm;
 
 	rm = r->__r_i->r_rm;
-	mtx_lock(rm->rm_mtx);
+	mtx_lock(&rm->rm_mtx);
 	r->__r_i->r_flags &= ~RF_ACTIVE;
-	mtx_unlock(rm->rm_mtx);
+	mtx_unlock(&rm->rm_mtx);
 	return 0;
 }
 
@@ -767,9 +757,9 @@ rman_release_resource(struct resource *re)
 
 	r = re->__r_i;
 	rm = r->r_rm;
-	mtx_lock(rm->rm_mtx);
+	mtx_lock(&rm->rm_mtx);
 	rv = int_rman_release_resource(rm, r);
-	mtx_unlock(rm->rm_mtx);
+	mtx_unlock(&rm->rm_mtx);
 	return (rv);
 }
 
@@ -997,7 +987,7 @@ sysctl_rman(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Find the indexed resource and return it.
 	 */
-	mtx_lock(rm->rm_mtx);
+	mtx_lock(&rm->rm_mtx);
 	TAILQ_FOREACH(res, &rm->rm_list, r_link) {
 		if (res->r_sharehead != NULL) {
 			LIST_FOREACH(sres, res->r_sharehead, r_sharelink)
@@ -1009,7 +999,7 @@ sysctl_rman(SYSCTL_HANDLER_ARGS)
 		else if (res_idx-- == 0)
 				goto found;
 	}
-	mtx_unlock(rm->rm_mtx);
+	mtx_unlock(&rm->rm_mtx);
 	return (ENOENT);
 
 found:
@@ -1034,7 +1024,7 @@ found:
 	ures.r_size = res->r_end - res->r_start + 1;
 	ures.r_flags = res->r_flags;
 
-	mtx_unlock(rm->rm_mtx);
+	mtx_unlock(&rm->rm_mtx);
 	error = SYSCTL_OUT(req, &ures, sizeof(ures));
 	return (error);
 }

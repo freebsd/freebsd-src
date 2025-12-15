@@ -41,7 +41,7 @@
 static MALLOC_DEFINE(M_RADIX, "radix", "Linux radix compat");
 
 static inline unsigned long
-radix_max(struct radix_tree_root *root)
+radix_max(const struct radix_tree_root *root)
 {
 	return ((1UL << (root->height * RADIX_TREE_MAP_SHIFT)) - 1UL);
 }
@@ -64,7 +64,7 @@ radix_tree_clean_root_node(struct radix_tree_root *root)
 }
 
 void *
-radix_tree_lookup(struct radix_tree_root *root, unsigned long index)
+radix_tree_lookup(const struct radix_tree_root *root, unsigned long index)
 {
 	struct radix_tree_node *node;
 	void *item;
@@ -85,8 +85,8 @@ out:
 }
 
 bool
-radix_tree_iter_find(struct radix_tree_root *root, struct radix_tree_iter *iter,
-    void ***pppslot)
+radix_tree_iter_find(const struct radix_tree_root *root,
+    struct radix_tree_iter *iter, void ***pppslot)
 {
 	struct radix_tree_node *node;
 	unsigned long index = iter->index;

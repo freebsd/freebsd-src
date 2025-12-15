@@ -56,6 +56,7 @@ linux_common_modevent(module_t mod, int type, void *data)
 		linux_osd_jail_register();
 		SET_FOREACH(ldhp, linux_device_handler_set)
 			linux_device_register_handler(*ldhp);
+		linux_ifnet_init();
 		linux_netlink_register();
 		break;
 	case MOD_UNLOAD:
@@ -63,6 +64,7 @@ linux_common_modevent(module_t mod, int type, void *data)
 		linux_osd_jail_deregister();
 		SET_FOREACH(ldhp, linux_device_handler_set)
 			linux_device_unregister_handler(*ldhp);
+		linux_ifnet_uninit();
 		linux_netlink_deregister();
 		break;
 	default:

@@ -416,7 +416,7 @@ acpi_spibus_resume(device_t dev)
 #ifndef INTRNG
 /* Mostly copy of acpi_alloc_resource() */
 static struct resource *
-acpi_spibus_alloc_resource(device_t dev, device_t child, int type, int *rid,
+acpi_spibus_alloc_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	ACPI_RESOURCE ares;
@@ -434,7 +434,7 @@ acpi_spibus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	res = resource_list_alloc(rl, dev, child, type, rid,
 	    start, end, count, flags);
 	if (res != NULL && type == SYS_RES_IRQ &&
-	    ACPI_SUCCESS(acpi_lookup_irq_resource(child, *rid, res, &ares)))
+	    ACPI_SUCCESS(acpi_lookup_irq_resource(child, rid, res, &ares)))
 		acpi_config_intr(child, &ares);
 
 	return (res);

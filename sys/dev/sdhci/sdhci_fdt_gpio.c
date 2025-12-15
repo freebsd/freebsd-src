@@ -128,7 +128,7 @@ cd_setup(struct sdhci_fdt_gpio *gpio, phandle_t node)
 	/*
 	 * Create an interrupt resource from the pin and set up the interrupt.
 	 */
-	if ((gpio->cd_ires = gpio_alloc_intr_resource(dev, &gpio->cd_irid,
+	if ((gpio->cd_ires = gpio_alloc_intr_resource(dev, gpio->cd_irid,
 	    RF_ACTIVE, gpio->cd_pin, GPIO_INTR_EDGE_BOTH)) == NULL) {
 		if (bootverbose)
 			device_printf(dev, "Cannot allocate an IRQ for card "

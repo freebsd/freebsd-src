@@ -347,16 +347,16 @@ grp_unmarshal_func(char *buffer, size_t buffer_size, void *retval, va_list ap,
 	memcpy(&p, buffer + sizeof(struct group), sizeof(char *));
 
 	if (orig_buf_size + sizeof(struct group) + sizeof(char *) +
-	    _ALIGN(p) - (size_t)p < buffer_size) {
+	    __nss_buf_misalignment(p) < buffer_size) {
 		*ret_errno = ERANGE;
 		return (NS_RETURN);
 	}
 
 	orig_buf = (char *)_ALIGN(orig_buf);
 	memcpy(orig_buf, buffer + sizeof(struct group) + sizeof(char *) +
-	    _ALIGN(p) - (size_t)p,
+	    __nss_buf_misalignment(p),
 	    buffer_size - sizeof(struct group) - sizeof(char *) -
-	    _ALIGN(p) + (size_t)p);
+	    __nss_buf_misalignment(p));
 	p = (char *)_ALIGN(p);
 
 	NS_APPLY_OFFSET(grp->gr_name, orig_buf, p, char *);

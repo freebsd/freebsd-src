@@ -145,9 +145,6 @@ in6_inithead(uint32_t fibnum)
 
 	rh = rt_table_init(offsetof(struct sockaddr_in6, sin6_addr) << 3,
 	    AF_INET6, fibnum);
-	if (rh == NULL)
-		return (NULL);
-
 	rh->rnh_set_nh_pfxflags = rib6_set_nh_pfxflags;
 	rh->rnh_augment_nh = rib6_augment_nh;
 

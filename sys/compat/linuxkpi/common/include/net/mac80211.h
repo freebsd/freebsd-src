@@ -824,11 +824,17 @@ struct ieee80211_vif_cfg {
 	uint8_t					ap_addr[ETH_ALEN];
 };
 
+enum ieee80211_offload_flags {
+	IEEE80211_OFFLOAD_ENCAP_4ADDR,
+	IEEE80211_OFFLOAD_ENCAP_ENABLED,
+	IEEE80211_OFFLOAD_DECAP_ENABLED,
+};
+
 struct ieee80211_vif {
 	/* TODO FIXME */
 	enum nl80211_iftype		type;
 	int		cab_queue;
-	int		offload_flags;
+	int				offload_flags;	/* enum ieee80211_offload_flags */
 	enum ieee80211_vif_driver_flags	driver_flags;
 	bool				p2p;
 	bool				probe_req_reg;
@@ -943,12 +949,6 @@ struct ieee80211_low_level_stats {
 	uint32_t dot11FCSErrorCount;
 	uint32_t dot11RTSFailureCount;
 	uint32_t dot11RTSSuccessCount;
-};
-
-enum ieee80211_offload_flags {
-	IEEE80211_OFFLOAD_ENCAP_4ADDR,
-	IEEE80211_OFFLOAD_ENCAP_ENABLED,
-	IEEE80211_OFFLOAD_DECAP_ENABLED,
 };
 
 struct ieee80211_ops {
@@ -2291,7 +2291,7 @@ static __inline void
 ieee80211_sta_register_airtime(struct ieee80211_sta *sta,
     uint8_t tid, uint32_t duration, int x)
 {
-	TODO();
+	IMPROVE("NL80211_EXT_FEATURE_AIRTIME_FAIRNESS and TX queus");
 }
 
 static __inline void

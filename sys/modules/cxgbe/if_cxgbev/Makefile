@@ -1,6 +1,3 @@
-#
-#
-
 CXGBE=	${SRCTOP}/sys/dev/cxgbe
 .PATH: ${CXGBE} ${CXGBE}/common
 

@@ -974,7 +974,8 @@ ipf_nat_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 	int mode, int uid, void *ctx)
 {
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
-	int error = 0, ret, arg, getlock;
+	int error = 0, ret, arg, getlock, interr;
+	int interr_tbl[3] = { 60077, 60081, 60078 };
 	ipnat_t *nat, *nt, *n;
 	ipnat_t natd;
 	SPL_INT(s);
@@ -1027,6 +1028,16 @@ ipf_nat_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 				error = EINVAL;
 				goto done;
 			}
+			if (sizeof(natd) + natd.in_namelen != natd.in_size) {
+				IPFERROR(60080);
+				error = EINVAL;
+				goto done;
+			}
+			if (natd.in_namelen < 0 || natd.in_namelen > softc->ipf_max_namelen) {
+				IPFERROR(60082);
+				error = EINVAL;
+				goto done;
+			}
 			KMALLOCS(nt, ipnat_t *, natd.in_size);
 			if (nt == NULL) {
 				IPFERROR(60070);
@@ -1039,6 +1050,32 @@ ipf_nat_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 			if (error)
 				goto done;
 			nat = nt;
+		}
+
+		/*
+		 * Validate the incoming ipnat_t.
+		 */
+		if ((interr = ipf_check_names_string(nat->in_names, nat->in_namelen, nat->in_ifnames[0])) != 0) {
+			IPFERROR(interr_tbl[interr-1]);
+			error = EINVAL;
+			goto done;
+		}
+		if (nat->in_ifnames[0] != nat->in_ifnames[1]) {
+			if ((interr = ipf_check_names_string(nat->in_names, nat->in_namelen, nat->in_ifnames[1])) != 0) {
+				IPFERROR(interr_tbl[interr-1]);
+				error = EINVAL;
+				goto done;
+			}
+		}
+		if ((interr = ipf_check_names_string(nat->in_names, nat->in_namelen, nat->in_plabel)) != 0) {
+			IPFERROR(interr_tbl[interr-1]);
+			error = EINVAL;
+			goto done;
+		}
+		if ((interr = ipf_check_names_string(nat->in_names, nat->in_namelen, nat->in_pconfig)) != 0) {
+			IPFERROR(interr_tbl[interr-1]);
+			error = EINVAL;
+			goto done;
 		}
 
 		/*
@@ -1300,6 +1337,7 @@ ipf_nat_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 		error = ipf_proxy_ioctl(softc, data, cmd, mode, ctx);
 		break;
 
+#ifdef IPFILTER_IPFS
 	case SIOCSTLCK :
 		if (!(mode & FWRITE)) {
 			IPFERROR(60015);
@@ -1335,6 +1373,7 @@ ipf_nat_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 			error = EACCES;
 		}
 		break;
+#endif /* IPFILTER_IPFS */
 
 	case SIOCGENITER :
 	    {
@@ -1642,7 +1681,7 @@ ipf_nat_siocdelnat(ipf_main_softc_t *softc, ipf_nat_softc_t *softn, ipnat_t *n,
 	}
 }
 
-
+#ifdef IPFILTER_IPFS
 /* ------------------------------------------------------------------------ */
 /* Function:    ipf_nat_getsz                                               */
 /* Returns:     int - 0 == success, != 0 is the error value.                */
@@ -2210,6 +2249,7 @@ junkput:
 	}
 	return (error);
 }
+#endif /* IPFILTER_IPFS */
 
 
 /* ------------------------------------------------------------------------ */

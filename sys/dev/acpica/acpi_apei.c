@@ -700,7 +700,7 @@ apei_attach(device_t dev)
 	rid = 0;
 	TAILQ_FOREACH(ge, &sc->ges, link) {
 		ge->res_rid = rid++;
-		acpi_bus_alloc_gas(dev, &ge->res_type, &ge->res_rid,
+		acpi_bus_alloc_gas(dev, &ge->res_type, ge->res_rid,
 		    &ge->v1.ErrorStatusAddress, &ge->res, 0);
 		if (ge->res) {
 			ge->buf = pmap_mapdev_attr(READ8(ge->res, 0),
@@ -710,7 +710,7 @@ apei_attach(device_t dev)
 		}
 		if (ge->v1.Header.Type == ACPI_HEST_TYPE_GENERIC_ERROR_V2) {
 			ge->res2_rid = rid++;
-			acpi_bus_alloc_gas(dev, &ge->res2_type, &ge->res2_rid,
+			acpi_bus_alloc_gas(dev, &ge->res2_type, ge->res2_rid,
 			    &ge->v2.ReadAckRegister, &ge->res2, RF_SHAREABLE);
 			if (ge->res2 == NULL)
 				device_printf(dev, "Can't allocate ack resource.\n");

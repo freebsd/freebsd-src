@@ -52,7 +52,7 @@ int		pcib_host_res_free(device_t pcib,
 int		pcib_host_res_decodes(struct pcib_host_resources *hr, int type,
 		    rman_res_t start, rman_res_t end, u_int flags);
 struct resource *pcib_host_res_alloc(struct pcib_host_resources *hr,
-		    device_t dev, int type, int *rid, rman_res_t start,
+		    device_t dev, int type, int rid, rman_res_t start,
 		    rman_res_t end, rman_res_t count, u_int flags);
 int		pcib_host_res_adjust(struct pcib_host_resources *hr,
 		    device_t dev, struct resource *r, rman_res_t start,
@@ -138,7 +138,7 @@ typedef uint32_t pci_read_config_fn(int d, int b, int s, int f, int reg,
 
 int		host_pcib_get_busno(pci_read_config_fn read_config, int bus,
     int slot, int func, uint8_t *busnum);
-struct resource *pci_domain_alloc_bus(int domain, device_t dev, int *rid,
+struct resource *pci_domain_alloc_bus(int domain, device_t dev, int rid,
 		    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags);
 int		pci_domain_adjust_bus(int domain, device_t dev,
 		    struct resource *r, rman_res_t start, rman_res_t end);
@@ -149,7 +149,7 @@ int		pci_domain_activate_bus(int domain, device_t dev,
 int		pci_domain_deactivate_bus(int domain, device_t dev,
 		    struct resource *r);
 struct resource *pcib_alloc_subbus(struct pcib_secbus *bus, device_t child,
-		    int *rid, rman_res_t start, rman_res_t end, rman_res_t count,
+		    int rid, rman_res_t start, rman_res_t end, rman_res_t count,
 		    u_int flags);
 void		pcib_free_secbus(device_t dev, struct pcib_secbus *bus);
 void		pcib_setup_secbus(device_t dev, struct pcib_secbus *bus,

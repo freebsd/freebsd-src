@@ -124,7 +124,7 @@ static int thunder_pem_activate_resource(device_t, device_t, struct resource *);
 static int thunder_pem_adjust_resource(device_t, device_t,
     struct resource *, rman_res_t, rman_res_t);
 static struct resource * thunder_pem_alloc_resource(device_t, device_t, int,
-    int *, rman_res_t, rman_res_t, rman_res_t, u_int);
+    int, rman_res_t, rman_res_t, rman_res_t, u_int);
 static int thunder_pem_alloc_msi(device_t, device_t, int, int, int *);
 static int thunder_pem_release_msi(device_t, device_t, int, int *);
 static int thunder_pem_alloc_msix(device_t, device_t, int *);
@@ -651,7 +651,7 @@ thunder_pem_write_config(device_t dev, u_int bus, u_int slot,
 }
 
 static struct resource *
-thunder_pem_alloc_resource(device_t dev, device_t child, int type, int *rid,
+thunder_pem_alloc_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct thunder_pem_softc *sc = device_get_softc(dev);
@@ -694,7 +694,7 @@ thunder_pem_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	if (res == NULL && bootverbose) {
 		device_printf(dev, "%s FAIL: type=%d, rid=%d, "
 		    "start=%016lx, end=%016lx, count=%016lx, flags=%x\n",
-		    __func__, type, *rid, start, end, count, flags);
+		    __func__, type, rid, start, end, count, flags);
 	}
 
 	return (res);

@@ -4682,6 +4682,7 @@ xpt_alloc_target(struct cam_eb *bus, target_id_t target_id)
 	target->refcount = 1;
 	target->generation = 0;
 	target->luns = NULL;
+	target->wluns = NULL;
 	mtx_init(&target->luns_mtx, "CAM LUNs lock", NULL, MTX_DEF);
 	timevalclear(&target->last_reset);
 	/*

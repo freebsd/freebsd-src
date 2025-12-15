@@ -765,7 +765,7 @@ chipc_get_rman(device_t dev, int type, u_int flags)
 
 static struct resource *
 chipc_alloc_resource(device_t dev, device_t child, int type,
-    int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+    int rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct chipc_softc		*sc;
 	struct chipc_region		*cr;
@@ -793,11 +793,11 @@ chipc_alloc_resource(device_t dev, device_t child, int type,
 	if (!passthrough && isdefault) {
 		/* Fetch the resource list entry. */
 		rle = resource_list_find(BUS_GET_RESOURCE_LIST(dev, child),
-		    type, *rid);
+		    type, rid);
 		if (rle == NULL) {
 			device_printf(dev,
 			    "default resource %#x type %d for child %s "
-			    "not found\n", *rid, type,
+			    "not found\n", rid, type,
 			    device_get_nameunit(child));			
 			return (NULL);
 		}
@@ -806,7 +806,7 @@ chipc_alloc_resource(device_t dev, device_t child, int type,
 			device_printf(dev,
 			    "resource entry %#x type %d for child %s is busy "
 			    "[%d]\n",
-			    *rid, type, device_get_nameunit(child),
+			    rid, type, device_get_nameunit(child),
 			    rman_get_flags(rle->res));
 			
 			return (NULL);
@@ -1005,17 +1005,16 @@ cleanup:
 }
 
 static int
-chipc_activate_bhnd_resource(device_t dev, device_t child, int type,
-    int rid, struct bhnd_resource *r)
+chipc_activate_bhnd_resource(device_t dev, device_t child,
+    struct bhnd_resource *r)
 {
 	struct rman		*rm;
 	int			 error;
 
 	/* Delegate non-locally managed resources to parent */
-	rm = chipc_get_rman(dev, type, rman_get_flags(r->res));
+	rm = chipc_get_rman(dev, rman_get_type(r->res), rman_get_flags(r->res));
 	if (rm == NULL || !rman_is_region_manager(r->res, rm)) {
-		return (bhnd_bus_generic_activate_resource(dev, child, type,
-		    rid, r));
+		return (bhnd_bus_generic_activate_resource(dev, child, r));
 	}
 
 	/* Try activating the chipc region resource */

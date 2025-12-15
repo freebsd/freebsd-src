@@ -617,18 +617,15 @@ int				 bhnd_bus_generic_read_board_info(device_t dev,
 				     device_t child,
 				     struct bhnd_board_info *info);
 struct bhnd_resource		*bhnd_bus_generic_alloc_resource (device_t dev,
-				     device_t child, int type, int *rid,
+				     device_t child, int type, int rid,
 				     rman_res_t start, rman_res_t end,
 				     rman_res_t count, u_int flags);
 int				 bhnd_bus_generic_release_resource (device_t dev,
-				     device_t child, int type, int rid,
-				     struct bhnd_resource *r);
+				     device_t child, struct bhnd_resource *r);
 int				 bhnd_bus_generic_activate_resource (device_t dev,
-				     device_t child, int type, int rid,
-				     struct bhnd_resource *r);
+				     device_t child, struct bhnd_resource *r);
 int				 bhnd_bus_generic_deactivate_resource (device_t dev,
-				     device_t child, int type, int rid,
-				     struct bhnd_resource *r);
+				     device_t child, struct bhnd_resource *r);
 uintptr_t			 bhnd_bus_generic_get_intr_domain(device_t dev,
 				     device_t child, bool self);
 
@@ -1292,7 +1289,7 @@ bhnd_nvram_getvar(device_t dev, const char *name, void *buf, size_t *len,
  * @retval resource The allocated resource.
  */
 static inline struct bhnd_resource *
-bhnd_alloc_resource(device_t dev, int type, int *rid, rman_res_t start,
+bhnd_alloc_resource(device_t dev, int type, int rid, rman_res_t start,
     rman_res_t end, rman_res_t count, u_int flags)
 {
 	return BHND_BUS_ALLOC_RESOURCE(device_get_parent(dev), dev, type, rid,
@@ -1314,7 +1311,7 @@ bhnd_alloc_resource(device_t dev, int type, int *rid, rman_res_t start,
  * @retval resource The allocated resource.
  */
 static inline struct bhnd_resource *
-bhnd_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
+bhnd_alloc_resource_any(device_t dev, int type, int rid, u_int flags)
 {
 	return bhnd_alloc_resource(dev, type, rid, 0, ~0, 1, flags);
 }
@@ -1323,8 +1320,6 @@ bhnd_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
  * Activate a previously allocated bhnd resource.
  *
  * @param dev The device holding ownership of the allocated resource.
- * @param type The type of the resource. 
- * @param rid The bus-specific handle identifying the resource.
  * @param r A pointer to the resource returned by bhnd_alloc_resource or
  * BHND_BUS_ALLOC_RESOURCE.
  * 
@@ -1332,19 +1327,15 @@ bhnd_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
  * @retval non-zero an error occurred while activating the resource.
  */
 static inline int
-bhnd_activate_resource(device_t dev, int type, int rid,
-   struct bhnd_resource *r)
+bhnd_activate_resource(device_t dev, struct bhnd_resource *r)
 {
-	return BHND_BUS_ACTIVATE_RESOURCE(device_get_parent(dev), dev, type,
-	    rid, r);
+	return BHND_BUS_ACTIVATE_RESOURCE(device_get_parent(dev), dev, r);
 }
 
 /**
  * Deactivate a previously activated bhnd resource.
  *
  * @param dev The device holding ownership of the activated resource.
- * @param type The type of the resource. 
- * @param rid The bus-specific handle identifying the resource.
  * @param r A pointer to the resource returned by bhnd_alloc_resource or
  * BHND_BUS_ALLOC_RESOURCE.
  * 
@@ -1352,19 +1343,15 @@ bhnd_activate_resource(device_t dev, int type, int rid,
  * @retval non-zero an error occurred while activating the resource.
  */
 static inline int
-bhnd_deactivate_resource(device_t dev, int type, int rid,
-   struct bhnd_resource *r)
+bhnd_deactivate_resource(device_t dev, struct bhnd_resource *r)
 {
-	return BHND_BUS_DEACTIVATE_RESOURCE(device_get_parent(dev), dev, type,
-	    rid, r);
+	return BHND_BUS_DEACTIVATE_RESOURCE(device_get_parent(dev), dev, r);
 }
 
 /**
  * Free a resource allocated by bhnd_alloc_resource().
  *
  * @param dev The device holding ownership of the resource.
- * @param type The type of the resource. 
- * @param rid The bus-specific handle identifying the resource.
  * @param r A pointer to the resource returned by bhnd_alloc_resource or
  * BHND_ALLOC_RESOURCE.
  * 
@@ -1372,11 +1359,9 @@ bhnd_deactivate_resource(device_t dev, int type, int rid,
  * @retval non-zero an error occurred while activating the resource.
  */
 static inline int
-bhnd_release_resource(device_t dev, int type, int rid,
-   struct bhnd_resource *r)
+bhnd_release_resource(device_t dev, struct bhnd_resource *r)
 {
-	return BHND_BUS_RELEASE_RESOURCE(device_get_parent(dev), dev, type,
-	    rid, r);
+	return BHND_BUS_RELEASE_RESOURCE(device_get_parent(dev), dev, r);
 }
 
 /**

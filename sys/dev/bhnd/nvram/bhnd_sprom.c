@@ -96,7 +96,6 @@ bhnd_sprom_attach(device_t dev, bus_size_t offset)
 	struct bhnd_nvram_io	*io;
 	struct bhnd_resource	*r;
 	bus_size_t		 r_size, sprom_size;
-	int			 rid;
 	int			 error;
 
 	sc = device_get_softc(dev);
@@ -107,8 +106,7 @@ bhnd_sprom_attach(device_t dev, bus_size_t offset)
 	r = NULL;
 
 	/* Allocate SPROM resource */
-	rid = 0;
-	r = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	r = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY, 0, RF_ACTIVE);
 	if (r == NULL) {
 		device_printf(dev, "failed to allocate resources\n");
 		return (ENXIO);
@@ -140,7 +138,7 @@ bhnd_sprom_attach(device_t dev, bus_size_t offset)
 
 	/* Clean up our temporary I/O context and its backing resource */
 	bhnd_nvram_io_free(io);
-	bhnd_release_resource(dev, SYS_RES_MEMORY, rid, r);
+	bhnd_release_resource(dev, r);
 
 	io = NULL;
 	r = NULL;
@@ -160,7 +158,7 @@ failed:
 		bhnd_nvram_io_free(io);
 
 	if (r != NULL)
-		bhnd_release_resource(dev, SYS_RES_MEMORY, rid, r);
+		bhnd_release_resource(dev, r);
 
 	if (sc->store != NULL)
 		bhnd_nvram_store_free(sc->store);

@@ -121,6 +121,12 @@ my %DESC = (
 	"n_sep_by_space"	=> "n_sep_by_space",
 	"p_sign_posn"		=> "p_sign_posn",
 	"n_sign_posn"		=> "n_sign_posn",
+	"int_p_cs_precedes"	=> "int_p_cs_precedes",
+	"int_n_cs_precedes"	=> "int_n_cs_precedes",
+	"int_p_sep_by_space"	=> "int_p_sep_by_space",
+	"int_n_sep_by_space"	=> "int_n_sep_by_space",
+	"int_p_sign_posn"	=> "int_p_sign_posn",
+	"int_n_sign_posn"	=> "int_n_sign_posn",
 
 	# msgdef
 	"yesexpr"	=> "yesexpr",
@@ -166,21 +172,27 @@ if ($TYPE eq "numericdef") {
 
 if ($TYPE eq "monetdef") {
 	%keys = (
-	    "int_curr_symbol"	=> "s",
-	    "currency_symbol"	=> "s",
-	    "mon_decimal_point"	=> "s",
-	    "mon_thousands_sep"	=> "s",
-	    "mon_grouping"	=> "ai",
-	    "positive_sign"	=> "s",
-	    "negative_sign"	=> "s",
-	    "int_frac_digits"	=> "i",
-	    "frac_digits"	=> "i",
-	    "p_cs_precedes"	=> "i",
-	    "p_sep_by_space"	=> "i",
-	    "n_cs_precedes"	=> "i",
-	    "n_sep_by_space"	=> "i",
-	    "p_sign_posn"	=> "i",
-	    "n_sign_posn"	=> "i"
+	    "int_curr_symbol"		=> "s",
+	    "currency_symbol"		=> "s",
+	    "mon_decimal_point"		=> "s",
+	    "mon_thousands_sep"		=> "s",
+	    "mon_grouping"		=> "ai",
+	    "positive_sign"		=> "s",
+	    "negative_sign"		=> "s",
+	    "int_frac_digits"		=> "i",
+	    "frac_digits"		=> "i",
+	    "p_cs_precedes"		=> "i",
+	    "p_sep_by_space"		=> "i",
+	    "n_cs_precedes"		=> "i",
+	    "n_sep_by_space"		=> "i",
+	    "p_sign_posn"		=> "i",
+	    "n_sign_posn"		=> "i",
+	    "int_p_cs_precedes"		=> "i",
+	    "int_n_cs_precedes"		=> "i",
+	    "int_p_sep_by_space"	=> "i",
+	    "int_n_sep_by_space"	=> "i",
+	    "int_p_sign_posn"		=> "i",
+	    "int_n_sign_posn"		=> "i"
 	);
 	get_fields();
 	print_fields();
@@ -383,9 +395,9 @@ sub resolve_enc_addition {
 
 sub get_languages {
 	my %data = get_xmldata($ETCDIR);
-	%languages = %{$data{L}}; 
-	%translations = %{$data{T}}; 
-	%alternativemonths = %{$data{AM}}; 
+	%languages = %{$data{L}};
+	%translations = %{$data{T}};
+	%alternativemonths = %{$data{AM}};
 }
 
 sub transform_ctypes {
@@ -826,7 +838,7 @@ EOF
 #						$rv = translate($enc, $cm)
 #							if (!defined $rv);
 						if (!defined $rv) {
-							print STDERR 
+							print STDERR
 "Could not convert $k ($cm) from $DEFENCODING to $enc\n";
 							$okay = 0;
 							next;
@@ -854,7 +866,7 @@ EOF
 #							    $cm)
 #							    if (!defined $rv);
 							if (!defined $rv) {
-								print STDERR 
+								print STDERR
 "Could not convert $k ($cm) from $DEFENCODING to $enc\n";
 								$okay = 0;
 								next;
@@ -911,6 +923,7 @@ sub make_makefile {
 			".for f t in \${LOCALES_MAPPED}\n" .
 			"FILES+=\t\$t.LC_COLLATE\n" .
 			"FILESDIR_\$t.LC_COLLATE=\t\${LOCALEDIR}/\$t\n" .
+			"FILESDIR_\$t.LC_COLLATEPACKAGE=\tlocales\n" .
 			"\$t.LC_COLLATE: \${.CURDIR}/\$f.src\n" .
 			"\tlocaledef \${LOCALEDEF_ENDIAN} -D -U " .
 			"-i \${.ALLSRC} \\\n" .
@@ -1090,6 +1103,7 @@ SYMLINKS+=	../\$f/\${FILESNAME} \\
 
 .for f in \${LOCALES}
 FILESDIR_\${f}.${SRCOUT2}= \${LOCALEDIR}/\${f}
+FILESDIR_\${f}.${SRCOUT2}PACKAGE= locales
 .endfor
 
 ${SRCOUT3}.include <bsd.prog.mk>

@@ -39,6 +39,7 @@
 
 struct nl_buf;
 struct nl_writer;
+struct ifnet;
 typedef bool nl_writer_cb(struct nl_writer *nw);
 
 struct nl_writer {
@@ -53,6 +54,7 @@ struct nl_writer {
 			int		priv;
 		} group;
 	};
+	const struct ifnet *ifp;	/* Used by Linux translation only */
 	u_int		num_messages;	/* Number of messages in the buffer */
 	int		malloc_flag;	/* M_WAITOK or M_NOWAIT */
 	bool		ignore_limit;	/* If true, ignores RCVBUF limit */

@@ -23,6 +23,7 @@ ufshci_uic_power_mode_ready(struct ufshci_controller *ctrlr)
 	while (1) {
 		is = ufshci_mmio_read_4(ctrlr, is);
 		if (UFSHCIV(UFSHCI_IS_REG_UPMS, is)) {
+			/* Clear 'Power Mode completion status' */
 			ufshci_mmio_write_4(ctrlr, is,
 			    UFSHCIM(UFSHCI_IS_REG_UPMS));
 			break;
@@ -31,6 +32,54 @@ ufshci_uic_power_mode_ready(struct ufshci_controller *ctrlr)
 		if (timeout - ticks < 0) {
 			ufshci_printf(ctrlr,
 			    "Power mode is not changed "
+			    "within %d ms\n",
+			    ctrlr->device_init_timeout_in_ms);
+			return (ENXIO);
+		}
+
+		/* TODO: Replace busy-wait with interrupt-based pause. */
+		DELAY(10);
+	}
+
+	/* Check HCS power mode change request status */
+	hcs = ufshci_mmio_read_4(ctrlr, hcs);
+	if (UFSHCIV(UFSHCI_HCS_REG_UPMCRS, hcs) != 0x01) {
+		ufshci_printf(ctrlr,
+		    "Power mode change request status error: 0x%x\n",
+		    UFSHCIV(UFSHCI_HCS_REG_UPMCRS, hcs));
+		return (ENXIO);
+	}
+
+	return (0);
+}
+
+int
+ufshci_uic_hibernation_ready(struct ufshci_controller *ctrlr)
+{
+	uint32_t is, hcs;
+	int timeout;
+
+	/* Wait for the IS flag to change */
+	timeout = ticks + MSEC_2_TICKS(ctrlr->uic_cmd_timeout_in_ms);
+
+	while (1) {
+		is = ufshci_mmio_read_4(ctrlr, is);
+		if (UFSHCIV(UFSHCI_IS_REG_UHES, is)) {
+			/* Clear 'UIC Hibernate Enter Status' */
+			ufshci_mmio_write_4(ctrlr, is,
+			    UFSHCIM(UFSHCI_IS_REG_UHES));
+			break;
+		}
+		if (UFSHCIV(UFSHCI_IS_REG_UHXS, is)) {
+			/* Clear 'UIC Hibernate Exit Status' */
+			ufshci_mmio_write_4(ctrlr, is,
+			    UFSHCIM(UFSHCI_IS_REG_UHXS));
+			break;
+		}
+
+		if (timeout - ticks < 0) {
+			ufshci_printf(ctrlr,
+			    "Hibernation enter/exit are not completed "
 			    "within %d ms\n",
 			    ctrlr->uic_cmd_timeout_in_ms);
 			return (ENXIO);
@@ -44,7 +93,7 @@ ufshci_uic_power_mode_ready(struct ufshci_controller *ctrlr)
 	hcs = ufshci_mmio_read_4(ctrlr, hcs);
 	if (UFSHCIV(UFSHCI_HCS_REG_UPMCRS, hcs) != 0x01) {
 		ufshci_printf(ctrlr,
-		    "Power mode change request status error: 0x%x\n",
+		    "Hibernation enter/exit request status error: 0x%x\n",
 		    UFSHCIV(UFSHCI_HCS_REG_UPMCRS, hcs));
 		return (ENXIO);
 	}
@@ -147,8 +196,9 @@ ufshci_uic_send_cmd(struct ufshci_controller *ctrlr,
 	config_result_code = ufshci_mmio_read_4(ctrlr, ucmdarg2);
 	if (config_result_code) {
 		ufshci_printf(ctrlr,
-		    "Failed to send UIC command. (config result code = 0x%x)\n",
-		    config_result_code);
+		    "Failed to send UIC command (Opcode: 0x%x"
+		    ", config result code = 0x%x)\n",
+		    uic_cmd->opcode, config_result_code);
 	}
 
 	if (return_value != NULL)
@@ -233,6 +283,32 @@ ufshci_uic_send_dme_endpoint_reset(struct ufshci_controller *ctrlr)
 	struct ufshci_uic_cmd uic_cmd;
 
 	uic_cmd.opcode = UFSHCI_DME_ENDPOINT_RESET;
+	uic_cmd.argument1 = 0;
+	uic_cmd.argument2 = 0;
+	uic_cmd.argument3 = 0;
+
+	return (ufshci_uic_send_cmd(ctrlr, &uic_cmd, NULL));
+}
+
+int
+ufshci_uic_send_dme_hibernate_enter(struct ufshci_controller *ctrlr)
+{
+	struct ufshci_uic_cmd uic_cmd;
+
+	uic_cmd.opcode = UFSHCI_DME_HIBERNATE_ENTER;
+	uic_cmd.argument1 = 0;
+	uic_cmd.argument2 = 0;
+	uic_cmd.argument3 = 0;
+
+	return (ufshci_uic_send_cmd(ctrlr, &uic_cmd, NULL));
+}
+
+int
+ufshci_uic_send_dme_hibernate_exit(struct ufshci_controller *ctrlr)
+{
+	struct ufshci_uic_cmd uic_cmd;
+
+	uic_cmd.opcode = UFSHCI_DME_HIBERNATE_EXIT;
 	uic_cmd.argument1 = 0;
 	uic_cmd.argument2 = 0;
 	uic_cmd.argument3 = 0;

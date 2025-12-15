@@ -216,4 +216,15 @@ struct syscall_info {
 #define	LINUX_IOPRIO_WHO_PGRP		2
 #define	LINUX_IOPRIO_WHO_USER		3
 
+/* Linux kcmp types from <linux/kcmp.h>	*/
+#define	LINUX_KCMP_FILE			0
+#define	LINUX_KCMP_VM			1
+#define	LINUX_KCMP_FILES		2
+#define	LINUX_KCMP_FS			3
+#define	LINUX_KCMP_SIGHAND		4
+#define	LINUX_KCMP_IO			5
+#define	LINUX_KCMP_SYSVSEM		6
+#define	LINUX_KCMP_EPOLL_TFD		7
+#define	LINUX_KCMP_TYPES		8
+
 #endif	/* _LINUX_MISC_H_ */

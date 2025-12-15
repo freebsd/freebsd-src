@@ -254,11 +254,7 @@ grow_rtables(uint32_t num_tables)
 			if (*prnh != NULL)
 				continue;
 			rh = dom->dom_rtattach(i);
-			if (rh == NULL)
-				log(LOG_ERR, "unable to create routing table for %d.%d\n",
-				    dom->dom_family, i);
-			else
-				populate_kernel_routes(new_rt_tables, rh);
+			populate_kernel_routes(new_rt_tables, rh);
 			*prnh = rh;
 		}
 	}

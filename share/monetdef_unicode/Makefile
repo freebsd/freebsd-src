@@ -9,7 +9,6 @@ FILESNAME=	LC_MONETARY
 .src.out:
 	grep -v -E '^(#$$|#[ ])' < ${.IMPSRC} > ${.TARGET}
 
-LOCALES+=	af_ZA.UTF-8
 LOCALES+=	am_ET.UTF-8
 LOCALES+=	ar_AE.UTF-8
 LOCALES+=	ar_EG.UTF-8
@@ -18,7 +17,6 @@ LOCALES+=	ar_MA.UTF-8
 LOCALES+=	ar_QA.UTF-8
 LOCALES+=	ar_SA.UTF-8
 LOCALES+=	be_BY.UTF-8
-LOCALES+=	bg_BG.UTF-8
 LOCALES+=	cs_CZ.UTF-8
 LOCALES+=	da_DK.UTF-8
 LOCALES+=	de_AT.UTF-8
@@ -69,6 +67,10 @@ LOCALES+=	zh_TW.UTF-8
 
 
 
+SAME+=		en_ZA.UTF-8 af_ZA.UTF-8
+SAME+=		sk_SK.UTF-8 pt_PT.UTF-8
+SAME+=		sk_SK.UTF-8 lv_LV.UTF-8
+SAME+=		sk_SK.UTF-8 bg_BG.UTF-8
 SAME+=		it_IT.UTF-8 es_ES.UTF-8
 SAME+=		it_IT.UTF-8 el_GR.UTF-8
 SAME+=		it_IT.UTF-8 de_DE.UTF-8
@@ -86,8 +88,6 @@ SAME+=		sv_FI.UTF-8 et_EE.UTF-8
 SAME+=		sl_SI.UTF-8 hr_HR.UTF-8
 SAME+=		sl_SI.UTF-8 eu_ES.UTF-8
 SAME+=		fr_FR.UTF-8 fr_BE.UTF-8
-SAME+=		sk_SK.UTF-8 pt_PT.UTF-8
-SAME+=		sk_SK.UTF-8 lv_LV.UTF-8
 SAME+=		se_NO.UTF-8 nn_NO.UTF-8
 SAME+=		se_NO.UTF-8 nb_NO.UTF-8
 SAME+=		nl_NL.UTF-8 nl_BE.UTF-8
@@ -106,6 +106,7 @@ SYMLINKS+=	../$f/${FILESNAME} \
 
 .for f in ${LOCALES}
 FILESDIR_${f}.out= ${LOCALEDIR}/${f}
+FILESDIR_${f}.outPACKAGE= locales
 .endfor
 
 .include <bsd.prog.mk>

@@ -25,10 +25,10 @@ Ft
 -
 #
 # int_frac_digits
-2
+0
 #
 # frac_digits
-2
+0
 #
 # p_cs_precedes
 0
@@ -46,5 +46,23 @@ Ft
 1
 #
 # n_sign_posn
+1
+#
+# int_p_cs_precedes
+0
+#
+# int_n_cs_precedes
+0
+#
+# int_p_sep_by_space
+1
+#
+# int_n_sep_by_space
+1
+#
+# int_p_sign_posn
+1
+#
+# int_n_sign_posn
 1
 # EOF

@@ -15,7 +15,7 @@ _vnet_check_req()
 {
 	type=$1
 
-	if kldstat -q -n if_${type}.ko; then
+	if kldstat -q -m if_${type}; then
 		return
 	fi
 

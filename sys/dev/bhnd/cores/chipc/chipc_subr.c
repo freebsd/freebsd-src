@@ -374,8 +374,7 @@ chipc_free_region(struct chipc_softc *sc, struct chipc_region *cr)
 	     cr->cr_region_num, cr->cr_refs));
 
 	if (cr->cr_res != NULL) {
-		bhnd_release_resource(sc->dev, SYS_RES_MEMORY, cr->cr_res_rid,
-		    cr->cr_res);
+		bhnd_release_resource(sc->dev, cr->cr_res);
 	}
 
 	free(cr, M_BHND);
@@ -462,14 +461,14 @@ chipc_retain_region(struct chipc_softc *sc, struct chipc_region *cr, int flags)
 			    ("non-NULL resource has refcount"));
 
 			/* Fetch initial resource ID */			
-			if ((cr->cr_res_rid = cr->cr_rid) == -1) {
+			if (cr->cr_rid == -1) {
 				CHIPC_UNLOCK(sc);
 				return (EINVAL);
 			}
 
 			/* Allocate resource */
 			cr->cr_res = bhnd_alloc_resource(sc->dev,
-			    SYS_RES_MEMORY, &cr->cr_res_rid, cr->cr_addr,
+			    SYS_RES_MEMORY, cr->cr_rid, cr->cr_addr,
 			    cr->cr_end, cr->cr_count, RF_SHAREABLE);
 			if (cr->cr_res == NULL) {
 				CHIPC_UNLOCK(sc);
@@ -488,8 +487,7 @@ chipc_retain_region(struct chipc_softc *sc, struct chipc_region *cr, int flags)
 
 		/* If this is the first reference, activate the resource */
 		if (cr->cr_act_refs == 0) {
-			error = bhnd_activate_resource(sc->dev, SYS_RES_MEMORY,
-			    cr->cr_res_rid, cr->cr_res);
+			error = bhnd_activate_resource(sc->dev, cr->cr_res);
 			if (error) {
 				/* Drop any allocation reference acquired
 				 * above */
@@ -535,8 +533,7 @@ chipc_release_region(struct chipc_softc *sc, struct chipc_region *cr,
 
 		/* If this is the last reference, deactivate the resource */
 		if (cr->cr_act_refs == 1) {
-			error = bhnd_deactivate_resource(sc->dev,
-			    SYS_RES_MEMORY, cr->cr_res_rid, cr->cr_res);
+			error = bhnd_deactivate_resource(sc->dev, cr->cr_res);
 			if (error)
 				goto done;
 		}
@@ -549,8 +546,7 @@ chipc_release_region(struct chipc_softc *sc, struct chipc_region *cr,
 		KASSERT(cr->cr_refs > 0, ("overrelease of refs"));
 		/* If this is the last reference, release the resource */
 		if (cr->cr_refs == 1) {
-			error = bhnd_release_resource(sc->dev, SYS_RES_MEMORY,
-			    cr->cr_res_rid, cr->cr_res);
+			error = bhnd_release_resource(sc->dev, cr->cr_res);
 			if (error)
 				goto done;
 

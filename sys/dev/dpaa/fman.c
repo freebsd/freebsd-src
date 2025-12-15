@@ -148,7 +148,7 @@ fman_release_resource(device_t bus, device_t child, struct resource *res)
 }
 
 struct resource *
-fman_alloc_resource(device_t bus, device_t child, int type, int *rid,
+fman_alloc_resource(device_t bus, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct fman_softc *sc;
@@ -166,7 +166,7 @@ fman_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		KASSERT(!(isdefault && passthrough),
 		    ("%s: passthrough of default allocation", __func__));
 		if (!passthrough) {
-			rle = resource_list_find(rl, type, *rid);
+			rle = resource_list_find(rl, type, rid);
 			if (rle == NULL)
 				return (NULL);
 			KASSERT(rle->res == NULL,
@@ -189,10 +189,10 @@ fman_alloc_resource(device_t bus, device_t child, int type, int *rid,
 				    end, count, flags & ~RF_ACTIVE, child);
 				if (res == NULL)
 					return (NULL);
-				rman_set_rid(res, *rid);
+				rman_set_rid(res, rid);
 				rman_set_type(res, type);
 				if ((flags & RF_ACTIVE) != 0 && bus_activate_resource(
-				    child, type, *rid, res) != 0) {
+				    child, type, rid, res) != 0) {
 					rman_release_resource(res);
 					return (NULL);
 				}

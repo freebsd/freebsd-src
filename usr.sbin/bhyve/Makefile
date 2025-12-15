@@ -97,7 +97,7 @@ CFLAGS+=-I${.CURDIR}		\
 	-I${.CURDIR}/../../contrib/lib9p \
 	-I${SRCTOP}/sys
 
-LIBADD+= vmmapi md nv pthread z util sbuf cam 9p
+LIBADD+= vmmapi md nv uvmem pthread z util sbuf cam 9p
 
 .if ${MK_BHYVE_SNAPSHOT} != "no"
 LIBADD+= ucl xo

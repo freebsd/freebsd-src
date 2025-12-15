@@ -181,7 +181,6 @@ struct setcred {
     SETCREDF_MAC_LABEL)
 
 struct setcred32 {
-#define	setcred32_copy_start	sc_uid
 	uid_t	 sc_uid;
 	uid_t	 sc_ruid;
 	uid_t	 sc_svuid;
@@ -190,7 +189,6 @@ struct setcred32 {
 	gid_t	 sc_svgid;
 	u_int	 sc_pad;
 	u_int	 sc_supp_groups_nb;
-#define	setcred32_copy_end	sc_supp_groups
 	uint32_t sc_supp_groups;	/* gid_t [*] */
 	uint32_t sc_label;		/* struct mac32 [*] */
 };
@@ -198,8 +196,8 @@ struct setcred32 {
 struct thread;
 
 /* Common native and 32-bit compatibility entry point. */
-int user_setcred(struct thread *td, const u_int flags,
-    const void *const uwcred, const size_t size, bool is_32bit);
+int	user_setcred(struct thread *td, const u_int flags,
+	    struct setcred *const wcred);
 
 struct proc;
 

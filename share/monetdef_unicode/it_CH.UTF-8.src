@@ -13,7 +13,7 @@ CHF
 .
 #
 # mon_thousands_sep
-’
+'
 #
 # mon_grouping
 3
@@ -46,5 +46,23 @@ CHF
 1
 #
 # n_sign_posn
+4
+#
+# int_p_cs_precedes
+1
+#
+# int_n_cs_precedes
+1
+#
+# int_p_sep_by_space
+1
+#
+# int_n_sep_by_space
+0
+#
+# int_p_sign_posn
+1
+#
+# int_n_sign_posn
 4
 # EOF

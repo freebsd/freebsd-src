@@ -78,7 +78,7 @@ static int lbc_activate_resource(device_t bus, device_t child,
 static int lbc_deactivate_resource(device_t bus, device_t child,
     struct resource *r);
 static struct rman *lbc_get_rman(device_t, int, u_int);
-static struct resource *lbc_alloc_resource(device_t, device_t, int, int *,
+static struct resource *lbc_alloc_resource(device_t, device_t, int, int,
     rman_res_t, rman_res_t, rman_res_t, u_int);
 static int lbc_adjust_resource(device_t, device_t, struct resource *,
     rman_res_t, rman_res_t);
@@ -697,7 +697,7 @@ lbc_get_rman(device_t bus, int type, u_int flags)
 }
 
 static struct resource *
-lbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
+lbc_alloc_resource(device_t bus, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct lbc_devinfo *di;
@@ -721,16 +721,12 @@ lbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (type == SYS_RES_IOPORT)
 		type = SYS_RES_MEMORY;
 
-	/*
-	 * XXX: We are supposed to return a value to the user, so this
-	 * doesn't seem right.
-	 */
-	rid = &di->di_bank;
+	rid = di->di_bank;
 
-	rle = resource_list_find(&di->di_res, type, *rid);
+	rle = resource_list_find(&di->di_res, type, rid);
 	if (rle == NULL) {
 		device_printf(bus, "no default resources for "
-		    "rid = %d, type = %d\n", *rid, type);
+		    "rid = %d, type = %d\n", rid, type);
 		return (NULL);
 	}
 	start = rle->start;

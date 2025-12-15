@@ -211,6 +211,9 @@ pmc_intel_initialize(void)
 			break;
 		case 0x97:
 		case 0x9A:
+		case 0xB7:
+		case 0xBA:
+		case 0xBF:
 			cputype = PMC_CPU_INTEL_ALDERLAKE;
 			nclasses = 3;
 			break;
@@ -242,6 +245,14 @@ pmc_intel_initialize(void)
 		case 0x86:
 		case 0x96:
 			cputype = PMC_CPU_INTEL_ATOM_TREMONT;
+			nclasses = 3;
+			break;
+		case 0xBE:
+			cputype = PMC_CPU_INTEL_ALDERLAKEN;
+			nclasses = 3;
+			break;
+		case 0xCF:
+			cputype = PMC_CPU_INTEL_EMERALD_RAPIDS;
 			nclasses = 3;
 			break;
 		}

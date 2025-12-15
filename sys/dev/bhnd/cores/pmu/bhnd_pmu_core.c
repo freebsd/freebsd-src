@@ -81,13 +81,11 @@ bhnd_pmu_core_attach(device_t dev)
 	struct bhnd_pmu_softc	*sc;
 	struct bhnd_resource	*res;
 	int			 error;
-	int			 rid;
 
 	sc = device_get_softc(dev);
 
 	/* Allocate register block */
-	rid = 0;
-	res = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	res = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY, 0, RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(dev, "failed to allocate resources\n");
 		return (ENXIO);
@@ -103,11 +101,10 @@ bhnd_pmu_core_attach(device_t dev)
 
 	/* Delegate to common driver implementation */
 	if ((error = bhnd_pmu_attach(dev, res))) {
-		bhnd_release_resource(dev, SYS_RES_MEMORY, rid, res);
+		bhnd_release_resource(dev, res);
 		return (error);
 	}
 
-	sc->rid = rid;
 	return (0);
 }
 
@@ -123,7 +120,7 @@ bhnd_pmu_core_detach(device_t dev)
 	if ((error = bhnd_pmu_detach(dev)))
 		return (error);
 
-	bhnd_release_resource(dev, SYS_RES_MEMORY, sc->rid, sc->res);
+	bhnd_release_resource(dev, sc->res);
 	return (0);
 }
 

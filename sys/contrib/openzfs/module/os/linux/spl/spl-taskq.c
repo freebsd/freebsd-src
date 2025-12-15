@@ -598,13 +598,22 @@ taskq_of_curthread(void)
 EXPORT_SYMBOL(taskq_of_curthread);
 
 /*
- * Cancel an already dispatched task given the task id.  Still pending tasks
- * will be immediately canceled, and if the task is active the function will
- * block until it completes.  Preallocated tasks which are canceled must be
- * freed by the caller.
+ * Cancel a dispatched task. Pending tasks are cancelled immediately.
+ * If the task is running, behavior depends on wait parameter:
+ *   - wait=B_TRUE: Block until task completes
+ *   - wait=B_FALSE: Return EBUSY immediately
+ *
+ * Return values:
+ *   0      - Cancelled before execution. Caller must release resources.
+ *   EBUSY  - Task running (wait=B_FALSE only). Will self-cleanup.
+ *   ENOENT - Not found, or completed after waiting. Already cleaned up.
+ *
+ * Note: wait=B_TRUE returns ENOENT (not EBUSY) after waiting because
+ * the task no longer exists. This distinguishes "cancelled before run"
+ * from "completed naturally" for proper resource management.
  */
 int
-taskq_cancel_id(taskq_t *tq, taskqid_t id)
+taskq_cancel_id(taskq_t *tq, taskqid_t id, boolean_t wait)
 {
 	taskq_ent_t *t;
 	int rc = ENOENT;
@@ -633,14 +642,31 @@ taskq_cancel_id(taskq_t *tq, taskqid_t id)
 
 		/*
 		 * The task_expire() function takes the tq->tq_lock so drop
-		 * drop the lock before synchronously cancelling the timer.
+		 * the lock before synchronously cancelling the timer.
+		 *
+		 * Always call timer_delete_sync() unconditionally. A
+		 * timer_pending() check would be insufficient and unsafe.
+		 * When a timer expires, it is immediately dequeued from the
+		 * timer wheel (timer_pending() returns FALSE), but the
+		 * callback (task_expire) may not run until later.
+		 *
+		 * The race window:
+		 * 1) Timer expires and is dequeued - timer_pending() now
+		 *    returns FALSE
+		 * 2) task_done() is called below, freeing the task, sets
+		 *    tqent_func = NULL and clears flags including CANCEL
+		 * 3) Timer callback finally runs, sees no CANCEL flag,
+		 *    queues task to prio_list
+		 * 4) Worker thread attempts to execute NULL tqent_func
+		 *    and panics
+		 *
+		 * timer_delete_sync() prevents this by ensuring the timer
+		 * callback completes before the task is freed.
 		 */
-		if (timer_pending(&t->tqent_timer)) {
-			spin_unlock_irqrestore(&tq->tq_lock, flags);
-			timer_delete_sync(&t->tqent_timer);
-			spin_lock_irqsave_nested(&tq->tq_lock, flags,
-			    tq->tq_lock_class);
-		}
+		spin_unlock_irqrestore(&tq->tq_lock, flags);
+		timer_delete_sync(&t->tqent_timer);
+		spin_lock_irqsave_nested(&tq->tq_lock, flags,
+		    tq->tq_lock_class);
 
 		if (!(t->tqent_flags & TQENT_FLAG_PREALLOC))
 			task_done(tq, t);
@@ -650,8 +676,12 @@ taskq_cancel_id(taskq_t *tq, taskqid_t id)
 	spin_unlock_irqrestore(&tq->tq_lock, flags);
 
 	if (t == ERR_PTR(-EBUSY)) {
-		taskq_wait_id(tq, id);
-		rc = EBUSY;
+		if (wait) {
+			taskq_wait_id(tq, id);
+			rc = ENOENT;  /* Completed, no longer exists */
+		} else {
+			rc = EBUSY;   /* Still running */
+		}
 	}
 
 	return (rc);

@@ -34,39 +34,11 @@
 #include <vm/uma.h>
 
 #include "nvme_private.h"
-
-struct nvme_consumer {
-	uint32_t		id;
-	nvme_cons_ns_fn_t	ns_fn;
-	nvme_cons_ctrlr_fn_t	ctrlr_fn;
-	nvme_cons_async_fn_t	async_fn;
-	nvme_cons_fail_fn_t	fail_fn;
-};
-
-struct nvme_consumer nvme_consumer[NVME_MAX_CONSUMERS];
-#define	INVALID_CONSUMER_ID	0xFFFF
+#include "nvme_if.h"
 
 int32_t		nvme_retry_count;
 
 MALLOC_DEFINE(M_NVME, "nvme", "nvme(4) memory allocations");
-
-static void
-nvme_init(void *dummy __unused)
-{
-	uint32_t	i;
-
-	for (i = 0; i < NVME_MAX_CONSUMERS; i++)
-		nvme_consumer[i].id = INVALID_CONSUMER_ID;
-}
-
-SYSINIT(nvme_register, SI_SUB_DRIVERS, SI_ORDER_SECOND, nvme_init, NULL);
-
-static void
-nvme_uninit(void *dummy __unused)
-{
-}
-
-SYSUNINIT(nvme_unregister, SI_SUB_DRIVERS, SI_ORDER_SECOND, nvme_uninit, NULL);
 
 int
 nvme_shutdown(device_t dev)
@@ -104,123 +76,41 @@ int
 nvme_detach(device_t dev)
 {
 	struct nvme_controller	*ctrlr = DEVICE2SOFTC(dev);
+	int error;
 
 	config_intrhook_drain(&ctrlr->config_hook);
+
+	error = bus_generic_detach(dev);
+	if (error)
+		return (error);
 
 	nvme_ctrlr_destruct(ctrlr, dev);
 	return (0);
 }
 
-static void
-nvme_notify(struct nvme_consumer *cons,
-	    struct nvme_controller *ctrlr)
+void
+nvme_notify_async(struct nvme_controller *ctrlr,
+    const struct nvme_completion *async_cpl,
+    uint32_t log_page_id, void *log_page_buffer, uint32_t log_page_size)
 {
-	struct nvme_namespace	*ns;
-	void			*ctrlr_cookie;
-	int			cmpset, ns_idx;
+	device_t *children;
+	int n_children;
 
-	/*
-	 * The consumer may register itself after the nvme devices
-	 *  have registered with the kernel, but before the
-	 *  driver has completed initialization.  In that case,
-	 *  return here, and when initialization completes, the
-	 *  controller will make sure the consumer gets notified.
-	 */
-	if (!ctrlr->is_initialized)
+	if (device_get_children(ctrlr->dev, &children, &n_children) != 0)
 		return;
 
-	cmpset = atomic_cmpset_32(&ctrlr->notification_sent, 0, 1);
-	if (cmpset == 0)
-		return;
+	for (int i = 0; i < n_children; i++)
+		NVME_HANDLE_AEN(children[i], async_cpl, log_page_id,
+		    log_page_buffer, log_page_size);
 
-	if (cons->ctrlr_fn != NULL)
-		ctrlr_cookie = (*cons->ctrlr_fn)(ctrlr);
-	else
-		ctrlr_cookie = (void *)(uintptr_t)0xdeadc0dedeadc0de;
-	ctrlr->cons_cookie[cons->id] = ctrlr_cookie;
-
-	/* ctrlr_fn has failed.  Nothing to notify here any more. */
-	if (ctrlr_cookie == NULL) {
-		(void)atomic_cmpset_32(&ctrlr->notification_sent, 1, 0);
-		return;
-	}
-
-	if (ctrlr->is_failed) {
-		ctrlr->cons_cookie[cons->id] = NULL;
-		if (cons->fail_fn != NULL)
-			(*cons->fail_fn)(ctrlr_cookie);
-		/*
-		 * Do not notify consumers about the namespaces of a
-		 *  failed controller.
-		 */
-		return;
-	}
-	for (ns_idx = 0; ns_idx < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); ns_idx++) {
-		ns = &ctrlr->ns[ns_idx];
-		if (ns->data.nsze == 0)
-			continue;
-		if (cons->ns_fn != NULL)
-			ns->cons_cookie[cons->id] =
-			    (*cons->ns_fn)(ns, ctrlr_cookie);
-	}
+	free(children, M_TEMP);
 }
 
 void
-nvme_notify_new_controller(struct nvme_controller *ctrlr)
+nvme_notify_fail(struct nvme_controller *ctrlr)
 {
-	int i;
-
-	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
-		if (nvme_consumer[i].id != INVALID_CONSUMER_ID) {
-			nvme_notify(&nvme_consumer[i], ctrlr);
-		}
-	}
-}
-
-static void
-nvme_notify_new_consumer(struct nvme_consumer *cons)
-{
-	device_t		*devlist;
-	struct nvme_controller	*ctrlr;
-	int			dev_idx, devcount;
-
-	if (devclass_get_devices(devclass_find("nvme"), &devlist, &devcount))
-		return;
-
-	for (dev_idx = 0; dev_idx < devcount; dev_idx++) {
-		ctrlr = DEVICE2SOFTC(devlist[dev_idx]);
-		nvme_notify(cons, ctrlr);
-	}
-
-	free(devlist, M_TEMP);
-}
-
-void
-nvme_notify_async_consumers(struct nvme_controller *ctrlr,
-			    const struct nvme_completion *async_cpl,
-			    uint32_t log_page_id, void *log_page_buffer,
-			    uint32_t log_page_size)
-{
-	struct nvme_consumer	*cons;
-	void			*ctrlr_cookie;
-	uint32_t		i;
-
-	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
-		cons = &nvme_consumer[i];
-		if (cons->id != INVALID_CONSUMER_ID && cons->async_fn != NULL &&
-		    (ctrlr_cookie = ctrlr->cons_cookie[i]) != NULL) {
-			(*cons->async_fn)(ctrlr_cookie, async_cpl,
-			    log_page_id, log_page_buffer, log_page_size);
-		}
-	}
-}
-
-void
-nvme_notify_fail_consumers(struct nvme_controller *ctrlr)
-{
-	struct nvme_consumer	*cons;
-	void			*ctrlr_cookie;
-	uint32_t		i;
+	device_t *children;
+	int n_children;
 
 	/*
 	 * This controller failed during initialization (i.e. IDENTIFY
@@ -231,71 +121,13 @@ nvme_notify_fail_consumers(struct nvme_controller *ctrlr)
 	if (!ctrlr->is_initialized)
 		return;
 
-	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
-		cons = &nvme_consumer[i];
-		if (cons->id != INVALID_CONSUMER_ID &&
-		    (ctrlr_cookie = ctrlr->cons_cookie[i]) != NULL) {
-			ctrlr->cons_cookie[i] = NULL;
-			if (cons->fail_fn != NULL)
-				cons->fail_fn(ctrlr_cookie);
-		}
-	}
-}
-
-void
-nvme_notify_ns(struct nvme_controller *ctrlr, int nsid)
-{
-	struct nvme_consumer	*cons;
-	struct nvme_namespace	*ns;
-	void			*ctrlr_cookie;
-	uint32_t		i;
-
-	KASSERT(nsid <= NVME_MAX_NAMESPACES,
-	    ("%s: Namespace notification to nsid %d exceeds range\n",
-		device_get_nameunit(ctrlr->dev), nsid));
-
-	if (!ctrlr->is_initialized)
+	if (device_get_children(ctrlr->dev, &children, &n_children) != 0)
 		return;
 
-	ns = &ctrlr->ns[nsid - 1];
-	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
-		cons = &nvme_consumer[i];
-		if (cons->id != INVALID_CONSUMER_ID && cons->ns_fn != NULL &&
-		    (ctrlr_cookie = ctrlr->cons_cookie[i]) != NULL)
-			ns->cons_cookie[i] = (*cons->ns_fn)(ns, ctrlr_cookie);
-	}
-}
+	for (int i = 0; i < n_children; i++)
+		NVME_CONTROLLER_FAILED(children[i]);
 
-struct nvme_consumer *
-nvme_register_consumer(nvme_cons_ns_fn_t ns_fn, nvme_cons_ctrlr_fn_t ctrlr_fn,
-		       nvme_cons_async_fn_t async_fn,
-		       nvme_cons_fail_fn_t fail_fn)
-{
-	int i;
-
-	/*
-	 * TODO: add locking around consumer registration.
-	 */
-	for (i = 0; i < NVME_MAX_CONSUMERS; i++)
-		if (nvme_consumer[i].id == INVALID_CONSUMER_ID) {
-			nvme_consumer[i].id = i;
-			nvme_consumer[i].ns_fn = ns_fn;
-			nvme_consumer[i].ctrlr_fn = ctrlr_fn;
-			nvme_consumer[i].async_fn = async_fn;
-			nvme_consumer[i].fail_fn = fail_fn;
-
-			nvme_notify_new_consumer(&nvme_consumer[i]);
-			return (&nvme_consumer[i]);
-		}
-
-	printf("nvme(4): consumer not registered - no slots available\n");
-	return (NULL);
-}
-
-void
-nvme_unregister_consumer(struct nvme_consumer *consumer)
-{
-	consumer->id = INVALID_CONSUMER_ID;
+	free(children, M_TEMP);
 }
 
 void

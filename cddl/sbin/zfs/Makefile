@@ -1,5 +1,3 @@
-ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
-
 .PATH: ${ZFSTOP}/cmd/zfs
 .PATH: ${ZFSTOP}/man/man7
 .PATH: ${ZFSTOP}/man/man8
@@ -73,7 +71,7 @@ CFLAGS+= \
 	-include ${SRCTOP}/sys/modules/zfs/zfs_config.h \
 	-I${SRCTOP}/sys/modules/zfs
 
-LIBADD=	jail avl nvpair geom  uutil zfs_core spl tpool zutil zfs m crypto
+LIBADD=	jail avl nvpair geom zfs_core spl zutil zfs m crypto
 LDADD+=	-pthread
 .include <bsd.prog.mk>
 

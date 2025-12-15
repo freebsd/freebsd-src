@@ -2158,7 +2158,7 @@ SYSCTL_PROC(_vm, OID_AUTO, kvm_free,
  ***********************************************/
 
 /*
- *  Initialize the pmap for the swapper process.
+ *  Initialize the pmap for proc0.
  */
 void
 pmap_pinit0(pmap_t pmap)

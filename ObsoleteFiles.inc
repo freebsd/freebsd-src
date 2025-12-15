@@ -51,15 +51,28 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20251208: Rename iwm8000C to correct name.
+OLD_FILES+=boot/firmware/iwm8000C
+
+# 20251207: removed libuutil and libtpool
+OLD_LIBS+=	lib/libuutil.so.2
+OLD_LIBS+=	lib/libtpool.so.2
+
+# 20251204: zpfind.9 alias to pfind.9 removed
+OLD_FILES+=usr/share/man/man9/zpfind.9
+
+# 20251121: Remove duplicate pam_krb5 manual page
+OLD_FILES+=usr/share/man/man8/pam-krb5.8.gz
+
 # 20251112: Remove old MLINK to apmconf(8)
-OLD_FILES+=share/man/man8/apmconf.8.gz
+OLD_FILES+=usr/share/man/man8/apmconf.8.gz
 
 # 20251112: Remove pccard(4) and related
-OLD_FILES+=share/man/man4/pccard.4.gz
-OLD_FILES+=share/man/man4/pcic.4.gz
+OLD_FILES+=usr/share/man/man4/pccard.4.gz
+OLD_FILES+=usr/share/man/man4/pcic.4.gz
 
 # 20251028: Remove hifn(4)
-OLD_FILES+=share/man/man4/hifn.4.gz
+OLD_FILES+=usr/share/man/man4/hifn.4.gz
 
 # 20251006: Remove libnss_tacplus.a (it never should have been installed)
 OLD_FILES+=usr/lib/libnss_tacplus.a

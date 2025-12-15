@@ -614,6 +614,7 @@ typedef enum {
 } pi_tmflag;
 
 typedef enum {
+	PIM_WLUNS	= 0x400,/* Well known LUNs supported */
 	PIM_ATA_EXT	= 0x200,/* ATA requests can understand ata_ext requests */
 	PIM_EXTLUNS	= 0x100,/* 64bit extended LUNs supported */
 	PIM_SCANHILO	= 0x80,	/* Bus scans from high ID to low ID */
@@ -649,7 +650,7 @@ struct ccb_pathinq_settings_nvme {
 	uint8_t  bus;
 	uint8_t  slot;
 	uint8_t  function;
-	uint8_t  extra;
+	uint8_t  progif;
 	char	 dev_name[NVME_DEV_NAME_LEN]; /* nvme controller dev name for this device */
 };
 _Static_assert(sizeof(struct ccb_pathinq_settings_nvme) == 64,

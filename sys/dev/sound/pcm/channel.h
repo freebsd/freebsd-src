@@ -298,6 +298,7 @@ int chn_oss_setorder(struct pcm_channel *, unsigned long long *);
 int chn_oss_getmask(struct pcm_channel *, uint32_t *);
 
 void chn_resetbuf(struct pcm_channel *c);
+void chn_intr_locked(struct pcm_channel *c);
 void chn_intr(struct pcm_channel *c);
 int chn_abort(struct pcm_channel *c);
 

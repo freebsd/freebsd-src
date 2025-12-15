@@ -42,7 +42,6 @@
  * lookups per second on commodity CPUs, IEEE SoftCOM, September 2017, Split
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 
 #include <sys/param.h>

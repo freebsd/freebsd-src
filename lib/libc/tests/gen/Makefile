@@ -19,6 +19,7 @@ ATF_TESTS_C+=		glob2_test
 .if ${COMPILER_FEATURES:Mblocks}
 ATF_TESTS_C+=		glob_blocks_test
 .endif
+ATF_TESTS_C+=		limits_test
 ATF_TESTS_C+=		makecontext_test
 ATF_TESTS_C+=		opendir_test
 ATF_TESTS_C+=		popen_test

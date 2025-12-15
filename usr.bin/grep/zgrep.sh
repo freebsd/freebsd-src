@@ -109,7 +109,7 @@ do
 	    grep_args="${grep_args} ${pre}"
 	    shift
 	    # Put back partial arg
-	    set -- "-${post}" $*
+	    set -- "-${post}" "$@"
 	    ;;
 	-[ABCDdefm])
 	    if [ $# -lt 2 ]

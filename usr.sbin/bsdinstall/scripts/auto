@@ -405,6 +405,7 @@ case "$PARTMODE" in
 	clear
 	echo "Use this shell to set up partitions for the new system. When finished, mount the system at $BSDINSTALL_CHROOT and place an fstab file for the new system at $PATH_FSTAB. Then type 'exit'. You can also enter the partition editor at any time by entering 'bsdinstall partedit'."
 	sh 2>&1
+	bsdinstall mount_aux || error "Failed to mount auxiliary filesystems"
 	;;
 "$msg_manual")		# Manual
 	if f_isset debugFile; then

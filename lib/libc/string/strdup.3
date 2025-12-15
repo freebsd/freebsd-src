@@ -30,7 +30,9 @@
 .Os
 .Sh NAME
 .Nm strdup ,
-.Nm strndup
+.Nm strdupa ,
+.Nm strndup ,
+.Nm strndupa
 .Nd save a copy of a string
 .Sh LIBRARY
 .Lb libc
@@ -39,7 +41,11 @@
 .Ft char *
 .Fn strdup "const char *str"
 .Ft char *
+.Fn strdupa "const char *str"
+.Ft char *
 .Fn strndup "const char *str" "size_t len"
+.Ft char *
+.Fn strndupa "const char *str" "size_t len"
 .Sh DESCRIPTION
 The
 .Fn strdup
@@ -63,6 +69,19 @@ characters from the string
 always
 .Dv NUL
 terminating the copied string.
+.Pp
+The
+.Fn strdupa
+function is identical to
+.Fn strdup
+but allocates the memory with
+.Xr alloca 3 .
+Similarly, the
+.Fn strndupa
+function is identical to
+.Fn strndup ,
+but allocates the memory with
+.Xr alloca 3 .
 .Sh RETURN VALUES
 If insufficient memory is available, NULL is returned and
 .Va errno
@@ -72,6 +91,7 @@ Otherwise, the
 .Fn strdup
 family of functions return a pointer to the copied string.
 .Sh SEE ALSO
+.Xr alloca 3 ,
 .Xr free 3 ,
 .Xr malloc 3 ,
 .Xr wcsdup 3
@@ -84,6 +104,12 @@ The
 .Fn strndup
 function is specified by
 .St -p1003.1-2008 .
+The
+.Fn strdupa
+and
+.Fn strndupa
+functions are extensions,
+taken from glibc.
 .Sh HISTORY
 The
 .Fn strdup
@@ -93,3 +119,9 @@ The
 .Fn strndup
 function was added in
 .Fx 7.2 .
+The
+.Fn strdupa
+and
+.Fn strndupa
+functions were added in
+.Fx 15.1 .

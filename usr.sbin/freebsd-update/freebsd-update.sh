@@ -3196,8 +3196,8 @@ Kernel updates have been installed.  Please reboot and run
 			cat <<-EOF
 
 Completing this upgrade requires removing old shared object files.
-Please rebuild all installed 3rd party software (e.g., programs
-installed from the ports tree) and then run
+Please upgrade or rebuild all installed 3rd party software (e.g.,
+programs installed with pkg or from the ports tree) and then run
 '`basename $0` [options] install' again to finish installing updates.
 			EOF
 			rm newfiles

@@ -3,6 +3,10 @@
  * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
  */
 
+#if defined(__FreeBSD__)
+#define	LINUXKPI_PARAM_PREFIX	mt76_usb_
+#endif
+
 #include <linux/module.h>
 #include "mt76.h"
 #include "usb_trace.h"

@@ -229,7 +229,6 @@ _LIBRARIES=	\
 		tacplus \
 		termcapw \
 		tinfow \
-		tpool \
 		ufs \
 		ugidfw \
 		ulog \
@@ -237,7 +236,7 @@ _LIBRARIES=	\
 		usb \
 		usbhid \
 		util \
-		uutil \
+		uvmem \
 		verto \
 		vmmapi \
 		wind \
@@ -284,6 +283,7 @@ _LIBRARIES+= \
 		irdma \
 		mlx4 \
 		mlx5 \
+		bnxtre \
 		rdmacm \
 		osmcomp \
 		opensm \
@@ -359,7 +359,7 @@ _DP_cap_sysctl=	nv
 _DP_cap_syslog=	nv
 _DP_crypt=	md
 .if ${MK_OFED} != "no"
-_DP_pcap=	ibverbs mlx5
+_DP_pcap=	ibverbs mlx5 bnxtre
 .endif
 _DP_pjdlog=	util
 _DP_usb=	pthread
@@ -452,7 +452,7 @@ _DP_opencsd=	cxxrt
 _DP_ctf=	spl z
 _DP_dtrace=	ctf elf proc pthread rtld_db xo
 _DP_xo=		util
-_DP_ztest=	geom m nvpair umem zpool pthread avl zfs_core spl zutil zfs uutil icp
+_DP_ztest=	geom m nvpair umem zpool pthread avl zfs_core spl zutil zfs icp
 # The libc dependencies are not strictly needed but are defined to make the
 # assert happy.
 _DP_c=		compiler_rt sys
@@ -489,14 +489,13 @@ _DP_smb=	kiconv
 _DP_ulog=	md
 _DP_fifolog=	z
 _DP_ipf=	kvm
-_DP_tpool=	spl
-_DP_uutil=	avl spl
-_DP_zfs=	md pthread rt umem util uutil m avl bsdxml crypto geom nvpair \
+_DP_uvmem=	pthread
+_DP_zfs=	md pthread rt umem util m avl bsdxml crypto geom nvpair \
 	z zfs_core zutil
 _DP_zfsbootenv= zfs nvpair
 _DP_zfs_core=	nvpair spl zutil
 _DP_zpool=	md pthread z icp spl nvpair avl umem
-_DP_zutil=	avl geom m tpool
+_DP_zutil=	avl geom m
 _DP_be=		zfs spl nvpair zfsbootenv
 _DP_netmap=
 _DP_ifconfig=	m
@@ -509,11 +508,12 @@ _DP_cxgb4=	ibverbs pthread
 _DP_ibcm=	ibverbs
 _DP_ibmad=	ibumad
 _DP_ibnetdisc=	osmcomp ibmad ibumad
-_DP_ibumad=	
+_DP_ibumad=
 _DP_ibverbs=
 _DP_irdma=	ibverbs pthread
 _DP_mlx4=	ibverbs pthread
 _DP_mlx5=	ibverbs pthread
+_DP_bnxtre=	ibverbs pthread
 _DP_rdmacm=	ibverbs
 _DP_osmcomp=	pthread
 _DP_opensm=	pthread
@@ -767,6 +767,9 @@ LIBSYS_PIC?=	${LIBSYS_PICDIR}/libsys_pic.a
 LIBSAMPLERATEDIR?=	${_LIB_OBJTOP}/lib/libsamplerate
 LIBSAMPLERATE?=	${LIBSAMPLERATEDIR}/libsamplerate${PIE_SUFFIX}.a
 
+LIBUVMEMDIR=	${OBJTOP}/lib/libuvmem
+LIBUVMEM?=	${LIBUVMEMDIR}/libuvmem${PIE_SUFFIX}.a
+
 # Define a directory for each library.  This is useful for adding -L in when
 # not using a --sysroot or for meta mode bootstrapping when there is no
 # Makefile.depend.  These are sorted by directory.
@@ -780,7 +783,6 @@ LIBICP_RESCUE?=	${LIBICP_RESCUEDIR}/libicp_rescue${PIE_SUFFIX}.a
 LIBNVPAIRDIR=	${_LIB_OBJTOP}/cddl/lib/libnvpair
 LIBNVPAIR?=	${LIBNVPAIRDIR}/libnvpair${PIE_SUFFIX}.a
 LIBUMEMDIR=	${_LIB_OBJTOP}/cddl/lib/libumem
-LIBUUTILDIR=	${_LIB_OBJTOP}/cddl/lib/libuutil
 LIBZDBDIR=	${_LIB_OBJTOP}/cddl/lib/libzdb
 LIBZDB?=	${LIBZDBDIR}/libzdb${PIE_SUFFIX}.a
 LIBZFSDIR=	${_LIB_OBJTOP}/cddl/lib/libzfs
@@ -793,7 +795,6 @@ LIBZPOOLDIR=	${_LIB_OBJTOP}/cddl/lib/libzpool
 LIBZPOOL?=	${LIBZPOOLDIR}/libzpool${PIE_SUFFIX}.a
 LIBZUTILDIR=	${_LIB_OBJTOP}/cddl/lib/libzutil
 LIBZUTIL?=	${LIBZUTILDIR}/libzutil${PIE_SUFFIX}.a
-LIBTPOOLDIR=	${_LIB_OBJTOP}/cddl/lib/libtpool
 
 # OFED support
 LIBCXGB4DIR=	${_LIB_OBJTOP}/lib/ofed/libcxgb4
@@ -805,6 +806,7 @@ LIBIBVERBSDIR=	${_LIB_OBJTOP}/lib/ofed/libibverbs
 LIBIRDMADIR=	${_LIB_OBJTOP}/lib/ofed/libirdma
 LIBMLX4DIR=	${_LIB_OBJTOP}/lib/ofed/libmlx4
 LIBMLX5DIR=	${_LIB_OBJTOP}/lib/ofed/libmlx5
+LIBBNXTREDIR=	${_LIB_OBJTOP}/lib/ofed/libbnxtre
 LIBRDMACMDIR=	${_LIB_OBJTOP}/lib/ofed/librdmacm
 LIBOSMCOMPDIR=	${_LIB_OBJTOP}/lib/ofed/complib
 LIBOPENSMDIR=	${_LIB_OBJTOP}/lib/ofed/libopensm

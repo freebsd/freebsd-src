@@ -243,6 +243,7 @@ static device_method_t ichsmb_pci_methods[] = {
         DEVMETHOD(device_probe, ichsmb_pci_probe),
         DEVMETHOD(device_attach, ichsmb_pci_attach),
         DEVMETHOD(device_detach, ichsmb_detach),
+        DEVMETHOD(device_shutdown, ichsmb_shutdown),
 
 	/* SMBus methods */
         DEVMETHOD(smbus_callback, ichsmb_callback),

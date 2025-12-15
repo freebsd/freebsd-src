@@ -434,6 +434,7 @@ OLD_FILES+=usr/libexec/bsdinstall/jail
 OLD_FILES+=usr/libexec/bsdinstall/keymap
 OLD_FILES+=usr/libexec/bsdinstall/mirrorselect
 OLD_FILES+=usr/libexec/bsdinstall/mount
+OLD_FILES+=usr/libexec/bsdinstall/mount_aux
 OLD_FILES+=usr/libexec/bsdinstall/netconfig
 OLD_FILES+=usr/libexec/bsdinstall/netconfig_ipv4
 OLD_FILES+=usr/libexec/bsdinstall/netconfig_ipv6
@@ -2625,6 +2626,10 @@ OLD_FILES+=usr/share/man/man8/ipfstat.8.gz
 OLD_FILES+=usr/share/man/man8/ipmon.8.gz
 OLD_FILES+=usr/share/man/man8/ipnat.8.gz
 OLD_FILES+=usr/share/man/man8/ippool.8.gz
+.endif
+
+.if ${MK_IPFILTER_IPFS} == no
+OLD_FILES+=sbin/ipfs
 .endif
 
 .if ${MK_IPFW} == no

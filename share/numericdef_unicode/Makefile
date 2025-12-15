@@ -38,6 +38,7 @@ SAME+=		uk_UA.UTF-8 fr_CA.UTF-8
 SAME+=		uk_UA.UTF-8 fi_FI.UTF-8
 SAME+=		uk_UA.UTF-8 et_EE.UTF-8
 SAME+=		uk_UA.UTF-8 es_CR.UTF-8
+SAME+=		uk_UA.UTF-8 en_ZA.UTF-8
 SAME+=		uk_UA.UTF-8 de_AT.UTF-8
 SAME+=		uk_UA.UTF-8 cs_CZ.UTF-8
 SAME+=		uk_UA.UTF-8 bg_BG.UTF-8
@@ -52,7 +53,6 @@ SAME+=		en_US.UTF-8 ja_JP.UTF-8
 SAME+=		en_US.UTF-8 he_IL.UTF-8
 SAME+=		en_US.UTF-8 ga_IE.UTF-8
 SAME+=		en_US.UTF-8 es_MX.UTF-8
-SAME+=		en_US.UTF-8 en_ZA.UTF-8
 SAME+=		en_US.UTF-8 en_SG.UTF-8
 SAME+=		en_US.UTF-8 en_PH.UTF-8
 SAME+=		en_US.UTF-8 en_NZ.UTF-8
@@ -106,6 +106,7 @@ SYMLINKS+=	../$f/${FILESNAME} \
 
 .for f in ${LOCALES}
 FILESDIR_${f}.out= ${LOCALEDIR}/${f}
+FILESDIR_${f}.outPACKAGE= locales
 .endfor
 
 .include <bsd.prog.mk>

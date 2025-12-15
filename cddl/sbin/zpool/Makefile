@@ -1,5 +1,3 @@
-ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
-
 .PATH: ${ZFSTOP}/man/man4
 .PATH: ${ZFSTOP}/man/man5
 .PATH: ${ZFSTOP}/man/man7
@@ -67,7 +65,7 @@ CFLAGS+= \
 	-I${ZFSTOP}/include \
 	-I${ZFSTOP}/lib/libspl/include \
 	-I${ZFSTOP}/lib/libspl/include/os/freebsd \
-	-I${SRCTOP}/sys/contrib/openzfs/lib/libzpool/include \
+	-I${ZFSTOP}/lib/libzpool/include \
 	-I${SRCTOP}/sys \
 	-I${SRCTOP}/cddl/compat/opensolaris/include \
 	-I${ZFSTOP}/cmd/zpool \
@@ -77,6 +75,6 @@ CFLAGS+= \
 	-DSYSCONFDIR=\"/etc\" \
 	-DPKGDATADIR=\"/usr/share/zfs\"
 
-LIBADD=	geom nvpair uutil zfs zutil avl spl tpool zfs_core m
+LIBADD=	geom nvpair zfs zutil avl spl zfs_core m
 LDADD+= 	-pthread
 .include <bsd.prog.mk>

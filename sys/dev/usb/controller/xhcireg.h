@@ -58,7 +58,7 @@
 #define	XHCI_HCSPARAMS3		0x0C	/* RO structural parameters 3 */
 #define	XHCI_HCS3_U1_DEL(x)	((x) & 0xFF)
 #define	XHCI_HCS3_U2_DEL(x)	(((x) >> 16) & 0xFFFF)
-#define	XHCI_HCSPARAMS0		0x10	/* RO capability parameters */
+#define	XHCI_HCCPARAMS1		0x10	/* RO capability parameters */
 #define	XHCI_HCS0_AC64(x)	((x) & 0x1)		/* 64-bit capable */
 #define	XHCI_HCS0_BNC(x)	(((x) >> 1) & 0x1)	/* BW negotiation */
 #define	XHCI_HCS0_CSZ(x)	(((x) >> 2) & 0x1)	/* context size */
@@ -210,6 +210,127 @@
 /* values 11-16 are reserved */
 #define	XHCI_ID_EXT_MSI		0x0011
 #define	XHCI_ID_USB3_TUN	0x0012
+
+/*
+ * XHCI Debug Capability
+ * From Section 7.6 of xHCI April 2023 Revision 1.2b.
+ */
+#define	XHCI_DCID			0x0000
+
+#define	XHCI_DCDB			0x0004		/* Doorbell */
+#define	XHCI_DCDB_OUT			0x00000000
+#define	XHCI_DCDB_IN			0x00000100
+#define	XHCI_DCDB_INVAL			0x0000FE00
+
+#define	XHCI_DCERSTSZ			0x0008	/* Event Ring Segment Table size */
+#define	XHCI_DCERSTBA_LO		0x0010
+#define	XHCI_DCERSTBA_HI		0x0014
+#define	XHCI_DCERDP_LO			0x0018
+#define	XHCI_DCERDP_HI			0x001C
+
+#define	XHCI_DCCTRL			0x0020		/* Debug Control */
+#define	XHCI_DCCTRL_DCR			0x00000001
+#define	XHCI_DCCTRL_DCR_GET(x)		(((x)      ) & 0x01)
+#define	XHCI_DCCTRL_LSE			0x00000002
+#define	XHCI_DCCTRL_LSE_GET(x)		(((x) >>  1) & 0x01)
+#define	XHCI_DCCTRL_HOT			0x00000004
+#define	XHCI_DCCTRL_HOT_GET(x)		(((x) >>  2) & 0x01)
+#define	XHCI_DCCTRL_HIT			0x00000008
+#define	XHCI_DCCTRL_HIT_GET(x)		(((x) >>  3) & 0x01)
+#define	XHCI_DCCTRL_DRC			0x00000010
+#define	XHCI_DCCTRL_DRC_GET(x)		(((x) >>  4) & 0x01)
+#define	XHCI_DCCTRL_MBS_GET(x)		(((x) >> 16) & 0xFF)
+#define	XHCI_DCCTRL_ADDR_GET(x)		(((x) >> 24) & 0x7F)
+#define	XHCI_DCCTRL_DCE			0x80000000
+#define	XHCI_DCCTRL_DCE_GET(x)		(((x) >> 31) & 0x01)
+
+#define	XHCI_DCST			0x0024	/* Status */
+#define	XHCI_DCST_ER			0x00000001
+#define	XHCI_DCST_ER_GET(x)		(((x)      ) & 0x01)
+#define	XHCI_DCST_SBR			0x00000002
+#define	XHCI_DCST_SBR_GET(x)		(((x) >>  1) & 0x01)
+#define	XHCI_DCST_PORT_GET(x)		(((x) >> 24) & 0xFF)
+
+#define	XHCI_DCPORTSC			0x0028	/* Port Control */
+#define	XHCI_DCPORTSC_CCS		0x00000001
+#define	XHCI_DCPORTSC_CCS_GET(x)	(((x)      ) & 0x01)
+#define	XHCI_DCPORTSC_PED		0x00000002
+#define	XHCI_DCPORTSC_PED_GET(x)	(((x) >>  1) & 0x01)
+#define	XHCI_DCPORTSC_PR		0x00000010
+#define	XHCI_DCPORTSC_PR_GET(x)		(((x) >>  4) & 0x01)
+#define	XHCI_DCPORTSC_PLS_GET(x)	(((x) >>  5) & 0x0F)
+#define	XHCI_DCPORTSC_PLS_U0		0x00
+#define	XHCI_DCPORTSC_PLS_U1		0x01
+#define	XHCI_DCPORTSC_PLS_U2		0x02
+#define	XHCI_DCPORTSC_PLS_U3		0x03
+#define	XHCI_DCPORTSC_PLS_DISABLED	0x04
+#define	XHCI_DCPORTSC_PLS_RXDETECTED	0x05
+#define	XHCI_DCPORTSC_PLS_INACTIVE	0x06
+#define	XHCI_DCPORTSC_PLS_POLLING	0x07
+#define	XHCI_DCPORTSC_PLS_RECOVERY	0x08
+#define	XHCI_DCPORTSC_PLS_HOTRESET	0x09
+#define	XHCI_DCPORTSC_SPEED_GET(x)	(((x) >> 10) & 0x0F)
+#define	XHCI_DCPORTSC_CSC		0x00020000
+#define	XHCI_DCPORTSC_CSC_GET(x)	(((x) >> 17) & 0x01)
+#define	XHCI_DCPORTSC_PRC		0x00200000
+#define	XHCI_DCPORTSC_PRC_GET(x)	(((x) >> 21) & 0x01)
+#define	XHCI_DCPORTSC_PLC		0x00400000
+#define	XHCI_DCPORTSC_PLC_GET(x)	(((x) >> 22) & 0x01)
+#define	XHCI_DCPORTSC_CEC		0x00800000
+#define	XHCI_DCPORTSC_CEC_GET(x)	(((x) >> 23) & 0x01)
+#define	XHCI_DCCP_LO			0x0030	/* Context Pointer */
+#define	XHCI_DCCP_HI			0x0034
+#define	XHCI_DCDDI1			0x0038	/* Device Descriptor Info */
+#define	XHCI_DCDDI2			0x003C	/* Device Descriptor Info */
+
+/* DbC CIC offset in uint32 */
+#define	XHCI_DCDBCIC_STR0DESC_LO		0x0000
+#define	XHCI_DCDBCIC_STR0DESC_HI		0x0001
+#define	XHCI_DCDBCIC_MANUDESC_LO		0x0002
+#define	XHCI_DCDBCIC_MANUDESC_HI		0x0003
+#define	XHCI_DCDBCIC_PRODDESC_LO		0x0004
+#define	XHCI_DCDBCIC_PRODDESC_HI		0x0005
+#define	XHCI_DCDBCIC_SERIALDESC_LO		0x0006
+#define	XHCI_DCDBCIC_SERIALDESC_HI		0x0007
+#define	XHCI_DCDBCIC_DESCLEN			0x0008
+#define	XHCI_DCDBCIC_STR0DESC_LEN_GET(x)	(((x) >> 0) & 0xff)
+#define	XHCI_DCDBCIC_STR0DESC_LEN_SET(x)	(((x) & 0xff) << 0)
+#define	XHCI_DCDBCIC_MANUDESC_LEN_GET(x)	(((x) >> 8) & 0xff)
+#define	XHCI_DCDBCIC_MANUDESC_LEN_SET(x)	(((x) & 0xff) << 8)
+#define	XHCI_DCDBCIC_PRODDESC_LEN_GET(x)	(((x) >> 16) & 0xff)
+#define	XHCI_DCDBCIC_PRODDESC_LEN_SET(x)	(((x) & 0xff) << 16)
+#define	XHCI_DCDBCIC_SERIALDESC_LEN_GET(x)	(((x) >> 24) & 0xff)
+#define	XHCI_DCDBCIC_SERIALDESC_LEN_SET(x)	(((x) & 0xff) << 24)
+
+#define	XHCI_DCSTATUS(ctrl, portsc) \
+	(XHCI_DCCTRL_DCE_GET(ctrl) << 4 | \
+	XHCI_DCPORTSC_CCS_GET(portsc) << 3 | \
+	XHCI_DCPORTSC_PED_GET(portsc) << 2 | \
+	XHCI_DCPORTSC_PR_GET(portsc)  << 1 | \
+	XHCI_DCCTRL_DCR_GET(ctrl))
+#define XHCI_DCPORTSC_ACK_MASK	\
+	(XHCI_DCPORTSC_PED | \
+	 XHCI_DCPORTSC_CSC | XHCI_DCPORTSC_PRC | \
+	 XHCI_DCPORTSC_PLC | XHCI_DCPORTSC_CEC)
+
+#define	XHCI_DCPORT_ST_OFF			0x00
+#define	XHCI_DCPORT_ST_DISCONNECTED		0x10	/* DCE only */
+#define	XHCI_DCPORT_ST_DISCONNECTED_RUNNING	0x11	/* XXX: DCE + DCR */
+#define	XHCI_DCPORT_ST_DISABLED			0x18	/* DCE + CCS */
+#define	XHCI_DCPORT_ST_RESETTING		0x1a	/* DCE + CCS + PR */
+#define	XHCI_DCPORT_ST_ENABLED			0x1c	/* DCE + CCS + PED */
+#define	XHCI_DCPORT_ST_CONFIGURED		0x1d	/* DCE + CCS + PED + DCR */
+
+#define	XHCI_DC_MAXPACKETLEN			1024
+/*
+ * While Sec 7.6.3.2 describes Endpoint IDs should be 0 or 1,
+ * Intel chips use Device Context Index (Sec 4.5.1) instead.
+ */
+#define	XHCI_DC_EPID_OUT			0
+#define	XHCI_DC_EPID_IN				1
+#define	XHCI_DC_EPID_OUT_INTEL			2
+#define	XHCI_DC_EPID_IN_INTEL			3
+#define	XHCI_DC_SLOT				1
 
 /* XHCI register R/W wrappers */
 #define	XREAD1(sc, what, a) \

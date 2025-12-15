@@ -407,7 +407,7 @@ die_you_gravy_sucking_pig_dog(void)
 	} else {
 		if (doreboot) {
 			BOOTTRACE("exec reboot(8) -l...");
-			execle(_PATH_REBOOT, "reboot", "-l", nosync, 
+			execle(_PATH_REBOOT, "fastboot", "-l", nosync,
 				(char *)NULL, empty_environ);
 			syslog(LOG_ERR, "shutdown: can't exec %s: %m.",
 				_PATH_REBOOT);
@@ -415,7 +415,7 @@ die_you_gravy_sucking_pig_dog(void)
 		}
 		else if (dohalt) {
 			BOOTTRACE("exec halt(8) -l...");
-			execle(_PATH_HALT, "halt", "-l", nosync,
+			execle(_PATH_HALT, "fasthalt", "-l", nosync,
 				(char *)NULL, empty_environ);
 			syslog(LOG_ERR, "shutdown: can't exec %s: %m.",
 				_PATH_HALT);
@@ -423,14 +423,14 @@ die_you_gravy_sucking_pig_dog(void)
 		}
 		else if (dopower) {
 			BOOTTRACE("exec halt(8) -l -p...");
-			execle(_PATH_HALT, "halt", "-l", "-p", nosync,
+			execle(_PATH_HALT, "fasthalt", "-l", "-p", nosync,
 				(char *)NULL, empty_environ);
 			syslog(LOG_ERR, "shutdown: can't exec %s: %m.",
 				_PATH_HALT);
 			warn(_PATH_HALT);
 		}
 		else if (docycle) {
-			execle(_PATH_HALT, "halt", "-l", "-c", nosync,
+			execle(_PATH_HALT, "fasthalt", "-l", "-c", nosync,
 				(char *)NULL, empty_environ);
 			syslog(LOG_ERR, "shutdown: can't exec %s: %m.",
 				_PATH_HALT);

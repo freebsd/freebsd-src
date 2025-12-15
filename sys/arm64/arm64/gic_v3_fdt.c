@@ -110,7 +110,7 @@ gic_v3_fdt_attach(device_t dev)
 {
 	struct gic_v3_softc *sc;
 	pcell_t redist_regions;
-	intptr_t xref;
+	phandle_t xref, node;
 	int err;
 	uint32_t *mbi_ranges;
 	ssize_t ret;
@@ -118,6 +118,19 @@ gic_v3_fdt_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->gic_bus = GIC_BUS_FDT;
+	node = ofw_bus_get_node(dev);
+
+	/*
+	 * Limit DMA shareability. "dma-noncoherent" was introduced in DT 6.15.
+	 * For compatibility with previous versions, also use a match based on
+	 * affected SoCs.
+	 */
+	if (OF_hasprop(node, "dma-noncoherent") ||
+	    ofw_bus_is_machine_compatible("rockchip,rk3566") ||
+	    ofw_bus_is_machine_compatible("rockchip,rk3568") ||
+	    ofw_bus_is_machine_compatible("rockchip,rk3588") ||
+	    ofw_bus_is_machine_compatible("rockchip,rk3588s"))
+		sc->gic_flags |= GIC_V3_FLAGS_FORCE_NOSHAREABLE;
 
 	/*
 	 * Recover number of the Re-Distributor regions.

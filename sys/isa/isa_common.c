@@ -480,7 +480,7 @@ isa_claim_resources(device_t dev, device_t child)
 	STAILQ_FOREACH(rle, rl, link) {
 		if (!rle->res) {
 			rid = rle->rid;
-			resource_list_alloc(rl, dev, child, rle->type, &rid,
+			resource_list_alloc(rl, dev, child, rle->type, rid,
 			    0, ~0, 1, 0);
 		}
 	}

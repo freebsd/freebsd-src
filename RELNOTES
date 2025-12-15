@@ -1,4 +1,4 @@
-Release notes for FreeBSD 15.0.
+Release notes for FreeBSD 16.0.
 
 This file describes new user-visible features, changes and updates relevant to
 users of binary FreeBSD releases.  Each entry should describe the change in no
@@ -10,462 +10,52 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
-8e0b1a1c03a3:
-	The FreeBSD-base repository is now defined in /etc/pkg/FreeBSD.conf,
-	disabled by default.  Systems which installed with pkgbase prior to
-	15.0-RC1 (if running releng/15.0) or November 15th (if running from
-	stable/main snapshots) will need to remove the definition of the
-	FreeBSD-base repository from /usr/local/etc/pkg/repos/ and replace
-	it with a single line "FreeBSD-base: { enabled: yes }".
-
-5000d023a446, 03da141d59ae:
-	Add a "-f" option to "kadmin -l dump" which can be used to
-	dump the Heimdal KDC database in a format that can be loaded
-	into the MIT KDC.
-	See https://wiki.freebsd.org/Kerberos/Heimdal2MIT_KDC_Migration
-	for how to use "-f" to transfer/convert the KDC database.
-
-9cab9fde5eda:
-	virtual_oss is imported to base. The audio/virtual_oss port will stop
-	being built from FreeBSD 15.0 onwards.
-
-	Regarding user-facing changes, the only practical difference is the
-	installation process. Everything is provided by the base system, except
-	for the following optional components, which can be installed from
-	ports:
-
-	* sndio backend support: audio/virtual_oss_sndio
-	* bluetooth backend support: audio/virtual_oss_bluetooth
-	* virtual_equalizer(8): audio/virtual_oss_equalizer
-
-	Apart from that, virtual_oss should work as expected. Users of
-	virtual_oss can uninstall audio/virtual_oss and instead use the base
-	system version from now on.
-
-929f5966a9fd, b9b0e105c357, 5105e1ebecc7, cb3eac927b5d, ce9c325a2e92, 18a870751b03, 89c82750da1a, 0c13e9c3c464, 10eecc467f32, 619feb9dd00e, 7d2cfb27d62f, e26259f48afe, a245dc5d68c7, 9a726ef24134, 383e7290c0b5, c791ea80b5f7, 543b875a8ee4, 40a5abfc3f66, 73ed0c7992fd, 04764f21855a, 624b7beed5ac, 7b68893ffa9b, 6c4771c73470, dd0ec030f8fd, fb1ccc04adfe, b98d0566b2bd, ca9ccf0ce9ad, 6b28571cb6ba, 98d46e05ab08, 2a454b05f2c1, 110111a6cca1, 5f8493bbf479, e447c252d0ec, 4680e7fcc70a, 188138106b9f, 4cb1baa7d85c, 805498e49ae4, f58febc4cefa, ae07a5805b19, 0559f30a882d, cbb6e747af98, 0d1496f0f1e7, 60f970b85e44, 0b9a631e0724, ee3960cba106:
-	Replaced Heimdal 1.5.2 with MIT KRB5 (1.21.3, 1.22.0, 1.22.1).
-	Heimdal 1.5.2 can still be built using the WITHOUT_MITKRB5 flag.
-	Heimdal build plumbing will be removed in 16.
-
-2b74ff5fceb6:
-	Introduced support for watchdog timer in Intel 6300ESB I/O controller
-	hub via the i6300esbwd driver, now included in ichwd.ko.
-	This driver is intended primarily for QEMU users, where it serves as
-	the default and only watchdog timer for x86 virtual machines.
-
-3068d706eabe:
-	Lua updated to 5.4.8, which is minor bug fixes from 5.4.7.
-
-b45a181a74c8:
-	Awk updates to August 04, 2025 version, with minor bug fixes.
-
-dc5ba6b8b4f0:
-	The WITHOUT_GSSAPI src.conf(5) option has been removed.  The GSSAPI
-	libraries are now always built unless WITHOUT_KERBEROS is set.
-
-c43cad871720:
-	jemalloc 5.3.0 has landed. See contrib/jemalloc/ChangeLog
-	for the long list of changes.
-
-cce64f2e6851:
-	Add support for the NFSv4.2 Clone operation, which uses
-	block cloning to "copy on write" files on an NFS server.
-	This only works for exported ZFS file systems that have
-	block cloning enabled, at this time.
-
-37b2cb5ecb0f:
-	Add support to VOP_COPY_FILE_RANGE() for block cloning.
-	At this time, ZFS is the only local file system that supports
-	this and only if block cloning is enabled.  NFSv4.2 also supports it.
-	See pathconf(2) and copy_file_range(2) for more information.
-
-2ec2ba7e232d, df58e8b1506f (openzfs 2957eabbe), f61844833ee8, b1b607bd200f,
-	ee95e4d02dbd:
-	Add Solaris style extended attributes (called named attributes
-	in NFSv4).  At this time, only ZFS when the ZFS property called
-	xattr=dir and NFSv4 support them.  The attributes are presented
-	in a directory as regular files.  See named_attribute(7) for
-	more information.
-
-ef2a572bf6:
-	Inline IPSEC offload infrastructure and driver support for mlx5(4)
-	Nvidia ConnectX-6+ network cards were added.
-
-68ba38dad3:
-	amd64: handling of the %fsbase/%gsbase registers and tls base
-	were reworked, making it more useful for apps that directly
-	manipulate CPU context.
-
-78aaab9f1cf:
-	rtld: added support for -z initfirst
-
-e36f069ecb4, c069ca085b:
-	Reliability of UFS on volumes with more than 2G of inodes is
-	significantly improved.  The underlying issue was the invalid
-	interpretation of the 32bit inode number as signed, which got
-	sign-extended into ino_t.
-
-d390633cf8c:
-	On modern amd64 machines (which have the LA57 CPU feature),
-	FreeBSD is able to utilize more than 4TB of RAM.
-
-2bd157bc732a:
-	The readdir_r(3) function is deprecated and may be removed in future
-	releases.  Using it in a program will result in compile-time and
-	link-time warnings.
-
-9ba51cce8bbd:
-	bsnmpd(1) no longer supports legacy UDP transport.  Users, that have
-	not updated their /etc/snmpd.config since 12.0-RELEASE or older will
-	need to merge in the new configuration.  In particular, the transport
-	definition shall be changed from begemotSnmpdPortStatus OID to
-	begemotSnmpdTransInetStatus.
-
-1349a733cf28:
-	Add a driver supporting a new storage controller interface,
-	Universal Flash Storage Host Controller Interface, supporting
-	version 4.1 and earlier, via ufshci(4).
-
-f1f230439fa4:
-	FreeBSD now implements the inotify(2) family of system calls.
-
-50e733f19b37, 171f66b0c2ca:
-	These commits helped improve utilization of NFSv4.1/4.2
-	delegations.  The changes are only used when the NFSv4
-	mount uses the "nocto" mount option and requires an
-	up-to-date NFSv4.1/4.2 server with delegations enabled.
-	For example: For a FreeBSD kernel build with both src
-	and obj NFSv4 mounted, the total RPC count dropped from
-	5461286 to 945643, with a 20% drop in elapsed time.
-
-c3fc0db3bc50
-	The default value of the sysctl variable
-	net.inet.tcp.nolocaltimewait has changed from 1 to 0. This means
-	that FreeBSD does not skip the TIME_WAIT state anymore for
-	endpoints for which the remote address is local. The new sysctl
-	variable net.inet.tcp.msl_local can be used to control the time
-	these endpoints stay in the TIME_WAIT state. The sysctl variable
-	net.inet.tcp.nolocaltimewait is deprecated and intended to be
-	removed in FreeBSD 16.
-
-cd240957d7ba
-	Making a connection to INADDR_ANY (i.e., using INADDR_ANY as an alias
-	for localhost) is now disabled by default.  This functionality can be
-	re-enabled by setting the net.inet.ip.connect_inaddr_wild sysctl to 1.
-
-b61850c4e6f6
-	The bridge(4) sysctl net.link.bridge.member_ifaddrs now defaults to 0,
-	meaning that interfaces added to a bridge may not have IP addresses
-	assigned.  Refer to bridge(4) for more information.
-
-44e5a0150835, 9a37f1024ceb:
-	A new utility sndctl(8) has been added to concentrate the various
-	interfaces for viewing and manipulating audio device settings (sysctls,
-	/dev/sndstat), into a single utility with a similar control-driven
-	interface to that of mixer(8).
-
-93a94ce731a8:
-	ps(1)'s options '-a' and '-A', when combined with any other one
-	affecting the selection of processes except for '-X' and '-x', would
-	have no effect, in contradiction with the rule that one process is
-	listed as soon as any of the specified options selects it (inclusive
-	OR), which is both mandated by POSIX and arguably a natural expectation.
-	This bug has been fixed.
-
-	As a practical consequence, specifying '-a'/'-A' now causes all
-	processes to be listed regardless of other selection options (except for
-	'-X' and '-x', which still apply).  In particular, to list only
-	processes from specific jails, one must not use '-a' with '-J'.  Option
-	'-J', contrary to its apparent initial intent, never worked as a filter
-	in practice (except by accident with '-a' due to the bug), but instead
-	as any other selection options (e.g., '-U', '-p', '-G', etc.) subject to
-	the "inclusive OR" rule.
-
-995b690d1398:
-	ps(1)'s '-U' option has been changed to select processes by their real
-	user IDs instead of their effective one, in accordance with POSIX and
-	the use case of wanting to list processes launched by some user, which
-	is expected to be more frequent than listing processes having the rights
-	of some user.  This only affects the selection of processes whose real
-	and effective user IDs differ.	After this change, ps(1)'s '-U' flag
-	behaves differently then in other BSDs but identically to that of
-	Linux's procps and illumos.
-
-1aabbb25c9f9:
-	ps(1)'s default list of processes now comes from matching its effective
-	user ID instead of its real user ID with the effective user ID of all
-	processes, in accordance with POSIX.  As ps(1) itself is not installed
-	setuid, this only affects processes having different real and effective
-	user IDs that launch ps(1) processes.
-
-f0600c41e754-de701f9bdbe0, bc201841d139:
-	mac_do(4) is now considered production-ready and its functionality has
-	been considerably extended at the price of breaking credentials
-	transition rules' backwards compatibility.  All that could be specified
-	with old rules can also be with new rules.  Migrating old rules is just
-	a matter of adding "uid=" in front of the target part, substituting
-	commas (",") with semi-colons (";") and colons (":") with greater-than
-	signs (">").  Please consult the mac_do(4) manual page for the new rules
-	grammar.
-
-02d4eeabfd73:
-	hw.snd.maxautovchans has been retired. The commit introduced a
-	hw.snd.vchans_enable sysctl, which along with
-	dev.pcm.X.{play|rec}.vchans, from now on work as tunables to only
-	enable/disable vchans, as opposed to setting their number and/or
-	(de-)allocating vchans. Since these sysctls do not trigger any
-	(de-)allocations anymore, their effect is instantaneous, whereas before
-	we could have frozen the machine (when trying to allocate new vchans)
-	when setting dev.pcm.X.{play|rec}.vchans to a very large value.
-
-7e7f88001d7d:
-	The definition of pf's struct pfr_tstats and struct pfr_astats has
-	changed, breaking ABI compatibility for 32-bit powerpc (including
-	powerpcspe) and armv7. Users of these platforms should ensure kernel
-	and userspace are updated together.
-
-5dc99e9bb985, 08e638c089a, 4009a98fe80:
-	The net.inet.{tcp,udp,raw}.bind_all_fibs tunables have been added.
-	They modify socket behavior such that packets not originating from the
-	same FIB as the socket are ignored.  TCP and UDP sockets belonging to
-	different FIBs may also be bound to the same address.  The default
-	behavior is unmodified.
-
-f87bb5967670, e51036fbf3f8:
-	Support for vinum volumes has been removed.
-
-8ae6247aa966, cf0ede720391d, 205659c43d87bd, 1ccbdf561f417, 4db1b113b151:
-	The layout of NFS file handles for the tarfs, tmpfs, cd9660, and ext2fs
-	file systems has changed.  An NFS server that exports any of these file
-	systems will need its clients to unmount and remount the exports.
-
-1111a44301da:
-	Defer the January 19, 2038 date limit in UFS1 filesystems to
-	February 7, 2106. This affects only UFS1 format filesystems.
-	See the commit message for details.
-
-07cd69e272da:
-	Add a new -a command line option to mountd(8).
-	If this command line option is specified, when
-	a line in exports(5) has the -alldirs export option,
-	the directory must be a server file system mount point.
-
-0e8a36a2ab12:
-	Add a new NFS mount option called "mountport" that may be used
-	to specify the port# for the NFS server's Mount protocol.
-	This permits a NFSv3 mount to be done without running rpcbind(8).
-
-b2f7c53430c3:
-	Kernel TLS is now enabled by default in kernels including KTLS
-	support.  KTLS is included in GENERIC kernels for aarch64,
-	amd64, powerpc64, and powerpc64le.
-
-f57efe95cc25:
-	New mididump(1) utility which dumps MIDI 1.0 events in real time.
-
-ddfc6f84f242:
-	Update unicode to 16.0.0 and CLDR to 45.0.0.
-
-b22be3bbb2de:
-	Basic Cloudinit images no longer generate RSA host keys by default for
-	SSH.
-
-000000000000:
-	RSA host keys for SSH are deprecated and will no longer be generated
-	by default in FreeBSD 16.
-
-0aabcd75dbc2:
-	EC2 AMIs no longer generate RSA host keys by default for SSH.  RSA
-	host key generation can be re-enabled by setting sshd_rsa_enable="YES"
-	in /etc/rc.conf if it is necessary to support very old SSH clients.
-
-a1da7dc1cdad:
-	The SO_SPLICE socket option was added.  It allows TCP connections to
-	be spliced together, enabling proxy-like functionality without the
-	need to copy data in and out of user memory.
-
-fc12c191c087:
-	grep(1) no longer follows symbolic links by default for
-	recursive searches.  This matches the documented behavior in
-	the manual page.
-
-e962b37bf0ff:
-	When running bhyve(8) guests with a boot ROM, i.e., bhyveload(8) is not
-	used, bhyve now assumes that the boot ROM will enable PCI BAR decoding.
-	This is incompatible with some boot ROMs, particularly outdated builds
-	of edk2-bhyve.  To restore the old behavior, add
-	"pci.enable_bars='true'" to your bhyve configuration.
-
-	Note in particular that the uefi-edk2-bhyve package has been renamed
-	to edk2-bhyve.
-
-43caa2e805c2:
-	amd64 bhyve(8)'s "lpc.bootrom" and "lpc.bootvars" options are
-	deprecated.  Use the top-level "bootrom" and "bootvars" options
-	instead.
-
-822ca3276345:
-	byacc was updated to 20240109.
-
-21817992b331:
-	ncurses was updated to 6.5.
-
-1687d77197c0:
-	Filesystem manual pages have been moved to section four.
-	Please check ports you are maintaining for crossreferences.
-
-8aac90f18aef:
-	new MAC/do policy and mdo(1) utility which enables a user to
-	become another user without the requirement of setuid root.
-
-7398d1ece5cf:
-	hw.snd.version is removed.
-
-a15f7c96a276,66b5296f1b29:
-	NVMe over Fabrics controller.  The nvmft(4) kernel module adds
-	a new frontend to the CAM target layer which exports ctl(4)
-	LUNs as NVMe namespaces to remote hosts.  The ctld(8) daemon
-	now supports NVMe controllers in addition to iSCSI targets and
-	is responsible for accepting incoming connection requests and
-	handing off connected queue pairs to nvmft(4).
-
-a1eda74167b5,1058c12197ab:
-	NVMe over Fabrics host.  New commands added to nvmecontrol(8)
-	to establish connections to remote controllers.  Once
-	connections are established they are handed off to the nvmf(4)
-	kernel module which creates nvmeX devices and exports remote
-	namespaces as nda(4) disks.
-
-25723d66369f:
-	As a side-effect of retiring the unit.* code in sound(4), the
-	hw.snd.maxunit loader(8) tunable is also retired.
-
-eeb04a736cb9:
-	date(1) now supports nanoseconds. For example:
-	`date -Ins` prints "2024-04-22T12:20:28,763742224+02:00" and
-	`date +%N` prints "415050400".
-
-6d5ce2bb6344:
-	The default value of the nfs_reserved_port_only rc.conf(5) setting has
-	changed.  The FreeBSD NFS server now requires the source port of
-	requests to be in the privileged port range (i.e., <= 1023), which
-	generally requires the client to have elevated privileges on their local
-	system.  The previous behavior can be restored by setting
-	nfs_reserved_port_only=NO in rc.conf.
-
-aea973501b19:
-	ktrace(2) will now record detailed information about capability mode
-	violations. The kdump(1) utility has been updated to display such
-	information.
-
-f32a6403d346:
-	One True Awk updated to 2nd Edition. See https://awk.dev for details
-	on the additions. Unicode and CSVs (Comma Separated Values) are now
-	supported.
-
-fe86d923f83f:
-	usbconfig(8) now reads the descriptions of the usb vendor and products
-	from usb.ids when available, similarly to what pciconf(8) does.
-
-4347ef60501f:
-	The powerd(8) utility is now enabled in /etc/rc.conf by default on
-	images for the arm64 Raspberry Pi's (arm64-aarch64-RPI img files).
-	This prevents the CPU clock from running slow all the time.
-
-0b49e504a32d:
-	rc.d/jail now supports the legacy variable jail_${jailname}_zfs_dataset
-	to allow unmaintained jail managers like ezjail to make use of this
-	feature (simply rename jail_${jailname}_zfs_datasets in the ezjail
-	config to jail_${jailname}_zfs_dataset.
-
-e0dfe185cbca:
-	jail(8) now support zfs.dataset to add a list of ZFS datasets to a
-        jail.
-
-61174ad88e33:
-	newsyslog(8) now supports specifying a global compression method directly
-	at the beginning of the newsyslog.conf file, which will make newsyslog(8)
-	to behave like the corresponding option was passed to the newly added
-	'-c' option. For example:
-
-	<compress> none
-
-906748d208d3:
-	newsyslog(8) now accepts a new option, '-c' which overrides all historical
-	compression flags by treating their meaning as "treat the file as compressible"
-	rather than "compress the file with that specific method."
-
-	The following choices are available:
-	 * none: Do not compress, regardless of flag.
-	 * legacy: Historical behavior (J=bzip2, X=xz, Y=zstd, Z=gzip).
-	 * bzip2, xz, zstd, gzip: apply the specified compression method.
-
-	We plan to change the default to 'none' in FreeBSD 15.0.
-
-1a878807006c:
-	This commit added some statistics collection to the NFS-over-TLS
-	code in the NFS server so that sysadmins can moditor usage.
-	The statistics are available via the kern.rpc.tls.* sysctls.
-
-7c5146da1286:
-	Mountd has been modified to use strunvis(3) to decode directory
-	names in exports(5) file(s).  This allows special characters,
-	such as blanks, to be embedded in the directory name(s).
-	"vis -M" may be used to encode such directory name(s).
-
-c5359e2af5ab:
-	bhyve(8) has a new network backend, "slirp", which makes use of the
-	libslirp package to provide a userspace network stack.  This backend
-	makes it possible to access the guest network from the host without
-	requiring any extra network configuration on the host.
-
-bb830e346bd5:
-	Set the IUTF8 flag by default in tty(4).
-
-	128f63cedc14 and 9e589b093857 added proper UTF-8 backspacing handling
-	in the tty(4) driver, which is enabled by setting the new IUTF8 flag
-	through stty(1). Since the default locale is UTF-8, enable IUTF8 by
-	default.
-
-ff01d71e48d4:
-	dialog(1) has been replaced by bsddialog(1)
-
-41582f28ddf7:
-	FreeBSD 15.0 will not include support for 32-bit platforms.
-	However, 64-bit systems will still be able to run older 32-bit
+dbac191956f9, fe21dbf70aa8:
+	Support for the kcmp(2) system call and fcntl(F_DUPFD_QUERY) for Linux
 	binaries.
 
-	Support for executing 32-bit binaries on 64-bit platforms via
-	COMPAT_FREEBSD32 will remain supported for at least the
-	stable/15 and stable/16 branches.
+a86dc94b84d1:
+	tzdata2025c was imported.
 
-	Support for compiling individual 32-bit applications via
-	`cc -m32` will also be supported for at least the stable/15
-	branch which includes suitable headers in /usr/include and
-	libraries in /usr/lib32.
+a98e5d785001:
+	Add strdupa(3) and strndupa(3) macros for compatability with glibc.
 
-	Support for 32-bit platforms in ports for 15.0 and later
-	releases is also deprecated, and these future releases may not
-	include binary packages for 32-bit platforms or support for
-	building 32-bit applications from ports.
+e967a2a03677:
+	divert socket compat removal, consumers must use PF_DIVERT instead of
+	PF_INET.
 
-	stable/14 and earlier branches will retain existing 32-bit
-	kernel and world support.  Ports will retain existing support
-	for building ports and packages for 32-bit systems on stable/14
-	and earlier branches as long as those branches are supported
-	by the ports system.  However, all 32-bit platforms are Tier-2
-	or Tier-3 and support for individual ports should be expected
-	to degrade as upstreams deprecate 32-bit platforms.
+4453ec5b8716b, 2a3b1641756a:
+	The reboot(8) and halt(8) commands now perform a graceful shutdown similar
+	to the shutdown(8) command including invoking rc.d scripts to shutdown
+	services.  The fastboot(8) and fasthalt(8) commands still perform a "fast"
+	reboot or shutdown.
 
-	With the current support schedule, stable/14 will be EOLed 5
-	years after the release of 14.0.  The EOL of stable/14 would
-	mark the end of support for 32-bit platforms including source
-	releases, pre-built packages, and support for building
-	applications from ports.  Given an estimated release date of
-	October 2023 for 14.0, support for 32-bit platforms would end
-	in October 2028.
+d9788eabffa4:
+	ipfilter cannot be used in a jail by default.
 
-	The project may choose to alter this approach when 15.0 is
-	released by extending some level of 32-bit support for one or
-	more platforms in 15.0 or later.  Users should use the
-	stable/14 branch to migrate off of 32-bit platforms.
+0ff0c19e7f70:
+	ipfs(8) is no longer built by default.
+
+575efcfff22f:
+	sendfile(2)'s SF_SYNC flag was removed.
+
+057dae35ffc6, 51a01f3debff, ca3e47b0ea68:
+	hwpmc(4) support for Intel Alder Lake 6-B7, 6-BA, and 6-BF CPU
+	hwpmc(4) support for Intel Emerald Rapids CPUs
+	hwpmc(4) support for Intel Alder Lake-N CPUs
+
+1ecf01065b45:
+	New library libuvmem provides the vmem(9) API to userspace applications.
+
+b6cad334e64:
+	Make game controller devices accessible by members of the "game" group
+	by default.
+
+791c531402bd:
+	Add driver for Feature Integration Technology Inc. (aka Fintek) F81232
+	USB to serial devices.
+
+ec0cd287f55f:
+	Support for NVMe/TCP offload on Chelsio T7 adapters.  The nvmf_che(4)
+	module enables T7 adapters to process NVMe/TCP PDUs directly similar to
+	the PDU offload provided by cxgbei(4) for iSCSI.

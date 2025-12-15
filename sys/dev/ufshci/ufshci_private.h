@@ -26,10 +26,14 @@
 #include <sys/memdesc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/power.h>
 #include <sys/rman.h>
 #include <sys/taskqueue.h>
 
 #include <machine/bus.h>
+
+#include <cam/cam.h>
+#include <cam/scsi/scsi_all.h>
 
 #include "ufshci.h"
 
@@ -231,6 +235,43 @@ struct ufshci_req_queue {
 	bus_dmamap_t ucdmem_map;
 };
 
+enum ufshci_dev_pwr {
+	UFSHCI_DEV_PWR_ACTIVE = 0,
+	UFSHCI_DEV_PWR_SLEEP,
+	UFSHCI_DEV_PWR_POWERDOWN,
+	UFSHCI_DEV_PWR_DEEPSLEEP,
+	UFSHCI_DEV_PWR_COUNT,
+};
+
+enum ufshci_uic_link_state {
+	UFSHCI_UIC_LINK_STATE_OFF = 0,
+	UFSHCI_UIC_LINK_STATE_ACTIVE,
+	UFSHCI_UIC_LINK_STATE_HIBERNATE,
+	UFSHCI_UIC_LINK_STATE_BROKEN,
+};
+
+struct ufshci_power_entry {
+	enum ufshci_dev_pwr dev_pwr;
+	uint8_t ssu_pc; /* SSU Power Condition */
+	enum ufshci_uic_link_state link_state;
+};
+
+/* SSU Power Condition 0x40 is defined in the UFS specification */
+static const struct ufshci_power_entry power_map[POWER_STYPE_COUNT] = {
+	[POWER_STYPE_AWAKE] = { UFSHCI_DEV_PWR_ACTIVE, SSS_PC_ACTIVE,
+	    UFSHCI_UIC_LINK_STATE_ACTIVE },
+	[POWER_STYPE_STANDBY] = { UFSHCI_DEV_PWR_SLEEP, SSS_PC_IDLE,
+	    UFSHCI_UIC_LINK_STATE_HIBERNATE },
+	[POWER_STYPE_SUSPEND_TO_MEM] = { UFSHCI_DEV_PWR_POWERDOWN,
+	    SSS_PC_STANDBY, UFSHCI_UIC_LINK_STATE_HIBERNATE },
+	[POWER_STYPE_SUSPEND_TO_IDLE] = { UFSHCI_DEV_PWR_SLEEP, SSS_PC_IDLE,
+	    UFSHCI_UIC_LINK_STATE_HIBERNATE },
+	[POWER_STYPE_HIBERNATE] = { UFSHCI_DEV_PWR_DEEPSLEEP, 0x40,
+	    UFSHCI_UIC_LINK_STATE_OFF },
+	[POWER_STYPE_POWEROFF] = { UFSHCI_DEV_PWR_POWERDOWN, SSS_PC_STANDBY,
+	    UFSHCI_UIC_LINK_STATE_OFF },
+};
+
 struct ufshci_device {
 	uint32_t max_lun_count;
 
@@ -247,6 +288,15 @@ struct ufshci_device {
 	uint32_t wb_user_space_config_option;
 	uint8_t wb_dedicated_lu;
 	uint32_t write_booster_flush_threshold;
+
+	/* Power mode */
+	bool power_mode_supported;
+	enum ufshci_dev_pwr power_mode;
+	enum ufshci_uic_link_state link_state;
+
+	/* Auto Hibernation */
+	bool auto_hibernation_supported;
+	uint32_t ahit;
 };
 
 /*
@@ -266,11 +316,19 @@ struct ufshci_controller {
 	8 /* Need to change the number of lanes before changing HS-GEAR. */
 #define UFSHCI_QUIRK_NOT_SUPPORT_ABORT_TASK \
 	16 /* QEMU does not support Task Management Request */
+#define UFSHCI_QUIRK_SKIP_WELL_KNOWN_LUNS \
+	32 /* QEMU does not support Well known logical units*/
+#define UFSHCI_QUIRK_BROKEN_AUTO_HIBERNATE                                    \
+	64 /* Some controllers have the Auto hibernate feature enabled but it \
+	      does not work. */
 
 	uint32_t ref_clk;
 
 	struct cam_sim *ufshci_sim;
 	struct cam_path *ufshci_path;
+
+	struct cam_periph *ufs_device_wlun_periph;
+	struct mtx ufs_device_wlun_mtx;
 
 	struct mtx sc_mtx;
 	uint32_t sc_unit;
@@ -369,13 +427,24 @@ void ufshci_completion_poll_cb(void *arg, const struct ufshci_completion *cpl,
     bool error);
 
 /* SIM */
+uint8_t ufshci_sim_translate_scsi_to_ufs_lun(lun_id_t scsi_lun);
+uint64_t ufshci_sim_translate_ufs_to_scsi_lun(uint8_t ufs_lun);
 int ufshci_sim_attach(struct ufshci_controller *ctrlr);
 void ufshci_sim_detach(struct ufshci_controller *ctrlr);
+struct cam_periph *ufshci_sim_find_periph(struct ufshci_controller *ctrlr,
+    uint8_t wlun);
+int ufshci_sim_send_ssu(struct ufshci_controller *ctrlr, bool start,
+    uint8_t pwr_cond, bool immed);
 
 /* Controller */
 int ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev);
 void ufshci_ctrlr_destruct(struct ufshci_controller *ctrlr, device_t dev);
 void ufshci_ctrlr_reset(struct ufshci_controller *ctrlr);
+int ufshci_ctrlr_suspend(struct ufshci_controller *ctrlr,
+    enum power_stype stype);
+int ufshci_ctrlr_resume(struct ufshci_controller *ctrlr,
+    enum power_stype stype);
+int ufshci_ctrlr_disable(struct ufshci_controller *ctrlr);
 /* ctrlr defined as void * to allow use with config_intrhook. */
 void ufshci_ctrlr_start_config_hook(void *arg);
 void ufshci_ctrlr_poll(struct ufshci_controller *ctrlr);
@@ -395,10 +464,17 @@ int ufshci_dev_init(struct ufshci_controller *ctrlr);
 int ufshci_dev_reset(struct ufshci_controller *ctrlr);
 int ufshci_dev_init_reference_clock(struct ufshci_controller *ctrlr);
 int ufshci_dev_init_unipro(struct ufshci_controller *ctrlr);
+void ufshci_dev_enable_auto_hibernate(struct ufshci_controller *ctrlr);
+void ufshci_dev_init_auto_hibernate(struct ufshci_controller *ctrlr);
 int ufshci_dev_init_uic_power_mode(struct ufshci_controller *ctrlr);
+void ufshci_dev_init_uic_link_state(struct ufshci_controller *ctrlr);
 int ufshci_dev_init_ufs_power_mode(struct ufshci_controller *ctrlr);
 int ufshci_dev_get_descriptor(struct ufshci_controller *ctrlr);
 int ufshci_dev_config_write_booster(struct ufshci_controller *ctrlr);
+int ufshci_dev_get_current_power_mode(struct ufshci_controller *ctrlr,
+    uint8_t *power_mode);
+int ufshci_dev_link_state_transition(struct ufshci_controller *ctrlr,
+    enum ufshci_uic_link_state target_state);
 
 /* Controller Command */
 void ufshci_ctrlr_cmd_send_task_mgmt_request(struct ufshci_controller *ctrlr,
@@ -459,6 +535,7 @@ int ufshci_req_sdb_get_inflight_io(struct ufshci_controller *ctrlr);
 
 /* UIC Command */
 int ufshci_uic_power_mode_ready(struct ufshci_controller *ctrlr);
+int ufshci_uic_hibernation_ready(struct ufshci_controller *ctrlr);
 int ufshci_uic_cmd_ready(struct ufshci_controller *ctrlr);
 int ufshci_uic_send_dme_link_startup(struct ufshci_controller *ctrlr);
 int ufshci_uic_send_dme_get(struct ufshci_controller *ctrlr, uint16_t attribute,
@@ -470,6 +547,8 @@ int ufshci_uic_send_dme_peer_get(struct ufshci_controller *ctrlr,
 int ufshci_uic_send_dme_peer_set(struct ufshci_controller *ctrlr,
     uint16_t attribute, uint32_t value);
 int ufshci_uic_send_dme_endpoint_reset(struct ufshci_controller *ctrlr);
+int ufshci_uic_send_dme_hibernate_enter(struct ufshci_controller *ctrlr);
+int ufshci_uic_send_dme_hibernate_exit(struct ufshci_controller *ctrlr);
 
 /* SYSCTL */
 void ufshci_sysctl_initialize_ctrlr(struct ufshci_controller *ctrlr);

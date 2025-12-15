@@ -69,7 +69,7 @@ oui NATSEMI			0x080017	National Semiconductor
 oui PMCSIERRA			0x00e004	PMC-Sierra
 oui QUALSEMI			0x006051	Quality Semiconductor
 oui RDC				0x00d02d	RDC Semiconductor
-oui REALTEK			0x00e04c	RealTek Semicondctor
+oui REALTEK			0x00e04c	Realtek Semicondctor
 oui SEEQ			0x00a07d	Seeq Technology
 oui SIS				0x00e006	Silicon Integrated Systems
 oui SMC				0x00800f	SMC
@@ -109,8 +109,8 @@ oui yyDAVICOM			0x000602	Davicom Semiconductor
 oui xxICPLUS			0x0009c3	IC Plus Corp.
 oui xxPMCSIERRA			0x0009c0	PMC-Sierra
 oui xxPMCSIERRA2		0x009057	PMC-Sierra
-oui xxREALTEK			0x000732	RealTek Semicondctor
-oui yyREALTEK			0x000004	RealTek Semicondctor
+oui xxREALTEK			0x000732	Realtek Semicondctor
+oui yyREALTEK			0x000004	Realtek Semicondctor
 oui xxTI			0x100014	Texas Instruments
 
 /*
@@ -325,7 +325,7 @@ model xxQUALSEMI QS6612		0x0000 QS6612 10/100 media interface
 model RDC R6040			0x0003 R6040 10/100 media interface
 model RDC R6040_2		0x0005 R6040 10/100 media interface
 
-/* RealTek Semicondctor PHYs */
+/* Realtek Semicondctor PHYs */
 model yyREALTEK RTL8201L	0x0020 RTL8201L 10/100 media interface
 model xxREALTEK RTL8169S	0x0011 RTL8169S/8110S/8211 1000BASE-T media interface
 model REALTEK RTL8305SC		0x0005 RTL8305SC 10/100 802.1q switch

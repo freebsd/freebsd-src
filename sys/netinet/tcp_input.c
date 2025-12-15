@@ -47,7 +47,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
@@ -924,37 +923,6 @@ findpcb:
 	}
 	INP_LOCK_ASSERT(inp);
 
-	if ((inp->inp_flowtype == M_HASHTYPE_NONE) &&
-	    !SOLISTENING(inp->inp_socket)) {
-		if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
-			inp->inp_flowid = m->m_pkthdr.flowid;
-			inp->inp_flowtype = M_HASHTYPE_GET(m);
-#ifdef	RSS
-		} else {
-			  /* assign flowid by software RSS hash */
-#ifdef INET6
-			  if (isipv6) {
-				rss_proto_software_hash_v6(&inp->in6p_faddr,
-							   &inp->in6p_laddr,
-							   inp->inp_fport,
-							   inp->inp_lport,
-							   IPPROTO_TCP,
-							   &inp->inp_flowid,
-							   &inp->inp_flowtype);
-			  } else
-#endif	/* INET6 */
-			  {
-				rss_proto_software_hash_v4(inp->inp_faddr,
-							   inp->inp_laddr,
-							   inp->inp_fport,
-							   inp->inp_lport,
-							   IPPROTO_TCP,
-							   &inp->inp_flowid,
-							   &inp->inp_flowtype);
-			  }
-#endif	/* RSS */
-		}
-	}
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 #ifdef INET6
 	if (isipv6 && IPSEC_ENABLED(ipv6) &&
@@ -1172,7 +1140,7 @@ tfo_socket_result:
 		 * causes.
 		 */
 		if (thflags & TH_RST) {
-			syncache_chkrst(&inc, th, m, port);
+			syncache_chkrst(&inc, th, port);
 			goto dropunlock;
 		}
 		/*
@@ -2567,8 +2535,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 		}
 		if (th->th_ack == tp->snd_una) {
 			/* Check if this is a duplicate ACK. */
-			if ((tp->t_flags & TF_SACK_PERMIT) &&
-			    V_tcp_do_newsack) {
+			if (tp->t_flags & TF_SACK_PERMIT) {
 				/*
 				 * If SEG.ACK == SND.UNA, RFC 6675 requires a
 				 * duplicate ACK to selectively acknowledge
@@ -2645,7 +2612,6 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 				goto drop;
 			} else if (tp->t_dupacks == tcprexmtthresh ||
 				    (tp->t_flags & TF_SACK_PERMIT &&
-				     V_tcp_do_newsack &&
 				     tp->sackhint.sacked_bytes >
 				     (tcprexmtthresh - 1) * maxseg)) {
 enter_recovery:
@@ -2812,8 +2778,7 @@ enter_recovery:
 		 * from the left side. Such partial ACKs should not be
 		 * counted as dupacks here.
 		 */
-		if (V_tcp_do_newsack &&
-		    tcp_is_sack_recovery(tp, &to) &&
+		if (tcp_is_sack_recovery(tp, &to) &&
 		    (((tp->t_rxtshift == 0) && (sack_changed != SACK_NOCHANGE)) ||
 		     ((tp->t_rxtshift > 0) && (sack_changed == SACK_NEWLOSS))) &&
 		    (tp->snd_nxt == tp->snd_max)) {
@@ -4152,13 +4117,11 @@ tcp_compute_pipe(struct tcpcb *tp)
 
 	if (tp->t_fb->tfb_compute_pipe != NULL) {
 		pipe = (*tp->t_fb->tfb_compute_pipe)(tp);
-	} else if (V_tcp_do_newsack) {
+	} else {
 		pipe = tp->snd_max - tp->snd_una +
 			tp->sackhint.sack_bytes_rexmit -
 			tp->sackhint.sacked_bytes -
 			tp->sackhint.lost_bytes;
-	} else {
-		pipe = tp->snd_nxt - tp->snd_fack + tp->sackhint.sack_bytes_rexmit;
 	}
 	return (imax(pipe, 0));
 }

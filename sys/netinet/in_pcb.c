@@ -36,7 +36,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_ddb.h"
 #include "opt_ipsec.h"
 #include "opt_inet.h"

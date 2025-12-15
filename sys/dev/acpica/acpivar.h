@@ -419,7 +419,7 @@ int		acpi_parse_prw(ACPI_HANDLE h, struct acpi_prw_data *prw);
 ACPI_STATUS	acpi_Startup(void);
 void		acpi_UserNotify(const char *subsystem, ACPI_HANDLE h,
 		    uint8_t notify);
-int		acpi_bus_alloc_gas(device_t dev, int *type, int *rid,
+int		acpi_bus_alloc_gas(device_t dev, int *type, int rid,
 		    ACPI_GENERIC_ADDRESS *gas, struct resource **res,
 		    u_int flags);
 void		acpi_walk_subtables(void *first, void *end,
@@ -573,7 +573,7 @@ int		acpi_PkgInt32(ACPI_OBJECT *res, int idx, uint32_t *dst);
 int		acpi_PkgInt16(ACPI_OBJECT *res, int idx, uint16_t *dst);
 int		acpi_PkgStr(ACPI_OBJECT *res, int idx, void *dst, size_t size);
 int		acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *type,
-		    int *rid, struct resource **dst, u_int flags);
+		    int rid, struct resource **dst, u_int flags);
 int		acpi_PkgFFH_IntelCpu(ACPI_OBJECT *res, int idx, int *vendor,
 		    int *class, uint64_t *address, int *accsize);
 ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);

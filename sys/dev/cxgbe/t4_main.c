@@ -2660,8 +2660,8 @@ reset_adapter_with_pl_rst(struct adapter *sc)
 {
 	/* This is a t4_write_reg without the hw_off_limits check. */
 	MPASS(sc->error_flags & HW_OFF_LIMITS);
-	bus_space_write_4(sc->bt, sc->bh, A_PL_RST,
-			  F_PIORSTMODE | F_PIORST | F_AUTOPCIEPAUSE);
+	bus_write_4(sc->regs_res, A_PL_RST,
+	    F_PIORSTMODE | F_PIORST | F_AUTOPCIEPAUSE);
 	pause("pl_rst", 1 * hz);		/* Wait 1s for reset */
 	return (0);
 }
@@ -2817,7 +2817,7 @@ cxgbe_probe(device_t dev)
 #define T4_CAP (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | \
     IFCAP_VLAN_HWCSUM | IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_LRO | \
     IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE | IFCAP_HWCSUM_IPV6 | IFCAP_HWSTATS | \
-    IFCAP_HWRXTSTMP | IFCAP_MEXTPG)
+    IFCAP_HWRXTSTMP | IFCAP_MEXTPG | IFCAP_NV)
 #define T4_CAP_ENABLE (T4_CAP)
 
 static void
@@ -3065,7 +3065,7 @@ cxgbe_ioctl(if_t ifp, unsigned long cmd, caddr_t data)
 	struct port_info *pi = vi->pi;
 	struct adapter *sc = pi->adapter;
 	struct ifreq *ifr = (struct ifreq *)data;
-	uint32_t mask;
+	uint32_t mask, mask2;
 
 	switch (cmd) {
 	case SIOCSIFMTU:
@@ -3124,12 +3124,24 @@ cxgbe_ioctl(if_t ifp, unsigned long cmd, caddr_t data)
 		end_synchronized_op(sc, 0);
 		break;
 
+	case SIOCGIFCAPNV:
+		break;
+	case SIOCSIFCAPNV:
 	case SIOCSIFCAP:
 		rc = begin_synchronized_op(sc, vi, SLEEP_OK | INTR_OK, "t4cap");
 		if (rc)
 			return (rc);
 
-		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
+		if (cmd == SIOCSIFCAPNV) {
+			const struct siocsifcapnv_driver_data *ifr_nv =
+			    (struct siocsifcapnv_driver_data *)data;
+
+			mask = ifr_nv->reqcap ^ if_getcapenable(ifp);
+			mask2 = ifr_nv->reqcap2 ^ if_getcapenable2(ifp);
+		} else {
+			mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
+			mask2 = 0;
+		}
 		if (mask & IFCAP_TXCSUM) {
 			if_togglecapenable(ifp, IFCAP_TXCSUM);
 			if_togglehwassist(ifp, CSUM_TCP | CSUM_UDP | CSUM_IP);
@@ -3263,6 +3275,9 @@ cxgbe_ioctl(if_t ifp, unsigned long cmd, caddr_t data)
 			if_togglehwassist(ifp, CSUM_INNER_IP6_TSO |
 			    CSUM_INNER_IP_TSO);
 		}
+
+		MPASS(mask2 == 0);
+		(void)mask2;
 
 #ifdef VLAN_CAPABILITIES
 		VLAN_CAPABILITIES(ifp);
@@ -3982,8 +3997,6 @@ t4_map_bars_0_and_4(struct adapter *sc)
 		device_printf(sc->dev, "cannot map registers.\n");
 		return (ENXIO);
 	}
-	sc->bt = rman_get_bustag(sc->regs_res);
-	sc->bh = rman_get_bushandle(sc->regs_res);
 	sc->mmio_len = rman_get_size(sc->regs_res);
 	setbit(&sc->doorbells, DOORBELL_KDB);
 
@@ -7194,11 +7207,10 @@ vi_full_init(struct vi_info *vi)
 {
 	struct adapter *sc = vi->adapter;
 	struct sge_rxq *rxq;
-	int rc, i, j;
+	int rc, i, j, extra;
 	int hashconfig = rss_gethashconfig();
 #ifdef RSS
 	int nbuckets = rss_getnumbuckets();
-	int extra;
 #endif
 
 	ASSERT_SYNCHRONIZED_OP(sc);
@@ -7255,7 +7267,6 @@ vi_full_init(struct vi_info *vi)
 
 	vi->hashen = hashconfig_to_hashen(hashconfig);
 
-#ifdef RSS
 	/*
 	 * We may have had to enable some hashes even though the global config
 	 * wants them disabled.  This is a potential problem that must be
@@ -7289,7 +7300,7 @@ vi_full_init(struct vi_info *vi)
 		CH_ALERT(vi, "UDP/IPv4 4-tuple hashing forced on.\n");
 	if (extra & RSS_HASHTYPE_RSS_UDP_IPV6)
 		CH_ALERT(vi, "UDP/IPv6 4-tuple hashing forced on.\n");
-#endif
+
 	rc = -t4_config_vi_rss(sc, sc->mbox, vi->viid, vi->hashen, vi->rss[0],
 	    0, 0);
 	if (rc != 0) {

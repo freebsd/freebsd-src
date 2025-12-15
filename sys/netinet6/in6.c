@@ -60,7 +60,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -2254,15 +2253,13 @@ in6_lltable_match_prefix(const struct sockaddr *saddr,
 static void
 in6_lltable_free_entry(struct lltable *llt, struct llentry *lle)
 {
-	struct ifnet *ifp __diagused;
 
 	LLE_WLOCK_ASSERT(lle);
 	KASSERT(llt != NULL, ("lltable is NULL"));
 
 	/* Unlink entry from table */
 	if ((lle->la_flags & LLE_LINKED) != 0) {
-		ifp = llt->llt_ifp;
-		IF_AFDATA_WLOCK_ASSERT(ifp);
+		LLTABLE_LOCK_ASSERT(llt);
 		lltable_unlink_entry(llt, lle);
 	}
 
@@ -2422,7 +2419,7 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 	int family = flags >> 16;
 	struct llentry *lle;
 
-	IF_AFDATA_LOCK_ASSERT(llt->llt_ifp);
+	LLTABLE_RLOCK_ASSERT(llt);
 	KASSERT(l3addr->sa_family == AF_INET6,
 	    ("sin_family %d", l3addr->sa_family));
 	KASSERT((flags & (LLE_UNLOCKED | LLE_EXCLUSIVE)) !=
@@ -2446,7 +2443,7 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 		LLE_RLOCK(lle);
 
 	/*
-	 * If the afdata lock is not held, the LLE may have been unlinked while
+	 * If the lltable lock is not held, the LLE may have been unlinked while
 	 * we were blocked on the LLE lock.  Check for this case.
 	 */
 	if (__predict_false((lle->la_flags & LLE_LINKED) == 0)) {
@@ -2613,12 +2610,9 @@ in6_domifattach(struct ifnet *ifp)
 	return ext;
 }
 
-int
-in6_domifmtu(struct ifnet *ifp)
+uint32_t
+in6_ifmtu(struct ifnet *ifp)
 {
-	if (ifp->if_afdata[AF_INET6] == NULL)
-		return ifp->if_mtu;
-
 	return (IN6_LINKMTU(ifp));
 }
 
@@ -2747,9 +2741,9 @@ in6_purge_proxy_ndp(struct ifnet *ifp)
 		return;
 
 	llt = LLTABLE6(ifp);
-	IF_AFDATA_WLOCK(ifp);
+	LLTABLE_LOCK(llt);
 	need_purge = ((llt->llt_flags & LLT_ADDEDPROXY) != 0);
-	IF_AFDATA_WUNLOCK(ifp);
+	LLTABLE_UNLOCK(llt);
 
 	/*
 	 * Ever added proxy ndp entries, leave solicited node multicast

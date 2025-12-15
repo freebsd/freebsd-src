@@ -442,6 +442,7 @@ MAN=	aac.4 \
 	${_nvdimm.4} \
 	nvme.4 \
 	nvmf.4 \
+	nvmf_che.4 \
 	nvmf_tcp.4 \
 	nvmft.4 \
 	${_nvram.4} \
@@ -500,6 +501,7 @@ MAN=	aac.4 \
 	random.4 \
 	rctl.4 \
 	re.4 \
+	rge.4 \
 	rgephy.4 \
 	rights.4 \
 	rl.4 \
@@ -808,6 +810,7 @@ MLINKS+=tap.4 if_tap.4 \
 	tap.4 if_vmnet.4
 MLINKS+=tdfx.4 tdfx_linux.4
 MLINKS+=ti.4 if_ti.4
+MLINKS+=tty.4 cua.4
 MLINKS+=tun.4 if_tun.4
 MLINKS+=ure.4 if_ure.4
 MLINKS+=vge.4 if_vge.4

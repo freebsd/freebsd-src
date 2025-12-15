@@ -508,26 +508,27 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 	return (error);
 }
 
+/*
+ * Try to update rt_mtu for all routes using this interface.  Unfortunately the
+ * only way to do this is to traverse all routing tables in all fibs.
+ */
 void
 rt_updatemtu(struct ifnet *ifp)
 {
-	struct rib_head *rnh;
-	int mtu;
-	int i, j;
+#ifdef INET6
+	uint32_t in6mtu;
 
-	/*
-	 * Try to update rt_mtu for all routes using this interface
-	 * Unfortunately the only way to do this is to traverse all
-	 * routing tables in all fibs/domains.
-	 */
-	for (i = 1; i <= AF_MAX; i++) {
-		mtu = if_getmtu_family(ifp, i);
-		for (j = 0; j < rt_numfibs; j++) {
-			rnh = rt_tables_get_rnh(j, i);
-			if (rnh == NULL)
-				continue;
-			nhops_update_ifmtu(rnh, ifp, mtu);
-		}
+	in6mtu = in6_ifmtu(ifp);
+#endif
+
+	for (u_int j = 0; j < rt_numfibs; j++) {
+#ifdef INET
+		nhops_update_ifmtu(rt_tables_get_rnh(j, AF_INET), ifp,
+		    ifp->if_mtu);
+#endif
+#ifdef INET6
+		nhops_update_ifmtu(rt_tables_get_rnh(j, AF_INET6), ifp, in6mtu);
+#endif
 	}
 }
 

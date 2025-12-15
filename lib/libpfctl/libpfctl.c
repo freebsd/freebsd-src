@@ -76,7 +76,6 @@ pfctl_open(const char *pf_device)
 	struct pfctl_handle *h;
 
 	h = calloc(1, sizeof(struct pfctl_handle));
-	h->fd = -1;
 
 	h->fd = open(pf_device, O_RDWR);
 	if (h->fd < 0)
@@ -87,7 +86,8 @@ pfctl_open(const char *pf_device)
 
 	return (h);
 error:
-	close(h->fd);
+	if (h->fd != -1)
+		close(h->fd);
 	snl_free(&h->ss);
 	free(h);
 
@@ -3752,3 +3752,93 @@ pfctl_clear_addrs(struct pfctl_handle *h, const struct pfr_table *filter,
 	return (e.error);
 }
 
+struct nl_astats {
+	struct pfr_astats *a;
+	size_t max;
+	size_t count;
+	uint64_t total_count;
+};
+
+#define _OUT(_field)	offsetof(struct pfr_astats, _field)
+static const struct snl_attr_parser ap_pfr_astats[] = {
+	{ .type = PF_AS_ADDR , .off = _OUT(pfras_a), .arg = &pfr_addr_parser, .cb = snl_attr_get_nested },
+	{ .type = PF_AS_PACKETS, .off = _OUT(pfras_packets), .arg = (void *)(PFR_DIR_MAX * PFR_OP_ADDR_MAX), .cb = snl_attr_get_uint64_array },
+	{ .type = PF_AS_BYTES, .off = _OUT(pfras_bytes), .arg = (void *)(PFR_DIR_MAX * PFR_OP_ADDR_MAX), .cb = snl_attr_get_uint64_array },
+	{ .type = PF_AS_TZERO, .off = _OUT(pfras_tzero), .cb = snl_attr_get_time_t },
+};
+#undef _OUT
+SNL_DECLARE_ATTR_PARSER(pfr_astats_parser, ap_pfr_astats);
+
+static bool
+snl_attr_get_pfr_astats(struct snl_state *ss, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	struct nl_astats *a = (struct nl_astats *)target;
+	bool ret;
+
+	if (a->count >= a->max)
+		return (false);
+
+	ret = snl_parse_header(ss, NLA_DATA(nla), NLA_DATA_LEN(nla),
+	    &pfr_astats_parser, &a->a[a->count]);
+	if (ret)
+		a->count++;
+
+	return (ret);
+}
+
+#define _OUT(_field)	offsetof(struct nl_astats, _field)
+static struct snl_attr_parser ap_table_get_astats[] = {
+	{ .type = PF_TAS_ASTATS, .off = 0, .cb = snl_attr_get_pfr_astats },
+	{ .type = PF_TAS_ASTATS_COUNT, .off = _OUT(total_count), .cb = snl_attr_get_uint32 },
+};
+#undef _OUT
+SNL_DECLARE_PARSER(table_astats_parser, struct genlmsghdr, snl_f_p_empty, ap_table_get_astats);
+
+int
+pfctl_get_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
+    struct pfr_astats *as, int *size, int flags)
+{
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	struct nl_astats out = { 0 };
+	uint32_t seq_id;
+	int family_id;
+
+	if (tbl == NULL || size == NULL || *size < 0 ||
+	    (*size && as == NULL)) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_TABLE_GET_ASTATS);
+
+	snl_add_msg_attr_table(&nw, PF_TAS_TABLE, tbl);
+	snl_add_msg_attr_u32(&nw, PF_TAS_FLAGS, flags);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	out.a = as;
+	out.max = *size;
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&h->ss, hdr, &table_astats_parser, &out))
+			continue;
+	}
+
+	*size = out.total_count;
+
+	return (0);
+}

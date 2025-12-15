@@ -54,7 +54,6 @@
  * https://tools.ietf.org/html/draft-ietf-tcpm-accurate-ecn-09
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
 

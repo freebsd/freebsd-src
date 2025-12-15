@@ -101,7 +101,6 @@ struct chipc_region {
 						     resource ID */
 
 	struct bhnd_resource	*cr_res;	/**< bus resource, or NULL */
-	int			 cr_res_rid;	/**< cr_res RID, if any. */
 	u_int			 cr_refs;	/**< RF_ALLOCATED refcount */
 	u_int			 cr_act_refs;	/**< RF_ACTIVE refcount */
 

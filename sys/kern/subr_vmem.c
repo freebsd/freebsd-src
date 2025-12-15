@@ -41,6 +41,9 @@
  */
 
 #include <sys/cdefs.h>
+
+#ifdef _KERNEL
+
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -75,6 +78,28 @@
 #include <vm/vm_pagequeue.h>
 #include <vm/uma_int.h>
 
+#else	/* _KERNEL */
+
+#include <sys/types.h>
+#include <sys/queue.h>
+#include <sys/hash.h>
+#include <sys/vmem.h>
+#include <assert.h>
+#include <errno.h>
+#include <pthread.h>
+#include <pthread_np.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+
+#define	KASSERT(a, b)
+#define	MPASS(a)
+#define	WITNESS_WARN(a, b, c)
+#define	panic(...) assert(0)
+
+#endif	/* _KERNEL */
+
 #define	VMEM_OPTORDER		5
 #define	VMEM_OPTVALUE		(1 << VMEM_OPTORDER)
 #define	VMEM_MAXORDER						\
@@ -87,17 +112,32 @@
 
 #define	VMEM_FITMASK	(M_BESTFIT | M_FIRSTFIT | M_NEXTFIT)
 
-#define	VMEM_FLAGS	(M_NOWAIT | M_WAITOK | M_USE_RESERVE | M_NOVM |	\
-    M_BESTFIT | M_FIRSTFIT | M_NEXTFIT)
-
-#define	BT_FLAGS	(M_NOWAIT | M_WAITOK | M_USE_RESERVE | M_NOVM)
-
 #define	QC_NAME_MAX	16
 
 /*
  * Data structures private to vmem.
  */
+#ifdef _KERNEL
+
+#define	VMEM_FLAGS	(M_NOWAIT | M_WAITOK | M_USE_RESERVE | M_NOVM |	\
+    M_BESTFIT | M_FIRSTFIT | M_NEXTFIT)
+
+#define	BT_FLAGS	(M_NOWAIT | M_WAITOK | M_USE_RESERVE | M_NOVM)
+
 MALLOC_DEFINE(M_VMEM, "vmem", "vmem internal structures");
+
+#else	/* _KERNEL */
+
+/* bit-compat with kernel */
+#define	M_ZERO		0
+#define	M_NOVM		0
+#define	M_USE_RESERVE	0
+
+#define	VMEM_FLAGS	(M_NOWAIT | M_BESTFIT | M_FIRSTFIT | M_NEXTFIT)
+
+#define	BT_FLAGS	0
+
+#endif	/* _KERNEL */
 
 typedef struct vmem_btag bt_t;
 
@@ -105,6 +145,7 @@ TAILQ_HEAD(vmem_seglist, vmem_btag);
 LIST_HEAD(vmem_freelist, vmem_btag);
 LIST_HEAD(vmem_hashlist, vmem_btag);
 
+#ifdef _KERNEL
 struct qcache {
 	uma_zone_t	qc_cache;
 	vmem_t 		*qc_vmem;
@@ -113,6 +154,7 @@ struct qcache {
 };
 typedef struct qcache qcache_t;
 #define	QC_POOL_TO_QCACHE(pool)	((qcache_t *)(pool->pr_qcache))
+#endif
 
 #define	VMEM_NAME_MAX	16
 
@@ -132,8 +174,13 @@ struct vmem_btag {
 
 /* vmem arena */
 struct vmem {
+#ifdef _KERNEL
 	struct mtx_padalign	vm_lock;
 	struct cv		vm_cv;
+#else
+	pthread_mutex_t		vm_lock;
+	pthread_cond_t		vm_cv;
+#endif
 	char			vm_name[VMEM_NAME_MAX+1];
 	LIST_ENTRY(vmem)	vm_alllist;
 	struct vmem_hashlist	vm_hash0[VMEM_HASHSIZE_MIN];
@@ -165,8 +212,10 @@ struct vmem {
 	/* Space exhaustion callback. */
 	vmem_reclaim_t		*vm_reclaimfn;
 
+#ifdef _KERNEL
 	/* quantum cache */
 	qcache_t		vm_qcache[VMEM_QCACHE_IDX_MAX];
+#endif
 };
 
 #define	BT_TYPE_SPAN		1	/* Allocated from importfn */
@@ -178,6 +227,7 @@ struct vmem {
 
 #define	BT_END(bt)	((bt)->bt_start + (bt)->bt_size - 1)
 
+#ifdef _KERNEL
 #if defined(DIAGNOSTIC)
 static int enable_vmem_check = 0;
 SYSCTL_INT(_debug, OID_AUTO, vmem_check, CTLFLAG_RWTUN,
@@ -190,21 +240,45 @@ static int		vmem_periodic_interval;
 static struct task	vmem_periodic_wk;
 
 static struct mtx_padalign __exclusive_cache_line vmem_list_lock;
-static LIST_HEAD(, vmem) vmem_list = LIST_HEAD_INITIALIZER(vmem_list);
 static uma_zone_t vmem_zone;
 
+#else	/* _KERNEL */
+static pthread_mutex_t vmem_list_lock = PTHREAD_MUTEX_INITIALIZER;
+
+#endif	/* _KERNEL */
+
+static LIST_HEAD(, vmem) vmem_list = LIST_HEAD_INITIALIZER(vmem_list);
+
 /* ---- misc */
+#ifdef _KERNEL
+#define	VMEM_LIST_LOCK()		mtx_lock(&vmem_list_lock)
+#define	VMEM_LIST_UNLOCK()		mtx_unlock(&vmem_list_lock)
+
 #define	VMEM_CONDVAR_INIT(vm, wchan)	cv_init(&vm->vm_cv, wchan)
 #define	VMEM_CONDVAR_DESTROY(vm)	cv_destroy(&vm->vm_cv)
 #define	VMEM_CONDVAR_WAIT(vm)		cv_wait(&vm->vm_cv, &vm->vm_lock)
 #define	VMEM_CONDVAR_BROADCAST(vm)	cv_broadcast(&vm->vm_cv)
 
 #define	VMEM_LOCK(vm)		mtx_lock(&vm->vm_lock)
-#define	VMEM_TRYLOCK(vm)	mtx_trylock(&vm->vm_lock)
 #define	VMEM_UNLOCK(vm)		mtx_unlock(&vm->vm_lock)
 #define	VMEM_LOCK_INIT(vm, name) mtx_init(&vm->vm_lock, (name), NULL, MTX_DEF)
 #define	VMEM_LOCK_DESTROY(vm)	mtx_destroy(&vm->vm_lock)
 #define	VMEM_ASSERT_LOCKED(vm)	mtx_assert(&vm->vm_lock, MA_OWNED);
+#else	/* _KERNEL */
+#define	VMEM_LIST_LOCK()		pthread_mutex_lock(&vmem_list_lock)
+#define	VMEM_LIST_UNLOCK()		pthread_mutex_unlock(&vmem_list_lock)
+
+#define	VMEM_CONDVAR_INIT(vm, wchan)	pthread_cond_init(&vm->vm_cv, NULL)
+#define	VMEM_CONDVAR_DESTROY(vm)	pthread_cond_destroy(&vm->vm_cv)
+#define	VMEM_CONDVAR_WAIT(vm)	pthread_cond_wait(&vm->vm_cv, &vm->vm_lock)
+#define	VMEM_CONDVAR_BROADCAST(vm)	pthread_cond_broadcast(&vm->vm_cv)
+
+#define	VMEM_LOCK(vm)		pthread_mutex_lock(&vm->vm_lock)
+#define	VMEM_UNLOCK(vm)		pthread_mutex_unlock(&vm->vm_lock)
+#define	VMEM_LOCK_INIT(vm, name) pthread_mutex_init(&vm->vm_lock, NULL)
+#define	VMEM_LOCK_DESTROY(vm)	pthread_mutex_destroy(&vm->vm_lock)
+#define	VMEM_ASSERT_LOCKED(vm)	pthread_mutex_isowned_np(&vm->vm_lock)
+#endif	/* _KERNEL */
 
 #define	VMEM_ALIGNUP(addr, align)	(-(-(addr) & -(align)))
 
@@ -229,6 +303,7 @@ static uma_zone_t vmem_zone;
  */
 #define BT_MAXFREE	(BT_MAXALLOC * 8)
 
+#ifdef _KERNEL
 /* Allocator for boundary tags. */
 static uma_zone_t vmem_bt_zone;
 
@@ -243,7 +318,8 @@ vmem_t *transient_arena = &transient_arena_storage;
 #ifdef DEBUG_MEMGUARD
 static struct vmem memguard_arena_storage;
 vmem_t *memguard_arena = &memguard_arena_storage;
-#endif
+#endif	/* DEBUG_MEMGUARD */
+#endif	/* _KERNEL */
 
 static bool
 bt_isbusy(bt_t *bt)
@@ -263,12 +339,13 @@ bt_isfree(bt_t *bt)
  * at least the maximum possible tag allocations in the arena.
  */
 static __noinline int
-_bt_fill(vmem_t *vm, int flags)
+_bt_fill(vmem_t *vm, int flags __unused)
 {
 	bt_t *bt;
 
 	VMEM_ASSERT_LOCKED(vm);
 
+#ifdef _KERNEL
 	/*
 	 * Only allow the kernel arena and arenas derived from kernel arena to
 	 * dip into reserve tags.  They are where new tags come from.
@@ -276,6 +353,7 @@ _bt_fill(vmem_t *vm, int flags)
 	flags &= BT_FLAGS;
 	if (vm != kernel_arena && vm->vm_arg != kernel_arena)
 		flags &= ~M_USE_RESERVE;
+#endif
 
 	/*
 	 * Loop until we meet the reserve.  To minimize the lock shuffle
@@ -284,12 +362,18 @@ _bt_fill(vmem_t *vm, int flags)
 	 * holding a vmem lock.
 	 */
 	while (vm->vm_nfreetags < BT_MAXALLOC) {
+#ifdef _KERNEL
 		bt = uma_zalloc(vmem_bt_zone,
 		    (flags & M_USE_RESERVE) | M_NOWAIT | M_NOVM);
+#else
+		bt = malloc(sizeof(struct vmem_btag));
+#endif
 		if (bt == NULL) {
+#ifdef _KERNEL
 			VMEM_UNLOCK(vm);
 			bt = uma_zalloc(vmem_bt_zone, flags);
 			VMEM_LOCK(vm);
+#endif
 			if (bt == NULL)
 				break;
 		}
@@ -349,7 +433,11 @@ bt_freetrim(vmem_t *vm, int freelimit)
 	VMEM_UNLOCK(vm);
 	while ((bt = LIST_FIRST(&freetags)) != NULL) {
 		LIST_REMOVE(bt, bt_freelist);
+#ifdef	_KERNEL
 		uma_zfree(vmem_bt_zone, bt);
+#else
+		free(bt);
+#endif
 	}
 }
 
@@ -536,6 +624,7 @@ bt_insfree(vmem_t *vm, bt_t *bt)
 
 /* ---- vmem internal functions */
 
+#ifdef _KERNEL
 /*
  * Import from the arena into the quantum cache in UMA.
  *
@@ -720,8 +809,6 @@ vmem_startup(void)
 #endif
 }
 
-/* ---- rehash */
-
 static int
 vmem_rehash(vmem_t *vm, vmem_size_t newhashsize)
 {
@@ -777,7 +864,7 @@ vmem_periodic(void *unused, int pending)
 	vmem_size_t desired;
 	vmem_size_t current;
 
-	mtx_lock(&vmem_list_lock);
+	VMEM_LIST_LOCK();
 	LIST_FOREACH(vm, &vmem_list, vm_alllist) {
 #ifdef DIAGNOSTIC
 		/* Convenient time to verify vmem state. */
@@ -802,7 +889,7 @@ vmem_periodic(void *unused, int pending)
 		 */
 		VMEM_CONDVAR_BROADCAST(vm);
 	}
-	mtx_unlock(&vmem_list_lock);
+	VMEM_LIST_UNLOCK();
 
 	callout_reset(&vmem_periodic_ch, vmem_periodic_interval,
 	    vmem_periodic_kick, NULL);
@@ -819,6 +906,7 @@ vmem_start_callout(void *unused)
 	    vmem_periodic_kick, NULL);
 }
 SYSINIT(vfs, SI_SUB_CONFIGURE, SI_ORDER_ANY, vmem_start_callout, NULL);
+#endif	/* _KERNEL */
 
 static void
 vmem_add1(vmem_t *vm, vmem_addr_t addr, vmem_size_t size, int type)
@@ -874,10 +962,12 @@ vmem_destroy1(vmem_t *vm)
 {
 	bt_t *bt;
 
+#ifdef	_KERNEL
 	/*
 	 * Drain per-cpu quantum caches.
 	 */
 	qc_destroy(vm);
+#endif
 
 	/*
 	 * The vmem should now only contain empty segments.
@@ -889,14 +979,23 @@ vmem_destroy1(vmem_t *vm)
 	while ((bt = TAILQ_FIRST(&vm->vm_seglist)) != NULL)
 		bt_remseg(vm, bt);
 
-	if (vm->vm_hashlist != NULL && vm->vm_hashlist != vm->vm_hash0)
+	if (vm->vm_hashlist != NULL && vm->vm_hashlist != vm->vm_hash0) {
+#ifdef _KERNEL
 		free(vm->vm_hashlist, M_VMEM);
+#else
+		free(vm->vm_hashlist);
+#endif
+	}
 
 	bt_freetrim(vm, 0);
 
 	VMEM_CONDVAR_DESTROY(vm);
 	VMEM_LOCK_DESTROY(vm);
+#ifdef _KERNEL
 	uma_zfree(vmem_zone, vm);
+#else
+	free(vm);
+#endif
 }
 
 static int
@@ -1053,8 +1152,10 @@ vmem_try_fetch(vmem_t *vm, const vmem_size_t size, vmem_size_t align, int flags)
 		avail = vm->vm_size - vm->vm_inuse;
 		bt_save(vm);
 		VMEM_UNLOCK(vm);
+#ifdef _KERNEL
 		if (vm->vm_qcache_max != 0)
 			qc_drain(vm);
+#endif
 		if (vm->vm_reclaimfn != NULL)
 			vm->vm_reclaimfn(vm, flags);
 		VMEM_LOCK(vm);
@@ -1234,8 +1335,14 @@ vmem_init(vmem_t *vm, const char *name, vmem_addr_t base, vmem_size_t size,
 {
 	vmem_size_t i;
 
+#ifdef _KERNEL
 	MPASS(quantum > 0);
 	MPASS((quantum & (quantum - 1)) == 0);
+#else
+	assert(quantum == 0);
+	assert(qcache_max == 0);
+	quantum = 1;
+#endif
 
 	bzero(vm, sizeof(*vm));
 
@@ -1250,7 +1357,11 @@ vmem_init(vmem_t *vm, const char *name, vmem_addr_t base, vmem_size_t size,
 	vm->vm_size = 0;
 	vm->vm_limit = 0;
 	vm->vm_inuse = 0;
+#ifdef _KERNEL
 	qc_init(vm, qcache_max);
+#else
+	(void)qcache_max;
+#endif
 
 	TAILQ_INIT(&vm->vm_seglist);
 	vm->vm_cursor.bt_start = vm->vm_cursor.bt_size = 0;
@@ -1271,9 +1382,9 @@ vmem_init(vmem_t *vm, const char *name, vmem_addr_t base, vmem_size_t size,
 		}
 	}
 
-	mtx_lock(&vmem_list_lock);
+	VMEM_LIST_LOCK();
 	LIST_INSERT_HEAD(&vmem_list, vm, vm_alllist);
-	mtx_unlock(&vmem_list_lock);
+	VMEM_LIST_UNLOCK();
 
 	return vm;
 }
@@ -1288,7 +1399,13 @@ vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
 
 	vmem_t *vm;
 
+#ifdef _KERNEL
 	vm = uma_zalloc(vmem_zone, flags & (M_WAITOK|M_NOWAIT));
+#else
+	assert(quantum == 0);
+	assert(qcache_max == 0);
+	vm = malloc(sizeof(vmem_t));
+#endif
 	if (vm == NULL)
 		return (NULL);
 	if (vmem_init(vm, name, base, size, quantum, qcache_max,
@@ -1300,10 +1417,9 @@ vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
 void
 vmem_destroy(vmem_t *vm)
 {
-
-	mtx_lock(&vmem_list_lock);
+	VMEM_LIST_LOCK();
 	LIST_REMOVE(vm, vm_alllist);
-	mtx_unlock(&vmem_list_lock);
+	VMEM_LIST_UNLOCK();
 
 	vmem_destroy1(vm);
 }
@@ -1322,7 +1438,6 @@ int
 vmem_alloc(vmem_t *vm, vmem_size_t size, int flags, vmem_addr_t *addrp)
 {
 	const int strat __unused = flags & VMEM_FITMASK;
-	qcache_t *qc;
 
 	flags &= VMEM_FLAGS;
 	MPASS(size > 0);
@@ -1330,7 +1445,10 @@ vmem_alloc(vmem_t *vm, vmem_size_t size, int flags, vmem_addr_t *addrp)
 	if ((flags & M_NOWAIT) == 0)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "vmem_alloc");
 
+#ifdef _KERNEL
 	if (size <= vm->vm_qcache_max) {
+		qcache_t *qc;
+
 		/*
 		 * Resource 0 cannot be cached, so avoid a blocking allocation
 		 * in qc_import() and give the vmem_xalloc() call below a chance
@@ -1342,6 +1460,7 @@ vmem_alloc(vmem_t *vm, vmem_size_t size, int flags, vmem_addr_t *addrp)
 		if (__predict_true(*addrp != 0))
 			return (0);
 	}
+#endif
 
 	return (vmem_xalloc(vm, size, 0, 0, 0, VMEM_ADDR_MIN, VMEM_ADDR_MAX,
 	    flags, addrp));
@@ -1461,14 +1580,17 @@ out:
 void
 vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size)
 {
-	qcache_t *qc;
 	MPASS(size > 0);
 
+#ifdef _KERNEL
 	if (size <= vm->vm_qcache_max &&
 	    __predict_true(addr >= VMEM_ADDR_QCACHE_MIN)) {
+		qcache_t *qc;
+
 		qc = &vm->vm_qcache[(size - 1) >> vm->vm_quantum_shift];
 		uma_zfree(qc->qc_cache, (void *)addr);
 	} else
+#endif
 		vmem_xfree(vm, addr, size);
 }
 
@@ -1562,11 +1684,13 @@ vmem_size(vmem_t *vm, int typemask)
 		return (0);
 	default:
 		panic("vmem_size");
+		return (0);
 	}
 }
 
 /* ---- debug */
 
+#ifdef _KERNEL
 #if defined(DDB) || defined(DIAGNOSTIC)
 
 static void bt_dump(const bt_t *, int (*)(const char *, ...)
@@ -1818,3 +1942,4 @@ vmem_check(vmem_t *vm)
 }
 
 #endif /* defined(DIAGNOSTIC) */
+#endif /* _KERNEL */

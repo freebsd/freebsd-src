@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd September 25, 2025
+.Dd December 4, 2025
 .Dt FREEBSD-BASE 7
 .Os
 .Sh NAME
@@ -67,15 +67,24 @@ package.
 For the package
 .Sy FreeBSD-foo ,
 the following subpackages may be available:
-.Bl -column "FreeBSD-foo-dev-lib32" "Description"
-.It Sy "Package name" Ta Sy "Description"
-.It FreeBSD-foo Ta Base files for the package (typically executables)
-.It FreeBSD-foo-lib Ta Native runtime libraries
-.It FreeBSD-foo-lib32 Ta 32-bit compatibility runtime libraries
-.It FreeBSD-foo-dev Ta Development files (headers and static libraries)
-.It FreeBSD-foo-dev-lib32 Ta 32-bit development files
-.It FreeBSD-foo-dbg Ta Debugging symbols
-.It FreeBSD-foo-man Ta Manual pages.
+.Pp
+.Bl -tag -width "FreeBSD-foo-dev-lib32" -compact
+.It Sy "Package name"
+.Sy "Description"
+.It FreeBSD-foo
+Base files for the package (typically executables)
+.It FreeBSD-foo-lib
+Native runtime libraries
+.It FreeBSD-foo-lib32
+32-bit compatibility runtime libraries
+.It FreeBSD-foo-dev
+Development files (headers and static libraries)
+.It FreeBSD-foo-dev-lib32
+32-bit development files
+.It FreeBSD-foo-dbg
+Debugging symbols
+.It FreeBSD-foo-man
+Manual pages.
 Manual pages are only packaged separately if the
 .Sy WITH_MANSPLITPKG
 .Xr src.conf 5
@@ -121,6 +130,20 @@ and
 .Xr nm 1 .
 This set also includes native development files (headers and static
 libraries) for all packages.
+.It optional
+Optional software which is not part of either the
+.Sy devel
+or
+.Sy minimal
+sets.
+.It optional-jail
+The equivalent of
+.Sy optional
+for systems running in a
+.Xr jail 8
+environment.
+This set excludes system functionality which typically does not work
+or is not useful in a jail.
 .It lib32
 32-compatibility libraries, for running 32-bit applications on a
 64-bit host system.
@@ -128,6 +151,13 @@ This set includes both runtime libraries and development files.
 .It base
 The complete base system, excluding tests, the system source code,
 and debugging symbols.
+Installing the
+.Sy base
+set is equivalent to installing
+.Sy minimal ,
+.Sy devel
+and
+.Sy optional .
 .It base-jail
 The equivalent of
 .Sy base
@@ -136,6 +166,13 @@ for systems running in a
 environment.
 This set excludes system functionality which typically does not work
 or is not useful in a jail.
+Installing the
+.Sy base-jail
+set is equivalent to installing
+.Sy minimal-jail ,
+.Sy devel
+and
+.Sy optional-jail .
 .It src
 The system source tree for the userland and kernel, installed in
 .Pa /usr/src .

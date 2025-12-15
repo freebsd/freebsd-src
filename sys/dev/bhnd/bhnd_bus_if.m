@@ -923,7 +923,7 @@ METHOD struct bhnd_resource * alloc_resource {
 	device_t dev;
 	device_t child;
 	int type;
-	int *rid;
+	int rid;
 	rman_res_t start;
 	rman_res_t end;
 	rman_res_t count;
@@ -939,8 +939,6 @@ METHOD struct bhnd_resource * alloc_resource {
 METHOD int release_resource {
 	device_t dev;
 	device_t child;
-	int type;
-	int rid;
 	struct bhnd_resource *res;
 } DEFAULT bhnd_bus_generic_release_resource;
 
@@ -953,8 +951,6 @@ METHOD int release_resource {
 METHOD int activate_resource {
 	device_t dev;
         device_t child;
-	int type;
-        int rid;
         struct bhnd_resource *r;
 } DEFAULT bhnd_bus_generic_activate_resource;
 
@@ -967,8 +963,6 @@ METHOD int activate_resource {
 METHOD int deactivate_resource {
         device_t dev;
         device_t child;
-        int type;
-	int rid;
         struct bhnd_resource *r;
 } DEFAULT bhnd_bus_generic_deactivate_resource;
 

@@ -7,7 +7,7 @@ FILESNAME=	LC_COLLATE
 .SUFFIXES:	.src .LC_COLLATE
 MAPLOC=		${.CURDIR}/../../tools/tools/locale/etc/final-maps
 
-CLDR_VERSION=	"45.0"
+CLDR_VERSION=	"48"
 
 .include <bsd.endian.mk>
 
@@ -114,11 +114,13 @@ SYMLINKS+=	../$f/${FILESNAME} \
 
 .for f in ${LOCALES}
 FILESDIR_${f}.LC_COLLATE= ${LOCALEDIR}/${f}
+FILESDIR_${f}.LC_COLLATEPACKAGE= locales
 .endfor
 
 .for f t in ${LOCALES_MAPPED}
 FILES+=	$t.LC_COLLATE
 FILESDIR_$t.LC_COLLATE=	${LOCALEDIR}/$t
+FILESDIR_$t.LC_COLLATEPACKAGE=	locales
 $t.LC_COLLATE: ${.CURDIR}/$f.src
 	localedef ${LOCALEDEF_ENDIAN} -D -U -i ${.ALLSRC} \
 	-V ${CLDR_VERSION} \

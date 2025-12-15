@@ -147,15 +147,15 @@ struct pci_map *pci_add_bar(device_t dev, int reg, pci_addr_t value,
 		    pci_addr_t size);
 
 struct resource *pci_reserve_map(device_t dev, device_t child, int type,
-		    int *rid, rman_res_t start, rman_res_t end,
+		    int rid, rman_res_t start, rman_res_t end,
 		    rman_res_t count, u_int num, u_int flags);
 
 struct resource *pci_alloc_multi_resource(device_t dev, device_t child,
-		    int type, int *rid, rman_res_t start, rman_res_t end,
+		    int type, int rid, rman_res_t start, rman_res_t end,
 		    rman_res_t count, u_long num, u_int flags);
 
 struct resource *pci_vf_alloc_mem_resource(device_t dev, device_t child,
-		    int *rid, rman_res_t start, rman_res_t end,
+		    int rid, rman_res_t start, rman_res_t end,
 		    rman_res_t count, u_int flags);
 int		pci_vf_release_mem_resource(device_t dev, device_t child,
 		    struct resource *r);

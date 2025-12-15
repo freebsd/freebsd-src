@@ -73,7 +73,6 @@ struct bhnd_erom_iores {
 	device_t		 owner;		/**< device from which we'll allocate resources */
 	int			 owner_rid;	/**< rid to use when allocating new mappings */
 	struct bhnd_resource	*mapped;	/**< current mapping, or NULL */
-	int			 mapped_rid;	/**< resource ID of current mapping, or -1 */
 };
 
 /**
@@ -390,7 +389,6 @@ bhnd_erom_iores_new(device_t dev, int rid)
 	iores->owner = dev;
 	iores->owner_rid = rid;
 	iores->mapped = NULL;
-	iores->mapped_rid = -1;
 
 	return (&iores->eio);
 }
@@ -420,19 +418,15 @@ bhnd_erom_iores_map(struct bhnd_erom_io *eio, bhnd_addr_t addr,
 		}
 
 		/* Otherwise, we need to drop the existing mapping */
-		bhnd_release_resource(iores->owner, SYS_RES_MEMORY,
-		    iores->mapped_rid, iores->mapped);
+		bhnd_release_resource(iores->owner, iores->mapped);
 		iores->mapped = NULL;
-		iores->mapped_rid = -1;
 	}
 
 	/* Try to allocate the new mapping */
-	iores->mapped_rid = iores->owner_rid;
 	iores->mapped = bhnd_alloc_resource(iores->owner, SYS_RES_MEMORY,
-	    &iores->mapped_rid, addr, addr+size-1, size,
+	    iores->owner_rid, addr, addr+size-1, size,
 	    RF_ACTIVE|RF_SHAREABLE);
 	if (iores->mapped == NULL) {
-		iores->mapped_rid = -1;
 		return (ENXIO);
 	}
 
@@ -481,10 +475,8 @@ bhnd_erom_iores_fini(struct bhnd_erom_io *eio)
 
 	/* Release any mapping */
 	if (iores->mapped) {
-		bhnd_release_resource(iores->owner, SYS_RES_MEMORY,
-		    iores->mapped_rid, iores->mapped);
+		bhnd_release_resource(iores->owner, iores->mapped);
 		iores->mapped = NULL;
-		iores->mapped_rid = -1;
 	}
 
 	free(eio, M_BHND);

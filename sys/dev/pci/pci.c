@@ -3481,7 +3481,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	 * driver for this device will later inherit this resource in
 	 * pci_alloc_resource().
 	 */
-	res = resource_list_reserve(rl, bus, dev, type, &reg, start, end, count,
+	res = resource_list_reserve(rl, bus, dev, type, reg, start, end, count,
 	    flags);
 	if ((pci_do_realloc_bars
 		|| pci_has_quirk(pci_get_devid(dev), PCI_QUIRK_REALLOC_BAR))
@@ -3494,7 +3494,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 		 */
 		resource_list_delete(rl, type, reg);
 		resource_list_add(rl, type, reg, 0, ~0, count);
-		res = resource_list_reserve(rl, bus, dev, type, &reg, 0, ~0,
+		res = resource_list_reserve(rl, bus, dev, type, reg, 0, ~0,
 		    count, flags);
 	}
 	if (res == NULL) {
@@ -3553,11 +3553,11 @@ pci_ata_maps(device_t bus, device_t dev, struct resource_list *rl, int force,
 	} else {
 		rid = PCIR_BAR(0);
 		resource_list_add(rl, type, rid, 0x1f0, 0x1f7, 8);
-		(void)resource_list_reserve(rl, bus, dev, type, &rid, 0x1f0,
+		(void)resource_list_reserve(rl, bus, dev, type, rid, 0x1f0,
 		    0x1f7, 8, 0);
 		rid = PCIR_BAR(1);
 		resource_list_add(rl, type, rid, 0x3f6, 0x3f6, 1);
-		(void)resource_list_reserve(rl, bus, dev, type, &rid, 0x3f6,
+		(void)resource_list_reserve(rl, bus, dev, type, rid, 0x3f6,
 		    0x3f6, 1, 0);
 	}
 	if (progif & PCIP_STORAGE_IDE_MODESEC) {
@@ -3568,11 +3568,11 @@ pci_ata_maps(device_t bus, device_t dev, struct resource_list *rl, int force,
 	} else {
 		rid = PCIR_BAR(2);
 		resource_list_add(rl, type, rid, 0x170, 0x177, 8);
-		(void)resource_list_reserve(rl, bus, dev, type, &rid, 0x170,
+		(void)resource_list_reserve(rl, bus, dev, type, rid, 0x170,
 		    0x177, 8, 0);
 		rid = PCIR_BAR(3);
 		resource_list_add(rl, type, rid, 0x376, 0x376, 1);
-		(void)resource_list_reserve(rl, bus, dev, type, &rid, 0x376,
+		(void)resource_list_reserve(rl, bus, dev, type, rid, 0x376,
 		    0x376, 1, 0);
 	}
 	pci_add_map(bus, dev, PCIR_BAR(4), rl, force,
@@ -3764,7 +3764,7 @@ xhci_early_takeover(device_t self)
 	if (res == NULL)
 		return;
 
-	cparams = bus_read_4(res, XHCI_HCSPARAMS0);
+	cparams = bus_read_4(res, XHCI_HCCPARAMS1);
 
 	eec = -1;
 
@@ -3815,7 +3815,7 @@ pci_reserve_secbus(device_t bus, device_t dev, pcicfgregs *cfg,
 	struct resource *res;
 	char *cp;
 	rman_res_t start, end, count;
-	int rid, sec_bus, sec_reg, sub_bus, sub_reg, sup_bus;
+	int sec_bus, sec_reg, sub_bus, sub_reg, sup_bus;
 
 	switch (cfg->hdrtype & PCIM_HDRTYPE) {
 	case PCIM_HDRTYPE_BRIDGE:
@@ -3895,8 +3895,7 @@ pci_reserve_secbus(device_t bus, device_t dev, pcicfgregs *cfg,
 		if (pci_clear_buses)
 			goto clear;
 
-		rid = 0;
-		res = resource_list_reserve(rl, bus, dev, PCI_RES_BUS, &rid,
+		res = resource_list_reserve(rl, bus, dev, PCI_RES_BUS, 0,
 		    start, end, count, 0);
 		if (res != NULL)
 			return;
@@ -3914,7 +3913,7 @@ clear:
 }
 
 static struct resource *
-pci_alloc_secbus(device_t dev, device_t child, int *rid, rman_res_t start,
+pci_alloc_secbus(device_t dev, device_t child, int rid, rman_res_t start,
     rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct pci_devinfo *dinfo;
@@ -3939,16 +3938,16 @@ pci_alloc_secbus(device_t dev, device_t child, int *rid, rman_res_t start,
 		return (NULL);
 	}
 
-	if (*rid != 0)
+	if (rid != 0)
 		return (NULL);
 
-	if (resource_list_find(rl, PCI_RES_BUS, *rid) == NULL)
-		resource_list_add(rl, PCI_RES_BUS, *rid, start, end, count);
-	if (!resource_list_reserved(rl, PCI_RES_BUS, *rid)) {
+	if (resource_list_find(rl, PCI_RES_BUS, rid) == NULL)
+		resource_list_add(rl, PCI_RES_BUS, rid, start, end, count);
+	if (!resource_list_reserved(rl, PCI_RES_BUS, rid)) {
 		res = resource_list_reserve(rl, dev, child, PCI_RES_BUS, rid,
 		    start, end, count, flags & ~RF_ACTIVE);
 		if (res == NULL) {
-			resource_list_delete(rl, PCI_RES_BUS, *rid);
+			resource_list_delete(rl, PCI_RES_BUS, rid);
 			device_printf(child, "allocating %ju bus%s failed\n",
 			    count, count == 1 ? "" : "es");
 			return (NULL);
@@ -4106,7 +4105,7 @@ pci_add_resources_ea(device_t bus, device_t dev, int alloc_iov)
 			continue;
 
 		resource_list_add(rl, type, rid, start, end, count);
-		res = resource_list_reserve(rl, bus, dev, type, &rid, start, end, count,
+		res = resource_list_reserve(rl, bus, dev, type, rid, start, end, count,
 		    flags);
 		if (res == NULL) {
 			resource_list_delete(rl, type, rid);
@@ -5506,7 +5505,7 @@ DB_SHOW_COMMAND_FLAGS(pciregs, db_pci_dump, DB_CMD_MEMSAFE)
 #endif /* DDB */
 
 struct resource *
-pci_reserve_map(device_t dev, device_t child, int type, int *rid,
+pci_reserve_map(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int num,
     u_int flags)
 {
@@ -5521,10 +5520,10 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 	res = NULL;
 
 	/* If rid is managed by EA, ignore it */
-	if (pci_ea_is_enabled(child, *rid))
+	if (pci_ea_is_enabled(child, rid))
 		goto out;
 
-	pm = pci_find_bar(child, *rid);
+	pm = pci_find_bar(child, rid);
 	if (pm != NULL) {
 		/* This is a BAR that we failed to allocate earlier. */
 		mapsize = pm->pm_size;
@@ -5538,28 +5537,28 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 		 * have a atapci device in legacy mode and it fails
 		 * here, that other code is broken.
 		 */
-		pci_read_bar(child, *rid, &map, &testval, NULL);
+		pci_read_bar(child, rid, &map, &testval, NULL);
 
 		/*
 		 * Determine the size of the BAR and ignore BARs with a size
 		 * of 0.  Device ROM BARs use a different mask value.
 		 */
-		if (PCIR_IS_BIOS(&dinfo->cfg, *rid))
+		if (PCIR_IS_BIOS(&dinfo->cfg, rid))
 			mapsize = pci_romsize(testval);
 		else
 			mapsize = pci_mapsize(testval);
 		if (mapsize == 0)
 			goto out;
-		pm = pci_add_bar(child, *rid, map, mapsize);
+		pm = pci_add_bar(child, rid, map, mapsize);
 	}
 
-	if (PCI_BAR_MEM(map) || PCIR_IS_BIOS(&dinfo->cfg, *rid)) {
+	if (PCI_BAR_MEM(map) || PCIR_IS_BIOS(&dinfo->cfg, rid)) {
 		if (type != SYS_RES_MEMORY) {
 			if (bootverbose)
 				device_printf(dev,
 				    "child %s requested type %d for rid %#x,"
 				    " but the BAR says it is an memio\n",
-				    device_get_nameunit(child), type, *rid);
+				    device_get_nameunit(child), type, rid);
 			goto out;
 		}
 	} else {
@@ -5568,7 +5567,7 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 				device_printf(dev,
 				    "child %s requested type %d for rid %#x,"
 				    " but the BAR says it is an ioport\n",
-				    device_get_nameunit(child), type, *rid);
+				    device_get_nameunit(child), type, rid);
 			goto out;
 		}
 	}
@@ -5590,20 +5589,20 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 	 * Allocate enough resource, and then write back the
 	 * appropriate BAR for that resource.
 	 */
-	resource_list_add(rl, type, *rid, start, end, count);
+	resource_list_add(rl, type, rid, start, end, count);
 	res = resource_list_reserve(rl, dev, child, type, rid, start, end,
 	    count, flags & ~RF_ACTIVE);
 	if (res == NULL) {
-		resource_list_delete(rl, type, *rid);
+		resource_list_delete(rl, type, rid);
 		device_printf(child,
 		    "%#jx bytes of rid %#x res %d failed (%#jx, %#jx).\n",
-		    count, *rid, type, start, end);
+		    count, rid, type, start, end);
 		goto out;
 	}
 	if (bootverbose)
 		device_printf(child,
 		    "Lazy allocation of %#jx bytes rid %#x type %d at %#jx\n",
-		    count, *rid, type, rman_get_start(res));
+		    count, rid, type, rman_get_start(res));
 
 	/* Disable decoding via the CMD register before updating the BAR */
 	cmd = pci_read_config(child, PCIR_COMMAND, 2);
@@ -5620,7 +5619,7 @@ out:
 }
 
 struct resource *
-pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
+pci_alloc_multi_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_long num,
     u_int flags)
 {
@@ -5645,7 +5644,7 @@ pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
 		 * Can't alloc legacy interrupt once MSI messages have
 		 * been allocated.
 		 */
-		if (*rid == 0 && (cfg->msi.msi_alloc > 0 ||
+		if (rid == 0 && (cfg->msi.msi_alloc > 0 ||
 		    cfg->msix.msix_alloc > 0))
 			return (NULL);
 
@@ -5654,7 +5653,7 @@ pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
 		 * routed and is deserving of an interrupt, try to
 		 * assign it one.
 		 */
-		if (*rid == 0 && !PCI_INTERRUPT_VALID(cfg->intline) &&
+		if (rid == 0 && !PCI_INTERRUPT_VALID(cfg->intline) &&
 		    (cfg->intpin != 0))
 			pci_assign_interrupt(dev, child, 0);
 		break;
@@ -5666,7 +5665,7 @@ pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
 		 * tree.
 		 */
 		if (cfg->hdrtype == PCIM_HDRTYPE_BRIDGE) {
-			switch (*rid) {
+			switch (rid) {
 			case PCIR_IOBASEL_1:
 			case PCIR_MEMBASE_1:
 			case PCIR_PMBASEL_1:
@@ -5679,7 +5678,7 @@ pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
 			}
 		}
 		/* Reserve resources for this BAR if needed. */
-		rle = resource_list_find(rl, type, *rid);
+		rle = resource_list_find(rl, type, rid);
 		if (rle == NULL) {
 			res = pci_reserve_map(dev, child, type, rid, start, end,
 			    count, num, flags);
@@ -5692,7 +5691,7 @@ pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 struct resource *
-pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
+pci_alloc_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 #ifdef PCI_IOV

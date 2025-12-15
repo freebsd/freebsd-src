@@ -132,7 +132,7 @@ bhnd_pci_generic_attach(device_t dev)
 	    sizeof(bhnd_pci_devs[0]));
 
 	/* Allocate bus resources */
-	sc->mem_res = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
+	sc->mem_res = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY, 0,
 	    RF_ACTIVE);
 	if (sc->mem_res == NULL)
 		return (ENXIO);
@@ -156,7 +156,7 @@ bhnd_pci_generic_detach(device_t dev)
 	if ((error = bus_generic_detach(dev)))
 		return (error);
 
-	bhnd_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem_res);
+	bhnd_release_resource(dev, sc->mem_res);
 
 	BHND_PCI_LOCK_DESTROY(sc);
 

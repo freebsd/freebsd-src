@@ -249,9 +249,9 @@ nlmsg_translate_ifname_nla(struct nlattr *nla, struct nl_writer *nw)
 {
 	char ifname[LINUX_IFNAMSIZ];
 
-	if (ifname_bsd_to_linux_name((char *)(nla + 1), ifname,
-	    sizeof(ifname)) <= 0)
+	if (nw->ifp == NULL)
 		return (false);
+	(void)ifname_bsd_to_linux_ifp(nw->ifp, ifname, sizeof(ifname));
 	return (nlattr_add_string(nw, IFLA_IFNAME, ifname));
 }
 
@@ -564,7 +564,7 @@ nlmsg_to_linux(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_writer *nw)
 }
 
 static struct nl_buf *
-nlmsgs_to_linux(struct nl_buf *orig, struct nlpcb *nlp)
+nlmsgs_to_linux(struct nl_buf *orig, struct nlpcb *nlp, const struct ifnet *ifp)
 {
 	struct nl_writer nw;
 	u_int offset, msglen;
@@ -573,6 +573,7 @@ nlmsgs_to_linux(struct nl_buf *orig, struct nlpcb *nlp)
 	    orig->datalen + SCRATCH_BUFFER_SIZE, nlp, false)))
 		return (NULL);
 
+	nw.ifp = ifp;
 	/* Assume correct headers. Buffer IS mutable */
 	for (offset = 0;
 	    offset + sizeof(struct nlmsghdr) <= orig->datalen;

@@ -107,6 +107,8 @@ extern char pmc_cpuid[PMC_CPUID_LEN];
     __PMC_CPU(INTEL_ALDERLAKE,		0x9D,	"Intel Alderlake")		\
     __PMC_CPU(INTEL_ATOM_GOLDMONT_P,	0x9E,	"Intel Atom Goldmont Plus")	\
     __PMC_CPU(INTEL_ATOM_TREMONT,	0x9F,	"Intel Atom Tremont")		\
+    __PMC_CPU(INTEL_EMERALD_RAPIDS,	0xA0,	"Intel Emerald Rapids")		\
+    __PMC_CPU(INTEL_ALDERLAKEN,		0xA1,	"Intel AlderlakeN")		\
     __PMC_CPU(INTEL_XSCALE,		0x100,	"Intel XScale")			\
     __PMC_CPU(PPC_7450,			0x300,	"PowerPC MPC7450")		\
     __PMC_CPU(PPC_E500,			0x340,	"PowerPC e500 Core")		\

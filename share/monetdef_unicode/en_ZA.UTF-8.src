@@ -10,10 +10,10 @@ ZAR
 R
 #
 # mon_decimal_point
-.
+,
 #
 # mon_thousands_sep
-,
+ 
 #
 # mon_grouping
 3
@@ -46,5 +46,23 @@ R
 1
 #
 # n_sign_posn
+1
+#
+# int_p_cs_precedes
+1
+#
+# int_n_cs_precedes
+1
+#
+# int_p_sep_by_space
+0
+#
+# int_n_sep_by_space
+0
+#
+# int_p_sign_posn
+1
+#
+# int_n_sign_posn
 1
 # EOF

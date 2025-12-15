@@ -28,7 +28,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include "opt_capsicum.h"
 #include "opt_sctp.h"
 #include "opt_ktrace.h"

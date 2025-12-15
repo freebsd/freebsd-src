@@ -36,7 +36,7 @@
 #include <sys/_types.h>
 #include <sys/_iovec.h>
 #include <sys/_timeval.h>
-#include <machine/_align.h>
+#include <sys/_align.h>
 
 /*
  * Definitions related to sockets: types, address families, options.
@@ -662,7 +662,7 @@ struct sf_hdtr {
  */
 #define	SF_NODISKIO     0x00000001
 #define	SF_MNOWAIT	0x00000002	/* obsolete */
-#define	SF_SYNC		0x00000004
+/* was	SF_SYNC		0x00000004	*/
 #define	SF_USER_READAHEAD	0x00000008
 #define	SF_NOCACHE	0x00000010
 #define	SF_FLAGS(rh, flags)	(((rh) << 16) | (flags))

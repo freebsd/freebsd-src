@@ -44,10 +44,15 @@
 
 #include "nvme_private.h"
 
+#include "nvme_if.h"
+
 #define ccb_accb_ptr spriv_ptr0
 #define ccb_ctrlr_ptr spriv_ptr1
 static void	nvme_sim_action(struct cam_sim *sim, union ccb *ccb);
 static void	nvme_sim_poll(struct cam_sim *sim);
+static int	nvme_sim_ns_added(device_t dev, struct nvme_namespace *ns);
+static int	nvme_sim_ns_changed(device_t dev, uint32_t nsid);
+static int	nvme_sim_ns_removed(device_t dev, struct nvme_namespace *ns);
 
 #define sim2softc(sim)	((struct nvme_sim_softc *)cam_sim_softc(sim))
 #define sim2ctrlr(sim)	(sim2softc(sim)->s_ctrlr)
@@ -203,7 +208,7 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->xport_specific.nvme.bus = pci_get_bus(dev);
 		cpi->xport_specific.nvme.slot = pci_get_slot(dev);
 		cpi->xport_specific.nvme.function = pci_get_function(dev);
-		cpi->xport_specific.nvme.extra = 0;
+		cpi->xport_specific.nvme.progif = pci_get_progif(dev);
 		strlcpy(cpi->xport_specific.nvme.dev_name, device_get_nameunit(dev),
 		    sizeof(cpi->xport_specific.nvme.dev_name));
 		cpi->hba_vendor = pci_get_vendor(dev);
@@ -304,124 +309,181 @@ nvme_sim_poll(struct cam_sim *sim)
 	nvme_ctrlr_poll(sim2ctrlr(sim));
 }
 
-static void *
-nvme_sim_new_controller(struct nvme_controller *ctrlr)
+static int
+nvme_sim_probe(device_t dev)
 {
-	struct nvme_sim_softc *sc;
+	if (nvme_use_nvd)
+		return (ENXIO);
+	/*
+	 * Only do storage devices with CAM. NVMHCI 1.0 interfaces are the only
+	 * ones that have namespaces with LBA ranges on them.
+	 */
+	if (pci_get_progif(device_get_parent(dev)) !=
+	    PCIP_STORAGE_NVM_ENTERPRISE_NVMHCI_1_0)
+		return (ENXIO);
+
+	device_set_desc(dev, "nvme cam");
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+nvme_sim_attach(device_t dev)
+{
 	struct cam_devq *devq;
 	int max_trans;
+	int err = ENXIO;
+	struct nvme_sim_softc *sc = device_get_softc(dev);
+	struct nvme_controller	*ctrlr = device_get_ivars(dev);
 
 	max_trans = ctrlr->max_hw_pend_io;
 	devq = cam_simq_alloc(max_trans);
 	if (devq == NULL)
-		return (NULL);
+		return (ENOMEM);
 
-	sc = malloc(sizeof(*sc), M_NVME, M_ZERO | M_WAITOK);
 	sc->s_ctrlr = ctrlr;
 
 	sc->s_sim = cam_sim_alloc(nvme_sim_action, nvme_sim_poll,
-	    "nvme", sc, device_get_unit(ctrlr->dev),
+	    "nvme", sc, device_get_unit(dev),
 	    NULL, max_trans, max_trans, devq);
 	if (sc->s_sim == NULL) {
-		printf("Failed to allocate a sim\n");
+		device_printf(dev, "Failed to allocate a sim\n");
 		cam_simq_free(devq);
-		goto err1;
+		return (ENOMEM);
 	}
-	if (xpt_bus_register(sc->s_sim, ctrlr->dev, 0) != CAM_SUCCESS) {
-		printf("Failed to create a bus\n");
+	if (xpt_bus_register(sc->s_sim, dev, 0) != CAM_SUCCESS) {
+		device_printf(dev, "Failed to create a bus\n");
 		goto err2;
 	}
 	if (xpt_create_path(&sc->s_path, /*periph*/NULL, cam_sim_path(sc->s_sim),
 	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-		printf("Failed to create a path\n");
+		device_printf(dev, "Failed to create a path\n");
 		goto err3;
 	}
 
-	return (sc);
+	for (int i = 0; i < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); i++) {
+		struct nvme_namespace	*ns = &ctrlr->ns[i];
 
+		if (ns->data.nsze == 0)
+			continue;
+		nvme_sim_ns_added(dev, ns);
+	}
+
+	return (0);
 err3:
 	xpt_bus_deregister(cam_sim_path(sc->s_sim));
 err2:
 	cam_sim_free(sc->s_sim, /*free_devq*/TRUE);
-err1:
-	free(sc, M_NVME);
-	return (NULL);
+	return (err);
 }
 
-static void *
-nvme_sim_ns_change(struct nvme_namespace *ns, void *sc_arg)
+
+static int
+nvme_sim_fail_all_ns(device_t dev)
 {
-	struct nvme_sim_softc *sc = sc_arg;
-	struct cam_path *tmppath;
+	struct nvme_sim_softc *sc = device_get_softc(dev);
+	struct nvme_controller *ctrlr = sc->s_ctrlr;
+
+	for (int i = 0; i < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); i++) {
+		struct nvme_namespace	*ns = &ctrlr->ns[i];
+
+		if (ns->data.nsze == 0)
+			continue;
+		nvme_sim_ns_removed(dev, ns);
+	}
+	return (0);
+}
+
+static int
+nvme_sim_detach(device_t dev)
+{
+	return (nvme_sim_fail_all_ns(dev));
+}
+
+static int
+nvme_sim_ns_added(device_t dev, struct nvme_namespace *ns)
+{
+	struct nvme_sim_softc *sc = device_get_softc(dev);
 	union ccb *ccb;
+
+	/*
+	 * We map the NVMe namespace idea onto the CAM unit LUN. For each new
+	 * namespace, scan or rescan the path to enumerate it.
+	 */
+	ccb = xpt_alloc_ccb();
+	if (xpt_create_path(&ccb->ccb_h.path, /*periph*/NULL,
+	    cam_sim_path(sc->s_sim), 0, ns->id) != CAM_REQ_CMP) {
+		printf("unable to create path for rescan\n");
+		return (ENOMEM);
+	}
+	xpt_rescan(ccb);
+
+	return (0);
+}
+
+static int
+nvme_sim_ns_removed(device_t dev, struct nvme_namespace *ns)
+{
+	struct nvme_sim_softc *sc = device_get_softc(dev);
+	struct cam_path *tmppath;
 
 	if (xpt_create_path(&tmppath, /*periph*/NULL,
 	    cam_sim_path(sc->s_sim), 0, ns->id) != CAM_REQ_CMP) {
 		printf("unable to create path for rescan\n");
-		return (NULL);
+		return (ENOMEM);
 	}
-	/*
-	 * If it's gone, then signal that and leave.
-	 */
-	if (ns->flags & NVME_NS_GONE) {
-		xpt_async(AC_LOST_DEVICE, tmppath, NULL);
-		xpt_free_path(tmppath);
-		return (sc_arg);
-	}
+	xpt_async(AC_LOST_DEVICE, tmppath, NULL);
+	xpt_free_path(tmppath);
 
-	ccb = xpt_alloc_ccb_nowait();
-	if (ccb == NULL) {
-		printf("unable to alloc CCB for rescan\n");
-		return (NULL);
-	}
-	ccb->ccb_h.path = tmppath;
+	return (0);
+}
+
+static int
+nvme_sim_ns_changed(device_t dev, uint32_t nsid)
+{
+	struct nvme_sim_softc *sc = device_get_softc(dev);
+	struct nvme_namespace *ns = &sc->s_ctrlr->ns[nsid - 1];
 
 	/*
-	 * We map the NVMe namespace idea onto the CAM unit LUN. For each new
-	 * namespace, scan or rescan the path to enumerate it. tmppath freed at
-	 * end of scan.
+	 * These wind up being the same. For a configured cam_ed, we generate
+	 * AC_GETDEV_CHANGED, but for new one we do AC_FOUND_DEVICE, but the
+	 * scan is the same.
 	 */
-	xpt_rescan(ccb);
-
-	return (sc_arg);
+	return (nvme_sim_ns_added(dev, ns));
 }
 
-static void
-nvme_sim_controller_fail(void *ctrlr_arg)
+static int
+nvme_sim_controller_failed(device_t dev)
 {
-	struct nvme_sim_softc *sc = ctrlr_arg;
-
-	xpt_async(AC_LOST_DEVICE, sc->s_path, NULL);
-	xpt_free_path(sc->s_path);
-	xpt_bus_deregister(cam_sim_path(sc->s_sim));
-	cam_sim_free(sc->s_sim, /*free_devq*/TRUE);
-	free(sc, M_NVME);
+	return (nvme_sim_fail_all_ns(dev));
 }
 
-struct nvme_consumer *consumer_cookie;
-
-static void
-nvme_sim_init(void *dummy __unused)
+static int
+nvme_sim_handle_aen(device_t dev, const struct nvme_completion *cpl,
+    uint32_t pg_nr, void *page, uint32_t page_len)
 {
-	if (nvme_use_nvd)
-		return;
-
-	consumer_cookie = nvme_register_consumer(nvme_sim_ns_change,
-	    nvme_sim_new_controller, NULL, nvme_sim_controller_fail);
+	/* Do nothing */
+	return (0);
 }
 
-SYSINIT(nvme_sim_register, SI_SUB_DRIVERS, SI_ORDER_ANY,
-    nvme_sim_init, NULL);
+static device_method_t nvme_sim_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		nvme_sim_probe),
+	DEVMETHOD(device_attach,	nvme_sim_attach),
+	DEVMETHOD(device_detach,	nvme_sim_detach),
+	/* Nvme controller messages */
+	DEVMETHOD(nvme_ns_added,   	nvme_sim_ns_added),
+	DEVMETHOD(nvme_ns_removed,   	nvme_sim_ns_removed),
+	DEVMETHOD(nvme_ns_changed,   	nvme_sim_ns_changed),
+	DEVMETHOD(nvme_controller_failed, nvme_sim_controller_failed),
+	DEVMETHOD(nvme_handle_aen,   	nvme_sim_handle_aen),
+	{ 0, 0 }
+};
 
-static void
-nvme_sim_uninit(void *dummy __unused)
-{
-	if (nvme_use_nvd)
-		return;
-	/* XXX Cleanup */
+static driver_t nvme_sim_driver = {
+	"nvme_sim",
+	nvme_sim_methods,
+	sizeof(struct nvme_sim_softc),
+};
 
-	nvme_unregister_consumer(consumer_cookie);
-}
-
-SYSUNINIT(nvme_sim_unregister, SI_SUB_DRIVERS, SI_ORDER_ANY,
-    nvme_sim_uninit, NULL);
+DRIVER_MODULE(nvme_sim, nvme, nvme_sim_driver, NULL, NULL);
+MODULE_VERSION(nvme_shim, 1);

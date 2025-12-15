@@ -44,7 +44,7 @@ isa_init(device_t dev)
 }
 
 struct resource *
-isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
+isa_alloc_resource(device_t bus, device_t child, int type, int rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
 	struct isa_device* idev = DEVTOISA(child);
@@ -55,17 +55,17 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	passthrough = (device_get_parent(child) != bus) ? 1 : 0;
 
 	if (!passthrough && !isdefault &&
-	    resource_list_find(rl, type, *rid) == NULL) {
+	    resource_list_find(rl, type, rid) == NULL) {
 		switch (type) {
 		case SYS_RES_IOPORT:	rids = ISA_PNP_NPORT; break;
 		case SYS_RES_IRQ:	rids = ISA_PNP_NIRQ; break;
 		case SYS_RES_MEMORY:	rids = ISA_PNP_NMEM; break;
 		default:		rids = 0; break;
 		}
-		if (*rid < 0 || *rid >= rids)
+		if (rid < 0 || rid >= rids)
 			return (NULL);
 
-		resource_list_add(rl, type, *rid, start, end, count);
+		resource_list_add(rl, type, rid, start, end, count);
 	}
 
 	return (resource_list_alloc(rl, bus, child, type, rid, start, end,

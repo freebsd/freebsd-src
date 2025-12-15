@@ -145,6 +145,7 @@ stp_vlan_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req vlan
 
 	epair_one=$(vnet_mkepair)
 	epair_two=$(vnet_mkepair)
@@ -538,6 +539,7 @@ gif_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req gif
 
 	epair=$(vnet_mkepair)
 
@@ -642,6 +644,7 @@ mtu_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req gif
 
 	epair=$(vnet_mkepair)
 	gif=$(ifconfig gif create)
@@ -704,6 +707,7 @@ vlan_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req vlan
 
 	vid=1
 
@@ -880,6 +884,7 @@ member_ifaddrs_vlan_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req vlan
 
 	epone=$(vnet_mkepair)
 	eptwo=$(vnet_mkepair)
@@ -1008,6 +1013,7 @@ vlan_pvid_tagged_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req vlan
 
 	epone=$(vnet_mkepair)
 	eptwo=$(vnet_mkepair)
@@ -1052,6 +1058,7 @@ vlan_pvid_1q_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req vlan
 
 	epone=$(vnet_mkepair)
 	eptwo=$(vnet_mkepair)
@@ -1099,6 +1106,7 @@ vlan_filtering_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req vlan
 
 	epone=$(vnet_mkepair)
 	eptwo=$(vnet_mkepair)
@@ -1229,6 +1237,7 @@ vlan_svi_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req vlan
 
 	epone=$(vnet_mkepair)
 
@@ -1270,6 +1279,7 @@ vlan_qinq_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req vlan
 
 	epone=$(vnet_mkepair)
 	eptwo=$(vnet_mkepair)
@@ -1335,6 +1345,7 @@ bridge_svi_in_bridge_body()
 {
 	vnet_init
 	vnet_init_bridge
+	_vnet_check_req vlan
 
 	bridge=$(vnet_mkbridge)
 	atf_check -s exit:0 ifconfig ${bridge}.1 create

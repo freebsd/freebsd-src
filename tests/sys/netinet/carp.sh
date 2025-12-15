@@ -43,7 +43,7 @@ wait_for_carp()
 
 	while [ -z "$(is_master ${jail1} ${itf1})" ] &&
 	    [ -z "$(is_master ${jail2} ${itf2})" ]; do
-		sleep 1
+		sleep 0.1
 	done
 
 	if [ -n "$(is_master ${jail1} ${itf1})" ] &&
@@ -90,6 +90,7 @@ basic_v4_body()
 	jexec carp_basic_v4_two ifconfig ${epair_one}b 192.0.2.202/29 up
 	jexec carp_basic_v4_two ifconfig ${epair_one}b add vhid 1 192.0.2.1/29
 
+	sleep 0.2
 	jexec carp_basic_v4_three ifconfig ${epair_two}b 192.0.2.203/29 up
 	jexec carp_basic_v4_three ifconfig ${epair_two}b add vhid 1 \
 	    192.0.2.1/29
@@ -137,6 +138,7 @@ vrrp_v4_body()
 	jexec ${j}_two ifconfig ${epair_one}b 192.0.2.202/29 up
 	jexec ${j}_two ifconfig ${epair_one}b add vhid 1 carpver 3 192.0.2.1/29
 
+	sleep 0.2
 	jexec ${j}_three ifconfig ${epair_two}b 192.0.2.203/29 up
 	jexec ${j}_three ifconfig ${epair_two}b add vhid 1 carpver 3 \
 	    192.0.2.1/29
@@ -182,6 +184,7 @@ unicast_v4_body()
 	jexec carp_uni_v4_two ifconfig ${epair_one}b add vhid 1 \
 	    peer 198.51.100.224 192.0.2.1/32
 
+	sleep 0.2
 	jexec carp_uni_v4_three sysctl net.inet.ip.forwarding=1
 	jexec carp_uni_v4_three ifconfig ${epair_two}b 198.51.100.224/25 up
 	jexec carp_uni_v4_three route add 198.51.100.2 198.51.100.129
@@ -253,6 +256,7 @@ basic_v6_body()
 	jexec carp_basic_v6_two ifconfig ${epair_one}b inet6 add vhid 1 \
 	    2001:db8::0:1/64
 
+	sleep 0.2
 	jexec carp_basic_v6_three ifconfig ${epair_two}b inet6 2001:db8::1:3/64 up no_dad
 	jexec carp_basic_v6_three ifconfig ${epair_two}b inet6 add vhid 1 \
 	    2001:db8::0:1/64
@@ -303,6 +307,7 @@ vrrp_v6_body()
 	jexec ${j}_two ifconfig ${epair_one}b inet6 add vhid 1 carpver 3 \
 	    2001:db8::0:1/64
 
+	sleep 0.2
 	jexec ${j}_three ifconfig ${epair_two}b inet6 2001:db8::1:3/64 up no_dad
 	jexec ${j}_three ifconfig ${epair_two}b inet6 add vhid 1 carpver 3 \
 	    2001:db8::0:1/64
@@ -358,6 +363,7 @@ unicast_v6_body()
 	    peer6 2001:db8:2::2 \
 	    2001:db8::0:1/64
 
+	sleep 0.2
 	jexec carp_uni_v6_three ifconfig ${epair_two}b inet6 2001:db8:2::2/64 \
 	    no_dad up
 	jexec carp_uni_v6_three route -6 add default 2001:db8:2::1
@@ -423,6 +429,7 @@ unicast_ll_v6_body()
 	jexec ${j}_two ifconfig ${epair_one}b inet6 add vhid 1 \
 	    peer6 ${ll_two} \
 	    2001:db8::0:1/64
+	sleep 0.2
 	jexec ${j}_three ifconfig ${epair_two}b inet6 add vhid 1 \
 	    peer6 ${ll_one} \
 	    2001:db8::0:1/64

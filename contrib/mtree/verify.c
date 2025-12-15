@@ -1,4 +1,4 @@
-/*	$NetBSD: verify.c,v 1.44 2013/02/03 19:15:17 christos Exp $	*/
+/*	$NetBSD: verify.c,v 1.50 2024/12/11 14:52:26 christos Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)verify.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: verify.c,v 1.44 2013/02/03 19:15:17 christos Exp $");
+__RCSID("$NetBSD: verify.c,v 1.50 2024/12/11 14:52:26 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -86,7 +86,7 @@ vwalk(void)
 	argv[0] = dot;
 	argv[1] = NULL;
 
-	if ((t = fts_open(argv, ftsoptions, NULL)) == NULL)
+	if ((t = fts_open(argv, ftsoptions, dcmp)) == NULL)
 		mtree_err("fts_open: %s", strerror(errno));
 	level = root;
 	specdepth = rval = 0;
@@ -147,8 +147,15 @@ vwalk(void)
 			continue;
  extra:
 		if (!eflag && !(dflag && p->fts_info == FTS_SL)) {
-			printf("extra: %s", RP(p));
+			printf(flavor == F_FREEBSD9 ? "%s extra" : "extra: %s",
+			    RP(p));
 			if (rflag) {
+#if HAVE_STRUCT_STAT_ST_FLAGS
+				if (rflag > 1 &&
+				    lchflags(p->fts_accpath, 0) == -1)
+					printf(" (chflags %s)",
+					    strerror(errno));
+#endif
 				if ((S_ISDIR(p->fts_statp->st_mode)
 				    ? rmdir : unlink)(p->fts_accpath)) {
 					printf(", not removed: %s",
@@ -174,7 +181,7 @@ miss(NODE *p, char *tail)
 	int create;
 	char *tp;
 	const char *type;
-	u_int32_t flags;
+	u_long flags;
 
 	for (; p; p = p->next) {
 		if (p->flags & F_OPT && !(p->flags & F_VISIT))

@@ -335,6 +335,8 @@ struct ufshci_upiu_header {
 		uint8_t flags;
 	};
 	uint8_t lun;
+#define UFSHCI_UPIU_UNIT_NUMBER_ID_MASK 0x7f
+#define UFSHCI_UPIU_WLUN_ID_MASK	0x80
 	uint8_t task_tag;
 
 	/* dword 1 */
@@ -641,6 +643,14 @@ struct ufshci_completion {
 };
 
 typedef void (*ufshci_cb_fn_t)(void *, const struct ufshci_completion *, bool);
+
+/* UFS 4.1, section 10.8.5 "Well Known Logical Unit Defined in UFS" */
+enum ufshci_well_known_luns {
+	UFSHCI_WLUN_REPORT_LUNS = 0x81,
+	UFSHCI_WLUN_BOOT = 0xb0,
+	UFSHCI_WLUN_RPMB = 0xc4,
+	UFSHCI_WLUN_UFS_DEVICE = 0xd0,
+};
 
 /*
  * UFS Spec 4.1, section 14.1 "UFS Descriptors"

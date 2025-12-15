@@ -200,7 +200,7 @@ pcib_host_res_decodes(struct pcib_host_resources *hr, int type, rman_res_t start
 
 struct resource *
 pcib_host_res_alloc(struct pcib_host_resources *hr, device_t dev, int type,
-    int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+    int rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource_list_entry *rle;
 	struct resource *r;
@@ -241,7 +241,7 @@ restart:
 				device_printf(hr->hr_pcib,
 			    "allocated type %d (%#jx-%#jx) for rid %x of %s\n",
 				    type, rman_get_start(r), rman_get_end(r),
-				    *rid, pcib_child_name(dev));
+				    rid, pcib_child_name(dev));
 			return (r);
 		}
 	}
@@ -327,7 +327,7 @@ pci_find_domain(int domain)
 }
 
 struct resource *
-pci_domain_alloc_bus(int domain, device_t dev, int *rid, rman_res_t start,
+pci_domain_alloc_bus(int domain, device_t dev, int rid, rman_res_t start,
     rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct pci_domain *d;
@@ -341,7 +341,7 @@ pci_domain_alloc_bus(int domain, device_t dev, int *rid, rman_res_t start,
 	if (res == NULL)
 		return (NULL);
 
-	rman_set_rid(res, *rid);
+	rman_set_rid(res, rid);
 	rman_set_type(res, PCI_RES_BUS);
 	return (res);
 }

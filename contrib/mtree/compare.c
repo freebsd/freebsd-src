@@ -1,4 +1,4 @@
-/*	$NetBSD: compare.c,v 1.58 2013/11/21 18:39:50 christos Exp $	*/
+/*	$NetBSD: compare.c,v 1.61 2024/12/05 17:17:43 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)compare.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: compare.c,v 1.58 2013/11/21 18:39:50 christos Exp $");
+__RCSID("$NetBSD: compare.c,v 1.61 2024/12/05 17:17:43 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -135,8 +135,9 @@ do {									\
 int
 compare(NODE *s, FTSENT *p)
 {
-	u_int32_t len, val, flags;
+	uint32_t len, val, flags;
 	int fd, label;
+	bool was_unlinked;
 	const char *cp, *tab;
 #if !defined(NO_MD5) || !defined(NO_RMD160) || !defined(NO_SHA1) || !defined(NO_SHA2)
 	char *digestbuf;
@@ -144,6 +145,7 @@ compare(NODE *s, FTSENT *p)
 
 	tab = NULL;
 	label = 0;
+	was_unlinked = false;
 	switch(s->type) {
 	case F_BLOCK:
 		if (!S_ISBLK(p->fts_statp->st_mode))
@@ -210,47 +212,53 @@ typeerr:		LABEL;
 			      s->st_mode | nodetoino(s->type),
 			      s->st_rdev) == -1) ||
 			    (lchown(p->fts_accpath, p->fts_statp->st_uid,
-			      p->fts_statp->st_gid) == -1) )
+			      p->fts_statp->st_gid) == -1) ) {
 				printf(", not modified: %s%s\n",
 				    strerror(errno),
 				    flavor == F_FREEBSD9 ? "" : ")");
-			 else
+			} else {
 				printf(", modified%s\n",
 				    flavor == F_FREEBSD9 ? "" : ")");
+				was_unlinked = true;
+			}
 		} else
 			printf(")\n");
 		tab = "\t";
 	}
 	/* Set the uid/gid first, then set the mode. */
-	if (s->flags & (F_UID | F_UNAME) && s->st_uid != p->fts_statp->st_uid) {
+	if (s->flags & (F_UID | F_UNAME) &&
+	    (was_unlinked || s->st_uid != p->fts_statp->st_uid)) {
 		LABEL;
 		printf(flavor == F_FREEBSD9 ?
 		    "%suser expected %lu found %lu" : "%suser (%lu, %lu",
 		    tab, (u_long)s->st_uid, (u_long)p->fts_statp->st_uid);
 		if (uflag) {
-			if (lchown(p->fts_accpath, s->st_uid, -1))
+			if (lchown(p->fts_accpath, s->st_uid, (gid_t)-1))
 				printf(", not modified: %s%s\n",
 				    strerror(errno),
 				    flavor == F_FREEBSD9 ? "" : ")");
 			else
-				printf(", modified%s\n",
+				printf(", modified%s%s\n",
+				    was_unlinked ? " by unlink" : "",
 				    flavor == F_FREEBSD9 ? "" : ")");
 		} else
 			printf(")\n");
 		tab = "\t";
 	}
-	if (s->flags & (F_GID | F_GNAME) && s->st_gid != p->fts_statp->st_gid) {
+	if (s->flags & (F_GID | F_GNAME) &&
+	    (was_unlinked || s->st_gid != p->fts_statp->st_gid)) {
 		LABEL;
 		printf(flavor == F_FREEBSD9 ?
 		    "%sgid expected %lu found %lu" : "%sgid (%lu, %lu",
 		    tab, (u_long)s->st_gid, (u_long)p->fts_statp->st_gid);
 		if (uflag) {
-			if (lchown(p->fts_accpath, -1, s->st_gid))
+			if (lchown(p->fts_accpath, (uid_t)-1, s->st_gid))
 				printf(", not modified: %s%s\n",
 				    strerror(errno),
 				    flavor == F_FREEBSD9 ? "" : ")");
 			else
-				printf(", modified%s\n",
+				printf(", modified%s%s\n",
+				    was_unlinked ? " by unlink" : "",
 				    flavor == F_FREEBSD9 ? "" : ")");
 		}
 		else
@@ -258,8 +266,8 @@ typeerr:		LABEL;
 		tab = "\t";
 	}
 	if (s->flags & F_MODE &&
-	    s->st_mode != (p->fts_statp->st_mode & MBITS)) {
-		if (lflag) {
+	    (was_unlinked || s->st_mode != (p->fts_statp->st_mode & MBITS))) {
+		if (lflag && !was_unlinked) {
 			mode_t tmode, mode;
 
 			tmode = s->st_mode;
@@ -277,7 +285,7 @@ typeerr:		LABEL;
 
 		LABEL;
 		printf(flavor == F_FREEBSD9 ?
-		    "%spermissions expcted %#lo found %#lo" :
+		    "%spermissions expected %#lo found %#lo" :
 		    "%spermissions (%#lo, %#lo",
 		    tab, (u_long)s->st_mode,
 		    (u_long)p->fts_statp->st_mode & MBITS);
@@ -287,7 +295,8 @@ typeerr:		LABEL;
 				    strerror(errno),
 				    flavor == F_FREEBSD9 ? "" : ")");
 			else
-				printf(", modified%s\n",
+				printf(", modified%s%s\n",
+				    was_unlinked ? " by unlink" : "",
 				    flavor == F_FREEBSD9 ? "" : ")");
 		}
 		else
@@ -567,7 +576,7 @@ const char *
 rlink(const char *name)
 {
 	static char lbuf[MAXPATHLEN];
-	int len;
+	ssize_t len;
 
 	if ((len = readlink(name, lbuf, sizeof(lbuf) - 1)) == -1)
 		mtree_err("%s: %s", name, strerror(errno));

@@ -2452,7 +2452,7 @@ ale_rxeof(struct ale_softc *sc, int count)
 			 * reproduce this and I doubt it could be related
 			 * with FIFO overflow of hardware or activity of Tx
 			 * CMB updates. I also remember similar behaviour
-			 * seen on RealTek 8139 which uses resembling Rx
+			 * seen on Realtek 8139 which uses resembling Rx
 			 * scheme.
 			 */
 			if (bootverbose)

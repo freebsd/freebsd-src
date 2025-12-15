@@ -1182,7 +1182,7 @@ siba_map_cfg_resources(device_t dev, struct siba_devinfo *dinfo)
 	struct siba_addrspace	*addrspace;
 	rman_res_t		 r_start, r_count, r_end;
 	uint8_t			 num_cfg;
-	int			 rid;
+	int			 cfg_rid, rid;
 
 	num_cfg = dinfo->core_id.num_cfg_blocks;
 	if (num_cfg > SIBA_MAX_CFG) {
@@ -1218,9 +1218,9 @@ siba_map_cfg_resources(device_t dev, struct siba_devinfo *dinfo)
 		});
 
 		/* Map the config resource for bus-level access */
-		dinfo->cfg_rid[i] = SIBA_CFG_RID(dinfo, i);
+		cfg_rid = SIBA_CFG_RID(dinfo, i);
 		dinfo->cfg_res[i] = BHND_BUS_ALLOC_RESOURCE(dev, dev,
-		    SYS_RES_MEMORY, &dinfo->cfg_rid[i], r_start, r_end,
+		    SYS_RES_MEMORY, cfg_rid, r_start, r_end,
 		    r_count, RF_ACTIVE|RF_SHAREABLE);
 
 		if (dinfo->cfg_res[i] == NULL) {

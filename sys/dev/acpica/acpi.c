@@ -616,7 +616,7 @@ acpi_attach(device_t dev)
 	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	&sc->acpi_lid_switch_stype, 0, acpi_stype_sysctl, "A",
 	"Lid ACPI sleep state. Set to s2idle or s2mem if you want to suspend "
-	"your laptop when close the lid.");
+	"your laptop when you close the lid.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "suspend_state", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	NULL, 0, acpi_suspend_state_sysctl, "A",
@@ -626,7 +626,7 @@ acpi_attach(device_t dev)
 	OID_AUTO, "standby_state",
 	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	&sc->acpi_standby_sx, 0, acpi_sleep_state_sysctl, "A",
-	"ACPI Sx state to use when going standby (S1 or S2).");
+	"ACPI Sx state to use when going standby (usually S1 or S2).");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "sleep_delay", CTLFLAG_RW, &sc->acpi_sleep_delay, 0,
 	"sleep delay in seconds");
@@ -1525,7 +1525,7 @@ acpi_reserve_resources(device_t dev)
 	     * acpi_alloc_resource() will sub-alloc from the system
 	     * resource.
 	     */
-	    resource_list_reserve(rl, dev, children[i], rle->type, &rle->rid,
+	    resource_list_reserve(rl, dev, children[i], rle->type, rle->rid,
 		rle->start, rle->end, rle->count, 0);
 	}
     }
@@ -1562,7 +1562,7 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
 }
 
 static struct resource *
-acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
+acpi_alloc_resource(device_t bus, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 #ifndef INTRNG
@@ -1590,8 +1590,8 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * add the resource before allocating it.  Note that these
 	 * resources will not be reserved.
 	 */
-	if (!isdefault && resource_list_find(rl, type, *rid) == NULL)
-		resource_list_add(rl, type, *rid, start, end, count);
+	if (!isdefault && resource_list_find(rl, type, rid) == NULL)
+		resource_list_add(rl, type, rid, start, end, count);
 	res = resource_list_alloc(rl, bus, child, type, rid, start, end, count,
 	    flags);
 #ifndef INTRNG
@@ -1604,7 +1604,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	     *
 	     * XXX: Should we handle the lookup failing?
 	     */
-	    if (ACPI_SUCCESS(acpi_lookup_irq_resource(child, *rid, res, &ares)))
+	    if (ACPI_SUCCESS(acpi_lookup_irq_resource(child, rid, res, &ares)))
 		acpi_config_intr(child, &ares);
 	}
 #endif
@@ -1616,7 +1616,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * system resource regions.
 	 */
 	if (res == NULL && isdefault) {
-	    rle = resource_list_find(rl, type, *rid);
+	    rle = resource_list_find(rl, type, rid);
 	    if (rle != NULL) {
 		start = rle->start;
 		end = rle->end;
@@ -1770,13 +1770,13 @@ acpi_unmap_resource(device_t bus, device_t child, struct resource *r,
 
 /* Allocate an IO port or memory resource, given its GAS. */
 int
-acpi_bus_alloc_gas(device_t dev, int *type, int *rid, ACPI_GENERIC_ADDRESS *gas,
+acpi_bus_alloc_gas(device_t dev, int *type, int rid, ACPI_GENERIC_ADDRESS *gas,
     struct resource **res, u_int flags)
 {
     int error, res_type;
 
     error = ENOMEM;
-    if (type == NULL || rid == NULL || gas == NULL || res == NULL)
+    if (type == NULL || gas == NULL || res == NULL)
 	return (EINVAL);
 
     /* We only support memory and IO spaces. */
@@ -1802,14 +1802,14 @@ acpi_bus_alloc_gas(device_t dev, int *type, int *rid, ACPI_GENERIC_ADDRESS *gas,
     if (gas->Address == 0 || gas->BitWidth == 0)
 	return (EINVAL);
 
-    bus_set_resource(dev, res_type, *rid, gas->Address,
+    bus_set_resource(dev, res_type, rid, gas->Address,
 	gas->BitWidth / 8);
     *res = bus_alloc_resource_any(dev, res_type, rid, RF_ACTIVE | flags);
     if (*res != NULL) {
 	*type = res_type;
 	error = 0;
     } else
-	bus_delete_resource(dev, res_type, *rid);
+	bus_delete_resource(dev, res_type, rid);
 
     return (error);
 }
@@ -4318,13 +4318,15 @@ acpi_sname_to_sstate(const char *sname)
 {
     int sstate;
 
+    if (strcasecmp(sname, "NONE") == 0)
+	return (ACPI_STATE_UNKNOWN);
+
     if (toupper(sname[0]) == 'S') {
 	sstate = sname[1] - '0';
 	if (sstate >= ACPI_STATE_S0 && sstate <= ACPI_STATE_S5 &&
 	    sname[2] == '\0')
 	    return (sstate);
-    } else if (strcasecmp(sname, "NONE") == 0)
-	return (ACPI_STATE_UNKNOWN);
+    }
     return (-1);
 }
 
@@ -4379,8 +4381,10 @@ acpi_suspend_state_sysctl(SYSCTL_HANDLER_ARGS)
     if (new_sstate < 0)
 	return (EINVAL);
     new_stype = acpi_sstate_to_stype(new_sstate);
-    if (acpi_supported_stypes[new_stype] == false)
+    if (new_sstate != ACPI_STATE_UNKNOWN &&
+	acpi_supported_stypes[new_stype] == false)
 	return (EOPNOTSUPP);
+
     if (new_stype != old_stype)
 	power_suspend_stype = new_stype;
     return (err);
@@ -4423,21 +4427,26 @@ acpi_stype_sysctl(SYSCTL_HANDLER_ARGS)
     if (err != 0 || req->newptr == NULL)
 	return (err);
 
-    new_stype = power_name_to_stype(name);
-    if (new_stype == POWER_STYPE_UNKNOWN) {
-	sstate = acpi_sname_to_sstate(name);
-	if (sstate < 0)
-	    return (EINVAL);
-	printf("warning: this sysctl expects a sleep type, but an ACPI S-state has "
-	    "been passed to it. This functionality is deprecated; see acpi(4).\n");
-	if (sstate < ACPI_S_STATE_COUNT &&
-	    !acpi_supported_sstates[sstate])
+    if (strcasecmp(name, "NONE") == 0) {
+	new_stype = POWER_STYPE_UNKNOWN;
+    } else {
+	new_stype = power_name_to_stype(name);
+	if (new_stype == POWER_STYPE_UNKNOWN) {
+	    sstate = acpi_sname_to_sstate(name);
+	    if (sstate < 0)
+		return (EINVAL);
+	    printf("warning: this sysctl expects a sleep type, but an ACPI "
+	           "S-state has been passed to it. This functionality is "
+	           "deprecated; see acpi(4).\n");
+	    MPASS(sstate < ACPI_S_STATE_COUNT);
+	    if (acpi_supported_sstates[sstate] == false)
+		return (EOPNOTSUPP);
+	    new_stype = acpi_sstate_to_stype(sstate);
+	}
+	if (acpi_supported_stypes[new_stype] == false)
 	    return (EOPNOTSUPP);
-	new_stype = acpi_sstate_to_stype(sstate);
     }
 
-    if (acpi_supported_stypes[new_stype] == false)
-	return (EOPNOTSUPP);
     if (new_stype != old_stype)
 	*(enum power_stype *)oidp->oid_arg1 = new_stype;
     return (0);

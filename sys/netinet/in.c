@@ -30,7 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 
 #define IN_HISTORICAL_NETS		/* include class masks */
@@ -1547,7 +1546,7 @@ in_lltable_free_entry(struct lltable *llt, struct llentry *lle)
 
 	/* Unlink entry from table if not already */
 	if ((lle->la_flags & LLE_LINKED) != 0) {
-		IF_AFDATA_WLOCK_ASSERT(llt->llt_ifp);
+		LLTABLE_LOCK_ASSERT(llt);
 		lltable_unlink_entry(llt, lle);
 	}
 
@@ -1729,7 +1728,7 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 	const struct sockaddr_in *sin = (const struct sockaddr_in *)l3addr;
 	struct llentry *lle;
 
-	IF_AFDATA_LOCK_ASSERT(llt->llt_ifp);
+	LLTABLE_RLOCK_ASSERT(llt);
 	KASSERT(l3addr->sa_family == AF_INET,
 	    ("sin_family %d", l3addr->sa_family));
 	KASSERT((flags & (LLE_UNLOCKED | LLE_EXCLUSIVE)) !=

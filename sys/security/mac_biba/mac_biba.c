@@ -912,7 +912,7 @@ biba_cred_create_init(struct ucred *cred)
 }
 
 static void
-biba_cred_create_swapper(struct ucred *cred)
+biba_cred_create_kproc0(struct ucred *cred)
 {
 	struct mac_biba *dest;
 
@@ -3574,7 +3574,7 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_cred_check_visible = biba_cred_check_visible,
 	.mpo_cred_copy_label = biba_copy_label,
 	.mpo_cred_create_init = biba_cred_create_init,
-	.mpo_cred_create_swapper = biba_cred_create_swapper,
+	.mpo_cred_create_kproc0 = biba_cred_create_kproc0,
 	.mpo_cred_destroy_label = biba_destroy_label,
 	.mpo_cred_externalize_label = biba_externalize_label,
 	.mpo_cred_init_label = biba_init_label,

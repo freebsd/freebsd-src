@@ -23,6 +23,8 @@
 static int ufshci_pci_probe(device_t);
 static int ufshci_pci_attach(device_t);
 static int ufshci_pci_detach(device_t);
+static int ufshci_pci_suspend(device_t);
+static int ufshci_pci_resume(device_t);
 
 static int ufshci_pci_setup_interrupts(struct ufshci_controller *ctrlr);
 
@@ -31,8 +33,8 @@ static device_method_t ufshci_pci_methods[] = {
 	DEVMETHOD(device_probe, ufshci_pci_probe),
 	DEVMETHOD(device_attach, ufshci_pci_attach),
 	DEVMETHOD(device_detach, ufshci_pci_detach),
-	/* TODO: Implement Suspend, Resume */
-	{ 0, 0 }
+	DEVMETHOD(device_suspend, ufshci_pci_suspend),
+	DEVMETHOD(device_resume, ufshci_pci_resume), { 0, 0 }
 };
 
 static driver_t ufshci_pci_driver = {
@@ -50,13 +52,16 @@ static struct _pcsid {
 	uint32_t quirks;
 } pci_ids[] = { { 0x131b36, "QEMU UFS Host Controller", UFSHCI_REF_CLK_19_2MHz,
 		    UFSHCI_QUIRK_IGNORE_UIC_POWER_MODE |
-			UFSHCI_QUIRK_NOT_SUPPORT_ABORT_TASK },
+			UFSHCI_QUIRK_NOT_SUPPORT_ABORT_TASK |
+			UFSHCI_QUIRK_SKIP_WELL_KNOWN_LUNS },
 	{ 0x98fa8086, "Intel Lakefield UFS Host Controller",
 	    UFSHCI_REF_CLK_19_2MHz,
 	    UFSHCI_QUIRK_LONG_PEER_PA_TACTIVATE |
 		UFSHCI_QUIRK_WAIT_AFTER_POWER_MODE_CHANGE |
-		UFSHCI_QUIRK_CHANGE_LANE_AND_GEAR_SEPARATELY },
-	{ 0x54ff8086, "Intel UFS Host Controller", UFSHCI_REF_CLK_19_2MHz },
+		UFSHCI_QUIRK_CHANGE_LANE_AND_GEAR_SEPARATELY |
+		UFSHCI_QUIRK_BROKEN_AUTO_HIBERNATE },
+	{ 0x54ff8086, "Intel Alder Lake-N UFS Host Controller",
+	    UFSHCI_REF_CLK_19_2MHz, UFSHCI_QUIRK_BROKEN_AUTO_HIBERNATE },
 	{ 0x00000000, NULL } };
 
 static int
@@ -259,4 +264,21 @@ msi:
 
 intx:
 	return (ufshci_pci_setup_shared(ctrlr, ctrlr->msi_count > 0 ? 1 : 0));
+}
+
+static int
+ufshci_pci_suspend(device_t dev)
+{
+	struct ufshci_controller *ctrlr = device_get_softc(dev);
+
+	/* Currently, PCI-based ufshci only supports POWER_STYPE_STANDBY */
+	return (ufshci_ctrlr_suspend(ctrlr, POWER_STYPE_STANDBY));
+}
+
+static int
+ufshci_pci_resume(device_t dev)
+{
+	struct ufshci_controller *ctrlr = device_get_softc(dev);
+
+	return (ufshci_ctrlr_resume(ctrlr, POWER_STYPE_AWAKE));
 }

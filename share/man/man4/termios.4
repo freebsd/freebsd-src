@@ -1594,4 +1594,15 @@ the values in the header
 .Xr tcsetattr 3 ,
 .Xr tcsetsid 3 ,
 .Xr tty 4 ,
+.Xr uart 4 ,
 .Xr stack 9
+.Sh BUGS
+Before the Internet, serial ports were primarily used for inbound
+connections from terminals, either directly or through modems, these
+days serial ports are primarily used for outbound connections to
+devices, an evolution which unfortunately has spread the relevant
+documentation over three different manual pages:
+.Xr termios 4 ,
+.Xr uart 4 and
+.Xr tty 4 .
+

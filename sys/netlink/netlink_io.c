@@ -217,7 +217,7 @@ nl_send(struct nl_writer *nw, struct nlpcb *nlp)
 	}
 
 	if (nlp->nl_linux && linux_netlink_p != NULL) {
-		nb = linux_netlink_p->msgs_to_linux(nw->buf, nlp);
+		nb = linux_netlink_p->msgs_to_linux(nw->buf, nlp, nw->ifp);
 		nl_buf_free(nw->buf);
 		nw->buf = NULL;
 		if (nb == NULL)

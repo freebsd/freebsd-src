@@ -620,7 +620,6 @@ const uint8_t *if_getbroadcastaddr(const if_t ifp);
 void if_setbroadcastaddr(if_t ifp, const uint8_t *);
 int if_setmtu(if_t ifp, int mtu);
 int if_getmtu(const if_t ifp);
-int if_getmtu_family(const if_t ifp, int family);
 void if_notifymtu(if_t ifp);
 void if_setppromisc(const if_t ifp, bool ppromisc);
 int if_setflagbits(if_t ifp, int set, int clear);

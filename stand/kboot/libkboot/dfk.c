@@ -39,8 +39,13 @@
 #define ELF_TARG_DATA	ELFDATA2LSB
 #endif
 
+#ifndef _STANDALONE
 #define KCORE_PATH "/proc/kcore"
 #define KALLSYMS_PATH "/proc/kallsyms"
+#else
+#define KCORE_PATH "host:/proc/kcore"
+#define KALLSYMS_PATH "host:/proc/kallsyms"
+#endif
 
 struct elf_file
 {
@@ -135,8 +140,10 @@ symbol_addr(const char *symbol)
 	unsigned long addr;
 	char line[256];
 
-	if (!lb_init(&lb, KALLSYMS_PATH))
+	if (!lb_init(&lb, KALLSYMS_PATH)) {
+		printf("Cannot open symbol file %s\n", KALLSYMS_PATH);
 		return (0);
+	}
 	while (lb_1line(&lb, line, sizeof(line))) {
 		char *val, *name, *x, t;
 
@@ -259,11 +266,11 @@ data_from_kernel(const char *sym, void *buf, size_t len)
 
 	addr = symbol_addr(sym);
 	if (addr == 0) {
-		fprintf(stderr, "Can't find symbol %s", sym);
+		fprintf(stderr, "Can't find symbol %s\n", sym);
 		return (false);
 	}
 	if (!read_at_address(addr, buf, len)) {
-		fprintf(stderr, "Can't read from kernel");
+		fprintf(stderr, "Can't read from kernel\n");
 		return (false);
 	}
 	return (true);

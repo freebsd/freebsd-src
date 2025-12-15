@@ -79,11 +79,7 @@ ufshci_ctrlr_start(struct ufshci_controller *ctrlr, bool resetting)
 		return;
 	}
 
-	/* Initialize UFS Power Mode */
-	if (ufshci_dev_init_ufs_power_mode(ctrlr) != 0) {
-		ufshci_ctrlr_fail(ctrlr);
-		return;
-	}
+	ufshci_dev_init_uic_link_state(ctrlr);
 
 	/* Read Controller Descriptor (Device, Geometry) */
 	if (ufshci_dev_get_descriptor(ctrlr) != 0) {
@@ -96,6 +92,8 @@ ufshci_ctrlr_start(struct ufshci_controller *ctrlr, bool resetting)
 		return;
 	}
 
+	ufshci_dev_init_auto_hibernate(ctrlr);
+
 	/* TODO: Configure Write Protect */
 
 	/* TODO: Configure Background Operations */
@@ -105,6 +103,12 @@ ufshci_ctrlr_start(struct ufshci_controller *ctrlr, bool resetting)
 	 * and does not need to be attached again.
 	 */
 	if (!resetting && ufshci_sim_attach(ctrlr) != 0) {
+		ufshci_ctrlr_fail(ctrlr);
+		return;
+	}
+
+	/* Initialize UFS Power Mode */
+	if (ufshci_dev_init_ufs_power_mode(ctrlr) != 0) {
 		ufshci_ctrlr_fail(ctrlr);
 		return;
 	}
@@ -187,7 +191,7 @@ ufshci_ctrlr_enable_host_ctrlr(struct ufshci_controller *ctrlr)
 	return (0);
 }
 
-static int
+int
 ufshci_ctrlr_disable(struct ufshci_controller *ctrlr)
 {
 	int error;
@@ -609,4 +613,70 @@ ufshci_reg_dump(struct ufshci_controller *ctrlr)
 	UFSHCI_DUMP_REG(ctrlr, uecdme);
 
 	ufshci_printf(ctrlr, "========================================\n");
+}
+
+int
+ufshci_ctrlr_suspend(struct ufshci_controller *ctrlr, enum power_stype stype)
+{
+	int error;
+
+	if (!ctrlr->ufs_dev.power_mode_supported)
+		return (0);
+
+	/* TODO: Need to flush the request queue */
+
+	if (ctrlr->ufs_device_wlun_periph) {
+		ctrlr->ufs_dev.power_mode = power_map[stype].dev_pwr;
+		error = ufshci_sim_send_ssu(ctrlr, /*start*/ false,
+		    power_map[stype].ssu_pc, /*immed*/ false);
+		if (error) {
+			ufshci_printf(ctrlr,
+			    "Failed to send SSU in suspend handler\n");
+			return (error);
+		}
+	}
+
+	/* Change the link state */
+	error = ufshci_dev_link_state_transition(ctrlr,
+	    power_map[stype].link_state);
+	if (error) {
+		ufshci_printf(ctrlr,
+		    "Failed to transition link state in suspend handler\n");
+		return (error);
+	}
+
+	return (0);
+}
+
+int
+ufshci_ctrlr_resume(struct ufshci_controller *ctrlr, enum power_stype stype)
+{
+	int error;
+
+	if (!ctrlr->ufs_dev.power_mode_supported)
+		return (0);
+
+	/* Change the link state */
+	error = ufshci_dev_link_state_transition(ctrlr,
+	    power_map[stype].link_state);
+	if (error) {
+		ufshci_printf(ctrlr,
+		    "Failed to transition link state in resume handler\n");
+		return (error);
+	}
+
+	if (ctrlr->ufs_device_wlun_periph) {
+		ctrlr->ufs_dev.power_mode = power_map[stype].dev_pwr;
+		error = ufshci_sim_send_ssu(ctrlr, /*start*/ false,
+		    power_map[stype].ssu_pc, /*immed*/ false);
+		if (error) {
+			ufshci_printf(ctrlr,
+			    "Failed to send SSU in resume handler\n");
+			return (error);
+		}
+	}
+
+	ufshci_dev_enable_auto_hibernate(ctrlr);
+
+	return (0);
 }

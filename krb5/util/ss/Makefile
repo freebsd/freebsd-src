@@ -85,7 +85,7 @@ ${GEN_SS_ERR_C}: ${GEN_SS_ERR}
 	rm -f et-c-${.PREFIX}.et et-c-${.PREFIX}.c
 
 std_rqs.c: mk_cmds std_rqs.ct ss_err.h
-	./mk_cmds ${KRB5_DIR}/util/ss/std_rqs.ct
+	sh mk_cmds ${KRB5_DIR}/util/ss/std_rqs.ct
 
 .include <bsd.lib.mk>
 

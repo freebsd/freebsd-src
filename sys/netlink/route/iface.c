@@ -363,6 +363,8 @@ dump_iface(struct nl_writer *nw, if_t ifp, const struct nlmsghdr *hdr,
 
 	ifc_dump_ifp_nl(ifp, nw);
 
+	nw->ifp = ifp;
+
         if (nlmsg_end(nw))
 		return (true);
 

@@ -348,6 +348,7 @@ SUBDIR=	\
 	${_rdrand_rng} \
 	${_rdseed_rng} \
 	re \
+	rge \
 	rl \
 	${_rockchip} \
 	rtsx \

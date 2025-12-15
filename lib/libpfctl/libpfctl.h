@@ -584,4 +584,7 @@ int	pfctl_clear_tstats(struct pfctl_handle *h, const struct pfr_table *filter,
 int	pfctl_clear_addrs(struct pfctl_handle *h, const struct pfr_table *filter,
 	    int *ndel, int flags);
 
+int	pfctl_get_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
+	    struct pfr_astats *addr, int *size, int flags);
+
 #endif
