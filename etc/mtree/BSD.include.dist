@@ -12,7 +12,7 @@
     ..
     bsm                 tags=package=audit-dev
     ..
-    bsnmp               tags=package=bsnmp-dev
+    bsnmp
     ..
     c++
         v1
