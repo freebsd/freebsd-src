@@ -47,7 +47,7 @@
 .\" This document is derived in part from the enet man page (enet.4)
 .\" distributed with 4.3BSD Unix.
 .\"
-.Dd October 13, 2021
+.Dd December 10, 2025
 .Dt BPF 4
 .Os
 .Sh NAME
@@ -276,6 +276,31 @@ The (third) argument to
 .Xr ioctl 2
 should be a pointer to the type indicated.
 .Bl -tag -width BIOCGETBUFMODE
+.It Dv BIOCGETIFLIST
+.Pq Li "struct bpf_iflist"
+Returns list of available tapping points, that can later be attached
+to with
+.Dv BIOCSETIF .
+On entry the
+.Vt bi_ubuf
+shall point to user supplied buffer.
+The
+.Vt bi_size
+shall specify length of the buffer, or 0 if the request is used
+to determine the required length.
+The
+.Vt bi_count
+can be used to limit the output to first
+.Va count
+entries, otherwise shall be 0.
+On return, if the buffer length was enough to accomodate all desired entries,
+then the supplied buffer is filled with NUL-terminated names of
+available tapping points and
+.Vt bi_count
+is set to the number of copied names.
+Otherwise
+.Er ENOSPC
+is returned.
 .It Dv BIOCGBLEN
 .Pq Li u_int
 Returns the required buffer length for reads on

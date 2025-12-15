@@ -118,6 +118,15 @@ struct bpf_zbuf {
 	size_t	 bz_buflen;	/* Size of zero-copy buffers. */
 };
 
+/*
+ * Struct used by BIOCGETIFLIST.
+ */
+struct bpf_iflist {
+	u_int	 bi_size;
+	u_int	 bi_count;
+	void	*bi_ubuf;
+};
+
 #define	BIOCGBLEN	_IOR('B', 102, u_int)
 #define	BIOCSBLEN	_IOWR('B', 102, u_int)
 #define	BIOCSETF	_IOW('B', 103, struct bpf_program)
@@ -151,6 +160,7 @@ struct bpf_zbuf {
 #define	BIOCGTSTAMP	_IOR('B', 131, u_int)
 #define	BIOCSTSTAMP	_IOW('B', 132, u_int)
 #define	BIOCSETVLANPCP	_IOW('B', 133, u_int)
+#define	BIOCGETIFLIST	_IOWR('B', 134, struct bpf_iflist)
 
 /* Obsolete */
 #define	BIOCGSEESENT	BIOCGDIRECTION
