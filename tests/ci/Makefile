@@ -82,6 +82,7 @@ KYUA_TEST_FILTERS?=
 META_TAR!=mktemp /tmp/meta.XXXXXX
 META_DIR!=mktemp -d /tmp/meta.XXXXXX
 META_DIROUT!=mktemp -d /tmp/meta.XXXXXX
+ENV_FILE=	${META_DIR}/ci-${OSRELEASE}-${GITREV}-${KERNCONF}.env
 DISC_CAM!=truncate -s 128m /tmp/disk-cam
 EXTRA_DISK_NUM?=5
 DISK_NUMBERS!=jot - 1 ${EXTRA_DISK_NUM}
@@ -201,7 +202,47 @@ CITYPE=smoke
 ci-set-full-var: .PHONY
 CITYPE=full
 
-ci-create-meta: .PHONY
+ci-get-env: .PHONY
+	@echo "TARGET=${TARGET}" > ${ENV_FILE}
+	@echo "TARGET_ARCH=${TARGET_ARCH}" >> ${ENV_FILE}
+	@echo "KERNCONF=${KERNCONF}" >> ${ENV_FILE}
+	@echo "OSRELEASE=${OSRELEASE}" >> ${ENV_FILE}
+	@echo "CIIMAGE=${CIIMAGE}" >> ${ENV_FILE}
+	@echo "CIDISK=${CIDISK}" >> ${ENV_FILE}
+	@echo "VMSIZE=${VMSIZE}" >> ${ENV_FILE}
+	@echo "VM_MEM_SIZE=${VM_MEM_SIZE}" >> ${ENV_FILE}
+	@echo "TIMEOUT=${TIMEOUT}s" >> ${ENV_FILE}
+	@echo "CITYPE=${CITYPE}" >> ${ENV_FILE}
+	@echo "KYUA_TEST_FILTERS='${KYUA_TEST_FILTERS}'" >> ${ENV_FILE}
+	@echo "META_MODE='${METAMODE}'" >> ${ENV_FILE}
+	@echo "USE_QEMU='${USE_QEMU}'" >> ${ENV_FILE}
+	@echo "GITREV='${GITREV}'" >> ${ENV_FILE}
+	@echo "GITBRANCH='${GITBRANCH}'" >> ${ENV_FILE}
+	@echo "GITCOUNT='${GITCOUNT}'" >> ${ENV_FILE}
+	@echo "BUILDDATE='${BUILDDATE}'" >> ${ENV_FILE}
+	@echo "CC='${CC}'" >> ${ENV_FILE}
+	@echo "CFLAGS='${CFLAGS}'" >> ${ENV_FILE}
+	@echo "CPP='${CPP}'" >> ${ENV_FILE}
+	@echo "CXX='${CXX}'" >> ${ENV_FILE}
+	@echo "CXXFLAGS='${CXXFLAGS}'" >> ${ENV_FILE}
+	@echo "COMPILER_FEATURES='${COMPILER_FEATURES}'" >> ${ENV_FILE}
+	@echo "COMPILER_FREEBSD_VERSION='${COMPILER_FREEBSD_VERSION}'" >> ${ENV_FILE}
+	@echo "COMPILER_TYPE='${COMPILER_TYPE}'" >> ${ENV_FILE}
+	@echo "COMPILER_VERSION='${COMPILER_VERSION}'" >> ${ENV_FILE}
+	@echo "HOST_CC='${HOST_CC}'" >> ${ENV_FILE}
+	@echo "HOST_MACHINE='${HOST_MACHINE}'" >> ${ENV_FILE}
+	@echo "HOST_OS='${HOST_OS}'" >> ${ENV_FILE}
+	@echo "HOST_OSMAJOR='${HOST_OSMAJOR}'" >> ${ENV_FILE}
+	@echo "HOST_OSTYPE='${HOST_OSTYPE}'" >> ${ENV_FILE}
+	@echo "LD='${LD}'" >> ${ENV_FILE}
+	@echo "LDFLAGS='${LDFLAGS}'" >> ${ENV_FILE}
+	@echo "MACHINE='${MACHINE}'" >> ${ENV_FILE}
+	@echo "MACHINE_ABI='${MACHINE_ABI}'" >> ${ENV_FILE}
+	@echo "MACHINE_ARCH='${MACHINE_ARCH}'" >> ${ENV_FILE}
+	@echo "MACHINE_CPU='${MACHINE_CPU}'" >> ${ENV_FILE}
+	@echo "MACHINE_CPUARCH='${MACHINE_CPUARCH}'" >> ${ENV_FILE}
+
+ci-create-meta: ci-get-env .PHONY
 	truncate -s 512M ${META_TAR}
 	tar rvf ${META_TAR} -C ${META_DIR} .
 
