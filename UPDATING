@@ -12,6 +12,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20251216:
+	13.5-RELEASE-p8	SA-25:11.ipfw
+			SA-25:12.rtsold
+
+	ipfw denial of service. [SA-25:11.ipfw]
+
+	Remote code execution via ND6 Router Advertisements. [SA-25:12.rtsold]
+
 20251126:
 	13.5-RELEASE-p7	SA-25:10.unbound
 
