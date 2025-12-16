@@ -57,6 +57,27 @@ auto_shutdown()
 	esac
 }
 
+set_environment()
+{
+	if [ "${istar}" -eq 1 ]; then
+		rm -fr ${metadir}
+		mkdir -p ${metadir}
+		tar xvf ${tardev} -C ${metadir}
+		ci_env_file=$(set -- "${metadir}"/ci-*.env; \
+			[ "$#" -eq 1 ] && printf '%s\n' "$1")
+		if [ -z "${ci_env_file}" ]; then
+			echo "ci: No CI environment file found in ${metadir}"
+		else
+			env >> "${ci_env_file}"
+		fi
+	else
+		echo "ERROR: no device with POSIX tar archive format found."
+		# Don't shutdown because this is not run in unattended mode
+		exit 1
+	fi
+
+}
+
 smoke_tests()
 {
 	echo
@@ -72,29 +93,19 @@ full_tests()
 	echo "--------------------------------------------------------------"
 	echo "BOOT sequence COMPLETED"
 	echo "TEST sequence STARTED"
-	if [ "${istar}" -eq 1 ]; then
-		rm -fr ${metadir}
-		mkdir -p ${metadir}
-		tar xvf ${tardev} -C ${metadir}
-		cd /usr/tests
-		set +e
-		kyua \
-			-v parallelism=${parallelism} \
-			test ${freebsdci_test_filters}
-		rc=$?
-		set -e
-		if [ ${rc} -ne 0 ] && [ ${rc} -ne 1 ]; then
-			exit ${rc}
-		fi
-		kyua report --verbose --results-filter passed,skipped,xfail,broken,failed --output test-report.txt
-		kyua report-junit --output=test-report.xml
-		mv test-report.* /${metadir}
-		tar cvf ${tardev} -C ${metadir} .
-	else
-		echo "ERROR: no device with POSIX tar archive format found."
-		# Don't shutdown because this is not run in unattended mode
-		exit 1
+	cd /usr/tests
+	set +e
+	kyua \
+		-v parallelism=${parallelism} \
+		test ${freebsdci_test_filters}
+	rc=$?
+	set -e
+	if [ ${rc} -ne 0 ] && [ ${rc} -ne 1 ]; then
+		exit ${rc}
 	fi
+	kyua report --verbose --results-filter passed,skipped,xfail,broken,failed --output test-report.txt
+	kyua report-junit --output=test-report.xml
+	mv test-report.* /${metadir}
 	echo "TEST sequence COMPLETED"
 	echo "INITIATING system SHUTDOWN"
 	echo "--------------------------------------------------------------"
@@ -102,11 +113,13 @@ full_tests()
 
 firstboot_ci_run()
 {
+	set_environment
 	if [ "$freebsdci_type" = "smoke" ]; then
 		smoke_tests
 	elif [ "$freebsdci_type" = "full" ]; then
 		full_tests
 	fi
+	tar cvf ${tardev} -C ${metadir} .
 	auto_shutdown
 }
 
