@@ -472,6 +472,11 @@ log" },
 	{	110019,	"sync update could not find NAT entry" },
 	{	110020,	"unrecognised sync NAT command" },
 	{	110021,	"ioctls are not handled with sync" },
+	/* missing entries 110022-110024 */
+	{	110025,	"invalid payload length (sync create state)" },
+	{	110026,	"invalid payload length (sync update state)" },
+	{	110027,	"invalid payload length (sync create NAT)" },
+	{	110028,	"invalid payload length (sync update NAT)" },
 /* -------------------------------------------------------------------------- */
 	{	120001,	"null data pointer for iterator" },
 	{	120002,	"unit outside of acceptable range" },
