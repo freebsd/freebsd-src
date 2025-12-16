@@ -1230,7 +1230,7 @@ lio_setup_nic_devices(struct octeon_device *octeon_dev)
 	unsigned int	gmx_port_id;
 	uint32_t	ctx_size, data_size;
 	uint32_t	ifidx_or_pfnum, resp_size;
-	uint8_t		mac[ETHER_HDR_LEN], i, j;
+	uint8_t		mac[ETHER_ADDR_LEN], i, j;
 
 	/* This is to handle link status changes */
 	lio_register_dispatch_fn(octeon_dev, LIO_OPCODE_NIC,
@@ -1373,9 +1373,7 @@ lio_setup_nic_devices(struct octeon_device *octeon_dev)
 		lio_init_ifnet(lio);
 		/* 64-bit swap required on LE machines */
 		lio_swap_8B_data(&lio->linfo.hw_addr, 1);
-		for (j = 0; j < 6; j++)
-			mac[j] = *((uint8_t *)(
-				   ((uint8_t *)&lio->linfo.hw_addr) + 2 + j));
+		memcpy(mac, (uint8_t *)&lio->linfo.hw_addr + 2, ETHER_ADDR_LEN);
 
 		ether_ifattach(ifp, mac);
 
@@ -1579,7 +1577,7 @@ lio_open(void *arg)
 	struct lio	*lio = arg;
 	if_t		ifp = lio->ifp;
 	struct octeon_device	*oct = lio->oct_dev;
-	uint8_t	*mac_new, mac_old[ETHER_HDR_LEN];
+	uint8_t	*mac_new, mac_old[ETHER_ADDR_LEN];
 	int	ret = 0;
 
 	lio_ifstate_set(lio, LIO_IFSTATE_RUNNING);
@@ -1593,7 +1591,7 @@ lio_open(void *arg)
 	lio_send_rx_ctrl_cmd(lio, 1);
 
 	mac_new = if_getlladdr(ifp);
-	memcpy(mac_old, ((uint8_t *)&lio->linfo.hw_addr) + 2, ETHER_HDR_LEN);
+	memcpy(mac_old, ((uint8_t *)&lio->linfo.hw_addr) + 2, ETHER_ADDR_LEN);
 
 	if (lio_is_mac_changed(mac_new, mac_old)) {
 		ret = lio_set_mac(ifp, mac_new);
