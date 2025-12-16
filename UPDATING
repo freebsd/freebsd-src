@@ -12,6 +12,17 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20251216:
+	15.0-RELEASE-p1	SA-25:12.rtsold
+			EN-25:19.zfs
+			EN-25:20.vmm
+
+	Remote code execution via ND6 Router Advertisements. [SA-25:12.rtsold]
+
+	Unprivileged kernel NULL pointer dereference. [EN-25:19.zfs]
+
+	bhyve(8) PCI passthru regression. [EN-25:20.vmm]
+
 20251202:
 	15.0-RELEASE.
 
