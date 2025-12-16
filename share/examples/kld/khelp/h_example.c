@@ -45,6 +45,8 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 
+#include <netinet/in.h>
+#include <netinet/in_pcb.h>
 #include <netinet/tcp_var.h>
 
 #include <vm/uma.h>
