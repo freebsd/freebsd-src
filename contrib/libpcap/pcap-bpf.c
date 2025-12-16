@@ -43,7 +43,7 @@
 #endif
 #include <sys/utsname.h>
 
-#if defined(__FreeBSD__) && defined(SIOCIFCREATE2)
+#if defined(__FreeBSD__) && __FreeBSD_version < 1600006
 /*
  * Add support for capturing on FreeBSD usbusN interfaces.
  */
@@ -1721,7 +1721,7 @@ pcap_cleanup_bpf(pcap_t *p)
 		}
 #endif /* HAVE_BSD_IEEE80211 */
 
-#if defined(__FreeBSD__) && defined(SIOCIFCREATE2)
+#if defined(__FreeBSD__) && __FreeBSD_version < 1600006
 		/*
 		 * Attempt to destroy the usbusN interface that we created.
 		 */
@@ -1738,7 +1738,7 @@ pcap_cleanup_bpf(pcap_t *p)
 				}
 			}
 		}
-#endif /* defined(__FreeBSD__) && defined(SIOCIFCREATE2) */
+#endif /* defined(__FreeBSD__) && __FreeBSD_version < 1600006 */
 		/*
 		 * Take this pcap out of the list of pcaps for which we
 		 * have to take the interface out of some mode.
