@@ -333,6 +333,8 @@ int	 sradixsort(const unsigned char **, int, const unsigned char *,
 void	 srandomdev(void);
 long long
 	strtonum(const char *, long long, long long, const char **);
+long long
+	strtonumx(const char *, long long, long long, const char **, int);
 
 /* Deprecated interfaces, to be removed. */
 __int64_t

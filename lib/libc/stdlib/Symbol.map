@@ -134,6 +134,7 @@ FBSD_1.8 {
 FBSD_1.9 {
 	memalignment;
 	recallocarray;
+	strtonumx;
 	tdestroy;
 };
 

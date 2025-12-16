@@ -142,6 +142,7 @@ MLINKS+=strtod.3 strtof.3 \
 MLINKS+=strtol.3 strtoll.3 \
 	strtol.3 strtoq.3 \
 	strtol.3 strtoimax.3
+MLINKS+=strtonum.3 strtonumx.3
 MLINKS+=strtoul.3 strtoull.3 \
 	strtoul.3 strtouq.3 \
 	strtoul.3 strtoumax.3
