@@ -44,13 +44,11 @@ A parameter assignment consists of a single word, the parameter name,
 an equals sign, a value enclosed in double quotes, and a terminating semicolon.
 .Pp
 The syntax of a jail definition is as follows:
-.Bd -unfilled
-. Ar jailname Cm \&{
-.Bd -unfilled -offset indent -compact
-.Ar parameter Cm = Qq Ar value ;
-\&...
-.Ed
-.Cm \&}
+.Bd -literal -offset indent
+jailname {
+    parameter = "value";
+    ...
+}
 .Ed
 .Pp
 This is used by
@@ -234,11 +232,11 @@ bar {
 }
 
 # Include configurations from standard locations.
-\[char46]include "/etc/jail.conf.d/*.conf";
-\[char46]include "/etc/jail.*.conf";
-\[char46]include "/usr/local/etc/jail[.]conf";
-\[char46]include "/usr/local/etc/jail.conf.d/*.conf";
-\[char46]include "/usr/local/etc/jail.*.conf";
+\&.include "/etc/jail.conf.d/*.conf";
+\&.include "/etc/jail.*.conf";
+\&.include "/usr/local/etc/jail[.]conf";
+\&.include "/usr/local/etc/jail.conf.d/*.conf";
+\&.include "/usr/local/etc/jail.*.conf";
 .Ed
 .Sh SEE ALSO
 .Xr jail 2 ,
