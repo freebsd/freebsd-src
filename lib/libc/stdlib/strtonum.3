@@ -1,4 +1,5 @@
 .\" Copyright (c) 2004 Ted Unangst
+.\" Copyright 2023 Oxide Computer Company
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -14,11 +15,12 @@
 .\"
 .\" $OpenBSD: strtonum.3,v 1.13 2006/04/25 05:15:42 tedu Exp $
 .\"
-.Dd April 29, 2004
+.Dd January 15, 2026
 .Dt STRTONUM 3
 .Os
 .Sh NAME
-.Nm strtonum
+.Nm strtonum ,
+.Nm strtonumx
 .Nd "reliably convert string value to an integer"
 .Sh SYNOPSIS
 .In stdlib.h
@@ -29,26 +31,33 @@
 .Fa "long long maxval"
 .Fa "const char **errstr"
 .Fc
+.Ft long long
+.Fo strtonumx
+.Fa "const char *nptr"
+.Fa "long long minval"
+.Fa "long long maxval"
+.Fa "const char **errstr"
+.Fa "int base"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn strtonum
-function converts the string in
+and
+.Fn strtonumx
+functions convert the string in
 .Fa nptr
 to a
 .Vt "long long"
 value.
-The
-.Fn strtonum
-function was designed to facilitate safe, robust programming
-and overcome the shortcomings of the
+These functions were designed to facilitate safe, robust programming and
+overcome the shortcomings of the
 .Xr atoi 3
 and
 .Xr strtol 3
 family of interfaces.
 .Pp
 The string may begin with an arbitrary amount of whitespace
-(as determined by
-.Xr isspace 3 )
+.Pq as determined by Xr isspace 3
 followed by a single optional
 .Ql +
 or
@@ -57,7 +66,10 @@ sign.
 .Pp
 The remainder of the string is converted to a
 .Vt "long long"
-value according to base 10.
+value according to base 10
+.Pq for Fn strtonum
+or the provided base
+.Pq for Fn strtonumx .
 .Pp
 The value obtained is then checked against the provided
 .Fa minval
@@ -68,13 +80,30 @@ If
 .Fa errstr
 is non-null,
 .Fn strtonum
-stores an error string in
+and
+.Fn strtonumx
+store an error string in
 .Fa *errstr
 indicating the failure.
+.Pp
+For
+.Fn strtonumx
+the value of
+.Ar base
+is interpreted in the same way as described in
+.Xr strtoll 3 .
+In particular, if the value of
+.Ar base
+is 0, then the expected form of
+.Ar nptr
+is that of a decimal constant, octal constant or hexadecimal constant, any of
+which may be preceded by a + or - sign.
 .Sh RETURN VALUES
 The
 .Fn strtonum
-function returns the result of the conversion,
+and
+.Fn strtonumx
+functions return the result of the conversion,
 unless the value would exceed the provided bounds or is invalid.
 On error, 0 is returned,
 .Va errno
@@ -90,6 +119,8 @@ a successful return of 0 from an error.
 .Sh EXAMPLES
 Using
 .Fn strtonum
+and
+.Fn strtonumx
 correctly is meant to be simpler than the alternative functions.
 .Bd -literal -offset indent
 int iterations;
@@ -107,7 +138,10 @@ The above example will guarantee that the value of iterations is between
 .It Bq Er ERANGE
 The given string was out of range.
 .It Bq Er EINVAL
-The given string did not consist solely of digit characters.
+The given string did not consist solely of digit characters
+.Pq for Fn strtonum ,
+or characters which are valid in the given base
+.Pq for Fn strtonumx .
 .It Bq Er EINVAL
 The supplied
 .Fa minval
@@ -120,12 +154,15 @@ If an error occurs,
 will be set to one of the following strings:
 .Pp
 .Bl -tag -width ".Li too large" -compact
-.It Li "too large"
+.It Qq too large
 The result was larger than the provided maximum value.
-.It Li "too small"
+.It Qq too small
 The result was smaller than the provided minimum value.
-.It Li invalid
-The string did not consist solely of digit characters.
+.It Qq invalid
+The string did not consist solely of characters valid in the specified base
+.Pq or base 10 for Fn strtonum .
+.It Qq unparsable; invalid base specified
+The specified base was outside the permitted range.
 .El
 .Sh SEE ALSO
 .Xr atof 3 ,
@@ -152,3 +189,6 @@ The
 .Fn strtonum
 function first appeared in
 .Ox 3.6 .
+The
+.Fn strtonumx
+function first appeared in illumos in 2023.
