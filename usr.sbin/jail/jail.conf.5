@@ -234,11 +234,11 @@ bar {
 }
 
 # Include configurations from standard locations.
-\[char46]include "/etc/jail.conf.d/*.conf";
-\[char46]include "/etc/jail.*.conf";
-\[char46]include "/usr/local/etc/jail[.]conf";
-\[char46]include "/usr/local/etc/jail.conf.d/*.conf";
-\[char46]include "/usr/local/etc/jail.*.conf";
+\&.include "/etc/jail.conf.d/*.conf";
+\&.include "/etc/jail.*.conf";
+\&.include "/usr/local/etc/jail[.]conf";
+\&.include "/usr/local/etc/jail.conf.d/*.conf";
+\&.include "/usr/local/etc/jail.*.conf";
 .Ed
 .Sh SEE ALSO
 .Xr jail 2 ,
