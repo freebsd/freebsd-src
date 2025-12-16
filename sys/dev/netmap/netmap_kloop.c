@@ -161,7 +161,8 @@ netmap_sync_kloop_tx_ring(const struct sync_kloop_ring_args *a)
 	struct netmap_kring *kring = a->kring;
 	struct nm_csb_atok *csb_atok = a->csb_atok;
 	struct nm_csb_ktoa *csb_ktoa = a->csb_ktoa;
-	struct netmap_ring shadow_ring; /* shadow copy of the netmap_ring */
+	/* shadow copy of the netmap_ring */
+	struct netmap_ring shadow_ring = {0};
 #ifdef SYNC_KLOOP_POLL
 	bool more_txspace = false;
 #endif /* SYNC_KLOOP_POLL */
@@ -317,7 +318,8 @@ netmap_sync_kloop_rx_ring(const struct sync_kloop_ring_args *a)
 	struct netmap_kring *kring = a->kring;
 	struct nm_csb_atok *csb_atok = a->csb_atok;
 	struct nm_csb_ktoa *csb_ktoa = a->csb_ktoa;
-	struct netmap_ring shadow_ring; /* shadow copy of the netmap_ring */
+	/* shadow copy of the netmap_ring */
+	struct netmap_ring shadow_ring = {0};
 	int dry_cycles = 0;
 #ifdef SYNC_KLOOP_POLL
 	bool some_recvd = false;
