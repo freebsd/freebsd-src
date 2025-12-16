@@ -409,13 +409,16 @@ ipf_sync_write(ipf_main_softc_t *softc, struct uio *uio)
 {
 	ipf_sync_softc_t *softs = softc->ipf_sync_soft;
 	synchdr_t sh;
-
-	/*
-	 * THIS MUST BE SUFFICIENT LARGE TO STORE
-	 * ANY POSSIBLE DATA TYPE
-	 */
-	char data[2048];
-
+	union ipf_sync_data {
+		union ipf_sync_state_data {
+			ipstate_t create;
+			synctcp_update_t update;
+		} state;
+		union ipf_sync_nat_data {
+			nat_t create;
+			syncupdent_t update;
+		} nat;
+	} data;
 	int err = 0;
 
 #  if defined(__NetBSD__) || defined(__FreeBSD__)
@@ -494,18 +497,18 @@ ipf_sync_write(ipf_main_softc_t *softc, struct uio *uio)
 		 * needed for the request
 		 */
 
-		/* not supported */
-		if (sh.sm_len == 0) {
+		/* too short or too long */
+		if (sh.sm_len == 0 || sh.sm_len > sizeof(data)) {
 			if (softs->ipf_sync_debug > 2)
-				printf("uiomove(data zero length %s\n",
-					"not supported");
+				printf("uiomove(data) invalid length %d\n",
+					sh.sm_len);
 			IPFERROR(110006);
 			return (EINVAL);
 		}
 
 		if (uio->uio_resid >= sh.sm_len) {
 
-			err = UIOMOVE(data, sh.sm_len, UIO_WRITE, uio);
+			err = UIOMOVE(&data, sh.sm_len, UIO_WRITE, uio);
 
 			if (err) {
 				if (softs->ipf_sync_debug > 2)
@@ -519,9 +522,9 @@ ipf_sync_write(ipf_main_softc_t *softc, struct uio *uio)
 					sh.sm_len);
 
 			if (sh.sm_table == SMC_STATE)
-				err = ipf_sync_state(softc, &sh, data);
+				err = ipf_sync_state(softc, &sh, &data);
 			else if (sh.sm_table == SMC_NAT)
-				err = ipf_sync_nat(softc, &sh, data);
+				err = ipf_sync_nat(softc, &sh, &data);
 			if (softs->ipf_sync_debug > 7)
 				printf("[%d] Finished with error %d\n",
 					sh.sm_num, err);
@@ -651,6 +654,11 @@ ipf_sync_state(ipf_main_softc_t *softc, synchdr_t *sp, void *data)
 	{
 	case SMC_CREATE :
 
+		if (sp->sm_len != sizeof(sn)) {
+			IPFERROR(110025);
+			err = EINVAL;
+			break;
+		}
 		bcopy(data, &sn, sizeof(sn));
 		KMALLOC(is, ipstate_t *);
 		if (is == NULL) {
@@ -717,6 +725,11 @@ ipf_sync_state(ipf_main_softc_t *softc, synchdr_t *sp, void *data)
 		break;
 
 	case SMC_UPDATE :
+		if (sp->sm_len != sizeof(su)) {
+			IPFERROR(110026);
+			err = EINVAL;
+			break;
+		}
 		bcopy(data, &su, sizeof(su));
 
 		if (softs->ipf_sync_debug > 4)
@@ -892,6 +905,11 @@ ipf_sync_nat(ipf_main_softc_t *softc, synchdr_t *sp, void *data)
 			break;
 		}
 
+		if (sp->sm_len != sizeof(*nat)) {
+			IPFERROR(110027);
+			err = EINVAL;
+			break;
+		}
 		nat = (nat_t *)data;
 		bzero((char *)n, offsetof(nat_t, nat_age));
 		bcopy((char *)&nat->nat_age, (char *)&n->nat_age,
@@ -915,6 +933,11 @@ ipf_sync_nat(ipf_main_softc_t *softc, synchdr_t *sp, void *data)
 		break;
 
 	case SMC_UPDATE :
+		if (sp->sm_len != sizeof(su)) {
+			IPFERROR(110028);
+			err = EINVAL;
+			break;
+		}
 		bcopy(data, &su, sizeof(su));
 
 		for (sl = softs->syncnattab[hv]; (sl != NULL);
