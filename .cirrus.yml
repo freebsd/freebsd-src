@@ -4,7 +4,7 @@ compute_engine_instance:
   # gcloud compute images list --project freebsd-org-cloud-dev --no-standard-images
   platform: freebsd
   image_project: freebsd-org-cloud-dev
-  image: freebsd-14-3-release-amd64-ufs
+  image: freebsd-15-0-release-amd64-ufs
   cpu: 8
   memory: 8G
   disk: 40
