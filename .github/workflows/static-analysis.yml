@@ -1,0 +1,121 @@
+name: Static analysis - C/C++
+
+on:
+  push:
+    branches: [ main, stable/15, stable/14, stable/13]
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '**.c'
+      - '**.h'
+      - '**.cc'
+      - '**.cpp'
+      - '**.cxx'
+      - '**.hpp'
+permissions:
+  security-events: write
+  actions: read
+  contents: read
+  packages: read
+
+jobs:
+  cppcheck:
+    name: Cppcheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cppcheck
+
+      - name: Run cppcheck
+        run: |
+          cppcheck sys/amd64 sys/arm sys/arm64 sys/riscv \
+            -icontrib/ -icrypto/ -ietc/ -ignu/ -iinclude/ -ikerberos/ \
+            -ikrb5/ -ilibexec/ -itools/ -itarget/ -itests/ -icddl/ \
+            -istand/ -isecure/ -ishare/ -irescue/ -ibin/ -iusr.sbin/ \
+            -ilib/ -ietc/ -isbin/ -isys/dev/ -iboot/ -iboot/common/ -iboot/i386/ \
+            --enable=warning,performance,portability \
+            --inconclusive \
+            --platform=unix64 \
+            --std=c17 \
+            --suppress=missingIncludeSystem \
+            --suppress=unknownMacro \
+            --suppress=syntaxError \
+            --check-level=normal \
+            --force \
+            -j $(nproc) \
+            --xml \
+            --output-file=report.xml .
+
+      # convert report.xml to report.sarif
+      - uses: Flast/cppcheck-sarif@v2
+        with:
+          input: report.xml
+          output: report.sarif
+
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: report.sarif
+          category: cppcheck
+
+  codeql:
+    name: CodeQL C/C++
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'c-cpp' ]
+
+    steps:
+      - name: Set make jobs
+        run: |
+          echo "MAKEFLAGS=-j$(nproc)" >> $GITHUB_ENV
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          config: >
+            paths:
+              - 'sys/amd64/**' 
+              - 'sys/arm/**'
+              - 'sys/arm64/**'
+              - 'sys/riscv/**'
+            paths-ignore:
+              - 'bin/**'
+              - 'sbin/**'
+              - 'usr.sbin/**'
+              - 'contrib/**'
+              - 'crypto/**'
+              - 'etc/**'
+              - 'gnu/**'
+              - 'include/**'
+              - 'kerberos/**'
+              - 'krb5/**'
+              - 'libexec/**'
+              - 'tools/**'
+              - 'target/**'
+              - 'tests/**'
+              - 'cddl/**'
+              - 'stand/**'
+              - 'secure/**'
+              - 'share/**'
+              - 'rescue/**'
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
+          ram: '8192'
+        env:
+          CODEQL_ACTION_EXTRA_OPTIONS: '{"database":{"interpret-results":["--max-paths", 1]}}'
