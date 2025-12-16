@@ -36,7 +36,9 @@
 	.set stpncpy, __stpncpy
 ARCHFUNCS(__stpncpy)
 	ARCHFUNC(__stpncpy, scalar)
+#if 0 /* temporarily disabled cf. PR 291720 */
 	ARCHFUNC(__stpncpy, baseline)
+#endif
 ENDARCHFUNCS(__stpncpy)
 
 ARCHENTRY(__stpncpy, scalar)
