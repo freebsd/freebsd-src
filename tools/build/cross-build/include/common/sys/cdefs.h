@@ -100,6 +100,14 @@
 	__attribute__((__format__(__printf0__, fmtarg, firstvararg)))
 #endif
 
+#ifndef __nonstring
+#if __has_attribute(__nonstring__)
+#define	__nonstring	__attribute__((__nonstring__))
+#else
+#define	__nonstring
+#endif
+#endif
+
 #ifndef __predict_true
 #define __predict_true(exp) __builtin_expect((exp), 1)
 #endif
