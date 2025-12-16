@@ -169,7 +169,8 @@ sysdecode_utrace(FILE *fp, void *p, size_t len)
 	struct utrace_malloc um;
 	struct utrace_malloc32 *pm;
 #endif
-	static const char rtld_utrace_sig[RTLD_UTRACE_SIG_SZ] = RTLD_UTRACE_SIG;
+	static const char rtld_utrace_sig[RTLD_UTRACE_SIG_SZ] __nonstring =
+	    RTLD_UTRACE_SIG;
 
 	if (len == sizeof(struct utrace_rtld) && bcmp(p, rtld_utrace_sig,
 	    sizeof(rtld_utrace_sig)) == 0)

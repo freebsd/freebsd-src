@@ -49,7 +49,7 @@
 #define	RTLD_UTRACE_SIG			"RTLD"
 
 struct utrace_rtld {
-	char sig[RTLD_UTRACE_SIG_SZ];
+	char sig[RTLD_UTRACE_SIG_SZ] __nonstring;
 	int event;
 	void *handle;
 	void *mapbase;			/* Used for 'parent' and 'init/fini' */
