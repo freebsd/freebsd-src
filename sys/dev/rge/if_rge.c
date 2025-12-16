@@ -2681,3 +2681,5 @@ MODULE_DEPEND(rge, pci, 1, 1, 1);
 MODULE_DEPEND(rge, ether, 1, 1, 1);
 
 DRIVER_MODULE_ORDERED(rge, pci, rge_driver, NULL, NULL, SI_ORDER_ANY);
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, rge, rge_devices,
+    nitems(rge_devices) - 1);
