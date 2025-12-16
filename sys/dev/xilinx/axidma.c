@@ -172,7 +172,7 @@ axidma_setup_cb(device_t dev, int chan_id, void (*cb)(void *), void *arg)
 		return (EEXIST);
 
 	error = bus_setup_intr(dev, sc->res[chan_id + 1],
-	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, cb, arg,
+	    INTR_TYPE_NET | INTR_MPSAFE, NULL, cb, arg,
 	    &sc->ih[chan_id]);
 	if (error)
 		device_printf(dev, "Unable to alloc interrupt resource.\n");
