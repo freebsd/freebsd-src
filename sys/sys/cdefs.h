@@ -394,6 +394,13 @@
 #define	__printf0like(fmtarg, firstvararg)
 #endif
 
+/* To silence warnings about null terminator not fitting into an array. */
+#if __has_attribute(__nonstring__)
+#define	__nonstring	__attribute__((__nonstring__))
+#else
+#define	__nonstring
+#endif
+
 #define	__strong_reference(sym,aliassym)	\
 	extern __typeof (sym) aliassym __attribute__ ((__alias__ (#sym)))
 #ifdef __STDC__
