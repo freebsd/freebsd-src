@@ -2091,6 +2091,8 @@ tmpfs_seek_data_locked(vm_object_t obj, off_t noff)
 	vm_pindex_t p;
 
 	p = swap_pager_seek_data(obj, OFF_TO_IDX(noff));
+	if (p == OBJ_MAX_SIZE)
+		p = obj->size;
 	return (p == OFF_TO_IDX(noff) ? noff : IDX_TO_OFF(p));
 }
 

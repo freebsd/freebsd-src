@@ -2479,8 +2479,6 @@ swap_pager_seek_data(vm_object_t object, vm_pindex_t pindex)
 			return (pages.index);
 		m = vm_radix_iter_step(&pages);
 	}
-	if (swap_index == OBJ_MAX_SIZE)
-		swap_index = object->size;
 	return (swap_index);
 }
 
