@@ -28,7 +28,7 @@ onearg_body() {
 
 atf_test_case dashdash
 dashdash_head() {
-	atf_set descr "One argument"
+	atf_set descr "One argument with double dash"
 	atf_set require.progs "cc"
 }
 dashdash_body() {
