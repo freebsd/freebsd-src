@@ -826,6 +826,8 @@
             ..
             tmpfs
             ..
+            unionfs
+            ..
         ..
         geom
             class

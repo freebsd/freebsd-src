@@ -1478,6 +1478,13 @@ unionfs_rename(struct vop_rename_args *ap)
 			 */
 			VOP_UNLOCK(tdvp);
 			relock_tdvp = true;
+		} else if (fvp->v_type == VLNK) {
+			/*
+			 * The symbolic link case is similar to the
+			 * regular file case.
+			 */
+			VOP_UNLOCK(tdvp);
+			relock_tdvp = true;
 		} else if (fvp->v_type == VDIR && tdvp != fdvp) {
 			/*
 			 * For directories, unionfs_mkshadowdir() will expect
@@ -1500,6 +1507,9 @@ unionfs_rename(struct vop_rename_args *ap)
 			switch (fvp->v_type) {
 			case VREG:
 				error = unionfs_copyfile(fvp, 1, fcnp->cn_cred, td);
+				break;
+			case VLNK:
+				error = unionfs_copylink(fvp, fcnp->cn_cred, td);
 				break;
 			case VDIR:
 				error = unionfs_mkshadowdir(fdvp, fvp, fcnp, td);
