@@ -221,7 +221,8 @@ struct bpf_dltlist32 {
  * structures registered by different layers in the stack (i.e., 802.11
  * frames, ethernet frames, etc).
  */
-static LIST_HEAD(, bpf_if) bpf_iflist = LIST_HEAD_INITIALIZER();
+VNET_DEFINE_STATIC(LIST_HEAD(, bpf_if), bpf_iflist) = LIST_HEAD_INITIALIZER();
+#define	V_bpf_iflist	VNET(bpf_iflist)
 static struct sx	bpf_sx;		/* bpf global lock */
 
 static void	bpfif_ref(struct bpf_if *);
@@ -257,7 +258,8 @@ SYSCTL_INT(_net_bpf, OID_AUTO, maxinsns, CTLFLAG_RW,
 static int bpf_zerocopy_enable = 0;
 SYSCTL_INT(_net_bpf, OID_AUTO, zerocopy_enable, CTLFLAG_RW,
     &bpf_zerocopy_enable, 0, "Enable new zero-copy BPF buffer sessions");
-static SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_MPSAFE | CTLFLAG_RW,
+static SYSCTL_NODE(_net_bpf, OID_AUTO, stats,
+    CTLFLAG_VNET | CTLFLAG_MPSAFE | CTLFLAG_RW,
     bpf_stats_sysctl, "bpf statistics portal");
 
 VNET_DEFINE_STATIC(int, bpf_optimize_writers) = 0;
@@ -1401,7 +1403,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		/*
 		 * Look through attached interfaces for the named one.
 		 */
-		LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+		LIST_FOREACH(bp, &V_bpf_iflist, bif_next) {
 			if (strncmp(ifr->ifr_name, bp->bif_name,
 			    sizeof(ifr->ifr_name)) == 0)
 				break;
@@ -1728,7 +1730,7 @@ bpf_getiflist(struct bpf_iflist *bi)
 	BPF_LOCK();
 
 	cnt = allsize = size = 0;
-	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+	LIST_FOREACH(bp, &V_bpf_iflist, bif_next) {
 		allsize += strlen(bp->bif_name) + 1;
 		if (++cnt == bi->bi_count)
 			size = allsize;
@@ -1748,7 +1750,7 @@ bpf_getiflist(struct bpf_iflist *bi)
 
 	uaddr = bi->bi_ubuf;
 	cnt = 0;
-	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+	LIST_FOREACH(bp, &V_bpf_iflist, bif_next) {
 		u_int len;
 		int error;
 
@@ -2654,7 +2656,7 @@ bpf_attach(const char *name, u_int dlt, u_int hdrlen,
 	bp->bif_methods = methods;
 	refcount_init(&bp->bif_refcnt, 1);
 	BPF_LOCK();
-	LIST_INSERT_HEAD(&bpf_iflist, bp, bif_next);
+	LIST_INSERT_HEAD(&V_bpf_iflist, bp, bif_next);
 	BPF_UNLOCK();
 
 	return (bp);
@@ -2672,7 +2674,7 @@ bpf_ifdetach(struct ifnet *ifp)
 	struct bpf_d *d;
 
 	BPF_LOCK();
-	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+	LIST_FOREACH(bp, &V_bpf_iflist, bif_next) {
 		/* XXXGL: assuming softc is ifnet here */
 		if (bp->bif_softc != ifp)
 			continue;
@@ -2743,7 +2745,7 @@ bpf_getdltlist(struct bpf_d *d, struct bpf_dltlist *bfl)
 
 	name = d->bd_bif->bif_name;
 	n1 = 0;
-	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+	LIST_FOREACH(bp, &V_bpf_iflist, bif_next) {
 		if (bp->bif_name == name)
 			n1++;
 	}
@@ -2756,7 +2758,7 @@ bpf_getdltlist(struct bpf_d *d, struct bpf_dltlist *bfl)
 
 	lst = malloc(n1 * sizeof(u_int), M_TEMP, M_WAITOK);
 	n = 0;
-	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+	LIST_FOREACH(bp, &V_bpf_iflist, bif_next) {
 		if (bp->bif_name != name)
 			continue;
 		lst[n++] = bp->bif_dlt;
@@ -2795,7 +2797,7 @@ bpf_setdlt(struct bpf_d *d, u_int dlt)
 		return (0);
 
 	name = d->bd_bif->bif_name;
-	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+	LIST_FOREACH(bp, &V_bpf_iflist, bif_next) {
 		if (bp->bif_name == name && bp->bif_dlt == dlt)
 			break;
 	}
@@ -2843,7 +2845,7 @@ bpf_zero_counters(void)
 	 * We are protected by global lock here, interfaces and
 	 * descriptors can not be deleted while we hold it.
 	 */
-	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+	LIST_FOREACH(bp, &V_bpf_iflist, bif_next) {
 		CK_LIST_FOREACH(bd, &bp->bif_dlist, bd_next) {
 			counter_u64_zero(bd->bd_rcount);
 			counter_u64_zero(bd->bd_dcount);
@@ -2930,7 +2932,7 @@ bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 	}
 	bpfd_cnt = 0;
 	BPF_LOCK();
-	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+	LIST_FOREACH(bp, &V_bpf_iflist, bif_next) {
 		CK_LIST_FOREACH(bd, &bp->bif_wlist, bd_next)
 			bpfd_cnt++;
 		CK_LIST_FOREACH(bd, &bp->bif_dlist, bd_next)
@@ -2946,7 +2948,7 @@ bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 	}
 	xbdbuf = malloc(bpfd_cnt * sizeof(*xbd), M_BPF, M_WAITOK);
 	index = 0;
-	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+	LIST_FOREACH(bp, &V_bpf_iflist, bif_next) {
 		/* Send writers-only first */
 		CK_LIST_FOREACH(bd, &bp->bif_wlist, bd_next) {
 			MPASS(index <= bpfd_cnt);
