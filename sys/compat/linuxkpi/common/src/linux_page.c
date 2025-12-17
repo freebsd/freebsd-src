@@ -341,6 +341,16 @@ static struct mtx vmmaplock;
 int
 is_vmalloc_addr(const void *addr)
 {
+	struct vmmap *vmmap;
+
+	mtx_lock(&vmmaplock);
+	LIST_FOREACH(vmmap, &vmmaphead[VM_HASH(addr)], vm_next)
+		if (addr == vmmap->vm_addr)
+			break;
+	mtx_unlock(&vmmaplock);
+	if (vmmap != NULL)
+		return (1);
+
 	return (vtoslab((vm_offset_t)addr & ~UMA_SLAB_MASK) != NULL);
 }
 
@@ -414,6 +424,61 @@ vmap(struct page **pages, unsigned int count, unsigned long flags, int prot)
 		return (NULL);
 	vmmap_add((void *)off, size);
 	pmap_qenter(off, pages, count);
+
+	return ((void *)off);
+}
+
+#define	VMAP_MAX_CHUNK_SIZE (65536U / sizeof(struct vm_page)) /* KMEM_ZMAX */
+
+void *
+linuxkpi_vmap_pfn(unsigned long *pfns, unsigned int count, int prot)
+{
+	vm_page_t m, *ma, fma;
+	vm_offset_t off, coff;
+	vm_paddr_t pa;
+	vm_memattr_t attr;
+	size_t size;
+	unsigned int i, c, chunk;
+
+	size = ptoa(count);
+	off = kva_alloc(size);
+	if (off == 0)
+		return (NULL);
+	vmmap_add((void *)off, size);
+
+	chunk = MIN(count, VMAP_MAX_CHUNK_SIZE);
+	attr = pgprot2cachemode(prot);
+	ma = malloc(chunk * sizeof(vm_page_t), M_TEMP, M_WAITOK | M_ZERO);
+	fma = NULL;
+	c = 0;
+	coff = off;
+	for (i = 0; i < count; i++) {
+		pa = IDX_TO_OFF(pfns[i]);
+		m = PHYS_TO_VM_PAGE(pa);
+		if (m == NULL) {
+			if (fma == NULL)
+				fma = malloc(chunk * sizeof(struct vm_page),
+				    M_TEMP, M_WAITOK | M_ZERO);
+			m = fma + c;
+			vm_page_initfake(m, pa, attr);
+		} else {
+			pmap_page_set_memattr(m, attr);
+		}
+		ma[c] = m;
+		c++;
+		if (c == chunk || i == count - 1) {
+			pmap_qenter(coff, ma, c);
+			if (i == count - 1)
+				break;
+			coff += ptoa(c);
+			c = 0;
+			memset(ma, 0, chunk * sizeof(vm_page_t));
+			if (fma != NULL)
+				memset(fma, 0, chunk * sizeof(struct vm_page));
+		}
+	}
+	free(fma, M_TEMP);
+	free(ma, M_TEMP);
 
 	return ((void *)off);
 }

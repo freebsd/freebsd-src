@@ -35,8 +35,11 @@
 #define	VM_MAP		0x0000
 #define	PAGE_KERNEL	0x0000
 
+#define	vmap_pfn(...)	linuxkpi_vmap_pfn(__VA_ARGS__)
+
 void *vmap(struct page **pages, unsigned int count, unsigned long flags,
     int prot);
+void *linuxkpi_vmap_pfn(unsigned long *pfns, unsigned int count, int prot);
 void vunmap(void *addr);
 
 #endif	/* _LINUXKPI_LINUX_VMALLOC_H_ */
