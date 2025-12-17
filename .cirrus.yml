@@ -196,12 +196,12 @@ precommit_task:
       jail: FreeBSD-src
   matrix:
     - name: amd64 smoke test using internal ci systems
-      only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src' || $CIRRUS_BRANCH =~ 'pull/.*'
+      only_if: $CIRRUS_BRANCH =~ 'pull/.*'
       env:
         TARGET: amd64
         TARGET_ARCH: amd64
     - name: aarch64 smoke test using internal ci systems
-      only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src' || $CIRRUS_BRANCH =~ 'pull/.*'
+      only_if: $CIRRUS_BRANCH =~ 'pull/.*'
       env:
         TARGET: arm64
         TARGET_ARCH: aarch64
