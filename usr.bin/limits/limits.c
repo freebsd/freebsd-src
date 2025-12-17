@@ -228,7 +228,7 @@ static struct {
 static struct {
     const char * cap;
     rlim_t (*func)(login_cap_t *, const char *, rlim_t, rlim_t);
-} resources[RLIM_NLIMITS] = {
+} resources[] = {
     { "cputime",	login_getcaptime },
     { "filesize",	login_getcapsize },
     { "datasize",	login_getcapsize },
@@ -245,7 +245,11 @@ static struct {
     { "kqueues",	login_getcapnum  },
     { "umtxp",		login_getcapnum  },
     { "pipebuf",	login_getcapnum  },
+    { "vmms",		login_getcapnum  },
 };
+
+_Static_assert(nitems(resources) == RLIM_NLIMITS,
+    "Please add entries to resources[] for the new limits");
 
 /*
  * One letter for each resource levels.
@@ -254,8 +258,9 @@ static struct {
  * If sys/resource.h defines are changed, this needs
  * to be modified accordingly!
  */
-
-#define RCS_STRING  "tfdscmlunbvpwkoy"
+static const char rcs_string[] = "tfdscmlunbvpwkoyV";
+_Static_assert(sizeof(rcs_string) - 1 == RLIM_NLIMITS,
+    "Please add letters to rcs_string[] for the new limits");
 
 static rlim_t resource_num(int which, int ch, const char *str);
 static void usage(void) __dead2;
@@ -265,8 +270,6 @@ static void print_limit(rlim_t limit, unsigned divisor, const char *inf,
 static void getrlimit_proc(pid_t pid, int resource, struct rlimit *rlp);
 static void setrlimit_proc(pid_t pid, int resource, const struct rlimit *rlp);
 extern char **environ;
-
-static const char rcs_string[] = RCS_STRING;
 
 int
 main(int argc, char *argv[])
@@ -295,7 +298,7 @@ main(int argc, char *argv[])
     pid = -1;
     optarg = NULL;
     while ((ch = getopt(argc, argv,
-      ":EeC:U:BSHP:ab:c:d:f:l:m:n:s:t:u:v:p:w:k:o:y:")) != -1) {
+      ":ab:BC:c:d:Eef:Hk:l:m:n:o:P:p:Ss:t:U:u:V:v:w:y:")) != -1) {
 	switch(ch) {
 	case 'a':
 	    doall = 1;
@@ -552,7 +555,7 @@ usage(void)
 {
     (void)fprintf(stderr,
 	"usage: limits [-C class|-P pid|-U user] [-eaSHBE] "
-	"[-bcdfklmnostuvpw [val]] [[name=val ...] cmd]\n");
+	"[-bcdfklmnostuVvpwy [val]] [[name=val ...] cmd]\n");
     exit(EXIT_FAILURE);
 }
 
@@ -664,6 +667,7 @@ resource_num(int which, int ch, const char *str)
 	case RLIMIT_NPTS:
 	case RLIMIT_KQUEUES:
 	case RLIMIT_UMTXP:
+	case RLIMIT_VMM:
 	    res = strtoq(s, &e, 0);
 	    s = e;
 	    break;

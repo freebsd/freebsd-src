@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.Dd June 25, 2020
+.Dd December 17, 2025
 .Dt LIMITS 1
 .Os
 .Sh NAME
@@ -28,11 +28,11 @@
 .Op Fl C Ar class | Fl P Ar pid | Fl U Ar user
 .Op Fl SHB
 .Op Fl ea
-.Op Fl bcdfklmnopstuvw Op Ar val
+.Op Fl bcdfklmnopstuVvwy Op Ar val
 .Nm
 .Op Fl C Ar class | Fl U Ar user
 .Op Fl SHB
-.Op Fl bcdfklmnopstuvwy Op Ar val
+.Op Fl bcdfklmnopstuVvwy Op Ar val
 .Op Fl E
 .Oo
 .Op Ar name Ns = Ns Ar value ...
@@ -265,6 +265,10 @@ in the entire system is limited to the value of the
 .Va kern.maxproc
 .Xr sysctl 8
 variable.
+.It Fl V Op Ar val
+Select or set the
+.Va vmms
+resource limit.
 .It Fl v Op Ar val
 Select or set the
 .Va virtualmem
