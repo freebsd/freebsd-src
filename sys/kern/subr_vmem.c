@@ -285,10 +285,12 @@ static LIST_HEAD(, vmem) vmem_list = LIST_HEAD_INITIALIZER(vmem_list);
 #define	VMEM_CROSS_P(addr1, addr2, boundary) \
 	((((addr1) ^ (addr2)) & -(boundary)) != 0)
 
-#define	ORDER2SIZE(order)	((order) < VMEM_OPTVALUE ? ((order) + 1) : \
-    (vmem_size_t)1 << ((order) - (VMEM_OPTVALUE - VMEM_OPTORDER - 1)))
-#define	SIZE2ORDER(size)	((size) <= VMEM_OPTVALUE ? ((size) - 1) : \
-    (flsl(size) + (VMEM_OPTVALUE - VMEM_OPTORDER - 2)))
+#define	ORDER2SIZE(order)	((order) < VMEM_OPTVALUE ?	\
+	(vmem_size_t)((order) + 1) :				\
+	(vmem_size_t)1 << ((order) - (VMEM_OPTVALUE - VMEM_OPTORDER - 1)))
+#define	SIZE2ORDER(size)	((size) <= VMEM_OPTVALUE ?	\
+	(int)((size) - 1) :					\
+	(flsl(size) + (VMEM_OPTVALUE - VMEM_OPTORDER - 2)))
 
 /*
  * Maximum number of boundary tags that may be required to satisfy an
