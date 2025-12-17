@@ -2183,6 +2183,18 @@ sdhci_generic_acquire_host(device_t brdev __unused, device_t reqdev)
 	int err = 0;
 
 	SDHCI_LOCK(slot);
+	/*
+	 * If the bus is busy at dump time, it may have stopped in the middle of
+	 * a transaction.  Try to complete that transaction before continuing.
+	 */
+	if (slot->bus_busy && dumping) {
+		SDHCI_UNLOCK(slot);
+		while (slot->req != NULL) {
+			sdhci_generic_intr(slot);
+			DELAY(10);
+		}
+		return (0);
+	}
 	while (slot->bus_busy)
 		msleep(slot, &slot->mtx, 0, "sdhciah", 0);
 	slot->bus_busy++;
