@@ -195,6 +195,10 @@ zero_one_body()
 	jexec alcatraz pfctl -t foo -T show -vv
 
 	atf_check -s exit:0 -e ignore \
+	    -o match:'Addresses:   2' \
+	    jexec alcatraz pfctl -vvsTables
+
+	atf_check -s exit:0 -e ignore \
 	    -o match:'In/Block:.*'"$TABLE_STATS_ZERO_REGEXP" \
 	    -o match:'In/Pass:.*'"$TABLE_STATS_NONZERO_REGEXP" \
 	    -o match:'Out/Block:.*'"$TABLE_STATS_ZERO_REGEXP" \
