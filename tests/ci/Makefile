@@ -59,11 +59,11 @@ ${_V}!=	eval $$(awk '/^${_V}=/{print}' ${.CURDIR}/../../sys/conf/newvers.sh); ec
 .  endfor
 .  for _V in ${TARGET_ARCH}
 .    if !empty(TARGET:M${_V})
-OSRELEASE=	${TYPE}-${REVISION}-${BRANCH}-${TARGET}
-VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET}
+OSRELEASE=	${TYPE}-${REVISION}-${BRANCH:C/[.-\/]/_/g}-${TARGET}
+VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-\/]/_/g}_${TARGET}
 .    else
-OSRELEASE=	${TYPE}-${REVISION}-${BRANCH}-${TARGET}-${TARGET_ARCH}
-VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET_ARCH}
+OSRELEASE=	${TYPE}-${REVISION}-${BRANCH:C/[.-\/]/_/g}-${TARGET}-${TARGET_ARCH}
+VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-\/]/_/g}_${TARGET_ARCH}
 .    endif
 .  endfor
 .endif
