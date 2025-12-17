@@ -3611,7 +3611,8 @@ static struct  snl_attr_parser ap_tstats[] = {
 	{ .type = PF_TS_MATCH, .off = _OUT(pfrts_match), .cb = snl_attr_get_uint64 },
 	{. type = PF_TS_NOMATCH, .off = _OUT(pfrts_nomatch), .cb = snl_attr_get_uint64 },
 	{ .type = PF_TS_TZERO, .off = _OUT(pfrts_tzero), .cb = snl_attr_get_uint64 },
-	{ .type = PF_TS_REFCNT, .off = _OUT(pfrts_cnt), . arg = (void *)PFR_REFCNT_MAX, .cb = snl_attr_get_uint64_into_int_array },
+	{ .type = PF_TS_CNT, .off = _OUT(pfrts_cnt), .cb = snl_attr_get_uint64 },
+	{ .type = PF_TS_REFCNT, .off = _OUT(pfrts_refcnt), . arg = (void *)PFR_REFCNT_MAX, .cb = snl_attr_get_uint64_into_int_array },
 };
 #undef _OUT
 SNL_DECLARE_PARSER(tstats_parser, struct genlmsghdr, snl_f_p_empty, ap_tstats);
