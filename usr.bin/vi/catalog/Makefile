@@ -3,7 +3,7 @@
 .include <bsd.own.mk>
 
 PACKAGE=vi
-V=	${.CURDIR}/../../../contrib/nvi
+VI=	${.CURDIR}/../../../contrib/nvi
 
 FILESGROUPS+=VICAT
 CAT=	dutch english french german polish ru_RU.KOI8-R spanish swedish \
@@ -12,9 +12,9 @@ VICAT=		${CAT}
 VICATDIR=	${FILESDIR}
 VICATPACKAGE=	${PACKAGE}
 
-SCAN=	${V}/cl/*.c ${V}/common/*.c ${V}/ex/*.c ${V}/vi/*.c
+SCAN=	${VI}/cl/*.c ${VI}/common/*.c ${VI}/ex/*.c ${VI}/vi/*.c
 
-.PATH: ${V}/catalog
+.PATH: ${VI}/catalog
 
 all:		dump
 
@@ -24,12 +24,12 @@ WARNS=		3
 # Helper since iconv is non trivial to make a build tool
 utf8convert:
 .for c in dutch french german spanish swedish
-	iconv -f ISO8859-1 -t UTF-8 $V/catalog/$c.base > $c.UTF-8.base
+	iconv -f ISO8859-1 -t UTF-8 ${VI}/catalog/$c.base > $c.UTF-8.base
 .endfor
-	iconv -f ISO8859-2 -t UTF-8 $V/catalog/polish.base > polish.UTF-8.base
-	iconv -f GB2312 -t UTF-8 $V/catalog/zh_CN.GB2312.base > zh_CN.UTF-8.base
-	iconv -f KOI8-R -t UTF-8 $V/catalog/ru_RU.KOI8-R.base > ru_RU.UTF-8.base
-	iconv -f KOI8-U -t UTF-8 $V/catalog/uk_UA.KOI8-U.base > uk_UA.UTF-8.base
+	iconv -f ISO8859-2 -t UTF-8 ${VI}/catalog/polish.base > polish.UTF-8.base
+	iconv -f GB2312 -t UTF-8 ${VI}/catalog/zh_CN.GB2312.base > zh_CN.UTF-8.base
+	iconv -f KOI8-R -t UTF-8 ${VI}/catalog/ru_RU.KOI8-R.base > ru_RU.UTF-8.base
+	iconv -f KOI8-U -t UTF-8 ${VI}/catalog/uk_UA.KOI8-U.base > uk_UA.UTF-8.base
 	
 .for c in dutch french german polish spanish swedish zh_CN ru_RU uk_UA
 CAT+=	$c.UTF-8
