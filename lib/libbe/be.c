@@ -1343,3 +1343,15 @@ be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 
 	return (BE_ERR_SUCCESS);
 }
+
+int
+be_log_history(libbe_handle_t *lbh, const char *message)
+{
+	int err;
+
+	err = zpool_log_history(lbh->lzh, message);
+	if (err)
+		return (set_error(lbh, BE_ERR_UNKNOWN));
+
+	return (BE_ERR_SUCCESS);
+}

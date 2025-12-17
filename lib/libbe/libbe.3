@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 20, 2025
+.Dd December 11, 2025
 .Dt LIBBE 3
 .Os
 .Sh NAME
@@ -144,6 +144,9 @@
 .Pp
 .Ft void
 .Fn be_prop_list_free "nvlist_t *prop_list"
+.Pp
+.Ft int
+.Fn be_log_history "libbe_handle_t *hdl" "const char *message"
 .Sh DESCRIPTION
 .Nm
 interfaces with libzfs to provide a set of functions for various operations
@@ -536,6 +539,14 @@ exactly as specified by
 The
 .Fn be_prop_list_free
 function will free the property list.
+.Pp
+The
+.Fn be_log_history
+function will log the given
+.Fa message
+to the zpool history, which can be later retrieved using the
+.Xr zpool-history 8
+command.
 .Sh DIAGNOSTICS
 Upon error, one of the following values will be returned:
 .Bl -bullet -offset indent -compact
@@ -583,7 +594,8 @@ BE_ERR_UNKNOWN
 BE_ERR_INVORIGIN
 .El
 .Sh SEE ALSO
-.Xr bectl 8
+.Xr bectl 8 ,
+.Xr zpool-history 8
 .Sh HISTORY
 .Xr bectl 8
 and
