@@ -868,6 +868,8 @@
 #define	  BUCSR_BBFI		0x00000200	/* Branch Buffer Flash Invalidate */
 
 #define	SPR_MMUCFG		0x3f7	/* ..8 MMU Configuration Register */
+#define	  MMUCFG_LPIDSIZE_M	  0x0F000000
+#define	  MMUCFG_LPIDSIZE_S	  24
 #define	  MMUCFG_PIDSIZE_M	  0x000007c0
 #define	  MMUCFG_PIDSIZE_S	  6
 #define	  MMUCFG_MAVN_M		  0x00000003
