@@ -1,0 +1,57 @@
+.\"
+.\" Copyright (c) 2024 Rick Parrish <unitrunker@unitrunker.net>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd December 18, 2025
+.Dt MQ_GETFD_NP 3
+.Os
+.Sh NAME
+.Nm mq_getfd_np
+.Nd get a file descriptor for an open message queue descriptor
+.Sh SYNOPSIS
+.Lb librt
+.In mqueue.h
+.Ft int
+.Fn mq_getfd_np "mqd_t mqd"
+.Sh DESCRIPTION
+The
+.Nm
+function retrieves the underlying file descriptor
+from the given message queue descriptor returned from
+.Xr mq_open 2 .
+The file descriptor is used by other functions
+to refer to that message queue.
+The
+.Fa mqd
+argument must be an open message queue descriptor.
+.Sh IMPLEMENTATION NOTES
+.Fx
+implements retrieval or alteration of message queue attributes
+based on the file descriptor.
+The open file descriptor is copied into a child after
+.Xr fork 2 .
+The
+.Xr fstat 2 ,
+.Xr fchmod 2 ,
+and
+.Xr fchown 2
+system calls are supported for the file descriptor.
+.Pp
+The file descriptor is safe to use so long as
+the message queue descriptor remains open.
+.Sh RETURN VALUES
+Upon successful completion, the function returns a file descriptor.
+.Sh ERRORS
+The
+.Nm
+function does not return any errors.
+.Sh SEE ALSO
+.Xr mq_close 2 ,
+.Xr mq_open 2 ,
+.Xr mqueuefs 4
+.Sh HISTORY
+Support for the
+.Nm
+function first appeared in
+.Fx 11.0 .
