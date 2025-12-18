@@ -1285,6 +1285,7 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	 */
 	CURVNET_SET_QUIET(new_vnet);
 	if_attach_internal(ifp, true);
+	bpf_vmove(ifp->if_bpf);
 	CURVNET_RESTORE();
 }
 

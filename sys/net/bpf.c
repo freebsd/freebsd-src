@@ -2722,6 +2722,22 @@ bpf_detach(struct bpf_if *bp)
 	BPF_UNLOCK();
 }
 
+#ifdef VIMAGE
+/*
+ * Move bpf to a different VNET.  This KPI is a crutch to support if_vmove
+ * and is not supposed to be used anywhere else.
+ */
+void
+bpf_vmove(struct bpf_if *bp)
+{
+
+	BPF_LOCK();
+	LIST_REMOVE(bp, bif_next);
+	LIST_INSERT_HEAD(&V_bpf_iflist, bp, bif_next);
+	BPF_UNLOCK();
+}
+#endif
+
 bool
 bpf_peers_present_if(struct ifnet *ifp)
 {
