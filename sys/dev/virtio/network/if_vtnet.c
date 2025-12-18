@@ -41,6 +41,7 @@
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/msan.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/random.h>
@@ -4401,6 +4402,22 @@ vtnet_setup_stat_sysctl(struct sysctl_ctx_list *ctx,
 	    "Times the transmit interrupt task rescheduled itself");
 }
 
+static int
+vtnet_sysctl_flags(SYSCTL_HANDLER_ARGS)
+{
+	struct vtnet_softc *sc;
+	struct sbuf *sb;
+	int error;
+
+	sb = sbuf_new_auto();
+	sc = (struct vtnet_softc *)arg1;
+	sbuf_printf(sb, "%b", sc->vtnet_flags, VTNET_FLAGS_BITS);
+	sbuf_finish(sb);
+	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	sbuf_delete(sb);
+	return (error);
+}
+
 static void
 vtnet_setup_sysctl(struct vtnet_softc *sc)
 {
@@ -4423,6 +4440,9 @@ vtnet_setup_sysctl(struct vtnet_softc *sc)
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "act_vq_pairs",
 	    CTLFLAG_RD, &sc->vtnet_act_vq_pairs, 0,
 	    "Number of active virtqueue pairs");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "flags",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+	    vtnet_sysctl_flags, "A", "Flags");
 
 	vtnet_setup_stat_sysctl(ctx, child, sc);
 }

@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 30, 2025
+.Dd December 18, 2025
 .Dt VTNET 4
 .Os
 .Sh NAME
@@ -267,6 +267,8 @@ The number of active virtqueue pairs.
 The number of requested virtqueue pairs.
 .It Va dev.vtnet. Ns Ar X Ns Va .max_vq_pairs
 The maximum number of supported virtqueue pairs.
+.It Va dev.vtnet. Ns Ar X Ns Va .flags
+The flags of the interface. Mostly for debugging purposes.
 .El
 .Sh SEE ALSO
 .Xr arp 4 ,
