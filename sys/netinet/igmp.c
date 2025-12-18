@@ -690,7 +690,7 @@ igmp_ifdetach(struct ifnet *ifp)
 	SLIST_INIT(&inm_free_tmp);
 	IGMP_LOCK();
 
-	igi = ((struct in_ifinfo *)ifp->if_afdata[AF_INET])->ii_igmp;
+	igi = ((struct in_ifinfo *)ifp->if_inet)->ii_igmp;
 	if (igi->igi_version == IGMP_VERSION_3) {
 		IF_ADDR_WLOCK(ifp);
 		NET_EPOCH_ENTER(et);
@@ -781,7 +781,7 @@ igmp_input_v1_query(struct ifnet *ifp, const struct ip *ip,
 	IN_MULTI_LIST_LOCK();
 	IGMP_LOCK();
 
-	igi = ((struct in_ifinfo *)ifp->if_afdata[AF_INET])->ii_igmp;
+	igi = ((struct in_ifinfo *)ifp->if_inet)->ii_igmp;
 	KASSERT(igi != NULL, ("%s: no igmp_ifsoftc for ifp %p", __func__, ifp));
 
 	if (igi->igi_flags & IGIF_LOOPBACK) {
@@ -874,7 +874,7 @@ igmp_input_v2_query(struct ifnet *ifp, const struct ip *ip,
 	IN_MULTI_LIST_LOCK();
 	IGMP_LOCK();
 
-	igi = ((struct in_ifinfo *)ifp->if_afdata[AF_INET])->ii_igmp;
+	igi = ((struct in_ifinfo *)ifp->if_inet)->ii_igmp;
 	KASSERT(igi != NULL, ("%s: no igmp_ifsoftc for ifp %p", __func__, ifp));
 
 	if (igi->igi_flags & IGIF_LOOPBACK) {
@@ -1066,7 +1066,7 @@ igmp_input_v3_query(struct ifnet *ifp, const struct ip *ip,
 	IN_MULTI_LIST_LOCK();
 	IGMP_LOCK();
 
-	igi = ((struct in_ifinfo *)ifp->if_afdata[AF_INET])->ii_igmp;
+	igi = ((struct in_ifinfo *)ifp->if_inet)->ii_igmp;
 	KASSERT(igi != NULL, ("%s: no igmp_ifsoftc for ifp %p", __func__, ifp));
 
 	if (igi->igi_flags & IGIF_LOOPBACK) {
@@ -2347,7 +2347,7 @@ igmp_change_state(struct in_multi *inm)
 
 	IGMP_LOCK();
 
-	igi = ((struct in_ifinfo *)ifp->if_afdata[AF_INET])->ii_igmp;
+	igi = ((struct in_ifinfo *)ifp->if_inet)->ii_igmp;
 	KASSERT(igi != NULL, ("%s: no igmp_ifsoftc for ifp %p", __func__, ifp));
 
 	/*

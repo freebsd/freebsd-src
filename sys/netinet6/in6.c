@@ -478,7 +478,7 @@ in6_control_ioctl(u_long cmd, void *data,
 		/* FALLTHROUGH */
 	case SIOCGIFSTAT_IN6:
 	case SIOCGIFSTAT_ICMP6:
-		if (ifp->if_afdata[AF_INET6] == NULL) {
+		if (ifp->if_inet6 == NULL) {
 			error = EPFNOSUPPORT;
 			goto out;
 		}
@@ -525,15 +525,13 @@ in6_control_ioctl(u_long cmd, void *data,
 		break;
 
 	case SIOCGIFSTAT_IN6:
-		COUNTER_ARRAY_COPY(((struct in6_ifextra *)
-		    ifp->if_afdata[AF_INET6])->in6_ifstat,
+		COUNTER_ARRAY_COPY(ifp->if_inet6->in6_ifstat,
 		    &ifr->ifr_ifru.ifru_stat,
 		    sizeof(struct in6_ifstat) / sizeof(uint64_t));
 		break;
 
 	case SIOCGIFSTAT_ICMP6:
-		COUNTER_ARRAY_COPY(((struct in6_ifextra *)
-		    ifp->if_afdata[AF_INET6])->icmp6_ifstat,
+		COUNTER_ARRAY_COPY(ifp->if_inet6->icmp6_ifstat,
 		    &ifr->ifr_ifru.ifru_icmp6stat,
 		    sizeof(struct icmp6_ifstat) / sizeof(uint64_t));
 		break;
@@ -2567,16 +2565,14 @@ in6_lltattach(struct ifnet *ifp)
 struct lltable *
 in6_lltable_get(struct ifnet *ifp)
 {
-	struct lltable *llt = NULL;
+	if (ifp->if_inet6 == NULL)
+		return (NULL);
 
-	void *afdata_ptr = ifp->if_afdata[AF_INET6];
-	if (afdata_ptr != NULL)
-		llt = ((struct in6_ifextra *)afdata_ptr)->lltable;
-	return (llt);
+	return (ifp->if_inet6->lltable);
 }
 
-void *
-in6_domifattach(struct ifnet *ifp)
+void
+in6_ifarrival(void *arg __unused, struct ifnet *ifp)
 {
 	struct in6_ifextra *ext;
 
@@ -2584,7 +2580,8 @@ in6_domifattach(struct ifnet *ifp)
 	switch (ifp->if_type) {
 	case IFT_PFLOG:
 	case IFT_PFSYNC:
-		return (NULL);
+		ifp->if_inet6 = NULL;
+		return;
 	}
 	ext = (struct in6_ifextra *)malloc(sizeof(*ext), M_IFADDR, M_WAITOK);
 	bzero(ext, sizeof(*ext));
@@ -2606,33 +2603,15 @@ in6_domifattach(struct ifnet *ifp)
 
 	ext->mld_ifinfo = mld_domifattach(ifp);
 
-	return ext;
+	ifp->if_inet6 = ext;
 }
+EVENTHANDLER_DEFINE(ifnet_arrival_event, in6_ifarrival, NULL,
+    EVENTHANDLER_PRI_ANY);
 
 uint32_t
 in6_ifmtu(struct ifnet *ifp)
 {
 	return (IN6_LINKMTU(ifp));
-}
-
-void
-in6_domifdetach(struct ifnet *ifp, void *aux)
-{
-	struct in6_ifextra *ext = (struct in6_ifextra *)aux;
-
-	MPASS(ifp->if_afdata[AF_INET6] == NULL);
-
-	mld_domifdetach(ifp);
-	scope6_ifdetach(ext->scope6_id);
-	nd6_ifdetach(ifp, ext->nd_ifinfo);
-	lltable_free(ext->lltable);
-	COUNTER_ARRAY_FREE(ext->in6_ifstat,
-	    sizeof(struct in6_ifstat) / sizeof(uint64_t));
-	free(ext->in6_ifstat, M_IFADDR);
-	COUNTER_ARRAY_FREE(ext->icmp6_ifstat,
-	    sizeof(struct icmp6_ifstat) / sizeof(uint64_t));
-	free(ext->icmp6_ifstat, M_IFADDR);
-	free(ext, M_IFADDR);
 }
 
 /*
@@ -2736,7 +2715,7 @@ in6_purge_proxy_ndp(struct ifnet *ifp)
 	struct lltable *llt;
 	bool need_purge;
 
-	if (ifp->if_afdata[AF_INET6] == NULL)
+	if (ifp->if_inet6 == NULL)
 		return;
 
 	llt = LLTABLE6(ifp);

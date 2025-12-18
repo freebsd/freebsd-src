@@ -242,10 +242,6 @@ db_print_domain(struct domain *d, const char *domain_name, int indent)
 
 	db_print_indent(indent);
 	db_printf("dom_rtattach: %p   ", d->dom_rtattach);
-
-	db_print_indent(indent);
-	db_printf("dom_ifattach: %p   ", d->dom_ifattach);
-	db_printf("dom_ifdetach: %p\n", d->dom_ifdetach);
 }
 
 static void

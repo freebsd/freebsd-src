@@ -684,7 +684,6 @@ int	 inet_aton(const char *, struct in_addr *); /* in libkern */
 char	*inet_ntoa_r(struct in_addr ina, char *buf); /* in libkern */
 char	*inet_ntop(int, const void *, char *, socklen_t); /* in libkern */
 int	 inet_pton(int af, const char *, void *); /* in libkern */
-void	 in_ifdetach(struct ifnet *);
 
 static inline bool
 in_broadcast(struct in_addr in)

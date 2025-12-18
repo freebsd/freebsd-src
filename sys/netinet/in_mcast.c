@@ -500,7 +500,7 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 
 	IN_MULTI_LOCK_ASSERT();
 
-	ii = (struct in_ifinfo *)ifp->if_afdata[AF_INET];
+	ii = (struct in_ifinfo *)ifp->if_inet;
 	IN_MULTI_LIST_LOCK();
 	inm = inm_lookup(ifp, *group);
 	if (inm != NULL) {

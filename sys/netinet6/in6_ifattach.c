@@ -50,6 +50,7 @@
 #include <net/if_dl.h>
 #include <net/if_private.h>
 #include <net/if_types.h>
+#include <net/if_llatbl.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -783,7 +784,8 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 {
 	struct in6_ifaddr *ia;
 
-	if (ifp->if_afdata[AF_INET6] == NULL)
+	/* XXXGL: can this happen after IFT_PFLOG and IFT_PFSYNC are gone? */
+	if (ifp->if_inet6 == NULL)
 		return;
 	/*
 	 * quirks based on interface type
@@ -857,7 +859,8 @@ _in6_ifdetach(struct ifnet *ifp, int purgeulp)
 {
 	struct ifaddr *ifa, *next;
 
-	if (ifp->if_afdata[AF_INET6] == NULL)
+	/* XXXGL: can this happen after IFT_PFLOG and IFT_PFSYNC are gone? */
+	if (ifp->if_inet6 == NULL)
 		return;
 
 	/*
@@ -894,6 +897,38 @@ in6_ifdetach(struct ifnet *ifp)
 
 	_in6_ifdetach(ifp, 1);
 }
+
+static void
+in6_ifdeparture(void *arg __unused, struct ifnet *ifp)
+{
+	struct in6_ifextra *ext = ifp->if_inet6;
+
+	/* XXXGL: can this happen after IFT_PFLOG and IFT_PFSYNC are gone? */
+	if (ifp->if_inet6 == NULL)
+		return;
+
+#ifdef VIMAGE
+	/*
+	 * On VNET shutdown abort here as the stack teardown will do all
+	 * the work top-down for us.  XXXGL: see comment in in.c:in_ifdetach().
+	 */
+	if (!VNET_IS_SHUTTING_DOWN(ifp->if_vnet))
+#endif
+		_in6_ifdetach(ifp, 1);
+	mld_domifdetach(ifp);
+	scope6_ifdetach(ext->scope6_id);
+	nd6_ifdetach(ifp, ext->nd_ifinfo);
+	lltable_free(ext->lltable);
+	COUNTER_ARRAY_FREE(ext->in6_ifstat,
+	    sizeof(struct in6_ifstat) / sizeof(uint64_t));
+	free(ext->in6_ifstat, M_IFADDR);
+	COUNTER_ARRAY_FREE(ext->icmp6_ifstat,
+	    sizeof(struct icmp6_ifstat) / sizeof(uint64_t));
+	free(ext->icmp6_ifstat, M_IFADDR);
+	free(ext, M_IFADDR);
+}
+EVENTHANDLER_DEFINE(ifnet_departure_event, in6_ifdeparture, NULL,
+    EVENTHANDLER_PRI_ANY);
 
 void
 in6_ifdetach_destroy(struct ifnet *ifp)

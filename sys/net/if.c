@@ -102,7 +102,6 @@
 #endif /* INET */
 #ifdef INET6
 #include <netinet6/in6_var.h>
-#include <netinet6/in6_ifattach.h>
 #endif /* INET6 */
 #endif /* INET || INET6 */
 
@@ -270,8 +269,6 @@ struct mbuf *(*tbr_dequeue_ptr)(struct ifaltq *, int) = NULL;
  * static functions should be prototyped. Currently they are sorted by
  * declaration order.
  */
-static void	if_attachdomain(void *);
-static void	if_attachdomain1(struct ifnet *);
 static int	ifconf(u_long, caddr_t);
 static void	if_input_default(struct ifnet *, struct mbuf *);
 static int	if_requestencap_default(struct ifnet *, struct if_encap_req *);
@@ -347,11 +344,6 @@ SX_SYSINIT_FLAGS(ifnet_sx, &ifnet_sxlock, "ifnet_sx", SX_RECURSE);
 struct sx ifnet_detach_sxlock;
 SX_SYSINIT_FLAGS(ifnet_detach, &ifnet_detach_sxlock, "ifnet_detach_sx",
     SX_RECURSE);
-
-#ifdef VIMAGE
-#define	VNET_IS_SHUTTING_DOWN(_vnet)					\
-    ((_vnet)->vnet_shutdown && (_vnet)->vnet_state < SI_SUB_VNET_DONE)
-#endif
 
 static	if_com_alloc_t *if_com_alloc[256];
 static	if_com_free_t *if_com_free[256];
@@ -553,8 +545,6 @@ if_alloc_domain(u_char type, int numa_domain)
 	IF_ADDR_LOCK_INIT(ifp);
 	TASK_INIT(&ifp->if_linktask, 0, do_link_state_change, ifp);
 	TASK_INIT(&ifp->if_addmultitask, 0, if_siocaddmulti, ifp);
-	ifp->if_afdata_initialized = 0;
-	IF_AFDATA_LOCK_INIT(ifp);
 	CK_STAILQ_INIT(&ifp->if_addrhead);
 	CK_STAILQ_INIT(&ifp->if_multiaddrs);
 	CK_STAILQ_INIT(&ifp->if_groups);
@@ -641,7 +631,6 @@ if_free_deferred(epoch_context_t ctx)
 #ifdef MAC
 	mac_ifnet_destroy(ifp);
 #endif /* MAC */
-	IF_AFDATA_DESTROY(ifp);
 	IF_ADDR_LOCK_DESTROY(ifp);
 	ifq_delete(&ifp->if_snd);
 
@@ -930,8 +919,6 @@ if_attach_internal(struct ifnet *ifp, bool vmove)
 #endif
 	}
 
-	if (domain_init_status >= 2)
-		if_attachdomain1(ifp);
 	EVENTHANDLER_INVOKE(ifnet_arrival_event, ifp);
 	if_link_ifnet(ifp);
 	EVENTHANDLER_INVOKE(ifnet_attached_event, ifp);
@@ -946,45 +933,6 @@ if_epochalloc(void *dummy __unused)
 	net_epoch_preempt = epoch_alloc("Net preemptible", EPOCH_PREEMPT);
 }
 SYSINIT(ifepochalloc, SI_SUB_EPOCH, SI_ORDER_ANY, if_epochalloc, NULL);
-
-static void
-if_attachdomain(void *dummy)
-{
-	struct ifnet *ifp;
-
-	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link)
-		if_attachdomain1(ifp);
-}
-SYSINIT(domainifattach, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_SECOND,
-    if_attachdomain, NULL);
-
-static void
-if_attachdomain1(struct ifnet *ifp)
-{
-	struct domain *dp;
-
-	/*
-	 * Since dp->dom_ifattach calls malloc() with M_WAITOK, we
-	 * cannot lock ifp->if_afdata initialization, entirely.
-	 */
-	IF_AFDATA_LOCK(ifp);
-	if (ifp->if_afdata_initialized >= domain_init_status) {
-		IF_AFDATA_UNLOCK(ifp);
-		log(LOG_WARNING, "%s called more than once on %s\n",
-		    __func__, ifp->if_xname);
-		return;
-	}
-	ifp->if_afdata_initialized = domain_init_status;
-	IF_AFDATA_UNLOCK(ifp);
-
-	/* address family dependent data region */
-	bzero(ifp->if_afdata, sizeof(ifp->if_afdata));
-	SLIST_FOREACH(dp, &domains, dom_next) {
-		if (dp->dom_ifattach)
-			ifp->if_afdata[dp->dom_family] =
-			    (*dp->dom_ifattach)(ifp);
-	}
-}
 
 /*
  * Remove any unicast or broadcast network addresses from an interface.
@@ -1098,9 +1046,6 @@ static void
 if_detach_internal(struct ifnet *ifp, bool vmove)
 {
 	struct ifaddr *ifa;
-	int i;
-	struct domain *dp;
-	void *if_afdata[AF_MAX];
 #ifdef VIMAGE
 	bool shutdown;
 
@@ -1151,7 +1096,7 @@ if_detach_internal(struct ifnet *ifp, bool vmove)
 		 * if_detach() calls us in void context and does not care
 		 * about an early abort notification, so life is splendid :)
 		 */
-		goto finish_vnet_shutdown;
+		return;
 	}
 #endif
 
@@ -1172,20 +1117,6 @@ if_detach_internal(struct ifnet *ifp, bool vmove)
 #endif
 
 	if_purgeaddrs(ifp);
-
-#ifdef INET
-	in_ifdetach(ifp);
-#endif
-
-#ifdef INET6
-	/*
-	 * Remove all IPv6 kernel structs related to ifp.  This should be done
-	 * before removing routing entries below, since IPv6 interface direct
-	 * routes are expected to be removed by the IPv6-specific kernel API.
-	 * Otherwise, the kernel will detect some inconsistency and bark it.
-	 */
-	in6_ifdetach(ifp);
-#endif
 	if_purgemaddrs(ifp);
 
 	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
@@ -1212,43 +1143,6 @@ if_detach_internal(struct ifnet *ifp, bool vmove)
 	}
 
 	rt_flushifroutes(ifp);
-
-#ifdef VIMAGE
-finish_vnet_shutdown:
-#endif
-	/*
-	 * We cannot hold the lock over dom_ifdetach calls as they might
-	 * sleep, for example trying to drain a callout, thus open up the
-	 * theoretical race with re-attaching.
-	 */
-	IF_AFDATA_LOCK(ifp);
-	i = ifp->if_afdata_initialized;
-	ifp->if_afdata_initialized = 0;
-	if (i != 0) {
-		/*
-		 * Defer the dom_ifdetach call.
-		 */
-		_Static_assert(sizeof(if_afdata) == sizeof(ifp->if_afdata),
-		    "array size mismatch");
-		memcpy(if_afdata, ifp->if_afdata, sizeof(if_afdata));
-		memset(ifp->if_afdata, 0, sizeof(ifp->if_afdata));
-	}
-	IF_AFDATA_UNLOCK(ifp);
-	if (i == 0)
-		return;
-	/*
-	 * XXXZL: This net epoch wait is not necessary if we have done right.
-	 * But if we do not, at least we can make a guarantee that threads those
-	 * enter net epoch will see NULL address family dependent data,
-	 * e.g. if_afdata[AF_INET6]. A clear NULL pointer derefence is much
-	 * better than writing to freed memory.
-	 */
-	NET_EPOCH_WAIT();
-	SLIST_FOREACH(dp, &domains, dom_next) {
-		if (dp->dom_ifdetach != NULL &&
-		    if_afdata[dp->dom_family] != NULL)
-			(*dp->dom_ifdetach)(ifp, if_afdata[dp->dom_family]);
-	}
 }
 
 #ifdef VIMAGE
@@ -5121,10 +5015,16 @@ if_getvnet(if_t ifp)
 	return (ifp->if_vnet);
 }
 
-void *
-if_getafdata(if_t ifp, int af)
+struct in_ifinfo *
+if_getinet(if_t ifp)
 {
-	return (ifp->if_afdata[af]);
+	return (ifp->if_inet);
+}
+
+struct in6_ifextra *
+if_getinet6(if_t ifp)
+{
+	return (ifp->if_inet6);
 }
 
 u_int
@@ -5189,8 +5089,6 @@ if_show_ifnet(struct ifnet *ifp)
 	IF_DB_PRINTF("%d", if_amcount);
 	IF_DB_PRINTF("%p", if_addr);
 	IF_DB_PRINTF("%p", if_broadcastaddr);
-	IF_DB_PRINTF("%p", if_afdata);
-	IF_DB_PRINTF("%d", if_afdata_initialized);
 	IF_DB_PRINTF("%u", if_fib);
 	IF_DB_PRINTF("%p", if_vnet);
 	IF_DB_PRINTF("%p", if_home_vnet);

@@ -73,8 +73,7 @@ static struct mtx scope6_lock;
 VNET_DEFINE_STATIC(struct scope6_id, sid_default);
 #define	V_sid_default			VNET(sid_default)
 
-#define SID(ifp) \
-	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->scope6_id)
+#define SID(ifp)	((ifp)->if_inet6->scope6_id)
 
 static int	scope6_get(struct ifnet *, struct scope6_id *);
 static int	scope6_set(struct ifnet *, struct scope6_id *);
@@ -118,7 +117,7 @@ scope6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 {
 	struct in6_ifreq *ifr;
 
-	if (ifp->if_afdata[AF_INET6] == NULL)
+	if (ifp->if_inet6 == NULL)
 		return (EPFNOSUPPORT);
 
 	ifr = (struct in6_ifreq *)data;
@@ -433,7 +432,8 @@ in6_setscope(struct in6_addr *in6, struct ifnet *ifp, u_int32_t *ret_id)
 			struct epoch_tracker et;
 
 			NET_EPOCH_ENTER(et);
-			if (ifp->if_afdata[AF_INET6] == NULL) {
+			/* XXXGL */
+			if (ifp->if_inet6 == NULL) {
 				NET_EPOCH_EXIT(et);
 				return (ENETDOWN);
 			}
@@ -517,7 +517,7 @@ in6_getlinkifnet(uint32_t zoneid)
 		return (NULL);
 
 	/* An interface might not be IPv6 capable. */
-	if (ifp->if_afdata[AF_INET6] == NULL) {
+	if (ifp->if_inet6 == NULL) {
 		log(LOG_NOTICE,
 		    "%s: embedded scope points to an interface without "
 		    "IPv6: %s%%%d.\n", __func__,
