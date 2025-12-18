@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 9, 2023
+.Dd December 4, 2025
 .Dt GEOM 8
 .Os
 .Sh NAME
@@ -36,11 +36,13 @@
 .Ar class
 .Cm help
 .Nm
+.Op Fl -libxo
 .Ar class
 .Cm list
 .Op Fl a
 .Op Ar name ...
 .Nm
+.Op Fl -libxo
 .Ar class
 .Cm status
 .Op Fl ags
@@ -118,6 +120,13 @@ Print detailed information about the geom which provides
 .Ar provider-name .
 .It Fl t
 Display geoms hierarchy as a tree.
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_options 7
+for details on command line arguments.
 .El
 .Pp
 Class-specific commands are implemented as shared libraries which
@@ -205,6 +214,7 @@ geom md unload
 .Sh SEE ALSO
 .Xr libgeom 3 ,
 .Xr geom 4 ,
+.Xr xo_options 7 ,
 .Xr gcache 8 ,
 .Xr gconcat 8 ,
 .Xr geli 8 ,
