@@ -41,7 +41,8 @@ CFLAGS+=-I${KRB5_DIR}/lib \
 	-I${KRB5_OBJTOP}/lib \
 	-I${KRB5_OBJTOP}/lib/gssapi \
 	-I${KRB5_DIR}/lib/gssapi/krb5 \
-	-I${KRB5_DIR}/lib/gssapi/generic
+	-I${KRB5_DIR}/lib/gssapi/generic \
+	-I${KRB5_OBJTOP}/util/profile
 CWARNFLAGS.gcc+=-Wno-alloc-size-larger-than
 
 GEN_KADM_ERR=	kadm_err.et

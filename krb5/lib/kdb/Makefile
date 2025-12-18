@@ -37,7 +37,8 @@ CFLAGS+=${DEFINES} \
 	-I${KRB5_DIR}/lib/kdb \
 	-I${KRB5_OBJTOP}/lib/kdb \
 	-I${KRB5_DIR}/include \
-	-I${KRB5_SRCTOP}/include
+	-I${KRB5_SRCTOP}/include \
+	-I${KRB5_OBJTOP}/util/profile
 
 ADB_ERR=	adb_err.et
 ADB_ERR_C=	${ADB_ERR:S/.et$/.c/}

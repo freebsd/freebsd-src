@@ -35,7 +35,8 @@ CFLAGS+=-I${KRB5_DIR}/lib \
 	-I${KRB5_DIR}/include \
 	-I${KRB5_OBJTOP}/include/krb5_private \
 	-I${KRB5_SRCTOP}/include \
-	-I${KRB5_OBJTOP}/lib
+	-I${KRB5_OBJTOP}/lib \
+	-I${KRB5_OBJTOP}/util/profile
 
 INCSDIR=${INCLUDEDIR}/kadm5
 INCS=	admin.h \

@@ -13,5 +13,7 @@ com_err_3_MIT {
 		add_error_table;
 		error_table_name_r;
 		remove_error_table;
+		com_err_finish_init;
+		com_err_hook_lock;
 };
 HIDDEN { local: __*; _rest*; _save*; *; };

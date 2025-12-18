@@ -3,4 +3,6 @@ test_0_MIT {
 	global:
 		clpreauth_test_initvt;
 		kdcpreauth_test_initvt;
+		make_pa;
+		make_pa_list;
 };

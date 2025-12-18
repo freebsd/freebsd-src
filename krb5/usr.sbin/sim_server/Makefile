@@ -15,7 +15,8 @@ SRCS=	sim_server.c
 
 CFLAGS+=-I${KRB5_DIR}/include \
 	-I${KRB5_SRCTOP}/include \
-	-I${KRB5_DIR}/appl/simple
+	-I${KRB5_DIR}/appl/simple \
+	-I${KRB5_OBJTOP}/util/profile
 
 MAN=
 

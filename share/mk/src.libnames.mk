@@ -59,6 +59,7 @@ _INTERNALLIBS=	\
 		kadmin_common \
 		kprop_util \
 		krb5apputils \
+		krb5profile \
 		krb5ss \
 		lpr \
 		lua \
@@ -419,7 +420,6 @@ _DP_pam+=	ypclnt
 # _DP_apputils=		no dependencies except for libc
 _DP_com_err=		krb5support
 _DP_k5crypto=		com_err krb5support crypto
-_DP_krb5profile=	com_err krb5support
 _DP_gssapi_krb5=	krb5 k5crypto com_err krb5profile krb5support
 _DP_kadm5clnt_mit=	gssrpc gssapi_krb5 krb5 k5crypto krb5support com_err krb5profile
 _DP_kadm5srv_mit=	krb5profile gssrpc gssapi_krb5 kdb5 krb5 k5crypto krb5support com_err

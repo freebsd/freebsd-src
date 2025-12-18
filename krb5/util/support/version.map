@@ -99,5 +99,10 @@ krb5support_0_MIT {
 		krb5int_utf8_lentab;
 		krb5int_utf8_mintab;
 		krb5int_zap;
+		krb5int_call_thread_support_init;
+		krb5int_err_init;
+		krb5int_fac;
+		krb5int_fini_fac;
+		krb5int_init_fac;
 };
 HIDDEN { local: __*; _rest*; _save*; *; };

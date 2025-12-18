@@ -24,7 +24,8 @@ MLINKS=	kadmin.1 kadmin.local.8
 CLEANFILES=	kadmin.1 k5srvutil.1
 
 CFLAGS+=-I${KRB5_DIR}/include \
-	-I${KRB5_SRCTOP}/include
+	-I${KRB5_SRCTOP}/include \
+	-I${KRB5_OBJTOP}/util/profile
 
 kadmin.1:	kadmin.man
 

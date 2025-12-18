@@ -317,6 +317,15 @@ check_epoch_and_opts
 #          "$OBJTOP"/tests/sys/kqueue/libkqueue/*
 #fi
 
+# 20251219 # libkrb5profile is now internal
+for libcompat in "" $ALL_libcompats; do
+	dirprfx=${libcompat:+obj-lib${libcompat}}
+	dir="${OBJTOP%/}/${dirprfx}"/krb5/util/profile
+	if [ -L "${dir}"/libkrb5profile.so ]; then
+		run rm -rfv "${dir}"
+	fi
+done
+
 # 20250904  aef807876c30    moused binary to directory
 if [ -f "$OBJTOP"/usr.sbin/moused/moused ]; then
 	echo "Removing old moused binary"

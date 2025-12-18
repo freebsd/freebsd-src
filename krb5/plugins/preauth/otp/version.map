@@ -2,4 +2,7 @@ HIDDEN { local: __*; _rest*; _save*; *; };
 otp_0_MIT {
 	global:
 		kdcpreauth_otp_initvt;
+		otp_state_free;
+		otp_state_new;
+		otp_state_verify;
 };
