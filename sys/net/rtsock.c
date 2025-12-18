@@ -317,11 +317,11 @@ rtsock_init(void *dummy __unused)
 SYSINIT(rtsock_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rtsock_init, NULL);
 
 static void
-rts_handle_ifnet_arrival(void *arg __unused, struct ifnet *ifp)
+rts_ifnet_attached(void *arg __unused, struct ifnet *ifp)
 {
 	rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
 }
-EVENTHANDLER_DEFINE(ifnet_arrival_event, rts_handle_ifnet_arrival, NULL, 0);
+EVENTHANDLER_DEFINE(ifnet_attached_event, rts_ifnet_attached, NULL, 0);
 
 static void
 rts_handle_ifnet_departure(void *arg __unused, struct ifnet *ifp)
