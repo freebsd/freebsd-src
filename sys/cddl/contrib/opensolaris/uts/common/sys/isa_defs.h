@@ -109,7 +109,7 @@
  *
  *	_LP64:
  *		Long/Pointer are 64 bits, Int is 32 bits.  This is the chosen
- *		implementation for 64-bit ABIs such as SPARC V9.
+ *		implementation for 64-bit ABIs.
  *
  *	_I32LPx:
  *		A compilation environment where 'int' is 32-bit, and
@@ -190,7 +190,7 @@
  * __x86
  *	This is ONLY a synonym for defined(__i386) || defined(__amd64)
  *	which is useful only insofar as these two architectures share
- *	common attributes.  Analogous to __sparc.
+ *	common attributes.
  *
  * _PSM_MODULES
  *	This indicates whether or not the implementation uses PSM
@@ -235,9 +235,6 @@ extern "C" {
 /*
  * Define the appropriate "processor characteristics"
  */
-#ifdef illumos
-#define	_LITTLE_ENDIAN
-#endif
 #define	_STACK_GROWS_DOWNWARD
 #define	_LONG_LONG_LTOH
 #define	_BIT_FIELDS_LTOH
@@ -302,9 +299,6 @@ extern "C" {
 /*
  * Define the appropriate "processor characteristics"
  */
-#ifdef illumos
-#define	_LITTLE_ENDIAN
-#endif
 #define	_STACK_GROWS_DOWNWARD
 #define	_LONG_LONG_LTOH
 #define	_BIT_FIELDS_LTOH
@@ -475,208 +469,12 @@ extern "C" {
 #define	_DONT_USE_1275_GENERIC_NAMES
 #define	_HAVE_CPUID_INSN
 
-#elif defined(__mips__)
-
-/*
- * Define the appropriate "processor characteristics"
- */
-#define	_STACK_GROWS_DOWNWARD
-#define	_LONG_LONG_LTOH
-#define	_BIT_FIELDS_LTOH
-#define	_IEEE_754
-#define	_CHAR_IS_SIGNED
-#define	_BOOL_ALIGNMENT			1
-#define	_CHAR_ALIGNMENT			1
-#define	_SHORT_ALIGNMENT		2
-#define	_INT_ALIGNMENT			4
-#define	_FLOAT_ALIGNMENT		4
-#define	_FLOAT_COMPLEX_ALIGNMENT	4
-#if defined(__mips_n64)
-#define	_LONG_ALIGNMENT			8
-#define	_LONG_LONG_ALIGNMENT		8
-#define	_DOUBLE_ALIGNMENT		8
-#define	_DOUBLE_COMPLEX_ALIGNMENT	8
-#define	_LONG_DOUBLE_ALIGNMENT		8
-#define	_LONG_DOUBLE_COMPLEX_ALIGNMENT	8
-#define	_POINTER_ALIGNMENT		8
-#define	_MAX_ALIGNMENT			8
-#define	_ALIGNMENT_REQUIRED		0
-
-#define	_LONG_LONG_ALIGNMENT_32		_INT_ALIGNMENT
-/*
- * Define the appropriate "implementation choices".
- */
-#if !defined(_LP64)
-#define	_LP64
-#endif
-#else
-#define	_LONG_ALIGNMENT			4
-#define	_LONG_LONG_ALIGNMENT		4
-#define	_DOUBLE_ALIGNMENT		4
-#define	_DOUBLE_COMPLEX_ALIGNMENT	4
-#define	_LONG_DOUBLE_ALIGNMENT		4
-#define	_LONG_DOUBLE_COMPLEX_ALIGNMENT	4
-#define	_POINTER_ALIGNMENT		4
-#define	_MAX_ALIGNMENT			4
-#define	_ALIGNMENT_REQUIRED		0
-
-#define	_LONG_LONG_ALIGNMENT_32		_LONG_LONG_ALIGNMENT
-
-/*
- * Define the appropriate "implementation choices".
- */
-#if !defined(_ILP32)
-#define	_ILP32
-#endif
-#if !defined(_I32LPx) && defined(_KERNEL)
-#define	_I32LPx
-#endif
-#endif
-#define	_SUNOS_VTOC_16
-#define	_DMA_USES_PHYSADDR
-#define	_FIRMWARE_NEEDS_FDISK
-#define	_PSM_MODULES
-#define	_RTC_CONFIG
-#define	_DONT_USE_1275_GENERIC_NAMES
-#define	_HAVE_CPUID_INSN
-
 #elif defined(__powerpc__)
 
 #if defined(__BIG_ENDIAN__)
 #define _BIT_FIELDS_HTOL
 #else
 #define _BIT_FIELDS_LTOH
-#endif
-
-/*
- * The following set of definitions characterize the Solaris on SPARC systems.
- *
- * The symbol __sparc indicates any of the SPARC family of processor
- * architectures.  This includes SPARC V7, SPARC V8 and SPARC V9.
- *
- * The symbol __sparcv8 indicates the 32-bit SPARC V8 architecture as defined
- * by Version 8 of the SPARC Architecture Manual.  (SPARC V7 is close enough
- * to SPARC V8 for the former to be subsumed into the latter definition.)
- *
- * The symbol __sparcv9 indicates the 64-bit SPARC V9 architecture as defined
- * by Version 9 of the SPARC Architecture Manual.
- *
- * The symbols __sparcv8 and __sparcv9 are mutually exclusive, and are only
- * relevant when the symbol __sparc is defined.
- */
-/*
- * XXX Due to the existence of 5110166, "defined(__sparcv9)" needs to be added
- * to support backwards builds.  This workaround should be removed in s10_71.
- */
-#elif defined(__sparc) || defined(__sparcv9) || defined(__sparc__)
-#if !defined(__sparc)
-#define	__sparc
-#endif
-
-/*
- * You can be 32-bit or 64-bit, but not both at the same time.
- */
-#if defined(__sparcv8) && defined(__sparcv9)
-#error	"SPARC Versions 8 and 9 are mutually exclusive choices"
-#endif
-
-/*
- * Existing compilers do not set __sparcv8.  Years will transpire before
- * the compilers can be depended on to set the feature test macro. In
- * the interim, we'll set it here on the basis of historical behaviour;
- * if you haven't asked for SPARC V9, then you must've meant SPARC V8.
- */
-#if !defined(__sparcv9) && !defined(__sparcv8)
-#define	__sparcv8
-#endif
-
-/*
- * Define the appropriate "processor characteristics" shared between
- * all Solaris on SPARC systems.
- */
-#ifdef illumos
-#define	_BIG_ENDIAN
-#endif
-#define	_STACK_GROWS_DOWNWARD
-#define	_LONG_LONG_HTOL
-#define	_BIT_FIELDS_HTOL
-#define	_IEEE_754
-#define	_CHAR_IS_SIGNED
-#define	_BOOL_ALIGNMENT			1
-#define	_CHAR_ALIGNMENT			1
-#define	_SHORT_ALIGNMENT		2
-#define	_INT_ALIGNMENT			4
-#define	_FLOAT_ALIGNMENT		4
-#define	_FLOAT_COMPLEX_ALIGNMENT	4
-#define	_LONG_LONG_ALIGNMENT		8
-#define	_DOUBLE_ALIGNMENT		8
-#define	_DOUBLE_COMPLEX_ALIGNMENT	8
-#define	_ALIGNMENT_REQUIRED		1
-
-/*
- * Define the appropriate "implementation choices" shared between versions.
- */
-#define	_SUNOS_VTOC_8
-#define	_DMA_USES_VIRTADDR
-#define	_NO_FDISK_PRESENT
-#define	_HAVE_TEM_FIRMWARE
-#define	_OBP
-
-/*
- * The following set of definitions characterize the implementation of
- * 32-bit Solaris on SPARC V8 systems.
- */
-#if defined(__sparcv8)
-
-/*
- * Define the appropriate "processor characteristics"
- */
-#define	_LONG_ALIGNMENT			4
-#define	_LONG_DOUBLE_ALIGNMENT		8
-#define	_LONG_DOUBLE_COMPLEX_ALIGNMENT	8
-#define	_POINTER_ALIGNMENT		4
-#define	_MAX_ALIGNMENT			8
-
-#define	_LONG_LONG_ALIGNMENT_32		_LONG_LONG_ALIGNMENT
-
-/*
- * Define the appropriate "implementation choices"
- */
-#define	_ILP32
-#if !defined(_I32LPx) && defined(_KERNEL)
-#define	_I32LPx
-#endif
-
-/*
- * The following set of definitions characterize the implementation of
- * 64-bit Solaris on SPARC V9 systems.
- */
-#elif defined(__sparcv9)
-
-/*
- * Define the appropriate "processor characteristics"
- */
-#define	_LONG_ALIGNMENT			8
-#define	_LONG_DOUBLE_ALIGNMENT		16
-#define	_LONG_DOUBLE_COMPLEX_ALIGNMENT	16
-#define	_POINTER_ALIGNMENT		8
-#define	_MAX_ALIGNMENT			16
-
-#define	_LONG_LONG_ALIGNMENT_32		_LONG_LONG_ALIGNMENT
-
-/*
- * Define the appropriate "implementation choices"
- */
-#if !defined(_LP64)
-#define	_LP64
-#endif
-#if !defined(_I32LPx)
-#define	_I32LPx
-#endif
-#define	_MULTI_DATAMODEL
-
-#else
-#error	"unknown SPARC version"
 #endif
 
 /*
