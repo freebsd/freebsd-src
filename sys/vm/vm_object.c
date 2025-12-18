@@ -2163,7 +2163,7 @@ boolean_t
 vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
     vm_size_t prev_size, vm_size_t next_size, boolean_t reserved)
 {
-	vm_pindex_t next_pindex;
+	vm_pindex_t next_end, next_pindex;
 
 	if (prev_object == NULL)
 		return (TRUE);
@@ -2197,6 +2197,8 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 		return (FALSE);
 	}
 
+	next_end = next_pindex + next_size;
+
 	/*
 	 * Account for the charge.
 	 */
@@ -2224,14 +2226,13 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 	 * deallocation.
 	 */
 	if (next_pindex < prev_object->size)
-		vm_object_page_remove(prev_object, next_pindex, next_pindex +
-		    next_size, 0);
+		vm_object_page_remove(prev_object, next_pindex, next_end, 0);
 
 	/*
 	 * Extend the object if necessary.
 	 */
-	if (next_pindex + next_size > prev_object->size)
-		prev_object->size = next_pindex + next_size;
+	if (next_end > prev_object->size)
+		prev_object->size = next_end;
 
 #ifdef INVARIANTS
 	/*
@@ -2243,7 +2244,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 		vm_pindex_t pidx;
 
 		pidx = swap_pager_seek_data(prev_object, next_pindex);
-		KASSERT(pidx >= next_pindex + next_size,
+		KASSERT(pidx >= next_end,
 		    ("found obj %p pindex %#jx e %#jx %#jx %#jx",
 		    prev_object, pidx, (uintmax_t)prev_offset,
 		    (uintmax_t)prev_size, (uintmax_t)next_size));
