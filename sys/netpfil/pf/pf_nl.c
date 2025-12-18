@@ -1905,7 +1905,7 @@ pf_handle_del_table(struct nlmsghdr *hdr, struct nl_pstate *npt)
 		return (ENOMEM);
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
-	ghdr_new->cmd = PFNL_CMD_ADD_TABLE;
+	ghdr_new->cmd = PFNL_CMD_DEL_TABLE;
 	ghdr_new->version = 0;
 	ghdr_new->reserved = 0;
 
@@ -2242,7 +2242,7 @@ pf_handle_table_set_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
 		return (ENOMEM);
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
-	ghdr_new->cmd = PFNL_CMD_TABLE_DEL_ADDR;
+	ghdr_new->cmd = PFNL_CMD_TABLE_SET_ADDR;
 	ghdr_new->version = 0;
 	ghdr_new->reserved = 0;
 
