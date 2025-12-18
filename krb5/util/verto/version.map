@@ -33,5 +33,12 @@ verto_0_MIT {
 		verto_set_flags;
 		verto_set_private;
 		verto_set_proc_status;
+		module_close;
+		module_get_filename_for_symbol;
+		module_load;
+		module_symbol_is_present;
+		verto_default_k5ev;
+		verto_module_table_k5ev;
+		verto_new_k5ev;
 };
 HIDDEN { local: __*; _rest*; _save*; *; };

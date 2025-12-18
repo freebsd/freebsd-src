@@ -19,7 +19,8 @@ SRCS=	keytab_local.c
 MAN=	kadmin.local.8
 
 CFLAGS+=-I${KRB5_DIR}/include \
-	-I${KRB5_SRCTOP}/include
+	-I${KRB5_SRCTOP}/include \
+	-I${KRB5_OBJTOP}/util/profile
 
 MAN=
 

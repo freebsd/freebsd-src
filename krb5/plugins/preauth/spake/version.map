@@ -3,4 +3,26 @@ spake_0_MIT {
 	global:
 		clpreauth_spake_initvt;
 		kdcpreauth_spake_initvt;
+		builtin_edwards25519;
+		convert_to_padata;
+		derive_key;
+		derive_wbytes;
+		group_free_state;
+		group_get_permitted;
+		group_hash;
+		group_hash_len;
+		group_init_state;
+		group_is_permitted;
+		group_keygen;
+		group_mult_len;
+		group_optimistic_challenge;
+		group_result;
+		ossl_P256;
+		ossl_P384;
+		ossl_P521;
+		spake_iana_edwards25519;
+		spake_iana_p256;
+		spake_iana_p384;
+		spake_iana_p521;
+		update_thash;
 };

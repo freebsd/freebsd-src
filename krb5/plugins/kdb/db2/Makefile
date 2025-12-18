@@ -42,7 +42,8 @@ CFLAGS+=-I${KRB5_DIR}/plugins/kdb/db2 \
 	-I${KRB5_DIR}/lib/kdb \
 	-I${KRB5_DIR}/lib \
 	-I${KRB5_OBJTOP}/plugins/kdb/db2 \
-	-I${KRB5_OBJTOP}/lib/kdb
+	-I${KRB5_OBJTOP}/lib/kdb \
+	-I${KRB5_OBJTOP}/util/profile
 
 .include <bsd.lib.mk>
 

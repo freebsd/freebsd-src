@@ -16,7 +16,8 @@ SRCS=	kproplog.c
 MAN=	kproplog.8
 
 CFLAGS+=-I${KRB5_DIR}/include \
-	-I${KRB5_SRCTOP}/include
+	-I${KRB5_SRCTOP}/include \
+	-I${KRB5_OBJTOP}/util/profile
 
 .include <bsd.prog.mk>
 

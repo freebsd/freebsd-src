@@ -51,6 +51,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260120: Made libkrb5profile INTERNALLIB
+OLD_LIBS+=usr/lib/libkrb5profile.so.122
+OLD_FILES+=usr/lib/libkrb5profile.so
+
 # 20260114: remove ncurses html documentation
 OLD_FILES+=usr/share/doc/ncurses/hackguide.html
 OLD_FILES+=usr/share/doc/ncurses/ncurses-intro.html

@@ -63,6 +63,7 @@ MANSRC.pam_krb5.8=pam-krb5.8
 
 CFLAGS=	-I${SRCDIR} \
 	-I${.CURDIR} \
+	-I${OBJTOP}/krb5/util/profile \
 	-fno-strict-aliasing \
 	-DHAVE_CONFIG_H
 

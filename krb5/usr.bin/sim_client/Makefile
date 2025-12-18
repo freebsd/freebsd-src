@@ -14,7 +14,8 @@ LIBADD=	krb5 k5crypto com_err krb5profile krb5support sys
 SRCS=	sim_client.c
 
 CFLAGS+=-I${KRB5_DIR}/include \
-	-I${KRB5_SRCTOP}/include
+	-I${KRB5_SRCTOP}/include \
+	-I${KRB5_OBJTOP}/util/profile
 
 MAN=
 

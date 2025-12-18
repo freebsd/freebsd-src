@@ -25,6 +25,7 @@ SRCS=	cltest.c \
 
 CFLAGS+=-I${KRB5_DIR}/plugins/preauth/test \
 	-I${KRB5_DIR}/include \
-	-I${KRB5_SRCTOP}/include
+	-I${KRB5_SRCTOP}/include \
+	-I${KRB5_OBJTOP}/util/profile
 
 .include <bsd.lib.mk>
