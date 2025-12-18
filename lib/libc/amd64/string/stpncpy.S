@@ -36,9 +36,7 @@
 	.set stpncpy, __stpncpy
 ARCHFUNCS(__stpncpy)
 	ARCHFUNC(__stpncpy, scalar)
-#if 0 /* temporarily disabled cf. PR 291720 */
 	ARCHFUNC(__stpncpy, baseline)
-#endif
 ENDARCHFUNCS(__stpncpy)
 
 ARCHENTRY(__stpncpy, scalar)
@@ -93,7 +91,6 @@ ARCHEND(__stpncpy, scalar)
 /* stpncpy(char *restrict rdi, const char *rsi, size_t rdx) */
 ARCHENTRY(__stpncpy, baseline)
 #define bounce		(-3*16-8)		/* location of on-stack bounce buffer */
-
 	test		%rdx, %rdx		# no bytes to copy?
 	jz		.L0
 
@@ -225,8 +222,8 @@ ARCHENTRY(__stpncpy, baseline)
 
 	/* 1--32 bytes to copy, bounce through the stack */
 .Lrunt:	movdqa		%xmm1, bounce+16(%rsp)	# clear out rest of on-stack copy
-	bts		%r10, %r8		# treat end of buffer as end of string
 	and		%r9d, %r8d		# mask out head before string
+	bts		%r10, %r8		# treat end of buffer as end of string
 	test		$0x1ffff, %r8d		# end of string within first chunk or right after?
 	jnz		0f			# if yes, do not inspect second buffer
 
@@ -235,10 +232,10 @@ ARCHENTRY(__stpncpy, baseline)
 	pcmpeqb		%xmm1, %xmm0		# NUL in second chunk?
 	pmovmskb	%xmm0, %r9d
 	shl		$16, %r9d
-	or		%r9d, %r8d		# merge found NUL bytes into NUL mask
+	or		%r9, %r8		# merge found NUL bytes into NUL mask
 
 	/* end of string after one buffer */
-0:	tzcnt		%r8d, %r8d		# location of last char in string
+0:	tzcnt		%r8, %r8		# location of last char in string
 	movdqu		%xmm1, bounce(%rsp, %r8, 1) # clear bytes behind string
 	lea		bounce(%rsp, %rcx, 1), %rsi # start of string copy on stack
 	lea		(%rdi, %r8, 1), %rax	# return pointer to NUL byte
