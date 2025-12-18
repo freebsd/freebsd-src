@@ -425,6 +425,7 @@ CK_LIST_HEAD(bpfd_list, bpf_d);
 struct bpf_if *	bpf_attach(const char *, u_int, u_int,
 	    const struct bif_methods *, void *);
 void	bpf_detach(struct bpf_if *);
+void	bpf_vmove(struct bpf_if *bp);
 void	bpf_bufheld(struct bpf_d *d);
 int	bpf_validate(const struct bpf_insn *, int);
 void	bpf_tap(struct bpf_if *, u_char *, u_int);
