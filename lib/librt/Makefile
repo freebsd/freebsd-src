@@ -24,4 +24,6 @@ SYMBOL_MAPS=${.CURDIR}/Symbol.map
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
+MAN= mq_getfd_np.3
+
 .include <bsd.lib.mk>
