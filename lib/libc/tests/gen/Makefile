@@ -35,7 +35,6 @@ ATF_TESTS_C+=		wordexp_test
 
 # TODO: t_closefrom, t_fmtcheck, t_randomid,
 # TODO: t_siginfo (fixes require further inspection)
-# TODO: t_sethostname_test (consistently screws up the hostname)
 
 FILESGROUPS+=		posix_spawn_test_FILES
 
