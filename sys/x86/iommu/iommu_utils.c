@@ -69,7 +69,7 @@
 #include <x86/iommu/iommu_intrmap.h>
 #ifdef DEV_APIC
 #include "pcib_if.h"
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <x86/apicreg.h>
 #include <x86/apicvar.h>
 #endif
@@ -315,10 +315,12 @@ iommu_unmap_msi_intr(device_t src, u_int cookie)
 }
 
 int
-iommu_map_ioapic_intr(u_int ioapic_id, u_int cpu, u_int vector, bool edge,
+iommu_map_ioapic_intr(u_int ioapic_id, u_int cpu_id, u_int vector, bool edge,
     bool activehi, int irq, u_int *cookie, uint32_t *hi, uint32_t *lo)
 {
-	return (x86_iommu->map_ioapic_intr(ioapic_id, cpu, vector, edge,
+	unsigned int apic_id = cpu_apic_ids[cpu_id];
+
+	return (x86_iommu->map_ioapic_intr(ioapic_id, apic_id, vector, edge,
 	    activehi, irq, cookie, hi, lo));
 }
 

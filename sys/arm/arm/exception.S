@@ -51,8 +51,8 @@
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include <machine/asmacros.h>
+#include <machine/interrupt.h>
 #include <machine/trap.h>
-#include <sys/intr.h>
 
 #ifdef KDTRACE_HOOKS
 	.bss

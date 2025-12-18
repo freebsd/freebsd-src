@@ -37,17 +37,22 @@
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/interrupt.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/stddef.h>
 
+#include <machine/interrupt.h>
+
 #include <xen/xen-os.h>
 #include <xen/xen_intr.h>
+
+#include <machine/interrupt.h>
 #include <machine/xen/arch-intr.h>
 
 #include <x86/apicvar.h>
+
+#include "pic_if.h"
 
 /************************ Xen x86 interrupt interface ************************/
 
@@ -144,7 +149,7 @@ xen_intr_alloc_irqs(void)
 }
 
 static void
-xen_intr_pic_enable_source(struct intsrc *isrc)
+xen_intr_pic_enable_source(device_t pic, struct intsrc *isrc)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
@@ -158,7 +163,7 @@ xen_intr_pic_enable_source(struct intsrc *isrc)
  * \param isrc  The interrupt source to EOI.
  */
 static void
-xen_intr_pic_disable_source(struct intsrc *isrc, int eoi)
+xen_intr_pic_disable_source(device_t pic, struct intsrc *isrc)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
@@ -167,14 +172,14 @@ xen_intr_pic_disable_source(struct intsrc *isrc, int eoi)
 }
 
 static void
-xen_intr_pic_eoi_source(struct intsrc *isrc)
+xen_intr_pic_eoi_source(device_t pic, struct intsrc *isrc)
 {
 
 	/* Nothing to do on end-of-interrupt */
 }
 
 static void
-xen_intr_pic_enable_intr(struct intsrc *isrc)
+xen_intr_pic_enable_intr(device_t pic, struct intsrc *isrc)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
@@ -183,126 +188,66 @@ xen_intr_pic_enable_intr(struct intsrc *isrc)
 }
 
 static void
-xen_intr_pic_disable_intr(struct intsrc *isrc)
+xen_intr_pic_disable_intr(device_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
 	    "xi_arch MUST be at top of xenisrc for x86");
+	xen_intr_disable_source((struct xenisrc *)isrc);
 	xen_intr_disable_intr((struct xenisrc *)isrc);
 }
 
-/**
- * Determine the global interrupt vector number for
- * a Xen interrupt source.
- *
- * \param isrc  The interrupt source to query.
- *
- * \return  The vector number corresponding to the given interrupt source.
- */
-static int
-xen_intr_pic_vector(struct intsrc *isrc)
-{
-
-	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
-	    "xi_arch MUST be at top of xenisrc for x86");
-
-	return (((struct xenisrc *)isrc)->xi_arch.vector);
-}
-
-/**
- * Determine whether or not interrupt events are pending on the
- * the given interrupt source.
- *
- * \param isrc  The interrupt source to query.
- *
- * \returns  0 if no events are pending, otherwise non-zero.
- */
-static int
-xen_intr_pic_source_pending(struct intsrc *isrc)
-{
-	/*
-	 * EventChannels are edge triggered and never masked.
-	 * There can be no pending events.
-	 */
-	return (0);
-}
-
-/**
- * Prepare this PIC for system suspension.
- */
 static void
-xen_intr_pic_suspend(struct pic *pic)
-{
-
-	/* Nothing to do on suspend */
-}
-
-static void
-xen_intr_pic_resume(struct pic *pic, bool suspend_cancelled)
+xen_intr_pic_resume(device_t pic, bool suspend_cancelled)
 {
 
 	if (!suspend_cancelled)
 		xen_intr_resume();
 }
 
-/**
- * Perform configuration of an interrupt source.
- *
- * \param isrc  The interrupt source to configure.
- * \param trig  Edge or level.
- * \param pol   Active high or low.
- *
- * \returns  0 if no events are pending, otherwise non-zero.
- */
-static int
-xen_intr_pic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
-    enum intr_polarity pol)
-{
-	/* Configuration is only possible via the evtchn apis. */
-	return (ENODEV);
-}
-
 
 static int
-xen_intr_pic_assign_cpu(struct intsrc *isrc, u_int apic_id)
+xen_intr_pic_assign_cpu(device_t pic, struct intsrc *isrc, u_int cpu_id)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
 	    "xi_arch MUST be at top of xenisrc for x86");
-	return (xen_intr_assign_cpu((struct xenisrc *)isrc,
-	    apic_cpuid(apic_id)));
+	return (xen_intr_assign_cpu((struct xenisrc *)isrc, cpu_id));
 }
 
 /**
  * PIC interface for all event channel port types except physical IRQs.
  */
-static struct pic xen_intr_pic = {
-	.pic_enable_source  = xen_intr_pic_enable_source,
-	.pic_disable_source = xen_intr_pic_disable_source,
-	.pic_eoi_source     = xen_intr_pic_eoi_source,
-	.pic_enable_intr    = xen_intr_pic_enable_intr,
-	.pic_disable_intr   = xen_intr_pic_disable_intr,
-	.pic_vector         = xen_intr_pic_vector,
-	.pic_source_pending = xen_intr_pic_source_pending,
-	.pic_suspend        = xen_intr_pic_suspend,
-	.pic_resume         = xen_intr_pic_resume,
-	.pic_config_intr    = xen_intr_pic_config_intr,
-	.pic_assign_cpu     = xen_intr_pic_assign_cpu,
+static const device_method_t xen_intr_methods[] = {
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	xen_intr_pic_eoi_source),
+	DEVMETHOD(intr_event_post_ithread,	xen_intr_pic_enable_source),
+	DEVMETHOD(intr_event_pre_ithread,	xen_intr_pic_disable_source),
+
+	/* Interrupt controller interface */
+	DEVMETHOD(pic_enable_intr,		xen_intr_pic_enable_intr),
+	DEVMETHOD(pic_disable_intr,		xen_intr_pic_disable_intr),
+	DEVMETHOD(pic_resume,			xen_intr_pic_resume),
+	DEVMETHOD(pic_assign_cpu,		xen_intr_pic_assign_cpu),
+
+	DEVMETHOD_END
 };
+
+PRIVATE_DEFINE_CLASSN(xen_intr, xen_arch_intr_class, xen_intr_methods,
+    sizeof(pic_base_softc_t), pic_base_class);
+
+static device_t xen_intr_pic;
 
 /******************************* ARCH wrappers *******************************/
 
 void
 xen_arch_intr_init(void)
 {
-	int error;
 
 	mtx_init(&xen_intr_x86_lock, "xen-x86-table-lock", NULL, MTX_DEF);
 
-	error = intr_register_pic(&xen_intr_pic);
-	if (error != 0)
-		panic("%s(): failed registering Xen/x86 PIC, error=%d\n",
-		    __func__, error);
+	xen_intr_pic = intr_create_pic("xen_intr", 0, &xen_arch_intr_class);
+	intr_register_pic(xen_intr_pic);
 }
 
 /**
@@ -327,7 +272,7 @@ xen_arch_intr_alloc(void)
 		SLIST_REMOVE_HEAD(&avail_list, free);
 		mtx_unlock(&xen_intr_x86_lock);
 
-		KASSERT(isrc->xi_arch.intsrc.is_pic == &xen_intr_pic,
+		KASSERT(isrc->xi_arch.intsrc.is_event.ie_pic == xen_intr_pic,
 		    ("interrupt not owned by Xen code?"));
 
 		KASSERT(isrc->xi_arch.intsrc.is_handlers == 0,
@@ -353,9 +298,7 @@ xen_arch_intr_alloc(void)
 
 	mtx_unlock(&xen_intr_x86_lock);
 	isrc = malloc(sizeof(*isrc), M_XENINTR, M_WAITOK | M_ZERO);
-	isrc->xi_arch.intsrc.is_pic = &xen_intr_pic;
-	isrc->xi_arch.vector = vector;
-	error = intr_register_source(&isrc->xi_arch.intsrc);
+	error = intr_register_source(vector, &isrc->xi_arch.intsrc, xen_intr_pic);
 	if (error != 0)
 		panic("%s(): failed registering interrupt %u, error=%d\n",
 		    __func__, vector, error);

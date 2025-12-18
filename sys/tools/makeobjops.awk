@@ -320,16 +320,16 @@ function handle_method (static, doc)
 		    line_width, length(prototype)));
 	}
 	printh("{");
-	printh("\tkobjop_t _m;");
+	printh("\t" mname "_t *_m;");
 	if (ret != "void")
 		printh("\t" ret " rc;");
 	if (!static)
 		firstvar = "((kobj_t)" firstvar ")";
 	if (prolog != "")
 		printh(prolog);
-	printh("\tKOBJOPLOOKUP(" firstvar "->ops, " mname ");");
+	printh("\t_m = KOBJOPLOOKUP(" firstvar ", " mname ");");
 	rceq = (ret != "void") ? "rc = " : "";
-	printh("\t" rceq "((" mname "_t *) _m)(" varname_list ");");
+	printh("\t" rceq "_m(" varname_list ");");
 	if (epilog != "")
 		printh(epilog);
 	if (ret != "void")
