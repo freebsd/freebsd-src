@@ -155,8 +155,7 @@ struct mld_ifsoftc {
 /*
  * Per-link MLD context.
  */
-#define MLD_IFINFO(ifp) \
-	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->mld_ifinfo)
+#define MLD_IFINFO(ifp)	((ifp)->if_inet6->mld_ifinfo)
 
 struct in6_multi_head;
 int	mld_change_state(struct in6_multi *, const int);

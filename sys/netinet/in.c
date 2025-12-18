@@ -669,7 +669,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct ucred *cred
 		struct in_addr allhosts_addr;
 		struct in_ifinfo *ii;
 
-		ii = ((struct in_ifinfo *)ifp->if_afdata[AF_INET]);
+		ii = (struct in_ifinfo *)ifp->if_inet;
 		allhosts_addr.s_addr = htonl(INADDR_ALLHOSTS_GROUP);
 
 		error = in_joingroup(ifp, &allhosts_addr, NULL,
@@ -789,7 +789,7 @@ in_difaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct ucred *cred
 	if (iaIsLast && (ifp->if_flags & IFF_MULTICAST)) {
 		struct in_ifinfo *ii;
 
-		ii = ((struct in_ifinfo *)ifp->if_afdata[AF_INET]);
+		ii = (struct in_ifinfo *)ifp->if_inet;
 		if (ii->ii_allhosts) {
 			(void)in_leavegroup(ii->ii_allhosts, NULL);
 			ii->ii_allhosts = NULL;
@@ -1329,26 +1329,62 @@ in_ifnet_broadcast(struct in_addr in, struct ifnet *ifp)
 	return (false);
 }
 
+
+static struct lltable *in_lltattach(struct ifnet *);
+void
+in_ifattach(void *arg __unused, struct ifnet *ifp)
+{
+	struct in_ifinfo *ii;
+
+	ii = malloc(sizeof(struct in_ifinfo), M_IFADDR, M_WAITOK|M_ZERO);
+	ii->ii_llt = in_lltattach(ifp);
+	ii->ii_igmp = igmp_domifattach(ifp);
+	ifp->if_inet = ii;
+}
+EVENTHANDLER_DEFINE(ifnet_arrival_event, in_ifattach, NULL,
+    EVENTHANDLER_PRI_ANY);
+
 /*
  * On interface removal, clean up IPv4 data structures hung off of the ifnet.
  */
-void
-in_ifdetach(struct ifnet *ifp)
+static void
+in_ifdetach(void *arg __unused, struct ifnet *ifp)
 {
-	IN_MULTI_LOCK();
-	in_pcbpurgeif0(&V_ripcbinfo, ifp);
-	in_pcbpurgeif0(&V_udbinfo, ifp);
-	in_pcbpurgeif0(&V_ulitecbinfo, ifp);
-	in_purgemaddrs(ifp);
-	IN_MULTI_UNLOCK();
+	struct in_ifinfo *ii = ifp->if_inet;
 
+#ifdef VIMAGE
 	/*
-	 * Make sure all multicast deletions invoking if_ioctl() are
-	 * completed before returning. Else we risk accessing a freed
-	 * ifnet structure pointer.
+	 * On VNET shutdown abort here as the stack teardown will do all
+	 * the work top-down for us.  XXXGL: this logic is copied from
+	 * if_detach() before dom_ifattach removal.  Ideally we'd like to have
+	 * same logic for VNET shutdown and normal detach.  This means that
+	 * interfaces should be detach before protocols destroyed during VNET
+	 * shutdown.
 	 */
-	inm_release_wait(NULL);
+	if (!VNET_IS_SHUTTING_DOWN(ifp->if_vnet))
+#endif
+	{
+		IN_MULTI_LOCK();
+		in_pcbpurgeif0(&V_ripcbinfo, ifp);
+		in_pcbpurgeif0(&V_udbinfo, ifp);
+		in_pcbpurgeif0(&V_ulitecbinfo, ifp);
+		in_purgemaddrs(ifp);
+		IN_MULTI_UNLOCK();
+
+		/*
+		 * Make sure all multicast deletions invoking if_ioctl() are
+		 * completed before returning. Else we risk accessing a freed
+		 * ifnet structure pointer.
+		 */
+		inm_release_wait(NULL);
+	}
+
+	igmp_domifdetach(ifp);
+	lltable_free(ii->ii_llt);
+	free(ii, M_IFADDR);
 }
+EVENTHANDLER_DEFINE(ifnet_departure_event, in_ifdetach, NULL,
+    EVENTHANDLER_PRI_ANY);
 
 static void
 in_ifnet_event(void *arg __unused, struct ifnet *ifp, int event)
@@ -1862,35 +1898,9 @@ in_lltattach(struct ifnet *ifp)
 struct lltable *
 in_lltable_get(struct ifnet *ifp)
 {
-	struct lltable *llt = NULL;
+	/* XXXGL: ??? */
+	if (ifp->if_inet == NULL)
+		return (NULL);
 
-	void *afdata_ptr = ifp->if_afdata[AF_INET];
-	if (afdata_ptr != NULL)
-		llt = ((struct in_ifinfo *)afdata_ptr)->ii_llt;
-	return (llt);
-}
-
-void *
-in_domifattach(struct ifnet *ifp)
-{
-	struct in_ifinfo *ii;
-
-	ii = malloc(sizeof(struct in_ifinfo), M_IFADDR, M_WAITOK|M_ZERO);
-
-	ii->ii_llt = in_lltattach(ifp);
-	ii->ii_igmp = igmp_domifattach(ifp);
-
-	return (ii);
-}
-
-void
-in_domifdetach(struct ifnet *ifp, void *aux)
-{
-	struct in_ifinfo *ii = (struct in_ifinfo *)aux;
-
-	MPASS(ifp->if_afdata[AF_INET] == NULL);
-
-	igmp_domifdetach(ifp);
-	lltable_free(ii->ii_llt);
-	free(ii, M_IFADDR);
+	return (((struct in_ifinfo *)ifp->if_inet)->ii_llt);
 }

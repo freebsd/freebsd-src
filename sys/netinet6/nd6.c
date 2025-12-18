@@ -224,7 +224,8 @@ nd6_lle_event(void *arg __unused, struct llentry *lle, int evt)
 static void
 nd6_iflladdr(void *arg __unused, struct ifnet *ifp)
 {
-	if (ifp->if_afdata[AF_INET6] == NULL)
+	/* XXXGL: ??? */
+	if (ifp->if_inet6 == NULL)
 		return;
 
 	lltable_update_ifaddr(LLTABLE6(ifp));
@@ -357,7 +358,8 @@ nd6_ifdetach(struct ifnet *ifp, struct nd_ifinfo *nd)
 void
 nd6_setmtu(struct ifnet *ifp)
 {
-	if (ifp->if_afdata[AF_INET6] == NULL)
+	/* XXXGL: ??? */
+	if (ifp->if_inet6 == NULL)
 		return;
 
 	nd6_setmtu0(ifp, ND_IFINFO(ifp));
@@ -1644,7 +1646,8 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 	struct epoch_tracker et;
 	int error = 0;
 
-	if (ifp->if_afdata[AF_INET6] == NULL)
+	/* XXXGL: ??? */
+	if (ifp->if_inet6 == NULL)
 		return (EPFNOSUPPORT);
 	switch (cmd) {
 	case OSIOCGIFINFO_IN6:
@@ -2137,7 +2140,7 @@ nd6_slowtimo(void *arg)
 	    nd6_slowtimo, curvnet);
 	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		if (ifp->if_afdata[AF_INET6] == NULL)
+		if (ifp->if_inet6 == NULL)
 			continue;
 		nd6if = ND_IFINFO(ifp);
 		if (nd6if->basereachable && /* already initialized */

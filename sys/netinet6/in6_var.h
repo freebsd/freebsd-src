@@ -109,8 +109,8 @@ struct in6_ifextra {
 	u_int dad_failures;	/* DAD failures when using RFC 7217 stable addresses */
 };
 
-#define	LLTABLE6(ifp)	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->lltable)
-#define	DAD_FAILURES(ifp)	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->dad_failures)
+#define	LLTABLE6(ifp)	((ifp)->if_inet6->lltable)
+#define	DAD_FAILURES(ifp)	((ifp)->if_inet6->dad_failures)
 
 #ifdef _KERNEL
 
@@ -545,8 +545,7 @@ extern struct rmlock in6_ifaddr_lock;
 #define in6_ifstat_inc(ifp, tag) \
 do {								\
 	if (ifp)						\
-		counter_u64_add(((struct in6_ifextra *)		\
-		    ((ifp)->if_afdata[AF_INET6]))->in6_ifstat[	\
+		counter_u64_add((ifp)->if_inet6->in6_ifstat[	\
 		    offsetof(struct in6_ifstat, tag) / sizeof(uint64_t)], 1);\
 } while (/*CONSTCOND*/ 0)
 #endif /* _KERNEL */
@@ -867,8 +866,6 @@ void	in6_purgeaddr(struct ifaddr *);
 void	in6_purgeifaddr(struct in6_ifaddr *);
 int	in6if_do_dad(struct ifnet *);
 void	in6_savemkludge(struct in6_ifaddr *);
-void	*in6_domifattach(struct ifnet *);
-void	in6_domifdetach(struct ifnet *, void *);
 uint32_t in6_ifmtu(struct ifnet *);
 struct rib_head *in6_inithead(uint32_t fibnum);
 void	in6_detachhead(struct rib_head *rh);
@@ -893,6 +890,8 @@ int	in6_src_ioctl(u_long, caddr_t);
 void	in6_newaddrmsg(struct in6_ifaddr *, int);
 
 void	in6_purge_proxy_ndp(struct ifnet *);
+void	in6_ifarrival(void *, struct ifnet *);
+
 /*
  * Extended API for IPv6 FIB support.
  */

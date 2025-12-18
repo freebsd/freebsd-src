@@ -76,8 +76,6 @@ struct domain inetdomain = {
 #ifdef VIMAGE
 	.dom_rtdetach =		in_detachhead,
 #endif
-	.dom_ifattach =		in_domifattach,
-	.dom_ifdetach =		in_domifdetach,
 	.dom_nprotosw =		14,
 	.dom_protosw = {
 		&tcp_protosw,

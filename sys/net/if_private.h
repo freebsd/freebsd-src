@@ -101,9 +101,8 @@ struct ifnet {
 	struct	ifaddr	*if_addr;	/* pointer to link-level address */
 	void	*if_hw_addr;		/* hardware link-level address */
 	const u_int8_t *if_broadcastaddr; /* linklevel broadcast bytestring */
-	struct	mtx if_afdata_lock;
-	void	*if_afdata[AF_MAX];
-	int	if_afdata_initialized;
+	struct in_ifinfo	*if_inet;
+	struct in6_ifextra	*if_inet6;
 
 	/* Additional features hung off the interface. */
 	u_int	if_fib;			/* interface FIB */
@@ -192,20 +191,6 @@ struct ifnet {
 	 */
 	int	if_ispare[4];		/* general use */
 };
-
-#define	IF_AFDATA_LOCK_INIT(ifp)	\
-	mtx_init(&(ifp)->if_afdata_lock, "if_afdata", NULL, MTX_DEF)
-
-#define	IF_AFDATA_WLOCK(ifp)	mtx_lock(&(ifp)->if_afdata_lock)
-#define	IF_AFDATA_WUNLOCK(ifp)	mtx_unlock(&(ifp)->if_afdata_lock)
-#define	IF_AFDATA_LOCK(ifp)	IF_AFDATA_WLOCK(ifp)
-#define	IF_AFDATA_UNLOCK(ifp)	IF_AFDATA_WUNLOCK(ifp)
-#define	IF_AFDATA_TRYLOCK(ifp)	mtx_trylock(&(ifp)->if_afdata_lock)
-#define	IF_AFDATA_DESTROY(ifp)	mtx_destroy(&(ifp)->if_afdata_lock)
-
-#define	IF_AFDATA_LOCK_ASSERT(ifp)	MPASS(in_epoch(net_epoch_preempt) || mtx_owned(&(ifp)->if_afdata_lock))
-#define	IF_AFDATA_WLOCK_ASSERT(ifp)	mtx_assert(&(ifp)->if_afdata_lock, MA_OWNED)
-#define	IF_AFDATA_UNLOCK_ASSERT(ifp)	mtx_assert(&(ifp)->if_afdata_lock, MA_NOTOWNED)
 
 #define IF_LLADDR(ifp)							\
     LLADDR((struct sockaddr_dl *)((ifp)->if_addr->ifa_addr))

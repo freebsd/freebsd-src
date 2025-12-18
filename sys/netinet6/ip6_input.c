@@ -286,6 +286,7 @@ VNET_SYSINIT(ip6_vnet_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH,
 static void
 ip6_init(void *arg __unused)
 {
+	struct ifnet *ifp;
 
 	/*
 	 * Register statically those protocols that are unlikely to ever go
@@ -312,6 +313,12 @@ ip6_init(void *arg __unused)
 #ifdef RSS
 	netisr_register(&ip6_direct_nh);
 #endif
+	/*
+         * XXXGL: we use SYSINIT() here, but go over V_ifnet.  See comment
+	 * in sys/netinet/ip_input.c:ip_init().
+         */
+        CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link)
+                in6_ifarrival(NULL, ifp);
 }
 SYSINIT(ip6_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, ip6_init, NULL);
 

@@ -673,7 +673,8 @@ void *if_getl2com(if_t ifp);
 struct ifvlantrunk *if_getvlantrunk(if_t ifp);
 bool if_altq_is_enabled(if_t ifp);
 
-void *if_getafdata(if_t ifp, int);
+struct in_ifinfo *if_getinet(if_t ifp);
+struct in6_ifextra *if_getinet6(if_t ifp);
 
 int if_snd_tag_alloc(if_t ifp, union if_snd_tag_alloc_params *params,
     struct m_snd_tag **mstp);

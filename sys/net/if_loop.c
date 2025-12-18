@@ -151,7 +151,7 @@ vnet_loif_init(const void *unused __unused)
 	struct ifc_data ifd = { .unit = 0 };
 	ifc_create_ifp(loname, &ifd, &V_loif);
 }
-VNET_SYSINIT(vnet_loif_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
+VNET_SYSINIT(vnet_loif_init, SI_SUB_PROTO_IF, SI_ORDER_ANY,
     vnet_loif_init, NULL);
 
 #ifdef VIMAGE

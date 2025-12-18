@@ -102,8 +102,7 @@ struct in_ifaddr {
 	((((d).s_addr ^ (a).s_addr) & (m).s_addr)) == 0 )
 #endif
 
-#define LLTABLE(ifp)	\
-	((struct in_ifinfo *)(ifp)->if_afdata[AF_INET])->ii_llt
+#define LLTABLE(ifp)	((struct in_ifinfo *)(ifp)->if_inet)->ii_llt
 /*
  * Hash table for IP addresses.
  */
@@ -471,9 +470,9 @@ void	ip_input(struct mbuf *);
 void	ip_direct_input(struct mbuf *);
 void	in_ifadown(struct ifaddr *ifa, int);
 struct	mbuf	*ip_tryforward(struct mbuf *);
-void	*in_domifattach(struct ifnet *);
-void	in_domifdetach(struct ifnet *, void *);
 struct rib_head *in_inithead(uint32_t fibnum);
+void	in_ifattach(void *, struct ifnet *);
+
 #ifdef VIMAGE
 void	in_detachhead(struct rib_head *rh);
 #endif

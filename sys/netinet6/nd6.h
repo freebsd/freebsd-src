@@ -98,8 +98,7 @@ struct nd_ifinfo {
 #endif
 
 #ifdef _KERNEL
-#define ND_IFINFO(ifp) \
-	(((struct in6_ifextra *)if_getafdata(ifp, AF_INET6))->nd_ifinfo)
+#define ND_IFINFO(ifp)	((if_getinet6(ifp))->nd_ifinfo)
 #define IN6_LINKMTU(ifp) \
 	((ND_IFINFO(ifp)->linkmtu && ND_IFINFO(ifp)->linkmtu < (ifp)->if_mtu) \
 	    ? ND_IFINFO(ifp)->linkmtu \

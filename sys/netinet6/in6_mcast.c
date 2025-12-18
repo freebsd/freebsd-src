@@ -400,7 +400,7 @@ in6_getmulti(struct ifnet *ifp, const struct in6_addr *group,
 	/*
 	 * Does ifp support IPv6 multicasts?
 	 */
-	if (ifp->if_afdata[AF_INET6] == NULL)
+	if (ifp->if_inet6 == NULL)
 		error = ENODEV;
 	else
 		inm = in6m_lookup_locked(ifp, group);

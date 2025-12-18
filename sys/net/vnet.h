@@ -395,6 +395,9 @@ do {									\
 	}								\
 } while(0)
 
+#define	VNET_IS_SHUTTING_DOWN(_vnet)	\
+	    ((_vnet)->vnet_shutdown && (_vnet)->vnet_state < SI_SUB_VNET_DONE)
+
 #else /* !VIMAGE */
 
 /*

@@ -718,7 +718,7 @@ int	icmp6_ratelimit(const struct in6_addr *, const int, const int);
 do {								\
 	if (ifp)						\
 		counter_u64_add(((struct in6_ifextra *)		\
-		    ((ifp)->if_afdata[AF_INET6]))->icmp6_ifstat[\
+		    ((ifp)->if_inet6))->icmp6_ifstat[		\
 		    offsetof(struct icmp6_ifstat, tag) / sizeof(uint64_t)], 1);\
 } while (/*CONSTCOND*/ 0)
 
