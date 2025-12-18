@@ -335,13 +335,12 @@ ar5413FillVpdTable(uint32_t pdGainIdx, int16_t Pmin, int16_t  Pmax,
 		   uint16_t numIntercepts,
 		   uint16_t retVpdList[][64])
 {
-	uint16_t ii, jj, kk;
+	uint16_t ii, kk;
 	int16_t currPwr = (int16_t)(2*Pmin);
 	/* since Pmin is pwr*2 and pwrList is 4*pwr */
 	uint32_t  idxL, idxR;
 
 	ii = 0;
-	jj = 0;
 
 	if (numIntercepts < 2)
 		return AH_FALSE;

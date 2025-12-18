@@ -653,14 +653,12 @@ HAL_BOOL
 ar9300_set_power_mode(struct ath_hal *ah, HAL_POWER_MODE mode, int set_chip)
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
-#if defined(AH_DEBUG) || defined(AH_PRINT_FILTER)
     static const char* modes[] = {
         "AWAKE",
         "FULL-SLEEP",
         "NETWORK SLEEP",
         "UNDEFINED"
     };
-#endif
     int status = AH_TRUE;
 
     HALDEBUG(ah, HAL_DEBUG_POWER_MGMT, "%s: %s -> %s (%s)\n", __func__,

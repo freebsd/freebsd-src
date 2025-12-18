@@ -1049,17 +1049,13 @@ ath_tx_tag_crypto(struct ath_softc *sc, struct ieee80211_node *ni,
 static void
 ath_tx_calc_protection(struct ath_softc *sc, struct ath_buf *bf)
 {
-	struct ieee80211_frame *wh;
 	uint8_t rix;
 	uint16_t flags;
-	int shortPreamble;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	struct ieee80211com *ic = &sc->sc_ic;
 
 	flags = bf->bf_state.bfs_txflags;
 	rix = bf->bf_state.bfs_rc[0].rix;
-	shortPreamble = bf->bf_state.bfs_shpream;
-	wh = mtod(bf->bf_m, struct ieee80211_frame *);
 
 	/* Disable frame protection for TOA probe frames */
 	if (bf->bf_flags & ATH_BUF_TOA_PROBE) {
@@ -1567,7 +1563,6 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	int error, iswep, ismcast, isfrag, ismrr;
 	int keyix, hdrlen, pktlen, try0 = 0;
 	u_int8_t rix = 0, txrate = 0;
-	struct ath_desc *ds;
 	struct ieee80211_frame *wh;
 	u_int subtype, flags;
 	HAL_PKT_TYPE atype;
@@ -1627,7 +1622,6 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	wh = mtod(m0, struct ieee80211_frame *);
 
 	/* setup descriptors */
-	ds = bf->bf_desc;
 	rt = sc->sc_currates;
 	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
 
@@ -1924,8 +1918,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	int ismcast;
 	const struct ieee80211_frame *wh;
 	int is_ampdu, is_ampdu_tx, is_ampdu_pending;
-	ieee80211_seq seqno;
-	uint8_t type, subtype;
+	uint8_t type;
 	int queue_to_head;
 
 	ATH_TX_LOCK_ASSERT(sc);
@@ -1962,7 +1955,6 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	wh = mtod(m0, struct ieee80211_frame *);
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
-	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 
 	/*
 	 * Enforce how deep the multicast queue can grow.
@@ -2056,7 +2048,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		 * and group-addressed frames don't get a sequence number
 		 * from the current TID and thus mess with the BAW.
 		 */
-		seqno = ath_tx_tid_seqno_assign(sc, ni, bf, m0);
+		(void)ath_tx_tid_seqno_assign(sc, ni, bf, m0);
 
 		/*
 		 * Don't add QoS NULL frames and group-addressed frames
@@ -2158,11 +2150,9 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	u_int flags;
 	HAL_PKT_TYPE atype;
 	const HAL_RATE_TABLE *rt;
-	struct ath_desc *ds;
 	u_int pri;
 	int o_tid = -1;
 	int do_override;
-	uint8_t type, subtype;
 	int queue_to_head;
 	struct ath_node *an = ATH_NODE(ni);
 
@@ -2177,9 +2167,6 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 */
 	/* XXX honor IEEE80211_BPF_DATAPAD */
 	pktlen = m0->m_pkthdr.len - (hdrlen & 3) + IEEE80211_CRC_LEN;
-
-	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
-	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 
 	ATH_KTR(sc, ATH_KTR_TX, 2,
 	     "ath_tx_raw_start: ni=%p, bf=%p, raw", ni, bf);
@@ -2324,7 +2311,6 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/*
 	 * Formulate first tx descriptor with tx controls.
 	 */
-	ds = bf->bf_desc;
 	/* XXX check return value? */
 
 	/* Store the decided rate index values away */
@@ -4516,11 +4502,10 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	struct ath_node *an = ATH_NODE(ni);
 	int tid = bf->bf_state.bfs_tid;
 	struct ath_tid *atid = &an->an_tid[tid];
-	struct ieee80211_tx_ampdu *tap;
 
 	ATH_TX_LOCK(sc);
 
-	tap = ath_tx_get_tx_tid(an, tid);
+	(void)ath_tx_get_tx_tid(an, tid);
 
 	/*
 	 * If the buffer is marked as busy, we can't directly
@@ -4674,7 +4659,6 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 	struct ath_buf *bf_next, *bf;
 	ath_bufhead bf_q;
 	int drops = 0;
-	struct ieee80211_tx_ampdu *tap;
 	ath_bufhead bf_cq;
 
 	TAILQ_INIT(&bf_q);
@@ -4690,7 +4674,7 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 	    bf_first->bf_state.bfs_nframes, bf_first->bf_state.bfs_nframes);
 
 	ATH_TX_LOCK(sc);
-	tap = ath_tx_get_tx_tid(an, tid->tid);
+	(void)ath_tx_get_tx_tid(an, tid->tid);
 	sc->sc_stats.ast_tx_aggr_failall++;
 
 	/* Retry all subframes */
@@ -4834,11 +4818,9 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 	int ba_index;
 	int drops = 0;
 	int nframes = 0, nbad = 0, nf;
-	int pktlen;
 	int agglen, rc_agglen;
 	/* XXX there's too much on the stack? */
 	struct ath_rc_series rc[ATH_RC_NUM];
-	int txseq;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: called; hwq_depth=%d\n",
 	    __func__, atid->hwq_depth);
@@ -4926,12 +4908,6 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 		 */
 		goto finish_send_bar;
 	}
-
-	/*
-	 * XXX for now, use the first frame in the aggregate for
-	 * XXX rate control completion; it's at least consistent.
-	 */
-	pktlen = bf_first->bf_state.bfs_pktlen;
 
 	/*
 	 * Handle errors first!
@@ -5071,13 +5047,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 
 	/*
 	 * Now that the BAW updates have been done, unlock
-	 *
-	 * txseq is grabbed before the lock is released so we
-	 * have a consistent view of what -was- in the BAW.
-	 * Anything after this point will not yet have been
-	 * TXed.
 	 */
-	txseq = tap->txa_start;
 	ATH_TX_UNLOCK(sc);
 
 	if (nframes != nf)
@@ -5425,7 +5395,6 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 {
 	struct ath_buf *bf;
 	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
-	struct ieee80211_tx_ampdu *tap;
 	ATH_AGGR_STATUS status;
 	ath_bufhead bf_q;
 	int swq_pktbytes;
@@ -5438,7 +5407,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 	 * ensure we only leak one.
 	 */
 
-	tap = ath_tx_get_tx_tid(an, tid->tid);
+	(void)ath_tx_get_tx_tid(an, tid->tid);
 
 	if (tid->tid == IEEE80211_NONQOS_TID)
 		DPRINTF(sc, ATH_DEBUG_SW_TX, 
@@ -6305,7 +6274,6 @@ void
 ath_tx_node_sleep(struct ath_softc *sc, struct ath_node *an)
 {
 	struct ath_tid *atid;
-	struct ath_txq *txq;
 	int tid;
 
 	ATH_TX_UNLOCK_ASSERT(sc);
@@ -6323,8 +6291,6 @@ ath_tx_node_sleep(struct ath_softc *sc, struct ath_node *an)
 
 	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
 		atid = &an->an_tid[tid];
-		txq = sc->sc_ac2q[atid->ac];
-
 		ath_tx_tid_pause(sc, atid);
 	}
 
@@ -6342,7 +6308,6 @@ void
 ath_tx_node_wakeup(struct ath_softc *sc, struct ath_node *an)
 {
 	struct ath_tid *atid;
-	struct ath_txq *txq;
 	int tid;
 
 	ATH_TX_UNLOCK_ASSERT(sc);
@@ -6367,8 +6332,6 @@ ath_tx_node_wakeup(struct ath_softc *sc, struct ath_node *an)
 
 	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
 		atid = &an->an_tid[tid];
-		txq = sc->sc_ac2q[atid->ac];
-
 		ath_tx_tid_resume(sc, atid);
 	}
 	ATH_TX_UNLOCK(sc);

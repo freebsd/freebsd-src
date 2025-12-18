@@ -413,13 +413,11 @@ ath_edma_recv_proc_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 	struct ath_rx_status *rs;
 	struct ath_desc *ds;
 	struct ath_buf *bf;
-	struct mbuf *m;
 	struct ath_hal *ah = sc->sc_ah;
-	uint64_t tsf;
 	uint16_t nf;
 	int npkts = 0;
 
-	tsf = ath_hal_gettsf64(ah);
+	(void)ath_hal_gettsf64(ah);
 	nf = ath_hal_getchannoise(ah, sc->sc_curchan);
 	sc->sc_stats.ast_rx_noise = nf;
 
@@ -451,7 +449,6 @@ ath_edma_recv_proc_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 			    qtype);
 			break;
 		}
-		m = bf->bf_m;
 		ds = bf->bf_desc;
 
 		/*
@@ -677,24 +674,12 @@ ath_edma_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 
 	struct mbuf *m;
 	int error;
-	int len;
 
 	ATH_RX_LOCK_ASSERT(sc);
 
 	m = m_getm(NULL, sc->sc_edma_bufsize, M_NOWAIT, MT_DATA);
 	if (! m)
 		return (ENOBUFS);		/* XXX ?*/
-
-	/* XXX warn/enforce alignment */
-
-	len = m->m_ext.ext_size;
-#if 0
-	device_printf(sc->sc_dev, "%s: called: m=%p, size=%d, mtod=%p\n",
-	    __func__,
-	    m,
-	    len,
-	    mtod(m, char *));
-#endif
 
 	m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
 

@@ -653,7 +653,7 @@ extern	int ath_hal_debug;	/* Global debug flags */
 extern	void DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 	__printflike(3,4);
 #else
-#define HALDEBUG(_ah, __m, ...)
+#define HALDEBUG(_ah, __m, ...) (void)(sizeof((__VA_ARGS__), 0))
 #endif /* AH_DEBUG */
 
 /*

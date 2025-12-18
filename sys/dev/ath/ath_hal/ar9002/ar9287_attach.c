@@ -387,13 +387,12 @@ ar9287DisablePCIE(struct ath_hal *ah)
 static void
 ar9287WriteIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
-	u_int modesIndex, freqIndex;
+	u_int modesIndex;
 	int regWrites = 0;
 
 	/* Setup the indices for the next set of register array writes */
 	/* XXX Ignore 11n dynamic mode on the AR5416 for the moment */
 	if (IEEE80211_IS_CHAN_2GHZ(chan)) {
-		freqIndex = 2;
 		if (IEEE80211_IS_CHAN_HT40(chan))
 			modesIndex = 3;
 		else if (IEEE80211_IS_CHAN_108G(chan))
@@ -401,7 +400,6 @@ ar9287WriteIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		else
 			modesIndex = 4;
 	} else {
-		freqIndex = 1;
 		if (IEEE80211_IS_CHAN_HT40(chan) ||
 		    IEEE80211_IS_CHAN_TURBO(chan))
 			modesIndex = 2;
