@@ -82,9 +82,10 @@
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/uio.h>
-
 #include <sys/limits.h>
 #include <sys/mouse.h>
+#include <sys/tslog.h>
+
 #include <machine/resource.h>
 
 #ifdef DEV_ISA
@@ -1383,21 +1384,24 @@ psmprobe(device_t dev)
 #if 0
 	kbdc_debug(TRUE);
 #endif
-
+	TSENTER();
 	/* see if IRQ is available */
 	rid = KBDC_RID_AUX;
 	sc->intr = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->intr == NULL) {
 		if (bootverbose)
 			device_printf(dev, "unable to allocate IRQ\n");
+		TSEXIT();
 		return (ENXIO);
 	}
 	bus_release_resource(dev, SYS_RES_IRQ, rid, sc->intr);
 
 	sc->dev = dev;
 	sc->kbdc = atkbdc_open(device_get_unit(device_get_parent(dev)));
-	if (sc->kbdc == NULL)
+	if (sc->kbdc == NULL) {
+		TSEXIT();
 		return (ENXIO);
+	}
 	sc->config = device_get_flags(dev) & PSM_CONFIG_FLAGS;
 	/* XXX: for backward compatibility */
 #if defined(PSM_HOOKRESUME) || defined(PSM_HOOKAPM)
@@ -1419,6 +1423,7 @@ psmprobe(device_t dev)
 		device_printf(dev, "unable to lock the controller.\n");
 		if (bootverbose)
 			--verbose;
+		TSEXIT();
 		return (ENXIO);
 	}
 
@@ -1680,6 +1685,8 @@ psmprobe(device_t dev)
 	/* done */
 	kbdc_set_device_mask(sc->kbdc, mask | KBD_AUX_CONTROL_BITS);
 	kbdc_lock(sc->kbdc, FALSE);
+
+	TSEXIT();
 	return (0);
 }
 
@@ -7634,14 +7641,17 @@ psmcpnp_probe(device_t dev)
 	u_long irq;
 	int rid;
 
+	TSENTER();
 	if (ISA_PNP_PROBE(device_get_parent(dev), dev, forcepad_ids) == 0)
 		sc->type = PSMCPNP_FORCEPAD;
 	else if (ISA_PNP_PROBE(device_get_parent(dev), dev, topbtpad_ids) == 0)
 		sc->type = PSMCPNP_TOPBUTTONPAD;
 	else if (ISA_PNP_PROBE(device_get_parent(dev), dev, psmcpnp_ids) == 0)
 		sc->type = PSMCPNP_GENERIC;
-	else
+	else {
+		TSEXIT();
 		return (ENXIO);
+	}
 
 	/*
 	 * The PnP BIOS and ACPI are supposed to assign an IRQ (12)
@@ -7667,6 +7677,7 @@ psmcpnp_probe(device_t dev)
 	if (!bootverbose)
 		device_quiet(dev);
 
+	TSEXIT();
 	return ((res == NULL) ? ENXIO : 0);
 }
 
@@ -7675,12 +7686,14 @@ psmcpnp_attach(device_t dev)
 {
 	device_t atkbdc;
 
+	TSENTER();
 	/* find the keyboard controller, which may be on acpi* or isa* bus */
 	atkbdc = devclass_get_device(devclass_find(ATKBDC_DRIVER_NAME),
 	    device_get_unit(dev));
 	if ((atkbdc != NULL) && (device_get_state(atkbdc) == DS_ATTACHED))
 		create_a_copy(atkbdc, dev);
 
+	TSEXIT();
 	return (0);
 }
 
