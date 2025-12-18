@@ -64,7 +64,7 @@ random_rndr_read_one(u_long *buf)
 		    /* 1 on success, 0 on failure */
 		    "cset	%w1, ne\n"
 		    : "=&r" (val), "=&r"(ret) :: "cc");
-	} while (ret != 0 && --loop > 0);
+	} while (ret == 0 && --loop > 0);
 
 	if (ret != 0)
 		*buf = val;
