@@ -90,7 +90,6 @@ static u_int ice_sync_one_mcast_filter(void *p, struct sockaddr_dl *sdl, u_int e
 static void ice_add_debug_tunables(struct ice_softc *sc);
 static void ice_add_debug_sysctls(struct ice_softc *sc);
 static void ice_vsi_set_rss_params(struct ice_vsi *vsi);
-static void ice_get_default_rss_key(u8 *seed);
 static int  ice_set_rss_key(struct ice_vsi *vsi);
 static int  ice_set_rss_lut(struct ice_vsi *vsi);
 static void ice_set_rss_flow_flds(struct ice_vsi *vsi);
@@ -7342,37 +7341,10 @@ ice_add_rxq_sysctls(struct ice_rx_queue *rxq)
 }
 
 /**
- * ice_get_default_rss_key - Obtain a default RSS key
- * @seed: storage for the RSS key data
- *
- * Copies a pre-generated RSS key into the seed memory. The seed pointer must
- * point to a block of memory that is at least 40 bytes in size.
- *
- * The key isn't randomly generated each time this function is called because
- * that makes the RSS key change every time we reconfigure RSS. This does mean
- * that we're hard coding a possibly 'well known' key. We might want to
- * investigate randomly generating this key once during the first call.
- */
-static void
-ice_get_default_rss_key(u8 *seed)
-{
-	const u8 default_seed[ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE] = {
-		0x39, 0xed, 0xff, 0x4d, 0x43, 0x58, 0x42, 0xc3, 0x5f, 0xb8,
-		0xa5, 0x32, 0x95, 0x65, 0x81, 0xcd, 0x36, 0x79, 0x71, 0x97,
-		0xde, 0xa4, 0x41, 0x40, 0x6f, 0x27, 0xe9, 0x81, 0x13, 0xa0,
-		0x95, 0x93, 0x5b, 0x1e, 0x9d, 0x27, 0x9d, 0x24, 0x84, 0xb5,
-	};
-
-	bcopy(default_seed, seed, ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE);
-}
-
-/**
  * ice_set_rss_key - Configure a given VSI with the default RSS key
  * @vsi: the VSI to configure
  *
  * Program the hardware RSS key. We use rss_getkey to grab the kernel RSS key.
- * If the kernel RSS interface is not available, this will fall back to our
- * pre-generated hash seed from ice_get_default_rss_key().
  */
 static int
 ice_set_rss_key(struct ice_vsi *vsi)
@@ -7383,16 +7355,16 @@ ice_set_rss_key(struct ice_vsi *vsi)
 	int status;
 
 	/*
-	 * If the RSS kernel interface is disabled, this will return the
-	 * default RSS key above.
+	 * Even if the RSS kernel interface is disabled, this function
+	 * is still available.
 	 */
 	rss_getkey(keydata.standard_rss_key);
 
 	status = ice_aq_set_rss_key(hw, vsi->idx, &keydata);
 	if (status) {
 		device_printf(sc->dev,
-			      "ice_aq_set_rss_key status %s, error %s\n",
-			      ice_status_str(status), ice_aq_str(hw->adminq.sq_last_status));
+		    "ice_aq_set_rss_key status %s, error %s\n",
+		    ice_status_str(status), ice_aq_str(hw->adminq.sq_last_status));
 		return (EIO);
 	}
 
