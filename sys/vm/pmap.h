@@ -167,7 +167,11 @@ void		 pmap_unwire(pmap_t pmap, vm_offset_t start, vm_offset_t end);
 void		 pmap_zero_page(vm_page_t);
 void		 pmap_zero_page_area(vm_page_t, int off, int size);
 
+#ifdef __amd64__
+#define	pmap_resident_count(pm)	((pm)->pm_stats.resident_count * PAGE_SIZE_PT / PAGE_SIZE)
+#else
 #define	pmap_resident_count(pm)	((pm)->pm_stats.resident_count)
+#endif
 #define	pmap_wired_count(pm)	((pm)->pm_stats.wired_count)
 
 #endif /* _KERNEL */

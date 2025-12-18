@@ -307,7 +307,7 @@ static void
 acpi_alloc_wakeup_handler(void **wakeaddr,
     void *wakept_pages[ACPI_WAKEPT_PAGES])
 {
-	vm_page_t wakept_m[ACPI_WAKEPT_PAGES];
+	ptpage_t wakept_m[ACPI_WAKEPT_PAGES];
 	int i;
 
 	*wakeaddr = NULL;
@@ -330,8 +330,7 @@ acpi_alloc_wakeup_handler(void **wakeaddr,
 
 	for (i = 0; i < ACPI_WAKEPT_PAGES - (la57 ? 0 : 1); i++) {
 		wakept_m[i] = pmap_page_alloc_below_4g(true);
-		wakept_pages[i] = (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(
-		    wakept_m[i]));
+		wakept_pages[i] = pmap_ptpage_va(wakept_m[i]);
 	}
 	if (EVENTHANDLER_REGISTER(power_resume, acpi_stop_beep, NULL,
 	    EVENTHANDLER_PRI_LAST) == NULL) {
@@ -349,7 +348,7 @@ freepages:
 	free(*wakeaddr, M_DEVBUF);
 	for (i = 0; i < ACPI_WAKEPT_PAGES; i++) {
 		if (wakept_m[i] != NULL)
-			vm_page_free(wakept_m[i]);
+			pmap_free_pt_page(NULL, wakept_m[i], false);
 	}
 	*wakeaddr = NULL;
 }

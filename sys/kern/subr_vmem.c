@@ -917,6 +917,8 @@ vmem_add1(vmem_t *vm, vmem_addr_t addr, vmem_size_t size, int type)
 
 	VMEM_ASSERT_LOCKED(vm);
 	MPASS(type == BT_TYPE_SPAN || type == BT_TYPE_SPAN_STATIC);
+	KASSERT((size & vm->vm_quantum_mask) == 0,
+		("size 0x%lx not aliged to quantum mask 0x%lx", size, vm->vm_quantum_mask));
 	MPASS((size & vm->vm_quantum_mask) == 0);
 
 	if (vm->vm_releasefn == NULL) {

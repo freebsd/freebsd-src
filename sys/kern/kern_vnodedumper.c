@@ -106,8 +106,8 @@ livedump_start_vnode(struct vnode *vp, int flags, uint8_t compression)
 	di.dumper_start = vnode_dumper_start;
 	di.dumper = vnode_dump;
 	di.dumper_hdr = vnode_write_headers;
-	di.blocksize = PAGE_SIZE; /* Arbitrary. */
-	di.maxiosize = MAXDUMPPGS * PAGE_SIZE;
+	di.blocksize = MINIDUMP_PAGE_SIZE; /* Arbitrary. */
+	di.maxiosize = MAXDUMPPGS * MINIDUMP_PAGE_SIZE;
 
 	bzero(&kda, sizeof(kda));
 	kda.kda_compression = compression;

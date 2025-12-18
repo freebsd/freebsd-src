@@ -229,7 +229,8 @@ again:
 	/*
 	 * Allocate the clean map to hold all of I/O virtual memory.
 	 */
-	size = (long)nbuf * BKVASIZE + (long)bio_transient_maxcnt * maxphys;
+	size = round_page((long)nbuf * BKVASIZE) +
+	    round_page((long)bio_transient_maxcnt * maxphys);
 	kmi->clean_sva = kva_alloc(size);
 	kmi->clean_eva = kmi->clean_sva + size;
 
@@ -239,7 +240,7 @@ again:
 	 * Enable the quantum cache if we have more than 4 cpus.  This
 	 * avoids lock contention at the expense of some fragmentation.
 	 */
-	size = (long)nbuf * BKVASIZE;
+	size = round_page((long)nbuf * BKVASIZE);
 	kmi->buffer_sva = kmi->clean_sva;
 	kmi->buffer_eva = kmi->buffer_sva + size;
 	vmem_init(buffer_arena, "buffer arena", kmi->buffer_sva, size,
@@ -249,7 +250,7 @@ again:
 	 * And optionally transient bio space.
 	 */
 	if (bio_transient_maxcnt != 0) {
-		size = (long)bio_transient_maxcnt * maxphys;
+		size = round_page((long)bio_transient_maxcnt * maxphys);
 		vmem_init(transient_arena, "transient arena",
 		    kmi->buffer_eva, size, PAGE_SIZE, 0, M_WAITOK);
 	}
