@@ -30,85 +30,85 @@ pci_video_amd()
 	# is available at https://docs.kernel.org/gpu/amdgpu/driver-misc.html
 
 	case "$1" in
-		0x678*|0x679*)
+		0x678?|0x679?)
 			addpkg "gpu-firmware-amd-kmod-tahiti"
 			;;
-		0x680*|0x681*)
+		0x680?|0x681?)
 			addpkg "gpu-firmware-amd-kmod-pitcairn"
 			;;
-		0x660*|0x661*|0x662*|0x663*)
+		0x660?|0x661?|0x662?|0x663?)
 			addpkg "gpu-firmware-amd-kmod-oland"
 			;;
-		0x682*|0x683*)
+		0x682?|0x683?)
 			addpkg "gpu-firmware-amd-kmod-verde gpu-firmware-amd-kmod-si58"
 			;;
-		0x666*)
+		0x666?)
 			addpkg "gpu-firmware-amd-kmod-hainan"
 			;;
-		0x13*)
+		0x130?|0x131?)
 			addpkg "gpu-firmware-amd-kmod-kaveri"
 			;;
-		0x664*|0x665*)
+		0x664?|0x665?)
 			addpkg "gpu-firmware-amd-kmod-bonaire"
 			;;
-		0x67a*|0x67b*)
+		0x67a?|0x67b?)
 			addpkg "gpu-firmware-amd-kmod-hawaii"
 			;;
-		0x983*)
+		0x983?)
 			addpkg "gpu-firmware-amd-kmod-kabini"
 			;;
-		0x985*)
+		0x985?)
 			addpkg "gpu-firmware-amd-kmod-mullins"
 			;;
-		0x690*)
+		0x690?)
 			addpkg "gpu-firmware-amd-kmod-topaz"
 			;;
-		0x692*|0x693*)
+		0x692?|0x693?)
 			addpkg "gpu-firmware-amd-kmod-tonga"
 			;;
-		0x730*)
+		0x730?)
 			addpkg "gpu-firmware-amd-kmod-fiji"
 			;;
-		0x987*)
+		0x987?)
 			addpkg "gpu-firmware-amd-kmod-carrizo"
 			;;
 		0x98e4)
 			addpkg "gpu-firmware-amd-kmod-stoney"
 			;;
-		0x67e*|0x67ff)
-			addpkg "gpu-firmware-amd-kmod-polaris11"
-			;;
-		0x67c*|0x67d*|0x6fdf)
+		0x67c?|0x67d?|0x6fdf)
 			addpkg "gpu-firmware-amd-kmod-polaris10"
 			;;
-		0x698*|0x699*)
+		0x67e?|0x67ff)
+			addpkg "gpu-firmware-amd-kmod-polaris11"
+			;;
+		0x698?|0x699?)
 			addpkg "gpu-firmware-amd-kmod-polaris12"
 			;;
-		0x694*)
+		0x694?)
 			addpkg "gpu-firmware-amd-kmod-vegam"
 			;;
-		0x686*|0x687*)
+		0x686?|0x687?)
 			addpkg "gpu-firmware-amd-kmod-vega10"
 			;;
-		0x69a*)
+		0x69a?)
 			addpkg "gpu-firmware-amd-kmod-vega12"
 			;;
-		0x66a*)
+		0x66a?)
 			addpkg "gpu-firmware-amd-kmod-vega20"
 			;;
 		0x15d8)
 			addpkg "gpu-firmware-amd-kmod-picasso"
 			;;
-		0x15d*)
+		0x15d?)
 			addpkg "gpu-firmware-amd-kmod-raven"
 			;;
-		0x738*|0x739*)
+		0x738?|0x739?)
 			addpkg "gpu-firmware-amd-kmod-arcturus"
 			;;
-		0x731*)
+		0x731?)
 			addpkg "gpu-firmware-amd-kmod-navi10"
 			;;
-		0x734*)
+		0x734?)
 			addpkg "gpu-firmware-amd-kmod-navi14"
 			;;
 		0x15e7|0x1638)
@@ -117,61 +117,91 @@ pci_video_amd()
 		0x1636|0x164c)
 			addpkg "gpu-firmware-amd-kmod-renoir"
 			;;
-		0x736*)
+		0x736?)
 			addpkg "gpu-firmware-amd-kmod-navi12"
 			;;
-		0x73a*|0x73b*)
+		# Navi 21
+		0x73a?|0x73b?)
 			addpkg "gpu-firmware-amd-kmod-sienna-cichlid"
 			;;
-		0x163f)
-			addpkg "gpu-firmware-amd-kmod-vangogh"
+		# Oberon
+		0x13e9|0x13f9|0x13fe)
+			addpkg "gpu-firmware-amd-kmod-cyan-skillfish2"
 			;;
+		# Navi 22
+		0x73c?|0x73d?)
+			addpkg "gpu-firmware-amd-kmod-navy-flounder"
+			;;
+		# Navi 23
+		0x73e?|0x73ff)
+			addpkg "gpu-firmware-amd-kmod-dimgrey-cavefish"
+			;;
+		# Aldebaran
+		0x740?|0x741?)
+			addpkg "gpu-firmware-amd-kmod-aldebaran"
+			;;
+		# Navi 24
+		0x742?|0x743?)
+			addpkg "gpu-firmware-amd-kmod-beige-goby"
+			;;
+		# Rembrandt
 		0x164d|0x1681)
 			addpkg "gpu-firmware-amd-kmod-yellow-carp"
 			;;
-		0x73c*|0x73d*)
-			addpkg "gpu-firmware-amd-kmod-navy-flounder"
+		# Van Gogh
+		0x163f)
+			addpkg "gpu-firmware-amd-kmod-vangogh"
 			;;
-		0x73e*|0x73f*)
-			addpkg "gpu-firmware-amd-kmod-dimgrey-cavefish"
-			;;
-		0x740*|0x741*)
-			addpkg "gpu-firmware-amd-kmod-aldebaran"
-			;;
-		0x13fe|0x143f)
-			addpkg "gpu-firmware-amd-kmod-cyan-skillfish2"
-			;;
-		0x742*|0x743*)
-			addpkg "gpu-firmware-amd-kmod-beige-goby"
-			;;
-		0x744c)
-			addpkg "gpu-firmware-amd-kmod-dcn-3-2-0"
-			addpkg "gpu-firmware-amd-kmod-gc-11-0-0"
-			addpkg "gpu-firmware-amd-kmod-psp-13-0-0"
-			addpkg "gpu-firmware-amd-kmod-sdma-6-0-0"
-			addpkg "gpu-firmware-amd-kmod-smu-13-0-0"
-			addpkg "gpu-firmware-amd-kmod-vcn-4-0-0"
-			;;
-		0x15bf)
-			addpkg "gpu-firmware-amd-kmod-gc-11-0-1"
-			addpkg "gpu-firmware-amd-kmod-psp-13-0-4"
-			addpkg "gpu-firmware-amd-kmod-dcn-3-1-4"
-			addpkg "gpu-firmware-amd-kmod-sdma-6-0-1"
-			addpkg "gpu-firmware-amd-kmod-vcn-4-0-2"
-			;;
-		0x15c8)
-			addpkg "gpu-firmware-amd-kmod-dcn-3-1-4"
-			addpkg "gpu-firmware-amd-kmod-gc-11-0-4"
-			addpkg "gpu-firmware-amd-kmod-psp-13-0-11"
-			addpkg "gpu-firmware-amd-kmod-sdma-6-0-1"
-			addpkg "gpu-firmware-amd-kmod-vcn-4-0-2"
-			;;
+		# Raphael
 		0x164e)
-			addpkg "gpu-firmware-amd-kmod-gc-10-3-6"
 			addpkg "gpu-firmware-amd-kmod-psp-13-0-5"
 			addpkg "gpu-firmware-amd-kmod-dcn-3-1-5"
+			addpkg "gpu-firmware-amd-kmod-gc-10-3-6"
 			addpkg "gpu-firmware-amd-kmod-sdma-5-2-6"
 			addpkg "gpu-firmware-amd-kmod-vcn-3-1-2"
+			;;
+		# Navi 31
+		0x744?|0x745?)
+			addpkg "gpu-firmware-amd-kmod-psp-13-0-0"
+			addpkg "gpu-firmware-amd-kmod-smu-13-0-0"
+			addpkg "gpu-firmware-amd-kmod-dcn-3-2-0"
+			addpkg "gpu-firmware-amd-kmod-gc-11-0-0"
+			addpkg "gpu-firmware-amd-kmod-sdma-6-0-0"
+			addpkg "gpu-firmware-amd-kmod-vcn-4-0-0"
+			;;
+		# Navi 33
+		0x73f0|0x748?)
+			addpkg "gpu-firmware-amd-kmod-psp-13-0-7"
+			addpkg "gpu-firmware-amd-kmod-smu-13-0-7"
+			addpkg "gpu-firmware-amd-kmod-dcn-3-2-1"
+			addpkg "gpu-firmware-amd-kmod-gc-11-0-2"
+			addpkg "gpu-firmware-amd-kmod-sdma-6-0-2"
+			addpkg "gpu-firmware-amd-kmod-vcn-4-0-4"
+			;;
+		# Phoenix
+		0x15bf)
+			addpkg "gpu-firmware-amd-kmod-psp-13-0-4"
+			addpkg "gpu-firmware-amd-kmod-dcn-3-1-4"
+			addpkg "gpu-firmware-amd-kmod-gc-11-0-1"
+			addpkg "gpu-firmware-amd-kmod-sdma-6-0-1"
+			addpkg "gpu-firmware-amd-kmod-vcn-4-0-2"
+			;;
+		# Navi 32
+		0x747?)
+			addpkg "gpu-firmware-amd-kmod-psp-13-0-10"
+			addpkg "gpu-firmware-amd-kmod-smu-13-0-10"
+			addpkg "gpu-firmware-amd-kmod-dcn-3-2-0"
+			addpkg "gpu-firmware-amd-kmod-gc-11-0-3"
+			addpkg "gpu-firmware-amd-kmod-sdma-6-0-3"
+			addpkg "gpu-firmware-amd-kmod-vcn-4-0-0"
+			;;
+		# Phoenix2
+		0x15c8)
+			addpkg "gpu-firmware-amd-kmod-psp-13-0-11"
+			addpkg "gpu-firmware-amd-kmod-dcn-3-1-4"
+			addpkg "gpu-firmware-amd-kmod-gc-11-0-4"
+			addpkg "gpu-firmware-amd-kmod-sdma-6-0-1"
+			addpkg "gpu-firmware-amd-kmod-vcn-4-0-2"
 			;;
 	esac
 }

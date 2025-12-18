@@ -28,48 +28,48 @@ pci_video_intel()
 {
 	case "$1" in
 		# Skylake
-		0x19*)
+		0x1912|0x1916|0x191b|0x191d|0x191e|0x192?|0x193?)
 			addpkg "gpu-firmware-intel-kmod-skylake"
 			;;
 		# Broxton
-		0x0a*|0x1a*|0x5a84|0x5a85)
+		0x0a06|0x0a16|0x0a2?|0x5a84|0x5a85)
 			addpkg "gpu-firmware-intel-kmod-broxton"
 			;;
-		# Geminilake
-		0x318*)
+		# Gemini Lake
+		0x3184|0x3185)
 			addpkg "gpu-firmware-intel-kmod-geminilake"
 			;;
-		# Kabylake, Coffeelake and Cometlake
-		0x59*|0x87*|0x9b*|0x3e*)
+		# Kaby Lake, Coffee Lake and Comet Lake
+		0x3e9?|0x3ea?|0x5902|0x5906|0x590b|0x5912|0x5916|0x5917|0x591b|0x591c|0x591d|0x591e|0x87c?|0x9b21|0x9b41|0x9ba?|0x9bc?|0x9be?|0x9bf?)
 			addpkg "gpu-firmware-intel-kmod-kabylake"
 			;;
-		# Cannonlake
-		0x5a*)
-			addpkg "gpu-firmware-intel-kmod-cannonlake"
-			;;
-		# Icelake
-		0x8a*)
+		# Ice Lake
+		0x8a5?)
 			addpkg "gpu-firmware-intel-kmod-icelake"
 			;;
-		# Elkhartlake/Jasperlake
-		0x45*|0x4e*)
+		# Elkhart Lake/Jasper Lake
+		0x4555|0x4571|0x4e55|0x4e61|0x4e71)
 			addpkg "gpu-firmware-intel-kmod-elkhartlake"
 			;;
-		# Tigerlake
-		0x9a*)
+		# Tiger Lake
+		0x9a4?|0x9a6?|0x9a7?)
 			addpkg "gpu-firmware-intel-kmod-tigerlake"
 			;;
-		# Rocketlake (Uses tigerlake GuC/HuC firmware)
-		0x4c*)
+		# Rocket Lake (Uses Tiger Lake GuC/HuC firmware)
+		0x4c8?|0x4c9?)
 			addpkg "gpu-firmware-intel-kmod-rocketlake gpu-firmware-intel-kmod-tigerlake"
 			;;
-		# DG1
-		0x49*)
+		# DG1 (Iris Xe)
+		0x490?)
 			addpkg "gpu-firmware-intel-kmod-dg1"
 			;;
-		# Alderlake (Uses tigerlake GuC/HuC firmware)
-		0x46*)
+		# Alder Lake (Uses Tiger Lake GuC/HuC firmware)
+		0x4626|0x4628|0x462a|0x4636|0x4638|0x463a|0x468?|0x469?|0x46a?|0x46b?|0x46c?|0x46d?)
 			addpkg "gpu-firmware-intel-kmod-alderlake gpu-firmware-intel-kmod-tigerlake"
+			;;
+		# DG2 (Arc Alchemist)
+		0x4f8?|0x569?|0x56a?|0x56b)
+			addpkg "gpu-firmware-intel-kmod-dg2"
 			;;
 		*)
 			log_verbose "No package found for device $1"
