@@ -2,6 +2,6 @@ PACKAGE=geom
 
 GEOM_CLASS=	part
 
-LIBADD=	util
+LIBADD=	util xo
 
 .include <bsd.lib.mk>

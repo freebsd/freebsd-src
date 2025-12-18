@@ -46,6 +46,7 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
+#include <libxo/xo.h>
 
 #include "core/geom.h"
 #include "misc/subr.h"
@@ -77,7 +78,6 @@ static int geom_is_withered(struct ggeom *);
 static const char *find_geomcfg(struct ggeom *, const char *);
 static const char *find_provcfg(struct gprovider *, const char *);
 static struct gprovider *find_provider(struct ggeom *, off_t);
-static const char *fmtsize(int64_t);
 static int gpart_autofill(struct gctl_req *);
 static int gpart_autofill_resize(struct gctl_req *);
 static void gpart_bootcode(struct gctl_req *, unsigned int);
@@ -281,16 +281,6 @@ find_provider(struct ggeom *gp, off_t minsector)
 		bestsector = sector;
 	}
 	return (bestpp);
-}
-
-static const char *
-fmtsize(int64_t rawsz)
-{
-	static char buf[5];
-
-	humanize_number(buf, sizeof(buf), rawsz, "", HN_AUTOSCALE,
-	    HN_B | HN_NOSPACE | HN_DECIMAL);
-	return (buf);
 }
 
 static const char *
@@ -622,6 +612,7 @@ static void
 gpart_show_geom(struct ggeom *gp, const char *element, int show_providers)
 {
 	struct gprovider *pp;
+	struct gconfig *gc;
 	const char *s, *scheme;
 	off_t first, last, sector, end;
 	off_t length, secsz;
@@ -659,12 +650,14 @@ gpart_show_geom(struct ggeom *gp, const char *element, int show_providers)
 	wname = wmax;
 	pp = LIST_FIRST(&gp->lg_consumer)->lg_provider;
 	secsz = pp->lg_sectorsize;
-	printf("=>%*jd  %*jd  %*s  %s  (%s)%s\n",
-	    wblocks, (intmax_t)first, wblocks, (intmax_t)(last - first + 1),
-	    wname, gp->lg_name,
-	    scheme, fmtsize(pp->lg_mediasize),
-	    s ? " [CORRUPT]": "");
+	xo_open_instance("part");
+	xo_emit("=>{t:start/%*jd}  {t:sectors/%*jd}  {t:name/%*s}  {:scheme}  ({h:size/%ld}){t:state}\n",
+		wblocks, (intmax_t)first, wblocks, (intmax_t)(last - first + 1),
+		wname, gp->lg_name,
+		scheme, pp->lg_mediasize,
+		s ? " [CORRUPT]": "");
 
+	xo_open_list("partitions");
 	while ((pp = find_provider(gp, first)) != NULL) {
 		s = find_provcfg(pp, "start");
 		sector = (off_t)strtoimax(s, NULL, 0);
@@ -676,33 +669,66 @@ gpart_show_geom(struct ggeom *gp, const char *element, int show_providers)
 		s = find_provcfg(pp, "index");
 		idx = atoi(s);
 		if (first < sector) {
-			printf("  %*jd  %*jd  %*s  - free -  (%s)\n",
+			xo_open_instance(s);
+			xo_emit("  {t:start/%*jd}  {t:sectors/%*jd}  {P:/%*s}  {ne:free}- free -  ({h:size/%ld})\n",
 			    wblocks, (intmax_t)first, wblocks,
 			    (intmax_t)(sector - first), wname, "",
-			    fmtsize((sector - first) * secsz));
+			    "true", (sector - first) * secsz);
+			xo_close_instance(s);
 		}
+		xo_open_instance(s);
+		xo_emit("  {t:start/%*jd}  {t:sectors/%*jd}",
+			wblocks, (intmax_t)sector, wblocks, (intmax_t)length);
 		if (show_providers) {
-			printf("  %*jd  %*jd  %*s  %s %s (%s)\n",
-			    wblocks, (intmax_t)sector, wblocks,
-			    (intmax_t)length, wname, pp->lg_name,
-			    find_provcfg(pp, element), fmtattrib(pp),
-			    fmtsize(pp->lg_mediasize));
+			xo_emit("  {t:name/%*s}{e:index/%d}", wname, pp->lg_name, idx);
 		} else
-			printf("  %*jd  %*jd  %*d  %s %s (%s)\n",
-			    wblocks, (intmax_t)sector, wblocks,
-			    (intmax_t)length, wname, idx,
-			    find_provcfg(pp, element), fmtattrib(pp),
-			    fmtsize(pp->lg_mediasize));
+			xo_emit("  {t:index/%*d}{e:name}", wname, idx, pp->lg_name);
+
+		if (strcmp(element, "label") == 0)
+			xo_emit("  {:label}{e:type}{e:rawtype}",
+				find_provcfg(pp, element),
+				find_provcfg(pp, "type"),
+				find_provcfg(pp, "rawtype"));
+		else if (strcmp(element, "type") == 0)
+			xo_emit("  {:type}{e:label}{e:rawtype}",
+				find_provcfg(pp, element),
+				find_provcfg(pp, "label"),
+				find_provcfg(pp, "rawtype"));
+		else
+			xo_emit("  {:rawtype}{e:type}{e:label}",
+				find_provcfg(pp, element),
+				find_provcfg(pp, "type"),
+				find_provcfg(pp, "label"));
+
+		idx = 0;
+		LIST_FOREACH(gc, &pp->lg_config, lg_config) {
+			if (strcmp(gc->lg_name, "attrib") != 0)
+				continue;
+			idx++;
+			if (idx == 1)
+				xo_emit("  [");
+			else
+				xo_emit(",");
+			xo_emit("{l:attribute}", gc->lg_val);
+		}
+		if (idx)
+			xo_emit("]");
+		xo_emit("  ({h:size/%ld})\n", pp->lg_mediasize);
+		xo_close_instance(s);
 		first = end + 1;
 	}
+
 	if (first <= last) {
+		xo_open_instance("unallocated");
 		length = last - first + 1;
-		printf("  %*jd  %*jd  %*s  - free -  (%s)\n",
+		xo_emit("  {t:start/%*jd}  {t:sectors/%*jd}  {P:/%*s}  {ne:free}- free -  ({h:size/%ld})\n",
 		    wblocks, (intmax_t)first, wblocks, (intmax_t)length,
-		    wname, "",
-		    fmtsize(length * secsz));
+		    wname, "", "true", length * secsz);
+		xo_close_instance("unallocated");
 	}
-	printf("\n");
+	xo_close_list("partitions");
+	xo_close_instance("part");
+	xo_emit("\n");
 }
 
 static int
@@ -752,6 +778,7 @@ gpart_show(struct gctl_req *req, unsigned int fl __unused)
 		errx(EXIT_FAILURE, "Class %s not found.", name);
 	}
 	show_providers = gctl_get_int(req, "show_providers");
+	xo_open_list(name);
 	if (nargs > 0) {
 		for (i = 0; i < nargs; i++) {
 			name = gctl_get_ascii(req, "arg%d", i);
@@ -766,6 +793,7 @@ gpart_show(struct gctl_req *req, unsigned int fl __unused)
 			gpart_show_geom(gp, element, show_providers);
 		}
 	}
+	xo_close_list(name);
 	geom_deletetree(&mesh);
 }
 
