@@ -1557,7 +1557,7 @@ device_delete_child(device_t dev, device_t child)
 			return (error);
 	}
 
-	device_destroy_props(dev);
+	device_destroy_props(child);
 	if (child->devclass)
 		devclass_delete_device(child->devclass, child);
 	if (child->parent)
