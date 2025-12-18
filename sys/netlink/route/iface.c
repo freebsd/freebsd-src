@@ -1508,7 +1508,7 @@ void
 rtnl_ifaces_init(void)
 {
 	ifattach_event = EVENTHANDLER_REGISTER(
-	    ifnet_arrival_event, rtnl_handle_ifattach, NULL,
+	    ifnet_attached_event, rtnl_handle_ifattach, NULL,
 	    EVENTHANDLER_PRI_ANY);
 	ifdetach_event = EVENTHANDLER_REGISTER(
 	    ifnet_departure_event, rtnl_handle_ifdetach, NULL,
