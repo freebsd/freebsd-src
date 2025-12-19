@@ -235,9 +235,9 @@ shutdown(int howto)
 {
 	char sigstr[SIG2STR_MAX];
 	int signo =
-	    howto & RB_HALT ? SIGUSR1 :
-	    howto & RB_POWEROFF ? SIGUSR2 :
 	    howto & RB_POWERCYCLE ? SIGWINCH :
+	    howto & RB_POWEROFF ? SIGUSR2 :
+	    howto & RB_HALT ? SIGUSR1 :
 	    howto & RB_REROOT ? SIGEMT :
 	    SIGINT;
 
