@@ -89,6 +89,7 @@ bpf_ifnet_write(void *arg, struct mbuf *m, struct mbuf *mc, int flags)
 	/* DLT_EN10MB */
 	case IFT_ETHER:		/* if_ethersubr.c */
 	case IFT_L2VLAN:	/* vlan(4) */
+	case IFT_BRIDGE:	/* if_bridge(4) */
 	case IFT_IEEE8023ADLAG:	/* lagg(4) */
 	case IFT_INFINIBAND:	/* if_infiniband.c */
 	{
