@@ -51,6 +51,23 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20251215: Remove intrinsic utilities
+OLD_FILES+=usr/bin/alias
+OLD_FILES+=usr/bin/bg
+OLD_FILES+=usr/bin/cd
+OLD_FILES+=usr/bin/command
+OLD_FILES+=usr/bin/fc
+OLD_FILES+=usr/bin/fg
+OLD_FILES+=usr/bin/getopts
+OLD_FILES+=usr/bin/hash
+OLD_FILES+=usr/bin/jobs
+OLD_FILES+=usr/bin/read
+OLD_FILES+=usr/bin/type
+OLD_FILES+=usr/bin/ulimit
+OLD_FILES+=usr/bin/umask
+OLD_FILES+=usr/bin/unalias
+OLD_FILES+=usr/bin/wait
+
 # 20251208: Rename iwm8000C to correct name.
 OLD_FILES+=boot/firmware/iwm8000C
 

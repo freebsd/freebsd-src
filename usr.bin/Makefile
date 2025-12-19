@@ -1,7 +1,6 @@
 .include <src.opts.mk>
 
-SUBDIR=	alias \
-	apply \
+SUBDIR=	apply \
 	asa \
 	awk \
 	backlight \
