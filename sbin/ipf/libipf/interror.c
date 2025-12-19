@@ -28,8 +28,8 @@ static ipf_error_entry_t *find_error(int);
 static ipf_error_entry_t ipf_errors[] = {
 	{	1,	"auth table locked/full" },
 	{	2,	"" },
-	{	3,	"copyinptr received bad address" },
-	{	4,	"copyoutptr received bad address" },
+	{	3,	"ipf_copyin_indirect received bad address" },
+	{	4,	"ipf_copyout_indirect received bad address" },
 	{	5,	"" },
 	{	6,	"cannot load a rule with FR_T_BUILTIN flag set" },
 	{	7,	"internal rule without FR_T_BUILDINT flag set" },

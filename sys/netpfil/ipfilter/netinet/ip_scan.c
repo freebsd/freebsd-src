@@ -106,7 +106,7 @@ ipf_scan_add(caddr_t data)
 		return (ENOMEM);
 	}
 
-	err = copyinptr(data, isc, sizeof(*isc));
+	err = ipf_copyin_indirect(data, isc, sizeof(*isc));
 	if (err) {
 		KFREE(isc);
 		return (err);
@@ -150,7 +150,7 @@ ipf_scan_remove(caddr_t data)
 	ipscan_t isc, *i;
 	int err;
 
-	err = copyinptr(data, &isc, sizeof(isc));
+	err = ipf_copyin_indirect(data, &isc, sizeof(isc));
 	if (err)
 		return (err);
 
