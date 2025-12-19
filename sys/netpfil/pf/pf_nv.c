@@ -684,7 +684,7 @@ error:
 }
 
 nvlist_t *
-pf_krule_to_nvrule(struct pf_krule *rule)
+pf_krule_to_nvrule(const struct pf_krule *rule)
 {
 	nvlist_t *nvl, *tmp;
 	u_int64_t src_nodes_total = 0;
