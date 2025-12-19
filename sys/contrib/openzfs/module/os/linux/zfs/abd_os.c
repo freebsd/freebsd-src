@@ -888,6 +888,14 @@ abd_iter_advance(struct abd_iter *aiter, size_t amount)
 	}
 }
 
+#ifndef nth_page
+/*
+ * Since 6.18 nth_page() no longer exists, and is no longer required to iterate
+ * within a single SG entry, so we replace it with a simple addition.
+ */
+#define	nth_page(p, n)	((p)+(n))
+#endif
+
 /*
  * Map the current chunk into aiter. This can be safely called when the aiter
  * has already exhausted, in which case this does nothing.
@@ -915,7 +923,14 @@ abd_iter_map(struct abd_iter *aiter)
 		aiter->iter_mapsize = MIN(aiter->iter_sg->length - offset,
 		    aiter->iter_abd->abd_size - aiter->iter_pos);
 
-		paddr = zfs_kmap_local(sg_page(aiter->iter_sg));
+		struct page *page = sg_page(aiter->iter_sg);
+		if (PageHighMem(page)) {
+			page = nth_page(page, offset / PAGE_SIZE);
+			offset &= PAGE_SIZE - 1;
+			aiter->iter_mapsize = MIN(aiter->iter_mapsize,
+			    PAGE_SIZE - offset);
+		}
+		paddr = zfs_kmap_local(page);
 	}
 
 	aiter->iter_mapaddr = (char *)paddr + offset;
@@ -933,8 +948,14 @@ abd_iter_unmap(struct abd_iter *aiter)
 		return;
 
 	if (!abd_is_linear(aiter->iter_abd)) {
+		size_t offset = aiter->iter_offset;
+
+		struct page *page = sg_page(aiter->iter_sg);
+		if (PageHighMem(page))
+			offset &= PAGE_SIZE - 1;
+
 		/* LINTED E_FUNC_SET_NOT_USED */
-		zfs_kunmap_local(aiter->iter_mapaddr - aiter->iter_offset);
+		zfs_kunmap_local(aiter->iter_mapaddr - offset);
 	}
 
 	ASSERT3P(aiter->iter_mapaddr, !=, NULL);
@@ -1108,14 +1129,6 @@ abd_return_buf_copy(abd_t *abd, void *buf, size_t n)
 	(PageCompound(page) ? page_size(page) : PAGESIZE)
 #else
 #define	ABD_ITER_PAGE_SIZE(page)	(PAGESIZE)
-#endif
-
-#ifndef nth_page
-/*
- * Since 6.18 nth_page() no longer exists, and is no longer required to iterate
- * within a single SG entry, so we replace it with a simple addition.
- */
-#define	nth_page(p, n)	((p)+(n))
 #endif
 
 void
