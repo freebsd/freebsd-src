@@ -128,7 +128,6 @@ DIRDEPS+= \
 	sbin/sysctl \
 	sbin/tunefs \
 	sbin/umount \
-	usr.bin/alias \
 	usr.bin/apply \
 	usr.bin/ar \
 	usr.bin/asa \

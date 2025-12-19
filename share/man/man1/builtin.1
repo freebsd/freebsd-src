@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 29, 2025
+.Dd December 16, 2025
 .Dt BUILTIN 1
 .Os
 .Sh NAME
@@ -61,9 +61,9 @@ and the standard shells that provide them.
 .It Ic \&[ Ta Yes Ta \&No Ta Yes
 .It Ic { Ta \&No Ta \&No Ta Yes
 .It Ic } Ta \&No Ta \&No Ta Yes
-.It Ic alias Ta No* Ta Yes Ta Yes
+.It Ic alias Ta \&No Ta Yes Ta Yes
 .It Ic alloc Ta \&No Ta Yes Ta \&No
-.It Ic bg Ta No* Ta Yes Ta Yes
+.It Ic bg Ta \&No Ta Yes Ta Yes
 .It Ic bind Ta \&No Ta \&No Ta Yes
 .It Ic bindkey Ta \&No Ta Yes Ta \&No
 .It Ic break Ta \&No Ta Yes Ta Yes
@@ -71,9 +71,9 @@ and the standard shells that provide them.
 .It Ic builtin Ta \&No Ta \&No Ta Yes
 .It Ic builtins Ta \&No Ta Yes Ta \&No
 .It Ic case Ta \&No Ta Yes Ta Yes
-.It Ic cd Ta No* Ta Yes Ta Yes
+.It Ic cd Ta \&No Ta Yes Ta Yes
 .It Ic chdir Ta \&No Ta Yes Ta Yes
-.It Ic command Ta No* Ta \&No Ta Yes
+.It Ic command Ta \&No Ta \&No Ta Yes
 .It Ic complete Ta \&No Ta Yes Ta \&No
 .It Ic continue Ta \&No Ta Yes Ta Yes
 .It Ic default Ta \&No Ta Yes Ta \&No
@@ -93,22 +93,22 @@ and the standard shells that provide them.
 .It Ic exit Ta \&No Ta Yes Ta Yes
 .It Ic export Ta \&No Ta \&No Ta Yes
 .It Ic false Ta Yes Ta \&No Ta Yes
-.It Ic fc Ta No* Ta \&No Ta Yes
-.It Ic fg Ta No* Ta Yes Ta Yes
+.It Ic fc Ta \&No Ta \&No Ta Yes
+.It Ic fg Ta \&No Ta Yes Ta Yes
 .It Ic filetest Ta \&No Ta Yes Ta \&No
 .It Ic fi Ta \&No Ta \&No Ta Yes
 .It Ic for Ta \&No Ta \&No Ta Yes
 .It Ic foreach Ta \&No Ta Yes Ta \&No
-.It Ic getopts Ta No* Ta \&No Ta Yes
+.It Ic getopts Ta \&No Ta \&No Ta Yes
 .It Ic glob Ta \&No Ta Yes Ta \&No
 .It Ic goto Ta \&No Ta Yes Ta \&No
-.It Ic hash Ta No* Ta \&No Ta Yes
+.It Ic hash Ta \&No Ta \&No Ta Yes
 .It Ic hashstat Ta \&No Ta Yes Ta \&No
 .It Ic history Ta \&No Ta Yes Ta \&No
 .It Ic hup Ta \&No Ta Yes Ta \&No
 .It Ic if Ta \&No Ta Yes Ta Yes
 .It Ic jobid Ta \&No Ta \&No Ta Yes
-.It Ic jobs Ta No* Ta Yes Ta Yes
+.It Ic jobs Ta \&No Ta Yes Ta Yes
 .It Ic kill Ta Yes Ta Yes Ta Yes
 .It Ic limit Ta \&No Ta Yes Ta \&No
 .It Ic local Ta \&No Ta \&No Ta Yes
@@ -125,7 +125,7 @@ and the standard shells that provide them.
 .It Ic printf Ta Yes Ta \&No Ta Yes
 .It Ic pushd Ta \&No Ta Yes Ta \&No
 .It Ic pwd Ta Yes Ta \&No Ta Yes
-.It Ic read Ta No* Ta \&No Ta Yes
+.It Ic read Ta \&No Ta \&No Ta Yes
 .It Ic readonly Ta \&No Ta \&No Ta Yes
 .It Ic rehash Ta \&No Ta Yes Ta \&No
 .It Ic repeat Ta \&No Ta Yes Ta \&No
@@ -148,27 +148,21 @@ and the standard shells that provide them.
 .It Ic times Ta \&No Ta \&No Ta Yes
 .It Ic trap Ta \&No Ta \&No Ta Yes
 .It Ic true Ta Yes Ta \&No Ta Yes
-.It Ic type Ta No* Ta \&No Ta Yes
-.It Ic ulimit Ta No* Ta \&No Ta Yes
-.It Ic umask Ta No* Ta Yes Ta Yes
-.It Ic unalias Ta No* Ta Yes Ta Yes
+.It Ic type Ta \&No Ta \&No Ta Yes
+.It Ic ulimit Ta \&No Ta \&No Ta Yes
+.It Ic umask Ta \&No Ta Yes Ta Yes
+.It Ic unalias Ta \&No Ta Yes Ta Yes
 .It Ic uncomplete Ta \&No Ta Yes Ta \&No
 .It Ic unhash Ta \&No Ta Yes Ta \&No
 .It Ic unlimit Ta \&No Ta Yes Ta \&No
 .It Ic unset Ta \&No Ta Yes Ta Yes
 .It Ic unsetenv Ta \&No Ta Yes Ta \&No
 .It Ic until Ta \&No Ta \&No Ta Yes
-.It Ic wait Ta No* Ta Yes Ta Yes
+.It Ic wait Ta \&No Ta Yes Ta Yes
 .It Ic where Ta \&No Ta Yes Ta \&No
 .It Ic which Ta Yes Ta Yes Ta \&No
 .It Ic while Ta \&No Ta Yes Ta Yes
 .El
-.Pp
-\&No*: Commands marked
-.Ql No*
-exist externally, but are implemented as scripts using a
-.Nm
-command of the same name.
 .Ss Keybinds
 The command line environment also provides the following
 default keyboard bindings:
