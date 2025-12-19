@@ -243,9 +243,10 @@ ApIsValidChecksum (
     {
         fprintf (stderr, "%4.4s: Warning: wrong checksum in table\n",
             Table->Signature);
+        return (FALSE);
     }
 
-    return (AE_OK);
+    return (TRUE);
 }
 
 

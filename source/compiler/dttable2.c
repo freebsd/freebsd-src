@@ -1634,6 +1634,9 @@ DtCompilePptt (
 
 
     ParentTable = DtPeekSubtable ();
+
+    PpttAcpiHeader = ACPI_CAST_PTR (ACPI_TABLE_HEADER, ParentTable->Buffer);
+
     while (*PFieldList)
     {
         SubtableStart = *PFieldList;
@@ -1659,7 +1662,14 @@ DtCompilePptt (
 
         case ACPI_PPTT_TYPE_CACHE:
 
-            InfoTable = AcpiDmTableInfoPptt1;
+            if (PpttAcpiHeader->Revision < 3)
+            {
+                InfoTable = AcpiDmTableInfoPptt1;
+            }
+            else
+            {
+                InfoTable = AcpiDmTableInfoPptt1a;
+            }
             break;
 
         case ACPI_PPTT_TYPE_ID:
@@ -1715,21 +1725,6 @@ DtCompilePptt (
                 }
             }
             break;
-
-        case ACPI_PPTT_TYPE_CACHE:
-
-            PpttAcpiHeader = ACPI_CAST_PTR (ACPI_TABLE_HEADER,
-                AslGbl_RootTable->Buffer);
-            if (PpttAcpiHeader->Revision < 3)
-            {
-                break;
-            }
-            Status = DtCompileTable (PFieldList, AcpiDmTableInfoPptt1a,
-                &Subtable);
-            DtInsertSubtable (ParentTable, Subtable);
-            PpttHeader->Length += (UINT8)(Subtable->Length);
-            break;
-
         default:
 
             break;
@@ -2826,6 +2821,64 @@ DtCompileSvkl (
     return (AE_OK);
 }
 
+
+/******************************************************************************
+ *
+ * FUNCTION:    DtCompileSwft
+ *
+ * PARAMETERS:  PFieldList          - Current field list pointer
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Compile SWFT.
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+DtCompileSwft (
+    void                    **List)
+{
+    DT_FIELD                **PFieldList = (DT_FIELD **) List;
+    DT_SUBTABLE             *HdrSub;
+    DT_SUBTABLE             *DataSub;
+    DT_SUBTABLE             *ParentTable;
+    ACPI_STATUS             Status;
+
+    /* Main SWFT header */
+    Status = DtCompileTable (PFieldList, AcpiDmTableInfoSwft, &HdrSub);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    ParentTable = DtPeekSubtable ();
+    DtInsertSubtable (ParentTable, HdrSub);
+
+    while (*PFieldList)
+    {
+        /* File header */
+        Status = DtCompileTable (PFieldList, AcpiDmTableInfoSwftFileHdr,
+                                 &HdrSub);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        DtInsertSubtable (ParentTable, HdrSub);
+
+        /* File data */
+        Status = DtCompileTable (PFieldList, AcpiDmTableInfoSwftFileData,
+                                 &DataSub);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        DtInsertSubtable (ParentTable, DataSub);
+    }
+
+    return (AE_OK);
+}
 
 /******************************************************************************
  *

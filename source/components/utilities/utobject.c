@@ -305,7 +305,7 @@ AcpiUtCreatePackageObject (
         ((ACPI_SIZE) Count + 1) * sizeof (void *));
     if (!PackageElements)
     {
-        ACPI_FREE (PackageDesc);
+        AcpiUtDeleteObjectDesc (PackageDesc);
         return_PTR (NULL);
     }
 

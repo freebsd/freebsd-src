@@ -299,6 +299,14 @@ static const char           *AcpiDmEinjActions[] =
     "Get Command Status",
     "Set Error Type With Address",
     "Get Execute Timings",
+    "Unassigned",
+    "Unassigned",
+    "Unassigned",
+    "Unassigned",
+    "Unassigned",
+    "Unassigned",
+    "EinjV2 Set Error Type(deprecated)",
+    "EinjV2 Get Error Type",
     "Unknown Action"
 };
 
@@ -426,36 +434,39 @@ static const char           *AcpiDmHmatSubnames[] =
 
 static const char           *AcpiDmMadtSubnames[] =
 {
-    "Processor Local APIC",             /* ACPI_MADT_TYPE_LOCAL_APIC */
-    "I/O APIC",                         /* ACPI_MADT_TYPE_IO_APIC */
-    "Interrupt Source Override",        /* ACPI_MADT_TYPE_INTERRUPT_OVERRIDE */
-    "NMI Source",                       /* ACPI_MADT_TYPE_NMI_SOURCE */
-    "Local APIC NMI",                   /* ACPI_MADT_TYPE_LOCAL_APIC_NMI */
-    "Local APIC Address Override",      /* ACPI_MADT_TYPE_LOCAL_APIC_OVERRIDE */
-    "I/O SAPIC",                        /* ACPI_MADT_TYPE_IO_SAPIC */
-    "Local SAPIC",                      /* ACPI_MADT_TYPE_LOCAL_SAPIC */
-    "Platform Interrupt Sources",       /* ACPI_MADT_TYPE_INTERRUPT_SOURCE */
-    "Processor Local x2APIC",           /* ACPI_MADT_TYPE_LOCAL_X2APIC */
-    "Local x2APIC NMI",                 /* ACPI_MADT_TYPE_LOCAL_X2APIC_NMI */
-    "Generic Interrupt Controller",     /* ACPI_MADT_GENERIC_INTERRUPT */
-    "Generic Interrupt Distributor",    /* ACPI_MADT_GENERIC_DISTRIBUTOR */
-    "Generic MSI Frame",                /* ACPI_MADT_GENERIC_MSI_FRAME */
-    "Generic Interrupt Redistributor",  /* ACPI_MADT_GENERIC_REDISTRIBUTOR */
-    "Generic Interrupt Translator",     /* ACPI_MADT_GENERIC_TRANSLATOR */
-    "Mutiprocessor Wakeup",             /* ACPI_MADT_TYPE_MULTIPROC_WAKEUP */
-    "CPU Core Interrupt Controller",    /* ACPI_MADT_TYPE_CORE_PIC */
-    "Legacy I/O Interrupt Controller",  /* ACPI_MADT_TYPE_LIO_PIC */
-    "HT Interrupt Controller",          /* ACPI_MADT_TYPE_HT_PIC */
-    "Extend I/O Interrupt Controller",  /* ACPI_MADT_TYPE_EIO_PIC */
-    "MSI Interrupt Controller",         /* ACPI_MADT_TYPE_MSI_PIC */
-    "Bridge I/O Interrupt Controller",  /* ACPI_MADT_TYPE_BIO_PIC */
-    "LPC Interrupt Controller",         /* ACPI_MADT_TYPE_LPC_PIC */
-    "RISC-V Interrupt Controller",      /* ACPI_MADT_TYPE_RINTC */
-    "RISC-V Incoming MSI Controller",   /* ACPI_MADT_TYPE_IMSIC */
-    "RISC-V APLIC Controller",          /* ACPI_MADT_TYPE_APLIC */
-    "RISC-V PLIC Controller",           /* ACPI_MADT_TYPE_PLIC */
-    "Unknown Subtable Type",            /* Reserved */
-    "Types 80-FF are used for OEM data" /* Reserved for OEM data */
+    "Processor Local APIC",                   /* ACPI_MADT_TYPE_LOCAL_APIC */
+    "I/O APIC",                               /* ACPI_MADT_TYPE_IO_APIC */
+    "Interrupt Source Override",              /* ACPI_MADT_TYPE_INTERRUPT_OVERRIDE */
+    "NMI Source",                             /* ACPI_MADT_TYPE_NMI_SOURCE */
+    "Local APIC NMI",                         /* ACPI_MADT_TYPE_LOCAL_APIC_NMI */
+    "Local APIC Address Override",            /* ACPI_MADT_TYPE_LOCAL_APIC_OVERRIDE */
+    "I/O SAPIC",                              /* ACPI_MADT_TYPE_IO_SAPIC */
+    "Local SAPIC",                            /* ACPI_MADT_TYPE_LOCAL_SAPIC */
+    "Platform Interrupt Sources",             /* ACPI_MADT_TYPE_INTERRUPT_SOURCE */
+    "Processor Local x2APIC",                 /* ACPI_MADT_TYPE_LOCAL_X2APIC */
+    "Local x2APIC NMI",                       /* ACPI_MADT_TYPE_LOCAL_X2APIC_NMI */
+    "Generic Interrupt Controller",           /* ACPI_MADT_GENERIC_INTERRUPT */
+    "Generic Interrupt Distributor",          /* ACPI_MADT_GENERIC_DISTRIBUTOR */
+    "Generic MSI Frame",                      /* ACPI_MADT_GENERIC_MSI_FRAME */
+    "Generic Interrupt Redistributor",        /* ACPI_MADT_GENERIC_REDISTRIBUTOR */
+    "Generic Interrupt Translator",           /* ACPI_MADT_GENERIC_TRANSLATOR */
+    "Mutiprocessor Wakeup",                   /* ACPI_MADT_TYPE_MULTIPROC_WAKEUP */
+    "CPU Core Interrupt Controller",          /* ACPI_MADT_TYPE_CORE_PIC */
+    "Legacy I/O Interrupt Controller",        /* ACPI_MADT_TYPE_LIO_PIC */
+    "HT Interrupt Controller",                /* ACPI_MADT_TYPE_HT_PIC */
+    "Extend I/O Interrupt Controller",        /* ACPI_MADT_TYPE_EIO_PIC */
+    "MSI Interrupt Controller",               /* ACPI_MADT_TYPE_MSI_PIC */
+    "Bridge I/O Interrupt Controller",        /* ACPI_MADT_TYPE_BIO_PIC */
+    "LPC Interrupt Controller",               /* ACPI_MADT_TYPE_LPC_PIC */
+    "RISC-V Interrupt Controller",            /* ACPI_MADT_TYPE_RINTC */
+    "RISC-V Incoming MSI Controller",         /* ACPI_MADT_TYPE_IMSIC */
+    "RISC-V APLIC Controller",                /* ACPI_MADT_TYPE_APLIC */
+    "RISC-V PLIC Controller",                 /* ACPI_MADT_TYPE_PLIC */
+    "Generic Interrupt v5 Router",            /* ACPI_MADT_TYPE_GICV5_IRS */
+    "Generic Interrupt v5 Translator Config", /* ACPI_MADT_TYPE_GICV5_ITS */
+    "Generic Interrupt v5 Translator Entry",  /* ACPI_MADT_TYPE_GICV5_ITS_TRANSLATE */
+    "Unknown Subtable Type",                  /* Reserved */
+    "Types 80-FF are used for OEM data"       /* Reserved for OEM data */
 };
 
 static const char           *AcpiDmMpamSubnames[] =
@@ -557,6 +568,20 @@ static const char           *AcpiDmTpm2Subnames[] =
     "Reserved",
     "Reserved",
     "Command Response Buffer with ARM SMC",
+    "Unknown Subtable Type"         /* Reserved */
+};
+
+static const char           *AcpiDmIovtSubnames[] =
+{
+    "IOMMUv1",
+    "Unknown Subtable Type"         /* Reserved */
+};
+
+static const char           *AcpiDmIovtdevSubnames[] =
+{
+    "A single PCI device",
+    "Start of range",
+    "End of range",
     "Unknown Subtable Type"         /* Reserved */
 };
 
@@ -686,6 +711,7 @@ const ACPI_DMTABLE_DATA     AcpiDmTableData[] =
     {ACPI_SIG_HMAT, NULL,                   AcpiDmDumpHmat, DtCompileHmat,  TemplateHmat},
     {ACPI_SIG_HPET, AcpiDmTableInfoHpet,    NULL,           NULL,           TemplateHpet},
     {ACPI_SIG_IORT, NULL,                   AcpiDmDumpIort, DtCompileIort,  TemplateIort},
+    {ACPI_SIG_IOVT, AcpiDmTableInfoIovt,    AcpiDmDumpIovt, DtCompileIovt,  TemplateIovt},
     {ACPI_SIG_IVRS, NULL,                   AcpiDmDumpIvrs, DtCompileIvrs,  TemplateIvrs},
     {ACPI_SIG_LPIT, NULL,                   AcpiDmDumpLpit, DtCompileLpit,  TemplateLpit},
     {ACPI_SIG_MADT, NULL,                   AcpiDmDumpMadt, DtCompileMadt,  TemplateMadt},
@@ -721,7 +747,7 @@ const ACPI_DMTABLE_DATA     AcpiDmTableData[] =
     {ACPI_SIG_SRAT, NULL,                   AcpiDmDumpSrat, DtCompileSrat,  TemplateSrat},
     {ACPI_SIG_STAO, NULL,                   AcpiDmDumpStao, DtCompileStao,  TemplateStao},
     {ACPI_SIG_SVKL, AcpiDmTableInfoSvkl,    AcpiDmDumpSvkl, DtCompileSvkl,  TemplateSvkl},
-    {ACPI_SIG_SWFT, NULL,                   NULL,           NULL,           NULL},
+    {ACPI_SIG_SWFT, AcpiDmTableInfoSwft,    AcpiDmDumpSwft, DtCompileSwft,  TemplateSwft},
     {ACPI_SIG_TCPA, NULL,                   AcpiDmDumpTcpa, DtCompileTcpa,  TemplateTcpa},
     {ACPI_SIG_TDEL, AcpiDmTableInfoTdel,    NULL,           NULL,           TemplateTdel},
     {ACPI_SIG_TPM2, AcpiDmTableInfoTpm2,    AcpiDmDumpTpm2, DtCompileTpm2,  TemplateTpm2},
@@ -1145,6 +1171,7 @@ AcpiDmDumpTable (
         case ACPI_DMT_ERSTACT:
         case ACPI_DMT_ERSTINST:
         case ACPI_DMT_DMAR_SCOPE:
+        case ACPI_DMT_IOVTDEV:
         case ACPI_DMT_VIOT:
 
             ByteLength = 1;
@@ -1156,6 +1183,7 @@ AcpiDmDumpTable (
         case ACPI_DMT_ERDT:
         case ACPI_DMT_HEST:
         case ACPI_DMT_HMAT:
+        case ACPI_DMT_IOVT:
         case ACPI_DMT_NFIT:
         case ACPI_DMT_PHAT:
         case ACPI_DMT_RHCT:
@@ -2134,6 +2162,33 @@ AcpiDmDumpTable (
 
             AcpiOsPrintf (UINT8_FORMAT, *Target,
                 AcpiDmFadtProfiles[Temp8]);
+            break;
+
+        case ACPI_DMT_IOVT:
+
+            /* IOVT subtable types */
+
+            Temp16 = ACPI_GET16(Target);
+            if (Temp16 > ACPI_IOVT_IOMMU_RESERVED)
+            {
+                Temp16 = ACPI_IOVT_IOMMU_RESERVED;
+            }
+
+            AcpiOsPrintf(UINT16_FORMAT, Temp16, AcpiDmIovtSubnames[Temp16]);
+            break;
+
+        case ACPI_DMT_IOVTDEV:
+
+            /* IOVT subtable types */
+
+            Temp8 = *Target;
+            if (Temp8 > ACPI_IOVT_DEVICE_ENTRY_RESERVED)
+            {
+                Temp8 = ACPI_IOVT_DEVICE_ENTRY_RESERVED;
+            }
+
+            AcpiOsPrintf (UINT8_FORMAT, *Target,
+                AcpiDmIovtdevSubnames[Temp8]);
             break;
 
         case ACPI_DMT_IVRS:
