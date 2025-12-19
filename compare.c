@@ -1,4 +1,4 @@
-/*	$NetBSD: compare.c,v 1.61 2024/12/05 17:17:43 christos Exp $	*/
+/*	$NetBSD: compare.c,v 1.63 2025/12/14 17:30:47 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)compare.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: compare.c,v 1.61 2024/12/05 17:17:43 christos Exp $");
+__RCSID("$NetBSD: compare.c,v 1.63 2025/12/14 17:30:47 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -285,22 +285,18 @@ typeerr:		LABEL;
 
 		LABEL;
 		printf(flavor == F_FREEBSD9 ?
-		    "%spermissions expcted %#lo found %#lo" :
+		    "%spermissions expected %#lo found %#lo" :
 		    "%spermissions (%#lo, %#lo",
 		    tab, (u_long)s->st_mode,
 		    (u_long)p->fts_statp->st_mode & MBITS);
 		if (uflag) {
 			if (lchmod(p->fts_accpath, s->st_mode))
-				printf(", not modified: %s%s\n",
-				    strerror(errno),
-				    flavor == F_FREEBSD9 ? "" : ")");
+				printf(", not modified: %s", strerror(errno));
 			else
-				printf(", modified%s%s\n",
-				    was_unlinked ? " by unlink" : "",
-				    flavor == F_FREEBSD9 ? "" : ")");
+				printf(", modified%s",
+				    was_unlinked ? " by unlink" : "");
 		}
-		else
-			printf(")\n");
+		printf("%s\n", flavor == F_FREEBSD9 ? "" : ")");
 		tab = "\t";
 	skip:	;
 	}
