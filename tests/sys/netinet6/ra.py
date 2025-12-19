@@ -25,12 +25,21 @@ def main():
                         help='The prefix to be advertised')
     parser.add_argument('--prefixlen', nargs=1, required=True, type=int,
                         help='The prefix length to be advertised')
+    parser.add_argument('--validlifetime', nargs=1, required=False,
+                        type=int, default=4294967295,
+                        help='The valid lifetime of the prefix')
+    parser.add_argument('--preferredlifetime', nargs=1, required=False,
+                        type=int, default=4294967295,
+                        help='The preferred lifetime of the prefix')
 
     args = parser.parse_args()
     pkt = sp.Ether() / \
         sp.IPv6(src=args.src, dst=args.dst) / \
         sp.ICMPv6ND_RA(chlim=64) / \
-        sp.ICMPv6NDOptPrefixInfo(prefix=args.prefix, prefixlen=args.prefixlen)
+        sp.ICMPv6NDOptPrefixInfo(prefix=args.prefix,
+                                 prefixlen=args.prefixlen,
+                                 validlifetime=args.validlifetime,
+                                 preferredlifetime=args.preferredlifetime)
 
     sp.sendp(pkt, iface=args.sendif[0], verbose=False)
     sys.exit(0)
