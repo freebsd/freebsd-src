@@ -4420,16 +4420,14 @@ vtnet_sysctl_features(SYSCTL_HANDLER_ARGS)
 static int
 vtnet_sysctl_flags(SYSCTL_HANDLER_ARGS)
 {
-	struct vtnet_softc *sc;
-	struct sbuf *sb;
+	struct sbuf sb;
+	struct vtnet_softc *sc = (struct vtnet_softc *)arg1;
 	int error;
 
-	sb = sbuf_new_auto();
-	sc = (struct vtnet_softc *)arg1;
-	sbuf_printf(sb, "%b", sc->vtnet_flags, VTNET_FLAGS_BITS);
-	sbuf_finish(sb);
-	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
-	sbuf_delete(sb);
+	sbuf_new_for_sysctl(&sb, NULL, 0, req);
+	sbuf_printf(&sb, "%b", sc->vtnet_flags, VTNET_FLAGS_BITS);
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
 	return (error);
 }
 
