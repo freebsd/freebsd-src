@@ -33,6 +33,9 @@
 
 #ifdef _KERNEL
 #include "opt_cam.h"
+/* Only need the hooks here so no opt_kdtrace.h */
+#include <sys/queue.h>
+#include <sys/sdt.h>
 #endif
 
 #ifndef _KERNEL
@@ -374,6 +377,17 @@ extern const struct cam_status_entry cam_status_table[];
 extern const int num_cam_status_entries;
 #ifdef _KERNEL
 extern int cam_sort_io_queues;
+#ifdef SDT_PROVIDER_DECLARE
+SDT_PROVIDER_DECLARE(cam);
+#endif
+#define CAM_PROBE1(group, probe, arg0)				\
+	SDT_PROBE1(cam, , group, probe, arg0)
+#define CAM_PROBE2(group, probe, arg0, arg1)			\
+	SDT_PROBE2(cam, , group, probe, arg0, arg1)
+#define CAM_PROBE3(group, probe, arg0, arg1, arg2)		\
+	SDT_PROBE3(cam, , group, probe, arg0, arg1, arg2)
+#define CAM_PROBE4(group, probe, arg0, arg1, arg2, arg3)	\
+	SDT_PROBE4(cam, , group, probe, arg0, arg1, arg2, arg3)
 #endif
 union ccb;
 struct sbuf;
