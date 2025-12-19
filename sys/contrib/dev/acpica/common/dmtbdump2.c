@@ -304,6 +304,14 @@ AcpiDmDumpIort (
             IortRmr = ACPI_ADD_PTR (ACPI_IORT_RMR, IortNode, NodeOffset);
             break;
 
+        case ACPI_IORT_NODE_IWB:
+
+            InfoTable = AcpiDmTableInfoIort7;
+            Length = ACPI_OFFSET (ACPI_IORT_IWB, DeviceName);
+            String = ACPI_ADD_PTR (char, IortNode, NodeOffset + Length);
+            Length += strlen (String) + 1;
+            break;
+
         default:
 
             AcpiOsPrintf ("\n**** Unknown IORT node type 0x%X\n",
@@ -473,6 +481,140 @@ NextSubtable:
         /* Point to next node subtable */
 
         Offset += IortNode->Length;
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpIovt
+ *
+ * PARAMETERS:  Table               - A IOVT table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a IOVT
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpIovt (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    UINT32                  Offset;
+    UINT32                  EntryOffset;
+    UINT32                  EntryLength;
+    UINT32                  EntryType;
+    ACPI_IOVT_DEVICE_ENTRY  *DeviceEntry;
+    ACPI_IOVT_HEADER        *SubtableHeader;
+    ACPI_IOVT_IOMMU         *Subtable;
+    ACPI_DMTABLE_INFO       *InfoTable;
+    ACPI_TABLE_IOVT         *Iovt;
+
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoIovt);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    Iovt = ACPI_CAST_PTR (ACPI_TABLE_IOVT, Table);
+    Offset = Iovt->IommuOffset;
+
+    /* Subtables */
+
+    SubtableHeader = ACPI_ADD_PTR (ACPI_IOVT_HEADER, Table, Offset);
+
+    while (Offset < Table->Length)
+    {
+        switch (SubtableHeader->Type)
+        {
+
+        case ACPI_IOVT_IOMMU_V1:
+
+            AcpiOsPrintf ("\n");
+            InfoTable = AcpiDmTableInfoIovt0;
+            break;
+
+        default:
+
+            AcpiOsPrintf ("\n**** Unknown IOVT subtable type 0x%X\n",
+                SubtableHeader->Type);
+
+            /* Attempt to continue */
+
+            if (!SubtableHeader->Length)
+            {
+                AcpiOsPrintf ("Invalid zero length subtable\n");
+                return;
+            }
+            goto NextSubtable;
+        }
+
+        /* Dump the subtable */
+
+        Status = AcpiDmDumpTable (Table->Length, Offset, SubtableHeader,
+            SubtableHeader->Length, InfoTable);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        /* The hardware subtables (IOVT) can contain multiple device entries */
+
+        if (SubtableHeader->Type == ACPI_IOVT_IOMMU_V1)
+        {
+            Subtable = ACPI_ADD_PTR (ACPI_IOVT_IOMMU, Table, Offset);
+
+            EntryOffset = Offset + Subtable->DeviceEntryOffset;
+            /* Process all of the Device Entries */
+
+            do {
+                AcpiOsPrintf ("\n");
+
+                DeviceEntry = ACPI_ADD_PTR (ACPI_IOVT_DEVICE_ENTRY,
+                    Table, EntryOffset);
+                EntryType = DeviceEntry->Type;
+                EntryLength = DeviceEntry->Length;
+
+                switch (EntryType)
+                {
+                case ACPI_IOVT_DEVICE_ENTRY_SINGLE:
+                case ACPI_IOVT_DEVICE_ENTRY_START:
+                case ACPI_IOVT_DEVICE_ENTRY_END:
+                    InfoTable = AcpiDmTableInfoIovtdev;
+                    break;
+
+                default:
+                    InfoTable = AcpiDmTableInfoIovtdev;
+                    AcpiOsPrintf (
+                        "\n**** Unknown IOVT device entry type/length: "
+                        "0x%.2X/0x%X at offset 0x%.4X: (header below)\n",
+                        EntryType, EntryLength, EntryOffset);
+                    break;
+                }
+
+                /* Dump the Device Entry */
+
+                Status = AcpiDmDumpTable (Table->Length, EntryOffset,
+                    DeviceEntry, EntryLength, InfoTable);
+                if (ACPI_FAILURE (Status))
+                {
+                    return;
+                }
+
+                EntryOffset += EntryLength;
+            } while (EntryOffset < (Offset + Subtable->Header.Length));
+        }
+
+NextSubtable:
+        /* Point to next subtable */
+
+        Offset += SubtableHeader->Length;
+        SubtableHeader = ACPI_ADD_PTR (ACPI_IOVT_HEADER, SubtableHeader, SubtableHeader->Length);
     }
 }
 
@@ -1053,6 +1195,21 @@ AcpiDmDumpMadt (
         case ACPI_MADT_TYPE_PLIC:
 
             InfoTable = AcpiDmTableInfoMadt27;
+            break;
+
+        case ACPI_MADT_TYPE_GICV5_IRS:
+
+            InfoTable = AcpiDmTableInfoMadt28;
+            break;
+
+        case ACPI_MADT_TYPE_GICV5_ITS:
+
+            InfoTable = AcpiDmTableInfoMadt29;
+            break;
+
+        case ACPI_MADT_TYPE_GICV5_ITS_TRANSLATE:
+
+            InfoTable = AcpiDmTableInfoMadt30;
             break;
 
         default:
@@ -2290,8 +2447,16 @@ AcpiDmDumpPptt (
 
         case ACPI_PPTT_TYPE_CACHE:
 
-            InfoTable = AcpiDmTableInfoPptt1;
-            Length = sizeof (ACPI_PPTT_CACHE);
+            if (Table->Revision < 3)
+            {
+                InfoTable = AcpiDmTableInfoPptt1;
+                Length = sizeof (ACPI_PPTT_CACHE);
+            }
+            else
+            {
+                InfoTable = AcpiDmTableInfoPptt1a;
+                Length = sizeof (ACPI_PPTT_CACHE_V1);
+            }
             break;
 
         case ACPI_PPTT_TYPE_ID:
@@ -2350,22 +2515,6 @@ AcpiDmDumpPptt (
                 SubtableOffset += 4;
             }
             break;
-
-        case ACPI_PPTT_TYPE_CACHE:
-
-            if (Table->Revision < 3)
-            {
-                break;
-            }
-            Status = AcpiDmDumpTable (Table->Length, Offset + SubtableOffset,
-                ACPI_ADD_PTR (ACPI_SUBTABLE_HEADER, Subtable, SubtableOffset),
-                sizeof (ACPI_PPTT_CACHE_V1), AcpiDmTableInfoPptt1a);
-            if (ACPI_FAILURE (Status))
-            {
-                return;
-            }
-            break;
-
         default:
 
             break;

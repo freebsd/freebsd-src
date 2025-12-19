@@ -175,7 +175,9 @@
 #define ACPI_SIG_CDAT           "CDAT"      /* Coherent Device Attribute Table */
 #define ACPI_SIG_ERDT           "ERDT"      /* Enhanced Resource Director Technology */
 #define ACPI_SIG_IORT           "IORT"      /* IO Remapping Table */
+#define ACPI_SIG_IOVT           "IOVT"      /* I/O Virtualization Table */
 #define ACPI_SIG_IVRS           "IVRS"      /* I/O Virtualization Reporting Structure */
+#define ACPI_SIG_KEYP           "KEYP"      /* Key Programming Interface for IDE */
 #define ACPI_SIG_LPIT           "LPIT"      /* Low Power Idle Table */
 #define ACPI_SIG_MADT           "APIC"      /* Multiple APIC Description Table */
 #define ACPI_SIG_MCFG           "MCFG"      /* PCI Memory Mapped Configuration table */
@@ -917,6 +919,7 @@ enum AcpiIortNodeType
     ACPI_IORT_NODE_SMMU_V3              = 0x04,
     ACPI_IORT_NODE_PMCG                 = 0x05,
     ACPI_IORT_NODE_RMR                  = 0x06,
+    ACPI_IORT_NODE_IWB                  = 0x07,
 };
 
 
@@ -1119,6 +1122,92 @@ typedef struct acpi_iort_rmr_desc {
     UINT32 Reserved;
 
 } ACPI_IORT_RMR_DESC;
+
+typedef struct acpi_iort_iwb {
+    UINT64 BaseAddress;
+    UINT16 IwbIndex;           /* Unique IWB identifier matching with the IWB GSI namespace. */
+    char   DeviceName[];       /* Path of the IWB namespace object */
+
+} ACPI_IORT_IWB;
+
+
+/*******************************************************************************
+ *
+ * IOVT - I/O Virtualization Table
+ *
+ * Conforms to "LoongArch I/O Virtualization Table",
+ *        Version 0.1, October 2024
+ *
+ ******************************************************************************/
+
+typedef struct acpi_table_iovt
+{
+    ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
+    UINT16                  IommuCount;
+    UINT16                  IommuOffset;
+    UINT8                   Reserved[8];
+
+} ACPI_TABLE_IOVT;
+
+/* IOVT subtable header */
+
+typedef struct acpi_iovt_header
+{
+    UINT16                  Type;
+    UINT16                  Length;
+
+} ACPI_IOVT_HEADER;
+
+/* Values for Type field above */
+
+enum AcpiIovtIommuType
+{
+    ACPI_IOVT_IOMMU_V1         = 0x00,
+    ACPI_IOVT_IOMMU_RESERVED   = 0x01     /* 1 and greater are reserved */
+};
+
+/* IOVT subtables */
+
+typedef struct acpi_iovt_iommu
+{
+    ACPI_IOVT_HEADER        Header;
+    UINT32                  Flags;
+    UINT16                  Segment;
+    UINT16                  PhyWidth;            /* Physical Address Width */
+    UINT16                  VirtWidth;           /* Virtual Address Width */
+    UINT16                  MaxPageLevel;
+    UINT64                  PageSize;
+    UINT32                  DeviceId;
+    UINT64                  BaseAddress;
+    UINT32                  AddressSpaceSize;
+    UINT8                   InterruptType;
+    UINT8                   Reserved[3];
+    UINT32                  GsiNumber;
+    UINT32                  ProximityDomain;
+    UINT32                  MaxDeviceNum;
+    UINT32                  DeviceEntryNum;
+    UINT32                  DeviceEntryOffset;
+
+} ACPI_IOVT_IOMMU;
+
+typedef struct acpi_iovt_device_entry
+{
+    UINT8                   Type;
+    UINT8                   Length;
+    UINT8                   Flags;
+    UINT8                   Reserved[3];
+    UINT16                  DeviceId;
+
+} ACPI_IOVT_DEVICE_ENTRY;
+
+enum AcpiIovtDeviceEntryType
+{
+    ACPI_IOVT_DEVICE_ENTRY_SINGLE     = 0x00,
+    ACPI_IOVT_DEVICE_ENTRY_START      = 0x01,
+    ACPI_IOVT_DEVICE_ENTRY_END        = 0x02,
+    ACPI_IOVT_DEVICE_ENTRY_RESERVED   = 0x03     /* 3 and greater are reserved */
+};
+
 
 /*******************************************************************************
  *
@@ -1354,6 +1443,65 @@ typedef struct acpi_ivrs_memory
 
 } ACPI_IVRS_MEMORY;
 
+/*******************************************************************************
+ *
+ * KEYP - Key Programming Interface for Root Complex Integrity and Data
+ *        Encryption (IDE)
+ *        Version 1
+ *
+ * Conforms to "Key Programming Interface for Root Complex Integrity and Data
+ * Encryption (IDE)" document. See under ACPI-Related Documents.
+ *
+ ******************************************************************************/
+typedef struct acpi_table_keyp {
+    ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
+    UINT32                  Reserved;
+} ACPI_TABLE_KEYP;
+
+/* KEYP common subtable header */
+
+typedef struct acpi_keyp_common_header {
+    UINT8                   Type;
+    UINT8                   Reserved;
+    UINT16                  Length;
+} ACPI_KEYP_COMMON_HEADER;
+
+/* Values for Type field above */
+
+enum AcpiKeypType
+{
+    ACPI_KEYP_TYPE_CONFIG_UNIT      = 0,
+};
+
+/* Root Port Information Structure */
+
+typedef struct acpi_keyp_rp_info {
+    UINT16                  Segment;
+    UINT8                   Bus;
+    UINT8                   Devfn;
+} ACPI_KEYP_RP_INFO;
+
+/* Key Configuration Unit Structure */
+
+typedef struct acpi_keyp_config_unit {
+    ACPI_KEYP_COMMON_HEADER           Header;
+    UINT8                             ProtocolType;
+    UINT8                             Version;
+    UINT8                             RootPortCount;
+    UINT8                             Flags;
+    UINT64                            RegisterBaseAddress;
+    ACPI_KEYP_RP_INFO                 RpInfo[];
+} ACPI_KEYP_CONFIG_UNIT;
+
+enum AcpiKeypProtocolType
+{
+    ACPI_KEYP_PROTO_TYPE_INVALID    = 0,
+    ACPI_KEYP_PROTO_TYPE_PCIE,
+    ACPI_KEYP_PROTO_TYPE_CXL,
+    ACPI_KEYP_PROTO_TYPE_RESERVED
+};
+
+#define ACPI_KEYP_F_TVM_USABLE      (1)
 
 /*******************************************************************************
  *
@@ -1470,7 +1618,10 @@ enum AcpiMadtType
     ACPI_MADT_TYPE_IMSIC                    = 25,
     ACPI_MADT_TYPE_APLIC                    = 26,
     ACPI_MADT_TYPE_PLIC                     = 27,
-    ACPI_MADT_TYPE_RESERVED                 = 28,   /* 28 to 0x7F are reserved */
+    ACPI_MADT_TYPE_GICV5_IRS                = 28,
+    ACPI_MADT_TYPE_GICV5_ITS                = 29,
+    ACPI_MADT_TYPE_GICV5_ITS_TRANSLATE      = 30,
+    ACPI_MADT_TYPE_RESERVED                 = 31,   /* 31 to 0x7F are reserved */
     ACPI_MADT_TYPE_OEM_RESERVED             = 0x80  /* 0x80 to 0xFF are reserved for OEM use */
 };
 
@@ -1626,7 +1777,7 @@ typedef struct acpi_madt_local_x2apic_nmi
 } ACPI_MADT_LOCAL_X2APIC_NMI;
 
 
-/* 11: Generic Interrupt - GICC (ACPI 5.0 + ACPI 6.0 + ACPI 6.3 + ACPI 6.5 changes) */
+/* 11: Generic Interrupt - GICC (ACPI 5.0 + ACPI 6.0 + ACPI 6.3 + ACPI 6.5 + ACPI 6.7 changes) */
 
 typedef struct acpi_madt_generic_interrupt
 {
@@ -1648,6 +1799,8 @@ typedef struct acpi_madt_generic_interrupt
     UINT8                   Reserved2[1];
     UINT16                  SpeInterrupt;       /* ACPI 6.3 */
     UINT16                  TrbeInterrupt;      /* ACPI 6.5 */
+    UINT16                  Iaffid;             /* ACPI 6.7 */
+    UINT32                  IrsId;
 
 } ACPI_MADT_GENERIC_INTERRUPT;
 
@@ -1673,7 +1826,7 @@ typedef struct acpi_madt_generic_distributor
 
 } ACPI_MADT_GENERIC_DISTRIBUTOR;
 
-/* Values for Version field above */
+/* Values for Version field above and Version field in acpi_madt_gicv5_irs */
 
 enum AcpiMadtGicVersion
 {
@@ -1682,7 +1835,8 @@ enum AcpiMadtGicVersion
     ACPI_MADT_GIC_VERSION_V2            = 2,
     ACPI_MADT_GIC_VERSION_V3            = 3,
     ACPI_MADT_GIC_VERSION_V4            = 4,
-    ACPI_MADT_GIC_VERSION_RESERVED      = 5     /* 5 and greater are reserved */
+    ACPI_MADT_GIC_VERSION_V5            = 5,
+    ACPI_MADT_GIC_VERSION_RESERVED      = 6     /* 6 and greater are reserved */
 };
 
 
@@ -1734,7 +1888,7 @@ typedef struct acpi_madt_generic_translator
 
 #define ACPI_MADT_ITS_NON_COHERENT      (1)
 
-/* 16: Multiprocessor wakeup (ACPI 6.4) */
+/* 16: Multiprocessor wakeup (ACPI 6.6) */
 
 typedef struct acpi_madt_multiproc_wakeup
 {
@@ -1742,6 +1896,7 @@ typedef struct acpi_madt_multiproc_wakeup
     UINT16                  MailboxVersion;
     UINT32                  Reserved;           /* reserved - must be zero */
     UINT64                  BaseAddress;
+    UINT64                  ResetVector;
 
 } ACPI_MADT_MULTIPROC_WAKEUP;
 
@@ -1760,6 +1915,7 @@ typedef struct acpi_madt_multiproc_wakeup_mailbox
 } ACPI_MADT_MULTIPROC_WAKEUP_MAILBOX;
 
 #define ACPI_MP_WAKE_COMMAND_WAKEUP    1
+#define ACPI_MP_WAKE_COMMAND_TEST      2
 
 /* 17: CPU Core Interrupt Controller (ACPI 6.5) */
 
@@ -1951,6 +2107,46 @@ typedef struct acpi_madt_plic {
     UINT64                  BaseAddr;
     UINT32                  GsiBase;
 } ACPI_MADT_PLIC;
+
+/* 28: Arm GICv5 IRS (ACPI 6.7) */
+typedef struct acpi_madt_gicv5_irs {
+    ACPI_SUBTABLE_HEADER    Header;
+    UINT8                   Version;
+    UINT8                   Reserved;
+    UINT32                  IrsId;
+    UINT32                  Flags;
+    UINT32                  Reserved2;
+    UINT64                  ConfigBaseAddress;
+    UINT64                  SetlpiBaseAddress;
+} ACPI_MADT_GICV5_IRS;
+
+#define ACPI_MADT_IRS_NON_COHERENT      (1)
+
+
+/* 29: Arm GICv5 ITS Config Frame (ACPI 6.7) */
+typedef struct acpi_madt_gicv5_translator
+{
+    ACPI_SUBTABLE_HEADER    Header;
+    UINT8                   Flags;
+    UINT8                   Reserved;           /* reserved - must be zero */
+    UINT32                  TranslatorId;
+    UINT64                  BaseAddress;
+
+} ACPI_MADT_GICv5_ITS;
+
+#define ACPI_MADT_GICV5_ITS_NON_COHERENT      (1)
+
+/* 30: Arm GICv5 ITS Translate Frame (ACPI 6.7) */
+typedef struct acpi_madt_gicv5_translate_frame
+{
+    ACPI_SUBTABLE_HEADER    Header;
+    UINT16                  Reserved;           /* reserved - must be zero */
+    UINT32                  LinkedTranslatorId;
+    UINT32                  TranslateFrameId;
+    UINT32                  Reserved2;
+    UINT64                  BaseAddress;
+
+} ACPI_MADT_GICv5_ITS_TRANSLATE;
 
 
 /* 80: OEM data */
@@ -3356,6 +3552,15 @@ typedef struct acpi_pptt_cache
 
 typedef struct acpi_pptt_cache_v1
 {
+    ACPI_SUBTABLE_HEADER    Header;
+    UINT16                  Reserved;
+    UINT32                  Flags;
+    UINT32                  NextLevelOfCache;
+    UINT32                  Size;
+    UINT32                  NumberOfSets;
+    UINT8                   Associativity;
+    UINT8                   Attributes;
+    UINT16                  LineSize;
     UINT32                  CacheId;
 
 } ACPI_PPTT_CACHE_V1;
@@ -3629,6 +3834,8 @@ typedef struct acpi_ras2_patrol_scrub_param {
     UINT32                      Flags;
     UINT32                      ScrubParamsOut;
     UINT32                      ScrubParamsIn;
+    UINT32                      ExtScrubParams;
+    UINT8                       ScrubRateDesc[256];
 
 } ACPI_RAS2_PATROL_SCRUB_PARAM;
 
@@ -4115,9 +4322,8 @@ typedef struct acpi_swft_file
     UINT16                  VendorID;
     UINT32                  FileID;
     UINT16                  FileVersion;
-    UINT16                  FileLength;
+    UINT32                  FileLength;
     UINT8                   FileData[];
-
 } ACPI_SWFT_FILE;
 
 /*******************************************************************************

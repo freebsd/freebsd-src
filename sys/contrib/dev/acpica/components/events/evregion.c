@@ -320,7 +320,7 @@ AcpiEvAddressSpaceDispatch (
             return_ACPI_STATUS (AE_NOT_EXIST);
         }
 
-        if (RegionObj->Region.SpaceId == ACPI_ADR_SPACE_PLATFORM_COMM)
+        if (FieldObj && RegionObj->Region.SpaceId == ACPI_ADR_SPACE_PLATFORM_COMM)
         {
             ACPI_PCC_INFO *Ctx = HandlerDesc->AddressSpace.Context;
 

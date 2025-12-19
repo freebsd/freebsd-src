@@ -587,7 +587,7 @@ const ACPI_PREDEFINED_INFO          AcpiGbl_PredefinedMethods[] =
                 METHOD_RETURNS (ACPI_RTYPE_PACKAGE)}}, /* Variable-length (Pkgs) each: 1 Buf, 1 Pkg */
                     PACKAGE_INFO (ACPI_PTYPE2_UUID_PAIR, ACPI_RTYPE_BUFFER, 1, ACPI_RTYPE_PACKAGE, 1,0),
 
-    {{"_DSM",   METHOD_4ARGS (ACPI_TYPE_BUFFER, ACPI_TYPE_INTEGER, ACPI_TYPE_INTEGER, ACPI_TYPE_ANY) | ARG_COUNT_IS_MINIMUM,
+    {{"_DSM",   METHOD_4ARGS (ACPI_TYPE_BUFFER, ACPI_TYPE_INTEGER, ACPI_TYPE_INTEGER, ACPI_TYPE_ANY | ACPI_TYPE_PACKAGE) | ARG_COUNT_IS_MINIMUM,
                 METHOD_RETURNS (ACPI_RTYPE_ALL)}}, /* Must return a value, but it can be of any type */
 
     {{"_DSS",   METHOD_1ARGS (ACPI_TYPE_INTEGER),
@@ -720,6 +720,9 @@ const ACPI_PREDEFINED_INFO          AcpiGbl_PredefinedMethods[] =
     {{"_HPX",   METHOD_0ARGS,
                 METHOD_RETURNS (ACPI_RTYPE_PACKAGE)}}, /* Variable-length (Pkgs) each (var Ints) */
                     PACKAGE_INFO (ACPI_PTYPE2_MIN, ACPI_RTYPE_INTEGER, 5,0,0,0),
+
+    {{"_VDM",   METHOD_0ARGS,
+                METHOD_RETURNS (ACPI_RTYPE_INTEGER)}},
 
     {{"_HRV",   METHOD_0ARGS,
                 METHOD_RETURNS (ACPI_RTYPE_INTEGER)}},

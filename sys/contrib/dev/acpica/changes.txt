@@ -1,4 +1,24 @@
 ----------------------------------------
+12 December 2025. Summary of changes for version 20251212:
+
+Major changes:
+
+Update many existing ACPI tables to follow the ACPI 6.6 Specification 
+changes and/or newly approved ASWG ECRs - multiple contributors
+
+Add a few new ACPI tables: IOVT, SWFT, KEYP - multiple contributors
+
+Add many new UUIDs, Hardware/PnP/ACPI IDs - Armin Wolf and Pawel 
+Chmielewski
+
+Support a few new special methods (_xxx format) and modify few existing 
+ones to stay compliant with the latest ACPI Specification changes
+
+Improve existing tools/utilities and fix/clean up some problematic usages 
+along with patching certain vulnerabilities 
+
+
+----------------------------------------
 7 August 2025. Summary of changes for version 20250807:
 
 Major changes:
@@ -9,11 +29,15 @@ Fixed non-NUL terminated string implementations - Ahmed Salem
 
 Fixed CCEL and CDAT templates - Ahmed Salem
 
-Fixed a major Linux kernel bug (UAF) that was triggered by unequal number of method parameters (definition) vs arguments (invocation) in different places - Peter Williams, Hans de Goede, Rafael Wysocki
+Fixed a major Linux kernel bug (UAF) that was triggered by unequal number 
+of method parameters (definition) vs arguments (invocation) in different 
+places - Peter Williams, Hans de Goede, Rafael Wysocki
 
-Define distinct D3 states (D3Hot and D3Cold) that help clarify the device behavior support - Aymeric Wibo
+Define distinct D3 states (D3Hot and D3Cold) that help clarify the device 
+behavior support - Aymeric Wibo
 
-A few cleanups, improvements to existing table supports, small fixes, spelling corrections etc.
+A few cleanups, improvements to existing table supports, small fixes, 
+spelling corrections etc.
 
 
 ----------------------------------------
@@ -21,15 +45,22 @@ A few cleanups, improvements to existing table supports, small fixes, spelling c
 
 Major changes:
 
-Update all the copyright continuation year to 2025 in the license header of all files
+Update all the copyright continuation year to 2025 in the license header 
+of all files
 
-Add complete support for 3 new ACPI tables - MRRM,ERDT and RIMT (Tony Luck & V L Sunil)
+Add complete support for 3 new ACPI tables - MRRM,ERDT and RIMT (Tony 
+Luck & V L Sunil)
 
-Add a license file to the project which is a great improvement (Dionna Glaze)
+Add a license file to the project which is a great improvement (Dionna 
+Glaze)
 
-Update DMAR and TPM2 tables to support their latest versions (Alexey Neyman and Stuart Yoder) 
+Update DMAR and TPM2 tables to support their latest versions (Alexey 
+Neyman and Stuart Yoder) 
 
-A few fixes including local cache allocation, FFixedHW Region, attribute packing, string vs. non-string char array, vsnprintf()etc. along with some comments, spelling errors and code alignment (multiple awesome contributors)
+A few fixes including local cache allocation, FFixedHW Region, attribute 
+packing, string vs. non-string char array, vsnprintf()etc. along with 
+some comments, spelling errors and code alignment (multiple awesome 
+contributors)
  
 
 ----------------------------------------
@@ -43,9 +74,11 @@ EINJ V2 updates - Zaid Alali (Ampere Computing)
 
 CDAT updates - Ira Weiny (Intel Corporation)
 
-Fix mutex handling, do not release ones that were never acquired - Daniil Tatianin
+Fix mutex handling, do not release ones that were never acquired - Daniil 
+Tatianin
 
-Experiment with new tag name format Ryyyy_mm_dd to solve chronological sorting problems
+Experiment with new tag name format Ryyyy_mm_dd to solve chronological 
+sorting problems
 
 
 ----------------------------------------
@@ -53,11 +86,14 @@ Experiment with new tag name format Ryyyy_mm_dd to solve chronological sorting p
 
 Major changes:
 
-Fix the acpixf.h file which caused issues for the last release (before this) 20240827
+Fix the acpixf.h file which caused issues for the last release (before 
+this) 20240827
 
 Fix the pointer offset for the SLIC table
 
-Verify the local environment and GitHub commits are all in sync which was a problem with the second from last release (before this)20240322 (aka 20240323 - date issue) 
+Verify the local environment and GitHub commits are all in sync which was 
+a problem with the second from last release (before this)20240322 (aka 
+20240323 - date issue) 
 
 
 
@@ -66,23 +102,31 @@ Verify the local environment and GitHub commits are all in sync which was a prob
 
 Major changes:
 
-Fix the PHAT table working: ensure that the PHAT firmware health record offset works correctly, fix various sub-table offsets, prevent segmentation faults when encountering invalid device paths. Contributed by: Armin Wolf <W_Armin@gmx.de>
+Fix the PHAT table working: ensure that the PHAT firmware health record 
+offset works correctly, fix various sub-table offsets, prevent 
+segmentation faults when encountering invalid device paths. Contributed 
+by: Armin Wolf <W_Armin@gmx.de>
 
-Fix the optional table 4-byte signature. Contributed by: Daniil Tatianin <99danilt@gmail.com>
+Fix the optional table 4-byte signature. Contributed by: Daniil Tatianin 
+<99danilt@gmail.com>
 
-Correct the dumping of SLIC and DBG2 tables. Contributed by: Al Stone (Fedora) <ahs3@ahs3.net> 
+Correct the dumping of SLIC and DBG2 tables. Contributed by: Al Stone 
+(Fedora) <ahs3@ahs3.net> 
 
 Add support for QWordPCC and DWordPCC by Jose Marinho (ARM)
 
 Fix the integer to hex string conversions by Armin Wolf
 
-Detecting FACS in reduced HW mode and allowing setting waking vector thereby waking up from S3 state
+Detecting FACS in reduced HW mode and allowing setting waking vector 
+thereby waking up from S3 state
 
-Fixing issues with crossing page boundaries when mapping operation regions by Raju Rangoju, Sanath S and Mario Limonciello (AMD)
+Fixing issues with crossing page boundaries when mapping operation 
+regions by Raju Rangoju, Sanath S and Mario Limonciello (AMD)
 
 Update the support for IORT, HMAT, MPAM, AEST, CEDT, SPCR etc. tables
 
-Fix multiple issues with table parsing, compilation and disassembly by Myra DeMere (Google)
+Fix multiple issues with table parsing, compilation and disassembly by 
+Myra DeMere (Google)
 
 Allow for more flexibility in _DSM usage.
 
@@ -102,13 +146,18 @@ Fix a test in ASLTS with edge case failure.
 
 Fix a couple of issues with how GPEs are counted and enabled.
 
-Add new tables for various architectures/OS, mainly RISC-V and also update many more.
+Add new tables for various architectures/OS, mainly RISC-V and also 
+update many more.
 
-Add an option to either make the output deterministic or non-deterministic.
+Add an option to either make the output deterministic or non-
+deterministic.
 
-Remove redundant checks, duplicated code and fix spellings in various files.
+Remove redundant checks, duplicated code and fix spellings in various 
+files.
 
-Fix flex arrays for C++ compilers and also make ACPICA overall more compatible with different compilers which throw warnings related to memory sanitization etc.
+Fix flex arrays for C++ compilers and also make ACPICA overall more 
+compatible with different compilers which throw warnings related to 
+memory sanitization etc.
 
 
 ----------------------------------------
@@ -116,31 +165,56 @@ Fix flex arrays for C++ compilers and also make ACPICA overall more compatible w
 
 0) Global changes:
 
-Fixed a problem with the ASL/AML Timer() operator. Discovered by UBSAN: ?array-index-out-of-bounds in acpica/dswexec.c:401:12 index -1 is out of range for type 'acpi_operand_object?. Added AML_NO_OPERAND_RESOLVE flag to Timer (since there are no runtime arguments). Reported by: Abhishek Mainkar abmainkar@nvidia.com.
+Fixed a problem with the ASL/AML Timer() operator. Discovered by UBSAN: 
+?array-index-out-of-bounds in acpica/dswexec.c:401:12 index -1 is out of 
+range for type 'acpi_operand_object?. Added AML_NO_OPERAND_RESOLVE flag 
+to Timer (since there are no runtime arguments). Reported by: Abhishek 
+Mainkar abmainkar@nvidia.com.
 
-Added a define for size of acpi_srat_generic_affinity DeviceHandle. Replaced a magic number with a define. The Linux kernel code will utilize this. Reported by Dave Jiang dave.jiang@intel.com. 
+Added a define for size of acpi_srat_generic_affinity DeviceHandle. 
+Replaced a magic number with a define. The Linux kernel code will utilize 
+this. Reported by Dave Jiang dave.jiang@intel.com. 
 
 Added support for _DSC (Deepest State for Configuration) as per ACPI 6.5.
 
 1) ACPICA kernel-resident subsystem:
 
-Added port definitions for CDAT SSLBIS. Add upstream port and any port definitions for SSLBIS. Reported by: Dave Jiang dave.jiang@intel.com.
+Added port definitions for CDAT SSLBIS. Add upstream port and any port 
+definitions for SSLBIS. Reported by: Dave Jiang dave.jiang@intel.com.
 
-Fixed misspelled CDAT DSMAS define: ACPI_CEDT_DSMAS_NON_VOLATILE -> ACPI_CDAT_DSMAS_NON_VOLATILE. Reported by: Dave Jiang dave.jiang@intel.com.
+Fixed misspelled CDAT DSMAS define: ACPI_CEDT_DSMAS_NON_VOLATILE -> 
+ACPI_CDAT_DSMAS_NON_VOLATILE. Reported by: Dave Jiang 
+dave.jiang@intel.com.
 
 1) ACPICA kernel-resident subsystem:
 
-Fix GCC 12 dangling-pointer warning.  We're storing a persistent pointer to an ephemeral local variable which technically is a dangling pointer and the compiler is correct. However, since we never indirect the pointer, this is a safe operation and we can suppress the warning.
+Fix GCC 12 dangling-pointer warning.  We're storing a persistent pointer 
+to an ephemeral local variable which technically is a dangling pointer 
+and the compiler is correct. However, since we never indirect the 
+pointer, this is a safe operation and we can suppress the warning.
 
-Also, some C run-times (like MUSL) aren't including <stdint.h> indirectly so we must include it explicitly or we won't have the type definition for uintptr_t.
+Also, some C run-times (like MUSL) aren't including <stdint.h> indirectly 
+so we must include it explicitly or we won't have the type definition for 
+uintptr_t.
 
 2) iASL Compiler/Disassembler and ACPICA tools:. 
 
-IASL/RHCT: Enable dumping and compiling newly added nodes. The RHCT table is updated with new nodes. Add compile and dump functionality for these new structures.
+IASL/RHCT: Enable dumping and compiling newly added nodes. The RHCT table 
+is updated with new nodes. Add compile and dump functionality for these 
+new structures.
 
-AcpiExec: Added a new command, ?interrupt?. The Interrupt command simulates an interrupt with a IntID (GSIV) equal to the first argument of the call/invocation. The acpiexec code simulates the behavior by OSPM: execute the _EVT method of the GED device associated with that IntID. Submitted by: Jose Marinho jose.marinho@arm.com.
+AcpiExec: Added a new command, ?interrupt?. The Interrupt command 
+simulates an interrupt with a IntID (GSIV) equal to the first argument of 
+the call/invocation. The acpiexec code simulates the behavior by OSPM: 
+execute the _EVT method of the GED device associated with that IntID. 
+Submitted by: Jose Marinho jose.marinho@arm.com.
 
-AcpiExec: Detect GED device and keep track of _EVT. The GED device is described by a _HID of ACPI0013. This code traverses the namespace identifying all GED devices. For each GED device in the namespace we record the Interrupt object and the _EVT method. This information is used when an interrupt is simulated via the ?interrupt? command. Submitted by: Jose Marinho jose.marinho@arm.com.
+AcpiExec: Detect GED device and keep track of _EVT. The GED device is 
+described by a _HID of ACPI0013. This code traverses the namespace 
+identifying all GED devices. For each GED device in the namespace we 
+record the Interrupt object and the _EVT method. This information is used 
+when an interrupt is simulated via the ?interrupt? command. Submitted by: 
+Jose Marinho jose.marinho@arm.com.
 ----------------------------------------
 31 March 2023. Summary of changes for version 20230331:
 
