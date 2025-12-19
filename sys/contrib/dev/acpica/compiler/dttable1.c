@@ -3035,6 +3035,91 @@ DtCompileIort (
 
 /******************************************************************************
  *
+ * FUNCTION:    DtCompileIovt
+ *
+ * PARAMETERS:  List                - Current field list pointer
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Compile Iovt. Notes:
+ *              The IOVT is essentially a flat table, with the following
+ *              structure:
+ *              <Main ACPI Table Header>
+ *              <Main subtable - virtualization info>
+ *              <IOVT>
+ *                  <Device Entries>
+ *              ...
+ *              <IOVT>
+ *              <IOVT>
+ *              ...
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+DtCompileIovt (
+    void                    **List)
+{
+    ACPI_STATUS             Status;
+    DT_SUBTABLE             *Subtable;
+    DT_SUBTABLE             *ParentTable;
+    DT_FIELD                **PFieldList = (DT_FIELD **) List;
+    ACPI_TABLE_IOVT         *Iovt;
+    UINT16                  IommuCount;
+    ACPI_IOVT_IOMMU         *Iommu;
+    UINT32                  DeviceEntryNum;
+
+
+    ParentTable = DtPeekSubtable ();
+    /* Main table */
+
+    Status = DtCompileTable (PFieldList, AcpiDmTableInfoIovt,
+        &Subtable);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    DtInsertSubtable (ParentTable, Subtable);
+    DtPushSubtable (Subtable);
+
+    Iovt = ACPI_SUB_PTR (ACPI_TABLE_IOVT, Subtable->Buffer,
+        sizeof (ACPI_TABLE_HEADER));
+
+    for (IommuCount = 0; IommuCount < Iovt->IommuCount; IommuCount++)
+    {
+        Status = DtCompileTable (PFieldList, AcpiDmTableInfoIovt0,
+            &Subtable);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        ParentTable = DtPeekSubtable ();
+        DtInsertSubtable (ParentTable, Subtable);
+        DtPushSubtable (Subtable);
+
+        Iommu = ACPI_CAST_PTR(ACPI_IOVT_IOMMU, Subtable->Buffer);
+        for (DeviceEntryNum = 0; DeviceEntryNum < Iommu->DeviceEntryNum; DeviceEntryNum++)
+        {
+            Status = DtCompileTable (PFieldList, AcpiDmTableInfoIovtdev,
+                &Subtable);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
+            ParentTable = DtPeekSubtable ();
+            DtInsertSubtable (ParentTable, Subtable);
+        }
+        DtPopSubtable();
+    }
+
+    return (AE_OK);
+}
+
+
+/******************************************************************************
+ *
  * FUNCTION:    DtCompileIvrs
  *
  * PARAMETERS:  List                - Current field list pointer

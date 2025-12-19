@@ -805,7 +805,7 @@ AcpiInstallMethod (
 ErrorExit:
 
     ACPI_FREE (AmlBuffer);
-    ACPI_FREE (MethodObj);
+    AcpiUtDeleteObjectDesc (MethodObj);
     return (Status);
 }
 

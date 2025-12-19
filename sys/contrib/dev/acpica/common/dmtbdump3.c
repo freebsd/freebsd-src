@@ -492,6 +492,73 @@ AcpiDmDumpSvkl (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiDmDumpSwft
+ *
+ * PARAMETERS:  Table               - A SWFT table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a SWFT. This is a variable-length
+ *              table that contains an open-ended number of SoundWire files
+ *              after the end of the header.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpSwft (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    UINT32                  Length = Table->Length;
+    UINT32                  Offset = sizeof (ACPI_TABLE_SWFT);
+    ACPI_SWFT_FILE          *SubtableHdr;
+    ACPI_SWFT_FILE          *SubtableData;
+
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoSwft);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    /* The rest of the table consists of subtables (single type) */
+
+    while (Offset < Table->Length)
+    {
+        SubtableHdr = ACPI_ADD_PTR (ACPI_SWFT_FILE, Table, Offset);
+
+        /* Dump the subtable */
+
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Table->Length, Offset, SubtableHdr,
+            sizeof (ACPI_SWFT_FILE), AcpiDmTableInfoSwftFileHdr);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        Offset += sizeof(ACPI_SWFT_FILE);
+
+        SubtableData = ACPI_ADD_PTR (ACPI_SWFT_FILE, Table, Offset);
+
+        Status = AcpiDmDumpTable (Table->Length, Offset, SubtableData,
+            SubtableHdr->FileLength - sizeof(ACPI_SWFT_FILE), AcpiDmTableInfoSwftFileData);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        /* Point to next subtable */
+
+        Offset += SubtableHdr->FileLength - sizeof(ACPI_SWFT_FILE);
+    }
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiDmDumpTcpa
  *
  * PARAMETERS:  Table               - A TCPA table

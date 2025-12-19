@@ -280,6 +280,7 @@ const AH_PREDEFINED_NAME    AslPredefinedInfo[] =
     AH_PREDEF ("_HOT",    "Hot Temperature", "Returns the critical temperature for sleep (entry to S4)"),
     AH_PREDEF ("_HPP",    "Hot Plug Parameters", "Returns a list of hot-plug information for a PCI device"),
     AH_PREDEF ("_HPX",    "Hot Plug Parameter Extensions", "Returns a list of hot-plug information for a PCI device. Supersedes _HPP"),
+    AH_PREDEF ("_VDM",    "Voltage Domain", "A DWORD identifier specifying the voltage domain to which the processor belongs."),
     AH_PREDEF ("_HRV",    "Hardware Revision", "Returns a hardware revision value"),
     AH_PREDEF ("_IFT",    "IPMI Interface Type", "See the Intelligent Platform Management Interface Specification"),
     AH_PREDEF ("_INI",    "Initialize", "Performs device specific initialization"),
