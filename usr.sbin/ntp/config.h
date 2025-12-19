@@ -1664,7 +1664,8 @@ typedef unsigned int	uintptr_t;
 #define USE_FSETOWNCTTY 1
 
 /* Use OpenSSL's crypto random functions */
-#define USE_OPENSSL_CRYPTO_RAND 1
+/* We define this in Makefile.inc instead */
+/* #undef USE_OPENSSL_CRYPTO_RAND */
 
 /* OK to use snprintb()? */
 /* #undef USE_SNPRINTB */
