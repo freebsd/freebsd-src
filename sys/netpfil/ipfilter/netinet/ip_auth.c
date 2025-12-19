@@ -1015,8 +1015,9 @@ ipf_auth_ioctlloop:
 
 			for (t = auth.fra_buf; m && (len > 0); ) {
 				i = MIN(M_LEN(m), len);
-				error = copyoutptr(softc, MTOD(m, char *),
-						   &t, i);
+				error = ipf_copyout_indirect(softc,
+							     MTOD(m, char *),
+							     &t, i);
 				len -= i;
 				t += i;
 				if (error != 0) {

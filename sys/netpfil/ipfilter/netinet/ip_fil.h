@@ -1679,8 +1679,9 @@ extern	char	*getifname(struct ifnet *);
 extern	int	ipfattach(ipf_main_softc_t *);
 extern	int	ipfdetach(ipf_main_softc_t *);
 extern	u_short	ipf_cksum(u_short *, int);
-extern	int	copyinptr(ipf_main_softc_t *, void *, void *, size_t);
-extern	int	copyoutptr(ipf_main_softc_t *, void *, void *, size_t);
+extern	int	ipf_copyin_indirect(ipf_main_softc_t *, void *, void *, size_t);
+extern	int	ipf_copyout_indirect(ipf_main_softc_t *, void *, void *,
+					  size_t);
 extern	int	ipf_fastroute(mb_t *, mb_t **, fr_info_t *, frdest_t *);
 extern	int	ipf_inject(fr_info_t *, mb_t *);
 extern	int	ipf_inobj(ipf_main_softc_t *, void *, ipfobj_t *,
