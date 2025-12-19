@@ -176,28 +176,30 @@ out_7_skein1024="cf21a613620e6c119eca31fdfaad449a8e02f95ca256c21d2a105f8e4157048
 out_8_skein1024="e6799b78db54085a2be7ff4c8007f147fa88d326abab30be0560b953396d8802feee9a15419b48a467574e9283be15685ca8a079ee52b27166b64dd70b124b1d4e4f6aca37224c3f2685e67e67baef9f94b905698adc794a09672aba977a61b20966912acdb08c21a2c37001785355dc884751a21f848ab36e590331ff938138"
 
 for alg in $algorithms ; do
-	eval "
+	_bsd_name=$(eval "echo \$name_bsd_${alg}")
+	if test -n "${_bsd_name}"; then
+		eval "
 atf_test_case self_test_${alg}
 self_test_${alg}_head() {
-	atf_set descr \"self-test for \$name_bsd_${alg}\"
+	atf_set descr \"self-test for ${_bsd_name}\"
 	atf_set require.progs \"${alg}\"
 }
 self_test_${alg}_body() {
 	atf_check -o ignore ${alg} --self-test
 }
 "
-	for i in $(seq $n) ; do
-		eval "
+  		for i in $(seq $n) ; do
+			eval "
 atf_test_case bsd_${alg}_vec${i}
 bsd_${alg}_vec${i}_head() {
-	atf_set descr \"BSD mode \$name_bsd_${alg} test vector ${i}\"
+	atf_set descr \"BSD mode ${_bsd_name} test vector ${i}\"
 	atf_set require.progs \"${alg}\"
 }
 bsd_${alg}_vec${i}_body() {
 	printf '%s' \"\$inp_${i}\" >in
 	atf_check -o inline:\"\$out_${i}_${alg}\n\" ${alg} <in
-	atf_check -o inline:\"\$name_bsd_${alg} (in) = \$out_${i}_${alg}\n\" ${alg} in
-	atf_check -o inline:\"\$name_bsd_${alg} (-) = \$out_${i}_${alg}\n\" ${alg} - <in
+	atf_check -o inline:\"${_bsd_name} (in) = \$out_${i}_${alg}\n\" ${alg} in
+	atf_check -o inline:\"${_bsd_name} (-) = \$out_${i}_${alg}\n\" ${alg} - <in
 	atf_check -o inline:\"\$out_${i}_${alg} in\n\" ${alg} -r in
 	atf_check -o inline:\"\$out_${i}_${alg} -\n\" ${alg} -r - <in
 	# -q overrides -r regardless of order
@@ -208,10 +210,10 @@ bsd_${alg}_vec${i}_body() {
 	atf_check -o inline:\"\$out_${i}_${alg}\n\" ${alg} -s \"\$inp_${i}\"
 }
 "
-		eval "
+			eval "
 atf_test_case gnu_${alg}_vec${i}
 gnu_${alg}_vec${i}_head() {
-	atf_set descr \"GNU mode \$name_bsd_${alg} test vector ${i}\"
+	atf_set descr \"GNU mode ${_bsd_name} test vector ${i}\"
 	atf_set require.progs \"${alg}sum\"
 }
 gnu_${alg}_vec${i}_body() {
@@ -222,39 +224,17 @@ gnu_${alg}_vec${i}_body() {
 	atf_check -o inline:\"\$out_${i}_${alg}  -\n\" ${alg}sum - <in
 	atf_check -o inline:\"\$out_${i}_${alg} *in\n\" ${alg}sum -b in
 	atf_check -o inline:\"\$out_${i}_${alg} *-\n\" ${alg}sum -b - <in
-	atf_check -o inline:\"\$name_bsd_${alg} (in) = \$out_${i}_${alg}\n\" ${alg}sum --tag in
-	atf_check -o inline:\"\$name_bsd_${alg} (-) = \$out_${i}_${alg}\n\" ${alg}sum --tag - <in
+	atf_check -o inline:\"${_bsd_name} (in) = \$out_${i}_${alg}\n\" ${alg}sum --tag in
+	atf_check -o inline:\"${_bsd_name} (-) = \$out_${i}_${alg}\n\" ${alg}sum --tag - <in
 	atf_check -o inline:\"\$out_${i}_${alg}  in\0\" ${alg}sum -z in
 	atf_check -o inline:\"\$out_${i}_${alg}  -\0\" ${alg}sum -z - <in
 }
 "
+  		done
 		eval "
-atf_test_case perl_${alg}_vec${i}
-perl_${alg}_vec${i}_head() {
-	atf_set descr \"Perl mode \$name_bsd_${alg} test vector ${i}\"
-	atf_set require.progs \"shasum\"
-}
-perl_${alg}_vec${i}_body() {
-	[ -n \"\$name_perl_${alg}\" ] || atf_skip \"shasum does not support ${alg}\"
-	printf '%s' \"\$inp_${i}\" >in
-	atf_check -o inline:\"\$out_${i}_${alg}  -\n\" shasum \$alg_perl_${alg} <in
-	atf_check -o inline:\"\$out_${i}_${alg} *-\n\" shasum \$alg_perl_${alg} -b <in
-	atf_check -o inline:\"\$out_${i}_${alg} U-\n\" shasum \$alg_perl_${alg} -U <in
-	atf_check -o inline:\"\$out_${i}_${alg}  in\n\" shasum \$alg_perl_${alg} in
-	atf_check -o inline:\"\$out_${i}_${alg}  -\n\" shasum \$alg_perl_${alg} - <in
-	atf_check -o inline:\"\$out_${i}_${alg} *in\n\" shasum \$alg_perl_${alg} -b in
-	atf_check -o inline:\"\$out_${i}_${alg} *-\n\" shasum \$alg_perl_${alg} -b - <in
-	atf_check -o inline:\"\$out_${i}_${alg} Uin\n\" shasum \$alg_perl_${alg} -U in
-	atf_check -o inline:\"\$out_${i}_${alg} U-\n\" shasum \$alg_perl_${alg} -U - <in
-	atf_check -o inline:\"\$name_perl_${alg} (in) = \$out_${i}_${alg}\n\" shasum \$alg_perl_${alg} --tag in
-	atf_check -o inline:\"\$name_perl_${alg} (-) = \$out_${i}_${alg}\n\" shasum \$alg_perl_${alg} --tag - <in
-}
-"
-	done
-	eval "
 atf_test_case gnu_check_${alg}
 gnu_check_${alg}_head() {
-	atf_set descr \"GNU mode check test for \$name_bsd_${alg}\"
+	atf_set descr \"GNU mode check test for ${_bsd_name}\"
 	atf_set require.progs \"${alg}sum\"
 }
 gnu_check_${alg}_body() {
@@ -281,14 +261,42 @@ gnu_check_${alg}_body() {
 	atf_check -s exit:$rv ${alg}sum --check --status digests
 }
 "
-	eval "
+	fi
+
+	_perl_name=$(eval "echo \$name_perl_${alg}")
+	if test -n "${_perl_name}"; then
+  		for i in $(seq $n) ; do
+			eval "
+atf_test_case perl_${alg}_vec${i}
+perl_${alg}_vec${i}_head() {
+	atf_set descr \"Perl mode ${_perl_name} test vector ${i}\"
+	atf_set require.progs \"shasum\"
+}
+perl_${alg}_vec${i}_body() {
+	[ -n \"${_perl_name}\" ] || atf_skip \"shasum does not support ${alg}\"
+	printf '%s' \"\$inp_${i}\" >in
+	atf_check -o inline:\"\$out_${i}_${alg}  -\n\" shasum \$alg_perl_${alg} <in
+	atf_check -o inline:\"\$out_${i}_${alg} *-\n\" shasum \$alg_perl_${alg} -b <in
+	atf_check -o inline:\"\$out_${i}_${alg} U-\n\" shasum \$alg_perl_${alg} -U <in
+	atf_check -o inline:\"\$out_${i}_${alg}  in\n\" shasum \$alg_perl_${alg} in
+	atf_check -o inline:\"\$out_${i}_${alg}  -\n\" shasum \$alg_perl_${alg} - <in
+	atf_check -o inline:\"\$out_${i}_${alg} *in\n\" shasum \$alg_perl_${alg} -b in
+	atf_check -o inline:\"\$out_${i}_${alg} *-\n\" shasum \$alg_perl_${alg} -b - <in
+	atf_check -o inline:\"\$out_${i}_${alg} Uin\n\" shasum \$alg_perl_${alg} -U in
+	atf_check -o inline:\"\$out_${i}_${alg} U-\n\" shasum \$alg_perl_${alg} -U - <in
+	atf_check -o inline:\"${_perl_name} (in) = \$out_${i}_${alg}\n\" shasum \$alg_perl_${alg} --tag in
+	atf_check -o inline:\"${_perl_name} (-) = \$out_${i}_${alg}\n\" shasum \$alg_perl_${alg} --tag - <in
+}
+"
+  		done
+		eval "
 atf_test_case perl_check_${alg}
 perl_check_${alg}_head() {
-	atf_set descr \"Perl mode check test for \$name_bsd_${alg}\"
+	atf_set descr \"Perl mode check test for ${_bsd_name}\"
 	atf_set require.progs \"shasum\"
 }
 perl_check_${alg}_body() {
-	[ -n \"\$name_perl_${alg}\" ] || atf_skip \"shasum does not support ${alg}\"
+	[ -n \"${_perl_name}\" ] || atf_skip \"shasum does not support ${alg}\"
 	:>digests
 	:>stdout
 	:>stderr
@@ -312,6 +320,7 @@ perl_check_${alg}_body() {
 	atf_check -s exit:$rv shasum \$alg_perl_${alg} --check --status digests
 }
 "
+	fi
 done
 
 atf_test_case gnu_bflag
@@ -394,14 +403,22 @@ EOF
 atf_init_test_cases()
 {
 	for alg in $algorithms ; do
-		atf_add_test_case self_test_${alg}
-		for i in $(seq $n) ; do
-			atf_add_test_case bsd_${alg}_vec${i}
-			atf_add_test_case gnu_${alg}_vec${i}
-			atf_add_test_case perl_${alg}_vec${i}
-		done
-		atf_add_test_case gnu_check_${alg}
-		atf_add_test_case perl_check_${alg}
+		_bsd_name=$(eval "echo \$name_bsd_${alg}")
+		if test -n "${_bsd_name}"; then
+			atf_add_test_case self_test_${alg}
+			for i in $(seq $n) ; do
+				atf_add_test_case bsd_${alg}_vec${i}
+				atf_add_test_case gnu_${alg}_vec${i}
+			done
+			atf_add_test_case gnu_check_${alg}
+  		fi
+		_perl_name=$(eval "echo \$name_perl_${alg}")
+		if test -n "${_perl_name}"; then
+			for i in $(seq $n) ; do
+				atf_add_test_case perl_${alg}_vec${i}
+  			done
+			atf_add_test_case perl_check_${alg}
+  		fi
 	done
 	atf_add_test_case gnu_bflag
 	atf_add_test_case gnu_cflag
