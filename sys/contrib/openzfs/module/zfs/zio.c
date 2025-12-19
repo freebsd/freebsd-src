@@ -4067,19 +4067,21 @@ piggyback:
 
 	/*
 	 * We need to write. We will create a new write with the copies
-	 * property adjusted to match the number of DVAs we need to need to
-	 * grow the DDT entry by to satisfy the request.
+	 * property adjusted to match the number of DVAs we need to grow
+	 * the DDT entry by to satisfy the request.
 	 */
-	zio_prop_t czp = *zp;
+	zio_prop_t czp;
 	if (have_dvas > 0 || parent_dvas > 0) {
+		czp = *zp;
 		czp.zp_copies = need_dvas;
 		czp.zp_gang_copies = 0;
+		zp = &czp;
 	} else {
-		ASSERT3U(czp.zp_copies, ==, need_dvas);
+		ASSERT3U(zp->zp_copies, ==, need_dvas);
 	}
 
 	zio_t *cio = zio_write(zio, spa, txg, bp, zio->io_orig_abd,
-	    zio->io_orig_size, zio->io_orig_size, &czp,
+	    zio->io_orig_size, zio->io_orig_size, zp,
 	    zio_ddt_child_write_ready, NULL,
 	    zio_ddt_child_write_done, dde, zio->io_priority,
 	    ZIO_DDT_CHILD_FLAGS(zio), &zio->io_bookmark);
@@ -4157,6 +4159,17 @@ zio_ddt_free(zio_t *zio)
 		ddt_phys_variant_t v = ddt_phys_select(ddt, dde, bp);
 		if (v != DDT_PHYS_NONE)
 			ddt_phys_decref(dde->dde_phys, v);
+		else
+			/*
+			 * If the entry was found but the phys was not, then
+			 * this block must have been pruned from the dedup
+			 * table, and the entry refers to a later version of
+			 * this data. Therefore, the caller is trying to delete
+			 * the only stored instance of this block, and so we
+			 * need to do a normal (not dedup) free. Clear dde so
+			 * we fall into the block below.
+			 */
+			dde = NULL;
 	}
 	ddt_exit(ddt);
 
