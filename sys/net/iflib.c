@@ -369,6 +369,7 @@ struct iflib_txq {
 	struct ifmp_ring	*ift_br;
 	struct grouptask	ift_task;
 	qidx_t		ift_size;
+	qidx_t		ift_pad;
 	uint16_t	ift_id;
 	struct callout	ift_timer;
 #ifdef DEV_NETMAP
@@ -439,7 +440,8 @@ get_inuse(int size, qidx_t cidx, qidx_t pidx, uint8_t gen)
 	return (used);
 }
 
-#define TXQ_AVAIL(txq) (txq->ift_size - get_inuse(txq->ift_size, txq->ift_cidx, txq->ift_pidx, txq->ift_gen))
+#define TXQ_AVAIL(txq) ((txq->ift_size - txq->ift_pad) -\
+	    get_inuse(txq->ift_size, txq->ift_cidx, txq->ift_pidx, txq->ift_gen))
 
 #define IDXDIFF(head, tail, wrap) \
 	((head) >= (tail) ? (head) - (tail) : (wrap) - (tail) + (head))
@@ -1872,6 +1874,7 @@ iflib_txq_setup(iflib_txq_t txq)
 	txq->ift_cidx_processed = 0;
 	txq->ift_pidx = txq->ift_cidx = txq->ift_npending = 0;
 	txq->ift_size = scctx->isc_ntxd[txq->ift_br_offset];
+	txq->ift_pad = scctx->isc_tx_pad;
 
 	for (i = 0, di = txq->ift_ifdi; i < sctx->isc_ntxqs; i++, di++)
 		bzero((void *)di->idi_vaddr, di->idi_size);
@@ -3041,7 +3044,7 @@ iflib_txd_db_check(iflib_txq_t txq, int ring)
 	max = TXQ_MAX_DB_DEFERRED(txq, txq->ift_in_use);
 
 	/* force || threshold exceeded || at the edge of the ring */
-	if (ring || (txq->ift_db_pending >= max) || (TXQ_AVAIL(txq) <= MAX_TX_DESC(ctx) + 2)) {
+	if (ring || (txq->ift_db_pending >= max) || (TXQ_AVAIL(txq) <= MAX_TX_DESC(ctx))) {
 
 		/*
 		 * 'npending' is used if the card's doorbell is in terms of the number of descriptors
@@ -3579,14 +3582,18 @@ defrag:
 		return (err);
 	}
 	ifsd_m[pidx] = m_head;
+	if (m_head->m_pkthdr.csum_flags & CSUM_SND_TAG)
+		pi.ipi_mbuf = m_head;
+	else
+		pi.ipi_mbuf = NULL;
 	/*
 	 * XXX assumes a 1 to 1 relationship between segments and
 	 *        descriptors - this does not hold true on all drivers, e.g.
 	 *        cxgb
 	 */
-	if (__predict_false(nsegs + 2 > TXQ_AVAIL(txq))) {
+	if (__predict_false(nsegs > TXQ_AVAIL(txq))) {
 		(void)iflib_completed_tx_reclaim(txq, RECLAIM_THRESH(ctx));
-		if (__predict_false(nsegs + 2 > TXQ_AVAIL(txq))) {
+		if (__predict_false(nsegs > TXQ_AVAIL(txq))) {
 			txq->ift_no_desc_avail++;
 			bus_dmamap_unload(buf_tag, map);
 			DBG_COUNTER_INC(encap_txq_avail_fail);
@@ -3604,7 +3611,7 @@ defrag:
 	 */
 	txq->ift_rs_pending += nsegs + 1;
 	if (txq->ift_rs_pending > TXQ_MAX_RS_DEFERRED(txq) ||
-	    iflib_no_tx_batch || (TXQ_AVAIL(txq) - nsegs) <= MAX_TX_DESC(ctx) + 2) {
+	    iflib_no_tx_batch || (TXQ_AVAIL(txq) - nsegs) <= MAX_TX_DESC(ctx)) {
 		pi.ipi_flags |= IPI_TX_INTR;
 		txq->ift_rs_pending = 0;
 	}
@@ -3627,10 +3634,9 @@ defrag:
 			txq->ift_gen = 1;
 		}
 		/*
-		 * drivers can need as many as
-		 * two sentinels
+		 * drivers can need up to ift_pad sentinels
 		 */
-		MPASS(ndesc <= pi.ipi_nsegs + 2);
+		MPASS(ndesc <= pi.ipi_nsegs + txq->ift_pad);
 		MPASS(pi.ipi_new_pidx != pidx);
 		MPASS(ndesc > 0);
 		txq->ift_in_use += ndesc;
@@ -3786,7 +3792,7 @@ iflib_txq_can_drain(struct ifmp_ring *r)
 	iflib_txq_t txq = r->cookie;
 	if_ctx_t ctx = txq->ift_ctx;
 
-	if (TXQ_AVAIL(txq) > MAX_TX_DESC(ctx) + 2)
+	if (TXQ_AVAIL(txq) > MAX_TX_DESC(ctx))
 		return (1);
 	bus_dmamap_sync(txq->ift_ifdi->idi_tag, txq->ift_ifdi->idi_map,
 	    BUS_DMASYNC_POSTREAD);
@@ -3850,7 +3856,7 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 #endif
 	do_prefetch = (ctx->ifc_flags & IFC_PREFETCH);
 	err = 0;
-	for (i = 0; i < count && TXQ_AVAIL(txq) >= MAX_TX_DESC(ctx) + 2; i++) {
+	for (i = 0; i < count && TXQ_AVAIL(txq) >= MAX_TX_DESC(ctx); i++) {
 		int rem = do_prefetch ? count - i : 0;
 
 		mp = _ring_peek_one(r, cidx, i, rem);
@@ -4706,6 +4712,7 @@ iflib_reset_qvalues(if_ctx_t ctx)
 			scctx->isc_ntxd[i] = sctx->isc_ntxd_default[i];
 		}
 	}
+	scctx->isc_tx_pad = 2;
 }
 
 static void
