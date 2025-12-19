@@ -375,8 +375,10 @@ show_lifetime(struct ifa_cacheinfo *ci)
 	vl = (ci->ifa_valid == ND6_INFINITE_LIFETIME) ? 0 : ci->ifa_valid;
 
 	clock_gettime(CLOCK_MONOTONIC_FAST, &now);
-	print_lifetime("pltime", pl + now.tv_sec, &now);
-	print_lifetime("vltime", vl + now.tv_sec, &now);
+	print_lifetime("pltime",
+	    pl + (ip6lifetime ? ci->tstamp / 1000 : now.tv_sec), &now);
+	print_lifetime("vltime",
+	    vl + (ip6lifetime ? ci->tstamp / 1000 : now.tv_sec), &now);
 }
 
 static void
