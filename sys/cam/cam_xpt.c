@@ -70,6 +70,12 @@
 #include <cam/scsi/scsi_pass.h>
 
 
+/* SDT Probes */
+SDT_PROBE_DEFINE1(cam, , xpt, action, "union ccb *");
+SDT_PROBE_DEFINE1(cam, , xpt, done, "union ccb *");
+SDT_PROBE_DEFINE4(cam, , xpt, async__cb, "void *", "uint32_t",
+    "struct cam_path *", "void *");
+
 /* Wild guess based on not wanting to grow the stack too much */
 #define XPT_PRINT_MAXLEN	512
 #ifdef PRINTF_BUFR_SIZE
@@ -2479,6 +2485,8 @@ xptsetasyncfunc(struct cam_ed *device, void *arg)
 			 device->target->target_id,
 			 device->lun_id);
 	xpt_gdev_type(&cgd, &path);
+	CAM_PROBE4(xpt, async__cb, csa->callback_arg,
+	    AC_FOUND_DEVICE, &path, &cgd);
 	csa->callback(csa->callback_arg,
 			    AC_FOUND_DEVICE,
 			    &path, &cgd);
@@ -2500,6 +2508,8 @@ xptsetasyncbusfunc(struct cam_eb *bus, void *arg)
 			 CAM_LUN_WILDCARD);
 	xpt_path_lock(&path);
 	xpt_path_inq(&cpi, &path);
+	CAM_PROBE4(xpt, async__cb, csa->callback_arg,
+	    AC_PATH_REGISTERED, &path, &cpi);
 	csa->callback(csa->callback_arg,
 			    AC_PATH_REGISTERED,
 			    &path, &cpi);
@@ -2526,6 +2536,7 @@ xpt_action(union ccb *start_ccb)
 	    start_ccb->ccb_h.pinfo.priority != CAM_PRIORITY_NONE,
 	    ("%s: queued ccb and CAM_PRIORITY_NONE illegal.", __func__));
 
+	CAM_PROBE1(xpt, action, start_ccb);
 	start_ccb->ccb_h.status = CAM_REQ_INPROG;
 	(*(start_ccb->ccb_h.path->bus->xport->ops->action))(start_ccb);
 }
@@ -4260,6 +4271,8 @@ xpt_async_bcast(struct async_list *async_head,
 			    path->device->sim->mtx : NULL;
 			if (mtx)
 				mtx_lock(mtx);
+			CAM_PROBE4(xpt, async__cb, cur_entry->callback_arg,
+			    async_code, path, async_arg);
 			cur_entry->callback(cur_entry->callback_arg,
 					    async_code, path,
 					    async_arg);
@@ -4499,8 +4512,10 @@ xpt_done(union ccb *done_ccb)
 		done_ccb->ccb_h.func_code,
 		xpt_action_name(done_ccb->ccb_h.func_code),
 		done_ccb->ccb_h.status));
-	if ((done_ccb->ccb_h.func_code & XPT_FC_QUEUED) == 0)
+	if ((done_ccb->ccb_h.func_code & XPT_FC_QUEUED) == 0) {
+		CAM_PROBE1(xpt, done, done_ccb);
 		return;
+	}
 
 	/* Store the time the ccb was in the sim */
 	done_ccb->ccb_h.qos.periph_data = cam_iosched_delta_t(done_ccb->ccb_h.qos.periph_data);
@@ -5376,6 +5391,11 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 		}
 	}
 
+	/*
+	 * Call as late as possible. Do we want an early one too before the
+	 * unfreeze / releases above?
+	 */
+	CAM_PROBE1(xpt, done, (union ccb *)ccb_h);	/* container_of? */
 	/* Call the peripheral driver's callback */
 	ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
 	(*ccb_h->cbfcnp)(ccb_h->path->periph, (union ccb *)ccb_h);
