@@ -221,9 +221,12 @@ struct ktls_session {
 	bool tx;
 	bool sync_dispatch;
 	bool sequential_records;
-
-	/* Only used for TLS 1.0. */
-	uint64_t next_seqno;
+	union {
+		/* Only used for TLS 1.0. */
+		uint64_t next_seqno;
+		/* Needed by some ktls offload NICs */
+		uint64_t initial_offload_seqno;
+	};
 	STAILQ_HEAD(, mbuf) pending_records;
 
 	/* Used to destroy any kTLS session */
