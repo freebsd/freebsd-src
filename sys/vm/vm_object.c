@@ -2223,20 +2223,9 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 	 * Remove any pages that may still be in the object from a previous
 	 * deallocation.
 	 */
-	if (next_pindex < prev_object->size) {
+	if (next_pindex < prev_object->size)
 		vm_object_page_remove(prev_object, next_pindex, next_pindex +
 		    next_size, 0);
-#if 0
-		if (prev_object->cred != NULL) {
-			KASSERT(prev_object->charge >=
-			    ptoa(prev_object->size - next_pindex),
-			    ("object %p overcharged 1 %jx %jx", prev_object,
-				(uintmax_t)next_pindex, (uintmax_t)next_size));
-			prev_object->charge -= ptoa(prev_object->size -
-			    next_pindex);
-		}
-#endif
-	}
 
 	/*
 	 * Extend the object if necessary.
