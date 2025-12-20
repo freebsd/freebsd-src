@@ -228,6 +228,12 @@ struct vm_object {
 #define	OBJPR_NOTMAPPED	0x2		/* Don't unmap pages. */
 #define	OBJPR_VALIDONLY	0x4		/* Ignore invalid pages. */
 
+/*
+ * Options for vm_object_coalesce().
+ */
+#define	OBJCO_CHARGED	0x1		/* The next_size was charged already */
+#define	OBJCO_NO_CHARGE	0x2		/* Do not do swap accounting at all */
+
 TAILQ_HEAD(object_q, vm_object);
 
 extern struct object_q vm_object_list;	/* list of allocated objects */
@@ -354,7 +360,7 @@ vm_object_t vm_object_allocate_anon(vm_pindex_t, vm_object_t, struct ucred *,
    vm_size_t);
 vm_object_t vm_object_allocate_dyn(objtype_t, vm_pindex_t, u_short);
 boolean_t vm_object_coalesce(vm_object_t, vm_ooffset_t, vm_size_t, vm_size_t,
-   boolean_t);
+   int);
 void vm_object_collapse (vm_object_t);
 void vm_object_deallocate (vm_object_t);
 void vm_object_destroy (vm_object_t);
