@@ -1620,6 +1620,7 @@ vm_map_insert1(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_inherit_t inheritance;
 	u_long bdry;
 	u_int bidx;
+	int cflags;
 
 	VM_MAP_ASSERT_LOCKED(map);
 	KASSERT(object != kernel_object ||
@@ -1696,20 +1697,36 @@ vm_map_insert1(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	}
 
 	cred = NULL;
-	if ((cow & (MAP_ACC_NO_CHARGE | MAP_NOFAULT | MAP_CREATE_GUARD)) != 0)
-		goto charged;
-	if ((cow & MAP_ACC_CHARGED) || ((prot & VM_PROT_WRITE) &&
-	    ((protoeflags & MAP_ENTRY_NEEDS_COPY) || object == NULL))) {
-		if (!(cow & MAP_ACC_CHARGED) && !swap_reserve(end - start))
-			return (KERN_RESOURCE_SHORTAGE);
-		KASSERT(object == NULL ||
-		    (protoeflags & MAP_ENTRY_NEEDS_COPY) != 0 ||
-		    object->cred == NULL,
-		    ("overcommit: vm_map_insert o %p", object));
-		cred = curthread->td_ucred;
+	if ((cow & (MAP_ACC_NO_CHARGE | MAP_NOFAULT | MAP_CREATE_GUARD)) != 0) {
+		cflags = OBJCO_NO_CHARGE;
+	} else {
+		cflags = 0;
+		if ((cow & MAP_ACC_CHARGED) != 0 ||
+		    ((prot & VM_PROT_WRITE) != 0 &&
+		    ((protoeflags & MAP_ENTRY_NEEDS_COPY) != 0 ||
+		    object == NULL))) {
+			if ((cow & MAP_ACC_CHARGED) == 0) {
+				if (!swap_reserve(end - start))
+					return (KERN_RESOURCE_SHORTAGE);
+
+				/*
+				 * Only inform vm_object_coalesce()
+				 * that the object was charged if
+				 * there is no need for CoW, so the
+				 * swap amount reserved is applicable
+				 * to the prev_entry->object.
+				 */
+				if ((protoeflags & MAP_ENTRY_NEEDS_COPY) == 0)
+					cflags |= OBJCO_CHARGED;
+			}
+			KASSERT(object == NULL ||
+			    (protoeflags & MAP_ENTRY_NEEDS_COPY) != 0 ||
+			    object->cred == NULL,
+			    ("overcommit: vm_map_insert o %p", object));
+			cred = curthread->td_ucred;
+		}
 	}
 
-charged:
 	/* Expand the kernel pmap, if necessary. */
 	if (map == kernel_map && end > kernel_vm_end) {
 		int rv;
@@ -1741,8 +1758,7 @@ charged:
 	    vm_object_coalesce(prev_entry->object.vm_object,
 	    prev_entry->offset,
 	    (vm_size_t)(prev_entry->end - prev_entry->start),
-	    (vm_size_t)(end - prev_entry->end), cred != NULL &&
-	    (protoeflags & MAP_ENTRY_NEEDS_COPY) == 0)) {
+	    (vm_size_t)(end - prev_entry->end), cflags)) {
 		/*
 		 * We were able to extend the object.  Determine if we
 		 * can extend the previous map entry to include the
