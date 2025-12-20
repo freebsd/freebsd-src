@@ -196,7 +196,8 @@ smp_intr_init(void *dummy __unused)
 
 	for (vector = 0; vector < nvectors; vector++) {
 		i = powerpc_intrs[vector];
-		if (i != NULL && i->event != NULL && i->pic == root_pic)
+		MPASS(i != NULL);
+		if (i->event != NULL && i->pic == root_pic)
 			PIC_BIND(i->pic, i->intline, i->pi_cpuset, &i->priv);
 	}
 }
@@ -225,7 +226,8 @@ intr_lookup(u_int irq)
 	mtx_lock(&intr_table_lock);
 	for (vector = 0; vector < nvectors; vector++) {
 		i = powerpc_intrs[vector];
-		if (i != NULL && i->irq == irq) {
+		MPASS(i != NULL);
+		if (i->irq == irq) {
 			mtx_unlock(&intr_table_lock);
 			return (i);
 		}
@@ -476,8 +478,7 @@ powerpc_enable_intr(void)
 
 	for (vector = 0; vector < nvectors; vector++) {
 		i = powerpc_intrs[vector];
-		if (i == NULL)
-			continue;
+		MPASS(i != NULL);
 
 		error = powerpc_map_irq(i);
 		if (error)
