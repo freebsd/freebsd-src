@@ -138,6 +138,14 @@ pci_video_amd()
 		0x740*|0x741*)
 			addpkg "gpu-firmware-amd-kmod-aldebaran"
 			;;
+		0x7480)
+			addpkg "gpu-firmware-amd-kmod-psp-13-0-7"
+			addpkg "gpu-firmware-amd-kmod-smu-13-0-7"
+			addpkg "gpu-firmware-amd-kmod-dcn-3-2-1"
+			addpkg "gpu-firmware-amd-kmod-gc-11-0-2"
+			addpkg "gpu-firmware-amd-kmod-vcn-4-0-4"
+			addpkg "gpu-firmware-amd-kmod-sdma-6-0-2"
+			;;
 		0x13fe|0x143f)
 			addpkg "gpu-firmware-amd-kmod-cyan-skillfish2"
 			;;
