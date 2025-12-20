@@ -159,13 +159,7 @@ intrcnt_setname(const char *name, int index)
 	    INTRNAME_LEN - 1, name);
 }
 
-static void
-intr_init(void *dummy __unused)
-{
-
-	mtx_init(&intr_table_lock, "intr sources lock", NULL, MTX_DEF);
-}
-SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
+MTX_SYSINIT(intr_table_lock, &intr_table_lock, "intr sources lock", MTX_DEF);
 
 static void
 intr_init_sources(void *arg __unused)
