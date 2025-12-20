@@ -1406,6 +1406,9 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 	if (error)
 		return (error);
 
+	/* some ktls offload NICs require initial seqno to start offload */
+	tls->initial_offload_seqno = be64dec(en->rec_seq);
+
 	/* Prefer TOE -> ifnet TLS -> software TLS. */
 #ifdef TCP_OFFLOAD
 	error = ktls_try_toe(so, tls, KTLS_TX);
