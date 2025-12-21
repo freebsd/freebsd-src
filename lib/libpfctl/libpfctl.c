@@ -1961,11 +1961,11 @@ static const struct snl_hdr_parser *all_parsers[] = {
 	&creator_parser, &getrules_parser
 };
 
-static int
-pfctl_get_states_nl(struct pfctl_state_filter *filter, struct snl_state *ss, pfctl_get_state_fn f, void *arg)
+int
+pfctl_get_states_h(struct pfctl_handle *h, struct pfctl_state_filter *filter, pfctl_get_state_fn f, void *arg)
 {
 	SNL_VERIFY_PARSERS(all_parsers);
-	int family_id = snl_get_genl_family(ss, PFNL_FAMILY_NAME);
+	int family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
 	int ret;
 
 	struct nlmsghdr *hdr;
@@ -1974,7 +1974,7 @@ pfctl_get_states_nl(struct pfctl_state_filter *filter, struct snl_state *ss, pfc
 	if (family_id == 0)
 		return (ENOTSUP);
 
-	snl_init_writer(ss, &nw);
+	snl_init_writer(&h->ss, &nw);
 	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GETSTATES);
 	hdr->nlmsg_flags |= NLM_F_DUMP;
 	snl_add_msg_attr_string(&nw, PF_ST_IFNAME, filter->ifname);
@@ -1989,13 +1989,13 @@ pfctl_get_states_nl(struct pfctl_state_filter *filter, struct snl_state *ss, pfc
 
 	uint32_t seq_id = hdr->nlmsg_seq;
 
-	snl_send_message(ss, hdr);
+	snl_send_message(&h->ss, hdr);
 
 	struct snl_errmsg_data e = {};
-	while ((hdr = snl_read_reply_multi(ss, seq_id, &e)) != NULL) {
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
 		struct pfctl_state s;
 		bzero(&s, sizeof(s));
-		if (!snl_parse_nlmsg(ss, hdr, &state_parser, &s))
+		if (!snl_parse_nlmsg(&h->ss, hdr, &state_parser, &s))
 			continue;
 
 		ret = f(&s, arg);
@@ -2016,12 +2016,12 @@ pfctl_get_states_iter(pfctl_get_state_fn f, void *arg)
 int
 pfctl_get_filtered_states_iter(struct pfctl_state_filter *filter, pfctl_get_state_fn f, void *arg)
 {
-	struct snl_state ss = {};
+	struct pfctl_handle h = {};
 	int error;
 
-	snl_init(&ss, NETLINK_GENERIC);
-	error = pfctl_get_states_nl(filter, &ss, f, arg);
-	snl_free(&ss);
+	snl_init(&h.ss, NETLINK_GENERIC);
+	error = pfctl_get_states_h(&h, filter, f, arg);
+	snl_free(&h.ss);
 
 	return (error);
 }

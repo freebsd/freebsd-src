@@ -1700,7 +1700,7 @@ pfctl_show_states(int dev, const char *iface, int opts)
 	arg.dotitle = opts & PF_OPT_SHOWALL;
 	arg.iface = iface;
 
-	if (pfctl_get_filtered_states_iter(&filter, pfctl_show_state, &arg))
+	if (pfctl_get_states_h(pfh, &filter, pfctl_show_state, &arg))
 		return (-1);
 
 	return (0);
