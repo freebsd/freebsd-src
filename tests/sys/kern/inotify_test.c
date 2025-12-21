@@ -761,6 +761,36 @@ ATF_TC_BODY(inotify_event_move, tc)
 	close_inotify(ifd);
 }
 
+ATF_TC_WITHOUT_HEAD(inotify_event_move_dir);
+ATF_TC_BODY(inotify_event_move_dir, tc)
+{
+	char dir[PATH_MAX], subdir1[PATH_MAX], subdir2[PATH_MAX];
+	uint32_t cookie1, cookie2;
+	int error, ifd, wd1, wd2;
+
+	ifd = inotify(IN_NONBLOCK);
+
+	wd1 = watch_dir(ifd, IN_MOVE, dir);
+	snprintf(subdir1, sizeof(subdir1), "%s/subdir", dir);
+	error = mkdir(subdir1, 0755);
+	ATF_REQUIRE(error == 0);
+	wd2 = inotify_add_watch(ifd, subdir1, IN_MOVE);
+	ATF_REQUIRE(wd2 != -1);
+
+	snprintf(subdir2, sizeof(subdir2), "%s/newsubdir", dir);
+	error = rename(subdir1, subdir2);
+	ATF_REQUIRE(error == 0);
+
+	cookie1 = consume_event_cookie(ifd, wd1, IN_MOVED_FROM, IN_ISDIR,
+	    "subdir");
+	cookie2 = consume_event_cookie(ifd, wd1, IN_MOVED_TO, IN_ISDIR,
+	    "newsubdir");
+	ATF_REQUIRE_MSG(cookie1 == cookie2,
+	    "expected cookie %u, got %u", cookie1, cookie2);
+
+	close_inotify(ifd);
+}
+
 ATF_TC_WITHOUT_HEAD(inotify_event_open);
 ATF_TC_BODY(inotify_event_open, tc)
 {
@@ -858,6 +888,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, inotify_event_create);
 	ATF_TP_ADD_TC(tp, inotify_event_delete);
 	ATF_TP_ADD_TC(tp, inotify_event_move);
+	ATF_TP_ADD_TC(tp, inotify_event_move_dir);
 	ATF_TP_ADD_TC(tp, inotify_event_open);
 	ATF_TP_ADD_TC(tp, inotify_event_unmount);
 	return (atf_no_error());
