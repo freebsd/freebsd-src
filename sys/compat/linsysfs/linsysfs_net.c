@@ -45,7 +45,7 @@
 #include <compat/linsysfs/linsysfs.h>
 
 struct pfs_node *net;
-static eventhandler_tag if_arrival_tag, if_departure_tag;
+static eventhandler_tag if_arrival_tag, if_departure_tag, if_rename_tag;
 
 static uint32_t net_latch_count = 0;
 static struct mtx net_latch_mtx;
@@ -312,6 +312,16 @@ linsysfs_if_departure(void *arg __unused, if_t ifp)
 	linsysfs_net_latch_rele();
 }
 
+static void
+linsysfs_if_rename(void *arg __unused, if_t ifp)
+{
+
+	linsysfs_net_latch_hold();
+	linsysfs_net_delif(ifp);
+	(void)linsysfs_net_addif(ifp, net);
+	linsysfs_net_latch_rele();
+}
+
 void
 linsysfs_net_init(void)
 {
@@ -324,6 +334,8 @@ linsysfs_net_init(void)
 	    linsysfs_if_arrival, NULL, EVENTHANDLER_PRI_ANY);
 	if_departure_tag = EVENTHANDLER_REGISTER(ifnet_departure_event,
 	    linsysfs_if_departure, NULL, EVENTHANDLER_PRI_ANY);
+	if_rename_tag = EVENTHANDLER_REGISTER(ifnet_rename_event,
+	    linsysfs_if_rename, NULL, EVENTHANDLER_PRI_ANY);
 
 	linsysfs_net_latch_hold();
 	VNET_LIST_RLOCK();
@@ -343,6 +355,7 @@ linsysfs_net_uninit(void)
 
 	EVENTHANDLER_DEREGISTER(ifnet_arrival_event, if_arrival_tag);
 	EVENTHANDLER_DEREGISTER(ifnet_departure_event, if_departure_tag);
+	EVENTHANDLER_DEREGISTER(ifnet_rename_event, if_rename_tag);
 
 	linsysfs_net_latch_hold();
 	TAILQ_FOREACH_SAFE(nq, &ifp_nodes_q, ifp_nodes_next, nq_tmp) {

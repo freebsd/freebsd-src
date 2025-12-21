@@ -3035,8 +3035,6 @@ if_rename(struct ifnet *ifp, char *new_name)
 	 */
 	ifp->if_flags |= IFF_RENAMING;
 
-	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
-
 	if_printf(ifp, "changing name to '%s'\n", new_name);
 
 	IF_ADDR_WLOCK(ifp);
@@ -3063,7 +3061,7 @@ if_rename(struct ifnet *ifp, char *new_name)
 		sdl->sdl_data[--namelen] = 0xff;
 	IF_ADDR_WUNLOCK(ifp);
 
-	EVENTHANDLER_INVOKE(ifnet_arrival_event, ifp);
+	EVENTHANDLER_INVOKE(ifnet_rename_event, ifp, old_name);
 
 	ifp->if_flags &= ~IFF_RENAMING;
 
