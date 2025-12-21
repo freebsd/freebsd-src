@@ -980,7 +980,11 @@ void MockFS::read_request(mockfs_buf_in &in, ssize_t &res) {
 	}
 	res = read(m_fuse_fd, &in, sizeof(in));
 
-	if (res < 0 && errno != EBADF && !m_quit && !m_expect_unmount) {
+	if (res < 0 && errno == ENODEV && m_expect_unmount) {
+		/* The kernel unmounted us, as expected. */
+		m_quit = true;
+	}
+	if (res < 0 && errno != EBADF && !m_quit) {
 		m_quit = true;
 		FAIL() << "read: " << strerror(errno);
 	}
