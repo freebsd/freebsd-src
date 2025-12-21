@@ -371,7 +371,7 @@ mfi_attach(struct mfi_softc *sc)
 	if (sc == NULL)
 		return EINVAL;
 
-	device_printf(sc->mfi_dev, "Megaraid SAS driver Ver %s \n",
+	device_printf(sc->mfi_dev, "LSI MegaRAID SAS driver version: %s\n",
 	    MEGASAS_VERSION);
 
 	mtx_init(&sc->mfi_io_lock, "MFI I/O lock", NULL, MTX_DEF);
