@@ -714,10 +714,10 @@ _Static_assert(UCODE_PAGEFLT == T_PAGEFLT, "T_PAGEFLT");
 /*
  * vm_fault_trap:
  *
- * Helper for the page fault trap handlers, wrapping vm_fault().
- * Issues ktrace(2) tracepoints for the faults.
+ * Helper for the machine-dependent page fault trap handlers, wrapping
+ * vm_fault().  Issues ktrace(2) tracepoints for the faults.
  *
- * If a fault cannot be handled successfully by satisfying the
+ * If the fault cannot be handled successfully by updating the
  * required mapping, and the faulted instruction cannot be restarted,
  * the signal number and si_code values are returned for trapsignal()
  * to deliver.
@@ -1657,10 +1657,10 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
  * The given address should be truncated to the proper page address.
  *
  * KERN_SUCCESS is returned if the page fault is handled; otherwise, a
- * Mach error specifying why the fault is fatal is returned.
+ * Mach error code explaining why the fault is fatal is returned.
  *
- * The map in question must be alive, either being the map for current
- * process, or the owner process hold count incremented to prevent
+ * The map in question must be alive, either being the map for the current
+ * process, or the owner process hold count has been incremented to prevent
  * exit().
  *
  * If the thread private TDP_NOFAULTING flag is set, any fault results
