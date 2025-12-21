@@ -290,7 +290,7 @@ struct pf_status {
 	uint64_t	lcounters[LCNT_MAX];
 	uint64_t	fcounters[FCNT_MAX];
 	uint64_t	scounters[SCNT_MAX];
-	uint64_t	pcounters[2][2][3];
+	uint64_t	pcounters[2][2][2];
 	uint64_t	bcounters[2][2];
 	uint32_t	running;
 	uint32_t	states;
