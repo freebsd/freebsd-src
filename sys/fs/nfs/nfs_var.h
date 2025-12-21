@@ -437,6 +437,7 @@ struct nfsreferral *nfsv4root_getreferral(vnode_t, vnode_t, u_int32_t);
 int nfsvno_pathconf(vnode_t, int, long *, struct ucred *, NFSPROC_T *);
 int nfsrv_atroot(vnode_t, uint64_t *);
 int nfs_supportsnfsv4acls(vnode_t);
+int nfs_supportsposixacls(struct vnode *);
 
 /* nfs_commonacl.c */
 int nfsrv_dissectace(struct nfsrv_descript *, struct acl_entry *,
@@ -784,6 +785,7 @@ void nfsm_trimtrailing(struct nfsrv_descript *, struct mbuf *, char *, int,
     int);
 bool nfsrv_checkwrongsec(struct nfsrv_descript *, int, __enum_uint8(vtype));
 void nfsrv_checknospc(void);
+int nfs_supportsacls(struct vnode *);
 
 /* nfs_commonkrpc.c */
 int newnfs_nmcancelreqs(struct nfsmount *);
