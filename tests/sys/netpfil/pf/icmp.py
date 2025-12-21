@@ -43,13 +43,10 @@ class TestICMP(VnetTestTemplate):
         "vnet2": {"ifaces": ["if1", "if2"]},
         "vnet3": {"ifaces": ["if2"]},
         "if1": {"prefixes4": [("192.0.2.2/24", "192.0.2.1/24")]},
-        "if2": {"prefixes4": [("198.51.100.1/24", "198.51.100.2/24")]},
+        "if2": {"prefixes4": [("198.51.100.1/24", "198.51.100.2/24")], "mtu": 1492},
     }
 
     def vnet2_handler(self, vnet):
-        ifname = vnet.iface_alias_map["if1"].name
-        if2name = vnet.iface_alias_map["if2"].name
-
         ToolsHelper.print_output("/sbin/pfctl -e")
         ToolsHelper.pf_rules([
             "set reassemble yes",
@@ -61,8 +58,6 @@ class TestICMP(VnetTestTemplate):
         ToolsHelper.print_output("/sbin/sysctl net.inet.ip.forwarding=1")
         ToolsHelper.print_output("/sbin/pfctl -x loud")
 
-        ToolsHelper.print_output("/sbin/ifconfig %s mtu 1492" % if2name)
-
     def vnet3_handler(self, vnet):
         # Import in the correct vnet, so at to not confuse Scapy
         import scapy.all as sp
@@ -70,7 +65,6 @@ class TestICMP(VnetTestTemplate):
         ifname = vnet.iface_alias_map["if2"].name
         ToolsHelper.print_output("/sbin/route add default 198.51.100.1")
         ToolsHelper.print_output("/sbin/ifconfig %s inet alias 198.51.100.3/24" % ifname)
-        ToolsHelper.print_output("/sbin/ifconfig %s mtu 1492" % ifname)
 
         def checkfn(packet):
             icmp = packet.getlayer(sp.ICMP)

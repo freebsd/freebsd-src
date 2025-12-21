@@ -226,7 +226,7 @@ class TestFrag6_RouteTo(VnetTestTemplate):
         "vnet2": {"ifaces": ["if1", "if2"]},
         "vnet3": {"ifaces": ["if2"]},
         "if1": {"prefixes6": [("2001:db8::1/64", "2001:db8::2/64")]},
-        "if2": {"prefixes6": [("2001:db8:1::1/64", "2001:db8:1::2/64")]},
+        "if2": {"prefixes6": [("2001:db8:1::1/64", "2001:db8:1::2/64")], "mtu": 1300},
     }
 
     def vnet2_handler(self, vnet):
@@ -238,7 +238,6 @@ class TestFrag6_RouteTo(VnetTestTemplate):
             "pass in route-to (%s 2001:db8:1::2) from 2001:db8::1 to 2001:db8:666::1" % if2name,
         ])
 
-        ToolsHelper.print_output("/sbin/ifconfig %s mtu 1300" % if2name)
         ToolsHelper.print_output("/sbin/sysctl net.inet6.ip6.forwarding=1")
 
     def vnet3_handler(self, vnet):
