@@ -48,6 +48,8 @@ CFLAGS+=	-DBLAKE3_NO_AVX512 -DBLAKE3_NO_AVX2 -DBLAKE3_NO_SSE41 \
 CFLAGS+=	-DBLAKE3_USE_NEON=0
 .endif
 
+CFLAGS+=	-DLLVM_BUILD_LLVM_DYLIB
+
 SRCDIR=		llvm/lib
 
 # Explanation of different SRCS variants below:
@@ -2049,6 +2051,16 @@ SRCS_ALL+=	${SRCS_COV}
 .endif
 SRCS+=		${GENSRCS}
 SRCS+=		${SRCS_ALL:O}
+
+# Optimization: for all source files under Target/*/*, use -fvisibility=hidden,
+# which reduces the number of external symbols in the resulting shared library.
+# This is also what upstream does.
+.for src in ${SRCS}
+. if "${src:MTarget/*/*}"
+CFLAGS.${src:T}+=	-fvisibility=hidden
+.info ${src}:	CFLAGS.${src:T}
+. endif
+.endfor
 
 llvm/CodeGen/GenVT.inc: ${LLVM_SRCS}/include/llvm/CodeGen/ValueTypes.td
 	${LLVM_MIN_TBLGEN} -gen-vt \
