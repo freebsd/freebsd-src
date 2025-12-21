@@ -1117,9 +1117,8 @@ if_detach_internal(struct ifnet *ifp, bool vmove)
 #endif
 
 	if_purgeaddrs(ifp);
-	if_purgemaddrs(ifp);
-
 	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
+	if_purgemaddrs(ifp);
 	if (IS_DEFAULT_VNET(curvnet))
 		devctl_notify("IFNET", ifp->if_xname, "DETACH", NULL);
 
