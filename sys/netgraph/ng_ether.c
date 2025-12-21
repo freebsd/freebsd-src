@@ -92,17 +92,11 @@ typedef struct private *priv_p;
 extern	void	(*ng_ether_input_p)(struct ifnet *ifp, struct mbuf **mp);
 extern	void	(*ng_ether_input_orphan_p)(struct ifnet *ifp, struct mbuf *m);
 extern	int	(*ng_ether_output_p)(struct ifnet *ifp, struct mbuf **mp);
-extern	void	(*ng_ether_attach_p)(struct ifnet *ifp);
-extern	void	(*ng_ether_detach_p)(struct ifnet *ifp);
-extern	void	(*ng_ether_link_state_p)(struct ifnet *ifp, int state);
 
 /* Functional hooks called from if_ethersubr.c */
 static void	ng_ether_input(struct ifnet *ifp, struct mbuf **mp);
 static void	ng_ether_input_orphan(struct ifnet *ifp, struct mbuf *m);
 static int	ng_ether_output(struct ifnet *ifp, struct mbuf **mp);
-static void	ng_ether_attach(struct ifnet *ifp);
-static void	ng_ether_detach(struct ifnet *ifp); 
-static void	ng_ether_link_state(struct ifnet *ifp, int state); 
 
 /* Other functions */
 static int	ng_ether_rcv_lower(hook_p node, item_p item);
@@ -117,7 +111,8 @@ static ng_rcvdata_t	ng_ether_rcvdata;
 static ng_disconnect_t	ng_ether_disconnect;
 static int		ng_ether_mod_event(module_t mod, int event, void *data);
 
-static eventhandler_tag	ng_ether_ifnet_arrival_cookie;
+static eventhandler_tag	ifnet_arrival_tag, ifnet_departure_tag,
+    ifnet_rename_tag, ifnet_linkstate_tag;
 
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_ether_cmdlist[] = {
@@ -299,12 +294,18 @@ ng_ether_output(struct ifnet *ifp, struct mbuf **mp)
  * A new Ethernet interface has been attached.
  * Create a new node for it, etc.
  */
-static void
-ng_ether_attach(struct ifnet *ifp)
+static int
+ng_ether_attach(struct ifnet *ifp, void *arg __unused)
 {
 	char name[IFNAMSIZ];
 	priv_p priv;
 	node_p node;
+
+	if ((ifp)->if_type != IFT_ETHER &&
+	    (ifp)->if_type != IFT_L2VLAN &&
+	    (ifp)->if_type != IFT_BRIDGE)
+		return (0);
+	MPASS(IFP2NG(ifp) == NULL);
 
 	/*
 	 * Do not create / attach an ether node to this ifnet if
@@ -316,25 +317,17 @@ ng_ether_attach(struct ifnet *ifp)
 	ng_ether_sanitize_ifname(ifp->if_xname, name);
 	if ((node = ng_name2noderef(NULL, name)) != NULL) {
 		NG_NODE_UNREF(node);
-		return;
+		return (0);
 	}
 
-	/* Create node */
-	KASSERT(!IFP2NG(ifp), ("%s: node already exists?", __func__));
 	if (ng_make_node_common(&ng_ether_typestruct, &node) != 0) {
 		log(LOG_ERR, "%s: can't %s for %s\n",
 		    __func__, "create node", ifp->if_xname);
-		return;
+		return (0);
 	}
 
 	/* Allocate private data */
-	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (priv == NULL) {
-		log(LOG_ERR, "%s: can't %s for %s\n",
-		    __func__, "allocate memory", ifp->if_xname);
-		NG_NODE_UNREF(node);
-		return;
-	}
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 	NG_NODE_SET_PRIVATE(node, priv);
 	priv->ifp = ifp;
 	IFP2NG(ifp) = node;
@@ -343,17 +336,38 @@ ng_ether_attach(struct ifnet *ifp)
 	/* Try to give the node the same name as the interface */
 	if (ng_name_node(node, name) != 0)
 		log(LOG_WARNING, "%s: can't name node %s\n", __func__, name);
+
+	return (0);
 }
+
+static void
+ng_ether_arrival(void *arg __unused, struct ifnet *ifp)
+{
+	(void)ng_ether_attach(ifp, NULL);
+}
+
+#define	RETURN_IF_NOT_ETHERNET_OR_DETACHED(ifp)	do {			\
+	if ((ifp)->if_type != IFT_ETHER &&				\
+	    (ifp)->if_type != IFT_L2VLAN &&				\
+	    (ifp)->if_type != IFT_BRIDGE)				\
+		return;							\
+	if (IFP2NG(ifp) == NULL)					\
+		return;							\
+} while (0)
 
 /*
  * An Ethernet interface is being detached.
  * REALLY Destroy its node.
  */
 static void
-ng_ether_detach(struct ifnet *ifp)
+ng_ether_detach(void *arg __unused, struct ifnet *ifp)
 {
 	const node_p node = IFP2NG(ifp);
-	const priv_p priv = NG_NODE_PRIVATE(node);
+	priv_p priv;
+
+	RETURN_IF_NOT_ETHERNET_OR_DETACHED(ifp);
+
+	priv = NG_NODE_PRIVATE(node);
 
 	taskqueue_drain(taskqueue_swi, &ifp->if_linktask);
 	NG_NODE_REALLY_DIE(node);	/* Force real removal of node */
@@ -372,12 +386,16 @@ ng_ether_detach(struct ifnet *ifp)
  * if_link_state_change() has already checked that the state has changed.
  */
 static void
-ng_ether_link_state(struct ifnet *ifp, int state)
+ng_ether_link_state(void *arg __unused, struct ifnet *ifp, int state)
 {
 	const node_p node = IFP2NG(ifp);
-	const priv_p priv = NG_NODE_PRIVATE(node);
+	priv_p priv;
 	struct ng_mesg *msg;
 	int cmd, dummy_error = 0;
+
+	RETURN_IF_NOT_ETHERNET_OR_DETACHED(ifp);
+
+	priv = NG_NODE_PRIVATE(node);
 
 	if (state == LINK_STATE_UP)
 		cmd = NGM_LINK_IS_UP;
@@ -399,31 +417,17 @@ ng_ether_link_state(struct ifnet *ifp, int state)
 }
 
 /*
- * Interface arrival notification handler.
- * The notification is produced in two cases:
- *  o a new interface arrives
- *  o an existing interface got renamed
- * Currently the first case is handled by ng_ether_attach via special
- * hook ng_ether_attach_p.
+ * Interface has been renamed.
  */
 static void
-ng_ether_ifnet_arrival_event(void *arg __unused, struct ifnet *ifp)
+ng_ether_rename(void *arg __unused, struct ifnet *ifp)
 {
 	char name[IFNAMSIZ];
 	node_p node;
 
-	/* Only ethernet interfaces are of interest. */
-	if (ifp->if_type != IFT_ETHER &&
-	    ifp->if_type != IFT_L2VLAN &&
-	    ifp->if_type != IFT_BRIDGE)
-		return;
+	RETURN_IF_NOT_ETHERNET_OR_DETACHED(ifp);
 
-	/*
-	 * Just return if it's a new interface without an ng_ether companion.
-	 */
 	node = IFP2NG(ifp);
-	if (node == NULL)
-		return;
 
 	/* Try to give the node the same name as the new interface name */
 	ng_ether_sanitize_ifname(ifp->if_xname, name);
@@ -629,7 +633,7 @@ ng_ether_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			break;
 		    }
 		case NGM_ETHER_DETACH:
-			ng_ether_detach(priv->ifp);
+			ng_ether_detach(NULL, priv->ifp);
 			break;
 		default:
 			error = EINVAL;
@@ -810,22 +814,19 @@ ng_ether_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-
-		/* Register function hooks */
-		if (ng_ether_attach_p != NULL) {
-			error = EEXIST;
-			break;
-		}
-		ng_ether_attach_p = ng_ether_attach;
-		ng_ether_detach_p = ng_ether_detach;
 		ng_ether_output_p = ng_ether_output;
 		ng_ether_input_p = ng_ether_input;
 		ng_ether_input_orphan_p = ng_ether_input_orphan;
-		ng_ether_link_state_p = ng_ether_link_state;
 
-		ng_ether_ifnet_arrival_cookie =
-		    EVENTHANDLER_REGISTER(ifnet_arrival_event,
-		    ng_ether_ifnet_arrival_event, NULL, EVENTHANDLER_PRI_ANY);
+		ifnet_arrival_tag = EVENTHANDLER_REGISTER(ifnet_arrival_event,
+		    ng_ether_arrival, NULL, EVENTHANDLER_PRI_ANY);
+		ifnet_departure_tag =
+		    EVENTHANDLER_REGISTER(ifnet_departure_event,
+		    ng_ether_detach, NULL, EVENTHANDLER_PRI_ANY);
+		ifnet_rename_tag = EVENTHANDLER_REGISTER(ifnet_rename_event,
+		    ng_ether_rename, NULL, EVENTHANDLER_PRI_ANY);
+		ifnet_linkstate_tag = EVENTHANDLER_REGISTER(ifnet_link_event,
+		    ng_ether_link_state, NULL, EVENTHANDLER_PRI_ANY);
 		break;
 
 	case MOD_UNLOAD:
@@ -838,16 +839,16 @@ ng_ether_mod_event(module_t mod, int event, void *data)
 		 * is MOD_UNLOAD, so there's no need to detach any nodes.
 		 */
 
-		EVENTHANDLER_DEREGISTER(ifnet_arrival_event,
-		    ng_ether_ifnet_arrival_cookie);
+		EVENTHANDLER_DEREGISTER(ifnet_arrival_event, ifnet_arrival_tag);
+		EVENTHANDLER_DEREGISTER(ifnet_departure_event,
+		    ifnet_departure_tag);
+		EVENTHANDLER_DEREGISTER(ifnet_rename_event, ifnet_rename_tag);
+		EVENTHANDLER_DEREGISTER(ifnet_link_event, ifnet_linkstate_tag);
 
 		/* Unregister function hooks */
-		ng_ether_attach_p = NULL;
-		ng_ether_detach_p = NULL;
 		ng_ether_output_p = NULL;
 		ng_ether_input_p = NULL;
 		ng_ether_input_orphan_p = NULL;
-		ng_ether_link_state_p = NULL;
 		break;
 
 	default:
@@ -858,23 +859,9 @@ ng_ether_mod_event(module_t mod, int event, void *data)
 }
 
 static void
-vnet_ng_ether_init(const void *unused)
+ng_ether_vnet_init(void *arg __unused)
 {
-	struct ifnet *ifp;
-
-	/* If module load was rejected, don't attach to vnets. */
-	if (ng_ether_attach_p != ng_ether_attach)
-		return;
-
-	/* Create nodes for any already-existing Ethernet interfaces. */
-	IFNET_RLOCK();
-	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		if (ifp->if_type == IFT_ETHER ||
-		    ifp->if_type == IFT_L2VLAN ||
-		    ifp->if_type == IFT_BRIDGE)
-			ng_ether_attach(ifp);
-	}
-	IFNET_RUNLOCK();
+	if_foreach_sleep(NULL, NULL, ng_ether_attach, NULL);
 }
-VNET_SYSINIT(vnet_ng_ether_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
-    vnet_ng_ether_init, NULL);
+VNET_SYSINIT(ng_ether_vnet_init, SI_SUB_PROTO_IF, SI_ORDER_ANY,
+    ng_ether_vnet_init, NULL);

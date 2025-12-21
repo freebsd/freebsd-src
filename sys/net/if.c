@@ -239,7 +239,6 @@ static MALLOC_DEFINE(M_IFDESCR, "ifdescr", "ifnet descriptions");
 static struct sx ifdescr_sx;
 SX_SYSINIT(ifdescr_sx, &ifdescr_sx, "ifnet descr");
 
-void	(*ng_ether_link_state_p)(struct ifnet *ifp, int state);
 void	(*lagg_linkstate_p)(struct ifnet *ifp, int state);
 /* These are external hooks for CARP. */
 void	(*carp_linkstate_p)(struct ifnet *ifp);
@@ -2031,10 +2030,6 @@ do_link_state_change(void *arg, int pending)
 	rt_ifmsg(ifp, 0);
 	if (ifp->if_vlantrunk != NULL)
 		(*vlan_link_state_p)(ifp);
-
-	if ((ifp->if_type == IFT_ETHER || ifp->if_type == IFT_L2VLAN) &&
-	    ifp->if_l2com != NULL)
-		(*ng_ether_link_state_p)(ifp, link_state);
 	if (ifp->if_carp)
 		(*carp_linkstate_p)(ifp);
 	if (ifp->if_bridge)
