@@ -499,6 +499,7 @@ struct pfctl_state_filter {
 };
 typedef int (*pfctl_get_state_fn)(struct pfctl_state *, void *);
 int pfctl_get_states_iter(pfctl_get_state_fn f, void *arg);
+int pfctl_get_states_h(struct pfctl_handle *h, struct pfctl_state_filter *filter, pfctl_get_state_fn f, void *arg);
 int pfctl_get_filtered_states_iter(struct pfctl_state_filter *filter, pfctl_get_state_fn f, void *arg);
 int	pfctl_get_states(int dev, struct pfctl_states *states);
 void	pfctl_free_states(struct pfctl_states *states);
