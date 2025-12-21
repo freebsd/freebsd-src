@@ -109,6 +109,9 @@ class VnetInterface(object):
             ret.append(if2);
         return ret
 
+    def set_mtu(self, mtu):
+        run_cmd("/sbin/ifconfig {} mtu {}".format(self.name, mtu))
+
     def setup_addr(self, _addr: str):
         addr = ipaddress.ip_interface(_addr)
         if addr.version == 6:
@@ -370,6 +373,7 @@ class VnetTestTemplate(BaseTest):
             idx = iface_map.vnet_aliases.index(vnet.alias)
             prefixes6 = topo[iface.alias].get("prefixes6", [])
             prefixes4 = topo[iface.alias].get("prefixes4", [])
+            mtu = topo[iface.alias].get("mtu", 0)
             if prefixes6 or prefixes4:
                 ipv6_ifaces.append(iface)
                 iface.turn_up()
@@ -378,6 +382,8 @@ class VnetTestTemplate(BaseTest):
             for prefix in prefixes6 + prefixes4:
                 if prefix[idx]:
                     iface.setup_addr(prefix[idx])
+            if mtu != 0:
+                iface.set_mtu(mtu)
         for iface in ipv6_ifaces:
             while iface.has_tentative():
                 time.sleep(0.1)
