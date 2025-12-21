@@ -95,8 +95,10 @@ VNET_DEFINE(ipf_main_softc_t, ipfmain) = {
 
 VNET_DEFINE_STATIC(eventhandler_tag, ipf_arrivetag);
 VNET_DEFINE_STATIC(eventhandler_tag, ipf_departtag);
+VNET_DEFINE_STATIC(eventhandler_tag, ipf_renametag);
 #define	V_ipf_arrivetag		VNET(ipf_arrivetag)
 #define	V_ipf_departtag		VNET(ipf_departtag)
+#define	V_ipf_renametag		VNET(ipf_renametag)
 
 static void ipf_ifevent(void *arg, struct ifnet *ifp);
 
@@ -1349,6 +1351,9 @@ ipf_event_reg(void)
 	V_ipf_departtag = EVENTHANDLER_REGISTER(ifnet_departure_event, \
 					       ipf_ifevent, NULL, \
 					       EVENTHANDLER_PRI_ANY);
+	V_ipf_renametag = EVENTHANDLER_REGISTER(ifnet_rename_event, \
+					       ipf_ifevent, NULL, \
+					       EVENTHANDLER_PRI_ANY);
 }
 
 void
@@ -1359,6 +1364,9 @@ ipf_event_dereg(void)
 	}
 	if (V_ipf_departtag != NULL) {
 		EVENTHANDLER_DEREGISTER(ifnet_departure_event, V_ipf_departtag);
+	}
+	if (V_ipf_renametag != NULL) {
+		EVENTHANDLER_DEREGISTER(ifnet_rename_event, V_ipf_renametag);
 	}
 }
 

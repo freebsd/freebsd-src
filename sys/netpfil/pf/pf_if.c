@@ -76,6 +76,7 @@ VNET_DEFINE(struct pfi_kkif *, pf_kifmarker);
 
 static eventhandler_tag	 pfi_attach_cookie;
 static eventhandler_tag	 pfi_detach_cookie;
+static eventhandler_tag  pfi_rename_cookie;
 static eventhandler_tag	 pfi_attach_group_cookie;
 static eventhandler_tag	 pfi_change_group_cookie;
 static eventhandler_tag	 pfi_detach_group_cookie;
@@ -95,6 +96,7 @@ static int	 pfi_skip_if(const char *, struct pfi_kkif *);
 static int	 pfi_unmask(void *);
 static void	 pfi_attach_ifnet_event(void * __unused, struct ifnet *);
 static void	 pfi_detach_ifnet_event(void * __unused, struct ifnet *);
+static void	 pfi_rename_ifnet_event(void * __unused, struct ifnet *);
 static void	 pfi_attach_group_event(void * __unused, struct ifg_group *);
 static void	 pfi_change_group_event(void * __unused, char *);
 static void	 pfi_detach_group_event(void * __unused, struct ifg_group *);
@@ -172,6 +174,8 @@ pfi_initialize(void)
 	    pfi_attach_ifnet_event, NULL, EVENTHANDLER_PRI_ANY);
 	pfi_detach_cookie = EVENTHANDLER_REGISTER(ifnet_departure_event,
 	    pfi_detach_ifnet_event, NULL, EVENTHANDLER_PRI_ANY);
+	pfi_rename_cookie = EVENTHANDLER_REGISTER(ifnet_rename_event,
+	    pfi_rename_ifnet_event, NULL, EVENTHANDLER_PRI_ANY);
 	pfi_attach_group_cookie = EVENTHANDLER_REGISTER(group_attach_event,
 	    pfi_attach_group_event, NULL, EVENTHANDLER_PRI_ANY);
 	pfi_change_group_cookie = EVENTHANDLER_REGISTER(group_change_event,
@@ -1067,6 +1071,14 @@ pfi_attach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 #endif
 	PF_RULES_WUNLOCK();
 	NET_EPOCH_EXIT(et);
+}
+
+static void
+pfi_rename_ifnet_event(void *arg, struct ifnet *ifp)
+{
+	/* XXXGL: should be handled better */
+	pfi_detach_ifnet_event(arg, ifp);
+	pfi_attach_ifnet_event(arg, ifp);
 }
 
 static void

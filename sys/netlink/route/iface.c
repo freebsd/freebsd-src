@@ -70,7 +70,8 @@ struct netlink_walkargs {
 	int dumped;
 };
 
-static eventhandler_tag ifdetach_event, ifattach_event, iflink_event, ifaddr_event;
+static eventhandler_tag ifdetach_event, ifattach_event, ifrename_event,
+    iflink_event, ifaddr_event;
 
 static SLIST_HEAD(, nl_cloner) nl_cloners = SLIST_HEAD_INITIALIZER(nl_cloners);
 
@@ -288,7 +289,7 @@ dump_iface_caps(struct nl_writer *nw, struct ifnet *ifp)
  */
 static bool
 dump_iface(struct nl_writer *nw, if_t ifp, const struct nlmsghdr *hdr,
-    int if_flags_mask)
+    int if_flags_mask, const char *ifname)
 {
 	struct epoch_tracker et;
         struct ifinfomsg *ifinfo;
@@ -312,7 +313,8 @@ dump_iface(struct nl_writer *nw, if_t ifp, const struct nlmsghdr *hdr,
 	if (ifs.ifla_operstate == IF_OPER_UP)
 		ifinfo->ifi_flags |= IFF_LOWER_UP;
 
-        nlattr_add_string(nw, IFLA_IFNAME, if_name(ifp));
+        nlattr_add_string(nw, IFLA_IFNAME,
+	    ifname != NULL ? ifname : if_name(ifp));
         nlattr_add_u8(nw, IFLA_OPERSTATE, ifs.ifla_operstate);
         nlattr_add_u8(nw, IFLA_CARRIER, ifs.ifla_carrier);
 
@@ -438,7 +440,7 @@ static int
 dump_cb(if_t ifp, void *_arg)
 {
 	struct netlink_walkargs *wa = (struct netlink_walkargs *)_arg;
-	if (!dump_iface(wa->nw, ifp, &wa->hdr, 0))
+	if (!dump_iface(wa->nw, ifp, &wa->hdr, 0, NULL))
 		return (ENOMEM);
 	return (0);
 }
@@ -488,7 +490,7 @@ rtnl_handle_getlink(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *n
 
 		if (ifp != NULL) {
 			if (match_iface(ifp, &attrs)) {
-				if (!dump_iface(wa.nw, ifp, &wa.hdr, 0))
+				if (!dump_iface(wa.nw, ifp, &wa.hdr, 0, NULL))
 					error = ENOMEM;
 			} else
 				error = ENODEV;
@@ -1399,7 +1401,8 @@ rtnl_handle_ifaddr(void *arg __unused, struct ifaddr *ifa, int cmd)
 }
 
 static void
-rtnl_handle_ifevent(if_t ifp, int nlmsg_type, int if_flags_mask)
+rtnl_handle_ifevent(if_t ifp, int nlmsg_type, int if_flags_mask,
+    const char *ifname)
 {
 	struct nlmsghdr hdr = { .nlmsg_type = nlmsg_type };
 	struct nl_writer nw;
@@ -1409,7 +1412,7 @@ rtnl_handle_ifevent(if_t ifp, int nlmsg_type, int if_flags_mask)
 		NL_LOG(LOG_DEBUG, "error allocating group writer");
 		return;
 	}
-	dump_iface(&nw, ifp, &hdr, if_flags_mask);
+	dump_iface(&nw, ifp, &hdr, if_flags_mask, ifname);
         nlmsg_flush(&nw);
 }
 
@@ -1417,28 +1420,35 @@ static void
 rtnl_handle_ifattach(void *arg, if_t ifp)
 {
 	NL_LOG(LOG_DEBUG2, "ifnet %s", if_name(ifp));
-	rtnl_handle_ifevent(ifp, NL_RTM_NEWLINK, 0);
+	rtnl_handle_ifevent(ifp, NL_RTM_NEWLINK, 0, NULL);
 }
 
 static void
 rtnl_handle_ifdetach(void *arg, if_t ifp)
 {
 	NL_LOG(LOG_DEBUG2, "ifnet %s", if_name(ifp));
-	rtnl_handle_ifevent(ifp, NL_RTM_DELLINK, 0);
+	rtnl_handle_ifevent(ifp, NL_RTM_DELLINK, 0, NULL);
+}
+
+static void
+rtnl_handle_ifrename(void *arg, if_t ifp, const char *old_name)
+{
+	rtnl_handle_ifevent(ifp, NL_RTM_DELLINK, 0, old_name);
+	rtnl_handle_ifevent(ifp, NL_RTM_NEWLINK, 0, NULL);
 }
 
 static void
 rtnl_handle_iflink(void *arg, if_t ifp, int link_state __unused)
 {
 	NL_LOG(LOG_DEBUG2, "ifnet %s", if_name(ifp));
-	rtnl_handle_ifevent(ifp, NL_RTM_NEWLINK, 0);
+	rtnl_handle_ifevent(ifp, NL_RTM_NEWLINK, 0, NULL);
 }
 
 void
 rtnl_handle_ifnet_event(if_t ifp, int if_flags_mask)
 {
 	NL_LOG(LOG_DEBUG2, "ifnet %s", if_name(ifp));
-	rtnl_handle_ifevent(ifp, NL_RTM_NEWLINK, if_flags_mask);
+	rtnl_handle_ifevent(ifp, NL_RTM_NEWLINK, if_flags_mask, NULL);
 }
 
 static const struct rtnl_cmd_handler cmd_handlers[] = {
@@ -1513,6 +1523,9 @@ rtnl_ifaces_init(void)
 	ifdetach_event = EVENTHANDLER_REGISTER(
 	    ifnet_departure_event, rtnl_handle_ifdetach, NULL,
 	    EVENTHANDLER_PRI_ANY);
+	ifrename_event = EVENTHANDLER_REGISTER(
+	    ifnet_rename_event, rtnl_handle_ifrename, NULL,
+	    EVENTHANDLER_PRI_ANY);
 	ifaddr_event = EVENTHANDLER_REGISTER(
 	    rt_addrmsg, rtnl_handle_ifaddr, NULL,
 	    EVENTHANDLER_PRI_ANY);
@@ -1528,6 +1541,7 @@ rtnl_ifaces_destroy(void)
 {
 	EVENTHANDLER_DEREGISTER(ifnet_arrival_event, ifattach_event);
 	EVENTHANDLER_DEREGISTER(ifnet_departure_event, ifdetach_event);
+	EVENTHANDLER_DEREGISTER(ifnet_rename_event, ifrename_event);
 	EVENTHANDLER_DEREGISTER(rt_addrmsg, ifaddr_event);
 	EVENTHANDLER_DEREGISTER(ifnet_link_event, iflink_event);
 }

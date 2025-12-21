@@ -208,7 +208,7 @@ static int	sysctl_ifmalist(int af, struct walkarg *w);
 static void	rt_getmetrics(const struct rtentry *rt,
 			const struct nhop_object *nh, struct rt_metrics *out);
 static void	rt_dispatch(struct mbuf *, sa_family_t);
-static void	rt_ifannouncemsg(struct ifnet *ifp, int what);
+static void	rt_ifannouncemsg(struct ifnet *, int, const char *);
 static int	handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
 			struct rt_msghdr *rtm, struct rib_cmd_info *rc);
 static int	update_rtm_from_rc(struct rt_addrinfo *info,
@@ -319,16 +319,25 @@ SYSINIT(rtsock_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rtsock_init, NULL);
 static void
 rts_ifnet_attached(void *arg __unused, struct ifnet *ifp)
 {
-	rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
+	rt_ifannouncemsg(ifp, IFAN_ARRIVAL, NULL);
 }
 EVENTHANDLER_DEFINE(ifnet_attached_event, rts_ifnet_attached, NULL, 0);
 
 static void
 rts_handle_ifnet_departure(void *arg __unused, struct ifnet *ifp)
 {
-	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
+	rt_ifannouncemsg(ifp, IFAN_DEPARTURE, NULL);
 }
 EVENTHANDLER_DEFINE(ifnet_departure_event, rts_handle_ifnet_departure, NULL, 0);
+
+static void
+rts_handle_ifnet_rename(void *arg __unused, struct ifnet *ifp,
+    const char *old_name)
+{
+	rt_ifannouncemsg(ifp, IFAN_DEPARTURE, old_name);
+	rt_ifannouncemsg(ifp, IFAN_ARRIVAL, NULL);
+}
+EVENTHANDLER_DEFINE(ifnet_rename_event, rts_handle_ifnet_rename, NULL, 0);
 
 static void
 rts_append_data(struct socket *so, struct mbuf *m)
@@ -2143,7 +2152,7 @@ rt_newmaddrmsg(int cmd, struct ifmultiaddr *ifma)
 
 static struct mbuf *
 rt_makeifannouncemsg(struct ifnet *ifp, int type, int what,
-	struct rt_addrinfo *info)
+    struct rt_addrinfo *info, const char *ifname)
 {
 	struct if_announcemsghdr *ifan;
 	struct mbuf *m;
@@ -2155,8 +2164,9 @@ rt_makeifannouncemsg(struct ifnet *ifp, int type, int what,
 	if (m != NULL) {
 		ifan = mtod(m, struct if_announcemsghdr *);
 		ifan->ifan_index = ifp->if_index;
-		strlcpy(ifan->ifan_name, ifp->if_xname,
-			sizeof(ifan->ifan_name));
+		strlcpy(ifan->ifan_name,
+		    ifname != NULL ? ifname : ifp->if_xname,
+		    sizeof(ifan->ifan_name));
 		ifan->ifan_what = what;
 	}
 	return m;
@@ -2173,7 +2183,7 @@ rt_ieee80211msg(struct ifnet *ifp, int what, void *data, size_t data_len)
 	struct mbuf *m;
 	struct rt_addrinfo info;
 
-	m = rt_makeifannouncemsg(ifp, RTM_IEEE80211, what, &info);
+	m = rt_makeifannouncemsg(ifp, RTM_IEEE80211, what, &info, NULL);
 	if (m != NULL) {
 		/*
 		 * Append the ieee80211 data.  Try to stick it in the
@@ -2207,12 +2217,12 @@ rt_ieee80211msg(struct ifnet *ifp, int what, void *data, size_t data_len)
  * network interface arrival and departure.
  */
 static void
-rt_ifannouncemsg(struct ifnet *ifp, int what)
+rt_ifannouncemsg(struct ifnet *ifp, int what, const char *ifname)
 {
 	struct mbuf *m;
 	struct rt_addrinfo info;
 
-	m = rt_makeifannouncemsg(ifp, RTM_IFANNOUNCE, what, &info);
+	m = rt_makeifannouncemsg(ifp, RTM_IFANNOUNCE, what, &info, ifname);
 	if (m != NULL)
 		rt_dispatch(m, AF_UNSPEC);
 }
