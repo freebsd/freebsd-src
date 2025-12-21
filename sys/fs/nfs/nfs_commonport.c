@@ -821,6 +821,26 @@ nfs_supportsnfsv4acls(struct vnode *vp)
 }
 
 /*
+ * Determine if the file system supports POSIX draft ACLs.
+ * Return 1 if it does, 0 otherwise.
+ */
+int
+nfs_supportsposixacls(struct vnode *vp)
+{
+	int error;
+	long retval;
+
+	ASSERT_VOP_LOCKED(vp, "nfs supports posixacls");
+
+	if (nfsrv_useacl == 0)
+		return (0);
+	error = VOP_PATHCONF(vp, _PC_ACL_EXTENDED, &retval);
+	if (error == 0 && retval != 0)
+		return (1);
+	return (0);
+}
+
+/*
  * These are the first fields of all the context structures passed into
  * nfs_pnfsio().
  */
