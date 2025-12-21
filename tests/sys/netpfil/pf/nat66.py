@@ -39,13 +39,11 @@ class TestNAT66(VnetTestTemplate):
         "vnet1": {"ifaces": ["if1"]},
         "vnet2": {"ifaces": ["if1", "if2"]},
         "vnet3": {"ifaces": ["if2"]},
-        "if1": {"prefixes6": [("2001:db8::2/64", "2001:db8::1/64")]},
+        "if1": {"prefixes6": [("2001:db8::2/64", "2001:db8::1/64")], "mtu": 9000},
         "if2": {"prefixes6": [("2001:db8:1::1/64", "2001:db8:1::2/64")]},
     }
 
     def vnet2_handler(self, vnet):
-        ifname = vnet.iface_alias_map["if1"].name
-        ToolsHelper.print_output("/sbin/ifconfig %s mtu 9000" % ifname)
         outifname = vnet.iface_alias_map["if2"].name
 
         ToolsHelper.print_output("/sbin/pfctl -e")
@@ -130,8 +128,6 @@ class TestNAT66(VnetTestTemplate):
     @pytest.mark.require_progs(["scapy"])
     def test_npt_icmp(self):
         cl_vnet = self.vnet_map["vnet1"]
-        ifname = cl_vnet.iface_alias_map["if1"].name
-        ToolsHelper.print_output("/sbin/ifconfig %s mtu 9000" % ifname)
 
         ToolsHelper.print_output("/sbin/route add -6 2001:db8:1::/64 2001:db8::1")
 
@@ -160,7 +156,6 @@ class TestNAT66(VnetTestTemplate):
     def test_npt_route_to_icmp(self):
         cl_vnet = self.vnet_map["vnet1"]
         ifname = cl_vnet.iface_alias_map["if1"].name
-        ToolsHelper.print_output("/sbin/ifconfig %s mtu 9000" % ifname)
         ToolsHelper.print_output("/sbin/ifconfig %s inet6 alias 2001:db8::3/64" % ifname)
 
         ToolsHelper.print_output("/sbin/route add -6 2001:db8:1::/64 2001:db8::1")
