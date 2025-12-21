@@ -54,7 +54,7 @@
 #define BIO_SPEEDUP	0x0a	/* Upper layers face shortage */
 
 /* bio_flags */
-#define BIO_ERROR	0x01	/* An error occurred processing this bio. */
+#define BIO_ERROR_COMPAT	0x01	/* KBI compat on stable/15. */
 #define BIO_DONE	0x02	/* This bio is finished. */
 #define BIO_ONQUEUE	0x04	/* This bio is in a queue & not yet taken. */
 /*
@@ -66,6 +66,7 @@
 #define	BIO_TRANSIENT_MAPPING	0x20
 #define	BIO_VLIST	0x40
 #define	BIO_SWAP	0x200	/* Swap-related I/O */
+#define	BIO_ERROR	0x1000	/* An error occurred processing this bio. */
 #define	BIO_EXTERR	0x2000
 #define BIO_SPEEDUP_WRITE	0x4000	/* Resource shortage at upper layers */
 #define BIO_SPEEDUP_TRIM	0x8000	/* Resource shortage at upper layers */
@@ -97,6 +98,7 @@ struct bio {
 	struct vm_page **bio_ma;	/* Or unmapped. */
 	int	bio_ma_offset;		/* Offset in the first page of bio_ma. */
 	int	bio_ma_n;		/* Number of pages in bio_ma. */
+	int	bio_error_compat;	/* Error for KBI compat on stable/15 */
 	long	bio_resid;		/* Remaining I/O in bytes. */
 	void	(*bio_done)(struct bio *);
 	void	*bio_driver1;		/* Private use by the provider. */

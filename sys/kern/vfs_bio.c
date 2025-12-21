@@ -4474,6 +4474,14 @@ biodone(struct bio *bp)
 
 	biotrack(bp, __func__);
 
+	if ((bp->bio_flags & BIO_ERROR_COMPAT) != 0) {
+		/* The caller of this KPI is using the old bio(9) KBI */
+		bp->bio_error = bp->bio_error_compat;
+		bp->bio_flags |= BIO_ERROR;
+		bp->bio_error_compat = 0;
+		bp->bio_flags &= BIO_ERROR_COMPAT;
+	}
+
 	/*
 	 * Avoid completing I/O when dumping after a panic since that may
 	 * result in a deadlock in the filesystem or pager code.  Note that
@@ -4505,8 +4513,19 @@ biodone(struct bio *bp)
 		bp->bio_flags |= BIO_DONE;
 		wakeup(bp);
 		mtx_unlock(mtxp);
-	} else
+	} else {
+		if ((bp->bio_flags & BIO_ERROR) != 0) {
+			/*
+			 * Provide compatibility with the consumers of the old
+			 * bio(9) KBI filled in bio_done callback handler.
+			 */
+			bp->bio_error_compat = bp->bio_error;
+			bp->bio_flags |= BIO_ERROR_COMPAT;
+		}
 		done(bp);
+		bp->bio_error_compat = 0;
+		bp->bio_flags &= BIO_ERROR_COMPAT;
+	}
 }
 
 /*

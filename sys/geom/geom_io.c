@@ -545,6 +545,7 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	bp->bio_from = cp;
 	bp->bio_to = pp;
 	bp->bio_error = 0;
+	bp->bio_error_compat = 0;
 	bp->bio_completed = 0;
 
 	KASSERT(!(bp->bio_flags & BIO_ONQUEUE),
