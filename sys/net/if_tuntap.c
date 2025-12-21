@@ -179,7 +179,7 @@ struct tuntap_softc {
  * which are static after setup.
  */
 static struct mtx tunmtx;
-static eventhandler_tag arrival_tag;
+static eventhandler_tag rename_tag;
 static eventhandler_tag clone_tag;
 static int tuntap_osd_jail_slot;
 static const char tunname[] = "tun";
@@ -741,7 +741,7 @@ tun_uninit(const void *unused __unused)
 	struct tuntap_softc *tp;
 	int i;
 
-	EVENTHANDLER_DEREGISTER(ifnet_arrival_event, arrival_tag);
+	EVENTHANDLER_DEREGISTER(ifnet_rename_event, rename_tag);
 	EVENTHANDLER_DEREGISTER(dev_clone, clone_tag);
 
 	CURVNET_SET(vnet0);
@@ -833,13 +833,10 @@ tuntapmodevent(module_t mod, int type, void *data)
 			[PR_METHOD_REMOVE] = tuntap_prison_remove,
 		};
 		tuntap_osd_jail_slot = osd_jail_register(NULL, methods);
-		arrival_tag = EVENTHANDLER_REGISTER(ifnet_arrival_event,
-		    tunrename, 0, 1000);
-		if (arrival_tag == NULL)
-			return (ENOMEM);
-		clone_tag = EVENTHANDLER_REGISTER(dev_clone, tunclone, 0, 1000);
-		if (clone_tag == NULL)
-			return (ENOMEM);
+		rename_tag = EVENTHANDLER_REGISTER(ifnet_rename_event,
+		    tunrename, NULL, EVENTHANDLER_PRI_ANY);
+		clone_tag = EVENTHANDLER_REGISTER(dev_clone, tunclone, NULL,
+		    EVENTHANDLER_PRI_ANY);
 		break;
 	case MOD_UNLOAD:
 		/* See tun_uninit(). */
@@ -1079,9 +1076,6 @@ tunrename(void *arg __unused, struct ifnet *ifp)
 {
 	struct tuntap_softc *tp;
 	int error;
-
-	if ((ifp->if_flags & IFF_RENAMING) == 0)
-		return;
 
 	if (tuntap_driver_from_ifnet(ifp) == NULL)
 		return;
