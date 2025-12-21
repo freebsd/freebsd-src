@@ -74,12 +74,12 @@ VNET_DEFINE(size_t, pf_allkifcount);
 VNET_DEFINE(struct pfi_kkif *, pf_kifmarker);
 #endif
 
-eventhandler_tag	 pfi_attach_cookie;
-eventhandler_tag	 pfi_detach_cookie;
-eventhandler_tag	 pfi_attach_group_cookie;
-eventhandler_tag	 pfi_change_group_cookie;
-eventhandler_tag	 pfi_detach_group_cookie;
-eventhandler_tag	 pfi_ifaddr_event_cookie;
+static eventhandler_tag	 pfi_attach_cookie;
+static eventhandler_tag	 pfi_detach_cookie;
+static eventhandler_tag	 pfi_attach_group_cookie;
+static eventhandler_tag	 pfi_change_group_cookie;
+static eventhandler_tag	 pfi_detach_group_cookie;
+static eventhandler_tag	 pfi_ifaddr_event_cookie;
 
 static void	 pfi_attach_ifnet(struct ifnet *, struct pfi_kkif *);
 static void	 pfi_attach_ifgroup(struct ifg_group *, struct pfi_kkif *);
