@@ -801,8 +801,6 @@ bridge_reassign(struct ifnet *ifp, struct vnet *newvnet, char *arg)
 	}
 
 	BRIDGE_UNLOCK(sc);
-
-	ether_reassign(ifp, newvnet, arg);
 }
 #endif
 

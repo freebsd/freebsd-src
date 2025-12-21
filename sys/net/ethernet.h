@@ -460,10 +460,6 @@ extern	uint32_t ether_crc32_be(const uint8_t *, size_t);
 extern	void ether_demux(struct ifnet *, struct mbuf *);
 extern	void ether_ifattach(struct ifnet *, const u_int8_t *);
 extern	void ether_ifdetach(struct ifnet *);
-#ifdef VIMAGE
-struct vnet;
-extern	void ether_reassign(struct ifnet *, struct vnet *, char *);
-#endif
 extern	int  ether_ioctl(struct ifnet *, u_long, caddr_t);
 extern	int  ether_output(struct ifnet *, struct mbuf *,
 	    const struct sockaddr *, struct route *);
