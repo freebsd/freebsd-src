@@ -346,7 +346,6 @@ xen_intr_active_ports(const struct xen_intr_pcpu_data *const pcpu,
 int
 xen_intr_handle_upcall(void *unused __unused)
 {
-	struct trapframe *trap_frame = curthread->td_intr_frame;
 	u_int l1i, l2i, port, cpu __diagused;
 	u_long masked_l1, masked_l2;
 	struct xenisrc *isrc;
@@ -426,17 +425,7 @@ xen_intr_handle_upcall(void *unused __unused)
 				("Received unexpected event on vCPU#%u, event bound to vCPU#%u",
 				PCPU_GET(cpuid), isrc->xi_cpu));
 
-			/*
-			 * Reduce interrupt nesting level ahead of calling the
-			 * per-arch interrupt dispatch helper.  This is
-			 * required because the per-arch dispatcher will also
-			 * increase td_intr_nesting_level, and then handlers
-			 * would wrongly see td_intr_nesting_level = 2 when
-			 * there's no nesting at all.
-			 */
-			curthread->td_intr_nesting_level--;
-			xen_arch_intr_execute_handlers(isrc, trap_frame);
-			curthread->td_intr_nesting_level++;
+			xen_arch_intr_execute_handlers(isrc);
 
 			/*
 			 * If this is the final port processed,

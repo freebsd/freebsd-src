@@ -630,10 +630,19 @@ powerpc_config_intr(int irq, enum intr_trigger trig, enum intr_polarity pol)
 }
 
 void
-powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
+powerpc_dispatch_intr(u_int vector)
 {
 	struct powerpc_intr *i;
 	struct intr_event *ie;
+
+	/*
+	 * As powerpc_dispatch_intr() is called as an interrupt handler,
+	 * ->td_intr_nesting_level should be above 1.  Otherwise something
+	 * strange is occuring.
+	 */
+	KASSERT(curthread->td_intr_nesting_level > 0,
+	    ("Unexpected thread context"));
+	CRITICAL_ASSERT(curthread);
 
 	i = powerpc_intrs[vector];
 	if (i == NULL)
@@ -651,7 +660,7 @@ powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
 	if (i->ipi)
 		PIC_EOI(i->pic, i->intline, i->priv);
 
-	if (intr_event_handle(ie, tf) != 0) {
+	if (intr_event_handle(ie) != 0) {
 		goto stray;
 	}
 	return;
