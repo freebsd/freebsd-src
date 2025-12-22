@@ -370,43 +370,19 @@ static void	increase_rcvbuf(int);
 static void
 close_filed(struct filed *f)
 {
-	switch (f->f_type) {
-	case F_FORW:
-		if (f->f_addr_fds != NULL) {
-			free(f->f_addrs);
-			for (size_t i = 0; i < f->f_num_addr_fds; ++i)
-				close(f->f_addr_fds[i]);
-			free(f->f_addr_fds);
-			f->f_addr_fds = NULL;
-			f->f_num_addr_fds = 0;
-		}
-		/* FALLTHROUGH */
-	case F_FILE:
-	case F_TTY:
-	case F_CONSOLE:
-		f->f_type = F_UNUSED;
-		break;
-	case F_PIPE:
-		if (f->f_procdesc != -1) {
-			/*
-			 * Close the procdesc, killing the underlying
-			 * process (if it is still alive).
-			 */
-			(void)close(f->f_procdesc);
-			f->f_procdesc = -1;
-			/*
-			 * The pipe process is guaranteed to be dead now,
-			 * so remove it from the deadq.
-			 */
-			if (f->f_dq != NULL) {
-				deadq_remove(f->f_dq);
-				f->f_dq = NULL;
-			}
-		}
-		break;
-	default:
-		break;
+	if (f->f_type == F_FORW && f->f_addr_fds != NULL) {
+		free(f->f_addrs);
+		for (size_t i = 0; i < f->f_num_addr_fds; ++i)
+			close(f->f_addr_fds[i]);
+		free(f->f_addr_fds);
+		f->f_addr_fds = NULL;
+		f->f_num_addr_fds = 0;
+	} else if (f->f_type == F_PIPE && f->f_procdesc != -1) {
+		f->f_dq = deadq_enter(f->f_procdesc);
 	}
+
+	f->f_type = F_UNUSED;
+
 	if (f->f_file != -1)
 		(void)close(f->f_file);
 	f->f_file = -1;
@@ -820,8 +796,23 @@ main(int argc, char *argv[])
 			break;
 		case EVFILT_PROCDESC:
 			if ((ev.fflags & NOTE_EXIT) != 0) {
-				log_deadchild(ev.ident, ev.data, ev.udata);
-				close_filed(ev.udata);
+				struct filed *f = ev.udata;
+
+				log_deadchild(f->f_procdesc, ev.data, f);
+				(void)close(f->f_procdesc);
+
+				f->f_procdesc = -1;
+				if (f->f_dq != NULL) {
+					deadq_remove(f->f_dq);
+					f->f_dq = NULL;
+				}
+
+				/*
+				 * If it is unused, then it was already closed.
+				 * Free the file data in this case.
+				 */
+				if (f->f_type == F_UNUSED)
+					free(f);
 			}
 			break;
 		}
@@ -2272,9 +2263,6 @@ die(int signo)
 		/* flush any pending output */
 		if (f->f_prevcount)
 			fprintlog_successive(f, 0);
-		/* terminate existing pipe processes */
-		if (f->f_type == F_PIPE)
-			close_filed(f);
 	}
 	if (signo) {
 		dprintf("syslogd: exiting on signal %d\n", signo);
@@ -2517,23 +2505,7 @@ closelogfiles(void)
 		case F_FORW:
 		case F_CONSOLE:
 		case F_TTY:
-			close_filed(f);
-			break;
 		case F_PIPE:
-			if (f->f_procdesc != -1) {
-				struct kevent ev;
-				/*
-				 * This filed is going to be freed.
-				 * Delete procdesc kevents that reference it.
-				 */
-				EV_SET(&ev, f->f_procdesc, EVFILT_PROCDESC,
-				    EV_DELETE, NOTE_EXIT, 0, f);
-				if (kevent(kq, &ev, 1, NULL, 0, NULL) == -1) {
-					logerror("failed to delete procdesc"
-					    "kevent");
-					exit(1);
-				}
-			}
 			close_filed(f);
 			break;
 		default:
@@ -2554,7 +2526,13 @@ closelogfiles(void)
 			}
 			free(f->f_prop_filter);
 		}
-		free(f);
+
+		/*
+		 * If a piped process is running, then defer the filed
+		 * cleanup until it exits.
+		 */
+		if (f->f_type != F_PIPE || f->f_procdesc == -1)
+			free(f);
 	}
 }
 
