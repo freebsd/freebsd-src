@@ -2059,7 +2059,6 @@ SRCS+=		${SRCS_ALL:O}
 .for src in ${SRCS}
 . if "${src:MTarget/*/*}"
 CFLAGS.${src:T}+=	-fvisibility=hidden
-.info ${src}:	CFLAGS.${src:T}
 . endif
 .endfor
 
