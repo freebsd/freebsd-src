@@ -63,10 +63,10 @@ struct ipfw_tap {
 	char 			name[sizeof("ipfw4294967295")];
 };
 
-static int32_t
+static inline int
 tap_compare(const struct ipfw_tap *a, const struct ipfw_tap *b)
 {
-	return ((int32_t)(a->rule/2 - b->rule/2));
+	return (a->rule != b->rule ? (a->rule < b->rule ? -1 : 1) : 0);
 }
 RB_HEAD(tap_tree, ipfw_tap);
 VNET_DEFINE_STATIC(struct tap_tree, tap_tree);
