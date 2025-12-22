@@ -128,8 +128,10 @@ alone_decode(void *coder_ptr, const lzma_allocator *allocator,
 		lzma_set_ext_size(coder->options, coder->uncompressed_size);
 
 		// Calculate the memory usage so that it is ready
-		// for SEQ_CODER_INIT.
-		coder->memusage = lzma_lzma_decoder_memusage(&coder->options)
+		// for SEQ_CODER_INIT. We know that lc/lp/pb are valid
+		// so we can use the _nocheck variant.
+		coder->memusage
+			= lzma_lzma_decoder_memusage_nocheck(&coder->options)
 				+ LZMA_MEMUSAGE_BASE;
 
 		coder->pos = 0;
