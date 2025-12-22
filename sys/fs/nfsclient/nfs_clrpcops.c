@@ -147,7 +147,7 @@ static int nfsrpc_locku(struct nfsrv_descript *, struct nfsmount *,
     struct nfscllockowner *, u_int64_t, u_int64_t,
     u_int32_t, struct ucred *, NFSPROC_T *, int);
 static int nfsrpc_setaclrpc(vnode_t, struct ucred *, NFSPROC_T *,
-    struct acl *, nfsv4stateid_t *);
+    struct acl *, acl_type_t, nfsv4stateid_t *);
 static int nfsrpc_layouterror(struct nfsmount *, uint8_t *, int, uint64_t,
     uint64_t, nfsv4stateid_t *, struct ucred *, NFSPROC_T *, uint32_t,
     uint32_t, char *);
@@ -1371,7 +1371,7 @@ nfsrpc_getattrnovp(struct nfsmount *nmp, u_int8_t *fhp, int fhlen, int syscred,
  * Do an nfs setattr operation.
  */
 int
-nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp,
+nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp, acl_type_t aclt,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *rnap, int *attrflagp)
 {
 	int error, expireret = 0, openerr, retrycnt;
@@ -1418,7 +1418,8 @@ nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp,
 			error = nfsrpc_setattrrpc(vp, vap, &stateid, cred, p,
 			    rnap, attrflagp);
 		else
-			error = nfsrpc_setaclrpc(vp, cred, p, aclp, &stateid);
+			error = nfsrpc_setaclrpc(vp, cred, p, aclp, aclt,
+			    &stateid);
 		if (error == NFSERR_OPENMODE && mode == NFSV4OPEN_ACCESSREAD) {
 			NFSLOCKMNT(nmp);
 			nmp->nm_state |= NFSSTA_OPENMODE;
@@ -5072,7 +5073,7 @@ nfsmout:
 int
 nfsrpc_pathconf(vnode_t vp, struct nfsv3_pathconf *pc, bool *has_namedattrp,
     uint32_t *clone_blksizep, struct ucred *cred, NFSPROC_T *p,
-    struct nfsvattr *nap, int *attrflagp)
+    struct nfsvattr *nap, int *attrflagp, uint32_t *trueformp)
 {
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	struct nfsmount *nmp;
@@ -5102,6 +5103,8 @@ nfsrpc_pathconf(vnode_t vp, struct nfsv3_pathconf *pc, bool *has_namedattrp,
 		 */
 		NFSCL_REQSTART(nd, NFSPROC_GETATTR, vp, cred);
 		NFSPATHCONF_GETATTRBIT(&attrbits);
+		if (nmp->nm_minorvers >= NFSV42_MINORVERSION)
+			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_ACLTRUEFORM);
 		(void) nfsrv_putattrbit(nd, &attrbits);
 		nd->nd_flag |= ND_USEGSSNAME;
 		error = nfscl_request(nd, vp, p, cred);
@@ -5391,26 +5394,43 @@ nfsrpc_delegreturn(struct nfscldeleg *dp, struct ucred *cred,
  * nfs getacl call.
  */
 int
-nfsrpc_getacl(vnode_t vp, struct ucred *cred, NFSPROC_T *p, struct acl *aclp)
+nfsrpc_getacl(struct vnode *vp, acl_type_t acltype, struct ucred *cred,
+    NFSPROC_T *p, struct acl *aclp)
 {
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	int error;
 	nfsattrbit_t attrbits;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
+	struct nfsnode *np;
 
 	if (nfsrv_useacl == 0 || !NFSHASNFSV4(nmp))
 		return (EOPNOTSUPP);
+	np = VTONFS(vp);
+	if (!NFSISSET_ATTRBIT(&np->n_vattr.na_suppattr, NFSATTRBIT_ACL) &&
+	    acltype == ACL_TYPE_NFS4)
+		return (EOPNOTSUPP);
+	if ((!NFSISSET_ATTRBIT(&np->n_vattr.na_suppattr,
+	    NFSATTRBIT_POSIXACCESSACL) ||
+	    !NFSISSET_ATTRBIT(&np->n_vattr.na_suppattr,
+	    NFSATTRBIT_POSIXDEFAULTACL)) &&
+	    (acltype == ACL_TYPE_ACCESS || acltype == ACL_TYPE_DEFAULT))
+		return (EOPNOTSUPP);
 	NFSCL_REQSTART(nd, NFSPROC_GETACL, vp, cred);
 	NFSZERO_ATTRBIT(&attrbits);
-	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_ACL);
+	if (acltype == ACL_TYPE_NFS4)
+		NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_ACL);
+	else if (acltype == ACL_TYPE_ACCESS)
+		NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_POSIXACCESSACL);
+	else
+		NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_POSIXDEFAULTACL);
 	(void) nfsrv_putattrbit(nd, &attrbits);
 	error = nfscl_request(nd, vp, p, cred);
 	if (error)
 		return (error);
 	if (!nd->nd_repstat)
 		error = nfsv4_loadattr(nd, vp, NULL, NULL, NULL, 0, NULL,
-		    NULL, NULL, NULL, aclp, 0, NULL, NULL, NULL, NULL, NULL, p,
-		    cred);
+		    NULL, NULL, NULL, aclp, 0, NULL, NULL, NULL, NULL, NULL,
+		    p, cred);
 	else
 		error = nd->nd_repstat;
 	m_freem(nd->nd_mrep);
@@ -5421,14 +5441,26 @@ nfsrpc_getacl(vnode_t vp, struct ucred *cred, NFSPROC_T *p, struct acl *aclp)
  * nfs setacl call.
  */
 int
-nfsrpc_setacl(vnode_t vp, struct ucred *cred, NFSPROC_T *p, struct acl *aclp)
+nfsrpc_setacl(struct vnode *vp, acl_type_t acltype, struct ucred *cred,
+    NFSPROC_T *p, struct acl *aclp)
 {
 	int error;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
+	struct nfsnode *np;
 
 	if (nfsrv_useacl == 0 || !NFSHASNFSV4(nmp))
 		return (EOPNOTSUPP);
-	error = nfsrpc_setattr(vp, NULL, aclp, cred, p, NULL, NULL);
+	np = VTONFS(vp);
+	if (!NFSISSET_ATTRBIT(&np->n_vattr.na_suppattr, NFSATTRBIT_ACL) &&
+	    acltype == ACL_TYPE_NFS4)
+		return (EOPNOTSUPP);
+	if ((!NFSISSET_ATTRBIT(&np->n_vattr.na_suppattr,
+	    NFSATTRBIT_POSIXACCESSACL) ||
+	    !NFSISSET_ATTRBIT(&np->n_vattr.na_suppattr,
+	    NFSATTRBIT_POSIXDEFAULTACL)) &&
+	    (acltype == ACL_TYPE_ACCESS || acltype == ACL_TYPE_DEFAULT))
+		return (EOPNOTSUPP);
+	error = nfsrpc_setattr(vp, NULL, aclp, acltype, cred, p, NULL, NULL);
 	return (error);
 }
 
@@ -5436,8 +5468,8 @@ nfsrpc_setacl(vnode_t vp, struct ucred *cred, NFSPROC_T *p, struct acl *aclp)
  * nfs setacl call.
  */
 static int
-nfsrpc_setaclrpc(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
-    struct acl *aclp, nfsv4stateid_t *stateidp)
+nfsrpc_setaclrpc(struct vnode *vp, struct ucred *cred, NFSPROC_T *p,
+    struct acl *aclp, acl_type_t aclt, nfsv4stateid_t *stateidp)
 {
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	int error;
@@ -5449,10 +5481,15 @@ nfsrpc_setaclrpc(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	NFSCL_REQSTART(nd, NFSPROC_SETACL, vp, cred);
 	nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSTATEID);
 	NFSZERO_ATTRBIT(&attrbits);
-	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_ACL);
-	(void) nfsv4_fillattr(nd, vp->v_mount, vp, aclp, NULL, NULL, 0,
-	    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0, NULL, false, false,
-	    false, 0, NULL, false);
+	if (aclt == ACL_TYPE_NFS4)
+		NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_ACL);
+	else if (aclt == ACL_TYPE_ACCESS)
+		NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_POSIXACCESSACL);
+	else
+		NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_POSIXDEFAULTACL);
+	(void)nfsv4_fillattr(nd, vp->v_mount, vp, aclp, NULL, NULL, 0,
+	    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0, NULL, false,
+	    false, false, 0, NULL, false);
 	error = nfscl_request(nd, vp, p, cred);
 	if (error)
 		return (error);
