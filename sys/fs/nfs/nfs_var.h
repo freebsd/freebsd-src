@@ -443,8 +443,11 @@ int nfs_supportsposixacls(struct vnode *);
 int nfsrv_dissectace(struct nfsrv_descript *, struct acl_entry *,
     bool, int *, int *, NFSPROC_T *);
 uint32_t nfs_aceperm(acl_perm_t);
+int nfsrv_dissectposixace(struct nfsrv_descript *, struct acl_entry *,
+    bool, int *, int *);
 int nfsrv_buildacl(struct nfsrv_descript *, NFSACL_T *, __enum_uint8(vtype),
     NFSPROC_T *);
+int nfsrv_buildposixacl(struct nfsrv_descript *, NFSACL_T *, acl_type_t);
 int nfsrv_compareacl(NFSACL_T *, NFSACL_T *);
 
 /* nfs_clrpcops.c */
