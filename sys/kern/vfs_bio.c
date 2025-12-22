@@ -4479,7 +4479,7 @@ biodone(struct bio *bp)
 		bp->bio_error = bp->bio_error_compat;
 		bp->bio_flags |= BIO_ERROR;
 		bp->bio_error_compat = 0;
-		bp->bio_flags &= BIO_ERROR_COMPAT;
+		bp->bio_flags &= ~BIO_ERROR_COMPAT;
 	}
 
 	/*
@@ -4524,7 +4524,7 @@ biodone(struct bio *bp)
 		}
 		done(bp);
 		bp->bio_error_compat = 0;
-		bp->bio_flags &= BIO_ERROR_COMPAT;
+		bp->bio_flags &= ~BIO_ERROR_COMPAT;
 	}
 }
 
