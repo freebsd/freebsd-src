@@ -45,7 +45,7 @@
 
 #if defined(__FreeBSD__) && __FreeBSD_version < 1600006
 /*
- * Add support for capturing on FreeBSD usbusN interfaces.
+ * Add support for creating FreeBSD usbusN interfaces as necessary.
  */
 static const char usbus_prefix[] = "usbus";
 #define USBUS_PREFIX_LEN	(sizeof(usbus_prefix) - 1)
@@ -2039,8 +2039,8 @@ pcap_activate_bpf(pcap_t *p)
 
 #if defined(__FreeBSD__) && __FreeBSD_version < 1600006
 	/*
-	 * If this is legacy FreeBSD, and the device name begins with "usbus",
-	 * try to create the interface if it's not available.
+	 * If this is FreeBSD 15 or earlier, and the device name begins
+	 * with "usbus", try to create the interface if it's not available.
 	 */
 	if (strncmp(p->opt.device, usbus_prefix, USBUS_PREFIX_LEN) == 0) {
 		/*
@@ -2879,18 +2879,48 @@ finddevs_bpf(pcap_if_list_t *devlistp, char *errbuf)
 	const char *name;
 	int fd;
 
-	if ((fd = bpf_open(errbuf)) < 0)
+	if ((fd = bpf_open(errbuf)) < 0) {
+		/*
+		 * XXX - this just means we won't have permission to
+		 * open any BPF devices, an thus we don't have
+		 * permission to capture on network interfaces.
+		 */
 		return (-1);
+	}
 
 	memset(&bi, 0, sizeof(bi));
-	if (ioctl(fd, BIOCGETIFLIST, (caddr_t)&bi) != 0 || bi.bi_size == 0)
+	if (ioctl(fd, BIOCGETIFLIST, (caddr_t)&bi) != 0) {
+		pcapint_fmt_errmsg_for_errno(errbuf,
+		    PCAP_ERRBUF_SIZE, errno, "BIOCGETIFLIST to get buffer size");
+		close(fd);
 		return (-1);
+	}
+	if (bi.bi_size == 0) {
+		/*
+		 * There are no devices attached to BPF.
+		 * This means that, in practice, whatever network
+		 * interfaces we found don't support packet capture
+		 * or injection.
+		 */
+		close(fd);
+		return (0);
+	}
 
-	if ((bi.bi_ubuf = malloc(bi.bi_size)) == NULL)
+	if ((bi.bi_ubuf = malloc(bi.bi_size)) == NULL) {
+		pcapint_fmt_errmsg_for_errno(errbuf, PCAP_ERRBUF_SIZE, errno,
+		    "malloc");
+		close(fd);
 		return (-1);
+	}
 
-	if (ioctl(fd, BIOCGETIFLIST, (caddr_t)&bi) != 0)
+	if (ioctl(fd, BIOCGETIFLIST, (caddr_t)&bi) != 0) {
+		pcapint_fmt_errmsg_for_errno(errbuf,
+		    PCAP_ERRBUF_SIZE, errno, "BIOCGETIFLIST to attached devics");
+		free(bi.bi_ubuf);
+		close(fd);
 		return (-1);
+	}
+	close(fd);
 
 	for (name = bi.bi_ubuf; bi.bi_count > 0;
 	    bi.bi_count--, name += strlen(name) + 1)
