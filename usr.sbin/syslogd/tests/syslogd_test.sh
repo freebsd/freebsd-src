@@ -313,6 +313,39 @@ pipe_action_cleanup()
     syslogd_stop
 }
 
+atf_test_case "pipe_action_reload" "cleanup"
+pipe_action_reload_head()
+{
+    atf_set descr "Pipe processes terminate gracefully on reload"
+}
+pipe_action_reload_body()
+{
+    local logfile="${PWD}/pipe_reload.log"
+    local pipecmd="${PWD}/pipe_cmd.sh"
+
+    cat <<__EOF__ > "${pipecmd}"
+#!/bin/sh
+echo START > ${logfile}
+while read msg; do
+    echo \${msg} >> ${logfile}
+done
+echo END >> ${logfile}
+exit 0
+__EOF__
+    chmod +x "${pipecmd}"
+
+    printf "!pipe\nuser.debug\t| %s\n" "${pipecmd}" > "${SYSLOGD_CONFIG}"
+    syslogd_start
+
+    syslogd_log -p user.debug -t "pipe" -h "${SYSLOGD_LOCAL_SOCKET}" "MSG"
+    syslogd_reload
+    atf_check -s exit:0 -o match:"END" tail -n 1 "${logfile}"
+}
+pipe_action_reload_cleanup()
+{
+    syslogd_stop
+}
+
 atf_test_case "jail_noinet" "cleanup"
 jail_noinet_head()
 {
@@ -561,6 +594,7 @@ atf_init_test_cases()
     atf_add_test_case "prop_filter"
     atf_add_test_case "host_action"
     atf_add_test_case "pipe_action"
+    atf_add_test_case "pipe_action_reload"
     atf_add_test_case "jail_noinet"
     atf_add_test_case "allowed_peer"
     atf_add_test_case "allowed_peer_forwarding"
