@@ -4410,8 +4410,8 @@ nfsrvd_verify(struct nfsrv_descript *nd, int isdgram,
 	if (!nd->nd_repstat) {
 		nfsvno_getfs(&fs, isdgram);
 		error = nfsv4_loadattr(nd, vp, &nva, NULL, &fh, fhsize, NULL,
-		    sf, NULL, &fs, NULL, 1, &ret, NULL, NULL, NULL, NULL, p,
-		    nd->nd_cred);
+		    sf, NULL, &fs, NULL, 1, &ret, NULL, NULL, NULL, NULL, NULL,
+		    p, nd->nd_cred);
 		if (!error) {
 			if (nd->nd_procnum == NFSV4OP_NVERIFY) {
 				if (ret == 0)

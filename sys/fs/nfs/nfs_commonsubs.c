@@ -1148,12 +1148,11 @@ nfsmout:
  */
 int
 nfsrv_dissectacl(struct nfsrv_descript *nd, NFSACL_T *aclp, bool server,
-    int *aclerrp, int *aclsizep, __unused NFSPROC_T *p)
+    bool posixacl, int *aclerrp, int *aclsizep)
 {
 	uint32_t *tl;
 	int i, aclsize;
 	int acecnt, error = 0, aceerr = 0, acesize;
-	bool posixacl = false;
 
 	*aclerrp = 0;
 	if (aclp != NULL)
@@ -1186,7 +1185,7 @@ nfsrv_dissectacl(struct nfsrv_descript *nd, NFSACL_T *aclp, bool server,
 			else
 				error = nfsrv_dissectace(nd,
 				    &aclp->acl_entry[i], server, &aceerr,
-				    &acesize, p);
+				    &acesize);
 		} else if (posixacl)
 			error = nfsrv_skipace(nd, ACL_TYPE_ACCESS, &acesize);
 		else
@@ -1328,7 +1327,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
     struct nfsv3_pathconf *pc, struct statfs *sbp, struct nfsstatfs *sfp,
     struct nfsfsinfo *fsp, NFSACL_T *aclp, int compare, int *retcmpp,
     u_int32_t *leasep, u_int32_t *rderrp, bool *has_namedattrp,
-    uint32_t *clone_blksizep, NFSPROC_T *p, struct ucred *cred)
+    uint32_t *clone_blksizep, uint32_t *trueformp, NFSPROC_T *p,
+    struct ucred *cred)
 {
 	u_int32_t *tl;
 	int i = 0, j, k, l = 0, m, bitpos, attrsum = 0;
@@ -1648,8 +1648,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 				NFSACL_T *naclp;
 
 				naclp = acl_alloc(M_WAITOK);
-				error = nfsrv_dissectacl(nd, naclp, true,
-				    &aceerr, &cnt, p);
+				error = nfsrv_dissectacl(nd, naclp, true, false,
+				    &aceerr, &cnt);
 				if (error) {
 				    acl_free(naclp);
 				    goto nfsmout;
@@ -1659,8 +1659,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 				    *retcmpp = NFSERR_NOTSAME;
 				acl_free(naclp);
 			    } else {
-				error = nfsrv_dissectacl(nd, NULL, true,
-				    &aceerr, &cnt, p);
+				error = nfsrv_dissectacl(nd, NULL, true, false,
+				    &aceerr, &cnt);
 				if (error)
 				    goto nfsmout;
 				*retcmpp = NFSERR_ATTRNOTSUPP;
@@ -1669,14 +1669,13 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			} else {
 				if (vp != NULL && aclp != NULL)
 				    error = nfsrv_dissectacl(nd, aclp, false,
-					&aceerr, &cnt, p);
+					false, &aceerr, &cnt);
 				else
 				    error = nfsrv_dissectacl(nd, NULL, false,
-					&aceerr, &cnt, p);
+					false, &aceerr, &cnt);
 				if (error)
 				    goto nfsmout;
 			}
-
 			attrsum += cnt;
 			break;
 		case NFSATTRBIT_ACLSUPPORT:
@@ -2470,13 +2469,9 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 					    *tl))
 						*retcmpp = NFSERR_NOTSAME;
 				}
-#ifdef notyet
 			} else if (trueformp != NULL) {
 				*trueformp = fxdr_unsigned(uint32_t, *tl);
 			}
-#else
-			}
-#endif
 			attrsum += NFSX_UNSIGNED;
 			break;
 		case NFSATTRBIT_ACLTRUEFORMSCOPE:
@@ -2497,8 +2492,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 				NFSACL_T *naclp;
 
 				naclp = acl_alloc(M_WAITOK);
-				error = nfsrv_dissectacl(nd, naclp, true,
-				    &aceerr, &cnt, p);
+				error = nfsrv_dissectacl(nd, naclp, true, true,
+				    &aceerr, &cnt);
 				if (error) {
 				    acl_free(naclp);
 				    goto nfsmout;
@@ -2508,8 +2503,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 				    *retcmpp = NFSERR_NOTSAME;
 				acl_free(naclp);
 			    } else {
-				error = nfsrv_dissectacl(nd, NULL, true,
-				    &aceerr, &cnt, p);
+				error = nfsrv_dissectacl(nd, NULL, true, true,
+				    &aceerr, &cnt);
 				if (error)
 				    goto nfsmout;
 				*retcmpp = NFSERR_ATTRNOTSUPP;
@@ -2518,14 +2513,13 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			} else {
 				if (vp != NULL && aclp != NULL)
 				    error = nfsrv_dissectacl(nd, aclp, false,
-					&aceerr, &cnt, p);
+					true, &aceerr, &cnt);
 				else
 				    error = nfsrv_dissectacl(nd, NULL, false,
-					&aceerr, &cnt, p);
+					true, &aceerr, &cnt);
 				if (error)
 				    goto nfsmout;
 			}
-
 			attrsum += cnt;
 			break;
 		case NFSATTRBIT_POSIXDEFAULTACL:
@@ -2535,8 +2529,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 				NFSACL_T *naclp;
 
 				naclp = acl_alloc(M_WAITOK);
-				error = nfsrv_dissectacl(nd, naclp, true,
-				    &aceerr, &cnt, p);
+				error = nfsrv_dissectacl(nd, naclp, true, true,
+				    &aceerr, &cnt);
 				if (error) {
 				    acl_free(naclp);
 				    goto nfsmout;
@@ -2546,8 +2540,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 				    *retcmpp = NFSERR_NOTSAME;
 				acl_free(naclp);
 			    } else {
-				error = nfsrv_dissectacl(nd, NULL, true,
-				    &aceerr, &cnt, p);
+				error = nfsrv_dissectacl(nd, NULL, true, true,
+				    &aceerr, &cnt);
 				if (error)
 				    goto nfsmout;
 				*retcmpp = NFSERR_ATTRNOTSUPP;
@@ -2556,14 +2550,13 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			} else {
 				if (vp != NULL && aclp != NULL)
 				    error = nfsrv_dissectacl(nd, aclp, false,
-					&aceerr, &cnt, p);
+					true, &aceerr, &cnt);
 				else
 				    error = nfsrv_dissectacl(nd, NULL, false,
-					&aceerr, &cnt, p);
+					true, &aceerr, &cnt);
 				if (error)
 				    goto nfsmout;
 			}
-
 			attrsum += cnt;
 			break;
 		default:

@@ -4689,7 +4689,7 @@ errout:
 		} else if (error == 0 && procnum == NFSV4OP_CBGETATTR)
 			error = nfsv4_loadattr(nd, NULL, nap, NULL, NULL, 0,
 			    NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL,
-			    NULL, NULL, p, NULL);
+			    NULL, NULL, NULL, p, NULL);
 		m_freem(nd->nd_mrep);
 	}
 	NFSLOCKSTATE();

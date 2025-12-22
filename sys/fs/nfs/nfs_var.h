@@ -334,8 +334,8 @@ int nfsm_advance(struct nfsrv_descript *, int, int);
 void *nfsm_dissct(struct nfsrv_descript *, int, int);
 void newnfs_copycred(struct nfscred *, struct ucred *);
 void newnfs_copyincred(struct ucred *, struct nfscred *);
-int nfsrv_dissectacl(struct nfsrv_descript *, NFSACL_T *, bool, int *,
-    int *, NFSPROC_T *);
+int nfsrv_dissectacl(struct nfsrv_descript *, NFSACL_T *, bool, bool, int *,
+    int *);
 int nfsrv_getattrbits(struct nfsrv_descript *, nfsattrbit_t *, int *,
     int *);
 int nfsrv_getopbits(struct nfsrv_descript *, nfsopbit_t *, int *);
@@ -343,8 +343,8 @@ int nfsv4_loadattr(struct nfsrv_descript *, vnode_t,
     struct nfsvattr *, struct nfsfh **, fhandle_t *, int,
     struct nfsv3_pathconf *, struct statfs *, struct nfsstatfs *,
     struct nfsfsinfo *, NFSACL_T *,
-    int, int *, u_int32_t *, u_int32_t *, bool *, uint32_t *, NFSPROC_T *,
-    struct ucred *);
+    int, int *, u_int32_t *, u_int32_t *, bool *, uint32_t *, uint32_t *,
+    NFSPROC_T *, struct ucred *);
 int nfsv4_lock(struct nfsv4lock *, int, int *, struct mtx *, struct mount *);
 void nfsv4_unlock(struct nfsv4lock *, int);
 void nfsv4_relref(struct nfsv4lock *);
@@ -441,7 +441,7 @@ int nfs_supportsposixacls(struct vnode *);
 
 /* nfs_commonacl.c */
 int nfsrv_dissectace(struct nfsrv_descript *, struct acl_entry *,
-    bool, int *, int *, NFSPROC_T *);
+    bool, int *, int *);
 uint32_t nfs_aceperm(acl_perm_t);
 int nfsrv_dissectposixace(struct nfsrv_descript *, struct acl_entry *,
     bool, int *, int *);
