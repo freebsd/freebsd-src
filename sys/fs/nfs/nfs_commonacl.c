@@ -40,7 +40,7 @@ static int nfsrv_acemasktoperm(u_int32_t acetype, u_int32_t mask, int owner,
  */
 int
 nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
-    bool server, int *aceerrp, int *acesizep, NFSPROC_T *p)
+    bool server, int *aceerrp, int *acesizep)
 {
 	u_int32_t *tl;
 	int len, gotid = 0, owner = 0, error = 0, aceerr = 0;

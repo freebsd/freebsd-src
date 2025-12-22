@@ -272,7 +272,7 @@ nfsm_loadattr(struct nfsrv_descript *nd, struct nfsvattr *nap)
 	if (nd->nd_flag & ND_NFSV4) {
 		error = nfsv4_loadattr(nd, NULL, nap, NULL, NULL, 0, NULL,
 		    NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
-		    NULL, NULL);
+		    NULL, NULL, NULL);
 	} else if (nd->nd_flag & ND_NFSV3) {
 		NFSM_DISSECT(fp, struct nfs_fattr *, NFSX_V3FATTR);
 		nap->na_type = nfsv34tov_type(fp->fa_type);
