@@ -1215,7 +1215,7 @@ nfs_setattrrpc(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 		NFSUNLOCKNODE(np);
 		KDTRACE_NFS_ACCESSCACHE_FLUSH_DONE(vp);
 	}
-	error = nfsrpc_setattr(vp, vap, NULL, cred, td, &nfsva, &attrflag);
+	error = nfsrpc_setattr(vp, vap, NULL, 0, cred, td, &nfsva, &attrflag);
 	if (attrflag) {
 		ret = nfscl_loadattrcache(&vp, &nfsva, NULL, 0, 1);
 		if (ret && !error)
@@ -1967,14 +1967,14 @@ again:
 		}
 	} else if (NFS_ISV34(dvp) && (fmode & O_EXCL)) {
 		if (nfscl_checksattr(vap, &nfsva)) {
-			error = nfsrpc_setattr(newvp, vap, NULL, cnp->cn_cred,
-			    curthread, &nfsva, &attrflag);
+			error = nfsrpc_setattr(newvp, vap, NULL, 0,
+			    cnp->cn_cred, curthread, &nfsva, &attrflag);
 			if (error && (vap->va_uid != (uid_t)VNOVAL ||
 			    vap->va_gid != (gid_t)VNOVAL)) {
 				/* try again without setting uid/gid */
 				vap->va_uid = (uid_t)VNOVAL;
 				vap->va_gid = (uid_t)VNOVAL;
-				error = nfsrpc_setattr(newvp, vap, NULL, 
+				error = nfsrpc_setattr(newvp, vap, NULL, 0,
 				    cnp->cn_cred, curthread, &nfsva, &attrflag);
 			}
 			if (attrflag)
@@ -3772,9 +3772,15 @@ nfs_getacl(struct vop_getacl_args *ap)
 {
 	int error;
 
-	if (ap->a_type != ACL_TYPE_NFS4)
+	if (ap->a_type != ACL_TYPE_NFS4 && ap->a_type != ACL_TYPE_ACCESS &&
+	    ap->a_type != ACL_TYPE_DEFAULT)
 		return (EOPNOTSUPP);
-	error = nfsrpc_getacl(ap->a_vp, ap->a_cred, ap->a_td, ap->a_aclp);
+	if (ap->a_type == ACL_TYPE_DEFAULT && ap->a_vp->v_type != VDIR)
+		return (EINVAL);
+	error = nfsrpc_getacl(ap->a_vp, ap->a_type, ap->a_cred, ap->a_td,
+	    ap->a_aclp);
+	if (error == 0 && ap->a_aclp->acl_cnt == 0)
+		return (EOPNOTSUPP);
 	if (error > NFSERR_STALE) {
 		(void) nfscl_maperr(ap->a_td, error, (uid_t)0, (gid_t)0);
 		error = EPERM;
@@ -3787,9 +3793,17 @@ nfs_setacl(struct vop_setacl_args *ap)
 {
 	int error;
 
-	if (ap->a_type != ACL_TYPE_NFS4)
+	if (ap->a_type != ACL_TYPE_NFS4 && ap->a_type != ACL_TYPE_ACCESS &&
+	    ap->a_type != ACL_TYPE_DEFAULT)
 		return (EOPNOTSUPP);
-	error = nfsrpc_setacl(ap->a_vp, ap->a_cred, ap->a_td, ap->a_aclp);
+	if (ap->a_aclp == NULL) {
+		if (ap->a_type != ACL_TYPE_DEFAULT)
+			return (EINVAL);
+		if (ap->a_vp->v_type != VDIR)
+			return (ENOTDIR);
+	}
+	error = nfsrpc_setacl(ap->a_vp, ap->a_type, ap->a_cred, ap->a_td,
+	    ap->a_aclp);
 	if (error > NFSERR_STALE) {
 		(void) nfscl_maperr(ap->a_td, error, (uid_t)0, (gid_t)0);
 		error = EPERM;
@@ -4192,8 +4206,8 @@ relock:
 					va.va_vaflags = VA_UTIMES_NULL;
 					inattrflag = 0;
 					error = nfsrpc_setattr(invp, &va, NULL,
-					    ap->a_incred, curthread, &innfsva,
-					    &inattrflag);
+					    0, ap->a_incred, curthread,
+					    &innfsva, &inattrflag);
 					if (inattrflag != 0)
 						ret = nfscl_loadattrcache(&invp,
 						    &innfsva, NULL, 0, 1);
@@ -4673,6 +4687,7 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 	bool eof, has_namedattr, named_enabled;
 	int attrflag, error;
 	struct nfsnode *np;
+	uint32_t trueform;
 
 	nmp = VFSTONFS(vp->v_mount);
 	np = VTONFS(vp);
@@ -4685,16 +4700,18 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 	    ap->a_name == _PC_CASE_INSENSITIVE)) ||
 	    (NFS_ISV4(vp) && (ap->a_name == _PC_ACL_NFS4 ||
 	     ap->a_name == _PC_HAS_NAMEDATTR ||
-	     ap->a_name == _PC_CLONE_BLKSIZE))) {
+	     ap->a_name == _PC_CLONE_BLKSIZE ||
+	     ap->a_name == _PC_ACL_EXTENDED))) {
 		/*
 		 * Since only the above 5 a_names are returned by the NFSv3
 		 * Pathconf RPC, there is no point in doing it for others.
 		 * For NFSv4, the Pathconf RPC (actually a Getattr Op.) can
-		 * be used for _PC_ACL_NFS4, _PC_HAS_NAMEDATTR and
-		 * _PC_CLONE_BLKSIZE as well.
+		 * be used for _PC_ACL_NFS4, _PC_HAS_NAMEDATTR,
+		 * and _PC_ACL_EXTENDED as well.
 		 */
+		trueform = UINT32_MAX;
 		error = nfsrpc_pathconf(vp, &pc, &has_namedattr, &clone_blksize,
-		    td->td_ucred, td, &nfsva, &attrflag);
+		    td->td_ucred, td, &nfsva, &attrflag, &trueform);
 		if (attrflag != 0)
 			(void) nfscl_loadattrcache(&vp, &nfsva, NULL, 0, 1);
 		if (error != 0)
@@ -4754,7 +4771,20 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 		break;
 	case _PC_ACL_NFS4:
 		if (NFS_ISV4(vp) && nfsrv_useacl != 0 && attrflag != 0 &&
-		    NFSISSET_ATTRBIT(&nfsva.na_suppattr, NFSATTRBIT_ACL))
+		    NFSISSET_ATTRBIT(&nfsva.na_suppattr, NFSATTRBIT_ACL) &&
+		    (trueform == NFSV4_ACL_MODEL_NFS4 ||
+		     trueform == UINT32_MAX))
+			*ap->a_retval = 1;
+		else
+			*ap->a_retval = 0;
+		break;
+	case _PC_ACL_EXTENDED:
+		if (NFS_ISV4(vp) && nfsrv_useacl != 0 && attrflag != 0 &&
+		    NFSISSET_ATTRBIT(&nfsva.na_suppattr,
+		    NFSATTRBIT_POSIXACCESSACL) &&
+		    NFSISSET_ATTRBIT(&nfsva.na_suppattr,
+		    NFSATTRBIT_POSIXDEFAULTACL) &&
+		    trueform == NFSV4_ACL_MODEL_POSIX_DRAFT)
 			*ap->a_retval = 1;
 		else
 			*ap->a_retval = 0;
