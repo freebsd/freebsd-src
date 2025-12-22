@@ -2848,7 +2848,7 @@ cmdrc(char *m1, char *m2)
 static int
 sourceroute(struct addrinfo *ai, char *arg, unsigned char **cpp, int *lenp, int *protop, int *optp)
 {
-	static char buf[1024 + ALIGNBYTES];	/*XXX*/
+	static char buf[1024] __aligned(sizeof(void *));	/*XXX*/
 	unsigned char *cp, *cp2, *lsrp, *ep;
 	struct sockaddr_in *_sin;
 #ifdef INET6
@@ -2888,7 +2888,7 @@ sourceroute(struct addrinfo *ai, char *arg, unsigned char **cpp, int *lenp, int 
 		lsrp = *cpp;
 		ep = lsrp + *lenp;
 	} else {
-		*cpp = lsrp = (char *)ALIGN(buf);
+		*cpp = lsrp = buf;
 		ep = lsrp + 1024;
 	}
 
