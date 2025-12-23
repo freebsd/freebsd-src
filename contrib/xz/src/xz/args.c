@@ -480,7 +480,6 @@ parse_real(args_info *args, int argc, char **argv)
 		case OPT_FILTERS_HELP:
 			// This doesn't return.
 			message_filters_help();
-			break;
 
 		case OPT_X86:
 			coder_add_filter(LZMA_FILTER_X86,

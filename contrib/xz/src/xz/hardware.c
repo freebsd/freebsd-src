@@ -11,6 +11,10 @@
 
 #include "private.h"
 
+#ifdef HAVE_GETRLIMIT
+#	include <sys/resource.h>
+#endif
+
 
 /// Maximum number of worker threads. This can be set with
 /// the --threads=NUM command line option.
@@ -320,6 +324,74 @@ hardware_init(void)
 	// One Linux-specific suggestion is to use MemAvailable from
 	// /proc/meminfo as the starting point.
 	memlimit_mt_default = total_ram / 4;
+
+#ifdef HAVE_GETRLIMIT
+	// Try to set the default multithreaded memory usage limit so that
+	// we won't exceed resource limits. Exceeding the limits would result
+	// in allocation failures, which currently make liblzma and xz fail
+	// (instead of continuing by reducing the number of threads).
+	const int resources[] = {
+		RLIMIT_DATA,
+#	ifdef RLIMIT_AS
+		RLIMIT_AS, // OpenBSD 7.8 doesn't have RLIMIT_AS.
+#	endif
+#	if defined(RLIMIT_VMEM) && RLIMIT_VMEM != RLIMIT_AS
+		RLIMIT_VMEM, // For Solaris. On FreeBSD this is an alias.
+#	endif
+	};
+
+	// The resource limits cannot be passed to liblzma directly;
+	// some margin is required:
+	//   - The memory usage limit counts only liblzma's memory usage,
+	//     but xz itself needs some memory (including gettext usage etc.).
+	//   - Memory allocation has some overhead.
+	//   - Address space limit counts code size too.
+	//
+	// The following value is a guess based on quick testing on Linux.
+	const rlim_t margin = 64 << 20;
+
+	for (size_t i = 0; i < ARRAY_SIZE(resources); ++i) {
+		// glibc: When GNU extensions are enabled, <sys/resource.h>
+		// declares getrlimit() so that the first argument is an enum
+		// instead of int as in POSIX. GCC and Clang use unsigned int
+		// for enums when possible, so a sign conversion occurs when
+		// resources[i] is convert to the enum type. Clang warns about
+		// this with -Wsign-conversion but GCC doesn't.
+#ifdef __clang__
+#	pragma GCC diagnostic push
+#	pragma GCC diagnostic ignored "-Wsign-conversion"
+#endif
+		// RLIM_SAVED_* might be used on some 32-bit OSes
+		// (AIX at least) when the limit doesn't fit in a 32-bit
+		// unsigned integer. Thus, for us these are the same thing
+		// as no limit at all.
+		struct rlimit rl;
+		if (getrlimit(resources[i], &rl) == 0
+				&& rl.rlim_cur != RLIM_INFINITY
+				&& rl.rlim_cur != RLIM_SAVED_CUR
+				&& rl.rlim_cur != RLIM_SAVED_MAX) {
+#ifdef __clang__
+#	pragma GCC diagnostic pop
+#endif
+			// Subtract the margin from the current resource
+			// limit, but avoid negative results. Avoid also 0
+			// because hardware_memlimit_show() (--info-memory)
+			// treats it specially. In practice, 1 byte is
+			// effectively 0 anyway.
+			//
+			// SUSv2 and POSIX.1-2024 require rlimit_t to be
+			// unsigned. A cast is needed to silence a compiler
+			// warning still because, for historical reasons,
+			// rlim_t is intentionally signed on FreeBSD 14.
+			const uint64_t rl_with_margin = rl.rlim_cur > margin
+					? (uint64_t)(rl.rlim_cur - margin) : 1;
+
+			// Lower the memory usage limit if needed.
+			if (memlimit_mt_default > rl_with_margin)
+				memlimit_mt_default = rl_with_margin;
+		}
+	}
+#endif
 
 #if SIZE_MAX == UINT32_MAX
 	// A too high value may cause 32-bit xz to run out of address space.

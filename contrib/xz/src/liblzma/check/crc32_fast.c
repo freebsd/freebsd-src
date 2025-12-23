@@ -2,7 +2,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 //
-/// \file       crc32.c
+/// \file       crc32_fast.c
 /// \brief      CRC32 calculation
 //
 //  Authors:    Lasse Collin
