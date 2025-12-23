@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2004 Daniel Hartmeier
 .\" All rights reserved.
 .\"
@@ -27,12 +30,12 @@
 .\"
 .\" $NetBSD: cdce.4,v 1.4 2004/12/08 18:35:56 peter Exp $
 .\"
-.Dd May 26, 2025
+.Dd December 23, 2025
 .Dt CDCE 4
 .Os
 .Sh NAME
 .Nm cdce
-.Nd "USB Communication Device Class Ethernet (CDC ECM/NCM) driver"
+.Nd USB Communication Device Class Ethernet (ECM/NCM) driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -46,7 +49,7 @@ kernel configuration file:
 .Cd "device cdce"
 .Ed
 .Pp
-Mobile Devices (eg. Huawei E3372, E5573 and others)
+Mobile Devices (e.g., Huawei E3372, E5573 and others)
 may need additionally the u3g command port:
 .Bd -ragged -offset indent
 .Cd "device ucom"
@@ -83,17 +86,6 @@ received and transmitted over separate USB bulk transfer endpoints.
 The
 .Nm
 driver does not support different media types or options.
-.Pp
-Mobile
-.Nm
-Network Devices may need a connect command sequence via u3g
-serial command port before they activate the NCM/ECM/ACM network
-interface.
-For example:
-.Dl echo 'AT^NDISUP=1,1,"internet"' > /dev/cuaU[0].0
-where
-.Dq internet
-is your providers apn name.
 .Sh HARDWARE
 The
 .Nm
@@ -113,8 +105,21 @@ Sharp Zaurus PDA
 .It
 Terayon TJ-715 DOCSIS Cable Modem
 .It
-Huawei 3G/4G LTE (eg. E3372, E5573) and other mobile network devices
+Huawei 3G/4G LTE (e.g., E3372, E5573) and other mobile network devices
 .El
+.Sh EXAMPLES
+Mobile
+.Nm
+Network Devices may need a connect command sequence via the
+.Xr u3g 4
+serial command port before activating the NCM/ECM/ACM network interface.
+For example:
+.Pp
+.Dl echo 'AT^NDISUP=1,1,"internet"' > /dev/cuaU[0].0
+.Pp
+Wwhere
+.Dq internet
+is your providers apn name.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "cdce%d: no union descriptor"
