@@ -23,7 +23,8 @@
 // If both versions are going to be built, we need runtime detection
 // to check if the instructions are supported.
 #if defined(CRC32_GENERIC) && defined(CRC32_ARCH_OPTIMIZED)
-#	if defined(HAVE_GETAUXVAL) || defined(HAVE_ELF_AUX_INFO)
+#	if (defined(HAVE_GETAUXVAL) && defined(HAVE_HWCAP_CRC32)) \
+			|| defined(HAVE_ELF_AUX_INFO)
 #		include <sys/auxv.h>
 #	elif defined(_WIN32)
 #		include <processthreadsapi.h>
@@ -103,7 +104,7 @@ crc32_arch_optimized(const uint8_t *buf, size_t size, uint32_t crc)
 static inline bool
 is_arch_extension_supported(void)
 {
-#if defined(HAVE_GETAUXVAL)
+#if defined(HAVE_GETAUXVAL) && defined(HAVE_HWCAP_CRC32)
 	return (getauxval(AT_HWCAP) & HWCAP_CRC32) != 0;
 
 #elif defined(HAVE_ELF_AUX_INFO)

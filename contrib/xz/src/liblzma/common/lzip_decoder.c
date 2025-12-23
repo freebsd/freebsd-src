@@ -212,7 +212,8 @@ lzip_decode(void *coder_ptr, const lzma_allocator *allocator,
 		coder->options.pb = LZIP_PB;
 
 		// Calculate the memory usage.
-		coder->memusage = lzma_lzma_decoder_memusage(&coder->options)
+		coder->memusage
+			= lzma_lzma_decoder_memusage_nocheck(&coder->options)
 				+ LZMA_MEMUSAGE_BASE;
 
 		// Initialization is a separate step because if we return

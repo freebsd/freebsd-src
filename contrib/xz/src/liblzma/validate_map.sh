@@ -86,7 +86,7 @@ export LC_ALL
 
 STATUS=0
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")" || exit 1
 
 # Get the list of symbols that aren't defined in liblzma_generic.map.
 SYMS=$(sed -n 's/^extern LZMA_API([^)]*) \([a-z0-9_]*\)(.*$/\1;/p' \
@@ -95,7 +95,7 @@ SYMS=$(sed -n 's/^extern LZMA_API([^)]*) \([a-z0-9_]*\)(.*$/\1;/p' \
 	| grep -Fve "$(sed '/[{}:*]/d;/^$/d;s/^	//' liblzma_generic.map)")
 
 # Check that there are no old alpha or beta versions listed.
-VER=$(cd ../.. && sh build-aux/version.sh)
+VER=$(cd ../.. && sh build-aux/version.sh) || exit 1
 NAMES=
 case $VER in
 	*alpha | *beta)

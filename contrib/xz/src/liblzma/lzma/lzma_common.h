@@ -88,14 +88,14 @@ typedef enum {
 #define update_literal_normal(state) \
 	state = ((state) <= STATE_SHORTREP_LIT_LIT \
 			? STATE_LIT_LIT \
-			: (state) - 3);
+			: (state) - 3)
 
 /// Like update_literal(state) but when it is already known that
 /// is_literal_state(state) is false.
 #define update_literal_matched(state) \
 	state = ((state) <= STATE_LIT_SHORTREP \
 			? (state) - 3 \
-			: (state) - 6);
+			: (state) - 6)
 
 /// Indicate that the latest state was a match.
 #define update_match(state) \
