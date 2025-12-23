@@ -55,7 +55,6 @@
 OLD_FILES+=usr/bin/alias
 OLD_FILES+=usr/bin/bg
 OLD_FILES+=usr/bin/cd
-OLD_FILES+=usr/bin/command
 OLD_FILES+=usr/bin/fc
 OLD_FILES+=usr/bin/fg
 OLD_FILES+=usr/bin/getopts
