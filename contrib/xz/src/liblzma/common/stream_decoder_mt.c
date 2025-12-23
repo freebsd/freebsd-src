@@ -33,26 +33,6 @@ typedef enum {
 } worker_state;
 
 
-typedef enum {
-	/// Partial updates (storing of worker thread progress
-	/// to lzma_outbuf) are disabled.
-	PARTIAL_DISABLED,
-
-	/// Main thread requests partial updates to be enabled but
-	/// no partial update has been done by the worker thread yet.
-	///
-	/// Changing from PARTIAL_DISABLED to PARTIAL_START requires
-	/// use of the worker-thread mutex. Other transitions don't
-	/// need a mutex.
-	PARTIAL_START,
-
-	/// Partial updates are enabled and the worker thread has done
-	/// at least one partial update.
-	PARTIAL_ENABLED,
-
-} partial_update_mode;
-
-
 struct worker_thread {
 	/// Worker state is protected with our mutex.
 	worker_state state;
@@ -104,10 +84,18 @@ struct worker_thread {
 	/// happen if all worker threads were frequently locking the main
 	/// mutex to update their outbuf->pos.
 	///
-	/// Only when partial_update is something else than PARTIAL_DISABLED,
-	/// this worker thread will update outbuf->pos after each call to
-	/// the Block decoder.
-	partial_update_mode partial_update;
+	/// When partial_update_enabled is true, this worker thread will
+	/// update outbuf->pos and outbuf->decoder_in_pos after each call
+	/// to the Block decoder. This is initially false. Main thread may
+	/// set this to true.
+	bool partial_update_enabled;
+
+	/// Once the main thread has set partial_updated_enabled = true,
+	/// we will do the first partial update as soon as we can and
+	/// set partial_update_started = true. After the first update,
+	/// we only update if we have made progress. This avoids useless
+	/// locking of thr->coder->mutex.
+	bool partial_update_started;
 
 	/// Block decoder
 	lzma_next_coder block_decoder;
@@ -335,7 +323,7 @@ worker_enable_partial_update(void *thr_ptr)
 	struct worker_thread *thr = thr_ptr;
 
 	mythread_sync(thr->mutex) {
-		thr->partial_update = PARTIAL_START;
+		thr->partial_update_enabled = true;
 		mythread_cond_signal(&thr->cond);
 	}
 }
@@ -346,7 +334,7 @@ worker_decoder(void *thr_ptr)
 {
 	struct worker_thread *thr = thr_ptr;
 	size_t in_filled;
-	partial_update_mode partial_update;
+	bool partial_update_enabled;
 	lzma_ret ret;
 
 next_loop_lock:
@@ -378,14 +366,16 @@ next_loop_unlocked:
 	thr->progress_out = thr->out_pos;
 
 	// If we don't have any new input, wait for a signal from the main
-	// thread except if partial output has just been enabled. In that
+	// thread except if partial output has just been enabled
+	// (partial_update_enabled is true but _started is false). In that
 	// case we will do one normal run so that the partial output info
 	// gets passed to the main thread. The call to block_decoder.code()
 	// is useless but harmless as it can occur only once per Block.
 	in_filled = thr->in_filled;
-	partial_update = thr->partial_update;
+	partial_update_enabled = thr->partial_update_enabled;
 
-	if (in_filled == thr->in_pos && partial_update != PARTIAL_START) {
+	if (in_filled == thr->in_pos && !(partial_update_enabled
+			&& !thr->partial_update_started)) {
 		mythread_cond_wait(&thr->cond, &thr->mutex);
 		goto next_loop_unlocked;
 	}
@@ -407,23 +397,21 @@ next_loop_unlocked:
 			thr->outbuf->allocated, LZMA_RUN);
 
 	if (ret == LZMA_OK) {
-		if (partial_update != PARTIAL_DISABLED) {
-			// The main thread uses thr->mutex to change from
-			// PARTIAL_DISABLED to PARTIAL_START. The main thread
-			// doesn't care about this variable after that so we
-			// can safely change it here to PARTIAL_ENABLED
-			// without a mutex.
-			thr->partial_update = PARTIAL_ENABLED;
+		if (partial_update_enabled) {
+			// Remember that we have done at least one partial
+			// update. After the first update we won't do updates
+			// unless we have made progress.
+			thr->partial_update_started = true;
 
 			// The main thread is reading decompressed data
 			// from thr->outbuf. Tell the main thread about
 			// our progress.
 			//
 			// NOTE: It's possible that we consumed input without
-			// producing any new output so it's possible that
-			// only in_pos has changed. In case of PARTIAL_START
-			// it is possible that neither in_pos nor out_pos has
-			// changed.
+			// producing any new output so it's possible that only
+			// in_pos has changed. If thr->partial_update_started
+			// was false, it is possible that neither in_pos nor
+			// out_pos has changed.
 			mythread_sync(thr->coder->mutex) {
 				thr->outbuf->pos = thr->out_pos;
 				thr->outbuf->decoder_in_pos = thr->in_pos;
@@ -645,7 +633,8 @@ get_thread(struct lzma_stream_coder *coder, const lzma_allocator *allocator)
 	coder->thr->progress_in = 0;
 	coder->thr->progress_out = 0;
 
-	coder->thr->partial_update = PARTIAL_DISABLED;
+	coder->thr->partial_update_enabled = false;
+	coder->thr->partial_update_started = false;
 
 	return LZMA_OK;
 }
@@ -816,12 +805,12 @@ read_output_and_wait(struct lzma_stream_coder *coder,
 			// keeps calling lzma_code() without providing more
 			// input, it will eventually get LZMA_BUF_ERROR.
 			//
-			// NOTE: We can read partial_update and in_filled
-			// without thr->mutex as only the main thread
+			// NOTE: We can read partial_update_enabled and
+			// in_filled without thr->mutex as only the main thread
 			// modifies these variables. decoder_in_pos requires
 			// coder->mutex which we are already holding.
-			if (coder->thr != NULL && coder->thr->partial_update
-					!= PARTIAL_DISABLED) {
+			if (coder->thr != NULL &&
+					coder->thr->partial_update_enabled) {
 				// There is exactly one outbuf in the queue.
 				assert(coder->thr->outbuf == coder->outq.head);
 				assert(coder->thr->outbuf == coder->outq.tail);

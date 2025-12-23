@@ -89,7 +89,8 @@ extern const uint64_t lzma_crc64_table[4][256];
 // ARM64
 //
 // Keep this in sync with changes to crc32_arm64.h
-#if defined(_WIN32) || defined(HAVE_GETAUXVAL) \
+#if defined(_WIN32) \
+		|| (defined(HAVE_GETAUXVAL) && defined(HAVE_HWCAP_CRC32)) \
 		|| defined(HAVE_ELF_AUX_INFO) \
 		|| (defined(__APPLE__) && defined(HAVE_SYSCTLBYNAME))
 #	define CRC_ARM64_RUNTIME_DETECTION 1
@@ -134,10 +135,20 @@ extern const uint64_t lzma_crc64_table[4][256];
 	//     built and runtime detection is used even if compiler flags
 	//     were set to allow CLMUL unconditionally.
 	//
-	//   - This doesn't work with MSVC as I don't know how to detect
-	//     the features here.
+	//   - The unconditional use doesn't work with MSVC as I don't know
+	//     how to detect the features here.
 	//
-#	if (defined(__SSSE3__) && defined(__SSE4_1__) && defined(__PCLMUL__) \
+	// Don't enable CLMUL at all on old MSVC that targets 32-bit x86.
+	// There seems to be a compiler bug that produces broken code
+	// in optimized (Release) builds. It results in crashing tests.
+	// It is known that VS 2019 16.11 (MSVC 19.29.30158) is broken
+	// and that VS 2022 17.13 (MSVC 19.43.34808) works.
+#	if defined(_MSC_FULL_VER) && _MSC_FULL_VER < 194334808 \
+			&& !defined(__INTEL_COMPILER) && !defined(__clang__) \
+			&& defined(_M_IX86)
+		// Old MSVC targeting 32-bit x86: Don't enable CLMUL at all.
+#	elif (defined(__SSSE3__) && defined(__SSE4_1__) \
+			&& defined(__PCLMUL__) \
 			&& !defined(HAVE_CRC_X86_ASM)) \
 		|| (defined(__e2k__) && __iset__ >= 6)
 #		define CRC32_ARCH_OPTIMIZED 1

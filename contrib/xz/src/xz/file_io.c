@@ -493,7 +493,8 @@ io_sync_dest(file_pair *pair)
 		return true;
 	}
 
-#ifndef TUKLIB_DOSLIKE
+#if !defined(TUKLIB_DOSLIKE) && !defined(_AIX)
+	// On AIX, this would fail with EBADF.
 	if (fsync(pair->dir_fd)) {
 		message_error(_("%s: Synchronizing the directory of "
 				"the file failed: %s"),

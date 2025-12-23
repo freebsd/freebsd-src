@@ -321,7 +321,7 @@ sandbox_enter(int src_fd)
 
 	// If not reading from stdin, remove all capabilities from it.
 	if (src_fd != STDIN_FILENO && cap_rights_limit(
-			STDIN_FILENO, cap_rights_clear(&rights)))
+			STDIN_FILENO, cap_rights_init(&rights)))
 		goto error;
 
 	if (cap_rights_limit(STDOUT_FILENO, cap_rights_init(&rights,

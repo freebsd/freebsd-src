@@ -12,6 +12,10 @@
 #include "private.h"
 #include <stdarg.h>
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#	include <io.h>
+#endif
+
 
 /// Buffers for uint64_to_str() and uint64_to_nicestr()
 static char bufs[4][128];

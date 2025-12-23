@@ -188,6 +188,7 @@ extern bool lzma_outq_is_readable(const lzma_outq *outq);
 /// \brief      Read finished data
 ///
 /// \param      outq            Pointer to an output queue
+/// \param      allocator       lzma_allocator for custom allocator functions
 /// \param      out             Beginning of the output buffer
 /// \param      out_pos         The next byte will be written to
 ///                             out[*out_pos].

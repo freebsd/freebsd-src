@@ -655,6 +655,8 @@ parse_check_value(file_pair *pair, const lzma_index_iter *iter)
 ///                     be printed.
 /// \param      bhi     Pointer to structure where to store the information
 ///                     about the Block Header field.
+/// \param      xfi     Pointer to structure where to store the information
+///                     about the entire .xz file.
 ///
 /// \return     False on success, true on error. If an error occurs,
 ///             the error message is printed too so the caller doesn't

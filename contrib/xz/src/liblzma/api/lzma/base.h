@@ -450,7 +450,9 @@ typedef struct {
 	 * \param       opaque  lzma_allocator.opaque (see below)
 	 * \param       ptr     Pointer returned by lzma_allocator.alloc(),
 	 *                      or when it is set to NULL, a pointer returned
-	 *                      by the standard malloc().
+	 *                      by the standard malloc(). In addition, NULL
+	 *                      is a possible value. The function should do
+	 *                      nothing when ptr == NULL.
 	 */
 	void (LZMA_API_CALL *free)(void *opaque, void *ptr);
 
@@ -561,7 +563,7 @@ typedef struct {
 	 * \brief       New seek input position for LZMA_SEEK_NEEDED
 	 *
 	 * When lzma_code() returns LZMA_SEEK_NEEDED, the new input position
-	 * needed by liblzma will be available seek_pos. The value is
+	 * needed by liblzma will be available in seek_pos. The value is
 	 * guaranteed to not exceed the file size that was specified when
 	 * this lzma_stream was initialized.
 	 *

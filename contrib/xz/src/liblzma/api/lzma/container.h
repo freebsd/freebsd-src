@@ -843,8 +843,7 @@ extern LZMA_API(lzma_ret) lzma_alone_decoder(
 /**
  * \brief       Initialize .lz (lzip) decoder (a foreign file format)
  *
- * This decoder supports the .lz format version 0 and the unextended .lz
- * format version 1:
+ * This decoder supports the .lz format versions 0 and 1:
  *
  *   - Files in the format version 0 were produced by lzip 1.3 and older.
  *     Such files aren't common but may be found from file archives
@@ -853,28 +852,27 @@ extern LZMA_API(lzma_ret) lzma_alone_decoder(
  *     support for the format version 0 was removed in lzip 1.18.
  *
  *   - lzip 1.3 added decompression support for .lz format version 1 files.
- *     Compression support was added in lzip 1.4. In lzip 1.6 the .lz format
- *     version 1 was extended to support the Sync Flush marker. This extension
- *     is not supported by liblzma. lzma_code() will return LZMA_DATA_ERROR
- *     at the location of the Sync Flush marker. In practice files with
- *     the Sync Flush marker are very rare and thus liblzma can decompress
- *     almost all .lz files.
+ *     Compression support was added in lzip 1.4.
+ *
+ *   - lzlib extends version 1 format with the Sync Flush marker. This
+ *     extension is only meant for lzlib use; it's not valid in normal .lz
+ *     files. This extension is not supported by liblzma. lzma_code() will
+ *     return LZMA_DATA_ERROR at the location of the Sync Flush marker.
  *
  * Just like with lzma_stream_decoder() for .xz files, LZMA_CONCATENATED
  * should be used when decompressing normal standalone .lz files.
  *
- * The .lz format allows putting non-.lz data at the end of a file after at
- * least one valid .lz member. That is, one can append custom data at the end
- * of a .lz file and the decoder is required to ignore it. In liblzma this
- * is relevant only when LZMA_CONCATENATED is used. In that case lzma_code()
- * will return LZMA_STREAM_END and leave lzma_stream.next_in pointing to
- * the first byte of the non-.lz data. An exception to this is if the first
- * 1-3 bytes of the non-.lz data are identical to the .lz magic bytes
- * (0x4C, 0x5A, 0x49, 0x50; "LZIP" in US-ASCII). In such a case the 1-3 bytes
- * will have been ignored by lzma_code(). If one wishes to locate the non-.lz
- * data reliably, one must ensure that the first byte isn't 0x4C. Actually
- * one should ensure that none of the first four bytes of trailing data are
- * equal to the magic bytes because lzip >= 1.20 requires it by default.
+ * If LZMA_CONCATENATED is used and there is non-.lz data after at least one
+ * valid .lz member, lzma_code() leaves lzma_stream.next_in pointing to the
+ * first byte of the non-.lz data and returns LZMA_STREAM_END. That is, one
+ * can append custom data at the end of a .lz file and the decoder will
+ * ignore it. An exception to this is if the first 1-3 bytes of the non-.lz
+ * data are identical to the .lz magic bytes (0x4C, 0x5A, 0x49, 0x50; "LZIP"
+ * in US-ASCII). In such a case the 1-3 bytes are consumed by lzma_code().
+ * If one wishes to locate the non-.lz data reliably, one must ensure that
+ * the first byte isn't 0x4C. It's best if none of the first four bytes of
+ * trailing data are equal to the magic bytes because if two or three bytes
+ * are, lzip >= 1.20 diagnoses it as a corrupt member header by default.
  *
  * \param       strm        Pointer to lzma_stream that is at least initialized
  *                          with LZMA_STREAM_INIT.

@@ -23,6 +23,12 @@ extern lzma_ret lzma_lzma_decoder_init(lzma_next_coder *next,
 
 extern uint64_t lzma_lzma_decoder_memusage(const void *options);
 
+/// Gets memory usage without validating lc/lp/pb. This is used by LZMA2
+/// decoder, because raw LZMA2 decoding doesn't need lc/lp/pb. Also
+/// alone_decoder.c and lzip_decoder.c use this because there lc/lp/pb
+/// are known to be valid.
+extern uint64_t lzma_lzma_decoder_memusage_nocheck(const void *options);
+
 extern lzma_ret lzma_lzma_props_decode(
 		void **options, const lzma_allocator *allocator,
 		const uint8_t *props, size_t props_size);
@@ -42,11 +48,6 @@ extern bool lzma_lzma_lclppb_decode(
 extern lzma_ret lzma_lzma_decoder_create(
 		lzma_lz_decoder *lz, const lzma_allocator *allocator,
 		const lzma_options_lzma *opt, lzma_lz_options *lz_options);
-
-/// Gets memory usage without validating lc/lp/pb. This is used by LZMA2
-/// decoder, because raw LZMA2 decoding doesn't need lc/lp/pb.
-extern uint64_t lzma_lzma_decoder_memusage_nocheck(const void *options);
-
 #endif
 
 #endif
