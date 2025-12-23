@@ -4,6 +4,15 @@
 //
 /// \file       sandbox.c
 /// \brief      Sandbox support
+///
+/// \note       When sandbox_init() is called, gettext hasn't been
+///             initialized yet, and thus wrapping error messages
+///             in _("...") is pointless in that function. In other
+///             functions gettext can be used, but the only error message
+///             we have is "Failed to enable the sandbox" which should
+///             (almost) never occur. If it does occur anyway, leaving
+///             the message untranslated can make it easier to find
+///             bug reports about the issue.
 //
 //  Author:     Lasse Collin
 //
@@ -71,11 +80,8 @@ prepare_for_strict_sandbox(void)
 extern void
 sandbox_init(void)
 {
-	if (pledge("stdio rpath wpath cpath fattr", "")) {
-		// gettext hasn't been initialized yet so
-		// there's no point to call it here.
+	if (pledge("stdio rpath wpath cpath fattr", ""))
 		message_fatal("Failed to enable the sandbox");
-	}
 
 	return;
 }
@@ -87,7 +93,7 @@ sandbox_enable_read_only(void)
 	// We will be opening files for reading but
 	// won't create or remove any files.
 	if (pledge("stdio rpath", ""))
-		message_fatal(_("Failed to enable the sandbox"));
+		message_fatal("Failed to enable the sandbox");
 
 	return;
 }
@@ -103,7 +109,7 @@ sandbox_enable_strict_if_allowed(int src_fd lzma_attribute((__unused__)),
 
 	// All files that need to be opened have already been opened.
 	if (pledge("stdio", ""))
-		message_fatal(_("Failed to enable the sandbox"));
+		message_fatal("Failed to enable the sandbox");
 
 	return;
 }
@@ -139,7 +145,7 @@ enable_landlock(uint64_t required_rights)
 	const int ruleset_fd = my_landlock_create_ruleset(
 			&attr, sizeof(attr), 0);
 	if (ruleset_fd < 0)
-		message_fatal(_("Failed to enable the sandbox"));
+		message_fatal("Failed to enable the sandbox");
 
 	// All files we need should have already been opened. Thus,
 	// we don't need to add any rules using landlock_add_rule(2)
@@ -154,7 +160,7 @@ enable_landlock(uint64_t required_rights)
 	// prctl(PR_SET_NO_NEW_PRIVS, ...) was already called in
 	// sandbox_init() so we don't do it here again.
 	if (my_landlock_restrict_self(ruleset_fd, 0) != 0)
-		message_fatal(_("Failed to enable the sandbox"));
+		message_fatal("Failed to enable the sandbox");
 
 	(void)close(ruleset_fd);
 	return;
@@ -274,7 +280,7 @@ sandbox_enable_strict_if_allowed(
 
 	// If not reading from stdin, remove all capabilities from it.
 	if (src_fd != STDIN_FILENO && cap_rights_limit(
-			STDIN_FILENO, cap_rights_clear(&rights)))
+			STDIN_FILENO, cap_rights_init(&rights)))
 		goto error;
 
 	if (cap_rights_limit(STDOUT_FILENO, cap_rights_init(&rights,
@@ -305,7 +311,7 @@ error:
 	if (errno == ENOSYS)
 		return;
 
-	message_fatal(_("Failed to enable the sandbox"));
+	message_fatal("Failed to enable the sandbox");
 }
 
 #endif
