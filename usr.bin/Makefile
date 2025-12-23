@@ -23,6 +23,7 @@ SUBDIR=	apply \
 	colrm \
 	column \
 	comm \
+	command \
 	compress \
 	csplit \
 	ctlstat \
