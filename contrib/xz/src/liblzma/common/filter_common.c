@@ -213,8 +213,8 @@ lzma_filters_copy(const lzma_filter *src, lzma_filter *real_dest,
 
 error:
 	// Free the options which we have already allocated.
-	while (i-- > 0)
-		lzma_free(dest[i].options, allocator);
+	while (i > 0)
+		lzma_free(dest[--i].options, allocator);
 
 	return ret;
 }

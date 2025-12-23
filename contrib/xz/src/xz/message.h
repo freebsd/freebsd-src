@@ -144,6 +144,10 @@ extern void message_filename(const char *src_name);
 /// given *strm becomes invalid.
 ///
 /// \param      strm      Pointer to lzma_stream used for the coding.
+/// \param      is_passthru
+///                       If true, we are copying input to output without
+///                       encoding or decoding, and thus cannot use
+///                       lzma_get_progress().
 /// \param      in_size   Size of the input file, or zero if unknown.
 ///
 extern void message_progress_start(lzma_stream *strm,
