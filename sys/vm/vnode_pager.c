@@ -388,7 +388,7 @@ vnode_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
 		return FALSE;
 
 	bsize = vp->v_mount->mnt_stat.f_iosize;
-	pagesperblock = bsize / PAGE_SIZE;
+	pagesperblock = atop(bsize);
 	blocksperpage = 0;
 	if (pagesperblock > 0) {
 		reqblock = pindex / pagesperblock;
@@ -645,8 +645,8 @@ vnode_pager_addr(struct vnode *vp, vm_ooffset_t address, daddr_t *rtaddress,
 			*rtaddress += voffset / DEV_BSIZE;
 		if (run) {
 			*run += 1;
-			*run *= bsize / PAGE_SIZE;
-			*run -= voffset / PAGE_SIZE;
+			*run *= atop(bsize);
+			*run -= atop(voffset);
 		}
 	}
 
@@ -909,7 +909,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 	object = vp->v_object;
 	foff = IDX_TO_OFF(m[0]->pindex);
 	bsize = vp->v_mount->mnt_stat.f_iosize;
-	pagesperblock = bsize / PAGE_SIZE;
+	pagesperblock = atop(bsize);
 
 	KASSERT(foff < object->un_pager.vnp.vnp_size,
 	    ("%s: page %p offset beyond vp %p size", __func__, m[0], vp));
@@ -991,7 +991,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 	bp->b_blkno += (foff % bsize) / DEV_BSIZE;
 
 	/* Recalculate blocks available after/before to pages. */
-	poff = (foff % bsize) / PAGE_SIZE;
+	poff = atop(foff % bsize);
 	before *= pagesperblock;
 	before += poff;
 	after *= pagesperblock;
@@ -1172,14 +1172,14 @@ vnode_pager_generic_getpages_done(struct buf *bp)
 
 	runningbufwakeup(bp);
 
-	if (error == 0 && bp->b_bcount != bp->b_npages * PAGE_SIZE) {
+	if (error == 0 && bp->b_bcount != ptoa(bp->b_npages)) {
 		if (!buf_mapped(bp)) {
 			bp->b_data = bp->b_kvabase;
 			pmap_qenter((vm_offset_t)bp->b_data, bp->b_pages,
 			    bp->b_npages);
 		}
 		bzero(bp->b_data + bp->b_bcount,
-		    PAGE_SIZE * bp->b_npages - bp->b_bcount);
+		    ptoa(bp->b_npages) - bp->b_bcount);
 	}
 	if (buf_mapped(bp)) {
 		pmap_qremove((vm_offset_t)bp->b_data, bp->b_npages);
@@ -1258,7 +1258,7 @@ vnode_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 {
 	int rtval __diagused;
 	struct vnode *vp;
-	int bytes = count * PAGE_SIZE;
+	int bytes = ptoa(count);
 
 	/*
 	 * Force synchronous operation if we are extremely low on memory
@@ -1329,7 +1329,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	static int curfail;
 
 	object = vp->v_object;
-	count = bytecount / PAGE_SIZE;
+	count = atop(bytecount);
 
 	for (i = 0; i < count; i++)
 		rtvals[i] = VM_PAGER_ERROR;
@@ -1342,7 +1342,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 		return (VM_PAGER_BAD);
 	}
 
-	maxsize = count * PAGE_SIZE;
+	maxsize = ptoa(count);
 	ncount = count;
 
 	poffset = IDX_TO_OFF(ma[0]->pindex);
