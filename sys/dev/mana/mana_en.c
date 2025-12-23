@@ -181,18 +181,19 @@ mana_ioctl(if_t ifp, u_long command, caddr_t data)
 		new_mtu = ifr->ifr_mtu;
 		if (if_getmtu(ifp) == new_mtu)
 			break;
-		if ((new_mtu + 18 > MAX_FRAME_SIZE) ||
-		    (new_mtu + 18 < MIN_FRAME_SIZE)) {
+		if ((new_mtu > apc->max_mtu) ||
+		    (new_mtu < apc->min_mtu)) {
 			if_printf(ifp, "Invalid MTU. new_mtu: %d, "
 			    "max allowed: %d, min allowed: %d\n",
-			    new_mtu, MAX_FRAME_SIZE - 18, MIN_FRAME_SIZE - 18);
+			    new_mtu, apc->max_mtu, apc->min_mtu);
 			return EINVAL;
 		}
 		MANA_APC_LOCK_LOCK(apc);
 		if (apc->port_is_up)
 			mana_down(apc);
 
-		apc->frame_size = new_mtu + 18;
+		apc->frame_size = new_mtu + ETHER_HDR_LEN;
+		apc->mtu = new_mtu;
 		if_setmtu(ifp, new_mtu);
 		mana_dbg(NULL, "Set MTU to %d\n", new_mtu);
 
@@ -421,17 +422,11 @@ mana_load_rx_mbuf(struct mana_port_context *apc, struct mana_rxq *rxq,
 
 	if (alloc_mbuf) {
 		mbuf = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, rxq->datasize);
-		if (unlikely(mbuf == NULL)) {
-			mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-			if (unlikely(mbuf == NULL)) {
-				return ENOMEM;
-			}
-			mlen = MCLBYTES;
-		} else {
-			mlen = rxq->datasize;
-		}
+		if (unlikely(mbuf == NULL))
+			return ENOMEM;
 
-		mbuf->m_pkthdr.len = mbuf->m_len = mlen;
+		mbuf->m_pkthdr.len = mbuf->m_len = rxq->datasize;
+		mlen = rxq->datasize;
 	} else {
 		if (rx_oob->mbuf) {
 			mbuf = rx_oob->mbuf;
@@ -911,9 +906,9 @@ mana_init_port_context(struct mana_port_context *apc)
 	    BUS_SPACE_MAXADDR,		/* lowaddr		*/
 	    BUS_SPACE_MAXADDR,		/* highaddr		*/
 	    NULL, NULL,			/* filter, filterarg	*/
-	    MJUMPAGESIZE,		/* maxsize		*/
+	    MJUM16BYTES,		/* maxsize		*/
 	    1,				/* nsegments		*/
-	    MJUMPAGESIZE,		/* maxsegsize		*/
+	    MJUM16BYTES,		/* maxsegsize		*/
 	    0,				/* flags		*/
 	    NULL, NULL,			/* lockfunc, lockfuncarg*/
 	    &apc->rx_buf_tag);
@@ -994,6 +989,9 @@ mana_query_device_cfg(struct mana_context *ac, uint32_t proto_major_ver,
 
 	mana_gd_init_req_hdr(&req.hdr, MANA_QUERY_DEV_CONFIG,
 	    sizeof(req), sizeof(resp));
+
+	req.hdr.resp.msg_version = GDMA_MESSAGE_V2;
+
 	req.proto_major_ver = proto_major_ver;
 	req.proto_minor_ver = proto_minor_ver;
 	req.proto_micro_ver = proto_micro_ver;
@@ -1016,8 +1014,14 @@ mana_query_device_cfg(struct mana_context *ac, uint32_t proto_major_ver,
 
 	*max_num_vports = resp.max_num_vports;
 
-	mana_dbg(NULL, "mana max_num_vports from device = %d\n",
-	    *max_num_vports);
+	if (resp.hdr.response.msg_version >= GDMA_MESSAGE_V2)
+		gc->adapter_mtu = resp.adapter_mtu;
+	else
+		gc->adapter_mtu = ETHERMTU + ETHER_HDR_LEN;
+
+	mana_dbg(NULL, "mana max_num_vports from device = %d, "
+	    "adapter_mtu = %u\n",
+	    *max_num_vports, gc->adapter_mtu);
 
 	return 0;
 }
@@ -2295,7 +2299,7 @@ mana_alloc_rx_wqe(struct mana_port_context *apc,
 	uint32_t buf_idx;
 	int err;
 
-	if (rxq->datasize == 0 || rxq->datasize > PAGE_SIZE) {
+	if (rxq->datasize == 0) {
 		mana_err(NULL,
 		    "WARNING: Invalid rxq datasize %u\n", rxq->datasize);
 	}
@@ -2359,6 +2363,28 @@ mana_push_wqe(struct mana_rxq *rxq)
 	return 0;
 }
 
+static uint32_t
+mana_calc_rx_datasize(struct mana_port_context *apc)
+{
+	uint32_t effective_mtu = 0;
+
+	if (apc->frame_size > MJUM16BYTES) {
+		mana_err(NULL, "mana frame_size %u is too big\n",
+		    apc->frame_size);
+		effective_mtu = MJUM16BYTES;
+	} else if (apc->frame_size > MJUM9BYTES) {
+		effective_mtu = MJUM16BYTES;
+	} else if (apc->frame_size > MJUMPAGESIZE) {
+		effective_mtu = MJUM9BYTES;
+	} else if (apc->frame_size > MCLBYTES) {
+		effective_mtu = MJUMPAGESIZE;
+	} else {
+		effective_mtu = MCLBYTES;
+	}
+
+	return effective_mtu;
+}
+
 static struct mana_rxq *
 mana_create_rxq(struct mana_port_context *apc, uint32_t rxq_idx,
     struct mana_eq *eq, if_t ndev)
@@ -2381,14 +2407,8 @@ mana_create_rxq(struct mana_port_context *apc, uint32_t rxq_idx,
 	rxq->ndev = ndev;
 	rxq->num_rx_buf = apc->rx_queue_size;
 	rxq->rxq_idx = rxq_idx;
-	/*
-	 * Minimum size is MCLBYTES(2048) bytes for a mbuf cluster.
-	 * Now we just allow maximum size of 4096.
-	 */
-	rxq->datasize = ALIGN(apc->frame_size, MCLBYTES);
-	if (rxq->datasize > MAX_FRAME_SIZE)
-		rxq->datasize = MAX_FRAME_SIZE;
 
+	rxq->datasize = mana_calc_rx_datasize(apc);
 	mana_dbg(NULL, "Setting rxq %d datasize %d\n",
 	    rxq_idx, rxq->datasize);
 
@@ -2914,10 +2934,13 @@ mana_probe_port(struct mana_context *ac, int port_idx,
 	    mana_rx_req_size);
 	apc->port_handle = INVALID_MANA_HANDLE;
 	apc->port_idx = port_idx;
-	apc->frame_size = DEFAULT_FRAME_SIZE;
 	apc->last_tx_cq_bind_cpu = -1;
 	apc->last_rx_cq_bind_cpu = -1;
 	apc->vport_use_count = 0;
+	apc->max_mtu = gc->adapter_mtu - ETHER_HDR_LEN;
+	apc->min_mtu = MIN_FRAME_SIZE;
+	apc->mtu = ETHERMTU;
+	apc->frame_size = apc->mtu + ETHER_HDR_LEN;
 
 	MANA_APC_LOCK_INIT(apc);
 
@@ -2932,7 +2955,7 @@ mana_probe_port(struct mana_context *ac, int port_idx,
 	if_setioctlfn(ndev, mana_ioctl);
 	if_setgetcounterfn(ndev, mana_get_counter);
 
-	if_setmtu(ndev, ETHERMTU);
+	if_setmtu(ndev, apc->mtu);
 	if_setbaudrate(ndev, IF_Gbps(100));
 
 	mana_rss_key_fill(apc->hashkey, MANA_HASH_KEY_SIZE);

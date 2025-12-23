@@ -102,9 +102,6 @@ enum TRI_STATE {
 #define COMP_ENTRY_SIZE			64
 
 #define MIN_FRAME_SIZE			146
-#define ADAPTER_MTU_SIZE		1500
-#define DEFAULT_FRAME_SIZE		(ADAPTER_MTU_SIZE + 14)
-#define MAX_FRAME_SIZE			4096
 
 /* Unit number of RX buffers. Must be power of two
  * Higher number could fail at allocation.
@@ -534,6 +531,9 @@ struct mana_port_context {
 	uint16_t		port_idx;
 
 	uint16_t		frame_size;
+	uint16_t		max_mtu;
+	uint16_t		min_mtu;
+	uint16_t		mtu;
 
 	bool			port_is_up;
 	bool			port_st_save; /* Saved port state */
@@ -613,6 +613,11 @@ struct mana_query_device_cfg_resp {
 	uint16_t		max_num_vports;
 	uint16_t		reserved;
 	uint32_t		max_num_eqs;
+
+	/* response v2: */
+	uint16_t adapter_mtu;
+	uint16_t reserved2;
+	uint32_t reserved3;
 }; /* HW DATA */
 
 /* Query vPort Configuration */
