@@ -18,7 +18,7 @@
 #  USE_QEMU: Use QEMU for testing rather than bhyve
 #
 
-WORLDDIR?=	${.CURDIR}/../..
+WORLDDIR?=	${.CURDIR:H:H}
 RELEASEDIR=	${WORLDDIR}/release
 MAKECONF?=	/dev/null
 SRCCONF?=	/dev/null
