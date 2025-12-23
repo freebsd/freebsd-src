@@ -574,7 +574,7 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 
 	/* This works much better with if_cdce than if_ure */
 	USB_QUIRK(LENOVO, TBT3LAN, UQ_CFG_INDEX_1),
-	USB_QUIRK(REALTEK, RTL8153, UQ_CFG_INDEX_1),
+	USB_QUIRK_REV(REALTEK, RTL8153, 0x31fd, 0x31fd, UQ_CFG_INDEX_1),
 };
 #undef USB_QUIRK_VO
 #undef USB_QUIRK_REV
