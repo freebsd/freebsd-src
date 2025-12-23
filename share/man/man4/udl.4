@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: ISC
+.\"
 .\" $OpenBSD: udl.4,v 1.20 2012/09/18 17:11:41 jasper Exp $
 .\"
 .\" Copyright (c) 2009 Marcus Glocker <mglocker@openbsd.org>
@@ -14,12 +17,12 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd September 9, 2023
+.Dd December 23, 2025
 .Dt UDL 4
 .Os
 .Sh NAME
 .Nm udl
-.Nd DisplayLink DL-120 / DL-160 USB display devices
+.Nd DisplayLink DL-120 / DL-160 USB display device driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -35,13 +38,11 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 udl_load="YES"
 .Ed
-.Sh DESCRIPTION
+.Sh HARDWARE
 The
 .Nm
-driver supports USB display devices based on the DisplayLink DL-120 / DL-160
-graphic chip.
-.Sh HARDWARE
-The following devices should work:
+driver supports USB display devices
+based on the DisplayLink DL-120 / DL-160 graphic chip, including:
 .Pp
 .Bl -tag -width Ds -offset indent -compact
 .It Century Corp. Japan Plus One LCD-8000U
@@ -66,3 +67,10 @@ The following devices should work:
 .El
 .Sh SEE ALSO
 .Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Ox 4.6
+and
+.Fx 11.0 .
