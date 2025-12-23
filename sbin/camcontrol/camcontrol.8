@@ -2684,303 +2684,250 @@ is the transport layer device.
 are the CAM application passthrough devices.
 .El
 .Sh EXAMPLES
-.Dl camcontrol eject -n cd -u 1 -v
-.Pp
 Eject the CD from cd1, and print SCSI sense information if the command
-fails.
+fails:
 .Pp
-.Dl camcontrol tur da0
+.Dl camcontrol eject -n cd -u 1 -v
 .Pp
 Send the SCSI test unit ready command to da0.
 The
 .Nm
-utility will report whether the disk is ready, but will not display sense
-information if the command fails since the
+utility will report whether the disk is ready,
+but will not display sense information if the command fails since the
 .Fl v
-switch was not specified.
-.Bd -literal -offset indent
-camcontrol tur da1 -E -C 4 -t 50 -Q head -v
-.Ed
+switch was not specified:
+.Pp
+.Dl camcontrol tur da0
 .Pp
 Send a test unit ready command to da1.
 Enable kernel error recovery.
 Specify a retry count of 4, and a timeout of 50 seconds.
-Enable sense
-printing (with the
-.Fl v
-flag) if the command fails.
-Since error recovery is turned on, the
-disk will be spun up if it is not currently spinning.
-The
-.Tn SCSI
-task attribute for the command will be set to Head of Queue.
+Enable sense printing
+.Pq with the Fl v flag
+if the command fails.
+Since error recovery is turned on,
+the disk will be spun up if it is not currently spinning.
+The SCSI task attribute for the command will be set to Head of Queue.
 The
 .Nm
-utility will report whether the disk is ready.
+utility will report whether the disk is ready:
+.Pp
+.Dl camcontrol tur da1 -E -C 4 -t 50 -Q head -v
+.Pp
+Issue a READ BUFFER command (0x3C) to cd1.
+Display the buffer size of cd1,
+and display the first 10 bytes from the cache on cd1.
+Display SCSI sense information if the command fails:
 .Bd -literal -offset indent
 camcontrol cmd -n cd -u 1 -v -c "3C 00 00 00 00 00 00 00 0e 00" \e
 	-i 0xe "s1 i3 i1 i1 i1 i1 i1 i1 i1 i1 i1 i1"
 .Ed
 .Pp
-Issue a READ BUFFER command (0x3C) to cd1.
-Display the buffer size of cd1,
-and display the first 10 bytes from the cache on cd1.
-Display SCSI sense
-information if the command fails.
+Issue a WRITE BUFFER (0x3B) command to cd1.
+Write out 10 bytes of data,
+not including the (reserved) 4 byte header.
+Print out sense information if the command fails.
+Be very careful with this command,
+improper use may cause data corruption:
 .Bd -literal -offset indent
 camcontrol cmd -n cd -u 1 -v -c "3B 00 00 00 00 00 00 00 0e 00" \e
 	-o 14 "00 00 00 00 1 2 3 4 5 6 v v v v" 7 8 9 8
 .Ed
 .Pp
-Issue a WRITE BUFFER (0x3B) command to cd1.
-Write out 10 bytes of data,
-not including the (reserved) 4 byte header.
-Print out sense information if
-the command fails.
-Be very careful with this command, improper use may
-cause data corruption.
+Edit mode page 1 (the Read-Write Error Recover page) for da3,
+and save the settings on the drive.
+Mode page 1 contains a disk drive's auto read and
+write reallocation settings, among other things:
 .Bd -literal -offset indent
 camcontrol modepage da3 -m 1 -e -P 3
 .Ed
 .Pp
-Edit mode page 1 (the Read-Write Error Recover page) for da3, and save the
-settings on the drive.
-Mode page 1 contains a disk drive's auto read and
-write reallocation settings, among other things.
+Rescan all SCSI buses in the system for devices that have been added,
+removed or changed:
 .Pp
 .Dl camcontrol rescan all
 .Pp
-Rescan all SCSI buses in the system for devices that have been added,
-removed or changed.
+Rescan SCSI bus 0 for devices that have been added, removed or changed:
 .Pp
 .Dl camcontrol rescan 0
 .Pp
-Rescan SCSI bus 0 for devices that have been added, removed or changed.
+Rescan SCSI bus 0, target 1, lun 0 to see if it has been added, removed,
+or changed:
 .Pp
 .Dl camcontrol rescan 0:1:0
 .Pp
-Rescan SCSI bus 0, target 1, lun 0 to see if it has been added, removed, or
-changed.
+Set the number of concurrent transactions for da5 to 24:
 .Pp
 .Dl camcontrol tags da5 -N 24
 .Pp
-Set the number of concurrent transactions for da5 to 24.
-.Bd -literal -offset indent
-camcontrol negotiate -n da -u 4 -T disable
-.Ed
+Disable tagged queueing for da4:
 .Pp
-Disable tagged queueing for da4.
-.Bd -literal -offset indent
-camcontrol negotiate -n da -u 3 -R 20.000 -O 15 -a
-.Ed
+.Dl camcontrol negotiate -n da -u 4 -T disable
 .Pp
 Negotiate a sync rate of 20MHz and an offset of 15 with da3.
-Then send a
-Test Unit Ready command to make the settings take effect.
-.Bd -literal -offset indent
-camcontrol smpcmd ses0 -v -r 4 "40 0 00 0" -R 1020 "s9 i1"
-.Ed
+Then send a Test Unit Ready command to make the settings take effect:
 .Pp
-Send the SMP REPORT GENERAL command to ses0, and display the number of PHYs
-it contains.
-Display SMP errors if the command fails.
-.Bd -literal -offset indent
-camcontrol security ada0
-.Ed
+.Dl camcontrol negotiate -n da -u 3 -R 20.000 -O 15 -a
 .Pp
-Report security support and settings for ada0
-.Bd -literal -offset indent
-camcontrol security ada0 -U user -s MyPass
-.Ed
+Send the SMP REPORT GENERAL command to ses0,
+and display the number of PHYs it contains,
+displaying SMP errors if the command fails:
 .Pp
-Enable security on device ada0 with the password MyPass
-.Bd -literal -offset indent
-camcontrol security ada0 -U user -e MyPass
-.Ed
+.Dl camcontrol smpcmd ses0 -v -r 4 "40 0 00 0" -R 1020 "s9 i1"
 .Pp
-Secure erase ada0 which has had security enabled with user password MyPass
+Report security support and settings for ada0:
 .Pp
-.Em WARNING! WARNING! WARNING!
+.Dl camcontrol security ada0
 .Pp
-This will
+Enable security on device ada0 with the password MyPass:
+.Pp
+.Dl camcontrol security ada0 -U user -s MyPass
+.Pp
+Secure erase the security enabled ada0 with user password MyPass.
+.Pp
+.Em WARNING ! WARNING ! WARNING !
+.Pp
+The following command will
 .Em ERASE ALL
 data from the device, so backup your data before using!
 .Pp
-This command can be used against an SSD drive to restoring it to
-factory default write performance.
-.Bd -literal -offset indent
-camcontrol hpa ada0
-.Ed
+This will restore a solid state drive
+.Pq SSD
+to factory default write performance:
 .Pp
-Report HPA support and settings for ada0 (also reported via
-identify).
-.Bd -literal -offset indent
-camcontrol hpa ada0 -s 10240
-.Ed
+.Dl camcontrol security ada0 -U user -e MyPass
 .Pp
-Enables HPA on ada0 setting the maximum reported sectors to 10240.
+Report HPA support and settings for ada0 (also reported via identify):
 .Pp
-.Em WARNING! WARNING! WARNING!
+.Dl camcontrol hpa ada0
 .Pp
-This will
+Enable HPA on ada0 setting the maximum reported sectors to 10240.
+.Pp
+.Em WARNING ! WARNING ! WARNING !
+.Pp
+The following command will
 .Em PREVENT ACCESS
-to all data on the device beyond this limit until HPA is disabled by setting
-HPA to native max sectors of the device, which can only be done after a
-power-on or hardware reset!
+to all data on the device beyond this limit until HPA is disabled
+by setting HPA to native max sectors of the device,
+which can only be done after a power-on or hardware reset!
 .Pp
 .Em DO NOT
-use this on a device which has an active filesystem!
-.Bd -literal -offset indent
-camcontrol persist da0 -v -i read_keys
-.Ed
+use this on a device which has an active filesystem:
 .Pp
-This will read any persistent reservation keys registered with da0, and
-display any errors encountered when sending the PERSISTENT RESERVE IN
-.Tn SCSI
-command.
-.Bd -literal -offset indent
-camcontrol persist da0 -v -o register -a -K 0x12345678
-.Ed
+.Dl camcontrol hpa ada0 -s 10240
 .Pp
-This will register the persistent reservation key 0x12345678 with da0,
-apply that registration to all ports on da0, and display any errors that
-occur when sending the PERSISTENT RESERVE OUT command.
-.Bd -literal -offset indent
-camcontrol persist da0 -v -o reserve -s lun -k 0x12345678 -T ex_ac
-.Ed
+This will read any persistent reservation keys registered with da0,
+and display any errors encountered when sending the
+PERSISTENT RESERVE IN SCSI command:
 .Pp
-This will reserve da0 for the exlusive use of the initiator issuing the
-command.
+.Dl camcontrol persist da0 -v -i read_keys
+.Pp
+Register the persistent reservation key 0x12345678 with da0,
+apply that registration to all ports on da0,
+and display any errors that
+occur when sending the PERSISTENT RESERVE OUT command:
+.Pp
+.Dl camcontrol persist da0 -v -o register -a -K 0x12345678
+.Pp
+Reserve da0 for the exclusive use of the initiator issuing the command.
 The scope of the reservation is the entire LUN.
-Any errors sending the PERSISTENT RESERVE OUT command will be displayed.
-.Bd -literal -offset indent
-camcontrol persist da0 -v -i read_full
-.Ed
+Any errors sending the PERSISTENT RESERVE OUT command will be displayed:
 .Pp
-This will display the full status of all reservations on da0 and print out
-status if there are any errors.
-.Bd -literal -offset indent
-camcontrol persist da0 -v -o release -k 0x12345678 -T ex_ac
-.Ed
+.Dl camcontrol persist da0 -v -o reserve -s lun -k 0x12345678 -T ex_ac
+.Pp
+Display the full status of all reservations on da0
+and print out status if there are any errors:
+.Pp
+.Dl camcontrol persist da0 -v -i read_full
 .Pp
 This will release a reservation on da0 of the type ex_ac
-(Exclusive Access).
+.Pq Exclusive Access .
 The Reservation Key for this registration is 0x12345678.
-Any errors that occur will be displayed.
+Any errors that occur will be displayed:
+.Pp
+.Dl camcontrol persist da0 -v -o release -k 0x12345678 -T ex_ac
+.Pp
+Register the key 0x12345678 with da0,
+specifying that it applies to the SAS initiators 
+with SAS addresses 0x1234567812345678 and 0x8765432187654321:
 .Bd -literal -offset indent
 camcontrol persist da0 -v -o register -K 0x12345678 -S \e
 	-I sas,0x1234567812345678 -I sas,0x8765432187654321
 .Ed
 .Pp
-This will register the key 0x12345678 with da0, specifying that it applies
-to the SAS initiators with SAS addresses 0x1234567812345678 and
-0x8765432187654321.
+Move the registration from the current initiator,
+whose Registration Key is 0x87654321,
+to the Fibre Channel initiator with the
+Fiber Channel World Wide Node Name 0x1234567812345678.
+A new registration key, 0x12345678, will be registered for the initiator
+with the Fibre Channel World Wide Node Name 0x1234567812345678,
+and the current initiator will be unregistered from the target.
+The reservation will be moved to relative target port 2 on the target
+device.
+The registration will persist across power losses:
 .Bd -literal -offset indent
 camcontrol persist da0 -v -o register_move -k 0x87654321 \e
 	-K 0x12345678 -U -p -R 2 -I fcp,0x1234567812345678
 .Ed
 .Pp
-This will move the registration from the current initiator, whose
-Registration Key is 0x87654321, to the Fibre Channel initiator with the
-Fiber Channel World Wide Node Name 0x1234567812345678.
-A new registration key, 0x12345678, will be registered for the initiator
-with the Fibre Channel World Wide Node Name 0x1234567812345678, and the
-current initiator will be unregistered from the target.
-The reservation will be moved to relative target port 2 on the target
-device.
-The registration will persist across power losses.
-.Bd -literal -offset indent
-camcontrol attrib sa0 -v -i attr_values -p 1
-.Ed
+Read and decode the attribute values from partition 1 on the tape
+in tape drive sa0, and will display any SCSI errors that result:
 .Pp
-This will read and decode the attribute values from partition 1 on the tape
-in tape drive sa0, and will display any
-.Tn SCSI
-errors that result.
-.Bd -literal -offset indent
-camcontrol zone da0 -v -c rz -P summary
-.Ed
+.Dl camcontrol attrib sa0 -v -i attr_values -p 1
 .Pp
-This will request the SMR zone list from disk da0, and print out a
-summary of the zone parameters, and display any
-.Tn SCSI
-or
-.Tn ATA
-errors that result.
-.Bd -literal -offset indent
-camcontrol zone da0 -v -c rz -o reset
-.Ed
+Request the SMR zone list from disk da0, and print out a summary
+of the zone parameters, and display any SCSI or ATA errors that result:
 .Pp
-This will request the list of SMR zones that should have their write
-pointer reset from the disk da0, and display any
-.Tn SCSI
-or
-.Tn ATA
-errors that result.
-.Bd -literal -offset indent
-camcontrol zone da0 -v -c rwp -l 0x2c80000
-.Ed
+.Dl camcontrol zone da0 -v -c rz -P summary
 .Pp
-This will issue the Reset Write Pointer command to disk da0 for the zone
-that starts at LBA 0x2c80000 and display any
-.Tn SCSI
-or
-.Tn ATA
-errors that result.
-.Bd -literal -offset indent
-camcontrol epc ada0 -c timer -T 60.1 -p Idle_a -e -s
-.Ed
+Request the list of SMR zones that should have their write pointer reset
+from the disk da0, and display any SCSI or ATA errors that result:
 .Pp
-Set the timer for the Idle_a power condition on drive
-.Pa ada0
-to 60.1 seconds, enable that particular power condition, and save the timer
-value and the enabled state of the power condition.
-.Bd -literal -offset indent
-camcontrol epc da4 -c goto -p Standby_z -H
-.Ed
+.Dl camcontrol zone da0 -v -c rz -o reset
 .Pp
-Tell drive
-.Pa da4
-to go to the Standby_z power state (which is
-the drive's lowest power state) and hold in that state until it is
-explicitly released by another
+Issue the Reset Write Pointer command to disk da0 for the zone that
+starts at LBA 0x2c80000 and display any SCSI or ATA errors that result:
+.Pp
+.Dl camcontrol zone da0 -v -c rwp -l 0x2c80000
+.Pp
+Set the timer for the Idle_a power condition on drive ada0 to
+60.1 seconds, enable that particular power condition,
+and save the timer value and the enabled state of the power condition:
+.Pp
+.Dl camcontrol epc ada0 -c timer -T 60.1 -p Idle_a -e -s
+.Pp
+Tell drive da4 to go to the Standby_z power state
+.Pq the drive's lowest power state
+and hold in that state until it is explicitly released by another
 .Cm goto
-command.
-.Bd -literal -offset indent
-camcontrol epc da2 -c status -P
-.Ed
+command:
 .Pp
-Report only the power state of
-drive
-.Pa da2 .
+.Dl camcontrol epc da4 -c goto -p Standby_z -H
+.Pp
+Report only the power state of drive da2.
 Some drives will power up in response to the commands sent by the
 .Pa status
 subcommand, and the
 .Fl P
 option causes
 .Nm
-to only send the
-.Tn ATA
-CHECK POWER MODE command, which should not trigger a change in the drive's
-power state.
-.Bd -literal -offset indent
-camcontrol epc ada0 -c list
-.Ed
+to only send the ATA CHECK POWER MODE command,
+which should not trigger a change in the drive's power state:
 .Pp
-Display the ATA Power Conditions log (Log Address 0x08) for
-drive
-.Pa ada0 .
+.Dl camcontrol epc da2 -c status -P
+.Pp
+Display the ATA Power Conditions log (Log Address 0x08) for drive ada0:
+.Pp
+.Dl camcontrol epc ada0 -c list
+.Pp
+Set the timestamp of drive sa0 using a
+.Xr strptime 3
+format string followed by a time string
+that was created using this format string:
 .Bd -literal -offset indent
 camcontrol timestamp sa0 -s -f "%a, %d %b %Y %T %z" \e
 	-T "Wed, 26 Oct 2016 21:43:57 -0600"
 .Ed
-.Pp
-Set the timestamp of drive
-.Pa sa0
-using a
-.Xr strptime 3
-format string followed by a time string
-that was created using this format string.
 .Sh SEE ALSO
 .Xr cam 3 ,
 .Xr cam_cdbparse 3 ,
