@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+8e3fd450cc53, 949cff4dceff, 0e724de9ed6f, 9f49f436a9ec, e35191ccf3b3:
+	Add support for an extension to NFSv4.2 (RFCnnnn) that
+	supports handling of POSIX draft ACLs via getfacl(1)/setfacl(1).
+
 dbac191956f9, fe21dbf70aa8:
 	Support for the kcmp(2) system call and fcntl(F_DUPFD_QUERY) for Linux
 	binaries.
