@@ -3750,14 +3750,16 @@ hn_ioctl(if_t ifp, u_long cmd, caddr_t data)
 			ifr_vf = *ifr;
 			strlcpy(ifr_vf.ifr_name, if_name(vf_ifp),
 			    sizeof(ifr_vf.ifr_name));
-			error = ifhwioctl(SIOCSIFMTU,vf_ifp, 
+			error = ifhwioctl(SIOCSIFMTU, vf_ifp,
 			    (caddr_t)&ifr_vf, curthread);
+			HN_UNLOCK(sc);
 			if (error) {
-				HN_UNLOCK(sc);
 				if_printf(ifp, "%s SIOCSIFMTU %d failed: %d\n",
 				    if_name(vf_ifp), ifr->ifr_mtu, error);
-				break;
+			} else {
+				if_setmtu(ifp, ifr->ifr_mtu);
 			}
+			break;
 		}
 
 		/*
