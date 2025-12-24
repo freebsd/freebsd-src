@@ -128,8 +128,8 @@ printsetid(void)
 	 */
 	if (level == CPU_LEVEL_WHICH && !sflag)
 		level = CPU_LEVEL_CPUSET;
-	if (cpuset_getid(level, which, id, &setid))
-		err(errno, "getid");
+	if (cpuset_getid(level, which, id, &setid) != 0)
+		err(EXIT_FAILURE, "getid");
 	printf("%s %jd%s id: %d\n", whichnames[which], (intmax_t)id,
 	    levelnames[level], setid);
 }
