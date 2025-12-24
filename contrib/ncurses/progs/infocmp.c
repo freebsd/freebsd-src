@@ -687,7 +687,7 @@ compare_predicate(PredType type, PredIdx idx, const char *name)
 #define DATAX()        DATA("", "")
 
 typedef struct {
-    const char from[4];
+    const char from[8];
     const char to[12];
 } assoc;
 

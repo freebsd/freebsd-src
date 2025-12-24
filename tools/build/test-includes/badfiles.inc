@@ -91,14 +91,12 @@ BADHDRS= \
 	sys/pmckern.h \
 	sys/posix4.h \
 	sys/power.h \
-	sys/priority.h \
 	sys/prng.h \
 	sys/qmath.h \
 	sys/racct.h \
 	sys/resourcevar.h \
 	sys/rman.h \
 	sys/rmlock.h \
-	sys/rtprio.h \
 	sys/runq.h \
 	sys/rwlock.h \
 	sys/sbuf.h \
