@@ -192,7 +192,9 @@ main(int argc, char *argv[])
 		case 'p':
 			pflag = 1;
 			which = CPU_WHICH_PID;
-			id = pid = atoi(optarg);
+			id = pid = strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr)
+				errx(1, "pid %s: %s", errstr, optarg);
 			break;
 		case 'r':
 			level = CPU_LEVEL_ROOT;
