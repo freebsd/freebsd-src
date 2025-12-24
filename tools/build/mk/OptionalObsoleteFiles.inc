@@ -1157,14 +1157,14 @@ OLD_FILES+=usr/share/man/man8/zfsloader.8.gz
 OLD_FILES+=usr/share/man/man8/zpool.8.gz
 .endif
 
-.if ${MK_CLANG} == no && ${MK_CLANG_FORMAT} == no && ${MK_LLDB} == no && \
-    ${MK_LLVM_LINK_STATIC_LIBRARIES} == no
+.if (${MK_CLANG} == no && ${MK_CLANG_FORMAT} == no && ${MK_LLDB} == no) || \
+    ${MK_LLVM_LINK_STATIC_LIBRARIES} != no
 OLD_LIBS+=usr/lib/libprivateclang.so.19
 .endif
 
-.if ${MK_CLANG_EXTRAS} == no && ${MK_CLANG} == no && ${MK_LLDB} == no && \
-    ${MK_LLD} == no && ${MK_LLVM_BINUTILS} == no && ${MK_LLVM_COV} == no && \
-    ${MK_LLVM_LINK_STATIC_LIBRARIES} == no
+.if (${MK_CLANG_EXTRAS} == no && ${MK_CLANG} == no && ${MK_LLDB} == no && \
+    ${MK_LLD} == no && ${MK_LLVM_BINUTILS} == no && ${MK_LLVM_COV} == no) || \
+    ${MK_LLVM_LINK_STATIC_LIBRARIES} != no
 OLD_LIBS+=usr/lib/libprivatellvm.so.19
 .endif
 
@@ -4329,7 +4329,7 @@ OLD_DIRS+=usr/include/c++/v1
 OLD_FILES+=usr/bin/ld.lld
 .endif
 
-.if ${MK_LLDB} == no && ${MK_LLVM_LINK_STATIC_LIBRARIES} == no
+.if ${MK_LLDB} == no || ${MK_LLVM_LINK_STATIC_LIBRARIES} != no
 OLD_LIBS+=usr/lib/libprivatelldb.so.19
 .endif
 
