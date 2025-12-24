@@ -1,7 +1,7 @@
 .\" Written by Garrett Wollman
 .\" This file is in the public domain.
 .\"
-.Dd May 29, 2025
+.Dd December 26, 2025
 .Dt LINPROCFS 4
 .Os
 .Sh NAME
@@ -126,11 +126,11 @@ Information about the swap device if any.
 Time since the last boot and time spent in idle state.
 .It Pa /compat/linux/proc/version
 Version of the emulated linux system.
-.It Pa /compat/linux/proc/pid
+.It Pa /compat/linux/proc/ Ns Ao Ar pid Ac
 A directory containing process information for process
-.Pa pid .
+.Ar pid .
 .It Pa /compat/linux/proc/self
-A directory containing process information for the current process.
+A symlink to a directory containing process information for the current process.
 .El
 .Sh EXAMPLES
 To mount a
