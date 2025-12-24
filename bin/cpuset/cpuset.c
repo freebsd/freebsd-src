@@ -164,7 +164,9 @@ main(int argc, char *argv[])
 		case 'd':
 			dflag = 1;
 			which = CPU_WHICH_DOMAIN;
-			id = atoi(optarg);
+			id = strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr)
+				errx(1, "domain id %s: %s", errstr, optarg);
 			break;
 		case 'g':
 			gflag = 1;
@@ -219,7 +221,9 @@ main(int argc, char *argv[])
 		case 'x':
 			xflag = 1;
 			which = CPU_WHICH_IRQ;
-			id = atoi(optarg);
+			id = strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr)
+				errx(1, "irq %s: %s", errstr, optarg);
 			break;
 		default:
 			usage();
