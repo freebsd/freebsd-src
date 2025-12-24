@@ -176,7 +176,7 @@ mydev_read(struct cdev *dev, struct uio *uio, int ioflag)
     if (len <= 0) {
 	err = -1;
     } else {	/* copy buf to userland */
-	copystr(&buf, uio->uio_iov->iov_base, 513, &len);
+	copyout(&buf, uio->uio_iov->iov_base, len);
     }
     return(err);
 }
