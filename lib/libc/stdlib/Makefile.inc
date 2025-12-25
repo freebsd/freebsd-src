@@ -67,6 +67,7 @@ MISRCS+= \
 	strtouq.c \
 	system.c \
 	tdelete.c \
+	tdestroy.c \
 	tfind.c \
 	tsearch.c \
 	twalk.c
