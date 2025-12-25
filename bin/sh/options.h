@@ -74,7 +74,7 @@ extern char optval[NOPTS];
 extern const char optletter[NSHORTOPTS];
 #ifdef DEFINE_OPTIONS
 char optval[NOPTS];
-const char optletter[NSHORTOPTS] = "efIimnsxvVECabupTPh";
+const char optletter[NSHORTOPTS] __nonstring = "efIimnsxvVECabupTPh";
 static const unsigned char optname[] =
 	"\007errexit"
 	"\006noglob"
