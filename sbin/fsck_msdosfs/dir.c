@@ -463,8 +463,8 @@ checksize(struct fat_descriptor *fat, u_char *p, struct dosDirEntry *dir)
 	return FSOK;
 }
 
-static const u_char dot_name[11]    = ".          ";
-static const u_char dotdot_name[11] = "..         ";
+static const u_char dot_name[11] __nonstring    = ".          ";
+static const u_char dotdot_name[11] __nonstring = "..         ";
 
 /*
  * Basic sanity check if the subdirectory have good '.' and '..' entries,
