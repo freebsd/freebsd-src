@@ -91,14 +91,14 @@ public:
                 _ui->out("The test failed and paused right before its cleanup "
                     "routine.");
                 _ui->out(F("Test work dir: %s") % eh.work_directory().str());
-                _ui->out("Press any key to continue...");
+                _ui->out("Press <Enter> to continue...");
                 (void) std::cin.get();
             }
         } else if (_cmdline.has_option(pause_before_cleanup_option
             .long_name())) {
             _ui->out("The test paused right before its cleanup routine.");
             _ui->out(F("Test work dir: %s") % eh.work_directory().str());
-            _ui->out("Press any key to continue...");
+            _ui->out("Press <Enter> to continue...");
             (void) std::cin.get();
         }
     };
