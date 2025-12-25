@@ -133,6 +133,9 @@ NO_WARRAY_PARAMETER=	-Wno-array-parameter
 NO_WSTRICT_PROTOTYPES=	-Wno-strict-prototypes
 NO_WDEPRECATED_NON_PROTOTYPE=-Wno-deprecated-non-prototype
 .endif
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 210000
+NO_WCHARACTER_CONVERSION=-Wno-character-conversion
+.endif
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 50200
 NO_WUNUSED_BUT_SET_VARIABLE=-Wno-unused-but-set-variable
 .endif

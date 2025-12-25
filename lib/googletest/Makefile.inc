@@ -10,3 +10,6 @@ CXXFLAGS+=	${GTESTS_FLAGS}
 
 # Silence warnings about usage of deprecated implicit copy constructors
 CXXWARNFLAGS+=  -Wno-deprecated-copy
+
+# Silence warnings about implicit character conversions in gtest-printers.h
+CXXWARNFLAGS+=	${NO_WCHARACTER_CONVERSION}
