@@ -36,6 +36,7 @@
 .In search.h
 .Ft void *
 .Fn tdelete "const void * restrict key" "posix_tnode ** restrict rootp" "int (*compar) (const void *, const void *)"
+.Fn tdestroy "posix_tnode *root" "(void (*node_free)(void *)"
 .Ft posix_tnode *
 .Fn tfind "const void *key" "posix_tnode * const *rootp" "int (*compar) (const void *, const void *)"
 .Ft posix_tnode *
@@ -45,6 +46,7 @@
 .Sh DESCRIPTION
 The
 .Fn tdelete ,
+.Fn tdestroy ,
 .Fn tfind ,
 .Fn tsearch ,
 and
@@ -95,6 +97,13 @@ If the node to be deleted is the root of the binary search tree,
 will be adjusted.
 .Pp
 The
+.Fn tdestroy
+function destroys the whole search tree, freeing all allocated nodes.
+If tree keys need special handling on free, the
+.Fa node_free
+function can be provided, which is called on each key.
+.Pp
+The
 .Fn twalk
 function
 walks the binary search tree rooted in
@@ -128,7 +137,9 @@ is NULL or the datum cannot be found.
 .Pp
 The
 .Fn twalk
-function returns no value.
+and
+.Fn tdestroy
+functions return no value.
 .Sh EXAMPLES
 This example uses
 .Fn tsearch
@@ -184,6 +195,7 @@ main(void)
 	tdelete(four, &root, comp);
 
 	twalk(root, printwalk);
+	tdestroy(root, NULL);
 	return 0;
 }
 .Ed
@@ -192,8 +204,17 @@ main(void)
 .Xr hsearch 3 ,
 .Xr lsearch 3
 .Sh STANDARDS
-These functions conform to
+These
+.Fn tdelete ,
+.Fn tfind ,
+.Fn tsearch ,
+and
+.Fn twalk
+functions conform to
 .St -p1003.1-2008 .
+The
+.Fn tdestroy
+function is the glibc extension.
 .Pp
 The
 .Fa posix_tnode
