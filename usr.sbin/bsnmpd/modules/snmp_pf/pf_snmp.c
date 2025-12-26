@@ -1288,8 +1288,7 @@ pfs_refresh(void)
 	pfs = pfctl_get_status_h(pfh);
 
 	if (pfs == NULL) {
-		syslog(LOG_ERR, "pfs_refresh(): ioctl(): %s",
-		    strerror(errno));
+		syslog(LOG_ERR, "pfs_refresh(): pfctl_get_status failure");
 		return (-1);
 	}
 
