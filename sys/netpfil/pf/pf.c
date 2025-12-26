@@ -9343,7 +9343,8 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 			   ifp->if_mtu, pd->af, r, pd->act.rtableid);
 		}
 		SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
-		action = PF_DROP;
+		/* Return pass, so we return PFIL_CONSUMED to the stack. */
+		action = PF_PASS;
 		goto bad;
 	}
 
@@ -9665,7 +9666,8 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 				pf_send_icmp(m0, ICMP6_PACKET_TOO_BIG, 0,
 				    ifp->if_mtu, pd->af, r, pd->act.rtableid);
 		}
-		action = PF_DROP;
+		/* Return pass, so we return PFIL_CONSUMED to the stack. */
+		action = PF_PASS;
 		SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
 		goto bad;
 	}
