@@ -1116,6 +1116,7 @@ acpi_child_deleted(device_t dev, device_t child)
 
     if (acpi_get_device(dinfo->ad_handle) == child)
 	AcpiDetachData(dinfo->ad_handle, acpi_fake_objhandler);
+    free(dinfo, M_ACPIDEV);
 }
 
 /*
