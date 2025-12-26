@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 20, 2023
+.Dd December 26, 2025
 .Dt BHYVE_CONFIG 5
 .Os
 .Sh NAME
@@ -124,10 +124,10 @@ Wire guest memory.
 Generate ACPI tables.
 .It Va acpi_tables_in_memory Ta bool Ta true Ta
 .Xr bhyve 8
-always exposes ACPI tables by FwCfg.
+always exposes ACPI tables by fw_cfg.
 For backward compatibility bhyve copies them into the guest memory as well.
 This can cause problems if the guest uses the in-memory version, since certain
-advanced features, such as TPM emulation, are exposed only via FwCfg.
+advanced features, such as TPM emulation, are exposed only via fw_cfg.
 Therefore, it is recommended to set this flag to false when running Windows guests.
 .It Va destroy_on_poweroff Ta bool Ta false Ta
 Destroy the VM on guest-initiated power-off.
@@ -265,7 +265,7 @@ Intel e82545 network interface.
 VGA framebuffer device attached to VNC server.
 .It Li lpc
 LPC PCI-ISA bridge with COM1-COM4 16550 serial ports,
-a boot ROM, and, optionally, a TPM module, a fwcfg type,
+a boot ROM, and, optionally, a TPM module, a fw_cfg type,
 and a debug/test device.
 This device must be configured on bus 0.
 .It Li hda
@@ -469,7 +469,8 @@ or
 .Dq hd .
 .It Va nmrr Ta integer Ta 0 Ta
 Nominal Media Rotation Rate, also known as RPM.
-A value 1 of indicates a device with no rate such as a Solid State Disk.
+A value 1 of indicates that the device is a solid state drive, i.e,
+non-rotational.
 .It Va ser Ta string Ta generated Ta
 Serial number of up to twenty characters.
 A default serial number is generated using a hash of the backing
@@ -560,12 +561,12 @@ Settings for the COM3 serial port device.
 .It Va com4 Ta node Ta Ta
 Settings for the COM4 serial port device.
 .It Va fwcfg Ta string Ta bhyve Ta
-The fwcfg type to be used.
+The fw_cfg type to be used.
 Supported values are
 .Dq bhyve
 for fwctl and
 .Dq qemu
-for fwcfg.
+for fw_cfg.
 .It Va pc-testdev Ta bool Ta false Ta
 Enable the PC debug/test device.
 .It Va pcireg.* Ta integer Ta Ta
@@ -642,7 +643,7 @@ IEEE Extended Unique Identifier.
 If an EUI is not provided, a default is generated using a checksum of the
 device's PCI address.
 .It Va dsm Ta string Ta auto Ta
-Whether or not to advertise DataSet Management support.
+Whether or not to advertise Dataset Management support.
 One of
 .Dq auto ,
 .Dq enable ,
