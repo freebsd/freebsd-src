@@ -86,7 +86,6 @@ struct apei_pges {
 };
 
 struct apei_softc {
-	ACPI_TABLE_HEST *hest;
 	TAILQ_HEAD(, apei_ge) ges;
 	struct apei_nges nges;
 	struct apei_iges iges;
@@ -562,9 +561,8 @@ hest_parse_structure(struct apei_softc *sc, void *addr, int remaining)
 }
 
 static void
-hest_parse_table(struct apei_softc *sc)
+hest_parse_table(ACPI_TABLE_HEST *hest, struct apei_softc *sc)
 {
-	ACPI_TABLE_HEST *hest = sc->hest;
 	char *cp;
 	int remaining, consumed;
 
@@ -662,6 +660,7 @@ static int
 apei_attach(device_t dev)
 {
 	struct apei_softc *sc = device_get_softc(dev);
+	ACPI_TABLE_HEADER *hest;
 	struct acpi_softc *acpi_sc;
 	struct apei_pges *pges;
 	struct apei_ge *ge;
@@ -691,11 +690,11 @@ apei_attach(device_t dev)
 	}
 
 	/* Search and parse HEST table. */
-	status = AcpiGetTable(ACPI_SIG_HEST, 0, (ACPI_TABLE_HEADER **)&sc->hest);
+	status = AcpiGetTable(ACPI_SIG_HEST, 0, &hest);
 	if (ACPI_FAILURE(status))
 		return (ENXIO);
-	hest_parse_table(sc);
-	AcpiPutTable((ACPI_TABLE_HEADER *)sc->hest);
+	hest_parse_table((ACPI_TABLE_HEST *)hest, sc);
+	AcpiPutTable(hest);
 
 	rid = 0;
 	TAILQ_FOREACH(ge, &sc->ges, link) {
