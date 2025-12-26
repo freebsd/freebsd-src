@@ -149,7 +149,11 @@ cmd_debug::run(cmdline::ui* ui, const cmdline::parsed_cmdline& cmdline,
     const engine::test_filter filter = engine::test_filter::parse(
         test_case_name);
 
-    auto debugger = std::shared_ptr< engine::debugger >(new dbg(ui, cmdline));
+    engine::debugger_ptr debugger = nullptr;
+    if (cmdline.has_option(pause_before_cleanup_upon_fail_option.long_name())
+        || cmdline.has_option(pause_before_cleanup_option.long_name())) {
+        debugger = std::shared_ptr< engine::debugger >(new dbg(ui, cmdline));
+    }
 
     const drivers::debug_test::result result = drivers::debug_test::drive(
         debugger,
