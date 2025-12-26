@@ -55,8 +55,10 @@
 	if ((ptr) != NULL)						\
 		perror(ptr);						\
 	fprintf(stderr, ##x);						\
-	remove(tbfl);							\
-	remove(tofl);							\
+	if (tbfl != NULL)						\
+		remove(tbfl);						\
+	if (tofl != NULL)						\
+		remove(tofl);						\
 	exit(EXIT_FAILURE);						\
 } while (0)
 
@@ -703,6 +705,8 @@ main(int argc, char *argv[])
 	uintptr_t tmppc, ostart, oend;
 	int cget, asmsrc;
 
+	tbfl = NULL;
+	tofl = NULL;
 	exec = argv[0];
 	ofile = NULL;
 	bin = NULL;
