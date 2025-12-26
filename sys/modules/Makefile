@@ -579,6 +579,7 @@ _mlx5ib=	mlx5ib
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
     ${MACHINE_CPUARCH} == "i386"
+_acpi=		acpi
 _ena=		ena
 _gve=		gve
 _igc=		igc
@@ -776,7 +777,6 @@ _wdatwd=	wdatwd
 
 _aac=		aac
 _aacraid=	aacraid
-_acpi=		acpi
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 _aesni=		aesni
 .endif
