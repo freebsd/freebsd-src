@@ -147,4 +147,5 @@ MLINKS+=strtoul.3 strtoull.3 \
 	strtoul.3 strtoumax.3
 MLINKS+=tsearch.3 tdelete.3 \
 	tsearch.3 tfind.3 \
-	tsearch.3 twalk.3
+	tsearch.3 twalk.3 \
+	tsearch.3 tdestroy.3
