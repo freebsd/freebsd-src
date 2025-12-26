@@ -4203,7 +4203,7 @@ static int				acpi_ioctl_hooks_initted;
 int
 acpi_register_ioctl(u_long cmd, acpi_ioctl_fn fn, void *arg)
 {
-    struct acpi_ioctl_hook	*hp;
+    struct acpi_ioctl_hook *hp, *thp;
 
     if ((hp = malloc(sizeof(*hp), M_ACPIDEV, M_NOWAIT)) == NULL)
 	return (ENOMEM);
@@ -4216,6 +4216,14 @@ acpi_register_ioctl(u_long cmd, acpi_ioctl_fn fn, void *arg)
 	TAILQ_INIT(&acpi_ioctl_hooks);
 	acpi_ioctl_hooks_initted = 1;
     }
+    TAILQ_FOREACH(thp, &acpi_ioctl_hooks, link) {
+	if (thp->cmd == cmd) {
+	    ACPI_UNLOCK(acpi);
+	    free(hp, M_ACPIDEV);
+	    return (EBUSY);
+	}
+    }
+
     TAILQ_INSERT_TAIL(&acpi_ioctl_hooks, hp, link);
     ACPI_UNLOCK(acpi);
 
