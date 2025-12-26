@@ -55,7 +55,7 @@
  * Structure of a dos directory entry.
  */
 struct direntry {
-	uint8_t		deName[11];	/* filename, blank filled */
+	uint8_t		deName[11] __nonstring;	/* filename, blank filled */
 #define	SLOT_EMPTY	0x00		/* slot has never been used */
 #define	SLOT_E5		0x05		/* the real value is 0xe5 */
 #define	SLOT_DELETED	0xe5		/* file in this slot deleted */
