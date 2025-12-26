@@ -623,16 +623,89 @@ acpi_handle_bert(ACPI_TABLE_HEADER *sdp)
 	printf(END_COMMENT);
 }
 
-static void
-acpi_print_whea(ACPI_WHEA_HEADER *w)
+static const char *
+einj_action(UINT8 Action)
 {
+	static char buf[32];
 
-	printf("\n\tAction=%d\n", w->Action);
-	printf("\tInstruction=%d\n", w->Instruction);
-	printf("\tFlags=%02x\n", w->Flags);
+#define ACTION(name)							\
+	case __CONCAT(ACPI_EINJ_, name):				\
+		return (__STRING(name))
+#define ACTIONV2(name)							\
+	case __CONCAT(ACPI_EINJV2_, name):				\
+		return (__XSTRING(__CONCAT(V2_, name)))
+
+	switch (Action) {
+	ACTION(BEGIN_OPERATION);
+	ACTION(GET_TRIGGER_TABLE);
+	ACTION(SET_ERROR_TYPE);
+	ACTION(GET_ERROR_TYPE);
+	ACTION(END_OPERATION);
+	ACTION(EXECUTE_OPERATION);
+	ACTION(CHECK_BUSY_STATUS);
+	ACTION(GET_COMMAND_STATUS);
+	ACTION(SET_ERROR_TYPE_WITH_ADDRESS);
+	ACTION(GET_EXECUTE_TIMINGS);
+	ACTIONV2(GET_ERROR_TYPE);
+	ACTION(TRIGGER_ERROR);
+	default:
+		snprintf(buf, sizeof(buf), "UNKNOWN (%#x)", Action);
+		return (buf);
+	}
+
+#undef ACTION
+#undef ACTIONV2
+}
+
+static const char *
+einj_instruction(UINT8 Instruction)
+{
+	static char buf[32];
+
+#define INSTRUCTION(name)						\
+	case __CONCAT(ACPI_EINJ_, name):				\
+		return (__STRING(name))
+
+	switch (Instruction) {
+	INSTRUCTION(READ_REGISTER);
+	INSTRUCTION(READ_REGISTER_VALUE);
+	INSTRUCTION(WRITE_REGISTER);
+	INSTRUCTION(WRITE_REGISTER_VALUE);
+	INSTRUCTION(NOOP);
+	INSTRUCTION(FLUSH_CACHELINE);
+	default:
+		snprintf(buf, sizeof(buf), "UNKNOWN (%#x)", Instruction);
+		return (buf);
+	}
+
+#undef INSTRUCTION
+}
+
+static void
+acpi_print_einj_entry(ACPI_EINJ_ENTRY *entry)
+{
+	ACPI_WHEA_HEADER *w = &entry->WheaHeader;
+
+	printf("\n\tAction=%s\n", einj_action(w->Action));
+	printf("\tInstruction=%s\n", einj_instruction(w->Instruction));
+	if (w->Flags != 0) {
+		printf("\tFlags=%02x", w->Flags);
+		if (w->Flags & 0x1)
+			printf("<PRESERVE_REGISTER>");
+		printf("\n");
+	}
 	printf("\tRegisterRegion=");
 	acpi_print_gas(&w->RegisterRegion);
-	printf("\n\tValue=0x%016jx\n", w->Value);
+	printf("\n");
+	switch (w->Instruction) {
+	case ACPI_EINJ_READ_REGISTER:
+	case ACPI_EINJ_WRITE_REGISTER:
+	case ACPI_EINJ_NOOP:
+	case ACPI_EINJ_FLUSH_CACHELINE:
+		break;
+	default:
+		printf("\tValue=0x%016jx\n", w->Value);
+	}
 	printf("\tMask=0x%016jx\n", w->Mask);
 }
 
@@ -640,7 +713,7 @@ static void
 acpi_handle_einj(ACPI_TABLE_HEADER *sdp)
 {
 	ACPI_TABLE_EINJ *einj;
-	ACPI_WHEA_HEADER *w;
+	ACPI_EINJ_ENTRY *w;
 	u_int i;
 
 	printf(BEGIN_COMMENT);
@@ -649,18 +722,125 @@ acpi_handle_einj(ACPI_TABLE_HEADER *sdp)
 	printf("\tHeaderLength=%d\n", einj->HeaderLength);
 	printf("\tFlags=0x%02x\n", einj->Flags);
 	printf("\tEntries=%d\n", einj->Entries);
-	w = (ACPI_WHEA_HEADER *)(einj + 1);
+	w = (ACPI_EINJ_ENTRY *)(einj + 1);
 	for (i = 0; i < MIN(einj->Entries, (sdp->Length -
-	    sizeof(ACPI_TABLE_EINJ)) / sizeof(ACPI_WHEA_HEADER)); i++)
-		acpi_print_whea(w + i);
+	    sizeof(ACPI_TABLE_EINJ)) / sizeof(ACPI_EINJ_ENTRY)); i++)
+		acpi_print_einj_entry(w + i);
 	printf(END_COMMENT);
+}
+
+static const char *
+erst_action(UINT8 Action)
+{
+	static char buf[32];
+
+#define ACTION(name)							\
+	case __CONCAT(ACPI_ERST_, name):				\
+		return (__STRING(name))
+
+	switch (Action) {
+	ACTION(BEGIN_WRITE);
+	ACTION(BEGIN_READ);
+	ACTION(BEGIN_CLEAR);
+	ACTION(END);
+	ACTION(SET_RECORD_OFFSET);
+	ACTION(EXECUTE_OPERATION);
+	ACTION(CHECK_BUSY_STATUS);
+	ACTION(GET_COMMAND_STATUS);
+	ACTION(GET_RECORD_ID);
+	ACTION(SET_RECORD_ID);
+	ACTION(GET_RECORD_COUNT);
+	ACTION(BEGIN_DUMMY_WRIITE);
+	ACTION(GET_ERROR_RANGE);
+	ACTION(GET_ERROR_LENGTH);
+	ACTION(GET_ERROR_ATTRIBUTES);
+	ACTION(EXECUTE_TIMINGS);
+	default:
+		snprintf(buf, sizeof(buf), "UNKNOWN (%#x)", Action);
+		return (buf);
+	}
+
+#undef ACTION
+}
+
+static const char *
+erst_instruction(UINT8 Instruction)
+{
+	static char buf[32];
+
+#define INSTRUCTION(name)						\
+	case __CONCAT(ACPI_ERST_, name):				\
+		return (__STRING(name))
+
+	switch (Instruction) {
+	INSTRUCTION(READ_REGISTER);
+	INSTRUCTION(READ_REGISTER_VALUE);
+	INSTRUCTION(WRITE_REGISTER);
+	INSTRUCTION(WRITE_REGISTER_VALUE);
+	INSTRUCTION(NOOP);
+	INSTRUCTION(LOAD_VAR1);
+	INSTRUCTION(LOAD_VAR2);
+	INSTRUCTION(STORE_VAR1);
+	INSTRUCTION(ADD);
+	INSTRUCTION(SUBTRACT);
+	INSTRUCTION(ADD_VALUE);
+	INSTRUCTION(SUBTRACT_VALUE);
+	INSTRUCTION(STALL);
+	INSTRUCTION(STALL_WHILE_TRUE);
+	INSTRUCTION(SKIP_NEXT_IF_TRUE);
+	INSTRUCTION(GOTO);
+	INSTRUCTION(SET_SRC_ADDRESS_BASE);
+	INSTRUCTION(SET_DST_ADDRESS_BASE);
+	INSTRUCTION(MOVE_DATA);
+	default:
+		snprintf(buf, sizeof(buf), "UNKNOWN (%#x)", Instruction);
+		return (buf);
+	}
+
+#undef INSTRUCTION
+}
+
+static void
+acpi_print_erst_entry(ACPI_ERST_ENTRY *entry)
+{
+	ACPI_WHEA_HEADER *w = &entry->WheaHeader;
+
+	printf("\n\tAction=%s\n", erst_action(w->Action));
+	printf("\tInstruction=%s\n", erst_instruction(w->Instruction));
+	if (w->Flags != 0) {
+		printf("\tFlags=%02x", w->Flags);
+		if (w->Flags & 0x1)
+			printf("<PRESERVE_REGISTER>");
+		printf("\n");
+	}
+	printf("\tRegisterRegion=");
+	acpi_print_gas(&w->RegisterRegion);
+	printf("\n");
+	switch (w->Instruction) {
+	case ACPI_ERST_READ_REGISTER:
+	case ACPI_ERST_WRITE_REGISTER:
+	case ACPI_ERST_NOOP:
+	case ACPI_ERST_LOAD_VAR1:
+	case ACPI_ERST_LOAD_VAR2:
+	case ACPI_ERST_STORE_VAR1:
+	case ACPI_ERST_ADD:
+	case ACPI_ERST_SUBTRACT:
+	case ACPI_ERST_SET_SRC_ADDRESS_BASE:
+	case ACPI_ERST_SET_DST_ADDRESS_BASE:
+	case ACPI_ERST_MOVE_DATA:
+		break;
+	default:
+		printf("\tValue=0x%016jx\n", w->Value);
+		break;
+	}
+	printf("\tMask=0x%016jx\n", w->Mask);
 }
 
 static void
 acpi_handle_erst(ACPI_TABLE_HEADER *sdp)
 {
 	ACPI_TABLE_ERST *erst;
-	ACPI_WHEA_HEADER *w;
+	ACPI_ERST_ENTRY *w;
 	u_int i;
 
 	printf(BEGIN_COMMENT);
@@ -668,10 +848,10 @@ acpi_handle_erst(ACPI_TABLE_HEADER *sdp)
 	erst = (ACPI_TABLE_ERST *)sdp;
 	printf("\tHeaderLength=%d\n", erst->HeaderLength);
 	printf("\tEntries=%d\n", erst->Entries);
-	w = (ACPI_WHEA_HEADER *)(erst + 1);
+	w = (ACPI_ERST_ENTRY *)(erst + 1);
 	for (i = 0; i < MIN(erst->Entries, (sdp->Length -
-	    sizeof(ACPI_TABLE_ERST)) / sizeof(ACPI_WHEA_HEADER)); i++)
-		acpi_print_whea(w + i);
+	    sizeof(ACPI_TABLE_ERST)) / sizeof(ACPI_ERST_ENTRY)); i++)
+		acpi_print_erst_entry(w + i);
 	printf(END_COMMENT);
 }
 
