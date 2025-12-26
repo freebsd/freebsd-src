@@ -349,6 +349,7 @@ DISKINCS+=	${SRCTOP}/sys/sys/disk/bsd.h
 
 # Needed to build most of the things below, which include sys/cdefs.h either
 # directly or transitively
+SYSINCS+=	${SRCTOP}/sys/sys/_visible.h
 SYSINCS+=	${SRCTOP}/sys/sys/cdefs.h
 
 # Needed to build config (since it uses libnv)
