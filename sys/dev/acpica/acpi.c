@@ -4197,8 +4197,8 @@ struct acpi_ioctl_hook
     void			 *arg;
 };
 
-static TAILQ_HEAD(,acpi_ioctl_hook)	acpi_ioctl_hooks;
-static int				acpi_ioctl_hooks_initted;
+static TAILQ_HEAD(,acpi_ioctl_hook) acpi_ioctl_hooks =
+	TAILQ_HEAD_INITIALIZER(acpi_ioctl_hooks);
 
 int
 acpi_register_ioctl(u_long cmd, acpi_ioctl_fn fn, void *arg)
@@ -4211,10 +4211,6 @@ acpi_register_ioctl(u_long cmd, acpi_ioctl_fn fn, void *arg)
     hp->arg = arg;
 
     ACPI_LOCK(acpi);
-    if (acpi_ioctl_hooks_initted == 0) {
-	TAILQ_INIT(&acpi_ioctl_hooks);
-	acpi_ioctl_hooks_initted = 1;
-    }
     TAILQ_FOREACH(thp, &acpi_ioctl_hooks, link) {
 	if (thp->cmd == cmd) {
 	    ACPI_UNLOCK(acpi);
@@ -4274,11 +4270,10 @@ acpiioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
      * Scan the list of registered ioctls, looking for handlers.
      */
     ACPI_LOCK(acpi);
-    if (acpi_ioctl_hooks_initted)
-	TAILQ_FOREACH(hp, &acpi_ioctl_hooks, link) {
-	    if (hp->cmd == cmd)
-		break;
-	}
+    TAILQ_FOREACH(hp, &acpi_ioctl_hooks, link) {
+	if (hp->cmd == cmd)
+	    break;
+    }
     ACPI_UNLOCK(acpi);
     if (hp)
 	return (hp->fn(cmd, addr, hp->arg));
