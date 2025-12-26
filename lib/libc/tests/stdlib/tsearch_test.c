@@ -147,10 +147,75 @@ ATF_TC_BODY(tsearch_test, tc)
 	ATF_CHECK_EQ(NULL, root);
 }
 
+static int nodes;
+
+struct my_data {
+	int key;
+};
+
+static struct my_data *
+new_my_data(int key)
+{
+	struct my_data *res;
+
+	res = malloc(sizeof(struct my_data));
+	res->key = key;
+	nodes++;
+	return (res);
+}
+
+void
+free_my_data(void *mdp)
+{
+	free(mdp);
+	nodes--;
+}
+
+static int
+compare_my_data(const void *mdp1, const void *mdp2)
+{
+	const struct my_data *md1, *md2;
+
+	md1 = mdp1;
+	md2 = mdp2;
+
+	return (md1->key - md2->key);
+}
+
+static posix_tnode *root = NULL;
+
+static void
+insert(int x)
+{
+	struct my_data *md;
+
+	md = new_my_data(x);
+	tsearch(md, &root, compare_my_data);
+}
+
+ATF_TC_WITHOUT_HEAD(tdestroy_test);
+ATF_TC_BODY(tdestroy_test, tc)
+{
+	root = NULL;
+	insert(1);
+	insert(100);
+	insert(1000);
+	insert(5);
+	insert(6);
+	insert(12);
+	insert(2000);
+	insert(3);
+
+	ATF_CHECK_EQ(8, nodes);
+	tdestroy(root, free_my_data);
+	ATF_CHECK_EQ(0, nodes);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, tsearch_test);
+	ATF_TP_ADD_TC(tp, tdestroy_test);
 
 	return (atf_no_error());
 }
