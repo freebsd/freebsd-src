@@ -40,7 +40,7 @@
 #  TARGET/TARGET_ARCH: architecture of built release
 #
 
-WORLDDIR?=	${.CURDIR}/..
+WORLDDIR?=	${.CURDIR:H}
 PORTSDIR?=	/usr/ports
 
 .include "${WORLDDIR}/share/mk/bsd.compat.pre.mk"
@@ -62,7 +62,7 @@ DISTDIR=	dist
 # Define OSRELEASE by using newvers.sh
 .if !defined(OSRELEASE) || empty(OSRELEASE)
 .for _V in TYPE BRANCH REVISION
-${_V}!=	eval $$(awk '/^${_V}=/{print}' ${.CURDIR}/../sys/conf/newvers.sh); echo $$${_V}
+${_V}!=	eval $$(awk '/^${_V}=/{print}' ${.CURDIR:H}/sys/conf/newvers.sh); echo $$${_V}
 .endfor
 .for _V in ${TARGET_ARCH}
 .if !empty(TARGET:M${_V})
