@@ -74,6 +74,8 @@
 #include "utils/process/executor_fwd.hpp"
 #include "utils/process/status_fwd.hpp"
 
+using utils::none;
+
 namespace engine {
 namespace scheduler {
 
@@ -248,7 +250,9 @@ public:
                                      const utils::config::tree&);
     exec_handle spawn_test(const model::test_program_ptr,
                            const std::string&,
-                           const utils::config::tree&);
+                           const utils::config::tree&,
+                           const utils::optional<utils::fs::path>& = none,
+                           const utils::optional<utils::fs::path>& = none);
     result_handle_ptr wait_any(void);
 
     result_handle_ptr debug_test(const model::test_program_ptr,
