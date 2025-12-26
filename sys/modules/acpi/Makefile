@@ -1,9 +1,9 @@
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 SUBDIR=	\
 	acpi_asus \
 	acpi_asus_wmi \
 	acpi_dock \
 	acpi_fujitsu \
-	acpi_ged \
 	acpi_hp \
 	acpi_ibm \
 	acpi_panasonic \
@@ -13,5 +13,9 @@ SUBDIR=	\
 	acpi_video \
 	acpi_wmi \
 	aibs
+.endif
+
+SUBDIR+= \
+	acpi_ged
 
 .include <bsd.subdir.mk>
