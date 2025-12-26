@@ -517,8 +517,10 @@ Intel e82545 network interfaces support the following variables:
 .It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
 .It Va mac Ta MAC address Ta generated Ta
 MAC address.
-If an explicit address is not provided,
-a MAC address is generated from a hash of the device's PCI address.
+If not specified, the MAC address is derived from a fixed OUI, and the
+remaining bytes from an MD5 hash of the slot and function numbers and
+the device name.
+If specified, it must be a unicast MAC address.
 .El
 .Ss Frame Buffer Settings
 .Bl -column "password" "[IP:]port" "127.0.0.1:5900"
@@ -746,8 +748,10 @@ VirtIO network interfaces support the following variables:
 .It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
 .It Va mac Ta MAC address Ta generated Ta
 MAC address.
-If an explicit address is not provided,
-a MAC address is generated from a hash of the device's PCI address.
+If not specified, the MAC address is derived from a fixed OUI, and the
+remaining bytes from an MD5 hash of the slot and function numbers and
+the device name.
+If specified, it must be a unicast MAC address.
 .It Va mtu Ta integer Ta 1500 Ta
 The largest supported MTU advertised to the guest.
 .El
