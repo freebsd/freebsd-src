@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 23, 2025
+.Dd December 26, 2025
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -429,6 +429,7 @@ If
 is not specified, the MAC address is derived from a fixed OUI and the
 remaining bytes from an MD5 hash of the slot and function numbers and
 the device name.
+If specified, it must be a unicast MAC address.
 .Pp
 The MAC address is an ASCII string in
 .Xr ethers 5
