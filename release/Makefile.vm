@@ -73,7 +73,7 @@ CLOUDWARE?=	${CLOUDWARE_GEN}
 
 .for _V in TYPE BRANCH REVISION
 . if !defined(${_V}) || empty(${_V})
-${_V}!=	eval $$(awk '/^${_V}=/{print}' ${.CURDIR}/../sys/conf/newvers.sh); echo $$${_V}
+${_V}!=	eval $$(awk '/^${_V}=/{print}' ${.CURDIR:H}/sys/conf/newvers.sh); echo $$${_V}
 . endif
 .endfor
 
