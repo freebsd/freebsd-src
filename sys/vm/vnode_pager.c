@@ -1523,49 +1523,47 @@ void
 vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written, off_t eof,
     int lpos)
 {
-	int i, pos, pos_devb;
+	int i, npages, pos;
 
-	if (written == 0 && eof >= lpos)
-		return;
-	for (i = 0, pos = 0; pos < written; i++, pos += PAGE_SIZE) {
-		if (pos < trunc_page(written)) {
-			rtvals[i] = VM_PAGER_OK;
-			vm_page_undirty(ma[i]);
-		} else {
-			/* Partially written page. */
-			rtvals[i] = VM_PAGER_AGAIN;
-			vm_page_clear_dirty(ma[i], 0, written & PAGE_MASK);
-		}
+	/* Process pages up to round_page(written) */
+	pos = written & PAGE_MASK;
+	npages = atop(written);
+	for (i = 0; i < npages; i++) {
+		rtvals[i] = VM_PAGER_OK;
+		vm_page_undirty(ma[i]);
 	}
-	if (eof >= lpos) /* avoid truncation */
-		return;
-	for (pos = eof, i = OFF_TO_IDX(trunc_page(pos)); pos < lpos; i++) {
-		if (pos != trunc_page(pos)) {
-			/*
-			 * The page contains the last valid byte in
-			 * the vnode, mark the rest of the page as
-			 * clean, potentially making the whole page
-			 * clean.
-			 */
-			pos_devb = roundup2(pos & PAGE_MASK, DEV_BSIZE);
-			vm_page_clear_dirty(ma[i], pos_devb, PAGE_SIZE -
-			    pos_devb);
+	if (pos != 0) {
+		/* Partially written page. */
+		rtvals[i] = VM_PAGER_AGAIN;
+		vm_page_clear_dirty(ma[i], 0, pos);
+	}
 
-			/*
-			 * If the page was cleaned, report the pageout
-			 * on it as successful.  msync() no longer
-			 * needs to write out the page, endlessly
-			 * creating write requests and dirty buffers.
-			 */
-			if (ma[i]->dirty == 0)
-				rtvals[i] = VM_PAGER_OK;
+	/* Process pages from trunc_page(eof) to round_page(lpos) */
+	pos = eof & PAGE_MASK;
+	i = atop(eof);
+	npages = atop(lpos);
+	if (i < npages && pos != 0) {
+		/*
+		 * The page contains the last valid byte in the
+		 * vnode, mark the rest of the page as clean,
+		 * potentially making the whole page clean.
+		 */
+		pos = roundup2(pos, DEV_BSIZE);
+		vm_page_clear_dirty(ma[i], pos, PAGE_SIZE - pos);
 
-			pos = round_page(pos);
-		} else {
-			/* vm_pageout_flush() clears dirty */
-			rtvals[i] = VM_PAGER_BAD;
-			pos += PAGE_SIZE;
-		}
+		/*
+		 * If the page was cleaned, report the pageout on it
+		 * as successful.  msync() no longer needs to write
+		 * out the page, endlessly creating write requests
+		 * and dirty buffers.
+		 */
+		if (ma[i]->dirty == 0)
+			rtvals[i] = VM_PAGER_OK;
+		i++;
+	}
+	for (; i < npages; i++) {
+		/* vm_pageout_flush() clears dirty */
+		rtvals[i] = VM_PAGER_BAD;
 	}
 }
 
