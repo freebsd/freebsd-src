@@ -4205,8 +4205,7 @@ acpi_register_ioctl(u_long cmd, acpi_ioctl_fn fn, void *arg)
 {
     struct acpi_ioctl_hook *hp, *thp;
 
-    if ((hp = malloc(sizeof(*hp), M_ACPIDEV, M_NOWAIT)) == NULL)
-	return (ENOMEM);
+    hp = malloc(sizeof(*hp), M_ACPIDEV, M_WAITOK);
     hp->cmd = cmd;
     hp->fn = fn;
     hp->arg = arg;
