@@ -30,3 +30,6 @@ tags
 .ccls-cache
 sys/*/compile
 /src.conf
+
+# for crossbuilds on macOS
+tools/build/test-includes
