@@ -29,7 +29,8 @@ __uexterr_format(const struct uexterror *ue, char *buf, size_t bufsz)
 		    ue->error, ue->cat, ue->src_line,
 		    (uintmax_t)ue->p1, (uintmax_t)ue->p2);
 	} else {
-		strlcpy(buf, ue->msg, bufsz);
+		snprintf(buf, bufsz, ue->msg, (uintmax_t)ue->p1,
+		    (uintmax_t)ue->p2);
 	}
 	return (0);
 }
