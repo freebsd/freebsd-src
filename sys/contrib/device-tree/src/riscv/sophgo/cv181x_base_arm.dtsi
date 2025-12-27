@@ -1,0 +1,320 @@
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/reset/cv181x-resets.h>
+#include <dt-bindings/clock/cv181x-clock.h>
+#include <dt-bindings/thermal/thermal.h>
+#include <dt-bindings/dma/cv181x-dmamap.h>
+#include "cv181x_base.dtsi"
+
+/ {
+	model = "Cvitek. CV181X ASIC. ARM.";
+	interrupt-parent = <&gic>;
+
+	#size-cells = <0x2>;
+	#address-cells = <0x2>;
+
+	gic: interrupt-controller {
+		compatible = "arm,cortex-a15-gic";
+		ranges;
+		#size-cells = <0x2>;
+		#address-cells = <0x2>;
+		interrupt-controller;
+		#interrupt-cells = <0x3>;
+		reg = <0x0 0x01F01000 0x0 0x1000>,
+		      <0x0 0x01F02000 0x0 0x2000>;
+	};
+
+	pmu_a53 {
+		compatible = "arm,cortex-a53-pmu";
+		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&A53_0>;
+	};
+
+	psci {
+		migrate = <0xc4000005>;
+		cpu_on = <0xc4000003>;
+		cpu_off = <0x84000002>;
+		cpu_suspend = <0xc4000001>;
+		sys_poweroff = <0x84000008>;
+		sys_reset = <0x84000009>;
+		method = "smc";
+		compatible = "arm,psci-0.2", "arm,psci";
+	};
+
+	cpus {
+		#size-cells = <0x0>;
+		#address-cells = <0x1>;
+
+		A53_0: cpu@0 {
+			reg = <0x0>;
+			enable-method = "psci";
+			compatible = "arm,cortex-a53";
+			device_type = "cpu";
+			next-level-cache = <&CA53_L2>;
+		};
+
+		CA53_L2: l2-cache0 {
+			compatible = "cache";
+		};
+	};
+
+	timer {
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
+			<GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
+			<GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
+			<GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>;
+		always-on;
+		clock-frequency = <25000000>;
+		compatible = "arm,armv8-timer";
+	};
+
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
+	};
+
+	cv181x_cooling:cv181x_cooling {
+		clocks = <&clk CV181X_CLK_A53>, <&clk CV181X_CLK_TPU>;
+		clock-names = "clk_cpu", "clk_tpu_axi";
+		dev-freqs = <800000000 500000000>,
+			<400000000 375000000>,
+			<400000000 300000000>;
+		compatible = "cvitek,cv181x-cooling";
+		#cooling-cells = <2>;
+	};
+
+	tpu {
+		interrupts = <GIC_SPI 59 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 60 IRQ_TYPE_EDGE_RISING>;
+	};
+
+	mon {
+		interrupts = <GIC_SPI 77 IRQ_TYPE_EDGE_RISING>;
+	};
+
+	wiegand0 {
+		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	wiegand1 {
+		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	wiegand2 {
+		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	saradc {
+		interrupts = <GIC_SPI 84 IRQ_TYPE_EDGE_RISING>;
+	};
+
+	rtc {
+		interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	sysdma_remap {
+		int_mux = <0x1FF>; /* enable bit [0..8] for CPU0(CA53) */
+	};
+
+	dmac: dma@0x4330000 {
+		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+#if 0
+	watchdog0: cv-wd@0x3010000 {
+		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+	};
+#endif
+	trng: dw_trng@0x02070000 {
+		reg = <0x0 0x02070000 0x0 0x1000>;
+		compatible = "snps,dw-trng";
+	};
+	
+	spinand:cv-spinf@4060000 {
+		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	spif:cvi-spif@10000000 {
+		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	spi0:spi0@04180000 {
+		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	spi1:spi1@04190000 {
+		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	spi2:spi2@041A0000 {
+		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	spi3:spi3@041B0000 {
+		interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	uart0: serial@04140000 {
+		interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	uart1: serial@04150000 {
+		interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	uart2: serial@04160000 {
+		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	uart3: serial@04170000 {
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	uart4: serial@041C0000 {
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	gpio0: gpio@03020000 {
+		porta: gpio-controller@0 {
+			interrupt-controller;
+			interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	gpio1: gpio@03021000 {
+		portb: gpio-controller@1 {
+			interrupt-controller;
+			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	gpio2: gpio@03022000 {
+		portc: gpio-controller@2 {
+			interrupt-controller;
+			interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	gpio3: gpio@03023000 {
+		portd: gpio-controller@3 {
+			interrupt-controller;
+			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	gpio4: gpio@05021000 {
+		porte: gpio-controller@4 {
+			interrupt-controller;
+			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	i2c0: i2c@04000000 {
+		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2c1: i2c@04010000 {
+		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2c2: i2c@04020000 {
+		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2c3: i2c@04030000 {
+		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2c4: i2c@04040000 {
+		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	ethernet0: ethernet@4070000 {
+		interrupt-names = "macirq";
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	emmc:cv-emmc@4300000 {
+		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	sd:cv-sd@4310000 {
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2s0: i2s@04100000 {
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2s1: i2s@04110000 {
+		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2s2: i2s@04120000 {
+		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2s3: i2s@04130000 {
+		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	wifisd:wifi-sd@4320000 {
+		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	mipi_rx: cif {
+		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "csi0", "csi1";
+	};
+
+	vi {
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "isp";
+	};
+
+	ive {
+		interrupt-names = "ive_irq";
+		interrupts = <GIC_SPI 81 IRQ_TYPE_EDGE_RISING>;
+	};
+
+	vpss {
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "sc";
+	};
+
+	dwa {
+		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "dwa";
+	};
+
+	vcodec {
+		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "h265","h264","sbm";
+	};
+
+	jpu {
+		interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "jpeg";
+	};
+
+	rtos_cmdqu {
+		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "mailbox";
+	};
+
+	usb: usb@04340000 {
+		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	thermal:thermal@030E0000 {
+		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "tempsen";
+	};
+
+};
