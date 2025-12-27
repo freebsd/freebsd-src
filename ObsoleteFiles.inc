@@ -469,6 +469,31 @@ OLD_FILES+=usr/lib/clang/19/share/msan_ignorelist.txt
 OLD_DIRS+=usr/lib/clang/19/share
 OLD_DIRS+=usr/lib/clang/19
 
+# 20260425: new libc++ import which bumps version from 19 to 21
+OLD_FILES+=usr/include/c++/v1/__algorithm/fold.h
+OLD_FILES+=usr/include/c++/v1/__atomic/atomic_base.h
+OLD_FILES+=usr/include/c++/v1/__atomic/cxx_atomic_impl.h
+OLD_FILES+=usr/include/c++/v1/__locale_dir/locale_base_api/bsd_locale_defaults.h
+OLD_FILES+=usr/include/c++/v1/__locale_dir/locale_base_api/locale_guard.h
+OLD_FILES+=usr/include/c++/v1/__memory/builtin_new_allocator.h
+OLD_FILES+=usr/include/c++/v1/__memory/voidify.h
+OLD_FILES+=usr/include/c++/v1/__std_clang_module
+OLD_FILES+=usr/include/c++/v1/__type_traits/add_const.h
+OLD_FILES+=usr/include/c++/v1/__type_traits/add_cv.h
+OLD_FILES+=usr/include/c++/v1/__type_traits/add_lvalue_reference.h
+OLD_FILES+=usr/include/c++/v1/__type_traits/add_rvalue_reference.h
+OLD_FILES+=usr/include/c++/v1/__type_traits/add_volatile.h
+OLD_FILES+=usr/include/c++/v1/__type_traits/is_member_function_pointer.h
+OLD_FILES+=usr/include/c++/v1/__type_traits/is_member_object_pointer.h
+OLD_FILES+=usr/include/c++/v1/__type_traits/is_nothrow_convertible.h
+OLD_FILES+=usr/include/c++/v1/__type_traits/is_scoped_enum.h
+OLD_FILES+=usr/include/c++/v1/__type_traits/is_signed_integer.h
+OLD_FILES+=usr/include/c++/v1/__type_traits/is_unsigned_integer.h
+OLD_FILES+=usr/include/c++/v1/__type_traits/noexcept_move_assign_container.h
+OLD_FILES+=usr/include/c++/v1/experimental/__config
+OLD_FILES+=usr/include/c++/v1/locale.h
+OLD_FILES+=usr/include/c++/v1/stdint.h
+
 # 20260420: remove perfmon
 OLD_FILES+=boot/kernel/perfmon.ko
 OLD_FILES+=usr/share/man/man4/perfmon.4.gz

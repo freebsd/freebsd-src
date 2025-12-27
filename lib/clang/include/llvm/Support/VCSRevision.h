@@ -1,2 +1,2 @@
-#define LLVM_REVISION "llvmorg-21-init-19288-gface93e724f4"
+#define LLVM_REVISION "llvmorg-21.1.7-0-gcd708029e0b2"
 #define LLVM_REPOSITORY "https://github.com/llvm/llvm-project.git"

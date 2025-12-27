@@ -170,6 +170,10 @@ void CGDebugInfo::addInstToSpecificSourceAtom(llvm::Instruction *KeyInstruction,
   if (!Group || !CGM.getCodeGenOpts().DebugKeyInstructions)
     return;
 
+  llvm::DISubprogram *SP = KeyInstruction->getFunction()->getSubprogram();
+  if (!SP || !SP->getKeyInstructionsEnabled())
+    return;
+
   addInstSourceAtomMetadata(KeyInstruction, Group, /*Rank=*/1);
 
   llvm::Instruction *BackupI =
@@ -2641,7 +2645,8 @@ StringRef CGDebugInfo::getVTableName(const CXXRecordDecl *RD) {
 // existing information in the DWARF. The type is assumed to be 'void *'.
 void CGDebugInfo::emitVTableSymbol(llvm::GlobalVariable *VTable,
                                    const CXXRecordDecl *RD) {
-  if (!CGM.getTarget().getCXXABI().isItaniumFamily())
+  if (!CGM.getTarget().getCXXABI().isItaniumFamily() ||
+      CGM.getTarget().getTriple().isOSBinFormatCOFF())
     return;
 
   ASTContext &Context = CGM.getContext();

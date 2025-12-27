@@ -15,6 +15,7 @@ INCS+=		lsan_interface.h
 INCS+=		memprof_interface.h
 INCS+=		msan_interface.h
 INCS+=		netbsd_syscall_hooks.h
+INCS+=		rtsan_interface.h
 INCS+=		scudo_interface.h
 INCS+=		tsan_interface.h
 INCS+=		tsan_interface_atomic.h
