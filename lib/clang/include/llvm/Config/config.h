@@ -301,10 +301,10 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 21.0.0git"
+#define PACKAGE_STRING "LLVM 21.1.7"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "21.0.0git"
+#define PACKAGE_VERSION "21.1.7"
 
 /* Define to the vendor of this package. */
 /* #undef PACKAGE_VENDOR */

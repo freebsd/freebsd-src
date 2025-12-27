@@ -866,6 +866,7 @@
   { include: [ "<__type_traits/is_trivially_relocatable.h>", "private", "<type_traits>", "public" ] },
   { include: [ "<__type_traits/is_unbounded_array.h>", "private", "<type_traits>", "public" ] },
   { include: [ "<__type_traits/is_union.h>", "private", "<type_traits>", "public" ] },
+  { include: [ "<__type_traits/is_unqualified.h>", "private", "<type_traits>", "public" ] },
   { include: [ "<__type_traits/is_unsigned.h>", "private", "<type_traits>", "public" ] },
   { include: [ "<__type_traits/is_valid_expansion.h>", "private", "<type_traits>", "public" ] },
   { include: [ "<__type_traits/is_void.h>", "private", "<type_traits>", "public" ] },
