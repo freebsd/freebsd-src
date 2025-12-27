@@ -90,6 +90,16 @@ The
 .Fn EXTERROR
 macro can take two optional 64-bit integer arguments,
 whose meaning is specific to the subsystem.
+The format string may include up to two printf-like format
+specifiers to insert the optional argument values in the
+user output, which is done in userspace.
+.Pp
+The format specifier must be for an integer type, and include the
+.Dq j
+format modifier to accept only the types
+.Vt intmax_t
+or
+.Vt uintmax_t .
 .El
 .Pp
 The strings passed as the second argument are only retained
