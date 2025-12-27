@@ -411,7 +411,7 @@ bool ContinuationIndenter::mustBreak(const LineState &State) {
   }
   if (CurrentState.BreakBeforeClosingBrace &&
       (Current.closesBlockOrBlockTypeList(Style) ||
-       (Current.is(tok::r_brace) &&
+       (Current.is(tok::r_brace) && Current.MatchingParen &&
         Current.isBlockIndentedInitRBrace(Style)))) {
     return true;
   }
@@ -628,9 +628,16 @@ bool ContinuationIndenter::mustBreak(const LineState &State) {
       // name.
       !Style.isJavaScript() && Previous.isNot(tok::kw_template) &&
       CurrentState.BreakBeforeParameter) {
-    for (const auto *Tok = &Previous; Tok; Tok = Tok->Previous)
-      if (Tok->FirstAfterPPLine || Tok->is(TT_LineComment))
+    for (const auto *Tok = &Previous; Tok; Tok = Tok->Previous) {
+      if (Tok->is(TT_LineComment))
         return false;
+      if (Tok->is(TT_TemplateCloser)) {
+        Tok = Tok->MatchingParen;
+        assert(Tok);
+      }
+      if (Tok->FirstAfterPPLine)
+        return false;
+    }
 
     return true;
   }
