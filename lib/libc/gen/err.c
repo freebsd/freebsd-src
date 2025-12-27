@@ -120,7 +120,7 @@ vexterr(bool doexterr, int code, const char *fmt, va_list ap)
 	}
 	fprintf(err_file, "%s", strerror(code));
 	if (doexterr && extstatus == 0 && exterr[0] != '\0')
-		fprintf(err_file, " (extended error %s)", exterr);
+		fprintf(err_file, " (%s)", exterr);
 	fprintf(err_file, "\n");
 }
 
