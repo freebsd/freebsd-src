@@ -160,6 +160,8 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 
 	# Ports tree
 	/usr/ports	setuid=off
+	/usr/ports/distfiles	compress=off
+	/usr/ports/packages	compress=off
 
 	# Source tree
 	/usr/src
