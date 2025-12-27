@@ -1172,6 +1172,7 @@ OLD_FILES+=usr/lib/clang/21/include/sanitizer/lsan_interface.h
 OLD_FILES+=usr/lib/clang/21/include/sanitizer/memprof_interface.h
 OLD_FILES+=usr/lib/clang/21/include/sanitizer/msan_interface.h
 OLD_FILES+=usr/lib/clang/21/include/sanitizer/netbsd_syscall_hooks.h
+OLD_FILES+=usr/lib/clang/21/include/sanitizer/rtsan_interface.h
 OLD_FILES+=usr/lib/clang/21/include/sanitizer/scudo_interface.h
 OLD_FILES+=usr/lib/clang/21/include/sanitizer/tsan_interface.h
 OLD_FILES+=usr/lib/clang/21/include/sanitizer/tsan_interface_atomic.h

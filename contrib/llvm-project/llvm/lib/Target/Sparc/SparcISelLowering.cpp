@@ -115,7 +115,8 @@ static bool Analyze_CC_Sparc64_Full(bool IsReturn, unsigned &ValNo, MVT &ValVT,
 
   // Stack space is allocated for all arguments starting from [%fp+BIAS+128].
   unsigned size      = (LocVT == MVT::f128) ? 16 : 8;
-  Align alignment = (LocVT == MVT::f128) ? Align(16) : Align(8);
+  Align alignment =
+      (LocVT == MVT::f128 || ArgFlags.isSplit()) ? Align(16) : Align(8);
   unsigned Offset = State.AllocateStack(size, alignment);
   unsigned Reg = 0;
 
@@ -1799,12 +1800,14 @@ SparcTargetLowering::SparcTargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::FCOS , MVT::f64, Expand);
   setOperationAction(ISD::FSINCOS, MVT::f64, Expand);
   setOperationAction(ISD::FREM , MVT::f64, Expand);
-  setOperationAction(ISD::FMA  , MVT::f64, Expand);
+  setOperationAction(ISD::FMA, MVT::f64,
+                     Subtarget->isUA2007() ? Legal : Expand);
   setOperationAction(ISD::FSIN , MVT::f32, Expand);
   setOperationAction(ISD::FCOS , MVT::f32, Expand);
   setOperationAction(ISD::FSINCOS, MVT::f32, Expand);
   setOperationAction(ISD::FREM , MVT::f32, Expand);
-  setOperationAction(ISD::FMA, MVT::f32, Expand);
+  setOperationAction(ISD::FMA, MVT::f32,
+                     Subtarget->isUA2007() ? Legal : Expand);
   setOperationAction(ISD::ROTL , MVT::i32, Expand);
   setOperationAction(ISD::ROTR , MVT::i32, Expand);
   setOperationAction(ISD::BSWAP, MVT::i32, Expand);
@@ -2201,7 +2204,7 @@ SDValue SparcTargetLowering::LowerGlobalTLSAddress(SDValue Op,
     SDValue Chain = DAG.getEntryNode();
     SDValue InGlue;
 
-    Chain = DAG.getCALLSEQ_START(Chain, 1, 0, DL);
+    Chain = DAG.getCALLSEQ_START(Chain, 0, 0, DL);
     Chain = DAG.getCopyToReg(Chain, DL, SP::O0, Argument, InGlue);
     InGlue = Chain.getValue(1);
     SDValue Callee = DAG.getTargetExternalSymbol("__tls_get_addr", PtrVT);
@@ -2219,7 +2222,7 @@ SDValue SparcTargetLowering::LowerGlobalTLSAddress(SDValue Op,
                      InGlue};
     Chain = DAG.getNode(SPISD::TLS_CALL, DL, NodeTys, Ops);
     InGlue = Chain.getValue(1);
-    Chain = DAG.getCALLSEQ_END(Chain, 1, 0, InGlue, DL);
+    Chain = DAG.getCALLSEQ_END(Chain, 0, 0, InGlue, DL);
     InGlue = Chain.getValue(1);
     SDValue Ret = DAG.getCopyFromReg(Chain, DL, SP::O0, PtrVT, InGlue);
 
@@ -3548,6 +3551,11 @@ bool SparcTargetLowering::isCheapToSpeculateCttz(Type *Ty) const {
     return true;
   // Otherwise, implementing cttz in terms of ctlz is still cheap.
   return isCheapToSpeculateCtlz(Ty);
+}
+
+bool SparcTargetLowering::isFMAFasterThanFMulAndFAdd(const MachineFunction &MF,
+                                                     EVT VT) const {
+  return Subtarget->isUA2007() && !Subtarget->useSoftFloat();
 }
 
 // Override to disable global variable loading on Linux.
