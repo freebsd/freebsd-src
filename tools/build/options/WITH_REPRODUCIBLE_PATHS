@@ -1,0 +1,6 @@
+Modify the paths encoded in binary artifacts to be standard path
+
+Normaly, the actual path is encoded in the binary. However, this makes the build
+differ depending on the path it was built from. With this option enabled, the
+paths recorded are /usr/src, regardless of the actual path. With this option
+disabled, the actual paths are recorded.

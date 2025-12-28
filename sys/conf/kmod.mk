@@ -303,7 +303,7 @@ all: ${PROG}
 beforedepend: ${_ILINKS}
 beforebuild: ${_ILINKS}
 
-.if ${MK_REPRODUCIBLE_BUILD} != "no"
+.if ${MK_REPRODUCIBLE_PATHS} != "no"
 PREFIX_SYSDIR=/usr/src/sys
 CFLAGS+= -ffile-prefix-map=${SYSDIR}=${PREFIX_SYSDIR}
 .if defined(KERNBUILDDIR)
