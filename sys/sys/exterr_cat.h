@@ -8,6 +8,17 @@
  * under sponsorship from the FreeBSD Foundation.
  */
 
+/*
+ * The category identifiers for the extended errors.
+ * The ids participate in ABI between kernel and libc, so they must
+ * never be reused or changed.  Only new ids can be added.
+ *
+ * After adding a new category id, run
+ * tools/build/make_libc_exterr_cat_filenames.sh
+ * from the top of the source tree, and commit updated file
+ * lib/libc/gen/exterr_cat_filenames.h
+ */
+
 #ifndef _SYS_EXTERR_CAT_H_
 #define	_SYS_EXTERR_CAT_H_
 

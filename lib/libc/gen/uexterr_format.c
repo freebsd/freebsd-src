@@ -8,7 +8,7 @@
  * under sponsorship from the FreeBSD Foundation.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/exterrvar.h>
 #include <exterr.h>
 #include <stdbool.h>
@@ -16,6 +16,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+static const char * const cat_to_filenames[] = {
+#include "exterr_cat_filenames.h"
+};
+
+static const char *
+cat_to_filename(int category)
+{
+	if (category < 0 || category >= nitems(cat_to_filenames) ||
+	    cat_to_filenames[category] == NULL)
+		return ("unknown");
+	return (cat_to_filenames[category]);
+}
 
 static const char exterror_verbose_name[] = "EXTERROR_VERBOSE";
 enum exterr_verbose_state {
@@ -68,9 +81,9 @@ __uexterr_format(const struct uexterror *ue, char *buf, size_t bufsz)
 		char lbuf[128];
 
 		snprintf(lbuf, sizeof(lbuf),
-		    "errno %d category %u (src line %u) p1 %#jx p2 %#jx",
-		    ue->error, ue->cat, ue->src_line,
-		    (uintmax_t)ue->p1, (uintmax_t)ue->p2);
+		    "errno %d category %u (src sys/%s:%u) p1 %#jx p2 %#jx",
+		    ue->error, ue->cat, cat_to_filename(ue->cat),
+		    ue->src_line, (uintmax_t)ue->p1, (uintmax_t)ue->p2);
 		if (has_msg)
 			strlcat(buf, " ", bufsz);
 		strlcat(buf, lbuf, bufsz);
