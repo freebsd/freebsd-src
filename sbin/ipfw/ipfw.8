@@ -1,5 +1,5 @@
 .\"
-.Dd September 28, 2023
+.Dd December 29, 2025
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -103,6 +103,11 @@ in-kernel NAT.
 .Ar number
 .Cm config
 .Ar config-options
+.Nm
+.Op Fl q
+.Cm nat
+.Ar number
+.Cm delete
 .Nm
 .Cm nat
 .Ar number
@@ -3351,6 +3356,15 @@ For more information about aliasing modes, refer to
 See Section
 .Sx EXAMPLES
 for some examples of nat usage.
+.Pp
+To delete specific nat configuration instance, use the following command:
+.Bd -ragged -offset indent
+.Bk -words
+.Cm nat
+.Ar nat_number
+.Cm delete
+.Ek
+.Ed
 .Ss REDIRECT AND LSNAT SUPPORT IN IPFW
 Redirect and LSNAT support follow closely the syntax used in
 .Xr natd 8 .
