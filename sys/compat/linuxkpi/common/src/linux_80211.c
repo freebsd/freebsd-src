@@ -5573,6 +5573,8 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 #endif
 
 	ni = lsta->ni;
+	ieee80211_output_seqno_assign(ni, -1, m);
+
 	k = NULL;
 	keyix = IEEE80211_KEYIX_NONE;
 	wh = mtod(m, struct ieee80211_frame *);
