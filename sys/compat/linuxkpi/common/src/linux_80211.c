@@ -5281,6 +5281,8 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 			dev_kfree_skb(skb);
 			return;
 		}
+		/* Reset header as data might have moved. */
+		hdr = (void *)skb->data;
 	}
 #endif
 
