@@ -39,8 +39,14 @@
 static int	elf32_exec(struct preloaded_file *amp);
 static int	elf32_obj_exec(struct preloaded_file *amp);
 
-struct file_format i386_elf = { elf32_loadfile, elf32_exec };
-struct file_format i386_elf_obj = { elf32_obj_loadfile, elf32_obj_exec };
+struct file_format i386_elf = {
+	.l_load = elf32_loadfile,
+	.l_exec = elf32_exec
+};
+struct file_format i386_elf_obj = {
+	.l_load = elf32_obj_loadfile,
+	.l_exec = elf32_obj_exec
+};
 
 /*
  * There is an ELF kernel and one or more ELF modules loaded.  

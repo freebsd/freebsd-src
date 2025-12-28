@@ -67,9 +67,14 @@ static int multiboot_exec(struct preloaded_file *);
 static int multiboot_obj_loadfile(char *, uint64_t, struct preloaded_file **);
 static int multiboot_obj_exec(struct preloaded_file *fp);
 
-struct file_format multiboot = { multiboot_loadfile, multiboot_exec };
-struct file_format multiboot_obj =
-    { multiboot_obj_loadfile, multiboot_obj_exec };
+struct file_format multiboot = {
+	.l_load = multiboot_loadfile,
+	.l_exec = multiboot_exec
+};
+struct file_format multiboot_obj = {
+	.l_load = multiboot_obj_loadfile,
+	.l_exec = multiboot_obj_exec
+};
 
 extern void multiboot_tramp();
 

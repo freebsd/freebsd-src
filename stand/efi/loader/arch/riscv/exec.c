@@ -106,8 +106,8 @@ __elfN(exec)(struct preloaded_file *fp)
 }
 
 static struct file_format riscv_elf = {
-	__elfN(loadfile),
-	__elfN(exec)
+	.l_load = __elfN(loadfile),
+	.l_exec = __elfN(exec)
 };
 
 struct file_format *file_formats[] = {

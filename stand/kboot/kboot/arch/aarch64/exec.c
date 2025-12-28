@@ -73,8 +73,8 @@ int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
 #endif
 
 static struct file_format arm64_elf = {
-	elf64_loadfile,
-	elf64_exec
+	.l_load = elf64_loadfile,
+	.l_exec = elf64_exec
 };
 
 struct file_format *file_formats[] = {

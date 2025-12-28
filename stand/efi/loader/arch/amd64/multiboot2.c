@@ -558,5 +558,11 @@ obj_exec(struct preloaded_file *fp)
 	return (EFTYPE);
 }
 
-struct file_format multiboot2 = { loadfile, exec };
-struct file_format multiboot2_obj = { obj_loadfile, obj_exec };
+struct file_format multiboot2 = {
+	.l_load = loadfile,
+	.l_exec = exec
+};
+struct file_format multiboot2_obj = {
+	.l_load = obj_loadfile,
+	.l_exec = obj_exec
+};

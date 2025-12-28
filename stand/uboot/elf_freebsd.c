@@ -87,6 +87,6 @@ __elfN(uboot_exec)(struct preloaded_file *fp)
 }
 
 struct file_format uboot_elf = {
-	__elfN(uboot_load),
-	__elfN(uboot_exec)
+	.l_load = __elfN(uboot_load),
+	.l_exec = __elfN(uboot_exec)
 };

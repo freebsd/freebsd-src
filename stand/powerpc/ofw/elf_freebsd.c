@@ -97,8 +97,7 @@ __elfN(ofw_exec)(struct preloaded_file *fp)
 	panic("exec returned");
 }
 
-struct file_format	ofw_elf =
-{
-	__elfN(ofw_loadfile),
-	__elfN(ofw_exec)
+struct file_format	ofw_elf = {
+	.l_load = __elfN(ofw_loadfile),
+	.l_exec = __elfN(ofw_exec)
 };
