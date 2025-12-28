@@ -101,8 +101,7 @@ ppc64_ofw_elf_exec(struct preloaded_file *fp)
 	panic("exec returned");
 }
 
-struct file_format	ofw_elf64 =
-{
-	ppc64_ofw_elf_loadfile,
-	ppc64_ofw_elf_exec
+struct file_format	ofw_elf64 = {
+	.l_load = ppc64_ofw_elf_loadfile,
+	.l_exec = ppc64_ofw_elf_exec
 };

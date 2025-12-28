@@ -90,8 +90,8 @@ __elfN(arm_exec)(struct preloaded_file *fp)
 }
 
 static struct file_format arm_elf = {
-	__elfN(arm_load),
-	__elfN(arm_exec)
+	.l_load = __elfN(arm_load),
+	.l_exec = __elfN(arm_exec)
 };
 
 struct file_format *file_formats[] = {

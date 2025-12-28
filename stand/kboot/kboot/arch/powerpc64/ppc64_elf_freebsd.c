@@ -157,10 +157,9 @@ ppc64_elf_exec(struct preloaded_file *fp)
 	while (1) {}
 }
 
-struct file_format	ppc_elf64 =
-{
-	ppc64_elf_loadfile,
-	ppc64_elf_exec
+struct file_format	ppc_elf64 = {
+	.l_load = ppc64_elf_loadfile,
+	.l_exec = ppc64_elf_exec
 };
 
 /*

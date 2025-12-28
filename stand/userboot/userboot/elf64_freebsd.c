@@ -43,8 +43,14 @@
 static int	elf64_exec(struct preloaded_file *amp);
 static int	elf64_obj_exec(struct preloaded_file *amp);
 
-struct file_format amd64_elf = { elf64_loadfile, elf64_exec };
-struct file_format amd64_elf_obj = { elf64_obj_loadfile, elf64_obj_exec };
+struct file_format amd64_elf = {
+	.l_load = elf64_loadfile,
+	.l_exec = elf64_exec
+};
+struct file_format amd64_elf_obj = {
+	.l_load = elf64_obj_loadfile,
+	.l_exec = elf64_obj_exec
+};
 
 #define	GUEST_NULL_SEL		0
 #define	GUEST_CODE_SEL		1

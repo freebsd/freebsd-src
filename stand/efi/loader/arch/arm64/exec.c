@@ -43,8 +43,8 @@ static int elf64_exec(struct preloaded_file *amp);
 static int elf64_obj_exec(struct preloaded_file *amp);
 
 static struct file_format arm64_elf = {
-	elf64_loadfile,
-	elf64_exec
+	.l_load = elf64_loadfile,
+	.l_exec = elf64_exec
 };
 
 struct file_format *file_formats[] = {
