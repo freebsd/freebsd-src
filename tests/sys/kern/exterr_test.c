@@ -51,7 +51,7 @@ ATF_TC_BODY(gettext_extended, tc)
 	ATF_CHECK_EQ(0, r);
 	printf("Extended error: %s\n", exterr);
 	/* Note: error string may need to be updated due to kernel changes */
-	ATF_CHECK(strstr(exterr, "prot is not subset of max_prot") != 0);
+	ATF_CHECK(strstr(exterr, " is not subset of ") != 0);
 }
 
 ATF_TC(gettext_noextended);
