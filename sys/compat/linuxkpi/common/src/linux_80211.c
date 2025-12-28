@@ -693,7 +693,8 @@ skip_bw:
 				sta = IEEE80211_VHT_MCS_NOT_SUPPORTED;
 			else {
 				sta = MIN(sta, card);
-				rx_nss = i + 1;
+				if (rx_nss == 0)
+					rx_nss = i + 1;
 			}
 		}
 		rx_map |= (sta << (2 * i));
