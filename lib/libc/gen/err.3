@@ -114,6 +114,22 @@ preceded by another colon and space unless the
 argument is
 .Dv NULL .
 .Pp
+If the kernel returned an extended error string in addition to the
+.Va errno
+code, the
+.Fn err
+function prints the string with interpolated values for parameters,
+as provided to the corresponding invocation of
+.Xr EXTERROR 9 .
+If the extended error string was not provided, but extended error
+information was, or even if string was provided and the
+.Ev EXTERROR_VERBOSE
+environment variable is present, an additional report is printed.
+The report includes at least the category of the error, the name of
+the source file (if known by the used version of libc),
+the source line number, and parameters.
+The format of the printed string is not contractual and might be changed.
+.Pp
 In the case of the
 .Fn errc ,
 .Fn verrc ,
