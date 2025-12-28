@@ -15,7 +15,7 @@
 #define	EXTERR_CAT_FILEDESC	2
 #define	EXTERR_KTRACE		3	/* To allow inclusion of this
 					   file into kern_ktrace.c */
-#define	EXTERR_CAT_FUSE		4
+#define	EXTERR_CAT_FUSE_VNOPS	4
 #define	EXTERR_CAT_INOTIFY	5
 #define	EXTERR_CAT_GENIO	6
 #define	EXTERR_CAT_BRIDGE	7
@@ -24,6 +24,8 @@
 #define	EXTERR_CAT_VFSBIO	10
 #define	EXTERR_CAT_GEOMVFS	11
 #define	EXTERR_CAT_GEOM		12
+#define	EXTERR_CAT_FUSE_VFS	13
+#define	EXTERR_CAT_FUSE_DEVICE	14
 
 #endif
 

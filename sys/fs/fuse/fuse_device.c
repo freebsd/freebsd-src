@@ -82,7 +82,7 @@
 #include <sys/sysctl.h>
 #include <sys/poll.h>
 #include <sys/selinfo.h>
-#define EXTERR_CATEGORY EXTERR_CAT_FUSE
+#define EXTERR_CATEGORY EXTERR_CAT_FUSE_DEVICE
 #include <sys/exterrvar.h>
 
 #include "fuse.h"
