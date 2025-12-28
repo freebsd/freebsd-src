@@ -9,7 +9,7 @@ PHDRS
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  . = 0x02c00000 + SIZEOF_HEADERS;
+  . = 0x02c00000 + SIZEOF_HEADERS + 32;
   .interp     : { *(.interp) 	} :text
   .hash          : { *(.hash)		}
   .dynsym        : { *(.dynsym)		}
