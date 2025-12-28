@@ -839,8 +839,12 @@ When a packet matches a rule with the
 .Cm setmark
 keyword, a 32-bit numeric mark is assigned to the packet.
 The mark is an extension to the tags.
-As tags, mark is "sticky" so the value is kept the same within the kernel and
-is lost when the packet leaves the kernel.
+The mark is preserved for a packet within a single ipfw rulese traversal
+and is lost when the packet is checked against the active ruleset
+next time (see
+.Sx PACKET FLOW
+section) or leaves ipfw context (e.g. accepted,
+diverted, bridged or routed).
 Unlike tags, mark can be matched as a lookup table key or compared with bitwise
 mask applied against another value.
 Each packet can have only one mark, so
