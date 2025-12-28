@@ -89,7 +89,7 @@
 #include <sys/buf.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
-#define EXTERR_CATEGORY EXTERR_CAT_FUSE
+#define EXTERR_CATEGORY EXTERR_CAT_FUSE_VNOPS
 #include <sys/exterrvar.h>
 
 #include <vm/vm.h>

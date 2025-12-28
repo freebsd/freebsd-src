@@ -81,7 +81,7 @@
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/fcntl.h>
-#define EXTERR_CATEGORY EXTERR_CAT_FUSE
+#define EXTERR_CATEGORY EXTERR_CAT_FUSE_VFS
 #include <sys/exterrvar.h>
 
 #include "fuse.h"
