@@ -56,6 +56,7 @@ __DEFAULT_NO_OPTIONS = \
     KERNEL_RETPOLINE \
     RATELIMIT \
     REPRODUCIBLE_BUILD \
+    REPRODUCIBLE_PATHS \
     VERIEXEC
 
 # Some options are totally broken on some architectures. We disable them. If you

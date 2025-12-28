@@ -372,7 +372,7 @@ _ILINKS+= x86
 _ILINKS+= i386
 .endif
 
-.if ${MK_REPRODUCIBLE_BUILD} != "no"
+.if ${MK_REPRODUCIBLE_PATHS} != "no"
 PREFIX_SYSDIR=/usr/src/sys
 PREFIX_OBJDIR=/usr/obj/usr/src/${MACHINE}.${MACHINE_CPUARCH}/sys/${KERN_IDENT}
 CFLAGS+= -ffile-prefix-map=${SYSDIR}=${PREFIX_SYSDIR}
