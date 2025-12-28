@@ -282,7 +282,7 @@ lkpi_nl80211_sta_info_to_str(struct sbuf *s, const char *prefix,
 }
 
 static void
-lkpi_80211_dump_lvif_stas(struct lkpi_vif *lvif, struct sbuf *s)
+lkpi_80211_dump_lvif_stas(struct lkpi_vif *lvif, struct sbuf *s, bool dump_queues)
 {
 	struct lkpi_hw *lhw;
 	struct ieee80211_hw *hw;
@@ -292,6 +292,7 @@ lkpi_80211_dump_lvif_stas(struct lkpi_vif *lvif, struct sbuf *s)
 	struct ieee80211_sta *sta;
 	struct station_info sinfo;
 	int error;
+	uint8_t tid;
 
 	vif = LVIF_TO_VIF(lvif);
 	vap = LVIF_TO_VAP(lvif);
@@ -376,6 +377,39 @@ lkpi_80211_dump_lvif_stas(struct lkpi_vif *lvif, struct sbuf *s)
 		sbuf_printf(s, "         he_dcm %u he_gi %u he_ru_alloc %u eht_gi %u\n",
 		    sinfo.txrate.he_dcm, sinfo.txrate.he_gi, sinfo.txrate.he_ru_alloc,
 		    sinfo.txrate.eht_gi);
+
+		if (!dump_queues)
+			continue;
+
+		/* Dump queue information. */
+		sbuf_printf(s, " Queue information:\n");
+		sbuf_printf(s, "  frms direct tx %ju\n", lsta->frms_tx);
+		for (tid = 0; tid <= IEEE80211_NUM_TIDS; tid++) {
+			struct lkpi_txq *ltxq;
+
+			if (sta->txq[tid] == NULL) {
+				sbuf_printf(s, "  tid %-2u NOQ\n", tid);
+				continue;
+			}
+
+			ltxq = TXQ_TO_LTXQ(sta->txq[tid]);
+#ifdef __notyet__
+			sbuf_printf(s, "  tid %-2u flags: %b "
+			    "txq_generation %u skbq len %d\n",
+			    tid, ltxq->flags, LKPI_TXQ_FLAGS_BITS,
+			    ltxq->txq_generation,
+			    skb_queue_len_lockless(&ltxq->skbq));
+#else
+			sbuf_printf(s, "  tid %-2u "
+			    "txq_generation %u skbq len %d\n",
+			    tid,
+			    ltxq->txq_generation,
+			    skb_queue_len_lockless(&ltxq->skbq));
+#endif
+			sbuf_printf(s, "         frms_enqueued %ju frms_dequeued %ju "
+			    "frms_tx %ju\n",
+			    ltxq->frms_enqueued, ltxq->frms_dequeued, ltxq->frms_tx);
+		}
 	}
 	wiphy_unlock(hw->wiphy);
 }
@@ -393,7 +427,28 @@ lkpi_80211_dump_stas(SYSCTL_HANDLER_ARGS)
 
 	sbuf_new_for_sysctl(&s, NULL, 1024, req);
 
-	lkpi_80211_dump_lvif_stas(lvif, &s);
+	lkpi_80211_dump_lvif_stas(lvif, &s, false);
+
+	sbuf_finish(&s);
+	sbuf_delete(&s);
+
+	return (0);
+}
+
+static int
+lkpi_80211_dump_sta_queues(SYSCTL_HANDLER_ARGS)
+{
+	struct lkpi_vif *lvif;
+	struct sbuf s;
+
+	if (req->newptr)
+		return (EPERM);
+
+	lvif = (struct lkpi_vif *)arg1;
+
+	sbuf_new_for_sysctl(&s, NULL, 1024, req);
+
+	lkpi_80211_dump_lvif_stas(lvif, &s, true);
 
 	sbuf_finish(&s);
 	sbuf_delete(&s);
@@ -4173,6 +4228,11 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	    SYSCTL_CHILDREN(node), OID_AUTO, "dump_stas",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, lvif, 0,
 	    lkpi_80211_dump_stas, "A", "Dump sta statistics of this vif");
+	SYSCTL_ADD_PROC(&lvif->sysctl_ctx,
+	    SYSCTL_CHILDREN(node), OID_AUTO, "dump_stas_queues",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_SKIP, lvif, 0,
+	    lkpi_80211_dump_sta_queues, "A",
+	    "Dump queue statistics for any sta of this vif");
 
 	IMPROVE();
 
@@ -5690,6 +5750,7 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 
 	LKPI_80211_LTXQ_LOCK(ltxq);
 	skb_queue_tail(&ltxq->skbq, skb);
+	ltxq->frms_enqueued++;
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_TX)
 		printf("%s:%d mo_wake_tx_queue :: %d %lu lsta %p sta %p "
@@ -5719,6 +5780,7 @@ ops_tx:
 	control.sta = sta;
 	wiphy_lock(hw->wiphy);
 	lkpi_80211_mo_tx(hw, &control, skb);
+	lsta->frms_tx++;
 	wiphy_unlock(hw->wiphy);
 }
 
@@ -8121,6 +8183,8 @@ linuxkpi_ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 
 	LKPI_80211_LTXQ_LOCK(ltxq);
 	skb = skb_dequeue(&ltxq->skbq);
+	if (skb != NULL)
+		ltxq->frms_dequeued++;
 	LKPI_80211_LTXQ_UNLOCK(ltxq);
 
 stopped:
@@ -8769,18 +8833,21 @@ linuxkpi_ieee80211_handle_wake_tx_queue(struct ieee80211_hw *hw,
     struct ieee80211_txq *txq)
 {
 	struct lkpi_hw *lhw;
-	struct ieee80211_txq *ntxq;
-	struct ieee80211_tx_control control;
-        struct sk_buff *skb;
 
 	lhw = HW_TO_LHW(hw);
 
 	LKPI_80211_LHW_TXQ_LOCK(lhw);
 	ieee80211_txq_schedule_start(hw, txq->ac);
 	do {
+		struct lkpi_txq *ltxq;
+		struct ieee80211_txq *ntxq;
+		struct ieee80211_tx_control control;
+		struct sk_buff *skb;
+
 		ntxq = ieee80211_next_txq(hw, txq->ac);
 		if (ntxq == NULL)
 			break;
+		ltxq = TXQ_TO_LTXQ(ntxq);
 
 		memset(&control, 0, sizeof(control));
 		control.sta = ntxq->sta;
@@ -8788,6 +8855,7 @@ linuxkpi_ieee80211_handle_wake_tx_queue(struct ieee80211_hw *hw,
 			skb = linuxkpi_ieee80211_tx_dequeue(hw, ntxq);
 			if (skb == NULL)
 				break;
+			ltxq->frms_tx++;
 			lkpi_80211_mo_tx(hw, &control, skb);
 		} while(1);
 

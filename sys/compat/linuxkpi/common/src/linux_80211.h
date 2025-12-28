@@ -154,6 +154,9 @@ struct lkpi_txq {
 	bool			stopped;
 	uint32_t		txq_generation;
 	struct sk_buff_head	skbq;
+	uint64_t		frms_enqueued;
+	uint64_t		frms_dequeued;
+	uint64_t		frms_tx;
 
 	/* Must be last! */
 	struct ieee80211_txq	txq __aligned(CACHE_LINE_SIZE);
@@ -180,6 +183,7 @@ struct lkpi_sta {
 	bool			in_mgd;				/* XXX-BZ should this be per-vif? */
 
 	struct station_info	sinfo;				/* statistics */
+	uint64_t		frms_tx;			/* (*tx) */
 
 	/* Must be last! */
 	struct ieee80211_sta	sta __aligned(CACHE_LINE_SIZE);
