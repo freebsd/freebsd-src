@@ -6,7 +6,7 @@
 .\" This documentation was written by Bj\xc3\xb6rn Zeeb under sponsorship from
 .\" the FreeBSD Foundation.
 .\"
-.Dd June 13, 2025
+.Dd December 28, 2025
 .Dt LINUXKPI_WLAN 4
 .Os
 .Sh NAME
@@ -112,6 +112,13 @@ Print statistics for a given, associated
 .Xr wlan 4
 interface; typically IF would be
 .Em wlan0 .
+.It Va compat.linuxkpi.80211.IF.dump_stas_queues
+Like
+.Va compat.linuxkpi.80211.IF.dump_stas
+but also print queue statistics.
+This sysctl is
+.Sq hidden
+and normally only needed for debugging purposes.
 .El
 .Sh SEE ALSO
 .Xr iwlwifi 4 ,
