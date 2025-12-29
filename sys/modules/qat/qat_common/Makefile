@@ -40,5 +40,5 @@ opt_qat.h:
 	@echo "#define QAT_DISABLE_SAFE_DC_MODE 1" >> ${.TARGET}
 .endif
 .endif
-
+EXPORT_SYMS=YES
 .include <bsd.kmod.mk>
