@@ -2539,7 +2539,7 @@ qlnx_hw_set_multi(qlnx_host_t *ha, uint8_t *mta, uint32_t mcnt,
                                 break;
                 }
 
-                mta += ETHER_HDR_LEN;
+                mta += ETHER_ADDR_LEN;
         }
         return;
 }
@@ -2552,7 +2552,7 @@ qlnx_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int mcnt)
 	if (mcnt == QLNX_MAX_NUM_MULTICAST_ADDRS)
 		return (0);
 
-	bcopy(LLADDR(sdl), &mta[mcnt * ETHER_HDR_LEN], ETHER_HDR_LEN);
+	bcopy(LLADDR(sdl), &mta[mcnt * ETHER_ADDR_LEN], ETHER_ADDR_LEN);
 
 	return (1);
 }
@@ -2560,7 +2560,7 @@ qlnx_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int mcnt)
 static int
 qlnx_set_multi(qlnx_host_t *ha, uint32_t add_multi)
 {
-	uint8_t		mta[QLNX_MAX_NUM_MULTICAST_ADDRS * ETHER_HDR_LEN];
+	uint8_t		mta[QLNX_MAX_NUM_MULTICAST_ADDRS * ETHER_ADDR_LEN];
 	if_t		ifp = ha->ifp;
 	u_int		mcnt;
 
