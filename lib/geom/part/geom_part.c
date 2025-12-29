@@ -46,6 +46,7 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
+
 #include <libxo/xo.h>
 
 #include "core/geom.h"
@@ -651,11 +652,12 @@ gpart_show_geom(struct ggeom *gp, const char *element, int show_providers)
 	pp = LIST_FIRST(&gp->lg_consumer)->lg_provider;
 	secsz = pp->lg_sectorsize;
 	xo_open_instance("part");
-	xo_emit("=>{t:start/%*jd}  {t:sectors/%*jd}  {t:name/%*s}  {:scheme}  ({h:size/%ld}){t:state}\n",
-		wblocks, (intmax_t)first, wblocks, (intmax_t)(last - first + 1),
-		wname, gp->lg_name,
-		scheme, pp->lg_mediasize,
-		s ? " [CORRUPT]": "");
+	xo_emit("=>{t:start/%*jd}  {t:sectors/%*jd}  "
+	    "{t:name/%*s}  {:scheme}  ({h:size/%jd})"
+	    "{t:state}\n",
+	    wblocks, (intmax_t)first, wblocks, (intmax_t)(last - first + 1),
+	    wname, gp->lg_name, scheme, (intmax_t)pp->lg_mediasize,
+	    s ? " [CORRUPT]": "");
 
 	xo_open_list("partitions");
 	while ((pp = find_provider(gp, first)) != NULL) {
@@ -670,35 +672,43 @@ gpart_show_geom(struct ggeom *gp, const char *element, int show_providers)
 		idx = atoi(s);
 		if (first < sector) {
 			xo_open_instance(s);
-			xo_emit("  {t:start/%*jd}  {t:sectors/%*jd}  {P:/%*s}  {ne:free}- free -  ({h:size/%ld})\n",
-			    wblocks, (intmax_t)first, wblocks,
-			    (intmax_t)(sector - first), wname, "",
-			    "true", (sector - first) * secsz);
+			xo_emit("  {t:start/%*jd}  "
+			    "{t:sectors/%*jd}  "
+			    "{P:/%*s}  "
+			    "{ne:free}- free -  ({h:size/%jd})\n",
+			    wblocks, (intmax_t)first,
+			    wblocks, (intmax_t)(sector - first),
+			    wname, "",
+			    "true", (intmax_t)(sector - first) * secsz);
 			xo_close_instance(s);
 		}
 		xo_open_instance(s);
 		xo_emit("  {t:start/%*jd}  {t:sectors/%*jd}",
-			wblocks, (intmax_t)sector, wblocks, (intmax_t)length);
+		    wblocks, (intmax_t)sector, wblocks, (intmax_t)length);
 		if (show_providers) {
-			xo_emit("  {t:name/%*s}{e:index/%d}", wname, pp->lg_name, idx);
-		} else
-			xo_emit("  {t:index/%*d}{e:name}", wname, idx, pp->lg_name);
+			xo_emit("  {t:name/%*s}{e:index/%d}",
+			    wname, pp->lg_name, idx);
+		} else {
+			xo_emit("  {t:index/%*d}{e:name}",
+			    wname, idx, pp->lg_name);
+		}
 
-		if (strcmp(element, "label") == 0)
+		if (strcmp(element, "label") == 0) {
 			xo_emit("  {:label}{e:type}{e:rawtype}",
-				find_provcfg(pp, element),
-				find_provcfg(pp, "type"),
-				find_provcfg(pp, "rawtype"));
-		else if (strcmp(element, "type") == 0)
+			    find_provcfg(pp, element),
+			    find_provcfg(pp, "type"),
+			    find_provcfg(pp, "rawtype"));
+		} else if (strcmp(element, "type") == 0) {
 			xo_emit("  {:type}{e:label}{e:rawtype}",
-				find_provcfg(pp, element),
-				find_provcfg(pp, "label"),
-				find_provcfg(pp, "rawtype"));
-		else
+			    find_provcfg(pp, element),
+			    find_provcfg(pp, "label"),
+			    find_provcfg(pp, "rawtype"));
+		} else {
 			xo_emit("  {:rawtype}{e:type}{e:label}",
-				find_provcfg(pp, element),
-				find_provcfg(pp, "type"),
-				find_provcfg(pp, "label"));
+			    find_provcfg(pp, element),
+			    find_provcfg(pp, "type"),
+			    find_provcfg(pp, "label"));
+		}
 
 		idx = 0;
 		LIST_FOREACH(gc, &pp->lg_config, lg_config) {
@@ -713,7 +723,7 @@ gpart_show_geom(struct ggeom *gp, const char *element, int show_providers)
 		}
 		if (idx)
 			xo_emit("]");
-		xo_emit("  ({h:size/%ld})\n", pp->lg_mediasize);
+		xo_emit("  ({h:size/%jd})\n", (intmax_t)pp->lg_mediasize);
 		xo_close_instance(s);
 		first = end + 1;
 	}
@@ -721,9 +731,10 @@ gpart_show_geom(struct ggeom *gp, const char *element, int show_providers)
 	if (first <= last) {
 		xo_open_instance("unallocated");
 		length = last - first + 1;
-		xo_emit("  {t:start/%*jd}  {t:sectors/%*jd}  {P:/%*s}  {ne:free}- free -  ({h:size/%ld})\n",
+		xo_emit("  {t:start/%*jd}  {t:sectors/%*jd}  "
+		    "{P:/%*s}  {ne:free}- free -  ({h:size/%jd})\n",
 		    wblocks, (intmax_t)first, wblocks, (intmax_t)length,
-		    wname, "", "true", length * secsz);
+		    wname, "", "true", (intmax_t)length * secsz);
 		xo_close_instance("unallocated");
 	}
 	xo_close_list("partitions");
@@ -1112,7 +1123,7 @@ gpart_bootfile_read(const char *bootfile, ssize_t *size)
 	if (sb.st_size == 0)
 		errx(EXIT_FAILURE, "%s: empty file", bootfile);
 	if (*size > 0 && sb.st_size > *size)
-		errx(EXIT_FAILURE, "%s: file too big (%zu limit)", bootfile,
+		errx(EXIT_FAILURE, "%s: file too big (%zd limit)", bootfile,
 		    *size);
 
 	*size = sb.st_size;
