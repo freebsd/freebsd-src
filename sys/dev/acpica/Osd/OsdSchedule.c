@@ -35,6 +35,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/cpuset.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/malloc.h>
@@ -109,10 +110,13 @@ static void
 acpi_taskq_init(void *arg)
 {
     int i;
+    /* XXX Currently assuming BSP is CPU0. */
+    cpuset_t just_bsp = CPUSET_T_INITIALIZER(0x1);
 
     acpi_taskq = taskqueue_create_fast("acpi_task", M_NOWAIT,
 	&taskqueue_thread_enqueue, &acpi_taskq);
-    taskqueue_start_threads(&acpi_taskq, acpi_max_threads, PWAIT, "acpi_task");
+    taskqueue_start_threads_cpuset(&acpi_taskq, acpi_max_threads, PWAIT,
+	&just_bsp, "acpi_task");
     if (acpi_task_count > 0) {
 	if (bootverbose)
 	    printf("AcpiOsExecute: enqueue %d pending tasks\n",
