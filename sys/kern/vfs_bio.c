@@ -4523,8 +4523,6 @@ biodone(struct bio *bp)
 			bp->bio_flags |= BIO_ERROR_COMPAT;
 		}
 		done(bp);
-		bp->bio_error_compat = 0;
-		bp->bio_flags &= ~BIO_ERROR_COMPAT;
 	}
 }
 
