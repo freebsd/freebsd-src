@@ -3843,3 +3843,28 @@ pfctl_get_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
 
 	return (0);
 }
+
+int
+pfctl_clr_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
+    struct pfr_addr *addr, int size, int *nzero, int flags)
+{
+	struct pfioc_table io;
+
+	if (size < 0 || !tbl || (size && !addr)) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	bzero(&io, sizeof io);
+	io.pfrio_flags = flags;
+	io.pfrio_table = *tbl;
+	io.pfrio_buffer = addr;
+	io.pfrio_esize = sizeof(*addr);
+	io.pfrio_size = size;
+	if (ioctl(h->fd, DIOCRCLRASTATS, &io) == -1)
+		return (-1);
+	if (nzero)
+		*nzero = io.pfrio_nzero;
+	return (0);
+}
+
