@@ -2434,6 +2434,39 @@ out:
 	free(pfrastats, M_PF);
 	return (error);
 }
+static int
+pf_handle_table_clear_astats(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct nl_parsed_table_addrs attrs = { 0 };
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &table_addr_parser, npt, &attrs);
+	if (error != 0)
+		return  (error);
+
+	PF_RULES_WLOCK();
+	error = pfr_clr_astats(&attrs.table, &attrs.addrs[0],
+	    attrs.addr_count, &attrs.nchange,
+	    attrs.flags | PFR_FLAG_USERIOCTL);
+	PF_RULES_WUNLOCK();
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_TABLE_CLEAR_ASTATS;
+	ghdr_new->version = 0;
+	ghdr_new->reserved = 0;
+
+	nlattr_add_u32(nw, PF_TAS_ASTATS_ZEROED, attrs.nchange);
+
+	if (!nlmsg_end(nw))
+		return (ENOMEM);
+
+	return (error);
+}
 
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
@@ -2705,6 +2738,13 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_num = PFNL_CMD_TABLE_GET_ASTATS,
 		.cmd_name = "TABLE_GET_ASTATS",
 		.cmd_cb = pf_handle_table_get_astats,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_TABLE_CLEAR_ASTATS,
+		.cmd_name = "TABLE_CLEAR_ASTATS",
+		.cmd_cb = pf_handle_table_clear_astats,
 		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},

@@ -3757,7 +3757,8 @@ struct nl_astats {
 	struct pfr_astats *a;
 	size_t max;
 	size_t count;
-	uint64_t total_count;
+	uint32_t total_count;
+	uint32_t zeroed;
 };
 
 #define _OUT(_field)	offsetof(struct pfr_astats, _field)
@@ -3792,6 +3793,7 @@ snl_attr_get_pfr_astats(struct snl_state *ss, struct nlattr *nla,
 static struct snl_attr_parser ap_table_get_astats[] = {
 	{ .type = PF_TAS_ASTATS, .off = 0, .cb = snl_attr_get_pfr_astats },
 	{ .type = PF_TAS_ASTATS_COUNT, .off = _OUT(total_count), .cb = snl_attr_get_uint32 },
+	{ .type = PF_TAS_ASTATS_ZEROED, .off = _OUT(zeroed), .cb = snl_attr_get_uint32 },
 };
 #undef _OUT
 SNL_DECLARE_PARSER(table_astats_parser, struct genlmsghdr, snl_f_p_empty, ap_table_get_astats);
@@ -3844,27 +3846,67 @@ pfctl_get_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
 	return (0);
 }
 
-int
-pfctl_clr_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
-    struct pfr_addr *addr, int size, int *nzero, int flags)
+static int
+_pfctl_clr_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
+    struct pfr_addr *addrs, int size, int *nzero, int flags)
 {
-	struct pfioc_table io;
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	struct nl_astats attrs;
+	int family_id;
 
-	if (size < 0 || !tbl || (size && !addr)) {
-		errno = EINVAL;
-		return (-1);
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_TABLE_CLEAR_ASTATS);
+
+	snl_add_msg_attr_table(&nw, PF_TA_TABLE, tbl);
+	snl_add_msg_attr_u32(&nw, PF_TA_FLAGS, flags);
+	for (int i = 0; i < size; i++)
+		snl_add_msg_attr_pfr_addr(&nw, PF_TA_ADDR, &addrs[i]);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&h->ss, hdr, &table_astats_parser, &attrs))
+			continue;
 	}
 
-	bzero(&io, sizeof io);
-	io.pfrio_flags = flags;
-	io.pfrio_table = *tbl;
-	io.pfrio_buffer = addr;
-	io.pfrio_esize = sizeof(*addr);
-	io.pfrio_size = size;
-	if (ioctl(h->fd, DIOCRCLRASTATS, &io) == -1)
-		return (-1);
 	if (nzero)
-		*nzero = io.pfrio_nzero;
-	return (0);
+		*nzero = attrs.zeroed;
+
+	return (e.error);
+}
+
+int
+pfctl_clr_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
+    struct pfr_addr *addrs, int size, int *nzero, int flags)
+{
+	int ret;
+	int off = 0;
+	int partial_zeroed;
+	int chunk_size;
+
+	do {
+		chunk_size = MIN(size - off, 256);
+		ret = _pfctl_clr_astats(h, tbl, &addrs[off], chunk_size,
+		    &partial_zeroed, flags);
+		if (ret != 0)
+			break;
+		if (nzero)
+			*nzero += partial_zeroed;
+		off += chunk_size;
+	} while (off < size);
+
+	return (ret);
 }
 

@@ -201,7 +201,13 @@ int
 pfr_clr_astats(struct pfr_table *tbl, struct pfr_addr *addr, int size,
     int *nzero, int flags)
 {
-	return (pfctl_clr_astats(pfh, tbl, addr, size, nzero, flags));
+	int ret;
+
+	ret = pfctl_clr_astats(pfh, tbl, addr, size, nzero, flags);
+	if (ret != 0)
+		errno = ret;
+
+	return (ret);
 }
 
 int
