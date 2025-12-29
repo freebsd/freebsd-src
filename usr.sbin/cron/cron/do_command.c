@@ -76,6 +76,41 @@ do_command(entry *e, user *u)
 	Debug(DPROC, ("[%d] main process returning to work\n", getpid()))
 }
 
+#ifdef PAM
+static void
+pam_cleanup(pam_handle_t **pamhp, int *session_opened, int *cred_established,
+    char ***pam_envp, const char *usernm, pid_t pid, int log_errors,
+    int end_status)
+{
+	int pam_err;
+
+	if (*pamhp == NULL)
+		return;
+	if (*session_opened) {
+		pam_err = pam_close_session(*pamhp, PAM_SILENT);
+		if (log_errors && pam_err != PAM_SUCCESS) {
+			log_it(usernm, pid, "SESSION-CLOSE",
+			    pam_strerror(*pamhp, pam_err));
+		}
+		*session_opened = 0;
+	}
+	if (*cred_established) {
+		pam_err = pam_setcred(*pamhp, PAM_DELETE_CRED);
+		if (log_errors && pam_err != PAM_SUCCESS) {
+			log_it(usernm, pid, "CRED-DELETE",
+			    pam_strerror(*pamhp, pam_err));
+		}
+		*cred_established = 0;
+	}
+	if (*pam_envp != NULL) {
+		openpam_free_envlist(*pam_envp);
+		*pam_envp = NULL;
+	}
+	pam_end(*pamhp, end_status);
+	*pamhp = NULL;
+}
+#endif
+
 
 static void
 child_process(entry *e, user *u)
@@ -88,6 +123,14 @@ child_process(entry *e, user *u)
 	int bytes = 1;
 	int status = 0;
 	const char *homedir = NULL;
+#ifdef PAM
+	pam_handle_t *pamh = NULL;
+	int pam_err = PAM_SUCCESS;
+	int pam_session_opened = 0;
+	int pam_cred_established = 0;
+	/* Keep PAM env list in the middle process for the grandchild to use. */
+	char **pam_envp = NULL;
+#endif
 # if defined(LOGIN_CAP)
 	struct passwd *pwd;
 	login_cap_t *lc;
@@ -115,8 +158,6 @@ child_process(entry *e, user *u)
 	 * as any user.
 	 */
 	if (strcmp(u->name, SYS_NAME)) {	/* not equal */
-		pam_handle_t *pamh = NULL;
-		int pam_err;
 		struct pam_conv pamc = {
 			.conv = openpam_nullconv,
 			.appdata_ptr = NULL
@@ -139,14 +180,50 @@ child_process(entry *e, user *u)
 			exit(ERROR_EXIT);
 		}
 
+		pam_err = pam_set_item(pamh, PAM_TTY, "cron");
+		if (pam_err != PAM_SUCCESS) {
+			log_it("CRON", getpid(), "error", "can't set PAM_TTY");
+			pam_cleanup(&pamh, &pam_session_opened,
+			    &pam_cred_established, &pam_envp, usernm,
+			    getpid(), 0, pam_err);
+			exit(ERROR_EXIT);
+		}
+
 		pam_err = pam_acct_mgmt(pamh, PAM_SILENT);
 		/* Expired password shouldn't prevent the job from running. */
 		if (pam_err != PAM_SUCCESS && pam_err != PAM_NEW_AUTHTOK_REQD) {
 			log_it(usernm, getpid(), "USER", "account unavailable");
+			pam_cleanup(&pamh, &pam_session_opened,
+			    &pam_cred_established, &pam_envp, usernm,
+			    getpid(), 0, pam_err);
 			exit(ERROR_EXIT);
 		}
 
-		pam_end(pamh, pam_err);
+		pam_err = pam_setcred(pamh, PAM_ESTABLISH_CRED);
+		if (pam_err != PAM_SUCCESS) {
+			log_it(usernm, getpid(), "CRED",
+			    pam_strerror(pamh, pam_err));
+			pam_cleanup(&pamh, &pam_session_opened,
+			    &pam_cred_established, &pam_envp, usernm,
+			    getpid(), 0, pam_err);
+			exit(ERROR_EXIT);
+		}
+		pam_cred_established = 1;
+
+		/* Establish the session while still root in the middle process. */
+		pam_err = pam_open_session(pamh, PAM_SILENT);
+		if (pam_err != PAM_SUCCESS) {
+			log_it(usernm, getpid(), "SESSION",
+			    pam_strerror(pamh, pam_err));
+			pam_cleanup(&pamh, &pam_session_opened,
+			    &pam_cred_established, &pam_envp, usernm,
+			    getpid(), 0, pam_err);
+			exit(ERROR_EXIT);
+		}
+		pam_session_opened = 1;
+
+		/* Collect PAM env now; apply only in grandchild before exec. */
+		pam_envp = pam_getenvlist(pamh);
 	}
 #endif
 
@@ -161,6 +238,13 @@ child_process(entry *e, user *u)
 	 */
 	if (pipe(stdin_pipe) != 0 || pipe(stdout_pipe) != 0) {
 		log_it("CRON", getpid(), "error", "can't pipe");
+#ifdef PAM
+		if (pamh != NULL && strcmp(u->name, SYS_NAME)) {
+			pam_cleanup(&pamh, &pam_session_opened,
+			    &pam_cred_established, &pam_envp, usernm,
+			    getpid(), 1, pam_err);
+		}
+#endif
 		exit(ERROR_EXIT);
 	}
 
@@ -207,12 +291,23 @@ child_process(entry *e, user *u)
 	switch (jobpid = fork()) {
 	case -1:
 		log_it("CRON", getpid(), "error", "can't fork");
+#ifdef PAM
+		if (pamh != NULL && strcmp(u->name, SYS_NAME)) {
+			pam_cleanup(&pamh, &pam_session_opened,
+			    &pam_cred_established, &pam_envp, usernm,
+			    getpid(), 1, pam_err);
+		}
+#endif
 		exit(ERROR_EXIT);
 		/*NOTREACHED*/
 	case 0:
 		Debug(DPROC, ("[%d] grandchild process fork()'ed\n",
 			      getpid()))
 
+#ifdef PAM
+		/* Grandchild runs the user job; PAM handle remains in parent. */
+		pamh = NULL;
+#endif
 		if (e->uid == ROOT_UID)
 			Jitter = RootJitter;
 		if (Jitter != 0) {
@@ -329,8 +424,8 @@ child_process(entry *e, user *u)
 		 * the homedir given by the pw entry otherwise.
 		 *
 		 * If !LOGIN_CAP, then HOME is always set in e->envp.
-		 *
-		 * XXX: probably should also consult PAM.
+		 * PAM environment is applied later for the job; we do not
+		 * use it for cwd to avoid changing historical behavior.
 		 */
 		{
 			char	*new_home = env_get("HOME", e->envp);
@@ -351,6 +446,29 @@ child_process(entry *e, user *u)
 			char	*shell = env_get("SHELL", e->envp);
 			char	**p;
 
+#ifdef PAM
+			if (pam_envp != NULL) {
+				char **pp;
+
+				/* Apply PAM-provided env only to the job process. */
+				for (pp = pam_envp; *pp != NULL; pp++) {
+					/*
+					 * Hand off each PAM string directly to the
+					 * environment; this process must not free
+					 * pam_envp after putenv() since the strings
+					 * must persist until exec. The parent will
+					 * free its copy after fork.
+					 */
+					if (putenv(*pp) != 0) {
+						warn("putenv");
+						_exit(ERROR_EXIT);
+					}
+				}
+				/* Free the pointer array; strings stay for exec. */
+				free(pam_envp);
+				pam_envp = NULL;
+			}
+#endif
 			/* Apply the environment from the entry, overriding
 			 * existing values (this will always set LOGNAME and
 			 * SHELL). putenv should not fail unless malloc does.
@@ -399,6 +517,14 @@ child_process(entry *e, user *u)
 		/* parent process */
 		break;
 	}
+
+#ifdef PAM
+	if (jobpid > 0 && pam_envp != NULL) {
+		/* Parent doesn't need PAM env list after the fork. */
+		openpam_free_envlist(pam_envp);
+		pam_envp = NULL;
+	}
+#endif
 
 	/* middle process, child of original cron, parent of process running
 	 * the user's command.
@@ -640,6 +766,14 @@ child_process(entry *e, user *u)
 
 	if (*input_data && stdinjob > 0)
 		wait_on_child(stdinjob, "grandchild stdinjob");
+
+#ifdef PAM
+	if (pamh != NULL && strcmp(u->name, SYS_NAME)) {
+		/* Close the PAM session after the job finishes. */
+		pam_cleanup(&pamh, &pam_session_opened, &pam_cred_established,
+		    &pam_envp, usernm, getpid(), 1, PAM_SUCCESS);
+	}
+#endif
 }
 
 static WAIT_T
