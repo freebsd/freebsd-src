@@ -62,7 +62,7 @@ The following subcommand options are recognized:
 .Bl -tag -width XX
 .It Fl -no-headers
 Avoids printing the headers of the table in the output of the command.
-.It Fl -results-file Ar path , Fl s Ar path
+.It Fl -results-file Ar path , Fl r Ar path
 __include__ results-file-flag-read.mdoc
 .El
 .Ss Results files

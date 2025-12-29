@@ -47,7 +47,7 @@ database lives.
 .Pp
 The following subcommand options are recognized:
 .Bl -tag -width XX
-.It Fl -results-file Ar path , Fl s Ar path
+.It Fl -results-file Ar path , Fl r Ar path
 __include__ results-file-flag-read.mdoc
 .El
 .Ss Results files
