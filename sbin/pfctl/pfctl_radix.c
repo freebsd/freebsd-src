@@ -201,23 +201,7 @@ int
 pfr_clr_astats(struct pfr_table *tbl, struct pfr_addr *addr, int size,
     int *nzero, int flags)
 {
-	struct pfioc_table io;
-
-	if (size < 0 || !tbl || (size && !addr)) {
-		errno = EINVAL;
-		return (-1);
-	}
-	bzero(&io, sizeof io);
-	io.pfrio_flags = flags;
-	io.pfrio_table = *tbl;
-	io.pfrio_buffer = addr;
-	io.pfrio_esize = sizeof(*addr);
-	io.pfrio_size = size;
-	if (ioctl(dev, DIOCRCLRASTATS, &io) == -1)
-		return (-1);
-	if (nzero)
-		*nzero = io.pfrio_nzero;
-	return (0);
+	return (pfctl_clr_astats(pfh, tbl, addr, size, nzero, flags));
 }
 
 int
