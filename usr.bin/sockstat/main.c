@@ -926,8 +926,8 @@ static int
 formataddr(struct sockaddr_storage *ss, char *buf, size_t bufsize)
 {
 	struct sockaddr_un *sun;
-	char addrstr[NI_MAXHOST] = { '\0', '\0' };
 	int error, off, port = 0;
+	char addrstr[NI_MAXHOST] = "";
 
 	switch (ss->ss_family) {
 	case AF_INET:
@@ -960,11 +960,11 @@ formataddr(struct sockaddr_storage *ss, char *buf, size_t bufsize)
 	if (is_xo_style_encoding) {
 		xo_emit("{:address/%s}", addrstr);
 		xo_emit("{:port/%d}", port);
-		return 0;
+		return (0);
 	}
 	if (port == 0)
-		return snprintf(buf, bufsize, "%s:*", addrstr);
-	return snprintf(buf, bufsize, "%s:%d", addrstr, port);
+		return (snprintf(buf, bufsize, "%s:*", addrstr));
+	return (snprintf(buf, bufsize, "%s:%d", addrstr, port));
 }
 
 static const char *
