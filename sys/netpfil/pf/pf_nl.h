@@ -72,6 +72,7 @@ enum {
 	PFNL_CMD_TABLE_SET_ADDR = 34,
 	PFNL_CMD_TABLE_GET_ADDR = 35,
 	PFNL_CMD_TABLE_GET_ASTATS = 36,
+	PFNL_CMD_TABLE_CLEAR_ASTATS = 37,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -504,6 +505,7 @@ enum pf_table_astats_t {
 	PF_TAS_ASTATS		= 2, /* nested, pfr_astats_t */
 	PF_TAS_FLAGS		= 3, /* u32 */
 	PF_TAS_ASTATS_COUNT	= 4, /* u32 */
+	PF_TAS_ASTATS_ZEROED	= 5, /* u32 */
 };
 #ifdef _KERNEL
 
