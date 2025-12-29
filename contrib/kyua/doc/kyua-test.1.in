@@ -69,7 +69,7 @@ Specifies the Kyuafile to process.
 Defaults to a
 .Pa Kyuafile
 file in the current directory.
-.It Fl -results-file Ar path , Fl s Ar path
+.It Fl -results-file Ar path , Fl r Ar path
 __include__ results-file-flag-write.mdoc
 .El
 .Pp
