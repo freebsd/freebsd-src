@@ -50,7 +50,7 @@ The following subcommand options are recognized:
 .Bl -tag -width XX
 .It Fl -output Ar directory
 Specifies the file into which to store the JUnit report.
-.It Fl -results-file Ar path , Fl s Ar path
+.It Fl -results-file Ar path , Fl r Ar path
 __include__ results-file-flag-read.mdoc
 .El
 .Ss Caveats
