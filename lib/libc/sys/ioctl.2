@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)ioctl.2	8.2 (Berkeley) 12/11/93
 .\"
-.Dd September 11, 2013
+.Dd December 29, 2025
 .Dt IOCTL 2
 .Os
 .Sh NAME
@@ -112,6 +112,9 @@ The
 system call
 will fail if:
 .Bl -tag -width Er
+.It Bq Er EACCES
+The process does not have permission to call this
+.Nm .
 .It Bq Er EBADF
 The
 .Fa fd
