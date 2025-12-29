@@ -853,7 +853,7 @@ static int
 printaddr(struct sockaddr_storage *ss)
 {
 	struct sockaddr_un *sun;
-	char addrstr[NI_MAXHOST] = { '\0', '\0' };
+	char addrstr[NI_MAXHOST] = "";
 	int error, off, port = 0;
 
 	switch (ss->ss_family) {
@@ -879,9 +879,9 @@ printaddr(struct sockaddr_storage *ss)
 			errx(1, "getnameinfo()");
 	}
 	if (port == 0)
-		return xprintf("%s:*", addrstr);
+		return (xprintf("%s:*", addrstr));
 	else
-		return xprintf("%s:%d", addrstr, port);
+		return (xprintf("%s:%d", addrstr, port));
 }
 
 static const char *
