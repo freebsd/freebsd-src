@@ -329,6 +329,9 @@ SYSCTL_DECL(_net_pf);
 MALLOC_DECLARE(M_PF);
 MALLOC_DECLARE(M_PFHASH);
 MALLOC_DECLARE(M_PF_RULE_ITEM);
+MALLOC_DECLARE(M_PF_STATE_LINK);
+MALLOC_DECLARE(M_PF_SOURCE_LIM);
+MALLOC_DECLARE(M_PF_STATE_LIM);
 
 SDT_PROVIDER_DECLARE(pf);
 SDT_PROBE_DECLARE(pf, , test, reason_set);
@@ -893,6 +896,8 @@ struct pf_krule {
 	u_int8_t		 set_prio[2];
 	sa_family_t		 naf;
 	u_int8_t		 rcvifnot;
+	uint8_t			 statelim;
+	uint8_t			 sourcelim;
 
 	struct {
 		struct pf_addr		addr;
@@ -1102,7 +1107,54 @@ struct pf_state_export {
 };
 _Static_assert(sizeof(struct pf_state_export) == 384, "size incorrect");
 
+#define	PF_STATELIM_NAME_LEN	16	/* kstat istr */
+#define	PF_STATELIM_DESCR_LEN	64
+
+#define	PF_SOURCELIM_NAME_LEN	16	/* kstat istr */
+#define	PF_SOURCELIM_DESCR_LEN	64
+
 #ifdef _KERNEL
+struct kstat;
+
+/*
+ * PF state links
+ *
+ * This is used to augment a struct pf_state so it can be
+ * tracked/referenced by the state and source address limiter things.
+ * Each limiter maintains a list of the states they "own", and these
+ * state links are what the limiters use to wire a state into their
+ * lists.
+ *
+ * Without PF state links, the pf_state struct would have to grow
+ * a lot to support a feature that may not be used.
+ *
+ * pfl_entry is used by the pools to add states to their list.
+ * pfl_state allows the pools to get from their list of states to
+ * the states themselves.
+ *
+ * pfl_link allows operations on states (well, delete) to be able
+ * to quickly locate the pf_state_link struct so they can be unwired
+ * from the pools.
+ */
+
+#define	PF_STATE_LINK_TYPE_STATELIM	1
+#define	PF_STATE_LINK_TYPE_SOURCELIM	2
+
+struct pf_kstate;
+struct pf_state_link {
+	/* used by source/state pools to get to states */
+	TAILQ_ENTRY(pf_state_link)	 pfl_link;
+
+	/* used by pf_state to get to source/state pools */
+	SLIST_ENTRY(pf_state_link)	 pfl_linkage;
+
+	struct pf_kstate		*pfl_state;
+	unsigned int			 pfl_type;
+};
+
+TAILQ_HEAD(pf_state_link_list, pf_state_link);
+SLIST_HEAD(pf_state_linkage, pf_state_link);
+
 struct pf_kstate {
 	/*
 	 * Area shared with pf_state_cmp
@@ -1144,13 +1196,227 @@ struct pf_kstate {
 	u_int16_t		 tag;
 	u_int16_t		 if_index_in;
 	u_int16_t		 if_index_out;
+	uint8_t			 statelim;
+	uint8_t			 sourcelim;
+	struct pf_state_linkage	 linkage;
 };
 
 /*
- * 6 cache lines per struct, 10 structs per page.
- * Try to not grow the struct beyond that.
+ * State limiter
  */
-_Static_assert(sizeof(struct pf_kstate) <= 384, "pf_kstate size crosses 384 bytes");
+
+struct pf_statelim {
+	RB_ENTRY(pf_statelim)	 pfstlim_id_tree;
+	RB_ENTRY(pf_statelim)	 pfstlim_nm_tree;
+	TAILQ_ENTRY(pf_statelim) pfstlim_list;
+	struct kstat		*pfstlim_ks;
+
+	uint32_t		 pfstlim_id;
+	char			 pfstlim_nm[PF_STATELIM_NAME_LEN];
+
+	/* config */
+
+	unsigned int		 pfstlim_limit;
+	struct {
+		unsigned int	 limit;
+		unsigned int	 seconds;
+	}			 pfstlim_rate;
+
+	/* run state */
+	struct mtx		 pfstlim_lock;
+
+	/* rate limiter */
+	uint64_t		 pfstlim_rate_ts;
+	uint64_t		 pfstlim_rate_token;
+	uint64_t		 pfstlim_rate_bucket;
+
+	unsigned int		 pfstlim_inuse;
+	struct pf_state_link_list	 pfstlim_states;
+
+	/* counters */
+
+	struct {
+		uint64_t	 admitted;
+		uint64_t	 hardlimited;
+		uint64_t	 ratelimited;
+	}			 pfstlim_counters;
+
+	struct {
+		time_t		 created;
+		time_t		 updated;
+		time_t		 cleared;
+	}			 pfstlim_timestamps;
+};
+
+RB_HEAD(pf_statelim_id_tree, pf_statelim);
+RB_PROTOTYPE(pf_statelim_id_tree, pf_statelim, pfstlim_id_tree, cmp);
+
+RB_HEAD(pf_statelim_nm_tree, pf_statelim);
+RB_PROTOTYPE(pf_statelim_nm_tree, pf_statelim, pfstlim_nm_tree, cmp);
+
+TAILQ_HEAD(pf_statelim_list, pf_statelim);
+
+VNET_DECLARE(struct pf_statelim_id_tree, pf_statelim_id_tree_active);
+#define	V_pf_statelim_id_tree_active	VNET(pf_statelim_id_tree_active)
+VNET_DECLARE(struct pf_statelim_list, pf_statelim_list_active);
+#define	V_pf_statelim_list_active	VNET(pf_statelim_list_active)
+
+VNET_DECLARE(struct pf_statelim_id_tree, pf_statelim_id_tree_inactive);
+#define	V_pf_statelim_id_tree_inactive	VNET(pf_statelim_id_tree_inactive)
+VNET_DECLARE(struct pf_statelim_nm_tree, pf_statelim_nm_tree_inactive);
+#define	V_pf_statelim_nm_tree_inactive	VNET(pf_statelim_nm_tree_inactive)
+VNET_DECLARE(struct pf_statelim_list, pf_statelim_list_inactive);
+#define	V_pf_statelim_list_inactive	VNET(pf_statelim_list_inactive)
+
+static inline unsigned int
+pf_statelim_enter(struct pf_statelim *pfstlim)
+{
+	mtx_lock(&pfstlim->pfstlim_lock);
+
+	return (0);
+}
+
+static inline void
+pf_statelim_leave(struct pf_statelim *pfstlim, unsigned int gen)
+{
+	return (mtx_unlock(&pfstlim->pfstlim_lock));
+}
+
+/*
+ * Source address pools
+ */
+
+struct pf_sourcelim;
+
+struct pf_source {
+	RB_ENTRY(pf_source)	 pfsr_tree;
+	RB_ENTRY(pf_source)	 pfsr_ioc_tree;
+	struct pf_sourcelim	*pfsr_parent;
+
+	sa_family_t		 pfsr_af;
+	u_int16_t		 pfsr_rdomain;
+	struct pf_addr		 pfsr_addr;
+
+	/* run state */
+
+	unsigned int		 pfsr_inuse;
+	unsigned int		 pfsr_intable;
+	struct pf_state_link_list pfsr_states;
+	time_t			 pfsr_empty_ts;
+	TAILQ_ENTRY(pf_source)	 pfsr_empty_gc;
+
+	/* rate limiter */
+	uint64_t		 pfsr_rate_ts;
+
+	struct {
+		uint64_t	 admitted;
+		uint64_t	 hardlimited;
+		uint64_t	 ratelimited;
+	}			 pfsr_counters;
+};
+
+RB_HEAD(pf_source_tree, pf_source);
+RB_PROTOTYPE(pf_source_tree, pf_source, pfsr_tree, cmp);
+
+RB_HEAD(pf_source_ioc_tree, pf_source);
+RB_PROTOTYPE(pf_source_ioc_tree, pf_source, pfsr_ioc_tree, cmp);
+
+TAILQ_HEAD(pf_source_list, pf_source);
+
+struct pf_sourcelim {
+	RB_ENTRY(pf_sourcelim)		 pfsrlim_id_tree;
+	RB_ENTRY(pf_sourcelim)		 pfsrlim_nm_tree;
+	TAILQ_ENTRY(pf_sourcelim)	 pfsrlim_list;
+	struct kstat			*pfsrlim_ks;
+
+	uint32_t			 pfsrlim_id;
+	char				 pfsrlim_nm[PF_SOURCELIM_NAME_LEN];
+	unsigned int			 pfsrlim_disabled;
+
+	/* config */
+
+	unsigned int			 pfsrlim_entries;
+	unsigned int			 pfsrlim_limit;
+	unsigned int			 pfsrlim_ipv4_prefix;
+	unsigned int			 pfsrlim_ipv6_prefix;
+
+	struct {
+		unsigned int		 limit;
+		unsigned int		 seconds;
+	}				 pfsrlim_rate;
+
+	struct {
+		char			 name[PF_TABLE_NAME_SIZE];
+		unsigned int		 hwm;
+		unsigned int		 lwm;
+		struct pfr_ktable	*table;
+	}				 pfsrlim_overload;
+
+	/* run state */
+	struct mtx			 pfsrlim_lock;
+
+	struct pf_addr			 pfsrlim_ipv4_mask;
+	struct pf_addr			 pfsrlim_ipv6_mask;
+
+	uint64_t			 pfsrlim_rate_token;
+	uint64_t			 pfsrlim_rate_bucket;
+
+	/* number of pf_sources */
+	unsigned int			 pfsrlim_nsources;
+	struct pf_source_tree		 pfsrlim_sources;
+	struct pf_source_ioc_tree	 pfsrlim_ioc_sources;
+
+	struct {
+		/* number of times pf_source was allocated */
+		uint64_t		 addrallocs;
+		/* state was rejected because the address limit was hit */
+		uint64_t		 addrlimited;
+		/* no memory to create address thing */
+		uint64_t		 addrnomem;
+
+		/* sum of pf_source inuse gauges */
+		uint64_t		 inuse;
+		/* sum of pf_source admitted counters */
+		uint64_t		 admitted;
+		/* sum of pf_source hardlimited counters */
+		uint64_t		 hardlimited;
+		/* sum of pf_source ratelimited counters */
+		uint64_t		 ratelimited;
+	}				 pfsrlim_counters;
+};
+
+RB_HEAD(pf_sourcelim_id_tree, pf_sourcelim);
+RB_PROTOTYPE(pf_sourcelim_id_tree, pf_sourcelim, pfsrlim_id_tree, cmp);
+
+RB_HEAD(pf_sourcelim_nm_tree, pf_sourcelim);
+RB_PROTOTYPE(pf_sourcelim_nm_tree, pf_sourcelim, pfsrlim_nm_tree, cmp);
+
+TAILQ_HEAD(pf_sourcelim_list, pf_sourcelim);
+
+VNET_DECLARE(struct pf_sourcelim_id_tree, pf_sourcelim_id_tree_active);
+#define	V_pf_sourcelim_id_tree_active	VNET(pf_sourcelim_id_tree_active)
+VNET_DECLARE(struct pf_sourcelim_list, pf_sourcelim_list_active);
+#define	V_pf_sourcelim_list_active	VNET(pf_sourcelim_list_active)
+
+VNET_DECLARE(struct pf_sourcelim_id_tree, pf_sourcelim_id_tree_inactive);
+#define	V_pf_sourcelim_id_tree_inactive	VNET(pf_sourcelim_id_tree_inactive)
+VNET_DECLARE(struct pf_sourcelim_nm_tree, pf_sourcelim_nm_tree_inactive);
+#define	V_pf_sourcelim_nm_tree_inactive	VNET(pf_sourcelim_nm_tree_inactive)
+VNET_DECLARE(struct pf_sourcelim_list, pf_sourcelim_list_inactive);
+#define	V_pf_sourcelim_list_inactive	VNET(pf_sourcelim_list_inactive)
+
+static inline unsigned int
+pf_sourcelim_enter(struct pf_sourcelim *pfsrlim)
+{
+	mtx_lock(&pfsrlim->pfsrlim_lock);
+	return (0);
+}
+
+static inline void
+pf_sourcelim_leave(struct pf_sourcelim *pfsrlim, unsigned int gen)
+{
+	mtx_unlock(&pfsrlim->pfsrlim_lock);
+}
 
 enum pf_test_status {
 	PF_TEST_FAIL = -1,
@@ -1186,6 +1452,9 @@ struct pf_test_ctx {
 	uint16_t		 virtual_type;
 	uint16_t		 virtual_id;
 	int			 depth;
+	struct pf_statelim	*statelim;
+	struct pf_sourcelim	*sourcelim;
+	struct pf_source	*source;
 };
 
 #define	PF_ANCHOR_STACK_MAX	32
@@ -1805,6 +2074,127 @@ enum pf_syncookies_mode {
 #define	PF_SYNCOOKIES_HIWATPCT	25
 #define	PF_SYNCOOKIES_LOWATPCT	(PF_SYNCOOKIES_HIWATPCT / 2)
 
+struct pfioc_statelim {
+	uint32_t	 ticket;
+
+	char		 name[PF_STATELIM_NAME_LEN];
+	uint32_t	 id;
+#define	PF_STATELIM_ID_NONE	0
+#define	PF_STATELIM_ID_MIN	1
+#define	PF_STATELIM_ID_MAX	255 /* fits in pf_state uint8_t */
+
+	/* limit on the total number of states */
+	unsigned int	 limit;
+#define	PF_STATELIM_LIMIT_MIN	1
+#define	PF_STATELIM_LIMIT_MAX	(1 << 24) /* pf is pretty scalable */
+
+	/* rate limit on the creation of states */
+	struct {
+		unsigned int	 limit;
+		unsigned int	 seconds;
+	} rate;
+
+	char		 description[PF_STATELIM_DESCR_LEN];
+
+	/* kernel state for GET ioctls */
+	unsigned int	 inuse;   /* gauge */
+	uint64_t	 admitted;    /* counter */
+	uint64_t	 hardlimited; /* counter */
+	uint64_t	 ratelimited; /* counter */
+};
+
+struct pfioc_sourcelim {
+	uint32_t	 ticket;
+
+	char		 name[PF_SOURCELIM_NAME_LEN];
+	uint32_t	 id;
+#define	PF_SOURCELIM_ID_NONE	0
+#define	PF_SOURCELIM_ID_MIN	1
+#define	PF_SOURCELIM_ID_MAX	255 /* fits in pf_state uint8_t */
+
+	/* limit on the total number of address entries */
+	unsigned int	 entries;
+
+	/* limit on the number of states per address entry */
+	unsigned int	 limit;
+
+	/* rate limit on the creation of states by an address entry */
+	struct {
+		unsigned int	 limit;
+		unsigned int	 seconds;
+	} rate;
+
+	/*
+	 * when the number of states on an entry exceeds hwm, add
+	 * the address to the specified table. when the number of
+	 * states goes below lwm, remove it from the table.
+	 */
+	char		 overload_tblname[PF_TABLE_NAME_SIZE];
+	unsigned int	 overload_hwm;
+	unsigned int	 overload_lwm;
+
+	/*
+	 * mask addresses before they're used for entries. /64s
+	 * everywhere for inet6 makes it easy to use too much memory.
+	 */
+	unsigned int	 inet_prefix;
+	unsigned int	 inet6_prefix;
+
+	char	 description[PF_SOURCELIM_DESCR_LEN];
+
+	/* kernel state for GET ioctls */
+	unsigned int	 nentries;	/* gauge */
+	unsigned int	 inuse;		/* gauge */
+
+	uint64_t	 addrallocs;	/* counter */
+	uint64_t	 addrnomem;	/* counter */
+	uint64_t	 admitted;	/* counter */
+	uint64_t	 addrlimited;	/* counter */
+	uint64_t	 hardlimited;	/* counter */
+	uint64_t	 ratelimited;	/* counter */
+};
+
+struct pfioc_source_entry {
+	sa_family_t	 af;
+	unsigned int	 rdomain;
+	struct pf_addr	 addr;
+
+	/* stats */
+
+	unsigned int	 inuse;		/* gauge */
+	uint64_t	 admitted;	/* counter */
+	uint64_t	 hardlimited;	/* counter */
+	uint64_t	 ratelimited;	/* counter */
+};
+
+struct pfioc_source {
+	char		 name[PF_SOURCELIM_NAME_LEN];
+	uint32_t	 id;
+
+	/* copied from the parent source limiter */
+
+	unsigned int	 inet_prefix;
+	unsigned int	 inet6_prefix;
+	unsigned int	 limit;
+
+	/* source entries */
+	size_t		 entry_size;	/* sizeof(struct pfioc_source_entry) */
+
+	struct pfioc_source_entry	*key;
+	struct pfioc_source_entry	*entries;
+	size_t		 entrieslen;	/* bytes */
+};
+
+struct pfioc_source_kill {
+	char		 name[PF_SOURCELIM_NAME_LEN];
+	uint32_t	 id;
+	unsigned int	 rdomain;
+	sa_family_t	 af;
+	struct pf_addr	 addr;
+
+	unsigned int	 rmstates; /* kill the states too? */
+};
+
 #ifdef _KERNEL
 struct pf_kstatus {
 	counter_u64_t	counters[PFRES_MAX]; /* reason for passing/dropping */
@@ -2179,6 +2569,15 @@ struct pfioc_iface {
 #define	DIOCGETETHRULESETS	_IOWR('D', 100, struct pfioc_nv)
 #define	DIOCGETETHRULESET	_IOWR('D', 101, struct pfioc_nv)
 #define DIOCSETREASS		_IOWR('D', 102, u_int32_t)
+#define	DIOCADDSTATELIM		_IOW('D', 103, struct pfioc_statelim)
+#define	DIOCADDSOURCELIM	_IOW('D', 104, struct pfioc_sourcelim)
+#define	DIOCGETSTATELIM		_IOWR('D', 105, struct pfioc_statelim)
+#define	DIOCGETSOURCELIM	_IOWR('D', 106, struct pfioc_sourcelim)
+#define	DIOCGETSOURCE		_IOWR('D', 107, struct pfioc_source)
+#define	DIOCGETNSTATELIM	_IOWR('D', 108, struct pfioc_statelim)
+#define	DIOCGETNSOURCELIM	_IOWR('D', 109, struct pfioc_sourcelim)
+#define	DIOCGETNSOURCE		_IOWR('D', 110, struct pfioc_source)
+#define	DIOCCLRSOURCE		_IOWR('D', 111, struct pfioc_source_kill)
 
 struct pf_ifspeed_v0 {
 	char			ifname[IFNAMSIZ];
@@ -2420,6 +2819,14 @@ pf_get_time(void)
 	return ((t.tv_sec * 1000) + (t.tv_usec / 1000));
 }
 
+static inline uint64_t
+SEC_TO_NSEC(uint64_t seconds)
+{
+	if (seconds > UINT64_MAX / 1000000000ULL)
+		return (UINT64_MAX);
+	return (seconds * 1000000000ULL);
+}
+
 extern struct pf_kstate		*pf_find_state_byid(uint64_t, uint32_t);
 extern struct pf_kstate		*pf_find_state_all(
 				    const struct pf_state_key_cmp *,
@@ -2554,6 +2961,7 @@ int	pfr_clr_tstats(struct pfr_table *, int, int *, int);
 int	pfr_set_tflags(struct pfr_table *, int, int, int, int *, int *, int);
 int	pfr_clr_addrs(struct pfr_table *, int *, int);
 int	pfr_insert_kentry(struct pfr_ktable *, struct pfr_addr *, time_t);
+int	pfr_remove_kentry(struct pfr_ktable *, struct pfr_addr *);
 int	pfr_add_addrs(struct pfr_table *, struct pfr_addr *, int, int *,
 	    int);
 int	pfr_del_addrs(struct pfr_table *, struct pfr_addr *, int, int *,

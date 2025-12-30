@@ -136,6 +136,12 @@ static int		 pf_import_kaltq(struct pfioc_altq_v1 *,
 			    struct pf_altq *, size_t);
 #endif /* ALTQ */
 
+static void		 pf_statelim_commit(void);
+static void		 pf_statelim_rollback(void);
+static int		 pf_sourcelim_check(void);
+static void		 pf_sourcelim_commit(void);
+static void		 pf_sourcelim_rollback(void);
+
 VNET_DEFINE(struct pf_krule,	pf_default_rule);
 
 static __inline int             pf_krule_compare(struct pf_krule *,
@@ -187,6 +193,7 @@ VNET_DEFINE(uma_zone_t,	 pf_tag_z);
 static MALLOC_DEFINE(M_PFALTQ, "pf_altq", "pf(4) altq configuration db");
 static MALLOC_DEFINE(M_PFRULE, "pf_rule", "pf(4) rules");
 MALLOC_DEFINE(M_PF, "pf", "pf(4)");
+MALLOC_DEFINE(M_PF_STATE_LIM, "pf_state_lim", "pf(4) state limiter");
 
 #if (PF_QNAME_SIZE != PF_TAG_NAME_SIZE)
 #error PF_QNAME_SIZE must be equal to PF_TAG_NAME_SIZE
@@ -1318,6 +1325,12 @@ pf_rollback_rules(u_int32_t ticket, int rs_num, char *anchor)
 		rs->rules[rs_num].inactive.rcount--;
 	}
 	rs->rules[rs_num].inactive.open = 0;
+
+	if (anchor[0])
+		return (0);
+
+	pf_statelim_rollback();
+	pf_sourcelim_rollback();
 	return (0);
 }
 
@@ -1437,6 +1450,7 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 	struct pf_krule_global  *old_tree;
 	int			 error;
 	u_int32_t		 old_rcount;
+	bool			 is_main_ruleset = anchor[0] == '\0';
 
 	PF_RULES_WASSERT();
 
@@ -1449,6 +1463,9 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 
 	/* Calculate checksum for the main ruleset */
 	if (rs == &pf_main_ruleset) {
+		error = pf_sourcelim_check();
+		if (error != 0)
+			return (error);
 		error = pf_setup_pfsync_matching(rs);
 		if (error != 0)
 			return (error);
@@ -1506,6 +1523,13 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 	rs->rules[rs_num].inactive.open = 0;
 	pf_remove_if_empty_kruleset(rs);
 	pf_rule_tree_free(old_tree);
+
+	/* statelim/sourcelim/queue defs only in the main ruleset */
+	if (! is_main_ruleset || rs_num != PF_RULESET_FILTER)
+		return (0);
+
+	pf_statelim_commit();
+	pf_sourcelim_commit();
 
 	return (0);
 }
@@ -1587,6 +1611,844 @@ pf_addr_copyout(struct pf_addr_wrap *addr)
 		pf_tbladdr_copyout(addr);
 		break;
 	}
+}
+
+static int
+pf_statelim_add(const struct pfioc_statelim *ioc)
+{
+	struct pf_statelim	*pfstlim;
+	int			 error;
+	size_t			 namelen;
+
+	if (ioc->id < PF_STATELIM_ID_MIN ||
+	    ioc->id > PF_STATELIM_ID_MAX)
+		return (EINVAL);
+
+	if (ioc->limit < PF_STATELIM_LIMIT_MIN ||
+	    ioc->limit > PF_STATELIM_LIMIT_MAX)
+		return (EINVAL);
+
+	if ((ioc->rate.limit == 0) != (ioc->rate.seconds == 0))
+		return (EINVAL);
+
+	namelen = strnlen(ioc->name, sizeof(ioc->name));
+	if (namelen == sizeof(ioc->name))
+		return (EINVAL);
+
+	pfstlim = malloc(sizeof(*pfstlim), M_PF_STATE_LIM, M_WAITOK | M_ZERO);
+	if (pfstlim == NULL)
+		return (ENOMEM);
+
+	pfstlim->pfstlim_id = ioc->id;
+	memcpy(pfstlim->pfstlim_nm, ioc->name, namelen);
+	pfstlim->pfstlim_limit = ioc->limit;
+	pfstlim->pfstlim_rate.limit = ioc->rate.limit;
+	pfstlim->pfstlim_rate.seconds = ioc->rate.seconds;
+
+	if (pfstlim->pfstlim_rate.limit) {
+		uint64_t bucket = SEC_TO_NSEC(pfstlim->pfstlim_rate.seconds);
+		struct timespec ts;
+
+		getnanouptime(&ts);
+
+		pfstlim->pfstlim_rate_ts = SEC_TO_NSEC(ts.tv_sec) + ts.tv_nsec -
+		    bucket;
+		pfstlim->pfstlim_rate_token = bucket /
+		    pfstlim->pfstlim_rate.limit;
+		pfstlim->pfstlim_rate_bucket = bucket;
+	}
+
+	TAILQ_INIT(&pfstlim->pfstlim_states);
+	mtx_init(&pfstlim->pfstlim_lock, "pf state limit", NULL, MTX_DEF);
+
+	PF_RULES_WLOCK();
+	if (ioc->ticket != pf_main_ruleset.rules[PF_RULESET_FILTER].inactive.ticket) {
+		error = EBUSY;
+		goto unlock;
+	}
+
+	if (RB_INSERT(pf_statelim_id_tree, &V_pf_statelim_id_tree_inactive,
+		pfstlim) != NULL) {
+		error = EBUSY;
+		goto unlock;
+	}
+
+	if (RB_INSERT(pf_statelim_nm_tree, &V_pf_statelim_nm_tree_inactive,
+		pfstlim) != NULL) {
+		RB_REMOVE(pf_statelim_id_tree, &V_pf_statelim_id_tree_inactive,
+		    pfstlim);
+		error = EBUSY;
+		goto unlock;
+	}
+
+	TAILQ_INSERT_HEAD(&V_pf_statelim_list_inactive, pfstlim, pfstlim_list);
+
+	PF_RULES_WUNLOCK();
+
+	return (0);
+
+unlock:
+	PF_RULES_WUNLOCK();
+
+	/* free: */
+	free(pfstlim, M_PF_STATE_LIM);
+
+	return (error);
+}
+
+static void
+pf_statelim_unlink(struct pf_statelim *pfstlim,
+    struct pf_state_link_list *garbage)
+{
+	struct pf_state_link *pfl;
+
+
+	/* unwire the links */
+	TAILQ_FOREACH(pfl, &pfstlim->pfstlim_states, pfl_link) {
+		struct pf_kstate *s = pfl->pfl_state;
+
+		/* if !rmst */
+		PF_STATE_LOCK(s);
+		s->statelim = 0;
+		SLIST_REMOVE(&s->linkage, pfl, pf_state_link, pfl_linkage);
+		PF_STATE_UNLOCK(s);
+	}
+
+	/* take the list away */
+	TAILQ_CONCAT(garbage, &pfstlim->pfstlim_states, pfl_link);
+	pfstlim->pfstlim_inuse = 0;
+}
+
+void
+pf_statelim_commit(void)
+{
+	struct pf_statelim *pfstlim, *npfstlim, *opfstlim;
+	struct pf_statelim_list l = TAILQ_HEAD_INITIALIZER(l);
+	struct pf_state_link_list garbage = TAILQ_HEAD_INITIALIZER(garbage);
+	struct pf_state_link *pfl, *npfl;
+
+	PF_RULES_WASSERT();
+
+	/* merge the new statelims into the current set */
+
+	/* start with an empty active list */
+	TAILQ_CONCAT(&l, &V_pf_statelim_list_active, pfstlim_list);
+
+	/* beware, the inactive bits gets messed up here */
+
+	/* try putting pending statelims into the active tree */
+	TAILQ_FOREACH_SAFE(pfstlim, &V_pf_statelim_list_inactive, pfstlim_list,
+	    npfstlim) {
+		opfstlim = RB_INSERT(pf_statelim_id_tree,
+		    &V_pf_statelim_id_tree_active, pfstlim);
+		if (opfstlim != NULL) {
+			/* this statelim already exists, merge */
+			opfstlim->pfstlim_limit = pfstlim->pfstlim_limit;
+			opfstlim->pfstlim_rate.limit =
+			    pfstlim->pfstlim_rate.limit;
+			opfstlim->pfstlim_rate.seconds =
+			    pfstlim->pfstlim_rate.seconds;
+
+			opfstlim->pfstlim_rate_ts = pfstlim->pfstlim_rate_ts;
+			opfstlim->pfstlim_rate_token =
+			    pfstlim->pfstlim_rate_token;
+			opfstlim->pfstlim_rate_bucket =
+			    pfstlim->pfstlim_rate_bucket;
+
+			memcpy(opfstlim->pfstlim_nm, pfstlim->pfstlim_nm,
+			    sizeof(opfstlim->pfstlim_nm));
+
+			/* use the existing statelim instead */
+			free(pfstlim, M_PF_STATE_LIM);
+			TAILQ_REMOVE(&l, opfstlim, pfstlim_list);
+			pfstlim = opfstlim;
+		}
+
+		TAILQ_INSERT_TAIL(&V_pf_statelim_list_active, pfstlim,
+		    pfstlim_list);
+	}
+
+	/* clean up the now unused statelims from the old set */
+	TAILQ_FOREACH_SAFE(pfstlim, &l, pfstlim_list, npfstlim) {
+		pf_statelim_unlink(pfstlim, &garbage);
+
+		RB_REMOVE(pf_statelim_id_tree, &V_pf_statelim_id_tree_active,
+		    pfstlim);
+
+		free(pfstlim, M_PF_STATE_LIM);
+	}
+
+	/* fix up the inactive tree */
+	RB_INIT(&V_pf_statelim_id_tree_inactive);
+	RB_INIT(&V_pf_statelim_nm_tree_inactive);
+	TAILQ_INIT(&V_pf_statelim_list_inactive);
+
+	TAILQ_FOREACH_SAFE(pfl, &garbage, pfl_link, npfl)
+		free(pfl, M_PF_STATE_LINK);
+}
+
+static void
+pf_sourcelim_unlink(struct pf_sourcelim *pfsrlim,
+    struct pf_state_link_list *garbage)
+{
+	extern struct pf_source_list pf_source_gc;
+	struct pf_source *pfsr;
+	struct pf_state_link *pfl;
+
+	PF_RULES_WASSERT();
+
+	while ((pfsr = RB_ROOT(&pfsrlim->pfsrlim_sources)) != NULL) {
+		RB_REMOVE(pf_source_tree, &pfsrlim->pfsrlim_sources, pfsr);
+		RB_REMOVE(pf_source_ioc_tree, &pfsrlim->pfsrlim_ioc_sources,
+		    pfsr);
+		if (pfsr->pfsr_inuse == 0)
+			TAILQ_REMOVE(&pf_source_gc, pfsr, pfsr_empty_gc);
+
+		/* unwire the links */
+		TAILQ_FOREACH(pfl, &pfsr->pfsr_states, pfl_link) {
+			struct pf_kstate *s = pfl->pfl_state;
+
+			PF_STATE_LOCK(s);
+			/* if !rmst */
+			s->sourcelim = 0;
+			SLIST_REMOVE(&s->linkage, pfl, pf_state_link,
+			    pfl_linkage);
+			PF_STATE_UNLOCK(s);
+		}
+
+		/* take the list away */
+		TAILQ_CONCAT(garbage, &pfsr->pfsr_states, pfl_link);
+
+		free(pfsr, M_PF_SOURCE_LIM);
+	}
+}
+
+int
+pf_sourcelim_check(void)
+{
+	struct pf_sourcelim *pfsrlim, *npfsrlim;
+
+	PF_RULES_WASSERT();
+
+	/* check if we can merge */
+
+	TAILQ_FOREACH(pfsrlim, &V_pf_sourcelim_list_inactive, pfsrlim_list) {
+		npfsrlim = RB_FIND(pf_sourcelim_id_tree,
+		    &V_pf_sourcelim_id_tree_active, pfsrlim);
+
+		/* new config, no conflict */
+		if (npfsrlim == NULL)
+			continue;
+
+		/* nothing is tracked at the moment, no conflict */
+		if (RB_EMPTY(&npfsrlim->pfsrlim_sources))
+			continue;
+
+		if (strcmp(npfsrlim->pfsrlim_overload.name,
+			pfsrlim->pfsrlim_overload.name) != 0)
+			return (EBUSY);
+
+		/*
+		 * we should allow the prefixlens to get shorter
+		 * and merge pf_source entries.
+		 */
+
+		if ((npfsrlim->pfsrlim_ipv4_prefix !=
+			pfsrlim->pfsrlim_ipv4_prefix) ||
+		    (npfsrlim->pfsrlim_ipv6_prefix !=
+			pfsrlim->pfsrlim_ipv6_prefix))
+			return (EBUSY);
+	}
+
+	return (0);
+}
+
+void
+pf_sourcelim_commit(void)
+{
+	struct pf_sourcelim *pfsrlim, *npfsrlim, *opfsrlim;
+	struct pf_sourcelim_list l = TAILQ_HEAD_INITIALIZER(l);
+	struct pf_state_link_list garbage = TAILQ_HEAD_INITIALIZER(garbage);
+	struct pf_state_link *pfl, *npfl;
+
+	PF_RULES_WASSERT();
+
+	/* merge the new sourcelims into the current set */
+
+	/* start with an empty active list */
+	TAILQ_CONCAT(&l, &V_pf_sourcelim_list_active, pfsrlim_list);
+
+	/* beware, the inactive bits gets messed up here */
+
+	/* try putting pending sourcelims into the active tree */
+	TAILQ_FOREACH_SAFE(pfsrlim, &V_pf_sourcelim_list_inactive, pfsrlim_list,
+	    npfsrlim) {
+		opfsrlim = RB_INSERT(pf_sourcelim_id_tree,
+		    &V_pf_sourcelim_id_tree_active, pfsrlim);
+		if (opfsrlim != NULL) {
+			/* this sourcelim already exists, merge */
+			opfsrlim->pfsrlim_entries = pfsrlim->pfsrlim_entries;
+			opfsrlim->pfsrlim_limit = pfsrlim->pfsrlim_limit;
+			opfsrlim->pfsrlim_ipv4_prefix =
+			    pfsrlim->pfsrlim_ipv4_prefix;
+			opfsrlim->pfsrlim_ipv6_prefix =
+			    pfsrlim->pfsrlim_ipv6_prefix;
+			opfsrlim->pfsrlim_rate.limit =
+			    pfsrlim->pfsrlim_rate.limit;
+			opfsrlim->pfsrlim_rate.seconds =
+			    pfsrlim->pfsrlim_rate.seconds;
+
+			opfsrlim->pfsrlim_ipv4_mask =
+			    pfsrlim->pfsrlim_ipv4_mask;
+			opfsrlim->pfsrlim_ipv6_mask =
+			    pfsrlim->pfsrlim_ipv6_mask;
+
+			/* keep the existing pfstlim_rate_ts */
+
+			opfsrlim->pfsrlim_rate_token =
+			    pfsrlim->pfsrlim_rate_token;
+			opfsrlim->pfsrlim_rate_bucket =
+			    pfsrlim->pfsrlim_rate_bucket;
+
+			if (opfsrlim->pfsrlim_overload.table != NULL) {
+				pfr_detach_table(
+				    opfsrlim->pfsrlim_overload.table);
+			}
+
+			strlcpy(opfsrlim->pfsrlim_overload.name,
+			    pfsrlim->pfsrlim_overload.name,
+			    sizeof(opfsrlim->pfsrlim_overload.name));
+			opfsrlim->pfsrlim_overload.hwm =
+			    pfsrlim->pfsrlim_overload.hwm;
+			opfsrlim->pfsrlim_overload.lwm =
+			    pfsrlim->pfsrlim_overload.lwm;
+			opfsrlim->pfsrlim_overload.table =
+			    pfsrlim->pfsrlim_overload.table,
+
+			memcpy(opfsrlim->pfsrlim_nm, pfsrlim->pfsrlim_nm,
+			    sizeof(opfsrlim->pfsrlim_nm));
+
+			/* use the existing sourcelim instead */
+			free(pfsrlim, M_PF_SOURCE_LIM);
+			TAILQ_REMOVE(&l, opfsrlim, pfsrlim_list);
+			pfsrlim = opfsrlim;
+		}
+
+		TAILQ_INSERT_TAIL(&V_pf_sourcelim_list_active, pfsrlim,
+		    pfsrlim_list);
+	}
+
+	/* clean up the now unused sourcelims from the old set */
+	TAILQ_FOREACH_SAFE(pfsrlim, &l, pfsrlim_list, npfsrlim) {
+		pf_sourcelim_unlink(pfsrlim, &garbage);
+
+		RB_REMOVE(pf_sourcelim_id_tree, &V_pf_sourcelim_id_tree_active,
+		    pfsrlim);
+
+		if (pfsrlim->pfsrlim_overload.table != NULL)
+			pfr_detach_table(pfsrlim->pfsrlim_overload.table);
+
+		free(pfsrlim, M_PF_SOURCE_LIM);
+	}
+
+	/* fix up the inactive tree */
+	RB_INIT(&V_pf_sourcelim_id_tree_inactive);
+	RB_INIT(&V_pf_sourcelim_nm_tree_inactive);
+	TAILQ_INIT(&V_pf_sourcelim_list_inactive);
+
+	TAILQ_FOREACH_SAFE(pfl, &garbage, pfl_link, npfl)
+		free(pfl, M_PF_STATE_LINK);
+}
+
+void
+pf_statelim_rollback(void)
+{
+	struct pf_statelim *pfstlim, *npfstlim;
+
+	PF_RULES_WASSERT();
+
+	TAILQ_FOREACH_SAFE(pfstlim, &V_pf_statelim_list_inactive, pfstlim_list,
+	    npfstlim)
+		free(pfstlim, M_PF_STATE_LIM);
+
+	TAILQ_INIT(&V_pf_statelim_list_inactive);
+	RB_INIT(&V_pf_statelim_id_tree_inactive);
+	RB_INIT(&V_pf_statelim_nm_tree_inactive);
+}
+
+static struct pf_statelim *
+pf_statelim_rb_find(struct pf_statelim_id_tree *tree, struct pf_statelim *key)
+{
+	PF_RULES_ASSERT();
+
+	return (RB_FIND(pf_statelim_id_tree, tree, key));
+}
+
+static struct pf_statelim *
+pf_statelim_rb_nfind(struct pf_statelim_id_tree *tree, struct pf_statelim *key)
+{
+	PF_RULES_ASSERT();
+
+	return (RB_NFIND(pf_statelim_id_tree, tree, key));
+}
+
+static int
+pf_statelim_get(struct pfioc_statelim *ioc,
+    struct pf_statelim *(*rbt_op)(struct pf_statelim_id_tree *,
+     struct pf_statelim *))
+{
+	struct pf_statelim key = { .pfstlim_id = ioc->id };
+	struct pf_statelim *pfstlim;
+	int error = 0;
+	PF_RULES_RLOCK_TRACKER;
+
+	PF_RULES_RLOCK();
+
+	pfstlim = (*rbt_op)(&V_pf_statelim_id_tree_active, &key);
+	if (pfstlim == NULL) {
+		error = ENOENT;
+		goto unlock;
+	}
+
+	ioc->id = pfstlim->pfstlim_id;
+	ioc->limit = pfstlim->pfstlim_limit;
+	ioc->rate.limit = pfstlim->pfstlim_rate.limit;
+	ioc->rate.seconds = pfstlim->pfstlim_rate.seconds;
+	CTASSERT(sizeof(ioc->name) == sizeof(pfstlim->pfstlim_nm));
+	memcpy(ioc->name, pfstlim->pfstlim_nm, sizeof(ioc->name));
+
+	ioc->inuse = pfstlim->pfstlim_inuse;
+	ioc->admitted = pfstlim->pfstlim_counters.admitted;
+	ioc->hardlimited = pfstlim->pfstlim_counters.hardlimited;
+	ioc->ratelimited = pfstlim->pfstlim_counters.ratelimited;
+
+unlock:
+	PF_RULES_RUNLOCK();
+
+	return (error);
+}
+
+static int
+pf_sourcelim_add(const struct pfioc_sourcelim *ioc)
+{
+	struct pf_sourcelim	*pfsrlim;
+	int			 error;
+	size_t			 namelen, tablelen;
+	unsigned int		 prefix;
+	size_t			 i;
+
+	if (ioc->id < PF_SOURCELIM_ID_MIN ||
+	    ioc->id > PF_SOURCELIM_ID_MAX)
+		return (EINVAL);
+
+	if (ioc->entries < 1)
+		return (EINVAL);
+
+	if (ioc->limit < 1)
+		return (EINVAL);
+
+	if ((ioc->rate.limit == 0) != (ioc->rate.seconds == 0))
+		return (EINVAL);
+
+	if (ioc->inet_prefix > 32)
+		return (EINVAL);
+	if (ioc->inet6_prefix > 128)
+		return (EINVAL);
+
+	namelen = strnlen(ioc->name, sizeof(ioc->name));
+	if (namelen == sizeof(ioc->name))
+		return (EINVAL);
+
+	tablelen = strnlen(ioc->overload_tblname,
+	    sizeof(ioc->overload_tblname));
+	if (tablelen == sizeof(ioc->overload_tblname))
+		return (EINVAL);
+	if (tablelen != 0) {
+		if (ioc->overload_hwm == 0)
+			return (EINVAL);
+
+		/*
+		 * this is stupid, but not harmful?
+		 *
+		 * if (ioc->states < ioc->overload_hwm)
+		 *      return (EINVAL);
+		 */
+
+		if (ioc->overload_hwm < ioc->overload_lwm)
+			return (EINVAL);
+	}
+
+	pfsrlim = malloc(sizeof(*pfsrlim), M_PF_SOURCE_LIM, M_WAITOK | M_ZERO);
+	if (pfsrlim == NULL)
+		return (ENOMEM);
+
+	pfsrlim->pfsrlim_id = ioc->id;
+	pfsrlim->pfsrlim_entries = ioc->entries;
+	pfsrlim->pfsrlim_limit = ioc->limit;
+	pfsrlim->pfsrlim_ipv4_prefix = ioc->inet_prefix;
+	pfsrlim->pfsrlim_ipv6_prefix = ioc->inet6_prefix;
+	pfsrlim->pfsrlim_rate.limit = ioc->rate.limit;
+	pfsrlim->pfsrlim_rate.seconds = ioc->rate.seconds;
+	memcpy(pfsrlim->pfsrlim_overload.name, ioc->overload_tblname, tablelen);
+	pfsrlim->pfsrlim_overload.hwm = ioc->overload_hwm;
+	pfsrlim->pfsrlim_overload.lwm = ioc->overload_lwm;
+	memcpy(pfsrlim->pfsrlim_nm, ioc->name, namelen);
+
+	if (pfsrlim->pfsrlim_rate.limit) {
+		uint64_t bucket = pfsrlim->pfsrlim_rate.seconds * 1000000000ULL;
+
+		pfsrlim->pfsrlim_rate_token = bucket /
+		    pfsrlim->pfsrlim_rate.limit;
+		pfsrlim->pfsrlim_rate_bucket = bucket;
+	}
+
+	pfsrlim->pfsrlim_ipv4_mask.v4.s_addr = htonl(
+	    0xffffffff << (32 - pfsrlim->pfsrlim_ipv4_prefix));
+
+	prefix = pfsrlim->pfsrlim_ipv6_prefix;
+	for (i = 0; i < nitems(pfsrlim->pfsrlim_ipv6_mask.addr32); i++) {
+		if (prefix == 0) {
+			/* the memory is already zeroed */
+			break;
+		}
+		if (prefix < 32) {
+			pfsrlim->pfsrlim_ipv6_mask.addr32[i] = htonl(
+			    0xffffffff << (32 - prefix));
+			break;
+		}
+
+		pfsrlim->pfsrlim_ipv6_mask.addr32[i] = htonl(0xffffffff);
+		prefix -= 32;
+	}
+
+	RB_INIT(&pfsrlim->pfsrlim_sources);
+	mtx_init(&pfsrlim->pfsrlim_lock, "pf source limit", NULL, MTX_DEF);
+
+	PF_RULES_WLOCK();
+	if (ioc->ticket != pf_main_ruleset.rules[PF_RULESET_FILTER].inactive.ticket) {
+		error = EBUSY;
+		goto unlock;
+	}
+
+	if (pfsrlim->pfsrlim_overload.name[0] != '\0') {
+		pfsrlim->pfsrlim_overload.table = pfr_attach_table(
+		    &pf_main_ruleset, pfsrlim->pfsrlim_overload.name);
+		if (pfsrlim->pfsrlim_overload.table == NULL) {
+			error = EINVAL;
+			goto unlock;
+		}
+	}
+
+	if (RB_INSERT(pf_sourcelim_id_tree, &V_pf_sourcelim_id_tree_inactive,
+		pfsrlim) != NULL) {
+		error = EBUSY;
+		goto unlock;
+	}
+
+	if (RB_INSERT(pf_sourcelim_nm_tree, &V_pf_sourcelim_nm_tree_inactive,
+		pfsrlim) != NULL) {
+		RB_INSERT(pf_sourcelim_nm_tree, &V_pf_sourcelim_nm_tree_inactive,
+		    pfsrlim);
+		error = EBUSY;
+		goto unlock;
+	}
+
+	TAILQ_INSERT_HEAD(&V_pf_sourcelim_list_inactive, pfsrlim, pfsrlim_list);
+
+	PF_RULES_WUNLOCK();
+
+	return (0);
+
+unlock:
+	PF_RULES_WUNLOCK();
+	/* free: */
+	free(pfsrlim, M_PF_SOURCE_LIM);
+
+	return (error);
+}
+
+void
+pf_sourcelim_rollback(void)
+{
+	struct pf_sourcelim *pfsrlim, *npfsrlim;
+
+	PF_RULES_WASSERT();
+
+	TAILQ_FOREACH_SAFE(pfsrlim, &V_pf_sourcelim_list_inactive, pfsrlim_list,
+	    npfsrlim) {
+		if (pfsrlim->pfsrlim_overload.table != NULL)
+			pfr_detach_table(pfsrlim->pfsrlim_overload.table);
+
+		free(pfsrlim, M_PF_SOURCE_LIM);
+	}
+
+	TAILQ_INIT(&V_pf_sourcelim_list_inactive);
+	RB_INIT(&V_pf_sourcelim_id_tree_inactive);
+	RB_INIT(&V_pf_sourcelim_nm_tree_inactive);
+}
+
+static struct pf_sourcelim *
+pf_sourcelim_rb_find(struct pf_sourcelim_id_tree *tree,
+    struct pf_sourcelim *key)
+{
+	PF_RULES_ASSERT();
+	return (RB_FIND(pf_sourcelim_id_tree, tree, key));
+}
+
+static struct pf_sourcelim *
+pf_sourcelim_rb_nfind(struct pf_sourcelim_id_tree *tree,
+    struct pf_sourcelim *key)
+{
+	PF_RULES_ASSERT();
+	return (RB_NFIND(pf_sourcelim_id_tree, tree, key));
+}
+
+static int
+pf_sourcelim_get(struct pfioc_sourcelim *ioc,
+    struct pf_sourcelim *(*rbt_op)(struct pf_sourcelim_id_tree *,
+     struct pf_sourcelim *))
+{
+	struct pf_sourcelim key = { .pfsrlim_id = ioc->id };
+	struct pf_sourcelim *pfsrlim;
+	int error = 0;
+	PF_RULES_RLOCK_TRACKER;
+
+	PF_RULES_RLOCK();
+#if 0
+       if (ioc->ticket != pf_main_ruleset.rules.active.ticket) {
+               error = EBUSY;
+               goto unlock;
+       }
+#endif
+
+	pfsrlim = (*rbt_op)(&V_pf_sourcelim_id_tree_active, &key);
+	if (pfsrlim == NULL) {
+		error = ESRCH;
+		goto unlock;
+	}
+
+	ioc->id = pfsrlim->pfsrlim_id;
+	ioc->entries = pfsrlim->pfsrlim_entries;
+	ioc->limit = pfsrlim->pfsrlim_limit;
+	ioc->inet_prefix = pfsrlim->pfsrlim_ipv4_prefix;
+	ioc->inet6_prefix = pfsrlim->pfsrlim_ipv6_prefix;
+	ioc->rate.limit = pfsrlim->pfsrlim_rate.limit;
+	ioc->rate.seconds = pfsrlim->pfsrlim_rate.seconds;
+
+	CTASSERT(sizeof(ioc->overload_tblname) ==
+	    sizeof(pfsrlim->pfsrlim_overload.name));
+	memcpy(ioc->overload_tblname, pfsrlim->pfsrlim_overload.name,
+	    sizeof(pfsrlim->pfsrlim_overload.name));
+	ioc->overload_hwm = pfsrlim->pfsrlim_overload.hwm;
+	ioc->overload_lwm = pfsrlim->pfsrlim_overload.lwm;
+
+	CTASSERT(sizeof(ioc->name) == sizeof(pfsrlim->pfsrlim_nm));
+	memcpy(ioc->name, pfsrlim->pfsrlim_nm, sizeof(ioc->name));
+	/* XXX overload table thing */
+
+	ioc->nentries = pfsrlim->pfsrlim_nsources;
+
+	ioc->inuse = pfsrlim->pfsrlim_counters.inuse;
+	ioc->addrallocs = pfsrlim->pfsrlim_counters.addrallocs;
+	ioc->addrnomem = pfsrlim->pfsrlim_counters.addrnomem;
+	ioc->admitted = pfsrlim->pfsrlim_counters.admitted;
+	ioc->addrlimited = pfsrlim->pfsrlim_counters.addrlimited;
+	ioc->hardlimited = pfsrlim->pfsrlim_counters.hardlimited;
+	ioc->ratelimited = pfsrlim->pfsrlim_counters.ratelimited;
+
+unlock:
+	PF_RULES_RUNLOCK();
+
+	return (error);
+}
+
+static struct pf_source *
+pf_source_rb_find(struct pf_source_ioc_tree *tree,
+    struct pf_source *key)
+{
+	PF_RULES_ASSERT();
+
+	return (RB_FIND(pf_source_ioc_tree, tree, key));
+}
+
+static struct pf_source *
+pf_source_rb_nfind(struct pf_source_ioc_tree *tree,
+    struct pf_source *key)
+{
+	PF_RULES_ASSERT();
+
+	return (RB_NFIND(pf_source_ioc_tree, tree, key));
+}
+
+static int
+pf_source_get(struct pfioc_source *ioc,
+    struct pf_source *(*rbt_op)(struct pf_source_ioc_tree *,
+     struct pf_source *))
+{
+	struct pf_sourcelim plkey = { .pfsrlim_id = ioc->id };
+	struct pfioc_source_entry e, *uentry;
+	struct pf_source key;
+	struct pf_sourcelim *pfsrlim;
+	struct pf_source *pfsr;
+	size_t used = 0, len = ioc->entrieslen;
+	int error = 0;
+	PF_RULES_RLOCK_TRACKER;
+
+	if (ioc->entry_size != sizeof(e))
+		return (EINVAL);
+	if (len < sizeof(e))
+		return (EMSGSIZE);
+
+	error = copyin(ioc->key, &e, sizeof(e));
+	if (error != 0)
+		return (error);
+
+	PF_RULES_RLOCK();
+
+#if 0
+       if (ioc->ticket != pf_main_ruleset.rules.active.ticket) {
+               error = EBUSY;
+               goto unlock;
+       }
+#endif
+
+	pfsrlim = pf_sourcelim_rb_find(&V_pf_sourcelim_id_tree_active, &plkey);
+	if (pfsrlim == NULL) {
+		error = ESRCH;
+		goto unlock;
+	}
+
+	key.pfsr_af = e.af;
+	key.pfsr_rdomain = e.rdomain;
+	key.pfsr_addr = e.addr;
+	pfsr = (*rbt_op)(&pfsrlim->pfsrlim_ioc_sources, &key);
+	if (pfsr == NULL) {
+		error = ENOENT;
+		goto unlock;
+	}
+
+	memset(&e, 0, sizeof(e));
+
+	uentry = ioc->entries;
+	for (;;) {
+		e.af = pfsr->pfsr_af;
+		e.rdomain = pfsr->pfsr_rdomain;
+		e.addr = pfsr->pfsr_addr;
+
+		e.inuse = pfsr->pfsr_inuse;
+		e.admitted = pfsr->pfsr_counters.admitted;
+		e.hardlimited = pfsr->pfsr_counters.hardlimited;
+		e.ratelimited = pfsr->pfsr_counters.ratelimited;
+
+		error = copyout(&e, uentry, sizeof(e));
+		if (error != 0)
+			goto unlock;
+
+		used += sizeof(e);
+		if (used == len)
+			break;
+
+		pfsr = RB_NEXT(pf_source_ioc_tree, srlim->pfsrlim_ioc_sources, pfsr);
+		if (pfsr == NULL)
+			break;
+
+		if ((len - used) < sizeof(e)) {
+			error = EMSGSIZE;
+			goto unlock;
+		}
+
+		uentry++;
+	}
+	MPASS(error == 0);
+
+	ioc->inet_prefix = pfsrlim->pfsrlim_ipv4_prefix;
+	ioc->inet6_prefix = pfsrlim->pfsrlim_ipv6_prefix;
+	ioc->limit = pfsrlim->pfsrlim_limit;
+
+	ioc->entrieslen = used;
+
+unlock:
+	PF_RULES_RUNLOCK();
+
+	return (error);
+}
+
+static int
+pf_source_clr(struct pfioc_source_kill *ioc)
+{
+	extern struct pf_source_list pf_source_gc;
+	struct pf_sourcelim plkey = {
+		.pfsrlim_id = ioc->id,
+	};
+	struct pf_source skey = {
+		.pfsr_af = ioc->af,
+		.pfsr_rdomain = ioc->rdomain,
+		.pfsr_addr = ioc->addr,
+	};
+	struct pf_sourcelim *pfsrlim;
+	struct pf_source *pfsr;
+	struct pf_state_link *pfl, *npfl;
+	int error = 0;
+	unsigned int gen;
+
+	if (ioc->rmstates) {
+		/* XXX userland wants the states removed too */
+		return (EOPNOTSUPP);
+	}
+
+	PF_RULES_WLOCK();
+
+#if 0
+	if (ioc->ticket != pf_main_ruleset.rules.active.ticket) {
+		error = EBUSY;
+		goto unlock;
+	}
+#endif
+
+	pfsrlim = pf_sourcelim_rb_find(&V_pf_sourcelim_id_tree_active, &plkey);
+	if (pfsrlim == NULL) {
+		error = ESRCH;
+		goto unlock;
+	}
+
+	pfsr = pf_source_rb_find(&pfsrlim->pfsrlim_ioc_sources, &skey);
+	if (pfsr == NULL) {
+		error = ENOENT;
+		goto unlock;
+	}
+
+	RB_REMOVE(pf_source_tree, &pfsrlim->pfsrlim_sources, pfsr);
+	RB_REMOVE(pf_source_ioc_tree, &pfsrlim->pfsrlim_ioc_sources, pfsr);
+	if (pfsr->pfsr_inuse == 0)
+		TAILQ_REMOVE(&pf_source_gc, pfsr, pfsr_empty_gc);
+
+	gen = pf_sourcelim_enter(pfsrlim);
+	pfsrlim->pfsrlim_nsources--;
+	pfsrlim->pfsrlim_counters.inuse -= pfsr->pfsr_inuse;
+	pf_sourcelim_leave(pfsrlim, gen);
+
+	/* unwire the links */
+	TAILQ_FOREACH(pfl, &pfsr->pfsr_states, pfl_link) {
+		struct pf_kstate *st = pfl->pfl_state;
+
+		/* if !rmst */
+		st->sourcelim = 0;
+		SLIST_REMOVE(&st->linkage, pfl, pf_state_link, pfl_linkage);
+	}
+
+	PF_RULES_WUNLOCK();
+
+	TAILQ_FOREACH_SAFE(pfl, &pfsr->pfsr_states, pfl_link, npfl)
+		free(pfl, M_PF_STATE_LINK);
+
+	free(pfsr, M_PF_SOURCE_LIM);
+
+	return (0);
+
+unlock:
+	PF_RULES_WUNLOCK();
+
+	return (error);
 }
 
 static void
@@ -2180,6 +3042,18 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 		ERROUT_UNLOCKED(EINVAL);
 	if (pf_validate_range(rule->dst.port_op, rule->dst.port))
 		ERROUT_UNLOCKED(EINVAL);
+
+	if (rule->statelim != PF_STATELIM_ID_NONE) {
+		if (rule->statelim < PF_STATELIM_ID_MIN ||
+		    rule->statelim > PF_STATELIM_ID_MAX)
+			ERROUT_UNLOCKED(EINVAL);
+	}
+
+	if (rule->sourcelim != PF_SOURCELIM_ID_NONE) {
+		if (rule->sourcelim < PF_SOURCELIM_ID_MIN ||
+		    rule->sourcelim > PF_SOURCELIM_ID_MAX)
+			ERROUT_UNLOCKED(EINVAL);
+	}
 
 	if (rule->ifname[0])
 		kif = pf_kkif_create(M_WAITOK);
@@ -3002,6 +3876,12 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCGETTIMEOUT:
 		case DIOCCLRRULECTRS:
 		case DIOCGETLIMIT:
+		case DIOCGETSTATELIM:
+		case DIOCGETNSTATELIM:
+		case DIOCGETSOURCELIM:
+		case DIOCGETNSOURCELIM:
+		case DIOCGETSOURCE:
+		case DIOCGETNSOURCE:
 		case DIOCGETALTQSV0:
 		case DIOCGETALTQSV1:
 		case DIOCGETALTQV0:
@@ -3061,6 +3941,12 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 #endif
 		case DIOCGETTIMEOUT:
 		case DIOCGETLIMIT:
+		case DIOCGETSTATELIM:
+		case DIOCGETNSTATELIM:
+		case DIOCGETSOURCELIM:
+		case DIOCGETNSOURCELIM:
+		case DIOCGETSOURCE:
+		case DIOCGETNSOURCE:
 		case DIOCGETALTQSV0:
 		case DIOCGETALTQSV1:
 		case DIOCGETALTQV0:
@@ -4348,6 +5234,42 @@ DIOCGETSTATESV2_full:
 		PF_RULES_WUNLOCK();
 		break;
 	}
+
+	case DIOCADDSTATELIM:
+		error = pf_statelim_add((struct pfioc_statelim *)addr);
+		break;
+	case DIOCGETSTATELIM:
+		error = pf_statelim_get((struct pfioc_statelim *)addr,
+		    pf_statelim_rb_find);
+		break;
+	case DIOCGETNSTATELIM:
+		error = pf_statelim_get((struct pfioc_statelim *)addr,
+		    pf_statelim_rb_nfind);
+		break;
+
+	case DIOCADDSOURCELIM:
+		error = pf_sourcelim_add((struct pfioc_sourcelim *)addr);
+		break;
+	case DIOCGETSOURCELIM:
+		error = pf_sourcelim_get((struct pfioc_sourcelim *)addr,
+		    pf_sourcelim_rb_find);
+		break;
+	case DIOCGETNSOURCELIM:
+		error = pf_sourcelim_get((struct pfioc_sourcelim *)addr,
+		    pf_sourcelim_rb_nfind);
+		break;
+
+	case DIOCGETSOURCE:
+		error = pf_source_get((struct pfioc_source *)addr,
+		    pf_source_rb_find);
+		break;
+	case DIOCGETNSOURCE:
+		error = pf_source_get((struct pfioc_source *)addr,
+		    pf_source_rb_nfind);
+		break;
+	case DIOCCLRSOURCE:
+		error = pf_source_clr((struct pfioc_source_kill *)addr);
+		break;
 
 	case DIOCCLRRULECTRS: {
 		/* obsoleted by DIOCGETRULE with action=PF_GET_CLR_CNTR */

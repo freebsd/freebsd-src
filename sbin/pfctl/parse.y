@@ -72,6 +72,8 @@
 #include "pfctl_parser.h"
 #include "pfctl.h"
 
+#define	ISSET(_v, _m)	((_v) & (_m))
+
 static struct pfctl	*pf = NULL;
 static int		 debug = 0;
 static int		 rulestate = 0;
@@ -178,7 +180,8 @@ enum	{ PF_STATE_OPT_MAX, PF_STATE_OPT_NOSYNC, PF_STATE_OPT_SRCTRACK,
 	    PF_STATE_OPT_MAX_SRC_CONN_RATE, PF_STATE_OPT_MAX_SRC_NODES,
 	    PF_STATE_OPT_OVERLOAD, PF_STATE_OPT_STATELOCK,
 	    PF_STATE_OPT_TIMEOUT, PF_STATE_OPT_SLOPPY,
-	    PF_STATE_OPT_PFLOW, PF_STATE_OPT_ALLOW_RELATED };
+	    PF_STATE_OPT_PFLOW, PF_STATE_OPT_ALLOW_RELATED,
+	    PF_STATE_OPT_STATELIM, PF_STATE_OPT_SOURCELIM };
 
 enum	{ PF_SRCTRACK_NONE, PF_SRCTRACK, PF_SRCTRACK_GLOBAL, PF_SRCTRACK_RULE };
 
@@ -284,6 +287,8 @@ static struct filter_opts {
 	u_int32_t		 tos;
 	u_int32_t		 prob;
 	u_int32_t		 ridentifier;
+	u_int32_t		 statelim;
+	u_int32_t		 sourcelim;
 	struct {
 		int			 action;
 		struct node_state_opt	*options;
@@ -361,6 +366,51 @@ static struct table_opts {
 	int			init_addr;
 	struct node_tinithead	init_nodes;
 } table_opts;
+
+struct statelim_opts {
+	unsigned int		 marker;
+#define	STATELIM_M_ID		0x01
+#define	STATELIM_M_LIMIT	0x02
+#define	STATELIM_M_RATE		0x04
+
+	uint32_t		 id;
+	char			 name[PF_STATELIM_NAME_LEN];
+	unsigned int	 limit;
+	struct {
+		unsigned int	 limit;
+		unsigned int	 seconds;
+	} rate;
+};
+
+static struct statelim_opts statelim_opts;
+
+struct sourcelim_opts {
+	unsigned int		 marker;
+#define	SOURCELIM_M_ID			0x01
+#define	SOURCELIM_M_ENTRIES		0x02
+#define	SOURCELIM_M_LIMIT		0x04
+#define	SOURCELIM_M_RATE		0x08
+#define	SOURCELIM_M_TABLE		0x10
+#define	SOURCELIM_M_INET_MASK	0x20
+#define	SOURCELIM_M_INET6_MASK	0x40
+
+	uint32_t			 id;
+	unsigned int		 entries;
+	unsigned int		 limit;
+	struct {
+		unsigned int	 limit;
+		unsigned int	 seconds;
+	} rate;
+	struct {
+		char			 name[PF_TABLE_NAME_SIZE];
+		unsigned int	 above;
+		unsigned int	 below;
+	} table;
+	unsigned int		 inet_mask;
+	unsigned int		 inet6_mask;
+};
+
+static struct sourcelim_opts sourcelim_opts;
 
 static struct codel_opts	 codel_opts;
 static struct node_hfsc_opts	 hfsc_opts;
@@ -513,6 +563,8 @@ typedef struct {
 		struct node_hfsc_opts	 hfsc_opts;
 		struct node_fairq_opts	 fairq_opts;
 		struct codel_opts	 codel_opts;
+		struct statelim_opts	*statelim_opts;
+		struct sourcelim_opts	*sourcelim_opts;
 		struct pfctl_watermarks	*watermarks;
 	} v;
 	int lineno;
@@ -548,12 +600,13 @@ int	parseport(char *, struct range *r, int);
 %token	TAGGED TAG IFBOUND FLOATING STATEPOLICY STATEDEFAULTS ROUTE SETTOS
 %token	DIVERTTO DIVERTREPLY BRIDGE_TO RECEIVEDON NE LE GE AFTO NATTO RDRTO
 %token	BINATTO MAXPKTRATE MAXPKTSIZE IPV6NH
+%token	LIMITER ID RATE SOURCE ENTRIES ABOVE BELOW MASK
 %token	<v.string>		STRING
 %token	<v.number>		NUMBER
 %token	<v.i>			PORTBINARY
 %type	<v.interface>		interface if_list if_item_not if_item
 %type	<v.number>		number icmptype icmp6type uid gid
-%type	<v.number>		tos not yesno optnodf
+%type	<v.number>		tos not yesno optnodf sourcelim_opt_below
 %type	<v.probability>		probability
 %type	<v.i>			no dir af fragcache optimizer syncookie_val
 %type	<v.i>			sourcetrack flush unaryop statelock
@@ -610,12 +663,19 @@ int	parseport(char *, struct range *r, int);
 %type	<v.etheraddr>		etherfrom etherto
 %type	<v.bridge_to>		bridge
 %type	<v.mac>			xmac mac mac_list macspec
+%type	<v.string>			statelim_nm sourcelim_nm
+%type	<v.number>			statelim_id sourcelim_id
+%type	<v.number>			statelim_filter_opt sourcelim_filter_opt
+%type	<v.statelim_opts>	statelim_opts
+%type	<v.sourcelim_opts>	sourcelim_opts
 %%
 
 ruleset		: /* empty */
 		| ruleset include '\n'
 		| ruleset '\n'
 		| ruleset option '\n'
+		| ruleset statelim '\n'
+		| ruleset sourcelim '\n'
 		| ruleset etherrule '\n'
 		| ruleset etheranchorrule '\n'
 		| ruleset scrubrule '\n'
@@ -2322,6 +2382,401 @@ qassign_item	: STRING			{
 		}
 		;
 
+statelim		: statelim_nm statelim_opts {
+			struct pfctl_statelim *stlim;
+			size_t len;
+
+			if (!ISSET($2->marker, STATELIM_M_ID)) {
+				yyerror("id not specified");
+				free($1);
+				YYERROR;
+			}
+			if (!ISSET($2->marker, STATELIM_M_LIMIT)) {
+				yyerror("limit not specified");
+				free($1);
+				YYERROR;
+			}
+
+			stlim = calloc(1, sizeof(*stlim));
+			if (stlim == NULL)
+				err(1, "state limiter: malloc");
+
+			len = strlcpy(stlim->ioc.name, $1,
+			    sizeof(stlim->ioc.name));
+			free($1);
+			if (len >= sizeof(stlim->ioc.name)) {
+				/* abort? */
+				YYERROR;
+			}
+
+			stlim->ioc.id = $2->id;
+			stlim->ioc.limit = $2->limit;
+			stlim->ioc.rate.limit = $2->rate.limit;
+			stlim->ioc.rate.seconds = $2->rate.seconds;
+
+			if (pfctl_add_statelim(pf, stlim) != 0) {
+				yyerror("state limiter %s id %u"
+				    " already exists",
+				    stlim->ioc.name, stlim->ioc.id);
+				free(stlim);
+				YYERROR;
+			}
+		}
+		;
+
+statelim_nm		: STATE LIMITER string {
+			size_t len = strlen($3);
+			if (len < 1) {
+				yyerror("state limiter name is too short");
+				free($3);
+				YYERROR;
+			}
+			if (len >= PF_STATELIM_NAME_LEN) {
+				yyerror("state limiter name is too long");
+				free($3);
+				YYERROR;
+			}
+			$$ = $3;
+		}
+		;
+
+statelim_id		: ID NUMBER {
+			if ($2 < PF_STATELIM_ID_MIN ||
+			    $2 > PF_STATELIM_ID_MAX) {
+				yyerror("state limiter id %lld: "
+				    "invalid identifier", $2);
+				YYERROR;
+			}
+
+			$$ = $2;
+		}
+		;
+
+statelim_opts		: /* empty */ {
+			yyerror("state limiter missing options");
+			YYERROR;
+		}
+		| {
+			memset(&statelim_opts, 0, sizeof(statelim_opts));
+		} statelim_opts_l {
+			$$ = &statelim_opts;
+		}
+		;
+
+statelim_opts_l		: statelim_opts_l statelim_opt
+		| statelim_opt
+		;
+
+statelim_opt		: statelim_id {
+			if (ISSET(statelim_opts.marker, STATELIM_M_ID)) {
+				yyerror("id cannot be respecified");
+				YYERROR;
+			}
+
+			statelim_opts.id = $1;
+
+			statelim_opts.marker |= STATELIM_M_ID;
+		}
+		| LIMIT NUMBER  {
+			if (ISSET(statelim_opts.marker, STATELIM_M_LIMIT)) {
+				yyerror("limit cannot be respecified");
+				YYERROR;
+			}
+
+			if ($2 < PF_STATELIM_LIMIT_MIN ||
+			    $2 > PF_STATELIM_LIMIT_MAX) {
+				yyerror("invalid state limiter limit");
+				YYERROR;
+			}
+
+			statelim_opts.limit = $2;
+
+			statelim_opts.marker |= STATELIM_M_LIMIT;
+		}
+		| RATE NUMBER '/' NUMBER {
+			if (ISSET(statelim_opts.marker, STATELIM_M_RATE)) {
+				yyerror("rate cannot be respecified");
+				YYERROR;
+			}
+			if ($2 < 1) {
+				yyerror("invalid rate limit %lld", $2);
+				YYERROR;
+			}
+			if ($4 < 1) {
+				yyerror("invalid rate seconds %lld", $4);
+				YYERROR;
+			}
+
+			statelim_opts.rate.limit = $2;
+			statelim_opts.rate.seconds = $4;
+
+			statelim_opts.marker |= STATELIM_M_RATE;
+		}
+		;
+
+statelim_filter_opt
+		: statelim_nm {
+			struct pfctl_statelim *stlim;
+
+			stlim = pfctl_get_statelim_nm(pf, $1);
+			free($1);
+			if (stlim == NULL) {
+				yyerror("state limiter not found");
+				YYERROR;
+			}
+
+			$$ = stlim->ioc.id;
+		}
+		| STATE LIMITER statelim_id {
+			$$ = $3;
+		}
+		;
+
+sourcelim		: sourcelim_nm sourcelim_opts {
+			struct pfctl_sourcelim *srlim;
+			size_t len;
+
+			if (!ISSET($2->marker, SOURCELIM_M_ID)) {
+				yyerror("id not specified");
+				free($1);
+				YYERROR;
+			}
+			if (!ISSET($2->marker, SOURCELIM_M_ENTRIES)) {
+				yyerror("entries not specified");
+				free($1);
+				YYERROR;
+			}
+			if (!ISSET($2->marker, SOURCELIM_M_LIMIT)) {
+				yyerror("state limit not specified");
+				free($1);
+				YYERROR;
+			}
+
+			srlim = calloc(1, sizeof(*srlim));
+			if (srlim == NULL)
+				err(1, "source limiter: malloc");
+
+			len = strlcpy(srlim->ioc.name, $1,
+			    sizeof(srlim->ioc.name));
+			free($1);
+			if (len >= sizeof(srlim->ioc.name)) {
+				/* abort? */
+				YYERROR;
+			}
+
+			srlim->ioc.id = $2->id;
+			srlim->ioc.entries = $2->entries;
+			srlim->ioc.limit = $2->limit;
+			srlim->ioc.rate.limit = $2->rate.limit;
+			srlim->ioc.rate.seconds = $2->rate.seconds;
+
+			if (ISSET($2->marker, SOURCELIM_M_TABLE)) {
+				if (strlcpy(srlim->ioc.overload_tblname,
+				    $2->table.name,
+				    sizeof(srlim->ioc.overload_tblname)) >=
+				    sizeof(srlim->ioc.overload_tblname)) {
+					abort();
+				}
+				srlim->ioc.overload_hwm = $2->table.above;
+				srlim->ioc.overload_lwm = $2->table.below;
+			}
+
+			srlim->ioc.inet_prefix = $2->inet_mask;
+			srlim->ioc.inet6_prefix = $2->inet6_mask;
+
+			if (pfctl_add_sourcelim(pf, srlim) != 0) {
+				yyerror("source limiter %s id %u"
+				    " already exists",
+				    srlim->ioc.name, srlim->ioc.id);
+				free(srlim);
+				YYERROR;
+			}
+		}
+		;
+
+sourcelim_nm		: SOURCE LIMITER string {
+			size_t len = strlen($3);
+			if (len < 1) {
+				yyerror("source limiter name is too short");
+				free($3);
+				YYERROR;
+			}
+			if (len >= PF_SOURCELIM_NAME_LEN) {
+				yyerror("source limiter name is too long");
+				free($3);
+				YYERROR;
+			}
+			$$ = $3;
+		}
+		;
+
+sourcelim_id		: ID NUMBER {
+			if ($2 < PF_SOURCELIM_ID_MIN ||
+			    $2 > PF_SOURCELIM_ID_MAX) {
+				yyerror("source limiter id %lld: "
+				    "invalid identifier", $2);
+				YYERROR;
+			}
+
+			$$ = $2;
+		}
+		;
+
+sourcelim_opts		: /* empty */ {
+			yyerror("source limiter missing options");
+			YYERROR;
+		}
+		| {
+			memset(&sourcelim_opts, 0, sizeof(sourcelim_opts));
+			sourcelim_opts.inet_mask = 32;
+			sourcelim_opts.inet6_mask = 128;
+		} sourcelim_opts_l {
+			$$ = &sourcelim_opts;
+		}
+		;
+
+sourcelim_opts_l		: sourcelim_opts_l sourcelim_opt
+		| sourcelim_opt
+		;
+
+sourcelim_opt		: sourcelim_id {
+			if (ISSET(sourcelim_opts.marker, SOURCELIM_M_ID)) {
+				yyerror("entries cannot be respecified");
+				YYERROR;
+			}
+
+			sourcelim_opts.id = $1;
+
+			sourcelim_opts.marker |= SOURCELIM_M_ID;
+		}
+		| ENTRIES NUMBER {
+			if (ISSET(sourcelim_opts.marker, SOURCELIM_M_ENTRIES)) {
+				yyerror("entries cannot be respecified");
+				YYERROR;
+			}
+
+			sourcelim_opts.entries = $2;
+
+			sourcelim_opts.marker |= SOURCELIM_M_ENTRIES;
+		}
+		| LIMIT NUMBER {
+			if (ISSET(sourcelim_opts.marker, SOURCELIM_M_LIMIT)) {
+				yyerror("state limit cannot be respecified");
+				YYERROR;
+			}
+
+			sourcelim_opts.limit = $2;
+
+			sourcelim_opts.marker |= SOURCELIM_M_LIMIT;
+		}
+		| RATE NUMBER '/' NUMBER {
+			if (ISSET(sourcelim_opts.marker, SOURCELIM_M_RATE)) {
+				yyerror("rate cannot be respecified");
+				YYERROR;
+			}
+
+			sourcelim_opts.rate.limit = $2;
+			sourcelim_opts.rate.seconds = $4;
+
+			sourcelim_opts.marker |= SOURCELIM_M_RATE;
+		}
+		| TABLE '<' STRING '>' ABOVE NUMBER sourcelim_opt_below {
+			size_t stringlen;
+
+			if (ISSET(sourcelim_opts.marker, SOURCELIM_M_TABLE)) {
+				free($3);
+				yyerror("rate cannot be respecified");
+				YYERROR;
+			}
+
+			stringlen = strlcpy(sourcelim_opts.table.name,
+			    $3, sizeof(sourcelim_opts.table.name));
+			free($3);
+			if (stringlen == 0 ||
+			    stringlen >= PF_TABLE_NAME_SIZE) {
+				yyerror("invalid table name");
+				YYERROR;
+			}
+
+			if ($6 < 0) {
+				yyerror("above limit is invalid");
+				YYERROR;
+			}
+			if ($7 > $6) {
+				yyerror("below limit higher than above limit");
+				YYERROR;
+			}
+
+			sourcelim_opts.table.above = $6;
+			sourcelim_opts.table.below = $7;
+
+			sourcelim_opts.marker |= SOURCELIM_M_TABLE;
+		}
+		| INET MASK NUMBER {
+			if (ISSET(sourcelim_opts.marker,
+			    SOURCELIM_M_INET_MASK)) {
+				yyerror("inet mask cannot be respecified");
+				YYERROR;
+			}
+
+			if ($3 < 1 || $3 > 32) {
+				yyerror("inet mask length out of range");
+				YYERROR;
+			}
+
+			sourcelim_opts.inet_mask = $3;
+
+			sourcelim_opts.marker |= SOURCELIM_M_INET_MASK;
+		}
+		| INET6 MASK NUMBER {
+			if (ISSET(sourcelim_opts.marker,
+			    SOURCELIM_M_INET6_MASK)) {
+				yyerror("inet6 mask cannot be respecified");
+				YYERROR;
+			}
+
+			if ($3 < 1 || $3 > 128) {
+				yyerror("inet6 mask length out of range");
+				YYERROR;
+			}
+
+			sourcelim_opts.inet6_mask = $3;
+
+			sourcelim_opts.marker |= SOURCELIM_M_INET6_MASK;
+		}
+		;
+
+sourcelim_opt_below
+		: /* empty */ {
+			$$ = 0;
+		}
+		| BELOW NUMBER {
+			if ($2 < 1) {
+				yyerror("below limit is invalid");
+				YYERROR;
+			}
+			$$ = $2;
+		}
+		;
+
+sourcelim_filter_opt
+		: sourcelim_nm {
+			struct pfctl_sourcelim *srlim;
+
+			srlim = pfctl_get_sourcelim_nm(pf, $1);
+			free($1);
+			if (srlim == NULL) {
+				yyerror("source limiter not found");
+				YYERROR;
+			}
+
+			$$ = srlim->ioc.id;
+		}
+		| SOURCE LIMITER sourcelim_id {
+			$$ = $3;
+		}
+		;
+
 pfrule		: action dir logquick interface route af proto fromto
 		    filter_opts
 		{
@@ -2562,6 +3017,7 @@ pfrule		: action dir logquick interface route af proto fromto
 					}
 					r.timeout[o->data.timeout.number] =
 					    o->data.timeout.seconds;
+					break;
 				}
 				o = o->next;
 				if (!defaults)
@@ -2713,12 +3169,16 @@ pfrule		: action dir logquick interface route af proto fromto
 
 filter_opts	:	{
 				bzero(&filter_opts, sizeof filter_opts);
+				filter_opts.statelim = PF_STATELIM_ID_NONE;
+				filter_opts.sourcelim = PF_SOURCELIM_ID_NONE;
 				filter_opts.rtableid = -1;
 			}
 		    filter_opts_l
 			{ $$ = filter_opts; }
 		| /* empty */	{
 			bzero(&filter_opts, sizeof filter_opts);
+			filter_opts.statelim = PF_STATELIM_ID_NONE;
+			filter_opts.sourcelim = PF_SOURCELIM_ID_NONE;
 			filter_opts.rtableid = -1;
 			$$ = filter_opts;
 		}
@@ -2861,6 +3321,20 @@ filter_opt	: USER uids {
 			filter_opts.prob = (u_int32_t)p;
 			if (filter_opts.prob == 0)
 				filter_opts.prob = 1;
+		}
+		| statelim_filter_opt {
+			if (filter_opts.statelim != PF_STATELIM_ID_NONE) {
+				yyerror("state limiter already specified");
+				YYERROR;
+			}
+			filter_opts.statelim = $1;
+		}
+		| sourcelim_filter_opt {
+			if (filter_opts.sourcelim != PF_SOURCELIM_ID_NONE) {
+				yyerror("source limiter already specified");
+				YYERROR;
+			}
+			filter_opts.sourcelim = $1;
 		}
 		| RTABLE NUMBER				{
 			if ($2 < 0 || $2 > rt_tableid_max()) {
@@ -6615,6 +7089,7 @@ lookup(char *s)
 {
 	/* this has to be sorted always */
 	static const struct keywords keywords[] = {
+		{ "above",		ABOVE},
 		{ "af-to",		AFTO},
 		{ "all",		ALL},
 		{ "allow-opts",		ALLOWOPTS},
@@ -6624,6 +7099,7 @@ lookup(char *s)
 		{ "antispoof",		ANTISPOOF},
 		{ "any",		ANY},
 		{ "bandwidth",		BANDWIDTH},
+		{ "below",		BELOW},
 		{ "binat",		BINAT},
 		{ "binat-anchor",	BINATANCHOR},
 		{ "binat-to",		BINATTO},
@@ -6643,6 +7119,7 @@ lookup(char *s)
 		{ "drop",		DROP},
 		{ "dup-to",		DUPTO},
 		{ "endpoint-independent", ENDPI},
+		{ "entries",	ENTRIES},
 		{ "ether",		ETHER},
 		{ "fail-policy",	FAILPOLICY},
 		{ "fairq",		FAIRQ},
@@ -6662,6 +7139,7 @@ lookup(char *s)
 		{ "hostid",		HOSTID},
 		{ "icmp-type",		ICMPTYPE},
 		{ "icmp6-type",		ICMP6TYPE},
+		{ "id",			ID},
 		{ "if-bound",		IFBOUND},
 		{ "in",			IN},
 		{ "include",		INCLUDE},
@@ -6673,11 +7151,13 @@ lookup(char *s)
 		{ "l3",			L3},
 		{ "label",		LABEL},
 		{ "limit",		LIMIT},
+		{ "limiter",	LIMITER},
 		{ "linkshare",		LINKSHARE},
 		{ "load",		LOAD},
 		{ "log",		LOG},
 		{ "loginterface",	LOGINTERFACE},
 		{ "map-e-portset",	MAPEPORTSET},
+		{ "mask",		MASK},
 		{ "match",		MATCH},
 		{ "matches",	MATCHES},
 		{ "max",		MAXIMUM},
@@ -6717,6 +7197,7 @@ lookup(char *s)
 		{ "quick",		QUICK},
 		{ "random",		RANDOM},
 		{ "random-id",		RANDOMID},
+		{ "rate",		RATE},
 		{ "rdr",		RDR},
 		{ "rdr-anchor",		RDRANCHOR},
 		{ "rdr-to",		RDRTO},
@@ -6741,6 +7222,7 @@ lookup(char *s)
 		{ "set-tos",		SETTOS},
 		{ "skip",		SKIP},
 		{ "sloppy",		SLOPPY},
+		{ "source",		SOURCE},
 		{ "source-hash",	SOURCEHASH},
 		{ "source-track",	SOURCETRACK},
 		{ "state",		STATE},
@@ -7720,10 +8202,21 @@ filteropts_to_rule(struct pfctl_rule *r, struct filter_opts *opts)
 		r->rule_flag |= PFRULE_ONCE;
 	}
 
+	if (opts->statelim != PF_STATELIM_ID_NONE && r->action != PF_PASS) {
+		yyerror("state limiter only applies to pass rules");
+		return (1);
+	}
+	if (opts->sourcelim != PF_SOURCELIM_ID_NONE && r->action != PF_PASS) {
+		yyerror("source limiter only applies to pass rules");
+		return (1);
+	}
+
 	r->keep_state = opts->keep.action;
 	r->pktrate.limit = opts->pktrate.limit;
 	r->pktrate.seconds = opts->pktrate.seconds;
 	r->prob = opts->prob;
+	r->statelim = opts->statelim;
+	r->sourcelim = opts->sourcelim;
 	r->rtableid = opts->rtableid;
 	r->ridentifier = opts->ridentifier;
 	r->max_pkt_size = opts->max_pkt_size;

@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 3, 2025
+.Dd December 30, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -2365,6 +2365,24 @@ For example, the following rule will drop 20% of incoming ICMP packets:
 .Bd -literal -offset indent
 block in proto icmp probability 20%
 .Ed
+.It Cm state limiter Ar name
+Use the specified state limiter to restrict the creation of states
+by this rule.
+If capacity is not availabe, the rule does not match and evaluation
+of the ruleset continues.
+See the
+.Sx State Limiters
+section for more information.
+.Pp
+.It Cm source limiter Ar name
+Use the specified source limiter to restrict the creation of states
+by this rule.
+If capacity is not availabe, the rule does not match and evaluation
+of the ruleset continues.
+See the
+.Sx Source Limiters
+section for more information.
+.Pp
 .It Ar prio Aq Ar number
 Only match packets which have the given queueing priority assigned.
 .El
@@ -2608,6 +2626,145 @@ Also they act on incoming SYN packets only.
 Example:
 .Bd -literal -offset indent
 pass in proto tcp from any to any port www synproxy state
+.Ed
+.Ss State Limiter
+State limiters provide a mechanism to limit the number of states created,
+or the rate of state creation,
+by a set of rules.
+State limiters are configured and loaded with the main ruleset, but
+can be used by rules in any anchor.
+The overall number of states is still subject to the limit set with
+.Cm set limit states ,
+but the number of states created by a subset of rules can be provided
+by a state limiter.
+.Pp
+A state limiter is configured with the following statement:
+.Pp
+.Bl -tag -width xxxx -compact
+.It Cm state limiter Ar name
+Each state limiter is identified by a unique name.
+.El
+.Pp
+State limiters support the following configuration:
+.Pp
+.Bl -tag -width xxxx -compact
+.It Cm id Ar number
+A unique identifier between 1 and 255.
+This configuration is required.
+.It Cm limit Ar number
+Specify the maximum number of states.
+This configuration is required.
+.It Cm rate Ar number Ns / Ns Ar seconds
+Limit the rate at which states can be created over a time interval.
+The connection rate is an approximation calculated as a moving
+average.
+.El
+.Pp
+Pass rules can specify a state limiter using the
+.Cm state limiter Ar name
+option.
+If the number of states allowed has hit the limit, the pass rule
+does not match and ruleset evalation continues past it.
+.Pp
+An example use case for a state limiter is to restrict the number of
+connections allowed to a service that is accessible via multiple
+protocols, e.g. a DNS server that can be accessed by both TCP and
+UDP on port 53, DNS-over-TLS on TCP port 853, and DNS-over-HTTPS
+on TCP port 443 can be limited to 1000 concurrent connections:
+.Pp
+.Bd -literal -offset indent -compact
+state limiter "dns-server" id 1 limit 1000
+
+pass in proto { tcp udp } to port domain state limiter "dns-server"
+pass in proto tcp to port { 853 443 } state limiter "dns-server"
+.Ed
+.Ss Source Limiters
+Source limiters apply limits on the number of states,
+or the rate of state creation,
+for connections coming from a source address or network for a set
+of rules.
+Source limiters are configured and loaded with the main ruleset, but
+can be used by rules in any anchor.
+The overall number of states is still subject to the limit set with
+.Cm set limit states ,
+but limits on states for a subset of source addresses and rules can
+be provided with source limiters.
+.Pp
+Source address entries in source pools are created on demand,
+and are used to account for the states created for each source
+address or network.
+A source limiter specifies the maximum number of source address
+entries it will track, and can be configured to mask bits in network
+prefixes to have source entries cover larger portions of the address
+space if needed.
+.Pp
+A source limiter is configured with the following statement:
+.Pp
+.Bl -tag -width xxxx -compact
+.It Cm source limiter Ar name
+Each source limiter is uniquely identified by the specified name.
+.El
+.Pp
+Source limiter support the following configuration:
+.Pp
+.Bl -tag -width xxxx -compact
+.It Cm id Ar number
+A unique identifier between 1 and 255.
+This configuration is required.
+.It Cm entries Ar number
+Specify the maximum number of source address entries.
+This configuration is required.
+.It Cm limit Ar number
+Specify the maximum number of states for each source address entry.
+This configuration is required.
+.It Cm rate Ar number Ns / Ns Ar seconds
+Limit the rate at which states can be created by each source address
+entry over a time interval.
+The connection rate is an approximation calculated as a moving
+average.
+.It Cm inet mask Ar prefixlen
+Mask IPv4 source addresses using the prefix length specified with
+.Ar prefixlen
+when creating an address entry.
+The default IPv4 prefix length is 32 bits.
+.It Cm inet6 mask Ar prefixlen
+Mask IPv6 source addresses using the prefix length specified with
+.Ar prefixlen
+when creating an address entry.
+The default IPv6 prefix length is 128 bits.
+.It Cm table < Ns Ar table Ns > Cm above Ar hwm Op Cm below Ar lwm
+Add the address to the specified
+.Ar table
+when the number of states goes above the
+.Ar hwm
+high water mark.
+The address will be removed from the table when the number of states
+drops below the
+.Ar lwm
+low water mark.
+The default low water mark is 0.
+.El
+.Pp
+Pass rules can specify a source limiter using the
+.Cm source limiter Ar name
+option.
+.Pp
+An example use for a source limiter is the mitigation of denial of
+service caused by the exhaustion of firewall resources by network
+or port scans from outside the network.
+The states created by any one scanner from any one source address
+can be limited to avoid impacting other sources.
+Below, up to 10000 IPv4 hosts and IPv6 /64 networks from the external
+network are each limited to a maximum of 1000 connections, and are
+rate limited to creating 100 states over a 10 second interval:
+.Pp
+.Bd -literal -offset indent -compact
+source limiter "internet" id 1 entries 10000 \e
+       limit 1000 rate 100/10 \e
+       inet6 mask 64
+
+block in on egress
+pass in on egress source limiter "internet"
 .Ed
 .Sh STATEFUL TRACKING OPTIONS
 A number of options related to stateful tracking can be applied on a
@@ -3457,6 +3614,7 @@ filteropt      = user | group | flags | icmp-type | icmp6-type | "tos" tos |
                  "max-pkt-size" number |
                  "queue" ( string | "(" string [ [ "," ] string ] ")" ) |
                  "rtable" number | "probability" number"%" | "prio" number |
+                 "state limiter" name | "source limiter" name |
                  "dnpipe" ( number | "(" number "," number ")" ) |
                  "dnqueue" ( number | "(" number "," number ")" ) |
                  "ridentifier" number |
