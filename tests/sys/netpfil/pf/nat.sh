@@ -804,8 +804,8 @@ binat_compat_body()
 
 binat_compat_cleanup()
 {
+	[ -f ${PWD}/inetd_tester.pid ] && kill $(cat ${PWD}/inetd_tester.pid)
 	pft_cleanup
-	kill $(cat ${PWD}/inetd_tester.pid)
 }
 
 atf_test_case "binat_match" "cleanup"
@@ -872,8 +872,8 @@ binat_match_body()
 
 binat_match_cleanup()
 {
+	[ -f ${PWD}/inetd_tester.pid ] && kill $(cat ${PWD}/inetd_tester.pid)
 	pft_cleanup
-	kill $(cat ${PWD}/inetd_tester.pid)
 }
 
 atf_test_case "empty_pool" "cleanup"
