@@ -492,7 +492,6 @@ OLD_FILES+=usr/include/c++/v1/__type_traits/is_unsigned_integer.h
 OLD_FILES+=usr/include/c++/v1/__type_traits/noexcept_move_assign_container.h
 OLD_FILES+=usr/include/c++/v1/experimental/__config
 OLD_FILES+=usr/include/c++/v1/locale.h
-OLD_FILES+=usr/include/c++/v1/stdint.h
 
 # 20260420: remove perfmon
 OLD_FILES+=boot/kernel/perfmon.ko
