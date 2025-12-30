@@ -290,6 +290,8 @@ enum pf_rule_type_t {
 	PF_RT_TYPE_2		= 84, /* u16 */
 	PF_RT_CODE_2		= 85, /* u16 */
 	PF_RT_EXPTIME		= 86, /* time_t */
+	PF_RT_STATE_LIMIT	= 87, /* uint8_t */
+	PF_RT_SOURCE_LIMIT	= 88, /* uint8_t */
 };
 
 enum pf_addrule_type_t {

@@ -882,6 +882,26 @@ pfr_insert_kentry(struct pfr_ktable *kt, struct pfr_addr *ad, time_t tzero)
 	return (0);
 }
 
+int
+pfr_remove_kentry(struct pfr_ktable *kt, struct pfr_addr *ad)
+{
+	struct pfr_kentryworkq	 workq = SLIST_HEAD_INITIALIZER(workq);
+	struct pfr_kentry	*p;
+
+	p = pfr_lookup_addr(kt, ad, 1);
+	if (p == NULL || p->pfrke_not)
+		return (ESRCH);
+
+	if (p->pfrke_mark)
+		return (0);
+
+	p->pfrke_mark = 1;
+	SLIST_INSERT_HEAD(&workq, p, pfrke_workq);
+	pfr_remove_kentries(kt, &workq);
+
+	return (0);
+}
+
 static void
 pfr_remove_kentries(struct pfr_ktable *kt,
     struct pfr_kentryworkq *workq)

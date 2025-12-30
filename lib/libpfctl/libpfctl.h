@@ -249,6 +249,8 @@ struct pfctl_rule {
 	struct pf_rule_gid	 gid;
 	char			 rcv_ifname[IFNAMSIZ];
 	bool			 rcvifnot;
+	uint8_t			 statelim;
+	uint8_t			 sourcelim;
 
 	uint32_t		 rule_flag;
 	uint8_t			 action;

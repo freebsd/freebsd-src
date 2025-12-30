@@ -75,6 +75,21 @@
 
 struct pfr_buffer;	/* forward definition */
 
+struct pfctl_statelim {
+	struct pfioc_statelim		 ioc;
+	RB_ENTRY(pfctl_statelim)	 entry;
+};
+
+RB_HEAD(pfctl_statelim_ids, pfctl_statelim);
+RB_HEAD(pfctl_statelim_nms, pfctl_statelim);
+
+struct pfctl_sourcelim {
+	struct pfioc_sourcelim		 ioc;
+	RB_ENTRY(pfctl_sourcelim)	 entry;
+};
+
+RB_HEAD(pfctl_sourcelim_ids, pfctl_sourcelim);
+RB_HEAD(pfctl_sourcelim_nms, pfctl_sourcelim);
 
 struct pfctl {
 	int dev;
@@ -98,6 +113,11 @@ struct pfctl {
 	struct pfctl_eth_anchor *eastack[PFCTL_ANCHOR_STACK_DEPTH];
 	u_int32_t eth_ticket;
 	const char *ruleset;
+
+	struct pfctl_statelim_ids	 statelim_ids;
+	struct pfctl_statelim_nms	 statelim_nms;
+	struct pfctl_sourcelim_ids	 sourcelim_ids;
+	struct pfctl_sourcelim_nms	 sourcelim_nms;
 
 	/* 'set foo' options */
 	u_int32_t	 timeout[PFTM_MAX];
@@ -296,6 +316,17 @@ int	pfctl_add_pool(struct pfctl *, struct pfctl_pool *, int);
 void	pfctl_move_pool(struct pfctl_pool *, struct pfctl_pool *);
 void	pfctl_clear_pool(struct pfctl_pool *);
 
+int	pfctl_add_statelim(struct pfctl *, struct pfctl_statelim *);
+struct pfctl_statelim *
+	pfctl_get_statelim_id(struct pfctl *, uint32_t);
+struct pfctl_statelim *
+	pfctl_get_statelim_nm(struct pfctl *, const char *);
+int	pfctl_add_sourcelim(struct pfctl *, struct pfctl_sourcelim *);
+struct pfctl_sourcelim *
+	pfctl_get_sourcelim_id(struct pfctl *, uint32_t);
+struct pfctl_sourcelim *
+	pfctl_get_sourcelim_nm(struct pfctl *, const char *);
+
 int	pfctl_apply_timeout(struct pfctl *, const char *, int, int);
 int	pfctl_set_reassembly(struct pfctl *, int, int);
 int	pfctl_set_optimization(struct pfctl *, const char *);
@@ -312,6 +343,8 @@ int	pfctl_load_anchors(int, struct pfctl *);
 
 void	print_pool(struct pfctl_pool *, u_int16_t, u_int16_t, int);
 void	print_src_node(struct pfctl_src_node *, int);
+void	print_statelim(const struct pfioc_statelim *);
+void	print_sourcelim(const struct pfioc_sourcelim *);
 void	print_eth_rule(struct pfctl_eth_rule *, const char *, int);
 void	print_rule(struct pfctl_rule *, const char *, int, int);
 void	print_tabledef(const char *, int, int, struct node_tinithead *);

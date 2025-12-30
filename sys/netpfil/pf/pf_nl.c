@@ -784,6 +784,8 @@ static const struct nlattr_parser nla_p_rule[] = {
 	{ .type = PF_RT_MAX_PKT_SIZE, .off = _OUT(max_pkt_size), .cb = nlattr_get_uint16 },
 	{ .type = PF_RT_TYPE_2, .off = _OUT(type), .cb = nlattr_get_uint16 },
 	{ .type = PF_RT_CODE_2, .off = _OUT(code), .cb = nlattr_get_uint16 },
+	{ .type = PF_RT_STATE_LIMIT, .off = _OUT(statelim), .cb = nlattr_get_uint8 },
+	{ .type = PF_RT_SOURCE_LIMIT, .off = _OUT(sourcelim), .cb = nlattr_get_uint8 },
 };
 NL_DECLARE_ATTR_PARSER(rule_parser, nla_p_rule);
 #undef _OUT
@@ -1041,6 +1043,8 @@ pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	nlattr_add_u64(nw, PF_RT_SRC_NODES_ROUTE, counter_u64_fetch(rule->src_nodes[PF_SN_ROUTE]));
 	nlattr_add_pf_threshold(nw, PF_RT_PKTRATE, &rule->pktrate);
 	nlattr_add_time_t(nw, PF_RT_EXPTIME, time_second - (time_uptime - rule->exptime));
+	nlattr_add_u8(nw, PF_RT_STATE_LIMIT, rule->statelim);
+	nlattr_add_u8(nw, PF_RT_SOURCE_LIMIT, rule->sourcelim);
 
 	error = pf_kanchor_copyout(ruleset, rule, anchor_call, sizeof(anchor_call));
 	MPASS(error == 0);
