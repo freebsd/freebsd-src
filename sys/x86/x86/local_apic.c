@@ -65,7 +65,7 @@
 #include <machine/cputypes.h>
 #include <machine/fpu.h>
 #include <machine/frame.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <x86/apicvar.h>
 #include <x86/mca.h>
 #include <machine/md_var.h>
@@ -77,6 +77,8 @@
 #include <sys/interrupt.h>
 #include <ddb/ddb.h>
 #endif
+
+#include "pic_if.h"
 
 #ifdef __amd64__
 #define	SDT_APIC	SDT_SYSIGT
@@ -338,7 +340,7 @@ lapic_is_x2apic(void)
 }
 
 static void	lapic_enable(void);
-static void	lapic_resume(struct pic *pic, bool suspend_cancelled);
+static pic_resume_t	lapic_resume;
 static void	lapic_timer_oneshot(struct lapic *);
 static void	lapic_timer_oneshot_nointr(struct lapic *, uint32_t);
 static void	lapic_timer_periodic(struct lapic *);
@@ -352,7 +354,14 @@ static int	lapic_et_stop(struct eventtimer *et);
 static u_int	apic_idt_to_irq(u_int apic_id, u_int vector);
 static void	lapic_set_tpr(u_int vector);
 
-struct pic lapic_pic = { .pic_resume = lapic_resume };
+static const device_method_t lapic_methods[] = {
+	/* Interrupt controller interface */
+	DEVMETHOD(pic_resume,			lapic_resume),
+	DEVMETHOD_END
+};
+
+PRIVATE_DEFINE_CLASSN(lapic, lapic_class, lapic_methods,
+    sizeof(pic_base_softc_t), pic_base_class);
 
 static uint32_t
 lvt_mode_impl(struct lapic *la, struct lvt *lvt, u_int pin, uint32_t value)
@@ -1065,7 +1074,7 @@ lapic_enable(void)
 
 /* Reset the local APIC on the BSP during resume. */
 static void
-lapic_resume(struct pic *pic, bool suspend_cancelled)
+lapic_resume(device_t pic, bool suspend_cancelled)
 {
 
 	lapic_setup(0);
@@ -1507,9 +1516,10 @@ apic_cpuid(u_int apic_id)
 
 /* Request a free IDT vector to be used by the specified IRQ. */
 u_int
-apic_alloc_vector(u_int apic_id, u_int irq)
+apic_alloc_vector(u_int cpu_id, u_int irq)
 {
 	u_int vector;
+	u_int apic_id = cpu_apic_ids[cpu_id];
 
 	KASSERT(irq < num_io_irqs, ("Invalid IRQ %u", irq));
 
@@ -1536,9 +1546,10 @@ apic_alloc_vector(u_int apic_id, u_int irq)
  * satisfied, 0 is returned.
  */
 u_int
-apic_alloc_vectors(u_int apic_id, u_int *irqs, u_int count, u_int align)
+apic_alloc_vectors(u_int cpu_id, u_int *irqs, u_int count, u_int align)
 {
 	u_int first, run, vector;
+	u_int apic_id = cpu_apic_ids[cpu_id];
 
 	KASSERT(powerof2(count), ("bad count"));
 	KASSERT(powerof2(align), ("bad align"));
@@ -1595,8 +1606,9 @@ apic_alloc_vectors(u_int apic_id, u_int *irqs, u_int count, u_int align)
  * should it fire.
  */
 void
-apic_enable_vector(u_int apic_id, u_int vector)
+apic_enable_vector(u_int cpu_id, u_int vector)
 {
+	u_int apic_id = cpu_apic_ids[cpu_id];
 
 	KASSERT(vector != IDT_SYSCALL, ("Attempt to overwrite syscall entry"));
 	KASSERT(ioint_handlers[vector / 32] != NULL,
@@ -1610,8 +1622,9 @@ apic_enable_vector(u_int apic_id, u_int vector)
 }
 
 void
-apic_disable_vector(u_int apic_id, u_int vector)
+apic_disable_vector(u_int cpu_id, u_int vector)
 {
+	u_int apic_id = cpu_apic_ids[cpu_id];
 
 	KASSERT(vector != IDT_SYSCALL, ("Attempt to overwrite syscall entry"));
 #ifdef KDTRACE_HOOKS
@@ -1632,9 +1645,10 @@ apic_disable_vector(u_int apic_id, u_int vector)
 
 /* Release an APIC vector when it's no longer in use. */
 void
-apic_free_vector(u_int apic_id, u_int vector, u_int irq)
+apic_free_vector(u_int cpu_id, u_int vector, u_int irq)
 {
 	struct thread *td;
+	u_int apic_id = cpu_apic_ids[cpu_id];
 
 	KASSERT(vector >= APIC_IO_INTS && vector != IDT_SYSCALL &&
 	    vector <= APIC_IO_INTS + APIC_NUM_IOINTS,
@@ -1729,7 +1743,7 @@ DB_SHOW_COMMAND_FLAGS(apic, db_show_apic, DB_CMD_MEMSAFE)
 				if (isrc == NULL || verbose == 0)
 					db_printf("IRQ %u\n", irq);
 				else
-					db_dump_intr_event(isrc->is_event,
+					db_dump_intr_event(&isrc->is_event,
 					    verbose == 2);
 			} else
 				db_printf("IRQ %u ???\n", irq);
@@ -1923,6 +1937,7 @@ SYSINIT(apic_setup_local, SI_SUB_CPU, SI_ORDER_SECOND, apic_setup_local, NULL);
 static void
 apic_setup_io(void *dummy __unused)
 {
+	device_t lapic_pic;
 	int retval;
 
 	if (best_enum == NULL)
@@ -1932,7 +1947,8 @@ apic_setup_io(void *dummy __unused)
 	 * Local APIC must be registered before other PICs and pseudo PICs
 	 * for proper suspend/resume order.
 	 */
-	intr_register_pic(&lapic_pic);
+	lapic_pic = intr_create_pic("lapic", 0, &lapic_class);
+	intr_register_pic(lapic_pic);
 
 	retval = best_enum->apic_setup_io();
 	if (retval != 0)

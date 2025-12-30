@@ -36,8 +36,8 @@
 #include <sys/mutex.h>
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
 
 #include <dev/fdt/simplebus.h>
 
@@ -330,7 +330,7 @@ mv_cp110_icu_map_intr(device_t dev, struct intr_map_data *data,
 	if (irq_no == ICU_INT_SATA1)
 		WR4(sc, ICU_INT_CFG(ICU_INT_SATA0), vector);
 
-	(*isrcp)->isrc_dev = sc->dev;
+	(*isrcp)->isrc_event.ie_pic = sc->dev;
 	return (ret);
 
 fail:
@@ -406,7 +406,7 @@ mv_cp110_icu_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 
-	PIC_PRE_ITHREAD(sc->parent, isrc);
+	INTR_EVENT_PRE_ITHREAD(sc->parent, isrc);
 }
 
 static void
@@ -416,7 +416,7 @@ mv_cp110_icu_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 
-	PIC_POST_ITHREAD(sc->parent, isrc);
+	INTR_EVENT_POST_ITHREAD(sc->parent, isrc);
 }
 
 static void
@@ -426,7 +426,7 @@ mv_cp110_icu_post_filter(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 
-	PIC_POST_FILTER(sc->parent, isrc);
+	INTR_EVENT_POST_FILTER(sc->parent, isrc);
 }
 
 static device_method_t mv_cp110_icu_methods[] = {
@@ -434,6 +434,11 @@ static device_method_t mv_cp110_icu_methods[] = {
 	DEVMETHOD(device_probe,		mv_cp110_icu_probe),
 	DEVMETHOD(device_attach,	mv_cp110_icu_attach),
 	DEVMETHOD(device_detach,	mv_cp110_icu_detach),
+
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	mv_cp110_icu_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	mv_cp110_icu_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	mv_cp110_icu_pre_ithread),
 
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_activate_intr,	mv_cp110_icu_activate_intr),
@@ -443,18 +448,12 @@ static device_method_t mv_cp110_icu_methods[] = {
 	DEVMETHOD(pic_deactivate_intr,	mv_cp110_icu_deactivate_intr),
 	DEVMETHOD(pic_setup_intr,	mv_cp110_icu_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	mv_cp110_icu_teardown_intr),
-	DEVMETHOD(pic_post_filter,	mv_cp110_icu_post_filter),
-	DEVMETHOD(pic_post_ithread,	mv_cp110_icu_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	mv_cp110_icu_pre_ithread),
 
 	DEVMETHOD_END
 };
 
-static driver_t mv_cp110_icu_driver = {
-	"mv_cp110_icu",
-	mv_cp110_icu_methods,
-	sizeof(struct mv_cp110_icu_softc),
-};
+PRIVATE_DEFINE_CLASSN(mv_cp110_icu, mv_cp110_icu_driver, mv_cp110_icu_methods,
+    sizeof(struct mv_cp110_icu_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(mv_cp110_icu, mv_cp110_icu_bus, mv_cp110_icu_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);

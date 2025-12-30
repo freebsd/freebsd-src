@@ -42,7 +42,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -53,7 +52,7 @@
 
 #include <machine/bus.h>
 #include <machine/pcb.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 #include <machine/vmparam.h>
 

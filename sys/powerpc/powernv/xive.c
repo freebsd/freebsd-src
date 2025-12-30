@@ -44,7 +44,7 @@
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -111,6 +111,10 @@ static int	xive_attach(device_t);
 static int	xics_probe(device_t);
 static int	xics_attach(device_t);
 
+static intr_event_post_filter_t		xive_post_filter;
+static intr_event_post_ithread_t	xive_post_ithread;
+static intr_event_pre_ithread_t		xive_pre_ithread;
+
 static void	xive_bind(device_t, u_int, cpuset_t, void **);
 static void	xive_dispatch(device_t, struct trapframe *);
 static void	xive_enable(device_t, u_int, u_int, void **);
@@ -125,6 +129,11 @@ static device_method_t  xive_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		xive_probe),
 	DEVMETHOD(device_attach,	xive_attach),
+
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	xive_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	xive_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	xive_pre_ithread),
 
 	/* PIC interface */
 	DEVMETHOD(pic_bind,		xive_bind),
@@ -188,17 +197,10 @@ struct xive_cpu {
 	uint32_t	chip;
 };
 
-static driver_t xive_driver = {
-	"xive",
-	xive_methods,
-	sizeof(struct xive_softc)
-};
+PRIVATE_DEFINE_CLASSN(xive, xive_driver, xive_methods,
+    sizeof(struct xive_softc), pic_base_class);
 
-static driver_t xics_driver = {
-	"xivevc",
-	xics_methods,
-	0
-};
+PRIVATE_DEFINE_CLASSN(xivevc, xics_driver, xics_methods, 0, pic_base_class);
 
 EARLY_DRIVER_MODULE(xive, ofwbus, xive_driver, 0, 0, BUS_PASS_INTERRUPT - 1);
 EARLY_DRIVER_MODULE(xivevc, ofwbus, xics_driver, 0, 0, BUS_PASS_INTERRUPT);
@@ -426,6 +428,32 @@ xics_attach(device_t dev)
 	    MAX_XIVE_IRQS, 1 /* Number of IPIs */, FALSE);
 
 	return (0);
+}
+
+/*
+ * Interrupt event methods.
+ */
+
+static void
+xive_post_filter(device_t pic, interrupt_t *i)
+{
+
+	xive_eoi(pic, i->intline, i->priv);
+}
+
+static void
+xive_post_ithread(device_t pic, interrupt_t *i)
+{
+
+	xive_unmask(pic, i->intline, i->priv);
+}
+
+static void
+xive_pre_ithread(device_t pic, interrupt_t *i)
+{
+
+	xive_mask(pic, i->intline, i->priv);
+	xive_eoi(pic, i->intline, i->priv);
 }
 
 /*

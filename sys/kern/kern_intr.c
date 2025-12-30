@@ -37,7 +37,6 @@
 #include <sys/cpuset.h>
 #include <sys/rtprio.h>
 #include <sys/systm.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/ktr.h>
@@ -59,12 +58,15 @@
 #include <sys/vmmeter.h>
 #include <machine/atomic.h>
 #include <machine/cpu.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
 #ifdef DDB
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
 #endif
+
+#include "intr_event_if.h"
 
 /*
  * Describe an interrupt thread.  There is one of these per interrupt event.
@@ -191,7 +193,7 @@ ithread_update(struct intr_thread *ithd)
 	mtx_assert(&ie->ie_lock, MA_OWNED);
 
 	/* Determine the overall priority of this event. */
-	if (CK_SLIST_EMPTY(&ie->ie_handlers))
+	if (!intr_event_has_handlers_(ie))
 		pri = PRI_MAX_ITHD;
 	else
 		pri = CK_SLIST_FIRST(&ie->ie_handlers)->ih_pri;
@@ -276,40 +278,143 @@ intr_event_update(struct intr_event *ie)
 }
 
 int
-intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
-    void (*pre_ithread)(void *), void (*post_ithread)(void *),
-    void (*post_filter)(void *), int (*assign_cpu)(void *, int),
-    const char *fmt, ...)
+intr_event_initv_(struct intr_event *ie, device_t pic, u_int irq, int flags,
+    const char *fmt, __va_list ap)
 {
-	struct intr_event *ie;
-	va_list ap;
+
+	MPASS(ie != NULL && !intr_event_is_valid(ie));
 
 	/* The only valid flag during creation is IE_SOFT. */
 	if ((flags & ~IE_SOFT) != 0)
 		return (EINVAL);
-	ie = malloc(sizeof(struct intr_event), M_ITHREAD, M_WAITOK | M_ZERO);
-	ie->ie_source = source;
-	ie->ie_pre_ithread = pre_ithread;
-	ie->ie_post_ithread = post_ithread;
-	ie->ie_post_filter = post_filter;
-	ie->ie_assign_cpu = assign_cpu;
+	ie->ie_pic = pic;
 	ie->ie_flags = flags;
 	ie->ie_irq = irq;
 	ie->ie_cpu = NOCPU;
 	CK_SLIST_INIT(&ie->ie_handlers);
 	mtx_init(&ie->ie_lock, "intr event", NULL, MTX_DEF);
 
-	va_start(ap, fmt);
 	vsnprintf(ie->ie_name, sizeof(ie->ie_name), fmt, ap);
-	va_end(ap);
 	strlcpy(ie->ie_fullname, ie->ie_name, sizeof(ie->ie_fullname));
 	mtx_lock(&event_lock);
 	TAILQ_INSERT_TAIL(&event_list, ie, ie_list);
 	mtx_unlock(&event_lock);
-	if (event != NULL)
-		*event = ie;
 	CTR2(KTR_INTR, "%s: created %s", __func__, ie->ie_name);
 	return (0);
+}
+
+int
+intr_event_init_(struct intr_event *ie, device_t pic, u_int irq, int flags,
+    const char *fmt, ...)
+{
+	va_list ap;
+	int res;
+
+	va_start(ap, fmt);
+	res = intr_event_initv_(ie, pic, irq, flags, fmt, ap);
+	va_end(ap);
+
+	return (res);
+}
+
+struct	intr_event_compat {
+	struct	intr_event	ie;
+	void			(*ie_pre_ithread)(void *);
+	void			(*ie_post_ithread)(void *);
+	void			(*ie_post_filter)(void *);
+	int			(*ie_assign_cpu)(void *, int);
+	void			*ie_source;
+};
+
+static void
+event_compat_pre_ithread(device_t pic, interrupt_t *intr)
+{
+	struct intr_event_compat *compat = (struct intr_event_compat *)intr;
+	void (*func)(void *) = compat->ie_pre_ithread;
+
+	if (func != NULL)
+		func(compat->ie_source);
+}
+static void
+event_compat_post_ithread(device_t pic, interrupt_t *intr)
+{
+	struct intr_event_compat *compat = (struct intr_event_compat *)intr;
+	void (*func)(void *) = compat->ie_post_ithread;
+
+	if (func != NULL)
+		func(compat->ie_source);
+}
+static void
+event_compat_post_filter(device_t pic, interrupt_t *intr)
+{
+	struct intr_event_compat *compat = (struct intr_event_compat *)intr;
+	void (*func)(void *) = compat->ie_post_filter;
+
+	if (func != NULL)
+		func(compat->ie_source);
+}
+static int
+event_compat_assign_cpu(device_t pic, interrupt_t *intr, u_int cpu)
+{
+	struct intr_event_compat *compat = (struct intr_event_compat *)intr;
+	int (*func)(void *, int) = compat->ie_assign_cpu;
+
+	return (func != NULL ? func(compat->ie_source, cpu) : EOPNOTSUPP);
+}
+
+static device_method_t event_compat_methods[] = {
+	DEVMETHOD(intr_event_pre_ithread,	event_compat_pre_ithread),
+	DEVMETHOD(intr_event_post_ithread,	event_compat_post_ithread),
+	DEVMETHOD(intr_event_post_filter,	event_compat_post_filter),
+	DEVMETHOD(intr_event_assign_cpu,	event_compat_assign_cpu),
+
+	DEVMETHOD_END
+};
+
+PRIVATE_DEFINE_CLASSN(event_compat, event_compat_class, event_compat_methods,
+    0);
+
+int
+intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
+    void (*pre_ithread)(void *), void (*post_ithread)(void *),
+    void (*post_filter)(void *), int (*assign_cpu)(void *, int),
+    const char *fmt, ...)
+{
+	static device_t handler = NULL;
+
+	struct intr_event *ie;
+	struct intr_event_compat *compat;
+	va_list ap;
+	int res;
+
+	if (__predict_false(handler == NULL)) {
+		handler = bus_generic_add_child(root_bus, BUS_PASS_ORDER_FIRST,
+		    "event-compat", 0);
+		device_set_driver(handler, &event_compat_class);
+	}
+
+	compat = malloc(sizeof(struct intr_event_compat), M_ITHREAD,
+	    M_WAITOK | M_ZERO);
+	ie = &compat->ie;
+
+	va_start(ap, fmt);
+	res = intr_event_initv_(ie, handler, irq, flags, fmt, ap);
+	va_end(ap);
+
+	if (res != 0) {
+		free(ie, M_ITHREAD);
+		return (res);
+	}
+
+	compat->ie_pre_ithread = pre_ithread;
+	compat->ie_post_ithread = post_ithread;
+	compat->ie_post_filter = post_filter;
+	compat->ie_assign_cpu = assign_cpu;
+	compat->ie_source = source;
+
+	if (event != NULL)
+		*event = ie;
+	return (res);
 }
 
 /*
@@ -327,9 +432,6 @@ _intr_event_bind(struct intr_event *ie, int cpu, bool bindirq, bool bindithread)
 	/* Need a CPU to bind to. */
 	if (cpu != NOCPU && CPU_ABSENT(cpu))
 		return (EINVAL);
-
-	if (ie->ie_assign_cpu == NULL)
-		return (EOPNOTSUPP);
 
 	error = priv_check(curthread, PRIV_SCHED_CPUSET_INTR);
 	if (error)
@@ -351,7 +453,8 @@ _intr_event_bind(struct intr_event *ie, int cpu, bool bindirq, bool bindithread)
 			mtx_unlock(&ie->ie_lock);
 	}
 	if (bindirq)
-		error = ie->ie_assign_cpu(ie->ie_source, cpu);
+		error = INTR_EVENT_ASSIGN_CPU(ie->ie_pic, (interrupt_t *)ie,
+		    cpu);
 	if (error) {
 		if (bindithread) {
 			mtx_lock(&ie->ie_lock);
@@ -527,15 +630,14 @@ intr_getaffinity(int irq, int mode, void *m)
 }
 
 int
-intr_event_destroy(struct intr_event *ie)
+intr_event_shutdown_(struct intr_event *ie)
 {
 
-	if (ie == NULL)
-		return (EINVAL);
+	MPASS(ie != NULL && intr_event_is_valid(ie));
 
 	mtx_lock(&event_lock);
 	mtx_lock(&ie->ie_lock);
-	if (!CK_SLIST_EMPTY(&ie->ie_handlers)) {
+	if (intr_event_has_handlers_(ie)) {
 		mtx_unlock(&ie->ie_lock);
 		mtx_unlock(&event_lock);
 		return (EBUSY);
@@ -546,8 +648,32 @@ intr_event_destroy(struct intr_event *ie)
 		ithread_destroy(ie->ie_thread);
 	mtx_unlock(&ie->ie_lock);
 	mtx_destroy(&ie->ie_lock);
-	free(ie, M_ITHREAD);
 	return (0);
+}
+
+int
+intr_event_destroy_(struct intr_event *ie)
+{
+	int res;
+
+	MPASS(ie != NULL && intr_event_is_valid(ie));
+
+	res = intr_event_shutdown_(ie);
+	if (res == 0)
+		free(ie, M_ITHREAD);
+	return (res);
+}
+
+int
+intr_event_destroy(struct intr_event *ie)
+{
+
+	if (ie == NULL)
+		return (EINVAL);
+
+	MPASS(intr_event_is_valid(ie));
+
+	return (intr_event_destroy_(ie));
 }
 
 static struct intr_thread *
@@ -635,7 +761,7 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 
 	/* We can only have one exclusive or sleepable handler in a event. */
 	mtx_lock(&ie->ie_lock);
-	if (!CK_SLIST_EMPTY(&ie->ie_handlers)) {
+	if (intr_event_has_handlers_(ie)) {
 		if ((flags & (INTR_EXCL | INTR_SLEEPABLE)) ||
 		    (CK_SLIST_FIRST(&ie->ie_handlers)->ih_flags & IH_EXCLUSIVE)) {
 			mtx_unlock(&ie->ie_lock);
@@ -686,7 +812,7 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
  * interrupt handler.
  */
 int
-intr_event_describe_handler(struct intr_event *ie, void *cookie,
+intr_event_describe_handler_(struct intr_event *ie, void *cookie,
     const char *descr)
 {
 	struct intr_handler *ih;
@@ -736,24 +862,12 @@ intr_event_describe_handler(struct intr_event *ie, void *cookie,
 	return (0);
 }
 
-/*
- * Return the ie_source field from the intr_event an intr_handler is
- * associated with.
- */
-void *
-intr_handler_source(void *cookie)
+int
+intr_event_describe_handler(struct intr_event *ie, void *cookie,
+    const char *descr)
 {
-	struct intr_handler *ih;
-	struct intr_event *ie;
-
-	ih = (struct intr_handler *)cookie;
-	if (ih == NULL)
-		return (NULL);
-	ie = ih->ih_event;
-	KASSERT(ie != NULL,
-	    ("interrupt handler \"%s\" has a NULL interrupt event",
-	    ih->ih_name));
-	return (ie->ie_source);
+	return (ie != NULL ? intr_event_describe_handler(ie, cookie, descr) :
+	    EINVAL);
 }
 
 /*
@@ -857,16 +971,13 @@ _intr_drain(int irq)
 }
 
 int
-intr_event_remove_handler(void *cookie)
+intr_event_remove_handler_(struct intr_event *ie, struct intr_handler *handler)
 {
-	struct intr_handler *handler = (struct intr_handler *)cookie;
-	struct intr_event *ie;
 	struct intr_handler *ih;
 	struct intr_handler **prevptr;
 
 	if (handler == NULL)
 		return (EINVAL);
-	ie = handler->ih_event;
 	KASSERT(ie != NULL,
 	    ("interrupt handler \"%s\" has a NULL interrupt event",
 	    handler->ih_name));
@@ -878,10 +989,8 @@ intr_event_remove_handler(void *cookie)
 		if (ih == handler)
 			break;
 	}
-	if (ih == NULL) {
-		panic("interrupt handler \"%s\" not found in "
-		    "interrupt event \"%s\"", handler->ih_name, ie->ie_name);
-	}
+	if (ih == NULL)
+		return (EINVAL);
 
 	if (ie->ie_thread == NULL) {
 		/*
@@ -910,6 +1019,13 @@ intr_event_remove_handler(void *cookie)
 	mtx_unlock(&ie->ie_lock);
 	free(handler, M_ITHREAD);
 	return (0);
+}
+
+int
+intr_event_remove_handler(struct intr_event *ie, struct intr_handler *handler)
+{
+
+	return (ie != NULL ? intr_event_remove_handler_(ie, handler) : EINVAL);
 }
 
 int
@@ -966,7 +1082,7 @@ intr_event_schedule_thread(struct intr_event *ie, struct trapframe *frame)
 	/*
 	 * If no ithread or no handlers, then we have a stray interrupt.
 	 */
-	if (ie == NULL || CK_SLIST_EMPTY(&ie->ie_handlers) ||
+	if (!intr_event_has_handlers(ie) ||
 	    ie->ie_thread == NULL)
 		return (EINVAL);
 
@@ -1023,16 +1139,37 @@ intr_event_schedule_thread(struct intr_event *ie, struct trapframe *frame)
 }
 
 /*
+ * Pseudo-PIC implementation for SWIs swi_add().  Lower overhead than
+ * intr_event_create()'s full implementation.
+ */
+
+static void
+swi_event_func(device_t pic, interrupt_t *intr)
+{
+}
+
+/*
  * Allow interrupt event binding for software interrupt handlers -- a no-op,
  * since interrupts are generated in software rather than being directed by
  * a PIC.
  */
 static int
-swi_assign_cpu(void *arg, int cpu)
+swi_event_assign(device_t pic, interrupt_t *intr, u_int cpu)
 {
 
 	return (0);
 }
+
+static device_method_t swi_event_methods[] = {
+	DEVMETHOD(intr_event_pre_ithread,	swi_event_func),
+	DEVMETHOD(intr_event_post_ithread,	swi_event_func),
+	DEVMETHOD(intr_event_post_filter,	swi_event_func),
+	DEVMETHOD(intr_event_assign_cpu,	swi_event_assign),
+
+	DEVMETHOD_END
+};
+
+PRIVATE_DEFINE_CLASSN(swi_event, swi_event_class, swi_event_methods, 0);
 
 /*
  * Add a software interrupt handler to a specified event.  If a given event
@@ -1054,10 +1191,22 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 		if (!(ie->ie_flags & IE_SOFT))
 			return (EINVAL);
 	} else {
-		error = intr_event_create(&ie, NULL, IE_SOFT, 0,
-		    NULL, NULL, NULL, swi_assign_cpu, "swi%d:", pri);
-		if (error)
+		static device_t handler = NULL;
+
+		if (__predict_false(handler == NULL)) {
+			handler = bus_generic_add_child(root_bus,
+			    BUS_PASS_ORDER_FIRST, "swi-event", 0);
+			device_set_driver(handler, &swi_event_class);
+		}
+
+		ie = malloc(sizeof(struct intr_event), M_ITHREAD,
+		    M_WAITOK | M_ZERO);
+		error = intr_event_init_(ie, handler, 0, IE_SOFT, "swi%d:",
+		    pri);
+		if (error) {
+			free(ie, M_ITHREAD);
 			return (error);
+		}
 		if (eventp != NULL)
 			*eventp = ie;
 	}
@@ -1120,8 +1269,20 @@ swi_sched(void *cookie, int flags)
 int
 swi_remove(void *cookie)
 {
+	struct intr_handler *handler = (struct intr_handler *)cookie;
+	struct intr_event *ie;
+	int res;
 
-	return (intr_event_remove_handler(cookie));
+	if (handler == NULL)
+		return (EINVAL);
+	ie = handler->ih_event;
+
+	res = intr_event_remove_handler_(ie, handler);
+	if (res == EINVAL) {
+		panic("interrupt handler \"%s\" not found in "
+		    "interrupt event \"%s\"", handler->ih_name, ie->ie_name);
+	}
+	return (res);
 }
 
 static void
@@ -1232,8 +1393,7 @@ ithread_execute_handlers(struct proc *p, struct intr_event *ie)
 	 * Now that all the handlers have had a chance to run, reenable
 	 * the interrupt source.
 	 */
-	if (ie->ie_post_ithread != NULL)
-		ie->ie_post_ithread(ie->ie_source);
+	INTR_EVENT_POST_ITHREAD(ie->ie_pic, (interrupt_t *)ie);
 }
 
 /*
@@ -1342,7 +1502,7 @@ ithread_loop(void *arg)
  * o EINVAL:                    stray interrupt.
  */
 int
-intr_event_handle(struct intr_event *ie, struct trapframe *frame)
+intr_event_handle_(struct intr_event *ie, struct trapframe *frame)
 {
 	struct intr_handler *ih;
 	struct trapframe *oldframe;
@@ -1357,8 +1517,10 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	intr_prof_stack_use(td, frame);
 #endif
 
-	/* An interrupt with no event or handlers is a stray interrupt. */
-	if (ie == NULL || CK_SLIST_EMPTY(&ie->ie_handlers))
+	MPASS(ie != NULL);
+
+	/* An interrupt with no handlers is a stray interrupt. */
+	if (!intr_event_has_handlers_(ie))
 		return (EINVAL);
 
 	/*
@@ -1434,13 +1596,10 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 
 	td->td_intr_frame = oldframe;
 
-	if (thread) {
-		if (ie->ie_pre_ithread != NULL)
-			ie->ie_pre_ithread(ie->ie_source);
-	} else {
-		if (ie->ie_post_filter != NULL)
-			ie->ie_post_filter(ie->ie_source);
-	}
+	if (thread)
+		INTR_EVENT_PRE_ITHREAD(ie->ie_pic, (interrupt_t *)ie);
+	else
+		INTR_EVENT_POST_FILTER(ie->ie_pic, (interrupt_t *)ie);
 
 	/* Schedule the ithread if needed. */
 	if (thread) {
@@ -1457,6 +1616,14 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 		return (EINVAL);
 #endif
 	return (0);
+}
+
+int
+intr_event_handle(struct intr_event *ie, struct trapframe *frame)
+{
+
+        /* An interrupt with no event is a stray interrupt. */
+	return (ie != NULL ? intr_event_handle_(ie, frame) : EINVAL);
 }
 
 #ifdef DDB
@@ -1589,7 +1756,7 @@ DB_SHOW_COMMAND_FLAGS(intr, db_show_intr, DB_CMD_MEMSAFE)
 	verbose = strchr(modif, 'v') != NULL;
 	all = strchr(modif, 'a') != NULL;
 	TAILQ_FOREACH(ie, &event_list, ie_list) {
-		if (!all && CK_SLIST_EMPTY(&ie->ie_handlers))
+		if (!all && !intr_event_has_handlers_(ie))
 			continue;
 		db_dump_intr_event(ie, verbose);
 		if (db_pager_quit)

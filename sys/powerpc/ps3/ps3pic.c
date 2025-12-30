@@ -37,7 +37,7 @@
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/platform.h>
 
@@ -47,6 +47,10 @@
 static void	ps3pic_identify(driver_t *driver, device_t parent);
 static int	ps3pic_probe(device_t);
 static int	ps3pic_attach(device_t);
+
+static intr_event_post_filter_t		ps3picpost_filter;
+static intr_event_post_ithread_t	ps3pic_post_ithread;
+static intr_event_pre_ithread_t		ps3pic_pre_ithread;
 
 static void	ps3pic_dispatch(device_t, struct trapframe *);
 static void	ps3pic_enable(device_t, u_int, u_int, void **);
@@ -72,6 +76,11 @@ static device_method_t  ps3pic_methods[] = {
 	DEVMETHOD(device_probe,		ps3pic_probe),
 	DEVMETHOD(device_attach,	ps3pic_attach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	ps3pic_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	ps3pic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	ps3pic_pre_ithread),
+
 	/* PIC interface */
 	DEVMETHOD(pic_dispatch,		ps3pic_dispatch),
 	DEVMETHOD(pic_enable,		ps3pic_enable),
@@ -80,14 +89,11 @@ static device_method_t  ps3pic_methods[] = {
 	DEVMETHOD(pic_mask,		ps3pic_mask),
 	DEVMETHOD(pic_unmask,		ps3pic_unmask),
 
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
-static driver_t ps3pic_driver = {
-	"ps3pic",
-	ps3pic_methods,
-	sizeof(struct ps3pic_softc)
-};
+PRIVATE_DEFINE_CLASSN(ps3pic, ps3pic_driver ps3pic_methods,
+    sizeof(struct ps3pic_softc), pic_base_class);
 
 DRIVER_MODULE(ps3pic, nexus, ps3pic_driver, 0, 0);
 
@@ -148,6 +154,32 @@ ps3pic_attach(device_t dev)
 
 	powerpc_register_pic(dev, 0, sc->sc_ipi_virq, 1, FALSE);
 	return (0);
+}
+
+/*
+ * Interrupt event methods.
+ */
+
+static void
+ps3pic_post_filter(device_t pic, interrupt_t *i)
+{
+
+	ps3pic_eoi(pic, i->intline, i->priv);
+}
+
+static void
+ps3pic_post_ithread(device_t pic, interrupt_t *i)
+{
+
+	ps3pic_unmask(pic, i->intline, i->priv);
+}
+
+static void
+ps3pic_pre_ithread(device_t pic, interrupt_t *i)
+{
+
+	ps3pic_mask(pic, i->intline, i->priv);
+	ps3pic_eoi(pic, i->intline, i->priv);
 }
 
 /*

@@ -34,7 +34,7 @@
 #include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/pio.h>
 
 #include <powerpc/mpc85xx/mpc85xx.h>
@@ -69,6 +69,10 @@ static int	atpic_isa_attach(device_t);
 static void	atpic_isa_identify(driver_t *, device_t);
 static int	atpic_isa_probe(device_t);
 
+static intr_event_post_filter_t		atpic_post_filter;
+static intr_event_post_ithread_t	atpic_post_ithread;
+static intr_event_pre_ithread_t		atpic_pre_ithread;
+
 static void atpic_config(device_t, u_int, enum intr_trigger,
     enum intr_polarity);
 static void atpic_dispatch(device_t, struct trapframe *);
@@ -87,6 +91,11 @@ static device_method_t atpic_isa_methods[] = {
 	DEVMETHOD(device_probe,		atpic_isa_probe),
 	DEVMETHOD(device_attach,	atpic_isa_attach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	atpic_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	atpic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	atpic_pre_ithread),
+
 	/* PIC interface */
 	DEVMETHOD(pic_config,		atpic_config),
 	DEVMETHOD(pic_dispatch,		atpic_dispatch),
@@ -98,14 +107,11 @@ static device_method_t atpic_isa_methods[] = {
 
 	DEVMETHOD(pic_translate_code,	atpic_ofw_translate_code),
 
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
-static driver_t atpic_isa_driver = {
-	"atpic",
-	atpic_isa_methods,
-	sizeof(struct atpic_softc)
-};
+PRIVATE_DEFINE_CLASSN(atpic, atpic_isa_driver, atpic_isa_methods,
+    sizeof(struct atpic_softc), pic_base_class);
 
 static struct isa_pnp_id atpic_ids[] = {
 	{ 0x0000d041 /* PNP0000 */, "AT interrupt controller" },
@@ -235,6 +241,32 @@ atpic_isa_attach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT,
 		    sc->sc_rid[ATPIC_MASTER], sc->sc_res[ATPIC_MASTER]);
 	return (error);
+}
+
+/*
+ * Interrupt event interface.
+ */
+
+static void
+atpic_post_filter(device_t pic, interrupt_t *i)
+{
+
+	atpic_eoi(pic, i->intline);
+}
+
+static void
+atpic_post_ithread(device_t pic, interrupt_t *i)
+{
+
+	atpic_unmask(pic, i->intline);
+}
+
+static void
+atpic_pre_ithread(device_t pic, interrupt_t *i)
+{
+
+	atpic_mask(pic, i->intline);
+	atpic_eoi(pic, i->intline);
 }
 
 /*

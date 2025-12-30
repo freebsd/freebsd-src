@@ -37,7 +37,7 @@
 #include <sys/smp.h>
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/pio.h>
 #include <machine/resource.h>
@@ -260,7 +260,7 @@ openpic_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv __unused)
 	openpic_write(sc, OPENPIC_IDEST(irq), mask);
 }
 
-void
+static void
 openpic_config(device_t dev, u_int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
@@ -311,7 +311,7 @@ openpic_intr(void *arg)
 	return (FILTER_HANDLED);
 }
 
-void
+static void
 openpic_enable(device_t dev, u_int irq, u_int vector, void **priv __unused)
 {
 	struct openpic_softc *sc;
@@ -331,7 +331,7 @@ openpic_enable(device_t dev, u_int irq, u_int vector, void **priv __unused)
 	}
 }
 
-void
+static void
 openpic_eoi(device_t dev, u_int irq __unused, void *priv __unused)
 {
 	struct openpic_softc *sc;
@@ -375,7 +375,7 @@ openpic_mask(device_t dev, u_int irq, void *priv __unused)
 	}
 }
 
-void
+static void
 openpic_unmask(device_t dev, u_int irq, void *priv __unused)
 {
 	struct openpic_softc *sc;
@@ -454,10 +454,42 @@ openpic_resume(device_t dev)
 	return (0);
 }
 
+/*
+ * Interrupt event methods
+ */
+
+static void
+openpic_post_filter(device_t pic, interrupt_t *i)
+{
+
+	openpic_eoi(pic, i->intline, i->priv);
+}
+
+static void
+openpic_post_ithread(device_t pic, interrupt_t *i)
+{
+
+	openpic_unmask(pic, i->intline, i->priv);
+}
+
+static void
+openpic_pre_ithread(device_t pic, interrupt_t *i)
+{
+
+	openpic_mask(pic, i->intline, i->priv);
+	openpic_eoi(pic, i->intline, i->priv);
+}
+
+
 static device_method_t openpic_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_suspend,	openpic_suspend),
 	DEVMETHOD(device_resume,	openpic_resume),
+
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	openpic_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	openpic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	openpic_pre_ithread),
 
 	/* PIC interface */
 	DEVMETHOD(pic_bind,		openpic_bind),
@@ -472,5 +504,5 @@ static device_method_t openpic_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(openpic, openpic_class, openpic_methods,
-    sizeof(struct openpic_softc));
+PUBLIC_DEFINE_CLASSN(openpic, openpic_class, openpic_methods,
+    sizeof(struct openpic_softc), pic_base_class);

@@ -38,9 +38,11 @@
 #include <sys/_mutex.h>
 
 #ifdef _KERNEL
-#include <sys/pcpu.h>
+#include <sys/lock.h>
 #include <sys/lock_profile.h>
 #include <sys/lockstat.h>
+#include <sys/pcpu.h>
+
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 
