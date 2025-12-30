@@ -492,7 +492,6 @@ OLD_FILES+=usr/include/c++/v1/__type_traits/is_unsigned_integer.h
 OLD_FILES+=usr/include/c++/v1/__type_traits/noexcept_move_assign_container.h
 OLD_FILES+=usr/include/c++/v1/experimental/__config
 OLD_FILES+=usr/include/c++/v1/locale.h
-OLD_FILES+=usr/include/c++/v1/stdint.h
 
 # 20260430: Regenerate trust store
 OLD_FILES+=usr/share/certs/trusted/Entrust_net_Premium_2048_Secure_Server_CA.pem
