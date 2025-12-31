@@ -58,6 +58,7 @@
 #include <net/if_types.h>
 
 #include <dev/evdev/input.h>
+#include <dev/hid/hidraw.h>
 #include <dev/usb/usb_ioctl.h>
 
 #ifdef COMPAT_LINUX32
@@ -113,6 +114,7 @@ DEFINE_LINUX_IOCTL_SET(kcov, KCOV);
 #ifndef COMPAT_LINUX32
 DEFINE_LINUX_IOCTL_SET(nvme, NVME);
 #endif
+DEFINE_LINUX_IOCTL_SET(hidraw, HIDRAW);
 
 #undef DEFINE_LINUX_IOCTL_SET
 
@@ -3569,6 +3571,55 @@ linux_ioctl_nvme(struct thread *td, struct linux_ioctl_args *args)
 	return (sys_ioctl(td, (struct ioctl_args *)args));
 }
 #endif
+
+static int
+linux_ioctl_hidraw(struct thread *td, struct linux_ioctl_args *args)
+{
+	int len = (args->cmd & 0x3fff0000) >> 16;
+	if (len > 8192)
+		return (EINVAL);
+
+	switch (args->cmd & 0xffff) {
+	case LINUX_HIDIOCGRDESCSIZE:
+		args->cmd = HIDIOCGRDESCSIZE;
+		break;
+	case LINUX_HIDIOCGRDESC:
+		args->cmd = HIDIOCGRDESC;
+		break;
+	case LINUX_HIDIOCGRAWINFO:
+		args->cmd = HIDIOCGRAWINFO;
+		break;
+	case LINUX_HIDIOCGRAWNAME:
+		args->cmd = HIDIOCGRAWNAME(len);
+		break;
+	case LINUX_HIDIOCGRAWPHYS:
+		args->cmd = HIDIOCGRAWPHYS(len);
+		break;
+	case LINUX_HIDIOCSFEATURE:
+		args->cmd = HIDIOCSFEATURE(len);
+		break;
+	case LINUX_HIDIOCGFEATURE:
+		args->cmd = HIDIOCGFEATURE(len);
+		break;
+	case LINUX_HIDIOCGRAWUNIQ:
+		args->cmd = HIDIOCGRAWUNIQ(len);
+		break;
+	case LINUX_HIDIOCSINPUT:
+		args->cmd = HIDIOCSINPUT(len);
+		break;
+	case LINUX_HIDIOCGINPUT:
+		args->cmd = HIDIOCGINPUT(len);
+		break;
+	case LINUX_HIDIOCSOUTPUT:
+		args->cmd = HIDIOCSOUTPUT(len);
+		break;
+	case LINUX_HIDIOCGOUTPUT:
+		args->cmd = HIDIOCGOUTPUT(len);
+		break;
+	}
+
+	return (sys_ioctl(td, (struct ioctl_args *)args));
+}
 
 /*
  * main ioctl syscall function
