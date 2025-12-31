@@ -161,13 +161,13 @@ run()
 # $4 optional regex for egrep -w
 clean_dep()
 {
+	local dirprfx dir
 	for libcompat in "" $ALL_libcompats; do
-		dirprfx=${libcompat:+obj-lib${libcompat}/}
-		if egrep -qw "${4:-$2\.$3}" "$OBJTOP"/$dirprfx$1/.depend.$2.*o 2>/dev/null; then
+		dirprfx=${libcompat:+obj-lib${libcompat}}
+		dir="${OBJTOP%/}/${dirprfx}/$1"
+		if egrep -qw "${4:-$2\.$3}" "${dir}"/.depend.$2.*o 2>/dev/null; then
 			echo "Removing stale ${libcompat:+lib${libcompat} }dependencies and objects for $2.$3"
-			run rm -fv \
-			    "$OBJTOP"/$dirprfx$1/.depend.$2.* \
-			    "$OBJTOP"/$dirprfx$1/$2.*o
+			run rm -fv "${dir}"/.depend.$2.* "${dir}"/$2.*o
 		fi
 	done
 }
@@ -183,12 +183,13 @@ clean_dep()
 # $4 regex for egrep -w
 clean_obj()
 {
+	local dirprfx dir
 	for libcompat in "" $ALL_libcompats; do
-		dirprfx=${libcompat:+obj-lib${libcompat}/}
-		if strings "$OBJTOP"/$dirprfx$1/$2.*o 2>/dev/null | egrep -qw "${4}"; then
+		dirprfx=${libcompat:+obj-lib${libcompat}}
+		dir="${OBJTOP%/}/${dirprfx}/$1"
+		if strings "${dir}"/$2.*o 2>/dev/null | egrep -qw "${4}"; then
 			echo "Removing stale ${libcompat:+lib${libcompat} }objects for $2.$3"
-			run rm -fv \
-			    "$OBJTOP"/$dirprfx$1/$2.*o
+			run rm -fv "${dir}"/$2.*o
 		fi
 	done
 }
@@ -221,6 +222,7 @@ extract_src_opts()
 
 extract_obj_opts()
 {
+	local fn
 	for fn; do
 		if [ -f "${fn}" ]; then
 			cat "${fn}"
