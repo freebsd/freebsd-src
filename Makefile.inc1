@@ -1753,10 +1753,6 @@ KERNCONF?=	${GENERIC_KERNCONF}
 
 BUILDKERNELS=
 INSTALLKERNEL=
-.if defined(NO_INSTALLKERNEL)
-# All of the BUILDKERNELS loops start at index 1.
-BUILDKERNELS+= dummy
-.endif
 .for _kernel in ${KERNCONF}
 .if !defined(_MKSHOWCONFIG) && exists(${KERNCONFDIR}/${_kernel})
 BUILDKERNELS+=	${_kernel}
@@ -1798,12 +1794,12 @@ _BUILDKERNEL_START!= date '+%s'
 # Builds all kernels defined by BUILDKERNELS.
 #
 buildkernel: .MAKE .PHONY
-.if empty(BUILDKERNELS:Ndummy)
+.if empty(BUILDKERNELS)
 	@echo "ERROR: Missing kernel configuration file(s) (${KERNCONF})."; \
 	false
 .endif
 	@echo
-.for _kernel in ${BUILDKERNELS:Ndummy}
+.for _kernel in ${BUILDKERNELS}
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Kernel build for ${_kernel} started on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
@@ -1865,6 +1861,16 @@ NO_INSTALLEXTRAKERNELS?=	yes
 NO_INSTALLEXTRAKERNELS?=	no
 .endif
 
+.if ${NO_INSTALLEXTRAKERNELS} != "yes"
+.if defined(NO_INSTALLKERNEL)
+INSTALLEXTRAKERNELS=	${BUILDKERNELS}
+.else
+# First kernel is installed separately by INSTALLKERNEL, typically to
+# /boot/kernel, rather than to a config-suffixed directory.
+INSTALLEXTRAKERNELS=	${BUILDKERNELS:[2..-1]}
+.endif
+.endif
+
 #
 # installkernel, etc.
 #
@@ -1891,8 +1897,8 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel .PHONY
 	  echo ">>> Install kernel(s) ${INSTALLKERNEL} completed in $$seconds seconds, ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
 	@echo "--------------------------------------------------------------"
 .endif
-.if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
-.for _kernel in ${BUILDKERNELS:[2..-1]}
+.if !empty(INSTALLEXTRAKERNELS)
+.for _kernel in ${INSTALLEXTRAKERNELS}
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing kernel ${_kernel} $$(LC_ALL=C date)"
 	@echo "--------------------------------------------------------------"
@@ -1929,8 +1935,8 @@ distributekernel distributekernel.debug: .PHONY
 	    ${METALOG_SORT_CMD} >> ${DESTDIR}/${DISTDIR}/kernel.meta
 .endif
 .endif
-.if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
-.for _kernel in ${BUILDKERNELS:[2..-1]}
+.if !empty(INSTALLEXTRAKERNELS)
+.for _kernel in ${INSTALLEXTRAKERNELS}
 	rm -f ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta
 	${_+_}cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.${_kernel}.premeta/} \
@@ -1961,8 +1967,8 @@ packagekernel: .PHONY
 	    @${DESTDIR}/${DISTDIR}/kernel.meta | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel-dbg.txz
 .endif
-.if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
-.for _kernel in ${BUILDKERNELS:[2..-1]}
+.if !empty(INSTALLEXTRAKERNELS)
+.for _kernel in ${INSTALLEXTRAKERNELS}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    ${TAR_CMD} cvf - --exclude '*.debug' \
 	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
@@ -2330,8 +2336,8 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 create-kernel-packages: .PHONY
 
 .endif
-.if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
-. for _kernel in ${BUILDKERNELS:[2..-1]}
+.if !empty(INSTALLEXTRAKERNELS)
+.for _kernel in ${INSTALLEXTRAKERNELS}
 .  if exists(${KSTAGEDIR}/kernel.${_kernel}.meta)
 .   if ${MK_DEBUG_FILES} != "no"
 _debug=-dbg
