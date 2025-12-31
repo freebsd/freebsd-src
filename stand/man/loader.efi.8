@@ -41,20 +41,28 @@ On UEFI systems,
 .Nm
 loads the kernel.
 .Pp
-.Xr boot1.efi 8
-is used to load
 .Nm
-when it is placed within a UFS or ZFS file system.
-Alternatively,
-.Nm
-is used directly when configured with
-.Xr efibootmgr 8 ,
-or when placed directly as the default boot program as described in
-.Xr uefi 8 .
-When a system is built using
+is invoked directly from the EFI System Partition (ESP)
+on systems installed using
 .Xr bsdinstall 8 ,
-.Nm
-will be used directly.
+when installed as the default EFI boot program as described in
+.Xr uefi 8
+or when configured as an EFI boot entry with
+.Xr efibootmgr 8 .
+.Pp
+On systems upgraded from FreeBSD 10 or earlier, the EFI System Partition (ESP)
+can be too small to accommodate
+.Nm .
+In such cases,
+.Xr boot1.efi 8
+may be retained as the firmware boot program. It
+will chain-load the current
+.Pa /boot/loader.efi ,
+which is updated during the
+.Cm installworld
+process.
+.Xr boot1.efi 8
+is deprecated for new installations.
 .Ss Console Considerations
 The EFI BIOS provides a generic console.
 In
@@ -485,15 +493,6 @@ Typically in these embedded situations, there is only one .efi file (loader.efi
 or a copy of loader.efi).
 The path to this file is typically the default removable path above.
 .Pp
-Managing booting multiple OSes on UEFI varies greatly, so extra caution when
-updating the UEFI default loader.
+Managing booting multiple OSes on UEFI varies greatly, so extra caution is required
+when updating the UEFI default loader.
 .Pp
-The old, now obsolete, boot1.efi was installed as bootx64.efi in
-.Fx 10
-and earlier.
-Since it was quite limited in functionality, we created very small
-ESPs by default.
-A modern loader.efi will not fit.
-However, if the old boot1.efi still works, there's no need to update
-it since it will chain boot /boot/loader.efi from a copy that
-make installworld updates.
