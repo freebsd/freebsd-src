@@ -86,6 +86,7 @@ __DEFAULT_YES_OPTIONS = \
     CRYPT \
     CUSE \
     CXGBETOOL \
+    DEPEND_CLEANUP \
     DICT \
     DMAGENT \
     DTRACE \
@@ -513,6 +514,10 @@ MK_LLVM_CXXFILT:=	yes
 
 .if ${MK_LOADER_VERIEXEC} == "no"
 MK_LOADER_VERIEXEC_PASS_MANIFEST := no
+.endif
+
+.if ${MK_CLEAN} == "yes"
+MK_DEPEND_CLEANUP:=	no
 .endif
 
 #

@@ -1,0 +1,5 @@
+Do not attempt to detect if the object tree needs cleaning in part or in
+whole before building.
+This speeds up incremental builds, especially when experimenting with
+build options, but may cause the build to inexplicably fail or produce
+non-functioning binaries.

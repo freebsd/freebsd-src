@@ -449,6 +449,14 @@ Clean before building world and/or kernel.
 Note that recording a new epoch in
 .Pa .clean_build_epoch
 in the root of the source tree will also force a clean world build.
+When set, these options are also in effect:
+.Pp
+.Bl -inset -compact
+.It Va WITHOUT_DEPEND_CLEANUP
+(unless
+.Va WITH_DEPEND_CLEANUP
+is set explicitly)
+.El
 .It Va WITHOUT_CPP
 Do not build
 .Xr cpp 1 .
@@ -537,6 +545,12 @@ amd64/amd64, arm64/aarch64, i386/i386, powerpc/powerpc64 and powerpc/powerpc64le
 .It Va WITHOUT_DEBUG_FILES
 Avoid building or installing standalone debug files for each
 executable binary and shared library.
+.It Va WITHOUT_DEPEND_CLEANUP
+Do not attempt to detect if the object tree needs cleaning in part or in
+whole before building.
+This speeds up incremental builds, especially when experimenting with
+build options, but may cause the build to inexplicably fail or produce
+non-functioning binaries.
 .It Va WITH_DETECT_TZ_CHANGES
 Make the time handling code detect changes to the timezone files.
 .It Va WITH_DIALOG
