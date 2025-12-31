@@ -124,10 +124,8 @@ if [ ! -d "$SRCTOP" -o ! -f "$SRCTOP/Makefile.inc1" ]; then
 fi
 
 : ${CLEANMK=""}
-if [ -n "$CLEANMK" ]; then
-	if [ -z "${MAKE+set}" ]; then
-		err "MAKE not set"
-	fi
+if [ -z "${MAKE+set}" ]; then
+	err "MAKE not set"
 fi
 
 if [ -z "${MACHINE+set}" ]; then
@@ -202,9 +200,41 @@ extract_epoch()
 	awk 'int($1) > 0 { epoch = $1 } END { print epoch }' "$1"
 }
 
+# Regular expression matching the names of src.conf(5) options which
+# don't affect the build.
+#
+# This filter is applied to both the current options and the cached
+# options so we don't force a rebuild just because the filter itself
+# changed.
+IGNORED_OPTS="CLEAN|DEPEND_CLEANUP|EXAMPLES|MAN|TESTS|WARNS|WERROR"
+IGNORED_OPTS="${IGNORED_OPTS}|INSTALL.*|STAGING.*"
+# Also ignore TOOLCHAIN and the options it forces if set.  It is
+# commonly used to speed up a build and is safe to toggle.
+IGNORED_OPTS="${IGNORED_OPTS}|TOOLCHAIN|CLANG.*|LLDB?|LLVM_(BIN|COV).*"
+
+extract_src_opts()
+{
+	$MAKE -C "$SRCTOP" -f "$SRCTOP"/Makefile.inc1 \
+	    -V $'SRC_OPT_LIST:O:ts\n' |
+	egrep -v "^WITH(OUT)?_(${IGNORED_OPTS})="
+}
+
+extract_obj_opts()
+{
+	for fn; do
+		if [ -f "${fn}" ]; then
+			cat "${fn}"
+		else
+			echo "# ${fn}"
+		fi
+	done |
+	egrep -v "^WITH(OUT)?_(${IGNORED_OPTS})="
+}
+
 clean_world()
 {
 	local buildepoch="$1"
+	local srcopts="$2"
 
 	# The caller may set CLEANMK in the environment to make target(s) that
 	# should be invoked instead of just destroying everything.  This is
@@ -227,17 +257,24 @@ clean_world()
 
 	mkdir -p "$OBJTOP"
 	echo "$buildepoch" > "$OBJTOP"/.clean_build_epoch
+	echo "$srcopts" > "$OBJTOP"/.src_opts
 
 	exit 0
 }
 
-check_epoch()
+check_epoch_and_opts()
 {
 	local srcepoch objepoch
+	local srcopts objopts
 
 	srcepoch=$(extract_epoch "$SRCTOP"/.clean_build_epoch)
 	if [ -z "$srcepoch" ]; then
 		err "Malformed .clean_build_epoch; please validate the last line"
+	fi
+
+	srcopts=$(extract_src_opts)
+	if [ -z "$srcopts" ]; then
+		err "Unable to extract source options"
 	fi
 
 	# We don't discriminate between the varying degrees of difference
@@ -245,16 +282,20 @@ check_epoch()
 	# epochs, in which case the original need to clean likely still stands.
 	objepoch=$(extract_epoch "$OBJTOP"/.clean_build_epoch)
 	if [ -z "$objepoch" ] || [ "$srcepoch" -ne "$objepoch" ]; then
-		if [ "$VERBOSE" ]; then
-			echo "Cleaning - src epoch: $srcepoch, objdir epoch: ${objepoch:-unknown}"
-		fi
+		echo "Cleaning - src epoch: $srcepoch, objdir epoch: ${objepoch:-unknown}"
+		clean_world "$srcepoch" "$srcopts"
+		# NORETURN
+	fi
 
-		clean_world "$srcepoch"
+	objopts=$(extract_obj_opts "$OBJTOP"/.src_opts)
+	if [ "$srcopts" != "$objopts" ]; then
+		echo "Cleaning - build options have changed"
+		clean_world "$srcepoch" "$srcopts"
 		# NORETURN
 	fi
 }
 
-check_epoch
+check_epoch_and_opts
 
 #### Typical dependency cleanup begins here.
 

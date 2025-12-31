@@ -1089,10 +1089,12 @@ _sanity_check: .PHONY .MAKE
 # tree changes, particularly with respect to removing source files and
 # replacing generated files.  Handle these cases here in an ad-hoc fashion.
 _cleanobj_fast_depend_hack: .PHONY
+.if ${MK_DEPEND_CLEANUP} != "no"
 	@echo ">>> Deleting stale dependencies...";
 	MACHINE=${MACHINE} MACHINE_ARCH=${MACHINE_ARCH} \
-	    ALL_libcompats=${_ALL_libcompats:Q} \
+	    ALL_libcompats=${_ALL_libcompats:Q} MAKE=${MAKE} \
 	    sh ${.CURDIR}/tools/build/depend-cleanup.sh ${OBJTOP} ${SRCTOP}
+.endif
 
 _cleanworldtmp: .PHONY
 .if ${MK_CLEAN} == "yes"
@@ -1186,7 +1188,7 @@ _cleanobj:
 .endfor
 .else
 	${_+_}cd ${.CURDIR}; env CLEANMK="_NO_INCLUDE_COMPILERMK=t ${CLEANDIR}" \
-	    MAKE=${MAKE} ${WMAKE} _cleanobj_fast_depend_hack
+	    ${WMAKE} _cleanobj_fast_depend_hack
 .endif	# ${MK_CLEAN} == "yes"
 _obj:
 	@echo
