@@ -3779,7 +3779,8 @@ nfs_getacl(struct vop_getacl_args *ap)
 		return (EINVAL);
 	error = nfsrpc_getacl(ap->a_vp, ap->a_type, ap->a_cred, ap->a_td,
 	    ap->a_aclp);
-	if (error == 0 && ap->a_aclp->acl_cnt == 0)
+	if (error == 0 && ap->a_aclp->acl_cnt == 0 &&
+	    ap->a_type != ACL_TYPE_DEFAULT)
 		return (EOPNOTSUPP);
 	if (error > NFSERR_STALE) {
 		(void) nfscl_maperr(ap->a_td, error, (uid_t)0, (gid_t)0);
