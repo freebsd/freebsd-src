@@ -14,6 +14,7 @@
 #include <sys/conf.h>
 #include <sys/ctype.h>
 #include <sys/malloc.h>
+#include <machine/atomic.h>
 #include <machine/clock.h>
 #include <dev/speaker/speaker.h>
 
@@ -24,7 +25,6 @@ static	d_ioctl_t	spkrioctl;
 
 static struct cdevsw spkr_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	0,
 	.d_open =	spkropen,
 	.d_close =	spkrclose,
 	.d_write =	spkrwrite,
@@ -394,7 +394,7 @@ playstring(char *cp, size_t slen)
  * endtone(), and rest() functions defined above.
  */
 
-static bool spkr_active = false; /* exclusion flag */
+static int spkr_active = 0; /* exclusion flag */
 static char *spkr_inbuf;  /* incoming buf */
 
 static int
@@ -404,7 +404,7 @@ spkropen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	(void) printf("spkropen: entering with dev = %s\n", devtoname(dev));
 #endif /* DEBUG */
 
-	if (spkr_active)
+	if (!atomic_cmpset_int(&spkr_active, 0, 1))
 		return(EBUSY);
 	else {
 #ifdef DEBUG
@@ -412,7 +412,6 @@ spkropen(struct cdev *dev, int flags, int fmt, struct thread *td)
 #endif /* DEBUG */
 		playinit();
 		spkr_inbuf = malloc(DEV_BSIZE, M_SPKR, M_WAITOK);
-		spkr_active = true;
 		return(0);
     	}
 }
@@ -453,7 +452,7 @@ spkrclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 	wakeup(&endtone);
 	wakeup(&endrest);
 	free(spkr_inbuf, M_SPKR);
-	spkr_active = false;
+	(void) atomic_swap_int(&spkr_active, 0);
 	return(0);
 }
 
