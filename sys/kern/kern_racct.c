@@ -183,7 +183,7 @@ int racct_types[] = {
 static const fixpt_t RACCT_DECAY_FACTOR = 0.3 * FSCALE;
 
 static void
-racct_add_racct(struct racct *dest, const struct racct *src)
+racct_add_racct(struct racct * restrict dest, const struct racct * restrict src)
 {
 	int i;
 
@@ -205,7 +205,7 @@ racct_add_racct(struct racct *dest, const struct racct *src)
 }
 
 static void
-racct_sub_racct(struct racct *dest, const struct racct *src)
+racct_sub_racct(struct racct * restrict dest, const struct racct * restrict src)
 {
 	int i;
 
