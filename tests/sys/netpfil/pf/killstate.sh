@@ -110,6 +110,7 @@ src_dst_head()
 {
 	atf_set descr 'Test killing a state with source and destination specified'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 src_dst_body()
