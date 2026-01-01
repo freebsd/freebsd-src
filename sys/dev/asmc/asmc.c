@@ -137,7 +137,7 @@ static const struct asmc_model *asmc_match(device_t dev);
 #define ASMC_SMS_FUNCS	asmc_mb_sysctl_sms_x, asmc_mb_sysctl_sms_y, \
 			asmc_mb_sysctl_sms_z
 
-#define ASMC_SMS_FUNCS_DISABLED NULL,NULL,NULL
+#define ASMC_SMS_FUNCS_DISABLED NULL, NULL, NULL
 
 #define ASMC_FAN_FUNCS	asmc_mb_sysctl_fanid, asmc_mb_sysctl_fanspeed, asmc_mb_sysctl_fansafespeed, \
 			asmc_mb_sysctl_fanminspeed, \
@@ -163,19 +163,19 @@ static const struct asmc_model *asmc_match(device_t dev);
 static const struct asmc_model asmc_models[] = {
 	{
 	  "MacBook1,1", "Apple SMC MacBook Core Duo",
-	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL, NULL,
+	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS_DISABLED,
 	  ASMC_MB_TEMPS, ASMC_MB_TEMPNAMES, ASMC_MB_TEMPDESCS
 	},
 
 	{
 	  "MacBook2,1", "Apple SMC MacBook Core 2 Duo",
-	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL, NULL,
+	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS_DISABLED,
 	  ASMC_MB_TEMPS, ASMC_MB_TEMPNAMES, ASMC_MB_TEMPDESCS
 	},
 
 	{
 	  "MacBook3,1", "Apple SMC MacBook Core 2 Duo",
-	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL, NULL,
+	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS_DISABLED,
 	  ASMC_MB31_TEMPS, ASMC_MB31_TEMPNAMES, ASMC_MB31_TEMPDESCS
 	},
 
@@ -297,9 +297,9 @@ static const struct asmc_model asmc_models[] = {
 	/* The Mac Mini has no SMS */
 	{
 	  "Macmini1,1", "Apple SMC Mac Mini",
-	  NULL, NULL, NULL,
+	  ASMC_SMS_FUNCS_DISABLED,
 	  ASMC_FAN_FUNCS,
-	  NULL, NULL, NULL,
+	  ASMC_LIGHT_FUNCS_DISABLED,
 	  ASMC_MM_TEMPS, ASMC_MM_TEMPNAMES, ASMC_MM_TEMPDESCS
 	},
 
@@ -315,9 +315,9 @@ static const struct asmc_model asmc_models[] = {
 	/* The Mac Mini 3,1 has no SMS */
 	{
 	  "Macmini3,1", "Apple SMC Mac Mini 3,1",
-	  NULL, NULL, NULL,
+	  ASMC_SMS_FUNCS_DISABLED,
 	  ASMC_FAN_FUNCS,
-	  NULL, NULL, NULL,
+	  ASMC_LIGHT_FUNCS_DISABLED,
 	  ASMC_MM31_TEMPS, ASMC_MM31_TEMPNAMES, ASMC_MM31_TEMPDESCS
 	},
 
@@ -334,18 +334,18 @@ static const struct asmc_model asmc_models[] = {
 	/* - same sensors as Mac Mini 5,2 */
 	{
 	  "Macmini5,1", "Apple SMC Mac Mini 5,1",
-	  NULL, NULL, NULL,
+	  ASMC_SMS_FUNCS_DISABLED,
 	  ASMC_FAN_FUNCS2,
-	  NULL, NULL, NULL,
+	  ASMC_LIGHT_FUNCS_DISABLED,
 	  ASMC_MM52_TEMPS, ASMC_MM52_TEMPNAMES, ASMC_MM52_TEMPDESCS
 	},
 
 	/* The Mac Mini 5,2 has no SMS */
 	{
 	  "Macmini5,2", "Apple SMC Mac Mini 5,2",
-	  NULL, NULL, NULL,
+	  ASMC_SMS_FUNCS_DISABLED,
 	  ASMC_FAN_FUNCS2,
-	  NULL, NULL, NULL,
+	  ASMC_LIGHT_FUNCS_DISABLED,
 	  ASMC_MM52_TEMPS, ASMC_MM52_TEMPNAMES, ASMC_MM52_TEMPDESCS
 	},
 
@@ -353,63 +353,63 @@ static const struct asmc_model asmc_models[] = {
 	/* - same sensors as Mac Mini 5,2 */
 	{
 	  "Macmini5,3", "Apple SMC Mac Mini 5,3",
-	  NULL, NULL, NULL,
+	  ASMC_SMS_FUNCS_DISABLED,
 	  ASMC_FAN_FUNCS2,
-	  NULL, NULL, NULL,
+	  ASMC_LIGHT_FUNCS_DISABLED,
 	  ASMC_MM52_TEMPS, ASMC_MM52_TEMPNAMES, ASMC_MM52_TEMPDESCS
 	},
 
 	/* The Mac Mini 6,1 has no SMS */
 	{
 	  "Macmini6,1", "Apple SMC Mac Mini 6,1",
-	  NULL, NULL, NULL,
+	  ASMC_SMS_FUNCS_DISABLED,
 	  ASMC_FAN_FUNCS2,
-	  NULL, NULL, NULL,
+	  ASMC_LIGHT_FUNCS_DISABLED,
 	  ASMC_MM61_TEMPS, ASMC_MM61_TEMPNAMES, ASMC_MM61_TEMPDESCS
 	},
 
 	/* The Mac Mini 6,2 has no SMS */
 	{
 	  "Macmini6,2", "Apple SMC Mac Mini 6,2",
-	  NULL, NULL, NULL,
+	  ASMC_SMS_FUNCS_DISABLED,
 	  ASMC_FAN_FUNCS2,
-	  NULL, NULL, NULL,
+	  ASMC_LIGHT_FUNCS_DISABLED,
 	  ASMC_MM62_TEMPS, ASMC_MM62_TEMPNAMES, ASMC_MM62_TEMPDESCS
 	},
 
 	/* The Mac Mini 7,1 has no SMS */
 	{
 	  "Macmini7,1", "Apple SMC Mac Mini 7,1",
-	  NULL, NULL, NULL,
+	  ASMC_SMS_FUNCS_DISABLED,
 	  ASMC_FAN_FUNCS2,
-	  NULL, NULL, NULL,
+	  ASMC_LIGHT_FUNCS_DISABLED,
 	  ASMC_MM71_TEMPS, ASMC_MM71_TEMPNAMES, ASMC_MM71_TEMPDESCS
 	},
 
 	/* Idem for the Mac Pro "Quad Core" (original) */
 	{
 	  "MacPro1,1", "Apple SMC Mac Pro (Quad Core)",
-	  NULL, NULL, NULL,
+	  ASMC_SMS_FUNCS_DISABLED,
 	  ASMC_FAN_FUNCS,
-	  NULL, NULL, NULL,
+	  ASMC_LIGHT_FUNCS_DISABLED,
 	  ASMC_MP1_TEMPS, ASMC_MP1_TEMPNAMES, ASMC_MP1_TEMPDESCS
 	},
 
 	/* Idem for the Mac Pro (8-core) */
 	{
 	  "MacPro2", "Apple SMC Mac Pro (8-core)",
-	  NULL, NULL, NULL,
+	  ASMC_SMS_FUNCS_DISABLED,
 	  ASMC_FAN_FUNCS,
-	  NULL, NULL, NULL,
+	  ASMC_LIGHT_FUNCS_DISABLED,
 	  ASMC_MP2_TEMPS, ASMC_MP2_TEMPNAMES, ASMC_MP2_TEMPDESCS
 	},
 
 	/* Idem for the MacPro  2010*/
 	{
 	  "MacPro5,1", "Apple SMC MacPro (2010)",
-	  NULL, NULL, NULL,
+	  ASMC_SMS_FUNCS_DISABLED,
 	  ASMC_FAN_FUNCS,
-	  NULL, NULL, NULL,
+	  ASMC_LIGHT_FUNCS_DISABLED,
 	  ASMC_MP5_TEMPS, ASMC_MP5_TEMPNAMES, ASMC_MP5_TEMPDESCS
 	},
 
@@ -424,20 +424,20 @@ static const struct asmc_model asmc_models[] = {
 
 	{
 	  "MacBookAir1,1", "Apple SMC MacBook Air",
-	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL, NULL,
+	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS_DISABLED,
 	  ASMC_MBA_TEMPS, ASMC_MBA_TEMPNAMES, ASMC_MBA_TEMPDESCS
 	},
 
 	{
 	  "MacBookAir3,1", "Apple SMC MacBook Air Core 2 Duo (Late 2010)",
-	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL, NULL,
+	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS_DISABLED,
 	  ASMC_MBA3_TEMPS, ASMC_MBA3_TEMPNAMES, ASMC_MBA3_TEMPDESCS
 	},
 
 	{
 	  "MacBookAir4,1", "Apple SMC Macbook Air 11-inch (Mid 2011)",
 	  ASMC_SMS_FUNCS_DISABLED,
-	  ASMC_FAN_FUNCS2, 
+	  ASMC_FAN_FUNCS2,
 	  ASMC_LIGHT_FUNCS,
 	  ASMC_MBA4_TEMPS, ASMC_MBA4_TEMPNAMES, ASMC_MBA4_TEMPDESCS
 	},
@@ -445,7 +445,7 @@ static const struct asmc_model asmc_models[] = {
 	{
 	  "MacBookAir4,2", "Apple SMC Macbook Air 13-inch (Mid 2011)",
 	  ASMC_SMS_FUNCS_DISABLED,
-	  ASMC_FAN_FUNCS2, 
+	  ASMC_FAN_FUNCS2,
 	  ASMC_LIGHT_FUNCS,
 	  ASMC_MBA4_TEMPS, ASMC_MBA4_TEMPNAMES, ASMC_MBA4_TEMPDESCS
 	},
@@ -830,11 +830,13 @@ asmc_detach(device_t dev)
 static int
 asmc_resume(device_t dev)
 {
-    uint8_t buf[2];
-    buf[0] = light_control;
-    buf[1] = 0x00;
-    asmc_key_write(dev, ASMC_KEY_LIGHTVALUE, buf, sizeof buf);
-    return (0);
+	uint8_t buf[2];
+
+	buf[0] = light_control;
+	buf[1] = 0x00;
+	asmc_key_write(dev, ASMC_KEY_LIGHTVALUE, buf, sizeof buf);
+
+	return (0);
 }
 
 #ifdef ASMC_DEBUG
