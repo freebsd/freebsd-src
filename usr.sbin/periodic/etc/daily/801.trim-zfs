@@ -44,7 +44,7 @@ case "$daily_trim_zfs_enable" in
 
 		if ! zpool status "${pool}" | grep -q '(trimming)'; then
 			echo "    starting trim of pool '${pool}'"
-			zpool trim ${daily_zfs_trim_flags} "${pool}"
+			zpool trim ${daily_trim_zfs_flags} "${pool}"
 		else
 			echo "    trim of pool '${pool}' already in progress, skipping"
 		fi
