@@ -888,7 +888,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	kernel and you are including networking, the kernel compile will
 	fail. Also if no default is declared the kernel compile will fail.
 
-20211118:
+20211109:
 	Mips has been removed from universe builds. It will be removed from the
 	tree shortly.
 
