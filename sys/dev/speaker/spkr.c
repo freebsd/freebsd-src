@@ -10,6 +10,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/sx.h>
 #include <sys/uio.h>
 #include <sys/conf.h>
 #include <sys/ctype.h>
@@ -394,8 +395,16 @@ playstring(char *cp, size_t slen)
  * endtone(), and rest() functions defined above.
  */
 
-static int spkr_active = 0; /* exclusion flag */
+static int spkr_dev_busy = 0; /* one open at a time */
 static char *spkr_inbuf;  /* incoming buf */
+
+/*
+ * we use a lock to serialize access to spkr_inbuf but also to prevent
+ * interleaving of melodies written concurrently from two different
+ * threads.
+ */
+static struct sx spkr_op_locked;
+
 
 static int
 spkropen(struct cdev *dev, int flags, int fmt, struct thread *td)
@@ -404,7 +413,7 @@ spkropen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	(void) printf("spkropen: entering with dev = %s\n", devtoname(dev));
 #endif /* DEBUG */
 
-	if (!atomic_cmpset_int(&spkr_active, 0, 1))
+	if (!atomic_cmpset_int(&spkr_dev_busy, 0, 1))
 		return(EBUSY);
 	else {
 #ifdef DEBUG
@@ -431,6 +440,7 @@ spkrwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		char *cp;
 		int error;
 
+		sx_xlock(&spkr_op_locked);
 		n = uio->uio_resid;
 		cp = spkr_inbuf;
 		error = uiomove(cp, n, uio);
@@ -438,7 +448,8 @@ spkrwrite(struct cdev *dev, struct uio *uio, int ioflag)
 			cp[n] = '\0';
 			playstring(cp, n);
 		}
-	return(error);
+		sx_xunlock(&spkr_op_locked);
+		return(error);
 	}
 }
 
@@ -452,7 +463,7 @@ spkrclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 	wakeup(&endtone);
 	wakeup(&endrest);
 	free(spkr_inbuf, M_SPKR);
-	(void) atomic_swap_int(&spkr_active, 0);
+	(void) atomic_swap_int(&spkr_dev_busy, 0);
 	return(0);
 }
 
@@ -468,20 +479,25 @@ spkrioctl(struct cdev *dev, unsigned long cmd, caddr_t cmdarg, int flags,
 	if (cmd == SPKRTONE) {
 		tone_t	*tp = (tone_t *)cmdarg;
 
+		sx_xlock(&spkr_op_locked);
 		if (tp->frequency == 0)
 			rest(tp->duration);
 		else
 			tone(tp->frequency, tp->duration);
+		sx_xunlock(&spkr_op_locked);
 		return 0;
 	} else if (cmd == SPKRTUNE) {
 		tone_t  *tp = (tone_t *)(*(caddr_t *)cmdarg);
 		tone_t ttp;
 		int error;
 
+		sx_xlock(&spkr_op_locked);
 		for (; ; tp++) {
 			error = copyin(tp, &ttp, sizeof(tone_t));
-			if (error)
+			if (error) {
+				sx_xunlock(&spkr_op_locked);
 				return(error);
+			}
 
 			if (ttp.duration == 0)
 				break;
@@ -491,6 +507,7 @@ spkrioctl(struct cdev *dev, unsigned long cmd, caddr_t cmdarg, int flags,
 			else
 				tone(ttp.frequency, ttp.duration);
 		}
+		sx_xunlock(&spkr_op_locked);
 		return(0);
 	}
 	return(EINVAL);
@@ -507,13 +524,15 @@ speaker_modevent(module_t mod, int type, void *data)
 	int error = 0;
 
 	switch(type) {
-	case MOD_LOAD: 
+	case MOD_LOAD:
+		sx_init(&spkr_op_locked, "spkr");
 		speaker_dev = make_dev(&spkr_cdevsw, 0,
 		    UID_ROOT, GID_WHEEL, 0600, "speaker");
 		break;
 	case MOD_SHUTDOWN:
 	case MOD_UNLOAD:
 		destroy_dev(speaker_dev);
+		sx_destroy(&spkr_op_locked);
 		break;
 	default:
 		error = EOPNOTSUPP;
