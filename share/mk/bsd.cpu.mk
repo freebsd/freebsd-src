@@ -393,9 +393,9 @@ MACHINE_ABI+=	hard-float
 .endif
 # Currently all 64-bit FreeBSD architectures include 64 in their name
 # (see arch(7)).  We need a special case for cross-building from macOS
-# (which uses arm64/arm).
+# (which uses arm64/arm and x86_64/amd64).
 .if ${MACHINE_ARCH:M*64*} || \
-    (defined(BOOTSTRAPPING) && ${.MAKE.OS} == "Darwin" && ${MACHINE} == "arm64")
+    (defined(BOOTSTRAPPING) && ${.MAKE.OS} == "Darwin" && (${MACHINE} == "arm64" || ${MACHINE} == "x86_64"))
 MACHINE_ABI+=	long64
 .else
 MACHINE_ABI+=	long32
