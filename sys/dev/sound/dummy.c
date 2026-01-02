@@ -132,8 +132,7 @@ dummy_chan_free(kobj_t obj, void *data)
 	uint8_t *buf;
 
 	buf = ch->buf->buf;
-	if (buf != NULL)
-		free(buf, M_DEVBUF);
+	free(buf, M_DEVBUF);
 
 	return (0);
 }

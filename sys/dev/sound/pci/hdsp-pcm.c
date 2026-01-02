@@ -677,14 +677,10 @@ hdspchan_free(kobj_t obj, void *data)
 #endif
 
 	mtx_lock(&sc->lock);
-	if (ch->data != NULL) {
-		free(ch->data, M_HDSP);
-		ch->data = NULL;
-	}
-	if (ch->caps != NULL) {
-		free(ch->caps, M_HDSP);
-		ch->caps = NULL;
-	}
+	free(ch->data, M_HDSP);
+	ch->data = NULL;
+	free(ch->caps, M_HDSP);
+	ch->caps = NULL;
 	mtx_unlock(&sc->lock);
 
 	return (0);

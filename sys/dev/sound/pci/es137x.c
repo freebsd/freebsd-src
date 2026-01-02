@@ -1886,8 +1886,7 @@ bad:
 	if (es->reg)
 		bus_release_resource(dev, es->regtype, es->regid, es->reg);
 	mtx_destroy(&es->lock);
-	if (es)
-		free(es, M_DEVBUF);
+	free(es, M_DEVBUF);
 	return (ENXIO);
 }
 
