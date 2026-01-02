@@ -545,9 +545,12 @@ hdac_get_capabilities(struct hdac_softc *sc)
 	    HDAC_CORBSIZE_CORBSZCAP_2)
 		sc->corb_size = 2;
 	else {
-		device_printf(sc->dev, "%s: Invalid corb size (%x)\n",
+		device_printf(sc->dev, "%s: Hardware reports invalid corb size "
+		    "(%x), defaulting to 256\n",
 		    __func__, corbsize);
-		return (ENXIO);
+		sc->corb_size = 256;
+		corbsize = HDAC_CORBSIZE_CORBSIZE(HDAC_CORBSIZE_CORBSIZE_256);
+		HDAC_WRITE_1(&sc->mem, HDAC_CORBSIZE, corbsize);
 	}
 
 	rirbsize = HDAC_READ_1(&sc->mem, HDAC_RIRBSIZE);
@@ -561,9 +564,12 @@ hdac_get_capabilities(struct hdac_softc *sc)
 	    HDAC_RIRBSIZE_RIRBSZCAP_2)
 		sc->rirb_size = 2;
 	else {
-		device_printf(sc->dev, "%s: Invalid rirb size (%x)\n",
+		device_printf(sc->dev, "%s: Hardware reports invalid rirb size "
+		    "(%x), defaulting to 256\n",
 		    __func__, rirbsize);
-		return (ENXIO);
+		sc->rirb_size = 256;
+		rirbsize = HDAC_RIRBSIZE_RIRBSIZE(HDAC_RIRBSIZE_RIRBSIZE_256);
+		HDAC_WRITE_1(&sc->mem, HDAC_RIRBSIZE, rirbsize);
 	}
 
 	HDA_BOOTVERBOSE(
