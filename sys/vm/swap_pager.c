@@ -239,7 +239,8 @@ swap_release_by_cred_rlimit(u_long pdecr, struct ucred *cred)
 #ifdef INVARIANTS
 	prev = atomic_fetchadd_long(&uip->ui_vmsize, -pdecr);
 	KASSERT(prev >= pdecr,
-	    ("negative vmsize for uid %d\n", uip->ui_uid));
+	    ("negative vmsize for uid %d, prev %#jx decr %#jx\n",
+	    uip->ui_uid, (uintmax_t)prev, (uintmax_t)pdecr));
 #else
 	atomic_subtract_long(&uip->ui_vmsize, pdecr);
 #endif
@@ -373,7 +374,8 @@ swap_release_by_cred(vm_ooffset_t decr, struct ucred *cred)
 	pdecr = atop(decr);
 #ifdef INVARIANTS
 	prev = atomic_fetchadd_long(&swap_reserved, -pdecr);
-	KASSERT(prev >= pdecr, ("swap_reserved < decr"));
+	KASSERT(prev >= pdecr, ("swap_reserved %#jx < decr %#jx",
+	    (uintmax_t)prev, (uintmax_t)pdecr));
 #else
 	atomic_subtract_long(&swap_reserved, pdecr);
 #endif
