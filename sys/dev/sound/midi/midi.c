@@ -185,19 +185,6 @@ midi_uninit(struct snd_midi *m)
 	return (0);
 }
 
-#ifdef notdef
-static int midi_lengths[] = {2, 2, 2, 2, 1, 1, 2, 0};
-
-#endif					/* notdef */
-/* Number of bytes in a MIDI command */
-#define MIDI_LENGTH(d) (midi_lengths[((d) >> 4) & 7])
-#define MIDI_ACK	0xfe
-#define MIDI_IS_STATUS(d) ((d) >= 0x80)
-#define MIDI_IS_COMMON(d) ((d) >= 0xf0)
-
-#define MIDI_SYSEX_START	0xF0
-#define MIDI_SYSEX_END	    0xF7
-
 /*
  * midi_in: process all data until the queue is full, then discards the rest.
  * Since midi_in is a state machine, data discards can cause it to get out of
