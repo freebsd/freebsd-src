@@ -74,14 +74,17 @@ static inline int
 kstrtoul(const char *cp, unsigned int base, unsigned long *res)
 {
 	char *end;
+	unsigned long temp;
 
-	*res = strtoul(cp, &end, base);
+	temp = strtoul(cp, &end, base);
 
 	/* skip newline character, if any */
 	if (*end == '\n')
 		end++;
 	if (*cp == 0 || *end != 0)
 		return (-EINVAL);
+
+	*res = temp;
 	return (0);
 }
 
@@ -89,14 +92,17 @@ static inline int
 kstrtol(const char *cp, unsigned int base, long *res)
 {
 	char *end;
+	long temp;
 
-	*res = strtol(cp, &end, base);
+	temp = strtol(cp, &end, base);
 
 	/* skip newline character, if any */
 	if (*end == '\n')
 		end++;
 	if (*cp == 0 || *end != 0)
 		return (-EINVAL);
+
+	*res = temp;
 	return (0);
 }
 
@@ -106,7 +112,7 @@ kstrtoint(const char *cp, unsigned int base, int *res)
 	char *end;
 	long temp;
 
-	*res = temp = strtol(cp, &end, base);
+	temp = strtol(cp, &end, base);
 
 	/* skip newline character, if any */
 	if (*end == '\n')
@@ -115,6 +121,8 @@ kstrtoint(const char *cp, unsigned int base, int *res)
 		return (-EINVAL);
 	if (temp != (int)temp)
 		return (-ERANGE);
+
+	*res = (int)temp;
 	return (0);
 }
 
@@ -124,7 +132,7 @@ kstrtouint(const char *cp, unsigned int base, unsigned int *res)
 	char *end;
 	unsigned long temp;
 
-	*res = temp = strtoul(cp, &end, base);
+	temp = strtoul(cp, &end, base);
 
 	/* skip newline character, if any */
 	if (*end == '\n')
@@ -133,6 +141,8 @@ kstrtouint(const char *cp, unsigned int base, unsigned int *res)
 		return (-EINVAL);
 	if (temp != (unsigned int)temp)
 		return (-ERANGE);
+
+	*res = (unsigned int)temp;
 	return (0);
 }
 
@@ -142,7 +152,7 @@ kstrtou8(const char *cp, unsigned int base, uint8_t *res)
 	char *end;
 	unsigned long temp;
 
-	*res = temp = strtoul(cp, &end, base);
+	temp = strtoul(cp, &end, base);
 
 	/* skip newline character, if any */
 	if (*end == '\n')
@@ -151,6 +161,8 @@ kstrtou8(const char *cp, unsigned int base, uint8_t *res)
 		return (-EINVAL);
 	if (temp != (uint8_t)temp)
 		return (-ERANGE);
+
+	*res = (uint8_t)temp;
 	return (0);
 }
 
@@ -160,7 +172,7 @@ kstrtou16(const char *cp, unsigned int base, uint16_t *res)
 	char *end;
 	unsigned long temp;
 
-	*res = temp = strtoul(cp, &end, base);
+	temp = strtoul(cp, &end, base);
 
 	/* skip newline character, if any */
 	if (*end == '\n')
@@ -169,20 +181,20 @@ kstrtou16(const char *cp, unsigned int base, uint16_t *res)
 		return (-EINVAL);
 	if (temp != (uint16_t)temp)
 		return (-ERANGE);
+
+	*res = (uint16_t)temp;
 	return (0);
 }
 
 static inline int
 kstrtou32(const char *cp, unsigned int base, uint32_t *res)
 {
-
 	return (kstrtouint(cp, base, res));
 }
 
 static inline int
 kstrtos32(const char *cp, unsigned int base, int32_t *res)
 {
-
 	return (kstrtoint(cp, base, res));
 }
 
@@ -190,14 +202,17 @@ static inline int
 kstrtos64(const char *cp, unsigned int base, int64_t *res)
 {
 	char *end;
+	quad_t temp;
 
-	*res = strtoq(cp, &end, base);
+	temp = strtoq(cp, &end, base);
 
 	/* skip newline character, if any */
 	if (*end == '\n')
 		end++;
 	if (*cp == 0 || *end != 0)
 		return (-EINVAL);
+
+	*res = (int64_t)temp;
 	return (0);
 }
 
@@ -208,17 +223,20 @@ kstrtoll(const char *cp, unsigned int base, long long *res)
 }
 
 static inline int
-kstrtou64(const char *cp, unsigned int base, u64 *res)
+kstrtou64(const char *cp, unsigned int base, uint64_t *res)
 {
 	char *end;
+	u_quad_t temp;
 
-	*res = strtouq(cp, &end, base);
+	temp = strtouq(cp, &end, base);
 
 	/* skip newline character, if any */
 	if (*end == '\n')
 		end++;
 	if (*cp == 0 || *end != 0)
 		return (-EINVAL);
+
+	*res = (uint64_t)temp;
 	return (0);
 }
 
@@ -231,7 +249,7 @@ kstrtoull(const char *cp, unsigned int base, unsigned long long *res)
 static inline int
 kstrtobool(const char *s, bool *res)
 {
-	int len;
+	size_t len;
 
 	if (s == NULL || (len = strlen(s)) == 0 || res == NULL)
 		return (-EINVAL);
@@ -302,7 +320,6 @@ static inline int
 kstrtou32_from_user(const char __user *s, size_t count, unsigned int base,
     unsigned int *p)
 {
-
 	return (kstrtouint_from_user(s, count, base, p));
 }
 
