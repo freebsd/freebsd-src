@@ -1469,7 +1469,6 @@ z_resampler_set(struct pcm_feeder *f, int what, int32_t value)
 		break;
 	default:
 		return (EINVAL);
-		break;
 	}
 
 	return (z_resampler_setup(f));
@@ -1485,18 +1484,12 @@ z_resampler_get(struct pcm_feeder *f, int what)
 	switch (what) {
 	case Z_RATE_SRC:
 		return (info->rsrc);
-		break;
 	case Z_RATE_DST:
 		return (info->rdst);
-		break;
 	case Z_RATE_QUALITY:
 		return (info->quality);
-		break;
 	case Z_RATE_CHANNELS:
 		return (info->channels);
-		break;
-	default:
-		break;
 	}
 
 	return (-1);

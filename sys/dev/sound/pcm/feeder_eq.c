@@ -319,7 +319,6 @@ feed_eq_set(struct pcm_feeder *f, int what, int value)
 		if (info->state == FEEDEQ_UNKNOWN)
 			info->state = FEEDEQ_ENABLE;
 		return (feed_eq_setup(info));
-		break;
 	case FEEDEQ_TREBLE:
 	case FEEDEQ_BASS:
 		if (value < 0 || value > 100)
@@ -343,7 +342,6 @@ feed_eq_set(struct pcm_feeder *f, int what, int value)
 		break;
 	default:
 		return (EINVAL);
-		break;
 	}
 
 	return (0);

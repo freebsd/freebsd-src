@@ -804,7 +804,6 @@ atiixp_chan_trigger(kobj_t obj, void *data, int go)
 	default:
 		atiixp_unlock(sc);
 		return (0);
-		break;
 	}
 
 	/* Update bus busy status */
