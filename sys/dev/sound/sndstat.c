@@ -40,13 +40,15 @@
 #endif
 
 #include <sys/param.h>
+#include <sys/dnv.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/nv.h>
-#include <sys/dnv.h>
+#include <sys/sndstat.h>
 #include <sys/sx.h>
 
 #include <dev/sound/pcm/sound.h>
+#include <dev/sound/sndstat.h>
 
 #include "feeder_if.h"
 
