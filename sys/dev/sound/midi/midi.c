@@ -97,8 +97,6 @@ static struct cdevsw midi_cdevsw = {
 	.d_name = "rmidi",
 };
 
-static int      midi_destroy(struct snd_midi *, int);
-
 struct unrhdr *dev_unr = NULL;
 struct unrhdr *chn_unr = NULL;
 
@@ -186,21 +184,15 @@ err1:
 	return NULL;
 }
 
-/*
- * midi_uninit does not call MIDI_UNINIT, as since this is the implementors
- * entry point. midi_uninit if fact, does not send any methods. A call to
- * midi_uninit is a defacto promise that you won't manipulate ch anymore
- */
 int
 midi_uninit(struct snd_midi *m)
 {
-	int err;
-
-	err = EBUSY;
 	mtx_lock(&m->lock);
 	if (m->busy) {
-		if (!(m->rchan || m->wchan))
-			goto err;
+		if (!(m->rchan || m->wchan)) {
+			mtx_unlock(&m->lock);
+			return (EBUSY);
+		}
 
 		if (m->rchan) {
 			wakeup(&m->rchan);
@@ -211,14 +203,17 @@ midi_uninit(struct snd_midi *m)
 			m->wchan = 0;
 		}
 	}
-	err = midi_destroy(m, 0);
-	if (!err)
-		goto exit;
-
-err:
 	mtx_unlock(&m->lock);
-exit:
-	return err;
+	MPU_UNINIT(m, m->cookie);
+	destroy_dev(m->dev);
+	free_unr(dev_unr, m->unit);
+	free_unr(chn_unr, m->channel);
+	free(MIDIQ_BUF(m->inq), M_MIDI);
+	free(MIDIQ_BUF(m->outq), M_MIDI);
+	mtx_destroy(&m->lock);
+	free(m, M_MIDI);
+
+	return (0);
 }
 
 #ifdef notdef
@@ -599,30 +594,6 @@ midi_poll(struct cdev *i_dev, int events, struct thread *td)
 	mtx_unlock(&m->lock);
 
 	return (revents);
-}
-
-/*
- * Single point of midi destructions.
- */
-static int
-midi_destroy(struct snd_midi *m, int midiuninit)
-{
-	mtx_assert(&m->lock, MA_OWNED);
-
-	MIDI_DEBUG(3, printf("midi_destroy\n"));
-	m->dev->si_drv1 = NULL;
-	mtx_unlock(&m->lock);	/* XXX */
-	destroy_dev(m->dev);
-	/* XXX */
-	if (midiuninit)
-		MPU_UNINIT(m, m->cookie);
-	free_unr(dev_unr, m->unit);
-	free_unr(chn_unr, m->channel);
-	free(MIDIQ_BUF(m->inq), M_MIDI);
-	free(MIDIQ_BUF(m->outq), M_MIDI);
-	mtx_destroy(&m->lock);
-	free(m, M_MIDI);
-	return 0;
 }
 
 static void
