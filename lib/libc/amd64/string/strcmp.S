@@ -104,7 +104,7 @@ ARCHENTRY(strcmp, baseline)
 	and		$0xf, %eax	# offset from alignment
 	and		$0xf, %edx
 	pxor		%xmm1, %xmm1
-	test		$PAGE_SIZE, %r9d # did the page change?
+	test		$PAGE_SIZE_4K, %r9d # did the page change?
 	jz		0f		# if not, take fast path
 
 	/* heads may cross page boundary, avoid unmapped loads */

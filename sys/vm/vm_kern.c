@@ -866,6 +866,7 @@ kmem_init(vm_offset_t start, vm_offset_t end)
 	    (vm_offset_t)vm_page_array + round_2mpage(vm_page_array_size *
 	    sizeof(struct vm_page)),
 	    VM_PROT_RW, VM_PROT_RW, MAP_NOFAULT);
+	pmap_pt_page_array_mark();
 #endif
 	vm_map_unlock(kernel_map);
 
@@ -952,6 +953,14 @@ kmem_bootstrap_free(vm_offset_t start, vm_size_t size)
 
 	end = trunc_page(start + size);
 	start = round_page(start);
+
+	/*
+	 * If rounding to page boundaries leaves us with nothing to free,
+	 * just return now.  vmem_add() will fail an assertion if we call it
+	 * with a zero size.
+	 */
+	if (end <= start)
+		return;
 
 #ifdef __amd64__
 	/*

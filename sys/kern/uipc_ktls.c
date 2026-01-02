@@ -438,14 +438,16 @@ ktls_buffer_import(void *arg, void **store, int count, int domain, int flags)
 	vm_page_t m;
 	int i, req;
 
+#if 0
 	KASSERT((ktls_maxlen & PAGE_MASK) == 0,
 	    ("%s: ktls max length %d is not page size-aligned",
 	    __func__, ktls_maxlen));
+#endif
 
 	req = VM_ALLOC_WIRED | VM_ALLOC_NODUMP | malloc2vm_flags(flags);
 	for (i = 0; i < count; i++) {
 		m = vm_page_alloc_noobj_contig_domain(domain, req,
-		    atop(ktls_maxlen), 0, ~0ul, PAGE_SIZE, 0,
+		    howmany(ktls_maxlen, PAGE_SIZE), 0, ~0ul, PAGE_SIZE, 0,
 		    VM_MEMATTR_DEFAULT);
 		if (m == NULL)
 			break;
@@ -462,7 +464,7 @@ ktls_buffer_release(void *arg __unused, void **store, int count)
 
 	for (i = 0; i < count; i++) {
 		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)store[i]));
-		for (j = 0; j < atop(ktls_maxlen); j++) {
+		for (j = 0; j < howmany(ktls_maxlen, PAGE_SIZE); j++) {
 			(void)vm_page_unwire_noq(m + j);
 			vm_page_free(m + j);
 		}
@@ -2829,7 +2831,7 @@ ktls_encrypt_record(struct ktls_wq *wq, struct mbuf *m,
 
 	KASSERT((m->m_flags & (M_EXTPG | M_NOTREADY)) == (M_EXTPG | M_NOTREADY),
 	    ("%p not unready & nomap mbuf\n", m));
-	KASSERT(ptoa(m->m_epg_npgs) <= ktls_maxlen,
+	KASSERT(ptoa(m->m_epg_npgs) <= ktls_maxlen || m->m_epg_npgs == 1,
 	    ("page count %d larger than maximum frame length %d", m->m_epg_npgs,
 	    ktls_maxlen));
 
@@ -3274,7 +3276,7 @@ ktls_reclaim_thread(void *ctx)
 		 * surges of traffic and potential NIC output drops.
 		 */
 		if (vm_page_reclaim_contig_domain_ext(domain, VM_ALLOC_NORMAL,
-		    atop(ktls_maxlen), 0, ~0ul, PAGE_SIZE, 0,
+		    howmany(ktls_maxlen, PAGE_SIZE), 0, ~0ul, PAGE_SIZE, 0,
 		    ktls_max_reclaim) != 0) {
 			vm_wait_domain(domain);
 		} else {

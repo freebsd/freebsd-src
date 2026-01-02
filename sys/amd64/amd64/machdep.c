@@ -1303,6 +1303,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	TSRAW(&thread0, TS_ENTER, __func__, NULL);
 
+	physfree = round_page(physfree);
+
 	kernphys = amd64_loadaddr();
 
 	physfree += kernphys;

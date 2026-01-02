@@ -249,6 +249,11 @@ svm_modinit(int ipinum)
 {
 	int error, cpu;
 
+	if (PAGE_SIZE != PAGE_SIZE_PT) {
+		printf("SVM: larger software PAGE_SIZE is not yet supported.\n");
+		return (ENXIO);
+	}
+
 	if (!svm_available())
 		return (ENXIO);
 

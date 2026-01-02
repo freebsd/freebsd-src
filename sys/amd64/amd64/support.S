@@ -1622,7 +1622,7 @@ ENTRY(pmap_pti_pcid_invlrng)
 	cli
 	movq	%rdi,%cr3	/* to user page table */
 1:	invlpg	(%rdx)
-	addq	$PAGE_SIZE,%rdx
+	addq	$PAGE_SIZE_PT,%rdx
 	cmpq	%rdx,%rcx
 	ja	1b
 	movq	%rsi,%cr3	/* back to kernel */

@@ -87,31 +87,49 @@
 #define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
 
 /* Size of the level 1 page table units */
-#define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
+#define NPTEPG		(PAGE_SIZE_PT/(sizeof (pt_entry_t)))
+#define NDPTEPG		(NPTEPG / PAGE_SIZE_PTES)
 #define	NPTEPGSHIFT	9		/* LOG2(NPTEPG) */
+#ifdef OS_PAGE_SHIFT
+#define PAGE_SHIFT	OS_PAGE_SHIFT	/* LOG2(PAGE_SIZE) */
+#else
 #define PAGE_SHIFT	12		/* LOG2(PAGE_SIZE) */
+#endif
 #define PAGE_SIZE	(1<<PAGE_SHIFT)	/* bytes/page */
 #define PAGE_MASK	(PAGE_SIZE-1)
+#define PAGE_SHIFT_4K	12		/* LOG2(PAGE_SIZE_4K) */
+#define PAGE_SIZE_4K	(1<<PAGE_SHIFT_4K)	/* bytes/page */
+#define PAGE_MASK_4K	(PAGE_SIZE_4K-1)
+#define PAGE_SHIFT_PT	PAGE_SHIFT_4K
+#define PAGE_SIZE_PT	PAGE_SIZE_4K
+#define PAGE_MASK_PT	PAGE_MASK_4K
+#define PAGE_SHIFT_PV	PAGE_SHIFT_4K
+#define PAGE_SIZE_PV	PAGE_SIZE_4K
+#define PAGE_MASK_PV	PAGE_MASK_4K
+#define PAGE_SIZE_PTES	(PAGE_SIZE / PAGE_SIZE_PT)
+#define	MINIDUMP_PAGE_SIZE	PAGE_SIZE_4K
+#define	MINIDUMP_PAGE_MASK	PAGE_MASK_4K
+#define	MINIDUMP_PAGE_SHIFT	PAGE_SHIFT_4K
 /* Size of the level 2 page directory units */
-#define	NPDEPG		(PAGE_SIZE/(sizeof (pd_entry_t)))
+#define	NPDEPG		(PAGE_SIZE_PT/(sizeof (pd_entry_t)))
 #define	NPDEPGSHIFT	9		/* LOG2(NPDEPG) */
 #define	PDRSHIFT	21              /* LOG2(NBPDR) */
 #define	NBPDR		(1<<PDRSHIFT)   /* bytes/page dir */
 #define	PDRMASK		(NBPDR-1)
 /* Size of the level 3 page directory pointer table units */
-#define	NPDPEPG		(PAGE_SIZE/(sizeof (pdp_entry_t)))
+#define	NPDPEPG		(PAGE_SIZE_PT/(sizeof (pdp_entry_t)))
 #define	NPDPEPGSHIFT	9		/* LOG2(NPDPEPG) */
 #define	PDPSHIFT	30		/* LOG2(NBPDP) */
 #define	NBPDP		(1<<PDPSHIFT)	/* bytes/page dir ptr table */
 #define	PDPMASK		(NBPDP-1)
 /* Size of the level 4 page-map level-4 table units */
-#define	NPML4EPG	(PAGE_SIZE/(sizeof (pml4_entry_t)))
+#define	NPML4EPG	(PAGE_SIZE_PT/(sizeof (pml4_entry_t)))
 #define	NPML4EPGSHIFT	9		/* LOG2(NPML4EPG) */
 #define	PML4SHIFT	39		/* LOG2(NBPML4) */
 #define	NBPML4		(1UL<<PML4SHIFT)/* bytes/page map lev4 table */
 #define	PML4MASK	(NBPML4-1)
 /* Size of the level 5 page-map level-5 table units */
-#define	NPML5EPG	(PAGE_SIZE/(sizeof (pml5_entry_t)))
+#define	NPML5EPG	(PAGE_SIZE_PT/(sizeof (pml5_entry_t)))
 #define	NPML5EPGSHIFT	9		/* LOG2(NPML5EPG) */
 #define	PML5SHIFT	48		/* LOG2(NBPML5) */
 #define	NBPML5		(1UL<<PML5SHIFT)/* bytes/page map lev5 table */
@@ -119,20 +137,22 @@
 
 #define	MAXPAGESIZES	3	/* maximum number of supported page sizes */
 
-#define IOPAGES	2		/* pages of i/o permission bitmap */
 /*
  * I/O permission bitmap has a bit for each I/O port plus an additional
  * byte at the end with all bits set. See section "I/O Permission Bit Map"
  * in the Intel SDM for more details.
  */
-#define	IOPERM_BITMAP_SIZE	(IOPAGES * PAGE_SIZE + 1)
+#define	IOPERM_BITMAP_BITS	(64 * 1024)
+#define	IOPERM_BITMAP_BYTES	(IOPERM_BITMAP_BITS / NBBY)
+#define	IOPERM_BITMAP_SIZE	(IOPERM_BITMAP_BYTES + 1)
 
 #ifndef	KSTACK_PAGES
 #if defined(KASAN) || defined(KMSAN)
-#define	KSTACK_PAGES	6
+#define	KSTACK_BYTES	(6 * 4096)
 #else
-#define	KSTACK_PAGES	4	/* pages of kstack (with pcb) */
+#define	KSTACK_BYTES	(4 * 4096)	/* pages of kstack (with pcb) */
 #endif
+#define	KSTACK_PAGES	howmany(KSTACK_BYTES, PAGE_SIZE)
 #endif
 #define	KSTACK_GUARD_PAGES 1	/* pages of kstack guard; 0 disables */
 
@@ -142,6 +162,9 @@
 #define trunc_2mpage(x)	((unsigned long)(x) & ~PDRMASK)
 #define round_2mpage(x)	((((unsigned long)(x)) + PDRMASK) & ~PDRMASK)
 #define trunc_1gpage(x)	((unsigned long)(x) & ~PDPMASK)
+
+#define	ptoa_pt(x)	((unsigned long )(x) << PAGE_SHIFT_PT)
+#define	atop_pt(x)	((unsigned long )(x) >> PAGE_SHIFT_PT)
 
 #define	amd64_btop(x)	((unsigned long)(x) >> PAGE_SHIFT)
 #define	amd64_ptob(x)	((unsigned long)(x) << PAGE_SHIFT)

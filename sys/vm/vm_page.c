@@ -629,8 +629,9 @@ vm_page_startup(vm_offset_t vaddr)
 	last_pa = 0;
 	vm_page_dump_pages = 0;
 	for (i = 0; dump_avail[i + 1] != 0; i += 2) {
-		vm_page_dump_pages += howmany(dump_avail[i + 1], PAGE_SIZE) -
-		    dump_avail[i] / PAGE_SIZE;
+		vm_page_dump_pages +=
+		    howmany(dump_avail[i + 1], MINIDUMP_PAGE_SIZE) -
+		    dump_avail[i] / MINIDUMP_PAGE_SIZE;
 		if (dump_avail[i + 1] > last_pa)
 			last_pa = dump_avail[i + 1];
 	}
@@ -5939,9 +5940,10 @@ DB_SHOW_COMMAND(pginfo, vm_page_print_pginfo)
 		m = (vm_page_t)addr;
 	db_printf(
     "page %p obj %p pidx 0x%jx phys 0x%jx q %d ref 0x%x\n"
-    "  af 0x%x of 0x%x f 0x%x act %d busy %x valid 0x%x dirty 0x%x\n",
+    "  af 0x%x of 0x%x f 0x%x act %d busy %x valid 0x%jx dirty 0x%jx\n",
 	    m, m->object, (uintmax_t)m->pindex, (uintmax_t)m->phys_addr,
 	    m->a.queue, m->ref_count, m->a.flags, m->oflags,
-	    m->flags, m->a.act_count, m->busy_lock, m->valid, m->dirty);
+	    m->flags, m->a.act_count, m->busy_lock, (uintmax_t)m->valid,
+	    (uintmax_t)m->dirty);
 }
 #endif /* DDB */

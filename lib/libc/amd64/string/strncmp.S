@@ -135,7 +135,7 @@ ARCHENTRY(strncmp, baseline)
 	cmp		$16, %rdx	# end of buffer within the first 32 bytes?
 	jb		.Llt16
 
-	test		$PAGE_SIZE, %r9d # did the page change?
+	test		$PAGE_SIZE_4K, %r9d # did the page change?
 	jz		0f		# if not, take fast path
 
 
@@ -187,7 +187,7 @@ ARCHENTRY(strncmp, baseline)
 	jmp		.Lnormal
 
 	/* buffer ends within the first 16 bytes */
-.Llt16:	test		$PAGE_SIZE, %r9d # did the page change?
+.Llt16:	test		$PAGE_SIZE_4K, %r9d # did the page change?
 	jz		0f		# if not, take fast path
 
 	/* heads may cross page boundary */

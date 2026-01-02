@@ -62,9 +62,9 @@ typedef	uint64_t	amd64_pml4e_t;
 
 #ifdef __amd64__
 _Static_assert(NPTEPG == AMD64_NPTEPG, "NPTEPG mismatch");
-_Static_assert(PAGE_SHIFT == AMD64_PAGE_SHIFT, "PAGE_SHIFT mismatch");
-_Static_assert(PAGE_SIZE == AMD64_PAGE_SIZE, "PAGE_SIZE mismatch");
-_Static_assert(PAGE_MASK == AMD64_PAGE_MASK, "PAGE_MASK mismatch");
+_Static_assert(PAGE_SHIFT_4K == AMD64_PAGE_SHIFT, "PAGE_SHIFT mismatch");
+_Static_assert(PAGE_SIZE_4K == AMD64_PAGE_SIZE, "PAGE_SIZE mismatch");
+_Static_assert(PAGE_MASK_4K == AMD64_PAGE_MASK, "PAGE_MASK mismatch");
 _Static_assert(NPDEPG == AMD64_NPDEPG, "NPDEPG mismatch");
 _Static_assert(PDRSHIFT == AMD64_PDRSHIFT, "PDRSHIFT mismatch");
 _Static_assert(NBPDR == AMD64_NBPDR, "NBPDR mismatch");

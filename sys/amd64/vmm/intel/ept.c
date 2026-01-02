@@ -95,6 +95,12 @@ ept_init(int ipinum)
 	    !INVEPT_ALL_TYPES_SUPPORTED(cap))
 		return (EINVAL);
 
+	/*
+	 * Larger software PAGE_SIZE does not yet support EPT.
+	 */
+	if (PAGE_SIZE != PAGE_SIZE_PT)
+		return (EINVAL);
+
 	ept_pmap_flags = ipinum & PMAP_NESTED_IPIMASK;
 
 	use_superpages = 1;
