@@ -473,8 +473,8 @@ feeder_build_root(struct pcm_channel *c, struct feeder_chain_desc *cdesc)
 
 	c->feederflags |= 1 << FEEDER_ROOT;
 
-	c->feeder->desc->in = cdesc->current.afmt;
-	c->feeder->desc->out = cdesc->current.afmt;
+	c->feeder->desc.in = cdesc->current.afmt;
+	c->feeder->desc.out = cdesc->current.afmt;
 
 	return (0);
 }

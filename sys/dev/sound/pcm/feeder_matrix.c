@@ -283,15 +283,15 @@ feed_matrix_init(struct pcm_feeder *f)
 	struct pcmchan_matrix *m_in, *m_out;
 	int ret;
 
-	if (AFMT_ENCODING(f->desc->in) != AFMT_ENCODING(f->desc->out))
+	if (AFMT_ENCODING(f->desc.in) != AFMT_ENCODING(f->desc.out))
 		return (EINVAL);
 
 	info = malloc(sizeof(*info), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (info == NULL)
 		return (ENOMEM);
 
-	info->in = f->desc->in;
-	info->out = f->desc->out;
+	info->in = f->desc.in;
+	info->out = f->desc.out;
 	info->fmt = AFMT_ENCODING(info->in);
 	info->bps = AFMT_BPS(info->in);
 	info->ialign = AFMT_ALIGN(info->in);
@@ -413,8 +413,7 @@ feeder_matrix_setup(struct pcm_feeder *f, struct pcmchan_matrix *m_in,
     struct pcmchan_matrix *m_out)
 {
 
-	if (f == NULL || f->desc == NULL || f->class->type != FEEDER_MATRIX ||
-	    f->data == NULL)
+	if (f == NULL || f->class->type != FEEDER_MATRIX || f->data == NULL)
 		return (EINVAL);
 
 	return (feed_matrix_setup(f->data, m_in, m_out));

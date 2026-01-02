@@ -61,23 +61,23 @@ feed_format_init(struct pcm_feeder *f)
 {
 	struct feed_format_info *info;
 
-	if (f->desc->in == f->desc->out ||
-	    AFMT_CHANNEL(f->desc->in) != AFMT_CHANNEL(f->desc->out))
+	if (f->desc.in == f->desc.out ||
+	    AFMT_CHANNEL(f->desc.in) != AFMT_CHANNEL(f->desc.out))
 		return (EINVAL);
 
 	info = malloc(sizeof(*info), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (info == NULL)
 		return (ENOMEM);
 
-	info->channels = AFMT_CHANNEL(f->desc->in);
+	info->channels = AFMT_CHANNEL(f->desc.in);
 
-	info->ibps = AFMT_BPS(f->desc->in);
+	info->ibps = AFMT_BPS(f->desc.in);
 	info->ialign = info->ibps * info->channels;
-	info->rdfmt = AFMT_ENCODING(f->desc->in);
+	info->rdfmt = AFMT_ENCODING(f->desc.in);
 
-	info->obps = AFMT_BPS(f->desc->out);
+	info->obps = AFMT_BPS(f->desc.out);
 	info->oalign = info->obps * info->channels;
-	info->wrfmt = AFMT_ENCODING(f->desc->out);
+	info->wrfmt = AFMT_ENCODING(f->desc.out);
 
 	f->data = info;
 
