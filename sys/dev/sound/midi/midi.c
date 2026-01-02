@@ -93,7 +93,7 @@ static struct cdevsw midi_cdevsw = {
 	.d_write = midi_write,
 	.d_ioctl = midi_ioctl,
 	.d_poll = midi_poll,
-	.d_name = "rmidi",
+	.d_name = "midi",
 };
 
 struct unrhdr *dev_unr = NULL;
@@ -109,7 +109,7 @@ SYSCTL_INT(_hw_midi, OID_AUTO, debug, CTLFLAG_RW, &midi_debug, 0, "");
 #define MIDI_DEBUG(l,a)	if(midi_debug>=l) a
 
 /*
- * Register a new rmidi device.
+ * Register a new midi device.
  *
  * "cookie" is passed to the MPU calls, and is normally set to the driver's
  * softc.
