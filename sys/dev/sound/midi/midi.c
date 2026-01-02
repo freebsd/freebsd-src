@@ -109,7 +109,8 @@ midi_init(kobj_class_t cls, void *cookie)
 {
 	struct snd_midi *m;
 	int inqsize, outqsize;
-	uint8_t *buf;
+	uint8_t *ibuf = NULL;
+	uint8_t *obuf = NULL;
 
 	m = malloc(sizeof(*m), M_MIDI, M_WAITOK | M_ZERO);
 	kobj_init((kobj_t)m, cls);
@@ -121,26 +122,17 @@ midi_init(kobj_class_t cls, void *cookie)
 
 	mtx_init(&m->lock, "raw midi", NULL, 0);
 
+	if (inqsize)
+		ibuf = malloc(inqsize, M_MIDI, M_WAITOK);
+	if (outqsize)
+		obuf = malloc(outqsize, M_MIDI, M_WAITOK);
+
 	mtx_lock(&m->lock);
 
-	if (inqsize)
-		buf = malloc(sizeof(uint8_t) * inqsize, M_MIDI, M_NOWAIT);
-	else
-		buf = NULL;
-
-	MIDIQ_INIT(m->inq, buf, inqsize);
-
-	if (outqsize)
-		buf = malloc(sizeof(uint8_t) * outqsize, M_MIDI, M_NOWAIT);
-	else
-		buf = NULL;
 	m->hiwat = outqsize / 2;
 
-	MIDIQ_INIT(m->outq, buf, outqsize);
-
-	if ((inqsize && !MIDIQ_BUF(m->inq)) ||
-	    (outqsize && !MIDIQ_BUF(m->outq)))
-		goto err2;
+	MIDIQ_INIT(m->inq, ibuf, inqsize);
+	MIDIQ_INIT(m->outq, obuf, outqsize);
 
 	m->flags = 0;
 	m->unit = alloc_unr(dev_unr);
