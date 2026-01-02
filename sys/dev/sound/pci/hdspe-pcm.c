@@ -668,14 +668,10 @@ hdspechan_free(kobj_t obj, void *data)
 #endif
 
 	mtx_lock(&sc->lock);
-	if (ch->data != NULL) {
-		free(ch->data, M_HDSPE);
-		ch->data = NULL;
-	}
-	if (ch->caps != NULL) {
-		free(ch->caps, M_HDSPE);
-		ch->caps = NULL;
-	}
+	free(ch->data, M_HDSPE);
+	ch->data = NULL;
+	free(ch->caps, M_HDSPE);
+	ch->caps = NULL;
 	mtx_unlock(&sc->lock);
 
 	return (0);

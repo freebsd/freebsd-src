@@ -2704,10 +2704,8 @@ error:
 int
 uaudio_chan_free(struct uaudio_chan *ch)
 {
-	if (ch->buf != NULL) {
-		free(ch->buf, M_DEVBUF);
-		ch->buf = NULL;
-	}
+	free(ch->buf, M_DEVBUF);
+	ch->buf = NULL;
 	usbd_transfer_unsetup(ch->xfer, UAUDIO_NCHANBUFS + 1);
 
 	ch->num_alt = 0;

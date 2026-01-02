@@ -714,10 +714,8 @@ z_resampler_reset(struct z_info *info)
 	info->z_size = 1;
 	info->z_coeff = NULL;
 	info->z_dcoeff = NULL;
-	if (info->z_pcoeff != NULL) {
-		free(info->z_pcoeff, M_DEVBUF);
-		info->z_pcoeff = NULL;
-	}
+	free(info->z_pcoeff, M_DEVBUF);
+	info->z_pcoeff = NULL;
 	info->z_scale = Z_ONE;
 	info->z_dx = Z_FULL_ONE;
 	info->z_dy = Z_FULL_ONE;
@@ -1029,10 +1027,8 @@ z_resampler_build_polyphase(struct z_info *info)
 	int32_t alpha, c, i, z, idx;
 
 	/* Let this be here first. */
-	if (info->z_pcoeff != NULL) {
-		free(info->z_pcoeff, M_DEVBUF);
-		info->z_pcoeff = NULL;
-	}
+	free(info->z_pcoeff, M_DEVBUF);
+	info->z_pcoeff = NULL;
 
 	if (feeder_rate_polyphase_max < 1)
 		return (ENOTSUP);
@@ -1154,10 +1150,8 @@ z_resampler_setup(struct pcm_feeder *f)
 		 * adaptive mode.
 		 */
 z_setup_adaptive_sinc:
-		if (info->z_pcoeff != NULL) {
-			free(info->z_pcoeff, M_DEVBUF);
-			info->z_pcoeff = NULL;
-		}
+		free(info->z_pcoeff, M_DEVBUF);
+		info->z_pcoeff = NULL;
 
 		if (adaptive == 0) {
 			info->z_dy = z_scale << Z_DRIFT_SHIFT;
@@ -1333,8 +1327,7 @@ z_setup_adaptive_sinc:
 
 	if (info->z_delay == NULL || info->z_alloc < i ||
 	    i <= (info->z_alloc >> 1)) {
-		if (info->z_delay != NULL)
-			free(info->z_delay, M_DEVBUF);
+		free(info->z_delay, M_DEVBUF);
 		info->z_delay = malloc(i, M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (info->z_delay == NULL)
 			return (ENOMEM);
@@ -1517,10 +1510,8 @@ z_resampler_init(struct pcm_feeder *f)
 
 	ret = z_resampler_setup(f);
 	if (ret != 0) {
-		if (info->z_pcoeff != NULL)
-			free(info->z_pcoeff, M_DEVBUF);
-		if (info->z_delay != NULL)
-			free(info->z_delay, M_DEVBUF);
+		free(info->z_pcoeff, M_DEVBUF);
+		free(info->z_delay, M_DEVBUF);
 		free(info, M_DEVBUF);
 		f->data = NULL;
 	}
@@ -1534,13 +1525,9 @@ z_resampler_free(struct pcm_feeder *f)
 	struct z_info *info;
 
 	info = f->data;
-	if (info != NULL) {
-		if (info->z_pcoeff != NULL)
-			free(info->z_pcoeff, M_DEVBUF);
-		if (info->z_delay != NULL)
-			free(info->z_delay, M_DEVBUF);
-		free(info, M_DEVBUF);
-	}
+	free(info->z_pcoeff, M_DEVBUF);
+	free(info->z_delay, M_DEVBUF);
+	free(info, M_DEVBUF);
 
 	f->data = NULL;
 

@@ -129,11 +129,8 @@ sndbuf_setup(struct snd_dbuf *b, void *buf, unsigned int size)
 void
 sndbuf_free(struct snd_dbuf *b)
 {
-	if (b->tmpbuf)
-		free(b->tmpbuf, M_DEVBUF);
-
-	if (b->shadbuf)
-		free(b->shadbuf, M_DEVBUF);
+	free(b->tmpbuf, M_DEVBUF);
+	free(b->shadbuf, M_DEVBUF);
 
 	if (b->buf) {
 		if (b->flags & SNDBUF_F_MANAGED) {
@@ -188,8 +185,7 @@ sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 			printf("%s(): b=%p %p -> %p [%d -> %d : %d]\n",
 			    __func__, b, b->tmpbuf, tmpbuf,
 			    b->allocsize, allocsize, bufsize);
-		if (b->tmpbuf != NULL)
-			free(b->tmpbuf, M_DEVBUF);
+		free(b->tmpbuf, M_DEVBUF);
 		b->tmpbuf = tmpbuf;
 		b->allocsize = allocsize;
 	} else if (snd_verbose > 3)
@@ -225,14 +221,11 @@ sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 		tmpbuf = malloc(allocsize, M_DEVBUF, M_WAITOK);
 		shadbuf = malloc(allocsize, M_DEVBUF, M_WAITOK);
 		CHN_LOCK(b->channel);
-		if (b->buf != NULL)
-			free(b->buf, M_DEVBUF);
+		free(b->buf, M_DEVBUF);
 		b->buf = buf;
-		if (b->tmpbuf != NULL)
-			free(b->tmpbuf, M_DEVBUF);
+		free(b->tmpbuf, M_DEVBUF);
 		b->tmpbuf = tmpbuf;
-		if (b->shadbuf != NULL)
-			free(b->shadbuf, M_DEVBUF);
+		free(b->shadbuf, M_DEVBUF);
 		b->shadbuf = shadbuf;
 		if (snd_verbose > 3)
 			printf("%s(): b=%p %d -> %d [%d]\n",

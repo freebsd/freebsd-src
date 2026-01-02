@@ -1611,10 +1611,8 @@ envy24chan_free(kobj_t obj, void *data)
 	device_printf(sc->dev, "envy24chan_free()\n");
 #endif
 	mtx_lock(&sc->lock);
-	if (ch->data != NULL) {
-		free(ch->data, M_ENVY24);
-		ch->data = NULL;
-	}
+	free(ch->data, M_ENVY24);
+	ch->data = NULL;
 	mtx_unlock(&sc->lock);
 
 	return 0;
