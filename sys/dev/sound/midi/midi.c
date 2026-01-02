@@ -37,7 +37,6 @@
 #include <sys/kernel.h>
 #include <sys/kobj.h>
 #include <sys/lock.h>
-#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/queue.h>
@@ -102,8 +101,6 @@ static struct cdevsw midi_cdevsw = {
 };
 
 static int      midi_destroy(struct snd_midi *, int);
-static int      midi_load(void);
-static int      midi_unload(void);
 
 SYSCTL_NODE(_hw, OID_AUTO, midi, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Midi driver");
@@ -701,17 +698,16 @@ midi_destroy(struct snd_midi *m, int midiuninit)
 	return 0;
 }
 
-static int
-midi_load(void)
+static void
+midi_sysinit(void *data __unused)
 {
 	sx_init(&mstat_lock, "midistat lock");
 	TAILQ_INIT(&midi_devs);
-
-	return 0;
 }
+SYSINIT(midi_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST, midi_sysinit, NULL);
 
-static int
-midi_unload(void)
+static void
+midi_sysuninit(void *data __unused)
 {
 	struct snd_midi *m, *tmp;
 	int retval;
@@ -731,38 +727,12 @@ midi_unload(void)
 	midistat_unlock();
 
 	sx_destroy(&mstat_lock);
-	return 0;
+	return;
 
 exit:
 	mtx_unlock(&m->lock);
 	midistat_unlock();
 	if (retval)
 		MIDI_DEBUG(2, printf("midi_unload: failed\n"));
-	return retval;
 }
-
-static int
-midi_modevent(module_t mod, int type, void *data)
-{
-	int retval;
-
-	retval = 0;
-
-	switch (type) {
-	case MOD_LOAD:
-		retval = midi_load();
-		break;
-
-	case MOD_UNLOAD:
-		retval = midi_unload();
-		break;
-
-	default:
-		break;
-	}
-
-	return retval;
-}
-
-DEV_MODULE(midi, midi_modevent, NULL);
-MODULE_VERSION(midi, 1);
+SYSUNINIT(midi_sysuninit, SI_SUB_DRIVERS, SI_ORDER_FIRST, midi_sysuninit, NULL);
