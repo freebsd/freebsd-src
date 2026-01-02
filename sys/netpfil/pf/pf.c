@@ -570,7 +570,7 @@ pf_sctp_checksum(struct mbuf *m, int off)
 }
 
 int
-pf_addr_cmp(struct pf_addr *a, struct pf_addr *b, sa_family_t af)
+pf_addr_cmp(const struct pf_addr *a, const struct pf_addr *b, sa_family_t af)
 {
 
 	switch (af) {

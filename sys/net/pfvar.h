@@ -2600,7 +2600,7 @@ int		 pfi_clear_flags(const char *, int);
 
 int		 pf_match_tag(struct mbuf *, struct pf_krule *, int *, int);
 int		 pf_tag_packet(struct pf_pdesc *, int);
-int		 pf_addr_cmp(struct pf_addr *, struct pf_addr *,
+int		 pf_addr_cmp(const struct pf_addr *, const struct pf_addr *,
 		    sa_family_t);
 
 uint8_t*	 pf_find_tcpopt(u_int8_t *, u_int8_t *, size_t,
