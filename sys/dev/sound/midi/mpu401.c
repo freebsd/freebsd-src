@@ -203,7 +203,7 @@ mpu401_minit(struct snd_midi *sm, void *arg)
 	return 1;
 }
 
-int
+static int
 mpu401_muninit(struct snd_midi *sm, void *arg)
 {
 	struct mpu401 *m = arg;
@@ -211,13 +211,13 @@ mpu401_muninit(struct snd_midi *sm, void *arg)
 	return MPUFOI_UNINIT(m, m->cookie);
 }
 
-int
+static int
 mpu401_minqsize(struct snd_midi *sm, void *arg)
 {
 	return 128;
 }
 
-int
+static int
 mpu401_moutqsize(struct snd_midi *sm, void *arg)
 {
 	return 128;
