@@ -36,12 +36,11 @@
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/poll.h>
-#include <sys/queue.h>
 #include <sys/selinfo.h>
-#include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 
@@ -62,8 +61,8 @@ struct snd_midi {
 	struct mtx lock;		/* Protects all but queues */
 	void   *cookie;
 
-	int	unit;			/* Should only be used in midistat */
-	int	channel;		/* Should only be used in midistat */
+	int	unit;
+	int	channel;
 
 	int	busy;
 	int	flags;			/* File flags */
@@ -75,12 +74,7 @@ struct snd_midi {
 	int	hiwat;			/* QLEN(outq)>High-water -> disable
 					 * writes from userland */
 	struct cdev *dev;
-	TAILQ_ENTRY(snd_midi) link;
 };
-
-TAILQ_HEAD(, snd_midi) midi_devs;
-
-struct sx mstat_lock;
 
 static d_open_t midi_open;
 static d_close_t midi_close;
@@ -102,6 +96,9 @@ static struct cdevsw midi_cdevsw = {
 
 static int      midi_destroy(struct snd_midi *, int);
 
+struct unrhdr *dev_unr = NULL;
+struct unrhdr *chn_unr = NULL;
+
 SYSCTL_NODE(_hw, OID_AUTO, midi, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Midi driver");
 
@@ -111,70 +108,19 @@ SYSCTL_INT(_hw_midi, OID_AUTO, debug, CTLFLAG_RW, &midi_debug, 0, "");
 
 #define MIDI_DEBUG(l,a)	if(midi_debug>=l) a
 
-void
-midistat_lock(void)
-{
-	sx_xlock(&mstat_lock);
-}
-
-void
-midistat_unlock(void)
-{
-	sx_xunlock(&mstat_lock);
-}
-
-void
-midistat_lockassert(void)
-{
-	sx_assert(&mstat_lock, SA_XLOCKED);
-}
-
 /*
- * Register a new rmidi device. cls midi_if interface unit == 0 means
- * auto-assign new unit number unit != 0 already assigned a unit number, eg.
- * not the first channel provided by this device. channel,	sub-unit
- * cookie is passed back on MPU calls Typical device drivers will call with
- * unit=0, channel=1..(number of channels) and cookie=soft_c and won't care
- * what unit number is used.
+ * Register a new rmidi device.
  *
- * It is an error to call midi_init with an already used unit/channel combo.
+ * "cookie" is passed to the MPU calls, and is normally set to the driver's
+ * softc.
  */
 struct snd_midi *
-midi_init(kobj_class_t cls, int unit, int channel, void *cookie)
+midi_init(kobj_class_t cls, void *cookie)
 {
 	struct snd_midi *m;
-	int i;
 	int inqsize, outqsize;
 	uint8_t *buf;
 
-	MIDI_DEBUG(1, printf("midiinit: unit %d/%d.\n", unit, channel));
-	midistat_lock();
-	/*
-	 * Protect against call with existing unit/channel or auto-allocate a
-	 * new unit number.
-	 */
-	i = -1;
-	TAILQ_FOREACH(m, &midi_devs, link) {
-		mtx_lock(&m->lock);
-		if (unit != 0) {
-			if (m->unit == unit && m->channel == channel) {
-				mtx_unlock(&m->lock);
-				goto err0;
-			}
-		} else {
-			/*
-			 * Find a better unit number
-			 */
-			if (m->unit > i)
-				i = m->unit;
-		}
-		mtx_unlock(&m->lock);
-	}
-
-	if (unit == 0)
-		unit = i + 1;
-
-	MIDI_DEBUG(1, printf("midiinit #2: unit %d/%d.\n", unit, channel));
 	m = malloc(sizeof(*m), M_MIDI, M_WAITOK | M_ZERO);
 	kobj_init((kobj_t)m, cls);
 	inqsize = MPU_INQSIZE(m, cookie);
@@ -211,8 +157,8 @@ midi_init(kobj_class_t cls, int unit, int channel, void *cookie)
 
 	m->busy = 0;
 	m->flags = 0;
-	m->unit = unit;
-	m->channel = channel;
+	m->unit = alloc_unr(dev_unr);
+	m->channel = alloc_unr(chn_unr);
 	m->cookie = cookie;
 
 	if (MPU_INIT(m, cookie))
@@ -221,12 +167,8 @@ midi_init(kobj_class_t cls, int unit, int channel, void *cookie)
 	mtx_unlock(&m->lock);
 	mtx_unlock(&m->qlock);
 
-	TAILQ_INSERT_TAIL(&midi_devs, m, link);
-
-	midistat_unlock();
-
-	m->dev = make_dev(&midi_cdevsw, unit, UID_ROOT, GID_WHEEL, 0666,
-	    "midi%d.%d", unit, channel);
+	m->dev = make_dev(&midi_cdevsw, m->unit, UID_ROOT, GID_WHEEL, 0666,
+	    "midi%d.%d", m->unit, m->channel);
 	m->dev->si_drv1 = m;
 
 	return m;
@@ -241,8 +183,6 @@ err2:
 		free(MIDIQ_BUF(m->outq), M_MIDI);
 err1:
 	free(m, M_MIDI);
-err0:
-	midistat_unlock();
 	MIDI_DEBUG(1, printf("midi_init ended in error\n"));
 	return NULL;
 }
@@ -258,7 +198,6 @@ midi_uninit(struct snd_midi *m)
 	int err;
 
 	err = EBUSY;
-	midistat_lock();
 	mtx_lock(&m->lock);
 	if (m->busy) {
 		if (!(m->rchan || m->wchan))
@@ -280,7 +219,6 @@ midi_uninit(struct snd_midi *m)
 err:
 	mtx_unlock(&m->lock);
 exit:
-	midistat_unlock();
 	return err;
 }
 
@@ -680,16 +618,17 @@ midi_poll(struct cdev *i_dev, int events, struct thread *td)
 static int
 midi_destroy(struct snd_midi *m, int midiuninit)
 {
-	midistat_lockassert();
 	mtx_assert(&m->lock, MA_OWNED);
 
 	MIDI_DEBUG(3, printf("midi_destroy\n"));
 	m->dev->si_drv1 = NULL;
 	mtx_unlock(&m->lock);	/* XXX */
 	destroy_dev(m->dev);
-	TAILQ_REMOVE(&midi_devs, m, link);
+	/* XXX */
 	if (midiuninit)
 		MPU_UNINIT(m, m->cookie);
+	free_unr(dev_unr, m->unit);
+	free_unr(chn_unr, m->channel);
 	free(MIDIQ_BUF(m->inq), M_MIDI);
 	free(MIDIQ_BUF(m->outq), M_MIDI);
 	mtx_destroy(&m->qlock);
@@ -701,38 +640,17 @@ midi_destroy(struct snd_midi *m, int midiuninit)
 static void
 midi_sysinit(void *data __unused)
 {
-	sx_init(&mstat_lock, "midistat lock");
-	TAILQ_INIT(&midi_devs);
+	dev_unr = new_unrhdr(0, INT_MAX, NULL);
+	chn_unr = new_unrhdr(0, INT_MAX, NULL);
 }
 SYSINIT(midi_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST, midi_sysinit, NULL);
 
 static void
 midi_sysuninit(void *data __unused)
 {
-	struct snd_midi *m, *tmp;
-	int retval;
-
-	MIDI_DEBUG(1, printf("midi_unload()\n"));
-	retval = EBUSY;
-	midistat_lock();
-	TAILQ_FOREACH_SAFE(m, &midi_devs, link, tmp) {
-		mtx_lock(&m->lock);
-		if (m->busy)
-			retval = EBUSY;
-		else
-			retval = midi_destroy(m, 1);
-		if (retval)
-			goto exit;
-	}
-	midistat_unlock();
-
-	sx_destroy(&mstat_lock);
-	return;
-
-exit:
-	mtx_unlock(&m->lock);
-	midistat_unlock();
-	if (retval)
-		MIDI_DEBUG(2, printf("midi_unload: failed\n"));
+	if (dev_unr != NULL)
+		delete_unrhdr(dev_unr);
+	if (chn_unr != NULL)
+		delete_unrhdr(chn_unr);
 }
-SYSUNINIT(midi_sysuninit, SI_SUB_DRIVERS, SI_ORDER_FIRST, midi_sysuninit, NULL);
+SYSUNINIT(midi_sysuninit, SI_SUB_DRIVERS, SI_ORDER_ANY, midi_sysuninit, NULL);
