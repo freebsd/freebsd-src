@@ -41,6 +41,7 @@
 #include <dev/sound/pcm/ac97.h>
 #include <dev/sound/pcm/vchan.h>
 #include <dev/sound/pcm/dsp.h>
+#include <dev/sound/sndstat.h>
 #include <sys/limits.h>
 #include <sys/sysctl.h>
 

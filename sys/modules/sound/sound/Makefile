@@ -15,8 +15,9 @@ SRCS+=	feeder_eq_gen.h feeder_rate_gen.h snd_fxdiv_gen.h
 SRCS+=	mpu_if.h mpufoi_if.h
 SRCS+=	mpu_if.c mpufoi_if.c
 SRCS+=	ac97.c buffer.c channel.c dsp.c
-SRCS+=	mixer.c sndstat.c sound.c vchan.c
+SRCS+=	mixer.c sound.c vchan.c
 SRCS+=	midi.c mpu401.c
+SRCS+=	sndstat.c
 
 feeder_eq_gen.h:	${SYSDIR}/tools/sound/feeder_eq_mkfilter.awk
 	${AWK} -f ${SYSDIR}/tools/sound/feeder_eq_mkfilter.awk -- ${FEEDER_EQ_PRESETS} > ${.TARGET}

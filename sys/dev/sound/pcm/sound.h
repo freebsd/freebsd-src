@@ -66,7 +66,6 @@
 #include <sys/poll.h>
 #include <sys/sbuf.h>
 #include <sys/soundcard.h>
-#include <sys/sndstat.h>
 #include <sys/sysctl.h>
 #include <sys/kobj.h>
 #include <vm/vm.h>
@@ -166,9 +165,6 @@ void *pcm_getdevinfo(device_t dev);
 
 int snd_setup_intr(device_t dev, struct resource *res, int flags,
 		   driver_intr_t hand, void *param, void **cookiep);
-
-int sndstat_register(device_t dev, char *str);
-int sndstat_unregister(device_t dev);
 
 /* These are the function codes assigned to the children of sound cards. */
 enum {
