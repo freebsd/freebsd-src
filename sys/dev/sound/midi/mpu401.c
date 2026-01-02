@@ -76,7 +76,6 @@ static int mpu401_muninit(struct snd_midi *, void *);
 static int mpu401_minqsize(struct snd_midi *, void *);
 static int mpu401_moutqsize(struct snd_midi *, void *);
 static void mpu401_mcallback(struct snd_midi *, void *, int);
-static void mpu401_mcallbackp(struct snd_midi *, void *, int);
 
 static kobj_method_t mpu401_methods[] = {
 	KOBJMETHOD(mpu_init, mpu401_minit),
@@ -84,7 +83,6 @@ static kobj_method_t mpu401_methods[] = {
 	KOBJMETHOD(mpu_inqsize, mpu401_minqsize),
 	KOBJMETHOD(mpu_outqsize, mpu401_moutqsize),
 	KOBJMETHOD(mpu_callback, mpu401_mcallback),
-	KOBJMETHOD(mpu_callbackp, mpu401_mcallbackp),
 	KOBJMETHOD_END
 };
 
@@ -234,10 +232,4 @@ mpu401_mcallback(struct snd_midi *sm, void *arg, int flags)
 		callout_reset(&m->timer, 1, mpu401_timeout, m);
 	}
 	m->flags = flags;
-}
-
-static void
-mpu401_mcallbackp(struct snd_midi *sm, void *arg, int flags)
-{
-	mpu401_mcallback(sm, arg, flags);
 }
