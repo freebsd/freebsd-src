@@ -78,16 +78,16 @@ feed_mixer_init(struct pcm_feeder *f)
 {
 	struct feed_mixer_info *info;
 
-	if (f->desc->in != f->desc->out)
+	if (f->desc.in != f->desc.out)
 		return (EINVAL);
 
 	info = malloc(sizeof(*info), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (info == NULL)
 		return (ENOMEM);
 
-	info->format = AFMT_ENCODING(f->desc->in);
-	info->channels = AFMT_CHANNEL(f->desc->in);
-	info->bps = AFMT_BPS(f->desc->in);
+	info->format = AFMT_ENCODING(f->desc.in);
+	info->channels = AFMT_CHANNEL(f->desc.in);
+	info->bps = AFMT_BPS(f->desc.in);
 
 	f->data = info;
 
@@ -321,7 +321,7 @@ feed_mixer_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 					if (mcnt != 0) {
 						memset(b + rcnt,
 						    sndbuf_zerodata(
-						    f->desc->out), mcnt);
+						    f->desc.out), mcnt);
 						mcnt = 0;
 					}
 					switch (info->format) {

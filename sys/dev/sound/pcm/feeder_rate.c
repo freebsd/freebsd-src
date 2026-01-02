@@ -1109,7 +1109,7 @@ z_resampler_setup(struct pcm_feeder *f)
 	if (!(Z_FACTOR_SAFE(info->z_gx) && Z_FACTOR_SAFE(info->z_gy)))
 		return (EINVAL);
 
-	format = f->desc->in;
+	format = f->desc.in;
 	adaptive = 0;
 	z_scale = 0;
 
@@ -1344,7 +1344,7 @@ z_setup_adaptive_sinc:
 	/*
 	 * Zero out head of buffer to avoid pops and clicks.
 	 */
-	memset(info->z_delay, sndbuf_zerodata(f->desc->out),
+	memset(info->z_delay, sndbuf_zerodata(f->desc.out),
 	    info->z_pos * align);
 
 #ifdef Z_DIAGNOSTIC
@@ -1508,7 +1508,7 @@ z_resampler_init(struct pcm_feeder *f)
 	struct z_info *info;
 	int ret;
 
-	if (f->desc->in != f->desc->out)
+	if (f->desc.in != f->desc.out)
 		return (EINVAL);
 
 	info = malloc(sizeof(*info), M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -1518,7 +1518,7 @@ z_resampler_init(struct pcm_feeder *f)
 	info->rsrc = Z_RATE_DEFAULT;
 	info->rdst = Z_RATE_DEFAULT;
 	info->quality = feeder_rate_quality;
-	info->channels = AFMT_CHANNEL(f->desc->in);
+	info->channels = AFMT_CHANNEL(f->desc.in);
 
 	f->data = info;
 
