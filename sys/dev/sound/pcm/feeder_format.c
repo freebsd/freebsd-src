@@ -115,7 +115,6 @@ feed_format_set(struct pcm_feeder *f, int what, int value)
 		break;
 	default:
 		return (EINVAL);
-		break;
 	}
 
 	return (0);
