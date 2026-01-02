@@ -91,11 +91,13 @@
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/rman.h>
 #include <sys/rwlock.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/taskqueue.h>
 
 #include <machine/bus.h>
 
@@ -123,13 +125,12 @@ static struct hwt_backend backend = {
 	.kva_req = 1,
 };
 
-static struct arm_spe_info *spe_info;
+/* Pointers to current info structure per CPU. This points to either a per-CPU
+ * structure (for CPU mode) or a per-thread structure (for thread mode).
+ */
+static struct arm_spe_info **spe_info;
 
-static int
-spe_backend_init_thread(struct hwt_context *ctx)
-{
-	return (ENOTSUP);
-}
+static struct arm_spe_info *spe_info_cpu;
 
 static void
 spe_backend_init_cpu(struct hwt_context *ctx)
@@ -140,13 +141,12 @@ spe_backend_init_cpu(struct hwt_context *ctx)
 	char *tmp = "Arm SPE lock/cpu/";
 	int cpu_id;
 
-	spe_info = malloc(sizeof(struct arm_spe_info) * mp_ncpus,
+	spe_info_cpu = malloc(sizeof(struct arm_spe_info) * mp_ncpus,
 	   M_ARM_SPE, M_WAITOK | M_ZERO);
 
-	sc->spe_info = spe_info;
 
 	CPU_FOREACH_ISSET(cpu_id, &ctx->cpu_map) {
-		info = &spe_info[cpu_id];
+		info = &spe_info_cpu[cpu_id];
 		info->sc = sc;
 		info->ident = cpu_id;
 		info->buf_info[0].info = info;
@@ -155,6 +155,8 @@ spe_backend_init_cpu(struct hwt_context *ctx)
 		info->buf_info[1].buf_idx = 1;
 		snprintf(lock_name, sizeof(lock_name), "%s%d", tmp, cpu_id);
 		mtx_init(&info->lock, lock_name, NULL, MTX_SPIN);
+
+		spe_info[cpu_id] = info;
 	}
 }
 
@@ -183,9 +185,11 @@ spe_backend_init(struct hwt_context *ctx)
 	sc->kqueue_fd = ctx->kqueue_fd;
 	sc->hwt_td = ctx->hwt_td;
 
-	if (ctx->mode == HWT_MODE_THREAD)
-		error = spe_backend_init_thread(ctx);
-	else
+	spe_info = malloc(sizeof(struct arm_spe_info *) * mp_ncpus,
+	   M_ARM_SPE, M_WAITOK | M_ZERO);
+	sc->spe_info = spe_info;
+
+	if (ctx->mode == HWT_MODE_CPU)
 		spe_backend_init_cpu(ctx);
 
 	return (error);
@@ -218,19 +222,30 @@ spe_backend_deinit(struct hwt_context *ctx)
 {
 #ifdef ARM_SPE_DEBUG
 	struct arm_spe_info *info;
+	struct hwt_thread *thr;
 	int cpu_id;
 
-	CPU_FOREACH_ISSET(cpu_id, &ctx->cpu_map) {
-		info = &spe_info[cpu_id];
-		hex_dump((void *)info->kvaddr, 128);
-		hex_dump((void *)(info->kvaddr + (info->buf_size/2)), 128);
+	if (ctx->mode == HWT_MODE_CPU) {
+		CPU_FOREACH_ISSET(cpu_id, &ctx->cpu_map) {
+			info = &spe_info_cpu[cpu_id];
+			printf("CPU %u:\n", cpu_id);
+			hex_dump((void *)info->kvaddr, 128);
+			hex_dump((void *)(info->kvaddr + (info->buf_size/2)), 128);
+		}
+	} else {
+		TAILQ_FOREACH(thr, &ctx->threads, next) {
+			info = (struct arm_spe_info *)thr->private;
+			printf("TID %u:\n", thr->thread_id);
+			hex_dump((void *)info->kvaddr, 128);
+			hex_dump((void *)(info->kvaddr + (info->buf_size/2)), 128);
+		}
 	}
 #endif
 
-	if (ctx->state == CTX_STATE_RUNNING) {
-		spe_backend_disable_smp(ctx);
-		ctx->state = CTX_STATE_STOPPED;
-	}
+	spe_backend_disable_smp(ctx);
+
+	if (ctx->mode == HWT_MODE_CPU)
+		free(spe_info_cpu, M_ARM_SPE);
 
 	free(spe_info, M_ARM_SPE);
 
@@ -279,14 +294,31 @@ arm_spe_set_interval(struct arm_spe_info *info, uint64_t interval)
 }
 
 static int
-spe_backend_configure(struct hwt_context *ctx, int cpu_id, int session_id)
+spe_backend_configure(struct hwt_context *ctx, int cpu_id, int thread_id)
 {
-	struct arm_spe_info *info = &spe_info[cpu_id];
+	struct arm_spe_info *info = NULL;
 	struct arm_spe_config *cfg;
+	struct hwt_thread *thr = NULL;
 	int err = 0;
 
+	if (ctx->mode == HWT_MODE_CPU)
+		info = &spe_info_cpu[cpu_id];
+	else {
+		TAILQ_FOREACH(thr, &ctx->threads, next) {
+			if (thr->thread_id != thread_id)
+				continue;
+			info = (struct arm_spe_info *)thr->private;
+			break;
+		}
+		if (info == NULL)
+			return (ENOENT);
+	}
+
 	mtx_lock_spin(&info->lock);
-	info->ident = cpu_id;
+	if (ctx->mode == HWT_MODE_CPU)
+		info->ident = cpu_id;
+	else
+		info->ident = thread_id;
 	/* Set defaults */
 	info->pmsfcr = 0;
 	info->pmsevfr = 0xFFFFFFFFFFFFFFFFUL;
@@ -311,6 +343,13 @@ spe_backend_configure(struct hwt_context *ctx, int cpu_id, int session_id)
 			info->ctx_field = cfg->ctx_field;
 	} else
 		err = (EINVAL);
+
+	if (ctx->mode == HWT_MODE_THREAD) {
+		info->kvaddr = thr->vm->kvaddr;
+		info->buf_size = ctx->bufsize;
+	}
+
+	spe_info[cpu_id] = info;
 	mtx_unlock_spin(&info->lock);
 
 	return (err);
@@ -320,12 +359,19 @@ spe_backend_configure(struct hwt_context *ctx, int cpu_id, int session_id)
 static void
 arm_spe_enable(void *arg __unused)
 {
-	struct arm_spe_info *info = &spe_info[PCPU_GET(cpuid)];
+	struct arm_spe_info *info = spe_info[PCPU_GET(cpuid)];
+	struct arm_spe_buf_info *buf = &info->buf_info[info->buf_idx];
+	struct hwt_context *ctx = info->sc->ctx;
 	uint64_t base, limit;
 
 	dprintf("%s on cpu:%d\n", __func__, PCPU_GET(cpuid));
 
 	mtx_lock_spin(&info->lock);
+
+	if (info->stopped) {
+		mtx_unlock_spin(&info->lock);
+		return;
+	}
 
 	if (info->ctx_field == ARM_SPE_CTX_CPU_ID)
 		WRITE_SPECIALREG(CONTEXTIDR_EL1_REG, PCPU_GET(cpuid));
@@ -342,13 +388,19 @@ arm_spe_enable(void *arg __unused)
 	WRITE_SPECIALREG(PMSICR_EL1_REG, info->pmsicr);
 	isb();
 
-	base = info->kvaddr;
+	base = buf_start_addr(info->buf_idx, info);
 	limit = base + (info->buf_size/2);
 	/* Enable the buffer */
 	limit &= PMBLIMITR_LIMIT_MASK; /* Zero lower 12 bits */
 	limit |= PMBLIMITR_E;
-	/* Set the base and limit */
-	WRITE_SPECIALREG(PMBPTR_EL1_REG, base);
+	/* Set the base and limit. Restore base pointer if sampling has previously
+	 * been enabled for this thread.
+	 */
+	if (buf->pmbptr == 0) {
+		WRITE_SPECIALREG(PMBPTR_EL1_REG, base);
+	} else {
+		WRITE_SPECIALREG(PMBPTR_EL1_REG, buf->pmbptr);
+	}
 	WRITE_SPECIALREG(PMBLIMITR_EL1_REG, limit);
 	isb();
 
@@ -357,6 +409,9 @@ arm_spe_enable(void *arg __unused)
 	isb();
 
 	info->enabled = true;
+
+	if (ctx->mode == HWT_MODE_THREAD)
+		CPU_SET(PCPU_GET(cpuid), &ctx->cpu_map);
 
 	mtx_unlock_spin(&info->lock);
 }
@@ -368,11 +423,13 @@ spe_backend_enable_smp(struct hwt_context *ctx)
 	struct hwt_vm *vm;
 	int cpu_id;
 
+	KASSERT(ctx->mode == HWT_MODE_CPU, ("%s: should only be called for CPU mode", __func__));
+
 	HWT_CTX_LOCK(ctx);
 	CPU_FOREACH_ISSET(cpu_id, &ctx->cpu_map) {
 		vm = hwt_cpu_get(ctx, cpu_id)->vm;
-
-		info = &spe_info[cpu_id];
+		KASSERT(spe_info[cpu_id] == &spe_info_cpu[cpu_id], ("%s: spe_info mismatch for cpu_id=%u", __func__, cpu_id));
+		info = &spe_info_cpu[cpu_id];
 
 		mtx_lock_spin(&info->lock);
 		info->kvaddr = vm->kvaddr;
@@ -382,7 +439,8 @@ spe_backend_enable_smp(struct hwt_context *ctx)
 	HWT_CTX_UNLOCK(ctx);
 
 	cpu_id = CPU_FFS(&ctx->cpu_map) - 1;
-	info = &spe_info[cpu_id];
+	KASSERT(spe_info[cpu_id] == &spe_info_cpu[cpu_id], ("%s: spe_info mismatch for cpu_id=%u", __func__, cpu_id));
+	info = spe_info[cpu_id];
 	if (info->ctx_field == ARM_SPE_CTX_PID)
 		arm64_pid_in_contextidr = true;
 	else
@@ -394,11 +452,12 @@ spe_backend_enable_smp(struct hwt_context *ctx)
 	return (0);
 }
 
-void
-arm_spe_disable(void *arg __unused)
+static void
+arm_spe_disable_nolock(void)
 {
-	struct arm_spe_info *info = &spe_info[PCPU_GET(cpuid)];
+	struct arm_spe_info *info = spe_info[PCPU_GET(cpuid)];
 	struct arm_spe_buf_info *buf = &info->buf_info[info->buf_idx];
+	struct hwt_context *ctx = info->sc->ctx;
 
 	if (!info->enabled)
 		return;
@@ -423,9 +482,20 @@ arm_spe_disable(void *arg __unused)
 	/* Clear PID/CPU_ID from context ID reg */
 	WRITE_SPECIALREG(CONTEXTIDR_EL1_REG, 0);
 
-	mtx_lock_spin(&info->lock);
 	buf->pmbptr = READ_SPECIALREG(PMBPTR_EL1_REG);
 	info->enabled = false;
+
+	if (ctx->mode == HWT_MODE_THREAD)
+		CPU_CLR(PCPU_GET(cpuid), &ctx->cpu_map);
+}
+
+void
+arm_spe_disable(void *arg __unused)
+{
+	struct arm_spe_info *info = spe_info[PCPU_GET(cpuid)];
+
+	mtx_lock_spin(&info->lock);
+	arm_spe_disable_nolock();
 	mtx_unlock_spin(&info->lock);
 }
 
@@ -438,14 +508,16 @@ spe_backend_disable_smp(struct hwt_context *ctx)
 	int cpu_id;
 	int ret;
 
-	/* Disable and send out remaining data in bufs */
-	smp_rendezvous_cpus(ctx->cpu_map, smp_no_rendezvous_barrier,
-	    arm_spe_disable, smp_no_rendezvous_barrier, NULL);
+	if (!CPU_EMPTY(&ctx->cpu_map)) {
+		/* Disable and send out remaining data in bufs */
+		smp_rendezvous_cpus(ctx->cpu_map, smp_no_rendezvous_barrier,
+		    arm_spe_disable, smp_no_rendezvous_barrier, NULL);
 
-	CPU_FOREACH_ISSET(cpu_id, &ctx->cpu_map) {
-		info = &spe_info[cpu_id];
-		buf = &info->buf_info[info->buf_idx];
-		arm_spe_send_buffer(buf, 0);
+		CPU_FOREACH_ISSET(cpu_id, &ctx->cpu_map) {
+			info = spe_info[cpu_id];
+			buf = &info->buf_info[info->buf_idx];
+			arm_spe_send_buffer(buf, 0);
+		}
 	}
 
 	arm64_pid_in_contextidr = false;
@@ -463,15 +535,96 @@ spe_backend_disable_smp(struct hwt_context *ctx)
 }
 
 static void
+spe_backend_enable(struct hwt_context *ctx, int cpu_id)
+{
+	struct arm_spe_info *info;
+
+	if (ctx->mode == HWT_MODE_CPU)
+		return;
+	KASSERT(curcpu == cpu_id, ("%s: attempting to enable SPE on another cpu", __func__));
+
+	info = spe_info[cpu_id];
+
+	KASSERT(info != NULL, ("%s: info=NULL", __func__));
+
+	if (info->ctx_field == ARM_SPE_CTX_PID)
+		arm64_pid_in_contextidr = true;
+	else
+		arm64_pid_in_contextidr = false;
+
+	arm_spe_enable(NULL);
+}
+
+static void
+spe_backend_disable(struct hwt_context *ctx, int cpu_id)
+{
+	struct arm_spe_info *info = spe_info[PCPU_GET(cpuid)];
+
+	if (ctx->mode == HWT_MODE_CPU)
+		return;
+
+	KASSERT(curcpu == cpu_id, ("%s: attempting to disable SPE on another cpu", __func__));
+
+	mtx_lock_spin(&info->lock);
+
+	if (!info->stopped)
+		arm_spe_disable_nolock();
+
+	mtx_unlock_spin(&info->lock);
+}
+
+static void
+arm_spe_flush(void *arg, int pending __unused)
+{
+	struct arm_spe_info *info = arg;
+	struct arm_spe_buf_info *buf = &info->buf_info[info->buf_idx];
+
+	arm_spe_send_buffer(buf, 0);
+}
+
+static void
 spe_backend_stop(struct hwt_context *ctx)
 {
+	struct arm_spe_info *info;
+	struct hwt_thread *thr;
+
+	HWT_CTX_LOCK(ctx);
+
+	if (ctx->mode == HWT_MODE_THREAD) {
+		ctx->state = CTX_STATE_STOPPED;
+
+		TAILQ_FOREACH(thr, &ctx->threads, next) {
+			info = (struct arm_spe_info *)thr->private;
+
+			mtx_lock_spin(&info->lock);
+
+			info->stopped = true;
+
+			if (!info->enabled) {
+				/* Not currently tracing. Enqueue buffer for sending */
+		                TASK_INIT(&info->flush_task, 0, (task_fn_t *)arm_spe_flush, info);
+				taskqueue_enqueue(taskqueue_arm_spe, &info->flush_task);
+			}
+			/* Otherwise tracing currently active. As this thread has been
+			 * marked as stopped, buffer will be sent on next disable
+			 */
+
+			mtx_unlock_spin(&info->lock);
+		}
+
+	}
+
+	HWT_CTX_UNLOCK(ctx);
+
+	taskqueue_drain_all(taskqueue_arm_spe);
+
 	spe_backend_disable_smp(ctx);
 }
 
 static void
 arm_spe_reenable(void *arg __unused)
 {
-	struct arm_spe_info *info = &spe_info[PCPU_GET(cpuid)];;
+	struct arm_spe_info *info = spe_info[PCPU_GET(cpuid)];
 
 	WRITE_SPECIALREG(PMSCR_EL1_REG, info->pmscr);
 	isb();
@@ -481,9 +634,10 @@ static int
 spe_backend_svc_buf(struct hwt_context *ctx, void *data, size_t data_size,
     int data_version)
 {
-	struct arm_spe_info *info;
+	struct arm_spe_info *info = NULL;
 	struct arm_spe_buf_info *buf;
 	struct arm_spe_svc_buf *s;
+	struct hwt_thread *thr;
 	int err = 0;
 	cpuset_t cpu_set;
 
@@ -496,15 +650,29 @@ spe_backend_svc_buf(struct hwt_context *ctx, void *data, size_t data_size,
 	s = (struct arm_spe_svc_buf *)data;
 	if (s->buf_idx > 1)
 		return (ENODEV);
-	if (s->ident >= mp_ncpus)
-		return (EINVAL);
 
-	info = &spe_info[s->ident];
+	if (ctx->mode == HWT_MODE_CPU) {
+		if (s->ident >= mp_ncpus)
+			return (EINVAL);
+
+		info = spe_info[s->ident];
+	} else {
+		TAILQ_FOREACH(thr, &ctx->threads, next) {
+			if (thr->thread_id != s->ident)
+				continue;
+			info = (struct arm_spe_info *)thr->private;
+			break;
+		}
+
+		if (info == NULL)
+			return (ENOENT);
+	}
+
 	mtx_lock_spin(&info->lock);
 
 	buf = &info->buf_info[s->buf_idx];
 
-	if (!info->enabled) {
+	if (!info->enabled && ctx->mode == HWT_MODE_CPU) {
 		err = ENXIO;
 		goto end;
 	}
@@ -513,7 +681,7 @@ spe_backend_svc_buf(struct hwt_context *ctx, void *data, size_t data_size,
 	buf->buf_svc = false;
 
 	/* Re-enable profiling if we've been waiting for this notification */
-	if (buf->buf_wait) {
+	if (buf->buf_wait && !info->stopped) {
 		CPU_SETOF(s->ident, &cpu_set);
 
 		mtx_unlock_spin(&info->lock);
@@ -563,6 +731,38 @@ error:
 	return (0);
 }
 
+static int
+spe_backend_thread_alloc(struct hwt_thread *thr)
+{
+	struct arm_spe_softc *sc = device_get_softc(spe_dev);
+	char lock_name[32];
+	struct arm_spe_info *info;
+
+	info = malloc(sizeof(*info), M_ARM_SPE, M_WAITOK | M_ZERO);
+
+	info->sc = sc;
+	info->buf_info[0].info = info;
+	info->buf_info[0].buf_idx = 0;
+	info->buf_info[1].info = info;
+	info->buf_info[1].buf_idx = 1;
+	snprintf(lock_name, sizeof(lock_name), "Arm SPE lock/thr/%d", thr->thread_id);
+	mtx_init(&info->lock, lock_name, NULL, MTX_SPIN);
+
+	thr->private = info;
+
+	return (0);
+}
+
+static void
+spe_backend_thread_free(struct hwt_thread *thr)
+{
+	struct arm_spe_info *info;
+
+	info = (struct arm_spe_info *)thr->private;
+
+	free(info, M_ARM_SPE);
+}
+
 static struct hwt_backend_ops spe_ops = {
 	.hwt_backend_init = spe_backend_init,
 	.hwt_backend_deinit = spe_backend_deinit,
@@ -571,10 +771,16 @@ static struct hwt_backend_ops spe_ops = {
 	.hwt_backend_svc_buf = spe_backend_svc_buf,
 	.hwt_backend_stop = spe_backend_stop,
 
+	.hwt_backend_enable = spe_backend_enable,
+	.hwt_backend_disable = spe_backend_disable,
+
 	.hwt_backend_enable_smp = spe_backend_enable_smp,
 	.hwt_backend_disable_smp = spe_backend_disable_smp,
 
 	.hwt_backend_read = spe_backend_read,
+
+	.hwt_backend_thread_alloc = spe_backend_thread_alloc,
+	.hwt_backend_thread_free = spe_backend_thread_free,
 };
 
 int

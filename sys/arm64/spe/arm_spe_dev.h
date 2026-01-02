@@ -80,7 +80,7 @@ struct arm_spe_softc {
 	int64_t                sc_pmsidr;
 	int                     kqueue_fd;
 	struct thread           *hwt_td;
-	struct arm_spe_info     *spe_info;
+	struct arm_spe_info     **spe_info;
 	struct hwt_context      *ctx;
 	STAILQ_HEAD(, arm_spe_queue) pending;
 	uint64_t                npending;
@@ -105,7 +105,9 @@ struct arm_spe_info {
 	struct mtx              lock;
 	struct arm_spe_softc    *sc;
 	struct task             task[2];
+	struct task             flush_task;
 	bool                    enabled : 1;
+	bool                    stopped : 1;
 
 	/* buffer is split in half as a ping-pong buffer */
 	vm_object_t             bufobj;
