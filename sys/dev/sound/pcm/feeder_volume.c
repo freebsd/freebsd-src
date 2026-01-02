@@ -193,8 +193,7 @@ feed_volume_free(struct pcm_feeder *f)
 	struct feed_volume_info *info;
 
 	info = f->data;
-	if (info != NULL)
-		free(info, M_DEVBUF);
+	free(info, M_DEVBUF);
 
 	f->data = NULL;
 

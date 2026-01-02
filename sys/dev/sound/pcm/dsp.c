@@ -2582,8 +2582,7 @@ dsp_oss_syncgroup(struct pcm_channel *wrch, struct pcm_channel *rdch, oss_syncgr
 
 out:
 	if (ret != 0) {
-		if (smrd != NULL)
-			free(smrd, M_DEVBUF);
+		free(smrd, M_DEVBUF);
 		if ((sg != NULL) && SLIST_EMPTY(&sg->members)) {
 			sg_ids[2] = sg->id;
 			SLIST_REMOVE(&snd_pcm_syncgroups, sg, pcmchan_syncgroup, link);

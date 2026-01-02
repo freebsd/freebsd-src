@@ -1009,8 +1009,7 @@ cmi_attach(device_t dev)
 	if (sc->reg)
 		bus_release_resource(dev, SYS_RES_IOPORT, sc->regid, sc->reg);
 	mtx_destroy(&sc->lock);
-	if (sc)
-		free(sc, M_DEVBUF);
+	free(sc, M_DEVBUF);
 
 	return ENXIO;
 }

@@ -153,10 +153,8 @@ midi_init(kobj_class_t cls, void *cookie)
 err2:
 	mtx_destroy(&m->lock);
 
-	if (MIDIQ_BUF(m->inq))
-		free(MIDIQ_BUF(m->inq), M_MIDI);
-	if (MIDIQ_BUF(m->outq))
-		free(MIDIQ_BUF(m->outq), M_MIDI);
+	free(MIDIQ_BUF(m->inq), M_MIDI);
+	free(MIDIQ_BUF(m->outq), M_MIDI);
 err1:
 	free(m, M_MIDI);
 	return NULL;

@@ -1385,8 +1385,7 @@ bad:
 	if (via->sgd_dmat)
 		bus_dma_tag_destroy(via->sgd_dmat);
 	mtx_destroy(&via->lock);
-	if (via)
-		free(via, M_DEVBUF);
+	free(via, M_DEVBUF);
 	return (ENXIO);
 }
 
