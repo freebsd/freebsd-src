@@ -242,7 +242,7 @@ midi_out(struct snd_midi *m, uint8_t *buf, int size)
 		MIDIQ_DEQ(m->outq, buf, used);
 	if (MIDIQ_EMPTY(m->outq)) {
 		m->flags &= ~M_TXEN;
-		MPU_CALLBACKP(m, m->cookie, m->flags);
+		MPU_CALLBACK(m, m->cookie, m->flags);
 	}
 	if (used && MIDIQ_AVAIL(m->outq) > m->hiwat) {
 		if (m->wchan) {
