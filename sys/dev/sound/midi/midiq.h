@@ -83,7 +83,5 @@ struct name {                           \
 #define MIDIQ_CLEAR(head) ((head).h = (head).t = 0)
 #define MIDIQ_BUF(head) ((head).b)
 #define MIDIQ_DEQ(head, buf, size) MIDIQ_DEQ_I(head, buf, size, 1, 1)
-#define MIDIQ_PEEK(head, buf, size) MIDIQ_DEQ_I(head, buf, size, 1, 0)
-#define MIDIQ_POP(head, size) MIDIQ_DEQ_I(head, &head, size, 0, 1)
 
 #endif
