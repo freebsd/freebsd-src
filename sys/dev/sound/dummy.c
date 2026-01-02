@@ -40,7 +40,10 @@
 #endif
 
 #include <dev/sound/pcm/sound.h>
+#include <dev/sound/midi/mpu401.h>
+
 #include <mixer_if.h>
+#include <mpufoi_if.h>
 
 #define DUMMY_NPCHAN	1
 #define DUMMY_NRCHAN	1
@@ -66,6 +69,8 @@ struct dummy_softc {
 	struct callout callout;
 	struct mtx lock;
 	bool stopped;
+	struct mpu401 *mpu;
+	mpu401_intr_t *mpu_intr;
 };
 
 static bool
@@ -92,6 +97,9 @@ dummy_chan_io(void *arg)
 	struct dummy_softc *sc = arg;
 	struct dummy_chan *ch;
 	int i = 0;
+
+	if (sc->mpu_intr)
+		(sc->mpu_intr)(sc->mpu);
 
 	if (sc->stopped)
 		return;
@@ -294,6 +302,39 @@ static kobj_method_t dummy_mixer_methods[] = {
 
 MIXER_DECLARE(dummy_mixer);
 
+static uint8_t
+dummy_mpu_read(struct mpu401 *arg, void *sc, int reg)
+{
+	return (0);
+}
+
+static void
+dummy_mpu_write(struct mpu401 *arg, void *sc, int reg, unsigned char b)
+{
+}
+
+static int
+dummy_mpu_uninit(struct mpu401 *arg, void *cookie)
+{
+	struct dummy_softc *sc = cookie;
+
+	mtx_lock(&sc->lock);
+	sc->mpu_intr = NULL;
+	sc->mpu = NULL;
+	mtx_unlock(&sc->lock);
+
+	return (0);
+}
+
+static kobj_method_t dummy_mpu_methods[] = {
+	KOBJMETHOD(mpufoi_read,		dummy_mpu_read),
+	KOBJMETHOD(mpufoi_write,	dummy_mpu_write),
+	KOBJMETHOD(mpufoi_uninit,	dummy_mpu_uninit),
+	KOBJMETHOD_END
+};
+
+static DEFINE_CLASS(dummy_mpu, dummy_mpu_methods, 0);
+
 static void
 dummy_identify(driver_t *driver, device_t parent)
 {
@@ -354,6 +395,11 @@ dummy_attach(device_t dev)
 	 */
 	make_dev_alias(sc->info.dsp_dev, "dsp.dummy");
 
+	sc->mpu = mpu401_init(&dummy_mpu_class, sc, dummy_chan_io,
+	    &sc->mpu_intr);
+	if (sc->mpu == NULL)
+		return (ENXIO);
+
 	return (0);
 }
 
@@ -368,6 +414,7 @@ dummy_detach(device_t dev)
 	mtx_unlock(&sc->lock);
 	callout_drain(&sc->callout);
 	err = pcm_unregister(dev);
+	mpu401_uninit(sc->mpu);
 	mtx_destroy(&sc->lock);
 
 	return (err);
