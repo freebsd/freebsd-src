@@ -61,6 +61,11 @@
 #define DBL_MANT_DIG __DBL_MANT_DIG__
 #endif // DBL_MANT_DIG
 
+// Kludge for gcc defining LDBL_MANT_DIG as 53 on i386
+#if defined(LDBL_MANT_DIG) && defined(__GNUC__) && !defined(__clang__) && defined(__i386__)
+#undef LDBL_MANT_DIG
+#endif
+
 #ifndef LDBL_MANT_DIG
 #define LDBL_MANT_DIG __LDBL_MANT_DIG__
 #endif // LDBL_MANT_DIG
