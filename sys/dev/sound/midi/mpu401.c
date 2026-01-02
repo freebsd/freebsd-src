@@ -142,10 +142,7 @@ mpu401_init(kobj_class_t cls, void *cookie, driver_intr_t softintr,
 	struct mpu401 *m;
 
 	*cb = NULL;
-	m = malloc(sizeof(*m), M_MIDI, M_NOWAIT | M_ZERO);
-
-	if (!m)
-		return NULL;
+	m = malloc(sizeof(*m), M_MIDI, M_WAITOK | M_ZERO);
 
 	kobj_init((kobj_t)m, cls);
 
