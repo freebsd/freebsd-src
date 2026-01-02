@@ -1071,7 +1071,6 @@ mixer_ioctl_channel(struct cdev *dev, u_long cmd, caddr_t arg, int mode,
 		break;
 	default:
 		return (-1);
-		break;
 	}
 
 	pid = td->td_proc->p_pid;
