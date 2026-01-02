@@ -534,24 +534,24 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 		while (f != NULL) {
 			sbuf_printf(&sb, "%s", f->class->name);
 			if (f->class->type == FEEDER_FORMAT) {
-				snd_afmt2str(f->desc->in, buf, sizeof(buf));
+				snd_afmt2str(f->desc.in, buf, sizeof(buf));
 				sbuf_printf(&sb, "(%s -> ", buf);
-				snd_afmt2str(f->desc->out, buf, sizeof(buf));
+				snd_afmt2str(f->desc.out, buf, sizeof(buf));
 				sbuf_printf(&sb, "%s)", buf);
 			} else if (f->class->type == FEEDER_MATRIX) {
 				sbuf_printf(&sb, "(%d.%dch -> %d.%dch)",
-				    AFMT_CHANNEL(f->desc->in) -
-				    AFMT_EXTCHANNEL(f->desc->in),
-				    AFMT_EXTCHANNEL(f->desc->in),
-				    AFMT_CHANNEL(f->desc->out) -
-				    AFMT_EXTCHANNEL(f->desc->out),
-				    AFMT_EXTCHANNEL(f->desc->out));
+				    AFMT_CHANNEL(f->desc.in) -
+				    AFMT_EXTCHANNEL(f->desc.in),
+				    AFMT_EXTCHANNEL(f->desc.in),
+				    AFMT_CHANNEL(f->desc.out) -
+				    AFMT_EXTCHANNEL(f->desc.out),
+				    AFMT_EXTCHANNEL(f->desc.out));
 			} else if (f->class->type == FEEDER_RATE) {
 				sbuf_printf(&sb, "(%d -> %d)",
 				    FEEDER_GET(f, FEEDRATE_SRC),
 				    FEEDER_GET(f, FEEDRATE_DST));
 			} else {
-				snd_afmt2str(f->desc->out, buf, sizeof(buf));
+				snd_afmt2str(f->desc.out, buf, sizeof(buf));
 				sbuf_printf(&sb, "(%s)", buf);
 			}
 			sbuf_printf(&sb, " -> ");
@@ -1330,25 +1330,25 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 			sbuf_printf(s, "%s", f->class->name);
 			if (f->class->type == FEEDER_FORMAT) {
 				sbuf_printf(s, "(0x%08x -> 0x%08x)",
-				    f->desc->in, f->desc->out);
+				    f->desc.in, f->desc.out);
 			} else if (f->class->type == FEEDER_MATRIX) {
 				sbuf_printf(s, "(%d.%d -> %d.%d)",
-				    AFMT_CHANNEL(f->desc->in) -
-				    AFMT_EXTCHANNEL(f->desc->in),
-				    AFMT_EXTCHANNEL(f->desc->in),
-				    AFMT_CHANNEL(f->desc->out) -
-				    AFMT_EXTCHANNEL(f->desc->out),
-				    AFMT_EXTCHANNEL(f->desc->out));
+				    AFMT_CHANNEL(f->desc.in) -
+				    AFMT_EXTCHANNEL(f->desc.in),
+				    AFMT_EXTCHANNEL(f->desc.in),
+				    AFMT_CHANNEL(f->desc.out) -
+				    AFMT_EXTCHANNEL(f->desc.out),
+				    AFMT_EXTCHANNEL(f->desc.out));
 			} else if (f->class->type == FEEDER_RATE) {
 				sbuf_printf(s,
 				    "(0x%08x q:%d %d -> %d)",
-				    f->desc->out,
+				    f->desc.out,
 				    FEEDER_GET(f, FEEDRATE_QUALITY),
 				    FEEDER_GET(f, FEEDRATE_SRC),
 				    FEEDER_GET(f, FEEDRATE_DST));
 			} else {
 				sbuf_printf(s, "(0x%08x)",
-				    f->desc->out);
+				    f->desc.out);
 			}
 			sbuf_printf(s, " -> ");
 			f = f->parent;
