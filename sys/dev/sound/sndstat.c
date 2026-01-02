@@ -52,9 +52,6 @@
 
 #include "feeder_if.h"
 
-#define	SS_TYPE_PCM		1
-#define	SS_TYPE_MIDI		2
-
 static d_open_t sndstat_open;
 static void sndstat_close(void *);
 static d_read_t sndstat_read;
@@ -75,7 +72,8 @@ struct sndstat_entry {
 	TAILQ_ENTRY(sndstat_entry) link;
 	device_t dev;
 	char *str;
-	int type, unit;
+	enum sndstat_type type;
+	int unit;
 };
 
 struct sndstat_userdev {
@@ -688,22 +686,26 @@ sndstat_create_devs_nvlist(nvlist_t **nvlp)
 		return (ENOMEM);
 
 	TAILQ_FOREACH(ent, &sndstat_devlist, link) {
-		struct snddev_info *d;
-		nvlist_t *di;
+		if (ent->type == SNDST_TYPE_PCM) {
+			struct snddev_info *d;
+			nvlist_t *di;
 
-		d = device_get_softc(ent->dev);
-		if (!PCM_REGISTERED(d))
-			continue;
+			d = device_get_softc(ent->dev);
+			if (!PCM_REGISTERED(d))
+				continue;
 
-		err = sndstat_build_sound4_nvlist(d, &di);
-		if (err)
-			goto done;
+			err = sndstat_build_sound4_nvlist(d, &di);
+			if (err)
+				goto done;
 
-		nvlist_append_nvlist_array(nvl, SNDST_DSPS, di);
-		nvlist_destroy(di);
-		err = nvlist_error(nvl);
-		if (err)
-			goto done;
+			nvlist_append_nvlist_array(nvl, SNDST_DSPS, di);
+			nvlist_destroy(di);
+			err = nvlist_error(nvl);
+			if (err)
+				goto done;
+		} else if (ent->type == SNDST_TYPE_MIDI) {
+			/* TODO */
+		}
 	}
 
 	TAILQ_FOREACH(pf, &sndstat_filelist, entry) {
@@ -1154,22 +1156,14 @@ fail:
 
 /************************************************************************/
 
-int
-sndstat_register(device_t dev, char *str)
+void
+sndstat_register(device_t dev, enum sndstat_type type, char *str)
 {
 	struct sndstat_entry *ent;
 	struct sndstat_entry *pre;
-	const char *devtype;
-	int type, unit;
+	int unit;
 
 	unit = device_get_unit(dev);
-	devtype = device_get_name(dev);
-	if (!strcmp(devtype, "pcm"))
-		type = SS_TYPE_PCM;
-	else if (!strcmp(devtype, "midi"))
-		type = SS_TYPE_MIDI;
-	else
-		return (EINVAL);
 
 	ent = malloc(sizeof *ent, M_DEVBUF, M_WAITOK | M_ZERO);
 	ent->dev = dev;
@@ -1195,8 +1189,6 @@ sndstat_register(device_t dev, char *str)
 		TAILQ_INSERT_BEFORE(pre, ent, link);
 	}
 	SNDSTAT_UNLOCK();
-
-	return (0);
 }
 
 int
@@ -1388,20 +1380,24 @@ sndstat_prepare(struct sndstat_file *pf_self)
 	/* generate list of installed devices */
 	k = 0;
 	TAILQ_FOREACH(ent, &sndstat_devlist, link) {
-		d = device_get_softc(ent->dev);
-		if (!PCM_REGISTERED(d))
-			continue;
-		if (!k++)
-			sbuf_printf(s, "Installed devices:\n");
-		sbuf_printf(s, "%s:", device_get_nameunit(ent->dev));
-		sbuf_printf(s, " <%s>", device_get_desc(ent->dev));
-		if (snd_verbose > 0)
-			sbuf_printf(s, " %s", ent->str);
-		/* XXX Need Giant magic entry ??? */
-		PCM_ACQUIRE_QUICK(d);
-		sndstat_prepare_pcm(s, ent->dev, snd_verbose);
-		PCM_RELEASE_QUICK(d);
-		sbuf_printf(s, "\n");
+		if (ent->type == SNDST_TYPE_PCM) {
+			d = device_get_softc(ent->dev);
+			if (!PCM_REGISTERED(d))
+				continue;
+			if (!k++)
+				sbuf_printf(s, "Installed devices:\n");
+			sbuf_printf(s, "%s:", device_get_nameunit(ent->dev));
+			sbuf_printf(s, " <%s>", device_get_desc(ent->dev));
+			if (snd_verbose > 0)
+				sbuf_printf(s, " %s", ent->str);
+			/* XXX Need Giant magic entry ??? */
+			PCM_ACQUIRE_QUICK(d);
+			sndstat_prepare_pcm(s, ent->dev, snd_verbose);
+			PCM_RELEASE_QUICK(d);
+			sbuf_printf(s, "\n");
+		} else if (ent->type == SNDST_TYPE_MIDI) {
+			/* TODO */
+		}
 	}
 	if (k == 0)
 		sbuf_printf(s, "No devices installed.\n");

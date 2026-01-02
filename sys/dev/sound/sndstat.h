@@ -31,7 +31,12 @@
 #ifndef _SNDSTAT_H_
 #define _SNDSTAT_H_
 
-int sndstat_register(device_t dev, char *str);
+enum sndstat_type {
+	SNDST_TYPE_PCM,
+	SNDST_TYPE_MIDI,
+};
+
+void sndstat_register(device_t dev, enum sndstat_type type, char *str);
 int sndstat_unregister(device_t dev);
 
 #endif /* _SNDSTAT_H_ */
