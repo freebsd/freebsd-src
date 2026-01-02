@@ -581,30 +581,14 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 }
 
 void
-chn_intr_locked(struct pcm_channel *c)
+chn_intr(struct pcm_channel *c)
 {
-
-	CHN_LOCKASSERT(c);
-
+	CHN_LOCK(c);
 	c->interrupts++;
-
 	if (c->direction == PCMDIR_PLAY)
 		chn_wrintr(c);
 	else
 		chn_rdintr(c);
-}
-
-void
-chn_intr(struct pcm_channel *c)
-{
-
-	if (CHN_LOCKOWNED(c)) {
-		chn_intr_locked(c);
-		return;
-	}
-
-	CHN_LOCK(c);
-	chn_intr_locked(c);
 	CHN_UNLOCK(c);
 }
 
