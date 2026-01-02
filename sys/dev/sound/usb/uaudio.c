@@ -232,7 +232,7 @@ struct uaudio_chan {
 	struct pcmchan_caps pcm_cap;	/* capabilities */
 	struct uaudio_chan_alt usb_alt[CHAN_MAX_ALT];
 	struct snd_dbuf *pcm_buf;
-	struct mtx *pcm_mtx;		/* lock protecting this structure */
+	struct mtx lock;		/* lock protecting this structure */
 	struct uaudio_softc *priv_sc;
 	struct pcm_channel *pcm_ch;
 	struct usb_xfer *xfer[UAUDIO_NCHANBUFS + 1];
@@ -1390,9 +1390,9 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 		/* Unsetup prior USB transfers, if any. */
 		usbd_transfer_unsetup(chan->xfer, UAUDIO_NCHANBUFS + 1);
 
-		mtx_lock(chan->pcm_mtx);
+		mtx_lock(&chan->lock);
 		chan->cur_alt = CHAN_MAX_ALT;
-		mtx_unlock(chan->pcm_mtx);
+		mtx_unlock(&chan->lock);
 
 		/*
 		 * The first alternate setting is typically used for
@@ -1415,9 +1415,9 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 		return;
 	}
 
-	mtx_lock(chan->pcm_mtx);
+	mtx_lock(&chan->lock);
 	next_alt = chan->set_alt;
-	mtx_unlock(chan->pcm_mtx);
+	mtx_unlock(&chan->lock);
 
 	chan_alt = chan->usb_alt + next_alt;
 
@@ -1474,7 +1474,7 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 		}
 	}
 	if (usbd_transfer_setup(sc->sc_udev, &chan_alt->iface_index, chan->xfer,
-	    chan_alt->usb_cfg, UAUDIO_NCHANBUFS + 1, chan, chan->pcm_mtx)) {
+	    chan_alt->usb_cfg, UAUDIO_NCHANBUFS + 1, chan, &chan->lock)) {
 		DPRINTF("could not allocate USB transfers!\n");
 		goto error;
 	}
@@ -1527,18 +1527,18 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 #error "Please update code below!"
 #endif
 
-	mtx_lock(chan->pcm_mtx);
+	mtx_lock(&chan->lock);
 	chan->cur_alt = next_alt;
 	usbd_transfer_start(chan->xfer[0]);
 	usbd_transfer_start(chan->xfer[1]);
-	mtx_unlock(chan->pcm_mtx);
+	mtx_unlock(&chan->lock);
 	return;
 error:
 	usbd_transfer_unsetup(chan->xfer, UAUDIO_NCHANBUFS + 1);
 
-	mtx_lock(chan->pcm_mtx);
+	mtx_lock(&chan->lock);
 	chan->cur_alt = CHAN_MAX_ALT;
-	mtx_unlock(chan->pcm_mtx);
+	mtx_unlock(&chan->lock);
 }
 
 static void
@@ -2664,7 +2664,7 @@ uaudio_chan_init(struct uaudio_chan *ch, struct snd_dbuf *b,
 	/* store mutex and PCM channel */
 
 	ch->pcm_ch = c;
-	ch->pcm_mtx = &c->lock;
+	mtx_init(&ch->lock, "uaudio_chan lock", NULL, MTX_DEF);
 
 	/* compute worst case buffer */
 
@@ -2690,10 +2690,6 @@ uaudio_chan_init(struct uaudio_chan *ch, struct snd_dbuf *b,
 	ch->pcm_buf = b;
 	ch->max_buf = buf_size;
 
-	if (ch->pcm_mtx == NULL) {
-		DPRINTF("ERROR: PCM channels does not have a mutex!\n");
-		goto error;
-	}
 	return (ch);
 
 error:
@@ -2707,6 +2703,7 @@ uaudio_chan_free(struct uaudio_chan *ch)
 	free(ch->buf, M_DEVBUF);
 	ch->buf = NULL;
 	usbd_transfer_unsetup(ch->xfer, UAUDIO_NCHANBUFS + 1);
+	mtx_destroy(&ch->lock);
 
 	ch->num_alt = 0;
 
