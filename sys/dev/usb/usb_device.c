@@ -3127,7 +3127,7 @@ usbd_fill_deviceinfo(struct usb_device *udev, struct usb_device_info *di)
 {
 	struct usb_device *hub;
 
-	bzero(di, sizeof(di[0]));
+	memset(di, 0, sizeof(di[0]));
 
 	di->udi_bus = device_get_unit(udev->bus->bdev);
 	di->udi_addr = udev->address;
