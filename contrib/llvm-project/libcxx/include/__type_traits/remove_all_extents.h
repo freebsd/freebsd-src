@@ -10,6 +10,7 @@
 #define _LIBCPP___TYPE_TRAITS_REMOVE_ALL_EXTENTS_H
 
 #include <__config>
+#include <__cstddef/size_t.h>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
@@ -23,13 +24,25 @@ struct _LIBCPP_NO_SPECIALIZATIONS remove_all_extents {
   using type _LIBCPP_NODEBUG = __remove_all_extents(_Tp);
 };
 
-#ifdef _LIBCPP_COMPILER_GCC
-template <class _Tp>
-using __remove_all_extents_t _LIBCPP_NODEBUG = typename remove_all_extents<_Tp>::type;
-#else
 template <class _Tp>
 using __remove_all_extents_t _LIBCPP_NODEBUG = __remove_all_extents(_Tp);
-#endif
+#else
+template <class _Tp>
+struct remove_all_extents {
+  typedef _Tp type;
+};
+template <class _Tp>
+struct remove_all_extents<_Tp[]> {
+  typedef typename remove_all_extents<_Tp>::type type;
+};
+template <class _Tp, size_t _Np>
+struct remove_all_extents<_Tp[_Np]> {
+  typedef typename remove_all_extents<_Tp>::type type;
+};
+
+template <class _Tp>
+using __remove_all_extents_t = typename remove_all_extents<_Tp>::type;
+#endif // __has_builtin(__remove_all_extents)
 
 #if _LIBCPP_STD_VER >= 14
 template <class _Tp>
