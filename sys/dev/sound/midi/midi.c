@@ -68,7 +68,6 @@ struct snd_midi {
 	int	unit;
 	int	channel;
 
-	int	busy;
 	int	flags;			/* File flags */
 	char	name[MIDI_NAMELEN];
 	MIDIQ_HEAD(, char) inq, outq;
@@ -154,7 +153,6 @@ midi_init(kobj_class_t cls, void *cookie)
 	    (outqsize && !MIDIQ_BUF(m->outq)))
 		goto err2;
 
-	m->busy = 0;
 	m->flags = 0;
 	m->unit = alloc_unr(dev_unr);
 	m->channel = alloc_unr(chn_unr);
@@ -188,20 +186,13 @@ int
 midi_uninit(struct snd_midi *m)
 {
 	mtx_lock(&m->lock);
-	if (m->busy) {
-		if (!(m->rchan || m->wchan)) {
-			mtx_unlock(&m->lock);
-			return (EBUSY);
-		}
-
-		if (m->rchan) {
-			wakeup(&m->rchan);
-			m->rchan = 0;
-		}
-		if (m->wchan) {
-			wakeup(&m->wchan);
-			m->wchan = 0;
-		}
+	if (m->rchan) {
+		wakeup(&m->rchan);
+		m->rchan = 0;
+	}
+	if (m->wchan) {
+		wakeup(&m->wchan);
+		m->wchan = 0;
 	}
 	mtx_unlock(&m->lock);
 	MPU_UNINIT(m, m->cookie);
@@ -338,7 +329,6 @@ midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 		if (retval)
 			goto err;
 	}
-	m->busy++;
 
 	m->rchan = 0;
 	m->wchan = 0;
@@ -384,7 +374,6 @@ midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 		retval = ENXIO;
 		goto err;
 	}
-	m->busy--;
 
 	oldflags = m->flags;
 
@@ -395,8 +384,6 @@ midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 	if ((m->flags & (M_TXEN | M_RXEN)) != (oldflags & (M_RXEN | M_TXEN)))
 		MPU_CALLBACK(m, m->cookie, m->flags);
-
-	MIDI_DEBUG(1, printf("midi_close: closed, busy = %d.\n", m->busy));
 
 	mtx_unlock(&m->lock);
 	retval = 0;
@@ -450,8 +437,6 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 				goto err0;
 			mtx_lock(&m->lock);
 			m->rchan = 0;
-			if (!m->busy)
-				goto err1;
 		}
 		MIDI_DEBUG(6, printf("midi_read start\n"));
 		/*
@@ -522,8 +507,6 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 				goto err0;
 			mtx_lock(&m->lock);
 			m->wchan = 0;
-			if (!m->busy)
-				goto err1;
 		}
 
 		/*
