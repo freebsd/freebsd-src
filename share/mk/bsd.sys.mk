@@ -244,7 +244,8 @@ CWARNFLAGS+=	-Wno-error=overflow
 .if ${COMPILER_VERSION} >= 120100
 # These warnings are raised by headers in libc++ so are disabled
 # globally for all C++
-CXXWARNFLAGS+=	-Wno-literal-suffix 			\
+CXXWARNFLAGS+=	-Wno-literal-suffix			\
+		-Wno-c++20-extensions			\
 		-Wno-error=unknown-pragmas
 .endif
 
