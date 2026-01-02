@@ -45,7 +45,6 @@
 #include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/selinfo.h>
-#include <sys/sysctl.h>
 #include <sys/uio.h>
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
@@ -99,15 +98,6 @@ static struct cdevsw midi_cdevsw = {
 struct unrhdr *dev_unr = NULL;
 struct unrhdr *chn_unr = NULL;
 
-SYSCTL_NODE(_hw, OID_AUTO, midi, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
-    "Midi driver");
-
-int             midi_debug;
-/* XXX: should this be moved into debug.midi? */
-SYSCTL_INT(_hw_midi, OID_AUTO, debug, CTLFLAG_RW, &midi_debug, 0, "");
-
-#define MIDI_DEBUG(l,a)	if(midi_debug>=l) a
-
 /*
  * Register a new midi device.
  *
@@ -126,7 +116,6 @@ midi_init(kobj_class_t cls, void *cookie)
 	inqsize = MPU_INQSIZE(m, cookie);
 	outqsize = MPU_OUTQSIZE(m, cookie);
 
-	MIDI_DEBUG(1, printf("midiinit queues %d/%d.\n", inqsize, outqsize));
 	if (!inqsize && !outqsize)
 		goto err1;
 
@@ -178,7 +167,6 @@ err2:
 		free(MIDIQ_BUF(m->outq), M_MIDI);
 err1:
 	free(m, M_MIDI);
-	MIDI_DEBUG(1, printf("midi_init ended in error\n"));
 	return NULL;
 }
 
@@ -233,8 +221,6 @@ midi_in(struct snd_midi *m, uint8_t *buf, int size)
 
 	mtx_lock(&m->lock);
 
-	MIDI_DEBUG(5, printf("midi_in: m=%p size=%d\n", m, size));
-
 	if (!(m->flags & M_RX)) {
 		/* We should return 0 but this may stop receiving/sending. */
 		mtx_unlock(&m->lock);
@@ -243,14 +229,10 @@ midi_in(struct snd_midi *m, uint8_t *buf, int size)
 
 	used = 0;
 
-	MIDI_DEBUG(6, printf("midi_in: len %jd avail %jd\n",
-	    (intmax_t)MIDIQ_LEN(m->inq),
-	    (intmax_t)MIDIQ_AVAIL(m->inq)));
 	if (MIDIQ_AVAIL(m->inq) > size) {
 		used = size;
 		MIDIQ_ENQ(m->inq, buf, size);
 	} else {
-		MIDI_DEBUG(4, printf("midi_in: Discarding data qu\n"));
 		mtx_unlock(&m->lock);
 		return 0;
 	}
@@ -273,14 +255,12 @@ midi_out(struct snd_midi *m, uint8_t *buf, int size)
 
 	mtx_lock(&m->lock);
 
-	MIDI_DEBUG(2, printf("midi_out: %p\n", m));
 	if (!(m->flags & M_TXEN)) {
 		mtx_unlock(&m->lock);
 		return (0);
 	}
 
 	used = MIN(size, MIDIQ_LEN(m->outq));
-	MIDI_DEBUG(3, printf("midi_out: used %d\n", used));
 	if (used)
 		MIDIQ_DEQ(m->outq, buf, used);
 	if (MIDIQ_EMPTY(m->outq)) {
@@ -304,8 +284,6 @@ midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	struct snd_midi *m = i_dev->si_drv1;
 	int retval;
 
-	MIDI_DEBUG(1, printf("midiopen %p %s %s\n", td,
-	    flags & FREAD ? "M_RX" : "", flags & FWRITE ? "M_TX" : ""));
 	if (m == NULL)
 		return ENXIO;
 
@@ -347,8 +325,6 @@ midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 	MPU_CALLBACK(m, m->cookie, m->flags);
 
-	MIDI_DEBUG(2, printf("midi_open: opened.\n"));
-
 err:
 	mtx_unlock(&m->lock);
 	return retval;
@@ -360,9 +336,6 @@ midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	struct snd_midi *m = i_dev->si_drv1;
 	int retval;
 	int oldflags;
-
-	MIDI_DEBUG(1, printf("midi_close %p %s %s\n", td,
-	    flags & FREAD ? "M_RX" : "", flags & FWRITE ? "M_TX" : ""));
 
 	if (m == NULL)
 		return ENXIO;
@@ -403,9 +376,6 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 	int used;
 	char buf[MIDI_RSIZE];
 
-	MIDI_DEBUG(5, printf("midiread: count=%lu\n",
-	    (unsigned long)uio->uio_resid));
-
 	retval = EIO;
 
 	if (m == NULL)
@@ -437,7 +407,6 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 			mtx_lock(&m->lock);
 			m->rchan = 0;
 		}
-		MIDI_DEBUG(6, printf("midi_read start\n"));
 		/*
 	         * At this point, it is certain that m->inq has data
 	         */
@@ -445,7 +414,6 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 		used = MIN(MIDIQ_LEN(m->inq), uio->uio_resid);
 		used = MIN(used, MIDI_RSIZE);
 
-		MIDI_DEBUG(6, printf("midiread: uiomove cc=%d\n", used));
 		MIDIQ_DEQ(m->inq, buf, used);
 		retval = uiomove(buf, used, uio);
 		if (retval)
@@ -458,7 +426,7 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 	retval = 0;
 err1:
 	mtx_unlock(&m->lock);
-err0:	MIDI_DEBUG(4, printf("midi_read: ret %d\n", retval));
+err0:
 	return retval;
 }
 
@@ -475,7 +443,6 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 	int used;
 	char buf[MIDI_WSIZE];
 
-	MIDI_DEBUG(4, printf("midi_write\n"));
 	retval = 0;
 	if (m == NULL)
 		goto err0;
@@ -491,7 +458,6 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 			if (ioflag & O_NONBLOCK)
 				goto err1;
 			m->wchan = 1;
-			MIDI_DEBUG(3, printf("midi_write msleep\n"));
 			retval = msleep(&m->wchan, &m->lock,
 			    PCATCH | PDROP, "midi TX", 0);
 			/*
@@ -514,11 +480,7 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 
 		used = MIN(MIDIQ_AVAIL(m->outq), uio->uio_resid);
 		used = MIN(used, MIDI_WSIZE);
-		MIDI_DEBUG(5, printf("midiout: resid %zd len %jd avail %jd\n",
-		    uio->uio_resid, (intmax_t)MIDIQ_LEN(m->outq),
-		    (intmax_t)MIDIQ_AVAIL(m->outq)));
 
-		MIDI_DEBUG(5, printf("midi_write: uiomove cc=%d\n", used));
 		retval = uiomove(buf, used, uio);
 		if (retval)
 			goto err1;
