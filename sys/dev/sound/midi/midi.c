@@ -68,7 +68,6 @@ struct snd_midi {
 	int	channel;
 
 	int	flags;			/* File flags */
-	char	name[MIDI_NAMELEN];
 	MIDIQ_HEAD(, char) inq, outq;
 	int	rchan, wchan;
 	struct selinfo rsel, wsel;
