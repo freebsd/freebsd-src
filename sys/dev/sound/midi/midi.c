@@ -432,7 +432,6 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 				goto err0;
 			if (m != i_dev->si_drv1)
 				retval = ENXIO;
-			/* if (retval && retval != ERESTART) */
 			if (retval)
 				goto err0;
 			mtx_lock(&m->lock);
