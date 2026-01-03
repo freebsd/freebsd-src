@@ -133,7 +133,7 @@ struct gprovider {
 	struct gconf		lg_config;
 };
 
-struct gident * geom_lookupid(struct gmesh *, const void *);
+struct gident *geom_lookupid(const struct gmesh *, const void *);
 int geom_xml2tree(struct gmesh *, char *);
 int geom_gettree(struct gmesh *);
 int geom_gettree_geom(struct gmesh *, const char *, const char *, int);
