@@ -194,8 +194,8 @@ cpu_switchin:
 blocked_loop:
 	ld	%r7,TD_LOCK(%r13)
 	cmpd	%r6,%r7 
-	beq-	blocked_loop
 	isync
+	beq-	blocked_loop
 #endif
 	
 	ld	%r17,TD_PCB(%r13)	/* Get new PCB */
