@@ -546,24 +546,80 @@ lkpi_80211_mo_remove_chanctx(struct ieee80211_hw *hw,
 }
 
 void
-lkpi_80211_mo_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-    struct ieee80211_bss_conf *conf, uint64_t changed)
+lkpi_80211_mo_vif_cfg_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    uint64_t vif_cfg_bits, bool fallback)
 {
 	struct lkpi_hw *lhw;
+
+	might_sleep();
+	/* XXX-FINISH all callers for lockdep_assert_wiphy(hw->wiphy); */
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->vif_cfg_changed == NULL &&
+	    lhw->ops->bss_info_changed == NULL)
+		return;
+
+	if (vif_cfg_bits == 0)
+		return;
+
+	LKPI_80211_TRACE_MO("hw %p vif %p vif_cfg_bits %#jx", hw, vif, (uintmax_t)vif_cfg_bits);
+	if (lhw->ops->link_info_changed != NULL)
+		lhw->ops->vif_cfg_changed(hw, vif, vif_cfg_bits);
+	else if (fallback)
+		lhw->ops->bss_info_changed(hw, vif, &vif->bss_conf, vif_cfg_bits);
+}
+
+void
+lkpi_80211_mo_link_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    struct ieee80211_bss_conf *conf, uint64_t link_info_bits, uint8_t link_id,
+    bool fallback)
+{
+	struct lkpi_hw *lhw;
+
+	might_sleep();
+	/* XXX-FINISH all callers for lockdep_assert_wiphy(hw->wiphy); */
 
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->link_info_changed == NULL &&
 	    lhw->ops->bss_info_changed == NULL)
 		return;
 
-	if (changed == 0)
+	if (link_info_bits == 0)
 		return;
 
-	LKPI_80211_TRACE_MO("hw %p vif %p conf %p changed %#jx", hw, vif, conf, (uintmax_t)changed);
+	if (!ieee80211_vif_link_active(vif, link_id))
+		return;
+
+	LKPI_80211_TRACE_MO("hw %p vif %p conf %p link_info_bits %#jx", hw, vif, conf, (uintmax_t)link_info_bits);
 	if (lhw->ops->link_info_changed != NULL)
-		lhw->ops->link_info_changed(hw, vif, conf, changed);
-	else
-		lhw->ops->bss_info_changed(hw, vif, conf, changed);
+		lhw->ops->link_info_changed(hw, vif, conf, link_info_bits);
+	else if (fallback)
+		lhw->ops->bss_info_changed(hw, vif, conf, link_info_bits);
+}
+
+/*
+ * This is basically obsolete but one caller.
+ * The functionality is now split between lkpi_80211_mo_link_info_changed() and
+ * lkpi_80211_mo_vif_cfg_changed().  Those functions have a flag whether to call
+ * the (*bss_info_changed) fallback or not.  See lkpi_bss_info_change().
+ */
+void
+lkpi_80211_mo_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    struct ieee80211_bss_conf *conf, uint64_t bss_changed)
+{
+	struct lkpi_hw *lhw;
+
+	/* XXX-FINISH all callers for lockdep_assert_wiphy(hw->wiphy); */
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->bss_info_changed == NULL)
+		return;
+
+	if (bss_changed == 0)
+		return;
+
+	LKPI_80211_TRACE_MO("hw %p vif %p conf %p changed %#jx", hw, vif, conf, (uintmax_t)bss_changed);
+	lhw->ops->bss_info_changed(hw, vif, conf, bss_changed);
 }
 
 int
