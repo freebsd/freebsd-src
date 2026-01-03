@@ -141,8 +141,8 @@ cpu_switchin:
 blocked_loop:
 	lwz	%r7,TD_LOCK(%r2)
 	cmpw	%r6,%r7 
-	beq-	blocked_loop
 	isync
+	beq-	blocked_loop
 #endif
 
 	lwz	%r17,TD_PCB(%r2)	/* Get new current PCB */
