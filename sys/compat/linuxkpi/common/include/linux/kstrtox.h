@@ -249,22 +249,16 @@ kstrtoull(const char *cp, unsigned int base, unsigned long long *res)
 static inline int
 kstrtobool(const char *s, bool *res)
 {
-	size_t len;
-
-	if (s == NULL || (len = strlen(s)) == 0 || res == NULL)
+	if (s == NULL || *s == '\0')
 		return (-EINVAL);
 
-	/* skip newline character, if any */
-	if (s[len - 1] == '\n')
-		len--;
-
-	if (len == 1 && strchr("yY1", s[0]) != NULL)
+	if (strchr("eEtTyY1", s[0]) != NULL)
 		*res = true;
-	else if (len == 1 && strchr("nN0", s[0]) != NULL)
+	else if (strchr("dDfFnN0", s[0]) != NULL)
 		*res = false;
-	else if (strncasecmp("on", s, len) == 0)
+	else if (strncasecmp("on", s, 2) == 0)
 		*res = true;
-	else if (strncasecmp("off", s, len) == 0)
+	else if (strncasecmp("of", s, 2) == 0)
 		*res = false;
 	else
 		return (-EINVAL);
