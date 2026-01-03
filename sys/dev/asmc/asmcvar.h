@@ -33,6 +33,7 @@ struct asmc_softc {
 	device_t 		sc_dev;
 	struct mtx 		sc_mtx;
 	int 			sc_nfan;
+	int 			sc_nkeys;
 	int16_t			sms_rest_x;
 	int16_t			sms_rest_y;
 	int16_t			sms_rest_z;

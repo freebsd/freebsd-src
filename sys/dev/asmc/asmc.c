@@ -823,10 +823,16 @@ asmc_resume(device_t dev)
 #ifdef DEBUG
 void asmc_dumpall(device_t dev)
 {
+	struct asmc_softc *sc = device_get_softc(dev);
 	int i;
 
-	/* XXX magic number */
-	for (i=0; i < 0x100; i++)
+	if (sc->sc_nkeys == 0) {
+		device_printf(dev, "asmc_dumpall: key count not available\n");
+		return;
+	}
+
+	device_printf(dev, "asmc_dumpall: dumping %d keys\n", sc->sc_nkeys);
+	for (i = 0; i < sc->sc_nkeys; i++)
 		asmc_key_dump(dev, i);
 }
 #endif
@@ -914,12 +920,15 @@ nosms:
 		sc->sc_nfan = ASMC_MAXFANS;
 	}
 
-	if (bootverbose) {
-		/*
-		 * The number of keys is a 32 bit buffer
-		 */
-		asmc_key_read(dev, ASMC_NKEYS, buf, 4);
-		device_printf(dev, "number of keys: %d\n", ntohl(*(uint32_t*)buf));
+	/*
+	 * Read and cache the number of SMC keys (32 bit buffer)
+	 */
+	if (asmc_key_read(dev, ASMC_NKEYS, buf, 4) == 0) {
+		sc->sc_nkeys = be32dec(buf);
+		if (bootverbose)
+			device_printf(dev, "number of keys: %d\n", sc->sc_nkeys);
+	} else {
+		sc->sc_nkeys = 0;
 	}
 
 #ifdef DEBUG
