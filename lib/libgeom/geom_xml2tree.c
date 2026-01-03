@@ -29,21 +29,24 @@
  * SUCH DAMAGE.
  */
 
-#include <stdio.h>
-#include <inttypes.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <errno.h>
-#include <paths.h>
-#include <fcntl.h>
-#include <ctype.h>
-#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
+
+#include <ctype.h>
 #include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <paths.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 #include <bsdxml.h>
 #include <libgeom.h>
 
@@ -75,17 +78,14 @@ StartElement(void *userData, const char *name, const char **attr)
 	id = NULL;
 	ref = NULL;
 	for (i = 0; attr[i] != NULL; i += 2) {
-		if (!strcmp(attr[i], "id")) {
+		if (strcmp(attr[i], "id") == 0) {
 			id = (void *)strtoumax(attr[i + 1], NULL, 0);
 			mt->nident++;
-		} else if (!strcmp(attr[i], "ref")) {
+		} else if (strcmp(attr[i], "ref") == 0) {
 			ref = (void *)strtoumax(attr[i + 1], NULL, 0);
-		} else
-			printf("%*.*s[%s = %s]\n",
-			    mt->level + 1, mt->level + 1, "",
-			    attr[i], attr[i + 1]);
+		}
 	}
-	if (!strcmp(name, "class") && mt->class == NULL) {
+	if (strcmp(name, "class") == 0 && mt->class == NULL) {
 		mt->class = calloc(1, sizeof *mt->class);
 		if (mt->class == NULL) {
 			mt->error = errno;
@@ -100,7 +100,7 @@ StartElement(void *userData, const char *name, const char **attr)
 		LIST_INIT(&mt->class->lg_config);
 		return;
 	}
-	if (!strcmp(name, "geom") && mt->geom == NULL) {
+	if (strcmp(name, "geom") == 0 && mt->geom == NULL) {
 		mt->geom = calloc(1, sizeof *mt->geom);
 		if (mt->geom == NULL) {
 			mt->error = errno;
@@ -116,11 +116,11 @@ StartElement(void *userData, const char *name, const char **attr)
 		LIST_INIT(&mt->geom->lg_config);
 		return;
 	}
-	if (!strcmp(name, "class") && mt->geom != NULL) {
+	if (strcmp(name, "class") == 0 && mt->geom != NULL) {
 		mt->geom->lg_class = ref;
 		return;
 	}
-	if (!strcmp(name, "consumer") && mt->consumer == NULL) {
+	if (strcmp(name, "consumer") == 0 && mt->consumer == NULL) {
 		mt->consumer = calloc(1, sizeof *mt->consumer);
 		if (mt->consumer == NULL) {
 			mt->error = errno;
@@ -135,15 +135,15 @@ StartElement(void *userData, const char *name, const char **attr)
 		LIST_INIT(&mt->consumer->lg_config);
 		return;
 	}
-	if (!strcmp(name, "geom") && mt->consumer != NULL) {
+	if (strcmp(name, "geom") == 0 && mt->consumer != NULL) {
 		mt->consumer->lg_geom = ref;
 		return;
 	}
-	if (!strcmp(name, "provider") && mt->consumer != NULL) {
+	if (strcmp(name, "provider") == 0 && mt->consumer != NULL) {
 		mt->consumer->lg_provider = ref;
 		return;
 	}
-	if (!strcmp(name, "provider") && mt->provider == NULL) {
+	if (strcmp(name, "provider") == 0 && mt->provider == NULL) {
 		mt->provider = calloc(1, sizeof *mt->provider);
 		if (mt->provider == NULL) {
 			mt->error = errno;
@@ -159,11 +159,11 @@ StartElement(void *userData, const char *name, const char **attr)
 		LIST_INIT(&mt->provider->lg_config);
 		return;
 	}
-	if (!strcmp(name, "geom") && mt->provider != NULL) {
+	if (strcmp(name, "geom") == 0 && mt->provider != NULL) {
 		mt->provider->lg_geom = ref;
 		return;
 	}
-	if (!strcmp(name, "config")) {
+	if (strcmp(name, "config") == 0) {
 		if (mt->provider != NULL) {
 			mt->config = &mt->provider->lg_config;
 			return;
@@ -210,7 +210,7 @@ EndElement(void *userData, const char *name)
 		p = NULL;
 	}
 
-	if (!strcmp(name, "name")) {
+	if (strcmp(name, "name") == 0) {
 		if (mt->provider != NULL) {
 			mt->provider->lg_name = p;
 			return;
@@ -222,47 +222,47 @@ EndElement(void *userData, const char *name)
 			return;
 		}
 	}
-	if (!strcmp(name, "rank") && mt->geom != NULL) {
+	if (strcmp(name, "rank") == 0 && mt->geom != NULL) {
 		mt->geom->lg_rank = strtoul(p, NULL, 0);
 		free(p);
 		return;
 	}
-	if (!strcmp(name, "mode") && mt->provider != NULL) {
+	if (strcmp(name, "mode") == 0 && mt->provider != NULL) {
 		mt->provider->lg_mode = p;
 		return;
 	}
-	if (!strcmp(name, "mode") && mt->consumer != NULL) {
+	if (strcmp(name, "mode") == 0 && mt->consumer != NULL) {
 		mt->consumer->lg_mode = p;
 		return;
 	}
-	if (!strcmp(name, "mediasize") && mt->provider != NULL) {
+	if (strcmp(name, "mediasize") == 0 && mt->provider != NULL) {
 		mt->provider->lg_mediasize = strtoumax(p, NULL, 0);
 		free(p);
 		return;
 	}
-	if (!strcmp(name, "sectorsize") && mt->provider != NULL) {
+	if (strcmp(name, "sectorsize") == 0 && mt->provider != NULL) {
 		mt->provider->lg_sectorsize = strtoul(p, NULL, 0);
 		free(p);
 		return;
 	}
-	if (!strcmp(name, "stripesize") && mt->provider != NULL) {
+	if (strcmp(name, "stripesize") == 0 && mt->provider != NULL) {
 		mt->provider->lg_stripesize = strtoumax(p, NULL, 0);
 		free(p);
 		return;
 	}
-	if (!strcmp(name, "stripeoffset") && mt->provider != NULL) {
+	if (strcmp(name, "stripeoffset") == 0 && mt->provider != NULL) {
 		mt->provider->lg_stripeoffset = strtoumax(p, NULL, 0);
 		free(p);
 		return;
 	}
 
-	if (!strcmp(name, "config")) {
+	if (strcmp(name, "config") == 0) {
 		mt->config = NULL;
 		free(p);
 		return;
 	}
 
-	if (mt->config != NULL || (!strcmp(name, "wither") &&
+	if (mt->config != NULL || (strcmp(name, "wither") == 0 &&
 	    (mt->provider != NULL || mt->geom != NULL))) {
 		if (mt->config != NULL)
 			c = mt->config;
@@ -301,28 +301,28 @@ EndElement(void *userData, const char *name)
 		free(p);
 	}
 
-	if (!strcmp(name, "consumer") && mt->consumer != NULL) {
+	if (strcmp(name, "consumer") == 0 && mt->consumer != NULL) {
 		mt->consumer = NULL;
 		return;
 	}
-	if (!strcmp(name, "provider") && mt->provider != NULL) {
+	if (strcmp(name, "provider") == 0 && mt->provider != NULL) {
 		mt->provider = NULL;
 		return;
 	}
-	if (!strcmp(name, "geom") && mt->consumer != NULL) {
+	if (strcmp(name, "geom") == 0 && mt->consumer != NULL) {
 		return;
 	}
-	if (!strcmp(name, "geom") && mt->provider != NULL) {
+	if (strcmp(name, "geom") == 0 && mt->provider != NULL) {
 		return;
 	}
-	if (!strcmp(name, "geom") && mt->geom != NULL) {
+	if (strcmp(name, "geom") == 0 && mt->geom != NULL) {
 		mt->geom = NULL;
 		return;
 	}
-	if (!strcmp(name, "class") && mt->geom != NULL) {
+	if (strcmp(name, "class") == 0 && mt->geom != NULL) {
 		return;
 	}
-	if (!strcmp(name, "class") && mt->class != NULL) {
+	if (strcmp(name, "class") == 0 && mt->class != NULL) {
 		mt->class = NULL;
 		return;
 	}
@@ -347,7 +347,7 @@ CharData(void *userData , const XML_Char *s , int len)
 }
 
 struct gident *
-geom_lookupid(struct gmesh *gmp, const void *id)
+geom_lookupid(const struct gmesh *gmp, const void *id)
 {
 	struct gident *gip;
 
@@ -413,6 +413,7 @@ geom_xml2tree(struct gmesh *gmp, char *p)
 		return (ENOMEM);
 	i = 0;
 	/* Collect all identifiers */
+	/* XXX we should check for duplicate identifiers */
 	LIST_FOREACH(cl, &gmp->lg_class, lg_class) {
 		gmp->lg_ident[i].lg_id = cl->lg_id;
 		gmp->lg_ident[i].lg_ptr = cl;
@@ -441,8 +442,9 @@ geom_xml2tree(struct gmesh *gmp, char *p)
 	LIST_FOREACH(cl, &gmp->lg_class, lg_class) {
 		LIST_FOREACH(ge, &cl->lg_geom, lg_geom) {
 			ge->lg_class = geom_lookupidptr(gmp, ge->lg_class);
-			LIST_FOREACH(pr, &ge->lg_provider, lg_provider)
+			LIST_FOREACH(pr, &ge->lg_provider, lg_provider) {
 				pr->lg_geom = geom_lookupidptr(gmp, pr->lg_geom);
+			}
 			LIST_FOREACH(co, &ge->lg_consumer, lg_consumer) {
 				co->lg_geom = geom_lookupidptr(gmp, co->lg_geom);
 				if (co->lg_provider != NULL) {
@@ -522,22 +524,22 @@ geom_deletetree(struct gmesh *gmp)
 			break;
 		LIST_REMOVE(cl, lg_class);
 		delete_config(&cl->lg_config);
-		if (cl->lg_name) free(cl->lg_name);
+		free(cl->lg_name);
 		for (;;) {
 			ge = LIST_FIRST(&cl->lg_geom);
 			if (ge == NULL) 
 				break;
 			LIST_REMOVE(ge, lg_geom);
 			delete_config(&ge->lg_config);
-			if (ge->lg_name) free(ge->lg_name);
+			free(ge->lg_name);
 			for (;;) {
 				pr = LIST_FIRST(&ge->lg_provider);
 				if (pr == NULL) 
 					break;
 				LIST_REMOVE(pr, lg_provider);
 				delete_config(&pr->lg_config);
-				if (pr->lg_name) free(pr->lg_name);
-				if (pr->lg_mode) free(pr->lg_mode);
+				free(pr->lg_name);
+				free(pr->lg_mode);
 				free(pr);
 			}
 			for (;;) {
@@ -546,7 +548,7 @@ geom_deletetree(struct gmesh *gmp)
 					break;
 				LIST_REMOVE(co, lg_consumer);
 				delete_config(&co->lg_config);
-				if (co->lg_mode) free(co->lg_mode);
+				free(co->lg_mode);
 				free(co);
 			}
 			free(ge);
