@@ -997,7 +997,7 @@ LEND(link_l2_pagetable)
  * VA start (x8) modulo L3C_SIZE must equal PA start (x9) modulo L3C_SIZE.
  */
 LENTRY(build_l3_page_pagetable)
-	cbz	x10, 2f
+	cbz	x10, 4f
 	/*
 	 * Build the L3 table entry.
 	 */
@@ -1037,7 +1037,7 @@ LENTRY(build_l3_page_pagetable)
 	add	x11, x11, #1
 	add	x9, x9, #1
 	cbnz	x10, 1b
-2:
+4:
 
 	ret
 LEND(build_l3_page_pagetable)
