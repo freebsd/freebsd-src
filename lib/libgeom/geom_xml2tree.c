@@ -76,10 +76,10 @@ StartElement(void *userData, const char *name, const char **attr)
 	ref = NULL;
 	for (i = 0; attr[i] != NULL; i += 2) {
 		if (!strcmp(attr[i], "id")) {
-			id = (void *)strtoul(attr[i + 1], NULL, 0);
+			id = (void *)strtoumax(attr[i + 1], NULL, 0);
 			mt->nident++;
 		} else if (!strcmp(attr[i], "ref")) {
-			ref = (void *)strtoul(attr[i + 1], NULL, 0);
+			ref = (void *)strtoumax(attr[i + 1], NULL, 0);
 		} else
 			printf("%*.*s[%s = %s]\n",
 			    mt->level + 1, mt->level + 1, "",
