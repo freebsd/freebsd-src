@@ -71,6 +71,7 @@ StartElement(void *userData, const char *name, const char **attr)
 	struct mystate *mt;
 	void *id;
 	void *ref;
+	uintmax_t umax;
 	int i;
 
 	mt = userData;
@@ -80,10 +81,12 @@ StartElement(void *userData, const char *name, const char **attr)
 	ref = NULL;
 	for (i = 0; attr[i] != NULL; i += 2) {
 		if (strcmp(attr[i], "id") == 0) {
-			id = (void *)strtoumax(attr[i + 1], NULL, 0);
+			umax = strtoumax(attr[i + 1], NULL, 0);
+			id = (void *)(uintptr_t)umax;
 			mt->nident++;
 		} else if (strcmp(attr[i], "ref") == 0) {
-			ref = (void *)strtoumax(attr[i + 1], NULL, 0);
+			umax = strtoumax(attr[i + 1], NULL, 0);
+			ref = (void *)(uintptr_t)umax;
 		}
 	}
 	if (strcmp(name, "class") == 0 && mt->class == NULL) {
