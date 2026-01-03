@@ -784,10 +784,7 @@ swap_pager_init_object(vm_object_t object, void *handle, struct ucred *cred,
 
 	object->un_pager.swp.writemappings = 0;
 	object->handle = handle;
-	if (cred != NULL) {
-		object->cred = cred;
-		object->charge = size;
-	}
+	object->cred = cred;
 	return (true);
 }
 
@@ -900,8 +897,7 @@ swap_pager_dealloc(vm_object_t object)
 	 * Release the allocation charge.
 	 */
 	if (object->cred != NULL) {
-		swap_release_by_cred(object->charge, object->cred);
-		object->charge = 0;
+		swap_release_by_cred(ptoa(object->size), object->cred);
 		crfree(object->cred);
 		object->cred = NULL;
 	}

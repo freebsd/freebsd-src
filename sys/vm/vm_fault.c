@@ -2310,13 +2310,12 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map __unused,
 		 * directly.
 		 */
 		dst_object = vm_object_allocate_anon(atop(dst_entry->end -
-		    dst_entry->start), NULL, NULL, 0);
+		    dst_entry->start), NULL, NULL);
 #if VM_NRESERVLEVEL > 0
 		dst_object->flags |= OBJ_COLORED;
 		dst_object->pg_color = atop(dst_entry->start);
 #endif
 		dst_object->domain = src_object->domain;
-		dst_object->charge = dst_entry->end - dst_entry->start;
 
 		dst_entry->object.vm_object = dst_object;
 		dst_entry->offset = 0;
@@ -2329,7 +2328,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map __unused,
 		    ("vm_fault_copy_entry: leaked swp charge"));
 		dst_object->cred = curthread->td_ucred;
 		crhold(dst_object->cred);
-		*fork_charge += dst_object->charge;
+		*fork_charge += ptoa(dst_object->size);
 	} else if ((dst_object->flags & OBJ_SWAP) != 0 &&
 	    dst_object->cred == NULL) {
 		KASSERT(dst_entry->cred != NULL, ("no cred for entry %p",

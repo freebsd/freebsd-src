@@ -1617,7 +1617,6 @@ mdresize(struct md_s *sc, struct md_req *mdr)
 			    0, 0);
 			swap_release_by_cred(IDX_TO_OFF(oldpages -
 			    newpages), sc->cred);
-			sc->s_swap.object->charge = IDX_TO_OFF(newpages);
 			sc->s_swap.object->size = newpages;
 			VM_OBJECT_WUNLOCK(sc->s_swap.object);
 		} else if (newpages > oldpages) {
@@ -1637,7 +1636,6 @@ mdresize(struct md_s *sc, struct md_req *mdr)
 				}
 			}
 			VM_OBJECT_WLOCK(sc->s_swap.object);
-			sc->s_swap.object->charge = IDX_TO_OFF(newpages);
 			sc->s_swap.object->size = newpages;
 			VM_OBJECT_WUNLOCK(sc->s_swap.object);
 		}
