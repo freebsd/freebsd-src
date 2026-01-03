@@ -469,6 +469,10 @@ void lkpi_80211_mo_change_chanctx(struct ieee80211_hw *,
     struct ieee80211_chanctx_conf *, uint32_t);
 void lkpi_80211_mo_remove_chanctx(struct ieee80211_hw *,
     struct ieee80211_chanctx_conf *);
+void lkpi_80211_mo_vif_cfg_changed(struct ieee80211_hw *, struct ieee80211_vif *,
+    uint64_t, bool);
+void lkpi_80211_mo_link_info_changed(struct ieee80211_hw *, struct ieee80211_vif *,
+    struct ieee80211_bss_conf *, uint64_t, uint8_t, bool);
 void lkpi_80211_mo_bss_info_changed(struct ieee80211_hw *, struct ieee80211_vif *,
     struct ieee80211_bss_conf *, uint64_t);
 int lkpi_80211_mo_conf_tx(struct ieee80211_hw *, struct ieee80211_vif *,
