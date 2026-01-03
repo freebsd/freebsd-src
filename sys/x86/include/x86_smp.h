@@ -35,7 +35,6 @@ extern char *bootSTK;
 extern void *bootstacks[];
 extern unsigned int bootMP_size;
 extern volatile int aps_ready;
-extern struct mtx ap_boot_mtx;
 extern int cpu_logical;
 extern int cpu_cores;
 extern volatile uint32_t smp_tlb_generation;
