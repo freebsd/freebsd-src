@@ -344,7 +344,6 @@ start_all_aps(void)
 	u_char mpbiosreason;
 
 	amd64_mp_alloc_pcpu();
-	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	MPASS(bootMP_size <= PAGE_SIZE);
 	m_boottramp = vm_page_alloc_noobj_contig(0, 1, 0,

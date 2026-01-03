@@ -124,7 +124,7 @@ volatile cpuset_t resuming_cpus;
 volatile cpuset_t toresume_cpus;
 
 /* used to hold the AP's until we are ready to release them */
-struct mtx ap_boot_mtx;
+static int ap_boot_lock;
 
 /* Set to 1 once we're ready to let the APs out of the pen. */
 volatile int aps_ready = 0;
@@ -1086,8 +1086,6 @@ init_secondary_tail(void)
 	PCPU_SET(curthread, PCPU_GET(idlethread));
 	schedinit_ap();
 
-	mtx_lock_spin(&ap_boot_mtx);
-
 	mca_init();
 
 	/* Init local apic for irq's */
@@ -1095,6 +1093,15 @@ init_secondary_tail(void)
 
 	/* Set memory range attributes for this CPU to match the BSP */
 	mem_range_AP_init();
+
+	/*
+	 * Use naive spinning lock instead of the real spinlock, since
+	 * printfs() below might take a very long time and trigger
+	 * spinlock timeout panics.  This is the only use of the
+	 * ap_boot_lock anyway.
+	 */
+	while (atomic_cmpset_acq_int(&ap_boot_lock, 0, 1) == 0)
+		ia32_pause();
 
 	smp_cpus++;
 
@@ -1117,6 +1124,8 @@ init_secondary_tail(void)
 		atomic_store_rel_int(&smp_started, 1);
 	}
 
+	atomic_store_rel_int(&ap_boot_lock, 0);
+
 #ifdef __amd64__
 	if (pmap_pcid_enabled)
 		load_cr4(rcr4() | CR4_PCIDE);
@@ -1124,8 +1133,6 @@ init_secondary_tail(void)
 	load_es(_udatasel);
 	load_fs(_ufssel);
 #endif
-
-	mtx_unlock_spin(&ap_boot_mtx);
 
 	/* Wait until all the AP's are up. */
 	while (atomic_load_acq_int(&smp_started) == 0)
