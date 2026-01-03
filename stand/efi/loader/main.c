@@ -867,15 +867,20 @@ acpi_uart_parity(UINT8 p)
 }
 
 /*
- * See if we can find a SPCR ACPI table in the static tables. If so, then it
- * describes the serial console that's been redirected to, so we know that at
- * least there's a serial console. this is most important for embedded systems
- * that don't have traidtional PC serial ports.
+ * See if we can find a SPCR ACPI table for enabled console redirection in the
+ * static tables. If so, then it describes a serial console that's been
+ * redirected to, so we know that at least there's a serial console. This is
+ * most important for embedded systems that don't have traditional PC serial
+ * ports.
+ *
+ * Presence of SPCR does not imply the presence of a serial console (disabled
+ * redirection) nor does absence of one imply the absence of a serial console
+ * (e.g. COM1 redirection but no Windows EMS redirection).
  *
  * All the two letter variables in this function correspond to their usage in
  * the uart(4) console string. We use io == -1 to select between I/O ports and
- * memory mapped addresses. Set both hw.uart.console and hw.uart.consol.extra
- * to communicate settings from SPCR to the kernel.
+ * memory mapped addresses. Set hw.uart.console to communicate settings
+ * from SPCR to the kernel.
  */
 static int
 check_acpi_spcr(void)
@@ -886,9 +891,11 @@ check_acpi_spcr(void)
 	const char *dt, *pa;
 	char *val = NULL;
 
+	/* Do not process non-existent or disabled redirections. */
 	spcr = acpi_find_table(ACPI_SIG_SPCR);
-	if (spcr == NULL)
+	if (spcr == NULL || spcr->SerialPort.Address == 0)
 		return (0);
+
 	dt = acpi_uart_type(spcr->InterfaceType);
 	if (dt == NULL)	{ 	/* Kernel can't use unknown types */
 		printf("UART Type %d not known\n", spcr->InterfaceType);
