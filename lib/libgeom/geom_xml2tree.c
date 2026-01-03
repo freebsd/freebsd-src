@@ -36,6 +36,7 @@
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -358,14 +359,47 @@ geom_lookupid(const struct gmesh *gmp, const void *id)
 }
 
 static void *
-geom_lookupidptr(struct gmesh *gmp, const void *id)
+geom_lookup_class(const struct gmesh *gmp, const void *id)
 {
 	struct gident *gip;
 
-	gip = geom_lookupid(gmp, id);
-	if (gip)
-		return (gip->lg_ptr);
-	return (NULL);
+	if ((gip = geom_lookupid(gmp, id)) == NULL)
+		return (NULL);
+	assert(gip->lg_what == ISCLASS);
+	return (gip->lg_ptr);
+}
+
+static void *
+geom_lookup_geom(const struct gmesh *gmp, const void *id)
+{
+	struct gident *gip;
+
+	if ((gip = geom_lookupid(gmp, id)) == NULL)
+		return (NULL);
+	assert(gip->lg_what == ISGEOM);
+	return (gip->lg_ptr);
+}
+
+static void *
+geom_lookup_provider(const struct gmesh *gmp, const void *id)
+{
+	struct gident *gip;
+
+	if ((gip = geom_lookupid(gmp, id)) == NULL)
+		return (NULL);
+	assert(gip->lg_what == ISPROVIDER);
+	return (gip->lg_ptr);
+}
+
+static void * __unused
+geom_lookup_consumer(const struct gmesh *gmp, const void *id)
+{
+	struct gident *gip;
+
+	if ((gip = geom_lookupid(gmp, id)) == NULL)
+		return (NULL);
+	assert(gip->lg_what == ISCONSUMER);
+	return (gip->lg_ptr);
 }
 
 int
@@ -441,15 +475,15 @@ geom_xml2tree(struct gmesh *gmp, char *p)
 	/* Substitute all identifiers */
 	LIST_FOREACH(cl, &gmp->lg_class, lg_class) {
 		LIST_FOREACH(ge, &cl->lg_geom, lg_geom) {
-			ge->lg_class = geom_lookupidptr(gmp, ge->lg_class);
+			ge->lg_class = geom_lookup_class(gmp, ge->lg_class);
 			LIST_FOREACH(pr, &ge->lg_provider, lg_provider) {
-				pr->lg_geom = geom_lookupidptr(gmp, pr->lg_geom);
+				pr->lg_geom = geom_lookup_geom(gmp, pr->lg_geom);
 			}
 			LIST_FOREACH(co, &ge->lg_consumer, lg_consumer) {
-				co->lg_geom = geom_lookupidptr(gmp, co->lg_geom);
+				co->lg_geom = geom_lookup_geom(gmp, co->lg_geom);
 				if (co->lg_provider != NULL) {
-					co->lg_provider = geom_lookupidptr(gmp,
-						co->lg_provider);
+					co->lg_provider = geom_lookup_provider(gmp,
+					    co->lg_provider);
 					if (co->lg_provider != NULL) {
 						LIST_INSERT_HEAD(
 						    &co->lg_provider->lg_consumers,
