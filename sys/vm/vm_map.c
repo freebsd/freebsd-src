@@ -2428,7 +2428,7 @@ vm_map_entry_back(vm_map_entry_t entry)
 	KASSERT((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0,
 	    ("map entry %p is a submap", entry));
 	object = vm_object_allocate_anon(atop(entry->end - entry->start), NULL,
-	    entry->cred, entry->end - entry->start);
+	    entry->cred);
 	entry->object.vm_object = object;
 	entry->offset = 0;
 	entry->cred = NULL;
@@ -2443,21 +2443,26 @@ vm_map_entry_back(vm_map_entry_t entry)
 static inline void
 vm_map_entry_charge_object(vm_map_t map, vm_map_entry_t entry)
 {
+	vm_object_t object;
 
 	VM_MAP_ASSERT_LOCKED(map);
 	KASSERT((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0,
 	    ("map entry %p is a submap", entry));
-	if (entry->object.vm_object == NULL && !vm_map_is_system(map) &&
+	object = entry->object.vm_object;
+	if (object == NULL && !vm_map_is_system(map) &&
 	    (entry->eflags & MAP_ENTRY_GUARD) == 0)
 		vm_map_entry_back(entry);
-	else if (entry->object.vm_object != NULL &&
+	else if (object != NULL &&
 	    ((entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) &&
 	    entry->cred != NULL) {
-		VM_OBJECT_WLOCK(entry->object.vm_object);
-		KASSERT(entry->object.vm_object->cred == NULL,
+		VM_OBJECT_WLOCK(object);
+		KASSERT(object->cred == NULL,
 		    ("OVERCOMMIT: %s: both cred e %p", __func__, entry));
-		entry->object.vm_object->cred = entry->cred;
-		entry->object.vm_object->charge = entry->end - entry->start;
+		object->cred = entry->cred;
+		if (entry->end - entry->start < ptoa(object->size)) {
+			swap_reserve_force_by_cred(ptoa(object->size) -
+			    entry->end + entry->start, object->cred);
+		}
 		VM_OBJECT_WUNLOCK(entry->object.vm_object);
 		entry->cred = NULL;
 	}
@@ -2956,7 +2961,7 @@ again:
 		 * we cannot distinguish between non-charged and
 		 * charged clipped mapping of the same object later.
 		 */
-		KASSERT(obj->charge == 0,
+		KASSERT(obj->cred == NULL,
 		    ("vm_map_protect: object %p overcharged (entry %p)",
 		    obj, entry));
 		if (!swap_reserve(ptoa(obj->size))) {
@@ -2968,7 +2973,6 @@ again:
 
 		crhold(cred);
 		obj->cred = cred;
-		obj->charge = ptoa(obj->size);
 		VM_OBJECT_WUNLOCK(obj);
 	}
 
@@ -3942,7 +3946,7 @@ static void
 vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 {
 	vm_object_t object;
-	vm_pindex_t offidxstart, offidxend, size1;
+	vm_pindex_t offidxstart, offidxend, oldsize;
 	vm_size_t size;
 
 	vm_map_entry_unlink(map, entry, UNLINK_MERGE_NONE);
@@ -3989,15 +3993,11 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 			    OBJPR_NOTMAPPED);
 			if (offidxend >= object->size &&
 			    offidxstart < object->size) {
-				size1 = object->size;
+				oldsize = object->size;
 				object->size = offidxstart;
 				if (object->cred != NULL) {
-					size1 -= object->size;
-					KASSERT(object->charge >= ptoa(size1),
-					    ("object %p charge < 0", object));
-					swap_release_by_cred(ptoa(size1),
-					    object->cred);
-					object->charge -= ptoa(size1);
+					swap_release_by_cred(ptoa(oldsize -
+					    ptoa(object->size)), object->cred);
 				}
 			}
 		}
@@ -4198,7 +4198,7 @@ vm_map_copy_swap_object(vm_map_entry_t src_entry, vm_map_entry_t dst_entry,
 		    ("OVERCOMMIT: vm_map_copy_anon_entry: cred %p",
 		     src_object));
 		src_object->cred = src_entry->cred;
-		src_object->charge = size;
+		*fork_charge += ptoa(src_object->size) - size;
 	}
 	dst_entry->object.vm_object = src_object;
 	if (charged) {
@@ -4455,7 +4455,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 					KASSERT(object->cred == NULL,
 					    ("vmspace_fork both cred"));
 					object->cred = old_entry->cred;
-					object->charge = old_entry->end -
+					*fork_charge += old_entry->end -
 					    old_entry->start;
 					old_entry->cred = NULL;
 				}
@@ -5145,7 +5145,7 @@ RetryLookupLocked:
 		if (vm_map_lock_upgrade(map))
 			goto RetryLookup;
 		entry->object.vm_object = vm_object_allocate_anon(atop(size),
-		    NULL, entry->cred, size);
+		    NULL, entry->cred);
 		entry->offset = 0;
 		entry->cred = NULL;
 		vm_map_lock_downgrade(map);
@@ -5403,9 +5403,8 @@ vm_map_print(vm_map_t map)
 			    (void *)entry->object.vm_object,
 			    (uintmax_t)entry->offset);
 			if (entry->object.vm_object && entry->object.vm_object->cred)
-				db_printf(", obj ruid %d charge %jx",
-				    entry->object.vm_object->cred->cr_ruid,
-				    (uintmax_t)entry->object.vm_object->charge);
+				db_printf(", obj ruid %d ",
+				    entry->object.vm_object->cred->cr_ruid);
 			if (entry->eflags & MAP_ENTRY_COW)
 				db_printf(", copy (%s)",
 				    (entry->eflags & MAP_ENTRY_NEEDS_COPY) ? "needed" : "done");
