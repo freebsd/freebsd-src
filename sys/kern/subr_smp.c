@@ -588,7 +588,7 @@ smp_rendezvous_cpus(cpuset_t map,
 	void (* teardown_func)(void *),
 	void *arg)
 {
-	int curcpumap, i, ncpus = 0;
+	int curcpumap, ncpus = 0;
 
 	/* See comments in the !SMP case. */
 	if (!smp_started) {
@@ -609,10 +609,8 @@ smp_rendezvous_cpus(cpuset_t map,
 	 */
 	MPASS(curthread->td_md.md_spinlock_count == 0);
 
-	CPU_FOREACH(i) {
-		if (CPU_ISSET(i, &map))
-			ncpus++;
-	}
+	CPU_AND(&map, &map, &all_cpus);
+	ncpus = CPU_COUNT(&map);
 	if (ncpus == 0)
 		panic("ncpus is 0 with non-zero map");
 
