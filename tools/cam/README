@@ -1,0 +1,3 @@
+This direcotry has snippets of what will eventually become camio. This program
+can take an expression for the types of things to trace, and then custom write a
+dtrace script to do that.
