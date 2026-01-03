@@ -80,7 +80,6 @@ EOF
 	cat > $NEW/etc/login.conf <<EOF
 default:\\
 	:passwd_format=md5:\\
-	:copyright=/etc/COPYRIGHT
 EOF
 	cat > $TEST/etc/login.conf <<EOF
 default:\\
@@ -247,7 +246,6 @@ echo "Checking 'r':"
 cat > $CONFLICTS/etc/login.conf <<EOF
 default:\\
 	:passwd_format=md5:\\
-	:copyright=/etc/COPYRIGHT\\
         :welcome=/etc/motd:
 EOF
 
