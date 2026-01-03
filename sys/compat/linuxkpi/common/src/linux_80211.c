@@ -766,6 +766,7 @@ lkpi_sta_sync_from_ni(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		lkpi_sync_chanctx_cw_from_rx_bw(hw, vif, sta);
 }
 
+#if 0
 static uint8_t
 lkpi_get_max_rx_chains(struct ieee80211_node *ni)
 {
@@ -792,6 +793,7 @@ lkpi_get_max_rx_chains(struct ieee80211_node *ni)
 
 	return (chains);
 }
+#endif
 
 static void
 lkpi_lsta_dump(struct lkpi_sta *lsta, struct ieee80211_node *ni,
@@ -2214,6 +2216,70 @@ lkpi_80211_flush_tx(struct lkpi_hw *lhw, struct lkpi_sta *lsta)
 	}
 }
 
+static void
+lkpi_init_chandef(struct cfg80211_chan_def *chandef,
+    struct linuxkpi_ieee80211_channel *chan, struct ieee80211_channel *c,
+    bool can_ht)
+{
+
+	cfg80211_chandef_create(chandef, chan,
+	    (can_ht) ? NL80211_CHAN_HT20 : NL80211_CHAN_NO_HT);
+	chandef->center_freq1 = ieee80211_get_channel_center_freq1(c);
+	chandef->center_freq2 = ieee80211_get_channel_center_freq2(c);
+
+	IMPROVE("Check ht/vht_cap from band not just chan? See lkpi_sta_sync_from_ni...");
+#ifdef LKPI_80211_HT
+	if (IEEE80211_IS_CHAN_HT(c)) {
+		if (IEEE80211_IS_CHAN_HT40(c))
+			chandef->width = NL80211_CHAN_WIDTH_40;
+		else
+			chandef->width = NL80211_CHAN_WIDTH_20;
+	}
+#endif
+#ifdef LKPI_80211_VHT
+	if (IEEE80211_IS_CHAN_VHT_5GHZ(c)) {
+		if (IEEE80211_IS_CHAN_VHT80P80(c))
+			chandef->width = NL80211_CHAN_WIDTH_80P80;
+		else if (IEEE80211_IS_CHAN_VHT160(c))
+			chandef->width = NL80211_CHAN_WIDTH_160;
+		else if (IEEE80211_IS_CHAN_VHT80(c))
+			chandef->width = NL80211_CHAN_WIDTH_80;
+	}
+#endif
+}
+
+static uint32_t
+lkpi_init_chanctx_conf(struct ieee80211_hw *hw,
+    struct cfg80211_chan_def *chandef,
+    struct ieee80211_chanctx_conf *chanctx_conf)
+{
+	uint32_t changed;
+
+	lockdep_assert_wiphy(hw->wiphy);
+
+	changed = 0;
+
+	chanctx_conf->rx_chains_static = 1;
+	chanctx_conf->rx_chains_dynamic = 1;
+	changed |= IEEE80211_CHANCTX_CHANGE_RX_CHAINS;
+
+	if (chanctx_conf->radar_enabled != hw->conf.radar_enabled) {
+		chanctx_conf->radar_enabled = hw->conf.radar_enabled;
+		changed |= IEEE80211_CHANCTX_CHANGE_RADAR;
+	}
+
+	chanctx_conf->def = *chandef;
+	changed |= IEEE80211_CHANCTX_CHANGE_WIDTH;
+
+	/* One day we should figure this out; is for iwlwifi-only. */
+	chanctx_conf->min_def = chanctx_conf->def;
+	changed |= IEEE80211_CHANCTX_CHANGE_MIN_WIDTH;
+
+	/* chanctx_conf->ap = */
+
+	return (changed);
+}
+
 
 static void
 lkpi_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
@@ -2310,6 +2376,7 @@ static int
 lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct linuxkpi_ieee80211_channel *chan;
+	struct cfg80211_chan_def chandef;
 	struct lkpi_chanctx *lchanctx;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct lkpi_hw *lhw;
@@ -2322,7 +2389,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	struct ieee80211_prep_tx_info prep_tx_info;
 	uint32_t changed;
 	int error;
-	bool synched;
+	bool synched, can_ht;
 
 	/*
 	 * In here we use vap->iv_bss until lvif->lvif_bss is set.
@@ -2391,50 +2458,22 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		chanctx_conf = &lchanctx->chanctx_conf;
 	}
 
-	chanctx_conf->rx_chains_static = 1;
-	chanctx_conf->rx_chains_dynamic = 1;
-	chanctx_conf->radar_enabled =
-	    (chan->flags & IEEE80211_CHAN_RADAR) ? true : false;
-	chanctx_conf->def.chan = chan;
-	chanctx_conf->def.width = NL80211_CHAN_WIDTH_20_NOHT;
-	chanctx_conf->def.center_freq1 = ieee80211_get_channel_center_freq1(ni->ni_chan);
-	chanctx_conf->def.center_freq2 = ieee80211_get_channel_center_freq2(ni->ni_chan);
-	IMPROVE("Check vht_cap from band not just chan?");
 	KASSERT(ni->ni_chan != NULL && ni->ni_chan != IEEE80211_CHAN_ANYC,
 	   ("%s:%d: ni %p ni_chan %p\n", __func__, __LINE__, ni, ni->ni_chan));
 
 #ifdef LKPI_80211_HT
-	if (IEEE80211_IS_CHAN_HT(ni->ni_chan)) {
-		if (IEEE80211_IS_CHAN_HT40(ni->ni_chan))
-			chanctx_conf->def.width = NL80211_CHAN_WIDTH_40;
-		else
-			chanctx_conf->def.width = NL80211_CHAN_WIDTH_20;
-	}
-#endif
-#ifdef LKPI_80211_VHT
-	if (IEEE80211_IS_CHAN_VHT_5GHZ(ni->ni_chan)) {
-		if (IEEE80211_IS_CHAN_VHT80P80(ni->ni_chan))
-			chanctx_conf->def.width = NL80211_CHAN_WIDTH_80P80;
-		else if (IEEE80211_IS_CHAN_VHT160(ni->ni_chan))
-			chanctx_conf->def.width = NL80211_CHAN_WIDTH_160;
-		else if (IEEE80211_IS_CHAN_VHT80(ni->ni_chan))
-			chanctx_conf->def.width = NL80211_CHAN_WIDTH_80;
-	}
-#endif
-	chanctx_conf->rx_chains_dynamic = lkpi_get_max_rx_chains(ni);
-	/* Responder ... */
-#if 0
-	chanctx_conf->min_def.chan = chanctx_conf->def.chan;
-	chanctx_conf->min_def.width = NL80211_CHAN_WIDTH_20_NOHT;
-#ifdef LKPI_80211_HT
-	if (IEEE80211_IS_CHAN_HT(ni->ni_chan) || IEEE80211_IS_CHAN_VHT(ni->ni_chan))
-		chanctx_conf->min_def.width = NL80211_CHAN_WIDTH_20;
-#endif
-	chanctx_conf->min_def.center_freq1 = chanctx_conf->def.center_freq1;
-	chanctx_conf->min_def.center_freq2 = chanctx_conf->def.center_freq2;
+	can_ht = (vap->iv_ic->ic_flags_ht & IEEE80211_FHT_HT) != 0;
 #else
-	chanctx_conf->min_def = chanctx_conf->def;
+	can_ht = false;
 #endif
+	lkpi_init_chandef(&chandef, chan, ni->ni_chan, can_ht);
+	hw->conf.radar_enabled =
+	    ((chan->flags & IEEE80211_CHAN_RADAR) != 0) ? true : false;
+	hw->conf.chandef = chandef;
+	vif->bss_conf.chanreq.oper = hw->conf.chandef;
+	changed = lkpi_init_chanctx_conf(hw, &chandef, chanctx_conf);
+
+	/* Responder ... */
 
 	/* Set bss info (bss_info_changed). */
 	bss_changed = 0;
