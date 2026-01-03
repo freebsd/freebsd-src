@@ -523,7 +523,7 @@ the device name.
 If specified, it must be a unicast MAC address.
 .El
 .Ss Frame Buffer Settings
-.Bl -column "password" "[IP:]port" "127.0.0.1:5900"
+.Bl -column "password" "unix:my/unix.sock" "127.0.0.1:5900"
 .It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
 .It Va wait Ta bool Ta false Ta
 Wait for a remote connection before starting the VM.
@@ -535,6 +535,11 @@ support scoped identifiers as described in
 .Xr getaddrinfo 3 .
 A bare port number may be given in which case the IPv4
 localhost address is used.
+.It Va rfb Ta
+.Sm off
+.Cm unix: Ar my/unix.sock Ta Ta
+.Sm on
+Alternatively, provide a path to a UNIX domain socket.
 .It Va vga Ta string Ta io Ta
 VGA configuration.
 More details are provided in
