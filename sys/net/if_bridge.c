@@ -1990,9 +1990,6 @@ bridge_ioctl_sifvlanset(struct bridge_softc *sc, void *arg)
 	struct ifbif_vlan_req *req = arg;
 	struct bridge_iflist *bif;
 
-	if ((sc->sc_flags & IFBRF_VLANFILTER) == 0)
-		return (EXTERROR(EINVAL, "VLAN filtering not enabled"));
-
 	bif = bridge_lookup_member(sc, req->bv_ifname);
 	if (bif == NULL)
 		return (EXTERROR(ENOENT, "Interface is not a bridge member"));
