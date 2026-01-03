@@ -118,7 +118,7 @@
 #define	BITS_VALUE(bits, num)			(((num) & (bits)) >> (ffsll((bits)) - 1))
 #define	BITS_WITH_VALUE(bits, val)		((uintmax_t)(val) << (ffsll((bits)) - 1))
 #define	SET_BITS_VALUE(var, bits, val) \
-	((var) = (var) & ~(bits) | BITS_WITH_VALUE((bits), (val)))
+	((var) = ((var) & ~(bits)) | BITS_WITH_VALUE((bits), (val)))
 
 #define	HWPSTATE_DEBUG(dev, msg...)			\
 	do {						\
