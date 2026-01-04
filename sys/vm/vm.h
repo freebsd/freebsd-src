@@ -168,6 +168,7 @@ void vm_ksubmap_init(struct kva_md_info *);
 bool swap_reserve(vm_ooffset_t incr);
 bool swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred);
 void swap_reserve_force(vm_ooffset_t incr);
+void swap_reserve_force_by_cred(vm_ooffset_t incr, struct ucred *cred);
 void swap_release(vm_ooffset_t decr);
 void swap_release_by_cred(vm_ooffset_t decr, struct ucred *cred);
 
