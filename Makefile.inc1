@@ -38,10 +38,10 @@
 
 #
 # The intended user-driven targets are:
-# buildworld  - rebuild *everything*, including glue to help do upgrades
-# installworld- install everything built by "buildworld"
-# checkworld  - run test suite on installed world
-# doxygen     - build API documentation of the kernel
+# buildworld   - rebuild *everything*, including glue to help do upgrades
+# installworld - install everything built by "buildworld"
+# checkworld   - run test suite on installed world
+# kerneldoc    - build API documentation of the kernel
 #
 # Standard targets (not defined here) are documented in the makefiles in
 # /usr/share/mk.  These include:
@@ -2414,13 +2414,21 @@ checkworld: .PHONY
 
 #
 #
-# doxygen
+# kerneldoc
 #
 # Build the API documentation with doxygen
 #
-doxygen: .PHONY
+kerneldoc: .PHONY
 	@if [ ! -x "${LOCALBASE}/bin/doxygen" ]; then \
 		echo "You need doxygen (devel/doxygen) to generate the API documentation of the kernel." | /usr/bin/fmt; \
+		exit 1; \
+	fi
+	@if [ ! -x "${LOCALBASE}/bin/tex" ]; then \
+		echo "You need teTeX (print/teTeX) to generate the API documentation of the kernel." | /usr/bin/fmt; \
+		exit 1; \
+	fi
+	@if [ ! -x "${LOCALBASE}/bin/dot" ]; then \
+		echo "You need graphviz (graphics/graphviz) to generate the API documentation of the kernel." | /usr/bin/fmt; \
 		exit 1; \
 	fi
 	${_+_}cd ${.CURDIR}/tools/kerneldoc/subsys; ${MAKE} obj all
