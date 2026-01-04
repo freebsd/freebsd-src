@@ -198,6 +198,26 @@ static device_method_t hwpstate_methods[] = {
 	{0, 0}
 };
 
+struct amdhwp_dump_sysctl_handler_request {
+	uint64_t enable;
+	uint64_t caps;
+	uint64_t req;
+	int res;
+};
+
+static void
+amdhwp_dump_sysctl_handler_cb(void *args)
+{
+	struct amdhwp_dump_sysctl_handler_request *req =
+	    (struct amdhwp_dump_sysctl_handler_request *)args;
+
+	req->res = rdmsr_safe(MSR_AMD_CPPC_ENABLE, &req->enable);
+	if (req->res == 0)
+		req->res = rdmsr_safe(MSR_AMD_CPPC_CAPS_1, &req->caps);
+	if (req->res == 0)
+		req->res = rdmsr_safe(MSR_AMD_CPPC_REQUEST, &req->req);
+}
+
 static int
 amdhwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
@@ -205,6 +225,7 @@ amdhwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	struct pcpu *pc;
 	struct sbuf *sb;
 	struct hwpstate_softc *sc;
+	struct amdhwp_dump_sysctl_handler_request request;
 	uint64_t data;
 	int ret;
 
@@ -217,20 +238,19 @@ amdhwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 
 	sb = sbuf_new(NULL, NULL, 1024, SBUF_FIXEDLEN | SBUF_INCLUDENUL);
 	sbuf_putc(sb, '\n');
-	thread_lock(curthread);
-	sched_bind(curthread, pc->pc_cpuid);
-	thread_unlock(curthread);
+	smp_rendezvous_cpu(pc->pc_cpuid, smp_no_rendezvous_barrier,
+	    amdhwp_dump_sysctl_handler_cb, smp_no_rendezvous_barrier, &request);
+	ret = request.res;
+	if (ret)
+		goto out;
 
-	rdmsr_safe(MSR_AMD_CPPC_ENABLE, &data);
+	data = request.enable;
 	sbuf_printf(sb, "CPU%d: HWP %sabled\n", pc->pc_cpuid,
 	    ((data & 1) ? "En" : "Dis"));
-
-	if (data == 0) {
-		ret = 0;
+	if (data == 0)
 		goto out;
-	}
 
-	rdmsr_safe(MSR_AMD_CPPC_CAPS_1, &data);
+	data = request.caps;
 	sbuf_printf(sb, "\tHighest Performance: %03ju\n",
 	    BITS_VALUE(AMD_CPPC_CAPS_1_HIGH_PERF_BITS, data));
 	sbuf_printf(sb, "\tGuaranteed Performance: %03ju\n",
@@ -241,8 +261,7 @@ amdhwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	    BITS_VALUE(AMD_CPPC_CAPS_1_LOW_PERF_BITS, data));
 	sbuf_putc(sb, '\n');
 
-	rdmsr_safe(MSR_AMD_CPPC_REQUEST, &data);
-
+	data = request.req;
 #define pkg_print(name, offset)                         \
 	do {                                            \
 		sbuf_printf(sb, "\t%s: %03u\n", name,   \
@@ -258,11 +277,8 @@ amdhwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	sbuf_putc(sb, '\n');
 
 out:
-	thread_lock(curthread);
-	sched_unbind(curthread);
-	thread_unlock(curthread);
-
-	ret = sbuf_finish(sb);
+	if (ret == 0)
+		ret = sbuf_finish(sb);
 	if (ret == 0)
 		ret = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb));
 	sbuf_delete(sb);
@@ -270,44 +286,29 @@ out:
 	return (ret);
 }
 
-static bool
-sysctl_epp_select_per_core(const device_t hwp_device, uint32_t val)
+static void
+sysctl_epp_select_per_core(device_t hwp_device, uint32_t val)
 {
 	struct hwpstate_softc *sc;
-	bool success = true;
-	int ret, cpuid;
 
-	cpuid = cpu_get_pcpu(hwp_device)->pc_cpuid;
-	thread_lock(curthread);
-	sched_bind(curthread, cpuid);
-	thread_unlock(curthread);
 	sc = device_get_softc(hwp_device);
 	if (BITS_VALUE(AMD_CPPC_REQUEST_ENERGY_PERF_BITS, sc->req) == val)
-		goto end;
+		return;
 	SET_BITS_VALUE(sc->req, AMD_CPPC_REQUEST_ENERGY_PERF_BITS, val);
-	ret = wrmsr_safe(MSR_AMD_CPPC_REQUEST, sc->req);
-	if (ret != 0) {
-		success = false;
-		device_printf(hwp_device, "Failed to set EPP to %u", val);
-		goto end;
-	}
-
-end:
-	thread_lock(curthread);
-	sched_unbind(curthread);
-	thread_unlock(curthread);
-
-	return (success);
+	x86_msr_op(MSR_AMD_CPPC_REQUEST,
+	    MSR_OP_RENDEZVOUS_ONE | MSR_OP_WRITE |
+		MSR_OP_CPUID(cpu_get_pcpu(hwp_device)->pc_cpuid),
+	    sc->req, NULL);
 }
 
 static int
 sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev, hwp_dev;
+	devclass_t dc;
 	struct hwpstate_softc *sc;
 	const uint32_t max_energy_perf =
 	    BITS_VALUE(AMD_CPPC_REQUEST_ENERGY_PERF_BITS, (uint64_t)-1);
-	devclass_t dc;
 	uint32_t val;
 	int ret = 0;
 	int cpu;
@@ -577,44 +578,45 @@ hwpstate_identify(driver_t *driver, device_t parent)
 		device_printf(parent, "hwpstate: add child failed\n");
 }
 
-static int
-amd_set_autonomous_hwp(struct hwpstate_softc *sc)
+struct amd_set_autonomous_hwp_request {
+	device_t dev;
+	int res;
+};
+
+static void
+amd_set_autonomous_hwp_cb(void *args)
 {
-	struct pcpu *pc;
+	struct hwpstate_softc *sc;
+	struct amd_set_autonomous_hwp_request *req =
+	    (struct amd_set_autonomous_hwp_request *)args;
 	device_t dev;
 	uint64_t caps;
 	int ret;
 
-	dev = sc->dev;
-	pc = cpu_get_pcpu(dev);
-	if (pc == NULL)
-		return (ENXIO);
-
-	thread_lock(curthread);
-	sched_bind(curthread, pc->pc_cpuid);
-	thread_unlock(curthread);
-
+	dev = req->dev;
+	sc = device_get_softc(dev);
 	ret = wrmsr_safe(MSR_AMD_CPPC_ENABLE, 1);
 	if (ret != 0) {
 		device_printf(dev, "Failed to enable cppc for cpu%d (%d)\n",
-		    pc->pc_cpuid, ret);
-		goto out;
+		    curcpu, ret);
+		req->res = ret;
 	}
 
 	ret = rdmsr_safe(MSR_AMD_CPPC_REQUEST, &sc->req);
 	if (ret != 0) {
 		device_printf(dev,
-		    "Failed to read CPPC request MSR for cpu%d (%d)\n",
-		    pc->pc_cpuid, ret);
-		goto out;
+		    "Failed to read CPPC request MSR for cpu%d (%d)\n", curcpu,
+		    ret);
+		req->res = ret;
 	}
 
 	ret = rdmsr_safe(MSR_AMD_CPPC_CAPS_1, &caps);
 	if (ret != 0) {
 		device_printf(dev,
 		    "Failed to read HWP capabilities MSR for cpu%d (%d)\n",
-		    pc->pc_cpuid, ret);
-		goto out;
+		    curcpu, ret);
+		req->res = ret;
+		return;
 	}
 
 	/*
@@ -632,17 +634,27 @@ amd_set_autonomous_hwp(struct hwpstate_softc *sc)
 
 	ret = wrmsr_safe(MSR_AMD_CPPC_REQUEST, sc->req);
 	if (ret) {
-		device_printf(dev,
-		    "Failed to setup autonomous HWP for cpu%d\n",
-		    pc->pc_cpuid);
-		goto out;
+		device_printf(dev, "Failed to setup autonomous HWP for cpu%d\n",
+		    curcpu);
+		req->res = ret;
+		return;
 	}
-out:
-	thread_lock(curthread);
-	sched_unbind(curthread);
-	thread_unlock(curthread);
+	req->res = 0;
+}
 
-	return (ret);
+static int
+amd_set_autonomous_hwp(struct hwpstate_softc *sc)
+{
+	struct amd_set_autonomous_hwp_request req;
+	device_t dev;
+
+	dev = sc->dev;
+	req.dev = dev;
+	smp_rendezvous_cpu(cpu_get_pcpu(dev)->pc_cpuid,
+	    smp_no_rendezvous_barrier, amd_set_autonomous_hwp_cb,
+	    smp_no_rendezvous_barrier, &req);
+
+	return (req.res);
 }
 
 static int
