@@ -43,9 +43,6 @@ cpu		HAMMER			# aka K8, aka Opteron & Athlon64
 # Optional devices:
 #
 
-# vt(4) drivers.
-device		vt_efifb	# EFI framebuffer
-
 # 3Dfx Voodoo Graphics, Voodoo II /dev/3dfx CDEV support.  This will create
 # the /dev/3dfx0 device to work with glide implementations.  This should get
 # linked to /dev/3dfx and /dev/voodoo.  Note that this is not the same as
@@ -115,6 +112,10 @@ device		efidev
 
 # EFI RTC
 device		efirtc
+
+# Apple System Management Controller (SMC)
+device		asmc
+options		ASMC_DEBUG	# Enable asmc(4)-specific debug logic.
 
 #
 # Intel QuickAssist driver with OpenCrypto support
