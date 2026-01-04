@@ -37,8 +37,6 @@
 #define KTEST_CALLER
 #include <netlink/ktest_netlink_message_writer.h>
 
-#ifdef INVARIANTS
-
 struct test_nlbuf_attrs {
 	uint32_t	size;
 	uint32_t	expected_avail;
@@ -98,16 +96,13 @@ test_nlbuf_writer_allocation(struct ktest_test_context *ctx)
 
 	return (0);
 }
-#endif
 
 static const struct ktest_test_info tests[] = {
-#ifdef INVARIANTS
 	{
 		.name = "test_nlbuf_writer_allocation",
 		.desc = "test different buffer sizes in the netlink writer",
 		.func = &test_nlbuf_writer_allocation,
 		.parse = &test_nlbuf_parser,
 	},
-#endif
 };
 KTEST_MODULE_DECLARE(ktest_netlink_message_writer, tests);
