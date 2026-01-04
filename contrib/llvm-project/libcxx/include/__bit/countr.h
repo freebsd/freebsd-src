@@ -22,10 +22,43 @@ _LIBCPP_PUSH_MACROS
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
+// A constexpr implementation for C++11 and later (using clang extensions for constexpr support)
+// Precondition: __t != 0 (the caller __countr_zero handles __t == 0 as a special case)
+template <class _Tp>
+[[__nodiscard__]] _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR int __countr_zero_impl(_Tp __t) _NOEXCEPT {
+  _LIBCPP_ASSERT_INTERNAL(__t != 0, "__countr_zero_impl called with zero value");
+  static_assert(__is_unsigned_integer_v<_Tp>, "__countr_zero_impl only works with unsigned types");
+  if _LIBCPP_CONSTEXPR (sizeof(_Tp) <= sizeof(unsigned int)) {
+    return __builtin_ctz(static_cast<unsigned int>(__t));
+  } else if _LIBCPP_CONSTEXPR (sizeof(_Tp) <= sizeof(unsigned long)) {
+    return __builtin_ctzl(static_cast<unsigned long>(__t));
+  } else if _LIBCPP_CONSTEXPR (sizeof(_Tp) <= sizeof(unsigned long long)) {
+    return __builtin_ctzll(static_cast<unsigned long long>(__t));
+  } else {
+#if _LIBCPP_STD_VER == 11
+    unsigned long long __ull       = static_cast<unsigned long long>(__t);
+    const unsigned int __ulldigits = numeric_limits<unsigned long long>::digits;
+    return __ull == 0ull ? __ulldigits + std::__countr_zero_impl<_Tp>(__t >> __ulldigits) : __builtin_ctzll(__ull);
+#else
+    int __ret                      = 0;
+    const unsigned int __ulldigits = numeric_limits<unsigned long long>::digits;
+    while (static_cast<unsigned long long>(__t) == 0uLL) {
+      __ret += __ulldigits;
+      __t >>= __ulldigits;
+    }
+    return __ret + __builtin_ctzll(static_cast<unsigned long long>(__t));
+#endif
+  }
+}
+
 template <class _Tp>
 [[__nodiscard__]] _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR int __countr_zero(_Tp __t) _NOEXCEPT {
   static_assert(__is_unsigned_integer_v<_Tp>, "__countr_zero only works with unsigned types");
+#if __has_builtin(__builtin_ctzg) // TODO (LLVM 21): This can be dropped once we only support Clang >= 19.
   return __builtin_ctzg(__t, numeric_limits<_Tp>::digits);
+#else
+  return __t != 0 ? std::__countr_zero_impl(__t) : numeric_limits<_Tp>::digits;
+#endif
 }
 
 #if _LIBCPP_STD_VER >= 20
