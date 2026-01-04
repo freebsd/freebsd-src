@@ -10,10 +10,12 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/uio.h>
 #include <sys/conf.h>
 #include <sys/ctype.h>
 #include <sys/malloc.h>
+#include <machine/atomic.h>
 #include <machine/clock.h>
 #include <dev/speaker/speaker.h>
 
@@ -24,7 +26,6 @@ static	d_ioctl_t	spkrioctl;
 
 static struct cdevsw spkr_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	spkropen,
 	.d_close =	spkrclose,
 	.d_write =	spkrwrite,
@@ -71,23 +72,27 @@ tone(unsigned int thz, unsigned int centisecs)
 	(void) printf("tone: thz=%d centisecs=%d\n", thz, centisecs);
 #endif /* DEBUG */
 
-	/* set timer to generate clicks at given frequency in Hertz */
+	/*
+	 * Acquire the i8254 clock, configure it to drive the speaker
+	 * signal, and turn on the speaker.
+	 */
 	if (timer_spkr_acquire()) {
-		/* enter list of waiting procs ??? */
 		return;
 	}
-	disable_intr();
+	/* Configure the speaker with the tone frequency. */
 	timer_spkr_setfreq(thz);
-	enable_intr();
 
 	/*
-	 * Set timeout to endtone function, then give up the timeslice.
-	 * This is so other processes can execute while the tone is being
+	 * Make the current thread sleep while the tone is being
 	 * emitted.
 	 */
 	timo = centisecs * hz / 100;
 	if (timo > 0)
 		tsleep(&endtone, SPKRPRI | PCATCH, "spkrtn", timo);
+
+	/*
+	 * Turn off the speaker and release the i8254 clock.
+	 */
 	timer_spkr_release();
 }
 
@@ -390,7 +395,8 @@ playstring(char *cp, size_t slen)
  * endtone(), and rest() functions defined above.
  */
 
-static bool spkr_active = false; /* exclusion flag */
+static int spkr_dev_busy = 0; /* one open at a time */
+static struct mtx spkr_op_locked; /* lock for write/ioctl */
 static char *spkr_inbuf;  /* incoming buf */
 
 static int
@@ -400,7 +406,7 @@ spkropen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	(void) printf("spkropen: entering with dev = %s\n", devtoname(dev));
 #endif /* DEBUG */
 
-	if (spkr_active)
+	if (!atomic_cmpset_int(&spkr_dev_busy, 0, 1))
 		return(EBUSY);
 	else {
 #ifdef DEBUG
@@ -408,7 +414,6 @@ spkropen(struct cdev *dev, int flags, int fmt, struct thread *td)
 #endif /* DEBUG */
 		playinit();
 		spkr_inbuf = malloc(DEV_BSIZE, M_SPKR, M_WAITOK);
-		spkr_active = true;
 		return(0);
     	}
 }
@@ -428,6 +433,7 @@ spkrwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		char *cp;
 		int error;
 
+		mtx_lock(&spkr_op_locked);
 		n = uio->uio_resid;
 		cp = spkr_inbuf;
 		error = uiomove(cp, n, uio);
@@ -435,7 +441,8 @@ spkrwrite(struct cdev *dev, struct uio *uio, int ioflag)
 			cp[n] = '\0';
 			playstring(cp, n);
 		}
-	return(error);
+		mtx_unlock(&spkr_op_locked);
+		return(error);
 	}
 }
 
@@ -449,7 +456,7 @@ spkrclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 	wakeup(&endtone);
 	wakeup(&endrest);
 	free(spkr_inbuf, M_SPKR);
-	spkr_active = false;
+	(void) atomic_swap_int(&spkr_dev_busy, 0);
 	return(0);
 }
 
@@ -465,20 +472,25 @@ spkrioctl(struct cdev *dev, unsigned long cmd, caddr_t cmdarg, int flags,
 	if (cmd == SPKRTONE) {
 		tone_t	*tp = (tone_t *)cmdarg;
 
+		mtx_lock(&spkr_op_locked);
 		if (tp->frequency == 0)
 			rest(tp->duration);
 		else
 			tone(tp->frequency, tp->duration);
+		mtx_unlock(&spkr_op_locked);
 		return 0;
 	} else if (cmd == SPKRTUNE) {
 		tone_t  *tp = (tone_t *)(*(caddr_t *)cmdarg);
 		tone_t ttp;
 		int error;
 
+		mtx_lock(&spkr_op_locked);
 		for (; ; tp++) {
 			error = copyin(tp, &ttp, sizeof(tone_t));
-			if (error)
+			if (error) {
+				mtx_unlock(&spkr_op_locked);
 				return(error);
+			}
 
 			if (ttp.duration == 0)
 				break;
@@ -488,6 +500,7 @@ spkrioctl(struct cdev *dev, unsigned long cmd, caddr_t cmdarg, int flags,
 			else
 				tone(ttp.frequency, ttp.duration);
 		}
+		mtx_unlock(&spkr_op_locked);
 		return(0);
 	}
 	return(EINVAL);
@@ -504,7 +517,8 @@ speaker_modevent(module_t mod, int type, void *data)
 	int error = 0;
 
 	switch(type) {
-	case MOD_LOAD: 
+	case MOD_LOAD:
+		mtx_init(&spkr_op_locked, "spkr", NULL, MTX_DEF);
 		speaker_dev = make_dev(&spkr_cdevsw, 0,
 		    UID_ROOT, GID_WHEEL, 0600, "speaker");
 		break;
