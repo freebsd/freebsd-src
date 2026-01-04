@@ -4957,6 +4957,13 @@ vmspace_unshare(struct proc *p)
 	if (newvmspace == NULL)
 		return (ENOMEM);
 	if (!swap_reserve_by_cred(fork_charge, p->p_ucred)) {
+		/*
+		 * The swap reservation failed. The accounting from
+		 * the entries of the copied newvmspace will be
+		 * subtracted in vmspace_free(), so force the
+		 * reservation there.
+		 */
+		swap_reserve_force_by_cred(fork_charge, p->p_ucred);
 		vmspace_free(newvmspace);
 		return (ENOMEM);
 	}
