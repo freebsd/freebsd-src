@@ -330,7 +330,7 @@ out_error:
 }
 
 void
-swap_reserve_force(vm_ooffset_t incr)
+swap_reserve_force_by_cred(vm_ooffset_t incr, struct ucred *cred)
 {
 	u_long pincr;
 
@@ -346,7 +346,13 @@ swap_reserve_force(vm_ooffset_t incr)
 #endif
 	pincr = atop(incr);
 	atomic_add_long(&swap_reserved, pincr);
-	swap_reserve_force_rlimit(pincr, curthread->td_ucred);
+	swap_reserve_force_rlimit(pincr, cred);
+}
+
+void
+swap_reserve_force(vm_ooffset_t incr)
+{
+	swap_reserve_force_by_cred(incr, curthread->td_ucred);
 }
 
 void
