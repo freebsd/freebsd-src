@@ -321,6 +321,15 @@ which will be replaced by the current username.
 A special case exist: if the entry is a simple string with the value
 .Qq default ,
 then the default user is created.
+
+Configuring
+.Nm sudo
+or
+.Nm doas
+does not automatically install them. Ensure the relevant command is listed in your
+.Nm packages
+section.
+
 .It Ic chpasswd
 Change the passwords for users, it accepts the following keys:
 .Bl -tag -width "expire"
@@ -395,6 +404,7 @@ users:
 packages:
   - neovim
   - git-lite
+  - sudo
 package_update: true
 package_upgrade: true
 runcmd:
