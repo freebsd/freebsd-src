@@ -236,9 +236,16 @@ local function nameservers(interface, obj)
 		resolv_conf_handler:close()
 	end
 
-	if not os.execute("resolvconf -a " .. interface .. " < " .. resolv_conf) then
+	-- Only call resolvconf with interface if interface is provided
+	if interface then
+		resolvconf_command = "resolvconf -a " .. interface .. " < " .. resolv_conf
+    else
+		resolvconf_command = "resolvconf -u"
+	end
+	if not os.execute(resolvconf_command) then
 		nuage.warn("Failed to execute resolvconf(8)")
 	end
+
 end
 
 local function install_packages(packages)
@@ -572,6 +579,22 @@ local function config2_network(p)
 			--end
 		end
 	end
+
+	-- Handle global nameservers from services section
+	if obj["services"] then
+		local dns_servers = {}
+		for _, service in pairs(obj["services"]) do
+			if service["type"] == "dns" then
+				table.insert(dns_servers, service["address"])
+			end
+		end
+		if #dns_servers > 0 then
+			-- Use nameservers() function for global services
+			local nameserver_config = {addresses = dns_servers}
+			nameservers(nil, nameserver_config)
+		end
+	end
+
 	if #ipv4 > 0 then
 		routing:write('static_routes="')
 		routing:write(table.concat(ipv4, " ") .. '"\n')
