@@ -84,6 +84,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/param.h>
+#include <assert.h>
 #include <stand.h>
 #include <teken.h>
 #include <gfx_fb.h>
@@ -780,7 +781,7 @@ gfxfb_blt(void *BltBuffer, GFXFB_BLT_OPERATION BltOperation,
 	int rv;
 #if defined(EFI)
 	EFI_STATUS status;
-	EFI_GRAPHICS_OUTPUT *gop = gfx_state.tg_private;
+	EFI_GRAPHICS_OUTPUT *gop;
 	EFI_TPL tpl;
 
 	/*
@@ -790,7 +791,9 @@ gfxfb_blt(void *BltBuffer, GFXFB_BLT_OPERATION BltOperation,
 	 * done as they are provided by protocols that disappear when exit
 	 * boot services.
 	 */
-	if (gop != NULL && boot_services_active) {
+	if (gfx_state.tg_fb_type == FB_GOP && boot_services_active) {
+		assert(gfx_state.tg_private != NULL);
+		gop = gfx_state.tg_private;
 		tpl = BS->RaiseTPL(TPL_NOTIFY);
 		switch (BltOperation) {
 		case GfxFbBltVideoFill:
