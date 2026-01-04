@@ -77,7 +77,7 @@ MTREE=$(SHELL="which mtree" ${MAKE} ${DEFARCH} buildenv | tail -1) || die "No mt
 # All the architectures under test
 # Note: we can't yet do armv7 because we don't have a good iso for it and would
 # need root to extract the files.
-#ARCHES="amd64:amd64 i386:i386 powerpc:powerpc powerpc:powerpc64 powerpc:powerpc64le powerpc:powerpcspe arm64:aarch64 riscv:riscv64"
+#ARCHES="amd64:amd64 i386:i386 powerpc:powerpc powerpc:powerpc64 powerpc:powerpc64le arm64:aarch64 riscv:riscv64"
 ARCHES="amd64:amd64 arm64:aarch64"
 
 # The smallest FAT32 filesystem is 33292 KB
