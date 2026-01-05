@@ -16,6 +16,7 @@
 
 #ifndef LOCORE
 
+#include <sys/types.h>
 #include <sys/cpuset.h>
 #include <sys/queue.h>
 
@@ -278,7 +279,12 @@ void	smp_rendezvous(void (*)(void *),
 		       void (*)(void *),
 		       void *arg);
 void	smp_rendezvous_cpus(cpuset_t,
-		       void (*)(void *), 
+		       void (*)(void *),
+		       void (*)(void *),
+		       void (*)(void *),
+		       void *arg);
+void	smp_rendezvous_cpu(u_int,
+		       void (*)(void *),
 		       void (*)(void *),
 		       void (*)(void *),
 		       void *arg);
