@@ -539,6 +539,7 @@ struct rack_control {
 	uint32_t last_rcv_tstmp_for_rtt;
 	uint32_t last_time_of_arm_rcv;
 	uint32_t rto_ssthresh;
+	uint32_t recovery_rxt_cnt;
 	uint32_t rc_saved_beta;
 	uint32_t rc_saved_beta_ecn;	/*
 					 * For newreno cc: rc_saved_beta and
