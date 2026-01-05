@@ -661,7 +661,7 @@ ixl_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	struct ixl_rx_queue	*que = &vsi->rx_queues[ri->iri_qsidx];
 	struct rx_ring		*rxr = &que->rxr;
 	union i40e_rx_desc	*cur;
-	u32		status, error;
+	u32		status, error, fltstat;
 	u16		plen;
 	u64		qword;
 	u8		ptype;
@@ -717,8 +717,12 @@ ixl_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 	if ((scctx->isc_capenable & IFCAP_RXCSUM) != 0)
 		rxr->csum_errs += ixl_rx_checksum(ri, status, error, ptype);
-	ri->iri_flowid = le32toh(cur->wb.qword0.hi_dword.rss);
-	ri->iri_rsstype = ixl_ptype_to_hash(ptype);
+	fltstat = (status >> I40E_RX_DESC_STATUS_FLTSTAT_SHIFT);
+	if ((fltstat & I40E_RX_DESC_FLTSTAT_RSS_HASH) ==
+		I40E_RX_DESC_FLTSTAT_RSS_HASH) {
+		ri->iri_flowid = le32toh(cur->wb.qword0.hi_dword.rss);
+		ri->iri_rsstype = ixl_ptype_to_hash(ptype);
+	}
 	if (status & (1 << I40E_RX_DESC_STATUS_L2TAG1P_SHIFT)) {
 		ri->iri_vtag = le16toh(cur->wb.qword0.lo_dword.l2tag1);
 		ri->iri_flags |= M_VLANTAG;
