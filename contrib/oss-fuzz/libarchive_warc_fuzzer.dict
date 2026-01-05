@@ -1,0 +1,34 @@
+# WARC format dictionary
+
+# Version
+"WARC/1.0"
+"WARC/1.1"
+"WARC/0.17"
+"WARC/0.18"
+
+# Record types
+"warcinfo"
+"response"
+"resource"
+"request"
+"metadata"
+"revisit"
+"conversion"
+"continuation"
+
+# Headers
+"WARC-Type:"
+"WARC-Record-ID:"
+"WARC-Date:"
+"WARC-Target-URI:"
+"Content-Length:"
+"Content-Type:"
+"WARC-Block-Digest:"
+"WARC-Payload-Digest:"
+"WARC-Concurrent-To:"
+"WARC-Refers-To:"
+
+# Content types
+"application/warc-fields"
+"application/http;msgtype=request"
+"application/http;msgtype=response"

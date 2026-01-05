@@ -1,0 +1,44 @@
+# XAR format dictionary
+# Magic bytes
+"xar!"
+"\x78\x61\x72\x21"
+
+# XML elements commonly in XAR
+"<xar>"
+"</xar>"
+"<toc>"
+"</toc>"
+"<file>"
+"</file>"
+"<name>"
+"</name>"
+"<data>"
+"</data>"
+"<encoding>"
+"</encoding>"
+"<archived-checksum>"
+"<extracted-checksum>"
+"<offset>"
+"<length>"
+"<size>"
+"<mode>"
+"<uid>"
+"<gid>"
+"<user>"
+"<group>"
+"<type>"
+"<mtime>"
+"<atime>"
+"<ctime>"
+
+# Compression types
+"application/octet-stream"
+"application/x-gzip"
+"application/x-bzip2"
+"application/x-lzma"
+
+# Checksum types
+"sha1"
+"md5"
+"sha256"
+"sha512"

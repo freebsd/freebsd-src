@@ -1,0 +1,51 @@
+# TAR format dictionary
+
+# USTAR magic
+"ustar"
+"ustar\x00"
+"ustar  \x00"
+
+# GNU tar magic
+"GNUtar "
+"GNUtar\x00"
+
+# Common header field values
+"00000000000"
+"0000644"
+"0000755"
+"0000777"
+
+# Type flags
+"0"
+"1"
+"2"
+"3"
+"4"
+"5"
+"6"
+"7"
+"g"
+"x"
+"L"
+"K"
+
+# PAX keywords
+"path="
+"linkpath="
+"uname="
+"gname="
+"uid="
+"gid="
+"size="
+"mtime="
+"atime="
+"ctime="
+"SCHILY.xattr."
+"LIBARCHIVE.xattr."
+
+# Sparse headers
+"GNU.sparse.major="
+"GNU.sparse.minor="
+"GNU.sparse.name="
+"GNU.sparse.realsize="
+"GNU.sparse.map="

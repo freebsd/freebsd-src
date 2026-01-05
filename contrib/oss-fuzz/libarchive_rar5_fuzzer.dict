@@ -1,0 +1,37 @@
+# RAR5 format dictionary
+# Magic bytes (RAR5 signature)
+"Rar!\x1a\x07\x01\x00"
+"\x52\x61\x72\x21\x1a\x07\x01\x00"
+
+# Common header types
+"\x01"
+"\x02"
+"\x03"
+"\x04"
+"\x05"
+
+# Common flags
+"\x00\x00"
+"\x01\x00"
+"\x02\x00"
+"\x04\x00"
+
+# Compression methods
+"\x00"
+"\x01"
+"\x02"
+"\x03"
+"\x04"
+"\x05"
+
+# File attributes
+"\x20\x00\x00\x00"
+"\x10\x00\x00\x00"
+
+# Encryption marker
+"\x80"
+"password"
+"Password"
+
+# End of archive
+"\x1d\x77\x56\x51\x03\x05\x04\x00"

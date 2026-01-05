@@ -3,20 +3,7 @@
 #include <vector>
 
 #include "archive.h"
-
-struct Buffer {
-  const uint8_t *buf;
-  size_t len;
-};
-
-ssize_t reader_callback(struct archive *a, void *client_data,
-                        const void **block) {
-  Buffer *buffer = reinterpret_cast<Buffer *>(client_data);
-  *block = buffer->buf;
-  ssize_t len = buffer->len;
-  buffer->len = 0;
-  return len;
-}
+#include "fuzz_helpers.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
   int ret;
@@ -26,7 +13,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
   archive_read_support_filter_all(a);
   archive_read_support_format_all(a);
 
-  Buffer buffer = {buf, len};
+  Buffer buffer = {buf, len, 0};
   archive_read_open(a, &buffer, NULL, reader_callback, NULL);
 
   std::vector<uint8_t> data_buffer(getpagesize(), 0);

@@ -1,0 +1,26 @@
+# LHA/LZH format dictionary
+
+# Compression methods
+"-lh0-"
+"-lh1-"
+"-lh2-"
+"-lh3-"
+"-lh4-"
+"-lh5-"
+"-lh6-"
+"-lh7-"
+"-lhd-"
+"-lzs-"
+"-lz4-"
+"-lz5-"
+
+# OS type
+"\x00"
+"\x4d"
+"\x55"
+
+# Header levels
+"\x00"
+"\x01"
+"\x02"
+"\x03"

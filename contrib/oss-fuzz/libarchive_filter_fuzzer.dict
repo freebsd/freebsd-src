@@ -1,0 +1,33 @@
+# Compression filter dictionary
+
+# GZIP magic
+"\x1f\x8b"
+"\x1f\x8b\x08"
+
+# BZIP2 magic
+"BZh"
+"BZ0"
+
+# XZ magic
+"\xfd7zXZ\x00"
+
+# LZMA magic
+"\x5d\x00\x00"
+
+# ZSTD magic
+"\x28\xb5\x2f\xfd"
+
+# LZ4 magic
+"\x04\x22\x4d\x18"
+
+# Compress (.Z) magic
+"\x1f\x9d"
+
+# LZIP magic
+"LZIP"
+
+# LRZIP magic
+"LRZI"
+
+# LZO magic
+"\x89LZO\x00\x0d\x0a\x1a\x0a"

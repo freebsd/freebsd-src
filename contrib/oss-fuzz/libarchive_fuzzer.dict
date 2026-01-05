@@ -1,0 +1,76 @@
+# General libarchive dictionary covering multiple formats
+
+# TAR magic
+"ustar"
+"ustar\x00"
+"ustar  \x00"
+"\x00\x00"
+
+# ZIP magic
+"PK\x03\x04"
+"PK\x05\x06"
+"PK\x01\x02"
+"PK\x07\x08"
+
+# 7z magic
+"7z\xbc\xaf\x27\x1c"
+
+# RAR magic
+"Rar!\x1a\x07\x00"
+"Rar!\x1a\x07\x01\x00"
+
+# XAR magic
+"xar!"
+
+# CPIO magic
+"\xc7\x71"
+"070701"
+"070702"
+"070707"
+
+# CAB magic
+"MSCF"
+
+# LHA magic
+"-lh"
+"-lz"
+
+# AR magic
+"!<arch>\x0a"
+
+# ISO9660 magic
+"CD001"
+
+# GZIP magic
+"\x1f\x8b"
+
+# BZIP2 magic
+"BZ"
+"BZh"
+
+# XZ magic
+"\xfd7zXZ\x00"
+
+# LZMA magic
+"\x5d\x00\x00"
+
+# ZSTD magic
+"\x28\xb5\x2f\xfd"
+
+# LZ4 magic
+"\x04\x22\x4d\x18"
+
+# Common paths
+"/"
+"./"
+"../"
+"./test"
+"test.txt"
+"test/"
+
+# Common attributes
+"\x00\x00\x00\x00"
+"\xff\xff\xff\xff"
+
+# Passphrase
+"password"

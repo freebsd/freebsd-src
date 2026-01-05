@@ -1,0 +1,9 @@
+[libfuzzer]
+max_len = 524288
+timeout = 30
+
+[honggfuzz]
+timeout = 30
+
+[afl]
+timeout = 30

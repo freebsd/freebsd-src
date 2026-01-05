@@ -253,7 +253,7 @@ la_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
 	createExParams.dwSize = sizeof(createExParams);
 	createExParams.dwFileAttributes = dwFlagsAndAttributes & 0xFFFF;
 	createExParams.dwFileFlags = dwFlagsAndAttributes & 0xFFF00000;
-	createExParams.dwSecurityQosFlags = dwFlagsAndAttributes & 0x000F00000;
+	createExParams.dwSecurityQosFlags = dwFlagsAndAttributes & 0x000F0000;
 	createExParams.lpSecurityAttributes = lpSecurityAttributes;
 	createExParams.hTemplateFile = hTemplateFile;
 	handle = CreateFile2(wpath, dwDesiredAccess, dwShareMode,
@@ -747,7 +747,8 @@ __la_seek_fstat(int fd, la_seek_stat_t *st)
 	int ret;
 
 	ret = __hstat((HANDLE)_get_osfhandle(fd), &u);
-	copy_seek_stat(st, &u);
+	if (ret >= 0)
+		copy_seek_stat(st, &u);
 	return (ret);
 }
 

@@ -1,3 +1,4 @@
+---
 env:
   CIRRUS_CLONE_DEPTH: 1
   ARCH: amd64
@@ -9,10 +10,21 @@ FreeBSD_task:
     env:
       BS: cmake
   matrix:
-    freebsd_instance:
-      image_family: freebsd-14-3
-    freebsd_instance:
-      image_family: freebsd-13-5
+    - name: 15.0-STABLE (UFS)
+      freebsd_instance:
+        image_family: freebsd-15-0-amd64-ufs-snap
+    - name: 15.0-RELEASE (UFS)
+      freebsd_instance:
+        image_family: freebsd-15-0-amd64-ufs
+    - name: 15.0-RELEASE (ZFS)
+      freebsd_instance:
+        image_family: freebsd-15-0-amd64-zfs
+    - name: 14.3-RELEASE
+      freebsd_instance:
+        image_family: freebsd-14-3
+    - name: 13.5-RELEASE
+      freebsd_instance:
+        image_family: freebsd-13-5
   prepare_script:
   - ./build/ci/cirrus_ci/ci.sh prepare
   configure_script:

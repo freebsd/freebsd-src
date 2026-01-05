@@ -1,0 +1,36 @@
+# ISO9660 format dictionary
+
+# Volume descriptor type
+"\x00"
+"\x01"
+"\x02"
+"\xff"
+
+# Standard identifier
+"CD001"
+
+# Volume descriptor version
+"\x01"
+
+# Joliet escape sequences
+"%/@"
+"%/C"
+"%/E"
+
+# Rock Ridge signatures
+"SP"
+"RR"
+"CE"
+"PX"
+"PN"
+"SL"
+"NM"
+"CL"
+"PL"
+"RE"
+"TF"
+"SF"
+
+# System use
+"ER"
+"ES"

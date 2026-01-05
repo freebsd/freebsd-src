@@ -1,0 +1,23 @@
+# CAB (Microsoft Cabinet) format dictionary
+
+# CAB signature
+"MSCF"
+"\x4d\x53\x43\x46"
+
+# Version
+"\x03\x01"
+
+# Compression types
+"\x00\x00"
+"\x01\x00"
+"\x02\x00"
+"\x03\x00"
+
+# Folder count patterns
+"\x01\x00"
+"\x02\x00"
+
+# Header flags
+"\x00\x00"
+"\x01\x00"
+"\x04\x00"

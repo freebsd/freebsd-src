@@ -191,7 +191,7 @@ questions we are asked about libarchive:
   libraries.  This also reduces the size of statically-linked
   binaries in environments where that matters.
 
-* The library is generally _thread safe_ depending on the platform:
+* The library is generally _thread-safe_ depending on the platform:
   it does not define any global variables of its own.  However, some
   platforms do not provide fully thread-safe versions of key C library
   functions.  On those platforms, libarchive will use the non-thread-safe
@@ -214,7 +214,7 @@ questions we are asked about libarchive:
   multiple threads.  Of course, those modules are completely
   optional and you can use the rest of libarchive without them.
 
-* The library is _not_ thread aware, however.  It does no locking
+* The library is _not_ thread-aware, however.  It does no locking
   or thread management of any kind.  If you create a libarchive
   object and need to access it from multiple threads, you will
   need to provide your own locking.

@@ -1,0 +1,25 @@
+# CPIO format dictionary
+
+# Binary magic (little endian)
+"\xc7\x71"
+
+# Binary magic (big endian)
+"\x71\xc7"
+
+# ASCII odc magic
+"070707"
+
+# ASCII newc magic
+"070701"
+
+# ASCII crc magic
+"070702"
+
+# Common trailer
+"TRAILER!!!"
+
+# Common field patterns
+"00000000"
+"00000001"
+"000001ed"
+"000003e8"

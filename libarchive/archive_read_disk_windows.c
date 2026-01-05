@@ -1468,7 +1468,7 @@ update_current_filesystem(struct archive_read_disk *a, int64_t dev)
 			return (ARCHIVE_FATAL);
 		}
 		t->filesystem_table = (struct filesystem *)p;
-		t->allocated_filesystem = (int)s;
+		t->allocated_filesystem = s;
 	}
 	t->current_filesystem_id = fid;
 	t->current_filesystem = &(t->filesystem_table[fid]);

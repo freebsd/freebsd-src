@@ -26,6 +26,8 @@ LOCAL_PATH := $(subst /contrib/android,,$(call my-dir))
 libarchive_target_config := contrib/android/config/android.h
 
 libarchive_src_files := libarchive/archive_acl.c \
+						libarchive/archive_blake2s_ref.c \
+						libarchive/archive_blake2sp_ref.c \
 						libarchive/archive_check_magic.c \
 						libarchive/archive_cmdline.c \
 						libarchive/archive_cryptor.c \
@@ -44,6 +46,7 @@ libarchive_src_files := libarchive/archive_acl.c \
 						libarchive/archive_parse_date.c \
 						libarchive/archive_pathmatch.c \
 						libarchive/archive_ppmd7.c \
+						libarchive/archive_ppmd8.c \
 						libarchive/archive_random.c \
 						libarchive/archive_rb.c \
 						libarchive/archive_read.c \
@@ -86,6 +89,7 @@ libarchive_src_files := libarchive/archive_acl.c \
 						libarchive/archive_read_support_format_lha.c \
 						libarchive/archive_read_support_format_mtree.c \
 						libarchive/archive_read_support_format_rar.c \
+						libarchive/archive_read_support_format_rar5.c \
 						libarchive/archive_read_support_format_raw.c \
 						libarchive/archive_read_support_format_tar.c \
 						libarchive/archive_read_support_format_warc.c \
@@ -93,6 +97,7 @@ libarchive_src_files := libarchive/archive_acl.c \
 						libarchive/archive_read_support_format_zip.c \
 						libarchive/archive_string.c \
 						libarchive/archive_string_sprintf.c \
+						libarchive/archive_time.c \
 						libarchive/archive_util.c \
 						libarchive/archive_version_details.c \
 						libarchive/archive_virtual.c \
@@ -123,7 +128,9 @@ libarchive_src_files := libarchive/archive_acl.c \
 						libarchive/archive_write_set_format_ar.c \
 						libarchive/archive_write_set_format_by_name.c \
 						libarchive/archive_write_set_format_cpio.c \
+						libarchive/archive_write_set_format_cpio_binary.c \
 						libarchive/archive_write_set_format_cpio_newc.c \
+						libarchive/archive_write_set_format_cpio_odc.c \
 						libarchive/archive_write_set_format_iso9660.c \
 						libarchive/archive_write_set_format_mtree.c \
 						libarchive/archive_write_set_format_pax.c \
@@ -303,6 +310,19 @@ LOCAL_SHARED_LIBRARIES := libz
 LOCAL_STATIC_LIBRARIES := libarchive libarchive_fe
 LOCAL_SRC_FILES := $(bsdcat_src_files)
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/libarchive $(LOCAL_PATH)/libarchive_fe $(LOCAL_PATH)/contrib/android/include
+include $(BUILD_EXECUTABLE)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := bsdtar-recovery
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_STEM := bsdtar
+LOCAL_CFLAGS :=  -DBSDTAR_VERSION_STRING=ARCHIVE_VERSION_ONLY_STRING -DPLATFORM_CONFIG_H=\"$(libarchive_target_config)\"
+LOCAL_STATIC_LIBRARIES := libarchive libarchive_fe libz
+LOCAL_SRC_FILES := $(bsdtar_src_files)
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/libarchive $(LOCAL_PATH)/libarchive_fe $(LOCAL_PATH)/contrib/android/include
+LOCAL_MODULE_CLASS := RECOVERY_EXECUTABLES
+LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
+LOCAL_FORCE_STATIC_EXECUTABLE := true
 include $(BUILD_EXECUTABLE)
 
 endif

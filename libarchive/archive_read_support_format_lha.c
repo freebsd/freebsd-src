@@ -2374,7 +2374,7 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 					lzh_br_consume(&bre, lt_bitlen[c]);
 				}
 				blocks_avail--;
-				if (c > UCHAR_MAX)
+				if ((unsigned int)c > UCHAR_MAX)
 					/* Current block is a match data. */
 					break;
 				/*

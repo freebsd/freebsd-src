@@ -1,0 +1,20 @@
+# AR format dictionary
+
+# AR magic
+"!<arch>\x0a"
+
+# File header terminator
+"\x60\x0a"
+
+# Special entries
+"/"
+"//"
+"/SYM64/"
+
+# Common permissions
+"100644  "
+"100755  "
+
+# UID/GID fields
+"0     "
+"1000  "
