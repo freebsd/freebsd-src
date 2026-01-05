@@ -35,7 +35,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -882,7 +881,6 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	if (sc->sc_flowtype != M_HASHTYPE_NONE) {
 		inp->inp_flowid = sc->sc_flowid;
 		inp->inp_flowtype = sc->sc_flowtype;
-#ifdef	RSS
 	} else {
 		  /* assign flowid by software RSS hash */
 #ifdef INET6
@@ -897,6 +895,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		  } else
 #endif	/* INET6 */
 		  {
+#ifdef INET
 			rss_proto_software_hash_v4(inp->inp_faddr,
 						   inp->inp_laddr,
 						   inp->inp_fport,
@@ -904,8 +903,8 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 						   IPPROTO_TCP,
 						   &inp->inp_flowid,
 						   &inp->inp_flowtype);
+#endif /* INET */
 		  }
-#endif	/* RSS */
 	}
 #ifdef NUMA
 	inp->inp_numa_domain = sc->sc_numa_domain;
