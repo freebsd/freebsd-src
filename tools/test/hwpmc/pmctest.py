@@ -23,6 +23,7 @@
 import subprocess
 from subprocess import PIPE
 import argparse
+import tempfile
 
 def gather_counters():
     """Run program and return output as array of lines."""
@@ -39,6 +40,7 @@ def main():
     parser = argparse.ArgumentParser(description='Exercise a program under hwpmc')
     parser.add_argument('--program', type=str, required=True, help='target program')
     parser.add_argument('--wait', action='store_true', help='Wait after each counter.')
+    parser.add_argument('--exercise', action='store_true', help='Exercise the program being studied using sampling counters.')
 
     args = parser.parse_args()
 
@@ -48,19 +50,32 @@ def main():
         print("no counters found")
         sys.exit()
 
+    if args.exercise == True:
+        tmpdir = tempfile.mkdtemp()
+        print("Exercising program ", args.program, " storing results data in ", tmpdir)
+
     for counter in counters:
         if counter in notcounter:
             continue
-        p = subprocess.Popen(["pmcstat", "-p", counter, args.program],
+        if args.exercise == True:
+            p = subprocess.Popen(["pmcstat",
+                                  "-O", tmpdir + "/" + args.program + "-" + counter + ".pmc",
+                                  "-g",
+                                  "-P", counter, args.program],
+                                 text=True, stderr=PIPE)
+            result = p.communicate()[1]
+            print(result)
+        else:
+            p = subprocess.Popen(["pmcstat", "-p", counter, args.program],
                              text=True, stderr=PIPE)
-        result = p.communicate()[1]
-        print(result)
-        if (args.wait == True):
-            try:
-                value = input("Waitin for you to press ENTER")
-            except EOFError:
-                sys.exit()
-
+            result = p.communicate()[1]
+            print(result)
+            if (args.wait == True):
+                try:
+                    value = input("Waitin for you to press ENTER")
+                except EOFError:
+                    sys.exit()
+                    
 # The canonical way to make a python module into a script.
 # Remove if unnecessary.
  
