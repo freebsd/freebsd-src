@@ -499,7 +499,7 @@ int ufshci_utmr_req_queue_enable(struct ufshci_controller *ctrlr);
 void ufshci_utr_req_queue_disable(struct ufshci_controller *ctrlr);
 int ufshci_utr_req_queue_enable(struct ufshci_controller *ctrlr);
 void ufshci_req_queue_fail(struct ufshci_controller *ctrlr,
-    struct ufshci_hw_queue *hwq);
+    struct ufshci_req_queue *req_queue);
 int ufshci_req_queue_submit_request(struct ufshci_req_queue *req_queue,
     struct ufshci_request *req, bool is_admin);
 void ufshci_req_queue_complete_tracker(struct ufshci_tracker *tr);

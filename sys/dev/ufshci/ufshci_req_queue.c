@@ -199,11 +199,10 @@ ufshci_req_queue_manual_complete_request(struct ufshci_req_queue *req_queue,
 
 void
 ufshci_req_queue_fail(struct ufshci_controller *ctrlr,
-    struct ufshci_hw_queue *hwq)
+    struct ufshci_req_queue *req_queue)
 {
-	struct ufshci_req_queue *req_queue;
+	struct ufshci_hw_queue *hwq = req_queue->qops.get_hw_queue(req_queue);
 	struct ufshci_tracker *tr;
-	struct ufshci_request *req;
 	int i;
 
 	if (!mtx_initialized(&hwq->qlock))
@@ -211,16 +210,13 @@ ufshci_req_queue_fail(struct ufshci_controller *ctrlr,
 
 	mtx_lock(&hwq->qlock);
 
-	req_queue = &ctrlr->transfer_req_queue;
-
-	for (i = 0; i < req_queue->num_entries; i++) {
+	for (i = 0; i < req_queue->num_trackers; i++) {
 		tr = hwq->act_tr[i];
-		req = tr->req;
 
 		if (tr->slot_state == UFSHCI_SLOT_STATE_RESERVED) {
 			mtx_unlock(&hwq->qlock);
-			ufshci_req_queue_manual_complete_request(req_queue, req,
-			    UFSHCI_DESC_ABORTED,
+			ufshci_req_queue_manual_complete_request(req_queue,
+			    tr->req, UFSHCI_DESC_ABORTED,
 			    UFSHCI_RESPONSE_CODE_GENERAL_FAILURE);
 			mtx_lock(&hwq->qlock);
 		} else if (tr->slot_state == UFSHCI_SLOT_STATE_SCHEDULED) {
