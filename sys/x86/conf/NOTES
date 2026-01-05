@@ -525,7 +525,6 @@ device		ntb_hw_plx	# PLX NTB hardware driver
 # pbio: Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
 # smbios: DMI/SMBIOS entry point (requires EFIRT option)
 # vpd: Vital Product Data kernel interface
-# asmc: Apple System Management Controller
 # si: Specialix International SI/XIO or SX intelligent serial card
 # tpm: Trusted Platform Module
 
@@ -541,7 +540,6 @@ envvar		hint.pbio.0.at="isa"
 envvar		hint.pbio.0.port="0x360"
 device		smbios
 device		vpd
-device		asmc
 device		tpm
 device		rdrand_rng	# Intel Bull Mountain RNG
 device		aesni		# AES-NI OpenCrypto module
