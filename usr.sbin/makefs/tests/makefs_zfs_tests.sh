@@ -312,6 +312,12 @@ empty_fs_cleanup()
 }
 
 atf_test_case file_extend cleanup
+file_extend_head()
+{
+	# Double the default timeout to make it pass on emulated architectures
+	# on ci.freebsd.org
+	atf_set "timeout" 600
+}
 file_extend_body()
 {
 	local i start
