@@ -1259,6 +1259,18 @@ operator>>(basic_istream<_CharT, _Traits>& __is, basic_string<_CharT, _Traits, _
   return __is;
 }
 
+template <class _CharT, class _Traits>
+inline _LIBCPP_HIDE_FROM_ABI_AFTER_V1 void __bump_stream(
+    const _CharT* __first, _CharT& __1buf, std::basic_streambuf<_CharT, _Traits>& __buffer, ptrdiff_t __diff) {
+  if (__first == std::addressof(__1buf)) {
+    _LIBCPP_ASSERT_INTERNAL(__diff == 0 || __diff == 1, "trying to bump stream further than buffer size");
+    if (__diff != 0)
+      __buffer.sbumpc();
+  } else {
+    __buffer.__gbump_ptrdiff(__diff);
+  }
+}
+
 template <class _CharT, class _Traits, class _Allocator>
 _LIBCPP_HIDE_FROM_ABI basic_istream<_CharT, _Traits>&
 getline(basic_istream<_CharT, _Traits>& __is, basic_string<_CharT, _Traits, _Allocator>& __str, _CharT __dlm) {
@@ -1285,31 +1297,21 @@ getline(basic_istream<_CharT, _Traits>& __is, basic_string<_CharT, _Traits, _All
         __last  = std::addressof(__1buf) + 1;
       }
 
-      auto __bump_stream = [&](ptrdiff_t __diff) {
-        if (__first == std::addressof(__1buf)) {
-          _LIBCPP_ASSERT_INTERNAL(__diff == 0 || __diff == 1, "trying to bump stream further than buffer size");
-          if (__diff != 0)
-            __buffer.sbumpc();
-        } else {
-          __buffer.__gbump_ptrdiff(__diff);
-        }
-      };
-
       const auto* const __match = _Traits::find(__first, __last - __first, __dlm);
       if (__match)
         __last = __match;
 
       if (auto __cap = __str.max_size() - __str.size(); __cap > static_cast<size_t>(__last - __first)) {
         __str.append(__first, __last);
-        __bump_stream(__last - __first);
+        __bump_stream(__first, __1buf, __buffer, __last - __first);
 
         if (__match) {
-          __bump_stream(1); // Remove the matched character
+          __bump_stream(__first, __1buf, __buffer, 1); // Remove the matched character
           break;
         }
       } else {
         __str.append(__first, __cap);
-        __bump_stream(__cap);
+        __bump_stream(__first, __1buf, __buffer, __cap);
         __state |= ios_base::failbit;
         break;
       }
