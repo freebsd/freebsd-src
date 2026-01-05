@@ -59,7 +59,7 @@ Usage: git arc [-vy] <command> <arguments>
 Commands:
   create [-l] [-r <reviewer1>[,<reviewer2>...]] [-s subscriber[,...]] [<commit>|<commit range>]
   list <commit>|<commit range>
-  patch [-bc] <diff1> [<diff2> ...]
+  patch [-bcrs] <diff1> [<diff2> ...]
   stage [-b branch] [<commit>|<commit range>]
   update [-l] [-m message] [<commit>|<commit range>]
 
@@ -226,6 +226,20 @@ diff2phid()
         jq -r "select(.response != []) | .response.${diff}.phid"
 }
 
+phid2diff()
+{
+    local diff phid
+
+    phid=$1
+    if ! expr "$phid" : 'PHID-DREV-[0-9A-Za-z]*$' >/dev/null; then
+        err "invalid diff PHID $phid"
+    fi
+    diff=$(echo '{"constraints": {"phids": ["'"$phid"'"]}}' |
+        arc_call_conduit -- differential.revision.search |
+        jq -r '.response.data[0].id')
+    echo "D${diff}"
+}
+
 diff2status()
 {
     local diff tmp status summary
@@ -242,6 +256,19 @@ diff2status()
     summary=$(jq -r "select(.response != []) |
         .response.${diff}.fullName" < "$tmp")
     printf "%-14s %s\n" "${status}" "${summary}"
+}
+
+diff2parents()
+{
+    local dep dependencies diff parents phid
+
+    diff=$1
+    phid=$(diff2phid "$diff")
+    for dep in $(echo '{"phids": ["'"$phid"'"]}' |
+        arc_call_conduit -- differential.query |
+        jq -r '.response[0].auxiliary."phabricator:depends-on"[]'); do
+        echo $(phid2diff $dep)
+    done
 }
 
 log2diff()
@@ -651,13 +678,46 @@ patch_commit()
     git commit --author "${author}" --file "$tmp"
 }
 
+apply_rev()
+{
+    local commit parent parents raw rev stack
+
+    rev=$1
+    commit=$2
+    raw=$3
+    stack=$4
+
+    if $stack; then
+        parents=$(diff2parents "$rev")
+        for parent in $parents; do
+            echo "Applying parent ${parent}..."
+            if ! apply_rev $parent $commit $raw $stack; then
+                return 1
+            fi
+        done
+    fi
+
+    if $raw; then
+        fetch -o /dev/stdout "https://reviews.freebsd.org/${rev}.diff" | git apply --index
+    else
+        arc patch --skip-dependencies --nobranch --nocommit --force $rev
+    fi
+
+    if ${commit}; then
+        patch_commit $rev
+    fi
+    return 0
+}
+
 gitarc__patch()
 {
-    local branch commit rev
+    local branch commit o raw rev stack
 
     branch=false
     commit=false
-    while getopts bc o; do
+    raw=false
+    stack=false
+    while getopts bcrs o; do
         case "$o" in
         b)
             require_clean_work_tree "patch -b"
@@ -666,6 +726,12 @@ gitarc__patch()
         c)
             require_clean_work_tree "patch -c"
             commit=true
+            ;;
+        r)
+            raw=true
+            ;;
+        s)
+            stack=true
             ;;
         *)
             err_usage
@@ -682,13 +748,8 @@ gitarc__patch()
         patch_branch "$@"
     fi
     for rev in "$@"; do
-        if ! arc patch --skip-dependencies --nobranch --nocommit --force "$rev"; then
-            break
-        fi
         echo "Applying ${rev}..."
-        if ${commit}; then
-            patch_commit $rev
-        fi
+        apply_rev $rev $commit $raw $stack
     done
 }
 
