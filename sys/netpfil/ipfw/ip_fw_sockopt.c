@@ -2035,7 +2035,7 @@ ipfw_check_object_name_generic(const char *name)
  *
  * Return 0 on success.
  */
-int
+static int
 create_objects_compat(struct ip_fw_chain *ch, ipfw_insn *cmd,
     struct obj_idx *oib, struct obj_idx *pidx, struct tid_info *ti)
 {

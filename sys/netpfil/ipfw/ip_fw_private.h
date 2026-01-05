@@ -740,8 +740,6 @@ void ipfw_destroy_obj_rewriter(void);
 void ipfw_add_obj_rewriter(struct opcode_obj_rewrite *rw, size_t count);
 int ipfw_del_obj_rewriter(struct opcode_obj_rewrite *rw, size_t count);
 
-int create_objects_compat(struct ip_fw_chain *ch, ipfw_insn *cmd,
-    struct obj_idx *oib, struct obj_idx *pidx, struct tid_info *ti);
 void update_opcode_kidx(ipfw_insn *cmd, uint32_t idx);
 int classify_opcode_kidx(ipfw_insn *cmd, uint32_t *puidx);
 void ipfw_init_srv(struct ip_fw_chain *ch);
