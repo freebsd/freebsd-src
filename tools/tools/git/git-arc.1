@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd Janurary 15, 2025
+.Dd December 29, 2025
 .Dt GIT-ARC 1
 .Os
 .Sh NAME
@@ -37,40 +37,59 @@
 .Op Fl r Ar reviewer1 Ns Op Cm \&, Ns Ar reviewer2 ...
 .Op Fl s Ar subscriber1 Ns Op Cm \&, Ns Ar subscriber2 ...
 .Op Fl p Ar parent
-.Op Ar commit ... Ns | Ns Ar commit-range
+.Ar commit-ref Op Ar commit-ref ...
 .Nm
-.Cm list Ar commit ... Ns | Ns Ar commit-range
+.Cm list Ar commit-ref Op Ar commit-ref ...
 .Nm
+.Op Fl bcrs
 .Cm patch
 .Op Fl c
-.Ar diff1 Ns Op Cm \&, Ns Ar diff2
+.Ar diff1 Op Cm Ar diff2 Op Ar ...
 .Nm
 .Cm stage
 .Op Fl b Ar branch
-.Op Ar commit ... Ns | Ns Ar commit-range
+.Ar commit-ref Op Ar commit-ref ...
 .Nm
 .Cm update
 .Op Fl l
 .Op Fl m Ar message
-.Op Ar commit ... Ns | Ns Ar commit-range
+.Ar commit-ref Op Ar commit-ref ...
 .Sh DESCRIPTION
 The
 .Nm
 utility creates and manages
 .Fx
 Phabricator reviews based on git commits.
+It is geared towards
+.Fx
+development.
 It requires the
-.Pa devel/arcanist
-port or package.
+.Pa devel/git ,
+.Pa devel/arcanist-lib
+and
+.Pa textproc/jq
+packages; these will be installed automatically if
+.Nm
+is installed via the
+.Pa devel/freebsd-git-devtools
+package.
 .Pp
 .Nm
 assumes a one-to-one relationship between git commits and
-Differential Revisions, and the Differential Revision title must match
-the summary line of the corresponding commit.
-In particular, the commit summaries must be unique across all open
+Differential Revisions, and requires the titles in a pair to match.
+Commit titles must therefore be unique across all open
 Differential Revisions authored by the submitter.
+If the title of either a commit or its associated Differential Revision is
+changed, the other must be updated manually to maintain the match.
 .Pp
 The first parameter must be a verb.
+Most verbs accept one or more git commit references: commit hashes, branch
+names, commit ranges, and so on.
+A branch name refers to the single commit at its tip; use a commit range to
+operate on multiple commits.
+See
+.Xr git-rev-parse 1
+for details on specifying commit references.
 The available verbs are:
 .Bl -tag -width "create"
 .It Cm create
@@ -96,19 +115,45 @@ stack in Phabricator.
 .It Cm list
 Print the associated Differential Revisions for the specified commits.
 .It Cm patch
-Try to apply a patch from a Differential Revision to the currently
+Try to apply patches from one or more Differential Revision to the currently
 checked out tree.
+The following options are accepted:
+.Bl -tag -width "-b"
+.It Fl b
+Switch to a new branch before applying the patches.
+.It Fl c
+Commit each applied patch to the git checkout.
+The commit message and author are taken from the Differential Revision.
+.It Fl r
+Rather than using the
+.Sy arc
+command to apply the patch, download the raw patch file and apply it using
+.Xr git-apply 1 .
+This is useful for avoiding some misfeatures of
+.Sy arc ,
+particularly its behavior of trying to update all remotes in the tree in some
+cases.
+.It Fl s
+Recursively apply the parent revisions of the specified commit.
+This can be used to apply patch stacks by specifying the top-most, i.e.,
+most recent commit in the stack.
+.El
 .It Cm stage
 Prepare a series of commits to be pushed to the upstream
 .Fx
 repository.
-The commits are cherry-picked to a branch (by default the
-.Dq main
-branch), review tags are added to the commit log message, and
-the log message is opened in an editor for any last-minute
+.Pp
+First, the target branch is checked out; by default this is the
+main branch but can be overridden with the
+.Fl b
+option.
+Then, the specified commits are cherry-picked with review tags added to the
+commit log message, and the log message is opened in an editor for any final
 updates.
-The commits need not have associated Differential
-Revisions.
+The commits need not have associated Differential Revisions.
+.Pp
+This is intended to be used after code review has been completed, and the
+commits are ready to be pushed to an upstream repository.
 .It Cm update
 Synchronize the Differential Revisions associated with the
 specified commits.
