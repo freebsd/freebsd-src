@@ -456,7 +456,7 @@ __archive_issetugid(void)
 		return (-1);
 	if (ruid != euid || ruid != suid)
 		return (1);
-	if (getresgid(&ruid, &egid, &sgid) != 0)
+	if (getresgid(&rgid, &egid, &sgid) != 0)
 		return (-1);
 	if (rgid != egid || rgid != sgid)
 		return (1);
