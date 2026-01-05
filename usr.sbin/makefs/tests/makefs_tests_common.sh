@@ -79,6 +79,14 @@ check_image_contents()
 	    -p $TEST_MOUNT_DIR $mtree_excludes_arg
 }
 
+create_manifest_file()
+{
+	# Prefer a specification format that is easier to parse (-C)
+	mtree -k "$DEFAULT_MTREE_KEYWORDS" -cp "$TEST_INPUTS_DIR" | \
+	    mtree -C > "$TEST_SPEC_FILE"
+	sed -i "" "s|^\.|.${TEST_INPUTS_DIR##$TMPDIR}|g" "$TEST_SPEC_FILE"
+}
+
 create_test_dirs()
 {
 	atf_check mkdir -m 0777 -p $TEST_MOUNT_DIR
