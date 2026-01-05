@@ -44,12 +44,13 @@ ufshci_ctrlr_cmd_send_nop(struct ufshci_controller *ctrlr, ufshci_cb_fn_t cb_fn,
 
 	req->request_size = sizeof(struct ufshci_nop_out_upiu);
 	req->response_size = sizeof(struct ufshci_nop_in_upiu);
+	req->is_admin = true;
 
 	upiu = (struct ufshci_nop_out_upiu *)&req->request_upiu;
 	memset(upiu, 0, req->request_size);
 	upiu->header.trans_type = UFSHCI_UPIU_TRANSACTION_CODE_NOP_OUT;
 
-	ufshci_ctrlr_submit_admin_request(ctrlr, req);
+	ufshci_ctrlr_submit_transfer_request(ctrlr, req);
 }
 
 void
@@ -63,6 +64,7 @@ ufshci_ctrlr_cmd_send_query_request(struct ufshci_controller *ctrlr,
 
 	req->request_size = sizeof(struct ufshci_query_request_upiu);
 	req->response_size = sizeof(struct ufshci_query_response_upiu);
+	req->is_admin = true;
 
 	upiu = (struct ufshci_query_request_upiu *)&req->request_upiu;
 	memset(upiu, 0, req->request_size);
@@ -75,5 +77,5 @@ ufshci_ctrlr_cmd_send_query_request(struct ufshci_controller *ctrlr,
 	upiu->value_64 = param.value;
 	upiu->length = param.desc_size;
 
-	ufshci_ctrlr_submit_admin_request(ctrlr, req);
+	ufshci_ctrlr_submit_transfer_request(ctrlr, req);
 }

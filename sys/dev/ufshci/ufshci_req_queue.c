@@ -268,9 +268,8 @@ ufshci_req_queue_complete_tracker(struct ufshci_tracker *tr)
 	error = ufshci_req_queue_response_is_error(req_queue, ocs,
 	    &cpl.response_upiu);
 
-	/* TODO: Implement retry */
-	// retriable = ufshci_completion_is_retry(cpl);
-	retriable = false;
+	/* Retry for admin commands */
+	retriable = req->is_admin;
 	retry = error && retriable &&
 	    req->retries < req_queue->ctrlr->retry_count;
 	if (retry)
@@ -778,7 +777,7 @@ _ufshci_req_queue_submit_request(struct ufshci_req_queue *req_queue,
 
 int
 ufshci_req_queue_submit_request(struct ufshci_req_queue *req_queue,
-    struct ufshci_request *req, bool is_admin)
+    struct ufshci_request *req)
 {
 	struct ufshci_hw_queue *hwq;
 	uint32_t error;
