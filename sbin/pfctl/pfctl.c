@@ -320,8 +320,8 @@ static const struct pfctl_opt_id showopt_list[] = {
 	{ "Tables",		SHOWOPT_TABLES },
 	{ "osfp",		SHOWOPT_OSFP },
 	{ "Running",		SHOWOPT_RUNNING },
-	{ "Stlimiters",		SHOWOPT_STATELIMS },
-	{ "Srclimiters",	SHOWOPT_SOURCELIMS },
+	{ "LimiterStates",	SHOWOPT_STATELIMS },
+	{ "LimiterSrcs",	SHOWOPT_SOURCELIMS },
 	{ "creatorids",		SHOWOPT_CREATORIDS },
 	{ "all",		SHOWOPT_ALL },
 
