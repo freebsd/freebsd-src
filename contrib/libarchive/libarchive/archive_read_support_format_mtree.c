@@ -392,8 +392,8 @@ next_line(struct archive_read *a,
 		if (len >= MAX_LINE_LEN)
 			return (-1);
 
-		/* Increase reading bytes if it is not enough to at least
-		 * new two lines. */
+		/* Increase reading bytes if it is not enough for at least
+		 * two new lines. */
 		if (nbytes_req < (size_t)*ravail + 160)
 			nbytes_req <<= 1;
 
@@ -568,8 +568,8 @@ bid_keyword_list(const char *p,  ssize_t len, int unset, int last_is_path)
 				--len;
 				value = 1;
 			}
-			/* A keyword should have a its value unless
-			 * "/unset" operation. */ 
+			/* A keyword should have a value unless this is
+			 * an "/unset" operation. */ 
 			if (!unset && value == 0)
 				return (-1);
 		}
@@ -752,7 +752,7 @@ detect_form(struct archive_read *a, int *is_form_d)
 				} else if (form_D == 1) {
 					if (!last_is_path && keywords > 0)
 						/* This this is not `form D'
-						 * and We cannot accept mixed
+						 * and we cannot accept mixed
 						 * format. */
 						break;
 				}
@@ -805,7 +805,7 @@ detect_form(struct archive_read *a, int *is_form_d)
  * to read the entire mtree file into memory up front.
  *
  * The parsing is done in two steps.  First, it is decided if a line
- * changes the global defaults and if it is, processed accordingly.
+ * changes the global defaults and if it does, it is processed accordingly.
  * Otherwise, the options of the line are merged with the current
  * global options.
  */

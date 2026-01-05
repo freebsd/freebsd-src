@@ -104,11 +104,7 @@ memory_write(struct archive *a, void *client_data, const void *buff, size_t leng
 static int
 memory_write_free(struct archive *a, void *client_data)
 {
-	struct write_memory_data *mine;
 	(void)a; /* UNUSED */
-	mine = client_data;
-	if (mine == NULL)
-		return (ARCHIVE_OK);
-	free(mine);
+	free(client_data);
 	return (ARCHIVE_OK);
 }

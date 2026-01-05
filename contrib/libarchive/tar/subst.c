@@ -237,7 +237,7 @@ apply_substitution(struct bsdtar *bsdtar, const char *name, char **result,
 
 		char isEnd = 0;
 		do {
-            isEnd = *name == '\0';
+			isEnd = *name == '\0';
 			if (regexec(&rule->re, name, 10, matches, 0))
 				break;
 
@@ -293,13 +293,13 @@ apply_substitution(struct bsdtar *bsdtar, const char *name, char **result,
 
 			realloc_strcat(result, rule->result + j);
 			if (matches[0].rm_eo > 0) {
-                name += matches[0].rm_eo;
-            } else {
-                // We skip a character because the match is 0-length
-                // so we need to add it to the output
-                realloc_strncat(result, name, 1);
-                name += 1;
-            }
+				name += matches[0].rm_eo;
+			} else if (!isEnd) {
+				// We skip a character because the match is 0-length
+				// so we need to add it to the output
+				realloc_strncat(result, name, 1);
+				name += 1;
+			}
 		} while (rule->global && !isEnd); // Testing one step after because sed et al. run 0-length patterns a last time on the empty string at the end
 	}
 

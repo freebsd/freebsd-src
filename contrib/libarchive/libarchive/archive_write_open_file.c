@@ -96,11 +96,7 @@ file_write(struct archive *a, void *client_data, const void *buff, size_t length
 static int
 file_free(struct archive *a, void *client_data)
 {
-	struct write_FILE_data	*mine = client_data;
-
 	(void)a; /* UNUSED */
-	if (mine == NULL)
-		return (ARCHIVE_OK);
-	free(mine);
+	free(client_data);
 	return (ARCHIVE_OK);
 }

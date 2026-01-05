@@ -3573,7 +3573,7 @@ win_strncat_from_utf16(struct archive_string *as, const void *_p, size_t bytes,
 
 	if (sc->to_cp == CP_C_LOCALE) {
 		/*
-		 * "C" locale special process.
+		 * "C" locale special processing.
 		 */
 		u16 = _p;
 		ll = 0;
@@ -3690,7 +3690,7 @@ win_strncat_to_utf16(struct archive_string *as16, const void *_p,
 	avail = as16->buffer_length - 2;
 	if (sc->from_cp == CP_C_LOCALE) {
 		/*
-		 * "C" locale special process.
+		 * "C" locale special processing.
 		 */
 		count = 0;
 		while (count < length && *s) {

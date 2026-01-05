@@ -232,8 +232,8 @@ bid_get_line(struct archive_read_filter *filter,
 		size_t nbytes_req = (*ravail+1023) & ~1023U;
 		ssize_t tested;
 
-		/* Increase reading bytes if it is not enough to at least
-		 * new two lines. */
+		/* Increase reading bytes if it is not enough for at least
+		 * two new lines. */
 		if (nbytes_req < (size_t)*ravail + 160)
 			nbytes_req <<= 1;
 
@@ -411,7 +411,7 @@ ensure_in_buff_size(struct archive_read_filter *self,
 
 		/*
 		 * Calculate a new buffer size for in_buff.
-		 * Increase its value until it has enough size we need.
+		 * Increase its value until it is enough for our needs.
 		 */
 		newsize = uudecode->in_allocated;
 		do {
@@ -494,7 +494,7 @@ read_more:
 		}
 		/*
 		 * If there is remaining data which is saved by
-		 * previous calling, use it first.
+		 * a previous call, use it first.
 		 */
 		if (ensure_in_buff_size(self, uudecode,
 		    avail_in + uudecode->in_cnt) != ARCHIVE_OK)

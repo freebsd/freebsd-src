@@ -47,7 +47,7 @@ echo "f3" > $dir/d1/f3
 rm -r $dir
 }
 #
-# Make a lzip file from split tar file.
+# Make a lzip file from the split tar file.
 #
 name=test_compat_lzip_1
 dir="$name`date +%Y%m%d%H%M%S`.$USER"
@@ -75,7 +75,7 @@ exit 0
 */
 
 /*
- * Verify our ability to read sample files compatibly with lzip.
+ * Verify our ability to read the sample files compatibly with lzip.
  *
  * In particular:
  *  * lzip will read multiple lzip streams, concatenating the output
