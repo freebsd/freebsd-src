@@ -539,7 +539,7 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 		ret = ARCHIVE_WARN;
 	}
 	if (copy_length > 0) {
-		if (strlen(p) > USTAR_gname_size) {
+		if (copy_length > USTAR_gname_size) {
 			if (tartype != 'x') {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC, "Group name too long");

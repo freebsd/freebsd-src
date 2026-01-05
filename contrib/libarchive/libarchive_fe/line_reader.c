@@ -64,6 +64,8 @@ lafe_line_reader(const char *pathname, int nullSeparator)
 
 	lr->nullSeparator = nullSeparator;
 	lr->pathname = strdup(pathname);
+	if (lr->pathname == NULL)
+		lafe_errc(1, ENOMEM, "Can't open %s", pathname);
 
 	if (strcmp(pathname, "-") == 0)
 		lr->f = stdin;
