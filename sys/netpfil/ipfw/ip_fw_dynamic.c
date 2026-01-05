@@ -3175,7 +3175,7 @@ dyn_add_protected_rule(struct ip_fw_chain *chain)
 	cmd->opcode = O_COUNT;
 	rule->act_ofs = cmd - rule->cmd;
 	rule->cmd_len = rule->act_ofs + 1;
-	ipfw_add_protected_rule(chain, rule, 0);
+	ipfw_add_protected_rule(chain, rule);
 }
 
 void

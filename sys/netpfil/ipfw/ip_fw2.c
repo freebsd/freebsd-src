@@ -3692,7 +3692,7 @@ vnet_ipfw_init(const void *unused)
 	rule->cmd[0].len = 1;
 	rule->cmd[0].opcode = default_to_accept ? O_ACCEPT : O_DENY;
 	chain->default_rule = rule;
-	ipfw_add_protected_rule(chain, rule, 0);
+	ipfw_add_protected_rule(chain, rule);
 
 	ipfw_eaction_init(chain, first);
 	ipfw_init_skipto_cache(chain);
