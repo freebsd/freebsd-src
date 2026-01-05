@@ -93,7 +93,7 @@ public:
 };
 
 #  if _LIBCPP_HAS_EXCEPTIONS
-#    if _LIBCPP_AVAILABILITY_HAS_INIT_PRIMARY_EXCEPTION
+#    if _LIBCPP_AVAILABILITY_HAS_INIT_PRIMARY_EXCEPTION && !defined(_LIBCPP_CXX03_LANG)
 template <class _Ep>
 _LIBCPP_HIDE_FROM_ABI exception_ptr __make_exception_ptr_explicit(_Ep& __e) _NOEXCEPT {
   using _Ep2 = __decay_t<_Ep>;
