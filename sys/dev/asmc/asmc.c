@@ -97,6 +97,7 @@ static int 	asmc_mb_sysctl_fansafespeed(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mb_sysctl_fanminspeed(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mb_sysctl_fanmaxspeed(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mb_sysctl_fantargetspeed(SYSCTL_HANDLER_ARGS);
+static int 	asmc_mb_sysctl_fanmanual(SYSCTL_HANDLER_ARGS);
 static int 	asmc_temp_sysctl(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mb_sysctl_sms_x(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mb_sysctl_sms_y(SYSCTL_HANDLER_ARGS);
@@ -656,6 +657,13 @@ asmc_attach(device_t dev)
 		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 		    dev, j, model->smc_fan_targetspeed, "I",
 		    "Fan target speed in RPM");
+
+		SYSCTL_ADD_PROC(sysctlctx,
+		    SYSCTL_CHILDREN(sc->sc_fan_tree[i]),
+		    OID_AUTO, "manual",
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+		    dev, j, asmc_mb_sysctl_fanmanual, "I",
+		    "Fan manual mode (0=auto, 1=manual)");
 	}
 
 	/*
@@ -1342,6 +1350,53 @@ asmc_mb_sysctl_fantargetspeed(SYSCTL_HANDLER_ARGS)
 	if (error == 0 && req->newptr != NULL) {
 		unsigned int newspeed = v;
 		asmc_fan_setvalue(dev, ASMC_KEY_FANTARGETSPEED, fan, newspeed);
+	}
+
+	return (error);
+}
+
+static int
+asmc_mb_sysctl_fanmanual(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = (device_t) arg1;
+	int fan = arg2;
+	int error;
+	int32_t v;
+	uint8_t buf[2];
+	uint16_t val;
+
+	/* Read current FS! bitmask (asmc_key_read locks internally) */
+	error = asmc_key_read(dev, ASMC_KEY_FANMANUAL, buf, sizeof(buf));
+	if (error != 0)
+		return (error);
+
+	/* Extract manual bit for this fan (big-endian) */
+	val = (buf[0] << 8) | buf[1];
+	v = (val >> fan) & 0x01;
+
+	/* Let sysctl handle the value */
+	error = sysctl_handle_int(oidp, &v, 0, req);
+
+	if (error == 0 && req->newptr != NULL) {
+		/* Validate input (0 = auto, 1 = manual) */
+		if (v != 0 && v != 1)
+			return (EINVAL);
+		/* Read-modify-write of FS! bitmask */
+		error = asmc_key_read(dev, ASMC_KEY_FANMANUAL, buf, sizeof(buf));
+		if (error == 0) {
+			val = (buf[0] << 8) | buf[1];
+
+			/* Modify single bit */
+			if (v)
+				val |= (1 << fan);   /* Set to manual */
+			else
+				val &= ~(1 << fan);  /* Set to auto */
+
+			/* Write back */
+			buf[0] = val >> 8;
+			buf[1] = val & 0xff;
+			error = asmc_key_write(dev, ASMC_KEY_FANMANUAL, buf, sizeof(buf));
+		}
 	}
 
 	return (error);
