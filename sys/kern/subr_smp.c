@@ -625,6 +625,19 @@ smp_rendezvous_cpus(cpuset_t map,
 }
 
 void
+smp_rendezvous_cpu(u_int cpuid,
+	void (* setup_func)(void *),
+	void (* action_func)(void *),
+	void (* teardown_func)(void *),
+	void *arg)
+{
+	cpuset_t set;
+
+	CPU_SETOF(cpuid, &set);
+	smp_rendezvous_cpus(set, setup_func, action_func, teardown_func, arg);
+}
+
+void
 smp_rendezvous(void (* setup_func)(void *), 
 	       void (* action_func)(void *),
 	       void (* teardown_func)(void *),
