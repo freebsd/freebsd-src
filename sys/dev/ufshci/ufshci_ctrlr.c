@@ -17,12 +17,8 @@ ufshci_ctrlr_fail(struct ufshci_controller *ctrlr)
 {
 	ctrlr->is_failed = true;
 
-	ufshci_req_queue_fail(ctrlr,
-	    ctrlr->task_mgmt_req_queue.qops.get_hw_queue(
-		&ctrlr->task_mgmt_req_queue));
-	ufshci_req_queue_fail(ctrlr,
-	    ctrlr->transfer_req_queue.qops.get_hw_queue(
-		&ctrlr->transfer_req_queue));
+	ufshci_req_queue_fail(ctrlr, &ctrlr->task_mgmt_req_queue);
+	ufshci_req_queue_fail(ctrlr, &ctrlr->transfer_req_queue);
 }
 
 static void
