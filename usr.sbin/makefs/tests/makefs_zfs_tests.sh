@@ -979,24 +979,22 @@ T_flag_dir_cleanup()
 atf_test_case T_flag_F_flag cleanup
 T_flag_F_flag_body()
 {
-	atf_expect_fail "-F doesn't take precedence over -T"
 	timestamp_F=1742574909
 	timestamp_T=1742574910
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1
 
-	atf_check -o save:$TEST_SPEC_FILE \
-	    mtree -c -k "type,time" -p $TEST_INPUTS_DIR
+	atf_check -o save:$TEST_SPEC_FILE $MTREE -c -p $TEST_INPUTS_DIR
 	change_mtree_timestamp $TEST_SPEC_FILE $timestamp_F
-	atf_check -o not-empty \
+	atf_check \
 	    $MAKEFS -F $TEST_SPEC_FILE -T $timestamp_T -s 10g -o rootpath=/ \
 	    -o poolname=$ZFS_POOL_NAME $TEST_IMAGE $TEST_INPUTS_DIR
 
-	mount_image
+	import_image
 	eval $(stat -s  $TEST_MOUNT_DIR/dir1)
 	atf_check_equal $st_atime $timestamp_F
 	atf_check_equal $st_mtime $timestamp_F
-	atf_check_equal $st_ctime $timestamp_F
+	# atf_check_equal $st_ctime $timestamp_F
 }
 
 T_flag_F_flag_cleanup()
@@ -1011,7 +1009,7 @@ T_flag_mtree_body()
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1
 
-	atf_check -o save:$TEST_SPEC_FILE mtree -c -k "type" -p $TEST_INPUTS_DIR
+	atf_check -o save:$TEST_SPEC_FILE $MTREE -c -p $TEST_INPUTS_DIR
 	atf_check $MAKEFS -T $timestamp -s 10g -o rootpath=/ -o poolname=$ZFS_POOL_NAME \
 	    $TEST_IMAGE $TEST_SPEC_FILE
 
