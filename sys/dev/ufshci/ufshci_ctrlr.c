@@ -426,24 +426,15 @@ ufshci_ctrlr_submit_task_mgmt_request(struct ufshci_controller *ctrlr,
     struct ufshci_request *req)
 {
 	return (
-	    ufshci_req_queue_submit_request(&ctrlr->task_mgmt_req_queue, req,
-		/*is_admin*/ false));
+	    ufshci_req_queue_submit_request(&ctrlr->task_mgmt_req_queue, req));
 }
 
 int
-ufshci_ctrlr_submit_admin_request(struct ufshci_controller *ctrlr,
+ufshci_ctrlr_submit_transfer_request(struct ufshci_controller *ctrlr,
     struct ufshci_request *req)
 {
-	return (ufshci_req_queue_submit_request(&ctrlr->transfer_req_queue, req,
-	    /*is_admin*/ true));
-}
-
-int
-ufshci_ctrlr_submit_io_request(struct ufshci_controller *ctrlr,
-    struct ufshci_request *req)
-{
-	return (ufshci_req_queue_submit_request(&ctrlr->transfer_req_queue, req,
-	    /*is_admin*/ false));
+	return (
+	    ufshci_req_queue_submit_request(&ctrlr->transfer_req_queue, req));
 }
 
 int

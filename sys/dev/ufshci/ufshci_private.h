@@ -451,9 +451,7 @@ void ufshci_ctrlr_poll(struct ufshci_controller *ctrlr);
 
 int ufshci_ctrlr_submit_task_mgmt_request(struct ufshci_controller *ctrlr,
     struct ufshci_request *req);
-int ufshci_ctrlr_submit_admin_request(struct ufshci_controller *ctrlr,
-    struct ufshci_request *req);
-int ufshci_ctrlr_submit_io_request(struct ufshci_controller *ctrlr,
+int ufshci_ctrlr_submit_transfer_request(struct ufshci_controller *ctrlr,
     struct ufshci_request *req);
 int ufshci_ctrlr_send_nop(struct ufshci_controller *ctrlr);
 
@@ -501,7 +499,7 @@ int ufshci_utr_req_queue_enable(struct ufshci_controller *ctrlr);
 void ufshci_req_queue_fail(struct ufshci_controller *ctrlr,
     struct ufshci_req_queue *req_queue);
 int ufshci_req_queue_submit_request(struct ufshci_req_queue *req_queue,
-    struct ufshci_request *req, bool is_admin);
+    struct ufshci_request *req);
 void ufshci_req_queue_complete_tracker(struct ufshci_tracker *tr);
 
 /* Request Single Doorbell Queue */
