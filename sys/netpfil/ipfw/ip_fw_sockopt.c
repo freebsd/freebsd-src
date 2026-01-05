@@ -568,12 +568,11 @@ ipfw_commit_rules(struct ip_fw_chain *chain, struct rule_check_info *rci,
 }
 
 int
-ipfw_add_protected_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
-    int locked)
+ipfw_add_protected_rule(struct ip_fw_chain *chain, struct ip_fw *rule)
 {
 	struct ip_fw **map;
 
-	map = get_map(chain, 1, locked);
+	map = get_map(chain, 1, 0);
 	if (map == NULL)
 		return (ENOMEM);
 	if (chain->n_rules > 0)
