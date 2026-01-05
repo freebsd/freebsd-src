@@ -30,6 +30,7 @@
 
 MAKEFS="makefs -t msdos"
 MOUNT="mount_msdosfs"
+
 . "$(dirname "$0")/makefs_tests_common.sh"
 
 common_cleanup()
@@ -53,7 +54,7 @@ T_flag_dir_body()
 
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1
-	atf_check -e empty -o not-empty -s exit:0 \
+	atf_check -o not-empty \
 	    $MAKEFS -T $timestamp -s 1m $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
@@ -77,10 +78,10 @@ T_flag_F_flag_body()
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1
 
-	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
+	atf_check -o save:$TEST_SPEC_FILE \
 	    mtree -c -k "type,time" -p $TEST_INPUTS_DIR
 	change_mtree_timestamp $TEST_SPEC_FILE $timestamp_F
-	atf_check -e empty -o not-empty -s exit:0 \
+	atf_check -o not-empty \
 	    $MAKEFS -F $TEST_SPEC_FILE -T $timestamp_T -s 1m $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
@@ -102,14 +103,13 @@ T_flag_mtree_body()
 
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1
-	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
-	    mtree -c -k "type" -p $TEST_INPUTS_DIR
-	atf_check -e empty -o not-empty -s exit:0 \
+	atf_check -o save:$TEST_SPEC_FILE mtree -c -k "type" -p $TEST_INPUTS_DIR
+	atf_check -o not-empty \
 	    $MAKEFS -T $timestamp -s 1m  $TEST_IMAGE $TEST_SPEC_FILE
 
 	mount_image
 	eval $(stat -s  $TEST_MOUNT_DIR/dir1)
-        # FAT directory entries don't have an access time, just a date.
+	# FAT directory entries don't have an access time, just a date.
 	#atf_check_equal $st_atime $timestamp
 	atf_check_equal $st_mtime $timestamp
 	atf_check_equal $st_ctime $timestamp
