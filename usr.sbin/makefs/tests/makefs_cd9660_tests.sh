@@ -61,21 +61,23 @@ check_base_iso9660_image_contents()
 atf_test_case D_flag
 D_flag_body()
 {
-	atf_skip "makefs crashes with SIGBUS with dupe mtree entries; see FreeBSD bug # 192839"
-
 	create_test_inputs
 
-	atf_check -o save:$TEST_SPEC_FILE mtree -cp $TEST_INPUTS_DIR
-	atf_check -o not-empty \
-	    $MAKEFS -F $TEST_SPEC_FILE -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
+	create_manifest_file
 
-	atf_check cp $TEST_SPEC_FILE spec2.mtree
-	atf_check -o save:${TEST_SPEC_FILE}_dupe cat $TEST_SPEC_FILE spec2.mtree
+	# Check that it works
+	atf_check $MAKEFS -M 1m $TEST_IMAGE $TEST_SPEC_FILE
 
-	atf_check -o not-empty -s not-exit:0 \
-	    $MAKEFS -F ${TEST_SPEC_FILE}_dupe -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
-	atf_check -o not-empty \
-	    $MAKEFS -D -F ${TEST_SPEC_FILE}_dupe -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
+	# Duplicate entries in the manifest file
+	cp $TEST_SPEC_FILE spec2.mtree
+	cat $TEST_SPEC_FILE spec2.mtree | sort > "${TEST_SPEC_FILE}_dupe"
+
+	# Check that it errors
+	atf_check -e not-empty -s not-exit:0 \
+	    $MAKEFS -M 1m $TEST_IMAGE ${TEST_SPEC_FILE}_dupe
+	# Check that it warns
+	atf_check -e not-empty \
+	    $MAKEFS -D -M 1m $TEST_IMAGE ${TEST_SPEC_FILE}_dupe
 }
 
 atf_test_case F_flag cleanup
