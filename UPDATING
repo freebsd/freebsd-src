@@ -875,6 +875,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	belongs.  Consequently, users may experience surprising results with
 	such names when roaming to different homenets.
 
+20211118:
+	Mips has been removed from universe builds. It will be removed from the
+	tree shortly.
+
 20211110:
 	Commit b8d60729deef changed the TCP congestion control framework so
 	that any of the included congestion control modules could be
@@ -887,10 +891,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	as the default. If no congestion control option is built into the
 	kernel and you are including networking, the kernel compile will
 	fail. Also if no default is declared the kernel compile will fail.
-
-20211118:
-	Mips has been removed from universe builds. It will be removed from the
-	tree shortly.
 
 20211106:
 	Commit f0c9847a6c47 changed the arguments for VOP_ALLOCATE.
