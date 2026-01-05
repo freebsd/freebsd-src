@@ -169,7 +169,7 @@ msdosfs_mount(struct vnode *devvp)
 		pmp->pm_fatdiv = 1;
 		pmp->pm_FATsecs = getulong(b710->bpbBigFATsecs);
 
-		/* mirrorring is enabled if the FATMIRROR bit is not set */
+		/* mirroring is enabled if the FATMIRROR bit is not set */
 		if ((getushort(b710->bpbExtFlags) & FATMIRROR) == 0)
 			pmp->pm_flags |= MSDOSFS_FATMIRROR;
 		else
