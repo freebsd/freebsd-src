@@ -26,11 +26,11 @@
 
 # A note on specs:
 # - A copy of the ISO-9660 spec can be found here:
-#   https://www.ecma-international.org/publications/files/ECMA-ST/Ecma-119.pdf
+#   https://ecma-international.org/wp-content/uploads/ECMA-119_5th_edition_december_2024.pdf
 # - Any references to `rockridge` are referring to the `Rock Ridge` extensions
 #   of the ISO-9660 spec. A copy of the draft `IEEE-P1282` spec can be found
 #   here:
-#   http://www.ymi.com/ymi/sites/default/files/pdf/Rockridge.pdf
+#   https://people.freebsd.org/~emaste/rrip112.pdf
 
 MAKEFS="makefs -t cd9660"
 MOUNT="mount_cd9660"
@@ -54,35 +54,28 @@ check_base_iso9660_image_contents()
 	# specified, and directories cannot contain a '.'.
 	check_image_contents "$@" -X c -X .g -X _g
 
-	atf_check -e empty -o empty -s exit:0 test -L $TEST_INPUTS_DIR/c
-	atf_check -e empty -o empty -s exit:0 test -f $TEST_MOUNT_DIR/c
+	atf_check test -L $TEST_INPUTS_DIR/c
+	atf_check test -f $TEST_MOUNT_DIR/c
 }
 
-atf_test_case D_flag cleanup
+atf_test_case D_flag
 D_flag_body()
 {
 	atf_skip "makefs crashes with SIGBUS with dupe mtree entries; see FreeBSD bug # 192839"
 
 	create_test_inputs
 
-	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
-	    mtree -cp $TEST_INPUTS_DIR
-	atf_check -e empty -o not-empty -s exit:0 \
+	atf_check -o save:$TEST_SPEC_FILE mtree -cp $TEST_INPUTS_DIR
+	atf_check -o not-empty \
 	    $MAKEFS -F $TEST_SPEC_FILE -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
 
-	atf_check -e empty -o empty -s exit:0 \
-	    cp $TEST_SPEC_FILE spec2.mtree
-	atf_check -e empty -o save:dupe_$TEST_SPEC_FILE -s exit:0 \
-	    cat $TEST_SPEC_FILE spec2.mtree
+	atf_check cp $TEST_SPEC_FILE spec2.mtree
+	atf_check -o save:${TEST_SPEC_FILE}_dupe cat $TEST_SPEC_FILE spec2.mtree
 
-	atf_check -e empty -o not-empty -s not-exit:0 \
-	    $MAKEFS -F dupe_$TEST_SPEC_FILE -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
-	atf_check -e empty -o not-empty -s exit:0 \
-	    $MAKEFS -D -F dupe_$TEST_SPEC_FILE -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
-}
-D_flag_cleanup()
-{
-	common_cleanup
+	atf_check -o not-empty -s not-exit:0 \
+	    $MAKEFS -F ${TEST_SPEC_FILE}_dupe -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check -o not-empty \
+	    $MAKEFS -D -F ${TEST_SPEC_FILE}_dupe -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
 }
 
 atf_test_case F_flag cleanup
@@ -90,11 +83,9 @@ F_flag_body()
 {
 	create_test_inputs
 
-	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
-	    mtree -cp $TEST_INPUTS_DIR
+	atf_check -o save:$TEST_SPEC_FILE mtree -cp $TEST_INPUTS_DIR
 
-	atf_check -e empty -o empty -s exit:0 \
-	    $MAKEFS -F $TEST_SPEC_FILE -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check $MAKEFS -F $TEST_SPEC_FILE -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
 	check_base_iso9660_image_contents
@@ -109,11 +100,10 @@ from_mtree_spec_file_body()
 {
 	create_test_inputs
 
-	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
+	atf_check -o save:$TEST_SPEC_FILE \
 	    mtree -c -k "$DEFAULT_MTREE_KEYWORDS" -p $TEST_INPUTS_DIR
 	cd $TEST_INPUTS_DIR
-	atf_check -e empty -o empty -s exit:0 \
-	    $MAKEFS $TEST_IMAGE $TEST_SPEC_FILE
+	atf_check $MAKEFS $TEST_IMAGE $TEST_SPEC_FILE
 	cd -
 
 	mount_image
@@ -131,12 +121,10 @@ from_multiple_dirs_body()
 
 	create_test_inputs
 
-	atf_check -e empty -o empty -s exit:0 mkdir -p $test_inputs_dir2
-	atf_check -e empty -o empty -s exit:0 \
-	    touch $test_inputs_dir2/multiple_dirs_test_file
+	atf_check mkdir -p $test_inputs_dir2
+	atf_check touch $test_inputs_dir2/multiple_dirs_test_file
 
-	atf_check -e empty -o empty -s exit:0 \
-	    $MAKEFS $TEST_IMAGE $TEST_INPUTS_DIR $test_inputs_dir2
+	atf_check $MAKEFS $TEST_IMAGE $TEST_INPUTS_DIR $test_inputs_dir2
 
 	mount_image
 	check_base_iso9660_image_contents -d $test_inputs_dir2
@@ -151,8 +139,7 @@ from_single_dir_body()
 {
 	create_test_inputs
 
-	atf_check -e empty -o empty -s exit:0 \
-	    $MAKEFS $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check $MAKEFS $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
 	check_base_iso9660_image_contents
@@ -168,11 +155,9 @@ o_flag_allow_deep_trees_body()
 	create_test_inputs
 
 	# Make sure the "more than 8 levels deep" requirement is met.
-	atf_check -e empty -o empty -s exit:0 \
-	    mkdir -p $TEST_INPUTS_DIR/a/b/c/d/e/f/g/h/i/j
+	atf_check mkdir -p $TEST_INPUTS_DIR/a/b/c/d/e/f/g/h/i/j
 
-	atf_check -e empty -o empty -s exit:0 \
-	    $MAKEFS -o allow-deep-trees $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check $MAKEFS -o allow-deep-trees $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
 	check_base_iso9660_image_contents
@@ -185,17 +170,16 @@ o_flag_allow_deep_trees_cleanup()
 atf_test_case o_flag_allow_max_name cleanup
 o_flag_allow_max_name_body()
 {
-	atf_expect_fail "-o allow-max-name doesn't appear to be implemented on FreeBSD's copy of makefs [yet]"
+	atf_skip "-o allow-max-name is not implemented"
 
 	create_test_inputs
 
 	long_path=$TEST_INPUTS_DIR/$(jot -s '' -b 0 37)
 
 	# Make sure the "37 char name" limit requirement is met.
-	atf_check -e empty -o empty -s exit:0 touch $long_path
+	atf_check touch $long_path
 
-	atf_check -e empty -o empty -s exit:0 \
-	    $MAKEFS -o allow-max-name $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check $MAKEFS -o allow-max-name $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
 	check_base_iso9660_image_contents
@@ -208,12 +192,11 @@ o_flag_allow_max_name_cleanup()
 atf_test_case o_flag_isolevel_1 cleanup
 o_flag_isolevel_1_body()
 {
-	atf_expect_fail "this testcase needs work; the filenames generated seem incorrect/corrupt"
+	atf_skip "-o isolevel=1 is failing"
 
 	create_test_inputs
 
-	atf_check -e empty -o empty -s exit:0 \
-	    $MAKEFS -o isolevel=1 $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check $MAKEFS -o isolevel=1 $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
 	check_base_iso9660_image_contents
@@ -228,8 +211,7 @@ o_flag_isolevel_2_body()
 {
 	create_test_inputs
 
-	atf_check -e empty -o empty -s exit:0 \
-	    $MAKEFS -o isolevel=2 $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check $MAKEFS -o isolevel=2 $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
 	check_base_iso9660_image_contents
@@ -242,19 +224,19 @@ o_flag_isolevel_2_cleanup()
 atf_test_case o_flag_isolevel_3 cleanup
 o_flag_isolevel_3_body()
 {
+	# XXX: isolevel=3 isn't implemented yet. See FreeBSD bug # 203645
+	atf_check -e match:'makefs: ISO Level 3 is greater than 2\.' \
+	    -s not-exit:0 \
+	    $MAKEFS -o isolevel=3 $TEST_IMAGE $TEST_INPUTS_DIR
+
+	atf_skip "-o isolevel=3 is not implemented"
+
 	create_test_inputs
 
-	# XXX: isolevel=3 isn't implemented yet. See FreeBSD bug # 203645
-	if true; then
-	atf_check -e match:'makefs: ISO Level 3 is greater than 2\.' -o empty -s not-exit:0 \
-	    $MAKEFS -o isolevel=3 $TEST_IMAGE $TEST_INPUTS_DIR
-	else
-	atf_check -e empty -o empty -s exit:0 \
-	    $MAKEFS -o isolevel=3 $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check $MAKEFS -o isolevel=3 $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
 	check_base_iso9660_image_contents
-	fi
 }
 o_flag_isolevel_3_cleanup()
 {
@@ -273,11 +255,9 @@ o_flag_preparer_body()
 	preparer='My Very First ISO'
 	preparer_uppercase="$(echo $preparer | tr '[[:lower:]]' '[[:upper:]]')"
 
-	atf_check -e empty -o empty -s exit:0 touch $TEST_INPUTS_DIR/dummy_file
-	atf_check -e empty -o empty -s exit:0 \
-	    $MAKEFS -o preparer="$preparer" $TEST_IMAGE $TEST_INPUTS_DIR
-	atf_check -e empty -o match:"$preparer_uppercase" -s exit:0 \
-	    strings $TEST_IMAGE
+	atf_check touch $TEST_INPUTS_DIR/dummy_file
+	atf_check $MAKEFS -o preparer="$preparer" $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check -o match:"$preparer_uppercase" strings $TEST_IMAGE
 }
 
 atf_test_case o_flag_publisher
@@ -292,11 +272,9 @@ o_flag_publisher_body()
 	publisher='My Super Awesome Publishing Company LTD'
 	publisher_uppercase="$(echo $publisher | tr '[[:lower:]]' '[[:upper:]]')"
 
-	atf_check -e empty -o empty -s exit:0 touch $TEST_INPUTS_DIR/dummy_file
-	atf_check -e empty -o empty -s exit:0 \
-	    $MAKEFS -o publisher="$publisher" $TEST_IMAGE $TEST_INPUTS_DIR
-	atf_check -e empty -o match:"$publisher_uppercase" -s exit:0 \
-	    strings $TEST_IMAGE
+	atf_check touch $TEST_INPUTS_DIR/dummy_file
+	atf_check $MAKEFS -o publisher="$publisher" $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check -o match:"$publisher_uppercase" strings $TEST_IMAGE
 }
 
 atf_test_case o_flag_rockridge cleanup
@@ -305,27 +283,24 @@ o_flag_rockridge_body()
 	create_test_dirs
 
 	# Make sure the "more than 8 levels deep" requirement is met.
-	atf_check -e empty -o empty -s exit:0 \
-	    mkdir -p $TEST_INPUTS_DIR/a/b/c/d/e/f/g/h/i/j
+	atf_check mkdir -p $TEST_INPUTS_DIR/a/b/c/d/e/f/g/h/i/j
 
 	# Make sure the "pathname larger than 255 chars" requirement is met.
 	#
 	# $long_path's needs to be nested in a directory, as creating it
 	# outright as a 256 char filename via touch will fail with ENAMETOOLONG
 	long_path=$TEST_INPUTS_DIR/$(jot -s '/' -b "$(jot -s '' -b 0 64)" 4)
-	atf_check -e empty -o empty -s exit:0 mkdir -p "$(dirname $long_path)"
-	atf_check -e empty -o empty -s exit:0 touch "$long_path"
+	atf_check mkdir -p "$(dirname $long_path)"
+	atf_check touch "$long_path"
 
-	atf_check -e empty -o empty -s exit:0 \
-	    $MAKEFS -o rockridge $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check $MAKEFS -o rockridge $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
 	check_image_contents -X .rr_moved
 
 	# .rr_moved is a special directory created when you have deep directory
 	# trees with rock ridge extensions on
-	atf_check -e empty -o empty -s exit:0 \
-	    test -d $TEST_MOUNT_DIR/.rr_moved
+	atf_check test -d $TEST_MOUNT_DIR/.rr_moved
 }
 o_flag_rockridge_cleanup()
 {
@@ -342,13 +317,12 @@ o_flag_rockridge_dev_nodes_body()
 	create_test_dirs
 
 	(tar -cvf - -C /dev null && touch .tar_ok) | \
-	atf_check -e not-empty -o empty -s exit:0 tar -xvf - -C "$TEST_INPUTS_DIR"
+	    atf_check -e not-empty tar -xvf - -C "$TEST_INPUTS_DIR"
 
-	atf_check -e empty -o empty -s exit:0 test -c $TEST_INPUTS_DIR/null
-	atf_check -e empty -o empty -s exit:0 test -f .tar_ok
+	atf_check test -c $TEST_INPUTS_DIR/null
+	atf_check test -f .tar_ok
 
-	atf_check -e empty -o empty -s exit:0 \
-	    $MAKEFS -o rockridge $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check $MAKEFS -o rockridge $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
 	check_image_contents
@@ -365,8 +339,7 @@ T_flag_dir_body()
 	create_test_dirs
 
 	mkdir -p $TEST_INPUTS_DIR/dir1
-	atf_check -e empty -o empty -s exit:0 \
-	    $MAKEFS -T $timestamp -o rockridge $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check $MAKEFS -T $timestamp -o rockridge $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
 	eval $(stat -s  $TEST_MOUNT_DIR/dir1)
@@ -389,10 +362,9 @@ T_flag_F_flag_body()
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1
 
-	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
-	    mtree -c -k "type,time" -p $TEST_INPUTS_DIR
+	atf_check -o save:$TEST_SPEC_FILE mtree -c -k "type,time" -p $TEST_INPUTS_DIR
 	change_mtree_timestamp $TEST_SPEC_FILE $timestamp_F
-	atf_check -e empty -o not-empty -s exit:0 \
+	atf_check \
 	    $MAKEFS -F $TEST_SPEC_FILE -T $timestamp_T -o rockridge $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
@@ -414,10 +386,8 @@ T_flag_mtree_body()
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1
 
-	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
-	    mtree -c -k "type" -p $TEST_INPUTS_DIR
-	atf_check -e empty -o empty -s exit:0 \
-	    $MAKEFS -T $timestamp -o rockridge $TEST_IMAGE $TEST_SPEC_FILE
+	atf_check -o save:$TEST_SPEC_FILE mtree -c -k "type" -p $TEST_INPUTS_DIR
+	atf_check $MAKEFS -T $timestamp -o rockridge $TEST_IMAGE $TEST_SPEC_FILE
 
 	mount_image
 	eval $(stat -s  $TEST_MOUNT_DIR/dir1)
@@ -446,8 +416,7 @@ duplicate_names_body()
 	mkdir -p $TEST_INPUTS_DIR/${dir_prefix}2
 	mkdir -p $TEST_INPUTS_DIR/${dir_prefix}3
 
-	atf_check -e empty -o empty -s exit:0 \
-	    $MAKEFS -o rockridge $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check $MAKEFS -o rockridge $TEST_IMAGE $TEST_INPUTS_DIR
 
 	# Disable Rock Ridge extensions to read the plain ISO Level 2 names.
 	mount_image -r

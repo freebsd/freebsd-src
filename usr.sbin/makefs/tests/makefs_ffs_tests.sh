@@ -44,7 +44,7 @@ common_cleanup()
 
 check_ffs_image_contents()
 {
-	atf_check -e save:$TEST_TUNEFS_OUTPUT -o empty -s exit:0 \
+	atf_check -e save:$TEST_TUNEFS_OUTPUT \
 	    tunefs -p /dev/$(cat $TEST_MD_DEVICE_FILE)
 
 	check_image_contents "$@"
@@ -56,12 +56,11 @@ autocalculate_image_size_body()
 {
 	create_test_inputs
 
-	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
+	atf_check -o save:$TEST_SPEC_FILE \
 	    mtree -c -k "$DEFAULT_MTREE_KEYWORDS" -p $TEST_INPUTS_DIR
 
 	cd $TEST_INPUTS_DIR
-	atf_check -e empty -o not-empty -s exit:0 \
-	    $MAKEFS $TEST_IMAGE $TEST_SPEC_FILE
+	atf_check -o not-empty $MAKEFS $TEST_IMAGE $TEST_SPEC_FILE
 	cd -
 
 	mount_image
@@ -72,31 +71,24 @@ autocalculate_image_size_cleanup()
 	common_cleanup
 }
 
-atf_test_case D_flag cleanup
+atf_test_case D_flag
 D_flag_body()
 {
 	atf_skip "makefs crashes with SIGBUS with dupe mtree entries; see FreeBSD bug # 192839"
 
 	create_test_inputs
 
-	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
-	    mtree -cp $TEST_INPUTS_DIR
-	atf_check -e empty -o not-empty -s exit:0 \
+	atf_check -o save:$TEST_SPEC_FILE mtree -cp $TEST_INPUTS_DIR
+	atf_check -o not-empty \
 	    $MAKEFS -F $TEST_SPEC_FILE -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
 
-	atf_check -e empty -o empty -s exit:0 \
-	    cp $TEST_SPEC_FILE spec2.mtree
-	atf_check -e empty -o save:dupe_$TEST_SPEC_FILE -s exit:0 \
-	    cat $TEST_SPEC_FILE spec2.mtree
+	atf_check cp $TEST_SPEC_FILE spec2.mtree
+	atf_check -o save:${TEST_SPEC_FILE}_dupe cat $TEST_SPEC_FILE spec2.mtree
 
-	atf_check -e empty -o not-empty -s not-exit:0 \
-	    $MAKEFS -F dupe_$TEST_SPEC_FILE -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
-	atf_check -e empty -o not-empty -s exit:0 \
-	    $MAKEFS -D -F dupe_$TEST_SPEC_FILE -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
-}
-D_flag_cleanup()
-{
-	common_cleanup
+	atf_check -o not-empty -s not-exit:0 \
+	    $MAKEFS -F ${TEST_SPEC_FILE}_dupe -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check -o not-empty \
+	    $MAKEFS -D -F ${TEST_SPEC_FILE}_dupe -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
 }
 
 atf_test_case F_flag cleanup
@@ -104,10 +96,9 @@ F_flag_body()
 {
 	create_test_inputs
 
-	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
-	    mtree -cp $TEST_INPUTS_DIR
+	atf_check -o save:$TEST_SPEC_FILE mtree -cp $TEST_INPUTS_DIR
 
-	atf_check -e empty -o not-empty -s exit:0 \
+	atf_check -o not-empty \
 	    $MAKEFS -F $TEST_SPEC_FILE -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
@@ -123,12 +114,11 @@ from_mtree_spec_file_body()
 {
 	create_test_inputs
 
-	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
+	atf_check -o save:$TEST_SPEC_FILE \
 	    mtree -c -k "$DEFAULT_MTREE_KEYWORDS" -p $TEST_INPUTS_DIR
 
 	cd $TEST_INPUTS_DIR
-	atf_check -e empty -o not-empty -s exit:0 \
-	    $MAKEFS -M 1m $TEST_IMAGE $TEST_SPEC_FILE
+	atf_check -o not-empty $MAKEFS -M 1m $TEST_IMAGE $TEST_SPEC_FILE
 	cd -
 
 	mount_image
@@ -146,11 +136,10 @@ from_multiple_dirs_body()
 
 	create_test_inputs
 
-	atf_check -e empty -o empty -s exit:0 mkdir -p $test_inputs_dir2
-	atf_check -e empty -o empty -s exit:0 \
-	    touch $test_inputs_dir2/multiple_dirs_test_file
+	atf_check mkdir -p $test_inputs_dir2
+	atf_check touch $test_inputs_dir2/multiple_dirs_test_file
 
-	atf_check -e empty -o not-empty -s exit:0 \
+	atf_check -o not-empty \
 	    $MAKEFS -M 1m $TEST_IMAGE $TEST_INPUTS_DIR $test_inputs_dir2
 
 	mount_image
@@ -166,8 +155,7 @@ from_single_dir_body()
 {
 	create_test_inputs
 
-	atf_check -e empty -o not-empty -s exit:0 \
-	    $MAKEFS -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check -o not-empty $MAKEFS -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
 	check_ffs_image_contents
@@ -197,7 +185,7 @@ o_flag_version_1_body()
 
 	create_test_inputs
 
-	atf_check -e empty -o not-empty -s exit:0 \
+	atf_check -o not-empty \
 	    $MAKEFS -M 1m -o version=$ffs_version $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
@@ -229,7 +217,7 @@ o_flag_version_2_body()
 
 	create_test_inputs
 
-	atf_check -e empty -o not-empty -s exit:0 \
+	atf_check -o not-empty \
 	    $MAKEFS -M 1m -o version=$ffs_version $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
@@ -249,7 +237,7 @@ T_flag_dir_body()
 	create_test_dirs
 
 	mkdir -p $TEST_INPUTS_DIR/dir1
-	atf_check -e empty -o not-empty -s exit:0 \
+	atf_check -o not-empty \
 	    $MAKEFS -M 1m -T $timestamp $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
@@ -273,10 +261,9 @@ T_flag_F_flag_body()
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1
 
-	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
-	    mtree -c -k "type,time" -p $TEST_INPUTS_DIR
+	atf_check -o save:$TEST_SPEC_FILE mtree -c -k "type,time" -p $TEST_INPUTS_DIR
 	change_mtree_timestamp $TEST_SPEC_FILE $timestamp_F
-	atf_check -e empty -o not-empty -s exit:0 \
+	atf_check -o not-empty \
 	    $MAKEFS -F $TEST_SPEC_FILE -T $timestamp_T -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
@@ -298,9 +285,8 @@ T_flag_mtree_body()
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1
 
-	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
-	    mtree -c -k "type" -p $TEST_INPUTS_DIR
-	atf_check -e empty -o not-empty -s exit:0 \
+	atf_check -o save:$TEST_SPEC_FILE mtree -c -k "type" -p $TEST_INPUTS_DIR
+	atf_check -o not-empty \
 	    $MAKEFS -M 1m -T $timestamp $TEST_IMAGE $TEST_SPEC_FILE
 
 	mount_image
@@ -317,7 +303,6 @@ T_flag_mtree_cleanup()
 
 atf_init_test_cases()
 {
-
 	atf_add_test_case autocalculate_image_size
 
 	atf_add_test_case D_flag

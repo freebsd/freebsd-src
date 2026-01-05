@@ -75,16 +75,14 @@ check_image_contents()
 	echo "<---- Input spec BEGIN ---->"
 	cat $mtree_file
 	echo "<---- Input spec END ---->"
-	atf_check -e empty -o empty -s exit:0 \
-	    mtree -UW -f $mtree_file \
-		-p $TEST_MOUNT_DIR \
-		$mtree_excludes_arg
+	atf_check mtree -UW -f $mtree_file \
+	    -p $TEST_MOUNT_DIR $mtree_excludes_arg
 }
 
 create_test_dirs()
 {
-	atf_check -e empty -s exit:0 mkdir -m 0777 -p $TEST_MOUNT_DIR
-	atf_check -e empty -s exit:0 mkdir -m 0777 -p $TEST_INPUTS_DIR
+	atf_check mkdir -m 0777 -p $TEST_MOUNT_DIR
+	atf_check mkdir -m 0777 -p $TEST_INPUTS_DIR
 }
 
 create_test_inputs()
@@ -93,40 +91,39 @@ create_test_inputs()
 
 	cd $TEST_INPUTS_DIR
 
-	atf_check -e empty -s exit:0 mkdir -m 0755 -p a/b/1
-	atf_check -e empty -s exit:0 ln -s a/b c
-	atf_check -e empty -s exit:0 touch d
-	atf_check -e empty -s exit:0 ln d e
-	atf_check -e empty -s exit:0 touch .f
-	atf_check -e empty -s exit:0 mkdir .g
+	atf_check mkdir -m 0755 -p a/b/1
+	atf_check ln -s a/b c
+	atf_check touch d
+	atf_check ln d e
+	atf_check touch .f
+	atf_check mkdir .g
 	# XXX: fifos on the filesystem don't match fifos created by makefs for
 	# some odd reason.
-	#atf_check -e empty -s exit:0 mkfifo h
-	atf_check -e ignore -s exit:0 dd if=/dev/zero of=i count=1000 bs=1
-	atf_check -e empty -s exit:0 touch klmn
-	atf_check -e empty -s exit:0 touch opqr
-	atf_check -e empty -s exit:0 touch stuv
-	atf_check -e empty -s exit:0 install -m 0755 /dev/null wxyz
-	atf_check -e empty -s exit:0 touch 0b00000001
-	atf_check -e empty -s exit:0 touch 0b00000010
-	atf_check -e empty -s exit:0 touch 0b00000011
-	atf_check -e empty -s exit:0 touch 0b00000100
-	atf_check -e empty -s exit:0 touch 0b00000101
-	atf_check -e empty -s exit:0 touch 0b00000110
-	atf_check -e empty -s exit:0 touch 0b00000111
-	atf_check -e empty -s exit:0 touch 0b00001000
-	atf_check -e empty -s exit:0 touch 0b00001001
-	atf_check -e empty -s exit:0 touch 0b00001010
-	atf_check -e empty -s exit:0 touch 0b00001011
-	atf_check -e empty -s exit:0 touch 0b00001100
-	atf_check -e empty -s exit:0 touch 0b00001101
-	atf_check -e empty -s exit:0 touch 0b00001110
+	#atf_check mkfifo h
+	atf_check -e ignore dd if=/dev/zero of=i count=1000 bs=1
+	atf_check touch klmn
+	atf_check touch opqr
+	atf_check touch stuv
+	atf_check install -m 0755 /dev/null wxyz
+	atf_check touch 0b00000001
+	atf_check touch 0b00000010
+	atf_check touch 0b00000011
+	atf_check touch 0b00000100
+	atf_check touch 0b00000101
+	atf_check touch 0b00000110
+	atf_check touch 0b00000111
+	atf_check touch 0b00001000
+	atf_check touch 0b00001001
+	atf_check touch 0b00001010
+	atf_check touch 0b00001011
+	atf_check touch 0b00001100
+	atf_check touch 0b00001101
+	atf_check touch 0b00001110
 
 	for filesize in 1 512 $(( 2 * $KB )) $(( 10 * $KB )) $(( 512 * $KB )); \
 	do
-		atf_check -e ignore -o empty -s exit:0 \
-		    dd if=/dev/zero of=${filesize}.file bs=1 \
-		    count=1 oseek=${filesize} conv=sparse
+		atf_check -e ignore dd if=/dev/zero of=${filesize}.file bs=1 \
+		    count=${filesize} conv=sparse
 		files="${files} ${filesize}.file"
 	done
 
@@ -135,10 +132,8 @@ create_test_inputs()
 
 mount_image()
 {
-	atf_check -e empty -o save:$TEST_MD_DEVICE_FILE -s exit:0 \
-	    mdconfig -a -f $TEST_IMAGE
-	atf_check -e empty -o empty -s exit:0 \
-	    $MOUNT ${1} /dev/$(cat $TEST_MD_DEVICE_FILE) $TEST_MOUNT_DIR
+	atf_check -o save:$TEST_MD_DEVICE_FILE mdconfig -a -f $TEST_IMAGE
+	atf_check $MOUNT ${1} /dev/$(cat $TEST_MD_DEVICE_FILE) $TEST_MOUNT_DIR
 }
 
 change_mtree_timestamp()
