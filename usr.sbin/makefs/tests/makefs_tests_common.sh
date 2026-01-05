@@ -27,6 +27,7 @@
 KB=1024
 : ${TMPDIR=/tmp}
 DEFAULT_MTREE_KEYWORDS="type,mode,gid,uid,size,link,time"
+MTREE="mtree -k $DEFAULT_MTREE_KEYWORDS"
 TEST_IMAGE="$TMPDIR/test.img"
 TEST_INPUTS_DIR="$TMPDIR/inputs"
 TEST_MD_DEVICE_FILE="$TMPDIR/md.output"

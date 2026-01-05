@@ -47,10 +47,7 @@ common_cleanup()
 atf_test_case T_flag_dir cleanup
 T_flag_dir_body()
 {
-	atf_expect_fail \
-	    "The msdos backend saves the wrong timestamp value" \
-	    "(possibly due to the 2s resolution for FAT timestamp)"
-	timestamp=1742574909
+	timestamp=1742574908 # Even value, timestamp precision is 2s.
 
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1
@@ -59,7 +56,8 @@ T_flag_dir_body()
 
 	mount_image
 	eval $(stat -s  $TEST_MOUNT_DIR/dir1)
-	atf_check_equal $st_atime $timestamp
+	# FAT directory entries don't have an access time, just a date.
+	#atf_check_equal $st_atime $timestamp
 	atf_check_equal $st_mtime $timestamp
 	atf_check_equal $st_ctime $timestamp
 }
@@ -72,21 +70,20 @@ T_flag_dir_cleanup()
 atf_test_case T_flag_F_flag cleanup
 T_flag_F_flag_body()
 {
-	atf_expect_fail "-F doesn't take precedence over -T"
-	timestamp_F=1742574909
+	timestamp_F=1742574908 # Even value, timestamp precision is 2s.
 	timestamp_T=1742574910
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1
 
-	atf_check -o save:$TEST_SPEC_FILE \
-	    mtree -c -k "type,time" -p $TEST_INPUTS_DIR
+	atf_check -o save:$TEST_SPEC_FILE $MTREE -c -p $TEST_INPUTS_DIR
 	change_mtree_timestamp $TEST_SPEC_FILE $timestamp_F
 	atf_check -o not-empty \
 	    $MAKEFS -F $TEST_SPEC_FILE -T $timestamp_T -s 1m $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
 	eval $(stat -s  $TEST_MOUNT_DIR/dir1)
-	atf_check_equal $st_atime $timestamp_F
+	# FAT directory entries don't have an access time, just a date.
+	#atf_check_equal $st_atime $timestamp
 	atf_check_equal $st_mtime $timestamp_F
 	atf_check_equal $st_ctime $timestamp_F
 }
@@ -103,7 +100,7 @@ T_flag_mtree_body()
 
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1
-	atf_check -o save:$TEST_SPEC_FILE mtree -c -k "type" -p $TEST_INPUTS_DIR
+	atf_check -o save:$TEST_SPEC_FILE $MTREE -c -p $TEST_INPUTS_DIR
 	atf_check -o not-empty \
 	    $MAKEFS -T $timestamp -s 1m  $TEST_IMAGE $TEST_SPEC_FILE
 

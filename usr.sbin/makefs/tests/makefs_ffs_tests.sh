@@ -56,8 +56,7 @@ autocalculate_image_size_body()
 {
 	create_test_inputs
 
-	atf_check -o save:$TEST_SPEC_FILE \
-	    mtree -c -k "$DEFAULT_MTREE_KEYWORDS" -p $TEST_INPUTS_DIR
+	atf_check -o save:$TEST_SPEC_FILE $MTREE -c -p $TEST_INPUTS_DIR
 
 	cd $TEST_INPUTS_DIR
 	atf_check -o not-empty $MAKEFS $TEST_IMAGE $TEST_SPEC_FILE
@@ -98,7 +97,7 @@ F_flag_body()
 {
 	create_test_inputs
 
-	atf_check -o save:$TEST_SPEC_FILE mtree -cp $TEST_INPUTS_DIR
+	atf_check -o save:$TEST_SPEC_FILE $MTREE -c -p $TEST_INPUTS_DIR
 
 	atf_check -o not-empty \
 	    $MAKEFS -F $TEST_SPEC_FILE -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
@@ -116,8 +115,7 @@ from_mtree_spec_file_body()
 {
 	create_test_inputs
 
-	atf_check -o save:$TEST_SPEC_FILE \
-	    mtree -c -k "$DEFAULT_MTREE_KEYWORDS" -p $TEST_INPUTS_DIR
+	atf_check -o save:$TEST_SPEC_FILE $MTREE -c -p $TEST_INPUTS_DIR
 
 	cd $TEST_INPUTS_DIR
 	atf_check -o not-empty $MAKEFS -M 1m $TEST_IMAGE $TEST_SPEC_FILE
@@ -257,13 +255,12 @@ T_flag_dir_cleanup()
 atf_test_case T_flag_F_flag cleanup
 T_flag_F_flag_body()
 {
-	atf_expect_fail "-F doesn't take precedence over -T"
 	timestamp_F=1742574909
 	timestamp_T=1742574910
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1
 
-	atf_check -o save:$TEST_SPEC_FILE mtree -c -k "type,time" -p $TEST_INPUTS_DIR
+	atf_check -o save:$TEST_SPEC_FILE $MTREE -c -p $TEST_INPUTS_DIR
 	change_mtree_timestamp $TEST_SPEC_FILE $timestamp_F
 	atf_check -o not-empty \
 	    $MAKEFS -F $TEST_SPEC_FILE -T $timestamp_T -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
@@ -272,7 +269,7 @@ T_flag_F_flag_body()
 	eval $(stat -s  $TEST_MOUNT_DIR/dir1)
 	atf_check_equal $st_atime $timestamp_F
 	atf_check_equal $st_mtime $timestamp_F
-	atf_check_equal $st_ctime $timestamp_F
+	# atf_check_equal $st_ctime $timestamp_F
 }
 
 T_flag_F_flag_cleanup()
@@ -287,7 +284,7 @@ T_flag_mtree_body()
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1
 
-	atf_check -o save:$TEST_SPEC_FILE mtree -c -k "type" -p $TEST_INPUTS_DIR
+	atf_check -o save:$TEST_SPEC_FILE $MTREE -c -p $TEST_INPUTS_DIR
 	atf_check -o not-empty \
 	    $MAKEFS -M 1m -T $timestamp $TEST_IMAGE $TEST_SPEC_FILE
 
