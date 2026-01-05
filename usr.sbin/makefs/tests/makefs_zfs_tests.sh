@@ -41,14 +41,18 @@ common_cleanup()
 	# Try to force a TXG, this can help catch bugs by triggering a panic.
 	sync
 
-	pool=$(cat $TEST_ZFS_POOL_NAME)
-	if zpool list "$pool" >/dev/null; then
-		zpool destroy "$pool"
+	if [ -f "$TEST_ZFS_POOL_NAME" ]; then
+		pool=$(cat $TEST_ZFS_POOL_NAME)
+		if zpool list "$pool" >/dev/null; then
+			zpool destroy "$pool"
+		fi
 	fi
 
-	md=$(cat $TEST_MD_DEVICE_FILE)
-	if [ -c /dev/"$md" ]; then
-		mdconfig -d -u "$md"
+	if [ -f "$TEST_MD_DEVICE_FILE" ]; then
+		md=$(cat $TEST_MD_DEVICE_FILE)
+		if [ -c /dev/"$md" ]; then
+			mdconfig -d -u "$md"
+		fi
 	fi
 }
 
@@ -128,6 +132,12 @@ basic_cleanup()
 # Try configuring various compression algorithms.
 #
 atf_test_case compression cleanup
+compression_head()
+{
+	# Double the default timeout to make it pass on emulated architectures
+	# on ci.freebsd.org
+	atf_set "timeout" 600
+}
 compression_body()
 {
 	create_test_inputs
