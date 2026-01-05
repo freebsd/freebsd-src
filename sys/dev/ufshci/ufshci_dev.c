@@ -33,7 +33,8 @@ ufshci_dev_read_descriptor(struct ufshci_controller *ctrlr,
 	    &status, param);
 	ufshci_completion_poll(&status);
 	if (status.error) {
-		ufshci_printf(ctrlr, "ufshci_dev_read_descriptor failed!\n");
+		ufshci_printf(ctrlr,
+		    "Failed to send Read Descriptor query request!\n");
 		return (ENXIO);
 	}
 
