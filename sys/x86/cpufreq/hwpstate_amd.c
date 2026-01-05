@@ -179,6 +179,11 @@ SYSCTL_BOOL(_machdep, OID_AUTO, hwpstate_pkg_ctrl, CTLFLAG_RDTUN,
     &hwpstate_pkg_ctrl_enable, 0,
     "Set 1 (default) to enable package-level control, 0 to disable");
 
+static bool hwpstate_amd_cppc_enable = true;
+SYSCTL_BOOL(_machdep, OID_AUTO, hwpstate_amd_cppc_enable, CTLFLAG_RDTUN,
+    &hwpstate_amd_cppc_enable, 0,
+    "Set 1 (default) to enable AMD CPPC, 0 to disable");
+
 static device_method_t hwpstate_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify,	hwpstate_identify),
@@ -667,7 +672,8 @@ hwpstate_probe(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if (amd_extended_feature_extensions & AMDFEID_CPPC) {
+	if (hwpstate_amd_cppc_enable &&
+	   (amd_extended_feature_extensions & AMDFEID_CPPC)) {
 		sc->flags |= PSTATE_CPPC;
 		device_set_desc(dev,
 		    "AMD Collaborative Processor Performance Control (CPPC)");
