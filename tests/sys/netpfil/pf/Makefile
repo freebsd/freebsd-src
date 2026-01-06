@@ -19,6 +19,7 @@ ATF_TESTS_SH+=	altq \
 		icmp6 \
 		if_enc \
 		limits \
+		limiters \
 		loginterface \
 		killstate \
 		macro \
