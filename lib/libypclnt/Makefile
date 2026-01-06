@@ -1,4 +1,6 @@
-PACKAGE=	runtime
+PACKAGE=	yp
+LIB_PACKAGE=
+
 LIB=	ypclnt
 SHLIB_MAJOR= 4
 SRCS=	ypclnt_connect.c \
