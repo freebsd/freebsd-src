@@ -20,10 +20,12 @@
 # prompt would go to stdout you won't see it, just press return
 # to continue or Ctrl-D to stop.
 
+import sys
 import subprocess
 from subprocess import PIPE
 import argparse
 import tempfile
+from pathlib import Path
 
 def gather_counters():
     """Run program and return output as array of lines."""
@@ -50,8 +52,10 @@ def main():
         print("no counters found")
         sys.exit()
 
+    program = Path(args.program).name
+
     if args.exercise == True:
-        tmpdir = tempfile.mkdtemp()
+        tmpdir = tempfile.mkdtemp(prefix=program + "-", suffix="-pmc")
         print("Exercising program ", args.program, " storing results data in ", tmpdir)
 
     for counter in counters:
@@ -59,8 +63,7 @@ def main():
             continue
         if args.exercise == True:
             p = subprocess.Popen(["pmcstat",
-                                  "-O", tmpdir + "/" + args.program + "-" + counter + ".pmc",
-                                  "-g",
+                                  "-O", tmpdir + "/" + program + "-" + counter + ".pmc",
                                   "-P", counter, args.program],
                                  text=True, stderr=PIPE)
             result = p.communicate()[1]
