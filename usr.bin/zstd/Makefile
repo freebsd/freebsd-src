@@ -1,3 +1,5 @@
+PACKAGE=	zstd
+
 PROG=	zstd
 SRCS=	\
 	benchfn.c \

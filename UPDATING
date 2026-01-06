@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20260106:
+	Zstd has moved to the new "zstd" package.  If you have set-minimal
+	installed, this package will be installed automatically, otherwise
+	you might want to install it manually.  This change only affects
+	pkgbase users.
+
 20251222:
 	Commit 9f49f436a9ec changed the internal KAPI between the NFS
 	modules. As such, nfscommon, nfscl and nfsd must all be rebuilt
