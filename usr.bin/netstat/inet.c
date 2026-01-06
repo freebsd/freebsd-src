@@ -394,11 +394,10 @@ protopr(u_long off, const char *name, int af1, int proto)
 		if (istcp && (tp->t_flags & TF_TOE) != 0)
 			xo_emit("{:protocol/%-3.3s%-6.6s/%s%s} ", "toe", vchar);
 		else {
-			int len;
+			int l = max (2, 9 - strlen(name));
 
-			len = max (2, 9 - strlen(name));
-			xo_emit("{:protocol/%.7s%-*.*s/%s%s} ", name, len, len,
-			    vchar);
+			xo_emit("{d:protocol/%.7s%-*.*s} ", name, l, l, vchar);
+			xo_emit("{e:protocol/%s%s}", name, vchar);
 		}
 		if (Lflag) {
 			char buf1[33];
@@ -523,9 +522,9 @@ protopr(u_long off, const char *name, int af1, int proto)
 		}
 		if (istcp && !Lflag && !xflag && !Tflag && !Rflag) {
 			if (tp->t_state < 0 || tp->t_state >= TCP_NSTATES)
-				xo_emit("{:tcp-state/%-11d}", tp->t_state);
+				xo_emit("{:tcp-state/%-11d/%d}", tp->t_state);
 			else {
-				xo_emit("{:tcp-state/%-11s}",
+				xo_emit("{:tcp-state/%-11s/%s}",
 				    tcpstates[tp->t_state]);
 #if defined(TF_NEEDSYN) && defined(TF_NEEDFIN)
 				/* Show T/TCP `hidden state' */
