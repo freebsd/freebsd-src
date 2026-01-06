@@ -94,6 +94,16 @@ If set to a non-zero value, task returns immediately and the transmit
 ring is serviced by a different task.
 This returns control to the caller faster and under high receive load,
 may result in fewer dropped RX frames.
+.It Va tx_reclaim_thresh
+Controls the threshold in packets before iflib will ask the driver
+how many transmitted packets can be reclaimed.
+Determining how many many packets can be reclaimed can be expensive
+on some drivers.
+.It Va tx_reclaim_ticks
+Controls the time in ticks before iflib will ask the driver
+how many transmitted packets can be reclaimed.
+Determining how many many packets can be reclaimed can be expensive
+on some drivers.
 .It Va rx_budget
 Sets the maximum number of frames to be received at a time.
 Zero (the default) indicates the default (currently 16) should be used.
