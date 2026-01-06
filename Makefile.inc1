@@ -2462,6 +2462,14 @@ doxygen: .PHONY
 		echo "You need doxygen (devel/doxygen) to generate the API documentation of the kernel." | /usr/bin/fmt; \
 		exit 1; \
 	fi
+	@if [ ! -x "${LOCALBASE}/bin/tex" ]; then \
+		echo "You need TeX (print/texlive-full) to generate the API documentation of the kernel." | /usr/bin/fmt; \
+		exit 1; \
+	fi
+	@if [ ! -x "${LOCALBASE}/bin/dot" ]; then \
+		echo "You need graphviz (graphics/graphviz) to generate the API documentation of the kernel." | /usr/bin/fmt; \
+		exit 1; \
+	fi
 	${_+_}cd ${.CURDIR}/tools/kerneldoc/subsys; ${MAKE} obj all
 
 #
