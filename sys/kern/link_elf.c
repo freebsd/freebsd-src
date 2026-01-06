@@ -155,7 +155,7 @@ static int	link_elf_search_symbol(linker_file_t, caddr_t,
 		    c_linker_sym_t *, long *);
 
 static void	link_elf_unload_file(linker_file_t);
-static void	link_elf_unload_preload(linker_file_t);
+static void	link_elf_unload_preload(elf_file_t);
 static int	link_elf_lookup_set(linker_file_t, const char *,
 		    void ***, void ***, int *);
 static int	link_elf_each_function_name(linker_file_t,
@@ -799,10 +799,10 @@ parse_vnet(elf_file_t ef)
 
 /*
  * Apply the specified protection to the loadable segments of a preloaded linker
- * file.
+ * file.  If "reset" is not set, the original segment protections are ORed in.
  */
 static int
-preload_protect(elf_file_t ef, vm_prot_t prot)
+preload_protect1(elf_file_t ef, vm_prot_t prot, bool reset)
 {
 #if defined(__aarch64__) || defined(__amd64__)
 	Elf_Ehdr *hdr;
@@ -818,13 +818,16 @@ preload_protect(elf_file_t ef, vm_prot_t prot)
 		if (phdr->p_type != PT_LOAD)
 			continue;
 
-		nprot = prot | VM_PROT_READ;
-		if ((phdr->p_flags & PF_W) != 0)
-			nprot |= VM_PROT_WRITE;
-		if ((phdr->p_flags & PF_X) != 0)
-			nprot |= VM_PROT_EXECUTE;
+		nprot = VM_PROT_NONE;
+		if (!reset) {
+			nprot = VM_PROT_READ;
+			if ((phdr->p_flags & PF_W) != 0)
+				nprot |= VM_PROT_WRITE;
+			if ((phdr->p_flags & PF_X) != 0)
+				nprot |= VM_PROT_EXECUTE;
+		}
 		error = pmap_change_prot((vm_offset_t)ef->address +
-		    phdr->p_vaddr, round_page(phdr->p_memsz), nprot);
+		    phdr->p_vaddr, round_page(phdr->p_memsz), prot | nprot);
 		if (error != 0)
 			break;
 	}
@@ -832,6 +835,18 @@ preload_protect(elf_file_t ef, vm_prot_t prot)
 #else
 	return (0);
 #endif
+}
+
+static int
+preload_protect(elf_file_t ef, vm_prot_t prot)
+{
+	return (preload_protect1(ef, prot, false));
+}
+
+static int
+preload_protect_reset(elf_file_t ef, vm_prot_t prot)
+{
+	return (preload_protect1(ef, prot, true));
 }
 
 #ifdef __arm__
@@ -1396,7 +1411,7 @@ link_elf_unload_file(linker_file_t file)
 	elf_cpu_unload_file(file);
 
 	if (ef->preloaded) {
-		link_elf_unload_preload(file);
+		link_elf_unload_preload(ef);
 		return;
 	}
 
@@ -1417,11 +1432,16 @@ link_elf_unload_file(linker_file_t file)
 }
 
 static void
-link_elf_unload_preload(linker_file_t file)
+link_elf_unload_preload(elf_file_t ef)
 {
+	/*
+	 * Reset mapping protections to their original state.  This affects the
+	 * direct map alias of the module mapping as well.
+	 */
+	preload_protect_reset(ef, VM_PROT_RW);
 
-	if (file->pathname != NULL)
-		preload_delete_name(file->pathname);
+	if (ef->lf.pathname != NULL)
+		preload_delete_name(ef->lf.pathname);
 }
 
 static const char *
