@@ -85,6 +85,12 @@
 #define MPRSAS_DISCOVERY_TIMEOUT	20
 #define MPRSAS_MAX_DISCOVERY_TIMEOUTS	10 /* 200 seconds */
 
+#include <sys/sdt.h>
+
+/* SDT Probes */
+SDT_PROBE_DEFINE4(cam, , mpr, complete, "union ccb *",
+    "struct mpr_command *", "u_int", "u32");
+
 /*
  * static array to check SCSI OpCode for EEDP protection bits
  */
@@ -2538,6 +2544,9 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 		mpr_dprint(sc, MPR_INFO, "Decrementing SSU count.\n");
 		sc->SSU_refcount--;
 	}
+
+	SDT_PROBE4(cam, , mpr, complete, ccb, cm, sassc->flags,
+	    sc->mapping_table[target_id].device_info);
 
 	/* Take the fast path to completion */
 	if (cm->cm_reply == NULL) {
