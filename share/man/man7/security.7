@@ -955,7 +955,7 @@ briefly listed there, together with controls which enable some mitigations
 of the hardware state leaks.
 .Pp
 Hardware mitigation sysctl knobs described below have been moved under
-.Pa machdep.mitigations ,
+.Va machdep.mitigations ,
 with backwards-compatibility shims to accept the existing names.
 A future change will rationalize the sense of the individual sysctls
 (so that enabled / true always indicates that the mitigation is active).
@@ -965,20 +965,20 @@ Backwards compatibility shims for the interim sysctls under
 .Pa machdep.mitigations
 will not be added.
 .Bl -tag -width security.bsd.unprivileged_proc_debug
-.It Dv security.bsd.see_other_uids
+.It Va security.bsd.see_other_uids
 Controls visibility and reachability of subjects (e.g., processes) and objects
 (e.g., sockets) owned by a different uid.
 The knob directly affects the
-.Dv kern.proc
+.Va kern.proc
 sysctls filtering of data, which results in restricted output from
 utilities like
 .Xr ps 1 .
-.It Dv security.bsd.see_other_gids
+.It Va security.bsd.see_other_gids
 Same, for subjects and objects owned by a different gid.
-.It Dv security.bsd.see_jail_proc
+.It Va security.bsd.see_jail_proc
 Same, for subjects and objects belonging to a different jail, including
 sub-jails.
-.It Dv security.bsd.conservative_signals
+.It Va security.bsd.conservative_signals
 When enabled, unprivileged users are only allowed to send job control
 and usual termination signals like
 .Dv SIGKILL ,
@@ -986,13 +986,13 @@ and usual termination signals like
 and
 .Dv SIGTERM ,
 to the processes executing programs with changed uids.
-.It Dv security.bsd.unprivileged_proc_debug
+.It Va security.bsd.unprivileged_proc_debug
 Controls availability of the process debugging facilities to non-root users.
 See also
 .Xr proccontrol 1
 mode
 .Dv trace .
-.It Dv vm.pmap.pti
+.It Va vm.pmap.pti
 Tunable, amd64-only.
 Enables mode of operation of virtual memory system where usermode page
 tables are sanitized to prevent so-called Meltdown information leak on
@@ -1003,25 +1003,25 @@ See also
 .Xr proccontrol 1
 mode
 .Dv kpti .
-.It Dv machdep.mitigations.flush_rsb_ctxsw
+.It Va machdep.mitigations.flush_rsb_ctxsw
 amd64.
 Controls Return Stack Buffer flush on context switch, to prevent
 cross-process ret2spec attacks.
 Only needed, and only enabled by default, if the machine
 supports SMEP, otherwise IBRS would do necessary flushing on kernel
 entry anyway.
-.It Dv hw.mds_disable
+.It Va hw.mds_disable
 amd64 and i386.
 Controls Microarchitectural Data Sampling hardware information leak
 mitigation.
-.It Dv hw.spec_store_bypass_disable
+.It Va hw.spec_store_bypass_disable
 amd64 and i386.
 Controls Speculative Store Bypass hardware information leak mitigation.
-.It Dv hw.ibrs_disable
+.It Va hw.ibrs_disable
 amd64 and i386.
 Controls Indirect Branch Restricted Speculation hardware information leak
 mitigation.
-.It Dv machdep.syscall_ret_flush_l1d
+.It Va machdep.syscall_ret_flush_l1d
 amd64.
 Controls force-flush of L1D cache on return from syscalls which report
 errors other than
@@ -1036,62 +1036,62 @@ This is mostly a paranoid setting added to prevent hypothetical exploitation
 of unknown gadgets for unknown hardware issues.
 The error codes exclusion list is composed of the most common errors which
 typically occurs on normal system operation.
-.It Dv machdep.nmi_flush_l1d_sw
+.It Va machdep.nmi_flush_l1d_sw
 amd64.
 Controls force-flush of L1D cache on NMI;
 this provides software assist for bhyve mitigation of L1 terminal fault
 hardware information leak.
-.It Dv hw.vmm.vmx.l1d_flush
+.It Va hw.vmm.vmx.l1d_flush
 amd64.
 Controls the mitigation of L1 Terminal Fault in bhyve hypervisor.
-.It Dv vm.pmap.allow_2m_x_ept
+.It Va vm.pmap.allow_2m_x_ept
 amd64.
 Allows the use of superpages for executable mappings under the EPT
 page table format used by hypervisors on Intel CPUs to map the guest
 physical address space to machine physical memory.
 May be disabled to work around a CPU Erratum called
 Machine Check Error Avoidance on Page Size Change.
-.It Dv machdep.mitigations.rngds.enable
+.It Va machdep.mitigations.rngds.enable
 amd64 and i386.
 Controls mitigation of Special Register Buffer Data Sampling versus
 optimization of the MCU access.
 When set to zero, the mitigation is disabled, and the RDSEED and RDRAND
 instructions do not incur serialization overhead for shared buffer accesses,
 and do not serialize off-core memory accesses.
-.It Dv kern.elf32.aslr.enable
+.It Va kern.elf32.aslr.enable
 Controls system-global Address Space Layout Randomization (ASLR) for
 normal non-PIE (Position Independent Executable) 32-bit ELF binaries.
 See also the
 .Xr proccontrol 1
 .Dv aslr
 mode, also affected by the per-image control note flag.
-.It Dv kern.elf32.aslr.pie_enable
+.It Va kern.elf32.aslr.pie_enable
 Controls system-global Address Space Layout Randomization for
 position-independent (PIE) 32-bit binaries.
-.It Dv kern.elf32.aslr.honor_sbrk
+.It Va kern.elf32.aslr.honor_sbrk
 Makes ASLR less aggressive and more compatible with old binaries
 relying on the sbrk area.
-.It Dv kern.elf32.aslr.stack
+.It Va kern.elf32.aslr.stack
 Enable randomization of the stack for 32-bit binaries.
 Otherwise, the stack is mapped at a fixed location determined by the
 process ABI.
-.It Dv kern.elf64.aslr.enable
+.It Va kern.elf64.aslr.enable
 ASLR control for 64-bit ELF binaries.
-.It Dv kern.elf64.aslr.pie_enable
+.It Va kern.elf64.aslr.pie_enable
 ASLR control for 64-bit ELF PIEs.
-.It Dv kern.elf64.aslr.honor_sbrk
+.It Va kern.elf64.aslr.honor_sbrk
 ASLR sbrk compatibility control for 64-bit binaries.
-.It Dv kern.elf64.aslr.stack
+.It Va kern.elf64.aslr.stack
 Controls stack address randomization for 64-bit binaries.
-.It Dv kern.elf32.nxstack
+.It Va kern.elf32.nxstack
 Enables non-executable stack for 32-bit processes.
 Enabled by default if supported by hardware and corresponding binary.
-.It Dv kern.elf64.nxstack
+.It Va kern.elf64.nxstack
 Enables non-executable stack for 64-bit processes.
-.It Dv kern.elf32.allow_wx
+.It Va kern.elf32.allow_wx
 Enables mapping of simultaneously writable and executable pages for
 32-bit processes.
-.It Dv kern.elf64.allow_wx
+.It Va kern.elf64.allow_wx
 Enables mapping of simultaneously writable and executable pages for
 64-bit processes.
 .El

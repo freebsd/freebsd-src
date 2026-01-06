@@ -62,7 +62,7 @@ It should be noted that
 has no effect on the process's current directory.
 .Pp
 This call is restricted to the super-user, unless the
-.Ql security.bsd.unprivileged_chroot
+.Ql Va security.bsd.unprivileged_chroot
 sysctl variable is set to 1
 and the process has enabled the
 .Dv PROC_NO_NEW_PRIVS_CTL
@@ -118,7 +118,7 @@ will fail and the root directory will be unchanged if:
 .Bl -tag -width Er
 .It Bq Er EPERM
 The effective user ID is not the super-user and the
-.Ql security.bsd.unprivileged_chroot
+.Ql Va security.bsd.unprivileged_chroot
 sysctl is 0.
 .It Bq Er EPERM
 The effective user ID is not the super-user and the
@@ -127,7 +127,7 @@ process has not enabled the
 .Xr procctl 2 .
 .It Bq Er EPERM
 One or more filedescriptors are open directories and the
-.Ql kern.chroot_allow_open_directories
+.Ql Va kern.chroot_allow_open_directories
 sysctl is not set to permit this.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to the file system.
