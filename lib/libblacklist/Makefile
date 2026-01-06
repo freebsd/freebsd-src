@@ -3,6 +3,8 @@ BLOCKLIST_DIR=${SRCTOP}/contrib/blocklist
 .PATH: ${BLOCKLIST_DIR}/lib ${BLOCKLIST_DIR}/include ${BLOCKLIST_DIR}/port
 
 PACKAGE=	blocklist
+LIB_PACKAGE=
+
 LIB=	blacklist
 SHLIB_MAJOR= 0
 
