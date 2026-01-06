@@ -161,8 +161,14 @@ kern_syscall_deregister(struct sysent *sysents, int offset,
 {
 	struct sysent *se;
 
-	if (offset == 0)
-		return (0); /* XXX? */
+	if (offset == 0) {
+		/*
+		 * Syscall #0 is reserved and is not dynamically registered.
+		 * Treat deregistration as a no-op to simplify module unload
+		 * paths.
+		 */
+		return (0);
+	}
 
 	se = &sysents[offset];
 	if ((se->sy_thrcnt & SY_THR_STATIC) != 0)
