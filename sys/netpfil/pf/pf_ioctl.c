@@ -1613,7 +1613,7 @@ pf_addr_copyout(struct pf_addr_wrap *addr)
 	}
 }
 
-static int
+int
 pf_statelim_add(const struct pfioc_statelim *ioc)
 {
 	struct pf_statelim	*pfstlim;
@@ -1976,7 +1976,7 @@ pf_statelim_rollback(void)
 	RB_INIT(&V_pf_statelim_nm_tree_inactive);
 }
 
-static struct pf_statelim *
+struct pf_statelim *
 pf_statelim_rb_find(struct pf_statelim_id_tree *tree, struct pf_statelim *key)
 {
 	PF_RULES_ASSERT();
@@ -1984,7 +1984,7 @@ pf_statelim_rb_find(struct pf_statelim_id_tree *tree, struct pf_statelim *key)
 	return (RB_FIND(pf_statelim_id_tree, tree, key));
 }
 
-static struct pf_statelim *
+struct pf_statelim *
 pf_statelim_rb_nfind(struct pf_statelim_id_tree *tree, struct pf_statelim *key)
 {
 	PF_RULES_ASSERT();
@@ -1992,7 +1992,7 @@ pf_statelim_rb_nfind(struct pf_statelim_id_tree *tree, struct pf_statelim *key)
 	return (RB_NFIND(pf_statelim_id_tree, tree, key));
 }
 
-static int
+int
 pf_statelim_get(struct pfioc_statelim *ioc,
     struct pf_statelim *(*rbt_op)(struct pf_statelim_id_tree *,
      struct pf_statelim *))
@@ -2028,7 +2028,7 @@ unlock:
 	return (error);
 }
 
-static int
+int
 pf_sourcelim_add(const struct pfioc_sourcelim *ioc)
 {
 	struct pf_sourcelim	*pfsrlim;
@@ -2187,7 +2187,7 @@ pf_sourcelim_rollback(void)
 	RB_INIT(&V_pf_sourcelim_nm_tree_inactive);
 }
 
-static struct pf_sourcelim *
+struct pf_sourcelim *
 pf_sourcelim_rb_find(struct pf_sourcelim_id_tree *tree,
     struct pf_sourcelim *key)
 {
@@ -2195,7 +2195,7 @@ pf_sourcelim_rb_find(struct pf_sourcelim_id_tree *tree,
 	return (RB_FIND(pf_sourcelim_id_tree, tree, key));
 }
 
-static struct pf_sourcelim *
+struct pf_sourcelim *
 pf_sourcelim_rb_nfind(struct pf_sourcelim_id_tree *tree,
     struct pf_sourcelim *key)
 {
@@ -2203,7 +2203,7 @@ pf_sourcelim_rb_nfind(struct pf_sourcelim_id_tree *tree,
 	return (RB_NFIND(pf_sourcelim_id_tree, tree, key));
 }
 
-static int
+int
 pf_sourcelim_get(struct pfioc_sourcelim *ioc,
     struct pf_sourcelim *(*rbt_op)(struct pf_sourcelim_id_tree *,
      struct pf_sourcelim *))
@@ -2262,7 +2262,7 @@ unlock:
 	return (error);
 }
 
-static struct pf_source *
+struct pf_source *
 pf_source_rb_find(struct pf_source_ioc_tree *tree,
     struct pf_source *key)
 {
@@ -2271,7 +2271,7 @@ pf_source_rb_find(struct pf_source_ioc_tree *tree,
 	return (RB_FIND(pf_source_ioc_tree, tree, key));
 }
 
-static struct pf_source *
+struct pf_source *
 pf_source_rb_nfind(struct pf_source_ioc_tree *tree,
     struct pf_source *key)
 {
@@ -2280,100 +2280,7 @@ pf_source_rb_nfind(struct pf_source_ioc_tree *tree,
 	return (RB_NFIND(pf_source_ioc_tree, tree, key));
 }
 
-static int
-pf_source_get(struct pfioc_source *ioc,
-    struct pf_source *(*rbt_op)(struct pf_source_ioc_tree *,
-     struct pf_source *))
-{
-	struct pf_sourcelim plkey = { .pfsrlim_id = ioc->id };
-	struct pfioc_source_entry e, *uentry;
-	struct pf_source key;
-	struct pf_sourcelim *pfsrlim;
-	struct pf_source *pfsr;
-	size_t used = 0, len = ioc->entrieslen;
-	int error = 0;
-	PF_RULES_RLOCK_TRACKER;
-
-	if (ioc->entry_size != sizeof(e))
-		return (EINVAL);
-	if (len < sizeof(e))
-		return (EMSGSIZE);
-
-	error = copyin(ioc->key, &e, sizeof(e));
-	if (error != 0)
-		return (error);
-
-	PF_RULES_RLOCK();
-
-#if 0
-       if (ioc->ticket != pf_main_ruleset.rules.active.ticket) {
-               error = EBUSY;
-               goto unlock;
-       }
-#endif
-
-	pfsrlim = pf_sourcelim_rb_find(&V_pf_sourcelim_id_tree_active, &plkey);
-	if (pfsrlim == NULL) {
-		error = ESRCH;
-		goto unlock;
-	}
-
-	key.pfsr_af = e.af;
-	key.pfsr_rdomain = e.rdomain;
-	key.pfsr_addr = e.addr;
-	pfsr = (*rbt_op)(&pfsrlim->pfsrlim_ioc_sources, &key);
-	if (pfsr == NULL) {
-		error = ENOENT;
-		goto unlock;
-	}
-
-	memset(&e, 0, sizeof(e));
-
-	uentry = ioc->entries;
-	for (;;) {
-		e.af = pfsr->pfsr_af;
-		e.rdomain = pfsr->pfsr_rdomain;
-		e.addr = pfsr->pfsr_addr;
-
-		e.inuse = pfsr->pfsr_inuse;
-		e.admitted = pfsr->pfsr_counters.admitted;
-		e.hardlimited = pfsr->pfsr_counters.hardlimited;
-		e.ratelimited = pfsr->pfsr_counters.ratelimited;
-
-		error = copyout(&e, uentry, sizeof(e));
-		if (error != 0)
-			goto unlock;
-
-		used += sizeof(e);
-		if (used == len)
-			break;
-
-		pfsr = RB_NEXT(pf_source_ioc_tree, srlim->pfsrlim_ioc_sources, pfsr);
-		if (pfsr == NULL)
-			break;
-
-		if ((len - used) < sizeof(e)) {
-			error = EMSGSIZE;
-			goto unlock;
-		}
-
-		uentry++;
-	}
-	MPASS(error == 0);
-
-	ioc->inet_prefix = pfsrlim->pfsrlim_ipv4_prefix;
-	ioc->inet6_prefix = pfsrlim->pfsrlim_ipv6_prefix;
-	ioc->limit = pfsrlim->pfsrlim_limit;
-
-	ioc->entrieslen = used;
-
-unlock:
-	PF_RULES_RUNLOCK();
-
-	return (error);
-}
-
-static int
+int
 pf_source_clr(struct pfioc_source_kill *ioc)
 {
 	extern struct pf_source_list pf_source_gc;
@@ -3876,12 +3783,6 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCGETTIMEOUT:
 		case DIOCCLRRULECTRS:
 		case DIOCGETLIMIT:
-		case DIOCGETSTATELIM:
-		case DIOCGETNSTATELIM:
-		case DIOCGETSOURCELIM:
-		case DIOCGETNSOURCELIM:
-		case DIOCGETSOURCE:
-		case DIOCGETNSOURCE:
 		case DIOCGETALTQSV0:
 		case DIOCGETALTQSV1:
 		case DIOCGETALTQV0:
@@ -3941,12 +3842,6 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 #endif
 		case DIOCGETTIMEOUT:
 		case DIOCGETLIMIT:
-		case DIOCGETSTATELIM:
-		case DIOCGETNSTATELIM:
-		case DIOCGETSOURCELIM:
-		case DIOCGETNSOURCELIM:
-		case DIOCGETSOURCE:
-		case DIOCGETNSOURCE:
 		case DIOCGETALTQSV0:
 		case DIOCGETALTQSV1:
 		case DIOCGETALTQV0:
@@ -5234,42 +5129,6 @@ DIOCGETSTATESV2_full:
 		PF_RULES_WUNLOCK();
 		break;
 	}
-
-	case DIOCADDSTATELIM:
-		error = pf_statelim_add((struct pfioc_statelim *)addr);
-		break;
-	case DIOCGETSTATELIM:
-		error = pf_statelim_get((struct pfioc_statelim *)addr,
-		    pf_statelim_rb_find);
-		break;
-	case DIOCGETNSTATELIM:
-		error = pf_statelim_get((struct pfioc_statelim *)addr,
-		    pf_statelim_rb_nfind);
-		break;
-
-	case DIOCADDSOURCELIM:
-		error = pf_sourcelim_add((struct pfioc_sourcelim *)addr);
-		break;
-	case DIOCGETSOURCELIM:
-		error = pf_sourcelim_get((struct pfioc_sourcelim *)addr,
-		    pf_sourcelim_rb_find);
-		break;
-	case DIOCGETNSOURCELIM:
-		error = pf_sourcelim_get((struct pfioc_sourcelim *)addr,
-		    pf_sourcelim_rb_nfind);
-		break;
-
-	case DIOCGETSOURCE:
-		error = pf_source_get((struct pfioc_source *)addr,
-		    pf_source_rb_find);
-		break;
-	case DIOCGETNSOURCE:
-		error = pf_source_get((struct pfioc_source *)addr,
-		    pf_source_rb_nfind);
-		break;
-	case DIOCCLRSOURCE:
-		error = pf_source_clr((struct pfioc_source_kill *)addr);
-		break;
 
 	case DIOCCLRRULECTRS: {
 		/* obsoleted by DIOCGETRULE with action=PF_GET_CLR_CNTR */

@@ -856,7 +856,7 @@ print_eth_rule(struct pfctl_eth_rule *r, const char *anchor_call,
 }
 
 void
-print_statelim(const struct pfioc_statelim *ioc)
+print_statelim(const struct pfctl_state_lim *ioc)
 {
 	printf("state limiter %s id %u limit %u", ioc->name, ioc->id,
 	    ioc->limit);
@@ -867,7 +867,7 @@ print_statelim(const struct pfioc_statelim *ioc)
 }
 
 void
-print_sourcelim(const struct pfioc_sourcelim *ioc)
+print_sourcelim(const struct pfctl_source_lim *ioc)
 {
 	printf("source limiter %s id %u limit %u states %u", ioc->name,
 	    ioc->id, ioc->entries, ioc->limit);

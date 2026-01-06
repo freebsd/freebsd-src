@@ -73,6 +73,15 @@ enum {
 	PFNL_CMD_TABLE_GET_ADDR = 35,
 	PFNL_CMD_TABLE_GET_ASTATS = 36,
 	PFNL_CMD_TABLE_CLEAR_ASTATS = 37,
+	PFNL_CMD_STATE_LIMITER_ADD = 38,
+	PFNL_CMD_STATE_LIMITER_GET = 39,
+	PFNL_CMD_STATE_LIMITER_NGET = 40,
+	PFNL_CMD_SOURCE_LIMITER_ADD = 41,
+	PFNL_CMD_SOURCE_LIMITER_GET = 42,
+	PFNL_CMD_SOURCE_LIMITER_NGET = 43,
+	PFNL_CMD_SOURCE_GET = 44,
+	PFNL_CMD_SOURCE_NGET = 45,
+	PFNL_CMD_SOURCE_CLEAR = 46,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -509,6 +518,76 @@ enum pf_table_astats_t {
 	PF_TAS_ASTATS_COUNT	= 4, /* u32 */
 	PF_TAS_ASTATS_ZEROED	= 5, /* u32 */
 };
+
+enum pf_limit_rate_t {
+	PF_LR_UNSPEC,
+	PF_LR_LIMIT		= 1, /* u32 */
+	PF_LR_SECONDS		= 2, /* u32 */
+};
+
+enum pf_state_limit_t {
+	PF_SL_UNSPEC,
+	PF_SL_TICKET		= 1, /* u32 */
+	PF_SL_NAME		= 2, /* string */
+	PF_SL_ID		= 3, /* u32 */
+	PF_SL_LIMIT		= 4, /* u32 */
+	PF_SL_RATE		= 5, /* nested, pf_limit_rate_t */
+	PF_SL_DESCR		= 6, /* string */
+	PF_SL_INUSE		= 7, /* u32 */
+	PF_SL_ADMITTED		= 8, /* u64 */
+	PF_SL_HARDLIMITED	= 9, /* u64 */
+	PF_SL_RATELIMITED	= 10, /* u64 */
+};
+
+enum pf_source_limit_t {
+	PF_SCL_UNSPEC,
+	PF_SCL_TICKET		= 1, /* u32 */
+	PF_SCL_NAME		= 2, /* string */
+	PF_SCL_ID		= 3, /* u32 */
+	PF_SCL_ENTRIES		= 4, /* u32 */
+	PF_SCL_LIMIT		= 5, /* u32 */
+	PF_SCL_RATE		= 6, /* nested, pf_limit_rate_t */
+	PF_SCL_OVERLOAD_TBL_NAME	= 7, /* string*/
+	PF_SCL_OVERLOAD_HIGH_WM	= 8, /* u32 */
+	PF_SCL_OVERLOAD_LOW_WM	= 9, /* u32 */
+	PF_SCL_INET_PREFIX	= 10, /* u32 */
+	PF_SCL_INET6_PREFIX	= 11, /* u32 */
+	PF_SCL_DESCR		= 12, /* string */
+	PF_SCL_NENTRIES		= 13, /* u32 */
+	PF_SCL_INUSE		= 14, /* u32 */
+	PF_SCL_ADDR_ALLOCS	= 15, /* u64 */
+	PF_SCL_ADDR_NOMEM	= 16, /* u64 */
+	PF_SCL_ADMITTED		= 17, /* u64 */
+	PF_SCL_ADDRLIMITED	= 18, /* u64 */
+	PF_SCL_HARDLIMITED	= 19, /* u64 */
+	PF_SCL_RATELIMITED	= 20, /* u64 */
+};
+
+enum pf_source_t {
+	PF_SRC_UNSPEC,
+	PF_SRC_NAME		= 1, /* string */
+	PF_SRC_ID		= 2, /* u32 */
+	PF_SRC_AF		= 3, /* u8 */
+	PF_SRC_RDOMAIN		= 4, /* u32 */
+	PF_SRC_ADDR		= 5, /* in6_addr */
+	PF_SRC_INUSE		= 6, /* u32 */
+	PF_SRC_ADMITTED		= 7, /* u64 */
+	PF_SRC_HARDLIMITED	= 8, /* u64 */
+	PF_SRC_RATELIMITED	= 9, /* u64 */
+	PF_SRC_LIMIT		= 10, /* u32 */
+	PF_SRC_INET_PREFIX	= 11, /* u32 */
+	PF_SRC_INET6_PREFIX	= 12, /* u32 */
+};
+
+enum pf_source_clear_t {
+	PF_SC_UNSPEC,
+	PF_SC_NAME		= 1, /* string */
+	PF_SC_ID		= 2, /* u32*/
+	PF_SC_RDOMAIN		= 3, /* u32 */
+	PF_SC_AF		= 4, /* u8 */
+	PF_SC_ADDR		= 5, /* in6_addr */
+};
+
 #ifdef _KERNEL
 
 void	pf_nl_register(void);

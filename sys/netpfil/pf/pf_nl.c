@@ -2463,6 +2463,346 @@ pf_handle_table_clear_astats(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (error);
 }
 
+static const struct nlattr_parser nla_p_rate[] = {
+	{ .type = PF_LR_LIMIT, .off = 0, .cb = nlattr_get_uint32 },
+	{ .type = PF_LR_SECONDS, .off = sizeof(unsigned int), .cb = nlattr_get_uint32 },
+};
+NL_DECLARE_ATTR_PARSER(rate_parser, nla_p_rate);
+
+#define	_OUT(_field)	offsetof(struct pfioc_statelim, _field)
+static const struct nlattr_parser nla_p_state_limiter[] = {
+	{ .type = PF_SL_TICKET, .off = _OUT(ticket), .cb = nlattr_get_uint32 },
+	{ .type = PF_SL_NAME, .off = _OUT(name), .arg = (void *)PF_STATELIM_NAME_LEN, .cb = nlattr_get_chara },
+	{ .type = PF_SL_ID, .off = _OUT(id), .cb = nlattr_get_uint32 },
+	{ .type = PF_SL_LIMIT, .off = _OUT(limit), .cb = nlattr_get_uint32 },
+	{ .type = PF_SL_RATE, .off = _OUT(rate), .arg = &rate_parser, .cb = nlattr_get_nested },
+	{ .type = PF_SL_DESCR, .off = _OUT(description), .arg = (void *)PF_STATELIM_DESCR_LEN, .cb = nlattr_get_chara },
+};
+NL_DECLARE_PARSER(state_limiter_parser, struct genlmsghdr, nlf_p_empty, nla_p_state_limiter);
+#undef _OUT
+
+static int
+pf_handle_state_limiter_add(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pfioc_statelim attrs = { 0 };
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &state_limiter_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	error = pf_statelim_add(&attrs);
+	if (error != 0)
+		return (error);
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_STATE_LIMITER_ADD;
+
+	nlattr_add_u32(nw, PF_SL_ID, attrs.id);
+
+	if (!nlmsg_end(nw))
+		return (ENOMEM);
+
+	return (error);
+}
+
+static bool
+nlattr_add_limiter_rate(struct nl_writer *nw, int attrtype,
+    const struct pf_limiter_rate *rate)
+{
+	int off = nlattr_add_nested(nw, attrtype);
+	if (off == 0)
+		return (false);
+
+	nlattr_add_u32(nw, PF_LR_LIMIT, rate->limit);
+	nlattr_add_u32(nw, PF_LR_SECONDS, rate->seconds);
+
+	nlattr_set_len(nw, off);
+
+	return (true);
+}
+
+static int
+pf_handle_state_limiter_get(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pfioc_statelim attrs = { 0 };
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr = (struct genlmsghdr *)(hdr + 1);
+	struct genlmsghdr *ghdr_new;
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &state_limiter_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	error = pf_statelim_get(&attrs,
+	    ghdr->cmd == PFNL_CMD_STATE_LIMITER_GET ? pf_statelim_rb_find :
+	    pf_statelim_rb_nfind);
+	if (error != 0)
+		return (error);
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_STATE_LIMITER_GET;
+
+	nlattr_add_string(nw, PF_SL_NAME, attrs.name);
+	nlattr_add_u32(nw, PF_SL_ID, attrs.id);
+	nlattr_add_u32(nw, PF_SL_LIMIT, attrs.limit);
+	nlattr_add_limiter_rate(nw, PF_SL_RATE, &attrs.rate);
+	nlattr_add_string(nw, PF_SL_DESCR, attrs.description);
+	nlattr_add_u32(nw, PF_SL_INUSE, attrs.inuse);
+	nlattr_add_u64(nw, PF_SL_ADMITTED, attrs.admitted);
+	nlattr_add_u64(nw, PF_SL_HARDLIMITED, attrs.hardlimited);
+	nlattr_add_u64(nw, PF_SL_RATELIMITED, attrs.ratelimited);
+
+	if (!nlmsg_end(nw))
+		return (ENOMEM);
+
+	return (error);
+}
+
+#define	_OUT(_field)	offsetof(struct pfioc_sourcelim, _field)
+static const struct nlattr_parser nla_p_source_limiter[] = {
+	{ .type = PF_SCL_TICKET, .off = _OUT(ticket), .cb = nlattr_get_uint32 },
+	{ .type = PF_SCL_NAME, .off = _OUT(name), .arg = (void *)PF_STATELIM_NAME_LEN, .cb = nlattr_get_chara },
+	{ .type = PF_SCL_ID, .off = _OUT(id), .cb = nlattr_get_uint32 },
+	{ .type = PF_SCL_ENTRIES, .off = _OUT(entries), .cb = nlattr_get_uint32 },
+	{ .type = PF_SCL_LIMIT, .off = _OUT(limit), .cb = nlattr_get_uint32 },
+	{ .type = PF_SCL_RATE, .off = _OUT(rate), .arg = &rate_parser, .cb = nlattr_get_nested },
+	{ .type = PF_SCL_OVERLOAD_TBL_NAME, .off = _OUT(overload_tblname), .arg = (void *)PF_TABLE_NAME_SIZE, .cb = nlattr_get_chara },
+	{ .type = PF_SCL_OVERLOAD_HIGH_WM, .off = _OUT(overload_hwm), .cb = nlattr_get_uint32 },
+	{ .type = PF_SCL_OVERLOAD_LOW_WM, .off = _OUT(overload_lwm), .cb = nlattr_get_uint32 },
+	{ .type = PF_SCL_INET_PREFIX, .off = _OUT(inet_prefix), .cb = nlattr_get_uint32 },
+	{ .type = PF_SCL_INET6_PREFIX, .off = _OUT(inet6_prefix), .cb = nlattr_get_uint32 },
+	{ .type = PF_SCL_DESCR, .off = _OUT(description), .arg = (void *)PF_STATELIM_DESCR_LEN, .cb = nlattr_get_chara },
+};
+#undef _OUT
+NL_DECLARE_PARSER(source_limiter_parser, struct genlmsghdr, nlf_p_empty, nla_p_source_limiter);
+
+static int
+pf_handle_source_limiter_add(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pfioc_sourcelim attrs = { 0 };
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &source_limiter_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	error = pf_sourcelim_add(&attrs);
+	if (error != 0)
+		return (error);
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_SOURCE_LIMITER_ADD;
+
+	nlattr_add_u32(nw, PF_SCL_ID, attrs.id);
+
+	if (!nlmsg_end(nw))
+		return (ENOMEM);
+
+	return (error);
+}
+
+static int
+pf_handle_source_limiter_get(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pfioc_sourcelim attrs = { 0 };
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr = (struct genlmsghdr *)(hdr + 1);
+	struct genlmsghdr *ghdr_new;
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &source_limiter_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	error = pf_sourcelim_get(&attrs,
+	    ghdr->cmd == PFNL_CMD_SOURCE_LIMITER_GET ? pf_sourcelim_rb_find :
+	    pf_sourcelim_rb_nfind);
+	if (error != 0)
+		return (error);
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = ghdr->cmd;
+
+	nlattr_add_string(nw, PF_SCL_NAME, attrs.name);
+	nlattr_add_u32(nw, PF_SCL_ID, attrs.id);
+	nlattr_add_u32(nw, PF_SCL_ENTRIES, attrs.entries);
+	nlattr_add_u32(nw, PF_SCL_LIMIT, attrs.limit);
+	nlattr_add_limiter_rate(nw, PF_SCL_RATE, &attrs.rate);
+	nlattr_add_string(nw, PF_SCL_OVERLOAD_TBL_NAME, attrs.overload_tblname);
+	nlattr_add_u32(nw, PF_SCL_OVERLOAD_HIGH_WM, attrs.overload_hwm);
+	nlattr_add_u32(nw, PF_SCL_OVERLOAD_LOW_WM, attrs.overload_lwm);
+	nlattr_add_u32(nw, PF_SCL_INET_PREFIX, attrs.inet_prefix);
+	nlattr_add_u32(nw, PF_SCL_INET6_PREFIX, attrs.inet6_prefix);
+	nlattr_add_string(nw, PF_SCL_DESCR, attrs.description);
+	nlattr_add_u32(nw, PF_SCL_NENTRIES, attrs.nentries);
+	nlattr_add_u32(nw, PF_SCL_INUSE, attrs.inuse);
+	nlattr_add_u64(nw, PF_SCL_ADDR_ALLOCS, attrs.addrallocs);
+	nlattr_add_u64(nw, PF_SCL_ADDR_NOMEM, attrs.addrnomem);
+	nlattr_add_u64(nw, PF_SCL_ADMITTED, attrs.admitted);
+	nlattr_add_u64(nw, PF_SCL_ADDRLIMITED, attrs.addrlimited);
+	nlattr_add_u64(nw, PF_SCL_HARDLIMITED, attrs.hardlimited);
+	nlattr_add_u64(nw, PF_SCL_RATELIMITED, attrs.ratelimited);
+
+	if (!nlmsg_end(nw))
+		return (ENOMEM);
+
+	return (error);
+}
+
+struct nlattr_source {
+	char		 name[PF_SOURCELIM_NAME_LEN];
+	uint32_t	 id;
+	sa_family_t	 af;
+	unsigned int	 rdomain;
+	struct pf_addr	 addr;
+};
+#define	_OUT(_field)	offsetof(struct nlattr_source, _field)
+static const struct nlattr_parser nla_p_source[] = {
+	{ .type = PF_SRC_NAME, .off = _OUT(name), .arg = (void *)PF_SOURCELIM_NAME_LEN, .cb = nlattr_get_chara },
+	{ .type = PF_SRC_ID, .off = _OUT(id), .cb = nlattr_get_uint32 },
+	{ .type = PF_SRC_AF, .off = _OUT(af), .cb = nlattr_get_uint8 },
+	{ .type = PF_SRC_RDOMAIN, .off = _OUT(rdomain), .cb = nlattr_get_uint32 },
+	{ .type = PF_SRC_ADDR, .off = _OUT(addr), .cb = nlattr_get_in6_addr },
+};
+#undef _OUT
+NL_DECLARE_PARSER(source_parser, struct genlmsghdr, nlf_p_empty, nla_p_source);
+
+static int
+pf_handle_source_get(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct nlattr_source attrs = { 0 };
+	struct pf_source key;
+	struct pf_sourcelim plkey;
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr = (struct genlmsghdr *)(hdr + 1);
+	struct genlmsghdr *ghdr_new;
+	struct pf_sourcelim *pfsrlim;
+	struct pf_source *pfsr;
+	int error;
+	PF_RULES_RLOCK_TRACKER;
+
+	error = nl_parse_nlmsg(hdr, &source_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	PF_RULES_RLOCK();
+	plkey.pfsrlim_id = attrs.id;
+	pfsrlim = pf_sourcelim_rb_find(&V_pf_sourcelim_id_tree_active, &plkey);
+	if (pfsrlim == NULL) {
+		error = ESRCH;
+		goto out;
+	}
+
+	key.pfsr_af = attrs.af;
+	key.pfsr_rdomain = attrs.rdomain;
+	key.pfsr_addr = attrs.addr;
+
+	pfsr = (ghdr->cmd == PFNL_CMD_SOURCE_GET ? pf_source_rb_find :
+	    pf_source_rb_nfind)(&pfsrlim->pfsrlim_ioc_sources, &key);
+	if (pfsr == NULL) {
+		error = ENOENT;
+		goto out;
+	}
+
+	for (;;) {
+		if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr))) {
+			error = ENOMEM;
+			goto out;
+		}
+
+		ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+		ghdr_new->cmd = ghdr->cmd;
+
+		nlattr_add_u8(nw, PF_SRC_AF, pfsr->pfsr_af);
+		nlattr_add_u32(nw, PF_SRC_RDOMAIN, pfsr->pfsr_rdomain);
+		nlattr_add_in6_addr(nw, PF_SRC_ADDR, &pfsr->pfsr_addr.v6);
+
+		nlattr_add_u32(nw, PF_SRC_INUSE, pfsr->pfsr_inuse);
+		nlattr_add_u64(nw, PF_SRC_ADMITTED, pfsr->pfsr_counters.admitted);
+		nlattr_add_u64(nw, PF_SRC_HARDLIMITED, pfsr->pfsr_counters.hardlimited);
+		nlattr_add_u64(nw, PF_SRC_RATELIMITED, pfsr->pfsr_counters.ratelimited);
+
+		nlattr_add_u32(nw, PF_SRC_LIMIT, pfsrlim->pfsrlim_limit);
+		nlattr_add_u32(nw, PF_SRC_INET_PREFIX, pfsrlim->pfsrlim_ipv4_prefix);
+		nlattr_add_u32(nw, PF_SRC_INET6_PREFIX, pfsrlim->pfsrlim_ipv6_prefix);
+
+		if (!nlmsg_end(nw)) {
+			nlmsg_abort(nw);
+			error = ENOMEM;
+			goto out;
+		}
+
+		pfsr = RB_NEXT(pf_source_ioc_tree, srlim->pfsrlim_ioc_sources, pfsr);
+		if (pfsr == NULL)
+			break;
+	}
+
+out:
+	PF_RULES_RUNLOCK();
+	return (error);
+}
+
+
+#define	_OUT(_field)	offsetof(struct pfioc_source_kill, _field)
+static const struct nlattr_parser nla_p_source_clear[] = {
+	{ .type = PF_SC_NAME, .off = _OUT(name), .arg = (void *)PF_SOURCELIM_NAME_LEN, .cb = nlattr_get_chara },
+	{ .type = PF_SC_ID, .off = _OUT(id), .cb = nlattr_get_uint32 },
+	{ .type = PF_SC_RDOMAIN, .off = _OUT(rdomain), .cb = nlattr_get_uint32 },
+	{ .type = PF_SC_AF, .off = _OUT(af), .cb = nlattr_get_uint8 },
+	{ .type = PF_SC_ADDR, .off = _OUT(addr), .cb = nlattr_get_in6_addr },
+};
+#undef _OUT
+NL_DECLARE_PARSER(source_clear_parser, struct genlmsghdr, nlf_p_empty, nla_p_source_clear);
+
+static int
+pf_handle_source_clear(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pfioc_source_kill attrs = { 0 };
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr = (struct genlmsghdr *)(hdr + 1);
+	struct genlmsghdr *ghdr_new;
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &source_clear_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	error = pf_source_clr(&attrs);
+	if (error != 0)
+		return (error);
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = ghdr->cmd;
+
+	nlattr_add_string(nw, PF_SCL_NAME, attrs.name);
+
+	if (!nlmsg_end(nw))
+		return (ENOMEM);
+
+	return (error);
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
@@ -2479,6 +2819,10 @@ static const struct nlhdr_parser *all_parsers[] = {
 	&table_parser,
 	&table_addr_parser,
 	&table_astats_parser,
+	&state_limiter_parser,
+	&source_limiter_parser,
+	&source_parser,
+	&source_clear_parser,
 };
 
 static uint16_t family_id;
@@ -2741,6 +3085,69 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_name = "TABLE_CLEAR_ASTATS",
 		.cmd_cb = pf_handle_table_clear_astats,
 		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_STATE_LIMITER_ADD,
+		.cmd_name = "STATE_LIMITER_ADD",
+		.cmd_cb = pf_handle_state_limiter_add,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_STATE_LIMITER_GET,
+		.cmd_name = "STATE_LIMITER_GET",
+		.cmd_cb = pf_handle_state_limiter_get,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_STATE_LIMITER_NGET,
+		.cmd_name = "STATE_LIMITER_NGET",
+		.cmd_cb = pf_handle_state_limiter_get,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_SOURCE_LIMITER_ADD,
+		.cmd_name = "SOURCE_LIMITER_ADD",
+		.cmd_cb = pf_handle_source_limiter_add,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_SOURCE_LIMITER_GET,
+		.cmd_name = "SOURCE_LIMITER_GET",
+		.cmd_cb = pf_handle_source_limiter_get,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_SOURCE_LIMITER_NGET,
+		.cmd_name = "SOURCE_LIMITER_NGET",
+		.cmd_cb = pf_handle_source_limiter_get,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_SOURCE_GET,
+		.cmd_name = "SOURCE_GET",
+		.cmd_cb = pf_handle_source_get,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_SOURCE_NGET,
+		.cmd_name = "SOURCE_NGET",
+		.cmd_cb = pf_handle_source_get,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_SOURCE_CLEAR,
+		.cmd_name = "SOURCE_CLEAR",
+		.cmd_cb = pf_handle_source_clear,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},
 };

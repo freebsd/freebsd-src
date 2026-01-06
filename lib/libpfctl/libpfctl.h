@@ -592,4 +592,103 @@ int	pfctl_get_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
 int	pfctl_clr_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
 	    struct pfr_addr *addr, int size, int *nzero, int flags);
 
+struct pfctl_limit_rate {
+	unsigned int	 limit;
+	unsigned int	 seconds;
+};
+
+struct pfctl_state_lim {
+	uint32_t		 ticket;
+	char			 name[PF_STATELIM_NAME_LEN];
+	uint32_t		 id;
+	unsigned int		 limit;
+
+	struct pfctl_limit_rate	 rate;
+
+	char			 description[PF_STATELIM_DESCR_LEN];
+
+	unsigned int		 inuse;
+	uint64_t		 admitted;
+	uint64_t		 hardlimited;
+	uint64_t		 ratelimited;
+};
+
+int	pfctl_state_limiter_nget(struct pfctl_handle *h, struct pfctl_state_lim *lim);
+int	pfctl_state_limiter_add(struct pfctl_handle *h, struct pfctl_state_lim *lim);
+
+struct pfctl_source_lim {
+	uint32_t	 ticket;
+
+	char		 name[PF_SOURCELIM_NAME_LEN];
+	uint32_t	 id;
+
+	/* limit on the total number of address entries */
+	unsigned int	 entries;
+
+	/* limit on the number of states per address entry */
+	unsigned int	 limit;
+
+	/* rate limit on the creation of states by an address entry */
+	struct pfctl_limit_rate	 rate;
+
+	/*
+	 * when the number of states on an entry exceeds hwm, add
+	 * the address to the specified table. when the number of
+	 * states goes below lwm, remove it from the table.
+	 */
+	char		 overload_tblname[PF_TABLE_NAME_SIZE];
+	unsigned int	 overload_hwm;
+	unsigned int	 overload_lwm;
+
+	/*
+	 * mask addresses before they're used for entries. /64s
+	 * everywhere for inet6 makes it easy to use too much memory.
+	 */
+	unsigned int	 inet_prefix;
+	unsigned int	 inet6_prefix;
+
+	char	 description[PF_SOURCELIM_DESCR_LEN];
+
+	unsigned int	 nentries;
+	unsigned int	 inuse;
+
+	uint64_t	 addrallocs;
+	uint64_t	 addrnomem;
+	uint64_t	 admitted;
+	uint64_t	 addrlimited;
+	uint64_t	 hardlimited;
+	uint64_t	 ratelimited;
+};
+
+int	pfctl_source_limiter_get(struct pfctl_handle *h, struct pfctl_source_lim *lim);
+int	pfctl_source_limiter_nget(struct pfctl_handle *h, struct pfctl_source_lim *lim);
+int	pfctl_source_limiter_add(struct pfctl_handle *h, struct pfctl_source_lim *lim);
+
+struct pfctl_source {
+	sa_family_t	 af;
+	unsigned int	 rdomain;
+	struct pf_addr	 addr;
+
+	unsigned int	 inet_prefix;
+	unsigned int	 inet6_prefix;
+
+	unsigned int	 limit;
+	unsigned int	 inuse;
+	uint64_t	 admitted;
+	uint64_t	 hardlimited;
+	uint64_t	 ratelimited;
+};
+typedef int (*pfctl_get_source_fn)(struct pfctl_source *, void *);
+int	pfctl_source_get(struct pfctl_handle *h, int id,
+	    pfctl_get_source_fn fn, void *arg);
+
+struct pfctl_source_clear {
+	char		 name[PF_SOURCELIM_NAME_LEN];
+	uint32_t	 id;
+	sa_family_t	 af;
+	unsigned int	 rdomain;
+	struct pf_addr	 addr;
+};
+int	pfctl_source_clear(struct pfctl_handle *h, struct pfctl_source_clear *);
+
 #endif
