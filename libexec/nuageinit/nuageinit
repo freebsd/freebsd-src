@@ -16,14 +16,28 @@ end
 local ni_path = arg[1]
 local citype = arg[2]
 
-local default_user = {
-	name = "freebsd",
-	homedir = "/home/freebsd",
-	groups = "wheel",
-	gecos = "FreeBSD User",
-	shell = "/bin/sh",
-	plain_text_passwd = "freebsd"
-}
+local function default_user(obj, metadata)
+	local ssh_authorized_keys = {}
+	if type(metadata.public_keys) == "table" then
+		for _, k in pairs(metadata.public_keys) do
+			table.insert(ssh_authorized_keys, k)
+		end
+	end
+	if type(obj.ssh_authorized_keys) == "table" then
+		for _, k in ipairs(obj.ssh_authorized_keys) do
+			table.insert(ssh_authorized_keys, k)
+		end
+	end
+	return {
+		name = "freebsd",
+		homedir = "/home/freebsd",
+		groups = "wheel",
+		gecos = "FreeBSD User",
+		shell = "/bin/sh",
+		plain_text_passwd = "freebsd",
+		ssh_authorized_keys = ssh_authorized_keys
+	}
+end
 
 local root = os.getenv("NUAGE_FAKE_ROOTDIR")
 if not root then
@@ -78,12 +92,16 @@ local function get_ifaces_by_mac()
 	return myifaces
 end
 
-local function sethostname(obj)
+local function sethostname(obj, metadata)
 	-- always prefer fqdn if specified over hostname
 	if obj.fqdn then
 		nuage.sethostname(obj.fqdn)
 	elseif obj.hostname then
 		nuage.sethostname(obj.hostname)
+    elseif metadata["local-hostname"] then
+		nuage.sethostname(metadata["local-hostname"])
+    elseif metadata["local"] then
+		nuage.sethostname(metadata["hostname"])
 	end
 end
 
@@ -110,20 +128,40 @@ local function groups(obj)
 	end
 end
 
-local function create_default_user(obj)
-	if not obj.users then
-	-- default user if none are defined
-		nuage.adduser(default_user)
+local function create_default_user(obj, metadata)
+	local function need_default_user()
+		if not obj.users then
+		-- default user if "users" is undefined
+			return true
+		end
+		-- create default user if "default" is in the users list
+		for _, u in pairs(obj.users) do
+			if type(u) == "string" and u == "default" then
+				return true
+			end
+		end
+		return false
+	end
+
+	if need_default_user() then
+		local du = default_user(obj, metadata)
+		local homedir = nuage.adduser(du)
+		if du.ssh_authorized_keys then
+			for _, k in ipairs(du.ssh_authorized_keys) do
+				nuage.addsshkey(homedir, k)
+			end
+		end
 	end
 end
 
-local function users(obj)
+local function users(obj, metadata)
 	if obj.users == nil then return end
 
 	for n, u in pairs(obj.users) do
 		if type(u) == "string" then
 			if u == "default" then
-				nuage.adduser(default_user)
+				-- already done during create_default_user
+				nuage.adduser(default_user(obj, metadata))
 			else
 				nuage.adduser({name = u})
 			end
@@ -177,14 +215,6 @@ local function ssh_keys(obj)
 				end
 			end
 		end
-	end
-end
-
-local function ssh_authorized_keys(obj)
-	if obj.ssh_authorized_keys == nil then return end
-	local homedir = nuage.adduser(default_user)
-	for _, k in ipairs(obj.ssh_authorized_keys) do
-		nuage.addsshkey(homedir, k)
 	end
 end
 
@@ -280,17 +310,17 @@ local function get_ifaces_by_driver()
 	local drivers = {}
 	local last_interface = nil
 	for line in proc:lines() do
-	    local interface = line:match("^([%S]+): ")
+		local interface = line:match("^([%S]+): ")
 
-	    if interface then
+		if interface then
 		last_interface = interface
-	    end
+		end
 
-	    local driver = line:match("^[%s]+drivername: ([%S]+)$")
+		local driver = line:match("^[%s]+drivername: ([%S]+)$")
 
-	    if driver then
+		if driver then
 		drivers[driver] = last_interface
-	    end
+		end
 	end
 	proc:close()
 
@@ -632,44 +662,41 @@ local function parse_network_config()
 	return netobj
 end
 
-if citype == "config-2" then
-	local parser = ucl.parser()
-	local res, err = parser:parse_file(ni_path .. "/meta_data.json")
+local function load_metadata()
+	if citype == "config-2" then
+		local parser = ucl.parser()
+		local res, err = parser:parse_file(ni_path .. "/meta_data.json")
 
-	if not res then
-		nuage.err("error parsing config-2 meta_data.json: " .. err)
-	end
-	local obj = parser:get_object()
-	if obj.public_keys then
-		local homedir = nuage.adduser(default_user)
-		for _,v in pairs(obj.public_keys) do
-			nuage.addsshkey(homedir, v)
+		if not res then
+			nuage.err("error parsing config-2 meta_data.json: " .. err)
 		end
-	end
-	nuage.sethostname(obj["hostname"])
+		local obj = parser:get_object()
 
+		return obj
+	elseif citype == "nocloud" then
+		local f, err = io.open(ni_path .. "/meta-data")
+		if err then
+			nuage.err("error parsing nocloud meta-data: " .. err)
+		end
+		local obj = yaml.load(f:read("*a"))
+		f:close()
+		if not obj then
+			nuage.err("error parsing nocloud meta-data")
+		end
+		return obj
+	elseif citype ~= "postnet" then
+		nuage.err("Unknown cloud init type: " .. citype)
+	end
+	return {}
+end
+
+
+if citype == "config-2" then
 	-- network
 	config2_network(ni_path)
-elseif citype == "nocloud" then
-	local f, err = io.open(ni_path .. "/meta-data")
-	if err then
-		nuage.err("error parsing nocloud meta-data: " .. err)
-	end
-	local obj = yaml.load(f:read("*a"))
-	f:close()
-	if not obj then
-		nuage.err("error parsing nocloud meta-data")
-	end
-	local hostname = obj["local-hostname"]
-	if not hostname then
-		hostname = obj["hostname"]
-	end
-	if hostname then
-		nuage.sethostname(hostname)
-	end
-elseif citype ~= "postnet" then
-	nuage.err("Unknown cloud init type: " .. citype)
 end
+
+local metadata = load_metadata()
 
 -- deal with user-data
 local ud = nil
@@ -709,7 +736,6 @@ if line == "#cloud-config" then
 		groups,
 		create_default_user,
 		ssh_keys,
-		ssh_authorized_keys,
 		network_config,
 		ssh_pwauth,
 		runcmd,
@@ -740,7 +766,7 @@ if line == "#cloud-config" then
 			local netobj = parse_network_config() or obj
 			network_config(netobj)
 		else
-			calls_table[i](obj)
+			calls_table[i](obj, metadata)
 		end
 	end
 elseif line:sub(1, 2) == "#!" then
