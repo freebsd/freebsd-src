@@ -150,7 +150,7 @@ is not set.
 Sets the system timezone based on the value provided.
 .Pp
 See also
-.Xr tzfile 3 Ns .
+.Xr tzfile 5 .
 .It Ic groups
 An array of strings or objects to be created:
 .Bl -bullet
@@ -191,7 +191,7 @@ Specifying the following parameters from a file named
 takes precedence over their specification from the
 .Ic network
 parameter of
-.Pa user-data Ns .
+.Pa user-data .
 .Bl -tag -width "ethernets"
 .It Ic ethernets
 Mapping representing a generic configuration for existing network interfaces.
@@ -202,10 +202,11 @@ rule is specified.
 If
 .Sy match
 rules are specified, an arbitrary name can be used
-.Po e.g.: id0 Pc Ns .
+.Po e.g.: id0 Pc .
 .Bl -tag -width "nameservers"
 .It Ic match
-This selects a subset of available physical devices by various hardware properties.
+This selects a subset of available physical devices by various hardware
+properties.
 The following configuration will then apply to all matching devices, as soon as
 they appear.
 All specified properties must match.
@@ -213,7 +214,7 @@ The following properties for
 creating matches are supported:
 .Bl -tag -width "macaddress"
 .It Ic macaddress
-.No Device's MAC address in the form Sy xx:xx:xx:xx:xx:xx Ns .
+.No Device's MAC address in the form Sy xx:xx:xx:xx:xx:xx .
 Letters should be lowercase.
 .It Ic name
 Current interface name.
@@ -224,8 +225,8 @@ Lua pattern-natching expressions
 are supported.
 .El
 .It Ic set-name
-When matching on unique properties such as MAC, match rules can be written so that they
-match only one device.
+When matching on unique properties such as MAC, match rules can be written so
+that they match only one device.
 Then this property can be used to give that device a more
 specific/desirable/nicer name than the default.
 .Pp
@@ -233,8 +234,8 @@ While multiple properties can be used in a match,
 .Sy macaddress
 is required for nuageinit to perform the rename.
 .It Ic mtu
-The MTU key represents a device's Maximum Transmission Unit, the largest size packet
-or frame.
+The MTU key represents a device's Maximum Transmission Unit, the largest size
+packet or frame.
 .It Ic wakeonlan
 Enable wake on LAN.
 Off by default.
@@ -252,16 +253,16 @@ This requires setting
 .Sy addresses
 too.
 .Pp
-Since only one default router can be configured at a time, this parameter is applied
-when processing the first entry, and any others are silently ignored.
+Since only one default router can be configured at a time, this parameter is
+applied when processing the first entry, and any others are silently ignored.
 .It Ic gateway6
 Set default gateway for IPv6, for manual address configuration.
 This requires setting
 .Sy addresses
 too.
 .Pp
-Since only one default router can be configured at a time, this parameter is applied
-when processing the first entry, and any others are silently ignored.
+Since only one default router can be configured at a time, this parameter is
+applied when processing the first entry, and any others are silently ignored.
 .It Ic nameservers
 Set DNS servers and search domains, for manual address configuration.
 .Pp
@@ -316,22 +317,21 @@ A string or an array of strings which should be appended to
 .Pa ${LOCALBASE}/etc/doas.conf
 .Pp
 Instead of hardcoding the username, you can use
-.Sy %u Ns ,
+.Sy %u ,
 which will be replaced by the current username.
 .El
 .Pp
 A special case exist: if the entry is a simple string with the value
 .Qq default ,
 then the default user is created.
-
 Configuring
 .Nm sudo
 or
 .Nm doas
-does not automatically install them. Ensure the relevant command is listed in your
+does not automatically install them.
+Ensure the relevant command is listed in your
 .Nm packages
 section.
-
 .It Ic chpasswd
 Change the passwords for users, it accepts the following keys:
 .Bl -tag -width "expire"
