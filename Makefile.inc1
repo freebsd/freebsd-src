@@ -1844,10 +1844,12 @@ NO_INSTALLEXTRAKERNELS?=	no
 .if ${NO_INSTALLEXTRAKERNELS} != "yes"
 .if defined(NO_INSTALLKERNEL)
 INSTALLEXTRAKERNELS=	${BUILDKERNELS}
-.else
+.elif ${BUILDKERNELS:[#]} > 1
 # First kernel is installed separately by INSTALLKERNEL, typically to
 # /boot/kernel, rather than to a config-suffixed directory.
 INSTALLEXTRAKERNELS=	${BUILDKERNELS:[2..-1]}
+.else
+INSTALLEXTRAKERNELS=
 .endif
 .endif
 
