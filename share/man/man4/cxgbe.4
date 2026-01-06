@@ -29,12 +29,12 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd September 29, 2025
+.Dd December 17, 2025
 .Dt CXGBE 4
 .Os
 .Sh NAME
 .Nm cxgbe
-.Nd "Chelsio T4-, T5-, and T6-based 100Gb, 40Gb, 25Gb, 10Gb, and 1Gb Ethernet adapter driver"
+.Nd Chelsio T7, T6, T5, and T4 based 1Gb to 400Gb Ethernet driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -47,20 +47,22 @@ To load the driver as a
 module at boot time, place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-t4fw_cfg_load="YES"
-t5fw_cfg_load="YES"
+t7fw_cfg_load="YES"
 t6fw_cfg_load="YES"
+t5fw_cfg_load="YES"
+t4fw_cfg_load="YES"
 if_cxgbe_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for PCI Express Ethernet adapters based on
-the Chelsio Terminator 4, Terminator 5, and Terminator 6 ASICs (T4, T5, and T6).
+the Chelsio Terminator 7, Terminator 6, Terminator 5, and Terminator 4
+ASICs (T7, T6, T5, and T4).
 The driver supports Jumbo Frames, Transmit/Receive checksum offload,
 TCP segmentation offload (TSO), Large Receive Offload (LRO), VLAN
-tag insertion/extraction, VLAN checksum offload, VLAN TSO, VXLAN checksum
-offload, VXLAN TSO, and Receive Side Steering (RSS).
+tag insertion/extraction, VLAN checksum offload, VLAN TSO,
+VXLAN checksum offload, VXLAN TSO, and Receive Side Steering (RSS).
 For further hardware information and questions related to hardware
 requirements, see
 .Pa http://www.chelsio.com/ .
@@ -70,10 +72,10 @@ The
 driver uses different names for devices based on the associated ASIC:
 .Bl -column -offset indent "ASIC" "Port Name" "Parent Device"
 .It Sy ASIC Ta Sy Port Name Ta Sy Parent Device Ta Sy Virtual Interface
-.It T4 Ta cxgbe Ta t4nex Ta vcxgbe
-.It T5 Ta cxl Ta t5nex Ta vcxl
-.It T6 Ta cc Ta t6nex Ta vcc
 .It T7 Ta che Ta chnex Ta vche
+.It T6 Ta cc Ta t6nex Ta vcc
+.It T5 Ta cxl Ta t5nex Ta vcxl
+.It T4 Ta cxgbe Ta t4nex Ta vcxgbe
 .El
 .Pp
 Loader tunables with the hw.cxgbe prefix apply to all cards.
@@ -87,6 +89,42 @@ dev.<port> for port MIBs and dev.<nexus> for adapter-wide MIBs.
 For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Sh HARDWARE
+The
+.Nm
+driver supports
+400Gb, 200Gb, 50Gb, and 10Gb Ethernet adapters based on the T7 ASIC:
+.Pp
+.Bl -bullet -compact
+.It
+Chelsio S71400
+.It
+Chelsio S72200
+.It
+Chelsio S72200-OCP
+.It
+Chelsio T72200
+.It
+Chelsio T72200-DPU
+.It
+Chelsio T72200-FH
+.It
+Chelsio T72200-FH-DPU
+.It
+Chelsio T72200-OCP
+.It
+Chelsio S7450-DPU
+.It
+Chelsio S7450-OCP
+.It
+Chelsio T71200-iNIC
+.It
+Chelsio T7250
+.It
+Chelsio T7210-BT
+.It
+Chelsio T7410-BT-OCP
+.El
+.Pp
 The
 .Nm
 driver supports 100Gb and 25Gb Ethernet adapters based on the T6 ASIC:
