@@ -489,7 +489,8 @@ ngt_rint(struct tty *tp, char c, int flags)
 	m->m_pkthdr.len++;
 
 	/* Ship off mbuf if it's time */
-	if (sc->hotchar == -1 || c == sc->hotchar || m->m_len >= MHLEN) {
+	if (sc->hotchar == -1 || (u_char)c == sc->hotchar ||
+	    m->m_len >= MHLEN) {
 		sc->m = NULL;
 		NG_SEND_DATA_ONLY(error, sc->hook, m);	/* Will queue */
 	}
