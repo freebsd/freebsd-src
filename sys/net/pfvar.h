@@ -1205,6 +1205,11 @@ struct pf_kstate {
  * State limiter
  */
 
+struct pf_limiter_rate {
+	unsigned int	 limit;
+	unsigned int	 seconds;
+};
+
 struct pf_statelim {
 	RB_ENTRY(pf_statelim)	 pfstlim_id_tree;
 	RB_ENTRY(pf_statelim)	 pfstlim_nm_tree;
@@ -1217,10 +1222,7 @@ struct pf_statelim {
 	/* config */
 
 	unsigned int		 pfstlim_limit;
-	struct {
-		unsigned int	 limit;
-		unsigned int	 seconds;
-	}			 pfstlim_rate;
+	struct pf_limiter_rate	 pfstlim_rate;
 
 	/* run state */
 	struct mtx		 pfstlim_lock;
@@ -1340,10 +1342,7 @@ struct pf_sourcelim {
 	unsigned int			 pfsrlim_ipv4_prefix;
 	unsigned int			 pfsrlim_ipv6_prefix;
 
-	struct {
-		unsigned int		 limit;
-		unsigned int		 seconds;
-	}				 pfsrlim_rate;
+	struct pf_limiter_rate		 pfsrlim_rate;
 
 	struct {
 		char			 name[PF_TABLE_NAME_SIZE];
@@ -2074,25 +2073,29 @@ enum pf_syncookies_mode {
 #define	PF_SYNCOOKIES_HIWATPCT	25
 #define	PF_SYNCOOKIES_LOWATPCT	(PF_SYNCOOKIES_HIWATPCT / 2)
 
+#define	PF_STATELIM_ID_NONE	0
+#define	PF_STATELIM_ID_MIN	1
+#define	PF_STATELIM_ID_MAX	255 /* fits in pf_state uint8_t */
+#define	PF_STATELIM_LIMIT_MIN	1
+#define	PF_STATELIM_LIMIT_MAX	(1 << 24) /* pf is pretty scalable */
+
+#define	PF_SOURCELIM_ID_NONE	0
+#define	PF_SOURCELIM_ID_MIN	1
+#define	PF_SOURCELIM_ID_MAX	255 /* fits in pf_state uint8_t */
+
+#ifdef _KERNEL
+
 struct pfioc_statelim {
 	uint32_t	 ticket;
 
 	char		 name[PF_STATELIM_NAME_LEN];
 	uint32_t	 id;
-#define	PF_STATELIM_ID_NONE	0
-#define	PF_STATELIM_ID_MIN	1
-#define	PF_STATELIM_ID_MAX	255 /* fits in pf_state uint8_t */
 
 	/* limit on the total number of states */
 	unsigned int	 limit;
-#define	PF_STATELIM_LIMIT_MIN	1
-#define	PF_STATELIM_LIMIT_MAX	(1 << 24) /* pf is pretty scalable */
 
 	/* rate limit on the creation of states */
-	struct {
-		unsigned int	 limit;
-		unsigned int	 seconds;
-	} rate;
+	struct pf_limiter_rate	 rate;
 
 	char		 description[PF_STATELIM_DESCR_LEN];
 
@@ -2108,9 +2111,6 @@ struct pfioc_sourcelim {
 
 	char		 name[PF_SOURCELIM_NAME_LEN];
 	uint32_t	 id;
-#define	PF_SOURCELIM_ID_NONE	0
-#define	PF_SOURCELIM_ID_MIN	1
-#define	PF_SOURCELIM_ID_MAX	255 /* fits in pf_state uint8_t */
 
 	/* limit on the total number of address entries */
 	unsigned int	 entries;
@@ -2119,10 +2119,7 @@ struct pfioc_sourcelim {
 	unsigned int	 limit;
 
 	/* rate limit on the creation of states by an address entry */
-	struct {
-		unsigned int	 limit;
-		unsigned int	 seconds;
-	} rate;
+	struct pf_limiter_rate	 rate;
 
 	/*
 	 * when the number of states on an entry exceeds hwm, add
@@ -2154,37 +2151,6 @@ struct pfioc_sourcelim {
 	uint64_t	 ratelimited;	/* counter */
 };
 
-struct pfioc_source_entry {
-	sa_family_t	 af;
-	unsigned int	 rdomain;
-	struct pf_addr	 addr;
-
-	/* stats */
-
-	unsigned int	 inuse;		/* gauge */
-	uint64_t	 admitted;	/* counter */
-	uint64_t	 hardlimited;	/* counter */
-	uint64_t	 ratelimited;	/* counter */
-};
-
-struct pfioc_source {
-	char		 name[PF_SOURCELIM_NAME_LEN];
-	uint32_t	 id;
-
-	/* copied from the parent source limiter */
-
-	unsigned int	 inet_prefix;
-	unsigned int	 inet6_prefix;
-	unsigned int	 limit;
-
-	/* source entries */
-	size_t		 entry_size;	/* sizeof(struct pfioc_source_entry) */
-
-	struct pfioc_source_entry	*key;
-	struct pfioc_source_entry	*entries;
-	size_t		 entrieslen;	/* bytes */
-};
-
 struct pfioc_source_kill {
 	char		 name[PF_SOURCELIM_NAME_LEN];
 	uint32_t	 id;
@@ -2195,7 +2161,28 @@ struct pfioc_source_kill {
 	unsigned int	 rmstates; /* kill the states too? */
 };
 
-#ifdef _KERNEL
+int pf_statelim_add(const struct pfioc_statelim *);
+struct pf_statelim *pf_statelim_rb_find(struct pf_statelim_id_tree *,
+    struct pf_statelim *);
+struct pf_statelim *pf_statelim_rb_nfind(struct pf_statelim_id_tree *,
+    struct pf_statelim *);
+int pf_statelim_get(struct pfioc_statelim *,
+    struct pf_statelim *(*rbt_op)(struct pf_statelim_id_tree *,
+     struct pf_statelim *));
+int pf_sourcelim_add(const struct pfioc_sourcelim *);
+struct pf_sourcelim *pf_sourcelim_rb_find(struct pf_sourcelim_id_tree *,
+    struct pf_sourcelim *);
+struct pf_sourcelim *pf_sourcelim_rb_nfind(struct pf_sourcelim_id_tree *,
+    struct pf_sourcelim *);
+int pf_sourcelim_get(struct pfioc_sourcelim *,
+    struct pf_sourcelim *(*rbt_op)(struct pf_sourcelim_id_tree *,
+     struct pf_sourcelim *));
+struct pf_source *pf_source_rb_find(struct pf_source_ioc_tree *,
+    struct pf_source *);
+struct pf_source *pf_source_rb_nfind(struct pf_source_ioc_tree *,
+    struct pf_source *);
+int pf_source_clr(struct pfioc_source_kill *);
+
 struct pf_kstatus {
 	counter_u64_t	counters[PFRES_MAX]; /* reason for passing/dropping */
 	counter_u64_t	lcounters[KLCNT_MAX]; /* limit counters */
@@ -2569,15 +2556,6 @@ struct pfioc_iface {
 #define	DIOCGETETHRULESETS	_IOWR('D', 100, struct pfioc_nv)
 #define	DIOCGETETHRULESET	_IOWR('D', 101, struct pfioc_nv)
 #define DIOCSETREASS		_IOWR('D', 102, u_int32_t)
-#define	DIOCADDSTATELIM		_IOW('D', 103, struct pfioc_statelim)
-#define	DIOCADDSOURCELIM	_IOW('D', 104, struct pfioc_sourcelim)
-#define	DIOCGETSTATELIM		_IOWR('D', 105, struct pfioc_statelim)
-#define	DIOCGETSOURCELIM	_IOWR('D', 106, struct pfioc_sourcelim)
-#define	DIOCGETSOURCE		_IOWR('D', 107, struct pfioc_source)
-#define	DIOCGETNSTATELIM	_IOWR('D', 108, struct pfioc_statelim)
-#define	DIOCGETNSOURCELIM	_IOWR('D', 109, struct pfioc_sourcelim)
-#define	DIOCGETNSOURCE		_IOWR('D', 110, struct pfioc_source)
-#define	DIOCCLRSOURCE		_IOWR('D', 111, struct pfioc_source_kill)
 
 struct pf_ifspeed_v0 {
 	char			ifname[IFNAMSIZ];

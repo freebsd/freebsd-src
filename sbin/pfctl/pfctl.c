@@ -126,7 +126,7 @@ int	 pfctl_ruleset_trans(struct pfctl *, char *, struct pfctl_anchor *, bool);
 void	 pfctl_load_statelims(struct pfctl *);
 void	 pfctl_load_statelim(struct pfctl *, struct pfctl_statelim *);
 void	 pfctl_load_sourcelims(struct pfctl *);
-void	 pfctl_load_sourcelim(struct pfctl *, struct pfctl_sourcelim *);
+void	 pfctl_load_sourcelim(struct pfctl *, struct pfctl_source_lim *);
 int	 pfctl_eth_ruleset_trans(struct pfctl *, char *,
 	    struct pfctl_eth_anchor *);
 int	 pfctl_load_eth_ruleset(struct pfctl *, char *,
@@ -1260,8 +1260,9 @@ pfctl_print_title(char *title)
 int
 pfctl_show_statelims(int dev, enum pfctl_show format)
 {
-	struct pfioc_statelim stlim;
+	struct pfctl_state_lim stlim;
 	uint32_t id = PF_STATELIM_ID_MIN;
+	int error;
 
 	if (format == PFCTL_SHOW_LABELS) {
 		printf("%3s %8s/%-8s %5s/%-5s %8s %8s %8s\n", "ID", "USE",
@@ -1272,12 +1273,13 @@ pfctl_show_statelims(int dev, enum pfctl_show format)
 		memset(&stlim, 0, sizeof(stlim));
 		stlim.id = id;
 
-		if (ioctl(dev, DIOCGETNSTATELIM, &stlim) == -1) {
-			if (errno == ENOENT) {
+		error = pfctl_state_limiter_nget(pfh, &stlim);
+		if (error != 0) {
+			if (error == ENOENT) {
 				/* we're done */
 				return (0);
 			}
-			warn("DIOCGETNSTATELIM %u", stlim.id);
+			warnc(error, "DIOCGETNSTATELIM %u", stlim.id);
 			return (-1);
 		}
 
@@ -1323,100 +1325,51 @@ pf_addr_inc(struct pf_addr *addr)
 }
 
 static int
-pfctl_show_sources(int dev, const struct pfioc_sourcelim *srlim,
+pfctl_print_source(struct pfctl_source *e, void *arg)
+{
+	print_addr_str(e->af, &e->addr);
+	switch (e->af) {
+	case AF_INET:
+		printf("/%u ", e->inet_prefix);
+		break;
+	case AF_INET6:
+		printf("/%u ", e->inet6_prefix);
+		break;
+	default:
+		printf("/af? ");
+		break;
+	}
+	printf("rdomain %u ", e->rdomain);
+
+	printf("inuse %u/%u ", e->inuse, e->limit);
+	printf("admit %ju hardlim %ju ratelim %ju\n",
+	    e->admitted, e->hardlimited, e->ratelimited);
+
+	return (0);
+}
+
+static int
+pfctl_show_sources(int dev, const struct pfctl_source_lim *srlim,
     enum pfctl_show format, int opts)
 {
-	struct pfioc_source sr = { .id = srlim->id };
-	struct pfioc_source_entry *entries, *e;
-	unsigned int nentries;
-	size_t len, used;
+	int error;
 
 	if (format != PFCTL_SHOW_LABELS)
 		errx(1, "%s format is not PFCTL_SHOW_LABELS", __func__);
 
-	nentries = srlim->nentries;
-	if (nentries == 0)
-		return (0);
-	if (nentries > 128) /* arbitrary */
-		nentries = 128;
-
-	entries = reallocarray(NULL, nentries, sizeof(*entries));
-	if (entries == NULL)
-		err(1, "alloc %u source limiter entries", nentries);
-
-	len = nentries * sizeof(*entries);
-
-	e = entries;
-
-	/* start from af 0 address 0 */
-	memset(e, 0, sizeof(*e));
-
-	sr.entry_size = sizeof(*e);
-	sr.key = e;
-
-	for (;;) {
-		sr.entries = entries;
-		sr.entrieslen = len;
-
-		if (ioctl(dev, DIOCGETNSOURCE, &sr) == -1) {
-			switch (errno) {
-			case ESRCH:	    /* can't find the sourcelim */
-			case ENOENT:	    /* no more sources */
-				return (0); /* we're done */
-			}
-			warn("DIOCGETNSOURCE %u", sr.id);
-			return (-1);
-		}
-
-		used = 0;
-		if (sr.entrieslen > len)
-			errx(1, "DIOCGETNSOURCE used too much buffer");
-
-		e = entries;
-		for (;;) {
-			if (used > sr.entrieslen)
-				errx(1, "DIOCGETNSOURCE weird entrieslen");
-
-			print_addr_str(e->af, &e->addr);
-			switch (e->af) {
-			case AF_INET:
-				printf("/%u ", sr.inet_prefix);
-				break;
-			case AF_INET6:
-				printf("/%u ", sr.inet6_prefix);
-				break;
-			default:
-				printf("/af? ");
-				break;
-			}
-			printf("rdomain %u ", e->rdomain);
-
-			printf("inuse %u/%u ", e->inuse, sr.limit);
-			printf("admit %ju hardlim %ju ratelim %ju\n",
-			    e->admitted, e->hardlimited, e->ratelimited);
-
-			used += sizeof(*e);
-			if (used == sr.entrieslen)
-				break;
-
-			e++;
-		}
-
-		/* reuse the last entry as the next key */
-		e->af += pf_addr_inc(&e->addr);
-		sr.key = e;
-	}
-
-	return (0);
+	error = pfctl_source_get(pfh, srlim->id, pfctl_print_source, NULL);
+	if (error != 0)
+		warnc(error, "DIOCGETNSOURCE %u", srlim->id);
+	return (error);
 }
 
 int
 pfctl_show_sourcelims(int dev, enum pfctl_show format, int opts,
     const char *idopt)
 {
-	struct pfioc_sourcelim srlim;
+	struct pfctl_source_lim srlim;
 	uint32_t id = PF_SOURCELIM_ID_MIN;
-	unsigned long cmd = DIOCGETNSOURCELIM;
+	int error;
 
 	if (idopt != NULL) {
 		const char *errstr;
@@ -1425,8 +1378,6 @@ pfctl_show_sourcelims(int dev, enum pfctl_show format, int opts,
 		    &errstr);
 		if (errstr != NULL)
 			errx(1, "source limiter id: %s", errstr);
-
-		cmd = DIOCGETSOURCELIM;
 	}
 
 	if (format == PFCTL_SHOW_LABELS) {
@@ -1439,12 +1390,18 @@ pfctl_show_sourcelims(int dev, enum pfctl_show format, int opts,
 		memset(&srlim, 0, sizeof(srlim));
 		srlim.id = id;
 
-		if (ioctl(dev, cmd, &srlim) == -1) {
-			if (errno == ESRCH) {
+		if (idopt != NULL) {
+			error = pfctl_source_limiter_get(pfh, &srlim);
+		} else {
+			error = pfctl_source_limiter_nget(pfh, &srlim);
+		}
+
+		if (error != 0) {
+			if (error == ESRCH) {
 				/* we're done */
 				return (0);
 			}
-			warn("DIOCGETNSOURCELIM %u", srlim.id);
+			warnc(error, "DIOCGETNSOURCELIM %u", srlim.id);
 			return (-1);
 		}
 
@@ -1485,7 +1442,7 @@ pfctl_show_sourcelims(int dev, enum pfctl_show format, int opts,
 void
 pfctl_kill_source(int dev, const char *idopt, const char *source, int opts)
 {
-	struct pfioc_source_kill ioc;
+	struct pfctl_source_clear clear = { 0 };
 	unsigned int id;
 	const char *errstr;
 	struct addrinfo hints, *res;
@@ -1508,22 +1465,22 @@ pfctl_kill_source(int dev, const char *idopt, const char *source, int opts)
 	if (error != 0)
 		errx(1, "source limiter address: %s", gai_strerror(error));
 
-	ioc.id = id;
-	ioc.af = res->ai_family;
-	copy_satopfaddr(&ioc.addr, res->ai_addr);
-	ioc.rmstates = 0;
+	clear.id = id;
+	clear.af = res->ai_family;
+	copy_satopfaddr(&clear.addr, res->ai_addr);
 
 	freeaddrinfo(res);
 
-	if (ioctl(dev, DIOCCLRSOURCE, &ioc) == -1) {
-		switch (errno) {
-		case ESRCH:
-			errx(1, "source limiter %u not found", id);
-		case ENOENT:
-			errx(1, "source limiter %u: %s not found", id, source);
-		default:
-			err(1, "kill source limiter %u entry %s", id, source);
-		}
+	error = pfctl_source_clear(pfh, &clear);
+	switch (error) {
+	case 0:
+		break;
+	case ESRCH:
+		errx(1, "source limiter %u not found", id);
+	case ENOENT:
+		errx(1, "source limiter %u: %s not found", id, source);
+	default:
+		err(1, "kill source limiter %u entry %s", id, source);
 	}
 }
 
@@ -2325,14 +2282,17 @@ pfctl_ruleset_trans(struct pfctl *pf, char *path, struct pfctl_anchor *a, bool d
 void
 pfctl_load_statelim(struct pfctl *pf, struct pfctl_statelim *stlim)
 {
+	int error;
+
 	if (pf->opts & PF_OPT_VERBOSE)
 		print_statelim(&stlim->ioc);
 
 	if (pf->opts & PF_OPT_NOACTION)
 		return;
 
-	if (ioctl(pf->dev, DIOCADDSTATELIM, &stlim->ioc) == -1) {
-		err(1, "DIOCADDSTATELIM %s id %u", stlim->ioc.name,
+	error = pfctl_state_limiter_add(pf->h, &stlim->ioc);
+	if (error) {
+		errc(1, error, "DIOCADDSTATELIM %s id %u", stlim->ioc.name,
 		    stlim->ioc.id);
 	}
 }
@@ -2356,17 +2316,20 @@ pfctl_load_statelims(struct pfctl *pf)
 }
 
 void
-pfctl_load_sourcelim(struct pfctl *pf, struct pfctl_sourcelim *srlim)
+pfctl_load_sourcelim(struct pfctl *pf, struct pfctl_source_lim *srlim)
 {
+	int error;
+
 	if (pf->opts & PF_OPT_VERBOSE)
-		print_sourcelim(&srlim->ioc);
+		print_sourcelim(srlim);
 
 	if (pf->opts & PF_OPT_NOACTION)
 		return;
 
-	if (ioctl(pf->dev, DIOCADDSOURCELIM, &srlim->ioc) == -1) {
-		err(1, "DIOCADDSOURCELIM %s id %u", srlim->ioc.name,
-		    srlim->ioc.id);
+	error = pfctl_source_limiter_add(pf->h, srlim);
+	if (error != 0) {
+		errc(1, error, "DIOCADDSOURCELIM %s id %u", srlim->name,
+		    srlim->id);
 	}
 }
 
@@ -2382,7 +2345,7 @@ pfctl_load_sourcelims(struct pfctl *pf)
 	RB_FOREACH(srlim, pfctl_sourcelim_ids, &pf->sourcelim_ids)
 	{
 		srlim->ioc.ticket = ticket;
-		pfctl_load_sourcelim(pf, srlim);
+		pfctl_load_sourcelim(pf, &srlim->ioc);
 	}
 
 	/* Don't free the sourcelims because we're about to exit anyway. */
