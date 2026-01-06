@@ -58,6 +58,7 @@
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <netinet/sctp.h>
+#include <netlink/netlink.h>
 #include <arpa/inet.h>
 
 #include <assert.h>
@@ -1568,6 +1569,70 @@ user_ptr32_to_psaddr(int32_t user_pointer)
 	return ((psaddr_t)(uintptr_t)user_pointer);
 }
 
+#define NETLINK_MAX_DECODE 4096
+
+/*
+ * Reads the first IOV and attempts to print it as Netlink using libsysdecode.
+ * Returns true if successful, false if fallback to standard print is needed.
+ */
+static bool
+print_netlink(FILE *fp, struct trussinfo *trussinfo, struct msghdr *msg)
+{
+	struct sockaddr_storage ss;
+	struct iovec iov;
+	struct ptrace_io_desc piod;
+	char *buf;
+	pid_t pid = trussinfo->curthread->proc->pid;
+	bool success = false;
+
+	/* Only decode AF_NETLINK sockets. */
+	if (msg->msg_name == NULL || msg->msg_namelen < sizeof(sa_family_t))
+		return (false);
+
+	if (get_struct(pid, (uintptr_t)msg->msg_name, &ss, 
+	    MIN(sizeof(ss), msg->msg_namelen)) == -1)
+		return (false);
+
+	if (ss.ss_family != AF_NETLINK)
+		return (false);
+
+	/* Retrieve IOV Metadata. */
+	if (msg->msg_iovlen == 0 || msg->msg_iov == NULL)
+		return (false);
+
+	if (get_struct(pid, (uintptr_t)msg->msg_iov, &iov, sizeof(iov)) == -1)
+		return (false);
+
+	/* Cap read size to avoid unbounded allocations. */
+	size_t read_len = MIN(iov.iov_len, NETLINK_MAX_DECODE); 
+	if (read_len == 0)
+		return (false);
+
+	buf = malloc(read_len);
+	if (buf == NULL)
+		return (false);
+
+	/* Snapshot User Memory using PTRACE. */
+	piod.piod_op = PIOD_READ_D;
+	piod.piod_offs = iov.iov_base;
+	piod.piod_addr = buf;
+	piod.piod_len = read_len;
+
+	if (ptrace(PT_IO, pid, (caddr_t)&piod, 0) == -1) {
+		free(buf);
+		return (false);
+	}
+
+	/* Delegate Decoding to libsysdecode. */
+	if (sysdecode_netlink(fp, buf, read_len)) {
+		success = true;
+	}
+	
+	free(buf);
+
+	return (success);
+}
+
 /*
  * Converts a syscall argument into a string.  Said string is
  * allocated via malloc(), so needs to be free()'d.  sc is
@@ -2706,7 +2771,11 @@ print_arg(struct syscall_arg *sc, syscallarg_t *args, syscallarg_t *retval,
 		fputs("{", fp);
 		print_sockaddr(fp, trussinfo, (uintptr_t)msghdr.msg_name, msghdr.msg_namelen);
 		fprintf(fp, ",%d,", msghdr.msg_namelen);
-		print_iovec(fp, trussinfo, (uintptr_t)msghdr.msg_iov, msghdr.msg_iovlen);
+		/* Attempt Netlink decode; fallback to standard iovec if it fails. */
+		if (!print_netlink(fp, trussinfo, &msghdr)) {
+			print_iovec(fp, trussinfo, (uintptr_t)msghdr.msg_iov,
+			    msghdr.msg_iovlen);
+		}
 		fprintf(fp, ",%d,", msghdr.msg_iovlen);
 		print_cmsgs(fp, pid, sc->type & OUT, &msghdr);
 		fprintf(fp, ",%u,", msghdr.msg_controllen);
