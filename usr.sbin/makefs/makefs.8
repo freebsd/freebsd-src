@@ -33,7 +33,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd July 19, 2025
+.Dd January 5, 2026
 .Dt MAKEFS 8
 .Os
 .Sh NAME
@@ -124,7 +124,7 @@ See the source for usage, and look for defines starting with
 .It Fl F Ar mtree-specfile
 .Em This is almost certainly not the option you are looking for.
 To create an image from a list of files in an mtree format manifest,
-specify it as the last argument on the command line, not as a the
+specify it as the last argument on the command line, not as the
 argument to
 .Fl F .
 .Pp
@@ -325,7 +325,8 @@ Expected number of files per directory.
 .It Sy bsize
 Block size.
 .It Sy density
-Bytes per inode. If unset, will allocate the minimum number of inodes to
+Bytes per inode.
+If unset, will allocate the minimum number of inodes to
 represent the filesystem if no free space has been requested (free blocks
 or minimum size set); otherwise the larger of the newfs defaults or what
 is required by the free inode parameters if set.
@@ -598,7 +599,7 @@ Dataset properties, as described in
 may be specified following the dataset name.
 The following properties may be set for a dataset:
 .Pp
-.Bl -tag -compact -offset indent
+.Bl -hang -compact -offset indent
 .It atime
 .It canmount
 .It compression
