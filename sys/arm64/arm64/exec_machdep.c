@@ -60,6 +60,10 @@
 #include <machine/vfp.h>
 #endif
 
+#define	CTX_SIZE_SVE(buf_size)					\
+    roundup2(sizeof(struct sve_context) + (buf_size),		\
+      _Alignof(struct sve_context))
+
 _Static_assert(sizeof(mcontext_t) == 880, "mcontext_t size incorrect");
 _Static_assert(sizeof(ucontext_t) == 960, "ucontext_t size incorrect");
 _Static_assert(sizeof(siginfo_t) == 80, "siginfo_t size incorrect");
@@ -585,8 +589,7 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 
 				buf_size = sve_buf_size(td);
 				/* Check the size is valid */
-				if (ctx.ctx_size !=
-				    (sizeof(sve_ctx) + buf_size))
+				if (ctx.ctx_size != CTX_SIZE_SVE(buf_size))
 					return (EINVAL);
 
 				memset(pcb->pcb_svesaved, 0,
@@ -729,7 +732,7 @@ sendsig_ctx_sve(struct thread *td, vm_offset_t *addrp)
 {
 	struct sve_context ctx;
 	struct pcb *pcb;
-	size_t buf_size;
+	size_t buf_size, ctx_size;
 	vm_offset_t ctx_addr;
 
 	pcb = td->td_pcb;
@@ -740,14 +743,15 @@ sendsig_ctx_sve(struct thread *td, vm_offset_t *addrp)
 	MPASS(pcb->pcb_svesaved != NULL);
 
 	buf_size = sve_buf_size(td);
+	ctx_size = CTX_SIZE_SVE(buf_size);
 
 	/* Address for the full context */
-	*addrp -= sizeof(ctx) + buf_size;
+	*addrp -= ctx_size;
 	ctx_addr = *addrp;
 
 	memset(&ctx, 0, sizeof(ctx));
 	ctx.sve_ctx.ctx_id = ARM64_CTX_SVE;
-	ctx.sve_ctx.ctx_size = sizeof(ctx) + buf_size;
+	ctx.sve_ctx.ctx_size = ctx_size;
 	ctx.sve_vector_len = pcb->pcb_sve_len;
 	ctx.sve_flags = 0;
 
