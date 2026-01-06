@@ -1305,6 +1305,20 @@ link_elf_unload_file(linker_file_t file)
 				vnet_data_free(ef->progtab[i].addr,
 				    ef->progtab[i].size);
 #endif
+			else if (ef->preloaded) {
+				vm_offset_t start, end;
+
+				start = (vm_offset_t)ef->progtab[i].addr;
+				end = start + ef->progtab[i].size;
+
+				/*
+				 * Reset mapping protections to their original
+				 * state.  This affects the direct map alias of
+				 * the module mapping as well.
+				 */
+				link_elf_protect_range(ef, trunc_page(start),
+				    round_page(end), VM_PROT_RW);
+			}
 		}
 	}
 	if (ef->preloaded) {
