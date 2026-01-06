@@ -166,6 +166,36 @@ sdio_write_1(struct sdio_func *f, uint32_t addr, uint8_t val, int *err)
 		*err = error;
 }
 
+uint16_t
+sdio_read_2(struct sdio_func *f, uint32_t addr, int *err)
+{
+	int error;
+	uint16_t v;
+
+	error = SDIO_READ_EXTENDED(device_get_parent(f->dev), f->fn, addr,
+	    sizeof(v), (uint8_t *)&v, true);
+	if (error) {
+		if (err != NULL)
+			*err = error;
+		return (0xffff);
+	} else {
+		if (err != NULL)
+			*err = 0;
+		return (le16toh(v));
+	}
+}
+
+void
+sdio_write_2(struct sdio_func *f, uint32_t addr, uint16_t val, int *err)
+{
+	int error;
+
+	error = SDIO_WRITE_EXTENDED(device_get_parent(f->dev), f->fn, addr,
+	    sizeof(val), (uint8_t *)&val, true);
+	if (err != NULL)
+		*err = error;
+}
+
 uint32_t
 sdio_read_4(struct sdio_func *f, uint32_t addr, int *err)
 {
