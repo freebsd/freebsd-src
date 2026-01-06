@@ -100,6 +100,7 @@ static bool
 dump_state_peer(struct nl_writer *nw, int attr, const struct pf_state_peer *peer)
 {
 	int off = nlattr_add_nested(nw, attr);
+
 	if (off == 0)
 		return (false);
 
@@ -129,6 +130,7 @@ static bool
 dump_state_key(struct nl_writer *nw, int attr, const struct pf_state_key *key)
 {
 	int off = nlattr_add_nested(nw, attr);
+
 	if (off == 0)
 		return (false);
 
@@ -430,6 +432,9 @@ nlattr_add_addr_wrap(struct nl_writer *nw, int attrtype, struct pf_addr_wrap *a)
 {
 	int off = nlattr_add_nested(nw, attrtype);
 
+	if (off == 0)
+		return (false);
+
 	nlattr_add_in6_addr(nw, PF_AT_ADDR, &a->v.a.addr.v6);
 	nlattr_add_in6_addr(nw, PF_AT_MASK, &a->v.a.mask.v6);
 	nlattr_add_u8(nw, PF_AT_TYPE, a->type);
@@ -465,6 +470,9 @@ nlattr_add_rule_addr(struct nl_writer *nw, int attrtype, struct pf_rule_addr *r)
 	struct pf_addr_wrap aw = {0};
 	int off = nlattr_add_nested(nw, attrtype);
 
+	if (off == 0)
+		return (false);
+
 	bcopy(&(r->addr), &aw, sizeof(struct pf_addr_wrap));
 	pf_addr_copyout(&aw);
 
@@ -492,6 +500,9 @@ static bool
 nlattr_add_mape_portset(struct nl_writer *nw, int attrtype, const struct pf_mape_portset *m)
 {
 	int off = nlattr_add_nested(nw, attrtype);
+
+	if (off == 0)
+		return (false);
 
 	nlattr_add_u8(nw, PF_MET_OFFSET, m->offset);
 	nlattr_add_u8(nw, PF_MET_PSID_LEN, m->psidlen);
@@ -555,6 +566,9 @@ nlattr_add_labels(struct nl_writer *nw, int attrtype, const struct pf_krule *r)
 	int off = nlattr_add_nested(nw, attrtype);
 	int i = 0;
 
+	if (off == 0)
+		return (false);
+
 	while (r->label[i][0] != 0
 	    && i < PF_RULE_MAX_LABEL_COUNT) {
 		nlattr_add_string(nw, PF_LT_LABEL, r->label[i]);
@@ -584,6 +598,9 @@ nlattr_add_pool(struct nl_writer *nw, int attrtype, const struct pf_kpool *pool)
 {
 	int off = nlattr_add_nested(nw, attrtype);
 
+	if (off == 0)
+		return (false);
+
 	nlattr_add(nw, PF_PT_KEY, sizeof(struct pf_poolhashkey), &pool->key);
 	nlattr_add_in6_addr(nw, PF_PT_COUNTER, (const struct in6_addr *)&pool->counter);
 	nlattr_add_u32(nw, PF_PT_TBLIDX, pool->tblidx);
@@ -610,6 +627,9 @@ static bool
 nlattr_add_rule_uid(struct nl_writer *nw, int attrtype, const struct pf_rule_uid *u)
 {
 	int off = nlattr_add_nested(nw, attrtype);
+
+	if (off == 0)
+		return (false);
 
 	nlattr_add_u32(nw, PF_RUT_UID_LOW, u->uid[0]);
 	nlattr_add_u32(nw, PF_RUT_UID_HIGH, u->uid[1]);
@@ -670,6 +690,9 @@ static bool
 nlattr_add_timeout(struct nl_writer *nw, int attrtype, uint32_t *timeout)
 {
 	int off = nlattr_add_nested(nw, attrtype);
+
+	if (off == 0)
+		return (false);
 
 	for (int i = 0; i < PFTM_MAX; i++)
 		nlattr_add_u32(nw, PF_RT_TIMEOUT, timeout[i]);
@@ -1144,6 +1167,10 @@ nlattr_add_counters(struct nl_writer *nw, int attr, size_t number, char **names,
 {
 	for (int i = 0; i < number; i++) {
 		int off = nlattr_add_nested(nw, attr);
+
+		if (off == 0)
+			return (false);
+
 		nlattr_add_u32(nw, PF_C_ID, i);
 		nlattr_add_string(nw, PF_C_NAME, names[i]);
 		nlattr_add_u64(nw, PF_C_COUNTER, counter_u64_fetch(counters[i]));
@@ -1159,6 +1186,10 @@ nlattr_add_fcounters(struct nl_writer *nw, int attr, size_t number, char **names
 {
 	for (int i = 0; i < number; i++) {
 		int off = nlattr_add_nested(nw, attr);
+
+		if (off == 0)
+			return (false);
+
 		nlattr_add_u32(nw, PF_C_ID, i);
 		nlattr_add_string(nw, PF_C_NAME, names[i]);
 		nlattr_add_u64(nw, PF_C_COUNTER, pf_counter_u64_fetch(&counters[i]));
@@ -1172,6 +1203,9 @@ static bool
 nlattr_add_u64_array(struct nl_writer *nw, int attr, size_t number, const uint64_t *array)
 {
 	int off = nlattr_add_nested(nw, attr);
+
+	if (off == 0)
+		return (false);
 
 	for (size_t i = 0; i < number; i++)
 		nlattr_add_u64(nw, 0, array[i]);
@@ -1482,6 +1516,9 @@ nlattr_add_pool_addr(struct nl_writer *nw, int attrtype, struct pf_pooladdr *a)
 
 	off = nlattr_add_nested(nw, attrtype);
 
+	if (off == 0)
+		return (false);
+
 	nlattr_add_addr_wrap(nw, PF_PA_ADDR, &a->addr);
 	nlattr_add_string(nw, PF_PA_IFNAME, a->ifname);
 
@@ -1689,6 +1726,9 @@ nlattr_add_pf_threshold(struct nl_writer *nw, int attrtype,
 	int	 off = nlattr_add_nested(nw, attrtype);
 	int	 conn_rate_count = 0;
 
+	if (off == 0)
+		return (false);
+
 	/* Adjust the connection rate estimate. */
 	if (t->cr != NULL)
 		conn_rate_count = counter_rate_get(t->cr);
@@ -1888,6 +1928,9 @@ nlattr_add_pfr_table(struct nl_writer *nw, int attrtype,
     struct pfr_table *t)
 {
 	int	 off = nlattr_add_nested(nw, attrtype);
+
+	if (off == 0)
+		return (false);
 
 	nlattr_add_string(nw, PF_T_ANCHOR, t->pfrt_anchor);
 	nlattr_add_string(nw, PF_T_NAME, t->pfrt_name);
@@ -2212,6 +2255,7 @@ static int
 nlattr_add_pfr_addr(struct nl_writer *nw, int attr, const struct pfr_addr *a)
 {
 	int off = nlattr_add_nested(nw, attr);
+
 	if (off == 0)
 		return (false);
 
@@ -2291,6 +2335,7 @@ static int
 nlattr_add_pfr_astats(struct nl_writer *nw, int attr, const struct pfr_astats *a)
 {
 	int off = nlattr_add_nested(nw, attr);
+
 	if (off == 0)
 		return (false);
 
