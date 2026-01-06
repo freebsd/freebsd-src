@@ -105,7 +105,7 @@ int	 pfctl_get_pool(int, struct pfctl_pool *, u_int32_t, u_int32_t, int,
 	    const char *, int);
 void	 pfctl_print_eth_rule_counters(struct pfctl_eth_rule *, int);
 void	 pfctl_print_rule_counters(struct pfctl_rule *, int);
-int	 pfctl_show_statelims(int, enum pfctl_show);
+int	 pfctl_show_statelims(int, enum pfctl_show, int);
 int	 pfctl_show_sourcelims(int, enum pfctl_show, int, const char *);
 int	 pfctl_show_eth_rules(int, char *, int, enum pfctl_show, char *, int, int);
 int	 pfctl_show_rules(int, char *, int, enum pfctl_show, char *, int, int);
@@ -1258,11 +1258,14 @@ pfctl_print_title(char *title)
 }
 
 int
-pfctl_show_statelims(int dev, enum pfctl_show format)
+pfctl_show_statelims(int dev, enum pfctl_show format, int opts)
 {
 	struct pfctl_state_lim stlim;
 	uint32_t id = PF_STATELIM_ID_MIN;
 	int error;
+
+	if (opts & PF_OPT_SHOWALL)
+		pfctl_print_title("STATE LIMITERS:");
 
 	if (format == PFCTL_SHOW_LABELS) {
 		printf("%3s %8s/%-8s %5s/%-5s %8s %8s %8s\n", "ID", "USE",
@@ -1379,6 +1382,9 @@ pfctl_show_sourcelims(int dev, enum pfctl_show format, int opts,
 		if (errstr != NULL)
 			errx(1, "source limiter id: %s", errstr);
 	}
+
+	if (opts & PF_OPT_SHOWALL)
+		pfctl_print_title("SOURCE LIMITERS:");
 
 	if (format == PFCTL_SHOW_LABELS) {
 		printf("%3s %8s/%-8s %5s %5s/%-5s %8s %8s %8s %8s\n", "ID",
@@ -1611,15 +1617,6 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 	int numeric = opts & PF_OPT_NUMERIC;
 	int len = strlen(path), ret = 0;
 	char *npath, *p;
-
-	if (anchorname[0] == '\0') {
-		ret = pfctl_show_statelims(dev, format);
-		if (ret != 0)
-			goto error;
-		ret = pfctl_show_sourcelims(dev, format, opts, NULL);
-		if (ret != 0)
-			goto error;
-	}
 
 	/*
 	 * Truncate a trailing / and * on an anchorname before searching for
@@ -3961,6 +3958,8 @@ main(int argc, char *argv[])
 		    0, 0);
 		pfctl_show_timeouts(dev, opts);
 		pfctl_show_limits(dev, opts);
+		pfctl_show_statelims(dev, PFCTL_SHOW_LABELS, opts);
+		pfctl_show_sourcelims(dev, PFCTL_SHOW_LABELS, opts, idopt);
 		pfctl_show_tables(anchorname, opts);
 		pfctl_show_fingerprints(opts);
 		break;
@@ -3983,7 +3982,7 @@ main(int argc, char *argv[])
 		pfctl_show_creators(opts);
 		break;
 	case SHOWOPT_STATELIMS:
-		pfctl_show_statelims(dev, PFCTL_SHOW_LABELS);
+		pfctl_show_statelims(dev, PFCTL_SHOW_LABELS, opts);
 		break;
 	case SHOWOPT_SOURCELIMS:
 		pfctl_show_sourcelims(dev, PFCTL_SHOW_LABELS, opts, idopt);
