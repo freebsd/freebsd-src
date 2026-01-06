@@ -277,29 +277,23 @@ MACHINE_CPU = sse3
 .  endif
 MACHINE_CPU += amd64 sse2 sse mmx
 ########## powerpc
-. elif ${MACHINE_ARCH} == "powerpc"
-.  if ${CPUTYPE} == "e500"
-MACHINE_CPU = booke softfp
-.  elif ${CPUTYPE} == "g4"
-MACHINE_CPU = aim altivec
-.  else
-MACHINE_CPU= aim
-.  endif
 . elif ${MACHINE_ARCH} == "powerpc64"
 .  if ${CPUTYPE} == "e5500"
 MACHINE_CPU = booke
-.  elif ${CPUTYPE} == power7
+.  elif ${CPUTYPE} == "power7"
 MACHINE_CPU = altivec vsx
-.  elif ${CPUTYPE} == power8
+.  elif ${CPUTYPE} == "power8"
 MACHINE_CPU = altivec vsx vsx2
-.  elif ${CPUTYPE} == power9
+.  elif ${CPUTYPE} == "power9" || ${CPUTYPE} == "power10" || \
+    ${CPUTYPE} == "power11"
 MACHINE_CPU = altivec vsx vsx2 vsx3
 .  else
 MACHINE_CPU = aim altivec
 .  endif
 . elif ${MACHINE_ARCH} == "powerpc64le"
 MACHINE_CPU = aim altivec vsx vsx2
-.  if ${CPUTYPE} == power9
+.  if ${CPUTYPE} == "power9" || ${CPUTYPE} == "power10" || \
+    ${CPUTYPE} == "power11"
 MACHINE_CPU += vsx3
 .  endif
 ########## riscv
