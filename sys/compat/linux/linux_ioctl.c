@@ -331,6 +331,17 @@ struct linux_termios {
 	unsigned char c_cc[LINUX_NCCS];
 };
 
+struct linux_termios2 {
+	unsigned int c_iflag;
+	unsigned int c_oflag;
+	unsigned int c_cflag;
+	unsigned int c_lflag;
+	unsigned char c_line;
+	unsigned char c_cc[LINUX_NCCS];
+	unsigned int c_ispeed;
+	unsigned int c_ospeed;
+};
+
 struct linux_winsize {
 	unsigned short ws_row, ws_col;
 	unsigned short ws_xpixel, ws_ypixel;
@@ -386,7 +397,7 @@ bsd_to_linux_speed(int speed, struct speedtab *table)
 	for ( ; table->sp_speed != -1; table++)
 		if (table->sp_speed == speed)
 			return (table->sp_code);
-	return (-1);
+	return (LINUX_BOTHER);
 }
 
 static void
@@ -506,6 +517,14 @@ bsd_to_linux_termios(struct termios *bios, struct linux_termios *lios)
 			lios->c_cc[i] = LINUX_POSIX_VDISABLE;
 	}
 	lios->c_line = 0;
+}
+
+static void
+bsd_to_linux_termios2(struct termios *bios, struct linux_termios2 *lios2)
+{
+	bsd_to_linux_termios(bios, (struct linux_termios *)lios2);
+	lios2->c_ospeed = bios->c_ospeed;
+	lios2->c_ispeed = bios->c_ispeed;
 }
 
 static void
@@ -629,6 +648,16 @@ linux_to_bsd_termios(struct linux_termios *lios, struct termios *bios)
 }
 
 static void
+linux_to_bsd_termios2(struct linux_termios2 *lios2, struct termios *bios)
+{
+	linux_to_bsd_termios((struct linux_termios *)lios2, bios);
+	if ((lios2->c_cflag & LINUX_CBAUD) == LINUX_BOTHER)
+		bios->c_ospeed = lios2->c_ospeed;
+	if ((lios2->c_cflag & LINUX_CIBAUD) == LINUX_BOTHER << LINUX_IBSHIFT)
+		bios->c_ispeed = lios2->c_ispeed;
+}
+
+static void
 bsd_to_linux_termio(struct termios *bios, struct linux_termio *lio)
 {
 	struct linux_termios lios;
@@ -664,6 +693,7 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 {
 	struct termios bios;
 	struct linux_termios lios;
+	struct linux_termios2 lios2;
 	struct linux_termio lio;
 	struct file *fp;
 	int error;
@@ -1001,6 +1031,43 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 		args->cmd = TIOCCBRK;
 		error = (sys_ioctl(td, (struct ioctl_args *)args));
 		break;
+
+	case LINUX_TCGETS2:
+		error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bios, td->td_ucred,
+		    td);
+		if (error)
+			break;
+		bsd_to_linux_termios2(&bios, &lios2);
+		error = copyout(&lios2, (void *)args->arg, sizeof(lios2));
+		break;
+
+	case LINUX_TCSETS2:
+		error = copyin((void *)args->arg, &lios2, sizeof(lios2));
+		if (error)
+			break;
+		linux_to_bsd_termios2(&lios2, &bios);
+		error = (fo_ioctl(fp, TIOCSETA, (caddr_t)&bios, td->td_ucred,
+		    td));
+		break;
+
+	case LINUX_TCSETSW2:
+		error = copyin((void *)args->arg, &lios2, sizeof(lios2));
+		if (error)
+			break;
+		linux_to_bsd_termios2(&lios2, &bios);
+		error = (fo_ioctl(fp, TIOCSETAW, (caddr_t)&bios, td->td_ucred,
+		    td));
+		break;
+
+	case LINUX_TCSETSF2:
+		error = copyin((void *)args->arg, &lios2, sizeof(lios2));
+		if (error)
+			break;
+		linux_to_bsd_termios2(&lios2, &bios);
+		error = (fo_ioctl(fp, TIOCSETAF, (caddr_t)&bios, td->td_ucred,
+		    td));
+		break;
+
 	case LINUX_TIOCGPTN: {
 		int nb;
 
