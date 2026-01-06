@@ -1,3 +1,6 @@
+PACKAGE=	zstd
+LIB_PACKAGE=
+
 LIB=	zstd
 SRCS=	entropy_common.c \
 	error_private.c \
@@ -43,7 +46,6 @@ LIBADD=	pthread
 CFLAGS+=	-DZSTD_DISABLE_ASM
 
 PRIVATELIB=	yes
-PACKAGE=	runtime
 
 ZSTDDIR=	${SRCTOP}/sys/contrib/zstd
 .PATH:	${ZSTDDIR}/lib/common ${ZSTDDIR}/lib/compress \
