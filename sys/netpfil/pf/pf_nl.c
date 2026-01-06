@@ -160,8 +160,6 @@ dump_state(struct nlpcb *nlp, const struct nlmsghdr *hdr, struct pf_kstate *s,
 
 	struct genlmsghdr *ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_GETSTATES;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_u64(nw, PF_ST_VERSION, PF_STATE_VERSION);
 
@@ -324,8 +322,6 @@ dump_creatorid(struct nlpcb *nlp, const struct nlmsghdr *hdr, uint32_t creator,
 
 	struct genlmsghdr *ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_GETCREATORS;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_u32(nw, PF_ST_CREATORID, htonl(creator));
 
@@ -832,8 +828,6 @@ pf_handle_getrules(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_GETRULES;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	error = pf_ioctl_getrules(&attrs);
 	if (error != 0)
@@ -894,8 +888,6 @@ pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_GETRULE;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	PF_RULES_WLOCK();
 	ruleset = pf_find_kruleset(attrs.anchor);
@@ -1085,8 +1077,6 @@ pf_handle_killclear_states(struct nlmsghdr *hdr, struct nl_pstate *npt, int cmd)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = cmd;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	NET_EPOCH_ENTER(et);
 	if (cmd == PFNL_CMD_KILLSTATES)
@@ -1210,8 +1200,6 @@ pf_handle_get_status(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_GET_STATUS;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	since = time_second - (time_uptime - V_pf_status.since);
 
@@ -1301,8 +1289,6 @@ pf_handle_natlook(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_NATLOOK;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_in6_addr(nw, PF_NL_SRC_ADDR, &attrs.rsaddr.v6);
 	nlattr_add_in6_addr(nw, PF_NL_DST_ADDR, &attrs.rdaddr.v6);
@@ -1392,8 +1378,6 @@ pf_handle_get_timeout(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_GET_TIMEOUT;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_u32(nw, PF_TO_SECONDS, attrs.seconds);
 
@@ -1452,8 +1436,6 @@ pf_handle_get_limit(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_GET_LIMIT;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_u32(nw, PF_LI_LIMIT, attrs.limit);
 
@@ -1482,8 +1464,6 @@ pf_handle_begin_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_BEGIN_ADDRS;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_u32(nw, PF_BA_TICKET, ticket);
 
@@ -1576,8 +1556,6 @@ pf_handle_get_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_GET_ADDRS;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_u32(nw, PF_AA_NR, attrs.nr);
 
@@ -1613,8 +1591,6 @@ pf_handle_get_addr(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_GET_ADDR;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_u32(nw, PF_AA_ACTION, attrs.action);
 	nlattr_add_u32(nw, PF_AA_TICKET, attrs.ticket);
@@ -1663,8 +1639,6 @@ pf_handle_get_rulesets(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_GET_RULESETS;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_u32(nw, PF_RS_NR, attrs.nr);
 
@@ -1697,8 +1671,6 @@ pf_handle_get_ruleset(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_GET_RULESET;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_string(nw, PF_RS_NAME, attrs.name);
 
@@ -1759,8 +1731,6 @@ pf_handle_get_srcnodes(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 			ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 			ghdr_new->cmd = PFNL_CMD_GET_SRCNODES;
-			ghdr_new->version = 0;
-			ghdr_new->reserved = 0;
 
 			nlattr_add_in6_addr(nw, PF_SN_ADDR, &n->addr.v6);
 			nlattr_add_in6_addr(nw, PF_SN_RADDR, &n->raddr.v6);
@@ -1832,8 +1802,6 @@ pf_handle_clear_tables(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_CLEAR_TABLES;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_u32(nw, PF_T_NBR_DELETED, ndel);
 
@@ -1869,8 +1837,6 @@ pf_handle_add_table(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_ADD_TABLE;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_u32(nw, PF_T_NBR_ADDED, attrs.pfrio_nadd);
 
@@ -1906,8 +1872,6 @@ pf_handle_del_table(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_DEL_TABLE;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_u32(nw, PF_T_NBR_DELETED, attrs.pfrio_ndel);
 
@@ -1986,8 +1950,6 @@ pf_handle_get_tstats(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 			ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 			ghdr_new->cmd = PFNL_CMD_GET_TSTATS;
-			ghdr_new->version = 0;
-			ghdr_new->reserved = 0;
 
 			nlattr_add_pfr_table(nw, PF_TS_TABLE,
 			    &pfrtstats[i].pfrts_t);
@@ -2054,8 +2016,6 @@ pf_handle_clear_tstats(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_CLR_TSTATS;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_u64(nw, PF_TS_NZERO, nzero);
 
@@ -2091,8 +2051,6 @@ pf_handle_clear_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_CLR_ADDRS;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_u64(nw, PF_T_NBR_DELETED, ndel);
 
@@ -2176,8 +2134,6 @@ pf_handle_table_add_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_TABLE_ADD_ADDR;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_u32(nw, PF_TA_NBR_ADDED, attrs.nadd);
 
@@ -2209,8 +2165,6 @@ pf_handle_table_del_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_TABLE_DEL_ADDR;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_u32(nw, PF_TA_NBR_DELETED, attrs.ndel);
 
@@ -2243,8 +2197,6 @@ pf_handle_table_set_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_TABLE_SET_ADDR;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_u32(nw, PF_TA_NBR_ADDED, attrs.nadd);
 	nlattr_add_u32(nw, PF_TA_NBR_DELETED, attrs.ndel);
@@ -2318,8 +2270,6 @@ pf_handle_table_get_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
 		}
 		ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 		ghdr_new->cmd = PFNL_CMD_TABLE_GET_ADDR;
-		ghdr_new->version = 0;
-		ghdr_new->reserved = 0;
 
 		if (i == 0)
 			nlattr_add_u32(nw, PF_TA_ADDR_COUNT, size);
@@ -2416,8 +2366,6 @@ pf_handle_table_get_astats(struct nlmsghdr *hdr, struct nl_pstate *npt)
 		}
 		ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 		ghdr_new->cmd = PFNL_CMD_TABLE_GET_ASTATS;
-		ghdr_new->version = 0;
-		ghdr_new->reserved = 0;
 
 		if (i == 0)
 			nlattr_add_u32(nw, PF_TAS_ASTATS_COUNT, size);
@@ -2457,8 +2405,6 @@ pf_handle_table_clear_astats(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_TABLE_CLEAR_ASTATS;
-	ghdr_new->version = 0;
-	ghdr_new->reserved = 0;
 
 	nlattr_add_u32(nw, PF_TAS_ASTATS_ZEROED, attrs.nchange);
 
