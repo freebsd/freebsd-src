@@ -171,7 +171,8 @@ fw1x_reset(struct aq_hw* hal)
 	const int retryCount = 1000;
 
 	for (int i = 0; i < retryCount; ++i) {
-		// Read the beginning of Statistics structure to capture the Transaction ID.
+		// Read the beginning of Statistics structure to capture the
+		// Transaction ID.
 		aq_hw_fw_downld_dwords(hal, hal->mbox_addr, (uint32_t*)&mbox,
 		    (uint32_t)((char*)&mbox.stats - (char*)&mbox) / sizeof(uint32_t));
 
@@ -185,7 +186,6 @@ fw1x_reset(struct aq_hw* hal)
 			 * Compare transaction ID to initial value.
 			 * If it's different means f/w is alive. We're done.
 			 */
-
 			return (EOK);
 		}
 
@@ -321,4 +321,3 @@ struct aq_firmware_ops aq_fw1x_ops =
 	.get_mac_addr = fw1x_get_mac_addr,
 	.get_stats = fw1x_get_stats,
 };
-

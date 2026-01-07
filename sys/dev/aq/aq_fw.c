@@ -62,6 +62,7 @@ typedef enum aq_fw_bootloader_mode
 } aq_fw_bootloader_mode;
 
 #define AQ_CFG_HOST_BOOT_DISABLE 0
+
 // Timeouts
 #define RBL_TIMEOUT_MS              10000
 #define MAC_FW_START_TIMEOUT_MS     10000
@@ -215,12 +216,14 @@ mac_soft_reset_flb_(struct aq_hw* hw)
 	int k;
 
 	reg_global_ctl2_set(hw, 0x40e1);
-	// Let Felicity hardware to complete SMBUS transaction before Global software reset.
+	// Let Felicity hardware complete SMBUS transaction before Global
+	// software reset.
 	msec_delay(50);
 
 	/*
-	 * If SPI burst transaction was interrupted(before running the script), global software
-	 * reset may not clear SPI interface. Clean it up manually before global reset.
+	 * If SPI burst transaction was interrupted(before running the script),
+	 * global software reset may not clear SPI interface. Clean it up
+	 * manually before global reset.
 	 */
 	reg_glb_nvr_provisioning2_set(hw, 0xa0);
 	reg_glb_nvr_interface1_set(hw, 0x9f);
@@ -236,8 +239,8 @@ mac_soft_reset_flb_(struct aq_hw* hw)
 		reg_glb_general_provisioning9_set(hw, 1);
 
 	/*
-	 * For the case SPI burst transaction was interrupted (by MCP reset above),
-	 * wait until it is completed by hardware.
+	 * For the case SPI burst transaction was interrupted (by MCP reset
+	 * above), wait until it is completed by hardware.
 	 */
 	msec_delay(50); // Sleep for 10 ms.
 
@@ -263,7 +266,8 @@ mac_soft_reset_flb_(struct aq_hw* hw)
 		trace(dbg_init, "FLB> MAC kickstart done, %d ms", k);
 		/* FW reset */
 		reg_global_ctl2_set(hw, 0x80e0);
-		// Let Felicity hardware complete SMBUS transaction before Global software reset.
+		// Let Felicity hardware complete SMBUS transaction before
+		// Global software reset.
 		msec_delay(50);
 	}
 	reg_glb_cpu_sem_set(hw, 1, 0);

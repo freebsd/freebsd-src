@@ -107,9 +107,11 @@ aq_ring_rx_init(struct aq_hw *hw, struct aq_ring *ring)
 
 	rdm_rx_desc_len_set(hw, ring->rx_size / 8U, ring->index);
 
-	device_printf(ring->dev->dev, "ring %d: __PAGESIZE=%d MCLBYTES=%d hw->max_frame_size=%d\n",
-				  ring->index, PAGE_SIZE, MCLBYTES, ring->rx_max_frame_size);
-	rdm_rx_desc_data_buff_size_set(hw, ring->rx_max_frame_size / 1024U, ring->index);
+	device_printf(ring->dev->dev,
+	    "ring %d: __PAGESIZE=%d MCLBYTES=%d hw->max_frame_size=%d\n",
+	    ring->index, PAGE_SIZE, MCLBYTES, ring->rx_max_frame_size);
+	rdm_rx_desc_data_buff_size_set(hw, ring->rx_max_frame_size / 1024U,
+	    ring->index);
 
 	rdm_rx_desc_head_buff_size_set(hw, 0U, ring->index);
 	rdm_rx_desc_head_splitting_set(hw, 0U, ring->index);
@@ -279,7 +281,8 @@ aq_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 
 	for (iter = 0, cnt = 0, i = idx;
 	    iter < ring->rx_size && cnt <= budget;) {
-		trace_aq_rx_descr(ring->index, i, (volatile uint64_t*)&rx_desc[i]);
+		trace_aq_rx_descr(ring->index, i,
+		    (volatile uint64_t*)&rx_desc[i]);
 		if (!rx_desc[i].wb.dd)
 			break;
 
@@ -309,8 +312,8 @@ aq_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 static void
 aq_rx_set_cso_flags(aq_rx_desc_t *rx_desc,  if_rxd_info_t ri)
 {
-	if ((rx_desc->wb.pkt_type & 0x3) == 0) { //IPv4
-		if (rx_desc->wb.rx_cntl & BIT(0)){ // IPv4 csum checked
+	if ((rx_desc->wb.pkt_type & 0x3) == 0) { // IPv4
+		if (rx_desc->wb.rx_cntl & BIT(0)) { // IPv4 csum checked
 			ri->iri_csum_flags |= CSUM_IP_CHECKED;
 			if (!(rx_desc->wb.rx_stat & BIT(1)))
 				ri->iri_csum_flags |= CSUM_IP_VALID;
@@ -355,7 +358,8 @@ aq_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	do {
 		rx_desc = (aq_rx_desc_t *) &ring->rx_descs[cidx];
 
-		trace_aq_rx_descr(ring->index, cidx, (volatile uint64_t*)rx_desc);
+		trace_aq_rx_descr(ring->index, cidx,
+		    (volatile uint64_t *)rx_desc);
 
 		if ((rx_desc->wb.rx_stat & BIT(0)) != 0) {
 			ring->stats.rx_err++;
