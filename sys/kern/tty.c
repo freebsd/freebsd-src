@@ -1036,7 +1036,7 @@ static bool
 ttydevsw_defbusy(struct tty *tp __unused)
 {
 
-	return (FALSE);
+	return (false);
 }
 
 /*
