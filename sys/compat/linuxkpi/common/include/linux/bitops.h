@@ -443,4 +443,10 @@ rol64(uint64_t word, unsigned int shift)
 	return ((word << (shift & 63)) | (word >> ((-shift) & 63)));
 }
 
+static inline uint32_t
+rol32(uint32_t word, unsigned int shift)
+{
+	return ((word << (shift & 31)) | (word >> ((-shift) & 31)));
+}
+
 #endif	/* _LINUXKPI_LINUX_BITOPS_H_ */
