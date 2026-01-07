@@ -203,7 +203,6 @@ disc1: packagesystem
 .endif
 # Set up installation environment
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
-	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
@@ -243,7 +242,6 @@ bootonly: packagesystem
 .endif
 # Set up installation environment
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
-	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
@@ -281,7 +279,6 @@ dvd: packagesystem
 .endif
 # Set up installation environment
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
-	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
