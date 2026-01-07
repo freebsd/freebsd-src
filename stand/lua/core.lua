@@ -289,6 +289,12 @@ function core.kernelList()
 				kernels[n] = kernels[n + 1]
 			end
 		end
+
+		-- The config/boot bits use the env var as a fallback if the
+		-- menu's kernel selector remains untouched, so we want to
+		-- update our notion of the default kernel to one that is
+		-- actually present.
+		loader.setenv("kernel", kernels[1])
 	end
 
 	core.cached_kernels = kernels
