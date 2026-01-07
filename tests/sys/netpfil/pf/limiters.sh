@@ -75,7 +75,63 @@ state_basic_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "state_rate" "cleanup"
+state_rate_head()
+{
+	atf_set descr 'State rate limiting test'
+	atf_set require.user root
+}
+
+state_rate_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+
+	ifconfig ${epair}a 192.0.2.2/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.1/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.1
+
+	jexec alcatraz pfctl -e
+	# Allow one ICMP state per 5 seconds
+	pft_set_rules alcatraz \
+	    "set timeout icmp.error 120" \
+	    "state limiter \"server\" id 1 limit 1000 rate 1/5" \
+	    "block in proto icmp" \
+	    "pass in proto icmp state limiter \"server\""
+
+	atf_check -s exit:0 -o ignore \
+	    ping -c 2 192.0.2.1
+
+	# This should now fail
+	atf_check -s exit:2 -o ignore \
+	    ping -c 2 192.0.2.1
+
+	jexec alcatraz pfctl -sLimiterStates
+	ratelim=$(jexec alcatraz pfctl -sLimiterStates | awk 'NR>1 { print $6; }')
+	if [ $ratelim -eq 0 ]; then
+		atf_fail "Rate limit not incremented"
+	fi
+
+	sleep 6
+
+	# We can now create another state
+	atf_check -s exit:0 -o ignore \
+	    ping -c 2 192.0.2.1
+}
+
+state_rate_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "state_basic"
+	atf_add_test_case "state_rate"
 }
