@@ -26,10 +26,11 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/cpuset.h>
 #include <sys/event.h>
 #include <sys/mount.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
@@ -81,6 +82,113 @@ static struct cfjails runnable = TAILQ_HEAD_INITIALIZER(runnable);
 static struct cfstring dummystring = { .len = 1 };
 static struct phhead phash[PHASH_SIZE];
 static int kq;
+
+#if defined(INET) || defined(INET6)
+/*
+ * Extract the IP address from a string that may contain an interface
+ * prefix (e.g., "em0|") and/or a netmask/prefix suffix (e.g., "/24").
+ *
+ * Sets *startp to the start of the address and *lenp to its length.
+ */
+static void
+get_ip_pos(const char *addr, const char **startp, size_t *lenp)
+{
+	const char *start;
+
+	start = strchr(addr, '|');
+	start = (start != NULL) ? start + 1 : addr;
+	*startp = start;
+	*lenp = strcspn(start, "/");
+}
+
+/*
+ * Compare two IP address strings, ignoring any interface prefix
+ * (e.g., "em0|") and netmask suffix (e.g., "/24")
+ */
+static int
+addrs_equal(const char *a, const char *b)
+{
+	const char *a_start, *b_start;
+	size_t a_len, b_len;
+
+	get_ip_pos(a, &a_start, &a_len);
+	get_ip_pos(b, &b_start, &b_len);
+
+	if (a_len != b_len)
+		return (0);
+	return (strncmp(a_start, b_start, a_len) == 0);
+}
+
+/* Check if any other running jail is using the given IP address */
+static int
+other_jail_has_ip(int skip_jid, const char *addr, int af)
+{
+	struct jailparam params[3];
+	char *ip, *ips, *ipstr;
+	const char *param_name;
+	int found, jid, lastjid;
+
+	switch (af) {
+#ifdef INET
+	case AF_INET:
+		param_name = "ip4.addr";
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		param_name = "ip6.addr";
+		break;
+#endif
+	default:
+		return (0);
+	}
+
+	found = 0;
+	lastjid = 0;
+
+	/* Iterate over all running jails looking for a match. */
+	while (!found) {
+		memset(params, 0, sizeof(params));
+
+		if (jailparam_init(&params[0], "lastjid") < 0 ||
+		    jailparam_init(&params[1], "jid") < 0 ||
+		    jailparam_init(&params[2], param_name) < 0 ||
+		    jailparam_import_raw(&params[0], &lastjid,
+		    sizeof(lastjid)) < 0) {
+			jailparam_free(params, nitems(params));
+			break;
+		}
+
+		jid = jailparam_get(params, nitems(params), 0);
+		if (jid < 0) {
+			jailparam_free(params, nitems(params));
+			break;
+		}
+		lastjid = jid;
+
+		/* Skip the jail being stopped. */
+		if (jid == skip_jid) {
+			jailparam_free(params, nitems(params));
+			continue;
+		}
+
+		/* Compare this jail's IPs to the one we're looking for. */
+		ipstr = jailparam_export(&params[2]);
+		ips = ipstr;
+		while ((ip = strsep(&ips, ",")) != NULL) {
+			if (addrs_equal(ip, addr)) {
+				found = 1;
+				break;
+			}
+		}
+		free(ipstr);
+		jailparam_free(params, nitems(params));
+	}
+
+	return (found);
+}
+
+#endif
 
 static cpusetid_t
 root_cpuset_id(void)
@@ -407,6 +515,9 @@ run_command(struct cfjail *j)
 			argc = 4;
 		}
 
+		if (down && other_jail_has_ip(j->jid, addr, AF_INET))
+			return 0;
+
 		if (!down && extrap != NULL) {
 			for (cs = strtok(extrap, " "); cs;
 			     cs = strtok(NULL, " ")) {
@@ -455,6 +566,9 @@ run_command(struct cfjail *j)
 			argc = 6;
 		} else
 			argc = 4;
+
+		if (down && other_jail_has_ip(j->jid, addr, AF_INET6))
+			return 0;
 
 		if (!down && extrap != NULL) {
 			for (cs = strtok(extrap, " "); cs;
