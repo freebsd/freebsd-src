@@ -1,0 +1,2 @@
+source limiter "dns-server" id 1 entries 2 limit 3 rate 4/5 inet mask 16
+pass in proto tcp to port domain source limiter "dns-server"
