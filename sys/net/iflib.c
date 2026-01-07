@@ -202,6 +202,7 @@ struct iflib_ctx {
 	uint16_t ifc_sysctl_extra_msix_vectors;
 	bool     ifc_cpus_are_physical_cores;
 	bool     ifc_sysctl_simple_tx;
+	bool     ifc_sysctl_tx_defer_mfree;
 	uint16_t ifc_sysctl_tx_reclaim_thresh;
 	uint16_t ifc_sysctl_tx_reclaim_ticks;
 
@@ -298,6 +299,8 @@ typedef struct iflib_sw_tx_desc_array {
 	bus_dmamap_t	*ifsd_map;	/* bus_dma maps for packet */
 	bus_dmamap_t	*ifsd_tso_map;	/* bus_dma maps for TSO packet */
 	struct mbuf	**ifsd_m;	/* pkthdr mbufs */
+	struct mbuf	**ifsd_m_defer;	/* deferred mbuf ptr */
+	struct mbuf	**ifsd_m_deferb;/* deferred mbuf backing ptr */
 } if_txsd_vec_t;
 
 /* magic number that should be high enough for any hardware */
@@ -317,6 +320,20 @@ typedef struct iflib_sw_tx_desc_array {
 #define TX_BATCH_SIZE			32
 
 #define IFLIB_RESTART_BUDGET		8
+
+
+/*
+ * Encode TSO or !TSO in the low bits of the tx ifsd_m pointer so as
+ * to avoid defref'ing the mbuf to determine the correct busdma resources
+ * to release
+ */
+#define IFLIB_TSO		(1ULL << 0)
+#define IFLIB_NO_TSO		(2ULL << 0)
+#define IFLIB_FLAGS_MASK	(0x3ULL)
+#define IFLIB_SAVE_MBUF(mbuf, flags)	((void *)(((uintptr_t)mbuf) | flags))
+#define IFLIB_GET_FLAGS(a)	((uintptr_t)a & IFLIB_FLAGS_MASK)
+#define IFLIB_GET_MBUF(a)	((struct mbuf *)((uintptr_t)a & ~IFLIB_FLAGS_MASK))
+
 
 #define	IFC_LEGACY		0x001
 #define	IFC_QFLUSH		0x002
@@ -343,7 +360,9 @@ struct iflib_txq {
 	qidx_t		ift_cidx_processed;
 	qidx_t		ift_pidx;
 	uint8_t		ift_gen;
-	uint8_t		ift_br_offset;
+	uint8_t		ift_br_offset:1,
+			ift_defer_mfree:1,
+			ift_spare_bits0:6;
 	uint16_t	ift_npending;
 	uint16_t	ift_db_pending;
 	uint16_t	ift_rs_pending;
@@ -735,7 +754,8 @@ static void iflib_free_intr_mem(if_ctx_t ctx);
 #ifndef __NO_STRICT_ALIGNMENT
 static struct mbuf *iflib_fixup_rx(struct mbuf *m);
 #endif
-static __inline int iflib_completed_tx_reclaim(iflib_txq_t txq);
+static __inline int iflib_completed_tx_reclaim(iflib_txq_t txq,
+    struct mbuf **m_defer);
 
 static SLIST_HEAD(cpu_offset_list, cpu_offset) cpu_offsets =
     SLIST_HEAD_INITIALIZER(cpu_offsets);
@@ -1786,7 +1806,16 @@ iflib_txsd_alloc(iflib_txq_t txq)
 		err = ENOMEM;
 		goto fail;
 	}
-
+	if (ctx->ifc_sysctl_simple_tx) {
+		if (!(txq->ift_sds.ifsd_m_defer =
+			(struct mbuf **) malloc(sizeof(struct mbuf *) *
+			    scctx->isc_ntxd[txq->ift_br_offset], M_IFLIB, M_NOWAIT | M_ZERO))) {
+			device_printf(dev, "Unable to allocate TX mbuf map memory\n");
+			err = ENOMEM;
+			goto fail;
+		}
+	}
+	txq->ift_sds.ifsd_m_deferb = txq->ift_sds.ifsd_m_defer;
 	/*
 	 * Create the DMA maps for TX buffers.
 	 */
@@ -1879,6 +1908,10 @@ iflib_txq_destroy(iflib_txq_t txq)
 		free(txq->ift_sds.ifsd_m, M_IFLIB);
 		txq->ift_sds.ifsd_m = NULL;
 	}
+	if (txq->ift_sds.ifsd_m_defer != NULL) {
+		free(txq->ift_sds.ifsd_m_defer, M_IFLIB);
+		txq->ift_sds.ifsd_m_defer = NULL;
+	}
 	if (txq->ift_buf_tag != NULL) {
 		bus_dma_tag_destroy(txq->ift_buf_tag);
 		txq->ift_buf_tag = NULL;
@@ -1895,10 +1928,10 @@ iflib_txq_destroy(iflib_txq_t txq)
 static void
 iflib_txsd_free(if_ctx_t ctx, iflib_txq_t txq, int i)
 {
-	struct mbuf **mp;
+	struct mbuf *m;
 
-	mp = &txq->ift_sds.ifsd_m[i];
-	if (*mp == NULL)
+	m = IFLIB_GET_MBUF(txq->ift_sds.ifsd_m[i]);
+	if (m == NULL)
 		return;
 
 	if (txq->ift_sds.ifsd_map != NULL) {
@@ -1912,9 +1945,8 @@ iflib_txsd_free(if_ctx_t ctx, iflib_txq_t txq, int i)
 		bus_dmamap_unload(txq->ift_tso_buf_tag,
 		    txq->ift_sds.ifsd_tso_map[i]);
 	}
-	m_freem(*mp);
+	m_freem(m);
 	DBG_COUNTER_INC(tx_frees);
-	*mp = NULL;
 }
 
 static int
@@ -3440,7 +3472,7 @@ iflib_remove_mbuf(iflib_txq_t txq)
 	ntxd = txq->ift_size;
 	pidx = txq->ift_pidx & (ntxd - 1);
 	ifsd_m = txq->ift_sds.ifsd_m;
-	m = ifsd_m[pidx];
+	m = IFLIB_GET_MBUF(ifsd_m[pidx]);
 	ifsd_m[pidx] = NULL;
 	bus_dmamap_unload(txq->ift_buf_tag, txq->ift_sds.ifsd_map[pidx]);
 	if (txq->ift_sds.ifsd_tso_map != NULL)
@@ -3507,6 +3539,7 @@ iflib_encap(iflib_txq_t txq, struct mbuf **m_headp)
 	struct mbuf		*m_head, **ifsd_m;
 	bus_dmamap_t		map;
 	struct if_pkt_info	pi;
+	uintptr_t		flags;
 	int remap = 0;
 	int err, nsegs, ndesc, max_segs, pidx;
 
@@ -3530,10 +3563,12 @@ iflib_encap(iflib_txq_t txq, struct mbuf **m_headp)
 		map = txq->ift_sds.ifsd_tso_map[pidx];
 		MPASS(buf_tag != NULL);
 		MPASS(max_segs > 0);
+		flags = IFLIB_TSO;
 	} else {
 		buf_tag = txq->ift_buf_tag;
 		max_segs = scctx->isc_tx_nsegments;
 		map = txq->ift_sds.ifsd_map[pidx];
+		flags = IFLIB_NO_TSO;
 	}
 	if ((sctx->isc_flags & IFLIB_NEED_ETHER_PAD) &&
 	    __predict_false(m_head->m_pkthdr.len < scctx->isc_min_frame_size)) {
@@ -3606,7 +3641,7 @@ defrag:
 		DBG_COUNTER_INC(encap_txd_encap_fail);
 		return (err);
 	}
-	ifsd_m[pidx] = m_head;
+	ifsd_m[pidx] = IFLIB_SAVE_MBUF(m_head, flags);
 	if (m_head->m_pkthdr.csum_flags & CSUM_SND_TAG)
 		pi.ipi_mbuf = m_head;
 	else
@@ -3617,7 +3652,7 @@ defrag:
 	 *        cxgb
 	 */
 	if (__predict_false(nsegs > TXQ_AVAIL(txq))) {
-		(void)iflib_completed_tx_reclaim(txq);
+		(void)iflib_completed_tx_reclaim(txq, NULL);
 		if (__predict_false(nsegs > TXQ_AVAIL(txq))) {
 			txq->ift_no_desc_avail++;
 			bus_dmamap_unload(buf_tag, map);
@@ -3707,19 +3742,22 @@ defrag_failed:
 }
 
 static void
-iflib_tx_desc_free(iflib_txq_t txq, int n)
+iflib_tx_desc_free(iflib_txq_t txq, int n, struct mbuf **m_defer)
 {
 	uint32_t qsize, cidx, gen;
 	struct mbuf *m, **ifsd_m;
+	uintptr_t flags;
 
 	cidx = txq->ift_cidx;
 	gen = txq->ift_gen;
 	qsize = txq->ift_size;
-	ifsd_m = txq->ift_sds.ifsd_m;
+	ifsd_m =txq->ift_sds.ifsd_m;
 
 	while (n-- > 0) {
-		if ((m = ifsd_m[cidx]) != NULL) {
-			if (m->m_pkthdr.csum_flags & CSUM_TSO) {
+		if ((m = IFLIB_GET_MBUF(ifsd_m[cidx])) != NULL) {
+			flags = IFLIB_GET_FLAGS(ifsd_m[cidx]);
+			MPASS(flags != 0);
+			if (flags & IFLIB_TSO) {
 				bus_dmamap_sync(txq->ift_tso_buf_tag,
 				    txq->ift_sds.ifsd_tso_map[cidx],
 				    BUS_DMASYNC_POSTWRITE);
@@ -3734,7 +3772,12 @@ iflib_tx_desc_free(iflib_txq_t txq, int n)
 			}
 			/* XXX we don't support any drivers that batch packets yet */
 			MPASS(m->m_nextpkt == NULL);
-			m_freem(m);
+			if (m_defer == NULL) {
+				m_freem(m);
+			} else if (m != NULL) {
+				*m_defer = m;
+				m_defer++;
+			}
 			ifsd_m[cidx] = NULL;
 #if MEMORY_LOGGING
 			txq->ift_dequeued++;
@@ -3751,28 +3794,20 @@ iflib_tx_desc_free(iflib_txq_t txq, int n)
 }
 
 static __inline int
-iflib_completed_tx_reclaim(iflib_txq_t txq)
+iflib_txq_can_reclaim(iflib_txq_t txq)
 {
 	int reclaim, thresh;
-	uint32_t now;
-	if_ctx_t ctx = txq->ift_ctx;
 
 	thresh = txq->ift_reclaim_thresh;
 	KASSERT(thresh >= 0, ("invalid threshold to reclaim"));
 	MPASS(thresh /*+ MAX_TX_DESC(txq->ift_ctx) */ < txq->ift_size);
 
-	now = ticks;
-	if (now <= (txq->ift_last_reclaim + txq->ift_reclaim_ticks) &&
+	if (ticks <= (txq->ift_last_reclaim + txq->ift_reclaim_ticks) &&
 	    txq->ift_in_use < thresh)
-		return (0);
-	txq->ift_last_reclaim = now;
-	/*
-	 * Need a rate-limiting check so that this isn't called every time
-	 */
-	iflib_tx_credits_update(ctx, txq);
+		return (false);
+	iflib_tx_credits_update(txq->ift_ctx, txq);
 	reclaim = DESC_RECLAIMABLE(txq);
-
-	if (reclaim <= thresh /* + MAX_TX_DESC(txq->ift_ctx) */) {
+	if (reclaim <= thresh) {
 #ifdef INVARIANTS
 		if (iflib_verbose_debug) {
 			printf("%s processed=%ju cleaned=%ju tx_nsegments=%d reclaim=%d thresh=%d\n", __func__,
@@ -3782,10 +3817,27 @@ iflib_completed_tx_reclaim(iflib_txq_t txq)
 #endif
 		return (0);
 	}
-	iflib_tx_desc_free(txq, reclaim);
+	return (reclaim);
+}
+
+static __inline void
+_iflib_completed_tx_reclaim(iflib_txq_t txq, struct mbuf **m_defer, int reclaim)
+{
+	txq->ift_last_reclaim = ticks;
+	iflib_tx_desc_free(txq, reclaim, m_defer);
 	txq->ift_cleaned += reclaim;
 	txq->ift_in_use -= reclaim;
+}
 
+static __inline int
+iflib_completed_tx_reclaim(iflib_txq_t txq, struct mbuf **m_defer)
+{
+	int reclaim;
+
+	reclaim = iflib_txq_can_reclaim(txq);
+	if (reclaim == 0)
+		return (0);
+	_iflib_completed_tx_reclaim(txq, m_defer, reclaim);
 	return (reclaim);
 }
 
@@ -3846,7 +3898,7 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 		DBG_COUNTER_INC(txq_drain_notready);
 		return (0);
 	}
-	reclaimed = iflib_completed_tx_reclaim(txq);
+	reclaimed = iflib_completed_tx_reclaim(txq, NULL);
 	rang = iflib_txd_db_check(txq, reclaimed && txq->ift_db_pending);
 	avail = IDXDIFF(pidx, cidx, r->size);
 
@@ -4005,7 +4057,7 @@ _task_fn_tx(void *context)
 #endif
         if (ctx->ifc_sysctl_simple_tx) {
                 mtx_lock(&txq->ift_mtx);
-                (void)iflib_completed_tx_reclaim(txq);
+                (void)iflib_completed_tx_reclaim(txq, NULL);
                 mtx_unlock(&txq->ift_mtx);
                 goto skip_ifmp;
         }
@@ -6817,6 +6869,34 @@ iflib_handle_tx_reclaim_ticks(SYSCTL_HANDLER_ARGS)
 	return (err);
 }
 
+static int
+iflib_handle_tx_defer_mfree(SYSCTL_HANDLER_ARGS)
+{
+	if_ctx_t ctx = (void *)arg1;
+	iflib_txq_t txq;
+	int i, err;
+	int defer;
+
+	defer = ctx->ifc_sysctl_tx_defer_mfree;
+	err = sysctl_handle_int(oidp, &defer, arg2, req);
+	if (err != 0) {
+		return err;
+	}
+
+	if (defer == ctx->ifc_sysctl_tx_defer_mfree)
+		return 0;
+
+	ctx->ifc_sysctl_tx_defer_mfree = defer;
+	if (ctx->ifc_txqs == NULL)
+		return (err);
+
+	txq = &ctx->ifc_txqs[0];
+	for (i = 0; i < NTXQSETS(ctx); i++, txq++) {
+		txq->ift_defer_mfree = defer;
+	}
+	return (err);
+}
+
 #define NAME_BUFLEN 32
 static void
 iflib_add_device_sysctl_pre(if_ctx_t ctx)
@@ -6914,6 +6994,11 @@ iflib_add_device_sysctl_post(if_ctx_t ctx)
            CTLTYPE_INT | CTLFLAG_RWTUN, ctx,
            0, iflib_handle_tx_reclaim_ticks, "I",
            "Number of ticks before a TX reclaim is forced");
+
+       SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "tx_defer_mfree",
+           CTLTYPE_INT | CTLFLAG_RWTUN, ctx,
+           0, iflib_handle_tx_defer_mfree, "I",
+           "Free completed transmits outside of TX ring lock");
 
 	if (scctx->isc_ntxqsets > 100)
 		qfmt = "txq%03d";
@@ -7162,7 +7247,7 @@ iflib_debugnet_poll(if_t ifp, int count)
 		return (EBUSY);
 
 	txq = &ctx->ifc_txqs[0];
-	(void)iflib_completed_tx_reclaim(txq);
+	(void)iflib_completed_tx_reclaim(txq, NULL);
 
 	NET_EPOCH_ENTER(et);
 	for (i = 0; i < scctx->isc_nrxqsets; i++)
@@ -7190,7 +7275,8 @@ iflib_simple_transmit(if_t ifp, struct mbuf *m)
 {
 	if_ctx_t ctx;
 	iflib_txq_t txq;
-	int error;
+	struct mbuf **m_defer;
+	int error, i, reclaimable;
 	int bytes_sent = 0, pkt_sent = 0, mcast_sent = 0;
 
 
@@ -7216,8 +7302,34 @@ iflib_simple_transmit(if_t ifp, struct mbuf *m)
 		else
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	}
-	(void)iflib_completed_tx_reclaim(txq);
+	m_defer = NULL;
+	reclaimable = iflib_txq_can_reclaim(txq);
+	if (reclaimable != 0) {
+		/*
+		 * Try to set m_defer to the deferred mbuf reclaim array.  If
+		 * we can, the frees will happen outside the tx lock.  If we
+		 * can't, it means another thread is still proccessing frees.
+		 */
+		if (txq->ift_defer_mfree &&
+		    atomic_cmpset_acq_ptr((uintptr_t *)&txq->ift_sds.ifsd_m_defer,
+			(uintptr_t )txq->ift_sds.ifsd_m_deferb, 0)) {
+			m_defer = txq->ift_sds.ifsd_m_deferb;
+		}
+		_iflib_completed_tx_reclaim(txq, m_defer, reclaimable);
+	}
 	mtx_unlock(&txq->ift_mtx);
+
+	/*
+	 * Process mbuf frees outside the tx lock
+	 */
+	if (m_defer != NULL) {
+		for (i = 0; m_defer[i] != NULL; i++) {
+			m_freem(m_defer[i]);
+			m_defer[i] = NULL;
+		}
+		atomic_store_rel_ptr((uintptr_t *)&txq->ift_sds.ifsd_m_defer,
+		    (uintptr_t)m_defer);
+	}
 	if_inc_counter(ifp, IFCOUNTER_OBYTES, bytes_sent);
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, pkt_sent);
 	if (mcast_sent)
