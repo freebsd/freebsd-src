@@ -209,10 +209,6 @@ arm_install_base() {
 	echo "hostname=\"${hostname}\"" > ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
 	echo 'ifconfig_DEFAULT="DHCP inet6 accept_rtadv"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
 	echo 'sshd_enable="YES"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
-	echo 'sendmail_enable="NONE"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
-	echo 'sendmail_submit_enable="NO"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
-	echo 'sendmail_outbound_enable="NO"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
-	echo 'sendmail_msp_queue_enable="NO"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
 	echo 'growfs_enable="YES"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
 	if [ -n "${CONFIG_POWERD_ENABLE}" ]; then
 		echo 'powerd_enable="YES"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
