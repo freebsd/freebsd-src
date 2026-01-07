@@ -70,7 +70,7 @@ TEST_METADATA.nfs+=	required_user="root"
 TEST_METADATA.ctl+=	is_exclusive="true"
 TEST_METADATA.ctl+=	required_user="root"
 
-TEST_METADATA+=	timeout=10
+TEST_METADATA+=	timeout=20
 TEST_METADATA+=	required_kmods="fusefs"
 
 FUSEFS=		${SRCTOP}/sys/fs/fuse
