@@ -23,7 +23,7 @@ local function default_user(obj, metadata)
 			table.insert(ssh_authorized_keys, k)
 		end
 	end
-	if type(obj.ssh_authorized_keys) == "table" then
+	if obj and type(obj.ssh_authorized_keys) == "table" then
 		for _, k in ipairs(obj.ssh_authorized_keys) do
 			table.insert(ssh_authorized_keys, k)
 		end
@@ -94,13 +94,13 @@ end
 
 local function sethostname(obj, metadata)
 	-- always prefer fqdn if specified over hostname
-	if obj.fqdn then
+	if obj and obj.fqdn then
 		nuage.sethostname(obj.fqdn)
-	elseif obj.hostname then
+	elseif obj and obj.hostname then
 		nuage.sethostname(obj.hostname)
-    elseif metadata["local-hostname"] then
+	elseif metadata["local-hostname"] then
 		nuage.sethostname(metadata["local-hostname"])
-    elseif metadata["local"] then
+	elseif metadata["hostname"] then
 		nuage.sethostname(metadata["hostname"])
 	end
 end
@@ -130,6 +130,10 @@ end
 
 local function create_default_user(obj, metadata)
 	local function need_default_user()
+		-- no user data
+		if not obj then
+			return true
+		end
 		if not obj.users then
 		-- default user if "users" is undefined
 			return true
@@ -269,7 +273,7 @@ local function nameservers(interface, obj)
 	-- Only call resolvconf with interface if interface is provided
 	if interface then
 		resolvconf_command = "resolvconf -a " .. interface .. " < " .. resolv_conf
-    else
+	else
 		resolvconf_command = "resolvconf -u"
 	end
 	if not os.execute(resolvconf_command) then
@@ -662,7 +666,7 @@ local function parse_network_config()
 	return netobj
 end
 
-local function load_metadata()
+local function load_metadata(citype)
 	if citype == "config-2" then
 		local parser = ucl.parser()
 		local res, err = parser:parse_file(ni_path .. "/meta_data.json")
@@ -690,46 +694,70 @@ local function load_metadata()
 	return {}
 end
 
+local function load_userdata()
+	local ud = nil
+	local f = nil
+	local userdatas = {"user-data", "user_data"}
+	for _, v in pairs(userdatas) do
+		f = io.open(ni_path .. "/" .. v, "r")
+		if f then
+			ud = v
+			break
+		end
+	end
+	if not f then
+		return nil, nil
+	end
+	local line = f:read("*l")
+	if not line or #string.gsub(line, "^%s*(.-)%s*$", "%1") == 0 then
+		f:close()
+		return
+	end
+	if citype ~= "postnet" then
+		local content = f:read("*a")
+		if not content or #string.gsub(content, "^%s*(.-)%s*$", "%1") == 0 then
+			f:close()
+			return
+		end
+		nuage.mkdir_p(root .. "/var/cache/nuageinit")
+		local tof = assert(io.open(root .. "/var/cache/nuageinit/user_data", "w"))
+		tof:write(line .. "\n" .. content)
+		tof:close()
+	end
+	f:close()
+
+	local obj = nil
+	if ud then
+		f = io.open(ni_path .. "/" .. ud)
+		obj = yaml.load(f:read("*a"))
+		f:close()
+		if not obj then
+			nuage.err("error parsing cloud-config file: " .. ud)
+		end
+	end
+	return line, obj
+end
 
 if citype == "config-2" then
 	-- network
 	config2_network(ni_path)
 end
 
-local metadata = load_metadata()
+local metadata = load_metadata(citype)
+local line, obj = load_userdata()
 
--- deal with user-data
-local ud = nil
-local f = nil
-local userdatas = {"user-data", "user_data"}
-for _, v in pairs(userdatas) do
-	f = io.open(ni_path .. "/" .. v, "r")
-	if f then
-		ud = v
-		break
+-- No user-data
+if line == nil then
+	local calls_table = {
+		sethostname,
+		create_default_user,
+	}
+
+	for i = 1, #calls_table do
+		calls_table[i](obj, metadata)
 	end
-end
-if not f then
-	os.exit(0)
-end
-local line = f:read("*l")
-if not line or #string.gsub(line, "^%s*(.-)%s*$", "%1") == 0 then
-	f:close()
-	os.exit(0)
-end
-if citype ~= "postnet" then
-	local content = f:read("*a")
-	if not content or #string.gsub(content, "^%s*(.-)%s*$", "%1") == 0 then
-		f:close()
-		os.exit(0)
-	end
-	nuage.mkdir_p(root .. "/var/cache/nuageinit")
-	local tof = assert(io.open(root .. "/var/cache/nuageinit/user_data", "w"))
-	tof:write(line .. "\n" .. content)
-	tof:close()
-end
-f:close()
-if line == "#cloud-config" then
+--  YAML user-data
+elseif line == "#cloud-config" then
 	local pre_network_calls = {
 		sethostname,
 		settimezone,
@@ -748,13 +776,6 @@ if line == "#cloud-config" then
 		chpasswd,
 		write_files_deferred,
 	}
-
-	f = io.open(ni_path .. "/" .. ud)
-	local obj = yaml.load(f:read("*a"))
-	f:close()
-	if not obj then
-		nuage.err("error parsing cloud-config file: " .. ud)
-	end
 
 	local calls_table = pre_network_calls
 	if citype == "postnet" then
