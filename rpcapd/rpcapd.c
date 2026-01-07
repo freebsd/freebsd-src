@@ -87,9 +87,12 @@ static char address[MAX_LINE + 1];		//!< keeps the network address (either numer
 static char port[MAX_LINE + 1];			//!< keeps the network port to bind to
 #ifdef _WIN32
 static HANDLE state_change_event;		//!< event to signal that a state change should take place
-#endif
+static volatile long shutdown_server;		//!< '1' if the server is to shut down
+static volatile long reread_config;		//!< '1' if the server is to re-read its configuration
+#else
 static volatile sig_atomic_t shutdown_server;	//!< '1' if the server is to shut down
 static volatile sig_atomic_t reread_config;	//!< '1' if the server is to re-read its configuration
+#endif
 static int uses_ssl;				//!< '1' to use TLS over TCP
 
 extern char *optarg;	// for getopt()
@@ -754,7 +757,7 @@ send_shutdown_notification(void)
 	//
 	// Indicate that the server should shut down.
 	//
-	shutdown_server = 1;
+	_InterlockedExchange(&shutdown_server, 1);
 
 	//
 	// Send a state change event, to wake up WSAWaitForMultipleEvents().
@@ -768,7 +771,7 @@ send_reread_configuration_notification(void)
 	//
 	// Indicate that the server should re-read its configuration file.
 	//
-	reread_config = 1;
+	_InterlockedExchange(&reread_config, 1);
 
 	//
 	// Send a state change event, to wake up WSAWaitForMultipleEvents().
@@ -947,20 +950,19 @@ accept_connections(void)
 			//
 			// The state change event was set.
 			//
-			if (shutdown_server)
+			if (_InterlockedExchange(&shutdown_server, 0))
 			{
 				//
 				// Time to quit. Exit the loop.
 				//
 				break;
 			}
-			if (reread_config)
+			if (_InterlockedExchange(&reread_config, 0))
 			{
 				//
 				// We should re-read the configuration
 				// file.
 				//
-				reread_config = 0;	// clear the indicator
 				fileconf_read();
 			}
 		}

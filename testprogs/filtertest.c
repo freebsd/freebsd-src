@@ -356,6 +356,9 @@ main(int argc, char **argv)
 	free(cmdbuf);
 	pcap_freecode (&fcode);
 	pcap_close(pd);
+#ifdef _WIN32
+	WSACleanup();
+#endif
 	exit(0);
 }
 

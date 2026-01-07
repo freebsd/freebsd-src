@@ -48,26 +48,30 @@ if(WIN32 OR ((CMAKE_USE_PTHREADS_INIT OR PTHREADS_FOUND) AND HAVE_CRYPT))
     endif(NOT STDLIBS_HAVE_GETADDRINFO)
   endif(UNIX)
 
-  if(WIN32)
-    set(RPCAPD_EXTRA_SOURCES
-        win32-svc.c
-        ${pcap_SOURCE_DIR}/charconv.c
-        ${pcap_SOURCE_DIR}/missing/getopt.c
-        rpcapd.rc)
-    include_directories(${pcap_SOURCE_DIR}/rpcapd ${pcap_SOURCE_DIR}/missing)
-  endif(WIN32)
-
-  add_executable(rpcapd
+  set(RPCAPD_SOURCES
     daemon.c
     fileconf.c
     log.c
     rpcapd.c
     ${pcap_SOURCE_DIR}/rpcap-protocol.c
     ${pcap_SOURCE_DIR}/sockutils.c
-    ${pcap_SOURCE_DIR}/sslutils.c
     ${pcap_SOURCE_DIR}/fmtutils.c
-    ${RPCAPD_EXTRA_SOURCES}
   )
+  if(OPENSSL_FOUND)
+    set(RPCAPD_SOURCES ${RPCAPD_SOURCES}
+      ${pcap_SOURCE_DIR}/sslutils.c)
+  endif(OPENSSL_FOUND)
+  if(WIN32)
+    set(RPCAPD_SOURCES ${RPCAPD_SOURCES}
+      win32-svc.c
+      ${pcap_SOURCE_DIR}/charconv.c
+      ${pcap_SOURCE_DIR}/missing/getopt.c
+      rpcapd.rc
+    )
+    include_directories(${pcap_SOURCE_DIR}/rpcapd ${pcap_SOURCE_DIR}/missing)
+  endif(WIN32)
+
+  add_executable(rpcapd ${RPCAPD_SOURCES})
 
   if(NOT C_ADDITIONAL_FLAGS STREQUAL "")
     set_target_properties(rpcapd PROPERTIES COMPILE_FLAGS ${C_ADDITIONAL_FLAGS})
