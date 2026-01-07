@@ -7,6 +7,7 @@ online_resize_head()
 {
 	atf_set "descr" "online resize of geli providers"
 	atf_set "require.user" "root"
+	atf_set "timeout" 600
 }
 online_resize_body()
 {

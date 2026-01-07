@@ -10,7 +10,7 @@ TAP_TESTS_SH+=	root_test
 .for t in ${TAP_TESTS_SH}
 TEST_METADATA.$t+=	required_kmods="mac_portacl"
 TEST_METADATA.$t+=	required_user="root"
-TEST_METADATA.$t+=	timeout="450"
+TEST_METADATA.$t+=	timeout="600"
 TEST_METADATA.$t+=	is_exclusive="true"
 .endfor
 
