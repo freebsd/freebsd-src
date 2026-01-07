@@ -56,7 +56,8 @@ const uint32_t dbg_categories_ = dbg_init | dbg_config | dbg_fw;
 
 #define __field(TYPE, VAR) TYPE VAR;
 void
-trace_aq_tx_descr(int ring_idx, unsigned int pointer, volatile uint64_t descr[2])
+trace_aq_tx_descr(int ring_idx, unsigned int pointer,
+    volatile uint64_t descr[2])
 {
 #if AQ_CFG_DEBUG_LVL > 2
 	struct __entry{
@@ -211,7 +212,8 @@ DumpHex(const void* data, size_t size) {
 	for (i = 0; i < size; ++i) {
 		sprintf(buf, "%02X ", ((const unsigned char*)data)[i]);
 		strcat(line, buf);
-		if (((const unsigned char*)data)[i] >= ' ' && ((const unsigned char*)data)[i] <= '~') {
+		if (((const unsigned char*)data)[i] >= ' ' &&
+		    ((const unsigned char*)data)[i] <= '~') {
 			ascii[i % 16] = ((const unsigned char*)data)[i];
 		} else {
 			ascii[i % 16] = '.';
