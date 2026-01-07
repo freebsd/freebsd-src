@@ -67,5 +67,4 @@ do { \
 
 #define AQ_VER        "0.0.5"
 
-#endif //_AQ_COMMON_H_
-
+#endif // _AQ_COMMON_H_

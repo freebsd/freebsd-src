@@ -193,7 +193,6 @@ typedef struct fw2x_mailbox // struct fwHostInterface
 #define FW2X_LED_DEFAULT  0x0U
 
 // Firmware v2-3.x specific functions.
-//@{
 int fw2x_reset(struct aq_hw* hw);
 
 int fw2x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state_e mode,
@@ -203,8 +202,6 @@ int fw2x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state_e* mode,
 
 int fw2x_get_mac_addr(struct aq_hw* hw, uint8_t* mac);
 int fw2x_get_stats(struct aq_hw* hw, struct aq_hw_stats_s* stats);
-//@}
-
 
 
 static uint64_t
@@ -474,7 +471,7 @@ fw2x_get_stats(struct aq_hw* hw, struct aq_hw_stats_s* stats)
 		return (-ENOTSUP);
 	}
 
-	// Say to F/W to update the statistics
+	// Tell F/W to update the statistics.
 	if (!toggle_mpi_ctrl_and_wait_(hw, FW2X_CAP_STATISTICS, 1, 25)) {
 		trace_error(dbg_fw, "fw2x> statistics update timeout");
 		AQ_DBG_EXIT(-ETIME);

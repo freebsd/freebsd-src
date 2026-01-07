@@ -796,9 +796,11 @@ hw_atl_b0_hw_vlan_promisc_set(struct aq_hw_s *self, bool promisc)
 
 
 void
-aq_hw_set_promisc(struct aq_hw_s *self, bool l2_promisc, bool vlan_promisc, bool mc_promisc)
+aq_hw_set_promisc(struct aq_hw_s *self, bool l2_promisc, bool vlan_promisc,
+    bool mc_promisc)
 {
-	AQ_DBG_ENTERA("promisc %d, vlan_promisc %d, allmulti %d", l2_promisc, vlan_promisc, mc_promisc);
+	AQ_DBG_ENTERA("promisc %d, vlan_promisc %d, allmulti %d", l2_promisc,
+	    vlan_promisc, mc_promisc);
 
 	rpfl2promiscuous_mode_en_set(self, l2_promisc);
 
@@ -811,7 +813,8 @@ aq_hw_set_promisc(struct aq_hw_s *self, bool l2_promisc, bool vlan_promisc, bool
 }
 
 int
-aq_hw_rss_hash_set(struct aq_hw_s *self, uint8_t rss_key[HW_ATL_RSS_HASHKEY_SIZE])
+aq_hw_rss_hash_set(struct aq_hw_s *self,
+    uint8_t rss_key[HW_ATL_RSS_HASHKEY_SIZE])
 {
 	uint32_t rss_key_dw[HW_ATL_RSS_HASHKEY_SIZE / 4];
 	uint32_t addr = 0U;
@@ -841,7 +844,8 @@ err_exit:
 }
 
 int
-aq_hw_rss_hash_get(struct aq_hw_s *self, uint8_t rss_key[HW_ATL_RSS_HASHKEY_SIZE])
+aq_hw_rss_hash_get(struct aq_hw_s *self,
+    uint8_t rss_key[HW_ATL_RSS_HASHKEY_SIZE])
 {
 	uint32_t rss_key_dw[HW_ATL_RSS_HASHKEY_SIZE / 4];
 	uint32_t addr = 0U;
@@ -863,7 +867,8 @@ aq_hw_rss_hash_get(struct aq_hw_s *self, uint8_t rss_key[HW_ATL_RSS_HASHKEY_SIZE
 }
 
 int
-aq_hw_rss_set(struct aq_hw_s *self, uint8_t rss_table[HW_ATL_RSS_INDIRECTION_TABLE_MAX])
+aq_hw_rss_set(struct aq_hw_s *self,
+    uint8_t rss_table[HW_ATL_RSS_INDIRECTION_TABLE_MAX])
 {
 	uint16_t bitary[(HW_ATL_RSS_INDIRECTION_TABLE_MAX *
 					3 / 16U)];

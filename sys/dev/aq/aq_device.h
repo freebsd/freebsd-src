@@ -147,4 +147,4 @@ void aq_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr);
 int aq_mediachange(struct ifnet *ifp);
 void aq_if_update_admin_status(if_ctx_t ctx);
 
-#endif
+#endif // _AQ_DEVICE_H_
