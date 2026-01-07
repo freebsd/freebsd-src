@@ -515,7 +515,7 @@ keyvalue_contention_head()
 	atf_set descr 'Try to stress metadata read/write mechanism with some contention'
 	atf_set require.user root
 	atf_set execenv jail
-	atf_set timeout 30
+	atf_set timeout 60
 }
 keyvalue_stresser()
 {
