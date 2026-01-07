@@ -490,7 +490,6 @@ acpi_attach(device_t dev)
     ACPI_STATUS		status;
     int			error, state;
     UINT32		flags;
-    UINT8		TypeA, TypeB;
     char		*env;
     enum power_stype	stype;
 
@@ -688,13 +687,14 @@ acpi_attach(device_t dev)
 #if defined(__i386__) || defined(__amd64__)
     acpi_supported_stypes[POWER_STYPE_SUSPEND_TO_IDLE] = true;
 #endif
-    for (state = ACPI_STATE_S1; state <= ACPI_STATE_S5; state++)
-	if (ACPI_SUCCESS(AcpiEvaluateObject(ACPI_ROOT_OBJECT,
-	    __DECONST(char *, AcpiGbl_SleepStateNames[state]), NULL, NULL)) &&
-	    ACPI_SUCCESS(AcpiGetSleepTypeData(state, &TypeA, &TypeB))) {
+    for (state = ACPI_STATE_S1; state <= ACPI_STATE_S5; state++) {
+	UINT8 TypeA, TypeB;
+
+	if (ACPI_SUCCESS(AcpiGetSleepTypeData(state, &TypeA, &TypeB))) {
 	    acpi_supported_sstates[state] = true;
 	    acpi_supported_stypes[acpi_sstate_to_stype(state)] = true;
 	}
+    }
 
     /*
      * Dispatch the default sleep type to devices.  The lid switch is set
