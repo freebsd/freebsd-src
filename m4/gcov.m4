@@ -25,7 +25,7 @@
 AC_DEFUN([AX_CODE_COVERAGE],
 [
 
-AC_ARG_ENABLE(coverage, AC_HELP_STRING([--enable-coverage],[configure code coverage analysis tools]))
+AC_ARG_ENABLE(coverage, AS_HELP_STRING([--enable-coverage],[configure code coverage analysis tools]))
 
 HAVE_GCOV_TOOLS=0
 

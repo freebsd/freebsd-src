@@ -1,5 +1,15 @@
 # Version history
 
+## Libucl 0.9.3
+
+- Fix invalid JSON emission when merging objects (Fixes #312)
+- Fix heap-buffer-overflow in ucl_maybe_parse_number (Fixes #344, #328)
+- Fix Use-After-Free in ucl_hash_insert by ignoring duplicates in different containers (Fixes #347)
+- Fix heap-buffer-overflow in ucl_parse_multiline_string
+- Add support of sanitizers to cmake
+- Fix allocator mismatches in libucl
+- Various other fixes and improvements
+
 ## Libucl 0.9.0
 
 * 803b588 Breaking: Try to fix streamline embedding

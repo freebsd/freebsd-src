@@ -648,7 +648,13 @@ static int
 lua_ucl_parser_init (lua_State *L)
 {
 	struct ucl_parser *parser, **pparser;
-	int flags = UCL_PARSER_NO_FILEVARS;
+	/*
+	 * We disable file variables and macros by default, as
+	 * the most use cases are parsing of JSON and not of the real
+	 * files. Macros in the parser are very dangerous and should be used
+	 * for trusted data only.
+	 */
+	int flags = UCL_PARSER_NO_FILEVARS|UCL_PARSER_DISABLE_MACRO;
 
 	if (lua_gettop (L) >= 1) {
 		flags = lua_tonumber (L, 1);

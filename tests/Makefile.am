@@ -5,8 +5,8 @@ TESTS = basic.test \
 		generate.test \
 		schema.test \
 		msgpack.test \
-		speed.test \
-		msgpack.test
+		speed.test
+
 TESTS_ENVIRONMENT = $(SH) \
 			TEST_DIR=$(top_srcdir)/tests \
 			TEST_OUT_DIR=$(top_builddir)/tests \
@@ -41,5 +41,5 @@ test_msgpack_SOURCES = test_msgpack.c
 test_msgpack_LDADD = $(common_test_ldadd)
 test_msgpack_CFLAGS = $(common_test_cflags)
 
-check_PROGRAMS = test_basic test_speed test_generate test_schema test_streamline \
-	test_msgpack
+check_PROGRAMS = test_basic test_speed test_generate test_schema \
+		 test_streamline test_msgpack
