@@ -1982,7 +1982,7 @@
 #define	MAIR_EL1_CRn			10
 #define	MAIR_EL1_CRm			2
 #define	MAIR_EL1_op2			0
-#define	MAIR_ATTR_MASK(idx)		(UL(0xff) << ((n)* 8))
+#define	MAIR_ATTR_MASK(idx)		(UL(0xff) << ((idx) * 8))
 #define	MAIR_ATTR(attr, idx)		((attr) << ((idx) * 8))
 #define	 MAIR_DEVICE_nGnRnE		UL(0x00)
 #define	 MAIR_DEVICE_nGnRE		UL(0x04)
