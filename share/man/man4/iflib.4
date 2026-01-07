@@ -1,4 +1,4 @@
-.Dd August 20, 2025
+.Dd January 7, 2026
 .Dt IFLIB 4
 .Os
 .Sh NAME
@@ -94,6 +94,12 @@ If set to a non-zero value, task returns immediately and the transmit
 ring is serviced by a different task.
 This returns control to the caller faster and under high receive load,
 may result in fewer dropped RX frames.
+.It Va tx_defer_mfree
+Controls the threshold in packets before iflib will free the memory
+(mbufs) for the packets that it has transmitted.
+When this is nonzero, mbufs will be freed outside the transmit lock.
+Setting this can reduce lock contention and CPU use when using simple_tx.
+Note that this applies only when simple_tx is enabled.
 .It Va tx_reclaim_thresh
 Controls the threshold in packets before iflib will ask the driver
 how many transmitted packets can be reclaimed.
