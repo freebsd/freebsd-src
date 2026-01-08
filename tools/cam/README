@@ -1,0 +1,9 @@
+This directory has snippets of what will eventually become camio. This program
+can take an expression for the types of things to trace, and then custom write a
+dtrace script to do that.
+
+camio is a d-traced tcpdump-like program for examining CAM traffic (and
+therefore I/O and other traffic to storage media) that written during covid, but
+with fbp providers that recent clang optimizations make unuseable, hence the
+shift to the cam provider, but retooling them and finishing the grammar will
+take some time (but these scripts are useful today).
