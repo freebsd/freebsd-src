@@ -26,6 +26,7 @@ from subprocess import PIPE
 import argparse
 import tempfile
 from pathlib import Path
+import os
 
 def gather_counters():
     """Run program and return output as array of lines."""
@@ -75,20 +76,42 @@ def main():
                 p = subprocess.Popen(["pmcstat",
                                       "-p", counter, args.program],
                                      text=True, stderr=file, stdout=file)
-                result = p.communicate()[1]
+                result = p.wait()
                 print(result)
         elif args.sample == True:
+            pmcout = tmpdir + "/" + program + "-" + counter + ".pmc"
             p = subprocess.Popen(["pmcstat",
-                                  "-O", tmpdir + "/" + program + "-" + counter + ".pmc",
+                                  "-O", pmcout,
                                   "-P", counter, args.program],
                                  text=True, stderr=PIPE)
-            result = p.communicate()[1]
+            result = p.wait()
+            resdir = tmpdir + "/" + program + "-" + counter + ".results"
+            os.makedirs(resdir)
+            p = subprocess.Popen(["pmcstat",
+                                  "-R", pmcout,
+                                  "-g"],
+                                 cwd=resdir,
+                                 text=True, stderr=PIPE)
+            result = p.wait()
+            gmondir = resdir + "/" + counter
+            if Path(gmondir).is_dir():
+                with open(gmondir + "/" + "gprof.out", "w") as file:
+                    p = subprocess.Popen(["gprof",
+                                          args.program,
+                                          program + ".gmon"],
+                                         cwd=gmondir,
+                                         text=True,
+                                         stdout=file,
+                                         stderr=subprocess.STDOUT)
+                    result = p.wait()
+            else:
+                print ("Failed to get gmon data for ", counter)
             print(result)
 
         else:
             p = subprocess.Popen(["pmcstat", "-p", counter, args.program],
                              text=True, stderr=PIPE)
-            result = p.communicate()[1]
+            result = p.wait()
             print(result)
             if (args.wait == True):
                 try:
