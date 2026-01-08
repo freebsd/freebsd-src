@@ -1283,7 +1283,6 @@ report_alive_proc(struct thread *td, struct proc *p, siginfo_t *siginfo,
 	}
 	if (status != NULL)
 		*status = cont ? SIGCONT : W_STOPCODE(p->p_xsig);
-	td->td_retval[0] = p->p_pid;
 	PROC_UNLOCK(p);
 }
 
@@ -1307,6 +1306,62 @@ wait6_checkopt(int options)
 	return (0);
 }
 
+/*
+ * Checks and reports status for alive process, according to the
+ * options.  Returns true if the process fits one of the requested
+ * options and its status was updated in siginfo.
+ *
+ * If the process was reported (the function result is true), both the
+ * process and proctree locks are unlocked.
+ */
+static bool
+wait6_check_alive(struct thread *td, int options, struct proc *p, int *status,
+    siginfo_t *siginfo)
+{
+	bool report;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sx_assert(&proctree_lock, SA_XLOCKED);
+
+	if ((options & WTRAPPED) != 0 && (p->p_flag & P_TRACED) != 0) {
+		PROC_SLOCK(p);
+		report = (p->p_flag & (P_STOPPED_TRACE | P_STOPPED_SIG)) &&
+		    p->p_suspcount == p->p_numthreads &&
+		    (p->p_flag & P_WAITED) == 0;
+		PROC_SUNLOCK(p);
+		if (report) {
+			CTR4(KTR_PTRACE,
+	    "wait: returning trapped pid %d status %#x (xstat %d) xthread %d",
+			    p->p_pid, W_STOPCODE(p->p_xsig), p->p_xsig,
+			    p->p_xthread != NULL ?
+			    p->p_xthread->td_tid : -1);
+			report_alive_proc(td, p, siginfo, status,
+			    options, CLD_TRAPPED);
+			return (true);
+		}
+	}
+
+	if ((options & WUNTRACED) != 0 && (p->p_flag & P_STOPPED_SIG) != 0) {
+		PROC_SLOCK(p);
+		report = p->p_suspcount == p->p_numthreads &&
+		    (p->p_flag & P_WAITED) == 0;
+		PROC_SUNLOCK(p);
+		if (report) {
+			report_alive_proc(td, p, siginfo, status, options,
+			    CLD_STOPPED);
+			return (true);
+		}
+	}
+
+	if ((options & WCONTINUED) != 0 && (p->p_flag & P_CONTINUED) != 0) {
+		report_alive_proc(td, p, siginfo, status, options,
+		    CLD_CONTINUED);
+		return (true);
+	}
+
+	return (false);
+}
+
 int
 kern_wait6(struct thread *td, idtype_t idtype, id_t id, int *status,
     int options, struct __wrusage *wrusage, siginfo_t *siginfo)
@@ -1314,7 +1369,6 @@ kern_wait6(struct thread *td, idtype_t idtype, id_t id, int *status,
 	struct proc *p, *q;
 	pid_t pid;
 	int error, nfound, ret;
-	bool report;
 
 	AUDIT_ARG_VALUE((int)idtype);	/* XXX - This is likely wrong! */
 	AUDIT_ARG_PID((pid_t)id);	/* XXX - This may be wrong! */
@@ -1367,43 +1421,11 @@ loop_locked:
 		nfound++;
 		PROC_LOCK_ASSERT(p, MA_OWNED);
 
-		if ((options & WTRAPPED) != 0 &&
-		    (p->p_flag & P_TRACED) != 0) {
-			PROC_SLOCK(p);
-			report =
-			    ((p->p_flag & (P_STOPPED_TRACE | P_STOPPED_SIG)) &&
-			    p->p_suspcount == p->p_numthreads &&
-			    (p->p_flag & P_WAITED) == 0);
-			PROC_SUNLOCK(p);
-			if (report) {
-				CTR4(KTR_PTRACE,
-	    "wait: returning trapped pid %d status %#x (xstat %d) xthread %d",
-				    p->p_pid, W_STOPCODE(p->p_xsig), p->p_xsig,
-				    p->p_xthread != NULL ?
-				    p->p_xthread->td_tid : -1);
-				report_alive_proc(td, p, siginfo, status,
-				    options, CLD_TRAPPED);
-				return (0);
-			}
-		}
-		if ((options & WUNTRACED) != 0 &&
-		    (p->p_flag & P_STOPPED_SIG) != 0) {
-			PROC_SLOCK(p);
-			report = (p->p_suspcount == p->p_numthreads &&
-			    ((p->p_flag & P_WAITED) == 0));
-			PROC_SUNLOCK(p);
-			if (report) {
-				report_alive_proc(td, p, siginfo, status,
-				    options, CLD_STOPPED);
-				return (0);
-			}
-		}
-		if ((options & WCONTINUED) != 0 &&
-		    (p->p_flag & P_CONTINUED) != 0) {
-			report_alive_proc(td, p, siginfo, status, options,
-			    CLD_CONTINUED);
+		if (wait6_check_alive(td, options, p, status, siginfo)) {
+			td->td_retval[0] = pid;
 			return (0);
 		}
+
 		PROC_UNLOCK(p);
 	}
 
