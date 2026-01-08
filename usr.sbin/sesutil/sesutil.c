@@ -650,7 +650,7 @@ show_device(int fd, int elm_idx, encioc_elm_status_t e_status, encioc_elm_desc_t
 	xo_open_instance("elements");
 	xo_emit("{e:type/device_slot}");
 	xo_emit("{d:description/%-15s} ", e_desc.elm_desc_len > 0 ? e_desc.elm_desc_str : "-");
-	xo_emit("{e:description/%-15s}", e_desc.elm_desc_len > 0 ? e_desc.elm_desc_str : "");
+	xo_emit("{e:description/%s}", e_desc.elm_desc_len > 0 ? e_desc.elm_desc_str : "");
 	xo_emit("{d:device_names/%-7s} ", e_devname.elm_names_len > 0 ? e_devname.elm_devnames : "-");
 	xo_emit("{e:device_names/%s}", e_devname.elm_names_len > 0 ? e_devname.elm_devnames : "");
 	xo_emit("{d:model/%-25s} ", model ? model : "-");
