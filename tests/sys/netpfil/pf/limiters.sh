@@ -180,6 +180,20 @@ source_basic_body()
 	# However, a different source will succeed
 	atf_check -s exit:0 -o ignore \
 	    ping -S 192.0.2.3 -c 2 192.0.2.1
+
+	atf_check -o match:"192.0.2.2/32 .*hardlim 2 ratelim 0" \
+	    -e ignore \
+	    jexec alcatraz pfctl -sLimiterSrcs -v
+	atf_check -o match:"192.0.2.3/32 .*hardlim 0 ratelim 0" \
+	    -e ignore \
+	    jexec alcatraz pfctl -sLimiterSrcs -v
+
+	# Kill the source entry
+	atf_check -s exit:0 -e ignore \
+	    jexec alcatraz pfctl -I 1 -k source -k 192.0.2.2
+	# Now we can ping again from it
+	atf_check -s exit:0 -o ignore \
+	    ping -S 192.0.2.2 -c 2 192.0.2.1
 }
 
 source_basic_cleanup()
