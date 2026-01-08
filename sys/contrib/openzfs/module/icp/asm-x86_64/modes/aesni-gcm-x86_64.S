@@ -1264,7 +1264,7 @@ atomic_toggle_boolean_nv:
 .popsection
 
 /* Mark the stack non-executable. */
-#if defined(__linux__) && defined(__ELF__)
+#ifdef __ELF__
 .section .note.GNU-stack,"",%progbits
 #endif
 
