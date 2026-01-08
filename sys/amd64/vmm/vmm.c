@@ -71,6 +71,7 @@
 #include <dev/vmm/vmm_dev.h>
 #include <dev/vmm/vmm_ktr.h>
 #include <dev/vmm/vmm_mem.h>
+#include <dev/vmm/vmm_vm.h>
 
 #include "vmm_ioport.h"
 #include "vmm_host.h"
@@ -90,88 +91,6 @@
 #include "io/iommu.h"
 
 struct vlapic;
-
-/*
- * Initialization:
- * (a) allocated when vcpu is created
- * (i) initialized when vcpu is created and when it is reinitialized
- * (o) initialized the first time the vcpu is created
- * (x) initialized before use
- */
-struct vcpu {
-	struct mtx 	mtx;		/* (o) protects 'state' and 'hostcpu' */
-	enum vcpu_state	state;		/* (o) vcpu state */
-	int		vcpuid;		/* (o) */
-	int		hostcpu;	/* (o) vcpu's host cpu */
-	int		reqidle;	/* (i) request vcpu to idle */
-	struct vm	*vm;		/* (o) */
-	void		*cookie;	/* (i) cpu-specific data */
-	struct vlapic	*vlapic;	/* (i) APIC device model */
-	enum x2apic_state x2apic_state;	/* (i) APIC mode */
-	uint64_t	exitintinfo;	/* (i) events pending at VM exit */
-	int		nmi_pending;	/* (i) NMI pending */
-	int		extint_pending;	/* (i) INTR pending */
-	int	exception_pending;	/* (i) exception pending */
-	int	exc_vector;		/* (x) exception collateral */
-	int	exc_errcode_valid;
-	uint32_t exc_errcode;
-	struct savefpu	*guestfpu;	/* (a,i) guest fpu state */
-	uint64_t	guest_xcr0;	/* (i) guest %xcr0 register */
-	void		*stats;		/* (a,i) statistics */
-	struct vm_exit	exitinfo;	/* (x) exit reason and collateral */
-	cpuset_t	exitinfo_cpuset; /* (x) storage for vmexit handlers */
-	uint64_t	nextrip;	/* (x) next instruction to execute */
-	uint64_t	tsc_offset;	/* (o) TSC offsetting */
-};
-
-#define	vcpu_lock_init(v)	mtx_init(&((v)->mtx), "vcpu lock", 0, MTX_SPIN)
-#define	vcpu_lock_destroy(v)	mtx_destroy(&((v)->mtx))
-#define	vcpu_lock(v)		mtx_lock_spin(&((v)->mtx))
-#define	vcpu_unlock(v)		mtx_unlock_spin(&((v)->mtx))
-#define	vcpu_assert_locked(v)	mtx_assert(&((v)->mtx), MA_OWNED)
-
-/*
- * Initialization:
- * (o) initialized the first time the VM is created
- * (i) initialized when VM is created and when it is reinitialized
- * (x) initialized before use
- *
- * Locking:
- * [m] mem_segs_lock
- * [r] rendezvous_mtx
- * [v] reads require one frozen vcpu, writes require freezing all vcpus
- */
-struct vm {
-	void		*cookie;		/* (i) cpu-specific data */
-	void		*iommu;			/* (x) iommu-specific data */
-	struct vhpet	*vhpet;			/* (i) virtual HPET */
-	struct vioapic	*vioapic;		/* (i) virtual ioapic */
-	struct vatpic	*vatpic;		/* (i) virtual atpic */
-	struct vatpit	*vatpit;		/* (i) virtual atpit */
-	struct vpmtmr	*vpmtmr;		/* (i) virtual ACPI PM timer */
-	struct vrtc	*vrtc;			/* (o) virtual RTC */
-	volatile cpuset_t active_cpus;		/* (i) active vcpus */
-	volatile cpuset_t debug_cpus;		/* (i) vcpus stopped for debug */
-	cpuset_t	startup_cpus;		/* (i) [r] waiting for startup */
-	int		suspend;		/* (i) stop VM execution */
-	bool		dying;			/* (o) is dying */
-	volatile cpuset_t suspended_cpus; 	/* (i) suspended vcpus */
-	volatile cpuset_t halted_cpus;		/* (x) cpus in a hard halt */
-	cpuset_t	rendezvous_req_cpus;	/* (x) [r] rendezvous requested */
-	cpuset_t	rendezvous_done_cpus;	/* (x) [r] rendezvous finished */
-	void		*rendezvous_arg;	/* (x) [r] rendezvous func/arg */
-	vm_rendezvous_func_t rendezvous_func;
-	struct mtx	rendezvous_mtx;		/* (o) rendezvous lock */
-	struct vm_mem	mem;			/* (i) [m+v] guest memory */
-	char		name[VM_MAX_NAMELEN+1];	/* (o) virtual machine name */
-	struct vcpu	**vcpu;			/* (o) guest vcpus */
-	/* The following describe the vm cpu topology */
-	uint16_t	sockets;		/* (o) num of sockets */
-	uint16_t	cores;			/* (o) num of cores/socket */
-	uint16_t	threads;		/* (o) num of threads/core */
-	uint16_t	maxcpus;		/* (o) max pluggable cpus */
-	struct sx	vcpus_init_lock;	/* (o) */
-};
 
 #define	VMM_CTR0(vcpu, format)						\
 	VCPU_CTR0((vcpu)->vm, (vcpu)->vcpuid, format)

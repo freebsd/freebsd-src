@@ -104,6 +104,15 @@ enum vm_reg_name {
 #define	VM_INTINFO_SWINTR	(4 << 8)
 
 #ifdef _KERNEL
+#include <machine/vmm_instruction_emul.h>
+
+#define	VMM_VCPU_MD_FIELDS						\
+	struct vm_exit	exitinfo;					\
+	uint64_t	nextpc;		/* (x) next instruction to execute */ \
+	struct fpreg	*guestfpu	/* (a,i) guest fpu state */
+
+#define	VMM_VM_MD_FIELDS						\
+	struct vmm_mmio_region mmio_region[VM_MAX_MMIO_REGIONS]
 
 struct vm;
 struct vm_exception;
@@ -113,6 +122,14 @@ struct vm_object;
 struct vm_guest_paging;
 struct vm_aplic_descr;
 struct pmap;
+
+struct vmm_mmio_region {
+	uint64_t start;
+	uint64_t end;
+	mem_region_read_t read;
+	mem_region_write_t write;
+};
+#define	VM_MAX_MMIO_REGIONS	4
 
 struct vm_eventinfo {
 	void	*rptr;		/* rendezvous cookie */
@@ -202,33 +219,6 @@ vcpu_suspended(struct vm_eventinfo *info)
 }
 
 int vcpu_debugged(struct vcpu *vcpu);
-
-enum vcpu_state {
-	VCPU_IDLE,
-	VCPU_FROZEN,
-	VCPU_RUNNING,
-	VCPU_SLEEPING,
-};
-
-int vcpu_set_state(struct vcpu *vcpu, enum vcpu_state state, bool from_idle);
-enum vcpu_state vcpu_get_state(struct vcpu *vcpu, int *hostcpu);
-
-static int __inline
-vcpu_is_running(struct vcpu *vcpu, int *hostcpu)
-{
-	return (vcpu_get_state(vcpu, hostcpu) == VCPU_RUNNING);
-}
-
-#ifdef _SYS_PROC_H_
-static int __inline
-vcpu_should_yield(struct vcpu *vcpu)
-{
-	struct thread *td;
-
-	td = curthread;
-	return (td->td_ast != 0 || td->td_owepreempt != 0);
-}
-#endif
 
 void *vcpu_stats(struct vcpu *vcpu);
 void vcpu_notify_event(struct vcpu *vcpu);

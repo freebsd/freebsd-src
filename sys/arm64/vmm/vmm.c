@@ -61,81 +61,18 @@
 #include <machine/vmm_instruction_emul.h>
 
 #include <dev/pci/pcireg.h>
+
 #include <dev/vmm/vmm_dev.h>
 #include <dev/vmm/vmm_ktr.h>
 #include <dev/vmm/vmm_mem.h>
 #include <dev/vmm/vmm_stat.h>
+#include <dev/vmm/vmm_vm.h>
 
 #include "arm64.h"
 #include "mmu.h"
 
 #include "io/vgic.h"
 #include "io/vtimer.h"
-
-struct vcpu {
-	int		flags;
-	enum vcpu_state	state;
-	struct mtx	mtx;
-	int		hostcpu;	/* host cpuid this vcpu last ran on */
-	int		vcpuid;
-	void		*stats;
-	struct vm_exit	exitinfo;
-	uint64_t	nextpc;		/* (x) next instruction to execute */
-	struct vm	*vm;		/* (o) */
-	void		*cookie;	/* (i) cpu-specific data */
-	struct vfpstate	*guestfpu;	/* (a,i) guest fpu state */
-};
-
-#define	vcpu_lock_init(v)	mtx_init(&((v)->mtx), "vcpu lock", 0, MTX_SPIN)
-#define	vcpu_lock_destroy(v)	mtx_destroy(&((v)->mtx))
-#define	vcpu_lock(v)		mtx_lock_spin(&((v)->mtx))
-#define	vcpu_unlock(v)		mtx_unlock_spin(&((v)->mtx))
-#define	vcpu_assert_locked(v)	mtx_assert(&((v)->mtx), MA_OWNED)
-
-struct vmm_mmio_region {
-	uint64_t start;
-	uint64_t end;
-	mem_region_read_t read;
-	mem_region_write_t write;
-};
-#define	VM_MAX_MMIO_REGIONS	4
-
-struct vmm_special_reg {
-	uint32_t	esr_iss;
-	uint32_t	esr_mask;
-	reg_read_t	reg_read;
-	reg_write_t	reg_write;
-	void		*arg;
-};
-#define	VM_MAX_SPECIAL_REGS	16
-
-/*
- * Initialization:
- * (o) initialized the first time the VM is created
- * (i) initialized when VM is created and when it is reinitialized
- * (x) initialized before use
- */
-struct vm {
-	void		*cookie;		/* (i) cpu-specific data */
-	volatile cpuset_t active_cpus;		/* (i) active vcpus */
-	volatile cpuset_t debug_cpus;		/* (i) vcpus stopped for debug */
-	int		suspend;		/* (i) stop VM execution */
-	bool		dying;			/* (o) is dying */
-	volatile cpuset_t suspended_cpus; 	/* (i) suspended vcpus */
-	volatile cpuset_t halted_cpus;		/* (x) cpus in a hard halt */
-	struct vm_mem	mem;			/* (i) guest memory */
-	char		name[VM_MAX_NAMELEN + 1];	/* (o) virtual machine name */
-	struct vcpu	**vcpu;			/* (i) guest vcpus */
-	struct vmm_mmio_region mmio_region[VM_MAX_MMIO_REGIONS];
-						/* (o) guest MMIO regions */
-	struct vmm_special_reg special_reg[VM_MAX_SPECIAL_REGS];
-	/* The following describe the vm cpu topology */
-	uint16_t	sockets;		/* (o) num of sockets */
-	uint16_t	cores;			/* (o) num of cores/socket */
-	uint16_t	threads;		/* (o) num of threads/core */
-	uint16_t	maxcpus;		/* (o) max pluggable cpus */
-	struct sx	vcpus_init_lock;	/* (o) */
-};
 
 static int vm_handle_wfi(struct vcpu *vcpu,
 			 struct vm_exit *vme, bool *retu);

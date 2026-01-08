@@ -52,12 +52,12 @@
 #include <machine/cpu.h>
 #include <machine/machdep.h>
 #include <machine/vmm.h>
-#include <machine/vmm_dev.h>
 #include <machine/atomic.h>
 #include <machine/hypervisor.h>
 #include <machine/pmap.h>
 
 #include <dev/vmm/vmm_mem.h>
+#include <dev/vmm/vmm_vm.h>
 
 #include "mmu.h"
 #include "arm64.h"

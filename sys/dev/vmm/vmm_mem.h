@@ -34,7 +34,10 @@ enum {
 #include <sys/types.h>
 #include <sys/_sx.h>
 
+struct domainset;
+struct vcpu;
 struct vm;
+struct vm_guest_paging;
 struct vm_object;
 struct vmspace;
 
