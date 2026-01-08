@@ -160,34 +160,18 @@ DECLARE_VMMOPS_FUNC(struct vmspace *, vmspace_alloc, (vm_offset_t min,
     vm_offset_t max));
 DECLARE_VMMOPS_FUNC(void, vmspace_free, (struct vmspace *vmspace));
 
-int vm_create(const char *name, struct vm **retvm);
-struct vcpu *vm_alloc_vcpu(struct vm *vm, int vcpuid);
-void vm_disable_vcpu_creation(struct vm *vm);
-void vm_lock_vcpus(struct vm *vm);
-void vm_unlock_vcpus(struct vm *vm);
-void vm_destroy(struct vm *vm);
-int vm_reinit(struct vm *vm);
 const char *vm_name(struct vm *vm);
 
-uint16_t vm_get_maxcpus(struct vm *vm);
-void vm_get_topology(struct vm *vm, uint16_t *sockets, uint16_t *cores,
-    uint16_t *threads, uint16_t *maxcpus);
-int vm_set_topology(struct vm *vm, uint16_t sockets, uint16_t cores,
-    uint16_t threads, uint16_t maxcpus);
 int vm_get_register(struct vcpu *vcpu, int reg, uint64_t *retval);
 int vm_set_register(struct vcpu *vcpu, int reg, uint64_t val);
 int vm_run(struct vcpu *vcpu);
-int vm_suspend(struct vm *vm, enum vm_suspend_how how);
-void* vm_get_cookie(struct vm *vm);
+void *vm_get_cookie(struct vm *vm);
 int vcpu_vcpuid(struct vcpu *vcpu);
 void *vcpu_get_cookie(struct vcpu *vcpu);
 struct vm *vcpu_vm(struct vcpu *vcpu);
 struct vcpu *vm_vcpu(struct vm *vm, int cpu);
 int vm_get_capability(struct vcpu *vcpu, int type, int *val);
 int vm_set_capability(struct vcpu *vcpu, int type, int val);
-int vm_activate_cpu(struct vcpu *vcpu);
-int vm_suspend_cpu(struct vm *vm, struct vcpu *vcpu);
-int vm_resume_cpu(struct vm *vm, struct vcpu *vcpu);
 int vm_inject_exception(struct vcpu *vcpu, uint64_t scause);
 int vm_attach_aplic(struct vm *vm, struct vm_aplic_descr *descr);
 int vm_assert_irq(struct vm *vm, uint32_t irq);
@@ -197,12 +181,7 @@ int vm_raise_msi(struct vm *vm, uint64_t msg, uint64_t addr, int bus, int slot,
 struct vm_exit *vm_exitinfo(struct vcpu *vcpu);
 void vm_exit_suspended(struct vcpu *vcpu, uint64_t pc);
 void vm_exit_debug(struct vcpu *vcpu, uint64_t pc);
-void vm_exit_rendezvous(struct vcpu *vcpu, uint64_t pc);
 void vm_exit_astpending(struct vcpu *vcpu, uint64_t pc);
-
-cpuset_t vm_active_cpus(struct vm *vm);
-cpuset_t vm_debug_cpus(struct vm *vm);
-cpuset_t vm_suspended_cpus(struct vm *vm);
 
 static __inline int
 vcpu_rendezvous_pending(struct vm_eventinfo *info)
@@ -218,13 +197,8 @@ vcpu_suspended(struct vm_eventinfo *info)
 	return (*info->sptr);
 }
 
-int vcpu_debugged(struct vcpu *vcpu);
-
 void *vcpu_stats(struct vcpu *vcpu);
-void vcpu_notify_event(struct vcpu *vcpu);
 struct vm_mem *vm_mem(struct vm *vm);
-
-enum vm_reg_name vm_segment_name(int seg_encoding);
 
 #endif	/* _KERNEL */
 

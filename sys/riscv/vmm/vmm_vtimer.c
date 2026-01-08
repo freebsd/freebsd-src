@@ -39,6 +39,8 @@
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 
+#include <dev/vmm/vmm_vm.h>
+
 #include "riscv.h"
 
 #define	VTIMER_DEFAULT_FREQ	1000000

@@ -43,6 +43,7 @@
 #include <machine/vmm_snapshot.h>
 
 #include <dev/vmm/vmm_ktr.h>
+#include <dev/vmm/vmm_vm.h>
 
 #include "vmm_lapic.h"
 #include "vlapic.h"

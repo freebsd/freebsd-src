@@ -34,6 +34,7 @@
 #include <x86/apicreg.h>
 
 #include <dev/vmm/vmm_ktr.h>
+#include <dev/vmm/vmm_vm.h>
 
 #include <machine/vmm.h>
 #include "vmm_lapic.h"
