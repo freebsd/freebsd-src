@@ -55,13 +55,13 @@ static char sccsid[] = "@(#)ps.c	8.4 (Berkeley) 4/2/94";
 
 #include <sys/cdefs.h>
 #include <sys/param.h>
-#include <sys/jail.h>
-#include <sys/proc.h>
-#include <sys/user.h>
-#include <sys/stat.h>
 #include <sys/ioctl.h>
-#include <sys/sysctl.h>
+#include <sys/jail.h>
 #include <sys/mount.h>
+#include <sys/proc.h>
+#include <sys/stat.h>
+#include <sys/sysctl.h>
+#include <sys/user.h>
 
 #include <ctype.h>
 #include <errno.h>
