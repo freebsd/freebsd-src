@@ -584,6 +584,20 @@ __thr_wait6(idtype_t idtype, id_t id, int *status, int options,
 	return (ret);
 }
 
+static pid_t
+__thr_pdwait(int fd, int *status, int options, struct __wrusage *ru,
+    siginfo_t *infop)
+{
+	struct pthread *curthread;
+	pid_t ret;
+
+	curthread = _get_curthread();
+	_thr_cancel_enter(curthread);
+	ret = __sys_pdwait(fd, status, options, ru, infop);
+	_thr_cancel_leave(curthread, ret == -1);
+	return (ret);
+}
+
 /*
  * Cancellation behavior:
  *   Thread may be canceled at start, but if the thread wrote some data,
@@ -685,6 +699,7 @@ __thr_interpose_libc(void)
 	SLOT(clock_nanosleep);
 	SLOT(pdfork);
 	SLOT(uexterr_gettext);
+	SLOT(pdwait);
 #undef SLOT
 	*(__libc_interposing_slot(
 	    INTERPOS__pthread_mutex_init_calloc_cb)) =
