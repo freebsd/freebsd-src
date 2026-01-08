@@ -135,16 +135,11 @@ struct vmm_special_reg {
 };
 #define	VM_MAX_SPECIAL_REGS	16
 
-struct vm_eventinfo {
-	void	*rptr;		/* rendezvous cookie */
-	int	*sptr;		/* suspend cookie */
-	int	*iptr;		/* reqidle cookie */
-};
-
 #define	DECLARE_VMMOPS_FUNC(ret_type, opname, args)			\
 	ret_type vmmops_##opname args
 
 struct vm;
+struct vm_eventinfo;
 struct vm_exception;
 struct vm_exit;
 struct vm_run;
@@ -181,16 +176,11 @@ DECLARE_VMMOPS_FUNC(int, restore_tsc, (void *vcpui, uint64_t now));
 #endif
 #endif
 
-const char *vm_name(struct vm *vm);
-
 int vm_get_register(struct vcpu *vcpu, int reg, uint64_t *retval);
 int vm_set_register(struct vcpu *vcpu, int reg, uint64_t val);
 int vm_run(struct vcpu *vcpu);
 void* vm_get_cookie(struct vm *vm);
-int vcpu_vcpuid(struct vcpu *vcpu);
 void *vcpu_get_cookie(struct vcpu *vcpu);
-struct vm *vcpu_vm(struct vcpu *vcpu);
-struct vcpu *vm_vcpu(struct vm *vm, int cpu);
 int vm_get_capability(struct vcpu *vcpu, int type, int *val);
 int vm_set_capability(struct vcpu *vcpu, int type, int val);
 int vm_inject_exception(struct vcpu *vcpu, uint64_t esr, uint64_t far);
@@ -203,23 +193,6 @@ struct vm_exit *vm_exitinfo(struct vcpu *vcpu);
 void vm_exit_suspended(struct vcpu *vcpu, uint64_t pc);
 void vm_exit_debug(struct vcpu *vcpu, uint64_t pc);
 void vm_exit_astpending(struct vcpu *vcpu, uint64_t pc);
-
-static __inline int
-vcpu_rendezvous_pending(struct vm_eventinfo *info)
-{
-
-	return (*((uintptr_t *)(info->rptr)) != 0);
-}
-
-static __inline int
-vcpu_suspended(struct vm_eventinfo *info)
-{
-
-	return (*info->sptr);
-}
-
-void *vcpu_stats(struct vcpu *vcpu);
-struct vm_mem *vm_mem(struct vm *vm);
 
 struct vm_copyinfo {
 	uint64_t	gpa;

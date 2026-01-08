@@ -34,6 +34,8 @@
 #include <machine/cpu.h>
 #include <machine/hypervisor.h>
 
+#include <dev/vmm/vmm_vm.h>
+
 #include "arm64.h"
 #include "reset.h"
 

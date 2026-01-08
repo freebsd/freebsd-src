@@ -470,12 +470,6 @@ vm_reset(struct vm *vm)
 	vm_init(vm, false);
 }
 
-const char *
-vm_name(struct vm *vm)
-{
-	return (vm->name);
-}
-
 int
 vm_map_mmio(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t hpa)
 {
@@ -1621,24 +1615,6 @@ vm_set_capability(struct vcpu *vcpu, int type, int val)
 	return (vmmops_setcap(vcpu->cookie, type, val));
 }
 
-struct vm *
-vcpu_vm(struct vcpu *vcpu)
-{
-	return (vcpu->vm);
-}
-
-int
-vcpu_vcpuid(struct vcpu *vcpu)
-{
-	return (vcpu->vcpuid);
-}
-
-struct vcpu *
-vm_vcpu(struct vm *vm, int vcpuid)
-{
-	return (vm->vcpu[vcpuid]);
-}
-
 struct vlapic *
 vm_lapic(struct vcpu *vcpu)
 {
@@ -1732,13 +1708,6 @@ vm_await_start(struct vm *vm, const cpuset_t *waiting)
 	mtx_unlock(&vm->rendezvous_mtx);
 }
 
-void *
-vcpu_stats(struct vcpu *vcpu)
-{
-
-	return (vcpu->stats);
-}
-
 int
 vm_get_x2apic_state(struct vcpu *vcpu, enum x2apic_state *state)
 {
@@ -1769,12 +1738,6 @@ vcpu_notify_lapic(struct vcpu *vcpu)
 	else
 		vcpu_notify_event_locked(vcpu);
 	vcpu_unlock(vcpu);
-}
-
-struct vm_mem *
-vm_mem(struct vm *vm)
-{
-	return (&vm->mem);
 }
 
 int

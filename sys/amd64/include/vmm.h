@@ -160,16 +160,11 @@ struct vhpet;
 struct vioapic;
 struct vlapic;
 struct vmspace;
+struct vm_eventinfo;
 struct vm_object;
 struct vm_guest_paging;
 struct pmap;
 enum snapshot_req;
-
-struct vm_eventinfo {
-	cpuset_t *rptr;		/* rendezvous cookie */
-	int	*sptr;		/* suspend cookie */
-	int	*iptr;		/* reqidle cookie */
-};
 
 #define	DECLARE_VMMOPS_FUNC(ret_type, opname, args)		\
 	typedef ret_type (*vmmops_##opname##_t) args;		\
@@ -233,8 +228,6 @@ struct vmm_ops {
 extern const struct vmm_ops vmm_ops_intel;
 extern const struct vmm_ops vmm_ops_amd;
 
-const char *vm_name(struct vm *vm);
-
 int vm_map_mmio(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t hpa);
 int vm_unmap_mmio(struct vm *vm, vm_paddr_t gpa, size_t len);
 int vm_assign_pptdev(struct vm *vm, int bus, int slot, int func);
@@ -253,9 +246,6 @@ void vm_nmi_clear(struct vcpu *vcpu);
 int vm_inject_extint(struct vcpu *vcpu);
 int vm_extint_pending(struct vcpu *vcpu);
 void vm_extint_clear(struct vcpu *vcpu);
-int vcpu_vcpuid(struct vcpu *vcpu);
-struct vm *vcpu_vm(struct vcpu *vcpu);
-struct vcpu *vm_vcpu(struct vm *vm, int cpu);
 struct vlapic *vm_lapic(struct vcpu *vcpu);
 struct vioapic *vm_ioapic(struct vm *vm);
 struct vhpet *vm_hpet(struct vm *vm);
@@ -280,33 +270,6 @@ cpuset_t vm_start_cpus(struct vm *vm, const cpuset_t *tostart);
 void vm_await_start(struct vm *vm, const cpuset_t *waiting);
 #endif	/* _SYS__CPUSET_H_ */
 
-static __inline int
-vcpu_rendezvous_pending(struct vcpu *vcpu, struct vm_eventinfo *info)
-{
-	/*
-	 * This check isn't done with atomic operations or under a lock because
-	 * there's no need to. If the vcpuid bit is set, the vcpu is part of a
-	 * rendezvous and the bit won't be cleared until the vcpu enters the
-	 * rendezvous. On rendezvous exit, the cpuset is cleared and the vcpu
-	 * will see an empty cpuset. So, the races are harmless.
-	 */
-	return (CPU_ISSET(vcpu_vcpuid(vcpu), info->rptr));
-}
-
-static __inline int
-vcpu_suspended(struct vm_eventinfo *info)
-{
-
-	return (*info->sptr);
-}
-
-static __inline int
-vcpu_reqidle(struct vm_eventinfo *info)
-{
-
-	return (*info->iptr);
-}
-
 /*
  * Return true if device indicated by bus/slot/func is supposed to be a
  * pci passthrough device.
@@ -317,9 +280,7 @@ bool vmm_is_pptdev(int bus, int slot, int func);
 
 void *vm_iommu_domain(struct vm *vm);
 
-void *vcpu_stats(struct vcpu *vcpu);
 void vcpu_notify_lapic(struct vcpu *vcpu);
-struct vm_mem *vm_mem(struct vm *vm);
 struct vatpic *vm_atpic(struct vm *vm);
 struct vatpit *vm_atpit(struct vm *vm);
 struct vpmtmr *vm_pmtmr(struct vm *vm);

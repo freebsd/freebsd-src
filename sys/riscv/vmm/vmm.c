@@ -272,12 +272,6 @@ vm_reset(struct vm *vm)
 	vm_init(vm, false);
 }
 
-const char *
-vm_name(struct vm *vm)
-{
-	return (vm->name);
-}
-
 int
 vm_gla2gpa_nofault(struct vcpu *vcpu, struct vm_guest_paging *paging,
     uint64_t gla, int prot, uint64_t *gpa, int *is_fault)
@@ -393,19 +387,6 @@ vm_exit_debug(struct vcpu *vcpu, uint64_t pc)
 	vmexit->exitcode = VM_EXITCODE_DEBUG;
 }
 
-void *
-vcpu_stats(struct vcpu *vcpu)
-{
-
-	return (vcpu->stats);
-}
-
-struct vm_mem *
-vm_mem(struct vm *vm)
-{
-	return (&vm->mem);
-}
-
 static void
 restore_guest_fpustate(struct vcpu *vcpu)
 {
@@ -478,32 +459,11 @@ vm_set_capability(struct vcpu *vcpu, int type, int val)
 	return (vmmops_setcap(vcpu->cookie, type, val));
 }
 
-struct vm *
-vcpu_vm(struct vcpu *vcpu)
-{
-
-	return (vcpu->vm);
-}
-
-int
-vcpu_vcpuid(struct vcpu *vcpu)
-{
-
-	return (vcpu->vcpuid);
-}
-
 void *
 vcpu_get_cookie(struct vcpu *vcpu)
 {
 
 	return (vcpu->cookie);
-}
-
-struct vcpu *
-vm_vcpu(struct vm *vm, int vcpuid)
-{
-
-	return (vm->vcpu[vcpuid]);
 }
 
 int
