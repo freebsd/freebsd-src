@@ -139,23 +139,6 @@ struct in6_prefix {
 	/* struct sockaddr_in6 advrtr[] */
 };
 
-#ifdef _KERNEL
-struct	in6_ondireq {
-	char ifname[IFNAMSIZ];
-	struct {
-		u_int32_t linkmtu;	/* LinkMTU */
-		u_int32_t maxmtu;	/* Upper bound of LinkMTU */
-		u_int32_t basereachable; /* BaseReachableTime */
-		u_int32_t reachable;	/* Reachable Time */
-		u_int32_t retrans;	/* Retrans Timer */
-		u_int32_t flags;	/* Flags */
-		int recalctm;		/* BaseReacable re-calculation timer */
-		u_int8_t chlim;		/* CurHopLimit */
-		u_int8_t receivedra;
-	} ndi;
-};
-#endif
-
 struct	in6_ndireq {
 	char ifname[IFNAMSIZ];
 	struct nd_ifinfo ndi;

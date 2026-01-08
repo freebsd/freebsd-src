@@ -1649,20 +1649,8 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 	/* XXXGL: ??? */
 	if (ifp->if_inet6 == NULL)
 		return (EPFNOSUPPORT);
-	switch (cmd) {
-	case OSIOCGIFINFO_IN6:
 #define ND	ndi->ndi
-		/* XXX: old ndp(8) assumes a positive value for linkmtu. */
-		bzero(&ND, sizeof(ND));
-		ND.linkmtu = IN6_LINKMTU(ifp);
-		ND.maxmtu = ND_IFINFO(ifp)->maxmtu;
-		ND.basereachable = ND_IFINFO(ifp)->basereachable;
-		ND.reachable = ND_IFINFO(ifp)->reachable;
-		ND.retrans = ND_IFINFO(ifp)->retrans;
-		ND.flags = ND_IFINFO(ifp)->flags;
-		ND.recalctm = ND_IFINFO(ifp)->recalctm;
-		ND.chlim = ND_IFINFO(ifp)->chlim;
-		break;
+	switch (cmd) {
 	case SIOCGIFINFO_IN6:
 		ND = *ND_IFINFO(ifp);
 		break;
