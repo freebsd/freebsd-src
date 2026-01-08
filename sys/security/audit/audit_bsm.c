@@ -1115,6 +1115,16 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		}
 		break;
 
+	case AUE_PDWAIT:
+		if (ARG_IS_VALID(kar, ARG_FFLAGS)) {
+			tok = au_to_arg32(1, "flags", ar->ar_arg_fflags);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_FD)) {
+			tok = au_to_arg32(1, "fd", ar->ar_arg_fd);
+			kau_write(rec, tok);
+		}
+
 	case AUE_IOCTL:
 		if (ARG_IS_VALID(kar, ARG_CMD)) {
 			tok = au_to_arg32(2, "cmd", ar->ar_arg_cmd);
