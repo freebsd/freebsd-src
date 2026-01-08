@@ -23,6 +23,7 @@
 
 #include <dev/vmm/vmm_dev.h>
 #include <dev/vmm/vmm_mem.h>
+#include <dev/vmm/vmm_vm.h>
 
 static void vm_free_memmap(struct vm *vm, int ident);
 

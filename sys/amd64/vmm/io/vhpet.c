@@ -38,10 +38,11 @@
 #include <sys/systm.h>
 
 #include <machine/vmm.h>
-#include <machine/vmm_dev.h>
 #include <machine/vmm_snapshot.h>
 
 #include <dev/acpica/acpi_hpet.h>
+
+#include <dev/vmm/vmm_dev.h>
 #include <dev/vmm/vmm_ktr.h>
 
 #include "vmm_lapic.h"

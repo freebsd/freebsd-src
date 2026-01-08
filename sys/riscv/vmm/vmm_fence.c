@@ -39,6 +39,10 @@
 #include <sys/mutex.h>
 #include <sys/bus.h>
 
+#include <machine/vmm.h>
+
+#include <dev/vmm/vmm_vm.h>
+
 #include "riscv.h"
 #include "vmm_fence.h"
 
@@ -145,7 +149,6 @@ vmm_fence_add(struct vm *vm, cpuset_t *cpus, struct vmm_fence *fence)
 	struct vcpu *vcpu;
 	uint16_t maxcpus;
 	int hostcpu;
-	int state;
 	bool enq;
 	int i;
 
@@ -193,8 +196,7 @@ vmm_fence_add(struct vm *vm, cpuset_t *cpus, struct vmm_fence *fence)
 
 		mb();
 
-		state = vcpu_get_state(vcpu, &hostcpu);
-		if (state == VCPU_RUNNING)
+		if (vcpu_is_running(vcpu, &hostcpu))
 			CPU_SET(hostcpu, &running_cpus);
 	}
 

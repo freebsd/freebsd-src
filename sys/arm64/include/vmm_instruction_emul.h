@@ -27,6 +27,14 @@
 #ifndef	_VMM_INSTRUCTION_EMUL_H_
 #define	_VMM_INSTRUCTION_EMUL_H_
 
+#include <sys/types.h>
+
+struct vcpu;
+struct vm;
+struct vie;
+struct vre;
+struct vm_guest_paging;
+
 /*
  * Callback functions to read and write memory regions.
  */
