@@ -36,6 +36,8 @@
 
 #include <machine/sbi.h>
 
+#include <dev/vmm/vmm_vm.h>
+
 #include "riscv.h"
 #include "vmm_fence.h"
 

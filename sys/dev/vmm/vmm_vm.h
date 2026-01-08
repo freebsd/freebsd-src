@@ -9,6 +9,7 @@
 #define	_DEV_VMM_VM_H_
 
 #ifdef _KERNEL
+#include <sys/_cpuset.h>
 
 #include <machine/vmm.h>
 
@@ -50,11 +51,16 @@ struct vcpu {
 #define	vcpu_unlock(v)		mtx_unlock_spin(&((v)->mtx))
 #define	vcpu_assert_locked(v)	mtx_assert(&((v)->mtx), MA_OWNED)
 
+extern int vmm_ipinum;
+
 int vcpu_set_state(struct vcpu *vcpu, enum vcpu_state state, bool from_idle);
-#ifdef __amd64__
+int vcpu_set_state_locked(struct vcpu *vcpu, enum vcpu_state newstate,
+    bool from_idle);
 int vcpu_set_state_all(struct vm *vm, enum vcpu_state state);
-#endif
 enum vcpu_state vcpu_get_state(struct vcpu *vcpu, int *hostcpu);
+void vcpu_notify_event(struct vcpu *vcpu);
+void vcpu_notify_event_locked(struct vcpu *vcpu);
+int vcpu_debugged(struct vcpu *vcpu);
 
 static int __inline
 vcpu_is_running(struct vcpu *vcpu, int *hostcpu)
@@ -74,6 +80,21 @@ vcpu_should_yield(struct vcpu *vcpu)
 #endif
 
 typedef void (*vm_rendezvous_func_t)(struct vcpu *vcpu, void *arg);
+int vm_handle_rendezvous(struct vcpu *vcpu);
+
+/*
+ * Rendezvous all vcpus specified in 'dest' and execute 'func(arg)'.
+ * The rendezvous 'func(arg)' is not allowed to do anything that will
+ * cause the thread to be put to sleep.
+ *
+ * The caller cannot hold any locks when initiating the rendezvous.
+ *
+ * The implementation of this API may cause vcpus other than those specified
+ * by 'dest' to be stalled. The caller should not rely on any vcpus making
+ * forward progress when the rendezvous is in progress.
+ */
+int vm_smp_rendezvous(struct vcpu *vcpu, cpuset_t dest,
+    vm_rendezvous_func_t func, void *arg);
 
 /*
  * Initialization:
@@ -116,6 +137,30 @@ struct vm {
 	VMM_VM_MD_FIELDS;
 };
 
+int vm_create(const char *name, struct vm **retvm);
+struct vcpu *vm_alloc_vcpu(struct vm *vm, int vcpuid);
+void vm_destroy(struct vm *vm);
+int vm_reinit(struct vm *vm);
+void vm_reset(struct vm *vm);
+
+void vm_lock_vcpus(struct vm *vm);
+void vm_unlock_vcpus(struct vm *vm);
+void vm_disable_vcpu_creation(struct vm *vm);
+
+int vm_suspend(struct vm *vm, enum vm_suspend_how how);
+int vm_activate_cpu(struct vcpu *vcpu);
+int vm_suspend_cpu(struct vm *vm, struct vcpu *vcpu);
+int vm_resume_cpu(struct vm *vm, struct vcpu *vcpu);
+ 
+cpuset_t vm_active_cpus(struct vm *vm);
+cpuset_t vm_debug_cpus(struct vm *vm);
+cpuset_t vm_suspended_cpus(struct vm *vm);
+
+uint16_t vm_get_maxcpus(struct vm *vm);
+void vm_get_topology(struct vm *vm, uint16_t *sockets, uint16_t *cores,
+    uint16_t *threads, uint16_t *maxcpus);
+int vm_set_topology(struct vm *vm, uint16_t sockets, uint16_t cores,
+    uint16_t threads, uint16_t maxcpus);
 #endif /* _KERNEL */
 
 #endif /* !_DEV_VMM_VM_H_ */

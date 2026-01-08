@@ -233,19 +233,7 @@ struct vmm_ops {
 extern const struct vmm_ops vmm_ops_intel;
 extern const struct vmm_ops vmm_ops_amd;
 
-int vm_create(const char *name, struct vm **retvm);
-struct vcpu *vm_alloc_vcpu(struct vm *vm, int vcpuid);
-void vm_disable_vcpu_creation(struct vm *vm);
-void vm_lock_vcpus(struct vm *vm);
-void vm_unlock_vcpus(struct vm *vm);
-void vm_destroy(struct vm *vm);
-int vm_reinit(struct vm *vm);
 const char *vm_name(struct vm *vm);
-uint16_t vm_get_maxcpus(struct vm *vm);
-void vm_get_topology(struct vm *vm, uint16_t *sockets, uint16_t *cores,
-    uint16_t *threads, uint16_t *maxcpus);
-int vm_set_topology(struct vm *vm, uint16_t sockets, uint16_t cores,
-    uint16_t threads, uint16_t maxcpus);
 
 int vm_map_mmio(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t hpa);
 int vm_unmap_mmio(struct vm *vm, vm_paddr_t gpa, size_t len);
@@ -259,7 +247,6 @@ int vm_get_seg_desc(struct vcpu *vcpu, int reg,
 int vm_set_seg_desc(struct vcpu *vcpu, int reg,
 		    struct seg_desc *desc);
 int vm_run(struct vcpu *vcpu);
-int vm_suspend(struct vm *vm, enum vm_suspend_how how);
 int vm_inject_nmi(struct vcpu *vcpu);
 int vm_nmi_pending(struct vcpu *vcpu);
 void vm_nmi_clear(struct vcpu *vcpu);
@@ -277,9 +264,6 @@ int vm_set_capability(struct vcpu *vcpu, int type, int val);
 int vm_get_x2apic_state(struct vcpu *vcpu, enum x2apic_state *state);
 int vm_set_x2apic_state(struct vcpu *vcpu, enum x2apic_state state);
 int vm_apicid2vcpuid(struct vm *vm, int apicid);
-int vm_activate_cpu(struct vcpu *vcpu);
-int vm_suspend_cpu(struct vm *vm, struct vcpu *vcpu);
-int vm_resume_cpu(struct vm *vm, struct vcpu *vcpu);
 int vm_restart_instruction(struct vcpu *vcpu);
 struct vm_exit *vm_exitinfo(struct vcpu *vcpu);
 cpuset_t *vm_exitinfo_cpuset(struct vcpu *vcpu);
@@ -292,24 +276,6 @@ int vm_snapshot_req(struct vm *vm, struct vm_snapshot_meta *meta);
 int vm_restore_time(struct vm *vm);
 
 #ifdef _SYS__CPUSET_H_
-/*
- * Rendezvous all vcpus specified in 'dest' and execute 'func(arg)'.
- * The rendezvous 'func(arg)' is not allowed to do anything that will
- * cause the thread to be put to sleep.
- *
- * The caller cannot hold any locks when initiating the rendezvous.
- *
- * The implementation of this API may cause vcpus other than those specified
- * by 'dest' to be stalled. The caller should not rely on any vcpus making
- * forward progress when the rendezvous is in progress.
- */
-typedef void (*vm_rendezvous_func_t)(struct vcpu *vcpu, void *arg);
-int vm_smp_rendezvous(struct vcpu *vcpu, cpuset_t dest,
-    vm_rendezvous_func_t func, void *arg);
-
-cpuset_t vm_active_cpus(struct vm *vm);
-cpuset_t vm_debug_cpus(struct vm *vm);
-cpuset_t vm_suspended_cpus(struct vm *vm);
 cpuset_t vm_start_cpus(struct vm *vm, const cpuset_t *tostart);
 void vm_await_start(struct vm *vm, const cpuset_t *waiting);
 #endif	/* _SYS__CPUSET_H_ */
@@ -341,8 +307,6 @@ vcpu_reqidle(struct vm_eventinfo *info)
 	return (*info->iptr);
 }
 
-int vcpu_debugged(struct vcpu *vcpu);
-
 /*
  * Return true if device indicated by bus/slot/func is supposed to be a
  * pci passthrough device.
@@ -354,7 +318,6 @@ bool vmm_is_pptdev(int bus, int slot, int func);
 void *vm_iommu_domain(struct vm *vm);
 
 void *vcpu_stats(struct vcpu *vcpu);
-void vcpu_notify_event(struct vcpu *vcpu);
 void vcpu_notify_lapic(struct vcpu *vcpu);
 struct vm_mem *vm_mem(struct vm *vm);
 struct vatpic *vm_atpic(struct vm *vm);

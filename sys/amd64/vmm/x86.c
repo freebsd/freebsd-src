@@ -39,6 +39,7 @@
 #include <machine/vmm.h>
 
 #include <dev/vmm/vmm_ktr.h>
+#include <dev/vmm/vmm_vm.h>
 
 #include "vmm_host.h"
 #include "vmm_util.h"
