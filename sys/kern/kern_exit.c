@@ -906,6 +906,33 @@ sys_wait6(struct thread *td, struct wait6_args *uap)
 	return (error);
 }
 
+int
+sys_pdwait(struct thread *td, struct pdwait_args *uap)
+{
+	struct __wrusage wru, *wrup;
+	siginfo_t si, *sip;
+	int error, status;
+
+	wrup = uap->wrusage != NULL ? &wru : NULL;
+
+	if (uap->info != NULL) {
+		sip = &si;
+		bzero(sip, sizeof(*sip));
+	} else {
+		sip = NULL;
+	}
+
+	error = kern_pdwait(td, uap->fd, &status, uap->options, wrup, sip);
+
+	if (uap->status != NULL && error == 0)
+		error = copyout(&status, uap->status, sizeof(status));
+	if (uap->wrusage != NULL && error == 0)
+		error = copyout(&wru, uap->wrusage, sizeof(wru));
+	if (uap->info != NULL && error == 0)
+		error = copyout(&si, uap->info, sizeof(si));
+	return (error);
+}
+
 /*
  * Reap the remains of a zombie process and optionally return status and
  * rusage.  Asserts and will release both the proctree_lock and the process
@@ -1474,6 +1501,84 @@ loop_locked:
 	if (error != 0)
 		return (error);
 	goto loop;
+}
+
+int
+kern_pdwait(struct thread *td, int fd, int *status,
+    int options, struct __wrusage *wrusage, siginfo_t *siginfo)
+{
+	struct proc *p;
+	struct file *fp;
+	struct procdesc *pd;
+	int error;
+
+	AUDIT_ARG_FD(fd);
+	AUDIT_ARG_VALUE(options);
+
+	error = wait6_checkopt(options);
+	if (error != 0)
+		return (error);
+
+	error = fget(td, fd, &cap_pdwait_rights, &fp);
+	if (error != 0)
+		return (error);
+	if (fp->f_type != DTYPE_PROCDESC) {
+		error = EINVAL;
+		goto exit_unlocked;
+	}
+	pd = fp->f_data;
+
+	for (;;) {
+		/* We own a reference on the procdesc file. */
+		KASSERT((pd->pd_flags & PDF_CLOSED) == 0,
+		    ("PDF_CLOSED proc %p procdesc %p pd flags %#x",
+		    p, pd, pd->pd_flags));
+
+		sx_xlock(&proctree_lock);
+		p = pd->pd_proc;
+		if (p == NULL) {
+			error = ESRCH;
+			goto exit_tree_locked;
+		}
+		PROC_LOCK(p);
+
+		error = p_canwait(td, p);
+		if (error != 0)
+			break;
+		if ((options & WEXITED) == 0 && p->p_state == PRS_ZOMBIE) {
+			error = ESRCH;
+			break;
+		}
+
+		wait_fill_siginfo(p, siginfo);
+		wait_fill_wrusage(p, wrusage);
+
+		if (p->p_state == PRS_ZOMBIE) {
+			proc_reap(td, p, status, options);
+			goto exit_unlocked;
+		}
+
+		if (wait6_check_alive(td, options, p, status, siginfo))
+			goto exit_unlocked;
+
+		if ((options & WNOHANG) != 0) {
+			error = EWOULDBLOCK;
+			break;
+		}
+
+		PROC_UNLOCK(p);
+		error = sx_sleep(&p->p_procdesc, &proctree_lock,
+		    PWAIT | PCATCH | PDROP, "pdwait", 0);
+		if (error != 0)
+			goto exit_unlocked;
+	}
+
+	PROC_UNLOCK(p);
+exit_tree_locked:
+	sx_xunlock(&proctree_lock);
+exit_unlocked:
+	fdrop(fp, td);
+	return (error);
 }
 
 void

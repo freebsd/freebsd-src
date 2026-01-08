@@ -75,6 +75,7 @@
 #include <sys/procdesc.h>
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -321,6 +322,9 @@ procdesc_exit(struct proc *p)
 	}
 	KNOTE_LOCKED(&pd->pd_selinfo.si_note, NOTE_EXIT);
 	PROCDESC_UNLOCK(pd);
+
+	/* Wakeup all waiters for this procdesc' process exit. */
+	wakeup(&p->p_procdesc);
 	return (0);
 }
 
