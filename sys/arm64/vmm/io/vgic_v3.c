@@ -69,6 +69,7 @@
 #include <arm64/vmm/vmm_handlers.h>
 
 #include <dev/vmm/vmm_dev.h>
+#include <dev/vmm/vmm_vm.h>
 
 #include "vgic.h"
 #include "vgic_v3.h"
