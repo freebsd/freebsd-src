@@ -538,4 +538,6 @@
 #define	SYS_jail_attach_jd	597
 #define	SYS_jail_remove_jd	598
 #define	SYS_kexec_load	599
-#define	SYS_MAXSYSCALL	600
+#define	SYS_pdrfork	600
+#define	SYS_pdwait	601
+#define	SYS_MAXSYSCALL	602
