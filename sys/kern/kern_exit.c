@@ -34,45 +34,43 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
 
-#include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
+#include <sys/acct.h>		/* for acct_process() function prototype */
 #include <sys/capsicum.h>
 #include <sys/eventhandler.h>
+#include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
-#include <sys/malloc.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/procdesc.h>
-#include <sys/jail.h>
-#include <sys/tty.h>
-#include <sys/wait.h>
-#include <sys/vmmeter.h>
-#include <sys/vnode.h>
+#include <sys/ptrace.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
-#include <sys/signalvar.h>
 #include <sys/sched.h>
+#include <sys/sdt.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
+#include <sys/signalvar.h>
 #include <sys/sx.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
-#include <sys/syslog.h>
-#include <sys/ptrace.h>
-#include <sys/acct.h>		/* for acct_process() function prototype */
-#include <sys/filedesc.h>
-#include <sys/sdt.h>
-#include <sys/shm.h>
-#include <sys/sem.h>
 #include <sys/sysent.h>
+#include <sys/syslog.h>
+#include <sys/sysproto.h>
 #include <sys/timers.h>
+#include <sys/tty.h>
 #include <sys/umtxvar.h>
+#include <sys/vmmeter.h>
+#include <sys/vnode.h>
+#include <sys/wait.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
