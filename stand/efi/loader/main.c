@@ -867,10 +867,10 @@ acpi_uart_parity(UINT8 p)
 }
 
 /*
- * See if we can find a SPCR ACPI table in the static tables. If so, then it
- * describes the serial console that's been redirected to, so we know that at
- * least there's a serial console. this is most important for embedded systems
- * that don't have traidtional PC serial ports.
+ * See if we can find an enabled SPCR ACPI table in the static tables. If so,
+ * then it describes the serial console that's been redirected to, so we know
+ * that at least there's a serial console. This is most important for embedded
+ * systems that don't have traidtional PC serial ports.
  *
  * All the two letter variables in this function correspond to their usage in
  * the uart(4) console string. We use io == -1 to select between I/O ports and
@@ -886,8 +886,12 @@ check_acpi_spcr(void)
 	const char *dt, *pa;
 	char *val = NULL;
 
+	/*
+	 * The SPCR is enabled when SerialPort is non-zero.  Address being zero
+	 * should suffice to see if it's disabled.
+	 */
 	spcr = acpi_find_table(ACPI_SIG_SPCR);
-	if (spcr == NULL)
+	if (spcr == NULL || spcr->SerialPort.Address == 0)
 		return (0);
 	dt = acpi_uart_type(spcr->InterfaceType);
 	if (dt == NULL)	{ 	/* Kernel can't use unknown types */
