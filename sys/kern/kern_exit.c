@@ -1042,13 +1042,75 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	atomic_add_int(&nprocs, -1);
 }
 
+static void
+wait_fill_siginfo(struct proc *p, siginfo_t *siginfo)
+{
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	if (siginfo == NULL)
+		return;
+
+	bzero(siginfo, sizeof(*siginfo));
+	siginfo->si_errno = 0;
+
+	/*
+	 * SUSv4 requires that the si_signo value is always
+	 * SIGCHLD. Obey it despite the rfork(2) interface allows to
+	 * request other signal for child exit notification.
+	 */
+	siginfo->si_signo = SIGCHLD;
+
+	/*
+	 *  This is still a rough estimate.  We will fix the cases
+	 *  TRAPPED, STOPPED, and CONTINUED later.
+	 */
+	if (WCOREDUMP(p->p_xsig)) {
+		siginfo->si_code = CLD_DUMPED;
+		siginfo->si_status = WTERMSIG(p->p_xsig);
+	} else if (WIFSIGNALED(p->p_xsig)) {
+		siginfo->si_code = CLD_KILLED;
+		siginfo->si_status = WTERMSIG(p->p_xsig);
+	} else {
+		siginfo->si_code = CLD_EXITED;
+		siginfo->si_status = p->p_xexit;
+	}
+
+	siginfo->si_pid = p->p_pid;
+	siginfo->si_uid = p->p_ucred->cr_uid;
+
+	/*
+	 * The si_addr field would be useful additional detail, but
+	 * apparently the PC value may be lost when we reach this
+	 * point.  bzero() above sets siginfo->si_addr to NULL.
+	 */
+}
+
+static void
+wait_fill_wrusage(struct proc *p, struct __wrusage *wrusage)
+{
+	struct rusage *rup;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	if (wrusage == NULL)
+		return;
+
+	rup = &wrusage->wru_self;
+	*rup = p->p_ru;
+	PROC_STATLOCK(p);
+	calcru(p, &rup->ru_utime, &rup->ru_stime);
+	PROC_STATUNLOCK(p);
+
+	rup = &wrusage->wru_children;
+	*rup = p->p_stats->p_cru;
+	calccru(p, &rup->ru_utime, &rup->ru_stime);
+}
+
 static int
 proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
     int *status, int options, struct __wrusage *wrusage, siginfo_t *siginfo,
     int check_only)
 {
-	struct rusage *rup;
-
 	sx_assert(&proctree_lock, SA_XLOCKED);
 
 	PROC_LOCK(p);
@@ -1133,60 +1195,14 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 		return (0);
 	}
 
-	if (siginfo != NULL) {
-		bzero(siginfo, sizeof(*siginfo));
-		siginfo->si_errno = 0;
-
-		/*
-		 * SUSv4 requires that the si_signo value is always
-		 * SIGCHLD. Obey it despite the rfork(2) interface
-		 * allows to request other signal for child exit
-		 * notification.
-		 */
-		siginfo->si_signo = SIGCHLD;
-
-		/*
-		 *  This is still a rough estimate.  We will fix the
-		 *  cases TRAPPED, STOPPED, and CONTINUED later.
-		 */
-		if (WCOREDUMP(p->p_xsig)) {
-			siginfo->si_code = CLD_DUMPED;
-			siginfo->si_status = WTERMSIG(p->p_xsig);
-		} else if (WIFSIGNALED(p->p_xsig)) {
-			siginfo->si_code = CLD_KILLED;
-			siginfo->si_status = WTERMSIG(p->p_xsig);
-		} else {
-			siginfo->si_code = CLD_EXITED;
-			siginfo->si_status = p->p_xexit;
-		}
-
-		siginfo->si_pid = p->p_pid;
-		siginfo->si_uid = p->p_ucred->cr_uid;
-
-		/*
-		 * The si_addr field would be useful additional
-		 * detail, but apparently the PC value may be lost
-		 * when we reach this point.  bzero() above sets
-		 * siginfo->si_addr to NULL.
-		 */
-	}
+	wait_fill_siginfo(p, siginfo);
 
 	/*
 	 * There should be no reason to limit resources usage info to
 	 * exited processes only.  A snapshot about any resources used
 	 * by a stopped process may be exactly what is needed.
 	 */
-	if (wrusage != NULL) {
-		rup = &wrusage->wru_self;
-		*rup = p->p_ru;
-		PROC_STATLOCK(p);
-		calcru(p, &rup->ru_utime, &rup->ru_stime);
-		PROC_STATUNLOCK(p);
-
-		rup = &wrusage->wru_children;
-		*rup = p->p_stats->p_cru;
-		calccru(p, &rup->ru_utime, &rup->ru_stime);
-	}
+	wait_fill_wrusage(p, wrusage);
 
 	if (p->p_state == PRS_ZOMBIE && !check_only) {
 		proc_reap(td, p, status, options);
