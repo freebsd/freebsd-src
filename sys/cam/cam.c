@@ -30,9 +30,13 @@
 
 #include <sys/param.h>
 #ifdef _KERNEL
+#include "opt_kdtrace.h"
+
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/memdesc.h>
+#include <sys/queue.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 #else /* _KERNEL */
 #include <stdlib.h>
@@ -55,6 +59,7 @@
 
 FEATURE(scbus, "SCSI devices support");
 
+SDT_PROVIDER_DEFINE(cam);
 #endif
 
 static int	camstatusentrycomp(const void *key, const void *member);
