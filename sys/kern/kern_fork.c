@@ -34,20 +34,20 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_ktrace.h"
 #include "opt_kstack_pages.h"
 
-#include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/acct.h>
 #include <sys/bitstring.h>
-#include <sys/sysproto.h>
 #include <sys/eventhandler.h>
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/ktr.h>
+#include <sys/ktrace.h>
 #include <sys/sysctl.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -60,17 +60,15 @@
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
+#include <sys/sdt.h>
+#include <sys/signalvar.h>
+#include <sys/sx.h>
 #include <sys/syscall.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
-#include <sys/acct.h>
-#include <sys/ktr.h>
-#include <sys/ktrace.h>
 #include <sys/unistd.h>
-#include <sys/sdt.h>
-#include <sys/sx.h>
-#include <sys/sysent.h>
-#include <sys/signalvar.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
