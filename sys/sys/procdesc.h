@@ -123,6 +123,7 @@ struct rusage;
  */
 __BEGIN_DECLS
 pid_t	 pdfork(int *, int);
+pid_t	 pdrfork(int *, int, int);
 int	 pdkill(int, int);
 int	 pdgetpid(int, pid_t *);
 __END_DECLS
