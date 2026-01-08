@@ -37,10 +37,12 @@
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
 
+#define EXTERR_CATEGORY	EXTERR_CAT_PROCEXIT
 #include <sys/systm.h>
 #include <sys/acct.h>		/* for acct_process() function prototype */
 #include <sys/capsicum.h>
 #include <sys/eventhandler.h>
+#include <sys/exterrvar.h>
 #include <sys/filedesc.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
@@ -1269,6 +1271,26 @@ report_alive_proc(struct thread *td, struct proc *p, siginfo_t *siginfo,
 	PROC_UNLOCK(p);
 }
 
+static int
+wait6_checkopt(int options)
+{
+	/* If we don't know the option, just return. */
+	if ((options & ~(WUNTRACED | WNOHANG | WCONTINUED | WNOWAIT |
+	    WEXITED | WTRAPPED | WLINUXCLONE)) != 0)
+		return (EXTERROR(EINVAL, "Unknown options %#jx", options));
+	if ((options & (WEXITED | WUNTRACED | WCONTINUED | WTRAPPED)) == 0) {
+		/*
+		 * We will be unable to find any matching processes,
+		 * because there are no known events to look for.
+		 * Prefer to return error instead of blocking
+		 * indefinitely.
+		 */
+		return (EXTERROR(EINVAL,
+		    "Cannot match processes %#jx", options));
+	}
+	return (0);
+}
+
 int
 kern_wait6(struct thread *td, idtype_t idtype, id_t id, int *status,
     int options, struct __wrusage *wrusage, siginfo_t *siginfo)
@@ -1291,20 +1313,9 @@ kern_wait6(struct thread *td, idtype_t idtype, id_t id, int *status,
 		idtype = P_PGID;
 	}
 
-	/* If we don't know the option, just return. */
-	if ((options & ~(WUNTRACED | WNOHANG | WCONTINUED | WNOWAIT |
-	    WEXITED | WTRAPPED | WLINUXCLONE)) != 0)
-		return (EINVAL);
-	if ((options & (WEXITED | WUNTRACED | WCONTINUED | WTRAPPED)) == 0) {
-		/*
-		 * We will be unable to find any matching processes,
-		 * because there are no known events to look for.
-		 * Prefer to return error instead of blocking
-		 * indefinitely.
-		 */
-		return (EINVAL);
-	}
-
+	error = wait6_checkopt(options);
+	if (error != 0)
+		return (error);
 loop:
 	if (q->p_flag & P_STATCHILD) {
 		PROC_LOCK(q);
