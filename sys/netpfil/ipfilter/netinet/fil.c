@@ -236,6 +236,11 @@ static const	struct	optlist	secopt[] = {
 	{ IPSO_CLASS_RES1,	0x80 }
 };
 
+/*
+ * Internal errors set by ipf_check_names_string().
+ */
+static const int interr_tbl[3] = { 152, 156, 153 };
+
 char	ipfilter_version[] = IPL_VERSION;
 
 int	ipf_features = 0
@@ -3906,7 +3911,7 @@ ipf_synclist(ipf_main_softc_t *softc, frentry_t *fr, void *ifp)
 	frentry_t *frt, *start = fr;
 	frdest_t *fdp;
 	char *name;
-	int error;
+	int error, interr;
 	void *ifa;
 	int v, i;
 
@@ -3933,6 +3938,21 @@ ipf_synclist(ipf_main_softc_t *softc, frentry_t *fr, void *ifp)
 		}
 
 		if ((fr->fr_type & ~FR_T_BUILTIN) == FR_T_IPF) {
+			/*
+			 * We do the validation for fr_sifpidx here because
+			 * it is a union that contains an offset only when
+			 * fr_sifpidx points to an interface name, an offset
+			 * into fr_names. The union is  an offset into
+			 * fr_names in this case only.
+			 *
+			 * Note that sifpidx is only used in ipf_sync() which
+			 * implments ipf -y.
+			 */
+			if ((interr = ipf_check_names_string(fr->fr_names, fr->fr_namelen, fr->fr_sifpidx)) != 0) {
+				IPFERROR(interr_tbl[interr-1]);
+				error = EINVAL;
+				goto unwind;
+			}
 			if (fr->fr_satype != FRI_NORMAL &&
 			    fr->fr_satype != FRI_LOOKUP) {
 				ifa = ipf_resolvenic(softc, fr->fr_names +
@@ -4404,7 +4424,6 @@ frrequest(ipf_main_softc_t *softc, int unit, ioctlcmd_t req, caddr_t data,
 	int set, int makecopy)
 {
 	int error = 0, in, family, need_free = 0, interr, i;
-	int interr_tbl[3] = { 152, 156, 153};
 	enum {	OP_ADD,		/* add rule */
 		OP_REM,		/* remove rule */
 		OP_ZERO 	/* zero statistics and counters */ }
