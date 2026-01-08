@@ -95,7 +95,7 @@ arm_create_user() {
 	chroot ${CHROOTDIR} /usr/sbin/pw -R ${DESTDIR} \
 		useradd freebsd \
 		-m -M 0755 -w yes -n freebsd -u 1001 -g 1001 -G 0 \
-		-c 'FreeBSD User' -d '/home/freebsd' -s '/bin/csh'
+		-c 'FreeBSD User' -d '/home/freebsd' -s '/bin/sh'
 	chroot ${CHROOTDIR} /usr/sbin/pw -R ${DESTDIR} \
 		usermod root -w yes
 
