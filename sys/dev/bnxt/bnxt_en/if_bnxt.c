@@ -4295,7 +4295,7 @@ bnxt_i2c_req(if_ctx_t ctx, struct ifi2creq *i2c)
 		return -EOPNOTSUPP;
 
 
-	rc = bnxt_read_sfp_module_eeprom_info(softc, I2C_DEV_ADDR_A0, 0, 0, 0,
+	rc = bnxt_read_sfp_module_eeprom_info(softc, i2c->dev_addr, 0, 0, 0,
 		i2c->offset, i2c->len, data);
 
 	return rc;
