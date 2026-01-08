@@ -47,6 +47,8 @@
 
 #include <arm64/vmm/arm64.h>
 
+#include <dev/vmm/vmm_vm.h>
+
 #include "vgic.h"
 #include "vtimer.h"
 
