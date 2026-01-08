@@ -666,4 +666,6 @@ struct sysent sysent[] = {
 	{ .sy_narg = AS(jail_attach_jd_args), .sy_call = (sy_call_t *)sys_jail_attach_jd, .sy_auevent = AUE_JAIL_ATTACH, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 597 = jail_attach_jd */
 	{ .sy_narg = AS(jail_remove_jd_args), .sy_call = (sy_call_t *)sys_jail_remove_jd, .sy_auevent = AUE_JAIL_REMOVE, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 598 = jail_remove_jd */
 	{ .sy_narg = AS(kexec_load_args), .sy_call = (sy_call_t *)sys_kexec_load, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 599 = kexec_load */
+	{ .sy_narg = AS(pdrfork_args), .sy_call = (sy_call_t *)sys_pdrfork, .sy_auevent = AUE_PDRFORK, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 600 = pdrfork */
+	{ .sy_narg = AS(pdwait_args), .sy_call = (sy_call_t *)sys_pdwait, .sy_auevent = AUE_PDWAIT, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 601 = pdwait */
 };

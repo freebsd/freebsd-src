@@ -819,4 +819,8 @@ FBSDprivate_1.0 {
 	__sys_jail_remove_jd;
 	_kexec_load;
 	__sys_kexec_load;
+	_pdrfork;
+	__sys_pdrfork;
+	_pdwait;
+	__sys_pdwait;
 };
