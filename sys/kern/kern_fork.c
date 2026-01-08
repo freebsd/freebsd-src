@@ -189,6 +189,48 @@ sys_rfork(struct thread *td, struct rfork_args *uap)
 	return (error);
 }
 
+int
+sys_pdrfork(struct thread *td, struct pdrfork_args *uap)
+{
+	struct fork_req fr;
+	int error, fd, pid;
+
+	bzero(&fr, sizeof(fr));
+	fd = -1;
+
+	AUDIT_ARG_FFLAGS(uap->pdflags);
+	AUDIT_ARG_CMD(uap->rfflags);
+
+	if ((uap->rfflags & (RFSTOPPED | RFHIGHPID)) != 0)
+		return (EXTERROR(EINVAL,
+		    "Kernel-only flags %#jx", uap->rfflags));
+
+	/* RFSPAWN must not appear with others */
+	if ((uap->rfflags & RFSPAWN) != 0) {
+		if (uap->rfflags != RFSPAWN)
+			return (EXTERROR(EINVAL,
+			    "RFSPAWN must be the only flag %#jx",
+			    uap->rfflags));
+		fr.fr_flags = RFFDG | RFPROC | RFPPWAIT | RFMEM | RFPROCDESC;
+		fr.fr_flags2 = FR2_DROPSIG_CAUGHT;
+	} else {
+		fr.fr_flags = uap->rfflags;
+	}
+
+	fr.fr_pidp = &pid;
+	fr.fr_pd_fd = &fd;
+	fr.fr_pd_flags = uap->pdflags;
+	error = fork1(td, &fr);
+	if (error == 0) {
+		td->td_retval[0] = pid;
+		td->td_retval[1] = 0;
+		if ((fr.fr_flags & (RFPROC | RFPROCDESC)) ==
+		    (RFPROC | RFPROCDESC) || uap->rfflags == RFSPAWN)
+			error = copyout(&fd, uap->fdp, sizeof(fd));
+	}
+	return (error);
+}
+
 int __exclusive_cache_line	nprocs = 1;		/* process 0 */
 int	lastpid = 0;
 SYSCTL_INT(_kern, OID_AUTO, lastpid, CTLFLAG_RD, &lastpid, 0,
