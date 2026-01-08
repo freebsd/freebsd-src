@@ -72,6 +72,7 @@ static interpos_func_t __libsys_interposing[INTERPOS_MAX] = {
 	SLOT(fdatasync, __sys_fdatasync),
 	SLOT(clock_nanosleep, __sys_clock_nanosleep),
 	SLOT(pdfork, __sys_pdfork),
+	SLOT(pdwait, __sys_pdwait),
 };
 #undef SLOT
 

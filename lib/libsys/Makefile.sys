@@ -73,6 +73,7 @@ INTERPOSED = \
 	open \
 	openat \
 	pdfork \
+	pdwait \
 	poll \
 	ppoll \
 	pselect \

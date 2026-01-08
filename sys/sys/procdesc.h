@@ -122,10 +122,14 @@ struct rusage;
  * Process descriptor system calls.
  */
 __BEGIN_DECLS
+struct __wrusage;
+struct __siginfo;
+
 pid_t	 pdfork(int *, int);
 pid_t	 pdrfork(int *, int, int);
 int	 pdkill(int, int);
 int	 pdgetpid(int, pid_t *);
+int	 pdwait(int, int *, int, struct __wrusage *, struct __siginfo *);
 __END_DECLS
 
 #endif /* _KERNEL */
