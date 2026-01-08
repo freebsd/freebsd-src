@@ -3711,13 +3711,12 @@ scsi_command_string(struct cam_device *device, struct ccb_scsiio *csio,
 	xpt_gdev_type(cgd, csio->ccb_h.path);
 
 	/*
-	 * If the device is unconfigured, just pretend that it is a hard
-	 * drive.  scsi_op_desc() needs this.
+	 * If the device is unconfigured, the inq data is invalid.
 	 */
 	if (cgd->ccb_h.status == CAM_DEV_NOT_THERE)
-		cgd->inq_data.device = T_DIRECT;
-
-	inq_data = &cgd->inq_data;
+		inq_data = NULL;
+	else
+		inq_data = &cgd->inq_data;
 
 #else /* !_KERNEL */
 
@@ -5170,13 +5169,12 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 	xpt_gdev_type(cgd, csio->ccb_h.path);
 
 	/*
-	 * If the device is unconfigured, just pretend that it is a hard
-	 * drive.  scsi_op_desc() needs this.
+	 * If the device is unconfigured, the inq data is invalid.
 	 */
 	if (cgd->ccb_h.status == CAM_DEV_NOT_THERE)
-		cgd->inq_data.device = T_DIRECT;
-
-	inq_data = &cgd->inq_data;
+		inq_data = NULL;
+	else
+		inq_data = &cgd->inq_data;
 
 #else /* !_KERNEL */
 
