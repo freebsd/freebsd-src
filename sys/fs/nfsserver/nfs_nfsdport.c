@@ -1977,6 +1977,7 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 	struct nfsexstuff nes;
 	struct thread *p = curthread;
 	uint32_t oldrepstat;
+	u_long savflags;
 
 	if (ndp->ni_vp == NULL) {
 		/*
@@ -1991,6 +1992,15 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 	}
 	if (!nd->nd_repstat) {
 		if (ndp->ni_vp == NULL) {
+			/*
+			 * Most file systems ignore va_flags for
+			 * VOP_CREATE(), however setting va_flags
+			 * for VOP_CREATE() causes problems for ZFS.
+			 * So disable them and let nfsrv_fixattr()
+			 * do them, as required.
+			 */
+			savflags = nvap->na_flags;
+			nvap->na_flags = VNOVAL;
 			nd->nd_repstat = VOP_CREATE(ndp->ni_dvp,
 			    &ndp->ni_vp, &ndp->ni_cnd, &nvap->na_vattr);
 			/* For a pNFS server, create the data file on a DS. */
@@ -2003,6 +2013,7 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 				nfsrv_pnfscreate(ndp->ni_vp, &nvap->na_vattr,
 				    cred, p);
 			}
+			nvap->na_flags = savflags;
 			VOP_VPUT_PAIR(ndp->ni_dvp, nd->nd_repstat == 0 ?
 			    &ndp->ni_vp : NULL, false);
 			nfsvno_relpathbuf(ndp);

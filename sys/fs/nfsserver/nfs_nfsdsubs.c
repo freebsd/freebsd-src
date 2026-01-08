@@ -1697,6 +1697,44 @@ nfsrv_fixattr(struct nfsrv_descript *nd, vnode_t vp,
 			NFSCLRBIT_ATTRBIT(attrbitp, NFSATTRBIT_OWNERGROUP);
 		}
 	}
+
+	/*
+	 * For archive, ZFS sets it by default for new files,
+	 * so if specified, it must be set or cleared.
+	 * For hidden and system, no file system sets them
+	 * by default upon creation, so they only need to be
+	 * set and not cleared.
+	 */
+	if (NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_ARCHIVE)) {
+		if (nva.na_flags == VNOVAL)
+			nva.na_flags = 0;
+		if ((nvap->na_flags & UF_ARCHIVE) != 0)
+			nva.na_flags |= UF_ARCHIVE;
+		change++;
+		NFSSETBIT_ATTRBIT(&nattrbits, NFSATTRBIT_ARCHIVE);
+	}
+	if (NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_HIDDEN)) {
+		if ((nvap->na_flags & UF_HIDDEN) != 0) {
+			if (nva.na_flags == VNOVAL)
+				nva.na_flags = 0;
+			nva.na_flags |= UF_HIDDEN;
+			change++;
+			NFSSETBIT_ATTRBIT(&nattrbits, NFSATTRBIT_HIDDEN);
+		} else {
+			NFSCLRBIT_ATTRBIT(attrbitp, NFSATTRBIT_HIDDEN);
+		}
+	}
+	if (NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_SYSTEM)) {
+		if ((nvap->na_flags & UF_SYSTEM) != 0) {
+			if (nva.na_flags == VNOVAL)
+				nva.na_flags = 0;
+			nva.na_flags |= UF_SYSTEM;
+			change++;
+			NFSSETBIT_ATTRBIT(&nattrbits, NFSATTRBIT_SYSTEM);
+		} else {
+			NFSCLRBIT_ATTRBIT(attrbitp, NFSATTRBIT_SYSTEM);
+		}
+	}
 	if (change) {
 		error = nfsvno_setattr(vp, &nva, nd->nd_cred, p, exp);
 		if (error) {
