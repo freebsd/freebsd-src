@@ -1,0 +1,42 @@
+.\" Copyright (c) 2026 Netflix, Inc
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd December 26, 2025
+.Dt DTRACE_CAM 4
+.Os
+.Sh NAME
+.Nm dtrace_cam
+.Nd a DTrace provider for tracing events related to CAM
+.Sh SYNOPSIS
+.Fn cam::xpt:action "union ccb *ccn"
+.Fn cam::xpt:done "union ccb *ccb"
+.Fn cam::xpt:async-cb "void *cbarg" "uint32_t async_code" "struct cam_path *path" "void *async_Arg"
+.Sh DESCRIPTION
+The
+.Nm cam
+provider allows the tracing of CAM events.
+The
+.Fn cam::xpt_action
+probe fires when a CAM Control Block (ccb) is submitted to a CAM SIM driver.
+The
+.Fn cam::xpt:done
+probe fires when that request completes.
+The
+.Fn cam::xpt:async-cb
+probe fires just before an async callback is called.
+.Sh ARGUMENTS
+.Sh FILES
+.Sh EXAMPLES
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr SDT 9
+.Sh HISTORY
+The
+.Nm cam
+provider first appeared in
+.Fx
+15.1 and 16.0.
+.Sh AUTHORS
+This manual page was written by
+.An Warner Losh Aq Mt imp@FreeBSD.org .
