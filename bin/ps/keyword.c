@@ -35,10 +35,10 @@
  */
 
 #include <sys/param.h>
-#include <sys/time.h>
-#include <sys/resource.h>
 #include <sys/proc.h>
+#include <sys/resource.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
 #include <sys/user.h>
 
 #include <assert.h>
