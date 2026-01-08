@@ -324,7 +324,8 @@ device		bpf			# Berkeley packet filter
 
 # random(4)
 device		rdrand_rng		# Intel Bull Mountain RNG
-device		tpm			# Trusted Platform Module
+# Disabled for now since tpm(4) breaks suspend/resume.
+#device		tpm			# Trusted Platform Module
 options 	RANDOM_ENABLE_TPM	# enable entropy from TPM 2.0
 options 	RANDOM_ENABLE_KBD
 options 	RANDOM_ENABLE_MOUSE
