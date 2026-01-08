@@ -39,7 +39,14 @@ fi
 
 LOG="${security_status_logdir}"
 
-yesterday=`date -v-1d "+%b %e "`
+# Support both RFC 3164 (traditional) and RFC 5424 syslog timestamps.
+yesterday_3164="$(date -v-1d '+%b %e ')"
+prefix_3164="^${yesterday_3164}"
+
+yesterday_5424="$(date -v-1d -I)"
+prefix_5424="^<[0-9]{1,3}>1 ${yesterday_5424}T"
+
+prefix="(${prefix_3164}|${prefix_5424})"
 
 catmsgs() {
 	find ${LOG} -name 'messages.*' -mtime -2 |
@@ -57,7 +64,7 @@ if check_yesno_period security_status_tcpwrap_enable
 then
 	echo ""
 	echo "${host} refused connections:"
-	n=$(catmsgs | grep -i "^$yesterday.*refused connect" |
+	n=$(catmsgs | egrep -ia "${prefix}.*refused connect" |
 	    tee /dev/stderr | wc -l)
 	[ $n -gt 0 ] && rc=1 || rc=0
 fi
