@@ -924,9 +924,9 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 
 	q = td->td_proc;
 
-	if (status)
+	if (status != NULL)
 		*status = KW_EXITCODE(p->p_xexit, p->p_xsig);
-	if (options & WNOWAIT) {
+	if ((options & WNOWAIT) != 0) {
 		/*
 		 *  Only poll, returning the status.  Caller does not wish to
 		 * release the proc struct just yet.
@@ -1114,7 +1114,7 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 		return (0);
 	}
 
-	if (((options & WEXITED) == 0) && (p->p_state == PRS_ZOMBIE)) {
+	if ((options & WEXITED) == 0 && p->p_state == PRS_ZOMBIE) {
 		PROC_UNLOCK(p);
 		return (0);
 	}
@@ -1351,12 +1351,11 @@ loop_locked:
 			    (p->p_flag & P_WAITED) == 0);
 			PROC_SUNLOCK(p);
 			if (report) {
-			CTR4(KTR_PTRACE,
-			    "wait: returning trapped pid %d status %#x "
-			    "(xstat %d) xthread %d",
-			    p->p_pid, W_STOPCODE(p->p_xsig), p->p_xsig,
-			    p->p_xthread != NULL ?
-			    p->p_xthread->td_tid : -1);
+				CTR4(KTR_PTRACE,
+	    "wait: returning trapped pid %d status %#x (xstat %d) xthread %d",
+				    p->p_pid, W_STOPCODE(p->p_xsig), p->p_xsig,
+				    p->p_xthread != NULL ?
+				    p->p_xthread->td_tid : -1);
 				report_alive_proc(td, p, siginfo, status,
 				    options, CLD_TRAPPED);
 				return (0);
@@ -1412,20 +1411,20 @@ loop_locked:
 		sx_xunlock(&proctree_lock);
 		return (ECHILD);
 	}
-	if (options & WNOHANG) {
+	if ((options & WNOHANG) != 0) {
 		sx_xunlock(&proctree_lock);
 		td->td_retval[0] = 0;
 		return (0);
 	}
 	PROC_LOCK(q);
-	if (q->p_flag & P_STATCHILD) {
+	if ((q->p_flag & P_STATCHILD) != 0) {
 		q->p_flag &= ~P_STATCHILD;
 		PROC_UNLOCK(q);
 		goto loop_locked;
 	}
 	sx_xunlock(&proctree_lock);
 	error = msleep(q, &q->p_mtx, PWAIT | PCATCH | PDROP, "wait", 0);
-	if (error)
+	if (error != 0)
 		return (error);
 	goto loop;
 }
