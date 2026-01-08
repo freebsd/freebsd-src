@@ -432,9 +432,10 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 #if defined(LOADER_FDT_SUPPORT)
 	if (dtb_size)
 		file_addmetadata(kfp, MODINFOMD_DTBP, sizeof(dtbp), &dtbp);
-	else
+	else if (getenv("acpi.revision") == NULL) {
 		printf("WARNING! Trying to fire up the kernel, but no "
 		    "device tree blob found!\n");
+	}
 #endif
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof(kernend), &kernend);
 #ifdef MODINFOMD_MODULEP
