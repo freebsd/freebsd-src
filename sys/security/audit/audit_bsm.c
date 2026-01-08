@@ -1365,6 +1365,24 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			kau_write(rec, tok);
 		}
 		break;
+	case AUE_PDRFORK:
+		if (ARG_IS_VALID(kar, ARG_PID)) {
+			tok = au_to_arg32(0, "child PID", ar->ar_arg_pid);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_CMD)) {
+			tok = au_to_arg32(2, "fflags", ar->ar_arg_cmd);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_FFLAGS)) {
+			tok = au_to_arg32(2, "flags", ar->ar_arg_fflags);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_FD)) {
+			tok = au_to_arg32(1, "fd", ar->ar_arg_fd);
+			kau_write(rec, tok);
+		}
+		break;
 	case AUE_PDGETPID:
 		if (ARG_IS_VALID(kar, ARG_FD)) {
 			tok = au_to_arg32(1, "fd", ar->ar_arg_fd);
