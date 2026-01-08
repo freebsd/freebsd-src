@@ -62,6 +62,24 @@ void vcpu_notify_event(struct vcpu *vcpu);
 void vcpu_notify_event_locked(struct vcpu *vcpu);
 int vcpu_debugged(struct vcpu *vcpu);
 
+static inline void *
+vcpu_stats(struct vcpu *vcpu)
+{
+	return (vcpu->stats);
+}
+
+static inline struct vm *
+vcpu_vm(struct vcpu *vcpu)
+{
+	return (vcpu->vm);
+}
+
+static inline int
+vcpu_vcpuid(struct vcpu *vcpu)
+{
+	return (vcpu->vcpuid);
+}
+
 static int __inline
 vcpu_is_running(struct vcpu *vcpu, int *hostcpu)
 {
@@ -161,6 +179,55 @@ void vm_get_topology(struct vm *vm, uint16_t *sockets, uint16_t *cores,
     uint16_t *threads, uint16_t *maxcpus);
 int vm_set_topology(struct vm *vm, uint16_t sockets, uint16_t cores,
     uint16_t threads, uint16_t maxcpus);
+
+static inline const char *
+vm_name(struct vm *vm)
+{
+	return (vm->name);
+}
+
+static inline struct vm_mem *
+vm_mem(struct vm *vm)
+{
+	return (&vm->mem);
+}
+
+static inline struct vcpu *
+vm_vcpu(struct vm *vm, int vcpuid)
+{
+	return (vm->vcpu[vcpuid]);
+}
+
+struct vm_eventinfo {
+	cpuset_t *rptr;		/* rendezvous cookie */
+	int	*sptr;		/* suspend cookie */
+	int	*iptr;		/* reqidle cookie */
+};
+
+static inline int
+vcpu_rendezvous_pending(struct vcpu *vcpu, struct vm_eventinfo *info)
+{
+	/*
+	 * This check isn't done with atomic operations or under a lock because
+	 * there's no need to. If the vcpuid bit is set, the vcpu is part of a
+	 * rendezvous and the bit won't be cleared until the vcpu enters the
+	 * rendezvous. On rendezvous exit, the cpuset is cleared and the vcpu
+	 * will see an empty cpuset. So, the races are harmless.
+	 */
+	return (CPU_ISSET(vcpu_vcpuid(vcpu), info->rptr));
+}
+
+static inline int
+vcpu_suspended(struct vm_eventinfo *info)
+{
+	return (*info->sptr);
+}
+
+static inline int
+vcpu_reqidle(struct vm_eventinfo *info)
+{
+	return (*info->iptr);
+}
 #endif /* _KERNEL */
 
 #endif /* !_DEV_VMM_VM_H_ */

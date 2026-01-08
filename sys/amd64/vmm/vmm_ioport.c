@@ -33,6 +33,7 @@
 #include <machine/vmm_instruction_emul.h>
 
 #include <dev/vmm/vmm_ktr.h>
+#include <dev/vmm/vmm_vm.h>
 
 #include "vatpic.h"
 #include "vatpit.h"

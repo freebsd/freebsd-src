@@ -32,6 +32,8 @@
 #ifndef _DEV_VMM_STAT_H_
 #define	_DEV_VMM_STAT_H_
 
+#include <dev/vmm/vmm_vm.h>
+
 struct vm;
 
 #define	MAX_VMM_STAT_ELEMS	64		/* arbitrary */
