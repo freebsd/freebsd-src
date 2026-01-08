@@ -37,10 +37,12 @@
 #include "opt_ktrace.h"
 #include "opt_kstack_pages.h"
 
+#define EXTERR_CATEGORY	EXTERR_CAT_FORK
 #include <sys/systm.h>
 #include <sys/acct.h>
 #include <sys/bitstring.h>
 #include <sys/eventhandler.h>
+#include <sys/exterrvar.h>
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
 #include <sys/jail.h>
@@ -164,10 +166,11 @@ sys_rfork(struct thread *td, struct rfork_args *uap)
 
 	/* Don't allow kernel-only flags. */
 	if ((uap->flags & RFKERNELONLY) != 0)
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "Kernel-only flags %#jx", uap->flags));
 	/* RFSPAWN must not appear with others */
 	if ((uap->flags & RFSPAWN) != 0 && uap->flags != RFSPAWN)
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "RFSPAWN must be the only flag %#jx",
+		    uap->flags));
 
 	AUDIT_ARG_FFLAGS(uap->flags);
 	bzero(&fr, sizeof(fr));
@@ -869,34 +872,32 @@ fork1(struct thread *td, struct fork_req *fr)
 	else
 		MPASS(fr->fr_procp == NULL);
 
-	/* Check for the undefined or unimplemented flags. */
 	if ((flags & ~(RFFLAGS | RFTSIGFLAGS(RFTSIGMASK))) != 0)
-		return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "Undef or unimplemented flags %#jx", flags));
 
-	/* Signal value requires RFTSIGZMB. */
 	if ((flags & RFTSIGFLAGS(RFTSIGMASK)) != 0 && (flags & RFTSIGZMB) == 0)
-		return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "Signal value requires RFTSIGZMB", flags));
 
-	/* Can't copy and clear. */
-	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
-		return (EINVAL);
+	if ((flags & (RFFDG | RFCFDG)) == (RFFDG | RFCFDG))
+		return (EXTERROR(EINVAL, "Can not copy and clear"));
 
-	/* Check the validity of the signal number. */
 	if ((flags & RFTSIGZMB) != 0 && (u_int)RFTSIGNUM(flags) > _SIG_MAXSIG)
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "Invalid signal", RFTSIGNUM(flags)));
 
 	if ((flags & RFPROCDESC) != 0) {
-		/* Can't not create a process yet get a process descriptor. */
 		if ((flags & RFPROC) == 0)
-			return (EINVAL);
+			return (EXTERROR(EINVAL,
+	    "Can not not create a process yet get a process descriptor"));
 
-		/* Must provide a place to put a procdesc if creating one. */
 		if (fr->fr_pd_fd == NULL)
-			return (EINVAL);
+			return (EXTERROR(EINVAL,
+		    "Must provide a place to put a procdesc if creating one"));
 
-		/* Check if we are using supported flags. */
 		if ((fr->fr_pd_flags & ~PD_ALLOWED_AT_FORK) != 0)
-			return (EINVAL);
+			return (EXTERROR(EINVAL,
+			    "Invallid pdflags at fork %#jx", fr->fr_pd_flags));
 	}
 
 	p1 = td->td_proc;
