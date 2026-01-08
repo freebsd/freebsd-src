@@ -57,7 +57,6 @@
 #include <machine/vmparam.h>
 #include <machine/intr.h>
 #include <machine/vmm.h>
-#include <machine/vmm_dev.h>
 #include <machine/vmm_instruction_emul.h>
 
 #include <arm/arm/gic_common.h>
@@ -68,6 +67,8 @@
 #include <arm64/vmm/mmu.h>
 #include <arm64/vmm/arm64.h>
 #include <arm64/vmm/vmm_handlers.h>
+
+#include <dev/vmm/vmm_dev.h>
 
 #include "vgic.h"
 #include "vgic_v3.h"

@@ -53,13 +53,13 @@
 #include <machine/vmparam.h>
 
 #include <machine/vmm.h>
-#include <machine/vmm_dev.h>
 #include <machine/vmm_instruction_emul.h>
 #include <machine/vmm_snapshot.h>
 
 #include <dev/vmm/vmm_dev.h>
 #include <dev/vmm/vmm_ktr.h>
 #include <dev/vmm/vmm_mem.h>
+#include <dev/vmm/vmm_vm.h>
 
 #include "vmm_lapic.h"
 #include "vmm_host.h"

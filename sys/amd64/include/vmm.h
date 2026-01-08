@@ -123,6 +123,33 @@ enum x2apic_state {
 #define	VM_INTINFO_SWINTR	(4 << 8)
 
 #ifdef _KERNEL
+#define	VMM_VCPU_MD_FIELDS						\
+	struct vlapic	*vlapic;	/* (i) APIC device model */	\
+	enum x2apic_state x2apic_state;	/* (i) APIC mode */		\
+	uint64_t	exitintinfo;	/* (i) events pending at VM exit */ \
+	int		nmi_pending;	/* (i) NMI pending */		\
+	int		extint_pending;	/* (i) INTR pending */		\
+	int		exception_pending; /* (i) exception pending */	\
+	int		exc_vector;	/* (x) exception collateral */	\
+	int		exc_errcode_valid;				\
+	uint32_t	exc_errcode;					\
+	struct savefpu	*guestfpu;	/* (a,i) guest fpu state */	\
+	uint64_t	guest_xcr0;	/* (i) guest %xcr0 register */	\
+	struct vm_exit	exitinfo;	/* (x) exit reason and collateral */ \
+	cpuset_t	exitinfo_cpuset; /* (x) storage for vmexit handlers */ \
+	uint64_t	nextrip;	/* (x) next instruction to execute */ \
+	uint64_t	tsc_offset	/* (o) TSC offsetting */
+
+#define	VMM_VM_MD_FIELDS						\
+	cpuset_t	startup_cpus;	/* (i) [r] waiting for startup */ \
+	void		*iommu;		/* (x) iommu-specific data */	\
+	struct vioapic	*vioapic;	/* (i) virtual ioapic */	\
+	struct vatpic	*vatpic;	/* (i) virtual atpic */		\
+	struct vatpit	*vatpit;	/* (i) virtual atpit */		\
+	struct vpmtmr	*vpmtmr;	/* (i) virtual ACPI PM timer */	\
+	struct vrtc	*vrtc;		/* (o) virtual RTC */		\
+	struct vhpet	*vhpet		/* (i) virtual HPET */
+
 struct vm;
 struct vm_exception;
 struct vm_mem;
@@ -325,34 +352,6 @@ int vcpu_debugged(struct vcpu *vcpu);
 bool vmm_is_pptdev(int bus, int slot, int func);
 
 void *vm_iommu_domain(struct vm *vm);
-
-enum vcpu_state {
-	VCPU_IDLE,
-	VCPU_FROZEN,
-	VCPU_RUNNING,
-	VCPU_SLEEPING,
-};
-
-int vcpu_set_state(struct vcpu *vcpu, enum vcpu_state state, bool from_idle);
-int vcpu_set_state_all(struct vm *vm, enum vcpu_state state);
-enum vcpu_state vcpu_get_state(struct vcpu *vcpu, int *hostcpu);
-
-static int __inline
-vcpu_is_running(struct vcpu *vcpu, int *hostcpu)
-{
-	return (vcpu_get_state(vcpu, hostcpu) == VCPU_RUNNING);
-}
-
-#ifdef _SYS_PROC_H_
-static int __inline
-vcpu_should_yield(struct vcpu *vcpu)
-{
-	struct thread *td;
-
-	td = curthread;
-	return (td->td_ast != 0 || td->td_owepreempt != 0);
-}
-#endif
 
 void *vcpu_stats(struct vcpu *vcpu);
 void vcpu_notify_event(struct vcpu *vcpu);

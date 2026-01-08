@@ -33,6 +33,7 @@
 #include <dev/vmm/vmm_dev.h>
 #include <dev/vmm/vmm_mem.h>
 #include <dev/vmm/vmm_stat.h>
+#include <dev/vmm/vmm_vm.h>
 
 #ifdef __amd64__
 #ifdef COMPAT_FREEBSD12
