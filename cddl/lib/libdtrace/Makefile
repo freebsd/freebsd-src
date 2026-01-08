@@ -51,7 +51,8 @@ SRCS=		dt_aggregate.c \
 		dt_xlator.c \
 		gmatch.c
 
-DSRCS=		errno.d			\
+DSRCS=		cam.d			\
+		errno.d			\
 		io.d			\
 		ip.d			\
 		psinfo.d		\
