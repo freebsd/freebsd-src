@@ -420,10 +420,8 @@ TAILQ_HEAD(cache_freebatch, namecache);
  */
 #ifdef __LP64__
 #define	CACHE_PATH_CUTOFF	45
-#define	CACHE_LARGE_PAD		6
 #else
 #define	CACHE_PATH_CUTOFF	41
-#define	CACHE_LARGE_PAD		2
 #endif
 
 #define CACHE_ZONE_SMALL_SIZE						\
@@ -431,7 +429,8 @@ TAILQ_HEAD(cache_freebatch, namecache);
 #define CACHE_ZONE_SMALL_TS_SIZE					\
     (offsetof(struct namecache_ts, nc_nc) + CACHE_ZONE_SMALL_SIZE)
 #define CACHE_ZONE_LARGE_SIZE						\
-    (offsetof(struct namecache, nc_name) + NAME_MAX + 1 + CACHE_LARGE_PAD)
+    roundup2(offsetof(struct namecache, nc_name) + NAME_MAX + 1,	\
+    _Alignof(struct namecache_ts))
 #define CACHE_ZONE_LARGE_TS_SIZE					\
     (offsetof(struct namecache_ts, nc_nc) + CACHE_ZONE_LARGE_SIZE)
 
