@@ -477,61 +477,6 @@ typedef struct if_rxsd {
 	iflib_fl_t ifsd_fl;
 } *if_rxsd_t;
 
-/* multiple of word size */
-#ifdef __LP64__
-#define PKT_INFO_SIZE	6
-#define RXD_INFO_SIZE	5
-#define PKT_TYPE uint64_t
-#else
-#define PKT_INFO_SIZE	11
-#define RXD_INFO_SIZE	8
-#define PKT_TYPE uint32_t
-#endif
-#define PKT_LOOP_BOUND	((PKT_INFO_SIZE / 3) * 3)
-#define RXD_LOOP_BOUND	((RXD_INFO_SIZE / 4) * 4)
-
-typedef struct if_pkt_info_pad {
-	PKT_TYPE pkt_val[PKT_INFO_SIZE];
-} *if_pkt_info_pad_t;
-typedef struct if_rxd_info_pad {
-	PKT_TYPE rxd_val[RXD_INFO_SIZE];
-} *if_rxd_info_pad_t;
-
-CTASSERT(sizeof(struct if_pkt_info_pad) == sizeof(struct if_pkt_info));
-CTASSERT(sizeof(struct if_rxd_info_pad) == sizeof(struct if_rxd_info));
-
-static inline void
-pkt_info_zero(if_pkt_info_t pi)
-{
-	if_pkt_info_pad_t pi_pad;
-
-	pi_pad = (if_pkt_info_pad_t)pi;
-	pi_pad->pkt_val[0] = 0; pi_pad->pkt_val[1] = 0; pi_pad->pkt_val[2] = 0;
-	pi_pad->pkt_val[3] = 0; pi_pad->pkt_val[4] = 0; pi_pad->pkt_val[5] = 0;
-#ifndef __LP64__
-	pi_pad->pkt_val[6] = 0; pi_pad->pkt_val[7] = 0; pi_pad->pkt_val[8] = 0;
-	pi_pad->pkt_val[9] = 0; pi_pad->pkt_val[10] = 0;
-#endif
-}
-
-static inline void
-rxd_info_zero(if_rxd_info_t ri)
-{
-	if_rxd_info_pad_t ri_pad;
-	int i;
-
-	ri_pad = (if_rxd_info_pad_t)ri;
-	for (i = 0; i < RXD_LOOP_BOUND; i += 4) {
-		ri_pad->rxd_val[i] = 0;
-		ri_pad->rxd_val[i + 1] = 0;
-		ri_pad->rxd_val[i + 2] = 0;
-		ri_pad->rxd_val[i + 3] = 0;
-	}
-#ifdef __LP64__
-	ri_pad->rxd_val[RXD_INFO_SIZE - 1] = 0;
-#endif
-}
-
 /*
  * Only allow a single packet to take up most 1/nth of the tx ring
  */
@@ -1040,7 +985,7 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 	if (nm_i != head) {	/* we have new packets to send */
 		uint32_t pkt_len = 0, seg_idx = 0;
 		int nic_i_start = -1, flags = 0;
-		pkt_info_zero(&pi);
+		memset(&pi, 0, sizeof(pi));
 		pi.ipi_segs = txq->ift_segs;
 		pi.ipi_qsidx = kring->ring_id;
 		nic_i = netmap_idx_k2n(kring, nm_i);
@@ -1233,7 +1178,7 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 		nm_i = netmap_idx_n2k(kring, nic_i);
 		MPASS(nm_i == kring->nr_hwtail);
 		for (n = 0; avail > 0 && nm_i != hwtail_lim; n++, avail--) {
-			rxd_info_zero(&ri);
+			memset(&ri, 0, sizeof(ri));
 			ri.iri_frags = rxq->ifr_frags;
 			ri.iri_qsidx = kring->ring_id;
 			ri.iri_ifp = ctx->ifc_ifp;
@@ -2957,7 +2902,7 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		/*
 		 * Reset client set fields to their default values
 		 */
-		rxd_info_zero(&ri);
+		memset(&ri, 0, sizeof(ri));
 		ri.iri_qsidx = rxq->ifr_id;
 		ri.iri_cidx = *cidxp;
 		ri.iri_ifp = ifp;
@@ -3572,7 +3517,7 @@ iflib_encap(iflib_txq_t txq, struct mbuf **m_headp)
 	}
 	m_head = *m_headp;
 
-	pkt_info_zero(&pi);
+	memset(&pi, 0, sizeof(pi));
 	pi.ipi_mflags = (m_head->m_flags & (M_VLANTAG | M_BCAST | M_MCAST));
 	pi.ipi_pidx = pidx;
 	pi.ipi_qsidx = txq->ift_id;
@@ -4223,7 +4168,7 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 	if (ctx->isc_txq_select_v2) {
 		struct if_pkt_info pi;
 		uint64_t early_pullups = 0;
-		pkt_info_zero(&pi);
+		memset(&pi, 0, sizeof(pi));
 
 		err = iflib_parse_header_partial(&pi, &m, &early_pullups);
 		if (__predict_false(err != 0)) {
