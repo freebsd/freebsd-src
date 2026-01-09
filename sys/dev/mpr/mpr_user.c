@@ -59,7 +59,6 @@
  * Broadcom Inc. (LSI) MPT-Fusion Host Adapter FreeBSD
  */
 
-#include <sys/cdefs.h>
 /* TODO Move headers to mprvar */
 #include <sys/types.h>
 #include <sys/param.h>

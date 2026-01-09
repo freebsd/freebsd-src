@@ -29,7 +29,6 @@
  * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
  */
 
-#include <sys/cdefs.h>
 /* TODO Move headers to mpsvar */
 #include <sys/types.h>
 #include <sys/param.h>

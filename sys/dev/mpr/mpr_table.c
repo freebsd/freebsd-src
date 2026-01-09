@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /* Debugging tables for MPT2 */
 
 /* TODO Move headers to mprvar */
