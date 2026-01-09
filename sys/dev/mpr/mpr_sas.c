@@ -30,7 +30,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 /* Communications core for Avago Technologies (LSI) MPT3 */
 
 /* TODO Move headers to mprvar */
