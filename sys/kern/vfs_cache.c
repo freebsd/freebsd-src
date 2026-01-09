@@ -384,14 +384,10 @@ struct	namecache {
 };
 
 /*
- * struct namecache_ts repeats struct namecache layout up to the
- * nc_nlen member.
  * struct namecache_ts is used in place of struct namecache when time(s) need
  * to be stored.  The nc_dotdottime field is used when a cache entry is mapping
  * both a non-dotdot directory name plus dotdot for the directory's
  * parent.
- *
- * See below for alignment requirement.
  */
 struct	namecache_ts {
 	struct	timespec nc_time;	/* timespec provided by fs */
@@ -404,12 +400,10 @@ struct	namecache_ts {
 TAILQ_HEAD(cache_freebatch, namecache);
 
 /*
- * At least mips n32 performs 64-bit accesses to timespec as found
- * in namecache_ts and requires them to be aligned. Since others
- * may be in the same spot suffer a little bit and enforce the
- * alignment for everyone. Note this is a nop for 64-bit platforms.
+ * Ensure all zones are sufficently aligned to hold both
+ * struct namecache and struct namecache_ts.
  */
-#define CACHE_ZONE_ALIGNMENT	UMA_ALIGNOF(time_t)
+#define CACHE_ZONE_ALIGN_MASK	UMA_ALIGNOF(struct namecache_ts)
 
 /*
  * TODO: the initial value of CACHE_PATH_CUTOFF was inherited from the
@@ -432,15 +426,23 @@ TAILQ_HEAD(cache_freebatch, namecache);
 #define	CACHE_LARGE_PAD		2
 #endif
 
-#define CACHE_ZONE_SMALL_SIZE		(offsetof(struct namecache, nc_name) + CACHE_PATH_CUTOFF + 1)
-#define CACHE_ZONE_SMALL_TS_SIZE	(offsetof(struct namecache_ts, nc_nc) + CACHE_ZONE_SMALL_SIZE)
-#define CACHE_ZONE_LARGE_SIZE		(offsetof(struct namecache, nc_name) + NAME_MAX + 1 + CACHE_LARGE_PAD)
-#define CACHE_ZONE_LARGE_TS_SIZE	(offsetof(struct namecache_ts, nc_nc) + CACHE_ZONE_LARGE_SIZE)
+#define CACHE_ZONE_SMALL_SIZE						\
+    (offsetof(struct namecache, nc_name) + CACHE_PATH_CUTOFF + 1)
+#define CACHE_ZONE_SMALL_TS_SIZE					\
+    (offsetof(struct namecache_ts, nc_nc) + CACHE_ZONE_SMALL_SIZE)
+#define CACHE_ZONE_LARGE_SIZE						\
+    (offsetof(struct namecache, nc_name) + NAME_MAX + 1 + CACHE_LARGE_PAD)
+#define CACHE_ZONE_LARGE_TS_SIZE					\
+    (offsetof(struct namecache_ts, nc_nc) + CACHE_ZONE_LARGE_SIZE)
 
-_Static_assert((CACHE_ZONE_SMALL_SIZE % (CACHE_ZONE_ALIGNMENT + 1)) == 0, "bad zone size");
-_Static_assert((CACHE_ZONE_SMALL_TS_SIZE % (CACHE_ZONE_ALIGNMENT + 1)) == 0, "bad zone size");
-_Static_assert((CACHE_ZONE_LARGE_SIZE % (CACHE_ZONE_ALIGNMENT + 1)) == 0, "bad zone size");
-_Static_assert((CACHE_ZONE_LARGE_TS_SIZE % (CACHE_ZONE_ALIGNMENT + 1)) == 0, "bad zone size");
+_Static_assert((CACHE_ZONE_SMALL_SIZE % (CACHE_ZONE_ALIGN_MASK + 1)) == 0,
+    "bad zone size");
+_Static_assert((CACHE_ZONE_SMALL_TS_SIZE % (CACHE_ZONE_ALIGN_MASK + 1)) == 0,
+    "bad zone size");
+_Static_assert((CACHE_ZONE_LARGE_SIZE % (CACHE_ZONE_ALIGN_MASK + 1)) == 0,
+    "bad zone size");
+_Static_assert((CACHE_ZONE_LARGE_TS_SIZE % (CACHE_ZONE_ALIGN_MASK + 1)) == 0,
+    "bad zone size");
 
 #define	nc_vp		n_un.nu_vp
 #define	nc_neg		n_un.nu_neg
@@ -2785,13 +2787,13 @@ nchinit(void *dummy __unused)
 	u_int i;
 
 	cache_zone_small = uma_zcreate("S VFS Cache", CACHE_ZONE_SMALL_SIZE,
-	    NULL, NULL, NULL, NULL, CACHE_ZONE_ALIGNMENT, UMA_ZONE_ZINIT);
+	    NULL, NULL, NULL, NULL, CACHE_ZONE_ALIGN_MASK, UMA_ZONE_ZINIT);
 	cache_zone_small_ts = uma_zcreate("STS VFS Cache", CACHE_ZONE_SMALL_TS_SIZE,
-	    NULL, NULL, NULL, NULL, CACHE_ZONE_ALIGNMENT, UMA_ZONE_ZINIT);
+	    NULL, NULL, NULL, NULL, CACHE_ZONE_ALIGN_MASK, UMA_ZONE_ZINIT);
 	cache_zone_large = uma_zcreate("L VFS Cache", CACHE_ZONE_LARGE_SIZE,
-	    NULL, NULL, NULL, NULL, CACHE_ZONE_ALIGNMENT, UMA_ZONE_ZINIT);
+	    NULL, NULL, NULL, NULL, CACHE_ZONE_ALIGN_MASK, UMA_ZONE_ZINIT);
 	cache_zone_large_ts = uma_zcreate("LTS VFS Cache", CACHE_ZONE_LARGE_TS_SIZE,
-	    NULL, NULL, NULL, NULL, CACHE_ZONE_ALIGNMENT, UMA_ZONE_ZINIT);
+	    NULL, NULL, NULL, NULL, CACHE_ZONE_ALIGN_MASK, UMA_ZONE_ZINIT);
 
 	VFS_SMR_ZONE_SET(cache_zone_small);
 	VFS_SMR_ZONE_SET(cache_zone_small_ts);
