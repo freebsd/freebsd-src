@@ -92,6 +92,7 @@ device		al_eth		# Annapurna Alpine Ethernet NIC
 device  	dwc		# Synopsys Designware GMAC Ethernet
 device		dwc_rk		# Rockchip Designware
 device		dwc_socfpga	# Altera SOCFPGA Ethernet MAC
+device		ixl		# Intel 700 Series Physical Function
 device		ice		# Intel 800 Series Physical Function
 device		ice_ddp		# Intel 800 Series DDP Package
 
