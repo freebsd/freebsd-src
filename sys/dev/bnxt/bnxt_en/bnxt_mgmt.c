@@ -387,15 +387,18 @@ bnxt_mgmt_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 	int ret = 0;
 	
 	switch(cmd) {
-	case BNXT_MGMT_OPCODE_GET_DEV_INFO:
+	case IO_BNXT_MGMT_OPCODE_GET_DEV_INFO:
+	case IOW_BNXT_MGMT_OPCODE_GET_DEV_INFO:
 		ret = bnxt_mgmt_get_dev_info(dev, cmd, data, flag, td);
 		break;
-	case BNXT_MGMT_OPCODE_PASSTHROUGH_HWRM:
+	case IO_BNXT_MGMT_OPCODE_PASSTHROUGH_HWRM:
+	case IOW_BNXT_MGMT_OPCODE_PASSTHROUGH_HWRM:
 		mtx_lock(&mgmt_lock);
 		ret = bnxt_mgmt_process_hwrm(dev, cmd, data, flag, td);
 		mtx_unlock(&mgmt_lock);
 		break;
-	case BNXT_MGMT_OPCODE_DCB_OPS:
+	case IO_BNXT_MGMT_OPCODE_DCB_OPS:
+	case IOW_BNXT_MGMT_OPCODE_DCB_OPS:
 		ret = bnxt_mgmt_process_dcb(dev, cmd, data, flag, td);
 		break;
 	default:
