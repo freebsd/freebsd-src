@@ -387,7 +387,7 @@ vnet_enc_init(const void *unused __unused)
 	ifc_create_ifp(encname, &ifd, &ifp);
 	V_enc_sc = ifp->if_softc;
 }
-VNET_SYSINIT(vnet_enc_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
+VNET_SYSINIT(vnet_enc_init, SI_SUB_PROTO_IF, SI_ORDER_ANY,
     vnet_enc_init, NULL);
 
 static void
