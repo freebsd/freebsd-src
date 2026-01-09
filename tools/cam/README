@@ -7,3 +7,11 @@ therefore I/O and other traffic to storage media) that written during covid, but
 with fbp providers that recent clang optimizations make unuseable, hence the
 shift to the cam provider, but retooling them and finishing the grammar will
 take some time (but these scripts are useful today).
+
+mpr.d and mps.d give insight into the completion path for the mpr and mps SIMs.
+You really have to read through the driver to understand, but it's the central
+point of the driver and most of the I/O already had the proper CAM status code,
+but the reset does not. These scripts use the generic completion hook to show
+the exceptional cases (many of which have printfs that can be enabled, but often
+aren't). The completion hook should give one enough tools to puzzle out what's
+going on for weird, but repeatable problems.
