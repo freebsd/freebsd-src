@@ -64,7 +64,7 @@ struct acpi_softc {
     enum power_stype	acpi_lid_switch_stype;
 
     int			acpi_standby_sx;
-    int			acpi_s4bios;
+    bool		acpi_s4bios;
 
     int			acpi_sleep_delay;
     int			acpi_do_disable;
