@@ -10,6 +10,38 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+493d26c58e73:
+	The aq(4) driver was added, imported from the vendor repository.
+	This provides support for Aquantia / Marvell PCIe 1/2.5/5/10 Gigabit
+	Ethernet adapters (AQC107, AQC108, AQC109, AQC111, AQC112).
+
+1a7151f79664:
+	A new CAM provider was added to dtrace.  This enables tracing of I/O
+	requests through the CAM layer without relying on fragile function
+	boundary tracing.  See dtrace_cam(4) for details.
+
+b8c99e7d912f:
+	The tdestroy(3) function was added to libc.  The tdestroy() function
+	destroys a whole search tree, freeing all allocated nodes.
+
+4bf8ce037dc8:
+	The rge(4) driver was added, ported from OpenBSD.  This provides
+	support for RealTek RTL8125, RTL8126 and RTL8127 PCIe Ethernet
+	controllers.
+
+cbc6f7e941e4:
+	bhyve(8)'s VNC device can now listen on a unix(4) socket for VNC client
+	connections.
+
+39ee24182b92:
+	An rc(8) service can now be started as a specific user for auditing
+	purposes by setting the <service>_audit_user rc.conf(5) variable.
+
+dcb0790bad43:
+	A setaudit(8) utility was added to the base system.  This provides a
+	simple command-line wrapper for the setaudit(2) and setaudit_addr(2)
+	system calls.
+
 8e3fd450cc53, 949cff4dceff, 0e724de9ed6f, 9f49f436a9ec, e35191ccf3b3:
 	Add support for an extension to NFSv4.2 (RFCnnnn) that
 	supports handling of POSIX draft ACLs via getfacl(1)/setfacl(1).
