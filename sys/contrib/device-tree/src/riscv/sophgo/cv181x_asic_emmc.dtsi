@@ -1,4 +1,0 @@
-/ {
-	/delete-node/ cvi-spif@10000000;
-	/delete-node/ cv-spinf@4060000;
-};

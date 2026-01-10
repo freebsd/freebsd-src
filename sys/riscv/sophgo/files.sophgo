@@ -1,2 +1,0 @@
-dev/dwc/if_dwc_cvitek.c			optional fdt dwc_cvitek
-dev/sdhci/sdhci_fdt_cvitek.c		optional fdt sdhci sdhci_cvitek regulator
