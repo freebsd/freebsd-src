@@ -963,3 +963,9 @@ When converting atoi()/atol() to strtol() with validation:
 This file tracks mistakes made during code review to avoid repeating them.
 Each lesson is recorded with timestamp, category, and remediation advice.
 
+
+
+## 2026-01-10 22:06
+### COMPILER: Stale .depend Files and Syntax Error
+- Stale `.depend` files caused build failures; undeclared identifier 'errstr' was a syntax error.
+- Clean build directory with `make clean` before building to remove stale dependencies; correct misspelled identifiers in source code.
