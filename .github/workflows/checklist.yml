@@ -36,11 +36,49 @@ jobs:
               pull_number: context.issue.number
             });
 
+            /* Get owners */
+
+            let owners = [];
+            const { data: ownerData } = await github.rest.repos.getContent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              path: '.github/CODEOWNERS',
+              ref: context.payload.pull_request.base.ref // Or a specific branch
+            });
+            const oc = Buffer.from(ownerData.content, 'base64').toString();
+            owners = oc.split(/\r?\n/)
+              .map(line => line.trim())
+              // Filter out comments and empty lines
+              .filter(line => line && !line.startsWith('#'))
+              .map(line => {
+                // Split by the first block of whitespace to separate path and message
+                 const [path, ...ownerParts] = line.substring(1).split(/\s+/);
+                 return { path, owner: ownerParts.join(' ') };
+            });
+
+            /* Get rules -- maybe refactor to a function for ownerPath too */
+            let rules = [];
+            const { data: rulesData } = await github.rest.repos.getContent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              path: '.github/path-rules.txt',
+              ref: context.payload.pull_request.base.ref // Or a specific branch
+            });
+            const rc = Buffer.from(rulesData.content, 'base64').toString();
+            rules = rc.split(/\r?\n/)
+              .map(line => line.trim())
+              // Filter out comments and empty lines
+              .filter(line => line && !line.startsWith('#'))
+              .map(line => {
+                // Split by the first block of whitespace to separate path and message
+                const [path, ...messageParts] = line.split(/\s+/);
+                return { path, message: messageParts.join(' ') };
+            });
+
             let checklist = {};
             let checklist_len = 0;
             let comment_id = -1;
 
-            const msg_prefix = "Thank you for taking the time to contribute to FreeBSD!\n";
             const addToChecklist = (msg, sha) => {
               if (!checklist[msg]) {
                 checklist[msg] = [];
@@ -72,6 +110,43 @@ jobs:
                 addToChecklist("Real email address is needed", commit.sha);
             }
 
+            /* Check for different paths that have issues and/or owners */
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+            });
+
+            let infolist = {};
+            let infolist_len = 0;
+            const addToInfolist = (msg) => {
+              if (!infolist[msg]) {
+                infolist[msg] = [];
+                infolist_len++;
+              }
+            }
+
+            /* Give advice based on what's in the commit */
+            for (const file of files) {
+              for (const owner of owners) {
+                if (file.filename.startsWith(owner.path)) {
+                  addToInfolist("> [!IMPORTANT]\n> " + owner.owner + " wants to review changes to " + owner.path + "\n");
+                }
+              }
+              for (const rule of rules) {
+                // Consider regexp in the future maybe?
+                if (file.filename.startsWith(rule.path)) {
+                  if (rule.message.startsWith(":caution: ")) {
+                    addToInfolist("> [!CAUTION]\n> " + rule.path + ": " + rule.message.substring(10) + "\n");
+                  } else if (rule.message.startsWith(":warning: ")) {
+                    addToInfolist("> [!WARNING]\n> " + rule.path + ": " + rule.message.substring(10) + "\n");
+                  } else {
+                    addToInfolist("> [!IMPORTANT]\n> " + rule.path + ": " + rule.message + "\n");
+                  }
+                }
+              }
+            }
+
             /* Check if we've commented before. */
             for (const comment of comments) {
               if (comment.user.login == "github-actions[bot]") {
@@ -80,17 +155,28 @@ jobs:
               }
             }
 
-            if (checklist_len != 0) {
-              let msg = msg_prefix +
-                "There " + (checklist_len > 1 ? "are a few issues that need " : "is an issue that needs ") +
-                "to be fixed:\n";
+            const msg_prefix = "Thank you for taking the time to contribute to FreeBSD!\n\n";
+            if (checklist_len != 0 || infolist_len != 0) {
+              let msg = msg_prefix;
               let comment_func = comment_id == -1 ? github.rest.issues.createComment : github.rest.issues.updateComment;
+              if (checklist_len != 0) {
+                msg +=
+                  "There " + (checklist_len > 1 ? "are a few issues that need " : "is an issue that needs ") +
+                  "to be resolved:\n";
 
-              /* Loop for each key in "checklist". */
-              for (const c in checklist)
-                msg += "- " + c + " (" + checklist[c].join(", ") + ")\n";
-              msg += "\nPlease review [CONTRIBUTING.md](https://github.com/freebsd/freebsd-src/blob/main/CONTRIBUTING.md), then update and push your branch again.\n"
-
+                /* Loop for each key in "checklist". */
+                for (const c in checklist)
+                  msg += "- " + c + " (" + checklist[c].join(", ") + ")\n";
+                msg += "\n> [!NOTE]\n> Please review [CONTRIBUTING.md](https://github.com/freebsd/freebsd-src/blob/main/CONTRIBUTING.md), then update and push your branch again.\n\n"
+              } else {
+                let msg = "No Issues found.\n\n";
+              }
+              if (infolist_len != 0) {
+                msg += "Some of files have special handling:\n"
+                for (const i in infolist)
+                  msg += i + "\n";
+                msg += "\n\n";
+              }
               comment_func({
                 owner: context.repo.owner,
                 repo: context.repo.repo,

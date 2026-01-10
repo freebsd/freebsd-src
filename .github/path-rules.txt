@@ -1,0 +1,10 @@
+#
+# Format the similar to CODEOWNERS: Each line has a path, whitespace and a
+# message for contributors.
+#
+sys/contrib/device-tree	:caution: No changes should be made here by pull request
+# Catch all
+contrib		:warning: Contributed software usually managed by vendor branch
+crypto		:warning: Contributed crypto software usually managed by vendor branch
+sys/contrib	:warning: Contributed software usually managed by vendor branch
+sys/crypto	:warning: Contributed crypto software usually managed by vendor branch
