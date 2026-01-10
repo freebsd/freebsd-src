@@ -317,7 +317,6 @@ disable_fpu(struct thread *td)
 	pcb->pcb_flags &= ~(PCB_FPU | PCB_VSX);
 }
 
-#ifndef __SPE__
 /*
  * XXX: Implement fpu_kern_alloc_ctx/fpu_kern_free_ctx once fpu_kern_enter and
  * fpu_kern_leave can handle !FPU_KERN_NOCTX.
@@ -403,5 +402,3 @@ is_fpu_kern_thread(u_int flags __unused)
 	curpcb = curthread->td_pcb;
 	return ((curpcb->pcb_flags & PCB_KERN_FPU) != 0);
 }
-
-#endif /* !__SPE__ */
