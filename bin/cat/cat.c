@@ -506,7 +506,7 @@ udom_open(const char *path, int flags)
 	case O_WRONLY:
 		cap_rights_clear(&rights, CAP_READ);
 		if (shutdown(fd, SHUT_RD) != 0)
-			warn(NULL);
+			warn("shutdown(SHUT_RD) failed");
 		break;
 	default:
 		break;

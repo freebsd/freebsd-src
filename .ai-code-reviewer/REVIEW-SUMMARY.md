@@ -6,6 +6,18 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-01-10 08:25 - bin/cat ✓
+
+**Directory:** `bin/cat`
+
+**Summary:** cat: Improve shutdown error handling in udom_open
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+  - bin/cat/cat.c
+
+---
+
 ## 2026-01-10 06:06 - bin/chflags ✓
 
 **Directory:** `bin/chflags`
