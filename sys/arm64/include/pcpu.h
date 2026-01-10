@@ -51,7 +51,7 @@ struct debug_monitor_state;
 	uint64_t pc_mpidr;						\
 	u_int	pc_bcast_tlbi_workaround;				\
 	uint64_t pc_release_addr;					\
-	char __pad[189]
+	char __pad[0]
 
 #ifdef _KERNEL
 
