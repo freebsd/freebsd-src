@@ -1548,16 +1548,13 @@ sort_before_lro(struct lro_ctrl *lro)
 }
 #endif
 
-#define CGBE_SHIFT_SCALE 10
-
 static inline uint64_t
-t4_tstmp_to_ns(struct adapter *sc, uint64_t lf)
+t4_tstmp_to_ns(struct adapter *sc, uint64_t hw_tstmp)
 {
 	struct clock_sync *cur, dcur;
 	uint64_t hw_clocks;
 	uint64_t hw_clk_div;
 	sbintime_t sbt_cur_to_prev, sbt;
-	uint64_t hw_tstmp = lf & 0xfffffffffffffffULL;	/* 60b, not 64b. */
 	seqc_t gen;
 
 	for (;;) {
@@ -1967,25 +1964,12 @@ get_segment_len(struct adapter *sc, struct sge_fl *fl, int plen)
 	return (min(plen, len));
 }
 
-static int
-eth_rx(struct adapter *sc, struct sge_rxq *rxq, const struct iq_desc *d,
-    u_int plen)
+static void
+handle_cpl_rx_pkt(struct adapter *sc, struct sge_rxq *rxq,
+    const struct cpl_rx_pkt *cpl, struct mbuf *m0)
 {
-	struct mbuf *m0;
 	if_t ifp = rxq->ifp;
-	struct sge_fl *fl = &rxq->fl;
-	struct vi_info *vi = if_getsoftc(ifp);
-	const struct cpl_rx_pkt *cpl;
-#if defined(INET) || defined(INET6)
-	struct lro_ctrl *lro = &rxq->lro;
-#endif
 	uint16_t err_vec, tnl_type, tnlhdr_len;
-	static const int sw_hashtype[4][2] = {
-		{M_HASHTYPE_NONE, M_HASHTYPE_NONE},
-		{M_HASHTYPE_RSS_IPV4, M_HASHTYPE_RSS_IPV6},
-		{M_HASHTYPE_RSS_TCP_IPV4, M_HASHTYPE_RSS_TCP_IPV6},
-		{M_HASHTYPE_RSS_UDP_IPV4, M_HASHTYPE_RSS_UDP_IPV6},
-	};
 	static const int sw_csum_flags[2][2] = {
 		{
 			/* IP, inner IP */
@@ -2015,43 +1999,6 @@ eth_rx(struct adapter *sc, struct sge_rxq *rxq, const struct iq_desc *d,
 		},
 	};
 
-	MPASS(plen > sc->params.sge.fl_pktshift);
-	if (vi->pfil != NULL && PFIL_HOOKED_IN(vi->pfil) &&
-	    __predict_true((fl->flags & FL_BUF_RESUME) == 0)) {
-		struct fl_sdesc *sd = &fl->sdesc[fl->cidx];
-		caddr_t frame;
-		int rc, slen;
-
-		slen = get_segment_len(sc, fl, plen) -
-		    sc->params.sge.fl_pktshift;
-		frame = sd->cl + fl->rx_offset + sc->params.sge.fl_pktshift;
-		CURVNET_SET_QUIET(if_getvnet(ifp));
-		rc = pfil_mem_in(vi->pfil, frame, slen, ifp, &m0);
-		CURVNET_RESTORE();
-		if (rc == PFIL_DROPPED || rc == PFIL_CONSUMED) {
-			skip_fl_payload(sc, fl, plen);
-			return (0);
-		}
-		if (rc == PFIL_REALLOCED) {
-			skip_fl_payload(sc, fl, plen);
-			goto have_mbuf;
-		}
-	}
-
-	m0 = get_fl_payload(sc, fl, plen);
-	if (__predict_false(m0 == NULL))
-		return (ENOMEM);
-
-	m0->m_pkthdr.len -= sc->params.sge.fl_pktshift;
-	m0->m_len -= sc->params.sge.fl_pktshift;
-	m0->m_data += sc->params.sge.fl_pktshift;
-
-have_mbuf:
-	m0->m_pkthdr.rcvif = ifp;
-	M_HASHTYPE_SET(m0, sw_hashtype[d->rss.hash_type][d->rss.ipv6]);
-	m0->m_pkthdr.flowid = be32toh(d->rss.hash_val);
-
-	cpl = (const void *)(&d->rss + 1);
 	if (sc->params.tp.rx_pkt_encap) {
 		const uint16_t ev = be16toh(cpl->err_vec);
 
@@ -2136,23 +2083,79 @@ have_mbuf:
 			rxq->vlan_extraction++;
 		}
 	}
+}
 
+static int
+eth_rx(struct adapter *sc, struct sge_rxq *rxq, const struct iq_desc *d,
+    u_int plen)
+{
+	struct mbuf *m0;
+	if_t ifp = rxq->ifp;
+	struct sge_fl *fl = &rxq->fl;
+	struct vi_info *vi = if_getsoftc(ifp);
+#if defined(INET) || defined(INET6)
+	struct lro_ctrl *lro = &rxq->lro;
+#endif
+	int rc;
+	const uint8_t fl_pktshift = sc->params.sge.fl_pktshift;
+	static const uint8_t sw_hashtype[4][2] = {
+		{M_HASHTYPE_NONE, M_HASHTYPE_NONE},
+		{M_HASHTYPE_RSS_IPV4, M_HASHTYPE_RSS_IPV6},
+		{M_HASHTYPE_RSS_TCP_IPV4, M_HASHTYPE_RSS_TCP_IPV6},
+		{M_HASHTYPE_RSS_UDP_IPV4, M_HASHTYPE_RSS_UDP_IPV6},
+	};
+
+	MPASS(plen > fl_pktshift);
+	if (vi->pfil != NULL && PFIL_HOOKED_IN(vi->pfil) &&
+	    __predict_true((fl->flags & FL_BUF_RESUME) == 0)) {
+		struct fl_sdesc *sd = &fl->sdesc[fl->cidx];
+		caddr_t frame;
+		const int slen = get_segment_len(sc, fl, plen) - fl_pktshift;
+
+		frame = sd->cl + fl->rx_offset + fl_pktshift;
+		CURVNET_SET_QUIET(if_getvnet(ifp));
+		rc = pfil_mem_in(vi->pfil, frame, slen, ifp, &m0);
+		CURVNET_RESTORE();
+		if (rc == PFIL_DROPPED || rc == PFIL_CONSUMED) {
+			skip_fl_payload(sc, fl, plen);
+			return (0);
+		}
+		if (rc == PFIL_REALLOCED) {
+			skip_fl_payload(sc, fl, plen);
+			goto have_mbuf;
+		}
+	}
+
+	m0 = get_fl_payload(sc, fl, plen);
+	if (__predict_false(m0 == NULL))
+		return (ENOMEM);
+	m0->m_pkthdr.len -= fl_pktshift;
+	m0->m_len -= fl_pktshift;
+	m0->m_data += fl_pktshift;
+
+have_mbuf:
+	m0->m_pkthdr.rcvif = ifp;
+	M_HASHTYPE_SET(m0, sw_hashtype[d->rss.hash_type][d->rss.ipv6]);
+	m0->m_pkthdr.flowid = be32toh(d->rss.hash_val);
+#ifdef NUMA
+	m0->m_pkthdr.numa_domain = if_getnumadomain(ifp);
+#endif
 	if (rxq->iq.flags & IQ_RX_TIMESTAMP) {
 		/*
-		 * Fill up rcv_tstmp but do not set M_TSTMP as
-		 * long as we get a non-zero back from t4_tstmp_to_ns().
+		 * Fill up rcv_tstmp and set M_TSTMP if we get a a non-zero back
+		 * from t4_tstmp_to_ns().  The descriptor has a 60b timestamp.
 		 */
 		m0->m_pkthdr.rcv_tstmp = t4_tstmp_to_ns(sc,
-		    be64toh(d->rsp.u.last_flit));
+		    be64toh(d->rsp.u.last_flit) & 0x0fffffffffffffffULL);
 		if (m0->m_pkthdr.rcv_tstmp != 0)
 			m0->m_flags |= M_TSTMP;
 	}
 
-#ifdef NUMA
-	m0->m_pkthdr.numa_domain = if_getnumadomain(ifp);
-#endif
+	handle_cpl_rx_pkt(sc, rxq, (const void *)(&d->rss + 1), m0);
+
 #if defined(INET) || defined(INET6)
-	if (rxq->iq.flags & IQ_LRO_ENABLED && tnl_type == 0 &&
+	if (rxq->iq.flags & IQ_LRO_ENABLED &&
+	    (m0->m_pkthdr.rsstype & M_HASHTYPE_INNER) == 0 &&
 	    (M_HASHTYPE_GET(m0) == M_HASHTYPE_RSS_TCP_IPV4 ||
 	    M_HASHTYPE_GET(m0) == M_HASHTYPE_RSS_TCP_IPV6)) {
 		if (sort_before_lro(lro)) {
