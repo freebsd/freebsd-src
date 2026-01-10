@@ -1939,6 +1939,7 @@ device		xmphy		# XaQti XMAC II
 # oce:	Emulex 10 Gbit adapters (OneConnect Ethernet)
 # ral:	Ralink Technology IEEE 802.11 wireless adapter
 # re:   RealTek 8139C+/8169/816xS/811xS/8101E PCI/PCIe Ethernet adapter
+# rge:  Realtek 8125/8126/8127 PCIe Ethernet adapter
 # rl:   Support for PCI fast ethernet adapters based on the RealTek 8129/8139
 #       chipset.  Note that the RealTek driver defaults to using programmed
 #       I/O to do register accesses because memory mapped mode seems to cause
@@ -2028,6 +2029,7 @@ device		cxgbev		# Chelsio T4-T6 Virtual Functions
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		mxge		# Myricom Myri-10G 10GbE NIC
 device		oce		# Emulex 10 GbE (OneConnect Ethernet)
+device		rge		# Realtek 8125/8126/8127
 device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
 
 # PCI IEEE 802.11 Wireless NICs
