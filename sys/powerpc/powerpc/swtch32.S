@@ -119,10 +119,6 @@ ENTRY(cpu_switch)
 	bl	save_vec
 	
 .L2:
-#if defined(__SPE__)
-	mfspr	%r3,SPR_SPEFSCR
-	stw	%r3,PCB_VSCR(%r17)
-#endif
 	mr	%r3,%r14		/* restore old thread ptr */
 	bl	pmap_deactivate		/* Deactivate the current pmap */
 
@@ -176,10 +172,6 @@ blocked_loop:
 	bl	enable_vec
 
 .L4:
-#if defined(__SPE__)
-	lwz	%r3,PCB_VSCR(%r17)
-	mtspr	SPR_SPEFSCR,%r3
-#endif
 	/* thread to restore is in r3 */
 	mr	%r3,%r17		/* Recover PCB ptr */
 	lmw	%r12,PCB_CONTEXT(%r3)	/* Load the non-volatile GP regs */
@@ -224,9 +216,5 @@ ENTRY(fork_trampoline)
 					   trapframe to simulate FRAME_SETUP
 					   does when allocating space for
 					   a frame pointer/saved LR */
-#ifdef __SPE__
-	li	%r3,SPEFSCR_DFLT
-	mtspr	SPR_SPEFSCR, %r3
-#endif
 	b	trapexit
 END(fork_trampoline)

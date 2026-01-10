@@ -646,18 +646,6 @@ cpu_update_pcb(struct thread *td)
 		pcb->pcb_dscr = mfspr(SPR_DSCRP);
 #endif
 
-#if defined(__SPE__)
-	/*
-	 * On E500v2, single-precision scalar instructions and access to
-	 * SPEFSCR may be used without PSL_VEC turned on, as long as they
-	 * limit themselves to the low word of the registers.
-	 *
-	 * As such, we need to unconditionally save SPEFSCR, even though
-	 * it is also updated in save_vec_nodrop().
-	 */
-	pcb->pcb_vec.vscr = mfspr(SPR_SPEFSCR);
-#endif
-
 	if (pcb_flags & PCB_FPU)
 		save_fpu_nodrop(td);
 
@@ -1155,9 +1143,6 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	pcb2->pcb_context[0] = pcb2->pcb_lr;
 	#endif
 	pcb2->pcb_cpu.aim.usr_vsid = 0;
-#ifdef __SPE__
-	pcb2->pcb_vec.vscr = SPEFSCR_DFLT;
-#endif
 
 	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
@@ -1215,9 +1200,6 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	}
 
 	td->td_pcb->pcb_flags = 0;
-#ifdef __SPE__
-	td->td_pcb->pcb_vec.vscr = SPEFSCR_DFLT;
-#endif
 
 	td->td_retval[0] = (register_t)entry;
 	td->td_retval[1] = 0;

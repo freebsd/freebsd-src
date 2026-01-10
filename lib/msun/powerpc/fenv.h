@@ -40,17 +40,6 @@ typedef	__uint32_t	fenv_t;
 typedef	__uint32_t	fexcept_t;
 
 /* Exception flags */
-#ifdef __SPE__
-#define FE_OVERFLOW	0x00000100
-#define FE_UNDERFLOW	0x00000200
-#define FE_DIVBYZERO	0x00000400
-#define FE_INVALID	0x00000800
-#define FE_INEXACT	0x00001000
-
-#define	FE_ALL_INVALID	FE_INVALID
-
-#define	_FPUSW_SHIFT	6
-#else
 #define	FE_INEXACT	0x02000000
 #define	FE_DIVBYZERO	0x04000000
 #define	FE_UNDERFLOW	0x08000000
@@ -78,7 +67,6 @@ typedef	__uint32_t	fexcept_t;
 			 FE_VXSNAN | FE_INVALID)
 
 #define	_FPUSW_SHIFT	22
-#endif
 #define	FE_ALL_EXCEPT	(FE_DIVBYZERO | FE_INEXACT | \
 			 FE_ALL_INVALID | FE_OVERFLOW | FE_UNDERFLOW)
 
@@ -101,17 +89,10 @@ extern const fenv_t	__fe_dfl_env;
 			 FE_OVERFLOW | FE_UNDERFLOW) >> _FPUSW_SHIFT)
 
 #ifndef _SOFT_FLOAT
-#ifdef __SPE__
-#define	__mffs(__env) \
-	__asm __volatile("mfspr %0, 512" : "=r" ((__env)->__bits.__reg))
-#define	__mtfsf(__env) \
-	__asm __volatile("mtspr 512,%0;isync" :: "r" ((__env).__bits.__reg))
-#else
 #define	__mffs(__env) \
 	__asm __volatile("mffs %0" : "=f" ((__env)->__d))
 #define	__mtfsf(__env) \
 	__asm __volatile("mtfsf 255,%0" :: "f" ((__env).__d))
-#endif
 #else
 #define	__mffs(__env)
 #define	__mtfsf(__env)
@@ -167,9 +148,6 @@ fesetexceptflag(const fexcept_t *__flagp, int __excepts)
 	return (0);
 }
 
-#ifdef __SPE__
-extern int	feraiseexcept(int __excepts);
-#else
 __fenv_static inline int
 feraiseexcept(int __excepts)
 {
@@ -182,7 +160,6 @@ feraiseexcept(int __excepts)
 	__mtfsf(__r);
 	return (0);
 }
-#endif
 
 __fenv_static inline int
 fetestexcept(int __excepts)
