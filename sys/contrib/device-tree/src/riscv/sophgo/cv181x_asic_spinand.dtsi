@@ -1,5 +1,0 @@
-/ {
-	/delete-node/ cvi-spif@10000000;
-	/delete-node/ cv-emmc@4300000;
-};
-
