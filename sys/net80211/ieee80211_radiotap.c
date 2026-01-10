@@ -110,12 +110,6 @@ ieee80211_radiotap_detach(struct ieee80211com *ic)
 {
 }
 
-void
-ieee80211_radiotap_vdetach(struct ieee80211vap *vap)
-{
-	/* NB: bpfdetach is called by ether_ifdetach and claims all taps */
-}
-
 static void
 set_channel(void *p, const struct ieee80211_channel *c)
 {
@@ -470,5 +464,14 @@ ieee80211_radiotap_vattach(struct ieee80211vap *vap)
 		    sizeof(struct ieee80211_frame) + le16toh(th->it_len),
 		    &bpf_ieee80211_methods, vap->iv_ifp);
 		if_ref(vap->iv_ifp);
+	}
+}
+
+void
+ieee80211_radiotap_vdetach(struct ieee80211vap *vap)
+{
+	if (vap->iv_rawbpf != NULL) {
+		bpf_detach(vap->iv_rawbpf);
+		if_rele(vap->iv_ifp);
 	}
 }
