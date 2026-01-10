@@ -126,6 +126,16 @@ qflag_body()
 	atf_check zgrep -q '1 2' in
 }
 
+atf_test_case eflags
+eflags_body()
+{
+	# Test use with more than one -e expression
+	printf "aaa bbb ccc\n111 222 333\ndon't match this line" > in
+
+	atf_check -o 'inline:aaa bbb ccc\n111 222 333\n' \
+	    /tmp/zgrep.sh -eaaa -e333 in
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case grep_r_implied
@@ -134,4 +144,5 @@ atf_init_test_cases()
 	atf_add_test_case zflag
 	atf_add_test_case color_dupe
 	atf_add_test_case qflag
+	atf_add_test_case eflags
 }
