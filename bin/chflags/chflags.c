@@ -130,12 +130,8 @@ main(int argc, char *argv[])
 	if (*flags >= '0' && *flags <= '7') {
 		errno = 0;
 		val = strtol(flags, &ep, 8);
-		if (val < 0)
-			errno = ERANGE;
-		if (errno)
-                        err(1, "invalid flags: %s", flags);
-                if (*ep)
-                        errx(1, "invalid flags: %s", flags);
+		if (errno != 0 || *ep != '\0' || val < 0)
+			errx(1, "invalid flags: %s", flags);
 		set = val;
                 oct = 1;
 	} else {
