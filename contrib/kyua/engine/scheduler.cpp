@@ -1403,6 +1403,9 @@ scheduler::scheduler_handle::wait_any(void)
         if (debugger) {
             debugger->before_cleanup(test_data->test_program, test_case,
                 result, handle);
+            if (!result.get().good())
+                debugger->upon_test_failure(test_data->test_program, test_case,
+                    result, handle);
         }
 
         if (test_data->needs_cleanup) {

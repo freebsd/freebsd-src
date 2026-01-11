@@ -28,6 +28,10 @@
 
 #include "cli/cmd_debug.hpp"
 
+extern "C" {
+#include <unistd.h>
+}
+
 #include <cstdlib>
 #include <iostream>
 
@@ -39,13 +43,20 @@
 #include "utils/cmdline/parser.ipp"
 #include "utils/cmdline/ui.hpp"
 #include "utils/format/macros.hpp"
+#include "utils/fs/path.hpp"
+#include "utils/process/child.ipp"
 #include "utils/process/executor.hpp"
+#include "utils/process/operations.hpp"
+#include "utils/process/status.hpp"
 
 namespace cmdline = utils::cmdline;
 namespace config = utils::config;
 namespace executor = utils::process::executor;
+namespace process = utils::process;
 
 using cli::cmd_debug;
+using utils::process::args_vector;
+using utils::process::child;
 
 
 namespace {
@@ -60,6 +71,57 @@ const cmdline::bool_option pause_before_cleanup_upon_fail_option(
 const cmdline::bool_option pause_before_cleanup_option(
     "pause-before-cleanup",
     "Pauses right before the test cleanup");
+
+
+static const char* DEFAULT_CMD = "$SHELL";
+const cmdline::string_option execute_option(
+    'x', "execute",
+    "A command to run within the given execenv upon test failure",
+    "cmd", DEFAULT_CMD, true);
+
+
+/// Functor to execute a program.
+class execute {
+    const std::string& _cmd;
+    executor::exit_handle& _eh;
+
+public:
+    /// Constructor.
+    ///
+    /// \param program Program binary absolute path.
+    /// \param args Program arguments.
+    execute(
+        const std::string& cmd_,
+        executor::exit_handle& eh_) :
+        _cmd(cmd_),
+        _eh(eh_)
+    {
+    }
+
+    /// Body of the subprocess.
+    void
+    operator()(void)
+    {
+        if (::chdir(_eh.work_directory().c_str()) == -1) {
+            std::cerr << "execute: chdir() errors: "
+                << strerror(errno) << ".\n";
+            std::exit(EXIT_FAILURE);
+        }
+
+        std::string program_path = "/bin/sh";
+        const char* shell = std::getenv("SHELL");
+        if (shell)
+            program_path = shell;
+
+        args_vector av;
+        if (!(_cmd.empty() || _cmd == DEFAULT_CMD)) {
+            av.push_back("-c");
+            av.push_back(_cmd);
+        }
+
+        process::exec(utils::fs::path(program_path), av);
+    }
+};
 
 
 /// The debugger interface implementation.
@@ -103,6 +165,21 @@ public:
         }
     };
 
+    void upon_test_failure(
+        const model::test_program_ptr&,
+        const model::test_case&,
+        optional< model::test_result >&,
+        executor::exit_handle& eh) const
+    {
+        if (!_cmdline.has_option(execute_option.long_name()))
+            return;
+        const std::string& cmd = _cmdline.get_option<cmdline::string_option>(
+            execute_option.long_name());
+        std::unique_ptr< process::child > child = child::fork_interactive(
+            execute(cmd, eh));
+        (void) child->wait();
+    };
+
 };
 
 
@@ -127,6 +204,8 @@ cmd_debug::cmd_debug(void) : cli_command(
     add_option(cmdline::path_option(
         "stderr", "Where to direct the standard error of the test case",
         "path", "/dev/stderr"));
+
+    add_option(execute_option);
 }
 
 
@@ -151,7 +230,8 @@ cmd_debug::run(cmdline::ui* ui, const cmdline::parsed_cmdline& cmdline,
 
     engine::debugger_ptr debugger = nullptr;
     if (cmdline.has_option(pause_before_cleanup_upon_fail_option.long_name())
-        || cmdline.has_option(pause_before_cleanup_option.long_name())) {
+        || cmdline.has_option(pause_before_cleanup_option.long_name())
+        || cmdline.has_option(execute_option.long_name())) {
         debugger = std::shared_ptr< engine::debugger >(new dbg(ui, cmdline));
     }
 
