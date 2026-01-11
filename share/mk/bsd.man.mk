@@ -252,10 +252,10 @@ _MANLINKS+=	${CATDIR}${_osect}${MANSUBDIR}/${_oname} \
 
 .if defined(${__group}) && !empty(${__group})
 .if ${MK_STAGING_MAN} == "yes"
-STAGE_TARGETS+= stage_files.${__group}
 _mansets.${__group}:= ${${__group}:E:O:u:M*[1-9]:@s@man$s@}
-STAGE_SETS+= ${_mansets.${__group}}
 .for _page in ${${__group}}
+STAGE_SETS+= ${__group}.man${_page:T:E}
+STAGE_TARGETS+= stage_files.${__group}.man${_page:T:E}
 stage_files.${__group}.man${_page:T:E}: ${_page}
 .if target(${_page}${MCOMPRESS_EXT})
 stage_files.${__group}.man${_page:T:E}: ${_page}${MCOMPRESS_EXT}
