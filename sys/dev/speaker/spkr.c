@@ -15,7 +15,6 @@
 #include <sys/conf.h>
 #include <sys/ctype.h>
 #include <sys/malloc.h>
-#include <machine/atomic.h>
 #include <machine/clock.h>
 #include <dev/speaker/speaker.h>
 
@@ -51,11 +50,12 @@ static MALLOC_DEFINE(M_SPKR, "spkr", "Speaker buffer");
 #define SPKRPRI PSOCK
 static char endtone, endrest;
 
+struct spkr_state;
 static void tone(unsigned int thz, unsigned int centisecs);
 static void rest(int centisecs);
-static void playinit(void);
-static void playtone(int pitch, int value, int sustain);
-static void playstring(char *cp, size_t slen);
+static void playinit(struct spkr_state *state);
+static void playtone(struct spkr_state *state, int pitch, int value, int sustain);
+static void playstring(struct spkr_state *state, char *cp, size_t slen);
 
 /* 
  * Emit tone of frequency thz for given number of centisecs 
@@ -128,12 +128,16 @@ rest(int centisecs)
 
 #define dtoi(c)		((c) - '0')
 
-static int octave;	/* currently selected octave */
-static int whole;	/* whole-note time at current tempo, in ticks */
-static int value;	/* whole divisor for note time, quarter note = 1 */
-static int fill;	/* controls spacing of notes */
-static bool octtrack;	/* octave-tracking on? */
-static bool octprefix;	/* override current octave-tracking state? */
+struct spkr_state {
+	char *inbuf;    /* incoming melody buffer */
+
+	int octave;	/* currently selected octave */
+	int whole;	/* whole-note time at current tempo, in ticks */
+	int value;	/* whole divisor for note time, quarter note = 1 */
+	int fill;	/* controls spacing of notes */
+	bool octtrack;	/* octave-tracking on? */
+	bool octprefix;	/* override current octave-tracking state? */
+};
 
 /*
  * Magic number avoidance...
@@ -175,23 +179,25 @@ static const int pitchtab[] =
 };
 
 static void
-playinit(void)
+playinit(struct spkr_state *state)
 {
-    octave = DFLT_OCTAVE;
-    whole = (100 * SECS_PER_MIN * WHOLE_NOTE) / DFLT_TEMPO;
-    fill = NORMAL;
-    value = DFLT_VALUE;
-    octtrack = false;
-    octprefix = true;	/* act as though there was an initial O(n) */
+    state->octave = DFLT_OCTAVE;
+    state->whole = (100 * SECS_PER_MIN * WHOLE_NOTE) / DFLT_TEMPO;
+    state->fill = NORMAL;
+    state->value = DFLT_VALUE;
+    state->octtrack = false;
+    state->octprefix = true;	/* act as though there was an initial O(n) */
 }
 
 /* 
  * Play tone of proper duration for current rhythm signature 
  */
 static void
-playtone(int pitch, int value, int sustain)
+playtone(struct spkr_state *state, int pitch, int value, int sustain)
 {
 	int sound, silence, snum = 1, sdenom = 1;
+	int whole = state->whole;
+	int fill = state->fill;
 
 	/* this weirdness avoids floating-point arithmetic */
 	for (; sustain; sustain--) {
@@ -225,7 +231,7 @@ playtone(int pitch, int value, int sustain)
  * Interpret and play an item from a notation string 
  */
 static void
-playstring(char *cp, size_t slen)
+playstring(struct spkr_state *state, char *cp, size_t slen)
 {
 	int pitch, oldfill, lastpitch = OCTAVE_NOTES * DFLT_OCTAVE;
 
@@ -240,15 +246,15 @@ playstring(char *cp, size_t slen)
 #endif /* DEBUG */
 
 		switch (c) {
-		case 'A':  
-		case 'B': 
-		case 'C': 
-		case 'D': 
-		case 'E': 
-		case 'F': 
+		case 'A':
+		case 'B':
+		case 'C':
+		case 'D':
+		case 'E':
+		case 'F':
 		case 'G':
 			/* compute pitch */
-			pitch = notetab[c - 'A'] + octave * OCTAVE_NOTES;
+			pitch = notetab[c - 'A'] + state->octave * OCTAVE_NOTES;
 
 			/* this may be followed by an accidental sign */
 			if (cp[1] == '#' || cp[1] == '+') {
@@ -266,26 +272,26 @@ playstring(char *cp, size_t slen)
 			 * setting prefix, find the version of the current letter note
 			 * closest to the last regardless of octave.
 			 */
-			if (octtrack && !octprefix) {
+			if (state->octtrack && !state->octprefix) {
 				if (abs(pitch-lastpitch) > abs(pitch+OCTAVE_NOTES - 
 					lastpitch)) {
-					++octave;
+					++state->octave;
 					pitch += OCTAVE_NOTES;
 				}
 
 				if (abs(pitch-lastpitch) > abs((pitch-OCTAVE_NOTES) - 
 					lastpitch)) {
-					--octave;
+					--state->octave;
 					pitch -= OCTAVE_NOTES;
 				}
 			}
-			octprefix = false;
+			state->octprefix = false;
 			lastpitch = pitch;
 
 			/* ...which may in turn be followed by an override time value */
 			GETNUM(cp, timeval);
 			if (timeval <= 0 || timeval > MIN_VALUE)
-				timeval = value;
+				timeval = state->value;
 
 			/* ...and/or sustain dots */
 			for (sustain = 0; cp[1] == '.'; cp++) { 
@@ -294,43 +300,43 @@ playstring(char *cp, size_t slen)
 			}
 
 			/* ...and/or a slur mark */
-			oldfill = fill;
+			oldfill = state->fill;
 			if (cp[1] == '_') {
-				fill = LEGATO;
+				state->fill = LEGATO;
 				++cp;
 				slen--;
 			}
 
 			/* time to emit the actual tone */
-			playtone(pitch, timeval, sustain);
+			playtone(state, pitch, timeval, sustain);
 
-			fill = oldfill;
+			state->fill = oldfill;
 			break;
 		case 'O':
 			if (cp[1] == 'N' || cp[1] == 'n') {
-				octprefix = octtrack = false;
+				state->octprefix = state->octtrack = false;
 				++cp;
 				slen--;
 			} else if (cp[1] == 'L' || cp[1] == 'l') {
-				octtrack = true;
+				state->octtrack = true;
 				++cp;
 				slen--;
 			} else {
-				GETNUM(cp, octave);
-				if (octave >= nitems(pitchtab) / OCTAVE_NOTES)
-					octave = DFLT_OCTAVE;
-				octprefix = true;
+				GETNUM(cp, state->octave);
+				if (state->octave >= nitems(pitchtab) / OCTAVE_NOTES)
+					state->octave = DFLT_OCTAVE;
+				state->octprefix = true;
 			}
 			break;
 		case '>':
-			if (octave < nitems(pitchtab) / OCTAVE_NOTES - 1)
-				octave++;
-			octprefix = true;
+			if (state->octave < nitems(pitchtab) / OCTAVE_NOTES - 1)
+				state->octave++;
+			state->octprefix = true;
 			break;
 		case '<':
-			if (octave > 0)
-				octave--;
-			octprefix = true;
+			if (state->octave > 0)
+				state->octave--;
+			state->octprefix = true;
 			break;
 		case 'N':
 			GETNUM(cp, pitch);
@@ -338,49 +344,49 @@ playstring(char *cp, size_t slen)
 				slen--;
 				sustain++;
 			}
-			oldfill = fill;
+			oldfill = state->fill;
 			if (cp[1] == '_') {
-				fill = LEGATO;
+				state->fill = LEGATO;
 				++cp;
 				slen--;
 			}
-			playtone(pitch - 1, value, sustain);
-			fill = oldfill;
+			playtone(state, pitch - 1, state->value, sustain);
+			state->fill = oldfill;
 			break;
 		case 'L':
-			GETNUM(cp, value);
-			if (value <= 0 || value > MIN_VALUE)
-				value = DFLT_VALUE;
+			GETNUM(cp, state->value);
+			if (state->value <= 0 || state->value > MIN_VALUE)
+				state->value = DFLT_VALUE;
 			break;
 		case 'P':
 		case '~':
 			/* this may be followed by an override time value */
 			GETNUM(cp, timeval);
 			if (timeval <= 0 || timeval > MIN_VALUE)
-				timeval = value;
+				timeval = state->value;
 			for (sustain = 0; cp[1] == '.'; cp++) {
 				slen--;
 				sustain++;
 			}
-			playtone(-1, timeval, sustain);
+			playtone(state, -1, timeval, sustain);
 			break;
 		case 'T':
 			GETNUM(cp, tempo);
 			if (tempo < MIN_TEMPO || tempo > MAX_TEMPO)
 				tempo = DFLT_TEMPO;
-			whole = (100 * SECS_PER_MIN * WHOLE_NOTE) / tempo;
+			state->whole = (100 * SECS_PER_MIN * WHOLE_NOTE) / tempo;
 			break;
 		case 'M':
 			if (cp[1] == 'N' || cp[1] == 'n') {
-				fill = NORMAL;
+				state->fill = NORMAL;
 				++cp;
 				slen--;
 			} else if (cp[1] == 'L' || cp[1] == 'l') {
-				fill = LEGATO;
+				state->fill = LEGATO;
 				++cp;
 				slen--;
 			} else if (cp[1] == 'S' || cp[1] == 's') {
-				fill = STACCATO;
+				state->fill = STACCATO;
 				++cp;
 				slen--;
 			}
@@ -395,62 +401,82 @@ playstring(char *cp, size_t slen)
  * endtone(), and rest() functions defined above.
  */
 
-static int spkr_dev_busy = 0; /* one open at a time */
-static char *spkr_inbuf;  /* incoming buf */
-
 /*
- * we use a lock to serialize access to spkr_inbuf but also to prevent
- * interleaving of melodies written concurrently from two different
- * threads.
+ * we use a lock to prevent interleaving of melodies written
+ * concurrently from two different threads.
  */
 static struct sx spkr_op_locked;
 
+static void
+spkr_dtor(void *data)
+{
+	struct spkr_state *state = data;
+
+	free(state->inbuf, M_SPKR);
+	free(state, M_SPKR);
+}
 
 static int
 spkropen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
+	int error;
+	struct spkr_state *state;
 #ifdef DEBUG
 	(void) printf("spkropen: entering with dev = %s\n", devtoname(dev));
 #endif /* DEBUG */
 
-	if (!atomic_cmpset_int(&spkr_dev_busy, 0, 1))
-		return(EBUSY);
-	else {
-#ifdef DEBUG
-		(void) printf("spkropen: about to perform play initialization\n");
-#endif /* DEBUG */
-		playinit();
-		spkr_inbuf = malloc(DEV_BSIZE, M_SPKR, M_WAITOK);
-		return(0);
-    	}
+	/* allocate per-fd state */
+	state = malloc(sizeof(*state), M_SPKR, M_WAITOK | M_ZERO);
+	state->inbuf = malloc(DEV_BSIZE, M_SPKR, M_WAITOK);
+
+	/* initialize playstring state */
+	playinit(state);
+
+	/* store in the current fd private data */
+	error = devfs_set_cdevpriv(state, spkr_dtor);
+	if (error) {
+		free(state->inbuf, M_SPKR);
+		free(state, M_SPKR);
+		return error;
+	}
+
+	return 0;
 }
 
 static int
 spkrwrite(struct cdev *dev, struct uio *uio, int ioflag)
 {
+	int error;
+	struct spkr_state *state;
+	unsigned n;
+
 #ifdef DEBUG
 	printf("spkrwrite: entering with dev = %s, count = %zd\n",
 		devtoname(dev), uio->uio_resid);
 #endif /* DEBUG */
 
-	if (uio->uio_resid > (DEV_BSIZE - 1))     /* prevent system crashes */
-		return(E2BIG);	
-	else {
-		unsigned n;
-		char *cp;
-		int error;
+	/* is the melody too long? */
+	if (uio->uio_resid > (DEV_BSIZE - 1))
+		return E2BIG;
 
-		sx_xlock(&spkr_op_locked);
-		n = uio->uio_resid;
-		cp = spkr_inbuf;
-		error = uiomove(cp, n, uio);
-		if (!error) {
-			cp[n] = '\0';
-			playstring(cp, n);
-		}
-		sx_xunlock(&spkr_op_locked);
-		return(error);
-	}
+	/* get this fd's state */
+	error = devfs_get_cdevpriv((void **)&state);
+	if (error)
+		return error;
+
+	/* copy melody from userspace */
+	n = uio->uio_resid;
+	error = uiomove(state->inbuf, n, uio);
+	if (error)
+	    return error;
+	state->inbuf[n] = '\0';
+
+	/* play the melody. */
+	sx_xlock(&spkr_op_locked);
+	playstring(state, state->inbuf, n);
+	sx_xunlock(&spkr_op_locked);
+
+	return 0;
 }
 
 static int
@@ -462,8 +488,7 @@ spkrclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	wakeup(&endtone);
 	wakeup(&endrest);
-	free(spkr_inbuf, M_SPKR);
-	(void) atomic_swap_int(&spkr_dev_busy, 0);
+	/* devfs_clear_cdevpriv() calls spkr_dtor automatically */
 	return(0);
 }
 
