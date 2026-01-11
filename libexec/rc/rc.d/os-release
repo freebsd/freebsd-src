@@ -10,6 +10,10 @@
 
 : ${osrelease_file:=/var/run/os-release}
 : ${osrelease_perms:=444}
+: ${osrelease_home_url:="https://www.FreeBSD.org"}
+: ${osrelease_documentation_url:="https://docs.FreeBSD.org"}
+: ${osrelease_support_url:="https://www.FreeBSD.org/support"}
+: ${osrelease_bug_report_url:="https://bugs.FreeBSD.org"}
 name="osrelease"
 desc="Update ${osrelease_file}"
 rcvar="osrelease_enable"
@@ -32,8 +36,10 @@ osrelease_start()
 		ANSI_COLOR="0;31"
 		PRETTY_NAME="FreeBSD $_version"
 		CPE_NAME="cpe:/o:freebsd:freebsd:$_version_id"
-		HOME_URL="https://FreeBSD.org/"
-		BUG_REPORT_URL="https://bugs.FreeBSD.org/"
+		HOME_URL="${osrelease_home_url}"
+		DOCUMENTATION_URL="${osrelease_documentation_url}"
+		SUPPORT_URL="${osrelease_support_url}"
+		BUG_REPORT_URL="${osrelease_bug_report_url}"
 __EOF__
 	install -C -o root -g wheel -m ${osrelease_perms} "$t" "${osrelease_file}"
 	rm -f "$t"
