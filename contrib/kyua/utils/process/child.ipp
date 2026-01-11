@@ -104,6 +104,26 @@ child::fork_capture(Hook hook)
 }
 
 
+template< typename Hook >
+std::unique_ptr< child >
+child::fork_interactive(Hook hook)
+{
+    std::unique_ptr< child > child = fork_interactive();
+    if (child.get() == NULL) {
+        try {
+            hook();
+            std::abort();
+        } catch (const std::runtime_error& e) {
+            detail::report_error_and_abort(e);
+        } catch (...) {
+            detail::report_error_and_abort();
+        }
+    }
+
+    return child;
+}
+
+
 }  // namespace process
 }  // namespace utils
 

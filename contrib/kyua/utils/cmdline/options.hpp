@@ -91,6 +91,9 @@ class base_option {
     /// Descriptive name of the required argument; empty if not allowed.
     std::string _arg_name;
 
+    /// If the option can be used without an explicit argument provided.
+    bool _arg_is_optional = false;
+
     /// Whether the option has a default value or not.
     ///
     /// \todo We should probably be using the optional class here.
@@ -101,7 +104,7 @@ class base_option {
 
 public:
     base_option(const char, const char*, const char*, const char* = NULL,
-                const char* = NULL);
+                const char* = NULL, bool = false);
     base_option(const char*, const char*, const char* = NULL,
                 const char* = NULL);
     virtual ~base_option(void);
@@ -113,6 +116,7 @@ public:
 
     bool needs_arg(void) const;
     const std::string& arg_name(void) const;
+    bool arg_is_optional(void) const;
 
     bool has_default_value(void) const;
     const std::string& default_value(void) const;
@@ -219,7 +223,7 @@ public:
 class string_option : public base_option {
 public:
     string_option(const char, const char*, const char*, const char*,
-                  const char* = NULL);
+                  const char* = NULL, bool = false);
     string_option(const char*, const char*, const char*, const char* = NULL);
     virtual ~string_option(void) {}
 
