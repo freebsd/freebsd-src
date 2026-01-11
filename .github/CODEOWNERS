@@ -83,6 +83,9 @@
 /sys/dev/iscsi/	@trasz
 /sys/dev/nctgpio/	@stephane-rochoy-stormshield
 /sys/dev/ncthwm/	@stephane-rochoy-stormshield
+/sys/dev/mpi3mr	@bsdimp
+/sys/dev/mps	@bsdimp
+/sys/dev/mpr	@bsdimp
 /sys/dev/nvd	@bsdimp
 /sys/dev/nvme	@bsdimp
 /sys/dev/pci	@bsdimp @bsdjhb
