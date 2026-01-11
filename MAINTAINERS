@@ -70,6 +70,9 @@ lpr		gad	Pre-commit review requested, particularly for
 nanobsd		imp	Pre-commit phabricator review requested.
 net80211	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 nfs		freebsd-fs@FreeBSD.org, rmacklem is best for reviews.
+mpi3mr(4)	imp	Pre-commit review requested.
+mpr(4)		imp	Pre-commit review requested.
+mps(4)		imp	Pre-commit review requested.
 nvd(4)		imp	Pre-commit review requested.
 nvme(4)		imp	Pre-commit review requested.
 nvmecontrol(8)	imp	Pre-commit review requested.
