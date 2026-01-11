@@ -6,6 +6,17 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-01-11 05:20 - bin/chmod ✓
+
+**Directory:** `bin/chmod`
+
+**Summary:** chmod: Update review status to in-progress
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+
+---
+
 ## 2026-01-11 02:42 - bin/chio ✓
 
 **Directory:** `bin/chio`
