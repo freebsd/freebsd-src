@@ -975,3 +975,9 @@ Each lesson is recorded with timestamp, category, and remediation advice.
 ### COMPILER: Stale .depend Files and Unused Variable Warning
 - Stale `.depend` files caused build errors; unused variable warning in `cpuset.c` also failed.
 - Clean build directory with `make clean` before building; remove unused variables to avoid warnings.
+
+
+## 2026-01-11 04:41
+### SYNTAX: Undeclared Identifier Error
+- What went wrong: The identifier `errstr` was used but not declared in `cpuset.c`.
+- How to avoid it next time: Ensure all identifiers are properly declared before use or correct any typos (e.g., `strstr` instead of `errstr`).
