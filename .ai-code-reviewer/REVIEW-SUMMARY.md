@@ -6,6 +6,17 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-01-11 02:42 - bin/chio ✓
+
+**Directory:** `bin/chio`
+
+**Summary:** chio: Update review status to in-progress
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+
+---
+
 ## 2026-01-10 22:53 - bin/chflags/tests ✓
 
 **Directory:** `bin/chflags/tests`
