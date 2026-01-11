@@ -10,7 +10,7 @@ on:
 permissions:
   contents: read
 
-jobs:
+# jobs:
   build:
     name: ${{ matrix.target_arch }} ${{ matrix.os }} (${{ matrix.compiler }})
     runs-on: ${{ matrix.os }}
