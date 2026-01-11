@@ -566,8 +566,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 
 static int
 sendfile_getobj(struct thread *td, struct file *fp, vm_object_t *obj_res,
-    struct vnode **vp_res, struct shmfd **shmfd_res, off_t *obj_size,
-    int *bsize)
+    struct vnode **vp_res, struct shmfd **shmfd_res, off_t *obj_size)
 {
 	vm_object_t obj;
 	struct vnode *vp;
@@ -578,7 +577,6 @@ sendfile_getobj(struct thread *td, struct file *fp, vm_object_t *obj_res,
 	vp = *vp_res = NULL;
 	obj = NULL;
 	shmfd = *shmfd_res = NULL;
-	*bsize = 0;
 
 	/*
 	 * The file descriptor must be a regular file and have a
@@ -591,7 +589,6 @@ sendfile_getobj(struct thread *td, struct file *fp, vm_object_t *obj_res,
 			error = EINVAL;
 			goto out;
 		}
-		*bsize = vp->v_mount->mnt_stat.f_iosize;
 		obj = vp->v_object;
 		if (obj == NULL) {
 			error = EINVAL;
@@ -766,7 +763,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	struct sendfile_sync *sfs;
 	struct vattr va;
 	off_t off, sbytes, rem, obj_size, nobj_size;
-	int bsize, error, ext_pgs_idx, hdrlen, max_pgs, softerr;
+	int error, ext_pgs_idx, hdrlen, max_pgs, softerr;
 #ifdef KERN_TLS
 	int tls_enq_cnt;
 #endif
@@ -783,7 +780,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	softerr = 0;
 	use_ext_pgs = false;
 
-	error = sendfile_getobj(td, fp, &obj, &vp, &shmfd, &obj_size, &bsize);
+	error = sendfile_getobj(td, fp, &obj, &vp, &shmfd, &obj_size);
 	if (error != 0)
 		return (error);
 
