@@ -6,6 +6,17 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-01-11 11:48 - bin/cp ✓
+
+**Directory:** `bin/cp`
+
+**Summary:** cp: Update review status for cp directory
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+
+---
+
 ## 2026-01-11 09:57 - bin/chmod/tests ✓
 
 **Directory:** `bin/chmod/tests`
