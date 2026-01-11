@@ -61,6 +61,9 @@ cw-ec2-portinstall:
 .for _FL in ${EC2_FLAVOURS:tl}
 .if defined(SSMPREFIX) && !empty(SSMPREFIX)
 SSMOPTS_${_FL}_${_FS}=	--ssm-name ${SSMPREFIX}/${TARGET_ARCH:S/aarch64/arm64/}/${_FL}/${_FS}/${REVISION}/${BRANCH}
+.if ${BRANCH} == "RELEASE"
+SSMOPTSEXTRA_${_FL}_${_FS}=	--ssm-name-extra ${SSMPREFIX}/${TARGET_ARCH:S/aarch64/arm64/}/${_FL}/${_FS}/${REVISION}/${BRANCH}/latest
+.endif
 .endif
 EC2AMILIST+=	ec2ami-${_FL}-${_FS}
 CLEANFILES+=	ec2ami-${_FL}-${_FS}
@@ -84,7 +87,8 @@ ec2ami-${_FL}-${_FS}: cw-ec2-${_FL}-${_FS} ${CW_EC2_PORTINSTALL}
 	@false
 .endif
 	/usr/local/bin/bsdec2-image-upload ${PUBLISH} ${PUBLICSNAP} \
-	    ${EC2ARCH} ${SSMOPTS_${_FL}_${_FS}} ${BOOTMODEOPT} --sriov --ena \
+	    ${EC2ARCH} ${SSMOPTS_${_FL}_${_FS}} ${SSMOPTSEXTRA_${_FL}_${_FS}} \
+	    ${BOOTMODEOPT} --sriov --ena \
 	    ${.OBJDIR}/${EC2-${_FL:tu}${_FS:tu}IMAGE} \
 	    "${AMIBASENAME} ${_FL} ${_FS:tu}" \
 	    "${TYPE}/${TARGET} ${GITBRANCH}@${GITREV}" \
