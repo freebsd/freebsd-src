@@ -1396,6 +1396,9 @@ swap_pager_getpages_locked(struct pctrie_iter *blks, vm_object_t object,
 	vm_object_prepare_buf_pages(object, bp->b_pages, count, &rbehind,
 	    &rahead, ma);
 	bp->b_npages = rbehind + count + rahead;
+	KASSERT(bp->b_npages <= PBUF_PAGES,
+	    ("bp_npages %d (rb %d c %d ra %d) not less than PBUF_PAGES %jd",
+	    bp->b_npages, rbehind, count, rahead, (uintmax_t)PBUF_PAGES));
 	for (int i = 0; i < bp->b_npages; i++)
 		bp->b_pages[i]->oflags |= VPO_SWAPINPROG;
 	bp->b_blkno = swp_pager_meta_lookup(blks, pindex - rbehind);
