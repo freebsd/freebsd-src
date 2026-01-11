@@ -64,6 +64,12 @@
 SDT_PROVIDER_DECLARE(mac);		/* MAC Framework-level events. */
 SDT_PROVIDER_DECLARE(mac_framework);	/* Entry points to MAC. */
 
+#define	MAC_CHECK_PROBE_DEFINE5(name, arg0, arg1, arg2, arg3, arg4)	\
+	SDT_PROBE_DEFINE6(mac_framework, , name, mac__check__err,	\
+	    "int", arg0, arg1, arg2, arg3, arg4);			\
+	SDT_PROBE_DEFINE6(mac_framework, , name, mac__check__ok,	\
+	    "int", arg0, arg1, arg2, arg3, arg4);
+
 #define	MAC_CHECK_PROBE_DEFINE4(name, arg0, arg1, arg2, arg3)		\
 	SDT_PROBE_DEFINE5(mac_framework, , name, mac__check__err,	\
 	    "int", arg0, arg1, arg2, arg3);				\
@@ -88,18 +94,20 @@ SDT_PROVIDER_DECLARE(mac_framework);	/* Entry points to MAC. */
 	SDT_PROBE_DEFINE2(mac_framework, , name, mac__check__ok,	\
 	    "int", arg0);
 
-#define	MAC_CHECK_PROBE4(name, error, arg0, arg1, arg2, arg3)	do {	\
+#define	MAC_CHECK_PROBE5(name, error, arg0, arg1, arg2, arg3, arg4) do { \
 	if (SDT_PROBES_ENABLED()) {					\
 		if (error) {						\
-			SDT_PROBE5(mac_framework, , name, mac__check__err,\
-			    error, arg0, arg1, arg2, arg3);		\
+			SDT_PROBE6(mac_framework, , name, mac__check__err,\
+			    error, arg0, arg1, arg2, arg3, arg4);	\
 		} else {						\
-			SDT_PROBE5(mac_framework, , name, mac__check__ok,\
-			    0, arg0, arg1, arg2, arg3);			\
+			SDT_PROBE6(mac_framework, , name, mac__check__ok,\
+			    0, arg0, arg1, arg2, arg3, arg4);		\
 		}							\
 	}								\
 } while (0)
 
+#define	MAC_CHECK_PROBE4(name, error, arg0, arg1, arg2, arg3)		\
+	MAC_CHECK_PROBE5(name, error, arg0, arg1, arg2, arg3, 0)
 #define	MAC_CHECK_PROBE3(name, error, arg0, arg1, arg2)			\
 	MAC_CHECK_PROBE4(name, error, arg0, arg1, arg2, 0)
 #define	MAC_CHECK_PROBE2(name, error, arg0, arg1)			\
