@@ -1,4 +1,4 @@
-/*	$NetBSD: create.c,v 1.80 2025/12/18 18:16:48 christos Exp $	*/
+/*	$NetBSD: create.c,v 1.81 2026/01/10 14:53:39 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)create.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: create.c,v 1.80 2025/12/18 18:16:48 christos Exp $");
+__RCSID("$NetBSD: create.c,v 1.81 2026/01/10 14:53:39 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -236,8 +236,7 @@ statf(FILE *fp, int indent, FTSENT *p)
 		offset += fprintf(fp, "%*s",
 		    (INDENTNAMELEN + indent) - offset, "");
 
-	if (keys & F_TYPE &&
-	    !S_ISREG(p->fts_statp->st_mode) && (flavor == F_NETBSD6 || !dflag))
+	if (!S_ISREG(p->fts_statp->st_mode) && (flavor == F_NETBSD6 || !dflag))
 		output(fp, indent, &offset, "type=%s",
 		    inotype(p->fts_statp->st_mode));
 	if (keys & (F_UID | F_UNAME) && p->fts_statp->st_uid != uid) {
