@@ -53,15 +53,18 @@ namespace text = utils::text;
 ///     purposes.
 /// \param default_value_ If not NULL, specifies that the option has a default
 ///     value for the mandatory argument.
+/// \param arg_is_optional_ Specifies if a value must be provided or not.
 cmdline::base_option::base_option(const char short_name_,
                                   const char* long_name_,
                                   const char* description_,
                                   const char* arg_name_,
-                                  const char* default_value_) :
+                                  const char* default_value_,
+                                  bool arg_is_optional_) :
     _short_name(short_name_),
     _long_name(long_name_),
     _description(description_),
     _arg_name(arg_name_ == NULL ? "" : arg_name_),
+    _arg_is_optional(arg_is_optional_),
     _has_default_value(default_value_ != NULL),
     _default_value(default_value_ == NULL ? "" : default_value_)
 {
@@ -161,6 +164,16 @@ cmdline::base_option::arg_name(void) const
 {
     INV(needs_arg());
     return _arg_name;
+}
+
+
+/// Returns optionality of the argument.
+///
+/// \return The optionality.
+bool
+cmdline::base_option::arg_is_optional(void) const
+{
+    return _arg_is_optional;
 }
 
 
@@ -558,9 +571,10 @@ cmdline::string_option::string_option(const char short_name_,
                                       const char* long_name_,
                                       const char* description_,
                                       const char* arg_name_,
-                                      const char* default_value_) :
+                                      const char* default_value_,
+                                      bool arg_is_optional_) :
     base_option(short_name_, long_name_, description_, arg_name_,
-                default_value_)
+                default_value_, arg_is_optional_)
 {
 }
 

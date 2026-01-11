@@ -80,6 +80,8 @@ class child : noncopyable {
 
     static std::unique_ptr< child > fork_capture_aux(void);
 
+    static std::unique_ptr< child > fork_interactive(void);
+
     static std::unique_ptr< child > fork_files_aux(const fs::path&,
                                                  const fs::path&);
 
@@ -91,6 +93,9 @@ public:
     template< typename Hook >
     static std::unique_ptr< child > fork_capture(Hook);
     std::istream& output(void);
+
+    template< typename Hook >
+    static std::unique_ptr< child > fork_interactive(Hook);
 
     template< typename Hook >
     static std::unique_ptr< child > fork_files(Hook, const fs::path&,
