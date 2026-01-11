@@ -987,3 +987,9 @@ Each lesson is recorded with timestamp, category, and remediation advice.
 ### COMPILER: Stale .depend Files and Unused Variable Warning
 - Stale `.depend` files caused build errors; unused variable warning in `cpuset.c` also failed.
 - Clean build directory with `make clean` before building; remove unused variables to avoid warnings.
+
+
+## 2026-01-11 05:09
+### COMPILER: Stale .depend Files and Undeclared Identifiers
+- Stale `.depend` files caused build errors; undeclared identifier `errstr` was a typo.
+- Clean build directory with `make clean` before building to avoid stale dependencies; use correct identifiers like `strstr`.
