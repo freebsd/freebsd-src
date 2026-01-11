@@ -993,3 +993,9 @@ Each lesson is recorded with timestamp, category, and remediation advice.
 ### COMPILER: Stale .depend Files and Undeclared Identifiers
 - Stale `.depend` files caused build errors; undeclared identifier `errstr` was a typo.
 - Clean build directory with `make clean` before building to avoid stale dependencies; use correct identifiers like `strstr`.
+
+
+## 2026-01-11 08:57
+### COMPILER: Stale .depend Files and Undeclared Identifiers
+- Stale `.depend` files caused build errors; undeclared identifier 'endptr' in `cpuset.c`.
+- Clean build directory with `make clean` before building to remove stale dependencies; ensure all variables are declared.
