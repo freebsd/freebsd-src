@@ -154,7 +154,7 @@ static bool octprefix;	/* override current octave-tracking state? */
 #define DENOM_MULT	2	/* denominator of dot multiplier */
 
 /* letter to half-tone:  A   B  C  D  E  F  G */
-static int notetab[8] = {9, 11, 0, 2, 4, 5, 7};
+static const int notetab[8] = {9, 11, 0, 2, 4, 5, 7};
 
 /*
  * This is the American Standard A440 Equal-Tempered scale with frequencies
@@ -162,7 +162,7 @@ static int notetab[8] = {9, 11, 0, 2, 4, 5, 7};
  * our octave 0 is standard octave 2.
  */
 #define OCTAVE_NOTES	12	/* semitones per octave */
-static int pitchtab[] =
+static const int pitchtab[] =
 {
 /*        C     C#    D     D#    E     F     F#    G     G#    A     A#    B*/
 /* 0 */   65,   69,   73,   78,   82,   87,   93,   98,  103,  110,  117,  123,
