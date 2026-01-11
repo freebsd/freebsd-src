@@ -6,6 +6,18 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-01-11 13:54 - bin/csh ✓
+
+**Directory:** `bin/csh`
+
+**Summary:** csh: Improve error handling in iconv_stub.c
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+  - bin/csh/iconv_stub.c
+
+---
+
 ## 2026-01-11 13:23 - bin/cp/tests ✓
 
 **Directory:** `bin/cp/tests`

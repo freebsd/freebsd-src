@@ -51,23 +51,33 @@ iconv_t
 dl_iconv_open(const char *tocode, const char *fromcode)
 {
 	if (initialized) {
-		if (iconvlib == NULL)
+		if (iconvlib == NULL) {
+			errx(1, "dlopen(%s): %s", ICONVLIB, dlerror());
 			return (iconv_t)-1;
+		}
 	} else {
 		initialized = 1;
 		iconvlib = dlopen(ICONVLIB, RTLD_LAZY | RTLD_GLOBAL);
-		if (iconvlib == NULL)
+		if (iconvlib == NULL) {
+			errx(1, "dlopen(%s): %s", ICONVLIB, dlerror());
 			return (iconv_t)-1;
+		}
 		iconv_open = (iconv_open_t *)dlfunc(iconvlib, ICONV_OPEN);
-		if (iconv_open == NULL)
+		if (iconv_open == NULL) {
+			errx(1, "dlfunc(%s): %s", ICONV_OPEN, dlerror());
 			goto dlfunc_err;
+		}
 		dl_iconv = (dl_iconv_t *)dlfunc(iconvlib, ICONV_ENGINE);
-		if (dl_iconv == NULL)
+		if (dl_iconv == NULL) {
+			errx(1, "dlfunc(%s): %s", ICONV_ENGINE, dlerror());
 			goto dlfunc_err;
+		}
 		dl_iconv_close = (dl_iconv_close_t *)dlfunc(iconvlib,
 		    ICONV_CLOSE);
-		if (dl_iconv_close == NULL)
+		if (dl_iconv_close == NULL) {
+			errx(1, "dlfunc(%s): %s", ICONV_CLOSE, dlerror());
 			goto dlfunc_err;
+		}
 	}
 	return iconv_open(tocode, fromcode);
 
