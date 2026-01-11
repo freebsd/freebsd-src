@@ -999,3 +999,9 @@ Each lesson is recorded with timestamp, category, and remediation advice.
 ### COMPILER: Stale .depend Files and Undeclared Identifiers
 - Stale `.depend` files caused build errors; undeclared identifier 'endptr' in `cpuset.c`.
 - Clean build directory with `make clean` before building to remove stale dependencies; ensure all variables are declared.
+
+
+## 2026-01-11 09:45
+### COMPILER: Stale .depend Files and Implicit Function Declarations
+- Stale `.depend` files caused build errors; implicit function declaration led to a compilation failure.
+- Clean build directories with `make clean` before building; ensure all functions are declared before use.
