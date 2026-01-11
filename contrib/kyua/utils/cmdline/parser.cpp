@@ -88,7 +88,10 @@ options_to_getopt_data(const cmdline::options_vector& options,
 
         long_option.name = option->long_name().c_str();
         if (option->needs_arg())
-            long_option.has_arg = required_argument;
+            if (option->arg_is_optional())
+                long_option.has_arg = optional_argument;
+            else
+                long_option.has_arg = required_argument;
         else
             long_option.has_arg = no_argument;
 
@@ -96,7 +99,7 @@ options_to_getopt_data(const cmdline::options_vector& options,
         if (option->has_short_name()) {
             data.short_options += option->short_name();
             if (option->needs_arg())
-                data.short_options += ':';
+                data.short_options += option->arg_is_optional() ? "::" : ":";
             id = option->short_name();
         } else {
             id = cur_id++;
@@ -320,9 +323,11 @@ cmdline::parse(const int argc, const char* const* argv,
     for (cmdline::options_vector::const_iterator iter = options.begin();
          iter != options.end(); iter++) {
         const cmdline::base_option* option = *iter;
-        if (option->needs_arg() && option->has_default_value())
+        if (option->needs_arg() && option->has_default_value() &&
+            !option->arg_is_optional()) {
             option_values[option->long_name()].push_back(
                 option->default_value());
+        }
     }
 
     args_vector args;
@@ -357,8 +362,13 @@ cmdline::parse(const int argc, const char* const* argv,
                 if (::optarg != NULL) {
                     option->validate(::optarg);
                     option_values[option->long_name()].push_back(::optarg);
-                } else
-                    INV(option->has_default_value());
+                } else {
+                    if (option->arg_is_optional())
+                        option_values[option->long_name()].push_back(
+                            option->default_value());
+                    else
+                        INV(option->has_default_value());
+                }
             } else {
                 option_values[option->long_name()].push_back("");
             }

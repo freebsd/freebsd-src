@@ -58,6 +58,13 @@ public:
         const model::test_case&,
         optional< model::test_result >&,
         executor::exit_handle&) const = 0;
+
+    /// Called upon test failure.
+    virtual void upon_test_failure(
+        const model::test_program_ptr&,
+        const model::test_case&,
+        optional< model::test_result >&,
+        executor::exit_handle&) const = 0;
 };
 
 

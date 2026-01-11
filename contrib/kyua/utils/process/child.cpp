@@ -235,6 +235,30 @@ process::child::fork_capture_aux(void)
 }
 
 
+std::unique_ptr< process::child >
+process::child::fork_interactive(void)
+{
+    std::cout.flush();
+    std::cerr.flush();
+
+    std::unique_ptr< signals::interrupts_inhibiter > inhibiter(
+        new signals::interrupts_inhibiter);
+    pid_t pid = detail::syscall_fork();
+    if (pid == -1) {
+        inhibiter.reset();  // Unblock signals.
+        throw process::system_error("fork(2) failed", errno);
+    } else if (pid == 0) {
+        inhibiter.reset();  // Unblock signals.
+        return {};
+    } else {
+        signals::add_pid_to_kill(pid);
+        inhibiter.reset(NULL);  // Unblock signals.
+        return std::unique_ptr< process::child >(
+            new process::child(new impl(pid, NULL)));
+    }
+}
+
+
 /// Helper function for fork().
 ///
 /// Please note: if you update this function to change the return type or to
