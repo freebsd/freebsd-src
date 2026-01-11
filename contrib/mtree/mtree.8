@@ -1,4 +1,4 @@
-.\"	$NetBSD: mtree.8,v 1.78 2023/12/02 13:26:09 christos Exp $
+.\"	$NetBSD: mtree.8,v 1.80 2026/01/10 17:12:04 uwe Exp $
 .\"
 .\" Copyright (c) 1989, 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -56,7 +56,7 @@
 .\"
 .\"     @(#)mtree.8	8.2 (Berkeley) 12/11/93
 .\"
-.Dd December 2, 2023
+.Dd January 8, 2026
 .Dt MTREE 8
 .Os
 .Sh NAME
@@ -178,8 +178,8 @@ and
 respectively.
 .
 .It Fl f Ar spec
-Read the specification from
-.Ar file  ,
+Read the specification from the file
+.Ar spec  ,
 instead of from the standard input.
 .Pp
 If this option is specified twice, the two specifications are compared
@@ -242,18 +242,14 @@ If
 is specified, add all of the other keywords.
 .
 .It Fl k Ar keywords
-Use the
+Use the mandatory
 .Sy type
 keyword plus the specified (whitespace or comma separated)
 .Ar keywords
-instead of the current set of keywords.
+to replace the current set of keywords.
 If
 .Ql all
-is specified, use all of the other keywords.
-If the
-.Sy type
-keyword is not desired, suppress it with
-.Fl R Cm type .
+is specified, use all of the available keywords.
 .
 .It Fl L
 Follow all symbolic links in the file hierarchy.
@@ -338,9 +334,13 @@ This occurs when the directory is a symbolic link.
 .It Fl R Ar keywords
 Remove the specified (whitespace or comma separated) keywords from the current
 set of keywords.
+The
+.Sy type
+keyword is mandatory and is always retained.
 If
 .Ql all
-is specified, remove all of the other keywords.
+is specified, remove all keywords except
+.Sy type .
 .
 .It Fl r
 Remove any files in the file hierarchy that are not described in the
