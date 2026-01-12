@@ -59,8 +59,10 @@ main(int argc, char *argv[])
 		usage();
 
 	if (*argv) {
+		if (strlen(*argv) >= MAXHOSTNAMELEN)
+			errx(1, "domain name too long (max %d characters)", MAXHOSTNAMELEN);
 		if (setdomainname(*argv, (int)strlen(*argv)))
-			err(1, "setdomainname");
+			err(1, "setdomainname failed");
 	} else {
 		if (getdomainname(domainname, (int)sizeof(domainname)))
 			err(1, "getdomainname");

@@ -6,6 +6,18 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-01-12 17:08 - bin/domainname ✓
+
+**Directory:** `bin/domainname`
+
+**Summary:** domainname: Validate domain name length before setting
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+  - bin/domainname/domainname.c
+
+---
+
 ## 2026-01-12 16:32 - bin/df ✓
 
 **Directory:** `bin/df`
