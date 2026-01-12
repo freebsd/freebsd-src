@@ -1029,6 +1029,15 @@ in6_alloc_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra, int flags)
 	return (ia);
 }
 
+time_t
+in6_expire_time(uint32_t ltime)
+{
+	if (ltime == ND6_INFINITE_LIFETIME)
+		return (0);
+	else
+		return (time_uptime + ltime);
+}
+
 /*
  * Update/configure interface address parameters:
  *
@@ -1051,16 +1060,10 @@ in6_update_ifa_internal(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	 * these members for applications.
 	 */
 	ia->ia6_lifetime = ifra->ifra_lifetime;
-	if (ia->ia6_lifetime.ia6t_vltime != ND6_INFINITE_LIFETIME) {
-		ia->ia6_lifetime.ia6t_expire =
-		    time_uptime + ia->ia6_lifetime.ia6t_vltime;
-	} else
-		ia->ia6_lifetime.ia6t_expire = 0;
-	if (ia->ia6_lifetime.ia6t_pltime != ND6_INFINITE_LIFETIME) {
-		ia->ia6_lifetime.ia6t_preferred =
-		    time_uptime + ia->ia6_lifetime.ia6t_pltime;
-	} else
-		ia->ia6_lifetime.ia6t_preferred = 0;
+	ia->ia6_lifetime.ia6t_expire =
+	    in6_expire_time(ifra->ifra_lifetime.ia6t_vltime);
+	ia->ia6_lifetime.ia6t_preferred =
+	    in6_expire_time(ifra->ifra_lifetime.ia6t_pltime);
 
 	/*
 	 * backward compatibility - if IN6_IFF_DEPRECATED is set from the
