@@ -10,7 +10,7 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
-c558eca47970: 
+256d05617c71:
 	The smartpqi(4) driver was updated to vendor version 4660.0.2002
 	for the SmartArry storage controllers.
 
