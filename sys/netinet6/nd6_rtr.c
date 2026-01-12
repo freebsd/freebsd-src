@@ -1146,39 +1146,18 @@ restart:
 	return (n);
 }
 
-static int
+static void
 in6_init_prefix_ltimes(struct nd_prefix *ndpr)
 {
-	if (ndpr->ndpr_pltime == ND6_INFINITE_LIFETIME)
-		ndpr->ndpr_preferred = 0;
-	else
-		ndpr->ndpr_preferred = time_uptime + ndpr->ndpr_pltime;
-	if (ndpr->ndpr_vltime == ND6_INFINITE_LIFETIME)
-		ndpr->ndpr_expire = 0;
-	else
-		ndpr->ndpr_expire = time_uptime + ndpr->ndpr_vltime;
-
-	return 0;
+	ndpr->ndpr_preferred = in6_expire_time(ndpr->ndpr_pltime);
+	ndpr->ndpr_expire = in6_expire_time(ndpr->ndpr_vltime);
 }
 
 static void
 in6_init_address_ltimes(struct nd_prefix *new, struct in6_addrlifetime *lt6)
 {
-	/* init ia6t_expire */
-	if (lt6->ia6t_vltime == ND6_INFINITE_LIFETIME)
-		lt6->ia6t_expire = 0;
-	else {
-		lt6->ia6t_expire = time_uptime;
-		lt6->ia6t_expire += lt6->ia6t_vltime;
-	}
-
-	/* init ia6t_preferred */
-	if (lt6->ia6t_pltime == ND6_INFINITE_LIFETIME)
-		lt6->ia6t_preferred = 0;
-	else {
-		lt6->ia6t_preferred = time_uptime;
-		lt6->ia6t_preferred += lt6->ia6t_pltime;
-	}
+	lt6->ia6t_preferred = in6_expire_time(lt6->ia6t_pltime);
+	lt6->ia6t_expire = in6_expire_time(lt6->ia6t_vltime);
 }
 
 static struct in6_ifaddr *
@@ -1394,11 +1373,8 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
 	new->ndpr_vltime = pr->ndpr_vltime;
 	new->ndpr_pltime = pr->ndpr_pltime;
 	new->ndpr_flags = pr->ndpr_flags;
-	if ((error = in6_init_prefix_ltimes(new)) != 0) {
-		free(new, M_IP6NDP);
-		return (error);
-	}
 	new->ndpr_lastupdate = time_uptime;
+	in6_init_prefix_ltimes(new);
 
 	/* initialization */
 	LIST_INIT(&new->ndpr_advrtrs);
@@ -1542,7 +1518,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 		if (new->ndpr_raf_onlink) {
 			pr->ndpr_vltime = new->ndpr_vltime;
 			pr->ndpr_pltime = new->ndpr_pltime;
-			(void)in6_init_prefix_ltimes(pr); /* XXX error case? */
+			in6_init_prefix_ltimes(pr);
 			pr->ndpr_lastupdate = time_uptime;
 		}
 
