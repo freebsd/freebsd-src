@@ -77,7 +77,7 @@
 
 #define	BT_CP(src, dst, fld) do {				\
 	CP((src).fld, (dst).fld, sec);				\
-	*(uint64_t *)&(dst).fld.frac[0] = (src).fld.frac;	\
+	FU64_CP((src).fld, (dst).fld, frac);			\
 } while (0)
 
 #endif /* !_COMPAT_H_ */
