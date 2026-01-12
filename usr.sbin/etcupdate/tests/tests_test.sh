@@ -596,6 +596,7 @@ EOF
 	cat > $NEW/etc/login.conf <<EOF
 default:\\
 	:passwd_format=md5:\\
+	:welcome=/var/run/motd:
 EOF
 	cp $OLD/etc/login.conf $TEST/etc/login.conf
 
@@ -921,7 +922,7 @@ check_trees()
 	file /etc/passwd
 	file /etc/pwd.db
 	file /etc/spwd.db
-	file /etc/login.conf "" 7774a0f9a3a372c7c109c32fd31c4b6b
+	file /etc/login.conf "" b139b1ab44a6933659246ac4401fcbe4
 	file /etc/login.conf.db
 	file /etc/mail/aliases "" 7d598f89ec040ab56af54011bdb83337
 	file /etc/services "" 37fb6a8d1273f3b78329d431f21d9c7d
