@@ -971,23 +971,23 @@ jme_sysctl_node(struct jme_softc *sc)
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->jme_dev));
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_coal_to",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &sc->jme_tx_coal_to,
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, &sc->jme_tx_coal_to,
 	    0, sysctl_hw_jme_tx_coal_to, "I", "jme tx coalescing timeout");
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_coal_pkt",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &sc->jme_tx_coal_pkt,
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, &sc->jme_tx_coal_pkt,
 	    0, sysctl_hw_jme_tx_coal_pkt, "I", "jme tx coalescing packet");
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_coal_to",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &sc->jme_rx_coal_to,
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, &sc->jme_rx_coal_to,
 	    0, sysctl_hw_jme_rx_coal_to, "I", "jme rx coalescing timeout");
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_coal_pkt",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &sc->jme_rx_coal_pkt,
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, &sc->jme_rx_coal_pkt,
 	    0, sysctl_hw_jme_rx_coal_pkt, "I", "jme rx coalescing packet");
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "process_limit",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    &sc->jme_process_limit, 0, sysctl_hw_jme_proc_limit, "I",
 	    "max number of Rx events to process");
 
