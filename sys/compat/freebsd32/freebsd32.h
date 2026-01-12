@@ -70,7 +70,7 @@ struct itimerspec32 {
 
 struct bintime32 {
 	time32_t sec;
-	uint32_t frac[2];
+	freebsd32_uint64_t frac;
 };
 
 struct ffclock_estimate32 {
