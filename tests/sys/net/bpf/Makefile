@@ -14,4 +14,7 @@ LIBADD.pcap-test+=	pcap
 
 ATF_TESTS_SH=	bpf
 
+TEST_METADATA.bpf+=	execenv="jail" \
+			execenv_jail_params="vnet allow.raw_sockets"
+
 .include <bsd.test.mk>
