@@ -6846,9 +6846,9 @@ pf_create_state(struct pf_krule *r, struct pf_test_ctx *ctx,
 
 	srlim = ctx->sourcelim;
 	if (srlim != NULL) {
-		struct pf_source *sr = ctx->source;
 		unsigned int gen;
 
+		sr = ctx->source;
 		if (sr == NULL) {
 			sr = malloc(sizeof(*sr), M_PF_SOURCE_LIM, M_NOWAIT | M_ZERO);
 			if (sr == NULL) {
