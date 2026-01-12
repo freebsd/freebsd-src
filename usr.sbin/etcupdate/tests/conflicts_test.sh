@@ -80,6 +80,7 @@ EOF
 	cat > $NEW/etc/login.conf <<EOF
 default:\\
 	:passwd_format=md5:\\
+	:welcome=/var/run/motd:
 EOF
 	cat > $TEST/etc/login.conf <<EOF
 default:\\
@@ -233,7 +234,7 @@ build_login_conflict
 echo "Checking 'tf':"
 echo 'tf' | $COMMAND resolve -d $WORKDIR -D $TEST >/dev/null
 
-file /etc/login.conf "" 7774a0f9a3a372c7c109c32fd31c4b6b
+file /etc/login.conf "" b139b1ab44a6933659246ac4401fcbe4
 file /etc/login.conf.db
 resolved /etc/login.conf
 
@@ -251,7 +252,7 @@ EOF
 
 echo 'r' | $COMMAND resolve -d $WORKDIR -D $TEST >/dev/null
 
-file /etc/login.conf "" 966e25984b9b63da8eaac8479dcb0d4d
+file /etc/login.conf "" 95de92ea3f1bb1bf4f612a8b5908cddd
 file /etc/login.conf.db
 resolved /etc/login.conf
 
