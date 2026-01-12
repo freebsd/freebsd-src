@@ -1632,6 +1632,7 @@ pf_statelim_add(const struct pfioc_statelim *ioc)
 		return (EINVAL);
 
 	namelen = strnlen(ioc->name, sizeof(ioc->name));
+	/* is the name from userland nul terminated? */
 	if (namelen == sizeof(ioc->name))
 		return (EINVAL);
 
@@ -1640,7 +1641,11 @@ pf_statelim_add(const struct pfioc_statelim *ioc)
 		return (ENOMEM);
 
 	pfstlim->pfstlim_id = ioc->id;
-	memcpy(pfstlim->pfstlim_nm, ioc->name, namelen);
+	if (strlcpy(pfstlim->pfstlim_nm, ioc->name,
+	    sizeof(pfstlim->pfstlim_nm)) >= sizeof(pfstlim->pfstlim_nm)) {
+		error = EINVAL;
+		goto free;
+	}
 	pfstlim->pfstlim_limit = ioc->limit;
 	pfstlim->pfstlim_rate.limit = ioc->rate.limit;
 	pfstlim->pfstlim_rate.seconds = ioc->rate.seconds;
@@ -1690,7 +1695,7 @@ pf_statelim_add(const struct pfioc_statelim *ioc)
 unlock:
 	PF_RULES_WUNLOCK();
 
-	/* free: */
+free:
 	free(pfstlim, M_PF_STATE_LIM);
 
 	return (error);
@@ -1845,7 +1850,7 @@ pf_sourcelim_check(void)
 			continue;
 
 		if (strcmp(npfsrlim->pfsrlim_overload.name,
-			pfsrlim->pfsrlim_overload.name) != 0)
+		    pfsrlim->pfsrlim_overload.name) != 0)
 			return (EBUSY);
 
 		/*
@@ -1995,7 +2000,7 @@ pf_statelim_rb_nfind(struct pf_statelim_id_tree *tree, struct pf_statelim *key)
 int
 pf_statelim_get(struct pfioc_statelim *ioc,
     struct pf_statelim *(*rbt_op)(struct pf_statelim_id_tree *,
-     struct pf_statelim *))
+    struct pf_statelim *))
 {
 	struct pf_statelim key = { .pfstlim_id = ioc->id };
 	struct pf_statelim *pfstlim;
@@ -2056,23 +2061,18 @@ pf_sourcelim_add(const struct pfioc_sourcelim *ioc)
 		return (EINVAL);
 
 	namelen = strnlen(ioc->name, sizeof(ioc->name));
+	/* is the name from userland nul terminated? */
 	if (namelen == sizeof(ioc->name))
 		return (EINVAL);
 
 	tablelen = strnlen(ioc->overload_tblname,
 	    sizeof(ioc->overload_tblname));
+	/* is the name from userland nul terminated? */
 	if (tablelen == sizeof(ioc->overload_tblname))
 		return (EINVAL);
 	if (tablelen != 0) {
 		if (ioc->overload_hwm == 0)
 			return (EINVAL);
-
-		/*
-		 * this is stupid, but not harmful?
-		 *
-		 * if (ioc->states < ioc->overload_hwm)
-		 *      return (EINVAL);
-		 */
 
 		if (ioc->overload_hwm < ioc->overload_lwm)
 			return (EINVAL);
@@ -2089,10 +2089,19 @@ pf_sourcelim_add(const struct pfioc_sourcelim *ioc)
 	pfsrlim->pfsrlim_ipv6_prefix = ioc->inet6_prefix;
 	pfsrlim->pfsrlim_rate.limit = ioc->rate.limit;
 	pfsrlim->pfsrlim_rate.seconds = ioc->rate.seconds;
-	memcpy(pfsrlim->pfsrlim_overload.name, ioc->overload_tblname, tablelen);
+	if (strlcpy(pfsrlim->pfsrlim_overload.name, ioc->overload_tblname,
+	    sizeof(pfsrlim->pfsrlim_overload.name)) >=
+	    sizeof(pfsrlim->pfsrlim_overload.name)) {
+		error = EINVAL;
+		goto free;
+	}
 	pfsrlim->pfsrlim_overload.hwm = ioc->overload_hwm;
 	pfsrlim->pfsrlim_overload.lwm = ioc->overload_lwm;
-	memcpy(pfsrlim->pfsrlim_nm, ioc->name, namelen);
+	if (strlcpy(pfsrlim->pfsrlim_nm, ioc->name,
+	    sizeof(pfsrlim->pfsrlim_nm)) >= sizeof(pfsrlim->pfsrlim_nm)) {
+		error = EINVAL;
+		goto free;
+	}
 
 	if (pfsrlim->pfsrlim_rate.limit) {
 		uint64_t bucket = pfsrlim->pfsrlim_rate.seconds * 1000000000ULL;
@@ -2161,7 +2170,8 @@ pf_sourcelim_add(const struct pfioc_sourcelim *ioc)
 
 unlock:
 	PF_RULES_WUNLOCK();
-	/* free: */
+
+free:
 	free(pfsrlim, M_PF_SOURCE_LIM);
 
 	return (error);
@@ -2206,7 +2216,7 @@ pf_sourcelim_rb_nfind(struct pf_sourcelim_id_tree *tree,
 int
 pf_sourcelim_get(struct pfioc_sourcelim *ioc,
     struct pf_sourcelim *(*rbt_op)(struct pf_sourcelim_id_tree *,
-     struct pf_sourcelim *))
+    struct pf_sourcelim *))
 {
 	struct pf_sourcelim key = { .pfsrlim_id = ioc->id };
 	struct pf_sourcelim *pfsrlim;
@@ -2214,12 +2224,6 @@ pf_sourcelim_get(struct pfioc_sourcelim *ioc,
 	PF_RULES_RLOCK_TRACKER;
 
 	PF_RULES_RLOCK();
-#if 0
-       if (ioc->ticket != pf_main_ruleset.rules.active.ticket) {
-               error = EBUSY;
-               goto unlock;
-       }
-#endif
 
 	pfsrlim = (*rbt_op)(&V_pf_sourcelim_id_tree_active, &key);
 	if (pfsrlim == NULL) {
@@ -2304,13 +2308,6 @@ pf_source_clr(struct pfioc_source_kill *ioc)
 	}
 
 	PF_RULES_WLOCK();
-
-#if 0
-	if (ioc->ticket != pf_main_ruleset.rules.active.ticket) {
-		error = EBUSY;
-		goto unlock;
-	}
-#endif
 
 	pfsrlim = pf_sourcelim_rb_find(&V_pf_sourcelim_id_tree_active, &plkey);
 	if (pfsrlim == NULL) {
