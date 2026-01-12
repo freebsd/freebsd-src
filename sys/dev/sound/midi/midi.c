@@ -236,7 +236,7 @@ midi_out(struct snd_midi *m, uint8_t *buf, int size)
 		return (0);
 	}
 
-	used = MIN(size, MIDIQ_LEN(m->outq));
+	used = min(size, MIDIQ_LEN(m->outq));
 	if (used)
 		MIDIQ_DEQ(m->outq, buf, used);
 	if (MIDIQ_EMPTY(m->outq)) {
@@ -387,8 +387,8 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 	         * At this point, it is certain that m->inq has data
 	         */
 
-		used = MIN(MIDIQ_LEN(m->inq), uio->uio_resid);
-		used = MIN(used, MIDI_RSIZE);
+		used = min(MIDIQ_LEN(m->inq), uio->uio_resid);
+		used = min(used, MIDI_RSIZE);
 
 		MIDIQ_DEQ(m->inq, buf, used);
 		mtx_unlock(&m->lock);
@@ -456,8 +456,8 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 	         * We are certain than data can be placed on the queue
 	         */
 
-		used = MIN(MIDIQ_AVAIL(m->outq), uio->uio_resid);
-		used = MIN(used, MIDI_WSIZE);
+		used = min(MIDIQ_AVAIL(m->outq), uio->uio_resid);
+		used = min(used, MIDI_WSIZE);
 
 		mtx_unlock(&m->lock);
 		retval = uiomove(buf, used, uio);
