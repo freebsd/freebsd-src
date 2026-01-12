@@ -67,6 +67,14 @@
 	TS_CP((src), (dst), it_value);		\
 } while (0)
 
+#define	FU64_CP(src, dst, fld) do {				\
+	_Static_assert(sizeof((src).fld) == sizeof(uint64_t),	\
+	    "FU64_CP src: " #src "." #fld "is not 8 bytes");	\
+	_Static_assert(sizeof((dst).fld) == sizeof(uint64_t),	\
+	    "FU64_CP dst: " #dst "." #fld "is not 8 bytes");	\
+	memcpy(&(dst).fld, &(src).fld, sizeof(uint64_t));	\
+} while (0)
+
 #define	BT_CP(src, dst, fld) do {				\
 	CP((src).fld, (dst).fld, sec);				\
 	*(uint64_t *)&(dst).fld.frac[0] = (src).fld.frac;	\
