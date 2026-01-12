@@ -133,7 +133,7 @@ eflags_body()
 	printf "aaa bbb ccc\n111 222 333\ndon't match this line" > in
 
 	atf_check -o 'inline:aaa bbb ccc\n111 222 333\n' \
-	    /tmp/zgrep.sh -eaaa -e333 in
+	    zgrep -eaaa -e333 in
 }
 
 atf_init_test_cases()
