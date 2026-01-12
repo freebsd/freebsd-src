@@ -320,6 +320,7 @@ pho [label="Peter Holm\npho@FreeBSD.org\n2008/11/16"]
 pjd [label="Pawel Jakub Dawidek\npjd@FreeBSD.org\n2004/02/02"]
 pkelsey [label="Patrick Kelsey\npkelsey@FreeBSD.org\n2014/05/29"]
 pluknet [label="Sergey Kandaurov\npluknet@FreeBSD.org\n2010/10/05"]
+pouria [label="Pouria Mousavizadeh Tehrani\npouria@FreeBSD.org\n2026/01/10"]
 ps [label="Paul Saab\nps@FreeBSD.org\n2000/02/23"]
 qingli [label="Qing Li\nqingli@FreeBSD.org\n2005/04/13"]
 rajeshasp [label="Rajesh Kumar M A\nrajeshasp@FreeBSD.org\n2021/01/27"]
@@ -588,6 +589,7 @@ gibbs -> whu
 
 glebius -> cy
 glebius -> mav
+glebius -> pouria
 
 gnn -> arybchik
 gnn -> davide
