@@ -407,15 +407,15 @@ ads111x_setup_channel(struct ads111x_softc *sc, int chan, int gainidx, int ratei
 	chantree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(devtree), OID_AUTO,
 	    chanstr, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "channel data");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(chantree), OID_AUTO,
-	    "gain_index", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT,
+	    "gain_index", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    sc, chan, ads111x_sysctl_gainidx, "I",
 	    "programmable gain amp setting, 0-7");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(chantree), OID_AUTO,
-	    "rate_index", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT,
+	    "rate_index", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    sc, chan, ads111x_sysctl_rateidx, "I", "sample rate setting, 0-7");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(chantree), OID_AUTO,
 	    "voltage",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_SKIP | CTLFLAG_NEEDGIANT, sc,
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_SKIP | CTLFLAG_MPSAFE, sc,
 	    chan, ads111x_sysctl_voltage, "I", "sampled voltage in microvolts");
 
 	c->configured = true;
@@ -565,13 +565,13 @@ ads111x_attach(device_t dev)
 	ctx = device_get_sysctl_ctx(dev);
 	tree = device_get_sysctl_tree(dev);
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "config", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, sc, 0,
+	    "config", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, sc, 0,
 	    ads111x_sysctl_config, "I", "configuration register word");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "lo_thresh", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, sc, 0,
+	    "lo_thresh", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, sc, 0,
 	    ads111x_sysctl_lothresh, "I", "comparator low threshold");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "hi_thresh", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, sc, 0,
+	    "hi_thresh", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, sc, 0,
 	    ads111x_sysctl_hithresh, "I", "comparator high threshold");
 
 	/* Set up channels based on metadata or default config. */
