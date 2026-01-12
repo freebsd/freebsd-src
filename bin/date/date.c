@@ -288,10 +288,10 @@ setthetime(const char *fmt, const char *p, int jflag, struct timespec *ts)
 		if (dot != NULL) {			/* .ss */
 			dot++; /* *dot++ = '\0'; */
 			if (strlen(dot) != 2)
-				badformat();
+				errx(1, "Invalid seconds format: %s", dot);
 			lt->tm_sec = ATOI2(dot);
 			if (lt->tm_sec > 61)
-				badformat();
+				errx(1, "Seconds out of range: %d", lt->tm_sec);
 		} else
 			lt->tm_sec = 0;
 
@@ -316,26 +316,26 @@ setthetime(const char *fmt, const char *p, int jflag, struct timespec *ts)
 		case 8:					/* mm */
 			lt->tm_mon = ATOI2(p);
 			if (lt->tm_mon > 12)
-				badformat();
+				errx(1, "Month out of range: %d", lt->tm_mon);
 			--lt->tm_mon;		/* time struct is 0 - 11 */
 			/* FALLTHROUGH */
 		case 6:					/* dd */
 			lt->tm_mday = ATOI2(p);
 			if (lt->tm_mday > 31)
-				badformat();
+				errx(1, "Day out of range: %d", lt->tm_mday);
 			/* FALLTHROUGH */
 		case 4:					/* HH */
 			lt->tm_hour = ATOI2(p);
 			if (lt->tm_hour > 23)
-				badformat();
+				errx(1, "Hour out of range: %d", lt->tm_hour);
 			/* FALLTHROUGH */
 		case 2:					/* MM */
 			lt->tm_min = ATOI2(p);
 			if (lt->tm_min > 59)
-				badformat();
+				errx(1, "Minute out of range: %d", lt->tm_min);
 			break;
 		default:
-			badformat();
+			errx(1, "Invalid date format");
 		}
 	}
 
@@ -453,7 +453,7 @@ strftime_ns(char * __restrict s, size_t maxsize, const char * __restrict format,
 			asprintf(&newformat, "%.*s%.*ld%.*d%n%s", prefixlen,
 			    prefix, width, number, zeroes, 0, &len, suffix);
 			if (newformat == NULL)
-				err(1, "asprintf");
+				errx(1, "Failed to allocate memory for formatted string: asprintf");
 			free(oldformat);
 			tok = newformat + len - 1;
 			seen_percent = false;
