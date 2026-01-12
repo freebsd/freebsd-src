@@ -301,9 +301,10 @@ CONFGROUPS.${MK_VI}+=		VI
 VIPACKAGE=			vi
 VI=		virecover
 
-CONFGROUPS.${MK_CUSE}+=		VOSS
-VOSSPACKAGE=			sound
-VOSS=		virtual_oss
+CONFGROUPS.${MK_SOUND}+=	SOUND
+SOUNDPACKAGE=			sound
+SOUND=		mixer \
+		virtual_oss
 
 CONFGROUPS.${MK_WIRELESS}+=	HOSTAPD
 HOSTAPDPACKAGE=			hostapd
