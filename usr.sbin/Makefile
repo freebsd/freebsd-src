@@ -131,7 +131,6 @@ SUBDIR.${MK_BSNMP}+=	bsnmpd
 .if ${MK_CAROOT} != "no"
 SUBDIR.${MK_OPENSSL}+=	certctl
 .endif
-SUBDIR.${MK_CUSE}+=	virtual_oss
 SUBDIR.${MK_CXGBETOOL}+=	cxgbetool
 SUBDIR.${MK_EFI}+=	efivar efidp efibootmgr efitable efiwake
 .if ${MK_OPENSSL} != "no"
@@ -200,6 +199,9 @@ SUBDIR.${MK_SENDMAIL}+=	mailstats
 SUBDIR.${MK_SENDMAIL}+=	makemap
 SUBDIR.${MK_SENDMAIL}+=	praliases
 SUBDIR.${MK_SENDMAIL}+=	sendmail
+SUBDIR.${MK_SOUND}+=	mixer
+SUBDIR.${MK_SOUND}+=	sndctl
+SUBDIR.${MK_SOUND}+=	virtual_oss
 SUBDIR.${MK_TCP_WRAPPERS}+=	tcpdchk
 SUBDIR.${MK_TCP_WRAPPERS}+=	tcpdmatch
 SUBDIR.${MK_TOOLCHAIN}+=	config
