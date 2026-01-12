@@ -57,7 +57,7 @@
 /lib/libpam/		@dag-erling
 /lib/libsecureboot/	@stephane-rochoy-stormshield
 /lib/libveriexec/	@stephane-rochoy-stormshield
-/lib/libvmmapi	@bsdjhb @grehan-freebsd
+/lib/libvmmapi		@bsdjhb @bryanv @markjdb @khng300 @markpeek
 /libexec/nuageinit/	@bapt
 /libexec/rc/rc.d/rctl/	@trasz
 /sbin/ipf		@cschuber
@@ -70,7 +70,7 @@
 /stand/lua	@kevans91
 /stand/veriexec.mk	@stephane-rochoy-stormshield
 /sys/amd64/pci	@bsdimp @bsdjhb
-/sys/amd64/vmm/	@bsdjhb @grehan-freebsd
+/sys/amd64/vmm/		@bsdjhb @bryanv @markjdb @khng300 @markpeek
 /sys/arm/allwinner	@evadot
 /sys/arm64/arm64	@zxombie
 /sys/arm64/include	@zxombie
@@ -116,7 +116,7 @@
 /usr.bin/rctl/	@trasz
 /usr.bin/top	@grimreaper
 /usr.sbin/autofs/	@trasz
-/usr.sbin/bhyve	@bsdjhb @grehan-freebsd
-/usr.sbin/bhyvectl	@bsdjhb @grehan-freebsd
-/usr.sbin/bhyveload	@bsdjhb @grehan-freebsd
+/usr.sbin/bhyve		@bsdjhb @bryanv @markjdb @khng300 @markpeek
+/usr.sbin/bhyvectl	@bsdjhb @bryanv @markjdb @khng300 @markpeek
+/usr.sbin/bhyveload	@bsdjhb @bryanv @markjdb @khng300 @markpeek
 /usr.sbin/lpr	@gbergling
