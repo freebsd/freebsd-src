@@ -2950,18 +2950,6 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	if (pf_validate_range(rule->dst.port_op, rule->dst.port))
 		ERROUT_UNLOCKED(EINVAL);
 
-	if (rule->statelim != PF_STATELIM_ID_NONE) {
-		if (rule->statelim < PF_STATELIM_ID_MIN ||
-		    rule->statelim > PF_STATELIM_ID_MAX)
-			ERROUT_UNLOCKED(EINVAL);
-	}
-
-	if (rule->sourcelim != PF_SOURCELIM_ID_NONE) {
-		if (rule->sourcelim < PF_SOURCELIM_ID_MIN ||
-		    rule->sourcelim > PF_SOURCELIM_ID_MAX)
-			ERROUT_UNLOCKED(EINVAL);
-	}
-
 	if (rule->ifname[0])
 		kif = pf_kkif_create(M_WAITOK);
 	if (rule->rcv_ifname[0])
