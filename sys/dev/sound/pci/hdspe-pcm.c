@@ -474,7 +474,7 @@ buffer_mux_port(uint32_t *dma, uint32_t *pcm, uint32_t subset, uint32_t ports,
 	channels = hdspe_channel_count(ports, pcm_width);
 
 	/* Only copy as much as supported by both hardware and pcm channel. */
-	slots = hdspe_port_slot_width(subset, MIN(adat_width, pcm_width));
+	slots = hdspe_port_slot_width(subset, min(adat_width, pcm_width));
 
 	/* Let the compiler inline and loop unroll common cases. */
 	if (slots == 2)
@@ -520,7 +520,7 @@ buffer_demux_port(uint32_t *dma, uint32_t *pcm, uint32_t subset, uint32_t ports,
 	channels = hdspe_channel_count(ports, pcm_width);
 
 	/* Only copy as much as supported by both hardware and pcm channel. */
-	slots = hdspe_port_slot_width(subset, MIN(adat_width, pcm_width));
+	slots = hdspe_port_slot_width(subset, min(adat_width, pcm_width));
 
 	/* Let the compiler inline and loop unroll common cases. */
 	if (slots == 2)

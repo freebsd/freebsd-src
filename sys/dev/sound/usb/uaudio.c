@@ -150,7 +150,7 @@ SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	UAUDIO_NCHANBUFS	2	/* number of outstanding request */
 #define	UAUDIO_RECURSE_LIMIT	255	/* rounds */
 #define	UAUDIO_BITS_MAX		32	/* maximum sample size in bits */
-#define	UAUDIO_CHANNELS_MAX	MIN(64, AFMT_CHANNEL_MAX)
+#define	UAUDIO_CHANNELS_MAX	min(64, AFMT_CHANNEL_MAX)
 #define	UAUDIO_MATRIX_MAX	8	/* channels */
 
 #define	MAKE_WORD(h,l) (((h) << 8) | (l))
@@ -1651,7 +1651,7 @@ uaudio20_check_rate(struct usb_device *udev, uint8_t iface_no,
 		 * buffer. Try using a larger buffer and see if that
 		 * helps:
 		 */
-		rates = MIN(UAUDIO20_MAX_RATES, (255 - 2) / 12);
+		rates = min(UAUDIO20_MAX_RATES, (255 - 2) / 12);
 		error = USB_ERR_INVAL;
 	} else {
 		rates = UGETW(data);

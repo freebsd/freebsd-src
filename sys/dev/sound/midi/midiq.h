@@ -56,7 +56,7 @@ struct name {                           \
  * No protection against overflow, underflow
  */
 #define MIDIQ_ENQ(head, buf, size) do {                                                                 \
-                MIDIQ_MOVE(&(head).b[(head).h], (buf), sizeof(*(head).b) * MIN((size), (head).s - (head).h));                       \
+                MIDIQ_MOVE(&(head).b[(head).h], (buf), sizeof(*(head).b) * min((size), (head).s - (head).h));                       \
                 if( (head).s - (head).h < (size) ) {                                                    \
                         MIDIQ_MOVE((head).b, (buf) + (head).s - (head).h, sizeof(*(head).b) * ((size) - (head).s + (head).h) );      \
 		} \
@@ -67,7 +67,7 @@ struct name {                           \
 
 #define MIDIQ_DEQ_I(head, buf, size, move, update) do {                                                                 \
 		if(MIDIQ_FULL(head)) (head).h=(head).t; \
-                if (move) MIDIQ_MOVE((buf), &(head).b[(head).t], sizeof(*(head).b) * MIN((size), (head).s - (head).t));                       \
+                if (move) MIDIQ_MOVE((buf), &(head).b[(head).t], sizeof(*(head).b) * min((size), (head).s - (head).t));                       \
                 if( (head).s - (head).t < (size) ) {                                                    \
                         if (move) MIDIQ_MOVE((buf) + (head).s - (head).t, (head).b, sizeof(*(head).b) * ((size) - (head).s + (head).t) );      \
 		} \
