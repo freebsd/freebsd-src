@@ -896,8 +896,14 @@ struct pf_krule {
 	u_int8_t		 set_prio[2];
 	sa_family_t		 naf;
 	u_int8_t		 rcvifnot;
-	uint8_t			 statelim;
-	uint8_t			 sourcelim;
+	struct {
+		uint8_t		 id;
+		int		 limiter_action;
+	}			 statelim;
+	struct {
+		uint8_t		 id;
+		int		 limiter_action;
+	}			 sourcelim;
 
 	struct {
 		struct pf_addr		addr;
@@ -1433,6 +1439,7 @@ struct pf_test_ctx {
 	int			 state_icmp;
 	int			 tag;
 	int			 rewrite;
+	int			 limiter_drop;
 	u_short			 reason;
 	struct pf_src_node	*sns[PF_SN_MAX];
 	struct pf_krule		*nr;

@@ -1313,8 +1313,10 @@ snl_add_msg_attr_pf_rule(struct snl_writer *nw, uint32_t type, const struct pfct
 	snl_add_msg_attr_ip6(nw, PF_RT_DIVERT_ADDRESS, &r->divert.addr.v6);
 	snl_add_msg_attr_u16(nw, PF_RT_DIVERT_PORT, r->divert.port);
 
-	snl_add_msg_attr_u8(nw, PF_RT_STATE_LIMIT, r->statelim);
-	snl_add_msg_attr_u8(nw, PF_RT_SOURCE_LIMIT, r->sourcelim);
+	snl_add_msg_attr_u8(nw, PF_RT_STATE_LIMIT, r->statelim.id);
+	snl_add_msg_attr_u32(nw, PF_RT_STATE_LIMIT_ACTION, r->statelim.limiter_action);
+	snl_add_msg_attr_u8(nw, PF_RT_SOURCE_LIMIT, r->sourcelim.id);
+	snl_add_msg_attr_u32(nw, PF_RT_SOURCE_LIMIT_ACTION, r->sourcelim.limiter_action);
 
 	snl_end_attr_nested(nw, off);
 }
@@ -1707,8 +1709,10 @@ static struct snl_attr_parser ap_getrule[] = {
 	{ .type = PF_RT_TYPE_2, .off = _OUT(r.type), .cb = snl_attr_get_uint16 },
 	{ .type = PF_RT_CODE_2, .off = _OUT(r.code), .cb = snl_attr_get_uint16 },
 	{ .type = PF_RT_EXPTIME, .off = _OUT(r.exptime), .cb = snl_attr_get_time_t },
-	{ .type = PF_RT_STATE_LIMIT, .off = _OUT(r.statelim), .cb = snl_attr_get_uint8 },
-	{ .type = PF_RT_SOURCE_LIMIT, .off = _OUT(r.sourcelim), .cb = snl_attr_get_uint8 },
+	{ .type = PF_RT_STATE_LIMIT, .off = _OUT(r.statelim.id), .cb = snl_attr_get_uint8 },
+	{ .type = PF_RT_SOURCE_LIMIT, .off = _OUT(r.sourcelim.id), .cb = snl_attr_get_uint8 },
+	{ .type = PF_RT_STATE_LIMIT_ACTION, .off = _OUT(r.statelim.limiter_action), .cb = snl_attr_get_uint32 },
+	{ .type = PF_RT_SOURCE_LIMIT_ACTION, .off = _OUT(r.sourcelim.limiter_action), .cb = snl_attr_get_uint32 },
 };
 #undef _OUT
 SNL_DECLARE_PARSER(getrule_parser, struct genlmsghdr, snl_f_p_empty, ap_getrule);

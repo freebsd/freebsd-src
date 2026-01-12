@@ -1112,7 +1112,7 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int opts, int numeric)
 		}
 		printf(" probability %s%%", buf);
 	}
-	if (r->statelim != PF_STATELIM_ID_NONE) {
+	if (r->statelim.id != PF_STATELIM_ID_NONE) {
 #if 0 /* XXX need pf to find statelims */
 		struct pfctl_statelim *stlim =
 		    pfctl_get_statelim_id(pf, r->statelim);
@@ -1121,9 +1121,11 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int opts, int numeric)
 			printf(" state limiter %s", stlim->ioc.name);
 		else
 #endif
-		printf(" state limiter id %u", r->statelim);
+		printf(" state limiter id %u (%s)", r->statelim.id,
+		    (r->statelim.limiter_action == PF_LIMITER_BLOCK) ?
+		    "block" : "no-match");
 	}
-	if (r->sourcelim != PF_SOURCELIM_ID_NONE) {
+	if (r->sourcelim.id != PF_SOURCELIM_ID_NONE) {
 #if 0 /* XXX need pf to find sourcelims */
 		struct pfctl_sourcelim *srlim =
 		    pfctl_get_sourcelim_id(pf, r->sourcelim);
@@ -1132,7 +1134,9 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int opts, int numeric)
 			printf(" source limiter %s", srlim->ioc.name);
 		else
 #endif
-		printf(" source limiter id %u", r->sourcelim);
+		printf(" source limiter id %u (%s)", r->sourcelim.id,
+		    (r->sourcelim.limiter_action == PF_LIMITER_BLOCK) ?
+		    "block" : "no-match");
 	}
 
 	ropts = 0;
