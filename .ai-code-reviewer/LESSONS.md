@@ -1023,3 +1023,9 @@ Each lesson is recorded with timestamp, category, and remediation advice.
 ### SYNTAX: Stale .depend files and syntax errors in date.c
 - Stale .depend files caused build issues; syntax errors in `date.c` led to compilation failure.
 - Clean build directories using `make clean` before building; review code for undeclared identifiers and C23 extensions.
+
+
+## 2026-01-12 12:19
+### COMPILER: Stale .depend Files and Syntax Errors
+- Stale `.depend` files caused build failures; undeclared identifier 'errstr' in `cpuset.c`.
+- Clean build directory with `make clean` before building to remove stale dependencies; check for correct variable names in source code.
