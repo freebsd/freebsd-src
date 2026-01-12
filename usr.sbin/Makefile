@@ -41,7 +41,6 @@ SUBDIR=	adduser \
 	makefs \
 	memcontrol \
 	mfiutil \
-	mixer \
 	mlxcontrol \
 	mountd \
 	mount_smbfs \
@@ -84,7 +83,6 @@ SUBDIR=	adduser \
 	setpmac \
 	smbmsg \
 	snapinfo \
-	sndctl \
 	spi \
 	spray \
 	syslogd \
