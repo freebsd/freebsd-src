@@ -6,6 +6,18 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-01-12 12:57 - bin/dd ✓
+
+**Directory:** `bin/dd`
+
+**Summary:** cpuset: Replace atoi() with strtonum() for safe integer parsing
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+  - bin/cpuset/cpuset.c
+
+---
+
 ## 2026-01-12 06:31 - bin/date/tests ✓
 
 **Directory:** `bin/date/tests`

@@ -137,6 +137,7 @@ printsetid(void)
 int
 main(int argc, char *argv[])
 {
+	const char *errstr = NULL;
 	domainset_t domains;
 	cpusetid_t setid;
 	cpuset_t mask;
@@ -198,12 +199,22 @@ main(int argc, char *argv[])
 		case 's':
 			sflag = 1;
 			which = CPU_WHICH_CPUSET;
-			id = setid = atoi(optarg);
+			errno = 0;
+			setid = strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr) {
+				errx(EXIT_FAILURE, "setid is %s: %s", errstr, optarg);
+			}
+			id = setid;
 			break;
 		case 't':
 			tflag = 1;
 			which = CPU_WHICH_TID;
-			id = tid = atoi(optarg);
+			errno = 0;
+			tid = strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr) {
+				errx(EXIT_FAILURE, "tid is %s: %s", errstr, optarg);
+			}
+			id = tid;
 			break;
 		case 'x':
 			xflag = 1;
