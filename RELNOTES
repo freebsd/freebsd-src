@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+c558eca47970: 
+	The smartpqi(4) driver was updated to vendor version 4660.0.2002
+	for the SmartArry storage controllers.
+
 493d26c58e73:
 	The aq(4) driver was added, imported from the vendor repository.
 	This provides support for Aquantia / Marvell PCIe 1/2.5/5/10 Gigabit
