@@ -6,6 +6,18 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-01-12 17:46 - bin/echo ✓
+
+**Directory:** `bin/echo`
+
+**Summary:** echo: Improve error message in writev failure
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+  - bin/echo/echo.c
+
+---
+
 ## 2026-01-12 17:08 - bin/domainname ✓
 
 **Directory:** `bin/domainname`

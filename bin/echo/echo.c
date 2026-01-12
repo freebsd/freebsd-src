@@ -103,7 +103,7 @@ main(int argc, char *argv[])
 
 		nwrite = (veclen > IOV_MAX) ? IOV_MAX : veclen;
 		if (writev(STDOUT_FILENO, iov, nwrite) == -1)
-			err(1, "write");
+			err(1, "writev failed");
 		iov += nwrite;
 		veclen -= nwrite;
 	}
