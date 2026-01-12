@@ -869,7 +869,7 @@ print_statelim(const struct pfctl_state_lim *ioc)
 void
 print_sourcelim(const struct pfctl_source_lim *ioc)
 {
-	printf("source limiter %s id %u limit %u states %u", ioc->name,
+	printf("source limiter %s id %u entries %u limit %u", ioc->name,
 	    ioc->id, ioc->entries, ioc->limit);
 	if (ioc->rate.limit != 0)
 		printf(" rate %u/%u", ioc->rate.limit, ioc->rate.seconds);
