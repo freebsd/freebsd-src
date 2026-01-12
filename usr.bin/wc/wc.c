@@ -353,6 +353,6 @@ word:	gotsp = true;
 static void
 usage(void)
 {
-	xo_error("usage: wc [-Lclmw] [file ...]\n");
+	xo_error("usage: wc [-c | -m] [-Llw] [file ...]\n");
 	exit(EXIT_FAILURE);
 }
