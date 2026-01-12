@@ -6,7 +6,6 @@ SUBDIR=	apply \
 	backlight \
 	banner \
 	basename \
-	beep \
 	bintrans \
 	brandelf \
 	bsdcat \
@@ -86,7 +85,6 @@ SUBDIR=	apply \
 	mandoc \
 	mdo \
 	mesg \
-	mididump \
 	ministat \
 	mkdep \
 	mkfifo \
