@@ -40,6 +40,7 @@
 /contrib/llvm-project/libunwind @DimitryAndric @emaste @bsdjhb
 /contrib/llvm-project/lldb @DimitryAndric @emaste
 /contrib/llvm-project/openmp @DimitryAndric @emaste
+/contrib/mandoc		@concussious
 /contrib/netbsd-tests	@ngie-eign
 /contrib/netbsd-tests/crypto/opencrypto/	@jmgurney
 /contrib/netbsd-tests/kernel/kqueue/	@jmgurney
@@ -65,6 +66,7 @@
 /sbin/nvmecontrol @bsdimp
 /sbin/veriexec/	@stephane-rochoy-stormshield
 /secure/usr.bin/openssl/	@juikim
+/share/man/		@concussious
 /share/mk	@bsdimp @bapt @bdrewery @emaste
 /stand		@bsdimp
 /stand/lua	@kevans91

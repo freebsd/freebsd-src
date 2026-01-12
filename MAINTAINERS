@@ -48,6 +48,7 @@ contrib/llvm-project/lldb	dim,emaste	Pre-commit review preferred.
 contrib/llvm-project/llvm	dim		Pre-commit review preferred.
 contrib/llvm-project/openmp	dim,emaste	Pre-commit review preferred.
 contrib/netbsd-tests	ngie,#test		Pre-commit review requested.
+contrib/mandoc		ziaee			Pre-commit review please
 contrib/pjdfstest	asomers,ngie,pjd,#test	Pre-commit review requested.
 *env(3)		secteam	Due to the problematic security history of this
 			code, please have patches reviewed by secteam.
@@ -93,6 +94,7 @@ sendmail	gshapiro	Pre-commit review requested.
 sh(1)		jilles		Pre-commit review requested. This also applies
 				to kill(1), printf(1) and test(1) which are
 				compiled in as builtins.
+share/man		ziaee	Pre-commit review please
 share/mk	imp, bapt, bdrewery, emaste, sjg	Make is hard.
 share/mk/*.test.mk	imp,bapt,bdrewery,	Pre-commit review requested.
 			emaste,ngie,sjg,#test
