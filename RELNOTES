@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+256d05617c71:
+        The smartpqi(4) driver was updated to vendor version 4660.0.2002
+        for the SmartArry storage controllers.
+
 929f5966a9fd, b9b0e105c357, 5105e1ebecc7, cb3eac927b5d, ce9c325a2e92, 18a870751b03, 89c82750da1a, 0c13e9c3c464, 10eecc467f32, 619feb9dd00e, 7d2cfb27d62f, e26259f48afe, a245dc5d68c7, 9a726ef24134, 383e7290c0b5, c791ea80b5f7, 543b875a8ee4, 40a5abfc3f66, 73ed0c7992fd, 04764f21855a, 624b7beed5ac, 7b68893ffa9b, 6c4771c73470, dd0ec030f8fd, fb1ccc04adfe, b98d0566b2bd, ca9ccf0ce9ad, 6b28571cb6ba, 98d46e05ab08, 2a454b05f2c1, 110111a6cca1, 5f8493bbf479, e447c252d0ec, 4680e7fcc70a, 188138106b9f, 4cb1baa7d85c, 805498e49ae4, f58febc4cefa, ae07a5805b19, 0559f30a882d, cbb6e747af98, 0d1496f0f1e7, 60f970b85e44, 0b9a631e0724, ee3960cba106:
 	Replaced Heimdal 1.5.2 with MIT KRB5 (1.21.3, 1.22.0, 1.22.1).
 	Heimdal 1.5.2 can still be built using the WITHOUT_MITKRB5 flag.
