@@ -7387,6 +7387,19 @@ OLD_DIRS+=var/spool/clientmqueue
 OLD_FILES+=var/db/services.db
 .endif
 
+.if ${MK_SOUND} == no
+OLD_DIRS+=lib/mixer
+OLD_DIRS+=lib/virtual_oss
+OLD_DIRS+=usr.bin/beep
+OLD_DIRS+=usr.bin/mididump
+OLD_DIRS+=usr.sbin/mixer
+OLD_DIRS+=usr.sbin/sndctl
+OLD_DIRS+=usr.sbin/virtual_oss
+OLD_FILES+=libexec/rc/rc.d/mixer
+OLD_FILES+=libexec/rc/rc.d/virtual_oss
+OLD_FILES+=sbin/devd/snd.conf
+.endif
+
 .if ${MK_NUAGEINIT} == no
 OLD_FILES+=etc/rc.d/nuageinit
 OLD_FILES+=usr/libexec/nuageinit
