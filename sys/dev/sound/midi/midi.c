@@ -391,9 +391,11 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 		used = MIN(used, MIDI_RSIZE);
 
 		MIDIQ_DEQ(m->inq, buf, used);
+		mtx_unlock(&m->lock);
 		retval = uiomove(buf, used, uio);
 		if (retval)
-			goto err1;
+			goto err0;
+		mtx_lock(&m->lock);
 	}
 
 	/*
@@ -457,9 +459,11 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 		used = MIN(MIDIQ_AVAIL(m->outq), uio->uio_resid);
 		used = MIN(used, MIDI_WSIZE);
 
+		mtx_unlock(&m->lock);
 		retval = uiomove(buf, used, uio);
 		if (retval)
-			goto err1;
+			goto err0;
+		mtx_lock(&m->lock);
 		MIDIQ_ENQ(m->outq, buf, used);
 		/*
 	         * Inform the bottom half that data can be written
