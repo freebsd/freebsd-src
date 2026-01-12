@@ -8,17 +8,20 @@
 
 . /etc/rc.subr
 
+name="osrelease"
+desc="os-release update"
+rcvar="osrelease_enable"
+start_cmd="osrelease_start"
+stop_cmd=":"
+
+load_rc_config $name
+
 : ${osrelease_file:=/var/run/os-release}
 : ${osrelease_perms:=444}
 : ${osrelease_home_url:="https://www.FreeBSD.org"}
 : ${osrelease_documentation_url:="https://docs.FreeBSD.org"}
 : ${osrelease_support_url:="https://www.FreeBSD.org/support"}
 : ${osrelease_bug_report_url:="https://bugs.FreeBSD.org"}
-name="osrelease"
-desc="Update ${osrelease_file}"
-rcvar="osrelease_enable"
-start_cmd="osrelease_start"
-stop_cmd=":"
 
 osrelease_start()
 {
@@ -45,8 +48,6 @@ __EOF__
 	rm -f "$t"
 	startmsg 'done.'
 }
-
-load_rc_config $name
 
 # doesn't make sense to run in a svcj: config setting
 osrelease_svcj="NO"
