@@ -2922,6 +2922,23 @@ pf_validate_range(uint8_t op, uint16_t port[2])
 	return 0;
 }
 
+static int
+pf_chk_limiter_action(int limiter_action)
+{
+	int rv;
+
+	switch (limiter_action) {
+	case PF_LIMITER_NOMATCH:
+	case PF_LIMITER_BLOCK:
+		rv = 0;
+		break;
+	default:
+		rv = 1;
+	}
+
+	return (rv);
+}
+
 int
 pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
     uint32_t pool_ticket, const char *anchor, const char *anchor_call,
@@ -2945,6 +2962,9 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	if (pf_validate_range(rule->src.port_op, rule->src.port))
 		ERROUT_UNLOCKED(EINVAL);
 	if (pf_validate_range(rule->dst.port_op, rule->dst.port))
+		ERROUT_UNLOCKED(EINVAL);
+	if (pf_chk_limiter_action(rule->statelim.limiter_action) ||
+	    pf_chk_limiter_action(rule->sourcelim.limiter_action))
 		ERROUT_UNLOCKED(EINVAL);
 
 	if (rule->ifname[0])

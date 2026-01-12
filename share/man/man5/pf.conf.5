@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd December 30, 2025
+.Dd January 12, 2026
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -2365,20 +2365,28 @@ For example, the following rule will drop 20% of incoming ICMP packets:
 .Bd -literal -offset indent
 block in proto icmp probability 20%
 .Ed
-.It Cm state limiter Ar name
+.It Cm state limiter Ar name Oo Cm (limiter options) Oc
 Use the specified state limiter to restrict the creation of states
 by this rule.
-If capacity is not available, the rule does not match and evaluation
-of the ruleset continues.
+By default if capacity is not available, the rule is ignored
+and ruleset evaluation continues with next rule..
+Use
+.Ic block
+option to change default behavior such packet is blocked
+when limit is reached.
 See the
 .Sx State Limiters
 section for more information.
 .Pp
-.It Cm source limiter Ar name
+.It Cm source limiter Ar name Oo Cm (limiter options) Oc
 Use the specified source limiter to restrict the creation of states
 by this rule.
-If capacity is not available, the rule does not match and evaluation
-of the ruleset continues.
+By default if capacity is not available, the rule is ignored
+and ruleset evaluation continues with next rule..
+Use
+.Ic block
+option to change default behavior such packet is blocked
+when limit is reached.
 See the
 .Sx Source Limiters
 section for more information.
@@ -3614,7 +3622,10 @@ filteropt      = user | group | flags | icmp-type | icmp6-type | "tos" tos |
                  "max-pkt-size" number |
                  "queue" ( string | "(" string [ [ "," ] string ] ")" ) |
                  "rtable" number | "probability" number"%" | "prio" number |
-                 "state limiter" name | "source limiter" name |
+                 "state limiter" name |
+                 "state limiter" name "(" limiter-opts ")" |
+                 "source limiter" name |
+                 "source limiter" name "(" limiter-opts ")" | "prio" number |
                  "dnpipe" ( number | "(" number "," number ")" ) |
                  "dnqueue" ( number | "(" number "," number ")" ) |
                  "ridentifier" number |
@@ -3794,6 +3805,7 @@ realtime-sc    = "realtime" sc-spec
 upperlimit-sc  = "upperlimit" sc-spec
 sc-spec        = ( bandwidth-spec |
                  "(" bandwidth-spec number bandwidth-spec ")" )
+limiter-opts   = "block" | "no-match"
 include        = "include" filename
 .Ed
 .Sh FILES

@@ -6105,8 +6105,8 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset,
 		    pf_osfp_fingerprint(pd, ctx->th),
 		    r->os_fingerprint)),
 			TAILQ_NEXT(r, entries));
-		if (r->statelim != PF_STATELIM_ID_NONE) {
-			stlim = pf_statelim_find(r->statelim);
+		if (r->statelim.id != PF_STATELIM_ID_NONE) {
+			stlim = pf_statelim_find(r->statelim.id);
 
 			/*
 			 * Treat a missing limiter like an exhausted limiter.
@@ -6123,6 +6123,11 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset,
 				gen = pf_statelim_enter(stlim);
 				stlim->pfstlim_counters.hardlimited++;
 				pf_statelim_leave(stlim, gen);
+				if (r->statelim.limiter_action == PF_LIMITER_BLOCK) {
+					ctx->limiter_drop = 1;
+					REASON_SET(&ctx->reason, PFRES_MAXSTATES);
+					break;  /* stop rule processing */
+				}
 				r = TAILQ_NEXT(r, entries);
 				continue;
 			}
@@ -6140,6 +6145,14 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset,
 					gen = pf_statelim_enter(stlim);
 					stlim->pfstlim_counters.ratelimited++;
 					pf_statelim_leave(stlim, gen);
+					if (r->statelim.limiter_action ==
+					    PF_LIMITER_BLOCK) {
+						ctx->limiter_drop = 1;
+						REASON_SET(&ctx->reason,
+						    PFRES_MAXSTATES);
+						/* stop rule processing */
+						break;
+					}
 					r = TAILQ_NEXT(r, entries);
 					continue;
 				}
@@ -6152,10 +6165,10 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset,
 			}
 		}
 
-		if (r->sourcelim != PF_SOURCELIM_ID_NONE) {
+		if (r->sourcelim.id != PF_SOURCELIM_ID_NONE) {
 			struct pf_source key;
 
-			srlim = pf_sourcelim_find(r->sourcelim);
+			srlim = pf_sourcelim_find(r->sourcelim.id);
 
 			/*
 			 * Treat a missing pool like an overcommitted pool.
@@ -6177,6 +6190,14 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset,
 					gen = pf_sourcelim_enter(srlim);
 					srlim->pfsrlim_counters.hardlimited++;
 					pf_sourcelim_leave(srlim, gen);
+					if (r->sourcelim.limiter_action ==
+					    PF_LIMITER_BLOCK) {
+						ctx->limiter_drop = 1;
+						REASON_SET(&ctx->reason,
+						    PFRES_SRCLIMIT);
+						/* stop rule processing */
+						break;
+					}
 					r = TAILQ_NEXT(r, entries);
 					continue;
 				}
@@ -6196,6 +6217,14 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset,
 						srlim->pfsrlim_counters
 						    .ratelimited++;
 						pf_sourcelim_leave(srlim, gen);
+						if (r->sourcelim.limiter_action ==
+						    PF_LIMITER_BLOCK) {
+							ctx->limiter_drop = 1;
+							REASON_SET(&ctx->reason,
+							    PFRES_SRCLIMIT);
+							/* stop rules */
+							break;
+						}
 						r = TAILQ_NEXT(r, entries);
 						continue;
 					}
@@ -6460,10 +6489,8 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 	} else {
 		ruleset = &pf_main_ruleset;
 		rv = pf_match_rule(&ctx, ruleset, match_rules);
-		if (rv == PF_TEST_FAIL) {
-			/*
-			 * Reason has been set in pf_match_rule() already.
-			 */
+		if (rv == PF_TEST_FAIL || ctx.limiter_drop == 1) {
+			REASON_SET(reason, ctx.reason);
 			goto cleanup;
 		}
 
