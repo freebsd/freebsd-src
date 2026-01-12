@@ -112,6 +112,7 @@ crypto/openssl/amd64/sha512-x86_64.S	optional ossl
 crypto/openssl/amd64/ossl_aes_gcm_avx512.c	optional ossl
 crypto/openssl/ossl_aes_gcm.c	optional ossl
 dev/amdgpio/amdgpio.c		optional	amdgpio
+dev/asmc/asmc.c			optional	asmc isa
 dev/axgbe/if_axgbe_pci.c	optional	axp
 dev/axgbe/xgbe-desc.c		optional	axp
 dev/axgbe/xgbe-dev.c		optional	axp
