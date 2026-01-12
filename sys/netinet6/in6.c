@@ -1330,6 +1330,28 @@ in6_addifaddr(struct ifnet *ifp, struct in6_aliasreq *ifra, struct in6_ifaddr *i
 				(*carp_detach_p)(&ia->ia_ifa, false);
 			goto out;
 		}
+	} else if (pr->ndpr_raf_onlink) {
+		time_t expiry;
+
+		/*
+		 * If the prefix already exists, update lifetimes, but avoid
+		 * shortening them.
+		 */
+		ND6_WLOCK();
+		expiry = in6_expire_time(pr0.ndpr_pltime);
+		if (pr->ndpr_preferred != 0 &&
+		    (pr->ndpr_preferred < expiry || expiry == 0)) {
+			pr->ndpr_pltime = pr0.ndpr_pltime;
+			pr->ndpr_preferred = expiry;
+		}
+		expiry = in6_expire_time(pr0.ndpr_vltime);
+		if (pr->ndpr_expire != 0 &&
+		    (pr->ndpr_expire < expiry || expiry == 0)) {
+			pr->ndpr_vltime = pr0.ndpr_vltime;
+			pr->ndpr_expire = expiry;
+		}
+		pr->ndpr_lastupdate = time_uptime;
+		ND6_WUNLOCK();
 	}
 
 	/* relate the address to the prefix */

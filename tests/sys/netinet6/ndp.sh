@@ -287,6 +287,81 @@ ndp_prefix_lifetime_cleanup() {
 	vnet_cleanup
 }
 
+atf_test_case "ndp_prefix_lifetime_extend"
+ndp_prefix_lifetime_extend_head() {
+	atf_set descr 'Test prefix lifetime updates via ifconfig'
+	atf_set require.user root
+	atf_set require.progs jq
+}
+
+get_prefix_attr() {
+	local prefix=$1
+	local attr=$2
+
+	ndp -p --libxo json | \
+	    jq -r '.ndp.["prefix-list"][] |
+	           select(.prefix == "'${prefix}'") | .["'${attr}'"]'
+}
+
+# Given a prefix, return its expiry time in seconds.
+prefix_expiry() {
+	get_prefix_attr $1 "expires_sec"
+}
+
+# Given a prefix, return its valid and preferred lifetimes.
+prefix_lifetimes() {
+	local p v
+
+	v=$(get_prefix_attr $1 "valid-lifetime")
+	p=$(get_prefix_attr $1 "preferred-lifetime")
+	echo $v $p
+}
+
+ndp_prefix_lifetime_extend_body() {
+	local epair ex1 ex2 ex3 prefix pltime vltime
+
+	atf_check -o save:epair ifconfig epair create
+	epair=$(cat epair)
+	atf_check ifconfig ${epair} up
+
+	prefix="2001:db8:ffff:1000::"
+
+	atf_check ifconfig ${epair} inet6 ${prefix}1/64 pltime 5 vltime 10
+	t=$(prefix_lifetimes ${prefix}/64)
+	if [ "${t}" != "10 5" ]; then
+		atf_fail "Unexpected lifetimes: ${t}"
+	fi
+	ex1=$(prefix_expiry ${prefix}/64)
+	if [ "${ex1}" -gt 10 ]; then
+		atf_fail "Unexpected expiry time: ${ex1}"
+	fi
+
+	# Double the address lifetime and verify that the prefix is
+	# updated.
+	atf_check ifconfig ${epair} inet6 ${prefix}1/64 pltime 10 vltime 20
+	t=$(prefix_lifetimes ${prefix}/64)
+	if [ "${t}" != "20 10" ]; then
+		atf_fail "Unexpected lifetimes: ${t}"
+	fi
+	ex2=$(prefix_expiry ${prefix}/64)
+	if [ "${ex2}" -le "${ex1}" ]; then
+		atf_fail "Expiry time was not extended: ${ex1} <= ${ex2}"
+	fi
+
+	# Add a second address from the same prefix with a shorter
+	# lifetime, and make sure that the prefix lifetime is not
+	# shortened.
+	atf_check ifconfig ${epair} inet6 ${prefix}2/64 pltime 5 vltime 10
+	t=$(prefix_lifetimes ${prefix}/64)
+	if [ "${t}" != "20 10" ]; then
+		atf_fail "Unexpected lifetimes: ${t}"
+	fi
+	ex3=$(prefix_expiry ${prefix}/64)
+	if [ "${ex3}" -lt "${ex2}" ]; then
+		atf_fail "Expiry time was shortened: ${ex2} <= ${ex3}"
+	fi
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "ndp_add_gu_success"
@@ -294,4 +369,5 @@ atf_init_test_cases()
 	atf_add_test_case "ndp_slaac_default_route"
 	atf_add_test_case "ndp_prefix_len_mismatch"
 	atf_add_test_case "ndp_prefix_lifetime"
+	atf_add_test_case "ndp_prefix_lifetime_extend"
 }
