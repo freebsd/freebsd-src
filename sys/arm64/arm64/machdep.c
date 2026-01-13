@@ -219,6 +219,41 @@ CPU_FEAT(feat_pan, "Privileged access never",
     pan_check, NULL, pan_enable, pan_disabled,
     CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU);
 
+static cpu_feat_en
+mops_check(const struct cpu_feat *feat __unused, u_int midr __unused)
+{
+	uint64_t id_aa64isar2;
+
+	if (!get_kernel_reg(ID_AA64ISAR2_EL1, &id_aa64isar2))
+		return (FEAT_ALWAYS_DISABLE);
+	if (ID_AA64ISAR2_MOPS_VAL(id_aa64isar2) == ID_AA64ISAR2_MOPS_NONE)
+		return (FEAT_ALWAYS_DISABLE);
+
+	return (FEAT_DEFAULT_ENABLE);
+}
+
+static bool
+mops_enable(const struct cpu_feat *feat __unused,
+    cpu_feat_errata errata_status __unused, u_int *errata_list __unused,
+    u_int errata_count __unused)
+{
+	WRITE_SPECIALREG(sctlr_el1, READ_SPECIALREG(sctlr_el1) | SCTLR_MSCEn);
+	isb();
+
+	return (true);
+}
+
+static void
+mops_disabled(const struct cpu_feat *feat __unused)
+{
+	WRITE_SPECIALREG(sctlr_el1, READ_SPECIALREG(sctlr_el1) & ~SCTLR_MSCEn);
+	isb();
+}
+
+CPU_FEAT(feat_mops, "MOPS",
+    mops_check, NULL, mops_enable, mops_disabled,
+    CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU);
+
 bool
 has_hyp(void)
 {

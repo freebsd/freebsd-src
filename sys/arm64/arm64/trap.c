@@ -597,6 +597,66 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 	}
 }
 
+static void
+handle_moe(struct thread *td, struct trapframe *frame, uint64_t esr)
+{
+	uint64_t src;
+	uint64_t dest;
+	uint64_t size;
+	int src_reg;
+	int dest_reg;
+	int size_reg;
+	int format_option;
+
+	format_option = esr & ISS_MOE_FORMAT_OPTION_MASK;
+	dest_reg = (esr & ISS_MOE_DESTREG_MASK) >> ISS_MOE_DESTREG_SHIFT;
+	size_reg = (esr & ISS_MOE_SIZEREG_MASK) >> ISS_MOE_SIZEREG_SHIFT;
+	dest = frame->tf_x[dest_reg];
+	size = frame->tf_x[size_reg];
+
+	/*
+	 * Put the registers back in the original format suitable for a
+	 * prologue instruction, using the generic return routine from the
+	 * Arm ARM (DDI 0487I.a) rules CNTMJ and MWFQH.
+	 */
+	if (esr & ISS_MOE_MEMINST) {
+		/* SET* instruction */
+		if (format_option == ISS_MOE_FORMAT_OPTION_A ||
+		    format_option == ISS_MOE_FORMAT_OPTION_A2) {
+			/* Format is from Option A; forward set */
+			frame->tf_x[dest_reg] = dest + size;
+			frame->tf_x[size_reg] = -size;
+		}
+	} else {
+		/* CPY* instruction */
+		src_reg = (esr & ISS_MOE_SRCREG_MASK) >> ISS_MOE_SRCREG_SHIFT;
+		src = frame->tf_x[src_reg];
+
+		if (format_option == ISS_MOE_FORMAT_OPTION_B ||
+		    format_option == ISS_MOE_FORMAT_OPTION_B2) {
+			/* Format is from Option B */
+			if (frame->tf_spsr & PSR_N) {
+				/* Backward copy */
+				frame->tf_x[dest_reg] = dest - size;
+				frame->tf_x[src_reg] = src + size;
+			}
+		} else {
+			/* Format is from Option A */
+			if (frame->tf_x[size_reg] & (1UL << 63)) {
+				/* Forward copy */
+				frame->tf_x[dest_reg] = dest + size;
+				frame->tf_x[src_reg] = src + size;
+				frame->tf_x[size_reg] = -size;
+			}
+		}
+	}
+
+	if (esr & ISS_MOE_FROM_EPILOGUE)
+		frame->tf_elr -= 8;
+	else
+		frame->tf_elr -= 4;
+}
+
 void
 do_el0_sync(struct thread *td, struct trapframe *frame)
 {
@@ -736,6 +796,10 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 	case EXCP_BTI:
 		call_trapsignal(td, SIGILL, ILL_ILLOPC, (void *)frame->tf_elr,
 		    exception);
+		userret(td, frame);
+		break;
+	case EXCP_MOE:
+		handle_moe(td, frame, esr);
 		userret(td, frame);
 		break;
 	default:
