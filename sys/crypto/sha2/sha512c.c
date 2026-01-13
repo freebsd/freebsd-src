@@ -236,13 +236,8 @@ SHA512_Transform_arm64(uint64_t * state,
 DEFINE_UIFUNC(static, void, SHA512_Transform,
     (uint64_t * state, const unsigned char block[SHA512_BLOCK_LENGTH]))
 {
-	u_long hwcap;
-
-	if (elf_aux_info(AT_HWCAP, &hwcap, sizeof(hwcap)) == 0) {
-		if ((hwcap & HWCAP_SHA512) != 0) {
-			return (SHA512_Transform_arm64);
-		}
-	}
+	if ((at_hwcap & HWCAP_SHA512) != 0)
+		return (SHA512_Transform_arm64);
 
 	return (SHA512_Transform_c);
 }
