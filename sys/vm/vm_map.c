@@ -3997,7 +3997,7 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 				object->size = offidxstart;
 				if (object->cred != NULL) {
 					swap_release_by_cred(ptoa(oldsize -
-					    ptoa(object->size)), object->cred);
+					    object->size), object->cred);
 				}
 			}
 		}
