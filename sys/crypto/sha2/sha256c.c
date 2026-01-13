@@ -206,12 +206,8 @@ SHA256_Transform_arm64(uint32_t * state, const unsigned char block[64])
 DEFINE_UIFUNC(static, void, SHA256_Transform,
     (uint32_t * state, const unsigned char block[64]))
 {
-	u_long hwcap;
-
-	if (elf_aux_info(AT_HWCAP, &hwcap, sizeof(hwcap)) == 0) {
-		if ((hwcap & HWCAP_SHA2) != 0)
-			return (SHA256_Transform_arm64);
-	}
+	if ((at_hwcap & HWCAP_SHA2) != 0)
+		return (SHA256_Transform_arm64);
 
 	return (SHA256_Transform_c);
 }
