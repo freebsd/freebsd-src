@@ -27,6 +27,4 @@
 
 #define NOTE_FREEBSD_VENDOR	"FreeBSD"
 
-#define NOTE_SECTION		".note.tag"
-
 #endif
