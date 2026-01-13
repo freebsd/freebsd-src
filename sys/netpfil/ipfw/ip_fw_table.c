@@ -1031,7 +1031,6 @@ find_table_entry(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	ipfw_obj_header *oh;
 	struct tid_info ti;
 	struct table_config *tc;
-	struct table_algo *ta;
 	struct table_info *kti;
 	struct table_value *pval;
 	struct namedobj_instance *ni;
@@ -1060,7 +1059,6 @@ find_table_entry(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	/*
 	 * Find existing table and check its type .
 	 */
-	ta = NULL;
 	if ((tc = find_table(ni, &ti)) == NULL) {
 		IPFW_UH_RUNLOCK(ch);
 		return (ESRCH);
@@ -1073,12 +1071,8 @@ find_table_entry(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	}
 
 	kti = KIDX_TO_TI(ch, tc->no.kidx);
-	ta = tc->ta;
 
-	if (ta->find_tentry == NULL)
-		return (ENOTSUP);
-
-	error = ta->find_tentry(tc->astate, kti, tent);
+	error = tc->ta->find_tentry(tc->astate, kti, tent);
 	if (error == 0) {
 		pval = get_table_value(ch, tc, tent->v.kidx);
 		ipfw_export_table_value_v1(pval, &tent->v.value);
