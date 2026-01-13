@@ -592,6 +592,27 @@
 #define	 ISS_MSR_REG(reg)				\
     __ISS_MSR_REG(reg##_op0, reg##_op1, reg##_CRn, reg##_CRm, reg##_op2)
 
+#define	 ISS_MOE_MEMINST_SHIFT	24
+#define	 ISS_MOE_MEMINST	(0x01 << ISS_MOE_MEMINST_SHIFT)
+#define	 ISS_MOE_isSETG_SHIFT	24
+#define	 ISS_MOE_isSETG		(0x01 << ISS_MOE_isSETG_SHIFT)
+#define	 ISS_MOE_OPTIONS_SHIFT	19
+#define	 ISS_MOE_OPTIONS_MASK	(0x0f << ISS_MOE_OPTIONS_SHIFT)
+#define	 ISS_MOE_FROM_EPILOGUE_SHIFT	18
+#define	 ISS_MOE_FROM_EPILOGUE	(0x01 << ISS_MOE_FROM_EPILOGUE_SHIFT)
+#define	 ISS_MOE_FORMAT_OPTION_SHIFT	16
+#define	 ISS_MOE_FORMAT_OPTION_MASK	(0x03 << ISS_MOE_FORMAT_OPTION_SHIFT)
+#define	 ISS_MOE_FORMAT_OPTION_B	(0x00 << ISS_MOE_FORMAT_OPTION_SHIFT)
+#define	 ISS_MOE_FORMAT_OPTION_A	(0x01 << ISS_MOE_FORMAT_OPTION_SHIFT)
+#define	 ISS_MOE_FORMAT_OPTION_A2	(0x02 << ISS_MOE_FORMAT_OPTION_SHIFT)
+#define	 ISS_MOE_FORMAT_OPTION_B2	(0x03 << ISS_MOE_FORMAT_OPTION_SHIFT)
+#define	 ISS_MOE_DESTREG_SHIFT	10
+#define	 ISS_MOE_DESTREG_MASK	(0x1f << ISS_MOE_DESTREG_SHIFT)
+#define	 ISS_MOE_SRCREG_SHIFT	5
+#define	 ISS_MOE_SRCREG_MASK	(0x1f << ISS_MOE_SRCREG_SHIFT)
+#define	 ISS_MOE_SIZEREG_SHIFT	0
+#define	 ISS_MOE_SIZEREG_MASK	(0x1f << ISS_MOE_SIZEREG_SHIFT)
+
 #define	 ISS_DATA_ISV_SHIFT	24
 #define	 ISS_DATA_ISV		(0x01 << ISS_DATA_ISV_SHIFT)
 #define	 ISS_DATA_SAS_SHIFT	22
@@ -656,6 +677,7 @@
 #define	 EXCP_DATA_ABORT_L	0x24	/* Data abort, from lower EL */
 #define	 EXCP_DATA_ABORT	0x25	/* Data abort, from same EL */ 
 #define	 EXCP_SP_ALIGN		0x26	/* SP slignment fault */
+#define	 EXCP_MOE		0x27	/* Memory Operation Exception */
 #define	 EXCP_TRAP_FP		0x2c	/* Trapped FP exception */
 #define	 EXCP_SERROR		0x2f	/* SError interrupt */
 #define	 EXCP_BRKPT_EL0		0x30	/* Hardware breakpoint, from same EL */
@@ -2627,7 +2649,9 @@
 #define	SCTLR_LSMAOE			(UL(0x1) << 29)
 #define	SCTLR_EnIB			(UL(0x1) << 30)
 #define	SCTLR_EnIA			(UL(0x1) << 31)
-/* Bits 34:32 are reserved */
+/* Bit 32 is reserved */
+#define	SCTLR_MSCEn			(UL(0x1) << 33)
+/* Bit 34 is reserved */
 #define	SCTLR_BT0			(UL(0x1) << 35)
 #define	SCTLR_BT1			(UL(0x1) << 36)
 #define	SCTLR_ITFSB			(UL(0x1) << 37)
