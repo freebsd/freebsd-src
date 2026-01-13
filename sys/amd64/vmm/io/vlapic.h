@@ -114,4 +114,6 @@ int vlapic_snapshot(struct vm *vm, struct vm_snapshot_meta *meta);
 
 int vm_handle_ipi(struct vcpu *vcpu, struct vm_exit *vme, bool *retu);
 
+bool vlapic_hw_disabled(const struct vlapic *);
+
 #endif	/* _VLAPIC_H_ */

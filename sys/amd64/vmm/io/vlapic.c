@@ -87,7 +87,7 @@ vlapic_x2mode(const struct vlapic *vlapic)
 	return ((vlapic->msr_apicbase & APICBASE_X2APIC) != 0);
 }
 
-static __inline bool
+bool
 vlapic_hw_disabled(const struct vlapic *vlapic)
 {
 	return ((vlapic->msr_apicbase & APICBASE_ENABLED) == 0);

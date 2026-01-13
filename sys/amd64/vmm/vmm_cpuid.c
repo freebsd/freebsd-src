@@ -6,7 +6,7 @@
  *
  * Copyright 2014 Pluribus Networks Inc.
  * Copyright 2018 Joyent, Inc.
- * Copyright 2024 Oxide Computer Company
+ * Copyright 2025 Oxide Computer Company
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,13 +40,13 @@
 #include <machine/clock.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
-#include <x86/bhyve.h>
 
 #include <dev/vmm/vmm_ktr.h>
 #include <dev/vmm/vmm_vm.h>
 
 #include "vmm_host.h"
 #include "vmm_util.h"
+#include "vlapic.h"
 #include "x86.h"
 
 static MALLOC_DEFINE(M_CPUID, "cpuid", "cpuid");
@@ -180,38 +180,206 @@ cpuid_find_entry(const vcpu_cpuid_config_t *cfg, uint32_t func, uint32_t idx)
 	}
 }
 
+/*
+ * Updates a previously-populated set of CPUID return values to account for the
+ * runtime state of the executing vCPU, i.e., the values in its control
+ * registers and MSRs that influence the values returned by the CPUID
+ * instruction.
+ *
+ * This function does not account for "static" properties of the vCPU or VM,
+ * such as the enablement of VM-wide features and capabilities (like x2APIC or
+ * INVPCID support) or settings that vary only with the vCPU's ID (like the
+ * values returned from its topology leaves).
+ *
+ * This function assumes that it is called from within VMRUN(), which guarantees
+ * that the guest's FPU state is loaded. This is required to obtain the correct
+ * values for leaves whose values depend on the guest values of %xcr0 and the
+ * IA32_XSS MSR.
+ */
+static void
+cpuid_apply_runtime_reg_state(struct vcpu *vcpu, uint32_t func,
+    uint32_t index, uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx)
+{
+	uint64_t cr4;
+	int error;
+	unsigned int regs[4];
+
+	switch (func) {
+	case CPUID_0000_0001:
+		/*
+		 * If CPUID2_XSAVE is being advertised and the
+		 * guest has set CR4_XSAVE, set CPUID2_OSXSAVE.
+		 */
+		*ecx &= ~CPUID2_OSXSAVE;
+		if ((*ecx & CPUID2_XSAVE) != 0) {
+			error = vm_get_register(vcpu,
+			    VM_REG_GUEST_CR4, &cr4);
+			if (error)
+				panic("cpuid_apply_runtime_reg_state: error %d "
+				    "fetching %%cr4", error);
+			if ((cr4 & CR4_XSAVE) != 0) {
+				*ecx |= CPUID2_OSXSAVE;
+			}
+		}
+
+		/*
+		 * AMD APM vol. 3 rev. 3.36 section E.3.2 notes that this bit is
+		 * set only if the "APIC exists and is enabled." Vol. 3 of the
+		 * June 2024 Intel SDM notes in section 11.4.3 that "[t]he CPUID
+		 * feature flag for the APIC ... is also set to 0" when the APIC
+		 * enable bit is cleared.
+		 */
+		if (vlapic_hw_disabled(vm_lapic(vcpu))) {
+			*edx &= ~CPUID_APIC;
+		}
+		break;
+
+	case CPUID_0000_000D:
+		/*
+		 * Leaf D reports XSAVE area sizes that vary with the current
+		 * value of %xcr0. Since this function is called with %xcr0
+		 * still set to its guest value, the easiest way to get the
+		 * correct output is to execute CPUID on the host and copy out
+		 * the relevant values.
+		 */
+		cpuid_count(func, index, regs);
+		switch (index) {
+		case 0:
+			/*
+			 * %eax, %ecx, and %edx return information about the
+			 * complete set of features the processor supports, not
+			 * just the ones that are enabled. The caller is
+			 * presumed to have set these already, so just update
+			 * %ebx.
+			 */
+			*ebx = regs[1];
+			break;
+		case 1:
+			/*
+			 * Subleaf 1 reports the XSAVE area size required for
+			 * features enabled in %xcr0 and the IA32_XSS MSR via
+			 * %ebx. As with subleaf 0, the caller is presumed to
+			 * have set the other three output register values
+			 * already.
+			 *
+			 * AMD APM vol. 3 rev. 3.36 and the June 2024 edition of
+			 * volume 2 of the Intel SDM specify slightly different
+			 * behavior here: the SDM says that the value returned
+			 * in %ebx depends in part on whether %eax advertises
+			 * XSAVEC and IA32_XSS support, but the APM does not. To
+			 * handle these cases:
+			 *
+			 * 1. If the guest isn't a VMX guest, just copy the
+			 *    current reported save area size.
+			 * 2. If both the XSAVEC and XSAVES bits are clear in
+			 *    %eax, return a save area size of 0 in %ebx to
+			 *    match the SDM description.
+			 * 3. Otherwise, copy the host's reported save area
+			 *    size.
+			 *
+			 * Note that, because XSAVES saves a superset of the
+			 * state saved by XSAVEC, it's OK to report the host's
+			 * save area size even if the host and guest report
+			 * different feature bits in %eax:
+			 *
+			 * - If the host supports XSAVES and the guest doesn't,
+			 *   the reported save area size will be too large, but
+			 *   the guest can still use XSAVEC safely.
+			 * - If the VM's explicit CPUID values advertise XSAVES
+			 *   support, but the host doesn't support XSAVES, the
+			 *   host's reported save area size will still be large
+			 *   enough for the xcr0-controlled state saved by
+			 *   XSAVEC. The area will be undersized for XSAVES,
+			 *   but this is OK because the guest can't execute
+			 *   XSAVES anyway (it will #UD).
+			 */
+			if (!vmm_is_intel()) {
+				*ebx = regs[1];
+			} else {
+				if ((*eax & (CPUID_EXTSTATE_XSAVEC |
+				    CPUID_EXTSTATE_XSAVES)) == 0) {
+					*ebx = 0;
+				} else {
+					*ebx = regs[1];
+				}
+			}
+			break;
+		default:
+			/*
+			 * Other subleaves of leaf D report the relative sizes
+			 * and offsets of the state required for specific
+			 * features in the relevant offset masks. These don't
+			 * depend on the current enabled features (only the
+			 * supported ones), so no enabled-feature specialization
+			 * is required.
+			 */
+			break;
+		}
+		break;
+	}
+}
+
+/*
+ * Emulates the CPUID instruction on the specified vCPU and returns its outputs
+ * in the rax/rbx/rcx/rdx variables.
+ *
+ * This function assumes it is called from within VMRUN(), which guarantees that
+ * certain guest state (e.g. FPU state) remains loaded.
+ */
 void
 vcpu_emulate_cpuid(struct vcpu *vcpu, uint64_t *rax, uint64_t *rbx,
     uint64_t *rcx, uint64_t *rdx)
 {
 	const vcpu_cpuid_config_t *cfg = vm_cpuid_config(vcpu);
+	uint32_t func, index;
 
 	KASSERT(rax != NULL, ("rax == NULL"));
 	KASSERT(rbx != NULL, ("rbx == NULL"));
 	KASSERT(rcx != NULL, ("rcx == NULL"));
 	KASSERT(rdx != NULL, ("rdx == NULL"));
 
+	uint32_t regs[4] = { *rax, 0, *rcx, 0 };
+	func = (uint32_t)*rax;
+	index = (uint32_t)*rcx;
+
 	/* Fall back to legacy handling if specified */
 	if ((cfg->vcc_flags & VCC_FLAG_LEGACY_HANDLING) != 0) {
-		uint32_t regs[4] = { *rax, 0, *rcx, 0 };
-
 		legacy_emulate_cpuid(vcpu, &regs[0], &regs[1], &regs[2],
 		    &regs[3]);
-		/* CPUID clears the upper 32-bits of the long-mode registers. */
-		*rax = regs[0];
-		*rbx = regs[1];
-		*rcx = regs[2];
-		*rdx = regs[3];
-		return;
+	} else {
+		const struct vcpu_cpuid_entry *ent = cpuid_find_entry(cfg, func,
+		    index);
+		KASSERT(ent != NULL, ("ent == NULL"));
+
+		/*
+		 * The function and index in the found entry may differ from
+		 * what the guest requested (if the entry was chosen via the
+		 * "highest leaf" fallback described above). Use the values
+		 * from the entry to ensure that the correct vCPU state fixups
+		 * get applied below.
+		 *
+		 * The found entry may also be an all-zero empty entry (if the
+		 * requested leaf is invalid but is less than the maximum valid
+		 * leaf). It's OK to fall through in this case because leaf 0
+		 * never has any CPU state-based fixups to apply.
+		 */
+		func = ent->vce_function;
+		index = ent->vce_index;
+		regs[0] = ent->vce_eax;
+		regs[1] = ent->vce_ebx;
+		regs[2] = ent->vce_ecx;
+		regs[3] = ent->vce_edx;
 	}
 
-	const struct vcpu_cpuid_entry *ent = cpuid_find_entry(cfg, *rax, *rcx);
-	KASSERT(ent != NULL, ("ent == NULL"));
+	/* Fix up any returned values that vary with guest register state. */
+	cpuid_apply_runtime_reg_state(vcpu, func, index, &regs[0],
+	    &regs[1], &regs[2], &regs[3]);
+
 	/* CPUID clears the upper 32-bits of the long-mode registers. */
-	*rax = ent->vce_eax;
-	*rbx = ent->vce_ebx;
-	*rcx = ent->vce_ecx;
-	*rdx = ent->vce_edx;
+	*rax = regs[0];
+	*rbx = regs[1];
+	*rcx = regs[2];
+	*rdx = regs[3];
 }
 
 /*
@@ -327,38 +495,6 @@ SYSCTL_INT(_hw_vmm_topology, OID_AUTO, cpuid_leaf_b, CTLFLAG_RDTUN,
 
 static const char bhyve_id[12] = "bhyve bhyve ";
 
-#define	CPUID_0000_0000	(0x0)
-#define	CPUID_0000_0001	(0x1)
-#define	CPUID_0000_0002	(0x2)
-#define	CPUID_0000_0003	(0x3)
-#define	CPUID_0000_0004	(0x4)
-#define	CPUID_0000_0006	(0x6)
-#define	CPUID_0000_0007	(0x7)
-#define	CPUID_0000_000A	(0xA)
-#define	CPUID_0000_000B	(0xB)
-#define	CPUID_0000_000D	(0xD)
-#define	CPUID_0000_000F	(0xF)
-#define	CPUID_0000_0010	(0x10)
-#define	CPUID_0000_0015	(0x15)
-#define	CPUID_8000_0000	(0x80000000)
-#define	CPUID_8000_0001	(0x80000001)
-#define	CPUID_8000_0002	(0x80000002)
-#define	CPUID_8000_0003	(0x80000003)
-#define	CPUID_8000_0004	(0x80000004)
-#define	CPUID_8000_0006	(0x80000006)
-#define	CPUID_8000_0007	(0x80000007)
-#define	CPUID_8000_0008	(0x80000008)
-#define	CPUID_8000_001D	(0x8000001D)
-#define	CPUID_8000_001E	(0x8000001E)
-
-#define	CPUID_VM_SIGNATURE	0x40000000
-#define	CPUID_VM_HIGH		CPUID_BHYVE_FEATURES
-
-/*
- * CPUID instruction Fn0000_0001:
- */
-#define	CPUID_0000_0001_APICID_SHIFT	24
-
 /*
  * Compute ceil(log2(x)).  Returns -1 if x is zero.
  */
@@ -380,7 +516,6 @@ legacy_emulate_cpuid(struct vcpu *vcpu, uint32_t *eax, uint32_t *ebx,
 	struct vm *vm = vcpu_vm(vcpu);
 	int vcpu_id = vcpu_vcpuid(vcpu);
 	const struct xsave_limits *limits;
-	uint64_t cr4;
 	int error, enable_invpcid, enable_rdpid, enable_rdtscp, level,
 	    width, x2apic_id;
 	unsigned int func, regs[4], logical_cpus, param;
@@ -652,22 +787,6 @@ legacy_emulate_cpuid(struct vcpu *vcpu, uint32_t *eax, uint32_t *ebx,
 			 */
 			if (!(regs[2] & CPUID2_OSXSAVE))
 				regs[2] &= ~CPUID2_XSAVE;
-
-			/*
-			 * If CPUID2_XSAVE is being advertised and the
-			 * guest has set CR4_XSAVE, set
-			 * CPUID2_OSXSAVE.
-			 */
-			regs[2] &= ~CPUID2_OSXSAVE;
-			if (regs[2] & CPUID2_XSAVE) {
-				error = vm_get_register(vcpu,
-				    VM_REG_GUEST_CR4, &cr4);
-				if (error)
-					panic("x86_emulate_cpuid: error %d "
-					      "fetching %%cr4", error);
-				if (cr4 & CR4_XSAVE)
-					regs[2] |= CPUID2_OSXSAVE;
-			}
 
 			/*
 			 * Hide monitor/mwait until we know how to deal with

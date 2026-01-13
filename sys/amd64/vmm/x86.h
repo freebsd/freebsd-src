@@ -26,6 +26,8 @@
  * SUCH DAMAGE.
  */
 
+#include <x86/bhyve.h>
+
 #ifndef _X86_H_
 #define	_X86_H_
 
@@ -54,6 +56,9 @@
 #define CPUID_8000_001D	(0x8000001D)
 #define CPUID_8000_001E	(0x8000001E)
 #define CPUID_8000_0022	(0x80000022)
+
+#define	CPUID_VM_SIGNATURE	0x40000000
+#define	CPUID_VM_HIGH		CPUID_BHYVE_FEATURES
 
 /*
  * CPUID instruction Fn0000_0001:
