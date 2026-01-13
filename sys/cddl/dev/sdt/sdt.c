@@ -60,6 +60,9 @@
 
 #include <cddl/dev/dtrace/dtrace_cddl.h>
 
+_Static_assert(sizeof((struct sdt_probe *)NULL)->id == sizeof(dtrace_id_t),
+    "sdt_probe.id and dtrace_id_t size mismatch");
+
 /* DTrace methods. */
 static void	sdt_getargdesc(void *, dtrace_id_t, void *, dtrace_argdesc_t *);
 static uint64_t	sdt_getargval(void *, dtrace_id_t, void *, int, int);
