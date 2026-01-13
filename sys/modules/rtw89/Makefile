@@ -4,13 +4,16 @@ DEVRTW89DIR=	${SRCTOP}/sys/contrib/dev/rtw89
 
 WITH_CONFIG_PM=	0
 WITH_DEBUGFS=	0
+.if ${KERN_OPTS:MDEV_ACPI}
+WITH_CONFIG_ACPI=	1
+.endif
 
 KMOD=	if_rtw89
 
 SRCS=	core.c
 SRCS+=	pci.c pci_be.c
 SRCS+=	chan.c mac80211.c mac.c mac_be.c phy.c phy_be.c fw.c
-SRCS+=	acpi.c cam.c efuse.c efuse_be.c regd.c sar.c coex.c ps.c ser.c
+SRCS+=	cam.c efuse.c efuse_be.c regd.c sar.c coex.c ps.c ser.c
 SRCS+=	util.c
 SRCS+=	rtw8852a.c rtw8852a_rfk.c rtw8852a_rfk_table.c rtw8852a_table.c
 SRCS+=	rtw8852ae.c
@@ -25,6 +28,13 @@ SRCS+=	rtw8852bt.c rtw8852bt_rfk.c rtw8852bt_rfk_table.c
 SRCS+=	rtw8852bte.c
 SRCS+=	rtw8922a.c rtw8922a_rfk.c
 SRCS+=	rtw8922ae.c
+
+.if defined(WITH_CONFIG_ACPI) && ${WITH_CONFIG_ACPI} > 0
+SRCS.DEV_ACPI+=	acpi.c
+CFLAGS+=	-DCONFIG_ACPI
+.endif
+# This needs to always stay on for the LinuxKPI header file.
+CFLAGS+=	-DLINUXKPI_WANT_LINUX_ACPI
 
 # USB parts
 #SRCS+=	rtw8851bu.c rtw8852bu.c
@@ -44,7 +54,6 @@ SRCS+=	opt_wlan.h opt_inet6.h opt_inet.h opt_acpi.h
 
 CFLAGS+=	-DKBUILD_MODNAME='"rtw89"'
 CFLAGS+=	-DLINUXKPI_VERSION=61700
-CFLAGS+=	-DLINUXKPI_WANT_LINUX_ACPI
 
 CFLAGS+=	-I${DEVRTW89DIR}
 CFLAGS+=	${LINUXKPI_INCLUDES}
