@@ -4,7 +4,9 @@ DEVIWLWIFIDIR=	${SRCTOP}/sys/contrib/dev/iwlwifi
 
 WITH_CONFIG_PM=	0
 WITH_DEBUGFS=	0
+.if ${KERN_OPTS:MDEV_ACPI}
 WITH_CONFIG_ACPI=	1
+.endif
 
 KMOD=	if_iwlwifi
 
@@ -60,10 +62,11 @@ CFLAGS+=	-DCONFIG_PM_SLEEP
 .endif
 
 .if defined(WITH_CONFIG_ACPI) && ${WITH_CONFIG_ACPI} > 0
-SRCS+=	fw/acpi.c
+SRCS.DEV_ACPI+=	fw/acpi.c
 CFLAGS+=	-DCONFIG_ACPI
-CFLAGS+=	-DLINUXKPI_WANT_LINUX_ACPI
 .endif
+# This needs to always stay on for the LinuxKPI header file.
+CFLAGS+=	-DLINUXKPI_WANT_LINUX_ACPI
 
 # Other
 SRCS+=	${LINUXKPI_GENSRCS}
