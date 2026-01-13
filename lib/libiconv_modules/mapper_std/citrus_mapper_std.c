@@ -307,7 +307,7 @@ rowcol_init(struct _citrus_mapper_std *ms)
 		rc->rc_dst_ilseq = be32toh(eix->eix_dst_ilseq);
 	}
 
-	/* calcurate expected table size */
+	/* calculate expected table size */
 	i = rc->rc_src_rowcol_len;
 	lz = &rc->rc_src_rowcol[--i];
 	table_size = lz->width;
