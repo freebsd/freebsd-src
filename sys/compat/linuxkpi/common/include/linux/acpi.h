@@ -32,7 +32,7 @@
 #include <linux/device.h>
 #include <linux/uuid.h>
 
-#if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
+#if defined(__aarch64__) || defined(__amd64__) || defined(__i386__) || defined(__riscv)
 
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
