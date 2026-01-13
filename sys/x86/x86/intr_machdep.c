@@ -405,6 +405,15 @@ intr_suspend(void)
 	mtx_unlock(&intrpic_lock);
 }
 
+void
+intr_enable_src(u_int irq)
+{
+	struct intsrc *is;
+
+	is = interrupt_sources[irq];
+	is->is_pic->pic_enable_source(is);
+}
+
 static int
 intr_assign_cpu(void *arg, int cpu)
 {

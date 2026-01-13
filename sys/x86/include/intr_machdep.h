@@ -151,6 +151,7 @@ int	intr_register_source(struct intsrc *isrc);
 int	intr_remove_handler(void *cookie);
 void	intr_resume(bool suspend_cancelled);
 void	intr_suspend(void);
+void	intr_enable_src(u_int irq);
 void	intr_reprogram(void);
 void	intrcnt_add(const char *name, u_long **countp);
 void	nexus_add_irq(u_long irq);
