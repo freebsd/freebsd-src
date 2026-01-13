@@ -5,10 +5,8 @@
 
 AARCH64_STRING_FUNCS= \
 	memcmp \
-	memcpy \
 	memmove \
 	memrchr \
-	memset \
 	stpcpy \
 	strchr \
 	strchrnul \
@@ -34,7 +32,12 @@ MDSRCS+= \
 	timingsafe_bcmp.S \
 	timingsafe_memcmp.S \
 	bcopy.c \
-	bzero.c
+	bzero.c \
+	memcpy.S \
+	memcpy_resolver.c \
+	memmove_resolver.c \
+	memset.S \
+	memset_resolver.c
 
 #
 # Add the above functions. Generate an asm file that includes the needed
@@ -55,6 +58,8 @@ MDSRCS+=	${FUNC}.S
 CFLAGS.${FUNC}.S+=-I${SRCTOP}/contrib/arm-optimized-routines/string
 .endfor
 
-# memchr.S is a wrapper in the src tree for the implementation from
+# Several files are wrappers in the src tree for the implementation from
 # arm-optimized-routines
 CFLAGS.memchr.S+=-I${SRCTOP}/contrib/arm-optimized-routines/string
+CFLAGS.memcpy.S+=-I${SRCTOP}/contrib/arm-optimized-routines/string
+CFLAGS.memset.S+=-I${SRCTOP}/contrib/arm-optimized-routines/string
