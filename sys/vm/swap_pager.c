@@ -1362,14 +1362,22 @@ static int
 swap_pager_getpages_locked(struct pctrie_iter *blks, vm_object_t object,
     vm_page_t *ma, int count, int *a_rbehind, int *a_rahead, struct buf *bp)
 {
+	vm_page_t m;
 	vm_pindex_t pindex;
-	int rahead, rbehind;
+	int i, rahead, rbehind;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
 	KASSERT((object->flags & OBJ_SWAP) != 0,
 	    ("%s: object not swappable", __func__));
-	pindex = ma[0]->pindex;
+	for (i = 0; i < count; i++) {
+		m = ma[i];
+		if (m != bogus_page) {
+			pindex = m->pindex - i;
+			break;
+		}
+	}
+	MPASS(i != count);
 	if (!swp_pager_haspage_iter(pindex, &rbehind, &rahead, blks)) {
 		VM_OBJECT_WUNLOCK(object);
 		uma_zfree(swrbuf_zone, bp);
@@ -1399,8 +1407,11 @@ swap_pager_getpages_locked(struct pctrie_iter *blks, vm_object_t object,
 	KASSERT(bp->b_npages <= PBUF_PAGES,
 	    ("bp_npages %d (rb %d c %d ra %d) not less than PBUF_PAGES %jd",
 	    bp->b_npages, rbehind, count, rahead, (uintmax_t)PBUF_PAGES));
-	for (int i = 0; i < bp->b_npages; i++)
-		bp->b_pages[i]->oflags |= VPO_SWAPINPROG;
+	for (i = 0; i < bp->b_npages; i++) {
+		m = bp->b_pages[i];
+		if (m != bogus_page)
+			m->oflags |= VPO_SWAPINPROG;
+	}
 	bp->b_blkno = swp_pager_meta_lookup(blks, pindex - rbehind);
 	KASSERT(bp->b_blkno != SWAPBLK_NONE,
 	    ("no swap blocking containing %p(%jx)", object, (uintmax_t)pindex));
@@ -1448,8 +1459,14 @@ swap_pager_getpages_locked(struct pctrie_iter *blks, vm_object_t object,
 	 */
 	VM_OBJECT_WLOCK(object);
 	/* This could be implemented more efficiently with aflags */
-	while ((ma[0]->oflags & VPO_SWAPINPROG) != 0) {
-		ma[0]->oflags |= VPO_SWAPSLEEP;
+	for (i = 0; i < count; i++) {
+		m = ma[i];
+		if (m != bogus_page)
+			break;
+	}
+	MPASS(i != count);
+	while ((m->oflags & VPO_SWAPINPROG) != 0) {
+		m->oflags |= VPO_SWAPSLEEP;
 		VM_CNT_INC(v_intrans);
 		if (VM_OBJECT_SLEEP(object, &object->handle, PSWP,
 		    "swread", hz * 20)) {
@@ -1463,9 +1480,10 @@ swap_pager_getpages_locked(struct pctrie_iter *blks, vm_object_t object,
 	/*
 	 * If we had an unrecoverable read error pages will not be valid.
 	 */
-	for (int i = 0; i < count; i++)
-		if (ma[i]->valid != VM_PAGE_BITS_ALL)
+	for (i = 0; i < count; i++) {
+		if (ma[i] != bogus_page && ma[i]->valid != VM_PAGE_BITS_ALL)
 			return (VM_PAGER_ERROR);
+	}
 
 	return (VM_PAGER_OK);
 
@@ -1729,6 +1747,9 @@ swp_pager_async_iodone(struct buf *bp)
 	 */
 	for (i = 0; i < bp->b_npages; ++i) {
 		vm_page_t m = bp->b_pages[i];
+
+		if (m == bogus_page)
+			continue;
 
 		m->oflags &= ~VPO_SWAPINPROG;
 		if (m->oflags & VPO_SWAPSLEEP) {
