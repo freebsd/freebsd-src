@@ -167,12 +167,12 @@ jobs:
                 /* Loop for each key in "checklist". */
                 for (const c in checklist)
                   msg += "- " + c + " (" + checklist[c].join(", ") + ")\n";
-                msg += "\n> [!NOTE]\n> Please review [CONTRIBUTING.md](https://github.com/freebsd/freebsd-src/blob/main/CONTRIBUTING.md), then update and push your branch again.\n\n"
+                msg += "\n> [!NOTE]\n> Please review the [CONTRIBUTING](https://github.com/freebsd/freebsd-src/blob/main/CONTRIBUTING.md) guidelines, then update and push your branch again.\n\n"
               } else {
-                let msg = "No Issues found.\n\n";
+                let msg = "[CONTRIBUTING](https://github.com/freebsd/freebsd-src/blob/main/CONTRIBUTING.md) guideline checklist found no issues.\n\n";
               }
               if (infolist_len != 0) {
-                msg += "Some of files have special handling:\n"
+                msg += "Directories with proposed changes have special handling:\n"
                 for (const i in infolist)
                   msg += i + "\n";
                 msg += "\n\n";
@@ -188,6 +188,6 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 comment_id: comment_id,
-                body: msg_prefix + "All issues resolved."
+                body: msg_prefix + "[CONTRIBUTING](https://github.com/freebsd/freebsd-src/blob/main/CONTRIBUTING.md) checklist issues resolved.\n\n";
               });
             }
