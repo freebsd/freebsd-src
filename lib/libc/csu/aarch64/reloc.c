@@ -25,17 +25,42 @@
  */
 
 #include <sys/cdefs.h>
+#include <machine/ifunc.h>
+
+static __ifunc_arg_t ifunc_arg;
 
 static void
-ifunc_init(const Elf_Auxinfo *aux __unused)
+ifunc_init(const Elf_Auxinfo *aux)
 {
+	ifunc_arg._size = sizeof(ifunc_arg);
+	ifunc_arg._hwcap = 0;
+	ifunc_arg._hwcap2 = 0;
+	ifunc_arg._hwcap3 = 0;
+	ifunc_arg._hwcap4 = 0;
+
+	for (;  aux->a_type != AT_NULL; aux++) {
+		switch (aux->a_type) {
+		case AT_HWCAP:
+			ifunc_arg._hwcap = aux->a_un.a_val | _IFUNC_ARG_HWCAP;
+			break;
+		case AT_HWCAP2:
+			ifunc_arg._hwcap2 = aux->a_un.a_val;
+			break;
+		case AT_HWCAP3:
+			ifunc_arg._hwcap3 = aux->a_un.a_val;
+			break;
+		case AT_HWCAP4:
+			ifunc_arg._hwcap4 = aux->a_un.a_val;
+			break;
+		}
+	}
 }
 
 static void
 crt1_handle_rela(const Elf_Rela *r)
 {
 	typedef Elf_Addr (*ifunc_resolver_t)(
-	    uint64_t, uint64_t, uint64_t, uint64_t,
+	    uint64_t, const __ifunc_arg_t *, uint64_t, uint64_t,
 	    uint64_t, uint64_t, uint64_t, uint64_t);
 	Elf_Addr *ptr, *where, target;
 
@@ -43,7 +68,7 @@ crt1_handle_rela(const Elf_Rela *r)
 	case R_AARCH64_IRELATIVE:
 		ptr = (Elf_Addr *)r->r_addend;
 		where = (Elf_Addr *)r->r_offset;
-		target = ((ifunc_resolver_t)ptr)(0, 0, 0, 0, 0, 0, 0, 0);
+		target = ((ifunc_resolver_t)ptr)(ifunc_arg._hwcap, &ifunc_arg, 0, 0, 0, 0, 0, 0);
 		*where = target;
 		break;
 	}
