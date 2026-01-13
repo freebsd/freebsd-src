@@ -976,12 +976,6 @@ pf_qname2qid(const char *qname, bool add_new)
 	return (tagname2tag(&V_pf_qids, qname, add_new));
 }
 
-static const char *
-pf_qid2qname(uint16_t qid)
-{
-	return (tag2tagname(&V_pf_qids, qid));
-}
-
 static void
 pf_qid_unref(uint16_t qid)
 {
