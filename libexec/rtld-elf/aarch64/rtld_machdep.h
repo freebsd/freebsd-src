@@ -33,6 +33,7 @@
 
 #include <sys/types.h>
 #include <machine/atomic.h>
+#include <machine/ifunc.h>
 #include <machine/tls.h>
 
 struct Struct_Obj_Entry;
@@ -67,6 +68,8 @@ Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 #define	call_init_pointer(obj, target) \
 	(((InitArrFunc)(target))(main_argc, main_argv, environ))
 
+extern struct __ifunc_arg_t ifunc_arg;
+
 /*
  * Pass zeros into the ifunc resolver so we can change them later. The first
  * 8 arguments on arm64 are passed in registers so make them known values
@@ -74,9 +77,10 @@ Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
  * no arguments are passed in, and if this changes later will be able to
  * compare the argument with 0 to see if it is set.
  */
-#define	call_ifunc_resolver(ptr) \
-	(((Elf_Addr (*)(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, \
-	    uint64_t, uint64_t, uint64_t))ptr)(0, 0, 0, 0, 0, 0, 0, 0))
+#define	call_ifunc_resolver(ptr)					      \
+	(((Elf_Addr (*)(uint64_t, const struct __ifunc_arg_t *, uint64_t,     \
+	    uint64_t, uint64_t, uint64_t, uint64_t, uint64_t))ptr)(	      \
+	    ifunc_arg._hwcap, &ifunc_arg, 0, 0, 0, 0, 0, 0))
 
 #define	round(size, align)				\
 	(((size) + (align) - 1) & ~((align) - 1))

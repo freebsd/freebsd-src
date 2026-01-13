@@ -444,10 +444,21 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 	return (target);
 }
 
-void
-ifunc_init(Elf_Auxinfo *aux_info[__min_size(AT_COUNT)] __unused)
-{
+__ifunc_arg_t ifunc_arg = {
+	._size = sizeof(__ifunc_arg_t)
+};
 
+void
+ifunc_init(Elf_Auxinfo *aux_info[__min_size(AT_COUNT)])
+{
+	ifunc_arg._hwcap = aux_info[AT_HWCAP] != NULL ?
+	    (aux_info[AT_HWCAP]->a_un.a_val | _IFUNC_ARG_HWCAP) : 0;
+	ifunc_arg._hwcap2 = aux_info[AT_HWCAP2] != NULL ?
+	    aux_info[AT_HWCAP2]->a_un.a_val : 0;
+	ifunc_arg._hwcap3 = aux_info[AT_HWCAP3] != NULL ?
+	    aux_info[AT_HWCAP3]->a_un.a_val : 0;
+	ifunc_arg._hwcap4 = aux_info[AT_HWCAP4] != NULL ?
+	    aux_info[AT_HWCAP4]->a_un.a_val : 0;
 }
 
 /*
