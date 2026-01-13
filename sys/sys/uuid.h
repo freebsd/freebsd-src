@@ -35,6 +35,12 @@
 #define	_UUID_NODE_LEN		6
 
 /*
+ * The kernel imposes a limit on the number of UUIDs generated per call
+ * to avoid unbounded allocations.
+ */
+#define	UUIDGEN_BATCH_MAX	2048
+
+/*
  * See also:
  *      http://www.opengroup.org/dce/info/draft-leach-uuids-guids-01.txt
  *      http://www.opengroup.org/onlinepubs/009629399/apdxa.htm
