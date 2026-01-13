@@ -26,7 +26,9 @@
  *
  */
 
+#include <sys/param.h>
 #include <sys/capsicum.h>
+#include <sys/uuid.h>
 
 #include <capsicum_helpers.h>
 #include <err.h>
@@ -156,46 +158,51 @@ main(int argc, char *argv[])
 	if (count == -1)
 		count = 1;
 
-	store = (uuid_t *)malloc(sizeof(uuid_t) * count);
-	if (store == NULL)
-		err(1, "malloc()");
+    store = calloc(MIN(count, UUIDGEN_BATCH_MAX), sizeof(uuid_t));
+    if (store == NULL)
+        err(1, "calloc()");
 
-	if (!iterate) {
-		/* Get them all in a single batch */
-		if (version == 1) {
-			if (uuidgen(store, count) != 0)
-				err(1, "uuidgen()");
-		} else if (version == 4) {
-			if (uuidgen_v4(store, count) != 0)
-				err(1, "uuidgen_v4()");
-		} else {
-			err(1, "unsupported version");
-		}
-	} else {
-		uuid = store;
-		for (i = 0; i < count; i++) {
-			if (version == 1) {
-				if (uuidgen(uuid++, 1) != 0)
-					err(1, "uuidgen()");
-			} else if (version == 4) {
-				if (uuidgen_v4(uuid++, 1) != 0)
-					err(1, "uuidgen_v4()");
-			} else {
-				err(1, "unsupported version");
-			}
-		}
-	}
+    while (count > 0) {
+        int batch = (count > UUIDGEN_BATCH_MAX) ? UUIDGEN_BATCH_MAX : count;
 
-	uuid = store;
-	while (count--) {
-		tostring(uuid++, &p, &status);
-		if (status != uuid_s_ok)
-			err(1, "cannot stringify a UUID");
-		fprintf(fp, "%s\n", p);
-		free(p);
-	}
+        if (!iterate) {
+            if (version == 1) {
+                if (uuidgen(store, batch) != 0)
+                    err(1, "uuidgen()");
+            } else if (version == 4) {
+                if (uuidgen_v4(store, batch) != 0)
+                    err(1, "uuidgen_v4()");
+            } else {
+                err(1, "unsupported version");
+            }
+        } else {
+            uuid = store;
+            for (i = 0; i < batch; i++) {
+                if (version == 1) {
+                    if (uuidgen(uuid++, 1) != 0)
+                        err(1, "uuidgen()");
+                } else if (version == 4) {
+                    if (uuidgen_v4(uuid++, 1) != 0)
+                        err(1, "uuidgen_v4()");
+                } else {
+                    err(1, "unsupported version");
+                }
+            }
+        }
 
-	free(store);
+        uuid = store;
+        for (i = 0; i < batch; i++) {
+            tostring(uuid++, &p, &status);
+            if (status != uuid_s_ok)
+                err(1, "cannot stringify a UUID");
+            fprintf(fp, "%s\n", p);
+            free(p);
+        }
+
+        count -= batch;
+    }
+    free(store);
+
 	if (fp != stdout)
 		fclose(fp);
 	return (0);

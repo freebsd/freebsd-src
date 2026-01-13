@@ -186,7 +186,7 @@ sys_uuidgen(struct thread *td, struct uuidgen_args *uap)
 	 * like to have some sort of upper-bound that's less than 2G :-)
 	 * XXX probably needs to be tunable.
 	 */
-	if (uap->count < 1 || uap->count > 2048)
+	if (uap->count < 1 || uap->count > UUIDGEN_BATCH_MAX)
 		return (EINVAL);
 
 	count = uap->count;
