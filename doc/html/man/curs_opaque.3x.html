@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2020-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2020-2024,2025 Thomas E. Dickey                                *
   * Copyright 2007-2014,2015 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_opaque.3x,v 1.43 2024/03/16 15:35:01 tom Exp @
+  * @Id: curs_opaque.3x,v 1.50 2025/02/15 19:36:24 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_opaque 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_opaque 3x 2025-02-15 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_opaque 3x 2024-03-16 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_opaque 3x 2025-02-15 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -124,12 +122,12 @@
               returns the delay timeout set by <STRONG><A HREF="wtimeout.3x.html">wtimeout(3x)</A></STRONG>.
 
        <STRONG>wgetparent</STRONG>
-              returns the parent <EM>WINDOW</EM> pointer for subwindows,  or  <STRONG>NULL</STRONG>  for
+              returns the parent <EM>WINDOW</EM> pointer for subwindows,  or  <EM>NULL</EM>  for
               windows having no parent.
 
        <STRONG>wgetscrreg</STRONG>
-              stores  the the top and bottom rows for the scrolling margin set
-              by <STRONG><A HREF="curs_outopts.3x.html">wsetscrreg(3x)</A></STRONG> in the corresponding arguments, returning  <STRONG>ERR</STRONG>
+              stores  the  top and bottom rows for the scrolling margin set by
+              <STRONG><A HREF="curs_outopts.3x.html">wsetscrreg(3x)</A></STRONG> in the  corresponding  arguments,  returning  <STRONG>ERR</STRONG>
               upon failure and <STRONG>OK</STRONG> upon successful completion.
 
 
@@ -142,20 +140,23 @@
        function documented in this page.
 
 
+</PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
+       These functions originated with <EM>ncurses</EM>.
+
+
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These routines are specific to <EM>ncurses</EM>.  They  were  not  supported  on
-       Version 7, BSD or System V implementations.  It is recommended that any
-       code   depending   on   <EM>ncurses</EM>   extensions   be   conditioned   using
-       <STRONG>NCURSES_VERSION</STRONG>.
+       Applications employing <EM>ncurses</EM> extensions should condition their use on
+       the visibility of the <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
+
+       NetBSD  <EM>curses</EM>  since  10.1  (2024)  supports  <EM>wgetscr</EM><STRONG>_</STRONG><EM>reg</EM>.   It   also
+       implements <EM>getscr</EM><STRONG>_</STRONG><EM>reg</EM>, operating on <EM>stdscr</EM>.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,    <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>,   <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,   <STRONG><A HREF="curs_threads.3x.html">curs_threads(3x)</A></STRONG>,
        <STRONG><A HREF="curs_window.3x.html">curs_window(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-03-16                   <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>
+ncurses 6.6                       2025-02-15                   <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -164,6 +165,7 @@ ncurses 6.5                       2024-03-16                   <STRONG><A HREF="
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>
+<li><a href="#h2-EXTENSIONS">EXTENSIONS</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>

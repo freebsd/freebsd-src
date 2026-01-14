@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 2002-2010,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_vline_set.c,v 1.6 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_vline_set.c,v 1.7 2024/12/07 20:08:15 tom Exp $")
 
 NCURSES_EXPORT(int)
 wvline_set(WINDOW *win, const cchar_t *ch, int n)
@@ -58,7 +58,7 @@ wvline_set(WINDOW *win, const cchar_t *ch, int n)
 	if (end > win->_maxy)
 	    end = win->_maxy;
 
-	if (ch == 0)
+	if (ch == NULL)
 	    wch = *WACS_VLINE;
 	else
 	    wch = *ch;

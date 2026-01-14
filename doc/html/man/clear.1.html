@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: clear.1,v 1.48 2024/03/16 15:35:01 tom Exp @
+  * @Id: clear.1,v 1.53 2025/04/05 21:56:26 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>clear 1 2024-03-16 ncurses 6.5 User commands</TITLE>
+<TITLE>clear 1 2025-04-05 ncurses 6.6 User commands</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">clear 1 2024-03-16 ncurses 6.5 User commands</H1>
+<H1 class="no-header">clear 1 2025-04-05 ncurses 6.6 User commands</H1>
 <PRE>
 <STRONG><A HREF="clear.1.html">clear(1)</A></STRONG>                         User commands                        <STRONG><A HREF="clear.1.html">clear(1)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -84,7 +82,7 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       Neither IEEE Std 1003.1/The Open  Group  Base  Specifications  Issue  7
+       Neither IEEE Std 1003.1/The  Open  Group  Base  Specifications  Issue 7
        (POSIX.1-2008) nor X/Open Curses Issue 7 documents <STRONG>clear</STRONG>.
 
        The  latter documents <STRONG>tput</STRONG>, which could be used to replace this utility
@@ -96,14 +94,14 @@
        A <STRONG>clear</STRONG> command using the <EM>termcap</EM> database and library appeared in 2BSD
        (1979).  Eighth Edition Unix (1985) later included it.
 
-       The commercial Unix arm of AT&amp;T adapted a different BSD program  (<STRONG>tset</STRONG>)
-       to  make  a  new  command,  <STRONG>tput</STRONG>, and replaced the <STRONG>clear</STRONG> program with a
+       The  commercial Unix arm of AT&amp;T adapted a different BSD program (<STRONG>tset</STRONG>)
+       to make a new command, <STRONG>tput</STRONG>, and replaced  the  <STRONG>clear</STRONG>  program  with  a
        shell script that called "<STRONG>tput</STRONG> <STRONG>clear</STRONG>".
 
            /usr/bin/tput ${1:+-T$1} clear 2&gt; /dev/null
            exit
 
-       In 1989, when Keith Bostic revised the BSD  <STRONG>tput</STRONG>  command  to  make  it
+       In  1989,  when  Keith  Bostic  revised the BSD <STRONG>tput</STRONG> command to make it
        similar to AT&amp;T's <STRONG>tput</STRONG>, he added a <STRONG>clear</STRONG> shell script as well.
 
            exec tput clear
@@ -139,16 +137,14 @@
            to incorporate this extension.
 
        <STRONG>o</STRONG>   In 2013, the <STRONG>E3</STRONG> capability was not exercised by "<STRONG>tput</STRONG> <STRONG>clear</STRONG>".  That
-           oversight was addressed in 2016 by reorganizing <STRONG>tput</STRONG> to  share  its
+           oversight  was  addressed in 2016 by reorganizing <STRONG>tput</STRONG> to share its
            logic with <STRONG>clear</STRONG> and <STRONG>tset</STRONG>.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="tput.1.html">tput(1)</A></STRONG>, <STRONG>xterm(1)</STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-03-16                          <STRONG><A HREF="clear.1.html">clear(1)</A></STRONG>
+ncurses 6.6                       2025-04-05                          <STRONG><A HREF="clear.1.html">clear(1)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2005,2010 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_beep.3x,v 1.29 2024/04/20 21:20:07 tom Exp @
+  * @Id: curs_beep.3x,v 1.42 2025/02/01 23:46:11 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_beep 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_beep 3x 2025-02-01 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_beep 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_beep 3x 2025-02-01 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_beep.3x.html">curs_beep(3x)</A></STRONG>                    Library calls                   <STRONG><A HREF="curs_beep.3x.html">curs_beep(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -58,35 +56,45 @@
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       The  <STRONG>beep</STRONG>  and <STRONG>flash</STRONG> routines are used to alert the terminal user.  The
-       routine <STRONG>beep</STRONG> sounds an audible alarm  on  the  terminal,  if  possible;
-       otherwise  it  flashes  the  screen  (visible bell).  The routine <STRONG>flash</STRONG>
-       flashes the screen, and if that is not possible, sounds the alert.   If
-       neither  alert is possible, nothing happens.  Nearly all terminals have
-       an audible alert (bell or beep), but only some can flash the screen.
+       <STRONG>beep</STRONG>  and  <STRONG>flash</STRONG>  alert  the  terminal user: the former by sounding the
+       terminal's  audible  alarm,  and  the  latter  by  visibly   attracting
+       attention.    Commonly,   a   terminal  implements  a  visual  bell  by
+       momentarily reversing the character foreground and background colors on
+       the entire display; even  a  monochrome  device  can  do  this.   These
+       functions  each  attempt  the  other alert type if the one requested is
+       unavailable.  If neither  is  available,  <EM>curses</EM>  performs  no  action.
+       Nearly  all terminals have an audible alert mechanism such as a bell or
+       piezoelectric buzzer, but only some can flash the screen.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       These routines return <STRONG>OK</STRONG> if they succeed in beeping  or  flashing,  <STRONG>ERR</STRONG>
-       otherwise.
+       These functions return <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.
+
+       In <EM>ncurses</EM>, <STRONG>beep</STRONG> and <STRONG>flash</STRONG> return <STRONG>OK</STRONG> if the terminal type supports  the
+       corresponding  capability: <STRONG>bell</STRONG> (<STRONG>bel</STRONG>) for <STRONG>beep</STRONG> and <STRONG>flash_screen</STRONG> (<STRONG>flash</STRONG>)
+       for <STRONG>flash</STRONG>.  Otherwise they return <STRONG>ERR</STRONG>.
 
 
 </PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
-       SVr4's  beep  and  flash  routines  always  returned  <STRONG>OK</STRONG>, so it was not
-       possible to tell when the beep or flash failed.
+       In <EM>ncurses</EM>, these functions can return <STRONG>ERR</STRONG>.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These functions are described in X/Open Curses, Issue 4.  Like SVr4, it
-       specifies that they always return <STRONG>OK</STRONG>.
+       X/Open Curses Issue 4 describes these functions.  It specifies no error
+       conditions for them.
+
+       On SVr4 <EM>curses</EM>, they always return <EM>OK</EM>, and X/Open Curses specifies them
+       as doing so.
+
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       SVr2 (1984) introduced <EM>beep</EM> and <EM>flash</EM>.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                     <STRONG><A HREF="curs_beep.3x.html">curs_beep(3x)</A></STRONG>
+ncurses 6.6                       2025-02-01                     <STRONG><A HREF="curs_beep.3x.html">curs_beep(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -96,6 +104,7 @@ ncurses 6.5                       2024-04-20                     <STRONG><A HREF
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-EXTENSIONS">EXTENSIONS</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

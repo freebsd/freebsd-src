@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2022 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -49,9 +49,9 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: lib_newterm.c,v 1.104 2022/07/09 18:58:58 tom Exp $")
+MODULE_ID("$Id: lib_newterm.c,v 1.110 2025/12/27 12:28:45 tom Exp $")
 
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 #define NumLabels      InfoOf(SP_PARM).numlabels
 #else
 #define NumLabels      num_labels
@@ -88,7 +88,7 @@ _nc_initscr(NCURSES_SP_DCL0)
 	buf.c_oflag &= (unsigned) ~(ONLCR);
 #elif HAVE_SGTTY_H
 	buf.sg_flags &= ~(ECHO | CRMOD);
-#elif defined(EXP_WIN32_DRIVER)
+#elif USE_NAMED_PIPES
 	buf.dwFlagIn = CONMODE_IN_DEFAULT;
 	buf.dwFlagOut = CONMODE_OUT_DEFAULT | VT_FLAG_OUT;
 	if (WINCONSOLE.isTermInfoConsole) {
@@ -175,12 +175,12 @@ NCURSES_SP_NAME(newterm) (NCURSES_SP_DCLx
 			  FILE *ifp)
 {
     int errret;
-    SCREEN *result = 0;
+    SCREEN *result = NULL;
     SCREEN *current;
     TERMINAL *its_term;
     FILE *_ofp = ofp ? ofp : stdout;
     FILE *_ifp = ifp ? ifp : stdin;
-    TERMINAL *new_term = 0;
+    TERMINAL *new_term = NULL;
 
     START_TRACE();
     T((T_CALLED("newterm(%p, \"%s\", %p,%p)"),
@@ -190,8 +190,8 @@ NCURSES_SP_NAME(newterm) (NCURSES_SP_DCLx
        (void *) ifp));
 
 #if NCURSES_SP_FUNCS
-    assert(SP_PARM != 0);
-    if (SP_PARM == 0)
+    assert(SP_PARM != NULL);
+    if (SP_PARM == NULL)
 	returnSP(SP_PARM);
 #endif
 
@@ -199,9 +199,9 @@ NCURSES_SP_NAME(newterm) (NCURSES_SP_DCLx
     _nc_lock_global(curses);
 
     current = CURRENT_SCREEN;
-    its_term = (current ? current->_term : 0);
+    its_term = (current ? current->_term : NULL);
 
-#if defined(EXP_WIN32_DRIVER)
+#if USE_NAMED_PIPES
     _setmode(fileno(_ifp), _O_BINARY);
     _setmode(fileno(_ofp), _O_BINARY);
 #endif
@@ -212,11 +212,11 @@ NCURSES_SP_NAME(newterm) (NCURSES_SP_DCLx
 	   TINFO_SETUP_TERM(&new_term, name,
 			    fileno(_ofp), &errret, FALSE) != ERR) {
 	int slk_format;
-	int filter_mode;
+	bool filter_mode;
 
-	_nc_set_screen(0);
-#ifdef USE_TERM_DRIVER
-	assert(new_term != 0);
+	_nc_set_screen(NULL);
+#if USE_TERM_DRIVER
+	assert(new_term != NULL);
 #endif
 
 #if NCURSES_SP_FUNCS
@@ -241,19 +241,19 @@ NCURSES_SP_NAME(newterm) (NCURSES_SP_DCLx
 						 filter_mode,
 						 slk_format) == ERR) {
 	    _nc_set_screen(current);
-	    result = 0;
+	    result = NULL;
 	} else {
 	    int value;
 	    int cols;
 
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 	    TERMINAL_CONTROL_BLOCK *TCB;
 #elif !NCURSES_SP_FUNCS
 	    _nc_set_screen(CURRENT_SCREEN);
 #endif
-	    assert(SP_PARM != 0);
+	    assert(SP_PARM != NULL);
 	    cols = *(ptrCols(SP_PARM));
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 	    _nc_set_screen(SP_PARM);
 	    TCB = (TERMINAL_CONTROL_BLOCK *) new_term;
 	    TCB->csp = SP_PARM;
@@ -271,7 +271,7 @@ NCURSES_SP_NAME(newterm) (NCURSES_SP_DCLx
 	    if (current)
 		current->_term = its_term;
 
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 	    SP_PARM->_term = new_term;
 #else
 	    new_term = SP_PARM->_term;
@@ -279,6 +279,7 @@ NCURSES_SP_NAME(newterm) (NCURSES_SP_DCLx
 
 	    /* allow user to set maximum escape delay from the environment */
 	    if ((value = _nc_getenv_num("ESCDELAY")) >= 0) {
+		value = Min(value, MAX_DELAY_MSECS);
 #if NCURSES_EXT_FUNCS
 		NCURSES_SP_NAME(set_escdelay) (NCURSES_SP_ARGx value);
 #else
@@ -300,7 +301,7 @@ NCURSES_SP_NAME(newterm) (NCURSES_SP_DCLx
 	    SP_PARM->_use_meta = FALSE;
 #endif
 	    SP_PARM->_endwin = ewInitial;
-#ifndef USE_TERM_DRIVER
+#if !USE_TERM_DRIVER
 	    /*
 	     * Check whether we can optimize scrolling under dumb terminals in
 	     * case we do not have any of these capabilities, scrolling
@@ -317,10 +318,10 @@ NCURSES_SP_NAME(newterm) (NCURSES_SP_DCLx
 
 	    NCURSES_SP_NAME(baudrate) (NCURSES_SP_ARG);		/* sets a field in the screen structure */
 
-	    SP_PARM->_keytry = 0;
+	    SP_PARM->_keytry = NULL;
 
 	    /* compute movement costs so we can do better move optimization */
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 	    TCBOf(SP_PARM)->drv->td_scinit(SP_PARM);
 #else /* ! USE_TERM_DRIVER */
 	    /*
@@ -332,7 +333,7 @@ NCURSES_SP_NAME(newterm) (NCURSES_SP_DCLx
 	     * properly if we remove rmso or rmul.  Curses applications
 	     * shouldn't be looking at this detail.
 	     */
-#define SGR0_TEST(mode) (mode != 0) && (exit_attribute_mode == 0 || strcmp(mode, exit_attribute_mode))
+#define SGR0_TEST(mode) (mode != NULL) && (exit_attribute_mode == NULL || strcmp(mode, exit_attribute_mode))
 	    SP_PARM->_use_rmso = SGR0_TEST(exit_standout_mode);
 	    SP_PARM->_use_rmul = SGR0_TEST(exit_underline_mode);
 #if USE_ITALIC

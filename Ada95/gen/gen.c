@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020-2021,2024 Thomas E. Dickey                                *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2014,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,7 +35,7 @@
 
 /*
     Version Control
-    $Id: gen.c,v 1.79 2024/01/19 13:41:45 tom Exp $
+    $Id: gen.c,v 1.84 2025/11/12 00:49:19 Branden.Robinson Exp $
   --------------------------------------------------------------------------*/
 /*
   This program prints on its standard output the source for the
@@ -189,7 +189,7 @@ find_pos(const UCHAR * const data,
 int
 main(int argc, const char *argv[])
 {
-  FILE *fp = 0;
+  FILE *fp = NULL;
   const int x = 0x12345678;
 
   little_endian = (*((const char *)&x) == 0x78);
@@ -202,6 +202,10 @@ main(int argc, const char *argv[])
   if (argc == 3)
     {
       fp = fopen(argv[2], "wb");
+    }
+  else if (argc == 2 && !strcmp(argv[1], "-?"))
+    {
+      return EXIT_SUCCESS;
     }
   else if (argc == 2)
     {
@@ -301,7 +305,7 @@ main(int argc, const char *argv[])
   PRINT_NAMED_CONSTANT(E_INVALID_FIELD);
   PRINT_NAMED_CONSTANT(E_CURRENT);
 
-  print_comment(fp, "Input key codes not defined in any ncurses manpage");
+  print_comment(fp, "Input key codes not defined in any ncurses man page");
   PRINT_NAMED_CONSTANT(KEY_MIN);
   PRINT_NAMED_CONSTANT(KEY_MAX);
 #ifdef KEY_CODE_YES

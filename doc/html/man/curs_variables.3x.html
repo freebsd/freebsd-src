@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 2010-2015,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,29 +27,27 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_variables.3x,v 1.47 2024/04/13 22:37:35 tom Exp @
+  * @Id: curs_variables.3x,v 1.73 2025/08/23 23:02:32 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_variables 3x 2024-04-13 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_variables 3x 2025-08-23 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_variables 3x 2024-04-13 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_variables 3x 2025-08-23 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>               Library calls              <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>
 
 
-
-
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
        <EM>bool</EM>,  <EM>chtype</EM>,  <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM>,  <EM>attr</EM><STRONG>_</STRONG><EM>t</EM>, <EM>SCREEN</EM>, <EM>WINDOW</EM>, <STRONG>TRUE</STRONG>, <STRONG>FALSE</STRONG>, <STRONG>ERR</STRONG>, <STRONG>OK</STRONG>,
-       <STRONG>curscr</STRONG>, <STRONG>newscr</STRONG>, <STRONG>stdscr</STRONG>, <STRONG>COLORS</STRONG>,  <STRONG>COLOR_PAIRS</STRONG>,  <STRONG>COLS</STRONG>,  <STRONG>LINES</STRONG>,  <STRONG>ESCDELAY</STRONG>,
-       <STRONG>TABSIZE</STRONG> - <EM>curses</EM> data types, constants, and global variables
+       <STRONG>CCHARW_MAX</STRONG>, <STRONG>curscr</STRONG>, <STRONG>newscr</STRONG>, <STRONG>stdscr</STRONG>, <STRONG>COLORS</STRONG>, <STRONG>COLOR_PAIRS</STRONG>,  <STRONG>COLS</STRONG>,  <STRONG>LINES</STRONG>,
+       <STRONG>ESCDELAY</STRONG>, <STRONG>TABSIZE</STRONG> - <EM>curses</EM> data types, constants, and global variables
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -69,6 +67,9 @@
 
        <STRONG>const</STRONG> <EM>/*</EM> <STRONG>...</STRONG> <EM>*/</EM> <STRONG>ERR;</STRONG>
        <STRONG>const</STRONG> <EM>/*</EM> <STRONG>...</STRONG> <EM>*/</EM> <STRONG>OK;</STRONG>
+
+       <EM>/*</EM> <EM>extension</EM> <EM>*/</EM>
+       <STRONG>const</STRONG> <EM>/*</EM> <STRONG>...</STRONG> <EM>*/</EM> <STRONG>CCHARW_MAX;</STRONG>
 
        <EM>/*</EM> <EM>variables</EM> <EM>*/</EM>
        <STRONG>int</STRONG> <STRONG>COLORS;</STRONG>
@@ -103,19 +104,25 @@
 
 
 </PRE><H3><a name="h3-ERR_OK">ERR, OK</a></H3><PRE>
-       <EM>curses</EM>  and <EM>terminfo</EM> routines frequently return these constant integral
+       <EM>curses</EM> and <EM>terminfo</EM> functions frequently return these constant integral
        values indicating failure and success, respectively.
 
 
-</PRE><H2><a name="h2-PREDEFINED-TYPES">PREDEFINED TYPES</a></H2><PRE>
+</PRE><H3><a name="h3-CCHARW_MAX">CCHARW_MAX</a></H3><PRE>
+       This integral value, an <EM>ncurses</EM> extension, indicates the maximum number
+       of  <EM>wchar</EM><STRONG>_</STRONG><EM>t</EM>  wide  characters  that  can  be stored in a <EM>curses</EM> complex
+       character <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM>.
+
+
+</PRE><H2><a name="h2-DATA-TYPES">DATA TYPES</a></H2><PRE>
 
 </PRE><H3><a name="h3-bool"><EM>bool</EM></a></H3><PRE>
-       X/Open Issue 4 <EM>curses</EM>  (1996)  preceded  the  ISO  C99  and  ISO  C++98
-       standards,  each of which also defined a Boolean data type.  The <EM>curses</EM>
-       library requires an integral type <EM>bool</EM>.
+       <EM>curses</EM> defines an integral type <EM>bool</EM>.   X/Open  Issue 4  <EM>curses</EM>  (1996)
+       preceded  the  ISO C99  and  ISO C++98  standards,  each  of which also
+       defined a Boolean data type of the same name.
 
-       <STRONG>ncurses</STRONG>' configure script attempts to discover the data  type  used  by
-       the system's C and C++ compilers, to reuse for the <EM>curses</EM> <EM>bool</EM>.
+       <EM>ncurses</EM>'s configure script attempts to discover the data type  used  by
+       the system's C and C++ compilers, to reuse them as its own <EM>bool</EM>.
 
 
 </PRE><H3><a name="h3-chtype"><EM>chtype</EM></a></H3><PRE>
@@ -147,48 +154,52 @@
 
 </PRE><H2><a name="h2-VARIABLES">VARIABLES</a></H2><PRE>
 
-</PRE><H3><a name="h3-curscr_stdscr_newscr">curscr, stdscr, newscr</a></H3><PRE>
-       The library records updates to the terminal screen in  a  window  named
-       <STRONG>curscr</STRONG>.   This  object  is  referred  to  as  the  "physical screen" in
+</PRE><H3><a name="h3-curscr_newscr_stdscr">curscr, newscr, stdscr</a></H3><PRE>
+       When a <EM>curses</EM> application calls <STRONG><A HREF="curs_initscr.3x.html">initscr(3x)</A></STRONG> or <STRONG><A HREF="curs_initscr.3x.html">newterm(3x)</A></STRONG>, the library
+       creates a window named <STRONG>stdscr</STRONG> that is the same  size  as  the  terminal
+       screen,  (minus  any  lines reserved by <STRONG><A HREF="curs_kernel.3x.html">ripoffline(3x)</A></STRONG> or <STRONG><A HREF="curs_slk.3x.html">slk_init(3x)</A></STRONG>)
+       and is the implicit window used  by  functions  that  interact  with  a
+       window  but  do  not  take  a  parameter  identifying  one; many <EM>curses</EM>
+       functions use it.  An application need not use <STRONG>stdscr</STRONG>; it might  prefer
+       to tile the display into multiple windows instead.
+
+       The  library  records  updates to the terminal screen in a window named
+       <STRONG>curscr</STRONG>.  This object  is  referred  to  as  the  "physical  screen"  in
        <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG> and <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>.
 
-       <EM>ncurses</EM> collects pending updates to the terminal  screen  in  a  window
-       named  <STRONG>newscr</STRONG>.   This  object is referred to as the "virtual screen" in
-       the <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>, <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>, and <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>.  When  the
-       screen  is  refreshed, <EM>curses</EM> determines a minimal set of updates using
+       <EM>ncurses</EM>  collects  pending  updates  to the terminal screen in a window
+       named <STRONG>newscr</STRONG>.  This object is referred to as the  "virtual  screen"  in
+       the  <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>, <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>, and <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>.  When the
+       screen is refreshed, <EM>curses</EM> determines a minimal set of  updates  using
        the terminal's capabilities to make <STRONG>curscr</STRONG> look like <STRONG>newscr</STRONG>.
-
-       Once <EM>curses</EM> is initialized, it creates a window named  <STRONG>stdscr</STRONG>.   It  is
-       the  same size as the terminal screen and is the default window used by
-       routines that do not take a parameter  identifying  one.   Many  <EM>curses</EM>
-       functions use this window.
 
 
 </PRE><H3><a name="h3-COLORS">COLORS</a></H3><PRE>
-       Once  <EM>curses</EM>  is  initialized,  <STRONG>COLORS</STRONG>  contains  the  number of colors
-       supported by the terminal; see <STRONG><A HREF="curs_color.3x.html">curs_color(3x)</A></STRONG>.
+       Once  a  <EM>curses</EM>  screen  is  initialized, <STRONG>COLORS</STRONG> contains the number of
+       colors supported by the terminal; see <STRONG><A HREF="curs_color.3x.html">curs_color(3x)</A></STRONG>.
 
 
 </PRE><H3><a name="h3-COLOR_PAIRS">COLOR_PAIRS</a></H3><PRE>
-       Once <EM>curses</EM> is initialized, <STRONG>COLOR_PAIRS</STRONG> contains the  number  of  color
-       pairs supported by the terminal; see <STRONG><A HREF="curs_color.3x.html">curs_color(3x)</A></STRONG>.
+       Once a <EM>curses</EM> screen is initialized, <STRONG>COLOR_PAIRS</STRONG> contains the number of
+       color pairs supported by the terminal; see <STRONG><A HREF="curs_color.3x.html">curs_color(3x)</A></STRONG>.
 
 
 </PRE><H3><a name="h3-COLS_LINES">COLS, LINES</a></H3><PRE>
-       Once  <EM>curses</EM>  is initialized, <STRONG>COLS</STRONG> and <STRONG>LINES</STRONG> contain the screen's width
-       and height in character cells, respectively; that  is,  the  number  of
+       Once a <EM>curses</EM> screen is initialized, <STRONG>COLS</STRONG> and <STRONG>LINES</STRONG> contain  its  width
+       and  height  in  character  cells, respectively; that is, the number of
        columns and lines.
 
 
 </PRE><H3><a name="h3-ESCDELAY">ESCDELAY</a></H3><PRE>
-       For  <EM>curses</EM>  to  distinguish  the ESC character resulting from a user's
-       press of the "Escape" key on the input device  from  one  beginning  an
-       <EM>escape</EM> <EM>sequence</EM> (as commonly produced by function keys), it waits after
-       the escape character to see if further characters are available on  the
+       When  reading  key  strokes  from  a  window  in  keypad  mode,  <EM>curses</EM>
+       distinguishes  the  ESC  character resulting from a user's press of the
+       "Escape" key on the input device from one beginning an escape  sequence
+       (commonly  produced  by  function keys), by waiting after receiving the
+       escape character to see if further  characters  are  available  on  the
        input stream within a short interval.  <STRONG>ESCDELAY</STRONG> stores this interval in
        milliseconds.
 
-       If <STRONG><A HREF="curs_inopts.3x.html">keypad(3x)</A></STRONG> is disabled for the  <EM>curses</EM>  window  receiving  input,  a
+       If  <STRONG><A HREF="curs_inopts.3x.html">keypad(3x)</A></STRONG>  is  disabled  for  the <EM>curses</EM> window receiving input, a
        program must disambiguate escape sequences itself.
 
 
@@ -198,15 +209,24 @@
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       Either <STRONG><A HREF="curs_initscr.3x.html">initscr(3x)</A></STRONG> or <STRONG><A HREF="curs_initscr.3x.html">newterm(3x)</A></STRONG> initializes <EM>curses</EM>.
+       Initialize a <EM>curses</EM> screen with either <STRONG><A HREF="curs_initscr.3x.html">initscr(3x)</A></STRONG> or <STRONG><A HREF="curs_initscr.3x.html">newterm(3x)</A></STRONG>.
 
        If  <EM>ncurses</EM>  is  configured  to  provide  separate  <EM>curses</EM>  and   <EM>tinfo</EM>
-       libraries, most of these variables reside in the former.
+       libraries,  most  of  these symbols reside in the former.  Both use the
+       <STRONG>bool</STRONG> data type.
+
+
+</PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
+       The <STRONG>CCHARW_MAX</STRONG> constant, and <STRONG>ESCDELAY</STRONG>, <STRONG>TABSIZE</STRONG>, and  <STRONG>newscr</STRONG>  variables,
+       are extensions, the first of these originating in <EM>ncurses</EM>.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
+       Applications employing <EM>ncurses</EM> extensions should condition their use on
+       the visibility of the <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
+
        The  X/Open  Curses  standard  documents all of the foregoing types and
-       symbols except for <STRONG>newscr</STRONG>, <STRONG>TABSIZE</STRONG>, and <STRONG>ESCDELAY</STRONG>.
+       symbols except for <STRONG>CCHARW_MAX</STRONG>, <STRONG>newscr</STRONG>, <STRONG>TABSIZE</STRONG>, and <STRONG>ESCDELAY</STRONG>.
 
        X/Open Curses describes <STRONG>curscr</STRONG> only as "an  internal  data  structure";
        SVr4   gave  more  details,  noting  its  use  "for  certain  low-level
@@ -214,59 +234,58 @@
        Neither specified its interaction with the rest of the interface beyond
        use as an argument to <STRONG><A HREF="curs_outopts.3x.html">clearok(3x)</A></STRONG> and <STRONG><A HREF="curs_refresh.3x.html">wrefresh(3x)</A></STRONG>.
 
-       <STRONG>newscr</STRONG> is a feature of SVr4 <EM>curses</EM>.  When refreshing the screen, it  is
-       used  as  a  working area for combining the standard window <STRONG>stdscr</STRONG> with
-       any others the application may have created with <STRONG><A HREF="curs_window.3x.html">newwin(3x)</A></STRONG>.  When  the
+       <STRONG>newscr</STRONG>  is a feature of SVr4 <EM>curses</EM>.  When refreshing the screen, it is
+       used as a working area for combining the standard  window  <STRONG>stdscr</STRONG>  with
+       any  others the application may have created with <STRONG><A HREF="curs_window.3x.html">newwin(3x)</A></STRONG>.  When the
        update of <STRONG>newscr</STRONG> is complete, <EM>curses</EM> modifies <STRONG>curscr</STRONG> to match <STRONG>newscr</STRONG>.
 
        <STRONG>TABSIZE</STRONG> is a feature of SVr4 <EM>curses</EM>.
 
-       <STRONG>o</STRONG>   SVr4   initially  sets  <STRONG>TABSIZE</STRONG>  from  the  terminal  description's
-           <STRONG>init_tabs</STRONG>  capability.   After  that,  it   can   be   altered   by
+       <STRONG>o</STRONG>   SVr4  initially  sets  <STRONG>TABSIZE</STRONG>  from  the  terminal   description's
+           <STRONG>init_tabs</STRONG>  (<STRONG>it</STRONG>)  capability.   After  that,  it  can  be altered by
            applications using SVr4 <EM>curses</EM>.
 
-       <STRONG>o</STRONG>   SVr4  <EM>curses</EM>  uses  the value of <STRONG>TABSIZE</STRONG> to compute the position of
-           tab stops when updating both the virtual screen with <STRONG><A HREF="curs_addch.3x.html">addch(3x)</A></STRONG>  and
-           the physical screen with <STRONG><A HREF="curs_terminfo.3x.html">mvcur(3x)</A></STRONG>.
+       <STRONG>o</STRONG>   SVr4 <EM>curses</EM> uses <STRONG>TABSIZE</STRONG>'s value to compute  the  position  of  tab
+           stops  when updating both the virtual screen with <STRONG><A HREF="curs_addch.3x.html">addch(3x)</A></STRONG> and the
+           physical screen with <STRONG><A HREF="curs_terminfo.3x.html">mvcur(3x)</A></STRONG>.
 
-       <STRONG>o</STRONG>   <EM>ncurses</EM>  uses  the  value  of  <STRONG>TABSIZE</STRONG>  only  to update the virtual
-           screen.   It  uses  the  terminal  description's  "<STRONG>it</STRONG>"  (<STRONG>init_tabs</STRONG>)
-           capability  for  computing hardware tabs (that is, tab stops on the
+       <STRONG>o</STRONG>   In <EM>ncurses</EM>, <STRONG>TABSIZE</STRONG>'s value affects only the virtual  screen.   The
+           library   uses  the  terminal  type  description's  <STRONG>init_tabs</STRONG>  (<STRONG>it</STRONG>)
+           capability to compute hardware tabs (that  is,  tab  stops  on  the
            physical screen).
 
-       <STRONG>o</STRONG>   Other implementations differ.  For instance, NetBSD  <EM>curses</EM>  allows
-           <STRONG>TABSIZE</STRONG>  to  be  set through an environment variable.  <EM>ncurses</EM> does
+       <STRONG>o</STRONG>   Other  implementations  differ.  For instance, NetBSD <EM>curses</EM> allows
+           <STRONG>TABSIZE</STRONG> to be set through an environment  variable.   <EM>ncurses</EM>  does
            not.
 
            NetBSD <EM>curses</EM> does not support hardware tabs; it uses the <STRONG>init_tabs</STRONG>
-           capability  and  the <STRONG>TABSIZE</STRONG> variable only for updating the virtual
+           (<STRONG>it</STRONG>) capability and the <STRONG>TABSIZE</STRONG> variable only to update the virtual
            screen.
 
        <STRONG>ESCDELAY</STRONG> is a feature of AIX <EM>curses</EM>.
 
-       <STRONG>o</STRONG>   In AIX, the units for <STRONG>ESCDELAY</STRONG> are <EM>fifths</EM> of milliseconds.
+       <STRONG>o</STRONG>   AIX treats <STRONG>ESCDELAY</STRONG>'s value as counting <EM>fifths</EM> of milliseconds.
 
-       <STRONG>o</STRONG>   The default value for AIX's <STRONG>ESCDELAY</STRONG> equals 0.1 seconds.
+       <STRONG>o</STRONG>   AIX's default <STRONG>ESCDELAY</STRONG> equals 0.1 seconds.
 
-       <STRONG>o</STRONG>   AIX also enforces a limit of 10,000 seconds for  <STRONG>ESCDELAY</STRONG>;  <EM>ncurses</EM>
-           does not enforce any upper limit.
+       <STRONG>o</STRONG>   AIX  also  enforces a limit of 10,000 seconds for <STRONG>ESCDELAY</STRONG>; <EM>ncurses</EM>
+           does not enforce an upper limit.
 
-       <EM>ncurses</EM>  has  long  used <STRONG>ESCDELAY</STRONG> with units of milliseconds, making it
-       impossible to be completely compatible with  AIX.   Consequently,  most
-       users  have  decided  either to override the value, or to rely upon its
-       default.
+       <EM>ncurses</EM> has long interpreted  <STRONG>ESCDELAY</STRONG>  as  a  count  of  milliseconds,
+       making   it   impossible   to   be   completely  compatible  with  AIX.
+       Consequently, most users have decided either to override the value,  or
+       to rely upon its default.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,   <STRONG><A HREF="curs_color.3x.html">curs_color(3x)</A></STRONG>,    <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>,    <STRONG><A HREF="curs_terminfo.3x.html">curs_terminfo(3x)</A></STRONG>,
+       [UAX #29] "Unicode Standard Annex #29: Unicode Text Segmentation"
+
+       <STRONG><A HREF="curs_getcchar.3x.html">getcchar(3x)</A></STRONG> further discusses the <EM>ncurses</EM> extension <STRONG>CCHARW_MAX</STRONG>.
+
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,    <STRONG><A HREF="curs_color.3x.html">curs_color(3x)</A></STRONG>,    <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>,   <STRONG><A HREF="curs_terminfo.3x.html">curs_terminfo(3x)</A></STRONG>,
        <STRONG><A HREF="curs_threads.3x.html">curs_threads(3x)</A></STRONG>, <STRONG><A HREF="term_variables.3x.html">term_variables(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>
 
-       [UAX  #29]  "Unicode  Standard  Annex  #29: Unicode Text Segmentation";
-       &lt;https://unicode.org/reports/tr29/&gt;
-
-
-
-ncurses 6.5                       2024-04-13                <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>
+ncurses 6.6                       2025-08-23                <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -277,9 +296,10 @@ ncurses 6.5                       2024-04-13                <STRONG><A HREF="cur
 <ul>
 <li><a href="#h3-TRUE_FALSE">TRUE, FALSE</a></li>
 <li><a href="#h3-ERR_OK">ERR, OK</a></li>
+<li><a href="#h3-CCHARW_MAX">CCHARW_MAX</a></li>
 </ul>
 </li>
-<li><a href="#h2-PREDEFINED-TYPES">PREDEFINED TYPES</a>
+<li><a href="#h2-DATA-TYPES">DATA TYPES</a>
 <ul>
 <li><a href="#h3-bool">bool</a></li>
 <li><a href="#h3-chtype">chtype</a></li>
@@ -290,7 +310,7 @@ ncurses 6.5                       2024-04-13                <STRONG><A HREF="cur
 </li>
 <li><a href="#h2-VARIABLES">VARIABLES</a>
 <ul>
-<li><a href="#h3-curscr_stdscr_newscr">curscr, stdscr, newscr</a></li>
+<li><a href="#h3-curscr_newscr_stdscr">curscr, newscr, stdscr</a></li>
 <li><a href="#h3-COLORS">COLORS</a></li>
 <li><a href="#h3-COLOR_PAIRS">COLOR_PAIRS</a></li>
 <li><a href="#h3-COLS_LINES">COLS, LINES</a></li>
@@ -299,6 +319,7 @@ ncurses 6.5                       2024-04-13                <STRONG><A HREF="cur
 </ul>
 </li>
 <li><a href="#h2-NOTES">NOTES</a></li>
+<li><a href="#h2-EXTENSIONS">EXTENSIONS</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>

@@ -1,0 +1,11 @@
+# $Id: ncurses6td.lintian-overrides,v 1.3 2025/06/14 19:43:41 tom Exp $
+
+# This is intentional.
+ncurses6td: package-name-doesnt-match-sonames libformw6-6 libmenuw6-6 libncurses++w6-6 libncursesw6-6 libpanelw6-6 libticw6-6 libtinfow6-6
+
+# This is intentional.
+ncurses6td: no-manual-page
+ncurses6td: non-dev-pkg-with-shlib-symlink
+ncurses6td: embedded-library ncurses [usr/lib/x86_64-linux-gnu/libtinfow6.so.6.5]
+
+# vile: confmode

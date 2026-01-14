@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 2002-2016,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,37 +27,35 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_get_wch.3x,v 1.40 2024/04/20 19:23:03 tom Exp @
+  * @Id: curs_get_wch.3x,v 1.71 2025/08/16 19:11:47 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_get_wch 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_get_wch 3x 2025-08-16 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_get_wch 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_get_wch 3x 2025-08-16 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_get_wch.3x.html">curs_get_wch(3x)</A></STRONG>                 Library calls                <STRONG><A HREF="curs_get_wch.3x.html">curs_get_wch(3x)</A></STRONG>
 
 
-
-
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
        <STRONG>get_wch</STRONG>,  <STRONG>wget_wch</STRONG>,  <STRONG>mvget_wch</STRONG>,  <STRONG>mvwget_wch</STRONG>,  <STRONG>unget_wch</STRONG>  - get (or push
-       back) a wide character from <EM>curses</EM> terminal keyboard
+       back) a wide character from <EM>curses</EM> terminal keyboard buffer
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>get_wch(wint_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wget_wch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvget_wch(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvwget_wch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>get_wch(wint_t</STRONG> <STRONG>*</STRONG> <EM>wch</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wget_wch(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG> <EM>wch</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvget_wch(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG> <EM>wch</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwget_wch(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG> <EM>wch</EM><STRONG>);</STRONG>
 
        <STRONG>int</STRONG> <STRONG>unget_wch(const</STRONG> <STRONG>wchar_t</STRONG> <EM>wc</EM><STRONG>);</STRONG>
 
@@ -65,65 +63,80 @@
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
 
 </PRE><H3><a name="h3-Reading-Characters">Reading Characters</a></H3><PRE>
-       <STRONG>wget_wch</STRONG> gathers a key stroke <EM>wch</EM> from the terminal keyboard associated
-       with  a  <EM>curses</EM>  window  <EM>win</EM>, returning <STRONG>OK</STRONG> if a wide character is read,
-       <STRONG>KEY_CODE_YES</STRONG> if a function key is read, and <STRONG>ERR</STRONG>  if  no  key  event  is
+       <STRONG>wget_wch</STRONG> gathers a key event from the terminal keyboard associated with
+       a <EM>curses</EM> window  <EM>win</EM>,  returning  <STRONG>OK</STRONG>  if  a  wide  character  is  read,
+       <STRONG>KEY_CODE_YES</STRONG>  if  a  function  key  is read, and <STRONG>ERR</STRONG> if no key event is
        available.  <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG> describes the variants of this function.
 
-       When  input  is pending, <STRONG>wget_wch</STRONG> stores an integer identifying the key
-       stroke in <EM>wch</EM>;  for  alphanumeric  and  punctuation  keys,  this  value
+       When input is pending, <STRONG>wget_wch</STRONG> stores an integer identifying  the  key
+       event  in  <EM>wch</EM>;  for  alphanumeric  and  punctuation  keys,  this value
        corresponds to the character encoding used by the terminal.  Use of the
-       control key as a modifier  often  results  in  a  distinct  code.   The
-       behavior  of  other  keys depends on whether <EM>win</EM> is in keypad mode; see
-       subsections "Keypad Mode" and "Predefined Key Codes" in <STRONG><A HREF="curs_getch.3x.html">getch(3x)</A></STRONG>.
+       control key as a modifier,  by  holding  it  down  while  pressing  and
+       releasing  another key, often results in a distinct code.  The behavior
+       of other keys depends on whether <EM>win</EM> is in keypad mode; see subsections
+       "Keypad Mode" and "Key Codes" in <STRONG><A HREF="curs_getch.3x.html">getch(3x)</A></STRONG>.
 
        If no input is pending, then if the no-delay flag is set in the  window
        (see  <STRONG><A HREF="nodelay.3x.html">nodelay(3x)</A></STRONG>),  the  function returns <STRONG>ERR</STRONG>; otherwise, <EM>curses</EM> waits
-       until the terminal has input.  If  <STRONG><A HREF="curs_inopts.3x.html">cbreak(3x)</A></STRONG>  has  been  called,  this
-       happens  after one character is read.  If <STRONG><A HREF="curs_inopts.3x.html">nocbreak(3x)</A></STRONG> has been called,
-       it occurs when the next newline is read.   If  <STRONG><A HREF="curs_inopts.3x.html">halfdelay(3x)</A></STRONG>  has  been
-       called,  <EM>curses</EM> waits until a character is typed or the specified delay
-       elapses.
+       until the terminal has  input.   If  <STRONG><A HREF="curs_inopts.3x.html">cbreak(3x)</A></STRONG>  or  <STRONG><A HREF="curs_inopts.3x.html">raw(3x)</A></STRONG>  has  been
+       called,  this  happens after one character is read.  If <STRONG><A HREF="curs_inopts.3x.html">nocbreak(3x)</A></STRONG> or
+       <STRONG><A HREF="curs_inopts.3x.html">noraw(3x)</A></STRONG> has been called, it occurs when the  next  newline  is  read.
+       (Because  the  terminal's  canonical or "cooked" mode is line-buffered,
+       multiple <STRONG>wget_wch</STRONG> calls may  then  be  necessary  to  empty  the  input
+       queue.)   If <STRONG><A HREF="curs_inopts.3x.html">halfdelay(3x)</A></STRONG> has been called, <EM>curses</EM> waits until input is
+       available or the specified delay elapses.
 
        If <STRONG><A HREF="curs_inopts.3x.html">echo(3x)</A></STRONG> has been called, and the window is not a pad, <EM>curses</EM> writes
-       <EM>wch</EM> to the window (at the cursor position) per the following rules.
+       the wide character from the input queue to the window  (at  the  cursor
+       position) per the following rules.
 
-       <STRONG>o</STRONG>   If  <EM>wch</EM>  matches  the  terminal's erase character, the cursor moves
-           leftward one  position  and  the  new  position  is  erased  as  if
-           <STRONG><A HREF="curs_move.3x.html">wmove(3x)</A></STRONG>  and  then  <STRONG><A HREF="curs_delch.3x.html">wdelch(3x)</A></STRONG>  were  called.   When the window's
-           keypad mode is enabled (see below), <STRONG>KEY_LEFT</STRONG> and <STRONG>KEY_BACKSPACE</STRONG>  are
-           handled the same way.
+       <STRONG>o</STRONG>   If  the  wide character matches the terminal's erase character (see
+           <STRONG><A HREF="curs_termattrs.3x.html">erasewchar(3x)</A></STRONG>), the cursor moves leftward one position and the new
+           position is erased as if <STRONG><A HREF="curs_move.3x.html">wmove(3x)</A></STRONG> and then <STRONG><A HREF="curs_delch.3x.html">wdelch(3x)</A></STRONG> were called.
+           When the window's keypad mode is enabled (see below), <STRONG>KEY_LEFT</STRONG>  and
+           <STRONG>KEY_BACKSPACE</STRONG> are handled the same way.
 
-       <STRONG>o</STRONG>   <EM>curses</EM> writes any other <EM>wch</EM> to the window, as with <STRONG><A HREF="curs_add_wch.3x.html">wecho_wchar(3x)</A></STRONG>.
+       <STRONG>o</STRONG>   <EM>curses</EM>  writes  any  other  wide  character  to the window, as with
+           <STRONG><A HREF="curs_add_wch.3x.html">wecho_wchar(3x)</A></STRONG>.
 
-       <STRONG>o</STRONG>   If  the  window  has  been moved or modified since the last call to
-           <STRONG><A HREF="curs_refresh.3x.html">wrefresh(3x)</A></STRONG>, <EM>curses</EM> calls <STRONG>wrefresh</STRONG>.
+       <STRONG>o</STRONG>   If the window <EM>win</EM> has been moved or modified since the last call to
+           <STRONG><A HREF="curs_refresh.3x.html">wrefresh(3x)</A></STRONG>, <EM>curses</EM> calls <STRONG>wrefresh</STRONG> on it.
 
-       If <EM>wch</EM> is a carriage return and <STRONG><A HREF="curs_inopts.3x.html">nl(3x)</A></STRONG> has been called,  <STRONG>wgetch</STRONG>  stores
-       the the character code for newline (line feed) in <EM>wch</EM> instead.
+       If the wide character is a carriage return and <STRONG><A HREF="curs_inopts.3x.html">nl(3x)</A></STRONG> has been  called,
+       <STRONG>wget_wch</STRONG> stores the wide character code for line feed in <EM>wch</EM> instead.
 
 
 </PRE><H3><a name="h3-Ungetting-Characters">Ungetting Characters</a></H3><PRE>
-       <STRONG>unget_wch</STRONG>  places  <EM>wch</EM>  into the input queue to be returned by the next
-       call to <STRONG>wget_wch</STRONG>.  A single input queue serves all windows.
+       <STRONG>unget_wch</STRONG>  places  <EM>wc</EM>  into the input queue to be retrieved by the next
+       call to <STRONG>wget_wch</STRONG>.  A single input queue serves all  windows  associated
+       with the screen.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       <STRONG>wget_wch</STRONG> returns <STRONG>OK</STRONG> when it reads a  wide  character  and  <STRONG>KEY_CODE_YES</STRONG>
-       when it reads a function key code.  It returns <STRONG>ERR</STRONG> if
+       <STRONG>wget_wch</STRONG>  returns  <STRONG>OK</STRONG> when it reads a wide character, <STRONG>KEY_CODE_YES</STRONG> when
+       it reads a function key code, and <STRONG>ERR</STRONG> on failure.   <STRONG>wget_wch</STRONG>  fails  if
+       its  timeout  expires without any data arriving, which cannot happen if
+       <STRONG><A HREF="nodelay.3x.html">nodelay(3x)</A></STRONG> is in effect on the window.
 
-       <STRONG>o</STRONG>   the <EM>WINDOW</EM> pointer is <STRONG>NULL</STRONG>, or
+       In <EM>ncurses</EM>, <STRONG>wget_wch</STRONG> also fails if
 
-       <STRONG>o</STRONG>   its timeout expires without any data arriving, or
+       <STRONG>o</STRONG>   the <EM>curses</EM> screen has not been initialized,
 
-       <STRONG>o</STRONG>   execution  was  interrupted by a signal, in which case <STRONG>errno</STRONG> is set
-           to <STRONG>EINTR</STRONG>.
+       <STRONG>o</STRONG>   (for functions taking a <EM>WINDOW</EM> pointer  argument)  <EM>win</EM>  is  a  null
+           pointer, or
+
+       <STRONG>o</STRONG>   execution  was  interrupted by a signal, in which case <EM>errno</EM> is set
+           to <EM>EINTR</EM>.
 
        Functions prefixed with "mv" first perform cursor movement and fail  if
        the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
 
-       <STRONG>unget_wch</STRONG> returns <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> if there is no more room in the
-       input queue.
+       <STRONG>unget_wch</STRONG>  returns  <STRONG>OK</STRONG>  on  success  and  <STRONG>ERR</STRONG>  on failure.  In <EM>ncurses</EM>,
+       <STRONG>unget_wch</STRONG> fails if
+
+       <STRONG>o</STRONG>   the <EM>curses</EM> screen has not been initialized, or
+
+       <STRONG>o</STRONG>   there is no more room in the input queue.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
@@ -132,15 +145,13 @@
        All of these functions except <STRONG>wget_wch</STRONG> and <STRONG>unget_wch</STRONG> may be implemented
        as macros.
 
-       Unlike  <STRONG><A HREF="curs_getch.3x.html">wgetch(3x)</A></STRONG>,  <STRONG>wget_wch</STRONG>  and  its variants store the value of the
-       input character in an additional <EM>wch</EM> parameter instead  of  the  return
-       value.
+       Unlike <STRONG><A HREF="curs_getch.3x.html">wgetch(3x)</A></STRONG>, <STRONG>wget_wch</STRONG> stores the value of the input character  in
+       an additional <EM>wch</EM> parameter instead of the return value.
 
-       Unlike   <STRONG>ungetch</STRONG>,  <STRONG>unget_wch</STRONG>  cannot  distinguish  function  key  codes
-       <STRONG>wget_wch</STRONG>  from  conventional  character  codes.   An  application   can
-       overcome this limitation by pushing function key codes with <STRONG>ungetch</STRONG> and
-       subsequently checking the return value of <STRONG>wget_wch</STRONG>  for  a  match  with
-       <STRONG>KEY_CODE_YES</STRONG>.
+       Unlike  <STRONG>ungetch</STRONG>,  <STRONG>unget_wch</STRONG>  cannot distinguish function key codes from
+       conventional  character  codes.   An  application  can  overcome   this
+       limitation  by pushing function key codes with <STRONG>ungetch</STRONG> and subsequently
+       checking the return value of <STRONG>wget_wch</STRONG> for a match with <STRONG>KEY_CODE_YES</STRONG>.
 
 
 </PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
@@ -151,23 +162,32 @@
        Applications employing <EM>ncurses</EM> extensions should condition their use on
        the visibility of the <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
 
-       X/Open Curses, Issue 4 describes  these  functions.   It  specifies  no
-       error conditions for them.
+       X/Open Curses Issue 4 describes these functions.  It specifies no error
+       conditions for them.
 
-       See  the  "PORTABILITY" section of <STRONG><A HREF="curs_getch.3x.html">wgetch(3x)</A></STRONG> regarding the interaction
-       of <STRONG>wget_wch</STRONG> with signal handlers.
+       See the "PORTABILITY" section of <STRONG><A HREF="curs_getch.3x.html">wgetch(3x)</A></STRONG> regarding  the  interaction
+       of <EM>wget</EM><STRONG>_</STRONG><EM>wch</EM> with signal handlers.
+
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       X/Open  Curses Issue 4 (1995) initially specified these functions.  The
+       System V Interface Definition Version 4  of  the  same  year  specified
+       functions named <EM>wgetwch</EM> (with its variants) <EM>ungetwch</EM>.  These were later
+       additions  to  SVr4.<EM>x</EM>,  not  appearing  in the first SVr4 (1989).  They
+       differ from X/Open's later <EM>wget</EM><STRONG>_</STRONG><EM>wch</EM> and <EM>unget</EM><STRONG>_</STRONG><EM>wch</EM> in that <EM>wgetwch</EM> takes
+       no <EM>wch</EM> argument, but returns the (wide) key code as  an  <EM>int</EM>  (with  no
+       provision  for  distinguishing  a  character  code  from a function key
+       code); and <EM>ungetwch</EM> takes a non-<EM>const</EM> <EM>int</EM> argument.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="curs_getch.3x.html">curs_getch(3x)</A></STRONG> describes comparable functions of the <EM>ncurses</EM> library in
        its non-wide-character configuration.
 
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,     <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>,    <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>,    <STRONG><A HREF="curs_move.3x.html">curs_move(3x)</A></STRONG>,
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,    <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>,    <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>,     <STRONG><A HREF="curs_move.3x.html">curs_move(3x)</A></STRONG>,
        <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                  <STRONG><A HREF="curs_get_wch.3x.html">curs_get_wch(3x)</A></STRONG>
+ncurses 6.6                       2025-08-16                  <STRONG><A HREF="curs_get_wch.3x.html">curs_get_wch(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -183,6 +203,7 @@ ncurses 6.5                       2024-04-20                  <STRONG><A HREF="c
 <li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-EXTENSIONS">EXTENSIONS</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

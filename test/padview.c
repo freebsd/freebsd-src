@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2021,2022 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 2017 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -29,7 +29,7 @@
 /*
  * clone of view.c, using pads
  *
- * $Id: padview.c,v 1.22 2022/12/04 00:40:11 tom Exp $
+ * $Id: padview.c,v 1.29 2025/07/05 15:21:56 tom Exp $
  */
 
 #include <test.priv.h>
@@ -88,8 +88,9 @@ show_all(const char *tag, WINDOW *my_pad, int my_row)
     wattrset(stdscr, COLOR_PAIR(my_pair));
     clear();
 
+    i = (int) (sizeof(temp) - strlen(tag) - 8);
     _nc_SPRINTF(temp, _nc_SLIMIT(sizeof(temp))
-		"view %.*s", (int) strlen(tag), tag);
+		"view %.*s", i, tag);
     i = (int) strlen(temp);
     _nc_SPRINTF(temp + i, _nc_SLIMIT(sizeof(temp) - (size_t) i)
 		" %.*s", (int) sizeof(temp) - i - 2, fname);
@@ -124,7 +125,7 @@ read_file(const char *filename)
     size_t len;
     struct stat sb;
     char *my_blob;
-    char **my_vec = 0;
+    char **my_vec = NULL;
     WINDOW *my_pad;
 
     if (stat(filename, &sb) != 0
@@ -136,11 +137,11 @@ read_file(const char *filename)
 	failed("input is empty");
     }
 
-    if ((fp = fopen(filename, "r")) == 0) {
+    if ((fp = fopen(filename, "r")) == NULL) {
 	failed("cannot open input-file");
     }
 
-    if ((my_blob = malloc((size_t) sb.st_size + 1)) == 0) {
+    if ((my_blob = malloc((size_t) sb.st_size + 1)) == NULL) {
 	failed("cannot allocate memory for input-file");
     }
 
@@ -171,7 +172,7 @@ read_file(const char *filename)
 	}
 	num_lines = k;
 	if (pass == 0) {
-	    if (((my_vec = typeCalloc(char *, (size_t) k + 2)) == 0)) {
+	    if (((my_vec = typeCalloc(char *, (size_t) k + 2)) == NULL)) {
 		failed("cannot allocate line-vector #1");
 	    }
 	} else {
@@ -182,7 +183,7 @@ read_file(const char *filename)
 
 #if USE_WIDEC_SUPPORT
     if (!memcmp("\357\273\277", my_blob, 3)) {
-	char *s = my_blob + 3;
+	const char *s = my_blob + 3;
 	char *d = my_blob;
 	Trace(("trim BOM"));
 	do {
@@ -199,7 +200,7 @@ read_file(const char *filename)
     }
     width = (width + 1) * 5;
     my_pad = newpad(height, width);
-    if (my_pad == 0)
+    if (my_pad == NULL)
 	failed("cannot allocate pad workspace");
     if (try_color) {
 	wattrset(my_pad, COLOR_PAIR(my_pair));
@@ -213,7 +214,7 @@ read_file(const char *filename)
     for (k = 0; my_vec[k]; ++k) {
 	char *s;
 #if USE_WIDEC_SUPPORT
-	char *last = my_vec[k] + (int) strlen(my_vec[k]);
+	const char *last = my_vec[k] + (int) strlen(my_vec[k]);
 	wchar_t wch[2];
 	size_t rc;
 #ifndef state_unused
@@ -256,15 +257,15 @@ usage(int ok)
 	,""
 	,USAGE_COMMON
 	,"Options:"
-	," -c       use color if terminal supports it"
+	," -C       use color if terminal supports it"
 	," -i       ignore INT, QUIT, TERM signals"
 #if USE_WIDEC_SUPPORT
 	," -n       use waddch (bytes) rather then wadd_wch (wide-chars)"
 #endif
-	," -s       start in single-step mode, waiting for input"
+	," -s       start in single-step mode"
 #ifdef TRACE
 	," -t       trace screen updates"
-	," -T NUM   specify trace mask"
+	," -D NUM   specify trace mask"
 #endif
     };
     size_t n;
@@ -279,7 +280,7 @@ VERSION_COMMON()
 int
 main(int argc, char *argv[])
 {
-    static const char *help[] =
+    static NCURSES_CONST char *help[] =
     {
 	"Commands:",
 	"  q,^Q,ESC       - quit this program",
@@ -301,7 +302,7 @@ main(int argc, char *argv[])
 	"  s              - use entered count for halfdelay() parameter",
 	"                 - if no entered count, stop nodelay()",
 	"  <space>        - begin nodelay()",
-	0
+	NULL
     };
 
     int ch;
@@ -318,9 +319,9 @@ main(int argc, char *argv[])
 
     setlocale(LC_ALL, "");
 
-    while ((ch = getopt(argc, argv, OPTS_COMMON "cinstT:")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "CD:inst")) != -1) {
 	switch (ch) {
-	case 'c':
+	case 'C':
 	    try_color = TRUE;
 	    break;
 	case 'i':
@@ -335,11 +336,11 @@ main(int argc, char *argv[])
 	    single_step = TRUE;
 	    break;
 #ifdef TRACE
-	case 'T':
+	case 'D':
 	    {
-		char *next = 0;
+		char *next = NULL;
 		int tvalue = (int) strtol(optarg, &next, 0);
-		if (tvalue < 0 || (next != 0 && *next != 0))
+		if (tvalue < 0 || (next != NULL && *next != 0))
 		    usage(FALSE);
 		curses_trace((unsigned) tvalue);
 	    }
@@ -348,11 +349,8 @@ main(int argc, char *argv[])
 	    curses_trace(TRACE_CALLS);
 	    break;
 #endif
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
@@ -532,7 +530,7 @@ main(int argc, char *argv[])
 	    beep();
 	    break;
 	}
-	if (c >= KEY_MIN || (c > 0 && !isdigit(c))) {
+	if (c >= KEY_MIN || (c > 0 && !isdigit(UChar(c)))) {
 	    got_number = FALSE;
 	    value = 0;
 	}

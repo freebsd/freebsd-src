@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2020,2022 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,7 +34,7 @@
  * modified 10-18-89 for curses (jrl)
  * 10-18-89 added signal handling
  *
- * $Id: gdc.c,v 1.57 2022/12/04 00:40:11 tom Exp $
+ * $Id: gdc.c,v 1.65 2025/07/05 15:21:56 tom Exp $
  */
 
 #include <test.priv.h>
@@ -60,6 +60,7 @@ static long older[6], next[6], newer[6], mask;
 static int sigtermed = 0;
 static bool redirected = FALSE;
 static bool hascolor = FALSE;
+static bool hascustomtime = FALSE;
 
 static void
 sighndl(int signo)
@@ -149,23 +150,23 @@ set(int t, int n)
 	mask |= m;
 }
 
-static void
+static GCC_NORETURN void
 usage(int ok)
 {
     static const char *msg[] =
     {
-	"Usage: gdc [options] [count]"
+	"usage: gdc [-dns] -[t HH:MM:SS] [COUNT]"
+	,""
+	,"Display a digital clock, running indefinitely or for COUNT seconds."
 	,""
 	,USAGE_COMMON
 	,"Options:"
 #if HAVE_USE_DEFAULT_COLORS
-	," -d       invoke use_default_colors"
+	," -d       uses the terminal's default background color"
 #endif
-	," -n       redirect input to /dev/null"
-	," -s       scroll each number into place, rather than flipping"
-	," -t TIME  specify starting time as hh:mm:ss (default is ``now'')"
-	,""
-	,"If you specify a count, gdc runs for that number of seconds"
+	," -n       reads input from /dev/null"
+	," -s       scrolls each digit into place"
+	," -t TIME  specify starting time as hh:mm:ss (default is \"now\")"
     };
     unsigned j;
     for (j = 0; j < SIZEOF(msg); j++)
@@ -179,13 +180,38 @@ parse_time(const char *value)
     int hh, mm, ss;
     int check;
     time_t result;
-    char c;
-    struct tm *tm;
+    char c = 0;
+    NCURSES_CONST struct tm *tm;
 
-    if (sscanf(value, "%d:%d:%d%c", &hh, &mm, &ss, &c) != 3) {
-	if (sscanf(value, "%02d%02d%02d%c", &hh, &mm, &ss, &c) != 3) {
-	    usage(FALSE);
+    switch (sscanf(value, "%d:%d:%d%c", &hh, &mm, &ss, &c)) {
+    default:
+	usage(FALSE);
+	/* NOTREACHED */
+    case 1:
+	if (strspn(value, "0123456789") >= 2) {
+	    switch (sscanf(value, "%02d%02d%02d%c", &hh, &mm, &ss, &c)) {
+	    default:
+		usage(FALSE);
+		/* NOTREACHED */
+	    case 1:
+		mm = 0;
+		/* FALLTHRU */
+	    case 2:
+		ss = 0;
+		/* FALLTHRU */
+	    case 3:
+		break;
+	    }
+	    break;
+	} else {
+	    mm = 0;
 	}
+	/* FALLTHRU */
+    case 2:
+	ss = 0;
+	/* FALLTHRU */
+    case 3:
+	break;
     }
 
     if ((hh < 0) || (hh >= 24) ||
@@ -217,7 +243,7 @@ int
 main(int argc, char *argv[])
 {
     time_t now;
-    struct tm *tm;
+    NCURSES_CONST struct tm *tm;
     long t, a;
     int i, j, s, k, ch;
     int count = 0;
@@ -247,13 +273,11 @@ main(int argc, char *argv[])
 	    smooth = TRUE;
 	    break;
 	case 't':
+	    hascustomtime = TRUE;
 	    starts = parse_time(optarg);
 	    break;
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
@@ -266,9 +290,9 @@ main(int argc, char *argv[])
 
     InitAndCatch({
 	if (redirected) {
-	    char *name = getenv("TERM");
-	    if (name == 0
-		|| newterm(name, ofp, ifp) == 0) {
+	    NCURSES_CONST char *name = getenv("TERM");
+	    if (name == NULL
+		|| newterm(name, ofp, ifp) == NULL) {
 		fprintf(stderr, "cannot open terminal\n");
 		ExitProgram(EXIT_FAILURE);
 	    }
@@ -399,14 +423,16 @@ main(int argc, char *argv[])
 	    }
 	}
 
-	/* this depends on the detailed format of ctime(3) */
-	_nc_STRNCPY(buf, ctime(&now), (size_t) 30);
-	{
-	    char *d2 = buf + 10;
-	    char *s2 = buf + 19;
-	    while ((*d2++ = *s2++) != '\0') ;
+	if (!hascustomtime) {
+	    /* this depends on the detailed format of ctime(3) */
+	    _nc_STRNCPY(buf, ctime(&now), (size_t) 30);
+	    {
+		char *d2 = buf + 10;
+		NCURSES_CONST char *s2 = buf + 19;
+		while ((*d2++ = *s2++) != '\0') ;
+	    }
+	    MvAddStr(16, 30, buf);
 	}
-	MvAddStr(16, 30, buf);
 
 	move(6, 0);
 	drawbox(FALSE);

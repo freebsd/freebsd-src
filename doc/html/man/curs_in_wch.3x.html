@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 2002-2010,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,73 +27,82 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_in_wch.3x,v 1.31 2024/04/20 21:20:07 tom Exp @
+  * @Id: curs_in_wch.3x,v 1.44 2025/02/01 22:54:32 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_in_wch 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_in_wch 3x 2025-02-01 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_in_wch 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_in_wch 3x 2025-02-01 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_in_wch.3x.html">curs_in_wch(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="curs_in_wch.3x.html">curs_in_wch(3x)</A></STRONG>
 
 
-
-
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>in_wch</STRONG>,  <STRONG>mvin_wch</STRONG>,  <STRONG>mvwin_wch</STRONG>, <STRONG>win_wch</STRONG> - get a <EM>curses</EM> complex character
+       <STRONG>in_wch</STRONG>,  <STRONG>win_wch</STRONG>,  <STRONG>mvin_wch</STRONG>, <STRONG>mvwin_wch</STRONG> - get a <EM>curses</EM> complex character
        from a window
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>in_wch(cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>win_wch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>);</STRONG>
-
-       <STRONG>int</STRONG> <STRONG>mvin_wch(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvwin_wch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>in_wch(cchar_t</STRONG> <STRONG>*</STRONG> <EM>wch</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>win_wch(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG> <EM>wch</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvin_wch(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG> <EM>wch</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwin_wch(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG> <EM>wch</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       These functions extract the complex character and  rendition  from  the
-       current position in the named window into the <STRONG>cchar_t</STRONG> object referenced
-       by wch.
+       <STRONG>win_wch</STRONG> copies the <EM>curses</EM> complex character at the cursor  position  in
+       <EM>win</EM>  into  <EM>wch</EM>.   Use  <STRONG><A HREF="curs_getcchar.3x.html">getcchar(3x)</A></STRONG>  to  extract  its  character  code,
+       attributes, and  color  pair  identifier.   <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>  describes  the
+       variants of this function.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       No errors are defined in X/Open Curses.  This implementation checks for
-       null  pointers,  returns <STRONG>ERR</STRONG> in that case.  Also, the <EM>mv</EM> routines check
-       for error moving the cursor, returning <STRONG>ERR</STRONG>  in  that  case.   Otherwise
-       they return <STRONG>OK</STRONG>.
+       These functions return <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.
+
+       In <EM>ncurses</EM>, they return <STRONG>ERR</STRONG> if <EM>win</EM> is <EM>NULL</EM>.
 
        Functions  prefixed with "mv" first perform cursor movement and fail if
        the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       Note that all of these routines may be macros.
+       <STRONG>in_wch</STRONG>, <STRONG>mvin_wch</STRONG>, and <STRONG>mvwin_wch</STRONG> may be implemented as macros.
+
+       Unlike <STRONG><A HREF="curs_inch.3x.html">winch(3x)</A></STRONG>, <STRONG>win_wch</STRONG> and its  variants  store  the  value  of  the
+       retrieved  character  in  an  additional  <EM>wch</EM>  parameter instead of the
+       return value.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These functions are described in X/Open Curses, Issue 4.
+       X/Open Curses Issue 4 describes these functions.  It specifies no error
+       conditions for them.
+
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       X/Open Curses Issue 4 (1995) initially specified these functions.   The
+       System V  Interface  Definition  Version 4 of the same year specified a
+       function named <EM>winwch</EM> (and the  usual  variants).   This  was  a  later
+       addition  to  SVr4.<EM>x</EM>,  not  appearing  in  the  first  SVr4 (1989).  It
+       differed from X/Open's later <EM>win</EM><STRONG>_</STRONG><EM>wch</EM> in that it  returned  a  value  of
+       type <EM>chtype</EM> instead of <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM>.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG> describes comparable functions of the <EM>ncurses</EM> library  in
+       <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>  describes comparable functions of the <EM>ncurses</EM> library in
        its non-wide-character configuration.
 
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_inwstr.3x.html">curs_inwstr(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                   <STRONG><A HREF="curs_in_wch.3x.html">curs_in_wch(3x)</A></STRONG>
+ncurses 6.6                       2025-02-01                   <STRONG><A HREF="curs_in_wch.3x.html">curs_in_wch(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -103,6 +112,7 @@ ncurses 6.5                       2024-04-20                   <STRONG><A HREF="
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

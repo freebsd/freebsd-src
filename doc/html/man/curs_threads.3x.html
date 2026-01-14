@@ -1,7 +1,7 @@
 <!--
   * t
   ****************************************************************************
-  * Copyright 2021-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2021-2024,2025 Thomas E. Dickey                                *
   * Copyright 2008-2015,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,23 +28,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_threads.3x,v 1.56 2024/03/16 15:35:01 tom Exp @
+  * @Id: curs_threads.3x,v 1.59 2025/02/15 19:41:22 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_threads 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_threads 3x 2025-02-15 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_threads 3x 2024-03-16 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_threads 3x 2025-02-15 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_threads.3x.html">curs_threads(3x)</A></STRONG>                 Library calls                <STRONG><A HREF="curs_threads.3x.html">curs_threads(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -70,7 +68,7 @@
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
        The  <EM>ncurses</EM>  library  can  be  configured  to  support  multi-threaded
-       applications in a  rudimentary  way.   Such  configuration  produces  a
+       applications  in  a  rudimentary  way.   Such  configuration produces a
        different set of libraries, named <EM>libncursest</EM>, for example, since doing
        so alters <EM>ncurses</EM>'s application binary interface (ABI).
 
@@ -80,32 +78,32 @@
        <EM>mutexes</EM> (mutual exclusion locks) needed to prevent concurrent access to
        variables shared by multiple threads of execution.
 
-       <EM>ncurses</EM> threading support requires  the  use  of  functions  to  access
-       members  of  the  <EM>WINDOW</EM>  structure  (see <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>).  It further
-       makes functions of the common  global  variables  <STRONG>COLORS</STRONG>,  <STRONG>COLOR_PAIRS</STRONG>,
-       <STRONG>COLS</STRONG>,   <STRONG>ESCDELAY</STRONG>,   <STRONG>LINES</STRONG>,   <STRONG>TABSIZE</STRONG>,   <STRONG>curscr</STRONG>,  <STRONG>newscr</STRONG>,  and  <STRONG>ttytype</STRONG>,
-       maintaining them as as read-only values in the <EM>SCREEN</EM> structure.
+       <EM>ncurses</EM>  threading  support  requires  the  use  of functions to access
+       members of the <EM>WINDOW</EM>  structure  (see  <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>).   It  further
+       makes  functions  of  the  common global variables <STRONG>COLORS</STRONG>, <STRONG>COLOR_PAIRS</STRONG>,
+       <STRONG>COLS</STRONG>,  <STRONG>ESCDELAY</STRONG>,  <STRONG>LINES</STRONG>,  <STRONG>TABSIZE</STRONG>,   <STRONG>curscr</STRONG>,   <STRONG>newscr</STRONG>,   and   <STRONG>ttytype</STRONG>,
+       maintaining them as read-only values in the <EM>SCREEN</EM> structure.
 
-       Even this is not enough to make an  application  using  <EM>curses</EM>  thread-
-       safe.   We  would  expect  a multi-threaded application to have threads
-       updating separate windows (on the same device),  and  separate  screens
-       (on  different  devices).   Further,  applications  expect a few of the
-       global variables to be writable.  The functions described here  address
+       Even  this  is  not  enough to make an application using <EM>curses</EM> thread-
+       safe.  We would expect a multi-threaded  application  to  have  threads
+       updating  separate  windows  (on the same device), and separate screens
+       (on different devices).  Further, applications  expect  a  few  of  the
+       global  variables to be writable.  The functions described here address
        these special situations.
 
        The  <STRONG>ESCDELAY</STRONG>  and  <STRONG>TABSIZE</STRONG>  global  variables  are  modified  by  some
-       applications.   To  modify  them  in   any   configuration,   use   the
-       <STRONG>set_escdelay</STRONG>  or <STRONG>set_tabsize</STRONG> functions.  Other global variables are not
+       applications.    To   modify   them   in  any  configuration,  use  the
+       <STRONG>set_escdelay</STRONG> or <STRONG>set_tabsize</STRONG> functions.  Other global variables are  not
        modifiable.  <STRONG>get_escdelay</STRONG> retrieves <STRONG>ESCDELAY</STRONG>'s value.
 
-       The <STRONG>use_window</STRONG> and <STRONG>use_screen</STRONG> functions provide coarse-grained  mutexes
-       for  their  respective  <EM>WINDOW</EM> and <EM>SCREEN</EM> parameters; they call a user-
-       supplied function, pass it a <EM>data</EM> parameter, and return the value  from
+       The  <STRONG>use_window</STRONG> and <STRONG>use_screen</STRONG> functions provide coarse-grained mutexes
+       for their respective <EM>WINDOW</EM> and <EM>SCREEN</EM> parameters; they  call  a  user-
+       supplied  function, pass it a <EM>data</EM> parameter, and return the value from
        the user-supplied function to the application.
 
 
 </PRE><H3><a name="h3-Usage">Usage</a></H3><PRE>
-       All  <EM>ncurses</EM>  library  functions  assume that the locale is not altered
+       All <EM>ncurses</EM> library functions assume that the  locale  is  not  altered
        during operation.  In addition, they use data that is maintained within
        a hierarchy of scopes.
 
@@ -179,7 +177,6 @@
        <STRONG>box_set</STRONG>                window (<STRONG>stdscr</STRONG>)
        <STRONG>can_change_color</STRONG>       terminal
        <STRONG>cbreak</STRONG>                 screen
-
        <STRONG>chgat</STRONG>                  window (<STRONG>stdscr</STRONG>)
        <STRONG>clear</STRONG>                  window (<STRONG>stdscr</STRONG>)
        <STRONG>clearok</STRONG>                window
@@ -246,7 +243,6 @@
        <STRONG>immedok</STRONG>                window
        <STRONG>in_wch</STRONG>                 window (<STRONG>stdscr</STRONG>)
        <STRONG>in_wchnstr</STRONG>             window (<STRONG>stdscr</STRONG>)
-
        <STRONG>in_wchstr</STRONG>              window (<STRONG>stdscr</STRONG>)
        <STRONG>inch</STRONG>                   window (<STRONG>stdscr</STRONG>)
        <STRONG>inchnstr</STRONG>               window (<STRONG>stdscr</STRONG>)
@@ -313,7 +309,6 @@
        <STRONG>mvderwin</STRONG>               window (<STRONG>stdscr</STRONG>)
        <STRONG>mvget_wch</STRONG>              screen (input operation)
        <STRONG>mvget_wstr</STRONG>             screen (input operation)
-
        <STRONG>mvgetch</STRONG>                screen (input operation)
        <STRONG>mvgetn_wstr</STRONG>            screen (input operation)
        <STRONG>mvgetnstr</STRONG>              screen (input operation)
@@ -380,7 +375,6 @@
        <STRONG>mvwprintw</STRONG>              window
        <STRONG>mvwscanw</STRONG>               screen
        <STRONG>mvwvline</STRONG>               window
-
        <STRONG>mvwvline_set</STRONG>           window
        <STRONG>napms</STRONG>                  reentrant
        <STRONG>newpad</STRONG>                 global (locks window list)
@@ -447,7 +441,6 @@
        <STRONG>slk_clear</STRONG>              screen
        <STRONG>slk_color</STRONG>              screen
        <STRONG>slk_init</STRONG>               screen
-
        <STRONG>slk_label</STRONG>              screen
        <STRONG>slk_noutrefresh</STRONG>        screen
        <STRONG>slk_refresh</STRONG>            screen
@@ -514,7 +507,6 @@
        <STRONG>waddnstr</STRONG>               window
        <STRONG>waddnwstr</STRONG>              window
        <STRONG>waddstr</STRONG>                window
-
        <STRONG>waddwstr</STRONG>               window
        <STRONG>wattr_get</STRONG>              window
        <STRONG>wattr_off</STRONG>              window
@@ -581,7 +573,6 @@
        <STRONG>wscanw</STRONG>                 screen
        <STRONG>wscrl</STRONG>                  window
        <STRONG>wsetscrreg</STRONG>             window
-
        <STRONG>wstandend</STRONG>              window
        <STRONG>wstandout</STRONG>              window
        <STRONG>wsyncdown</STRONG>              screen (affects window plus parents)
@@ -615,9 +606,7 @@
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-03-16                  <STRONG><A HREF="curs_threads.3x.html">curs_threads(3x)</A></STRONG>
+ncurses 6.6                       2025-02-15                  <STRONG><A HREF="curs_threads.3x.html">curs_threads(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

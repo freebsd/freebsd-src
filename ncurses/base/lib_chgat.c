@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2015,2025 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -43,7 +43,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_chgat.c,v 1.13 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_chgat.c,v 1.15 2025/02/15 20:53:36 tom Exp $")
 
 NCURSES_EXPORT(int)
 wchgat(WINDOW *win,
@@ -62,7 +62,8 @@ wchgat(WINDOW *win,
        color_pair));
 
     set_extended_pair(opts, color_pair);
-    if (win) {
+    if (win != NULL
+	&& color_pair >= 0) {
 	struct ldat *line = &(win->_line[win->_cury]);
 	int i;
 

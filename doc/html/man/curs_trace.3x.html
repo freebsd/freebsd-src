@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2019-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2019-2024,2025 Thomas E. Dickey                                *
   * Copyright 2000-2016,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_trace.3x,v 1.50 2024/04/20 21:24:19 tom Exp @
+  * @Id: curs_trace.3x,v 1.55 2025/01/19 00:51:10 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_trace 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_trace 3x 2025-01-18 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_trace 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_trace 3x 2025-01-18 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_trace.3x.html">curs_trace(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="curs_trace.3x.html">curs_trace(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -83,10 +81,10 @@
        <STRONG>o</STRONG>   Aside from <STRONG>curses_trace</STRONG>, the other functions are normally available
            only with the debugging library e.g., <STRONG>libncurses_g.a</STRONG>.
 
-           All of the trace functions may be compiled into any model  (shared,
+           All  of the trace functions may be compiled into any model (shared,
            static, profile) by defining the symbol <STRONG>TRACE</STRONG>.
 
-       <STRONG>o</STRONG>   Additionally,  the  functions  which use <STRONG>cchar_t</STRONG> are only available
+       <STRONG>o</STRONG>   Additionally, the functions which use <STRONG>cchar_t</STRONG>  are  only  available
            with the wide-character configuration of the libraries.
 
 
@@ -100,8 +98,8 @@
 
            The  other  functions  either  return  a  pointer  to a string-area
            (allocated by the corresponding function), or return no value (such
-           as  <STRONG>_tracedump</STRONG>, which implements the screen dump for <STRONG>TRACE_UPDATE</STRONG>).
-           The caller should not free these strings, since the  allocation  is
+           as <STRONG>_tracedump</STRONG>, which implements the screen dump for  <STRONG>TRACE_UPDATE</STRONG>).
+           The  caller  should not free these strings, since the allocation is
            reused on successive calls.  To work around the problem of a single
            string-area per  function,  some  use  a  buffer-number  parameter,
            telling the library to allocate additional string-areas.
@@ -109,8 +107,8 @@
        The <STRONG>curses_trace</STRONG> function is always available, whether or not the other
        trace functions are available:
 
-       <STRONG>o</STRONG>   If tracing  is  available,  calling  <STRONG>curses_trace</STRONG>  with  a  nonzero
-           parameter  updates  the  trace mask, and returns the previous trace
+       <STRONG>o</STRONG>   If  tracing  is  available,  calling  <STRONG>curses_trace</STRONG>  with  a nonzero
+           parameter updates the trace mask, and returns  the  previous  trace
            mask.
 
            When the trace mask is nonzero, <EM>ncurses</EM> creates the file "trace" in
@@ -121,8 +119,8 @@
 
 
 </PRE><H3><a name="h3-Trace-Parameter">Trace Parameter</a></H3><PRE>
-       The trace parameter is  formed  by  OR'ing  values  from  the  list  of
-       <STRONG>TRACE_</STRONG><EM>xxx</EM> definitions in <STRONG>&lt;curses.h&gt;</STRONG>.  These include:
+       The trace parameter is formed by logically  "or"-ing  values  from  the
+       list of <STRONG>TRACE_</STRONG><EM>xxx</EM> definitions in <STRONG>&lt;curses.h&gt;</STRONG>.  These include:
 
        <STRONG>TRACE_DISABLE</STRONG>
             turn off tracing by passing a zero parameter.
@@ -198,19 +196,19 @@
 
        <STRONG>o</STRONG>   messages produced by the underlying library are written to <EM>trace</EM>.
 
-       If  <EM>ncurses</EM>  is built without tracing, none of the latter are produced,
+       If <EM>ncurses</EM> is built without tracing, none of the latter  are  produced,
        and fewer diagnostics are provided by the command-line utilities.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       Routines which return a value are designed to be used as parameters  to
+       Routines  which return a value are designed to be used as parameters to
        the <STRONG>_tracef</STRONG> routine.
 
 
 </PRE><H2><a name="h2-ENVIRONMENT">ENVIRONMENT</a></H2><PRE>
 
 </PRE><H3><a name="h3-NCURSES_TRACE">NCURSES_TRACE</a></H3><PRE>
-       A  positive integral value stored in this variable causes the following
+       A positive integral value stored in this variable causes the  following
        functions to enable the tracing feature as if <STRONG>curses_trace</STRONG> were called.
 
            <STRONG>filter</STRONG>, <STRONG>initscr</STRONG>, <STRONG>new_prescr</STRONG>, <STRONG>newterm</STRONG>, <STRONG>nofilter</STRONG>, <STRONG>restartterm</STRONG>,
@@ -219,49 +217,47 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These functions are not part of  the  X/Open  Curses  interface.   Some
-       other  curses  implementations  are known to have similar features, but
+       These  functions  are  not  part  of the X/Open Curses interface.  Some
+       other curses implementations are known to have  similar  features,  but
        they are not compatible with <EM>ncurses</EM>:
 
-       <STRONG>o</STRONG>   SVr4 provided <STRONG>traceon</STRONG> and <STRONG>traceoff</STRONG>, to  control  whether  debugging
-           information  was  written to the "trace" file.  While the functions
-           were always available, this feature was only enabled if  <STRONG>DEBUG</STRONG>  was
+       <STRONG>o</STRONG>   SVr4  provided  <STRONG>traceon</STRONG>  and <STRONG>traceoff</STRONG>, to control whether debugging
+           information was written to the "trace" file.  While  the  functions
+           were  always  available, this feature was only enabled if <STRONG>DEBUG</STRONG> was
            defined when building the library.
 
            The SVr4 tracing feature is undocumented.
 
-       <STRONG>o</STRONG>   PDCurses  provides  <STRONG>traceon</STRONG>  and  <STRONG>traceoff</STRONG>,  which  (like SVr4) are
-           always available, and enable tracing to the "trace" file only  when
+       <STRONG>o</STRONG>   <EM>PDCurses</EM> provides <STRONG>traceon</STRONG>  and  <STRONG>traceoff</STRONG>,  which  (like  SVr4)  are
+           always  available, and enable tracing to the "trace" file only when
            a debug-library is built.
 
-           PDCurses  has  a  short description of these functions, with a note
-           that they are not present in X/Open Curses, <EM>ncurses</EM> or NetBSD.   It
-           does  not  mention  SVr4,  but the functions' inclusion in a header
+           <EM>PDCurses</EM> has a short description of these functions,  with  a  note
+           that  they are not present in X/Open Curses, <EM>ncurses</EM> or NetBSD.  It
+           does not mention SVr4, but the functions'  inclusion  in  a  header
            file section labeled "Quasi-standard" hints at the origin.
 
-       <STRONG>o</STRONG>   NetBSD does not provide functions  for  enabling/disabling  traces.
-           It     uses    environment    variables    <EM>CURSES</EM><STRONG>_</STRONG><EM>TRACE</EM><STRONG>_</STRONG><EM>MASK</EM>    and
-           <EM>CURSES</EM><STRONG>_</STRONG><EM>TRACE</EM><STRONG>_</STRONG><EM>FILE</EM> to  determine  what  is  traced,  and  where  the
-           results  are  written.  This is available only when a debug-library
+       <STRONG>o</STRONG>   NetBSD  does  not  provide functions for enabling/disabling traces.
+           It    uses    environment    variables    <EM>CURSES</EM><STRONG>_</STRONG><EM>TRACE</EM><STRONG>_</STRONG><EM>MASK</EM>     and
+           <EM>CURSES</EM><STRONG>_</STRONG><EM>TRACE</EM><STRONG>_</STRONG><EM>FILE</EM>  to  determine  what  is  traced,  and  where the
+           results are written.  This is available only when  a  debug-library
            is built.
 
            The NetBSD tracing feature is undocumented.
 
-       A few <EM>ncurses</EM> functions are not  provided  when  symbol  versioning  is
+       A  few  <EM>ncurses</EM>  functions  are  not provided when symbol versioning is
        used:
 
            _nc_tracebits, _tracedump, _tracemouse
 
-       The  original  <STRONG>trace</STRONG> routine was deprecated because it often conflicted
+       The original <STRONG>trace</STRONG> routine was deprecated because it  often  conflicted
        with application names.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                    <STRONG><A HREF="curs_trace.3x.html">curs_trace(3x)</A></STRONG>
+ncurses 6.6                       2025-01-18                    <STRONG><A HREF="curs_trace.3x.html">curs_trace(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

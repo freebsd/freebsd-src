@@ -1,10 +1,17 @@
 #!/usr/bin/make -f
-# MAde with the aid of dh_make, by Craig Small
+# $Id: rules,v 1.18 2025/06/14 20:41:28 tom Exp $
+# Made with the aid of dh_make, by Craig Small
 # Sample debian/rules that uses debhelper. GNU copyright 1997 by Joey Hess.
 # Some lines taken from debmake, by Cristoph Lameter.
 
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
+
+SHELL = /bin/bash
+DPKG_EXPORT_BUILDFLAGS = 1
+export DEB_BUILD_MAINT_OPTIONS := hardening=+all qa=+bug reproducible=+all
+
+include /usr/share/dpkg/buildflags.mk
 
 # These are used for cross-compiling and for saving the configure script
 # from having to guess our platform (since we know it already)
@@ -13,10 +20,7 @@ DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 
 TARGET_DIR = $(CURDIR)/debian/adacurses
 SAMPLE_DIR = $(TARGET_DIR)/usr/libexec/AdaCurses
-
-CFLAGS   = $(shell dpkg-buildflags --get CFLAGS) $(CC_NORMAL)
-CPPFLAGS = $(shell dpkg-buildflags --get CPPFLAGS)
-LDFLAGS  = $(shell dpkg-buildflags --get LDFLAGS)
+OUR_LIBDIR = /usr/lib/$(DEB_HOST_GNU_TYPE)
 
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
         CFLAGS += -O0
@@ -27,20 +31,21 @@ ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
         INSTALL_PROGRAM += -s
 endif
 
+verbose = # -v
 
 configure: configure-stamp
 configure-stamp:
 	dh_testdir
 
-	CFLAGS="$(CFLAGS)" \
-	CPPFLAGS="$(CPPFLAGS)" \
-	LDFLAGS="$(LDFLAGS)" ./configure \
+	./configure \
 		--host=$(DEB_HOST_GNU_TYPE) \
 		--build=$(DEB_BUILD_GNU_TYPE) \
+		--libdir=$(OUR_LIBDIR) \
 		--prefix=/usr \
 		--disable-rpath-link \
 		--with-shared \
 		--with-ada-sharedlib \
+		--with-screen=ncursesw6td \
 		--without-pkg-config
 
 	touch configure-stamp
@@ -61,20 +66,22 @@ clean:
 
 	rm -f configure-stamp build-stamp install-stamp
 
-	dh_clean
+	dh_clean             $(verbose)
 
 install: install-stamp
 install-stamp: build-stamp
 	dh_testdir
 	dh_testroot
-	dh_prep
-	dh_installdirs
+	dh_prep		     $(verbose)
+	dh_installdirs	     $(verbose)
 
 	$(MAKE) install DESTDIR=$(TARGET_DIR)
 
 	# FIXME: it would be nice to make these into separate packages
 	( cd samples && $(MAKE) install.examples DESTDIR=$(TARGET_DIR) BINDIR=$(SAMPLE_DIR) )
 	( cd doc && $(MAKE) install.html DESTDIR=$(TARGET_DIR) )
+
+	find $(TARGET_DIR) -type f -name '*.so*' -print -exec chrpath -d {} \;
 
 	touch install-stamp
 
@@ -86,18 +93,19 @@ binary-indep: build install
 binary-arch: build install
 	dh_testdir
 	dh_testroot
-	dh_installdocs
-	dh_installexamples
-	dh_installchangelogs NEWS
-	dh_strip
-	dh_compress
-	dh_fixperms
-	dh_installdeb
-	dh_makeshlibs
-	dh_shlibdeps
-	dh_gencontrol
-	dh_md5sums
-	dh_builddeb
+	dh_lintian           $(verbose)
+	dh_installdocs       $(verbose)
+	dh_installexamples   $(verbose)
+	dh_installchangelogs $(verbose)  NEWS
+	dh_strip             $(verbose)
+	dh_compress	     $(verbose)
+	dh_fixperms	     $(verbose)
+	dh_installdeb	     $(verbose)
+	dh_makeshlibs	     $(verbose)
+	dh_shlibdeps	     $(verbose) -l$(OUR_LIBDIR)
+	dh_gencontrol	     $(verbose)
+	dh_md5sums	     $(verbose)
+	dh_builddeb	     $(verbose)
 
 binary: binary-indep binary-arch
 .PHONY: build clean binary-indep binary-arch binary install install-stamp

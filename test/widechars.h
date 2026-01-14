@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2024 Thomas E. Dickey                                *
  * Copyright 2012 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,7 +34,7 @@
 
 #if USE_WIDEC_SUPPORT
 
-#if defined(_NC_WINDOWS) && !defined(_MSC_VER) && !defined(EXP_WIN32_DRIVER)
+#if defined(_NC_MINGW)
 /*
  * MinGW has wide-character functions, but they do not work correctly.
  */

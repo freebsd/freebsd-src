@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2007,2010 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,27 +27,25 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_deleteln.3x,v 1.38 2024/04/20 21:20:07 tom Exp @
+  * @Id: curs_deleteln.3x,v 1.55 2025/07/05 12:46:36 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_deleteln 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_deleteln 3x 2025-07-05 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_deleteln 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_deleteln 3x 2025-07-05 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_deleteln.3x.html">curs_deleteln(3x)</A></STRONG>                Library calls               <STRONG><A HREF="curs_deleteln.3x.html">curs_deleteln(3x)</A></STRONG>
 
 
-
-
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>deleteln</STRONG>,  <STRONG>wdeleteln</STRONG>, <STRONG>insdelln</STRONG>, <STRONG>winsdelln</STRONG>, <STRONG>insertln</STRONG>, <STRONG>winsertln</STRONG> - delete
+       <STRONG>deleteln</STRONG>,  <STRONG>wdeleteln</STRONG>, <STRONG>insertln</STRONG>, <STRONG>winsertln</STRONG>, <STRONG>insdelln</STRONG>, <STRONG>winsdelln</STRONG> - delete
        or insert lines in a <EM>curses</EM> window
 
 
@@ -55,61 +53,63 @@
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
        <STRONG>int</STRONG> <STRONG>deleteln(void);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wdeleteln(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
-
-       <STRONG>int</STRONG> <STRONG>insdelln(int</STRONG> <EM>n</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>winsdelln(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wdeleteln(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>);</STRONG>
 
        <STRONG>int</STRONG> <STRONG>insertln(void);</STRONG>
-       <STRONG>int</STRONG> <STRONG>winsertln(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>winsertln(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>);</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>insdelln(int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>winsdelln(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       The <STRONG>deleteln</STRONG> and <STRONG>wdeleteln</STRONG> routines delete the line under the cursor in
-       the  window;  all  lines  below the current line are moved up one line.
-       The bottom line of the window is cleared.  The cursor position does not
-       change.
+       <STRONG>wdeleteln</STRONG> deletes the line at the cursor in <EM>win</EM>;  all  lines  below  it
+       move  up  one  line.  <EM>curses</EM> then fills the bottom line of <EM>win</EM> with the
+       background character configured  by  <STRONG><A HREF="curs_bkgd.3x.html">wbkgdset(3x)</A></STRONG>  (wide-character  API
+       users: <STRONG><A HREF="curs_bkgrnd.3x.html">wbkgrndset(3x)</A></STRONG>).  The cursor position does not change.
 
-       The  <STRONG>insdelln</STRONG>  and  <STRONG>winsdelln</STRONG>  routines, for positive <EM>n</EM>, insert <EM>n</EM> lines
-       into the specified window above the current line.  The <EM>n</EM>  bottom  lines
-       are  lost.  For negative <EM>n</EM>, delete <EM>n</EM> lines (starting with the one under
-       the cursor), and move the remaining lines up.  The bottom <EM>n</EM>  lines  are
-       cleared.  The current cursor position remains the same.
+       <STRONG>winsertln</STRONG> inserts a new, empty line of characters above the line at the
+       cursor in <EM>win</EM>, shifting the existing lines down by one.  The content of
+       the  window's  bottom  line is lost; <EM>curses</EM> fills the new line with the
+       background character.  The cursor position does not change.
 
-       The  <STRONG>insertln</STRONG>  and  <STRONG>winsertln</STRONG>  routines  insert  a blank line above the
-       current line and the bottom line is lost.
+       <STRONG>winsdelln</STRONG> inserts or deletes  <EM>n</EM> lines  in  <EM>win</EM>  as  <EM>n</EM>  is  positive  or
+       negative,  respectively,  as  if  by  repeatedly  calling  <STRONG>winsertln</STRONG> or
+       <STRONG>wdeleteln</STRONG>.  <STRONG>winsdelln(</STRONG>...<STRONG>,</STRONG> <STRONG>0)</STRONG> performs no operation.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       These routines return the integer <STRONG>ERR</STRONG> upon  failure  and  an  <STRONG>OK</STRONG>  (SVr4
-       specifies  only  "an  integer  value  other  than <STRONG>ERR</STRONG>") upon successful
-       completion.
+       These functions return <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.
 
-       X/Open defines no error conditions.  In  this  implementation,  if  the
-       window parameter is null, an error is returned.
+       In <EM>ncurses</EM>, they fail if <EM>win</EM> is <EM>NULL</EM>.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       Note that all but <STRONG>winsdelln</STRONG> may be macros.
+       All of these functions except <STRONG>winsdelln</STRONG> may be implemented as macros.
 
-       These  routines do not require a hardware line delete or insert feature
-       in  the  terminal.   In  fact,  they  will  not   use   hardware   line
-       delete/insert  unless  <STRONG>idlok(...,</STRONG>  <STRONG>TRUE)</STRONG>  has  been  set on the current
-       window.
+       These functions do not require the terminal to  possess  hardware  line
+       deletion  or  insertion  capabilities.   Even  if available, by default
+       <EM>curses</EM> does not use them; see <STRONG><A HREF="idlok.3x.html">idlok(3x)</A></STRONG>.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These functions are described in X/Open Curses, Issue 4.  The  standard
-       specifies  that  they  return  <STRONG>ERR</STRONG>  on  failure, but specifies no error
-       conditions.
+       X/Open Curses Issue 4 describes these functions.  It specifies no error
+       conditions for them.
+
+       SVr4 describes a successful return value  only  as  "an  integer  value
+       other than <EM>ERR</EM>".
+
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       4BSD (1980) introduced <EM>deleteln</EM>, <EM>wdeleteln</EM>, <EM>insertln</EM>, and <EM>winsertln</EM>.
+
+       SVr3.1 (1987) added <EM>insdelln</EM> and <EM>winsdelln</EM>.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                 <STRONG><A HREF="curs_deleteln.3x.html">curs_deleteln(3x)</A></STRONG>
+ncurses 6.6                       2025-07-05                 <STRONG><A HREF="curs_deleteln.3x.html">curs_deleteln(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -119,6 +119,7 @@ ncurses 6.5                       2024-04-20                 <STRONG><A HREF="cu
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

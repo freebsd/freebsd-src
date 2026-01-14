@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2020,2024 Thomas E. Dickey                                *
  * Copyright 1998-2011,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -45,7 +45,7 @@
 #endif
 #endif
 
-MODULE_ID("$Id: lib_slkset.c,v 1.26 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_slkset.c,v 1.27 2024/12/07 20:03:37 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(slk_set) (NCURSES_SP_DCLx int i, const char *astr, int format)
@@ -60,14 +60,14 @@ NCURSES_SP_NAME(slk_set) (NCURSES_SP_DCLx int i, const char *astr, int format)
 
     T((T_CALLED("slk_set(%p, %d, \"%s\", %d)"), (void *) SP_PARM, i, str, format));
 
-    if (SP_PARM == 0
-	|| (slk = SP_PARM->_slk) == 0
+    if (SP_PARM == NULL
+	|| (slk = SP_PARM->_slk) == NULL
 	|| i < 1
 	|| i > slk->labcnt
 	|| format < 0
 	|| format > 2)
 	returnCode(ERR);
-    if (str == 0)
+    if (str == NULL)
 	str = "";
     --i;			/* Adjust numbering of labels */
 
@@ -84,7 +84,7 @@ NCURSES_SP_NAME(slk_set) (NCURSES_SP_DCLx int i, const char *astr, int format)
 	size_t need;
 
 	init_mb(state);
-	need = mbrtowc(0, p, strlen(p), &state);
+	need = mbrtowc(NULL, p, strlen(p), &state);
 	if (need == (size_t) -1)
 	    break;
 	mbrtowc(&wc, p, need, &state);
@@ -107,14 +107,14 @@ NCURSES_SP_NAME(slk_set) (NCURSES_SP_DCLx int i, const char *astr, int format)
 #endif
 
     FreeIfNeeded(slk->ent[i].ent_text);
-    if ((slk->ent[i].ent_text = strdup(str)) == 0)
+    if ((slk->ent[i].ent_text = strdup(str)) == NULL)
 	returnCode(ERR);
     slk->ent[i].ent_text[numchrs] = '\0';
 
     if ((slk->ent[i].form_text = (char *) _nc_doalloc(slk->ent[i].form_text,
 						      (size_t) (limit +
 								numchrs + 1))
-	) == 0)
+	) == NULL)
 	returnCode(ERR);
 
     switch (format) {

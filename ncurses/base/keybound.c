@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1999-2009,2011 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,7 +34,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: keybound.c,v 1.12 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: keybound.c,v 1.13 2024/12/07 21:24:18 tom Exp $")
 
 /*
  * Returns the count'th string definition which is associated with the
@@ -43,10 +43,10 @@ MODULE_ID("$Id: keybound.c,v 1.12 2020/02/02 23:34:34 tom Exp $")
 NCURSES_EXPORT(char *)
 NCURSES_SP_NAME(keybound) (NCURSES_SP_DCLx int code, int count)
 {
-    char *result = 0;
+    char *result = NULL;
 
     T((T_CALLED("keybound(%p, %d,%d)"), (void *) SP_PARM, code, count));
-    if (SP_PARM != 0 && code >= 0) {
+    if (SP_PARM != NULL && code >= 0) {
 	result = _nc_expand_try(SP_PARM->_keytry,
 				(unsigned) code,
 				&count,

@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_scanw.3x,v 1.53 2024/04/20 19:18:18 tom Exp @
+  * @Id: curs_scanw.3x,v 1.62 2025/07/05 13:03:05 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_scanw 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_scanw 3x 2025-07-05 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_scanw 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_scanw 3x 2025-07-05 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_scanw.3x.html">curs_scanw(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="curs_scanw.3x.html">curs_scanw(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -100,19 +98,19 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       X/Open Curses, Issue 4 describes  these  functions.   It  specifies  no
-       error conditions for them.
+       X/Open Curses Issue 4 describes these functions.  It specifies no error
+       conditions for them.
 
-       <EM>ncurses</EM>  defines  <STRONG>vw_scanw</STRONG>  and  <STRONG>vwscanw</STRONG>  identically to support legacy
+       <EM>ncurses</EM> defines <STRONG>vw_scanw</STRONG> and  <STRONG>vwscanw</STRONG>  identically  to  support  legacy
        applications.  However, the latter is obsolete.
 
-       <STRONG>o</STRONG>   X/Open  Curses,  Issue  4  Version  2  (1996),  marked  <STRONG>vwscanw</STRONG>  as
-           requiring  <EM>varargs.h</EM>  and "TO BE WITHDRAWN", and specified <STRONG>vw_scanw</STRONG>
-           using the <EM>stdarg.h</EM> interface.
+       <STRONG>o</STRONG>   X/Open Curses Issue 4 Version 2 (1996), marked <STRONG>vwscanw</STRONG> as requiring
+           <EM>varargs.h</EM>  and  "TO BE WITHDRAWN", and specified <STRONG>vw_scanw</STRONG> using the
+           <EM>stdarg.h</EM> interface.
 
-       <STRONG>o</STRONG>   X/Open Curses, Issue 5, Draft  2  (December  2007)  marked  <STRONG>vwscanw</STRONG>
+       <STRONG>o</STRONG>   X/Open Curses Issue 5,  Draft  2  (December  2007)  marked  <STRONG>vwscanw</STRONG>
            (along with <STRONG>vwscanw</STRONG> and the <EM>termcap</EM> interface) as withdrawn.  After
-           incorporating review comments, this became X/Open Curses,  Issue  7
+           incorporating  review  comments,  this became X/Open Curses Issue 7
            (2009).
 
        <STRONG>o</STRONG>   <EM>ncurses</EM> provides <STRONG>vwscanw</STRONG>, but marks it as deprecated.
@@ -141,45 +139,42 @@
 
 
 </PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
-       <STRONG>scanw</STRONG>  was  implemented  in 4BSD (November 1980); that early version of
-       <EM>curses</EM> preceded the ANSI C standard of 1989.  The function  was  unused
-       in  Berkeley  distributions  for  over  ten  years, until 4.4BSD, which
-       employed it in a game.  The 4BSD <STRONG>scanw</STRONG> did not  use  <EM>varargs.h</EM>,  though
-       that  had been available since Seventh Edition Unix (1979).  In 1991 (a
-       couple of years after SVr4 was generally available,  and  after  the  C
-       standard  was  published),  other developers updated the library, using
-       <EM>stdarg.h</EM> internally in 4.4BSD <EM>curses</EM>.  Even with this improvement,  BSD
-       <EM>curses</EM>  did not use function prototypes (nor even declare functions) in
-       <EM>curses.h</EM> until 1992.
+       4BSD  (1980) introduced <EM>wscanw</EM> and its variants.  It implemented all as
+       functions, not macros; this initial distribution of <EM>curses</EM> preceded the
+       ANSI C standard of 1989, prior to which a variadic macro  facility  was
+       not  widely  available.   <EM>scanw</EM>  went  unused in Berkeley distributions
+       until 4.3BSD-Reno (1990), which employed it in a game.   4BSD's  <EM>wscanw</EM>
+       did  not  use <EM>varargs.h</EM>, which had been available since Seventh Edition
+       Unix (1979).  In 1991 (a couple  of  years  after  SVr4  was  generally
+       available,  and  after  the C standard was published), other developers
+       updated the library, using <EM>stdarg.h</EM> internally in 4.4BSD <EM>curses</EM>.   Even
+       with  this improvement, BSD <EM>curses</EM> did not use function prototypes (nor
+       even declare functions) in <EM>curses.h</EM> until 1992.
 
-       SVr2 (1984) documented <STRONG>scanw</STRONG>  and  <STRONG>wscanw</STRONG>  tersely  as  "scanf  through
-       <STRONG>stdscr</STRONG>" and "scanf through <EM>win</EM>", respectively.
+       4BSD documented <EM>scanw</EM> and <EM>wscanw</EM> tersely as "scanf through <EM>stdscr</EM>"  and
+       "scanf through <EM>win</EM>", respectively.  SVr3 (1987) stated
 
-       SVr3 (1987) added <STRONG>mvscanw</STRONG>, and <STRONG>mvwscanw</STRONG>, stating
+              [t]hese  routines correspond to <STRONG>scanf(3S)</STRONG>, as do their arguments
+              and return values.  <EM>wgetstr</EM>() is called on the window,  and  the
+              resulting line is used as input for the scan.
 
-              "[t]hese routines correspond to <STRONG>scanf(3S)</STRONG>, as do their arguments
-              and return values.  <STRONG>wgetstr</STRONG>() is called on the window,  and  the
-              resulting line is used as input for the scan."
-
-       SVr3  also  implemented  <STRONG>vwscanw</STRONG>,  describing  its third parameter as a
-       <EM>va</EM><STRONG>_</STRONG><EM>list</EM>, defined in <EM>varargs.h</EM>, and referred the reader  to  the  manual
-       pages  for <EM>varargs</EM> and <EM>vprintf</EM> for detailed descriptions.  (Because the
-       SVr3 documentation does not mention <EM>vscanf</EM>, the  reference  to  <EM>vprintf</EM>
-       might not be an error).
+       SVr3  added  <EM>vwscanw</EM>,  describing  its  third  parameter  as a <EM>va</EM><STRONG>_</STRONG><EM>list</EM>,
+       defined in <EM>varargs.h</EM>, and referred the reader to the manual  pages  for
+       <EM>varargs</EM>   and   <EM>vprintf</EM>   for  detailed  descriptions.   (Because  SVr3
+       documentation does not mention <EM>vscanf</EM>, the reference to  <EM>vprintf</EM>  might
+       not be an error).
 
        SVr4  (1989)  introduced  no  new variations of <EM>scanw</EM>, but provided for
        using either <EM>varargs.h</EM> or <EM>stdarg.h</EM> to define the <EM>va</EM><STRONG>_</STRONG><EM>list</EM> type.
 
-       X/Open Curses, Issue 4 (1995), defined  <EM>vw</EM><STRONG>_</STRONG><EM>scanw</EM>  to  replace  <EM>vwscanw</EM>,
+       X/Open Curses Issue 4  (1995)  defined  <EM>vw</EM><STRONG>_</STRONG><EM>scanw</EM>  to  replace  <EM>vwscanw</EM>,
        stating that its <EM>va</EM><STRONG>_</STRONG><EM>list</EM> type is defined in <EM>stdarg.h</EM>.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_getstr.3x.html">curs_getstr(3x)</A></STRONG>, <STRONG><A HREF="curs_printw.3x.html">curs_printw(3x)</A></STRONG>, <STRONG>scanf(3)</STRONG>, <STRONG>vscanf(3)</STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                    <STRONG><A HREF="curs_scanw.3x.html">curs_scanw(3x)</A></STRONG>
+ncurses 6.6                       2025-07-05                    <STRONG><A HREF="curs_scanw.3x.html">curs_scanw(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

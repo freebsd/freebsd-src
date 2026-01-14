@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 2005-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: demo_altkeys.c,v 1.17 2023/02/25 18:08:02 tom Exp $
+ * $Id: demo_altkeys.c,v 1.20 2025/07/05 15:11:35 tom Exp $
  *
  * Demonstrate the define_key() function.
  * Thomas Dickey - 2005/10/22
@@ -49,7 +49,7 @@ log_last_line(WINDOW *win)
 {
     FILE *fp;
 
-    if ((fp = fopen(MY_LOGFILE, "a")) != 0) {
+    if ((fp = fopen(MY_LOGFILE, "a")) != NULL) {
 	char temp[256];
 	int y, x, n;
 	int need = sizeof(temp) - 1;
@@ -100,11 +100,8 @@ main(int argc, char *argv[])
 
     while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
 	switch (ch) {
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
@@ -114,7 +111,7 @@ main(int argc, char *argv[])
     unlink(MY_LOGFILE);
 
     setlocale(LC_ALL, "");
-    if (newterm(0, stdout, stdin) == 0) {
+    if (newterm(NULL, stdout, stdin) == NULL) {
 	fprintf(stderr, "Cannot initialize terminal\n");
 	ExitProgram(EXIT_FAILURE);
     }
@@ -135,12 +132,14 @@ main(int argc, char *argv[])
     }
     for (n = KEY_MIN; n < KEY_MAX; ++n) {
 	char *value;
-	if ((value = keybound(n, 0)) != 0) {
+	if ((value = keybound(n, 0)) != NULL) {
 	    size_t need = strlen(value) + 2;
 	    char *temp = typeMalloc(char, need);
-	    _nc_SPRINTF(temp, _nc_SLIMIT(need) "\033%s", value);
-	    define_key(temp, n + MY_KEYS);
-	    free(temp);
+	    if (temp != NULL) {
+		_nc_SPRINTF(temp, _nc_SLIMIT(need) "\033%s", value);
+		define_key(temp, n + MY_KEYS);
+		free(temp);
+	    }
 	    free(value);
 	}
     }
@@ -158,7 +157,7 @@ main(int argc, char *argv[])
 	printw("Keycode %d, name %s%s\n",
 	       ch,
 	       escaped ? "ESC-" : "",
-	       name != 0 ? name : "<null>");
+	       name != NULL ? name : "<null>");
 	log_last_line(stdscr);
 	clrtoeol();
 	if (ch == 'q')

@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_scr_dump.3x,v 1.43 2024/04/20 18:54:36 tom Exp @
+  * @Id: curs_scr_dump.3x,v 1.55 2025/01/19 00:51:10 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_scr_dump 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_scr_dump 3x 2025-01-18 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_scr_dump 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_scr_dump 3x 2025-01-18 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>                Library calls               <STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -54,10 +52,10 @@
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>scr_dump(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>filename</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>scr_restore(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>filename</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>scr_init(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>filename</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>scr_set(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>filename</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>scr_dump(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>filename</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>scr_restore(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>filename</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>scr_init(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>filename</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>scr_set(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>filename</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -73,65 +71,93 @@
 
 
 </PRE><H3><a name="h3-scr_restore">scr_restore</a></H3><PRE>
-       <STRONG>scr_restore</STRONG> updates the virtual  screen  to  contain  the  contents  of
-       <EM>filename</EM>  (if  it  was  validly  written with <STRONG>scr_dump</STRONG>).  No refresh is
-       performed;  after  performing  any  further   desired   updates,   call
-       <STRONG><A HREF="curs_refresh.3x.html">doupdate(3x)</A></STRONG> or similar.
+       <STRONG>scr_restore</STRONG> updates  the  virtual  screen  to  match  the  contents  of
+       <EM>filename</EM> (if validly written with <STRONG>scr_dump</STRONG>).  <EM>curses</EM> does not perform a
+       refresh;  after  making  any  desired  changes,  call  <STRONG><A HREF="curs_refresh.3x.html">doupdate(3x)</A></STRONG>  or
+       similar.
 
 
 </PRE><H3><a name="h3-scr_init">scr_init</a></H3><PRE>
-       <STRONG>scr_init</STRONG>  reads <EM>filename</EM>, using it to initialize <EM>curses</EM> data structures
-       describing the state of the terminal screen.  If these data are  valid,
-       <EM>curses</EM>  bases  its next update of the screen on this information rather
-       than clearing it and starting from scratch.
+       <STRONG>scr_init</STRONG> reads <EM>filename</EM>, using it to initialize <EM>curses</EM> data  structures
+       describing  the  state  of  the  terminal  screen.   <EM>curses</EM> then, if it
+       decides the terminal state is valid,  bases  its  next  update  of  the
+       screen  on  this  information rather than clearing it and starting from
+       scratch.
 
-       The data fail the validity check
+       <EM>curses</EM> regards the terminal as in an invalid state for  computation  of
+       updates based on the contents of <EM>filename</EM> if
 
-       <STRONG>o</STRONG>   if the terminal employs <EM>terminfo</EM> capabilities <STRONG>exit_ca_mode</STRONG>  (<STRONG>rmcup</STRONG>)
-           or <STRONG>non_rev_rmcup</STRONG> (<STRONG>nrrmc</STRONG>) are defined, or
+       <STRONG>o</STRONG>   <EM>curses</EM>  knows  that  the  terminal  has  been  written to since the
+           preceding <STRONG>scr_dump</STRONG> call, or
 
-       <STRONG>o</STRONG>   if  <EM>curses</EM>  knows  that  the terminal has been written to since the
-           preceding <STRONG>scr_dump</STRONG> call.
+       <STRONG>o</STRONG>   the terminal type supports the <EM>terminfo</EM>  capabilities  <STRONG>exit_ca_mode</STRONG>
+           (<STRONG>rmcup</STRONG>) or <STRONG>non_rev_rmcup</STRONG> (<STRONG>nrrmc</STRONG>).
 
-       <STRONG>scr_init</STRONG> could be used after <STRONG><A HREF="curs_initscr.3x.html">initscr(3x)</A></STRONG>  or  <STRONG>system(3)</STRONG>  to  share  the
-       screen with another process that has done a <STRONG>scr_dump</STRONG> after <STRONG><A HREF="curs_initscr.3x.html">endwin(3x)</A></STRONG>.
+       Either of the foregoing conditions means that <EM>curses</EM> cannot assume that
+       the  terminal's  contents  match their representation in <EM>filename</EM>.  The
+       former is due to  terminal  features  (such  as  <STRONG>xterm(1)</STRONG>'s  "alternate
+       screen")  that  couple  cursor-positioning  mode  with a local cache of
+       screen contents.  <EM>curses</EM> cannot know whether the terminal is displaying
+       from that local cache at the time the application calls <STRONG>scr_init</STRONG>, so it
+       makes a pessimistic assumption that a  full  redraw  is  required;  see
+       subsection "Cursor Motions" of <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>.
+
+       <STRONG>scr_init</STRONG>  could  be  used  after  <STRONG><A HREF="curs_initscr.3x.html">initscr(3x)</A></STRONG> or <STRONG>system(3)</STRONG> to share the
+       screen with another process that has done a <STRONG>scr_dump</STRONG> after  <STRONG><A HREF="curs_initscr.3x.html">endwin(3x)</A></STRONG>.
+       An   application  that  supports  suspending  its  state  on  exit  and
+       subsequent resumption upon  later  execution  might  use  <STRONG>scr_dump</STRONG>  and
+       <STRONG>scr_init</STRONG> thus.
 
 
 </PRE><H3><a name="h3-scr_set">scr_set</a></H3><PRE>
-       The  <STRONG>scr_set</STRONG>  routine is a combination of <STRONG>scr_restore</STRONG> and <STRONG>scr_init</STRONG>.  It
-       tells the program that the information in <EM>filename</EM> is what is currently
-       on the screen, and also what the program wants on the screen.  This can
-       be thought of as a screen inheritance function.
+       <STRONG>scr_set</STRONG>  combines  <STRONG>scr_restore</STRONG> and <STRONG>scr_init</STRONG>, synchronizing the contents
+       of <EM>filename</EM> with the virtual screen.  It can be regarded  as  a  screen
+       inheritance function; consider a real-time screen-sharing application.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
        These functions return <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.
 
-       X/Open defines no failure conditions.   In  this  implementation,  each
-       function fails if it cannot open <EM>filename</EM>.
+       In  <EM>ncurses</EM>,  each  function  returns  <STRONG>ERR</STRONG>  if it cannot open <EM>filename</EM>.
+       <STRONG>scr_init</STRONG>, <STRONG>scr_restore</STRONG>, and  <STRONG>scr_set</STRONG>  return  <STRONG>ERR</STRONG>  if  the  contents  of
+       <EM>filename</EM> are invalid.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       <STRONG>scr_init</STRONG>, <STRONG>scr_set</STRONG>, and <STRONG>scr_restore</STRONG> may be macros.
+       <STRONG>scr_init</STRONG>, <STRONG>scr_restore</STRONG>, and <STRONG>scr_set</STRONG> may be implemented as macros.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       X/Open Curses, Issue 4 describes these functions.
+       X/Open Curses Issue 4 describes these functions.  It specifies no error
+       conditions for them.
 
        SVr4 omitted the <EM>const</EM> qualifiers.
 
-       SVr4  documentation  describes <STRONG>scr_init</STRONG> such that the dump data is also
+       SVr4  documentation  describes <EM>scr</EM><STRONG>_</STRONG><EM>init</EM> such that the dump data is also
        considered invalid "if the time-stamp of the tty is old" but  does  not
        define "old".
 
+       As of 2024, <EM>PDCurses</EM> provides these functions.  NetBSD <EM>curses</EM> does not.
+
+       Other  implementations of <EM>curses</EM> store the window in binary form, which
+       makes the dump  dependent  upon  the  <EM>curses</EM>  library's  internal  data
+       structures.   <EM>ncurses</EM>  avoids  this  drawback  by  storing  the dump in
+       textual form, allowing more flexible use of the  data.   For  instance,
+       the <EM>scr</EM><STRONG>_</STRONG><EM>restore</EM> of SVr4 <EM>curses</EM> requires that the dumped window have the
+       same  dimensions  as the restored window.  <EM>ncurses</EM> uses its <STRONG><A HREF="wresize.3x.html">wresize(3x)</A></STRONG>
+       extension to adjust the restored window size.
+
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       SVr3 (1987) introduced <EM>scr</EM><STRONG>_</STRONG><EM>dump</EM>,  <EM>scr</EM><STRONG>_</STRONG><EM>init</EM>,  and  <EM>scr</EM><STRONG>_</STRONG><EM>restore</EM>.   SVr3.1
+       added <EM>scr</EM><STRONG>_</STRONG><EM>set</EM>.
+
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,    <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>,    <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>,    <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>,
-       <STRONG>system(3)</STRONG>, <STRONG><A HREF="scr_dump.5.html">scr_dump(5)</A></STRONG>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>, <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>, <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>,
+       <STRONG>system(3)</STRONG>, <STRONG><A HREF="scr_dump.5.html">scr_dump(5)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>, <STRONG><A HREF="wresize.3x.html">wresize(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                 <STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>
+ncurses 6.6                       2025-01-18                 <STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -148,6 +174,7 @@ ncurses 6.5                       2024-04-20                 <STRONG><A HREF="cu
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.9 2021/07/03 15:45:33 tom Exp $
+# $Id: Makefile.in,v 1.11 2025/10/18 16:08:08 tom Exp $
 ##############################################################################
-# Copyright 2019-2020,2021 Thomas E. Dickey                                  #
+# Copyright 2019-2024,2025 Thomas E. Dickey                                  #
 # Copyright 2011-2015,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -35,7 +35,7 @@
 SHELL		= @SHELL@
 VPATH		= @srcdir@
 
-DESTDIR		= @DESTDIR@
+@SET_DESTDIR@
 srcdir		= @srcdir@
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
@@ -49,8 +49,8 @@ INSTALL_DATA	= @INSTALL_DATA@
 DFT_ARG_SUFFIX	= @DFT_ARG_SUFFIX@
 
 THIS		= @ADA_LIBNAME@
-DOCDIR		= $(DESTDIR)$(datadir)/doc/$(THIS)
-MANDIR		= $(DESTDIR)$(mandir)/man1
+DOCDIR		= $(DESTDIR)$(datadir@MERGE_PREFIX@)/doc/$(THIS)
+MANDIR		= $(DESTDIR)$(mandir@MERGE_PREFIX@)/man1
 
 ################################################################################
 

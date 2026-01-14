@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2021,2022 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2013,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,7 +34,7 @@
  * Eric S. Raymond <esr@snark.thyrsus.com> July 22 1995.  Mouse support
  * added September 20th 1995.
  *
- * $Id: knight.c,v 1.52 2022/12/04 00:40:11 tom Exp $
+ * $Id: knight.c,v 1.54 2025/07/05 15:21:56 tom Exp $
  */
 
 #include <test.priv.h>
@@ -450,7 +450,8 @@ iabs(int num)
 }
 
 static bool
-evaluate_move(SQUARES squares, HISTORY * doneData, int doneSize, int row, int column)
+evaluate_move(SQUARES squares, const HISTORY * doneData, int doneSize,
+	      int row, int column)
 {
     if (doneSize <= 1)
 	return (TRUE);
@@ -943,11 +944,8 @@ main(int argc, char *argv[])
 	    }
 	    xlimit = ylimit = ch;
 	    break;
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }

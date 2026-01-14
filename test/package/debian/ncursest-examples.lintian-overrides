@@ -1,0 +1,7 @@
+# $Id: ncursest-examples.lintian-overrides,v 1.1 2025/06/14 21:12:31 tom Exp $
+
+# "function" is used in an awk script
+bash-term-in-posix-shell 'function scaled(' [usr/libexec/ncursest-examples/tput-initc:*]
+
+# workaround for lintian bug
+incorrect-path-for-interpreter /usr/bin/env perl != /usr/bin/perl [usr/libexec/ncursest-examples/tracemunch]

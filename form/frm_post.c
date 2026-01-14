@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_post.c,v 1.14 2020/05/24 01:40:20 anonymous.maarten Exp $")
+MODULE_ID("$Id: frm_post.c,v 1.15 2024/07/27 18:35:02 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform
@@ -51,7 +51,7 @@ MODULE_ID("$Id: frm_post.c,v 1.14 2020/05/24 01:40:20 anonymous.maarten Exp $")
 FORM_EXPORT(int)
 post_form(FORM *form)
 {
-  WINDOW *formwin;
+  const WINDOW *formwin;
   int err;
   int page;
 

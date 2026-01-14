@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2003,2005 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,9 +35,9 @@
 #include "internal.h"
 #include "cursesp.h"
 
-MODULE_ID("$Id: cursesp.cc,v 1.27 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: cursesp.cc,v 1.29 2025/01/25 21:20:17 tom Exp $")
 
-NCursesPanel* NCursesPanel::dummy = static_cast<NCursesPanel*>(0);
+NCursesPanel* NCursesPanel::dummy = static_cast<NCursesPanel*>(NULL);
 
 void NCursesPanel::init()
 {
@@ -55,7 +55,7 @@ void NCursesPanel::init()
 NCursesPanel::~NCursesPanel() THROWS(NCursesException)
 {
   UserHook* hook = UserPointer();
-  assert(hook != 0 && hook->m_back==this && hook->m_owner==p);
+  assert(hook != NULL && hook->m_back==this && hook->m_owner==p);
   delete hook;
   ::del_panel(p);
   ::update_panels();
@@ -64,7 +64,7 @@ NCursesPanel::~NCursesPanel() THROWS(NCursesException)
 void
 NCursesPanel::redraw()
 {
-  PANEL *pan;
+  const PANEL *pan;
 
   pan = ::panel_above(NULL);
   while (pan) {

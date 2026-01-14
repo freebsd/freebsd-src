@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2020,2022 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2013,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -31,7 +31,7 @@
  *
  * Generate timing statistics for vertical-motion optimization.
  *
- * $Id: hashtest.c,v 1.39 2022/12/04 00:40:11 tom Exp $
+ * $Id: hashtest.c,v 1.43 2025/07/05 15:21:56 tom Exp $
  */
 
 #include <test.priv.h>
@@ -158,13 +158,13 @@ usage(int ok)
 	,""
 	,USAGE_COMMON
 	,"Options:"
-	," -c       continuous (don't reset between refresh's)"
-	," -F num   leave 'num' lines constant for footer"
-	," -H num   leave 'num' lines constant for header"
-	," -l num   repeat test 'num' times"
+	," -S       continuous (don't reset between refresh's)"
+	," -F NUM   leave NUM lines constant for footer"
+	," -H NUM   leave NUM lines constant for header"
+	," -r NUM   repeat tests NUM times"
 	," -n       test the normal optimizer"
 	," -o       test the hashed optimizer"
-	," -r       reverse the loops"
+	," -R       reverse the loops"
 	," -s       single-step"
 	," -x       assume lower-right corner extension"
     };
@@ -188,9 +188,9 @@ main(int argc, char *argv[])
 
     setlocale(LC_ALL, "");
 
-    while ((ch = getopt(argc, argv, OPTS_COMMON "cF:H:l:norsx")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "F:H:RSnor:sx")) != -1) {
 	switch (ch) {
-	case 'c':
+	case 'S':
 	    continuous = TRUE;
 	    break;
 	case 'F':
@@ -199,7 +199,7 @@ main(int argc, char *argv[])
 	case 'H':
 	    head_lines = atoi(optarg);
 	    break;
-	case 'l':
+	case 'r':
 	    test_loops = atoi(optarg);
 	    assert(test_loops >= 0);
 	    break;
@@ -209,7 +209,7 @@ main(int argc, char *argv[])
 	case 'o':
 	    test_optimize = TRUE;
 	    break;
-	case 'r':
+	case 'R':
 	    reverse_loops = TRUE;
 	    break;
 	case 's':
@@ -218,11 +218,8 @@ main(int argc, char *argv[])
 	case 'x':
 	    extend_corner = TRUE;
 	    break;
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }

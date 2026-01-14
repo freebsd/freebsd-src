@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright 2020 Thomas E. Dickey                                          --
+-- Copyright 2020,2025 Thomas E. Dickey                                     --
 -- Copyright 1999-2011,2014 Free Software Foundation, Inc.                  --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
@@ -36,8 +36,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.33 $
---  $Date: 2020/02/02 23:34:34 $
+--  $Revision: 1.34 $
+--  $Date: 2025/01/24 20:39:23 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Ada.Unchecked_Deallocation;
@@ -1006,7 +1006,7 @@ package body Terminal_Interface.Curses.Forms is
         (Field_Array, Field_Array_Access);
    begin
       if FA /= null and then Free_Fields then
-         for I in FA'First .. (FA'Last - 1) loop
+         for I in FA'First .. FA'Last - 1 loop
             if FA.all (I) /= Null_Field then
                Delete (FA.all (I));
             end if;

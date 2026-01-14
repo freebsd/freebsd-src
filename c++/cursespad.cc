@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 1999-2012,2013 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -36,17 +36,17 @@
 
 #include <cursesw.h>
 
-MODULE_ID("$Id: cursespad.cc,v 1.18 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: cursespad.cc,v 1.20 2025/01/25 21:21:05 tom Exp $")
 
 NCursesPad::NCursesPad(int nlines, int ncols)
   : NCursesWindow(),
-    viewWin(static_cast<NCursesWindow*>(0)),
-    viewSub(static_cast<NCursesWindow*>(0)),
+    viewWin(static_cast<NCursesWindow*>(NULL)),
+    viewSub(static_cast<NCursesWindow*>(NULL)),
     h_gridsize(0), v_gridsize(0),
     min_row(0), min_col(0)
 {
   w = ::newpad(nlines, ncols);
-  if (static_cast<WINDOW*>(0) == w) {
+  if (static_cast<WINDOW*>(NULL) == w) {
     count--;
     err_handler("Cannot construct window");
   }
@@ -85,7 +85,7 @@ void NCursesPad::operator()(void)
 {
   NCursesWindow* W = Win();
 
-  if (static_cast<NCursesWindow*>(0) != W) {
+  if (static_cast<NCursesWindow*>(NULL) != W) {
     int Width  = W->width();
     int Height = W->height();
 
@@ -170,7 +170,7 @@ void NCursesPad::operator()(void)
 int NCursesPad::refresh()
 {
   int res = noutrefresh();
-  if (res==OK && (static_cast<NCursesWindow*>(0) != viewWin)) {
+  if (res==OK && (static_cast<NCursesWindow*>(NULL) != viewWin)) {
     res = (viewWin->refresh());
   }
   return(res);
@@ -180,7 +180,7 @@ int NCursesPad::noutrefresh()
 {
   int res = OK;
   NCursesWindow* W = Win();
-  if (static_cast<NCursesWindow*>(0) != W) {
+  if (static_cast<NCursesWindow*>(NULL) != W) {
     int high = W->maxy();
     int wide = W->maxx();
     res = copywin(*W, min_row, min_col,
@@ -210,9 +210,9 @@ void NCursesPad::setWindow(NCursesWindow& view,
 
 void NCursesPad::setSubWindow(NCursesWindow& sub)
 {
-  if (static_cast<NCursesWindow*>(0) == viewWin)
+  if (static_cast<NCursesWindow*>(NULL) == viewWin)
     err_handler("Pad has no viewport");
-  assert(viewWin != 0);
+  assert(viewWin != NULL);
   if (!viewWin->isDescendant(sub))
     THROW(new NCursesException("NCursesFramePad", E_SYSTEM_ERROR));
   viewSub = &sub;
@@ -221,10 +221,10 @@ void NCursesPad::setSubWindow(NCursesWindow& sub)
 void NCursesFramedPad::OnOperation(int pad_req)
 {
   (void) pad_req;
-  NCursesWindow* W = Win();
+  const NCursesWindow* W = Win();
   NCursesWindow* W2 = getWindow();
 
-  if ((static_cast<NCursesWindow*>(0) != W) && (static_cast<NCursesWindow*>(0) != W2)) {
+  if ((static_cast<NCursesWindow*>(NULL) != W) && (static_cast<NCursesWindow*>(NULL) != W2)) {
     int Width  = W->width();
     int Height = W->height();
     int i, row, col, h_len, v_len;

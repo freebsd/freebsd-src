@@ -24,7 +24,7 @@
 <span class="comment"><em>--                                 B O D Y                                  --</em></span>
 <span class="comment"><em>--                                                                          --</em></span>
 <span class="comment"><em>------------------------------------------------------------------------------</em></span>
-<span class="comment"><em>-- Copyright 2018,2020 Thomas E. Dickey                                     --</em></span>
+<span class="comment"><em>-- Copyright 2018-2020,2025 Thomas E. Dickey                                --</em></span>
 <span class="comment"><em>-- Copyright 1999-2011,2014 Free Software Foundation, Inc.                  --</em></span>
 <span class="comment"><em>--                                                                          --</em></span>
 <span class="comment"><em>-- Permission is hereby granted, free of charge, to any person obtaining a  --</em></span>
@@ -53,8 +53,8 @@
 <span class="comment"><em>------------------------------------------------------------------------------</em></span>
 <span class="comment"><em>--  Author:  Juergen Pfeifer, 1996</em></span>
 <span class="comment"><em>--  Version Control:</em></span>
-<span class="comment"><em>--  @Revision: 1.34 @</em></span>
-<span class="comment"><em>--  @Date: 2020/02/02 23:34:34 @</em></span>
+<span class="comment"><em>--  @Revision: 1.35 @</em></span>
+<span class="comment"><em>--  @Date: 2025/01/24 20:39:23 @</em></span>
 <span class="comment"><em>--  Binding Version 01.00</em></span>
 <span class="comment"><em>------------------------------------------------------------------------------</em></span>
 <b>with</b> Ada.Unchecked_Deallocation;
@@ -895,7 +895,7 @@
         (Item_Array, <a href="terminal_interface-curses-menus__ads.htm#ref_177_9">Item_Array_Access</a>);
    <b>begin</b>
       <b>if</b> <a href="terminal_interface-curses-menus__ads.htm#ref_179_20">IA</a> /= <b>null</b> <b>and</b> <b>then</b> <a href="terminal_interface-curses-menus__ads.htm#ref_180_20">Free_Items</a> <b>then</b>
-         <b>for</b> <span class="symbol"><a name="ref_881_14">I</a></span> <b>in</b> <a href="terminal_interface-curses-menus__ads.htm#ref_179_20">IA</a>'First .. (<a href="terminal_interface-curses-menus__ads.htm#ref_179_20">IA</a>'Last - 1) <b>loop</b>
+         <b>for</b> <span class="symbol"><a name="ref_881_14">I</a></span> <b>in</b> <a href="terminal_interface-curses-menus__ads.htm#ref_179_20">IA</a>'First .. <a href="terminal_interface-curses-menus__ads.htm#ref_179_20">IA</a>'Last - 1 <b>loop</b>
             <b>if</b> <a href="terminal_interface-curses-menus__ads.htm#ref_179_20">IA</a>.<b>all</b> (<a href="terminal_interface-curses-menus__adb.htm#ref_881_14">I</a>) /= <a href="terminal_interface-curses-menus__ads.htm#ref_58_4">Null_Item</a> <b>then</b>
                <a href="terminal_interface-curses-menus__ads.htm#ref_202_14">Delete</a> (<a href="terminal_interface-curses-menus__ads.htm#ref_179_20">IA</a>.<b>all</b> (<a href="terminal_interface-curses-menus__adb.htm#ref_881_14">I</a>));
             <b>end</b> <b>if</b>;

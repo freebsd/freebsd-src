@@ -1,6 +1,6 @@
-# $Id: modules,v 1.79 2023/11/10 11:48:20 tom Exp $
+# $Id: modules,v 1.82 2025/07/13 09:08:38 tom Exp $
 ##############################################################################
-# Copyright 2018-2022,2023 Thomas E. Dickey                                  #
+# Copyright 2018-2024,2025 Thomas E. Dickey                                  #
 # Copyright 1998-2016,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -33,8 +33,8 @@
 # Test-Program modules
 
 @ base
-back_ground	progs		$(srcdir)	$(HEADER_DEPS)
-background	progs		$(srcdir)	$(HEADER_DEPS)
+back_ground	progs		$(srcdir)	$(HEADER_DEPS) $(srcdir)/color_name.h $(srcdir)/dump_window.h
+background	progs		$(srcdir)	$(HEADER_DEPS) $(srcdir)/color_name.h $(srcdir)/dump_window.h
 blue		progs		$(srcdir)	$(HEADER_DEPS)
 bs		progs		$(srcdir)	$(HEADER_DEPS)
 cardfile	progs		$(srcdir)	$(HEADER_DEPS)	$(incdir)/panel.h $(incdir)/form.h
@@ -42,7 +42,7 @@ chgat		progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h
 clip_printw	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h
 color_content	progs		$(srcdir)	$(HEADER_DEPS)
 color_set	progs		$(srcdir)	$(HEADER_DEPS)
-combine		progs		$(srcdir)	$(HEADER_DEPS)
+combine		progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/dump_window.h $(srcdir)/popup_msg.h
 demo_altkeys	progs		$(srcdir)	$(HEADER_DEPS)
 demo_defkey	progs		$(srcdir)	$(HEADER_DEPS)
 demo_forms	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/edit_field.h
@@ -51,8 +51,8 @@ demo_menus	progs		$(srcdir)	$(HEADER_DEPS)	$(incdir)/menu.h
 demo_new_pair	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h
 demo_panels	progs		$(srcdir)	$(HEADER_DEPS)	$(incdir)/panel.h
 demo_tabs	progs		$(srcdir)	$(HEADER_DEPS)
-demo_termcap	progs		$(srcdir)	$(HEADER_DEPS)
-demo_terminfo	progs		$(srcdir)	$(HEADER_DEPS)
+demo_termcap	progs		$(srcdir)	$(HEADER_DEPS)	$(incdir)/term_entry.h	$(incdir)/termcap.h
+demo_terminfo	progs		$(srcdir)	$(HEADER_DEPS)	$(incdir)/term_entry.h
 ditto		progs		$(srcdir)	$(HEADER_DEPS)
 dots		progs		$(srcdir)	$(HEADER_DEPS)
 dots_curses	progs		$(srcdir)	$(HEADER_DEPS)
@@ -60,7 +60,7 @@ dots_mvcur	progs		$(srcdir)	$(HEADER_DEPS)
 dots_termcap	progs		$(srcdir)	$(HEADER_DEPS)
 dots_xcurses	progs		$(srcdir)	$(HEADER_DEPS)
 dump_window	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/dump_window.h
-dup_field	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/edit_field.h
+dup_field	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/edit_field.h	$(srcdir)/popup_msg.h
 echochar	progs		$(srcdir)	$(HEADER_DEPS)
 edit_field	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/edit_field.h	$(srcdir)/popup_msg.h
 extended_color	progs		$(srcdir)	$(HEADER_DEPS)
@@ -68,7 +68,7 @@ filter		progs		$(srcdir)	$(HEADER_DEPS)
 firework	progs		$(srcdir)	$(HEADER_DEPS)
 firstlast	progs		$(srcdir)	$(HEADER_DEPS)
 foldkeys	progs		$(srcdir)	$(HEADER_DEPS)
-form_driver_w	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h
+form_driver_w	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h	$(incdir)/form.h
 gdc		progs		$(srcdir)	$(HEADER_DEPS)
 hanoi		progs		$(srcdir)	$(HEADER_DEPS)
 hashtest	progs		$(srcdir)	$(HEADER_DEPS)
@@ -80,15 +80,15 @@ inserts		progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/linedata.h
 key_names	progs		$(srcdir)	$(HEADER_DEPS)
 keynames	progs		$(srcdir)	$(HEADER_DEPS)
 knight		progs		$(srcdir)	$(HEADER_DEPS)
-list_keys	progs		$(srcdir)	$(HEADER_DEPS)
+list_keys	progs		$(srcdir)	$(HEADER_DEPS)	$(incdir)/term_entry.h
 lrtest		progs		$(srcdir)	$(HEADER_DEPS)
-move_field	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/edit_field.h
+move_field	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/edit_field.h	$(srcdir)/popup_msg.h
 movewindow	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h
 ncurses		progs		$(srcdir)	$(HEADER_DEPS)	$(incdir)/panel.h $(incdir)/menu.h $(incdir)/form.h
 newdemo		progs		$(srcdir)	$(HEADER_DEPS)
 padview		progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/widechars.h	$(srcdir)/popup_msg.h
 pair_content	progs		$(srcdir)	$(HEADER_DEPS)
-picsmap		progs		$(srcdir)	$(HEADER_DEPS)
+picsmap		progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/picsmap.h
 popup_msg	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h
 railroad	progs		$(srcdir)	$(HEADER_DEPS)
 rain		progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h
@@ -103,8 +103,8 @@ test_addwstr	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/linedata.h
 test_arrays	progs		$(srcdir)	$(HEADER_DEPS)
 test_delwin	progs		$(srcdir)	$(HEADER_DEPS)
 test_endwin	progs		$(srcdir)	$(HEADER_DEPS)
-test_get_wstr	progs		$(srcdir)	$(HEADER_DEPS)
-test_getstr	progs		$(srcdir)	$(HEADER_DEPS)
+test_get_wstr	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h
+test_getstr	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h
 test_instr	progs		$(srcdir)	$(HEADER_DEPS)
 test_inwstr	progs		$(srcdir)	$(HEADER_DEPS)
 test_mouse	progs		$(srcdir)	$(HEADER_DEPS)
@@ -112,7 +112,7 @@ test_opaque	progs		$(srcdir)	$(HEADER_DEPS)
 test_setupterm	progs		$(srcdir)	$(HEADER_DEPS)
 test_sgr	progs		$(srcdir)	$(HEADER_DEPS)
 test_termattrs	progs		$(srcdir)	$(HEADER_DEPS)
-test_tparm	progs		$(srcdir)	$(HEADER_DEPS)
+test_tparm	progs		$(srcdir)	$(HEADER_DEPS)	$(incdir)/term_entry.h
 test_unget_wch	progs		$(srcdir)	$(HEADER_DEPS)
 test_vid_puts	progs		$(srcdir)	$(HEADER_DEPS)
 test_vidputs	progs		$(srcdir)	$(HEADER_DEPS)

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 2005,2009 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,7 +34,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: legacy_coding.c,v 1.6 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: legacy_coding.c,v 1.7 2024/12/07 20:00:48 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(use_legacy_coding) (NCURSES_SP_DCLx int level)
@@ -42,7 +42,7 @@ NCURSES_SP_NAME(use_legacy_coding) (NCURSES_SP_DCLx int level)
     int result = ERR;
 
     T((T_CALLED("use_legacy_coding(%p,%d)"), (void *) SP_PARM, level));
-    if (level >= 0 && level <= 2 && SP_PARM != 0) {
+    if (level >= 0 && level <= 2 && SP_PARM != NULL) {
 	result = SP_PARM->_legacy_coding;
 	SP_PARM->_legacy_coding = level;
     }

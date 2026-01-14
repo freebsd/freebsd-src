@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2013,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -44,7 +44,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_insch.c,v 1.37 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_insch.c,v 1.39 2024/12/07 17:40:33 tom Exp $")
 
 /*
  * Insert the given character, updating the current location to simplify
@@ -85,12 +85,12 @@ _nc_insert_ch(SCREEN *sp, WINDOW *win, chtype ch)
 #endif
 	       (isprint(ch8) ||
 		(ChAttrOf(ch) & A_ALTCHARSET) ||
-		(sp != 0 && sp->_legacy_coding && !iscntrl(ch8)))) {
+		(sp != NULL && sp->_legacy_coding && !iscntrl(ch8)))) {
 	    if (win->_curx <= win->_maxx) {
 		struct ldat *line = &(win->_line[win->_cury]);
 		NCURSES_CH_T *end = &(line->text[win->_curx]);
 		NCURSES_CH_T *temp1 = &(line->text[win->_maxx]);
-		NCURSES_CH_T *temp2 = temp1 - 1;
+		const NCURSES_CH_T *temp2 = temp1 - 1;
 
 		SetChar2(wch, ch);
 
@@ -151,7 +151,7 @@ winsch(WINDOW *win, chtype c)
 
     T((T_CALLED("winsch(%p, %s)"), (void *) win, _tracechtype(c)));
 
-    if (win != 0) {
+    if (win != NULL) {
 	NCURSES_SIZE_T oy = win->_cury;
 	NCURSES_SIZE_T ox = win->_curx;
 

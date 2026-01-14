@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2022 Thomas E. Dickey                                     *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 2007-2010,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_inwstr.c,v 1.8 2022/12/10 23:56:39 tom Exp $
+ * $Id: test_inwstr.c,v 1.13 2025/07/05 15:21:56 tom Exp $
  *
  * Author: Thomas E Dickey
  *
@@ -47,6 +47,8 @@
 
 #if USE_WIDEC_SUPPORT
 
+#include <popup_msg.h>
+
 #define BASE_Y 6
 #define MAX_COLS 1024
 
@@ -57,24 +59,44 @@ Quit(int ch)
 }
 
 static void
-show_1st(WINDOW *win, int line, wchar_t *buffer)
+show_1st(WINDOW *win, int line, const wchar_t *buffer)
 {
     (void) mvwaddwstr(win, line, 5, buffer);
 }
 
 static void
-showmore(WINDOW *win, int line, wchar_t *buffer)
+showmore(WINDOW *win, int line, const wchar_t *buffer)
 {
     wmove(win, line, 0);
     wclrtoeol(win);
     show_1st(win, line, buffer);
 }
 
+static void
+show_help(WINDOW *win)
+{
+    static NCURSES_CONST char *msgs[] =
+    {
+	"Show file contents and a viewport from the variants of winwstr."
+	,"Use h/j/k/l or arrow keys to move the viewport."
+	,""
+	,"Other commands:"
+	,"+     increases the buffer-size used."
+	,"-     decreases the buffer-size used."
+	,"w     opens new window on the next filename."
+	,"q     quits the current file/window."
+	,"?     shows this help-window"
+	,NULL
+    };
+
+    popup_msg(win, msgs);
+}
+
 static int
 recursive_test(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
 {
-    WINDOW *txtbox = 0;
-    WINDOW *txtwin = 0;
+    WINDOW *txtbox = NULL;
+    WINDOW *txtwin = NULL;
     FILE *fp;
     int ch;
     int txt_x = 0, txt_y = 0;
@@ -82,7 +104,7 @@ recursive_test(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
     int limit = getmaxx(strwin) - 5;
     wchar_t buffer[MAX_COLS];
 
-    if (argv[level] == 0) {
+    if (argv[level] == NULL) {
 	beep();
 	return FALSE;
     }
@@ -110,7 +132,7 @@ recursive_test(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
     txt_x = 0;
     wmove(txtwin, txt_y, txt_x);
 
-    if ((fp = fopen(argv[level], "r")) != 0) {
+    if ((fp = fopen(argv[level], "r")) != NULL) {
 	while ((ch = fgetc(fp)) != EOF) {
 	    if (waddch(txtwin, UChar(ch)) != OK) {
 		break;
@@ -153,7 +175,7 @@ recursive_test(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
 	    break;
 	case 'w':
 	    recursive_test(level + 1, argv, chrwin, strwin);
-	    if (txtbox != 0) {
+	    if (txtbox != NULL) {
 		touchwin(txtbox);
 		wnoutrefresh(txtbox);
 	    } else {
@@ -169,8 +191,15 @@ recursive_test(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
 	    }
 	    break;
 	case '+':
-	    ++limit;
+	    if (limit + 2 < MAX_COLS) {
+		++limit;
+	    } else {
+		beep();
+	    }
 	    break;
+	case HELP_KEY_1:
+	    show_help(txtwin);
+	    continue;
 	default:
 	    beep();
 	    break;
@@ -262,19 +291,18 @@ main(int argc, char *argv[])
 
     while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
 	switch (ch) {
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
 
     setlocale(LC_ALL, "");
 
-    if (optind + 1 > argc)
+    if (optind + 1 > argc) {
+	fprintf(stderr, "At least one text-file is needed\n");
 	usage(FALSE);
+    }
 
     initscr();
 

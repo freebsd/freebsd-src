@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 2003-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: edit_field.c,v 1.31 2020/02/02 23:34:34 tom Exp $
+ * $Id: edit_field.c,v 1.34 2025/01/11 14:54:49 tom Exp $
  *
  * A wrapper for form_driver() which keeps track of the user's editing changes
  * for each field, and makes the resulting length available as a
@@ -131,7 +131,7 @@ static struct {
 	CTRL(']'), MY_INS_MODE, "toggle REQ_INS_MODE/REQ_OVL_MODE",
     },
     {
-	KEY_F(1), MY_HELP, "show this screen",
+	HELP_KEY_2, MY_HELP, "show this screen",
     },
     {
 	KEY_BACKSPACE, REQ_DEL_PREV, "delete previous character"
@@ -188,19 +188,21 @@ help_edit_field(void)
 	const char *code = keyname(commands[n].code);
 	size_t need = 5;
 #ifdef NCURSES_VERSION
-	if ((name = form_request_name(commands[n].result)) == 0)
+	if ((name = form_request_name(commands[n].result)) == NULL)
 #endif
 	    name = commands[n].help;
 	need = 5 + strlen(code) + strlen(name);
 	msg = typeMalloc(char, need);
-	_nc_SPRINTF(msg, _nc_SLIMIT(need) "%s -- %s", code, name);
-	msgs[used++] = msg;
+	if (msg != NULL) {
+	    _nc_SPRINTF(msg, _nc_SLIMIT(need) "%s -- %s", code, name);
+	    msgs[used++] = msg;
+	}
     }
     msgs[used++] =
 	strdup("Arrow keys move within a field as you would expect.");
-    msgs[used] = 0;
+    msgs[used] = NULL;
     popup_msg2(stdscr, msgs);
-    for (n = 0; msgs[n] != 0; ++n) {
+    for (n = 0; msgs[n] != NULL; ++n) {
 	free(msgs[n]);
     }
     free(msgs);
@@ -249,7 +251,7 @@ init_edit_field(FIELD *f, char *value)
 {
     char empty[1];
     FieldAttrs *ptr = field_attrs(f);
-    if (ptr == 0) {
+    if (ptr == NULL) {
 	int rows, cols, frow, fcol, nrow, nbuf;
 
 	ptr = typeCalloc(FieldAttrs, (size_t) 1);
@@ -259,7 +261,7 @@ init_edit_field(FIELD *f, char *value)
 	    ptr->row_lengths = typeCalloc(int, (size_t) nrow + 1);
 	}
     }
-    if (value == 0) {
+    if (value == NULL) {
 	value = empty;
 	*value = '\0';
     }
@@ -421,7 +423,7 @@ void
 free_edit_field(FIELD *f)
 {
     FieldAttrs *ptr = field_attrs(f);
-    if (ptr != 0) {
+    if (ptr != NULL) {
 	free(ptr->row_lengths);
 	free(ptr);
     }

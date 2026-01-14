@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: pair_content.c,v 1.22 2023/02/25 16:43:56 tom Exp $
+ * $Id: pair_content.c,v 1.26 2025/07/05 15:21:56 tom Exp $
  */
 
 #define NEED_TIME_H
@@ -181,7 +181,7 @@ run_test(void)
 	my_color_t fg;
 	my_color_t bg;
 	if (PairContent(pair, &fg, &bg) == OK) {
-	    if (expected != 0) {
+	    if (expected != NULL) {
 		if (fg != expected[pair].fg)
 		    success = FALSE;
 		if (bg != expected[pair].bg)
@@ -213,10 +213,10 @@ usage(int ok)
 	,"Options:"
 	," -f PAIR  first color pair to test (default: 1)"
 	," -i       interactive, showing test-progress"
-	," -l PAIR  last color pair to test (default: max_pairs-1)"
+	," -F PAIR  last color pair to test (default: max_pairs-1)"
 	," -n       do not initialize color pairs"
 	," -p       print data for color pairs instead of testing"
-	," -r COUNT repeat for given count"
+	," -r NUM   repeat tests NUM times"
 	," -s       initialize pairs sequentially rather than random"
 #if USE_EXTENDED_COLOR
 	," -x       use extended color pairs/values"
@@ -236,7 +236,7 @@ main(int argc, char *argv[])
 {
     int ch;
 
-    while ((ch = getopt(argc, argv, OPTS_COMMON "f:il:npr:sx")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "f:iF:npr:sx")) != -1) {
 	switch (ch) {
 	case 'f':
 	    if ((f_opt = atoi(optarg)) <= 0)
@@ -245,7 +245,7 @@ main(int argc, char *argv[])
 	case 'i':
 	    i_opt = 1;
 	    break;
-	case 'l':
+	case 'F':
 	    if ((l_opt = atoi(optarg)) <= 0)
 		usage(FALSE);
 	    break;
@@ -267,11 +267,8 @@ main(int argc, char *argv[])
 	    x_opt = 1;
 	    break;
 #endif
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }

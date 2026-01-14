@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020-2021,2024 Thomas E. Dickey                                *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2015,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -46,7 +46,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: resizeterm.c,v 1.53 2024/04/20 21:54:14 tom Exp $")
+MODULE_ID("$Id: resizeterm.c,v 1.61 2025/12/27 12:28:45 tom Exp $")
 
 /*
  * If we're trying to be reentrant, do not want any local statics.
@@ -103,8 +103,9 @@ NCURSES_EXPORT(bool)
 NCURSES_SP_NAME(is_term_resized) (NCURSES_SP_DCLx int ToLines, int ToCols)
 {
     T((T_CALLED("is_term_resized(%p, %d, %d)"), (void *) SP_PARM, ToLines, ToCols));
-    returnCode(ToLines > 0
+    returnBool(ToLines > 0
 	       && ToCols > 0
+	       && SP_PARM != NULL
 	       && (ToLines != screen_lines(SP_PARM)
 		   || ToCols != screen_columns(SP_PARM)));
 }
@@ -122,10 +123,10 @@ is_term_resized(int ToLines, int ToCols)
 static ripoff_t *
 ripped_window(WINDOW *win)
 {
-    ripoff_t *result = 0;
+    ripoff_t *result = NULL;
     ripoff_t *rop;
 
-    if (win != 0) {
+    if (win != NULL) {
 #ifdef USE_SP_RIPOFF
 	SCREEN *sp = _nc_screen_of(win);
 #endif
@@ -148,7 +149,7 @@ ripped_bottom(WINDOW *win)
 {
     int result = 0;
 
-    if (win != 0) {
+    if (win != NULL) {
 	ripoff_t *rop;
 
 #ifdef USE_SP_RIPOFF
@@ -174,7 +175,7 @@ child_depth(WINDOW *cmp)
 {
     int depth = 0;
 
-    if (cmp != 0) {
+    if (cmp != NULL) {
 #ifdef USE_SP_WINDOWLIST
 	SCREEN *sp = _nc_screen_of(cmp);
 #endif
@@ -199,9 +200,9 @@ parent_depth(WINDOW *cmp)
 {
     int depth = 0;
 
-    if (cmp != 0) {
+    if (cmp != NULL) {
 	WINDOW *tst;
-	while ((tst = cmp->_parent) != 0) {
+	while ((tst = cmp->_parent) != NULL) {
 	    ++depth;
 	    cmp = tst;
 	}
@@ -219,17 +220,17 @@ adjust_window(WINDOW *win, int ToLines, int ToCols, int stolen EXTRA_DCLS)
     int bottom = CurLines + _nc_screen_of(win)->_topstolen - stolen;
     int myLines = win->_maxy + 1;
     int myCols = win->_maxx + 1;
-    ripoff_t *rop = ripped_window(win);
+    const ripoff_t *rop = ripped_window(win);
 
     T((T_CALLED("adjust_window(%p,%d,%d)%s depth %d/%d currently %ldx%ld at %ld,%ld"),
        (void *) win, ToLines, ToCols,
-       (rop != 0) ? " (rip)" : "",
+       (rop != NULL) ? " (rip)" : "",
        parent_depth(win),
        child_depth(win),
        (long) getmaxy(win), (long) getmaxx(win),
        (long) getbegy(win) + win->_yoffset, (long) getbegx(win)));
 
-    if (rop != 0 && rop->line < 0) {
+    if (rop != NULL && rop->line < 0) {
 	/*
 	 * If it is a ripped-off window at the bottom of the screen, simply
 	 * move it to the same relative position.
@@ -343,7 +344,7 @@ increase_size(NCURSES_SP_DCLx int ToLines, int ToCols, int stolen EXTRA_DCLS)
 }
 
 /*
- * This function reallocates NCURSES window structures, with no side-effects
+ * This function reallocates NCURSES window structures, with no side effects
  * such as ungetch().
  */
 NCURSES_EXPORT(int)
@@ -354,10 +355,10 @@ NCURSES_SP_NAME(resize_term) (NCURSES_SP_DCLx int ToLines, int ToCols)
 
     T((T_CALLED("resize_term(%p,%d,%d) old(%d,%d)"),
        (void *) SP_PARM, ToLines, ToCols,
-       (SP_PARM == 0) ? -1 : screen_lines(SP_PARM),
-       (SP_PARM == 0) ? -1 : screen_columns(SP_PARM)));
+       (SP_PARM == NULL) ? -1 : screen_lines(SP_PARM),
+       (SP_PARM == NULL) ? -1 : screen_columns(SP_PARM)));
 
-    if (SP_PARM == 0 || ToLines <= 0 || ToCols <= 0) {
+    if (SP_PARM == NULL || ToLines <= 0 || ToCols <= 0) {
 	returnCode(ERR);
     }
 
@@ -406,7 +407,7 @@ NCURSES_SP_NAME(resize_term) (NCURSES_SP_DCLx int ToLines, int ToCols)
 	    screen_lines(SP_PARM) = (NCURSES_SIZE_T) ToLines;
 	    screen_columns(SP_PARM) = (NCURSES_SIZE_T) ToCols;
 
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 	    CallDriver_2(SP_PARM, td_setsize, ToLines, ToCols);
 #else
 	    lines = (NCURSES_INT2) ToLines;
@@ -473,18 +474,18 @@ NCURSES_SP_NAME(resizeterm) (NCURSES_SP_DCLx int ToLines, int ToCols)
 
     T((T_CALLED("resizeterm(%p, %d,%d) old(%d,%d)"),
        (void *) SP_PARM, ToLines, ToCols,
-       (SP_PARM == 0) ? -1 : screen_lines(SP_PARM),
-       (SP_PARM == 0) ? -1 : screen_columns(SP_PARM)));
+       (SP_PARM == NULL) ? -1 : screen_lines(SP_PARM),
+       (SP_PARM == NULL) ? -1 : screen_columns(SP_PARM)));
 
-    if (SP_PARM != 0 && ToLines > 0 && ToCols > 0) {
+    if (SP_PARM != NULL && ToLines > 0 && ToCols > 0) {
 	result = OK;
 	SP_PARM->_sig_winch = FALSE;
 
 	if (NCURSES_SP_NAME(is_term_resized) (NCURSES_SP_ARGx ToLines, ToCols)) {
 #if USE_SIGWINCH
 	    ripoff_t *rop;
-	    bool slk_visible = (SP_PARM != 0
-				&& SP_PARM->_slk != 0
+	    bool slk_visible = (SP_PARM != NULL
+				&& SP_PARM->_slk != NULL
 				&& !(SP_PARM->_slk->hidden));
 
 	    if (slk_visible) {
@@ -505,7 +506,7 @@ NCURSES_SP_NAME(resizeterm) (NCURSES_SP_DCLx int ToLines, int ToCols)
 	     */
 	    for (each_ripoff(rop)) {
 		if (rop->win != StdScreen(SP_PARM)
-		    && rop->win != 0
+		    && rop->win != NULL
 		    && rop->line < 0) {
 
 		    if (rop->hook != _nc_slk_initialize) {

@@ -1,7 +1,7 @@
 <!--
   * t
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,23 +28,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: form_driver.3x,v 1.61 2024/04/20 18:55:09 tom Exp @
+  * @Id: form_driver.3x,v 1.64 2025/10/04 20:59:08 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>form_driver 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>form_driver 3x 2025-10-04 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">form_driver 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">form_driver 3x 2025-10-04 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="form_driver.3x.html">form_driver(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="form_driver.3x.html">form_driver(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -64,21 +62,21 @@
        Once a form has been posted (displayed), you should funnel input events
        to it through <STRONG>form_driver</STRONG>.  This routine has three major input cases:
 
-       <STRONG>o</STRONG>   The input is a form navigation request.  Navigation  request  codes
-           are constants defined in <STRONG>&lt;form.h&gt;</STRONG>, which are distinct from the key-
+       <STRONG>o</STRONG>   The  input  is a form navigation request.  Navigation request codes
+           are constants defined in <EM>form.h</EM>, which are distinct from  the  key-
            and character codes returned by <STRONG><A HREF="curs_getch.3x.html">wgetch(3x)</A></STRONG>.
 
-       <STRONG>o</STRONG>   The input is a printable character.   Printable  characters  (which
-           must  be  positive,  less  than  256)  are checked according to the
+       <STRONG>o</STRONG>   The  input  is  a printable character.  Printable characters (which
+           must be positive, less than  256)  are  checked  according  to  the
            program's locale settings.
 
-       <STRONG>o</STRONG>   The input is the KEY_MOUSE special key  associated  with  an  mouse
+       <STRONG>o</STRONG>   The  input  is  the  KEY_MOUSE special key associated with an mouse
            event.
 
 
 </PRE><H3><a name="h3-form_driver_w">form_driver_w</a></H3><PRE>
-       This  extension  simplifies  the  use  of  the forms library using wide
-       characters.  The input is either a key  code  (a  request)  or  a  wide
+       This extension simplifies the use  of  the  forms  library  using  wide
+       characters.   The  input  is  either  a  key code (a request) or a wide
        character returned by <STRONG><A HREF="curs_get_wch.3x.html">get_wch(3x)</A></STRONG>.  The type must be passed as well, to
        enable the library  to  determine  whether  the  parameter  is  a  wide
        character or a request.
@@ -113,7 +111,6 @@
        <STRONG>REQ_LEFT_FIELD</STRONG>     Move left to a field.
        <STRONG>REQ_NEW_LINE</STRONG>       Insert or overlay a new line.
        <STRONG>REQ_NEXT_CHAR</STRONG>      Move to the next char.
-
        <STRONG>REQ_NEXT_CHOICE</STRONG>    Display next field choice.
        <STRONG>REQ_NEXT_FIELD</STRONG>     Move to the next field.
        <STRONG>REQ_NEXT_LINE</STRONG>      Move to the next line.
@@ -207,22 +204,22 @@
 
           <STRONG>o</STRONG>   the form cursor is positioned to that field.
 
-          <STRONG>o</STRONG>   If  you  double-click  a field, the form cursor is positioned to
+          <STRONG>o</STRONG>   If you double-click a field, the form cursor  is  positioned  to
               that field and <STRONG>E_UNKNOWN_COMMAND</STRONG> is returned.  This return value
               makes sense, because a double click usually means that an field-
-              specific action should be returned.  It is exactly  the  purpose
-              of  this  return  value  to  signal that an application specific
+              specific  action  should be returned.  It is exactly the purpose
+              of this return value to  signal  that  an  application  specific
               command should be executed.
 
-          <STRONG>o</STRONG>   If a translation into a request was  done,  <STRONG>form_driver</STRONG>  returns
+          <STRONG>o</STRONG>   If  a  translation  into a request was done, <STRONG>form_driver</STRONG> returns
               the result of this request.
 
-       If  you clicked outside the user window or the mouse event could not be
+       If you clicked outside the user window or the mouse event could not  be
        translated into a form request an <STRONG>E_REQUEST_DENIED</STRONG> is returned.
 
 
 </PRE><H3><a name="h3-Application-defined-Commands">Application-defined Commands</a></H3><PRE>
-       If the second argument is neither printable nor one of the  above  pre-
+       If  the  second argument is neither printable nor one of the above pre-
        defined form requests, the driver assumes it is an application-specific
        command and returns  <STRONG>E_UNKNOWN_COMMAND</STRONG>.   Application-defined  commands
        should  be  defined relative to <STRONG>MAX_COMMAND</STRONG>, the maximum value of these
@@ -270,12 +267,10 @@
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,   <STRONG><A HREF="form.3x.html">form(3x)</A></STRONG>,   <STRONG><A HREF="form_fieldtype.3x.html">form_fieldtype(3x)</A></STRONG>,    <STRONG><A HREF="form_field_buffer.3x.html">form_field_buffer(3x)</A></STRONG>,
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,    <STRONG><A HREF="form.3x.html">form(3x)</A></STRONG>,   <STRONG><A HREF="form_fieldtype.3x.html">form_fieldtype(3x)</A></STRONG>,   <STRONG><A HREF="form_field_buffer.3x.html">form_field_buffer(3x)</A></STRONG>,
        <STRONG><A HREF="form_field_validation.3x.html">form_field_validation(3x)</A></STRONG>, <STRONG><A HREF="form_variables.3x.html">form_variables(3x)</A></STRONG>, <STRONG><A HREF="curs_getch.3x.html">getch(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                   <STRONG><A HREF="form_driver.3x.html">form_driver(3x)</A></STRONG>
+ncurses 6.6                       2025-10-04                   <STRONG><A HREF="form_driver.3x.html">form_driver(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

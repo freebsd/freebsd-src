@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 2002-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: demo_defkey.c,v 1.35 2024/01/20 20:46:12 tom Exp $
+ * $Id: demo_defkey.c,v 1.38 2025/07/05 15:21:56 tom Exp $
  *
  * Demonstrate the define_key() function.
  * Thomas Dickey - 2002/11/23
@@ -47,7 +47,7 @@ log_last_line(WINDOW *win)
 {
     FILE *fp;
 
-    if ((fp = fopen(MY_LOGFILE, "a")) != 0) {
+    if ((fp = fopen(MY_LOGFILE, "a")) != NULL) {
 	char temp[256];
 	int y, x, n;
 	int need = sizeof(temp) - 1;
@@ -98,7 +98,7 @@ visichar(int ch)
 static char *
 visible(const char *string)
 {
-    char *result = 0;
+    char *result = NULL;
 
     if (VALID_STRING(string) && *string != '\0') {
 	int pass;
@@ -130,15 +130,15 @@ really_define_key(WINDOW *win, const char *new_string, int code)
     int rc;
     const char *code_name = keyname(code);
     char *old_string;
-    char *vis_string = 0;
+    char *vis_string = NULL;
     char temp[80];
 
-    if (code_name == 0) {
+    if (code_name == NULL) {
 	_nc_SPRINTF(temp, _nc_SLIMIT(sizeof(temp)) "Keycode %d", code);
 	code_name = temp;
     }
 
-    if ((old_string = keybound(code, 0)) != 0) {
+    if ((old_string = keybound(code, 0)) != NULL) {
 	wprintw(win, "%s is %s\n",
 		code_name,
 		vis_string = visible(old_string));
@@ -153,7 +153,7 @@ really_define_key(WINDOW *win, const char *new_string, int code)
     if ((rc = key_defined(new_string)) > 0) {
 	wprintw(win, "%s was bound to %s\n", vis_string, keyname(rc));
 	log_last_line(win);
-    } else if (new_string != 0 && rc < 0) {
+    } else if (new_string != NULL && rc < 0) {
 	wprintw(win, "%s conflicts with longer strings\n", vis_string);
 	log_last_line(win);
     }
@@ -161,18 +161,18 @@ really_define_key(WINDOW *win, const char *new_string, int code)
     if (rc == ERR) {
 	wprintw(win, "%s unchanged\n", code_name);
 	log_last_line(win);
-    } else if (new_string != 0) {
+    } else if (new_string != NULL) {
 	wprintw(win, "%s is now bound to %s\n",
 		vis_string,
 		code_name);
 	log_last_line(win);
-    } else if (old_string != 0) {
+    } else if (old_string != NULL) {
 	wprintw(win, "%s deleted\n", code_name);
 	log_last_line(win);
     }
-    if (vis_string != 0)
+    if (vis_string != NULL)
 	free(vis_string);
-    if (old_string != 0)
+    if (old_string != NULL)
 	free(old_string);
 }
 
@@ -182,14 +182,14 @@ duplicate(WINDOW *win, NCURSES_CONST char *name, int code)
     char *value = tigetstr(name);
 
     if (VALID_STRING(value)) {
-	const char *prefix = 0;
+	const char *prefix = NULL;
 
 	if (!(strncmp) (value, "\033[", (size_t) 2)) {
 	    prefix = "\033O";
 	} else if (!(strncmp) (value, "\033O", (size_t) 2)) {
 	    prefix = "\033[";
 	}
-	if (prefix != 0) {
+	if (prefix != NULL) {
 	    char temp[BUFSIZ];
 	    _nc_SPRINTF(temp, _nc_SLIMIT(sizeof(temp))
 			"%s%s", prefix, value + 2);
@@ -199,7 +199,7 @@ duplicate(WINDOW *win, NCURSES_CONST char *name, int code)
 }
 
 static void
-redefine(WINDOW *win, char *string, int code)
+redefine(WINDOW *win, const char *string, int code)
 {
     really_define_key(win, string, code);
 }
@@ -207,7 +207,7 @@ redefine(WINDOW *win, char *string, int code)
 static void
 remove_definition(WINDOW *win, int code)
 {
-    really_define_key(win, 0, code);
+    really_define_key(win, NULL, code);
 }
 
 static void
@@ -240,11 +240,8 @@ main(int argc, char *argv[])
 
     while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
 	switch (ch) {
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
@@ -297,7 +294,7 @@ main(int argc, char *argv[])
 	const char *name = keyname(ch);
 	wprintw(win, "Keycode %d, name %s\n",
 		ch,
-		name != 0 ? name : "<null>");
+		name != NULL ? name : "<null>");
 	log_last_line(win);
 	wclrtoeol(win);
 	if (ch == 'q')

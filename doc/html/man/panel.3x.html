@@ -27,27 +27,25 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: panel.3x,v 1.63 2024/03/16 15:35:01 tom Exp @
+  * @Id: panel.3x,v 1.68 2024/12/28 21:26:21 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>panel 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
+<TITLE>panel 3x 2024-12-28 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">panel 3x 2024-03-16 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">panel 3x 2024-12-28 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="panel.3x.html">panel(3x)</A></STRONG>                        Library calls                       <STRONG><A HREF="panel.3x.html">panel(3x)</A></STRONG>
 
 
-
-
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       panel - panel stack extension for <EM>curses</EM>
+       panel - manage overlapping <EM>curses</EM> windows
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -141,7 +139,7 @@
 
 </PRE><H3><a name="h3-panel_below">panel_below</a></H3><PRE>
        <STRONG>panel_below(</STRONG><EM>pan</EM><STRONG>)</STRONG> returns a pointer to the panel just below <EM>pan</EM>.  If the
-       panel argument is "<STRONG>(PANEL</STRONG> <STRONG>*)0</STRONG>", it returns a pointer to the  top  panel
+       panel  argument  is "<STRONG>(PANEL</STRONG> <STRONG>*)0</STRONG>", it returns a pointer to the top panel
        in the stack.
 
 
@@ -172,7 +170,7 @@
 
 
 </PRE><H3><a name="h3-show_panel">show_panel</a></H3><PRE>
-       <STRONG>show_panel(</STRONG><EM>pan</EM><STRONG>)</STRONG>  makes  a  hidden panel visible by placing it on top of
+       <STRONG>show_panel(</STRONG><EM>pan</EM><STRONG>)</STRONG> makes a hidden panel visible by placing it  on  top  of
        the panels in the panel stack.  See "PORTABILITY" below.
 
 
@@ -187,21 +185,21 @@
        refresh the physical screen.  Use this function and not <STRONG><A HREF="curs_refresh.3x.html">wrefresh(3x)</A></STRONG> or
        <STRONG><A HREF="curs_refresh.3x.html">wnoutrefresh(3x)</A></STRONG>.
 
-       <STRONG>update_panels</STRONG> may be called more than once before a call  to  <STRONG>doupdate</STRONG>,
-       but  <STRONG>doupdate</STRONG>  is  the  function  responsible for updating the physical
+       <STRONG>update_panels</STRONG>  may  be called more than once before a call to <STRONG>doupdate</STRONG>,
+       but <STRONG>doupdate</STRONG> is the function  responsible  for  updating  the  physical
        screen.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       Each routine that returns a pointer returns <STRONG>NULL</STRONG> if  an  error  occurs.
-       Each  routine  that  returns  an  int  value  returns <STRONG>OK</STRONG> if it executes
+       Each  routine  that  returns a pointer returns <EM>NULL</EM> if an error occurs.
+       Each routine that returns an  int  value  returns  <STRONG>OK</STRONG>  if  it  executes
        successfully and <STRONG>ERR</STRONG> if not.
 
-       Except as noted, the <EM>pan</EM> and <EM>window</EM> parameters must  be  non-null.   If
+       Except  as  noted,  the <EM>pan</EM> and <EM>window</EM> parameters must be non-null.  If
        either is null, an error is returned.
 
-       The  <STRONG>move_panel</STRONG>  function uses <STRONG><A HREF="curs_window.3x.html">mvwin(3x)</A></STRONG>, and returns an error if <STRONG>mvwin</STRONG>
-       returns an error.
+       The <STRONG>move_panel</STRONG> function  uses  <STRONG><A HREF="curs_window.3x.html">mvwin(3x)</A></STRONG>,  and  returns  <STRONG>ERR</STRONG>  if  <STRONG>mvwin</STRONG>
+       returns <STRONG>ERR</STRONG>.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
@@ -209,8 +207,8 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       Reasonable care has been taken to ensure compatibility with the  native
-       panel  facility  introduced  in System V; inspection of the SVr4 manual
+       Reasonable  care has been taken to ensure compatibility with the native
+       panel facility introduced in System V; inspection of  the  SVr4  manual
        pages suggests the programming interface never changed.  The <EM>PANEL</EM> data
        structures  are  merely  similar.   The  programmer is cautioned not to
        directly use <EM>PANEL</EM> fields.
@@ -236,24 +234,24 @@
            library.
 
        <STRONG>o</STRONG>   <EM>ncurses</EM> (since version 0.6 in 1993) and <EM>PDCurses</EM> (since version 2.2
-           in  1995) provide a panel library whose common ancestor is a public
-           domain implementation by Warren Tucker published  in  <EM>u386mon</EM>  2.20
+           in 1995) provide a <EM>panel</EM> library whose common ancestor is a  public
+           domain  implementation  by  Warren Tucker published in <EM>u386mon</EM> 2.20
            (1990).
 
-           According  to Tucker, the System V panel library was first released
-           in SVr3.2 (1988), and his implementation  helped  with  a  port  to
+           According to Tucker, the System V panel library was first  released
+           in  SVr3.2  (1988),  and  his  implementation helped with a port to
            SVr3.1 (1987).
 
-           Several  developers have improved each of these; they are no longer
+           Several developers have improved each of these; they are no  longer
            the same as Tucker's implementation.
 
-       <STRONG>o</STRONG>   NetBSD 8 (2018) has a panel library  begun  by  Valery  Ushakov  in
+       <STRONG>o</STRONG>   NetBSD  8  (2018)  has  a  panel library begun by Valery Ushakov in
            2015, based on the System V documentation.
 
 
 </PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>
        Warren   Tucker   &lt;wht@n4hgf.mt-park.ga.us&gt;   originally   wrote   this
-       implementation, primarily to  assist  in  porting  <EM>u386mon</EM>  to  systems
+       implementation,  primarily  to  assist  in  porting  <EM>u386mon</EM> to systems
        without a native panel library.
 
        Zeyd ben-Halim repackaged it for <EM>ncurses</EM>.
@@ -264,9 +262,7 @@
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-03-16                         <STRONG><A HREF="panel.3x.html">panel(3x)</A></STRONG>
+ncurses 6.6                       2024-12-28                         <STRONG><A HREF="panel.3x.html">panel(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

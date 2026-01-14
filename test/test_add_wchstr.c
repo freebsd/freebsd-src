@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020-2021,2022 Thomas E. Dickey                                *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 2009-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_add_wchstr.c,v 1.34 2022/12/10 22:28:50 tom Exp $
+ * $Id: test_add_wchstr.c,v 1.38 2025/11/01 20:04:59 tom Exp $
  *
  * Demonstrate the waddwchstr() and wadd_wch functions.
  * Thomas Dickey - 2009/9/12
@@ -88,7 +88,7 @@ static cchar_t *temp_buffer;
 static size_t temp_length;
 
 #define TempBuffer(source_len, source_cast) \
-    if (source != 0) { \
+    if (source != NULL) { \
 	const char *temp; \
 	size_t need = source_len + 1; \
 	wchar_t have[2]; \
@@ -107,7 +107,7 @@ static size_t temp_length;
 	    if (!pass_ctls \
 	     && have[0] != 0 \
 	     && have[0] < 256 \
-	     && (temp = unctrl((chtype) have[0])) != 0 \
+	     && (temp = unctrl((chtype) have[0])) != NULL \
 	     && strlen(temp) > 1) { \
 		while (*temp != '\0') { \
 		    have[0] = (wchar_t) *temp++; \
@@ -117,9 +117,9 @@ static size_t temp_length;
 		setcchar(&temp_buffer[n++], have, A_NORMAL, 0, NULL); \
 	    } \
 	} while (have[0] != 0); \
-    } else if (temp_buffer != 0) { \
+    } else if (temp_buffer != NULL) { \
 	free(temp_buffer); \
-	temp_buffer = 0; \
+	temp_buffer = NULL; \
 	temp_length = 0; \
     } \
     return temp_buffer;
@@ -136,7 +136,7 @@ ChWLen(const wchar_t *source)
 	for (n = 0; source[n] != 0; ++n) {
 	    const char *s;
 
-	    if ((source[n] < 256) && (s = unctrl((chtype) source[n])) != 0) {
+	    if ((source[n] < 256) && (s = unctrl((chtype) source[n])) != NULL) {
 		adjust += (strlen(s) - 1);
 	    }
 	}
@@ -158,7 +158,7 @@ ChWStr(const wchar_t *source)
 }
 
 static void
-legend(WINDOW *win, int level, Options state, wchar_t *buffer, int length)
+legend(WINDOW *win, int level, Options state, const wchar_t *buffer, int length)
 {
     const char *showstate;
 
@@ -197,7 +197,7 @@ ColOf(const wchar_t *buffer, int length, int margin)
     int result;
 
     for (n = 0, result = margin + 1; n < length; ++n) {
-	int ch = buffer[n];
+	int ch = (int) buffer[n];
 	switch (ch) {
 	case '\n':
 	    /* actually newline should clear the remainder of the line
@@ -310,9 +310,9 @@ recursive_test(int level)
     int row2, col2;
     int length;
     wchar_t buffer[BUFSIZ];
-    WINDOW *look = 0;
-    WINDOW *work = 0;
-    WINDOW *show = 0;
+    WINDOW *look = NULL;
+    WINDOW *work = NULL;
+    WINDOW *show = NULL;
     int margin = (2 * MY_TABSIZE) - 1;
     Options option = (Options) ((unsigned) (m_opt
 					    ? oMove
@@ -591,11 +591,8 @@ main(int argc, char *argv[])
 	case 'w':
 	    w_opt = TRUE;
 	    break;
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }

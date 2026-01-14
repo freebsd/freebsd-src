@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.130 2021/12/18 23:00:28 tom Exp $
+# $Id: Makefile.in,v 1.133 2025/10/18 16:08:41 tom Exp $
 ##############################################################################
-# Copyright 2020,2021 Thomas E. Dickey                                       #
+# Copyright 2020-2024,2025 Thomas E. Dickey                                  #
 # Copyright 1998-2017,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -39,6 +39,8 @@ SHELL		= @SHELL@
 VPATH		= @srcdir@
 
 @SET_MAKE@
+@SET_DESTDIR@
+TOP_MFLAGS	= DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
 
 destdir		=
 x		= @EXEEXT@
@@ -61,10 +63,10 @@ datadir		= @datadir@
 
 real_bindir	= $(libexecdir)/$(PACKAGE)
 
-BINDIR		= $(DESTDIR)$(bindir)
-LIBEXECDIR	= $(DESTDIR)$(libexecdir)
-LIBDIR		= $(DESTDIR)$(libdir)
-DATADIR		= $(DESTDIR)$(datadir)
+BINDIR		= $(DESTDIR)$(bindir@MERGE_PREFIX@)
+LIBEXECDIR	= $(DESTDIR)$(libexecdir@MERGE_PREFIX@)
+LIBDIR		= $(DESTDIR)$(libdir@MERGE_PREFIX@)
+DATADIR		= $(DESTDIR)$(datadir@MERGE_PREFIX@)
 
 REAL_BINDIR	= $(LIBEXECDIR)/$(PACKAGE)
 
@@ -173,5 +175,11 @@ check::
 			$(CC) -c $(CFLAGS) $(CPPFLAGS) headers.c; \
 		done"
 	-@rm -f headers.*
+
+# These rules are used to allow "make -n" to work on a clean directory-tree
+../include/curses.h \
+../include/ncurses_def.h \
+../include/term.h :
+	( cd ../include && $(MAKE) $(TOP_MFLAGS) )
 
 # The rest is generated from the "programs" and "modules" files...

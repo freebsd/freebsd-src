@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2020,2022 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 2007-2010,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: inch_wide.c,v 1.13 2022/12/10 23:55:34 tom Exp $
+ * $Id: inch_wide.c,v 1.16 2025/07/05 15:21:56 tom Exp $
  */
 /*
        int in_wch(cchar_t *wcval);
@@ -61,7 +61,7 @@ Quit(int ch)
 static int
 test_inchs(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
 {
-    static const char *help[] =
+    static NCURSES_CONST char *help[] =
     {
 	"Test input from screen using inch(), etc., in a moveable viewport.",
 	"",
@@ -70,11 +70,11 @@ test_inchs(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
 	" h,j,k,l (and arrow-keys) - move viewport",
 	" w                        - recur to new window",
 	"                            for next input file",
-	0
+	NULL
     };
 
-    WINDOW *txtbox = 0;
-    WINDOW *txtwin = 0;
+    WINDOW *txtbox = NULL;
+    WINDOW *txtwin = NULL;
     FILE *fp;
     int j;
     int txt_x = 0, txt_y = 0;
@@ -82,7 +82,7 @@ test_inchs(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
     cchar_t ch;
     cchar_t text[MAX_COLS];
 
-    if (argv[level] == 0) {
+    if (argv[level] == NULL) {
 	beep();
 	return FALSE;
     }
@@ -110,7 +110,7 @@ test_inchs(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
     txt_x = 0;
     wmove(txtwin, txt_y, txt_x);
 
-    if ((fp = fopen(argv[level], "r")) != 0) {
+    if ((fp = fopen(argv[level], "r")) != NULL) {
 	while ((j = fgetc(fp)) != EOF) {
 	    if (waddch(txtwin, UChar(j)) != OK) {
 		break;
@@ -155,7 +155,7 @@ test_inchs(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
 	    break;
 	case 'w':
 	    test_inchs(level + 1, argv, chrwin, strwin);
-	    if (txtbox != 0) {
+	    if (txtbox != NULL) {
 		touchwin(txtbox);
 		wnoutrefresh(txtbox);
 	    } else {
@@ -289,11 +289,8 @@ main(int argc, char *argv[])
 
     while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
 	switch (ch) {
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }

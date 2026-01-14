@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1999-2010,2016 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: infotocap.1m,v 1.41 2024/03/16 15:35:01 tom Exp $
-.TH @INFOTOCAP@ 1M 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
+.\" $Id: infotocap.1m,v 1.52 2025/10/04 20:10:32 tom Exp $
+.TH @INFOTOCAP@ 1M 2025-10-04 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -40,7 +40,6 @@
 .el   .ds '' ""
 .\}
 .
-.ds d @TERMINFO@
 .SH NAME
 \fB\%@INFOTOCAP@\fP \-
 convert a \fI\%terminfo\fR description into a \fI\%termcap\fR description
@@ -52,39 +51,60 @@ convert a \fI\%terminfo\fR description into a \fI\%termcap\fR description
 .P
 .B "@INFOTOCAP@ \-V"
 .SH DESCRIPTION
-\fB\%@INFOTOCAP@\fP translates terminal descriptions.
-It looks in each given text \fIfile\fP for \fI\%terminfo\fP entries and,
-For each one found,
-it writes an analogous \fI\%termcap\fP description to the standard
-output stream.
-\fI\%terminfo\fP \*(``\fBuse\fP\*('' capabilities translate to
-\fI\%termcap\fP \fBtc\fP capabilities.
-Because \fI\%termcap\fP is a less expressive format than
-\fI\%terminfo\fP,
+.B \%@INFOTOCAP@
+translates terminal descriptions.
+It looks in each given text
+.I file
+for
+.I \%terminfo
+entries and,
+for each one found,
+writes an analogous
+.I \%termcap
+description to the standard output stream.
+.I \%terminfo
+.RB \*(`` use \*(''
+capabilities translate to
+.I \%termcap
+.B tc
+capabilities.
+Because
+.I \%termcap
+is a less expressive format than
+.IR \%terminfo ,
 some capabilities cannot be translated.
 .PP
 This utility is implemented as a link to \fB\%@TIC@\fP(1M),
 with the latter's
 .B \-C
 option implied.
-You can use other \fB\%@TIC@\fP options such as
+You can use other
+.B \%@TIC@
+options such as
 .BR \-1 ,
 .BR \-f ,
 .BR \-v ,
 .BR \-w ,
 and
 .BR \-x .
-The \fB\-V\fP option reports the version of \fI\%ncurses\fP associated
-with this program and exits with a successful status.
+The
+.B \-V
+option reports the version of
+.I \%ncurses
+associated with this program and exits with a successful status.
 .SH FILES
 .TP
-.I \*d
+.I @TERMINFO@
 compiled terminal description database
+.SH EXTENSIONS
+This command is an
+.I \%ncurses
+extension.
 .SH PORTABILITY
-None of X/Open Curses,
-Issue 7 (2009),
-SVr4,
-or NetBSD document this application.
+X/Open Curses Issue\ 7 (2009) does not specify this command.
+SVr4 and NetBSD
+.I curses
+do not implement it.
 .SH AUTHORS
 Eric S. Raymond <esr@snark.thyrsus.com>
 and

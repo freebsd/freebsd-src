@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_pattern.3x,v 1.38 2024/03/16 15:35:01 tom Exp $
-.TH menu_pattern 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: menu_pattern.3x,v 1.40 2024/12/28 21:26:21 tom Exp $
+.TH menu_pattern 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBset_menu_pattern\fP,
 \fBmenu_pattern\fP \-
@@ -55,7 +55,10 @@ The function \fBmenu_pattern\fP returns the pattern buffer of the given
 \fImenu\fP.
 .SH RETURN VALUE
 The function \fBmenu_pattern\fP returns a pointer,
-which is \fBNULL\fP if the \fImenu\fP parameter is \fBNULL\fP.
+which is
+.I NULL
+if the \fImenu\fP parameter is
+.IR NULL "."
 Otherwise, it is a pointer to a string which is empty
 if no pattern has been set.
 It does not set \fBerrno\fP.

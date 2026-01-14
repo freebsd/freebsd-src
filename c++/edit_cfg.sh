@@ -1,7 +1,7 @@
 #!/bin/sh
-# $Id: edit_cfg.sh,v 1.19 2022/07/16 18:00:59 tom Exp $
+# $Id: edit_cfg.sh,v 1.20 2025/02/02 00:38:39 tom Exp $
 ##############################################################################
-# Copyright 2020,2022 Thomas E. Dickey                                       #
+# Copyright 2020-2022,2025 Thomas E. Dickey                                  #
 # Copyright 1998-2007,2008 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -46,7 +46,9 @@ for name in \
 	HAVE_BUILTIN_H \
 	HAVE_GPP_BUILTIN_H \
 	HAVE_GXX_BUILTIN_H \
+	HAVE_EXCEPTION \
 	HAVE_IOSTREAM \
+	HAVE_NEW \
 	HAVE_TYPEINFO \
 	HAVE_VALUES_H \
 	IOSTREAM_NAMESPACE

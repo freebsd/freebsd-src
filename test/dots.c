@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 1999-2013,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -30,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey <dickey@clark.net> 1999
  *
- * $Id: dots.c,v 1.45 2023/01/07 17:21:48 tom Exp $
+ * $Id: dots.c,v 1.48 2025/07/05 15:21:56 tom Exp $
  *
  * A simple demo of the terminfo interface.
  */
@@ -61,7 +61,7 @@ TPUTS_PROTO(outc, c)
 }
 
 static bool
-outs(const char *s)
+outs(NCURSES_CONST char *s)
 {
     if (VALID_STRING(s)) {
 	tputs(s, 1, outc);
@@ -102,7 +102,7 @@ static int
 get_number(NCURSES_CONST char *cap, int map)
 {
     int result = map;
-    if (cap != 0) {
+    if (cap != NULL) {
 	int check = tigetnum(cap);
 	if (check > 0)
 	    result = check;
@@ -179,11 +179,8 @@ main(int argc, char *argv[])
 	case 's':
 	    s_option = atoi(optarg);
 	    break;
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
@@ -191,12 +188,12 @@ main(int argc, char *argv[])
     SetupAlarm(r_option);
     InitAndCatch(setupterm((char *) 0, 1, (int *) 0), onsig);
 
-    srand((unsigned) time(0));
+    srand((unsigned) time(NULL));
 
     outs(clear_screen);
     outs(cursor_invisible);
 
-#define GetNumber(ln,sn) get_number(f_option ? #sn : 0, ln)
+#define GetNumber(ln,sn) get_number(f_option ? #sn : NULL, ln)
     my_colors = GetNumber(max_colors, colors);
     if (my_colors > 1) {
 	if (!VALID_STRING(set_a_foreground)

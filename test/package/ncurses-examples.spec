@@ -3,11 +3,11 @@ Summary: example/test programs from ncurses
 %global AltProgram ncursest-examples
 %global AppVersion MAJOR.MINOR
 %global AppRelease YYYYMMDD
-# $Id: ncurses-examples.spec,v 1.22 2023/02/25 23:10:49 tom Exp $
+# $Id: ncurses-examples.spec,v 1.24 2025/06/21 18:35:49 tom Exp $
 Name: %{AppProgram}
 Version: %{AppVersion}
 Release: %{AppRelease}
-License: MIT
+License: X11 License Distribution Modification Variant
 Group: Applications/Development
 URL: https://invisible-island.net/ncurses/%{AppProgram}.html
 Source: https://invisible-island.net/archives/%{AppProgram}/%{AppProgram}-%{release}.tgz
@@ -96,6 +96,9 @@ popd
 
 %changelog
 # each patch should add its ChangeLog entries here
+
+* RPM_DATE Thomas Dickey
+- testing ncurses MAJOR.MINOR.YYYYMMDD
 
 * Sat Feb 25 2023 Thomas Dickey
 - amend URLs per rpmlint

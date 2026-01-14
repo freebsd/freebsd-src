@@ -34,16 +34,14 @@
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_memleaks 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_memleaks 3x 2024-03-16 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_memleaks 3x 2024-03-16 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_memleaks 3x 2024-03-16 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_memleaks.3x.html">curs_memleaks(3x)</A></STRONG>                Library calls               <STRONG><A HREF="curs_memleaks.3x.html">curs_memleaks(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -76,7 +74,7 @@
        functions which free those chunks of memory, simplifying the process of
        memory-leak checking.
 
-       Some  of  the functions are named with a "_nc_" prefix because they are
+       Some of the functions are named with a "_nc_" prefix because  they  are
        not intended for use in the non-debugging library:
 
        <STRONG>_nc_freeall</STRONG>
@@ -85,11 +83,11 @@
        <STRONG>_nc_free_and_exit</STRONG>
             This frees the memory allocated by <EM>ncurses</EM> (like <STRONG>_nc_freeall</STRONG>), and
             exits the program.  It is preferred over <STRONG>_nc_freeall</STRONG> since some of
-            that memory may be  required  to  keep  the  application  running.
+            that  memory  may  be  required  to  keep the application running.
             Simply exiting (with the given exit-code) is safer.
 
        <STRONG>_nc_free_tinfo</STRONG>
-            Use  this  function  if only the low-level terminfo functions (and
+            Use this function if only the low-level  terminfo  functions  (and
             corresponding library) are used.  Like <STRONG>_nc_free_and_exit</STRONG>, it exits
             the program after freeing memory.
 
@@ -115,10 +113,10 @@
        In any implementation of X/Open Curses, an application can free part of
        the memory allocated by curses:
 
-       <STRONG>o</STRONG>   The  portable  part  of  <STRONG>exit_curses</STRONG>  can be freed using <STRONG>delscreen</STRONG>,
+       <STRONG>o</STRONG>   The portable part of <STRONG>exit_curses</STRONG>  can  be  freed  using  <STRONG>delscreen</STRONG>,
            passing the <EM>SCREEN</EM> pointer returned by <STRONG>newterm</STRONG>.
 
-           In some implementations, there is a global variable <STRONG>sp</STRONG> which  could
+           In  some implementations, there is a global variable <STRONG>sp</STRONG> which could
            be used, e.g., if the screen were only initialized using <STRONG>initscr</STRONG>.
 
        <STRONG>o</STRONG>   The portable part of <STRONG>exit_terminfo</STRONG> can be freed using <STRONG>del_curterm</STRONG>.
@@ -130,9 +128,7 @@
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>, <STRONG><A HREF="curs_terminfo.3x.html">curs_terminfo(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-03-16                 <STRONG><A HREF="curs_memleaks.3x.html">curs_memleaks(3x)</A></STRONG>
+ncurses 6.6                       2024-03-16                 <STRONG><A HREF="curs_memleaks.3x.html">curs_memleaks(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

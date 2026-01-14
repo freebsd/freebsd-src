@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2023 Thomas E. Dickey                                     *
+ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
  * Copyright 1999-2010,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -30,7 +30,7 @@
 #include <curses.priv.h>
 #include <tic.h>		/* struct tinfo_fkeys */
 
-MODULE_ID("$Id: init_keytry.c,v 1.20 2023/09/16 12:55:01 tom Exp $")
+MODULE_ID("$Id: init_keytry.c,v 1.22 2024/12/07 18:14:49 tom Exp $")
 
 /*
 **      _nc_init_keytry()
@@ -74,7 +74,7 @@ _nc_init_keytry(SCREEN *sp)
      * mouse_activate() (which will call keyok()) are first called.
      */
 
-    if (sp != 0) {
+    if (sp != NULL) {
 	unsigned n;
 
 	for (n = 0; _nc_tinfo_fkeys[n].code; n++) {
@@ -94,8 +94,8 @@ _nc_init_keytry(SCREEN *sp)
 	    TERMTYPE *tp = &(sp->_term->type);
 	    for (n = STRCOUNT; n < NUM_STRINGS(tp); ++n) {
 		const char *name = ExtStrname(tp, (int) n, strnames);
-		char *value = tp->Strings[n];
-		if (name != 0
+		const char *value = tp->Strings[n];
+		if (name != NULL
 		    && *name == 'k'
 		    && VALID_STRING(value)
 		    && NCURSES_SP_NAME(key_defined) (NCURSES_SP_ARGx

@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,23 +28,21 @@
   * authorization.                                                           *
   ****************************************************************************
   * Author: Thomas E. Dickey 1996
-  * @Id: wresize.3x,v 1.36 2024/03/16 15:35:01 tom Exp @
+  * @Id: wresize.3x,v 1.47 2025/01/19 00:51:54 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>wresize 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
+<TITLE>wresize 3x 2025-01-18 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">wresize 3x 2024-03-16 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">wresize 3x 2025-01-18 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="wresize.3x.html">wresize(3x)</A></STRONG>                      Library calls                     <STRONG><A HREF="wresize.3x.html">wresize(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -54,48 +52,59 @@
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>wresize(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>lines</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>columns</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wresize(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>lines</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>columns</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       This  <EM>ncurses</EM>  extension  to  standard <EM>curses</EM> reallocates storage for a
-       <EM>curses</EM> window to adjust its dimensions to  the  specified  values.   If
-       either dimension is larger than its current value, the expanded part of
-       the window  is  filled  with  blanks  merged  with  current  background
-       rendition (as set by <STRONG><A HREF="curs_bkgd.3x.html">wbkgdset(3x)</A></STRONG>).
+       <STRONG>wresize</STRONG>,  an  <EM>ncurses</EM>  extension  to  the  <EM>curses</EM>  library, reallocates
+       storage for <EM>win</EM>, adjusting its dimensions to  <EM>lines</EM>  and  <EM>columns</EM>.   If
+       either  dimension  is  larger than its current value, <EM>ncurses</EM> fills the
+       expanded part of the window with the window's background  character  as
+       configured by <STRONG><A HREF="curs_bkgd.3x.html">wbkgdset(3x)</A></STRONG> (wide-character API: <STRONG><A HREF="curs_bkgrnd.3x.html">wbkgrndset(3x)</A></STRONG>).
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       <STRONG>wresize</STRONG>  returns  <STRONG>ERR</STRONG>  upon failure and <STRONG>OK</STRONG> on success.  It will fail if
-       either of the dimensions is less than or equal to zero, or if an  error
-       occurs while (re)allocating memory for the window.
+       <STRONG>wresize</STRONG>  returns  <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.  It fails if either
+       <EM>lines</EM> or <EM>columns</EM> is less than or equal to zero, or if an  error  occurs
+       while (re)allocating memory for <EM>win</EM>.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       The  only  restriction placed on the dimensions is that they be greater
-       than zero.  They are <EM>not</EM> compared to the <EM>curses</EM> screen dimensions; this
-       keeps  the logic of <STRONG><A HREF="resizeterm.3x.html">resizeterm(3x)</A></STRONG> simple.  The caller must ensure that
-       the window's dimensions fit within the actual screen dimensions.
+       The  only restriction placed on the values of <EM>lines</EM> and <EM>columns</EM> is that
+       they be greater than zero.  They are <EM>not</EM> compared to the dimensions  of
+       the  <EM>curses</EM> screen; this keeps the logic of <STRONG><A HREF="resizeterm.3x.html">resizeterm(3x)</A></STRONG> simple.  The
+       caller must ensure that  <EM>win</EM>'s  dimensions  fit  within  those  of  the
+       screen.
+
+
+</PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
+       <STRONG>wresize</STRONG>  is  an <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG> extension, and is not found in SVr4 <EM>curses</EM>,
+       4.4BSD <EM>curses</EM>, or any other previous <EM>curses</EM> implementation.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
+       Applications employing <EM>ncurses</EM> extensions should condition their use on
+       the visibility of the <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
+
+       NetBSD <EM>curses</EM> adopted <EM>wresize</EM> in 2001 (release 1.5.3), and <EM>PDCurses</EM>  in
+       2004 (version 2.7).
+
        It is not possible to resize windows with SVr4 <EM>curses</EM>.
 
-       <EM>ncurses</EM> introduced this extension in mid-1995.  NetBSD  <EM>curses</EM>  adopted
-       it in 2001, and <EM>PDCurses</EM> in 2003.
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       Thomas  Dickey developed <EM>wresize</EM> as an extension to BSD <EM>curses</EM> in 1988,
+       and brought it to <EM>ncurses</EM> in mid-1995.
 
 
 </PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>
-       Thomas  Dickey  (from  an  equivalent  function written in 1988 for BSD
-       <EM>curses</EM>).
+       Thomas Dickey
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="resizeterm.3x.html">resizeterm(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-03-16                       <STRONG><A HREF="wresize.3x.html">wresize(3x)</A></STRONG>
+ncurses 6.6                       2025-01-18                       <STRONG><A HREF="wresize.3x.html">wresize(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -104,7 +113,9 @@ ncurses 6.5                       2024-03-16                       <STRONG><A HR
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>
+<li><a href="#h2-EXTENSIONS">EXTENSIONS</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-AUTHORS">AUTHORS</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>

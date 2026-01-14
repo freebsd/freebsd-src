@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2023 Thomas E. Dickey                                     *
+ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
  * Copyright 1998-2013,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -41,7 +41,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_overlay.c,v 1.34 2023/09/16 16:39:07 tom Exp $")
+MODULE_ID("$Id: lib_overlay.c,v 1.35 2024/12/07 20:03:37 tom Exp $")
 
 static int
 overlap(const WINDOW *const src, WINDOW *const dst, int const flag)
@@ -50,7 +50,7 @@ overlap(const WINDOW *const src, WINDOW *const dst, int const flag)
 
     T((T_CALLED("overlap(%p,%p,%d)"), (const void *) src, (void *) dst, flag));
 
-    if (src != 0 && dst != 0) {
+    if (src != NULL && dst != NULL) {
 	int sx1, sy1, sx2, sy2;
 	int dx1, dy1, dx2, dy2;
 
@@ -146,8 +146,8 @@ copywin(const WINDOW *src, WINDOW *dst,
        dminrow, dmincol,
        dmaxrow, dmaxcol, over));
 
-    if (src != 0
-	&& dst != 0
+    if (src != NULL
+	&& dst != NULL
 	&& dmaxrow >= dminrow
 	&& dmaxcol >= dmincol) {
 	attr_t bk;

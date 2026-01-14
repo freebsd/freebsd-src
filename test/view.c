@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2021,2022 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -52,7 +52,7 @@
  * scroll operation worked, and the refresh() code only had to do a
  * partial repaint.
  *
- * $Id: view.c,v 1.145 2022/12/04 00:40:11 tom Exp $
+ * $Id: view.c,v 1.151 2025/07/05 15:22:23 tom Exp $
  */
 
 #include <test.priv.h>
@@ -93,8 +93,7 @@ ch_len(NCURSES_CH_T *src)
 
 #if USE_WIDEC_SUPPORT
     for (;;) {
-	int count;
-	TEST_CCHAR(src, count, {
+	TEST_CCHAR(src, {
 	    int len = wcwidth(test_wch[0]);
 	    result += (len > 0) ? len : 1;
 	    ++src;
@@ -115,7 +114,7 @@ finish(int sig)
 {
     endwin();
 #if NO_LEAKS
-    if (vec_lines != 0) {
+    if (vec_lines != NULL) {
 	int n;
 	for (n = 0; n < num_lines; ++n) {
 	    free(vec_lines[n]);
@@ -173,7 +172,7 @@ show_all(const char *tag)
 	move(i, 0);
 	printw("%*d:", digits, actual);
 	clrtoeol();
-	if ((s = lptr[i - 1]) == 0) {
+	if ((s = lptr[i - 1]) == NULL) {
 	    continue;
 	}
 	len = ch_len(s);
@@ -186,12 +185,10 @@ show_all(const char *tag)
 	     */
 	    {
 		int j;
-		int width = 1;
+		int width;
 
 		for (j = actual = 0; j < shift; ++j) {
-		    int count;
-
-		    TEST_CCHAR(s + j, count, {
+		    TEST_CCHAR(s + j, {
 			width = wcwidth(test_wch[0]);
 		    }
 		    , {
@@ -236,7 +233,7 @@ read_file(const char *filename)
     size_t len;
     struct stat sb;
     char *my_blob;
-    char **my_vec = 0;
+    char **my_vec = NULL;
     WINDOW *my_win;
 
     if (stat(filename, &sb) != 0
@@ -248,11 +245,11 @@ read_file(const char *filename)
 	failed("input is empty");
     }
 
-    if ((fp = fopen(filename, "r")) == 0) {
+    if ((fp = fopen(filename, "r")) == NULL) {
 	failed("cannot open input-file");
     }
 
-    if ((my_blob = malloc((size_t) sb.st_size + 1)) == 0) {
+    if ((my_blob = malloc((size_t) sb.st_size + 1)) == NULL) {
 	failed("cannot allocate memory for input-file");
     }
 
@@ -283,7 +280,7 @@ read_file(const char *filename)
 	}
 	num_lines = k;
 	if (pass == 0) {
-	    if (((my_vec = typeCalloc(char *, (size_t) k + 2)) == 0)) {
+	    if (((my_vec = typeCalloc(char *, (size_t) k + 2)) == NULL)) {
 		failed("cannot allocate line-vector #1");
 	    }
 	} else {
@@ -294,7 +291,7 @@ read_file(const char *filename)
 
 #if USE_WIDEC_SUPPORT
     if (!memcmp("\357\273\277", my_blob, 3)) {
-	char *s = my_blob + 3;
+	const char *s = my_blob + 3;
 	char *d = my_blob;
 	Trace(("trim BOM"));
 	do {
@@ -310,11 +307,11 @@ read_file(const char *filename)
     }
     width = (width + 1) * 5;
     my_win = newwin(2, width, 0, 0);
-    if (my_win == 0) {
+    if (my_win == NULL) {
 	failed("cannot allocate temporary window");
     }
 
-    if ((vec_lines = typeCalloc(NCURSES_CH_T *, (size_t) num_lines + 2)) == 0) {
+    if ((vec_lines = typeCalloc(NCURSES_CH_T *, (size_t) num_lines + 2)) == NULL) {
 	failed("cannot allocate line-vector #2");
     }
 
@@ -329,7 +326,7 @@ read_file(const char *filename)
 	char *s;
 	int y, x;
 #if USE_WIDEC_SUPPORT
-	char *last = my_vec[k] + (int) strlen(my_vec[k]);
+	const char *last = my_vec[k] + (int) strlen(my_vec[k]);
 	wchar_t wch[2];
 	size_t rc;
 #ifndef state_unused
@@ -361,7 +358,7 @@ read_file(const char *filename)
 	    x = width - 1;
 	wmove(my_win, 0, 0);
 	/* "x + 1" works with standard curses; some implementations are buggy */
-	if ((vec_lines[k] = typeCalloc(NCURSES_CH_T, x + width + 1)) == 0) {
+	if ((vec_lines[k] = typeCalloc(NCURSES_CH_T, x + width + 1)) == NULL) {
 	    failed("cannot allocate line-vector #3");
 	}
 #if USE_WIDEC_SUPPORT
@@ -385,15 +382,15 @@ usage(int ok)
 	,""
 	,USAGE_COMMON
 	,"Options:"
-	," -c       use color if terminal supports it"
+	," -C       use color if terminal supports it"
 	," -i       ignore INT, QUIT, TERM signals"
 #if USE_WIDEC_SUPPORT
 	," -n       use waddch (bytes) rather then wadd_wch (wide-chars)"
 #endif
-	," -s       start in single-step mode, waiting for input"
+	," -s       start in single-step mode"
 #ifdef TRACE
 	," -t       trace screen updates"
-	," -T NUM   specify trace mask"
+	," -D NUM   specify trace mask"
 #endif
     };
     size_t n;
@@ -408,7 +405,7 @@ VERSION_COMMON()
 int
 main(int argc, char *argv[])
 {
-    static const char *help[] =
+    static NCURSES_CONST char *help[] =
     {
 	"Commands:",
 	"  q,^Q,ESC       - quit this program",
@@ -430,7 +427,7 @@ main(int argc, char *argv[])
 	"  s              - use entered count for halfdelay() parameter",
 	"                 - if no entered count, stop nodelay()",
 	"  <space>        - begin nodelay()",
-	0
+	NULL
     };
 
     int ch;
@@ -446,9 +443,9 @@ main(int argc, char *argv[])
 
     setlocale(LC_ALL, "");
 
-    while ((ch = getopt(argc, argv, OPTS_COMMON "cinstT:")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "CD:inst")) != -1) {
 	switch (ch) {
-	case 'c':
+	case 'C':
 	    try_color = TRUE;
 	    break;
 	case 'i':
@@ -463,11 +460,11 @@ main(int argc, char *argv[])
 	    single_step = TRUE;
 	    break;
 #ifdef TRACE
-	case 'T':
+	case 'D':
 	    {
-		char *next = 0;
+		char *next = NULL;
 		int tvalue = (int) strtol(optarg, &next, 0);
-		if (tvalue < 0 || (next != 0 && *next != 0))
+		if (tvalue < 0 || (next != NULL && *next != 0))
 		    usage(FALSE);
 		curses_trace((unsigned) tvalue);
 	    }
@@ -476,11 +473,8 @@ main(int argc, char *argv[])
 	    curses_trace(TRACE_CALLS);
 	    break;
 #endif
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
@@ -659,7 +653,7 @@ main(int argc, char *argv[])
 	    beep();
 	    break;
 	}
-	if (c >= KEY_MIN || (c > 0 && !isdigit(c))) {
+	if (c >= KEY_MIN || (c > 0 && !isdigit(UChar(c)))) {
 	    got_number = FALSE;
 	    value = 0;
 	}

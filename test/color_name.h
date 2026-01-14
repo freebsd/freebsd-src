@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2018-2021,2024 Thomas E. Dickey                                *
  * Copyright 2011-2012,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: color_name.h,v 1.9 2021/04/24 23:25:29 tom Exp $
+ * $Id: color_name.h,v 1.11 2024/12/07 22:17:24 tom Exp $
  */
 
 #ifndef __COLORNAME_H
@@ -62,15 +62,15 @@ static int
 color_code(const char *color)
 {
     int result = 0;
-    char *endp = 0;
-    size_t n;
+    char *endp = NULL;
 
     if ((result = (int) strtol(color, &endp, 0)) >= 0
-	&& (endp == 0 || *endp == 0)) {
+	&& (endp == NULL || *endp == 0)) {
 	;
     } else if (!strcmp(color, "default")) {
 	result = -1;
     } else {
+	size_t n;
 	for (n = 0; n < SIZEOF(the_color_names); ++n) {
 	    if (!strcmp(the_color_names[n], color)) {
 		result = (int) n;
@@ -87,7 +87,7 @@ static const char *
 color_name(int color)
 {
     static char temp[20];
-    const char *result = 0;
+    const char *result = NULL;
 
     if (color >= (int) SIZEOF(the_color_names)) {
 	_nc_SPRINTF(temp, _nc_SLIMIT(sizeof(temp)) "%d", color);

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2023 Thomas E. Dickey                                     *
+ * Copyright 2020-2023,2025 Thomas E. Dickey                                *
  * Copyright 2008-2010,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,16 +27,11 @@
  * authorization.                                                           *
  ****************************************************************************/
 
-#ifdef WINVER
-#  undef WINVER
-#endif
-#define WINVER 0x0501
-
 #include <curses.priv.h>
 
 #include <windows.h>
 
-MODULE_ID("$Id: gettimeofday.c,v 1.7 2023/02/25 20:05:36 tom Exp $")
+MODULE_ID("$Id: gettimeofday.c,v 1.8 2025/08/30 17:59:42 tom Exp $")
 
 #if HAVE_GETTIMEOFDAY == 2
 #define JAN1970 116444736000000000LL	/* the value for 01/01/1970 00:00 */

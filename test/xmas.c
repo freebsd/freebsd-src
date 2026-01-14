@@ -92,7 +92,7 @@
 /******************************************************************************/
 
 /*
- * $Id: xmas.c,v 1.39 2022/12/04 00:40:11 tom Exp $
+ * $Id: xmas.c,v 1.41 2025/07/05 15:11:35 tom Exp $
  */
 #include <test.priv.h>
 
@@ -140,7 +140,7 @@ set_color(WINDOW *win, chtype color)
 {
     if (has_colors()) {
 	int n = (int) (color + 1);
-	if (my_pairs == 0)
+	if (my_pairs == NULL)
 	    my_pairs = typeCalloc(bool, (size_t) (COLORS + 1));
 	if (!my_pairs[n]) {
 	    init_pair((short) n, (short) color, (short) my_bg);
@@ -638,7 +638,7 @@ done(int sig GCC_UNUSED)
     stop_curses();
 
 #if NO_LEAKS
-    if (my_pairs != 0)
+    if (my_pairs != NULL)
 	free(my_pairs);
 #endif
 
@@ -690,11 +690,8 @@ main(int argc, char *argv[])
 	case 'q':
 	    opt_q = TRUE;
 	    break;
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
@@ -715,44 +712,44 @@ main(int argc, char *argv[])
     }
     curs_set(0);
 
-    if ((treescrn = newwin(16, 27, 3, 53)) == 0 ||
-	(treescrn2 = newwin(16, 27, 3, 53)) == 0 ||
-	(treescrn3 = newwin(16, 27, 3, 53)) == 0 ||
-	(treescrn4 = newwin(16, 27, 3, 53)) == 0 ||
-	(treescrn5 = newwin(16, 27, 3, 53)) == 0 ||
-	(treescrn6 = newwin(16, 27, 3, 53)) == 0 ||
-	(treescrn7 = newwin(16, 27, 3, 53)) == 0 ||
-	(treescrn8 = newwin(16, 27, 3, 53)) == 0 ||
+    if ((treescrn = newwin(16, 27, 3, 53)) == NULL ||
+	(treescrn2 = newwin(16, 27, 3, 53)) == NULL ||
+	(treescrn3 = newwin(16, 27, 3, 53)) == NULL ||
+	(treescrn4 = newwin(16, 27, 3, 53)) == NULL ||
+	(treescrn5 = newwin(16, 27, 3, 53)) == NULL ||
+	(treescrn6 = newwin(16, 27, 3, 53)) == NULL ||
+	(treescrn7 = newwin(16, 27, 3, 53)) == NULL ||
+	(treescrn8 = newwin(16, 27, 3, 53)) == NULL ||
 
-	(dotdeer0 = newwin(3, 71, 0, 8)) == 0 ||
+	(dotdeer0 = newwin(3, 71, 0, 8)) == NULL ||
 
-	(stardeer0 = newwin(4, 56, 0, 8)) == 0 ||
+	(stardeer0 = newwin(4, 56, 0, 8)) == NULL ||
 
-	(lildeer0 = newwin(7, 53, 0, 8)) == 0 ||
-	(lildeer1 = newwin(2, 4, 0, 0)) == 0 ||
-	(lildeer2 = newwin(2, 4, 0, 0)) == 0 ||
-	(lildeer3 = newwin(2, 4, 0, 0)) == 0 ||
+	(lildeer0 = newwin(7, 53, 0, 8)) == NULL ||
+	(lildeer1 = newwin(2, 4, 0, 0)) == NULL ||
+	(lildeer2 = newwin(2, 4, 0, 0)) == NULL ||
+	(lildeer3 = newwin(2, 4, 0, 0)) == NULL ||
 
-	(middeer0 = newwin(15, 42, 0, 8)) == 0 ||
-	(middeer1 = newwin(3, 7, 0, 0)) == 0 ||
-	(middeer2 = newwin(3, 7, 0, 0)) == 0 ||
-	(middeer3 = newwin(3, 7, 0, 0)) == 0 ||
+	(middeer0 = newwin(15, 42, 0, 8)) == NULL ||
+	(middeer1 = newwin(3, 7, 0, 0)) == NULL ||
+	(middeer2 = newwin(3, 7, 0, 0)) == NULL ||
+	(middeer3 = newwin(3, 7, 0, 0)) == NULL ||
 
-	(bigdeer0 = newwin(10, 23, 0, 0)) == 0 ||
-	(bigdeer1 = newwin(10, 23, 0, 0)) == 0 ||
-	(bigdeer2 = newwin(10, 23, 0, 0)) == 0 ||
-	(bigdeer3 = newwin(10, 23, 0, 0)) == 0 ||
-	(bigdeer4 = newwin(10, 23, 0, 0)) == 0 ||
+	(bigdeer0 = newwin(10, 23, 0, 0)) == NULL ||
+	(bigdeer1 = newwin(10, 23, 0, 0)) == NULL ||
+	(bigdeer2 = newwin(10, 23, 0, 0)) == NULL ||
+	(bigdeer3 = newwin(10, 23, 0, 0)) == NULL ||
+	(bigdeer4 = newwin(10, 23, 0, 0)) == NULL ||
 
-	(lookdeer0 = newwin(10, 25, 0, 0)) == 0 ||
-	(lookdeer1 = newwin(10, 25, 0, 0)) == 0 ||
-	(lookdeer2 = newwin(10, 25, 0, 0)) == 0 ||
-	(lookdeer3 = newwin(10, 25, 0, 0)) == 0 ||
-	(lookdeer4 = newwin(10, 25, 0, 0)) == 0 ||
+	(lookdeer0 = newwin(10, 25, 0, 0)) == NULL ||
+	(lookdeer1 = newwin(10, 25, 0, 0)) == NULL ||
+	(lookdeer2 = newwin(10, 25, 0, 0)) == NULL ||
+	(lookdeer3 = newwin(10, 25, 0, 0)) == NULL ||
+	(lookdeer4 = newwin(10, 25, 0, 0)) == NULL ||
 
-	(w_holiday = newwin(1, 26, 3, 27)) == 0 ||
+	(w_holiday = newwin(1, 26, 3, 27)) == NULL ||
 
-	(w_del_msg = newwin(1, 19, 23, 60)) == 0) {
+	(w_del_msg = newwin(1, 19, 23, 60)) == NULL) {
 	stop_curses();
 	fprintf(stderr, "Cannot create windows - screen too small\n");
 	ExitProgram(EXIT_FAILURE);

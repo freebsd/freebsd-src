@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2023 Thomas E. Dickey                                     *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2015,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -107,7 +107,7 @@ be moved out of order.
 			THE ALGORITHM
 
 The scrolling is done in two passes. The first pass is from top to bottom
-scroling hunks UP. The second one is from bottom to top scrolling hunks DOWN.
+scrolling hunks UP. The second one is from bottom to top scrolling hunks DOWN.
 Obviously enough, no lines to be scrolled will be destroyed. (lav)
 
 HOW TO TEST THIS:
@@ -148,7 +148,7 @@ AUTHOR
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: hardscroll.c,v 1.58 2023/09/09 16:04:08 Nicholas.Marriott Exp $")
+MODULE_ID("$Id: hardscroll.c,v 1.61 2025/02/15 15:12:54 tom Exp $")
 
 #if defined(SCROLLDEBUG) || defined(HASHDEBUG)
 
@@ -169,7 +169,7 @@ extern				NCURSES_EXPORT_VAR(unsigned) _nc_tracing;
    if OLDNUM(n) == _NEWINDEX, then the line n in new, not shifted from
    somewhere. */
 NCURSES_EXPORT_VAR (int *)
-  _nc_oldnums = 0;		/* obsolete: keep for ABI compat */
+  _nc_oldnums = NULL;		/* obsolete: keep for ABI compat */
 
 # if USE_HASHMAP
 #  define oldnums(sp)   (sp)->_oldnum_list
@@ -196,7 +196,7 @@ NCURSES_SP_NAME(_nc_scroll_optimize) (NCURSES_SP_DCL0)
     /* get enough storage */
     assert(OLDNUM_SIZE(SP_PARM) >= 0);
     assert(screen_lines(SP_PARM) > 0);
-    if ((oldnums(SP_PARM) == 0)
+    if ((oldnums(SP_PARM) == NULL)
 	|| (OLDNUM_SIZE(SP_PARM) < screen_lines(SP_PARM))) {
 	int need_lines = ((OLDNUM_SIZE(SP_PARM) < screen_lines(SP_PARM))
 			  ? screen_lines(SP_PARM)
@@ -308,11 +308,11 @@ NCURSES_SP_NAME(_nc_linedump) (NCURSES_SP_DCL0)
 /* dump the state of the real and virtual oldnum fields */
 {
     if (USE_TRACEF(TRACE_UPDATE | TRACE_MOVE)) {
-	char *buf = 0;
+	char *buf = NULL;
 	size_t want = ((size_t) screen_lines(SP_PARM) + 1) * 4;
 	(void) SP_PARM;
 
-	if ((buf = typeMalloc(char, want)) != 0) {
+	if ((buf = typeMalloc(char, want)) != NULL) {
 	    int n;
 
 	    *buf = '\0';
@@ -371,7 +371,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	do {
 	    oldnums[n++] = atoi(st);
 	} while
-	    ((st = strtok((char *) NULL, " ")) != 0);
+	    ((st = strtok((char *) NULL, " ")) != NULL);
 
 	/* display it */
 	(void) fputs("Initial input:\n", stderr);

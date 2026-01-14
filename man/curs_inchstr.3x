@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_inchstr.3x,v 1.45 2024/04/20 21:20:07 tom Exp $
-.TH curs_inchstr 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_inchstr.3x,v 1.65 2025/10/21 00:05:02 tom Exp $
+.TH curs_inchstr 3X 2025-10-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -58,41 +58,68 @@ get a \fIcurses\fR character string from a window
 .nf
 \fB#include <curses.h>
 .PP
-\fBint inchstr(chtype *\fIchstr\fP);
-\fBint inchnstr(chtype *\fIchstr\fP, int \fIn\fP);
-\fBint winchstr(WINDOW *\fIwin\fP, chtype *\fIchstr\fP);
-\fBint winchnstr(WINDOW *\fIwin\fP, chtype *\fIchstr\fP, int \fIn\fP);
+\fBint inchstr(chtype * \fIchstr\fP);
+\fBint inchnstr(chtype * \fIchstr\fP, int \fIn\fP);
+\fBint winchstr(WINDOW * \fIwin\fP, chtype * \fIchstr\fP);
+\fBint winchnstr(WINDOW * \fIwin\fP, chtype * \fIchstr\fP, int \fIn\fP);
 .PP
-\fBint mvinchstr(int \fIy\fP, int \fIx\fP, chtype *\fIchstr\fP);
-\fBint mvinchnstr(int \fIy\fP, int \fIx\fP, chtype *\fIchstr\fP, int \fIn\fP);
-\fBint mvwinchstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, chtype *\fIchstr\fP);
-\fBint mvwinchnstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, chtype *\fIchstr\fP, int \fIn\fP);
+\fBint mvinchstr(int \fIy\fP, int \fIx\fP, chtype * \fIchstr\fP);
+\fBint mvinchnstr(int \fIy\fP, int \fIx\fP, chtype * \fIchstr\fP, int \fIn\fP);
+\fBint mvwinchstr(WINDOW * \fIwin\fP, int \fIy\fP, int \fIx\fP, chtype * \fIchstr\fP);
+\fBint mvwinchnstr(WINDOW * \fIwin\fP, int \fIy\fP, int \fIx\fP, chtype * \fIchstr\fP, int \fIn\fP);
 .fi
 .SH DESCRIPTION
-These routines return a NULL-terminated array of \fBchtype\fP quantities,
-starting at the current cursor position in the named window and ending at the
-right margin of the window.
-.PP
-The four functions with \fIn\fP as the last argument, return
-a leading substring at most \fIn\fP characters long
-(exclusive of the trailing (chtype)0).
-Transfer stops at the end of the current line, or when \fIn\fP characters have
-been stored at the location referenced by \fIchstr\fP.
-.PP
-Constants defined in \fB<curses.h>\fP can be used with the \fB&\fP (logical
-AND) operator to extract the character or the attribute alone from any position
-in the \fIchstr\fP [see \fBcurs_inch\fP(3X)].
+.B \%winchstr
+extracts a
+.I curses
+character string from a
+.I curses
+window
+.IR win ","
+starting at the cursor and stopping at the end of the line,
+and stores it in
+.IR chstr ","
+terminating it with a null
+.I curses
+character.
+.B \%winchnstr
+does the same,
+but copies at most
+.I n
+.I curses
+characters from
+.IR win "."
+A negative
+.I n
+implies no limit;
+.B \%winchnstr
+then works like
+.BR \%winchstr "."
+\fB\%ncurses\fP(3X) describes the variants of these functions.
 .SH RETURN VALUE
-All routines return the integer \fBERR\fP upon failure and an integer value
-other than \fBERR\fP upon successful completion (the number of characters
-retrieved, exclusive of the trailing 0).
+These functions return
+.B OK
+on success and
+.B ERR
+on failure.
 .PP
-X/Open Curses defines no error conditions.
-This implementation returns an error
+In
+.IR \%ncurses ","
+these functions fail if
 .bP
-if the \fIwin\fP parameter is null or
+the
+.I curses
+screen has not been initialized,
 .bP
-if the \fIchstr\fP parameter is null.
+(for functions taking a
+.I \%WINDOW
+pointer argument)
+.I win
+is a null pointer,
+or
+.bP
+.I chstr
+is a null pointer.
 .PP
 Functions prefixed with \*(``mv\*('' first perform cursor movement and
 fail if the position
@@ -100,36 +127,72 @@ fail if the position
 .IR x )
 is outside the window boundaries.
 .SH NOTES
-All routines except \fBwinchnstr\fP may be macros.
-.PP
-SVr4 does not
-document whether the result string is zero-terminated; it does not document
-whether a length limit argument includes any trailing 0; and it does not
-document the meaning of the return value.
+All of these functions except
+.B \%winchnstr
+may be implemented as macros.
 .PP
 Reading a line that overflows the array pointed to by
-\fIchstr\fP
-with
-\fBinchstr\fP,
-\fBmvinchstr\fP,
-\fBmvwinchstr\fP
-or
-\fBwinchstr\fP
-causes undefined results.
-Therefore, the use of
-\fBinchnstr\fP,
-\fBmvinchnstr\fP,
-\fBmvwinchnstr\fP, or
-\fBwinchnstr\fP
-is recommended.
+.I chstr
+and its variants causes undefined results.
+Instead,
+use the
+.IR n -infixed
+functions with a positive
+.I n
+argument no larger than the size of the buffer backing
+.IR chstr "."
+.SH EXTENSIONS
+.BR \%inchnstr ","
+.BR \%winchnstr ","
+.BR \%mvinchnstr ","
+and
+.BR \%mvwinchnstr "'s"
+acceptance of negative
+.I n
+values is an
+.I \%ncurses
+extension.
 .SH PORTABILITY
-These functions are described in X/Open Curses, Issue 4.
-It is no
-more specific than the SVr4 documentation on the trailing 0.
-It does specify
-that the successful return of the functions is \fBOK\fP.
+Applications employing
+.I \%ncurses
+extensions should condition their use on the visibility of the
+.B \%NCURSES_VERSION
+preprocessor macro.
+.PP
+X/Open Curses Issue\ 4 describes these functions.
+It specifies no error conditions for them.
+It characterizes the strings stored by these functions as containing
+\*(``at most
+.I n
+elements\*('' from a window,
+.\" X/Open Issue 4, Version 2, p. 113, PDF p. 133
+.\" Issue 7 doesn't change this wording at all.
+but does not specify whether the string stored by these functions is
+null-terminated.
+.PP
+SVr4 does not document whether it null-terminates the
+.I curses
+character string it stores
+in
+.IR chstr ","
+and does not document whether a trailing null
+.I curses
+character counts
+toward the length limit
+.IR n "."
+.PP
+SVr4 describes a successful return value only as
+\*(``an integer value other than
+.IR ERR \*(''. \" Courier roman in source; SVID 4, vol. 3, p. 503
+.SH HISTORY
+SVr3.1 (1987)
+introduced these functions.
 .SH SEE ALSO
+\fB\%curs_in_wchstr\fP(3X) describes comparable functions of the
+.I \%ncurses
+library in its wide-character configuration
+.RI \%( ncursesw ).
+.PP
 \fB\%curses\fP(3X),
 \fB\%curs_inch\fP(3X),
-\fB\%curs_inwstr\fP(3X),
-\fB\%curs_in_wchstr\fP(3X)
+\fB\%curs_inwstr\fP(3X)

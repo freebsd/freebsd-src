@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2021,2022 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 2006-2017,2018 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: savescreen.c,v 1.62 2022/12/10 23:23:27 tom Exp $
+ * $Id: savescreen.c,v 1.68 2025/07/05 15:21:56 tom Exp $
  *
  * Demonstrate save/restore functions from the curses library.
  * Thomas Dickey - 2007/7/14
@@ -89,14 +89,14 @@ cleanup(char *files[])
     if (!keep_dumps) {
 	int n;
 
-	for (n = 0; files[n] != 0; ++n) {
+	for (n = 0; files[n] != NULL; ++n) {
 	    unlink(files[n]);
 	}
     }
 }
 
 static int
-load_screen(char *filename)
+load_screen(NCURSES_CONST char *filename)
 {
     int result;
 
@@ -170,10 +170,10 @@ dump_screen(char **files, int color, int which, int last, bool use_colors)
 #if USE_WIDEC_SUPPORT
     cchar_t mycc;
 #endif
-    char *filename = files[which];
+    NCURSES_CONST char *filename = files[which];
     bool dumped = FALSE;
 
-    if (filename != 0) {
+    if (filename != NULL) {
 	dumped = TRUE;
 	show_what(color, ++which, last);
 	if (scr_dump(filename) == ERR) {
@@ -216,7 +216,7 @@ dump_screen(char **files, int color, int which, int last, bool use_colors)
 static void
 editor_help(void)
 {
-    static const char *msgs[] =
+    static NCURSES_CONST char *msgs[] =
     {
 	"You are now in the screen-editor, which allows you to make some",
 	"lines on the screen, as well as save copies of the screen to a",
@@ -230,7 +230,7 @@ editor_help(void)
 	"   a           toggle between '#' and graphic symbol for drawing",
 	"   c           change color drawn by line to next in palette",
 	"   h,j,k,l or arrows to move around the screen, drawing",
-	0
+	NULL
     };
     popup_msg(stdscr, msgs);
 }
@@ -238,7 +238,7 @@ editor_help(void)
 static void
 replay_help(void)
 {
-    static const char *msgs[] =
+    static NCURSES_CONST char *msgs[] =
     {
 	"You are now in the screen-loader, which allows you to view",
 	"the dumped/restored screens.",
@@ -247,7 +247,7 @@ replay_help(void)
 	"   q           quit",
 	"   <space>     load the next screen",
 	"   <backspace> load the previous screen",
-	0
+	NULL
     };
     popup_msg(stdscr, msgs);
 }
@@ -261,7 +261,7 @@ usage(int ok)
 	,""
 	,USAGE_COMMON
 	,"Options:"
-	," -f file  fill/initialize screen using text from this file"
+	," -f FILE  fill/initialize screen using text from this file"
 	," -i       use scr_init/scr_restore rather than scr_set"
 	," -k       keep the restored dump-files rather than removing them"
 	," -r       replay the screen-dump files"
@@ -286,7 +286,7 @@ main(int argc, char *argv[])
     bool replaying = FALSE;
     bool done = FALSE;
     char **files;
-    char *fill_by = 0;
+    NCURSES_CONST char *fill_by = NULL;
 #if USE_WIDEC_SUPPORT
     cchar_t mycc;
     static const wchar_t mywc[2] =
@@ -309,11 +309,8 @@ main(int argc, char *argv[])
 	case 'r':
 	    replaying = TRUE;
 	    break;
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
@@ -366,7 +363,7 @@ main(int argc, char *argv[])
 	 * After that, use color pairs for constructing a test-pattern, e.g.,
 	 * imitating xterm's scripts.
 	 */
-	if (fill_by == 0) {
+	if (fill_by == NULL) {
 	    if (COLORS <= 256) {
 		for (n = 0; n < COLORS; ++n)
 		    init_pair((short) (n + MAX_ANSI), (short) n, (short) n);
@@ -407,7 +404,7 @@ main(int argc, char *argv[])
 	    }
 #endif
 	}
-	if ((fill_by == 0) && !replaying) {
+	if ((fill_by == NULL) && !replaying) {
 #if USE_WIDEC_SUPPORT
 	    int cube = 0;
 #endif
@@ -484,9 +481,9 @@ main(int argc, char *argv[])
 	}
     }
 
-    if (fill_by != 0) {
+    if (fill_by != NULL) {
 	FILE *fp = fopen(fill_by, "r");
-	if (fp != 0) {
+	if (fp != NULL) {
 	    bool filled = FALSE;
 	    move(1, 0);
 	    while ((ch = fgetc(fp)) != EOF) {
@@ -577,7 +574,7 @@ main(int argc, char *argv[])
 	int x = 0;
 	int color = 0;
 	int altchars = 0;
-	bool dirty = use_colors || (fill_by != 0);
+	bool dirty = use_colors || (fill_by != NULL);
 
 	while (!done) {
 	    switch (get_command(color, which, last)) {

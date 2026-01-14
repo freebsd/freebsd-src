@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2020,2022 Thomas E. Dickey                                *
+ * Copyright 2020,2022,2025 Thomas E. Dickey                                *
  * Copyright 2003-2012,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: color_set.c,v 1.12 2022/12/10 23:36:59 tom Exp $
+ * $Id: color_set.c,v 1.13 2025/07/05 15:21:56 tom Exp $
  */
 
 #include <test.priv.h>
@@ -64,11 +64,8 @@ main(int argc, char *argv[])
 
     while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
 	switch (ch) {
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }

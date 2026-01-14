@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright 2019-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2011,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -36,7 +36,7 @@
 #include "cursesm.h"
 #include "cursesapp.h"
 
-MODULE_ID("$Id: cursesm.cc,v 1.27 2021/04/17 18:11:08 tom Exp $")
+MODULE_ID("$Id: cursesm.cc,v 1.29 2025/01/25 21:20:17 tom Exp $")
 
 NCursesMenuItem::~NCursesMenuItem() THROWS(NCursesException)
 {
@@ -100,23 +100,28 @@ _nc_xx_itm_term(MENU *m)
 ITEM**
 NCursesMenu::mapItems(NCursesMenuItem* nitems[])
 {
-  int itemCount = 0,lcv;
+  try {
+    int itemCount = 0,lcv;
 
-  for (lcv=0; nitems[lcv]->item; ++lcv)
-    ++itemCount;
+    for (lcv=0; nitems[lcv]->item; ++lcv)
+      ++itemCount;
 
-  ITEM** itemArray = new ITEM*[itemCount + 1];
+    ITEM** itemArray = new ITEM*[itemCount + 1];
 
-  for (lcv=0;nitems[lcv]->item;++lcv) {
-    itemArray[lcv] = nitems[lcv]->item;
+    for (lcv=0;nitems[lcv]->item;++lcv) {
+      itemArray[lcv] = nitems[lcv]->item;
+    }
+    itemArray[lcv] = NULL;
+
+    my_items = nitems;
+
+    if (menu)
+      delete[] ::menu_items(menu);
+    return itemArray;
   }
-  itemArray[lcv] = NULL;
-
-  my_items = nitems;
-
-  if (menu)
-    delete[] ::menu_items(menu);
-  return itemArray;
+  catch (std::bad_alloc const&) {
+  }
+  return NULL;
 }
 
 void
@@ -124,51 +129,56 @@ NCursesMenu::InitMenu(NCursesMenuItem* nitems[],
 		      bool with_frame,
 		      bool autoDelete_Items)
 {
-  int mrows, mcols;
+  try {
+    int mrows, mcols;
 
-  keypad(TRUE);
-  meta(TRUE);
+    keypad(TRUE);
+    meta(TRUE);
 
-  b_framed = with_frame;
-  b_autoDelete = autoDelete_Items;
+    b_framed = with_frame;
+    b_autoDelete = autoDelete_Items;
 
-  menu = static_cast<MENU*>(0);
-  menu = ::new_menu(mapItems(nitems));
-  if (!menu)
+    menu = static_cast<MENU*>(NULL);
+    menu = ::new_menu(mapItems(nitems));
+    if (!menu)
+      OnError (E_SYSTEM_ERROR);
+
+    UserHook* hook = new UserHook;
+    hook->m_user   = NULL;
+    hook->m_back   = this;
+    hook->m_owner  = menu;
+    ::set_menu_userptr(menu, static_cast<void*>(hook));
+
+    ::set_menu_init (menu, _nc_xx_mnu_init);
+    ::set_menu_term (menu, _nc_xx_mnu_term);
+    ::set_item_init (menu, _nc_xx_itm_init);
+    ::set_item_term (menu, _nc_xx_itm_term);
+
+    scale(mrows, mcols);
+    ::set_menu_win(menu, w);
+
+    if (with_frame) {
+      if ((mrows > height()-2) || (mcols > width()-2))
+        OnError(E_NO_ROOM);
+      sub = new NCursesWindow(*this,mrows,mcols,1,1,'r');
+      ::set_menu_sub(menu, sub->w);
+      b_sub_owner = TRUE;
+    }
+    else {
+      sub = static_cast<NCursesWindow*>(NULL);
+      b_sub_owner = FALSE;
+    }
+    setDefaultAttributes();
+  }
+  catch (std::bad_alloc const&) {
     OnError (E_SYSTEM_ERROR);
-
-  UserHook* hook = new UserHook;
-  hook->m_user   = NULL;
-  hook->m_back   = this;
-  hook->m_owner  = menu;
-  ::set_menu_userptr(menu, static_cast<void*>(hook));
-
-  ::set_menu_init (menu, _nc_xx_mnu_init);
-  ::set_menu_term (menu, _nc_xx_mnu_term);
-  ::set_item_init (menu, _nc_xx_itm_init);
-  ::set_item_term (menu, _nc_xx_itm_term);
-
-  scale(mrows, mcols);
-  ::set_menu_win(menu, w);
-
-  if (with_frame) {
-    if ((mrows > height()-2) || (mcols > width()-2))
-      OnError(E_NO_ROOM);
-    sub = new NCursesWindow(*this,mrows,mcols,1,1,'r');
-    ::set_menu_sub(menu, sub->w);
-    b_sub_owner = TRUE;
   }
-  else {
-    sub = static_cast<NCursesWindow*>(0);
-    b_sub_owner = FALSE;
-  }
-  setDefaultAttributes();
 }
 
 void
 NCursesMenu::setDefaultAttributes()
 {
-  NCursesApplication* S = NCursesApplication::getApplication();
+  const NCursesApplication* S = NCursesApplication::getApplication();
   if (S) {
     ::set_menu_fore(menu, S->foregrounds());
     ::set_menu_back(menu, S->backgrounds());
@@ -181,14 +191,14 @@ NCursesMenu::~NCursesMenu() THROWS(NCursesException)
   UserHook* hook = reinterpret_cast<UserHook*>(::menu_userptr(menu));
   delete hook;
   if (b_sub_owner) {
-    ::set_menu_sub(menu, static_cast<WINDOW *>(0));
+    ::set_menu_sub(menu, static_cast<WINDOW *>(NULL));
     delete sub;
   }
   if (menu) {
     ITEM** itms = ::menu_items(menu);
     int cnt = count();
 
-    OnError(::set_menu_items(menu, static_cast<ITEM**>(0)));
+    OnError(::set_menu_items(menu, static_cast<ITEM**>(NULL)));
 
     if (b_autoDelete) {
       if (cnt>0) {
@@ -322,7 +332,7 @@ NCursesMenu::operator()(void)
       if (drvCmnd == CMD_ACTION) {
 	if (options() & O_ONEVALUE) {
 	  NCursesMenuItem* itm = current_item();
-	  assert(itm != 0);
+	  assert(itm != NULL);
 	  if (itm->options() & O_SELECTABLE)
 	    {
 	      b_action = itm->action();

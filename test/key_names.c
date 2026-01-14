@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2022 Thomas E. Dickey                                     *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 2007-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: key_names.c,v 1.11 2022/12/04 00:40:11 tom Exp $
+ * $Id: key_names.c,v 1.13 2025/07/05 15:21:56 tom Exp $
  */
 
 #include <test.priv.h>
@@ -76,11 +76,8 @@ main(int argc, char *argv[])
 	case 's':
 	    do_setup = TRUE;
 	    break;
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
@@ -100,7 +97,7 @@ main(int argc, char *argv[])
     for (n = -1; n < KEY_MAX + 512; n++) {
 	int check = wcwidth((wchar_t) n);
 	const char *result = check >= 0 ? key_name((wchar_t) n) : "?";
-	if (result != 0)
+	if (result != NULL)
 	    printf("%d(%5o):%s\n", n, n, result);
     }
     ExitProgram(EXIT_SUCCESS);

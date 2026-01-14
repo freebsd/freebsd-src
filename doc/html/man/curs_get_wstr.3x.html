@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 2002-2012,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,158 +27,203 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_get_wstr.3x,v 1.48 2024/04/20 19:18:18 tom Exp @
+  * @Id: curs_get_wstr.3x,v 1.79 2025/10/21 00:08:50 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_get_wstr 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_get_wstr 3x 2025-10-20 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_get_wstr 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_get_wstr 3x 2025-10-20 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_get_wstr.3x.html">curs_get_wstr(3x)</A></STRONG>                Library calls               <STRONG><A HREF="curs_get_wstr.3x.html">curs_get_wstr(3x)</A></STRONG>
 
 
-
-
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
        <STRONG>get_wstr</STRONG>,  <STRONG>getn_wstr</STRONG>,  <STRONG>wget_wstr</STRONG>,  <STRONG>wgetn_wstr</STRONG>, <STRONG>mvget_wstr</STRONG>, <STRONG>mvgetn_wstr</STRONG>,
-       <STRONG>mvwget_wstr</STRONG>, <STRONG>mvwgetn_wstr</STRONG> - get a wide-character string from  a  <EM>curses</EM>
+       <STRONG>mvwget_wstr</STRONG>, <STRONG>mvwgetn_wstr</STRONG> - read a wide-character string from a  <EM>curses</EM>
        terminal keyboard
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>get_wstr(wint_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>getn_wstr(wint_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wget_wstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wgetn_wstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>get_wstr(wint_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wget_wstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvget_wstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwget_wstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>);</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>mvget_wstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvgetn_wstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvwget_wstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvwgetn_wstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>getn_wstr(wint_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wgetn_wstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvgetn_wstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwgetn_wstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       The  function  <STRONG>wgetn_wstr</STRONG>  is  equivalent  to  a  series  of  calls  to
-       <STRONG><A HREF="curs_get_wch.3x.html">wget_wch(3x)</A></STRONG> until a newline or carriage return terminates the series:
+       <STRONG>wget_wstr</STRONG>  populates  a user-supplied wide-character string buffer <EM>wstr</EM>
+       by repeatedly calling <STRONG><A HREF="curs_get_wch.3x.html">wget_wch(3x)</A></STRONG> with the <EM>win</EM> argument until  a  line
+       feed or carriage return character is input.  The function
 
-       <STRONG>o</STRONG>   The terminating character is not included in the returned string.
+       <STRONG>o</STRONG>   does not copy the terminating character to <EM>wstr</EM>;
 
-       <STRONG>o</STRONG>   An end-of-file condition is represented  by  <STRONG>WEOF</STRONG>,  as  defined  in
-           <STRONG>&lt;wchar.h&gt;</STRONG>.
+       <STRONG>o</STRONG>   populates  <EM>wstr</EM> with <EM>WEOF</EM> (as defined in <EM>wchar.h</EM>) if an end-of-file
+           condition occurs on the input;
 
-       <STRONG>o</STRONG>   In  all  instances,  the  end of the string is terminated by a null
-           <STRONG>wchar_t</STRONG>.
+       <STRONG>o</STRONG>   always terminates the string with a null wide character (after  any
+           <EM>WEOF</EM>);
 
-       <STRONG>o</STRONG>   The function stores the result in the area pointed to by  the  <EM>wstr</EM>
-           parameter.
+       <STRONG>o</STRONG>   interprets  the  screen's  wide erase and wide kill characters (see
+           <STRONG><A HREF="curs_termattrs.3x.html">erasewchar(3x)</A></STRONG> and <STRONG><A HREF="curs_termattrs.3x.html">killwchar(3x)</A></STRONG>);
 
-       <STRONG>o</STRONG>   The function reads at most <EM>n</EM> characters, thus preventing a possible
-           overflow of the input buffer.
+       <STRONG>o</STRONG>   recognizes function keys only if  the  screen's  keypad  option  is
+           enabled (see <STRONG><A HREF="curs_inopts.3x.html">keypad(3x)</A></STRONG>);
 
-           Any attempt to enter more characters (other  than  the  terminating
-           newline or carriage return) causes a beep.
+       <STRONG>o</STRONG>   treats the function keys <STRONG>KEY_LEFT</STRONG> and <STRONG>KEY_BACKSPACE</STRONG> the same as the
+           wide erase character; and
 
-           Function keys also cause a beep and are ignored.
+       <STRONG>o</STRONG>   discards  function  key inputs other than those treated as the wide
+           erase or wide kill characters, calling <STRONG><A HREF="curs_beep.3x.html">beep(3x)</A></STRONG>.
 
-       The user's <EM>erase</EM> and <EM>kill</EM> characters are interpreted:
+       The wide erase character replaces the  character  at  the  end  of  the
+       buffer  with  a null wide character, while the wide kill character does
+       the same for the entire buffer.
 
-       <STRONG>o</STRONG>   The  <EM>erase</EM>  character (e.g., <STRONG>^H</STRONG>) erases the character at the end of
-           the buffer, moving the cursor to the left.
+       If the screen's  echo  option  is  enabled  (see  <STRONG><A HREF="curs_inopts.3x.html">echo(3x)</A></STRONG>),  <STRONG>wget_wstr</STRONG>
+       updates <EM>win</EM> with <STRONG><A HREF="curs_add_wch.3x.html">wadd_wch(3x)</A></STRONG>.  Further,
 
-           If <EM>keypad</EM> mode is on for the window, <STRONG>KEY_LEFT</STRONG> and <STRONG>KEY_BACKSPACE</STRONG> are
-           both considered equivalent to the user's <EM>erase</EM> character.
+       <STRONG>o</STRONG>   the  wide  erase  character  and its function key synonyms move the
+           cursor to the left, and
 
-       <STRONG>o</STRONG>   The <EM>kill</EM> character (e.g., <STRONG>^U</STRONG>) erases the entire buffer, leaving the
-           cursor at the beginning of the buffer.
+       <STRONG>o</STRONG>   the wide kill character returns the cursor to where it was  located
+           when <STRONG>wget_wstr</STRONG> was called.
 
-       Characters input are echoed only if <STRONG>echo</STRONG>  is  currently  on.   In  that
-       case,  backspace  is  echoed  as  deletion  of  the  previous character
-       (typically a left motion).
+       <STRONG>wgetn_wstr</STRONG>  is similar, but reads at most <EM>n</EM> wide characters, aiding the
+       application to avoid overrunning  the  buffer  to  which  <EM>wstr</EM>  points.
+       <EM>curses</EM>  ignores  an attempt to input more than <EM>n</EM> wide characters (other
+       than the terminating line feed or carriage return),  calling  <STRONG><A HREF="curs_beep.3x.html">beep(3x)</A></STRONG>.
+       If  <EM>n</EM> is negative, <STRONG>wgetn_wstr</STRONG> reads up to <EM>LINE</EM><STRONG>_</STRONG><EM>MAX</EM> wide characters (see
+       <STRONG>sysconf(3)</STRONG>).
 
-       The <STRONG>getn_wstr</STRONG>, <STRONG>mvgetn_wstr</STRONG>, <STRONG>mvwgetn_wstr</STRONG>, and <STRONG>wgetn_wstr</STRONG> functions  are
-       identical  to  the  <STRONG>get_wstr</STRONG>,  <STRONG>mvget_wstr</STRONG>,  <STRONG>mvwget_wstr</STRONG>,  and <STRONG>wget_wstr</STRONG>
-       functions, respectively, except that the <STRONG>*n_*</STRONG> versions read at  most  <EM>n</EM>
-       characters,  letting  the  application  prevent  overflow  of the input
-       buffer.
+       <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG> describes the variants of these functions.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       All  of  these  functions  return  the  integer  <STRONG>OK</STRONG>   upon   successful
-       completion.  If unsuccessful, they return <STRONG>ERR</STRONG>.
+       These functions return <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.
 
-       X/Open defines no error conditions.
+       In <EM>ncurses</EM>, these functions fail if
 
-       In this implementation, these functions return an error
+       <STRONG>o</STRONG>   the <EM>curses</EM> screen has not been initialized,
 
-       <STRONG>o</STRONG>   if the window pointer is null,
+       <STRONG>o</STRONG>   (for functions taking a <EM>WINDOW</EM> pointer  argument)  <EM>win</EM>  is  a  null
+           pointer,
 
-       <STRONG>o</STRONG>   if its timeout expires without having any data, or
+       <STRONG>o</STRONG>   <EM>wstr</EM> is a null pointer, or
 
-       <STRONG>o</STRONG>   if the associated call to <STRONG>wget_wch</STRONG> failed.
+       <STRONG>o</STRONG>   an internal <STRONG><A HREF="curs_get_wch.3x.html">wget_wch(3x)</A></STRONG> call fails.
 
        Functions  prefixed with "mv" first perform cursor movement and fail if
        the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       Any of these functions other than <STRONG>wgetn_wstr</STRONG> may be macros.
+       All of these functions except <STRONG>wgetn_wstr</STRONG> may be implemented as macros.
 
-       Using <STRONG>get_wstr</STRONG>, <STRONG>mvget_wstr</STRONG>, <STRONG>mvwget_wstr</STRONG>, or <STRONG>wget_wstr</STRONG> to  read  a  line
-       that  overflows  the array pointed to by <STRONG>wstr</STRONG> causes undefined results.
-       The  use  of  <STRONG>getn_wstr</STRONG>,  <STRONG>mvgetn_wstr</STRONG>,  <STRONG>mvwgetn_wstr</STRONG>,  or   <STRONG>wgetn_wstr</STRONG>,
-       respectively, is recommended.
+       Reading input that overruns  the  buffer  pointed  to  by  <EM>wstr</EM>  causes
+       undefined   results.    Use   the  <STRONG>n</STRONG>-infixed  functions,  and  allocate
+       sufficient storage for <EM>wstr</EM> -- at least <EM>n</EM>+1 times <STRONG>sizeof(wchar_t)</STRONG>.
 
-       These  functions  cannot  return <STRONG>KEY_</STRONG> values because there is no way to
-       distinguish a <STRONG>KEY_</STRONG> value from a valid <STRONG>wchar_t</STRONG> value.
+       These functions cannot store a <STRONG>KEY_</STRONG> value in <EM>wstr</EM> because there  is  no
+       way to distinguish it from a valid <EM>wchar</EM><STRONG>_</STRONG><EM>t</EM> value.
+
+       While  these  functions  conceptually  implement  a  series of calls to
+       <STRONG>wget_wch</STRONG>, they also temporarily change properties of the <EM>curses</EM>  screen
+       to  permit simple editing of the input buffer.  Each function saves the
+       screen's state, calls <STRONG><A HREF="curs_inopts.3x.html">nl(3x)</A></STRONG>, and,  if  the  screen  was  in  canonical
+       ("cooked")  mode,  <STRONG><A HREF="curs_inopts.3x.html">cbreak(3x)</A></STRONG>.  Before returning, it restores the saved
+       screen state.  Other implementations differ in detail, affecting  which
+       control   characters  they  can  accept  in  the  buffer;  see  section
+       "PORTABILITY" below.
+
+       Unlike <STRONG><A HREF="curs_getstr.3x.html">getstr(3x)</A></STRONG> and related  functions  of  <EM>ncurses</EM>'s  non-wide  API,
+       these functions do not return <STRONG>KEY_RESIZE</STRONG> if a <EM>SIGWINCH</EM> event interrupts
+       the function.
+
+
+</PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
+       <STRONG>getn_wstr</STRONG>,  <STRONG>wgetn_wstr</STRONG>,  <STRONG>mvgetn_wstr</STRONG>,  and  <STRONG>mvwgetn_wstr</STRONG>'s  handing  of
+       negative <EM>n</EM> values is an <EM>ncurses</EM> extension.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These functions are described in The Single Unix Specification, Version
-       2.  No error conditions are defined.
+       Applications employing <EM>ncurses</EM> extensions should condition their use on
+       the visibility of the <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
 
-       This  implementation  returns  <STRONG>ERR</STRONG> if the window pointer is null, or if
-       the lower-level <STRONG>wget_wch</STRONG> call returns an <STRONG>ERR</STRONG>.  In the latter  case,  an
-       <STRONG>ERR</STRONG>  return  without other data is treated as an end-of-file condition,
-       and the returned array contains a <STRONG>WEOF</STRONG> followed by a null <STRONG>wchar_t</STRONG>.
+       X/Open Curses Issue 4 describes these functions.  It specifies no error
+       conditions for them.
 
-       X/Open curses documented these functions to pass an array of <STRONG>wchar_t</STRONG> in
-       1997, but that was an error because of this part of the description:
+       Issue 4 documented these functions as passing an array of <EM>wchar</EM><STRONG>_</STRONG><EM>t</EM>,  but
+       that  was  an  error,  conflicting  with  the following language in the
+       standard.
 
-              The effect of <STRONG>get_wstr</STRONG> is as though a series of calls to <STRONG>get_wch</STRONG>
-              were made, until a newline character, end-of-line character,  or
-              end-of-file character is processed.
+              The effect of <EM>get</EM><STRONG>_</STRONG><EM>wstr</EM>() is as  though  a  series  of  calls  to
+              <EM>get</EM><STRONG>_</STRONG><EM>wch</EM>()  were  made,  until  a  newline character, end-of-line
+              character, or end-of-file character is processed.
 
-       The  latter function <EM>get</EM><STRONG>_</STRONG><EM>wch</EM> can return a negative value, while <STRONG>wchar_t</STRONG>
-       is a unsigned type.  All of the vendors implement  this  using  <STRONG>wint_t</STRONG>,
-       following the standard.
+       <EM>get</EM><STRONG>_</STRONG><EM>wch</EM> can return a negative value (<EM>WEOF</EM>), but <EM>wchar</EM><STRONG>_</STRONG><EM>t</EM> is  a  unsigned
+       type.   All  of  the  vendors  implement  these functions using <EM>wint</EM><STRONG>_</STRONG><EM>t</EM>,
+       following the Issue 7 standard.
 
-       X/Open  Curses,  Issue  7  (2009)  is  unclear  regarding  whether  the
-       terminating <EM>null</EM> <STRONG>wchar_t</STRONG> value is counted in the  length  parameter  <EM>n</EM>.
-       X/Open  Curses,  Issue  7  revised  the  corresponding  description  of
-       <STRONG>wgetnstr</STRONG>  to  address  this  issue.   The  unrevised   description   of
-       <STRONG>wget_nwstr</STRONG>  can  be interpreted either way.  This implementation counts
-       the terminator in the length.
+       X/Open Curses Issue 7 is unclear  whether  the  terminating  null  wide
+       character  counts  toward  the  length  parameter  <EM>n</EM>.   A similar issue
+       affected  <EM>wgetnstr</EM>  in  Issue 4,  Version 2;   Issue 7   revised   that
+       function's   description   to  address  the  issue,  but  not  that  of
+       <EM>wget</EM><STRONG>_</STRONG><EM>nwstr</EM>, leaving it ambiguous.  <EM>ncurses</EM> counts the terminator in the
+       length.
 
        X/Open Curses does  not  specify  what  happens  if  the  length  <EM>n</EM>  is
        negative.
 
-       <STRONG>o</STRONG>   For  analogy  with  <STRONG>wgetnstr</STRONG>,  <EM>ncurses</EM>  6.2  uses a limit (based on
-           <STRONG>LINE_MAX</STRONG>).
+       <STRONG>o</STRONG>   For  consistency  with  <EM>wgetnstr</EM>, <EM>ncurses</EM> 6.2 uses a limit based on
+           <EM>LINE</EM><STRONG>_</STRONG><EM>MAX</EM>.
 
-       <STRONG>o</STRONG>   Some other implementations (such as Solaris xcurses) do  the  same,
-           while others (PDCurses) do not allow this.
+       <STRONG>o</STRONG>   Some other implementations (such as Solaris <EM>xcurses</EM>) do  the  same,
+           while others (<EM>PDCurses</EM>) do not permit a negative <EM>n</EM>.
 
-       <STRONG>o</STRONG>   NetBSD  7 curses imitates <EM>ncurses</EM> 6.1 in this regard, treating a <STRONG>-1</STRONG>
-           as an indefinite number of characters.
+       <STRONG>o</STRONG>   NetBSD 7  <EM>curses</EM>  imitates  <EM>ncurses</EM>  6.1  and  earlier,  treating a
+           negative <EM>n</EM> as an unbounded count of wide characters.
+
+       Implementations vary in their handling of input control characters.
+
+       <STRONG>o</STRONG>   While they may enable the screen's echo option, some do not take it
+           out of raw mode,  and  may  take  cbreak  mode  into  account  when
+           deciding  whether to handle echoing within <EM>wgetn</EM><STRONG>_</STRONG><EM>wstr</EM> or to rely on
+           it as a side effect of calling <EM>wget</EM><STRONG>_</STRONG><EM>wch</EM>.
+
+           Since 1995, <EM>ncurses</EM> has provided handlers for <EM>SIGINTR</EM>  and  <EM>SIGQUIT</EM>
+           events,  which  are typically generated at the keyboard with <STRONG>^C</STRONG> and
+           <STRONG>^\</STRONG> respectively.  In cbreak mode, those handlers catch a signal and
+           stop  the  program,  whereas  other  implementations  write   those
+           characters into the buffer.
+
+       <STRONG>o</STRONG>   Starting  with <EM>ncurses</EM> 6.3 (2021), <EM>wgetn</EM><STRONG>_</STRONG><EM>wstr</EM> preserves raw mode if
+           the screen was already in that state, allowing  one  to  enter  the
+           characters  the  terminal  interprets  as interrupt and quit events
+           into the buffer, for consistency with SVr4 <EM>curses</EM>'s <EM>wgetnstr</EM>.
+
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       X/Open Curses Issue 4 (1995) initially specified these functions.   The
+       System V  Interface  Definition  Version 4  of  the same year specified
+       functions named <EM>wgetwstr</EM> and <EM>wgetnwstr</EM> (and the usual variants).  These
+       were later additions to SVr4.<EM>x</EM>, not appearing in the first SVr4 (1989).
+       Except in name, their declarations did not differ from  X/Open's  later
+       <EM>wget</EM><STRONG>_</STRONG><EM>wstr</EM>  and <EM>wgetn</EM><STRONG>_</STRONG><EM>wstr</EM> until X/Open Curses Issue 7 (2009) eventually
+       changed the type of the buffer argument to a pointer to <EM>wint</EM><STRONG>_</STRONG><EM>t</EM>.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
@@ -187,9 +232,7 @@
 
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_get_wch.3x.html">curs_get_wch(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                 <STRONG><A HREF="curs_get_wstr.3x.html">curs_get_wstr(3x)</A></STRONG>
+ncurses 6.6                       2025-10-20                 <STRONG><A HREF="curs_get_wstr.3x.html">curs_get_wstr(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -198,7 +241,9 @@ ncurses 6.5                       2024-04-20                 <STRONG><A HREF="cu
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>
+<li><a href="#h2-EXTENSIONS">EXTENSIONS</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

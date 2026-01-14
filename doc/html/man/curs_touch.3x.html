@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_touch.3x,v 1.47 2024/04/20 21:20:07 tom Exp @
+  * @Id: curs_touch.3x,v 1.63 2025/01/19 00:51:10 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_touch 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_touch 3x 2025-01-18 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_touch 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_touch 3x 2025-01-18 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_touch.3x.html">curs_touch(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="curs_touch.3x.html">curs_touch(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -69,10 +67,10 @@
        The  <STRONG>touchwin</STRONG>  and  <STRONG>touchline</STRONG>  routines  throw  away  all  optimization
        information  about  which  parts  of  the  window have been touched, by
        pretending that the entire window has been drawn on.  This is sometimes
-       necessary  when using overlapping windows, since a change to one window
-       affects the other window, but the records  of  which  lines  have  been
-       changed  in  the  other  window do not reflect the change.  The routine
-       <STRONG>touchline</STRONG> only pretends that <EM>count</EM> lines have been  changed,  beginning
+       necessary when using overlapping windows, since a change to one  window
+       affects  the  other  window,  but  the records of which lines have been
+       changed in the other window do not reflect  the  change.   The  routine
+       <STRONG>touchline</STRONG>  only  pretends that <EM>count</EM> lines have been changed, beginning
        with line <EM>start</EM>.
 
        The <STRONG>untouchwin</STRONG> routine marks all lines in the window as unchanged since
@@ -89,19 +87,17 @@
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       All  routines  return the integer <STRONG>ERR</STRONG> upon failure and an integer value
-       other than <STRONG>ERR</STRONG> upon successful completion, unless  otherwise  noted  in
-       the preceding routine descriptions.
+       Functions  returning  integers  return  <STRONG>ERR</STRONG>  upon  failure  and <STRONG>OK</STRONG> upon
+       success.
 
-       X/Open   Curses  does  not  specify  any  error  conditions.   In  this
-       implementation
+       In <EM>ncurses</EM>,
 
           <STRONG>is_linetouched</STRONG>
-               returns an error if the window pointer is null, or if the  line
+               returns <STRONG>ERR</STRONG> if the window pointer  is  null,  or  if  the  line
                number is outside the window boundaries.
 
                The constant <STRONG>ERR</STRONG> is distinct from <STRONG>TRUE</STRONG> and <STRONG>FALSE</STRONG>, which are the
-               normal return values of this function.   Because  the  function
+               normal  return  values  of this function.  Because the function
                returns a <STRONG>bool</STRONG>, returning <STRONG>ERR</STRONG> (which is neither <STRONG>TRUE</STRONG> nor <STRONG>FALSE</STRONG>)
                may not be supported by the compiler.
 
@@ -110,31 +106,35 @@
                The actual function returns <STRONG>FALSE</STRONG> when it detects an error.
 
           <STRONG>wtouchln</STRONG>
-               returns an error if the window pointer is null, or if the  line
+               returns  <STRONG>ERR</STRONG>  if  the  window  pointer  is null, or if the line
                number is outside the window boundaries.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       All of these routines except <STRONG>wtouchln</STRONG> may be macros.
+       All of these functions except <STRONG>wtouchln</STRONG> may be implemented as macros.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These  functions  were  introduced  by SVr4.  The Solaris <EM>curses</EM> header
-       file, for instance, defines both an actual function and macro for each.
-       The  macros  give the same result as the actual functions.  SVr4 <EM>curses</EM>
-       does not check the window parameter <EM>win</EM> to ensure that it is not  <STRONG>NULL</STRONG>;
-       otherwise this implementation behaves the same as SVr4.
+       X/Open Curses Issue 4 describes these functions.  It specifies no error
+       conditions for them.
 
-       X/Open  Curses, Issue 4 describes these functions, but defines no error
-       conditions.
+       SVr4 describes a successful return value except where "otherwise noted"
+       as "an integer value other than <EM>ERR</EM>".
+
+       SVr4 does not check <EM>win</EM> to ensure that it is not a null pointer.
+
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       SVr2 (1984) introduced <EM>touchwin</EM>,
+
+       SVr3  (1987)  added  <EM>touchline</EM>.   SVr3.1  later  that   year   supplied
+       <EM>is</EM><STRONG>_</STRONG><EM>linetouched</EM>, <EM>is</EM><STRONG>_</STRONG><EM>wintouched</EM>, <EM>untouchwin</EM>, and <EM>wtouchln</EM>.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                    <STRONG><A HREF="curs_touch.3x.html">curs_touch(3x)</A></STRONG>
+ncurses 6.6                       2025-01-18                    <STRONG><A HREF="curs_touch.3x.html">curs_touch(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -144,6 +144,7 @@ ncurses 6.5                       2024-04-20                    <STRONG><A HREF=
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

@@ -1,7 +1,7 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 // vile:cppmode
 /****************************************************************************
- * Copyright 2019-2021,2022 Thomas E. Dickey                                *
+ * Copyright 2019-2022,2025 Thomas E. Dickey                                *
  * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -36,7 +36,7 @@
 #ifndef NCURSES_CURSESP_H_incl
 #define NCURSES_CURSESP_H_incl 1
 
-// $Id: cursesp.h,v 1.36 2022/08/20 20:52:15 tom Exp $
+// $Id: cursesp.h,v 1.37 2025/01/25 21:20:17 tom Exp $
 
 #include <cursesw.h>
 
@@ -73,7 +73,7 @@ protected:
   void set_user(void *user)
   {
     UserHook* uptr = UserPointer();
-    if (uptr != 0 && uptr->m_back==this && uptr->m_owner==p) {
+    if (uptr != NULL && uptr->m_back==this && uptr->m_owner==p) {
       uptr->m_user = user;
     }
   }
@@ -82,8 +82,8 @@ protected:
   void *get_user()
   {
     UserHook* uptr = UserPointer();
-    void *result = 0;
-    if (uptr != 0 && uptr->m_back==this && uptr->m_owner==p)
+    void *result = NULL;
+    if (uptr != NULL && uptr->m_back==this && uptr->m_owner==p)
       result = uptr->m_user;
     return result;
   }
@@ -104,14 +104,14 @@ public:
 	       int ncols,
 	       int begin_y = 0,
 	       int begin_x = 0)
-    : NCursesWindow(nlines,ncols,begin_y,begin_x), p(0)
+    : NCursesWindow(nlines,ncols,begin_y,begin_x), p(NULL)
   {
     init();
   }
   // Create a panel with this size starting at the requested position.
 
   NCursesPanel()
-    : NCursesWindow(::stdscr), p(0)
+    : NCursesWindow(::stdscr), p(NULL)
   {
     init();
   }
@@ -244,7 +244,7 @@ public:
   // This creates an user panel of the requested size with associated
   // user data pointed to by p_UserData.
 
-  explicit NCursesUserPanel(const T* p_UserData = STATIC_CAST(T*)(0)) : NCursesPanel()
+  explicit NCursesUserPanel(const T* p_UserData = STATIC_CAST(T*)(NULL)) : NCursesPanel()
   {
     if (p)
       set_user(const_cast<void *>(reinterpret_cast<const void*>(p_UserData)));

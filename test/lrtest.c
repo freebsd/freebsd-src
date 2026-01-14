@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2020,2022 Thomas E. Dickey                                *
+ * Copyright 2019-2022,2025 Thomas E. Dickey                                *
  * Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,7 +35,7 @@
  * This can't be part of the ncurses test-program, because ncurses rips off the
  * bottom line to do labels.
  *
- * $Id: lrtest.c,v 1.29 2022/12/10 23:44:18 tom Exp $
+ * $Id: lrtest.c,v 1.30 2025/07/05 15:21:56 tom Exp $
  */
 
 #include <test.priv.h>
@@ -119,11 +119,8 @@ main(int argc, char *argv[])
 
     while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
 	switch (ch) {
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }

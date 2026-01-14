@@ -1,7 +1,7 @@
 <!--
   * t
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,37 +28,35 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_getch.3x,v 1.87 2024/04/20 19:18:18 tom Exp @
+  * @Id: curs_getch.3x,v 1.134 2025/11/12 01:06:36 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_getch 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_getch 3x 2025-11-11 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_getch 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_getch 3x 2025-11-11 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_getch.3x.html">curs_getch(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="curs_getch.3x.html">curs_getch(3x)</A></STRONG>
 
 
-
-
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
        <STRONG>getch</STRONG>, <STRONG>wgetch</STRONG>, <STRONG>mvgetch</STRONG>, <STRONG>mvwgetch</STRONG>, <STRONG>ungetch</STRONG>, <STRONG>has_key</STRONG> - get (or push back)
-       characters from <EM>curses</EM> terminal keyboard
+       characters from <EM>curses</EM> terminal keyboard buffer
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
        <STRONG>int</STRONG> <STRONG>getch(void);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wgetch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wgetch(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>mvgetch(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvwgetch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwgetch(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>);</STRONG>
 
        <STRONG>int</STRONG> <STRONG>ungetch(int</STRONG> <EM>c</EM><STRONG>);</STRONG>
 
@@ -69,92 +67,114 @@
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
 
 </PRE><H3><a name="h3-Reading-Characters">Reading Characters</a></H3><PRE>
-       <STRONG>wgetch</STRONG> gathers a key stroke from the terminal keyboard associated  with
-       a  <EM>curses</EM>  window  <EM>win</EM>.   <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>  describes  the  variants of this
+       <STRONG>wgetch</STRONG> gathers a key event from the terminal keyboard associated with a
+       <EM>curses</EM>   window  <EM>win</EM>.   <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>  describes  the  variants  of  this
        function.
 
        When input is pending, <STRONG>wgetch</STRONG> returns an integer  identifying  the  key
-       stroke;  for  alphanumeric and punctuation keys, this value corresponds
-       to the character encoding used by the terminal.  Use of the control key
-       as  a modifier often results in a distinct code.  The behavior of other
-       keys depends on whether <EM>win</EM> is in keypad mode; see  subsection  "Keypad
-       Mode" below.
+       event;  for  alphanumeric  and  punctuation  keys,  the  space bar, and
+       (usually) the Backspace, Tab,  Return,  and  Escape  keys,  this  value
+       corresponds to the character encoding used by the terminal.  Use of the
+       control  key  as  a  modifier,  by  holding  it down while pressing and
+       releasing another key, often results in a distinct code.  The  behavior
+       of  other keys depends on whether <EM>win</EM> is in keypad mode; see subsection
+       "Keypad Mode" below.
 
-       If  no input is pending, then if the no-delay flag is set in the window
-       (see <STRONG><A HREF="nodelay.3x.html">nodelay(3x)</A></STRONG>), the function returns <STRONG>ERR</STRONG>;  otherwise,  <EM>curses</EM>  waits
-       until  the  terminal  has  input.   If <STRONG><A HREF="curs_inopts.3x.html">cbreak(3x)</A></STRONG> has been called, this
-       happens after one character is read.  If <STRONG><A HREF="curs_inopts.3x.html">nocbreak(3x)</A></STRONG> has been  called,
-       it  occurs  when  the  next newline is read.  If <STRONG><A HREF="curs_inopts.3x.html">halfdelay(3x)</A></STRONG> has been
-       called, <EM>curses</EM> waits until a character is typed or the specified  delay
-       elapses.
+       If no input is pending, then if the no-delay flag is set in the  window
+       (see  <STRONG><A HREF="nodelay.3x.html">nodelay(3x)</A></STRONG>),  the  function returns <STRONG>ERR</STRONG>; otherwise, <EM>curses</EM> waits
+       until the terminal has  input.   If  <STRONG><A HREF="curs_inopts.3x.html">cbreak(3x)</A></STRONG>  or  <STRONG><A HREF="curs_inopts.3x.html">raw(3x)</A></STRONG>  has  been
+       called, this happens after <EM>curses</EM> reads one key event.  If <STRONG><A HREF="curs_inopts.3x.html">nocbreak(3x)</A></STRONG>
+       or  <STRONG><A HREF="curs_inopts.3x.html">noraw(3x)</A></STRONG>  has  been called, it occurs when <EM>curses</EM> reads a newline.
+       (Because the terminal's canonical or "cooked"  mode  is  line-buffered,
+       multiple  <STRONG>wgetch</STRONG> calls may then be necessary to empty the input queue.)
+       If <STRONG><A HREF="curs_inopts.3x.html">halfdelay(3x)</A></STRONG> has been called, <EM>curses</EM> waits until input is available
+       or the specified delay elapses.
 
        If <STRONG><A HREF="curs_inopts.3x.html">echo(3x)</A></STRONG> has been called, and the window is not a pad, <EM>curses</EM> writes
        the returned character <EM>c</EM> to the window (at the cursor position) per the
        following rules.
 
-       <STRONG>o</STRONG>   If  <EM>c</EM>  matches  the  terminal's  erase  character, the cursor moves
-           leftward one  position  and  the  new  position  is  erased  as  if
+       <STRONG>o</STRONG>   If <EM>c</EM> matches the terminal's erase  character  (see  <STRONG><A HREF="curs_termattrs.3x.html">erasechar(3x)</A></STRONG>),
+           and  the  cursor is not at the window's leftmost column, the cursor
+           moves leftward one position and the new position is  erased  as  if
            <STRONG><A HREF="curs_move.3x.html">wmove(3x)</A></STRONG>  and  then  <STRONG><A HREF="curs_delch.3x.html">wdelch(3x)</A></STRONG>  were  called.   When the window's
            keypad mode is enabled (see below), <STRONG>KEY_LEFT</STRONG> and <STRONG>KEY_BACKSPACE</STRONG>  are
            handled the same way.
 
        <STRONG>o</STRONG>   <EM>curses</EM> writes any other <EM>c</EM> to the window, as with <STRONG><A HREF="curs_addch.3x.html">wechochar(3x)</A></STRONG>.
 
-       <STRONG>o</STRONG>   If  the  window  has  been moved or modified since the last call to
-           <STRONG><A HREF="curs_refresh.3x.html">wrefresh(3x)</A></STRONG>, <EM>curses</EM> calls <STRONG>wrefresh</STRONG>.
+       <STRONG>o</STRONG>   If the window <EM>win</EM> has been moved or modified since the last call to
+           <STRONG><A HREF="curs_refresh.3x.html">wrefresh(3x)</A></STRONG>, <EM>curses</EM> calls <STRONG>wrefresh</STRONG> on it.
 
-       If <EM>c</EM> is a carriage return and <STRONG><A HREF="curs_inopts.3x.html">nl(3x)</A></STRONG> has been  called,  <STRONG>wgetch</STRONG>  returns
+       If  <EM>c</EM>  is  a carriage return and <STRONG><A HREF="curs_inopts.3x.html">nl(3x)</A></STRONG> has been called, <STRONG>wgetch</STRONG> returns
        the character code for line feed instead.
 
 
 </PRE><H3><a name="h3-Keypad-Mode">Keypad Mode</a></H3><PRE>
-       To  <EM>curses</EM>, key strokes not from the alphabetic section of the keyboard
-       (those    corresponding    to    the    ECMA-6    character    set--see
-       <STRONG>ascii(7)</STRONG>--optionally  modified by either the control or shift keys) are
-       treated as <EM>function</EM> keys.  (In <EM>curses</EM>, the term "function key" includes
-       but  is  not  limited to keycaps engraved with "F1", "PF1", and so on.)
-       If the  window  is  in  keypad  mode,  these  produce  a  numeric  code
-       corresponding  to the <STRONG>KEY_</STRONG> symbols listed in subsection "Predefined Key
-       Codes" below; otherwise, they transmit a sequence  of  codes  typically
-       starting  with  the  escape character, and which must be collected with
-       multiple <STRONG>wgetch</STRONG> calls.
+       Call <STRONG><A HREF="curs_inopts.3x.html">keypad(3x)</A></STRONG> on a window to configure keypad mode when reading input
+       from it.  In <EM>keypad</EM> <EM>mode</EM>,  <EM>curses</EM>  treats  key  strokes  not  from  the
+       alphabetic  section  of the keyboard (those corresponding to the ECMA-6
+       character set -- see <STRONG>ascii(7)</STRONG> --  optionally  modified  by  either  the
+       control  or  shift  keys)  as  <EM>function</EM>  keys.   (In  <EM>curses</EM>,  the term
+       "function key" includes but is not limited  to  keycaps  engraved  with
+       "F1",  "PF1",  and  so  on.)   If  a  window  is in keypad mode, <STRONG>wgetch</STRONG>
+       translates these key strokes to a numeric  code  corresponding  to  the
+       <STRONG>KEY_</STRONG>  symbols listed in subsection "Key Codes" below.  If the window is
+       not in keypad mode, the input queue populates with  the  characters  of
+       the  function key's escape sequence, which the application must collect
+       individually with multiple <STRONG>wgetch</STRONG> calls.
 
-       <STRONG>o</STRONG>   The <EM>curses.h</EM> header file declares  many  <EM>predefined</EM>  <EM>function</EM>  <EM>keys</EM>
-           whose  names  begin with <STRONG>KEY_</STRONG>; these object-like macros have values
+       <STRONG>o</STRONG>   The <EM>curses.h</EM> header file declares many <EM>function</EM>  <EM>keys</EM>  whose  names
+           begin  with  <STRONG>KEY_</STRONG>;  these  object-like  macros  have integer values
            outside the range of eight-bit character codes.
 
        <STRONG>o</STRONG>   In  <EM>ncurses</EM>,  <EM>user-defined</EM>  <EM>function</EM>  <EM>keys</EM>  are   configured   with
            <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>;  they  have no names, but are also expected to have
-           values outside the range of eight-bit codes.
+           integer values outside the range of eight-bit character codes.
 
        A variable intended to hold a function key code must thus  be  of  type
        <EM>short</EM> or larger.
 
        Most  terminals  one  encounters follow the ECMA-48 standard insofar as
        their function keys  produce  character  sequences  prefixed  with  the
-       escape  character  ESC.   This  fact  implies  that  <EM>curses</EM> cannot know
-       whether the terminal has sent an ESC key stroke or the beginning  of  a
-       function  key's  character  sequence without waiting to see if, and how
-       soon, further input arrives.   When  <EM>curses</EM>  reads  such  an  ambiguous
-       character,  it sets a timer.  If the remainder of the sequence does not
-       arrive within the designated time, <STRONG>wgetch</STRONG> returns the prefix character;
-       otherwise, it returns the function key code corresponding to the unique
-       sequence defined by the terminal.  Consequently, a  user  of  a  <EM>curses</EM>
-       application  may  experience  a  delay  after pressing ESC while <EM>curses</EM>
-       disambiguates the input; see section "EXTENSIONS" below.  If the window
-       is  in "no time-out" mode, the timer does not expire; it is an infinite
-       (or very  large)  value.   See  <STRONG><A HREF="notimeout.3x.html">notimeout(3x)</A></STRONG>.   Because  function  key
-       sequences  usually  begin  with  an  escape character, the terminal may
-       appear to hang in no time-out mode after  the  user  has  pressed  ESC.
-       Generally, further typing "awakens" <EM>curses</EM>.
+       escape character ESC.  This fact implies that <EM>curses</EM> cannot distinguish
+       a  user's  press  of  the  escape  key (assuming it sends ESC) from the
+       beginning of a function key's character sequence without waiting to see
+       if, and how soon, further input arrives.
+
+       <STRONG>o</STRONG>   If the escape sequence  matches  a  string  capability  defining  a
+           function  key  for  the  terminal type (such as <STRONG>key_home</STRONG> (<STRONG>khome</STRONG>) or
+           <STRONG>key_up</STRONG> (<STRONG>kuu1</STRONG>)), <STRONG>wgetch</STRONG> returns the function key code  corresponding
+           to the unique sequence defined by the terminal.
+
+       <STRONG>o</STRONG>   If  the  escape  sequence  matches no function keys defined for the
+           terminal type, call <STRONG>wgetch</STRONG> repeatedly to obtain the  codes  of  the
+           individual  characters  of the sequence, in the order they occurred
+           in the input.
+
+       <STRONG>o</STRONG>   If <STRONG>wgetch</STRONG> cannot decide the validity of the input as a function key
+           because it has not read enough characters to disambiguate  it,  the
+           function  waits  until  it has this information or the <EM>escape</EM> <EM>delay</EM>
+           elapses.  Configure the  escape  delay  with  the  global  variable
+           <STRONG>ESCDELAY</STRONG>,  an  extension  (see  section "EXTENSIONS" below), or the
+           environment variable of the same name (see section "ENVIRONMENT" of
+           <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>), also an extension.
+
+       Consequently, a user of a <EM>curses</EM> application that employs  keypad  mode
+       may  experience  a  pause or "hang" after pressing the escape key while
+       <EM>curses</EM> collects sufficient characters to disambiguate  the  input.   If
+       the  window  is  in "no time-out" mode, the escape delay is effectively
+       infinite; see <STRONG><A HREF="notimeout.3x.html">notimeout(3x)</A></STRONG>.  In the event of  such  a  pause,  further
+       typing "awakens" <EM>curses</EM>.
 
 
 </PRE><H3><a name="h3-Ungetting-Characters">Ungetting Characters</a></H3><PRE>
        <STRONG>ungetch</STRONG>  places  <EM>c</EM> into the input queue to be returned by the next call
-       to <STRONG>wgetch</STRONG>.  A single input queue serves all windows.
+       to <STRONG>wgetch</STRONG>.  A single input queue serves all windows associated with the
+       screen.
 
 
-</PRE><H3><a name="h3-Predefined-Key-Codes">Predefined Key Codes</a></H3><PRE>
+</PRE><H3><a name="h3-Key-Codes">Key Codes</a></H3><PRE>
        The header file <EM>curses.h</EM> defines the following function key codes.
 
        <STRONG>o</STRONG>   Except for the special case of <STRONG>KEY_RESIZE</STRONG>, a window's  keypad  mode
@@ -180,7 +200,6 @@
               <STRONG>KEY_BACKSPACE</STRONG>   Backspace
               <STRONG>KEY_F0</STRONG>          Function keys; space for 64 keys is reserved
               <STRONG>KEY_F(</STRONG><EM>n</EM><STRONG>)</STRONG>        Function key <EM>n</EM> where 0 &lt;= <EM>n</EM> &lt;= 63
-
               <STRONG>KEY_DL</STRONG>          Delete line
               <STRONG>KEY_IL</STRONG>          Insert line
               <STRONG>KEY_DC</STRONG>          Delete character
@@ -246,7 +265,6 @@
               <STRONG>KEY_SDL</STRONG>         Shifted delete line key
               <STRONG>KEY_SEND</STRONG>        Shifted end key
               <STRONG>KEY_SEOL</STRONG>        Shifted clear line key
-
               <STRONG>KEY_SEXIT</STRONG>       Shifted exit key
               <STRONG>KEY_SFIND</STRONG>       Shifted find key
               <STRONG>KEY_SHELP</STRONG>       Shifted help key
@@ -269,70 +287,82 @@
 
        Many keyboards feature a nine-key directional pad.
 
-                                   +-----+------+-------+
-                                   | A1  |  up  |  A3   |
-                                   +-----+------+-------+
-                                   |left |  B2  | right |
-                                   +-----+------+-------+
-                                   | C1  | down |  C3   |
-                                   +-----+------+-------+
+                                  +------+------+-------+
+                                  |  A1  |  up  |  A3   |
+                                  +------+------+-------+
+                                  | left |  B2  | right |
+                                  +------+------+-------+
+                                  |  C1  | down |  C3   |
+                                  +------+------+-------+
+
        Two of the symbols in the list above do <EM>not</EM> correspond  to  a  physical
        key.
 
        <STRONG>o</STRONG>   <STRONG>wgetch</STRONG>  returns  <STRONG>KEY_RESIZE</STRONG>,  even  if  the window's keypad mode is
-           disabled, when <EM>ncurses</EM> handles a <STRONG>SIGWINCH</STRONG> signal;  see  <STRONG><A HREF="curs_initscr.3x.html">initscr(3x)</A></STRONG>
-           and <STRONG><A HREF="resizeterm.3x.html">resizeterm(3x)</A></STRONG>.
+           disabled, if <EM>ncurses</EM> has handled a <EM>SIGWINCH</EM> signal since <STRONG>wgetch</STRONG> was
+           called; see <STRONG><A HREF="curs_initscr.3x.html">initscr(3x)</A></STRONG> and <STRONG><A HREF="resizeterm.3x.html">resizeterm(3x)</A></STRONG>.
 
-       <STRONG>o</STRONG>   <STRONG>wgetch</STRONG>  returns <STRONG>KEY_MOUSE</STRONG> to indicate that a mouse event is pending
-           collection; see <STRONG><A HREF="curs_mouse.3x.html">curs_mouse(3x)</A></STRONG>.  Receipt of this  code  requires  a
-           window's  keypad  mode  to  be  enabled, because to interpret mouse
-           input (as with with <STRONG>xterm(1)</STRONG>'s mouse prototocol), <EM>ncurses</EM> must read
-           an escape sequence, as with a function key.
+       <STRONG>o</STRONG>   <STRONG>wgetch</STRONG> returns <STRONG>KEY_MOUSE</STRONG> to indicate that a mouse event is  pending
+           collection;  see  <STRONG><A HREF="curs_mouse.3x.html">curs_mouse(3x)</A></STRONG>.   Receipt of this code requires a
+           window's keypad mode to be  enabled,  because  to  interpret  mouse
+           input  (as  with  <STRONG>xterm(1)</STRONG>'s  mouse protocol), <EM>ncurses</EM> must read an
+           escape sequence, as with a function key.
 
 
 </PRE><H3><a name="h3-Testing-Key-Codes">Testing Key Codes</a></H3><PRE>
-       In  <EM>ncurses</EM>,  <STRONG>has_key</STRONG>  returns  a  Boolean value indicating whether the
-       terminal type recognizes its parameter as a key code value.   See  also
+       In <EM>ncurses</EM>, <STRONG>has_key</STRONG> returns a  Boolean  value  indicating  whether  the
+       terminal  type  recognizes its parameter as a key code value.  See also
        <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG> and <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       Except  for  <STRONG>has_key</STRONG>,  these  functions return <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on
-       failure.
+       <STRONG>wgetch</STRONG> returns a key code identifying the key event as described above,
+       which may include <STRONG>KEY_RESIZE</STRONG> or <STRONG>KEY_MOUSE</STRONG> indicating non-key events, or
+       <STRONG>ERR</STRONG> on failure.  <STRONG>wgetch</STRONG> fails if its timeout expires without  any  data
+       arriving,  which  cannot  happen  if  <STRONG><A HREF="nodelay.3x.html">nodelay(3x)</A></STRONG>  is  in effect on the
+       window.
 
-       Functions taking a <EM>WINDOW</EM> pointer argument fail if the pointer is <STRONG>NULL</STRONG>.
+       In <EM>ncurses</EM>, <STRONG>wgetch</STRONG> also fails if
+
+       <STRONG>o</STRONG>   the <EM>curses</EM> screen has not been initialized,
+
+       <STRONG>o</STRONG>   (for functions taking a <EM>WINDOW</EM> pointer  argument)  <EM>win</EM>  is  a  null
+           pointer, or
+
+       <STRONG>o</STRONG>   execution  was  interrupted  by a signal, in which case the library
+           sets <EM>errno</EM> to <EM>EINTR</EM>.
 
        Functions prefixed with "mv" first perform cursor movement and fail  if
        the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
 
-       <STRONG>wgetch</STRONG> also fails if
+       <STRONG>ungetch</STRONG>  returns <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.  In <EM>ncurses</EM>, <STRONG>ungetch</STRONG>
+       fails if
 
-       <STRONG>o</STRONG>   its timeout expires without any data arriving, or
+       <STRONG>o</STRONG>   the <EM>curses</EM> screen has not been initialized, or
 
-       <STRONG>o</STRONG>   execution  was  interrupted by a signal, in which case <STRONG>errno</STRONG> is set
-           to <STRONG>EINTR</STRONG>.
-
-       <STRONG>ungetch</STRONG> fails if there is no more room in the input queue.
+       <STRONG>o</STRONG>   there is no more room in the input queue.
 
        <STRONG>has_key</STRONG> returns <STRONG>TRUE</STRONG> or <STRONG>FALSE</STRONG>.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
+       <STRONG>getch</STRONG>, <STRONG>mvgetch</STRONG>, and <STRONG>mvwgetch</STRONG> may be implemented as macros.
+
        <EM>curses</EM> discourages assignment of the ESC key to a discrete function  by
        the programmer because the library requires a delay while it awaits the
        potential remainder of a terminal escape sequence.
 
-       Some key strokes are indistinguishable  from  control  characters;  for
-       example,  <STRONG>KEY_ENTER</STRONG> may be the same as <STRONG>^M</STRONG>, and <STRONG>KEY_BACKSPACE</STRONG> may be the
-       same as <STRONG>^H</STRONG> or <STRONG>^?</STRONG>.  Consult the terminal's <EM>terminfo</EM> entry  to  determine
-       whether this is the case; see <STRONG><A HREF="infocmp.1m.html">infocmp(1)</A></STRONG>.  Some <EM>curses</EM> implementations,
-       including <EM>ncurses</EM>, honor the <EM>terminfo</EM>  key  definitions;  others  treat
-       such control characters specially.
+       Some  key  strokes  are  indistinguishable from control characters; for
+       example, <STRONG>KEY_ENTER</STRONG> may be the same as <STRONG>^M</STRONG>, and <STRONG>KEY_BACKSPACE</STRONG> may be  the
+       same  as <STRONG>^H</STRONG> or <STRONG>^?</STRONG>.  Consult the <EM>terminfo</EM> entry for the terminal type to
+       determine whether this  is  the  case;  see  <STRONG><A HREF="infocmp.1m.html">infocmp(1)</A></STRONG>.   Some  <EM>curses</EM>
+       implementations, including <EM>ncurses</EM>, honor the <EM>terminfo</EM> key definitions;
+       others treat such control characters specially.
 
        <EM>curses</EM>  distinguishes  the  Enter  keys  in  the alphabetic and numeric
        keypad sections of a keyboard because (most) terminals  do.   <STRONG>KEY_ENTER</STRONG>
        refers  to the key on the numeric keypad and, like other function keys,
-       and is reliably recognized only if the window's keypad mode is enabled.
+       is reliably recognized only if the window's keypad mode is enabled.
 
        <STRONG>o</STRONG>   The <EM>terminfo</EM> <STRONG>key_enter</STRONG> (<STRONG>kent</STRONG>) capability  describes  the  character
            (sequence)  sent  by  the  Enter  key  of  a terminal's numeric (or
@@ -346,69 +376,84 @@
        <STRONG>o</STRONG>   It usually produces a control code for carriage return (<STRONG>^M</STRONG>) or line
            feed (<STRONG>^J</STRONG>).
 
-       <STRONG>o</STRONG>   Depending on the terminal mode  (raw,  cbreak,  or  "cooked"),  and
-           whether  <STRONG><A HREF="curs_inopts.3x.html">nl(3x)</A></STRONG>  or  <STRONG><A HREF="curs_inopts.3x.html">nonl(3x)</A></STRONG>  has  been  called, <STRONG>wgetch</STRONG> may return
-           either a carriage return or line feed upon an Enter or  Return  key
+       <STRONG>o</STRONG>   Depending  on  the  terminal  mode (raw, cbreak, or canonical), and
+           whether <STRONG><A HREF="curs_inopts.3x.html">nl(3x)</A></STRONG> or <STRONG><A HREF="curs_inopts.3x.html">nonl(3x)</A></STRONG>  has  been  called,  <STRONG>wgetch</STRONG>  may  return
+           either  a  carriage return or line feed upon an Enter or Return key
            stroke.
 
-       Use  of  <STRONG>wgetch</STRONG> with <STRONG><A HREF="curs_inopts.3x.html">echo(3x)</A></STRONG> and neither <STRONG><A HREF="curs_inopts.3x.html">cbreak(3x)</A></STRONG> nor <STRONG><A HREF="curs_inopts.3x.html">raw(3x)</A></STRONG> is not
+       Use of <STRONG>wgetch</STRONG> with <STRONG><A HREF="curs_inopts.3x.html">echo(3x)</A></STRONG> and neither <STRONG><A HREF="curs_inopts.3x.html">cbreak(3x)</A></STRONG> nor <STRONG><A HREF="curs_inopts.3x.html">raw(3x)</A></STRONG>  is  not
        well-defined.
 
-       Historically, the list of key code macros above was influenced  by  the
-       function-key-rich  keyboard  of  the AT&amp;T 7300 (also known variously as
-       the "3B1", "Safari  4",  and  "UNIX  PC"),  a  1985  machine.   Today's
-       computer  keyboards  are  based  that of the IBM PC/AT and tend to have
+       Historically,  the  list of key code macros above was influenced by the
+       keyboard of the AT&amp;T 7300 (also known variously as the  "3B1",  "Safari
+       4",  and  "UNIX  PC"),  a  1985 machine rich in function keys.  Today's
+       computer keyboards are based on that of the IBM PC/AT and tend to  have
        fewer.  A <EM>curses</EM> application can expect such a keyboard to transmit key
        codes   <STRONG>KEY_UP</STRONG>,   <STRONG>KEY_DOWN</STRONG>,  <STRONG>KEY_LEFT</STRONG>,  <STRONG>KEY_RIGHT</STRONG>,  <STRONG>KEY_HOME</STRONG>,  <STRONG>KEY_END</STRONG>,
        <STRONG>KEY_PPAGE</STRONG> (Page Up), <STRONG>KEY_NPAGE</STRONG> (Page  Down),  <STRONG>KEY_IC</STRONG>  (Insert),  <STRONG>KEY_DC</STRONG>
-       (Delete), and <STRONG>KEY_F(</STRONG><EM>n</EM><STRONG>)</STRONG> for 1 &lt;= <EM>n</EM> &lt;= 12.
-
-       <STRONG>getch</STRONG>, <STRONG>mvgetch</STRONG>, and <STRONG>mvwgetch</STRONG> may be implemented as macros.
+       (Delete), <STRONG>KEY_A1</STRONG>, <STRONG>KEY_A3</STRONG>, <STRONG>KEY_B2</STRONG>, <STRONG>KEY_C1</STRONG>, <STRONG>KEY_C3</STRONG>, and <STRONG>KEY_F(</STRONG><EM>n</EM><STRONG>)</STRONG> for 1 &lt;=
+       <EM>n</EM> &lt;= 12.
 
 
 </PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
        In <EM>ncurses</EM>, when a window's "no time-out" mode is <EM>not</EM> set, the <STRONG>ESCDELAY</STRONG>
-       variable configures the duration of the timer used  to  disambiguate  a
-       function  key character sequence from a series of key strokes beginning
+       variable  configures  the  duration of the timer used to disambiguate a
+       function key character sequence from a series of key strokes  beginning
        with ESC typed by the user; see <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>.
 
-       <STRONG>has_key</STRONG> was designed for <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>, and is not found in SVr4  <EM>curses</EM>,
-       4.4BSD <EM>curses</EM>, or any other previous curses implementation.
+       <STRONG>has_key</STRONG>  is  an  <EM>ncurses</EM>  extension,  and  is not found in SVr4 <EM>curses</EM>,
+       4.4BSD <EM>curses</EM>, or any other previous <EM>curses</EM> implementation.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
        Applications employing <EM>ncurses</EM> extensions should condition their use on
        the visibility of the <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
 
-       X/Open Curses, Issue 4 describes <STRONG>getch</STRONG>, <STRONG>wgetch</STRONG>, <STRONG>mvgetch</STRONG>, <STRONG>mvwgetch</STRONG>,  and
-       <STRONG>ungetch</STRONG>.  It specifies no error conditions for them.
+       Except as noted in section "EXTENSIONS" above,  X/Open  Curses  Issue 4
+       describes these functions.  It specifies no error conditions for them.
 
-       <STRONG>wgetch</STRONG> reads only single-byte characters.
+       SVr4  describes  a  successful  return  value only as "an integer value
+       other than <EM>ERR</EM>".
 
-       The  echo  behavior  of  these  functions on input of <STRONG>KEY_</STRONG> or backspace
-       characters  was  not  specified  in  the  SVr4   documentation.    This
-       description is adapted from X/Open Curses.
+       <EM>wgetch</EM> reads only single-byte characters.
 
-       The   behavior  of  <STRONG>wgetch</STRONG>  in  the  presence  of  signal  handlers  is
-       unspecified in the SVr4 documentation and X/Open Curses.  In historical
-       <EM>curses</EM>  implementations,  it  varied depending on whether the operating
-       system's dispatch of a signal to a handler interrupting a <STRONG>read(2)</STRONG>  call
-       in  progress,  and  also  (in  some  implementations)  whether an input
-       timeout or non-blocking mode has been set.  Programmers concerned about
-       portability  should  be  prepared  for  either of two cases: (a) signal
-       receipt does not interrupt <STRONG>wgetch</STRONG>; or  (b)  signal  receipt  interrupts
-       <STRONG>wgetch</STRONG> and causes it to return <STRONG>ERR</STRONG> with <STRONG>errno</STRONG> set to <STRONG>EINTR</STRONG>.
+       The echo behavior of these functions on  input  of  <EM>KEY</EM><STRONG>_</STRONG>  or  backspace
+       characters is not documented in SVr4 <EM>curses</EM>.
 
-       <STRONG>KEY_MOUSE</STRONG> is mentioned in X/Open Curses, along with a few related <EM>term-</EM>
+       The  behavior  of  <EM>wgetch</EM>  in  the  presence  of signal handlers is not
+       documented in SVr4 <EM>curses</EM> and is  unspecified  by  X/Open  Curses.   In
+       historical  <EM>curses</EM>  implementations, it varied depending on whether the
+       operating system's dispatch of a signal  to  a  handler  interrupted  a
+       <STRONG>read(2)</STRONG> call in progress, and also (in some implementations) whether an
+       input  timeout  or  non-blocking  mode had been set.  A portable <EM>curses</EM>
+       application prepares  for  two  cases:  (a)  signal  receipt  does  not
+       interrupt  <EM>wgetch</EM>;  and (b) signal receipt interrupts <EM>wgetch</EM> and causes
+       it to return <EM>ERR</EM> with <EM>errno</EM> set to <EM>EINTR</EM>.
+
+       <EM>KEY</EM><STRONG>_</STRONG><EM>MOUSE</EM> is mentioned in X/Open Curses, along with a few related <EM>term-</EM>
        <EM>info</EM> capabilities, but no higher-level functions use the feature.   The
        implementation in <EM>ncurses</EM> is an extension.
 
-       <STRONG>KEY_RESIZE</STRONG>  and  <STRONG>has_key</STRONG>  are extensions first implemented for <EM>ncurses</EM>.
+       <EM>KEY</EM><STRONG>_</STRONG><EM>RESIZE</EM>  and  <EM>has</EM><STRONG>_</STRONG><EM>key</EM>  are extensions first implemented for <EM>ncurses</EM>.
        By  2022,  <EM>PDCurses</EM>  and  NetBSD  <EM>curses</EM>  had  added  them  along  with
-       <STRONG>KEY_MOUSE</STRONG>.
+       <EM>KEY</EM><STRONG>_</STRONG><EM>MOUSE</EM>.
+
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       4BSD (1980) introduced <EM>wgetch</EM> and its variants.
+
+       SVr3 (1987) added <EM>ungetch</EM>.
+
+       <EM>ncurses</EM> 1.9.9g (1996) furnished the <EM>has</EM><STRONG>_</STRONG><EM>key</EM> extension.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+       ECMA-6  "7-bit  coded  Character  Set" &lt;https://ecma-international.org/
+       publications-and-standards/standards/ecma-6/&gt;
+
+       ECMA-48  "Control  Functions  for  Coded  Character   Sets"   &lt;https://
+       ecma-international.org/publications-and-standards/standards/ecma-48/&gt;
+
        <STRONG><A HREF="curs_get_wch.3x.html">curs_get_wch(3x)</A></STRONG>  describes comparable functions of the <EM>ncurses</EM> library
        in its wide-character configuration (<EM>ncursesw</EM>).
 
@@ -416,15 +461,7 @@
        <STRONG><A HREF="curs_move.3x.html">curs_move(3x)</A></STRONG>,  <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>, <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>,
        <STRONG><A HREF="resizeterm.3x.html">resizeterm(3x)</A></STRONG>, <STRONG>ascii(7)</STRONG>
 
-       ECMA-6 "7-bit  coded  Character  Set"  &lt;https://ecma-international.org/
-       publications-and-standards/standards/ecma-6/&gt;
-
-       ECMA-48   "Control   Functions  for  Coded  Character  Sets"  &lt;https://
-       ecma-international.org/publications-and-standards/standards/ecma-48/&gt;
-
-
-
-ncurses 6.5                       2024-04-20                    <STRONG><A HREF="curs_getch.3x.html">curs_getch(3x)</A></STRONG>
+ncurses 6.6                       2025-11-11                    <STRONG><A HREF="curs_getch.3x.html">curs_getch(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -435,7 +472,7 @@ ncurses 6.5                       2024-04-20                    <STRONG><A HREF=
 <li><a href="#h3-Reading-Characters">Reading Characters</a></li>
 <li><a href="#h3-Keypad-Mode">Keypad Mode</a></li>
 <li><a href="#h3-Ungetting-Characters">Ungetting Characters</a></li>
-<li><a href="#h3-Predefined-Key-Codes">Predefined Key Codes</a></li>
+<li><a href="#h3-Key-Codes">Key Codes</a></li>
 <li><a href="#h3-Testing-Key-Codes">Testing Key Codes</a></li>
 </ul>
 </li>
@@ -443,6 +480,7 @@ ncurses 6.5                       2024-04-20                    <STRONG><A HREF=
 <li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-EXTENSIONS">EXTENSIONS</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

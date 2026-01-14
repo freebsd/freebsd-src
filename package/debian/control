@@ -1,4 +1,4 @@
-Source: ncurses6
+Source: ncurses6td
 Section: libdevel
 Priority: optional
 Maintainer: Thomas E. Dickey <dickey@invisible-island.net>
@@ -6,8 +6,11 @@ Homepage: https://invisible-island.net/ncurses/
 Build-Depends: debhelper (>= 8.1.3)
 Standards-Version: 4.6.1.0
 
-Package: ncurses6
+Package: ncurses6td
 Architecture: any
+Conflicts: ncurses6 (>= 6.5)
+Provides: ncurses6 (= 6.5)
+Replaces: ncurses6 (>= 6.5)
 Depends: ${misc:Depends}, libc6 (>= 2.4)
 Description: shared libraries for terminal handling
  The ncurses library routines are a terminal-independent method of
@@ -15,8 +18,11 @@ Description: shared libraries for terminal handling
  .
  This package is used for testing ABI 6.
 
-Package: ncursest6
+Package: ncursest6td
 Architecture: any
+Conflicts: ncursest6 (>= 6.5)
+Provides: ncursest6 (= 6.5)
+Replaces: ncursest6 (>= 6.5)
 Depends: ${misc:Depends}, libc6 (>= 2.4)
 Description: shared libraries for terminal handling
  The ncurses library routines are a terminal-independent method of
@@ -24,9 +30,12 @@ Description: shared libraries for terminal handling
  .
  This package is used for testing ABI 6 with pthreads.
 
-Package: ncurses6-doc
+Package: ncurses6td-doc
 Section: doc
 Architecture: all
+Conflicts: ncurses6-doc
+Provides: ncurses6-doc
+Replaces: ncurses6-doc
 Depends: groff-base
 Description: shared libraries for terminal handling
  The ncurses library routines are a terminal-independent method of
@@ -34,9 +43,12 @@ Description: shared libraries for terminal handling
  .
  This package is used for testing ncurses6 document packaging.
 
-Package: ncurses6-doc-html
+Package: ncurses6td-doc-html
 Section: doc
 Architecture: all
+Conflicts: ncurses6-doc-html
+Provides: ncurses6-doc-html
+Replaces: ncurses6-doc-html
 Description: shared libraries for terminal handling
  The ncurses library routines are a terminal-independent method of
  updating character screens with reasonable optimization.

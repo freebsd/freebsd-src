@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright 2020 Thomas E. Dickey                                          --
+-- Copyright 2020,2025 Thomas E. Dickey                                     --
 -- Copyright 1999-2003,2009 Free Software Foundation, Inc.                  --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
@@ -36,7 +36,7 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.13 $
+--  $Revision: 1.14 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Interfaces.C;

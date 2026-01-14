@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2021 Thomas E. Dickey                                     *
+ * Copyright 2020-2021,2024 Thomas E. Dickey                                *
  * Copyright 2004,2009 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,14 +33,14 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_pecho_wchar.c,v 1.4 2021/10/23 17:07:56 tom Exp $")
+MODULE_ID("$Id: lib_pecho_wchar.c,v 1.5 2024/12/07 20:08:15 tom Exp $")
 
 NCURSES_EXPORT(int)
 pecho_wchar(WINDOW *pad, const cchar_t *wch)
 {
     T((T_CALLED("pecho_wchar(%p, %s)"), (void *) pad, _tracech_t(wch)));
 
-    if (pad == 0)
+    if (pad == NULL)
 	returnCode(ERR);
 
     if (!IS_PAD(pad))

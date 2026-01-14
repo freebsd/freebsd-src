@@ -1,6 +1,6 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright 2019-2020,2022 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -32,7 +32,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: cursesm.h,v 1.35 2022/08/20 20:52:15 tom Exp $
+// $Id: cursesm.h,v 1.37 2025/01/25 21:20:17 tom Exp $
 
 #ifndef NCURSES_CURSESM_H_incl
 #define NCURSES_CURSESM_H_incl 1
@@ -62,9 +62,9 @@ protected:
 public:
   NCursesMenuItem (const char* p_name     = NULL,
 		   const char* p_descript = NULL)
-    : item(0)
+    : item(NULL)
   {
-    item = p_name ? ::new_item (p_name, p_descript) : STATIC_CAST(ITEM*)(0);
+    item = p_name ? ::new_item (p_name, p_descript) : STATIC_CAST(ITEM*)(NULL);
     if (p_name && !item)
       OnError (E_SYSTEM_ERROR);
   }
@@ -81,7 +81,7 @@ public:
   }
 
   NCursesMenuItem(const NCursesMenuItem& rhs)
-    : item(0)
+    : item(NULL)
   {
     (void) rhs;
   }
@@ -176,7 +176,7 @@ public:
 
   NCursesMenuCallbackItem(const NCursesMenuCallbackItem& rhs)
     : NCursesMenuItem(rhs),
-      p_fct(0)
+      p_fct(NULL)
   {
   }
 
@@ -224,7 +224,7 @@ private:
   // Get the backward pointer to the C++ object from a MENU
   static inline NCursesMenu* getHook(const MENU *m) {
     UserHook* hook = STATIC_CAST(UserHook*)(::menu_userptr(m));
-    assert(hook != 0 && hook->m_owner==m);
+    assert(hook != NULL && hook->m_owner==m);
     return const_cast<NCursesMenu*>(hook->m_back);
   }
 
@@ -240,13 +240,13 @@ protected:
   // internal routines
   inline void set_user(void *user) {
     UserHook* uptr = STATIC_CAST(UserHook*)(::menu_userptr (menu));
-    assert (uptr != 0 && uptr->m_back==this && uptr->m_owner==menu);
+    assert (uptr != NULL && uptr->m_back==this && uptr->m_owner==menu);
     uptr->m_user = user;
   }
 
   inline void *get_user() {
-    UserHook* uptr = STATIC_CAST(UserHook*)(::menu_userptr (menu));
-    assert (uptr != 0 && uptr->m_back==this && uptr->m_owner==menu);
+    const UserHook* uptr = STATIC_CAST(UserHook*)(::menu_userptr (menu));
+    assert (uptr != NULL && uptr->m_back==this && uptr->m_owner==menu);
     return uptr->m_user;
   }
 
@@ -270,11 +270,11 @@ protected:
 	       int  begin_x = 0)
     : NCursesPanel(nlines,ncols,begin_y,begin_x),
       menu (STATIC_CAST(MENU*)(0)),
-      sub(0),
+      sub(NULL),
       b_sub_owner(0),
       b_framed(0),
       b_autoDelete(0),
-      my_items(0)
+      my_items(NULL)
   {
   }
 
@@ -284,12 +284,12 @@ public:
 	       bool with_frame=FALSE,        // Reserve space for a frame?
 	       bool autoDelete_Items=FALSE)  // Autocleanup of Items?
     : NCursesPanel(),
-      menu(0),
-      sub(0),
+      menu(NULL),
+      sub(NULL),
       b_sub_owner(0),
       b_framed(0),
       b_autoDelete(0),
-      my_items(0)
+      my_items(NULL)
   {
       InitMenu(Items, with_frame, autoDelete_Items);
   }
@@ -303,12 +303,12 @@ public:
 	       bool with_frame=FALSE,        // Reserve space for a frame?
 	       bool autoDelete_Items=FALSE)  // Autocleanup of Items?
     : NCursesPanel(nlines, ncols, begin_y, begin_x),
-      menu(0),
-      sub(0),
+      menu(NULL),
+      sub(NULL),
       b_sub_owner(0),
       b_framed(0),
       b_autoDelete(0),
-      my_items(0)
+      my_items(NULL)
   {
       InitMenu(Items, with_frame, autoDelete_Items);
   }
@@ -601,7 +601,7 @@ template<class T> class NCURSES_CXX_IMPEXP NCursesUserItem : public NCursesMenuI
 public:
   NCursesUserItem (const char* p_name,
 		   const char* p_descript = NULL,
-		   const T* p_UserData    = STATIC_CAST(T*)(0))
+		   const T* p_UserData    = STATIC_CAST(T*)(NULL))
     : NCursesMenuItem (p_name, p_descript) {
       if (item)
 	OnError (::set_item_userptr (item, const_cast<void *>(reinterpret_cast<const void*>(p_UserData))));
@@ -630,7 +630,7 @@ protected:
 		   int  ncols,
 		   int  begin_y = 0,
 		   int  begin_x = 0,
-		   const T* p_UserData = STATIC_CAST(T*)(0))
+		   const T* p_UserData = STATIC_CAST(T*)(NULL))
     : NCursesMenu(nlines,ncols,begin_y,begin_x) {
       if (menu)
 	set_user (const_cast<void *>(reinterpret_cast<const void*>(p_UserData)));
@@ -638,7 +638,7 @@ protected:
 
 public:
   NCursesUserMenu (NCursesMenuItem* Items[],
-		   const T* p_UserData = STATIC_CAST(T*)(0),
+		   const T* p_UserData = STATIC_CAST(T*)(NULL),
 		   bool with_frame=FALSE,
 		   bool autoDelete_Items=FALSE)
     : NCursesMenu (Items, with_frame, autoDelete_Items) {
@@ -651,7 +651,7 @@ public:
 		   int ncols,
 		   int begin_y = 0,
 		   int begin_x = 0,
-		   const T* p_UserData = STATIC_CAST(T*)(0),
+		   const T* p_UserData = STATIC_CAST(T*)(NULL),
 		   bool with_frame=FALSE)
     : NCursesMenu (Items, nlines, ncols, begin_y, begin_x, with_frame) {
       if (menu)

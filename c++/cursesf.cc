@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright 2019-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2005,2011 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -36,7 +36,7 @@
 #include "cursesf.h"
 #include "cursesapp.h"
 
-MODULE_ID("$Id: cursesf.cc,v 1.26 2021/04/17 18:11:08 tom Exp $")
+MODULE_ID("$Id: cursesf.cc,v 1.28 2025/01/25 21:20:17 tom Exp $")
 
 NCursesFormField::~NCursesFormField () THROWS(NCursesException)
 {
@@ -50,33 +50,39 @@ NCursesFormField::~NCursesFormField () THROWS(NCursesException)
 FIELD**
 NCursesForm::mapFields(NCursesFormField* nfields[])
 {
-  int fieldCount = 0,lcv;
+  int fieldCount = 0, lcv;
   FIELD** old_fields;
 
-  assert(nfields != 0);
+  assert(nfields != NULL);
 
   for (lcv=0; nfields[lcv]->field; ++lcv)
     ++fieldCount;
 
-  FIELD** fields = new FIELD*[fieldCount + 1];
+  try {
+    FIELD** fields = new FIELD*[fieldCount + 1];
 
-  for (lcv=0;nfields[lcv]->field;++lcv) {
-    fields[lcv] = nfields[lcv]->field;
+    for (lcv=0;nfields[lcv]->field;++lcv) {
+      fields[lcv] = nfields[lcv]->field;
+    }
+    fields[lcv] = NULL;
+
+    my_fields = nfields;
+
+    if (form && (old_fields = ::form_fields(form))) {
+      ::set_form_fields(form, static_cast<FIELD**>(0));
+      delete[] old_fields;
+    }
+    return fields;
   }
-  fields[lcv] = NULL;
-
-  my_fields = nfields;
-
-  if (form && (old_fields = ::form_fields(form))) {
-    ::set_form_fields(form, static_cast<FIELD**>(0));
-    delete[] old_fields;
+  catch (std::bad_alloc const&) {
+    OnError (E_SYSTEM_ERROR);
   }
-  return fields;
+  return NULL;
 }
 
 void NCursesForm::setDefaultAttributes()
 {
-  NCursesApplication* S = NCursesApplication::getApplication();
+  const NCursesApplication* S = NCursesApplication::getApplication();
 
   int n = count();
   if (n > 0) {
@@ -108,46 +114,51 @@ NCursesForm::InitForm(NCursesFormField* nfields[],
 		      bool with_frame,
 		      bool autoDelete_Fields)
 {
-  int mrows, mcols;
+  try {
+    int mrows, mcols;
 
-  keypad(TRUE);
-  meta(TRUE);
+    keypad(TRUE);
+    meta(TRUE);
 
-  b_framed = with_frame;
-  b_autoDelete = autoDelete_Fields;
+    b_framed = with_frame;
+    b_autoDelete = autoDelete_Fields;
 
-  form = static_cast<FORM*>(0);
-  form = ::new_form(mapFields(nfields));
-  if (!form)
+    form = static_cast<FORM*>(0);
+    form = ::new_form(mapFields(nfields));
+    if (!form)
+      OnError (E_SYSTEM_ERROR);
+
+    UserHook* hook = new UserHook;
+    hook->m_user   = NULL;
+    hook->m_back   = this;
+    hook->m_owner  = form;
+    ::set_form_userptr(form, reinterpret_cast<void*>(hook));
+
+    ::set_form_init  (form, _nc_xx_frm_init);
+    ::set_form_term  (form, _nc_xx_frm_term);
+    ::set_field_init (form, _nc_xx_fld_init);
+    ::set_field_term (form, _nc_xx_fld_term);
+
+    scale(mrows, mcols);
+    ::set_form_win(form, w);
+
+    if (with_frame) {
+      if ((mrows > height()-2) || (mcols > width()-2))
+        OnError(E_NO_ROOM);
+      sub = new NCursesWindow(*this,mrows,mcols,1,1,'r');
+      ::set_form_sub(form, sub->w);
+      b_sub_owner = TRUE;
+    }
+    else {
+      sub = static_cast<NCursesWindow*>(NULL);
+      b_sub_owner = FALSE;
+    }
+    options_on(O_NL_OVERLOAD);
+    setDefaultAttributes();
+  }
+  catch (std::bad_alloc const&) {
     OnError (E_SYSTEM_ERROR);
-
-  UserHook* hook = new UserHook;
-  hook->m_user   = NULL;
-  hook->m_back   = this;
-  hook->m_owner  = form;
-  ::set_form_userptr(form, reinterpret_cast<void*>(hook));
-
-  ::set_form_init  (form, _nc_xx_frm_init);
-  ::set_form_term  (form, _nc_xx_frm_term);
-  ::set_field_init (form, _nc_xx_fld_init);
-  ::set_field_term (form, _nc_xx_fld_term);
-
-  scale(mrows, mcols);
-  ::set_form_win(form, w);
-
-  if (with_frame) {
-    if ((mrows > height()-2) || (mcols > width()-2))
-      OnError(E_NO_ROOM);
-    sub = new NCursesWindow(*this,mrows,mcols,1,1,'r');
-    ::set_form_sub(form, sub->w);
-    b_sub_owner = TRUE;
   }
-  else {
-    sub = static_cast<NCursesWindow*>(0);
-    b_sub_owner = FALSE;
-  }
-  options_on(O_NL_OVERLOAD);
-  setDefaultAttributes();
 }
 
 NCursesForm::~NCursesForm() THROWS(NCursesException)
@@ -156,13 +167,13 @@ NCursesForm::~NCursesForm() THROWS(NCursesException)
   delete hook;
   if (b_sub_owner) {
     delete sub;
-    ::set_form_sub(form, static_cast<WINDOW *>(0));
+    ::set_form_sub(form, static_cast<WINDOW *>(NULL));
   }
   if (form) {
     FIELD** fields = ::form_fields(form);
     int cnt = count();
 
-    OnError(::set_form_fields(form, static_cast<FIELD**>(0)));
+    OnError(::set_form_fields(form, static_cast<FIELD**>(NULL)));
 
     if (b_autoDelete) {
       if (cnt>0) {
@@ -381,19 +392,19 @@ bool _nc_xx_fld_fcheck(FIELD *f, const void *u)
 {
   (void) f;
   NCursesFormField* F = reinterpret_cast<NCursesFormField*>(const_cast<void *>(u));
-  assert(F != 0);
+  assert(F != NULL);
   UserDefinedFieldType* udf = reinterpret_cast<UserDefinedFieldType*>(F->fieldtype());
-  assert(udf != 0);
+  assert(udf != NULL);
   return udf->field_check(*F);
 }
 
 bool _nc_xx_fld_ccheck(int c, const void *u)
 {
   NCursesFormField* F = reinterpret_cast<NCursesFormField*>(const_cast<void *>(u));
-  assert(F != 0);
+  assert(F != NULL);
   UserDefinedFieldType* udf =
     reinterpret_cast<UserDefinedFieldType*>(F->fieldtype());
-  assert(udf != 0);
+  assert(udf != NULL);
   return udf->char_check(c);
 }
 
@@ -423,10 +434,10 @@ bool _nc_xx_next_choice(FIELD *f, const void *u)
 {
   (void) f;
   NCursesFormField* F = reinterpret_cast<NCursesFormField*>(const_cast<void *>(u));
-  assert(F != 0);
+  assert(F != NULL);
   UserDefinedFieldType_With_Choice* udf =
     reinterpret_cast<UserDefinedFieldType_With_Choice*>(F->fieldtype());
-  assert(udf != 0);
+  assert(udf != NULL);
   return udf->next(*F);
 }
 
@@ -434,10 +445,10 @@ bool _nc_xx_prev_choice(FIELD *f, const void *u)
 {
   (void) f;
   NCursesFormField* F = reinterpret_cast<NCursesFormField*>(const_cast<void *>(u));
-  assert(F != 0);
+  assert(F != NULL);
   UserDefinedFieldType_With_Choice* udf =
     reinterpret_cast<UserDefinedFieldType_With_Choice*>(F->fieldtype());
-  assert(udf != 0);
+  assert(udf != NULL);
   return udf->previous(*F);
 }
 

@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2007,2010 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_border.3x,v 1.49 2024/04/20 21:20:07 tom Exp @
+  * @Id: curs_border.3x,v 1.65 2025/10/20 23:42:24 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_border 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_border 3x 2025-10-20 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_border 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_border 3x 2025-10-20 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_border.3x.html">curs_border(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="curs_border.3x.html">curs_border(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -56,29 +54,28 @@
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
        <STRONG>int</STRONG> <STRONG>border(chtype</STRONG> <EM>ls</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>rs</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>ts</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>bs</EM><STRONG>,</STRONG>
-                  <STRONG>chtype</STRONG> <EM>tl</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>tr</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>bl</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>br</EM><STRONG>);</STRONG>
+             <STRONG>chtype</STRONG> <EM>tl</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>tr</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>bl</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>br</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>wborder(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>ls</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>rs</EM><STRONG>,</STRONG>
-                   <STRONG>chtype</STRONG> <EM>ts</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>bs</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>tl</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>tr</EM><STRONG>,</STRONG>
-                   <STRONG>chtype</STRONG> <EM>bl</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>br</EM><STRONG>);</STRONG>
+             <STRONG>chtype</STRONG> <EM>ts</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>bs</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>tl</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>tr</EM><STRONG>,</STRONG>
+             <STRONG>chtype</STRONG> <EM>bl</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>br</EM><STRONG>);</STRONG>
 
        <STRONG>int</STRONG> <STRONG>box(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>verch</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>horch</EM><STRONG>);</STRONG>
 
        <STRONG>int</STRONG> <STRONG>hline(chtype</STRONG> <EM>ch</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>whline(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>ch</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>vline(chtype</STRONG> <EM>ch</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wvline(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>ch</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
-
        <STRONG>int</STRONG> <STRONG>mvhline(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>ch</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>mvwhline(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>ch</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>vline(chtype</STRONG> <EM>ch</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wvline(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>ch</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>mvvline(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>ch</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>mvwvline(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>ch</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       The  <STRONG>border</STRONG>,  <STRONG>wborder</STRONG> and <STRONG>box</STRONG> routines draw a box around the edges of a
-       window.  Other than the window,  each  argument  is  a  character  with
-       attributes:
-
+       <STRONG>wborder</STRONG>  and  <STRONG>border</STRONG> draw a box at the edges of the specified window or
+       <STRONG>stdscr</STRONG>, respectively.  Each <EM>chtype</EM> argument corresponds to a  geometric
+       component of the border as follows:
               <EM>ls</EM> - left side,
               <EM>rs</EM> - right side,
               <EM>ts</EM> - top side,
@@ -88,60 +85,76 @@
               <EM>bl</EM> - bottom left-hand corner, and
               <EM>br</EM> - bottom right-hand corner.
 
-       If  any  of  these  arguments  is  zero, then the corresponding default
-       values (defined in <STRONG>curses.h</STRONG>) are used instead:
-
+       If  any <EM>chtype</EM> argument is <STRONG>0</STRONG>, then <EM>curses</EM> uses forms-drawing characters
+       (see <STRONG><A HREF="curs_addch.3x.html">addch(3x)</A></STRONG>) in the following correspondence:
               <STRONG>ACS_VLINE</STRONG>,
               <STRONG>ACS_VLINE</STRONG>,
               <STRONG>ACS_HLINE</STRONG>,
               <STRONG>ACS_HLINE</STRONG>,
               <STRONG>ACS_ULCORNER</STRONG>,
               <STRONG>ACS_URCORNER</STRONG>,
-              <STRONG>ACS_LLCORNER</STRONG>,
+              <STRONG>ACS_LLCORNER</STRONG>, and
               <STRONG>ACS_LRCORNER</STRONG>.
 
-       <STRONG>box(</STRONG><EM>win</EM><STRONG>,</STRONG>  <EM>verch</EM><STRONG>,</STRONG>  <EM>horch</EM><STRONG>)</STRONG>  is  a  shorthand  for  the  following   call:
-       <STRONG>wborder(</STRONG><EM>win</EM><STRONG>,</STRONG> <EM>verch</EM><STRONG>,</STRONG> <EM>verch</EM><STRONG>,</STRONG> <EM>horch</EM><STRONG>,</STRONG> <EM>horch</EM><STRONG>,</STRONG> <STRONG>0,</STRONG> <STRONG>0,</STRONG> <STRONG>0,</STRONG> <STRONG>0)</STRONG>.
+       <STRONG>box(</STRONG><EM>win</EM><STRONG>,</STRONG> <EM>verch</EM><STRONG>,</STRONG> <EM>horch</EM><STRONG>)</STRONG> is shorthand  for  "<STRONG>wborder(</STRONG><EM>win</EM><STRONG>,</STRONG>  <EM>verch</EM><STRONG>,</STRONG>  <EM>verch</EM><STRONG>,</STRONG>
+       <EM>horch</EM><STRONG>,</STRONG> <EM>horch</EM><STRONG>,</STRONG> <STRONG>0,</STRONG> <STRONG>0,</STRONG> <STRONG>0,</STRONG> <STRONG>0)</STRONG>".
 
-       The  <STRONG>hline</STRONG>  and <STRONG>whline</STRONG> functions draw a horizontal (left to right) line
-       using <EM>ch</EM> starting at the current cursor position in  the  window.   The
-       current  cursor  position  is  not  changed.   The  line  is  at most <EM>n</EM>
-       characters long, or as many as fit into the window.
-
-       The <STRONG>vline</STRONG> and <STRONG>wvline</STRONG> functions draw a vertical  (top  to  bottom)  line
-       using  <EM>ch</EM>  starting  at the current cursor position in the window.  The
-       current cursor position  is  not  changed.   The  line  is  at  most  <EM>n</EM>
-       characters long, or as many as fit into the window.
+       <STRONG>whline</STRONG>  draws  a horizontal line of <EM>ch</EM> from left to right, and <STRONG>wvline</STRONG> a
+       vertical one from top to bottom, stopping once <EM>n</EM> characters  have  been
+       drawn  or  upon  reaching  the boundary of <EM>win</EM>.  These functions do not
+       update the cursor position (beyond any motion directed  by  their  "mv"
+       variants).  <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG> describes the variants of these functions.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       All  routines return the integer <STRONG>OK</STRONG>.  The SVr4.0 manual says "or a non-
-       negative integer if <STRONG>immedok</STRONG> is set", but this appears to be an error.
+       These functions return <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.
 
-       X/Open  Curses  does  not   specify   any   error   conditions.    This
-       implementation returns an error if the window pointer is null.
+       In <EM>ncurses</EM>,
 
-       Functions  prefixed with "mv" first perform cursor movement and fail if
+       <STRONG>o</STRONG>   these functions fail if the screen is not initialized; and
+
+       <STRONG>o</STRONG>   functions  taking  a  <EM>WINDOW</EM> pointer argument fail if <EM>win</EM> is a null
+           pointer.
+
+       Functions prefixed with "mv" first perform cursor movement and fail  if
        the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       The borders generated by these functions are <EM>inside</EM>  borders  (this  is
-       also true of SVr4 curses, though the fact is not documented).
+       Unusually,  there  is no <STRONG>wbox</STRONG> function; <STRONG>box</STRONG> behaves as one would expect
+       <STRONG>wbox</STRONG> to, accepting a <EM>WINDOW</EM> pointer argument.
 
-       Note that <STRONG>border</STRONG> and <STRONG>box</STRONG> may be macros.
+       <STRONG>border</STRONG>, <STRONG>box</STRONG>, <STRONG>hline</STRONG>, <STRONG>mvhline</STRONG>, <STRONG>mvwhline</STRONG>, <STRONG>vline</STRONG>, <STRONG>mvvline</STRONG>, and <STRONG>mvwvline</STRONG> may
+       be implemented as macros.
+
+       Borders drawn by these functions are <EM>interior</EM> borders.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These functions are described in X/Open Curses, Issue 4.
+       These functions are described in X/Open Curses Issue 4.   It  specifies
+       no error conditions for them.
+
+       SVr4  documentation  says  that  these  functions  return <EM>OK</EM> "or a non-
+       negative integer if <EM>immedok()</EM> is set", referring to  the  return  value
+       from  <EM>wrefresh</EM>,  which in SVr4 returns a count of characters written to
+       the window if its <EM>immedok</EM> property is set; in <EM>ncurses</EM>, it does not.
+
+       BSD <EM>curses</EM> drew boxes with <EM>horch</EM> in <EM>every</EM> character cell of the top and
+       bottom lines of the window, whereas SVr3.1 and  later  <EM>curses</EM>,  because
+       its <EM>box</EM> wrapped <EM>wborder</EM>, used the default corner characters.
+
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       4BSD (1980) introduced <EM>box</EM>, defining it as a function.
+
+       SVr3.1  (1987)  added  <EM>whline</EM> and <EM>wvline</EM> and their variants, as well as
+       <EM>border</EM> and <EM>wborder</EM>, redefining <EM>box</EM> as a macro wrapping the latter.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                   <STRONG><A HREF="curs_border.3x.html">curs_border(3x)</A></STRONG>
+ncurses 6.6                       2025-10-20                   <STRONG><A HREF="curs_border.3x.html">curs_border(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -151,6 +164,7 @@ ncurses 6.5                       2024-04-20                   <STRONG><A HREF="
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2006,2010 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_scroll.3x,v 1.43 2024/04/20 18:54:36 tom Exp @
+  * @Id: curs_scroll.3x,v 1.59 2025/04/05 22:20:39 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_scroll 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_scroll 3x 2025-04-05 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_scroll 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_scroll 3x 2025-04-05 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_scroll.3x.html">curs_scroll(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="curs_scroll.3x.html">curs_scroll(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -53,26 +51,27 @@
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>scroll(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>scroll(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>);</STRONG>
 
        <STRONG>int</STRONG> <STRONG>scrl(int</STRONG> <EM>n</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wscrl(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wscrl(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
        <STRONG>scroll</STRONG>  scrolls  the  given window up one line.  That is, every visible
-       line we might number <EM>i</EM> becomes line <EM>i</EM>-1.  The text of the top  line  in
-       the  window  disappears  and  the  bottom  line is populated with blank
-       characters; see <STRONG><A HREF="curs_bkgd.3x.html">bkgd(3x)</A></STRONG> or <STRONG><A HREF="curs_bkgrnd.3x.html">bkgrnd(3x)</A></STRONG>.  As  an  optimization,  if  the
-       scrolling  region  of  the  window  is  the entire screen, the physical
-       screen may be scrolled at the same time; see <STRONG><A HREF="curs_variables.3x.html">curscr(3x)</A></STRONG>.
-
-       <STRONG>scrl</STRONG> and <STRONG>wscrl</STRONG> scroll  <STRONG>stdscr</STRONG>  or  the  specified  window  up  or  down
-       depending on the sign of <EM>n</EM>.
+       line we might number <EM>i</EM> becomes line <EM>i</EM>-1.  <STRONG>wscrl</STRONG>  and  <STRONG>scrl</STRONG>  scroll  the
+       specified window or <STRONG>stdscr</STRONG>, respectively, up or down per the sign of <EM>n</EM>.
 
        <STRONG>o</STRONG>   For positive <EM>n</EM>, line <EM>i</EM>+<EM>n</EM> becomes <EM>i</EM> (scrolling up);
 
        <STRONG>o</STRONG>   for negative <EM>n</EM>, line <EM>i</EM>-<EM>n</EM> becomes <EM>i</EM> (scrolling down).
+
+       A  line  that  scrolls  beyond the window boundaries disappears; <EM>curses</EM>
+       populates a  new  one  emerging  at  the  opposite  boundary  with  the
+       background   character;   see   <STRONG><A HREF="curs_bkgd.3x.html">bkgd(3x)</A></STRONG>   (wide-character  API  users:
+       <STRONG><A HREF="curs_bkgrnd.3x.html">bkgrnd(3x)</A></STRONG>).  As an optimization, if the scrolling region of the window
+       is the entire screen, the physical screen may be scrolled at  the  same
+       time; see <STRONG><A HREF="curs_variables.3x.html">curscr(3x)</A></STRONG>.
 
        The  cursor does not move.  These functions perform no operation unless
        scrolling is enabled for the window via <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG>.
@@ -81,41 +80,52 @@
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
        These functions return <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> upon success.
 
-       <EM>ncurses</EM> returns <STRONG>ERR</STRONG> if scrolling is not  enabled  in  the  window,  for
-       example with <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG>, or if the <EM>WINDOW</EM> pointer is null.
+       In <EM>ncurses</EM>, they return <STRONG>ERR</STRONG> if
+
+       <STRONG>o</STRONG>   the <EM>curses</EM> screen has not been initialized,
+
+       <STRONG>o</STRONG>   (for functions taking a <EM>WINDOW</EM> pointer  argument)  <EM>win</EM>  is  a  null
+           pointer, or
+
+       <STRONG>o</STRONG>   scrolling is not enabled in the window (as by <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG>).
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
+       <STRONG>scroll</STRONG> and <STRONG>scrl</STRONG> may be implemented as macros.
+
        Unusually,  there  is  no <STRONG>wscroll</STRONG> function; <STRONG>scroll</STRONG> behaves as one would
        expect <STRONG>wscroll</STRONG> to, accepting a <EM>WINDOW</EM> pointer argument.
 
-       <STRONG>scrl</STRONG> and <STRONG>scroll</STRONG> may be implemented as macros.
-
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       X/Open Curses, Issue 4 describes these functions.  It defines no  error
-       conditions.
+       X/Open Curses Issue 4 describes these functions.  It specifies no error
+       conditions for them.
 
-       SVr4  specifies  only "an integer value other than <STRONG>ERR</STRONG>" as a successful
-       return value.
+       SVr4 describes a successful return value  only  as  "an  integer  value
+       other than <EM>ERR</EM>".
 
-       SVr4  indicates  that  the   optimization   of   physically   scrolling
-       immediately  if  the scroll region is the entire screen "is" performed,
-       not "may be" performed.  <EM>ncurses</EM> deliberately does not  guarantee  that
-       this  will occur, to leave open the possibility of smarter optimization
-       of multiple scroll actions on the next update.
+       SVr4   indicates   that   the   optimization  of  physically  scrolling
+       immediately if the scroll region is the entire screen  "is"  performed,
+       not  "may  be" performed.  <EM>ncurses</EM> deliberately does not guarantee that
+       this occurs, to leave open the possibility of  better  optimization  of
+       multiple scroll actions on the next update.
 
-       Neither SVr4 <EM>curses</EM> nor  X/Open  Curses  specify  whether  the  current
-       attribute  or  current  color  pair  of  blanks generated by the scroll
-       function are zeroed.  <EM>ncurses</EM> does so.
+       Neither  SVr4  <EM>curses</EM> nor X/Open Curses specify whether these functions
+       zero  the  attributes  or  color  pair  identifier  of  the  background
+       character.  In <EM>ncurses</EM>, they do not.
+
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       4BSD (1980) introduced <EM>scroll</EM>, defining it as a function.
+
+       SVr3.1  (1987)  added  <EM>scrl</EM>  and  <EM>wscrl</EM>,  redefining  <EM>scroll</EM> as a macro
+       wrapping the latter.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                   <STRONG><A HREF="curs_scroll.3x.html">curs_scroll(3x)</A></STRONG>
+ncurses 6.6                       2025-04-05                   <STRONG><A HREF="curs_scroll.3x.html">curs_scroll(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -125,6 +135,7 @@ ncurses 6.5                       2024-04-20                   <STRONG><A HREF="
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

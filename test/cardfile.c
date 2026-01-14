@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2021,2022 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 1999-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -30,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: cardfile.c,v 1.51 2022/12/04 00:40:11 tom Exp $
+ * $Id: cardfile.c,v 1.55 2025/07/05 15:21:56 tom Exp $
  *
  * File format: text beginning in column 1 is a title; other text is content.
  */
@@ -47,7 +47,7 @@
 #define pair_1 1
 #define pair_2 2
 
-#define isVisible(cardp) ((cardp)->panel != 0)
+#define isVisible(cardp) ((cardp)->panel != NULL)
 
 enum {
     MY_CTRL_x = MAX_FORM_COMMAND
@@ -100,7 +100,7 @@ add_title(const char *title)
 {
     CARD *card, *p, *q;
 
-    for (p = all_cards, q = 0; p != 0; q = p, p = p->link) {
+    for (p = all_cards, q = NULL; p != NULL; q = p, p = p->link) {
 	int cmp = strcmp(p->title, title);
 	if (cmp == 0)
 	    return p;
@@ -112,7 +112,7 @@ add_title(const char *title)
     card->title = strdup(title);
     card->content = strdup("");
 
-    if (q == 0) {
+    if (q == NULL) {
 	card->link = all_cards;
 	all_cards = card;
     } else {
@@ -132,7 +132,7 @@ add_content(CARD * card, const char *content)
     if ((total = strlen(content)) != 0) {
 	size_t offset;
 
-	if (card->content != 0 && (offset = strlen(card->content)) != 0) {
+	if (card->content != NULL && (offset = strlen(card->content)) != 0) {
 	    total += 1 + offset;
 	    card->content = typeRealloc(char, total + 1, card->content);
 	    if (card->content) {
@@ -141,7 +141,7 @@ add_content(CARD * card, const char *content)
 	    }
 	} else {
 	    offset = 0;
-	    if (card->content != 0)
+	    if (card->content != NULL)
 		free(card->content);
 	    card->content = typeMalloc(char, total + 1);
 	}
@@ -161,11 +161,11 @@ new_card(void)
 }
 
 static CARD *
-find_card(char *title)
+find_card(const char *title)
 {
     CARD *card;
 
-    for (card = all_cards; card != 0; card = card->link)
+    for (card = all_cards; card != NULL; card = card->link)
 	if (!strcmp(card->title, title))
 	    break;
 
@@ -173,21 +173,21 @@ find_card(char *title)
 }
 
 static void
-read_data(char *fname)
+read_data(const char *fname)
 {
     FILE *fp;
 
-    if ((fp = fopen(fname, "r")) != 0) {
-	CARD *card = 0;
+    if ((fp = fopen(fname, "r")) != NULL) {
+	CARD *card = NULL;
 	char buffer[BUFSIZ];
 
 	while (fgets(buffer, sizeof(buffer), fp)) {
 	    trim(buffer);
 	    if (isspace(UChar(*buffer))) {
-		if (card == 0)
+		if (card == NULL)
 		    card = add_title("");
 		add_content(card, buffer);
-	    } else if ((card = find_card(buffer)) == 0) {
+	    } else if ((card = find_card(buffer)) == NULL) {
 		card = add_title(buffer);
 	    }
 	}
@@ -205,17 +205,17 @@ write_data(const char *fname)
     if (!strcmp(fname, default_name))
 	fname = "cardfile.out";
 
-    if ((fp = fopen(fname, "w")) != 0) {
-	CARD *p = 0;
+    if ((fp = fopen(fname, "w")) != NULL) {
+	CARD *p = NULL;
 
-	for (p = all_cards; p != 0; p = p->link) {
+	for (p = all_cards; p != NULL; p = p->link) {
 	    FIELD **f = form_fields(p->form);
 	    int n;
 
-	    for (n = 0; f[n] != 0; n++) {
+	    for (n = 0; f[n] != NULL; n++) {
 		char *s = field_buffer(f[n], 0);
-		if (s != 0
-		    && (s = strdup(s)) != 0) {
+		if (s != NULL
+		    && (s = strdup(s)) != NULL) {
 		    trim(s);
 		    fprintf(fp, "%s%s\n", n ? "\t" : "", s);
 		    free(s);
@@ -237,7 +237,7 @@ count_cards(void)
     CARD *p;
     int count = 0;
 
-    for (p = all_cards; p != 0; p = p->link)
+    for (p = all_cards; p != NULL; p = p->link)
 	count++;
 
     return count;
@@ -263,7 +263,7 @@ order_cards(CARD * first, int depth)
 static CARD *
 next_card(CARD * now)
 {
-    if (now->link != 0) {
+    if (now->link != NULL) {
 	CARD *tst = now->link;
 	if (isVisible(tst))
 	    now = tst;
@@ -280,7 +280,7 @@ static CARD *
 prev_card(CARD * now)
 {
     CARD *p;
-    for (p = all_cards; p != 0; p = p->link) {
+    for (p = all_cards; p != NULL; p = p->link) {
 	if (p->link == now) {
 	    if (!isVisible(p))
 		p = prev_card(p);
@@ -341,7 +341,7 @@ form_virtualize(WINDOW *w)
 }
 
 static FIELD **
-make_fields(CARD * p, int form_high, int form_wide)
+make_fields(const CARD * p, int form_high, int form_wide)
 {
     FIELD **f = typeCalloc(FIELD *, (size_t) 3);
 
@@ -355,7 +355,7 @@ make_fields(CARD * p, int form_high, int form_wide)
     set_field_just(f[1], JUSTIFY_LEFT);
     field_opts_off(f[1], O_BLANK);
 
-    f[2] = 0;
+    f[2] = NULL;
     return f;
 }
 
@@ -375,7 +375,7 @@ free_form_fields(FIELD **f)
 {
     int n;
 
-    for (n = 0; f[n] != 0; ++n) {
+    for (n = 0; f[n] != NULL; ++n) {
 	free_field(f[n]);
     }
     free(f);
@@ -385,7 +385,7 @@ free_form_fields(FIELD **f)
 /*******************************************************************************/
 
 static void
-cardfile(char *fname)
+cardfile(const char *fname)
 {
     WINDOW *win;
     CARD *p;
@@ -414,9 +414,9 @@ cardfile(char *fname)
     x = 0;
 
     /* make a panel for each CARD */
-    for (p = all_cards; p != 0; p = p->link) {
+    for (p = all_cards; p != NULL; p = p->link) {
 
-	if ((win = newwin(panel_high, panel_wide, y, x)) == 0)
+	if ((win = newwin(panel_high, panel_wide, y, x)) == NULL)
 	    break;
 
 	wbkgd(win, (chtype) COLOR_PAIR(pair_2));
@@ -478,7 +478,7 @@ cardfile(char *fname)
 		x = 0;
 
 		show_legend();
-		for (p = all_cards; p != 0; p = p->link) {
+		for (p = all_cards; p != NULL; p = p->link) {
 		    FIELD **oldf = form_fields(p->form);
 		    WINDOW *olds = form_sub(p->form);
 
@@ -528,7 +528,7 @@ cardfile(char *fname)
 	}
     }
 #if NO_LEAKS
-    while (all_cards != 0) {
+    while (all_cards != NULL) {
 	p = all_cards;
 	all_cards = all_cards->link;
 
@@ -558,7 +558,7 @@ usage(int ok)
 	,""
 	,USAGE_COMMON
 	,"Options:"
-	," -c       use color if terminal supports it"
+	," -C       use color if terminal supports it"
     };
     size_t n;
     for (n = 0; n < SIZEOF(msg); n++)
@@ -578,16 +578,13 @@ main(int argc, char *argv[])
 
     setlocale(LC_ALL, "");
 
-    while ((ch = getopt(argc, argv, OPTS_COMMON "c")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "C")) != -1) {
 	switch (ch) {
-	case 'c':
+	case 'C':
 	    try_color = TRUE;
 	    break;
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }

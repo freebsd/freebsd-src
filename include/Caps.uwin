@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright 2019-2023,2024 Thomas E. Dickey                                  #
+# Copyright 2019-2024,2025 Thomas E. Dickey                                  #
 # Copyright 2001-2015,2016 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -29,7 +29,7 @@
 #
 # Author: Thomas Dickey
 #
-# $Id: Caps.uwin,v 1.23 2024/04/20 21:05:02 tom Exp $
+# $Id: Caps.uwin,v 1.25 2025/11/12 01:06:36 Branden.Robinson Exp $
 #
 # This is an adaptation of ncurses' termcap/terminfo capability table, which
 # is designed to align with U/Win's terminfo.
@@ -246,7 +246,7 @@
 #%center;
 #%Lb        Cb       S   Lb
 #%Lb        Lb       Lb  Lb
-#%Lbw(24n)2 Lbw(7n)2 Lb2 Lx.
+#%Lbw(24n)2 Lbw(7n)2 Lb2 Lw(17n)x.
 #%\&	Code	\&
 #%Boolean Capability Name	TI	TC	Description
 #%_
@@ -287,7 +287,7 @@ hue_lightness_saturation	hls	bool	hl	-	-	-----	terminal uses only HLS color nota
 #%center;
 #%Lb        Cb       S   Lb
 #%Lb        Lb       Lb  Lb
-#%Lbw(24n)2 Lbw(7n)2 Lb2 Lx.
+#%Lbw(24n)2 Lbw(7n)2 Lb2 Lw(17n)x.
 #%\&	Code	\&
 #%Numeric Capability Name	TI	TC	Description
 #%_
@@ -304,7 +304,7 @@ label_height			lh	num	lh	-	-	-----	rows in each label
 label_width			lw	num	lw	-	-	-----	columns in each label
 buttons				btns	num	BT	-	-	-----	number of buttons on mouse
 #max_attributes			ma	num	ma	-	-	YBC--	maximum combined attributes terminal can handle
-#maximum_windows		wnum	num	MW	-	-	-----	maximum number of defineable windows
+#maximum_windows		wnum	num	MW	-	-	-----	maximum number of definable windows
 # These came in with SVr4's color support
 max_colors			colors	num	Co	-	-	-----	maximum number of colors on screen
 max_pairs			pairs	num	pa	-	-	-----	maximum number of color-pairs on the screen
@@ -316,7 +316,7 @@ no_color_video			ncv	num	NC	-	-	-----	video attributes that cannot be used with 
 #%center;
 #%Lb        Cb       S   Lb
 #%Lb        Lb       Lb  Lb
-#%Lbw(24n)2 Lbw(7n)2 Lb2 Lx.
+#%Lbw(24n)2 Lbw(7n)2 Lb2 Lw(17n)x.
 #%\&	Code	\&
 #%String Capability Name	TI	TC	Description
 #%_
@@ -385,7 +385,7 @@ key_down			kcud1	str	kd	KEY_DOWN	0402	YBCGE	down-arrow key
 #%.TE
 #%.TS
 #%center;
-#%Lbw(24n)2 Lbw(7n)2 Lb2 Lx.
+#%Lbw(24n)2 Lbw(7n)2 Lb2 Lw(17n)x.
 key_eic				krmir	str	kM	KEY_EIC		0514	-B-G-*	sent by rmir or smir in insert mode
 key_eol				kel	str	kE	KEY_EOL		0517	-B-G-*	clear-to-end-of-line key
 key_eos				ked	str	kS	KEY_EOS		0516	-B-G-*	clear-to-end-of-screen key
@@ -451,7 +451,7 @@ reset_2string			rs2	str	r2	-		-	-B---	reset string
 #%.TE
 #%.TS
 #%center;
-#%Lbw(24n)2 Lbw(7n)2 Lb2 Lx.
+#%Lbw(24n)2 Lbw(7n)2 Lb2 Lw(17n)x.
 reset_3string			rs3	str	r3	-		-	-B---	reset string
 reset_file			rf	str	rf	-		-	-B---	name of reset file
 restore_cursor			rc	str	rc	-		-	YBCG-	restore cursor to position of last save_cursor
@@ -521,7 +521,7 @@ key_undo			kund	str	&8	KEY_UNDO	0630	-----	undo key
 #%.TE
 #%.TS
 #%center;
-#%Lbw(24n)2 Lbw(7n)2 Lb2 Lx.
+#%Lbw(24n)2 Lbw(7n)2 Lb2 Lw(17n)x.
 key_sbeg			kBEG	str	&9	KEY_SBEG	0572	-----	shifted begin key
 key_scancel			kCAN	str	&0	KEY_SCANCEL	0573	-----	shifted cancel key
 key_scommand			kCMD	str	*1	KEY_SCOMMAND	0574	-----	shifted command key
@@ -587,7 +587,7 @@ key_f42				kf42	str	FW	KEY_F(42)	-	----E	F42 function key
 #%.TE
 #%.TS
 #%center;
-#%Lbw(24n)2 Lbw(7n)2 Lb2 Lx.
+#%Lbw(24n)2 Lbw(7n)2 Lb2 Lw(17n)x.
 key_f43				kf43	str	FX	KEY_F(43)	-	----E	F43 function key
 key_f44				kf44	str	FY	KEY_F(44)	-	----E	F44 function key
 key_f45				kf45	str	FZ	KEY_F(45)	-	----E	F45 function key

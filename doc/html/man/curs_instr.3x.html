@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,96 +27,120 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_instr.3x,v 1.51 2024/04/20 21:24:19 tom Exp @
+  * @Id: curs_instr.3x,v 1.82 2025/10/21 00:04:35 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_instr 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_instr 3x 2025-10-20 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_instr 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_instr 3x 2025-10-20 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_instr.3x.html">curs_instr(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="curs_instr.3x.html">curs_instr(3x)</A></STRONG>
 
 
-
-
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>instr</STRONG>,  <STRONG>innstr</STRONG>, <STRONG>winstr</STRONG>, <STRONG>winnstr</STRONG>, <STRONG>mvinstr</STRONG>, <STRONG>mvinnstr</STRONG>, <STRONG>mvwinstr</STRONG>, <STRONG>mvwinnstr</STRONG>
+       <STRONG>instr</STRONG>,  <STRONG>winstr</STRONG>, <STRONG>mvinstr</STRONG>, <STRONG>mvwinstr</STRONG>, <STRONG>innstr</STRONG>, <STRONG>winnstr</STRONG>, <STRONG>mvinnstr</STRONG>, <STRONG>mvwinnstr</STRONG>
        - get a string from a <EM>curses</EM> window
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>instr(char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>innstr(char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>winstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>winnstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>instr(char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>winstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvinstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwinstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>);</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>mvinstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvinnstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvwinstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvwinnstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>innstr(char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>winnstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvinnstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwinnstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       These routines return a string of characters in <EM>str</EM>,  starting  at  the
-       current  cursor  position in the named window.  Attributes are stripped
-       from the characters.
-
-       The four functions with  <EM>n</EM>  as  the  last  argument  return  a  leading
-       substring  at  most  <EM>n</EM> characters long (exclusive of the trailing NUL).
-       Transfer stops at the end of the current line,  or  when  <EM>n</EM>  characters
-       have been stored at the location referenced by <EM>str</EM>.
+       <STRONG>winstr</STRONG> extracts a string from a <EM>curses</EM>  window  <EM>win</EM>,  starting  at  the
+       cursor  and  stopping  at  the  end  of the line, and stores it in <EM>str</EM>,
+       terminating it with a null character and omitting  any  attributes  and
+       color  pair  identifier  that  <EM>curses</EM>  associates  with each character.
+       <STRONG>winnstr</STRONG> does the same, but copies at most <EM>n</EM>  characters  from  <EM>win</EM>.   A
+       negative   <EM>n</EM>   implies  no  limit;  <STRONG>winnstr</STRONG>  then  works  like  <STRONG>winstr</STRONG>.
+       <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG> describes the variants of these functions.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       All  of  the  functions  return  <STRONG>ERR</STRONG>  upon  failure,  or  the number of
-       characters actually read into the string.
+       These functions return the count of characters copied from <EM>win</EM>  to  <EM>str</EM>
+       (not including the null terminator), or <STRONG>ERR</STRONG> upon failure.
 
-       X/Open Curses defines no error conditions.  This implementation returns
-       an error
+       In <EM>ncurses</EM>, these functions fail if
 
-       <STRONG>o</STRONG>   if the <EM>win</EM> parameter is null or
+       <STRONG>o</STRONG>   the <EM>curses</EM> screen has not been initialized,
 
-       <STRONG>o</STRONG>   if the <EM>chstr</EM> parameter is null.
+       <STRONG>o</STRONG>   (for  functions  taking  a  <EM>WINDOW</EM>  pointer argument) <EM>win</EM> is a null
+           pointer, or
 
-       Functions  prefixed with "mv" first perform cursor movement and fail if
+       <STRONG>o</STRONG>   <EM>str</EM> is a null pointer.
+
+       Functions prefixed with "mv" first perform cursor movement and fail  if
        the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       All routines except <STRONG>winnstr</STRONG> may be macros.
+       All of these functions except <STRONG>winnstr</STRONG> may be implemented as macros.
 
-       Reading a line that overflows the array pointed to by <EM>str</EM>  with  <STRONG>instr</STRONG>,
-       <STRONG>mvinstr</STRONG>,  <STRONG>mvwinstr</STRONG>  or <STRONG>winstr</STRONG> causes undefined results.  Therefore, the
-       use of <STRONG>innstr</STRONG>, <STRONG>mvinnstr</STRONG>, <STRONG>mvwinnstr</STRONG>, or <STRONG>winnstr</STRONG> is recommended.
+       Reading  a line that overflows the array pointed to by <EM>str</EM> with and its
+       variants  causes  undefined  results.   Instead,  use   the   <EM>n</EM>-infixed
+       functions  with  a  positive  <EM>n</EM> argument no larger than the size of the
+       buffer backing <EM>str</EM>.
+
+
+</PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
+       <STRONG>innstr</STRONG>, <STRONG>winnstr</STRONG>, <STRONG>mvinnstr</STRONG>, and <STRONG>mvwinnstr</STRONG>'s  acceptance  of  negative  <EM>n</EM>
+       values is an <EM>ncurses</EM> extension.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       SVr4 does not document whether a length limit includes or excludes  the
-       trailing NUL.
+       Applications employing <EM>ncurses</EM> extensions should condition their use on
+       the visibility of the <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
 
-       The <EM>ncurses</EM> library extends the X/Open Curses description by allowing a
-       negative value for <EM>n</EM>.  In this case, the functions  return  the  string
-       ending at the right margin.
+       X/Open Curses Issue 4 describes these functions.  It specifies no error
+       conditions for them.
+
+       X/Open  Curses  Issues  4 and 7 both state that <EM>instr</EM>, <EM>winstr</EM>, <EM>mvinstr</EM>,
+       and <EM>mvwinstr</EM> return <EM>OK</EM> rather than a character count.  This  is  likely
+       an erratum.
+
+       <STRONG>o</STRONG>   SVr3.1  and  SVr4  implemented  <EM>winstr</EM> as a wrapper around <EM>winnstr</EM>,
+           returning the latter's return value.  X/Open Curses's specification
+           thus may have been an editorial  solecism  copied  from  System V's
+           documentation  (see  below)  by  X/Open, rather than an intentional
+           change.
+
+       <STRONG>o</STRONG>   <EM>ncurses</EM> retains compatibility with System V <EM>curses</EM> behavior.
+
+       SVr4 describes a successful return value  only  as  "an  integer  value
+       other than <EM>ERR</EM>".
+
+       SVr4  does not document whether <EM>n</EM> counts the null terminator that these
+       functions write to <EM>str</EM>.
+
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       SVr3.1 (1987) introduced these functions.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="curs_ins_wstr.3x.html">curs_ins_wstr(3x)</A></STRONG> describes comparable functions of the <EM>ncurses</EM> library
+       <STRONG><A HREF="curs_inwstr.3x.html">curs_inwstr(3x)</A></STRONG> describes comparable functions of the  <EM>ncurses</EM>  library
        in its wide-character configuration (<EM>ncursesw</EM>).
 
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>, <STRONG><A HREF="curs_inchstr.3x.html">curs_inchstr(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                    <STRONG><A HREF="curs_instr.3x.html">curs_instr(3x)</A></STRONG>
+ncurses 6.6                       2025-10-20                    <STRONG><A HREF="curs_instr.3x.html">curs_instr(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -125,7 +149,9 @@ ncurses 6.5                       2024-04-20                    <STRONG><A HREF=
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>
+<li><a href="#h2-EXTENSIONS">EXTENSIONS</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

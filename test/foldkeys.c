@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 2006-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -30,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey, 2006
  *
- * $Id: foldkeys.c,v 1.12 2023/02/25 16:51:01 tom Exp $
+ * $Id: foldkeys.c,v 1.16 2025/07/05 15:11:35 tom Exp $
  *
  * Demonstrate a method for altering key definitions at runtime.
  *
@@ -55,7 +55,7 @@ log_last_line(WINDOW *win)
 {
     FILE *fp;
 
-    if ((fp = fopen(MY_LOGFILE, "a")) != 0) {
+    if ((fp = fopen(MY_LOGFILE, "a")) != NULL) {
 	char temp[256];
 	int y, x, n;
 	int need = sizeof(temp) - 1;
@@ -112,7 +112,7 @@ demo_foldkeys(void)
     for (code = 0; code < STRCOUNT; ++code) {
 	NCURSES_CONST char *name = strnames[code];
 	NCURSES_CONST char *value = tigetstr(name);
-	if (value != 0 && value != (NCURSES_CONST char *) -1) {
+	if (value != NULL && value != (NCURSES_CONST char *) -1) {
 	    info[info_len].name = strnames[code];
 	    info[info_len].code = key_defined(value);
 	    info[info_len].value = value;
@@ -129,7 +129,7 @@ demo_foldkeys(void)
      */
     for (code = KEY_MAX; code < MAX_KEYS; ++code) {
 	NCURSES_CONST char *name = keyname(code);
-	if (name != 0) {
+	if (name != NULL) {
 	    info[info_len].name = name;
 	    info[info_len].code = code;
 	    info[info_len].value = tigetstr(name);
@@ -155,8 +155,10 @@ demo_foldkeys(void)
 		      &second,
 		      final) == 3
 	    && *final != ';'
+	    && first >= 0
+	    && first < 1024
 	    && (need = strlen(info[j].value)) != 0
-	    && (value = strdup(info[j].value)) != 0) {
+	    && (value = malloc(need + 8)) != NULL) {
 	    (void) need;	/* _nc_SLIMIT is normally nothing  */
 	    _nc_SPRINTF(value, _nc_SLIMIT(need) "\033[%d%c", first, *final);
 	    for (k = 0; k < info_len; ++k) {
@@ -221,18 +223,15 @@ main(int argc, char *argv[])
 
     while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
 	switch (ch) {
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
     if (optind < argc)
 	usage(FALSE);
 
-    if (newterm(0, stdout, stdin) == 0) {
+    if (newterm(NULL, stdout, stdin) == NULL) {
 	fprintf(stderr, "Cannot initialize terminal\n");
 	ExitProgram(EXIT_FAILURE);
     }
@@ -262,7 +261,7 @@ main(int argc, char *argv[])
 	printw("Keycode %d, name %s%s\n",
 	       ch,
 	       escaped ? "ESC-" : "",
-	       name != 0 ? name : "<null>");
+	       name != NULL ? name : "<null>");
 	log_last_line(stdscr);
 	clrtoeol();
 	if (ch == 'q')

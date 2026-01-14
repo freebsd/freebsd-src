@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2016 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_clear.3x,v 1.48 2024/04/20 21:20:07 tom Exp $
-.TH curs_clear 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_clear.3x,v 1.58 2025/01/19 00:49:39 tom Exp $
+.TH curs_clear 3X 2025-01-18 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -93,24 +93,44 @@ to the right of the cursor, inclusive, to the end of the current line.
 .SH RETURN VALUE
 All routines return the integer \fBOK\fP on success and \fBERR\fP on failure.
 .PP
-X/Open defines no error conditions.
 In this implementation,
 .bP
-functions using a window pointer parameter return an error if it is null
+functions using a window pointer parameter return
+.B ERR
+if it is null
 .bP
 \fBwclrtoeol\fP returns an error
 if the cursor position is about to wrap.
 .SH NOTES
-Note that \fBerase\fP, \fBwerase\fP, \fBclear\fP, \fBwclear\fP,
-\fBclrtobot\fP, and \fBclrtoeol\fP may be macros.
+.BR \%erase ","
+.BR \%werase ","
+.BR \%clear ","
+.BR \%wclear ","
+.BR \%clrtobot ","
+and
+.B \%clrtoeol
+may be implemented as macros.
 .SH PORTABILITY
-These functions are described in X/Open Curses, Issue 4.
+X/Open Curses Issue\ 4 describes these functions.
+It specifies no error conditions for them.
 .PP
-The SVr4.0 manual says that these functions could return
-\*(``or a non-negative integer if \fB\%immedok\fP is set\*('',
-referring to the return-value of \fBwrefresh\fP.
-In that implementation, \fBwrefresh\fP would return a count of
-the number of characters written to the terminal.
+SVr4 documentation
+.\" SVID 4, vol. 3, p. 485
+says that these functions return
+.I OK
+\*(``or a non-negative integer if
+.I \%immedok() \" Courier roman in source
+is set\*('',
+referring to the return value from
+.IR \%wrefresh ","
+which in SVr4 returns a count of characters
+written to the window if its
+.I \%immedok
+property is set;
+.\" ...though its wrefresh() man page says nothing about immedok()...
+in
+.IR \%ncurses ","
+it does not.
 .PP
 Some historic curses implementations had, as an undocumented feature, the
 ability to do the equivalent of \fBclearok(..., 1)\fP by saying

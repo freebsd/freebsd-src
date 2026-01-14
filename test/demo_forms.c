@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 2003-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: demo_forms.c,v 1.63 2023/11/11 00:29:53 tom Exp $
+ * $Id: demo_forms.c,v 1.69 2025/07/05 15:21:56 tom Exp $
  *
  * Demonstrate a variety of functions from the form library.
  * Thomas Dickey - 2003/4/26
@@ -50,7 +50,7 @@ static int d_option = 0;
 static int j_value = 0;
 static int m_value = 0;
 static int o_value = 0;
-static char *t_value = 0;
+static char *t_value = NULL;
 
 static void
 failed(const char *s)
@@ -82,9 +82,9 @@ static char *
 get_data(const char *name)
 {
     char *result = t_value;
-    if (my_data != 0) {
+    if (my_data != NULL) {
 	int n;
-	for (n = 0; my_data[n].name != 0; ++n) {
+	for (n = 0; my_data[n].name != NULL; ++n) {
 	    if (!strcmp(name, my_data[n].name)) {
 		result = my_data[n].value;
 		break;
@@ -102,21 +102,21 @@ read_data(const char *filename)
 {
     FILE *fp = fopen(filename, "r");
 
-    if (fp != 0) {
+    if (fp != NULL) {
 	char buffer[BUFSIZ];
 	char *colon;
 	int more = 0;
 	int item = 0;
 
 	my_data = typeCalloc(MY_DATA, (size_t) 100);	/* FIXME */
-	while (fgets(buffer, sizeof(buffer), fp) != 0) {
+	while (fgets(buffer, sizeof(buffer), fp) != NULL) {
 	    chomp(buffer);
 	    if (more) {
 		if (strcmp(buffer, ".")) {
 		    char *prior = my_data[more - 1].value;
 		    size_t need = strlen(buffer) + 2 + strlen(prior);
 		    char *value = typeRealloc(char, need, prior);
-		    if (value == 0)
+		    if (value == NULL)
 			failed("realloc");
 		    _nc_STRCAT(value, "\n", need);
 		    _nc_STRCAT(value, buffer, need);
@@ -126,13 +126,13 @@ read_data(const char *filename)
 		}
 	    } else if (*buffer == '#') {
 		continue;
-	    } else if ((colon = strchr(buffer, ':')) != 0) {
+	    } else if ((colon = strchr(buffer, ':')) != NULL) {
 		char *name;
 		char *value;
 		*colon++ = '\0';
 		name = strdup(buffer);
 		value = strdup(colon);
-		if (name == 0 || value == 0)
+		if (name == NULL || value == NULL)
 		    failed("strdup");
 		my_data[item].name = name;
 		my_data[item].value = value;
@@ -148,7 +148,7 @@ read_data(const char *filename)
 }
 
 static FIELD *
-make_label(const char *label, int frow, int fcol)
+make_label(NCURSES_CONST char *label, int frow, int fcol)
 {
     FIELD *f = new_field(1, (int) strlen(label), frow, fcol, 0, 0);
 
@@ -242,13 +242,13 @@ show_insert_mode(bool insert_mode)
 #define O_SELECTABLE (O_ACTIVE | O_VISIBLE)
 
 static FIELD *
-another_field(FORM *form, const FIELD *const field)
+another_field(NCURSES_CONST FORM *form, NCURSES_CONST FIELD *const field)
 {
     FIELD **f = form_fields(form);
-    FIELD *result = 0;
+    FIELD *result = NULL;
     int n;
 
-    for (n = 0; f[n] != 0; ++n) {
+    for (n = 0; f[n] != NULL; ++n) {
 	if (f[n] != field) {
 	    result = f[n];
 	    field_opts_on(result, O_SELECTABLE);
@@ -273,7 +273,7 @@ my_form_driver(FORM *form, int c)
 	help_edit_field();
 	break;
     case MY_EDT_MODE:
-	if ((field = current_field(form)) != 0) {
+	if ((field = current_field(form)) != NULL) {
 	    set_current_field(form, another_field(form, field));
 	    if ((unsigned) field_opts(field) & O_EDIT) {
 		field_opts_off(field, O_EDIT);
@@ -306,9 +306,9 @@ my_form_driver(FORM *form, int c)
 }
 
 static void
-show_current_field(WINDOW *win, FORM *form)
+show_current_field(WINDOW *win, NCURSES_CONST FORM *form)
 {
-    FIELD *field;
+    NCURSES_CONST FIELD *field;
     int field_rows, field_cols, field_max;
     int currow, curcol;
 
@@ -324,8 +324,8 @@ show_current_field(WINDOW *win, FORM *form)
 	waddstr(win, " behind");
     waddch(win, '\n');
 
-    if ((field = current_field(form)) != 0) {
-	FIELDTYPE *type;
+    if ((field = current_field(form)) != NULL) {
+	NCURSES_CONST FIELDTYPE *type;
 	int nbuf;
 
 	wprintw(win, "Page %d%s, Field %d/%d%s:",
@@ -333,7 +333,7 @@ show_current_field(WINDOW *win, FORM *form)
 		new_page(field) ? "*" : "",
 		field_index(field), field_count(form),
 		field_arg(field) ? "(arg)" : "");
-	if ((type = field_type(field)) != 0) {
+	if ((type = field_type(field)) != NULL) {
 	    if (type == TYPE_ALNUM)
 		waddstr(win, "ALNUM");
 	    else if (type == TYPE_ALPHA)
@@ -383,8 +383,8 @@ show_current_field(WINDOW *win, FORM *form)
 
 	waddstr(win, "\n");
 	for (nbuf = 0; nbuf <= 2; ++nbuf) {
-	    char *buffer;
-	    if ((buffer = field_buffer(field, nbuf)) != 0) {
+	    NCURSES_CONST char *buffer;
+	    if ((buffer = field_buffer(field, nbuf)) != NULL) {
 		wprintw(win, "buffer %d:", nbuf);
 		(void) wattrset(win, A_REVERSE);
 		if (nbuf) {
@@ -408,9 +408,9 @@ demo_forms(void)
     int c;
     unsigned n = 0;
     int pg;
-    const char *fname;
-    static const char *my_enum[] =
-    {"first", "second", "third", 0};
+    NCURSES_CONST char *fname;
+    static NCURSES_CONST char *my_enum[] =
+    {"first", "second", "third", NULL};
 
 #ifdef NCURSES_MOUSE_VERSION
     mousemask(ALL_MOUSE_EVENTS, (mmask_t *) 0);
@@ -514,8 +514,8 @@ demo_forms(void)
 
     f[n] = (FIELD *) 0;
 
-    if ((form = new_form(f)) != 0) {
-	WINDOW *w;
+    if ((form = new_form(f)) != NULL) {
+	NCURSES_CONST WINDOW *w;
 	WINDOW *also;
 	int finished = 0;
 
@@ -543,7 +543,7 @@ demo_forms(void)
 
 	free_form(form);
     }
-    for (c = 0; f[c] != 0; c++) {
+    for (c = 0; f[c] != NULL; c++) {
 	free_edit_field(f[c]);
 	free_field(f[c]);
     }
@@ -606,11 +606,8 @@ main(int argc, char *argv[])
 	case 't':
 	    t_value = optarg;
 	    break;
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }

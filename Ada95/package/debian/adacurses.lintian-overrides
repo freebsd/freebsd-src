@@ -1,0 +1,4 @@
+# $Id: adacurses.lintian-overrides,v 1.1 2025/06/14 19:16:06 tom Exp $
+
+# dh_fixperms sets *.ali to 444, but lintian disagrees
+non-standard-file-perm 0444 != 0644 [usr/lib/ada/adalib/*.ali]

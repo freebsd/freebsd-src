@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2018-2021,2024 Thomas E. Dickey                                *
  * Copyright 2017 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: popup_msg.c,v 1.11 2021/12/18 21:19:19 tom Exp $
+ * $Id: popup_msg.c,v 1.15 2024/12/07 22:22:51 tom Exp $
  *
  * Show a multi-line message in a window which may extend beyond the screen.
  *
@@ -62,7 +62,7 @@ end_popup(void)
  * Display a temporary window, e.g., to display a help-message.
  */
 void
-popup_msg(WINDOW *parent, const char *const *msg)
+popup_msg(WINDOW *parent, NCURSES_CONST char *const *msg)
 {
     int x0 = 4;
     int y0 = 2;
@@ -78,16 +78,16 @@ popup_msg(WINDOW *parent, const char *const *msg)
     int last_y;
     int ch = ERR;
 
-    for (n = 0; msg[n] != 0; ++n) {
+    for (n = 0; msg[n] != NULL; ++n) {
 	int check = (int) strlen(msg[n]);
 	if (width < check)
 	    width = check;
     }
     length = n;
 
-    if ((help = newwin(high, wide, y0, x0)) == 0)
+    if ((help = newwin(high, wide, y0, x0)) == NULL)
 	return;
-    if ((data = newpad(length + 1, width + 1)) == 0) {
+    if ((data = newpad(length + 2, width + 1)) == NULL) {
 	delwin(help);
 	return;
     }
@@ -96,6 +96,7 @@ popup_msg(WINDOW *parent, const char *const *msg)
 
     keypad(data, TRUE);
 
+    waddstr(data, "Press ^[ or ^Q to exit this window.\n\n");
     for (n = 0; n < length; ++n) {
 	waddstr(data, msg[n]);
 	if ((n + 1) < length) {
@@ -170,12 +171,12 @@ popup_msg(WINDOW *parent, const char *const *msg)
 void
 popup_msg2(WINDOW *parent, char **msg)
 {
-    popup_msg(parent, (const char *const *) msg);
+    popup_msg(parent, (NCURSES_CONST char *const *) msg);
 }
 
 #else
 void
-popup_msg(WINDOW *parent, const char *const *msg)
+popup_msg(WINDOW *parent, NCURSES_CONST char *const *msg)
 {
     (void) parent;
     (void) msg;

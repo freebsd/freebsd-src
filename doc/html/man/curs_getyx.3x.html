@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2020-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2020-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2007,2010 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_getyx.3x,v 1.44 2024/04/20 21:20:07 tom Exp @
+  * @Id: curs_getyx.3x,v 1.55 2025/02/01 22:48:11 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_getyx 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_getyx 3x 2025-02-01 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_getyx 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_getyx 3x 2025-02-01 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_getyx.3x.html">curs_getyx(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="curs_getyx.3x.html">curs_getyx(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -55,61 +53,66 @@
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
        <STRONG>void</STRONG> <STRONG>getyx(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>);</STRONG>
-       <STRONG>void</STRONG> <STRONG>getparyx(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>);</STRONG>
        <STRONG>void</STRONG> <STRONG>getbegyx(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>);</STRONG>
        <STRONG>void</STRONG> <STRONG>getmaxyx(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>);</STRONG>
 
+       <STRONG>void</STRONG> <STRONG>getparyx(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>);</STRONG>
+
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       The <STRONG>getyx</STRONG> macro places the current cursor position of the given  window
-       in the two integer variables <EM>y</EM> and <EM>x</EM>.
+       These macros obtain the cursor position and  bounds  information  of  a
+       <EM>curses</EM> window <EM>win</EM>.  <STRONG>getyx</STRONG> stores <EM>win</EM>'s cursor position in the variables
+       <EM>y</EM>  and  <EM>x</EM>.  <STRONG>getmaxyx</STRONG> stores <EM>win</EM>'s maximum valid line and column numbers
+       in <EM>y</EM> and <EM>x</EM>, respectively.  <STRONG>getbegyx</STRONG> similarly stores  the  position  of
+       <EM>win</EM>'s  origin  relative  to  that  of  the  screen  (for  <STRONG>stdscr</STRONG>, these
+       coordinates are always <STRONG>0</STRONG>).
 
-       If  <EM>win</EM>  is  a  subwindow,  the  <STRONG>getparyx</STRONG>  macro  places  the beginning
-       coordinates of the subwindow relative to the  parent  window  into  two
-       integer variables <EM>y</EM> and <EM>x</EM>.  Otherwise, <STRONG>-1</STRONG> is placed into <EM>y</EM> and <EM>x</EM>.
-
-       Like  <STRONG>getyx</STRONG>,  the  <STRONG>getbegyx</STRONG>  and  <STRONG>getmaxyx</STRONG>  macros  store  the  current
-       beginning coordinates and size of the specified window.
+       If <EM>win</EM> is a subwindow (see <STRONG><A HREF="subwin.3x.html">subwin(3x)</A></STRONG>), the <STRONG>getparyx</STRONG> macro  places  the
+       coordinates  of  its origin relative to its parent window into <EM>y</EM> and <EM>x</EM>,
+       and <STRONG>-1</STRONG> into both if it is not.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       The return values of these macros are undefined (i.e., they should  not
-       be used as the right-hand side of assignment statements).
+       No return values are defined for macros.  Do not use them as the right-
+       hand side of assignment statements.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       All  of these interfaces are macros.  A "&amp;" is not necessary before the
-       variables <EM>y</EM> and <EM>x</EM>.
+       All of these interfaces are implemented as macros.  An "&amp;" operator  is
+       not necessary before the variables <EM>y</EM> and <EM>x</EM>.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       The <STRONG>getyx</STRONG>, <STRONG>getparyx</STRONG>, <STRONG>getbegyx</STRONG> and  <STRONG>getmaxyx</STRONG>  macros  are  described  in
-       X/Open Curses, Issue 4.
+       These macros are described in X/Open Curses Issue 4.
 
-       This  implementation also provides functions <STRONG>getbegx</STRONG>, <STRONG>getbegy</STRONG>, <STRONG>getcurx</STRONG>,
-       <STRONG>getcury</STRONG>, <STRONG>getmaxx</STRONG>, <STRONG>getmaxy</STRONG>, <STRONG>getparx</STRONG> and <STRONG>getpary</STRONG> for  compatibility  with
-       older versions of <EM>curses</EM>; see <STRONG><A HREF="curs_legacy.3x.html">curs_legacy(3x)</A></STRONG>.
+       <EM>ncurses</EM>  also  provides  functions  <EM>getbegy</EM>, <EM>getbegx</EM>, <EM>getcury</EM>, <EM>getcurx</EM>,
+       <EM>getmaxy</EM>, <EM>getmaxx</EM>, <EM>getpary</EM>, and <EM>getparx</EM> for compatibility with  System V
+       <EM>curses</EM> that were not standardized; see <STRONG><A HREF="curs_legacy.3x.html">curs_legacy(3x)</A></STRONG>.
 
-       Although  X/Open  Curses  does  not  address this, many implementations
-       provide members of the <STRONG>WINDOW</STRONG> structure containing values corresponding
-       to  these  macros.  For best portability, do not rely on using the data
-       in <STRONG>WINDOW</STRONG>, since some implementations make <STRONG>WINDOW</STRONG> opaque (do not  allow
-       direct use of its members).
+       Although X/Open Curses does not address the issue, many implementations
+       expose  members of the <EM>WINDOW</EM> structure containing values corresponding
+       to  these  macros.   Do  not   rely   on   their   availability;   some
+       implementations  make  <EM>WINDOW</EM> opaque (that is, they do not allow direct
+       access to its members).
 
        Besides the problem of opaque structures, the data stored in like-named
-       members may not have like-values  in  different  implementations.   For
-       example,  the  <STRONG>WINDOW._maxx</STRONG> and <STRONG>WINDOW._maxy</STRONG> values in <EM>ncurses</EM> have (at
-       least  since  release  1.8.1)  differed  by   one   from   some   other
-       implementations.   The  difference  is  hidden  by  means  of the macro
-       <STRONG>getmaxyx</STRONG>.
+       members may not have  values  of  the  same  meaning  across  different
+       implementations.    For   example,   the  values  of  <EM>WINDOW.</EM><STRONG>_</STRONG><EM>maxx</EM>  and
+       <EM>WINDOW.</EM><STRONG>_</STRONG><EM>maxy</EM> in <EM>ncurses</EM> have long  differed  by  one  from  some  other
+       implementations.  The <EM>getmaxyx</EM> macro hides this difference.
+
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       4BSD (1980) introduced <EM>getyx</EM>.
+
+       SVr3  (1987)  added  <EM>getbegyx</EM>  and  <EM>getmaxyx</EM>.   SVr3.1  later that year
+       supplied <EM>getparyx</EM>.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_legacy.3x.html">curs_legacy(3x)</A></STRONG>, <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                    <STRONG><A HREF="curs_getyx.3x.html">curs_getyx(3x)</A></STRONG>
+ncurses 6.6                       2025-02-01                    <STRONG><A HREF="curs_getyx.3x.html">curs_getyx(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -119,6 +122,7 @@ ncurses 6.5                       2024-04-20                    <STRONG><A HREF=
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

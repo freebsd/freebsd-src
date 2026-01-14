@@ -1,4 +1,4 @@
 version=3
 
-opts=passive ftp://ftp.invisible-island.net/ncurses-examples/ncurses-examples-([\d.]+)\.tgz \
+opts=passive https://invisible-island.net/archives/ncurses-examples/ncurses-examples-([\d.]+)\.tgz \
  debian  uupdate

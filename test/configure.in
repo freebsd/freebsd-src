@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright 2018-2023,2024 Thomas E. Dickey                                *
+dnl Copyright 2018-2024,2025 Thomas E. Dickey                                *
 dnl Copyright 1998-2017,2018 Free Software Foundation, Inc.                  *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -29,7 +29,7 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey 1996-on
 dnl
-dnl $Id: configure.in,v 1.174 2024/03/30 14:31:11 tom Exp $
+dnl $Id: configure.in,v 1.181 2025/12/25 23:53:19 tom Exp $
 dnl This is a simple configuration-script for the ncurses test programs that
 dnl allows the test-directory to be separately configured against a reference
 dnl system (i.e., sysvr4 curses)
@@ -43,17 +43,16 @@ dnl		https://invisible-island.net/autoconf/my-autoconf.html
 dnl		https://invisible-island.net/ncurses/ncurses-examples.html
 dnl ---------------------------------------------------------------------------
 AC_PREREQ(2.52.20210509)
-AC_INIT(ncurses.c)
-AC_CONFIG_HEADER(ncurses_cfg.h:ncurses_tst.hin)
+AC_INIT
+AC_CONFIG_SRCDIR([ncurses.c])
+AC_CONFIG_HEADERS([ncurses_cfg.h:ncurses_tst.hin])
 
 CF_INHERIT_SCRIPT(config.guess)
 CF_INHERIT_SCRIPT(config.sub)
-CF_CHECK_CACHE
-
-AC_ARG_PROGRAM
 
 CF_HELP_MESSAGE(General Options:)
 
+CF_WITH_SYSTYPE
 AC_PROG_MAKE_SET
 CF_PROG_CC
 AC_C_INLINE
@@ -120,6 +119,7 @@ AM_LANGINFO_CODESET
 dnl ---------------------------------------------------------------------------
 CF_PKG_CONFIG
 CF_DISABLE_ECHO
+CF_INSTALL_PREFIX
 
 dnl ---------------------------------------------------------------------------
 CF_HELP_MESSAGE(Curses Version-dependent Options:)
@@ -240,7 +240,6 @@ AC_CHECK_HEADERS( $cf_curses_headers )
 
 AC_HEADER_TIME
 AC_CHECK_HEADERS( \
-getopt.h \
 locale.h \
 math.h \
 stdarg.h \
@@ -248,7 +247,6 @@ sys/ioctl.h \
 sys/select.h \
 sys/time.h \
 termios.h \
-unistd.h \
 )
 
 CF_GETOPT_HEADER
@@ -264,7 +262,7 @@ tsearch \
 
 # use a compile-check to work with ncurses*-config and subdirectory includes
 AC_CACHE_CHECK(if we can use termcap.h,cf_cv_have_termcap_h,[
-	AC_TRY_COMPILE([
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
 #include <curses.h>
 #ifdef NCURSES_VERSION
 #undef NCURSES_VERSION
@@ -274,7 +272,7 @@ AC_CACHE_CHECK(if we can use termcap.h,cf_cv_have_termcap_h,[
 #error wrong header
 #endif
 ],
-	[return 0;],
+	[return 0;])],
 	[cf_cv_have_termcap_h=yes],
 	[cf_cv_have_termcap_h=no])])
 if test "x$cf_cv_have_termcap_h" = xyes
@@ -282,7 +280,7 @@ then
 	AC_DEFINE(HAVE_TERMCAP_H,1,[Define to 1 if we can use termcap.h])
 else
 AC_CACHE_CHECK(if we can use ncurses/termcap.h,cf_cv_have_ncurses_termcap_h,[
-	AC_TRY_COMPILE([
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
 #include <ncurses/curses.h>
 #ifdef NCURSES_VERSION
 #undef NCURSES_VERSION
@@ -292,7 +290,7 @@ AC_CACHE_CHECK(if we can use ncurses/termcap.h,cf_cv_have_ncurses_termcap_h,[
 #error wrong header
 #endif
 ],
-	[return 0;],
+	[return 0;])],
 	[cf_cv_have_ncurses_termcap_h=yes],
 	[cf_cv_have_ncurses_termcap_h=no])])
 test "x$cf_cv_have_ncurses_termcap_h" = xyes && AC_DEFINE(HAVE_NCURSES_TERMCAP_H,1,[Define to 1 if we can use ncurses/termcap.h])
@@ -312,6 +310,7 @@ mbstowcs \
 mbtowc \
 wcsrtombs \
 wcstombs \
+wcwidth \
 )
 fi
 
@@ -393,14 +392,14 @@ then
 		cf_define_xpg5=no
 		AC_MSG_CHECKING(if _XPG5 should be defined to enable wide-characters)
 
-		AC_TRY_COMPILE([
+		AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
 #include <${cf_cv_ncurses_header:-curses.h}>],
-			[int x = _XPG5],,
+			[int x = _XPG5])],,
 			[cf_save_cppflags="$CPPFLAGS"
 			 CPPFLAGS="$CPPFLAGS -D_XPG5"
-			 AC_TRY_COMPILE([
+			 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
 #include <${cf_cv_ncurses_header:-curses.h}>],
-				[int x = _XPG5],
+				[int x = _XPG5])],
 				[cf_define_xpg5=yes])
 			 CPPFLAGS="$cf_save_cppflags"])
 		AC_MSG_RESULT($cf_define_xpg5)
@@ -412,13 +411,13 @@ then
 	fi
 
 	AC_CACHE_CHECK(for wide-character functions,cf_cv_widechar_funcs,[
-	AC_TRY_LINK([
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([
 #include <${cf_cv_ncurses_header:-curses.h}>],
 	[
-		static wchar_t src_wchar[2];
+		static wchar_t src_wchar[[2]];
 		static cchar_t dst_cchar;
 		setcchar(&dst_cchar, src_wchar, A_NORMAL, 0, (void *) 0);
-		],
+		])],
 		[cf_cv_widechar_funcs=yes],
 		[cf_cv_widechar_funcs=no])
 	])
@@ -432,14 +431,14 @@ else
 fi
 
 AC_CACHE_CHECK(if $cf_cv_screen library uses pthreads,cf_cv_use_pthreads,[
-AC_TRY_LINK([
+AC_LINK_IFELSE([AC_LANG_PROGRAM([
 #include <${cf_cv_ncurses_header:-curses.h}>
 extern void _nc_init_pthreads(void);
 ],
 [
 	initscr();
 	_nc_init_pthreads();
-	],
+	])],
 	[cf_cv_use_pthreads=yes],
 	[cf_cv_use_pthreads=no])
 ])
@@ -505,7 +504,8 @@ LIBS=
 
 dnl ---------------------------------------------------------------------------
 
-AC_OUTPUT(Makefile,[
+AC_CONFIG_FILES([Makefile])
+AC_CONFIG_COMMANDS([default],[
 CF_PRG_RULES([$srcdir/mk-test.awk INSTALL=yes ECHO_LINK="$ECHO_LD"], .)
 	cat >>Makefile <<TEST_EOF
 
@@ -541,4 +541,6 @@ AWK="$AWK"
 ECHO_CC="$ECHO_CC"
 ECHO_LD="$ECHO_LD"
 SHOW_CC="$SHOW_LD"
-],cat)
+])
+AC_SETUP_DEFS([cat])
+AC_OUTPUT

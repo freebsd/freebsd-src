@@ -1,7 +1,7 @@
 #!/bin/sh
-# $Id: make-tar.sh,v 1.23 2022/11/05 20:29:41 tom Exp $
+# $Id: make-tar.sh,v 1.26 2025/06/20 19:42:53 tom Exp $
 ##############################################################################
-# Copyright 2019-2021,2022 Thomas E. Dickey                                  #
+# Copyright 2019-2022,2025 Thomas E. Dickey                                  #
 # Copyright 2010-2015,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -44,6 +44,7 @@ TARGET=`pwd`
 
 # make timestamps of generated files predictable
 same_timestamp() {
+	[ -f ../NEWS ] || echo "OOPS $1"
 	touch -r ../NEWS "$1"
 }
 
@@ -61,10 +62,12 @@ grep_patchdate() {
 # The rpm spec-file in the ncurses tree is a template.  Fill in the version
 # information from dist.mk
 edit_specfile() {
+	RPM_DATE=`date +'%a %b %d %Y' -d "$NCURSES_PATCH"`
 	sed \
 		-e "s/\\<MAJOR\\>/$NCURSES_MAJOR/g" \
 		-e "s/\\<MINOR\\>/$NCURSES_MINOR/g" \
-		-e "s/\\<YYYYMMDD\\>/$NCURSES_PATCH/g" "$1" >"$1.new"
+		-e "s/\\<YYYYMMDD\\>/$NCURSES_PATCH/g" \
+		-e "s/\\<RPM_DATE\\>/$RPM_DATE/g" "$1" >"$1.new"
 	chmod u+w "$1"
 	mv "$1.new" "$1"
 	same_timestamp "$1"
@@ -73,7 +76,7 @@ edit_specfile() {
 make_changelog() {
 	[ -f "$1" ] && chmod u+w "$1"
 	cat >"$1" <<EOF
-`echo $PKG_NAME|tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz'` ($NCURSES_MAJOR.$NCURSES_MINOR+$NCURSES_PATCH) unstable; urgency=low
+`echo "$PKG_NAME"|tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz'` ($NCURSES_MAJOR.$NCURSES_MINOR+$NCURSES_PATCH) unstable; urgency=low
 
   * snapshot of ncurses subpackage for $PKG_NAME.
 
@@ -92,25 +95,25 @@ SOURCE=`cd ..;pwd`
 
 BUILD=$TMPDIR/make-tar$$
 trap "cd /; rm -rf $BUILD; exit 1" 1 2 3 15
-trap "cd /; rm -rf $BUILD" 0
+trap "cd /; rm -rf $BUILD; exit 0" 0
 
 umask 077
-if ! ( mkdir $BUILD )
+if ! ( mkdir "$BUILD" )
 then
 	echo "? cannot make build directory $BUILD"
 fi
 
 umask 022
-mkdir $BUILD/$ROOTNAME
+mkdir "$BUILD/$ROOTNAME"
 
-cp -p -r ./* $BUILD/$ROOTNAME/ || exit
+cp -p -r ./* "$BUILD/$ROOTNAME/" || exit
 
 # Add the config.* utility scripts from the top-level directory.
 for i in . ..
 do
 	for j in COPYING config.guess config.sub install-sh tar-copy.sh
 	do
-		[ -f $i/$j ] && cp -p $i/$j $BUILD/$ROOTNAME/
+		[ -f "$i/$j" ] && cp -p "$i/$j" "$BUILD/$ROOTNAME"/
 	done
 done
 
@@ -125,36 +128,36 @@ do
 	make_changelog "$spec"/changelog
 done
 
-cp -p ../man/MKada_config.in $BUILD/$ROOTNAME/doc/
+cp -p ../man/MKada_config.in "$BUILD/$ROOTNAME/doc/"
 if [ -z "$NO_HTML_DOCS" ]
 then
 	# Add the ada documentation.
 	cd ../doc/html || exit
 
-	cp -p -r Ada* $BUILD/$ROOTNAME/doc/
-	cp -p -r ada $BUILD/$ROOTNAME/doc/
+	cp -p -r Ada* "$BUILD/$ROOTNAME/doc/"
+	cp -p -r ada "$BUILD/$ROOTNAME/doc/"
 
 	cd ../../Ada95 || exit
 fi
 
-cp -p "$SOURCE/NEWS" $BUILD/$ROOTNAME
+cp -p "$SOURCE/NEWS" "$BUILD/$ROOTNAME"
 
 # cleanup empty directories (an artifact of ncurses source archives)
 
-touch $BUILD/$ROOTNAME/MANIFEST
-( cd $BUILD/$ROOTNAME && find . -type f -print | "$SOURCE/misc/csort" >MANIFEST )
-same_timestamp $BUILD/$ROOTNAME/MANIFEST
+touch "$BUILD/$ROOTNAME"/MANIFEST
+( cd "$BUILD/$ROOTNAME" && find . -type f -print | "$SOURCE/misc/csort" >MANIFEST )
+same_timestamp "$BUILD/$ROOTNAME"/MANIFEST
 
-cd $BUILD || exit
+cd "$BUILD" || exit
 
 # Remove build-artifacts.
 find . -name RCS -exec rm -rf {} \;
-find $BUILD/$ROOTNAME -type d -exec rmdir {} \; 2>/dev/null
-find $BUILD/$ROOTNAME -type d -exec rmdir {} \; 2>/dev/null
-find $BUILD/$ROOTNAME -type d -exec rmdir {} \; 2>/dev/null
+find "$BUILD/$ROOTNAME" -type d -exec rmdir {} \; 2>/dev/null
+find "$BUILD/$ROOTNAME" -type d -exec rmdir {} \; 2>/dev/null
+find "$BUILD/$ROOTNAME" -type d -exec rmdir {} \; 2>/dev/null
 
 # There is no need for this script in the tar file.
-rm -f $ROOTNAME/make-tar.sh
+rm -f "$ROOTNAME"/make-tar.sh
 
 # Remove build-artifacts.
 find . -name "*.gz" -exec rm -rf {} \;
@@ -165,10 +168,10 @@ chmod -R u+w .
 # Cleanup timestamps
 [ -n "$TOUCH_DIRS" ] && "$TOUCH_DIRS" "$ROOTNAME"
 
-tar cf - $TAR_OPTIONS $ROOTNAME | gzip >"$DESTDIR/$ROOTNAME.tar.gz"
+tar cf - $TAR_OPTIONS "$ROOTNAME" | gzip >"$DESTDIR/$ROOTNAME.tar.gz"
 cd "$DESTDIR" || exit
 
 pwd
-ls -l $ROOTNAME.tar.gz
+ls -l "$ROOTNAME".tar.gz
 
 # vi:ts=4 sw=4

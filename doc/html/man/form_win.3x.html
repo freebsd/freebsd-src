@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: form_win.3x,v 1.35 2024/03/16 15:35:01 tom Exp @
+  * @Id: form_win.3x,v 1.37 2024/12/28 21:26:21 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>form_win 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
+<TITLE>form_win 3x 2024-12-28 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">form_win 3x 2024-03-16 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">form_win 3x 2024-12-28 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="form_win.3x.html">form_win(3x)</A></STRONG>                     Library calls                    <STRONG><A HREF="form_win.3x.html">form_win(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -72,8 +70,8 @@
        necessary to set either window; by default, the driver code uses <STRONG>stdscr</STRONG>
        for both.
 
-       In the <STRONG>set_</STRONG> functions, window argument of <STRONG>NULL</STRONG> is treated as though  it
-       were <STRONG>stsdcr</STRONG>.  A form argument of <STRONG>NULL</STRONG> is treated as a request to change
+       In  the <STRONG>set_</STRONG> functions, window argument of <EM>NULL</EM> is treated as though it
+       were <STRONG>stsdcr</STRONG>.  A form argument of <EM>NULL</EM> is treated as a request to change
        the system default form window or subwindow.
 
        The function <STRONG>scale_form</STRONG> returns  the  minimum  size  required  for  the
@@ -81,7 +79,7 @@
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       Routines  that  return  pointers  return  <STRONG>NULL</STRONG> on error.  Routines that
+       Routines  that  return  pointers  return  <EM>NULL</EM> on error.  Routines that
        return an integer return one of the following error codes:
 
        <STRONG>E_OK</STRONG> The routine succeeded.
@@ -112,9 +110,7 @@
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>, <STRONG><A HREF="form.3x.html">form(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-03-16                      <STRONG><A HREF="form_win.3x.html">form_win(3x)</A></STRONG>
+ncurses 6.6                       2024-12-28                      <STRONG><A HREF="form_win.3x.html">form_win(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020-2021,2023 Thomas E. Dickey                                *
+ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
  * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_global.c,v 1.34 2023/09/16 16:39:26 tom Exp $")
+MODULE_ID("$Id: m_global.c,v 1.35 2024/12/07 23:02:27 tom Exp $")
 
 static char mark[] = "-";
 /* *INDENT-OFF* */
@@ -256,13 +256,13 @@ _nc_Calculate_Text_Width(const TEXT *item /*FIXME: limit length */ )
   int result = item->length;
 
   T((T_CALLED("_nc_menu_text_width(%p)"), (const void *)item));
-  if (result != 0 && item->str != 0)
+  if (result != 0 && item->str != NULL)
     {
-      int count = (int)mbstowcs(0, item->str, 0);
-      wchar_t *temp = 0;
+      int count = (int)mbstowcs(NULL, item->str, 0);
+      wchar_t *temp = NULL;
 
       if (count > 0
-	  && (temp = typeMalloc(wchar_t, 2 + count)) != 0)
+	  && (temp = typeMalloc(wchar_t, 2 + count)) != NULL)
 	{
 	  int n;
 
@@ -296,7 +296,7 @@ calculate_actual_width(MENU *menu, bool name)
 
   assert(menu && menu->items);
 
-  if (menu->items != 0)
+  if (menu->items != NULL)
     {
       ITEM **items;
 

@@ -28,23 +28,21 @@
   * authorization.                                                           *
   ****************************************************************************
   * Author: Thomas E. Dickey
-  * @Id: legacy_coding.3x,v 1.28 2024/04/20 19:13:50 tom Exp @
+  * @Id: legacy_coding.3x,v 1.32 2024/09/14 20:06:50 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>legacy_coding 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>legacy_coding 3x 2024-09-14 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">legacy_coding 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">legacy_coding 3x 2024-09-14 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="legacy_coding.3x.html">legacy_coding(3x)</A></STRONG>                Library calls               <STRONG><A HREF="legacy_coding.3x.html">legacy_coding(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -58,15 +56,15 @@
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       <STRONG>use_legacy_coding</STRONG> is an extension to the <EM>curses</EM> library.  It allows the
-       caller to change the result of <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>, suppressing <STRONG>isprint(3)</STRONG>-based
+       <STRONG>use_legacy_coding</STRONG>,  an <EM>ncurses</EM> extension to the <EM>curses</EM> library, permits
+       customiztion  of  <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>  behavior,  suppressing   <STRONG>isprint(3)</STRONG>-based
        checks  within  the  library  that  would  normally  cause  nonprinting
        characters to be rendered in visible form.  The alteration affects only
-       eight-bit characters.
+       byte-wide characters with the most significant bit set.
 
        The <EM>level</EM> parameter controls the result.
 
-              <STRONG>0</STRONG>    The   library  functions  normally,  rendering  nonprinting
+              <STRONG>0</STRONG>    The  library  functions  normally,  rendering   nonprinting
                    characters as described in <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>,
 
               <STRONG>1</STRONG>    the library ignores <EM>isprint</EM> for codes in the range 160-255.
@@ -77,28 +75,33 @@
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       If the screen has not been initialized, or the <EM>level</EM> parameter  is  out
-       of  range,  <STRONG>use_legacy_coding</STRONG>  returns  <STRONG>ERR</STRONG>.  Otherwise, it returns the
-       previous level: <STRONG>0</STRONG>, <STRONG>1</STRONG>, or <STRONG>2</STRONG>.
+       If  the  <EM>curses</EM> screen has not been initialized, or the <EM>level</EM> parameter
+       is out of range, <STRONG>use_legacy_coding</STRONG> returns <STRONG>ERR</STRONG>.  Otherwise, it  returns
+       the previous level.
+
+
+</PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
+       <STRONG>use_legacy_coding</STRONG> is an <EM>ncurses</EM> extension.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       <STRONG>use_legacy_coding</STRONG> is specific to <EM>ncurses</EM>.   It  was  not  supported  on
-       Version  7,  BSD  or  System V implementations.  Applications employing
-       <EM>ncurses</EM> extensions should condition their use on the visibility of  the
-       <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
+       Applications employing <EM>ncurses</EM> extensions should condition their use on
+       the visibility of the <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
+
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       <EM>ncurses</EM>  5.6  (2006)  introduced <EM>use</EM><STRONG>_</STRONG><EM>legacy</EM><STRONG>_</STRONG><EM>coding</EM> to support <STRONG>lynx(1)</STRONG>'s
+       font-switching feature.
 
 
 </PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>
-       Thomas Dickey (to support <STRONG>lynx(1)</STRONG>'s font-switching feature).
+       Thomas Dickey
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                 <STRONG><A HREF="legacy_coding.3x.html">legacy_coding(3x)</A></STRONG>
+ncurses 6.6                       2024-09-14                 <STRONG><A HREF="legacy_coding.3x.html">legacy_coding(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -106,7 +109,9 @@ ncurses 6.5                       2024-04-20                 <STRONG><A HREF="le
 <li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
+<li><a href="#h2-EXTENSIONS">EXTENSIONS</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-AUTHORS">AUTHORS</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>

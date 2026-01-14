@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2023,2024 Thomas E. Dickey                                *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: dump_window.c,v 1.5 2023/11/11 00:30:50 tom Exp $
+ * $Id: dump_window.c,v 1.6 2024/12/07 23:03:07 tom Exp $
  */
 #include <dump_window.h>
 
@@ -37,7 +37,7 @@ open_dump(const char *fn)
 {
     int result = 0;
     close_dump();
-    if ((dumpfp = fopen(fn, "a")) != 0)
+    if ((dumpfp = fopen(fn, "a")) != NULL)
 	result = 1;
     return result;
 }
@@ -45,9 +45,9 @@ open_dump(const char *fn)
 void
 close_dump(void)
 {
-    if (dumpfp != 0) {
+    if (dumpfp != NULL) {
 	fclose(dumpfp);
-	dumpfp = 0;
+	dumpfp = NULL;
     }
 }
 
@@ -55,14 +55,14 @@ void
 dump_window(WINDOW *w)
 {
     wgetch(w);
-    if (dumpfp != 0) {
+    if (dumpfp != NULL) {
 	int y, x;
 	int oldy, oldx;
 	int maxy, maxx;
 	int pass;
-	char *cvec = 0;
-	char *avec = 0;
-	char *pvec = 0;
+	char *cvec = NULL;
+	char *avec = NULL;
+	char *pvec = NULL;
 	int ccnt = 0;
 	int acnt = 0;
 	int pcnt = 0;

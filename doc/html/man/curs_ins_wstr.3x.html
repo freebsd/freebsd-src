@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2019-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2019-2024,2025 Thomas E. Dickey                                *
   * Copyright 2002-2012,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,104 +27,117 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_ins_wstr.3x,v 1.38 2024/04/20 21:23:08 tom Exp @
+  * @Id: curs_ins_wstr.3x,v 1.60 2025/03/01 21:30:14 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_ins_wstr 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_ins_wstr 3x 2025-03-01 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_ins_wstr 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_ins_wstr 3x 2025-03-01 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_ins_wstr.3x.html">curs_ins_wstr(3x)</A></STRONG>                Library calls               <STRONG><A HREF="curs_ins_wstr.3x.html">curs_ins_wstr(3x)</A></STRONG>
 
 
-
-
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>ins_wstr</STRONG>,  <STRONG>ins_nwstr</STRONG>,  <STRONG>wins_wstr</STRONG>,  <STRONG>wins_nwstr</STRONG>, <STRONG>mvins_wstr</STRONG>, <STRONG>mvins_nwstr</STRONG>,
-       <STRONG>mvwins_wstr</STRONG>, <STRONG>mvwins_nwstr</STRONG> - insert a wide-character string in a  <EM>curses</EM>
+       <STRONG>ins_wstr</STRONG>,  <STRONG>wins_wstr</STRONG>,  <STRONG>mvins_wstr</STRONG>,  <STRONG>mvwins_wstr</STRONG>, <STRONG>ins_nwstr</STRONG>, <STRONG>wins_nwstr</STRONG>,
+       <STRONG>mvins_nwstr</STRONG>, <STRONG>mvwins_nwstr</STRONG> - insert a wide-character string in a  <EM>curses</EM>
        window
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>ins_wstr(const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>ins_nwstr(const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wins_wstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wins_nwstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>ins_wstr(const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wins_wstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvins_wstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwins_wstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG>
+             <STRONG>const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>);</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>mvins_wstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvins_nwstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvwins_wstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvwins_nwstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>ins_nwstr(const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wins_nwstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvins_nwstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwins_nwstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG>
+             <STRONG>const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       These routines insert a <STRONG>wchar_t</STRONG> character string (as many characters as
-       will fit on the line) before the character  under  the  cursor,  as  if
-       calling  <STRONG><A HREF="curs_ins_wch.3x.html">wins_wch(3x)</A></STRONG>.   All  characters to the right of the cursor are
-       shifted right, with the possibility of the rightmost characters on  the
-       line being lost.  No wrapping is performed.
-
-       The  cursor  position  does  not  change  (after  moving  to  <EM>y</EM>,  <EM>x</EM>, if
-       specified).
-
-       The functions with <EM>n</EM> as the last argument insert a leading substring of
-       at  most  <EM>n</EM>  <STRONG>wchar_t</STRONG>  characters.   If  <EM>n</EM> is less than zero, the entire
-       string is inserted (stopping on a L'\0' character).
-
-       Special characters are handled as in <STRONG><A HREF="curs_add_wch.3x.html">wadd_wch(3x)</A></STRONG>.
+       <STRONG>wins_wstr</STRONG>  inserts a wide-character string <EM>wstr</EM> before the character at
+       the cursor in window <EM>win</EM> as if by calling <STRONG><A HREF="curs_ins_wch.3x.html">wins_wch(3x)</A></STRONG> for each <EM>wchar</EM><STRONG>_</STRONG><EM>t</EM>
+       in <EM>wstr</EM>.  No line wrapping is performed.  Characters to  the  right  of
+       the cursor are shifted right; those at the right edge of the window may
+       be  lost.   <STRONG>wins_wstr</STRONG>  stops  inserting if it would have to wrap to the
+       next line to write the next <EM>wchar</EM><STRONG>_</STRONG><EM>t</EM> in <EM>wstr</EM>.  The cursor position  does
+       not change (after moving to (<EM>y</EM>, <EM>x</EM>), if specified).  <STRONG>wins_nwstr</STRONG> does the
+       same, but inserts at most <EM>n</EM> wide characters, or as many as possible (up
+       to  the  end  of the line) if <EM>n</EM> is negative.  <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG> describes the
+       variants of these functions.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       All functions return the integer <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> on success.
+       These functions return <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.
 
-       X/Open  Curses  does  not   specify   any   error   conditions.    This
-       implementation returns an error
+       In <EM>ncurses</EM>, they return <STRONG>ERR</STRONG> if
 
-       <STRONG>o</STRONG>   if the <EM>win</EM> parameter is null or
+       <STRONG>o</STRONG>   <EM>win</EM> is <EM>NULL</EM>,
 
-       <STRONG>o</STRONG>   if the <EM>wstr</EM> parameter is null or
+       <STRONG>o</STRONG>   <EM>wstr</EM> is <EM>NULL</EM>,
 
-       <STRONG>o</STRONG>   if the <STRONG>wins_wch</STRONG> function returns an error.
+       <STRONG>o</STRONG>   the first wide character in <EM>wstr</EM> is a non-spacing character, or
 
-       Functions  prefixed with "mv" first perform cursor movement and fail if
+       <STRONG>o</STRONG>   an internal <STRONG><A HREF="curs_ins_wch.3x.html">wins_wch(3x)</A></STRONG> call returns <STRONG>ERR</STRONG>.
+
+       Functions prefixed with "mv" first perform cursor movement and fail  if
        the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       All but <STRONG>wins_nwstr</STRONG> may be macros.
+       All of these functions except <STRONG>wins_nwstr</STRONG> may be implemented as macros.
 
-       If the first character in the string is a non-spacing character,  these
-       functions will fail.  X/Open Curses does not define what will happen if
-       a non-spacing character follows a control character.
+
+</PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
+       <STRONG>ins_nwstr</STRONG>,  <STRONG>wins_nwstr</STRONG>,  <STRONG>mvins_nwstr</STRONG>,  and <STRONG>mvwins_nwstr</STRONG>'s acceptance of
+       negative <EM>n</EM> values is an <EM>ncurses</EM> extension.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These functions are described in X/Open Curses,  Issue  4,  which  adds
-       <EM>const</EM> qualifiers to the arguments.
+       Applications employing <EM>ncurses</EM> extensions should condition their use on
+       the visibility of the <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
 
-       X/Open  states  that the entire string is inserted if <EM>n</EM> is less than 1.
+       X/Open Curses Issue 4 describes these functions.  It specifies no error
+       conditions for them.
+
+       X/Open Curses does not specify what happens if a non-spacing  character
+       follows a control character.
+
+       Issue 4  states that the entire string is inserted if <EM>n</EM> is less than 1.
        This is probably an  error,  because  it  is  inconsistent  with  other
-       functions, and differs from the X/Open implementation on Solaris.
+       functions  such  as  <EM>waddwstr</EM>,  and  differs  from  the SVr4 <EM>curses</EM> and
+       Solaris <EM>xcurses</EM> implementations.   Nevertheless,  Issue 7  retains  the
+       language.
+
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       X/Open  Curses Issue 4 (1995) initially specified these functions.  The
+       System V Interface Definition  Version 4  (1995),  specified  functions
+       named  <EM>winswstr</EM>  and  <EM>winsnwstr</EM>  (and  the usual variants).  These were
+       later additions to SVr4.<EM>x</EM>, not appearing  in  the  first  SVr4  (1989).
+       They  differ from X/Open's later <EM>wins</EM><STRONG>_</STRONG><EM>wstr</EM> and <EM>wins</EM><STRONG>_</STRONG><EM>nwstr</EM> in that their
+       <EM>wstr</EM> parameters are not <EM>const</EM>-qualified.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="curs_insstr.3x.html">curs_insstr(3x)</A></STRONG>  describes  comparable functions of the <EM>ncurses</EM> library
+       <STRONG><A HREF="curs_insstr.3x.html">curs_insstr(3x)</A></STRONG> describes comparable functions of the  <EM>ncurses</EM>  library
        in its non-wide-character configuration.
 
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_ins_wch.3x.html">curs_ins_wch(3x)</A></STRONG>, <STRONG><A HREF="curs_in_wch.3x.html">curs_in_wch(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                 <STRONG><A HREF="curs_ins_wstr.3x.html">curs_ins_wstr(3x)</A></STRONG>
+ncurses 6.6                       2025-03-01                 <STRONG><A HREF="curs_ins_wstr.3x.html">curs_ins_wstr(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -133,7 +146,9 @@ ncurses 6.5                       2024-04-20                 <STRONG><A HREF="cu
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>
+<li><a href="#h2-EXTENSIONS">EXTENSIONS</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

@@ -1,7 +1,7 @@
 <!--
   * t
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2014,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,27 +28,25 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: menu.3x,v 1.45 2024/03/16 15:35:01 tom Exp @
+  * @Id: menu.3x,v 1.54 2025/11/12 01:27:41 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>menu 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
+<TITLE>menu 3x 2025-11-11 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">menu 3x 2024-03-16 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">menu 3x 2025-11-11 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="menu.3x.html">menu(3x)</A></STRONG>                         Library calls                        <STRONG><A HREF="menu.3x.html">menu(3x)</A></STRONG>
 
 
-
-
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>menu</STRONG> - curses extension for programming menus
+       <STRONG>menu</STRONG> - present menus in <EM>curses</EM> windows
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -57,9 +55,9 @@
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
        The <STRONG>menu</STRONG> library provides terminal-independent facilities for composing
-       menu systems on character-cell terminals.  The library  includes:  item
-       routines,  which create and modify menu items; and menu routines, which
-       group items into  menus,  display  menus  on  the  screen,  and  handle
+       menu  systems  on character-cell terminals.  The library includes: item
+       routines, which create and modify menu items; and menu routines,  which
+       group  items  into  menus,  display  menus  on  the  screen, and handle
        interaction with the user.
 
        The <STRONG>menu</STRONG> library uses the <STRONG>curses</STRONG> libraries, and a curses initialization
@@ -71,7 +69,7 @@
 </PRE><H3><a name="h3-Current-Default-Values-for-Item-Attributes">Current Default Values for Item Attributes</a></H3><PRE>
        The <STRONG>menu</STRONG> library maintains a default value for  item  attributes.   You
        can  get  or  set  this default by calling the appropriate <STRONG>get_</STRONG> or <STRONG>set_</STRONG>
-       routine with a <STRONG>NULL</STRONG> item pointer.  Changing this default  with  a  <STRONG>set_</STRONG>
+       routine with a <EM>NULL</EM> item pointer.  Changing this default  with  a  <STRONG>set_</STRONG>
        function  affects  future  item  creations,  but  does  not  change the
        rendering of items already created.
 
@@ -112,7 +110,6 @@
        menu_pattern           <STRONG><A HREF="menu_pattern.3x.html">menu_pattern(3x)</A></STRONG>
        menu_request_by_name   <STRONG><A HREF="menu_requestname.3x.html">menu_requestname(3x)</A></STRONG>
        menu_request_name      <STRONG><A HREF="menu_requestname.3x.html">menu_requestname(3x)</A></STRONG>
-
        menu_spacing           <STRONG><A HREF="menu_spacing.3x.html">menu_spacing(3x)</A></STRONG>
        menu_sub               <STRONG><A HREF="menu_win.3x.html">menu_win(3x)</A></STRONG>
        menu_term              <STRONG><A HREF="menu_hook.3x.html">menu_hook(3x)</A></STRONG>
@@ -150,7 +147,7 @@
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       Routines  that  return  pointers  return  <STRONG>NULL</STRONG> on error.  Routines that
+       Routines  that  return  pointers  return  <EM>NULL</EM> on error.  Routines that
        return an integer return one of the following error codes:
 
        <STRONG>E_OK</STRONG> The routine succeeded.
@@ -218,9 +215,7 @@
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>  and  related  pages  whose names begin "menu_" for detailed
        descriptions of the entry points.
 
-
-
-ncurses 6.5                       2024-03-16                          <STRONG><A HREF="menu.3x.html">menu(3x)</A></STRONG>
+ncurses 6.6                       2025-11-11                          <STRONG><A HREF="menu.3x.html">menu(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

@@ -1,7 +1,7 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 // vile:cppmode
 /****************************************************************************
- * Copyright 2019-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2019-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2003,2005 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,7 +33,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: cursslk.h,v 1.19 2021/04/17 18:11:08 tom Exp $
+// $Id: cursslk.h,v 1.20 2024/10/05 22:47:12 tom Exp $
 
 #ifndef NCURSES_CURSSLK_H_incl
 #define NCURSES_CURSSLK_H_incl
@@ -62,7 +62,7 @@ public:
 
   public:
     // Set the text of the Label
-    Soft_Label_Key& operator=(char *text);
+    Soft_Label_Key& operator=(const char *text);
 
     // Set the Justification of the Label
     Soft_Label_Key& operator=(Justification just) {

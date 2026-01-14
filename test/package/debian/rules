@@ -1,10 +1,14 @@
 #!/usr/bin/make -f
-# Made with the aid of dh_make, by Craig Small
-# Sample debian/rules that uses debhelper. GNU copyright 1997 by Joey Hess.
-# Some lines taken from debmake, by Cristoph Lameter.
+# $Id: rules,v 1.15 2025/06/14 21:15:59 tom Exp $
 
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
+
+SHELL = /bin/bash
+DPKG_EXPORT_BUILDFLAGS = 1
+export DEB_BUILD_MAINT_OPTIONS := hardening=+all qa=+bug reproducible=+all
+
+include /usr/share/dpkg/buildflags.mk
 
 # packages
 NCURSES_PKG = ncurses-examples
@@ -18,10 +22,6 @@ PACKAGES.arch  = $(NCURSES_PKG) $(NCURSEST_PKG)
 DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
 DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 
-CFLAGS   = $(shell dpkg-buildflags --get CFLAGS)
-CPPFLAGS = $(shell dpkg-buildflags --get CPPFLAGS)
-LDFLAGS  = $(shell dpkg-buildflags --get LDFLAGS)
-
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
         CFLAGS += -O0
 else
@@ -34,9 +34,7 @@ endif
 verbose = # -v
 
 configure = \
-	CFLAGS="$(CFLAGS)" \
-	CPPFLAGS="$(CPPFLAGS)" \
-	LDFLAGS="$(LDFLAGS)" ../../configure \
+	../../configure \
 		--host=$(DEB_HOST_GNU_TYPE) \
 		--build=$(DEB_BUILD_GNU_TYPE) \
 		--prefix=/usr \
@@ -75,7 +73,7 @@ config-$(NCURSES_PKG)-stamp:
 
 	cd t/ncurses6; $(configure) \
 		--datadir=\$${datarootdir}/$(NCURSES_PKG) \
-		--with-screen=ncursesw6
+		--with-screen=ncursesw6td
 
 	touch $@
 
@@ -87,7 +85,7 @@ config-$(NCURSEST_PKG)-stamp:
 
 	cd t/ncursest6; $(configure) \
 		--datadir=\$${datarootdir}/$(NCURSEST_PKG) \
-		--with-screen=ncursestw6
+		--with-screen=ncursestw6td
 
 	touch $@
 
@@ -153,6 +151,7 @@ ifneq ($(PACKAGES.arch),)
 	rm -f $(PACKAGES.arch:%=install-%-stamp)
 	dh_testdir
 	dh_testroot
+	dh_lintian           $(verbose) $(PACKAGES.arch:%=-p%)
 	dh_installdocs       $(verbose) $(PACKAGES.arch:%=-p%)
 	dh_installchangelogs $(verbose) $(PACKAGES.arch:%=-p%)  NEWS
 	dh_strip             $(verbose) $(PACKAGES.arch:%=-p%)

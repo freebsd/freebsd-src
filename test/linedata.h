@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2024 Thomas E. Dickey                                *
  * Copyright 2009-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,7 +28,7 @@
  ****************************************************************************/
 
 /*
- * $Id: linedata.h,v 1.8 2020/02/02 23:34:34 tom Exp $
+ * $Id: linedata.h,v 1.9 2024/12/07 23:00:37 tom Exp $
  *
  * Utility functions for reading a line of text from a file.
  */
@@ -55,7 +55,7 @@ failed(const char *s)
 static void
 init_linedata(const char *name)
 {
-    if ((linedata = fopen(name, "r")) == 0) {
+    if ((linedata = fopen(name, "r")) == NULL) {
 	failed(name);
     }
 }
@@ -64,11 +64,11 @@ static int
 read_linedata(WINDOW *work)
 {
     int result;
-    if (linedata != 0) {
+    if (linedata != NULL) {
 	result = fgetc(linedata);
 	if (result == EOF) {
 	    fclose(linedata);
-	    linedata = 0;
+	    linedata = NULL;
 	    result = read_linedata(work);
 	} else {
 	    wrefresh(work);

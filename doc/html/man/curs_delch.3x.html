@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2006,2010 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_delch.3x,v 1.34 2024/04/20 19:24:14 tom Exp @
+  * @Id: curs_delch.3x,v 1.49 2025/04/05 21:59:53 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_delch 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_delch 3x 2025-04-05 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_delch 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_delch 3x 2025-04-05 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_delch.3x.html">curs_delch(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="curs_delch.3x.html">curs_delch(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -55,51 +53,58 @@
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
        <STRONG>int</STRONG> <STRONG>delch(void);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wdelch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wdelch(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>mvdelch(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvwdelch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwdelch(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       <STRONG>wdelch</STRONG>  deletes  the  character  at  the  cursor   position   in   <EM>win</EM>.
-       <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG> describes the variants of this function.
-
-       <STRONG>wdelch</STRONG> moves all characters to the right of the cursor on the same line
-       to the left one position and replaces the  contents  of  the  rightmost
-       position  on  the  line with the window's blank character; see <STRONG><A HREF="curs_bkgd.3x.html">bkgd(3x)</A></STRONG>
-       (wide-character API users may consult <STRONG><A HREF="curs_bkgrnd.3x.html">bkgrnd(3x)</A></STRONG> instead).  The  cursor
-       position does not change (after moving to (<EM>y</EM>, <EM>x</EM>), if specified).
+       <STRONG>wdelch</STRONG> deletes the character at the cursor position in <EM>win</EM>.   It  moves
+       all  characters to the right of the cursor on the same line to the left
+       one position and replaces the contents of the rightmost position on the
+       line with  the  window's  background  character;  see  <STRONG><A HREF="curs_bkgd.3x.html">bkgd(3x)</A></STRONG>  (wide-
+       character  API users: <STRONG><A HREF="curs_bkgrnd.3x.html">bkgrnd(3x)</A></STRONG>).  The cursor position does not change
+       (after moving to (<EM>y</EM>, <EM>x</EM>),  if  specified).   <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>  describes  the
+       variants of this function.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
        These functions return <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.
 
-       Functions taking a <EM>WINDOW</EM> pointer argument fail if the pointer is <STRONG>NULL</STRONG>.
+       In <EM>ncurses</EM>, these functions fail if
 
-       Functions  prefixed with "mv" first perform cursor movement and fail if
+       <STRONG>o</STRONG>   the <EM>curses</EM> screen has not been initialized, or
+
+       <STRONG>o</STRONG>   (for  functions  taking  a  <EM>WINDOW</EM>  pointer argument) <EM>win</EM> is a null
+           pointer.
+
+       Functions prefixed with "mv" first perform cursor movement and fail  if
        the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
        <STRONG>delch</STRONG>, <STRONG>mvdelch</STRONG>, and <STRONG>mvwdelch</STRONG> may be implemented as macros.
 
-       A terminal's <STRONG>delete_character</STRONG>  (<STRONG>dch1</STRONG>)  capability  is  not  necessarily
+       A  terminal's  <STRONG>delete_character</STRONG>  (<STRONG>dch1</STRONG>)  capability  is not necessarily
        employed.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       X/Open Curses, Issue 4 describes these functions.
+       X/Open Curses Issue 4 describes these functions.  It specifies no error
+       conditions for them.
 
-       SVr4  <EM>curses</EM>  describes  a  successful return value only as "an integer
-       value other than <STRONG>ERR</STRONG>".
+       SVr4 describes a successful return value  only  as  "an  integer  value
+       other than <EM>ERR</EM>".
+
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       SVr2 (1984) introduced <EM>wdelch</EM>.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                    <STRONG><A HREF="curs_delch.3x.html">curs_delch(3x)</A></STRONG>
+ncurses 6.6                       2025-04-05                    <STRONG><A HREF="curs_delch.3x.html">curs_delch(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -109,6 +114,7 @@ ncurses 6.5                       2024-04-20                    <STRONG><A HREF=
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

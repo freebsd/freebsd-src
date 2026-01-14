@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2019-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2019-2024,2025 Thomas E. Dickey                                *
   * Copyright 2007-2015,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_legacy.3x,v 1.32 2024/03/16 15:35:01 tom Exp @
+  * @Id: curs_legacy.3x,v 1.36 2025/02/15 18:43:02 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_legacy 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_legacy 3x 2025-02-15 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_legacy 3x 2024-03-16 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_legacy 3x 2025-02-15 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_legacy.3x.html">curs_legacy(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="curs_legacy.3x.html">curs_legacy(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -82,9 +80,9 @@
            fit into a <STRONG>chtype</STRONG>, so <STRONG>wattr_get</STRONG> is the only way to obtain the color
            information.
 
-           Because <STRONG>getattrs</STRONG> returns the attributes in a single  parameter,  it
-           would  not  be possible for an application to distinguish that from
-           <STRONG>ERR</STRONG> (a <EM>-1</EM>).  If the window  parameter  is  null,  <STRONG>getattrs</STRONG>  returns
+           Because  <STRONG>getattrs</STRONG>  returns the attributes in a single parameter, it
+           would not be possible for an application to distinguish  that  from
+           <STRONG>ERR</STRONG>  (a  <EM>-1</EM>).   If  the  window parameter is null, <STRONG>getattrs</STRONG> returns
            <STRONG>A_NORMAL</STRONG> (zero).
 
        <STRONG>o</STRONG>   The <STRONG>getbegy</STRONG> and <STRONG>getbegx</STRONG> functions return the same data as <STRONG>getbegyx</STRONG>.
@@ -97,19 +95,8 @@
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       Except  as  noted,  these  functions  return  an integer, or <STRONG>ERR</STRONG> if the
+       Except as noted, these functions return  an  integer,  or  <STRONG>ERR</STRONG>  if  the
        window parameter is null.
-
-
-</PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       All of these interfaces are implemented as macros and  functions.   The
-       macros  are suppressed (and only the functions provided) in an "opaque"
-       <EM>ncurses</EM> build, which defines the  preprocessor  symbol  <STRONG>NCURSES_OPAQUE</STRONG>.
-       See section "ALTERNATE CONFIGURATIONS" in <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>.
-
-       The standard forms such as <STRONG>getyx</STRONG> <EM>must</EM> be implemented as macros, and (in
-       this implementation) are defined in terms of  the  functions  described
-       here, to avoid reliance on internal details of the <EM>WINDOW</EM> structure.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
@@ -125,9 +112,7 @@
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_getyx.3x.html">curs_getyx(3x)</A></STRONG>, <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-03-16                   <STRONG><A HREF="curs_legacy.3x.html">curs_legacy(3x)</A></STRONG>
+ncurses 6.6                       2025-02-15                   <STRONG><A HREF="curs_legacy.3x.html">curs_legacy(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -135,7 +120,6 @@ ncurses 6.5                       2024-03-16                   <STRONG><A HREF="
 <li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
-<li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>

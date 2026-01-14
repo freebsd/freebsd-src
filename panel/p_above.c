@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -37,11 +37,11 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_above.c,v 1.11 2020/05/24 01:40:20 anonymous.maarten Exp $")
+MODULE_ID("$Id: p_above.c,v 1.12 2024/12/07 23:05:20 tom Exp $")
 
 #if NCURSES_SP_FUNCS
 PANEL_EXPORT(PANEL *)
-ground_panel(SCREEN * sp)
+ground_panel(SCREEN *sp)
 {
   T((T_CALLED("ground_panel(%p)"), (void *)sp));
   if (sp)
@@ -51,12 +51,12 @@ ground_panel(SCREEN * sp)
       if (_nc_bottom_panel)	/* this is the pseudo panel */
 	returnPanel(_nc_bottom_panel->above);
       else
-	returnPanel(0);
+	returnPanel(NULL);
     }
   else
     {
-      if (0 == CURRENT_SCREEN)
-	returnPanel(0);
+      if (NULL == CURRENT_SCREEN)
+	returnPanel(NULL);
       else
 	returnPanel(ground_panel(CURRENT_SCREEN));
     }
@@ -64,7 +64,7 @@ ground_panel(SCREEN * sp)
 #endif
 
 PANEL_EXPORT(PANEL *)
-panel_above(const PANEL * pan)
+panel_above(const PANEL *pan)
 {
   PANEL *result;
 
@@ -78,7 +78,7 @@ panel_above(const PANEL * pan)
 #else
       /* if top and bottom are equal, we have no or only the pseudo panel;
          if not, we return the panel above the pseudo panel */
-      result = EMPTY_STACK()? (PANEL *) 0 : _nc_bottom_panel->above;
+      result = EMPTY_STACK()? (PANEL *)0 : _nc_bottom_panel->above;
 #endif
     }
   returnPanel(result);

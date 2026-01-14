@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020-2021,2022 Thomas E. Dickey                                *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 2013-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_vid_puts.c,v 1.17 2022/12/10 22:28:50 tom Exp $
+ * $Id: test_vid_puts.c,v 1.19 2025/07/05 15:22:23 tom Exp $
  *
  * Demonstrate the vid_puts and vid_attr functions.
  * Thomas Dickey - 2013/01/12
@@ -63,7 +63,7 @@ outs(const char *s)
 static void
 cleanup(void)
 {
-    if (cur_term != 0) {
+    if (cur_term != NULL) {
 	outs(exit_attribute_mode);
 	if (!outs(orig_colors))
 	    outs(orig_pair);
@@ -134,11 +134,8 @@ main(int argc, char *argv[])
 	case 'p':
 	    p_opt = TRUE;
 	    break;
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }

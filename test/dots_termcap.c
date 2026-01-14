@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 2013-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -30,14 +30,14 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: dots_termcap.c,v 1.32 2023/02/25 18:11:21 tom Exp $
+ * $Id: dots_termcap.c,v 1.38 2025/07/05 15:21:56 tom Exp $
  *
  * A simple demo of the termcap interface.
  */
 #define USE_TINFO
 #include <test.priv.h>
 
-#if !defined(_NC_WINDOWS)
+#if !defined(_NC_WINDOWS_NATIVE)
 #include <sys/time.h>
 #endif
 
@@ -113,7 +113,7 @@ TPUTS_PROTO(outc, c)
 }
 
 static bool
-outs(char *s)
+outs(NCURSES_CONST char *s)
 {
     if (VALID_STRING(s)) {
 	tputs(s, 1, outc);
@@ -153,7 +153,7 @@ ranf(void)
 /*
  * napms is a curses function which happens to be usable without initializing
  * the screen, but if this program happened to be build with a "real" termcap
- * library, there is nothing like napms. 
+ * library, there is nothing like napms.
  */
 #if HAVE_NAPMS
 #define my_napms(ms) napms(ms)
@@ -162,7 +162,7 @@ static void
 my_napms(int ms)
 {
     if (ms > 0) {
-#if defined(_NC_WINDOWS)
+#if defined(_NC_WINDOWS_NATIVE)
 	Sleep((unsigned int) ms);
 #else
 	struct timeval data;
@@ -178,9 +178,9 @@ static int
 get_number(NCURSES_CONST char *cap, const char *env)
 {
     int result = tgetnum(cap);
-    char *value = env ? getenv(env) : 0;
-    if (value != 0 && *value != 0) {
-	char *next = 0;
+    const char *value = env ? getenv(env) : NULL;
+    if (value != NULL && *value != 0) {
+	char *next = NULL;
 	long check = strtol(value, &next, 10);
 	if (check > 0 && *next == '\0')
 	    result = (int) check;
@@ -229,7 +229,7 @@ main(int argc, char *argv[])
     double c;
     char buffer[1024];
     char area[1024];
-    char *name;
+    NCURSES_CONST char *name;
     size_t need;
     char *my_env;
 
@@ -254,21 +254,18 @@ main(int argc, char *argv[])
 	case 's':
 	    s_option = atoi(optarg);
 	    break;
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
 
-    if ((name = getenv("TERM")) == 0) {
+    if ((name = getenv("TERM")) == NULL) {
 	fprintf(stderr, "TERM is not set\n");
 	ExitProgram(EXIT_FAILURE);
     }
 
-    srand((unsigned) time(0));
+    srand((unsigned) time(NULL));
 
     SetupAlarm((unsigned) r_option);
     InitAndCatch(ch = tgetent(buffer, name), onsig);
@@ -285,7 +282,7 @@ main(int argc, char *argv[])
     }
 
     num_colors = tgetnum("Co");
-#define GetNumber(cap,env) get_number(cap, e_option ? env : 0)
+#define GetNumber(cap,env) get_number(cap, e_option ? env : NULL)
     num_lines = GetNumber("li", "LINES");
     num_columns = GetNumber("co", "COLUMNS");
 

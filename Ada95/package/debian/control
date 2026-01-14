@@ -3,9 +3,10 @@ Maintainer: Thomas E. Dickey <dickey@invisible-island.net>
 Section: misc
 Priority: optional
 Build-Depends: debhelper (>= 5),
+  chrpath,
   gnat,
   gprbuild
-Homepage: https://invisible-island.net/adacurses/
+Homepage: https://invisible-island.net/ncurses/ncurses-Ada95.html
 Standards-Version: 4.6.1.0
 
 Package: adacurses

@@ -35,16 +35,14 @@
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>default_colors 3x 2024-04-13 ncurses 6.5 Library calls</TITLE>
+<TITLE>default_colors 3x 2024-04-13 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">default_colors 3x 2024-04-13 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">default_colors 3x 2024-04-13 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="default_colors.3x.html">default_colors(3x)</A></STRONG>               Library calls              <STRONG><A HREF="default_colors.3x.html">default_colors(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -70,9 +68,9 @@
        not  take  advantage  of  SGR  39  and  SGR  49.  Some applications are
        designed to work with the default background,  using  colors  only  for
        text.  For example, there are several implementations of the <STRONG>ls</STRONG> program
-       which use colors to denote different file types or permissions.   These
-       "color  ls"  programs  do  not necessarily modify the background color,
-       typically  using  only  the  <STRONG>setaf</STRONG>  terminfo  capability  to  set   the
+       which  use colors to denote different file types or permissions.  These
+       "color ls" programs do not necessarily  modify  the  background  color,
+       typically   using  only  the  <STRONG>setaf</STRONG>  terminfo  capability  to  set  the
        foreground color.  Full-screen applications that use default colors can
        achieve similar visual effects.
 
@@ -103,7 +101,7 @@
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       These  functions return the integer <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> on success.
+       These functions return the integer <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> on  success.
        They will fail if either the terminal does not support the <STRONG>orig_pair</STRONG> or
        <STRONG>orig_colors</STRONG>  capability.   If  the  <STRONG>initialize_pair</STRONG>  capability  is not
        found, this causes an error as well.
@@ -113,8 +111,8 @@
        Associated with this extension, the <STRONG>init_pair</STRONG> function accepts negative
        arguments to specify default foreground or background colors.
 
-       The  <STRONG>use_default_colors</STRONG>  function  was added to support <STRONG>ded</STRONG>.  This is a
-       full-screen application which uses curses to manage only  part  of  the
+       The <STRONG>use_default_colors</STRONG> function was added to support <STRONG>ded</STRONG>.   This  is  a
+       full-screen  application  which  uses curses to manage only part of the
        screen.  The bottom portion of the screen, which is of adjustable size,
        is left uncolored to display the results from shell commands.  The  top
        portion  of  the screen colors filenames using a scheme like the "color
@@ -129,12 +127,12 @@
 
        The  <STRONG>assume_default_colors</STRONG>  function  was  added  to  solve a different
        problem: support for applications which would use environment variables
-       and  other  configuration  to  bypass  curses' notion of the terminal's
+       and other configuration to bypass  curses'  notion  of  the  terminal's
        default colors, setting specific values.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These routines are specific to <EM>ncurses</EM>.  They  were  not  supported  on
+       These  routines  are  specific  to <EM>ncurses</EM>.  They were not supported on
        Version 7, BSD or System V implementations.  It is recommended that any
        code depending on them be conditioned using NCURSES_VERSION.
 
@@ -147,9 +145,7 @@
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG>ded(1)</STRONG>, <STRONG><A HREF="curs_color.3x.html">curs_color(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-13                <STRONG><A HREF="default_colors.3x.html">default_colors(3x)</A></STRONG>
+ncurses 6.6                       2024-04-13                <STRONG><A HREF="default_colors.3x.html">default_colors(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

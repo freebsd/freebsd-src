@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2022 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: rain.c,v 1.57 2022/12/04 00:40:11 tom Exp $
+ * $Id: rain.c,v 1.64 2025/07/05 15:21:56 tom Exp $
  */
 #include <test.priv.h>
 #include <popup_msg.h>
@@ -45,7 +45,7 @@ WANT_USE_WINDOW();
 
 struct DATA;
 
-typedef void (*DrawPart) (struct DATA *);
+typedef void (*DrawPart) (const struct DATA *);
 
 typedef struct DATA {
     int y, x;
@@ -118,25 +118,25 @@ next_j(int j)
 }
 
 static void
-part1(DATA * drop)
+part1(const DATA * drop)
 {
     MvAddCh(drop->y, drop->x, '.');
 }
 
 static void
-part2(DATA * drop)
+part2(const DATA * drop)
 {
     MvAddCh(drop->y, drop->x, 'o');
 }
 
 static void
-part3(DATA * drop)
+part3(const DATA * drop)
 {
     MvAddCh(drop->y, drop->x, 'O');
 }
 
 static void
-part4(DATA * drop)
+part4(const DATA * drop)
 {
     MvAddCh(drop->y - 1, drop->x, '-');
     MvAddStr(drop->y, drop->x - 1, "|.|");
@@ -144,7 +144,7 @@ part4(DATA * drop)
 }
 
 static void
-part5(DATA * drop)
+part5(const DATA * drop)
 {
     MvAddCh(drop->y - 2, drop->x, '-');
     MvAddStr(drop->y - 1, drop->x - 1, "/ \\");
@@ -154,7 +154,7 @@ part5(DATA * drop)
 }
 
 static void
-part6(DATA * drop)
+part6(const DATA * drop)
 {
     MvAddCh(drop->y - 2, drop->x, ' ');
     MvAddStr(drop->y - 1, drop->x - 1, "   ");
@@ -186,7 +186,7 @@ really_draw(WINDOW *win, void *arg)
 }
 
 static void
-draw_part(void (*func) (DATA *), int state, DATA * data)
+draw_part(void (*func) (const DATA *), int state, DATA * data)
 {
     data->func = func;
     data->state = state;
@@ -229,7 +229,7 @@ draw_drop(void *arg)
      * Find myself in the list of threads so we can count the number of loops.
      */
     for (mystats = 0; mystats < MAX_THREADS; ++mystats) {
-#if defined(_NC_WINDOWS) && !defined(__WINPTHREADS_VERSION)
+#if defined(_NC_WINDOWS_NATIVE) && !defined(__WINPTHREADS_VERSION)
 	if (drop_threads[mystats].myself.p == pthread_self().p)
 #else
 	if (drop_threads[mystats].myself == pthread_self())
@@ -328,14 +328,14 @@ VERSION_COMMON()
 int
 main(int argc, char *argv[])
 {
-    static const char *help[] =
+    static NCURSES_CONST char *help[] =
     {
 	"Commands:",
 	" q/Q        exit the program",
 	" s          do single-step",
 	" <space>    undo single-step",
 	"",
-	0
+	NULL
     };
 
     bool done = FALSE;
@@ -356,11 +356,8 @@ main(int argc, char *argv[])
 	    d_option = TRUE;
 	    break;
 #endif
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }

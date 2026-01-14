@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 2017,2018 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: picsmap.c,v 1.149 2023/04/23 23:20:37 tom Exp $
+ * $Id: picsmap.c,v 1.155 2025/07/05 15:11:35 tom Exp $
  *
  * Author: Thomas E. Dickey
  *
@@ -109,7 +109,7 @@ static void logmsg2(const char *fmt, ...) GCC_PRINTFLIKE(1, 2);
 static void warning(const char *fmt, ...) GCC_PRINTFLIKE(1, 2);
 static int gather_c_values(int);
 
-static FILE *logfp = 0;
+static FILE *logfp = NULL;
 static double aspect_ratio = 0.6;
 static bool in_curses = FALSE;
 static bool debugging = FALSE;
@@ -138,7 +138,7 @@ static bool use_extended_colors = FALSE;
 static void
 logmsg(const char *fmt, ...)
 {
-    if (logfp != 0) {
+    if (logfp != NULL) {
 	va_list ap;
 	va_start(ap, fmt);
 	vfprintf(logfp, fmt, ap);
@@ -151,7 +151,7 @@ logmsg(const char *fmt, ...)
 static void
 logmsg2(const char *fmt, ...)
 {
-    if (logfp != 0) {
+    if (logfp != NULL) {
 	va_list ap;
 	va_start(ap, fmt);
 	vfprintf(logfp, fmt, ap);
@@ -163,7 +163,7 @@ logmsg2(const char *fmt, ...)
 static void
 close_log(void)
 {
-    if (logfp != 0) {
+    if (logfp != NULL) {
 	logmsg("Allocations:");
 	logmsg("%8ld file", (long) how_much.file);
 	logmsg("%8ld name", (long) how_much.name);
@@ -174,7 +174,7 @@ close_log(void)
 	logmsg("%8ld cell", (long) how_much.cell);
 	logmsg("%8ld window", LINES * COLS * (long) sizeof(NCURSES_CH_T));
 	fclose(logfp);
-	logfp = 0;
+	logfp = NULL;
     }
 }
 
@@ -199,7 +199,7 @@ failed(const char *msg)
 static void
 warning(const char *fmt, ...)
 {
-    if (logfp != 0) {
+    if (logfp != NULL) {
 	va_list ap;
 	va_start(ap, fmt);
 	vfprintf(logfp, fmt, ap);
@@ -219,7 +219,7 @@ warning(const char *fmt, ...)
 static void
 free_data(char **data)
 {
-    if (data != 0) {
+    if (data != NULL) {
 	free(data[0]);
 	free(data);
     }
@@ -228,12 +228,12 @@ free_data(char **data)
 static PICS_HEAD *
 free_pics_head(PICS_HEAD * pics)
 {
-    if (pics != 0) {
+    if (pics != NULL) {
 	free(pics->fgcol);
 	free(pics->cells);
 	free(pics->name);
 	free(pics);
-	pics = 0;
+	pics = NULL;
     }
     return pics;
 }
@@ -305,14 +305,14 @@ gather_c_values(int fg)
     reading_ncols[next].count = 0;
 
     check_c_values(__LINE__);
-    if ((ft = tfind(I2P(next), &reading_ntree, compare_c_values)) != 0) {
+    if ((ft = tfind(I2P(next), &reading_ntree, compare_c_values)) != NULL) {
 	found = P2I(*ft);
     } else {
 	if (reading_last + 2 >= reading_size) {
 	    int more = ((MAX(reading_last, reading_size) + 2) * 3) / 2;
 	    int last = reading_last + 1;
 	    FG_NODE *p = typeRealloc(FG_NODE, more, reading_ncols);
-	    if (p == 0)
+	    if (p == NULL)
 		goto done;
 
 	    reading_size = more;
@@ -323,7 +323,7 @@ gather_c_values(int fg)
 	}
 	++reading_last;
 	how_much.pair += sizeof(FG_NODE);
-	if ((ft = tsearch(I2P(next), &reading_ntree, compare_c_values)) != 0) {
+	if ((ft = tsearch(I2P(next), &reading_ntree, compare_c_values)) != NULL) {
 	    found = P2I(*ft);
 	    if (found != next)
 		logmsg("OOPS expected slot %d, got %d", next, found);
@@ -370,24 +370,24 @@ finish_c_values(PICS_HEAD * head)
 
     reading_last = 0;
     reading_size = 0;
-    reading_ncols = 0;
+    reading_ncols = NULL;
 }
 
 static void
 dispose_c_values(void)
 {
 #if HAVE_TSEARCH
-    if (reading_ntree != 0) {
+    if (reading_ntree != NULL) {
 	int n;
 	for (n = 0; n < reading_last; ++n) {
 	    tdelete(I2P(n), &reading_ntree, compare_c_values);
 	}
-	reading_ntree = 0;
+	reading_ntree = NULL;
     }
 #endif
-    if (reading_ncols != 0) {
+    if (reading_ncols != NULL) {
 	free(reading_ncols);
-	reading_ncols = 0;
+	reading_ncols = NULL;
     }
     reading_last = 0;
     reading_size = 0;
@@ -413,7 +413,7 @@ is_file(const char *filename, struct stat *sb)
 static char **
 read_file(const char *filename)
 {
-    char **result = 0;
+    char **result = NULL;
     struct stat sb;
 
     if (!quiet) {
@@ -430,9 +430,9 @@ read_file(const char *filename)
 	result = typeCalloc(char *, size + 1);
 	how_much.file += ((size + 1) * 2);
 
-	if (blob != 0 && result != 0) {
+	if (blob != NULL && result != NULL) {
 	    FILE *fp = fopen(filename, "r");
-	    if (fp != 0) {
+	    if (fp != NULL) {
 		logmsg("opened %s", filename);
 
 		if (fread(blob, sizeof(char), size, fp) == size) {
@@ -457,7 +457,7 @@ read_file(const char *filename)
 			    result[k++] = blob + j;
 			}
 		    }
-		    result[k] = 0;
+		    result[k] = NULL;
 		    if (k && !binary) {
 			debugmsg2("[%5d] %s\n", k, result[k - 1]);
 		    }
@@ -471,7 +471,7 @@ read_file(const char *filename)
 	    debugmsg("...file is empty");
 	    free(blob);
 	    free(result);
-	    result = 0;
+	    result = NULL;
 	} else if (binary) {
 	    debugmsg("...file is non-text");
 	}
@@ -494,7 +494,7 @@ usage(int ok)
 	," -d       invoke use_default_colors"
 #endif
 	," -L       add debugging information to logfile"
-	," -l FILE  write informational messages to FILE"
+	," -F FILE  write informational messages to FILE"
 	," -p FILE  color-palette file (default \"$TERM.dat\")"
 	," -q       less verbose"
 	," -r FILE  xpm uses X rgb color-names in FILE (default \"" RGB_PATH "\")"
@@ -548,20 +548,20 @@ static char **
 read_palette(const char *filename)
 {
     static const char *data_dir = DATA_DIR;
-    char **result = 0;
+    char **result = NULL;
     size_t last = strlen(filename);
     size_t need = (strlen(data_dir) + 20 + last);
     char *full_name = malloc(need);
     char *s;
     struct stat sb;
 
-    if (full_name != 0) {
+    if (full_name != NULL) {
 	int tries;
 	for (tries = 0; tries < 8; ++tries) {
 
 	    *(s = full_name) = '\0';
 	    if (tries & 1) {
-		if (strchr(filename, '/') == 0) {
+		if (strchr(filename, '/') == NULL) {
 		    _nc_SPRINTF(full_name, _nc_SLIMIT(need) "%s/", data_dir);
 		} else {
 		    continue;
@@ -574,7 +574,7 @@ read_palette(const char *filename)
 	    _nc_STRCAT(full_name, filename, need);
 	    if (tries & 4) {
 		char *t = s;
-		char *tc;
+		const char *tc;
 		int num;
 		char chr;
 		int found = 0;
@@ -582,7 +582,7 @@ read_palette(const char *filename)
 		    if (*t == '-') {
 			if (sscanf(t, "-%d%c", &num, &chr) == 2 &&
 			    chr == 'c' &&
-			    (tc = strchr(t, chr)) != 0 &&
+			    (tc = strchr(t, chr)) != NULL &&
 			    !(strncmp) (tc, "color", 5)) {
 			    found = 1;
 			}
@@ -622,7 +622,7 @@ read_palette(const char *filename)
 static void
 init_palette(const char *palette_file)
 {
-    if (palette_file != 0) {
+    if (palette_file != NULL) {
 	char **data = read_palette(palette_file);
 
 	all_colors = typeMalloc(RGB_DATA, (unsigned) COLORS);
@@ -641,12 +641,12 @@ init_palette(const char *palette_file)
 #else
 	memset(all_colors, 0, sizeof(RGB_DATA) * (size_t) COLORS);
 #endif
-	if (data != 0) {
+	if (data != NULL) {
 	    int n;
 	    int red, green, blue;
 	    int scale = MaxSCALE;
 	    int c;
-	    for (n = 0; data[n] != 0; ++n) {
+	    for (n = 0; data[n] != NULL; ++n) {
 		if (sscanf(data[n], "scale:%d", &c) == 1) {
 		    scale = c;
 		} else if (sscanf(data[n], "%d:%d %d %d",
@@ -677,9 +677,9 @@ init_palette(const char *palette_file)
 	}
 
 	if ((power2 != COLORS) || ((shift % 3) != 0)) {
-	    if (all_colors == 0) {
+	    if (all_colors == NULL) {
 		init_palette(getenv("TERM"));
-		if (all_colors == 0) {
+		if (all_colors == NULL) {
 		    giveup("With %d colors, you need a palette-file", COLORS);
 		}
 	    }
@@ -704,7 +704,7 @@ map_color(int value)
 	int green = (value & 0x00ff00) >> 8;
 	int blue  = (value & 0x0000ff) >> 0;
 
-	if (all_colors != 0) {
+	if (all_colors != NULL) {
 #define Diff2(n,m) ((m) - all_colors[n].m) * ((m) - all_colors[n].m)
 #define Diff2S(n) Diff2(n,red) + Diff2(n,green) + Diff2(n,blue)
 	    int d2 = Diff2S(0);
@@ -823,7 +823,7 @@ match_c(const char *source, const char *pattern, ...)
 		limit = -1;
 		ip = va_arg(ap, int *);
 		lv = strtol(source, &cp, ch == 'd' ? 10 : 16);
-		if (cp != 0 && cp != source) {
+		if (cp != NULL && cp != source) {
 		    *ip = (int) lv;
 		    source = cp;
 		} else {
@@ -834,13 +834,13 @@ match_c(const char *source, const char *pattern, ...)
 		/* floating point for pixels... */
 		fp = va_arg(ap, float *);
 		lv = strtol(source, &cp, 10);
-		if (cp == 0 || cp == source)
+		if (cp == NULL || cp == source)
 		    goto finish;
 		*fp = (float) lv;
 		source = cp;
 		if (*source == '.') {
 		    lv = strtol(++source, &cp, 10);
-		    if (cp == 0 || cp == source)
+		    if (cp == NULL || cp == source)
 			goto finish;
 		    {
 			float scale = 1.0f;
@@ -907,7 +907,7 @@ match_colors(const char *source, int cpp, char *arg1, char *arg2, char *arg3)
 	    s += cpp;
 	    while (*s++ == '\t') {
 		char *t;
-		for (t = arg2; (*s != '\0') && strchr("\t\"", *s) == 0;) {
+		for (t = arg2; (*s != '\0') && strchr("\t\"", *s) == NULL;) {
 		    if (*s == ' ') {
 			s = skip_cs(s);
 			break;
@@ -915,7 +915,7 @@ match_colors(const char *source, int cpp, char *arg1, char *arg2, char *arg3)
 		    *t++ = *s++;
 		    *t = '\0';
 		}
-		for (t = arg3; (*s != '\0') && strchr("\t\"", *s) == 0;) {
+		for (t = arg3; (*s != '\0') && strchr("\t\"", *s) == NULL;) {
 		    *t++ = *s++;
 		    *t = '\0';
 		}
@@ -938,16 +938,18 @@ parse_rgb(char **data)
     char *s, *t;
     size_t item = 0;
     size_t need;
-    RGB_NAME *result = 0;
+    RGB_NAME *result = NULL;
 
-    for (need = 0; data[need] != 0; ++need) ;
+    for (need = 0; data[need] != NULL; ++need) ;
 
     result = typeCalloc(RGB_NAME, need + 2);
     how_much.name += (sizeof(RGB_NAME) * (need + 2));
 
-    for (n = 0; data[n] != 0; ++n) {
+    for (n = 0; data[n] != NULL; ++n) {
 	if (strlen(t = data[n]) >= sizeof(buf) - 1)
 	    continue;
+	_nc_STRCPY(buf, t, sizeof(buf));
+	t = buf;
 	if (*(s = skip_s(t)) == '!')
 	    continue;
 
@@ -992,10 +994,10 @@ CaselessCmp(const char *a, const char *b)
 static RGB_NAME *
 lookup_rgb(const char *name)
 {
-    RGB_NAME *result = 0;
-    if (rgb_table != 0) {
+    RGB_NAME *result = NULL;
+    if (rgb_table != NULL) {
 	int n;
-	for (n = 0; rgb_table[n].name != 0; ++n) {
+	for (n = 0; rgb_table[n].name != NULL; ++n) {
 	    if (!CaselessCmp(name, rgb_table[n].name)) {
 		result = &rgb_table[n];
 		break;
@@ -1028,7 +1030,7 @@ parse_xbm(char **data)
     gather_c_values(0);
     gather_c_values(0xffffff);
 
-    for (n = 0; data[n] != 0; ++n) {
+    for (n = 0; data[n] != NULL; ++n) {
 	if (strlen(s = data[n]) >= sizeof(buf) - 1)
 	    continue;
 	switch (state) {
@@ -1036,10 +1038,10 @@ parse_xbm(char **data)
 	case 1:
 	case 2:
 	    if (sscanf(s, "#define %1024s %d%c", buf, &num, &ch) >= 2) {
-		if ((t = strstr(buf, "_width")) != 0) {
+		if ((t = strstr(buf, "_width")) != NULL) {
 		    state |= 1;
 		    result->wide = (short) bytes_of(num);
-		} else if ((t = strstr(buf, "_height")) != 0) {
+		} else if ((t = strstr(buf, "_height")) != NULL) {
 		    state |= 2;
 		    result->high = (short) num;
 		} else {
@@ -1066,7 +1068,7 @@ parse_xbm(char **data)
 		result->cells = typeCalloc(PICS_CELL, cells);
 		how_much.cell += (sizeof(PICS_CELL) * cells);
 
-		if ((s = strchr(s, L_CURLY)) == 0)
+		if ((s = strchr(s, L_CURLY)) == NULL)
 		    break;
 		++s;
 	    } else {
@@ -1146,16 +1148,18 @@ parse_xpm(char **data)
     char arg1[BUFSIZ];
     char arg2[BUFSIZ];
     char arg3[BUFSIZ];
-    char **list = 0;
+    char **list = NULL;
 
     debugmsg("called parse_xpm");
 
     result = typeCalloc(PICS_HEAD, 1);
     how_much.head += sizeof(PICS_HEAD);
 
-    for (n = 0; data[n] != 0; ++n) {
+    for (n = 0; data[n] != NULL; ++n) {
 	if (strlen(s = data[n]) >= sizeof(buf) - 1)
 	    continue;
+	_nc_STRCPY(buf, s, sizeof(buf));
+	s = buf;
 	switch (state) {
 	case 0:
 	    if (match_c(s, " /* XPM */ ")) {
@@ -1199,7 +1203,7 @@ parse_xpm(char **data)
 	    num_colors++;
 	    free(list[reading_last]);
 	    list[reading_last] = strdup(arg1);
-	    if ((by_name = lookup_rgb(arg3)) != 0) {
+	    if ((by_name = lookup_rgb(arg3)) != NULL) {
 		found = gather_c_values(by_name->value);
 	    } else if (*arg3 == '#') {
 		char *rgb = arg3 + 1;
@@ -1225,7 +1229,7 @@ parse_xpm(char **data)
 	    if (num_colors >= result->colors) {
 		finish_c_values(result);
 		state = 4;
-		if (list[0] == 0)
+		if (list[0] == NULL)
 		    list[0] = strdup("\033");
 	    }
 	    break;
@@ -1237,7 +1241,7 @@ parse_xpm(char **data)
 
 		    /* FIXME - factor out */
 		    for (c = 0; c < result->colors; ++c) {
-			if (list[c] == 0) {
+			if (list[c] == NULL) {
 			    /* should not happen... */
 			    continue;
 			}
@@ -1312,8 +1316,8 @@ parse_img(const char *filename)
     result = typeCalloc(PICS_HEAD, 1);
     how_much.head += sizeof(PICS_HEAD);
 
-    if ((pp = popen(cmd, "r")) != 0) {
-	if (fgets(buffer, sizeof(buffer), pp) != 0) {
+    if ((pp = popen(cmd, "r")) != NULL) {
+	if (fgets(buffer, sizeof(buffer), pp) != NULL) {
 	    size_t n = strlen(filename);
 	    debugmsg2("...read %s", buffer);
 	    if (strlen(buffer) > n &&
@@ -1339,12 +1343,12 @@ parse_img(const char *filename)
 	_nc_STRCAT(cmd, " 2>/dev/null", need);
 
     logmsg("...opening pipe to %s", cmd);
-    if ((pp = popen(cmd, "r")) != 0) {
+    if ((pp = popen(cmd, "r")) != NULL) {
 	int count = 0;
 	int col = 0;
 	int row = 0;
 	int len = 0;
-	while (fgets(buffer, sizeof(buffer), pp) != 0) {
+	while (fgets(buffer, sizeof(buffer), pp) != NULL) {
 	    debugmsg2("[%5d] %s", count + 1, buffer);
 	    if (strlen(buffer) > 160) {		/* 80 columns would be enough */
 		okay = FALSE;
@@ -1374,11 +1378,11 @@ parse_img(const char *filename)
 		int r, g, b, nocolor;
 		float rf, gf, bf;
 		unsigned check;
-		char *t;
-		char *s = t = strchr(buffer, '#');
+		char *s = strchr(buffer, '#');
+		const char *t = s;
 		bool matched = FALSE;
 
-		if (s != 0) {
+		if (s != NULL) {
 		    /* after the "#RGB", there are differences - just ignore */
 		    while (*s != '\0' && !isspace(UChar(*s)))
 			++s;
@@ -1470,11 +1474,11 @@ static PICS_HEAD *
 read_picture(const char *filename, char **data)
 {
     PICS_HEAD *pics;
-    if ((pics = parse_xbm(data)) == 0) {
+    if ((pics = parse_xbm(data)) == NULL) {
 	dispose_c_values();
-	if ((pics = parse_xpm(data)) == 0) {
+	if ((pics = parse_xpm(data)) == NULL) {
 	    dispose_c_values();
-	    if ((pics = parse_img(filename)) == 0) {
+	    if ((pics = parse_img(filename)) == NULL) {
 		dispose_c_values();
 		free_data(data);
 		warning("unexpected file-format for \"%s\"", filename);
@@ -1492,7 +1496,7 @@ read_picture(const char *filename, char **data)
 #define fg_color(pics,n) (pics->fgcol[n].fgcol)
 
 static void
-dump_picture(PICS_HEAD * pics)
+dump_picture(const PICS_HEAD * pics)
 {
     int y, x;
 
@@ -1636,7 +1640,7 @@ report_colors(PICS_HEAD * pics)
     int total;
     char buffer[256];
 
-    if (logfp == 0)
+    if (logfp == NULL)
 	return;
 
     qsort(pics->fgcol, (size_t) pics->colors, sizeof(FG_NODE), compare_fg_counts);
@@ -1727,10 +1731,10 @@ main(int argc, char *argv[])
     int ch;
     int opt_d = FALSE;
     char ignore_ch;
-    const char *palette_path = 0;
+    const char *palette_path = NULL;
     const char *rgb_path = RGB_PATH;
 
-    while ((ch = getopt(argc, argv, OPTS_COMMON "a:dLl:p:qr:s:x:")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "a:dLF:p:qr:s:x:")) != -1) {
 	switch (ch) {
 	case 'a':
 	    if (sscanf(optarg, "%lf%c", &aspect_ratio, &ignore_ch) != 1
@@ -1748,8 +1752,8 @@ main(int argc, char *argv[])
 	case 'L':
 	    debugging = TRUE;
 	    break;
-	case 'l':
-	    if ((logfp = fopen(optarg, "a")) == 0)
+	case 'F':
+	    if ((logfp = fopen(optarg, "a")) == NULL)
 		failed(optarg);
 	    break;
 	case 'p':
@@ -1767,7 +1771,7 @@ main(int argc, char *argv[])
 #if USE_EXTENDED_COLORS
 	case 'x':
 	    {
-		char *s = optarg;
+		const char *s = optarg;
 		while (*s) {
 		    switch (*s++) {
 		    case 'p':
@@ -1784,11 +1788,8 @@ main(int argc, char *argv[])
 	    }
 	    break;
 #endif
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
@@ -1808,11 +1809,11 @@ main(int argc, char *argv[])
 	    PICS_HEAD *pics;
 	    char **data = read_file(argv[n]);
 
-	    if (data == 0) {
+	    if (data == NULL) {
 		warning("cannot read \"%s\"", argv[n]);
 		continue;
 	    }
-	    if ((pics = read_picture(argv[n], data)) != 0) {
+	    if ((pics = read_picture(argv[n], data)) != NULL) {
 		if (in_curses) {
 		    show_picture(pics);
 		} else {

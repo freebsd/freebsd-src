@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2021-2023,2024 Thomas E. Dickey                                *
+ * Copyright 2021-2024,2025 Thomas E. Dickey                                *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /*
- * $Id: term.priv.h,v 1.13 2024/03/02 20:43:06 tom Exp $
+ * $Id: term.priv.h,v 1.14 2025/12/27 12:41:23 tom Exp $
  *
  *	term.priv.h
  *
@@ -176,7 +176,7 @@ typedef struct {
 
 #include <term_entry.h>		/* dbdLAST */
 
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 struct DriverTCB; /* Terminal Control Block forward declaration */
 #endif
 
@@ -228,7 +228,7 @@ typedef struct {
 	int		count_tparm;
 #endif /* HAVE_TSEARCH */
 
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 	int		(*term_driver)(struct DriverTCB*, const char*, int*);
 #endif
 

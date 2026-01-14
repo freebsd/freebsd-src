@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 2017 Free Software Foundation, Inc.                            *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,23 +28,21 @@
   * authorization.                                                           *
   ****************************************************************************
   * Author: Thomas E. Dickey
-  * @Id: new_pair.3x,v 1.46 2024/03/16 15:35:01 tom Exp @
+  * @Id: new_pair.3x,v 1.51 2025/08/16 19:11:47 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>new_pair 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
+<TITLE>new_pair 3x 2025-08-16 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">new_pair 3x 2024-03-16 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">new_pair 3x 2025-08-16 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="new_pair.3x.html">new_pair(3x)</A></STRONG>                     Library calls                    <STRONG><A HREF="new_pair.3x.html">new_pair(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -62,16 +60,16 @@
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
        These functions are an extension to the <EM>curses</EM> library.  They permit an
-       application   to   dynamically   allocate   a   color  pair  using  the
-       foreground/background colors rather than  assign  a  fixed  color  pair
+       application  to  dynamically  allocate   a   color   pair   using   the
+       foreground/background  colors  rather  than  assign  a fixed color pair
        number, and return an unused pair to the pool.
 
-       The  number  of  colors  may be related to the number of possible color
+       The number of colors may be related to the  number  of  possible  color
        pairs for a given terminal, or it may not:
 
-       <STRONG>o</STRONG>   While almost all  terminals  allow  setting  the  color  <EM>attributes</EM>
-           independently,  it  is  unlikely  that  your terminal allows you to
-           modify the attributes of a given character cell  without  rewriting
+       <STRONG>o</STRONG>   While  almost  all  terminals  allow  setting  the color <EM>attributes</EM>
+           independently, it is unlikely that  your  terminal  allows  you  to
+           modify  the  attributes of a given character cell without rewriting
            it.  That is, the foreground and background colors are applied as a
            pair.
 
@@ -91,10 +89,10 @@
                <EM>(</EM> <STRONG>COLORS</STRONG> <EM>+</EM> <EM>1</EM> <EM>)</EM> <EM>*</EM> <EM>(</EM> <STRONG>COLORS</STRONG> <EM>+</EM> <EM>1</EM> <EM>)</EM>
 
        <STRONG>o</STRONG>   An application might use up to a few dozen color pairs to implement
-           a predefined color scheme.
+           a color scheme.
 
-           Beyond that lies in the realm of programs using the foreground  and
-           background  colors  for  "ASCII  art"  (or  some  other non-textual
+           Beyond  that lies in the realm of programs using the foreground and
+           background colors  for  "ASCII  art"  (or  some  other  non-textual
            application).
 
            Also beyond those few dozen pairs, the required size for a table to
@@ -107,7 +105,7 @@
 
 </PRE><H3><a name="h3-alloc_pair">alloc_pair</a></H3><PRE>
        The   <STRONG>alloc_pair</STRONG>   function   accepts  parameters  for  foreground  and
-       background color, and checks  if  that  color  combination  is  already
+       background color, and checks whether that color combination is  already
        associated with a color pair.
 
        <STRONG>o</STRONG>   If  the combination already exists, <STRONG>alloc_pair</STRONG> returns the existing
@@ -116,20 +114,20 @@
        <STRONG>o</STRONG>   If the combination does not exist, <STRONG>alloc_pair</STRONG> allocates a new color
            pair and returns that.
 
-       <STRONG>o</STRONG>   If  the  table  fills  up,  <STRONG>alloc_pair</STRONG>  discards the least-recently
+       <STRONG>o</STRONG>   If the table  fills  up,  <STRONG>alloc_pair</STRONG>  discards  the  least-recently
            allocated entry using <STRONG>free_pair</STRONG> and allocates a new color pair.
 
-       All of the color pairs are allocated from a  table  of  possible  color
-       pairs.   The  size  of  the  table  is determined by the terminfo <STRONG>pairs</STRONG>
-       capability.  The table is shared with  <STRONG>init_pair</STRONG>;  in  fact  <STRONG>alloc_pair</STRONG>
-       calls  <STRONG>init_pair</STRONG> after updating the <EM>ncurses</EM> library's fast index to the
+       All  of  the  color  pairs are allocated from a table of possible color
+       pairs.  The size of the table  is  determined  by  the  terminfo  <STRONG>pairs</STRONG>
+       capability.   The  table  is  shared with <STRONG>init_pair</STRONG>; in fact <STRONG>alloc_pair</STRONG>
+       calls <STRONG>init_pair</STRONG> after updating the <EM>ncurses</EM> library's fast index to  the
        colors versus color pairs.
 
 
 </PRE><H3><a name="h3-find_pair">find_pair</a></H3><PRE>
        The <STRONG>find_pair</STRONG> function accepts parameters for foreground and background
-       color,  and checks if that color combination is already associated with
-       a color pair, returning the pair  number  if  it  has  been  allocated.
+       color,  and checks whether that color combination is already associated
+       with a color pair, returning the pair number if it has been  allocated.
        Otherwise it returns -1.
 
 
@@ -163,9 +161,7 @@
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="curs_color.3x.html">curs_color(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-03-16                      <STRONG><A HREF="new_pair.3x.html">new_pair(3x)</A></STRONG>
+ncurses 6.6                       2025-08-16                      <STRONG><A HREF="new_pair.3x.html">new_pair(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

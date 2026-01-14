@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2022 Thomas E. Dickey                                     *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 2013-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -32,7 +32,7 @@
  ****************************************************************************/
 
 /*
- * $Id: form_driver_w.c,v 1.17 2022/12/10 23:31:31 tom Exp $
+ * $Id: form_driver_w.c,v 1.20 2025/07/05 15:21:56 tom Exp $
  *
  * Test form_driver_w (int, int, wchar_t), a wide char aware
  * replacement of form_driver.
@@ -68,13 +68,13 @@ VERSION_COMMON()
 int
 main(int argc, char *argv[])
 {
-    static const char *help[] =
+    static NCURSES_CONST char *help[] =
     {
 	"Commands:",
 	"  ^D,^Q,ESC           - quit program",
 	"  <Tab>,<Down>        - move to next field",
 	"  <BackTab>,<Up>      - move to previous field",
-	0
+	NULL
     };
 
 #define NUM_FIELDS 3
@@ -88,11 +88,8 @@ main(int argc, char *argv[])
 
     while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
 	switch (ch) {
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }

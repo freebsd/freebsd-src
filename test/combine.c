@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2021,2022 Thomas E. Dickey                                     *
+ * Copyright 2021-2024,2025 Thomas E. Dickey                                *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: combine.c,v 1.23 2022/12/10 22:28:50 tom Exp $
+ * $Id: combine.c,v 1.28 2025/07/05 15:21:56 tom Exp $
  */
 
 #include <test.priv.h>
@@ -37,7 +37,7 @@
 #include <dump_window.h>
 #include <popup_msg.h>
 
-static int c_opt;
+static int k_opt;
 static int r_opt;
 
 static int
@@ -68,7 +68,7 @@ do_row(int row, int base_ch, int over_ch)
     move(row, col);
     printw("[U+%04X]", over_ch);
     do {
-	if (c_opt) {
+	if (k_opt) {
 	    wchar_t source[2];
 	    cchar_t target;
 	    attr_t attr = reverse ? A_REVERSE : A_NORMAL;
@@ -174,7 +174,7 @@ show_help(WINDOW *current)
 	++d;
     }
     popup_msg2(current, msgs);
-    for (s = 0; msgs[s] != 0; ++s) {
+    for (s = 0; msgs[s] != NULL; ++s) {
 	free(msgs[s]);
     }
     free(msgs);
@@ -191,8 +191,8 @@ usage(int ok)
 	,"Demonstrate combining-characters."
 	,""
 	,"Options:"
-	," -c       use cchar_t data rather than wchar_t string"
-	," -l FILE  log window-dumps to this file"
+	," -k       use cchar_t data rather than wchar_t string"
+	," -L FILE  log window-dumps to this file"
 	," -r       draw even-numbered rows in reverse-video"
     };
     unsigned n;
@@ -215,12 +215,12 @@ main(int argc, char *argv[])
     bool log_option = FALSE;
     const char *dump_log = "combine.log";
 
-    while ((ch = getopt(argc, argv, OPTS_COMMON "cl:r")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "kL:r")) != -1) {
 	switch (ch) {
-	case 'c':
-	    c_opt = TRUE;
+	case 'k':
+	    k_opt = TRUE;
 	    break;
-	case 'l':
+	case 'L':
 	    log_option = TRUE;
 	    if (!open_dump(optarg))
 		usage(FALSE);
@@ -228,11 +228,8 @@ main(int argc, char *argv[])
 	case 'r':
 	    r_opt = TRUE;
 	    break;
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
@@ -273,7 +270,7 @@ main(int argc, char *argv[])
 	    left_at = next_char(left_at);
 	    break;
 	case 'c':
-	    c_opt = !c_opt;
+	    k_opt = !k_opt;
 	    break;
 	case 'r':
 	    r_opt = !r_opt;

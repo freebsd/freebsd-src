@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2020,2022 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 2000-2013,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -30,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey - 2000
  *
- * $Id: railroad.c,v 1.26 2022/12/11 00:12:13 tom Exp $
+ * $Id: railroad.c,v 1.31 2025/12/14 10:58:45 tom Exp $
  *
  * A simple demo of the termcap interface.
  */
@@ -83,13 +83,13 @@ PutChar(int ch)
 static void
 Backup(void)
 {
-    tputs(backup != 0 ? backup : "\b", 1, outc);
+    tputs(backup != NULL ? backup : "\b", 1, outc);
 }
 
 static void
 MyShowCursor(int flag)
 {
-    if (startC != 0 && finisC != 0) {
+    if (startC != NULL && finisC != NULL) {
 	tputs(flag ? startC : finisC, 1, outc);
     }
 }
@@ -97,7 +97,7 @@ MyShowCursor(int flag)
 static void
 StandOut(int flag)
 {
-    if (startS != 0 && finisS != 0) {
+    if (startS != NULL && finisS != NULL) {
 	tputs(flag ? startS : finisS, 1, outc);
     }
 }
@@ -105,7 +105,7 @@ StandOut(int flag)
 static void
 Underline(int flag)
 {
-    if (startU != 0 && finisU != 0) {
+    if (startU != NULL && finisU != NULL) {
 	tputs(flag ? startU : finisU, 1, outc);
     }
 }
@@ -113,10 +113,10 @@ Underline(int flag)
 static void
 ShowSign(char *string)
 {
-    char *base = string;
+    const char *base = string;
     int first, last;
 
-    if (moveit != 0) {
+    if (moveit != NULL) {
 	tputs(tgoto(moveit, 0, height - 1), 1, outc);
 	tputs(wipeit, 1, outc);
     }
@@ -124,7 +124,7 @@ ShowSign(char *string)
     while (*string != 0) {
 	int ch = *string;
 	if (ch != ' ') {
-	    if (moveit != 0) {
+	    if (moveit != NULL) {
 		for (first = length - 2; first >= (string - base); first--) {
 		    if (first < length - 1) {
 			tputs(tgoto(moveit, first + 1, height - 1), 1, outc);
@@ -152,7 +152,7 @@ ShowSign(char *string)
 		    Underline(0);
 		}
 	    }
-	    if (moveit != 0)
+	    if (moveit != NULL)
 		Backup();
 	}
 	StandOut(1);
@@ -161,7 +161,7 @@ ShowSign(char *string)
 	fflush(stdout);
 	string++;
     }
-    if (moveit != 0)
+    if (moveit != NULL)
 	tputs(wipeit, 1, outc);
     putchar('\n');
 }
@@ -190,9 +190,9 @@ railroad(char **args)
     char area[1024], *ap = area;
     int z;
 
-    if (name == 0)
-#ifdef EXP_WIN32_DRIVER
-	name = "ms-terminal";
+    if (name == NULL)
+#ifdef DEFAULT_TERM_ENV
+	name = DEFAULT_TERM_ENV;
 #else
 	name = "dumb";
 #endif
@@ -205,12 +205,12 @@ railroad(char **args)
 	length = tgetnum("co");
 	moveit = tgetstr("cm", &ap);
 
-	if (wipeit == 0
-	    || moveit == 0
+	if (wipeit == NULL
+	    || moveit == NULL
 	    || height <= 0
 	    || length <= 0) {
-	    wipeit = 0;
-	    moveit = 0;
+	    wipeit = NULL;
+	    moveit = NULL;
 	    height = 0;
 	    length = 0;
 	}
@@ -262,11 +262,8 @@ main(int argc, char *argv[])
 
     while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
 	switch (ch) {
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
@@ -276,7 +273,7 @@ main(int argc, char *argv[])
     } else {
 	static char world[] = "Hello World";
 	static char *hello[] =
-	{world, 0};
+	{world, NULL};
 	railroad(hello);
     }
     ExitProgram(EXIT_SUCCESS);

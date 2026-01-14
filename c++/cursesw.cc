@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2020,2025 Thomas E. Dickey                                *
  * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -43,7 +43,7 @@
 #include "internal.h"
 #include "cursesw.h"
 
-MODULE_ID("$Id: cursesw.cc,v 1.56 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: cursesw.cc,v 1.57 2025/01/25 21:21:05 tom Exp $")
 
 #define COLORS_NEED_INITIALIZATION  -1
 #define COLORS_NOT_INITIALIZED       0
@@ -188,27 +188,27 @@ NCursesWindow::constructing()
 }
 
 NCursesWindow::NCursesWindow()
-  : w(0), alloced(FALSE), par(0), subwins(0), sib(0)
+  : w(NULL), alloced(FALSE), par(NULL), subwins(NULL), sib(NULL)
 {
     constructing();
 
-    w = static_cast<WINDOW *>(0);
+    w = static_cast<WINDOW *>(NULL);
 }
 
 NCursesWindow::NCursesWindow(int nlines, int ncols, int begin_y, int begin_x)
-  : w(0), alloced(TRUE), par(0), subwins(0), sib(0)
+  : w(NULL), alloced(TRUE), par(NULL), subwins(NULL), sib(NULL)
 {
     constructing();
 
     w = ::newwin(nlines, ncols, begin_y, begin_x);
-    if (w == 0) {
+    if (w == NULL) {
 	err_handler("Cannot construct window");
     }
     set_keyboard();
 }
 
 NCursesWindow::NCursesWindow(WINDOW* window)
-  : w(0), alloced(FALSE), par(0), subwins(0), sib(0)
+  : w(NULL), alloced(FALSE), par(NULL), subwins(NULL), sib(NULL)
 {
     constructing();
 
@@ -223,7 +223,7 @@ NCursesWindow::NCursesWindow(WINDOW* window)
 
 NCursesWindow::NCursesWindow(NCursesWindow& win, int ny, int nx,
 			     int begin_y, int begin_x, char absrel)
-  : w(0), alloced(TRUE), par(0), subwins(0), sib(0)
+  : w(NULL), alloced(TRUE), par(NULL), subwins(NULL), sib(NULL)
 {
     constructing();
     if (absrel == 'a') {	// absolute origin
@@ -234,7 +234,7 @@ NCursesWindow::NCursesWindow(NCursesWindow& win, int ny, int nx,
     // Link this window into its parent's list of subwindows.
     // We use derwin(), since this also works for pads.
     w = ::derwin(win.w, ny, nx, begin_y, begin_x);
-    if (w == 0) {
+    if (w == NULL) {
 	err_handler("Cannot construct subwindow");
     }
 
@@ -245,20 +245,20 @@ NCursesWindow::NCursesWindow(NCursesWindow& win, int ny, int nx,
 
 NCursesWindow::NCursesWindow(NCursesWindow& win,
 				bool do_box NCURSES_PARAM_INIT(TRUE))
-  : w(0), alloced(TRUE), par(0), subwins(0), sib(0)
+  : w(NULL), alloced(TRUE), par(NULL), subwins(NULL), sib(NULL)
 {
     constructing();
     int myHeight = win.height();
     int myWidth  = win.width();
     w = :: derwin(win.w, myHeight - 2, myWidth - 2, 1, 1);
-    if (w == 0) {
+    if (w == NULL) {
 	err_handler("Cannot construct subwindow");
     }
 
     par = &win;
     sib = win.subwins;
     win.subwins = this;
-    subwins = 0;
+    subwins = NULL;
 
     if (do_box) {
 	win.box();
@@ -283,7 +283,7 @@ static int r_init_idx   = 0;
 static RIPOFFINIT* prip = R_INIT;
 
 NCursesWindow::NCursesWindow(WINDOW *win, int ncols)
-  : w(0), alloced(FALSE), par(0), subwins(0), sib(0)
+  : w(NULL), alloced(FALSE), par(NULL), subwins(NULL), sib(NULL)
 {
     (void) ncols;
     initialize();
@@ -331,12 +331,12 @@ NCursesWindow::kill_subwindows()
 {
     NCursesWindow* p = subwins;
 
-    subwins = 0;
-    while (p != 0) {
+    subwins = NULL;
+    while (p != NULL) {
 	NCursesWindow* q = p->sib;
 	p->kill_subwindows();
 	if (p->alloced) {
-	    if (p->w != 0)
+	    if (p->w != NULL)
 		::delwin(p->w);
 	}
 	delete p;
@@ -349,13 +349,13 @@ NCursesWindow::~NCursesWindow() THROWS(NCursesException)
 {
     kill_subwindows();
 
-    if (par != 0) {
+    if (par != NULL) {
 	// Remove this window from the parent's list of subwindows.
 	NCursesWindow * next = par->subwins;
-	NCursesWindow * prev = 0;
-	while (next != 0) {
+	NCursesWindow * prev = NULL;
+	while (next != NULL) {
 	    if (next == this) {
-		if (prev != 0) {
+		if (prev != NULL) {
 		    prev->sib = next->sib;
 		} else {
 		    par->subwins = next->sib;
@@ -367,7 +367,7 @@ NCursesWindow::~NCursesWindow() THROWS(NCursesException)
 	}
     }
 
-    if (alloced && w != 0)
+    if (alloced && w != NULL)
 	::delwin(w);
 
     if (alloced) {

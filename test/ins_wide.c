@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2022 Thomas E. Dickey                                     *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 2002-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: ins_wide.c,v 1.30 2022/12/10 22:28:50 tom Exp $
+ * $Id: ins_wide.c,v 1.34 2025/11/01 20:03:42 tom Exp $
  *
  * Demonstrate the wins_wstr() and wins_wch functions.
  * Thomas Dickey - 2002/11/23
@@ -73,7 +73,7 @@ static bool w_opt = FALSE;
 static int n_opt = -1;
 
 static void
-legend(WINDOW *win, int level, Options state, wchar_t *buffer, int length)
+legend(WINDOW *win, int level, Options state, const wchar_t *buffer, int length)
 {
     const char *showstate;
 
@@ -112,7 +112,7 @@ ColOf(const wchar_t *buffer, int length, int margin)
     int result;
 
     for (n = 0, result = margin + 1; n < length; ++n) {
-	int ch = buffer[n];
+	int ch = (int) buffer[n];
 	switch (ch) {
 	case '\n':
 	    /* actually newline should clear the remainder of the line
@@ -225,9 +225,9 @@ test_inserts(int level)
     int row2, col2;
     int length;
     wchar_t buffer[BUFSIZ];
-    WINDOW *look = 0;
-    WINDOW *work = 0;
-    WINDOW *show = 0;
+    WINDOW *look = NULL;
+    WINDOW *work = NULL;
+    WINDOW *show = NULL;
     int margin = (2 * MY_TABSIZE) - 1;
     Options option = (Options) ((int) (m_opt ? oMove : oDefault)
 				| (int) ((w_opt || (level > 0))
@@ -500,11 +500,8 @@ main(int argc, char *argv[])
 	case 'w':
 	    w_opt = TRUE;
 	    break;
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }

@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2014,2015 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: form_field_opts.3x,v 1.44 2024/03/16 15:35:01 tom Exp @
+  * @Id: form_field_opts.3x,v 1.47 2025/01/19 00:51:10 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>form_field_opts 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
+<TITLE>form_field_opts 3x 2025-01-18 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">form_field_opts 3x 2024-03-16 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">form_field_opts 3x 2025-01-18 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="form_field_opts.3x.html">form_field_opts(3x)</A></STRONG>              Library calls             <STRONG><A HREF="form_field_opts.3x.html">form_field_opts(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -62,10 +60,10 @@
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       The function <STRONG>set_field_opts</STRONG> sets all  the  given  field's  option  bits
-       (field option bits may be logically-OR'ed together).
+       The  function  <STRONG>set_field_opts</STRONG>  sets  all  the given field's option bits
+       (field option bits may be logically "or"-ed together).
 
-       The  function  <STRONG>field_opts_on</STRONG> turns on the given option bits, and leaves
+       The function <STRONG>field_opts_on</STRONG> turns on the given option bits,  and  leaves
        others alone.
 
        The function <STRONG>field_opts_off</STRONG> turns off the given option bits, and leaves
@@ -84,7 +82,7 @@
             Skip to the next field when this one fills.
 
        O_BLANK
-            The  field is cleared whenever a character is entered at the first
+            The field is cleared whenever a character is entered at the  first
             position.
 
        O_EDIT
@@ -100,15 +98,15 @@
             The field contents are displayed as data is entered.
 
        O_STATIC
-            Field buffers are fixed  to  field's  original  size.   Turn  this
+            Field  buffers  are  fixed  to  field's  original size.  Turn this
             option off to create a dynamic field.
 
        O_VISIBLE
-            The  field  is  displayed.   If this option is off, display of the
+            The field is displayed.  If this option is  off,  display  of  the
             field is suppressed.
 
        O_WRAP
-            Words that do not fit on a line are  wrapped  to  the  next  line.
+            Words  that  do  not  fit  on a line are wrapped to the next line.
             Words are blank-separated.
 
        These extension options are defined (extensions are off by default):
@@ -130,7 +128,7 @@
 
        O_INPUT_FIELD
             The <STRONG>set_max_field</STRONG> function checks for this extension, which allows
-            a dynamic field to shrink if the new limit  is  smaller  than  the
+            a  dynamic  field  to  shrink if the new limit is smaller than the
             current field size.
 
 
@@ -150,7 +148,7 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These  routines  emulate  the  System  V  forms library.  They were not
+       These routines emulate the System  V  forms  library.   They  were  not
        supported on Version 7 or BSD versions.
 
 
@@ -162,9 +160,7 @@
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="form.3x.html">form(3x)</A></STRONG>, <STRONG><A HREF="form_field_just.3x.html">form_field_just(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-03-16               <STRONG><A HREF="form_field_opts.3x.html">form_field_opts(3x)</A></STRONG>
+ncurses 6.6                       2025-01-18               <STRONG><A HREF="form_field_opts.3x.html">form_field_opts(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

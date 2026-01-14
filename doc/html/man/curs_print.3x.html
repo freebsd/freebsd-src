@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_print.3x,v 1.38 2024/03/16 15:35:01 tom Exp @
+  * @Id: curs_print.3x,v 1.41 2025/02/15 18:42:34 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_print 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_print 3x 2025-02-15 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_print 3x 2024-03-16 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_print 3x 2025-02-15 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_print.3x.html">curs_print(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="curs_print.3x.html">curs_print(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -53,57 +51,63 @@
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>mcprint(char</STRONG> <STRONG>*</STRONG><EM>data</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>len</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mcprint(char</STRONG> <STRONG>*</STRONG> <EM>data</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>len</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       This  function  uses  the <STRONG>mc5p</STRONG> or <STRONG>mc4</STRONG> and <STRONG>mc5</STRONG> capabilities, if they are
-       present, to ship given data to a printer attached to the terminal.
+       <STRONG>mcprint</STRONG>,   an  <EM>ncurses</EM>  extension  to  the  <EM>curses</EM>  library,  uses  the
+       terminal's <STRONG>prtr_non</STRONG> (<STRONG>mc5p</STRONG>) or <STRONG>prtr_on</STRONG> (<STRONG>mc5</STRONG>) and  <STRONG>prtr_off</STRONG>  (<STRONG>mc4</STRONG>)  media
+       copy  capabilities,  if  defined, to send <EM>len</EM> bytes of the given string
+       <EM>data</EM> to a printer attached to the terminal.
 
-       Note that the <STRONG>mcprint</STRONG> code has no way  to  do  flow  control  with  the
-       printer  or  to  know  how  much buffering it has.  Your application is
-       responsible for keeping the rate of writes to  the  printer  below  its
-       continuous  throughput  rate  (typically  about half of its nominal cps
-       rating).   Dot-matrix  printers  and   6-page-per-minute   lasers   can
-       typically  handle  80cps,  so  a  good conservative rule of thumb is to
-       sleep for a second after shipping each 80-character line.
+       <STRONG>mcprint</STRONG> has no means of flow control to the printer nor of knowing  how
+       much buffering it has.  Your application is responsible for keeping the
+       rate  of  writes  to  the printer below its continuous throughput rate,
+       typically about half of its nominal characters-per-second (cps) rating.
+       Dot-matrix printers and 6-page-per-minute laser printers can  typically
+       handle  80  cps,  so  a  conservative rule of thumb is to sleep for one
+       second after sending an 80-character line.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       The <STRONG>mcprint</STRONG> function returns <STRONG>ERR</STRONG> if the  write  operation  aborted  for
-       some  reason.   In  this  case,  <STRONG>errno</STRONG>  will  contain  either  an error
-       associated with <STRONG>write(2)</STRONG> or one of the following:
+       On success, <STRONG>mcprint</STRONG> returns  the  number  of  characters  sent  to  the
+       printer.
+
+       <STRONG>mcprint</STRONG>  returns  <STRONG>ERR</STRONG>  if the write operation fails for any reason.  In
+       that event, <STRONG>errno</STRONG> contains either a value set by <STRONG>write(2)</STRONG>,  or  one  of
+       the following.
 
        <STRONG>ENODEV</STRONG>
-            Capabilities for printer redirection do not exist.
+            The terminal lacks relevant media copy capabilities.
 
        <STRONG>ENOMEM</STRONG>
-            Couldn't allocate sufficient memory to buffer the printer write.
-
-       When <STRONG>mcprint</STRONG> succeeds, it returns the  number  of  characters  actually
-       sent to the printer.
+            <EM>ncurses</EM>  could  not allocate sufficient memory to buffer the write
+            operation.
 
 
 </PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
-       <STRONG>mcprint</STRONG> was designed for <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>, and was not found in SVr4 <EM>curses</EM>,
-       4.4BSD <EM>curses</EM>, or any other previous curses implementation.
+       <STRONG>mcprint</STRONG> is an <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG> extension, and is not found in  SVr4  <EM>curses</EM>,
+       4.4BSD <EM>curses</EM>, or any other previous <EM>curses</EM> implementation.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       Applications employing this <EM>ncurses</EM> extension should condition its  use
+       Applications  employing this <EM>ncurses</EM> extension should condition its use
        on the visibility of the <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
 
 
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       <EM>ncurses</EM> introduced <EM>mcprint</EM> prior to version 1.9.9g (1996).
+
+
 </PRE><H2><a name="h2-BUGS">BUGS</a></H2><PRE>
-       Padding in the <STRONG>mc5p</STRONG>, <STRONG>mc4</STRONG>, and <STRONG>mc5</STRONG> capabilities is not interpreted.
+       Padding in the <STRONG>prtr_non</STRONG>  (<STRONG>mc5p</STRONG>),  <STRONG>prtr_on</STRONG>  (<STRONG>mc5</STRONG>),  and  <STRONG>prtr_off</STRONG>  (<STRONG>mc4</STRONG>)
+       capabilities is not interpreted.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-03-16                    <STRONG><A HREF="curs_print.3x.html">curs_print(3x)</A></STRONG>
+ncurses 6.6                       2025-02-15                    <STRONG><A HREF="curs_print.3x.html">curs_print(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -113,6 +117,7 @@ ncurses 6.5                       2024-03-16                    <STRONG><A HREF=
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-EXTENSIONS">EXTENSIONS</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-BUGS">BUGS</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>

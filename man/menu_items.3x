@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_items.3x,v 1.34 2024/03/16 15:35:01 tom Exp $
-.TH menu_items 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: menu_items.3x,v 1.36 2024/12/28 21:26:21 tom Exp $
+.TH menu_items 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBset_menu_items\fP,
 \fBmenu_items\fP,
@@ -44,17 +44,20 @@ make and break connections between items and menus
 .fi
 .SH DESCRIPTION
 The function \fBset_menu_items\fP changes the item pointer array of the given
-\fImenu\fP.  The array must be terminated by a \fBNULL\fP.
+\fImenu\fP.  The array must be terminated by a
+.IR NULL "."
 .PP
 The function \fBmenu_items\fP returns the item array of the given menu.
 .PP
 The function \fBitem_count\fP returns the count of items in \fImenu\fP.
 .SH RETURN VALUE
-The function \fBmenu_items\fP returns a pointer (which may be \fBNULL\fP).
+The function \fBmenu_items\fP returns a pointer (which may be
+.IR NULL ")."
 It does not set \fBerrno\fP.
 .PP
 The function \fBitem_count\fP returns \fBERR\fP (the general \fBcurses\fP error
-return value) if its \fImenu\fP parameter is \fBNULL\fP.
+return value) if its \fImenu\fP parameter is
+.I NULL "."
 .PP
 The function \fBset_menu_items\fP returns one of the following codes on error:
 .TP 5

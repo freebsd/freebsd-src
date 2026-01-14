@@ -1,6 +1,6 @@
-# $Id: MKkeyname.awk,v 1.51 2020/02/02 23:34:34 tom Exp $
+# $Id: MKkeyname.awk,v 1.53 2024/12/07 21:09:39 tom Exp $
 ##############################################################################
-# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2020,2024 Thomas E. Dickey                                       #
 # Copyright 1998-2016,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -59,7 +59,7 @@ END {
 	if (bigstrings) {
 		printf "\t{ -1, 0 }};\n"
 		print ""
-		print "static const char key_names[] = "names";"
+		print "static const char key_names[] ="names";"
 	} else {
 		printf "\t{ 0, 0 }};\n"
 	}
@@ -72,7 +72,7 @@ END {
 	print "safe_keyname (SCREEN *sp, int c)"
 	print "{"
 	print "	char name[20];"
-	print "	NCURSES_CONST char *result = 0;"
+	print "	NCURSES_CONST char *result = NULL;"
 	print ""
 	print "	if (c == -1) {"
 	print "		result = \"-1\";"
@@ -86,7 +86,7 @@ END {
 		print "			}"
 		print "		}"
 	} else {
-		print "		for (i = 0; _nc_key_names[i].name != 0; i++) {"
+		print "		for (i = 0; _nc_key_names[i].name != NULL; i++) {"
 		print "			if (_nc_key_names[i].code == c) {"
 		print "				result = (NCURSES_CONST char *)_nc_key_names[i].name;"
 		print "				break;"
@@ -94,12 +94,12 @@ END {
 		print "		}"
 	}
 	print ""
-	print "		if (result == 0 && (c >= 0 && c < SIZEOF_TABLE)) {"
-	print "			if (MyTable == 0)"
+	print "		if (result == NULL && (c >= 0 && c < SIZEOF_TABLE)) {"
+	print "			if (MyTable == NULL)"
 	print "				MyTable = typeCalloc(char *, SIZEOF_TABLE);"
 	print ""
-	print "			if (MyTable != 0) {"
-	print "				int m_prefix = (sp == 0 || sp->_use_meta);"
+	print "			if (MyTable != NULL) {"
+	print "				int m_prefix = (sp == NULL || sp->_use_meta);"
 	print ""
 	print "				/* if sense of meta() changed, discard cached data */"
 	print "				if (MyInit != (m_prefix + 1)) {"
@@ -112,7 +112,7 @@ END {
 	print "				}"
 	print ""
 	print "				/* create and cache result as needed */"
-	print "				if (MyTable[c] == 0) {"
+	print "				if (MyTable[c] == NULL) {"
 	print "					int cc = c;"
 	print "					char *p = name;"
 	print "#define P_LIMIT (sizeof(name) - (size_t) (p - name))"
@@ -132,22 +132,22 @@ END {
 	print "				result = MyTable[c];"
 	print "			}"
 	print "#if NCURSES_EXT_FUNCS && NCURSES_XNAMES"
-	print "		} else if (result == 0 && HasTerminal(sp)) {"
+	print "		} else if (result == NULL && HasTerminal(sp)) {"
 	print "			int j, k;"
 	print "			char * bound;"
 	print "			TERMTYPE2 *tp = &TerminalType(TerminalOf(sp));"
 	print "			unsigned save_trace = _nc_tracing;"
 	print ""
 	print "			_nc_tracing = 0;	/* prevent recursion via keybound() */"
-	print "			for (j = 0; (bound = NCURSES_SP_NAME(keybound)(NCURSES_SP_ARGx c, j)) != 0; ++j) {"
+	print "			for (j = 0; (bound = NCURSES_SP_NAME(keybound)(NCURSES_SP_ARGx c, j)) != NULL; ++j) {"
 	print "				for(k = STRCOUNT; k < (int) NUM_STRINGS(tp);  k++) {"
-	print "					if (tp->Strings[k] != 0 && !strcmp(bound, tp->Strings[k])) {"
+	print "					if (tp->Strings[k] != NULL && !strcmp(bound, tp->Strings[k])) {"
 	print "						result = ExtStrname(tp, k, strnames);"
 	print "						break;"
 	print "					}"
 	print "				}"
 	print "				free(bound);"
-	print "				if (result != 0)"
+	print "				if (result != NULL)"
 	print "					break;"
 	print "			}"
 	print "			_nc_tracing = save_trace;"
@@ -166,7 +166,7 @@ END {
 	print "#if NO_LEAKS"
 	print "void _nc_keyname_leaks(void)"
 	print "{"
-	print "	if (MyTable != 0) {"
+	print "	if (MyTable != NULL) {"
 	print "		int j;"
 	print "		for (j = 0; j < SIZEOF_TABLE; ++j) {"
 	print "			FreeIfNeeded(MyTable[j]);"

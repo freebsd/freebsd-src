@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 2002-2010,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_hline_set.c,v 1.6 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_hline_set.c,v 1.7 2024/12/07 20:08:15 tom Exp $")
 
 NCURSES_EXPORT(int)
 whline_set(WINDOW *win, const cchar_t *ch, int n)
@@ -60,7 +60,7 @@ whline_set(WINDOW *win, const cchar_t *ch, int n)
 
 	CHANGED_RANGE(line, start, end);
 
-	if (ch == 0)
+	if (ch == NULL)
 	    wch = *WACS_HLINE;
 	else
 	    wch = *ch;

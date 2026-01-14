@@ -1,7 +1,7 @@
 #! /bin/sh
-# $Id: adacurses-config.in,v 1.15 2022/07/16 21:16:43 tom Exp $
+# $Id: adacurses-config.in,v 1.17 2025/11/12 00:56:49 Branden.Robinson Exp $
 ##############################################################################
-# Copyright 2019-2020,2022 Thomas E. Dickey                                  #
+# Copyright 2019-2022,2025 Thomas E. Dickey                                  #
 # Copyright 2007-2014,2016 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -31,7 +31,7 @@
 #
 # This script returns the options to add to `gnatmake' for using AdaCurses.
 
-DESTDIR=@DESTDIR@
+: "${@SET_DESTDIR@}"
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 libdir=@libdir@
@@ -66,14 +66,14 @@ case "x$1" in
 Usage: ${THIS_CFG} [options]
 
 Options:
-  --cflags           echos the gnat (Ada compiler) flags needed to compile with ${THIS}
-  --libs             echos the gnat libraries needed to link with ${THIS}
+  --cflags           echoes the gnat (Ada compiler) flags needed to compile with ${THIS}
+  --libs             echoes the gnat libraries needed to link with ${THIS}
 
-  --version          echos the release+patchdate version of ${THIS}
+  --version          echoes the release+patchdate version of ${THIS}
 
   --help             prints this message
 
-If no options are given, echos the full set of flags needed by gnatmake.
+If no options are given, echoes the full set of flags needed by gnatmake.
 ENDHELP
 		;;
 	*)

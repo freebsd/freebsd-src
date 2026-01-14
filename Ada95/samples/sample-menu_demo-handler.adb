@@ -16,7 +16,7 @@
 -- without limitation the rights to use, copy, modify, merge, publish,      --
 -- distribute, distribute with modifications, sublicense, and/or sell       --
 -- copies of the Software, and to permit persons to whom the Software is    --
--- furnished to do so, subject to the following conditions :                 --
+-- furnished to do so, subject to the following conditions:                 --
 --                                                                          --
 -- The above copyright notice and this permission notice shall be included  --
 -- in all copies or substantial portions of the Software.                   --
@@ -36,7 +36,7 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control
---  $Revision: 1.17 $
+--  $Revision: 1.18 $
 --  $Date: 2020/02/02 23:34:34 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------

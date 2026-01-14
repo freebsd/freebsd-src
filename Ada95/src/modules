@@ -1,6 +1,6 @@
-# $Id: modules,v 1.4 2020/02/02 23:34:34 tom Exp $
+# $Id: modules,v 1.5 2024/06/15 20:51:03 tom Exp $
 ##############################################################################
-# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2020,2024 Thomas E. Dickey                                       #
 # Copyright 2010 Free Software Foundation, Inc.                              #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -69,3 +69,5 @@ $(ABASE)-text_io-decimal_io		$(srcdir)	$(srcdir)	body
 $(ABASE)-text_io-enumeration_io		$(srcdir)	$(srcdir)	body
 $(ABASE)-text_io-modular_io		$(srcdir)	$(srcdir)	body
 $(ABASE)-text_io-complex_io		$(srcdir)	$(srcdir)	body
+
+# vile:makemode

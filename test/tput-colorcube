@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2020,2025 Thomas E. Dickey                                       #
 # Copyright 2016 Free Software Foundation, Inc.                              #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -27,12 +27,12 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: tput-colorcube,v 1.2 2020/02/02 23:34:34 tom Exp $
+# $Id: tput-colorcube,v 1.3 2025/06/14 14:45:23 tom Exp $
 # Use this script to print an xterm-style color cube, e.g., as done in
 # the xterm 88colors2.pl and 256colors2.pl scripts.
 
 failed() {
-	printf "?? $*\n" >&2
+	printf "?? %s\n" "$1" >&2
 	exit 1
 }
 
@@ -51,13 +51,13 @@ else
 	failed "expected one parameter or none"
 fi
 
-colors=$(tput -T $myterm colors 2>/dev/null)
-if [ ${colors:-0} -le 0 ]
+colors=$(tput -T "$myterm" colors 2>/dev/null)
+if [ "${colors:-0}" -le 0 ]
 then
 	myterm=${myterm%%-color}
-	colors=$(tput -T $myterm colors 2>/dev/null)
+	colors=$(tput -T "$myterm" colors 2>/dev/null)
 fi
-if [ ${colors:-0} -le 0 ]
+if [ "${colors:-0}" -le 0 ]
 then
 	failed "terminal $myterm does not support color"
 fi
@@ -67,25 +67,25 @@ printf "System colors:\n"
 color=0
 inrow=$colors
 to_do=$colors
-[ $colors -gt 256 ] && colors=256
-[ $inrow  -gt   8 ] && inrow=8
-[ $to_do  -gt  16 ] && to_do=16
-while [ $color -lt $to_do ]
+[ "$colors" -gt 256 ] && colors=256
+[ "$inrow"  -gt   8 ] && inrow=8
+[ "$to_do"  -gt  16 ] && to_do=16
+while [ "$color" -lt "$to_do" ]
 do
-	[ $color = $inrow ] && newline
-	tput setab $color
+	[ "$color" = "$inrow" ] && newline
+	tput setab "$color"
 	printf '  '
-	color=$(expr $color + 1)
+	color=$(expr "$color" + 1)
 done
 newline
 
-[ $colors -le 16 ] && exit
+[ "$colors" -le 16 ] && exit
 
-if [ $colors = 256 ]
+if [ "$colors" = 256 ]
 then
 	cube=6
 	ramp=232
-elif [ $colors -ge 88 ]
+elif [ "$colors" -ge 88 ]
 then
 	cube=4
 	ramp=80
@@ -94,38 +94,38 @@ else
 fi
 
 printf "\n"
-printf "Color cube, ${cube}x${cube}x${cube}:\n"
+printf "Color cube, %dx%dx%d:\n" $cube $cube $cube
 g=0
 cube2=$(expr $cube \* $cube)
-while [ $g -lt $cube ]
+while [ "$g" -lt "$cube" ]
 do
 	r=0
-	while [ $r -lt $cube ]
+	while [ "$r" -lt "$cube" ]
 	do
 		b=0
-		while [ $b -lt $cube ]
+		while [ "$b" -lt "$cube" ]
 		do
-			color=$(expr 16 + \( $r \* $cube2 \) + \( $g \* $cube \) + $b)
-			tput setab $color
+			color=$(expr 16 + \( "$r" \* "$cube2" \) + \( "$g" \* "$cube" \) + "$b")
+			tput setab "$color"
 			printf '  '
-			b=$(expr $b + 1)
+			b=$(expr "$b" + 1)
 		done
 		tput op
 		printf ' '
-		r=$(expr $r + 1)
+		r=$(expr "$r" + 1)
 	done
 	newline
-	g=$(expr $g + 1)
+	g=$(expr "$g" + 1)
 done
 
 printf "\n"
 printf "Grayscale ramp:\n"
 color=$ramp
-while [ $color -lt $colors ]
+while [ "$color" -lt "$colors" ]
 do
-	tput setab $color
+	tput setab "$color"
 	printf '  '
-	color=$(expr $color + 1)
+	color=$(expr "$color" + 1)
 done
 newline
 # vi:ts=4 sw=4

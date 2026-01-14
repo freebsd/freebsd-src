@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,7 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: test_tparm.c,v 1.39 2023/11/11 01:00:03 tom Exp $
+ * $Id: test_tparm.c,v 1.45 2025/07/05 15:11:35 tom Exp $
  *
  * Exercise tparm/tiparm, either for all possible capabilities with fixed
  * parameters, or one capability with specific combinations of parameters.
@@ -52,7 +52,7 @@
 	    if (length + 2 >= limit) { \
 		limit *= 2; \
 		array = typeRealloc(char *, limit, array); \
-		if (array == 0) { \
+		if (array == NULL) { \
 		    failed("no memory: " #array); \
 		} \
 	    }
@@ -107,11 +107,11 @@ output_func(int ch)
 }
 
 static int
-isNumeric(char *source)
+isNumeric(NCURSES_CONST char *source)
 {
-    char *next = 0;
+    char *next = NULL;
     long value = strtol(source, &next, 0);
-    int result = (next == 0 || next == source || *next != '\0') ? 0 : 1;
+    int result = (next == NULL || next == source || *next != '\0') ? 0 : 1;
     (void) value;
     return result;
 }
@@ -121,10 +121,10 @@ relevant(const char *name, const char *value)
 {
     int code = 1;
     if (VALID_STRING(value)) {
-	if (strstr(value, "%p") == 0
-	    && strstr(value, "%d") == 0
-	    && strstr(value, "%s") == 0
-	    && (!p_opt || strstr(value, "$<") == 0)) {
+	if (strstr(value, "%p") == NULL
+	    && strstr(value, "%d") == NULL
+	    && strstr(value, "%s") == NULL
+	    && (!p_opt || strstr(value, "$<") == NULL)) {
 	    if (v_opt > 2)
 		printf("? %s noparams\n", name);
 	    code = 0;
@@ -245,7 +245,7 @@ analyze_format(const char *format, int *mask, char **p_is_s)
 #define NS_9(fmt)	NS_8(fmt), NumStr(8)
 
 static void
-test_tparm(const char *name, const char *format, long *number, char **string)
+test_tparm(const char *name, NCURSES_CONST char *format, long *number, char **string)
 {
     char *use_strings[MAX_PARM];
     char *result = NULL;
@@ -334,7 +334,7 @@ test_tparm(const char *name, const char *format, long *number, char **string)
     }
     if (v_opt > 1) {
 	int n;
-	printf(".. %3d =", result != 0 ? (int) strlen(result) : -1);
+	printf(".. %3d =", result != NULL ? (int) strlen(result) : -1);
 	for (n = 0; n < nparam; ++n) {
 	    if (use_strings[n]) {
 		if (number[n]) {
@@ -398,7 +398,7 @@ main(int argc, char *argv[])
     int r_run, t_run, n_run;
     char *old_term = getenv("TERM");
     int r_opt = 1;
-    char *t_opt = 0;
+    char *t_opt = NULL;
 
     int std_caps = 0;		/* predefine items in all_caps[] */
     int len_caps = 0;		/* cur # of items in all_caps[] */
@@ -423,7 +423,10 @@ main(int argc, char *argv[])
     char **str_parms = typeCalloc(char *, max_parms);
     long use_parms = 1;
 
-    if (all_caps == 0 || all_terms == 0 || num_parms == 0 || str_parms == 0)
+    if (all_caps == NULL
+	|| all_terms == NULL
+	|| num_parms == NULL
+	|| str_parms == NULL)
 	failed("no memory");
 
     while ((ch = getopt(argc, argv, OPTS_COMMON "T:aipr:sv")) != -1) {
@@ -453,11 +456,8 @@ main(int argc, char *argv[])
 	case 'v':
 	    ++v_opt;
 	    break;
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
@@ -479,7 +479,7 @@ main(int argc, char *argv[])
      */
     while (optind < argc) {
 	if (isNumeric(argv[optind])) {
-	    char *dummy = 0;
+	    char *dummy = NULL;
 	    long value = strtol(argv[optind], &dummy, 0);
 	    num_parms[len_parms] = (int) value;
 	}
@@ -504,11 +504,11 @@ main(int argc, char *argv[])
      * Make a list of values for $TERM.  Accept "-" for standard input to
      * simplify scripting a check of the whole database.
      */
-    old_term = strdup((old_term == 0) ? "unknown" : old_term);
-    if (t_opt != 0) {
+    old_term = strdup((old_term == NULL) ? "unknown" : old_term);
+    if (t_opt != NULL) {
 	if (!strcmp(t_opt, "-")) {
 	    char buffer[BUFSIZ];
-	    while (fgets(buffer, sizeof(buffer) - 1, stdin) != 0) {
+	    while (fgets(buffer, sizeof(buffer) - 1, stdin) != NULL) {
 		char *s = buffer;
 		char *t;
 		while (isspace(UChar(s[0])))
@@ -520,20 +520,20 @@ main(int argc, char *argv[])
 		if (len_terms + 2 >= max_terms) {
 		    max_terms *= 2;
 		    all_terms = typeRealloc(char *, max_terms, all_terms);
-		    if (all_terms == 0)
+		    if (all_terms == NULL)
 			failed("no memory: all_terms");
 		}
 		all_terms[len_terms++] = s;
 	    }
 	} else {
 	    char *s = t_opt;
-	    char *t;
-	    while ((t = strtok(s, ",")) != 0) {
-		s = 0;
+	    NCURSES_CONST char *t;
+	    while ((t = strtok(s, ",")) != NULL) {
+		s = NULL;
 		if (len_terms + 2 >= max_terms) {
 		    max_terms *= 2;
 		    all_terms = typeRealloc(char *, max_terms, all_terms);
-		    if (all_terms == 0)
+		    if (all_terms == NULL)
 			failed("no memory: all_terms");
 		}
 		all_terms[len_terms++] = strdup(t);
@@ -542,7 +542,7 @@ main(int argc, char *argv[])
     } else {
 	all_terms[len_terms++] = strdup(old_term);
     }
-    all_terms[len_terms] = 0;
+    all_terms[len_terms] = NULL;
     if (v_opt) {
 	printf("%d term%s:\n", PLURAL(len_terms));
 	if (v_opt > 3) {
@@ -561,7 +561,7 @@ main(int argc, char *argv[])
      */
     if (len_caps == 0) {
 #if defined(HAVE_CURSES_DATA_BOOLNAMES) || defined(DECL_CURSES_DATA_BOOLNAMES)
-	for (n = 0; strnames[n] != 0; ++n) {
+	for (n = 0; strnames[n] != NULL; ++n) {
 	    GrowArray(all_caps, max_caps, len_caps);
 	    all_caps[len_caps++] = strdup(strnames[n]);
 	}
@@ -571,7 +571,7 @@ main(int argc, char *argv[])
 #endif
     }
     std_caps = len_caps;
-    all_caps[len_caps] = 0;
+    all_caps[len_caps] = NULL;
     if (v_opt) {
 	printf("%d name%s%s\n", PLURAL(len_caps), COLONS(len_caps));
 	if (v_opt > 3) {
@@ -603,7 +603,7 @@ main(int argc, char *argv[])
 #if NCURSES_XNAMES
 	    len_caps = std_caps;
 	    if (cur_term) {
-		TERMTYPE *term = (TERMTYPE *) cur_term;
+		NCURSES_CONST TERMTYPE *term = (TERMTYPE *) cur_term;
 		for (n = STRCOUNT; n < NUM_STRINGS(term); ++n) {
 		    GrowArray(all_caps, max_caps, len_caps);
 		    GrowArray(cap_name, max_name, len_caps);
@@ -631,7 +631,7 @@ main(int argc, char *argv[])
 	    }
 
 	    if (v_opt) {
-		printf("[%d:%d] %d paramerized cap%s * %ld test-case%s \"%s\"\n",
+		printf("[%d:%d] %d parameterized cap%s * %ld test-case%s \"%s\"\n",
 		       r_run + 1, r_opt,
 		       PLURAL(use_caps),
 		       PLURAL(use_parms),
@@ -664,7 +664,7 @@ main(int argc, char *argv[])
 		free(all_caps[n]);
 	    }
 #endif
-	    if (cur_term != 0) {
+	    if (cur_term != NULL) {
 		del_curterm(cur_term);
 	    } else {
 		printf("? no cur_term\n");

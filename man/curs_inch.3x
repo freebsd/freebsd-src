@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,8 +28,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_inch.3x,v 1.51 2024/04/20 21:20:07 tom Exp $
-.TH curs_inch 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_inch.3x,v 1.70 2025/02/15 19:36:03 tom Exp $
+.TH curs_inch 3X 2025-02-15 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -56,73 +56,113 @@ get a \fIcurses\fR character from a window
 \fB#include <curses.h>
 .PP
 \fBchtype inch(void);
-\fBchtype winch(WINDOW *\fIwin\fP);
-.PP
+\fBchtype winch(WINDOW * \fIwin\fP);
 \fBchtype mvinch(int \fIy\fP, int \fIx\fP);
-\fBchtype mvwinch(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP);
+\fBchtype mvwinch(WINDOW * \fIwin\fP, int \fIy\fP, int \fIx\fP);
 .fi
 .SH DESCRIPTION
-These routines return the character, of type \fBchtype\fP, at the current
-position in the named window.
-If any attributes are set for that position,
-their values are OR'ed into the value returned.
-Constants defined in
-\fB<curses.h>\fP can be used with the \fB&\fP (logical AND) operator to
-extract the character or attributes alone.
-.
-.SS Attributes
-The following bit masks may be AND-ed with characters returned by \fBwinch\fP.
-.PP
-.TS
-Lb Lb
-Lb Lx.
-Name	Description
-_
-A_CHARTEXT	Extract character
-A_ATTRIBUTES	Extract attributes
-A_COLOR	Extract color pair information
-.TE
+.B \%winch
+returns the
+.I curses
+character,
+including its attributes and color pair identifier,
+at the cursor position in the window
+.IR win "."
+Subsection \*(``Video Attributes\*('' of \fB\%attron\fP(3X) explains
+how to extract these data from a
+.IR chtype "."
+\fB\%ncurses\fP(3X) describes the variants of this function.
 .SH RETURN VALUE
+These functions return
+.B OK
+on success and
+.B ERR
+on failure.
+.PP
+In
+.IR \%ncurses ","
+they return
+.B ERR
+if
+.I win
+is
+.IR NULL "."
+.PP
 Functions prefixed with \*(``mv\*('' first perform cursor movement and
 fail if the position
 .RI ( y ,
 .IR x )
 is outside the window boundaries.
-.PP
-The \fBwinch\fP function does not return an error if the window contains
-characters larger than 8-bits (255).
-Only the low-order 8 bits of the character are used by \fBwinch\fP.
 .SH NOTES
-Note that all of these routines may be macros.
+.BR \%inch ,
+.BR \%mvinch ,
+and
+.B \%mvwinch
+may be implemented as macros.
+.PP
+These functions do not fail if the window contains cells of
+.I curses
+complex characters;
+that is,
+if they contain characters with codes wider than eight bits
+(or greater than 255 as an unsigned decimal integer).
+They instead extract only the low-order eight bits of the character code
+from the cell.
 .SH PORTABILITY
-These functions are described in X/Open Curses, Issue 4.
+X/Open Curses Issue\ 4 describes these functions.
+It specifies no error conditions for them.
+.SH HISTORY
+The original
+.I curses
+in 4BSD (1980) defined
+.I \%winch
+as a macro accessing the
+.I \%WINDOW
+structure member representing character cell data,
+at that time a
+.IR char ","
+containing only a 7-bit ASCII character code
+and a \*(``standout\*(`` attribute bit,
+the only one the library supported.
 .PP
-Very old systems (before standardization) provide a different function
-with the same name:
-.bP
-The \fBwinch\fP function was part of the original BSD curses library,
-which stored a 7-bit character combined with the \fIstandout\fP attribute.
-.IP
-In BSD curses, \fBwinch\fP returned only the character (as an integer)
-with the \fIstandout\fP attribute removed.
-.bP
-System V curses added support for several video attributes which
-could be combined with characters in the window.
-.IP
-Reflecting this improvement, the function was altered to return the
-character combined with all video attributes in a \fBchtype\fP value.
-.PP
-X/Open Curses does not specify
-the size and layout of attributes, color and character values in
-\fBchtype\fP; it is implementation-dependent.
-This implementation uses 8 bits for character values.
-An application using more bits, e.g., a Unicode value,
-should use the wide-character equivalents to these functions.
+SVr2
+.I curses
+(1984)
+extended this approach,
+widening the character code to eight bits
+and permitting several attributes to be combined with it
+by storing them together in a
+.IR \%chtype ","
+an alias of
+.IR "unsigned short" "."
+.\" ...indirectly through a preprocessor macro named CHTYPE, encouraging
+.\" builders to change the typedef to `char` or `long` as desired.  More
+.\" innocent times with respect to ABI compatibility concerns... --GBR
+Because a macro was used,
+its value was not type-checked
+as a function return value could have been.
+Goodheart documented SVr3 (1987)
+.I \%winch
+as returning an
+.IR int "."
+.\" ...but the implementation remained unchanged.
+SVr3.1's (1987)
+.I \%chtype
+became an alias of
+.IR "unsigned long" ","
+using 16 bits for the character code and
+widening the type in practical terms to 32 bits,
+as 64-bit Unix systems were not yet in wide use,
+and fixed-width integral types would not be standard until ISO C99.
+.\" Cray's UNICOS was 1985 (how many shops had Crays?).  DEC OSF/1 for
+.\" the Alpha arrived in 1993.  --GBR
+SVr3.2 (1988)
+added a 6-bit color pair identifier alongside the attributes.
 .SH SEE ALSO
 \fB\%curs_in_wch\fP(3X) describes comparable functions of the
 .I \%ncurses
 library in its wide-character configuration
-.RI ( \%ncursesw ).
+.RI \%( ncursesw ).
 .PP
 \fB\%curses\fP(3X),
 \fB\%curs_instr\fP(3X)

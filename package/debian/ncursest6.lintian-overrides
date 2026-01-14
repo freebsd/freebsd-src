@@ -1,9 +1,0 @@
-# This is intentional.
-ncursest6: package-name-doesnt-match-sonames libformtw6-6 libmenutw6-6 libncurses++tw6-6 libncursestw6-6 libpaneltw6-6 libtictw6-6 libtinfotw6-6
-
-# This is intentional.
-ncursest6: binary-without-manpage
-ncursest6: non-dev-pkg-with-shlib-symlink
-ncursest6: embedded-library ncurses [usr/lib/x86_64-linux-gnu/libtinfotw6.so.6.4]
-
-# vile: confmode

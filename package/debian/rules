@@ -1,19 +1,18 @@
 #!/usr/bin/make -f
-# $Id: rules,v 1.53 2024/04/08 15:31:32 tom Exp $
+# $Id: rules,v 1.59 2025/11/23 19:09:18 tom Exp $
 
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
 SHELL = /bin/bash
 DPKG_EXPORT_BUILDFLAGS = 1
-
-export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export DEB_BUILD_MAINT_OPTIONS := hardening=+all qa=+bug reproducible=+all
 
 include /usr/share/dpkg/buildflags.mk
 
 # packages
-PACKAGES.indep = ncurses6-doc ncurses6-doc-html
-PACKAGES.arch  = ncurses6 ncursest6
+PACKAGES.indep = ncurses6td-doc ncurses6td-doc-html
+PACKAGES.arch  = ncurses6td ncursest6td
 
 # These are used for cross-compiling and for saving the configure script
 # from having to guess our platform (since we know it already)
@@ -71,6 +70,7 @@ configure = \
 		--disable-root-access \
 		--disable-root-environ \
 		--disable-termcap \
+		--enable-assertions \
 		--enable-check-size \
 		--enable-hard-tabs \
 		--enable-opaque-curses \
@@ -86,7 +86,8 @@ configure = \
 		--program-suffix=$(MY_ABI) \
 		--verbose \
 		--with-abi-version=$(MY_ABI) \
-		--with-config-suffix=dev \
+		--with-config-suffix=td \
+		--with-pc-suffix=td \
 		--with-cxx-shared \
 		--with-default-terminfo-dir=$(MYDATA) \
 		--with-develop \
@@ -104,8 +105,8 @@ configure = \
 		--with-manpage-symlinks \
 		--without-normal
 
-NCURSES6_DIR = $(CURDIR)/debian/ncurses6
-NCURSEST6_DIR = $(CURDIR)/debian/ncursest6
+NCURSES6_DIR = $(CURDIR)/debian/ncurses6td
+NCURSEST6_DIR = $(CURDIR)/debian/ncursest6td
 
 .PHONY: all config build install binary clean config-indep config-arch \
     build-indep build-arch install-indep install-arch binary-indep \
@@ -118,6 +119,7 @@ build: build-indep build-arch
 install: install-indep install-arch
 binary: binary-indep binary-arch
 clean:
+	pwd; ls -l
 	dh_testdir
 	dh_testroot
 	dh_clean $(verbose)
@@ -133,7 +135,7 @@ install-indep: $(PACKAGES.indep:%=install-%-stamp)
 install-arch: $(PACKAGES.arch:%=install-%-stamp)
 
 # make the doc-package installable by renaming everything to avoid clashing
-patch-ncurses6-stamp:
+patch-ncurses6td-stamp:
 	dh_testdir
 	sed -i.bak \
 		-e 's/-config\.1$$/dev-config.1/;t' \
@@ -147,91 +149,91 @@ patch-ncurses6-stamp:
 	diff -u man/man_db.renames.in.bak man/man_db.renames.in || true
 	touch $@
 
-config-ncurses6-stamp: patch-ncurses6-stamp
+config-ncurses6td-stamp: patch-ncurses6td-stamp
 	dh_testdir
-	rm -rf t/ncurses6
-	mkdir -p t/ncurses6
-	cd t/ncurses6; $(configure)
+	rm -rf t/ncurses6td
+	mkdir -p t/ncurses6td
+	cd t/ncurses6td; $(configure)
 	touch $@
 
-config-ncursest6-stamp: patch-ncurses6-stamp
+config-ncursest6td-stamp: patch-ncurses6td-stamp
 	dh_testdir
-	rm -rf t/ncursest6
-	mkdir -p t/ncursest6
-	cd t/ncursest6; $(configure) \
+	rm -rf t/ncursest6td
+	mkdir -p t/ncursest6td
+	cd t/ncursest6td; $(configure) \
 		--enable-interop \
 		--enable-sp-funcs \
 		--program-suffix=t$(MY_ABI) \
 		--with-pthread
 	touch $@
 
-config-ncurses6-doc-stamp \
-config-ncurses6-doc-html-stamp: config-ncurses6-stamp
+config-ncurses6td-doc-stamp \
+config-ncurses6td-doc-html-stamp: config-ncurses6td-stamp
 	touch $@
 
-build-ncurses6-stamp: config-ncurses6-stamp
+build-ncurses6td-stamp: config-ncurses6td-stamp
 	dh_testdir
 
-	$(MAKE) -C t/ncurses6
+	$(MAKE) -C t/ncurses6td
 
 	touch $@
 
-build-ncursest6-stamp: config-ncursest6-stamp
+build-ncursest6td-stamp: config-ncursest6td-stamp
 	dh_testdir
 
-	$(MAKE) -C t/ncursest6
+	$(MAKE) -C t/ncursest6td
 
 	touch $@
 
-build-ncurses6-doc-stamp \
-build-ncurses6-doc-html-stamp: build-ncurses6-stamp
+build-ncurses6td-doc-stamp \
+build-ncurses6td-doc-html-stamp: build-ncurses6td-stamp
 	touch $@
 
-install-ncurses6-stamp: build-ncurses6-stamp
-	dh_testdir
-	dh_testroot
-	dh_installdirs $(verbose)
-	dh_prep        $(verbose) -pncurses6
-
-	$(MAKE) -C t/ncurses6 install.libs install.progs DESTDIR=$(NCURSES6_DIR)
-	$(MAKE) -C t/ncurses6/test ncurses LOCAL_LIBDIR=$(LIBDIR)
-
-	mv t/ncurses6/test/ncurses $(NCURSES6_DIR)$(BINDIR)/ncurses$(MY_ABI)
-
-	touch $@
-
-install-ncursest6-stamp: build-ncursest6-stamp
+install-ncurses6td-stamp: build-ncurses6td-stamp
 	dh_testdir
 	dh_testroot
 	dh_installdirs $(verbose)
-	dh_prep        $(verbose) -pncursest6
+	dh_prep        $(verbose) -pncurses6td
 
-	$(MAKE) -C t/ncursest6 install.libs install.progs DESTDIR=$(NCURSEST6_DIR)
-	$(MAKE) -C t/ncursest6/test ncurses LOCAL_LIBDIR=$(LIBDIR)
+	$(MAKE) -C t/ncurses6td install.libs install.progs DESTDIR=$(NCURSES6_DIR)
+	$(MAKE) -C t/ncurses6td/test ncurses LOCAL_LIBDIR=$(LIBDIR)
 
-	mv t/ncursest6/test/ncurses $(NCURSEST6_DIR)$(BINDIR)/ncursest$(MY_ABI)
+	mv t/ncurses6td/test/ncurses $(NCURSES6_DIR)$(BINDIR)/ncurses$(MY_ABI)
 
 	touch $@
 
-install-ncurses6-doc-stamp: build-ncurses6-stamp
+install-ncursest6td-stamp: build-ncursest6td-stamp
 	dh_testdir
 	dh_testroot
 	dh_installdirs $(verbose)
-	dh_prep        $(verbose) -pncurses6-doc
+	dh_prep        $(verbose) -pncursest6td
 
-	$(MAKE) -C t/ncurses6 install.man DESTDIR=$(NCURSES6_DIR)-doc
+	$(MAKE) -C t/ncursest6td install.libs install.progs DESTDIR=$(NCURSEST6_DIR)
+	$(MAKE) -C t/ncursest6td/test ncurses LOCAL_LIBDIR=$(LIBDIR)
+
+	mv t/ncursest6td/test/ncurses $(NCURSEST6_DIR)$(BINDIR)/ncursest$(MY_ABI)
+
+	touch $@
+
+install-ncurses6td-doc-stamp: build-ncurses6td-stamp
+	dh_testdir
+	dh_testroot
+	dh_installdirs $(verbose)
+	dh_prep        $(verbose) -pncurses6td-doc
+
+	$(MAKE) -C t/ncurses6td install.man DESTDIR=$(NCURSES6_DIR)-doc
 	find $(NCURSES6_DIR)-doc -name 'ncursesw6-config.*' -print -delete
 
 	cd $(NCURSES6_DIR)-doc/usr/share/man/man1 && ln -sf tset6.1.gz reset6.1.gz
 
 	touch $@
 
-HTML_DESTDIR=$(NCURSES6_DIR)-doc-html/usr/share/doc/ncurses6-doc-html
-install-ncurses6-doc-html-stamp: build-ncurses6-stamp
+HTML_DESTDIR=$(NCURSES6_DIR)-doc-html/usr/share/doc/ncurses6td-doc-html
+install-ncurses6td-doc-html-stamp: build-ncurses6td-stamp
 	dh_testdir
 	dh_testroot
 	dh_installdirs $(verbose)
-	dh_prep        $(verbose) -pncurses6-doc-html
+	dh_prep        $(verbose) -pncurses6td-doc-html
 
 	cd doc/html && find * -type d | sort | xargs -I{} mkdir -p -v $(HTML_DESTDIR)/{}
 	cd doc/html && find * -type f -name '*.html' | sort | xargs -I{} install -m 644 -p -v -T {} $(HTML_DESTDIR)/{}

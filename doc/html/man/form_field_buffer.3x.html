@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: form_field_buffer.3x,v 1.45 2024/03/16 15:35:01 tom Exp @
+  * @Id: form_field_buffer.3x,v 1.47 2024/12/28 21:26:21 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>form_field_buffer 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
+<TITLE>form_field_buffer 3x 2024-12-28 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">form_field_buffer 3x 2024-03-16 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">form_field_buffer 3x 2024-12-28 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="form_field_buffer.3x.html">form_field_buffer(3x)</A></STRONG>            Library calls           <STRONG><A HREF="form_field_buffer.3x.html">form_field_buffer(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -87,12 +85,12 @@
 
           <STRONG>o</STRONG>   Editing  operations  are  based on the <EM>window</EM> which displays the
               field, rather than a <EM>string</EM>.  The window contains only printable
-              characters,  and  is  filled  with  blanks.  If you want the raw
-              data, you must write your own routine that copies the value  out
+              characters, and is filled with blanks.   If  you  want  the  raw
+              data,  you must write your own routine that copies the value out
               of the buffer and removes the leading and trailing spaces.
 
-          <STRONG>o</STRONG>   Because  editing  operations change the content of the buffer to
-              correspond to the window, you should not rely on  using  buffers
+          <STRONG>o</STRONG>   Because editing operations change the content of the  buffer  to
+              correspond  to  the window, you should not rely on using buffers
               for long-term storage of form data.
 
        The function <STRONG>set_field_status</STRONG> sets the associated status flag of <EM>field</EM>;
@@ -104,7 +102,7 @@
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       The <STRONG>field_buffer</STRONG>  function  returns  NULL  on  error.   It  sets  <STRONG>errno</STRONG>
+       The <STRONG>field_buffer</STRONG>  function  returns  <EM>NULL</EM>  on  error.   It  sets  <STRONG>errno</STRONG>
        according to their success:
 
        <STRONG>E_OK</STRONG> The routine succeeded.
@@ -133,11 +131,11 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These routines emulate the System  V  forms  library.   They  were  not
+       These  routines  emulate  the  System  V  forms library.  They were not
        supported on Version 7 or BSD versions.
 
-       The   <STRONG>set_max_field</STRONG>   function   checks   for   an   <EM>ncurses</EM>  extension
-       <STRONG>O_INPUT_FIELD</STRONG> which allows a dynamic field to shrink if the  new  limit
+       The  <STRONG>set_max_field</STRONG>   function   checks   for   an   <EM>ncurses</EM>   extension
+       <STRONG>O_INPUT_FIELD</STRONG>  which  allows a dynamic field to shrink if the new limit
        is smaller than the current field size.
 
 
@@ -150,9 +148,7 @@
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG> and related pages whose names  begin  "form_"  for  detailed
        descriptions of the entry points.
 
-
-
-ncurses 6.5                       2024-03-16             <STRONG><A HREF="form_field_buffer.3x.html">form_field_buffer(3x)</A></STRONG>
+ncurses 6.6                       2024-12-28             <STRONG><A HREF="form_field_buffer.3x.html">form_field_buffer(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

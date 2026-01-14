@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_slk.3x,v 1.71 2024/04/20 18:54:36 tom Exp @
+  * @Id: curs_slk.3x,v 1.85 2025/01/19 00:51:10 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_slk 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_slk 3x 2025-01-18 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_slk 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_slk 3x 2025-01-18 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>                     Library calls                    <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -108,14 +106,14 @@
 
        <STRONG>2</STRONG>  indicates the PC-like 4-4-4 mode.
 
-       <STRONG>3</STRONG>  is again the PC-like 4-4-4 mode, but in addition an  index  line  is
-          generated,  helping  the  user  to  associate  each  label  with its
-          numbered function key.  <STRONG>LINES</STRONG> and the vertical size  of  <STRONG>stdscr</STRONG>  are
+       <STRONG>3</STRONG>  is  again  the  PC-like 4-4-4 mode, but in addition an index line is
+          generated, helping  the  user  to  associate  each  label  with  its
+          numbered  function  key.   <STRONG>LINES</STRONG> and the vertical size of <STRONG>stdscr</STRONG> are
           further reduced.
 
 
 </PRE><H3><a name="h3-Labels">Labels</a></H3><PRE>
-       Populate  the  labels  with  normal strings (<STRONG>slk_set</STRONG>) or wide-character
+       Populate the labels with normal  strings  (<STRONG>slk_set</STRONG>)  or  wide-character
        strings (<STRONG>slk_wset</STRONG>).  Each function takes three parameters.
 
        <EM>labnum</EM>  is the label number, from <STRONG>1</STRONG> to <STRONG>8</STRONG> (12 if <EM>fmt</EM> in <STRONG>slk_init</STRONG> is <STRONG>2</STRONG> or
@@ -125,83 +123,79 @@
                in <STRONG>slk_init</STRONG> is <STRONG>2</STRONG> or <STRONG>3</STRONG>) characters in length.  A empty string or
                a null pointer sets up a blank label.
 
-       <EM>align</EM>   is  <STRONG>0</STRONG>,  <STRONG>1</STRONG>,  or <STRONG>2</STRONG>, aligning <EM>label</EM> to the left, center, or right,
+       <EM>align</EM>   is <STRONG>0</STRONG>, <STRONG>1</STRONG>, or <STRONG>2</STRONG>, aligning <EM>label</EM> to the left,  center,  or  right,
                respectively, within the 8 (5) character cells housing it.
 
-       <STRONG>slk_label</STRONG> obtains the string assigned to label number <EM>labnum</EM>, with  any
+       <STRONG>slk_label</STRONG>  obtains the string assigned to label number <EM>labnum</EM>, with any
        leading and trailing blanks stripped.
 
 
 </PRE><H3><a name="h3-Screen-Updates">Screen Updates</a></H3><PRE>
-       <STRONG>slk_refresh</STRONG>  and  <STRONG>slk_noutrefresh</STRONG>  affect  the  soft key label lines as
+       <STRONG>slk_refresh</STRONG> and <STRONG>slk_noutrefresh</STRONG> affect the  soft  key  label  lines  as
        <STRONG>wrefresh</STRONG> and <STRONG>wnoutrefresh</STRONG> do the <EM>curses</EM> window.
 
        The <STRONG>slk_clear</STRONG> routine clears the soft labels from the screen.
 
-       The <STRONG>slk_restore</STRONG> routine restores the soft labels to the screen after  a
+       The  <STRONG>slk_restore</STRONG> routine restores the soft labels to the screen after a
        <STRONG>slk_clear</STRONG> has been performed.
 
-       The  <STRONG>slk_touch</STRONG> routine forces all the soft labels to be output the next
+       The <STRONG>slk_touch</STRONG> routine forces all the soft labels to be output the  next
        time a <STRONG>slk_noutrefresh</STRONG> is performed.
 
 
 </PRE><H3><a name="h3-Video-Attributes">Video Attributes</a></H3><PRE>
-       The  <STRONG>slk_attron</STRONG>,  <STRONG>slk_attrset</STRONG>,  <STRONG>slk_attroff</STRONG>,  and   <STRONG>slk_attr</STRONG>   routines
-       correspond  to  <STRONG>attron</STRONG>,  <STRONG>attrset</STRONG>,  <STRONG>attroff</STRONG>, and <STRONG>attr_get</STRONG>, respectively.
-       They have an effect only if soft labels are  simulated  on  the  bottom
-       line  of  the  screen.   The  default  highlight for soft key labels is
+       The   <STRONG>slk_attron</STRONG>,   <STRONG>slk_attrset</STRONG>,  <STRONG>slk_attroff</STRONG>,  and  <STRONG>slk_attr</STRONG>  routines
+       correspond to <STRONG>attron</STRONG>, <STRONG>attrset</STRONG>,  <STRONG>attroff</STRONG>,  and  <STRONG>attr_get</STRONG>,  respectively.
+       They  have  an  effect  only if soft labels are simulated on the bottom
+       line of the screen.  The default  highlight  for  soft  key  labels  is
        <STRONG>A_STANDOUT</STRONG> (as in System V <EM>curses</EM>, which does not document this fact).
 
 
 </PRE><H3><a name="h3-Colors">Colors</a></H3><PRE>
-       The <STRONG>slk_color</STRONG> routine corresponds to <STRONG>color_set</STRONG>.  It has an effect  only
+       The  <STRONG>slk_color</STRONG> routine corresponds to <STRONG>color_set</STRONG>.  It has an effect only
        if soft labels are simulated on the bottom line of the screen.
 
-       Because  <STRONG>slk_color</STRONG>  accepts  only <EM>short</EM> (signed 16-bit integer) values,
-       this implementation provides <STRONG>extended_slk_color</STRONG>, which accepts  an  <EM>int</EM>
+       Because <STRONG>slk_color</STRONG> accepts only <EM>short</EM> (signed  16-bit  integer)  values,
+       this  implementation  provides <STRONG>extended_slk_color</STRONG>, which accepts an <EM>int</EM>
        value of at least 32 bits.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       Routines  that  return  an integer return <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> (SVr4
-       specifies only "an integer  value  other  than  <STRONG>ERR</STRONG>")  upon  successful
-       completion.
+       Functions that return integers return <STRONG>ERR</STRONG>  upon  failure  and  <STRONG>OK</STRONG>  upon
+       success.
 
-       X/Open Curses defines no error conditions.
-
-       In this implementation
+       In <EM>ncurses</EM>,
 
           <STRONG>slk_attr</STRONG>
                returns the attribute used for the soft keys.
 
-          <STRONG>slk_attroff</STRONG>,  <STRONG>slk_attron</STRONG>,  <STRONG>slk_clear</STRONG>,  <STRONG>slk_noutrefresh</STRONG>, <STRONG>slk_refresh</STRONG>,
+          <STRONG>slk_attroff</STRONG>, <STRONG>slk_attron</STRONG>, <STRONG>slk_clear</STRONG>, <STRONG>slk_noutrefresh</STRONG>, <STRONG>slk_refresh</STRONG>,
           <STRONG>slk_touch</STRONG>
-               return an error if  the  terminal  or  the  softkeys  were  not
+               return   <STRONG>ERR</STRONG>   if   the  terminal  or  the  softkeys  were  not
                initialized.
 
           <STRONG>slk_attrset</STRONG>
-               returns  an  error  if  the  terminal  or the softkeys were not
+               returns  <STRONG>ERR</STRONG>  if  the  terminal  or  the  softkeys   were   not
                initialized.
 
           <STRONG>slk_attr_set</STRONG>
-               returns an error if the  terminal  or  the  softkeys  were  not
-               initialized,   or   the   color   pair  is  outside  the  range
+               returns   <STRONG>ERR</STRONG>   if  the  terminal  or  the  softkeys  were  not
+               initialized,  or  the  color  pair   is   outside   the   range
                0..<STRONG>COLOR_PAIRS</STRONG>-1.
 
           <STRONG>slk_color</STRONG>
-               returns an error if the  terminal  or  the  softkeys  were  not
-               initialized,   or   the   color   pair  is  outside  the  range
+               returns   <STRONG>ERR</STRONG>   if  the  terminal  or  the  softkeys  were  not
+               initialized,  or  the  color  pair   is   outside   the   range
                0..<STRONG>COLOR_PAIRS</STRONG>-1.
 
           <STRONG>slk_init</STRONG>
-               returns an error if the format parameter is outside  the  range
-               0..3.
+               returns <STRONG>ERR</STRONG> if the format parameter is outside the range 0..3.
 
           <STRONG>slk_label</STRONG>
-               returns <STRONG>NULL</STRONG> on error.
+               returns <EM>NULL</EM> on error.
 
           <STRONG>slk_set</STRONG>
-               returns  an  error  if  the  terminal  or the softkeys were not
+               returns   <STRONG>ERR</STRONG>   if  the  terminal  or  the  softkeys  were  not
                initialized, or the <EM>labnum</EM> parameter is outside  the  range  of
                label  counts,  or if the format parameter is outside the range
                0..2, or if memory for the labels cannot be allocated.
@@ -214,9 +208,9 @@
 
 </PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
        X/Open  Curses  documents the <EM>opts</EM> argument as reserved for future use,
-       saying that it must be null.  This implementation uses  that  parameter
-       in ABI 6 for the functions which have a color pair parameter to support
-       extended color pairs.
+       saying that it must be a null pointer.  The <EM>ncurses</EM> 6 ABI uses  it  for
+       the  functions  that  accept a color pair parameter to support extended
+       color pairs.
 
        For functions which modify the color, e.g., <STRONG>slk_attr_set</STRONG>,  if  <EM>opts</EM>  is
        set  it  is treated as a pointer to <EM>int</EM>, and used to set the color pair
@@ -224,8 +218,11 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       X/Open Curses, Issue 4 describes these functions, with some differences
-       from SVr4 <EM>curses</EM>:
+       X/Open Curses Issue 4 describes these functions.  It specifies no error
+       conditions for them.
+
+       SVr4 describes a successful return value  only  as  "an  integer  value
+       other than <EM>ERR</EM>".
 
        <STRONG>o</STRONG>   X/Open   added   functions  like  the  SVr4  attribute-manipulation
            functions <STRONG>slk_attron</STRONG>, <STRONG>slk_attroff</STRONG>, and <STRONG>slk_attrset</STRONG>, but  which  use
@@ -253,32 +250,32 @@
 
        <STRONG>o</STRONG>   Soft-key groups are an array of <EM>ng</EM> integers.
 
-       <STRONG>o</STRONG>   In  SVr4, <STRONG>slk_init</STRONG> calls <STRONG>slk_start</STRONG> passing a null for <EM>gp</EM>.  For this
-           case, <STRONG>slk_start</STRONG> uses the number of  groups  <EM>ng</EM>  (3  for  the  3-2-3
+       <STRONG>o</STRONG>   In SVr4, <STRONG>slk_init</STRONG> calls <STRONG>slk_start</STRONG> passing a null for <EM>gp</EM>.  For  this
+           case,  <STRONG>slk_start</STRONG>  uses  the  number  of  groups <EM>ng</EM> (3 for the 3-2-3
            layout, 2 for the 4-4 layout) which <STRONG>slk_init</STRONG> provided.
 
-           If  <EM>ng</EM>  is  neither  2  or  3,  <STRONG>slk_start</STRONG>  checks  the terminfo <STRONG>fln</STRONG>
-           (label_format) capability, interpreting that as  a  comma-separated
+           If <EM>ng</EM> is  neither  2  or  3,  <STRONG>slk_start</STRONG>  checks  the  terminfo  <STRONG>fln</STRONG>
+           (label_format)  capability,  interpreting that as a comma-separated
            list of numbers, e.g., "3,2,3" for the 3-2-3 layout.
 
            Finally, if there is no <STRONG>fln</STRONG> capability, <STRONG>slk_start</STRONG> returns <STRONG>ERR</STRONG>.
 
-       <STRONG>o</STRONG>   If  <STRONG>slk_start</STRONG>  is given a non-null <EM>gp</EM>, it copies the <EM>ng</EM> elements of
+       <STRONG>o</STRONG>   If <STRONG>slk_start</STRONG> is given a non-null <EM>gp</EM>, it copies the <EM>ng</EM>  elements  of
            the group of soft-keys, up to 16.
 
-           If there are more than 16 elements, <STRONG>slk_start</STRONG> returns an error.
+           If there are more than 16 elements, <STRONG>slk_start</STRONG> returns <STRONG>ERR</STRONG>.
 
-       <STRONG>o</STRONG>   The format codes <STRONG>2</STRONG> and <STRONG>3</STRONG> for <STRONG>slk_init</STRONG>  were  added  by  <EM>ncurses</EM>  in
-           1996.  PDCurses 2.4 added this feature in 2001.
+       <STRONG>o</STRONG>   The  format  codes  <STRONG>2</STRONG>  and  <STRONG>3</STRONG> for <STRONG>slk_init</STRONG> were added by <EM>ncurses</EM> in
+           1996.  <EM>PDCurses</EM> 2.4 added this feature in 2001.
 
        The function <STRONG>slk_attr</STRONG> was added by <EM>ncurses</EM> in 1996.
 
-       X/Open  Curses  does  not  specify a limit for the number of colors and
+       X/Open Curses does not specify a limit for the  number  of  colors  and
        color pairs which a terminal can support.  However, in its use of <EM>short</EM>
        for  the  parameters,  it carries over SVr4's implementation detail for
        the compiled terminfo database, which uses signed 16-bit numbers.  This
-       implementation  provides extended versions of those functions which use
-       <EM>int</EM> parameters, allowing applications to use larger  color-  and  pair-
+       implementation provides extended versions of those functions which  use
+       <EM>int</EM>  parameters,  allowing  applications to use larger color- and pair-
        numbers.
 
 
@@ -311,9 +308,7 @@
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,    <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>,    <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>,    <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>,
        <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                      <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>
+ncurses 6.6                       2025-01-18                      <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

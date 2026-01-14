@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright 2018-2020,2021 Thomas E. Dickey                                  #
+# Copyright 2018-2024,2025 Thomas E. Dickey                                  #
 # Copyright 1999-2016,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -29,7 +29,7 @@
 #
 #  Author:  Juergen Pfeifer, 1996
 #
-#  $Id: Makefile.in,v 1.96 2021/07/03 15:45:33 tom Exp $
+#  $Id: Makefile.in,v 1.102 2025/10/18 13:35:27 tom Exp $
 #
 .SUFFIXES:
 
@@ -37,12 +37,11 @@ SHELL		= @SHELL@
 VPATH		= @srcdir@
 THIS		= Makefile
 
-ADA_MFLAGS 	= @cf_cv_makeflags@
+ADA_MFLAGS 	=
 @SET_MAKE@
+@SET_DESTDIR@
 
 MODEL		= ../../@DFT_OBJ_SUBDIR@
-
-DESTDIR		= @DESTDIR@
 
 top_srcdir	= @top_srcdir@
 srcdir		= @srcdir@
@@ -51,7 +50,7 @@ exec_prefix	= @exec_prefix@
 includedir	= @includedir@
 libdir		= @libdir@
 
-LIBDIR		= $(DESTDIR)$(libdir)
+LIBDIR		= $(DESTDIR)$(libdir@MERGE_PREFIX@)
 ADA_INCLUDE	= $(DESTDIR)@ADA_INCLUDE@
 ADA_OBJECTS	= $(DESTDIR)@ADA_OBJECTS@
 
@@ -284,9 +283,11 @@ STATIC_DIRS = \
 	$(BUILD_DIR)/static-obj
 
 @USE_GNAT_PROJECTS@$(BUILD_DIR_LIB)/$(STATIC_LIBNAME) :: \
-@USE_GNAT_PROJECTS@		$(ABASE)-trace.adb \
-@USE_GNAT_PROJECTS@		$(STATIC_C_OBJS) \
 @USE_GNAT_PROJECTS@		$(STATIC_DIRS)
+@USE_GNAT_PROJECTS@$(BUILD_DIR_LIB)/$(STATIC_LIBNAME) :: \
+@USE_GNAT_PROJECTS@		$(ABASE)-trace.adb \
+@USE_GNAT_PROJECTS@		$(STATIC_C_OBJS)
+@USE_GNAT_PROJECTS@	@echo "Making $@"
 @USE_GNAT_PROJECTS@	@cf_ada_config@gprconfig --batch --config=Ada --config=C,,,,@cf_ada_config_C@
 @USE_GNAT_PROJECTS@	-rm -f $(GNAT_PROJECT)
 @USE_GNAT_PROJECTS@	$(SHELL) $(srcdir)/library-cfg.sh static library.gpr $(CFLAGS_NORMAL) >$(GNAT_PROJECT)
@@ -320,6 +321,7 @@ STATIC_DIRS = \
 #NEW:BEGIN
 #@USE_GNAT_LIBRARIES@install \
 #@USE_GNAT_LIBRARIES@install.libs ::
+#@USE_GNAT_LIBRARIES@	@echo "Making $@"
 #@USE_GNAT_LIBRARIES@	@cf_ada_config@gprconfig --batch --config=Ada --config=C,,,,@cf_ada_config_C@
 #@USE_GNAT_LIBRARIES@	-rm -f $(GNAT_PROJECT)
 #@USE_GNAT_LIBRARIES@	$(SHELL) $(srcdir)/library-cfg.sh static library.gpr $(CFLAGS_NORMAL) >$(GNAT_PROJECT)
@@ -344,6 +346,7 @@ uninstall.libs ::
 #NEW:BEGIN
 #@USE_GNAT_LIBRARIES@uninstall \
 #@USE_GNAT_LIBRARIES@uninstall.libs ::
+#@USE_GNAT_LIBRARIES@	@echo "Making $@"
 #@USE_GNAT_LIBRARIES@	@cf_ada_config@gprconfig --batch --config=Ada --config=C,,,,@cf_ada_config_C@
 #@USE_GNAT_LIBRARIES@	-rm -f $(GNAT_PROJECT)
 #@USE_GNAT_LIBRARIES@	$(SHELL) $(srcdir)/library-cfg.sh static library.gpr $(CFLAGS_NORMAL) >$(GNAT_PROJECT)
@@ -369,9 +372,11 @@ SHARED_DIRS = \
 
 @MAKE_ADA_SHAREDLIB@all :: $(BUILD_DIR_LIB)/$(SHARED_LIBNAME)
 @MAKE_ADA_SHAREDLIB@$(BUILD_DIR_LIB)/$(SHARED_LIBNAME) :: \
+@MAKE_ADA_SHAREDLIB@		$(SHARED_DIRS)
+@MAKE_ADA_SHAREDLIB@$(BUILD_DIR_LIB)/$(SHARED_LIBNAME) :: \
 @MAKE_ADA_SHAREDLIB@		$(ABASE)-trace.adb \
-@MAKE_ADA_SHAREDLIB@		$(SHARED_DIRS) \
 @MAKE_ADA_SHAREDLIB@		$(SHARED_OBJS)
+@MAKE_ADA_SHAREDLIB@	@echo "Making $@"
 @MAKE_ADA_SHAREDLIB@	cp $(SHARED_OBJS) $(BUILD_DIR)/dynamic-obj/
 @MAKE_ADA_SHAREDLIB@	@cf_ada_config@gprconfig --batch --config=Ada --config=C,,,,@cf_ada_config_C@
 @MAKE_ADA_SHAREDLIB@	-rm -f $(GNAT_PROJECT)

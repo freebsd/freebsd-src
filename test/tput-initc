@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2020,2025 Thomas E. Dickey                                       #
 # Copyright 2016 Free Software Foundation, Inc.                              #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -27,14 +27,14 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: tput-initc,v 1.6 2020/02/02 23:34:34 tom Exp $
+# $Id: tput-initc,v 1.7 2025/06/14 14:06:55 tom Exp $
 # Some of the ".dat" files in ncurses' test-directory give r/g/b numbers for
 # default palettes of xterm and Linux console.  This script reads the numbers
 # and (assuming the same or compatible terminal) uses tput to (re)initialize
 # the palette using those numbers.
 
 failed() {
-	printf "?? $*\n" >&2
+	printf "?? %s\n" "$1" >&2
 	exit 1
 }
 
@@ -70,7 +70,7 @@ do
 		;;
 	esac
 done
-shift $(expr $OPTIND - 1)
+shift "$(expr "$OPTIND" - 1)"
 
 if [ $# = 1 ]
 then
@@ -93,22 +93,21 @@ then
 fi
 
 myterm=${file%%.dat}
-colors=$(tput -T $myterm colors 2>/dev/null)
-if [ ${colors:-0} -le 0 ]
+colors=$(tput -T "$myterm" colors 2>/dev/null)
+if [ "${colors:-0}" -le 0 ]
 then
 	myterm=${myterm%%-color}
-	colors=$(tput -T $myterm colors 2>/dev/null)
+	colors=$(tput -T "$myterm" colors 2>/dev/null)
 fi
-if [ ${colors:-0} -le 0 ]
+if [ "${colors:-0}" -le 0 ]
 then
 	failed "terminal $myterm does not support color"
 fi
 
-cat $file |\
 awk	-v opt_r=$opt_r \
 	-v opt_s=$opt_s \
-	-v colors=$colors \
-	-v myterm=$myterm '
+	-v colors="$colors" \
+	-v myterm="$myterm" < "$file" '
 BEGIN {
 	limit = 1000;
 	range = -1;

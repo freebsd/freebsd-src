@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright 2020,2022 Thomas E. Dickey                                       #
+# Copyright 2020-2022,2025 Thomas E. Dickey                                  #
 # Copyright 2007-2009,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -27,7 +27,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: savescreen.sh,v 1.8 2022/07/16 16:34:34 tom Exp $
+# $Id: savescreen.sh,v 1.9 2025/06/14 15:06:24 tom Exp $
 #
 # Use this script to exercise "savescreen".
 # It starts by generating a series of temporary-filenames, which are passed
@@ -40,27 +40,26 @@ MY_DIR=$TMPDIR/savescreen$$
 trap "rm -rf $MY_DIR; exit 1" 1 2 3
 trap "rm -rf $MY_DIR" 0
 umask 077
-mkdir $MY_DIR || exit 1
+mkdir "$MY_DIR" || exit 1
 
 PARAMS=
 NFILES=4
 PREFIX=$MY_DIR/savescreen
 n=0
 BEGINS=$PREFIX-$n.tmp
-while test $n != $NFILES
+while [ "$n" != $NFILES ]
 do
 	LATEST=$PREFIX-$n.tmp
 	PARAMS="$PARAMS $LATEST"
-	n=`expr $n + 1`
+	n=`expr "$n" + 1`
 done
 
 ${0%.sh} $PARAMS
-if test -f $BEGINS
+if [ -f "$BEGINS" ]
 then
-	while test -f $BEGINS
+	while [ -f "$BEGINS" ]
 	do
-		"${0%.sh}" -r $PARAMS
-		test $? != 0 && break
+		"${0%.sh}" -r $PARAMS || break
 	done
 else
 	echo "No screens were saved"

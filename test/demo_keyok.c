@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2022 Thomas E. Dickey                                     *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 2002-2006,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: demo_keyok.c,v 1.9 2022/12/10 23:31:31 tom Exp $
+ * $Id: demo_keyok.c,v 1.12 2025/07/05 15:21:56 tom Exp $
  *
  * Demonstrate the keyok() function.
  * Thomas Dickey - 2002/11/23
@@ -66,11 +66,8 @@ main(int argc, char *argv[])
 
     while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
 	switch (ch) {
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
@@ -93,12 +90,14 @@ main(int argc, char *argv[])
 
     while ((ch = wgetch(win)) != ERR) {
 	const char *name = keyname(ch);
+	if (ch == QUIT)
+	    break;
 	if (ch == ESCAPE && prior == ch)
 	    break;
 	prior = ch;
 	wprintw(win, "Keycode %d, name %s\n",
 		ch,
-		name != 0 ? name : "<null>");
+		name != NULL ? name : "<null>");
 	wclrtoeol(win);
 	wrefresh(win);
 	if (ch >= KEY_MIN) {

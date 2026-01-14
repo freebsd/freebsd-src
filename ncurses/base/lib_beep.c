@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2013,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -47,7 +47,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_beep.c,v 1.18 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_beep.c,v 1.21 2025/12/27 12:41:23 tom Exp $")
 
 /*
  *	beep()
@@ -64,12 +64,12 @@ NCURSES_SP_NAME(beep) (NCURSES_SP_DCL0)
 
     T((T_CALLED("beep(%p)"), (void *) SP_PARM));
 
-#ifdef USE_TERM_DRIVER
-    if (SP_PARM != 0)
+#if USE_TERM_DRIVER
+    if (SP_PARM != NULL)
 	res = CallDriver_1(SP_PARM, td_doBeepOrFlash, TRUE);
 #else
     /* FIXME: should make sure that we are not in altchar mode */
-    if (cur_term == 0) {
+    if (cur_term == NULL) {
 	res = ERR;
     } else if (bell) {
 	res = NCURSES_PUTP2_FLUSH("bell", bell);

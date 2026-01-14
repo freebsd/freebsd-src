@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2023 Thomas E. Dickey                                     *
+ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
  * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -41,7 +41,7 @@
 #include <curses.priv.h>
 #include <tic.h>
 
-MODULE_ID("$Id: tries.c,v 1.32 2023/06/24 15:36:23 tom Exp $")
+MODULE_ID("$Id: tries.c,v 1.33 2024/12/07 21:24:18 tom Exp $")
 
 /*
  * Expand a keycode into the string that it corresponds to, returning null if
@@ -51,12 +51,12 @@ NCURSES_EXPORT(char *)
 _nc_expand_try(TRIES * tree, unsigned code, int *count, size_t len)
 {
     TRIES *ptr = tree;
-    char *result = 0;
+    char *result = NULL;
 
     if (code != 0) {
-	while (ptr != 0) {
+	while (ptr != NULL) {
 	    if ((result = _nc_expand_try(ptr->child, code, count, len + 1))
-		!= 0) {
+		!= NULL) {
 		break;
 	    }
 	    if (ptr->value == code) {
@@ -69,8 +69,8 @@ _nc_expand_try(TRIES * tree, unsigned code, int *count, size_t len)
 	    ptr = ptr->sibling;
 	}
     }
-    if (result != 0) {
-	if (ptr != 0 && (result[len] = (char) ptr->ch) == 0)
+    if (result != NULL) {
+	if (ptr != NULL && (result[len] = (char) ptr->ch) == 0)
 	    *((unsigned char *) (result + len)) = 128;
 #ifdef TRACE
 	if (len == 0 && USE_TRACEF(TRACE_MAXIMUM)) {
@@ -96,7 +96,7 @@ _nc_remove_key(TRIES ** tree, unsigned code)
     if (code == 0)
 	returnCode(FALSE);
 
-    while (*tree != 0) {
+    while (*tree != NULL) {
 	if (_nc_remove_key(&(*tree)->child, code)) {
 	    returnCode(TRUE);
 	}
@@ -128,11 +128,11 @@ _nc_remove_string(TRIES ** tree, const char *string)
     if (!VALID_STRING(string) || *string == 0)
 	returnCode(FALSE);
 
-    while (*tree != 0) {
+    while (*tree != NULL) {
 	if (UChar((*tree)->ch) == UChar(*string)) {
 	    if (string[1] != 0)
 		returnCode(_nc_remove_string(&(*tree)->child, string + 1));
-	    if ((*tree)->child == 0) {
+	    if ((*tree)->child == NULL) {
 		TRIES *to_free = *tree;
 		*tree = (*tree)->sibling;
 		free(to_free);

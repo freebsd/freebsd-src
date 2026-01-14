@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 2003-2006,2010 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,50 +28,52 @@
   * authorization.                                                           *
   ****************************************************************************
   * Author: Thomas E. Dickey 2003
-  * @Id: key_defined.3x,v 1.34 2024/03/16 15:35:01 tom Exp @
+  * @Id: key_defined.3x,v 1.44 2025/10/04 20:11:22 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>key_defined 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
+<TITLE>key_defined 3x 2025-10-04 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">key_defined 3x 2024-03-16 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">key_defined 3x 2025-10-04 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>
 
 
-
-
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>key_defined</STRONG> - test whether a <EM>curses</EM> keycode is defined
+       <STRONG>key_defined</STRONG> - obtain key code for an <EM>ncurses</EM> function key definition
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>key_defined(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>definition</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>key_defined(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>definition</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       This  is an extension to the <EM>curses</EM> library.  It permits an application
-       to determine if a string is currently bound to any keycode.
+       The  <STRONG>key_defined</STRONG>  <EM>ncurses</EM>  extension  permits  a  <EM>curses</EM> application to
+       determine the function key code, if any, to which the string <EM>definition</EM>
+       is bound.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       If the string is bound to a keycode, its value (greater than  zero)  is
-       returned.   If  no  keycode  is bound, zero is returned.  If the string
-       conflicts with longer strings which are bound to keys, -1 is returned.
+       <STRONG>key_defined</STRONG> returns the first key code to which <EM>definition</EM> is bound  if
+       any  exists.  If none does, it returns <STRONG>0</STRONG>.  If <EM>definition</EM> is a prefix of
+       another bound definition, <STRONG>key_defined</STRONG> returns <STRONG>-1</STRONG>.
+
+
+</PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
+       <STRONG>key_defined</STRONG> is an <EM>ncurses</EM> extension.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       This routine is specific to <EM>ncurses</EM>.  It was not supported  on  Version
-       7,  BSD  or  System V implementations.  It is recommended that any code
-       depending on them be conditioned using <STRONG>NCURSES_VERSION</STRONG>.
+       Applications employing <EM>ncurses</EM> extensions should condition their use on
+       the visibility of the <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
 
 
 </PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>
@@ -79,11 +81,9 @@
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>, <STRONG><A HREF="keybound.3x.html">keybound(3x)</A></STRONG>, <STRONG><A HREF="keyok.3x.html">keyok(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-03-16                   <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>
+ncurses 6.6                       2025-10-04                   <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -91,6 +91,7 @@ ncurses 6.5                       2024-03-16                   <STRONG><A HREF="
 <li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
+<li><a href="#h2-EXTENSIONS">EXTENSIONS</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
 <li><a href="#h2-AUTHORS">AUTHORS</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>

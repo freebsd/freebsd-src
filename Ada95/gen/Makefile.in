@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright 2019-2022,2024 Thomas E. Dickey                                  #
+# Copyright 2019-2024,2025 Thomas E. Dickey                                  #
 # Copyright 1998-2015,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -30,7 +30,7 @@
 #  Author:  Juergen Pfeifer, 1996
 #     and:  Thomas E. Dickey, 1997
 #
-#  $Id: Makefile.in,v 1.103 2024/01/19 16:51:56 tom Exp $
+#  $Id: Makefile.in,v 1.109 2025/10/18 22:11:58 tom Exp $
 #
 .SUFFIXES:
 
@@ -38,15 +38,18 @@ SHELL		= @SHELL@
 VPATH		= @srcdir@
 THIS		= Makefile
 
+@SET_DESTDIR@
+
 x		= @EXEEXT@
 
 top_srcdir	= @top_srcdir@
-DESTDIR		= @DESTDIR@
 srcdir		= @srcdir@
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
 bindir		= @bindir@
 includedir	= @includedir@
+
+BINDIR		= $(DESTDIR)$(bindir@MERGE_PREFIX@)
 
 INSTALL		= @INSTALL@ @INSTALL_OPT_O@
 INSTALL_SCRIPT	= @INSTALL_SCRIPT@
@@ -111,36 +114,37 @@ ABASE		= $(ALIB)-curses
 
 ADA_SRCDIR	= ../src
 
-GEN_TARGETS     = $(ADA_SRCDIR)/$(ABASE).ads         			\
-		  $(ADA_SRCDIR)/$(ABASE).adb         			\
-	          $(ADA_SRCDIR)/$(ABASE)-aux.ads   			\
-	          $(ADA_SRCDIR)/$(ABASE)-trace.ads   			\
-	          $(ADA_SRCDIR)/$(ABASE)-menus.ads   			\
-	          $(ADA_SRCDIR)/$(ABASE)-forms.ads   			\
-	          $(ADA_SRCDIR)/$(ABASE)-mouse.ads 			\
-	          $(ADA_SRCDIR)/$(ABASE)-panels.ads			\
-	          $(ADA_SRCDIR)/$(ABASE)-menus-menu_user_data.ads	\
-	          $(ADA_SRCDIR)/$(ABASE)-menus-item_user_data.ads	\
-	          $(ADA_SRCDIR)/$(ABASE)-forms-form_user_data.ads	\
-	          $(ADA_SRCDIR)/$(ABASE)-forms-field_types.ads		\
-	          $(ADA_SRCDIR)/$(ABASE)-forms-field_user_data.ads	\
-	          $(ADA_SRCDIR)/$(ABASE)-panels-user_data.ads           \
-                  $(ADA_SRCDIR)/$(ABASE)_constants.ads
+GEN_TARGETS     = options.m4						\
+		  $(ADA_SRCDIR)/$(ABASE).ads				\
+		  $(ADA_SRCDIR)/$(ABASE).adb				\
+		  $(ADA_SRCDIR)/$(ABASE)-aux.ads			\
+		  $(ADA_SRCDIR)/$(ABASE)-trace.ads			\
+		  $(ADA_SRCDIR)/$(ABASE)-menus.ads			\
+		  $(ADA_SRCDIR)/$(ABASE)-forms.ads			\
+		  $(ADA_SRCDIR)/$(ABASE)-mouse.ads			\
+		  $(ADA_SRCDIR)/$(ABASE)-panels.ads			\
+		  $(ADA_SRCDIR)/$(ABASE)-menus-menu_user_data.ads	\
+		  $(ADA_SRCDIR)/$(ABASE)-menus-item_user_data.ads	\
+		  $(ADA_SRCDIR)/$(ABASE)-forms-form_user_data.ads	\
+		  $(ADA_SRCDIR)/$(ABASE)-forms-field_types.ads		\
+		  $(ADA_SRCDIR)/$(ABASE)-forms-field_user_data.ads	\
+		  $(ADA_SRCDIR)/$(ABASE)-panels-user_data.ads		\
+		  $(ADA_SRCDIR)/$(ABASE)_constants.ads
 
 GEN_SRC		= $(srcdir)/$(ABASE).ads.m4				\
 		  $(srcdir)/$(ABASE).adb.m4				\
-	          $(srcdir)/$(ABASE)-aux.ads.m4 	  		\
-	          $(srcdir)/$(ABASE)-trace.ads.m4 	  		\
-	          $(srcdir)/$(ABASE)-menus.ads.m4 	  		\
-	          $(srcdir)/$(ABASE)-forms.ads.m4   			\
-	          $(srcdir)/$(ABASE)-mouse.ads.m4			\
-	          $(srcdir)/$(ABASE)-panels.ads.m4			\
-	          $(srcdir)/$(ABASE)-menus-menu_user_data.ads.m4	\
-	          $(srcdir)/$(ABASE)-menus-item_user_data.ads.m4	\
-	          $(srcdir)/$(ABASE)-forms-form_user_data.ads.m4	\
-	          $(srcdir)/$(ABASE)-forms-field_types.ads.m4		\
-	          $(srcdir)/$(ABASE)-forms-field_user_data.ads.m4	\
-	          $(srcdir)/$(ABASE)-panels-user_data.ads.m4
+		  $(srcdir)/$(ABASE)-aux.ads.m4				\
+		  $(srcdir)/$(ABASE)-trace.ads.m4			\
+		  $(srcdir)/$(ABASE)-menus.ads.m4			\
+		  $(srcdir)/$(ABASE)-forms.ads.m4			\
+		  $(srcdir)/$(ABASE)-mouse.ads.m4			\
+		  $(srcdir)/$(ABASE)-panels.ads.m4			\
+		  $(srcdir)/$(ABASE)-menus-menu_user_data.ads.m4	\
+		  $(srcdir)/$(ABASE)-menus-item_user_data.ads.m4	\
+		  $(srcdir)/$(ABASE)-forms-form_user_data.ads.m4	\
+		  $(srcdir)/$(ABASE)-forms-field_types.ads.m4		\
+		  $(srcdir)/$(ABASE)-forms-field_user_data.ads.m4	\
+		  $(srcdir)/$(ABASE)-panels-user_data.ads.m4
 
 ################################################################################
 
@@ -162,19 +166,24 @@ libs :	$(GEN_TARGETS)
 
 sources:
 
-$(DESTDIR)$(bindir) :
+$(BINDIR) :
 	mkdir -p $@
 
 install \
-install.libs :: $(DESTDIR)$(bindir) $(ADACURSES_CONFIG)
-	$(INSTALL_SCRIPT) $(ADACURSES_CONFIG) $(DESTDIR)$(bindir)/$(ADACURSES_CONFIG)
+install.libs :: \
+		$(GEN_TARGETS) \
+		$(BINDIR) \
+		$(ADACURSES_CONFIG)
+	$(INSTALL_SCRIPT) $(ADACURSES_CONFIG) $(BINDIR)/$(ADACURSES_CONFIG)
 
 uninstall \
 uninstall.libs ::
-	-rm -f $(DESTDIR)$(bindir)/$(ADACURSES_CONFIG)
+	-rm -f $(BINDIR)/$(ADACURSES_CONFIG)
 
 $(PROG_GENERATE):  gen.o
 	@ECHO_LD@ $(LINK) $(CFLAGS_NORMAL) gen.o $(ACTUAL_LDFLAGS) -o $@
+	@$(PROG_GENERATE) "-?"
+	@echo "... made $@"
 
 gen.o:	$(srcdir)/gen.c
 	$(HOST_CC) $(CFLAGS_NORMAL) -c -o $@ $(srcdir)/gen.c

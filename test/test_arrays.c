@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2022 Thomas E. Dickey                                     *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 2007-2010,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_arrays.c,v 1.13 2022/12/10 23:23:27 tom Exp $
+ * $Id: test_arrays.c,v 1.16 2025/07/05 15:21:56 tom Exp $
  *
  * Author: Thomas E Dickey
  *
@@ -53,7 +53,7 @@ extern NCURSES_EXPORT_VAR(NCURSES_CONST char * const ) strfnames[];
 
 static bool opt_C;
 static bool opt_T;
-static bool opt_c;
+static bool opt_s;
 static bool opt_f;
 static bool opt_n;
 static bool opt_t;
@@ -66,7 +66,7 @@ dump_array(const char *name, NCURSES_CONST char *const *list)
     int n;
 
     printf("%s:\n", name);
-    for (n = 0; list[n] != 0; ++n) {
+    for (n = 0; list[n] != NULL; ++n) {
 	printf("%5d:%s\n", n, list[n]);
     }
 }
@@ -75,15 +75,15 @@ static void
 dump_plain(void)
 {
     PLAIN(opt_T && opt_n, boolnames);
-    PLAIN(opt_C && opt_c, boolcodes);
+    PLAIN(opt_C && opt_s, boolcodes);
     PLAIN(opt_T && opt_f, boolfnames);
 
     PLAIN(opt_T && opt_n, numnames);
-    PLAIN(opt_C && opt_c, numcodes);
+    PLAIN(opt_C && opt_s, numcodes);
     PLAIN(opt_T && opt_f, numfnames);
 
     PLAIN(opt_T && opt_n, strnames);
-    PLAIN(opt_C && opt_c, strcodes);
+    PLAIN(opt_C && opt_s, strcodes);
     PLAIN(opt_T && opt_f, strfnames);
 }
 
@@ -99,7 +99,7 @@ dump_table(void)
     STRING(opt_t, "Index");
     STRING(opt_t, "Type");
     STRING(opt_n, "Name");
-    STRING(opt_c, "Code");
+    STRING(opt_s, "Code");
     STRING(opt_f, "FName");
     printf("\n");
 
@@ -108,7 +108,7 @@ dump_table(void)
 	NUMBER(opt_t, r);
 	STRING(opt_t, "bool");
 	STRING(opt_T && opt_n, boolnames[r]);
-	STRING(opt_C && opt_c, boolcodes[r]);
+	STRING(opt_C && opt_s, boolcodes[r]);
 	STRING(opt_T && opt_f, boolfnames[r]);
 	printf("\n");
     }
@@ -118,7 +118,7 @@ dump_table(void)
 	NUMBER(opt_t, r);
 	STRING(opt_t, "num");
 	STRING(opt_T && opt_n, numnames[r]);
-	STRING(opt_C && opt_c, numcodes[r]);
+	STRING(opt_C && opt_s, numcodes[r]);
 	STRING(opt_T && opt_f, numfnames[r]);
 	printf("\n");
     }
@@ -128,7 +128,7 @@ dump_table(void)
 	NUMBER(opt_t, r);
 	STRING(opt_t, "str");
 	STRING(opt_T && opt_n, strnames[r]);
-	STRING(opt_C && opt_c, strcodes[r]);
+	STRING(opt_C && opt_s, strcodes[r]);
 	STRING(opt_T && opt_f, strfnames[r]);
 	printf("\n");
     }
@@ -148,7 +148,7 @@ usage(int ok)
 	,"Options:"
 	," -C       print termcap names"
 	," -T       print terminfo names"
-	," -c       print termcap names"
+	," -s       print short termcap names"
 	," -f       print full terminfo names"
 	," -n       print short terminfo names"
 	," -t       print the result as CSV table"
@@ -168,7 +168,7 @@ main(int argc, char *argv[])
 {
     int ch;
 
-    while ((ch = getopt(argc, argv, OPTS_COMMON "CTcfnt")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "CTsfnt")) != -1) {
 	switch (ch) {
 	case 'C':
 	    opt_C = TRUE;
@@ -176,8 +176,8 @@ main(int argc, char *argv[])
 	case 'T':
 	    opt_T = TRUE;
 	    break;
-	case 'c':
-	    opt_c = TRUE;
+	case 's':
+	    opt_s = TRUE;
 	    break;
 	case 'f':
 	    opt_f = TRUE;
@@ -188,11 +188,8 @@ main(int argc, char *argv[])
 	case 't':
 	    opt_t = TRUE;
 	    break;
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
@@ -202,8 +199,8 @@ main(int argc, char *argv[])
     if (!(opt_T || opt_C)) {
 	opt_T = opt_C = TRUE;
     }
-    if (!(opt_c || opt_f || opt_n)) {
-	opt_c = opt_f = opt_n = TRUE;
+    if (!(opt_s || opt_f || opt_n)) {
+	opt_s = opt_f = opt_n = TRUE;
     }
 
     if (opt_t) {

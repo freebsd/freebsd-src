@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2018-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,29 +27,27 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_termattrs.3x,v 1.41 2024/04/20 21:20:07 tom Exp @
+  * @Id: curs_termattrs.3x,v 1.61 2025/08/23 22:39:20 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_termattrs 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_termattrs 3x 2025-08-23 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_termattrs 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_termattrs 3x 2025-08-23 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_termattrs.3x.html">curs_termattrs(3x)</A></STRONG>               Library calls              <STRONG><A HREF="curs_termattrs.3x.html">curs_termattrs(3x)</A></STRONG>
 
 
-
-
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
        <STRONG>baudrate</STRONG>,  <STRONG>erasechar</STRONG>,  <STRONG>erasewchar</STRONG>, <STRONG>has_ic</STRONG>, <STRONG>has_il</STRONG>, <STRONG>killchar</STRONG>, <STRONG>killwchar</STRONG>,
-       <STRONG>longname</STRONG>, <STRONG>term_attrs</STRONG>, <STRONG>termattrs</STRONG>, <STRONG>termname</STRONG> -  <EM>curses</EM>  environment  query
-       routines
+       <STRONG>longname</STRONG>, <STRONG>term_attrs</STRONG>,  <STRONG>termattrs</STRONG>,  <STRONG>termname</STRONG>  -  get  and  set  terminal
+       attributes with <EM>curses</EM>
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -57,99 +55,114 @@
 
        <STRONG>int</STRONG> <STRONG>baudrate(void);</STRONG>
        <STRONG>char</STRONG> <STRONG>erasechar(void);</STRONG>
-       <STRONG>int</STRONG> <STRONG>erasewchar(wchar_t</STRONG> <STRONG>*</STRONG><EM>wc</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>erasewchar(wchar_t</STRONG> <STRONG>*</STRONG> <EM>wc</EM><STRONG>);</STRONG>
        <STRONG>bool</STRONG> <STRONG>has_ic(void);</STRONG>
        <STRONG>bool</STRONG> <STRONG>has_il(void);</STRONG>
        <STRONG>char</STRONG> <STRONG>killchar(void);</STRONG>
-       <STRONG>int</STRONG> <STRONG>killwchar(wchar_t</STRONG> <STRONG>*</STRONG><EM>wc</EM><STRONG>);</STRONG>
-       <STRONG>char</STRONG> <STRONG>*longname(void);</STRONG>
+       <STRONG>int</STRONG> <STRONG>killwchar(wchar_t</STRONG> <STRONG>*</STRONG> <EM>wc</EM><STRONG>);</STRONG>
+       <STRONG>char</STRONG> <STRONG>*</STRONG> <STRONG>longname(void);</STRONG>
        <STRONG>attr_t</STRONG> <STRONG>term_attrs(void);</STRONG>
        <STRONG>chtype</STRONG> <STRONG>termattrs(void);</STRONG>
-       <STRONG>char</STRONG> <STRONG>*termname(void);</STRONG>
+       <STRONG>char</STRONG> <STRONG>*</STRONG> <STRONG>termname(void);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
 
 </PRE><H3><a name="h3-baudrate">baudrate</a></H3><PRE>
-       The  <STRONG>baudrate</STRONG>  routine  returns  the output speed of the terminal.  The
-       number returned is in bits per second, for  example  <STRONG>9600</STRONG>,  and  is  an
-       integer.
+       <STRONG>baudrate</STRONG>  returns  the  line  speed  of  the terminal, an integer value
+       measured in bits per second, for example <STRONG>9600</STRONG>.
 
 
 </PRE><H3><a name="h3-erasechar_erasewchar">erasechar, erasewchar</a></H3><PRE>
-       The <STRONG>erasechar</STRONG> routine returns the user's current erase character.
+       <STRONG>erasechar</STRONG> returns the terminal's erase character.
 
-       The  <STRONG>erasewchar</STRONG>  routine  stores  the  current  erase  character in the
-       location referenced by <EM>wc</EM>.  If no erase character has been defined, the
-       routine fails and the location referenced by <EM>wc</EM> is not changed.
+       <STRONG>erasewchar</STRONG> stores the erase character in the location referenced by <EM>wc</EM>.
+       If no erase character has been  defined,  it  fails  and  the  location
+       referenced by <EM>wc</EM> is not changed.
 
 
 </PRE><H3><a name="h3-has_ic_has_il">has_ic, has_il</a></H3><PRE>
-       The  <STRONG>has_ic</STRONG>  routine  is  true  if the terminal has insert- and delete-
-       character capabilities.
+       <STRONG>has_ic</STRONG>  returns  <STRONG>TRUE</STRONG>  if the terminal has insert- and delete-character
+       capabilities.
 
-       The <STRONG>has_il</STRONG> routine is true if the terminal has insert- and  delete-line
-       capabilities, or can simulate them using scrolling regions.  This might
-       be used to determine if it would be appropriate  to  turn  on  physical
-       scrolling using <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG>.
+       <STRONG>has_il</STRONG> returns  <STRONG>TRUE</STRONG>  if  the  terminal  has  insert-  and  delete-line
+       capabilities,  or  can simulate them using scrolling regions.  It might
+       be  used  to  determine  whether  it  would  be  appropriate   to   use
+       <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG> to turn on scrolling.
 
 
 </PRE><H3><a name="h3-killchar_killwchar">killchar, killwchar</a></H3><PRE>
-       The <STRONG>killchar</STRONG> routine returns the user's current line kill character.
+       <STRONG>killchar</STRONG> returns the terminal's line kill character.
 
-       The  <STRONG>killwchar</STRONG>  routine  stores  the current line-kill character in the
-       location referenced by <EM>wc</EM>.  If no line-kill character has been defined,
-       the routine fails and the location referenced by <EM>wc</EM> is not changed.
+       <STRONG>killwchar</STRONG>  stores the line-kill character in the location referenced by
+       <EM>wc</EM>.  If no line-kill character has  been  defined,  it  fails  and  the
+       location referenced by <EM>wc</EM> is not changed.
 
 
 </PRE><H3><a name="h3-longname">longname</a></H3><PRE>
-       The  <STRONG>longname</STRONG>  routine  returns a pointer to a static area containing a
-       verbose description of the current terminal.  The maximum length  of  a
-       verbose  description  is  128 characters.  It is defined only after the
-       call to <STRONG>initscr</STRONG> or <STRONG>newterm</STRONG>.  The area is overwritten by  each  call  to
-       <STRONG>newterm</STRONG>  and  is not restored by <STRONG>set_term</STRONG>, so the value should be saved
-       between calls to <STRONG>newterm</STRONG> if <STRONG>longname</STRONG> is going to be used with  multiple
-       terminals.
+       <STRONG>longname</STRONG>  returns  a  pointer  to  static  storage containing a verbose
+       description of the terminal  being  managed  by  <EM>curses</EM>.   The  maximum
+       length  of  a  verbose  description  is 128 characters.  The storage is
+       populated only  after  <STRONG><A HREF="curs_initscr.3x.html">initscr(3x)</A></STRONG>  or  <STRONG><A HREF="curs_initscr.3x.html">newterm(3x)</A></STRONG>  is  called.   This
+       storage  is  overwritten  by  each  call to <STRONG>newterm</STRONG> and not restored by
+       <STRONG><A HREF="curs_initscr.3x.html">set_term(3x)</A></STRONG>, so its contents should be saved between calls to  <STRONG>initscr</STRONG>
+       or <STRONG>newterm</STRONG> if <STRONG>longname</STRONG> is to be used with multiple terminals.
 
 
 </PRE><H3><a name="h3-termattrs_term_attrs">termattrs, term_attrs</a></H3><PRE>
        If  a  given  terminal  does  not  support  a  video  attribute that an
-       application program is trying to use, <STRONG>curses</STRONG> may substitute a different
-       video  attribute for it.  The <STRONG>termattrs</STRONG> and <STRONG>term_attrs</STRONG> functions return
-       a logical <STRONG>OR</STRONG> of all video attributes supported by the terminal using <STRONG>A_</STRONG>
-       and  <STRONG>WA_</STRONG>  constants  respectively.   This  information is useful when a
-       <STRONG>curses</STRONG> program needs  complete  control  over  the  appearance  of  the
-       screen.
+       application program is trying to use, <EM>curses</EM> may substitute a different
+       video attribute for it.  <STRONG>termattrs</STRONG> and <STRONG>term_attrs</STRONG> return a logical "or"
+       of all video attributes supported by the  terminal  using  <STRONG>A_</STRONG>  and  <STRONG>WA_</STRONG>
+       constants  respectively.   This  information  is  useful  when a <EM>curses</EM>
+       program needs complete control over the appearance of the screen.
 
 
 </PRE><H3><a name="h3-termname">termname</a></H3><PRE>
-       The <STRONG>termname</STRONG> routine returns the terminal name used by <STRONG>setupterm</STRONG>.
+       <STRONG>termname</STRONG> returns the terminal name used by <STRONG><A HREF="curs_terminfo.3x.html">setupterm(3x)</A></STRONG>.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       <STRONG>longname</STRONG> and <STRONG>termname</STRONG> return <STRONG>NULL</STRONG> on error.
+       <STRONG>longname</STRONG> and <STRONG>termname</STRONG> return <EM>NULL</EM> on error.
 
-       Routines  that  return  an integer return <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> (SVr4
-       only specifies "an integer  value  other  than  <STRONG>ERR</STRONG>")  upon  successful
-       completion.
+       Functions that return an integer return <STRONG>ERR</STRONG> upon failure  and  <STRONG>OK</STRONG>  upon
+       success.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       Note that <STRONG>termattrs</STRONG> may be a macro.
+       <STRONG>erasewchar</STRONG>,  <STRONG>killwchar</STRONG>,  and  <STRONG>term_attrs</STRONG>  are  part  of <EM>ncurses</EM>'s wide-
+       character  API,  and  are  not  available  in  its   non-wide-character
+       configuration.
+
+       <STRONG>termattrs</STRONG> may be implemented as a macro.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       X/Open  Curses,  Issue  4  describes  these  functions.  It changes the
-       return type of <STRONG>termattrs</STRONG> to the new  type  <STRONG>attr_t</STRONG>.   Most  versions  of
-       curses truncate the result returned by <STRONG>termname</STRONG> to 14 characters.
+       X/Open Curses Issue 4 describes these functions.
+
+       SVr4  describes  a  successful  return  value only as "an integer value
+       other than <EM>ERR</EM>".
+
+       Most versions of <EM>curses</EM> truncate the string returned by <EM>termname</EM> to  14
+       characters.
+
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       4BSD (1980) introduced <EM>longname</EM>.
+
+       SVr2 (1984) added <EM>baudrate</EM>, <EM>erasechar</EM>, <EM>killchar</EM>, <EM>has</EM><STRONG>_</STRONG><EM>ic</EM>, and <EM>has</EM><STRONG>_</STRONG><EM>il</EM>.
+
+       SVr3  (1987)  supplied  <EM>termname</EM>.   Later  that  year,  SVr3.1  brought
+       <EM>termattrs</EM>.
+
+       X/Open Curses  Issue 4  (1995)  specified  <EM>erasewchar</EM>,  <EM>killwchar</EM>,  and
+       <EM>term</EM><STRONG>_</STRONG><EM>attrs</EM>.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>, <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                <STRONG><A HREF="curs_termattrs.3x.html">curs_termattrs(3x)</A></STRONG>
+ncurses 6.6                       2025-08-23                <STRONG><A HREF="curs_termattrs.3x.html">curs_termattrs(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -169,6 +182,7 @@ ncurses 6.5                       2024-04-20                <STRONG><A HREF="cur
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: menu_hook.3x,v 1.32 2024/03/16 15:35:01 tom Exp @
+  * @Id: menu_hook.3x,v 1.34 2024/12/28 21:26:21 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>menu_hook 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
+<TITLE>menu_hook 3x 2024-12-28 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">menu_hook 3x 2024-03-16 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">menu_hook 3x 2024-12-28 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="menu_hook.3x.html">menu_hook(3x)</A></STRONG>                    Library calls                   <STRONG><A HREF="menu_hook.3x.html">menu_hook(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -73,27 +71,27 @@
 
        The  function  <STRONG>set_item_init</STRONG> sets a hook to be called at menu-post time
        and each time the selected item changes (after the change).   <STRONG>item_init</STRONG>
-       returns  the  current  item init hook, if any (<STRONG>NULL</STRONG> if there is no such
+       returns  the  current  item init hook, if any (<EM>NULL</EM> if there is no such
        hook).
 
        The function <STRONG>set_item_term</STRONG> sets a hook to be called at menu-unpost time
        and each time the selected item changes (before the change).  <STRONG>item_term</STRONG>
-       returns the current item term hook, if any (<STRONG>NULL</STRONG> if there  is  no  such
+       returns the current item term hook, if any (<EM>NULL</EM> if there  is  no  such
        hook).
 
        The  function  <STRONG>set_menu_init</STRONG> sets a hook to be called at menu-post time
        and just after the top row on the  menu  changes  once  it  is  posted.
-       <STRONG>menu_init</STRONG>  returns the current menu init hook, if any (<STRONG>NULL</STRONG> if there is
+       <STRONG>menu_init</STRONG>  returns the current menu init hook, if any (<EM>NULL</EM> if there is
        no such hook).
 
        The function <STRONG>set_menu_term</STRONG> sets a hook to be called at menu-unpost time
-       and  just  before  the  top  row on the menu changes once it is posted.
-       <STRONG>menu_term</STRONG> returns the current menu term hook, if any (<STRONG>NULL</STRONG> if there  is
+       and just before the top row on the menu  changes  once  it  is  posted.
+       <STRONG>menu_term</STRONG>  returns the current menu term hook, if any (<EM>NULL</EM> if there is
        no such hook).
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       Routines  that  return  pointers  return <STRONG>NULL</STRONG> on error.  Other routines
+       Routines that return pointers return <EM>NULL</EM>  on  error.   Other  routines
        return one of the following:
 
        <STRONG>E_OK</STRONG> The routine succeeded.
@@ -103,7 +101,7 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These routines emulate the  System  V  menu  library.   They  were  not
+       These  routines  emulate  the  System  V  menu  library.  They were not
        supported on Version 7 or BSD versions.
 
 
@@ -115,9 +113,7 @@
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="menu.3x.html">menu(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-03-16                     <STRONG><A HREF="menu_hook.3x.html">menu_hook(3x)</A></STRONG>
+ncurses 6.6                       2024-12-28                     <STRONG><A HREF="menu_hook.3x.html">menu_hook(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

@@ -28,23 +28,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: form_field.3x,v 1.34 2024/03/16 15:35:01 tom Exp @
+  * @Id: form_field.3x,v 1.36 2024/12/28 21:26:21 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>form_field 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
+<TITLE>form_field 3x 2024-12-28 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">form_field 3x 2024-03-16 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">form_field 3x 2024-12-28 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="form_field.3x.html">form_field(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="form_field.3x.html">form_field(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -62,7 +60,7 @@
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
        The  function  <STRONG>set_form_fields</STRONG>  changes  the field pointer array of the
-       given <EM>form</EM>.  The array must be terminated by a <STRONG>NULL</STRONG>.
+       given <EM>form</EM>.  The array must be terminated by a <EM>NULL</EM>.
 
        The function <STRONG>form_fields</STRONG> returns the field array of the given form.
 
@@ -73,10 +71,10 @@
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       The  function  <STRONG>form_fields</STRONG>  returns  a pointer (which may be <STRONG>NULL</STRONG>).  It
+       The  function  <STRONG>form_fields</STRONG>  returns  a pointer (which may be <EM>NULL</EM>).  It
        does not set <STRONG>errno</STRONG>.
 
-       The function <STRONG>field_count</STRONG> returns <STRONG>ERR</STRONG> if the <EM>form</EM> parameter is <STRONG>NULL</STRONG>.
+       The function <STRONG>field_count</STRONG> returns <STRONG>ERR</STRONG> if the <EM>form</EM> parameter is <EM>NULL</EM>.
 
        The  functions  <STRONG>set_form_fields</STRONG>  and  <STRONG>move_field</STRONG>  return  one  of   the
        following codes on error:
@@ -112,9 +110,7 @@
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="form.3x.html">form(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-03-16                    <STRONG><A HREF="form_field.3x.html">form_field(3x)</A></STRONG>
+ncurses 6.6                       2024-12-28                    <STRONG><A HREF="form_field.3x.html">form_field(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

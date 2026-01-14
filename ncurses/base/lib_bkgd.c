@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2018-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2014,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -37,7 +37,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_bkgd.c,v 1.63 2021/05/08 14:58:12 tom Exp $")
+MODULE_ID("$Id: lib_bkgd.c,v 1.64 2024/12/07 20:00:48 tom Exp $")
 
 static const NCURSES_CH_T blank = NewChar(BLANK_TEXT);
 
@@ -136,7 +136,7 @@ _nc_background(WINDOW *win, const ARG_CH_T ch, bool narrow)
 #define TraceChar(c) _tracechar(CharOf(c))
 #endif
 
-    if (SP == 0) {
+    if (SP == NULL) {
 	;
     } else if (win) {
 	NCURSES_CH_T new_bkgd = CHDEREF(ch);

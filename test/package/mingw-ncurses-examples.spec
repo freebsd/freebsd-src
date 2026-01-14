@@ -4,11 +4,11 @@ Summary: ncurses-examples - example/test programs from ncurses
 %global AppProgram ncurses-examples
 %global AppVersion MAJOR.MINOR
 %global AppRelease YYYYMMDD
-# $Id: mingw-ncurses-examples.spec,v 1.11 2023/02/25 23:10:34 tom Exp $
+# $Id: mingw-ncurses-examples.spec,v 1.13 2025/06/21 18:35:49 tom Exp $
 Name: mingw32-ncurses6-examples
 Version: %{AppVersion}
 Release: %{AppRelease}
-License: X11
+License: X11 License Distribution Modification Variant
 Group: Development/Libraries
 URL: https://invisible-island.net/ncurses/%{AppProgram}.html
 Source: https://invisible-island.net/archives/%{AppProgram}/%{AppProgram}-%{release}.tgz
@@ -112,6 +112,9 @@ popd
 %{mingw64_libexec}/*
 
 %changelog
+
+* RPM_DATE Thomas Dickey
+- testing ncurses MAJOR.MINOR.YYYYMMDD
 
 * Sat Feb 25 2023 Thomas Dickey
 - use libexecdir for programs rather than subdir of bindir

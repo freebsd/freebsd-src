@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_instr.3x,v 1.51 2024/04/20 21:24:19 tom Exp $
-.TH curs_instr 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_instr.3x,v 1.82 2025/10/21 00:04:35 tom Exp $
+.TH curs_instr 3X 2025-10-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -46,48 +46,83 @@
 ..
 .SH NAME
 \fB\%instr\fP,
-\fB\%innstr\fP,
 \fB\%winstr\fP,
-\fB\%winnstr\fP,
 \fB\%mvinstr\fP,
-\fB\%mvinnstr\fP,
 \fB\%mvwinstr\fP,
+\fB\%innstr\fP,
+\fB\%winnstr\fP,
+\fB\%mvinnstr\fP,
 \fB\%mvwinnstr\fP \-
 get a string from a \fIcurses\fR window
 .SH SYNOPSIS
 .nf
 \fB#include <curses.h>
 .PP
-\fBint instr(char *\fIstr\fP);
-\fBint innstr(char *\fIstr\fP, int \fIn\fP);
-\fBint winstr(WINDOW *\fIwin\fP, char *\fIstr\fP);
-\fBint winnstr(WINDOW *\fIwin\fP, char *\fIstr\fP, int \fIn\fP);
+\fBint instr(char * \fIstr\fP);
+\fBint winstr(WINDOW * \fIwin\fP, char * \fIstr\fP);
+\fBint mvinstr(int \fIy\fP, int \fIx\fP, char * \fIstr\fP);
+\fBint mvwinstr(WINDOW * \fIwin\fP, int \fIy\fP, int \fIx\fP, char * \fIstr\fP);
 .PP
-\fBint mvinstr(int \fIy\fP, int \fIx\fP, char *\fIstr\fP);
-\fBint mvinnstr(int \fIy\fP, int \fIx\fP, char *\fIstr\fP, int \fIn\fP);
-\fBint mvwinstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, char *\fIstr\fP);
-\fBint mvwinnstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, char *\fIstr\fP, int \fIn\fP);
+\fBint innstr(char * \fIstr\fP, int \fIn\fP);
+\fBint winnstr(WINDOW * \fIwin\fP, char * \fIstr\fP, int \fIn\fP);
+\fBint mvinnstr(int \fIy\fP, int \fIx\fP, char * \fIstr\fP, int \fIn\fP);
+\fBint mvwinnstr(WINDOW * \fIwin\fP, int \fIy\fP, int \fIx\fP, char * \fIstr\fP, int \fIn\fP);
 .fi
 .SH DESCRIPTION
-These routines return a string of characters in \fIstr\fP,
-starting at the current cursor position in the named window.
-Attributes are stripped from the characters.
-.PP
-The four functions with \fIn\fP as the last argument return
-a leading substring at most \fIn\fP characters long
-(exclusive of the trailing NUL).
-Transfer stops at the end of the current line, or when \fIn\fP characters have
-been stored at the location referenced by \fIstr\fP.
+.B \%winstr
+extracts a string from a
+.I curses
+window
+.IR win ","
+starting at the cursor and stopping at the end of the line,
+and stores it in
+.IR str ","
+terminating it with a null character
+and
+omitting any attributes and color pair identifier
+that
+.I curses
+associates with each character.
+.B \%winnstr
+does the same,
+but copies at most
+.I n
+characters from
+.IR win "."
+A negative
+.I n
+implies no limit;
+.B \%winnstr
+then works like
+.BR \%winstr "."
+\fB\%ncurses\fP(3X) describes the variants of these functions.
 .SH RETURN VALUE
-All of the functions return \fBERR\fP upon failure,
-or the number of characters actually read into the string.
+These functions return the count of characters copied from
+.I win
+to
+.I str
+(not including the null terminator),
+or
+.B ERR
+upon failure.
 .PP
-X/Open Curses defines no error conditions.
-This implementation returns an error
+In
+.IR \%ncurses ","
+these functions fail if
 .bP
-if the \fIwin\fP parameter is null or
+the
+.I curses
+screen has not been initialized,
 .bP
-if the \fIchstr\fP parameter is null.
+(for functions taking a
+.I \%WINDOW
+pointer argument)
+.I win
+is a null pointer,
+or
+.bP
+.I str
+is a null pointer.
 .PP
 Functions prefixed with \*(``mv\*('' first perform cursor movement and
 fail if the position
@@ -95,35 +130,88 @@ fail if the position
 .IR x )
 is outside the window boundaries.
 .SH NOTES
-All routines except \fBwinnstr\fP may be macros.
+All of these functions except
+.B \%winnstr
+may be implemented as macros.
 .PP
 Reading a line that overflows the array pointed to by
-\fIstr\fP
+.I str
 with
-\fBinstr\fP,
-\fBmvinstr\fP,
-\fBmvwinstr\fP
-or
-\fBwinstr\fP
-causes undefined results.
-Therefore, the use of
-\fBinnstr\fP,
-\fBmvinnstr\fP,
-\fBmvwinnstr\fP, or
-\fBwinnstr\fP
-is recommended.
+and its variants causes undefined results.
+Instead,
+use the
+.IR n -infixed
+functions with a positive
+.I n
+argument no larger than the size of the buffer backing
+.IR str "."
+.SH EXTENSIONS
+.BR \%innstr ","
+.BR \%winnstr ","
+.BR \%mvinnstr ","
+and
+.BR \%mvwinnstr "'s"
+acceptance of negative
+.I n
+values is an
+.I \%ncurses
+extension.
 .SH PORTABILITY
-SVr4 does not
-document whether a length limit includes or excludes the trailing NUL.
+Applications employing
+.I \%ncurses
+extensions should condition their use on the visibility of the
+.B \%NCURSES_VERSION
+preprocessor macro.
 .PP
-The \fI\%ncurses\fP library extends the X/Open Curses description by allowing a
-negative value for \fIn\fP.
-In this case, the functions return the string ending at the right margin.
+X/Open Curses Issue\ 4 describes these functions.
+It specifies no error conditions for them.
+.PP
+X/Open Curses Issues 4 and 7 both state that
+.IR \%instr ","
+.IR \%winstr ","
+.IR \%mvinstr ","
+and
+.I \%mvwinstr
+return
+.I OK
+rather than a character count.
+.\" X/Open Issue 4, Version 2, p. 117, PDF p. 137
+.\" Issue 7 makes the same claim.
+This is likely an erratum.
+.bP
+SVr3.1 and SVr4 implemented
+.I \%winstr
+as a wrapper around
+.IR \%winnstr ","
+returning the latter's return value.
+X/Open Curses's specification thus may have been an editorial solecism
+copied from System\ V's documentation
+(see below)
+by X/Open,
+rather than an intentional change.
+.bP
+.I \%ncurses
+retains compatibility with System\ V
+.I curses
+behavior.
+.PP
+SVr4 describes a successful return value only as
+\*(``an integer value other than
+.IR ERR \*(''. \" Courier roman in source; SVID 4, vol. 3, p. 503
+.PP
+SVr4 does not
+document whether
+.I n
+counts the null terminator that these functions write to
+.IR str "."
+.SH HISTORY
+SVr3.1 (1987)
+introduced these functions.
 .SH SEE ALSO
-\fB\%curs_ins_wstr\fP(3X) describes comparable functions of the
+\fB\%curs_inwstr\fP(3X) describes comparable functions of the
 .I \%ncurses
 library in its wide-character configuration
-.RI ( \%ncursesw ).
+.RI \%( ncursesw ).
 .PP
 \fB\%curses\fP(3X),
 \fB\%curs_inch\fP(3X),

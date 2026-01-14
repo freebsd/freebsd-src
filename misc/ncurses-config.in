@@ -1,7 +1,7 @@
 #!@SHELL@
-# $Id: ncurses-config.in,v 1.52 2022/07/26 21:36:28 tom Exp $
+# $Id: ncurses-config.in,v 1.63 2025/11/22 19:19:28 tom Exp $
 ##############################################################################
-# Copyright 2018-2021,2022 Thomas E. Dickey                                  #
+# Copyright 2018-2024,2025 Thomas E. Dickey                                  #
 # Copyright 2006-2015,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -46,11 +46,9 @@ datarootdir="@datarootdir@"
 datadir="@datadir@"
 mandir="@mandir@"
 
-THIS="@LIB_NAME@@USE_LIB_SUFFIX@"
+CURSES_LIB="@LIB_NAME@@ABI_SUFFIX@"
 TINFO_LIB="@TINFO_ARG_SUFFIX@"
 RPATH_LIST="@RPATH_LIST@"
-
-includesubdir="@includedir@/${THIS}"
 
 # Ensure that RPATH_LIST contains only absolute pathnames, if it is nonempty.
 # We cannot filter it out within the build-process since the variable is used
@@ -80,18 +78,29 @@ fi
 # the headers to include like this:
 #	<ncurses@LIB_SUFFIX@/curses.h>
 if [ x@WITH_OVERWRITE@ = xno ]; then
+	includesubdir="@includedir@/${CURSES_LIB}"
 	case $includedir in
 	$prefix/include/ncurses@LIB_SUFFIX@@EXTRA_SUFFIX@)
 		includedir=`echo "$includedir" | sed -e 's,/[^/]*$,,'`
 		;;
 	esac
+else
+	includesubdir="@includedir@"
 fi
 
 LIBS="@LIBS@"
 if [ "@TINFO_NAME@" = "@LIB_NAME@" ]; then
-	LIBS="-l${THIS} $LIBS"
+	LIBS="-l${CURSES_LIB} $LIBS"
 else
-	LIBS="-l${THIS} -l${TINFO_LIB} $LIBS"
+	LIBS="-l${CURSES_LIB} -l${TINFO_LIB} $LIBS"
+fi
+
+CFLAGS="@PKG_CFLAGS@"
+if [ "$includesubdir" != "/usr/include" ]; then
+	CFLAGS="$CFLAGS -I${includesubdir}"
+	if [ "$includedir" != "/usr/include" ]; then
+		[ x@WITH_OVERWRITE@ = xno ] && CFLAGS="$CFLAGS -I${includedir}"
+	fi
 fi
 
 # Ignore -L options which do not correspond to an actual directory, or which
@@ -107,7 +116,7 @@ do
 	-specs*) # ignore linker specs-files which were used to build library
 		continue
 		;;
-	-Wl,-z,*) # ignore flags used to manipulate shared image
+	-Wl,-z*) # ignore flags used to manipulate shared image
 		continue
 		;;
 	-Wl,--dynamic-linker*) # ignore ELF interpreter
@@ -123,7 +132,7 @@ do
 		@LD_SEARCHPATH@) # skip standard libdir
 			if [ "$lib_check" = "$libdir" ]
 			then
-				lib_first=yes
+				lib_first=no
 				IFS_save="$IFS"
 				IFS='|'
 				LIBDIRS="@LD_SEARCHPATH@"
@@ -131,11 +140,11 @@ do
 				do
 					if [ -d "$lib_check" ]
 					then
-						if [ "$lib_check" != "$libdir" ]
+						if [ "$lib_check" = "$libdir" ]
 						then
-							lib_first=no
+							lib_first=yes
+							break
 						fi
-						break
 					fi
 				done
 				IFS="$IFS_save"
@@ -186,16 +195,57 @@ while [ $# -gt 0 ]; do
 		;;
 	# compile/link
 	--cflags)
-		INCS="@PKG_CFLAGS@"
-		if [ "x@WITH_OVERWRITE@" = xno ]; then
-			INCS="$INCS -I${includesubdir}"
-		fi
-		if [ "${includedir}" != /usr/include ]; then
-			INCS="$INCS -I${includedir}"
-		fi
-		sed -e 's,^[ ]*,,' -e 's, [ ]*, ,g' -e 's,[ ]*$,,' <<-ENDECHO
-			$INCS
-ENDECHO
+		OPTS=
+		for opt in $CFLAGS
+		do
+			case "x$opt" in
+			x-[fgOW]*)
+				opt=
+				;;
+			esac
+			if [ -n "$opt" ]
+			then
+				[ -n "$OPTS" ] && OPTS="$OPTS "
+				OPTS="$OPTS$opt"
+			fi
+		done
+		printf "%s\n" "$OPTS"
+		;;
+	--cflags-only-I)
+		OPTS=
+		for opt in $CFLAGS
+		do
+			case "x$opt" in
+			x-[I]*)
+				;;
+			*)
+				opt=
+				;;
+			esac
+			if [ -n "$opt" ]
+			then
+				[ -n "$OPTS" ] && OPTS="$OPTS "
+				OPTS="$OPTS$opt"
+			fi
+		done
+		printf "%s\n" "$OPTS"
+		;;
+	--cflags-only-other)
+		OPTS=
+		for opt in $CFLAGS
+		do
+			case "x$opt" in
+			x-[I]*|x-[fgOW]*)
+				opt=
+				;;
+			esac
+			if [ -n "$opt" ]
+			then
+				[ -n "$OPTS" ] && OPTS="$OPTS "
+				OPTS="$OPTS$opt"
+			fi
+		done
+		printf "%s\n" "$OPTS"
 		;;
 	--libs)
 		OPTS=
@@ -294,30 +344,32 @@ ENDECHO
 Usage: `basename "$0"` [options]
 
 Options:
-  --prefix           echos the package-prefix of ${THIS}
-  --exec-prefix      echos the executable-prefix of ${THIS}
+  --prefix            echoes the package-prefix of ${CURSES_LIB}
+  --exec-prefix       echoes the executable-prefix of ${CURSES_LIB}
 
-  --cflags           echos the C compiler flags needed to compile with ${THIS}
-  --libs             echos the libraries needed to link with ${THIS}
+  --cflags            echoes the C compiler flags needed to compile for ${CURSES_LIB}
+  --cflags-only-I     echoes only -I C compiler flags needed with ${CURSES_LIB}
+  --cflags-only-other echoes only C compiler flags other than -I for ${CURSES_LIB}
+  --libs              echoes the libraries needed to link with ${CURSES_LIB}
 
-  --libs-only-L      echos -L linker options (search path) for ${THIS}
-  --libs-only-l      echos -l linker options (libraries) for ${THIS}
-  --libs-only-other  echos linker options other than -L/-l
+  --libs-only-L       echoes -L linker options (search path) for ${CURSES_LIB}
+  --libs-only-l       echoes -l linker options (libraries) for ${CURSES_LIB}
+  --libs-only-other   echoes linker options other than -L/-l
 
-  --version          echos the release+patchdate version of ${THIS}
-  --abi-version      echos the ABI version of ${THIS}
-  --mouse-version    echos the mouse-interface version of ${THIS}
+  --version           echoes the release+patchdate version of ${CURSES_LIB}
+  --abi-version       echoes the ABI version of ${CURSES_LIB}
+  --mouse-version     echoes the mouse-interface version of ${CURSES_LIB}
 
-  --bindir           echos the directory containing ${THIS} programs
-  --datadir          echos the directory containing ${THIS} data
-  --includedir       echos the directory containing ${THIS} header files
-  --libdir           echos the directory containing ${THIS} libraries
-  --mandir           echos the directory containing ${THIS} manpages
-  --terminfo         echos the \$TERMINFO terminfo database path
-  --terminfo-dirs    echos the \$TERMINFO_DIRS directory list
-  --termpath         echos the \$TERMPATH termcap list
+  --bindir            echoes the directory containing ${CURSES_LIB} programs
+  --datadir           echoes the directory containing ${CURSES_LIB} data
+  --includedir        echoes the directory containing ${CURSES_LIB} header files
+  --libdir            echoes the directory containing ${CURSES_LIB} libraries
+  --mandir            echoes the directory containing ${CURSES_LIB} man pages
+  --terminfo          echoes the \$TERMINFO terminfo database path
+  --terminfo-dirs     echoes the \$TERMINFO_DIRS directory list
+  --termpath          echoes the \$TERMPATH termcap list
 
-  --help             prints this message
+  --help              prints this message
 ENDHELP
 		;;
 	--error|*)

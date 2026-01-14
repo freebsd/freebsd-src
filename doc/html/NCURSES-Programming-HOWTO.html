@@ -3,7 +3,7 @@
 <html>
 <head>
   <meta name="generator" content=
-  "HTML Tidy for HTML5 for Linux version 5.6.0">
+  "HTML Tidy for HTML5 for Linux version 5.8.0">
   <title>NCURSES Programming HOWTO</title>
   <meta name="GENERATOR" content=
   "Modular DocBook HTML Stylesheet Version 1.79">
@@ -15,25 +15,51 @@
       <h1 class="TITLE"><a name="AEN2" id="AEN2">NCURSES
       Programming HOWTO</a></h1>
 
-      <h3 class="AUTHOR"><a name="AEN4" id="AEN4">Pradeep
-      Padala</a></h3>
+      <div class="AUTHORGROUP">
+        <a name="AEN4" id="AEN4"></a>
+        <h3 class="AUTHOR"><a name="AEN5" id="AEN5">Pradeep
+        Padala</a></h3>
 
-      <div class="AFFILIATION">
-        <div class="ADDRESS">
-          <p class="ADDRESS"><code class="EMAIL">&lt;<a href=
-          "mailto:ppadala@gmail.com">ppadala@gmail.com</a>&gt;</code>
-          </p>
+        <div class="AFFILIATION">
+          <div class="ADDRESS">
+            <p class="ADDRESS"><code class="EMAIL">&lt;<a href=
+            "mailto:ppadala@gmail.com">ppadala@gmail.com</a>&gt;</code>
+            </p>
+          </div>
+        </div>
+
+        <h3 class="AUTHOR"><a name="AEN11" id="AEN11">Thomas E.
+        Dickey</a></h3>
+
+        <div class="AFFILIATION">
+          <div class="ADDRESS">
+            <p class="ADDRESS"><code class="EMAIL">&lt;<a href=
+            "mailto:dickey@invisible-island.net">dickey@invisible-island.net</a>&gt;</code>
+            </p>
+          </div>
         </div>
       </div>
 
-      <p class="PUBDATE">v1.9, 2005-06-20<br></p>
+      <p class="PUBDATE">v2.1, 2024-09-08<br></p>
 
       <div class="REVHISTORY">
-        <table width="100%" border="0" summary="revisions">
+        <table width="100%" border="0">
           <tr>
             <th align="left" valign="top" colspan="3"><b>Revision
             History</b>
             </th>
+          </tr>
+
+          <tr>
+            <td align="left">Revision 2.1</td>
+            <td align="left">2024-09-08</td>
+            <td align="left">Revised by: dickey</td>
+          </tr>
+
+          <tr>
+            <td align="left" colspan="3">Fixes for the sample
+            programs. Remove obsolete mailing addresses. Update
+            publication date.</td>
           </tr>
 
           <tr>
@@ -179,14 +205,14 @@
 
       <div>
         <div class="ABSTRACT">
-          <a name="AEN72" id="AEN72"></a>
+          <a name="AEN85" id="AEN85"></a>
           <p><span class="emphasis"><i class="EMPHASIS">This
           document is intended to be an "All in One" guide for
           programming with ncurses and its sister libraries. We
           graduate from a simple "Hello World" program to more
           complex form manipulation. No prior experience in ncurses
           is assumed. Send comments to <a href=
-          "mailto:ppadala@gmail.com" target="_top">this
+          "mailto:bug-ncurses@gnu.org" target="_top">this
           address</a></i></span>
           </p>
         </div>
@@ -223,8 +249,8 @@
 
             <dd>
               <dl>
-                <dt>1.6.1. <a href="#LISTFORMATS">Readily available
-                formats from tldp.org</a></dt>
+                <dt>1.6.1. <a href="#LISTFORMATS">Alternative
+                formats</a></dt>
 
                 <dt>1.6.2. <a href="#BUILDSOURCE">Building from
                 source</a></dt>
@@ -299,7 +325,7 @@
             <dt>6.1. <a href="#ADDCHCLASS">addch() class of
             functions</a></dt>
 
-            <dt>6.2. <a href="#AEN303">mvaddch(), waddch() and
+            <dt>6.2. <a href="#AEN324">mvaddch(), waddch() and
             mvwaddch()</a></dt>
 
             <dt>6.3. <a href="#PRINTWCLASS">printw() class of
@@ -658,7 +684,7 @@
       of bytes. All the capabilities (such as moving the cursor to
       a new location, erasing part of the screen, scrolling the
       screen, changing modes, etc.) of terminals could be accessed
-      through these series of bytes. These control seeuqnces are
+      through these series of bytes. These control sequences are
       usually called escape sequences, because they start with an
       escape(0x1B) character. Even today, with proper emulation, we
       can send escape sequences to the emulator and achieve the
@@ -767,36 +793,41 @@
         package</i></span>
         </p>
 
-        <p>NCURSES can be obtained from <a href=
-        "ftp://ftp.gnu.org/pub/gnu/ncurses/ncurses.tar.gz" target=
-        "_top">ftp://ftp.gnu.org/pub/gnu/ncurses/ncurses.tar.gz</a>
-        or any of the ftp sites mentioned in <a href=
-        "https://www.gnu.org/order/ftp.html" target=
-        "_top">https://www.gnu.org/order/ftp.html</a>.</p>
+        <p>NCURSES can be obtained from</p>
 
-        <p>Read the README and INSTALL files for details on to how
-        to install it. It usually involves the following
-        operations.</p>
+        <ul>
+          <li>
+            <p>the home page at <a href=
+            "https://invisible-island.net/" target=
+            "_top">https://invisible-island.net</a>, as well as</p>
+          </li>
+
+          <li>
+            <p><a href="https://ftp.gnu.org/pub/gnu/ncurses/"
+            target="_top">https://ftp.gnu.org/pub/gnu/ncurses/</a>
+            or</p>
+          </li>
+
+          <li>
+            <p>any of the mirror sites mentioned in <a href=
+            "https://www.gnu.org/order/ftp.html" target=
+            "_top">https://www.gnu.org/order/ftp.html</a>.</p>
+          </li>
+        </ul>
+
+        <p>Read the README and <a href=
+        "https://invisible-island.net/ncurses/INSTALL.html" target=
+        "_top">INSTALL</a> files for details on to how to install
+        it. It usually involves the following operations.</p>
 
         <pre class=
         "PROGRAMLISTING">    tar zxvf ncurses&lt;version&gt;.tar.gz  # unzip and untar the archive
     cd ncurses&lt;version&gt;               # cd to the directory
-    ./configure                             # configure the build according to your 
-                                            # environment
-    make                                    # make it
-    su root                                 # become root
-    make install                            # install it</pre>
-        <p><span class="emphasis"><i class="EMPHASIS">Using the
-        RPM</i></span>
-        </p>
-
-        <p>NCURSES RPM can be found and downloaded from <a href=
-        "https://rpmfind.net" target="_top">https://rpmfind.net</a>
-        . The RPM can be installed with the following command after
-        becoming root.</p>
-
-        <pre class=
-        "PROGRAMLISTING">    rpm -i &lt;downloaded rpm&gt;</pre>
+    ./configure                       # configure the build according to your
+                                      # environment
+    make                              # make it
+    su root                           # become root
+    make install                      # install it</pre>
       </div>
 
       <div class="SECT2">
@@ -819,10 +850,10 @@
         <h3 class="SECT2"><a name="ABOUTPROGRAMS" id=
         "ABOUTPROGRAMS">1.5. About the Programs</a></h3>
 
-        <p>All the programs in the document are available in zipped
-        form <a href=
-        "https://www.tldp.org/HOWTO/NCURSES-Programming-HOWTO/ncurses_programs.tar.gz"
-        target="_top">here</a>. Unzip and untar it. The directory
+        <p>All the programs in the document are available in
+        gzipped form <a href=
+        "https://invisible-island.net/ncurses/howto/ncurses_programs.tar.gz"
+        target="_top">here</a>. Ungzip and untar it. The directory
         structure looks like this.</p>
 
         <pre class="PROGRAMLISTING">ncurses
@@ -850,7 +881,7 @@ JustForFun
     |
     |----&gt; hanoi.c   -- The Towers of Hanoi Solver
     |----&gt; life.c    -- The Game of Life demo
-    |----&gt; magic.c   -- An Odd Order Magic Square builder 
+    |----&gt; magic.c   -- An Odd Order Magic Square builder
     |----&gt; queens.c  -- The famous N-Queens Solver
     |----&gt; shuffle.c -- A fun game, if you have time to kill
     |----&gt; tt.c      -- A very trivial typing tutor
@@ -866,23 +897,23 @@ JustForFun
     |                               -- rt from box()
     |----&gt; printw_example.c      -- A very simple printw() example
     |----&gt; scanw_example.c       -- A very simple getstr() example
-    |----&gt; simple_attr.c         -- A program that can print a c file with 
+    |----&gt; simple_attr.c         -- A program that can print a c file with
     |                               -- comments in attribute
     |----&gt; simple_color.c        -- A simple example demonstrating colors
-    |----&gt; simple_key.c          -- A menu accessible with keyboard UP, DOWN 
+    |----&gt; simple_key.c          -- A menu accessible with keyboard UP, DOWN
     |                               -- arrows
     |----&gt; temp_leave.c          -- Demonstrates temporarily leaving curses mode
     |----&gt; win_border.c          -- Shows Creation of windows and borders
     |----&gt; with_chgat.c          -- chgat() usage example
 
-  forms 
+  forms
     |
     |----&gt; form_attrib.c     -- Usage of field attributes
     |----&gt; form_options.c    -- Usage of field options
     |----&gt; form_simple.c     -- A simple form example
     |----&gt; form_win.c        -- Demo of windows associated with forms
 
-  menus 
+  menus
     |
     |----&gt; menu_attrib.c     -- Usage of menu attributes
     |----&gt; menu_item_data.c  -- Usage of item_name(), etc. functions
@@ -894,9 +925,9 @@ JustForFun
     |----&gt; menu_userptr.c    -- Usage of user pointer
     |----&gt; menu_win.c        -- Demo of windows associated with menus
 
-  panels 
+  panels
     |
-    |----&gt; panel_browse.c    -- Panel browsing through tab. Usage of user 
+    |----&gt; panel_browse.c    -- Panel browsing through tab. Usage of user
     |                           -- pointer
     |----&gt; panel_hide.c      -- Hiding and Un hiding of panels
     |----&gt; panel_resize.c    -- Moving and resizing of panels
@@ -914,12 +945,6 @@ JustForFun
         <p>For every example, I have included path name for the
         file relative to the examples directory.</p>
 
-        <p>If you prefer browsing individual programs, point your
-        browser to <a href=
-        "https://tldp.org/HOWTO/NCURSES-Programming-HOWTO/ncurses_programs/"
-        target=
-        "_top">https://tldp.org/HOWTO/NCURSES-Programming-HOWTO/ncurses_programs/</a></p>
-
         <p>All the programs are released under the same license
         that is used by ncurses (MIT-style). This gives you the
         ability to do pretty much anything other than claiming them
@@ -933,40 +958,38 @@ JustForFun
         <h3 class="SECT2"><a name="OTHERFORMATS" id=
         "OTHERFORMATS">1.6. Other Formats of the document</a></h3>
 
-        <p>This howto is also available in various other formats on
-        the tldp.org site. Here are the links to other formats of
-        this document.</p>
+        <p>This howto is also available in other formats. Here are
+        the links to other formats of this document.</p>
 
         <div class="SECT3">
           <hr>
 
           <h4 class="SECT3"><a name="LISTFORMATS" id=
-          "LISTFORMATS">1.6.1. Readily available formats from
-          tldp.org</a></h4>
+          "LISTFORMATS">1.6.1. Alternative formats</a></h4>
 
           <ul>
             <li>
               <p><a href=
-              "https://www.ibiblio.org/pub/Linux/docs/HOWTO/other-formats/pdf/NCURSES-Programming-HOWTO.pdf"
+              "https://invisible-island.net/ncurses/howto/NCURSES-Programming-HOWTO.pdf"
               target="_top">Acrobat PDF Format</a></p>
             </li>
 
             <li>
               <p><a href=
-              "https://www.ibiblio.org/pub/Linux/docs/HOWTO/other-formats/ps/NCURSES-Programming-HOWTO.ps.gz"
+              "https://invisible-island.net/ncurses/howto/NCURSES-Programming-HOWTO.ps"
               target="_top">PostScript Format</a></p>
             </li>
 
             <li>
               <p><a href=
-              "https://www.ibiblio.org/pub/Linux/docs/HOWTO/other-formats/html/NCURSES-Programming-HOWTO-html.tar.gz"
+              "https://invisible-island.net/ncurses/howto/NCURSES-Programming-HOWTO-html.tar.gz"
               target="_top">In Multiple HTML pages</a></p>
             </li>
 
             <li>
               <p><a href=
-              "https://www.ibiblio.org/pub/Linux/docs/HOWTO/other-formats/html_single/NCURSES-Programming-HOWTO.html"
-              target="_top">In One big HTML format</a></p>
+              "https://invisible-island.net/ncurses/howto/NCURSES-Programming-HOWTO.html"
+              target="_top">A single HTML file.</a></p>
             </li>
           </ul>
         </div>
@@ -977,37 +1000,29 @@ JustForFun
           <h4 class="SECT3"><a name="BUILDSOURCE" id=
           "BUILDSOURCE">1.6.2. Building from source</a></h4>
 
-          <p>If above links are broken or if you want to experiment
-          with sgml read on.</p>
+          <p>The sources for this HOWTO can be retrieved from</p>
 
-          <pre class=
-          "PROGRAMLISTING">&#13;    Get both the source and the tar,gzipped programs, available at
-        http://cvsview.tldp.org/index.cgi/LDP/howto/docbook/
-        NCURSES-HOWTO/NCURSES-Programming-HOWTO.sgml
-        http://cvsview.tldp.org/index.cgi/LDP/howto/docbook/
-        NCURSES-HOWTO/ncurses_programs.tar.gz
+          <div class="INFORMALEXAMPLE">
+            <a name="AEN164" id="AEN164"></a>
 
-    Unzip ncurses_programs.tar.gz with
-    tar zxvf ncurses_programs.tar.gz
+            <pre class="PROGRAMLISTING"><a href=
+            "https://github.com/ThomasDickey/ncurses-howto-snapshots"
+            target=
+            "_top">https://github.com/ThomasDickey/ncurses-howto-snapshots</a></pre>
+          </div>
 
-    Use jade to create various formats. For example if you just want to create
-    the multiple html files, you would use
-        jade -t sgml -i html -d &lt;path to docbook html stylesheet&gt;
-        NCURSES-Programming-HOWTO.sgml
-    to get pdf, first create a single html file of the HOWTO with 
-        jade -t sgml -i html -d &lt;path to docbook html stylesheet&gt; -V nochunks
-        NCURSES-Programming-HOWTO.sgml &gt; NCURSES-ONE-BIG-FILE.html
-    then use htmldoc to get pdf file with
-        htmldoc --size universal -t pdf --firstpage p1 -f &lt;output file name.pdf&gt;
-        NCURSES-ONE-BIG-FILE.html
-    for ps, you would use
-        htmldoc --size universal -t ps --firstpage p1 -f &lt;output file name.ps&gt;
-        NCURSES-ONE-BIG-FILE.html</pre>
-          <p>See <a href=
-          "https://www.tldp.org/LDP/LDP-Author-Guide/" target=
-          "_top">LDP Author guide</a> for more details. If all else
-          fails, mail me at <a href="ppadala@gmail.com" target=
-          "_top">ppadala@gmail.com</a></p>
+          <p>These tools were used to format the HOWTO and build
+          the examples:</p>
+
+          <ul>
+            <li>
+              <p>docbook-utils (a Debian package)</p>
+            </li>
+
+            <li>
+              <p>gcc</p>
+            </li>
+          </ul>
         </div>
       </div>
 
@@ -1017,21 +1032,22 @@ JustForFun
         <h3 class="SECT2"><a name="CREDITS" id="CREDITS">1.7.
         Credits</a></h3>
 
-        <p>I thank <a href="mailto:sharath_1@usa.net" target=
-        "_top">Sharath</a> and Emre Akbas for helping me with few
-        sections. The introduction was initially written by
-        sharath. I rewrote it with few excerpts taken from his
-        initial work. Emre helped in writing printw and scanw
-        sections.</p>
+        <p>I thank <span class="emphasis"><i class=
+        "EMPHASIS">Sharath</i></span> and <span class=
+        "emphasis"><i class="EMPHASIS">Emre Akbas</i></span> for
+        helping me with few sections. The introduction was
+        initially written by Sharath. I rewrote it with few
+        excerpts taken from his initial work. Emre helped in
+        writing printw and scanw sections.</p>
 
-        <p>Perl equivalents of the example programs are contributed
-        by <a href="mailto:Aratnaweera@virtusa.com" target=
-        "_top">Anuradha Ratnaweera</a>.</p>
+        <p>Perl equivalents of the example programs were
+        contributed by <span class="emphasis"><i class=
+        "EMPHASIS">Anuradha Ratnaweera</i></span>.</p>
 
-        <p>Then comes <a href="mailto:parimi@ece.arizona.edu"
-        target="_top">Ravi Parimi</a>, my dearest friend, who has
-        been on this project before even one line was written. He
-        constantly bombarded me with suggestions and patiently
+        <p>Then comes <span class="emphasis"><i class=
+        "EMPHASIS">Ravi Parimi</i></span>, my dearest friend, who
+        has been on this project before even one line was written.
+        He constantly bombarded me with suggestions and patiently
         reviewed the whole text. He also checked each program on
         Linux and Solaris.</p>
       </div>
@@ -1150,15 +1166,16 @@ JustForFun
           <pre class="PROGRAMLISTING"><span class=
           "INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
 
-int main()
-{       
-        initscr();                      /* Start curses mode              */
-        printw("Hello World !!!");      /* Print Hello World              */
-        refresh();                      /* Print it on to the real screen */
-        getch();                        /* Wait for user input */
-        endwin();                       /* End curses mode                */
+int
+main(void)
+{
+    initscr();                  /* Start curses mode              */
+    printw("Hello World !!!");  /* Print Hello World              */
+    refresh();                  /* Print it on to the real screen */
+    getch();                    /* Wait for user input */
+    endwin();                   /* End curses mode                */
 
-        return 0;
+    return 0;
 }</span></pre>
         </div>
       </div>
@@ -1388,34 +1405,36 @@ int main()
           <pre class="PROGRAMLISTING"><span class=
           "INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
 
-int main()
-{       int ch;
+int
+main(void)
+{
+    int ch;
 
-        initscr();                      /* Start curses mode            */
-        raw();                          /* Line buffering disabled      */
-        keypad(stdscr, TRUE);           /* We get F1, F2 etc..          */
-        noecho();                       /* Don't echo() while we do getch */
+    initscr();                  /* Start curses mode            */
+    raw();                      /* Line buffering disabled      */
+    keypad(stdscr, TRUE);       /* We get F1, F2 etc..          */
+    noecho();                   /* Don't echo() while we do getch */
 
-        printw("Type any character to see it in bold\n");
-        ch = getch();                   /* If raw() hadn't been called
-                                         * we have to press enter before it
-                                         * gets to the program          */
-        if(ch == KEY_F(1))              /* Without keypad enabled this will */
-                printw("F1 Key pressed");/*  not get to us either       */
-                                        /* Without noecho() some ugly escape
-                                         * characters might have been printed
-                                         * on screen                    */
-        else
-        {       printw("The pressed key is ");
-                attron(A_BOLD);
-                printw("%c", ch);
-                attroff(A_BOLD);
-        }
-        refresh();                      /* Print it on to the real screen */
-        getch();                        /* Wait for user input */
-        endwin();                       /* End curses mode                */
+    printw("Type any character to see it in bold\n");
+    ch = getch();               /* If raw() hadn't been called
+                                 * we have to press enter before it
+                                 * gets to the program          */
+    if (ch == KEY_F(1))         /* Without keypad enabled this will */
+        printw("F1 Key pressed"); /*  not get to us either       */
+                                /* Without noecho() some ugly escape
+                                 * characters might have been printed
+                                 * on screen                    */
+    else {
+        printw("The pressed key is ");
+        attron(A_BOLD);
+        printw("%c", ch);
+        attroff(A_BOLD);
+    }
+    refresh();                  /* Print it on to the real screen */
+    getch();                    /* Wait for user input */
+    endwin();                   /* End curses mode                */
 
-        return 0;
+    return 0;
 }</span></pre>
         </div>
 
@@ -1573,7 +1592,7 @@ int main()
       <div class="SECT2">
         <hr>
 
-        <h3 class="SECT2"><a name="AEN303" id="AEN303">6.2.
+        <h3 class="SECT2"><a name="AEN324" id="AEN324">6.2.
         mvaddch(), waddch() and mvwaddch()</a></h3>
 
         <p><tt class="LITERAL">mvaddch()</tt> is used to move the
@@ -1669,24 +1688,25 @@ int main()
 
             <pre class="PROGRAMLISTING"><span class=
             "INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
-#include &lt;string.h&gt; 
- 
-int main()
-{
- char mesg[]="Just a string";           /* message to be appeared on the screen */
- int row,col;                           /* to store the number of rows and *
-                                         * the number of columns of the screen */
- initscr();                             /* start the curses mode */
- getmaxyx(stdscr,row,col);              /* get the number of rows and columns */
- mvprintw(row/2,(col-strlen(mesg))/2,"%s",mesg);
-                                        /* print the message at the center of the screen */
- mvprintw(row-2,0,"This screen has %d rows and %d columns\n",row,col);
- printw("Try resizing your window(if possible) and then run this program again");
- refresh();
- getch();
- endwin();
+#include &lt;string.h&gt;
 
- return 0;
+int
+main(void)
+{
+    char mesg[] = "Just a string";      /* message to be appeared on the screen */
+    int row, col;               /* to store the number of rows and *
+                                 * the number of columns of the screen */
+    initscr();                  /* start the curses mode */
+    getmaxyx(stdscr, row, col); /* get the number of rows and columns */
+    mvprintw(row / 2, (col - (int) strlen(mesg)) / 2, "%s", mesg);
+    /* print the message at the center of the screen */
+    mvprintw(row - 2, 0, "This screen has %d rows and %d columns\n", row, col);
+    printw("Try resizing your window(if possible) and then run this program again");
+    refresh();
+    getch();
+    endwin();
+
+    return 0;
 }</span></pre>
           </div>
 
@@ -1865,24 +1885,25 @@ int main()
 
           <pre class="PROGRAMLISTING"><span class=
           "INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
-#include &lt;string.h&gt; 
- 
-int main()
-{
- char mesg[]="Enter a string: ";                /* message to be appeared on the screen */
- char str[80];
- int row,col;                           /* to store the number of rows and *
-                                         * the number of columns of the screen */
- initscr();                             /* start the curses mode */
- getmaxyx(stdscr,row,col);              /* get the number of rows and columns */
- mvprintw(row/2,(col-strlen(mesg))/2,"%s",mesg);
-                                /* print the message at the center of the screen */
- getstr(str);
- mvprintw(LINES - 2, 0, "You Entered: %s", str);
- getch();
- endwin();
+#include &lt;string.h&gt;
 
- return 0;
+int
+main(void)
+{
+    char mesg[] = "Enter a string: ";   /* message to be appeared on the screen */
+    char str[80];
+    int row, col;               /* to store the number of rows and *
+                                 * the number of columns of the screen */
+    initscr();                  /* start the curses mode */
+    getmaxyx(stdscr, row, col); /* get the number of rows and columns */
+    mvprintw(row / 2, (col - (int) strlen(mesg)) / 2, "%s", mesg);
+    /* print the message at the center of the screen */
+    getstr(str);
+    mvprintw(LINES - 2, 0, "You Entered: %s", str);
+    getch();
+    endwin();
+
+    return 0;
 }</span></pre>
         </div>
       </div>
@@ -1911,55 +1932,54 @@ int main()
 #include &lt;curses.h&gt;
 #include &lt;stdlib.h&gt;
 
-int main(int argc, char *argv[])
-{ 
-  int ch, prev, row, col;
-  prev = EOF;
-  FILE *fp;
-  int y, x;
+int
+main(int argc, char *argv[])
+{
+    int ch, row, col;
+    int prev = EOF;
+    FILE *fp;
+    int y, x;
 
-  if(argc != 2)
-  {
-    printf("Usage: %s &lt;a c file name&gt;\n", argv[0]);
-    exit(1);
-  }
-  fp = fopen(argv[1], "r");
-  if(fp == NULL)
-  {
-    perror("Cannot open input file");
-    exit(1);
-  }
-  initscr();                            /* Start curses mode */
-  getmaxyx(stdscr, row, col);           /* find the boundaries of the screeen */
-  while((ch = fgetc(fp)) != EOF)        /* read the file till we reach the end */
-  {
-    getyx(stdscr, y, x);                /* get the current cursor position */
-    if(y == (row - 1))                  /* are we are at the end of the screen */
-    {
-      printw("&lt;-Press Any Key-&gt;");      /* tell the user to press a key */
-      getch();
-      clear();                          /* clear the screen */
-      move(0, 0);                       /* start at the beginning of the screen */
+    if (argc != 2) {
+        printf("Usage: %s &lt;a c file name&gt;\n", argv[0]);
+        exit(1);
     }
-    if(prev == '/' &amp;&amp; ch == '*')        /* If it is / and * then only
-                                         * switch bold on */    
-    {
-      attron(A_BOLD);                   /* cut bold on */
-      getyx(stdscr, y, x);              /* get the current cursor position */
-      move(y, x - 1);                   /* back up one space */
-      printw("%c%c", '/', ch);          /* The actual printing is done here */
+    fp = fopen(argv[1], "r");
+    if (fp == NULL) {
+        perror("Cannot open input file");
+        exit(1);
     }
-    else
-      printw("%c", ch);
-    refresh();
-    if(prev == '*' &amp;&amp; ch == '/')
-      attroff(A_BOLD);                  /* Switch it off once we got *
-                                         * and then / */
-    prev = ch;
-  }
-  endwin();                             /* End curses mode */
-  fclose(fp);
-  return 0;
+    initscr();                          /* Start curses mode */
+    getmaxyx(stdscr, row, col);         /* find the boundaries of the screeen */
+    (void) col;
+    while ((ch = fgetc(fp)) != EOF)     /* read the file till we reach the end */
+    {
+        getyx(stdscr, y, x);            /* get the current cursor position */
+        if (y == (row - 1))             /* are we are at the end of the screen */
+        {
+            printw("&lt;-Press Any Key-&gt;"); /* tell the user to press a key */
+            getch();
+            clear();                    /* clear the screen */
+            move(0, 0);                 /* start at the beginning of the screen */
+        }
+        if (prev == '/' &amp;&amp; ch == '*')   /* If it is / and * then only
+                                         * switch bold on */
+        {
+            attron(A_BOLD);             /* cut bold on */
+            getyx(stdscr, y, x);        /* get the current cursor position */
+            move(y, x - 1);             /* back up one space */
+            printw("%c%c", '/', ch);    /* The actual printing is done here */
+        } else
+            printw("%c", ch);
+        refresh();
+        if (prev == '*' &amp;&amp; ch == '/')
+            attroff(A_BOLD);    /* Switch it off once we got *
+                                 * and then / */
+        prev = ch;
+    }
+    endwin();                   /* End curses mode */
+    fclose(fp);
+    return 0;
 }</span></pre>
       </div>
 
@@ -2002,8 +2022,8 @@ int main(int argc, char *argv[])
         following video attributes, which are defined in
         &lt;curses.h&gt; can be passed to these functions.</p>
 
-        <pre class="PROGRAMLISTING">    
-    A_NORMAL        Normal display (no highlight)
+        <pre class=
+        "PROGRAMLISTING">&#13;    A_NORMAL        Normal display (no highlight)
     A_STANDOUT      Best highlighting mode of the terminal.
     A_UNDERLINE     Underlining
     A_REVERSE       Reverse video
@@ -2014,10 +2034,9 @@ int main(int argc, char *argv[])
     A_INVIS         Invisible or blank mode
     A_ALTCHARSET    Alternate character set
     A_CHARTEXT      Bit-mask to extract a character
-    COLOR_PAIR(n)   Color-pair number n 
-    </pre>
+    COLOR_PAIR(n)   Color-pair number n&#13;</pre>
         <p>The last one is the most colorful one :-) Colors are
-        explained in the <a href="#color" target="_top">next
+        explained in the <a href="#COLOR" target="_top">next
         sections</a>.</p>
 
         <p>We can OR(|) any number of above attributes to get a
@@ -2129,27 +2148,29 @@ int main(int argc, char *argv[])
           <pre class="PROGRAMLISTING"><span class=
           "INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
 
-int main(int argc, char *argv[])
-{       initscr();                      /* Start curses mode            */
-        start_color();                  /* Start color functionality    */
-        
-        init_pair(1, COLOR_CYAN, COLOR_BLACK);
-        printw("A Big string which i didn't care to type fully ");
-        mvchgat(0, 0, -1, A_BLINK, 1, NULL);    
-        /* 
-         * First two parameters specify the position at which to start 
-         * Third parameter number of characters to update. -1 means till 
-         * end of line
-         * Forth parameter is the normal attribute you wanted to give 
-         * to the character
-         * Fifth is the color index. It is the index given during init_pair()
-         * use 0 if you didn't want color
-         * Sixth one is always NULL 
-         */
-        refresh();
-        getch();
-        endwin();                       /* End curses mode                */
-        return 0;
+int
+main(void)
+{
+    initscr();                  /* Start curses mode            */
+    start_color();              /* Start color functionality    */
+
+    init_pair(1, COLOR_CYAN, COLOR_BLACK);
+    printw("A Big string which i didn't care to type fully ");
+    mvchgat(0, 0, -1, A_BLINK, 1, NULL);
+    /*
+     * First two parameters specify the position at which to start
+     * Third parameter number of characters to update. -1 means till
+     * end of line
+     * Forth parameter is the normal attribute you wanted to give
+     * to the character
+     * Fifth is the color index. It is the index given during init_pair()
+     * use 0 if you didn't want color
+     * Sixth one is always NULL
+     */
+    refresh();
+    getch();
+    endwin();                   /* End curses mode                */
+    return 0;
 }</span></pre>
         </div>
 
@@ -2222,81 +2243,86 @@ int main(int argc, char *argv[])
 WINDOW *create_newwin(int height, int width, int starty, int startx);
 void destroy_win(WINDOW *local_win);
 
-int main(int argc, char *argv[])
-{       WINDOW *my_win;
-        int startx, starty, width, height;
-        int ch;
+int
+main(void)
+{
+    WINDOW *my_win;
+    int startx, starty, width, height;
+    int ch;
 
-        initscr();                      /* Start curses mode            */
-        cbreak();                       /* Line buffering disabled, Pass on
-                                         * everty thing to me           */
-        keypad(stdscr, TRUE);           /* I need that nifty F1         */
+    initscr();                  /* Start curses mode            */
+    cbreak();                   /* Line buffering disabled, Pass on
+                                 * every thing to me            */
+    keypad(stdscr, TRUE);       /* I need that nifty F1         */
 
-        height = 3;
-        width = 10;
-        starty = (LINES - height) / 2;  /* Calculating for a center placement */
-        startx = (COLS - width) / 2;    /* of the window                */
-        printw("Press F1 to exit");
-        refresh();
-        my_win = create_newwin(height, width, starty, startx);
+    height = 3;
+    width = 10;
+    starty = (LINES - height) / 2;      /* Calculating for a center placement */
+    startx = (COLS - width) / 2;        /* of the window                */
+    printw("Press F1 to exit");
+    refresh();
+    my_win = create_newwin(height, width, starty, startx);
 
-        while((ch = getch()) != KEY_F(1))
-        {       switch(ch)
-                {       case KEY_LEFT:
-                                destroy_win(my_win);
-                                my_win = create_newwin(height, width, starty,--startx);
-                                break;
-                        case KEY_RIGHT:
-                                destroy_win(my_win);
-                                my_win = create_newwin(height, width, starty,++startx);
-                                break;
-                        case KEY_UP:
-                                destroy_win(my_win);
-                                my_win = create_newwin(height, width, --starty,startx);
-                                break;
-                        case KEY_DOWN:
-                                destroy_win(my_win);
-                                my_win = create_newwin(height, width, ++starty,startx);
-                                break;  
-                }
+    while ((ch = getch()) != KEY_F(1)) {
+        switch (ch) {
+        case KEY_LEFT:
+            destroy_win(my_win);
+            my_win = create_newwin(height, width, starty, --startx);
+            break;
+        case KEY_RIGHT:
+            destroy_win(my_win);
+            my_win = create_newwin(height, width, starty, ++startx);
+            break;
+        case KEY_UP:
+            destroy_win(my_win);
+            my_win = create_newwin(height, width, --starty, startx);
+            break;
+        case KEY_DOWN:
+            destroy_win(my_win);
+            my_win = create_newwin(height, width, ++starty, startx);
+            break;
         }
-                
-        endwin();                       /* End curses mode                */
-        return 0;
+    }
+
+    endwin();                   /* End curses mode                */
+    return 0;
 }
 
-WINDOW *create_newwin(int height, int width, int starty, int startx)
-{       WINDOW *local_win;
+WINDOW *
+create_newwin(int height, int width, int starty, int startx)
+{
+    WINDOW *local_win;
 
-        local_win = newwin(height, width, starty, startx);
-        box(local_win, 0 , 0);          /* 0, 0 gives default characters 
-                                         * for the vertical and horizontal
-                                         * lines                        */
-        wrefresh(local_win);            /* Show that box                */
+    local_win = newwin(height, width, starty, startx);
+    box(local_win, 0, 0);       /* 0, 0 gives default characters
+                                 * for the vertical and horizontal
+                                 * lines                        */
+    wrefresh(local_win);        /* Show that box                */
 
-        return local_win;
+    return local_win;
 }
 
-void destroy_win(WINDOW *local_win)
-{       
-        /* box(local_win, ' ', ' '); : This won't produce the desired
-         * result of erasing the window. It will leave its four corners 
-         * and so an ugly remnant of window. 
-         */
-        wborder(local_win, ' ', ' ', ' ',' ',' ',' ',' ',' ');
-        /* The parameters taken are 
-         * 1. win: the window on which to operate
-         * 2. ls: character to be used for the left side of the window 
-         * 3. rs: character to be used for the right side of the window 
-         * 4. ts: character to be used for the top side of the window 
-         * 5. bs: character to be used for the bottom side of the window 
-         * 6. tl: character to be used for the top left corner of the window 
-         * 7. tr: character to be used for the top right corner of the window 
-         * 8. bl: character to be used for the bottom left corner of the window 
-         * 9. br: character to be used for the bottom right corner of the window
-         */
-        wrefresh(local_win);
-        delwin(local_win);
+void
+destroy_win(WINDOW *local_win)
+{
+    /* box(local_win, ' ', ' '); : This won't produce the desired
+     * result of erasing the window. It will leave its four corners
+     * and so an ugly remnant of window.
+     */
+    wborder(local_win, ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ');
+    /* The parameters taken are
+     * 1. win: the window on which to operate
+     * 2. ls: character to be used for the left side of the window
+     * 3. rs: character to be used for the right side of the window
+     * 4. ts: character to be used for the top side of the window
+     * 5. bs: character to be used for the bottom side of the window
+     * 6. tl: character to be used for the top left corner of the window
+     * 7. tr: character to be used for the top right corner of the window
+     * 8. bl: character to be used for the bottom left corner of the window
+     * 9. br: character to be used for the bottom right corner of the window
+     */
+    wrefresh(local_win);
+    delwin(local_win);
 }</span></pre>
         </div>
       </div>
@@ -2391,122 +2417,129 @@ void destroy_win(WINDOW *local_win)
           "INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
 
 typedef struct _win_border_struct {
-        chtype  ls, rs, ts, bs, 
-                tl, tr, bl, br;
-}WIN_BORDER;
+    chtype ls, rs, ts, bs, tl, tr, bl, br;
+} WIN_BORDER;
 
 typedef struct _WIN_struct {
 
-        int startx, starty;
-        int height, width;
-        WIN_BORDER border;
-}WIN;
+    int startx, starty;
+    int height, width;
+    WIN_BORDER border;
+} WIN;
 
-void init_win_params(WIN *p_win);
-void print_win_params(WIN *p_win);
-void create_box(WIN *win, bool flag);
+void init_win_params(WIN * p_win);
+void print_win_params(WIN * p_win);
+void create_box(WIN * win, bool flag);
 
-int main(int argc, char *argv[])
-{       WIN win;
-        int ch;
-
-        initscr();                      /* Start curses mode            */
-        start_color();                  /* Start the color functionality */
-        cbreak();                       /* Line buffering disabled, Pass on
-                                         * everty thing to me           */
-        keypad(stdscr, TRUE);           /* I need that nifty F1         */
-        noecho();
-        init_pair(1, COLOR_CYAN, COLOR_BLACK);
-
-        /* Initialize the window parameters */
-        init_win_params(&amp;win);
-        print_win_params(&amp;win);
-
-        attron(COLOR_PAIR(1));
-        printw("Press F1 to exit");
-        refresh();
-        attroff(COLOR_PAIR(1));
-        
-        create_box(&amp;win, TRUE);
-        while((ch = getch()) != KEY_F(1))
-        {       switch(ch)
-                {       case KEY_LEFT:
-                                create_box(&amp;win, FALSE);
-                                --win.startx;
-                                create_box(&amp;win, TRUE);
-                                break;
-                        case KEY_RIGHT:
-                                create_box(&amp;win, FALSE);
-                                ++win.startx;
-                                create_box(&amp;win, TRUE);
-                                break;
-                        case KEY_UP:
-                                create_box(&amp;win, FALSE);
-                                --win.starty;
-                                create_box(&amp;win, TRUE);
-                                break;
-                        case KEY_DOWN:
-                                create_box(&amp;win, FALSE);
-                                ++win.starty;
-                                create_box(&amp;win, TRUE);
-                                break;  
-                }
-        }
-        endwin();                       /* End curses mode                */
-        return 0;
-}
-void init_win_params(WIN *p_win)
+int
+main(void)
 {
-        p_win-&gt;height = 3;
-        p_win-&gt;width = 10;
-        p_win-&gt;starty = (LINES - p_win-&gt;height)/2;      
-        p_win-&gt;startx = (COLS - p_win-&gt;width)/2;
+    WIN win;
+    int ch;
 
-        p_win-&gt;border.ls = '|';
-        p_win-&gt;border.rs = '|';
-        p_win-&gt;border.ts = '-';
-        p_win-&gt;border.bs = '-';
-        p_win-&gt;border.tl = '+';
-        p_win-&gt;border.tr = '+';
-        p_win-&gt;border.bl = '+';
-        p_win-&gt;border.br = '+';
+    initscr();                  /* Start curses mode            */
+    start_color();              /* Start the color functionality */
+    cbreak();                   /* Line buffering disabled, Pass on
+                                 * everty thing to me                 */
+    keypad(stdscr, TRUE);       /* I need that nifty F1         */
+    noecho();
+    init_pair(1, COLOR_CYAN, COLOR_BLACK);
+
+    /* Initialize the window parameters */
+    init_win_params(&amp;win);
+    print_win_params(&amp;win);
+
+    attron(COLOR_PAIR(1));
+    printw("Press F1 to exit");
+    refresh();
+    attroff(COLOR_PAIR(1));
+
+    create_box(&amp;win, TRUE);
+    while ((ch = getch()) != KEY_F(1)) {
+        switch (ch) {
+        case KEY_LEFT:
+            create_box(&amp;win, FALSE);
+            --win.startx;
+            create_box(&amp;win, TRUE);
+            break;
+        case KEY_RIGHT:
+            create_box(&amp;win, FALSE);
+            ++win.startx;
+            create_box(&amp;win, TRUE);
+            break;
+        case KEY_UP:
+            create_box(&amp;win, FALSE);
+            --win.starty;
+            create_box(&amp;win, TRUE);
+            break;
+        case KEY_DOWN:
+            create_box(&amp;win, FALSE);
+            ++win.starty;
+            create_box(&amp;win, TRUE);
+            break;
+        }
+    }
+    endwin();                   /* End curses mode                */
+    return 0;
+}
+void
+init_win_params(WIN * p_win)
+{
+    p_win-&gt;height = 3;
+    p_win-&gt;width = 10;
+    p_win-&gt;starty = (LINES - p_win-&gt;height) / 2;
+    p_win-&gt;startx = (COLS - p_win-&gt;width) / 2;
+
+    p_win-&gt;border.ls = '|';
+    p_win-&gt;border.rs = '|';
+    p_win-&gt;border.ts = '-';
+    p_win-&gt;border.bs = '-';
+    p_win-&gt;border.tl = '+';
+    p_win-&gt;border.tr = '+';
+    p_win-&gt;border.bl = '+';
+    p_win-&gt;border.br = '+';
 
 }
-void print_win_params(WIN *p_win)
+
+void
+print_win_params(WIN * p_win)
 {
 #ifdef _DEBUG
-        mvprintw(25, 0, "%d %d %d %d", p_win-&gt;startx, p_win-&gt;starty, 
-                                p_win-&gt;width, p_win-&gt;height);
-        refresh();
+    mvprintw(25, 0, "%d %d %d %d", p_win-&gt;startx, p_win-&gt;starty,
+             p_win-&gt;width, p_win-&gt;height);
+    refresh();
+#else
+    (void) p_win;
 #endif
 }
-void create_box(WIN *p_win, bool flag)
-{       int i, j;
-        int x, y, w, h;
 
-        x = p_win-&gt;startx;
-        y = p_win-&gt;starty;
-        w = p_win-&gt;width;
-        h = p_win-&gt;height;
+void
+create_box(WIN * p_win, bool flag)
+{
+    int i, j;
+    int x, y, w, h;
 
-        if(flag == TRUE)
-        {       mvaddch(y, x, p_win-&gt;border.tl);
-                mvaddch(y, x + w, p_win-&gt;border.tr);
-                mvaddch(y + h, x, p_win-&gt;border.bl);
-                mvaddch(y + h, x + w, p_win-&gt;border.br);
-                mvhline(y, x + 1, p_win-&gt;border.ts, w - 1);
-                mvhline(y + h, x + 1, p_win-&gt;border.bs, w - 1);
-                mvvline(y + 1, x, p_win-&gt;border.ls, h - 1);
-                mvvline(y + 1, x + w, p_win-&gt;border.rs, h - 1);
+    x = p_win-&gt;startx;
+    y = p_win-&gt;starty;
+    w = p_win-&gt;width;
+    h = p_win-&gt;height;
 
-        }
-        else
-                for(j = y; j &lt;= y + h; ++j)
-                        for(i = x; i &lt;= x + w; ++i)
-                                mvaddch(j, i, ' ');
-                                
-        refresh();
+    if (flag == TRUE) {
+        mvaddch(y, x, p_win-&gt;border.tl);
+        mvaddch(y, x + w, p_win-&gt;border.tr);
+        mvaddch(y + h, x, p_win-&gt;border.bl);
+        mvaddch(y + h, x + w, p_win-&gt;border.br);
+        mvhline(y, x + 1, p_win-&gt;border.ts, w - 1);
+        mvhline(y + h, x + 1, p_win-&gt;border.bs, w - 1);
+        mvvline(y + 1, x, p_win-&gt;border.ls, h - 1);
+        mvvline(y + 1, x + w, p_win-&gt;border.rs, h - 1);
 
+    } else
+        for (j = y; j &lt;= y + h; ++j)
+            for (i = x; i &lt;= x + w; ++i)
+                mvaddch(j, i, ' ');
+
+    refresh();
 }</span></pre>
         </div>
       </div>
@@ -2535,44 +2568,48 @@ void create_box(WIN *p_win, bool flag)
 #include &lt;string.h&gt;
 #include &lt;curses.h&gt;
 
-void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string);
-int main(int argc, char *argv[])
-{       initscr();                      /* Start curses mode            */
-        if(has_colors() == FALSE)
-        {       endwin();
-                printf("Your terminal does not support color\n");
-                exit(1);
-        }
-        start_color();                  /* Start color                  */
-        init_pair(1, COLOR_RED, COLOR_BLACK);
+void print_in_middle(WINDOW *win, int starty, int startx, int width, const char *string);
 
-        attron(COLOR_PAIR(1));
-        print_in_middle(stdscr, LINES / 2, 0, 0, "Viola !!! In color ...");
-        attroff(COLOR_PAIR(1));
-        getch();
+int
+main(void)
+{
+    initscr();                  /* Start curses mode            */
+    if (has_colors() == FALSE) {
         endwin();
-}
-void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string)
-{       int length, x, y;
-        float temp;
+        printf("Your terminal does not support color\n");
+        exit(1);
+    }
+    start_color();              /* Start color                  */
+    init_pair(1, COLOR_RED, COLOR_BLACK);
 
-        if(win == NULL)
-                win = stdscr;
-        getyx(win, y, x);
-        if(startx != 0)
-                x = startx;
-        if(starty != 0)
-                y = starty;
-        if(width == 0)
-                width = 80;
-
-        length = strlen(string);
-        temp = (width - length)/ 2;
-        x = startx + (int)temp;
-        mvwprintw(win, y, x, "%s", string);
-        refresh();
+    attron(COLOR_PAIR(1));
+    print_in_middle(stdscr, LINES / 2, 0, 0, "Viola !!! In color ...");
+    attroff(COLOR_PAIR(1));
+    getch();
+    endwin();
 }
-</span></pre>
+void
+print_in_middle(WINDOW *win, int starty, int startx, int width, const char *string)
+{
+    int length, x, y;
+    float temp;
+
+    if (win == NULL)
+        win = stdscr;
+    getyx(win, y, x);
+    if (startx != 0)
+        x = startx;
+    if (starty != 0)
+        y = starty;
+    if (width == 0)
+        width = 80;
+
+    length = (int) strlen(string);
+    temp = (float) (width - length) / 2;
+    x = startx + (int) temp;
+    mvwprintw(win, y, x, "%s", string);
+    refresh();
+}</span></pre>
         </div>
 
         <p>As you can see, to start using color, you should first
@@ -2724,93 +2761,100 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
           "INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
 
 #define WIDTH 30
-#define HEIGHT 10 
+#define HEIGHT 10
 
 int startx = 0;
 int starty = 0;
 
-char *choices[] = { 
-                        "Choice 1",
-                        "Choice 2",
-                        "Choice 3",
-                        "Choice 4",
-                        "Exit",
-                  };
+const char *choices[] =
+{
+    "Choice 1",
+    "Choice 2",
+    "Choice 3",
+    "Choice 4",
+    "Exit",
+};
 int n_choices = sizeof(choices) / sizeof(char *);
 void print_menu(WINDOW *menu_win, int highlight);
 
-int main()
-{       WINDOW *menu_win;
-        int highlight = 1;
-        int choice = 0;
-        int c;
-
-        initscr();
-        clear();
-        noecho();
-        cbreak();       /* Line buffering disabled. pass on everything */
-        startx = (80 - WIDTH) / 2;
-        starty = (24 - HEIGHT) / 2;
-                
-        menu_win = newwin(HEIGHT, WIDTH, starty, startx);
-        keypad(menu_win, TRUE);
-        mvprintw(0, 0, "Use arrow keys to go up and down, Press enter to select a choice");
-        refresh();
-        print_menu(menu_win, highlight);
-        while(1)
-        {       c = wgetch(menu_win);
-                switch(c)
-                {       case KEY_UP:
-                                if(highlight == 1)
-                                        highlight = n_choices;
-                                else
-                                        --highlight;
-                                break;
-                        case KEY_DOWN:
-                                if(highlight == n_choices)
-                                        highlight = 1;
-                                else 
-                                        ++highlight;
-                                break;
-                        case 10:
-                                choice = highlight;
-                                break;
-                        default:
-                                mvprintw(24, 0, "Character pressed is = %3d Hopefully it can be printed as '%c'", c, c);
-                                refresh();
-                                break;
-                }
-                print_menu(menu_win, highlight);
-                if(choice != 0) /* User did a choice come out of the infinite loop */
-                        break;
-        }       
-        mvprintw(23, 0, "You chose choice %d with choice string %s\n", choice, choices[choice - 1]);
-        clrtoeol();
-        refresh();
-        endwin();
-        return 0;
-}
-
-void print_menu(WINDOW *menu_win, int highlight)
+int
+main(void)
 {
-        int x, y, i;    
+    WINDOW *menu_win;
+    int highlight = 1;
+    int choice = 0;
+    int c;
 
-        x = 2;
-        y = 2;
-        box(menu_win, 0, 0);
-        for(i = 0; i &lt; n_choices; ++i)
-        {       if(highlight == i + 1) /* High light the present choice */
-                {       wattron(menu_win, A_REVERSE); 
-                        mvwprintw(menu_win, y, x, "%s", choices[i]);
-                        wattroff(menu_win, A_REVERSE);
-                }
-                else
-                        mvwprintw(menu_win, y, x, "%s", choices[i]);
-                ++y;
+    initscr();
+    clear();
+    noecho();
+    cbreak();                   /* Line buffering disabled. pass on everything */
+    startx = (80 - WIDTH) / 2;
+    starty = (24 - HEIGHT) / 2;
+
+    menu_win = newwin(HEIGHT, WIDTH, starty, startx);
+    keypad(menu_win, TRUE);
+    mvprintw(0, 0,
+             "Use arrow keys to go up and down, Press enter to select a choice");
+    refresh();
+    print_menu(menu_win, highlight);
+    while (1) {
+        c = wgetch(menu_win);
+        switch (c) {
+        case KEY_UP:
+            if (highlight == 1)
+                highlight = n_choices;
+            else
+                --highlight;
+            break;
+        case KEY_DOWN:
+            if (highlight == n_choices)
+                highlight = 1;
+            else
+                ++highlight;
+            break;
+        case 10:
+            choice = highlight;
+            break;
+        default:
+            mvprintw(24, 0,
+                     "Character pressed is = %3d Hopefully it can be printed as '%c'",
+                     c, c);
+            refresh();
+            break;
         }
-        wrefresh(menu_win);
+        print_menu(menu_win, highlight);
+        if (choice != 0)        /* User did a choice come out of the infinite loop */
+            break;
+    }
+    mvprintw(23, 0, "You chose choice %d with choice string %s\n", choice,
+             choices[choice - 1]);
+    clrtoeol();
+    refresh();
+    endwin();
+    return 0;
 }
-</span></pre>
+
+void
+print_menu(WINDOW *menu_win, int highlight)
+{
+    int x, y, i;
+
+    x = 2;
+    y = 2;
+    box(menu_win, 0, 0);
+    for (i = 0; i &lt; n_choices; ++i) {
+        if (highlight == i + 1) /* Highlight the present choice */
+        {
+            wattron(menu_win, A_REVERSE);
+            mvwprintw(menu_win, y, x, "%s", choices[i]);
+            wattroff(menu_win, A_REVERSE);
+        } else
+            mvwprintw(menu_win, y, x, "%s", choices[i]);
+        ++y;
+    }
+    wrefresh(menu_win);
+}</span></pre>
         </div>
       </div>
     </div>
@@ -2904,7 +2948,7 @@ void print_menu(WINDOW *menu_win, int highlight)
         short id;         /* ID to distinguish multiple devices */
         int x, y, z;      /* event coordinates */
         mmask_t bstate;   /* button state bits */
-    }    </pre>
+    }</pre>
         <p>The <tt class="LITERAL">bstate</tt> is the main variable
         we are interested in. It tells the button state of the
         mouse.</p>
@@ -2942,103 +2986,112 @@ void print_menu(WINDOW *menu_win, int highlight)
 int startx = 0;
 int starty = 0;
 
-char *choices[] = {     "Choice 1",
-                        "Choice 2",
-                        "Choice 3",
-                        "Choice 4",
-                        "Exit",
-                  };
+const char *choices[] =
+{"Choice 1",
+ "Choice 2",
+ "Choice 3",
+ "Choice 4",
+ "Exit",
+};
 
 int n_choices = sizeof(choices) / sizeof(char *);
 
 void print_menu(WINDOW *menu_win, int highlight);
 void report_choice(int mouse_x, int mouse_y, int *p_choice);
 
-int main()
-{       int c, choice = 0;
-        WINDOW *menu_win;
-        MEVENT event;
+int
+main(void)
+{
+    int c, choice = 0;
+    WINDOW *menu_win;
+    MEVENT event;
 
-        /* Initialize curses */
-        initscr();
-        clear();
-        noecho();
-        cbreak();       //Line buffering disabled. pass on everything
+    /* Initialize curses */
+    initscr();
+    clear();
+    noecho();
+    cbreak();                   /* Line buffering disabled. pass everything */
 
-        /* Try to put the window in the middle of screen */
-        startx = (80 - WIDTH) / 2;
-        starty = (24 - HEIGHT) / 2;
+    /* Try to put the window in the middle of screen */
+    startx = (80 - WIDTH) / 2;
+    starty = (24 - HEIGHT) / 2;
 
-        attron(A_REVERSE);
-        mvprintw(23, 1, "Click on Exit to quit (Works best in a virtual console)");
-        refresh();
-        attroff(A_REVERSE);
+    attron(A_REVERSE);
+    mvprintw(23, 1,
+             "Click on Exit to quit (Works best in a virtual console)");
+    refresh();
+    attroff(A_REVERSE);
 
-        /* Print the menu for the first time */
-        menu_win = newwin(HEIGHT, WIDTH, starty, startx);
-        keypad(menu_win, TRUE);
-        print_menu(menu_win, 1);
-        /* Get all the mouse events */
-        mousemask(ALL_MOUSE_EVENTS, NULL);
+    /* Print the menu for the first time */
+    menu_win = newwin(HEIGHT, WIDTH, starty, startx);
+    keypad(menu_win, TRUE);
+    print_menu(menu_win, 1);
+    /* Get all the mouse events */
+    mousemask(ALL_MOUSE_EVENTS, NULL);
 
-        while(1)
-        {       c = wgetch(menu_win);
-                switch(c)
-                {       case KEY_MOUSE:
-                        if(getmouse(&amp;event) == OK)
-                        {       /* When the user clicks left mouse button */
-                                if(event.bstate &amp; BUTTON1_PRESSED)
-                                {       report_choice(event.x + 1, event.y + 1, &amp;choice);
-                                        if(choice == -1) //Exit chosen
-                                                goto end;
-                                        mvprintw(22, 1, "Choice made is : %d String Chosen is \"%10s\"", choice, choices[choice - 1]);
-                                        refresh();
-                                }
-                        }
-                        print_menu(menu_win, choice);
-                        break;
+    while (1) {
+        c = wgetch(menu_win);
+        switch (c) {
+        case KEY_MOUSE:
+            if (getmouse(&amp;event) == OK) {       /* When the user clicks left mouse button */
+                if (event.bstate &amp; BUTTON1_PRESSED) {
+                    report_choice(event.x + 1, event.y + 1, &amp;choice);
+                    if (choice == -1)   /* Exit chosen */
+                        goto end;
+                    mvprintw(22, 1,
+                             "Choice made is : %d String Chosen is \"%10s\"",
+                             choice, choices[choice - 1]);
+                    refresh();
                 }
+            }
+            print_menu(menu_win, choice);
+            break;
         }
-end:
-        endwin();
-        return 0;
+    }
+  end:
+    endwin();
+    return 0;
 }
 
-void print_menu(WINDOW *menu_win, int highlight)
+void
+print_menu(WINDOW *menu_win, int highlight)
 {
-        int x, y, i;
+    int x, y, i;
 
-        x = 2;
-        y = 2;
-        box(menu_win, 0, 0);
-        for(i = 0; i &lt; n_choices; ++i)
-        {       if(highlight == i + 1)
-                {       wattron(menu_win, A_REVERSE);
-                        mvwprintw(menu_win, y, x, "%s", choices[i]);
-                        wattroff(menu_win, A_REVERSE);
-                }
-                else
-                        mvwprintw(menu_win, y, x, "%s", choices[i]);
-                ++y;
-        }
-        wrefresh(menu_win);
+    x = 2;
+    y = 2;
+    box(menu_win, 0, 0);
+    for (i = 0; i &lt; n_choices; ++i) {
+        if (highlight == i + 1) {
+            wattron(menu_win, A_REVERSE);
+            mvwprintw(menu_win, y, x, "%s", choices[i]);
+            wattroff(menu_win, A_REVERSE);
+        } else
+            mvwprintw(menu_win, y, x, "%s", choices[i]);
+        ++y;
+    }
+    wrefresh(menu_win);
 }
 
 /* Report the choice according to mouse position */
-void report_choice(int mouse_x, int mouse_y, int *p_choice)
-{       int i,j, choice;
+void
+report_choice(int mouse_x, int mouse_y, int *p_choice)
+{
+    int i, j, choice;
 
-        i = startx + 2;
-        j = starty + 3;
+    i = startx + 2;
+    j = starty + 3;
 
-        for(choice = 0; choice &lt; n_choices; ++choice)
-                if(mouse_y == j + choice &amp;&amp; mouse_x &gt;= i &amp;&amp; mouse_x &lt;= i + strlen(choices[choice]))
-                {       if(choice == n_choices - 1)
-                                *p_choice = -1;
-                        else
-                                *p_choice = choice + 1;
-                        break;
-                }
+    for (choice = 0; choice &lt; n_choices; ++choice)
+        if (mouse_y == j + choice
+            &amp;&amp; mouse_x &gt;= i
+            &amp;&amp; mouse_x &lt;= i + (int) strlen(choices[choice])) {
+            if (choice == n_choices - 1)
+                *p_choice = -1;
+            else
+                *p_choice = choice + 1;
+            break;
+        }
 }</span></pre>
         </div>
       </div>
@@ -3086,7 +3139,7 @@ void report_choice(int mouse_x, int mouse_y, int *p_choice)
 
         <pre class="PROGRAMLISTING">    getyx(win, y, x);
     /* win: window pointer
-     *   y, x: y, x co-ordinates will be put into this variables 
+     *   y, x: y, x co-ordinates will be put into this variables
      */</pre>
         <p>The function getparyx() gets the beginning co-ordinates
         of the sub window relative to the main window. This is some
@@ -3195,23 +3248,24 @@ void report_choice(int mouse_x, int mouse_y, int *p_choice)
           "INLINEMEDIAOBJECT">#include &lt;stdlib.h&gt;
 #include &lt;curses.h&gt;
 
-int main()
-{       
-        initscr();                      /* Start curses mode              */
-        printw("Hello World !!!\n");    /* Print Hello World              */
-        refresh();                      /* Print it on to the real screen */
-        def_prog_mode();                /* Save the tty modes             */
-        endwin();                       /* End curses mode temporarily    */
-        system("/bin/sh");              /* Do whatever you like in cooked mode */
-        reset_prog_mode();              /* Return to the previous tty mode*/
-                                        /* stored by def_prog_mode()      */
-        refresh();                      /* Do refresh() to restore the    */
-                                        /* Screen contents                */
-        printw("Another String\n");     /* Back to curses use the full    */
-        refresh();                      /* capabilities of curses         */
-        endwin();                       /* End curses mode                */
+int
+main(void)
+{
+    initscr();                  /* Start curses mode              */
+    printw("Hello World !!!\n");        /* Print Hello World              */
+    refresh();                  /* Print it on to the real screen */
+    def_prog_mode();            /* Save the tty modes             */
+    endwin();                   /* End curses mode temporarily    */
+    system("/bin/sh");          /* Do whatever you like in cooked mode */
+    reset_prog_mode();          /* Return to the previous tty mode */
+    /* stored by def_prog_mode()      */
+    refresh();                  /* Do refresh() to restore the    */
+    /* Screen contents                */
+    printw("Another String\n"); /* Back to curses use the full    */
+    refresh();                  /* capabilities of curses         */
+    endwin();                   /* End curses mode                */
 
-        return 0;
+    return 0;
 }</span></pre>
         </div>
       </div>
@@ -3239,47 +3293,47 @@ int main()
           <pre class="PROGRAMLISTING"><span class=
           "INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
 
-int main()
+int main(void)
 {
-        initscr();
+    initscr();
 
-        printw("Upper left corner           "); addch(ACS_ULCORNER); printw("\n"); 
-        printw("Lower left corner           "); addch(ACS_LLCORNER); printw("\n");
-        printw("Lower right corner          "); addch(ACS_LRCORNER); printw("\n");
-        printw("Tee pointing right          "); addch(ACS_LTEE); printw("\n");
-        printw("Tee pointing left           "); addch(ACS_RTEE); printw("\n");
-        printw("Tee pointing up             "); addch(ACS_BTEE); printw("\n");
-        printw("Tee pointing down           "); addch(ACS_TTEE); printw("\n");
-        printw("Horizontal line             "); addch(ACS_HLINE); printw("\n");
-        printw("Vertical line               "); addch(ACS_VLINE); printw("\n");
-        printw("Large Plus or cross over    "); addch(ACS_PLUS); printw("\n");
-        printw("Scan Line 1                 "); addch(ACS_S1); printw("\n");
-        printw("Scan Line 3                 "); addch(ACS_S3); printw("\n");
-        printw("Scan Line 7                 "); addch(ACS_S7); printw("\n");
-        printw("Scan Line 9                 "); addch(ACS_S9); printw("\n");
-        printw("Diamond                     "); addch(ACS_DIAMOND); printw("\n");
-        printw("Checker board (stipple)     "); addch(ACS_CKBOARD); printw("\n");
-        printw("Degree Symbol               "); addch(ACS_DEGREE); printw("\n");
-        printw("Plus/Minus Symbol           "); addch(ACS_PLMINUS); printw("\n");
-        printw("Bullet                      "); addch(ACS_BULLET); printw("\n");
-        printw("Arrow Pointing Left         "); addch(ACS_LARROW); printw("\n");
-        printw("Arrow Pointing Right        "); addch(ACS_RARROW); printw("\n");
-        printw("Arrow Pointing Down         "); addch(ACS_DARROW); printw("\n");
-        printw("Arrow Pointing Up           "); addch(ACS_UARROW); printw("\n");
-        printw("Board of squares            "); addch(ACS_BOARD); printw("\n");
-        printw("Lantern Symbol              "); addch(ACS_LANTERN); printw("\n");
-        printw("Solid Square Block          "); addch(ACS_BLOCK); printw("\n");
-        printw("Less/Equal sign             "); addch(ACS_LEQUAL); printw("\n");
-        printw("Greater/Equal sign          "); addch(ACS_GEQUAL); printw("\n");
-        printw("Pi                          "); addch(ACS_PI); printw("\n");
-        printw("Not equal                   "); addch(ACS_NEQUAL); printw("\n");
-        printw("UK pound sign               "); addch(ACS_STERLING); printw("\n");
+    printw("Upper left corner           "); addch(ACS_ULCORNER); printw("\n");
+    printw("Lower left corner           "); addch(ACS_LLCORNER); printw("\n");
+    printw("Lower right corner          "); addch(ACS_LRCORNER); printw("\n");
+    printw("Tee pointing right          "); addch(ACS_LTEE); printw("\n");
+    printw("Tee pointing left           "); addch(ACS_RTEE); printw("\n");
+    printw("Tee pointing up             "); addch(ACS_BTEE); printw("\n");
+    printw("Tee pointing down           "); addch(ACS_TTEE); printw("\n");
+    printw("Horizontal line             "); addch(ACS_HLINE); printw("\n");
+    printw("Vertical line               "); addch(ACS_VLINE); printw("\n");
+    printw("Large Plus or cross over    "); addch(ACS_PLUS); printw("\n");
+    printw("Scan Line 1                 "); addch(ACS_S1); printw("\n");
+    printw("Scan Line 3                 "); addch(ACS_S3); printw("\n");
+    printw("Scan Line 7                 "); addch(ACS_S7); printw("\n");
+    printw("Scan Line 9                 "); addch(ACS_S9); printw("\n");
+    printw("Diamond                     "); addch(ACS_DIAMOND); printw("\n");
+    printw("Checker board (stipple)     "); addch(ACS_CKBOARD); printw("\n");
+    printw("Degree Symbol               "); addch(ACS_DEGREE); printw("\n");
+    printw("Plus/Minus Symbol           "); addch(ACS_PLMINUS); printw("\n");
+    printw("Bullet                      "); addch(ACS_BULLET); printw("\n");
+    printw("Arrow Pointing Left         "); addch(ACS_LARROW); printw("\n");
+    printw("Arrow Pointing Right        "); addch(ACS_RARROW); printw("\n");
+    printw("Arrow Pointing Down         "); addch(ACS_DARROW); printw("\n");
+    printw("Arrow Pointing Up           "); addch(ACS_UARROW); printw("\n");
+    printw("Board of squares            "); addch(ACS_BOARD); printw("\n");
+    printw("Lantern Symbol              "); addch(ACS_LANTERN); printw("\n");
+    printw("Solid Square Block          "); addch(ACS_BLOCK); printw("\n");
+    printw("Less/Equal sign             "); addch(ACS_LEQUAL); printw("\n");
+    printw("Greater/Equal sign          "); addch(ACS_GEQUAL); printw("\n");
+    printw("Pi                          "); addch(ACS_PI); printw("\n");
+    printw("Not equal                   "); addch(ACS_NEQUAL); printw("\n");
+    printw("UK pound sign               "); addch(ACS_STERLING); printw("\n");
 
-        refresh();
-        getch();
-        endwin();
+    refresh();
+    getch();
+    endwin();
 
-        return 0;
+    return 0;
 }</span></pre>
         </div>
       </div>
@@ -3415,42 +3469,52 @@ int main()
           <pre class="PROGRAMLISTING"><span class=
           "INLINEMEDIAOBJECT">#include &lt;panel.h&gt;
 
-int main()
-{       WINDOW *my_wins[3];
-        PANEL  *my_panels[3];
-        int lines = 10, cols = 40, y = 2, x = 4, i;
+int
+main(void)
+{
+    WINDOW *my_wins[3];
+    PANEL *my_panels[3];
+    int lines = 10, cols = 40, y = 2, x = 4, i;
 
-        initscr();
-        cbreak();
-        noecho();
+    initscr();
+    cbreak();
+    noecho();
 
-        /* Create windows for the panels */
-        my_wins[0] = newwin(lines, cols, y, x);
-        my_wins[1] = newwin(lines, cols, y + 1, x + 5);
-        my_wins[2] = newwin(lines, cols, y + 2, x + 10);
+    /* Create windows for the panels */
+    my_wins[0] = newwin(lines, cols, y, x);
+    my_wins[1] = newwin(lines, cols, y + 1, x + 5);
+    my_wins[2] = newwin(lines, cols, y + 2, x + 10);
 
-        /* 
-         * Create borders around the windows so that you can see the effect
-         * of panels
-         */
-        for(i = 0; i &lt; 3; ++i)
-                box(my_wins[i], 0, 0);
+    /*
+     * Create borders around the windows so that you can see the effect
+     * of panels
+     */
+    for (i = 0; i &lt; 3; ++i)
+        box(my_wins[i], 0, 0);
 
-        /* Attach a panel to each window */     /* Order is bottom up */
-        my_panels[0] = new_panel(my_wins[0]);   /* Push 0, order: stdscr-0 */
-        my_panels[1] = new_panel(my_wins[1]);   /* Push 1, order: stdscr-0-1 */
-        my_panels[2] = new_panel(my_wins[2]);   /* Push 2, order: stdscr-0-1-2 */
+    /* Attach a panel to each window */
+    /* Order is bottom up */
+    /* Push 0, order: stdscr-0 */
+    /* Push 1, order: stdscr-0-1 */
+    /* Push 2, order: stdscr-0-1-2 */
+    for (i = 0; i &lt; 3; ++i)
+        my_panels[i] = new_panel(my_wins[i]);
 
-        /* Update the stacking order. 2nd panel will be on top */
-        update_panels();
+    /* Update the stacking order. Last-created panel will be on top */
+    update_panels();
 
-        /* Show it on the screen */
-        doupdate();
-        
-        getch();
-        endwin();
-}
-</span></pre>
+    /* Show it on the screen */
+    doupdate();
+
+    getch();
+
+    /* Deleting panels does not erase their window */
+    for (i = 0; i &lt; 3; ++i)
+        del_panel(my_panels[i]);
+
+    endwin();
+    return 0;
+}</span></pre>
         </div>
 
         <p>As you can see, above program follows a simple flow as
@@ -3484,116 +3548,128 @@ int main()
 #define NCOLS 40
 
 void init_wins(WINDOW **wins, int n);
-void win_show(WINDOW *win, char *label, int label_color);
-void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string, chtype color);
+void win_show(WINDOW *win, const char *label, int label_color);
+void print_in_middle(WINDOW *win, int starty, int startx,
+                     int width, const char *string, chtype color);
 
-int main()
-{       WINDOW *my_wins[3];
-        PANEL  *my_panels[3];
-        PANEL  *top;
-        int ch;
+int
+main(void)
+{
+    WINDOW *my_wins[3];
+    PANEL *my_panels[3];
+    PANEL *top;
+    int ch;
 
-        /* Initialize curses */
-        initscr();
-        start_color();
-        cbreak();
-        noecho();
-        keypad(stdscr, TRUE);
+    /* Initialize curses */
+    initscr();
+    start_color();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
 
-        /* Initialize all the colors */
-        init_pair(1, COLOR_RED, COLOR_BLACK);
-        init_pair(2, COLOR_GREEN, COLOR_BLACK);
-        init_pair(3, COLOR_BLUE, COLOR_BLACK);
-        init_pair(4, COLOR_CYAN, COLOR_BLACK);
+    /* Initialize all the colors */
+    init_pair(1, COLOR_RED, COLOR_BLACK);
+    init_pair(2, COLOR_GREEN, COLOR_BLACK);
+    init_pair(3, COLOR_BLUE, COLOR_BLACK);
+    init_pair(4, COLOR_CYAN, COLOR_BLACK);
 
-        init_wins(my_wins, 3);
-        
-        /* Attach a panel to each window */     /* Order is bottom up */
-        my_panels[0] = new_panel(my_wins[0]);   /* Push 0, order: stdscr-0 */
-        my_panels[1] = new_panel(my_wins[1]);   /* Push 1, order: stdscr-0-1 */
-        my_panels[2] = new_panel(my_wins[2]);   /* Push 2, order: stdscr-0-1-2 */
+    init_wins(my_wins, 3);
 
-        /* Set up the user pointers to the next panel */
-        set_panel_userptr(my_panels[0], my_panels[1]);
-        set_panel_userptr(my_panels[1], my_panels[2]);
-        set_panel_userptr(my_panels[2], my_panels[0]);
+    /* Attach a panel to each window */
+    /* Order is bottom up */
+    my_panels[0] = new_panel(my_wins[0]);       /* Push 0, order: stdscr-0 */
+    my_panels[1] = new_panel(my_wins[1]);       /* Push 1, order: stdscr-0-1 */
+    my_panels[2] = new_panel(my_wins[2]);       /* Push 2, order: stdscr-0-1-2 */
 
-        /* Update the stacking order. 2nd panel will be on top */
-        update_panels();
+    /* Set up the user pointers to the next panel */
+    set_panel_userptr(my_panels[0], my_panels[1]);
+    set_panel_userptr(my_panels[1], my_panels[2]);
+    set_panel_userptr(my_panels[2], my_panels[0]);
 
-        /* Show it on the screen */
-        attron(COLOR_PAIR(4));
-        mvprintw(LINES - 2, 0, "Use tab to browse through the windows (F1 to Exit)");
-        attroff(COLOR_PAIR(4));
-        doupdate();
+    /* Update the stacking order. 2nd panel will be on top */
+    update_panels();
 
-        top = my_panels[2];
-        while((ch = getch()) != KEY_F(1))
-        {       switch(ch)
-                {       case 9:
-                                top = (PANEL *)panel_userptr(top);
-                                top_panel(top);
-                                break;
-                }
-                update_panels();
-                doupdate();
+    /* Show it on the screen */
+    attron(COLOR_PAIR(4));
+    mvprintw(LINES - 2, 0,
+             "Use tab to browse through the windows (F1 to Exit)");
+    attroff(COLOR_PAIR(4));
+    doupdate();
+
+    top = my_panels[2];
+    while ((ch = getch()) != KEY_F(1)) {
+        switch (ch) {
+        case 9:
+            top = (PANEL *) panel_userptr(top);
+            top_panel(top);
+            break;
         }
-        endwin();
-        return 0;
+        update_panels();
+        doupdate();
+    }
+    endwin();
+    return 0;
 }
 
 /* Put all the windows */
-void init_wins(WINDOW **wins, int n)
-{       int x, y, i;
-        char label[80];
+void
+init_wins(WINDOW **wins, int n)
+{
+    int x, y, i;
+    char label[80];
 
-        y = 2;
-        x = 10;
-        for(i = 0; i &lt; n; ++i)
-        {       wins[i] = newwin(NLINES, NCOLS, y, x);
-                sprintf(label, "Window Number %d", i + 1);
-                win_show(wins[i], label, i + 1);
-                y += 3;
-                x += 7;
-        }
+    y = 2;
+    x = 10;
+    for (i = 0; i &lt; n; ++i) {
+        wins[i] = newwin(NLINES, NCOLS, y, x);
+        sprintf(label, "Window Number %d", i + 1);
+        win_show(wins[i], label, i + 1);
+        y += 3;
+        x += 7;
+    }
 }
 
 /* Show the window with a border and a label */
-void win_show(WINDOW *win, char *label, int label_color)
-{       int startx, starty, height, width;
+void
+win_show(WINDOW *win, const char *label, int label_color)
+{
+    int height, width;
 
-        getbegyx(win, starty, startx);
-        getmaxyx(win, height, width);
+    getmaxyx(win, height, width);
+    (void) height;
 
-        box(win, 0, 0);
-        mvwaddch(win, 2, 0, ACS_LTEE); 
-        mvwhline(win, 2, 1, ACS_HLINE, width - 2); 
-        mvwaddch(win, 2, width - 1, ACS_RTEE); 
-        
-        print_in_middle(win, 1, 0, width, label, COLOR_PAIR(label_color));
+    box(win, 0, 0);
+    mvwaddch(win, 2, 0, ACS_LTEE);
+    mvwhline(win, 2, 1, ACS_HLINE, width - 2);
+    mvwaddch(win, 2, width - 1, ACS_RTEE);
+
+    print_in_middle(win, 1, 0, width, label, COLOR_PAIR(label_color));
 }
 
-void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string, chtype color)
-{       int length, x, y;
-        float temp;
+void
+print_in_middle(WINDOW *win, int starty, int startx,
+                int width, const char *string, chtype color)
+{
+    int length, x, y;
+    float temp;
 
-        if(win == NULL)
-                win = stdscr;
-        getyx(win, y, x);
-        if(startx != 0)
-                x = startx;
-        if(starty != 0)
-                y = starty;
-        if(width == 0)
-                width = 80;
+    if (win == NULL)
+        win = stdscr;
+    getyx(win, y, x);
+    if (startx != 0)
+        x = startx;
+    if (starty != 0)
+        y = starty;
+    if (width == 0)
+        width = 80;
 
-        length = strlen(string);
-        temp = (width - length)/ 2;
-        x = startx + (int)temp;
-        wattron(win, color);
-        mvwprintw(win, y, x, "%s", string);
-        wattroff(win, color);
-        refresh();
+    length = (int) strlen(string);
+    temp = (float) (width - length) / 2;
+    x = startx + (int) temp;
+    wattron(win, color);
+    mvwprintw(win, y, x, "%s", string);
+    wattroff(win, color);
+    refresh();
 }</span></pre>
         </div>
       </div>
@@ -3660,236 +3736,253 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
 #include &lt;panel.h&gt;
 
 typedef struct _PANEL_DATA {
-        int x, y, w, h;
-        char label[80]; 
-        int label_color;
-        PANEL *next;
-}PANEL_DATA;
+    int x, y, w, h;
+    char label[80];
+    int label_color;
+    PANEL *next;
+} PANEL_DATA;
 
 #define NLINES 10
 #define NCOLS 40
 
 void init_wins(WINDOW **wins, int n);
-void win_show(WINDOW *win, char *label, int label_color);
-void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string, chtype color);
+void win_show(WINDOW *win, const char *label, int label_color);
+void print_in_middle(WINDOW *win, int starty, int startx,
+                     int width, const char *string, chtype color);
 void set_user_ptrs(PANEL **panels, int n);
 
-int main()
-{       WINDOW *my_wins[3];
-        PANEL  *my_panels[3];
-        PANEL_DATA  *top;
-        PANEL *stack_top;
-        WINDOW *temp_win, *old_win;
-        int ch;
-        int newx, newy, neww, newh;
-        int size = FALSE, move = FALSE;
+int
+main(void)
+{
+    WINDOW *my_wins[3];
+    PANEL *my_panels[3];
+    PANEL_DATA *top;
+    PANEL *stack_top;
+    WINDOW *temp_win, *old_win;
+    int ch;
+    int newx, newy, neww, newh;
+    int size = FALSE, move = FALSE;
 
-        /* Initialize curses */
-        initscr();
-        start_color();
-        cbreak();
-        noecho();
-        keypad(stdscr, TRUE);
+    /* Initialize curses */
+    initscr();
+    start_color();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
 
-        /* Initialize all the colors */
-        init_pair(1, COLOR_RED, COLOR_BLACK);
-        init_pair(2, COLOR_GREEN, COLOR_BLACK);
-        init_pair(3, COLOR_BLUE, COLOR_BLACK);
-        init_pair(4, COLOR_CYAN, COLOR_BLACK);
+    /* Initialize all the colors */
+    init_pair(1, COLOR_RED, COLOR_BLACK);
+    init_pair(2, COLOR_GREEN, COLOR_BLACK);
+    init_pair(3, COLOR_BLUE, COLOR_BLACK);
+    init_pair(4, COLOR_CYAN, COLOR_BLACK);
 
-        init_wins(my_wins, 3);
-        
-        /* Attach a panel to each window */     /* Order is bottom up */
-        my_panels[0] = new_panel(my_wins[0]);   /* Push 0, order: stdscr-0 */
-        my_panels[1] = new_panel(my_wins[1]);   /* Push 1, order: stdscr-0-1 */
-        my_panels[2] = new_panel(my_wins[2]);   /* Push 2, order: stdscr-0-1-2 */
+    init_wins(my_wins, 3);
 
-        set_user_ptrs(my_panels, 3);
-        /* Update the stacking order. 2nd panel will be on top */
-        update_panels();
+    /* Attach a panel to each window */
+    /* Order is bottom up */
+    my_panels[0] = new_panel(my_wins[0]);       /* Push 0, order: stdscr-0 */
+    my_panels[1] = new_panel(my_wins[1]);       /* Push 1, order: stdscr-0-1 */
+    my_panels[2] = new_panel(my_wins[2]);       /* Push 2, order: stdscr-0-1-2 */
 
-        /* Show it on the screen */
+    set_user_ptrs(my_panels, 3);
+    /* Update the stacking order. 2nd panel will be on top */
+    update_panels();
+
+    /* Show it on the screen */
+    attron(COLOR_PAIR(4));
+    mvprintw(LINES - 3, 0, "Use 'm' for moving, 'r' for resizing");
+    mvprintw(LINES - 2, 0,
+             "Use tab to browse through the windows (F1 to Exit)");
+    attroff(COLOR_PAIR(4));
+    doupdate();
+
+    stack_top = my_panels[2];
+    top = (PANEL_DATA *) panel_userptr(stack_top);
+    newx = top-&gt;x;
+    newy = top-&gt;y;
+    neww = top-&gt;w;
+    newh = top-&gt;h;
+    while ((ch = getch()) != KEY_F(1)) {
+        switch (ch) {
+        case 9:         /* Tab */
+            top = (PANEL_DATA *) panel_userptr(stack_top);
+            top_panel(top-&gt;next);
+            stack_top = top-&gt;next;
+            top = (PANEL_DATA *) panel_userptr(stack_top);
+            newx = top-&gt;x;
+            newy = top-&gt;y;
+            neww = top-&gt;w;
+            newh = top-&gt;h;
+            break;
+        case 'r':               /* Re-Size */
+            size = TRUE;
+            attron(COLOR_PAIR(4));
+            mvprintw(LINES - 4, 0,
+                     "Entered Resizing :Use Arrow Keys to resize and press &lt;ENTER&gt; to end resizing");
+            refresh();
+            attroff(COLOR_PAIR(4));
+            break;
+        case 'm':               /* Move */
+            attron(COLOR_PAIR(4));
+            mvprintw(LINES - 4, 0,
+                     "Entered Moving: Use Arrow Keys to Move and press &lt;ENTER&gt; to end moving");
+            refresh();
+            attroff(COLOR_PAIR(4));
+            move = TRUE;
+            break;
+        case KEY_LEFT:
+            if (size == TRUE) {
+                --newx;
+                ++neww;
+            }
+            if (move == TRUE)
+                --newx;
+            break;
+        case KEY_RIGHT:
+            if (size == TRUE) {
+                ++newx;
+                --neww;
+            }
+            if (move == TRUE)
+                ++newx;
+            break;
+        case KEY_UP:
+            if (size == TRUE) {
+                --newy;
+                ++newh;
+            }
+            if (move == TRUE)
+                --newy;
+            break;
+        case KEY_DOWN:
+            if (size == TRUE) {
+                ++newy;
+                --newh;
+            }
+            if (move == TRUE)
+                ++newy;
+            break;
+        case 10:                /* Enter */
+            move(LINES - 4, 0);
+            clrtoeol();
+            refresh();
+            if (size == TRUE) {
+                old_win = panel_window(stack_top);
+                temp_win = newwin(newh, neww, newy, newx);
+                replace_panel(stack_top, temp_win);
+                win_show(temp_win, top-&gt;label, top-&gt;label_color);
+                delwin(old_win);
+                size = FALSE;
+            }
+            if (move == TRUE) {
+                move_panel(stack_top, newy, newx);
+                move = FALSE;
+            }
+            break;
+
+        }
         attron(COLOR_PAIR(4));
         mvprintw(LINES - 3, 0, "Use 'm' for moving, 'r' for resizing");
-        mvprintw(LINES - 2, 0, "Use tab to browse through the windows (F1 to Exit)");
+        mvprintw(LINES - 2, 0,
+                 "Use tab to browse through the windows (F1 to Exit)");
         attroff(COLOR_PAIR(4));
+        refresh();
+        update_panels();
         doupdate();
-
-        stack_top = my_panels[2];
-        top = (PANEL_DATA *)panel_userptr(stack_top);
-        newx = top-&gt;x;
-        newy = top-&gt;y;
-        neww = top-&gt;w;
-        newh = top-&gt;h;
-        while((ch = getch()) != KEY_F(1))
-        {       switch(ch)
-                {       case 9:         /* Tab */
-                                top = (PANEL_DATA *)panel_userptr(stack_top);
-                                top_panel(top-&gt;next);
-                                stack_top = top-&gt;next;
-                                top = (PANEL_DATA *)panel_userptr(stack_top);
-                                newx = top-&gt;x;
-                                newy = top-&gt;y;
-                                neww = top-&gt;w;
-                                newh = top-&gt;h;
-                                break;
-                        case 'r':       /* Re-Size*/
-                                size = TRUE;
-                                attron(COLOR_PAIR(4));
-                                mvprintw(LINES - 4, 0, "Entered Resizing :Use Arrow Keys to resize and press &lt;ENTER&gt; to end resizing");
-                                refresh();
-                                attroff(COLOR_PAIR(4));
-                                break;
-                        case 'm':       /* Move */
-                                attron(COLOR_PAIR(4));
-                                mvprintw(LINES - 4, 0, "Entered Moving: Use Arrow Keys to Move and press &lt;ENTER&gt; to end moving");
-                                refresh();
-                                attroff(COLOR_PAIR(4));
-                                move = TRUE;
-                                break;
-                        case KEY_LEFT:
-                                if(size == TRUE)
-                                {       --newx;
-                                        ++neww;
-                                }
-                                if(move == TRUE)
-                                        --newx;
-                                break;
-                        case KEY_RIGHT:
-                                if(size == TRUE)
-                                {       ++newx;
-                                        --neww;
-                                }
-                                if(move == TRUE)
-                                        ++newx;
-                                break;
-                        case KEY_UP:
-                                if(size == TRUE)
-                                {       --newy;
-                                        ++newh;
-                                }
-                                if(move == TRUE)
-                                        --newy;
-                                break;
-                        case KEY_DOWN:
-                                if(size == TRUE)
-                                {       ++newy;
-                                        --newh;
-                                }
-                                if(move == TRUE)
-                                        ++newy;
-                                break;
-                        case 10:        /* Enter */
-                                move(LINES - 4, 0);
-                                clrtoeol();
-                                refresh();
-                                if(size == TRUE)
-                                {       old_win = panel_window(stack_top);
-                                        temp_win = newwin(newh, neww, newy, newx);
-                                        replace_panel(stack_top, temp_win);
-                                        win_show(temp_win, top-&gt;label, top-&gt;label_color); 
-                                        delwin(old_win);
-                                        size = FALSE;
-                                }
-                                if(move == TRUE)
-                                {       move_panel(stack_top, newy, newx);
-                                        move = FALSE;
-                                }
-                                break;
-                        
-                }
-                attron(COLOR_PAIR(4));
-                mvprintw(LINES - 3, 0, "Use 'm' for moving, 'r' for resizing");
-                mvprintw(LINES - 2, 0, "Use tab to browse through the windows (F1 to Exit)");
-                attroff(COLOR_PAIR(4));
-                refresh();      
-                update_panels();
-                doupdate();
-        }
-        endwin();
-        return 0;
+    }
+    endwin();
+    return 0;
 }
 
 /* Put all the windows */
-void init_wins(WINDOW **wins, int n)
-{       int x, y, i;
-        char label[80];
+void
+init_wins(WINDOW **wins, int n)
+{
+    int x, y, i;
+    char label[80];
 
-        y = 2;
-        x = 10;
-        for(i = 0; i &lt; n; ++i)
-        {       wins[i] = newwin(NLINES, NCOLS, y, x);
-                sprintf(label, "Window Number %d", i + 1);
-                win_show(wins[i], label, i + 1);
-                y += 3;
-                x += 7;
-        }
+    y = 2;
+    x = 10;
+    for (i = 0; i &lt; n; ++i) {
+        wins[i] = newwin(NLINES, NCOLS, y, x);
+        sprintf(label, "Window Number %d", i + 1);
+        win_show(wins[i], label, i + 1);
+        y += 3;
+        x += 7;
+    }
 }
 
 /* Set the PANEL_DATA structures for individual panels */
-void set_user_ptrs(PANEL **panels, int n)
-{       PANEL_DATA *ptrs;
-        WINDOW *win;
-        int x, y, w, h, i;
-        char temp[80];
-        
-        ptrs = (PANEL_DATA *)calloc(n, sizeof(PANEL_DATA));
+void
+set_user_ptrs(PANEL **panels, int n)
+{
+    PANEL_DATA *ptrs;
+    WINDOW *win;
+    int x, y, w, h, i;
+    char temp[80];
 
-        for(i = 0;i &lt; n; ++i)
-        {       win = panel_window(panels[i]);
-                getbegyx(win, y, x);
-                getmaxyx(win, h, w);
-                ptrs[i].x = x;
-                ptrs[i].y = y;
-                ptrs[i].w = w;
-                ptrs[i].h = h;
-                sprintf(temp, "Window Number %d", i + 1);
-                strcpy(ptrs[i].label, temp);
-                ptrs[i].label_color = i + 1;
-                if(i + 1 == n)
-                        ptrs[i].next = panels[0];
-                else
-                        ptrs[i].next = panels[i + 1];
-                set_panel_userptr(panels[i], &amp;ptrs[i]);
-        }
+    ptrs = (PANEL_DATA *) calloc((size_t) n, sizeof(PANEL_DATA));
+
+    for (i = 0; i &lt; n; ++i) {
+        win = panel_window(panels[i]);
+        getbegyx(win, y, x);
+        getmaxyx(win, h, w);
+        ptrs[i].x = x;
+        ptrs[i].y = y;
+        ptrs[i].w = w;
+        ptrs[i].h = h;
+        sprintf(temp, "Window Number %d", i + 1);
+        strcpy(ptrs[i].label, temp);
+        ptrs[i].label_color = i + 1;
+        if (i + 1 == n)
+            ptrs[i].next = panels[0];
+        else
+            ptrs[i].next = panels[i + 1];
+        set_panel_userptr(panels[i], &amp;ptrs[i]);
+    }
 }
 
 /* Show the window with a border and a label */
-void win_show(WINDOW *win, char *label, int label_color)
-{       int startx, starty, height, width;
+void
+win_show(WINDOW *win, const char *label, int label_color)
+{
+    int height, width;
 
-        getbegyx(win, starty, startx);
-        getmaxyx(win, height, width);
+    getmaxyx(win, height, width);
+    (void) height;
 
-        box(win, 0, 0);
-        mvwaddch(win, 2, 0, ACS_LTEE); 
-        mvwhline(win, 2, 1, ACS_HLINE, width - 2); 
-        mvwaddch(win, 2, width - 1, ACS_RTEE); 
-        
-        print_in_middle(win, 1, 0, width, label, COLOR_PAIR(label_color));
+    box(win, 0, 0);
+    mvwaddch(win, 2, 0, ACS_LTEE);
+    mvwhline(win, 2, 1, ACS_HLINE, width - 2);
+    mvwaddch(win, 2, width - 1, ACS_RTEE);
+
+    print_in_middle(win, 1, 0, width, label, COLOR_PAIR(label_color));
 }
 
-void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string, chtype color)
-{       int length, x, y;
-        float temp;
+void
+print_in_middle(WINDOW *win, int starty, int startx,
+                int width, const char *string, chtype color)
+{
+    int length, x, y;
+    float temp;
 
-        if(win == NULL)
-                win = stdscr;
-        getyx(win, y, x);
-        if(startx != 0)
-                x = startx;
-        if(starty != 0)
-                y = starty;
-        if(width == 0)
-                width = 80;
+    if (win == NULL)
+        win = stdscr;
+    getyx(win, y, x);
+    if (startx != 0)
+        x = startx;
+    if (starty != 0)
+        y = starty;
+    if (width == 0)
+        width = 80;
 
-        length = strlen(string);
-        temp = (width - length)/ 2;
-        x = startx + (int)temp;
-        wattron(win, color);
-        mvwprintw(win, y, x, "%s", string);
-        wattroff(win, color);
-        refresh();
+    length = (int) strlen(string);
+    temp = (float) (width - length) / 2;
+    x = startx + (int) temp;
+    wattron(win, color);
+    mvwprintw(win, y, x, "%s", string);
+    wattroff(win, color);
+    refresh();
 }</span></pre>
         </div>
 
@@ -3952,158 +4045,167 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
 #include &lt;panel.h&gt;
 
 typedef struct _PANEL_DATA {
-        int hide;       /* TRUE if panel is hidden */
-}PANEL_DATA;
+    int hide;                   /* TRUE if panel is hidden */
+} PANEL_DATA;
 
 #define NLINES 10
 #define NCOLS 40
 
 void init_wins(WINDOW **wins, int n);
-void win_show(WINDOW *win, char *label, int label_color);
-void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string, chtype color);
+void win_show(WINDOW *win, const char *label, int label_color);
+void print_in_middle(WINDOW *win, int starty, int startx,
+                     int width, const char *string, chtype color);
 
-int main()
-{       WINDOW *my_wins[3];
-        PANEL  *my_panels[3];
-        PANEL_DATA panel_datas[3];
-        PANEL_DATA *temp;
-        int ch;
+int
+main(void)
+{
+    WINDOW *my_wins[3];
+    PANEL *my_panels[3];
+    PANEL_DATA panel_datas[3];
+    PANEL_DATA *temp;
+    int ch;
 
-        /* Initialize curses */
-        initscr();
-        start_color();
-        cbreak();
-        noecho();
-        keypad(stdscr, TRUE);
+    /* Initialize curses */
+    initscr();
+    start_color();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
 
-        /* Initialize all the colors */
-        init_pair(1, COLOR_RED, COLOR_BLACK);
-        init_pair(2, COLOR_GREEN, COLOR_BLACK);
-        init_pair(3, COLOR_BLUE, COLOR_BLACK);
-        init_pair(4, COLOR_CYAN, COLOR_BLACK);
+    /* Initialize all the colors */
+    init_pair(1, COLOR_RED, COLOR_BLACK);
+    init_pair(2, COLOR_GREEN, COLOR_BLACK);
+    init_pair(3, COLOR_BLUE, COLOR_BLACK);
+    init_pair(4, COLOR_CYAN, COLOR_BLACK);
 
-        init_wins(my_wins, 3);
-        
-        /* Attach a panel to each window */     /* Order is bottom up */
-        my_panels[0] = new_panel(my_wins[0]);   /* Push 0, order: stdscr-0 */
-        my_panels[1] = new_panel(my_wins[1]);   /* Push 1, order: stdscr-0-1 */
-        my_panels[2] = new_panel(my_wins[2]);   /* Push 2, order: stdscr-0-1-2 */
+    init_wins(my_wins, 3);
 
-        /* Initialize panel data saying that nothing is hidden */
-        panel_datas[0].hide = FALSE;
-        panel_datas[1].hide = FALSE;
-        panel_datas[2].hide = FALSE;
+    /* Attach a panel to each window */
+    /* Order is bottom up */
+    my_panels[0] = new_panel(my_wins[0]);       /* Push 0, order: stdscr-0 */
+    my_panels[1] = new_panel(my_wins[1]);       /* Push 1, order: stdscr-0-1 */
+    my_panels[2] = new_panel(my_wins[2]);       /* Push 2, order: stdscr-0-1-2 */
 
-        set_panel_userptr(my_panels[0], &amp;panel_datas[0]);
-        set_panel_userptr(my_panels[1], &amp;panel_datas[1]);
-        set_panel_userptr(my_panels[2], &amp;panel_datas[2]);
+    /* Initialize panel data saying that nothing is hidden */
+    panel_datas[0].hide = FALSE;
+    panel_datas[1].hide = FALSE;
+    panel_datas[2].hide = FALSE;
 
-        /* Update the stacking order. 2nd panel will be on top */
-        update_panels();
+    set_panel_userptr(my_panels[0], &amp;panel_datas[0]);
+    set_panel_userptr(my_panels[1], &amp;panel_datas[1]);
+    set_panel_userptr(my_panels[2], &amp;panel_datas[2]);
 
-        /* Show it on the screen */
-        attron(COLOR_PAIR(4));
-        mvprintw(LINES - 3, 0, "Show or Hide a window with 'a'(first window)  'b'(Second Window)  'c'(Third Window)");
-        mvprintw(LINES - 2, 0, "F1 to Exit");
+    /* Update the stacking order. 2nd panel will be on top */
+    update_panels();
 
-        attroff(COLOR_PAIR(4));
-        doupdate();
-        
-        while((ch = getch()) != KEY_F(1))
-        {       switch(ch)
-                {       case 'a':                       
-                                temp = (PANEL_DATA *)panel_userptr(my_panels[0]);
-                                if(temp-&gt;hide == FALSE)
-                                {       hide_panel(my_panels[0]);
-                                        temp-&gt;hide = TRUE;
-                                }
-                                else
-                                {       show_panel(my_panels[0]);
-                                        temp-&gt;hide = FALSE;
-                                }
-                                break;
-                        case 'b':
-                                temp = (PANEL_DATA *)panel_userptr(my_panels[1]);
-                                if(temp-&gt;hide == FALSE)
-                                {       hide_panel(my_panels[1]);
-                                        temp-&gt;hide = TRUE;
-                                }
-                                else
-                                {       show_panel(my_panels[1]);
-                                        temp-&gt;hide = FALSE;
-                                }
-                                break;
-                        case 'c':
-                                temp = (PANEL_DATA *)panel_userptr(my_panels[2]);
-                                if(temp-&gt;hide == FALSE)
-                                {       hide_panel(my_panels[2]);
-                                        temp-&gt;hide = TRUE;
-                                }
-                                else
-                                {       show_panel(my_panels[2]);
-                                        temp-&gt;hide = FALSE;
-                                }
-                                break;
-                }
-                update_panels();
-                doupdate();
+    /* Show it on the screen */
+    attron(COLOR_PAIR(4));
+    mvprintw(LINES - 3, 0,
+             "Show or Hide a window with 'a'(first window)  'b'(Second Window)  'c'(Third Window)");
+    mvprintw(LINES - 2, 0, "F1 to Exit");
+
+    attroff(COLOR_PAIR(4));
+    doupdate();
+
+    while ((ch = getch()) != KEY_F(1)) {
+        switch (ch) {
+        case 'a':
+            temp = (PANEL_DATA *) panel_userptr(my_panels[0]);
+            if (temp-&gt;hide == FALSE) {
+                hide_panel(my_panels[0]);
+                temp-&gt;hide = TRUE;
+            } else {
+                show_panel(my_panels[0]);
+                temp-&gt;hide = FALSE;
+            }
+            break;
+        case 'b':
+            temp = (PANEL_DATA *) panel_userptr(my_panels[1]);
+            if (temp-&gt;hide == FALSE) {
+                hide_panel(my_panels[1]);
+                temp-&gt;hide = TRUE;
+            } else {
+                show_panel(my_panels[1]);
+                temp-&gt;hide = FALSE;
+            }
+            break;
+        case 'c':
+            temp = (PANEL_DATA *) panel_userptr(my_panels[2]);
+            if (temp-&gt;hide == FALSE) {
+                hide_panel(my_panels[2]);
+                temp-&gt;hide = TRUE;
+            } else {
+                show_panel(my_panels[2]);
+                temp-&gt;hide = FALSE;
+            }
+            break;
         }
-        endwin();
-        return 0;
+        update_panels();
+        doupdate();
+    }
+    endwin();
+    return 0;
 }
 
 /* Put all the windows */
-void init_wins(WINDOW **wins, int n)
-{       int x, y, i;
-        char label[80];
+void
+init_wins(WINDOW **wins, int n)
+{
+    int x, y, i;
+    char label[80];
 
-        y = 2;
-        x = 10;
-        for(i = 0; i &lt; n; ++i)
-        {       wins[i] = newwin(NLINES, NCOLS, y, x);
-                sprintf(label, "Window Number %d", i + 1);
-                win_show(wins[i], label, i + 1);
-                y += 3;
-                x += 7;
-        }
+    y = 2;
+    x = 10;
+    for (i = 0; i &lt; n; ++i) {
+        wins[i] = newwin(NLINES, NCOLS, y, x);
+        sprintf(label, "Window Number %d", i + 1);
+        win_show(wins[i], label, i + 1);
+        y += 3;
+        x += 7;
+    }
 }
 
 /* Show the window with a border and a label */
-void win_show(WINDOW *win, char *label, int label_color)
-{       int startx, starty, height, width;
+void
+win_show(WINDOW *win, const char *label, int label_color)
+{
+    int height, width;
 
-        getbegyx(win, starty, startx);
-        getmaxyx(win, height, width);
+    getmaxyx(win, height, width);
+    (void) height;
 
-        box(win, 0, 0);
-        mvwaddch(win, 2, 0, ACS_LTEE); 
-        mvwhline(win, 2, 1, ACS_HLINE, width - 2); 
-        mvwaddch(win, 2, width - 1, ACS_RTEE); 
-        
-        print_in_middle(win, 1, 0, width, label, COLOR_PAIR(label_color));
+    box(win, 0, 0);
+    mvwaddch(win, 2, 0, ACS_LTEE);
+    mvwhline(win, 2, 1, ACS_HLINE, width - 2);
+    mvwaddch(win, 2, width - 1, ACS_RTEE);
+
+    print_in_middle(win, 1, 0, width, label, COLOR_PAIR(label_color));
 }
 
-void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string, chtype color)
-{       int length, x, y;
-        float temp;
+void
+print_in_middle(WINDOW *win, int starty, int startx,
+                int width, const char *string, chtype color)
+{
+    int length, x, y;
+    float temp;
 
-        if(win == NULL)
-                win = stdscr;
-        getyx(win, y, x);
-        if(startx != 0)
-                x = startx;
-        if(starty != 0)
-                y = starty;
-        if(width == 0)
-                width = 80;
+    if (win == NULL)
+        win = stdscr;
+    getyx(win, y, x);
+    if (startx != 0)
+        x = startx;
+    if (starty != 0)
+        y = starty;
+    if (width == 0)
+        width = 80;
 
-        length = strlen(string);
-        temp = (width - length)/ 2;
-        x = startx + (int)temp;
-        wattron(win, color);
-        mvwprintw(win, y, x, "%s", string);
-        wattroff(win, color);
-        refresh();
+    length = (int) strlen(string);
+    temp = (float) (width - length) / 2;
+    x = startx + (int) temp;
+    wattron(win, color);
+    mvwprintw(win, y, x, "%s", string);
+    wattroff(win, color);
+    refresh();
 }</span></pre>
         </div>
       </div>
@@ -4235,56 +4337,56 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #define CTRLD   4
 
-char *choices[] = {
-                        "Choice 1",
-                        "Choice 2",
-                        "Choice 3",
-                        "Choice 4",
-                        "Exit",
-                  };
+const char *choices[] =
+{
+    "Choice 1",
+    "Choice 2",
+    "Choice 3",
+    "Choice 4",
+    "Exit",
+};
 
-int main()
-{       ITEM **my_items;
-        int c;                          
-        MENU *my_menu;
-        int n_choices, i;
-        ITEM *cur_item;
-        
-        
-        initscr();
-        cbreak();
-        noecho();
-        keypad(stdscr, TRUE);
-        
-        n_choices = ARRAY_SIZE(choices);
-        my_items = (ITEM **)calloc(n_choices + 1, sizeof(ITEM *));
+int
+main(void)
+{
+    ITEM **my_items;
+    int c;
+    MENU *my_menu;
+    int n_choices, i;
 
-        for(i = 0; i &lt; n_choices; ++i)
-                my_items[i] = new_item(choices[i], choices[i]);
-        my_items[n_choices] = (ITEM *)NULL;
+    initscr();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
 
-        my_menu = new_menu((ITEM **)my_items);
-        mvprintw(LINES - 2, 0, "F1 to Exit");
-        post_menu(my_menu);
-        refresh();
+    n_choices = ARRAY_SIZE(choices);
+    my_items = (ITEM **) calloc((size_t) (n_choices + 1), sizeof(ITEM *));
 
-        while((c = getch()) != KEY_F(1))
-        {   switch(c)
-            {   case KEY_DOWN:
-                        menu_driver(my_menu, REQ_DOWN_ITEM);
-                                break;
-                        case KEY_UP:
-                                menu_driver(my_menu, REQ_UP_ITEM);
-                                break;
-                }
-        }       
+    for (i = 0; i &lt; n_choices; ++i)
+        my_items[i] = new_item(choices[i], choices[i]);
+    my_items[n_choices] = (ITEM *) NULL;
 
-        free_item(my_items[0]);
-        free_item(my_items[1]);
-        free_menu(my_menu);
-        endwin();
-}
-        </span></pre>
+    my_menu = new_menu((ITEM **) my_items);
+    mvprintw(LINES - 2, 0, "F1 to Exit");
+    post_menu(my_menu);
+    refresh();
+
+    while ((c = getch()) != KEY_F(1)) {
+        switch (c) {
+        case KEY_DOWN:
+            menu_driver(my_menu, REQ_DOWN_ITEM);
+            break;
+        case KEY_UP:
+            menu_driver(my_menu, REQ_UP_ITEM);
+            break;
+        }
+    }
+
+    free_item(my_items[0]);
+    free_item(my_items[1]);
+    free_menu(my_menu);
+    endwin();
+}</span></pre>
         </div>
 
         <p>This program demonstrates the basic concepts involved in
@@ -4304,21 +4406,21 @@ int main()
         requests.</p>
 
         <pre class=
-        "PROGRAMLISTING">&#13;     REQ_LEFT_ITEM         Move left to an item.
-     REQ_RIGHT_ITEM      Move right to an item.
-     REQ_UP_ITEM         Move up to an item.
-     REQ_DOWN_ITEM       Move down to an item.
-     REQ_SCR_ULINE       Scroll up a line.
-     REQ_SCR_DLINE          Scroll down a line.
-     REQ_SCR_DPAGE          Scroll down a page.
-     REQ_SCR_UPAGE         Scroll up a page.
+        "PROGRAMLISTING">&#13;     REQ_LEFT_ITEM      Move left to an item.
+     REQ_RIGHT_ITEM     Move right to an item.
+     REQ_UP_ITEM        Move up to an item.
+     REQ_DOWN_ITEM      Move down to an item.
+     REQ_SCR_ULINE      Scroll up a line.
+     REQ_SCR_DLINE      Scroll down a line.
+     REQ_SCR_DPAGE      Scroll down a page.
+     REQ_SCR_UPAGE      Scroll up a page.
      REQ_FIRST_ITEM     Move to the first item.
-     REQ_LAST_ITEM         Move to the last item.
-     REQ_NEXT_ITEM         Move to the next item.
-     REQ_PREV_ITEM         Move to the previous item. 
-     REQ_TOGGLE_ITEM     Select/deselect an item.
-     REQ_CLEAR_PATTERN     Clear the menu pattern buffer.
-     REQ_BACK_PATTERN      Delete the previous character from the pattern buffer.
+     REQ_LAST_ITEM      Move to the last item.
+     REQ_NEXT_ITEM      Move to the next item.
+     REQ_PREV_ITEM      Move to the previous item.
+     REQ_TOGGLE_ITEM    Select/deselect an item.
+     REQ_CLEAR_PATTERN  Clear the menu pattern buffer.
+     REQ_BACK_PATTERN   Delete the previous character from the pattern buffer.
      REQ_NEXT_MATCH     Move to the next item matching the pattern match.
      REQ_PREV_MATCH     Move to the previous item matching the pattern match.&#13;</pre>
         <p>Don't get overwhelmed by the number of options. We will
@@ -4485,105 +4587,113 @@ int main()
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #define CTRLD   4
 
-char *choices[] = {
-                        "Choice 1",
-                        "Choice 2",
-                        "Choice 3",
-                        "Choice 4",
-                        "Exit",
-                        (char *)NULL,
-                  };
-void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string, chtype color);
+const char *choices[] =
+{
+    "Choice 1",
+    "Choice 2",
+    "Choice 3",
+    "Choice 4",
+    "Exit",
+    (char *) NULL,
+};
 
-int main()
-{       ITEM **my_items;
-        int c;                          
-        MENU *my_menu;
-        WINDOW *my_menu_win;
-        int n_choices, i;
-        
-        /* Initialize curses */
-        initscr();
-        start_color();
-        cbreak();
-        noecho();
-        keypad(stdscr, TRUE);
-        init_pair(1, COLOR_RED, COLOR_BLACK);
+void print_in_middle(WINDOW *win, int starty, int startx,
+                     int width, const char *string, chtype color);
 
-        /* Create items */
-        n_choices = ARRAY_SIZE(choices);
-        my_items = (ITEM **)calloc(n_choices, sizeof(ITEM *));
-        for(i = 0; i &lt; n_choices; ++i)
-                my_items[i] = new_item(choices[i], choices[i]);
+int
+main(void)
+{
+    ITEM **my_items;
+    int c;
+    MENU *my_menu;
+    WINDOW *my_menu_win;
+    int n_choices, i;
 
-        /* Create menu */
-        my_menu = new_menu((ITEM **)my_items);
+    /* Initialize curses */
+    initscr();
+    start_color();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+    init_pair(1, COLOR_RED, COLOR_BLACK);
 
-        /* Create the window to be associated with the menu */
-        my_menu_win = newwin(10, 40, 4, 4);
-        keypad(my_menu_win, TRUE);
-     
-        /* Set main window and sub window */
-        set_menu_win(my_menu, my_menu_win);
-        set_menu_sub(my_menu, derwin(my_menu_win, 6, 38, 3, 1));
+    /* Create items */
+    n_choices = ARRAY_SIZE(choices);
+    my_items = (ITEM **) calloc((size_t) n_choices, sizeof(ITEM *));
+    for (i = 0; i &lt; n_choices; ++i)
+        my_items[i] = new_item(choices[i], choices[i]);
 
-        /* Set menu mark to the string " * " */
-        set_menu_mark(my_menu, " * ");
+    /* Create menu */
+    my_menu = new_menu((ITEM **) my_items);
 
-        /* Print a border around the main window and print a title */
-        box(my_menu_win, 0, 0);
-        print_in_middle(my_menu_win, 1, 0, 40, "My Menu", COLOR_PAIR(1));
-        mvwaddch(my_menu_win, 2, 0, ACS_LTEE);
-        mvwhline(my_menu_win, 2, 1, ACS_HLINE, 38);
-        mvwaddch(my_menu_win, 2, 39, ACS_RTEE);
-        mvprintw(LINES - 2, 0, "F1 to exit");
-        refresh();
-        
-        /* Post the menu */
-        post_menu(my_menu);
+    /* Create the window to be associated with the menu */
+    my_menu_win = newwin(10, 40, 4, 4);
+    keypad(my_menu_win, TRUE);
+
+    /* Set main window and sub window */
+    set_menu_win(my_menu, my_menu_win);
+    set_menu_sub(my_menu, derwin(my_menu_win, 6, 38, 3, 1));
+
+    /* Set menu mark to the string " * " */
+    set_menu_mark(my_menu, " * ");
+
+    /* Print a border around the main window and print a title */
+    box(my_menu_win, 0, 0);
+    print_in_middle(my_menu_win, 1, 0, 40, "My Menu", COLOR_PAIR(1));
+    mvwaddch(my_menu_win, 2, 0, ACS_LTEE);
+    mvwhline(my_menu_win, 2, 1, ACS_HLINE, 38);
+    mvwaddch(my_menu_win, 2, 39, ACS_RTEE);
+    mvprintw(LINES - 2, 0, "F1 to exit");
+    refresh();
+
+    /* Post the menu */
+    post_menu(my_menu);
+    wrefresh(my_menu_win);
+
+    while ((c = wgetch(my_menu_win)) != KEY_F(1)) {
+        switch (c) {
+        case KEY_DOWN:
+            menu_driver(my_menu, REQ_DOWN_ITEM);
+            break;
+        case KEY_UP:
+            menu_driver(my_menu, REQ_UP_ITEM);
+            break;
+        }
         wrefresh(my_menu_win);
+    }
 
-        while((c = wgetch(my_menu_win)) != KEY_F(1))
-        {       switch(c)
-                {       case KEY_DOWN:
-                                menu_driver(my_menu, REQ_DOWN_ITEM);
-                                break;
-                        case KEY_UP:
-                                menu_driver(my_menu, REQ_UP_ITEM);
-                                break;
-                }
-                wrefresh(my_menu_win);
-        }       
-
-        /* Unpost and free all the memory taken up */
-        unpost_menu(my_menu);
-        free_menu(my_menu);
-        for(i = 0; i &lt; n_choices; ++i)
-                free_item(my_items[i]);
-        endwin();
+    /* Unpost and free all the memory taken up */
+    unpost_menu(my_menu);
+    free_menu(my_menu);
+    for (i = 0; i &lt; n_choices; ++i)
+        free_item(my_items[i]);
+    endwin();
 }
 
-void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string, chtype color)
-{       int length, x, y;
-        float temp;
+void
+print_in_middle(WINDOW *win, int starty, int startx,
+                int width, const char *string, chtype color)
+{
+    int length, x, y;
+    float temp;
 
-        if(win == NULL)
-                win = stdscr;
-        getyx(win, y, x);
-        if(startx != 0)
-                x = startx;
-        if(starty != 0)
-                y = starty;
-        if(width == 0)
-                width = 80;
+    if (win == NULL)
+        win = stdscr;
+    getyx(win, y, x);
+    if (startx != 0)
+        x = startx;
+    if (starty != 0)
+        y = starty;
+    if (width == 0)
+        width = 80;
 
-        length = strlen(string);
-        temp = (width - length)/ 2;
-        x = startx + (int)temp;
-        wattron(win, color);
-        mvwprintw(win, y, x, "%s", string);
-        wattroff(win, color);
-        refresh();
+    length = (int) strlen(string);
+    temp = (float) (width - length) / 2;
+    x = startx + (int) temp;
+    wattron(win, color);
+    mvwprintw(win, y, x, "%s", string);
+    wattroff(win, color);
+    refresh();
 }</span></pre>
         </div>
 
@@ -4624,123 +4734,132 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #define CTRLD   4
 
-char *choices[] = {
-                        "Choice 1",
-                        "Choice 2",
-                        "Choice 3",
-                        "Choice 4",
-                        "Choice 5",
-                        "Choice 6",
-                        "Choice 7",
-                        "Choice 8",
-                        "Choice 9",
-                        "Choice 10",
-                        "Exit",
-                        (char *)NULL,
-                  };
-void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string, chtype color);
+const char *choices[] =
+{
+    "Choice 1",
+    "Choice 2",
+    "Choice 3",
+    "Choice 4",
+    "Choice 5",
+    "Choice 6",
+    "Choice 7",
+    "Choice 8",
+    "Choice 9",
+    "Choice 10",
+    "Exit",
+    (char *) NULL,
+};
 
-int main()
-{       ITEM **my_items;
-        int c;                          
-        MENU *my_menu;
-        WINDOW *my_menu_win;
-        int n_choices, i;
-        
-        /* Initialize curses */
-        initscr();
-        start_color();
-        cbreak();
-        noecho();
-        keypad(stdscr, TRUE);
-        init_pair(1, COLOR_RED, COLOR_BLACK);
-        init_pair(2, COLOR_CYAN, COLOR_BLACK);
+void print_in_middle(WINDOW *win, int starty, int startx,
+                     int width, const char *string, chtype color);
 
-        /* Create items */
-        n_choices = ARRAY_SIZE(choices);
-        my_items = (ITEM **)calloc(n_choices, sizeof(ITEM *));
-        for(i = 0; i &lt; n_choices; ++i)
-                my_items[i] = new_item(choices[i], choices[i]);
+int
+main(void)
+{
+    ITEM **my_items;
+    int c;
+    MENU *my_menu;
+    WINDOW *my_menu_win;
+    int n_choices, i;
 
-        /* Create menu */
-        my_menu = new_menu((ITEM **)my_items);
+    /* Initialize curses */
+    initscr();
+    start_color();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+    init_pair(1, COLOR_RED, COLOR_BLACK);
+    init_pair(2, COLOR_CYAN, COLOR_BLACK);
 
-        /* Create the window to be associated with the menu */
-        my_menu_win = newwin(10, 40, 4, 4);
-        keypad(my_menu_win, TRUE);
-     
-        /* Set main window and sub window */
-        set_menu_win(my_menu, my_menu_win);
-        set_menu_sub(my_menu, derwin(my_menu_win, 6, 38, 3, 1));
-        set_menu_format(my_menu, 5, 1);
-                        
-        /* Set menu mark to the string " * " */
-        set_menu_mark(my_menu, " * ");
+    /* Create items */
+    n_choices = ARRAY_SIZE(choices);
+    my_items = (ITEM **) calloc((size_t) n_choices, sizeof(ITEM *));
+    for (i = 0; i &lt; n_choices; ++i)
+        my_items[i] = new_item(choices[i], choices[i]);
 
-        /* Print a border around the main window and print a title */
-        box(my_menu_win, 0, 0);
-        print_in_middle(my_menu_win, 1, 0, 40, "My Menu", COLOR_PAIR(1));
-        mvwaddch(my_menu_win, 2, 0, ACS_LTEE);
-        mvwhline(my_menu_win, 2, 1, ACS_HLINE, 38);
-        mvwaddch(my_menu_win, 2, 39, ACS_RTEE);
-        
-        /* Post the menu */
-        post_menu(my_menu);
+    /* Create menu */
+    my_menu = new_menu((ITEM **) my_items);
+
+    /* Create the window to be associated with the menu */
+    my_menu_win = newwin(10, 40, 4, 4);
+    keypad(my_menu_win, TRUE);
+
+    /* Set main window and sub window */
+    set_menu_win(my_menu, my_menu_win);
+    set_menu_sub(my_menu, derwin(my_menu_win, 6, 38, 3, 1));
+    set_menu_format(my_menu, 5, 1);
+
+    /* Set menu mark to the string " * " */
+    set_menu_mark(my_menu, " * ");
+
+    /* Print a border around the main window and print a title */
+    box(my_menu_win, 0, 0);
+    print_in_middle(my_menu_win, 1, 0, 40, "My Menu", COLOR_PAIR(1));
+    mvwaddch(my_menu_win, 2, 0, ACS_LTEE);
+    mvwhline(my_menu_win, 2, 1, ACS_HLINE, 38);
+    mvwaddch(my_menu_win, 2, 39, ACS_RTEE);
+
+    /* Post the menu */
+    post_menu(my_menu);
+    wrefresh(my_menu_win);
+
+    attron(COLOR_PAIR(2));
+    mvprintw(LINES - 2, 0,
+             "Use PageUp and PageDown to scroll down or up a page of items");
+    mvprintw(LINES - 1, 0, "Arrow Keys to navigate (F1 to Exit)");
+    attroff(COLOR_PAIR(2));
+    refresh();
+
+    while ((c = wgetch(my_menu_win)) != KEY_F(1)) {
+        switch (c) {
+        case KEY_DOWN:
+            menu_driver(my_menu, REQ_DOWN_ITEM);
+            break;
+        case KEY_UP:
+            menu_driver(my_menu, REQ_UP_ITEM);
+            break;
+        case KEY_NPAGE:
+            menu_driver(my_menu, REQ_SCR_DPAGE);
+            break;
+        case KEY_PPAGE:
+            menu_driver(my_menu, REQ_SCR_UPAGE);
+            break;
+        }
         wrefresh(my_menu_win);
-        
-        attron(COLOR_PAIR(2));
-        mvprintw(LINES - 2, 0, "Use PageUp and PageDown to scroll down or up a page of items");
-        mvprintw(LINES - 1, 0, "Arrow Keys to navigate (F1 to Exit)");
-        attroff(COLOR_PAIR(2));
-        refresh();
+    }
 
-        while((c = wgetch(my_menu_win)) != KEY_F(1))
-        {       switch(c)
-                {       case KEY_DOWN:
-                                menu_driver(my_menu, REQ_DOWN_ITEM);
-                                break;
-                        case KEY_UP:
-                                menu_driver(my_menu, REQ_UP_ITEM);
-                                break;
-                        case KEY_NPAGE:
-                                menu_driver(my_menu, REQ_SCR_DPAGE);
-                                break;
-                        case KEY_PPAGE:
-                                menu_driver(my_menu, REQ_SCR_UPAGE);
-                                break;
-                }
-                wrefresh(my_menu_win);
-        }       
-
-        /* Unpost and free all the memory taken up */
-        unpost_menu(my_menu);
-        free_menu(my_menu);
-        for(i = 0; i &lt; n_choices; ++i)
-                free_item(my_items[i]);
-        endwin();
+    /* Unpost and free all the memory taken up */
+    unpost_menu(my_menu);
+    free_menu(my_menu);
+    for (i = 0; i &lt; n_choices; ++i)
+        free_item(my_items[i]);
+    endwin();
 }
 
-void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string, chtype color)
-{       int length, x, y;
-        float temp;
+void
+print_in_middle(WINDOW *win, int starty, int startx,
+                int width, const char *string, chtype color)
+{
+    int length, x, y;
+    float temp;
 
-        if(win == NULL)
-                win = stdscr;
-        getyx(win, y, x);
-        if(startx != 0)
-                x = startx;
-        if(starty != 0)
-                y = starty;
-        if(width == 0)
-                width = 80;
+    if (win == NULL)
+        win = stdscr;
+    getyx(win, y, x);
+    if (startx != 0)
+        x = startx;
+    if (starty != 0)
+        y = starty;
+    if (width == 0)
+        width = 80;
 
-        length = strlen(string);
-        temp = (width - length)/ 2;
-        x = startx + (int)temp;
-        wattron(win, color);
-        mvwprintw(win, y, x, "%s", string);
-        wattroff(win, color);
-        refresh();
+    length = (int) strlen(string);
+    temp = (float) (width - length) / 2;
+    x = startx + (int) temp;
+    wattron(win, color);
+    mvwprintw(win, y, x, "%s", string);
+    wattroff(win, color);
+    refresh();
 }</span></pre>
         </div>
 
@@ -4785,96 +4904,99 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #define CTRLD   4
 
-char *choices[] = {
-                        "Choice 1", "Choice 2", "Choice 3", "Choice 4", "Choice 5",
-                        "Choice 6", "Choice 7", "Choice 8", "Choice 9", "Choice 10",
-                        "Choice 11", "Choice 12", "Choice 13", "Choice 14", "Choice 15",
-                        "Choice 16", "Choice 17", "Choice 18", "Choice 19", "Choice 20",
-                        "Exit",
-                        (char *)NULL,
-                  };
+const char *choices[] =
+{
+    "Choice 1", "Choice 2", "Choice 3", "Choice 4", "Choice 5",
+    "Choice 6", "Choice 7", "Choice 8", "Choice 9", "Choice 10",
+    "Choice 11", "Choice 12", "Choice 13", "Choice 14", "Choice 15",
+    "Choice 16", "Choice 17", "Choice 18", "Choice 19", "Choice 20",
+    "Exit",
+    (char *) NULL,
+};
 
-int main()
-{       ITEM **my_items;
-        int c;                          
-        MENU *my_menu;
-        WINDOW *my_menu_win;
-        int n_choices, i;
-        
-        /* Initialize curses */
-        initscr();
-        start_color();
-        cbreak();
-        noecho();
-        keypad(stdscr, TRUE);
-        init_pair(1, COLOR_RED, COLOR_BLACK);
-        init_pair(2, COLOR_CYAN, COLOR_BLACK);
+int
+main(void)
+{
+    ITEM **my_items;
+    int c;
+    MENU *my_menu;
+    WINDOW *my_menu_win;
+    int n_choices, i;
 
-        /* Create items */
-        n_choices = ARRAY_SIZE(choices);
-        my_items = (ITEM **)calloc(n_choices, sizeof(ITEM *));
-        for(i = 0; i &lt; n_choices; ++i)
-                my_items[i] = new_item(choices[i], choices[i]);
+    /* Initialize curses */
+    initscr();
+    start_color();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+    init_pair(1, COLOR_RED, COLOR_BLACK);
+    init_pair(2, COLOR_CYAN, COLOR_BLACK);
 
-        /* Create menu */
-        my_menu = new_menu((ITEM **)my_items);
+    /* Create items */
+    n_choices = ARRAY_SIZE(choices);
+    my_items = (ITEM **) calloc((size_t) n_choices, sizeof(ITEM *));
+    for (i = 0; i &lt; n_choices; ++i)
+        my_items[i] = new_item(choices[i], choices[i]);
 
-        /* Set menu option not to show the description */
-        menu_opts_off(my_menu, O_SHOWDESC);
+    /* Create menu */
+    my_menu = new_menu((ITEM **) my_items);
 
-        /* Create the window to be associated with the menu */
-        my_menu_win = newwin(10, 70, 4, 4);
-        keypad(my_menu_win, TRUE);
-     
-        /* Set main window and sub window */
-        set_menu_win(my_menu, my_menu_win);
-        set_menu_sub(my_menu, derwin(my_menu_win, 6, 68, 3, 1));
-        set_menu_format(my_menu, 5, 3);
-        set_menu_mark(my_menu, " * ");
+    /* Set menu option not to show the description */
+    menu_opts_off(my_menu, O_SHOWDESC);
 
-        /* Print a border around the main window and print a title */
-        box(my_menu_win, 0, 0);
-        
-        attron(COLOR_PAIR(2));
-        mvprintw(LINES - 3, 0, "Use PageUp and PageDown to scroll");
-        mvprintw(LINES - 2, 0, "Use Arrow Keys to navigate (F1 to Exit)");
-        attroff(COLOR_PAIR(2));
-        refresh();
+    /* Create the window to be associated with the menu */
+    my_menu_win = newwin(10, 70, 4, 4);
+    keypad(my_menu_win, TRUE);
 
-        /* Post the menu */
-        post_menu(my_menu);
+    /* Set main window and sub window */
+    set_menu_win(my_menu, my_menu_win);
+    set_menu_sub(my_menu, derwin(my_menu_win, 6, 68, 3, 1));
+    set_menu_format(my_menu, 5, 3);
+    set_menu_mark(my_menu, " * ");
+
+    /* Print a border around the main window and print a title */
+    box(my_menu_win, 0, 0);
+
+    attron(COLOR_PAIR(2));
+    mvprintw(LINES - 3, 0, "Use PageUp and PageDown to scroll");
+    mvprintw(LINES - 2, 0, "Use Arrow Keys to navigate (F1 to Exit)");
+    attroff(COLOR_PAIR(2));
+    refresh();
+
+    /* Post the menu */
+    post_menu(my_menu);
+    wrefresh(my_menu_win);
+
+    while ((c = wgetch(my_menu_win)) != KEY_F(1)) {
+        switch (c) {
+        case KEY_DOWN:
+            menu_driver(my_menu, REQ_DOWN_ITEM);
+            break;
+        case KEY_UP:
+            menu_driver(my_menu, REQ_UP_ITEM);
+            break;
+        case KEY_LEFT:
+            menu_driver(my_menu, REQ_LEFT_ITEM);
+            break;
+        case KEY_RIGHT:
+            menu_driver(my_menu, REQ_RIGHT_ITEM);
+            break;
+        case KEY_NPAGE:
+            menu_driver(my_menu, REQ_SCR_DPAGE);
+            break;
+        case KEY_PPAGE:
+            menu_driver(my_menu, REQ_SCR_UPAGE);
+            break;
+        }
         wrefresh(my_menu_win);
-        
-        while((c = wgetch(my_menu_win)) != KEY_F(1))
-        {       switch(c)
-                {       case KEY_DOWN:
-                                menu_driver(my_menu, REQ_DOWN_ITEM);
-                                break;
-                        case KEY_UP:
-                                menu_driver(my_menu, REQ_UP_ITEM);
-                                break;
-                        case KEY_LEFT:
-                                menu_driver(my_menu, REQ_LEFT_ITEM);
-                                break;
-                        case KEY_RIGHT:
-                                menu_driver(my_menu, REQ_RIGHT_ITEM);
-                                break;
-                        case KEY_NPAGE:
-                                menu_driver(my_menu, REQ_SCR_DPAGE);
-                                break;
-                        case KEY_PPAGE:
-                                menu_driver(my_menu, REQ_SCR_UPAGE);
-                                break;
-                }
-                wrefresh(my_menu_win);
-        }       
+    }
 
-        /* Unpost and free all the memory taken up */
-        unpost_menu(my_menu);
-        free_menu(my_menu);
-        for(i = 0; i &lt; n_choices; ++i)
-                free_item(my_items[i]);
-        endwin();
+    /* Unpost and free all the memory taken up */
+    unpost_menu(my_menu);
+    free_menu(my_menu);
+    for (i = 0; i &lt; n_choices; ++i)
+        free_item(my_items[i]);
+    endwin();
 }</span></pre>
         </div>
 
@@ -4940,84 +5062,87 @@ int main()
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #define CTRLD   4
 
-char *choices[] = {
-                        "Choice 1",
-                        "Choice 2",
-                        "Choice 3",
-                        "Choice 4",
-                        "Choice 5",
-                        "Choice 6",
-                        "Choice 7",
-                        "Exit",
-                  };
+const char *choices[] =
+{
+    "Choice 1",
+    "Choice 2",
+    "Choice 3",
+    "Choice 4",
+    "Choice 5",
+    "Choice 6",
+    "Choice 7",
+    "Exit",
+};
 
-int main()
-{       ITEM **my_items;
-        int c;                          
-        MENU *my_menu;
-        int n_choices, i;
-        ITEM *cur_item;
-        
-        /* Initialize curses */ 
-        initscr();
-        cbreak();
-        noecho();
-        keypad(stdscr, TRUE);
+int
+main(void)
+{
+    ITEM **my_items;
+    int c;
+    MENU *my_menu;
+    int n_choices, i;
 
-        /* Initialize items */
-        n_choices = ARRAY_SIZE(choices);
-        my_items = (ITEM **)calloc(n_choices + 1, sizeof(ITEM *));
-        for(i = 0; i &lt; n_choices; ++i)
-                my_items[i] = new_item(choices[i], choices[i]);
-        my_items[n_choices] = (ITEM *)NULL;
+    /* Initialize curses */
+    initscr();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
 
-        my_menu = new_menu((ITEM **)my_items);
+    /* Initialize items */
+    n_choices = ARRAY_SIZE(choices);
+    my_items = (ITEM **) calloc((size_t) (n_choices + 1), sizeof(ITEM *));
+    for (i = 0; i &lt; n_choices; ++i)
+        my_items[i] = new_item(choices[i], choices[i]);
+    my_items[n_choices] = (ITEM *) NULL;
 
-        /* Make the menu multi valued */
-        menu_opts_off(my_menu, O_ONEVALUE);
+    my_menu = new_menu((ITEM **) my_items);
 
-        mvprintw(LINES - 3, 0, "Use &lt;SPACE&gt; to select or unselect an item.");
-        mvprintw(LINES - 2, 0, "&lt;ENTER&gt; to see presently selected items(F1 to Exit)");
-        post_menu(my_menu);
-        refresh();
+    /* Make the menu multi valued */
+    menu_opts_off(my_menu, O_ONEVALUE);
 
-        while((c = getch()) != KEY_F(1))
-        {       switch(c)
-                {       case KEY_DOWN:
-                                menu_driver(my_menu, REQ_DOWN_ITEM);
-                                break;
-                        case KEY_UP:
-                                menu_driver(my_menu, REQ_UP_ITEM);
-                                break;
-                        case ' ':
-                                menu_driver(my_menu, REQ_TOGGLE_ITEM);
-                                break;
-                        case 10:        /* Enter */
-                        {       char temp[200];
-                                ITEM **items;
+    mvprintw(LINES - 3, 0, "Use &lt;SPACE&gt; to select or unselect an item.");
+    mvprintw(LINES - 2, 0,
+             "&lt;ENTER&gt; to see presently selected items(F1 to Exit)");
+    post_menu(my_menu);
+    refresh();
 
-                                items = menu_items(my_menu);
-                                temp[0] = '\0';
-                                for(i = 0; i &lt; item_count(my_menu); ++i)
-                                        if(item_value(items[i]) == TRUE)
-                                        {       strcat(temp, item_name(items[i]));
-                                                strcat(temp, " ");
-                                        }
-                                move(20, 0);
-                                clrtoeol();
-                                mvprintw(20, 0, temp);
-                                refresh();
-                        }
-                        break;
-                }
-        }       
+    while ((c = getch()) != KEY_F(1)) {
+        switch (c) {
+        case KEY_DOWN:
+            menu_driver(my_menu, REQ_DOWN_ITEM);
+            break;
+        case KEY_UP:
+            menu_driver(my_menu, REQ_UP_ITEM);
+            break;
+        case ' ':
+            menu_driver(my_menu, REQ_TOGGLE_ITEM);
+            break;
+        case 10:                /* Enter */
+            {
+                char temp[200];
+                ITEM **items;
 
-        free_item(my_items[0]);
-        free_item(my_items[1]);
-        free_menu(my_menu);
-        endwin();
-}
-        </span></pre>
+                items = menu_items(my_menu);
+                temp[0] = '\0';
+                for (i = 0; i &lt; item_count(my_menu); ++i)
+                    if (item_value(items[i]) == TRUE) {
+                        strcat(temp, item_name(items[i]));
+                        strcat(temp, " ");
+                    }
+                move(20, 0);
+                clrtoeol();
+                mvaddstr(20, 0, temp);
+                refresh();
+            }
+            break;
+        }
+    }
+
+    free_item(my_items[0]);
+    free_item(my_items[1]);
+    free_menu(my_menu);
+    endwin();
+}</span></pre>
         </div>
 
         <p>Whew, A lot of new functions. Let's take them one after
@@ -5077,81 +5202,82 @@ int main()
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #define CTRLD   4
 
-char *choices[] = {
-                        "Choice 1",
-                        "Choice 2",
-                        "Choice 3",
-                        "Choice 4",
-                        "Choice 5",
-                        "Choice 6",
-                        "Choice 7",
-                        "Exit",
-                  };
+const char *choices[] =
+{
+    "Choice 1",
+    "Choice 2",
+    "Choice 3",
+    "Choice 4",
+    "Choice 5",
+    "Choice 6",
+    "Choice 7",
+    "Exit",
+};
 
-int main()
-{       ITEM **my_items;
-        int c;                          
-        MENU *my_menu;
-        int n_choices, i;
-        ITEM *cur_item;
-        
-        /* Initialize curses */ 
-        initscr();
-        start_color();
-        cbreak();
-        noecho();
-        keypad(stdscr, TRUE);
-        init_pair(1, COLOR_RED, COLOR_BLACK);
-        init_pair(2, COLOR_GREEN, COLOR_BLACK);
-        init_pair(3, COLOR_MAGENTA, COLOR_BLACK);
+int
+main(void)
+{
+    ITEM **my_items;
+    int c;
+    MENU *my_menu;
+    int n_choices, i;
 
-        /* Initialize items */
-        n_choices = ARRAY_SIZE(choices);
-        my_items = (ITEM **)calloc(n_choices + 1, sizeof(ITEM *));
-        for(i = 0; i &lt; n_choices; ++i)
-                my_items[i] = new_item(choices[i], choices[i]);
-        my_items[n_choices] = (ITEM *)NULL;
-        item_opts_off(my_items[3], O_SELECTABLE);
-        item_opts_off(my_items[6], O_SELECTABLE);
+    /* Initialize curses */
+    initscr();
+    start_color();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+    init_pair(1, COLOR_RED, COLOR_BLACK);
+    init_pair(2, COLOR_GREEN, COLOR_BLACK);
+    init_pair(3, COLOR_MAGENTA, COLOR_BLACK);
 
-        /* Create menu */
-        my_menu = new_menu((ITEM **)my_items);
+    /* Initialize items */
+    n_choices = ARRAY_SIZE(choices);
+    my_items = (ITEM **) calloc((size_t) (n_choices + 1), sizeof(ITEM *));
+    for (i = 0; i &lt; n_choices; ++i)
+        my_items[i] = new_item(choices[i], choices[i]);
+    my_items[n_choices] = (ITEM *) NULL;
+    item_opts_off(my_items[3], O_SELECTABLE);
+    item_opts_off(my_items[6], O_SELECTABLE);
 
-        /* Set fore ground and back ground of the menu */
-        set_menu_fore(my_menu, COLOR_PAIR(1) | A_REVERSE);
-        set_menu_back(my_menu, COLOR_PAIR(2));
-        set_menu_grey(my_menu, COLOR_PAIR(3));
+    /* Create menu */
+    my_menu = new_menu((ITEM **) my_items);
 
-        /* Post the menu */
-        mvprintw(LINES - 3, 0, "Press &lt;ENTER&gt; to see the option selected");
-        mvprintw(LINES - 2, 0, "Up and Down arrow keys to navigate (F1 to Exit)");
-        post_menu(my_menu);
-        refresh();
+    /* Set fore ground and back ground of the menu */
+    set_menu_fore(my_menu, COLOR_PAIR(1) | A_REVERSE);
+    set_menu_back(my_menu, COLOR_PAIR(2));
+    set_menu_grey(my_menu, COLOR_PAIR(3));
 
-        while((c = getch()) != KEY_F(1))
-        {       switch(c)
-                {       case KEY_DOWN:
-                                menu_driver(my_menu, REQ_DOWN_ITEM);
-                                break;
-                        case KEY_UP:
-                                menu_driver(my_menu, REQ_UP_ITEM);
-                                break;
-                        case 10: /* Enter */
-                                move(20, 0);
-                                clrtoeol();
-                                mvprintw(20, 0, "Item selected is : %s", 
-                                                item_name(current_item(my_menu)));
-                                pos_menu_cursor(my_menu);
-                                break;
-                }
-        }       
-        unpost_menu(my_menu);
-        for(i = 0; i &lt; n_choices; ++i)
-                free_item(my_items[i]);
-        free_menu(my_menu);
-        endwin();
-}
-        </span></pre>
+    /* Post the menu */
+    mvprintw(LINES - 3, 0, "Press &lt;ENTER&gt; to see the option selected");
+    mvprintw(LINES - 2, 0, "Up and Down arrow keys to navigate (F1 to Exit)");
+    post_menu(my_menu);
+    refresh();
+
+    while ((c = getch()) != KEY_F(1)) {
+        switch (c) {
+        case KEY_DOWN:
+            menu_driver(my_menu, REQ_DOWN_ITEM);
+            break;
+        case KEY_UP:
+            menu_driver(my_menu, REQ_UP_ITEM);
+            break;
+        case 10:                /* Enter */
+            move(20, 0);
+            clrtoeol();
+            mvprintw(20, 0, "Item selected is : %s",
+                     item_name(current_item(my_menu)));
+            pos_menu_cursor(my_menu);
+            break;
+        }
+    }
+    unpost_menu(my_menu);
+    for (i = 0; i &lt; n_choices; ++i)
+        free_item(my_items[i]);
+    free_menu(my_menu);
+    endwin();
+}</span></pre>
         </div>
       </div>
 
@@ -5181,87 +5307,99 @@ int main()
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #define CTRLD   4
 
-char *choices[] = {
-                        "Choice 1",
-                        "Choice 2",
-                        "Choice 3",
-                        "Choice 4",
-                        "Choice 5",
-                        "Choice 6",
-                        "Choice 7",
-                        "Exit",
-                  };
-void func(char *name);
+const char *choices[] =
+{
+    "Choice 1",
+    "Choice 2",
+    "Choice 3",
+    "Choice 4",
+    "Choice 5",
+    "Choice 6",
+    "Choice 7",
+    "Exit",
+};
 
-int main()
-{       ITEM **my_items;
-        int c;                          
-        MENU *my_menu;
-        int n_choices, i;
-        ITEM *cur_item;
-        
-        /* Initialize curses */ 
-        initscr();
-        start_color();
-        cbreak();
-        noecho();
-        keypad(stdscr, TRUE);
-        init_pair(1, COLOR_RED, COLOR_BLACK);
-        init_pair(2, COLOR_GREEN, COLOR_BLACK);
-        init_pair(3, COLOR_MAGENTA, COLOR_BLACK);
+typedef union {
+    void (*my_func) (const char *);
+    void *data;
+} MY_DATA;
 
-        /* Initialize items */
-        n_choices = ARRAY_SIZE(choices);
-        my_items = (ITEM **)calloc(n_choices + 1, sizeof(ITEM *));
-        for(i = 0; i &lt; n_choices; ++i)
-        {       my_items[i] = new_item(choices[i], choices[i]);
-                /* Set the user pointer */
-                set_item_userptr(my_items[i], func);
+void func(const char *name);
+
+int
+main(void)
+{
+    ITEM **my_items;
+    int c;
+    MENU *my_menu;
+    int n_choices, i;
+
+    /* Initialize curses */
+    initscr();
+    start_color();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+    init_pair(1, COLOR_RED, COLOR_BLACK);
+    init_pair(2, COLOR_GREEN, COLOR_BLACK);
+    init_pair(3, COLOR_MAGENTA, COLOR_BLACK);
+
+    /* Initialize items */
+    n_choices = ARRAY_SIZE(choices);
+    my_items = (ITEM **) calloc((size_t) (n_choices + 1), sizeof(ITEM *));
+    for (i = 0; i &lt; n_choices; ++i) {
+        MY_DATA data = { func };
+        my_items[i] = new_item(choices[i], choices[i]);
+        /* Set the user pointer */
+        set_item_userptr(my_items[i], (void *) &amp;data);
+    }
+    my_items[n_choices] = (ITEM *) NULL;
+
+    /* Create menu */
+    my_menu = new_menu((ITEM **) my_items);
+
+    /* Post the menu */
+    mvprintw(LINES - 3, 0, "Press &lt;ENTER&gt; to see the option selected");
+    mvprintw(LINES - 2, 0, "Up and Down arrow keys to navigate (F1 to Exit)");
+    post_menu(my_menu);
+    refresh();
+
+    while ((c = getch()) != KEY_F(1)) {
+        switch (c) {
+        case KEY_DOWN:
+            menu_driver(my_menu, REQ_DOWN_ITEM);
+            break;
+        case KEY_UP:
+            menu_driver(my_menu, REQ_UP_ITEM);
+            break;
+        case 10:                /* Enter */
+            {
+                ITEM *cur;
+                const MY_DATA *data;
+
+                cur = current_item(my_menu);
+                data = item_userptr(cur);
+                data-&gt;my_func(item_name(cur));
+                pos_menu_cursor(my_menu);
+                break;
+            }
+            break;
         }
-        my_items[n_choices] = (ITEM *)NULL;
-
-        /* Create menu */
-        my_menu = new_menu((ITEM **)my_items);
-
-        /* Post the menu */
-        mvprintw(LINES - 3, 0, "Press &lt;ENTER&gt; to see the option selected");
-        mvprintw(LINES - 2, 0, "Up and Down arrow keys to navigate (F1 to Exit)");
-        post_menu(my_menu);
-        refresh();
-
-        while((c = getch()) != KEY_F(1))
-        {       switch(c)
-                {       case KEY_DOWN:
-                                menu_driver(my_menu, REQ_DOWN_ITEM);
-                                break;
-                        case KEY_UP:
-                                menu_driver(my_menu, REQ_UP_ITEM);
-                                break;
-                        case 10: /* Enter */
-                        {       ITEM *cur;
-                                void (*p)(char *);
-
-                                cur = current_item(my_menu);
-                                p = item_userptr(cur);
-                                p((char *)item_name(cur));
-                                pos_menu_cursor(my_menu);
-                                break;
-                        }
-                        break;
-                }
-        }       
-        unpost_menu(my_menu);
-        for(i = 0; i &lt; n_choices; ++i)
-                free_item(my_items[i]);
-        free_menu(my_menu);
-        endwin();
+    }
+    unpost_menu(my_menu);
+    for (i = 0; i &lt; n_choices; ++i)
+        free_item(my_items[i]);
+    free_menu(my_menu);
+    endwin();
 }
 
-void func(char *name)
-{       move(20, 0);
-        clrtoeol();
-        mvprintw(20, 0, "Item selected is : %s", name);
-}       </span></pre>
+void
+func(const char *name)
+{
+    move(20, 0);
+    clrtoeol();
+    mvprintw(20, 0, "Item selected is : %s", name);
+}</span></pre>
         </div>
       </div>
     </div>
@@ -5384,69 +5522,71 @@ void func(char *name)
           <pre class="PROGRAMLISTING"><span class=
           "INLINEMEDIAOBJECT">#include &lt;form.h&gt;
 
-int main()
-{       FIELD *field[3];
-        FORM  *my_form;
-        int ch;
-        
-        /* Initialize curses */
-        initscr();
-        cbreak();
-        noecho();
-        keypad(stdscr, TRUE);
+int
+main(void)
+{
+    FIELD *field[3];
+    FORM *my_form;
+    int ch;
 
-        /* Initialize the fields */
-        field[0] = new_field(1, 10, 4, 18, 0, 0);
-        field[1] = new_field(1, 10, 6, 18, 0, 0);
-        field[2] = NULL;
+    /* Initialize curses */
+    initscr();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
 
-        /* Set field options */
-        set_field_back(field[0], A_UNDERLINE);  /* Print a line for the option  */
-        field_opts_off(field[0], O_AUTOSKIP);   /* Don't go to next field when this */
+    /* Initialize the fields */
+    field[0] = new_field(1, 10, 4, 18, 0, 0);
+    field[1] = new_field(1, 10, 6, 18, 0, 0);
+    field[2] = NULL;
+
+    /* Set field options */
+    set_field_back(field[0], A_UNDERLINE);      /* Print a line for the option  */
+    field_opts_off(field[0], O_AUTOSKIP);       /* Don't go to next field when this */
                                                 /* Field is filled up           */
-        set_field_back(field[1], A_UNDERLINE); 
-        field_opts_off(field[1], O_AUTOSKIP);
+    set_field_back(field[1], A_UNDERLINE);
+    field_opts_off(field[1], O_AUTOSKIP);
 
-        /* Create the form and post it */
-        my_form = new_form(field);
-        post_form(my_form);
-        refresh();
-        
-        mvprintw(4, 10, "Value 1:");
-        mvprintw(6, 10, "Value 2:");
-        refresh();
+    /* Create the form and post it */
+    my_form = new_form(field);
+    post_form(my_form);
+    refresh();
 
-        /* Loop through to get user requests */
-        while((ch = getch()) != KEY_F(1))
-        {       switch(ch)
-                {       case KEY_DOWN:
-                                /* Go to next field */
-                                form_driver(my_form, REQ_NEXT_FIELD);
-                                /* Go to the end of the present buffer */
-                                /* Leaves nicely at the last character */
-                                form_driver(my_form, REQ_END_LINE);
-                                break;
-                        case KEY_UP:
-                                /* Go to previous field */
-                                form_driver(my_form, REQ_PREV_FIELD);
-                                form_driver(my_form, REQ_END_LINE);
-                                break;
-                        default:
-                                /* If this is a normal character, it gets */
-                                /* Printed                                */    
-                                form_driver(my_form, ch);
-                                break;
-                }
+    mvprintw(4, 10, "Value 1:");
+    mvprintw(6, 10, "Value 2:");
+    refresh();
+
+    /* Loop through to get user requests */
+    while ((ch = getch()) != KEY_F(1)) {
+        switch (ch) {
+        case KEY_DOWN:
+            /* Go to next field */
+            form_driver(my_form, REQ_NEXT_FIELD);
+            /* Go to the end of the present buffer */
+            /* Leaves nicely at the last character */
+            form_driver(my_form, REQ_END_LINE);
+            break;
+        case KEY_UP:
+            /* Go to previous field */
+            form_driver(my_form, REQ_PREV_FIELD);
+            form_driver(my_form, REQ_END_LINE);
+            break;
+        default:
+            /* If this is a normal character, it gets */
+            /* Printed                                */
+            form_driver(my_form, ch);
+            break;
         }
+    }
 
-        /* Un post form and free the memory */
-        unpost_form(my_form);
-        free_form(my_form);
-        free_field(field[0]);
-        free_field(field[1]); 
+    /* Un post form and free the memory */
+    unpost_form(my_form);
+    free_form(my_form);
+    free_field(field[0]);
+    free_field(field[1]);
 
-        endwin();
-        return 0;
+    endwin();
+    return 0;
 }</span></pre>
         </div>
 
@@ -5502,7 +5642,7 @@ int main()
 
           <pre class=
           "PROGRAMLISTING">int field_info(     FIELD *field,              /* field from which to fetch */
-                    int *height, *int width,   /* field size */ 
+                    int *height, *int width,   /* field size */
                     int *top, int *left,       /* upper left corner */
                     int *offscreen,            /* number of offscreen rows */
                     int *nbuf);                /* number of working buffers */</pre>
@@ -5562,21 +5702,21 @@ int main()
 
           <pre class=
           "PROGRAMLISTING">&#13;int set_field_fore(FIELD *field,        /* field to alter */
-                   chtype attr);        /* attribute to set */ 
+                   chtype attr);        /* attribute to set */
 
 chtype field_fore(FIELD *field);        /* field to query */
                                         /* returns foreground attribute */
 
 int set_field_back(FIELD *field,        /* field to alter */
-                   chtype attr);        /* attribute to set */ 
+                   chtype attr);        /* attribute to set */
 
 chtype field_back(FIELD *field);        /* field to query */
                                         /* returns background attribute */
 
 int set_field_pad(FIELD *field,         /* field to alter */
-                  int pad);             /* pad character to set */ 
+                  int pad);             /* pad character to set */
 
-chtype field_pad(FIELD *field);         /* field to query */  
+chtype field_pad(FIELD *field);         /* field to query */
                                         /* returns present pad character */&#13;</pre>
           <p>Though above functions seem quite simple, using colors
           with set_field_fore() may be frustrating in the
@@ -5599,78 +5739,81 @@ chtype field_pad(FIELD *field);         /* field to query */
             <pre class="PROGRAMLISTING"><span class=
             "INLINEMEDIAOBJECT">#include &lt;form.h&gt;
 
-int main()
-{       FIELD *field[3];
-        FORM  *my_form;
-        int ch;
-        
-        /* Initialize curses */
-        initscr();
-        start_color();
-        cbreak();
-        noecho();
-        keypad(stdscr, TRUE);
+int
+main(void)
+{
+    FIELD *field[3];
+    FORM *my_form;
+    int ch;
 
-        /* Initialize few color pairs */
-        init_pair(1, COLOR_WHITE, COLOR_BLUE);
-        init_pair(2, COLOR_WHITE, COLOR_BLUE);
+    /* Initialize curses */
+    initscr();
+    start_color();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
 
-        /* Initialize the fields */
-        field[0] = new_field(1, 10, 4, 18, 0, 0);
-        field[1] = new_field(1, 10, 6, 18, 0, 0);
-        field[2] = NULL;
+    /* Initialize few color pairs */
+    init_pair(1, COLOR_WHITE, COLOR_BLUE);
+    init_pair(2, COLOR_WHITE, COLOR_BLUE);
 
-        /* Set field options */
-        set_field_fore(field[0], COLOR_PAIR(1));/* Put the field with blue background */
-        set_field_back(field[0], COLOR_PAIR(2));/* and white foreground (characters */
+    /* Initialize the fields */
+    field[0] = new_field(1, 10, 4, 18, 0, 0);
+    field[1] = new_field(1, 10, 6, 18, 0, 0);
+    field[2] = NULL;
+
+    /* Set field options */
+    set_field_fore(field[0], COLOR_PAIR(1));    /* Put the field with blue background */
+    set_field_back(field[0], COLOR_PAIR(2));    /* and white foreground (characters */
                                                 /* are printed in white         */
-        field_opts_off(field[0], O_AUTOSKIP);   /* Don't go to next field when this */
+    field_opts_off(field[0], O_AUTOSKIP);       /* Don't go to next field when this */
                                                 /* Field is filled up           */
-        set_field_back(field[1], A_UNDERLINE); 
-        field_opts_off(field[1], O_AUTOSKIP);
+    set_field_back(field[1], A_UNDERLINE);
+    field_opts_off(field[1], O_AUTOSKIP);
 
-        /* Create the form and post it */
-        my_form = new_form(field);
-        post_form(my_form);
-        refresh();
-        
-        set_current_field(my_form, field[0]); /* Set focus to the colored field */
-        mvprintw(4, 10, "Value 1:");
-        mvprintw(6, 10, "Value 2:");
-        mvprintw(LINES - 2, 0, "Use UP, DOWN arrow keys to switch between fields");
-        refresh();
+    /* Create the form and post it */
+    my_form = new_form(field);
+    post_form(my_form);
+    refresh();
 
-        /* Loop through to get user requests */
-        while((ch = getch()) != KEY_F(1))
-        {       switch(ch)
-                {       case KEY_DOWN:
-                                /* Go to next field */
-                                form_driver(my_form, REQ_NEXT_FIELD);
-                                /* Go to the end of the present buffer */
-                                /* Leaves nicely at the last character */
-                                form_driver(my_form, REQ_END_LINE);
-                                break;
-                        case KEY_UP:
-                                /* Go to previous field */
-                                form_driver(my_form, REQ_PREV_FIELD);
-                                form_driver(my_form, REQ_END_LINE);
-                                break;
-                        default:
-                                /* If this is a normal character, it gets */
-                                /* Printed                                */    
-                                form_driver(my_form, ch);
-                                break;
-                }
+    set_current_field(my_form, field[0]);       /* Set focus to the colored field */
+    mvprintw(4, 10, "Value 1:");
+    mvprintw(6, 10, "Value 2:");
+    mvprintw(LINES - 2, 0,
+             "Use UP, DOWN arrow keys to switch between fields");
+    refresh();
+
+    /* Loop through to get user requests */
+    while ((ch = getch()) != KEY_F(1)) {
+        switch (ch) {
+        case KEY_DOWN:
+            /* Go to next field */
+            form_driver(my_form, REQ_NEXT_FIELD);
+            /* Go to the end of the present buffer */
+            /* Leaves nicely at the last character */
+            form_driver(my_form, REQ_END_LINE);
+            break;
+        case KEY_UP:
+            /* Go to previous field */
+            form_driver(my_form, REQ_PREV_FIELD);
+            form_driver(my_form, REQ_END_LINE);
+            break;
+        default:
+            /* If this is a normal character, it gets */
+            /* Printed                                */
+            form_driver(my_form, ch);
+            break;
         }
+    }
 
-        /* Un post form and free the memory */
-        unpost_form(my_form);
-        free_form(my_form);
-        free_field(field[0]);
-        free_field(field[1]); 
+    /* Un post form and free the memory */
+    unpost_form(my_form);
+    free_form(my_form);
+    free_field(field[0]);
+    free_field(field[1]);
 
-        endwin();
-        return 0;
+    endwin();
+    return 0;
 }</span></pre>
           </div>
 
@@ -5694,15 +5837,15 @@ int main()
 
           <pre class=
           "PROGRAMLISTING">int set_field_opts(FIELD *field,          /* field to alter */
-                   int attr);             /* attribute to set */ 
+                   int attr);             /* attribute to set */
 
 int field_opts_on(FIELD *field,           /* field to alter */
-                  int attr);              /* attributes to turn on */ 
+                  int attr);              /* attributes to turn on */
 
 int field_opts_off(FIELD *field,          /* field to alter */
-                  int attr);              /* attributes to turn off */ 
+                  int attr);              /* attributes to turn off */
 
-int field_opts(FIELD *field);             /* field to query */ </pre>
+int field_opts(FIELD *field);             /* field to query */</pre>
           <p>The function set_field_opts() can be used to directly
           set attributes of a field or you can choose to switch a
           few attributes on and off with field_opts_on() and
@@ -5842,73 +5985,75 @@ int field_opts(FIELD *field);             /* field to query */ </pre>
 
 #define N_FIELDS 3
 
-int main()
-{       FIELD *field[N_FIELDS];
-        FORM  *my_form;
-        int ch, i;
-        
-        /* Initialize curses */
-        initscr();
-        cbreak();
-        noecho();
-        keypad(stdscr, TRUE);
+int
+main(void)
+{
+    FIELD *field[N_FIELDS];
+    FORM *my_form;
+    int ch, i;
 
-        /* Initialize the fields */
-        for(i = 0; i &lt; N_FIELDS - 1; ++i)
-                field[i] = new_field(1, WIDTH, STARTY + i * 2, STARTX, 0, 0);
-        field[N_FIELDS - 1] = NULL;
+    /* Initialize curses */
+    initscr();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
 
-        /* Set field options */
-        set_field_back(field[1], A_UNDERLINE);  /* Print a line for the option  */
-        
-        field_opts_off(field[0], O_ACTIVE); /* This field is a static label */
-        field_opts_off(field[1], O_PUBLIC); /* This filed is like a password field*/
-        field_opts_off(field[1], O_AUTOSKIP); /* To avoid entering the same field */
-                                              /* after last character is entered */
-        
-        /* Create the form and post it */
-        my_form = new_form(field);
-        post_form(my_form);
-        refresh();
-        
-        set_field_just(field[0], JUSTIFY_CENTER); /* Center Justification */
-        set_field_buffer(field[0], 0, "This is a static Field"); 
-                                                  /* Initialize the field  */
-        mvprintw(STARTY, STARTX - 10, "Field 1:");
-        mvprintw(STARTY + 2, STARTX - 10, "Field 2:");
-        refresh();
+    /* Initialize the fields */
+    for (i = 0; i &lt; N_FIELDS - 1; ++i)
+        field[i] = new_field(1, WIDTH, STARTY + i * 2, STARTX, 0, 0);
+    field[N_FIELDS - 1] = NULL;
 
-        /* Loop through to get user requests */
-        while((ch = getch()) != KEY_F(1))
-        {       switch(ch)
-                {       case KEY_DOWN:
-                                /* Go to next field */
-                                form_driver(my_form, REQ_NEXT_FIELD);
-                                /* Go to the end of the present buffer */
-                                /* Leaves nicely at the last character */
-                                form_driver(my_form, REQ_END_LINE);
-                                break;
-                        case KEY_UP:
-                                /* Go to previous field */
-                                form_driver(my_form, REQ_PREV_FIELD);
-                                form_driver(my_form, REQ_END_LINE);
-                                break;
-                        default:
-                                /* If this is a normal character, it gets */
-                                /* Printed                                */    
-                                form_driver(my_form, ch);
-                                break;
-                }
+    /* Set field options */
+    set_field_back(field[1], A_UNDERLINE);      /* Print a line for the option  */
+
+    field_opts_off(field[0], O_ACTIVE);         /* This field is a static label */
+    field_opts_off(field[1], O_PUBLIC);         /* This filed is like a password field */
+    field_opts_off(field[1], O_AUTOSKIP);       /* To avoid entering the same field */
+                                                /* after last character is entered */
+
+    /* Create the form and post it */
+    my_form = new_form(field);
+    post_form(my_form);
+    refresh();
+
+    set_field_just(field[0], JUSTIFY_CENTER);   /* Center Justification */
+    set_field_buffer(field[0], 0, "This is a static Field");
+    /* Initialize the field  */
+    mvprintw(STARTY, STARTX - 10, "Field 1:");
+    mvprintw(STARTY + 2, STARTX - 10, "Field 2:");
+    refresh();
+
+    /* Loop through to get user requests */
+    while ((ch = getch()) != KEY_F(1)) {
+        switch (ch) {
+        case KEY_DOWN:
+            /* Go to next field */
+            form_driver(my_form, REQ_NEXT_FIELD);
+            /* Go to the end of the present buffer */
+            /* Leaves nicely at the last character */
+            form_driver(my_form, REQ_END_LINE);
+            break;
+        case KEY_UP:
+            /* Go to previous field */
+            form_driver(my_form, REQ_PREV_FIELD);
+            form_driver(my_form, REQ_END_LINE);
+            break;
+        default:
+            /* If this is a normal character, it gets */
+            /* Printed                                */
+            form_driver(my_form, ch);
+            break;
         }
+    }
 
-        /* Un post form and free the memory */
-        unpost_form(my_form);
-        free_form(my_form);
-        free_field(field[0]);
-        free_field(field[1]); 
+    /* Un post form and free the memory */
+    unpost_form(my_form);
+    free_form(my_form);
+    free_field(field[0]);
+    free_field(field[1]);
 
-        endwin();
-        return 0;
+    endwin();
+    return 0;
 }</span></pre>
           </div>
 
@@ -5961,7 +6106,7 @@ int field_status(FIELD *field);         /* fetch status of field */</pre>
           pointer.</p>
 
           <pre class=
-          "PROGRAMLISTING">int set_field_userptr(FIELD *field,   
+          "PROGRAMLISTING">int set_field_userptr(FIELD *field,
            char *userptr);      /* the user pointer you wish to associate */
                                 /* with the field    */
 
@@ -6132,115 +6277,122 @@ proper attributes of a dynamically growable field.
           "INLINEMEDIAOBJECT">#include &lt;string.h&gt;
 #include &lt;form.h&gt;
 
-void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string, chtype color);
+void print_in_middle(WINDOW *win, int starty, int startx,
+                     int width, const char *string, chtype color);
 
-int main()
+int
+main(void)
 {
-        FIELD *field[3];
-        FORM  *my_form;
-        WINDOW *my_form_win;
-        int ch, rows, cols;
-        
-        /* Initialize curses */
-        initscr();
-        start_color();
-        cbreak();
-        noecho();
-        keypad(stdscr, TRUE);
+    FIELD *field[3];
+    FORM *my_form;
+    WINDOW *my_form_win;
+    int ch, rows, cols;
 
-        /* Initialize few color pairs */
-        init_pair(1, COLOR_RED, COLOR_BLACK);
+    /* Initialize curses */
+    initscr();
+    start_color();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
 
-        /* Initialize the fields */
-        field[0] = new_field(1, 10, 6, 1, 0, 0);
-        field[1] = new_field(1, 10, 8, 1, 0, 0);
-        field[2] = NULL;
+    /* Initialize few color pairs */
+    init_pair(1, COLOR_RED, COLOR_BLACK);
 
-        /* Set field options */
-        set_field_back(field[0], A_UNDERLINE);
-        field_opts_off(field[0], O_AUTOSKIP); /* Don't go to next field when this */
-                                              /* Field is filled up             */
-        set_field_back(field[1], A_UNDERLINE); 
-        field_opts_off(field[1], O_AUTOSKIP);
-        
-        /* Create the form and post it */
-        my_form = new_form(field);
-        
-        /* Calculate the area required for the form */
-        scale_form(my_form, &amp;rows, &amp;cols);
+    /* Initialize the fields */
+    field[0] = new_field(1, 10, 6, 1, 0, 0);
+    field[1] = new_field(1, 10, 8, 1, 0, 0);
+    field[2] = NULL;
 
-        /* Create the window to be associated with the form */
-        my_form_win = newwin(rows + 4, cols + 4, 4, 4);
-        keypad(my_form_win, TRUE);
+    /* Set field options */
+    set_field_back(field[0], A_UNDERLINE);
+    field_opts_off(field[0], O_AUTOSKIP);
+    /* Don't go to next field when this */
+    /* Field is filled up             */
+    set_field_back(field[1], A_UNDERLINE);
+    field_opts_off(field[1], O_AUTOSKIP);
 
-        /* Set main window and sub window */
-        set_form_win(my_form, my_form_win);
-        set_form_sub(my_form, derwin(my_form_win, rows, cols, 2, 2));
+    /* Create the form and post it */
+    my_form = new_form(field);
 
-        /* Print a border around the main window and print a title */
-        box(my_form_win, 0, 0);
-        print_in_middle(my_form_win, 1, 0, cols + 4, "My Form", COLOR_PAIR(1));
-        
-        post_form(my_form);
-        wrefresh(my_form_win);
+    /* Calculate the area required for the form */
+    scale_form(my_form, &amp;rows, &amp;cols);
 
-        mvprintw(LINES - 2, 0, "Use UP, DOWN arrow keys to switch between fields");
-        refresh();
+    /* Create the window to be associated with the form */
+    my_form_win = newwin(rows + 4, cols + 4, 4, 4);
+    keypad(my_form_win, TRUE);
 
-        /* Loop through to get user requests */
-        while((ch = wgetch(my_form_win)) != KEY_F(1))
-        {       switch(ch)
-                {       case KEY_DOWN:
-                                /* Go to next field */
-                                form_driver(my_form, REQ_NEXT_FIELD);
-                                /* Go to the end of the present buffer */
-                                /* Leaves nicely at the last character */
-                                form_driver(my_form, REQ_END_LINE);
-                                break;
-                        case KEY_UP:
-                                /* Go to previous field */
-                                form_driver(my_form, REQ_PREV_FIELD);
-                                form_driver(my_form, REQ_END_LINE);
-                                break;
-                        default:
-                                /* If this is a normal character, it gets */
-                                /* Printed                                */    
-                                form_driver(my_form, ch);
-                                break;
-                }
+    /* Set main window and sub window */
+    set_form_win(my_form, my_form_win);
+    set_form_sub(my_form, derwin(my_form_win, rows, cols, 2, 2));
+
+    /* Print a border around the main window and print a title */
+    box(my_form_win, 0, 0);
+    print_in_middle(my_form_win, 1, 0, cols + 4, "My Form", COLOR_PAIR(1));
+
+    post_form(my_form);
+    wrefresh(my_form_win);
+
+    mvprintw(LINES - 2, 0,
+             "Use UP, DOWN arrow keys to switch between fields");
+    refresh();
+
+    /* Loop through to get user requests */
+    while ((ch = wgetch(my_form_win)) != KEY_F(1)) {
+        switch (ch) {
+        case KEY_DOWN:
+            /* Go to next field */
+            form_driver(my_form, REQ_NEXT_FIELD);
+            /* Go to the end of the present buffer */
+            /* Leaves nicely at the last character */
+            form_driver(my_form, REQ_END_LINE);
+            break;
+        case KEY_UP:
+            /* Go to previous field */
+            form_driver(my_form, REQ_PREV_FIELD);
+            form_driver(my_form, REQ_END_LINE);
+            break;
+        default:
+            /* If this is a normal character, it gets */
+            /* Printed                                */
+            form_driver(my_form, ch);
+            break;
         }
+    }
 
-        /* Un post form and free the memory */
-        unpost_form(my_form);
-        free_form(my_form);
-        free_field(field[0]);
-        free_field(field[1]); 
+    /* Un post form and free the memory */
+    unpost_form(my_form);
+    free_form(my_form);
+    free_field(field[0]);
+    free_field(field[1]);
 
-        endwin();
-        return 0;
+    endwin();
+    return 0;
 }
 
-void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string, chtype color)
-{       int length, x, y;
-        float temp;
+void
+print_in_middle(WINDOW *win, int starty, int startx,
+                int width, const char *string, chtype color)
+{
+    int length, x, y;
+    float temp;
 
-        if(win == NULL)
-                win = stdscr;
-        getyx(win, y, x);
-        if(startx != 0)
-                x = startx;
-        if(starty != 0)
-                y = starty;
-        if(width == 0)
-                width = 80;
+    if (win == NULL)
+        win = stdscr;
+    getyx(win, y, x);
+    if (startx != 0)
+        x = startx;
+    if (starty != 0)
+        y = starty;
+    if (width == 0)
+        width = 80;
 
-        length = strlen(string);
-        temp = (width - length)/ 2;
-        x = startx + (int)temp;
-        wattron(win, color);
-        mvwprintw(win, y, x, "%s", string);
-        wattroff(win, color);
-        refresh();
+    length = (int) strlen(string);
+    temp = (float) (width - length) / 2;
+    x = startx + (int) temp;
+    wattron(win, color);
+    mvwprintw(win, y, x, "%s", string);
+    wattroff(win, color);
+    refresh();
 }</span></pre>
         </div>
       </div>
@@ -6290,8 +6442,8 @@ set, the validation type for a field can be queried with
         can also specify custom validation, though it is a bit
         tricky and cumbersome.</p>
 
-        <h1 class="BRIDGEHEAD"><a name="AEN1074" id=
-        "AEN1074"></a>TYPE_ALPHA</h1>
+        <h1 class="BRIDGEHEAD"><a name="AEN1095" id=
+        "AEN1095"></a>TYPE_ALPHA</h1>
 
         <p>This field type accepts alphabetic data; no blanks, no
         digits, no special characters (this is checked at
@@ -6308,8 +6460,8 @@ set, the validation type for a field can be queried with
         width, the validation check will always fail. A minimum
         width of zero makes field completion optional.</p>
 
-        <h1 class="BRIDGEHEAD"><a name="AEN1078" id=
-        "AEN1078"></a>TYPE_ALNUM</h1>
+        <h1 class="BRIDGEHEAD"><a name="AEN1099" id=
+        "AEN1099"></a>TYPE_ALNUM</h1>
 
         <p>This field type accepts alphabetic data and digits; no
         blanks, no special characters (this is checked at
@@ -6325,8 +6477,8 @@ set, the validation type for a field can be queried with
         validation check will always fail. A minimum width of zero
         makes field completion optional.</p>
 
-        <h1 class="BRIDGEHEAD"><a name="AEN1082" id=
-        "AEN1082"></a>TYPE_ENUM</h1>
+        <h1 class="BRIDGEHEAD"><a name="AEN1103" id=
+        "AEN1103"></a>TYPE_ENUM</h1>
 
         <p>This type allows you to restrict a field's values to be
         among a specified set of string values (for example, the
@@ -6358,8 +6510,8 @@ set, the validation type for a field can be queried with
         <p>The REQ_NEXT_CHOICE and REQ_PREV_CHOICE input requests
         can be particularly useful with these fields.</p>
 
-        <h1 class="BRIDGEHEAD"><a name="AEN1089" id=
-        "AEN1089"></a>TYPE_INTEGER</h1>
+        <h1 class="BRIDGEHEAD"><a name="AEN1110" id=
+        "AEN1110"></a>TYPE_INTEGER</h1>
 
         <p>This field type accepts an integer. It is set up as
         follows:</p>
@@ -6381,8 +6533,8 @@ set, the validation type for a field can be queried with
         <p>A TYPE_INTEGER value buffer can conveniently be
         interpreted with the C library function atoi(3).</p>
 
-        <h1 class="BRIDGEHEAD"><a name="AEN1095" id=
-        "AEN1095"></a>TYPE_NUMERIC</h1>
+        <h1 class="BRIDGEHEAD"><a name="AEN1116" id=
+        "AEN1116"></a>TYPE_NUMERIC</h1>
 
         <p>This field type accepts a decimal number. It is set up
         as follows:</p>
@@ -6404,8 +6556,8 @@ set, the validation type for a field can be queried with
         <p>A TYPE_NUMERIC value buffer can conveniently be
         interpreted with the C library function atof(3).</p>
 
-        <h1 class="BRIDGEHEAD"><a name="AEN1101" id=
-        "AEN1101"></a>TYPE_REGEXP</h1>
+        <h1 class="BRIDGEHEAD"><a name="AEN1122" id=
+        "AEN1122"></a>TYPE_REGEXP</h1>
 
         <p>This field type accepts data matching a regular
         expression. It is set up as follows:</p>
@@ -7034,7 +7186,7 @@ set, the validation type for a field can be queried with
 Alphalist             Allows a user to select from a list of words, with
                       the ability to narrow the search list by typing in a
                       few characters of the desired word.
-Buttonbox             This creates a multiple button widget. 
+Buttonbox             This creates a multiple button widget.
 Calendar              Creates a little simple calendar widget.
 Dialog                Prompts the user with a message, and the user
                       can pick an answer from the buttons provided.
@@ -7057,17 +7209,17 @@ Multiple Line Entry   A multiple line entry field. Very useful
                       field)
 Radio List            Creates a radio button list.
 Scale                 Creates a numeric scale. Used for allowing a user to
-                      pick a numeric value and restrict them to a range of 
+                      pick a numeric value and restrict them to a range of
                       values.
 Scrolling List        Creates a scrolling list/menu list.
-Scrolling Window      Creates a scrolling log file viewer. Can add 
-                      information into the window while its running. 
+Scrolling Window      Creates a scrolling log file viewer. Can add
+                      information into the window while its running.
                       A good widget for displaying the progress of
                       something. (akin to a console window)
 Selection List        Creates a multiple option selection list.
 Slider                Akin to the scale widget, this widget provides a
                       visual slide bar to represent the numeric value.
-Template              Creates a entry field with character sensitive 
+Template              Creates a entry field with character sensitive
                       positions. Used for pre-formatted fields like
                       dates and phone numbers.
 Viewer                This is a file/information viewer. Very useful

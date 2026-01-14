@@ -1,6 +1,6 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2025 Thomas E. Dickey                                *
  * Copyright 1998-2008,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -32,7 +32,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: internal.h,v 1.22 2020/08/29 23:06:41 tom Exp $
+// $Id: internal.h,v 1.23 2025/08/09 10:43:32 tom Exp $
 
 #ifndef NCURSES_CPLUS_INTERNAL_H
 #define NCURSES_CPLUS_INTERNAL_H 1
@@ -46,11 +46,7 @@
 #endif
 
 #if (defined(_WIN32) || defined(_WIN64))
-#if defined(EXP_WIN32_DRIVER)
 #include <nc_win32.h>
-#else
-#include <nc_mingw.h>
-#endif
 #undef KEY_EVENT
 #endif
 

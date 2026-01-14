@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2021 Thomas E. Dickey                                     *
+ * Copyright 2020-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -43,7 +43,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_pad.c,v 1.50 2021/10/23 22:57:27 tom Exp $")
+MODULE_ID("$Id: lib_pad.c,v 1.52 2024/12/07 17:44:59 tom Exp $")
 
 NCURSES_EXPORT(WINDOW *)
 NCURSES_SP_NAME(newpad) (NCURSES_SP_DCLx int l, int c)
@@ -55,17 +55,17 @@ NCURSES_SP_NAME(newpad) (NCURSES_SP_DCLx int l, int c)
     T((T_CALLED("newpad(%p,%d, %d)"), (void *) SP_PARM, l, c));
 
     if (l <= 0 || c <= 0)
-	returnWin(0);
+	returnWin(NULL);
 
     win = NCURSES_SP_NAME(_nc_makenew) (NCURSES_SP_ARGx l, c, 0, 0, _ISPAD);
     if (win == NULL)
-	returnWin(0);
+	returnWin(NULL);
 
     for (i = 0; i < l; i++) {
 	if_USE_SCROLL_HINTS(win->_line[i].oldindex = _NEWINDEX);
-	if ((win->_line[i].text = typeCalloc(NCURSES_CH_T, ((size_t) c))) == 0) {
+	if ((win->_line[i].text = typeCalloc(NCURSES_CH_T, ((size_t) c))) == NULL) {
 	    (void) _nc_freewin(win);
-	    returnWin(0);
+	    returnWin(NULL);
 	}
 	for (ptr = win->_line[i].text; ptr < win->_line[i].text + c; ptr++)
 	    SetChar(*ptr, BLANK_TEXT, BLANK_ATTR);
@@ -92,7 +92,7 @@ subpad(WINDOW *orig, int l, int c, int begy, int begx)
     if (orig) {
 	if (!IS_PAD(orig)
 	    || ((win = derwin(orig, l, c, begy, begx)) == NULL))
-	    returnWin(0);
+	    returnWin(NULL);
     }
     returnWin(win);
 }
@@ -143,7 +143,7 @@ pnoutrefresh(WINDOW *win,
     T((T_CALLED("pnoutrefresh(%p, %d, %d, %d, %d, %d, %d)"),
        (void *) win, pminrow, pmincol, sminrow, smincol, smaxrow, smaxcol));
 
-    if (win == 0)
+    if (win == NULL)
 	returnCode(ERR);
 
     if (!IS_PAD(win))
@@ -197,8 +197,8 @@ pnoutrefresh(WINDOW *win,
 #endif /* TRACE */
 #if USE_SCROLL_HINTS
     if (win->_pad._pad_y >= 0) {
-	displaced = pminrow - win->_pad._pad_y
-	    - (sminrow - win->_pad._pad_top);
+	displaced = ((pminrow - win->_pad._pad_y) -
+		     (sminrow - win->_pad._pad_top));
 	T(("pad being shifted by %d line(s)", displaced));
     } else
 	displaced = 0;
@@ -331,7 +331,7 @@ pechochar(WINDOW *pad, const chtype ch)
 {
     T((T_CALLED("pechochar(%p, %s)"), (void *) pad, _tracechtype(ch)));
 
-    if (pad == 0)
+    if (pad == NULL)
 	returnCode(ERR);
 
     if (!IS_PAD(pad))

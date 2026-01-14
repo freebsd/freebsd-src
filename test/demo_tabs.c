@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2020,2022 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,7 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: demo_tabs.c,v 1.10 2022/12/04 00:40:11 tom Exp $
+ * $Id: demo_tabs.c,v 1.13 2025/07/05 15:21:56 tom Exp $
  *
  * A simple demo of tabs in curses.
  */
@@ -48,7 +48,7 @@ usage(int ok)
 	,""
 	,USAGE_COMMON
 	,"Options:"
-	," -l COUNT total number of lines to show"
+	," -m NUM   total number of lines to show"
 	," -t NUM   set TABSIZE variable to the given value"
     };
     unsigned n;
@@ -69,19 +69,16 @@ main(int argc, char *argv[])
     int line_limit = -1;
     int curses_stops = -1;
 
-    while ((ch = getopt(argc, argv, OPTS_COMMON "l:t:")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "m:t:")) != -1) {
 	switch (ch) {
-	case 'l':
+	case 'm':
 	    line_limit = atoi(optarg);
 	    break;
 	case 't':
 	    curses_stops = atoi(optarg);
 	    break;
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }

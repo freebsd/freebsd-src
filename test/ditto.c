@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -30,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey (1998-on)
  *
- * $Id: ditto.c,v 1.59 2023/09/23 17:08:43 tom Exp $
+ * $Id: ditto.c,v 1.62 2025/07/05 15:11:35 tom Exp $
  *
  * The program illustrates how to set up multiple screens from a single
  * program.
@@ -157,15 +157,15 @@ open_tty(char *path)
     int aslave;
     char slave_name[1024];
     char s_option[sizeof(slave_name) + 80];
-    const char *xterm_prog = 0;
+    const char *xterm_prog = NULL;
 
-    if ((xterm_prog = getenv("XTERM_PROG")) == 0)
+    if ((xterm_prog = getenv("XTERM_PROG")) == NULL)
 	xterm_prog = "xterm";
 
-    if (openpty(&amaster, &aslave, slave_name, 0, 0) != 0
+    if (openpty(&amaster, &aslave, slave_name, NULL, NULL) != 0
 	|| strlen(slave_name) > sizeof(slave_name) - 1)
 	failed("openpty");
-    if (strrchr(slave_name, '/') == 0) {
+    if (strrchr(slave_name, '/') == NULL) {
 	errno = EISDIR;
 	failed(slave_name);
     }
@@ -176,7 +176,7 @@ open_tty(char *path)
 	_exit(0);
     }
     fp = fdopen(amaster, "r+");
-    if (fp == 0)
+    if (fp == NULL)
 	failed(path);
 #else
     struct stat sb;
@@ -192,7 +192,7 @@ open_tty(char *path)
 	failed(path);
     printf("opened %s\n", path);
 #endif
-    assert(fp != 0);
+    assert(fp != NULL);
     return fp;
 }
 
@@ -266,7 +266,7 @@ open_screen(DITTO * target, char **source, int length, int which1)
 			     target->output,
 			     target->input);
 
-    if (target->screen == 0)
+    if (target->screen == NULL)
 	failed("newterm");
 
     (void) USING_SCREEN(target->screen, init_screen, target);
@@ -420,19 +420,16 @@ main(int argc, char *argv[])
 
     while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
 	switch (ch) {
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
 
-    if ((data = typeCalloc(DITTO, (size_t) argc)) == 0)
+    if ((data = typeCalloc(DITTO, (size_t) argc)) == NULL)
 	failed("calloc data");
 
-    assert(data != 0);
+    assert(data != NULL);
 
     for (j = 0; j < argc; j++) {
 	open_screen(&data[j], argv, argc, j);
@@ -478,7 +475,7 @@ main(int argc, char *argv[])
      */
     for (j = argc - 1; j >= 0; j--) {
 	LockIt();
-	USING_SCREEN(data[j].screen, close_screen, 0);
+	USING_SCREEN(data[j].screen, close_screen, NULL);
 	fprintf(data[j].output, "**Closed\r\n");
 
 	/*

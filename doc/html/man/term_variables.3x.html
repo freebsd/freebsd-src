@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2019-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2019-2024,2025 Thomas E. Dickey                                *
   * Copyright 2010-2015,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: term_variables.3x,v 1.36 2024/03/16 15:35:01 tom Exp @
+  * @Id: term_variables.3x,v 1.44 2025/11/12 01:27:41 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>term_variables 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
+<TITLE>term_variables 3x 2025-11-11 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">term_variables 3x 2024-03-16 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">term_variables 3x 2025-11-11 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="term_variables.3x.html">term_variables(3x)</A></STRONG>               Library calls              <STRONG><A HREF="term_variables.3x.html">term_variables(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -78,105 +76,102 @@
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       This  page  summarizes  variables provided by the <STRONG>curses</STRONG> library's low-
-       level terminfo interface.  A more complete description is given in  the
+       This  page summarizes variables provided by the <EM>curses</EM> library's lower-
+       level <EM>terminfo</EM> interface.  Locate a more complete  description  in  the
        <STRONG><A HREF="curs_terminfo.3x.html">curs_terminfo(3x)</A></STRONG> manual page.
 
-       Depending  on  the  configuration,  these  may  be actual variables, or
-       macros  (see  <STRONG><A HREF="curs_threads.3x.html">curs_threads(3x)</A></STRONG>)  which  provide  read-only  access   to
-       <EM>curses</EM>'s  state.   In  either  case,  applications should treat them as
-       read-only to avoid confusing the library.
+       Depending  on  <EM>ncurses</EM>'s  build-time configuration, these may be actual
+       variables, or macros  (see  <STRONG><A HREF="curs_threads.3x.html">curs_threads(3x)</A></STRONG>)  that  provide  read-only
+       access  to  <EM>curses</EM>'s  state.  In either case, applications should treat
+       them as read-only to avoid confusing the library.
 
 
 </PRE><H3><a name="h3-Alternate-Character-Set-Mapping">Alternate Character Set Mapping</a></H3><PRE>
-       After initializing the curses or terminfo interfaces, the <STRONG>acs_map</STRONG> array
-       holds  information  used to translate cells with the <STRONG>A_ALTCHARSET</STRONG> video
+       After initializing the <EM>curses</EM> or <EM>terminfo</EM> interfaces, the <STRONG>acs_map</STRONG> array
+       holds information used to translate cells with the  <STRONG>A_ALTCHARSET</STRONG>  video
        attribute into line-drawing characters.
 
        The encoding of the information in this array has changed periodically.
        Application  developers  need  only know that it is used for the "ACS_"
-       constants in &lt;curses.h&gt;.
+       constants in <EM>curses.h</EM>.
 
-       The comparable  data  for  the  wide-character  library  is  a  private
-       variable.
+       The comparable data for the wide-character library are not  exposed  as
+       symbols in the API.
 
 
 </PRE><H3><a name="h3-Current-Terminal-Data">Current Terminal Data</a></H3><PRE>
-       After  initializing  the  curses  or  terminfo interfaces, the <STRONG>cur_term</STRONG>
-       contains data describing the current terminal.  This variable  is  also
-       set as a side-effect of <STRONG><A HREF="curs_initscr.3x.html">set_term(3x)</A></STRONG> and <STRONG><A HREF="curs_initscr.3x.html">delscreen(3x)</A></STRONG>.
+       After initializing the <EM>curses</EM> or <EM>terminfo</EM> interfaces, <STRONG>cur_term</STRONG> contains
+       data  describing  the  current  terminal.  It is also updated as a side
+       effect of <STRONG><A HREF="curs_initscr.3x.html">set_term(3x)</A></STRONG> and <STRONG><A HREF="curs_initscr.3x.html">delscreen(3x)</A></STRONG>.
 
-       It  is  possible  to  save  a value of <STRONG>cur_term</STRONG> for subsequent use as a
-       parameter to <STRONG>set_term</STRONG>, for switching between  screens.   Alternatively,
-       one can save the return value from <STRONG>newterm</STRONG> or <STRONG><A HREF="curs_terminfo.3x.html">setupterm(3x)</A></STRONG> to reuse in
-       <STRONG>set_term</STRONG>.
+       It is possible to save a value of <STRONG>cur_term</STRONG>  for  subsequent  use  as  a
+       parameter    to    <STRONG><A HREF="curs_initscr.3x.html">set_term(3x)</A></STRONG>    for   switching   between   screens.
+       Alternatively, one can  save  the  return  value  from  <STRONG><A HREF="curs_initscr.3x.html">newterm(3x)</A></STRONG>  or
+       <STRONG><A HREF="curs_terminfo.3x.html">setupterm(3x)</A></STRONG> to reuse in <STRONG><A HREF="curs_initscr.3x.html">set_term(3x)</A></STRONG>.
 
 
 </PRE><H3><a name="h3-terminfo-Lookup-Tables"><EM>terminfo</EM> Lookup Tables</a></H3><PRE>
-       The <STRONG><A HREF="tic.1m.html">tic(1)</A></STRONG> and <STRONG><A HREF="infocmp.1m.html">infocmp(1)</A></STRONG> programs use lookup tables for the  long  and
-       short  names  of  terminfo  capabilities,  as well as the corresponding
-       names  for  termcap  capabilities.   These  are  available   to   other
-       applications, although the hash-tables used by the terminfo and termcap
-       functions are not available.
+       The  <STRONG><A HREF="tic.1m.html">tic(1)</A></STRONG>  and <STRONG><A HREF="infocmp.1m.html">infocmp(1)</A></STRONG> programs use lookup tables for the long and
+       short names of <EM>terminfo</EM> capabilities,  as  well  as  the  corresponding
+       names   for   <EM>termcap</EM>  capabilities.   These  are  available  to  other
+       applications, though the hash tables used by the <EM>terminfo</EM>  and  <EM>termcap</EM>
+       functions are not.
 
-       The long terminfo capability names use a  "f"  (eff)  in  their  names:
-       <STRONG>boolfnames</STRONG>, <STRONG>numfnames</STRONG>, and <STRONG>strfnames</STRONG>.
-
-       These  are  the  short  names  for  terminfo  capabilities:  <STRONG>boolnames</STRONG>,
-       <STRONG>numnames</STRONG>, and <STRONG>strnames</STRONG>.
-
-       These are  the  corresponding  names  used  for  termcap  descriptions:
-       <STRONG>boolcodes</STRONG>, <STRONG>numcodes</STRONG>, and <STRONG>strcodes</STRONG>.
+       <EM>terminfo</EM>  stores  capability names in arrays with an "f" (eff) in their
+       names: <STRONG>boolfnames</STRONG>, <STRONG>numfnames</STRONG>, and <STRONG>strfnames</STRONG>.   It  stores  the  briefer
+       capability  codes  in  arrays without the "f": <STRONG>boolnames</STRONG>, <STRONG>numnames</STRONG>, and
+       <STRONG>strnames</STRONG>.  The corresponding <EM>termcap</EM> capability  codes  are  stored  in
+       <STRONG>boolcodes</STRONG>, <STRONG>numcodes</STRONG>, and <STRONG>strcodes</STRONG>.  <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG> catalogs these.
 
 
 </PRE><H3><a name="h3-Terminal-Type">Terminal Type</a></H3><PRE>
        A terminal description begins with one or more terminal names separated
-       by "|" (vertical bars).  On initialization of the  curses  or  terminfo
-       interfaces,  <STRONG><A HREF="curs_terminfo.3x.html">setupterm(3x)</A></STRONG>  copies  the  terminal  names  to  the array
+       by  "|"  (vertical  bars).  On initialization of the <EM>curses</EM> or <EM>terminfo</EM>
+       interfaces,  <STRONG><A HREF="curs_terminfo.3x.html">setupterm(3x)</A></STRONG>  copies  the  terminal  name  to  the  array
        <STRONG>ttytype</STRONG>.
 
 
 </PRE><H3><a name="h3-terminfo-Names"><EM>terminfo</EM> Names</a></H3><PRE>
-       In addition to the variables, <STRONG>&lt;term.h&gt;</STRONG> also defines a symbol  for  each
-       terminfo  capability  <EM>long</EM> <EM>name</EM>.  These are in terms of the symbol <STRONG>CUR</STRONG>,
-       which is defined
+       In  addition  to  the  variables, <EM>term.h</EM> also defines a symbol for each
+       <EM>terminfo</EM> capability name.  These are in terms of the symbol <STRONG>CUR</STRONG>,  which
+       is defined
 
-       #define CUR ((TERMTYPE *)(cur_term))-&gt;
+              #define CUR ((TERMTYPE *)(cur_term))-&gt;
 
-       These  symbols  provide  a  faster   method   of   accessing   terminfo
-       capabilities than using <STRONG><A HREF="curs_terminfo.3x.html">tigetstr(3x)</A></STRONG>, etc.
+       These   symbols   provide   a   faster  method  of  accessing  <EM>terminfo</EM>
+       capabilities than using, for example, <STRONG><A HREF="curs_terminfo.3x.html">tigetstr(3x)</A></STRONG>.
 
-       The  actual definition of <STRONG>CUR</STRONG> depends upon the implementation, but each
-       terminfo library provides these long names defined to  point  into  the
-       current terminal description loaded into memory.
+       The definition of <STRONG>CUR</STRONG> is implementation-dependent,  but  each  <EM>terminfo</EM>
+       library  defines these names to point into the in-memory description of
+       the  current  terminal.   For  example,  in  <EM>ncurses</EM>,  the  expressions
+       <STRONG>tigetstr("key_dc")</STRONG> and "<STRONG>CUR</STRONG> <STRONG>Strings[59]</STRONG>" are equivalent.
 
 
-</PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       The  low-level  terminfo  interface is initialized using <STRONG><A HREF="curs_terminfo.3x.html">setupterm(3x)</A></STRONG>.
-       The upper-level curses interface uses the low-level terminfo interface,
-       internally.
+</PRE><H3><a name="h3-terminfo-and-curses"><EM>terminfo</EM> and curses</a></H3><PRE>
+       <STRONG><A HREF="curs_terminfo.3x.html">setupterm(3x)</A></STRONG>  initializes  the  lower-level  <EM>terminfo</EM>  interface.  The
+       higher-level <EM>curses</EM> interface uses the <EM>terminfo</EM>  interface  internally;
+       the symbol <STRONG>SP</STRONG> bridges the <EM>curses</EM> <EM>SCREEN</EM> type with the <EM>terminfo</EM> <EM>TERMINAL</EM>
+       type.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       X/Open Curses does not describe any of these except for <STRONG>cur_term</STRONG>.  (The
-       inclusion  of  <STRONG>cur_term</STRONG>  appears  to  be  an  oversight,  since   other
-       comparable low-level information is omitted by X/Open).
+       X/Open  Curses  does  not  describe  any  of  these  symbols except for
+       <EM>cur</EM><STRONG>_</STRONG><EM>term</EM>.  (The inclusion of <EM>cur</EM><STRONG>_</STRONG><EM>term</EM> appears to be an oversight, since
+       other comparable low-level information is omitted by X/Open.)
 
-       Other    implementations   may   have   comparable   variables.    Some
+       Other   implementations   may   have   comparable   variables.     Some
        implementations provide the variables in their libraries, but omit them
        from the header files.
 
-       All  implementations  which provide terminfo interfaces add definitions
-       as described in the <STRONG>Terminfo</STRONG> <STRONG>Names</STRONG> section.  Most, but  not  all,  base
-       the definition upon the <STRONG>cur_term</STRONG> variable.
+       All implementations that provide <EM>terminfo</EM> interfaces add definitions as
+       described  in  the  "<EM>terminfo</EM> Names" section above.  Most, but not all,
+       base the definition upon the <EM>cur</EM><STRONG>_</STRONG><EM>term</EM> variable.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_terminfo.3x.html">curs_terminfo(3x)</A></STRONG>, <STRONG><A HREF="curs_threads.3x.html">curs_threads(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-03-16                <STRONG><A HREF="term_variables.3x.html">term_variables(3x)</A></STRONG>
+ncurses 6.6                       2025-11-11                <STRONG><A HREF="term_variables.3x.html">term_variables(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -189,9 +184,9 @@ ncurses 6.5                       2024-03-16                <STRONG><A HREF="ter
 <li><a href="#h3-terminfo-Lookup-Tables">terminfo Lookup Tables</a></li>
 <li><a href="#h3-Terminal-Type">Terminal Type</a></li>
 <li><a href="#h3-terminfo-Names">terminfo Names</a></li>
+<li><a href="#h3-terminfo-and-curses">terminfo and curses</a></li>
 </ul>
 </li>
-<li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>

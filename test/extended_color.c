@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2022 Thomas E. Dickey                                *
+ * Copyright 2018-2022,2025 Thomas E. Dickey                                *
  * Copyright 2017 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: extended_color.c,v 1.20 2022/12/10 22:28:50 tom Exp $
+ * $Id: extended_color.c,v 1.21 2025/07/05 15:21:56 tom Exp $
  */
 
 #include <test.priv.h>
@@ -173,11 +173,8 @@ main(int argc, char *argv[])
 	    opt_s = TRUE;
 	    break;
 #endif
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }

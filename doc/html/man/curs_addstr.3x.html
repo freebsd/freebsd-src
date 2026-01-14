@@ -1,6 +1,6 @@
 <!--
   ****************************************************************************
-  * Copyright 2019-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2019-2024,2025 Thomas E. Dickey                                *
   * Copyright 1998-2012,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,78 +27,86 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_addstr.3x,v 1.45 2024/04/20 19:18:18 tom Exp @
+  * @Id: curs_addstr.3x,v 1.71 2025/10/21 00:09:34 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_addstr 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
+<TITLE>curs_addstr 3x 2025-10-20 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_addstr 3x 2024-04-20 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">curs_addstr 3x 2025-10-20 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="curs_addstr.3x.html">curs_addstr(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="curs_addstr.3x.html">curs_addstr(3x)</A></STRONG>
 
 
-
-
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>addstr</STRONG>,  <STRONG>addnstr</STRONG>,  <STRONG>waddstr</STRONG>,  <STRONG>waddnstr</STRONG>,  <STRONG>mvaddstr</STRONG>, <STRONG>mvaddnstr</STRONG>, <STRONG>mvwaddstr</STRONG>,
+       <STRONG>addstr</STRONG>,  <STRONG>waddstr</STRONG>,  <STRONG>mvaddstr</STRONG>,  <STRONG>mvwaddstr</STRONG>,  <STRONG>addnstr</STRONG>, <STRONG>waddnstr</STRONG>, <STRONG>mvaddnstr</STRONG>,
        <STRONG>mvwaddnstr</STRONG> - add a string to a <EM>curses</EM> window and advance the cursor
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>addstr(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvaddstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvwaddstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>waddstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>addstr(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>waddstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvaddstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwaddstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>);</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>addnstr(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvaddnstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvwaddnstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>waddnstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>addnstr(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>waddnstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvaddnstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwaddnstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
        <STRONG>waddstr</STRONG> writes the characters of the (null-terminated)  string  <EM>str</EM>  to
-       the  window <EM>win</EM>.  Its process is similar to calling <STRONG><A HREF="curs_addch.3x.html">waddch(3x)</A></STRONG> for each
-       <EM>char</EM> in <EM>str</EM>.  Control characters are processed as in <STRONG><A HREF="curs_addch.3x.html">waddch(3x)</A></STRONG>.
-
-       <STRONG>waddnstr</STRONG> writes at most <EM>n</EM>  characters,  or  until  a  terminating  null
-       character  occurs  in  <EM>str</EM>.   If  <EM>n</EM>  is  -1, <STRONG>waddnstr</STRONG> writes the entire
-       string.
-
-       <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG> describes the variants of these functions.
+       the  window  <EM>win</EM>,  as  if  by  calling <STRONG><A HREF="curs_addch.3x.html">waddch(3x)</A></STRONG> for each <EM>char</EM> in <EM>str</EM>.
+       <STRONG>waddnstr</STRONG> is similar, but writes at most <EM>n</EM>  characters.   If  <EM>n</EM>  is  -1,
+       <STRONG>waddnstr</STRONG>  writes the entire string.  <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG> describes the variants
+       of these functions.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
        These functions return <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.
 
-       X/Open Curses does not specify any error conditions.   <EM>ncurses</EM>  returns
-       an error
+       In <EM>ncurses</EM>, these functions fail if
 
-       <STRONG>o</STRONG>   if the window pointer is <STRONG>NULL</STRONG>,
+       <STRONG>o</STRONG>   the <EM>curses</EM> screen has not been initialized,
 
-       <STRONG>o</STRONG>   if the string pointer is <STRONG>NULL</STRONG>, or
+       <STRONG>o</STRONG>   <EM>str</EM> is a null pointer,
 
-       <STRONG>o</STRONG>   if an internal <STRONG><A HREF="curs_addch.3x.html">waddch(3x)</A></STRONG> call returns an error.
+       <STRONG>o</STRONG>   (for functions taking a <EM>WINDOW</EM> pointer  argument)  <EM>win</EM>  is  a  null
+           pointer, or
+
+       <STRONG>o</STRONG>   an internal <STRONG><A HREF="curs_addch.3x.html">waddch(3x)</A></STRONG> call returns <STRONG>ERR</STRONG>.
 
        Functions  prefixed with "mv" first perform cursor movement and fail if
        the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       All of these functions except <STRONG>waddnstr</STRONG> may be macros.
+       All of these functions except <STRONG>waddnstr</STRONG> may be implemented as macros.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       X/Open Curses, Issue 4 describes these functions.
+       X/Open Curses Issue 4 describes these functions.  It specifies no error
+       conditions for them.
+
+       SVr4 describes a successful return value  only  as  "an  integer  value
+       other than <EM>ERR</EM>".
+
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       4BSD  (1980)  introduced  <EM>waddstr</EM>  along  with its variants, the latter
+       defined as macros.
+
+       SVr3.1 (1987) added <EM>waddnstr</EM> (and its variants) redefining <EM>waddstr</EM> as a
+       macro wrapping it.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
@@ -107,9 +115,7 @@
 
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>, <STRONG><A HREF="curs_addchstr.3x.html">curs_addchstr(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-04-20                   <STRONG><A HREF="curs_addstr.3x.html">curs_addstr(3x)</A></STRONG>
+ncurses 6.6                       2025-10-20                   <STRONG><A HREF="curs_addstr.3x.html">curs_addstr(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -119,6 +125,7 @@ ncurses 6.5                       2024-04-20                   <STRONG><A HREF="
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

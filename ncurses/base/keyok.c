@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,7 +34,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: keyok.c,v 1.17 2021/06/17 21:26:02 tom Exp $")
+MODULE_ID("$Id: keyok.c,v 1.19 2025/12/27 12:41:23 tom Exp $")
 
 /*
  * Enable (or disable) ncurses' interpretation of a keycode by adding (or
@@ -53,7 +53,7 @@ NCURSES_SP_NAME(keyok) (NCURSES_SP_DCLx int c, bool flag)
 
     if (HasTerminal(SP_PARM)) {
 	T((T_CALLED("keyok(%p, %d,%d)"), (void *) SP_PARM, c, flag));
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 	code = CallDriver_2(sp, td_kyOk, c, flag);
 #else
 	if (c >= 0) {
@@ -63,7 +63,7 @@ NCURSES_SP_NAME(keyok) (NCURSES_SP_DCLx int c, bool flag)
 
 	    if (flag) {
 		while ((s = _nc_expand_try(SP_PARM->_key_ok,
-					   ch, &count, (size_t) 0)) != 0) {
+					   ch, &count, (size_t) 0)) != NULL) {
 		    if (_nc_remove_key(&(SP_PARM->_key_ok), ch)) {
 			code = _nc_add_to_try(&(SP_PARM->_keytry), s, ch);
 			free(s);
@@ -76,7 +76,7 @@ NCURSES_SP_NAME(keyok) (NCURSES_SP_DCLx int c, bool flag)
 		}
 	    } else {
 		while ((s = _nc_expand_try(SP_PARM->_keytry,
-					   ch, &count, (size_t) 0)) != 0) {
+					   ch, &count, (size_t) 0)) != NULL) {
 		    if (_nc_remove_key(&(SP_PARM->_keytry), ch)) {
 			code = _nc_add_to_try(&(SP_PARM->_key_ok), s, ch);
 			free(s);

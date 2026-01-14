@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2022 Thomas E. Dickey                                     *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 2009-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_addstr.c,v 1.20 2022/12/10 22:28:50 tom Exp $
+ * $Id: test_addstr.c,v 1.23 2025/07/05 15:21:56 tom Exp $
  *
  * Demonstrate the waddstr() and waddch functions.
  * Thomas Dickey - 2009/9/12
@@ -91,7 +91,7 @@ legend(WINDOW *win, int level, Options state, char *buffer, int length)
 }
 
 static int
-ColOf(char *buffer, int length, int margin)
+ColOf(const char *buffer, int length, int margin)
 {
     int n;
     int result;
@@ -140,9 +140,9 @@ recursive_test(int level)
     int row2, col2;
     int length;
     char buffer[BUFSIZ];
-    WINDOW *look = 0;
-    WINDOW *work = 0;
-    WINDOW *show = 0;
+    WINDOW *look = NULL;
+    WINDOW *work = NULL;
+    WINDOW *show = NULL;
     int margin = (2 * MY_TABSIZE) - 1;
     Options option = (Options) ((unsigned) (m_opt
 					    ? oMove
@@ -420,11 +420,8 @@ main(int argc, char *argv[])
 	case 'w':
 	    w_opt = TRUE;
 	    break;
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }

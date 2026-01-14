@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright 2019,2020 Thomas E. Dickey                                     --
+-- Copyright 2019-2020,2025 Thomas E. Dickey                                --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control
---  $Revision: 1.5 $
---  $Date: 2020/02/02 23:34:34 $
+--  $Revision: 1.6 $
+--  $Date: 2025/01/24 20:39:23 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 --  Poor mans help system. This scans a sequential file for key lines and
@@ -136,7 +136,7 @@ package body Sample.Explanation is
          H : Help_Line_Access := Top_Line;
       begin
          if Top_Line /= null then
-            for L in 0 .. (Height - 1) loop
+            for L in 0 .. Height - 1 loop
                Add (W, L, 0, H.all.Line.all);
                exit when H.all.Next = null;
                H := H.all.Next;

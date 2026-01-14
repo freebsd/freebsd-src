@@ -1,7 +1,7 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 // vile:cppmode
 /****************************************************************************
- * Copyright 2019-2021,2022 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -32,11 +32,9 @@
 #ifndef NCURSES_CURSESW_H_incl
 #define NCURSES_CURSESW_H_incl 1
 
-// $Id: cursesw.h,v 1.59 2022/08/20 20:52:15 tom Exp $
+// $Id: cursesw.h,v 1.62 2025/01/25 21:21:05 tom Exp $
 
-extern "C" {
-#  include   <curses.h>
-}
+#include <curses.h>
 
 #if defined(BUILDING_NCURSES_CXX)
 # define NCURSES_CXX_IMPEXP NCURSES_EXPORT_GENERAL_EXPORT
@@ -1441,7 +1439,7 @@ protected:
 
   NCursesWindow* Win(void) const {
     // Get the window into which the pad should be copied (if any)
-    return (viewSub?viewSub:(viewWin?viewWin:0));
+    return (viewSub?viewSub:(viewWin?viewWin:NULL));
   }
 
   NCursesWindow* getWindow(void) const {

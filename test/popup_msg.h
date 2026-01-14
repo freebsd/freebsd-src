@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2024 Thomas E. Dickey                                *
  * Copyright 2017 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: popup_msg.h,v 1.5 2020/02/02 23:34:34 tom Exp $
+ * $Id: popup_msg.h,v 1.6 2024/10/06 21:17:54 tom Exp $
  *
  * Utility functions for a popup-message or help-screen.
  */
@@ -37,7 +37,7 @@
 
 #include <test.priv.h>
 
-extern void popup_msg(WINDOW *parent, const char *const *msg);
+extern void popup_msg(WINDOW *parent, NCURSES_CONST char *const *msg);
 extern void popup_msg2(WINDOW *parent, char **msg);
 
 #endif /* POPUP_MSG_H_incl */

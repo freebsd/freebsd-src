@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2010,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_attr.c,v 1.15 2020/12/11 22:05:24 tom Exp $")
+MODULE_ID("$Id: fld_attr.c,v 1.16 2024/12/07 23:01:42 tom Exp $")
 
 /*----------------------------------------------------------------------------
   Field-Attribute manipulation routines
@@ -47,7 +47,7 @@ FORM_IMPEXP int NCURSES_API set_field_ ## name (FIELD * field, chtype attr)\
    if ( attr==A_NORMAL || ((attr & A_ATTRIBUTES)==attr) )\
      {\
        Normalize_Field( field );\
-       if (field != 0) \
+       if (field != NULL) \
 	 { \
 	 if ((field -> name) != attr)\
 	   {\

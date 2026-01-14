@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright 2018-2022,2023 Thomas E. Dickey                                *
+dnl Copyright 2018-2024,2025 Thomas E. Dickey                                *
 dnl Copyright 2010-2016,2018 Free Software Foundation, Inc.                  *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -29,7 +29,7 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey
 dnl
-dnl $Id: configure.in,v 1.91 2023/02/18 23:21:29 tom Exp $
+dnl $Id: configure.in,v 1.97 2025/12/25 23:49:07 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
 dnl
 dnl For additional information, see
@@ -38,9 +38,10 @@ dnl     https://invisible-island.net/autoconf/my-autoconf.html
 dnl
 dnl ---------------------------------------------------------------------------
 AC_PREREQ(2.52.20210509)
-AC_REVISION($Revision: 1.91 $)
-AC_INIT(gen/gen.c)
-AC_CONFIG_HEADER(include/ncurses_cfg.h:include/ncurses_cfg.hin)
+AC_REVISION($Revision: 1.97 $)
+AC_INIT
+AC_CONFIG_SRCDIR([gen/gen.c])
+AC_CONFIG_HEADERS([include/ncurses_cfg.h:include/ncurses_cfg.hin])
 
 AC_DEFUN([AC_PATH_XTRA],[])dnl ignore dependencies on this
 
@@ -59,7 +60,7 @@ cf_user_CFLAGS="$CFLAGS"
 CF_CFG_DEFAULTS
 
 ###	Checks for programs.
-CF_PROG_CC(gnatgcc gcc cc)
+CF_WITH_ADA
 AC_PROG_CPP
 AC_PROG_GCC_TRADITIONAL
 CF_PROG_CC_C_O(CC,[$CFLAGS $CPPFLAGS])
@@ -106,7 +107,6 @@ fi
 AC_PROG_MAKE_SET
 CF_MAKE_PHONY
 CF_MAKE_TAGS
-CF_MAKEFLAGS
 
 dnl These are standard among *NIX systems, but not when cross-compiling
 AC_CHECK_TOOL(RANLIB, ranlib, ':')
@@ -115,20 +115,7 @@ AC_CHECK_TOOL(AR, ar, ar)
 CF_AR_FLAGS
 CF_PATHSEP
 
-dnl Special option for use by system-builders: the install-prefix is used to
-dnl adjust the location into which the actual install is done, so that an
-dnl archive can be built without modifying the host system's configuration.
-AC_MSG_CHECKING(if you have specified an install-prefix)
-AC_ARG_WITH(install-prefix,
-	[  --with-install-prefix   prefixes actual install-location ($DESTDIR)],
-	[case "$withval" in
-	(yes|no)
-		;;
-	(*)	DESTDIR="$withval"
-		;;
-	esac])
-AC_MSG_RESULT($DESTDIR)
-AC_SUBST(DESTDIR)
+CF_INSTALL_PREFIX
 
 ###############################################################################
 CF_HELP_MESSAGE(Build-Tools Needed to Compile Temporary Applications for Cross-compiling:)
@@ -410,7 +397,7 @@ AC_MSG_RESULT($cf_with_trace)
 
 if test "$cf_with_trace" = yes ; then
 	ADA_TRACE=TRUE
-	CF_ADD_CFLAGS(-DTRACE)
+	AC_DEFINE(TRACE,1,[Define to 1 if we have support trace functions])
 else
 	ADA_TRACE=FALSE
 fi
@@ -435,7 +422,7 @@ AC_HEADER_DIRENT
 AC_HEADER_TIME
 
 ###	checks for compiler characteristics
-AC_LANG_C
+AC_LANG([C])
 AC_C_CONST
 
 ###	Checks for external-data
@@ -455,7 +442,6 @@ cf_with_ada=yes
 dnl Check for availability of GNU Ada Translator (GNAT).
 dnl At the moment we support no other Ada95 compiler.
 if test "$cf_with_ada" != "no" ; then
-	CF_PROG_GNAT
 	if test	"$cf_cv_prog_gnat_correct" = yes; then
 		CF_FIXUP_ADAFLAGS
 
@@ -527,8 +513,8 @@ fi
 USE_ARG_SUFFIX=${DFT_ARG_SUFFIX}
 AC_SUBST(USE_ARG_SUFFIX)
 
-USE_LIB_SUFFIX=${DFT_ARG_SUFFIX}
-AC_SUBST(USE_LIB_SUFFIX)
+ABI_SUFFIX=${DFT_ARG_SUFFIX}
+AC_SUBST(ABI_SUFFIX)
 
 USE_CFG_SUFFIX=${DFT_ARG_SUFFIX}
 AC_SUBST(USE_CFG_SUFFIX)
@@ -580,11 +566,12 @@ fi
 
 AC_SUBST(ADAGEN_LDFLAGS)
 
-AC_OUTPUT( \
+AC_CONFIG_FILES([\
 	$SUB_MAKEFILES \
 	src/library.gpr:src/library.gpr.in \
 	doc/adacurses${DFT_ARG_SUFFIX}-config.1:doc/MKada_config.in \
-	Makefile,[
+	Makefile])
+AC_CONFIG_COMMANDS([default],[
 $AWK -v PACKAGE=$PACKAGE -f $srcdir/mk-pkg.awk </dev/null >> Makefile
 if test -z "$USE_OLD_MAKERULES" ; then
 	$AWK -f $srcdir/mk-1st.awk <$srcdir/src/modules >>src/Makefile
@@ -617,5 +604,7 @@ cf_cv_system_name="$cf_cv_system_name"
 host="$host"
 target="$target"
 
-],cat)dnl
+])
+AC_SETUP_DEFS([cat])
+AC_OUTPUT
 ${MAKE:-make} preinstall

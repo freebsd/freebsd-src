@@ -28,57 +28,65 @@
   * authorization.                                                           *
   ****************************************************************************
   * Author: Thomas E. Dickey 1997
-  * @Id: define_key.3x,v 1.42 2024/03/16 15:35:01 tom Exp @
+  * @Id: define_key.3x,v 1.52 2024/12/28 21:26:21 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>define_key 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
+<TITLE>define_key 3x 2024-12-28 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">define_key 3x 2024-03-16 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">define_key 3x 2024-12-28 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>
 
 
-
-
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>define_key</STRONG> - define a <EM>curses</EM> keycode
+       <STRONG>define_key</STRONG> - define a <EM>curses</EM> function key code
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>define_key(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>definition</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>keycode</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>define_key(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>definition</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>key-code</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       This  is an extension to the <EM>curses</EM> library.  It permits an application
-       to define keycodes with their corresponding control  strings,  so  that
-       the <EM>ncurses</EM> library will interpret them just as it would the predefined
-       codes in the terminfo database.
+       The <STRONG>define_key</STRONG> <EM>ncurses</EM> extension permits a <EM>curses</EM> application to <EM>bind</EM> a
+       string  <EM>definition</EM>  to the function key <EM>key-code</EM> returned by <STRONG><A HREF="curs_getch.3x.html">wgetch(3x)</A></STRONG>
+       (wide-character API users: <STRONG><A HREF="curs_get_wch.3x.html">wget_wch(3x)</A></STRONG>) when <STRONG><A HREF="curs_inopts.3x.html">keypad(3x)</A></STRONG> is enabled  in
+       a  window  and  a  function  key is pressed.  <EM>ncurses</EM> interprets such a
+       binding as it does  those  in  the  <EM>terminfo</EM>  database  entry  for  the
+       terminal type.
 
-       If <EM>definition</EM> is <STRONG>NULL</STRONG>, any existing one for  the  keycode  is  removed.
-       Similarly,  if  the  given  keycode  is  negative or zero, any existing
-       string for the given definition is removed.
+       A  <EM>definition</EM>  of  <EM>NULL</EM>  removes  any  existing  binding from <EM>key-code</EM>.
+       Similarly, a non-positive <EM>key-code</EM>  removes  an  existing  binding  for
+       <EM>definition</EM>, if any.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       Either <EM>keycode</EM> must be greater than zero, or <EM>definition</EM>  must  be  non-
-       <STRONG>NULL</STRONG>,  otherwise <STRONG>ERR</STRONG> is returned.  <STRONG>ERR</STRONG> may also be returned if there is
-       insufficient memory to allocate the data to store the  definition.   If
-       no error is detected, <STRONG>OK</STRONG> is returned.
+       <STRONG>define_key</STRONG> returns <STRONG>ERR</STRONG> if
+
+       <STRONG>o</STRONG>   <EM>definition</EM> is <EM>NULL</EM> and <EM>key-code</EM> is nonpositive, or
+
+       <STRONG>o</STRONG>   insufficient memory is available to bind <EM>definition</EM> to <EM>key-code</EM>.
+
+       Otherwise, <STRONG>define_key</STRONG> returns <STRONG>OK</STRONG>.
+
+
+</PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
+       <STRONG>define_key</STRONG> is an <EM>ncurses</EM> extension.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These  routines  are  specific  to <EM>ncurses</EM>.  They were not supported on
-       Version 7, BSD or System V implementations.  It is recommended that any
-       code depending on them be conditioned using <STRONG>NCURSES_VERSION</STRONG>.
+       Applications employing <EM>ncurses</EM> extensions should condition their use on
+       the visibility of the <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
+
+       NetBSD <EM>curses</EM> since 2.0 (2004) supports <EM>define</EM><STRONG>_</STRONG><EM>key</EM>.
 
 
 </PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>
@@ -86,11 +94,9 @@
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="keyok.3x.html">keyok(3x)</A></STRONG>, <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="keybound.3x.html">keybound(3x)</A></STRONG>, <STRONG><A HREF="keyok.3x.html">keyok(3x)</A></STRONG>, <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-03-16                    <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>
+ncurses 6.6                       2024-12-28                    <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -98,6 +104,7 @@ ncurses 6.5                       2024-03-16                    <STRONG><A HREF=
 <li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
+<li><a href="#h2-EXTENSIONS">EXTENSIONS</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
 <li><a href="#h2-AUTHORS">AUTHORS</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>

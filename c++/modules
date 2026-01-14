@@ -1,7 +1,7 @@
 # Program modules
-# $Id: modules,v 1.12 2020/02/02 23:34:34 tom Exp $
+# $Id: modules,v 1.13 2024/06/15 21:07:41 tom Exp $
 ##############################################################################
-# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2020,2024 Thomas E. Dickey                                       #
 # Copyright 1998-2006,2013 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -33,13 +33,13 @@
 #
 
 @ base
-cursesf		c++		$(srcdir)	$(internal_h) $(cursesf_h) $(cursesapp_h)
-cursesm		c++		$(srcdir)	$(internal_h) $(cursesm_h) $(cursesapp_h)
-cursesw		c++		$(srcdir)	$(internal_h) $(cursesw_h)
-cursespad	c++		$(srcdir)	$(internal_h) $(cursesw_h)
-cursesp		c++		$(srcdir)	$(internal_h) $(cursesp_h)
-cursslk		c++		$(srcdir)	$(internal_h) $(cursesapp_h)
-cursesapp	c++		$(srcdir)	$(internal_h) $(cursesapp_h)
-cursesmain	c++		$(srcdir)	$(internal_h) $(cursesapp_h) $(INCDIR)/nc_alloc.h
+cursesf		c++		$(srcdir)	$(HEADER_DEPS)	$(internal_h) $(cursesf_h) $(cursesapp_h)
+cursesm		c++		$(srcdir)	$(HEADER_DEPS)	$(internal_h) $(cursesm_h) $(cursesapp_h)
+cursesw		c++		$(srcdir)	$(HEADER_DEPS)	$(internal_h) $(cursesw_h)
+cursespad	c++		$(srcdir)	$(HEADER_DEPS)	$(internal_h) $(cursesw_h)
+cursesp		c++		$(srcdir)	$(HEADER_DEPS)	$(internal_h) $(cursesp_h)
+cursslk		c++		$(srcdir)	$(HEADER_DEPS)	$(internal_h) $(cursesapp_h)
+cursesapp	c++		$(srcdir)	$(HEADER_DEPS)	$(internal_h) $(cursesapp_h)
+cursesmain	c++		$(srcdir)	$(HEADER_DEPS)	$(internal_h) $(cursesapp_h) $(INCDIR)/nc_alloc.h
 
 # vile:makemode

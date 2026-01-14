@@ -1,7 +1,7 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 // vile:cppmode
 /****************************************************************************
- * Copyright 2019-2021,2022 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,7 +33,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: cursesf.h,v 1.39 2022/08/20 20:52:15 tom Exp $
+// $Id: cursesf.h,v 1.41 2025/01/25 21:20:17 tom Exp $
 
 #ifndef NCURSES_CURSESF_H_incl
 #define NCURSES_CURSESF_H_incl 1
@@ -78,7 +78,7 @@ protected:
 
 public:
   NCursesFieldType()
-    : fieldtype(STATIC_CAST(FIELDTYPE*)(0))
+    : fieldtype(STATIC_CAST(FIELDTYPE*)(NULL))
   {
   }
 
@@ -119,8 +119,8 @@ protected:
 public:
   // Create a 'Null' field. Can be used to delimit a field list
   NCursesFormField()
-    : field(STATIC_CAST(FIELD*)(0)),
-      ftype(STATIC_CAST(NCursesFieldType*)(0))
+    : field(STATIC_CAST(FIELD*)(NULL)),
+      ftype(STATIC_CAST(NCursesFieldType*)(NULL))
   {
   }
 
@@ -131,8 +131,8 @@ public:
 		    int first_col = 0,
 		    int offscreen_rows = 0,
 		    int additional_buffers = 0)
-    : field(0),
-      ftype(STATIC_CAST(NCursesFieldType*)(0))
+    : field(NULL),
+      ftype(STATIC_CAST(NCursesFieldType*)(NULL))
   {
       field = ::new_field(rows, ncols, first_row, first_col,
 			  offscreen_rows, additional_buffers);
@@ -363,7 +363,7 @@ private:
   // Get the backward pointer to the C++ object from a FORM
   static inline NCursesForm* getHook(const FORM *f) {
     UserHook* hook = reinterpret_cast<UserHook*>(::form_userptr(f));
-    assert(hook != 0 && hook->m_owner==f);
+    assert(hook != NULL && hook->m_owner==f);
     return const_cast<NCursesForm*>(hook->m_back);
   }
 
@@ -379,13 +379,13 @@ protected:
   // internal routines
   inline void set_user(void *user) {
     UserHook* uptr = reinterpret_cast<UserHook*>(::form_userptr (form));
-    assert (uptr != 0 && uptr->m_back==this && uptr->m_owner==form);
+    assert (uptr != NULL && uptr->m_back==this && uptr->m_owner==form);
     uptr->m_user = user;
   }
 
   inline void *get_user() {
-    UserHook* uptr = reinterpret_cast<UserHook*>(::form_userptr (form));
-    assert (uptr != 0 && uptr->m_back==this && uptr->m_owner==form);
+    const UserHook* uptr = reinterpret_cast<UserHook*>(::form_userptr (form));
+    assert (uptr != NULL && uptr->m_back==this && uptr->m_owner==form);
     return uptr->m_user;
   }
 
@@ -408,12 +408,12 @@ protected:
 	       int  begin_y = 0,
 	       int  begin_x = 0)
     : NCursesPanel(nlines, ncols, begin_y, begin_x),
-      form (STATIC_CAST(FORM*)(0)),
-      sub(0),
+      form (STATIC_CAST(FORM*)(NULL)),
+      sub(NULL),
       b_sub_owner(0),
       b_framed(0),
       b_autoDelete(0),
-      my_fields(0)
+      my_fields(NULL)
   {
   }
 
@@ -423,12 +423,12 @@ public:
 	       bool with_frame=FALSE,	      // reserve space for a frame?
 	       bool autoDelete_Fields=FALSE)  // do automatic cleanup?
     : NCursesPanel(),
-      form(0),
-      sub(0),
+      form(NULL),
+      sub(NULL),
       b_sub_owner(0),
       b_framed(0),
       b_autoDelete(0),
-      my_fields(0)
+      my_fields(NULL)
   {
     InitForm(Fields, with_frame, autoDelete_Fields);
   }
@@ -442,12 +442,12 @@ public:
 	       bool with_frame=FALSE,	     // reserve space for a frame?
 	       bool autoDelete_Fields=FALSE) // do automatic cleanup?
     : NCursesPanel(nlines, ncols, begin_y, begin_x),
-      form(0),
-      sub(0),
+      form(NULL),
+      sub(NULL),
       b_sub_owner(0),
       b_framed(0),
       b_autoDelete(0),
-      my_fields(0)
+      my_fields(NULL)
   {
       InitForm(Fields, with_frame, autoDelete_Fields);
   }
@@ -681,7 +681,7 @@ protected:
 
 public:
   NCursesUserForm (NCursesFormField* Fields[],
-		   const T* p_UserData = STATIC_CAST(T*)(0),
+		   const T* p_UserData = STATIC_CAST(T*)(NULL),
 		   bool with_frame=FALSE,
 		   bool autoDelete_Fields=FALSE)
     : NCursesForm (Fields, with_frame, autoDelete_Fields) {
@@ -694,7 +694,7 @@ public:
 		   int ncols,
 		   int begin_y = 0,
 		   int begin_x = 0,
-		   const T* p_UserData = STATIC_CAST(T*)(0),
+		   const T* p_UserData = STATIC_CAST(T*)(NULL),
 		   bool with_frame=FALSE,
 		   bool autoDelete_Fields=FALSE)
     : NCursesForm (Fields, nlines, ncols, begin_y, begin_x,

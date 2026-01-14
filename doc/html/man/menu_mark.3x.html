@@ -27,23 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: menu_mark.3x,v 1.35 2024/03/16 15:35:01 tom Exp @
+  * @Id: menu_mark.3x,v 1.37 2024/12/28 21:26:21 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>menu_mark 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
+<TITLE>menu_mark 3x 2024-12-28 ncurses 6.6 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
 
 </HEAD>
 <BODY>
-<H1 class="no-header">menu_mark 3x 2024-03-16 ncurses 6.5 Library calls</H1>
+<H1 class="no-header">menu_mark 3x 2024-12-28 ncurses 6.6 Library calls</H1>
 <PRE>
 <STRONG><A HREF="menu_mark.3x.html">menu_mark(3x)</A></STRONG>                    Library calls                   <STRONG><A HREF="menu_mark.3x.html">menu_mark(3x)</A></STRONG>
-
-
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
@@ -62,20 +60,20 @@
        highlighting or color capability, the menu library marks selected items
        in a menu with a prefix string.
 
-       The  function  <STRONG>set_menu_mark</STRONG>  sets  the mark string for the given menu.
-       Calling <STRONG>set_menu_mark</STRONG> with a null  menu  item  will  abolish  the  mark
-       string.   Note  that  changing the length of the mark string for a menu
+       The function <STRONG>set_menu_mark</STRONG> sets the mark string  for  the  given  menu.
+       Calling  <STRONG>set_menu_mark</STRONG>  with  a  null  menu  item will abolish the mark
+       string.  Note that changing the length of the mark string  for  a  menu
        while the menu is posted is likely to produce unhelpful behavior.
 
-       The default string is "-" (a dash).  Calling <STRONG>set_menu_mark</STRONG> with a  non-
-       <STRONG>NULL</STRONG> menu argument will change this default.
+       The  default string is "-" (a dash).  Calling <STRONG>set_menu_mark</STRONG> with a <EM>non-</EM>
+       NULL menu argument will change this default.
 
-       The function <STRONG>menu_mark</STRONG> returns the menu's mark string (or <STRONG>NULL</STRONG> if there
+       The function <STRONG>menu_mark</STRONG> returns the menu's mark string (or <EM>NULL</EM> if there
        is none).
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       The function <STRONG>menu_mark</STRONG> returns a pointer (which may be <STRONG>NULL</STRONG>).  It  does
+       The function <STRONG>menu_mark</STRONG> returns a pointer (which may be <EM>NULL</EM>).  It  does
        not set <STRONG>errno</STRONG>.
 
        The function <STRONG>set_menu_mark</STRONG> may return the following error codes:
@@ -102,9 +100,7 @@
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="menu.3x.html">menu(3x)</A></STRONG>
 
-
-
-ncurses 6.5                       2024-03-16                     <STRONG><A HREF="menu_mark.3x.html">menu_mark(3x)</A></STRONG>
+ncurses 6.6                       2024-12-28                     <STRONG><A HREF="menu_mark.3x.html">menu_mark(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: clear.1,v 1.48 2024/03/16 15:35:01 tom Exp $
-.TH @CLEAR@ 1 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
+.\" $Id: clear.1,v 1.53 2025/04/05 21:56:26 tom Exp $
+.TH @CLEAR@ 1 2025-04-05 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -91,8 +91,8 @@ exits with a successful status.
 .B \-x
 prevents \fB\%@CLEAR@\fP from attempting to clear the scrollback buffer.
 .SH PORTABILITY
-Neither IEEE Std 1003.1/The Open Group Base Specifications Issue 7
-(POSIX.1-2008) nor X/Open Curses Issue 7 documents \fB\%@CLEAR@\fP.
+Neither IEEE Std 1003.1/The Open Group Base Specifications Issue\ 7
+(POSIX.1-2008) nor X/Open Curses Issue\ 7 documents \fB\%@CLEAR@\fP.
 .PP
 The latter documents \fBtput\fP,
 which could be used to replace this utility either via a shell script or
@@ -113,8 +113,10 @@ and replaced the \fBclear\fP program with a shell script that called
 .PP
 .RS 4
 .EX
+.nf
 /usr/bin/tput ${1:+\-T$1} clear 2> /dev/null
 exit
+.fi
 .EE
 .RE
 .PP

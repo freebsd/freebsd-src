@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 2003-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: demo_menus.c,v 1.80 2023/05/27 20:13:10 tom Exp $
+ * $Id: demo_menus.c,v 1.87 2025/07/05 15:21:56 tom Exp $
  *
  * Demonstrate a variety of functions from the menu library.
  * Thomas Dickey - 2005/4/9
@@ -185,7 +185,7 @@ menu_virtualize(int c)
 }
 
 static int
-menu_getc(MENU * m)
+menu_getc(NCURSES_CONST MENU * m)
 {
     return wGetchar(menu_win(m));
 }
@@ -214,7 +214,7 @@ static void
 my_menu_init(MENU * menu)
 {
     Trace(("called MenuHook my_menu_init"));
-    mvwprintw(status, 2, 0, "menu_init %p", (void *) menu);
+    mvwprintw(status, 2, 0, "menu_init %p", (const void *) menu);
     wclrtoeol(status);
     wrefresh(status);
 }
@@ -223,7 +223,7 @@ static void
 my_menu_term(MENU * menu)
 {
     Trace(("called MenuHook my_menu_term"));
-    mvwprintw(status, 2, 0, "menu_term %p", (void *) menu);
+    mvwprintw(status, 2, 0, "menu_term %p", (const void *) menu);
     wclrtoeol(status);
     wrefresh(status);
 }
@@ -231,7 +231,7 @@ my_menu_term(MENU * menu)
 static void
 my_item_init(MENU * menu)
 {
-    ITEM *item = current_item(menu);
+    NCURSES_CONST ITEM *item = current_item(menu);
     const char *name = item_name(item);
 
     Trace(("called MenuHook my_item_init (%s)", name));
@@ -243,7 +243,7 @@ my_item_init(MENU * menu)
 static void
 my_item_term(MENU * menu)
 {
-    ITEM *item = current_item(menu);
+    NCURSES_CONST ITEM *item = current_item(menu);
     const char *name = item_name(item);
 
     Trace(("called MenuHook my_item_term (%s)", name));
@@ -311,9 +311,9 @@ static void
 menu_destroy(MENU * m, int itemsToo)
 {
     Trace(("menu_destroy %p", (void *) m));
-    if (m != 0) {
+    if (m != NULL) {
 	ITEM **items = menu_items(m);
-	const char *blob = 0;
+	const char *blob = NULL;
 	int count;
 
 	count = item_count(m);
@@ -335,7 +335,7 @@ menu_destroy(MENU * m, int itemsToo)
 	if (count > 0 && itemsToo) {
 	    if (itemsToo & 1) {
 		ITEM **ip = items;
-		if (ip != 0) {
+		if (ip != NULL) {
 		    while (*ip)
 			free_item(*ip++);
 		}
@@ -348,7 +348,7 @@ menu_destroy(MENU * m, int itemsToo)
 
 /* force the given menu to appear */
 static void
-menu_display(MENU * m)
+menu_display(NCURSES_CONST MENU * m)
 {
     touchwin(menu_win(m));
     wrefresh(menu_win(m));
@@ -362,14 +362,14 @@ build_file_menu(MenuNo number)
     static MENU_DATA table[] =
     {
 	{"Exit", call_files, 0},
-	{(char *) 0, 0, 0}
+	{(char *) 0, NULL, 0}
     };
     static ITEM *items[SIZEOF(table)];
 
     ITEM **ip = items;
     int n;
 
-    for (n = 0; table[n].name != 0; ++n) {
+    for (n = 0; table[n].name != NULL; ++n) {
 	*ip = new_item(table[n].name, empty);
 	set_item_userptr(*ip, (void *) &table[n]);
 	++ip;
@@ -413,17 +413,17 @@ build_select_menu(MenuNo number, char *filename)
 	MY_DATA("Pumas"),
 	MY_DATA("Lions, Tigers, Bears, (Oh my!), Newts, Platypi, Lemurs"),
 	MY_DATA("Lions, Tigers, Bears, (Oh my!), Newts, Platypi, Lemurs, Lions, Tigers, Bears, (Oh my!), Newts, Platypi, Lemurs"),
-	{(char *) 0, 0, 0}
+	{(char *) 0, NULL, 0}
     };
     static ITEM **items;
 
     ITEM **ip;
-    MENU_DATA *ap = 0;
-    MENU_DATA *myList = 0;
+    MENU_DATA *ap = NULL;
+    MENU_DATA *myList = NULL;
     int i;
     size_t count = 0;
 
-    if (filename != 0) {
+    if (filename != NULL) {
 	struct stat sb;
 	if (stat(filename, &sb) == 0
 	    && (sb.st_mode & S_IFMT) == S_IFREG
@@ -436,9 +436,9 @@ build_select_menu(MenuNo number, char *filename)
 	    Trace(("build_select_menu blob=%p, items=%p",
 		   (void *) blob,
 		   (void *) items));
-	    if (blob != 0 && list != 0) {
+	    if (blob != NULL && list != NULL) {
 		FILE *fp = fopen(filename, "r");
-		if (fp != 0) {
+		if (fp != NULL) {
 		    if (fread(blob, sizeof(char), size, fp) == size) {
 			bool mark = TRUE;
 			unsigned j, k;
@@ -456,7 +456,7 @@ build_select_menu(MenuNo number, char *filename)
 				blob[j] = ' ';	/* menu items are printable */
 			    }
 			}
-			list[k].name = 0;
+			list[k].name = NULL;
 			count = k;
 			ap = myList = list;
 		    }
@@ -464,28 +464,28 @@ build_select_menu(MenuNo number, char *filename)
 		}
 		loaded_file = TRUE;
 	    }
-	    if (ap == 0)
+	    if (ap == NULL)
 		free(items);
 	}
     }
-    if (ap == 0) {
+    if (ap == NULL) {
 	count = SIZEOF(table) - 1;
 	items = typeCalloc(ITEM *, count + 1);
 	ap = table;
     }
 
     ip = items;
-    for (i = 0; ap[i].name != 0; ++i) {
+    for (i = 0; ap[i].name != NULL; ++i) {
 	ap[i].func = call_select;
 	ap[i].mask = (unsigned) i;
 	*ip = new_item(ap[i].name, empty);
 	set_item_userptr(*ip, (void *) &table[i]);
 	++ip;
     }
-    *ip = 0;
+    *ip = NULL;
 
     mpSelect = menu_create(items, (int) count, 1, number);
-    if (myList != 0)
+    if (myList != NULL)
 	free(myList);
 }
 
@@ -527,7 +527,7 @@ static MENU_DATA t_tbl[] =
     T_TBL(TRACE_ATTRS),
     T_TBL(TRACE_MAXIMUM),
     {
-	(char *) 0, 0, 0
+	(char *) 0, NULL, 0
     }
 };
 
@@ -539,7 +539,7 @@ build_trace_menu(MenuNo number)
     ITEM **ip = items;
     int n;
 
-    for (n = 0; t_tbl[n].name != 0; n++) {
+    for (n = 0; t_tbl[n].name != NULL; n++) {
 	*ip = new_item(t_tbl[n].name, empty);
 	set_item_userptr(*ip, (void *) &t_tbl[n]);
 	++ip;
@@ -556,8 +556,8 @@ tracetrace(unsigned tlevel)
     static size_t need = 12;
     int n;
 
-    if (buf == 0) {
-	for (n = 0; t_tbl[n].name != 0; n++)
+    if (buf == NULL) {
+	for (n = 0; t_tbl[n].name != NULL; n++)
 	    need += strlen(t_tbl[n].name) + 2;
 	buf = typeMalloc(char, need);
 	if (!buf)
@@ -568,7 +568,7 @@ tracetrace(unsigned tlevel)
 	_nc_STRCAT(buf, t_tbl[0].name ? t_tbl[0].name : "", need);
 	_nc_STRCAT(buf, ", ", need);
     } else {
-	for (n = 1; t_tbl[n].name != 0; n++)
+	for (n = 1; t_tbl[n].name != NULL; n++)
 	    if ((tlevel & t_tbl[n].mask) == t_tbl[n].mask) {
 		_nc_STRCAT(buf, t_tbl[n].name, need);
 		_nc_STRCAT(buf, ", ", need);
@@ -584,10 +584,10 @@ tracetrace(unsigned tlevel)
  * the others
  */
 static bool
-update_trace_menu(MENU * m)
+update_trace_menu(NCURSES_CONST MENU * m)
 {
     ITEM **items;
-    ITEM *i;
+    NCURSES_CONST ITEM *i;
     bool changed = FALSE;
 
     items = menu_items(m);
@@ -595,7 +595,7 @@ update_trace_menu(MENU * m)
     if (i == items[0]) {
 	if (item_value(i)) {
 	    ITEM **p;
-	    for (p = items + 1; *p != 0; p++)
+	    for (p = items + 1; *p != NULL; p++)
 		if (item_value(*p)) {
 		    set_item_value(*p, FALSE);
 		    changed = TRUE;
@@ -613,7 +613,7 @@ perform_trace_menu(int cmd)
     int result;
 
     for (ip = menu_items(mpTrace); *ip; ip++) {
-	MENU_DATA *td = (MENU_DATA *) item_userptr(*ip);
+	NCURSES_CONST MENU_DATA *td = (MENU_DATA *) item_userptr(*ip);
 	unsigned mask = td->mask;
 	if (mask == 0)
 	    set_item_value(*ip, _nc_tracing == 0);
@@ -628,7 +628,7 @@ perform_trace_menu(int cmd)
 	    unsigned newtrace = 0;
 	    for (ip = menu_items(mpTrace); *ip; ip++) {
 		if (item_value(*ip)) {
-		    MENU_DATA *td = (MENU_DATA *) item_userptr(*ip);
+		    NCURSES_CONST MENU_DATA *td = (MENU_DATA *) item_userptr(*ip);
 		    newtrace |= td->mask;
 		}
 	    }
@@ -670,7 +670,7 @@ current_menu(void)
 	break;
 #endif
     default:
-	result = 0;
+	result = NULL;
 	break;
     }
     return result;
@@ -693,14 +693,14 @@ build_menus(char *filename)
 #ifdef TRACE
 	{"Trace", call_menus, 2},
 #endif
-	{(char *) 0, 0, 0}
+	{(char *) 0, NULL, 0}
     };
     static ITEM *items[SIZEOF(table)];
 
     ITEM **ip = items;
     int n;
 
-    for (n = 0; table[n].name != 0; ++n) {
+    for (n = 0; table[n].name != NULL; ++n) {
 	*ip = new_item(table[n].name, empty);
 	set_item_userptr(*ip, (void *) &table[n]);
 	++ip;
@@ -718,7 +718,9 @@ build_menus(char *filename)
 }
 
 static int
-move_menu(MENU * menu, MENU * current, int by_y, int by_x)
+move_menu(NCURSES_CONST MENU * menu,
+	  NCURSES_CONST MENU * current,
+	  int by_y, int by_x)
 {
     WINDOW *top_win = menu_win(menu);
     WINDOW *sub_win = menu_sub(menu);
@@ -753,7 +755,7 @@ move_menu(MENU * menu, MENU * current, int by_y, int by_x)
  * Move the menus around on the screen, to test mvwin().
  */
 static void
-move_menus(MENU * current, int by_y, int by_x)
+move_menus(NCURSES_CONST MENU * current, int by_y, int by_x)
 {
     if (move_menu(mpBanner, current, by_y, by_x) != ERR) {
 	erase();
@@ -798,7 +800,7 @@ resize_menus(MENU * current)
 #endif /* defined(KEY_RESIZE) && NCURSES_EXT_FUNCS */
 
 static void
-show_status(int ch, MENU * menu)
+show_status(int ch, NCURSES_CONST MENU * menu)
 {
     wmove(status, 0, 0);
     wprintw(status, "key %s, menu %d, mark %s, match %s",
@@ -919,7 +921,7 @@ perform_menus(void)
 	wrefresh(menu_win(last_menu));
 	if (code == E_UNKNOWN_COMMAND
 	    || code == E_NOT_POSTED) {
-	    ITEM *item = current_item(last_menu);
+	    NCURSES_CONST ITEM *item = current_item(last_menu);
 	    MENU_DATA *td = (MENU_DATA *) item_userptr(item);
 	    td->func((int) td->mask);
 	}
@@ -989,7 +991,7 @@ usage(int ok)
 	," -H       rip-off header line (can repeat)"
 #endif
 #ifdef TRACE
-	," -t mask  specify default trace-level (may toggle with ^T)"
+	," -D mask  specify trace mask (may toggle with ^T)"
 #endif
     };
     size_t n;
@@ -1009,7 +1011,7 @@ main(int argc, char *argv[])
     setlocale(LC_ALL, "");
     START_TRACE();
 
-    while ((ch = getopt(argc, argv, OPTS_COMMON "FHt:")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "D:FH")) != -1) {
 	switch (ch) {
 #if HAVE_RIPOFFLINE
 	case 'F':
@@ -1020,15 +1022,12 @@ main(int argc, char *argv[])
 	    break;
 #endif /* HAVE_RIPOFFLINE */
 #ifdef TRACE
-	case 't':
-	    curses_trace((unsigned) strtoul(optarg, 0, 0));
+	case 'D':
+	    curses_trace((unsigned) strtoul(optarg, NULL, 0));
 	    break;
 #endif
-	case OPTS_VERSION:
-	    show_version(argv);
-	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage(ch == OPTS_USAGE);
+	    CASE_COMMON;
 	    /* NOTREACHED */
 	}
     }
@@ -1044,7 +1043,7 @@ main(int argc, char *argv[])
 	init_pair(2, COLOR_BLUE, COLOR_WHITE);
     }
     status = newwin(3, COLS, LINES - 3, 0);
-    build_menus(argc > 1 ? argv[1] : 0);
+    build_menus(argc > 1 ? argv[1] : NULL);
     perform_menus();
     destroy_menus();
 
