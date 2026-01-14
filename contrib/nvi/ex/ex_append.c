@@ -149,17 +149,15 @@ ex_aci(SCR *sp, EXCMD *cmdp, enum which cmd)
 		for (p = cmdp->save_cmd,
 		    len = cmdp->save_cmdlen; len > 0; p = t) {
 			for (t = p; len > 0 && t[0] != '\n'; ++t, --len);
-			if (t != p || len == 0) {
-				if (F_ISSET(sp, SC_EX_GLOBAL) &&
-				    t - p == 1 && p[0] == '.') {
-					++t;
-					if (len > 0)
-						--len;
-					break;
-				}
-				if (db_append(sp, 1, lno++, p, t - p))
-					return (1);
+			if (F_ISSET(sp, SC_EX_GLOBAL) &&
+			    t - p == 1 && p[0] == '.') {
+				++t;
+				if (len > 0)
+					--len;
+				break;
 			}
+			if (db_append(sp, 1, lno++, p, t - p))
+				return (1);
 			if (len != 0) {
 				++t;
 				if (--len == 0 &&
@@ -181,6 +179,9 @@ ex_aci(SCR *sp, EXCMD *cmdp, enum which cmd)
 		if (len != 0)
 			cmdp->save_cmd = t;
 		cmdp->save_cmdlen = len;
+	} else if (cmdp->trailing) {
+		if (db_append(sp, 1, lno++, NULL, 0))
+			return 1;
 	}
 
 	if (F_ISSET(sp, SC_EX_GLOBAL)) {

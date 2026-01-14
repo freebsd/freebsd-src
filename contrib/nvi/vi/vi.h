@@ -381,4 +381,4 @@ typedef enum {
 	VIM_NOCOM, VIM_NOCOM_B, VIM_USAGE, VIM_WRESIZE
 } vim_t;
 
-#include "extern.h"
+#include "vi_extern.h"

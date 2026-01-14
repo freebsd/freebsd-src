@@ -773,6 +773,7 @@ skip_srch:	if (ecp->cmd == &cmds[C_VISUAL_EX] && F_ISSET(sp, SC_VI))
 	 * no longer useful.
 	 */
 	vi_address = ecp->clen != 0 && ecp->cp[0] != '\n';
+	ecp->trailing = 0;
 	for (p = ecp->cp; ecp->clen > 0; --ecp->clen, ++ecp->cp) {
 		ch = ecp->cp[0];
 		if (IS_ESCAPE(sp, ecp, ch) && ecp->clen > 1) {
@@ -788,6 +789,7 @@ skip_srch:	if (ecp->cmd == &cmds[C_VISUAL_EX] && F_ISSET(sp, SC_VI))
 				ch = tmp;
 			}
 		} else if (ch == '\n' || ch == '|') {
+			ecp->trailing = 1;
 			if (ch == '\n')
 				F_SET(ecp, E_NEWLINE);
 			--ecp->clen;

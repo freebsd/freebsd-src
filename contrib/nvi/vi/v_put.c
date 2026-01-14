@@ -41,15 +41,12 @@ v_Put(SCR *sp, VICMD *vp)
 	 * Historic vi did not support a count with the 'p' and 'P'
 	 * commands.  It's useful, so we do.
 	 */
-	for (cnt = F_ISSET(vp, VC_C1SET) ? vp->count : 1; cnt--;) {
-		if (put(sp, NULL,
-		    F_ISSET(vp, VC_BUFFER) ? &vp->buffer : NULL,
-		    &vp->m_start, &vp->m_final, 0))
-			return (1);
-		vp->m_start = vp->m_final;
-		if (INTERRUPTED(sp))
-			return (1);
-	}
+	cnt = F_ISSET(vp, VC_C1SET) ? vp->count : 1;
+	if (put(sp, NULL,
+	    F_ISSET(vp, VC_BUFFER) ? &vp->buffer : NULL,
+	    &vp->m_start, &vp->m_final, 0, cnt))
+		return (1);
+
 	return (0);
 }
 
@@ -71,16 +68,17 @@ v_put(SCR *sp, VICMD *vp)
 	 * !!!
 	 * Historic vi did not support a count with the 'p' and 'P'
 	 * commands.  It's useful, so we do.
+	 *
+	 * The cursor placement of an individual 'p' and 'P' used to
+	 * affect the content when a count is presented.  Now we let
+	 * the command implementation be count-aware instead.
 	 */
-	for (cnt = F_ISSET(vp, VC_C1SET) ? vp->count : 1; cnt--;) {
-		if (put(sp, NULL,
-		    F_ISSET(vp, VC_BUFFER) ? &vp->buffer : NULL,
-		    &vp->m_start, &vp->m_final, 1))
-			return (1);
-		vp->m_start = vp->m_final;
-		if (INTERRUPTED(sp))
-			return (1);
-	}
+	cnt = F_ISSET(vp, VC_C1SET) ? vp->count : 1;
+	if (put(sp, NULL,
+	    F_ISSET(vp, VC_BUFFER) ? &vp->buffer : NULL,
+	    &vp->m_start, &vp->m_final, 1, cnt))
+		return (1);
+
 	return (0);
 }
 

@@ -1,4 +1,3 @@
-
 /* Read standard system paths first. */
 #include <paths.h>
 

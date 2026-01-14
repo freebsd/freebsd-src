@@ -317,14 +317,13 @@ opts_init(SCR *sp, int *oargs)
 	argv[1] = &b;
 
 	/* Set numeric and string default values. */
-#define	OI(indx, str) do {						\
-	a.len = STRLEN(str);						\
-	if (STRCMP((CHAR_T*)str, b2) != 0)					\
-		(void)MEMCPY(b2, str, a.len+1);				\
-	if (opts_set(sp, argv, NULL)) {					\
-		 optindx = indx;					\
+#define	OI(indx, ...) do {						\
+	size_t len = SPRINTF(b2, SIZE(b2), __VA_ARGS__);		\
+	if (len < 0 || len >= SIZE(b2) || opts_set(sp, argv, NULL)) {	\
+		optindx = indx;						\
 		goto err;						\
 	}								\
+	a.len = len;							\
 } while (0)
 	/*
 	 * Indirect global options to global space.  Specifically, set up
@@ -345,9 +344,7 @@ opts_init(SCR *sp, int *oargs)
 	F_SET(&sp->opts[O_SECURE], OPT_GLOBAL);
 
 	/* Initialize string values. */
-	(void)SPRINTF(b2, SIZE(b2),
-	    L("cdpath=%s"), (s = getenv("CDPATH")) == NULL ? ":" : s);
-	OI(O_CDPATH, b2);
+	OI(O_CDPATH, L("cdpath=%s"), (s = getenv("CDPATH")) == NULL ? ":" : s);
 	OI(O_CEDIT, L("cedit=\033"));
 
 	/*
@@ -357,32 +354,26 @@ opts_init(SCR *sp, int *oargs)
 	 * are two ways to change this -- the user can set either the directory
 	 * option or the TMPDIR environmental variable.
 	 */
-	(void)SPRINTF(b2, SIZE(b2),
+	OI(O_TMPDIR,
 	    L("directory=%s"), (s = getenv("TMPDIR")) == NULL ? _PATH_TMP : s);
-	OI(O_TMPDIR, b2);
 	OI(O_ESCAPETIME, L("escapetime=6"));
 	OI(O_FILEC, L("filec=\t"));
 	OI(O_KEYTIME, L("keytime=6"));
 	OI(O_MATCHCHARS, L("matchchars=()[]{}"));
 	OI(O_MATCHTIME, L("matchtime=7"));
-	(void)SPRINTF(b2, SIZE(b2), L("msgcat=%s"), _PATH_MSGCAT);
-	OI(O_MSGCAT, b2);
+	OI(O_MSGCAT, L("msgcat=%s"), _PATH_MSGCAT);
 	OI(O_REPORT, L("report=5"));
 	OI(O_PARAGRAPHS, L("paragraphs=IPLPPPQPP LIpplpipbp"));
-	(void)SPRINTF(b2, SIZE(b2), L("path=%s"), "");
-	OI(O_PATH, b2);
-	(void)SPRINTF(b2, SIZE(b2), L("recdir=%s"), NVI_PATH_PRESERVE);
-	OI(O_RECDIR, b2);
+	OI(O_PATH, L("path=%s"), "");
+	OI(O_RECDIR, L("recdir=%s"), NVI_PATH_PRESERVE);
 	OI(O_SECTIONS, L("sections=NHSHH HUnhsh"));
-	(void)SPRINTF(b2, SIZE(b2),
+	OI(O_SHELL,
 	    L("shell=%s"), (s = getenv("SHELL")) == NULL ? _PATH_BSHELL : s);
-	OI(O_SHELL, b2);
 	OI(O_SHELLMETA, L("shellmeta=~{[*?$`'\"\\"));
 	OI(O_SHIFTWIDTH, L("shiftwidth=8"));
 	OI(O_SIDESCROLL, L("sidescroll=16"));
 	OI(O_TABSTOP, L("tabstop=8"));
-	(void)SPRINTF(b2, SIZE(b2), L("tags=%s"), _PATH_TAGS);
-	OI(O_TAGS, b2);
+	OI(O_TAGS, L("tags=%s"), _PATH_TAGS);
 
 	/*
 	 * XXX
@@ -391,8 +382,7 @@ opts_init(SCR *sp, int *oargs)
 	 */
 	if ((v = (O_VAL(sp, O_LINES) - 1) / 2) == 0)
 		v = 1;
-	(void)SPRINTF(b2, SIZE(b2), L("scroll=%ld"), v);
-	OI(O_SCROLL, b2);
+	OI(O_SCROLL, L("scroll=%ld"), v);
 
 	/*
 	 * The default window option values are:
@@ -412,8 +402,7 @@ opts_init(SCR *sp, int *oargs)
 	else if ((v = O_VAL(sp, O_LINES) - 1) == 0)
 		v = 1;
 
-	(void)SPRINTF(b2, SIZE(b2), L("window=%lu"), v);
-	OI(O_WINDOW, b2);
+	OI(O_WINDOW, L("window=%lu"), v);
 
 	/*
 	 * Set boolean default values, and copy all settings into the default

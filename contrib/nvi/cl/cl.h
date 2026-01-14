@@ -77,4 +77,4 @@ typedef enum { INP_OK=0, INP_EOF, INP_ERR, INP_INTR, INP_TIMEOUT } input_t;
 #define	RCNO(sp, cno)	(cno)
 #define	RLNO(sp, lno)	(lno)
 
-#include "extern.h"
+#include "cl_extern.h"

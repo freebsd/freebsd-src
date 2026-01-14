@@ -51,7 +51,7 @@ db_eget(SCR *sp,
 	 * line in an empty file, find the last line of the file; db_last
 	 * fails loudly.
 	 */
-	if ((lno == 0 || lno == 1) && db_last(sp, &l1))
+	if ((lno == OOBLNO || lno == 1) && db_last(sp, &l1))
 		return (1);
 
 	/* If the file isn't empty, fail loudly. */
@@ -92,7 +92,7 @@ db_get(SCR *sp,
 	 * have to have an OOB condition for the look-aside into the input
 	 * buffer anyway.
 	 */
-	if (lno == 0)
+	if (lno == OOBLNO)
 		goto err1;
 
 	/* Check for no underlying file. */

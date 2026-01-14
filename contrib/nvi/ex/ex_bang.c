@@ -174,8 +174,8 @@ ex_bang(SCR *sp, EXCMD *cmdp)
 	if (!F_ISSET(sp, SC_VI) && !F_ISSET(sp, SC_EX_SILENT))
 		(void)ex_puts(sp, "!\n");
 
-	/* Apply expandtab to the new text */
-	if (O_ISSET(sp, O_EXPANDTAB))
+	/* If addresses were specified, apply expandtab to the new text */
+	if (cmdp->addrcnt != 0 && O_ISSET(sp, O_EXPANDTAB))
 		ex_retab(sp, cmdp);
 
 	/*

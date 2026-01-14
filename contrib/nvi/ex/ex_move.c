@@ -57,7 +57,7 @@ ex_copy(SCR *sp, EXCMD *cmdp)
 	/* Put the text into place. */
 	tm.lno = cmdp->lineno;
 	tm.cno = 0;
-	if (put(sp, &cb, NULL, &tm, &m, 1))
+	if (put(sp, &cb, NULL, &tm, &m, 1, 1))
 		rval = 1;
 	else {
 		/*
