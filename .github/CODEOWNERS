@@ -33,6 +33,7 @@
 
 /bin/sh		@jillest
 /contrib/atf		@ngie-eign
+/contrib/blocklist	@jlduran
 /contrib/capsicum-test	@ngie-eign
 /contrib/googletest	@ngie-eign
 /contrib/libcxxrt	@DimitryAndric @emaste
@@ -51,6 +52,7 @@
 /crypto/openssl/	@juikim
 /etc/mail	@gshapiro
 /etc/sendmail	@gshapiro
+/lib/libblocklist	@jlduran
 /lib/libc/string/	@fuz
 /lib/libc/*/string/	@fuz
 /lib/libc/sys/kevent.c	@jmgurney
@@ -123,4 +125,6 @@
 /usr.sbin/bhyve		@bsdjhb @bryanv @markjdb @khng300 @markpeek
 /usr.sbin/bhyvectl	@bsdjhb @bryanv @markjdb @khng300 @markpeek
 /usr.sbin/bhyveload	@bsdjhb @bryanv @markjdb @khng300 @markpeek
+/usr.sbin/blocklistctl	@jlduran
+/usr.sbin/blocklistd	@jlduran
 /usr.sbin/lpr	@gbergling
