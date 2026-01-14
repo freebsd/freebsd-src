@@ -1,0 +1,2 @@
+pass in proto tcp all flags S/SA keep state
+pass in proto udp all keep state

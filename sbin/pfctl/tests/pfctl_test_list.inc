@@ -186,3 +186,4 @@ PFCTL_TEST_FAIL(1074, "Filter AF different than route-to AF, without prefer-ipv6
 PFCTL_TEST(1075, "One shot rule")
 PFCTL_TEST(1076, "State limiter")
 PFCTL_TEST(1077, "Source limiter")
+PFCTL_TEST(1078, "New page")
