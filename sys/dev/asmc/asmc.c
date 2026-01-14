@@ -287,6 +287,13 @@ static const struct asmc_model asmc_models[] = {
 	  ASMC_MBP114_TEMPS, ASMC_MBP114_TEMPNAMES, ASMC_MBP114_TEMPDESCS
 	},
 
+	{
+	  "MacBookPro11,5",
+	  "Apple SMC MacBook Pro Retina Core i7 (mid 2015, 15-inch, AMD GPU)",
+	  ASMC_SMS_FUNCS_DISABLED, ASMC_FAN_FUNCS2, ASMC_LIGHT_FUNCS,
+	  ASMC_MBP115_TEMPS, ASMC_MBP115_TEMPNAMES, ASMC_MBP115_TEMPDESCS
+	},
+
 	/* The Mac Mini has no SMS */
 	{
 	  "Macmini1,1", "Apple SMC Mac Mini",
