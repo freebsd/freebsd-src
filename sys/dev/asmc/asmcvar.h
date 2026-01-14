@@ -467,6 +467,41 @@ struct asmc_softc {
 				  "Pbus", "Ambient Light", "Leftside", "Rightside", "CPU Package Core", \
 				  "CPU Package GPU", "CPU Package Total", "System Total", "DC In" }
 
+/* MacBookPro11,5 - same as 11,4 but without IBLC, ICMC, and IC2C keys */
+#define ASMC_MBP115_TEMPS	{ "IC0C", "ID0R", "IHDC", "IPBR", "IC0R", \
+				  "IO3R", "IO5R", "IM0C", "IC1C", \
+				  "IC3C", "ILDC", "IAPC", "IHSC", \
+				  "TC0P", "TP0P", "TM0P", \
+				  "Ta0P", "Th2H", "Th1H", "TW0P", "Ts0P", \
+				  "Ts1P", "TB0T", "TB1T", "TB2T", "TH0A", "TH0B", \
+				  "TC1C", "TC2C", "TC3C", "TC4C", "TCXC", \
+				  "TCGC", "TPCD", "TCSA", "VC0C", "VD0R", \
+				  "VP0R", "ALSL", "F0Ac", "F1Ac", "PCPC", \
+				  "PCPG", "PCPT", "PSTR", "PDTR", NULL }
+
+
+#define ASMC_MBP115_TEMPNAMES	{ "IC0C", "ID0R", "IHDC", "IPBR", "IC0R", \
+				  "IO3R", "IO5R", "IM0C", "IC1C", \
+				  "IC3C", "ILDC", "IAPC", "IHSC", \
+				  "TC0P", "TP0P", "TM0P", \
+				  "Ta0P", "Th2H", "Th1H", "TW0P", "Ts0P", \
+				  "Ts1P", "TB0T", "TB1T", "TB2T", "TH0A", "TH0B", \
+				  "TC1C", "TC2C", "TC3C", "TC4C", "TCXC", \
+				  "TCGC", "TPCD", "TCSA", "VC0C", "VD0R", \
+				  "VP0R", "ALSL", "F0Ac", "F1Ac", "PCPC", \
+				  "PCPG", "PCPT", "PSTR", "PDTR" }
+
+#define ASMC_MBP115_TEMPDESCS	{ "CPU High (CPU, I/O)", "DC In", "SSD", "Charger (BMON)", "CPU", \
+				  "Other 3.3V", "Other 5V", "Memory", "Platform Controller Hub Core", \
+				  "CPU DDR", "LCD Panel", "Airport", "Thunderbolt", \
+				  "CPU Proximity", "Platform Controller Hub", "Memory Proximity", "Air Flow Proximity", \
+				  "Left Fin Stack", "Right Fin Stack", "Airport Proximity", "Palm Rest", "Palm Rest Actuator", \
+				  "Battery Max", "Battery Sensor 1", "Battery Sensor 2", "SSD A", "SSD B", \
+				  "CPU Core 1", "CPU Core 2", "CPU Core 3", "CPU Core 4", "CPU PECI Die", \
+				  "Intel GPU", "Platform Controller Hub PECI", "CPU System Agent Core", "CPU VCore", "DC In", \
+				  "Pbus", "Ambient Light", "Leftside", "Rightside", "CPU Package Core", \
+				  "CPU Package GPU", "CPU Package Total", "System Total", "DC In" }
+
 #define ASMC_MM_TEMPS		{ "TN0P", "TN1P", NULL }
 #define ASMC_MM_TEMPNAMES	{ "northbridge1", "northbridge2" }
 #define ASMC_MM_TEMPDESCS	{ "Northbridge Point 1", \
