@@ -843,6 +843,10 @@
                 ..
             ..
         ..
+        pkg
+            triggers
+            ..
+        ..
         security
         ..
         sendmail
