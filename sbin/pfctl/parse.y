@@ -6510,7 +6510,7 @@ yylex(void)
 
 top:
 	p = buf;
-	while ((c = lgetc(0)) == ' ' || c == '\t')
+	while ((c = lgetc(0)) == ' ' || c == '\t' || c == '\014')
 		; /* nothing */
 
 	yylval.lineno = file->lineno;
