@@ -33,7 +33,7 @@
 #define DEBUG_H 1
 
 #include <sys/cdefs.h>
-
+#include <assert.h>
 #include <string.h>
 #include "rtld_paths.h"
 #include "rtld_printf.h"
@@ -47,9 +47,6 @@ extern int debug;
 #define dbg(...)	((void) 0)
 #endif
 
-#define assert(cond)	((cond) ? (void) 0 :			\
-    (msg(_BASENAME_RTLD ": assert failed: " __FILE__ ":"	\
-      __XSTRING(__LINE__) "\n"), abort()))
 #define msg(s)		rtld_putstr(s)
 #define trace()		msg(_BASENAME_RTLD ": " __XSTRING(__LINE__) "\n")
 
