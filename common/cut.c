@@ -68,6 +68,10 @@ cut(SCR *sp, CHAR_T *namep, MARK *fm, MARK *tm, int flags)
 	recno_t lno;
 	int append, copy_one, copy_def;
 
+	/* Check if the line numbers are out-of-band */
+	if (fm->lno == OOBLNO || tm->lno == OOBLNO)
+		return (1);
+
 	/*
 	 * If the user specified a buffer, put it there.  (This may require
 	 * a copy into the numeric buffers.  We do the copy so that we don't
@@ -175,6 +179,7 @@ cut_line_err:
 	text_lfree(cbp->textq);
 	cbp->len = 0;
 	cbp->flags = 0;
+	sp->gp->dcbp = NULL;
 	return (1);
 }
 
