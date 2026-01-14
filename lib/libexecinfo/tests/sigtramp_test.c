@@ -45,6 +45,14 @@ handler(int signum __unused)
 ATF_TC_WITHOUT_HEAD(test_backtrace_sigtramp);
 ATF_TC_BODY(test_backtrace_sigtramp, tc)
 {
+#if defined(__aarch64__)
+	/*
+	 * https://reviews.llvm.org is deprecated and
+	 * this review is never going to be updated or completed
+	 */
+	atf_tc_expect_fail("https://reviews.llvm.org/D155066");
+#endif
+
 	struct sigaction act;
 	pid_t child;
 	int status;
