@@ -134,7 +134,6 @@ int	intr_register_source(unsigned int vector, struct intsrc *isrc,
 int	intr_remove_handler(struct intsrc *isrc, struct intr_handler *handler);
 void	intr_resume(bool suspend_cancelled);
 void	intr_suspend(void);
-void	intr_enable_src(u_int irq);
 void	intr_reprogram(void);
 void	intrcnt_add(const char *name, u_long **countp);
 void	nexus_add_irq(u_long irq);

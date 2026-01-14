@@ -423,15 +423,6 @@ intr_suspend(void)
 	mtx_unlock(&intrpic_lock);
 }
 
-void
-intr_enable_src(u_int irq)
-{
-	struct intsrc *is;
-
-	is = interrupt_sources[irq];
-	INTR_EVENT_POST_ITHREAD(is->is_event.ie_pic, is);
-}
-
 static int
 intr_assign_cpu(device_t pic, interrupt_t *isrc, u_int cpu)
 {

@@ -79,6 +79,8 @@
 
 #include <vm/vm_param.h>
 
+#include "pic_if.h"
+
 static MALLOC_DEFINE(M_ACPIDEV, "acpidev", "ACPI devices");
 
 /* Hooks for the ACPI CA debugging infrastructure */
@@ -3673,6 +3675,7 @@ static void
 do_idle(struct acpi_softc *sc, enum acpi_sleep_state *slp_state,
     register_t rflags)
 {
+    interrupt_t *i;
 
     intr_suspend();
 
@@ -3688,7 +3691,8 @@ do_idle(struct acpi_softc *sc, enum acpi_sleep_state *slp_state,
      * reason for the wakeup and immediately idle the CPU again if it was not a
      * proper wake event.
      */
-    intr_enable_src(AcpiGbl_FADT.SciInterrupt);
+    i = intr_lookup_source(AcpiGbl_FADT.SciInterrupt);
+    INTR_EVENT_POST_ITHREAD(i->is_event.ie_pic, i);
 
     cpu_idle(0);
 
