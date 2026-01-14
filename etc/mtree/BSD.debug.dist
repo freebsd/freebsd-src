@@ -9,6 +9,8 @@
         ..
         boot
             kernel
+                gdb
+                ..
             ..
             modules
             ..
