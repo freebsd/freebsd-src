@@ -3,14 +3,16 @@
  * Copyright (c) 2024 rilysh <nightquick@proton.me>
  */
 
+#include <string.h>
 #include <unistd.h>
 #include <sys/endian.h>
 
 void
 swab(const void * __restrict from, void * __restrict to, ssize_t len)
 {
-	const uint16_t *f __aligned(1) = from;
-	uint16_t *t __aligned(1) = to;
+	const char *f = from;
+	char *t = to;
+	uint16_t tmp;
 
 	/*
 	 * POSIX says overlapping copy behavior is undefined, however many
@@ -19,7 +21,12 @@ swab(const void * __restrict from, void * __restrict to, ssize_t len)
 	 * and swapping them before writing them back accomplishes this.
 	 */
 	while (len > 1) {
-		*t++ = bswap16(*f++);
+		memcpy(&tmp, f, 2);
+		tmp = bswap16(tmp);
+		memcpy(t, &tmp, 2);
+
+		f += 2;
+		t += 2;
 		len -= 2;
 	}
 }
