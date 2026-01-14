@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_redrawln.c,v 1.18 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_redrawln.c,v 1.19 2024/12/07 20:03:37 tom Exp $")
 
 NCURSES_EXPORT(int)
 wredrawln(WINDOW *win, int beg, int num)
@@ -52,7 +52,7 @@ wredrawln(WINDOW *win, int beg, int num)
 
     T((T_CALLED("wredrawln(%p,%d,%d)"), (void *) win, beg, num));
 
-    if (win == 0)
+    if (win == NULL)
 	returnCode(ERR);
 
     sp = _nc_screen_of(win);

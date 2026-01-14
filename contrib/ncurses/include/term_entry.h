@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2023,2025 Thomas E. Dickey                                *
  * Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,7 +33,7 @@
  *     and: Thomas E. Dickey                        1998-on                 *
  ****************************************************************************/
 
-/* $Id: term_entry.h,v 1.64 2023/04/22 13:37:14 tom Exp $ */
+/* $Id: term_entry.h,v 1.65 2025/01/11 20:37:28 tom Exp $ */
 
 /*
  *	term_entry.h -- interface to entry-manipulation code
@@ -108,7 +108,8 @@ typedef enum {
 	dbdLAST
 } DBDIRS;
 
-#define MAX_USES	32
+#define WARN_MAX_USES	32
+#define HARD_MAX_USES	40
 #define MAX_CROSSLINKS	16
 
 typedef struct entry ENTRY;
@@ -122,7 +123,7 @@ typedef struct {
 struct entry {
 	TERMTYPE2 tterm;
 	unsigned nuses;
-	ENTRY_USES uses[MAX_USES];
+	ENTRY_USES uses[HARD_MAX_USES];
 	int ncrosslinks;
 	ENTRY *crosslinks[MAX_CROSSLINKS];
 	long cstart;

@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright 2019-2023,2024 Thomas E. Dickey                                  #
+# Copyright 2019-2024,2025 Thomas E. Dickey                                  #
 # Copyright 1998-2015,2016 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -30,7 +30,7 @@
 # Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995
 #    and: Eric S. Raymond <esr@snark.thyrsus.com>
 #
-# $Id: Caps,v 1.56 2024/04/20 21:05:02 tom Exp $
+# $Id: Caps,v 1.62 2025/11/12 01:06:36 Branden.Robinson Exp $
 #
 # This is the master termcap/terminfo capability table.
 #
@@ -167,8 +167,10 @@
 # The tables are a tight fit on traditional man(7) implementations that
 # use a line length of 65n, and the "Description" column has little room
 # within which the formatter can make breaking or adjustment decisions.
-# Words like "micro_..._address" and "parm_..._micro" don't break.
-# Reducing the inter-column gaps to 2 ens gives them enough room.  --GBR
+# (MKterminfo.sh causes such columns to be formatted in tbl(1) text
+# blocks.)  Words like "micro_..._address" and "parm_..._micro" don't
+# break.  Reducing the inter-column gaps to 2 ens gives them enough
+# room.  --GBR
 #
 #############################################################################
 #
@@ -241,12 +243,15 @@
 #%behavior,
 #%for instance if the string contains percent signs.
 #%.
+#%.br
+#%.if n .ne 4v
+#%.if t .ne 3v
 #%.PP
 #%.TS
 #%center;
 #%Lb        Cb       S   Lb
 #%Lb        Lb       Lb  Lb
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 #%\&	Code	\&
 #%Boolean Capability Name	TI	TC	Description
 #%_
@@ -294,7 +299,7 @@ lpi_changes_res			lpix	bool	YG	-	-	-----	changing line pitch changes resolution
 #%center;
 #%Lb        Cb       S   Lb
 #%Lb        Lb       Lb  Lb
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 #%\&	Code	\&
 #%Numeric Capability Name	TI	TC	Description
 #%_
@@ -311,7 +316,10 @@ label_height			lh	num	lh	-	-	-----	rows in each label
 label_width			lw	num	lw	-	-	-----	columns in each label
 max_attributes			ma	num	ma	-	-	YBC--	maximum combined attributes terminal can handle
 maximum_windows			wnum	num	MW	-	-	-----	maximum number of definable windows
-# These came in with SVr4's color support
+# The following were introduced by SVr3.2's color support.
+# https://github.com/ryanwoodsmall/oldsysv/blob/\
+# e68293af91e2dc39f5f29c20d7e429f9e0cabc75/\
+# sysvr3/32/usr/src/lib/libcurses/screen/caps#L64
 max_colors			colors	num	Co	-	-	-----	maximum number of colors on screen
 max_pairs			pairs	num	pa	-	-	-----	maximum number of color-pairs on the screen
 no_color_video			ncv	num	NC	-	-	-----	video attributes that cannot be used with colors
@@ -327,7 +335,7 @@ no_color_video			ncv	num	NC	-	-	-----	video attributes that cannot be used with 
 #%center;
 #%Lb        Cb       S   Lb
 #%Lb        Lb       Lb  Lb
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 #%\&	Code	\&
 #%Numeric Capability Name	TI	TC	Description
 #%_
@@ -355,7 +363,7 @@ bit_image_type			bitype	num	Yp	-	-	-----	type of bit-image device
 #%center;
 #%Lb        Cb       S   Lb
 #%Lb        Lb       Lb  Lb
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 #%\&	Code	\&
 #%String Capability Name	TI	TC	Description
 #%_
@@ -424,7 +432,7 @@ key_down			kcud1	str	kd	KEY_DOWN	0402	YBCGE	down-arrow key
 #%.TE
 #%.TS
 #%center;
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 key_eic				krmir	str	kM	KEY_EIC		0514	-B-G-*	sent by rmir or smir in insert mode
 key_eol				kel	str	kE	KEY_EOL		0517	-B-G-*	clear-to-end-of-line key
 key_eos				ked	str	kS	KEY_EOS		0516	-B-G-*	clear-to-end-of-screen key
@@ -451,8 +459,8 @@ key_sf				kind	str	kF	KEY_SF		0520	-B-G-*	scroll-forward key
 key_sr				kri	str	kR	KEY_SR		0521	-B-G-*	scroll-backward key
 key_stab			khts	str	kT	KEY_STAB	0524	-B-G-*	set-tab key
 key_up				kcuu1	str	ku	KEY_UP		0403	YBCGE	up-arrow key
-keypad_local			rmkx	str	ke	-		-	YBCGE	leave keyboard transmit mode
-keypad_xmit			smkx	str	ks	-		-	YBCGE	enter keyboard transmit mode
+keypad_local			rmkx	str	ke	-		-	YBCGE	leave keypad transmit mode
+keypad_xmit			smkx	str	ks	-		-	YBCGE	enter keypad transmit mode
 lab_f0				lf0	str	l0	-		-	-B-G-*	label on function key f0 if not f0
 lab_f1				lf1	str	l1	-		-	-B-G-*	label on function key f1 if not f1
 lab_f10				lf10	str	la	-		-	-----	label on function key f10 if not f10
@@ -490,7 +498,7 @@ reset_2string			rs2	str	r2	-		-	-B---	reset string
 #%.TE
 #%.TS
 #%center;
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 reset_3string			rs3	str	r3	-		-	-B---	reset string
 reset_file			rf	str	rf	-		-	-B---	name of reset file
 restore_cursor			rc	str	rc	-		-	YBCG-	restore cursor to position of last save_cursor
@@ -560,7 +568,7 @@ key_undo			kund	str	&8	KEY_UNDO	0630	-----	undo key
 #%.TE
 #%.TS
 #%center;
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 key_sbeg			kBEG	str	&9	KEY_SBEG	0572	-----	shifted begin key
 key_scancel			kCAN	str	&0	KEY_SCANCEL	0573	-----	shifted cancel key
 key_scommand			kCMD	str	*1	KEY_SCOMMAND	0574	-----	shifted command key
@@ -626,7 +634,7 @@ key_f42				kf42	str	FW	KEY_F(42)	-	----E	F42 function key
 #%.TE
 #%.TS
 #%center;
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 key_f43				kf43	str	FX	KEY_F(43)	-	----E	F43 function key
 key_f44				kf44	str	FY	KEY_F(44)	-	----E	F44 function key
 key_f45				kf45	str	FZ	KEY_F(45)	-	----E	F45 function key
@@ -698,7 +706,7 @@ enter_doublewide_mode		swidm	str	ZF	-		-	-----	Enter double-wide mode
 #%.TE
 #%.TS
 #%center;
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 enter_draft_quality		sdrfq	str	ZG	-		-	-----	Enter draft-quality mode
 enter_italics_mode		sitm	str	ZH	-		-	-----	Enter italic mode
 enter_leftward_mode		slm	str	ZI	-		-	-----	Start leftward carriage motion
@@ -754,7 +762,7 @@ zero_motion			zerom	str	Zx	-		-	-----	No motion for subsequent character
 #%center;
 #%Lb        Cb       S   Lb
 #%Lb        Lb       Lb  Lb
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 #%\&	Code	\&
 #%String Capability Name	TI	TC	Description
 #%_
@@ -810,7 +818,7 @@ alt_scancode_esc		scesa	str	S8	-		-	-----	Alternate escape for scancode emulatio
 #%center;
 #%Lb        Cb       S   Lb
 #%Lb        Lb       Lb  Lb
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 #%\&	Code	\&
 #%String Capability Name	TI	TC	Description
 #%_

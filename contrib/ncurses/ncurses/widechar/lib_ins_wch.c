@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2020,2023 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 2002-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_ins_wch.c,v 1.29 2023/11/21 21:53:28 tom Exp $")
+MODULE_ID("$Id: lib_ins_wch.c,v 1.34 2025/06/21 22:26:21 tom Exp $")
 
 /*
  * Insert the given character, updating the current location to simplify
@@ -63,7 +63,7 @@ _nc_insert_wch(WINDOW *win, const cchar_t *wch)
 	    struct ldat *line = &(win->_line[win->_cury]);
 	    NCURSES_CH_T *end = &(line->text[win->_curx]);
 	    NCURSES_CH_T *temp1 = &(line->text[win->_maxx]);
-	    NCURSES_CH_T *temp2 = temp1 - cells;
+	    const NCURSES_CH_T *temp2 = temp1 - cells;
 
 	    CHANGED_TO_EOL(line, win->_curx, win->_maxx);
 	    while (temp1 > end)
@@ -87,7 +87,7 @@ wins_wch(WINDOW *win, const cchar_t *wch)
 
     T((T_CALLED("wins_wch(%p, %s)"), (void *) win, _tracecchar_t(wch)));
 
-    if (win != 0) {
+    if (win != NULL) {
 	NCURSES_SIZE_T oy = win->_cury;
 	NCURSES_SIZE_T ox = win->_curx;
 
@@ -100,6 +100,14 @@ wins_wch(WINDOW *win, const cchar_t *wch)
     returnCode(code);
 }
 
+static int
+flush_wchars(WINDOW *win, wchar_t *wchars)
+{
+    cchar_t tmp_cchar;
+    (void) setcchar(&tmp_cchar, wchars, WA_NORMAL, (short) 0, (void *) 0);
+    return _nc_insert_wch(win, &tmp_cchar);
+}
+
 NCURSES_EXPORT(int)
 wins_nwstr(WINDOW *win, const wchar_t *wstr, int n)
 {
@@ -108,9 +116,8 @@ wins_nwstr(WINDOW *win, const wchar_t *wstr, int n)
     T((T_CALLED("wins_nwstr(%p,%s,%d)"),
        (void *) win, _nc_viswbufn(wstr, n), n));
 
-    if (win != 0
-	&& wstr != 0
-	&& n != 0) {
+    if (win != NULL
+	&& wstr != NULL) {
 
 	if (n < 0) {
 	    n = INT_MAX;
@@ -122,26 +129,36 @@ wins_nwstr(WINDOW *win, const wchar_t *wstr, int n)
 	    SCREEN *sp = _nc_screen_of(win);
 	    NCURSES_SIZE_T oy = win->_cury;
 	    NCURSES_SIZE_T ox = win->_curx;
+	    wchar_t tmp_wchars[1 + CCHARW_MAX];
+	    int num_wchars = 0;
 
 	    for (cp = wstr; ((cp - wstr) < n) && (*cp != L'\0'); cp++) {
 		int len = _nc_wacs_width(*cp);
 
-		if ((len >= 0 && len != 1) || !is7bits(*cp)) {
-		    cchar_t tmp_cchar;
-		    wchar_t tmp_wchar = *cp;
-		    memset(&tmp_cchar, 0, sizeof(tmp_cchar));
-		    (void) setcchar(&tmp_cchar,
-				    &tmp_wchar,
-				    WA_NORMAL,
-				    (short) 0,
-				    (void *) 0);
-		    code = _nc_insert_wch(win, &tmp_cchar);
-		} else {
+		if (is7bits(*cp) && len <= 0) {
+		    if (num_wchars) {
+			if ((code = flush_wchars(win, tmp_wchars)) != OK)
+			    break;
+			num_wchars = 0;
+		    }
 		    /* tabs, other ASCII stuff */
 		    code = _nc_insert_ch(sp, win, (chtype) (*cp));
+		} else {
+		    if (num_wchars > 0 && len > 0) {
+			if ((code = flush_wchars(win, tmp_wchars)) != OK)
+			    break;
+			num_wchars = 0;
+		    }
+		    if (num_wchars < CCHARW_MAX) {
+			tmp_wchars[num_wchars++] = *cp;
+			tmp_wchars[num_wchars] = L'\0';
+		    }
 		}
 		if (code != OK)
 		    break;
+	    }
+	    if (code == OK && num_wchars) {
+		code = flush_wchars(win, tmp_wchars);
 	    }
 
 	    win->_curx = ox;

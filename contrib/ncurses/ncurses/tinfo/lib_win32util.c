@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020-2021,2023 Thomas E. Dickey                                *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,16 +33,15 @@
  ****************************************************************************/
 
 #include <curses.priv.h>
+#include <tchar.h>
 
-MODULE_ID("$Id: lib_win32util.c,v 1.4 2023/06/17 17:19:06 tom Exp $")
+MODULE_ID("$Id: lib_win32util.c,v 1.7 2025/06/28 16:58:13 tom Exp $")
 
-#ifdef _NC_WINDOWS
-#include <io.h>
+#ifdef _NC_WINDOWS_NATIVE
 
 #ifdef _NC_CHECK_MINTTY
 #define PSAPI_VERSION 2
 #include <psapi.h>
-#include <tchar.h>
 
 #define array_length(a) (sizeof(a)/sizeof(a[0]))
 
@@ -131,4 +130,4 @@ _nc_gettimeofday(struct timeval *tv, void *tz GCC_UNUSED)
 }
 #endif // HAVE_GETTIMEOFDAY == 2
 
-#endif // _NC_WINDOWS
+#endif // _NC_WINDOWS_NATIVE

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2023 Thomas E. Dickey                                     *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 2001-2008,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,7 +35,7 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: varargs.c,v 1.13 2023/06/24 13:41:46 tom Exp $")
+MODULE_ID("$Id: varargs.c,v 1.16 2025/02/15 15:22:14 tom Exp $")
 
 #ifdef TRACE
 
@@ -60,35 +60,35 @@ NCURSES_EXPORT(char *)
 _nc_varargs(const char *fmt, va_list ap)
 {
     char buffer[BUFSIZ];
-    const char *param;
+    const char *value;
     int n;
 
-    if (fmt == 0 || *fmt == '\0')
+    if (fmt == NULL || *fmt == '\0')
 	return NULL;
     if (MyLength == 0)
 	MyBuffer = typeMalloc(char, MyLength = BUFSIZ);
-    if (MyBuffer == 0)
+    if (MyBuffer == NULL)
 	return NULL;
     *MyBuffer = '\0';
 
     while (*fmt != '\0') {
 	if (*fmt == '%') {
-	    char *pval = 0;	/* avoid const-cast */
+	    const char *pval = NULL;	/* avoid const-cast */
 	    const char *sval = "";
 	    double fval = 0.0;
 	    int done = FALSE;
 	    int ival = 0;
 	    int type = 0;
-	    ARGTYPE parm[MAX_PARMS];
-	    int parms = 0;
+	    ARGTYPE param[MAX_PARMS];
+	    int params = 0;
 	    ARGTYPE used = atUnknown;
 
 	    while (*++fmt != '\0' && !done) {
 
 		if (*fmt == '*') {
 		    VA_INT(int);
-		    if (parms < MAX_PARMS)
-			parm[parms++] = atInteger;
+		    if (params < MAX_PARMS)
+			param[params++] = atInteger;
 		} else if (isalpha(UChar(*fmt))) {
 		    done = TRUE;
 		    switch (*fmt) {
@@ -141,11 +141,11 @@ _nc_varargs(const char *fmt, va_list ap)
 		} else if (*fmt == '%') {
 		    done = TRUE;
 		}
-		if (used != atUnknown && parms < MAX_PARMS) {
-		    parm[parms++] = used;
-		    for (n = 0; n < parms; ++n) {
-			used = parm[n];
-			param = buffer;
+		if (used != atUnknown && params < MAX_PARMS) {
+		    param[params++] = used;
+		    for (n = 0; n < params; ++n) {
+			used = param[n];
+			value = buffer;
 			switch (used) {
 			case atInteger:
 			    _nc_SPRINTF(buffer, _nc_SLIMIT(sizeof(buffer))
@@ -160,19 +160,19 @@ _nc_varargs(const char *fmt, va_list ap)
 					"%p", pval);
 			    break;
 			case atString:
-			    param = _nc_visbuf2(1, sval);
+			    value = _nc_visbuf2(1, sval);
 			    break;
 			case atUnknown:
 			default:
 			    _nc_STRCPY(buffer, "?", sizeof(buffer));
 			    break;
 			}
-			MyLength += strlen(param) + 2;
+			MyLength += strlen(value) + 2;
 			MyBuffer = typeRealloc(char, MyLength, MyBuffer);
-			if (MyBuffer != 0) {
+			if (MyBuffer != NULL) {
 			    _nc_SPRINTF(MyBuffer + strlen(MyBuffer),
 					_nc_SLIMIT(MyLength - strlen(MyBuffer))
-					", %s", param);
+					", %s", value);
 			}
 		    }
 		}

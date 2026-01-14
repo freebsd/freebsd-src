@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1999-2011,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -36,7 +36,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: trace_tries.c,v 1.18 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: trace_tries.c,v 1.19 2024/12/07 21:24:18 tom Exp $")
 
 #ifdef TRACE
 #define my_buffer _nc_globals.tracetry_buf
@@ -50,8 +50,8 @@ recur_tries(TRIES * tree, unsigned level)
 	my_buffer = (unsigned char *) _nc_doalloc(my_buffer, my_length);
     }
 
-    if (my_buffer != 0) {
-	while (tree != 0) {
+    if (my_buffer != NULL) {
+	while (tree != NULL) {
 	    if ((my_buffer[level] = tree->ch) == 0)
 		my_buffer[level] = 128;
 	    my_buffer[level + 1] = 0;
@@ -69,7 +69,7 @@ recur_tries(TRIES * tree, unsigned level)
 NCURSES_EXPORT(void)
 _nc_trace_tries(TRIES * tree)
 {
-    if ((my_buffer = typeMalloc(unsigned char, my_length = 80)) != 0) {
+    if ((my_buffer = typeMalloc(unsigned char, my_length = 80)) != NULL) {
 	_tracef("BEGIN tries %p", (void *) tree);
 	recur_tries(tree, 0);
 	_tracef(". . . tries %p", (void *) tree);

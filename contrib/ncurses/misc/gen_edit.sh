@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright 2020,2021 Thomas E. Dickey                                       #
+# Copyright 2020-2021,2025 Thomas E. Dickey                                  #
 # Copyright 2004-2011,2012 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -30,8 +30,8 @@
 #
 # Author: Thomas E. Dickey
 #
-# $Id: gen_edit.sh,v 1.7 2021/09/04 15:55:29 tom Exp $
-# Generate a sed-script for converting the terminfo.src to the form which will
+# $Id: gen_edit.sh,v 1.9 2025/11/12 00:52:57 Branden.Robinson Exp $
+# Generate a sed script for converting the terminfo.src to the form which will
 # be installed.
 #
 # Assumes:
@@ -48,13 +48,13 @@ linux_dft=linux2.2
 # If we're not installing into /usr/share/, we'll have to adjust the location
 # of the tabset files in terminfo.src (which are in a parallel directory).
 TABSET=${datadir}/tabset
-if test "x$TABSET" != "x/usr/share/tabset" ; then
+if [ "x$TABSET" != "x/usr/share/tabset" ] ; then
 cat <<EOF
 s%/usr/share/tabset%$TABSET%g
 EOF
 fi
 
-if test "$WHICH_XTERM" != "xterm-new" ; then
+if [ "$WHICH_XTERM" != "xterm-new" ] ; then
 echo "** using $WHICH_XTERM terminal description for XTerm entry" >&2
 cat <<EOF
 /^# This is xterm for ncurses/,/^$/{
@@ -63,7 +63,7 @@ cat <<EOF
 EOF
 fi
 
-if test "$XTERM_KBS" != "BS" ; then
+if [ "$XTERM_KBS" != "BS" ] ; then
 echo "** using DEL for XTerm backspace-key" >&2
 cat <<EOF
 /^xterm+kbs|fragment for backspace key/,/^#/{
@@ -83,7 +83,7 @@ fi
 case x$WHICH_LINUX in #(vi
 xauto)
 	system=`uname -s 2>/dev/null`
-	if test "x$system" = xLinux
+	if [ "$system" = Linux ]
 	then
 		case x`uname -r` in
 		x1.*)
@@ -108,7 +108,7 @@ xlinux*)
 	;;
 esac
 
-if test $WHICH_LINUX != $linux_dft
+if [ "$WHICH_LINUX" != "$linux_dft" ]
 then
 echo "** using $WHICH_LINUX terminal description for Linux console" >&2
 cat <<EOF

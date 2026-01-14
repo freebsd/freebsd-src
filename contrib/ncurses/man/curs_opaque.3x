@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2020-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2020-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 2007-2014,2015 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_opaque.3x,v 1.43 2024/03/16 15:35:01 tom Exp $
-.TH curs_opaque 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_opaque.3x,v 1.50 2025/02/15 19:36:24 tom Exp $
+.TH curs_opaque 3X 2025-02-15 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -136,10 +136,12 @@ returns the delay timeout set by \fB\%wtimeout\fP(3X).
 .TP
 \fBwgetparent\fP
 returns the parent \fI\%WINDOW\fP pointer for subwindows,
-or \fBNULL\fP for windows having no parent.
+or
+.I NULL
+for windows having no parent.
 .TP
 \fBwgetscrreg\fP
-stores the the top and bottom rows for the scrolling margin set by
+stores the top and bottom rows for the scrolling margin set by
 \fB\%wsetscrreg\fP(3X) in the corresponding arguments,
 returning \fBERR\fP upon failure and \fBOK\fP upon successful
 completion.
@@ -148,11 +150,24 @@ These functions return \fBTRUE\fP or \fBFALSE\fP except as noted.
 .SH NOTES
 \fI\%ncurses\fP provides both a C function and a preprocessor macro for
 each function documented in this page.
+.SH EXTENSIONS
+These functions originated with
+.IR \%ncurses "."
 .SH PORTABILITY
-These routines are specific to \fI\%ncurses\fP.
-They were not supported on Version 7, BSD or System V implementations.
-It is recommended that any code depending on \fI\%ncurses\fP extensions
-be conditioned using \fB\%NCURSES_VERSION\fP.
+Applications employing
+.I \%ncurses
+extensions should condition their use on the visibility of the
+.B \%NCURSES_VERSION
+preprocessor macro.
+.PP
+NetBSD
+.I curses
+since 10.1 (2024) supports
+.IR \%wgetscr_reg "."
+It also implements
+.IR \%getscr_reg ","
+operating on
+.IR \%stdscr "."
 .SH SEE ALSO
 \fB\%curses\fP(3X),
 \fB\%curs_inopts\fP(3X),

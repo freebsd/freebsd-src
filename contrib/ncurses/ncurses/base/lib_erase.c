@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2022 Thomas E. Dickey                                     *
+ * Copyright 2020-2022,2024 Thomas E. Dickey                                *
  * Copyright 1998-2009,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -42,7 +42,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_erase.c,v 1.20 2022/09/03 21:40:27 tom Exp $")
+MODULE_ID("$Id: lib_erase.c,v 1.21 2024/12/07 20:00:48 tom Exp $")
 
 NCURSES_EXPORT(int)
 werase(WINDOW *win)
@@ -71,7 +71,7 @@ werase(WINDOW *win)
 	     */
 	    if_WIDEC({
 		if (isWidecExt(start[0])) {
-		    int x = (win->_parent != 0) ? (win->_begx) : 0;
+		    int x = (win->_parent != NULL) ? (win->_begx) : 0;
 		    while (x-- > 0) {
 			if (isWidecBase(start[-1])) {
 			    --start;

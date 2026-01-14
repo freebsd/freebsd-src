@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,18 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_termattrs.3x,v 1.41 2024/04/20 21:20:07 tom Exp $
-.TH curs_termattrs 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_termattrs.3x,v 1.61 2025/08/23 22:39:20 tom Exp $
+.TH curs_termattrs 3X 2025-08-23 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
 .SH NAME
 \fB\%baudrate\fP,
 \fB\%erasechar\fP,
@@ -41,88 +51,169 @@
 \fB\%term_attrs\fP,
 \fB\%termattrs\fP,
 \fB\%termname\fP \-
-\fIcurses\fR environment query routines
+get and set terminal attributes with \fIcurses\fP
 .SH SYNOPSIS
 .nf
 \fB#include <curses.h>
 .PP
 \fBint baudrate(void);
 \fBchar erasechar(void);
-\fBint erasewchar(wchar_t *\fIwc\fP);
+\fBint erasewchar(wchar_t * \fIwc\fP);
 \fBbool has_ic(void);
 \fBbool has_il(void);
 \fBchar killchar(void);
-\fBint killwchar(wchar_t *\fIwc\fP);
-\fBchar *longname(void);
+\fBint killwchar(wchar_t * \fIwc\fP);
+\fBchar * longname(void);
 \fBattr_t term_attrs(void);
 \fBchtype termattrs(void);
-\fBchar *termname(void);
+\fBchar * termname(void);
 .fi
 .SH DESCRIPTION
 .SS baudrate
-The \fBbaudrate\fP routine returns the output speed of the terminal.
-The
-number returned is in bits per second, for example \fB9600\fP, and is an
-integer.
+.B \%baudrate
+returns the line speed of the terminal,
+an integer value measured in bits per second,
+for example
+.BR 9600 "."
 .SS "erasechar, erasewchar"
-The \fBerasechar\fP routine returns the user's current erase character.
+.B \%erasechar
+returns the terminal's erase character.
 .PP
-The \fBerasewchar\fP routine stores the current erase character
-in the location referenced by \fIwc\fP.
-If no erase character has been defined, the routine fails
-and the location referenced by \fIwc\fP is not changed.
+.B \%erasewchar
+stores the erase character in the location referenced by
+.IR wc "."
+If no erase character has been defined,
+it fails and the location referenced by
+.I wc
+is not changed.
 .SS "has_ic, has_il"
-The \fBhas_ic\fP routine is true if the terminal has insert- and delete-
-character capabilities.
+.B \%has_ic
+returns
+.B TRUE
+if the terminal has insert- and delete-character capabilities.
 .PP
-The \fBhas_il\fP routine is true if the terminal has insert- and delete-line
-capabilities, or can simulate them using scrolling regions.
-This might
-be used to determine if it would be appropriate to turn on physical
-scrolling using \fBscrollok\fP(3X).
+.B \%has_il
+returns
+.B TRUE
+if the terminal has insert- and delete-line capabilities,
+or can simulate them using scrolling regions.
+It might be used to determine whether it would be appropriate
+to use \fBscrollok\fP(3X) to turn on scrolling.
 .SS "killchar, killwchar"
-The \fBkillchar\fP routine returns the user's current line kill character.
+.B \%killchar
+returns the terminal's line kill character.
 .PP
-The \fBkillwchar\fP routine stores the current line-kill character
-in the location referenced by \fIwc\fP.
+.B \%killwchar
+stores the line-kill character in the location referenced by
+.IR wc "."
 If no line-kill character has been defined,
-the routine fails and the location referenced by \fIwc\fP is not changed.
+it fails and the location referenced by
+.I wc
+is not changed.
 .SS longname
-The \fBlongname\fP routine returns a pointer to a static area
-containing a verbose description of the current terminal.
-The maximum
-length of a verbose description is 128 characters.
-It is defined only
-after the call to \fBinitscr\fP or \fBnewterm\fP.  The area is
-overwritten by each call to \fBnewterm\fP and is not restored by
-\fBset_term\fP, so the value should be saved between calls to
-\fBnewterm\fP if \fBlongname\fP is going to be used with multiple
-terminals.
+.B \%longname
+returns a pointer to static storage
+containing a verbose description of the terminal being managed by
+.IR curses "."
+The maximum length of a verbose description is 128 characters.
+The storage is populated only after \fBinitscr\fP(3X) or
+\fBnewterm\fP(3X) is called.
+This storage is overwritten by each call to
+.B \%newterm
+and not restored by \fBset_term\fP(3X),
+so its contents should be saved between calls to
+.B \%initscr
+or
+.B \%newterm
+if
+.B \%longname
+is to be used with multiple terminals.
 .SS "termattrs, term_attrs"
 If a given terminal does not support a video attribute that an
-application program is trying to use, \fBcurses\fP may substitute a
+application program is trying to use,
+.I curses
+may substitute a
 different video attribute for it.
-The \fBtermattrs\fP and \fBterm_attrs\fP functions
-return a logical \fBOR\fP of all video attributes supported by the
-terminal using \fBA_\fP and \fBWA_\fP constants respectively.
-This information is useful when a \fBcurses\fP program
+.B \%termattrs
+and
+.B \%term_attrs
+return a logical \*(``or\*('' of all video attributes supported by the
+terminal using
+.B A_
+and
+.B WA_
+constants respectively.
+This information is useful when a
+.I curses
+program
 needs complete control over the appearance of the screen.
 .SS termname
-The \fBtermname\fP routine returns the terminal name used by \fBsetupterm\fP.
+.B \%termname
+returns the terminal name used by \fBsetupterm\fP(3X).
 .SH RETURN VALUE
-\fBlongname\fP and \fBtermname\fP return \fBNULL\fP on error.
+.B \%longname
+and
+.B \%termname
+return
+.I NULL
+on error.
 .PP
-Routines that return an integer return \fBERR\fP upon failure and \fBOK\fP
-(SVr4 only specifies "an integer value other than \fBERR\fP") upon successful
-completion.
+Functions that return an integer return
+.B ERR
+upon failure and
+.B OK
+upon success.
 .SH NOTES
-Note that \fBtermattrs\fP may be a macro.
+.BR \%erasewchar ","
+.BR \%killwchar ","
+and
+.B \%term_attrs
+are part of
+.IR \%ncurses "'s"
+wide-character API,
+and are not available in its non-wide-character configuration.
+.PP
+.B \%termattrs
+may be implemented as a macro.
 .SH PORTABILITY
-X/Open Curses, Issue 4 describes these functions.
-It changes the
-return type of \fBtermattrs\fP to the new type \fBattr_t\fP.
-Most versions of curses truncate the result returned by \fBtermname\fP to
-14 characters.
+X/Open Curses Issue\ 4 describes these functions.
+.PP
+SVr4 describes a successful return value only as
+\*(``an integer value other than
+.IR ERR \*(''. \" Courier roman in source; SVID 4, vol. 3, p. 535
+.PP
+Most versions of
+.I curses
+truncate the string returned by
+.I \%termname
+to 14 characters.
+.SH HISTORY
+4BSD (1980)
+introduced
+.IR \%longname "."
+.PP
+SVr2 (1984)
+added
+.IR \%baudrate ","
+.IR \%erasechar ","
+.IR \%killchar ","
+.IR \%has_ic ","
+and
+.IR \%has_il "."
+.PP
+SVr3 (1987)
+supplied
+.IR \%termname "."
+Later that year,
+SVr3.1 brought
+.IR \%termattrs "."
+.PP
+X/Open Curses Issue\ 4 (1995)
+specified
+.IR \%erasewchar ","
+.IR \%killwchar ","
+and
+.IR \%term_attrs "."
 .SH SEE ALSO
 \fB\%curses\fP(3X),
 \fB\%curs_initscr\fP(3X),

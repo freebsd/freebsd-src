@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2010,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_current.c,v 1.16 2020/05/24 01:40:20 anonymous.maarten Exp $")
+MODULE_ID("$Id: fld_current.c,v 1.17 2024/12/07 23:01:42 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform
@@ -54,7 +54,7 @@ set_current_field(FORM *form, FIELD *field)
   int err = E_OK;
 
   T((T_CALLED("set_current_field(%p,%p)"), (void *)form, (void *)field));
-  if (form == 0 || field == 0)
+  if (form == NULL || field == NULL)
     {
       RETURN(E_BAD_ARGUMENT);
     }
@@ -117,11 +117,11 @@ FORM_EXPORT(int)
 unfocus_current_field(FORM *const form)
 {
   T((T_CALLED("unfocus_current_field(%p)"), (const void *)form));
-  if (form == 0)
+  if (form == NULL)
     {
       RETURN(E_BAD_ARGUMENT);
     }
-  else if (form->current == 0)
+  else if (form->current == NULL)
     {
       RETURN(E_REQUEST_DENIED);
     }
@@ -158,7 +158,7 @@ FORM_EXPORT(int)
 field_index(const FIELD *field)
 {
   T((T_CALLED("field_index(%p)"), (const void *)field));
-  returnCode((field != 0 && field->form != 0) ? (int)field->index : -1);
+  returnCode((field != NULL && field->form != NULL) ? (int)field->index : -1);
 }
 
 /* fld_current.c ends here */

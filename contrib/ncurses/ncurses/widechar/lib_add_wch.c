@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2021,2023 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 2004-2011,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -40,7 +40,7 @@
 #include <wctype.h>
 #endif
 
-MODULE_ID("$Id: lib_add_wch.c,v 1.18 2023/07/15 17:34:12 tom Exp $")
+MODULE_ID("$Id: lib_add_wch.c,v 1.22 2025/01/19 00:51:54 tom Exp $")
 
 /* clone/adapt lib_addch.c */
 static const cchar_t blankchar = NewChar(BLANK_TEXT);
@@ -115,7 +115,7 @@ render_char(WINDOW *win, cchar_t ch)
 #endif
 
 static bool
-newline_forces_scroll(WINDOW *win, NCURSES_SIZE_T *ypos)
+newline_forces_scroll(const WINDOW *win, NCURSES_SIZE_T *ypos)
 {
     bool result = FALSE;
 
@@ -307,7 +307,7 @@ wadd_wch_nosync(WINDOW *win, cchar_t ch)
 /* the workhorse function -- add a character to the given window */
 {
     NCURSES_SIZE_T x, y;
-    wchar_t *s;
+    const wchar_t *s;
     int tabsize = 8;
 #if USE_REENTRANT
     SCREEN *sp = _nc_screen_of(win);
@@ -384,7 +384,7 @@ wadd_wch_nosync(WINDOW *win, cchar_t ch)
 	win->_flags &= ~_WRAPPED;
 	break;
     default:
-	if ((s = wunctrl(&ch)) != 0) {
+	if ((s = wunctrl(&ch)) != NULL) {
 	    while (*s) {
 		cchar_t sch;
 		SetChar(sch, *s++, AttrOf(ch));
@@ -434,7 +434,7 @@ wecho_wchar(WINDOW *win, const cchar_t *wch)
 {
     int code = ERR;
 
-    TR(TRACE_VIRTPUT | TRACE_CCALLS, (T_CALLED("wechochar(%p, %s)"),
+    TR(TRACE_VIRTPUT | TRACE_CCALLS, (T_CALLED("wecho_wchar(%p, %s)"),
 				      (void *) win,
 				      _tracecchar_t(wch)));
 

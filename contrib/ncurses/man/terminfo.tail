@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,66 +27,118 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: terminfo.tail,v 1.148 2024/04/20 21:24:19 tom Exp $
+.\" $Id: terminfo.tail,v 1.163 2025/11/12 01:01:34 Branden.Robinson Exp $
 .ps +1
 .SS "User-Defined Capabilities"
 .
-The preceding section listed the \fIpredefined\fP capabilities.
-They deal with some special features for terminals no longer
-(or possibly never) produced.
-Occasionally there are special features of newer terminals which
-are awkward or impossible to represent by reusing the predefined
+The preceding section listed the
+.I standard
 capabilities.
+Some are esoteric,
+supporting functionality that terminal emulators do not implement,
+or may never have been realized in manufactured hardware.
+Occasionally,
+emulators have special features
+that are awkward or impossible to represent
+via standard capabilities.
 .PP
-\fI\%ncurses\fP addresses this limitation by allowing user-defined
-capabilities.
-The \fB@TIC@\fP and \fB@INFOCMP@\fP programs provide
-the \fB\-x\fP option for this purpose.
-When \fB\-x\fP is set,
-\fB@TIC@\fP treats unknown capabilities as user-defined.
-That is, if \fB@TIC@\fP encounters a capability name
-which it does not recognize,
-it infers its type (Boolean, number or string) from the syntax
+.I \%ncurses
+addresses this limitation by allowing user-defined capabilities.
+The
+.B \%@TIC@
+and
+.B \%@INFOCMP@
+programs provide an
+.B \-x
+option for this purpose.
+When
+.B \-x
+is used,
+.B \%@TIC@
+treats unknown capabilities as user-defined.
+That is,
+if
+.B \%@TIC@
+encounters a capability name
+that it does not recognize,
+the program infers the capability's type
+(Boolean,
+numeric,
+or
+string)
+from the syntax of the capability value
 and makes an extended table entry for that capability.
-The \fBuse_extended_names\fP(3X) function makes this information
+\fBuse_extended_names\fP(3X) makes this information
 conditionally available to applications.
-The \fI\%ncurses\fP library provides the data leaving most of the
-behavior to applications:
+.I \%ncurses
+library functions supply callers with capability data,
+the interpretation of which is mostly up to the application.
 .bP
-User-defined capability strings whose name begins
-with \*(``k\*('' are treated as function keys.
+.I \%ncurses
+treats user-defined string capabilities
+whose names begin with \*(``k\*(''
+as function keys.
 .bP
-The types (Boolean, number, string) determined by \fB@TIC@\fP
-can be inferred by successful calls on \fBtigetflag\fP, etc.
+Capability types
+(Boolean,
+numeric,
+or
+string)
+determined by
+.B \%@TIC@
+can be inferred by successful
+\fB\%tigetflag\fP(3X),
+\fB\%tigetnum\fP(3X),
+and
+\fB\%tigetstr\fP(3X)
+calls.
 .bP
 If the capability name happens to be two characters,
 the capability is also available through the termcap interface.
 .PP
-While termcap is said to be extensible because it does not use a predefined set
-of capabilities,
-in practice it has been limited to the capabilities defined by
-terminfo implementations.
+While
+.I termcap
+is said to be extensible because it mandates no capabilities,
+in practice it has been limited to those defined by
+.I \%term\%info
+implementations.
 As a rule,
-user-defined capabilities intended for use by termcap applications should
-be limited to Booleans and numbers to avoid running past the 1023 byte
-limit assumed by termcap implementations and their applications.
-In particular, providing extended sets of function keys (past the 60
-numbered keys and the handful of special named keys) is best done using
-the longer names available using terminfo.
+employ only user-defined capabilities of Boolean and numeric type
+with
+.I termcap
+applications to avoid overrunning the 1023 byte limit
+assumed by
+.I termcap
+implementations and their applications.
+Specifically,
+support for extended sets of function keys
+(past the 60 numbered keys and the handful of special named keys)
+is better achieved with longer names available via
+.IR \%term\%info "."
 .PP
-The \fI\%ncurses\fP library uses a few of these user-defined
-capabilities,
+The
+.I \%ncurses
+library uses a few of these user-defined capabilities,
 as described in \fBuser_caps\fR(5).
-Other user-defined capabilities (including function keys) are
-described in the terminal database, in the section on
-.I "NCURSES USER-DEFINABLE CAPABILITIES"
+For other user-defined capabilities,
+including function keys,
+consult the source form of the terminal database,
+.IR \%terminfo.src ","
+under the heading \*(``NCURSES USER-DEFINABLE CAPABILITIES\*(''.
 .
 .SS "A Sample Entry"
 .
-The following entry, describing an ANSI-standard terminal, is representative
-of what a \fBterminfo\fP entry for a modern terminal typically looks like.
+The following entry, describing an ANSI\ X3.64-
+(or ECMA-48-)
+-standard terminal
+(henceforth \*(``ANSI-standard\*('' for brevity),
+is representative
+of what a
+.I \%term\%info
+entry for a modern terminal typically looks like.
 .PP
 .EX
+.nf
 \s-2ansi|ansi/pc\-term compatible with color,
         am, mc5i, mir, msgr,
         colors#8, cols#80, it#8, lines#24, ncv#3, pairs#64,
@@ -117,6 +169,7 @@ of what a \fBterminfo\fP entry for a modern terminal typically looks like.
         sgr0=\eE[0;10m, smacs=\eE[11m, smpch=\eE[11m, smso=\eE[7m,
         smul=\eE[4m, tbc=\eE[3g, u6=\eE[%i%d;%dR, u7=\eE[6n,
         u8=\eE[?%[;0123456789]c, u9=\eE[c, vpa=\eE[%i%p1%dd,
+.fi
 .EE
 .PP
 Entries may continue onto multiple lines by placing white space at
@@ -186,7 +239,8 @@ respectively.
 X/Open Curses does not say what \*(``appropriate \fIx\fP\*('' might be.
 In practice, that is a printable ASCII graphic character.
 The special case \*(``\*^?\*('' is interpreted as DEL (127).
-In all other cases, the character value is AND'd with 0x1f,
+In all other cases,
+the character value is logically \*(``and\*(''-ed with 0x1f,
 mapping to ASCII control codes in the range 0 through 31.
 .PP
 Other escapes include
@@ -277,14 +331,14 @@ as a list of colon-separated pathnames of terminal databases to be searched.
 .IP
 An empty pathname (i.e., if the variable begins or ends
 with a colon, or contains adjacent colons)
-is interpreted as the system location \fI\*d\fP.
+is interpreted as the system location \fI@TERMINFO@\fP.
 .bP
 Finally, \fI\%ncurses\fP searches these compiled-in locations:
 .RS
 .bP
 a list of directories (@TERMINFO_DIRS@), and
 .bP
-the system terminfo directory, \fI\*d\fP
+the system terminfo directory, \fI@TERMINFO@\fP
 .RE
 .PP
 The \fBTERMINFO\fP variable can contain a terminal description instead
@@ -348,7 +402,7 @@ and
 applies to storage scope terminals, such as \s-1TEKTRONIX\s+1 4010
 series, as well as hard copy and APL terminals.)
 If there is a code to move the cursor to the left edge of the current
-row, give this as
+line, give this as
 .BR cr .
 (Normally this will be carriage return, control/M.)
 If there is a code to produce an audible signal (bell, beep, etc)
@@ -412,7 +466,7 @@ The only local motion which is defined from the left edge is if
 .B bw
 is given, then a
 .B cub1
-from the left edge will move to the right edge of the previous row.
+from the left edge will move to the right edge of the previous line.
 If
 .B bw
 is not given, the effect is undefined.
@@ -448,11 +502,13 @@ Thus the model 33 teletype is described as
 while the Lear Siegler \s-1ADM-3\s0 is described as
 .PP
 .EX
+.nf
 .\".in -2
 \s-1adm3\||\|3\||\|lsi adm3,
         am, bel=\*^G, clear=\*^Z, cols#80, cr=\*^M, cub1=\*^H, cud1=\*^J,
         ind=\*^J, lines#24,\s+1
 .\".in +2
+.fi
 .EE
 .SS "Parameterized Strings"
 Cursor addressing and other strings requiring parameters
@@ -462,8 +518,8 @@ with \fIprintf\fP-like escapes such as \fI%x\fP in it.
 For example, to address the cursor, the
 .B cup
 capability is given, using two parameters:
-the row and column to address to.
-(Rows and columns are numbered from zero and refer to the
+the line and column to address to.
+(Lines and columns are numbered from zero and refer to the
 physical screen visible to the user, not to any unseen memory.)
 If the terminal has memory relative cursor addressing,
 that can be indicated by
@@ -569,13 +625,15 @@ push strlen(pop)
 arithmetic (%m is \fImod\fP): \fIpush(pop() op pop())\fP
 .TP
 \fB%&\fP, \fB%|\fP, \fB%\*^\fP
-bit operations (AND, OR and exclusive-OR): \fIpush(pop() op pop())\fP
+bit operations
+(\*(``and\*('', \*(``or\*('' and exclusive \*(``or\*(''):
+\fIpush(pop() op pop())\fP
 .TP
 \fB%=\fP, \fB%>\fP, \fB%<\fP
 logical operations: \fIpush(pop() op pop())\fP
 .TP
 \fB%A\fP, \fB%O\fP
-logical AND and OR operations (for conditionals)
+logical \*(``and\*('' and \*(``or\*('' operations (for conditionals)
 .TP
 \fB%!\fP, \fB%\*~\fP
 unary operations (logical and bit complement): \fIpush(op pop())\fP
@@ -608,17 +666,17 @@ That is, to get x\-5 one would use \*(``%gx%{5}%\-\*(''.
 \fB%P\fP and \fB%g\fP variables are
 persistent across escape-string evaluations.
 .PP
-Consider the HP2645, which, to get to row 3 and column 12, needs
+Consider the HP2645, which, to get to line 3 and column 12, needs
 to be sent \eE&a12c03Y padded for 6 milliseconds.
-The order of the rows and columns is inverted here,
-and the row and column are printed as two digits.
+The order of the lines and columns is inverted here,
+and the lines and column are printed as two digits.
 The corresponding terminal description is expressed thus:
 .RS
 cup=\eE&a%p2%dc%p1%dY$<6>,
 .RE
 .PP
-The Microterm \s-1ACT-IV\s0 needs the current row and column sent
-preceded by a \fB\*^T\fP, with the row and column simply encoded in binary,
+The Microterm \s-1ACT-IV\s0 needs the current line and column sent
+preceded by a \fB\*^T\fP, with the line and column simply encoded in binary,
 .RS
 cup=\*^T%p1%c%p2%c
 .RE
@@ -632,10 +690,13 @@ This is necessary because it is not always safe to transmit \fB\en\fP
 tabs are never expanded, so \et is safe to send.
 This turns out to be essential for the Ann Arbor 4080.)
 .PP
-A final example is the \s-1LSI ADM\s0-3a, which uses row and column
-offset by a blank character, thus
+A final example is the LSI ADM-3A,
+which uses line and column offset by a space,
+thus
 .RS
+.EX
 cup=\eE=%p1%\*' \*'%+%c%p2%\*' \*'%+%c
+.EE
 .RE
 .PP
 After sending \*(``\eE=\*('', this pushes the first parameter, pushes the
@@ -656,7 +717,7 @@ to the top left corner of the screen, not of memory.
 (Thus, the \eEH sequence on HP terminals cannot be used for
 .BR home .)
 .PP
-If the terminal has row or column absolute cursor addressing,
+If the terminal has line or column absolute cursor addressing,
 these can be given as single parameter capabilities
 .B hpa
 (horizontal position absolute)
@@ -713,7 +774,7 @@ the ability to set a top and/or bottom margin using the current
 line position, and
 .bP
 parameterized capabilities for setting the top, bottom, left, right margins
-given the number of rows or columns.
+given the number of lines or columns.
 .RE
 .PP
 In practice, the categorization into \*(``terminal\*('' and \*(``printer\*(''
@@ -744,8 +805,8 @@ These are the margin-related capabilities:
 .PP
 .TS
 center;
-lb lb
-lb l .
+Lb Lb
+Lb L .
 Name	Description
 _
 smgl	Set left margin at current column
@@ -1008,7 +1069,7 @@ to delete a single character,
 with one parameter,
 .IR n ,
 to delete
-.IR n "characters,"
+.IR n " characters,"
 and delete mode by giving \fBsmdc\fP and \fBrmdc\fP
 to enter and exit delete mode (any mode the terminal needs to be placed
 in for
@@ -1088,8 +1149,8 @@ For example, the DEC vt220 supports most of the modes:
 .PP
 .TS
 center;
-lb lb lb
-l  l  l .
+Lb Lb Lb
+L  L  L .
 tparm Parameter	Attribute	Escape Sequence
 _
 none	none	\eE[0m
@@ -1123,8 +1184,8 @@ Writing out the above sequences, along with their dependencies yields
 .ne 11
 .TS
 center;
-lb lb lb
-l  l  l .
+Lb Lb Lb
+L  L  L .
 Sequence	When to Output	terminfo Translation
 _
 \eE[0	always	\eE[0
@@ -1140,8 +1201,10 @@ m	always	m
 Putting this all together into the sgr sequence gives:
 .PP
 .EX
+.nf
     sgr=\eE[0%?%p1%p6%|%t;1%;%?%p2%t;4%;%?%p4%t;5%;
         %?%p1%p3%|%t;7%;%?%p7%t;8%;m%?%p9%t\e016%e\e017%;,
+.fi
 .EE
 .PP
 Remember that if you specify sgr, you must also specify sgr0.
@@ -1296,38 +1359,61 @@ give them in \fBsmln\fP and \fBrmln\fP.
 \fBsmln\fP is normally output after one or more pln
 sequences to make sure that the change becomes visible.
 .SS "Tabs and Initialization"
-A few capabilities are used only for tabs:
+A few capabilities are used only to manage tab stops.
 .bP
-If the terminal has hardware tabs, the command to advance to the next
-tab stop can be given as
-.B ht
-(usually control/I).
+If the terminal has hardware tabs,
+specify the character sequence that advances to the next tab stop
+as the value of the
+.B tab
+.RB ( ht )
+string capability
+(usually Control+I).
 .bP
-A \*(``back-tab\*('' command which moves leftward to the preceding tab stop can
-be given as
-.BR cbt .
+Specify a character sequence that retreats
+(moves leftward)
+to the preceding tab stop
+as the value of the
+.B \%back_tab
+.RB ( cbt )
+string capability.
 .IP
-By convention, if the teletype modes indicate that tabs are being
-expanded by the computer rather than being sent to the terminal,
-programs should not use
-.B ht
+By convention,
+if the terminal modes are configured such that tabs are expanded
+by the host rather than terminal,
+applications should not employ the
+.B tab
+.RB ( ht )
 or
-.B cbt
-even if they are present, since the user may not have the tab stops
-properly set.
+.B \%back_tab
+.RB ( cbt )
+capabilities even if they are present,
+since the user may not have the tab stops properly set.
 .bP
-If the terminal has hardware tabs which are initially set every
+If the terminal has hardware tab stops that are set at every
 .I n
-spaces when the terminal is powered up,
-the numeric parameter
-.B it
-is given, showing the number of spaces the tabs are set to.
+character cells when the terminal is powered up,
+specify
+.I n
+as the value of the the numeric capability
+.B \%init_tabs
+.RB ( it )\c
+\&.
 .IP
-The \fBit\fP capability is normally used by the \fB@TSET@\fP
-command to determine whether to set the mode for hardware tab expansion,
-and whether to set the tab stops.
+The
+.B \%@TSET@
+and
+.RB \*(`` \%@TPUT@
+.BR init \*(''
+commands interpret the presence of the
+.B \%init_tabs
+.RB ( it )
+capability as implying that the terminal
+is responsible for tab stop expansion
+as well as an instruction to set the tab stops to its value.
 If the terminal has tab stops that can be saved in non-volatile memory,
-the terminfo description can assume that they are properly set.
+its
+.I \%term\%info
+type description can assume that they are properly set.
 .PP
 Other capabilities
 include
@@ -1446,7 +1532,7 @@ If there are commands to set and clear tab stops, they can be given as
 (clear all tab stops)
 and
 .B hts
-(set a tab stop in the current column of every row).
+(set a tab stop in the current column of every line).
 If a more complex sequence is needed to set the tabs than can be
 described by this, the sequence can be placed in
 .B is2
@@ -1618,40 +1704,85 @@ as the corresponding graphic.
 Then read off the VT100/your terminal
 character pairs right to left in sequence; these become the ACSC string.
 .SS "Color Handling"
-The curses library functions \fBinit_pair\fP and \fBinit_color\fP
-manipulate the \fIcolor pairs\fP and \fIcolor values\fP discussed in this
-section
-(see \fBcurs_color\fP(3X) for details on these and related functions).
+The
+.I curses
+library functions
+.B \%init_pair
+and
+.B \%init_color
+manipulate the
+.I "color pairs"
+and
+.I colors
+(color values or indices,
+such as \*(``1=red\*('')
+discussed in this section
+(see \fB\%curs_color\fP(3X) for details on these and related functions).
 .PP
-Most color terminals are either \*(``Tektronix-like\*('' or \*(``HP-like\*('':
+Most color terminals are either \*(``Tektronix-like\*(''
+or \*(``HP-like\*(''
+in their approach to color management.
 .bP
-Tektronix-like
-terminals have a predefined set of \fIN\fP colors
-(where \fIN\fP is usually 8),
-and can set
-character-cell foreground and background characters independently, mixing them
-into \fIN\fP\ *\ \fIN\fP color pairs.
+.I Tektronix-like
+terminals define a set of
+.I n
+colors
+(where
+.I n
+is usually 8),
+and can alter
+character-cell foreground and background colors independently,
+mixing them into
+.IR n \(mu n
+color pairs.
+ANSI-standard terminals are Tektronix-like.
 .bP
-On HP-like terminals, the user must set each color
-pair up separately (foreground and background are not independently settable).
-Up to \fIM\fP color pairs may be set up from 2*\fIM\fP different colors.
-ANSI-compatible terminals are Tektronix-like.
+On
+.I HP-like
+terminals,
+the user must set up each color pair separately;
+foreground and background are not independently alterable.
+Up to
+.I m
+color pairs may be configured from
+.RI 2\(mu m
+different colors.
 .PP
-Some basic color capabilities are independent of the color method.
-The numeric
-capabilities \fBcolors\fP and \fBpairs\fP specify the maximum numbers of colors
-and color pairs that can be displayed simultaneously.
-The \fBop\fP (original
-pair) string resets foreground and background colors to their default values
-for the terminal.
-The \fBoc\fP string resets all colors or color pairs to
-their default values for the terminal.
-Some terminals (including many PC
-terminal emulators) erase screen areas with the current background color rather
-than the power-up default background; these should have the Boolean capability
-\fBbce\fP.
+Some basic color management capabilities
+are independent of the color encoding method.
+The numeric capabilities
+.B \%max_colors
+.RB ( \%colors )
+and
+.B \%max_pairs
+.RB ( \%pairs )
+specify the maximum numbers of colors
+and color pairs that the device can display simultaneously.
+The
+.B \%orig_pair
+.RB ( \%op )
+(\*(``original pair\*('')
+string capability
+resets foreground and background colors
+to their default values for the terminal.
+The
+.B \%orig_colors
+.RB ( \%oc )
+(\*(``original colors\*('')
+string capability
+resets all colors or color pairs
+to their default values for the terminal.
+Some terminal types
+(including many PC terminal emulators)
+erase screen areas with the current background color rather
+than the power-up default background;
+these should declare the Boolean capability
+.B \%back_color_erase
+.RB ( bce ).
 .PP
-While the curses library works with \fIcolor pairs\fP
+While the
+.I curses
+library works with \fIcolor pairs\fP
 (reflecting the inability of some devices to set foreground
 and background colors independently),
 there are separate capabilities for setting these features:
@@ -1682,8 +1813,8 @@ space.
 .PP
 .TS
 center;
-cb cb cb cb s  s
-l  lb c  l1 l1 l .
+Cb Cb Cb Cb S  S
+L  Lb C  L1 L1 L .
 Color	#define 	Value	RGB
 _
 black	COLOR_BLACK	0	0,	0,	0
@@ -1703,8 +1834,8 @@ a different mapping, i.e.,
 .PP
 .TS
 center;
-cb cb cb cb s  s
-l  lb c  l1 l1 l .
+Cb Cb Cb Cb S  S
+L  Lb C  L1 L1 L .
 Color	#define 	Value	RGB
 _
 black	COLOR_BLACK	0	0,	0,	0
@@ -1755,8 +1886,8 @@ attributes understood by \fBcurses\fP is as follows:
 .PP
 .TS
 center;
-cb cb cb cb
-lb n  n  lb.
+Cb Cb Cb Cb
+Lb N  N  Lb.
 Attribute	Bit	Decimal	Set by
 _
 A_STANDOUT	0	1	sgr
@@ -2019,7 +2150,7 @@ The \-c (check) option also checks resolved (after tc
 expansion) lengths.
 .SH FILES
 .TP
-.I \*d
+.I @TERMINFO@
 compiled terminal description database directory
 .SH EXTENSIONS
 Searching for terminal descriptions in
@@ -2059,7 +2190,7 @@ Portable applications must assume that numeric capabilities are
 signed 16-bit values.
 This includes the \fIno_color_video\fP (\fBncv\fP) capability.
 The 32768 mask value used for italics with \fBncv\fP can be confused with
-an absent or cancelled \fBncv\fP.
+an absent or canceled \fBncv\fP.
 If italics should work with colors,
 then the \fBncv\fP value must be specified, even if it is zero.
 .PP
@@ -2076,7 +2207,7 @@ Solaris,
 and \fI\%ncurses\fP support all SVr4 capabilities.
 .bP
 IRIX supports the SVr4 set and adds one undocumented extended string
-capability (\fB\%set_pglen\fP).
+capability \%(\fBset_pglen\fP).
 .bP
 SVr1 and Ultrix support a restricted subset of \fI\%terminfo\fP
 capabilities.

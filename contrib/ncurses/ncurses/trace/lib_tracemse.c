@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -39,7 +39,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_tracemse.c,v 1.23 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_tracemse.c,v 1.24 2024/12/07 20:06:49 tom Exp $")
 
 #ifdef TRACE
 
@@ -117,9 +117,9 @@ _nc_trace_mmask_t(SCREEN *sp, mmask_t code)
 NCURSES_EXPORT(char *)
 _nc_tracemouse(SCREEN *sp, MEVENT const *ep)
 {
-    char *result = 0;
+    char *result = NULL;
 
-    if (sp != 0) {
+    if (sp != NULL) {
 	_nc_SPRINTF(my_buffer, _nc_SLIMIT(sizeof(my_buffer))
 		    TRACEMSE_FMT,
 		    ep->id,
@@ -138,7 +138,7 @@ _nc_tracemouse(SCREEN *sp, MEVENT const *ep)
 NCURSES_EXPORT(mmask_t)
 _nc_retrace_mmask_t(SCREEN *sp, mmask_t code)
 {
-    if (sp != 0) {
+    if (sp != NULL) {
 	*my_buffer = '\0';
 	T((T_RETURN("{%s}"), _nc_trace_mmask_t(sp, code)));
     } else {

@@ -2307,9 +2307,6 @@ OLD_FILES+=usr/share/man/man5/hesiod.conf.5.gz
 .endif
 
 .if ${MK_HTML} == no
-OLD_FILES+=usr/share/doc/ncurses/hackguide.html
-OLD_FILES+=usr/share/doc/ncurses/ncurses-intro.html
-OLD_DIRS+=usr/share/doc/ncurses
 OLD_FILES+=usr/share/doc/ntp/accopt.html
 OLD_FILES+=usr/share/doc/ntp/assoc.html
 OLD_FILES+=usr/share/doc/ntp/audio.html

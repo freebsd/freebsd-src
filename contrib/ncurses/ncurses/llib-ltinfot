@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 2013-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -70,6 +70,12 @@ NCURSES_BOOL _nc_is_dir_path(
 #undef _nc_is_file_path
 NCURSES_BOOL _nc_is_file_path(
 		const char *path)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef _nc_is_path_found
+NCURSES_BOOL _nc_is_path_found(
+		const char *path,
+		struct stat *sb)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef _nc_env_access
@@ -270,7 +276,7 @@ ENTRY	*_nc_tail;
 #undef _nc_free_entry
 void	_nc_free_entry(
 		ENTRY	*headp,
-		TERMTYPE *tterm)
+		const TERMTYPE *tterm)
 		{ /* void */ }
 
 #undef _nc_free_entries
@@ -656,7 +662,7 @@ int	_nc_putp_flush_sp(
 #undef _nc_keypad
 int	_nc_keypad(
 		SCREEN	*sp,
-		int	flag)
+		NCURSES_BOOL flag)
 		{ return(*(int *)0); }
 
 /* ./tinfo/lib_raw.c */
@@ -864,8 +870,8 @@ char	*_nc_get_locale(void)
 		{ return(*(char **)0); }
 
 #undef _nc_unicode_locale
-int	_nc_unicode_locale(void)
-		{ return(*(int *)0); }
+NCURSES_BOOL _nc_unicode_locale(void)
+		{ return(*(NCURSES_BOOL *)0); }
 
 #undef _nc_locale_breaks_acs
 int	_nc_locale_breaks_acs(
@@ -1209,7 +1215,7 @@ void	_tracef(
 
 #undef _nc_retrace_bool
 NCURSES_BOOL _nc_retrace_bool(
-		int	code)
+		NCURSES_BOOL code)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef _nc_retrace_char
@@ -1426,7 +1432,7 @@ int	resetty(void)
 
 #undef _nc_timed_wait
 int	_nc_timed_wait(
-		SCREEN	*sp,
+		const SCREEN *sp,
 		int	mode,
 		int	milliseconds,
 		int	*timeleft)

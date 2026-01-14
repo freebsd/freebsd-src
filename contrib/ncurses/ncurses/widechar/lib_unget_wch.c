@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2023 Thomas E. Dickey                                     *
+ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
  * Copyright 2002-2011,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_unget_wch.c,v 1.18 2023/06/03 12:50:52 tom Exp $")
+MODULE_ID("$Id: lib_unget_wch.c,v 1.19 2024/12/07 20:08:15 tom Exp $")
 
 /*
  * Wrapper for wcrtomb() which obtains the length needed for the given
@@ -51,7 +51,7 @@ _nc_wcrtomb(char *target, wchar_t source, mbstate_t * state)
 {
     int result;
 
-    if (target == 0) {
+    if (target == NULL) {
 	wchar_t temp[2];
 	const wchar_t *tempp = temp;
 	temp[0] = source;
@@ -75,13 +75,13 @@ NCURSES_SP_NAME(unget_wch) (NCURSES_SP_DCLx const wchar_t wch)
     T((T_CALLED("unget_wch(%p, %#lx)"), (void *) SP_PARM, (unsigned long) wch));
 
     init_mb(state);
-    length = _nc_wcrtomb(0, wch, &state);
+    length = _nc_wcrtomb(NULL, wch, &state);
 
     if (length != (size_t) (-1)
 	&& length != 0) {
 	char *string;
 
-	if ((string = (char *) malloc(length)) != 0) {
+	if ((string = (char *) malloc(length)) != NULL) {
 	    int n;
 
 	    init_mb(state);

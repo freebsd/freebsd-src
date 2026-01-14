@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -40,13 +40,13 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_winch.c,v 1.9 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_winch.c,v 1.10 2024/12/07 20:03:37 tom Exp $")
 
 NCURSES_EXPORT(chtype)
 winch(WINDOW *win)
 {
     T((T_CALLED("winch(%p)"), (void *) win));
-    if (win != 0) {
+    if (win != NULL) {
 	returnChtype((chtype) CharOf(win->_line[win->_cury].text[win->_curx])
 		     | AttrOf(win->_line[win->_cury].text[win->_curx]));
     } else {

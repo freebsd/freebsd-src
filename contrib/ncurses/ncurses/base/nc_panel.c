@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2000,2009 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,7 +33,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: nc_panel.c,v 1.6 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: nc_panel.c,v 1.7 2024/12/07 20:03:37 tom Exp $")
 
 NCURSES_EXPORT(struct panelhook *)
 NCURSES_SP_NAME(_nc_panelhook) (NCURSES_SP_DCL0)
@@ -42,7 +42,7 @@ NCURSES_SP_NAME(_nc_panelhook) (NCURSES_SP_DCL0)
 	    ? &(SP_PARM->_panelHook)
 	    : (CURRENT_SCREEN
 	       ? &(CURRENT_SCREEN->_panelHook)
-	       : 0));
+	       : NULL));
 }
 
 #if NCURSES_SP_FUNCS

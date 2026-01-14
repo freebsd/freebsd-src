@@ -51,6 +51,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260114: remove ncurses html documentation
+OLD_FILES+=usr/share/doc/ncurses/hackguide.html
+OLD_FILES+=usr/share/doc/ncurses/ncurses-intro.html
+OLD_DIRS+=usr/share/doc/ncurses
+
 # 20251215: Remove intrinsic utilities
 OLD_FILES+=usr/bin/alias
 OLD_FILES+=usr/bin/bg

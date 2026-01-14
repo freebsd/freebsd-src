@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2021 Thomas E. Dickey                                     *
+ * Copyright 2020-2021,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_sub.c,v 1.15 2021/06/17 21:20:30 tom Exp $")
+MODULE_ID("$Id: frm_sub.c,v 1.16 2024/07/27 18:35:02 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform
@@ -54,9 +54,8 @@ set_form_sub(FORM *form, WINDOW *win)
   else
     {
 #if NCURSES_SP_FUNCS
-      FORM *f = Normalize_Form(form);
-
-      f->sub = win ? win : StdScreen(Get_Form_Screen(f));
+      (void) Normalize_Form(form);
+      form->sub = win ? win : StdScreen(Get_Form_Screen(form));
       RETURN(E_OK);
 #else
       Normalize_Form(form)->sub = win;
@@ -76,12 +75,10 @@ set_form_sub(FORM *form, WINDOW *win)
 FORM_EXPORT(WINDOW *)
 form_sub(const FORM *form)
 {
-  const FORM *f;
-
   T((T_CALLED("form_sub(%p)"), (const void *)form));
 
-  f = Normalize_Form(form);
-  returnWin(Get_Form_Window(f));
+  (void) Normalize_Form(form);
+  returnWin(Get_Form_Window(form));
 }
 
 /* frm_sub.c ends here */

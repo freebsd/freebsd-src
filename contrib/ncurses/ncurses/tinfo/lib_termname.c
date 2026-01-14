@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2003,2009 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -29,21 +29,21 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_termname.c,v 1.13 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_termname.c,v 1.15 2025/01/12 00:41:56 tom Exp $")
 
 NCURSES_EXPORT(char *)
 NCURSES_SP_NAME(termname) (NCURSES_SP_DCL0)
 {
-    char *name = 0;
+    char *name = NULL;
 
     T((T_CALLED("termname(%p)"), (void *) SP_PARM));
 
 #if NCURSES_SP_FUNCS
-    if (TerminalOf(SP_PARM) != 0) {
+    if (TerminalOf(SP_PARM) != NULL) {
 	name = TerminalOf(SP_PARM)->_termname;
     }
 #else
-    if (cur_term != 0)
+    if (cur_term != NULL)
 	name = cur_term->_termname;
 #endif
 

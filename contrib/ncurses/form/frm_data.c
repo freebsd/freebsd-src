@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2021 Thomas E. Dickey                                     *
+ * Copyright 2020-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2010,2013 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_data.c,v 1.21 2021/06/17 21:11:08 tom Exp $")
+MODULE_ID("$Id: frm_data.c,v 1.22 2024/07/27 18:35:02 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform
@@ -54,7 +54,7 @@ data_behind(const FORM *form)
 
   if (form && (form->status & _POSTED) && form->current)
     {
-      FIELD *field;
+      const FIELD *field;
 
       field = form->current;
       if (!Single_Line_Field(field))
@@ -141,7 +141,7 @@ data_ahead(const FORM *form)
 
   if (form && (form->status & _POSTED) && form->current)
     {
-      FIELD *field;
+      const FIELD *field;
       bool cursor_moved = FALSE;
       int pos;
 

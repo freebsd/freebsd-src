@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2021 Thomas E. Dickey                                     *
+ * Copyright 2020-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -43,13 +43,13 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_mvwin.c,v 1.20 2021/10/23 18:57:41 tom Exp $")
+MODULE_ID("$Id: lib_mvwin.c,v 1.21 2024/07/27 19:23:59 tom Exp $")
 
 NCURSES_EXPORT(int)
 mvwin(WINDOW *win, int by, int bx)
 {
 #if NCURSES_SP_FUNCS
-    SCREEN *sp = _nc_screen_of(win);
+    const SCREEN *sp = _nc_screen_of(win);
 #endif
 
     T((T_CALLED("mvwin(%p,%d,%d)"), (void *) win, by, bx));

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2021 Thomas E. Dickey                                     *
+ * Copyright 2020-2021,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_win.c,v 1.19 2021/06/17 21:20:30 tom Exp $")
+MODULE_ID("$Id: frm_win.c,v 1.20 2024/07/27 18:35:02 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform
@@ -54,9 +54,8 @@ set_form_win(FORM *form, WINDOW *win)
   else
     {
 #if NCURSES_SP_FUNCS
-      FORM *f = Normalize_Form(form);
-
-      f->win = win ? win : StdScreen(Get_Form_Screen(f));
+      (void) Normalize_Form(form);
+      form->win = win ? win : StdScreen(Get_Form_Screen(form));
       RETURN(E_OK);
 #else
       Normalize_Form(form)->win = win;
@@ -77,15 +76,14 @@ FORM_EXPORT(WINDOW *)
 form_win(const FORM *form)
 {
   WINDOW *result;
-  const FORM *f;
 
   T((T_CALLED("form_win(%p)"), (const void *)form));
 
-  f = Normalize_Form(form);
+  (void) Normalize_Form(form);
 #if NCURSES_SP_FUNCS
-  result = (f->win ? f->win : StdScreen(Get_Form_Screen(f)));
+  result = (form->win ? form->win : StdScreen(Get_Form_Screen(form)));
 #else
-  result = (f->win ? f->win : stdscr);
+  result = (form->win ? form->win : stdscr);
 #endif
   returnWin(result);
 }

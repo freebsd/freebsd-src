@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2021 Thomas E. Dickey                                     *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2011,2015 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -40,7 +40,7 @@
 #define USE_TERMLIB 1
 #include <build.priv.h>
 
-MODULE_ID("$Id: make_keys.c,v 1.23 2021/08/18 20:55:25 tom Exp $")
+MODULE_ID("$Id: make_keys.c,v 1.25 2025/10/18 15:41:07 tom Exp $")
 
 #include <names.c>
 
@@ -51,10 +51,10 @@ unknown(void)
 
     if (result == 0) {
 	unsigned n;
-	for (n = 0; strnames[n] != 0; n++) {
+	for (n = 0; strnames[n] != NULL; n++) {
 	    ++result;
 	}
-	for (n = 0; strfnames[n] != 0; n++) {
+	for (n = 0; strfnames[n] != NULL; n++) {
 	    ++result;
 	}
     }
@@ -66,14 +66,14 @@ lookup(const char *name)
 {
     unsigned n;
     bool found = FALSE;
-    for (n = 0; strnames[n] != 0; n++) {
+    for (n = 0; strnames[n] != NULL; n++) {
 	if (!strcmp(name, strnames[n])) {
 	    found = TRUE;
 	    break;
 	}
     }
     if (!found) {
-	for (n = 0; strfnames[n] != 0; n++) {
+	for (n = 0; strfnames[n] != NULL; n++) {
 	    if (!strcmp(name, strfnames[n])) {
 		found = TRUE;
 		break;
@@ -93,7 +93,7 @@ make_keys(FILE *ifp, FILE *ofp)
     unsigned maxlen = 16;
     int scanned;
 
-    while (fgets(buffer, (int) sizeof(buffer), ifp) != 0) {
+    while (fgets(buffer, (int) sizeof(buffer), ifp) != NULL) {
 	if (*buffer == '#')
 	    continue;
 
@@ -119,7 +119,7 @@ make_keys(FILE *ifp, FILE *ofp)
 static void
 write_list(FILE *ofp, const char **list)
 {
-    while (*list != 0)
+    while (*list != NULL)
 	fprintf(ofp, "%s\n", *list++);
 }
 
@@ -139,22 +139,25 @@ main(int argc, char *argv[])
 	"static",
 	"#endif",
 	"const struct tinfo_fkeys _nc_tinfo_fkeys[] = {",
-	0
+	NULL
     };
     static const char *suffix[] =
     {
 	"\t{ 0, 0} };",
 	"",
 	"#endif /* _INIT_KEYTRY_H */",
-	0
+	NULL
     };
+
+    if (argc == 2 && !strcmp(argv[1], "-?"))
+	return EXIT_SUCCESS;
 
     write_list(stdout, prefix);
     if (argc > 1) {
 	int n;
 	for (n = 1; n < argc; n++) {
 	    FILE *fp = fopen(argv[n], "r");
-	    if (fp != 0) {
+	    if (fp != NULL) {
 		make_keys(fp, stdout);
 		fclose(fp);
 	    }

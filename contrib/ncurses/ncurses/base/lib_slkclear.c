@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2007,2009 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -41,7 +41,7 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkclear.c,v 1.15 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_slkclear.c,v 1.16 2024/12/07 20:03:37 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(slk_clear) (NCURSES_SP_DCL0)
@@ -50,7 +50,7 @@ NCURSES_SP_NAME(slk_clear) (NCURSES_SP_DCL0)
 
     T((T_CALLED("slk_clear(%p)"), (void *) SP_PARM));
 
-    if (SP_PARM != 0 && SP_PARM->_slk != 0) {
+    if (SP_PARM != NULL && SP_PARM->_slk != NULL) {
 	SP_PARM->_slk->hidden = TRUE;
 	/* For simulated SLK's it looks much more natural to
 	   inherit those attributes from the standard screen */

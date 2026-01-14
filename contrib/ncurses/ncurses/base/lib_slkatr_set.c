@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -39,7 +39,7 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkatr_set.c,v 1.17 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_slkatr_set.c,v 1.18 2024/12/07 20:03:37 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(slk_attr_set) (NCURSES_SP_DCLx
@@ -56,8 +56,8 @@ NCURSES_SP_NAME(slk_attr_set) (NCURSES_SP_DCLx
        color_pair));
 
     set_extended_pair(opts, color_pair);
-    if (SP_PARM != 0
-	&& SP_PARM->_slk != 0
+    if (SP_PARM != NULL
+	&& SP_PARM->_slk != NULL
 	&& color_pair >= 0
 	&& color_pair < SP_PARM->_pair_limit) {
 	TR(TRACE_ATTRS, ("... current %s", _tracech_t(CHREF(SP_PARM->_slk->attr))));

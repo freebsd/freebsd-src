@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -48,7 +48,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: comp_parse.c,v 1.134 2024/02/10 15:52:11 tom Exp $")
+MODULE_ID("$Id: comp_parse.c,v 1.141 2025/12/27 12:33:34 tom Exp $")
 
 static void sanity_check2(TERMTYPE2 *, bool);
 NCURSES_IMPEXP void (NCURSES_API *_nc_check_termtype2) (TERMTYPE2 *, bool) = sanity_check2;
@@ -64,13 +64,13 @@ enqueue(ENTRY * ep)
     DEBUG(2, (T_CALLED("enqueue(ep=%p)"), (void *) ep));
 
     newp = _nc_copy_entry(ep);
-    if (newp == 0)
+    if (newp == NULL)
 	_nc_err_abort(MSG_NO_MEMORY);
 
     newp->last = _nc_tail;
     _nc_tail = newp;
 
-    newp->next = 0;
+    newp->next = NULL;
     if (newp->last)
 	newp->last->next = newp;
     DEBUG(2, (T_RETURN("")));
@@ -81,7 +81,7 @@ enqueue(ENTRY * ep)
 static char *
 force_bar(char *dst, char *src)
 {
-    if (strchr(src, '|') == 0) {
+    if (strchr(src, '|') == NULL) {
 	size_t len = strlen(src);
 	if (len > MAX_NAME_SIZE)
 	    len = MAX_NAME_SIZE;
@@ -91,7 +91,7 @@ force_bar(char *dst, char *src)
     }
     return src;
 }
-#define ForceBar(dst, src) ((strchr(src, '|') == 0) ? force_bar(dst, src) : src)
+#define ForceBar(dst, src) ((strchr(src, '|') == NULL) ? force_bar(dst, src) : src)
 
 #if NCURSES_USE_TERMCAP && NCURSES_XNAMES
 static char *
@@ -99,7 +99,7 @@ skip_index(char *name)
 {
     char *bar = strchr(name, '|');
 
-    if (bar != 0 && (bar - name) == 2)
+    if (bar != NULL && (bar - name) == 2)
 	name = bar + 1;
 
     return name;
@@ -109,7 +109,9 @@ skip_index(char *name)
 static bool
 check_collisions(char *n1, char *n2, int counter)
 {
-    char *pstart, *qstart, *pend, *qend;
+    const char *pstart;
+    const char *qstart;
+    char *pend, *qend;
     char nc1[NAMEBUFFER_SIZE];
     char nc2[NAMEBUFFER_SIZE];
 
@@ -150,7 +152,7 @@ static char *
 name_ending(char *name)
 {
     if (*name == '\0') {
-	name = 0;
+	name = NULL;
     } else {
 	while (*name != '\0' && *name != '|')
 	    ++name;
@@ -401,7 +403,7 @@ NCURSES_EXPORT(int)
 _nc_resolve_uses2(bool fullresolve, bool literal)
 /* try to resolve all use capabilities */
 {
-    ENTRY *qp, *rp, *lastread = 0;
+    ENTRY *qp, *rp, *lastread = NULL;
     bool keepgoing;
     unsigned i, j;
     int total_unresolved, multiples;
@@ -450,7 +452,7 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
 	    char *lookfor = qp->uses[i].name;
 	    long lookline = qp->uses[i].line;
 
-	    if (lookfor == 0)
+	    if (lookfor == NULL)
 		continue;
 
 	    foundit = FALSE;
@@ -516,7 +518,7 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
 
 		_nc_curr_line = (int) lookline;
 		_nc_warning("resolution of use=%s failed", lookfor);
-		qp->uses[i].link = 0;
+		qp->uses[i].link = NULL;
 	    }
 	}
     }
@@ -536,12 +538,18 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
      */
     if (fullresolve) {
 	do {
+	    bool attempts;
+	    bool progress;
 	    ENTRY merged;
 
+	    attempts = FALSE;
+	    progress = FALSE;
 	    keepgoing = FALSE;
 
 	    for_entry_list(qp) {
 		if (qp->nuses > 0) {
+		    attempts = TRUE;
+
 		    DEBUG(2, ("%s: attempting merge of %d entries",
 			      _nc_first_name(qp->tterm.term_names),
 			      qp->nuses));
@@ -597,15 +605,33 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
 #endif
 		    qp->tterm = merged.tterm;
 		    _nc_wrap_entry(qp, TRUE);
+		    progress = TRUE;
 
 		    /*
-		     * We know every entry is resolvable because name resolution
-		     * didn't bomb.  So go back for another pass.
+		     * Every entry should be resolvable because name resolution
+		     * did not fail.  Continue if we have just made a change,
+		     * or another entry may be changeable.
 		     */
 		    /* FALLTHRU */
 		  incomplete:
 		    keepgoing = TRUE;
 		}
+	    }
+
+	    /*
+	     * If we went all the way through the list without making any
+	     * changes, while there were remaining use-linkages, something went
+	     * wrong.  Give up.
+	     */
+	    if (!progress && attempts) {
+		for_entry_list(qp) {
+		    for (i = 0; i < qp->nuses; ++i) {
+			_nc_warning("problem with use=%s", qp->uses[i].name);
+		    }
+		}
+		_nc_warning("merge failed, infinite loop");
+		DEBUG(2, (T_RETURN("false")));
+		return FALSE;
 	    }
 	} while
 	    (keepgoing);
@@ -640,6 +666,9 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
 		TerminalType(&fake_tm) = qp->tterm;
 		_nc_set_screen(&fake_sp);
 		set_curterm(&fake_tm);
+#if USE_TERM_DRIVER
+		((TERMINAL_CONTROL_BLOCK *) (CurTerm))->drv = &_nc_TINFO_DRIVER;
+#endif
 
 		_nc_check_termtype2(&qp->tterm, literal);
 
@@ -756,7 +785,7 @@ _nc_leaks_tic(void)
     _nc_names_leaks();
     _nc_codes_leaks();
 #endif
-    _nc_tic_expand(0, FALSE, 0);
+    _nc_tic_expand(NULL, FALSE, 0);
     T((T_RETURN("")));
 }
 

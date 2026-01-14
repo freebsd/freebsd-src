@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 2017 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -43,7 +43,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 #define MaxColors      InfoOf(SP_PARM).maxcolors
 #else
 #define MaxColors      max_colors
@@ -61,7 +61,7 @@
 
 #endif
 
-MODULE_ID("$Id: new_pair.c,v 1.23 2021/08/16 22:11:26 tom Exp $")
+MODULE_ID("$Id: new_pair.c,v 1.27 2025/12/27 12:41:23 tom Exp $")
 
 #if NCURSES_EXT_COLORS
 
@@ -148,10 +148,10 @@ _nc_find_color_pair(SCREEN *sp, int fg, int bg)
 
     find.fg = fg;
     find.bg = bg;
-    if (sp != 0) {
+    if (sp != NULL) {
 	void *pp;
-	if ((pp = tfind(&find, &sp->_ordered_pairs, compare_data)) != 0) {
-	    colorpair_t *temp = *(colorpair_t **) pp;
+	if ((pp = tfind(&find, &sp->_ordered_pairs, compare_data)) != NULL) {
+	    const colorpair_t *temp = *(colorpair_t **) pp;
 	    result = (int) (temp - sp->_color_pairs);
 	}
     }
@@ -193,7 +193,7 @@ _nc_free_ordered_pairs(SCREEN *sp)
  * pair table.
  */
 NCURSES_EXPORT(void)
-_nc_reset_color_pair(SCREEN *sp, int pair, colorpair_t * next)
+_nc_reset_color_pair(SCREEN *sp, int pair, const colorpair_t * next)
 {
     colorpair_t *last;
 
@@ -252,8 +252,8 @@ _nc_copy_pairs(SCREEN *sp, colorpair_t * target, colorpair_t * source, int lengt
 {
     int n;
     for (n = 0; n < length; ++n) {
-	void *find = tfind(source + n, &sp->_ordered_pairs, compare_data);
-	if (find != 0) {
+	const void *find = tfind(source + n, &sp->_ordered_pairs, compare_data);
+	if (find != NULL) {
 	    tdelete(source + n, &sp->_ordered_pairs, compare_data);
 	    tsearch(target + n, &sp->_ordered_pairs, compare_data);
 	}
@@ -266,7 +266,7 @@ NCURSES_SP_NAME(alloc_pair) (NCURSES_SP_DCLx int fg, int bg)
     int pair;
 
     T((T_CALLED("alloc_pair(%d,%d)"), fg, bg));
-    if (SP_PARM == 0) {
+    if (SP_PARM == NULL) {
 	pair = -1;
     } else if ((pair = _nc_find_color_pair(SP_PARM, fg, bg)) < 0) {
 	/*
@@ -291,7 +291,7 @@ NCURSES_SP_NAME(alloc_pair) (NCURSES_SP_DCLx int fg, int bg)
 	    if (!found && (SP_PARM->_pair_alloc < SP_PARM->_pair_limit)) {
 		pair = SP_PARM->_pair_alloc;
 		ReservePairs(SP_PARM, pair);
-		if (SP_PARM->_color_pairs == 0) {
+		if (SP_PARM->_color_pairs == NULL) {
 		    pair = -1;
 		} else {
 		    found = TRUE;

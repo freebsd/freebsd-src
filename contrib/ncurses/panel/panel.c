@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -37,14 +37,14 @@
 /* panel.c -- implementation of panels library, some core routines */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: panel.c,v 1.30 2020/09/26 18:05:17 tom Exp $")
+MODULE_ID("$Id: panel.c,v 1.31 2024/12/07 23:05:20 tom Exp $")
 
 /*+-------------------------------------------------------------------------
 	_nc_retrace_panel (pan)
 --------------------------------------------------------------------------*/
 #ifdef TRACE
 PANEL_EXPORT(PANEL *)
-_nc_retrace_panel(PANEL * pan)
+_nc_retrace_panel(PANEL *pan)
 {
   T((T_RETURN("%p"), (void *)pan));
   return pan;
@@ -61,7 +61,7 @@ _nc_my_visbuf(const void *ptr, int n)
 {
   char temp[32];
 
-  if (ptr != 0)
+  if (ptr != NULL)
     _nc_SPRINTF(temp, _nc_SLIMIT(sizeof(temp)) "%p", ptr);
   else
     _nc_STRCPY(temp, "<null>", sizeof(temp));
@@ -75,7 +75,7 @@ _nc_my_visbuf(const void *ptr, int n)
 --------------------------------------------------------------------------*/
 #ifdef TRACE
 PANEL_EXPORT(void)
-_nc_dPanel(const char *text, const PANEL * pan)
+_nc_dPanel(const char *text, const PANEL *pan)
 {
   _tracef("%s id=%s b=%s a=%s y=%d x=%d",
 	  text, USER_PTR(pan->user, 1),
@@ -90,7 +90,7 @@ _nc_dPanel(const char *text, const PANEL * pan)
 --------------------------------------------------------------------------*/
 #ifdef TRACE
 PANEL_EXPORT(void)
-_nc_dStack(const char *fmt, int num, const PANEL * pan)
+_nc_dStack(const char *fmt, int num, const PANEL *pan)
 {
   char s80[80];
 
@@ -116,7 +116,7 @@ _nc_dStack(const char *fmt, int num, const PANEL * pan)
 --------------------------------------------------------------------------*/
 #ifdef TRACE
 PANEL_EXPORT(void)
-_nc_Wnoutrefresh(const PANEL * pan)
+_nc_Wnoutrefresh(const PANEL *pan)
 {
   dPanel("wnoutrefresh", pan);
   wnoutrefresh(pan->win);
@@ -128,7 +128,7 @@ _nc_Wnoutrefresh(const PANEL * pan)
 --------------------------------------------------------------------------*/
 #ifdef TRACE
 PANEL_EXPORT(void)
-_nc_Touchpan(const PANEL * pan)
+_nc_Touchpan(const PANEL *pan)
 {
   dPanel("Touchpan", pan);
   touchwin(pan->win);
@@ -140,7 +140,7 @@ _nc_Touchpan(const PANEL * pan)
 --------------------------------------------------------------------------*/
 #ifdef TRACE
 PANEL_EXPORT(void)
-_nc_Touchline(const PANEL * pan, int start, int count)
+_nc_Touchline(const PANEL *pan, int start, int count)
 {
   char s80[80];
 

@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_userptr.3x,v 1.30 2024/03/16 15:35:01 tom Exp $
-.TH form_field_userptr 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: form_field_userptr.3x,v 1.32 2024/12/28 21:26:21 tom Exp $
+.TH form_field_userptr 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBset_field_userptr\fP,
 \fBfield_userptr\fP \-
@@ -46,7 +46,8 @@ Every form field has a field that can be used to hold application-specific data
 These functions get and set
 that field.
 .SH RETURN VALUE
-The function \fBfield_userptr\fP returns a pointer (which may be \fBNULL\fP).
+The function \fBfield_userptr\fP returns a pointer (which may be
+.IR NULL ")."
 It does not set \fBerrno\fP.
 .PP
 The function \fBset_field_userptr\fP returns \fBE_OK\fP (success).

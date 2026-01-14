@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020-2021,2023 Thomas E. Dickey                                *
+ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
  * Copyright 1998-2010,2011 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -43,7 +43,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_refresh.c,v 1.48 2023/05/27 20:13:10 tom Exp $")
+MODULE_ID("$Id: lib_refresh.c,v 1.49 2024/09/22 20:17:40 tom Exp $")
 
 NCURSES_EXPORT(int)
 wrefresh(WINDOW *win)
@@ -55,7 +55,7 @@ wrefresh(WINDOW *win)
 
     T((T_CALLED("wrefresh(%p)"), (void *) win));
 
-    if (win == 0) {
+    if (SP_PARM == NULL || win == NULL) {
 	code = ERR;
     } else if (win == CurScreen(SP_PARM)) {
 	CurScreen(SP_PARM)->_clear = TRUE;
@@ -92,7 +92,7 @@ wnoutrefresh(WINDOW *win)
 
     T((T_CALLED("wnoutrefresh(%p)"), (void *) win));
 
-    if (win == NULL)
+    if (SP_PARM == NULL || win == NULL)
 	returnCode(ERR);
 
     /*

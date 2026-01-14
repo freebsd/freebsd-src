@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_new.3x,v 1.35 2024/03/16 15:35:01 tom Exp $
-.TH menu_new 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: menu_new.3x,v 1.37 2024/12/28 21:26:21 tom Exp $
+.TH menu_new 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBnew_menu\fP,
 \fBfree_menu\fP \-
@@ -42,12 +42,15 @@ create and destroy menus
 .fi
 .SH DESCRIPTION
 The function \fBnew_menu\fP creates a new menu connected to a specified item
-pointer array (which must be \fBNULL\fP-terminated).
+pointer array (which must be
+.IR NULL -terminated).
 .PP
 The function \fBfree_menu\fP disconnects \fImenu\fP from its item array
 and frees the storage allocated for the menu.
 .SH RETURN VALUE
-The function \fBnew_menu\fP returns \fBNULL\fP on error.
+The function \fBnew_menu\fP returns
+.I NULL
+on error.
 It sets \fBerrno\fP according to the function's failure:
 .TP 5
 .B E_NOT_CONNECTED

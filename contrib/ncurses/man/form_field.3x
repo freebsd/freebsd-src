@@ -28,8 +28,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field.3x,v 1.34 2024/03/16 15:35:01 tom Exp $
-.TH form_field 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: form_field.3x,v 1.36 2024/12/28 21:26:21 tom Exp $
+.TH form_field 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBform_field\fP \-
 make and break connections between fields and forms
@@ -44,7 +44,8 @@ make and break connections between fields and forms
 .fi
 .SH DESCRIPTION
 The function \fBset_form_fields\fP changes the field pointer array of
-the given \fIform\fP.  The array must be terminated by a \fBNULL\fP.
+the given \fIform\fP.  The array must be terminated by a
+.IR NULL "."
 .PP
 The function \fBform_fields\fP returns the field array of the given form.
 .PP
@@ -53,11 +54,13 @@ The function \fBfield_count\fP returns the count of fields in \fIform\fP.
 The function \fBmove_field\fP moves the given field (which must be disconnected)
 to a specified location on the screen.
 .SH RETURN VALUE
-The function \fBform_fields\fP returns a pointer (which may be \fBNULL\fP).
+The function \fBform_fields\fP returns a pointer (which may be
+.IR NULL ")."
 It does not set \fBerrno\fP.
 .PP
-The function \fBfield_count\fP returns \fBERR\fP if the \fIform\fP parameter
-is \fBNULL\fP.
+The function \fBfield_count\fP returns \fBERR\fP if the \fIform\fP
+parameter is
+.IR NULL "."
 .PP
 The functions \fBset_form_fields\fP and \fBmove_field\fP return one of
 the following codes on error:

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2023 Thomas E. Dickey                                     *
+ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
  * Copyright 2003-2006,2009 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,7 +34,7 @@
 #include <curses.priv.h>
 #include <tic.h>
 
-MODULE_ID("$Id: key_defined.c,v 1.11 2023/06/24 15:36:32 tom Exp $")
+MODULE_ID("$Id: key_defined.c,v 1.12 2024/12/07 21:24:18 tom Exp $")
 
 static int
 find_definition(TRIES * tree, const char *str)
@@ -43,9 +43,9 @@ find_definition(TRIES * tree, const char *str)
     int result = OK;
 
     if (VALID_STRING(str) && *str != '\0') {
-	for (ptr = tree; ptr != 0; ptr = ptr->sibling) {
+	for (ptr = tree; ptr != NULL; ptr = ptr->sibling) {
 	    if (UChar(*str) == UChar(ptr->ch)) {
-		if (str[1] == '\0' && ptr->child != 0) {
+		if (str[1] == '\0' && ptr->child != NULL) {
 		    result = ERR;
 		} else if ((result = find_definition(ptr->child, str + 1))
 			   == OK) {
@@ -72,7 +72,7 @@ NCURSES_SP_NAME(key_defined) (NCURSES_SP_DCLx const char *str)
     int code = ERR;
 
     T((T_CALLED("key_defined(%p, %s)"), (void *) SP_PARM, _nc_visbuf(str)));
-    if (SP_PARM != 0 && str != 0) {
+    if (SP_PARM != NULL && str != NULL) {
 	code = find_definition(SP_PARM->_keytry, str);
     }
 

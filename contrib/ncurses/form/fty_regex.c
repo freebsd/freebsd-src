@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2018-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2012,2015 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,7 +35,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_regex.c,v 1.33 2021/08/14 15:01:52 tom Exp $")
+MODULE_ID("$Id: fty_regex.c,v 1.34 2024/12/07 23:02:27 tom Exp $")
 
 #if HAVE_REGEX_H_FUNCS || HAVE_LIB_PCRE2	/* We prefer POSIX regex */
 
@@ -157,12 +157,12 @@ Generic_RegularExpression_Type(void *arg MAYBE_UNUSED)
       if (preg)
 	{
 	  T((T_CREATE("RegExp_Arg %p"), (void *)preg));
-	  if (((preg->pRegExp = typeMalloc(regex_t, 1)) != 0)
+	  if (((preg->pRegExp = typeMalloc(regex_t, 1)) != NULL)
 	      && !regcomp(preg->pRegExp, rx,
 			  (REG_EXTENDED | REG_NOSUB | REG_NEWLINE)))
 	    {
 	      T((T_CREATE("regex_t %p"), (void *)preg->pRegExp));
-	      if ((preg->refCount = typeMalloc(unsigned long, 1)) != 0)
+	      if ((preg->refCount = typeMalloc(unsigned long, 1)) != NULL)
 		 *(preg->refCount) = 1;
 	    }
 	  else

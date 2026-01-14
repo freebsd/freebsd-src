@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2020,2023 Thomas E. Dickey                                *
+ * Copyright 2019-2023,2024 Thomas E. Dickey                                *
  * Copyright 1998-2008,2009 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -45,7 +45,7 @@
 #include <tic.h>
 #include <hashsize.h>
 
-MODULE_ID("$Id: comp_hash.c,v 1.55 2023/06/24 13:29:43 tom Exp $")
+MODULE_ID("$Id: comp_hash.c,v 1.56 2024/12/07 20:05:08 tom Exp $")
 
 /*
  * Finds the entry for the given string in the hash table if present.
@@ -58,7 +58,7 @@ _nc_find_entry(const char *string,
     bool termcap = (hash_table != _nc_get_hash_table(FALSE));
     const HashData *data = _nc_get_hash_info(termcap);
     int hashvalue;
-    struct name_table_entry const *ptr = 0;
+    struct name_table_entry const *ptr = NULL;
     struct name_table_entry const *real_table;
 
     hashvalue = data->hash_of(string);
@@ -71,7 +71,7 @@ _nc_find_entry(const char *string,
 	ptr = real_table + data->table_data[hashvalue];
 	while (!data->compare_names(ptr->nte_name, string)) {
 	    if (ptr->nte_link < 0) {
-		ptr = 0;
+		ptr = NULL;
 		break;
 	    }
 	    ptr = real_table + (ptr->nte_link
@@ -108,7 +108,7 @@ _nc_find_type_entry(const char *string,
 	    while (ptr->nte_type != type
 		   || !data->compare_names(ptr->nte_name, string)) {
 		if (ptr->nte_link < 0) {
-		    ptr = 0;
+		    ptr = NULL;
 		    break;
 		}
 		ptr = table + (ptr->nte_link + data->table_data[data->table_size]);
@@ -125,7 +125,7 @@ _nc_find_user_entry(const char *string)
 {
     const HashData *data = _nc_get_hash_user();
     int hashvalue;
-    struct user_table_entry const *ptr = 0;
+    struct user_table_entry const *ptr = NULL;
     struct user_table_entry const *real_table;
 
     hashvalue = data->hash_of(string);
@@ -138,7 +138,7 @@ _nc_find_user_entry(const char *string)
 	ptr = real_table + data->table_data[hashvalue];
 	while (!data->compare_names(ptr->ute_name, string)) {
 	    if (ptr->ute_link < 0) {
-		ptr = 0;
+		ptr = NULL;
 		break;
 	    }
 	    ptr = real_table + (ptr->ute_link

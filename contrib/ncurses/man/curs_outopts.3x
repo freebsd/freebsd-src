@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,164 +27,348 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_outopts.3x,v 1.64 2024/04/20 21:24:19 tom Exp $
-.TH curs_outopts 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_outopts.3x,v 1.106 2025/11/12 00:52:57 tom Exp $
+.TH curs_outopts 3X 2025-11-11 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
 .de bP
 .ie n  .IP \(bu 4
 .el    .IP \(bu 2
 ..
 .SH NAME
 \fB\%clearok\fP,
-\fB\%idlok\fP,
 \fB\%idcok\fP,
+\fB\%idlok\fP,
 \fB\%immedok\fP,
 \fB\%leaveok\fP,
+\fB\%scrollok\fP,
 \fB\%setscrreg\fP,
-\fB\%wsetscrreg\fP,
-\fB\%scrollok\fP \-
+\fB\%wsetscrreg\fP \-
 set \fIcurses\fR output options
 .SH SYNOPSIS
 .nf
 \fB#include <curses.h>
 .PP
-\fBint clearok(WINDOW *\fIwin\fP, bool \fIbf\fP);
-\fBint idlok(WINDOW *\fIwin\fP, bool \fIbf\fP);
-\fBvoid idcok(WINDOW *\fIwin\fP, bool \fIbf\fP);
-\fBvoid immedok(WINDOW *\fIwin\fP, bool \fIbf\fP);
-\fBint leaveok(WINDOW *\fIwin\fP, bool \fIbf\fP);
-\fBint scrollok(WINDOW *\fIwin\fP, bool \fIbf\fP);
+\fBint clearok(WINDOW * \fIwin\fP, bool \fIbf\fP);
+\fBvoid idcok(WINDOW * \fIwin\fP, bool \fIbf\fP);
+\fBint idlok(WINDOW * \fIwin\fP, bool \fIbf\fP);
+\fBvoid immedok(WINDOW * \fIwin\fP, bool \fIbf\fP);
+\fBint leaveok(WINDOW * \fIwin\fP, bool \fIbf\fP);
+\fBint scrollok(WINDOW * \fIwin\fP, bool \fIbf\fP);
 .PP
 \fBint setscrreg(int \fItop\fP, int \fIbot\fP);
-\fBint wsetscrreg(WINDOW *\fIwin\fP, int \fItop\fP, int \fIbot\fP);
+\fBint wsetscrreg(WINDOW * \fIwin\fP, int \fItop\fP, int \fIbot\fP);
 .fi
 .SH DESCRIPTION
-These routines set options that change the style of output within
-\fBcurses\fP.
-All options are initially \fBFALSE\fP, unless otherwise stated.
-It is not necessary to turn these options off before calling \fBendwin\fP(3X).
+These functions configure properties of
+.I curses
+windows that affect their manner of output.
+Boolean-valued properties are initially
+.B FALSE
+except where noted.
+\fBendwin\fP(3X) resets any terminal modes corresponding to these
+properties;
+an application need not restore their initial values.
 .SS clearok
-If \fBclearok\fP is called with \fBTRUE\fP as argument, the next
-call to \fBwrefresh\fP with this window will clear the screen completely and
-redraw the entire screen from scratch.
-This is useful when the contents of the
-screen are uncertain, or in some cases for a more pleasing visual effect.
+Setting
+.IR win 's
+.B \%clearok
+property to
+.B TRUE
+causes the next
+.B \%wrefresh
+call on it to clear the terminal screen and redraw it entirely.
+This property is useful to restore the contents of the screen
+(perhaps because another process has written to the terminal),
+or in some cases to achieve a more pleasing visual effect.
 If
-the \fIwin\fP argument to \fBclearok\fP is the global variable \fBcurscr\fP,
-the next call to \fBwrefresh\fP with any window causes the screen to be cleared
-and repainted from scratch.
-.SS idlok
-If \fBidlok\fP is called with \fBTRUE\fP as second argument, \fBcurses\fP
-considers using the hardware insert/delete line feature of terminals so
-equipped.
-Calling \fBidlok\fP with \fBFALSE\fP as second argument disables use
-of line insertion and deletion.
-This option should be enabled only if the
-application needs insert/delete line, for example, for a screen editor.
-It is
-disabled by default because insert/delete line tends to be visually annoying
-when used in applications where it is not really needed.
-If insert/delete line
-cannot be used, \fBcurses\fP redraws the changed portions of all lines.
+.I \%win
+is
+.B \%curscr
+(see \fBcurs_variables\fP(3X)),
+the next
+.B \%wrefresh
+call on
+.I any
+window causes the terminal screen to clear and redraw as above.
+.B \%wrefresh
+resets this property to
+.BR FALSE "."
 .SS idcok
-If \fBidcok\fP is called with \fBFALSE\fP as second argument, \fBcurses\fP
-no longer considers using the hardware insert/delete character feature of
-terminals so equipped.
-Use of character insert/delete is enabled by default.
-Calling \fBidcok\fP with \fBTRUE\fP as second argument re-enables use
-of character insertion and deletion.
+(This property defaults
+.BR TRUE ".)"
+Setting
+.IR win 's
+.B \%idcok
+property to
+.B FALSE
+prevents
+.I curses
+from using the insert/delete character capabilities of terminal types
+possessing them according to the
+.I \%term\%info
+database.
+.SS idlok
+Setting
+.IR win 's
+.B \%idlok
+property to
+.B TRUE
+causes
+.I curses
+to consider
+using the insert/delete line capabilities of terminal types
+possessing them according to the
+.I \%term\%info
+database.
+Enable this option
+if the application explicitly requires these operations,
+as a full-screen text editor might;
+otherwise the results may be visually annoying to the user.
+.\" TODO: Substantiate that claim.
 .SS immedok
-If \fBimmedok\fP is called with \fBTRUE\fP as second argument,
-any change in the window image,
-such as the ones caused by \fBwaddch, wclrtobot, wscrl\fP,
-etc., automatically causes a call to \fBwrefresh\fP.
-However, it may degrade performance considerably,
-due to repeated calls to \fBwrefresh\fP.
-Calling \fBimmedok\fP with \fBFALSE\fP as second argument
+If
+.B \%immedok
+is called with
+.B TRUE
+as second argument,
+changes to the window image,
+such as those caused by
+.BR \%waddch ","
+.BR \%wclrtobot ","
+or
+.BR \%wscrl ","
+automatically cause a call to
+.BR wrefresh "."
+Setting a window's
+.B \%immedok
+property may degrade performance considerably
+if writes are frequent.
+Calling
+.B \%immedok
+with
+.B FALSE
+as second argument
 restores the default behavior,
-i.e., deferring screen updates until a refresh is needed.
+deferring screen updates until a refresh is needed
+or explicitly directed by the application.
 .SS leaveok
-Normally, the hardware cursor is left at the location of the window cursor
-being refreshed.
-The \fBleaveok\fP option allows the cursor to be left
+Normally,
+.I curses
+leaves the hardware cursor at the library's cursor location
+of the window being refreshed.
+The
+.B \%leaveok
+option allows the cursor to be left
 wherever the update happens to leave it.
-It is useful for applications where
-the cursor is not used, since it reduces the need for cursor motions.
+It is useful for applications that do not employ a visible cursor,
+since it reduces the need for cursor motions.
 .SS scrollok
-The \fBscrollok\fP option controls what happens when the cursor of a window is
-moved off the edge of the window or scrolling region, either as a result of a
-newline action on the bottom line, or typing the last character of the last
-line.
-If disabled, (\fIbf\fP is \fBFALSE\fP), the cursor is left on the bottom
-line.
-If enabled, (\fIbf\fP is \fBTRUE\fP), the window is scrolled up one line
-(Note that to get the physical scrolling effect on the terminal, it is
-also necessary to call \fBidlok\fP).
-.SS  "setscrreg, wsetscrreg"
-The \fBsetscrreg\fP and \fBwsetscrreg\fP routines allow the application
-programmer to set a software scrolling region in a window.
-The \fItop\fP and
-\fIbot\fP parameters
+The
+.B \%scrollok
+option controls what happens when a window's cursor
+moves off the edge of the window or scrolling region,
+as a result of either
+(1) writing a newline anywhere on its bottom line,
+or
+(2) writing a character that advances the cursor to the last position
+on its bottom line.
+If disabled
+.RI ( bf
+is
+.BR FALSE "),"
+.I curses
+leaves the cursor on the bottom line of the window.
+If enabled
+.RI ( bf
+is
+.BR TRUE "),"
+.I curses
+scrolls the window up one line.
+(To get the physical scrolling effect on the terminal,
+the application must also enable
+.BR idlok ")."
+.SS "setscrreg, wsetscrreg"
+The
+.B \%wsetscrreg
+and
+.B \%setscrreg
+functions allow the application
+to set a software scrolling region in the specified window or
+.BR \%stdscr ","
+respectively.
+The
+.I top
+and
+.I bot
+parameters
 are the line numbers of the top and bottom margin of the scrolling
 region.
-(Line 0 is the top line of the window.)  If this option and
-\fBscrollok\fP are enabled, an attempt to move off the bottom margin line
-causes all lines in the scrolling region to scroll one line in the direction
-of the first line.
+If this option and
+.B scrollok
+are enabled,
+an attempt to move off the bottom margin line
+causes all lines in the scrolling region
+to scroll one line in the direction of the first line.
 Only the text of the window is scrolled.
-(Note that this
-has nothing to do with the use of a physical scrolling region capability in the
-terminal, like that in the VT100.
-If \fBidlok\fP is enabled and the terminal
-has either a scrolling region or insert/delete line capability, they will
-probably be used by the output routines.)
+(This process has nothing to do
+with the scrolling region capability of the terminal,
+as found in the DEC VT100.)
+If
+.B \%idlok
+is enabled and the terminal
+has either a scrolling region or insert/delete line capability,
+they will probably be used by the output routines.
 .SH RETURN VALUE
-The functions \fBsetscrreg\fP and \fBwsetscrreg\fP return \fBOK\fP upon success
-and \fBERR\fP upon failure.
+The functions
+.B \%setscrreg
+and
+.B \%wsetscrreg
+return
+.B OK
+upon success
+and
+.B ERR
+upon failure.
 All other routines that return an integer always
-return \fBOK\fP.
+return
+.BR OK "."
 .PP
-X/Open Curses does not specify any error conditions.
-.PP
-In this implementation,
+In
+.IR \%ncurses ","
+these functions fail if
 .bP
-those functions that have a window pointer
-will return an error if the window pointer is null
+the
+.I curses
+screen has not been initialized,
 .bP
-\fBwsetscrreg\fP
-returns an error if the scrolling region limits extend outside the
-window boundaries.
+(for functions taking a
+.I \%WINDOW
+pointer argument)
+.I win
+is a null pointer,
+or
+.bP
+(for
+.B \%setscrreg
+and
+.BR \%wsetscrreg ")"
+the function is passed arguments describing a scrolling region
+with limits that extend outside the window boundaries.
 .SH NOTES
-Note that
-\fBclearok\fP,
-\fBleaveok\fP,
-\fBscrollok\fP,
-\fBidcok\fP, and
-\fBsetscrreg\fP may be macros.
+.BR \%clearok ","
+.BR \%leaveok ","
+.BR \%scrollok ","
+.BR \%idcok ","
+and
+.B \%setscrreg
+may be implemented as macros.
 .PP
-The \fBimmedok\fP routine is useful for windows that are used as terminal
-emulators.
+Unlike the other functions described by this page,
+.B \%setscrreg
+does not accept a
+.RI pointer-to- WINDOW
+parameter,
+but operates on
+.BR stdscr "."
+Use
+.B \%wsetscrreg
+to configure the scrolling region of a selected window.
+.PP
+Historically,
+applications used
+.B \%idcok(FALSE)
+to accommodate the \*(``magic cookie\*('' feature
+of some terminal types;
+see subsection \*(``Highlighting, Underlining, and Visible Bells\*(''
+of \fB\%terminfo\fP(5).
+When updating a line,
+the presence of character cells with magic cookies in them
+made the
+.I curses
+library's computations of characters to be rewritten inaccurate.
+A better solution is to indicate the
+.B \%magic_cookie_glitch
+.RB ( xmc )
+capability in the terminal's type description.
+.PP
+.B \%immedok
+is useful for windows that are used as terminal emulators.
 .SH PORTABILITY
-These functions are described in X/Open Curses, Issue 4.
+X/Open Curses Issue\ 4 describes these functions.
+It specifies no error conditions for them.
 .PP
-Some historic curses implementations had, as an undocumented feature, the
-ability to do the equivalent of \fBclearok(..., 1)\fP by saying
-\fBtouchwin(stdscr)\fP or \fBclear(stdscr)\fP.
-This will not work under \fI\%ncurses\fP.
+Some historic
+.I curses
+implementations,
+as an undocumented feature,
+did the equivalent of
+.RB \*(`` \%clearok( .\|.\|. ", 1)" \*(''
+when
+.B \%touchwin(stdstr)
+or
+.B \%clear(stdstr)
+were used.
+This trick does not work with
+.IR \%ncurses .
 .PP
-Earlier System V curses implementations specified that with \fBscrollok\fP
-enabled, any window modification triggering a scroll also forced a physical
-refresh.
-X/Open Curses does not require this, and \fI\%ncurses\fP avoids doing
-it to perform better vertical-motion optimization at \fBwrefresh\fP
-time.
+Early System\ V
+.I curses
+implementations specified that with
+.I \%scrollok
+enabled,
+any window modification triggering a scroll
+also forced a physical refresh.
+X/Open Curses does not require this,
+and
+.I \%ncurses
+avoids doing so to better optimize vertical motions upon a
+.IR \%wrefresh "."
 .PP
 X/Open Curses does not mention that the cursor should be
-made invisible as a side-effect of \fBleaveok\fP.
-SVr4 curses documentation does this, but the code does not.
-Use \fBcurs_set\fP to make the cursor invisible.
+made invisible as a side effect of
+.IR \%leaveok "."
+SVr4
+.I curses
+documentation notes this behavior,
+but the code neglects to implement it.
+Use \fB\%curs_set\fP(3X) to make the cursor invisible.
 .SH HISTORY
+4BSD (1980)
+introduced
+.IR \%clearok ","
+.IR \%leaveok ","
+and
+.IR \%scrollok "."
+.PP
+SVr2 (1984)
+supplied
+.IR \%idlok ","
+.IR \%setscrreg ","
+and
+.IR \%wsetscrreg "."
+.PP
+SVr3.1 (1987)
+implemented
+.I \%idcok
+and
+.IR \%immedok "."
+.PP
 .I \%ncurses
-formerly treated \fBnl\fP(3X) and \fBnonl\fP(3X) as both input
+formerly treated
+.I nl
+and
+.I nonl
+as both input
 .I and
 output options,
 but no longer;

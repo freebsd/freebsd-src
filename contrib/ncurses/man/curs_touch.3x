@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,18 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_touch.3x,v 1.47 2024/04/20 21:20:07 tom Exp $
-.TH curs_touch 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_touch.3x,v 1.63 2025/01/19 00:51:10 tom Exp $
+.TH curs_touch 3X 2025-01-18 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
 .SH NAME
 \fB\%touchwin\fP,
 \fB\%touchline\fP,
@@ -77,16 +87,19 @@ call to \fB\%wrefresh\fP; otherwise they return \fBFALSE\fP.  In
 addition, \fB\%is_linetouched\fP returns \fBERR\fP if \fIline\fP is not
 valid for the given window.
 .SH RETURN VALUE
-All routines return the integer \fBERR\fP upon failure and an integer value
-other than \fBERR\fP upon successful completion, unless otherwise noted in the
-preceding routine descriptions.
+Functions returning integers return
+.B ERR
+upon failure and
+.B OK
+upon success.
 .PP
-X/Open Curses does not specify any error conditions.
-In this implementation
+In
+.IR \%ncurses ","
 .RS 3
 .TP 5
 \fBis_linetouched\fP
-returns an error
+returns
+.B ERR
 if the window pointer is null, or
 if the line number is outside the window boundaries.
 .IP
@@ -101,23 +114,40 @@ the \fBERR\fP is provided by a macro named \fB\%is_linetouched\fP.
 The actual function returns \fBFALSE\fP when it detects an error.
 .TP 5
 \fBwtouchln\fP
-returns an error
+returns
+.B ERR
 if the window pointer is null, or
 if the line number is outside the window boundaries.
 .RE
 .SH NOTES
-All of these routines except \fB\%wtouchln\fP may be macros.
+All of these functions except
+.B \%wtouchln
+may be implemented as macros.
 .SH PORTABILITY
-These functions were introduced by SVr4.
-The Solaris \fIcurses\fP header file,
-for instance, defines both an actual function and macro for each.
-The macros give the same result as the actual functions.
-SVr4 \fIcurses\fP does not check the window parameter \fIwin\fP to ensure
-that it is not \fBNULL\fP;
-otherwise this implementation behaves the same as SVr4.
+X/Open Curses Issue\ 4 describes these functions.
+It specifies no error conditions for them.
 .PP
-X/Open Curses, Issue 4 describes these functions,
-but defines no error conditions.
+SVr4 describes a successful return value
+except where \*(``otherwise noted\*(''
+as
+\*(``an integer value other than
+.IR ERR \*(''. \" Courier roman in source; SVID 4, vol. 3, p. 540
+.PP
+SVr4 does not check
+.I win
+to ensure that it is not a null pointer.
+.SH HISTORY
+SVr2 (1984) introduced
+.IR \%touchwin ","
+.PP
+SVr3 (1987) added
+.IR \%touchline "."
+SVr3.1 later that year supplied
+.IR \%is_linetouched ","
+.IR \%is_wintouched ","
+.IR \%untouchwin ","
+and
+.IR \%wtouchln "."
 .SH SEE ALSO
 \fB\%curses\fP(3X),
 \fB\%curs_refresh\fP(3X),

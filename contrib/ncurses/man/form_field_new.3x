@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_new.3x,v 1.41 2024/03/16 15:35:01 tom Exp $
-.TH form_field_new 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: form_field_new.3x,v 1.43 2024/12/28 21:26:21 tom Exp $
+.TH form_field_new 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBnew_field\fP,
 \fBdup_field\fP,
@@ -66,7 +66,8 @@ Attribute data is separate.
 The function \fBfree_field\fP de-allocates storage associated with a field.
 .SH RETURN VALUE
 The functions \fBnew_field\fP, \fBdup_field\fP, \fBlink_field\fP return
-\fBNULL\fP on error.
+.I NULL
+on error.
 They set \fBerrno\fP according to their success:
 .TP 5
 .B E_OK

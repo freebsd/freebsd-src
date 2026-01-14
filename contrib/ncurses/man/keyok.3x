@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -29,35 +29,83 @@
 .\"
 .\" Author: Thomas E. Dickey 1997
 .\"
-.\" $Id: keyok.3x,v 1.40 2024/03/16 15:35:01 tom Exp $
-.TH keyok 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: keyok.3x,v 1.51 2025/10/04 20:59:08 tom Exp $
+.TH keyok 3X 2025-10-04 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.
 .SH NAME
 \fB\%keyok\fP \-
-enable or disable a \fIcurses\fR keycode
+enable or disable an \fIncurses\fP function key code
 .SH SYNOPSIS
 .nf
 \fB#include <curses.h>
 .PP
-\fBint keyok(int \fIkeycode\fP, bool \fIenable\fP);
+\fBint keyok(int \fIkey-code\fP, bool \fIbf\fP);
 .fi
 .SH DESCRIPTION
-This is an extension to the \fIcurses\fP library.
-It permits an application to disable specific keycodes, rather than
-use the \fB\%keypad\fP function to disable all keycodes.
-Keys that have been disabled can be re-enabled.
+The
+.B \%keyok
+.I \%ncurses
+extension permits a
+.I curses
+application to disable a function key
+.I key-code
+returned by \fB\%wgetch\fP(3X)
+(wide-character API users:
+\fB\%wget_wch\fP(3X)).
+Key codes that have been disabled can be re-enabled.
+.I bf
+selects the desired enablement status.
+This operation is more fine-grained than calling \fB\%keypad\fP(3X),
+which affects
+.I all
+function keys.
 .SH RETURN VALUE
-The keycode must be greater than zero, else \fBERR\fP is returned.
-If it does not correspond to a defined key, then \fBERR\fP is returned.
-If the \fIenable\fP parameter is true, then the key must have been disabled,
-and vice versa.
-Otherwise, the function returns \fBOK\fP.
+.B \%keyok
+returns
+.B ERR
+if
+.bP
+.I key-code
+is nonpositive,
+.bP
+.I key-code
+is not a recognized value,
+or
+.bP
+enablement of
+.I key-code
+is already in the desired state.
+.PP
+Otherwise,
+.B \%keyok
+returns
+.BR OK "."
+.SH EXTENSIONS
+.B \%keyok
+is an
+.I \%ncurses
+extension.
 .SH PORTABILITY
-This routine is specific to \fI\%ncurses\fP.
-It was not supported on
-Version 7, BSD or System V implementations.
-It is recommended that
-any code depending on them be conditioned using \fB\%NCURSES_VERSION\fP.
+Applications employing
+.I \%ncurses
+extensions should condition their use on the visibility of the
+.B \%NCURSES_VERSION
+preprocessor macro.
+.PP
+NetBSD
+.I curses
+since 2.0 (2004) supports
+.IR \%keyok "."
 .SH AUTHORS
 Thomas Dickey
 .SH SEE ALSO
-\fB\%define_key\fP(3X)
+\fB\%curses\fP(3X),
+\fB\%define_key\fP(3X),
+\fB\%keybound\fP(3X),
+\fB\%keyok\fP(3X),
+\fB\%key_defined\fP(3X)

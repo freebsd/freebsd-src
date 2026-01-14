@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 2008-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,41 +38,29 @@
  */
 
 #include <curses.priv.h>
-#ifdef _NC_WINDOWS
-#if (defined(__MINGW32__) || defined(__MINGW64__))
-#include <wchar.h>
-#else
-#include <tchar.h>
-#endif
-#include <io.h>
 
 #define CUR TerminalType(my_term).
 
-MODULE_ID("$Id: win32_driver.c,v 1.4 2023/09/16 16:29:24 tom Exp $")
+MODULE_ID("$Id: win32_driver.c,v 1.20 2025/12/30 19:34:50 tom Exp $")
 
 #define WINMAGIC NCDRV_MAGIC(NCDRV_WINCONSOLE)
 #define EXP_OPTIMIZE 0
 
+#define AssertTCB() assert(TCB != NULL && (TCB->magic == WINMAGIC))
+#define validateConsoleHandle() (AssertTCB(), console_initialized || \
+                                 (console_initialized = \
+                                  _nc_console_checkinit(USE_NAMED_PIPES)))
+#define SetSP() assert(TCB->csp != NULL); sp = TCB->csp; (void) sp
+
+#define AdjustY() (WINCONSOLE.buffered \
+                   ? 0 \
+                   : (int) WINCONSOLE.SBI.srWindow.Top)
+
+#define RevAttr(attr) (WORD) (((attr) & 0xff00) | \
+		      ((((attr) & 0x07) << 4) | \
+		       (((attr) & 0x70) >> 4)))
+
 static bool console_initialized = FALSE;
-
-#define AssertTCB() assert(TCB != 0 && (TCB->magic == WINMAGIC))
-#define validateConsoleHandle() (AssertTCB() , console_initialized ||\
-                                 (console_initialized=\
-                                  _nc_console_checkinit(TRUE,FALSE)))
-#define SetSP() assert(TCB->csp != 0); sp = TCB->csp; (void) sp
-#define AdjustY() (WINCONSOLE.buffered ?\
-                   0 : (int) WINCONSOLE.SBI.srWindow.Top)
-#define RevAttr(attr) (WORD) (((attr) & 0xff00) |   \
-                              ((((attr) & 0x07) << 4) | \
-                               (((attr) & 0x70) >> 4)))
-
-#if USE_WIDEC_SUPPORT
-#define write_screen WriteConsoleOutputW
-#define read_screen  ReadConsoleOutputW
-#else
-#define write_screen WriteConsoleOutput
-#define read_screen  ReadConsoleOutput
-#endif
 
 static WORD
 MapAttr(WORD res, attr_t ch)
@@ -140,7 +128,7 @@ dump_screen(const char *fn, int ln)
 
 	for (i = save_region.Top; i <= save_region.Bottom; ++i) {
 	    for (j = save_region.Left; j <= save_region.Right; ++j) {
-		output[k++] = save_screen[ij++].Char.AsciiChar;
+		output[k++] = save_screen[ij++].CharInfoChar;
 	    }
 	    output[k++] = '\n';
 	}
@@ -171,7 +159,7 @@ con_write16(TERMINAL_CONTROL_BLOCK * TCB,
 	    int y, int x, cchar_t *str, int limit)
 {
     int actual = 0;
-    CHAR_INFO *ci = TypeAlloca(CHAR_INFO, limit);
+    MakeArray(ci, CHAR_INFO, limit);
     COORD loc, siz;
     SMALL_RECT rec;
     int i;
@@ -185,7 +173,7 @@ con_write16(TERMINAL_CONTROL_BLOCK * TCB,
 	ch = str[i];
 	if (isWidecExt(ch))
 	    continue;
-	ci[actual].Char.UnicodeChar = CharOf(ch);
+	ci[actual].CharInfoChar = CharOf(ch);
 	ci[actual].Attributes = MapAttr(WINCONSOLE.SBI.wAttributes,
 					AttrOf(ch));
 	if (AttrOf(ch) & A_ALTCHARSET) {
@@ -194,9 +182,9 @@ con_write16(TERMINAL_CONTROL_BLOCK * TCB,
 		if (which > 0
 		    && which < ACS_LEN
 		    && CharOf(_nc_wacs[which]) != 0) {
-		    ci[actual].Char.UnicodeChar = CharOf(_nc_wacs[which]);
+		    ci[actual].CharInfoChar = CharOf(_nc_wacs[which]);
 		} else {
-		    ci[actual].Char.UnicodeChar = ' ';
+		    ci[actual].CharInfoChar = ' ';
 		}
 	    }
 	}
@@ -220,7 +208,7 @@ con_write16(TERMINAL_CONTROL_BLOCK * TCB,
 static BOOL
 con_write8(TERMINAL_CONTROL_BLOCK * TCB, int y, int x, chtype *str, int n)
 {
-    CHAR_INFO *ci = TypeAlloca(CHAR_INFO, n);
+    MakeArray(ci, CHAR_INFO, n);
     COORD loc, siz;
     SMALL_RECT rec;
     int i;
@@ -232,13 +220,13 @@ con_write8(TERMINAL_CONTROL_BLOCK * TCB, int y, int x, chtype *str, int n)
 
     for (i = 0; i < n; i++) {
 	ch = str[i];
-	ci[i].Char.AsciiChar = ChCharOf(ch);
+	ci[i].CharInfoChar = ChCharOf(ch);
 	ci[i].Attributes = MapAttr(WINCONSOLE.SBI.wAttributes,
 				   ChAttrOf(ch));
 	if (ChAttrOf(ch) & A_ALTCHARSET) {
 	    if (sp->_acs_map)
-		ci[i].Char.AsciiChar =
-		ChCharOf(NCURSES_SP_NAME(_nc_acs_char) (sp, ChCharOf(ch)));
+		ci[i].CharInfoChar =
+		    ChCharOf(NCURSES_SP_NAME(_nc_acs_char) (sp, ChCharOf(ch)));
 	}
     }
 
@@ -415,16 +403,16 @@ wcon_doupdate(TERMINAL_CONTROL_BLOCK * TCB)
 	if ((CurScreen(sp)->_clear || NewScreen(sp)->_clear)) {
 	    int x;
 #if USE_WIDEC_SUPPORT
-	    cchar_t *empty = TypeAlloca(cchar_t, Width);
+	    MakeArray(empty, cchar_t, Width);
 	    wchar_t blank[2] =
 	    {
 		L' ', L'\0'
 	    };
 
 	    for (x = 0; x < Width; x++)
-		setcchar(&empty[x], blank, 0, 0, 0);
+		setcchar(&empty[x], blank, 0, 0, NULL);
 #else
-	    chtype *empty = TypeAlloca(chtype, Width);
+	    MakeArray(empty, chtype, Width);
 
 	    for (x = 0; x < Width; x++)
 		empty[x] = ' ';
@@ -528,16 +516,17 @@ wcon_CanHandle(TERMINAL_CONTROL_BLOCK * TCB,
 {
     bool code = FALSE;
 
-    T((T_CALLED("win32con::wcon_CanHandle(%p)"), TCB));
+    T((T_CALLED("win32con::wcon_CanHandle(%p,%s,%p)"),
+       (void *) TCB, NonNull(tname), (void *) errret));
 
-    assert((TCB != 0) && (tname != 0));
+    assert(TCB != NULL);
 
     TCB->magic = WINMAGIC;
 
-    if (tname == 0 || *tname == 0) {
+    if (tname == NULL || *tname == 0) {
 	if (!_nc_console_vt_supported())
 	    code = TRUE;
-    } else if (tname != 0 && *tname == '#') {
+    } else if (tname != NULL && *tname == '#') {
 	/*
 	 * Use "#" (a character which cannot begin a terminal's name) to
 	 * select specific driver from the table.
@@ -551,9 +540,14 @@ wcon_CanHandle(TERMINAL_CONTROL_BLOCK * TCB,
 		|| (strncmp(tname + 1, "win32con", n) == 0))) {
 	    code = TRUE;
 	}
-    } else if (tname != 0 && stricmp(tname, "unknown") == 0) {
+    } else if (tname != NULL && stricmp(tname, "unknown") == 0) {
 	code = TRUE;
     }
+#if !USE_NAMED_PIPES
+    else if (_isatty(TCB->term.Filedes)) {
+	code = TRUE;
+    }
+#endif
 
     /*
      * This is intentional, to avoid unnecessary breakage of applications
@@ -589,8 +583,8 @@ wcon_dobeepflash(TERMINAL_CONTROL_BLOCK * TCB,
     int max_cells = (high * wide);
     int i;
 
-    CHAR_INFO *this_screen = TypeAlloca(CHAR_INFO, max_cells);
-    CHAR_INFO *that_screen = TypeAlloca(CHAR_INFO, max_cells);
+    MakeArray(this_screen, CHAR_INFO, max_cells);
+    MakeArray(that_screen, CHAR_INFO, max_cells);
     COORD this_size;
     SMALL_RECT this_region;
     COORD bufferCoord;
@@ -752,9 +746,6 @@ wcon_sgmode(TERMINAL_CONTROL_BLOCK * TCB, int setFlag, TTY * buf)
     returnCode(result);
 }
 
-#define MIN_WIDE 80
-#define MIN_HIGH 24
-
 static int
 wcon_mode(TERMINAL_CONTROL_BLOCK * TCB, int progFlag, int defFlag)
 {
@@ -762,11 +753,11 @@ wcon_mode(TERMINAL_CONTROL_BLOCK * TCB, int progFlag, int defFlag)
     TERMINAL *_term = (TERMINAL *) TCB;
     int code = ERR;
 
+    T((T_CALLED("win32con::wcon_mode(%p, progFlag=%d, defFlag=%d)"),
+       TCB, progFlag, defFlag));
+
     if (validateConsoleHandle()) {
 	sp = TCB->csp;
-
-	T((T_CALLED("win32con::wcon_mode(%p, progFlag=%d, defFlag=%d)"),
-	   TCB, progFlag, defFlag));
 
 	WINCONSOLE.progMode = progFlag;
 	WINCONSOLE.lastOut = progFlag ? WINCONSOLE.hdl : WINCONSOLE.out;
@@ -847,7 +838,7 @@ wcon_init(TERMINAL_CONTROL_BLOCK * TCB)
 
     AssertTCB();
 
-    if (!(console_initialized = _nc_console_checkinit(TRUE, FALSE))) {
+    if (!(console_initialized = _nc_console_checkinit(USE_NAMED_PIPES))) {
 	returnVoid;
     }
 
@@ -1059,7 +1050,7 @@ wcon_initacs(TERMINAL_CONTROL_BLOCK * TCB,
 	for (n = 0; n < SIZEOF(table); ++n) {
 	    real_map[table[n].acs_code] =
 		(chtype) table[n].use_code | A_ALTCHARSET;
-	    if (sp != 0)
+	    if (sp != NULL)
 		sp->_screen_acs_map[table[n].acs_code] = TRUE;
 	}
     }
@@ -1221,5 +1212,3 @@ NCURSES_EXPORT_VAR (TERM_DRIVER) _nc_WIN_DRIVER = {
 	wcon_kyExist,		/* kyExist       */
 	wcon_cursorSet		/* cursorSet     */
 };
-
-#endif /* _NC_WINDOWS */

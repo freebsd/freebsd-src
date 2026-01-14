@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2025 Thomas E. Dickey                                *
  * Copyright 2003-2005,2008 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,7 +33,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: charable.c,v 1.8 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: charable.c,v 1.9 2025/09/13 10:55:44 tom Exp $")
 
 NCURSES_EXPORT(bool) _nc_is_charable(wchar_t ch)
 {
@@ -52,9 +52,8 @@ NCURSES_EXPORT(int) _nc_to_char(wint_t ch)
 #if HAVE_WCTOB
     result = wctob(ch);
 #elif HAVE_WCTOMB
-    char temp[MB_LEN_MAX];
-    result = wctomb(temp, ch);
-    if (strlen(temp) == 1)
+    char temp[MB_LEN_MAX + 1];
+    if (wctomb(temp, ch) == 1)
 	result = UChar(temp[0]);
     else
 	result = -1;
