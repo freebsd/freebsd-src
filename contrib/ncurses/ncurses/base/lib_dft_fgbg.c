@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2021 Thomas E. Dickey                                     *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,7 +38,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_dft_fgbg.c,v 1.31 2021/04/03 22:27:18 tom Exp $")
+MODULE_ID("$Id: lib_dft_fgbg.c,v 1.34 2025/12/27 12:28:45 tom Exp $")
 
 /*
  * Modify the behavior of color-pair 0 so that the library doesn't assume that
@@ -69,17 +69,17 @@ NCURSES_SP_NAME(assume_default_colors) (NCURSES_SP_DCLx int fg, int bg)
     int code = ERR;
 
     T((T_CALLED("assume_default_colors(%p,%d,%d)"), (void *) SP_PARM, fg, bg));
-    if (SP_PARM != 0) {
-#ifdef USE_TERM_DRIVER
+    if (SP_PARM != NULL) {
+#if USE_TERM_DRIVER
 	code = CallDriver_2(SP_PARM, td_defaultcolors, fg, bg);
 #else
 	if ((orig_pair || orig_colors) && !initialize_pair) {
 
 	    SP_PARM->_default_color = isDefaultColor(fg) || isDefaultColor(bg);
-	    SP_PARM->_has_sgr_39_49 = (tigetflag("AX") == TRUE);
+	    SP_PARM->_has_sgr_39_49 = (tigetflag(UserCap(AX)) == TRUE);
 	    SP_PARM->_default_fg = isDefaultColor(fg) ? COLOR_DEFAULT : fg;
 	    SP_PARM->_default_bg = isDefaultColor(bg) ? COLOR_DEFAULT : bg;
-	    if (SP_PARM->_color_pairs != 0) {
+	    if (SP_PARM->_color_pairs != NULL) {
 		bool save = SP_PARM->_default_color;
 		SP_PARM->_assumed_color = TRUE;
 		SP_PARM->_default_color = TRUE;

@@ -1,6 +1,6 @@
 /* include/ncurses_cfg.h.  Generated automatically by configure.  */
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -32,7 +32,7 @@
  *  Author: Thomas E. Dickey      1997-on                                   *
  ****************************************************************************/
 /*
- * $Id: ncurses_cfg.hin,v 1.13 2020/03/08 12:37:59 tom Exp $
+ * $Id: ncurses_cfg.hin,v 1.15 2024/06/08 14:04:14 tom Exp $
  *
  * Both ncurses_cfg.h and ncurses_def.h are internal header-files used when
  * building ncurses.
@@ -45,14 +45,14 @@
  *
  * See:
  *	https://invisible-island.net/autoconf/
- *	ftp://ftp.invisible-island.net/autoconf/
+ *	https://invisible-island.net/archives/autoconf/
  */
 #ifndef NC_CONFIG_H
 #define NC_CONFIG_H
 
 #define PACKAGE "ncurses"
-#define NCURSES_VERSION "6.5"
-#define NCURSES_PATCHDATE 20240427
+#define NCURSES_VERSION "6.6"
+#define NCURSES_PATCHDATE 20251230
 #define SYSTEM_NAME "FreeBSD"
 #if 0
 #include <stdlib.h>
@@ -60,9 +60,6 @@
 #define HAVE_LONG_FILE_NAMES 1
 #define MIXEDCASE_FILENAMES 1
 #define STDC_HEADERS 1
-#define USE_GETCAP 1
-#define BSD_TPUTS 1
-#define HAVE_BSD_CGETENT 1
 #define HAVE_SYS_TYPES_H 1
 #define HAVE_SYS_STAT_H 1
 #define HAVE_STDLIB_H 1
@@ -78,6 +75,7 @@
 #define TERMINFO "/usr/share/terminfo"
 #define HAVE_BIG_CORE 1
 #define TERMPATH "/etc/termcap:/usr/share/misc/termcap"
+#define USE_GETCAP 1
 #define USE_HOME_TERMINFO 1
 #define USE_ROOT_ENVIRON 1
 #define USE_ROOT_ACCESS 1
@@ -88,6 +86,7 @@
 #define HAVE_LINK 1
 #define HAVE_SYMLINK 1
 #define USE_LINKS 1
+#define BSD_TPUTS 1
 #define HAVE_LANGINFO_CODESET 1
 #define USE_WIDEC_SUPPORT 1
 #define NCURSES_WIDECHAR 1
@@ -106,6 +105,7 @@
 #define HAVE_MBSRTOWCS 1
 #define HAVE_WCSTOMBS 1
 #define HAVE_MBSTOWCS 1
+#define HAVE_WCWIDTH 1
 #define NEED_WCHAR_H 1
 #define HAVE_FSEEKO 1
 #define RGB_PATH "no"
@@ -134,6 +134,7 @@
 #define NCURSES_WRAP_PREFIX "_nc_"
 #define USE_ASSUMED_COLOR 1
 #define USE_HASHMAP 1
+#define USE_COLORFGBG 1
 #define GCC_SCANF 1
 #define GCC_SCANFLIKE(fmt,var) __attribute__((format(scanf,fmt,var)))
 #define GCC_PRINTF 1
@@ -148,6 +149,7 @@
 #define HAVE_GETOPT_H 1
 #define HAVE_LIMITS_H 1
 #define HAVE_LOCALE_H 1
+#define HAVE_MALLOC_H 1
 #define HAVE_MATH_H 1
 #define HAVE_POLL_H 1
 #define HAVE_SYS_AUXV_H 1
@@ -159,7 +161,6 @@
 #define HAVE_SYS_TIMES_H 1
 #define HAVE_UNISTD_H 1
 #define HAVE_WCTYPE_H 1
-#define HAVE_UNISTD_H 1
 #define HAVE_GETOPT_H 1
 #define HAVE_GETOPT_HEADER 1
 #define DECL_ENVIRON 1
@@ -169,7 +170,6 @@
 #define HAVE_STRDUP 1
 #define HAVE_SYS_TIME_SELECT 1
 #define SIG_ATOMIC_T volatile sig_atomic_t
-#define HAVE_ERRNO 1
 #define HAVE_CLOCK_GETTIME 1
 #define HAVE_FPATHCONF 1
 #define HAVE_GETCWD 1
@@ -197,6 +197,7 @@
 #define HAVE_VSNPRINTF 1
 #define HAVE_PATH_TTYS 1
 #define HAVE_GETTTYNAM 1
+#define HAVE_BSD_CGETENT 1
 #define HAVE_ISASCII 1
 #define HAVE_NANOSLEEP 1
 #define HAVE_TERMIOS_H 1
@@ -216,8 +217,15 @@
 #define HAVE_WORKING_VFORK 1
 #define HAVE_WORKING_FORK 1
 #define USE_FOPEN_BIN_R 1
+#define HAVE_CC_T 1
+#define HAVE_SPEED_T 1
+#define HAVE_TCFLAG_T 1
+#define HAVE_SIGSET_T 1
 #define USE_OPENPTY_HEADER <libutil.h>
 #define USE_XTERM_PTY 1
+#define USE_STDBOOL_H 1
+#define HAVE_NEW 1
+#define HAVE_EXCEPTION 1
 #define HAVE_TYPEINFO 1
 #define HAVE_IOSTREAM 1
 #define IOSTREAM_NAMESPACE 1
@@ -233,7 +241,7 @@
 #define HAVE_FORM_H 1
 #define HAVE_LIBFORM 1
 #define NCURSES_PATHSEP ':'
-#define NCURSES_VERSION_STRING "6.5.20240427"
+#define NCURSES_VERSION_STRING "6.6.20251230"
 #define NCURSES_OSPEED_COMPAT 1
 
 #include <ncurses_def.h>

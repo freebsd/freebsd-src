@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2001,2009 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -41,7 +41,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_delch.c,v 1.14 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_delch.c,v 1.16 2024/10/19 21:20:46 tom Exp $")
 
 NCURSES_EXPORT(int)
 wdelch(WINDOW *win)
@@ -54,8 +54,8 @@ wdelch(WINDOW *win)
 	NCURSES_CH_T blank = win->_nc_bkgd;
 	struct ldat *line = &(win->_line[win->_cury]);
 	NCURSES_CH_T *end = &(line->text[win->_maxx]);
-	NCURSES_CH_T *temp2 = &(line->text[win->_curx + 1]);
-	NCURSES_CH_T *temp1 = temp2 - 1;
+	NCURSES_CH_T *temp1 = &(line->text[win->_curx]);
+	const NCURSES_CH_T *temp2 = temp1 + 1;
 
 	CHANGED_TO_EOL(line, win->_curx, win->_maxx);
 	while (temp1 < end)

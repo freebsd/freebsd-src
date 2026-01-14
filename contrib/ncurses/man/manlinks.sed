@@ -1,6 +1,6 @@
-# $Id: manlinks.sed,v 1.21 2024/04/20 22:25:36 tom Exp $
+# $Id: manlinks.sed,v 1.27 2025/11/12 00:49:19 Branden.Robinson Exp $
 ##############################################################################
-# Copyright 2020-2023,2024 Thomas E. Dickey                                  #
+# Copyright 2020-2024,2025 Thomas E. Dickey                                  #
 # Copyright 2000-2003,2008 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -27,11 +27,11 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# Given a manpage (nroff) as input, writes a list of the names that are
+# Given a man page (nroff) as input, writes a list of the names that are
 # listed in the "NAME" section, i.e., the names that we would like to use
-# as aliases for the manpage -T.Dickey
+# as aliases for the man page. -T.Dickey
 #
-# workaround for manpages without a SYNOPSIS
+# workaround for man pages without a SYNOPSIS
 s/^\.\\"SH/.SH/
 #
 # eliminate formatting controls that get in the way
@@ -53,6 +53,7 @@ s/^[ 	][ 	]*//
 s/[ 	][ 	]*$//
 s/[ 	][ 	]*/ /g
 /^$/d
+/^[<>]/d
 #
 # convert ".SH" into a more manageable form
 s/\.SH[ 	][ 	]*/.SH_(/
@@ -79,7 +80,7 @@ s/ /\
 # still want to make aliases for those.  Do this by extracting names from the
 # list of function prototypes in the synopsis.
 #
-# Remove any line that does not contain a '(', since we only want functions. 
+# Remove any line that does not contain a '(', since we only want functions.
 # then strip off return-type of each function.
 #
 # Finally, remove the parameter list, which begins with a '('.

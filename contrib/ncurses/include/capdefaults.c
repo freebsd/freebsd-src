@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2021 Thomas E. Dickey                                     *
+ * Copyright 2020-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2000,2008 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,7 +33,7 @@
  *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
-/* $Id: capdefaults.c,v 1.16 2021/09/04 10:52:55 tom Exp $ */
+/* $Id: capdefaults.c,v 1.17 2024/07/27 19:19:23 tom Exp $ */
 
     /*
      * Compute obsolete capabilities.  The reason this is an include file is
@@ -45,7 +45,7 @@
      * postprocess_termcap().
      */
 {
-    char *strp;
+    const char *strp;
     short capval;
 
 #define EXTRACT_DELAY(str) \

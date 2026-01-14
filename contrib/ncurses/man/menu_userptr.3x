@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_userptr.3x,v 1.33 2024/03/16 15:35:01 tom Exp $
-.TH menu_userptr 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: menu_userptr.3x,v 1.35 2024/12/28 21:26:21 tom Exp $
+.TH menu_userptr 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBset_menu_userptr\fP,
 \fBmenu_userptr\fP \-
@@ -45,7 +45,8 @@ Every menu and every menu item has a field that can be used to hold
 application-specific data (that is, the menu-driver code leaves it alone).
 These functions get and set the menu user pointer field.
 .SH RETURN VALUE
-\fBmenu_userptr\fP returns a pointer (which may be \fBNULL\fP).
+\fBmenu_userptr\fP returns a pointer (which may be
+.IR NULL ")."
 It does not set \fBerrno\fP.
 .PP
 \fBset_menu_userptr\fP returns \fBE_OK\fP (success).

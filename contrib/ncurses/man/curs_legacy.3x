@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2019-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2019-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 2007-2015,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,19 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_legacy.3x,v 1.32 2024/03/16 15:35:01 tom Exp $
-.TH curs_legacy 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
-.ie \n(.g \{\
-.ds `` \(lq
-.ds '' \(rq
-.\}
-.el \{\
-.ie t .ds `` ``
-.el   .ds `` ""
-.ie t .ds '' ''
-.el   .ds '' ""
-.\}
-.
+.\" $Id: curs_legacy.3x,v 1.36 2025/02/15 18:43:02 tom Exp $
+.TH curs_legacy 3X 2025-02-15 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .de bP
 .ie n  .IP \(bu 4
 .el    .IP \(bu 2
@@ -107,24 +96,6 @@ data as \fB\%getparyx\fP.
 Except as noted,
 these functions return an integer,
 or \fBERR\fP if the window parameter is null.
-.SH NOTES
-All of these interfaces are implemented as macros and functions.
-The macros are suppressed
-(and only the functions provided)
-in an \*(``opaque\*(''
-.I \%ncurses
-build,
-which defines the preprocessor symbol
-.BR \%NCURSES_OPAQUE .
-See section \*(``ALTERNATE CONFIGURATIONS\*('' in \fB\%ncurses\fP(3X).
-.PP
-The standard forms such as \fB\%getyx\fP
-.I must
-be implemented as macros,
-and
-(in this implementation)
-are defined in terms of the functions described here,
-to avoid reliance on internal details of the \fI\%WINDOW\fP structure.
 .SH PORTABILITY
 These functions were supported on Version 7, BSD or System V implementations.
 None of those implementations checked the window parameter.

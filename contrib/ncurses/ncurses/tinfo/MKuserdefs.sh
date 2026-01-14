@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 2019-2024,2025 Thomas E. Dickey                                  #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -26,7 +26,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: MKuserdefs.sh,v 1.10 2020/02/02 23:34:34 tom Exp $
+# $Id: MKuserdefs.sh,v 1.12 2025/06/14 14:44:56 tom Exp $
 AWK=${1-awk}; shift 1
 OPT1=${1-0}; shift 1
 
@@ -51,7 +51,7 @@ cat <<'EOF'
 #if NCURSES_XNAMES
 EOF
 
-cat "$@" | ./make_hash 1 user $OPT1
+cat "$@" | ./make_hash 1 user "$OPT1"
 
 cat <<EOF
 
@@ -69,9 +69,9 @@ _nc_build_names(struct user_table_entry **actual,
 		const user_table_data *source,
 		const char *strings)
 {
-    if (*actual == 0) {
+    if (*actual == NULL) {
 	*actual = typeCalloc(struct user_table_entry, USERTABSIZE);
-	if (*actual != 0) {
+	if (*actual != NULL) {
 	    unsigned n;
 	    unsigned len = 0;
 	    for (n = 0; n < USERTABSIZE; ++n) {

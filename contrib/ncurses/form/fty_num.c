@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2019-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,7 +35,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_num.c,v 1.37 2021/03/27 23:49:58 tom Exp $")
+MODULE_ID("$Id: fty_num.c,v 1.40 2024/12/21 17:16:09 tom Exp $")
 
 #if HAVE_LOCALE_H
 #include <locale.h>
@@ -84,7 +84,7 @@ static void *
 Generic_This_Type(void *arg)
 {
   thisARG *argn = (thisARG *)0;
-  thisPARM *args = (thisPARM *)arg;
+  const thisPARM *args = (thisPARM *)arg;
 
   if (args)
     {
@@ -187,8 +187,8 @@ Check_This_Field(FIELD *field, const void *argp)
   double high = argn->high;
   int prec = argn->precision;
   unsigned char *bp = (unsigned char *)field_buffer(field, 0);
-  char *s = (char *)bp;
-  struct lconv *L = argn->L;
+  const char *s = (char *)bp;
+  const struct lconv *L = argn->L;
   bool result = FALSE;
 
   while (*bp == ' ')
@@ -203,7 +203,7 @@ Check_This_Field(FIELD *field, const void *argp)
 	  int len;
 	  wchar_t *list = _nc_Widen_String((char *)bp, &len);
 
-	  if (list != 0)
+	  if (list != NULL)
 	    {
 	      bool blank = FALSE;
 	      int state = 0;
@@ -273,10 +273,10 @@ Check_This_Field(FIELD *field, const void *argp)
 	    }
 	  if (result)
 	    {
-	      char buf[64];
+	      char buf[MAX_DIGITS * 6];
 
 	      _nc_SPRINTF(buf, _nc_SLIMIT(sizeof(buf))
-			  "%.*f", (prec > 0 ? prec : 0), val);
+			  "%.*f", MaxDigits(prec), val);
 	      set_field_buffer(field, 0, buf);
 	    }
 	}

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2022,2024 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -43,7 +43,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_data.c,v 1.89 2024/02/24 18:11:38 tom Exp $")
+MODULE_ID("$Id: lib_data.c,v 1.95 2025/12/27 12:33:34 tom Exp $")
 
 /*
  * OS/2's native linker complains if we don't initialize public data when
@@ -53,25 +53,25 @@ MODULE_ID("$Id: lib_data.c,v 1.89 2024/02/24 18:11:38 tom Exp $")
 NCURSES_EXPORT(WINDOW *)
 NCURSES_PUBLIC_VAR(stdscr) (void)
 {
-    return CURRENT_SCREEN ? StdScreen(CURRENT_SCREEN) : 0;
+    return CURRENT_SCREEN ? StdScreen(CURRENT_SCREEN) : NULL;
 }
 NCURSES_EXPORT(WINDOW *)
 NCURSES_PUBLIC_VAR(curscr) (void)
 {
-    return CURRENT_SCREEN ? CurScreen(CURRENT_SCREEN) : 0;
+    return CURRENT_SCREEN ? CurScreen(CURRENT_SCREEN) : NULL;
 }
 NCURSES_EXPORT(WINDOW *)
 NCURSES_PUBLIC_VAR(newscr) (void)
 {
-    return CURRENT_SCREEN ? NewScreen(CURRENT_SCREEN) : 0;
+    return CURRENT_SCREEN ? NewScreen(CURRENT_SCREEN) : NULL;
 }
 #else
-NCURSES_EXPORT_VAR(WINDOW *) stdscr = 0;
-NCURSES_EXPORT_VAR(WINDOW *) curscr = 0;
-NCURSES_EXPORT_VAR(WINDOW *) newscr = 0;
+NCURSES_EXPORT_VAR(WINDOW *) stdscr = NULL;
+NCURSES_EXPORT_VAR(WINDOW *) curscr = NULL;
+NCURSES_EXPORT_VAR(WINDOW *) newscr = NULL;
 #endif
 
-NCURSES_EXPORT_VAR(SCREEN *) _nc_screen_chain = 0;
+NCURSES_EXPORT_VAR(SCREEN *) _nc_screen_chain = NULL;
 
 /*
  * The variable 'SP' will be defined as a function on systems that cannot link
@@ -97,7 +97,7 @@ _nc_alloc_screen(void)
 {
     my_screen = _nc_alloc_screen_sp();
     T(("_nc_alloc_screen_sp %p", my_screen));
-    return (my_screen != 0);
+    return (my_screen != NULL);
 }
 
 NCURSES_EXPORT(void)
@@ -129,7 +129,7 @@ NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
 
     FALSE,			/* have_tic_directory */
     FALSE,			/* keep_tic_directory */
-    0,				/* tic_directory */
+    NULL,			/* tic_directory */
 
     NULL,			/* dbi_list */
     0,				/* dbi_size */
@@ -150,19 +150,19 @@ NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
     0,				/* tgetent_sequence */
     0,				/* terminal_count */
 
-    0,				/* dbd_blob */
-    0,				/* dbd_list */
+    NULL,			/* dbd_blob */
+    NULL,			/* dbd_list */
     0,				/* dbd_size */
     0,				/* dbd_time */
-    { { 0, 0 } },		/* dbd_vars */
+    { { NULL, NULL } },		/* dbd_vars */
 
 #if HAVE_TSEARCH
     NULL,			/* cached_tparm */
     0,				/* count_tparm */
 #endif /* HAVE_TSEARCH */
 
-#ifdef USE_TERM_DRIVER
-    0,				/* term_driver */
+#if USE_TERM_DRIVER
+    NULL,			/* term_driver */
 #endif
 
 #ifndef USE_SP_WINDOWLIST
@@ -188,7 +188,7 @@ NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
     0,				/* nested_tracef */
     0,				/* use_pthreads */
 #if USE_PTHREADS_EINTR
-    0,				/* read_thread */
+    (pthread_t)	0,		/* read_thread */
 #endif
 #endif
 #if USE_WIDEC_SUPPORT
@@ -230,7 +230,7 @@ NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
 #define STACK_FRAME_0s	{ STACK_FRAME_0 }
 #define NUM_VARS_0s	{ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 }
 
-#define RIPOFF_0	{ 0,0,0 }
+#define RIPOFF_0	{ NULL,0,NULL }
 #define RIPOFF_0s	{ RIPOFF_0 }
 
 NCURSES_EXPORT_VAR(NCURSES_PRESCREEN) _nc_prescreen = {
@@ -258,7 +258,7 @@ NCURSES_EXPORT_VAR(NCURSES_PRESCREEN) _nc_prescreen = {
     },
     NULL,			/* saved_tty */
     FALSE,			/* use_tioctl */
-    0,				/* _outch */
+    NULL,			/* _outch */
 #ifndef USE_SP_RIPOFF
     RIPOFF_0s,			/* ripoff */
     NULL,			/* rsp */
@@ -272,7 +272,7 @@ NCURSES_EXPORT_VAR(NCURSES_PRESCREEN) _nc_prescreen = {
     0,				/* COLS */
     8,				/* TABSIZE */
     1000,			/* ESCDELAY */
-    0,				/* cur_term */
+    NULL,			/* cur_term */
 #endif
 #ifdef TRACE
 #if BROKEN_LINKER || USE_REENTRANT
@@ -291,9 +291,9 @@ NCURSES_EXPORT_VAR(NCURSES_PRESCREEN) _nc_prescreen = {
 NCURSES_EXPORT(SCREEN *)
 _nc_screen_of(WINDOW *win)
 {
-    SCREEN *sp = 0;
+    SCREEN *sp = NULL;
 
-    if (win != 0) {
+    if (win != NULL) {
 	sp = WINDOW_EXT(win, screen);
     }
     return (sp);

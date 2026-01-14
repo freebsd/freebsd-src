@@ -153,9 +153,8 @@ Introduction
    source-code  or  documentation;  the  tic and infocmp programs are the
    exceptions.
 
-   System  V  Release  3  (System  III  UNIX)  from  Bell Labs featured a
-   rewritten and much-improved curses library, along with the tic program
-   (late 1986).
+   System   V   Release  3  from  Bell  Labs  featured  a  rewritten  and
+   much-improved curses library, along with the tic program (late 1986).
 
    To  recap,  terminfo  is  based  on  Berkeley's  termcap database, but
    contains  a  number  of  improvements  and  extensions.  Parameterized

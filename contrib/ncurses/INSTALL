@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Copyright 2018-2023,2024 Thomas E. Dickey                                 --
+-- Copyright 2018-2024,2025 Thomas E. Dickey                                 --
 -- Copyright 1998-2017,2018 Free Software Foundation, Inc.                   --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
@@ -26,7 +26,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: INSTALL,v 1.254 2024/04/27 14:21:05 tom Exp $
+-- $Id: INSTALL,v 1.263 2025/12/30 20:42:25 tom Exp $
 ---------------------------------------------------------------------
              How to install Ncurses/Terminfo on your system
 ---------------------------------------------------------------------
@@ -550,8 +550,8 @@ CONFIGURE OPTIONS:
 	problem.
 
     --enable-bsdpad
-	Recognize BSD-style prefix padding.  Some ancient BSD programs (such as
-	nethack) call tputs("50") to implement delays.
+	Recognize BSD-style prefix padding.  Some programs written using
+	the BSD curses API use tputs("50") to implement delays.
 
     --enable-check-size
 	Compile-in feature to detect screensize for terminals which do not
@@ -587,7 +587,8 @@ CONFIGURE OPTIONS:
 	as such to the debugger.  See also the --disable-macros option.
 
     --enable-exp-win32
-	When configuring for MinGW, use the experimental Windows 10 driver.
+	This is an obsolete option used for configuring the Windows 10 driver
+	for MinGW.
 
     --enable-ext-colors
 	Extend the cchar_t structure to allow more than 16 colors to be
@@ -650,6 +651,12 @@ CONFIGURE OPTIONS:
 	may not be accurate, or that your stty settings have disabled the use
 	of tabs.
 
+    --enable-install-prefix
+	Extend the --with-install-prefix feature to replace the prefix value
+	with $DESTDIR rather than simply prepending $DESTDIR to install
+	pathnames.  This works with any "make" which supports AT&T style
+	variable substitution.
+
     --enable-interop
 	Compile-in experimental interop bindings.  These provide generic types
 	for the form-library.
@@ -659,6 +666,10 @@ CONFIGURE OPTIONS:
 	supports mixed-case filenames (normal for UNIX, but not on other
 	systems).  If you do not specify this option, the configure script
 	checks the current filesystem.
+
+    --enable-named-pipes
+	Compile-in support for named pipes, used to connect to Windows 10
+	pseudo-console.
 
     --enable-no-padding
 	Compile-in support for the $NCURSES_NO_PADDING environment variable,
@@ -703,7 +714,7 @@ CONFIGURE OPTIONS:
 	Use rpath option when generating shared libraries, and (with some
 	restrictions) when linking the corresponding programs.  This originally
 	(in 1997) applied mainly to systems using the GNU linker (read the
-	manpage).
+	man page).
 
 	More recently it is useful for systems that require special treatment
 	shared libraries in "unusual" locations.  The "system" libraries reside
@@ -768,9 +779,9 @@ CONFIGURE OPTIONS:
 	unless you have disabled the extended functions.
 
     --enable-term-driver
-	Enable experimental terminal-driver.  This is currently used for the
-	MinGW port, by providing a way to substitute the low-level terminfo
-	library with different terminal drivers.
+	Enable terminal-driver.  This is required for the MinGW port, by
+	providing a way to substitute the low-level terminfo library with
+	different terminal drivers.
 
     --enable-termcap
 	Compile in support for reading terminal descriptions from termcap if no
@@ -1097,34 +1108,35 @@ CONFIGURE OPTIONS:
 		./configure --enable-static
 
     --with-manpage-aliases
-	Tell the configure script you wish to create entries in the
-	man-directory for aliases to manpages which list them, e.g., the
-	functions in the panel manpage.  This is the default.  You can disable
-	it if your man program does this.  You can also disable
-	--with-manpage-symlinks to install files containing a ".so" command
-	rather than symbolic links.
+	Create files in subdirectories of the installation "man" directory that
+	alias the man pages documenting them.  For example, the "beep" man page
+	also documents the function "flash".  This is the default.  You can
+	disable this procedure if your system's makewhatis(8) or mandb(8)
+	program indexes the directory to which the pages are installed.  If you
+	disable man page symlinks by specifying "--without-manpage-symlinks",
+	the alias pages are created as stubs containing ".so" *roff requests.
 
     --with-manpage-format=XXX
-	Tell the configure script how you would like to install man-pages.  The
-	option value must be one of these:  gzip, compress, BSDI, normal,
-	formatted.  If you do not give this option, the configure script
+	Tell the configure script how you would like to install man pages.  The
+	option value must be one of these: "gzip", "compress", "BSDI", "normal",
+	"formatted".  If you do not specify this option, the configure script
 	attempts to determine which is the case.
 
     --with-manpage-renames=XXX
-	Tell the configure script that you wish to rename the manpages while
-	installing.  Currently the only distribution which does this is Debian.
+	Tell the configure script that you wish to rename the man pages when
+	installing them.  Debian and distributions descended from it do this.
 	The option value specifies the name of a file that lists the renamed
-	files, e.g., $srcdir/man/man_db.renames
+	files, e.g., "$srcdir/man/man_db.renames".
 
     --with-manpage-symlinks
 	Tell the configure script that you wish to make symbolic links in the
-	man-directory for aliases to the man-pages.  This is the default, but
-	can be disabled for systems that provide this automatically.  Doing
-	this on systems that do not support symbolic links will result in
-	copying the man-page for each alias.
+	man-directory for aliases to the man pages.  This is the default, but
+	can be disabled for systems that provide this service automatically.
+	Doing this on systems that do not support symbolic links creates a copy
+	of the target man page for each alias.
 
     --with-manpage-tbl
-	Tell the configure script that you wish to preprocess the manpages
+	Tell the configure script that you wish to preprocess the man pages
 	by running them through tbl to generate tables understandable by
 	nroff.
 
@@ -1182,11 +1194,11 @@ CONFIGURE OPTIONS:
     --with-pkg-config-libdir[=DIR]
 	If pkg-config was found, override the automatic check for its library
 	path.  The optional DIR value can be
-	
+
 	"auto", automatically use pkg-config's library directory, or
-	
+
 	"libdir", use a ${libdir}/pkgconfig (based on the configuration), or
-	
+
 	a directory path, i.e., beginning with "/".
 
 	The configure script allows only a single directory, because
@@ -1351,11 +1363,9 @@ CONFIGURE OPTIONS:
 	several builds, some symbols will be listed in the the ".map" files
 	that do not happen to be present in one configuration or another.
 
-	The sample ".map" (and ".sym") files are generated using a set of
-	scripts which build several configurations for each release version,
-	checking to see which of the "_nc_" symbols can be made local.  In
-	addition to the ncurses libraries and programs, the symbols used
-	by the "tack" program before version 1.08 are made global.
+	The sample ".map" (and ".sym") files were generated using a set of
+	scripts which built several configurations for each release version,
+	checking to see which of the "_nc_" symbols can be made local.
 
 	These sample ".map" files will not cover all possible combinations.
 	In some cases, e.g., when using the --with-weak-symbols option, you
@@ -1393,10 +1403,10 @@ CONFIGURE OPTIONS:
 
     --without-curses-h
 	Don't install the ncurses header with the name "curses.h".  Rather,
-	install as "ncurses.h" and modify the installed headers and manpages
+	install as "ncurses.h" and modify the installed headers and man pages
 	accordingly.
 
-	Likewise, do not install an alias "curses" for the ncurses manpage.
+	Likewise, do not install an alias "curses" for the ncurses man page.
 
     --without-cxx
 	XSI curses declares "bool" as part of the interface.  C++ also declares
@@ -1419,7 +1429,7 @@ CONFIGURE OPTIONS:
 	Do not use dlsym() to load GPM dynamically.
 
     --without-manpages
-	Tell the configure script to suppress the install of ncurses' manpages.
+	Tell the configure script to suppress the install of ncurses' man pages.
 
     --without-progs
 	Tell the configure script to suppress the build of ncurses' application
@@ -1451,7 +1461,32 @@ COMPATIBILITY WITH OLDER RELEASES:
     you may encounter when building a system with different versions of
     ncurses:
 
-    6.5 (Apt 27, 2024)
+    6.6 (Dec 30, 2025)
+	Interface changes:
+
+	+ none
+
+	Added extensions:
+
+	+ none
+
+	Added internal functions (other than "_sp" variants):
+
+	+ _nc_is_path_found
+
+	Removed internal functions:
+
+	+ none
+
+	Modified internal functions:
+
+	+ These now pass a const parameter:  _nc_has_mouse,
+	  _nc_reset_color_pair, _nc_free_entry, and _nc_timed_wait.
+	+ These now use a NCURSES_BOOL where an int was used: 
+	  _nc_setupscreen, _nc_keypad, _nc_unicode_locale, and
+	  _nc_retrace_bool.
+
+    6.5 (Apr 27, 2024)
 	Interface changes:
 
 	+ the WINDOW structure and some related internal data types declared

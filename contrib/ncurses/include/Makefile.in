@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.53 2021/07/03 18:56:51 tom Exp $
+# $Id: Makefile.in,v 1.56 2025/10/18 13:33:46 tom Exp $
 ##############################################################################
-# Copyright 2019-2020,2021 Thomas E. Dickey                                  #
+# Copyright 2019-2024,2025 Thomas E. Dickey                                  #
 # Copyright 1998-2013,2015 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -44,14 +44,14 @@ SHELL		= @SHELL@
 VPATH		= @srcdir@
 THIS		= Makefile
 
-DESTDIR		= @DESTDIR@
+@SET_DESTDIR@
 srcdir		= @srcdir@
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
 includedir	= @includedir@
 includesubdir	= @includesubdir@
 
-INCLUDEDIR	= $(DESTDIR)$(includedir)$(includesubdir)
+INCLUDEDIR	= $(DESTDIR)$(includedir@MERGE_PREFIX@)$(includesubdir)
 
 INSTALL		= @INSTALL@
 INSTALL_DATA	= @INSTALL_DATA@
@@ -78,6 +78,7 @@ CAPLIST	=	$(TERMINFO_CAPS) \
 CONFIG_SRC = \
 	MKterm.h.awk \
 	curses.head \
+	nc_win32.h \
 	ncurses_dll.h \
 	termcap.h \
 	unctrl.h

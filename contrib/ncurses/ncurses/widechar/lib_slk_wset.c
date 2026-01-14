@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 2003-2011,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -41,7 +41,7 @@
 #include <wctype.h>
 #endif
 
-MODULE_ID("$Id: lib_slk_wset.c,v 1.15 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_slk_wset.c,v 1.16 2024/12/07 20:08:15 tom Exp $")
 
 NCURSES_EXPORT(int)
 slk_wset(int i, const wchar_t *astr, int format)
@@ -52,7 +52,7 @@ slk_wset(int i, const wchar_t *astr, int format)
 
     T((T_CALLED("slk_wset(%d, %s, %d)"), i, _nc_viswbuf(astr), format));
 
-    if (astr != 0) {
+    if (astr != NULL) {
 	size_t arglen;
 
 	init_mb(state);
@@ -61,7 +61,7 @@ slk_wset(int i, const wchar_t *astr, int format)
 	if ((arglen = wcsrtombs(NULL, &str, (size_t) 0, &state)) != (size_t) -1) {
 	    char *mystr;
 
-	    if ((mystr = (char *) _nc_doalloc(0, arglen + 1)) != 0) {
+	    if ((mystr = (char *) _nc_doalloc(NULL, arglen + 1)) != NULL) {
 		str = astr;
 		if (wcsrtombs(mystr, &str, arglen, &state) != (size_t) -1) {
 		    /* glibc documentation claims that the terminating L'\0'

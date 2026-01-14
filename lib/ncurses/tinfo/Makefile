@@ -20,6 +20,7 @@ NCURSES_CH_T=		cchar_t
 NCURSES_OK_WCHAR_T=	1
 NEED_WCHAR_H=		1
 NCURSES_EXT_COLORS=	1
+NCURSES_RGB_COLORS=	0
 NCURSES_EXT_FUNCS=	1
 NCURSES_CONST=		const
 NCURSES_INLINE=		inline
@@ -53,7 +54,7 @@ HAVE_TERMIOS_H=		1
 HAVE_TERMIO_H=		0
 HAVE_VSSCANF=		1
 HAVE_STDINT_H=		1
-HEADER_STDBOOL=		1
+HAVE_STDBOOL_H=		1
 HAVE_STDNORETURN_H=	0
 ENABLE_SIGWINCH=	1
 # XXX amd64 1L and int
@@ -205,14 +206,6 @@ SYMLINKS+=	libtinfow_p.a ${LIBDIR}/libtermlib_p.a
 SYMLINKS+=	libtinfow_p.a ${LIBDIR}/libtinfo_p.a
 .endif
 
-DOCSDIR=	${SHAREDIR}/doc/ncurses
-DOCS=		ncurses-intro.html hackguide.html
-
-.if ${MK_HTML} != "no"
-.PATH: ${NCURSES_DIR}/doc/html
-FILESGROUPS=	DOCS
-.endif
-
 # Generated source
 .ORDER: names.c codes.c
 
@@ -353,6 +346,7 @@ curses.head: curses.h.in
 	    -e "/@NCURSES_OPAQUE_MENU@/s%%${NCURSES_OPAQUE_MENU}%" \
 	    -e "/@NCURSES_OPAQUE_PANEL@/s%%${NCURSES_OPAQUE_PANEL}%" \
 	    -e "/@NCURSES_PATCH@/s%%${NCURSES_PATCH}%" \
+	    -e "/@NCURSES_RGB_COLORS@/s%%${NCURSES_RGB_COLORS}%" \
 	    -e "/@NCURSES_SIZE_T@/s%%${NCURSES_SIZE_T}%" \
 	    -e "/@NCURSES_TPARM_VARARGS@/s%%${NCURSES_TPARM_VARARGS}%" \
 	    -e "/@NCURSES_WATTR_MACROS@/s%%${NCURSES_WATTR_MACROS}%"\
@@ -365,15 +359,15 @@ curses.head: curses.h.in
 	    -e "/@NCURSES_SP_FUNCS@/s%%${NCURSES_SP_FUNCS}%g" \
 	    -e "/@NEED_WCHAR_H@/s%%${NEED_WCHAR_H}%" \
 	    -e "/@USE_CXX_BOOL@/s%%${USE_CXX_BOOL}%" \
+	    -e "/@USE_STDBOOL_H@/s%%${HAVE_STDBOOL_H}%" \
 	    -e "/@GENERATED_EXT_FUNCS@/s%%generated%g" \
 	    -e "s%@NCURSES_CCHARW_MAX@%5%g" \
 	    -e "s%@cf_cv_1UL@%${ONEUL}%g" \
-	    -e "s%@cf_cv_builtin_bool@%${BUILTIN_BOOL}%g" \
+	    -e "s%@USE_BUILTIN_BOOL@%${BUILTIN_BOOL}%g" \
 	    -e "s%@cf_cv_enable_lp64@%${ENABLE_LP64}%g" \
 	    -e "s%@cf_cv_enable_opaque@%${ENABLE_OPAQUE}%g" \
 	    -e "s%@cf_cv_enable_reentrant@%${ENABLE_REENTRANT}%g" \
 	    -e "s%@cf_cv_enable_sigwinch@%${ENABLE_SIGWINCH}%g" \
-	    -e "s%@cf_cv_header_stdbool_h@%${HEADER_STDBOOL}%g" \
 	    -e "s%@cf_cv_type_of_bool@%${TYPE_OF_BOOL}%g" \
 	    -e "s%@cf_cv_typeof_chtype@%${TYPEOF_CHTYPE}%g" \
 	    -e "s%@cf_cv_typeof_mmask_t@%${TYPEOF_MMASK_T}%g" \

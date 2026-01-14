@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020-2021,2023 Thomas E. Dickey                                *
+ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -36,7 +36,7 @@
 #include <ctype.h>
 #include <tic.h>
 
-MODULE_ID("$Id: comp_expand.c,v 1.35 2023/04/28 20:59:06 tom Exp $")
+MODULE_ID("$Id: comp_expand.c,v 1.37 2024/12/07 21:12:53 tom Exp $")
 
 #if 0
 #define DEBUG_THIS(p) DEBUG(9, p)
@@ -73,18 +73,18 @@ _nc_tic_expand(const char *srcp, bool tic_format, int numbers)
 	int offset;
     } fixups[MAX_TC_FIXUPS];
 
-    if (srcp == 0) {
+    if (srcp == NULL) {
 #if NO_LEAKS
-	if (buffer != 0) {
+	if (buffer != NULL) {
 	    FreeAndNull(buffer);
 	    length = 0;
 	}
 #endif
-	return 0;
+	return NULL;
     }
-    if (buffer == 0 || need > length) {
-	if ((buffer = typeRealloc(char, length = need, buffer)) == 0)
-	      return 0;
+    if (buffer == NULL || need > length) {
+	if ((buffer = typeRealloc(char, length = need, buffer)) == NULL)
+	      return NULL;
     }
 
     DEBUG_THIS(("_nc_tic_expand %s:%s:%s",
@@ -124,12 +124,12 @@ _nc_tic_expand(const char *srcp, bool tic_format, int numbers)
 	    case 1:
 		if (str[0] == L_BRACE
 		    && isdigit(UChar(str[1]))) {
-		    char *dst = 0;
+		    char *dst = NULL;
 		    long value = strtol(str + 1, &dst, 0);
-		    if (dst != 0
+		    if (dst != NULL
 			&& *dst == R_BRACE
 			&& value < 127
-			&& isprint((int) value)) {
+			&& isprint(UChar(value))) {
 			ch = (int) value;
 			buffer[bufp++] = S_QUOTE;
 			if (ch == '\\'

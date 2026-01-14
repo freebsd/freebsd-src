@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2019-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2019-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2012,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_addstr.3x,v 1.45 2024/04/20 19:18:18 tom Exp $
-.TH curs_addstr 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_addstr.3x,v 1.71 2025/10/21 00:09:34 tom Exp $
+.TH curs_addstr 3X 2025-10-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -46,53 +46,48 @@
 ..
 .SH NAME
 \fB\%addstr\fP,
-\fB\%addnstr\fP,
 \fB\%waddstr\fP,
-\fB\%waddnstr\fP,
 \fB\%mvaddstr\fP,
-\fB\%mvaddnstr\fP,
 \fB\%mvwaddstr\fP,
+\fB\%addnstr\fP,
+\fB\%waddnstr\fP,
+\fB\%mvaddnstr\fP,
 \fB\%mvwaddnstr\fP \-
 add a string to a \fIcurses\fR window and advance the cursor
 .SH SYNOPSIS
 .nf
 \fB#include <curses.h>
 .PP
-\fBint addstr(const char *\fIstr\fP);
-\fBint mvaddstr(int \fIy\fP, int \fIx\fP, const char *\fIstr\fP);
-\fBint mvwaddstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, const char *\fIstr\fP);
-\fBint waddstr(WINDOW *\fIwin\fP, const char *\fIstr\fP);
+\fBint addstr(const char * \fIstr\fP);
+\fBint waddstr(WINDOW * \fIwin\fP, const char * \fIstr\fP);
+\fBint mvaddstr(int \fIy\fP, int \fIx\fP, const char * \fIstr\fP);
+\fBint mvwaddstr(WINDOW * \fIwin\fP, int \fIy\fP, int \fIx\fP, const char * \fIstr\fP);
 .PP
-\fBint addnstr(const char *\fIstr\fP, int \fIn\fP);
-\fBint mvaddnstr(int \fIy\fP, int \fIx\fP, const char *\fIstr\fP, int \fIn\fP);
-\fBint mvwaddnstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, const char *\fIstr\fP, int \fIn\fP);
-\fBint waddnstr(WINDOW *\fIwin\fP, const char *\fIstr\fP, int \fIn\fP);
+\fBint addnstr(const char * \fIstr\fP, int \fIn\fP);
+\fBint waddnstr(WINDOW * \fIwin\fP, const char * \fIstr\fP, int \fIn\fP);
+\fBint mvaddnstr(int \fIy\fP, int \fIx\fP, const char * \fIstr\fP, int \fIn\fP);
+\fBint mvwaddnstr(WINDOW * \fIwin\fP, int \fIy\fP, int \fIx\fP, const char * \fIstr\fP, int \fIn\fP);
 .fi
 .SH DESCRIPTION
-.B waddstr
+.B \%waddstr
 writes the characters of the (null-terminated) string
 .I str
 to the window
-.IR win .
-Its process is similar to calling \fB\%waddch\fP(3X) for each
+.IR win ,
+as if by calling \fB\%waddch\fP(3X) for each
 .I char
 in
 .IR str .
-Control characters are processed as in \fB\%waddch\fP(3X).
-.PP
-.B waddnstr
-writes at most
+.B \%waddnstr
+is similar,
+but writes at most
 .I n
-characters,
-or until a terminating null character occurs in
-.IR str .
+characters.
 If
 .I n
 is \-1,
-.B
-.B waddnstr
+.B \%waddnstr
 writes the entire string.
-.PP
 \fB\%ncurses\fP(3X) describes the variants of these functions.
 .SH RETURN VALUE
 These functions return
@@ -101,18 +96,26 @@ on success and
 .B ERR
 on failure.
 .PP
-X/Open Curses does not specify any error conditions.
-.I \%ncurses
-returns an error
+In
+.IR \%ncurses ","
+these functions fail if
 .bP
-if the window pointer is
-.BR NULL ,
+the
+.I curses
+screen has not been initialized,
 .bP
-if the string pointer is
-.BR NULL ,
+.I str
+is a null pointer,
+.bP
+(for functions taking a
+.I \%WINDOW
+pointer argument)
+.I win
+is a null pointer,
 or
 .bP
-if an internal \fB\%waddch\fP(3X) call returns an error.
+an internal \fB\%waddch\fP(3X) call returns
+.BR ERR "."
 .PP
 Functions prefixed with \*(``mv\*('' first perform cursor movement and
 fail if the position
@@ -120,15 +123,35 @@ fail if the position
 .IR x )
 is outside the window boundaries.
 .SH NOTES
-All of these functions except \fBwaddnstr\fP may be macros.
+All of these functions except
+.B \%waddnstr
+may be implemented as macros.
 .SH PORTABILITY
-X/Open Curses,
-Issue 4 describes these functions.
+X/Open Curses Issue\ 4 describes these functions.
+It specifies no error conditions for them.
+.PP
+SVr4 describes a successful return value only as
+\*(``an integer value other than
+.IR ERR \*(''. \" Courier roman in source; SVID 4, vol. 3, p. 474
+.SH HISTORY
+4BSD (1980)
+introduced
+.I \%waddstr
+along with its variants,
+the latter defined as macros.
+.PP
+SVr3.1 (1987)
+added
+.I \%waddnstr
+(and its variants)
+redefining
+.I \%waddstr
+as a macro wrapping it.
 .SH SEE ALSO
 \fB\%curs_addwstr\fP(3X) describes comparable functions of the
 .I \%ncurses
 library in its wide-character configuration
-.RI ( \%ncursesw ).
+.RI \%( ncursesw ).
 .PP
 \fB\%curses\fP(3X),
 \fB\%curs_addch\fP(3X),

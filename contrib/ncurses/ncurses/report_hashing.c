@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2025 Thomas E. Dickey                                     *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,7 +33,7 @@
 #include <curses.priv.h>
 #include <tic.h>
 
-MODULE_ID("$Id: report_hashing.c,v 1.3 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: report_hashing.c,v 1.4 2025/02/20 01:02:09 tom Exp $")
 
 static void
 check_names(const char *name, NCURSES_CONST char *const *table, int termcap)
@@ -46,7 +46,7 @@ check_names(const char *name, NCURSES_CONST char *const *table, int termcap)
     printf("%s:\n", name);
     for (n = 0; table[n] != NULL; ++n) {
 	entry_ptr = _nc_find_entry(table[n], hash_table);
-	if (entry_ptr == 0) {
+	if (entry_ptr == NULL) {
 	    printf("  %s\n", table[n]);
 	    errs++;
 	}

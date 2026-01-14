@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2018-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -40,7 +40,7 @@
 extern int malloc_errfd;	/* FIXME */
 #endif
 
-MODULE_ID("$Id: lib_freeall.c,v 1.76 2021/11/06 21:52:49 tom Exp $")
+MODULE_ID("$Id: lib_freeall.c,v 1.78 2024/12/07 18:00:11 tom Exp $")
 
 /*
  * Free all ncurses data.  This is used for testing only (there's no practical
@@ -54,11 +54,11 @@ NCURSES_SP_NAME(_nc_freeall) (NCURSES_SP_DCL0)
     T((T_CALLED("_nc_freeall()")));
 #if NO_LEAKS
     _nc_globals.leak_checking = TRUE;
-    if (SP_PARM != 0) {
-	if (SP_PARM->_oldnum_list != 0) {
+    if (SP_PARM != NULL) {
+	if (SP_PARM->_oldnum_list != NULL) {
 	    FreeAndNull(SP_PARM->_oldnum_list);
 	}
-	if (SP_PARM->_panelHook.destroy != 0) {
+	if (SP_PARM->_panelHook.destroy != NULL) {
 	    SP_PARM->_panelHook.destroy(SP_PARM->_panelHook.stdscr_pseudo_panel);
 	}
 #if NCURSES_EXT_COLORS
@@ -66,10 +66,10 @@ NCURSES_SP_NAME(_nc_freeall) (NCURSES_SP_DCL0)
 #endif
     }
 #endif
-    if (SP_PARM != 0) {
+    if (SP_PARM != NULL) {
 	_nc_lock_global(curses);
 
-	while (WindowList(SP_PARM) != 0) {
+	while (WindowList(SP_PARM) != NULL) {
 	    WINDOWLIST *p, *q;
 	    bool deleted = FALSE;
 
@@ -87,7 +87,7 @@ NCURSES_SP_NAME(_nc_freeall) (NCURSES_SP_DCL0)
 #endif
 
 		for (each_window(SP_PARM, q)) {
-		    WINDOW *q_win = &(q->win);
+		    const WINDOW *q_win = &(q->win);
 
 #ifndef USE_SP_WINDOWLIST
 		    if (q->screen != SP_PARM)
@@ -119,7 +119,7 @@ NCURSES_SP_NAME(_nc_freeall) (NCURSES_SP_DCL0)
 	_nc_unlock_global(curses);
     }
 
-    (void) _nc_printf_string(0, empty_va);
+    (void) _nc_printf_string(NULL, empty_va);
 #ifdef TRACE
     (void) _nc_trace_buf(-1, (size_t) 0);
 #endif

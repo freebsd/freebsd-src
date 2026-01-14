@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2013,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -48,7 +48,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: alloc_entry.c,v 1.79 2023/09/15 08:16:12 tom Exp $")
+MODULE_ID("$Id: alloc_entry.c,v 1.83 2025/02/16 17:57:12 tom Exp $")
 
 #define ABSENT_OFFSET    -1
 #define CANCELLED_OFFSET -2
@@ -104,7 +104,7 @@ _nc_copy_entry(ENTRY * oldp)
 NCURSES_EXPORT(char *)
 _nc_save_str(const char *string)
 {
-    char *result = 0;
+    char *result = NULL;
     size_t old_next_free = next_free;
 
     if (stringbuf != NULL) {
@@ -140,7 +140,7 @@ _nc_wrap_entry(ENTRY * const ep, bool copy_strings)
 /* copy the string parts to allocated storage, preserving pointers to it */
 {
     int offsets[MAX_ENTRY_SIZE / sizeof(short)];
-    int useoffsets[MAX_USES];
+    int useoffsets[HARD_MAX_USES];
     unsigned i, n;
     unsigned nuses;
     TERMTYPE2 *tp;
@@ -164,7 +164,7 @@ _nc_wrap_entry(ENTRY * const ep, bool copy_strings)
 	}
 
 	for (i = 0; i < nuses; i++) {
-	    if (ep->uses[i].name == 0) {
+	    if (ep->uses[i].name == NULL) {
 		ep->uses[i].name = _nc_save_str(ep->uses[i].name);
 	    }
 	}
@@ -187,14 +187,17 @@ _nc_wrap_entry(ENTRY * const ep, bool copy_strings)
     }
 
     for (i = 0; i < nuses; i++) {
-	if (ep->uses[i].name == 0)
+	if (ep->uses[i].name == NULL)
 	    useoffsets[i] = ABSENT_OFFSET;
 	else
 	    useoffsets[i] = (int) (ep->uses[i].name - stringbuf);
     }
 
     TYPE_MALLOC(char, next_free, tp->str_table);
-    (void) memcpy(tp->str_table, stringbuf, next_free);
+    if (stringbuf == NULL)
+	(void) memset(tp->str_table, 0, next_free);
+    else
+	(void) memcpy(tp->str_table, stringbuf, next_free);
 
     tp->term_names = tp->str_table + n;
     for_each_string(i, &(ep->tterm)) {
@@ -234,7 +237,7 @@ _nc_wrap_entry(ENTRY * const ep, bool copy_strings)
 
     for (i = 0; i < nuses; i++) {
 	if (useoffsets[i] == ABSENT_OFFSET) {
-	    ep->uses[i].name = 0;
+	    ep->uses[i].name = NULL;
 	} else {
 	    ep->uses[i].name = strdup(tp->str_table + useoffsets[i]);
 	}
@@ -255,7 +258,7 @@ _nc_merge_entry(ENTRY * const target, ENTRY * const source)
 #endif
     unsigned i;
 
-    if (source == 0 || from == 0 || target == 0 || to == 0)
+    if (source == NULL || from == NULL || target == NULL || to == NULL)
 	return;
 
 #if NCURSES_XNAMES
@@ -357,6 +360,8 @@ _nc_merge_entry(ENTRY * const target, ENTRY * const source)
     }
 #endif
     for_each_boolean(i, from) {
+	if (i >= NUM_BOOLEANS(to))
+	    break;
 	if (to->Booleans[i] != (NCURSES_SBOOL) CANCELLED_BOOLEAN) {
 	    int mergebool = from->Booleans[i];
 
@@ -368,6 +373,8 @@ _nc_merge_entry(ENTRY * const target, ENTRY * const source)
     }
 
     for_each_number(i, from) {
+	if (i >= NUM_NUMBERS(to))
+	    break;
 	if (to->Numbers[i] != CANCELLED_NUMERIC) {
 	    int mergenum = from->Numbers[i];
 
@@ -384,6 +391,8 @@ _nc_merge_entry(ENTRY * const target, ENTRY * const source)
      * we ever want to deallocate entries.
      */
     for_each_string(i, from) {
+	if (i >= NUM_STRINGS(to))
+	    break;
 	if (to->Strings[i] != CANCELLED_STRING) {
 	    char *mergestring = from->Strings[i];
 

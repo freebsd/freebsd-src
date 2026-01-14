@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020-2021,2023 Thomas E. Dickey                                *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -47,7 +47,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_options.c,v 1.83 2023/04/29 18:56:12 tom Exp $")
+MODULE_ID("$Id: lib_options.c,v 1.86 2025/12/27 12:41:23 tom Exp $")
 
 NCURSES_EXPORT(int)
 idlok(WINDOW *win, bool flag)
@@ -57,8 +57,8 @@ idlok(WINDOW *win, bool flag)
 
     if (win) {
 	SCREEN *sp = _nc_screen_of(win);
-	if (sp != 0
-#ifdef USE_TERM_DRIVER
+	if (sp != NULL
+#if USE_TERM_DRIVER
 	    && IsTermInfo(sp)
 #endif
 	    ) {
@@ -158,16 +158,16 @@ NCURSES_EXPORT(int)
 meta(WINDOW *win GCC_UNUSED, bool flag)
 {
     int result = ERR;
-    SCREEN *sp = (win == 0) ? CURRENT_SCREEN : _nc_screen_of(win);
+    SCREEN *sp = (win == NULL) ? CURRENT_SCREEN : _nc_screen_of(win);
 
     /* Ok, we stay relaxed and don't signal an error if win is NULL */
     T((T_CALLED("meta(%p,%d)"), (void *) win, flag));
 
     /* Ok, we stay relaxed and don't signal an error if win is NULL */
 
-    if (sp != 0) {
+    if (sp != NULL) {
 	sp->_use_meta = flag;
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 	if (IsTermInfo(sp)) {
 	    if (flag) {
 		NCURSES_PUTP2("meta_on", meta_on);
@@ -195,12 +195,12 @@ NCURSES_SP_NAME(curs_set) (NCURSES_SP_DCLx int vis)
     int code = ERR;
     T((T_CALLED("curs_set(%p,%d)"), (void *) SP_PARM, vis));
 
-    if (SP_PARM != 0 && vis >= 0 && vis <= 2) {
+    if (SP_PARM != NULL && vis >= 0 && vis <= 2) {
 	int cursor = SP_PARM->_cursor;
 	if (vis == cursor) {
 	    code = cursor;
 	} else {
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 	    code = CallDriver_1(SP_PARM, td_cursorSet, vis);
 #else
 	    if (IsValidTIScreen(SP_PARM)) {
@@ -269,7 +269,7 @@ typeahead(int fd)
 static int
 has_key_internal(int keycode, TRIES * tp)
 {
-    if (tp == 0)
+    if (tp == NULL)
 	return (FALSE);
     else if (tp->value == keycode)
 	return (TRUE);
@@ -278,7 +278,7 @@ has_key_internal(int keycode, TRIES * tp)
 		|| has_key_internal(keycode, tp->sibling));
 }
 
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 NCURSES_EXPORT(int)
 TINFO_HAS_KEY(SCREEN *sp, int keycode)
 {
@@ -290,7 +290,7 @@ NCURSES_EXPORT(int)
 NCURSES_SP_NAME(has_key) (NCURSES_SP_DCLx int keycode)
 {
     T((T_CALLED("has_key(%p,%d)"), (void *) SP_PARM, keycode));
-    returnCode(SP != 0 ? has_key_internal(keycode, SP_PARM->_keytry) : FALSE);
+    returnCode(SP != NULL ? has_key_internal(keycode, SP_PARM->_keytry) : FALSE);
 }
 
 #if NCURSES_SP_FUNCS
@@ -330,11 +330,11 @@ _nc_putp_flush(const char *name, const char *value)
  * the terminal state _before_ switching modes.
  */
 NCURSES_EXPORT(int)
-_nc_keypad(SCREEN *sp, int flag)
+_nc_keypad(SCREEN *sp, bool flag)
 {
     int rc = ERR;
 
-    if (sp != 0) {
+    if (sp != NULL) {
 #ifdef USE_PTHREADS
 	/*
 	 * We might have this situation in a multithreaded application that
@@ -354,7 +354,7 @@ _nc_keypad(SCREEN *sp, int flag)
 	} else
 #endif
 	{
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 	    rc = CallDriver_1(sp, td_kpad, flag);
 	    if (rc == OK)
 		sp->_keypad_on = flag;

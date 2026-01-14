@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,8 +28,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_driver.3x,v 1.61 2024/04/20 18:55:09 tom Exp $
-.TH form_driver 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: form_driver.3x,v 1.64 2025/10/04 20:59:08 tom Exp $
+.TH form_driver 3X 2025-10-04 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .de bP
 .ie n  .IP \(bu 4
 .el    .IP \(bu 2
@@ -51,7 +51,8 @@ Once a form has been posted (displayed), you should funnel input events to it
 through \fBform_driver\fP.  This routine has three major input cases:
 .bP
 The input is a form navigation request.
-Navigation request codes are constants defined in \fB<form.h>\fP,
+Navigation request codes are constants defined in
+.IR form.h ","
 which are distinct from the key- and character codes returned
 by \fBwgetch\fP(3X).
 .bP

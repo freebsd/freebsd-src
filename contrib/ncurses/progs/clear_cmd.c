@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018,2020,2025 Thomas E. Dickey                                *
  * Copyright 2016,2017 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,23 +38,82 @@
 #define USE_LIBTINFO
 #include <clear_cmd.h>
 
-MODULE_ID("$Id: clear_cmd.c,v 1.5 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: clear_cmd.c,v 1.8 2025/12/06 21:00:26 tom Exp $")
 
+#ifdef TERMIOS
 static int
 putch(int c)
 {
     return putchar(c);
 }
+#endif
 
 int
 clear_cmd(bool legacy)
 {
-    int retval = tputs(clear_screen, lines > 0 ? lines : 1, putch);
+    int retval;
+#ifdef TERMIOS
+    retval = tputs(clear_screen, lines > 0 ? lines : 1, putch);
     if (!legacy) {
 	/* Clear the scrollback buffer if possible. */
-	char *E3 = tigetstr("E3");
-	if (E3)
+	char *E3 = tigetstr(UserCap(E3));
+	if (VALID_STRING(E3))
 	    (void) tputs(E3, lines > 0 ? lines : 1, putch);
     }
+#elif defined(_NC_WINDOWS)
+    /*
+     * https://learn.microsoft.com/en-us/windows/console/clearing-the-screen
+     */
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    COORD coordScreen =
+    {0, 0};
+#if defined(ENABLE_VIRTUAL_TERMINAL_PROCESSING)
+    DWORD mode = 0;
+
+    retval = ERR;
+
+    if (GetConsoleMode(hConsole, &mode)) {
+	const DWORD originalMode = mode;
+	mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+
+	if (SetConsoleMode(hConsole, mode)) {
+	    DWORD written = 0;
+	    PCWSTR sequence = legacy ? L"\x1b[2J" : L"\x1b[2J\x1b[3J";
+	    if (WriteConsoleW(hConsole, sequence,
+			      (DWORD) wcslen(sequence),
+			      &written, NULL)) {
+		SetConsoleCursorPosition(hConsole, coordScreen);
+		retval = OK;
+	    }
+	    SetConsoleMode(hConsole, originalMode);
+	}
+    }
+#else
+    DWORD cCharsWritten;
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    DWORD dwConSize;
+
+    (void) legacy;
+    retval = ERR;
+
+    /* Get the number of character cells in the current buffer,
+     * to fill the entire screen with blanks */
+    if (GetConsoleScreenBufferInfo(hConsole, &csbi)
+	&& (dwConSize = csbi.dwSize.X * csbi.dwSize.Y) > 0
+	&& FillConsoleOutputCharacter(hConsole,
+				      (TCHAR) ' ',
+				      dwConSize,
+				      coordScreen,
+				      &cCharsWritten)
+	&& FillConsoleOutputAttribute(hConsole,
+				      csbi.wAttributes,
+				      dwConSize,
+				      coordScreen,
+				      &cCharsWritten)) {
+	SetConsoleCursorPosition(hConsole, coordScreen);
+	retval = OK;
+    }
+#endif
+#endif
     return retval;
 }

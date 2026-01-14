@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -49,7 +49,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_kernel.c,v 1.36 2023/06/10 13:29:06 tom Exp $")
+MODULE_ID("$Id: lib_kernel.c,v 1.40 2025/12/23 09:09:50 tom Exp $")
 
 #ifdef TERMIOS
 static int
@@ -89,12 +89,12 @@ NCURSES_SP_NAME(erasechar) (NCURSES_SP_DCL0)
 
     T((T_CALLED("erasechar(%p)"), (void *) SP_PARM));
 
-    if (termp != 0) {
+    if (termp != NULL) {
 #ifdef TERMIOS
 	result = termp->Ottyb.c_cc[VERASE];
 	if (result == _nc_vdisable())
 	    result = ERR;
-#elif defined(EXP_WIN32_DRIVER)
+#elif defined(USE_WIN32CON_DRIVER)
 	result = ERR;
 #else
 	result = termp->Ottyb.sg_erase;
@@ -126,12 +126,12 @@ NCURSES_SP_NAME(killchar) (NCURSES_SP_DCL0)
 
     T((T_CALLED("killchar(%p)"), (void *) SP_PARM));
 
-    if (termp != 0) {
+    if (termp != NULL) {
 #ifdef TERMIOS
 	result = termp->Ottyb.c_cc[VKILL];
 	if (result == _nc_vdisable())
 	    result = ERR;
-#elif defined(EXP_WIN32_DRIVER)
+#elif defined(USE_WIN32CON_DRIVER)
 	result = ERR;
 #else
 	result = termp->Ottyb.sg_kill;
@@ -151,12 +151,12 @@ killchar(void)
 static void
 flush_input(int fd)
 {
-#ifdef TERMIOS
+#if defined(TERMIOS)
     tcflush(fd, TCIFLUSH);
 #else /* !TERMIOS */
     errno = 0;
     do {
-#if defined(EXP_WIN32_DRIVER)
+#if defined(USE_WIN32CON_DRIVER)
 	_nc_console_flush(_nc_console_fd2handle(fd));
 #else
 	ioctl(fd, TIOCFLUSH, 0);
@@ -177,7 +177,7 @@ NCURSES_SP_NAME(flushinp) (NCURSES_SP_DCL0)
 {
     T((T_CALLED("flushinp(%p)"), (void *) SP_PARM));
 
-    if (SP_PARM != 0) {
+    if (SP_PARM != NULL) {
 	if (NC_ISATTY(SP_PARM->_ifd))
 	    flush_input(SP_PARM->_ifd);
 	else if (NC_ISATTY(SP_PARM->_ofd))

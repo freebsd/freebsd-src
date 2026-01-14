@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2021 Thomas E. Dickey                                     *
+ * Copyright 2020-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2004,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_item_vis.c,v 1.20 2021/06/17 21:20:30 tom Exp $")
+MODULE_ID("$Id: m_item_vis.c,v 1.21 2024/07/27 18:14:09 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu
@@ -53,7 +53,7 @@ MODULE_ID("$Id: m_item_vis.c,v 1.20 2021/06/17 21:20:30 tom Exp $")
 MENU_EXPORT(bool)
 item_visible(const ITEM *item)
 {
-  MENU *menu;
+  const MENU *menu;
 
   T((T_CALLED("item_visible(%p)"), (const void *)item));
   if (item &&

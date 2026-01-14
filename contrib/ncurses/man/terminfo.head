@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: terminfo.head,v 1.65 2024/04/20 21:14:00 tom Exp $
-.TH terminfo 5 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "File formats"
+.\" $Id: terminfo.head,v 1.69 2025/08/16 21:50:23 tom Exp $
+.TH terminfo 5 2025-08-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "File formats"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -51,12 +51,11 @@
 .el    .IP \(bu 2
 ..
 .
-.ds d @TERMINFO@
 .SH NAME
 \fB\%terminfo\fP \-
 terminal capability database
 .SH SYNOPSIS
-\*d/*/*
+@TERMINFO@/*/*
 .SH DESCRIPTION
 .I Terminfo
 is a database describing terminals,
@@ -222,6 +221,6 @@ user preferences.
 An entry included via \fBuse\fP can contain canceled capabilities,
 which have the same effect as if those cancels were inline in the
 using terminal entry.
-.SS "Predefined Capabilities"
+.SS "Standard Capabilities"
 .\" Head of terminfo man page ends here
 .ps -1

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 
-/* $Id: panel.priv.h,v 1.30 2020/09/26 18:05:32 tom Exp $ */
+/* $Id: panel.priv.h,v 1.31 2024/12/07 23:01:42 tom Exp $ */
 
 #ifndef NCURSES_PANEL_PRIV_H
 #define NCURSES_PANEL_PRIV_H 1
@@ -86,7 +86,7 @@ struct screen;              /* forward declaration */
 #define GetScreenHook(sp) \
 			struct panelhook* ph = NCURSES_SP_NAME(_nc_panelhook)(sp)
 #define GetPanelHook(pan) \
-			GetScreenHook(pan ? _nc_screen_of((pan)->win) : 0)
+			GetScreenHook(pan ? _nc_screen_of((pan)->win) : NULL)
 #define GetWindowHook(win) \
 			SCREEN* sp = _nc_screen_of(win); \
 			GetScreenHook(sp)

@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 2002-2010,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_in_wch.3x,v 1.31 2024/04/20 21:20:07 tom Exp $
-.TH curs_in_wch 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_in_wch.3x,v 1.44 2025/02/01 22:54:32 tom Exp $
+.TH curs_in_wch 3X 2025-02-01 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -41,30 +41,46 @@
 .\}
 .SH NAME
 \fB\%in_wch\fP,
+\fB\%win_wch\fP,
 \fB\%mvin_wch\fP,
-\fB\%mvwin_wch\fP,
-\fB\%win_wch\fP \-
+\fB\%mvwin_wch\fP \-
 get a \fIcurses\fR complex character from a window
 .SH SYNOPSIS
 .nf
 \fB#include <curses.h>
 .PP
-\fBint in_wch(cchar_t *\fIwch\fP);
-\fBint win_wch(WINDOW *\fIwin\fP, cchar_t *\fIwch\fP);
-.PP
-\fBint mvin_wch(int \fIy\fP, int \fIx\fP, cchar_t *\fIwch\fP);
-\fBint mvwin_wch(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, cchar_t *\fIwch\fP);
+\fBint in_wch(cchar_t * \fIwch\fP);
+\fBint win_wch(WINDOW * \fIwin\fP, cchar_t * \fIwch\fP);
+\fBint mvin_wch(int \fIy\fP, int \fIx\fP, cchar_t * \fIwch\fP);
+\fBint mvwin_wch(WINDOW * \fIwin\fP, int \fIy\fP, int \fIx\fP, cchar_t * \fIwch\fP);
 .fi
 .SH DESCRIPTION
-These functions extract the complex character and rendition from
-the current position in the named window into the \fBcchar_t\fP object
-referenced by wch.
+.B \%win_wch
+copies the
+.I curses
+complex character at the cursor position in
+.I win
+into
+.IR wch "."
+Use \fB\%getcchar\fP(3X) to extract its character code,
+attributes,
+and color pair identifier.
+\fB\%ncurses\fP(3X) describes the variants of this function.
 .SH RETURN VALUE
-No errors are defined in X/Open Curses.
-This implementation checks for null pointers, returns \fBERR\fP in that case.
-Also, the \fImv\fP routines check for error moving the cursor,
-returning \fBERR\fP in that case.
-Otherwise they return \fBOK\fP.
+These functions return
+.B OK
+on success and
+.B ERR
+on failure.
+.PP
+In
+.IR \%ncurses ","
+they return
+.B ERR
+if
+.I win
+is
+.IR NULL "."
 .PP
 Functions prefixed with \*(``mv\*('' first perform cursor movement and
 fail if the position
@@ -72,9 +88,38 @@ fail if the position
 .IR x )
 is outside the window boundaries.
 .SH NOTES
-Note that all of these routines may be macros.
+.BR \%in_wch ","
+.BR mvin_wch ","
+and
+.B mvwin_wch
+may be implemented as macros.
+.PP
+Unlike \fB\%winch\fP(3X),
+.B \%win_wch
+and its variants store the value of the retrieved character in an
+additional
+.I wch
+parameter instead of the return value.
 .SH PORTABILITY
-These functions are described in X/Open Curses, Issue 4.
+X/Open Curses Issue\ 4 describes these functions.
+It specifies no error conditions for them.
+.SH HISTORY
+X/Open Curses Issue\ 4 (1995) initially specified these functions.
+The System\ V Interface Definition Version\ 4
+of the same year
+specified a function named
+.I \%winwch
+(and the usual variants).
+.\" SVID 4, vol 3., p. 514
+This was a later addition to
+.RI SVr4. x ,
+not appearing in the first SVr4 (1989).
+It differed from X/Open's later
+.I \%win_wch
+in that it returned a value of type
+.I \%chtype
+instead of
+.IR \%cchar_t "."
 .SH SEE ALSO
 \fB\%curs_inch\fP(3X) describes comparable functions of the
 .I \%ncurses

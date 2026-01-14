@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2021 Thomas E. Dickey                                     *
+ * Copyright 2020-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2010,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_window.c,v 1.32 2021/10/23 23:06:24 tom Exp $")
+MODULE_ID("$Id: lib_window.c,v 1.33 2024/12/07 20:03:37 tom Exp $")
 
 NCURSES_EXPORT(void)
 _nc_synchook(WINDOW *win)
@@ -61,8 +61,8 @@ mvderwin(WINDOW *win, int y, int x)
 
     T((T_CALLED("mvderwin(%p,%d,%d)"), (void *) win, y, x));
 
-    if (win != 0
-	&& (orig = win->_parent) != 0
+    if (win != NULL
+	&& (orig = win->_parent) != NULL
 	&& (x >= 0 && y >= 0)
 	&& (x + getmaxx(win) <= getmaxx(orig))
 	&& (y + getmaxy(win) <= getmaxy(orig))) {
@@ -178,11 +178,11 @@ NCURSES_EXPORT(WINDOW *)
 dupwin(WINDOW *win)
 /* make an exact duplicate of the given window */
 {
-    WINDOW *nwin = 0;
+    WINDOW *nwin = NULL;
 
     T((T_CALLED("dupwin(%p)"), (void *) win));
 
-    if (win != 0) {
+    if (win != NULL) {
 #if NCURSES_SP_FUNCS
 	SCREEN *sp = _nc_screen_of(win);
 #endif
@@ -199,7 +199,7 @@ dupwin(WINDOW *win)
 					    win->_begx);
 	}
 
-	if (nwin != 0) {
+	if (nwin != NULL) {
 	    int i;
 	    size_t linesize;
 

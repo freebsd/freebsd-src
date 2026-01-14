@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2019-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2019-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 2010-2014,2016 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: MKada_config.in,v 1.35 2024/04/20 21:13:27 tom Exp $
-.TH adacurses@USE_CFG_SUFFIX@\-config 1 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
+.\" $Id: MKada_config.in,v 1.37 2025/04/05 22:26:08 tom Exp $
+.TH adacurses@USE_CFG_SUFFIX@\-config 1 2025-04-05 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
 .ds C adacurses@USE_CFG_SUFFIX@\-config
 .ie \n(.g \{\
 .ds `` \(lq
@@ -97,6 +97,7 @@ Populate a file \fIhello.adb\fP with the following.
 .PP
 .if \n(LL>67n .RS 4
 .EX
+.nf
 with Terminal_Interface.Curses; use Terminal_Interface.Curses;
 
 procedure Hello is
@@ -127,6 +128,7 @@ begin
 
    End_Windows;
 end Hello;
+.fi
 .EE
 .if \n(LL>67n .RE
 .ne 2

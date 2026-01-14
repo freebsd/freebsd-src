@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2019-2021,2025 Thomas E. Dickey                                *
  * Copyright 1998-2013,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -30,7 +30,7 @@
 /****************************************************************************
  *  Author: Thomas E. Dickey                    1996-on                     *
  ****************************************************************************/
-/* $Id: nc_alloc.h,v 1.30 2021/11/20 23:33:38 tom Exp $ */
+/* $Id: nc_alloc.h,v 1.36 2025/03/01 15:02:06 tom Exp $ */
 
 #ifndef NC_ALLOC_included
 #define NC_ALLOC_included 1
@@ -117,6 +117,27 @@ extern NCURSES_EXPORT(void) _nc_leaks_tinfo(void);
 #define typeMalloc(type,elts) (type *)malloc((size_t)(elts)*sizeof(type))
 #define typeCalloc(type,elts) (type *)calloc((size_t)(elts),sizeof(type))
 #define typeRealloc(type,elts,ptr) (type *)_nc_doalloc(ptr, (size_t)(elts)*sizeof(type))
+
+/* provide for using VLAs if supported, otherwise assume alloca() */
+
+#ifndef __STDC_VERSION__
+#define __STDC_VERSION__ 0
+#endif
+
+#ifndef __STDC_NO_VLA__
+#define __STDC_NO_VLA__ 1
+#endif
+
+#if __STDC_VERSION__ >= 19901L && (__STDC_VERSION__ < 201000L || !__STDC_NO_VLA__)
+#define MakeArray(name,type,count) type name[count]
+#else
+#if HAVE_ALLOCA_H
+#include <alloca.h>
+#elif HAVE_MALLOC_H
+#include <malloc.h>
+#endif
+#define MakeArray(name,type,count) type *name = (type*) alloca(sizeof(type) * (size_t) (count))
+#endif
 
 #ifdef __cplusplus
 }

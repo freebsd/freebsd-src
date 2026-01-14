@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 2017 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,10 +34,10 @@
 #define NEW_PAIR_INTERNAL 1
 #include <curses.priv.h>
 
-MODULE_ID("$Id: report_offsets.c,v 1.28 2024/02/24 15:59:09 tom Exp $")
+MODULE_ID("$Id: report_offsets.c,v 1.32 2025/12/27 12:34:03 tom Exp $")
 
 #define show_size(type) \
-	flag = 0; \
+	flag = NULL; \
 	last = 0; \
 	printf("%5lu   " #type "\n", (unsigned long)sizeof(type))
 #define show_name(name) \
@@ -48,7 +48,7 @@ MODULE_ID("$Id: report_offsets.c,v 1.28 2024/02/24 15:59:09 tom Exp $")
 		printf("?? incorrect order for " #type "." #member "\n"); \
 	printf("%5lu %c " #type "." #member "\n", next, flag ? *flag : ' '); \
 	last = next; \
-	flag = 0
+	flag = NULL
 
 #if NCURSES_WIDECHAR && NCURSES_EXT_COLORS
 #define show_COLORS(type,member) { flag = "c"; show_offset(type,member); }
@@ -56,7 +56,7 @@ MODULE_ID("$Id: report_offsets.c,v 1.28 2024/02/24 15:59:09 tom Exp $")
 #define show_COLORS(type,member)	/* nothing */
 #endif
 
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 #define show_DRIVER(type,member) { flag = "d"; show_offset(type,member); }
 #else
 #define show_DRIVER(type,member)	/* nothing */
@@ -102,10 +102,13 @@ MODULE_ID("$Id: report_offsets.c,v 1.28 2024/02/24 15:59:09 tom Exp $")
 #endif
 
 int
-main(void)
+main(int argc, char *argv[])
 {
-    const char *flag = 0;
+    const char *flag = NULL;
     unsigned long last, next;
+
+    if (argc == 2 && !strcmp(argv[1], "-?"))
+	return EXIT_SUCCESS;
 
     printf("Size/offsets of data structures:\n");
 
@@ -183,7 +186,9 @@ main(void)
     show_REENTR(SCREEN, _ttytype);
     show_SPFUNC(SCREEN, use_tioctl);
     show_WIDECH(SCREEN, _screen_acs_fix);
+#if NCURSES_EXT_FUNCS && NCURSES_EXT_COLORS
     show_COLORS(SCREEN, _ordered_pairs);
+#endif
     show_TRACES(SCREEN, tracechr_buf);
 
     printf("\n");

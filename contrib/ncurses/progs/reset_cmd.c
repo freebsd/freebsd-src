@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2023,2024 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 2016,2017 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -53,7 +53,7 @@
 #include <sys/ptem.h>
 #endif
 
-MODULE_ID("$Id: reset_cmd.c,v 1.37 2024/04/08 17:29:34 tom Exp $")
+MODULE_ID("$Id: reset_cmd.c,v 1.42 2025/11/22 21:38:31 tom Exp $")
 
 /*
  * SCO defines TIOCGSIZE and the corresponding struct.  Other systems (SunOS,
@@ -104,8 +104,8 @@ cat_file(char *file)
     char buf[BUFSIZ];
     bool sent = FALSE;
 
-    if (file != 0) {
-	if ((fp = safe_fopen(file, "r")) == 0)
+    if (file != NULL) {
+	if ((fp = safe_fopen(file, "r")) == NULL)
 	    failed(file);
 
 	while ((nr = fread(buf, sizeof(char), sizeof(buf), fp)) != 0) {
@@ -271,6 +271,7 @@ out_char(int c)
 void
 reset_tty_settings(int fd, TTY * tty_settings, int noset)
 {
+#ifdef TERMIOS
     unsigned mask;
 #ifdef TIOCMGET
     int modem_bits;
@@ -278,7 +279,6 @@ reset_tty_settings(int fd, TTY * tty_settings, int noset)
 
     GET_TTY(fd, tty_settings);
 
-#ifdef TERMIOS
 #if defined(VDISCARD) && defined(CDISCARD)
     reset_char(VDISCARD, CDISCARD);
 #endif
@@ -370,6 +370,28 @@ reset_tty_settings(int fd, TTY * tty_settings, int noset)
 				      | ECHOK
 				      | ECHOCTL
 				      | ECHOKE));
+#elif defined(_NC_WINDOWS)
+    /* reference:
+       https://learn.microsoft.com/en-us/windows/console/setconsolemode
+       https://learn.microsoft.com/en-us/windows/console/high-level-console-modes
+     */
+    GET_TTY(fd, tty_settings);
+    /* do not change ENABLE_VIRTUAL_TERMINAL_INPUT */
+    /* do not change ENABLE_WINDOW_INPUT */
+    tty_settings->dwFlagIn &= ~(
+				   ENABLE_INSERT_MODE |
+				   ENABLE_QUICK_EDIT_MODE);
+    tty_settings->dwFlagIn |= (
+				  ENABLE_EXTENDED_FLAGS |
+				  ENABLE_MOUSE_INPUT |
+				  ENABLE_LINE_INPUT |	/* like ICANON */
+				  ENABLE_ECHO_INPUT |	/* like ECHO */
+				  ENABLE_PROCESSED_INPUT	/* like BRKINT */
+	);
+#ifdef ENABLED_PROCESSED_OUTPUT
+    tty_settings->dwFlagOut |= ENABLED_PROCESSED_OUTPUT;
+#endif
+    tty_settings->dwFlagOut |= ENABLE_WRAP_AT_EOL_OUTPUT;
 #endif /* TERMIOS */
 
     if (!noset) {
@@ -381,6 +403,7 @@ reset_tty_settings(int fd, TTY * tty_settings, int noset)
  * Returns a "good" value for the erase character.  This is loosely based on
  * the BSD4.4 logic.
  */
+#ifdef TERMIOS
 static int
 default_erase(void)
 {
@@ -396,6 +419,7 @@ default_erase(void)
 
     return result;
 }
+#endif
 
 /*
  * Update the values of the erase, interrupt, and kill characters in the TTY
@@ -408,13 +432,7 @@ default_erase(void)
 void
 set_control_chars(TTY * tty_settings, int my_erase, int my_intr, int my_kill)
 {
-#if defined(EXP_WIN32_DRIVER)
-    /* noop */
-    (void) tty_settings;
-    (void) my_erase;
-    (void) my_intr;
-    (void) my_kill;
-#else
+#ifdef TERMIOS
     if (DISABLED(tty_settings->c_cc[VERASE]) || my_erase >= 0) {
 	tty_settings->c_cc[VERASE] = UChar((my_erase >= 0)
 					   ? my_erase
@@ -432,7 +450,13 @@ set_control_chars(TTY * tty_settings, int my_erase, int my_intr, int my_kill)
 					  ? my_kill
 					  : CKILL);
     }
-#endif
+#elif defined(_NC_WINDOWS)
+    /* noop */
+    (void) tty_settings;
+    (void) my_erase;
+    (void) my_intr;
+    (void) my_kill;
+#endif /* TERMIOS */
 }
 
 /*
@@ -442,9 +466,7 @@ set_control_chars(TTY * tty_settings, int my_erase, int my_intr, int my_kill)
 void
 set_conversions(TTY * tty_settings)
 {
-#if defined(EXP_WIN32_DRIVER)
-    /* FIXME */
-#else
+#ifdef TERMIOS
     set_flags(tty_settings->c_oflag, ONLCR);
     set_flags(tty_settings->c_iflag, ICRNL);
     set_flags(tty_settings->c_lflag, ECHO);
@@ -462,7 +484,9 @@ set_conversions(TTY * tty_settings)
 	clear_flags(tty_settings->c_oflag, OXTABS);
 #endif /* OXTABS */
     set_flags(tty_settings->c_lflag, (ECHOE | ECHOK));
-#endif
+#elif defined(_NC_WINDOWS)
+    (void) tty_settings;
+#endif /* TERMIOS */
 }
 
 static bool
@@ -528,7 +552,7 @@ send_init_strings(int fd GCC_UNUSED, TTY * old_settings)
 
     (void) old_settings;
 #if TAB3
-    if (old_settings != 0 &&
+    if (old_settings != NULL &&
 	old_settings->c_oflag & (TAB3 | ONLCR | OCRNL | ONLRET)) {
 	old_settings->c_oflag &= (TAB3 | ONLCR | OCRNL | ONLRET);
 	SET_TTY(fd, old_settings);
@@ -539,11 +563,11 @@ send_init_strings(int fd GCC_UNUSED, TTY * old_settings)
 	    IGNORE_RC(system(init_prog));
 	}
 
-	need_flush |= sent_string((use_reset && (reset_1string != 0))
+	need_flush |= sent_string((use_reset && (reset_1string != NULL))
 				  ? reset_1string
 				  : init_1string);
 
-	need_flush |= sent_string((use_reset && (reset_2string != 0))
+	need_flush |= sent_string((use_reset && (reset_2string != NULL))
 				  ? reset_2string
 				  : init_2string);
 
@@ -584,7 +608,7 @@ send_init_strings(int fd GCC_UNUSED, TTY * old_settings)
 
 	need_flush |= cat_file((use_reset && reset_file) ? reset_file : init_file);
 
-	need_flush |= sent_string((use_reset && (reset_3string != 0))
+	need_flush |= sent_string((use_reset && (reset_3string != NULL))
 				  ? reset_3string
 				  : init_3string);
     }
@@ -592,6 +616,7 @@ send_init_strings(int fd GCC_UNUSED, TTY * old_settings)
     return need_flush;
 }
 
+#ifdef TERMIOS
 /*
  * Tell the user if a control key has been changed from the default value.
  */
@@ -605,20 +630,11 @@ show_tty_change(TTY * old_settings,
     unsigned older = 0, newer = 0;
     char *p;
 
-#if defined(EXP_WIN32_DRIVER)
-    /* noop */
-    (void) old_settings;
-    (void) new_settings;
-    (void) name;
-    (void) which;
-    (void) def;
-#else
     newer = new_settings->c_cc[which];
     older = old_settings->c_cc[which];
 
     if (older == newer && older == def)
 	return;
-#endif
     (void) fprintf(stderr, "%s %s ", name, older == newer ? "is" : "set to");
 
     if (DISABLED(newer)) {
@@ -629,7 +645,7 @@ show_tty_change(TTY * old_settings,
 	 */
     } else if (newer == 0177) {
 	(void) fprintf(stderr, "delete.\n");
-    } else if ((p = key_backspace) != 0
+    } else if ((p = key_backspace) != NULL
 	       && newer == (unsigned char) p[0]
 	       && p[1] == '\0') {
 	(void) fprintf(stderr, "backspace.\n");
@@ -639,6 +655,7 @@ show_tty_change(TTY * old_settings,
     } else
 	(void) fprintf(stderr, "%c.\n", UChar(newer));
 }
+#endif /* TERMIOS */
 
 /**************************************************************************
  * Miscellaneous.
@@ -655,20 +672,21 @@ reset_start(FILE *fp, bool is_reset, bool is_init)
 void
 reset_flush(void)
 {
-    if (my_file != 0)
+    if (my_file != NULL)
 	fflush(my_file);
 }
 
 void
 print_tty_chars(TTY * old_settings, TTY * new_settings)
 {
-#if defined(EXP_WIN32_DRIVER)
-    /* noop */
-#else
+#ifdef TERMIOS
     show_tty_change(old_settings, new_settings, "Erase", VERASE, CERASE);
     show_tty_change(old_settings, new_settings, "Kill", VKILL, CKILL);
     show_tty_change(old_settings, new_settings, "Interrupt", VINTR, CINTR);
-#endif
+#elif defined(_NC_WINDOWS)
+    (void) old_settings;
+    (void) new_settings;
+#endif /* TERMIOS */
 }
 
 #if HAVE_SIZECHANGE

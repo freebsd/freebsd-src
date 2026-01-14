@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_spacing.3x,v 1.37 2024/03/16 15:35:01 tom Exp $
-.TH menu_spacing 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: menu_spacing.3x,v 1.39 2024/12/28 21:26:21 tom Exp $
+.TH menu_spacing 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBset_menu_spacing\fP,
 \fBmenu_spacing\fP \-
@@ -73,7 +73,9 @@ A value of 0 for all the spacing values resets them to the default,
 which is 1 for all of them.
 .PP
 The function \fBmenu_spacing\fP returns the spacing information for the menu.
-If a pointer is NULL, the corresponding information is simply not returned.
+If a pointer is
+.IR NULL ","
+the corresponding information is simply not returned.
 .SH RETURN VALUE
 Both routines return \fBE_OK\fP on success.
 \fBset_menu_spacing\fP may return

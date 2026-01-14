@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -39,14 +39,14 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkattr.c,v 1.12 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_slkattr.c,v 1.13 2024/12/07 20:03:37 tom Exp $")
 
 NCURSES_EXPORT(attr_t)
 NCURSES_SP_NAME(slk_attr) (NCURSES_SP_DCL0)
 {
     T((T_CALLED("slk_attr(%p)"), (void *) SP_PARM));
 
-    if (SP_PARM != 0 && SP_PARM->_slk != 0) {
+    if (SP_PARM != NULL && SP_PARM->_slk != NULL) {
 	attr_t result = AttrOf(SP_PARM->_slk->attr) & ALL_BUT_COLOR;
 	int pair = GetPair(SP_PARM->_slk->attr);
 

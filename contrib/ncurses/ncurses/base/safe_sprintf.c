@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2021,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2012,2013 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,7 +34,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: safe_sprintf.c,v 1.37 2023/09/30 10:42:42 tom Exp $")
+MODULE_ID("$Id: safe_sprintf.c,v 1.39 2025/02/20 01:07:05 tom Exp $")
 
 #if USE_SAFE_SPRINTF
 
@@ -60,12 +60,12 @@ _nc_printf_length(const char *fmt, va_list ap)
     size_t fmt_len;
     char fmt_arg[BUFSIZ];
 
-    if (fmt == 0 || *fmt == '\0')
+    if (fmt == NULL || *fmt == '\0')
 	return 0;
     fmt_len = strlen(fmt) + 1;
-    if ((format = typeMalloc(char, fmt_len)) == 0)
+    if ((format = typeMalloc(char, fmt_len)) == NULL)
 	  return -1;
-    if ((buffer = typeMalloc(char, length)) == 0) {
+    if ((buffer = typeMalloc(char, length)) == NULL) {
 	free(format);
 	return -1;
     }
@@ -114,7 +114,7 @@ _nc_printf_length(const char *fmt, va_list ap)
 				_nc_SLIMIT(sizeof(fmt_arg))
 				"%d", ival);
 		    fmt_len += strlen(fmt_arg);
-		    if ((format = _nc_doalloc(format, fmt_len)) == 0) {
+		    if ((format = _nc_doalloc(format, fmt_len)) == NULL) {
 			free(buffer);
 			return -1;
 		    }
@@ -162,7 +162,7 @@ _nc_printf_length(const char *fmt, va_list ap)
 			if (prec > (int) length) {
 			    length = length + (size_t) prec;
 			    buffer = typeRealloc(char, length, buffer);
-			    if (buffer == 0) {
+			    if (buffer == NULL) {
 				free(format);
 				return -1;
 			    }
@@ -262,10 +262,9 @@ NCURSES_SP_NAME(_nc_printf_string) (NCURSES_SP_DCLx
 
 	if (my_buffer != NULL) {
 # if HAVE_VSNPRINTF
-	    /* SUSv2, 1997 */
-	    int used;
-
 	    do {
+		/* SUSv2, 1997 */
+		int used;
 		va_list ap2;
 
 		begin_va_copy(ap2, ap);

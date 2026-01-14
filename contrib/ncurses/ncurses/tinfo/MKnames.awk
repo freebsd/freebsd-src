@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 2019-2020,2024 Thomas E. Dickey                                  #
 # Copyright 1998-2008,2009 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -26,7 +26,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: MKnames.awk,v 1.24 2020/02/02 23:34:34 tom Exp $
+# $Id: MKnames.awk,v 1.26 2024/12/14 23:44:37 tom Exp $
 function large_item(value) {
 	result = sprintf("%d,", offset);
 	offset = offset + length(value) + 1;
@@ -63,7 +63,7 @@ function print_offsets(name,value) {
 	printf "%s",  value
 	print  "};"
 	print  ""
-	printf "static NCURSES_CONST char ** ptr_%s = 0;\n", name
+	printf "static NCURSES_CONST char ** ptr_%s = NULL;\n", name
 	print  ""
 }
 
@@ -111,7 +111,7 @@ END	{
 		print  "#if BROKEN_LINKER || USE_REENTRANT"
 		print  ""
 		if (bigstrings) {
-			printf "static const char _nc_name_blob[] = \n"
+			printf "static const char _nc_name_blob[] =\n"
 			printf "%s;\n", bigstr;
 			print_offsets("boolfnames", large_boolfnames);
 			print_offsets("boolnames", large_boolnames);
@@ -123,8 +123,8 @@ END	{
 			print  "static IT *"
 			print  "alloc_array(NCURSES_CONST char ***value, const short *offsets, unsigned size)"
 			print  "{"
-			print  "	if (*value == 0) {"
-			print  "		if ((*value = typeCalloc(NCURSES_CONST char *, size + 1)) != 0) {"
+			print  "	if (*value == NULL) {"
+			print  "		if ((*value = typeCalloc(NCURSES_CONST char *, size + 1)) != NULL) {"
 			print  "			unsigned n;"
 			print  "			for (n = 0; n < size; ++n) {"
 			print  "				(*value)[n] = (NCURSES_CONST char *) _nc_name_blob + offsets[n];"

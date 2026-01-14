@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2019-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2019-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 2001-2015,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,16 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_getcchar.3x,v 1.49 2024/04/20 18:55:09 tom Exp $
-.TH curs_getcchar 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_getcchar.3x,v 1.57 2025/02/23 13:48:31 tom Exp $
+.TH curs_getcchar 3X 2025-02-23 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds ' \(aq
+.\}
+.el \{\
+.ie t .ds ' \(aq
+.el   .ds ' '
+.\}
+.
 .de bP
 .ie n  .IP \(bu 4
 .el    .IP \(bu 2
@@ -41,146 +49,302 @@ convert between a wide-character string and a \fIcurses\fR complex character
 .nf
 \fB#include <curses.h>
 .PP
-\fBint getcchar(
-.B "        const cchar_t *\fIwch\fP,"
-.B "        wchar_t *\fIwc\fP,"
-.B "        attr_t *\fIattrs\fP,"
-.B "        short *\fIcolor_pair\fP,"
-.B "        void *\fIopts\fP );"
-.PP
-.B "int setcchar("
-.B "        cchar_t *\fIwch\fP,"
-.B "        const wchar_t *\fIwc\fP,"
-.B "        const attr_t \fIattrs\fP,"
-.B "        short \fIcolor_pair\fP,"
-.B "        const void *\fIopts\fP );"
+\fBint getcchar(const cchar_t * \fIwch\fP, wchar_t * \fIwc\fP,
+      attr_t * \fIattrs\fP, short * \fIpair\fP, void * \fIopts\fP);
+\fBint setcchar(cchar_t * \fIwch\fP, const wchar_t * \fIwc\fP,
+      const attr_t \fIattrs\fP, short \fIpair\fP, const void * \fIopts\fP);
 .fi
 .SH DESCRIPTION
+The
+.I curses
+complex character data type
+.I \%cchar_t
+is a structure type comprising
+a wide-character string,
+a set of attributes,
+and
+a color pair identifier.
+The
+.I \%cchar_t
+structure is opaque;
+do not attempt to access its members directly.
+The library provides functions to manipulate this type.
 .SS getcchar
-The \fBgetcchar\fP function gets a wide-character string
-and rendition from a \fBcchar_t\fP argument.
-When \fIwc\fP is not a null pointer,
-the \fBgetcchar\fP function does the following:
-.bP
-Extracts information from a \fBcchar_t\fP value \fIwch\fP
-.bP
-Stores the character attributes in the location pointed to by \fIattrs\fP
-.bP
-Stores the color pair in the location pointed to by \fIcolor_pair\fP
-.bP
-Stores the wide-character string,
-characters referenced by \fIwch\fP, into the array pointed to by \fIwc\fP.
+.B \%getcchar
+destructures a
+.I \%cchar_t
+into its components.
 .PP
-When
-\fIwc\fP
-is a null pointer, the
-\fBgetcchar\fP
-function does the following:
+If
+.I wc
+is not a null pointer,
+.BR \%getcchar :
 .bP
-Obtains the number of wide characters pointed to by \fIwch\fP
+stores the wide-character string in the
+.I curses
+complex character
+.I wch
+into
+.IR wc ;
 .bP
-Does not change the data referenced by
-\fIattrs\fP
-or
-\fIcolor_pair\fP
+stores the attributes in
+.IR attrs ;
+and
+.bP
+stores the color pair identifier in
+.IR pair .
+.PP
+If
+.I wc
+is a null pointer,
+.B \%getcchar
+counts the
+.I \%wchar_t
+wide characters in
+.IR wch ,
+returns that value,
+and leaves
+.I attrs
+and
+.I pair
+unchanged.
 .SS setcchar
-The \fBsetcchar\fP function initializes the location pointed to by \fIwch\fP
-by using:
-.bP
-The character attributes in
-\fIattrs\fP
-.bP
-The color pair in
-\fIcolor_pair\fP
-.bP
-The wide-character string pointed to by \fIwc\fP.
-The string must be L'\e0' terminated,
-contain at most one spacing character,
-which must be the first.
-.IP
-Up to \fBCCHARW_MAX\fP\-1 non-spacing characters may follow.
-Additional non-spacing characters are ignored.
-.IP
+.B \%setcchar
+constructs a
+.I curses
+complex character
+.I wch
+from the components
+.IR wc ,
+.IR attrs ,
+and
+.IR pair .
+The wide-character string
+.I wch
+must be terminated with a null wide character
+.B L\*'\e0\*'
+and must contain at most one spacing character,
+which,
+if present,
+must be the first wide character in the string.
+.PP
+Up to
+.BR \%CCHARW_MAX\  \-\ 1
+non-spacing characters may follow
+(see \fB\%curs_variables\fP(3X)).
+.I \%ncurses
+ignores any additional non-spacing characters.
+.PP
 The string may contain a single control character instead.
-In that case, no non-spacing characters are allowed.
+In that case,
+no non-spacing characters are allowed.
 .SH RETURN VALUE
-When \fIwc\fP is a null pointer,
-\fBgetcchar\fP returns the number of wide characters referenced by
-\fIwch\fP,
-including one for a trailing null.
+If
+.B \%getcchar
+is passed a null pointer as its
+.I wc
+argument,
+it returns the number of wide characters for a given
+.I wch
+that it would store in
+.IR wc ","
+counting a trailing null wide character.
+If
+.B \%getcchar
+is not passed a null pointer as its
+.I wc
+argument,
+it returns
+.B OK
+on success and
+.B ERR
+on failure.
 .PP
-When \fIwc\fP is not a null pointer,
-\fBgetcchar\fP returns \fBOK\fP upon successful completion,
-and \fBERR\fP otherwise.
+In
+.IR \%ncurses ,
+.B \%getcchar
+returns
+.B ERR
+if either
+.I attrs
+or
+.I pair
+is a null pointer and
+.I wc
+is not.
 .PP
-Upon successful completion, \fBsetcchar\fP returns \fBOK\fP.
-Otherwise, it returns \fBERR\fP.
+.B \%setcchar
+returns
+.B OK
+on success and
+.B ERR
+on failure.
+.PP
+In
+.IR \%ncurses ,
+.B \%setcchar
+returns
+.B ERR
+if
+.bP
+.I wch
+is a null pointer,
+.bP
+.I wc
+starts with a (wide) control character
+and contains any other wide characters,
+or
+.bP
+.I pair
+has a negative value.
 .SH NOTES
-The \fIwch\fP argument may be a value generated by a call to
-\fBsetcchar\fP or by a function that has a \fBcchar_t\fP output argument.
-If \fIwch\fP is constructed by any other means, the effect is unspecified.
+.I wch
+may be a value stored by
+.B \%setcchar
+or another
+.I curses
+function with a writable
+.I \%cchar_t
+argument.
+If
+.I wch
+is constructed by any other means,
+the library's behavior is unspecified.
 .SH EXTENSIONS
-X/Open Curses documents the \fIopts\fP argument as reserved for future use,
-saying that it must be null.
-This implementation
-uses that parameter in ABI 6 for the functions which have a color pair
-parameter to support extended color pairs:
+X/Open Curses documents the
+.I opts
+argument as reserved for future use,
+saying that it must be a null pointer.
+The
+.IR \%ncurses \ 6
+ABI uses it with functions that have a color pair parameter
+to support extended color pairs.
 .bP
-For  functions  which modify the color, e.g., \fBsetcchar\fP,
-if \fIopts\fP is set it is treated as a pointer to \fBint\fP,
-and used to  set  the  color pair instead of the \fBshort\fP pair parameter.
+In functions that assign colors,
+such as
+.BR \%setcchar ","
+if
+.I opts
+is not a null pointer,
+.I \%ncurses
+treats it as a pointer to
+.IR int ","
+and interprets it instead of the
+.I short
+.I pair
+parameter as a color pair identifier.
 .bP
-For functions which retrieve the color, e.g., \fBgetcchar\fP,
-if \fIopts\fP is set it is treated as a pointer to \fBint\fP,
-and  used  to  retrieve  the color pair as an \fBint\fP value,
-in addition retrieving it via the standard pointer to \fBshort\fP parameter.
+In functions that retrieve colors,
+such as
+.BR \%getcchar ","
+if
+.I opts
+is not a null pointer,
+.I \%ncurses
+treats it as a pointer to
+.IR int ","
+and stores the retrieved color pair identifier there
+as well as in the
+.I short
+.I pair
+parameter
+(which may therefore undergo a narrowing conversion).
 .SH PORTABILITY
-The \fBCCHARW_MAX\fP symbol is specific to \fI\%ncurses\fP.
-X/Open Curses does not provide details for the layout of the \fBcchar_t\fP
-structure.
-It tells what data are stored in it:
-.bP
-a spacing character (\fBwchar_t\fP, i.e., 32-bits).
-.bP
-non-spacing characters (again, \fBwchar_t\fP's).
-.bP
-attributes (at least 16 bits, inferred from the various ACS- and WACS-flags).
-.bP
-color pair (at least 16 bits, inferred from the \fBunsigned short\fP type).
+Applications employing
+.I \%ncurses
+extensions should condition their use on the visibility of the
+.B \%NCURSES_VERSION
+preprocessor macro.
 .PP
-The non-spacing characters are optional,
-in the sense that zero or more may be stored in a \fBcchar_t\fP.
+These functions are described in X/Open Curses Issue\ 4.
+It specifies no error conditions for them.
+.PP
+X/Open Curses does not detail the layout of the
+.I \%cchar_t
+structure,
+describing only its minimal required contents:
+.bP
+a spacing wide character
+.RI \%( wchar_t ),
+.bP
+at least five non-spacing wide characters
+.RI \%( wchar_t ;
+see below),
+.bP
+attributes
+(at least 15 bits' worth,
+inferred from the count of specified
+.I WA_
+constants),
+.\" See X/Open Curses Issue 7, p. 307.
+.bP
+a color pair identifier
+(at least 16 bits,
+inferred from the
+.I short
+type used to encode it).
+.PP
+Non-spacing characters are optional,
+in the sense that zero or more may be stored in a
+.IR \%cchar_t "."
 XOpen/Curses specifies a limit:
 .RS 4
 .PP
-Implementations may limit the number of non-spacing characters that can be
-associated with a spacing character, provided any limit is at least 5.
+Implementations may limit the number of non-spacing characters that can
+be associated with a spacing character,
+provided any limit is at least 5.
 .RE
 .PP
-The Unix implementations at the time follow that limit:
+Then-contemporary Unix implementations adhered to that limit.
 .bP
-AIX\ 4 and OSF1\ 4 use the same declaration with an array of 5 non-spacing
-characters \fIz\fP and a single spacing character \fIc\fP.
+AIX\ 4 and OSF/1\ 4 used the same declaration with
+a single spacing wide character
+.I c
+and an array of 5 non-spacing wide characters
+.IR z "."
 .bP
-HP-UX\ 10 uses an opaque structure with 28 bytes,
-which is large enough for the 6 \fBwchar_t\fP values.
+HP-UX\ 10 used an opaque structure of 28 bytes,
+large enough for 6
+.I \%wchar_t
+values.
 .bP
-Solaris \fIxpg4\fP curses uses a single array of 6 \fBwchar_t\fP values.
+Solaris
+.I xcurses
+uses a single array of 6
+.I \%wchar_t
+values.
 .PP
-This implementation's \fBcchar_t\fP was defined in 1995
-using \fB5\fP for the total of spacing and non-spacing characters
-(\fBCCHARW_MAX\fP).
+.I \%ncurses
+defined its
+.I \%cchar_t
+in 1995 using 5 as the
+.I total
+of spacing and non-spacing characters
+.RB \%( CCHARW_MAX ).
 That was probably due to a misreading of the AIX\ 4 header files,
-because the X/Open Curses document was not generally available at that time.
-Later (in 2002), this detail was overlooked when beginning to implement
-the functions using the structure.
+because the X/Open Curses document
+was not generally available at that time.
+Later (in 2002),
+this detail was overlooked when work began to implement the functions
+using the structure.
 .PP
-In practice, even four non-spacing characters may seem enough.
-X/Open Curses documents possible uses for non-spacing characters,
-including using them for ligatures between characters
-(a feature apparently not supported by any curses implementation).
-Unicode does not limit the (analogous) number of combining characters,
-so some applications may be affected.
+In practice,
+a mere four non-spacing characters may seem adequate.
+X/Open Curses documents possible applications of non-spacing characters,
+including their use as ligatures
+(a feature apparently not supported by any
+.I curses
+implementation).
+Unicode does not limit the (analogous) number of combining characters
+in a grapheme cluster;
+some applications may be affected.
+.I \%ncurses
+can be compiled with a different
+.B CCHARW_MAX
+value;
+doing so alters the library's ABI.
+.SH HISTORY
+X/Open Curses Issue\ 4 (1995) initially specified these functions.
 .SH SEE ALSO
 \fB\%curses\fP(3X),
 \fB\%curs_attr\fP(3X),

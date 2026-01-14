@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2021,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2023,2024 Thomas E. Dickey                                *
  * Copyright 2002-2009,2011 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -40,10 +40,10 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_get_wstr.c,v 1.21 2023/04/29 19:02:03 tom Exp $")
+MODULE_ID("$Id: lib_get_wstr.c,v 1.22 2024/07/27 19:22:23 tom Exp $")
 
 static int
-wadd_wint(WINDOW *win, wint_t *src)
+wadd_wint(WINDOW *win, const wint_t *src)
 {
     cchar_t tmp;
     wchar_t wch[2];
@@ -59,7 +59,7 @@ wadd_wint(WINDOW *win, wint_t *src)
  * or other character, and handles reverse wraparound.
  */
 static wint_t *
-WipeOut(WINDOW *win, int y, int x, wint_t *first, wint_t *last, int echoed)
+WipeOut(WINDOW *win, int y, int x, const wint_t *first, wint_t *last, int echoed)
 {
     if (last > first) {
 	*--last = '\0';

@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.54 2022/10/22 16:36:40 tom Exp $
+# $Id: Makefile.in,v 1.60 2025/11/02 01:23:25 tom Exp $
 ##############################################################################
-# Copyright 2019-2021,2022 Thomas E. Dickey                                  #
+# Copyright 2019-2024,2025 Thomas E. Dickey                                  #
 # Copyright 1998-2013,2015 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -38,7 +38,7 @@
 SHELL		= @SHELL@
 VPATH		= @srcdir@
 
-DESTDIR		= @DESTDIR@
+@SET_DESTDIR@
 srcdir		= @srcdir@
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
@@ -47,7 +47,8 @@ datadir		= @datadir@
 mandir		= @mandir@
 includesubdir	= @includesubdir@
 
-INCLUDEDIR	= $(DESTDIR)$(includedir)$(includesubdir)
+INCLUDEDIR	= $(DESTDIR)$(includedir@MERGE_PREFIX@)$(includesubdir)
+MANDIR		= $(DESTDIR)$(mandir@MERGE_PREFIX@)
 
 INSTALL		= @INSTALL@
 INSTALL_DATA	= @INSTALL_DATA@
@@ -72,12 +73,15 @@ sources :	terminfo.5
 depend :
 tags :
 
-$(DESTDIR)$(mandir) :
+check ::
+	@echo "no unit-test implemented"
+
+$(MANDIR) :
 	mkdir -p $@
 
-EDITARGS = $(DESTDIR)$(mandir) $(srcdir) terminfo.5 *-config.1 $(srcdir)/*.[0-9]*
+EDITARGS = $(MANDIR) $(srcdir) terminfo.5 *-config.1 $(srcdir)/*.[0-9]*
 
-install install.man : terminfo.5 $(DESTDIR)$(mandir)
+install install.man : terminfo.5 $(MANDIR)
 	$(SHELL) ../edit_man.sh normal installing $(EDITARGS)
 
 uninstall uninstall.man :
@@ -90,8 +94,8 @@ CAPLIST	= \
 terminfo.5: $(srcdir)/terminfo.head \
 		$(CAPLIST) \
 		$(srcdir)/terminfo.tail \
-		Makefile $(srcdir)/MKterminfo.sh
-	$(SHELL) $(srcdir)/MKterminfo.sh $(srcdir)/terminfo.head $(CAPLIST) $(srcdir)/terminfo.tail >terminfo.5
+		Makefile MKterminfo.tmp
+	$(SHELL) MKterminfo.tmp $(srcdir)/terminfo.head $(CAPLIST) $(srcdir)/terminfo.tail >terminfo.5
 
 mostlyclean :
 	-rm -f core tags TAGS *~ *.bak *.ln *.atac trace
@@ -103,4 +107,4 @@ clean:	mostlyclean
 	$(SHELL) $(srcdir)/make_sed.sh @MANPAGE_RENAMES@ >../edit_man.sed
 
 distclean realclean: clean
-	-rm -f Makefile *-config.1 ../edit_man.* ../man_alias.* man_db.renames
+	-rm -f Makefile *-config.1 ../edit_man.* ../man_alias.* man_db.renames MKterminfo.tmp

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -98,7 +98,7 @@
 #include <ctype.h>
 #include <tic.h>
 
-MODULE_ID("$Id: captoinfo.c,v 1.102 2021/09/04 10:29:15 tom Exp $")
+MODULE_ID("$Id: captoinfo.c,v 1.109 2025/11/23 20:22:38 tom Exp $")
 
 #if 0
 #define DEBUG_THIS(p) DEBUG(9, p)
@@ -124,7 +124,7 @@ static char *
 init_string(void)
 /* initialize 'my_string', 'my_length' */
 {
-    if (my_string == 0)
+    if (my_string == NULL)
 	TYPE_MALLOC(char, my_length = 256, my_string);
 
     *my_string = '\0';
@@ -138,7 +138,7 @@ save_string(char *d, const char *const s)
     size_t need = have + strlen(s) + 2;
     if (need > my_length) {
 	my_string = (char *) _nc_doalloc(my_string, my_length = (need + need));
-	if (my_string == 0)
+	if (my_string == NULL)
 	    _nc_err_abort(MSG_NO_MEMORY);
 	d = my_string + have;
     }
@@ -247,24 +247,24 @@ cvtchar(register const char *sp)
 }
 
 static void
-getparm(int parm, int n)
-/* push n copies of param on the terminfo stack if not already there */
+getparam(int parameter, int n)
+/* push n copies of parameter on the terminfo stack if not already there */
 {
     int nn;
 
     if (seenr) {
-	if (parm == 1)
-	    parm = 2;
-	else if (parm == 2)
-	    parm = 1;
+	if (parameter == 1)
+	    parameter = 2;
+	else if (parameter == 2)
+	    parameter = 1;
     }
 
     for (nn = 0; nn < n; ++nn) {
 	dp = save_string(dp, "%p");
-	dp = save_char(dp, '0' + parm);
+	dp = save_char(dp, '0' + parameter);
     }
 
-    if (onstack == parm) {
+    if (onstack == parameter) {
 	if (n > 1) {
 	    _nc_warning("string may not be optimal");
 	    dp = save_string(dp, "%Pa");
@@ -277,13 +277,13 @@ getparm(int parm, int n)
     if (onstack != 0)
 	push();
 
-    onstack = parm;
+    onstack = parameter;
 
-    if (seenn && parm < 3) {
+    if (seenn && parameter < 3) {
 	dp = save_string(dp, "%{96}%^");
     }
 
-    if (seenm && parm < 3) {
+    if (seenm && parameter < 3) {
 	dp = save_string(dp, "%{127}%^");
     }
 }
@@ -313,8 +313,8 @@ _nc_captoinfo(const char *cap, const char *s, int const parameterized)
     dp = init_string();
 
     /* skip the initial padding (if we haven't been told not to) */
-    capstart = 0;
-    if (s == 0)
+    capstart = NULL;
+    if (s == NULL)
 	s = "";
     if (parameterized >= 0 && isdigit(UChar(*s)))
 	for (capstart = s; *s != '\0'; s++)
@@ -353,20 +353,20 @@ _nc_captoinfo(const char *cap, const char *s, int const parameterized)
 		break;
 	    case '6':
 	    case 'B':
-		getparm(param, 1);
+		getparam(param, 1);
 		dp = save_string(dp, "%{10}%/%{16}%*");
-		getparm(param, 1);
+		getparam(param, 1);
 		dp = save_string(dp, "%{10}%m%+");
 		break;
 	    case '8':
 	    case 'D':
-		getparm(param, 2);
+		getparam(param, 2);
 		dp = save_string(dp, "%{2}%*%-");
 		break;
 	    case '>':
 		/* %?%{x}%>%t%{y}%+%; */
 		if (s[0] && s[1]) {
-		    getparm(param, 2);
+		    getparam(param, 2);
 		    dp = save_string(dp, "%?");
 		    s += cvtchar(s);
 		    dp = save_string(dp, "%>%t");
@@ -385,9 +385,9 @@ _nc_captoinfo(const char *cap, const char *s, int const parameterized)
 		    int l;
 		    l = 2;
 		    if (*s != '=')
-			getparm(param, 1);
+			getparam(param, 1);
 		    if (s[1] == 'p') {
-			getparm(param + s[2] - '@', 1);
+			getparam(param + s[2] - '@', 1);
 			if (param != onstack) {
 			    pop();
 			    param--;
@@ -423,12 +423,12 @@ _nc_captoinfo(const char *cap, const char *s, int const parameterized)
 		    s += l;
 		    break;
 		}
-		getparm(param, 1);
+		getparam(param, 1);
 		s += cvtchar(s);
 		dp = save_string(dp, "%+");
 		break;
 	    case '+':
-		getparm(param, 1);
+		getparam(param, 1);
 		s += cvtchar(s);
 		dp = save_string(dp, "%+%c");
 		pop();
@@ -436,22 +436,22 @@ _nc_captoinfo(const char *cap, const char *s, int const parameterized)
 	    case 's':
 #ifdef WATERLOO
 		s += cvtchar(s);
-		getparm(param, 1);
+		getparam(param, 1);
 		dp = save_string(dp, "%-");
 #else
-		getparm(param, 1);
+		getparam(param, 1);
 		dp = save_string(dp, "%s");
 		pop();
 #endif /* WATERLOO */
 		break;
 	    case '-':
 		s += cvtchar(s);
-		getparm(param, 1);
+		getparam(param, 1);
 		dp = save_string(dp, "%-%c");
 		pop();
 		break;
 	    case '.':
-		getparm(param, 1);
+		getparam(param, 1);
 		dp = save_string(dp, "%c");
 		pop();
 		break;
@@ -467,18 +467,18 @@ _nc_captoinfo(const char *cap, const char *s, int const parameterized)
 		goto invalid;
 	    case '2':
 	      see02:
-		getparm(param, 1);
+		getparam(param, 1);
 		dp = save_string(dp, "%2d");
 		pop();
 		break;
 	    case '3':
 	      see03:
-		getparm(param, 1);
+		getparam(param, 1);
 		dp = save_string(dp, "%3d");
 		pop();
 		break;
 	    case 'd':
-		getparm(param, 1);
+		getparam(param, 1);
 		dp = save_string(dp, "%d");
 		pop();
 		break;
@@ -535,8 +535,7 @@ _nc_captoinfo(const char *cap, const char *s, int const parameterized)
 static int
 bcd_expression(const char *str)
 {
-    /* leave this non-const for HPUX */
-    static char fmt[] = "%%p%c%%{10}%%/%%{16}%%*%%p%c%%{10}%%m%%+";
+    static const char fmt[] = "%%p%c%%{10}%%/%%{16}%%*%%p%c%%{10}%%m%%+";
     int len = 0;
     char ch1, ch2;
 
@@ -550,7 +549,7 @@ bcd_expression(const char *str)
 	    char buffer[80];
 	    int tst;
 	    _nc_SPRINTF(buffer, _nc_SLIMIT(sizeof(buffer)) fmt, ch1, ch2);
-	    tst = strlen(buffer) - 1;
+	    tst = (int) strlen(buffer) - 1;
 	    assert(len == tst);
 	}
 #endif
@@ -620,7 +619,7 @@ _nc_infotocap(const char *cap GCC_UNUSED, const char *str, int const parameteriz
 {
     int seenone = 0, seentwo = 0, saw_m = 0, saw_n = 0;
     const char *padding;
-    const char *trimmed = 0;
+    const char *trimmed = NULL;
     int in0, in1, in2;
     char ch1 = 0, ch2 = 0;
     char *bufptr = init_string();
@@ -656,9 +655,9 @@ _nc_infotocap(const char *cap GCC_UNUSED, const char *str, int const parameteriz
 
     for (; !syntax_error &&
 	 *str &&
-	 ((trimmed == 0) || (str < trimmed)); str++) {
+	 ((trimmed == NULL) || (str < trimmed)); str++) {
 	int c1, c2;
-	char *cp = 0;
+	char *cp = NULL;
 
 	if (str[0] == '^') {
 	    if (str[1] == '\0' || (str + 1) == trimmed) {
@@ -744,7 +743,7 @@ _nc_infotocap(const char *cap GCC_UNUSED, const char *str, int const parameteriz
 				++myfix;
 			    }
 			}
-		    } else if (strchr("E\\nrtbf", xx1) == 0) {
+		    } else if (strchr("E\\nrtbf", xx1) == NULL) {
 			switch (xx1) {
 			case 'e':
 			    xx1 = 'E';
@@ -815,7 +814,7 @@ _nc_infotocap(const char *cap GCC_UNUSED, const char *str, int const parameteriz
 		   && ((in0 == 4 && in1 == 10 && in2 == 48)
 		       || (in0 == 3 && in1 == 9 && in2 == 38))) {
 	    /* dumb-down an optimized case from xterm-256color for termcap */
-	    if ((str = strstr(str, ";m")) == 0)
+	    if ((str = strstr(str, ";m")) == NULL)
 		break;		/* cannot happen */
 	    ++str;
 	    if (in2 == 48) {
@@ -981,8 +980,8 @@ _nc_infotocap(const char *cap GCC_UNUSED, const char *str, int const parameteriz
 	 * 'str' always points to the end of what was scanned in this step,
 	 * but that may not be the end of the string.
 	 */
-	assert(str != 0);
-	if (str == 0 || *str == '\0')
+	assert(str != NULL);
+	if (str == NULL || *str == '\0')
 	    break;
 
     }				/* endwhile (*str) */
@@ -1029,7 +1028,7 @@ main(int argc, char *argv[])
 	char buf[BUFSIZ];
 
 	++curr_line;
-	if (fgets(buf, sizeof(buf), stdin) == 0)
+	if (fgets(buf, sizeof(buf), stdin) == NULL)
 	    break;
 	buf[strlen(buf) - 1] = '\0';
 	_nc_set_source(buf);
@@ -1051,7 +1050,7 @@ main(int argc, char *argv[])
 NCURSES_EXPORT(void)
 _nc_captoinfo_leaks(void)
 {
-    if (my_string != 0) {
+    if (my_string != NULL) {
 	FreeAndNull(my_string);
     }
     my_length = 0;

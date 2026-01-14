@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 2010-2015,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_variables.3x,v 1.47 2024/04/13 22:37:35 tom Exp $
-.TH curs_variables 3X 2024-04-13 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_variables.3x,v 1.73 2025/08/23 23:02:32 tom Exp $
+.TH curs_variables 3X 2025-08-23 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -48,6 +48,51 @@
 .el    .IP \(bu 2
 ..
 .
+.\" URL hyperlink support macros from groff's "an-ext.tmac"
+.
+.\" Save the automatic hyphenation mode.
+.\"
+.\" In AT&T troff, there was no register exposing the hyphenation mode,
+.\" and no way to save and restore it.  Set `mH` to a reasonable value
+.\" for your implementation and preference.
+.de mY
+.  ie !\\n(.g \
+.    nr mH 14
+.  el \
+.    do nr mH \\n[.hy] \" groff extension register
+..
+.
+.\" Prepare link text for mail/web hyperlinks.  `MT` and `UR` call this.
+.de mV
+.  ds mU \\$1\"
+..
+.
+.\" Emit hyperlink.  The optional argument supplies trailing punctuation
+.\" after link text.  `ME` and `UE` call this.
+.de mQ
+.  mY
+.  nh
+<\\*(mU>\\$1
+.  hy \\n(mH
+.  rm mU
+..
+.
+.\" Start URL.
+.\" .UR url
+.if !\n(.g \{\
+.de UR
+.  mV \\$1
+..
+.\}
+.
+.\" End URL.
+.\" .UE [punctuation]
+.if !\n(.g \{\
+.de UE
+.  mQ \\$1
+..
+.\}
+.
 .SH NAME
 \fI\%bool\fP,
 \fI\%chtype\fP,
@@ -59,6 +104,7 @@
 \fB\%FALSE\fP,
 \fB\%ERR\fP,
 \fB\%OK\fP,
+\fB\%CCHARW_MAX\fP,
 \fB\%curscr\fP,
 \fB\%newscr\fP,
 \fB\%stdscr\fP,
@@ -88,6 +134,9 @@
 \fBconst \fI/*\fP .\|.\|. \fI*/\fP ERR;
 \fBconst \fI/*\fP .\|.\|. \fI*/\fP OK;
 .PP
+\fI/* extension */
+\fBconst \fI/*\fP .\|.\|. \fI*/\fP CCHARW_MAX;
+.PP
 \fI/* variables */
 \fBint COLORS;
 \fBint COLOR_PAIRS;
@@ -114,24 +163,49 @@ that provide read-only access to the library's state.
 In either case,
 applications should treat them as read-only to avoid
 confusing the library.
-.SH "CONSTANTS"
+.SH CONSTANTS
 .SS "TRUE, FALSE"
-The \fIcurses\fP library defines \fBTRUE\fP and \fBFALSE\fP
+The
+.I curses
+library defines
+.B TRUE
+and
+.B FALSE
 to represent the values of the Boolean data type.
 .SS "ERR, OK"
-\fIcurses\fP and \fIterminfo\fP routines frequently return these
-constant integral values indicating failure and success,
+.I curses
+and
+.I \%term\%info
+functions frequently return these constant integral values
+indicating failure and success,
 respectively.
-.SH "PREDEFINED TYPES"
+.SS CCHARW_MAX
+This integral value,
+an
+.I \%ncurses
+extension,
+indicates the maximum number of
+.I \%wchar_t
+wide characters that can be stored in a
+.I curses
+complex character
+.IR \%cchar_t "."
+.SH "DATA TYPES"
 .SS "\fIbool\fP"
-X/Open Issue 4 \fIcurses\fP (1996) preceded the ISO C99 and ISO C++98
+.I curses
+defines an integral type
+.IR bool "."
+X/Open Issue\ 4
+.I curses
+(1996) preceded the ISO\ C99 and ISO\ C++98
 standards,
-each of which also defined a Boolean data type.
-The \fIcurses\fP library requires an integral type \fIbool\fP.
+each of which also defined a Boolean data type of the same name.
 .PP
-\fB\%ncurses\fP' configure script attempts to discover the
+.IR \%ncurses 's
+configure script attempts to discover the
 data type used by the system's C and C++ compilers,
-to reuse for the \fIcurses\fP \fIbool\fP.
+to reuse them as its own
+.IR bool "."
 .SS "\fIchtype\fP"
 The \fI\%chtype\fP integral type combines a
 (\*(``narrow\*('',
@@ -173,7 +247,26 @@ represents rectangular portions of the terminal screen with the
 structure type;
 see subsection \*(``Overview\*('' of \fB\%ncurses\fP(3X).
 .SH "VARIABLES"
-.SS "curscr, stdscr, newscr"
+.SS "curscr, newscr, stdscr"
+When a
+.I curses
+application calls
+\fB\%initscr\fP(3X) or \fB\%newterm\fP(3X),
+the library creates a window named
+.B \%stdscr
+that is the same size as the terminal screen,
+(minus any lines reserved by
+\fB\%ripoffline\fP(3X) or \fB\%slk_init\fP(3X))
+and is the implicit window used by functions
+that interact with a window
+but do not take a parameter identifying one;
+many
+.I curses
+functions use it.
+An application need not use
+.BR \%stdscr ";"
+it might prefer to tile the display into multiple windows instead.
+.PP
 The library records updates to the terminal screen in a window named
 \fB\%curscr\fP.
 This object is referred to as the \*(``physical screen\*('' in
@@ -190,40 +283,41 @@ and
 When the screen is refreshed,
 \fIcurses\fP determines a minimal set of updates using the terminal's
 capabilities to make \fB\%curscr\fP look like \fB\%newscr\fP.
-.PP
-Once \fIcurses\fP is initialized,
-it creates a window named \fB\%stdscr\fP.
-It is the same size as the terminal screen and is the default window
-used by routines that do not take a parameter identifying one.
-Many \fIcurses\fP functions use this window.
 .SS COLORS
-Once \fIcurses\fP is initialized,
-\fB\%COLORS\fP
+Once a
+.I curses
+screen is initialized,
+.B \%COLORS
 contains the number of colors supported by the terminal;
 see \fB\%curs_color\fP(3X).
 .SS COLOR_PAIRS
-Once \fIcurses\fP is initialized,
-\fB\%COLOR_PAIRS\fP
+Once a
+.I curses
+screen is initialized,
+.B \%COLOR_PAIRS
 contains the number of color pairs supported by the terminal;
 see \fB\%curs_color\fP(3X).
 .SS "COLS, LINES"
-Once \fIcurses\fP is initialized,
+Once a
+.I curses
+screen is initialized,
 .B \%COLS
 and
 .B LINES
-contain the screen's width and height in character cells,
+contain its width and height in character cells,
 respectively;
 that is,
 the number of columns and lines.
 .SS ESCDELAY
-For
+When reading key strokes from a window in keypad mode,
 .I curses
-to distinguish the ESC character resulting from a user's press of the
-\*(``Escape\*('' key on the input device from one beginning an
-.I "escape sequence"
-(as commonly produced by function keys),
-it waits after the escape character to see if further characters are
-available on the input stream within a short interval.
+distinguishes the ESC character resulting from a user's press of the
+\*(``Escape\*('' key on the input device
+from one beginning an escape sequence
+(commonly produced by function keys),
+by waiting after receiving the escape character
+to see if further characters are available
+on the input stream within a short interval.
 .B \%ESCDELAY
 stores this interval in milliseconds.
 .PP
@@ -236,8 +330,9 @@ The \fIcurses\fP library converts a tab character to this number of
 spaces as it adds a tab to a window;
 see \fB\%curs_addch\fP(3X).
 .SH NOTES
-Either \fB\%initscr\fP(3X) or \fB\%newterm\fP(3X) initializes
-\fIcurses\fP.
+Initialize a
+.I curses
+screen with either \fB\%initscr\fP(3X) or \fB\%newterm\fP(3X).
 .PP
 If
 .I \%ncurses
@@ -246,12 +341,39 @@ is configured to provide separate
 and
 .I \%tinfo
 libraries,
-most of these variables reside in the former.
+most of these symbols reside in the former.
+Both use the
+.B bool
+data type.
+.SH EXTENSIONS
+The
+.B \%CCHARW_MAX
+constant,
+and
+.BR \%ESCDELAY ","
+.BR \%TABSIZE ","
+and
+.B \%newscr
+variables,
+are
+extensions,
+the first of these originating in
+.\" Solaris xcurses calls it M_CCHAR_MAX.
+.IR \%ncurses "."
 .SH PORTABILITY
+Applications employing
+.I \%ncurses
+extensions should condition their use on the visibility of the
+.B \%NCURSES_VERSION
+preprocessor macro.
+.PP
 The X/Open Curses standard documents all of the foregoing types and
-symbols except for \fB\%newscr\fP,
-\fB\%TABSIZE\fP,
-and \fB\%ESCDELAY\fP.
+symbols except for
+.BR \%CCHARW_MAX ","
+.BR \%newscr ","
+.BR \%TABSIZE ","
+and
+.BR \%ESCDELAY "."
 .PP
 X/Open Curses describes \fB\%curscr\fP only as \*(``an internal data
 structure\*('';
@@ -270,52 +392,98 @@ it is used as a working area for combining the standard window
 When the update of \fB\%newscr\fP is complete,
 \fIcurses\fP modifies \fB\%curscr\fP to match \fB\%newscr\fP.
 .PP
-\fB\%TABSIZE\fP is a feature of SVr4 \fIcurses\fP.
+.B \%TABSIZE
+is a feature of SVr4
+.IR curses "."
 .bP
-SVr4 initially sets \fB\%TABSIZE\fP from the terminal description's
-\fB\%init_tabs\fP capability.
+SVr4 initially sets
+.B \%TABSIZE
+from the terminal description's
+.B \%init_tabs
+.RB ( it )
+capability.
 After that,
-it can be altered by applications using SVr4 \fIcurses\fP.
+it can be altered by applications using SVr4
+.IR curses "."
 .bP
-SVr4 \fIcurses\fP uses the value of \fB\%TABSIZE\fP to compute the
-position of tab stops when updating both
+SVr4
+.I curses
+uses
+.BR \%TABSIZE 's
+value to compute the position of tab stops when updating both
 the virtual screen with \fB\%addch\fP(3X) and
 the physical screen with \fB\%mvcur\fP(3X).
 .bP
-\fI\%ncurses\fP uses the value of \fB\%TABSIZE\fP only to update the
-virtual screen.
-It uses the terminal description's \*(``\fBit\fP\*(''
-(\fB\%init_tabs\fP) capability for computing hardware tabs
+In
+.IR \%ncurses ","
+.BR \%TABSIZE 's
+value affects only the virtual screen.
+The library uses the terminal type description's
+.B \%init_tabs
+.RB ( it )
+capability to compute hardware tabs
 (that is,
 tab stops on the physical screen).
 .bP
 Other implementations differ.
 For instance,
-NetBSD \fIcurses\fP allows \fB\%TABSIZE\fP to be set through an
-environment variable.
-\fI\%ncurses\fP does not.
+NetBSD
+.I curses
+allows
+.B \%TABSIZE
+to be set through an environment variable.
+.I \%ncurses
+does not.
 .IP
-NetBSD \fIcurses\fP does not support hardware tabs;
-it uses the \fB\%init_tabs\fP capability and the \fB\%TABSIZE\fP
-variable only for updating the virtual screen.
+NetBSD
+.I curses
+does not support hardware tabs;
+it uses the
+.B \%init_tabs
+.RB ( it )
+capability and the
+.B \%TABSIZE
+variable only to update the virtual screen.
 .PP
-\fB\%ESCDELAY\fP is a feature of AIX \fIcurses\fP.
+.B \%ESCDELAY
+is a feature of AIX
+.IR curses "."
 .bP
-In AIX,
-the units for \fB\%ESCDELAY\fP are \fIfifths\fP of milliseconds.
+AIX treats
+.BR \%ESCDELAY 's
+value as counting
+.I fifths
+of milliseconds.
 .bP
-The default value for AIX's \fB\%ESCDELAY\fP equals 0.1 seconds.
+AIX's default
+.B \%ESCDELAY
+equals 0.1 seconds.
 .bP
-AIX also enforces a limit of 10,000 seconds for \fB\%ESCDELAY\fP;
-\fI\%ncurses\fP does not enforce any upper limit.
+AIX also enforces a limit of 10,000 seconds for
+.BR \%ESCDELAY ";"
+.I \%ncurses
+does not enforce an upper limit.
 .PP
-\fI\%ncurses\fP has long used \fB\%ESCDELAY\fP with units of
-milliseconds,
+.I \%ncurses
+has long interpreted
+.B \%ESCDELAY
+as a count of milliseconds,
 making it impossible to be completely compatible with AIX.
 Consequently,
 most users have decided either to override the value,
 or to rely upon its default.
 .SH SEE ALSO
+.UR https://\*:unicode\*:.org/\*:reports/\*:tr29/
+[UAX #29] \*(``Unicode Standard Annex #29: Unicode Text
+Segmentation\*(''
+.UE
+.PP
+\fB\%getcchar\fP(3X)
+further discusses the
+.I \%ncurses
+extension
+.BR \%CCHARW_MAX "."
+.PP
 \fB\%curses\fP(3X),
 \fB\%curs_color\fP(3X),
 \fB\%curs_opaque\fP(3X),
@@ -323,7 +491,3 @@ or to rely upon its default.
 \fB\%curs_threads\fP(3X),
 \fB\%term_variables\fP(3X),
 \fB\%terminfo\fP(5)
-.PP
-[UAX #29] \*(``Unicode Standard Annex #29: Unicode Text
-Segmentation\*('';
-\%<https://\*:unicode\*:.org/\*:reports/\*:tr29/>

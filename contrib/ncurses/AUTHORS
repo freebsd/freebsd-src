@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Copyright 2020,2021 Thomas E. Dickey                                      --
+-- Copyright 2020-2024,2025 Thomas E. Dickey                                 --
 -- Copyright 2006,2017 Free Software Foundation, Inc.                        --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
@@ -26,7 +26,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: AUTHORS,v 1.5 2021/06/17 21:20:30 tom Exp $
+-- $Id: AUTHORS,v 1.8 2025/11/12 01:25:55 tom Exp $
 -------------------------------------------------------------------------------
 These are the principal authors/contributors of ncurses since 1.9.9e,
 in decreasing order of their contribution:
@@ -36,5 +36,6 @@ JPF	Juergen Pfeifer
 ESR	Eric S Raymond
 AVL	Alexander V Lukyanov
 PB	Philippe Blain
+GBR	Branden Robinson
 SV	Sven Verdoolaege
-NB  Nicolas Boulenguez
+NB	Nicolas Boulenguez

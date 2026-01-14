@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_print.3x,v 1.38 2024/03/16 15:35:01 tom Exp $
-.TH curs_print 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_print.3x,v 1.41 2025/02/15 18:42:34 tom Exp $
+.TH curs_print 3X 2025-02-15 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fB\%mcprint\fP \-
 write binary data to printer using \fIterminfo\fR capabilities
@@ -36,54 +36,93 @@ write binary data to printer using \fIterminfo\fR capabilities
 .nf
 \fB#include <curses.h>
 .PP
-\fBint mcprint(char *\fIdata\fP, int \fIlen\fP);
+\fBint mcprint(char * \fIdata\fP, int \fIlen\fP);
 .fi
 .SH DESCRIPTION
-This function uses the \fBmc5p\fP or \fBmc4\fP and \fBmc5\fP capabilities,
-if they are present, to ship given data to a printer attached to the terminal.
+.BR \%mcprint ","
+an
+.I \%ncurses
+extension to the
+.I curses
+library,
+uses the terminal's
+.B \%prtr_non
+.RB ( mc5p )
+or
+.B \%prtr_on
+.RB ( mc5 )
+and
+.B \%prtr_off
+.RB ( mc4 )
+media copy capabilities,
+if defined,
+to send
+.I len
+bytes of the given string
+.I data
+to a printer attached to the terminal.
 .PP
-Note that the \fB\%mcprint\fP code has no way
-to do flow control with the printer
-or to know how much buffering it has.
-Your application is responsible for
-keeping the rate of writes to the printer below its continuous throughput rate
-(typically about half of its nominal cps rating).
+.B \%mcprint
+has no means of flow control to the printer
+nor of knowing how much buffering it has.
+Your application is responsible
+for keeping the rate of writes to the printer
+below its continuous throughput rate,
+typically about half of its nominal characters-per-second (cps) rating.
 Dot-matrix printers and
-6-page-per-minute lasers can typically handle 80cps, so a good conservative
-rule of thumb is to sleep for a second after shipping each 80-character line.
-.
+6-page-per-minute laser printers can typically handle 80 cps,
+so a conservative rule of thumb
+is to sleep for one second after sending an 80-character line.
 .SH RETURN VALUE
-The \fB\%mcprint\fP function returns \fBERR\fP if the write operation aborted
-for some reason.
-In this case, \fB\%errno\fP will contain either an error associated
-with \fBwrite\fP(2) or one of the following:
+On success,
+.B \%mcprint
+returns the number of characters sent to the printer.
+.PP
+.B \%mcprint
+returns
+.B ERR
+if the write operation fails for any reason.
+In that event,
+.B errno
+contains either a value set by \fIwrite\fP(2),
+or one of the following.
 .TP 5
 \fBENODEV\fP
-Capabilities for printer redirection do not exist.
+The terminal lacks relevant media copy capabilities.
 .TP 5
 \fBENOMEM\fP
-Couldn't allocate sufficient memory to buffer the printer write.
-.PP
-When \fB\%mcprint\fP succeeds, it returns the number of characters actually
-sent to the printer.
+.I \%ncurses
+could not allocate sufficient memory to buffer the write operation.
 .SH EXTENSIONS
-\fB\%mcprint\fP was designed for
-\fB\%ncurses\fP(3X),
-and was not found in SVr4
-.IR curses ,
+.B \%mcprint
+is an \fB\%ncurses\fP(3X) extension,
+and is not found in SVr4
+.IR curses ","
 4.4BSD
-.IR curses ,
-or any other previous curses implementation.
+.IR curses ","
+or any other previous
+.I curses
+implementation.
 .SH PORTABILITY
 Applications employing this
 .I \%ncurses
 extension should condition its use on the visibility of the
 .B \%NCURSES_VERSION
 preprocessor macro.
+.SH HISTORY
+.I \%ncurses
+introduced
+.I \%mcprint
+prior to version 1.9.9g (1996).
 .SH BUGS
 Padding in the
-\fBmc5p\fP,
-\fBmc4\fP, and
-\fBmc5\fP capabilities is not interpreted.
+.B \%prtr_non
+.RB ( mc5p ),
+.B \%prtr_on
+.RB ( mc5 ),
+and
+.B \%prtr_off
+.RB ( mc4 )
+capabilities is not interpreted.
 .SH SEE ALSO
 \fB\%curses\fP(3X)

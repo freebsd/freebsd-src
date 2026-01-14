@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2023 Thomas E. Dickey                                     *
+ * Copyright 2020-2023,2025 Thomas E. Dickey                                *
  * Copyright 1998-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -43,7 +43,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_endwin.c,v 1.28 2023/11/11 21:27:32 tom Exp $")
+MODULE_ID("$Id: lib_endwin.c,v 1.29 2025/12/27 12:41:23 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(endwin) (NCURSES_SP_DCL0)
@@ -54,7 +54,7 @@ NCURSES_SP_NAME(endwin) (NCURSES_SP_DCL0)
 
     if (SP_PARM != NULL) {
 	if (SP_PARM->_endwin != ewSuspend) {
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 	    TERMINAL_CONTROL_BLOCK *TCB = TCBOf(SP_PARM);
 
 	    SP_PARM->_endwin = ewSuspend;

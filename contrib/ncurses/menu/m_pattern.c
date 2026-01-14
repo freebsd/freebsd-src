@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2021 Thomas E. Dickey                                     *
+ * Copyright 2020-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2006,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_pattern.c,v 1.20 2021/06/17 21:20:30 tom Exp $")
+MODULE_ID("$Id: m_pattern.c,v 1.21 2024/12/07 23:00:37 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu
@@ -57,7 +57,7 @@ menu_pattern(const MENU *menu)
   static char empty[] = "";
 
   T((T_CALLED("menu_pattern(%p)"), (const void *)menu));
-  returnPtr(menu ? (menu->pattern ? menu->pattern : empty) : 0);
+  returnPtr(menu ? (menu->pattern ? menu->pattern : empty) : NULL);
 }
 
 /*---------------------------------------------------------------------------

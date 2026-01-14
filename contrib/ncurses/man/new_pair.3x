@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 2017 Free Software Foundation, Inc.                            *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -29,8 +29,8 @@
 .\"
 .\" Author: Thomas E. Dickey
 .\"
-.\" $Id: new_pair.3x,v 1.46 2024/03/16 15:35:01 tom Exp $
-.TH new_pair 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: new_pair.3x,v 1.51 2025/08/16 19:11:47 tom Exp $
+.TH new_pair 3X 2025-08-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -101,7 +101,7 @@ add to the possible combinations, producing this total:
 .RE
 .bP
 An application might use up to a few dozen color pairs to
-implement a predefined color scheme.
+implement a color scheme.
 .IP
 Beyond that lies in the realm of programs using the foreground
 and background colors for \*(``ASCII art\*(''
@@ -115,7 +115,8 @@ manage color pairs.
 .SS alloc_pair
 The \fBalloc_pair\fP function accepts parameters for
 foreground and background color, and
-checks if that color combination is already associated with a color pair.
+checks whether that color combination
+is already associated with a color pair.
 .bP
 If the combination already exists,
 \fBalloc_pair\fP returns the existing pair.
@@ -135,7 +136,8 @@ to the colors versus color pairs.
 .SS find_pair
 The \fBfind_pair\fP function accepts parameters for
 foreground and background color, and
-checks if that color combination is already associated with a color pair,
+checks whether that color combination
+is already associated with a color pair,
 returning the pair number if it has been allocated.
 Otherwise it returns \-1.
 .SS free_pair

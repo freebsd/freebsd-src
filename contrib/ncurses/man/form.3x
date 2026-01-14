@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,8 +28,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form.3x,v 1.54 2024/03/16 15:35:01 tom Exp $
-.TH form 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: form.3x,v 1.62 2025/11/12 01:27:41 tom Exp $
+.TH form 3X 2025-11-11 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -47,7 +47,7 @@
 ..
 .SH NAME
 \fBform\fP \-
-curses extension for programming forms
+present user-fillable forms in \fIcurses\fP windows
 .SH SYNOPSIS
 .nf
 \fB#include <form.h>
@@ -79,7 +79,9 @@ The \fBform\fP library maintains a default value for field attributes.
 You
 can get or set this default by calling the appropriate \fBset_\fP
 or retrieval
-routine with a \fBNULL\fP field pointer.
+routine with a
+.I NULL
+field pointer.
 Changing this default with a
 \fBset_\fP function affects future field creations, but does not change the
 rendering of fields already created.
@@ -92,10 +94,9 @@ Routines flagged with \*(``*\*(''
 are \fI\%ncurses\fP-specific, not present in SVr4.
 .PP
 .TS
-l l
-l l .
+L L.
 \fBcurses\fP Routine Name	Manual Page Name
-=
+_
 current_field	\fBform_page\fP(3X)
 data_ahead	\fBform_data\fP(3X)
 data_behind	\fBform_data\fP(3X)
@@ -173,7 +174,9 @@ unfocus_current_field	\fBform_page\fP(3X)*
 unpost_form	\fBform_post\fP(3X)
 .TE
 .SH RETURN VALUE
-Routines that return pointers return \fBNULL\fP on error,
+Routines that return pointers return
+.I NULL
+on error,
 and set \fBerrno\fP to the corresponding error-code returned by functions
 returning an integer.
 Routines that return

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -160,7 +160,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_mvcur.c,v 1.161 2023/09/16 16:29:02 tom Exp $")
+MODULE_ID("$Id: lib_mvcur.c,v 1.167 2025/12/27 12:34:03 tom Exp $")
 
 #define WANT_CHAR(sp, y, x) NewScreen(sp)->_line[y].text[x]	/* desired state */
 
@@ -222,8 +222,8 @@ NCURSES_EXPORT(int)
 NCURSES_SP_NAME(_nc_msec_cost) (NCURSES_SP_DCLx const char *const cap, int affcnt)
 /* compute the cost of a given operation */
 {
-    if (cap == 0)
-	return (INFINITY);
+    if (cap == NULL)
+	return (NC_INFINITY);
     else {
 	const char *cp;
 	float cum_cost = 0.0;
@@ -287,7 +287,7 @@ normalized_cost(NCURSES_SP_DCLx const char *const cap, int affcnt)
 /* compute the effective character-count for an operation (round up) */
 {
     int cost = NCURSES_SP_NAME(_nc_msec_cost) (NCURSES_SP_ARGx cap, affcnt);
-    if (cost != INFINITY)
+    if (cost != NC_INFINITY)
 	cost = (cost + SP_PARM->_char_padding - 1) / SP_PARM->_char_padding;
     return cost;
 }
@@ -364,14 +364,14 @@ NCURSES_SP_NAME(_nc_mvcur_init) (NCURSES_SP_DCL0)
     SP_PARM->_home_cost = CostOf(cursor_home, 0);
     SP_PARM->_ll_cost = CostOf(cursor_to_ll, 0);
 #if USE_HARD_TABS
-    if (getenv("NCURSES_NO_HARD_TABS") == 0
+    if (getenv("NCURSES_NO_HARD_TABS") == NULL
 	&& dest_tabs_magic_smso == 0
 	&& HasHardTabs()) {
 	SP_PARM->_ht_cost = CostOf(tab, 0);
 	SP_PARM->_cbt_cost = CostOf(back_tab, 0);
     } else {
-	SP_PARM->_ht_cost = INFINITY;
-	SP_PARM->_cbt_cost = INFINITY;
+	SP_PARM->_ht_cost = NC_INFINITY;
+	SP_PARM->_cbt_cost = NC_INFINITY;
     }
 #endif /* USE_HARD_TABS */
     SP_PARM->_cub1_cost = CostOf(cursor_left, 0);
@@ -461,12 +461,12 @@ NCURSES_SP_NAME(_nc_mvcur_init) (NCURSES_SP_DCL0)
      * nested on the various terminals (vt100, xterm, etc.) which use this
      * feature.
      */
-    if (save_cursor != 0
-	&& enter_ca_mode != 0
-	&& strstr(enter_ca_mode, save_cursor) != 0) {
+    if (save_cursor != NULL
+	&& enter_ca_mode != NULL
+	&& strstr(enter_ca_mode, save_cursor) != NULL) {
 	T(("...suppressed sc/rc capability due to conflict with smcup/rmcup"));
-	save_cursor = 0;
-	restore_cursor = 0;
+	save_cursor = NULL;
+	restore_cursor = NULL;
     }
 
     /*
@@ -543,12 +543,12 @@ repeated_append(string_desc * target, int total, int num, int repeat, const char
 	    if (_nc_safe_strcat(target, src)) {
 		total += num;
 	    } else {
-		total = INFINITY;
+		total = NC_INFINITY;
 		break;
 	    }
 	}
     } else {
-	total = INFINITY;
+	total = NC_INFINITY;
     }
     return total;
 }
@@ -578,9 +578,9 @@ relative_move(NCURSES_SP_DCLx
     (void) _nc_str_copy(&save, target);
 
     if (to_y != from_y) {
-	vcost = INFINITY;
+	vcost = NC_INFINITY;
 
-	if (row_address != 0
+	if (row_address != NULL
 	    && _nc_safe_strcat(target, TIPARM_1(row_address, to_y))) {
 	    vcost = SP_PARM->_vpa_cost;
 	}
@@ -617,8 +617,8 @@ relative_move(NCURSES_SP_DCLx
 	    }
 	}
 
-	if (vcost == INFINITY)
-	    return (INFINITY);
+	if (vcost == NC_INFINITY)
+	    return (NC_INFINITY);
     }
 
     save = *target;
@@ -627,7 +627,7 @@ relative_move(NCURSES_SP_DCLx
 	char str[OPT_SIZE];
 	string_desc check;
 
-	hcost = INFINITY;
+	hcost = NC_INFINITY;
 
 	if (column_address
 	    && _nc_safe_strcat(_nc_str_copy(target, &save),
@@ -658,7 +658,7 @@ relative_move(NCURSES_SP_DCLx
 		    for (fr = from_x; (nxt = NEXTTAB(fr)) <= to_x; fr = nxt) {
 			lhcost = repeated_append(&check, lhcost,
 						 SP_PARM->_ht_cost, 1, tab);
-			if (lhcost == INFINITY)
+			if (lhcost == NC_INFINITY)
 			    break;
 		    }
 
@@ -751,7 +751,7 @@ relative_move(NCURSES_SP_DCLx
 			lhcost = repeated_append(&check, lhcost,
 						 SP_PARM->_cbt_cost,
 						 1, back_tab);
-			if (lhcost == INFINITY)
+			if (lhcost == NC_INFINITY)
 			    break;
 		    }
 
@@ -770,8 +770,8 @@ relative_move(NCURSES_SP_DCLx
 	    }
 	}
 
-	if (hcost == INFINITY)
-	    return (INFINITY);
+	if (hcost == NC_INFINITY)
+	    return (NC_INFINITY);
     }
 
     return (vcost + hcost);
@@ -798,7 +798,7 @@ onscreen_mvcur(NCURSES_SP_DCLx
 {
     string_desc result;
     char buffer[OPT_SIZE];
-    int tactic = 0, newcost, usecost = INFINITY;
+    int tactic = 0, newcost, usecost = NC_INFINITY;
     int t5_cr_cost;
 
 #if defined(MAIN) || defined(NCURSES_TEST)
@@ -846,7 +846,7 @@ onscreen_mvcur(NCURSES_SP_DCLx
 	&& ((newcost = relative_move(NCURSES_SP_ARGx
 				     NullResult,
 				     yold, xold,
-				     ynew, xnew, ovw)) != INFINITY)
+				     ynew, xnew, ovw)) != NC_INFINITY)
 	&& newcost < usecost) {
 	tactic = 1;
 	usecost = newcost;
@@ -857,7 +857,7 @@ onscreen_mvcur(NCURSES_SP_DCLx
 	&& ((newcost = relative_move(NCURSES_SP_ARGx
 				     NullResult,
 				     yold, 0,
-				     ynew, xnew, ovw)) != INFINITY)
+				     ynew, xnew, ovw)) != NC_INFINITY)
 	&& SP_PARM->_cr_cost + newcost < usecost) {
 	tactic = 2;
 	usecost = SP_PARM->_cr_cost + newcost;
@@ -868,7 +868,7 @@ onscreen_mvcur(NCURSES_SP_DCLx
 	&& ((newcost = relative_move(NCURSES_SP_ARGx
 				     NullResult,
 				     0, 0,
-				     ynew, xnew, ovw)) != INFINITY)
+				     ynew, xnew, ovw)) != NC_INFINITY)
 	&& SP_PARM->_home_cost + newcost < usecost) {
 	tactic = 3;
 	usecost = SP_PARM->_home_cost + newcost;
@@ -879,7 +879,7 @@ onscreen_mvcur(NCURSES_SP_DCLx
 	&& ((newcost = relative_move(NCURSES_SP_ARGx
 				     NullResult,
 				     screen_lines(SP_PARM) - 1, 0,
-				     ynew, xnew, ovw)) != INFINITY)
+				     ynew, xnew, ovw)) != NC_INFINITY)
 	&& SP_PARM->_ll_cost + newcost < usecost) {
 	tactic = 4;
 	usecost = SP_PARM->_ll_cost + newcost;
@@ -895,7 +895,7 @@ onscreen_mvcur(NCURSES_SP_DCLx
 	&& ((newcost = relative_move(NCURSES_SP_ARGx
 				     NullResult,
 				     yold - 1, screen_columns(SP_PARM) - 1,
-				     ynew, xnew, ovw)) != INFINITY)
+				     ynew, xnew, ovw)) != NC_INFINITY)
 	&& t5_cr_cost + SP_PARM->_cub1_cost + newcost < usecost) {
 	tactic = 5;
 	usecost = t5_cr_cost + SP_PARM->_cub1_cost + newcost;
@@ -948,15 +948,15 @@ onscreen_mvcur(NCURSES_SP_DCLx
   nonlocal:
 #if defined(MAIN) || defined(NCURSES_TEST)
     gettimeofday(&after, NULL);
-    diff = after.tv_usec - before.tv_usec
-	+ (after.tv_sec - before.tv_sec) * 1000000;
+    diff = (float) (after.tv_usec - before.tv_usec
+		    + (after.tv_sec - before.tv_sec) * 1000000);
     if (!profiling)
 	(void) fprintf(stderr,
 		       "onscreen: %d microsec, %f 28.8Kbps char-equivalents\n",
 		       (int) diff, diff / 288);
 #endif /* MAIN */
 
-    if (usecost != INFINITY) {
+    if (usecost != NC_INFINITY) {
 	TR(TRACE_MOVE, ("mvcur tactic %d", tactic));
 	TPUTS_TRACE("mvcur");
 	NCURSES_SP_NAME(tputs) (NCURSES_SP_ARGx
@@ -984,7 +984,7 @@ _nc_real_mvcur(NCURSES_SP_DCLx
     TR(TRACE_CALLS | TRACE_MOVE, (T_CALLED("_nc_real_mvcur(%p,%d,%d,%d,%d)"),
 				  (void *) SP_PARM, yold, xold, ynew, xnew));
 
-    if (SP_PARM == 0) {
+    if (SP_PARM == NULL) {
 	code = ERR;
     } else if (yold == ynew && xold == xnew) {
 	code = OK;
@@ -1079,7 +1079,7 @@ NCURSES_SP_NAME(_nc_mvcur) (NCURSES_SP_DCLx
      * external calls.  Flush the output if the screen has not been
      * initialized, e.g., when used from low-level terminfo programs.
      */
-    if ((SP_PARM != 0) && (SP_PARM->_endwin == ewInitial))
+    if ((SP_PARM != NULL) && (SP_PARM->_endwin == ewInitial))
 	NCURSES_SP_NAME(_nc_flush) (NCURSES_SP_ARG);
     return rc;
 }
@@ -1093,7 +1093,7 @@ _nc_mvcur(int yold, int xold,
 }
 #endif
 
-#if defined(USE_TERM_DRIVER)
+#if USE_TERM_DRIVER
 /*
  * The terminal driver does not support the external "mvcur()".
  */
@@ -1106,7 +1106,7 @@ TINFO_MVCUR(NCURSES_SP_DCLx int yold, int xold, int ynew, int xnew)
 			ynew, xnew,
 			NCURSES_SP_NAME(_nc_outch),
 			TRUE);
-    if ((SP_PARM != 0) && (SP_PARM->_endwin == ewInitial))
+    if ((SP_PARM != NULL) && (SP_PARM->_endwin == ewInitial))
 	NCURSES_SP_NAME(_nc_flush) (NCURSES_SP_ARG);
     NCURSES_SP_NAME(_nc_flush) (NCURSES_SP_ARG);
     return rc;
@@ -1227,7 +1227,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 
 	if (fputs("> ", stdout) == EOF)
 	    break;
-	if (fgets(buf, sizeof(buf), stdin) == 0)
+	if (fgets(buf, sizeof(buf), stdin) == NULL)
 	    break;
 
 #define PUTS(s)   (void) puts(s)
@@ -1307,7 +1307,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	} else if (buf[0] == 'i') {
 	    dump_init(NULL, F_TERMINFO, S_TERMINFO,
 		      FALSE, 70, 0, 0, FALSE, FALSE, 0);
-	    dump_entry(&TerminalType(cur_term), FALSE, TRUE, 0, 0);
+	    dump_entry(&TerminalType(cur_term), FALSE, TRUE, 0, NULL);
 	    putchar('\n');
 	} else if (buf[0] == 'o') {
 	    if (_nc_optimize_enable & OPTIMIZE_MVCUR) {
@@ -1338,7 +1338,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	 * is winning.
 	 */
 	else if (sscanf(buf, "t %d", &n) == 1) {
-	    float cumtime = 0.0, perchar;
+	    double cumtime = 0.0, perchar;
 	    int speeds[] =
 	    {2400, 9600, 14400, 19200, 28800, 38400, 0};
 
@@ -1384,14 +1384,14 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 		 * transmission both. Transmission time is an estimate
 		 * assuming 9 bits/char, 8 bits + 1 stop bit.
 		 */
-		float totalest = cumtime + xmits * 9 * 1e6 / speeds[i];
+		double totalest = cumtime + (double) xmits * 9 * 1e6 / speeds[i];
 
 		/*
 		 * Per-character optimization overhead in character transmits
 		 * at the current speed.  Round this to the nearest integer
 		 * to figure COMPUTE_OVERHEAD for the speed.
 		 */
-		float overhead = speeds[i] * perchar / 1e6;
+		double overhead = speeds[i] * perchar / 1e6;
 
 		(void)
 		    printf("%6d bps: %3.2f char-xmits overhead; total estimated time %15.2f\n",

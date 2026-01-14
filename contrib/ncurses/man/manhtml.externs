@@ -1,7 +1,7 @@
-# $Id: manhtml.externs,v 1.25 2024/04/20 19:26:05 tom Exp $
+# $Id: manhtml.externs,v 1.30 2025/03/01 22:00:03 tom Exp $
 # Items in this list will not be linked by man2html
 #***************************************************************************
-# Copyright 2019-2023,2024 Thomas E. Dickey                                *
+# Copyright 2019-2024,2025 Thomas E. Dickey                                *
 # Copyright 2013,2017 Free Software Foundation, Inc.                       *
 #                                                                          *
 # Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -41,25 +41,31 @@ emacs(1)
 environ(7)
 errno(3)
 file(1)
+fread(3)
+free(3)
+fwrite(3)
 getty(8)
+ioctl(2)
+isprint(3)
 jove(1)
 lynx(1)
 mutt(1)
 nvi(1)
 od(1)
-ioctl(2)
-isprint(3)
+poll(2)
 printf(3)
 profile(5)
 putc(3)
 putchar(3)
 putwc(3)
+putwchar(3)
 read(2)
 readline(3)
 resize(1)
 scanf(3)
 scanf(3S)
 screen(1)
+select(2)
 setbuf(3)
 setgid(2)
 setlocale(3)
@@ -69,6 +75,7 @@ sscanf(3)
 stdio(3)
 stty(1)
 swprintf(3)
+sysconf(3)
 system(3)
 termios(3)
 tmux(1)

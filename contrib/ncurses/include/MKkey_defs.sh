@@ -1,7 +1,7 @@
 #! /bin/sh
-# $Id: MKkey_defs.sh,v 1.24 2024/01/19 12:26:17 tom Exp $
+# $Id: MKkey_defs.sh,v 1.25 2025/06/14 14:44:56 tom Exp $
 ##############################################################################
-# Copyright 2019-2022,2024 Thomas E. Dickey                                  #
+# Copyright 2019-2024,2025 Thomas E. Dickey                                  #
 # Copyright 2001-2013,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -110,8 +110,8 @@ function decode(keycode) {
 }
 
 BEGIN	{
-	maxkey='$maxkey';
-	pass='$pass';
+	maxkey='"$maxkey"';
+	pass='"$pass"';
 	key_max=1;
 	bits=1;
 	while (key_max < maxkey) {

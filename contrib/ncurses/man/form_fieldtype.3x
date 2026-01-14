@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2006,2010 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,19 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_fieldtype.3x,v 1.46 2024/03/16 15:35:01 tom Exp $
-.TH form_fieldtype 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: form_fieldtype.3x,v 1.51 2025/01/19 00:51:10 tom Exp $
+.TH form_fieldtype 3X 2025-01-18 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
 .de bP
 .ie n  .IP \(bu 4
 .el    .IP \(bu 2
@@ -102,7 +113,9 @@ This function may be used by applications to copy argument-blocks.
 Frees an argument-block structure.
 .PP
 You must supply the \fImake_arg\fP function.
-The other two are optional: you may supply NULL for them.
+The other two are optional: you may supply
+.I NULL
+for them.
 In this case, the form library assumes
 that \fImake_arg\fP does not allocate memory but simply loads the
 argument into a single scalar value.
@@ -119,7 +132,7 @@ argument-block structure as arguments.
 .SS link_fieldtype
 The function \fBlink_fieldtype\fP creates
 a new field type from the two given types.
-They are connected by an logical 'OR'.
+They are connected by a logical \*(``or\*(''.
 .SH RETURN VALUE
 The pointer-valued routines return NULL on error.
 They set \fBerrno\fP according to their success:

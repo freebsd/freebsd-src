@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_hook.3x,v 1.32 2024/03/16 15:35:01 tom Exp $
-.TH menu_hook 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: menu_hook.3x,v 1.34 2024/12/28 21:26:21 tom Exp $
+.TH menu_hook 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBmenu_hook\fP \-
 set hooks for automatic invocation by applications
@@ -55,27 +55,33 @@ points in the automatic processing of input event codes by \fBmenu_driver\fP.
 The function \fBset_item_init\fP sets a hook to be called at menu-post time and
 each time the selected item changes (after the change).
 \fBitem_init\fP
-returns the current item init hook, if any (\fBNULL\fP if there is no such
-hook).
+returns the current item init hook, if any
+.RI ( NULL
+if there is no such hook).
 .PP
 The function \fBset_item_term\fP sets a hook to be called at menu-unpost time
 and each time the selected item changes (before the change).
 \fBitem_term\fP
-returns the current item term hook, if any (\fBNULL\fP if there is no such
-hook).
+returns the current item term hook, if any
+.RI ( NULL
+if there is no such hook).
 .PP
 The function \fBset_menu_init\fP sets a hook to be called at menu-post time and
 just after the top row on the menu changes once it is posted.
 \fBmenu_init\fP
-returns the current menu init hook, if any (\fBNULL\fP if there is no such
-hook).
+returns the current menu init hook, if any
+.RI ( NULL
+if there is no such hook).
 .PP
 The function \fBset_menu_term\fP sets a hook to be called at menu-unpost time
 and just before the top row on the menu changes once it is posted.
-\fBmenu_term\fP returns the current menu term hook, if any (\fBNULL\fP if there
-is no such hook).
+\fBmenu_term\fP returns the current menu term hook, if any
+.RI ( NULL
+if there is no such hook).
 .SH RETURN VALUE
-Routines that return pointers return \fBNULL\fP on error.
+Routines that return pointers return
+.I NULL
+on error.
 Other routines
 return one of the following:
 .TP 5

@@ -1,4 +1,4 @@
-/* $Id: curses.wide,v 1.51 2021/05/22 20:28:29 tom Exp $ */
+/* $Id: curses.wide,v 1.53 2025/01/18 21:08:32 Branden.Robinson Exp $ */
 /*
  * vile:cmode:
  * This file is part of ncurses, designed to be appended after curses.h.in
@@ -213,7 +213,7 @@ extern NCURSES_EXPORT(int) winnwstr (WINDOW *, wchar_t *, int);		/* implemented 
 extern NCURSES_EXPORT(int) wins_nwstr (WINDOW *, const wchar_t *, int);	/* implemented */
 extern NCURSES_EXPORT(int) wins_wch (WINDOW *, const cchar_t *);	/* implemented */
 extern NCURSES_EXPORT(int) wins_wstr (WINDOW *, const wchar_t *);	/* generated:WIDEC */
-extern NCURSES_EXPORT(int) winwstr (WINDOW *, wchar_t *);		/* implemented */
+extern NCURSES_EXPORT(int) winwstr (WINDOW *, wchar_t *);		/* generated:WIDEC */
 extern NCURSES_EXPORT(wchar_t*) wunctrl (cchar_t *);			/* implemented */
 extern NCURSES_EXPORT(int) wvline_set (WINDOW *, const cchar_t *, int);	/* implemented */
 
@@ -240,7 +240,7 @@ extern NCURSES_EXPORT(wchar_t*) NCURSES_SP_NAME(wunctrl) (SCREEN*, cchar_t *);	/
 #define bkgrnd(c)			wbkgrnd(stdscr,(c))
 #define bkgrndset(c)			wbkgrndset(stdscr,(c))
 #define border_set(l,r,t,b,tl,tr,bl,br) wborder_set(stdscr,(l),(r),(t),(b),tl,tr,bl,br)
-#define box_set(w,v,h)			wborder_set((w),(v),(v),(h),(h),0,0,0,0)
+#define box_set(w,v,h)			wborder_set((w),(v),(v),(h),(h),NULL,NULL,NULL,NULL)
 #define echo_wchar(c)			wecho_wchar(stdscr,(c))
 #define get_wch(c)			wget_wch(stdscr,(c))
 #define get_wstr(t)			wget_wstr(stdscr,(t))
@@ -261,6 +261,7 @@ extern NCURSES_EXPORT(wchar_t*) NCURSES_SP_NAME(wunctrl) (SCREEN*, cchar_t *);	/
 #define wget_wstr(w,t)			wgetn_wstr((w),(t),-1)
 #define win_wchstr(w,c)			win_wchnstr((w),(c),-1)
 #define wins_wstr(w,t)			wins_nwstr((w),(t),-1)
+#define winwstr(w,c)			winnwstr((w),(c),-1)
 
 #if !NCURSES_OPAQUE
 #define wgetbkgrnd(win,wch)		(NCURSES_OK_ADDR(wch) ? ((win) ? (*(wch) = (win)->_bkgrnd) : *(wch), OK) : ERR)

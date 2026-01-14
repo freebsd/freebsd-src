@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2019-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2019-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 2002-2011,2012 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_border_set.3x,v 1.36 2024/04/20 21:20:07 tom Exp $
-.TH curs_border_set 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_border_set.3x,v 1.50 2025/10/21 00:10:56 tom Exp $
+.TH curs_border_set 3X 2025-10-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -56,46 +56,31 @@ draw borders and lines in a \fIcurses\fR window of wide characters
 .nf
 \fB#include <curses.h>
 .PP
-\fBint border_set(
-   \fBconst cchar_t *\fIls\fB, const cchar_t *\fIrs\fP,
-   \fBconst cchar_t *\fIts\fB, const cchar_t *\fIbs\fP,
-   \fBconst cchar_t *\fItl\fB, const cchar_t *\fItr\fP,
-   \fBconst cchar_t *\fIbl\fB, const cchar_t *\fIbr\fB);\fR
+\fBint border_set(const cchar_t *\fIls\fB, const cchar_t *\fIrs\fP,
+      \fBconst cchar_t *\fIts\fB, const cchar_t *\fIbs\fP,
+      \fBconst cchar_t *\fItl\fB, const cchar_t *\fItr\fP,
+      \fBconst cchar_t *\fIbl\fB, const cchar_t *\fIbr\fB);\fR
 .br
-\fBint wborder_set(\fP
-   \fBWINDOW *\fIwin\fP,
-   \fBconst cchar_t *\fIls\fB, const cchar_t *\fIrs\fP,
-   \fBconst cchar_t *\fIts\fB, const cchar_t *\fIbs\fP,
-   \fBconst cchar_t *\fItl\fB, const cchar_t *\fItr\fP,
-   \fBconst cchar_t *\fIbl\fB, const cchar_t *\fIbr\fB);\fR
-\fBint box_set(\fP
-   \fBWINDOW *\fIwin\fP,
-   \fBconst cchar_t *\fIverch\fP,
-   \fBconst cchar_t *\fIhorch\fB);\fR
-\fBint hline_set(\fP
-   \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
-\fBint whline_set(\fP
-   \fBWINDOW *\fIwin\fP,
-   \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
-\fBint mvhline_set(\fP
-   \fBint \fIy\fB, int \fIx\fP,
-   \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
-\fBint mvwhline_set(\fP
-   \fBWINDOW *\fIwin\fP,
-   \fBint \fIy\fB, int \fIx\fP,
-   \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
-\fBint vline_set(\fP
-   \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
-\fBint wvline_set(\fP
-   \fBWINDOW *\fIwin\fP,
-   \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
-\fBint mvvline_set(\fP
-   \fBint \fIy\fB, int \fIx\fP,
-   \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
-\fBint mvwvline_set(\fP
-   \fBWINDOW *\fIwin\fP,
-   \fBint \fIy\fB, int \fIx\fP,
-   \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
+\fBint wborder_set(\fBWINDOW *\fIwin\fP,
+      \fBconst cchar_t *\fIls\fB, const cchar_t *\fIrs\fP,
+      \fBconst cchar_t *\fIts\fB, const cchar_t *\fIbs\fP,
+      \fBconst cchar_t *\fItl\fB, const cchar_t *\fItr\fP,
+      \fBconst cchar_t *\fIbl\fB, const cchar_t *\fIbr\fB);\fR
+.PP
+\fBint box_set(\fBWINDOW *\fIwin\fP, \fBconst cchar_t *\fIverch\fP,
+      \fBconst cchar_t *\fIhorch\fB);\fR
+.PP
+\fBint hline_set(const cchar_t *\fIwch\fB, int \fIn\fB);\fR
+\fBint whline_set(WINDOW *\fIwin\fP, \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
+\fBint mvhline_set(int \fIy\fB, int \fIx\fP, \fBconst cchar_t *\fIwch\fB,\fR \fBint \fIn\fB);\fR
+\fBint mvwhline_set(WINDOW *\fIwin\fP, \fBint \fIy\fB, int \fIx\fP,
+      \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
+.PP
+\fBint vline_set(const cchar_t *\fIwch\fB, int \fIn\fB);\fR
+\fBint wvline_set(WINDOW *\fIwin\fP, \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
+\fBint mvvline_set(int \fIy\fB, int \fIx\fP, \fBconst cchar_t *\fIwch\fB,\fR \fBint \fIn\fB);\fR
+\fBint mvwvline_set(WINDOW *\fIwin\fP, \fBint \fIy\fB, int \fIx\fP,
+      \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
 .fi
 .SH DESCRIPTION
 The
@@ -177,7 +162,9 @@ Upon successful completion, these functions return
 Otherwise, they return
 \fBERR\fP.
 .PP
-Functions using a window parameter return an error if it is null.
+Functions using a window parameter return
+.B ERR
+if it is null.
 .PP
 Functions prefixed with \*(``mv\*('' first perform cursor movement and
 fail if the position
@@ -185,17 +172,20 @@ fail if the position
 .IR x )
 is outside the window boundaries.
 .SH NOTES
-Note that
-\fBborder_set\fP,
-\fBhline_set\fP,
-\fBmvhline_set\fP,
-\fBmvvline_set\fP,
-\fBmvwhline_set\fP,
-\fBmvwvline_set\fP, and
-\fBvline_set\fP
-may be macros.
+.BR \%border_set ","
+.BR \%hline_set ","
+.BR \%mvhline_set ","
+.BR \%mvvline_set ","
+.BR \%mvwhline_set ","
+.BR \%mvwvline_set ","
+and
+.B \%vline_set
+may be implemented as macros.
 .SH PORTABILITY
-These functions are described in X/Open Curses, Issue 4.
+X/Open Curses Issue\ 4 describes these functions.
+It specifies no error conditions for them.
+.SH HISTORY
+X/Open Curses Issue\ 4 (1995) initially specified these functions.
 .SH SEE ALSO
 \fB\%curses\fP(3X),
 \fB\%curs_add_wch\fP(3X),

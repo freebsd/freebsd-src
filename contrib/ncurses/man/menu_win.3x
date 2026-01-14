@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_win.3x,v 1.32 2024/03/16 15:35:01 tom Exp $
-.TH menu_win 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: menu_win.3x,v 1.34 2024/12/28 21:26:21 tom Exp $
+.TH menu_win 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBmenu_win\fP \-
 make and break menu window and subwindow associations
@@ -54,14 +54,20 @@ The first four functions get and set those windows.
 It is not necessary to set
 either window; by default, the driver code uses \fBstdscr\fP for both.
 .PP
-In the \fBset_\fP functions, window argument of \fBNULL\fP is treated as though
-it were \fBstsdcr\fP.  A menu argument of \fBNULL\fP is treated as a request
+In the \fBset_\fP functions, window argument of
+.I NULL
+is treated as though
+it were \fBstsdcr\fP.  A menu argument of
+.I NULL
+is treated as a request
 to change the system default menu window or subwindow.
 .PP
 The function \fBscale_menu\fP returns the minimum size required for the
 subwindow of \fImenu\fP.
 .SH RETURN VALUE
-Routines that return pointers return \fBNULL\fP on error.
+Routines that return pointers return
+.I NULL
+on error.
 Routines that return
 an integer return one of the following error codes:
 .TP 5

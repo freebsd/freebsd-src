@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_validation.3x,v 1.53 2024/03/16 15:35:01 tom Exp $
-.TH form_field_validation 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: form_field_validation.3x,v 1.62 2025/08/16 19:11:47 tom Exp $
+.TH form_field_validation 3X 2025-08-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -55,7 +55,7 @@ data type validation for fields
 \fBFIELDTYPE *field_type(const FIELD *\fIfield\fP);
 \fBint set_field_type(FIELD *\fIfield\fP, FIELDTYPE *\fItype\fP, ...);
 .PP
-\fI/* predefined field types */\fP
+\fI/* field types */\fP
 \fBFIELDTYPE *TYPE_ALNUM;
 \fBFIELDTYPE *TYPE_ALPHA;
 \fBFIELDTYPE *TYPE_ENUM;
@@ -66,7 +66,7 @@ data type validation for fields
 .fi
 .SH DESCRIPTION
 By default, no validation is done on form fields.
-You can associate a form with with a \fIfield type\fP,
+You can associate a form with a \fIfield type\fP,
 making the form library validate input.
 .SS field_arg
 Returns a pointer to the field's argument block.
@@ -81,12 +81,12 @@ a field type with a given form field.
 This is the type checked by validation functions.
 Most field types are configurable,
 via arguments which the caller provides when calling \fBset_field_type\fP.
-.PP
-Several field types are predefined by the form library.
-.SH PREDEFINED TYPES
-It is possible to set up new programmer-defined field types.
-Field types are implemented via the \fBFIELDTYPE\fP data
-structure, which contains several pointers to functions.
+.SH "FIELD TYPES"
+The
+.I form
+library defines several field types.
+They are implemented via the \fBFIELDTYPE\fP data structure,
+which contains several pointers to functions.
 .PP
 See the \fBform_fieldtype\fP(3X) manual page,
 which describes functions which can be used to construct
@@ -174,7 +174,7 @@ trailing spaces (up to an empty field),
 or "^ *[0\-9]* *$" which is good for
 leading and trailing spaces around the digits.
 .SS TYPE_IPV4
-An Internet Protocol Version 4 address.
+An Internet Protocol Version\ 4 address.
 Required parameter:
 .bP
 none
@@ -186,8 +186,12 @@ The address itself is not validated.
 .PP
 This is an \fI\%ncurses\fP extension;
 this field type may not be available in other curses implementations.
+.PP
+It is possible to set up new programmer-defined field types.
 .SH RETURN VALUE
-The functions \fBfield_type\fP and \fBfield_arg\fP return \fBNULL\fP on error.
+The functions \fBfield_type\fP and \fBfield_arg\fP return
+.I NULL
+on error.
 The function \fBset_field_type\fP returns one of the following:
 .TP 5
 .B E_OK

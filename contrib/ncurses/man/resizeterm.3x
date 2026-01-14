@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -29,8 +29,8 @@
 .\"
 .\" Author: Thomas E. Dickey 1996-on
 .\"
-.\" $Id: resizeterm.3x,v 1.56 2024/03/16 15:35:01 tom Exp $
-.TH resizeterm 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: resizeterm.3x,v 1.65 2025/07/05 13:06:45 tom Exp $
+.TH resizeterm 3X 2025-07-05 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .de bP
 .ie n  .IP \(bu 4
 .el    .IP \(bu 2
@@ -62,11 +62,17 @@ If the terminal is stretched,
 rows and/or columns can be added to existing windows.
 The added cells should match the current attributes of the windows.
 .PP
-If the calling program has not set up a handler for \fB\%SIGWINCH\fP
-when it initializes \fI\%ncurses\fP
-(e.g., using \fB\%initscr\fP(3X) or \fB\%newterm\fP(3X)),
-then \fI\%ncurses\fP sets a handler for \fB\%SIGWINCH\fP which notifies
-the library when a window-size event has occurred.
+If the application has not set up a handler for
+.I \%SIGWINCH
+when it initializes
+.I \%ncurses
+(by calling \fB\%initscr\fP(3X) or \fB\%newterm\fP(3X)),
+then
+.I \%ncurses
+establishes a
+.I \%SIGWINCH
+handler that notifies the library
+when a window-resizing event has occurred.
 The library checks for this notification
 .bP
 when reading input data,
@@ -80,10 +86,13 @@ when explicitly resuming program mode in \fB\%restartterm\fP(3X).
 When the library has found that the terminal's window-size has
 changed, it calls \fB\%resizeterm\fP to update its data structures.
 .PP
-An application which establishes its own \fB\%SIGWINCH\fP handler
+An application which establishes its own
+.I \%SIGWINCH
+handler
 can call \fB\%resizeterm\fP, but in that case, the library will not
-see \fB\%SIGWINCH\fP, and proper layout will rely upon the application.
-.SH FUNCTIONS
+see
+.IR \%SIGWINCH ","
+and proper layout will rely upon the application.
 .SS resizeterm
 The function \fB\%resizeterm\fP resizes the standard and current windows
 (i.e., \fB\%stdscr\fP and \fB\%curscr\fP)
@@ -94,7 +103,9 @@ such as the \fB\%LINES\fP and \fB\%COLS\fP variables.
 Most of the work for \fB\%resizeterm\fP is
 done by the inner function \fB\%resize_term\fP.
 The outer function \fB\%resizeterm\fP adds bookkeeping
-for the \fB\%SIGWINCH\fP handler,
+for the
+.I \%SIGWINCH
+handler,
 as well as repainting the soft-key area (see \fB\%slk_touch\fP(3X)).
 .PP
 The \fB\%resize_term\fP function attempts to resize all windows.
@@ -127,14 +138,19 @@ They will fail if either of the dimensions are less than or equal to zero,
 or if an error occurs while (re)allocating memory for the windows.
 .SH NOTES
 While these functions are intended to be used to support a signal handler
-(i.e., for \fB\%SIGWINCH\fP), care should be taken to avoid invoking them in a
+(i.e., for
+.IR \%SIGWINCH "),"
+care should be taken to avoid invoking them in a
 context where \fB\%malloc\fP or \fB\%realloc\fP may have been interrupted,
 since it uses those functions.
 .PP
-If \fI\%ncurses\fP is configured to supply its own \fB\%SIGWINCH\fP
+If \fI\%ncurses\fP is configured to supply its own
+.I \%SIGWINCH
 handler,
 .bP
-on receipt of a \fB\%SIGWINCH\fP, the handler sets a flag
+on receipt of a
+.IR \%SIGWINCH ","
+the handler sets a flag
 .bP
 which is tested in
 \fB\%wgetch\fP(3X),
@@ -158,7 +174,9 @@ This indirect method is used to provide a safe way to resize the
 If the environment variables \fILINES\fP or \fI\%COLUMNS\fP are set,
 this overrides the library's use of the window size obtained from
 the operating system.
-Thus, even if a \fB\%SIGWINCH\fP is received,
+Thus, even if a
+.I \%SIGWINCH
+is received,
 no screen size change may be recorded.
 .SH PORTABILITY
 It is possible to resize the screen with SVr4 \fIcurses\fP,
@@ -170,8 +188,13 @@ resuming using \fB\%refresh\fP(3X).
 .PP
 Doing that clears the screen and is visually distracting.
 .PP
-This extension of \fI\%ncurses\fP was introduced in mid-1995.
-It was adopted in NetBSD \fIcurses\fP (2001) and PDCurses (2003).
+.I \%ncurses
+introduced this extension in mid-1995.
+NetBSD
+.I curses
+adopted it in 2001 and
+.I \%PDCurses
+in 2003.
 .SH AUTHORS
 Thomas Dickey (from an equivalent function written in 1988 for BSD \fIcurses\fP)
 .SH SEE ALSO

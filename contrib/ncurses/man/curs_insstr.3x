@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2019-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2019-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_insstr.3x,v 1.51 2024/04/20 21:20:07 tom Exp $
-.TH curs_insstr 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_insstr.3x,v 1.72 2025/10/21 00:11:17 tom Exp $
+.TH curs_insstr 3X 2025-10-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -46,56 +46,87 @@
 ..
 .SH NAME
 \fB\%insstr\fP,
-\fB\%insnstr\fP,
 \fB\%winsstr\fP,
-\fB\%winsnstr\fP,
 \fB\%mvinsstr\fP,
 \fB\%mvinsnstr\fP,
+\fB\%insnstr\fP,
+\fB\%winsnstr\fP,
 \fB\%mvwinsstr\fP,
 \fB\%mvwinsnstr\fP \-
 insert a string in a \fIcurses\fR window
 .SH SYNOPSIS
 .nf
 \fB#include <curses.h>
-\fBint insstr(const char *\fIstr\fP);
-\fBint insnstr(const char *\fIstr\fP, int \fIn\fP);
-\fBint winsstr(WINDOW *\fIwin\fP, const char *\fIstr\fP);
-\fBint winsnstr(WINDOW *\fIwin\fP, const char *\fIstr\fP, int \fIn\fP);
 .PP
-\fBint mvinsstr(int \fIy\fP, int \fIx\fP, const char *\fIstr\fP);
-\fBint mvinsnstr(int \fIy\fP, int \fIx\fP, const char *\fIstr\fP, int \fIn\fP);
-\fBint mvwinsstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, const char *\fIstr\fP);
-\fBint mvwinsnstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, const char *\fIstr\fP, int \fIn\fP);
+\fBint insstr(const char * \fIstr\fP);
+\fBint winsstr(WINDOW * \fIwin\fP, const char * \fIstr\fP);
+\fBint mvinsstr(int \fIy\fP, int \fIx\fP, const char * \fIstr\fP);
+\fBint mvwinsstr(WINDOW * \fIwin\fP, int \fIy\fP, int \fIx\fP, const char * \fIstr\fP);
+.PP
+\fBint insnstr(const char * \fIstr\fP, int \fIn\fP);
+\fBint winsnstr(WINDOW * \fIwin\fP, const char * \fIstr\fP, int \fIn\fP);
+\fBint mvinsnstr(int \fIy\fP, int \fIx\fP, const char * \fIstr\fP, int \fIn\fP);
+\fBint mvwinsnstr(WINDOW * \fIwin\fP, int \fIy\fP, int \fIx\fP, const char * \fIstr\fP, int \fIn\fP);
 .fi
 .SH DESCRIPTION
-These routines insert a character string
-(as many characters as will fit on the line)
-before the character under the cursor,
-as if calling \fBwinsch\fP(3X).
-All characters to the right of the cursor are shifted right,
-with the possibility of the rightmost characters on the line being lost.
-No wrapping is performed.
-.PP
+.B \%winsstr
+inserts a string
+.I str
+before the character at the cursor in window
+.I win
+as if by calling \fBwinsch\fP(3X) for each
+.I char
+in
+.IR str "."
+No line wrapping is performed.
+Characters to the right of the cursor are shifted right;
+those at the right edge of the window may be lost.
+.B \%winsstr
+stops inserting if it would have to wrap to the next line to write the
+next
+.I \%char
+in
+.IR str "."
 The cursor position does not change
-(after moving to \fIy\fP, \fIx\fP, if specified).
-.PP
-The functions with \fIn\fP as the last argument
-insert a leading substring of at most \fIn\fP characters.
-If \fIn\fP is less than zero, the entire string is inserted
-(stopping on a NUL character).
-.PP
-Special characters are handled as in \fBwaddch\fP(3X).
+(after moving to
+.RI ( y ,
+.IR x "),"
+if specified).
+.B \%insnstr
+does the same,
+but inserts at most
+.I n
+characters,
+or as many as possible
+(up to the end of the line)
+if
+.I n
+is negative.
+\fB\%ncurses\fP(3X) describes the variants of these functions.
 .SH RETURN VALUE
-All functions return the integer \fBERR\fP upon failure and \fBOK\fP on success.
+These functions return
+.B OK
+on success and
+.B ERR
+on failure.
 .PP
-X/Open Curses does not specify any error conditions.
-This implementation returns an error
+In
+.IR \%ncurses ","
+they return
+.B ERR
+if
 .bP
-if the \fIwin\fP parameter is null or
+.I win
+is
+.IR NULL ","
 .bP
-if the \fIstr\fP parameter is null or
+.I str
+is
+.IR NULL ","
+or
 .bP
-the \fBwinsch\fP(3X) function returns an error.
+an internal \fBwinsch\fP(3X) call returns
+.BR ERR "."
 .PP
 Functions prefixed with \*(``mv\*('' first perform cursor movement and
 fail if the position
@@ -103,21 +134,75 @@ fail if the position
 .IR x )
 is outside the window boundaries.
 .SH NOTES
-All but \fBwinsnstr\fP may be macros.
+All of these functions except
+.B \%winsnstr
+may be implemented as macros.
+.SH EXTENSIONS
+.BR \%insnstr ","
+.BR \%winsnstr ","
+.BR \%mvinsnstr ","
+and
+.BR \%mvwinsnstr "'s"
+acceptance of negative
+.I n
+values is an
+.I \%ncurses
+extension.
 .SH PORTABILITY
-These functions are described in X/Open Curses, Issue 4,
-which adds \fI\%const\fP qualifiers to the arguments.
+Applications employing
+.I \%ncurses
+extensions should condition their use on the visibility of the
+.B \%NCURSES_VERSION
+preprocessor macro.
 .PP
-The Single Unix Specification, Version 2 states that
-\fBinsnstr\fP and \fBwinsnstr\fP perform wrapping.
-This is probably an error, since it makes this group of functions inconsistent.
-Also, no implementation of curses documents this inconsistency.
+X/Open Curses Issue\ 4 describes these functions.
+It specifies no error conditions for them.
 .PP
-X/Open states that the entire string is inserted if \fIn\fP is less than 1.
+SVr4 describes a successful return value only as
+\*(``an integer value other than
+.IR ERR \*(''. \" Courier roman in source; SVID 4, vol. 3, p. 510
+.PP
+Issue\ 4 distinguished
+.I \%insnstr
+and
+.I \%winsnstr
+from the other functions documented above
+by stating they \*(``do not perform wrapping\*(''.
+This was probably an error,
+since it makes this group of functions inconsistent.
+No implementation of
+.I curses
+manifests this inconsistency,
+and Issue\ 7 removed the claim.
+.PP
+Issue\ 4 states that the entire string is inserted if
+.I n
+is less than 1.
 This is probably an error,
-because it is inconsistent with other functions,
-and differs from the SVr4 and X/Open implementations on Solaris.
+.\" ...copied from SVID 4, which made the same error; see p. 510.
+because it is inconsistent with other functions
+such as
+.IR \%waddstr ","
+and differs from the SVr4
+.I curses
+and Solaris
+.I xcurses
+implementations.
+Nevertheless,
+Issue\ 7 retains the language.
+.SH HISTORY
+SVr3.1 (1987)
+introduced
+.I \%winsstr
+and
+.I \%winsnstr
+and their variants.
 .SH SEE ALSO
+\fB\%curs_ins_wstr\fP(3X) describes comparable functions of the
+.I \%ncurses
+library in its wide-character configuration
+.RI \%( ncursesw ).
+.PP
 \fB\%curses\fP(3X),
 \fB\%curs_inch\fP(3X),
 \fB\%curs_ins_wstr\fP(3X),

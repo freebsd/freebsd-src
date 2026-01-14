@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright 2019-2020,2023 Thomas E. Dickey                                  #
+# Copyright 2019-2023,2024 Thomas E. Dickey                                  #
 # Copyright 2007-2010,2011 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -27,13 +27,13 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: MKcaptab.sh,v 1.20 2023/04/22 15:12:57 tom Exp $
+# $Id: MKcaptab.sh,v 1.22 2024/12/07 21:30:44 tom Exp $
 
 if test $# != 0
 then
 	AWK="$1"; shift 1
 else
-	AWK=awk
+	AWK="awk"
 fi
 
 if test $# != 0
@@ -71,12 +71,12 @@ cat <<'EOF'
 /* *INDENT-OFF* */
 EOF
 
-cat "$@" |./make_hash 1 info $OPT1
-cat "$@" |./make_hash 3 cap  $OPT1
+cat "$@" |./make_hash 1 info "$OPT1"
+cat "$@" |./make_hash 3 cap  "$OPT1"
 
-cat "$@" |$AWK -f $OPT2 bigstrings=$OPT1 tablename=capalias
+cat "$@" |$AWK -f "$OPT2" bigstrings="$OPT1" tablename=capalias
 
-cat "$@" |$AWK -f $OPT2 bigstrings=$OPT1 tablename=infoalias
+cat "$@" |$AWK -f "$OPT2" bigstrings="$OPT1" tablename=infoalias
 
 cat <<EOF
 /* *INDENT-ON* */
@@ -93,9 +93,9 @@ _nc_build_names(struct name_table_entry **actual,
 		const name_table_data * source,
 		const char *strings)
 {
-    if (*actual == 0) {
+    if (*actual == NULL) {
 	*actual = typeCalloc(struct name_table_entry, CAPTABSIZE);
-	if (*actual != 0) {
+	if (*actual != NULL) {
 	    unsigned n;
 	    unsigned len = 0;
 	    for (n = 0; n < CAPTABSIZE; ++n) {
@@ -121,9 +121,9 @@ _nc_build_alias(struct alias **actual,
 		const char *strings,
 		size_t tablesize)
 {
-    if (*actual == 0) {
+    if (*actual == NULL) {
 	*actual = typeCalloc(struct alias, tablesize + 1);
-	if (*actual != 0) {
+	if (*actual != NULL) {
 	    size_t n;
 	    for (n = 0; n < tablesize; ++n) {
 		add_alias(from);

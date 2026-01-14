@@ -1,6 +1,6 @@
-# $Id: magic,v 1.5 2023/09/23 23:37:26 tom Exp $
+# $Id: magic,v 1.6 2025/02/15 15:23:23 tom Exp $
 ##############################################################################
-# Copyright 2020,2023 Thomas E. Dickey                                       #
+# Copyright 2020-2023,2025 Thomas E. Dickey                                  #
 # Copyright 2015,2018 Free Software Foundation, Inc.                         #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -59,9 +59,8 @@
 >>12	regex		\^[a-zA-Z0-9][a-zA-Z0-9.][^|]*	Compiled 32-bit terminfo entry "%-s"
 !:mime	application/x-terminfo2
 #
-# While the compiled terminfo uses little-endian format irregardless of
-# platform, System V screen dumps do not.  They came later, and that detail was
-# overlooked.
+# While the compiled terminfo uses little-endian format regardless of platform,
+# System V screen dumps do not.  They came later; that detail was overlooked.
 #
 # AIX and HPUX use the SVr4 big-endian format
 # Solaris uses the SVr3 formats (sparc and x86 differ endian-ness)

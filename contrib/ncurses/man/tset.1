@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: tset.1,v 1.85 2024/04/27 17:57:47 tom Exp $
-.TH @TSET@ 1 2024-04-27 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
+.\" $Id: tset.1,v 1.94 2025/01/19 00:51:54 tom Exp $
+.TH @TSET@ 1 2025-01-18 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -47,7 +47,6 @@
 .el    .IP \(bu 2
 ..
 .
-.ds d @TERMINFO@
 .SH NAME
 \fB\%@TSET@\fP,
 \fB\%@RESET@\fP \-
@@ -124,7 +123,10 @@ the backspace, interrupt and line kill characters
 unless the \*(``\fB\-I\fP\*('' option is enabled,
 the terminal
 and tab \fIinitialization\fP strings are sent to the standard error output,
-and \fB@TSET@\fP waits one second (in case a hardware reset was issued).
+and,
+if the terminal device does not appear to be a pseudoterminal
+(as might be used by a terminal emulator program),
+\fB@TSET@\fP waits one second in case a hardware reset was issued.
 .bP
 Finally, if the erase, interrupt and line kill characters have changed,
 or are not set to their default values, their values are displayed to the
@@ -133,13 +135,13 @@ standard error output.
 When invoked as \fB@RESET@\fP, \fB@TSET@\fP sets the terminal
 modes to \*(``sane\*('' values:
 .bP
-sets cooked and echo modes,
+sets canonical (\*(``cooked\*('') and echo modes,
 .bP
 turns off cbreak and raw modes,
 .bP
 turns on newline translation and
 .bP
-resets any unset special characters to their default values
+resets special input characters to their default values
 .PP
 before
 doing the terminal initialization described above.
@@ -314,12 +316,12 @@ for the terminal description.
 .I /etc/ttys
 system port name to terminal type mapping database (BSD versions only).
 .TP
-.I \*d
+.I @TERMINFO@
 compiled terminal description database directory
 .SH PORTABILITY
-Neither IEEE Std 1003.1/The Open Group Base Specifications Issue 7
+Neither IEEE Std 1003.1/The Open Group Base Specifications Issue\ 7
 (POSIX.1-2008) nor
-X/Open Curses Issue 7 documents \fB@TSET@\fP or \fB@RESET@\fP.
+X/Open Curses Issue\ 7 documents \fB@TSET@\fP or \fB@RESET@\fP.
 .PP
 The AT&T \fBtput\fP utility (AIX, HP-UX, Solaris)
 incorporated the terminal-mode manipulation as well as termcap-based features

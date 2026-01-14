@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020-2021,2022 Thomas E. Dickey                                *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -43,7 +43,7 @@
 
 #include <SigAction.h>
 
-MODULE_ID("$Id: lib_tstp.c,v 1.54 2022/12/24 22:22:10 tom Exp $")
+MODULE_ID("$Id: lib_tstp.c,v 1.59 2025/02/15 14:52:13 tom Exp $")
 
 #if defined(SIGTSTP) && (HAVE_SIGACTION || HAVE_SIGVEC)
 #define USE_SIGTSTP 1
@@ -159,7 +159,7 @@ handle_SIGTSTP(int dummy GCC_UNUSED)
      *
      * Don't do this if we're not in curses -
      */
-    if (sp != 0 && (sp->_endwin == ewRunning))
+    if (sp != NULL && (sp->_endwin == ewRunning))
 #if HAVE_TCGETPGRP
 	if (tcgetpgrp(STDIN_FILENO) == getpgrp())
 #endif
@@ -269,7 +269,7 @@ handle_SIGINT(int sig)
 	{
 	    SCREEN *scan;
 	    for (each_screen(scan)) {
-		if (scan->_ofp != 0
+		if (scan->_ofp != NULL
 		    && NC_ISATTY(fileno(scan->_ofp))) {
 		    scan->_outch = NCURSES_SP_NAME(_nc_outch);
 		}
@@ -294,7 +294,7 @@ _nc_set_read_thread(bool enable)
 #  endif
 	    _nc_globals.read_thread = pthread_self();
     } else {
-	_nc_globals.read_thread = 0;
+	_nc_globals.read_thread = (pthread_t) 0;
     }
     _nc_unlock_global(curses);
 }
@@ -310,7 +310,7 @@ handle_SIGWINCH(int sig GCC_UNUSED)
     if (_nc_globals.read_thread) {
 	if (!pthread_equal(pthread_self(), _nc_globals.read_thread))
 	    pthread_kill(_nc_globals.read_thread, SIGWINCH);
-	_nc_globals.read_thread = 0;
+	_nc_globals.read_thread = (pthread_t) 0;
     }
 # endif
 }
@@ -367,8 +367,8 @@ CatchIfDefault(int sig, void (*handler) (int))
 	result = FALSE;
     }
 #endif
-    T(("CatchIfDefault - will %scatch %s",
-       result ? "" : "not ", signal_name(sig)));
+    T(("CatchIfDefault - will%s catch %s",
+       result ? "" : " not", signal_name(sig)));
     return result;
 }
 

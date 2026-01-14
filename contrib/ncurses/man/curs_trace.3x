@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2019-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2019-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 2000-2016,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_trace.3x,v 1.50 2024/04/20 21:24:19 tom Exp $
-.TH curs_trace 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_trace.3x,v 1.55 2025/01/19 00:51:10 tom Exp $
+.TH curs_trace 3X 2025-01-18 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -139,7 +139,7 @@ If the file already exists, no tracing is done.
 .bP
 If tracing is not available, \fBcurses_trace\fP returns zero (0).
 .SS "Trace Parameter"
-The trace parameter is formed by OR'ing
+The trace parameter is formed by logically \*(``or\*(''-ing
 values from the list of \fBTRACE_\fIxxx\fR definitions in \fB<curses.h>\fR.
 These include:
 .TP 5
@@ -264,13 +264,15 @@ if \fBDEBUG\fP was defined when building the library.
 .IP
 The SVr4 tracing feature is undocumented.
 .bP
-PDCurses provides \fBtraceon\fP and \fBtraceoff\fP,
+.I \%PDCurses
+provides \fBtraceon\fP and \fBtraceoff\fP,
 which (like SVr4) are always available,
 and enable tracing
 to the \*(``trace\*('' file
 only when a debug-library is built.
 .IP
-PDCurses has a short description of these functions,
+.I \%PDCurses
+has a short description of these functions,
 with a note that they are not present in X/Open Curses,
 \fI\%ncurses\fP or NetBSD.
 It does not mention SVr4,

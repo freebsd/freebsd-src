@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.46 2022/10/01 22:53:36 tom Exp $
+# $Id: Makefile.in,v 1.51 2025/10/25 18:01:01 tom Exp $
 ##############################################################################
-# Copyright 2018-2021,2022 Thomas E. Dickey                                  #
+# Copyright 2018-2022,2025 Thomas E. Dickey                                  #
 # Copyright 1998-2014,2015 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -35,11 +35,10 @@
 SHELL 		= @SHELL@
 VPATH		= @srcdir@
 
-DESTDIR=@DESTDIR@
-RPATH_LIST=@RPATH_LIST@
-TOP_MFLAGS = @cf_cv_makeflags@ DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
-
 @SET_MAKE@
+@SET_DESTDIR@
+RPATH_LIST	= @RPATH_LIST@
+TOP_MFLAGS	= DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
 
 NCURSES_MAJOR	= @NCURSES_MAJOR@
 NCURSES_MINOR	= @NCURSES_MINOR@
@@ -93,6 +92,7 @@ preinstall :
 	@ echo ''
 	@ echo '       extended funcs: '`test @NCURSES_EXT_FUNCS@ != 0 && echo yes || echo no`
 	@ echo '       xterm terminfo: '@WHICH_XTERM@
+	@ echo '           ABI suffix: '`if test -n "@ABI_SUFFIX@"; then echo @ABI_SUFFIX@; else echo "(none)"; fi`
 	@ echo ''
 	@ echo '        bin directory: '$(bindir)
 	@ echo '        lib directory: '$(libdir)
@@ -114,13 +114,10 @@ preinstall :
 distclean \
 realclean ::
 
-check :
-	@ echo The test-programs are interactive
-
-
 # Put the common rules here so that we can easily construct the list of
 # directories to visit.
 all \
+check \
 clean \
 distclean \
 mostlyclean \

@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright 2019-2023,2024 Thomas E. Dickey                                  #
+# Copyright 2019-2024,2025 Thomas E. Dickey                                  #
 # Copyright 2002-2015,2016 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -29,7 +29,7 @@
 #
 # Author: Thomas Dickey
 #
-# $Id: Caps.osf1r5,v 1.24 2024/04/20 21:05:02 tom Exp $
+# $Id: Caps.osf1r5,v 1.26 2025/11/12 01:27:41 tom Exp $
 #
 # This is an adaptation of ncurses' termcap/terminfo capability table, which
 # is designed to align with OSF/1 version 5 (Tru64) terminfo.
@@ -246,7 +246,7 @@
 #%center;
 #%Lb        Cb       S   Lb
 #%Lb        Lb       Lb  Lb
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 #%\&	Code	\&
 #%Boolean Capability Name	TI	TC	Description
 #%_
@@ -294,7 +294,7 @@ semi_auto_right_margin		sam	bool	YE	-	-	-----	printing in last column causes cr
 #%center;
 #%Lb        Cb       S   Lb
 #%Lb        Lb       Lb  Lb
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 #%\&	Code	\&
 #%Numeric Capability Name	TI	TC	Description
 #%_
@@ -338,7 +338,7 @@ wide_char_size			widcs	num	Yn	-	-	-----	character step size when in double wide 
 #%center;
 #%Lb        Cb       S   Lb
 #%Lb        Lb       Lb  Lb
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 #%\&	Code	\&
 #%String Capability Name	TI	TC	Description
 #%_
@@ -407,7 +407,7 @@ key_down			kcud1	str	kd	KEY_DOWN	0402	YBCGE	down-arrow key
 #%.TE
 #%.TS
 #%center;
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 key_eic				krmir	str	kM	KEY_EIC		0514	-B-G-*	sent by rmir or smir in insert mode
 key_eol				kel	str	kE	KEY_EOL		0517	-B-G-*	clear-to-end-of-line key
 key_eos				ked	str	kS	KEY_EOS		0516	-B-G-*	clear-to-end-of-screen key
@@ -473,7 +473,7 @@ reset_2string			rs2	str	r2	-		-	-B---	reset string
 #%.TE
 #%.TS
 #%center;
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 reset_3string			rs3	str	r3	-		-	-B---	reset string
 reset_file			rf	str	rf	-		-	-B---	name of reset file
 restore_cursor			rc	str	rc	-		-	YBCG-	restore cursor to position of last save_cursor
@@ -632,7 +632,7 @@ enter_doublewide_mode		swidm	str	ZF	-		-	-----	Enter double-wide mode
 #%.TE
 #%.TS
 #%center;
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 enter_draft_quality		sdrfq	str	ZG	-		-	-----	Enter draft-quality mode
 enter_italics_mode		sitm	str	ZH	-		-	-----	Enter italic mode
 enter_leftward_mode		slm	str	ZI	-		-	-----	Start leftward carriage motion
@@ -682,7 +682,7 @@ key_f42				kf42	str	FW	KEY_F(42)	-	----E	F42 function key
 #%.TE
 #%.TS
 #%center;
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 key_f43				kf43	str	FX	KEY_F(43)	-	----E	F43 function key
 key_f44				kf44	str	FY	KEY_F(44)	-	----E	F44 function key
 key_f45				kf45	str	FZ	KEY_F(45)	-	----E	F45 function key
@@ -724,7 +724,7 @@ key_save			ksav	str	&6	KEY_SAVE	0571	-----	save key
 #%.TE
 #%.TS
 #%center;
-#%Lbw(25n)2 Lbw(8n)2 Lb2 Lx.
+#%Lbw(25n)2 Lbw(8n)2 Lb2 Lw(17n)x.
 key_sbeg			kBEG	str	&9	KEY_SBEG	0572	-----	shifted begin key
 key_scancel			kCAN	str	&0	KEY_SCANCEL	0573	-----	shifted cancel key
 key_scommand			kCMD	str	*1	KEY_SCOMMAND	0574	-----	shifted command key

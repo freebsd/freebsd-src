@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_mark.3x,v 1.35 2024/03/16 15:35:01 tom Exp $
-.TH menu_mark 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: menu_mark.3x,v 1.37 2024/12/28 21:26:21 tom Exp $
+.TH menu_mark 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBset_menu_mark\fP,
 \fBmenu_mark\fP \-
@@ -51,13 +51,16 @@ Note that changing the length of the mark string for a menu while the
 menu is posted is likely to produce unhelpful behavior.
 .PP
 The default string is "\-" (a dash).
-Calling \fBset_menu_mark\fP with
-a non-\fBNULL\fP menu argument will change this default.
+Calling \fBset_menu_mark\fP with a
+.IR non- NULL
+menu argument will change this default.
 .PP
-The function \fBmenu_mark\fP returns the menu's mark string (or \fBNULL\fP if
-there is none).
+The function \fBmenu_mark\fP returns the menu's mark string (or
+.I NULL
+if there is none).
 .SH RETURN VALUE
-The function \fBmenu_mark\fP returns a pointer (which may be \fBNULL\fP).
+The function \fBmenu_mark\fP returns a pointer (which may be
+.IR NULL ")."
 It does not set \fBerrno\fP.
 .PP
 The function \fBset_menu_mark\fP may return the following error codes:

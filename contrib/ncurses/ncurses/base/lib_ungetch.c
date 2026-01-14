@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2011,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -43,7 +43,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_ungetch.c,v 1.17 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_ungetch.c,v 1.18 2024/12/07 20:03:37 tom Exp $")
 
 #include <fifo_defs.h>
 
@@ -65,7 +65,7 @@ safe_ungetch(SCREEN *sp, int ch)
 
     T((T_CALLED("ungetch(%p,%s)"), (void *) sp, _nc_tracechar(sp, ch)));
 
-    if (sp != 0 && tail >= 0) {
+    if (sp != NULL && tail >= 0) {
 	if (head < 0) {
 	    head = 0;
 	    t_inc();

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2018-2021,2024 Thomas E. Dickey                                *
  * Copyright 2008-2012,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,7 +35,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_generic.c,v 1.15 2021/03/27 23:49:53 tom Exp $")
+MODULE_ID("$Id: fty_generic.c,v 1.17 2024/12/07 23:12:11 tom Exp $")
 
 /*
  * This is not a full implementation of a field type, but adds some
@@ -170,7 +170,10 @@ GenericArgument(const FIELDTYPE *typ,
 {
   TypeArgument *res = (TypeArgument *)0;
 
-  if (typ != 0 && (typ->status & _HAS_ARGS) != 0 && err != 0 && argiterator != 0)
+  if (typ != NULL
+      && (typ->status & _HAS_ARGS) != 0
+      && err != NULL
+      && argiterator != NULL)
     {
       if (typ->status & _LINKED_TYPE)
 	{
@@ -189,14 +192,14 @@ GenericArgument(const FIELDTYPE *typ,
       else
 	{
 	  assert(typ->genericarg != (void *)0);
-	  if (typ->genericarg == 0)
+	  if (typ->genericarg == NULL)
 	    *err += 1;
 	  else
 	    {
 	      void *argp;
 	      int valid = argiterator(&argp);
 
-	      if (valid == 0 || argp == 0 ||
+	      if (valid == 0 || argp == NULL ||
 		  !(res = (TypeArgument *)typ->genericarg(argp)))
 		{
 		  *err += 1;
@@ -231,7 +234,7 @@ _nc_set_generic_fieldtype(FIELD *field,
 
   if (field)
     {
-      if (field && field->type)
+      if (field->type)
 	_nc_Free_Type(field);
 
       field->type = ftyp;
@@ -282,7 +285,7 @@ _nc_form_cursor(const FORM *form, int *pRow, int *pCol)
   int code = E_SYSTEM_ERROR;
   WINDOW *res = (WINDOW *)0;
 
-  if (form != 0 && pRow != 0 && pCol != 0)
+  if (form != NULL && pRow != NULL && pCol != NULL)
     {
       *pRow = form->currow;
       *pCol = form->curcol;

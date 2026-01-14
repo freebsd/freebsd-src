@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2015,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -76,7 +76,7 @@
 #endif
 #undef CUR
 
-MODULE_ID("$Id: lib_twait.c,v 1.81 2023/09/16 16:30:40 tom Exp $")
+MODULE_ID("$Id: lib_twait.c,v 1.85 2025/03/01 17:07:19 tom Exp $")
 
 /*
  * Returns an elapsed time, in milliseconds (if possible).
@@ -120,7 +120,7 @@ _nc_eventlist_timeout(_nc_eventlist * evl)
 {
     int event_delay = -1;
 
-    if (evl != 0) {
+    if (evl != NULL) {
 	int n;
 
 	for (n = 0; n < evl->count; ++n) {
@@ -168,7 +168,7 @@ _nc_eventlist_timeout(_nc_eventlist * evl)
  * descriptors.
  */
 NCURSES_EXPORT(int)
-_nc_timed_wait(SCREEN *sp MAYBE_UNUSED,
+_nc_timed_wait(const SCREEN *sp MAYBE_UNUSED,
 	       int mode MAYBE_UNUSED,
 	       int milliseconds,
 	       int *timeleft
@@ -242,7 +242,7 @@ _nc_timed_wait(SCREEN *sp MAYBE_UNUSED,
     if ((mode & TW_EVENT) && evl) {
 	if (fds == fd_list)
 	    fds = typeMalloc(struct pollfd, MIN_FDS + evl->count);
-	if (fds == 0)
+	if (fds == NULL)
 	    return TW_NONE;
     }
 #endif
@@ -273,7 +273,7 @@ _nc_timed_wait(SCREEN *sp MAYBE_UNUSED,
     }
 #endif
 
-    result = poll(fds, (size_t) count, milliseconds);
+    result = (int) poll(fds, (size_t) count, milliseconds);
 
 #ifdef NCURSES_WGETCH_EVENTS
     if ((mode & TW_EVENT) && evl) {

@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2020-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2020-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2013,2015 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_overlay.3x,v 1.43 2024/04/20 21:20:07 tom Exp $
-.TH curs_overlay 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_overlay.3x,v 1.55 2025/01/19 00:51:10 tom Exp $
+.TH curs_overlay 3X 2025-01-18 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -40,6 +40,10 @@
 .el   .ds '' ""
 .\}
 .
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
 .SH NAME
 \fB\%overlay\fP,
 \fB\%overwrite\fP,
@@ -74,24 +78,41 @@ If the argument \fIoverlay\fP is \fBtrue\fP,
 then copying is non-destructive,
 as in \fBoverlay\fP.
 .SH RETURN VALUE
-These routines return the integer \fBERR\fP upon failure and an \fBOK\fP
-(SVr4 specifies only
-\*(``an integer value other than \fBERR\fP\*('')
-upon successful completion.
+These functions return
+.B OK
+on success and
+.B ERR
+on failure.
 .PP
-X/Open defines no error conditions.
-In this implementation,
-\fBcopywin\fP,
-\fBoverlay\fP and \fBoverwrite\fP return an error
-if either of the window pointers are null, or
-if some part of the window would be placed off-screen.
+In
+.IR \%ncurses ,
+they return
+.B ERR
+if
+.bP
+either of the window pointers are null,
+or
+.bP
+any part of the window would be placed off-screen.
 .SH NOTES
-Note that \fBoverlay\fP and \fBoverwrite\fP may be macros.
+.B \%overlay
+and
+.B \%overwrite
+may be implemented as macros.
 .SH PORTABILITY
-These functions are described in X/Open Curses, Issue 4,
-which adds \fI\%const\fP qualifiers to the arguments.
+X/Open Curses Issue\ 4 describes these functions.
+It specifies no error conditions for them.
+It adds
+.I \%const
+qualifiers to the arguments.
+. \" TODO: migrate to HISTORY section
 It further specifies their behavior in the presence of characters
 with multibyte renditions (not yet supported in this implementation).
+.\" XXX: stale?  ncurses is fine with multibyte characters now, no?
+.PP
+SVr4 describes a successful return value only as
+\*(``an integer value other than
+.IR ERR \*(''. \" Courier roman in source; SVID 4, vol. 3, p. 522
 .SH SEE ALSO
 \fB\%curses\fP(3X),
 \fB\%curs_pad\fP(3X),

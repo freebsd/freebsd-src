@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2020,2024 Thomas E. Dickey                                *
  * Copyright 1998-2012,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_printw.c,v 1.28 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_printw.c,v 1.30 2024/12/07 17:44:59 tom Exp $")
 
 NCURSES_EXPORT(int)
 printw(const char *fmt, ...)
@@ -133,7 +133,7 @@ mvwprintw(WINDOW *win, int y, int x, const char *fmt, ...)
 NCURSES_EXPORT(int)
 vwprintw(WINDOW *win, const char *fmt, va_list argp)
 {
-    char *buf;
+    const char *buf;
     int code = ERR;
 #if NCURSES_SP_FUNCS
     SCREEN *sp = _nc_screen_of(win);
@@ -142,7 +142,7 @@ vwprintw(WINDOW *win, const char *fmt, va_list argp)
     T((T_CALLED("vwprintw(%p,%s,va_list)"), (void *) win, _nc_visbuf(fmt)));
 
     buf = NCURSES_SP_NAME(_nc_printf_string) (NCURSES_SP_ARGx fmt, argp);
-    if (buf != 0) {
+    if (buf != NULL) {
 	code = waddstr(win, buf);
     }
     returnCode(code);
@@ -151,7 +151,7 @@ vwprintw(WINDOW *win, const char *fmt, va_list argp)
 NCURSES_EXPORT(int)
 vw_printw(WINDOW *win, const char *fmt, va_list argp)
 {
-    char *buf;
+    const char *buf;
     int code = ERR;
 #if NCURSES_SP_FUNCS
     SCREEN *sp = _nc_screen_of(win);
@@ -160,7 +160,7 @@ vw_printw(WINDOW *win, const char *fmt, va_list argp)
     T((T_CALLED("vw_printw(%p,%s,va_list)"), (void *) win, _nc_visbuf(fmt)));
 
     buf = NCURSES_SP_NAME(_nc_printf_string) (NCURSES_SP_ARGx fmt, argp);
-    if (buf != 0) {
+    if (buf != NULL) {
 	code = waddstr(win, buf);
     }
     returnCode(code);

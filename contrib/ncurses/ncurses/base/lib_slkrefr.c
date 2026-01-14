@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2021 Thomas E. Dickey                                     *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2013,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -44,9 +44,9 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_slkrefr.c,v 1.32 2021/09/04 10:54:35 tom Exp $")
+MODULE_ID("$Id: lib_slkrefr.c,v 1.35 2025/12/27 12:41:23 tom Exp $")
 
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 #define NumLabels    InfoOf(SP_PARM).numlabels
 #else
 #define NumLabels    num_labels
@@ -58,7 +58,7 @@ MODULE_ID("$Id: lib_slkrefr.c,v 1.32 2021/09/04 10:54:35 tom Exp $")
 static void
 slk_paint_info(WINDOW *win)
 {
-    SCREEN *sp = _nc_screen_of(win);
+    const SCREEN *sp = _nc_screen_of(win);
 
     if (win && sp && (sp->slk_format == 4)) {
 	int i;
@@ -83,7 +83,7 @@ slk_intern_refresh(SCREEN *sp)
     SLK *slk;
     int numlab;
 
-    if (sp == 0)
+    if (sp == NULL)
 	return;
 
     slk = sp->_slk;
@@ -97,7 +97,7 @@ slk_intern_refresh(SCREEN *sp)
 	if (slk->dirty || slk->ent[i].dirty) {
 	    if (slk->ent[i].visible) {
 		if (numlab > 0 && SLK_STDFMT(fmt)) {
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 		    CallDriver_2(sp, td_hwlabel, i + 1, slk->ent[i].form_text);
 #else
 		    if (i < num_labels) {
@@ -125,7 +125,7 @@ slk_intern_refresh(SCREEN *sp)
     slk->dirty = FALSE;
 
     if (numlab > 0) {
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 	CallDriver_1(sp, td_hwlabelOnOff, slk->hidden ? FALSE : TRUE);
 #else
 	if (slk->hidden) {
@@ -145,7 +145,7 @@ NCURSES_SP_NAME(slk_noutrefresh) (NCURSES_SP_DCL0)
 {
     T((T_CALLED("slk_noutrefresh(%p)"), (void *) SP_PARM));
 
-    if (SP_PARM == 0 || SP_PARM->_slk == 0)
+    if (SP_PARM == NULL || SP_PARM->_slk == NULL)
 	returnCode(ERR);
     if (SP_PARM->_slk->hidden)
 	returnCode(OK);
@@ -170,7 +170,7 @@ NCURSES_SP_NAME(slk_refresh) (NCURSES_SP_DCL0)
 {
     T((T_CALLED("slk_refresh(%p)"), (void *) SP_PARM));
 
-    if (SP_PARM == 0 || SP_PARM->_slk == 0)
+    if (SP_PARM == NULL || SP_PARM->_slk == NULL)
 	returnCode(ERR);
     if (SP_PARM->_slk->hidden)
 	returnCode(OK);

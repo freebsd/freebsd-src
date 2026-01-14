@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2005,2010 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_beep.3x,v 1.29 2024/04/20 21:20:07 tom Exp $
-.TH curs_beep 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_beep.3x,v 1.42 2025/02/01 23:46:11 tom Exp $
+.TH curs_beep 3X 2025-02-01 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fB\%beep\fP,
 \fB\%flash\fP \-
@@ -41,23 +41,70 @@ ring the (visual) bell of the terminal with \fIcurses\fR
 \fBint flash(void);
 .fi
 .SH DESCRIPTION
-The \fBbeep\fP and \fBflash\fP routines are used to alert the terminal user.
-The routine \fBbeep\fP sounds an audible alarm on the terminal, if possible;
-otherwise it flashes the screen (visible bell).
-The routine \fBflash\fP
-flashes the screen, and if that is not possible, sounds the alert.
-If neither
-alert is possible, nothing happens.
-Nearly all terminals have an audible alert
-(bell or beep), but only some can flash the screen.
+.B beep
+and
+.B flash
+alert the terminal user:
+the former by sounding the terminal's audible alarm,
+and the latter by visibly attracting attention.
+Commonly,
+a terminal implements a visual bell by momentarily reversing the
+character foreground and background colors on the entire display;
+even a monochrome device can do this.
+These functions each attempt the other alert type if the one requested
+is unavailable.
+If neither is available,
+.I curses
+performs no action.
+Nearly all terminals have an audible alert mechanism such as a bell or
+piezoelectric buzzer,
+but only some can flash the screen.
 .SH RETURN VALUE
-These routines return \fBOK\fP if they succeed in beeping or flashing,
-\fBERR\fP otherwise.
+These functions return
+.B OK
+on success and
+.B ERR
+on failure.
+.PP
+In
+.IR \%ncurses ","
+.B beep
+and
+.B flash
+return
+.B OK
+if the terminal type supports the corresponding capability:
+.B bell
+.RB ( bel )
+for
+.B beep
+and
+.B \%flash_screen
+.RB ( flash )
+for
+.BR flash "."
+Otherwise they return
+.BR ERR "."
 .SH EXTENSIONS
-SVr4's beep and flash routines always returned \fBOK\fP, so it was not
-possible to tell when the beep or flash failed.
+In
+.IR \%ncurses ","
+these functions can return
+.BR ERR "."
 .SH PORTABILITY
-These functions are described in X/Open Curses, Issue 4.
-Like SVr4, it specifies that they always return \fBOK\fP.
+X/Open Curses Issue\ 4 describes these functions.
+It specifies no error conditions for them.
+.PP
+On SVr4
+.IR curses ","
+they always return
+.IR OK ","
+and X/Open Curses specifies them as doing so.
+.SH HISTORY
+SVr2 (1984)
+introduced
+.I beep
+and
+.IR flash "."
 .SH SEE ALSO
-\fB\%curses\fP(3X)
+\fB\%curses\fP(3X),
+\fB\%terminfo\fP(5)

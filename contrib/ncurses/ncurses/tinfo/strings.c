@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2023 Thomas E. Dickey                                     *
+ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
  * Copyright 2000-2012,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,7 +38,7 @@
 #include <curses.priv.h>
 #include <tic.h>
 
-MODULE_ID("$Id: strings.c,v 1.11 2023/05/27 20:13:10 tom Exp $")
+MODULE_ID("$Id: strings.c,v 1.12 2024/12/07 21:24:18 tom Exp $")
 
 /****************************************************************************
  * Useful string functions (especially for mvcur)
@@ -71,12 +71,12 @@ _nc_strstr(const char *haystack, const char *needle)
 NCURSES_EXPORT(string_desc *)
 _nc_str_init(string_desc * dst, char *src, size_t len)
 {
-    if (dst != 0) {
+    if (dst != NULL) {
 	dst->s_head = src;
 	dst->s_tail = src;
 	dst->s_size = len - 1;
 	dst->s_init = dst->s_size;
-	if (src != 0)
+	if (src != NULL)
 	    *src = 0;
     }
     return dst;
@@ -88,7 +88,7 @@ _nc_str_init(string_desc * dst, char *src, size_t len)
 NCURSES_EXPORT(string_desc *)
 _nc_str_null(string_desc * dst, size_t len)
 {
-    return _nc_str_init(dst, 0, len);
+    return _nc_str_init(dst, NULL, len);
 }
 
 /*
@@ -111,7 +111,7 @@ _nc_safe_strcat(string_desc * dst, const char *src)
 	size_t len = strlen(src);
 
 	if (len < dst->s_size) {
-	    if (dst->s_tail != 0) {
+	    if (dst->s_tail != NULL) {
 		_nc_STRCPY(dst->s_tail, src, dst->s_size);
 		dst->s_tail += len;
 	    }
@@ -132,7 +132,7 @@ _nc_safe_strcpy(string_desc * dst, const char *src)
 	size_t len = strlen(src);
 
 	if (len < dst->s_size) {
-	    if (dst->s_head != 0) {
+	    if (dst->s_head != NULL) {
 		_nc_STRCPY(dst->s_head, src, dst->s_size);
 		dst->s_tail = dst->s_head + len;
 	    }

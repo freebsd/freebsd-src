@@ -1,7 +1,7 @@
 #!@SHELL@
-# $Id: gen-pkgconfig.in,v 1.56 2022/10/08 16:45:20 tom Exp $
+# $Id: gen-pkgconfig.in,v 1.58 2024/09/28 20:21:23 tom Exp $
 ##############################################################################
-# Copyright 2018-2021,2022 Thomas E. Dickey                                  #
+# Copyright 2018-2022,2024 Thomas E. Dickey                                  #
 # Copyright 2009-2015,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -92,7 +92,7 @@ do
 	-specs*) # ignore linker specs-files which were used to build library
 		continue
 		;;
-	-Wl,-z,*) # ignore flags used to manipulate shared image
+	-Wl,-z*) # ignore flags used to manipulate shared image
 		continue
 		;;
 	-Wl,--dynamic-linker*) # ignore ELF interpreter
@@ -112,7 +112,7 @@ do
 		@LD_SEARCHPATH@) # skip standard libdir
 			if [ "$lib_check" = "$libdir" ]
 			then
-				lib_first=yes
+				lib_first=no
 				IFS_save="$IFS"
 				IFS='|'
 				LIBDIRS="@LD_SEARCHPATH@"
@@ -120,11 +120,11 @@ do
 				do
 					if [ -d "$lib_check" ]
 					then
-						if [ "$lib_check" != "$libdir" ]
+						if [ "$lib_check" = "$libdir" ]
 						then
-							lib_first=no
+							lib_first=yes
+							break
 						fi
-						break
 					fi
 				done
 				IFS="$IFS_save"

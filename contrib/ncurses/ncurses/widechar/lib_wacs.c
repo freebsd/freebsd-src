@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2024 Thomas E. Dickey                                *
  * Copyright 2002-2015,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,9 +33,9 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_wacs.c,v 1.20 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_wacs.c,v 1.21 2024/12/07 20:08:32 tom Exp $")
 
-NCURSES_EXPORT_VAR(cchar_t) * _nc_wacs = 0;
+NCURSES_EXPORT_VAR(cchar_t) * _nc_wacs = NULL;
 
 NCURSES_EXPORT(void)
 _nc_init_wacs(void)
@@ -119,7 +119,7 @@ _nc_init_wacs(void)
     T(("initializing WIDE-ACS map (Unicode is%s active)",
        active ? "" : " not"));
 
-    if ((_nc_wacs = typeCalloc(cchar_t, ACS_LEN)) != 0) {
+    if ((_nc_wacs = typeCalloc(cchar_t, ACS_LEN)) != NULL) {
 	unsigned n;
 
 	for (n = 0; n < SIZEOF(table); ++n) {

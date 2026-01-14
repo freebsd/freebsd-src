@@ -55,6 +55,11 @@
 OLD_FILES+=usr/tests/usr.bin/m4/legacy_test
 OLD_FILES+=usr/tests/usr.bin/m4/regress.sh
 
+# 20260114: remove ncurses html documentation
+OLD_FILES+=usr/share/doc/ncurses/hackguide.html
+OLD_FILES+=usr/share/doc/ncurses/ncurses-intro.html
+OLD_DIRS+=usr/share/doc/ncurses
+
 # 20251218: Remove old MLINK to apmconf(8)
 OLD_FILES+=usr/share/man/man8/apmconf.8.gz
 

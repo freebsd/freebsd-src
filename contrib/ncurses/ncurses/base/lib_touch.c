@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -44,7 +44,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_touch.c,v 1.16 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_touch.c,v 1.17 2024/11/23 19:17:05 tom Exp $")
 
 #undef is_linetouched
 
@@ -55,10 +55,10 @@ is_linetouched(WINDOW *win, int line)
 
     /* XSI doesn't define any error, and gcc ultimately made it impossible */
     if (!win || (line > win->_maxy) || (line < 0)) {
-	returnCode(FALSE);
+	returnBool(FALSE);
     }
 
-    returnCode(win->_line[line].firstchar != _NOCHANGE ? TRUE : FALSE);
+    returnBool(win->_line[line].firstchar != _NOCHANGE ? TRUE : FALSE);
 }
 
 NCURSES_EXPORT(bool)
@@ -71,9 +71,9 @@ is_wintouched(WINDOW *win)
 
 	for (i = 0; i <= win->_maxy; i++)
 	    if (win->_line[i].firstchar != _NOCHANGE)
-		returnCode(TRUE);
+		returnBool(TRUE);
     }
-    returnCode(FALSE);
+    returnBool(FALSE);
 }
 
 NCURSES_EXPORT(int)

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 2002-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,28 +34,31 @@
 /*
 **	lib_inwstr.c
 **
-**	The routines winnwstr() and winwstr().
+**	The routine winnwstr().
 **
 */
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_inwstr.c,v 1.9 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_inwstr.c,v 1.14 2025/01/19 00:51:54 tom Exp $")
 
 NCURSES_EXPORT(int)
 winnwstr(WINDOW *win, wchar_t *wstr, int n)
 {
     int count = 0;
-    cchar_t *text;
+    const cchar_t *text;
 
     T((T_CALLED("winnwstr(%p,%p,%d)"), (void *) win, (void *) wstr, n));
-    if (wstr != 0) {
+    if (wstr != NULL) {
 	if (win) {
 	    int row, col;
 	    int last = 0;
 	    bool done = FALSE;
 
 	    getyx(win, row, col);
+
+	    if (n < 0)
+		n = CCHARW_MAX * (win->_maxx - win->_curx + 1);
 
 	    text = win->_line[row].text;
 	    while (count < n && !done && count != ERR) {
@@ -91,24 +94,4 @@ winnwstr(WINDOW *win, wchar_t *wstr, int n)
 	}
     }
     returnCode(count);
-}
-
-/*
- * X/Open says winwstr() returns OK if not ERR.  If that is not a blunder, it
- * must have a null termination on the string (see above).  Unlike winnstr(),
- * it does not define what happens for a negative count with winnwstr().
- */
-NCURSES_EXPORT(int)
-winwstr(WINDOW *win, wchar_t *wstr)
-{
-    int result = OK;
-
-    T((T_CALLED("winwstr(%p,%p)"), (void *) win, (void *) wstr));
-    if (win == 0) {
-	result = ERR;
-    } else if (winnwstr(win, wstr,
-			CCHARW_MAX * (win->_maxx - win->_curx + 1)) == ERR) {
-	result = ERR;
-    }
-    returnCode(result);
 }

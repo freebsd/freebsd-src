@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2005,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -31,7 +31,7 @@
  *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
 
-/* $Id: mf_common.h,v 0.25 2020/02/02 23:34:34 tom Exp $ */
+/* $Id: mf_common.h,v 0.27 2024/12/07 22:01:18 tom Exp $ */
 
 /* Common internal header for menu and form library */
 
@@ -64,7 +64,7 @@ extern int errno;
 #if USE_RCS_IDS
 #define MODULE_ID(id) static const char Ident[] = id;
 #else
-#define MODULE_ID(id)		/*nothing */
+#define MODULE_ID(id)		/* nothing */
 #endif
 
 /* Maximum regular 8-bit character code */
@@ -88,7 +88,7 @@ extern int errno;
 
 /* Call object hook */
 #define Call_Hook( object, handler ) \
-   if ( (object) != 0 && ((object)->handler) != (void *) 0 )\
+   if ( (object) != NULL && ((object)->handler) != (void *) 0 )\
    {\
 	SetStatus(object, _IN_DRIVER);\
 	(object)->handler(object);\

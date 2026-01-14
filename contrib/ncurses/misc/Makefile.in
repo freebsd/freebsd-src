@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.79 2021/11/06 23:36:12 tom Exp $
+# $Id: Makefile.in,v 1.88 2025/12/25 22:26:15 tom Exp $
 ##############################################################################
-# Copyright 2018-2020,2021 Thomas E. Dickey                                  #
+# Copyright 2018-2024,2025 Thomas E. Dickey                                  #
 # Copyright 1998-2016,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -47,10 +47,9 @@ SHELL		= @SHELL@
 VPATH		= @srcdir@
 THIS		= Makefile
 
-CF_MFLAGS 	= @cf_cv_makeflags@
 @SET_MAKE@
+@SET_DESTDIR@
 
-DESTDIR		= @DESTDIR@
 top_srcdir	= @top_srcdir@
 srcdir		= @srcdir@
 prefix		= @prefix@
@@ -61,7 +60,7 @@ datarootdir	= @datarootdir@
 datadir		= @datadir@
 includesubdir	= @includesubdir@
 
-INCLUDEDIR	= $(DESTDIR)$(includedir)$(includesubdir)
+INCLUDEDIR	= $(DESTDIR)$(includedir@MERGE_PREFIX@)$(includesubdir)
 
 tabsetdir	= $(datadir)/tabset
 ticdir		= @TERMINFO@
@@ -74,6 +73,17 @@ INSTALL_SCRIPT	= @INSTALL_SCRIPT@
 INSTALL_DATA	= @INSTALL_DATA@
 
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
+
+BINDIR		= $(DESTDIR)$(bindir@MERGE_PREFIX@)
+DATADIR		= $(DESTDIR)$(datadir@MERGE_PREFIX@)
+
+@MAKE_DATABASE@INSTALL_PREFIX	= $(DESTDIR)$(prefix@MERGE_PREFIX@)
+@MAKE_DATABASE@LIBDIR		= $(DESTDIR)$(libdir@MERGE_PREFIX@)
+@MAKE_DATABASE@TICDIR		= $(DESTDIR)$(ticdir@MERGE_PREFIX@)
+@MAKE_DATABASE@TICFILE		= $(DESTDIR)$(ticfile@MERGE_PREFIX@)
+@MAKE_DATABASE@TABSETDIR	= $(DESTDIR)$(tabsetdir@MERGE_PREFIX@)
+
+@MAKE_PC_FILES@INSTALL_CONFIG	= $(DESTDIR)$(PKG_CONFIG_LIBDIR@MERGE_PREFIX@)
 
 ################################################################################
 
@@ -97,31 +107,28 @@ all \
 depend \
 sources ::
 
+check ::
+	@echo "no unit-test implemented"
+
 @MAKE_DATABASE@all \
 @MAKE_DATABASE@sources :: terminfo.tmp
 
 @MAKE_DATABASE@install :: @MISC_INSTALL_DATA@
 
 @MAKE_DATABASE@install.data ::	terminfo.tmp \
-@MAKE_DATABASE@		$(DESTDIR)$(libdir) \
-@MAKE_DATABASE@		$(DESTDIR)$(datadir) \
-@MAKE_DATABASE@		$(DESTDIR)$(tabsetdir)
-@MAKE_DATABASE@	DESTDIR=${DESTDIR} \
-@MAKE_DATABASE@	prefix=${prefix} \
-@MAKE_DATABASE@	exec_prefix=${exec_prefix} \
-@MAKE_DATABASE@	bindir=${bindir} \
-@MAKE_DATABASE@	top_srcdir=${top_srcdir} \
-@MAKE_DATABASE@	srcdir=${srcdir} \
-@MAKE_DATABASE@	datadir=${datadir} \
-@MAKE_DATABASE@	ticdir=${ticdir} \
-@MAKE_DATABASE@	source=terminfo.tmp \
-@MAKE_DATABASE@	cross_compiling=@cross_compiling@ \
+@MAKE_DATABASE@		$(LIBDIR) \
+@MAKE_DATABASE@		$(DATADIR) \
+@MAKE_DATABASE@		$(TABSETDIR)
+@MAKE_DATABASE@	INSTALL_PREFIX=${INSTALL_PREFIX} \
+@MAKE_DATABASE@	TICDIR=${TICDIR} \
+@MAKE_DATABASE@	BINDIR=${BINDIR} \
+@MAKE_DATABASE@	tic_source=terminfo.tmp \
 @MAKE_DATABASE@	$(SHELL) ./run_tic.sh
 @MAKE_DATABASE@	@( cd $(srcdir)/tabset && \
 @MAKE_DATABASE@		$(SHELL) -c 'for i in * ; do \
 @MAKE_DATABASE@			if test -f $$i ; then \
 @MAKE_DATABASE@			echo installing $$i; \
-@MAKE_DATABASE@			$(INSTALL_DATA) $$i $(DESTDIR)$(tabsetdir)/$$i; \
+@MAKE_DATABASE@			$(INSTALL_DATA) $$i $(TABSETDIR)/$$i; \
 @MAKE_DATABASE@			fi; done' )
 install.data ::
 	@echo "finished $@"
@@ -129,8 +136,8 @@ install.data ::
 NCURSES_CONFIG	= ncurses@DFT_ARG_SUFFIX@@cf_cv_abi_version@@cf_config_suffix@-config
 
 install \
-install.libs :: $(DESTDIR)$(bindir) ncurses-config
-	$(INSTALL_SCRIPT) ncurses-config $(DESTDIR)$(bindir)/$(NCURSES_CONFIG)
+install.libs :: $(BINDIR) ncurses-config
+	$(INSTALL_SCRIPT) ncurses-config $(BINDIR)/$(NCURSES_CONFIG)
 
 # Make a list of the files that gen-pkgconfig might create:
 @MAKE_PC_FILES@PC_FILES = \
@@ -148,12 +155,12 @@ install.libs :: $(DESTDIR)$(bindir) ncurses-config
 @MAKE_PC_FILES@install \
 @MAKE_PC_FILES@install.libs :: pc-files
 @MAKE_PC_FILES@	@$(SHELL) -c 'case "x$(PKG_CONFIG_LIBDIR)" in \
-@MAKE_PC_FILES@		x/*) \
-@MAKE_PC_FILES@			mkdir -p $(DESTDIR)$(PKG_CONFIG_LIBDIR); \
+@MAKE_PC_FILES@		x@GLOB_FULLPATH_POSIX@|x@GLOB_FULLPATH_OTHER@) \
+@MAKE_PC_FILES@			mkdir -p $(INSTALL_CONFIG); \
 @MAKE_PC_FILES@			for name in $(PC_FILES); do \
 @MAKE_PC_FILES@				test -f $$name || continue; \
 @MAKE_PC_FILES@				echo installing $$name; \
-@MAKE_PC_FILES@				$(INSTALL_DATA) $$name $(DESTDIR)$(PKG_CONFIG_LIBDIR)/$$name; \
+@MAKE_PC_FILES@				$(INSTALL_DATA) $$name $(INSTALL_CONFIG)/$$name; \
 @MAKE_PC_FILES@			done \
 @MAKE_PC_FILES@			;; \
 @MAKE_PC_FILES@		*) \
@@ -177,27 +184,29 @@ run_tic.sed :
 	datadir=${datadir} \
 	$(SHELL) $(srcdir)/gen_edit.sh >$@
 
-$(DESTDIR)$(bindir) \
-$(DESTDIR)$(libdir) \
-$(DESTDIR)$(datadir) \
-$(DESTDIR)$(tabsetdir) :
+$(BINDIR) \
+$(DATADIR) :
 	mkdir -p $@
+
+@MAKE_DATABASE@$(LIBDIR) \
+@MAKE_DATABASE@$(TABSETDIR) :
+@MAKE_DATABASE@	mkdir -p $@
 
 uninstall : @MISC_UNINSTALL_DATA@ uninstall.libs
 
 uninstall.data :
-	-test -d $(DESTDIR)$(tabsetdir) && rm -rf $(DESTDIR)$(tabsetdir)
-	-test -d $(DESTDIR)$(ticdir) && rm -rf $(DESTDIR)$(ticdir)
-	-test -f $(DESTDIR)$(ticfile) && rm -f $(DESTDIR)$(ticfile)
+@MAKE_DATABASE@	-$(SHELL) -c 'if test -d $(TABSETDIR) ; then rm -rf $(TABSETDIR); fi'
+@MAKE_DATABASE@	-$(SHELL) -c 'if test -d $(TICDIR) ; then rm -rf $(TICDIR); fi'
+@MAKE_DATABASE@	-$(SHELL) -c 'if test -f $(TICFILE) ; then rm -f $(TICFILE); fi'
 
 uninstall.libs :
-	-rm -f $(DESTDIR)$(bindir)/$(NCURSES_CONFIG)
-@MAKE_PC_FILES@	@$(SHELL) -c 'case x$(DESTDIR)$(PKG_CONFIG_LIBDIR) in \
-@MAKE_PC_FILES@	x/*) \
+	-rm -f $(BINDIR)/$(NCURSES_CONFIG)
+@MAKE_PC_FILES@	@$(SHELL) -c 'case x$(INSTALL_CONFIG) in \
+@MAKE_PC_FILES@	x@GLOB_FULLPATH_POSIX@|x@GLOB_FULLPATH_OTHER@) \
 @MAKE_PC_FILES@		for name in $(PC_FILES); do \
 @MAKE_PC_FILES@			test -f $$name || continue; \
 @MAKE_PC_FILES@			echo uninstalling $$name; \
-@MAKE_PC_FILES@			rm -f $(DESTDIR)$(PKG_CONFIG_LIBDIR)/$$name; \
+@MAKE_PC_FILES@			rm -f $(INSTALL_CONFIG)/$$name; \
 @MAKE_PC_FILES@		done \
 @MAKE_PC_FILES@		;; \
 @MAKE_PC_FILES@	esac'

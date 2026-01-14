@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: mitem_current.3x,v 1.37 2024/03/16 15:35:01 tom Exp $
-.TH mitem_current 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: mitem_current.3x,v 1.39 2024/12/28 21:26:21 tom Exp $
+.TH mitem_current 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBmitem_current\fP \-
 set and get current_menu_item
@@ -61,11 +61,13 @@ row being displayed.
 The function \fBitem_index\fP returns the (zero-origin) index of \fIitem\fP in
 the menu's item pointer list.
 .SH RETURN VALUE
-\fBcurrent_item\fP returns a pointer (which may be \fBNULL\fP).
+\fBcurrent_item\fP returns a pointer (which may be
+.IR NULL ")."
 It does not set \fBerrno\fP.
 .PP
 \fBtop_row\fP and \fBitem_index\fP return \fBERR\fP (the general \fBcurses\fP
-error value) if their \fImenu\fP parameter is \fBNULL\fP.
+error value) if their \fImenu\fP parameter is
+.IR NULL "."
 .PP
 \fBset_current_item\fP and \fBset_top_row\fP return one of the following:
 .TP 5

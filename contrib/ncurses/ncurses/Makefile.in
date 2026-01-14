@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.184 2024/01/19 12:00:00 tom Exp $
+# $Id: Makefile.in,v 1.194 2025/10/25 17:29:43 tom Exp $
 ##############################################################################
-# Copyright 2018-2022,2024 Thomas E. Dickey                                  #
+# Copyright 2018-2024,2025 Thomas E. Dickey                                  #
 # Copyright 1998-2017,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -50,14 +50,14 @@ SHELL		= @SHELL@
 VPATH		= @srcdir@
 THIS		= Makefile
 
-TOP_MFLAGS	= @cf_cv_makeflags@ DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
 @SET_MAKE@
+@SET_DESTDIR@
+TOP_MFLAGS	= DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
 
 x		= @EXEEXT@
 o		= .@OBJEXT@
 
 MODEL		= @DFT_LWR_MODEL@
-DESTDIR		= @DESTDIR@
 top_srcdir	= @top_srcdir@
 srcdir		= @srcdir@
 prefix		= @prefix@
@@ -69,7 +69,9 @@ datarootdir	= @datarootdir@
 datadir		= @datadir@
 includesubdir	= @includesubdir@
 
-INCLUDEDIR	= $(DESTDIR)$(includedir)$(includesubdir)
+INCLUDEDIR	= $(DESTDIR)$(includedir@MERGE_PREFIX@)$(includesubdir)
+BINDIR		= $(DESTDIR)$(bindir@MERGE_PREFIX@)
+LIBDIR		= $(DESTDIR)$(libdir@MERGE_PREFIX@)
 
 PACKAGE		= @PACKAGE@
 
@@ -190,7 +192,6 @@ HEADER_DEPS	= @INTERNALS_HDR@ \
 	$(INCDIR)/nc_string.h \
 	$(INCDIR)/nc_termios.h \
 	$(INCDIR)/nc_tparm.h \
-	$(INCDIR)/nc_win32.h \
 	$(INCDIR)/term_entry.h \
 	$(srcdir)/curses.priv.h \
 	$(srcdir)/new_pair.h \
@@ -206,6 +207,7 @@ TEST_PROGS = \
 	hashmap$x \
 	lib_mvcur$x \
 	link_test$x \
+	report_ctype$x \
 	report_hashing$x
 
 LOCAL_LIBDIR	= @top_builddir@/lib
@@ -235,8 +237,8 @@ all libs ::	$(AUTO_SRC) ../lib $(LIBRARIES)
 
 sources:	$(AUTO_SRC)
 
-$(DESTDIR)$(bindir) \
-$(DESTDIR)$(libdir) :
+$(BINDIR) \
+$(LIBDIR) :
 	mkdir -p $@
 
 ../lib : ; mkdir $@
@@ -258,17 +260,23 @@ make_keys$(BUILD_EXEEXT) : \
 		$(tinfo)/make_keys.c \
 		./names.c
 	$(BUILD_CC) -o $@ $(BUILD_CPPFLAGS) $(BUILD_CCFLAGS) $(tinfo)/make_keys.c $(BUILD_LDFLAGS) $(BUILD_LIBS)
+	@./$@ "-?"
+	@echo "... made $@"
 
 make_hash$(BUILD_EXEEXT) : \
 		build.priv.h \
 		$(tinfo)/make_hash.c \
 		../include/hashsize.h
 	$(BUILD_CC) -o $@ $(BUILD_CPPFLAGS) $(BUILD_CCFLAGS) $(tinfo)/make_hash.c $(BUILD_LDFLAGS) $(BUILD_LIBS)
+	@./$@ "-?"
+	@echo "... made $@"
 
 report_offsets$(BUILD_EXEEXT) : \
 		$(srcdir)/curses.priv.h \
 		$(srcdir)/report_offsets.c
 	$(BUILD_CC) -o $@ $(BUILD_CPPFLAGS) $(BUILD_CCFLAGS) $(srcdir)/report_offsets.c $(BUILD_LDFLAGS) $(BUILD_LIBS)
+	@./$@ "-?"
+	@echo "... made $@"
 	./report_offsets$(BUILD_EXEEXT)
 
 ./expanded.c : $(srcdir)/curses.priv.h $(serial)/MKexpanded.sh
@@ -314,6 +322,7 @@ clean :: mostlyclean
 	-rm -f $(AUTO_SRC)
 	-rm -f make_keys$(BUILD_EXEEXT)
 	-rm -f make_hash$(BUILD_EXEEXT)
+	-rm -f report_ctype$(BUILD_EXEEXT)
 	-rm -f report_offsets$(BUILD_EXEEXT)
 	-rm -rf .libs *.dSYM *.map
 
@@ -323,7 +332,9 @@ distclean :: clean
 realclean :: distclean
 
 # These rules are used to allow "make -n" to work on a clean directory-tree
+../include/curses.h \
 ../include/hashsize.h \
+../include/ncurses_def.h \
 ../include/parametrized.h \
 ../include/term.h :
 	( cd ../include && $(MAKE) $(TOP_MFLAGS) )
@@ -355,10 +366,17 @@ link_test$x : ./link_test.c $(TEST_DEPS) \
 ../@DFT_OBJ_SUBDIR@/dump_entry$o:
 	( cd ../progs && $(MAKE) ../@DFT_OBJ_SUBDIR@/dump_entry$o )
 
+report_ctype$x : \
+		$(srcdir)/curses.priv.h \
+		$(srcdir)/report_ctype.c $(TEST_DEPS)
+	@ECHO_LD@ $(CC) -o $@ $(CFLAGS_DEFAULT) $(srcdir)/report_ctype.c $(TEST_LDFLAGS)
+	@echo "... made $@"
+	./report_ctype$x
+
 report_hashing$x : \
 		$(srcdir)/curses.priv.h \
 		$(srcdir)/report_hashing.c $(TEST_DEPS)
-	@ECHO_LD@ $(CC) -o $@ $(CFLAGS_DEFAULT) report_hashing.c $(TEST_LDFLAGS)
+	@ECHO_LD@ $(CC) -o $@ $(CFLAGS_DEFAULT) $(srcdir)/report_hashing.c $(TEST_LDFLAGS)
 
 # Verify that each header-file can be compiled without including another.
 @MAKE_PHONY@.PHONY :	check_headers
