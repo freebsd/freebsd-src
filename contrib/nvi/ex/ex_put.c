@@ -38,7 +38,7 @@ ex_put(SCR *sp, EXCMD *cmdp)
 	m.cno = sp->cno;
 	if (put(sp, NULL,
 	    FL_ISSET(cmdp->iflags, E_C_BUFFER) ? &cmdp->buffer : NULL,
-	    &cmdp->addr1, &m, 1))
+	    &cmdp->addr1, &m, 1, 1))
 		return (1);
 	sp->lno = m.lno;
 	sp->cno = m.cno;

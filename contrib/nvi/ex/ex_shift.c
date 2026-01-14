@@ -79,8 +79,12 @@ shift(SCR *sp, EXCMD *cmdp, enum which rl)
 		return (0);
 	}
 
-	/* Copy the lines being shifted into the unnamed buffer. */
-	if (cut(sp, NULL, &cmdp->addr1, &cmdp->addr2, CUT_LINEMODE))
+	/*
+	 * When not doing re-expand tabs, copy the lines being shifted into
+	 * the unnamed buffer.
+	 */
+	if (rl != RETAB &&
+	    cut(sp, NULL, &cmdp->addr1, &cmdp->addr2, CUT_LINEMODE))
 		return (1);
 
 	/*
