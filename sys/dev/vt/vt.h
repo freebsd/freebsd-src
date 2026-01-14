@@ -81,7 +81,6 @@
 #else
 #define	DPRINTF(_l, ...)	do {} while (0)
 #endif
-#define	ISSIGVALID(sig)	((sig) > 0 && (sig) < NSIG)
 
 #define	VT_SYSCTL_INT(_name, _default, _descr)				\
 int vt_##_name = (_default);						\
