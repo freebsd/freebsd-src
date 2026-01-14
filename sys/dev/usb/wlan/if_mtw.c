@@ -64,6 +64,7 @@
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
+#include <dev/usb/usb_request.h>
 
 #include "usbdevs.h"
 
@@ -525,6 +526,15 @@ mtw_attach(device_t self)
 	sc->sc_dev = self;
 	sc->sc_sent = 0;
 
+	/*
+	 * Reset the device to clear any stale state left over from
+	 * a previous warm reboot. Some MT7601U devices fail otherwise.
+	 */
+	error = usbd_req_re_enumerate(uaa->device, NULL);
+	if (error != 0)
+		device_printf(self, "USB re-enumerate failed, continuing\n");
+	DELAY(100000);	/* 100ms settle time */
+
 	mtx_init(&sc->sc_mtx, device_get_nameunit(sc->sc_dev),
                  MTX_NETWORK_LOCK, MTX_DEF);
 
@@ -585,7 +595,7 @@ mtw_attach(device_t self)
 	sc->mac_rev = tmp & 0xffff;
 
 	mtw_load_microcode(sc);
-	ret = msleep(&sc->fwloading, &sc->sc_mtx, 0, "fwload", 3 * hz);
+	ret = msleep(&sc->fwloading, &sc->sc_mtx, 0, "fwload", 10 * hz);
 	if (ret == EWOULDBLOCK || sc->fwloading != 1) {
 		device_printf(sc->sc_dev,
 		    "timeout waiting for MCU to initialize\n");
@@ -1105,11 +1115,22 @@ mtw_load_microcode(void *arg)
 	//	int ntries;
 	int dlen, ilen;
 	device_printf(sc->sc_dev, "version:0x%hx\n", sc->asic_ver);
-	/* is firmware already running? */
+	/*
+	 * Firmware may still be running from a previous warm reboot.
+	 * Force a reset of the MCU to ensure a clean state.
+	 */
 	mtw_read_cfg(sc, MTW_MCU_DMA_ADDR, &tmp);
 	if (tmp == MTW_MCU_READY) {
-		return;
+		device_printf(sc->sc_dev, "MCU already running, resetting\n");
+		mtw_write(sc, MTW_MCU_RESET_CTL, MTW_RESET);
+		DELAY(10000);
+		mtw_write(sc, MTW_MCU_RESET_CTL, 0);
+		DELAY(10000);
+		/* Clear ready flag */
+		mtw_write_cfg(sc, MTW_MCU_DMA_ADDR, 0);
+		DELAY(1000);
 	}
+
 	if (sc->asic_ver == 0x7612) {
 		fwname = "mtw-mt7662u_rom_patch";
 
@@ -2856,7 +2877,7 @@ mtw_fw_callback(struct usb_xfer *xfer, usb_error_t error)
 			}
 
 			mtw_delay(sc, 10);
-			for (ntries = 0; ntries < 100; ntries++) {
+			for (ntries = 0; ntries < 300; ntries++) {
 				if ((error = mtw_read_cfg(sc, MTW_MCU_DMA_ADDR,
 					 &tmp)) != 0) {
 					device_printf(sc->sc_dev,
@@ -2870,9 +2891,9 @@ mtw_fw_callback(struct usb_xfer *xfer, usb_error_t error)
 					break;
 				}
 
-				mtw_delay(sc, 10);
+				mtw_delay(sc, 30);
 			}
-			if (ntries == 100)
+			if (ntries == 300)
 				sc->fwloading = 0;
 			wakeup(&sc->fwloading);
 			return;
