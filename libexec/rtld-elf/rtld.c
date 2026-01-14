@@ -978,9 +978,9 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 		 * functions for binaries linked with old crt1 which calls
 		 * _init itself.
 		 */
-		obj_main->init = obj_main->fini = (Elf_Addr)NULL;
+		obj_main->init = obj_main->fini = 0;
 		obj_main->preinit_array = obj_main->init_array =
-		    obj_main->fini_array = (Elf_Addr)NULL;
+		    obj_main->fini_array = NULL;
 	}
 
 	if (direct_exec) {
@@ -1499,43 +1499,43 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 			break;
 
 		case DT_INIT:
-			obj->init = (Elf_Addr)(obj->relocbase +
+			obj->init = (uintptr_t)(obj->relocbase +
 			    dynp->d_un.d_ptr);
 			break;
 
 		case DT_PREINIT_ARRAY:
-			obj->preinit_array = (Elf_Addr)(obj->relocbase +
+			obj->preinit_array = (uintptr_t *)(obj->relocbase +
 			    dynp->d_un.d_ptr);
 			break;
 
 		case DT_PREINIT_ARRAYSZ:
 			obj->preinit_array_num = dynp->d_un.d_val /
-			    sizeof(Elf_Addr);
+			    sizeof(uintptr_t);
 			break;
 
 		case DT_INIT_ARRAY:
-			obj->init_array = (Elf_Addr)(obj->relocbase +
+			obj->init_array = (uintptr_t *)(obj->relocbase +
 			    dynp->d_un.d_ptr);
 			break;
 
 		case DT_INIT_ARRAYSZ:
 			obj->init_array_num = dynp->d_un.d_val /
-			    sizeof(Elf_Addr);
+			    sizeof(uintptr_t);
 			break;
 
 		case DT_FINI:
-			obj->fini = (Elf_Addr)(obj->relocbase +
+			obj->fini = (uintptr_t)(obj->relocbase +
 			    dynp->d_un.d_ptr);
 			break;
 
 		case DT_FINI_ARRAY:
-			obj->fini_array = (Elf_Addr)(obj->relocbase +
+			obj->fini_array = (uintptr_t *)(obj->relocbase +
 			    dynp->d_un.d_ptr);
 			break;
 
 		case DT_FINI_ARRAYSZ:
 			obj->fini_array_num = dynp->d_un.d_val /
-			    sizeof(Elf_Addr);
+			    sizeof(uintptr_t);
 			break;
 
 		case DT_DEBUG:
@@ -2599,8 +2599,7 @@ initlist_for_loaded_obj(Obj_Entry *obj, Obj_Entry *tail, Objlist *list)
 	STAILQ_FOREACH(tmp, &iflist, link) {
 		Obj_Entry *tobj = tmp->obj;
 
-		if ((tobj->fini != (Elf_Addr)NULL ||
-		    tobj->fini_array != (Elf_Addr)NULL) &&
+		if ((tobj->fini != 0 || tobj->fini_array != NULL) &&
 		    !tobj->on_fini_list) {
 			objlist_push_tail(&list_fini, tobj);
 			tobj->on_fini_list = true;
@@ -2672,8 +2671,7 @@ initlist_add_objects(Obj_Entry *obj, Obj_Entry *tail, Objlist *list,
 		 * Add the object to the global fini list in the
 		 * reverse order.
 		 */
-		if ((obj->fini != (Elf_Addr)NULL ||
-		    obj->fini_array != (Elf_Addr)NULL) &&
+		if ((obj->fini != 0 || obj->fini_array != NULL) &&
 		    !obj->on_fini_list) {
 			objlist_push_head(&list_fini, obj);
 			obj->on_fini_list = true;
@@ -3075,10 +3073,10 @@ obj_from_addr(const void *addr)
 static void
 preinit_main(void)
 {
-	Elf_Addr *preinit_addr;
+	uintptr_t *preinit_addr;
 	int index;
 
-	preinit_addr = (Elf_Addr *)obj_main->preinit_array;
+	preinit_addr = obj_main->preinit_array;
 	if (preinit_addr == NULL)
 		return;
 
@@ -3105,7 +3103,7 @@ objlist_call_fini(Objlist *list, Obj_Entry *root, RtldLockState *lockstate)
 {
 	Objlist_Entry *elm;
 	struct dlerror_save *saved_msg;
-	Elf_Addr *fini_addr;
+	uintptr_t *fini_addr;
 	int index;
 
 	assert(root == NULL || root->refcount == 1);
@@ -3138,7 +3136,7 @@ objlist_call_fini(Objlist *list, Obj_Entry *root, RtldLockState *lockstate)
 			 * defined. When this happens, DT_FINI_ARRAY is
 			 * processed first.
 			 */
-			fini_addr = (Elf_Addr *)elm->obj->fini_array;
+			fini_addr = elm->obj->fini_array;
 			if (fini_addr != NULL && elm->obj->fini_array_num > 0) {
 				for (index = elm->obj->fini_array_num - 1;
 				    index >= 0; index--) {
@@ -3156,7 +3154,7 @@ objlist_call_fini(Objlist *list, Obj_Entry *root, RtldLockState *lockstate)
 					}
 				}
 			}
-			if (elm->obj->fini != (Elf_Addr)NULL) {
+			if (elm->obj->fini != 0) {
 				dbg("calling fini function for %s at %p",
 				    elm->obj->path, (void *)elm->obj->fini);
 				LD_UTRACE(UTRACE_FINI_CALL, elm->obj,
@@ -3192,7 +3190,7 @@ objlist_call_init(Objlist *list, RtldLockState *lockstate)
 	Objlist_Entry *elm;
 	Obj_Entry *obj;
 	struct dlerror_save *saved_msg;
-	Elf_Addr *init_addr;
+	uintptr_t *init_addr;
 	void (*reg)(void (*)(void));
 	int index;
 
@@ -3237,14 +3235,14 @@ objlist_call_init(Objlist *list, RtldLockState *lockstate)
 		 * It is legal to have both DT_INIT and DT_INIT_ARRAY defined.
 		 * When this happens, DT_INIT is processed first.
 		 */
-		if (elm->obj->init != (Elf_Addr)NULL) {
+		if (elm->obj->init != 0) {
 			dbg("calling init function for %s at %p",
 			    elm->obj->path, (void *)elm->obj->init);
 			LD_UTRACE(UTRACE_INIT_CALL, elm->obj,
 			    (void *)elm->obj->init, 0, 0, elm->obj->path);
 			call_init_pointer(elm->obj, elm->obj->init);
 		}
-		init_addr = (Elf_Addr *)elm->obj->init_array;
+		init_addr = elm->obj->init_array;
 		if (init_addr != NULL) {
 			for (index = 0; index < elm->obj->init_array_num;
 			    index++) {
