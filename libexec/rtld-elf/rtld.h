@@ -152,7 +152,7 @@ typedef struct Struct_Obj_Entry {
     const Elf_Dyn *dynamic;	/* Dynamic section */
     caddr_t entry;		/* Entry point */
     const Elf_Phdr *phdr;	/* Program header if it is mapped, else NULL */
-    size_t phsize;		/* Size of program header in bytes */
+    size_t phnum;		/* Number of program headers */
     const char *interp;		/* Pathname of the interpreter, if any */
     Elf_Word stack_flags;
 

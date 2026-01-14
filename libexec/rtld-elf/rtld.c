@@ -1684,7 +1684,7 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 			continue;
 
 		obj->phdr = phdr;
-		obj->phsize = ph->p_memsz;
+		obj->phnum = ph->p_memsz / sizeof(*ph);
 		obj->relocbase = __DECONST(char *, phdr) - ph->p_vaddr;
 		break;
 	}
@@ -2423,8 +2423,7 @@ parse_rtld_phdr(Obj_Entry *obj)
 
 	first_seg = true;
 	obj->stack_flags = PF_X | PF_R | PF_W;
-	for (ph = obj->phdr;
-	    (const char *)ph < (const char *)obj->phdr + obj->phsize; ph++) {
+	for (ph = obj->phdr; ph < obj->phdr + obj->phnum; ph++) {
 		switch (ph->p_type) {
 		case PT_LOAD:
 			if (first_seg) {
@@ -2486,7 +2485,7 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
 
 	ehdr = (Elf_Ehdr *)mapbase;
 	objtmp.phdr = (Elf_Phdr *)((char *)mapbase + ehdr->e_phoff);
-	objtmp.phsize = ehdr->e_phnum * sizeof(objtmp.phdr[0]);
+	objtmp.phnum = ehdr->e_phnum;
 
 	/* Initialize the object list. */
 	TAILQ_INIT(&obj_list);
@@ -2998,7 +2997,7 @@ load_kpreload(const void *addr)
 	obj = obj_new();
 	phdr = (const Elf_Phdr *)((const char *)addr + ehdr->e_phoff);
 	obj->phdr = phdr;
-	obj->phsize = ehdr->e_phnum * sizeof(*phdr);
+	obj->phnum = ehdr->e_phnum;
 	phlimit = phdr + ehdr->e_phnum;
 	seg0 = segn = NULL;
 
@@ -3380,10 +3379,10 @@ reloc_textrel_prot(Obj_Entry *obj, bool before)
 {
 	const Elf_Phdr *ph;
 	void *base;
-	size_t l, sz;
+	size_t sz;
 	int prot;
 
-	for (l = obj->phsize / sizeof(*ph), ph = obj->phdr; l > 0; l--, ph++) {
+	for (ph = obj->phdr; ph < obj->phdr + obj->phnum; ph++) {
 		if (ph->p_type != PT_LOAD || (ph->p_flags & PF_W) != 0)
 			continue;
 		base = obj->relocbase + rtld_trunc_page(ph->p_vaddr);
@@ -4331,7 +4330,7 @@ rtld_fill_dl_phdr_info(const Obj_Entry *obj, struct dl_phdr_info *phdr_info)
 	phdr_info->dlpi_addr = (Elf_Addr)obj->relocbase;
 	phdr_info->dlpi_name = obj->path;
 	phdr_info->dlpi_phdr = obj->phdr;
-	phdr_info->dlpi_phnum = obj->phsize / sizeof(obj->phdr[0]);
+	phdr_info->dlpi_phnum = obj->phnum;
 	phdr_info->dlpi_tls_modid = obj->tlsindex;
 	phdr_info->dlpi_tls_data = (char *)tls_get_addr_slow(_tcb_get(),
 	    obj->tlsindex, 0, true);
@@ -6149,8 +6148,7 @@ obj_remap_relro(Obj_Entry *obj, int prot)
 	caddr_t relro_page;
 	size_t relro_size;
 
-	for (ph = obj->phdr; (const char *)ph < (const char *)obj->phdr +
-	    obj->phsize; ph++) {
+	for (ph = obj->phdr; ph < obj->phdr + obj->phnum; ph++) {
 		if (ph->p_type != PT_GNU_RELRO)
 			continue;
 		relro_page = obj->relocbase + rtld_trunc_page(ph->p_vaddr);

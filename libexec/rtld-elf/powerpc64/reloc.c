@@ -364,9 +364,7 @@ done:
 	 * Synchronize icache for executable segments in case we made
 	 * any changes.
 	 */
-	for (phdr = obj->phdr;
-	    (const char *)phdr < (const char *)obj->phdr + obj->phsize;
-	    phdr++) {
+	for (phdr = obj->phdr; phdr < obj->phdr + obj->phnum; phdr++) {
 		if (phdr->p_type == PT_LOAD && (phdr->p_flags & PF_X) != 0) {
 			__syncicache(obj->relocbase + phdr->p_vaddr,
 			    phdr->p_memsz);

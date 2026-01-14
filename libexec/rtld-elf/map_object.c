@@ -318,7 +318,7 @@ map_object(int fd, const char *path, const struct stat *sb, bool ismain)
 		    phsize);
 		obj->phdr_alloc = true;
 	}
-	obj->phsize = phsize;
+	obj->phnum = phsize / sizeof(*phdr);
 	if (phinterp != NULL)
 		obj->interp = (const char *)(obj->relocbase +
 		    phinterp->p_vaddr);
