@@ -227,8 +227,8 @@ Due to the architecture of the
 virtual memory subsystem, the use of copy on write (CoW) anonymous
 memory, e.g. on
 .Xr fork 2 ,
-causes swap reservation for all three regions (VM objects),
-as in the original pre-fork mapping, and its copies in
+causes swap reservation for all three regions (VM objects):
+in the original pre-fork mapping, and its copies in
 the parent and child, instead of only two.
 Eventually the subsystem tries to optimize the internal layout
 of the tracking for CoW and often removes (collapses) no longer
