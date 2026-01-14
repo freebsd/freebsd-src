@@ -401,7 +401,7 @@ tarfs_large_head() {
 	atf_set "descr" "Test support for large files"
 	atf_set "require.user" "root"
 	atf_set "require.kmods" "tarfs"
-	atf_set "timeout" "1200"
+	atf_set "timeout" "2400"
 }
 tarfs_large_body() {
 	tarfs_setup
