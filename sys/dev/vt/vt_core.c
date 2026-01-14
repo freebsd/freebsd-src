@@ -3046,9 +3046,9 @@ skip_thunk:
 				DPRINTF(5, "reset WAIT_ACQ, ");
 			return (0);
 		} else if (mode->mode == VT_PROCESS) {
-			if (!(ISSIGVALID(mode->relsig) &&
-			    ISSIGVALID(mode->acqsig) &&
-			    (mode->frsig == 0 || ISSIGVALID(mode->frsig)))) {
+			if (!(_SIG_VALID(mode->relsig) &&
+			    _SIG_VALID(mode->acqsig) &&
+			    (mode->frsig == 0 || _SIG_VALID(mode->frsig)))) {
 				DPRINTF(5, "error EINVAL\n");
 				return (EINVAL);
 			}
