@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020-2021,2023 Thomas E. Dickey                                *
+ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
  * Copyright 2005-2012,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -37,22 +37,91 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: trim_sgr0.c,v 1.22 2023/09/23 18:47:56 tom Exp $")
+MODULE_ID("$Id: trim_sgr0.c,v 1.27 2024/12/21 20:15:26 tom Exp $")
 
 #undef CUR
 #define CUR tp->
 
+/*
+ * Skip a padding token, e.g., "<5>", "<5.1>", "<5/>", "<5*>", or "<5/>".
+ * If the pattern does not match, return null.
+ */
 static char *
-set_attribute_9(TERMTYPE2 *tp, int flag)
+skip_padding(char *value)
+{
+    char *result = NULL;
+    if (*value++ == '$' && *value++ == '<') {
+	int ch;
+	int state = 0;		/* 1=integer, 2=decimal, 3=fraction */
+	while ((ch = UChar(*value++)) != '\0') {
+	    if (ch == '*' || ch == '/') {
+		if (!state)
+		    break;
+	    } else if (ch == '>') {
+		if (state)
+		    result = value;
+		break;
+	    } else if (ch == '.') {
+		if (state < 2) {
+		    state = 2;
+		} else {
+		    break;	/* a single decimal point is allowed */
+		}
+	    } else if (isdigit(ch)) {
+		if (state < 2) {
+		    state = 1;
+		} else if (state == 2) {
+		    state = 3;
+		} else {
+		    break;	/* only a single digit after decimal point */
+		}
+	    } else {
+		break;
+	    }
+	}
+    }
+    return result;
+}
+
+static void
+strip_padding(char *value)
+{
+    char *s = value;
+    char ch;
+
+    while ((ch = *s) != '\0') {
+	if (ch == '\\') {
+	    if (*++s == '\0')
+		break;
+	    ++s;
+	} else {
+	    char *d = NULL;
+	    if (ch == '$')
+		d = skip_padding(s);
+	    if (d != NULL) {
+		char *t = s;
+		while ((*t++ = *d++) != '\0') ;
+	    } else {
+		++s;
+	    }
+	}
+    }
+}
+
+static char *
+set_attribute_9(const TERMTYPE2 *tp, int flag)
 {
     const char *value;
     char *result;
 
     value = TIPARM_9(set_attributes, 0, 0, 0, 0, 0, 0, 0, 0, flag);
-    if (PRESENT(value))
+    if (PRESENT(value)) {
 	result = strdup(value);
-    else
-	result = 0;
+	if (result != NULL)
+	    strip_padding(result);
+    } else {
+	result = NULL;
+    }
     return result;
 }
 
@@ -60,7 +129,7 @@ static int
 is_csi(const char *s)
 {
     int result = 0;
-    if (s != 0) {
+    if (s != NULL) {
 	if (UChar(s[0]) == CSI_CHR)
 	    result = 1;
 	else if (s[0] == ESC_CHR && s[1] == L_BLOCK)
@@ -99,9 +168,9 @@ skip_delay(const char *s)
  * to the end of the s-string.
  */
 static bool
-rewrite_sgr(char *s, char *attr)
+rewrite_sgr(char *s, const char *attr)
 {
-    if (s != 0) {
+    if (s != NULL) {
 	if (PRESENT(attr)) {
 	    size_t len_s = strlen(s);
 	    size_t len_a = strlen(attr);
@@ -125,7 +194,7 @@ static bool
 similar_sgr(char *a, char *b)
 {
     bool result = FALSE;
-    if (a != 0 && b != 0) {
+    if (a != NULL && b != NULL) {
 	int csi_a = is_csi(a);
 	int csi_b = is_csi(b);
 	size_t len_a;
@@ -237,12 +306,10 @@ _nc_trim_sgr0(TERMTYPE2 *tp)
 
     if (PRESENT(exit_attribute_mode)
 	&& PRESENT(set_attributes)) {
-	bool found = FALSE;
 	char *on = set_attribute_9(tp, 1);
 	char *off = set_attribute_9(tp, 0);
 	char *end = strdup(exit_attribute_mode);
 	char *tmp;
-	size_t i, j, k;
 
 	TR(TRACE_DATABASE, ("checking if we can trim sgr0 based on sgr"));
 	TR(TRACE_DATABASE, ("sgr0       %s", _nc_visbuf(end)));
@@ -255,12 +322,17 @@ _nc_trim_sgr0(TERMTYPE2 *tp)
 	    FreeIfNeeded(off);
 	} else if (similar_sgr(off, end)
 		   && !similar_sgr(off, on)) {
+	    bool found = FALSE;
+	    size_t i, j;
+
 	    TR(TRACE_DATABASE, ("adjusting sgr(9:off) : %s", _nc_visbuf(off)));
 	    result = off;
 	    /*
 	     * If rmacs is a substring of sgr(0), remove that chunk.
 	     */
 	    if (PRESENT(exit_alt_charset_mode)) {
+		size_t k;
+
 		TR(TRACE_DATABASE, ("scan for rmacs %s", _nc_visbuf(exit_alt_charset_mode)));
 		j = strlen(off);
 		k = strlen(exit_alt_charset_mode);
@@ -297,7 +369,7 @@ _nc_trim_sgr0(TERMTYPE2 *tp)
 		}
 	    }
 	    if (!found
-		&& (tmp = strstr(end, off)) != 0
+		&& (tmp = strstr(end, off)) != NULL
 		&& strcmp(end, off) != 0) {
 		i = (size_t) (tmp - end);
 		j = strlen(off);

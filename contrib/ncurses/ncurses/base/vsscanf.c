@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2023 Thomas E. Dickey                                     *
+ * Copyright 2020-2023,2025 Thomas E. Dickey                                *
  * Copyright 1998-2004,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -39,7 +39,7 @@
 
 #if !HAVE_VSSCANF
 
-MODULE_ID("$Id: vsscanf.c,v 1.22 2023/09/23 18:48:57 tom Exp $")
+MODULE_ID("$Id: vsscanf.c,v 1.23 2025/02/20 01:08:11 tom Exp $")
 
 #if !(HAVE_VFSCANF || HAVE__DOSCAN)
 
@@ -215,7 +215,7 @@ vsscanf(const char *str, const char *format, va_list ap)
 	int eaten;
 	void *pointer;
 
-	if (my_fmt != 0) {
+	if (my_fmt != NULL) {
 	    /*
 	     * Split the original format into chunks, adding a "%n" to the end
 	     * of each (except of course if it used %n), and use that
@@ -229,7 +229,7 @@ vsscanf(const char *str, const char *format, va_list ap)
 		state = sUnknown;
 		chunk = cUnknown;
 		other = oUnknown;
-		pointer = 0;
+		pointer = NULL;
 		for (n = 0; format[n] != 0 && state != sFinal; ++n) {
 		    my_fmt[n] = format[n];
 		    switch (state) {

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 2002-2009,2011 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_box_set.c,v 1.7 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_box_set.c,v 1.8 2024/12/07 20:08:15 tom Exp $")
 
 NCURSES_EXPORT(int)
 wborder_set(WINDOW *win,
@@ -67,7 +67,7 @@ wborder_set(WINDOW *win,
     if (!win)
 	returnCode(ERR);
 
-#define RENDER_WITH_DEFAULT(ch,def) w ##ch = _nc_render(win, (ch == 0) ? *(const ARG_CH_T)def : *ch)
+#define RENDER_WITH_DEFAULT(ch,def) w ##ch = _nc_render(win, (ch == NULL) ? *(const ARG_CH_T)def : *ch)
 
     RENDER_WITH_DEFAULT(ls, WACS_VLINE);
     RENDER_WITH_DEFAULT(rs, WACS_VLINE);

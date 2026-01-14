@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2020,2024 Thomas E. Dickey                                *
  * Copyright 2010,2012 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -32,7 +32,7 @@
  ****************************************************************************/
 
 /*
- * $Id: build.priv.h,v 1.12 2020/02/02 23:34:34 tom Exp $
+ * $Id: build.priv.h,v 1.13 2024/12/14 22:32:09 tom Exp $
  *
  *	build.priv.h
  *
@@ -78,7 +78,7 @@ extern "C" {
 #define EXIT_FAILURE 1
 #endif
 
-#define FreeAndNull(p)   do { free(p); p = 0; } while (0)
+#define FreeAndNull(p)   do { free(p); p = NULL; } while (0)
 #define UChar(c)         ((unsigned char)(c))
 #define SIZEOF(v)        (sizeof(v) / sizeof(v[0]))
 

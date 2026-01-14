@@ -48,7 +48,7 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_trace.c,v 1.106 2024/02/24 18:28:19 tom Exp $")
+MODULE_ID("$Id: lib_trace.c,v 1.109 2024/12/07 21:02:00 tom Exp $")
 
 NCURSES_EXPORT_VAR(unsigned) _nc_tracing = 0; /* always define this */
 
@@ -135,7 +135,7 @@ curses_trace(unsigned tracelevel)
 
     Locked(result = _nc_tracing);
 
-    if ((MyFP == 0) && tracelevel) {
+    if ((MyFP == NULL) && tracelevel) {
 	MyInit = TRUE;
 	if (MyFD >= 0) {
 	    MyFP = fdopen(MyFD, BIN_W);
@@ -149,7 +149,7 @@ curses_trace(unsigned tracelevel)
 #define SAFE_MODE (O_CREAT | O_EXCL | O_RDWR)
 	    if (_nc_access(myFile, W_OK) < 0
 		|| (MyFD = safe_open3(myFile, SAFE_MODE, 0600)) < 0
-		|| (MyFP = fdopen(MyFD, BIN_W)) == 0) {
+		|| (MyFP = fdopen(MyFD, BIN_W)) == NULL) {
 		;		/* EMPTY */
 	    }
 	}
@@ -158,7 +158,7 @@ curses_trace(unsigned tracelevel)
 	 * so that the trace-output gets flushed automatically at the
 	 * end of each line.  This is useful in case the program dies.
 	 */
-	if (MyFP != 0) {
+	if (MyFP != NULL) {
 #if HAVE_SETVBUF		/* ANSI */
 	    (void) setvbuf(MyFP, (char *) 0, _IOLBF, (size_t) 0);
 #elif HAVE_SETBUF /* POSIX */
@@ -188,10 +188,10 @@ curses_trace(unsigned tracelevel)
 	    _tracef("- DEBUG_LEVEL(%u)", tracelevel >> TRACE_SHIFT);
 	}
     } else if (tracelevel == 0) {
-	if (MyFP != 0) {
+	if (MyFP != NULL) {
 	    MyFD = dup(MyFD);	/* allow reopen of same file */
 	    fclose(MyFP);
-	    MyFP = 0;
+	    MyFP = NULL;
 	}
 	Locked(_nc_tracing = tracelevel);
     } else if (_nc_tracing != tracelevel) {
@@ -226,7 +226,7 @@ _nc_va_tracef(const char *fmt, va_list ap)
 
 #ifdef TRACE
     /* verbose-trace in the command-line utilities relies on this */
-    if (fp == 0 && !MyInit && _nc_tracing >= DEBUG_LEVEL(1))
+    if (fp == NULL && !MyInit && _nc_tracing >= DEBUG_LEVEL(1))
 	fp = stderr;
 #endif
 
@@ -246,7 +246,7 @@ _nc_va_tracef(const char *fmt, va_list ap)
 	}
     }
 
-    if (doit != 0 && fp != 0) {
+    if (doit != 0 && fp != NULL) {
 #ifdef USE_PTHREADS
 	/*
 	 * TRACE_ICALLS is "really" needed to show normal use with threaded
@@ -261,7 +261,7 @@ _nc_va_tracef(const char *fmt, va_list ap)
 	if ((pthread_self))
 # endif
 	    fprintf(fp, "%#" PRIxPTR ":",
-#ifdef _NC_WINDOWS
+#ifdef _NC_WINDOWS_NATIVE
 		    CASTxPTR(pthread_self().p)
 #else
 		    CASTxPTR(pthread_self())
@@ -295,8 +295,8 @@ _tracef(const char *fmt, ...)
 }
 
 /* Trace 'bool' return-values */
-NCURSES_EXPORT(NCURSES_BOOL)
-_nc_retrace_bool(int code)
+NCURSES_EXPORT(bool)
+_nc_retrace_bool(bool code)
 {
     T((T_RETURN("%s"), code ? "TRUE" : "FALSE"));
     return code;

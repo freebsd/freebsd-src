@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 2008-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -52,7 +52,7 @@
 # endif
 #endif
 
-MODULE_ID("$Id: tinfo_driver.c,v 1.74 2023/09/16 10:44:33 tom Exp $")
+MODULE_ID("$Id: tinfo_driver.c,v 1.88 2025/12/27 12:33:34 tom Exp $")
 
 /*
  * SCO defines TIOCGSIZE and the corresponding struct.  Other systems (SunOS,
@@ -94,8 +94,8 @@ NCURSES_EXPORT_VAR(int) COLORS = 0;
 #endif
 
 #define TCBMAGIC NCDRV_MAGIC(NCDRV_TINFO)
-#define AssertTCB() assert(TCB!=0 && TCB->magic==TCBMAGIC)
-#define SetSP() assert(TCB->csp!=0); sp = TCB->csp; (void) sp
+#define AssertTCB() assert(TCB != NULL && TCB->magic == TCBMAGIC)
+#define SetSP() assert(TCB->csp != NULL); sp = TCB->csp; (void) sp
 
 /*
  * This routine needs to do all the work to make curscr look
@@ -123,7 +123,7 @@ get_baudrate(TERMINAL *termp)
     if (GET_TTY(termp->Filedes, &termp->Nttyb) == OK) {
 #ifdef TERMIOS
 	termp->Nttyb.c_oflag &= (unsigned) (~OFLAGS_TABS);
-#elif defined(EXP_WIN32_DRIVER)
+#elif defined(USE_WIN32CON_DRIVER)
 	/* noop */
 #else
 	termp->Nttyb.sg_flags &= (unsigned) (~XTABS);
@@ -135,7 +135,7 @@ get_baudrate(TERMINAL *termp)
 #else /* !USE_OLD_TTY */
 #ifdef TERMIOS
     my_ospeed = (NCURSES_OSPEED) cfgetospeed(&(termp->Nttyb));
-#elif defined(EXP_WIN32_DRIVER)
+#elif defined(USE_WIN32CON_DRIVER)
     /* noop */
     my_ospeed = 0;
 #else
@@ -161,9 +161,10 @@ drv_CanHandle(TERMINAL_CONTROL_BLOCK * TCB, const char *tname, int *errret)
     SCREEN *sp;
 
     START_TRACE();
-    T((T_CALLED("tinfo::drv_CanHandle(%p)"), (void *) TCB));
+    T((T_CALLED("tinfo::drv_CanHandle(%p,%s,%p)"),
+       (void *) TCB, NonNull(tname), (void *) errret));
 
-    assert(TCB != 0 && tname != 0);
+    assert(TCB != NULL && tname != NULL);
     termp = (TERMINAL *) TCB;
     sp = TCB->csp;
     TCB->magic = TCBMAGIC;
@@ -215,7 +216,7 @@ drv_CanHandle(TERMINAL_CONTROL_BLOCK * TCB, const char *tname, int *errret)
      * _nc_setupscreen().  Do it now anyway, so we can initialize the
      * baudrate.
      */
-    if (sp == 0 && NC_ISATTY(termp->Filedes)) {
+    if (sp == NULL && NC_ISATTY(termp->Filedes)) {
 	get_baudrate(termp);
     }
 #if NCURSES_EXT_NUMBERS
@@ -323,15 +324,15 @@ drv_defaultcolors(TERMINAL_CONTROL_BLOCK * TCB, int fg, int bg)
     AssertTCB();
     SetSP();
 
-    if (sp != 0 && orig_pair && orig_colors && (initialize_pair != 0)) {
+    if (sp != NULL && orig_pair && orig_colors && (initialize_pair != NULL)) {
 #if NCURSES_EXT_FUNCS
 	sp->_default_color = isDefaultColor(fg) || isDefaultColor(bg);
 	sp->_has_sgr_39_49 = (NCURSES_SP_NAME(tigetflag) (NCURSES_SP_ARGx
-							  "AX")
+							  UserCap(AX))
 			      == TRUE);
 	sp->_default_fg = isDefaultColor(fg) ? COLOR_DEFAULT : fg;
 	sp->_default_bg = isDefaultColor(bg) ? COLOR_DEFAULT : bg;
-	if (sp->_color_pairs != 0) {
+	if (sp->_color_pairs != NULL) {
 	    bool save = sp->_default_color;
 	    sp->_default_color = TRUE;
 	    NCURSES_SP_NAME(init_pair) (NCURSES_SP_ARGx
@@ -391,7 +392,7 @@ drv_rescol(TERMINAL_CONTROL_BLOCK * TCB)
     AssertTCB();
     SetSP();
 
-    if (orig_pair != 0) {
+    if (orig_pair != NULL) {
 	NCURSES_PUTP2("orig_pair", orig_pair);
 	result = TRUE;
     }
@@ -407,7 +408,7 @@ drv_rescolors(TERMINAL_CONTROL_BLOCK * TCB)
     AssertTCB();
     SetSP();
 
-    if (orig_colors != 0) {
+    if (orig_colors != NULL) {
 	NCURSES_PUTP2("orig_colors", orig_colors);
 	result = TRUE;
     }
@@ -432,7 +433,7 @@ drv_size(TERMINAL_CONTROL_BLOCK * TCB, int *linep, int *colp)
 	useTioctl = _nc_prescreen.use_tioctl;
     }
 
-#ifdef EXP_WIN32_DRIVER
+#ifdef USE_WIN32CON_DRIVER
     /* If we are here, then Windows console is used in terminfo mode.
        We need to figure out the size using the console API
      */
@@ -470,7 +471,7 @@ drv_size(TERMINAL_CONTROL_BLOCK * TCB, int *linep, int *colp)
 		errno = 0;
 		do {
 		    if (ioctl(termp->Filedes, IOCTL_WINSIZE, &size) >= 0) {
-			*linep = ((sp != 0 && sp->_filtered)
+			*linep = ((sp != NULL && sp->_filtered)
 				  ? 1
 				  : WINSIZE_ROWS(size));
 			*colp = WINSIZE_COLS(size);
@@ -489,7 +490,8 @@ drv_size(TERMINAL_CONTROL_BLOCK * TCB, int *linep, int *colp)
 		/*
 		 * If environment variables are used, update them.
 		 */
-		if ((sp == 0 || !sp->_filtered) && _nc_getenv_num("LINES") > 0) {
+		if ((sp == NULL || !sp->_filtered)
+		    && _nc_getenv_num("LINES") > 0) {
 		    _nc_setenv_num("LINES", *linep);
 		}
 		if (_nc_getenv_num("COLUMNS") > 0) {
@@ -504,11 +506,11 @@ drv_size(TERMINAL_CONTROL_BLOCK * TCB, int *linep, int *colp)
 	     * variable.
 	     */
 	    if ((value = _nc_getenv_num("LINES")) > 0) {
-		*linep = value;
+		*linep = Min(value, MAX_ENV_LINES);
 		T(("screen size: environment LINES = %d", *linep));
 	    }
 	    if ((value = _nc_getenv_num("COLUMNS")) > 0) {
-		*colp = value;
+		*colp = Min(value, MAX_ENV_COLUMNS);
 		T(("screen size: environment COLUMNS = %d", *colp));
 	    }
 	}
@@ -545,7 +547,7 @@ static int
 drv_getsize(TERMINAL_CONTROL_BLOCK * TCB, int *l, int *c)
 {
     AssertTCB();
-    assert(l != 0 && c != 0);
+    assert(l != NULL && c != NULL);
     *l = lines;
     *c = columns;
     return OK;
@@ -604,6 +606,8 @@ drv_mode(TERMINAL_CONTROL_BLOCK * TCB, int progFlag, int defFlag)
     AssertTCB();
     sp = TCB->csp;
 
+    T((T_CALLED("tinfo:drv_mode(%p,%d,%d)"), (void *) sp, progFlag, defFlag));
+
     if (progFlag)		/* prog mode */
     {
 	if (defFlag) {
@@ -614,7 +618,7 @@ drv_mode(TERMINAL_CONTROL_BLOCK * TCB, int progFlag, int defFlag)
 	    if ((drv_sgmode(TCB, FALSE, &(_term->Nttyb)) == OK)) {
 #ifdef TERMIOS
 		_term->Nttyb.c_oflag &= (unsigned) ~OFLAGS_TABS;
-#elif defined(EXP_WIN32_DRIVER)
+#elif defined(USE_WIN32CON_DRIVER)
 		/* noop */
 #else
 		_term->Nttyb.sg_flags &= (unsigned) ~XTABS;
@@ -628,6 +632,10 @@ drv_mode(TERMINAL_CONTROL_BLOCK * TCB, int progFlag, int defFlag)
 		    if (sp->_keypad_on)
 			_nc_keypad(sp, TRUE);
 		}
+#if defined(USE_WIN32CON_DRIVER)
+		if (!WINCONSOLE.buffered)
+		    _nc_console_set_scrollback(FALSE, &WINCONSOLE.SBI);
+#endif
 		code = OK;
 	    }
 	}
@@ -641,7 +649,7 @@ drv_mode(TERMINAL_CONTROL_BLOCK * TCB, int progFlag, int defFlag)
 #ifdef TERMIOS
 		if (_term->Ottyb.c_oflag & OFLAGS_TABS)
 		    tab = back_tab = NULL;
-#elif defined(EXP_WIN32_DRIVER)
+#elif defined(USE_WIN32CON_DRIVER)
 		/* noop */
 #else
 		if (_term->Ottyb.sg_flags & XTABS)
@@ -656,9 +664,13 @@ drv_mode(TERMINAL_CONTROL_BLOCK * TCB, int progFlag, int defFlag)
 		NCURSES_SP_NAME(_nc_flush) (sp);
 	    }
 	    code = drv_sgmode(TCB, TRUE, &(_term->Ottyb));
+#if defined(USE_WIN32CON_DRIVER)
+	    if (!_nc_console_restore())
+		code = ERR;
+#endif
 	}
     }
-    return (code);
+    returnCode(code);
 }
 
 static void
@@ -676,7 +688,7 @@ drv_release(TERMINAL_CONTROL_BLOCK * TCB GCC_UNUSED)
 {
 }
 
-#  define SGR0_TEST(mode) (mode != 0) && (exit_attribute_mode == 0 || strcmp(mode, exit_attribute_mode))
+#  define SGR0_TEST(mode) (mode != NULL) && (exit_attribute_mode == NULL || strcmp(mode, exit_attribute_mode))
 
 static void
 drv_screen_init(SCREEN *sp)
@@ -791,7 +803,7 @@ static int
 default_fg(SCREEN *sp)
 {
 #if NCURSES_EXT_FUNCS
-    return (sp != 0) ? sp->_default_fg : COLOR_WHITE;
+    return (sp != NULL) ? sp->_default_fg : COLOR_WHITE;
 #else
     return COLOR_WHITE;
 #endif
@@ -801,7 +813,7 @@ static int
 default_bg(SCREEN *sp)
 {
 #if NCURSES_EXT_FUNCS
-    return sp != 0 ? sp->_default_bg : COLOR_BLACK;
+    return sp != NULL ? sp->_default_bg : COLOR_BLACK;
 #else
     return COLOR_BLACK;
 #endif
@@ -833,7 +845,7 @@ drv_do_color(TERMINAL_CONTROL_BLOCK * TCB,
     int old_fg, old_bg;
 
     AssertTCB();
-    if (sp == 0)
+    if (sp == NULL)
 	return;
 
     if (pair < 0 || pair >= COLOR_PAIRS) {
@@ -844,13 +856,13 @@ drv_do_color(TERMINAL_CONTROL_BLOCK * TCB,
 	    NCURSES_SP_NAME(tputs) (NCURSES_SP_ARGx
 				    TIPARM_1(set_color_pair, pair), 1, outc);
 	    return;
-	} else if (sp != 0) {
+	} else if (sp != NULL) {
 	    _nc_pair_content(SP_PARM, pair, &fg, &bg);
 	}
     }
 
     if (old_pair >= 0
-	&& sp != 0
+	&& sp != NULL
 	&& _nc_pair_content(SP_PARM, old_pair, &old_fg, &old_bg) != ERR) {
 	if ((isDefaultColor(fg) && !isDefaultColor(old_fg))
 	    || (isDefaultColor(bg) && !isDefaultColor(old_bg))) {
@@ -907,7 +919,7 @@ static void
 init_xterm_mouse(SCREEN *sp)
 {
     sp->_mouse_type = M_XTERM;
-    sp->_mouse_xtermcap = NCURSES_SP_NAME(tigetstr) (NCURSES_SP_ARGx "XM");
+    sp->_mouse_xtermcap = NCURSES_SP_NAME(tigetstr) (NCURSES_SP_ARGx UserCap(XM));
     if (!VALID_STRING(sp->_mouse_xtermcap))
 	sp->_mouse_xtermcap = "\033[?1000%?%p1%{1}%=%th%el%;";
 }
@@ -921,10 +933,10 @@ drv_initmouse(TERMINAL_CONTROL_BLOCK * TCB)
     SetSP();
 
     /* we know how to recognize mouse events under "xterm" */
-    if (sp != 0) {
+    if (sp != NULL) {
 	if (NonEmpty(key_mouse)) {
 	    init_xterm_mouse(sp);
-	} else if (strstr(SP_TERMTYPE term_names, "xterm") != 0) {
+	} else if (strstr(SP_TERMTYPE term_names, "xterm") != NULL) {
 	    if (_nc_add_to_try(&(sp->_keytry), xterm_kmous, KEY_MOUSE) == OK)
 		init_xterm_mouse(sp);
 	}
@@ -949,7 +961,7 @@ drv_testmouse(TERMINAL_CONTROL_BLOCK * TCB,
     } else
 #endif
     {
-#ifdef EXP_WIN32_DRIVER
+#if defined(USE_WIN32CON_DRIVER)
 	rc = _nc_console_testmouse(sp,
 				   _nc_console_handle(sp->_ifd),
 				   delay
@@ -1076,7 +1088,7 @@ drv_initacs(TERMINAL_CONTROL_BLOCK * TCB, chtype *real_map, chtype *fake_map)
     SCREEN *sp = TCB->csp;
 
     AssertTCB();
-    assert(sp != 0);
+    assert(sp != NULL);
     if (ena_acs != NULL) {
 	NCURSES_PUTP2("ena_acs", ena_acs);
     }
@@ -1091,7 +1103,7 @@ drv_initacs(TERMINAL_CONTROL_BLOCK * TCB, chtype *real_map, chtype *fake_map)
      *
      * test/blue.c uses this feature.
      */
-#define PCH_KLUDGE(a,b) (a != 0 && b != 0 && !strcmp(a,b))
+#define PCH_KLUDGE(a,b) (a != NULL && b != NULL && !strcmp(a,b))
     if (PCH_KLUDGE(enter_pc_charset_mode, enter_alt_charset_mode) &&
 	PCH_KLUDGE(exit_pc_charset_mode, exit_alt_charset_mode)) {
 	size_t i;
@@ -1099,7 +1111,7 @@ drv_initacs(TERMINAL_CONTROL_BLOCK * TCB, chtype *real_map, chtype *fake_map)
 	    if (real_map[i] == 0) {
 		real_map[i] = (chtype) i;
 		if (real_map != fake_map) {
-		    if (sp != 0)
+		    if (sp != NULL)
 			sp->_screen_acs_map[i] = TRUE;
 		}
 	    }
@@ -1118,7 +1130,7 @@ drv_initacs(TERMINAL_CONTROL_BLOCK * TCB, chtype *real_map, chtype *fake_map)
 		   (int) i,
 		   _tracechar(UChar(acs_chars[i])),
 		   _tracechtype(real_map[UChar(acs_chars[i])])));
-		if (sp != 0) {
+		if (sp != NULL) {
 		    sp->_screen_acs_map[UChar(acs_chars[i])] = TRUE;
 		}
 	    }
@@ -1163,7 +1175,7 @@ _nc_cookie_init(SCREEN *sp)
     bool support_cookies = USE_XMC_SUPPORT;
     TERMINAL_CONTROL_BLOCK *TCB = (TERMINAL_CONTROL_BLOCK *) (sp->_term);
 
-    if (sp == 0 || !ENSURE_TINFO(sp))
+    if (sp == NULL || !ENSURE_TINFO(sp))
 	return;
 
 #if USE_XMC_SUPPORT
@@ -1172,7 +1184,7 @@ _nc_cookie_init(SCREEN *sp)
      * in the environment, reset the support-flag.
      */
     if (magic_cookie_glitch >= 0) {
-	if (getenv("NCURSES_NO_MAGIC_COOKIE") != 0) {
+	if (getenv("NCURSES_NO_MAGIC_COOKIE") != NULL) {
 	    support_cookies = FALSE;
 	}
     }
@@ -1258,7 +1270,7 @@ drv_twait(TERMINAL_CONTROL_BLOCK * TCB,
 
     AssertTCB();
     SetSP();
-#ifdef EXP_WIN32_DRIVER
+#if defined(USE_WIN32CON_DRIVER)
     return _nc_console_twait(sp,
 			     _nc_console_handle(sp->_ifd),
 			     mode,
@@ -1274,7 +1286,7 @@ drv_read(TERMINAL_CONTROL_BLOCK * TCB, int *buf)
 {
     SCREEN *sp;
     int n;
-#ifndef EXP_WIN32_DRIVER
+#if !defined(USE_WIN32CON_DRIVER)
     unsigned char c2 = 0;
 #endif
 
@@ -1283,7 +1295,7 @@ drv_read(TERMINAL_CONTROL_BLOCK * TCB, int *buf)
     SetSP();
 
     _nc_set_read_thread(TRUE);
-#ifdef EXP_WIN32_DRIVER
+#if defined(USE_WIN32CON_DRIVER)
     n = _nc_console_read(sp,
 			 _nc_console_handle(sp->_ifd),
 			 buf);
@@ -1291,7 +1303,7 @@ drv_read(TERMINAL_CONTROL_BLOCK * TCB, int *buf)
     n = (int) read(sp->_ifd, &c2, (size_t) 1);
 #endif
     _nc_set_read_thread(FALSE);
-#ifndef EXP_WIN32_DRIVER
+#if !defined(USE_WIN32CON_DRIVER)
     *buf = (int) c2;
 #endif
     return n;
@@ -1310,10 +1322,10 @@ drv_nap(TERMINAL_CONTROL_BLOCK * TCB GCC_UNUSED, int ms)
 	    request = remaining;
 	}
     }
-#elif defined(EXP_WIN32_DRIVER)
+#elif defined(USE_WIN32CON_DRIVER)
     Sleep((DWORD) ms);
 #else
-    _nc_timed_wait(0, 0, ms, (int *) 0 EVENTLIST_2nd(0));
+    _nc_timed_wait(NULL, 0, ms, (int *) 0 EVENTLIST_2nd(NULL));
 #endif
     return OK;
 }
@@ -1380,7 +1392,7 @@ drv_keyok(TERMINAL_CONTROL_BLOCK * TCB, int c, int flag)
 	unsigned ch = (unsigned) c;
 	if (flag) {
 	    while ((s = _nc_expand_try(sp->_key_ok,
-				       ch, &count, (size_t) 0)) != 0) {
+				       ch, &count, (size_t) 0)) != NULL) {
 		if (_nc_remove_key(&(sp->_key_ok), ch)) {
 		    code = _nc_add_to_try(&(sp->_keytry), s, ch);
 		    free(s);
@@ -1393,7 +1405,7 @@ drv_keyok(TERMINAL_CONTROL_BLOCK * TCB, int c, int flag)
 	    }
 	} else {
 	    while ((s = _nc_expand_try(sp->_keytry,
-				       ch, &count, (size_t) 0)) != 0) {
+				       ch, &count, (size_t) 0)) != NULL) {
 		if (_nc_remove_key(&(sp->_keytry), ch)) {
 		    code = _nc_add_to_try(&(sp->_key_ok), s, ch);
 		    free(s);
@@ -1420,7 +1432,7 @@ drv_cursorSet(TERMINAL_CONTROL_BLOCK * TCB, int vis)
 
     T((T_CALLED("tinfo:drv_cursorSet(%p,%d)"), (void *) SP_PARM, vis));
 
-    if (SP_PARM != 0 && IsTermInfo(SP_PARM)) {
+    if (SP_PARM != NULL && IsTermInfo(SP_PARM)) {
 	switch (vis) {
 	case 2:
 	    code = NCURSES_PUTP2_FLUSH("cursor_visible", cursor_visible);
@@ -1490,7 +1502,7 @@ NCURSES_EXPORT_VAR (TERM_DRIVER) _nc_TINFO_DRIVER = {
 	drv_cursorSet		/* cursorSet */
 };
 
-#ifdef EXP_WIN32_DRIVER
+#if USE_TERM_DRIVER
 /*
  * The terminfo driver is mandatory and must always be present.
  * So this is the natural place for the driver initialisation
@@ -1504,7 +1516,7 @@ typedef struct DriverEntry {
 
 static DRIVER_ENTRY DriverTable[] =
 {
-#ifdef _NC_WINDOWS
+#ifdef USE_WIN32CON_DRIVER
     {"win32console", &_nc_WIN_DRIVER},
 #endif
     {"tinfo", &_nc_TINFO_DRIVER}	/* must be last */
@@ -1516,30 +1528,31 @@ _nc_get_driver(TERMINAL_CONTROL_BLOCK * TCB, const char *name, int *errret)
     int code = ERR;
     size_t i;
     TERM_DRIVER *res = (TERM_DRIVER *) 0;
-    TERM_DRIVER *use = 0;
+    TERM_DRIVER *use = NULL;
 
     T((T_CALLED("_nc_get_driver(%p, %s, %p)"),
        (void *) TCB, NonNull(name), (void *) errret));
 
-    assert(TCB != 0);
+    assert(TCB != NULL);
 
     for (i = 0; i < SIZEOF(DriverTable); i++) {
 	res = DriverTable[i].driver;
-#ifdef _NC_WINDOWS
+#if defined(USE_WIN32CON_DRIVER)
 	if ((i + 1) == SIZEOF(DriverTable)) {
 	    /* For Windows >= 10.0.17763 Windows Console interface implements
 	       virtual Terminal functionality.
 	       If on Windows td_CanHandle returned FALSE although the terminal
 	       name is empty, we default to ms-terminal as tinfo TERM type.
 	     */
-	    if (name == 0 || *name == 0 || (strcmp(name, "unknown") == 0)) {
-		name = MS_TERMINAL;
+	    if (name == NULL || *name == 0 || (strcmp(name, "unknown") == 0)) {
+		name = DEFAULT_TERM_ENV;
 		T(("Set TERM=%s", name));
 	    }
 	}
 #endif
 	if (strcmp(DriverTable[i].name, res->td_name(TCB)) == 0) {
 	    if (res->td_CanHandle(TCB, name, errret)) {
+		T(("matched driver %s with TERM=%s", DriverTable[i].name, name));
 		use = res;
 		break;
 	    }
@@ -1551,4 +1564,4 @@ _nc_get_driver(TERMINAL_CONTROL_BLOCK * TCB, const char *name, int *errret)
     }
     returnCode(code);
 }
-#endif /* EXP_WIN32_DRIVER */
+#endif /* USE_TERM_DRIVER */

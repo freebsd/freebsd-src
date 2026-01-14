@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020-2021 Thomas E. Dickey                                     *
+ * Copyright 2020-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -45,7 +45,7 @@
 #endif
 #endif
 
-MODULE_ID("$Id: m_item_new.c,v 1.38 2021/06/17 21:26:02 tom Exp $")
+MODULE_ID("$Id: m_item_new.c,v 1.40 2024/12/07 22:01:57 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu
@@ -60,16 +60,16 @@ MODULE_ID("$Id: m_item_new.c,v 1.38 2021/06/17 21:26:02 tom Exp $")
 static bool
 Is_Printable_String(const char *s)
 {
-  int result = TRUE;
+  bool result = TRUE;
 
 #if USE_WIDEC_SUPPORT
-  int count = (int)mbstowcs(0, s, 0);
-  wchar_t *temp = 0;
+  int count = (int)mbstowcs(NULL, s, 0);
+  wchar_t *temp = NULL;
 
   assert(s);
 
   if (count > 0
-      && (temp = typeCalloc(wchar_t, (2 + (unsigned)count))) != 0)
+      && (temp = typeCalloc(wchar_t, (2 + (unsigned)count))) != NULL)
     {
       int n;
 
@@ -231,7 +231,7 @@ set_menu_mark(MENU *menu, const char *mark)
 	  else
 	    {
 	      menu->mark = old_mark;
-	      menu->marklen = (short)((old_mark != 0) ? strlen(old_mark) : 0);
+	      menu->marklen = (short)((old_mark != NULL) ? strlen(old_mark) : 0);
 	      RETURN(E_SYSTEM_ERROR);
 	    }
 	}

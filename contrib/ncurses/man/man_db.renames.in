@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright 2019-2023,2024 Thomas E. Dickey                                  #
+# Copyright 2019-2024,2025 Thomas E. Dickey                                  #
 # Copyright 1998-2015,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -26,7 +26,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: man_db.renames.in,v 1.73 2024/04/13 23:39:11 tom Exp $
+# $Id: man_db.renames.in,v 1.87 2025/08/16 19:36:29 Branden.Robinson Exp $
 # Manual-page renamings for the man_db program
 #
 # Files:
@@ -178,11 +178,13 @@ attr_get.3x			attr_get.3ncurses
 attr_on.3x			attr_on.3ncurses
 attron.3x			attron.3ncurses
 baudrate.3x			baudrate.3ncurses
+beep.3x				beep.3ncurses
 bkgd.3x				bkgd.3ncurses
 bkgrnd.3x			bkgrnd.3ncurses
 cbreak.3x			cbreak.3ncurses
 clearok.3x			clearok.3ncurses
 clrtoeol.3x			clrtoeol.3ncurses
+color_content.3x		color_content.3ncurses
 curs_set.3x			curs_set.3ncurses
 curscr.3x			curscr.3ncurses
 curses_trace.3x			curses_trace.3ncurses
@@ -195,14 +197,19 @@ derwin.3x			derwin.3ncurses
 doupdate.3x			doupdate.3ncurses
 echo.3x				echo.3ncurses
 endwin.3x			endwin.3ncurses
+erasechar.3x			erasechar.3ncurses
+erasewchar.3x			erasewchar.3ncurses
 extended_slk_color.3x		extended_slk_color.3ncurses
 filter.3x			filter.3ncurses
 flushinp.3x			flushinp.3ncurses
 get_wch.3x			get_wch.3ncurses
+get_wstr.3x			get_wstr.3ncurses
 getattr.3x			getattr.3ncurses
 getcchar.3x			getcchar.3ncurses
 getch.3x			getch.3ncurses
+getstr.3x			getstr.3ncurses
 getwin.3x			getwin.3ncurses
+getyx.3x			getyx.3ncurses
 halfdelay.3x			halfdelay.3ncurses
 has_key.3x			has_key.3ncurses
 idcok.3x			idcok.3ncurses
@@ -210,13 +217,18 @@ idlok.3x			idlok.3ncurses
 immedok.3x			immedok.3ncurses
 in_wch.3x			in_wch.3ncurses
 inch.3x				inch.3ncurses
+init_color.3x			init_color.3ncurses
 initscr.3x			initscr.3ncurses
+is_cbreak.3x			is_cbreak.3ncurses
 is_scrollok.3x			is_scrollok.3ncurses
 keyname.3x			keyname.3ncurses
 keypad.3x			keypad.3ncurses
+killchar.3x			killchar.3ncurses
+killwchar.3x			killwchar.3ncurses
 leaveok.3x			leaveok.3ncurses
 longname.3x			longname.3ncurses
 meta.3x				meta.3ncurses
+mousemask.3x			mousemask.3ncurses
 move.3x				move.3ncurses
 mvcur.3x			mvcur.3ncurses
 mvwin.3x			mvwin.3ncurses
@@ -227,14 +239,16 @@ nl.3x				nl.3ncurses
 nocbreak.3x			nocbreak.3ncurses
 nodelay.3x			nodelay.3ncurses
 nonl.3x				nonl.3ncurses
+noraw.3x			noraw.3ncurses
 notimeout.3x			notimeout.3ncurses
 pnoutrefresh.3x			pnoutrefresh.3ncurses
 prefresh.3x			prefresh.3ncurses
 printw.3x			printw.3ncurses
-putp.3x			putp.3ncurses
+putp.3x				putp.3ncurses
 putwin.3x			putwin.3ncurses
 raw.3x				raw.3ncurses
 refresh.3x			refresh.3ncurses
+reset_prog_mode.3x		reset_prog_mode.3ncurses
 reset_shell_mode.3x		reset_shell_mode.3ncurses
 restartterm.3x			restartterm.3ncurses
 ripoffline.3x			ripoffline.3ncurses
@@ -251,6 +265,8 @@ start_color.3x			start_color.3ncurses
 subwin.3x			subwin.3ncurses
 syncok.3x			syncok.3ncurses
 terminfo.3x			terminfo.3ncurses
+tigetflag.3x			tigetflag.3ncurses
+tigetnum.3x			tigetnum.3ncurses
 tigetstr.3x			tigetstr.3ncurses
 touchline.3x			touchline.3ncurses
 touchwin.3x			touchwin.3ncurses
@@ -258,6 +274,7 @@ tparm.3x			tparm.3ncurses
 tputs.3x			tputs.3ncurses
 trace.3x			trace.3ncurses
 unctrl.3x			unctrl.3ncurses
+ungetch.3x			ungetch.3ncurses
 use_default_colors.3x		use_default_colors.3ncurses
 use_env.3x			use_env.3ncurses
 use_extended_names.3x		use_extended_names.3ncurses
@@ -266,6 +283,8 @@ use_tioctl.3x			use_tioctl.3ncurses
 vidputs.3x			vidputs.3ncurses
 wadd_wch.3x			wadd_wch.3ncurses
 waddch.3x			waddch.3ncurses
+waddnstr.3x			waddnstr.3ncurses
+waddnwstr.3x			waddnwstr.3ncurses
 waddstr.3x			waddstr.3ncurses
 waddwstr.3x			waddwstr.3ncurses
 wattr_set.3x			wattr_set.3ncurses
@@ -276,8 +295,10 @@ wdelch.3x			wdelch.3ncurses
 wecho_wchar.3x			wecho_wchar.3ncurses
 wechochar.3x			wechochar.3ncurses
 wget_wch.3x			wget_wch.3ncurses
+wget_wstr.3x			wget_wstr.3ncurses
 wgetch.3x			wgetch.3ncurses
 wgetstr.3x			wgetstr.3ncurses
+win_wch.3x			win_wch.3ncurses
 winch.3x			winch.3ncurses
 wins_wch.3x			wins_wch.3ncurses
 winsch.3x			winsch.3ncurses
@@ -286,6 +307,7 @@ wnoutrefresh.3x			wnoutrefresh.3ncurses
 wrefresh.3x			wrefresh.3ncurses
 wsetscrreg.3x			wsetscrreg.3ncurses
 wtimeout.3x			wtimeout.3ncurses
+wunctrl.3x			wunctrl.3ncurses
 #
 # Other:
 getty.8				getty.8

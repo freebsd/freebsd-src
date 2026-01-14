@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_buffer.3x,v 1.45 2024/03/16 15:35:01 tom Exp $
-.TH form_field_buffer 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: form_field_buffer.3x,v 1.47 2024/12/28 21:26:21 tom Exp $
+.TH form_field_buffer 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -104,7 +104,9 @@ is set to a nonzero value whenever the field changes.
 The function \fBset_max_field\fP sets the maximum size for a dynamic field.
 An argument of 0 turns off any maximum size threshold for that field.
 .SH RETURN VALUE
-The \fBfield_buffer\fP function returns NULL on error.
+The \fBfield_buffer\fP function returns
+.I NULL
+on error.
 It sets \fBerrno\fP according to their success:
 .TP 5
 .B E_OK

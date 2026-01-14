@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_requestname.3x,v 1.33 2024/03/16 15:35:01 tom Exp $
-.TH menu_requestname 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: menu_requestname.3x,v 1.35 2024/12/28 21:26:21 tom Exp $
+.TH menu_requestname 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBmenu_request_by_name\fP,
 \fBmenu_request_name\fP \-
@@ -48,7 +48,9 @@ The function \fBmenu_request_by_name\fP searches in the name-table for a request
 with the given name and returns its request code.
 Otherwise E_NO_MATCH is returned.
 .SH RETURN VALUE
-\fBmenu_request_name\fP returns \fBNULL\fP on error
+\fBmenu_request_name\fP returns
+.I NULL
+on error
 and sets \fBerrno\fP to \fBE_BAD_ARGUMENT\fP.
 .br
 \fBmenu_request_by_name\fP returns \fBE_NO_MATCH\fP on error.

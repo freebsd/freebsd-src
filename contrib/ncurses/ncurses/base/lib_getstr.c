@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2021,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2011,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -42,14 +42,14 @@
 #define NEED_KEY_EVENT
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_getstr.c,v 1.39 2023/04/29 19:00:17 tom Exp $")
+MODULE_ID("$Id: lib_getstr.c,v 1.42 2025/01/19 00:51:54 tom Exp $")
 
 /*
  * This wipes out the last character, no matter whether it was a tab, control
  * or other character, and handles reverse wraparound.
  */
 static char *
-WipeOut(WINDOW *win, int y, int x, char *first, char *last, int echoed)
+WipeOut(WINDOW *win, int y, int x, const char *first, char *last, int echoed)
 {
     if (last > first) {
 	*--last = '\0';
@@ -81,11 +81,11 @@ wgetnstr_events(WINDOW *win,
     TTY_FLAGS save_flags;
     char erasec;
     char killc;
-    char *oldstr;
+    const char *oldstr;
     int ch;
     int y, x;
 
-    T((T_CALLED("wgetnstr(%p,%p,%d)"), (void *) win, (void *) str, maxlen));
+    T((T_CALLED("wgetnstr_events(%p,%p,%d)"), (void *) win, (void *) str, maxlen));
 
     if (!win || !str)
 	returnCode(ERR);
@@ -195,7 +195,7 @@ wgetnstr_events(WINDOW *win,
     if (ch == ERR)
 	returnCode(ch);
 
-    T(("wgetnstr returns %s", _nc_visbuf(oldstr)));
+    T(("wgetnstr_events returns %s", _nc_visbuf(oldstr)));
 
 #ifdef KEY_EVENT
     if (ch == KEY_EVENT)

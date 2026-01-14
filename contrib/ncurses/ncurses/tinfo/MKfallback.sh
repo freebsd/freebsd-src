@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright 2020,2023 Thomas E. Dickey                                       #
+# Copyright 2020-2023,2025 Thomas E. Dickey                                  #
 # Copyright 1998-2019,2020 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -27,7 +27,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: MKfallback.sh,v 1.26 2023/04/22 15:12:57 tom Exp $
+# $Id: MKfallback.sh,v 1.32 2025/09/20 18:24:34 tom Exp $
 #
 # MKfallback.sh -- create fallback table for entry reads
 #
@@ -44,11 +44,11 @@ terminfo_src=$1
 shift
 
 tic_path=$1
-test -z "$tic_path" && tic_path=tic
+[ -z "$tic_path" ] && tic_path=tic
 shift
 
 infocmp_path=$1
-test -z "$infocmp_path" && infocmp_path=infocmp
+[ -z "$infocmp_path" ] && infocmp_path=infocmp
 shift
 
 case "$tic_path" in #(vi
@@ -59,17 +59,14 @@ case "$tic_path" in #(vi
 	;;
 esac
 
-if test $# != 0 ; then
-	tmp_info=tmp_info
+if [ $# != 0 ]; then
+	tmp_info=`pwd`/tmp_info
 	echo creating temporary terminfo directory... >&2
 
-	TERMINFO=`pwd`/$tmp_info
-	export TERMINFO
+	rm -rf "$tmp_info"
+	mkdir -p "$tmp_info"
 
-	TERMINFO_DIRS=$TERMINFO:$terminfo_dir
-	export TERMINFO_DIRS
-
-	"$tic_path" -x "$terminfo_src" >&2
+	"$tic_path" -o $tmp_info -x "$terminfo_src" >&2
 else
 	tmp_info=
 fi
@@ -87,6 +84,8 @@ EOF
 
 if [ "$*" ]
 then
+	opt_info=
+	[ -n "$tmp_info" ] && opt_info="-A $tmp_info"
 	cat <<EOF
 #include <tic.h>
 
@@ -95,7 +94,7 @@ EOF
 	for x in "$@"
 	do
 		echo "/* $x */"
-		"$infocmp_path" -E "$x" | sed -e 's/\<short\>/NCURSES_INT2/g'
+		"$infocmp_path" -x $opt_info -E "$x" | sed -e 's/[ 	]short[ 	]/ NCURSES_INT2 /g'
 	done
 
 	cat <<EOF
@@ -106,7 +105,7 @@ EOF
 	for x in "$@"
 	do
 		echo "$comma /* $x */"
-		"$infocmp_path" -e "$x"
+		"$infocmp_path" -x $opt_info -e "$x"
 		comma=","
 	done
 
@@ -150,8 +149,8 @@ NCURSES_EXPORT(const TERMTYPE *)
 _nc_fallback (const char *name)
 {
     const TERMTYPE2 *tp = _nc_fallback2(name);
-    const TERMTYPE *result = 0;
-    if (tp != 0) {
+    const TERMTYPE *result = NULL;
+    if (tp != NULL) {
 	static TERMTYPE temp;
 	_nc_export_termtype2(&temp, tp);
 	result = &temp;
@@ -161,7 +160,7 @@ _nc_fallback (const char *name)
 #endif
 EOF
 
-if test -n "$tmp_info" ; then
+if [ -n "$tmp_info" ] ; then
 	echo removing temporary terminfo directory... >&2
-	rm -rf $tmp_info
+	rm -rf "$tmp_info"
 fi

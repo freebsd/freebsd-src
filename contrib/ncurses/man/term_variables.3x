@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2019-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2019-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 2010-2015,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: term_variables.3x,v 1.36 2024/03/16 15:35:01 tom Exp $
-.TH term_variables 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: term_variables.3x,v 1.44 2025/11/12 01:27:41 tom Exp $
+.TH term_variables 3X 2025-11-11 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -81,99 +81,193 @@
 \fBNCURSES_CONST char * const strnames[];
 .fi
 .SH DESCRIPTION
-This page summarizes variables provided by the \fBcurses\fP library's
-low-level terminfo interface.
-A more complete description is given in the \fBcurs_terminfo\fP(3X) manual page.
+This page summarizes variables provided by the
+.I curses
+library's lower-level
+.I \%term\%info
+interface.
+Locate a more complete description in the \fBcurs_terminfo\fP(3X) manual
+page.
 .PP
-Depending on the configuration, these may be actual variables,
-or macros (see \fBcurs_threads\fP(3X))
-which provide read-only access to \fIcurses\fP's state.
-In either case, applications should treat them as read-only to avoid
-confusing the library.
+Depending on
+.IR \%ncurses 's
+build-time configuration,
+these may be actual variables,
+or macros
+(see \fBcurs_threads\fP(3X))
+that provide read-only access to
+.IR curses 's
+state.
+In either case,
+applications should treat them as read-only to avoid confusing the
+library.
 .SS "Alternate Character Set Mapping"
-After initializing the curses or terminfo interfaces,
-the \fBacs_map\fP array holds information used to translate cells
-with the \fBA_ALTCHARSET\fP video attribute into line-drawing characters.
+After initializing the
+.I curses
+or
+.I \%term\%info
+interfaces,
+the
+.B acs_map
+array holds information used to translate cells with the
+.B \%A_ALTCHARSET
+video attribute into line-drawing characters.
 .PP
 The encoding of the information in this array has changed periodically.
-Application developers need only know that it is used for the \*(``ACS_\*(''
-constants in <curses.h>.
+Application developers need only know that it is used for the
+\*(``ACS_\*('' constants in
+.IR \%curses.h "."
 .PP
-The comparable data for the wide-character library is a private variable.
+The comparable data for the wide-character library are not exposed as
+symbols in the API.
 .SS "Current Terminal Data"
-After initializing the curses or terminfo interfaces,
-the \fBcur_term\fP contains data describing the current terminal.
-This variable is also set as a side-effect of \fBset_term\fP(3X)
-and \fBdelscreen\fP(3X).
+After initializing the
+.I curses
+or
+.I \%term\%info
+interfaces,
+.B cur_term
+contains data describing the current terminal.
+It is also updated as a side effect of \fBset_term\fP(3X) and
+\fBdelscreen\fP(3X).
 .PP
-It is possible to save a value of \fBcur_term\fP for subsequent
-use as a parameter to \fBset_term\fP, for switching between screens.
-Alternatively, one can save the return value from \fBnewterm\fP
-or \fBsetupterm\fP(3X) to reuse in \fBset_term\fP.
+It is possible to save a value of
+.B cur_term
+for subsequent use as a parameter to \fBset_term\fP(3X)
+for switching between screens.
+Alternatively,
+one can save the return value from \fBnewterm\fP(3X) or
+\fBsetupterm\fP(3X) to reuse in \fBset_term\fP(3X).
 .SS "\fIterminfo\fP Lookup Tables"
 The \fB@TIC@\fP(1) and \fB@INFOCMP@\fP(1) programs use lookup tables for
-the long and short names of terminfo capabilities,
-as well as the corresponding names for termcap capabilities.
+the long and short names of
+.I \%term\%info
+capabilities,
+as well as the corresponding names for
+.I termcap
+capabilities.
 These are available to other applications,
-although the hash-tables used by
-the terminfo and termcap functions are not available.
+though the hash tables used by the
+.I \%term\%info
+and
+.I termcap
+functions are not.
 .PP
-The long terminfo capability names use a \*(``f\*('' (eff) in their names:
-\fBboolfnames\fP,
-\fBnumfnames\fP, and
-\fBstrfnames\fP.
-.PP
-These are the short names for terminfo capabilities:
-\fBboolnames\fP,
-\fBnumnames\fP, and
-\fBstrnames\fP.
-.PP
-These are the corresponding names used for termcap descriptions:
-\fBboolcodes\fP,
-\fBnumcodes\fP, and
-\fBstrcodes\fP.
+.I \%term\%info
+stores capability names in arrays with an \*(``f\*('' (eff) in their
+names:
+.BR \%boolfnames ","
+.BR \%numfnames ","
+and
+.BR \%strfnames "."
+It stores the briefer capability codes in arrays without the
+\*(``f\*('':
+.BR \%boolnames ","
+.BR \%numnames ","
+and
+.BR \%strnames "."
+The corresponding
+.I termcap
+capability codes are stored in
+.BR \%boolcodes ","
+.BR \%numcodes ","
+and
+.BR \%strcodes "."
+\fB\%terminfo\fP(5) catalogs these.
 .\"
 .SS "Terminal Type"
 A terminal description begins with one or more terminal names
 separated by \*(``|\*('' (vertical bars).
-On initialization of the curses or terminfo interfaces,
-\fBsetupterm\fP(3X) copies the terminal names to the array \fBttytype\fP.
+On initialization of the
+.I curses
+or
+.I \%term\%info
+interfaces,
+\fBsetupterm\fP(3X) copies the terminal name to the array
+.BR ttytype "."
 .\"
 .SS "\fIterminfo\fP Names"
-In addition to the variables, \fB<term.h>\fP also defines a symbol for each
-terminfo capability \fIlong name\fP.
-These are in terms of the symbol \fBCUR\fP,
+In addition to the variables,
+.I term.h
+also defines a symbol for each
+.I \%term\%info
+capability name.
+These are in terms of the symbol
+.BR CUR ","
 which is defined
 .PP
+.RS
 .EX
 #define CUR ((TERMTYPE *)(cur_term))\->
 .EE
+.RE
 .PP
-These symbols provide a faster method of accessing terminfo capabilities
-than using \fBtigetstr\fP(3X), etc.
+These symbols provide a faster method of accessing
+.I \%term\%info
+capabilities than using,
+for example,
+\fBtigetstr\fP(3X).
 .PP
-The actual definition of \fBCUR\fP depends upon the implementation,
-but each terminfo library provides these long names defined to point
-into the current terminal description loaded into memory.
+The definition of
+.B CUR
+is implementation-dependent,
+but each
+.I \%term\%info
+library defines these names to point
+into the in-memory description of the current terminal.
+For example,
+in
+.IR \%ncurses ","
+the expressions
+.B tigetstr("key_dc")
+and
+\*(``\c\" `` string not reliable in a macro call on DWB/Heirloom nroffs
+.B "CUR Strings[59]\c"
+\*('' \" '' string not reliable in a macro call on DWB/Heirloom nroffs
+are equivalent.
 .\"
-.SH NOTES
-The low-level terminfo interface is initialized using
-\fB\%setupterm\fP(3X).
-The upper-level curses interface uses the low-level terminfo interface,
-internally.
+.SS "\fIterminfo\fP and \fIcurses"
+\fB\%setupterm\fP(3X) initializes the lower-level
+.I \%term\%info
+interface.
+The higher-level
+.I curses
+interface uses the
+.I \%term\%info
+interface internally;
+the symbol
+.B SP
+bridges the
+.I curses
+.I SCREEN
+type with the
+.I \%term\%info
+.I TERMINAL
+type.
 .\"
 .SH PORTABILITY
-X/Open Curses does not describe any of these except for \fBcur_term\fP.
-(The inclusion of \fBcur_term\fP appears to be an oversight,
-since other comparable low-level information is omitted by X/Open).
+X/Open Curses does not describe any of these symbols except for
+.IR \%cur_term "."
+(The inclusion of
+.I \%cur_term
+appears to be an oversight,
+since other comparable low-level information is omitted by X/Open.)
 .PP
 Other implementations may have comparable variables.
 Some implementations provide the variables in their libraries,
 but omit them from the header files.
 .PP
-All implementations which provide terminfo interfaces add definitions
-as described in the \fBTerminfo Names\fP section.
-Most, but not all, base the definition upon the \fBcur_term\fP variable.
+All implementations that provide
+.I \%term\%info
+interfaces add definitions
+as described in the
+.RI \*(`` terminfo
+Names\*('' section above.
+Most,
+but not all,
+base the definition upon the
+.I \%cur_term
+variable.
 .SH SEE ALSO
 \fB\%curses\fP(3X),
 \fB\%curs_terminfo\fP(3X),

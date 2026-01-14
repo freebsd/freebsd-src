@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020-2021,2022 Thomas E. Dickey                                *
+ * Copyright 2020-2022,2024 Thomas E. Dickey                                *
  * Copyright 1998-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_post.c,v 1.38 2022/09/24 09:38:44 tom Exp $")
+MODULE_ID("$Id: m_post.c,v 1.41 2024/07/27 18:08:59 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu
@@ -67,7 +67,7 @@ _nc_Post_Item(const MENU *menu, const ITEM *item)
      - it is a onevalued menu and it is the current item
      - or it has a selection value
    */
-  wattron(menu->win, (int)menu->back);
+  wattr_on(menu->win, menu->back, NULL);
   if (item->value || (item == menu->curitem))
     {
       if (menu->marklen)
@@ -79,13 +79,13 @@ _nc_Post_Item(const MENU *menu, const ITEM *item)
 	     item. */
 	  if (!(menu->opt & O_ONEVALUE) && item->value && item != menu->curitem)
 	    {
-	      wattron(menu->win, (int)menu->fore);
+	      wattr_on(menu->win, menu->fore, NULL);
 	      isfore = TRUE;
 	    }
 	  waddstr(menu->win, menu->mark);
 	  if (isfore)
 	    {
-	      wattron(menu->win, (int)menu->fore);
+	      wattr_on(menu->win, menu->fore, NULL);
 	      isfore = FALSE;
 	    }
 	}
@@ -93,7 +93,7 @@ _nc_Post_Item(const MENU *menu, const ITEM *item)
   else				/* otherwise we have to wipe out the marker area */
     for (ch = ' ', i = menu->marklen; i > 0; i--)
       waddch(menu->win, ch);
-  wattroff(menu->win, (int)menu->back);
+  wattr_off(menu->win, menu->back, NULL);
   count += menu->marklen;
 
   /* First we have to calculate the attribute depending on selectability
@@ -101,19 +101,19 @@ _nc_Post_Item(const MENU *menu, const ITEM *item)
    */
   if (!(item->opt & O_SELECTABLE))
     {
-      wattron(menu->win, (int)menu->grey);
+      wattr_on(menu->win, menu->grey, NULL);
       isgrey = TRUE;
     }
   else
     {
       if (item->value || item == menu->curitem)
 	{
-	  wattron(menu->win, (int)menu->fore);
+	  wattr_on(menu->win, menu->fore, NULL);
 	  isfore = TRUE;
 	}
       else
 	{
-	  wattron(menu->win, (int)menu->back);
+	  wattr_on(menu->win, menu->back, NULL);
 	  isback = TRUE;
 	}
     }
@@ -159,10 +159,10 @@ _nc_Post_Item(const MENU *menu, const ITEM *item)
 	  assert(cx >= 0 && cy >= 0);
 	  getyx(menu->win, ncy, ncx);
 	  if (isgrey)
-	    wattroff(menu->win, (int)menu->grey);
+	    wattr_off(menu->win, menu->grey, NULL);
 	  else if (isfore)
-	    wattroff(menu->win, (int)menu->fore);
-	  wattron(menu->win, (int)menu->back);
+	    wattr_off(menu->win, menu->fore, NULL);
+	  wattr_on(menu->win, menu->back, NULL);
 	  for (j = 1; j < menu->spc_rows; j++)
 	    {
 	      if ((item_y + j) < getmaxy(menu->win))
@@ -176,17 +176,17 @@ _nc_Post_Item(const MENU *menu, const ITEM *item)
 	    }
 	  wmove(menu->win, ncy, ncx);
 	  if (!isback)
-	    wattroff(menu->win, (int)menu->back);
+	    wattr_off(menu->win, menu->back, NULL);
 	}
     }
 
   /* Remove attributes */
   if (isfore)
-    wattroff(menu->win, (int)menu->fore);
+    wattr_off(menu->win, menu->fore, NULL);
   if (isback)
-    wattroff(menu->win, (int)menu->back);
+    wattr_off(menu->win, menu->back, NULL);
   if (isgrey)
-    wattroff(menu->win, (int)menu->grey);
+    wattr_off(menu->win, menu->grey, NULL);
 }
 
 /*---------------------------------------------------------------------------
@@ -201,7 +201,7 @@ MENU_EXPORT(void)
 _nc_Draw_Menu(const MENU *menu)
 {
   ITEM *item = menu->items[0];
-  ITEM *lastvert;
+  const ITEM *lastvert;
   ITEM *hitem;
   chtype s_bkgd;
 
@@ -220,7 +220,7 @@ _nc_Draw_Menu(const MENU *menu)
 
       do
 	{
-	  ITEM *lasthor;
+	  const ITEM *lasthor;
 
 	  wmove(menu->win, y, 0);
 
@@ -231,7 +231,7 @@ _nc_Draw_Menu(const MENU *menu)
 	    {
 	      _nc_Post_Item(menu, hitem);
 
-	      wattron(menu->win, (int)menu->back);
+	      wattr_on(menu->win, menu->back, NULL);
 	      if (((hitem = hitem->right) != lasthor) && hitem)
 		{
 		  int i, j, cy, cx;
@@ -250,7 +250,7 @@ _nc_Draw_Menu(const MENU *menu)
 		}
 	    }
 	  while (hitem && (hitem != lasthor));
-	  wattroff(menu->win, (int)menu->back);
+	  wattr_off(menu->win, menu->back, NULL);
 
 	  item = item->down;
 	  y += menu->spc_rows;
@@ -291,7 +291,7 @@ post_menu(MENU *menu)
     {
       int h = 1 + menu->spc_rows * (menu->rows - 1);
 
-      WINDOW *win = Get_Menu_Window(menu);
+      const WINDOW *win = Get_Menu_Window(menu);
       int maxy = getmaxy(win);
 
       if ((menu->win = newpad(h, menu->width)))

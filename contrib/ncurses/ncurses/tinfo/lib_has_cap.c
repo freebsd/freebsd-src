@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2009,2013 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -47,7 +47,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_has_cap.c,v 1.11 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_has_cap.c,v 1.12 2024/11/23 19:17:15 tom Exp $")
 
 NCURSES_EXPORT(bool)
 NCURSES_SP_NAME(has_ic) (NCURSES_SP_DCL0)
@@ -62,7 +62,7 @@ NCURSES_SP_NAME(has_ic) (NCURSES_SP_DCL0)
 		&& (delete_character || parm_dch)) ? TRUE : FALSE;
     }
 
-    returnCode(code);
+    returnBool(code);
 }
 
 #if NCURSES_SP_FUNCS
@@ -83,7 +83,7 @@ NCURSES_SP_NAME(has_il) (NCURSES_SP_DCL0)
 		&& (delete_line || parm_delete_line)) ? TRUE : FALSE;
     }
 
-    returnCode(code);
+    returnBool(code);
 }
 
 #if NCURSES_SP_FUNCS

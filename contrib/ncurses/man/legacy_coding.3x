@@ -29,8 +29,8 @@
 .\"
 .\" Author: Thomas E. Dickey
 .\"
-.\" $Id: legacy_coding.3x,v 1.28 2024/04/20 19:13:50 tom Exp $
-.TH legacy_coding 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: legacy_coding.3x,v 1.32 2024/09/14 20:06:50 tom Exp $
+.TH legacy_coding 3X 2024-09-14 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fB\%use_legacy_coding\fP \-
 override \fIcurses\fR locale encoding checks
@@ -41,15 +41,18 @@ override \fIcurses\fR locale encoding checks
 \fBint use_legacy_coding(int \fIlevel\fP);
 .fi
 .SH DESCRIPTION
-.B \%use_legacy_coding
-is an extension to the
+.BR \%use_legacy_coding ","
+an
+.I \%ncurses
+extension to the
 .I curses
-library.
-It allows the caller to change the result of \fB\%unctrl\fP(3X),
+library,
+permits customiztion of \fB\%unctrl\fP(3X) behavior,
 suppressing \fI\%isprint\fP(3)-based checks within the library that
 would normally cause nonprinting characters to be rendered in visible
 form.
-The alteration affects only eight-bit characters.
+The alteration affects only byte-wide characters with the most
+significant bit set.
 .PP
 The
 .I level
@@ -73,7 +76,9 @@ It also modifies the output of \fB\%unctrl\fP(3X),
 showing codes in the range 128-159 as is.
 .RE
 .SH RETURN VALUE
-If the screen has not been initialized,
+If the
+.I curses
+screen has not been initialized,
 or the
 .I level
 parameter is out of range,
@@ -81,23 +86,24 @@ parameter is out of range,
 returns
 .BR ERR .
 Otherwise,
-it returns the previous level:
-.BR 0 ,
-.BR 1 ,
-or
-.BR 2 .
-.SH PORTABILITY
+it returns the previous level.
+.SH EXTENSIONS
 .B \%use_legacy_coding
-is specific to
-.IR \%ncurses .
-It was not supported on Version 7, BSD or System V implementations.
+is an
+.I \%ncurses
+extension.
+.SH PORTABILITY
 Applications employing
 .I \%ncurses
 extensions should condition their use on the visibility of the
 .B \%NCURSES_VERSION
 preprocessor macro.
+.SH HISTORY
+.I \%ncurses
+5.6 (2006) introduced
+.I \%use_legacy_coding
+to support \fI\%lynx\fP(1)'s font-switching feature.
 .SH AUTHORS
 Thomas Dickey
-(to support \fI\%lynx\fP(1)'s font-switching feature).
 .SH SEE ALSO
 \fB\%unctrl\fP(3X)

@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2007,2010 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_border.3x,v 1.49 2024/04/20 21:20:07 tom Exp $
-.TH curs_border 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_border.3x,v 1.65 2025/10/20 23:42:24 tom Exp $
+.TH curs_border 3X 2025-10-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -39,6 +39,11 @@
 .ie t .ds '' ''
 .el   .ds '' ""
 .\}
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
 .SH NAME
 \fB\%border\fP,
 \fB\%wborder\fP,
@@ -57,93 +62,131 @@ draw borders and lines in a \fIcurses\fR window of characters
 \fB#include <curses.h>
 .PP
 \fBint border(chtype \fIls\fP, chtype \fIrs\fP, chtype \fIts\fP, chtype \fIbs\fP,
-           \fBchtype \fItl\fB, chtype \fItr\fB, chtype \fIbl\fB, chtype \fIbr\fB);\fR
+      \fBchtype \fItl\fB, chtype \fItr\fB, chtype \fIbl\fB, chtype \fIbr\fB);\fR
 \fBint wborder(WINDOW *\fIwin\fB, chtype \fIls\fB, chtype \fIrs\fB,\fR
-            \fBchtype \fIts\fB, chtype \fIbs\fB, chtype \fItl\fB, chtype \fItr\fB,\fR
-            \fBchtype \fIbl\fB, chtype \fIbr\fB);\fR
+      \fBchtype \fIts\fB, chtype \fIbs\fB, chtype \fItl\fB, chtype \fItr\fB,\fR
+      \fBchtype \fIbl\fB, chtype \fIbr\fB);\fR
 .PP
 \fBint box(WINDOW *\fIwin\fB, chtype \fIverch\fB, chtype \fIhorch\fB);\fR
 .PP
 \fBint hline(chtype \fIch\fB, int \fIn\fB);\fR
 \fBint whline(WINDOW *\fIwin\fB, chtype \fIch\fB, int \fIn\fB);\fR
-\fBint vline(chtype \fIch\fB, int \fIn\fB);\fR
-\fBint wvline(WINDOW *\fIwin\fB, chtype \fIch\fB, int \fIn\fB);\fR
-.PP
 \fBint mvhline(int \fIy\fB, int \fIx\fB, chtype \fIch\fB, int \fIn\fB);\fR
 \fBint mvwhline(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, chtype \fIch\fB, int \fIn\fB);\fR
+.PP
+\fBint vline(chtype \fIch\fB, int \fIn\fB);\fR
+\fBint wvline(WINDOW *\fIwin\fB, chtype \fIch\fB, int \fIn\fB);\fR
 \fBint mvvline(int \fIy\fB, int \fIx\fB, chtype \fIch\fB, int \fIn\fB);\fR
 \fBint mvwvline(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, chtype \fIch\fB, int \fIn\fB);\fR
 .fi
 .SH DESCRIPTION
-The \fBborder\fP, \fBwborder\fP and \fBbox\fP routines
-draw a box around the edges of a window.
-Other than the window, each argument is a character with attributes:
-.sp
+.B \%wborder
+and
+.B \%border
+draw a box at the edges of the specified window or
+.BR \%stdscr ","
+respectively.
+Each
+.I \%chtype
+argument corresponds to a geometric component of the border as follows:
 .RS
-\fIls\fP \- left side,
+.I ls
+\- left side,
 .br
-\fIrs\fP \- right side,
+.I rs
+\- right side,
 .br
-\fIts\fP \- top side,
+.I ts
+\- top side,
 .br
-\fIbs\fP \- bottom side,
+.I bs
+\- bottom side,
 .br
-\fItl\fP \- top left-hand corner,
+.I tl
+\- top left-hand corner,
 .br
-\fItr\fP \- top right-hand corner,
+.I tr
+\- top right-hand corner,
 .br
-\fIbl\fP \- bottom left-hand corner, and
+.I bl
+\- bottom left-hand corner, and
 .br
-\fIbr\fP \- bottom right-hand corner.
+.I br
+\- bottom right-hand corner.
 .RE
 .PP
-If any of these arguments is zero, then the corresponding
-default values (defined in \fBcurses.h\fP) are used instead:
-.sp
+If any
+.I \%chtype
+argument is
+.BR 0 ","
+then
+.I curses
+uses forms-drawing characters
+(see \fBaddch\fP(3X))
+in the following correspondence:
 .RS
-\fBACS_VLINE\fP,
+.BR \%ACS_VLINE ","
 .br
-\fBACS_VLINE\fP,
+.BR \%ACS_VLINE ","
 .br
-\fBACS_HLINE\fP,
+.BR \%ACS_HLINE ","
 .br
-\fBACS_HLINE\fP,
+.BR \%ACS_HLINE ","
 .br
-\fBACS_ULCORNER\fP,
+.BR \%ACS_ULCORNER ","
 .br
-\fBACS_URCORNER\fP,
+.BR \%ACS_URCORNER ","
 .br
-\fBACS_LLCORNER\fP,
+.BR \%ACS_LLCORNER ","
+and
 .br
-\fBACS_LRCORNER\fP.
+.BR \%ACS_LRCORNER "."
 .RE
 .PP
-\fBbox(\fIwin\fB, \fIverch\fB, \fIhorch\fB)\fR is a shorthand
-for the following call: \fBwborder(\fIwin\fB,\fR \fIverch\fB,\fR
-\fIverch\fB,\fR \fIhorch\fB,\fR \fIhorch\fB, 0, 0, 0, 0)\fR.
+.BI \%box( win ","
+.IB verch ,
+.IB horch )
+is shorthand for
+.RB \%\*(`` wborder(\c
+.IB win ,
+.IB verch ,
+.IB verch ,
+.IB horch ,
+.IB horch ,
+.BR "0, 0, 0, 0)" "\*(''."
 .PP
-The \fBhline\fP and \fBwhline\fP functions draw a horizontal (left to right)
-line using \fIch\fP starting at the current cursor position in the window.
-The
-current cursor position is not changed.
-The line is at most \fIn\fP characters
-long, or as many as fit into the window.
-.PP
-The \fBvline\fP and \fBwvline\fP functions draw a vertical (top to bottom) line
-using \fIch\fP starting at the current cursor position in the window.
-The
-current cursor position is not changed.
-The line is at most \fIn\fP characters
-long, or as many as fit into the window.
+.B \%whline
+draws a horizontal line of
+.I ch
+from left to right,
+and
+.B \%wvline
+a vertical one from top to bottom,
+stopping once
+.I n
+characters have been drawn or upon reaching the boundary of
+.IR win "."
+These functions do not update the cursor position
+(beyond any motion directed by their \*(``mv\*('' variants).
+\fB\%ncurses\fP(3X) describes the variants of these functions.
 .SH RETURN VALUE
-All routines return the integer \fBOK\fP.
-The SVr4.0 manual says
-\*(``or a non-negative integer if \fB\%immedok\fP is set\*('',
-but this appears to be an error.
+These functions return
+.B OK
+on success and
+.B ERR
+on failure.
 .PP
-X/Open Curses does not specify any error conditions.
-This implementation returns an error
-if the window pointer is null.
+In
+.IR \%ncurses ","
+.bP
+these functions fail if the screen is not initialized;
+and
+.bP
+functions taking a
+.I \%WINDOW
+pointer argument fail if
+.I win
+is a null pointer.
 .PP
 Functions prefixed with \*(``mv\*('' first perform cursor movement and
 fail if the position
@@ -151,12 +194,90 @@ fail if the position
 .IR x )
 is outside the window boundaries.
 .SH NOTES
-The borders generated by these functions are \fIinside\fP borders (this
-is also true of SVr4 curses, though the fact is not documented).
+Unusually,
+there is no
+.B \%wbox
+function;
+.B \%box
+behaves as one would expect
+.B \%wbox
+to,
+accepting a
+.I \%WINDOW
+pointer argument.
 .PP
-Note that \fBborder\fP and \fBbox\fP may be macros.
+.BR \%border ","
+.BR \%box ","
+.BR \%hline ","
+.BR \%mvhline ","
+.BR \%mvwhline ","
+.BR \%vline ","
+.BR \%mvvline ","
+and
+.B \%mvwvline
+may be implemented as macros.
+.PP
+Borders drawn by these functions are
+.I interior
+borders.
+.\" https://minnie.tuhs.org/cgi-bin/utree.pl?file=4BSD/usr/src/lib/libcurses/box.c
 .SH PORTABILITY
-These functions are described in X/Open Curses, Issue 4.
+These functions are described in X/Open Curses Issue\ 4.
+It specifies no error conditions for them.
+.PP
+SVr4 documentation
+.\" SVID 4, vol. 3, p. 483
+says that these functions return
+.I OK
+\*(``or a non-negative integer if
+.I \%immedok() \" Courier roman in source
+is set\*('',
+referring to the return value from
+.IR \%wrefresh ","
+which in SVr4 returns a count of characters
+written to the window if its
+.I \%immedok
+property is set;
+.\" ...though its wrefresh() man page says nothing about immedok()...
+in
+.IR \%ncurses ","
+it does not.
+.PP
+BSD
+.I curses
+drew boxes with
+.I horch
+in
+.I every
+character cell of the top and bottom lines of the window,
+whereas SVr3.1 and later
+.IR curses ","
+because its
+.I box
+wrapped
+.IR wborder ","
+used the default corner characters.
+.\" https://github.com/ryanwoodsmall/oldsysv/blob/master/sysvr3/31/\
+.\"   usr/src/lib/libcurses/screen/curses.ed#L454
+.SH HISTORY
+4BSD (1980)
+introduced
+.IR box ","
+defining it as a function.
+.PP
+SVr3.1 (1987)
+added
+.I \%whline
+and
+.I \%wvline
+and their variants,
+as well as
+.I \%border
+and
+.IR \%wborder ","
+redefining
+.I \%box
+as a macro wrapping the latter.
 .SH SEE ALSO
 \fB\%curses\fP(3X),
 \fB\%curs_outopts\fP(3X)

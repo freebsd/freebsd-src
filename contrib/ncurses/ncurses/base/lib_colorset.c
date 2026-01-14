@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -42,7 +42,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_colorset.c,v 1.16 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_colorset.c,v 1.17 2024/12/07 20:00:48 tom Exp $")
 
 NCURSES_EXPORT(int)
 wcolor_set(WINDOW *win, NCURSES_PAIRS_T pair_arg, void *opts)
@@ -53,7 +53,7 @@ wcolor_set(WINDOW *win, NCURSES_PAIRS_T pair_arg, void *opts)
     T((T_CALLED("wcolor_set(%p,%d)"), (void *) win, color_pair));
     set_extended_pair(opts, color_pair);
     if (win
-	&& (SP != 0)
+	&& (SP != NULL)
 	&& (color_pair >= 0)
 	&& (color_pair < SP->_pair_limit)) {
 	TR(TRACE_ATTRS, ("... current %ld", (long) GET_WINDOW_PAIR(win)));

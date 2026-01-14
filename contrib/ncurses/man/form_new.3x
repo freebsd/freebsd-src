@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_new.3x,v 1.32 2024/03/16 15:35:01 tom Exp $
-.TH form_new 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: form_new.3x,v 1.34 2024/12/28 21:26:21 tom Exp $
+.TH form_new 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBnew_form\fP,
 \fBfree_form\fP \-
@@ -42,12 +42,15 @@ create and destroy forms
 .fi
 .SH DESCRIPTION
 The function \fBnew_form\fP creates a new form connected to a specified field
-pointer array (which must be \fBNULL\fP-terminated).
+pointer array (which must be
+.IR NULL -terminated).
 .PP
 The function \fBfree_form\fP disconnects \fIform\fP from its field array
 and frees the storage allocated for the form.
 .SH RETURN VALUE
-The function \fBnew_form\fP returns \fBNULL\fP on error.
+The function \fBnew_form\fP returns
+.I NULL
+on error.
 It sets \fBerrno\fP according to the function's success:
 .TP 5
 .B E_OK

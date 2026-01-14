@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2021,2023 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2017,2018 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -42,7 +42,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_screen.c,v 1.105 2023/04/28 20:58:54 tom Exp $")
+MODULE_ID("$Id: lib_screen.c,v 1.113 2025/12/27 12:28:45 tom Exp $")
 
 #define MAX_SIZE 0x3fff		/* 16k is big enough for a window or pad */
 
@@ -58,7 +58,7 @@ MODULE_ID("$Id: lib_screen.c,v 1.105 2023/04/28 20:58:54 tom Exp $")
 #define ARG_SLIMIT(name)	/* nothing */
 #endif
 
-#define CUR_SLIMIT _nc_SLIMIT(limit - (size_t) (target - base))
+#define CUR_SLIMIT _nc_SLIMIT(limit - (size_t) (target + 1 - base))
 #define TOP_SLIMIT _nc_SLIMIT(sizeof(buffer))
 
 /*
@@ -172,7 +172,7 @@ read_txt(FILE *fp)
     char *result = malloc(limit);
     char *buffer;
 
-    if (result != 0) {
+    if (result != NULL) {
 	int ch = 0;
 	size_t used = 0;
 
@@ -182,9 +182,9 @@ read_txt(FILE *fp)
 	    if (used + 2 >= limit) {
 		limit += 1024;
 		buffer = realloc(result, limit);
-		if (buffer == 0) {
+		if (buffer == NULL) {
 		    free(result);
-		    result = 0;
+		    result = NULL;
 		    break;
 		}
 		result = buffer;
@@ -201,7 +201,7 @@ read_txt(FILE *fp)
 	    TR(TRACE_IEVENT, ("READ:%s", result));
 	} else if (used == 0) {
 	    free(result);
-	    result = 0;
+	    result = NULL;
 	}
     }
     return result;
@@ -222,7 +222,6 @@ decode_attr(char *source, attr_t *target, int *color)
 	    source++;
 	    found = FALSE;
 	} else if (found) {
-	    size_t n;
 	    char *next = source;
 
 	    if (source[0] == GUTTER) {
@@ -241,6 +240,8 @@ decode_attr(char *source, attr_t *target, int *color)
 		*target |= pair;
 		*color = value;
 	    } else {
+		size_t n;
+
 		while (isalnum(UChar(*next))) {
 		    ++next;
 		}
@@ -304,8 +305,8 @@ decode_char(char *source, int *target)
 	if (limit) {
 	    *target = 0;
 	    while (limit-- > 0) {
-		char *find = strchr(digits, *source++);
-		int ch = (find != 0) ? (int) (find - digits) : -1;
+		const char *find = strchr(digits, *source++);
+		int ch = (find != NULL) ? (int) (find - digits) : -1;
 		*target *= base;
 		if (ch >= 0 && ch < base) {
 		    *target += ch;
@@ -337,7 +338,7 @@ decode_chtype(char *source, chtype fillin, chtype *target)
 
 #if NCURSES_WIDECHAR
 static char *
-decode_cchar(char *source, cchar_t *fillin, cchar_t *target)
+decode_cchar(char *source, const cchar_t *fillin, cchar_t *target)
 {
     int color;
     attr_t attr = fillin->attr;
@@ -382,18 +383,18 @@ read_win(WINDOW *win, FILE *fp)
 
     memset(win, 0, sizeof(WINDOW));
     for (;;) {
-	char *name;
+	const char *name;
 	char *value;
 	char *txt = read_txt(fp);
 
-	if (txt == 0)
+	if (txt == NULL)
 	    break;
 	if (!strcmp(txt, "rows:")) {
 	    free(txt);
 	    code = OK;
 	    break;
 	}
-	if ((value = strchr(txt, '=')) == 0) {
+	if ((value = strchr(txt, '=')) == NULL) {
 	    free(txt);
 	    continue;
 	}
@@ -505,8 +506,8 @@ NCURSES_SP_NAME(getwin) (NCURSES_SP_DCLx FILE *filep)
 
     T((T_CALLED("getwin(%p)"), (void *) filep));
 
-    if (filep == 0) {
-	returnWin(0);
+    if (filep == NULL) {
+	returnWin(NULL);
     }
 
     /*
@@ -514,7 +515,7 @@ NCURSES_SP_NAME(getwin) (NCURSES_SP_DCLx FILE *filep)
      * screen-dump, or new-format.
      */
     if (read_block(&tmp, (size_t) 4, filep) < 0) {
-	returnWin(0);
+	returnWin(NULL);
     }
     /*
      * If this is a new-format file, and we do not support it, give up.
@@ -523,9 +524,9 @@ NCURSES_SP_NAME(getwin) (NCURSES_SP_DCLx FILE *filep)
 #if NCURSES_EXT_PUTWIN
 	if (read_win(&tmp, filep) < 0)
 #endif
-	    returnWin(0);
+	    returnWin(NULL);
     } else if (read_block(((char *) &tmp) + 4, sizeof(WINDOW) - 4, filep) < 0) {
-	returnWin(0);
+	returnWin(NULL);
     } else {
 	old_format = TRUE;
     }
@@ -537,7 +538,7 @@ NCURSES_SP_NAME(getwin) (NCURSES_SP_DCLx FILE *filep)
 	tmp._maxy > MAX_SIZE ||
 	tmp._maxx == 0 ||
 	tmp._maxx > MAX_SIZE) {
-	returnWin(0);
+	returnWin(NULL);
     }
 
     if (IS_PAD(&tmp)) {
@@ -555,7 +556,7 @@ NCURSES_SP_NAME(getwin) (NCURSES_SP_DCLx FILE *filep)
      * fields, because the window hierarchy within which they
      * made sense is probably gone.
      */
-    if (nwin != 0) {
+    if (nwin != NULL) {
 	int n;
 	size_t linesize = sizeof(NCURSES_CH_T) * (size_t) (tmp._maxx + 1);
 
@@ -593,13 +594,13 @@ NCURSES_SP_NAME(getwin) (NCURSES_SP_DCLx FILE *filep)
 	    for (n = 0; n <= nwin->_maxy; n++) {
 		if (read_block(nwin->_line[n].text, linesize, filep) < 0) {
 		    delwin(nwin);
-		    returnWin(0);
+		    returnWin(NULL);
 		}
 	    }
 	}
 #if NCURSES_EXT_PUTWIN
 	else {
-	    char *txt = 0;
+	    char *txt = NULL;
 	    bool success = TRUE;
 	    NCURSES_CH_T prior = blank;
 
@@ -608,7 +609,7 @@ NCURSES_SP_NAME(getwin) (NCURSES_SP_DCLx FILE *filep)
 		long row;
 		char *next;
 
-		if ((txt = read_txt(filep)) == 0) {
+		if ((txt = read_txt(filep)) == NULL) {
 		    T(("...failed to read string for row %d", n + 1));
 		    success = FALSE;
 		    break;
@@ -627,13 +628,13 @@ NCURSES_SP_NAME(getwin) (NCURSES_SP_DCLx FILE *filep)
 		    break;
 		}
 		free(txt);
-		txt = 0;
+		txt = NULL;
 	    }
 
 	    if (!success) {
 		free(txt);
 		delwin(nwin);
-		returnWin(0);
+		returnWin(NULL);
 	    }
 	}
 #endif
@@ -797,7 +798,7 @@ putwin(WINDOW *win, FILE *filep)
     T((T_CALLED("putwin(%p,%p)"), (void *) win, (void *) filep));
 
 #if NCURSES_EXT_PUTWIN
-    if (win != 0) {
+    if (win != NULL) {
 	const char *version = curses_version();
 	char buffer[1024];
 	NCURSES_CH_T last_cell;
@@ -916,7 +917,7 @@ putwin(WINDOW *win, FILE *filep)
      * ncurses is compiled with wide-character support, and also may depend
      * on the version of ncurses, e.g., if the WINDOW structure is extended.
      */
-    if (win != 0) {
+    if (win != NULL) {
 	size_t len = (size_t) (win->_maxx + 1);
 	int y;
 
@@ -942,7 +943,7 @@ putwin(WINDOW *win, FILE *filep)
  * Replace a window covering the whole screen, i.e., newscr or curscr.
  */
 static WINDOW *
-replace_window(WINDOW *target, FILE *source)
+replace_window(const WINDOW *target, FILE *source)
 {
     WINDOW *result = getwin(source);
 #if NCURSES_EXT_FUNCS
@@ -959,26 +960,28 @@ replace_window(WINDOW *target, FILE *source)
 	}
     }
 #endif
-    delwin(target);
     return result;
 }
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(scr_restore) (NCURSES_SP_DCLx const char *file)
 {
-    FILE *fp = 0;
+    FILE *fp = NULL;
     int code = ERR;
 
     T((T_CALLED("scr_restore(%p,%s)"), (void *) SP_PARM, _nc_visbuf(file)));
 
-    if (_nc_access(file, R_OK) >= 0
-	&& (fp = safe_fopen(file, BIN_R)) != 0) {
-	NewScreen(SP_PARM) = replace_window(NewScreen(SP_PARM), fp);
-#if !USE_REENTRANT
-	newscr = NewScreen(SP_PARM);
-#endif
+    if (SP_PARM != NULL
+	&& _nc_access(file, R_OK) >= 0
+	&& (fp = safe_fopen(file, BIN_R)) != NULL) {
+	WINDOW *my_newscr = replace_window(NewScreen(SP_PARM), fp);
 	(void) fclose(fp);
-	if (NewScreen(SP_PARM) != 0) {
+	if (my_newscr != NULL) {
+	    delwin(NewScreen(SP_PARM));
+	    NewScreen(SP_PARM) = my_newscr;
+#if !USE_REENTRANT
+	    newscr = my_newscr;
+#endif
 	    code = OK;
 	}
     }
@@ -997,12 +1000,12 @@ NCURSES_EXPORT(int)
 scr_dump(const char *file)
 {
     int result;
-    FILE *fp = 0;
+    FILE *fp = NULL;
 
     T((T_CALLED("scr_dump(%s)"), _nc_visbuf(file)));
 
     if (_nc_access(file, W_OK) < 0
-	|| (fp = safe_fopen(file, BIN_W)) == 0) {
+	|| (fp = safe_fopen(file, BIN_W)) == NULL) {
 	result = ERR;
     } else {
 	(void) putwin(newscr, fp);
@@ -1019,23 +1022,25 @@ NCURSES_SP_NAME(scr_init) (NCURSES_SP_DCLx const char *file)
 
     T((T_CALLED("scr_init(%p,%s)"), (void *) SP_PARM, _nc_visbuf(file)));
 
-    if (SP_PARM != 0 &&
-#ifdef USE_TERM_DRIVER
+    if (SP_PARM != NULL &&
+#if USE_TERM_DRIVER
 	InfoOf(SP_PARM).caninit
 #else
 	!(exit_ca_mode && non_rev_rmcup)
 #endif
 	) {
-	FILE *fp = 0;
+	FILE *fp = NULL;
 
 	if (_nc_access(file, R_OK) >= 0
-	    && (fp = safe_fopen(file, BIN_R)) != 0) {
-	    CurScreen(SP_PARM) = replace_window(CurScreen(SP_PARM), fp);
-#if !USE_REENTRANT
-	    curscr = CurScreen(SP_PARM);
-#endif
+	    && (fp = safe_fopen(file, BIN_R)) != NULL) {
+	    WINDOW *my_curscr = replace_window(CurScreen(SP_PARM), fp);
 	    (void) fclose(fp);
-	    if (CurScreen(SP_PARM) != 0) {
+	    if (my_curscr != NULL) {
+		delwin(CurScreen(SP_PARM));
+		CurScreen(SP_PARM) = my_curscr;
+#if !USE_REENTRANT
+		curscr = my_curscr;
+#endif
 		code = OK;
 	    }
 	}
@@ -1058,13 +1063,14 @@ NCURSES_SP_NAME(scr_set) (NCURSES_SP_DCLx const char *file)
 
     T((T_CALLED("scr_set(%p,%s)"), (void *) SP_PARM, _nc_visbuf(file)));
 
-    if (NCURSES_SP_NAME(scr_init) (NCURSES_SP_ARGx file) == OK) {
+    if (SP_PARM != NULL
+	&& NCURSES_SP_NAME(scr_init) (NCURSES_SP_ARGx file) == OK) {
 	delwin(NewScreen(SP_PARM));
 	NewScreen(SP_PARM) = dupwin(curscr);
 #if !USE_REENTRANT
 	newscr = NewScreen(SP_PARM);
 #endif
-	if (NewScreen(SP_PARM) != 0) {
+	if (NewScreen(SP_PARM) != NULL) {
 	    code = OK;
 	}
     }

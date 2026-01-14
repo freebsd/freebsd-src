@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2021,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -53,7 +53,7 @@
 #include <ctype.h>
 #include <tic.h>
 
-MODULE_ID("$Id: lib_tparm.c,v 1.153 2023/11/04 19:28:41 tom Exp $")
+MODULE_ID("$Id: lib_tparm.c,v 1.157 2025/02/15 15:20:16 tom Exp $")
 
 /*
  *	char *
@@ -87,7 +87,7 @@ MODULE_ID("$Id: lib_tparm.c,v 1.153 2023/11/04 19:28:41 tom Exp $")
  *                     The ':' is used to avoid making %+ or %-
  *                     patterns (see below).
  *
- *	     %p[1-9]   push ith parm
+ *	     %p[1-9]   push ith param
  *	     %P[a-z]   set dynamic variable [a-z] to pop()
  *	     %g[a-z]   get dynamic variable [a-z] and push it
  *	     %P[A-Z]   set static variable [A-Z] to pop()
@@ -102,7 +102,7 @@ MODULE_ID("$Id: lib_tparm.c,v 1.153 2023/11/04 19:28:41 tom Exp $")
  *	     %= %> %<  logical operations: push(pop() op pop())
  *	     %A %O     logical and & or operations for conditionals
  *	     %! %~     unary operations push(op pop())
- *	     %i        add 1 to first two parms (for ANSI terminals)
+ *	     %i        add 1 to first two params (for ANSI terminals)
  *
  *	     %? expr %t thenpart %e elsepart %;
  *	               if-then-else, %e elsepart is optional.
@@ -343,7 +343,7 @@ static NCURSES_INLINE int
 #define spop(tps) \
     ((TPS(stack_ptr)-- > 0) \
      ? ((!TPS(stack)[TPS(stack_ptr)].num_type \
-        && TPS(stack)[TPS(stack_ptr)].data.str != 0) \
+        && TPS(stack)[TPS(stack_ptr)].data.str != NULL) \
          ? TPS(stack)[TPS(stack_ptr)].data.str \
          : dummy) \
      : (tparm_error(tps, "spop: stack underflow"), \
@@ -361,7 +361,7 @@ static NCURSES_INLINE const char *
 parse_format(const char *s, char *format, int *len)
 {
     *len = 0;
-    if (format != 0) {
+    if (format != NULL) {
 	bool done = FALSE;
 	bool allowminus = FALSE;
 	bool dot = FALSE;
@@ -475,13 +475,13 @@ _nc_tparm_analyze(TERMINAL *term, const char *string, char **p_is_s, int *popcou
     int level = -1;
     const char *cp = string;
 
-    if (cp == 0)
+    if (cp == NULL)
 	return 0;
 
     if ((len2 = strlen(cp)) + 2 > TPS(fmt_size)) {
 	TPS(fmt_size) += len2 + 2;
 	TPS(fmt_buff) = typeRealloc(char, TPS(fmt_size), TPS(fmt_buff));
-	if (TPS(fmt_buff) == 0)
+	if (TPS(fmt_buff) == NULL)
 	    return 0;
     }
 
@@ -616,14 +616,14 @@ tparm_setup(TERMINAL *term, const char *string, TPARM_DATA *result)
 	void *ft;
 
 	result->format = string;
-	if ((ft = tfind(result, &MyCache, cmp_format)) != 0) {
+	if ((ft = tfind(result, &MyCache, cmp_format)) != NULL) {
 	    size_t len2;
 	    fs = *(TPARM_DATA **) ft;
 	    *result = *fs;
 	    if ((len2 = strlen(string)) + 2 > TPS(fmt_size)) {
 		TPS(fmt_size) += len2 + 2;
 		TPS(fmt_buff) = typeRealloc(char, TPS(fmt_size), TPS(fmt_buff));
-		if (TPS(fmt_buff) == 0)
+		if (TPS(fmt_buff) == NULL)
 		    return ERR;
 	    }
 	} else
@@ -637,7 +637,7 @@ tparm_setup(TERMINAL *term, const char *string, TPARM_DATA *result)
 	    result->num_parsed = _nc_tparm_analyze(term, string,
 						   result->p_is_s,
 						   &(result->num_popped));
-	    if (TPS(fmt_buff) == 0) {
+	    if (TPS(fmt_buff) == NULL) {
 		TR(TRACE_CALLS, ("%s: error in analysis", TPS(tname)));
 		rc = ERR;
 	    } else {
@@ -654,10 +654,10 @@ tparm_setup(TERMINAL *term, const char *string, TPARM_DATA *result)
 			result->tparm_type |= (1 << n);
 		}
 #if HAVE_TSEARCH
-		if ((fs = typeCalloc(TPARM_DATA, 1)) != 0) {
+		if ((fs = typeCalloc(TPARM_DATA, 1)) != NULL) {
 		    *fs = *result;
-		    if ((fs->format = strdup(string)) != 0) {
-			if (tsearch(fs, &MyCache, cmp_format) != 0) {
+		    if ((fs->format = strdup(string)) != NULL) {
+			if (tsearch(fs, &MyCache, cmp_format) != NULL) {
 			    ++MyCount;
 			} else {
 			    free(fs);
@@ -690,9 +690,9 @@ tparm_copy_valist(TPARM_DATA *data, int use_TPARM_ARG, va_list ap)
     int i;
 
     for (i = 0; i < data->num_actual; i++) {
-	if (data->p_is_s[i] != 0) {
+	if (data->p_is_s[i] != NULL) {
 	    char *value = va_arg(ap, char *);
-	    if (value == 0)
+	    if (value == NULL)
 		value = dummy;
 	    data->p_is_s[i] = value;
 	    data->param[i] = 0;
@@ -740,7 +740,7 @@ tparm_trace_call(TPARM_STATE *tps, const char *string, TPARM_DATA *data)
     if (USE_TRACEF(TRACE_CALLS)) {
 	int i;
 	for (i = 0; i < data->num_actual; i++) {
-	    if (data->p_is_s[i] != 0) {
+	    if (data->p_is_s[i] != NULL) {
 		save_text(tps, ", %s", _nc_visbuf(data->p_is_s[i]), 0);
 	    } else if ((long) data->param[i] > MAX_OF_TYPE(NCURSES_INT2) ||
 		       (long) data->param[i] < 0) {
@@ -1003,12 +1003,12 @@ tparam_internal(TPARM_STATE *tps, const char *string, TPARM_DATA *data)
 		 */
 		if (!incremented_two) {
 		    incremented_two = TRUE;
-		    if (data->p_is_s[0] == 0) {
+		    if (data->p_is_s[0] == NULL) {
 			data->param[0]++;
 			if (termcap_hack)
 			    TPS(stack)[0].data.num = (int) data->param[0];
 		    }
-		    if (data->p_is_s[1] == 0) {
+		    if (data->p_is_s[1] == NULL) {
 			data->param[1]++;
 			if (termcap_hack)
 			    TPS(stack)[1].data.num = (int) data->param[1];
@@ -1099,7 +1099,7 @@ tparam_internal(TPARM_STATE *tps, const char *string, TPARM_DATA *data)
  * are parameterized accept only numeric parameters.
  */
 static bool
-check_string_caps(TPARM_DATA *data, const char *string)
+check_string_caps(const TPARM_DATA *data, const char *string)
 {
     bool result = FALSE;
 
@@ -1126,13 +1126,13 @@ check_string_caps(TPARM_DATA *data, const char *string)
 #endif
 #if NCURSES_XNAMES
 	else {
-	    char *check;
+	    const char *check;
 
-	    check = tigetstr("Cs");
+	    check = tigetstr(UserCap(Cs));
 	    if (CHECK_CAP(check))
 		want_type = 1;	/* style #1 */
 
-	    check = tigetstr("Ms");
+	    check = tigetstr(UserCap(Ms));
 	    if (CHECK_CAP(check))
 		want_type = 3;	/* storage unit #1, content #2 */
 	}
@@ -1354,13 +1354,13 @@ _nc_tiparm(int expected, const char *string, ...)
 	    }
 #if NCURSES_XNAMES
 	    else {
-		char *check;
+		const char *check;
 
-		check = tigetstr("xm");
+		check = tigetstr(UserCap(xm));
 		if (CHECK_CAP(check)) {
 		    needed = 3;
 		}
-		check = tigetstr("S0");
+		check = tigetstr(UserCap(S0));
 		if (CHECK_CAP(check)) {
 		    needed = 0;	/* used in screen-base */
 		}

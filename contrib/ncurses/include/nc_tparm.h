@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2023,2025 Thomas E. Dickey                                *
  * Copyright 2006-2012,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -31,7 +31,7 @@
  *  Author: Thomas E. Dickey                        2006                    *
  ****************************************************************************/
 
-/* $Id: nc_tparm.h,v 1.12 2023/04/16 17:57:28 tom Exp $ */
+/* $Id: nc_tparm.h,v 1.13 2025/01/04 23:42:30 tom Exp $ */
 
 #ifndef NC_TPARM_included
 #define NC_TPARM_included 1
@@ -88,6 +88,7 @@
 #define TIPARM_7(s,a,b,c,d,e,f,g) _nc_tiparm(7,s,a,b,c,d,e,f,g)
 #define TIPARM_8(s,a,b,c,d,e,f,g,h) _nc_tiparm(8,s,a,b,c,d,e,f,g,h)
 #define TIPARM_9(s,a,b,c,d,e,f,g,h,i) _nc_tiparm(9,s,a,b,c,d,e,f,g,h,i)
+#define TIPARM_N(N,s,a,b,c,d,e,f,g,h,i) _nc_tiparm(N,s,a,b,c,d,e,f,g,h,i)
 #endif
 
 #endif /* NC_TPARM_included */

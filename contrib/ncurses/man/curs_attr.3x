@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,8 +28,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_attr.3x,v 1.105 2024/04/27 17:54:42 tom Exp $
-.TH curs_attr 3X 2024-04-27 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_attr.3x,v 1.142 2025/11/12 01:05:49 tom Exp $
+.TH curs_attr 3X 2025-11-11 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -142,68 +142,88 @@ of the given window to \fIattrs\fP, with color specified by \fIpair\fP.
 Use \fBwattr_get\fP to retrieve attributes for the given window.
 .PP
 Use \fBattr_on\fP and \fBwattr_on\fP to turn on window attributes, i.e.,
-values OR'd together in \fIattr\fP,
+values logically \*(``or\*(''-ed together in \fIattr\fP,
 without affecting other attributes.
 Use \fBattr_off\fP and \fBwattr_off\fP to turn off window attributes,
-again values OR'd together in \fIattr\fP,
+again values logically \*(``or\*(''-ed together in \fIattr\fP,
 without affecting other attributes.
 .\" ---------------------------------------------------------------------------
 .SS "Legacy Window Attributes"
 The X/Open window attribute routines which \fIset\fP or \fIget\fP,
 turn \fIon\fP or \fIoff\fP
 are extensions of older routines
-which assume that color pairs are OR'd into the attribute parameter.
+which assume that color pairs are logically \*(``or\*(''-ed
+into the attribute parameter.
 These newer routines use similar names, because
 X/Open simply added an underscore (\fB_\fP) for the newer names.
 .PP
-The \fBint\fP datatype used in the legacy routines is treated as if
-it is the same size as \fBchtype\fP (used by \fBaddch\fP(3X)).
+The
+.I int
+datatype used in the legacy routines is treated as if
+it is the same size as
+.I \%chtype
+(used by \fBaddch\fP(3X)).
 It holds the common video attributes (such as bold, reverse),
 as well as a few bits for color.
 Those bits correspond to the \fBA_COLOR\fP symbol.
-The \fBCOLOR_PAIR\fP macro provides a value which can be OR'd into
-the attribute parameter.
+The \fBCOLOR_PAIR\fP macro provides a value which can be
+logically \*(``or\*(''-ed into the attribute parameter.
 For example,
 as long as that value fits into the \fBA_COLOR\fP mask,
 then these calls produce similar results:
 .PP
 .RS 4
 .EX
+.nf
 attrset(A_BOLD | COLOR_PAIR(\fIpair\fP));
 attr_set(A_BOLD, \fIpair\fP, NULL);
+.fi
 .EE
 .RE
 .PP
 However, if the value does not fit, then the \fBCOLOR_PAIR\fP macro
 uses only the bits that fit.
 For example,
-because in \fI\%ncurses\fP \fBA_COLOR\fP has eight (8) bits,
+because in
+.I \%ncurses
+\fBA_COLOR\fP has eight (8) bits,
 then \fBCOLOR_PAIR(\fI259\fB)\fR is 4
 (i.e., 259 is 4 more than the limit 255).
 .PP
-The \fBPAIR_NUMBER\fP macro extracts a pair number from an \fBint\fP
-(or \fBchtype\fP).
+The \fBPAIR_NUMBER\fP macro extracts a pair number from an
+.I int
+(or
+.IR \%chtype ")."
 For example, the \fIinput\fP and \fIoutput\fP values in these statements
 would be the same:
 .PP
 .RS 4
 .EX
+.nf
 int value = A_BOLD | COLOR_PAIR(\fIinput\fP);
 int \fIoutput\fP = PAIR_NUMBER(value);
+.fi
 .EE
 .RE
 .PP
-The \fBattrset\fP routine is a legacy feature predating SVr4 curses
-but kept in X/Open Curses for the same reason that SVr4 curses kept it:
+The \fBattrset\fP routine is a legacy feature predating SVr4
+.I curses
+but kept in X/Open Curses for the same reason that SVr4
+.I curses
+kept it:
 compatibility.
 .PP
 The remaining \fBattr\fP* functions operate exactly like the corresponding
-\fBattr_\fP* functions, except that they take arguments of type \fBint\fP
-rather than \fBattr_t\fP.
+\fBattr_\fP* functions, except that they take arguments of type
+.I int
+rather than
+.IR \%attr_t "."
 .PP
 There is no corresponding \fB\%attrget\fP function as such
 in X/Open Curses,
-although \fI\%ncurses\fP provides \fB\%getattrs\fP
+although
+.I \%ncurses
+provides \fB\%getattrs\fP
 (see \fB\%curs_legacy\fP(3X)).
 .\" ---------------------------------------------------------------------------
 .SS "Change Character Rendition"
@@ -240,11 +260,18 @@ there is no ambiguity about the way the attributes
 might be combined with a color pair.
 .\" ---------------------------------------------------------------------------
 .SS "Video Attributes"
-The following video attributes, defined in \fB<curses.h>\fP, can be passed to
-the routines \fBattron\fP, \fBattroff\fP, and \fBattrset\fP, or OR'd with the
-characters passed to \fBaddch\fP (see \fBcurs_addch\fP(3X)).
+The following video attributes,
+defined in
+.IR \%curses.h ","
+can be passed to
+.BR \%attron ","
+.BR \%attroff ","
+.BR \%attrset ","
+and
+logically \*(``or\*(''-ed with characters passed to \fBaddch\fP(3X).
 .PP
-.ne 15
+.if t .ne 15
+.if n .ne 16
 .RS
 .TS
 Lb Lb
@@ -252,9 +279,7 @@ Lb Lx.
 Name	Description
 _
 A_NORMAL	Normal display (no highlight)
-A_STANDOUT	T{
-Best highlighting mode of the terminal
-T}
+A_STANDOUT	Best highlighting mode available
 A_UNDERLINE	Underlining
 A_REVERSE	Reverse video
 A_BLINK	Blinking
@@ -264,16 +289,20 @@ A_PROTECT	Protected mode
 A_INVIS	Invisible or blank mode
 A_ALTCHARSET	Alternate character set
 A_ITALIC	Italics (non-X/Open extension)
-A_CHARTEXT	Bit-mask to extract a character
-A_COLOR	T{
-Bit-mask to extract a color (legacy routines)
-T}
+A_ATTRIBUTES	Mask to extract character code
+A_CHARTEXT	Mask to extract attributes
+A_COLOR	Mask to extract color pair identifier
 .TE
 .RE
 .PP
-These video attributes are supported by \fBattr_on\fP and related functions
-(which also support the attributes recognized by \fBattron\fP, etc.):
+.BR \%attr_on ","
+.BR \%attr_off ","
+and
+.B \%attr_set
+support the foregoing as well as the following additional attributes.
 .PP
+.if t .ne 7
+.if n .ne 8
 .RS
 .TS
 Lb Lb
@@ -288,25 +317,40 @@ WA_TOP	Top highlight
 WA_VERTICAL	Vertical highlight
 .TE
 .RE
-.PP
-The return values of many of these routines are not meaningful (they are
-implemented as macro-expanded assignments and simply return their argument).
-The SVr4 manual page claims (falsely) that these routines always return \fB1\fP.
 .\" ---------------------------------------------------------------------------
 .SH RETURN VALUE
-All routines return the integer \fBOK\fP on success, or \fBERR\fP on failure.
+These functions return
+.B OK
+on success and
+.B ERR
+on failure.
 .PP
-X/Open Curses does not specify any error conditions.
+In
+.IR \%ncurses ","
+they return
+.B ERR
+if
+.I win
+is
+.IR NULL "."
 .PP
-This implementation
-.bP
-returns an error if the window pointer is null.
-.bP
-returns an error if the color pair parameter
-for \fBwcolor_set\fP is outside the range 0..COLOR_PAIRS\-1.
-.bP
-does not return an error if either of the parameters of \fBwattr_get\fP
-used for retrieving attribute or color pair values is \fBNULL\fP.
+.B \%wcolor_set
+returns
+.B ERR
+if
+.I pair
+is outside the range
+.BR 0 .\|. COLOR_PAIRS\-1 .
+.PP
+.B \%wattr_get
+does
+.I not
+fail if its
+.I \%attrs
+or
+.I \%pair
+parameter is
+.IR NULL "."
 .PP
 Functions prefixed with \*(``mv\*('' first perform cursor movement and
 fail if the position
@@ -315,20 +359,43 @@ fail if the position
 is outside the window boundaries.
 .\" ---------------------------------------------------------------------------
 .SH NOTES
-These functions may be macros:
-.sp
-.RS
-\fBattroff\fP, \fBwattroff\fP, \fBattron\fP, \fBwattron\fP,
-\fBattrset\fP, \fBwattrset\fP, \fBstandend\fP and \fBstandout\fP.
-.RE
+.BR \%attr_on ","
+.BR \%attr_off ","
+.BR \%attr_set ","
+.BR \%wattr_set ","
+.BR \%chgat ","
+.BR \%mvchgat ","
+.BR \%mvwchgat ","
+.BR \%wchgat ","
+and
+.B \%color_set
+are part of
+.IR \%ncurses "'s"
+wide-character API,
+and are not available in its non-wide-character configuration.
 .PP
-Color pair values can only be OR'd with attributes if the pair
-number is less than 256.
+.BR \%attron ","
+.BR \%wattron ","
+.BR \%attroff ","
+.BR \%wattroff ","
+.BR \%attrset ","
+.BR \%wattrset ","
+.BR \%standout ","
+and
+.B \%standend
+may be implemented as macros.
+.PP
+Color pair values may be logically \*(``or\*(''-ed with attributes
+if the pair number is less than 256.
 The alternate functions such as \fBcolor_set\fP can pass a color pair
 value directly.
-However, \fI\%ncurses\fP ABI 4 and 5 simply OR this value
+However,
+.I \%ncurses
+ABI 4 and 5 simply logically \*(``or\*('' this value
 within the alternate functions.
-You must use \fI\%ncurses\fP ABI 6 to support more than 256 color pairs.
+You must use
+.I \%ncurses
+ABI 6 to support more than 256 color pairs.
 .\" ---------------------------------------------------------------------------
 .SH EXTENSIONS
 This implementation provides the \fBA_ITALIC\fP attribute for terminals
@@ -342,32 +409,55 @@ This implementation makes the assumption that
 .PP
 Each of the functions added by XSI Curses has a parameter \fIopts\fP,
 which X/Open Curses still (after more than twenty years) documents
-as reserved for future use, saying that it should be \fBNULL\fP.
+as reserved for future use, saying that it should be
+.IR NULL "."
 This implementation uses that parameter in ABI 6 for the functions which
 have a color pair parameter to support \fIextended color pairs\fP:
 .bP
 For functions which modify the color, e.g.,
 \fBwattr_set\fP and \fBwattr_on\fP,
-if \fIopts\fP is set it is treated as a pointer to \fBint\fP,
-and used to set the color pair instead of the \fBshort\fP \fIpair\fP parameter.
+if \fIopts\fP is set it is treated as a pointer to
+.IR int ","
+and used to set the color pair instead of the
+.I short
+.I pair
+parameter.
 .bP
 For functions which retrieve the color, e.g.,
 \fBwattr_get\fP,
-if \fIopts\fP is set it is treated as a pointer to \fBint\fP,
-and used to retrieve the color pair as an \fBint\fP value,
+if \fIopts\fP is set it is treated as a pointer to
+.IR int ","
+and used to retrieve the color pair as an
+.I int
+value,
 in addition to
-retrieving it via the standard pointer to \fBshort\fP parameter.
+retrieving it via the standard pointer to
+.I short
+parameter.
 .bP
 For functions which turn attributes off, e.g.,
 \fBwattr_off\fP,
-the \fIopts\fP parameter is ignored except
-except to check that it is \fBNULL\fP.
+the \fIopts\fP parameter is ignored except to check that it is
+.IR NULL "."
 .\" ---------------------------------------------------------------------------
 .SH PORTABILITY
-These functions are described in X/Open Curses, Issue 4.
+These functions are described in X/Open Curses Issue\ 4.
+It specifies no error conditions for them.
+.PP
 The standard defined the dedicated type for highlights,
-\fBattr_t\fP, which was not defined in SVr4 curses.
-The functions taking \fBattr_t\fP arguments were not supported under SVr4.
+.IR \%attr_t ","
+which was not defined in SVr4
+.IR curses "."
+The functions taking
+.I \%attr_t
+arguments were not supported under SVr4.
+.PP
+SVr4 describes the functions not taking
+.I \%attr_t
+or
+.I pair
+arguments as always returning
+.BR 1 "." \" Courier roman in source; SVID 4, vol. 3, p. 480
 .PP
 Very old versions of this library did not force an update of the screen
 when changing the attributes.
@@ -378,7 +468,9 @@ X/Open Curses states that whether the traditional functions
 \fBA_BLINK\fP, \fBA_BOLD\fP, \fBA_DIM\fP, \fBA_REVERSE\fP, \fBA_STANDOUT\fP, or
 \fBA_UNDERLINE\fP is \*(``unspecified\*(''.
 Under this implementation as well as
-SVr4 curses, these functions correctly manipulate all other highlights
+SVr4
+.IR curses ","
+these functions correctly manipulate all other highlights
 (specifically, \fBA_ALTCHARSET\fP, \fBA_PROTECT\fP, and \fBA_INVIS\fP).
 .PP
 X/Open Curses added these entry points:
@@ -397,13 +489,11 @@ The older macros have direct counterparts in the newer set of names:
 .ne 9
 .TS
 Lb Lb
-Lb Lx.
+Lb L .
 Name	Description
 _
 WA_NORMAL	Normal display (no highlight)
-WA_STANDOUT	T{
-Best highlighting mode of the terminal
-T}
+WA_STANDOUT	Best highlighting mode available
 WA_UNDERLINE	Underlining
 WA_REVERSE	Reverse video
 WA_BLINK	Blinking
@@ -423,18 +513,29 @@ information.
 .bP
 However, in some implementations, those symbols have unrelated values.
 .IP
-For example, the Solaris \fIxpg4\fP (X/Open) curses declares
-\fBattr_t\fP to be an unsigned short integer (16-bits),
-while \fBchtype\fP is a unsigned integer (32-bits).
+For example, the Solaris \fIxpg4\fP (X/Open)
+.I curses
+declares
+.I \%attr_t
+to be an unsigned short integer (16-bits),
+while
+.I \%chtype
+is a unsigned integer (32-bits).
 The \fBWA_\fP symbols in this case are different from the \fBA_\fP symbols
 because they are used for a smaller datatype which does not
 represent \fBA_CHARTEXT\fP or \fBA_COLOR\fP.
 .IP
 In this implementation (as in many others), the values happen to be
 the same because it simplifies copying information between
-\fBchtype\fP and \fBcchar_t\fP variables.
+.I \%chtype
+and
+.I \%cchar_t
+variables.
 .bP
-Because \fI\%ncurses\fP's \fBattr_t\fP can hold a color pair
+Because
+.IR \%ncurses 's
+.I \%attr_t
+can hold a color pair
 (in the \fBA_COLOR\fP field),
 a call to
 \fBwattr_on\fP,
@@ -444,7 +545,8 @@ may alter the window's color.
 If the color pair information in the attribute parameter is zero,
 no change is made to the window's color.
 .IP
-This is consistent with SVr4 curses;
+This is consistent with SVr4
+.IR curses ";"
 X/Open Curses does not specify this.
 .PP
 The X/Open Curses extended conformance level adds new highlights
@@ -455,62 +557,123 @@ no known terminal provides these highlights
 (i.e., via the \fBsgr1\fP capability).
 .\" ---------------------------------------------------------------------------
 .SH HISTORY
-X/Open Curses is largely based on SVr4 curses,
-adding support for \*(``wide-characters\*('' (not specific to Unicode).
-Some of the X/Open differences from SVr4 curses address the way
-video attributes can be applied to wide-characters.
-But aside from that, \fBattrset\fP and \fBattr_set\fP are similar.
-SVr4 curses provided the basic features for manipulating video attributes.
-However, earlier versions of curses provided a part of these features.
+4BSD (1980)
+used a
+.I char
+to represent each cell of the terminal screen.
+It assumed 7-bit character codes,
+employing the eighth bit of a byte to represent a
+.I \%standout
+attribute
+(often implemented as bold and/or reverse video).
+It introduced
+.IR \%standout ","
+.IR \%standend ","
+.IR \%wstandout ","
+and
+.I \%wstandend
+functions to manipulate this bit.
+Despite their inflexibility,
+they carried over into System\ V
+.I curses
+and ultimately X/Open Curses
+due to their pervasive use in legacy applications.
+While some 1980s terminals supported a variety of video attributes,
+BSD
+.I curses
+could do nothing with them.
 .PP
-As seen in 2.8BSD, curses assumed 7-bit characters,
-using the eighth bit of a byte to represent the \fIstandout\fP
-feature (often implemented as bold and/or reverse video).
-The BSD curses library provided functions \fBstandout\fP and \fBstandend\fP
-which were carried along into X/Open Curses due to their pervasive use
-in legacy applications.
+SVr2 (1984)
+provided an improved
+.I curses
+library,
+introducing
+.I \%chtype
+to create the abstract notion of a
+.I curses
+character;
+this was by default an
+.IR "unsigned short" ","
+with a provision for compile-time redefinition to other integral types
+(a freedom not necessarily available to users of shared libraries,
+and in any event a source license was necessary to exercise it).
+It added the functions
+.IR \%attron ","
+.IR \%attroff ","
+.IR \%attrset ","
+.IR \%wattron ","
+.IR \%wattroff ","
+and
+.IR \%wattrset ","
+and defined the
+.I A_
+macros listed above
+(except for
+.I \%A_ITALIC
+and
+.IR \%A_COLOR ")"
+for use by applications to manipulate other attributes.
+The values of these macros
+were not necessarily the same in different systems,
+even among those certified as System\ V.
 .PP
-Some terminals in the 1980s could support a variety of video attributes,
-although the BSD curses library could do nothing with those.
-System V (1983) provided an improved curses library.
-It defined the \fBA_\fP symbols for use by applications to manipulate the
-other attributes.
-There are few useful references for the chronology.
+SVr3.2 (1988)
+added the
+.I \%A_COLOR
+macro along with a color system;
+see \fBcurs_color\fP(3X).
 .PP
-Goodheart's book
-\fIUNIX Curses Explained\fP (1991) describes SVr3 (1987),
-commenting on several functions:
-.bP
-the \fBattron\fP, \fBattroff\fP, \fBattrset\fP functions
-(and most of the functions found in SVr4 but not in BSD curses) were
-introduced by System V,
-.bP
-the alternate character set feature with \fBA_ALTCHARSET\fP was
-added in SVr2 and improved in SVr3 (by adding \fBacs_map[]\fP),
-.bP
-\fBstart_color\fP and related color-functions were introduced by System V.3.2,
-.bP
-pads, soft-keys were added in SVr3, and
+X/Open Curses Issue\ 4 (1995) is largely based on SVr4
+.IR curses ","
+but recognized that the
+.I \%wchar_t
+type of ISO C95 was intended to house only a single character code,
+not a sequence of codes combining with a base character,
+let alone could it reliably offer room for a color pair identifier
+and a set of attribute bits with a potential for further growth \(em
+thus the standard invented the
+.I curses
+complex character type
+.I \%cchar_t
+and a separate type
+.I \%attr_t
+for storage of attribute bits.
+The new types brought along several new functions to manipulate them,
+some corresponding to existing
+.IR chtype -based
+functions
+.RI \%( attr_on ,
+.IR \%attr_off ","
+.IR \%attr_set ","
+.IR \%wattr_on ","
+.IR \%wattr_off ","
+and
+.IR \%wattr_set "),"
+and some new
+.RI \%( chgat
+and its variants,
+.IR \%color_set ","
+and
+.IR \%wcolor_set ")."
 .PP
-Goodheart did not mention the background character or the \fBcchar_t\fP type.
-Those are respectively SVr4 and X/Open features.
-He did mention the \fBA_\fP constants, but did not indicate their values.
-Those were not the same in different systems,
-even for those marked as System V.
+Different Unix systems used differently sized bit fields in
+.I \%chtype
+for the character code and the color pair identifier,
+and took into account platforms' different integer sizes
+(32- versus 64-bit).
 .PP
-Different Unix systems used different sizes for the bit-fields in \fBchtype\fP
-for \fIcharacters\fP and \fIcolors\fP, and took into account the different
-integer sizes (32-bit versus 64-bit).
-.PP
-This table showing the number of bits for \fBA_COLOR\fP
-and \fBA_CHARTEXT\fP
-was gleaned from the curses header files for
-various operating systems and architectures.
-The inferred architecture and notes reflect
-the format and size of the defined constants
+The following table showing the number of bits for
+.I \%A_COLOR
+and
+.I \%A_CHARTEXT
+was gleaned from the
+.I curses
+header files for various operating systems and architectures.
+The inferred architecture and notes
+reflect the format and size of the defined constants
 as well as clues such as the alternate character set implementation.
 A 32-bit library can be used on a 64-bit system,
-but not necessarily the reverse.
+but not necessarily the converse.
 .PP
 .TS
 Lb  Lb Lb  Cb  S   Lb
@@ -529,7 +692,7 @@ _
 1996	AIX 4.2	32	7	16	X/Open \fIcurses\fP
 1996	OSF/1 r4	32	6	16	X/Open \fIcurses\fP
 1997	HP-UX 11.00	32	6	8	X/Open \fIcurses\fP
-2000	U/Win	32/64	7/31	16	uses \fIchtype\fP
+2000	UWIN	32/64	7/31	16	uses \fIchtype\fP
 .TE
 .PP
 Notes:
@@ -540,54 +703,85 @@ Regarding HP-UX,
 HP-UX 10.20 (1996) added support for 64-bit PA-RISC processors in 1996.
 .bP
 HP-UX 10.30 (1997) marked \*(``curses_colr\*('' obsolete.
-That version of curses was dropped with HP-UX 11.30 in 2006.
+That version of
+.I curses
+was dropped with HP-UX 11.30 in 2006.
 .PP
 Regarding OSF/1 (and Tru64),
 .bP
 These used 64-bit hardware.
-Like \fI\%ncurses\fP,
-the OSF/1 curses interface is not customized for 32-bit and 64-bit
+Like
+.IR \%ncurses ","
+the OSF/1
+.I curses
+interface is not customized for 32-bit and 64-bit
 versions.
 .bP
 Unlike other systems which evolved from AT&T code,
-OSF/1 provided a new implementation for X/Open curses.
+OSF/1 provided a new implementation for X/Open Curses.
 .PP
 Regarding Solaris,
 .bP
 The initial release of Solaris was in 1992.
 .bP
-The \fIxpg4\fP (X/Open) curses was developed by MKS from 1990 to 1995.
+Its XPG4
+(X/Open Curses-conforming)
+.I xcurses
+library was developed by Mortice Kern Systems from 1990 to 1995.
 Sun's copyright began in 1996.
 .bP
-Sun updated the X/Open curses interface
+Sun updated the X/Open Curses interface
 after 64-bit support was introduced in 1997,
-but did not modify the SVr4 curses interface.
+but did not modify the SVr4
+.I curses
+interface.
 .PP
-Regarding U/Win,
+Regarding UWIN,
 .bP
-Development of the curses library began in 1991, stopped in 2000.
+Development of the
+.I curses
+library began in 1991, stopped in 2000.
 .bP
 Color support was added in 1998.
 .bP
-The library uses only \fBchtype\fP (no \fBcchar_t\fP).
+The library uses only
+.I \%chtype
+(not
+.IR \%cchar_t ")."
 .RE
 .PP
-Once X/Open curses was adopted in the mid-1990s, the constraint of
-a 32-bit interface with many colors and wide-characters for \fBchtype\fP
+Once X/Open Curses was adopted in the mid-1990s, the constraint of
+a 32-bit interface with many colors and wide-characters for
+.I \%chtype
 became a moot point.
-The \fBcchar_t\fP structure (whose size and
-members are not specified in X/Open Curses) could be extended as needed.
+The
+.I \%cchar_t
+structure
+(whose size and members are not specified in X/Open Curses)
+could be extended as needed.
 .PP
-Other interfaces are rarely used now:
+Other interfaces are rarely used now.
 .bP
-BSD curses was improved slightly in 1993/1994 using Keith Bostic's
-modification to make the library 8-bit clean for \fBnvi\fP(1).
-He moved \fIstandout\fP attribute to a structure member.
-.IP
-The resulting 4.4BSD curses was replaced by \fI\%ncurses\fP over the
-next ten years.
+BSD
+.I curses
+was improved slightly in 1993/1994 using Keith Bostic's
+modification to make the library 8-bit clean for \fInvi\fP(1).
+He moved the
+.I \%standout
+attribute to a structure member.
+The resulting 4.4BSD
+.I curses
+was replaced by
+.I \%ncurses
+over the next ten years.
 .bP
-U/Win is rarely used now.
+UWIN has been defunct since 2012.
+.PP
+.I \%ncurses
+6.0 (2015)
+added the
+.I A_ITALIC
+macro.
 .\" ---------------------------------------------------------------------------
 .SH SEE ALSO
 \fB\%curses\fP(3X),

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2021 Thomas E. Dickey                                     *
+ * Copyright 2020-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2012,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_driver.c,v 1.37 2021/03/27 23:46:29 tom Exp $")
+MODULE_ID("$Id: m_driver.c,v 1.39 2024/12/07 22:01:57 tom Exp $")
 
 /* Macros */
 
@@ -307,7 +307,7 @@ menu_driver(MENU *menu, int c)
 	  else
 	    {
 	      my_top_row += rdiff;
-	      while (rdiff-- > 0 && item != 0 && item->down != 0)
+	      while (rdiff-- > 0 && item != NULL && item->down != NULL)
 		item = item->down;
 	    }
 	  break;
@@ -320,7 +320,7 @@ menu_driver(MENU *menu, int c)
 	  else
 	    {
 	      my_top_row -= rdiff;
-	      while (rdiff-- > 0 && item != 0 && item->up != 0)
+	      while (rdiff-- > 0 && item != NULL && item->up != NULL)
 		item = item->up;
 	    }
 	  break;
@@ -449,7 +449,7 @@ menu_driver(MENU *menu, int c)
       else if (KEY_MOUSE == c)
 	{
 	  MEVENT event;
-	  WINDOW *uwin = Get_Menu_UserWin(menu);
+	  const WINDOW *uwin = Get_Menu_UserWin(menu);
 
 	  getmouse(&event);
 	  if ((event.bstate & (BUTTON1_CLICKED |
@@ -459,7 +459,7 @@ menu_driver(MENU *menu, int c)
 	    {			/* we react only if the click was in the userwin, that means
 				 * inside the menu display area or at the decoration window.
 				 */
-	      WINDOW *sub = Get_Menu_Window(menu);
+	      const WINDOW *sub = Get_Menu_Window(menu);
 	      int ry = event.y, rx = event.x;	/* screen coordinates */
 
 	      result = E_REQUEST_DENIED;
@@ -548,7 +548,7 @@ menu_driver(MENU *menu, int c)
 	result = E_UNKNOWN_COMMAND;
     }
 
-  if (item == 0)
+  if (item == NULL)
     {
       result = E_BAD_STATE;
     }

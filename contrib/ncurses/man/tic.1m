@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: tic.1m,v 1.110 2024/04/27 17:57:06 tom Exp $
-.TH @TIC@ 1M 2024-04-27 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
+.\" $Id: tic.1m,v 1.128 2025/11/12 00:49:19 tom Exp $
+.TH @TIC@ 1M 2025-11-11 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -45,10 +45,9 @@
 .el    .IP \(bu 2
 ..
 .
-.ds d @TERMINFO@
 .SH NAME
 \fB\%@TIC@\fP \-
-compile terminal descriptions for \fIterminfo\fR or \fItermcap\fR
+compile terminal descriptions for \%\fIterm\%info\fR or \fItermcap\fR
 .SH SYNOPSIS
 \fB@TIC@\fP
 [\fB\-\
@@ -83,134 +82,260 @@ x\
 [\fB\-w\fP[\fIn\fP]]
 \fIfile\fP
 .SH DESCRIPTION
-The \fB@TIC@\fP command translates a \fBterminfo\fP file from source
-format into compiled format.
-The compiled format is necessary for use with
-the library routines in \fB\%ncurses\fP(3X).
+.B \%@TIC@
+translates a
+.I \%term\%info
+file from source format
+into the compiled format
+used by the
+\fB\%ncurses\fP(3X)
+library.
 .PP
-As described in \fBterm\fP(5), the database may be either a directory
-tree (one file per terminal entry) or a hashed database (one record per entry).
-The \fB@TIC@\fP command writes only one type of entry,
-depending on how it was built:
+As described in \fBterm\fP(5),
+the database may be either a directory tree
+(one file per terminal entry)
+or a hashed database
+(one record per entry).
+The
+.B \%@TIC@
+command writes only one type of entry,
+depending on how it was built.
 .bP
-For directory trees, the top-level directory, e.g., /usr/share/terminfo,
+For directory trees,
+the top-level directory,
+such as
+.IR \%/usr/share/terminfo ","
 specifies the location of the database.
 .bP
 For hashed databases, a filename is needed.
 If the given file is not found by that name,
-but can be found by adding the suffix ".db",
+but can be found by adding the suffix \*(``.db\*('',
 then that is used.
 .IP
 The default name for the hashed database is the same as the
-default directory name (only adding a ".db" suffix).
+default directory name (only adding a \*(``.db\*('' suffix).
 .PP
 In either case (directory or hashed database),
-\fB@TIC@\fP will create the container if it does not exist.
+.B \%@TIC@
+will create the container if it does not exist.
 For a directory, this would be the \*(``terminfo\*('' leaf,
-versus a "terminfo.db" file.
+versus a
+.I terminfo.db
+file.
 .PP
-The results are normally placed in the system terminfo database \fB\*d\fP.
+The results are normally placed
+in the system
+.I \%term\%info
+database
+.IR \%@TERMINFO@ "."
 The compiled terminal description can be placed
-in a different terminfo database.
+in a different
+.I \%term\%info
+database.
 There are two ways to achieve this:
 .bP
 First, you may override the system default either by
 using the \fB\-o\fP option,
 or by setting the variable \fI\%TERMINFO\fP
-in your shell environment to a valid database location.
+in the process environment to a valid database location.
 .bP
-Secondly, if \fB@TIC@\fP cannot write in \fI\*d\fP
-or the location specified using your \fI\%TERMINFO\fP variable,
-it looks for the directory \fI$HOME/.terminfo\fP
-(or hashed database \fI$HOME/.terminfo.db)\fP;
+Secondly, if
+.B \%@TIC@
+cannot write in
+.I \%@TERMINFO@
+or the location specified using your
+.I \%TERMINFO
+variable,
+it looks for the directory
+.I \%$HOME/.terminfo
+(or hashed database
+.IR $HOME/.terminfo.db );
 if that location exists, the entry is placed there.
 .PP
-Libraries that read terminfo entries are expected to check in succession
+Libraries that read
+.I \%term\%info
+entries are expected to check in succession
 .bP
-a location specified with the \fI\%TERMINFO\fP environment variable,
+a location specified by the
+.I \%TERMINFO
+environment variable,
 .bP
-\fI$HOME/.terminfo\fP,
+.IR \%$HOME/.terminfo ","
 .bP
-directories listed in the \fI\%TERMINFO_DIRS\fP environment variable,
+directories listed in the
+.I \%TERMINFO_DIRS
+environment variable,
 .bP
-a compiled-in list of directories (@TERMINFO_DIRS@), and
+a compiled-in list of directories
+.RI \%( @TERMINFO_DIRS@ ),
+and
 .bP
-the system terminfo database (\fI\*d\fP).
+the system
+.I \%term\%info
+database
+.RI \%( @TERMINFO@ ).
 .PP
-The \fIFetching Compiled Descriptions\fP section in the \fBterminfo\fR(5)
-manual goes into further detail.
+Section \*(``Fetching Compiled Descriptions\*('' in \fBterminfo\fP(5)
+goes into further detail.
 .SS Aliases
-This is the same program as @INFOTOCAP@ and @CAPTOINFO@;
-usually those are linked to, or copied from this program:
+.B \%@TIC@
+is the same program as
+.B \%@INFOTOCAP@
+and
+.BR \%@CAPTOINFO@ ";"
+usually those are linked to,
+or copied from, this program.
 .bP
-When invoked as @INFOTOCAP@, @TIC@ sets the \fB\-I\fP option.
+When invoked as
+.BR \%@INFOTOCAP@ ","
+.B \%@TIC@
+sets the
+.B \-I
+option.
 .bP
-When invoked as @CAPTOINFO@, @TIC@ sets the \fB\-C\fP option.
+When invoked as
+.BR \%@CAPTOINFO@ ","
+.B \%@TIC@
+sets the
+.B \-C
+option.
 .SH OPTIONS
 .TP
-\fB\-0\fP
-restricts the output to a single line
+.B \-0
+restricts the output to a single line.
 .TP
-\fB\-1\fP
-restricts the output to a single column
+.B \-1
+restricts the output to a single column.
 .TP
-\fB\-a\fP
-tells \fB@TIC@\fP to retain commented-out capabilities rather than discarding
-them.
+.B \-a
+tells
+.B \%@TIC@
+to retain commented-out capabilities rather than discarding them.
 Capabilities are commented by prefixing them with a period.
-This sets the \fB\-x\fP option, because it treats the commented-out
-entries as user-defined names.
-If the source is termcap, accept the 2-character names required by version 6.
+.B \-a
+implies
+.BR \-x ","
+because
+.B \%@TIC@
+treats the commented-out entries as user-defined names.
+If the source is in
+.I termcap
+format,
+.B \%@TIC@
+accepts the 2-character names required by version 6.
+.\" TD added this comment in 2003, prompted by discussion with Don Libes.
+.\" Quoting from SunOS 4.1.3 termcap(5):
+.\"	Each  termcap  entry consist of a number of colon-separated (:) fields.
+.\"	The first field for each terminal lists the various names by  which  it
+.\"	is  known, separated by bar ( | ) characters.  The first name is always
+.\"	two characters long, and is used by older (version  6)  systems  (which
+.\"	store  the  terminal  type in a 16-bit word in a system-wide database).
+.\" Version 6 sounds like Unix version 6, but termcap was introduced a few
+.\" years later.  The SunOS man page was based on material in 4.2BSD.
 Otherwise these are ignored.
 .TP
 \fB\-C\fP
-Force source translation to termcap format.
-Note: this differs from the \fB\-C\fP
-option of \fB@INFOCMP@\fP(1M) in that it does not merely translate capability
-names, but also translates terminfo strings to termcap format.
-Capabilities
-that are not translatable are left in the entry under their terminfo names
+Force source translation to
+.I termcap
+format.
+Note: this option differs from the
+.B \-C
+option of \fB\%@INFOCMP@\fP(1M)
+in that it does not merely translate capability names,
+but also translates
+.I \%term\%info
+string capability values to
+.I termcap
+format.
+.B \%@TIC@
+leaves capabilities that are not translatable
+in the entry under their
+.I \%term\%info
+names,
 but commented out with two preceding dots.
-The actual format used incorporates some improvements for escaped characters
-from terminfo format.
-For a stricter BSD-compatible translation, add the \fB\-K\fP option.
+The actual format used
+incorporates some improvements for escaped characters
+from
+.I \%term\%info
+format.
+For a stricter BSD-compatible translation,
+specify
+.B \-K
+as well.
 .IP
-If this is combined with \fB\-c\fP, \fB@TIC@\fP makes additional checks
-to report cases where the terminfo values do not have an exact equivalent
-in termcap form.
+If
+.B \-C
+is combined with
+.BR \-c ","
+.B \%@TIC@
+makes additional checks,
+reporting cases where
+.I \%term\%info
+capability values do not have an exact equivalent
+in
+.I termcap
+syntax.
 For example:
 .RS
 .bP
-\fBsgr\fP usually will not convert, because termcap lacks the ability to
-work with more than two parameters, and because termcap lacks many of
-the arithmetic/logical operators used in terminfo.
-.bP
-capabilities with more than one delay or with delays before the end of
-the string will not convert completely.
+.B sgr
+usually does not convert,
+because
+.I termcap
+is unable to work with more than two parameters,
+and because
+.I termcap 's
+language for encoding parameterized capabilities
+lacks many of
+.IR \%term\%info 's
+arithmetic and logical operators.
 .RE
 .TP
-\fB\-c\fP
-tells \fB@TIC@\fP to only check \fIfile\fP for errors,
-including syntax problems and bad use-links.
-If you specify \fB\-C\fP (\fB\-I\fP) with this option, the code
-will print warnings about entries which, after use resolution, are more than
-1023 (4096) bytes long.
-Due to a fixed buffer length in older termcap libraries,
-as well as buggy checking for the buffer length
-(and a documented limit in terminfo),
-these entries may cause core
-dumps with other implementations.
+.B \-c
+tells
+.B \%@TIC@
+to perform only validation of
+.I file ","
+including syntax problems and invalid
+.RB \*(`` use \*(''
+references;
+no output is produced.
+If you specify
+.B \-C
+.RB ( \-I )
+with this option,
+.B \%@TIC@
+warns about entries that,
+after
+.RB \*(`` use \*(''
+resolution,
+exceed 1023 (4096) bytes.
+Due to a fixed buffer length in older
+.I termcap
+libraries,
+as well as buggy checking of the buffer length
+(and a documented limit in
+.IR \%term\%info ),
+these entries may cause core dumps
+with other implementations.
 .IP
-\fB@TIC@\fP checks string capabilities to ensure that those with parameters
-will be valid expressions.
-It does this check only for the predefined string capabilities;
-those which are defined with the \fB\-x\fP option are ignored.
+.B \%@TIC@
+checks string capabilities
+to ensure that those with parameters are valid expressions.
+It validates only standard string capabilities,
+ignoring those defined with the
+.B \-x
+option.
 .TP
 \fB\-D\fP
-tells \fB@TIC@\fP to print the database locations that it knows about, and exit.
+tells
+.B \%@TIC@
+to print the database locations that it knows about, and exit.
 The first location shown is the one to which it would write compiled
 terminal descriptions.
-If \fB@TIC@\fP is not able to find a writable database location
+If
+.B \%@TIC@
+is not able to find a writable database location
 according to the rules summarized above,
 it will print a diagnostic and exit with an error rather than
 printing a list of database locations.
@@ -223,7 +348,9 @@ the list, the entry will be written or translated as normal.
 Otherwise no output will be generated for it.
 The option value is interpreted as a file containing the list if it
 contains a '/'.
-(Note: depending on how @TIC@ was compiled,
+(Note: depending on how
+.B \%@TIC@
+was compiled,
 this option may require \fB\-I\fP or \fB\-C\fP.)
 .TP
 \fB\-f\fP
@@ -321,12 +448,16 @@ This is mainly useful for testing and analysis, since the compiled
 descriptions are limited (e.g., 1023 for termcap, 4096 for terminfo).
 .TP
 \fB\-t\fP
-tells \fB@TIC@\fP to discard commented-out capabilities.
+tells
+.B \%@TIC@
+to discard commented-out capabilities.
 Normally when translating from terminfo to termcap,
 untranslatable capabilities are commented-out.
 .TP
 \fB\-U\fP
-tells \fB@TIC@\fP to not post-process the data after parsing the source file.
+tells
+.B \%@TIC@
+to not post-process the data after parsing the source file.
 Normally, it infers data which is commonly missing in older terminfo data,
 or in termcaps.
 .TP
@@ -336,7 +467,9 @@ and exits.
 .TP
 \fB\-v\fIn\fR
 specifies that (verbose) output be written to standard error trace
-information showing \fB@TIC@\fP's progress.
+information showing
+.BR \%@TIC@ 's
+progress.
 .IP
 The optional parameter \fIn\fP is a number from 1 to 9, inclusive,
 indicating the desired level of detail of information.
@@ -397,43 +530,91 @@ If it is omitted, it defaults to 60.
 .TP
 \fB\-x\fP
 Treat unknown capabilities as user-defined (see \fBuser_caps\fP(5)).
-That is, if you supply a capability name which \fB@TIC@\fP does not recognize,
+That is, if you supply a capability name which
+.B \%@TIC@
+does not recognize,
 it will infer its type (Boolean, number or string) from the syntax and
 make an extended table entry for that.
 User-defined capability strings
 whose name begins with \*(``k\*('' are treated as function keys.
 .SS Parameters
 .TP
-\fIfile\fP
-contains one or more \fBterminfo\fP terminal descriptions in source
-format [see \fBterminfo\fP(5)].
+.I file
+contains one or more
+.I \%term\%info
+terminal descriptions in source format; see \fBterminfo\fP(5).
 Each description in the file
-describes the capabilities of a particular terminal.
+describes the capabilities of a particular terminal type.
 .IP
-If \fIfile\fP is \*(``-\*('', then the data is read from the standard input.
-The \fIfile\fP parameter may also be the path of a character-device.
+If
+.I file
+is \*(``\-\*('',
+the data are read from the standard input stream.
+The
+.I file
+parameter may also be the path of a character device.
 .SS Processing
-All but one of the capabilities recognized by \fB@TIC@\fP are documented
-in \fBterminfo\fP(5).
-The exception is the \fBuse\fP capability.
+\fBterminfo\fP(5) documents all but one of the capabilities
+recognized by
+.BR \%@TIC@ "."
+The exception is the
+.B use
+capability,
+which enables a terminal type description to incorporate others
+by reference.
 .PP
-When a \fBuse\fP=\fIentry\fP\-\fIname\fP field is discovered in a
-terminal entry currently being compiled, \fB@TIC@\fP reads in the binary
-from \fB\*d\fP to complete the entry.
-(Entries created from
-\fIfile\fP will be used first.
-\fB@TIC@\fP duplicates the capabilities in
-\fIentry\fP\-\fIname\fP for the current entry, with the exception of
-those capabilities that explicitly are defined in the current entry.
+.B \%@TIC@
+serially reads and compiles terminal type descriptions;
+at any given time,
+the program compiles at most one
+.I current
+entry.
+.\" That is, tic doesn't recursively compile entries to resolve "use=".
+When
+.B \%@TIC@
+encounters a
+.BI use= entry-name
+field in the current entry,
+it reads the compiled description of
+.I entry-name
+from
+.I \%@TERMINFO@
+to complete the current entry.
+If
+.B \%@TIC@
+has already compiled a description of
+.I entry-name
+preceding the current entry in
+.IR file ","
+.B \%@TIC@
+uses it preferentially.
+.\" XXX: Check this--tic doesn't read ahead in or index the input file,
+.\" does it?  Otherwise this feature would break when reading from a
+.\" pipe.  --GBR
+.B \%@TIC@
+duplicates the capabilities in
+.I entry-name
+for the current entry,
+excepting those that the current entry explicitly defines.
+The foregoing has implications for capability cancellation.
+When
+.I entry-1
+declares
+.RB \*(`` use=\c
+.IR entry-2 \*(``,
+any canceled capabilities in
+.I entry-2
+must also appear in
+.I entry-1
+prior to
+.RB \*(`` use=\c
+.IR entry-2 \*(``
+for these capabilities to be canceled in
+.IR entry-1 "."
 .PP
-When an entry, e.g., \fBentry_name_1\fP, contains a
-\fBuse=\fIentry\fR_\fIname\fR_\fI2\fR field, any canceled
-capabilities in \fIentry\fR_\fIname\fR_\fI2\fP must also appear in
-\fBentry_name_1\fP before \fBuse=\fP for these capabilities to be
-canceled in \fBentry_name_1\fP.
-.PP
-Total compiled entries cannot exceed
-4096 bytes in the legacy storage format, or
+Compiled entries cannot exceed
+4096 bytes in the legacy storage format,
+or
 32768 using the extended number format.
 The name field cannot
 exceed 512 bytes.
@@ -443,90 +624,148 @@ will be truncated to the maximum alias length
 and a warning message will be printed.
 .SH FILES
 .TP
-.I \*d
+.I @TERMINFO@
 compiled terminal description database
 .SH NOTES
-There is some evidence that historic \fB@TIC@\fP implementations treated
+There is some evidence that historic
+.B \%@TIC@
+implementations treated
 description fields with no whitespace in them as additional aliases or
 short names.
-This \fB@TIC@\fP does not do that, but it does warn when
+This
+.B \%@TIC@
+does not do that, but it does warn when
 description fields may be treated that way and check them for dangerous
 characters.
 .SH EXTENSIONS
-Unlike the SVr4 \fB@TIC@\fP command, this implementation can actually
-compile termcap sources.
-In fact, entries in terminfo and termcap syntax can
-be mixed in a single source file.
+Unlike the SVr4
+.I tic
+command,
+.I \%ncurses
+.I tic
+can compile
+.I termcap
+sources.
+In fact,
+entries in
+.I \%term\%info
+and
+.I termcap
+syntax can be mixed in a single source file.
 See \fBterminfo\fP(5) for the list of
-termcap names taken to be equivalent to terminfo names.
+.I termcap
+capability names
+.I \%ncurses
+.B \%@TIC@
+treats as equivalent to
+.I \%term\%info
+names.
 .PP
-The SVr4 manual pages are not clear on the resolution rules for \fBuse\fP
+The SVr4 man pages are not clear on the resolution rules for
+.RB \*(`` use \*(''
 capabilities.
-This implementation of \fB@TIC@\fP will find \fBuse\fP targets anywhere
-in the source file,
-or anywhere in the file tree rooted at
-\fI\%TERMINFO\fP
+.IR ncurses 's
+.B \%@TIC@
+finds
+.RB \*(`` use \*(''
+targets anywhere in the source file,
+or anywhere in the file tree rooted at the location in the
+.I \%TERMINFO
+environment variable
 (if
-\fI\%TERMINFO\fP is defined),
-or in the user's \fI$HOME/.terminfo\fP database
+.I \%TERMINFO
+is defined),
+or in the user's
+.I \%$HOME/.terminfo
+database
 (if it exists),
-or (finally) anywhere in the system's file tree of
-compiled entries.
+or (finally) anywhere in the system's collection of compiled entries.
 .PP
-The error messages from this \fB@TIC@\fP have the same format as GNU C
-error messages, and can be parsed by GNU Emacs's compile facility.
+The error messages from
+.I \%ncurses
+.B \%@TIC@
+have the same format as GNU C error messages,
+and can be parsed by GNU Emacs's \*(``compile\*('' facility.
 .PP
-Aside from \fB\-c\fP and \fB\-v\fP, options are not portable:
+Aside from
+.B \-c
+and
+.BR \-v ","
+options are not portable.
 .bP
-Most of @TIC@'s options
-are not supported by SVr4 \fBtic\fP:
-.sp
+Most of
+.I \%ncurses
+.BR \%@TIC@ 's
+options are not supported by SVr4
+.IR tic "."
+.PP
 .RS
-\fB\-0\fP
-\fB\-1\fP
-\fB\-C\fP
-\fB\-G\fP
-\fB\-I\fP
-\fB\-N\fP
-\fB\-R\fP
-\fB\-T\fP
-\fB\-V\fP
-\fB\-a\fP
-\fB\-e\fP
-\fB\-f\fP
-\fB\-g\fP
-\fB\-o\fP
-\fB\-r\fP
-\fB\-s\fP
-\fB\-t\fP
-\fB\-x\fP
+.B \-0
+.B \-1
+.B \-C
+.B \-G
+.B \-I
+.B \-N
+.B \-R
+.B \-T
+.B \-V
+.B \-a
+.B \-e
+.B \-f
+.B \-g
+.B \-o
+.B \-r
+.B \-s
+.B \-t
+.B \-x
 .RE
 .bP
-The NetBSD \fBtic\fP supports a few of the \fI\%ncurses\fP options
-.sp
+NetBSD
+.I tic
+supports a few of the
+.I \%ncurses
+.B \%@TIC@
+options.
+.PP
 .RS
-\fB\-a\fP
-\fB\-o\fP
-\fB\-x\fP
+.B \-a
+.B \-o
+.B \-x
 .RE
-.IP
-and adds \fB\-S\fP
-(a feature which does the same thing
-as @INFOCMP@'s \fB\-e\fP and \fB\-E\fP options).
+.bP
+NetBSD
+.I tic
+also adds
+.BR \-S ","
+a feature which does the same thing as
+.I \%ncurses
+.BR \%@INFOCMP@ 's
+.B \-e
+and
+.B \-E
+options.
 .PP
-The SVr4 \fB\-c\fP mode does not report bad \*(``use=\*('' links.
+SVr4
+.IR tic 's
+.B \-c
+mode does not report bad
+.RB \*(`` use \*(''
+links.
 .PP
-System V does not compile entries to or read entries from your
-\fI$HOME/.terminfo\fP database unless \fI\%TERMINFO\fP is explicitly set
-to it.
+SVr4 does not compile entries to
+or read entries from your
+.I \%$HOME/.terminfo
+database unless the
+.I \%TERMINFO
+environment variable is explicitly set to it.
 .SH PORTABILITY
-X/Open Curses, Issue 7 (2009) provides a brief description of \fBtic\fP.
+X/Open Curses Issue\ 7 (2009) provides a brief description of \fBtic\fP.
 It lists one option: \fB\-c\fP.
 The omission of \fB\-v\fP is unexpected.
 The change history states that the description is derived from Tru64.
 According to its manual pages, that system also supported the \fB\-v\fP option.
 .PP
-Shortly after Issue 7 was released, Tru64 was discontinued.
+Shortly after Issue\ 7 was released, Tru64 was discontinued.
 As of 2019, the surviving implementations of \fBtic\fP
 are SVr4 (AIX, HP-UX and Solaris),
 \fI\%ncurses\fP
@@ -547,7 +786,7 @@ System V Release 2 provided a \fBtic\fP utility.
 It accepted a single option: \fB\-v\fP (optionally followed by a number).
 According to Ross Ridge's comment in \fImytinfo\fP,
 this version of \fBtic\fP was
-unable to represent cancelled capabilities.
+unable to represent canceled capabilities.
 .PP
 System V Release 3 provided a different \fBtic\fP utility,
 written by Pavel Curtis,
@@ -583,28 +822,43 @@ to support user-defined capabilities.
 In 2010, Roy Marples provided a \fBtic\fP program
 and terminfo library for NetBSD.
 That implementation adapts several features from \fI\%ncurses\fP,
-including \fB@TIC@\fP's \fB\-x\fP option.
+including
+.BR \%@TIC@ 's
+\fB\-x\fP option.
 .PP
-The \fB\-c\fP option tells \fB@TIC@\fP to check for problems in the
+The \fB\-c\fP option tells
+.B \%@TIC@
+to check for problems in the
 terminfo source file.
 Continued development provides additional checks:
 .bP
-\fIpcurses\fP had 8 warnings
+.I pcurses
+had 8 warnings.
 .bP
-\fI\%ncurses\fP in 1996 had 16 warnings
+.I \%ncurses
+in 1996 had 16 warnings.
 .bP
-Solaris (SVr4) curses has 28 warnings
+Solaris (SVr4)
+.I curses
+has 28 warnings.
 .bP
-NetBSD tic in 2019 has 19 warnings.
+NetBSD
+.I tic
+in 2019 has 19 warnings.
 .bP
-\fI\%ncurses\fP in 2019 has 96 warnings
+.I \%ncurses
+in 2019 has 96 warnings.
 .PP
-The checking done in \fI\%ncurses\fP' \fB@TIC@\fP helps with the
+The checking done in
+.IR \%ncurses 's
+.B \%@TIC@
+helps with the
 conversion to termcap,
 as well as pointing out errors and inconsistencies.
 It is also used to ensure consistency with the user-defined capabilities.
-There are 527 distinct capabilities in \fI\%ncurses\fP' terminal
-database;
+There are 527 distinct capabilities in
+.IR \%ncurses 's
+terminal database;
 128 of those are user-defined.
 .SH AUTHORS
 Eric S. Raymond <esr@snark.thyrsus.com>

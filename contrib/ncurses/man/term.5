@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,8 +28,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: term.5,v 1.77 2024/04/20 21:24:19 tom Exp $
-.TH term 5 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "File formats"
+.\" $Id: term.5,v 1.85 2025/08/16 19:11:47 tom Exp $
+.TH term 5 2025-08-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "File formats"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -55,69 +55,102 @@
 .el    .IP \(bu 2
 ..
 .
-.ds d @TERMINFO@
 .SH NAME
 term \-
-compiled \fIterminfo\fR terminal description
-.SH SYNOPSIS
-.B term
+compiled \fI\%term\%info\fP terminal description
+.\"SH SYNOPSIS
 .SH DESCRIPTION
+\fB\%@TIC@\fP(1) compiles a
+.I \%term\%info
+terminal type description,
+and \fB\%setupterm\fP(3X) reads it.
+A compiled description may be stored in a file or in a database of,
+potentially,
+many such descriptions.
+Further,
+a compiled description may be in one of two formats:
+one similar to that used by System\ V,
+and a newer,
+extensible format employed exclusively by
+.IR \%ncurses .
 .SS "Storage Location"
-Compiled terminfo descriptions are placed under the directory \fB\*d\fP.
-Two configurations are supported
-(when building the \fI\%ncurses\fP libraries):
+Compiled
+.I \%term\%info descriptions are placed
+under the directory
+.IR \%@TERMINFO@ .
+One of two configurations is selected
+when building the
+.I \%ncurses
+libraries.
 .TP 5
 .B directory tree
 A two-level scheme is used to avoid a linear search
-of a huge Unix system directory: \fB\*d/c/name\fP where
+of a huge Unix system directory:
+.IR \%@TERMINFO@/ c / name
+where
 .I name
-is the name of the terminal, and
+is the name of the terminal,
+and
 .I c
 is the first character of
 .IR name .
 Thus,
-.I act4
-can be found in the file \fB\*d/a/act4\fP.
+the compiled description of terminal type \*(``act4\*(''
+is found in the file
+.IR \%@TERMINFO@/a/act4 .
 Synonyms for the same terminal are implemented by multiple
 links to the same compiled file.
 .TP 5
 .B hashed database
-Using Berkeley database, two types of records are stored:
-the terminfo data in the same format as stored in a directory tree with
-the terminfo's primary name as a key,
+Using the Berkeley database API,
+two types of records are stored:
+the
+.I \%term\%info
+data in the same format as that stored in a directory tree with
+the terminal's primary type name as a key,
 and records containing only aliases pointing to the primary name.
 .IP
 If built to write hashed databases,
-\fI\%ncurses\fP can still read terminfo databases organized as a
+.I \%ncurses
+can still read
+.I \%term\%info
+databases organized as a
 directory tree,
 but cannot write entries into the directory tree.
-It can write (or rewrite) entries in the hashed database.
+It can write
+(or rewrite)
+entries in the hashed database.
 .IP
-\fI\%ncurses\fP distinguishes the two cases in the \fI\%TERMINFO\fP and
-\fI\%TERMINFO_DIRS\fP environment variable by assuming a directory tree
-for entries that correspond to an existing directory,
-and hashed database otherwise.
+.I \%ncurses
+distinguishes the two cases in the
+.I \%TERMINFO
+and
+.I \%TERMINFO_DIRS
+environment variable by assuming a directory tree for entries that
+correspond to an existing directory,
+and a hashed database otherwise.
 .SS "Legacy Storage Format"
 The format has been chosen so that it will be the same on all hardware.
-An 8 or more bit byte is assumed, but no assumptions about byte ordering
+A byte of at least eight bits' width is assumed,
+but no assumptions about bit ordering
 or sign extension are made.
 .PP
-The compiled file is created with the \fB@TIC@\fP program,
-and read by the routine \fBsetupterm\fP(3X).
 The file is divided into six parts:
 .RS 5
-.TP 3
-a) \fIheader\fP,
-.TP 3
-b) \fIterminal names\fP,
-.TP 3
-c) \fIBoolean flags\fP,
-.TP 3
-d) \fInumbers\fP,
-.TP 3
-e) \fIstrings\fP, and
-.TP 3
-f) \fIstring table\fP.
+.IP (a) 4
+.IR header ,
+.IP (b)
+.IR "terminal names" ,
+.IP (c)
+.IR "Boolean flags" ,
+.IP (d)
+.IR numbers ,
+.IP (e)
+.IR strings ,
+and
+.IP (f)
+a
+.IR "string table" .
 .RE
 .PP
 The \fIheader\fP section begins the file.
@@ -126,54 +159,64 @@ described below.
 These integers are
 .RS 5
 .TP 5
-(1) the \fImagic number\fP (octal 0432);
+(1) the \fImagic number\fP
+(octal 0432);
 .TP 5
-(2) the size, in bytes, of the \fIterminal names\fP section;
+(2) the size,
+in bytes,
+of the \fIterminal names\fP section;
 .TP 5
 (3) the number of bytes in the \fIBoolean flags\fP section;
 .TP 5
 (4) the number of short integers in the \fInumbers\fP section;
 .TP 5
-(5) the number of offsets (short integers) in the \fIstrings\fP section;
+(5) the number of offsets
+(short integers)
+in the \fIstrings\fP section;
 .TP 5
-(6) the size, in bytes, of the \fIstring table\fP.
+(6) the size,
+in bytes,
+of the \fIstring table\fP.
 .RE
 .PP
 The capabilities in the
 \fIBoolean flags\fP,
-\fInumbers\fP, and
+\fInumbers\fP,
+and
 \fIstrings\fP
-sections are in the same order as the file <term.h>.
+sections are in the same order as in the header file
+.IR term.h .
 .PP
-Short integers are signed, in the range \-32768 to 32767.
-They are stored as two 8-bit bytes.
-The first byte contains the least significant 8 bits of the value,
-and the second byte contains the most significant 8 bits.
-(Thus, the value represented is 256*second+first.)
-This format corresponds to the hardware of the \s-1VAX\s+1
-and \s-1PDP\s+1-11 (that is, little-endian machines).
-Machines where this does not correspond to the hardware must read the
-integers as two bytes and compute the little-endian value.
+Short integers are signed,
+in the range \-32768 to 32767,
+and stored in little-endian format.
 .PP
 Numbers in a terminal description,
 whether they are entries in the \fInumbers\fP or \fIstrings\fP table,
 are positive integers.
 Boolean flags are treated as positive one-byte integers.
-In each case, those positive integers represent a terminal capability.
-The terminal compiler @TIC@ uses negative integers to handle the cases where
-a capability is not available:
+In each case,
+those positive integers represent a terminal capability.
+The terminal compiler
+.I \%@TIC@
+uses negative integers to handle the cases where a capability is not
+available:
 .bP
 If a capability is absent from this terminal,
-@TIC@ stores a \-1 in the corresponding table.
+.I \%@TIC@
+stores a \-1 in the corresponding table.
 .IP
-The integer value \-1 is represented by two bytes 0377, 0377.
+The integer value \-1 is represented by two bytes 0377,
+0377.
 .br
 Absent Boolean values are represented by the byte 0 (false).
 .bP
 If a capability has been canceled from this terminal,
-@TIC@ stores a \-2 in the corresponding table.
+.I \%@TIC@
+stores a \-2 in the corresponding table.
 .IP
-The integer value \-2 is represented by two bytes 0377, 0376.
+The integer value \-2 is represented by two bytes 0377,
+0376.
 .br
 The Boolean value \-2 is represented by the byte 0376.
 .br
@@ -181,18 +224,22 @@ The Boolean value \-2 is represented by the byte 0376.
 Other negative values are illegal.
 .PP
 The \fIterminal names\fP section comes after the \fIheader\fP.
-It contains the first line of the terminfo description,
+It contains the first line of the
+.I \%term\%info
+description,
 listing the various names for the terminal,
 separated by the \*(``|\*('' character.
 The \fIterminal names\fP section is terminated
 with an \s-1ASCII NUL\s+1 character.
 .PP
 The \fIBoolean flags\fP section has one byte for each flag.
-Boolean capabilities are either 1 or 0 (true or false)
+Boolean capabilities are either 1 or 0
+(true or false)
 according to whether the terminal supports the given capability or not.
 .PP
 Between the \fIBoolean flags\fP section and the \fInumber\fP section,
-a null byte will be inserted, if necessary,
+a null byte will be inserted,
+if necessary,
 to ensure that the \fInumber\fP section begins on an even byte
 This is a relic of the PDP\-11's word-addressed architecture,
 originally designed to avoid traps induced
@@ -212,27 +259,42 @@ It contains all of the values of string capabilities referenced in
 the \fIstrings\fP section.
 Each string is null-terminated.
 Special characters in \*^X or \ec notation are stored in their
-interpreted form, not the printing representation.
-Padding information $<nn> and parameter information %x are
-stored intact in uninterpreted form.
+interpreted form,
+not the printing representation.
+Padding information
+.BI $< nn >
+and parameter information
+.B %x
+are stored intact in uninterpreted form.
 .SS "Extended Storage Format"
-The previous section describes the conventional terminfo binary format.
-With some minor variations of the offsets (see PORTABILITY),
+The previous section describes the conventional
+.I \%term\%info
+binary format.
+With some minor variations of the offsets
+(see PORTABILITY),
 the same binary format is used in all modern Unix systems.
-Each system uses a predefined set of Boolean, number or string capabilities.
+Each system uses a standard set of Boolean,
+numeric,
+or string capabilities.
 .PP
-The \fI\%ncurses\fP libraries and applications support
-extended terminfo binary format,
-allowing users to define capabilities which are loaded at runtime.
-This
-extension is made possible by using the fact that the other implementations
-stop reading the terminfo data when they have reached the end of the size given
-in the header.
-\fI\%ncurses\fP checks the size,
-and if it exceeds that due to the predefined data,
+The
+.I \%ncurses
+libraries and applications support extended
+.I \%term\%info
+binary format,
+allowing users to define capabilities that are loaded at runtime.
+This extension is made possible by using the fact that the other
+implementations stop reading the
+.I \%term\%info
+data when they reach the end of the size given in the header.
+.I \%ncurses
+checks the size,
+and if it exceeds that specified in the header,
 continues to parse according to its own scheme.
 .PP
-First, it reads the extended header (5 short integers):
+First,
+it reads the extended header
+(5 short integers):
 .RS 5
 .TP 5
 (1)
@@ -256,45 +318,62 @@ include the extended capability \fInames\fP as well as
 extended capability \fIvalues\fP.
 .PP
 Using the counts and sizes,
-\fI\%ncurses\fP allocates arrays and reads data for the extended
-capabilities in the same order as the header information.
+.I \%ncurses
+allocates arrays and reads data for the extended capabilities in the
+same order as the header information.
 .PP
 The extended string table contains values for string capabilities.
-After the end of these values, it contains the names for each of
-the extended capabilities in order, e.g., Booleans, then numbers and
-finally strings.
+After the end of these values,
+it contains the names for each of
+the extended capabilities in order:
+Boolean,
+numeric,
+and string.
 .PP
 By storing terminal descriptions in this way,
-\fI\%ncurses\fP is able to provide a database useful with legacy
-applications,
-as well as providing data for applications which need more than the
-predefined capabilities.
-See \fBuser_caps\fP(5) for an overview
-of the way \fI\%ncurses\fP uses this extended information.
+.I \%ncurses
+is able to provide a database useful with legacy applications,
+as well as providing data for applications that require more information
+about a terminal type than was anticipated
+by X/Open Curses.
+See \fB\%user_caps\fP(5) for an overview of the way
+.I \%ncurses
+uses this extended information.
 .PP
-Applications which manipulate terminal data can use the definitions
-described in \fBterm_variables\fP(3X) which associate the long capability
-names with members of a \fBTERMTYPE\fP structure.
+Applications that manipulate terminal data can use the definitions
+described in \fB\%term_variables\fP(3X) associating the long capability
+names with members of a
+.I \%TERMTYPE
+structure.
 .
 .SS "Extended Number Format"
-On occasion, 16-bit signed integers are not large enough.
-With \fI\%ncurses\fP 6.1,
-a new format was introduced by making a few changes
-to the legacy format:
+On occasion,
+16-bit signed integers are not large enough.
+.I \%ncurses
+6.1 introduced a new format
+by making a few changes to the legacy format:
 .bP
-a different magic number (octal 01036)
+a different magic number
+(octal 01036)
 .bP
 changing the type for the \fInumber\fP array from signed 16-bit integers
 to signed 32-bit integers.
 .PP
-To maintain compatibility, the library presents the same data structures
-to direct users of the \fBTERMTYPE\fP structure as in previous formats.
-However, that cannot provide callers with the extended numbers.
-The library uses a similar but hidden data structure \fBTERMTYPE2\fP
-to provide data for the terminfo functions.
+To maintain compatibility,
+the library presents the same data structures
+to direct users of the
+.I \%TERMTYPE
+structure as in previous formats.
+However,
+that cannot provide callers with the extended numbers.
+The library uses a similar but hidden data structure
+.I \%TERMTYPE2
+to provide data for the
+.I \%term\%info
+functions.
 .SH FILES
 .TP
-.I \*d
+.I @TERMINFO@
 compiled terminal description database
 .SH PORTABILITY
 .SS setupterm
@@ -313,69 +392,101 @@ The routine
 .B setupterm
 must be prepared for both possibilities \-
 this is why the numbers and sizes are included.
-Also, new capabilities must always be added at the end of the lists
-of Boolean, number, and string capabilities.
+Also,
+new capabilities must always be added at the end of the lists
+of Boolean,
+number,
+and string capabilities.
 .SS "Binary Format"
-X/Open Curses does not specify a format for the terminfo database.
-System V curses used a directory-tree of binary files,
+X/Open Curses does not specify a format for the
+.I \%term\%info
+database.
+System\ V
+.I curses
+used a directory-tree of binary files,
 one per terminal description.
 .PP
-Despite the consistent use of little-endian for numbers and the otherwise
-self-describing format, it is not wise to count on portability of binary
-terminfo entries between commercial Unix versions.
-The problem is that there
-are at least three versions of terminfo (under HP\-UX, AIX, and OSF/1) which
-diverged from System V terminfo after SVr1, and have added extension
-capabilities to the string table that (in the binary format) collide with
-System V and X/Open Curses extensions.
-See \fBterminfo\fP(5) for detailed
-discussion of terminfo source compatibility issues.
+Despite the consistent use of little-endian numbers and the otherwise
+self-describing format,
+it is not wise to count on portability of binary
+.I \%term\%info
+entries between commercial Unix versions.
+The problem is that there are at least three versions of
+.I \%term\%info
+(under HP\-UX,
+AIX,
+and OSF/1)
+each of which diverged from System\ V
+.I \%term\%info
+after SVr1,
+and added extension capabilities to the string table that
+(in the binary format)
+collide with System\ V and X/Open Curses extensions.
+See \fB\%terminfo\fP(5) for detailed
+discussion of
+.I \%term\%info
+source compatibility issues.
 .PP
 This implementation is by default compatible with the binary
-terminfo format used by Solaris curses,
+.I \%term\%info
+format used by Solaris
+.IR curses ,
 except in a few less-used details
 where it was found that the latter did not match X/Open Curses.
 The format used by the other Unix versions
-can be matched by building \fI\%ncurses\fP
+can be matched by building
+.I \%ncurses
 with different configuration options.
 .SS "Magic Codes"
-The magic number in a binary terminfo file is the first 16-bits (two bytes).
-Besides making it more reliable for the library to check that a file
-is terminfo,
-utilities such as \fBfile\fP(1) also use that to tell what the file-format is.
-System V defined more than one magic number,
-with 0433, 0435 as screen-dumps (see \fBscr_dump\fP(5)).
+The magic number in a binary
+.I \%term\%info
+file is the first 16 bits
+(two bytes).
+Besides making it more reliable for the library to check that a file is
+.IR \%term\%info ,
+utilities such as \fIfile\fP(1) also use that to tell what the
+file-format is.
+System\ V defined more than one magic number,
+with 0433,
+0435 as screen-dumps
+(see \fB\%scr_dump\fP(5)).
 This implementation uses 01036 as a continuation of that sequence,
 but with a different high-order byte to avoid confusion.
 .SS "The \fITERMTYPE\fP Structure"
-Direct access to the \fBTERMTYPE\fP structure is provided for legacy
-applications.
-Portable applications should use the \fBtigetflag\fP and related functions
-described in \fBcurs_terminfo\fP(3X) for reading terminal capabilities.
+Direct access to the
+.I \%TERMTYPE
+structure is provided for legacy applications.
+Portable applications should use \fB\%tigetflag\fP(3X) and related
+functions to read terminal capabilities.
 .SS "Mixed-case Terminal Names"
 A small number of terminal descriptions use uppercase characters in
 their names.
-If the underlying filesystem ignores the difference between
+If the underlying file system ignores the difference between
 uppercase and lowercase,
-\fI\%ncurses\fP represents the \*(``first character\*(''
-of the terminal name used as
-the intermediate level of a directory tree in (two-character) hexadecimal form.
+.I \%ncurses
+represents the \*(``first character\*('' of the terminal name used as
+the intermediate level of a directory tree in (two-character)
+hexadecimal form.
 .SS Limits
-\fI\%ncurses\fP stores compiled terminal descriptions
-in three related formats,
-described in the sections
+.I \%ncurses
+stores compiled terminal descriptions in three related formats,
+described in the subsections
 .bP
-\fBLEGACY STORAGE FORMAT\fP, and
+.BR "Legacy Storage Format" ,
+and
 .bP
-\fBEXTENDED STORAGE FORMAT\fP, and
+.BR "Extended Storage Format" ,
+and
 .bP
-\fBEXTENDED NUMBER FORMAT\fP.
+.BR "Extended Number Format" .
 .PP
 The legacy storage format and the extended number format differ by
-the types of numeric capability which they can store
-(i.e., 16-bit versus 32-bit integers).
-The extended storage format introduced by \fI\%ncurses\fP 5.0 adds data
-to either of these formats.
+the types of numeric capability that they can store
+(for example,
+16- versus 32-bit integers).
+The extended storage format introduced by
+.I \%ncurses
+5.0 adds data to either of these formats.
 .PP
 Some limitations apply:
 .bP
@@ -390,19 +501,25 @@ Compiled entries are limited to 32768 bytes because offsets into the
 The legacy format could have supported 32768-byte entries,
 but was limited to a virtual memory page's 4096 bytes.
 .SH EXAMPLES
-As an example, here is a description for the Lear-Siegler
-ADM\-3, a popular though rather stupid early terminal:
+Here is a
+.I \%term\%info
+description of the Lear-Siegler ADM-3,
+a popular though rather stupid early terminal.
 .PP
 .EX
+.nf
 adm3a|lsi adm3a,
         am,
         cols#80, lines#24,
         bel=\*^G, clear=\e032$<1>, cr=\*^M, cub1=\*^H, cud1=\*^J,
         cuf1=\*^L, cup=\eE=%p1%{32}%+%c%p2%{32}%+%c, cuu1=\*^K,
         home=\*^\*^, ind=\*^J,
+.fi
 .EE
 .PP
-and a hexadecimal dump of the compiled terminal description:
+A hexadecimal dump of its compiled terminal description
+(in legacy format)
+follows.
 .PP
 .if t .in +4n
 .ft \*(CW
@@ -436,15 +553,27 @@ Lp-1.
 .SH AUTHORS
 Thomas E. Dickey
 .br
-extended terminfo format for \fI\%ncurses\fP 5.0
+extended
+.I \%term\%info
+format for
+.I \%ncurses
+5.0
 .br
-hashed database support for \fI\%ncurses\fP 5.6
+hashed database support for
+.I \%ncurses
+5.6
 .br
-extended number support for \fI\%ncurses\fP 6.1
+extended number support for
+.I \%ncurses
+6.1
 .sp
 Eric S. Raymond
 .br
-documented legacy terminfo format, e.g., from \fIpcurses\fP.
+documented legacy
+.I \%term\%info
+format
+(that used by
+.IR \%pcurses ).
 .SH SEE ALSO
 \fB\%curses\fP(3X),
 \fB\%curs_terminfo\fP(3X),

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 2009-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -1857,6 +1857,12 @@ int	wins_wstr(
 		const wchar_t *z)
 		{ return(*(int *)0); }
 
+#undef winwstr
+int	winwstr(
+		WINDOW	*a1,
+		wchar_t	*z)
+		{ return(*(int *)0); }
+
 #undef mouse_trafo
 NCURSES_BOOL mouse_trafo(
 		int	*a1,
@@ -2065,7 +2071,7 @@ int	mouseinterval(
 
 #undef _nc_has_mouse
 NCURSES_BOOL _nc_has_mouse(
-		SCREEN	*sp)
+		const SCREEN *sp)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef has_mouse_sp
@@ -2622,7 +2628,7 @@ int	_nc_setupscreen_sp(
 		int	slines,
 		int	scolumns,
 		FILE	*output,
-		int	filtered,
+		NCURSES_BOOL filtered,
 		int	slk_format)
 		{ return(*(int *)0); }
 
@@ -2631,7 +2637,7 @@ int	_nc_setupscreen(
 		int	slines,
 		int	scolumns,
 		FILE	*output,
-		int	filtered,
+		NCURSES_BOOL filtered,
 		int	slk_format)
 		{ return(*(int *)0); }
 
@@ -3347,12 +3353,6 @@ int	winnwstr(
 		int	n)
 		{ return(*(int *)0); }
 
-#undef winwstr
-int	winwstr(
-		WINDOW	*win,
-		wchar_t	*wstr)
-		{ return(*(int *)0); }
-
 /* ./widechar/lib_key_name.c */
 
 #undef key_name
@@ -3581,7 +3581,7 @@ void	_nc_free_ordered_pairs(
 void	_nc_reset_color_pair(
 		SCREEN	*sp,
 		int	pair,
-		colorpair_t *next)
+		const colorpair_t *next)
 		{ /* void */ }
 
 #undef _nc_set_color_pair
@@ -3747,6 +3747,12 @@ NCURSES_BOOL _nc_is_dir_path(
 #undef _nc_is_file_path
 NCURSES_BOOL _nc_is_file_path(
 		const char *path)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef _nc_is_path_found
+NCURSES_BOOL _nc_is_path_found(
+		const char *path,
+		struct stat *sb)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef _nc_env_access
@@ -3959,7 +3965,7 @@ ENTRY	*_nc_tail;
 #undef _nc_free_entry
 void	_nc_free_entry(
 		ENTRY	*headp,
-		TERMTYPE2 *tterm)
+		const TERMTYPE2 *tterm)
 		{ /* void */ }
 
 #undef _nc_free_entries
@@ -4355,7 +4361,7 @@ int	_nc_putp_flush_sp(
 #undef _nc_keypad
 int	_nc_keypad(
 		SCREEN	*sp,
-		int	flag)
+		NCURSES_BOOL flag)
 		{ return(*(int *)0); }
 
 /* ./tinfo/lib_raw.c */
@@ -4563,8 +4569,8 @@ char	*_nc_get_locale(void)
 		{ return(*(char **)0); }
 
 #undef _nc_unicode_locale
-int	_nc_unicode_locale(void)
-		{ return(*(int *)0); }
+NCURSES_BOOL _nc_unicode_locale(void)
+		{ return(*(NCURSES_BOOL *)0); }
 
 #undef _nc_locale_breaks_acs
 int	_nc_locale_breaks_acs(
@@ -4908,7 +4914,7 @@ void	_tracef(
 
 #undef _nc_retrace_bool
 NCURSES_BOOL _nc_retrace_bool(
-		int	code)
+		NCURSES_BOOL code)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef _nc_retrace_char
@@ -5136,7 +5142,7 @@ int	resetty(void)
 
 #undef _nc_timed_wait
 int	_nc_timed_wait(
-		SCREEN	*sp,
+		const SCREEN *sp,
 		int	mode,
 		int	milliseconds,
 		int	*timeleft)

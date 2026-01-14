@@ -2,10 +2,10 @@
 #
 # MKlib_gen.sh -- generate sources from curses.h macro definitions
 #
-# ($Id: MKlib_gen.sh,v 1.73 2022/10/01 13:14:20 tom Exp $)
+# ($Id: MKlib_gen.sh,v 1.79 2025/02/23 01:55:06 tom Exp $)
 #
 ##############################################################################
-# Copyright 2018-2021,2022 Thomas E. Dickey                                  #
+# Copyright 2018-2024,2025 Thomas E. Dickey                                  #
 # Copyright 1998-2016,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -188,6 +188,10 @@ if test "$USE" = generated ; then
 cat >$ED4 <<EOF
 	s/^\(.*\) \(.*\) (\(.*\))\$/NCURSES_EXPORT(\1) \2 (\3)/
 	/attr_[sg]et.* z)/s,z),z GCC_UNUSED),
+	s/\(((\)0[L]*\([ ]*!=[ ]*(const void\)/\1NULL\2/g
+	/returnCode(wborder_set/s,0[L]*,NULL,g
+	/returnWin/s,0[L]*,NULL,
+	/_parent/s,0[L]*,NULL,
 EOF
 else
 cat >$ED4 <<EOF
@@ -199,6 +203,8 @@ cat >$ED4 <<EOF
 	s/^\(.*\) \(.*\) (\(.*\))\$/\1 call_\2 (\3)/
 	}
 s/\([^_]\)NCURSES_SP_NAME___\([a-zA-Z][a-zA-Z_]*\)/\1NCURSES_SP_NAME(\2)/g
+/call_NCURSES_SP_NAME/s,(0,(NULL,
+/call\(_NCURSES_SP_NAME\)\?_*\(delscreen\|ripoffline\|set_term\|vidputs\|vid_puts\)/s,0),NULL),
 EOF
 fi
 
@@ -440,6 +446,10 @@ BEGIN		{
 		print "#define NCURSES_ATTR_T int"
 		print "#include <ncurses_cfg.h>"
 		print ""
+		print "#if USE_STDBOOL_H"
+		print "#include <stdbool.h>"
+		print "#endif"
+		print ""
 		print "#undef NCURSES_NOMACROS	/* _this_ file uses macros */"
 		print "#define NCURSES_NOMACROS 1"
 		print ""
@@ -464,8 +474,11 @@ BEGIN		{
 		}
 END		{
 		if ( "$USE" != "generated" ) {
-			print "int main(void)"
-			print "{"
+			print  "static int link_test(int code)"
+			print  "{"
+			print  "  switch(code)"
+			print  "  {"
+			casenum = 1;
 			for (n = 1; n < start; ++n) {
 				value = calls[n];
 				if ( value !~ /P_POUNDC/ ) {
@@ -473,20 +486,37 @@ END		{
 					sub(/^[0-9a-zA-Z_]+ /,"",value);
 					sub(/^[*][ \t]*/,"",value);
 					gsub("struct[ \t]*[0-9a-zA-Z_]+[ \t]*[*]","",value);
+					arg_l = index(value, "(");
+					arg_r = index(value, ")");
+					if ( arg_l > 0 && arg_r > arg_l + 1 ) {
+						args = substr(value, arg_l + 1, arg_r - arg_l - 1);
+						gsub(/[0-9a-zA-Z_]+[ \t]*[*][ \t]*[0-9a-zA-Z_]+/,"NULL",args);
+						gsub(/ (bool|int|short|attr_t|chtype|wchar_t|NCURSES_BOOL|NCURSES_OUTC|NCURSES_OUTC_sp|va_list) /," ",args);
+						value = substr(value,0,arg_l) args substr(value,arg_r);
+					}
 					gsub(/[0-9a-zA-Z_]+[ \t]*[*][ \t]*/,"",value);
 					gsub(/ (const) /," ",value);
-					gsub(/ (int|short|attr_t|chtype|wchar_t|NCURSES_BOOL|NCURSES_OUTC|NCURSES_OUTC_sp|va_list) /," ",value);
+					gsub(/ (bool|int|short|attr_t|chtype|wchar_t|NCURSES_BOOL|NCURSES_OUTC|NCURSES_OUTC_sp|va_list) /," ",value);
 					gsub(/ void /,"",value);
 					sub(/^/,"call_",value);
 					gsub(/ (a[0-9]|z) /, " 0 ", value);
 					gsub(/ int[ \t]*[(][^)]+[)][(][^)]+[)]/, "0", value);
-					printf "\t%s;\n", value;
+					if ( index(value, "call_NCURSES_SP_NAME") > 0 ) {
+						sub("0","NULL", value);
+					}
+					printf "    case %d: %s; break;\n", casenum++, value;
 				} else {
+					if ( index(value, "call_NCURSES_SP_NAME") > 0 ) {
+						printf "/* FIXME %s */\n", value;
+						sub("0","NULL", value);
+					}
 					print value;
 				}
 			}
-			print "	return 0;"
-			print "}"
+			print  "  default: return 0; /* case did not exist */"
+			print  "  }"
+			print  "  return 1; /* case exists */"
+			print  "}"
 		}
 		}
 EOF1
@@ -527,3 +557,34 @@ $preprocessor $TMP 2>/dev/null \
 	-e '/#ident/d' \
 	-e '/#line/d' \
 | sed -f $ED4
+
+# a simple test-driver checks one or all of the linkages
+if test "$USE" = "implemented"
+then
+cat <<"EOF"
+int main(int argc, char *argv[])
+{
+	int n;
+	int rc;
+	if (argc > 1)
+	{
+		rc = !link_test(atoi(argv[1]));
+	}
+	else
+	{
+		rc = 0;
+		for (n = 1; ; ++n)
+		{
+			printf("TEST %d\n", n);
+			fflush(stdout);
+			if (!link_test(n))
+			{
+				rc = 1;
+				break;
+			}
+		}
+	}
+	return rc;
+}
+EOF
+fi

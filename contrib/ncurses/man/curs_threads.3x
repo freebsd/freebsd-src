@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright 2021-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2021-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 2008-2015,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,8 +28,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_threads.3x,v 1.56 2024/03/16 15:35:01 tom Exp $
-.TH curs_threads 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_threads.3x,v 1.59 2025/02/15 19:41:22 tom Exp $
+.TH curs_threads 3X 2025-02-15 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -102,7 +102,7 @@ It further makes functions of the common global variables
 \fB\%newscr\fP,
 and
 \fB\%ttytype\fP,
-maintaining them as as read-only values in the \fISCREEN\fP structure.
+maintaining them as read-only values in the \fISCREEN\fP structure.
 .PP
 Even this is not enough to make an application using \fIcurses\fP
 thread-safe.

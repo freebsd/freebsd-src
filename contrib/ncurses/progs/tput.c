@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -47,7 +47,7 @@
 #include <transform.h>
 #include <tty_settings.h>
 
-MODULE_ID("$Id: tput.c,v 1.104 2024/04/20 22:20:51 tom Exp $")
+MODULE_ID("$Id: tput.c,v 1.110 2025/01/12 00:36:15 tom Exp $")
 
 #define PUTS(s)		fputs(s, stdout)
 
@@ -120,11 +120,11 @@ check_aliases(char *name, bool program)
     static char my_clear[] = "clear";
 
     char *result = name;
-    if ((is_init = same_program(name, program ? PROG_INIT : my_init)))
+    if ((is_init = same_program(name, program ? PROG_INIT : my_init)) == TRUE)
 	result = my_init;
-    if ((is_reset = same_program(name, program ? PROG_RESET : my_reset)))
+    if ((is_reset = same_program(name, program ? PROG_RESET : my_reset)) == TRUE)
 	result = my_reset;
-    if ((is_clear = same_program(name, program ? PROG_CLEAR : my_clear)))
+    if ((is_clear = same_program(name, program ? PROG_CLEAR : my_clear)) == TRUE)
 	result = my_clear;
     return result;
 }
@@ -182,8 +182,8 @@ tput_cmd(int fd, TTY * settings, int argc, char **argv, int *used)
 	    NCURSES_INT2 my_rows = lines;
 	    NCURSES_INT2 my_cols = columns;
 	    set_window_size(fd, &my_rows, &my_cols);
-	    lines = my_rows;
-	    columns = my_cols;
+	    lines = (short) my_rows;
+	    columns = (short) my_cols;
 	}
 #else
 	(void) fd;
@@ -219,7 +219,7 @@ tput_cmd(int fd, TTY * settings, int argc, char **argv, int *used)
 	    const struct name_table_entry *np;
 
 	    termcap = TRUE;
-	    if ((np = _nc_find_entry(name, _nc_get_hash_table(termcap))) != 0) {
+	    if ((np = _nc_find_entry(name, _nc_get_hash_table(termcap))) != NULL) {
 		switch (np->nte_type) {
 		case BOOLEAN:
 		    name = boolnames[np->nte_index];
@@ -239,54 +239,71 @@ tput_cmd(int fd, TTY * settings, int argc, char **argv, int *used)
 #endif
 	quit(ErrCapName, "unknown terminfo capability '%s'", name);
     } else if (VALID_STRING(s)) {
-	if (argc > 1) {
-	    int k;
-	    int narg;
-	    int analyzed;
-	    int provided;
-	    int popcount;
-	    long numbers[1 + NUM_PARM];
-	    char *strings[1 + NUM_PARM];
-	    char *p_is_s[NUM_PARM];
-	    TParams paramType;
+	TParams paramType;
+	long numbers[1 + NUM_PARM];
+	char *strings[1 + NUM_PARM];
+	char *p_is_s[NUM_PARM];
+	int k;
+	int narg;
+	int analyzed = 0;
+	int provided = 0;
+	int popcount = 0;
 
-	    /* Nasty hack time. The tparm function needs to see numeric
-	     * parameters as numbers, not as pointers to their string
-	     * representations
-	     */
-
-	    for (k = 1; (k < argc) && (k <= NUM_PARM); k++) {
-		char *tmp = 0;
-		strings[k] = argv[k];
-		numbers[k] = strtol(argv[k], &tmp, 0);
-		if (tmp == 0 || *tmp != 0)
-		    numbers[k] = 0;
-	    }
-	    for (k = argc; k <= NUM_PARM; k++) {
-		numbers[k] = 0;
-		strings[k] = 0;
-	    }
-
-	    paramType = tparm_type(name);
+	paramType = tparm_type(name);
 #if NCURSES_XNAMES
-	    /*
-	     * If the capability is an extended one, analyze the string.
-	     */
-	    if (paramType == Numbers) {
-		struct name_table_entry const *entry_ptr;
-		entry_ptr = _nc_find_type_entry(name, STRING, FALSE);
-		if (entry_ptr == NULL) {
-		    paramType = Other;
-		}
+	/*
+	 * If the capability is an extended one, analyze the string.
+	 */
+	if (paramType == Numbers) {
+	    struct name_table_entry const *entry_ptr;
+	    entry_ptr = _nc_find_type_entry(name, STRING, FALSE);
+	    if (entry_ptr == NULL) {
+		paramType = Other;
 	    }
+	}
 #endif
+	/* Nasty hack time.  The tparm function needs to see numeric parameters
+	 * as numbers, not as pointers to their string representations
+	 */
+	for (k = 1; (k < argc) && (k <= NUM_PARM); k++) {
+	    char *tmp = NULL;
+	    strings[k] = argv[k];
+	    numbers[k] = strtol(argv[k], &tmp, 0);
+	    if (tmp == NULL || *tmp != 0)
+		numbers[k] = 0;
+	}
+	for (k = argc; k <= NUM_PARM; k++) {
+	    numbers[k] = 0;
+	    strings[k] = NULL;
+	}
 
-	    popcount = 0;
+	switch (paramType) {
+	case Str:
+	    analyzed = 1;
+	    break;
+	case Str_Str:
+	    analyzed = 2;
+	    break;
+	case Num_Str:
+	    analyzed = 2;
+	    break;
+	case Num_Str_Str:
+	    analyzed = 3;
+	    break;
+	case Numbers:
+	case Other:
+	    analyzed = _nc_tparm_analyze(NULL, s, p_is_s, &popcount);
+	    break;
+	}
+	if (analyzed < popcount) {
+	    analyzed = popcount;
+	}
+
+	if (argc > 1) {
 	    _nc_reset_tparm(NULL);
 	    /*
 	     * Count the number of numeric parameters which are provided.
 	     */
-	    provided = 0;
 	    for (narg = 1; narg < argc; ++narg) {
 		char *ending = NULL;
 		long check = strtol(argv[narg], &ending, 0);
@@ -297,13 +314,11 @@ tput_cmd(int fd, TTY * settings, int argc, char **argv, int *used)
 	    switch (paramType) {
 	    case Str:
 		s = TPARM_1(s, strings[1]);
-		analyzed = 1;
 		if (provided == 0 && argc >= 1)
 		    provided++;
 		break;
 	    case Str_Str:
 		s = TPARM_2(s, strings[1], strings[2]);
-		analyzed = 2;
 		if (provided == 0 && argc >= 1)
 		    provided++;
 		if (provided == 1 && argc >= 2)
@@ -311,22 +326,19 @@ tput_cmd(int fd, TTY * settings, int argc, char **argv, int *used)
 		break;
 	    case Num_Str:
 		s = TPARM_2(s, numbers[1], strings[2]);
-		analyzed = 2;
 		if (provided == 1 && argc >= 2)
 		    provided++;
 		break;
 	    case Num_Str_Str:
 		s = TPARM_3(s, numbers[1], strings[2], strings[3]);
-		analyzed = 3;
 		if (provided == 1 && argc >= 2)
 		    provided++;
 		if (provided == 2 && argc >= 3)
 		    provided++;
 		break;
 	    case Numbers:
-		analyzed = _nc_tparm_analyze(NULL, s, p_is_s, &popcount);
 #define myParam(n) numbers[n]
-		s = TIPARM_9(s,
+		s = TIPARM_N(analyzed, s,
 			     myParam(1),
 			     myParam(2),
 			     myParam(3),
@@ -341,23 +353,19 @@ tput_cmd(int fd, TTY * settings, int argc, char **argv, int *used)
 	    case Other:
 		/* FALLTHRU */
 	    default:
-		analyzed = _nc_tparm_analyze(NULL, s, p_is_s, &popcount);
-#define myParam(n) (p_is_s[n - 1] != 0 ? ((TPARM_ARG) strings[n]) : numbers[n])
-		s = TPARM_9(s,
-			    myParam(1),
-			    myParam(2),
-			    myParam(3),
-			    myParam(4),
-			    myParam(5),
-			    myParam(6),
-			    myParam(7),
-			    myParam(8),
-			    myParam(9));
+#define myParam(n) (p_is_s[n - 1] != NULL ? ((TPARM_ARG) strings[n]) : numbers[n])
+		s = TIPARM_N(analyzed, s,
+			     myParam(1),
+			     myParam(2),
+			     myParam(3),
+			     myParam(4),
+			     myParam(5),
+			     myParam(6),
+			     myParam(7),
+			     myParam(8),
+			     myParam(9));
 #undef myParam
 		break;
-	    }
-	    if (analyzed < popcount) {
-		analyzed = popcount;
 	    }
 	    if (opt_v && (analyzed != provided)) {
 		fprintf(stderr, "%s: %s parameters for \"%s\"\n",
@@ -366,6 +374,12 @@ tput_cmd(int fd, TTY * settings, int argc, char **argv, int *used)
 			argv[0]);
 	    }
 	    *used += provided;
+	} else {
+	    if (opt_v) {
+		fprintf(stderr, "%s: missing parameters for \"%s\"\n",
+			_nc_progname,
+			argv[0]);
+	    }
 	}
 
 	/* use putp() in order to perform padding */
@@ -440,7 +454,7 @@ main(int argc, char **argv)
 	argv += optind;
     }
 
-    if (term == 0 || *term == '\0')
+    if (term == NULL || *term == '\0')
 	quit(ErrUsage, "No value for $TERM and no -T specified");
 
     fd = save_tty_settings(&tty_settings, need_tty);
@@ -464,7 +478,7 @@ main(int argc, char **argv)
 	ExitProgram(code);
     }
 
-    while (fgets(buf, sizeof(buf), stdin) != 0) {
+    while (fgets(buf, sizeof(buf), stdin) != NULL) {
 	size_t need = strlen(buf);
 	char **argvec = typeCalloc(char *, need + 1);
 	char **argnow;

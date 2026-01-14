@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright 2019-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2019-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,8 +28,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: toe.1m,v 1.68 2024/04/20 18:59:26 tom Exp $
-.TH @TOE@ 1M 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
+.\" $Id: toe.1m,v 1.75 2025/11/12 01:06:36 tom Exp $
+.TH @TOE@ 1M 2025-11-11 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -50,7 +50,6 @@
 .ie n  .IP \(bu 4
 .el    .IP \(bu 2
 ..
-.ds d @TERMINFO@
 .SH NAME
 \fB\%@TOE@\fP \-
 list table of entries of \fIterminfo\fR terminal types
@@ -99,7 +98,7 @@ Without the \fB\-s\fP option,
 \fB\%@TOE@\fP does not attempt to merge duplicates in its report.
 .TP
 .B \-h
-writes a heading naming each each directory as it is accessed.
+writes a heading naming each directory as it is accessed.
 .TP
 .B \-s
 sorts the output by the entry names.
@@ -143,7 +142,7 @@ reports the version of \fI\%ncurses\fP associated
 with this program and exits with a successful status.
 .SH FILES
 .TP
-.I \*d
+.I @TERMINFO@
 compiled terminal description database
 .SH PORTABILITY
 \fB\%@TOE@\fP is not provided by other implementations.
@@ -172,7 +171,7 @@ terminal database directories named in the \fI\%TERMINFO\fP and
 .\" toe -a | grep -E '^(xterm|vt)'
 .ft \*(CW
 .TS
-L2 Lx.
+L2 Lw(32n)x.
 xterm\-color	generic color xterm
 xterm\-xfree86	xterm terminal emulator (XFree86)
 xterm\-vt220	xterm emulating vt220
@@ -181,7 +180,7 @@ xterm\-r6	xterm X11R6 version
 xterm\-r5	xterm R5 version
 xterm\-mono	monochrome xterm
 xterm	T{
-.ad l
+.na
 xterm terminal emulator (X Window System)
 T}
 vt220	dec vt220
@@ -202,19 +201,19 @@ terminal description was found.
 .\" toe -as | grep -E '(^-+>|:.(xterm|vt))'
 .ft \*(CW
 .TS
-Lx.
+Lw(31n)x.
 \-\-> /etc/terminfo
 \-\-\-\-> /lib/terminfo
 \-\-\-\-\-\-> /usr/share/terminfo
 .TE
 .TS
-L1 L2 Lx.
+L1 L2 Lw(31n)x.
 \-\-*\-\-\-:	vt100	dec vt100 (w/advanced video)
 \-\-*\-\-\-:	vt102	dec vt102
 \-\-*\-\-\-:	vt220	dec vt220
 \-\-*\-\-\-:	vt52	dec vt52
 \-\-*\-\-\-:	xterm	T{
-.ad l
+.na
 xterm terminal emulator (X Window System)
 T}
 \-\-*\-\-\-:	xterm\-256color	xterm with 256 colors
@@ -224,7 +223,7 @@ T}
 \-\-*\-\-\-:	xterm\-r6	xterm X11R6 version
 \-\-*\-\-\-:	xterm\-vt220	xterm emulating vt220
 \-\-*\-\-\-:	xterm\-xfree86	T{
-.ad l
+.na
 xterm terminal emulator (XFree86)
 T}
 .T&

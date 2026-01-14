@@ -29,43 +29,101 @@
 .\"
 .\" Author: Thomas E. Dickey 1997
 .\"
-.\" $Id: define_key.3x,v 1.42 2024/03/16 15:35:01 tom Exp $
-.TH define_key 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: define_key.3x,v 1.52 2024/12/28 21:26:21 tom Exp $
+.TH define_key 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.
 .SH NAME
 \fB\%define_key\fP \-
-define a \fIcurses\fR keycode
+define a \fIcurses\fP function key code
 .SH SYNOPSIS
 .nf
 \fB#include <curses.h>
 .PP
-\fBint define_key(const char *\fIdefinition\fP, int \fIkeycode\fP);
+\fBint define_key(const char * \fIdefinition\fP, int \fIkey-code\fP);
 .fi
 .SH DESCRIPTION
-This is an extension to the \fIcurses\fP library.
-It permits an application to define keycodes with their corresponding control
-strings,
-so that the \fI\%ncurses\fP library will interpret them just as it would
-the predefined codes in the terminfo database.
+The
+.B \%define_key
+.I \%ncurses
+extension permits a
+.I curses
+application to
+.I bind
+a string
+.I definition
+to the function key
+.I key-code
+returned by \fB\%wgetch\fP(3X)
+(wide-character API users:
+\fB\%wget_wch\fP(3X))
+when \fB\%keypad\fP(3X) is enabled in a window and a function key is
+pressed.
+.I \%ncurses
+interprets such a binding as it does those in the
+.I \%term\%info
+database entry for the terminal type.
 .PP
-If \fIdefinition\fP is \fBNULL\fP,
-any existing one for the keycode is removed.
-Similarly, if the given keycode is negative or zero, any existing string
-for the given definition is removed.
+A
+.I definition
+of
+.I NULL
+removes any existing binding from
+.IR key-code "."
+Similarly,
+a non-positive
+.I key-code
+removes an existing binding for
+.IR definition ","
+if any.
 .SH RETURN VALUE
-Either \fIkeycode\fP must be greater than zero,
-or \fIdefinition\fP must be non-\fBNULL\fP,
-otherwise \fBERR\fP is returned.
-\fBERR\fP may also be returned if there is insufficient memory to allocate the
-data to store the definition.
-If no error is detected, \fBOK\fP is returned.
+.B \%define_key
+returns
+.B ERR
+if
+.bP
+.I definition
+is
+.I NULL
+and
+.I key-code
+is nonpositive,
+or
+.bP
+insufficient memory is available to bind
+.I definition
+to
+.IR key-code "."
+.PP
+Otherwise,
+.B \%define_key
+returns
+.BR OK "."
+.SH EXTENSIONS
+.B \%define_key
+is an
+.I \%ncurses
+extension.
 .SH PORTABILITY
-These routines are specific to \fI\%ncurses\fP.
-They were not supported on
-Version 7, BSD or System V implementations.
-It is recommended that
-any code depending on them be conditioned using \fB\%NCURSES_VERSION\fP.
+Applications employing
+.I \%ncurses
+extensions should condition their use on the visibility of the
+.B \%NCURSES_VERSION
+preprocessor macro.
+.PP
+NetBSD
+.I curses
+since 2.0 (2004) supports
+.IR \%define_key "."
 .SH AUTHORS
 Thomas Dickey
 .SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%keybound\fP(3X),
 \fB\%keyok\fP(3X),
-\fB\%key_defined\fP(3X)
+\fB\%key_defined\fP(3X),
+\fB\%terminfo\fP(5)

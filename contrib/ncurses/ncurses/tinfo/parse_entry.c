@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -48,7 +48,7 @@
 #include <ctype.h>
 #include <tic.h>
 
-MODULE_ID("$Id: parse_entry.c,v 1.108 2023/04/24 22:32:33 tom Exp $")
+MODULE_ID("$Id: parse_entry.c,v 1.117 2025/11/23 20:25:15 tom Exp $")
 
 #ifdef LINT
 static short const parametrized[] =
@@ -204,7 +204,7 @@ expected_type(const char *name, int token_type, bool silent)
 {
     struct user_table_entry const *entry = _nc_find_user_entry(name);
     bool result = TRUE;
-    if ((entry != 0) && (token_type != CANCEL)) {
+    if ((entry != NULL) && (token_type != CANCEL)) {
 	int have_type = (1 << token_type);
 	if (!(entry->ute_type & have_type)) {
 	    if (!silent)
@@ -332,7 +332,7 @@ _nc_parse_entry(ENTRY * entryp, int literal, bool silent)
 
     entryp->tterm.str_table = entryp->tterm.term_names = _nc_save_str(ptr);
 
-    if (entryp->tterm.str_table == 0)
+    if (entryp->tterm.str_table == NULL)
 	returnDB(ERR);
 
     DEBUG(2, ("Starting '%s'", ptr));
@@ -350,7 +350,7 @@ _nc_parse_entry(ENTRY * entryp, int literal, bool silent)
     _nc_set_type(name);
 
     /* check for overly-long names and aliases */
-    for (base = entryp->tterm.term_names; (ptr = strchr(base, '|')) != 0;
+    for (base = entryp->tterm.term_names; (ptr = strchr(base, '|')) != NULL;
 	 base = ptr + 1) {
 	if (ptr - base > MAX_ALIAS) {
 	    _nc_warning("%s `%.*s' may be too long",
@@ -379,10 +379,15 @@ _nc_parse_entry(ENTRY * entryp, int literal, bool silent)
 		_nc_warning("invalid name for use-clause \"%s\"",
 			    _nc_curr_token.tk_valstring);
 		continue;
-	    } else if (entryp->nuses >= MAX_USES) {
+	    } else if (entryp->nuses >= HARD_MAX_USES) {
 		_nc_warning("too many use-clauses, ignored \"%s\"",
 			    _nc_curr_token.tk_valstring);
 		continue;
+	    } else if (entryp->nuses >= WARN_MAX_USES) {
+		_nc_warning("possibly too many use-clauses (%d vs %d), \"%s\"",
+			    entryp->nuses,
+			    WARN_MAX_USES,
+			    _nc_curr_token.tk_valstring);
 	    }
 	    if ((saved = _nc_save_str(_nc_curr_token.tk_valstring)) != NULL) {
 		entryp->uses[entryp->nuses].name = saved;
@@ -395,7 +400,7 @@ _nc_parse_entry(ENTRY * entryp, int literal, bool silent)
 	} else {
 	    /* normal token lookup */
 	    entry_ptr = _nc_find_entry(_nc_curr_token.tk_name,
-				       _nc_get_hash_table(_nc_syntax));
+				       _nc_get_hash_table(_nc_syntax == SYN_TERMCAP));
 
 	    /*
 	     * Our kluge to handle aliasing.  The reason it is done
@@ -459,7 +464,7 @@ _nc_parse_entry(ENTRY * entryp, int literal, bool silent)
 		if (expected_type(_nc_curr_token.tk_name, token_type, silent)) {
 		    if ((entry_ptr = _nc_extend_names(entryp,
 						      _nc_curr_token.tk_name,
-						      token_type)) != 0) {
+						      token_type)) != NULL) {
 			if (_nc_tracing >= DEBUG_LEVEL(1)) {
 			    _nc_warning("extended capability '%s'",
 					_nc_curr_token.tk_name);
@@ -487,8 +492,8 @@ _nc_parse_entry(ENTRY * entryp, int literal, bool silent)
 		 */
 		if (!strcmp("ma", _nc_curr_token.tk_name)) {
 		    entry_ptr = _nc_find_type_entry("ma", NUMBER,
-						    _nc_syntax != 0);
-		    assert(entry_ptr != 0);
+						    _nc_syntax != SYN_TERMINFO);
+		    assert(entry_ptr != NULL);
 		}
 	    } else if (entry_ptr->nte_type != token_type) {
 		/*
@@ -505,15 +510,15 @@ _nc_parse_entry(ENTRY * entryp, int literal, bool silent)
 		    && !strcmp("ma", _nc_curr_token.tk_name)) {
 		    /* tell max_attributes from arrow_key_map */
 		    entry_ptr = _nc_find_type_entry("ma", NUMBER,
-						    _nc_syntax != 0);
-		    assert(entry_ptr != 0);
+						    _nc_syntax != SYN_TERMINFO);
+		    assert(entry_ptr != NULL);
 
 		} else if (token_type == STRING
 			   && !strcmp("MT", _nc_curr_token.tk_name)) {
 		    /* map terminfo's string MT to MT */
 		    entry_ptr = _nc_find_type_entry("MT", STRING,
-						    _nc_syntax != 0);
-		    assert(entry_ptr != 0);
+						    _nc_syntax != SYN_TERMINFO);
+		    assert(entry_ptr != NULL);
 
 		} else if (token_type == BOOLEAN
 			   && entry_ptr->nte_type == STRING) {
@@ -549,7 +554,8 @@ _nc_parse_entry(ENTRY * entryp, int literal, bool silent)
 	    case CANCEL:
 		switch (entry_ptr->nte_type) {
 		case BOOLEAN:
-		    entryp->tterm.Booleans[entry_ptr->nte_index] = CANCELLED_BOOLEAN;
+		    entryp->tterm.Booleans[entry_ptr->nte_index] =
+			(NCURSES_SBOOL) CANCELLED_BOOLEAN;
 		    break;
 
 		case NUMBER:
@@ -629,7 +635,7 @@ _nc_parse_entry(ENTRY * entryp, int literal, bool silent)
 		 * have picked up defaults via translation.
 		 */
 		for (i = 0; i < entryp->nuses; i++) {
-		    if (entryp->uses[i].name != 0
+		    if (entryp->uses[i].name != NULL
 			&& !strchr(entryp->uses[i].name, '+'))
 			has_base_entry = TRUE;
 		}
@@ -695,9 +701,9 @@ _nc_capcmp(const char *s, const char *t)
 }
 
 static void
-append_acs0(string_desc * dst, int code, char *src, size_t off)
+append_acs0(string_desc * dst, int code, const char *src, size_t off)
 {
-    if (src != 0 && off < strlen(src)) {
+    if (src != NULL && off < strlen(src)) {
 	char temp[3];
 	temp[0] = (char) code;
 	temp[1] = src[off];
@@ -707,7 +713,7 @@ append_acs0(string_desc * dst, int code, char *src, size_t off)
 }
 
 static void
-append_acs(string_desc * dst, int code, char *src)
+append_acs(string_desc * dst, int code, const char *src)
 {
     if (VALID_STRING(src) && strlen(src) == 1) {
 	append_acs0(dst, code, src, 0);
@@ -929,15 +935,15 @@ postprocess_termcap(TERMTYPE2 *tp, bool has_base)
 
 	/* we're going to use this for a special case later */
 	dp = strchr(other_non_function_keys, 'i');
-	foundim = (dp != 0) && (dp[1] == 'm');
+	foundim = (dp != NULL) && (dp[1] == 'm');
 
 	/* look at each comma-separated capability in the ko string... */
 	for (base = other_non_function_keys;
-	     (cp = strchr(base, ',')) != 0;
+	     (cp = strchr(base, ',')) != NULL;
 	     base = cp + 1) {
 	    size_t len = (unsigned) (cp - base);
 	    size_t n;
-	    assoc const *ap = 0;
+	    assoc const *ap = NULL;
 
 	    for (n = 0; n < SIZEOF(ko_xlate); ++n) {
 		if (len == strlen(ko_xlate[n].from)
@@ -946,7 +952,7 @@ postprocess_termcap(TERMTYPE2 *tp, bool has_base)
 		    break;
 		}
 	    }
-	    if (ap == 0) {
+	    if (ap == NULL) {
 		_nc_warning("unknown capability `%.*s' in ko string",
 			    (int) len, base);
 		continue;
@@ -985,6 +991,8 @@ postprocess_termcap(TERMTYPE2 *tp, bool has_base)
 	    bp = tp->Strings[from_ptr->nte_index];
 	    if (VALID_STRING(bp)) {
 		for (dp = buf2; *bp; bp++) {
+		    if ((size_t) (dp - buf2) >= (sizeof(buf2) - sizeof(TERMTYPE2)))
+			  break;
 		    if (bp[0] == '$' && bp[1] == '<') {
 			while (*bp && *bp != '>') {
 			    ++bp;
@@ -1143,7 +1151,7 @@ lookup_fullname(const char *find)
 	    return NOTFOUND;
 	}
 
-	for (count = 0; names[count] != 0; count++) {
+	for (count = 0; names[count] != NULL; count++) {
 	    if (!strcmp(names[count], find)) {
 		struct name_table_entry const *entry_ptr = _nc_get_table(FALSE);
 		while (entry_ptr->nte_type != state

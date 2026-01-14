@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 2002-2012,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_inwstr.3x,v 1.41 2024/04/20 21:20:07 tom Exp $
-.TH curs_inwstr 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_inwstr.3x,v 1.66 2025/10/21 00:04:48 tom Exp $
+.TH curs_inwstr 3X 2025-10-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -45,59 +45,100 @@
 ..
 .SH NAME
 \fB\%inwstr\fP,
-\fB\%innwstr\fP,
 \fB\%winwstr\fP,
-\fB\%winnwstr\fP,
 \fB\%mvinwstr\fP,
-\fB\%mvinnwstr\fP,
 \fB\%mvwinwstr\fP,
+\fB\%innwstr\fP,
+\fB\%winnwstr\fP,
+\fB\%mvinnwstr\fP,
 \fB\%mvwinnwstr\fP \-
 get a wide-character string from a \fIcurses\fR window
 .SH SYNOPSIS
 .nf
 \fB#include <curses.h>
 .PP
-\fBint inwstr(wchar_t *\fIwstr\fP);
-\fBint innwstr(wchar_t *\fIwstr\fP, int \fIn\fP);
-\fBint winwstr(WINDOW *\fIwin\fP, wchar_t *\fIwstr\fP);
-\fBint winnwstr(WINDOW *\fIwin\fP, wchar_t *\fIwstr\fP, int \fIn\fP);
+\fBint inwstr(wchar_t * \fIwstr\fP);
+\fBint winwstr(WINDOW * \fIwin\fP, wchar_t * \fIwstr\fP);
+\fBint mvinwstr(int \fIy\fP, int \fIx\fP, wchar_t * \fIwstr\fP);
+\fBint mvwinwstr(WINDOW * \fIwin\fP, int \fIy\fP, int \fIx\fP, wchar_t * \fIwstr\fP);
 .PP
-\fBint mvinwstr(int \fIy\fP, int \fIx\fP, wchar_t *\fIwstr\fP);
-\fBint mvinnwstr(int \fIy\fP, int \fIx\fP, wchar_t *\fIwstr\fP, int \fIn\fP);
-\fBint mvwinwstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, wchar_t *\fIwstr\fP);
-\fBint mvwinnwstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, wchar_t *\fIwstr\fP, int \fIn\fP);
+\fBint innwstr(wchar_t * \fIwstr\fP, int \fIn\fP);
+\fBint winnwstr(WINDOW * \fIwin\fP, wchar_t * \fIwstr\fP, int \fIn\fP);
+\fBint mvinnwstr(int \fIy\fP, int \fIx\fP, wchar_t * \fIwstr\fP, int \fIn\fP);
+\fBint mvwinnwstr(WINDOW * \fIwin\fP, int \fIy\fP, int \fIx\fP, wchar_t * \fIwstr\fP, int \fIn\fP);
 .fi
 .SH DESCRIPTION
-These routines return a string of \fBwchar_t\fP wide characters in \fIwstr\fP,
-starting at the current cursor position in the named window.
-.PP
-The four functions with \fIn\fP as the last argument return
-a leading substring at most \fIn\fP characters long
-(exclusive of the trailing NUL).
-Transfer stops at the end of the current line, or when \fIn\fP characters have
-been stored at the location referenced by \fIwstr\fP.
-.PP
-If the size \fIn\fP is not large enough to store a complete complex character,
-an error is generated.
+.B \%winwstr
+extracts a wide-character string from a
+.I curses
+window
+.IR win ","
+starting at the cursor and stopping at the end of the line,
+and stores it in
+.IR wstr ","
+terminating it with a wide null character
+and
+omitting any attributes and color pair identifier
+that
+.I curses
+associates with each character.
+.B \%winnwstr
+does the same,
+but copies at most
+.I n
+wide characters from
+.IR win "."
+A negative
+.I n
+implies no limit;
+.B \%winnwstr
+then works like
+.BR \%winwstr "."
+\fB\%ncurses\fP(3X) describes the variants of these functions.
 .SH RETURN VALUE
-All routines return
-\fBERR\fP
+On successful operation,
+these functions return the count of wide characters copied from
+.I win
+to
+.I wstr
+(not including the wide null terminator),
+or
+.B ERR
 upon failure.
-Upon
-successful completion, the *\fBinwstr\fP
-routines return
-\fBOK\fP, and the *\fBinnwstr\fP
-routines return the
-number of characters read into the string.
+.BR \%innwstr ","
+.BR \%winnwstr ","
+.BR \%mvinnwstr ","
+and
+.B \%mvwinnwstr
+return
+.B ERR
+if
+.I n
+is insufficiently large to store a complete wide character string.
+(Recall that a
+.I curses
+complex character can contain multiple wide characters,
+some of which may be non-spacing.)
 .PP
-X/Open defines no error conditions.
-This implementation returns an error
+In
+.IR \%ncurses ","
+these functions return
+.B ERR
+if
 .bP
-if the \fIwin\fP parameter is null or
+the
+.I curses
+screen has not been initialized,
 .bP
-if the \fIwstr\fP parameter is null, or
+(for functions taking a
+.I \%WINDOW
+pointer argument)
+.I win
+is a null pointer,
+or
 .bP
-if no characters could be read.
+.I wstr
+is a null pointer.
 .PP
 Functions prefixed with \*(``mv\*('' first perform cursor movement and
 fail if the position
@@ -105,37 +146,103 @@ fail if the position
 .IR x )
 is outside the window boundaries.
 .SH NOTES
-All routines except
-\fBwinnwstr\fP
-may be macros.
-.PP
-Each cell in the window holds a complex character
-(a spacing character and zero or more non-spacing characters)
-together with attributes and color.
-These functions store only the wide characters,
-ignoring attributes and color.
-Use \fBin_wchstr\fP to return the complex characters from a window.
+All of these functions except
+.B \%winnwstr
+may be implemented as macros.
 .PP
 Reading a line that overflows the array pointed to by
-\fIwstr\fP
-with
-\fBinwstr\fP,
-\fBmvinwstr\fP,
-\fBmvwinwstr\fP
-or
-\fBwinwstr\fP
-causes undefined results.
-Therefore, the use of
-\fBinnwstr\fP,
-\fBmvinnwstr\fP,
-\fBmvwinnwstr\fP, or
-\fBwinnwstr\fP
-is recommended.
+.I wstr
+and its variants causes undefined results.
+Instead,
+use the
+.IR n -infixed
+functions with a positive
+.I n
+argument no larger than the size of the buffer backing
+.IR wstr "."
+.SH EXTENSIONS
+.BR \%innwstr ","
+.BR \%winnwstr ","
+.BR \%mvinnwstr ","
+and
+.BR \%mvwinnwstr "'s"
+acceptance of negative
+.I n
+values is an
+.I \%ncurses
+extension.
 .SH PORTABILITY
-These functions are described in X/Open Curses, Issue 4.
+Applications employing
+.I \%ncurses
+extensions should condition their use on the visibility of the
+.B \%NCURSES_VERSION
+preprocessor macro.
+.PP
+X/Open Curses Issue\ 4 describes these functions.
+It specifies no error conditions for them.
+.PP
+Notwithstanding the foregoing,
+X/Open Curses Issues 4 and 7 both state that
+.IR \%innwstr ","
+.IR \%winnwstr ","
+.IR \%mvinnwstr ","
+and
+.I \%mvwinnwstr
+\*(``fail .\|.\|. [i]f the array is not large enough to contain any
+complete characters\*(''.
+Strictly interpreted,
+this means that a caller of these functions cannot use their return
+values to detect truncation of a wide-character string copied from more
+than one character cell in
+.IR win "."
+.I \%ncurses
+reports any truncation with
+.IR ERR "."
+.PP
+X/Open Curses specifies
+.IR \%inwstr ","
+.IR \%winwstr ","
+.IR \%mvinwstr ","
+and
+.I \%mvwinwstr
+as returning
+.I OK
+rather than a (wide) character count,
+unlike their non-wide counterparts
+.IR \%instr ","
+.IR \%winstr ","
+.IR \%mvinstr ","
+and
+.IR \%mvwinstr "."
+.I \%ncurses
+regards this inconsistency as an error in the standard.
+.SH HISTORY
+The System\ V Interface Definition,
+Version 4 (1995),
+specified
+.I \%winwstr
+and
+.I \%winnwstr
+(and the usual variants).
+.\" SVID 4, vol 3., p. 516
+These were later additions to
+.RI SVr4. x ,
+not appearing in the first SVr4 (1989).
+Their synopses described each function as taking
+an argument of type
+.RI pointer-to- char
+instead of
+.RI pointer-to- wchar_t ,
+despite describing them as \*(``returning the string of
+.I \%wchar_t
+in
+.IR str "\*(''."
+Presumably this was an error in the System\ V Interface Definition.
 .SH SEE ALSO
+\fB\%curs_instr\fP(3X) describes comparable functions of the
+.I \%ncurses
+library in its non-wide-character configuration.
+.PP
 \fB\%curses\fP(3X),
-\fB\%curs_inch\fP(3X),
-\fB\%curs_inchstr\fP(3X),
-\fB\%curs_instr\fP(3X),
+\fB\%curs_in_wch\fP(3X),
 \fB\%curs_in_wchstr\fP(3X)

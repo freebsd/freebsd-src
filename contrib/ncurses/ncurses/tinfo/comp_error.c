@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2020,2023 Thomas E. Dickey                                *
+ * Copyright 2019-2023,2024 Thomas E. Dickey                                *
  * Copyright 1998-2012,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -42,7 +42,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: comp_error.c,v 1.44 2023/06/15 20:27:02 tom Exp $")
+MODULE_ID("$Id: comp_error.c,v 1.45 2024/12/07 20:04:23 tom Exp $")
 
 NCURSES_EXPORT_VAR(bool) _nc_suppress_warnings = FALSE;
 NCURSES_EXPORT_VAR(int) _nc_curr_line = 0; /* current line # in input */
@@ -75,9 +75,9 @@ NCURSES_EXPORT(void)
 _nc_set_type(const char *const name)
 {
 #define MY_SIZE (size_t) MAX_NAME_SIZE
-    if (TermType == 0)
+    if (TermType == NULL)
 	TermType = typeMalloc(char, MY_SIZE + 1);
-    if (TermType != 0) {
+    if (TermType != NULL) {
 	TermType[0] = '\0';
 	if (name) {
 	    _nc_STRNCAT(TermType, name, MY_SIZE, MY_SIZE);
@@ -89,13 +89,13 @@ NCURSES_EXPORT(void)
 _nc_get_type(char *name)
 {
 #if NO_LEAKS
-    if (name == 0 && TermType != 0) {
+    if (name == NULL && TermType != NULL) {
 	FreeAndNull(TermType);
 	return;
     }
 #endif
-    if (name != 0)
-	_nc_STRCPY(name, TermType != 0 ? TermType : "", MAX_NAME_SIZE);
+    if (name != NULL)
+	_nc_STRCPY(name, TermType != NULL ? TermType : "", MAX_NAME_SIZE);
 }
 
 static NCURSES_INLINE void
@@ -106,7 +106,7 @@ where_is_problem(void)
 	fprintf(stderr, ", line %d", _nc_curr_line);
     if (_nc_curr_col > 0)
 	fprintf(stderr, ", col %d", _nc_curr_col);
-    if (TermType != 0 && TermType[0] != '\0')
+    if (TermType != NULL && TermType[0] != '\0')
 	fprintf(stderr, ", terminal '%s'", TermType);
     fputc(':', stderr);
     fputc(' ', stderr);

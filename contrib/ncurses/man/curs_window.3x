@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2020-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2020-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2015,2016 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,19 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_window.3x,v 1.48 2024/04/20 21:20:07 tom Exp $
-.TH curs_window 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_window.3x,v 1.71 2025/08/23 22:50:00 tom Exp $
+.TH curs_window 3X 2025-08-23 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
 .de bP
 .ie n  .IP \(bu 4
 .el    .IP \(bu 2
@@ -50,23 +61,23 @@ create and manipulate \fIcurses\fR windows
 .nf
 \fB#include <curses.h>
 .PP
-\fBWINDOW *newwin(
-      \fBint \fInlines\fB, int \fIncols\fB,\fR
-      \fBint \fIbegin_y\fB, int \fIbegin_x\fB);\fR
-\fBint delwin(WINDOW *\fIwin\fB);\fR
-\fBint mvwin(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB);\fR
-\fBWINDOW *subwin(WINDOW *\fIorig\fB,\fR
-      \fBint \fInlines\fB, int \fIncols\fB,\fR
-      \fBint \fIbegin_y\fB, int \fIbegin_x\fB);\fR
-\fBWINDOW *derwin(WINDOW *\fIorig\fB,\fR
-      \fBint \fInlines\fB, int \fIncols\fB,\fR
-      \fBint \fIbegin_y\fB, int \fIbegin_x\fB);\fR
-\fBint mvderwin(WINDOW *\fIwin\fB, int \fIpar_y\fB, int \fIpar_x\fB);\fR
-\fBWINDOW *dupwin(WINDOW *\fIwin\fB);\fR
-\fBvoid wsyncup(WINDOW *\fIwin\fB);\fR
-\fBint syncok(WINDOW *\fIwin\fB, bool \fIbf\fB);\fR
-\fBvoid wcursyncup(WINDOW *\fIwin\fB);\fR
-\fBvoid wsyncdown(WINDOW *\fIwin\fB);\fR
+\fBWINDOW * newwin(\fR
+	\fBint \fInlines\fP, int \fIncols\fP,
+	\fBint \fIbegin_y\fP, int \fIbegin_x\fP);
+\fBint delwin(WINDOW * \fIwin\fP);
+\fBint mvwin(WINDOW * \fIwin\fP, int \fIy\fP, int \fIx\fP);
+\fBWINDOW * subwin(WINDOW * \fIorig\fP,
+	\fBint \fInlines\fP, int \fIncols\fP,
+	\fBint \fIbegin_y\fP, int \fIbegin_x\fP);
+\fBWINDOW * derwin(WINDOW * \fIorig\fP,
+	\fBint \fInlines\fP, int \fIncols\fP,
+	\fBint \fIbegin_y\fP, int \fIbegin_x\fP);
+\fBint mvderwin(WINDOW * \fIwin\fP, int \fIpar_y\fP, int \fIpar_x\fP);
+\fBWINDOW * dupwin(WINDOW * \fIwin\fP);
+\fBvoid wsyncup(WINDOW * \fIwin\fP);
+\fBint syncok(WINDOW * \fIwin\fP, bool \fIbf\fP);
+\fBvoid wcursyncup(WINDOW * \fIwin\fP);
+\fBvoid wsyncdown(WINDOW * \fIwin\fP);
 .fi
 .SH DESCRIPTION
 .SS newwin
@@ -94,21 +105,23 @@ Regardless of the function used for creating a new window
 (e.g., \fBnewwin\fP, \fBsubwin\fP, \fBderwin\fP, \fBnewpad\fP),
 rather than a duplicate (with \fBdupwin\fP),
 all of the window modes are initialized to the default values.
-These functions set window modes after a window is created:
+The following functions set a window's modes after it is created:
 .RS
 .PP
-\fB\%idcok\fP
-\fB\%idlok\fP
-\fB\%immedok\fP
-\fB\%keypad\fP
-\fB\%leaveok\fP
-\fB\%nodelay\fP
-\fB\%scrollok\fP
-\fB\%setscrreg\fP
-\fB\%syncok\fP
-\fB\%wbkgdset\fP
-\fB\%wbkgrndset\fP and
-\fB\%wtimeout\fP.
+.BR \%idcok ","
+.BR \%idlok ","
+.BR \%immedok ","
+.BR \%keypad ","
+.BR \%leaveok ","
+.BR \%nodelay ","
+.BR \%notimeout ","
+.BR \%scrollok ","
+.BR \%setscrreg ","
+.BR \%syncok ","
+.BR \%wbkgdset ","
+.BR \%wbkgrndset ","
+and
+.BR \%wtimeout "."
 .RE
 .SS delwin
 Calling \fBdelwin\fP deletes the named window, freeing all memory
@@ -163,105 +176,168 @@ The routine \fBwcursyncup\fP updates the current cursor position of all the
 ancestors of the window to reflect the current cursor position of the
 window.
 .SH RETURN VALUE
-Routines that return an integer return the integer \fBERR\fP upon failure and
-\fBOK\fP (SVr4 only specifies "an integer value other than \fBERR\fP") upon
-successful completion.
+Functions that return integers return
+.B ERR
+upon failure and
+.B OK
+upon success.
 .PP
-Routines that return pointers return \fBNULL\fP on error.
+Functions that return pointers return a null pointer on failure.
 .PP
-X/Open defines no error conditions.
-In this implementation
-.TP 5
-\fBdelwin\fP
-returns an error if the window pointer is null, or
-if the window is the parent of another window.
-.TP 5
-\fBderwin\fP
-returns an error if the parent window pointer is null, or
-if any of its ordinates or dimensions is negative, or
-if the resulting window does not fit inside the parent window.
-.TP 5
-\fBdupwin\fP
-returns an error if the window pointer is null.
+.I \%ncurses
+defines several error conditions.
+.bP
+.B \%delwin
+returns
+.B ERR
+if
+.I win
+is a null pointer,
+or if it is the parent of another window.
 .IP
-This implementation also maintains a list of windows,
-and checks that the pointer passed to \fBdelwin\fP is one that
-it created, returning an error if it was not..
-.TP 5
-\fBmvderwin\fP
-returns an error
-if the window pointer is null, or
-if some part of the window would be placed off-screen.
-.TP 5
-\fBmvwin\fP
-returns an error
-if the window pointer is null, or
-if the window is really a pad, or
-if some part of the window would be placed off-screen.
-.TP 5
-\fBnewwin\fP
-will fail if either of its beginning ordinates is negative, or
-if either the number of lines or columns is negative.
-.TP 5
-\fBsyncok\fP
-returns an error
-if the window pointer is null.
-.TP 5
-\fBsubwin\fP
-returns an error if the parent window pointer is null, or
-if any of its ordinates or dimensions is negative, or
-if the resulting window does not fit inside the parent window.
+.I \%ncurses
+maintains a list of windows,
+and checks that the pointer passed to
+.B \%delwin
+is one that it created,
+returning
+.B ERR
+if it was not.
+.bP
+.B \%derwin
+returns
+.B ERR
+if
+.I orig
+is a null pointer,
+or if any of the ordinate or dimension arguments is negative,
+or if the resulting window does not fit inside the parent window.
+.bP
+.B \%dupwin
+returns
+.B ERR
+if
+.I win
+is a null pointer.
+.bP
+.B \%mvderwin
+returns
+.B ERR
+if
+.I win
+is a null pointer,
+or if any part of the window would be placed off-screen.
+.bP
+.B \%mvwin
+returns
+.B ERR
+if
+.I win
+is a null pointer,
+if
+.I win
+is a pad,
+or if any part of the window would be placed off-screen.
+.bP
+.B \%newwin
+returns
+.B ERR
+if any of its arguments is negative.
+.bP
+.B \%subwin
+returns
+.B ERR
+if
+.I orig
+is a null pointer,
+or if any of the ordinate or dimension arguments is negative,
+or if the resulting window does not fit inside the parent window.
+.bP
+.B \%syncok
+returns
+.B ERR
+if
+.I win
+is a null pointer.
 .PP
-The functions which return a window pointer
-may also fail if there is insufficient memory for its data structures.
-Any of these functions will fail if the screen has not been initialized,
-i.e., with \fBinitscr\fP or \fBnewterm\fP.
+Functions that return a window pointer fail if memory allocation
+for their data structures fails.
+.PP
+All of these functions fail if the screen has not been initialized;
+see \fBinitscr\fP(3X) or \fBnewterm\fP(3X).
 .SH NOTES
-If many small changes are made to the window, the \fBwsyncup\fP option could
-degrade performance.
+.B \%syncok
+may be implemented as a macro.
 .PP
-Note that \fBsyncok\fP may be a macro.
+Calling
+.B \%syncup
+on a window and making many small changes to it
+could degrade performance.
 .SH PORTABILITY
-X/Open Curses, Issue 4 describes these functions.
+X/Open Curses Issue\ 4 describes these functions.
+It specifies no error conditions for
+.IR \%delwin ","
+.IR \%derwin ","
+.IR \%dupwin ","
+.IR \%newwin ","
+.IR \%mvderwin ","
+or
+.IR \%syncok "."
 .PP
-X/Open Curses states regarding \fBdelwin\fP:
-.bP
-It must delete subwindows before deleting their parent.
-.bP
-If \fBdelwin\fP is asked to delete a parent window,
-it can only succeed if the curses library keeps a list of the subwindows.
-SVr4 curses kept a count of the number of subwindows rather than a list.
-It simply returned \fBERR\fP when asked to delete a subwindow.
-Solaris X/Open curses does not even make that check,
-and will delete a parent window which still has subwindows.
-.bP
-Since release 4.0 (1996),
-\fI\%ncurses\fP maintains a list of windows for each screen,
-to ensure that a window has no subwindows before allowing deletion.
-.bP
-NetBSD copied this feature of \fI\%ncurses\fP in 2003.
-.br
-PDCurses follows the scheme used in Solaris X/Open curses.
-.SH BUGS
-The subwindow functions
-\fB\%subwin\fP,
-\fB\%derwin\fP,
-\fB\%mvderwin\fP,
-\fB\%wsyncup\fP,
-\fB\%wsyncdown\fP,
-\fB\%wcursyncup\fP,
+For functions returning integers
+(except
+.IR \%delwin "),"
+SVr4 describes a successful return value only as
+\*(``an integer value other than
+.IR ERR \*(''. \" Courier roman in source; SVID 4, vol. 3, p. 544
+.PP
+Regarding
+.IR \%delwin ","
+X/Open Curses states that
+.RS
+.PP
+[t]he application must delete subwindows before deleting the main
+window.
+.RE
+.PP
+If
+.I \%delwin
+is asked to delete a parent window,
+it can succeed only if the
+.I curses
+library keeps a list of its subwindows.
+SVr4
+.I curses
+kept a count of the number of subwindows rather than a list.
+It simply returned
+.B ERR
+when asked to delete a subwindow.
+Solaris X/Open
+.I curses
+.RI \%( xcurses )
+does not make even that check,
+and will delete a parent window that still has subwindows.
+.I \%PDCurses
+also behaves this way.
+.PP
+.I \%ncurses
+4.0 (1996) and later maintains a list of windows for each screen
+to ensure that a window has no subwindows before allowing its deletion.
+NetBSD
+.I curses
+has followed suit since 2003.
+.PP
+SVr4
+.I curses
+documentation is unclear about what
+.I \%wsyncup
 and
-\fB\%syncok\fP
-are flaky,
-incompletely implemented,
-and not well tested.
-.PP
-System\ V's \fIcurses\fP documentation is unclear about what
-\fB\%wsyncup\fP and \fB\%wsyncdown\fP actually do.
+.I \%wsyncdown
+actually do.
 It seems to imply that they are supposed to touch only those lines that
 are affected by changes to a window's ancestors.
-The language here,
-and behavior of \fI\%ncurses\fP,
+The description and behavior of these functions in
+.I \%ncurses
 is patterned on the X/Open Curses standard;
 this approach may result in slower updates.
 .SH SEE ALSO

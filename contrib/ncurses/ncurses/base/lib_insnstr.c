@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2023,2024 Thomas E. Dickey                                *
  * Copyright 2004-2009,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -41,7 +41,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_insnstr.c,v 1.10 2023/11/21 21:58:03 tom Exp $")
+MODULE_ID("$Id: lib_insnstr.c,v 1.11 2024/12/07 20:00:48 tom Exp $")
 
 NCURSES_EXPORT(int)
 winsnstr(WINDOW *win, const char *s, int n)
@@ -51,7 +51,7 @@ winsnstr(WINDOW *win, const char *s, int n)
 
     T((T_CALLED("winsnstr(%p,%s,%d)"), (void *) win, _nc_visbufn(s, n), n));
 
-    if (win != 0 && str != 0 && n != 0) {
+    if (win != NULL && str != NULL && n != 0) {
 	SCREEN *sp = _nc_screen_of(win);
 #if USE_WIDEC_SUPPORT
 	/*
@@ -64,7 +64,7 @@ winsnstr(WINDOW *win, const char *s, int n)
 	if (sp->_screen_unicode) {
 	    size_t nn = (n > 0) ? (size_t) n : strlen(s);
 	    wchar_t *buffer = typeMalloc(wchar_t, nn + 1);
-	    if (buffer != 0) {
+	    if (buffer != NULL) {
 		mbstate_t state;
 		size_t n3;
 		init_mb(state);

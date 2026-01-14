@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2021,2022 Thomas E. Dickey                                *
+ * Copyright 2019-2022,2024 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -37,7 +37,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_addch.c,v 1.141 2022/06/12 15:16:41 tom Exp $")
+MODULE_ID("$Id: lib_addch.c,v 1.144 2024/12/07 17:18:07 tom Exp $")
 
 static const NCURSES_CH_T blankchar = NewChar(BLANK_TEXT);
 
@@ -118,7 +118,7 @@ _nc_render(WINDOW *win, NCURSES_CH_T ch)
 #endif
 
 static bool
-newline_forces_scroll(WINDOW *win, NCURSES_SIZE_T *ypos)
+newline_forces_scroll(const WINDOW *win, NCURSES_SIZE_T *ypos)
 {
     bool result = FALSE;
 
@@ -451,14 +451,14 @@ waddch_nosync(WINDOW *win, const NCURSES_CH_T ch)
     if ((AttrOf(ch) & A_ALTCHARSET)
 	|| (
 #if USE_WIDEC_SUPPORT
-	       (sp != 0 && sp->_legacy_coding) &&
+	       (sp != NULL && sp->_legacy_coding) &&
 #endif
 	       s[1] == 0
 	)
 	|| (
-	       (isprint((int) t) && !iscntrl((int) t))
+	       (isprint(UChar(t)) && !iscntrl(UChar(t)))
 #if USE_WIDEC_SUPPORT
-	       || ((sp == 0 || !sp->_legacy_coding) &&
+	       || ((sp == NULL || !sp->_legacy_coding) &&
 		   (WINDOW_EXT(win, addch_used)
 		    || !_nc_is_charable(CharOf(ch))))
 #endif

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 2009-2012,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,51 +34,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_driver.c,v 1.9 2020/08/29 19:53:35 tom Exp $")
-
-#ifndef EXP_WIN32_DRIVER
-typedef struct DriverEntry {
-    const char *name;
-    TERM_DRIVER *driver;
-} DRIVER_ENTRY;
-
-static DRIVER_ENTRY DriverTable[] =
-{
-#ifdef _WIN32
-    {"win32console", &_nc_WIN_DRIVER},
-#endif
-    {"tinfo", &_nc_TINFO_DRIVER}	/* must be last */
-};
-
-NCURSES_EXPORT(int)
-_nc_get_driver(TERMINAL_CONTROL_BLOCK * TCB, const char *name, int *errret)
-{
-    int code = ERR;
-    size_t i;
-    TERM_DRIVER *res = (TERM_DRIVER *) 0;
-    TERM_DRIVER *use = 0;
-
-    T((T_CALLED("_nc_get_driver(%p, %s, %p)"),
-       (void *) TCB, NonNull(name), (void *) errret));
-
-    assert(TCB != 0);
-
-    for (i = 0; i < SIZEOF(DriverTable); i++) {
-	res = DriverTable[i].driver;
-	if (strcmp(DriverTable[i].name, res->td_name(TCB)) == 0) {
-	    if (res->td_CanHandle(TCB, name, errret)) {
-		use = res;
-		break;
-	    }
-	}
-    }
-    if (use != 0) {
-	TCB->drv = use;
-	code = OK;
-    }
-    returnCode(code);
-}
-#endif /* !EXP_WIN32_DRIVER */
+MODULE_ID("$Id: lib_driver.c,v 1.12 2025/10/18 19:20:33 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(has_key) (SCREEN *sp, int keycode)
@@ -98,7 +54,7 @@ NCURSES_SP_NAME(_nc_mcprint) (SCREEN *sp, char *data, int len)
 {
     int code = ERR;
 
-    if (0 != TerminalOf(sp))
+    if (NULL != TerminalOf(sp))
 	code = CallDriver_2(sp, td_print, data, len);
     return (code);
 }

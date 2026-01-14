@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_initscr.3x,v 1.69 2024/04/20 21:24:19 tom Exp $
-.TH curs_initscr 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_initscr.3x,v 1.112 2025/08/23 22:41:44 tom Exp $
+.TH curs_initscr 3X 2025-08-23 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -56,205 +56,545 @@ initialize, manipulate, or tear down \fIcurses\fR terminal interface
 .nf
 \fB#include <curses.h>
 .PP
-\fBWINDOW *initscr(void);
+\fBWINDOW * initscr(void);
 \fBint endwin(void);
 .PP
 \fBbool isendwin(void);
 .PP
-\fBSCREEN *newterm(const char *\fItype\fP, FILE *\fIoutf\fP, FILE *\fIinf\fP);
-\fBSCREEN *set_term(SCREEN *\fInew\fP);
-\fBvoid delscreen(SCREEN* \fIsp\fP);
+\fBSCREEN * newterm(const char * \fItype\fP, FILE * \fIoutf\fP, FILE * \fIinf\fP);
+\fBSCREEN * set_term(SCREEN * \fInew\fP);
+\fBvoid delscreen(SCREEN * \fIsp\fP);
 .fi
 .SH DESCRIPTION
 .SS initscr
-\fBinitscr\fP is normally the first \fBcurses\fP routine to call when
-initializing a program.
-A few special routines sometimes need to be called before it;
-these are \fBslk_init\fP(3X), \fBfilter\fP, \fBripoffline\fP,
-\fBuse_env\fP.
-For multiple-terminal applications,
-\fBnewterm\fP may be called before \fBinitscr\fP.
+.B \%initscr
+determines the terminal type and initializes the library's
+.IR SCREEN ","
+.IR WINDOW ","
+and other data structures.
+It is normally the first
+.I curses
+function call a program performs.
+However,
+an application with unusual needs might employ a few other
+.I curses
+functions beforehand:
+.bP
+\fB\%slk_init\fP(3X) to set up soft-label keys;
+.bP
+\fB\%filter\fP(3X) if the program is designed to operate in a process
+pipeline;
+.bP
+\fB\%ripoffline\fP(3X) to reserve up to five lines at the top and/or
+bottom of the screen from management by
+.BR \%stdscr ","
+the standard
+.I curses
+window;
+and
+.bP
+\fB\%use_env\fP(3X) and/or \fB\%use_tioctl\fP(3X) to configure use of
+the process environment and operating system's terminal driver,
+respectively,
+when determining the dimensions of the terminal display.
 .PP
-The initscr code determines the terminal type and initializes all \fBcurses\fP
-data structures.
-\fBinitscr\fP also causes the first call to \fBrefresh\fP(3X)
-to clear the screen.
-If errors occur, \fBinitscr\fP writes an appropriate error
-message to standard error and exits;
-otherwise, a pointer is returned to \fBstdscr\fP.
+Further,
+a
+.I curses
+program might call
+.B \%newterm
+prior to or instead of
+.B \%initscr
+in two specialized cases described in its subsection below.
+.PP
+.B \%initscr
+causes the first \fB\%refresh\fP(3X) call to clear the screen.
+If errors occur,
+.B \%initscr
+writes an appropriate diagnostic message to the standard error stream
+and exits;
+otherwise,
+it returns a pointer to
+.BR stdscr "."
 .SS newterm
-A program that outputs to more than one terminal should use the \fBnewterm\fP
-routine for each terminal instead of \fBinitscr\fP.
-A program that needs to inspect capabilities,
-so it can continue to run in a line-oriented mode if the
-terminal cannot support a screen-oriented program, would also use
-\fBnewterm\fP.
-.PP
-The routine \fBnewterm\fP should be called once for each terminal.
-It returns a variable of type \fISCREEN *\fP which should be saved
-as a reference to that terminal.
-\fBnewterm\fP's arguments are
+An application that manages multiple terminals should call
+.B \%newterm
+once for each such device
+.I instead
+of
+.BR \%initscr "."
+.BR \%newterm 's
+arguments are
 .bP
-the \fItype\fP of the terminal to be used in place of \fB$TERM\fP,
+the
+.I type
+of the associated terminal,
+or a null pointer to use the
+.I TERM
+environment variable;
 .bP
-an output stream connected to the terminal, and
+an output stream
+.I outf
+connected to the terminal;
+and
 .bP
-an input stream connected to the terminal
+an input stream
+.I inf
+connected to the terminal.
 .PP
-If the \fItype\fP parameter is \fBNULL\fP, \fB$TERM\fP will be used.
+.B \%newterm
+returns a variable of
+.RI pointer-to- SCREEN
+type,
+which should be saved for later use with
+.B \%set_term
+and
+.BR \%delscreen "."
 .PP
-The file descriptor of the output stream is passed to \fBsetupterm\fP(3X),
-which returns a pointer to a \fI\%TERMINAL\fP structure.
-\fBnewterm\fP's return value holds a pointer to the \fI\%TERMINAL\fP structure.
+.B \%newterm
+passes the file descriptor of the output stream to the
+.I \%term\%info
+function \fB\%setupterm\fP(3X),
+which returns a pointer to a
+.I \%TERMINAL
+structure that
+.B \%newterm
+stores in the
+.I SCREEN
+it returns to the application.
+.PP
+An application that needs to inspect a terminal type's capabilities,
+so that it can continue to run in a line-oriented mode
+if the terminal type does not support capabilities the application
+demands,
+would also use
+.BR \%newterm "."
+If at most one terminal connection is needed,
+the programmer could perform such a capability test,
+decide the mode in which to operate,
+then call
+.B \%delscreen
+on the pointer returned by
+.BR \%newterm ","
+and proceed with either
+.B \%initscr
+or a
+.RI non- curses
+interface.
 .SS endwin
 The program must also call
-\fBendwin\fP for each terminal being used before exiting from \fBcurses\fP.
-If \fBnewterm\fP is called more than once for the same terminal, the first
-terminal referred to must be the last one for which \fBendwin\fP is called.
+.B \%endwin
+for each terminal being used before exiting from
+.IR curses "."
+If
+.B \%newterm
+is called more than once for the same terminal,
+the first terminal referred to must be the last one for which
+.B \%endwin
+is called.
 .PP
-A program should always call \fBendwin\fP before exiting or escaping from
-\fBcurses\fP mode temporarily.
-This routine
+A program should always call
+.B \%endwin
+before exiting the application
+or temporarily suspending
+.IR curses "'s"
+management of the terminal.
+.BR \%endwin ":"
 .bP
-resets colors to correspond with the default color pair 0,
+(if \fB\%start_color\fP(3X) has been called)
+resets the terminal's foreground and background colors
+to correspond with those of color pair 0
+(the default pair),
 .bP
 moves the cursor to the lower left-hand corner of the screen,
 .bP
-clears the remainder of the line so that it uses the default colors,
+(if \fB\%start_color\fP(3X) has been called)
+restores the default color pair,
 .bP
-sets the cursor to normal visibility (see \fBcurs_set\fP(3X)),
+clears the line,
 .bP
-stops cursor-addressing mode using the \fIexit_ca_mode\fP terminal capability,
+sets the cursor to normal visibility
+(see \fB\%curs_set\fP(3X)),
 .bP
-restores tty modes (see \fBreset_shell_mode\fP(3X)).
+if applicable,
+stops cursor-addressing mode using the
+.B \%exit_ca_mode
+.RB \%( rmcup )
+terminal capability,
+and
+.bP
+restores terminal modes (see \fB\%reset_shell_mode\fP(3X)).
 .PP
-Calling \fBrefresh\fP(3X) or \fBdoupdate\fP(3X) after a
-temporary escape causes the program to resume visual mode.
+Calling \fB\%refresh\fP(3X) or \fB\%doupdate\fP(3X) after a
+temporary suspension causes
+.I curses
+to resume managing the terminal.
 .SS isendwin
-The \fBisendwin\fP routine returns \fBTRUE\fP if \fBendwin\fP has been
-called without any subsequent calls to \fBwrefresh\fP,
-and \fBFALSE\fP otherwise.
+.B \%isendwin
+returns
+.B TRUE
+if \fB\%wrefresh\fP(3X)
+has not been called since the most recent
+.B \%endwin
+call,
+and
+.B FALSE
+otherwise.
 .SS set_term
-The \fBset_term\fP routine is used to switch between different terminals.
-The screen reference \fInew\fP becomes the new current terminal.
-The previous terminal is returned by the routine.
-This is the only routine which manipulates \fISCREEN\fP pointers;
-all other routines affect only the current terminal.
+.B \%set_term
+re-orients the
+.I curses
+library's operations to another terminal
+when the application has arranged to manage more than one with
+.BR \%newterm "."
+.B \%set_term
+expects a
+.I SCREEN
+pointer previously returned by
+.B \%newterm
+as an argument,
+and returns the previous one.
+.B \%set_term
+is the only standard
+.I curses
+API function that manipulates
+.I SCREEN
+pointers;
+all others affect only the current terminal
+(but see \fBcurs_sp_funcs\fP(3X)).
 .SS delscreen
-The \fBdelscreen\fP routine frees storage associated with the
-\fISCREEN\fP data structure.
-The \fBendwin\fP routine does not do
-this, so \fBdelscreen\fP should be called after \fBendwin\fP if a
-particular \fISCREEN\fP is no longer needed.
+.B \%delscreen
+frees the storage backing the supplied
+.I SCREEN
+pointer argument.
+.B \%endwin
+does not,
+so that an application can resume managing a terminal with
+.I curses
+after a
+(possibly conditional or temporary)
+suspension;
+see \fB\%curs_kernel\fP(3X).
+Use
+.B \%delscreen
+after
+.B \%endwin
+when the application has no more need of a terminal device
+but will not soon exit.
 .SH RETURN VALUE
-\fBendwin\fP returns the integer \fBERR\fP upon failure and \fBOK\fP
-upon successful completion.
+.B \%delscreen
+returns no value.
+.B \%endwin
+returns
+.B OK
+on success and
+.B ERR
+on failure.
+.B \%isendwin
+returns
+.B TRUE
+or
+.B FALSE
+as described above.
 .PP
-Routines that return pointers always return \fBNULL\fP on error.
-.PP
-X/Open defines no error conditions.
-In this implementation
+In
+.IR \%ncurses ","
 .bP
-\fBendwin\fP returns an error if
+.B \%endwin
+returns
+.B ERR
+if
 .RS
 .bP
-the terminal was not initialized, or
+the terminal was not initialized,
 .bP
-\fBendwin\fP is called more than once without updating the screen, or
+it is called more than once without updating the screen,
+or
 .bP
-\fBreset_shell_mode\fP(3X) returns an error.
+its call of \fB\%reset_shell_mode\fP(3X) returns
+.BR ERR ";"
+and
 .RE
 .bP
-\fBnewterm\fP
-returns an error if it cannot allocate the data structures for the screen,
-or for the top-level windows within the screen,
-i.e.,
-\fBcurscr\fP, \fBnewscr\fP, or \fBstdscr\fP.
+.B \%newterm
+returns
+.B ERR
+if it cannot allocate storage for the
+.I SCREEN
+structure
+or the
+.I WINDOW
+structures automatically associated with it:
+.BR \%curscr ","
+.BR \%newscr ","
+and
+.BR \%stdscr "."
+.PP
+Functions that return pointers return null pointers on error.
+In
+.IR \%ncurses ","
+.B \%set_term
+does not fail,
+and
+.B \%initscr
+exits the application if it does not operate successfully.
+.SH NOTES
+.I \%ncurses
+establishes signal handlers when a function that initializes a
+.IR SCREEN ","
+either
+.B \%initscr
+or
+.BR \%newterm ","
+is first called.
+Applications that wish to handle the following signals themselves
+should set up their corresponding handlers
+.I after
+initializing the screen.
+.TP
+.I SIGINT
+.IR \%ncurses 's
+handler
+.I attempts
+to clean up the screen on exit.
+Although it
+.I usually
+works as expected,
+there are limitations.
+.RS
 .bP
-\fBset_term\fP
-returns no error.
+Walking the
+.I SCREEN
+list is unsafe, since all list management
+is done without any signal blocking.
+.bP
+When an application has been built with the
+.I \%_REENTRANT
+macro defined
+(and corresponding system support),
+.B \%set_term
+uses functions that could deadlock or misbehave in other ways.
+.bP
+.B \%endwin
+calls other functions,
+many of which use \fI\%stdio\fP(3) or other library functions that are
+clearly unsafe.
+.RE
+.TP
+.I SIGTERM
+.I \%ncurses
+uses the same handler as for
+.IR \%SIGINT ","
+with the same limitations.
+It is not mentioned in X/Open Curses,
+but is more suitable for this purpose than
+.I \%SIGQUIT
+(which is used in debugging).
+.TP
+.I SIGTSTP
+.IR \%ncurses 's
+handler manages the terminal-generated stop signal,
+used in job control.
+When resuming the process,
+.I \%ncurses
+discards pending input with \fB\%flushinp\fP(3X)
+and repaints the screen,
+assuming that it has been completely altered.
+It also updates the saved terminal modes with
+\fB\%def_shell_mode\fP(3X).
+.TP
+.I SIGWINCH
+.I \%ncurses
+handles changes to the terminal's window size,
+a phenomenon ignored in standardization efforts.
+It sets a (signal-safe) variable
+that is later tested by \fB\%wgetch\fP(3X) and \fB\%wget_wch\fP(3X).
+.RS
+.bP
+.B \%wgetch
+returns the key code
+.BR \%KEY_RESIZE "."
+.bP
+.B \%wget_wch
+returns
+.B \%KEY_CODE_YES
+and sets its
+.I wch
+parameter to
+.BR \%KEY_RESIZE "."
+.RE
+.IP
+At the same time,
+.I \%ncurses
+calls \fB\%resizeterm\fP(3X)
+to adjust the standard screen
+.B \%stdscr
+and update global variables such as
+.B LINES
+and
+.BR COLS "."
 .SH PORTABILITY
-These functions were described in X/Open Curses, Issue 4.
-As of 2015, the current document is X/Open Curses, Issue 7.
+X/Open Curses Issue\ 4 describes these functions.
+It specifies no error conditions for them.
 .SS Differences
 X/Open Curses specifies that portable applications must not
-call \fBinitscr\fP more than once:
+call
+.I \%initscr
+more than once.
 .bP
-The portable way to use \fBinitscr\fP is once only,
-using \fB\%refresh\fP(3X)
-to restore the screen after \fBendwin\fP.
+The portable way to use
+.I \%initscr
+is once only,
+using
+.I \%refresh
+to restore the screen after
+.IR \%endwin "."
 .bP
-This implementation allows using \fBinitscr\fP after \fBendwin\fP.
+.I \%ncurses
+permits use of
+.I \%initscr
+after
+.IR \%endwin "."
 .PP
-Old versions of curses, e.g., BSD 4.4, would return a null pointer
-from \fBinitscr\fP when an error is detected, rather than exiting.
-It is safe but redundant to check the return value of \fBinitscr\fP
+.I \%initscr
+in BSD,
+from its inception (1980) through the Net/2 release (1991) returned
+.I ERR
+cast to a
+.I \%WINDOW
+pointer when detecting an error.
+.\" https://minnie.tuhs.org/cgi-bin/utree.pl?file=4BSD/usr/src/lib/libcurses/initscr.c
+.\" https://minnie.tuhs.org/cgi-bin/utree.pl?file=Net2/usr/src/lib/libcurses/initscr.c
+4.4BSD (1995)
+instead returned a null pointer.
+.\" https://minnie.tuhs.org/cgi-bin/utree.pl?file=4.4BSD/usr/src/lib/libcurses/initscr.c
+Neither exited the application.
+It is safe but redundant to check the return value of
+.I \%initscr
 in X/Open Curses.
 .PP
-Calling \fBendwin\fP does not dispose of the memory allocated in \fBinitscr\fP
-or \fBnewterm\fP.
-Deleting a \fISCREEN\fP provides a way to do this:
+Calling
+.I \%endwin
+does not dispose of the memory allocated by
+.I \%initscr
+or
+.IR \%newterm "."
+Deleting a
+.I SCREEN
+provides a way to do this.
 .bP
-X/Open Curses does not say what happens to \fI\%WINDOW\fPs when \fBdelscreen\fP
-\*(``frees storage associated with the \fISCREEN\fP\*(''
+X/Open Curses does not say what happens to
+.IR \%WINDOW s
+when
+.I \%delscreen
+\*(``frees storage associated with the
+.IR SCREEN "\*(''"
 nor does the SVr4 documentation help,
-adding that it should be called after \fBendwin\fP if a \fISCREEN\fP
+adding that it should be called after
+.I \%endwin
+if a
+.I SCREEN
 is no longer needed.
 .bP
-However, \fI\%WINDOW\fPs are implicitly associated with a \fISCREEN\fP.
-so that it is reasonable to expect \fBdelscreen\fP to deal with these.
+However,
+every
+.I \%WINDOW
+is implicitly associated with a
+.IR SCREEN ","
+so it is reasonable to expect
+.I \%delscreen
+to dispose of them.
 .bP
-SVr4 curses deletes the standard \fI\%WINDOW\fP structures
-\fBstdscr\fP and \fBcurscr\fP as well as a work area \fBnewscr\fP.
-SVr4 curses ignores other windows.
+SVr4 deletes the standard
+.I \%WINDOW
+structures
+.I \%stdscr
+and
+.I \%curscr
+as well as a work area
+.IR \%newscr "."
+It ignores other windows.
 .bP
 Since version 4.0 (1996),
-\fI\%ncurses\fP has maintained a list of all windows for each screen,
-using that information to delete those windows when \fBdelscreen\fP is called.
+.I \%ncurses
+has maintained a list of all windows for each screen,
+using that information to delete those windows when
+.I \%delscreen
+is
+called.
 .bP
-NetBSD copied this feature of \fI\%ncurses\fP in 2001.
-PDCurses follows the SVr4 model,
-deleting only the standard \fI\%WINDOW\fP structures.
-.SS "High-level versus Low-level"
-Different implementations may disagree regarding the level of some functions.
-For example, \fISCREEN\fP (returned by \fBnewterm\fP) and
-\fI\%TERMINAL\fP (returned by \fBsetupterm\fP(3X)) hold file descriptors for
-the output stream.
-If an application switches screens using \fBset_term\fR,
-or switches terminals using \fBset_curterm\fP(3X),
-applications which use the output file descriptor can have different
-behavior depending on which structure holds the corresponding descriptor.
-.PP
-For example
+NetBSD copied this feature of
+.I \%ncurses
+in 2001.
+.I \%PDCurses
+follows the SVr4 model,
+deleting only the standard
+.I \%WINDOW
+structures and
+.IR \%newscr "."
+.SS "High-level versus Low-level Functions"
+Implementations disagree
+regarding the level of abstraction applicable to a function or property.
+For example,
+.I SCREEN
+(returned by
+.IR \%newterm ")"
+and
+.I \%TERMINAL
+(returned by \fB\%setupterm\fP(3X)) hold file
+descriptors for the output stream.
+If an application switches screens using
+.IR \%set_term ","
+or switches terminals using \fB\%set_curterm\fP(3X),
+applications
+using the output file descriptor can behave differently
+depending on the structure holding the corresponding descriptor.
 .bP
-NetBSD's \fBbaudrate\fP(3X) function uses the descriptor in \fI\%TERMINAL\fP.
-\fI\%ncurses\fP and SVr4 use the descriptor in \fISCREEN\fP.
+NetBSD's
+.I \%baudrate
+function uses the descriptor in
+.IR \%TERMINAL "."
+.I \%ncurses
+and SVr4 use the descriptor in
+.IR SCREEN "."
 .bP
-NetBSD and \fI\%ncurses\fP use the descriptor
-in \fI\%TERMINAL\fP
+NetBSD and
+.I \%ncurses
+use the descriptor
+in
+.I \%TERMINAL
 for terminal I/O modes,
 e.g.,
-\fBdef_shell_mode\fP(3X),
-\fBdef_prog_mode\fP(3X).
-SVr4 curses uses the descriptor in \fISCREEN\fP.
-.SS "Unset \fITERM\fP Variable"
-If the \fITERM\fP variable is missing or empty, \fBinitscr\fP uses the
-value \*(``unknown\*('',
-which normally corresponds to a terminal entry with the \fIgeneric\fP
-(\fIgn\fP) capability.
-Generic entries are detected by \fBsetupterm\fP(3X)
+\fB\%def_shell_mode\fP(3X),
+\fB\%def_prog_mode\fP(3X).
+SVr4 uses the descriptor in
+.IR SCREEN "."
+.SS "Unset \fITERM\fP Environment Variable"
+If the
+.I TERM
+variable is not set in the environment or has an empty value,
+.I \%initscr
+uses the value \*(``unknown\*('',
+which normally corresponds to a terminal entry with the
+.B \%generic
+.RB ( gn )
+capability.
+Generic entries are detected by \fB\%setupterm\fP(3X)
 and cannot be used for full-screen operation.
 Other implementations may handle
-a missing/empty \fITERM\fP variable differently.
+a missing or empty
+.I TERM
+variable differently.
 .SS "Signal Handlers"
-Quoting from X/Open Curses Issue 7, section 3.1.1:
+Quoting X/Open Curses Issue\ 7,
+section 3.1.1:
 .RS 5
 .PP
 Curses implementations may provide for special handling of the
 \%SIGINT,
 \%SIGQUIT,
 and \%SIGTSTP signals if their disposition is \%SIG_DFL at the time
-.I \%initscr
+.IR \%initscr ()
 is called.\|.\|.
 .PP
 Any special handling for these signals may remain in effect for the
@@ -265,50 +605,27 @@ None of the Curses functions are required to be safe
 with respect to signals.\|.\|.
 .RE
 .PP
-This implementation establishes signal handlers during initialization,
-e.g., \fBinitscr\fP or \fBnewterm\fP.
-Applications which must handle these signals should set up the corresponding
-handlers \fIafter\fP initializing the library:
-.TP 5
-.B SIGINT
-The handler \fIattempts\fP to clean up the screen on exit.
-Although it \fIusually\fP works as expected, there are limitations:
-.RS 5
-.bP
-Walking the \fISCREEN\fP list is unsafe, since all list management
-is done without any signal blocking.
-.bP
-On systems which have \fBREENTRANT\fP turned on, \fBset_term\fP uses
-functions which could deadlock or misbehave in other ways.
-.bP
-\fBendwin\fP calls other functions,
-many of which use \fI\%stdio\fP(3) or other library functions which are
-clearly unsafe.
-.RE
-.TP 5
-.B SIGTERM
-This uses the same handler as \fBSIGINT\fP, with the same limitations.
-It is not mentioned in X/Open Curses, but is more suitable for this
-purpose than \fBSIGQUIT\fP (which is used in debugging).
-.TP 5
-.B SIGTSTP
-This handles the \fIstop\fP signal, used in job control.
-When resuming the process, this implementation discards pending
-input with \fB\%flushinp\fP(3X), and repaints the screen
-assuming that it has been completely altered.
-It also updates the saved terminal modes with
-\fB\%def_shell_mode\fP(3X).
-.TP 5
-.B SIGWINCH
-This handles the window-size changes which were ignored in
-the standardization efforts.
-The handler sets a (signal-safe) variable
-which is later tested in \fB\%wgetch\fP(3X).
-If \fBkeypad\fP has been enabled for the corresponding window,
-\fBwgetch\fP returns the key symbol \fBKEY_RESIZE\fP.
-At the same time, \fBwgetch\fP calls \fBresizeterm\fP to adjust the
-standard screen \fBstdscr\fP,
-and update other data such as \fBLINES\fP and \fBCOLS\fP.
+Section \*(``NOTES\*('' above discusses
+.IR \%ncurses 's
+signal handlers.
+.SH HISTORY
+4BSD (1980)
+introduced
+.I \%initscr
+and
+.IR \%endwin "."
+.PP
+SVr2 (1984)
+added
+.I \%newterm
+and
+.IR \%set_term "."
+.PP
+SVr3.1 (1987)
+supplied
+.I \%delscreen
+and
+.IR \%isendwin "."
 .SH SEE ALSO
 \fB\%curses\fP(3X),
 \fB\%curs_kernel\fP(3X),

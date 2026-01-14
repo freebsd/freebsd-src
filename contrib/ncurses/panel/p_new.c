@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2021 Thomas E. Dickey                                     *
+ * Copyright 2020-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -39,7 +39,7 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_new.c,v 1.24 2021/10/23 15:12:06 tom Exp $")
+MODULE_ID("$Id: p_new.c,v 1.25 2024/12/07 23:00:37 tom Exp $")
 
 #ifdef TRACE
 static char *stdscr_id;
@@ -86,7 +86,7 @@ root_panel(NCURSES_SP_DCL0)
       ph->destroy = del_panel;
 #endif
       _nc_stdscr_pseudo_panel = AllocPanel("root_panel");
-      if (_nc_stdscr_pseudo_panel != 0)
+      if (_nc_stdscr_pseudo_panel != NULL)
 	{
 	  PANEL *pan = _nc_stdscr_pseudo_panel;
 	  WINDOW *win = SP_PARM->_stdscr;

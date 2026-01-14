@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020-2021,2023 Thomas E. Dickey                                *
+ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
  * Copyright 1998-2008,2009 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -43,30 +43,31 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_delwin.c,v 1.25 2023/10/21 11:12:44 tom Exp $")
+MODULE_ID("$Id: lib_delwin.c,v 1.29 2024/12/07 17:28:13 tom Exp $")
 
 static bool
-cannot_delete(WINDOW *win)
+cannot_delete(const WINDOW *win)
 {
     bool result = TRUE;
+    bool found = FALSE;
+    SCREEN *scan;
+    WINDOWLIST *p;
 
-    if (IS_PAD(win)) {
-	result = FALSE;
-    } else {
-	WINDOWLIST *p;
-#if NCURSES_SP_FUNCS && defined(USE_SP_WINDOWLIST)
-	SCREEN *sp = _nc_screen_of(win);
-#endif
-
-	for (each_window(SP_PARM, p)) {
+    for (each_screen(scan)) {
+	for (each_window(scan, p)) {
 	    if (&(p->win) == win) {
 		result = FALSE;
+		found = TRUE;
+		break;
 	    } else if (IS_SUBWIN(&(p->win))
 		       && p->win._parent == win) {
 		result = TRUE;
+		found = TRUE;
 		break;
 	    }
 	}
+	if (found)
+	    break;
     }
     return result;
 }
@@ -79,7 +80,7 @@ delwin(WINDOW *win)
     T((T_CALLED("delwin(%p)"), (void *) win));
 
     if (_nc_try_global(curses) == 0) {
-	if (win == 0
+	if (win == NULL
 	    || cannot_delete(win)) {
 	    result = ERR;
 	} else if (IS_PAD(win)) {
@@ -91,7 +92,7 @@ delwin(WINDOW *win)
 #endif
 	    if (IS_SUBWIN(win)) {
 		touchwin(win->_parent);
-	    } else if (CurScreen(SP_PARM) != 0) {
+	    } else if (CurScreen(SP_PARM) != NULL) {
 		touchwin(CurScreen(SP_PARM));
 	    }
 	    result = _nc_freewin(win);

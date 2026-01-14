@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 2017 Free Software Foundation, Inc.                            *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: scr_dump.5,v 1.46 2024/03/23 20:42:29 tom Exp $
-.TH scr_dump 5 2024-03-23 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "File formats"
+.\" $Id: scr_dump.5,v 1.52 2025/04/05 21:56:26 tom Exp $
+.TH scr_dump 5 2025-04-05 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "File formats"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -87,6 +87,7 @@ This is the pattern submitted to the maintainers of the \fBfile\fP program:
 .PP
 .RS 4
 .EX
+.nf
 #
 # ncurses5 (and before) did not use a magic number,
 # making screen dumps "data".
@@ -94,6 +95,7 @@ This is the pattern submitted to the maintainers of the \fBfile\fP program:
 # ncurses6 (2015) uses this format, ignoring byte-order
 0    string    \e210\e210\e210\e210ncurses    ncurses6 screen image
 #
+.fi
 .EE
 .RE
 .RE
@@ -135,7 +137,7 @@ There is no standard format for
 screen dumps.
 A brief survey of the existing implementations follows.
 .SS "X/Open Curses"
-X/Open Curses, Issue 7 specifies little.
+X/Open Curses Issue\ 7 specifies little.
 It says
 (boldface emphasis added)
 .RS 3
@@ -173,12 +175,14 @@ has the following definitions.
 .PP
 .RS 4
 .EX
+.nf
 /* terminfo magic number */
 #define MAGNUM  0432
 
 /* curses screen dump magic number */
 #define SVR2_DUMP_MAGIC_NUMBER  0433
 #define SVR3_DUMP_MAGIC_NUMBER  0434
+.fi
 .EE
 .RE
 .PP
@@ -193,8 +197,10 @@ use a magic number that would correspond to the following.
 .PP
 .RS 4
 .EX
+.nf
 /* curses screen dump magic number */
 #define SVR4_DUMP_MAGIC_NUMBER  0435
+.fi
 .EE
 .RE
 .PP
@@ -315,6 +321,7 @@ Given a simple program which writes text to the screen
 .PP
 .RS 4
 .EX
+.nf
 #include <curses.h>
 
 int
@@ -339,6 +346,7 @@ main(void)
     endwin();
     return 0;
 }
+.fi
 .EE
 .RE
 .PP
@@ -346,6 +354,7 @@ When run using ncurses6, the output looks like this:
 .PP
 .RS 4
 .EX
+.nf
 \e210\e210\e210\e210ncurses 6.0.20170415
 _cury=5
 _curx=11
@@ -368,6 +377,7 @@ rows:
 8:\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es
 9:\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es
 10:\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es
+.fi
 .EE
 .RE
 .PP
@@ -391,6 +401,7 @@ Running the same program with Solaris \fIxpg4\fP curses gives this dump:
 .PP
 .RS 4
 .EX
+.nf
 MAX=10,20
 BEG=0,0
 SCROLL=0,10
@@ -424,6 +435,7 @@ BG=0,0,
 9,0,0,1,
 9,19,0,0,
 CUR=11,5
+.fi
 .EE
 .RE
 .PP
@@ -439,6 +451,7 @@ Here is the corresponding dump (using \*(``od \-t x1\*(''):
 .PP
 .RS 4
 .EX
+.nf
 0000000 1c 01 c3 d6 f3 58 05 00 0b 00 0a 00 14 00 00 00
 0000020 00 00 02 00 00 00 00 00 00 00 00 00 00 00 00 00
 0000040 00 00 b8 1a 06 08 cc 1a 06 08 00 00 09 00 10 00
@@ -461,6 +474,7 @@ Here is the corresponding dump (using \*(``od \-t x1\*(''):
 0001620 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 *
 0002371
+.fi
 .EE
 .RE
 .SH AUTHORS

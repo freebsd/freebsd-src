@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2024 Thomas E. Dickey                                *
+ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
  * Copyright 2009-2013,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -44,7 +44,7 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: make_hash.c,v 1.34 2024/03/02 19:35:40 tom Exp $")
+MODULE_ID("$Id: make_hash.c,v 1.37 2025/10/18 15:39:43 tom Exp $")
 
 /*
  *	_nc_make_hash_table()
@@ -79,7 +79,7 @@ strmalloc(char *s)
 {
     size_t need = strlen(s) + 1;
     char *result = malloc(need);
-    if (result == 0)
+    if (result == NULL)
 	failed("strmalloc");
     _nc_STRCPY(result, s, need);
     return result;
@@ -153,7 +153,7 @@ static int
 count_columns(char **list)
 {
     int result = 0;
-    if (list != 0) {
+    if (list != NULL) {
 	while (*list++) {
 	    ++result;
 	}
@@ -168,17 +168,17 @@ parse_columns(char *buffer)
 
     int col = 0;
 
-    if (buffer == 0) {
+    if (buffer == NULL) {
 	free(list);
-	list = 0;
-	return 0;
+	list = NULL;
+	return NULL;
     }
 
     if (*buffer != '#') {
-	if (list == 0) {
+	if (list == NULL) {
 	    list = typeCalloc(char *, (MAX_COLUMNS + 1));
-	    if (list == 0)
-		return (0);
+	    if (list == NULL)
+		return (NULL);
 	}
 	while (*buffer != '\0') {
 	    char *s;
@@ -205,7 +205,7 @@ parse_columns(char *buffer)
 		break;
 	}
     }
-    return col ? list : 0;
+    return col ? list : NULL;
 }
 
 #define SetType(n,t) \
@@ -247,9 +247,8 @@ int
 main(int argc, char **argv)
 {
     unsigned tablesize = CAPTABSIZE;
-    struct user_table_entry *name_table = typeCalloc(struct
-						     user_table_entry, tablesize);
-    HashValue *hash_table = typeCalloc(HashValue, HASHTABSIZE);
+    struct user_table_entry *name_table;
+    HashValue *hash_table;
     const char *root_name;
     int column = 0;
     int bigstring = 0;
@@ -264,6 +263,12 @@ main(int argc, char **argv)
     short NumCount = 0;
     short StrCount = 0;
 
+    if (argc == 2 && !strcmp(argv[1], "-?"))
+	return EXIT_SUCCESS;
+
+    name_table = typeCalloc(struct user_table_entry, tablesize);
+    hash_table = typeCalloc(HashValue, HASHTABSIZE);
+
     /* The first argument is the column-number (starting with 0).
      * The second is the root name of the tables to generate.
      */
@@ -272,8 +277,8 @@ main(int argc, char **argv)
 	|| (column >= MAX_COLUMNS)
 	|| *(root_name = argv[2]) == 0
 	|| (bigstring = atoi(argv[3])) < 0
-	|| name_table == 0
-	|| hash_table == 0) {
+	|| name_table == NULL
+	|| hash_table == NULL) {
 	fprintf(stderr, "usage: make_hash column root_name bigstring\n");
 	exit(EXIT_FAILURE);
     }
@@ -291,7 +296,7 @@ main(int argc, char **argv)
 	else
 	    buffer[sizeof(buffer) - 2] = '\0';
 	list = parse_columns(buffer);
-	if (list == 0)		/* blank or comment */
+	if (list == NULL)	/* blank or comment */
 	    continue;
 	if (is_user) {
 	    if (strcmp(list[0], "userdef"))
@@ -382,15 +387,15 @@ main(int argc, char **argv)
 		printf("\t%d,%d,",
 		       name_table[n].ute_argc,
 		       name_table[n].ute_args);
-	    printf("\t%3d, %3d %s%c\n",
+	    printf("\t%3d, %3d %s%s\n",
 		   name_table[n].ute_index,
 		   name_table[n].ute_link,
 		   R_BRACE,
-		   n < tablesize - 1 ? ',' : ' ');
+		   n < tablesize - 1 ? "," : "");
 	    len += (int) strlen(name_table[n].ute_name) + 1;
 	}
 	printf("%s;\n\n", R_BRACE);
-	printf("static struct %s_table_entry *_nc_%s_table = 0;\n\n",
+	printf("static struct %s_table_entry *_nc_%s_table = NULL;\n\n",
 	       table_name,
 	       root_name);
     } else {
@@ -407,11 +412,11 @@ main(int argc, char **argv)
 		printf("\t%d,%d,",
 		       name_table[n].ute_argc,
 		       name_table[n].ute_args);
-	    printf("\t%3d, %3d %s%c\n",
+	    printf("\t%3d, %3d %s%s\n",
 		   name_table[n].ute_index,
 		   name_table[n].ute_link,
 		   R_BRACE,
-		   n < tablesize - 1 ? ',' : ' ');
+		   n < tablesize - 1 ? "," : "");
 	}
 	printf("%s;\n\n", R_BRACE);
     }
@@ -439,7 +444,7 @@ main(int argc, char **argv)
 	free((void *) name_table[n].ute_name);
     }
     free(name_table);
-    parse_columns(0);
+    parse_columns(NULL);
 
     return EXIT_SUCCESS;
 }

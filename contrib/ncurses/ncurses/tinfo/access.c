@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019-2021,2023 Thomas E. Dickey                                *
+ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2011,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,12 +34,15 @@
 #include <curses.priv.h>
 
 #include <ctype.h>
+#include <string.h>
 
 #ifndef USE_ROOT_ACCESS
-#if HAVE_SETFSUID
+#if HAVE_SETFSUID && HAVE_SYS_FSUID_H
 #include <sys/fsuid.h>
 #else
 #include <sys/stat.h>
+#undef HAVE_SETFSUID
+#define HAVE_SETFSUID 0		/* workaround for misconfigured system */
 #endif
 #endif
 
@@ -52,7 +55,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: access.c,v 1.37 2023/06/24 21:55:09 tom Exp $")
+MODULE_ID("$Id: access.c,v 1.50 2025/12/27 16:50:06 tom Exp $")
 
 #define LOWERCASE(c) ((isalpha(UChar(c)) && isupper(UChar(c))) ? tolower(UChar(c)) : (c))
 
@@ -60,6 +63,108 @@ MODULE_ID("$Id: access.c,v 1.37 2023/06/24 21:55:09 tom Exp $")
 # define ACCESS(FN, MODE) access((FN), (MODE)&(R_OK|W_OK))
 #else
 # define ACCESS access
+#endif
+
+#if USE_DOS_PATHS
+#define IsPathDelim(pp) (*(pp) == '/' || *(pp) == '\\')
+#define UsesDrive(pp)   (isalpha(UChar((pp)[0])) && (pp)[1] == ':')
+#define IsRelative(pp)  (*(pp) == '.' && ((*(pp+1) == '.' && IsPathDelim(pp+2)) || IsPathDelim(pp+1)))
+
+static char *
+last_delim(const char *path)
+{
+    char *result = NULL;
+    char *check;
+    if ((check = strrchr(path, '\\')) != NULL)
+	result = check;
+    if ((check = strrchr(path, '/')) != NULL) {
+	if ((check - path) > (result - path))
+	    result = check;
+    }
+    return result;
+}
+
+/*
+ * MinGW32 uses an environment variable to point to the directory containing
+ * its executables, without a registry setting to help.
+ */
+static const char *
+msystem_base(void)
+{
+    const char *result = NULL;
+    char *env;
+
+    if ((env = getenv("MSYSTEM")) != NULL
+	&& !strcmp(env, "MINGW32")
+	&& (env = getenv("WD")) != NULL
+	&& UsesDrive(env)) {
+	result = env;
+    }
+    return result;
+}
+
+/*
+ * For MinGW32, convert POSIX pathnames to DOS syntax, allowing use of stat()
+ * and access().
+ */
+NCURSES_EXPORT(const char *)
+_nc_to_dospath(const char *path, char *buffer)
+{
+    if (UsesDrive(path) || IsRelative(path)) {
+	if ((strlen(path) < PATH_MAX) && (strpbrk(path, "/") != NULL)) {
+	    char ch;
+	    char *ptr = buffer;
+	    while ((ch = (*ptr++ = *path++)) != '\0') {
+		if (ch == '/')
+		    ptr[-1] = '\\';
+	    }
+	    path = buffer;
+	}
+    } else if (last_delim(path) != NULL) {
+	const char *env;
+	char *ptr;
+	char *last;
+	size_t needed = PATH_MAX - strlen(path) - 3;
+
+	if ((env = msystem_base()) != NULL
+	    && strlen(env) < needed
+	    && strcpy(buffer, env) != NULL
+	    && (last = last_delim(buffer)) != NULL) {
+	    char ch;
+
+	    *last = '\0';
+
+	    /*
+	     * If that was a trailing "\", eat more until we actually
+	     * trim the last leaf, which corresponds to the directory
+	     * containing MSYS executables.
+	     */
+	    while (last != NULL && last[1] == '\0') {
+		if ((last = last_delim(buffer)) != NULL) {
+		    *last = '\0';
+		}
+	    }
+	    if (last != NULL) {
+		if (!strncmp(path, "/usr", 4))
+		    path += 4;
+		if (IsPathDelim(path)) {
+		    while ((last = last_delim(buffer)) != NULL && last[1] == '\0')
+			*last = '\0';
+		    ptr = buffer + strlen(buffer);
+		} else {
+		    ptr = buffer + strlen(buffer);
+		    *ptr++ = '\\';
+		}
+		while ((ch = (*ptr++ = *path++)) != '\0') {
+		    if (ch == '/')
+			ptr[-1] = '\\';
+		}
+		path = buffer;
+	    }
+	}
+    }
+    return path;
+}
 #endif
 
 NCURSES_EXPORT(char *)
@@ -70,7 +175,7 @@ _nc_rootname(char *path)
     static char *temp;
     char *s;
 
-    if ((temp = strdup(result)) != 0)
+    if ((temp = strdup(result)) != NULL)
 	result = temp;
 #if !MIXEDCASE_FILENAMES
     for (s = result; *s != '\0'; ++s) {
@@ -78,7 +183,7 @@ _nc_rootname(char *path)
     }
 #endif
 #if defined(PROG_EXT)
-    if ((s = strrchr(result, '.')) != 0) {
+    if ((s = strrchr(result, '.')) != NULL) {
 	if (!strcmp(s, PROG_EXT))
 	    *s = '\0';
     }
@@ -94,10 +199,10 @@ NCURSES_EXPORT(bool)
 _nc_is_abs_path(const char *path)
 {
 #if defined(__EMX__) || defined(__DJGPP__)
-#define is_pathname(s) ((((s) != 0) && ((s)[0] == '/')) \
+#define is_pathname(s) ((((s) != NULL) && ((s)[0] == '/')) \
 		  || (((s)[0] != 0) && ((s)[1] == ':')))
 #else
-#define is_pathname(s) ((s) != 0 && (s)[0] == '/')
+#define is_pathname(s) ((s) != NULL && (s)[0] == '/')
 #endif
     return is_pathname(path);
 }
@@ -110,10 +215,10 @@ _nc_pathlast(const char *path)
 {
     const char *test = strrchr(path, '/');
 #ifdef __EMX__
-    if (test == 0)
+    if (test == NULL)
 	test = strrchr(path, '\\');
 #endif
-    if (test == 0)
+    if (test == NULL)
 	test = path;
     else
 	test++;
@@ -131,7 +236,10 @@ _nc_access(const char *path, int mode)
 {
     int result;
 
-    if (path == 0) {
+    FixupPathname(path);
+
+    if (path == NULL) {
+	errno = ENOENT;
 	result = -1;
     } else if (ACCESS(path, mode) < 0) {
 	if ((mode & W_OK) != 0
@@ -142,7 +250,7 @@ _nc_access(const char *path, int mode)
 
 	    _nc_STRCPY(head, path, sizeof(head));
 	    leaf = _nc_basename(head);
-	    if (leaf == 0)
+	    if (leaf == NULL)
 		leaf = head;
 	    *leaf = '\0';
 	    if (head == leaf)
@@ -150,6 +258,7 @@ _nc_access(const char *path, int mode)
 
 	    result = ACCESS(head, R_OK | W_OK | X_OK);
 	} else {
+	    errno = EPERM;
 	    result = -1;
 	}
     } else {
@@ -164,7 +273,7 @@ _nc_is_dir_path(const char *path)
     bool result = FALSE;
     struct stat sb;
 
-    if (stat(path, &sb) == 0
+    if (_nc_is_path_found(path, &sb)
 	&& S_ISDIR(sb.st_mode)) {
 	result = TRUE;
     }
@@ -177,8 +286,21 @@ _nc_is_file_path(const char *path)
     bool result = FALSE;
     struct stat sb;
 
-    if (stat(path, &sb) == 0
+    if (_nc_is_path_found(path, &sb)
 	&& S_ISREG(sb.st_mode)) {
+	result = TRUE;
+    }
+    return result;
+}
+
+NCURSES_EXPORT(bool)
+_nc_is_path_found(const char *path, struct stat * sb)
+{
+    bool result = FALSE;
+
+    FixupPathname(path);
+
+    if (stat(path, sb) == 0) {
 	result = TRUE;
     }
     return result;
@@ -247,6 +369,29 @@ _nc_env_access(void)
 }
 
 #ifndef USE_ROOT_ACCESS
+static int
+is_a_file(int fd)
+{
+    int result = FALSE;
+    if (fd >= 0) {
+	struct stat sb;
+	if (fstat(fd, &sb) == 0) {
+	    switch (sb.st_mode & S_IFMT) {
+	    case S_IFBLK:
+	    case S_IFCHR:
+	    case S_IFDIR:
+		/* disallow devices and directories */
+		break;
+	    default:
+		/* allow regular files, fifos and sockets */
+		result = TRUE;
+		break;
+	    }
+	}
+    }
+    return result;
+}
+
 /*
  * Limit privileges if possible; otherwise disallow access for updating files.
  */
@@ -254,15 +399,24 @@ NCURSES_EXPORT(FILE *)
 _nc_safe_fopen(const char *path, const char *mode)
 {
     FILE *result = NULL;
+
 #if HAVE_SETFSUID
     lower_privileges();
+    FixupPathname(path);
     result = fopen(path, mode);
     resume_elevation();
 #else
+    FixupPathname(path);
     if (!is_elevated() || *mode == 'r') {
 	result = fopen(path, mode);
     }
 #endif
+    if (result != NULL) {
+	if (!is_a_file(fileno(result))) {
+	    fclose(result);
+	    result = NULL;
+	}
+    }
     return result;
 }
 
@@ -272,13 +426,21 @@ _nc_safe_open3(const char *path, int flags, mode_t mode)
     int result = -1;
 #if HAVE_SETFSUID
     lower_privileges();
+    FixupPathname(path);
     result = open(path, flags, mode);
     resume_elevation();
 #else
+    FixupPathname(path);
     if (!is_elevated() || (flags & O_RDONLY)) {
 	result = open(path, flags, mode);
     }
 #endif
+    if (result >= 0) {
+	if (!is_a_file(result)) {
+	    close(result);
+	    result = -1;
+	}
+    }
     return result;
 }
 #endif /* USE_ROOT_ACCESS */

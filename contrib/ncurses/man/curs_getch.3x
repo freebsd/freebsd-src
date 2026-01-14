@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,8 +28,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_getch.3x,v 1.87 2024/04/20 19:18:18 tom Exp $
-.TH curs_getch 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_getch.3x,v 1.134 2025/11/12 01:06:36 tom Exp $
+.TH curs_getch 3X 2025-11-11 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -57,15 +57,15 @@
 \fB\%mvwgetch\fP,
 \fB\%ungetch\fP,
 \fB\%has_key\fP \-
-get (or push back) characters from \fIcurses\fR terminal keyboard
+get (or push back) characters from \fIcurses\fR terminal keyboard buffer
 .SH SYNOPSIS
 .nf
 .B #include <curses.h>
 .PP
 .B int getch(void);
-.B int wgetch(WINDOW *\fIwin\fP);
+.B int wgetch(WINDOW * \fIwin\fP);
 .B int mvgetch(int \fIy\fP, int \fIx\fP);
-.B int mvwgetch(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP);
+.B int mvwgetch(WINDOW * \fIwin\fP, int \fIy\fP, int \fIx\fP);
 .PP
 .B int ungetch(int \fIc\fP);
 .PP
@@ -76,18 +76,25 @@ get (or push back) characters from \fIcurses\fR terminal keyboard
 .SH DESCRIPTION
 .SS "Reading Characters"
 .B \%wgetch
-gathers a key stroke from the terminal keyboard associated with a
+gathers a key event from the terminal keyboard associated with a
 .I curses
 window
-.IR win .
+.IR win "."
 \fB\%ncurses\fP(3X) describes the variants of this function.
 .PP
 When input is pending,
 .B \%wgetch
-returns an integer identifying the key stroke;
+returns an integer identifying the key event;
 for alphanumeric and punctuation keys,
+the space bar,
+and (usually) the Backspace,
+Tab,
+Return,
+and Escape keys,
 this value corresponds to the character encoding used by the terminal.
-Use of the control key as a modifier often results in a distinct code.
+Use of the control key as a modifier,
+by holding it down while pressing and releasing another key,
+often results in a distinct code.
 The behavior of other keys depends on whether
 .I win
 is in keypad mode;
@@ -97,20 +104,29 @@ If no input is pending,
 then if the no-delay flag is set in the window
 (see \fB\%nodelay\fP(3X)),
 the function returns
-.BR ERR ;
+.BR ERR ";"
 otherwise,
 .I curses
 waits until the terminal has input.
-If \fB\%cbreak\fP(3X)
+If \fB\%cbreak\fP(3X) or \fB\%raw\fP(3X)
 has been called,
-this happens after one character is read.
-If \fB\%nocbreak\fP(3X)
+this happens after
+.I curses
+reads one key event.
+If \fB\%nocbreak\fP(3X) or \fB\%noraw\fP(3X)
 has been called,
-it occurs when the next newline is read.
+it occurs when
+.I curses
+reads a newline. \" "newline" because canonical mode normalizes NL/CR
+(Because the terminal's canonical or \*(``cooked\*('' mode
+is line-buffered,
+multiple
+.B \%wgetch
+calls may then be necessary to empty the input queue.)
 If \fB\%halfdelay\fP(3X)
 has been called,
 .I curses
-waits until a character is typed or the specified delay elapses.
+waits until input is available or the specified delay elapses.
 .PP
 If \fB\%echo\fP(3X) has been called,
 and the window is not a pad,
@@ -123,7 +139,9 @@ per the following rules.
 .bP
 If
 .I c
-matches the terminal's erase character,
+matches the terminal's erase character
+(see \fB\%erasechar\fP(3X)),
+and the cursor is not at the window's leftmost column,
 the cursor moves leftward one position
 and the new position is erased
 as if \fB\%wmove\fP(3X) and then \fB\%wdelch\fP(3X) were called.
@@ -140,11 +158,14 @@ writes any other
 to the window,
 as with \fB\%wechochar\fP(3X).
 .bP
-If the window has been moved or modified since the last call to
+If the window
+.I win
+has been moved or modified since the last call to
 \fB\%wrefresh\fP(3X),
 .I curses
 calls
-.BR \%wrefresh .
+.B \%wrefresh
+on it.
 .PP
 If
 .I c
@@ -152,48 +173,52 @@ is a carriage return and \fBnl\fP(3X) has been called,
 .B \%wgetch
 returns the character code for line feed instead.
 .SS "Keypad Mode"
-To
-.IR curses ,
-key strokes not from the alphabetic section of the keyboard
-(those corresponding to the ECMA-6 character set\(emsee
-\fIascii\fP(7)\(emoptionally modified by either the control or shift
-keys)
-are treated as
+Call \fB\%keypad\fP(3X) on a window to configure keypad mode
+when reading input from it.
+In
+.IR "keypad mode" ","
+.I curses
+treats key strokes not from the alphabetic section of the keyboard
+(those corresponding to the ECMA-6 character set \(em
+see \fI\%ascii\fP(7) \(em
+optionally modified by either the control or shift keys)
+as
 .I function
 keys.
 (In
-.IR curses ,
+.IR curses ","
 the term \*(``function key\*('' includes but is not limited to keycaps
 engraved with \*(``F1\*('',
 \*(``PF1\*('',
 and so on.)
-If the window is in keypad mode,
-these produce a numeric code corresponding to the
+If a window is in keypad mode,
+.B \%wgetch
+translates these key strokes to a numeric code corresponding to the
 .B KEY_
-symbols listed in subsection \*(``Predefined Key Codes\*('' below;
-otherwise,
-they transmit a sequence of codes typically starting with the escape
-character,
-and which must be collected with multiple
+symbols listed in subsection \*(``Key Codes\*('' below.
+If the window is not in keypad mode,
+the input queue populates with
+the characters of the function key's escape sequence,
+which the application must collect individually with multiple
 .B \%wgetch
 calls.
 .bP
 The
 .I \%curses.h
 header file declares many
-.I "predefined function keys"
+.I "function keys"
 whose names begin with
-.BR KEY_ ;
-these object-like macros have values outside the range of eight-bit
-character codes.
+.BR KEY_ ";"
+these object-like macros
+have integer values outside the range of eight-bit character codes.
 .bP
 In
-.IR \%ncurses ,
+.IR \%ncurses ","
 .I "user-defined function keys"
 are configured with \fB\%define_key\fP(3X);
 they have no names,
-but are also expected to have values outside the range of eight-bit
-codes.
+but are also expected to
+have integer values outside the range of eight-bit character codes.
 .PP
 A variable intended to hold a function key code must thus be of type
 .I short
@@ -204,55 +229,78 @@ their function keys produce character sequences prefixed with the
 escape character ESC.
 This fact implies that
 .I curses
-cannot know whether the terminal has sent an ESC key stroke or the
-beginning of a function key's character sequence without waiting to see
-if,
+cannot distinguish a user's press of the escape key
+(assuming it sends ESC)
+from the beginning of a function key's character sequence without
+waiting to see if,
 and how soon,
 further input arrives.
-When
-.I curses
-reads such an ambiguous character,
-it sets a timer.
-If the remainder of the sequence does not arrive within the designated
-time,
+.bP
+If the escape sequence
+matches a string capability defining a function key
+for the terminal type
+(such as
+.B \%key_home
+.RB \%( khome )
+or
+.B \%key_up
+.RB \%( kuu1 )),
 .B \%wgetch
-returns the prefix character;
-otherwise,
-it returns the function key code corresponding to the unique sequence
+returns the function key code corresponding to the unique sequence
 defined by the terminal.
+.bP
+If the escape sequence matches no function keys
+defined for the terminal type,
+call
+.B \%wgetch
+repeatedly to obtain
+the codes of the individual characters of the sequence,
+in the order they occurred in the input.
+.bP
+If
+.B \%wgetch
+cannot decide the validity of the input as a function key
+because it has not read enough characters to disambiguate it,
+the function waits until it has this information or the
+.I "escape delay"
+elapses.
+Configure the escape delay
+with the global variable
+.BR \%ESCDELAY ","
+an extension
+(see section \*(``EXTENSIONS\*('' below),
+or the environment variable of the same name
+(see section \*(``ENVIRONMENT\*('' of \fB\%ncurses\fP(3X)),
+also an extension.
+.PP
 Consequently,
 a user of a
 .I curses
-application may experience a delay after pressing ESC while
+application that employs keypad mode
+may experience a pause or \*(``hang\*(''
+after pressing the escape key while
 .I curses
-disambiguates the input;
-see section \*(``EXTENSIONS\*('' below.
+collects sufficient characters to disambiguate the input.
 If the window is in \*(``no time-out\*('' mode,
-the timer does not expire;
-it is an infinite
-(or very large)
-value.
-See \fB\%notimeout\fP(3X).
-Because function key sequences usually begin with an escape character,
-the terminal may appear to hang in no time-out mode after the user has
-pressed ESC.
-Generally,
+the escape delay is effectively infinite;
+see \fB\%notimeout\fP(3X).
+In the event of such a pause,
 further typing \*(``awakens\*(''
-.IR curses .
+.IR curses "."
 .SS "Ungetting Characters"
 .B \%ungetch
 places
 .I c
 into the input queue to be returned by the next call to
-.BR \%wgetch .
-A single input queue serves all windows.
-.SS "Predefined Key Codes"
+.BR \%wgetch "."
+A single input queue serves all windows associated with the screen.
+.SS "Key Codes"
 The header file
 .I \%curses.h
 defines the following function key codes.
 .bP
 Except for the special case of
-.BR \%KEY_RESIZE ,
+.BR \%KEY_RESIZE ","
 a window's keypad mode must be enabled for
 .B \%wgetch
 to read these codes from it.
@@ -273,10 +321,11 @@ dominant position in industry.
 .\" get_wch(3X) or having that page cross reference this one?
 .TS
 Lb Lb
-Lb Lx.
+Lb Lw(36n)x.
 Symbol	Key name
 =
 KEY_BREAK	Break key
+.ne 4
 KEY_DOWN	Arrow keys
 KEY_UP	\^
 KEY_LEFT	\^
@@ -394,13 +443,15 @@ correspond to a physical key.
 .bP
 .B \%wgetch
 returns
-.BR \%KEY_RESIZE ,
+.BR \%KEY_RESIZE ","
 even if the window's keypad mode is disabled,
-when
+if
 .I \%ncurses
-handles a
-.B \%SIGWINCH
-signal;
+has handled a
+.I \%SIGWINCH
+signal since
+.B \%wgetch
+was called;
 see \fB\%initscr\fP(3X) and \fB\%resizeterm\fP(3X).
 .bP
 .B \%wgetch
@@ -410,59 +461,92 @@ to indicate that a mouse event is pending collection;
 see \fB\%curs_mouse\fP(3X).
 Receipt of this code requires a window's keypad mode to be enabled,
 because to interpret mouse input
-(as with with \fI\%xterm\fP(1)'s mouse prototocol),
+(as with \fI\%xterm\fP(1)'s mouse protocol),
 .I \%ncurses
 must read an escape sequence,
 as with a function key.
 .SS "Testing Key Codes"
 In
-.IR \%ncurses ,
+.IR \%ncurses ","
 .B \%has_key
 returns a Boolean value indicating whether the terminal type recognizes
 its parameter as a key code value.
 See also
 \fB\%define_key\fP(3X) and \fB\%key_defined\fP(3X).
 .SH RETURN VALUE
-Except for
-.BR \%has_key ,
-these functions return
-.B OK
-on success and
+.B \%wgetch
+returns a key code identifying the key event as described above,
+which may include
+.B \%KEY_RESIZE
+or
+.B \%KEY_MOUSE
+indicating non-key events,
+or
 .B ERR
 on failure.
+.B \%wgetch
+fails if
+its timeout expires without any data arriving,
+which cannot happen if \fB\%nodelay\fP(3X) is in effect on the window.
 .PP
-Functions taking a
+In
+.IR \%ncurses ,
+.B \%wgetch
+also fails if
+.bP
+the
+.I curses
+screen has not been initialized,
+.bP
+(for functions taking a
 .I \%WINDOW
-pointer argument fail if the pointer is
-.BR NULL .
+pointer argument)
+.I win
+is a null pointer,
+or
+.bP
+execution was interrupted by a signal,
+in which case the library sets
+.I \%errno
+to
+.IR \%EINTR "."
 .PP
 Functions prefixed with \*(``mv\*('' first perform cursor movement and
 fail if the position
 .RI ( y ,
-.IR x )
+.IR x ")"
 is outside the window boundaries.
 .PP
-.B \%wgetch
-also fails if
+.B \%ungetch
+returns
+.B OK
+on success and
+.B ERR
+on failure.
+In
+.IR \%ncurses ,
+.B \%ungetch
+fails if
 .bP
-its timeout expires without any data arriving,
+the
+.I curses
+screen has not been initialized,
 or
 .bP
-execution was interrupted by a signal,
-in which case
-.B \%errno
-is set to
-.BR \%EINTR .
-.PP
-.B \%ungetch
-fails if there is no more room in the input queue.
+there is no more room in the input queue.
 .PP
 .B \%has_key
 returns
 .B TRUE
 or
-.BR FALSE .
+.BR FALSE "."
 .SH NOTES
+.BR \%getch ","
+.BR \%mvgetch ","
+and
+.B \%mvwgetch
+may be implemented as macros.
+.PP
 .I curses
 discourages assignment of the ESC key to a discrete function by the
 programmer because the library requires a delay while it awaits the
@@ -472,7 +556,7 @@ Some key strokes are indistinguishable from control characters;
 for example,
 .B \%KEY_ENTER
 may be the same as
-.BR \*^M ,
+.BR \*^M ","
 .\" as with att630 or pccon+keys
 and
 .B \%KEY_BACKSPACE
@@ -480,17 +564,17 @@ may be the same as
 .B \*^H
 .\" as with att505 or vt52-basic
 or
-.BR \*^? .
+.BR \*^? "."
 .\" as with pccon+keys or vt320
-Consult the terminal's
+Consult the
 .I \%term\%info
-entry to determine whether this is the case;
+entry for the terminal type to determine whether this is the case;
 see \fB\%infocmp\fP(1).
 Some
 .I curses
 implementations,
 including
-.IR \%ncurses ,
+.IR \%ncurses ","
 honor the
 .I \%term\%info
 key definitions;
@@ -502,7 +586,7 @@ sections of a keyboard because (most) terminals do.
 .B \%KEY_ENTER
 refers to the key on the numeric keypad and,
 like other function keys,
-and is reliably recognized only if the window's keypad mode is enabled.
+is reliably recognized only if the window's keypad mode is enabled.
 .bP
 The
 .I \%term\%info
@@ -529,7 +613,7 @@ Depending on the terminal mode
 (raw,
 cbreak,
 or
-\*(``cooked\*(''),
+canonical),
 and whether \fB\%nl\fP(3X) or \fB\%nonl\fP(3X) has been called,
 .B \%wgetch
 may return either a carriage return or line feed upon an Enter or Return
@@ -541,22 +625,22 @@ with \fB\%echo\fP(3X) and neither \fB\%cbreak\fP(3X) nor \fB\%raw\fP(3X)
 is not well-defined.
 .PP
 Historically,
-the list of key code macros above was influenced by the
-function-key-rich keyboard of the AT&T 7300
+the list of key code macros above was influenced by the keyboard of the
+AT&T 7300
 (also known variously as the \*(``3B1\*('', \*(``Safari 4\*('', and
 \*(``UNIX PC\*(''),
-a 1985 machine.
-Today's computer keyboards are based that of the IBM PC/AT and tend to
-have fewer.
+a 1985 machine rich in function keys.
+Today's computer keyboards are based on that of the IBM PC/AT
+and tend to have fewer.
 A
 .I curses
 application can expect such a keyboard to transmit key codes
-.BR \%KEY_UP ,
-.BR \%KEY_DOWN ,
-.BR \%KEY_LEFT ,
-.BR \%KEY_RIGHT ,
-.BR \%KEY_HOME ,
-.BR \%KEY_END ,
+.BR \%KEY_UP ","
+.BR \%KEY_DOWN ","
+.BR \%KEY_LEFT ","
+.BR \%KEY_RIGHT ","
+.BR \%KEY_HOME ","
+.BR \%KEY_END ","
 .B \%KEY_PPAGE
 (Page Up),
 .B \%KEY_NPAGE
@@ -565,20 +649,23 @@ application can expect such a keyboard to transmit key codes
 (Insert),
 .B \%KEY_DC
 (Delete),
+.BR \%KEY_A1 ","
+.BR \%KEY_A3 ","
+.BR \%KEY_B2 ","
+.BR \%KEY_C1 ","
+.BR \%KEY_C3 ","
 and
 .BI \%KEY_F( n )
 for 1 \(<=
 .I n
 \(<= 12.
-.PP
-.BR \%getch ,
-.BR \%mvgetch ,
-and
-.B \%mvwgetch
-may be implemented as macros.
+.\" Other numeric keypad keys from the DEC VT220 (specifically, the
+.\" LK201 commonly used with it) and IBM PC/AT keyboards -- the comma
+.\" (DEC); plus, star, and slash (PC); and zero, dot, and minus (both)
+.\" have no standard key capability codes.
 .SH EXTENSIONS
 In
-.IR \%ncurses ,
+.IR \%ncurses ","
 when a window's \*(``no time-out\*('' mode is
 .I not
 set,
@@ -590,12 +677,17 @@ with ESC typed by the user;
 see
 \fB\%curs_variables\fP(3X).
 .PP
-\fB\%has_key\fP was designed for \fB\%ncurses\fP(3X),
+.B \%has_key
+is an
+.I \%ncurses
+extension,
 and is not found in SVr4
-.IR curses ,
+.IR curses ","
 4.4BSD
-.IR curses ,
-or any other previous curses implementation.
+.IR curses ","
+or any other previous
+.I curses
+implementation.
 .SH PORTABILITY
 Applications employing
 .I \%ncurses
@@ -603,51 +695,51 @@ extensions should condition their use on the visibility of the
 .B \%NCURSES_VERSION
 preprocessor macro.
 .PP
-X/Open Curses,
-Issue 4 describes
-\fB\%getch\fP,
-\fB\%wgetch\fP,
-\fB\%mvgetch\fP,
-\fB\%mvwgetch\fP,
-and
-\fB\%ungetch\fP.
+Except as noted in section \*(``EXTENSIONS\*('' above,
+X/Open Curses Issue\ 4 describes these functions.
 It specifies no error conditions for them.
 .PP
-.B \%wgetch
+SVr4 describes a successful return value only as
+\*(``an integer value other than
+.IR ERR \*(''. \" Courier roman in source; SVID 4, vol. 3, p. 494
+.PP
+.I \%wgetch
 reads only single-byte characters.
 .PP
 The echo behavior of these functions on input of
-.B KEY_
-or backspace characters was not specified in the SVr4 documentation.
-This description is adapted from X/Open Curses.
+.I KEY_
+or backspace characters is not documented in SVr4
+.IR curses "."
 .PP
 The behavior of
-.B \%wgetch
-in the presence of signal handlers is unspecified in the SVr4
-documentation and X/Open Curses.
+.I \%wgetch
+in the presence of signal handlers is not documented in SVr4
+.I curses
+and is unspecified by X/Open Curses.
 In historical
 .I curses
 implementations,
 it varied depending on whether the operating system's dispatch of a
-signal to a handler interrupting a \fIread\fP(2) call in progress,
+signal to a handler interrupted a \fIread\fP(2) call in progress,
 and also
 (in some implementations)
-whether an input timeout or non-blocking mode has been set.
-Programmers concerned about portability should be prepared for either of
-two cases:
+whether an input timeout or non-blocking mode had been set.
+A portable
+.I curses
+application prepares for two cases:
 (a) signal receipt does not interrupt
-.BR \%wgetch ;
-or
+.IR \%wgetch ";"
+and
 (b) signal receipt interrupts
-.B \%wgetch
+.I \%wgetch
 and causes it to return
-.B ERR
+.I ERR
 with
-.B \%errno
+.I \%errno
 set to
-.BR \%EINTR .
+.IR \%EINTR "."
 .PP
-.B \%KEY_MOUSE
+.I \%KEY_MOUSE
 is mentioned in X/Open Curses,
 along with a few related
 .I \%term\%info
@@ -657,11 +749,11 @@ The implementation in
 .I \%ncurses
 is an extension.
 .PP
-.B \%KEY_RESIZE
+.I \%KEY_RESIZE
 and
-.B \%has_key
+.I \%has_key
 are extensions first implemented for
-.IR \%ncurses .
+.IR \%ncurses "."
 By 2022,
 .I \%PDCurses
 .\" https://web.archive.org/web/20220117232009/https://pdcurses.org/docs/MANUAL.html
@@ -670,12 +762,35 @@ NetBSD
 .I curses
 .\" https://web.archive.org/web/20200923185647/https://man.netbsd.org/curses_input.3
 had added them along with
-.BR \%KEY_MOUSE .
+.IR \%KEY_MOUSE "."
+.SH HISTORY
+4BSD (1980)
+introduced
+.I \%wgetch
+and its variants.
+.PP
+SVr3 (1987)
+added
+.IR \%ungetch "."
+.PP
+.I \%ncurses
+1.9.9g (1996)
+furnished the
+.I \%has_key
+extension.
 .SH SEE ALSO
+ECMA-6 \*(``7-bit coded Character Set\*(''
+\%<https://\*:ecma\-international\*:.org/\
+\*:publications\-and\-standards/\*:standards/\*:ecma\-6/>
+.PP
+ECMA-48 \*(``Control Functions for Coded Character Sets\*(''
+\%<https://\*:ecma\-international\*:.org/\
+\*:publications\-and\-standards/\*:standards/\*:ecma\-48/>
+.PP
 \fB\%curs_get_wch\fP(3X) describes comparable functions of the
 .I \%ncurses
 library in its wide-character configuration
-.RI ( \%ncursesw ).
+.RI \%( ncursesw ).
 .PP
 \fB\%curses\fP(3X),
 \fB\%curs_addch\fP(3X),
@@ -687,11 +802,3 @@ library in its wide-character configuration
 \fB\%curs_variables\fP(3X),
 \fB\%resizeterm\fP(3X),
 \fB\%ascii\fP(7)
-.PP
-ECMA-6 \*(``7-bit coded Character Set\*(''
-\%<https://\*:ecma\-international\*:.org/\
-\*:publications\-and\-standards/\*:standards/\*:ecma\-6/>
-.PP
-ECMA-48 \*(``Control Functions for Coded Character Sets\*(''
-\%<https://\*:ecma\-international\*:.org/\
-\*:publications\-and\-standards/\*:standards/\*:ecma\-48/>

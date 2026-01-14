@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2023 Thomas E. Dickey                                     *
+ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
  * Copyright 1998-2011,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -36,7 +36,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: trace_buf.c,v 1.22 2023/06/24 13:37:25 tom Exp $")
+MODULE_ID("$Id: trace_buf.c,v 1.23 2024/12/07 21:24:18 tom Exp $")
 
 #ifdef TRACE
 
@@ -46,22 +46,22 @@ MODULE_ID("$Id: trace_buf.c,v 1.22 2023/06/24 13:37:25 tom Exp $")
 static char *
 _nc_trace_alloc(int bufnum, size_t want)
 {
-    char *result = 0;
+    char *result = NULL;
 
     if (bufnum >= 0) {
 	if ((size_t) (bufnum + 1) > MySize) {
 	    size_t need = (size_t) (bufnum + 1) * 2;
-	    if ((MyList = typeRealloc(TRACEBUF, need, MyList)) != 0) {
+	    if ((MyList = typeRealloc(TRACEBUF, need, MyList)) != NULL) {
 		while (need > MySize)
-		    MyList[MySize++].text = 0;
+		    MyList[MySize++].text = NULL;
 	    }
 	}
 
-	if (MyList != 0) {
-	    if (MyList[bufnum].text == 0
+	if (MyList != NULL) {
+	    if (MyList[bufnum].text == NULL
 		|| want > MyList[bufnum].size) {
 		MyList[bufnum].text = typeRealloc(char, want, MyList[bufnum].text);
-		if (MyList[bufnum].text != 0)
+		if (MyList[bufnum].text != NULL)
 		    MyList[bufnum].size = want;
 	    }
 	    result = MyList[bufnum].text;
@@ -72,12 +72,12 @@ _nc_trace_alloc(int bufnum, size_t want)
 	if (MySize) {
 	    if (MyList) {
 		while (MySize--) {
-		    if (MyList[MySize].text != 0) {
+		    if (MyList[MySize].text != NULL) {
 			free(MyList[MySize].text);
 		    }
 		}
 		free(MyList);
-		MyList = 0;
+		MyList = NULL;
 	    }
 	    MySize = 0;
 	}
@@ -93,7 +93,7 @@ NCURSES_EXPORT(char *)
 _nc_trace_buf(int bufnum, size_t want)
 {
     char *result = _nc_trace_alloc(bufnum, want);
-    if (result != 0)
+    if (result != NULL)
 	*result = '\0';
     return result;
 }
@@ -109,12 +109,12 @@ _nc_trace_bufcat(int bufnum, const char *value)
     if (value == NULL)
 	value = "";
     buffer = _nc_trace_alloc(bufnum, (size_t) 0);
-    if (buffer != 0) {
+    if (buffer != NULL) {
 	size_t have = strlen(buffer);
 	size_t need = strlen(value) + have;
 
 	buffer = _nc_trace_alloc(bufnum, 1 + need);
-	if (buffer != 0)
+	if (buffer != NULL)
 	    _nc_STRCPY(buffer + have, value, need);
 
     }

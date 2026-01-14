@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2023,2024 Thomas E. Dickey                                *
  * Copyright 2002-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -37,7 +37,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_vid_attr.c,v 1.31 2023/04/28 20:59:34 tom Exp $")
+MODULE_ID("$Id: lib_vid_attr.c,v 1.32 2024/12/07 20:08:59 tom Exp $")
 
 #define doPut(mode) \
 	TPUTS_TRACE(#mode); \
@@ -87,9 +87,9 @@ NCURSES_SP_NAME(vid_puts) (NCURSES_SP_DCLx
 
     attr_t turn_on, turn_off;
     bool reverse = FALSE;
-    bool can_color = (SP_PARM == 0 || SP_PARM->_coloron);
+    bool can_color = (SP_PARM == NULL || SP_PARM->_coloron);
 #if NCURSES_EXT_FUNCS
-    bool fix_pair0 = (SP_PARM != 0 && SP_PARM->_coloron && !SP_PARM->_default_color);
+    bool fix_pair0 = (SP_PARM != NULL && SP_PARM->_coloron && !SP_PARM->_default_color);
 #else
 #define fix_pair0 FALSE
 #endif
@@ -193,15 +193,15 @@ NCURSES_SP_NAME(vid_puts) (NCURSES_SP_DCLx
 	    TPUTS_TRACE("set_attributes");
 	    NCURSES_SP_NAME(tputs) (NCURSES_SP_ARGx
 				    TIPARM_9(set_attributes,
-					       (newmode & A_STANDOUT) != 0,
-					       (newmode & A_UNDERLINE) != 0,
-					       (newmode & A_REVERSE) != 0,
-					       (newmode & A_BLINK) != 0,
-					       (newmode & A_DIM) != 0,
-					       (newmode & A_BOLD) != 0,
-					       (newmode & A_INVIS) != 0,
-					       (newmode & A_PROTECT) != 0,
-					       (newmode & A_ALTCHARSET) != 0),
+					     (newmode & A_STANDOUT) != 0,
+					     (newmode & A_UNDERLINE) != 0,
+					     (newmode & A_REVERSE) != 0,
+					     (newmode & A_BLINK) != 0,
+					     (newmode & A_DIM) != 0,
+					     (newmode & A_BOLD) != 0,
+					     (newmode & A_INVIS) != 0,
+					     (newmode & A_PROTECT) != 0,
+					     (newmode & A_ALTCHARSET) != 0),
 				    1, outc);
 	    previous_attr &= ALL_BUT_COLOR;
 	    previous_pair = 0;

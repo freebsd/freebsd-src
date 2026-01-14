@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2022 Thomas E. Dickey                                     *
+ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
  * Copyright 1998-2010,2011 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -48,9 +48,9 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_slk.c,v 1.50 2022/08/20 18:29:22 tom Exp $")
+MODULE_ID("$Id: lib_slk.c,v 1.52 2025/12/27 12:41:23 tom Exp $")
 
-#ifdef USE_TERM_DRIVER
+#if USE_TERM_DRIVER
 #define NumLabels    InfoOf(SP_PARM).numlabels
 #define NoColorVideo InfoOf(SP_PARM).nocolorvideo
 #define LabelWidth   InfoOf(SP_PARM).labelwidth
@@ -68,7 +68,7 @@ MODULE_ID("$Id: lib_slk.c,v 1.50 2022/08/20 18:29:22 tom Exp $")
 static int
 slk_failed(NCURSES_SP_DCL0)
 {
-    if ((0 != SP_PARM) && SP_PARM->_slk) {
+    if ((NULL != SP_PARM) && SP_PARM->_slk) {
 	FreeIfNeeded(SP_PARM->_slk->ent);
 	free(SP_PARM->_slk);
 	SP_PARM->_slk = (SLK *) 0;
@@ -148,7 +148,7 @@ _nc_slk_initialize(WINDOW *stwin, int cols)
     assert(stwin);
 
     sp = _nc_screen_of(stwin);
-    if (0 == sp)
+    if (NULL == sp)
 	returnCode(ERR);
 
     assert(TerminalOf(SP_PARM));
@@ -157,7 +157,7 @@ _nc_slk_initialize(WINDOW *stwin, int cols)
 
     if (SP_PARM->_slk) {	/* we did this already, so simply return */
 	returnCode(OK);
-    } else if ((SP_PARM->_slk = typeCalloc(SLK, 1)) == 0)
+    } else if ((SP_PARM->_slk = typeCalloc(SLK, 1)) == NULL)
 	returnCode(ERR);
 
     if (!SP_PARM->slk_format)
@@ -196,13 +196,13 @@ _nc_slk_initialize(WINDOW *stwin, int cols)
     for (i = 0; i < SP_PARM->_slk->labcnt; i++) {
 	size_t used = max_length + 1;
 
-	SP_PARM->_slk->ent[i].ent_text = (char *) _nc_doalloc(0, used);
-	if (SP_PARM->_slk->ent[i].ent_text == 0)
+	SP_PARM->_slk->ent[i].ent_text = (char *) _nc_doalloc(NULL, used);
+	if (SP_PARM->_slk->ent[i].ent_text == NULL)
 	    returnCode(slk_failed(NCURSES_SP_ARG));
 	memset(SP_PARM->_slk->ent[i].ent_text, 0, used);
 
-	SP_PARM->_slk->ent[i].form_text = (char *) _nc_doalloc(0, used);
-	if (SP_PARM->_slk->ent[i].form_text == 0)
+	SP_PARM->_slk->ent[i].form_text = (char *) _nc_doalloc(NULL, used);
+	if (SP_PARM->_slk->ent[i].form_text == NULL)
 	    returnCode(slk_failed(NCURSES_SP_ARG));
 
 	if (used > 1) {
@@ -235,7 +235,7 @@ NCURSES_SP_NAME(slk_restore) (NCURSES_SP_DCL0)
 {
     T((T_CALLED("slk_restore(%p)"), (void *) SP_PARM));
 
-    if (0 == SP_PARM)
+    if (NULL == SP_PARM)
 	returnCode(ERR);
     if (SP_PARM->_slk == NULL)
 	returnCode(ERR);

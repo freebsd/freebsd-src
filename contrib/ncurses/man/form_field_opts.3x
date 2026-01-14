@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2014,2015 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,18 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_opts.3x,v 1.44 2024/03/16 15:35:01 tom Exp $
-.TH form_field_opts 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: form_field_opts.3x,v 1.47 2025/01/19 00:51:10 tom Exp $
+.TH form_field_opts 3X 2025-01-18 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
 .SH NAME
 \fBset_field_opts\fP,
 \fBfield_opts_on\fP,
@@ -46,8 +56,8 @@ set and get field options
 \fBint field_opts_off(FIELD *\fIfield\fP, Field_Options \fIopts\fP);
 .fi
 .SH DESCRIPTION
-The function \fBset_field_opts\fP sets all the given field's option bits (field
-option bits may be logically-OR'ed together).
+The function \fBset_field_opts\fP sets all the given field's option bits
+(field option bits may be logically \*(``or\*(''-ed together).
 .PP
 The function \fBfield_opts_on\fP turns on the given option bits, and leaves
 others alone.

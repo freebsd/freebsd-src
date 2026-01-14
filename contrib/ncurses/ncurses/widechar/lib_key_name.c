@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2023 Thomas E. Dickey                                     *
+ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
  * Copyright 2007-2008,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -36,7 +36,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_key_name.c,v 1.6 2023/06/03 12:15:34 tom Exp $")
+MODULE_ID("$Id: lib_key_name.c,v 1.7 2024/07/27 19:23:59 tom Exp $")
 
 #define MyData _nc_globals.key_name
 
@@ -44,7 +44,7 @@ NCURSES_EXPORT(NCURSES_CONST char *)
 key_name(wchar_t c)
 {
     cchar_t my_cchar;
-    wchar_t *my_wchars;
+    const wchar_t *my_wchars;
     size_t len;
     NCURSES_CONST char *result = NULL;
 

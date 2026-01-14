@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_page.3x,v 1.37 2024/03/16 15:35:01 tom Exp $
-.TH form_page 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: form_page.3x,v 1.39 2024/12/28 21:26:21 tom Exp $
+.TH form_page 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBform_page\fP \-
 set and get form page number
@@ -52,7 +52,9 @@ form; \fBcurrent_field\fP returns the current field of the given form.
 .PP
 The function \fBunfocus_current_field\fP removes the focus from the current
 field of the form.
-In such state, inquiries via \fBcurrent_field\fP shall return a NULL pointer.
+In such state, inquiries via \fBcurrent_field\fP shall return a
+.I NULL
+pointer.
 .PP
 The function \fBset_form_page\fP sets the form's page number (goes to page
 \fIn\fP of the form).

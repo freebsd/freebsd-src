@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2024 Thomas E. Dickey                                *
  * Copyright 1998-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -39,7 +39,7 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkcolor.c,v 1.20 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_slkcolor.c,v 1.21 2024/12/07 20:03:37 tom Exp $")
 
 static int
 _nc_slk_color(SCREEN *sp, int pair_arg)
@@ -48,8 +48,8 @@ _nc_slk_color(SCREEN *sp, int pair_arg)
 
     T((T_CALLED("slk_color(%p,%d)"), (void *) sp, pair_arg));
 
-    if (sp != 0
-	&& sp->_slk != 0
+    if (sp != NULL
+	&& sp->_slk != NULL
 	&& pair_arg >= 0
 	&& pair_arg < sp->_pair_limit) {
 	TR(TRACE_ATTRS, ("... current is %s", _tracech_t(CHREF(sp->_slk->attr))));

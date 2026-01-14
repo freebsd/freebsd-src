@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2020-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2020-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1998-2007,2010 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_getyx.3x,v 1.44 2024/04/20 21:20:07 tom Exp $
-.TH curs_getyx 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_getyx.3x,v 1.55 2025/02/01 22:48:11 tom Exp $
+.TH curs_getyx 3X 2025-02-01 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -51,62 +51,122 @@ get \fIcurses\fR cursor and window coordinates
 \fB#include <curses.h>
 .PP
 \fBvoid getyx(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP);
-\fBvoid getparyx(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP);
 \fBvoid getbegyx(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP);
 \fBvoid getmaxyx(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP);
+.PP
+\fBvoid getparyx(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP);
 .fi
 .SH DESCRIPTION
-The \fB\%getyx\fP macro places the current cursor position
-of the given window in the two integer variables \fIy\fP and \fIx\fP.
+These macros obtain the cursor position and bounds information of a
+.I curses
+window
+.IR win "."
+.B \%getyx
+stores
+.IR win "'s"
+cursor position in the variables
+.I y
+and
+.IR x "."
+.B \%getmaxyx
+stores
+.IR win "'s"
+maximum valid line and column numbers in
+.I y
+and
+.IR x ","
+respectively.
+.B \%getbegyx
+similarly stores the position of
+.IR win "'s"
+origin relative to that of the screen
+(for
+.BR stdscr ","
+these coordinates are always
+.BR 0 ")."
 .PP
-If \fIwin\fP is a subwindow, the \fB\%getparyx\fP macro places the beginning
-coordinates of the subwindow relative to the parent window into two integer
-variables \fIy\fP and \fIx\fP.
-Otherwise, \fB\-1\fP is placed into \fIy\fP and \fIx\fP.
-.PP
-Like \fB\%getyx\fP, the \fB\%getbegyx\fP and \fB\%getmaxyx\fP macros store
-the current beginning coordinates and size of the specified window.
+If
+.I win
+is a subwindow
+(see \fB\%subwin\fP(3X)),
+the
+.B \%getparyx
+macro places the coordinates of its origin relative to its parent window
+into
+.I y
+and
+.IR x ","
+and
+.B \-1
+into both if it is not.
 .SH RETURN VALUE
-The return values of these macros are undefined (i.e.,
-they should not be used as the right-hand side of assignment statements).
+No return values are defined for macros.
+Do not use them as the right-hand side of assignment statements.
 .SH NOTES
-All of these interfaces are macros.
-A \*(``&\*('' is not necessary before the variables \fIy\fP and \fIx\fP.
+All of these interfaces are implemented as macros.
+An \*(``&\*('' operator is not necessary before the variables
+.I y
+and
+.IR x "."
 .SH PORTABILITY
-The
-\fB\%getyx\fP,
-\fB\%getparyx\fP,
-\fB\%getbegyx\fP and
-\fB\%getmaxyx\fP
-macros are described in X/Open Curses, Issue 4.
+These macros are described in X/Open Curses Issue\ 4.
 .PP
-This implementation also provides functions
-\fB\%getbegx\fP,
-\fB\%getbegy\fP,
-\fB\%getcurx\fP,
-\fB\%getcury\fP,
-\fB\%getmaxx\fP,
-\fB\%getmaxy\fP,
-\fB\%getparx\fP and
-\fB\%getpary\fP
-for compatibility with older versions of \fIcurses\fP;
+.I \%ncurses
+also provides functions
+.IR \%getbegy ","
+.IR \%getbegx ","
+.IR \%getcury ","
+.IR \%getcurx ","
+.IR \%getmaxy ","
+.IR \%getmaxx ","
+.IR \%getpary ","
+and
+.I \%getparx
+for compatibility with System\ V
+.I curses
+that were not standardized;
+.\" even by SVID 4
 see \fB\%curs_legacy\fP(3X).
 .PP
-Although X/Open Curses does not address this,
-many implementations provide members of the \fB\%WINDOW\fP structure
-containing values corresponding to these macros.
-For best portability, do not rely on using the data in \fB\%WINDOW\fP,
-since some implementations make \fB\%WINDOW\fP opaque (do not allow
-direct use of its members).
+Although X/Open Curses does not address the issue,
+many implementations expose members of the
+.I \%WINDOW
+structure containing values corresponding to these macros.
+Do not rely on their availability;
+some implementations make
+.I \%WINDOW
+opaque
+(that is,
+they do not allow direct access to its members).
 .PP
 Besides the problem of opaque structures,
-the data stored in like-named members may not have like-values in
-different implementations.
-For example, the \fB\%WINDOW._maxx\fP and \fB\%WINDOW._maxy\fP values
-in \fI\%ncurses\fP have
-(at least since release 1.8.1)
+the data stored in like-named members may not have values of the same
+meaning across different implementations.
+For example,
+the values of
+.I \%WINDOW._maxx
+and
+.I \%WINDOW._maxy
+in
+.I \%ncurses
+have long
+.\" (at least since its initial release, 1.8.1)
 differed by one from some other implementations.
-The difference is hidden by means of the macro \fB\%getmaxyx\fP.
+The
+.I \%getmaxyx
+macro hides this difference.
+.SH HISTORY
+4BSD (1980)
+introduced
+.IR \%getyx "."
+.PP
+SVr3 (1987)
+added
+.I \%getbegyx
+and
+.IR \%getmaxyx "."
+SVr3.1 later that year supplied
+.IR \%getparyx "."
 .SH SEE ALSO
 \fB\%curses\fP(3X),
 \fB\%curs_legacy\fP(3X),

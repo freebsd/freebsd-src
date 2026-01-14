@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2021,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2023,2025 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -57,7 +57,7 @@
 #include <sys/types.h>
 #include <tic.h>
 
-MODULE_ID("$Id: read_termcap.c,v 1.104 2023/06/24 21:53:16 tom Exp $")
+MODULE_ID("$Id: read_termcap.c,v 1.107 2025/12/25 18:20:22 tom Exp $")
 
 #if !PURE_TERMINFO
 
@@ -72,7 +72,7 @@ get_termpath(void)
 {
     const char *result;
 
-    if (!use_terminfo_vars() || (result = getenv("TERMPATH")) == 0)
+    if (!use_terminfo_vars() || (result = getenv("TERMPATH")) == NULL)
 	result = TERMPATH;
     TR(TRACE_DATABASE, ("TERMPATH is %s", result));
     return result;
@@ -275,7 +275,7 @@ _nc_getent(
 {
     register char *r_end, *rp;
     int myfd = FALSE;
-    char *record = 0;
+    char *record = NULL;
     int tc_not_resolved;
     int current;
     int lineno;
@@ -291,7 +291,7 @@ _nc_getent(
      * Check if we have a top record from cgetset().
      */
     if (depth == 0 && toprec != 0 && _nc_cgetmatch(toprec, name) == 0) {
-	if ((record = DOALLOC(topreclen + BFRAG)) == 0) {
+	if ((record = DOALLOC(topreclen + BFRAG)) == NULL) {
 	    errno = ENOMEM;
 	    return (TC_SYS_ERR);
 	}
@@ -305,7 +305,7 @@ _nc_getent(
 	/*
 	 * Allocate first chunk of memory.
 	 */
-	if ((record = DOALLOC(BFRAG)) == 0) {
+	if ((record = DOALLOC(BFRAG)) == NULL) {
 	    errno = ENOMEM;
 	    return (TC_SYS_ERR);
 	}
@@ -315,7 +315,7 @@ _nc_getent(
 	/*
 	 * Loop through database array until finding the record.
 	 */
-	for (current = in_array; db_array[current] != 0; current++) {
+	for (current = in_array; db_array[current] != NULL; current++) {
 	    int eof = FALSE;
 
 	    /*
@@ -408,7 +408,7 @@ _nc_getent(
 			    pos = (unsigned) (rp - record);
 			    newsize = (size_t) (r_end - record + BFRAG);
 			    record = DOALLOC(newsize);
-			    if (record == 0) {
+			    if (record == NULL) {
 				if (myfd)
 				    (void) close(fd);
 				errno = ENOMEM;
@@ -464,7 +464,7 @@ _nc_getent(
 	register int newilen;
 	unsigned ilen;
 	int diff, iret, tclen, oline;
-	char *icap = 0, *scan, *tc, *tcstart, *tcend;
+	char *icap = NULL, *scan, *tc, *tcstart, *tcend;
 
 	/*
 	 * Loop invariants:
@@ -477,7 +477,7 @@ _nc_getent(
 	scan = record;
 	tc_not_resolved = FALSE;
 	for (;;) {
-	    if ((tc = _nc_cgetcap(scan, "tc", '=')) == 0) {
+	    if ((tc = _nc_cgetcap(scan, "tc", '=')) == NULL) {
 		break;
 	    }
 
@@ -548,7 +548,7 @@ _nc_getent(
 		tcpos = (unsigned) (tcstart - record);
 		tcposend = (unsigned) (tcend - record);
 		record = DOALLOC(newsize);
-		if (record == 0) {
+		if (record == NULL) {
 		    if (myfd)
 			(void) close(fd);
 		    free(icap);
@@ -586,7 +586,7 @@ _nc_getent(
 	(void) close(fd);
     *len = (unsigned) (rp - record - 1);	/* don't count NUL */
     if (r_end > rp) {
-	if ((record = DOALLOC((size_t) (rp - record))) == 0) {
+	if ((record = DOALLOC((size_t) (rp - record))) == NULL) {
 	    errno = ENOMEM;
 	    return (TC_SYS_ERR);
 	}
@@ -720,7 +720,7 @@ get_tc_token(char **srcp, int *endp)
     int ch;
     bool found = FALSE;
     char *s, *base;
-    char *tok = 0;
+    char *tok = NULL;
 
     *endp = TRUE;
     for (s = base = *srcp; *s != '\0';) {
@@ -749,7 +749,7 @@ get_tc_token(char **srcp, int *endp)
     }
 
     /* malformed entry may end without a ':' */
-    if (tok == 0 && found) {
+    if (tok == NULL && found) {
 	tok = base;
     }
 
@@ -768,7 +768,7 @@ copy_tc_token(char *dst, const char *src, size_t len)
 	    continue;
 	}
 	if (--len == 0) {
-	    dst = 0;
+	    dst = NULL;
 	    break;
 	}
 	*dst++ = (char) ch;
@@ -813,13 +813,13 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
     if (cp == NULL) {
 	_nc_safe_strcpy(&desc, get_termpath());
     } else if (!_nc_is_abs_path(cp)) {	/* TERMCAP holds an entry */
-	if ((termpath = get_termpath()) != 0) {
+	if ((termpath = get_termpath()) != NULL) {
 	    _nc_safe_strcat(&desc, termpath);
 	} else {
 	    char temp[PBUFSIZ];
 	    temp[0] = 0;
-	    if ((home = getenv("HOME")) != 0 && *home != '\0'
-		&& strchr(home, ' ') == 0
+	    if ((home = getenv("HOME")) != NULL && *home != '\0'
+		&& strchr(home, ' ') == NULL
 		&& strlen(home) < sizeof(temp) - 10) {	/* setup path */
 		_nc_SPRINTF(temp, _nc_SLIMIT(sizeof(temp))
 			    "%s/", home);	/* $HOME first */
@@ -850,7 +850,7 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
 	    }
 	}
     }
-    *fname = 0;			/* mark end of vector */
+    *fname = NULL;		/* mark end of vector */
 #if !HAVE_BSD_CGETENT
     (void) _nc_cgetset(0);
 #endif
@@ -875,7 +875,7 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
 
 	pd = bp;
 	ps = dummy;
-	while (!endflag && (tok = get_tc_token(&ps, &endflag)) != 0) {
+	while (!endflag && (tok = get_tc_token(&ps, &endflag)) != NULL) {
 	    bool ignore = FALSE;
 
 	    for (n = 1; n < count; n++) {
@@ -889,7 +889,7 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
 	    if (ignore != TRUE) {
 		list[count++] = tok;
 		pd = copy_tc_token(pd, tok, (size_t) (TBUFSIZ - (2 + pd - bp)));
-		if (pd == 0) {
+		if (pd == NULL) {
 		    i = -1;
 		    break;
 		}
@@ -901,7 +901,7 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
 
     FreeIfNeeded(dummy);
     FreeIfNeeded(the_source);
-    the_source = 0;
+    the_source = NULL;
 
     /* This is not related to the BSD cgetent(), but to fake up a suitable
      * filename for ncurses' error reporting.  (If we are not using BSD
@@ -917,10 +917,10 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
 	if (_nc_access(temp, R_OK) == 0) {
 	    _nc_safe_strcpy(&desc, pathvec[i]);
 	}
-	if ((the_source = strdup(temp)) != 0)
+	if ((the_source = strdup(temp)) != NULL)
 	    *sourcename = the_source;
 #else
-	if ((the_source = strdup(pathvec[i])) != 0)
+        if ((the_source = strdup(pathvec[i])) != NULL)
 	    *sourcename = the_source;
 #endif
     }
@@ -941,7 +941,7 @@ static int
 add_tc(char *termpaths[], char *path, int count)
 {
     char *save = strchr(path, NCURSES_PATHSEP);
-    if (save != 0)
+    if (save != NULL)
 	*save = '\0';
     if (count < MAXPATHS
 	&& _nc_access(path, R_OK) == 0) {
@@ -949,7 +949,7 @@ add_tc(char *termpaths[], char *path, int count)
 	TR(TRACE_DATABASE, ("Adding termpath %s", path));
     }
     termpaths[count] = 0;
-    if (save != 0)
+    if (save != NULL)
 	*save = NCURSES_PATHSEP;
     return count;
 }
@@ -966,7 +966,7 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE2 *const tp)
 #endif
 #if USE_GETCAP
     char *p, tc[TBUFSIZ];
-    char *tc_buf = 0;
+    char *tc_buf = NULL;
 #define MY_SIZE sizeof(tc) - 1
     int status;
     static char *source;
@@ -982,7 +982,7 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE2 *const tp)
 	return TGETENT_NO;
     }
 
-    if (use_terminfo_vars() && (p = getenv("TERMCAP")) != 0
+    if (use_terminfo_vars() && (p = getenv("TERMCAP")) != NULL
 	&& !_nc_is_abs_path(p) && _nc_name_match(p, tn, "|:")) {
 	/* TERMCAP holds a termcap entry */
 	tc_buf = strdup(p);
@@ -996,7 +996,7 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE2 *const tp)
 	_nc_set_source(source);
 	tc_buf = tc;
     }
-    if (tc_buf == 0)
+    if (tc_buf == NULL)
 	return (TGETENT_ERR);
     _nc_read_entry_source((FILE *) 0, tc_buf, FALSE, TRUE, NULLHOOK);
     if (tc_buf != tc)
@@ -1034,20 +1034,20 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE2 *const tp)
     int j, k;
     bool use_buffer = FALSE;
     bool normal = TRUE;
-    char *tc_buf = 0;
+    char *tc_buf = NULL;
     char pathbuf[PATH_MAX];
-    char *copied = 0;
+    char *copied = NULL;
     char *cp;
     struct stat test_stat[MAXPATHS];
 
-    termpaths[filecount] = 0;
-    if (use_terminfo_vars() && (tc = getenv("TERMCAP")) != 0) {
+    termpaths[filecount] = NULL;
+    if (use_terminfo_vars() && (tc = getenv("TERMCAP")) != NULL) {
 	if (_nc_is_abs_path(tc)) {	/* interpret as a filename */
 	    ADD_TC(tc, 0);
 	    normal = FALSE;
 	} else if (_nc_name_match(tc, tn, "|:")) {	/* treat as a capability file */
 	    tc_buf = strdup(tc);
-	    use_buffer = (tc_buf != 0);
+	    use_buffer = (tc_buf != NULL);
 	    normal = FALSE;
 	}
     }
@@ -1055,7 +1055,7 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE2 *const tp)
     if (normal) {		/* normal case */
 	char envhome[PATH_MAX], *h;
 
-	if ((copied = strdup(get_termpath())) != 0) {
+	if ((copied = strdup(get_termpath())) != NULL) {
 	    for (cp = copied; *cp; cp++) {
 		if (*cp == NCURSES_PATHSEP)
 		    *cp = '\0';
@@ -1085,7 +1085,7 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE2 *const tp)
 #if HAVE_LINK
     for (j = 0; j < filecount; j++) {
 	bool omit = FALSE;
-	if (stat(termpaths[j], &test_stat[j]) != 0
+	if (!_nc_is_path_found(termpaths[j], &test_stat[j])
 	    || !S_ISREG(test_stat[j].st_mode)) {
 	    omit = TRUE;
 	} else {
@@ -1140,11 +1140,11 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE2 *const tp)
 	    }
 	}
     }
-    if (copied != 0)
+    if (copied != NULL)
 	free(copied);
 #endif /* USE_GETCAP */
 
-    if (_nc_head == 0)
+    if (_nc_head == NULL)
 	return (TGETENT_ERR);
 
     /* resolve all use references */
@@ -1153,7 +1153,7 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE2 *const tp)
 
     /* find a terminal matching tn, if we can */
 #if USE_GETCAP_CACHE
-    if (getcwd(cwd_buf, sizeof(cwd_buf)) != 0) {
+    if (getcwd(cwd_buf, sizeof(cwd_buf)) != NULL) {
 	_nc_set_writedir((char *) 0);	/* note: this does a chdir */
 #endif
 	for_entry_list(ep) {

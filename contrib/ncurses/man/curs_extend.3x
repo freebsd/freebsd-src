@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
 .\" Copyright 1999-2010,2016 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -29,8 +29,8 @@
 .\"
 .\" Author: Thomas E. Dickey 1999-on
 .\"
-.\" $Id: curs_extend.3x,v 1.46 2024/03/16 15:35:01 tom Exp $
-.TH curs_extend 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: curs_extend.3x,v 1.67 2025/11/12 00:46:51 tom Exp $
+.TH curs_extend 3X 2025-11-11 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .ie \n(.g \{\
 .ds `` \(lq
 .ds '' \(rq
@@ -44,59 +44,89 @@
 .SH NAME
 \fB\%curses_version\fP,
 \fB\%use_extended_names\fP \-
-miscellaneous \fIcurses\fR extensions
+miscellaneous \fIncurses\fR extensions
 .SH SYNOPSIS
 .nf
 \fB#include <curses.h>
 .PP
 \fBconst char * curses_version(void);
-\fBint use_extended_names(bool \fIenable\fP);
+\fBint use_extended_names(bool \fIbf\fP);
 .fi
 .SH DESCRIPTION
-These functions are extensions to the curses library
-which do not fit easily into other categories.
+These
+.I \%ncurses
+extensions to the
+.I curses
+library do not fit easily into other functional categories.
 .SS curses_version
-Use \fBcurses_version\fP
-to get the version number, including patch level of the library,
-prefixed by \*(``ncurses\*('', e.g.,
-.RS
-.sp
-.B ncurses 5.0.19991023
-.RE
+.B \%curses_version
+returns a pointer to a string containing the library's name
+and version number,
+including its patch level,
+for example
+\*(``ncurses 6.5.20240720\*(''.
 .SS use_extended_names
-The \fBuse_extended_names\fP
-function controls whether the calling application
-is able to use user-defined or nonstandard names
-which may be compiled into the terminfo
-description, i.e., via the terminfo or termcap interfaces.
-Normally these names are available for use, since the essential decision
-is made by using the \fB\-x\fP option of \fB@TIC@\fP to compile
-extended terminal definitions.
-However you can disable this feature
-to ensure compatibility with other implementations of curses.
+.B \%use_extended_names
+configures whether the library recognizes
+user-defined or nonstandard
+.I \%term\%info
+capability names that may be compiled into terminal type descriptions
+via the \fB\%curs_terminfo\fP(3X) or \fB\%curs_termcap\fP(3X) interfaces.
+Normally these names are available for use,
+since the essential decision
+is made through use of \fB\%@TIC@\fP(1)'s
+.B \-x
+option to include such extensions in terminal type descriptions.
+.B \%use_extended_names(FALSE)
+prevents
+.I \%ncurses
+from recognizing these capabilities
+to ensure compatibility with other implementations of
+.IR curses .
 .SH RETURN VALUE
-\fBcurses_version\fP returns a pointer to static memory; you should not free
-this in your application.
+.B \%curses_version
+returns a constant string.
 .PP
-\fBuse_extended_names\fP returns the previous state, allowing you to
-save this and restore it.
+.B \%use_extended_names
+returns the previous state of extended capability name recognition,
+allowing you to save this property and restore it.
+.SH NOTES
+The pointer returned by
+.B \%curses_version
+corresponds to statically allocated memory;
+do not attempt to \fIfree\fP(3) it.
 .SH EXTENSIONS
-These functions are \fB\%ncurses\fP(3X) extensions,
+These functions are
+.I \%ncurses
+extensions,
 and are not found in SVr4
 .IR curses ,
 4.4BSD
 .IR curses ,
-or any other previous curses implementation.
+or any other previous
+.I curses
+implementation.
 .SH PORTABILITY
 Applications employing
 .I \%ncurses
 extensions should condition their use on the visibility of the
 .B \%NCURSES_VERSION
 preprocessor macro.
+.PP
+NetBSD 9 added a
+.I \%curses_version
+function
+that intentionally returns a string devoid of version information.
+.\" See https://mail-index.netbsd.org/tech-userlevel/2019/08/27/\
+.\" msg012068.html and follow-up messages.
 .SH AUTHORS
-Thomas Dickey.
+Thomas Dickey
 .SH SEE ALSO
+.I \%ncurses
+offers several other extensions to the X/Open Curses API.
+.PP
 \fB\%curs_getch\fP(3X),
+\fB\%curs_inopts\fP(3X),
 \fB\%curs_mouse\fP(3X),
 \fB\%curs_print\fP(3X),
 \fB\%curs_util\fP(3X),
@@ -104,5 +134,6 @@ Thomas Dickey.
 \fB\%define_key\fP(3X),
 \fB\%keybound\fP(3X),
 \fB\%keyok\fP(3X),
+\fB\%new_pair\fP(3X),
 \fB\%resizeterm\fP(3X),
 \fB\%wresize\fP(3X)

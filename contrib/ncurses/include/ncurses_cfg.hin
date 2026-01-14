@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2024 Thomas E. Dickey                                     *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -31,7 +31,7 @@
  *  Author: Thomas E. Dickey      1997-on                                   *
  ****************************************************************************/
 /*
- * $Id: ncurses_cfg.hin,v 1.13 2020/03/08 12:37:59 tom Exp $
+ * $Id: ncurses_cfg.hin,v 1.15 2024/06/08 14:04:14 tom Exp $
  *
  * Both ncurses_cfg.h and ncurses_def.h are internal header-files used when
  * building ncurses.
@@ -44,7 +44,7 @@
  *
  * See:
  *	https://invisible-island.net/autoconf/
- *	ftp://ftp.invisible-island.net/autoconf/
+ *	https://invisible-island.net/archives/autoconf/
  */
 #ifndef NC_CONFIG_H
 #define NC_CONFIG_H

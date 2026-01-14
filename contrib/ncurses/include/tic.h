@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
+ * Copyright 2018-2023,2025 Thomas E. Dickey                                *
  * Copyright 1998-2012,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,7 +34,7 @@
  ****************************************************************************/
 
 /*
- * $Id: tic.h,v 1.87 2023/04/22 13:37:21 tom Exp $
+ * $Id: tic.h,v 1.91 2025/12/25 21:23:29 tom Exp $
  *	tic.h - Global variables and structures for the terminfo compiler.
  */
 
@@ -47,6 +47,7 @@ extern "C" {
 
 #include <ncurses_cfg.h>
 
+#include <sys/stat.h>
 #include <curses.h>	/* for the _tracef() prototype, ERR/OK, bool defs */
 
 /*
@@ -270,6 +271,7 @@ extern NCURSES_EXPORT(unsigned) _nc_pathlast (const char *);
 extern NCURSES_EXPORT(bool) _nc_is_abs_path (const char *);
 extern NCURSES_EXPORT(bool) _nc_is_dir_path (const char *);
 extern NCURSES_EXPORT(bool) _nc_is_file_path (const char *);
+extern NCURSES_EXPORT(bool) _nc_is_path_found (const char *, struct stat *);
 extern NCURSES_EXPORT(char *) _nc_basename (char *);
 extern NCURSES_EXPORT(char *) _nc_rootname (char *);
 
@@ -313,8 +315,8 @@ extern NCURSES_EXPORT_VAR(bool) _nc_suppress_warnings;
 extern NCURSES_EXPORT_VAR(struct token)	_nc_curr_token;
 
 /* comp_userdefs.c */
-NCURSES_EXPORT(const struct user_table_entry *) _nc_get_userdefs_table (void);
-NCURSES_EXPORT(const HashData *) _nc_get_hash_user (void);
+extern NCURSES_EXPORT(const struct user_table_entry *) _nc_get_userdefs_table (void);
+extern NCURSES_EXPORT(const HashData *) _nc_get_hash_user (void);
 
 /* captoinfo.c: capability conversion */
 extern NCURSES_EXPORT(char *) _nc_captoinfo (const char *, const char *, int const);

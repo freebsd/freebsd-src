@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_hook.3x,v 1.37 2024/03/16 15:35:01 tom Exp $
-.TH form_hook 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: form_hook.3x,v 1.39 2024/12/28 21:26:21 tom Exp $
+.TH form_hook 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBform_hook\fP \-
 set hooks for automatic invocation by applications
@@ -55,28 +55,35 @@ points in the automatic processing of input event codes by \fBform_driver\fP.
 sets a hook to be called at form-post time
 and each time the selected field changes (after the change).
 .SS field_init
-returns the current field init hook, if any (\fBNULL\fP if there is no such
-hook).
+returns the current field init hook, if any
+.RI ( NULL
+if there is no such hook).
 .SS set_field_term
 sets a hook to be called at form-unpost time
 and each time the selected field changes (before the change).
 .SS field_term
-returns the current field term hook, if any (\fBNULL\fP if there is no such
-hook).
+returns the current field term hook, if any
+.RI ( NULL
+if there is no such hook).
 .SS set_form_init
 sets a hook to be called at form-post time and
 just after a page change once it is posted.
 .SS form_init
 returns the current form init hook,
-if any (\fBNULL\fP if there is no such hook).
+if any
+.RI ( NULL
+if there is no such hook).
 .SS set_form_term
 sets a hook to be called at form-unpost time
 and just before a page change once it is posted.
 .SS form_term
-returns the current form term hook, if any (\fBNULL\fP if there is no such
-hook).
+returns the current form term hook, if any
+.RI ( NULL
+if there is no such hook).
 .SH RETURN VALUE
-Routines that return pointers return \fBNULL\fP on error.
+Routines that return pointers return
+.I NULL
+on error.
 Other routines
 return one of the following:
 .TP 5

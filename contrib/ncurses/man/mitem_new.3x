@@ -27,8 +27,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: mitem_new.3x,v 1.36 2024/03/16 15:35:01 tom Exp $
-.TH mitem_new 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.\" $Id: mitem_new.3x,v 1.38 2024/12/28 21:26:21 tom Exp $
+.TH mitem_new 3X 2024-12-28 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBnew_item\fP,
 \fBfree_item\fP \-
@@ -55,7 +55,9 @@ Please notice that it
 is the responsibility of the application to release the memory for the
 name or the description of the item.
 .SH RETURN VALUE
-The function \fBnew_item\fP returns \fBNULL\fP on error.
+The function \fBnew_item\fP returns
+.I NULL
+on error.
 It sets \fBerrno\fP according to the function's failure:
 .TP 5
 .B E_BAD_ARGUMENT
