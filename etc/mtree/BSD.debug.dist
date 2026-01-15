@@ -47,6 +47,10 @@
                 ..
                 i18n
                 ..
+                krb5
+                    plugins
+                    ..
+                ..
                 libxo
                     encoder
                     ..
