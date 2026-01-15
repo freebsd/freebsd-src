@@ -1645,7 +1645,7 @@ out:
 void
 nfsrv_fixattr(struct nfsrv_descript *nd, vnode_t vp,
     struct nfsvattr *nvap, NFSACL_T *aclp, NFSACL_T *daclp, NFSPROC_T *p,
-    nfsattrbit_t *attrbitp, struct nfsexstuff *exp)
+    nfsattrbit_t *attrbitp, bool atime_done)
 {
 	int change = 0;
 	struct nfsvattr nva;
@@ -1675,7 +1675,7 @@ nfsrv_fixattr(struct nfsrv_descript *nd, vnode_t vp,
 		}
 	}
 	if (NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_TIMEACCESSSET) &&
-	    NFSVNO_ISSETATIME(nvap)) {
+	    !atime_done && NFSVNO_ISSETATIME(nvap)) {
 		nva.na_atime = nvap->na_atime;
 		change++;
 		NFSSETBIT_ATTRBIT(&nattrbits, NFSATTRBIT_TIMEACCESSSET);
@@ -1736,7 +1736,7 @@ nfsrv_fixattr(struct nfsrv_descript *nd, vnode_t vp,
 		}
 	}
 	if (change) {
-		error = nfsvno_setattr(vp, &nva, nd->nd_cred, p, exp);
+		error = nfsvno_setattr(vp, &nva, nd->nd_cred, p, NULL);
 		if (error) {
 			NFSCLRALL_ATTRBIT(attrbitp, &nattrbits);
 		}

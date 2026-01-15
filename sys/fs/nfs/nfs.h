@@ -872,6 +872,11 @@ typedef enum { UNKNOWN=0, DELETED=1, NLINK_ZERO=2, VALID=3 } nfsremove_status;
 #define	SUPPACL_NFSV4	1
 #define	SUPPACL_POSIX	2
 
+/* Values NFSv4 uses for exclusive_flag. */
+#define	NFSV4_EXCLUSIVE_NONE	0
+#define	NFSV4_EXCLUSIVE		1
+#define	NFSV4_EXCLUSIVE_41	2
+
 #endif	/* _KERNEL */
 
 #endif	/* _NFS_NFS_H */

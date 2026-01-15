@@ -46,6 +46,8 @@
 #define	NFSVNO_ISSETATIME(n)		((n)->na_atime.tv_sec != VNOVAL)
 #define	NFSVNO_NOTSETMTIME(n)		((n)->na_mtime.tv_sec == VNOVAL)
 #define	NFSVNO_ISSETMTIME(n)		((n)->na_mtime.tv_sec != VNOVAL)
+#define	NFSVNO_NOTSETFLAGS(n)		((n)->na_flags == VNOVAL)
+#define	NFSVNO_ISSETFLAGS(n)		((n)->na_flags != VNOVAL)
 
 /*
  * This structure acts as a "catch-all" for information that

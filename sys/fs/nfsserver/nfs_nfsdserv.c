@@ -1608,7 +1608,7 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 	nd->nd_repstat = nfsvno_mknod(&named, &nva, nd->nd_cred, p);
 	if (!nd->nd_repstat) {
 		vp = named.ni_vp;
-		nfsrv_fixattr(nd, vp, &nva, aclp, daclp, p, &attrbits, exp);
+		nfsrv_fixattr(nd, vp, &nva, aclp, daclp, p, &attrbits, false);
 		nd->nd_repstat = nfsvno_getfh(vp, fhp, p);
 		if ((nd->nd_flag & ND_NFSV3) && !nd->nd_repstat)
 			nd->nd_repstat = nfsvno_getattr(vp, &nva, nd, p, 1,
@@ -2120,7 +2120,7 @@ nfsrvd_symlinksub(struct nfsrv_descript *nd, struct nameidata *ndp,
 	    !(nd->nd_flag & ND_NFSV2), nd->nd_saveduid, nd->nd_cred, p, exp);
 	if (!nd->nd_repstat && !(nd->nd_flag & ND_NFSV2)) {
 		nfsrv_fixattr(nd, ndp->ni_vp, nvap, aclp, NULL, p, attrbitp,
-		    exp);
+		    false);
 		if (nd->nd_flag & ND_NFSV3) {
 			nd->nd_repstat = nfsvno_getfh(ndp->ni_vp, fhp, p);
 			if (!nd->nd_repstat)
@@ -2255,7 +2255,7 @@ nfsrvd_mkdirsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 	    nd->nd_cred, p, exp);
 	if (!nd->nd_repstat) {
 		vp = ndp->ni_vp;
-		nfsrv_fixattr(nd, vp, nvap, aclp, daclp, p, attrbitp, exp);
+		nfsrv_fixattr(nd, vp, nvap, aclp, daclp, p, attrbitp, false);
 		nd->nd_repstat = nfsvno_getfh(vp, fhp, p);
 		if (!(nd->nd_flag & ND_NFSV4) && !nd->nd_repstat)
 			nd->nd_repstat = nfsvno_getattr(vp, nvap, nd, p, 1,
@@ -2964,7 +2964,8 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	u_int32_t *tl;
 	int i, retext;
 	struct nfsstate *stp = NULL;
-	int error = 0, create, claim, exclusive_flag = 0, override;
+	int error = 0, create, claim, override;
+	int exclusive_flag = NFSV4_EXCLUSIVE_NONE;
 	u_int32_t rflags = NFSV4OPEN_LOCKTYPEPOSIX, acemask;
 	int how = NFSCREATE_UNCHECKED;
 	int32_t cverf[2], tverf[2] = { 0, 0 };
@@ -3229,6 +3230,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		    case NFSCREATE_EXCLUSIVE:
 			if (nd->nd_repstat == 0 && named.ni_vp == NULL)
 				nva.na_mode = 0;
+			exclusive_flag = NFSV4_EXCLUSIVE;
 			/* FALLTHROUGH */
 		    case NFSCREATE_EXCLUSIVE41:
 			if (nd->nd_repstat == 0 && named.ni_vp != NULL) {
@@ -3244,7 +3246,8 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 				if (nd->nd_repstat != 0)
 					done_namei = true;
 			}
-			exclusive_flag = 1;
+			if (how == NFSCREATE_EXCLUSIVE41)
+				exclusive_flag = NFSV4_EXCLUSIVE_41;
 			break;
 		    }
 		}
