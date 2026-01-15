@@ -205,6 +205,7 @@ union acpi_battery_ioctl_arg {
 typedef int	(*acpi_ioctl_fn)(u_long cmd, caddr_t addr, void *arg);
 extern int	acpi_register_ioctl(u_long cmd, acpi_ioctl_fn fn, void *arg);
 extern void	acpi_deregister_ioctl(u_long cmd, acpi_ioctl_fn fn);
+extern void	acpi_deregister_ioctls(acpi_ioctl_fn fn);
 #endif
 
 #endif /* !_ACPIIO_H_ */

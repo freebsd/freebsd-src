@@ -531,13 +531,7 @@ acpi_battery_init(void)
 
 out:
     if (error) {
-	acpi_deregister_ioctl(ACPIIO_BATT_GET_UNITS, acpi_battery_ioctl);
-	acpi_deregister_ioctl(ACPIIO_BATT_GET_BATTINFO, acpi_battery_ioctl);
-	acpi_deregister_ioctl(ACPIIO_BATT_GET_BATTINFO_V1, acpi_battery_ioctl);
-	acpi_deregister_ioctl(ACPIIO_BATT_GET_BIF, acpi_battery_ioctl);
-	acpi_deregister_ioctl(ACPIIO_BATT_GET_BIX, acpi_battery_ioctl);
-	acpi_deregister_ioctl(ACPIIO_BATT_GET_BST, acpi_battery_ioctl);
-	acpi_deregister_ioctl(ACPIIO_BATT_GET_BST_V1, acpi_battery_ioctl);
+	acpi_deregister_ioctls(acpi_battery_ioctl);
     }
     return (error);
 }
