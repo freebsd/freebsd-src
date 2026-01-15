@@ -1877,8 +1877,10 @@ nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
     struct nvme_request *req)
 {
 	struct nvme_qpair       *qpair;
+	int32_t			ioq;
 
-	qpair = &ctrlr->ioq[QP(ctrlr, curcpu)];
+	ioq = req->ioq == NVME_IOQ_DEFAULT ? QP(ctrlr, curcpu) : req->ioq;
+	qpair = &ctrlr->ioq[ioq];
 	nvme_qpair_submit_request(qpair, req);
 }
 

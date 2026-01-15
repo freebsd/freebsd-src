@@ -112,7 +112,9 @@ struct nvme_request {
 	struct memdesc			payload;
 	nvme_cb_fn_t			cb_fn;
 	void				*cb_arg;
-	int32_t				retries;
+	int16_t				retries;
+	uint16_t			ioq;
+#define NVME_IOQ_DEFAULT		0xffff
 	bool				payload_valid;
 	bool				timeout;
 	bool				spare[2];		/* Future use */
@@ -491,6 +493,7 @@ _nvme_allocate_request(const int how, nvme_cb_fn_t cb_fn, void *cb_arg)
 
 	req = malloc(sizeof(*req), M_NVME, how | M_ZERO);
 	if (req != NULL) {
+		req->ioq = NVME_IOQ_DEFAULT;
 		req->cb_fn = cb_fn;
 		req->cb_arg = cb_arg;
 		req->timeout = true;
@@ -550,6 +553,21 @@ nvme_allocate_request_ccb(union ccb *ccb, const int how, nvme_cb_fn_t cb_fn,
 }
 
 #define nvme_free_request(req)	free(req, M_NVME)
+
+static __inline void
+nvme_request_set_ioq(struct nvme_controller *ctrlr, struct nvme_request *req, unt16_t ioq)
+{
+	/*
+	 * Note: NVMe queues are numbered 1-65535. The ioq here is numbered
+	 * 0-65534 to avoid off-by-one bugs, with 65535 being reserved for
+	 * DEFAULT.
+	 */
+	KASSERT(ioq == NVME_IOQ_DEFAULT || ioq < ctrlr->num_io_queues,
+	    ("ioq %d out of range 0..%d", ioq, ctrlr->num_io_queues));
+	if (ioq < 0 || ioq >= ctrlr->num_io_queues)
+		ioq = NVME_IOQ_DEFAULT;
+	req->ioq = ioq;
+}
 
 void	nvme_notify_async(struct nvme_controller *ctrlr,
 	    const struct nvme_completion *async_cpl,
