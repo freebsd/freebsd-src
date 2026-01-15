@@ -1698,22 +1698,21 @@ smmu_domain_alloc(device_t dev, struct iommu_unit *iommu)
 
 	unit = (struct smmu_unit *)iommu;
 
-	domain = malloc(sizeof(*domain), M_SMMU, M_WAITOK | M_ZERO);
-
 	error = smmu_asid_alloc(sc, &new_asid);
 	if (error) {
-		free(domain, M_SMMU);
 		device_printf(sc->dev,
 		    "Could not allocate ASID for a new domain.\n");
 		return (NULL);
 	}
 
+	domain = malloc(sizeof(*domain), M_SMMU, M_WAITOK | M_ZERO);
 	domain->asid = (uint16_t)new_asid;
 
 	smmu_pmap_pinit(&domain->p);
 
 	error = smmu_init_cd(sc, domain);
 	if (error) {
+		smmu_asid_free(sc, domain->asid);
 		free(domain, M_SMMU);
 		device_printf(sc->dev, "Could not initialize CD\n");
 		return (NULL);
