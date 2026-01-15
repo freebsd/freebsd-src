@@ -270,6 +270,9 @@ procdesc_free(struct procdesc *pd)
 		KASSERT((pd->pd_flags & PDF_CLOSED),
 		    ("procdesc_free: !PDF_CLOSED"));
 
+		if (pd->pd_pid != -1)
+			proc_id_clear(PROC_ID_PID, pd->pd_pid);
+
 		knlist_destroy(&pd->pd_selinfo.si_note);
 		PROCDESC_LOCK_DESTROY(pd);
 		free(pd, M_PROCDESC);
@@ -389,6 +392,7 @@ procdesc_close(struct file *fp, struct thread *td)
 			 */
 			pd->pd_proc = NULL;
 			p->p_procdesc = NULL;
+			pd->pd_pid = -1;
 			procdesc_free(pd);
 
 			/*

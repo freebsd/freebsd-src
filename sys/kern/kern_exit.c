@@ -979,9 +979,9 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	leavepgrp(p);
 	if (p->p_procdesc != NULL)
 		procdesc_reap(p);
+	else
+		proc_id_clear(PROC_ID_PID, p->p_pid);
 	sx_xunlock(&proctree_lock);
-
-	proc_id_clear(PROC_ID_PID, p->p_pid);
 
 	PROC_LOCK(p);
 	knlist_detach(p->p_klist);
