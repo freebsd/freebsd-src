@@ -349,3 +349,9 @@ if [ ${MACHINE} = riscv ]; then
 	clean_dep   lib/libc bcopy c "libc.string.bcopy.c"
 	clean_dep   lib/libc bzero c "libc.string.bzero.c"
 fi
+
+if [ ${MACHINE_ARCH} = "aarch64" ]; then
+	# 20260113  41ccf82b29f3  libc/aarch64: Use MOPS implementations of memcpy/memmove/memset where availble
+	clean_dep   lib/libc memset S "[^/]memset.S"
+	run rm -fv "$OBJTOP"/lib/libc/memset.S
+fi
