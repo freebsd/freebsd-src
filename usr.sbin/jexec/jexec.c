@@ -59,20 +59,28 @@ main(int argc, char *argv[])
 	int jid;
 	login_cap_t *lcap = NULL;
 	int ch, clean, dflag, uflag, Uflag;
+	int env_argc = argc;
+	char **env_argv = argv;
 	char *cleanenv;
 	const struct passwd *pwd = NULL;
 	const char *username, *shell, *term;
 	const char *workdir;
+	const char *jexec_args = "d:e:lnu:U:";
 
 	ch = clean = dflag = uflag = Uflag = 0;
 	username = NULL;
 	workdir = "/";
 
-	while ((ch = getopt(argc, argv, "d:lnu:U:")) != -1) {
+	while ((ch = getopt(argc, argv, jexec_args)) != -1) {
 		switch (ch) {
 		case 'd':
 			workdir = optarg;
 			dflag = 1;
+			break;
+		case 'e':
+			/* Used later. */
+			if (strchr(optarg, '=') == NULL)
+				errx(1, "%s: Invalid environment variable.", optarg);
 			break;
 		case 'l':
 			clean = 1;
@@ -140,6 +148,19 @@ main(int argc, char *argv[])
 		endpwent();
 	}
 
+	optreset = 1;
+	optind = 1;
+
+	/* Custom environment */
+	while ((ch = getopt(env_argc, env_argv, jexec_args)) != -1) {
+		switch (ch) {
+		case 'e':
+			if (putenv(optarg) == -1)
+				err(1, "putenv");
+			break;
+		}
+	}
+
 	/* Run the specified command, or the shell */
 	if (argc > 1) {
 		if (execvp(argv[1], argv + 1) < 0)
@@ -192,7 +213,7 @@ usage(void)
 {
 
 	fprintf(stderr, "%s\n",
-	    "usage: jexec [-l] [-d working-directory] [-u username | -U username] jail\n"
-	    "       [command ...]");
+	    "usage: jexec [-l] [-d working-directory] [[-e name=value] ...]\n"
+	    "       [-u username | -U username] jail [command ...]");
 	exit(1);
 }
