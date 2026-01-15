@@ -1071,7 +1071,7 @@ unionfs_forward_vop_ref(struct vnode *basevp, int *lkflags)
  *    forwarded VOP reacquires the base vnode lock the unionfs vnode
  *    lock will no longer be held.  This can lead to violation of the
  *    caller's sychronization requirements as well as various failed
- *    locking assertions when DEBUG_VFS_LOCKS is enabled.
+ *    locking assertions when INVARIANTS is enabled.
  * 2) Loss of reference on the base vnode.  The caller is expected to
  *    hold a v_usecount reference on the unionfs vnode, while the
  *    unionfs vnode holds a reference on the base-layer vnode(s).  But
