@@ -66,7 +66,8 @@ _linuxkpi_request_firmware(const char *fw_name, const struct linuxkpi_firmware *
 	uint32_t flags;
 
 	if (fw_name == NULL || fw == NULL || dev == NULL) {
-		*fw = NULL;
+		if (fw != NULL)
+			*fw = NULL;
 		return (-EINVAL);
 	}
 
