@@ -672,7 +672,7 @@ read_enabler(struct hypctx *hypctx, int n)
 		if (irq == NULL)
 			continue;
 
-		if (!irq->enabled)
+		if (irq->enabled)
 			ret |= 1u << i;
 		vgic_v3_release_irq(irq);
 	}
