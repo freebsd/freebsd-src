@@ -105,12 +105,13 @@ static void
 linux_ifnet_vnet_uninit(void *arg __unused)
 {
 	/*
-	 * At a normal vnet shutdown all interfaces are gone at this point.
-	 * But when we kldunload linux.ko, the vnet_deregister_sysuninit()
-	 * would call this function for the default vnet.
+	 * All cloned interfaces are already gone at this point, as well
+	 * as interfaces that were if_vmove'd into this vnet.  However,
+	 * if a jail has created IFT_ETHER interfaces in self, or has had
+	 * physical Ethernet drivers attached in self, than we may have
+	 * allocated entries in the unr(9), so clear it to avoid KASSERT.
 	 */
-	if (IS_DEFAULT_VNET(curvnet))
-		clear_unrhdr(V_linux_eth_unr);
+	clear_unrhdr(V_linux_eth_unr);
 	delete_unrhdr(V_linux_eth_unr);
 }
 VNET_SYSUNINIT(linux_ifnet_vnet_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY,
