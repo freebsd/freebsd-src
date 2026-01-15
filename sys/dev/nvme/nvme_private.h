@@ -555,7 +555,8 @@ nvme_allocate_request_ccb(union ccb *ccb, const int how, nvme_cb_fn_t cb_fn,
 #define nvme_free_request(req)	free(req, M_NVME)
 
 static __inline void
-nvme_request_set_ioq(struct nvme_controller *ctrlr, struct nvme_request *req, unt16_t ioq)
+nvme_request_set_ioq(struct nvme_controller *ctrlr, struct nvme_request *req,
+    uint16_t ioq)
 {
 	/*
 	 * Note: NVMe queues are numbered 1-65535. The ioq here is numbered
