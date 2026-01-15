@@ -243,6 +243,7 @@ jonathan [label="Jonathan Anderson\njonathan@FreeBSD.org\n2010/10/07"]
 jpaetzel [label="Josh Paetzel\njpaetzel@FreeBSD.org\n2011/01/21"]
 jrhall [label="John Hall\njrhall@FreeBSD.org\n2025/11/18"]
 jrtc27 [label="Jessica Clarke\njrtc27@FreeBSD.org\n2020/01/23"]
+js [label="Johan Söllvander\njs@FreeBSD.org\n2025/12/16"]
 jtl [label="Jonathan T. Looney\njtl@FreeBSD.org\n2015/10/26"]
 julian [label="Julian Elischer\njulian@FreeBSD.org\n1993/04/19"]
 jwd [label="John De Boskey\njwd@FreeBSD.org\n2000/05/19"]
@@ -453,6 +454,8 @@ andrew -> manu
 anholt -> jkim
 
 araujo -> miwi
+
+asomers -> js
 
 avg -> art
 avg -> eugen
