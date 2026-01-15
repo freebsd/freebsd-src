@@ -4334,6 +4334,21 @@ acpi_deregister_ioctl(u_long cmd, acpi_ioctl_fn fn)
     ACPI_UNLOCK(acpi);
 }
 
+void
+acpi_deregister_ioctls(acpi_ioctl_fn fn)
+{
+	struct acpi_ioctl_hook *hp, *thp;
+
+	ACPI_LOCK(acpi);
+	TAILQ_FOREACH_SAFE(hp, &acpi_ioctl_hooks, link, thp) {
+		if (hp->fn == fn) {
+			TAILQ_REMOVE(&acpi_ioctl_hooks, hp, link);
+			free(hp, M_ACPIDEV);
+		}
+	}
+	ACPI_UNLOCK(acpi);
+}
+
 static int
 acpiopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
