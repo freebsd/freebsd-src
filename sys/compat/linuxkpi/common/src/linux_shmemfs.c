@@ -62,11 +62,10 @@ linux_shmem_read_mapping_page_gfp(vm_object_t obj, int pindex, gfp_t gfp)
 struct linux_file *
 linux_shmem_file_setup(const char *name, loff_t size, unsigned long flags)
 {
-	struct fileobj {
+	struct {
 		struct linux_file file __aligned(sizeof(void *));
 		struct vnode vnode __aligned(sizeof(void *));
-	};
-	struct fileobj *fileobj;
+	} *fileobj;
 	struct linux_file *filp;
 	struct vnode *vp;
 	int error;
@@ -89,7 +88,7 @@ linux_shmem_file_setup(const char *name, loff_t size, unsigned long flags)
 	}
 	return (filp);
 err_1:
-	kfree(filp);
+	kfree(fileobj);
 err_0:
 	return (ERR_PTR(error));
 }
