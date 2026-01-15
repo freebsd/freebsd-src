@@ -10,6 +10,13 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+8254b0dec02b3, bd55cbb50c588:
+	The mac(4) framework has been extended to support jail operations,
+	allowing a policy to constrain jail creation, modification, removal, and
+	attachment.  Jails have additionally been made a first-class mac(4)
+	object, and a mac.label jail(8) property has been added to facilitate
+	administration of their labels.
+
 c558eca47970:
 	The smartpqi(4) driver was updated to vendor version 4660.0.2002
 	for the SmartArry storage controllers.
