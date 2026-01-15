@@ -7,4 +7,4 @@ sys/contrib/device-tree	:caution: No changes should be made here by pull request
 contrib		:warning: Contributed software usually managed by vendor branch
 crypto		:warning: Contributed crypto software usually managed by vendor branch
 sys/contrib	:warning: Contributed software usually managed by vendor branch
-sys/crypto	:warning: Contributed crypto software usually managed by vendor branch
+sys/crypto/skein	:warning: Contributed crypto software usually managed by vendor branch
