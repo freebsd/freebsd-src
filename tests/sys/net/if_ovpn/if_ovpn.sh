@@ -1333,6 +1333,7 @@ multihome4_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "multihome6" "cleanup"
 multihome6_head()
 {
 	atf_set descr 'Test multihome IPv6 with OpenVPN'
@@ -1413,6 +1414,7 @@ multihome6_body()
 multihome6_cleanup()
 {
 	ovpn_cleanup
+	pft_cleanup
 }
 
 atf_test_case "float" "cleanup"
