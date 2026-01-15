@@ -99,6 +99,31 @@ atf_test_case "4in4" "cleanup"
 	# Test routing loop protection
 	jexec b route add 192.0.2.1 198.51.100.1
 	atf_check -s exit:2 -o ignore jexec b ping -t 1 -c 1 198.51.100.1
+
+	jexec a netstat -I ovpn0 -n -b
+	ipkts=$(jexec a netstat -I ovpn0 -n -b | awk 'NR == 2 { print($5); }')
+	echo "$ipkts input packets"
+	if [ $ipkts -eq 0 ]; then
+		atf_fail "Input packets were not counted"
+	fi
+
+	ibytes=$(jexec a netstat -I ovpn0 -n -b | awk 'NR == 2 { print($8); }')
+	echo "$ibytes input bytes"
+	if [ $ibytes -eq 0 ]; then
+		atf_fail "Input bytes were not counted"
+	fi
+
+	opkts=$(jexec a netstat -I ovpn0 -n -b | awk 'NR == 2 { print($9); }')
+	echo "$opkts output packets"
+	if [ $obytes -eq 0 ]; then
+		atf_fail "Output packets were not counted"
+	fi
+
+	obytes=$(jexec a netstat -I ovpn0 -n -b | awk 'NR == 2 { print($11); }')
+	echo "$obytes output bytes"
+	if [ $obytes -eq 0 ]; then
+		atf_fail "Output bytes were not counted"
+	fi
 }
 
 4in4_cleanup()
