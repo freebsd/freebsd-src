@@ -5496,7 +5496,7 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 	char *addr;
 	size_t i;
 	size_t extra_size, maxalign, post_size, pre_size, tls_block_size;
-	size_t tls_init_align, tls_init_offset;
+	size_t tls_init_align, tls_init_offset, tls_bss_offset;
 
 	if (oldtcb != NULL && tcbsize == TLS_TCB_SIZE)
 		return (oldtcb);
@@ -5554,11 +5554,10 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 				    obj->tlsinitsize);
 			}
 			if (obj->tlssize > obj->tlsinitsize) {
-				memset(addr + tls_init_offset +
-				    obj->tlsinitsize,
-				    0,
-				    obj->tlssize - obj->tlsinitsize -
-					tls_init_offset);
+				tls_bss_offset = tls_init_offset +
+				    obj->tlsinitsize;
+				memset(addr + tls_bss_offset, 0,
+				    obj->tlssize - tls_bss_offset);
 			}
 			dtv->dtv_slots[obj->tlsindex - 1].dtvs_tls = addr;
 		}
