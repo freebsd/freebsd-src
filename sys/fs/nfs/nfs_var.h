@@ -410,7 +410,7 @@ int nfsv4_strtogid(struct nfsrv_descript *, u_char *, int, gid_t *);
 int nfsrv_checkuidgid(struct nfsrv_descript *, struct nfsvattr *);
 void nfsrv_fixattr(struct nfsrv_descript *, vnode_t,
     struct nfsvattr *, NFSACL_T *, NFSACL_T *, NFSPROC_T *, nfsattrbit_t *,
-    struct nfsexstuff *);
+    bool);
 int nfsrv_errmoved(int);
 int nfsrv_putreferralattr(struct nfsrv_descript *, nfsattrbit_t *,
     struct nfsreferral *, int, int *);
