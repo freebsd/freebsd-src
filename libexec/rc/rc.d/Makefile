@@ -36,7 +36,6 @@ CONFS=	DAEMON \
 	linux \
 	local \
 	localpkg \
-	mixer \
 	motd \
 	mountcritlocal \
 	mountcritremote \
