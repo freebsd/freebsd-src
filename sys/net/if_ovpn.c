@@ -1669,6 +1669,7 @@ ovpn_encrypt_tx_cb(struct cryptop *crp)
 		NET_EPOCH_EXIT(et);
 		CURVNET_RESTORE();
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_out, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		m_freem(m);
 		return (0);
 	}
@@ -1680,6 +1681,8 @@ ovpn_encrypt_tx_cb(struct cryptop *crp)
 	if (ret == 0) {
 		OVPN_COUNTER_ADD(sc, sent_data_pkts, 1);
 		OVPN_COUNTER_ADD(sc, tunnel_bytes_sent, tunnel_len);
+		if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_OBYTES, tunnel_len);
 	}
 
 	crypto_freereq(crp);
@@ -1706,6 +1709,7 @@ ovpn_finish_rx(struct ovpn_softc *sc, struct mbuf *m,
 	if (V_replay_protection && ! ovpn_check_replay(key->decrypt, seq)) {
 		OVPN_RUNLOCK(sc);
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_in, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		m_freem(m);
 		return;
 	}
@@ -1767,6 +1771,7 @@ skip_float:
 	m = m_pullup(m, 1);
 	if (m == NULL) {
 		OVPN_COUNTER_ADD(sc, nomem_data_pkts_in, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 
@@ -1783,6 +1788,7 @@ skip_float:
 			netisr_dispatch(af == AF_INET ? NETISR_IP : NETISR_IPV6, m);
 	} else {
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_in, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 		m_freem(m);
 	}
 }
@@ -1827,6 +1833,7 @@ ovpn_decrypt_rx_cb(struct cryptop *crp)
 		crypto_freereq(crp);
 		atomic_add_int(&sc->refcount, -1);
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_in, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 		OVPN_RUNLOCK(sc);
 		m_freem(m);
 		return (0);
@@ -1844,6 +1851,7 @@ ovpn_decrypt_rx_cb(struct cryptop *crp)
 		atomic_add_int(&sc->refcount, -1);
 		OVPN_RUNLOCK(sc);
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_in, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 		m_freem(m);
 		CURVNET_RESTORE();
 		return (0);
@@ -1859,6 +1867,7 @@ ovpn_decrypt_rx_cb(struct cryptop *crp)
 		 */
 		OVPN_RUNLOCK(sc);
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_in, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 		m_freem(m);
 		CURVNET_RESTORE();
 		return (0);
@@ -2073,6 +2082,7 @@ ovpn_transmit_to_peer(struct ifnet *ifp, struct mbuf *m,
 		if (_ovpn_lock_trackerp != NULL)
 			OVPN_RUNLOCK(sc);
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_out, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 		m_freem(m);
 		return (ELOOP);
 	}
@@ -2089,6 +2099,7 @@ ovpn_transmit_to_peer(struct ifnet *ifp, struct mbuf *m,
 		if (_ovpn_lock_trackerp != NULL)
 			OVPN_RUNLOCK(sc);
 		OVPN_COUNTER_ADD(sc, nomem_data_pkts_out, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		return (ENOBUFS);
 	}
 	ohdr = mtod(m, struct ovpn_wire_header *);
@@ -2105,6 +2116,7 @@ ovpn_transmit_to_peer(struct ifnet *ifp, struct mbuf *m,
 		if (_ovpn_lock_trackerp != NULL)
 			OVPN_RUNLOCK(sc);
 		OVPN_COUNTER_ADD(sc, nomem_data_pkts_out, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 
 		/* Let's avoid (very unlikely, but still) wraparounds of the
 		 * 64-bit counter taking us back to 0. */
@@ -2127,6 +2139,8 @@ ovpn_transmit_to_peer(struct ifnet *ifp, struct mbuf *m,
 		if (ret == 0) {
 			OVPN_COUNTER_ADD(sc, sent_data_pkts, 1);
 			OVPN_COUNTER_ADD(sc, tunnel_bytes_sent, tunnel_len);
+			if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
+			if_inc_counter(sc->ifp, IFCOUNTER_OBYTES, tunnel_len);
 		}
 		return (ret);
 	}
@@ -2136,6 +2150,7 @@ ovpn_transmit_to_peer(struct ifnet *ifp, struct mbuf *m,
 		if (_ovpn_lock_trackerp != NULL)
 			OVPN_RUNLOCK(sc);
 		OVPN_COUNTER_ADD(sc, nomem_data_pkts_out, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		m_freem(m);
 		return (ENOBUFS);
 	}
@@ -2174,6 +2189,7 @@ ovpn_transmit_to_peer(struct ifnet *ifp, struct mbuf *m,
 		ret = crypto_dispatch(crp);
 	if (ret) {
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_out, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 	}
 
 	return (ret);
@@ -2198,6 +2214,7 @@ ovpn_encap(struct ovpn_softc *sc, uint32_t peerid, struct mbuf *m)
 	if (peer == NULL || sc->ifp->if_link_state != LINK_STATE_UP) {
 		OVPN_RUNLOCK(sc);
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_out, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		m_freem(m);
 		return (ENETDOWN);
 	}
@@ -2208,6 +2225,7 @@ ovpn_encap(struct ovpn_softc *sc, uint32_t peerid, struct mbuf *m)
 	if (m == NULL) {
 		OVPN_RUNLOCK(sc);
 		OVPN_COUNTER_ADD(sc, nomem_data_pkts_out, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		m_freem(m);
 		return (ENOBUFS);
 	}
@@ -2241,6 +2259,7 @@ ovpn_encap(struct ovpn_softc *sc, uint32_t peerid, struct mbuf *m)
 		if (m == NULL) {
 			OVPN_RUNLOCK(sc);
 			OVPN_COUNTER_ADD(sc, nomem_data_pkts_out, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 			return (ENOBUFS);
 		}
 		ip = mtod(m, struct ip *);
@@ -2274,12 +2293,14 @@ ovpn_encap(struct ovpn_softc *sc, uint32_t peerid, struct mbuf *m)
 		if (m == NULL) {
 			OVPN_RUNLOCK(sc);
 			OVPN_COUNTER_ADD(sc, nomem_data_pkts_out, 1);
+			if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 			return (ENOBUFS);
 		}
 		m = m_pullup(m, sizeof(*ip6) + sizeof(*udp));
 		if (m == NULL) {
 			OVPN_RUNLOCK(sc);
 			OVPN_COUNTER_ADD(sc, nomem_data_pkts_out, 1);
+			if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 			return (ENOBUFS);
 		}
 
@@ -2341,6 +2362,7 @@ ovpn_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	m = m_unshare(m, M_NOWAIT);
 	if (m == NULL) {
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_out, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		return (ENOBUFS);
 	}
 
@@ -2350,6 +2372,7 @@ ovpn_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
 	if (__predict_false(ifp->if_link_state != LINK_STATE_UP)) {
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_out, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		OVPN_RUNLOCK(sc);
 		m_freem(m);
 		return (ENETDOWN);
@@ -2368,6 +2391,7 @@ ovpn_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	if (peer == NULL) {
 		/* No destination. */
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_out, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		OVPN_RUNLOCK(sc);
 		m_freem(m);
 		return (ENETDOWN);
@@ -2463,6 +2487,8 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 	M_ASSERTPKTHDR(m);
 
 	OVPN_COUNTER_ADD(sc, transport_bytes_received, m->m_pkthdr.len - off);
+	if_inc_counter(sc->ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len - off);
+	if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
 
 	ohdrlen = sizeof(*ohdr) - sizeof(ohdr->auth_tag);
 
@@ -2492,6 +2518,7 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 	m = m_unshare(m, M_NOWAIT);
 	if (m == NULL) {
 		OVPN_COUNTER_ADD(sc, nomem_data_pkts_in, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 		return (true);
 	}
 
@@ -2499,6 +2526,7 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 	if (m == NULL) {
 		OVPN_RUNLOCK(sc);
 		OVPN_COUNTER_ADD(sc, nomem_data_pkts_in, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 		return (true);
 	}
 
@@ -2515,6 +2543,7 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 	if (key == NULL || key->decrypt == NULL) {
 		OVPN_RUNLOCK(sc);
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_in, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 		m_freem(m);
 		return (true);
 	}
@@ -2560,6 +2589,7 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 	if (m == NULL) {
 		OVPN_RUNLOCK(sc);
 		OVPN_COUNTER_ADD(sc, nomem_data_pkts_in, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 		return (true);
 	}
 	uhdr = mtodo(m, 0);
@@ -2569,6 +2599,7 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 	crp = crypto_getreq(key->decrypt->cryptoid, M_NOWAIT);
 	if (crp == NULL) {
 		OVPN_COUNTER_ADD(sc, nomem_data_pkts_in, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 		OVPN_RUNLOCK(sc);
 		m_freem(m);
 		return (true);
@@ -2605,6 +2636,7 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 		ret = crypto_dispatch(crp);
 	if (ret != 0) {
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_in, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 	}
 
 	return (true);
