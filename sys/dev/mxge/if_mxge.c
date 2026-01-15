@@ -1804,7 +1804,7 @@ mxge_encap_tso(struct mxge_slice_state *ss, struct mbuf *m,
 	uint32_t low, high_swapped;
 	int len, seglen, cum_len, cum_len_next;
 	int next_is_first, chop, cnt, rdma_count, small;
-	uint16_t pseudo_hdr_offset, cksum_offset, mss, sum;
+	uint16_t pseudo_hdr_offset, cksum_offset, mss, sum = 0;
 	uint8_t flags, flags_next;
 	static int once;
 
