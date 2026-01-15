@@ -90,11 +90,8 @@ linux_alloc_current(struct thread *td, int flags)
 	}
 
 	ts = uma_zalloc(linux_current_zone, flags | M_ZERO);
-	if (ts == NULL) {
-		if ((flags & (M_WAITOK | M_NOWAIT)) == M_WAITOK)
-			panic("linux_alloc_current: failed to allocate task");
+	if (ts == NULL)
 		return (ENOMEM);
-	}
 	mm = NULL;
 
 	/* setup new task structure */
@@ -118,10 +115,7 @@ linux_alloc_current(struct thread *td, int flags)
 		PROC_UNLOCK(proc);
 		mm = uma_zalloc(linux_mm_zone, flags | M_ZERO);
 		if (mm == NULL) {
-			if ((flags & (M_WAITOK | M_NOWAIT)) == M_WAITOK)
-				panic(
-			    "linux_alloc_current: failed to allocate mm");
-			uma_zfree(linux_current_zone, mm);
+			uma_zfree(linux_current_zone, ts);
 			return (ENOMEM);
 		}
 
