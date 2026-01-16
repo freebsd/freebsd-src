@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2021 John H. Baldwin <jhb@FreeBSD.org>
+ * Copyright 2026 Hans Rosenfeld
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -434,31 +435,47 @@ set_config_bool_node(nvlist_t *parent, const char *name, bool value)
 	set_config_value_node(parent, name, value ? "true" : "false");
 }
 
-static void
-dump_tree(const char *prefix, const nvlist_t *nvl)
+int
+walk_config_nodes(const char *prefix, const nvlist_t *parent, void *arg,
+    int (*cb)(const char *, const nvlist_t *, const char *, int, void *))
 {
+	void *cookie = NULL;
 	const char *name;
-	void *cookie;
 	int type;
 
-	cookie = NULL;
-	while ((name = nvlist_next(nvl, &type, &cookie)) != NULL) {
-		if (type == NV_TYPE_NVLIST) {
-			char *new_prefix;
+	while ((name = nvlist_next(parent, &type, &cookie)) != NULL) {
+		int ret;
 
-			asprintf(&new_prefix, "%s%s.", prefix, name);
-			dump_tree(new_prefix, nvlist_get_nvlist(nvl, name));
-			free(new_prefix);
-		} else {
-			assert(type == NV_TYPE_STRING);
-			printf("%s%s=%s\n", prefix, name,
-			    nvlist_get_string(nvl, name));
-		}
+		ret = cb(prefix, parent, name, type, arg);
+		if (ret != 0)
+			return (ret);
 	}
+
+	return (0);
+}
+
+static int
+dump_node_cb(const char *prefix, const nvlist_t *parent, const char *name,
+    int type, void *arg)
+{
+	if (type == NV_TYPE_NVLIST) {
+		char *new_prefix;
+		int ret;
+
+		asprintf(&new_prefix, "%s%s.", prefix, name);
+		ret = walk_config_nodes(new_prefix,
+		    nvlist_get_nvlist(parent, name), arg, dump_node_cb);
+		free(new_prefix);
+		return (ret);
+	}
+
+	assert(type == NV_TYPE_STRING);
+	printf("%s%s=%s\n", prefix, name, nvlist_get_string(parent, name));
+	return (0);
 }
 
 void
 dump_config(void)
 {
-	dump_tree("", config_root);
+	(void)walk_config_nodes("", config_root, NULL, dump_node_cb);
 }

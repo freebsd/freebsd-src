@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2021 John H. Baldwin <jhb@FreeBSD.org>
+ * Copyright 2026 Hans Rosenfeld
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -44,6 +45,14 @@
  * variable is specified as a dot-separated name similar to sysctl(8)
  * OIDs.
  */
+
+/*
+ * Walk the nodes under a parent nvlist. For each node found, call the given
+ * callback function passing the current prefix, nvlist, node name and type,
+ * and the given argument.
+ */
+int walk_config_nodes(const char *, const nvlist_t *, void *,
+    int (*cb)(const char *, const nvlist_t *, const char *, int, void *));
 
 /*
  * Fetches the value of a configuration variable.  If the "raw" value
