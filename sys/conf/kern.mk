@@ -36,6 +36,9 @@ NO_WBITWISE_INSTEAD_OF_LOGICAL=	-Wno-bitwise-instead-of-logical
 .if ${COMPILER_VERSION} >= 150000
 NO_WSTRICT_PROTOTYPES=		-Wno-strict-prototypes
 .endif
+.if ${COMPILER_VERSION} >= 210000
+NO_WDEFAULT_CONST_INIT_FIELD_UNSAFE= -Wno-default-const-init-field-unsafe
+.endif
 # Several other warnings which might be useful in some cases, but not severe
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.

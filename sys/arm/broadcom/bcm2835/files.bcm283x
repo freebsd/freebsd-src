@@ -32,7 +32,7 @@ contrib/vchiq/interface/compat/vchi_bsd.c	optional vchiq \
 contrib/vchiq/interface/vchiq_arm/vchiq_2835_arm.c	optional vchiq \
 	compile-with "${NORMAL_C} -Wno-unused -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
 contrib/vchiq/interface/vchiq_arm/vchiq_arm.c	optional vchiq \
-	compile-with "${NORMAL_C} -Wno-unused -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
+	compile-with "${NORMAL_C} -Wno-unused ${NO_WDEFAULT_CONST_INIT_FIELD_UNSAFE} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
 contrib/vchiq/interface/vchiq_arm/vchiq_connected.c	optional vchiq \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
 contrib/vchiq/interface/vchiq_arm/vchiq_core.c	optional vchiq \
