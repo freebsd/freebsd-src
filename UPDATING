@@ -12,6 +12,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260116:
+	Bump __FreeBSD_version to 1403508 for various LinuxKPI changes
+	so they could be detected if needed.
+
 20250916:
 	If SRCCONF is unset and a file named src.conf is present at
 	the top of the source tree, it will now be used instead of
