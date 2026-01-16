@@ -3721,7 +3721,12 @@ bge_attach(device_t dev)
 	if_setgetcounterfn(ifp, bge_get_counter);
 	if_setsendqlen(ifp, BGE_TX_RING_CNT - 1);
 	if_setsendqready(ifp);
-	if_sethwassist(ifp, sc->bge_csum_features);
+	/* Initially enable checksum offloading either for all of IPv4, TCP/IPv4
+	 * and UDP/IPv4, or for none. This avoids problems when the interface
+	 * is added to a bridge.
+	 */
+	if (sc->bge_csum_features & CSUM_UDP)
+		if_sethwassist(ifp, sc->bge_csum_features);
 	if_setcapabilities(ifp, IFCAP_HWCSUM | IFCAP_VLAN_HWTAGGING |
 	    IFCAP_VLAN_MTU);
 	if ((sc->bge_flags & (BGE_FLAG_TSO | BGE_FLAG_TSO3)) != 0) {
@@ -3732,6 +3737,13 @@ bge_attach(device_t dev)
 	if_setcapabilitiesbit(ifp, IFCAP_VLAN_HWCSUM, 0);
 #endif
 	if_setcapenable(ifp, if_getcapabilities(ifp));
+	/*
+	 * Disable TXCSUM capability initially, if UDP checksum offloading is
+	 * not enabled. This avoids problems when the interface is added to a
+	 * bridge.
+	 */
+	if ((sc->bge_csum_features & CSUM_UDP) == 0)
+		if_setcapenablebit(ifp, 0, IFCAP_TXCSUM);
 #ifdef DEVICE_POLLING
 	if_setcapabilitiesbit(ifp, IFCAP_POLLING, 0);
 #endif
