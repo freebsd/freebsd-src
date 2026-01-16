@@ -1492,7 +1492,7 @@ pqisrc_handle_blk_size_diffs(aio_req_locator_t *l)
  * handle based on dev type, Raid level, and encryption status.
  * TODO: make limits dynamic when this becomes possible.
  */
-inline boolean_t
+static boolean_t
 pqisrc_aio_req_too_big(pqisrc_softstate_t *softs,
 	pqi_scsi_dev_t *device, rcb_t const *rcb,
 	aio_req_locator_t *l, uint32_t disk_blk_cnt)
@@ -1636,7 +1636,7 @@ pqisrc_aio_show_locator_info(pqisrc_softstate_t *softs,
 }
 
 /* build the aio cdb */
-inline void
+static void
 pqisrc_aio_build_cdb(aio_req_locator_t *l,
 		uint32_t disk_blk_cnt, rcb_t *rcb, uint8_t *cdb)
 {
