@@ -556,6 +556,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		if ((error = ip6_insert_jumboopt(&exthdrs, plen)) != 0)
 			goto freehdrs;
 		ip6->ip6_plen = 0;
+		optlen += 8; /* JUMBOOPTLEN */
 	} else
 		ip6->ip6_plen = htons(plen);
 	nexthdrp = &ip6->ip6_nxt;
