@@ -71,7 +71,7 @@
 /sbin/veriexec/	@stephane-rochoy-stormshield
 /secure/usr.bin/openssl/	@juikim
 /share/man/		@concussious
-/share/mk	@bsdimp @bapt @bdrewery @emaste
+/share/mk	@bsdimp @bapt @bdrewery @brooksdavis @emaste
 /stand		@bsdimp
 /stand/lua	@kevans91
 /stand/veriexec.mk	@stephane-rochoy-stormshield
@@ -101,6 +101,7 @@
 /sys/fs/fuse/	@asomers
 /sys/fs/procfs/		@dag-erling
 /sys/fs/pseudofs/	@dag-erling
+/sys/kern/syscalls.master	@brooksdavis
 /sys/kern/vfs_aio.c	@asomers
 /sys/netinet/ip_carp.c	@glebius
 /sys/netpfil/ipfilter	@cschuber
@@ -108,6 +109,7 @@
 /sys/opencrypto/	@jmgurney
 /sys/security/mac_veriexec/	@stephane-rochoy-stormshield
 /sys/security/mac_veriexec_parser/	@stephane-rochoy-stormshield
+/sys/tools/syscalls/	@brooksdavis
 /sys/x86/pci	@bsdimp @bsdjhb
 /tests	@ngie-eign
 /tests/sys/aio/	@asomers
