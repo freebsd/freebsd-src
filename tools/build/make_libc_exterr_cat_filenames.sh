@@ -14,7 +14,7 @@ printf " * Automatically %sgenerated, use\\n" \@ >>"${target}"
 echo " * tools/build/make_libc_exterr_cat_filenames.sh" >>"${target}"
 echo " */" >>"${target}"
 
-(find sys -type f -name '*.c' | \
+(find -s sys -type f -name '*.c' | \
     xargs grep -E '^#define[[:space:]]+EXTERR_CATEGORY[[:space:]]+EXTERR_CAT_' | \
     sed -E 's/[[:space:]]+/:/g' | \
     awk -F ':' '{filename = $1; sub(/^sys\//, "", filename);
