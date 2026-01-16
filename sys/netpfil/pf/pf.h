@@ -506,6 +506,8 @@ enum {
 	PF_LIMITER_BLOCK
 };
 
+#define	PF_LIMITER_DEFAULT	PF_LIMITER_BLOCK
+
 struct pf_rule {
 	struct pf_rule_addr	 src;
 	struct pf_rule_addr	 dst;

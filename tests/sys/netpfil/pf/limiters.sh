@@ -54,7 +54,7 @@ state_basic_body()
 	    "set timeout icmp.error 120" \
 	    "state limiter \"server\" id 1 limit 1" \
 	    "block in proto icmp" \
-	    "pass in proto icmp state limiter \"server\""
+	    "pass in proto icmp state limiter \"server\" (no-match)"
 
 	atf_check -s exit:0 -o ignore \
 	    ping -c 2 192.0.2.1
@@ -103,7 +103,7 @@ state_rate_body()
 	    "set timeout icmp.error 120" \
 	    "state limiter \"server\" id 1 limit 1000 rate 1/5" \
 	    "block in proto icmp" \
-	    "pass in proto icmp state limiter \"server\""
+	    "pass in proto icmp state limiter \"server\" (no-match)"
 
 	atf_check -s exit:0 -o ignore \
 	    ping -c 2 192.0.2.1
@@ -217,7 +217,7 @@ source_basic_body()
 	    "set timeout icmp.error 120" \
 	    "source limiter \"server\" id 1 entries 128 limit 1" \
 	    "block in proto icmp" \
-	    "pass in proto icmp source limiter \"server\""
+	    "pass in proto icmp source limiter \"server\" (no-match)"
 
 	atf_check -s exit:0 -o ignore \
 	    ping -S 192.0.2.2 -c 2 192.0.2.1

@@ -2787,7 +2787,7 @@ sourcelim_filter_opt
 		}
 		;
 
-limiter_opt_spec: /* empty */ { $$ = PF_LIMITER_NOMATCH; }
+limiter_opt_spec: /* empty */ { $$ = PF_LIMITER_DEFAULT; }
 		| '(' limiter_opt ')' { $$ = $2; }
 		;
 
