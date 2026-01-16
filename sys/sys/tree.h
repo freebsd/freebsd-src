@@ -67,7 +67,9 @@
  * with the color red (Rank-Even-Difference), and the child that a red edge
  * points to is called a red child.
  *
- * Every operation on a rank-balanced tree is bounded as O(lg n).
+ * Every operation on a rank-balanced tree is bounded as O(lg n) except
+ * finding minnimum and maximum nodes has O(1) time complexity through
+ * caching.
  * The maximum height of a rank-balanced tree is 2lg (n+1).
  */
 
@@ -307,14 +309,18 @@ void name##_SPLAY_MINMAX(struct name *head, int __comp) \
 /* Macros that define a rank-balanced tree */
 #define RB_HEAD(name, type)						\
 struct name {								\
-	struct type *rbh_root; /* root of the tree */			\
+	struct type *rbh_root;  /* root of the tree */			\
+	struct type *rbh_min;	/* cached min node */			\
+	struct type *rbh_max;	/* cached max node */			\
 }
 
 #define RB_INITIALIZER(root)						\
-	{ NULL }
+	{ NULL, NULL, NULL }
 
 #define RB_INIT(root) do {						\
 	(root)->rbh_root = NULL;					\
+	(root)->rbh_min = NULL;						\
+	(root)->rbh_min = NULL;						\
 } while (/*CONSTCOND*/ 0)
 
 #define RB_ENTRY(type)							\
@@ -418,12 +424,12 @@ struct {								\
 	RB_PROTOTYPE_REMOVE_COLOR(name, type, attr);			\
 	RB_PROTOTYPE_INSERT_FINISH(name, type, attr);			\
 	RB_PROTOTYPE_INSERT(name, type, attr);				\
+	RB_PROTOTYPE_NEXT(name, type, attr);				\
+	RB_PROTOTYPE_PREV(name, type, attr);				\
 	RB_PROTOTYPE_REMOVE(name, type, attr);				\
 	RB_PROTOTYPE_FIND(name, type, attr);				\
 	RB_PROTOTYPE_NFIND(name, type, attr);				\
-	RB_PROTOTYPE_NEXT(name, type, attr);				\
 	RB_PROTOTYPE_INSERT_NEXT(name, type, attr);			\
-	RB_PROTOTYPE_PREV(name, type, attr);				\
 	RB_PROTOTYPE_INSERT_PREV(name, type, attr);			\
 	RB_PROTOTYPE_MINMAX(name, type, attr);				\
 	RB_PROTOTYPE_REINSERT(name, type, attr);
@@ -778,6 +784,12 @@ name##_RB_REMOVE(struct name *head, struct type *out)			\
 {									\
 	struct type *child, *in, *opar, *parent;			\
 									\
+	/* Update cache before structural changes */			\
+	if (out == head->rbh_min)					\
+		head->rbh_min = name##_RB_NEXT(out);			\
+	if (out == head->rbh_max)					\
+		head->rbh_max = name##_RB_PREV(out);			\
+									\
 	child = RB_LEFT(out, field);					\
 	in = RB_RIGHT(out, field);					\
 	opar = _RB_UP(out, field);					\
@@ -834,6 +846,15 @@ name##_RB_INSERT_FINISH(struct name *head, struct type *parent,		\
 	struct type *tmp = NULL;					\
 									\
 	RB_SET(elm, parent, field);					\
+									\
+	/* Update cached pointers */					\
+	if (head->rbh_min == NULL || (parent == head->rbh_min &&	\
+	    pptr == &RB_LEFT(parent, field)))				\
+		head->rbh_min = elm;					\
+	if (head->rbh_max == NULL || (parent == head->rbh_max &&	\
+	    pptr == &RB_RIGHT(parent, field))) 				\
+		head->rbh_max = elm;					\
+									\
 	*pptr = elm;							\
 	if (parent != NULL)						\
 		tmp = name##_RB_INSERT_COLOR(head, parent, elm);	\
@@ -997,16 +1018,10 @@ name##_RB_INSERT_PREV(struct name *head,				\
 attr struct type *							\
 name##_RB_MINMAX(struct name *head, int val)				\
 {									\
-	struct type *tmp = RB_ROOT(head);				\
-	struct type *parent = NULL;					\
-	while (tmp) {							\
-		parent = tmp;						\
-		if (val < 0)						\
-			tmp = RB_LEFT(tmp, field);			\
-		else							\
-			tmp = RB_RIGHT(tmp, field);			\
-	}								\
-	return (parent);						\
+	if (val < 0)							\
+		return (head->rbh_min);					\
+	else								\
+		return (head->rbh_max);					\
 }
 
 #define	RB_GENERATE_REINSERT(name, type, field, cmp, attr)		\
