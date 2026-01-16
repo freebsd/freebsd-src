@@ -419,8 +419,8 @@ spkr_dtor(void *data)
 static int
 spkropen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	int error;
 	struct spkr_state *state;
+	int error;
 #ifdef DEBUG
 	(void) printf("spkropen: entering with dev = %s\n", devtoname(dev));
 #endif /* DEBUG */
@@ -437,17 +437,17 @@ spkropen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	if (error) {
 		free(state->inbuf, M_SPKR);
 		free(state, M_SPKR);
-		return error;
+		return (error);
 	}
 
-	return 0;
+	return (0);
 }
 
 static int
 spkrwrite(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	int error;
 	struct spkr_state *state;
+	int error;
 	unsigned n;
 
 #ifdef DEBUG
@@ -457,18 +457,18 @@ spkrwrite(struct cdev *dev, struct uio *uio, int ioflag)
 
 	/* is the melody too long? */
 	if (uio->uio_resid > (DEV_BSIZE - 1))
-		return E2BIG;
+		return (E2BIG);
 
 	/* get this fd's state */
 	error = devfs_get_cdevpriv((void **)&state);
 	if (error)
-		return error;
+		return (error);
 
 	/* copy melody from userspace */
 	n = uio->uio_resid;
 	error = uiomove(state->inbuf, n, uio);
 	if (error)
-	    return error;
+		return (error);
 	state->inbuf[n] = '\0';
 
 	/* play the melody. */
@@ -476,7 +476,7 @@ spkrwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	playstring(state, state->inbuf, n);
 	sx_xunlock(&spkr_op_locked);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -489,7 +489,7 @@ spkrclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 	wakeup(&endtone);
 	wakeup(&endrest);
 	/* devfs_clear_cdevpriv() calls spkr_dtor automatically */
-	return(0);
+	return (0);
 }
 
 static int
@@ -510,7 +510,7 @@ spkrioctl(struct cdev *dev, unsigned long cmd, caddr_t cmdarg, int flags,
 		else
 			tone(tp->frequency, tp->duration);
 		sx_xunlock(&spkr_op_locked);
-		return 0;
+		return (0);
 	} else if (cmd == SPKRTUNE) {
 		tone_t  *tp = (tone_t *)(*(caddr_t *)cmdarg);
 		tone_t ttp;
@@ -521,7 +521,7 @@ spkrioctl(struct cdev *dev, unsigned long cmd, caddr_t cmdarg, int flags,
 			error = copyin(tp, &ttp, sizeof(tone_t));
 			if (error) {
 				sx_xunlock(&spkr_op_locked);
-				return(error);
+				return (error);
 			}
 
 			if (ttp.duration == 0)
@@ -533,9 +533,9 @@ spkrioctl(struct cdev *dev, unsigned long cmd, caddr_t cmdarg, int flags,
 				tone(ttp.frequency, ttp.duration);
 		}
 		sx_xunlock(&spkr_op_locked);
-		return(0);
+		return (0);
 	}
-	return(EINVAL);
+	return (EINVAL);
 }
 
 static struct cdev *speaker_dev;
