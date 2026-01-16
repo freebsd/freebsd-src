@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 12, 2026
+.Dd January 16, 2026
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -2368,12 +2368,12 @@ block in proto icmp probability 20%
 .It Cm state limiter Ar name Oo Cm (limiter options) Oc
 Use the specified state limiter to restrict the creation of states
 by this rule.
-By default if capacity is not available, the rule is ignored
-and ruleset evaluation continues with next rule..
+By default if capacity is not available, the packet gets blocked
+and ruleset evaluation stops.
 Use
-.Ic block
-option to change default behavior such packet is blocked
-when limit is reached.
+.Ic no-match
+option to change default behavior such rule is ignored and ruleset
+evaluation continues with next rule.
 See the
 .Sx State Limiters
 section for more information.
@@ -2381,12 +2381,12 @@ section for more information.
 .It Cm source limiter Ar name Oo Cm (limiter options) Oc
 Use the specified source limiter to restrict the creation of states
 by this rule.
-By default if capacity is not available, the rule is ignored
-and ruleset evaluation continues with next rule..
+By default if capacity is not available, the packet gets blocked
+and ruleset evaluation stops.
 Use
-.Ic block
-option to change default behavior such packet is blocked
-when limit is reached.
+.Ic no-match
+option to change default behavior such rule is ignored and ruleset
+evaluation continues with next rule.
 See the
 .Sx Source Limiters
 section for more information.

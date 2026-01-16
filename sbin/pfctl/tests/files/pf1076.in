@@ -1,2 +1,2 @@
 state limiter "dns-server" id 1 limit 1000 rate 1/10
-pass in proto tcp to port domain state limiter "dns-server"
+pass in proto tcp to port domain state limiter "dns-server" (no-match)
