@@ -685,7 +685,7 @@ dwc_setup_txbuf(struct dwc_softc *sc, int idx, struct mbuf **mp)
 	struct bus_dma_segment segs[TX_MAP_MAX_SEGS];
 	int error, nsegs;
 	struct mbuf * m;
-	uint32_t flags = 0;
+	uint32_t flags;
 	int i;
 	int first, last;
 
@@ -713,19 +713,12 @@ dwc_setup_txbuf(struct dwc_softc *sc, int idx, struct mbuf **mp)
 
 	m = *mp;
 
-	if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0) {
-		if ((m->m_pkthdr.csum_flags & (CSUM_TCP|CSUM_UDP)) != 0) {
-			if (sc->mactype != DWC_GMAC_EXT_DESC)
-				flags = NTDESC1_CIC_FULL;
-			else
-				flags = ETDESC0_CIC_FULL;
-		} else {
-			if (sc->mactype != DWC_GMAC_EXT_DESC)
-				flags = NTDESC1_CIC_HDR;
-			else
-				flags = ETDESC0_CIC_HDR;
-		}
-	}
+	if ((m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) != 0)
+		flags = (sc->mactype != DWC_GMAC_EXT_DESC) ? NTDESC1_CIC_SEG : ETDESC0_CIC_SEG;
+	else if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0)
+		flags = (sc->mactype != DWC_GMAC_EXT_DESC) ? NTDESC1_CIC_HDR : ETDESC0_CIC_HDR;
+	else
+		flags = (sc->mactype != DWC_GMAC_EXT_DESC) ? NTDESC1_CIC_NONE : ETDESC0_CIC_NONE;
 
 	bus_dmamap_sync(sc->txbuf_tag, sc->txbuf_map[idx].map,
 	    BUS_DMASYNC_PREWRITE);
