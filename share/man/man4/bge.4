@@ -29,7 +29,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd August 18, 2017
+.Dd January 16, 2026
 .Dt BGE 4
 .Os
 .Sh NAME
@@ -276,3 +276,11 @@ Also, due to the lack of hotplug support, Thunderbolt-based interfaces must not 
 while the system is up as the kernel is currently unable to cope with a
 .Nm
 interface disappearing.
+.Pp
+The UDP transmit checksum offloading is disabled by default, see
+.Va dev.bge.%d.forced_udpcsum .
+To avoid problems when the interface is a member of a
+.Xr bridge 4
+interface, all transmit checksum offloading is initially disabled in this case.
+Transmit checksum offloading can be enabled using
+.Xr ifconfig 8 .
