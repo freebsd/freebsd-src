@@ -16,53 +16,51 @@ nul_node_free(void *node __unused)
 {
 }
 
-/* Find the leftmost node. */
-static posix_tnode *
-tdestroy_find_leftmost(posix_tnode *tn)
-{
-	while (tn->llink != NULL)
-		tn = tn->llink;
-	return (tn);
-}
-
-/*
- * This algorithm for non-recursive non-allocating destruction of the tree
- * is described in
- * https://codegolf.stackexchange.com/questions/478/free-a-binary-tree/489#489P
- * and in https://devblogs.microsoft.com/oldnewthing/20251107-00/?p=111774.
- */
 void
 tdestroy(void *rootp, void (*node_free)(void *))
 {
-	posix_tnode *tn, *tn_leftmost, *xtn;
+	posix_tnode *back, *curr, **front;
 
-	tn = rootp;
-	if (tn == NULL)
+	if (rootp == NULL)
 		return;
 	if (node_free == NULL)
 		node_free = nul_node_free;
-	tn_leftmost = tn;
 
-	while (tn != NULL) {
+	back = rootp;
+	front = &back;
+
+	for (;;) {
 		/*
-		 * Make the right subtree the left subtree of the
-		 * leftmost node, and recalculate the leftmost.
+		 * The sequence of nodes from back to just before *front linked
+		 * by llink have been found to have non-NULL rlink.
+		 *
+		 * Extend *front to (*front)->llink, deleting *front from the
+		 * sequence if it has a NULL rlink.
 		 */
-		tn_leftmost = tdestroy_find_leftmost(tn_leftmost);
-		if (tn->rlink != NULL) {
-			tn_leftmost->llink = tn->rlink;
-			tn_leftmost = tn_leftmost->llink;
+		curr = *front;
+		if (curr->rlink != NULL)
+			front = &curr->llink;
+		else {
+			*front = curr->llink;
+			node_free(curr->key);
+			free(curr);
 		}
+		if (*front != NULL)
+			continue;
+		if (back == NULL)
+			break;
 
 		/*
-		 * At this point, all children of tn have been
-		 * arranged to be reachable via tn->left. We can
-		 * safely delete the current node and advance to its
-		 * left child as the new root.
+		 * The sequence cannot be extended because *front is NULL.  Make
+		 * the rlink of the back node the new *front, the llink of the
+		 * back node the new back, and free the old back node.
 		 */
-		xtn = tn->llink;
-		node_free(tn->key);
-		free(tn);
-		tn = xtn;
+		curr = back;
+		back = curr->llink;
+		if (back == NULL)
+			front = &back;
+		*front = curr->rlink;
+		node_free(curr->key);
+		free(curr);
 	}
 }
