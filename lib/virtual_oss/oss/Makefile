@@ -1,10 +1,8 @@
 SHLIB_NAME= 	voss_oss.so
-SHLIBDIR=	${LIBDIR}/virtual_oss
 
 SRCS=		oss.c
 
-CFLAGS+= 	-I${SRCTOP}/usr.sbin/virtual_oss/virtual_oss \
-		-I${SRCTOP}/contrib/libsamplerate
+CFLAGS+= 	-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/private/samplerate
 LIBADD=		samplerate
 
 .include <bsd.lib.mk>
