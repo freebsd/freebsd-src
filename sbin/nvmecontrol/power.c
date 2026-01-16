@@ -29,6 +29,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <libxo/xo.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -76,7 +77,7 @@ power_list_one(int i, struct nvme_power_state *nps)
 	apower = nps->actp;
 	if (aps == 1)
 		apower *= 100;
-	printf("%2d: %2d.%04dW%c %3d.%03dms %3d.%03dms %2d %2d %2d %2d %2d.%04dW %2d.%04dW %d\n",
+	xo_emit("{:index/%2d}{Lc:}{P: }{:mpower-div-10000/%2d}.{:mpower-mod-10000/%04d}W{:nops/%c}{P: }{:enlat-div-1000/%3d}.{:enlat-mod-1000/%03dms}{P: }{:exlat-div-1000/%3d}.{:exlat-mod-1000/%03dms}{P: }{:rrt/%2d}{P: }{:rrl/%2d}{P: }{:rwt/%2d}{P: }{:rwl/%2d}{P: }{:ipower-div-10000/%2d}.{:ipower-mod-10000/%04d}W {:apower-div-10000/%2d}.{:apower-mod-10000/%04d}W {:apw/%d}\n",
 	       i, mpower / 10000, mpower % 10000,
 	       nops ? '*' : ' ', nps->enlat / 1000, nps->enlat % 1000,
 	       nps->exlat / 1000, nps->exlat % 1000, nps->rrt, nps->rrl,
@@ -89,9 +90,9 @@ power_list(struct nvme_controller_data *cdata)
 {
 	int i;
 
-	printf("\nPower States Supported: %d\n\n", cdata->npss + 1);
-	printf(" #   Max pwr  Enter Lat  Exit Lat RT RL WT WL Idle Pwr  Act Pwr Workload\n");
-	printf("--  --------  --------- --------- -- -- -- -- -------- -------- --\n");
+	xo_emit("\n{Lc:Power States Supported}{P: }{:nvme-power-states-supported/%d}\n\n", cdata->npss + 1);
+	xo_emit(" #   Max pwr  Enter Lat  Exit Lat RT RL WT WL Idle Pwr  Act Pwr Workload\n");
+	xo_emit("--  --------  --------- --------- -- -- -- -- -------- -------- --\n");
 	for (i = 0; i <= cdata->npss; i++)
 		power_list_one(i, &cdata->power_state[i]);
 }
@@ -130,8 +131,8 @@ power_show(int fd)
 	if (nvme_completion_is_error(&pt.cpl))
 		errx(EX_IOERR, "set feature power mgmt request returned error");
 
-	printf("Current Power State is %d\n", pt.cpl.cdw0 & 0x1F);
-	printf("Current Workload Hint is %d\n", pt.cpl.cdw0 >> 5);
+	xo_emit("{Lc:Current Power State}{P:    }{:nvme-power-state/%d}\n", pt.cpl.cdw0 & 0x1F);
+	xo_emit("{Lc:Current Workload Hint}{P:    }{:nvme-workload-hint/%d}\n", pt.cpl.cdw0 >> 5);
 }
 
 static void
