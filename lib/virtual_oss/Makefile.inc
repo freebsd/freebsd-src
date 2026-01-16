@@ -1,5 +1,7 @@
 PACKAGE=	sound
 
-.include "../Makefile.inc"
+SHLIBDIR=	${LIBDIR}/virtual_oss
 
-LDFLAGS+=	-L${.OBJDIR:H:H}/libsamplerate
+CFLAGS+=	-I${SRCTOP}/usr.sbin/virtual_oss/virtual_oss
+
+.include "../Makefile.inc"

@@ -12,13 +12,12 @@ SRCS=		audio_delay.c \
 		ring.c \
 		virtual_oss.c
 
-CFLAGS+=	-I${SRCTOP}/contrib/libsamplerate
+CFLAGS+=	-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/private/samplerate
+
+LIBADD=		cuse m nv pthread samplerate
 # The --export-dynamic-symbol flags below are needed because some backends make
 # use of those symbols.
-LDFLAGS+= 	-lpthread -lcuse -lnv -lm \
-		-Wl,--export-dynamic-symbol=virtual_oss_wait \
+LDFLAGS+=	-Wl,--export-dynamic-symbol=virtual_oss_wait \
 		-Wl,--export-dynamic-symbol=voss_has_synchronization
-LIBADD=		samplerate
-LDFLAGS+=	-L${.OBJDIR:H:H}/libsamplerate
 
 .include <bsd.prog.mk>

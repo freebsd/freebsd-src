@@ -1,14 +1,11 @@
 SHLIB_NAME= 	voss_bt.so
-SHLIBDIR=	${LIBDIR}/virtual_oss
 
 SRCS=		bt.c \
 		avdtp.c \
 		sbc_encode.c
 
-CFLAGS+= 	-I${SRCTOP}/usr.sbin/virtual_oss/virtual_oss \
-		-I${SRCTOP}/contrib/libsamplerate
-LDFLAGS+=	-lbluetooth -lsdp
-LIBADD=		samplerate
+CFLAGS+= 	-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/private/samplerate
+LIBADD=		bluetooth samplerate sdp
 
 .if defined(HAVE_LIBAV)
 CFLAGS+=	-I${LOCALBASE:U/usr/local}/include -DHAVE_LIBAV
