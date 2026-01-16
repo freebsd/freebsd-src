@@ -4,8 +4,7 @@ SRCS=		bt.c \
 		avdtp.c \
 		sbc_encode.c
 
-CFLAGS+= 	-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/private/samplerate
-LIBADD=		bluetooth samplerate sdp
+LIBADD=		bluetooth sdp
 
 .if defined(HAVE_LIBAV)
 CFLAGS+=	-I${LOCALBASE:U/usr/local}/include -DHAVE_LIBAV
