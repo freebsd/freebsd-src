@@ -240,6 +240,7 @@ device		vmx			# VMware VMXNET3 Ethernet
 device		axp			# AMD EPYC integrated NIC (requires miibus)
 
 # PCI Ethernet NICs.
+device		aq			# Aquantia / Marvell AQC1xx
 device		bxe			# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 device		le			# AMD Am7900 LANCE and Am79C9xx PCnet
 device		rge			# Realtek 8125/8126/8127
