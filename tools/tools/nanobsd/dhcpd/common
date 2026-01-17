@@ -204,7 +204,7 @@ do_add_port ()
 }
 
 # Need to check if this function works with cross-compiling architecture!!!!
-# Recursive complex fonction: Generate one function for each ports
+# Recursive complex function: Generate one function for each port
 add_port () {
     local port_path=$1
     local port=`echo $1 | sed -e 's/\//_/'`
