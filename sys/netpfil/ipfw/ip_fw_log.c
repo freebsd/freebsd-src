@@ -722,7 +722,7 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 	    /* O_LOG is the first action */
 	    ((cmd = ACTION_PTR(f)) && cmd->arg1 == IPFW_LOG_DEFAULT)) {
 		if (V_fw_verbose == 0) {
-			ipfw_bpf_tap(args, ip,
+			ipfw_bpf_tap(chain, args, ip,
 			    f != NULL ? f->rulenum : IPFW_DEFAULT_RULE);
 			return;
 		}
@@ -737,6 +737,6 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 		ipfw_log_rtsock(chain, f, hlen, args, offset, tablearg, eh);
 
 	if (cmd->arg1 & IPFW_LOG_IPFW0)
-		ipfw_bpf_tap(args, ip, f->rulenum);
+		ipfw_bpf_tap(chain, args, ip, f->rulenum);
 }
 /* end of file */

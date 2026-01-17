@@ -3667,6 +3667,7 @@ vnet_ipfw_init(const void *unused)
 #ifdef IPFIREWALL_NAT
 	LIST_INIT(&chain->nat);
 #endif
+	RB_INIT(&chain->taps);
 
 	/* Init shared services hash table */
 	ipfw_init_srv(chain);
