@@ -192,9 +192,11 @@ NANO_CPUTYPE=""
 
 # Directory to populate /cfg from
 NANO_CFGDIR=""
+NANO_METALOG_CFG=""
 
 # Directory to populate /data from
 NANO_DATADIR=""
+NANO_METALOG_DATA=""
 
 # We don't need SRCCONF or SRC_ENV_CONF. NanoBSD puts everything we
 # need for the build in files included with __MAKE_CONF. Override in your
@@ -356,6 +358,10 @@ make_conf_build() {
 	nano_global_make_env
 	echo "${CONF_WORLD}"
 	echo "${CONF_BUILD}"
+	if [ -n "${NANO_NOPRIV_BUILD}" ]; then
+		echo NO_ROOT=true
+		echo METALOG="${NANO_METALOG}"
+	fi
 	) > ${NANO_MAKE_CONF_BUILD}
 }
 
@@ -595,15 +601,28 @@ setup_nanobsd() {
 		# link /$d under /conf
 		# we use hard links so we have them both places.
 		# the files in /$d will be hidden by the mount.
-		mkdir -p conf/base/$d conf/default/$d
+		tgt_dir conf/base/$d conf/default/$d
 		find $d -print | cpio ${CPIO_SYMLINK} -dumpl conf/base/
+		if [ -n "$NANO_METALOG" ]; then
+			grep "^.\/${d}\/" "${NANO_METALOG}" |
+			    sed -e "s=^./${d}=./conf/base/${d}=g" |
+			    sort | uniq >> "${NANO_METALOG}.conf"
+		fi
 	done
+
+	if [ -n "$NANO_METALOG" ]; then
+		cat "${NANO_METALOG}.conf" >> "${NANO_METALOG}"
+		rm -f "${NANO_METALOG}.conf"
+	fi
 
 	echo "$NANO_RAM_ETCSIZE" > conf/base/etc/md_size
 	echo "$NANO_RAM_TMPVARSIZE" > conf/base/var/md_size
+	tgt_touch conf/base/etc/md_size
+	tgt_touch conf/base/var/md_size
 
 	# pick up config files from the special partition
 	echo "mount -o ro /dev/${NANO_DRIVE}${NANO_SLICE_CFG}" > conf/default/etc/remount
+	tgt_touch conf/default/etc/remount
 
 	# Put /tmp on the /var ramdisk (could be symlink already)
 	tgt_dir2symlink tmp var/tmp 1777
@@ -660,13 +679,15 @@ EOF
 
 	# save config file for scripts
 	echo "NANO_DRIVE=${NANO_DRIVE}" > etc/nanobsd.conf
+	tgt_touch etc/nanobsd.conf
 
 	echo "/dev/${NANO_DRIVE}${NANO_ROOT} / ufs ro 1 1" > etc/fstab
 	echo "/dev/${NANO_DRIVE}${NANO_SLICE_CFG} /cfg ufs rw,noauto 2 2" >> etc/fstab
-	mkdir -p cfg
+	tgt_touch etc/fstab
+	tgt_dir cfg
 
 	# Create directory for eventual /usr/local/etc contents
-	mkdir -p etc/local
+	tgt_dir etc/local
 	)
 }
 
@@ -883,6 +904,8 @@ cust_install_files() (
 	if [ -n "${NANO_CUST_FILES_MTREE}" -a -f ${NANO_CUST_FILES_MTREE} ]; then
 		CR "mtree -eiU -p /" <${NANO_CUST_FILES_MTREE}
 	fi
+
+	tgt_touch $(find * -type f)
 )
 
 #######################################################################
@@ -995,7 +1018,7 @@ pprint() {
 
 usage() {
 	(
-	echo "Usage: $0 [-BbfhIiKknpqvWwX] [-c config_file]"
+	echo "Usage: $0 [-BbfhIiKknpqUvWwX] [-c config_file]"
 	echo "	-B	suppress installs (both kernel and world)"
 	echo "	-b	suppress builds (both kernel and world)"
 	echo "	-c	specify config file"
@@ -1008,6 +1031,7 @@ usage() {
 	echo "	-n	add -DNO_CLEAN to buildworld, buildkernel, etc"
 	echo "	-p	suppress preparing the image"
 	echo "	-q	make output more quiet"
+	echo "	-U	add -DNO_ROOT to build without root privileges"
 	echo "	-v	make output more verbose"
 	echo "	-W	suppress installworld"
 	echo "	-w	suppress buildworld"
@@ -1039,6 +1063,9 @@ set_defaults_and_export() {
 	if ! $do_clean; then
 		NANO_PMAKE="${NANO_PMAKE} -DNO_CLEAN"
 	fi
+	if ! $do_root; then
+		NANO_PMAKE="${NANO_PMAKE} -DNO_ROOT"
+	fi
 	NANO_MAKE_CONF_BUILD=${MAKEOBJDIRPREFIX}/make.conf.build
 	NANO_MAKE_CONF_INSTALL=${NANO_OBJ}/make.conf.install
 
@@ -1049,8 +1076,9 @@ set_defaults_and_export() {
 	[ ! -d "${NANO_TOOLS}" ] && [ -d "${NANO_SRC}/${NANO_TOOLS}" ] && \
 		NANO_TOOLS="${NANO_SRC}/${NANO_TOOLS}" || true
 
-	[ -n "${NANO_NOPRIV_BUILD}" ] && [ -z "${NANO_METALOG}" ] && \
-		NANO_METALOG=${NANO_OBJ}/_.metalog || true
+	if [ -n "${NANO_NOPRIV_BUILD}" ] && [ -z "${NANO_METALOG}" ]; then
+		NANO_METALOG=${NANO_OBJ}/_.metalog
+	fi
 
 	NANO_STARTTIME=`date +%s`
 	: ${NANO_TIMESTAMP:=${NANO_STARTTIME}}
