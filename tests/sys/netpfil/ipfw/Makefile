@@ -3,7 +3,8 @@ PACKAGE=	tests
 TESTSDIR=       ${TESTSBASE}/sys/netpfil/ipfw
 
 ATF_TESTS_SH+=	fwd \
-		divert
+		divert \
+		table
 
 ${PACKAGE}FILES+=	fwd_inetd.conf
 
