@@ -579,7 +579,7 @@ setup_nanobsd_etc() {
 	cd "${NANO_WORLDDIR}"
 
 	# create diskless marker file
-	touch etc/diskless
+	tgt_touch etc/diskless
 
 	[ -n "${NANO_NOPRIV_BUILD}" ] && chmod 666 boot/defaults/loader.conf
 	{
