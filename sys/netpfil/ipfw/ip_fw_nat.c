@@ -503,7 +503,6 @@ nat44_config(struct ip_fw_chain *chain, struct nat44_cfg_nat *ucfg)
 	gencnt = chain->gencnt;
 	ptr = lookup_nat_name(&chain->nat, ucfg->name);
 	if (ptr == NULL) {
-		IPFW_UH_WUNLOCK(chain);
 		/* New rule: allocate and init new instance. */
 		ptr = malloc(sizeof(struct cfg_nat), M_IPFW, M_WAITOK | M_ZERO);
 		ptr->lib = LibAliasInit(NULL);
@@ -514,7 +513,6 @@ nat44_config(struct ip_fw_chain *chain, struct nat44_cfg_nat *ucfg)
 		LIST_REMOVE(ptr, _next);
 		flush_nat_ptrs(chain, ptr->id);
 		IPFW_WUNLOCK(chain);
-		IPFW_UH_WUNLOCK(chain);
 	}
 
 	/*
@@ -543,7 +541,6 @@ nat44_config(struct ip_fw_chain *chain, struct nat44_cfg_nat *ucfg)
 	del_redir_spool_cfg(ptr, &ptr->redir_chain);
 	/* Add new entries. */
 	add_redir_spool_cfg((char *)(ucfg + 1), ptr);
-	IPFW_UH_WLOCK(chain);
 
 	/* Extra check to avoid race with another ipfw_nat_cfg() */
 	tcfg = NULL;
@@ -1049,7 +1046,6 @@ retry:
 				len += sizeof(struct cfg_spool_legacy);
 		}
 	}
-	IPFW_UH_RUNLOCK(chain);
 
 	data = malloc(len, M_TEMP, M_WAITOK | M_ZERO);
 	bcopy(&nat_cnt, data, sizeof(nat_cnt));
@@ -1057,7 +1053,6 @@ retry:
 	nat_cnt = 0;
 	len = sizeof(nat_cnt);
 
-	IPFW_UH_RLOCK(chain);
 	if (gencnt != chain->gencnt) {
 		free(data, M_TEMP);
 		goto retry;
