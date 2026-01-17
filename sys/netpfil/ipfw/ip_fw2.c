@@ -3731,12 +3731,14 @@ vnet_ipfw_uninit(const void *unused)
 
 	V_ipfw_vnet_ready = 0; /* tell new callers to go away */
 	/*
-	 * disconnect from ipv4, ipv6, layer2 and sockopt.
-	 * Then grab, release and grab again the WLOCK so we make
-	 * sure the update is propagated and nobody will be in.
+	 * Disconnect from ipv4, ipv6, layer2 and sockopt.  pfil(9) hook
+	 * removal is synchronized by the net epoch, but our destructors
+	 * free the memory immediately, thus we need for the epoch sections
+	 * to complete.
 	 */
 	ipfw_detach_hooks();
 	V_ip_fw_ctl_ptr = NULL;
+	NET_EPOCH_WAIT();
 
 	last = IS_DEFAULT_VNET(curvnet) ? 1 : 0;
 
@@ -3745,12 +3747,10 @@ vnet_ipfw_uninit(const void *unused)
 	ipfw_dyn_uninit(0);	/* run the callout_drain */
 
 	reap = NULL;
-	IPFW_WLOCK(chain);
 	for (i = 0; i < chain->n_rules; i++)
 		ipfw_reap_add(chain, &reap, chain->map[i]);
 	free(chain->map, M_IPFW);
 	ipfw_destroy_skipto_cache(chain);
-	IPFW_WUNLOCK(chain);
 	IPFW_UH_WUNLOCK(chain);
 	ipfw_destroy_tables(chain, last);
 	ipfw_eaction_uninit(chain, last);
