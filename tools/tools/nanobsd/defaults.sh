@@ -266,22 +266,23 @@ tgt_touch() (
 )
 
 #
-# Convert a directory into a symlink. Takes two arguments, the
-# current directory and what it should become a symlink to. The
-# directory is removed and a symlink is created. If we're doing
+# Convert a directory into a symlink. Takes three arguments, the current
+# directory, what it should become a symlink to, and optionally, the mode.
+# The directory is removed and a symlink is created. If we're doing
 # a nopriv build, then append this fact to the metalog
 #
 tgt_dir2symlink() (
 	local dir=$1
 	local symlink=$2
+	local mode=${3:-0777}
 
 	cd "${NANO_WORLDDIR}"
 	rm -xrf "$dir"
-	ln -s "$symlink" "$dir"
+	ln -sf "$symlink" "$dir"
 	if [ -n "$NANO_METALOG" ]; then
 		echo "./${dir} type=link" \
 		    "uname=${NANO_DEF_UNAME} gname=${NANO_DEF_GNAME}" \
-		    "mode=0777 link=${symlink}" >> ${NANO_METALOG}
+		    "mode=${mode} link=${symlink}" >> ${NANO_METALOG}
 	fi
 )
 
