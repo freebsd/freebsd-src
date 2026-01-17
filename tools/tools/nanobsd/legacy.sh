@@ -113,7 +113,7 @@ create_code_slice() {
 			-y ${NANO_HEADS}`
 	fi
 
-	trap "echo 'Running exit trap code' ; df -i ${MNT} ; umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
+	trap "echo 'Running exit trap code' ; df -i ${MNT} ; nano_umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
 
 	gpart create -s bsd "${MD}"
 	gpart add -t freebsd-ufs -b 16 "${MD}"

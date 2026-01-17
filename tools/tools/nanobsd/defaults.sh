@@ -812,7 +812,7 @@ cust_pkgng() {
 	mount -t nullfs -o noatime -o ro ${NANO_PACKAGE_DIR} ${NANO_WORLDDIR}/_.p
 	mount -t devfs devfs ${NANO_WORLDDIR}/dev
 
-	trap "umount ${NANO_WORLDDIR}/dev; umount ${NANO_WORLDDIR}/_.p ; rm -xrf ${NANO_WORLDDIR}/_.p" 1 2 15 EXIT
+	trap "nano_umount ${NANO_WORLDDIR}/dev; nano_umount ${NANO_WORLDDIR}/_.p ; rm -xrf ${NANO_WORLDDIR}/_.p" 1 2 15 EXIT
 
 	# Install pkg-* package
 	CR "${PKGCMD} add /_.p/${_NANO_PKG_PACKAGE}"
@@ -837,8 +837,8 @@ cust_pkgng() {
 	CR0 "${PKGCMD} info"
 
 	trap - 1 2 15 EXIT
-	umount ${NANO_WORLDDIR}/dev
-	umount ${NANO_WORLDDIR}/_.p
+	nano_umount ${NANO_WORLDDIR}/dev
+	nano_umount ${NANO_WORLDDIR}/_.p
 	rm -xrf ${NANO_WORLDDIR}/_.p
 }
 
