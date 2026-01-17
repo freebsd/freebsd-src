@@ -124,9 +124,6 @@ static int atkbd_short_delay = 0;   /* 1 = short delay (default), 0 = long delay
 SYSCTL_NODE(_hw, OID_AUTO, atkbd, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "AT keyboard controller");
 
-/* loader tunable: hw.atkbd.short_delay */
-TUNABLE_INT("hw.atkbd.short_delay", &atkbd_short_delay);
-
 /* sysctl knob: hw.atkbd.short_delay */
 SYSCTL_DECL(_hw_atkbd);
 SYSCTL_INT(_hw_atkbd, OID_AUTO, short_delay, CTLFLAG_RWTUN,
