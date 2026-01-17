@@ -36,6 +36,9 @@
 #endif
 
 /* PVR */
+#define PVR_CPU_P6		0x003e0000
+#define PVR_CPU_P7		0x003f0000
+#define PVR_CPU_P7PLUS		0x004a0000
 #define PVR_CPU_P8E		0x004b0000
 #define PVR_CPU_P8NVL		0x004c0000
 #define PVR_CPU_P8		0x004d0000
@@ -134,6 +137,9 @@ static struct ibm_arch_vec {
 	struct opt_vec5		vec5;
 } __packed ibm_arch_vec = {
 	/* pvr_list */ {
+		{ htobe32(PVR_CPU_MASK), htobe32(PVR_CPU_P6) },
+		{ htobe32(PVR_CPU_MASK), htobe32(PVR_CPU_P7) },
+		{ htobe32(PVR_CPU_MASK), htobe32(PVR_CPU_P7PLUS) },
 		{ htobe32(PVR_CPU_MASK), htobe32(PVR_CPU_P8) },
 		{ htobe32(PVR_CPU_MASK), htobe32(PVR_CPU_P8E) },
 		{ htobe32(PVR_CPU_MASK), htobe32(PVR_CPU_P8NVL) },
