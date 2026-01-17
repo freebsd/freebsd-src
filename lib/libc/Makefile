@@ -142,9 +142,6 @@ CFLAGS+= -DYP
 .if ${MK_HESIOD} != "no"
 CFLAGS+= -DHESIOD
 .endif
-.if ${MK_FP_LIBC} == "no"
-CFLAGS+= -DNO_FLOATING_POINT
-.endif
 .if ${MK_NS_CACHING} != "no"
 CFLAGS+= -DNS_CACHING
 .endif

@@ -60,10 +60,8 @@ union arg {
 	int			intarg;
 	long			longarg;
 	intmax_t 		intmaxarg;
-#ifndef NO_FLOATING_POINT
 	double			doublearg;
 	long double 		longdoublearg;
-#endif
 	wint_t			wintarg;
 	char			*pchararg;
 	wchar_t			*pwchararg;
@@ -497,14 +495,10 @@ __v2printf(FILE *fp, const char *fmt0, unsigned pct, va_list ap)
 			args[ch].pwchararg = va_arg (ap, wchar_t *);
 			break;
 		case PA_DOUBLE:
-#ifndef NO_FLOATING_POINT
 			args[ch].doublearg = va_arg (ap, double);
-#endif
 			break;
 		case PA_DOUBLE | PA_FLAG_LONG_DOUBLE:
-#ifndef NO_FLOATING_POINT
 			args[ch].longdoublearg = va_arg (ap, long double);
-#endif
 			break;
 		default:
 			errx(1, "argtype = %x (fmt = \"%s\")\n",

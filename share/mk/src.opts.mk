@@ -99,7 +99,6 @@ __DEFAULT_YES_OPTIONS = \
     FINGER \
     FLOPPY \
     FORTH \
-    FP_LIBC \
     FREEBSD_UPDATE \
     FTP \
     GAMES \

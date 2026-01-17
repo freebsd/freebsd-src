@@ -1,3 +1,0 @@
-Build
-.Nm libc
-without floating-point support.

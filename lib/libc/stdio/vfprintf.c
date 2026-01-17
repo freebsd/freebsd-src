@@ -314,7 +314,6 @@ __vfprintf(FILE *fp, locale_t locale, int serrno, const char *fmt0, va_list ap)
 	char sign;		/* sign prefix (' ', '+', '-', or \0) */
 	struct grouping_state gs; /* thousands' grouping info */
 
-#ifndef NO_FLOATING_POINT
 	/*
 	 * We can decompose the printed representation of floating
 	 * point numbers into several parts, some of which may be empty:
@@ -343,7 +342,6 @@ __vfprintf(FILE *fp, locale_t locale, int serrno, const char *fmt0, va_list ap)
 	int ndig;		/* actual number of digits returned by dtoa */
 	char expstr[MAXEXPDIG+2];	/* buffer for exponent string: e+ZZZ */
 	char *dtoaresult;	/* buffer allocated by dtoa */
-#endif
 	u_long	ulval;		/* integer arguments %[diouxX] */
 	uintmax_t ujval;	/* %j, %ll, %q, %t, %z integers */
 	int base;		/* base for [diouxX] conversion */
@@ -465,12 +463,10 @@ __vfprintf(FILE *fp, locale_t locale, int serrno, const char *fmt0, va_list ap)
 	va_copy(orgap, ap);
 	io_init(&io, fp);
 	ret = 0;
-#ifndef NO_FLOATING_POINT
 	dtoaresult = NULL;
 	decimal_point = localeconv_l(locale)->decimal_point;
 	/* The overwhelmingly common case is decpt_len == 1. */
 	decpt_len = (decimal_point[1] == '\0' ? 1 : strlen(decimal_point));
-#endif
 
 	/*
 	 * Scan the format for conversions (`%' character).
@@ -574,11 +570,9 @@ reswitch:	switch (ch) {
 			}
 			width = n;
 			goto reswitch;
-#ifndef NO_FLOATING_POINT
 		case 'L':
 			flags |= LONGDBL;
 			goto rflag;
-#endif
 		case 'h':
 			if (flags & SHORTINT) {
 				flags &= ~SHORTINT;
@@ -704,7 +698,6 @@ reswitch:	switch (ch) {
 			}
 			base = 10;
 			goto number;
-#ifndef NO_FLOATING_POINT
 		case 'a':
 		case 'A':
 			if (ch == 'a') {
@@ -823,7 +816,6 @@ fp_common:
 					size += grouping_init(&gs, expt, locale);
 			}
 			break;
-#endif /* !NO_FLOATING_POINT */
 		case 'm':
 			error = __strerror_rl(serrno, errnomsg,
 			    sizeof(errnomsg), locale);
@@ -1023,9 +1015,7 @@ invalid:
 			PAD(width - realsz, zeroes);
 
 		/* the string or number proper */
-#ifndef NO_FLOATING_POINT
 		if ((flags & FPT) == 0) {
-#endif
 			/* leading zeroes from decimal precision */
 			PAD(dprec - size, zeroes);
 			if (gs.grouping) {
@@ -1034,7 +1024,6 @@ invalid:
 			} else {
 				PRINT(cp, size);
 			}
-#ifndef NO_FLOATING_POINT
 		} else {	/* glue together f_p fragments */
 			if (!expchar) {	/* %[fF] or sufficiently short %[gG] */
 				if (expt <= 0) {
@@ -1071,7 +1060,6 @@ invalid:
 				PRINT(expstr, expsize);
 			}
 		}
-#endif
 		/* left-adjusting padding (always blank) */
 		if (flags & LADJUST)
 			PAD(width - realsz, blanks);
@@ -1085,10 +1073,8 @@ done:
 	FLUSH();
 error:
 	va_end(orgap);
-#ifndef NO_FLOATING_POINT
 	if (dtoaresult != NULL)
 		freedtoa(dtoaresult);
-#endif
 	if (convbuf != NULL)
 		free(convbuf);
 	if (__sferror(fp))
