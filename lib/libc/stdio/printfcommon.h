@@ -43,7 +43,6 @@
  */
 
 
-#ifndef NO_FLOATING_POINT
 
 #define	dtoa		__dtoa
 #define	freedtoa	__freedtoa
@@ -57,7 +56,6 @@
 
 static int exponent(CHAR *, int, CHAR);
 
-#endif /* !NO_FLOATING_POINT */
 
 static CHAR	*__ujtoa(uintmax_t, CHAR *, int, int, const char *);
 static CHAR	*__ultoa(u_long, CHAR *, int, int, const char *);
@@ -280,7 +278,6 @@ __ujtoa(uintmax_t val, CHAR *endp, int base, int octzero, const char *xdigs)
 	return (cp);
 }
 
-#ifndef NO_FLOATING_POINT
 
 static int
 exponent(CHAR *p0, int exp, CHAR fmtch)
@@ -318,4 +315,3 @@ exponent(CHAR *p0, int exp, CHAR fmtch)
 	return (p - p0);
 }
 
-#endif /* !NO_FLOATING_POINT */
