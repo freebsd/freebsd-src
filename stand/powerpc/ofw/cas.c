@@ -128,7 +128,7 @@ struct opt_vec5 {
 } __packed;
 
 static struct ibm_arch_vec {
-	struct pvr		pvr_list[10];
+	struct pvr		pvr_list[13];
 	uint8_t			num_opts;
 	struct opt_vec_ignore	vec1;
 	struct opt_vec_ignore	vec2;
