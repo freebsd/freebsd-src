@@ -184,14 +184,18 @@ bectl_cmd_create(int argc, char *argv[])
 	char snapshot[BE_MAXPATHLEN];
 	char *atpos, *bootenv, *snapname;
 	int err, opt;
-	bool recursive;
+	bool empty, recursive;
 
 	snapname = NULL;
+	empty = false;
 	recursive = false;
-	while ((opt = getopt(argc, argv, "e:r")) != -1) {
+	while ((opt = getopt(argc, argv, "e:Er")) != -1) {
 		switch (opt) {
 		case 'e':
 			snapname = optarg;
+			break;
+		case 'E':
+			empty = true;
 			break;
 		case 'r':
 			recursive = true;
@@ -221,6 +225,12 @@ bectl_cmd_create(int argc, char *argv[])
 		 */
 		*atpos++ = '\0';
 		err = be_snapshot(be, bootenv, atpos, recursive, NULL);
+	} else if (empty) {
+		if (snapname || recursive) {
+	  		fprintf(stderr, "bectl create: -E cannot be combined with -e or -r\n");
+			return (usage(false));
+		}
+		err = be_create_empty(be, bootenv);
 	} else {
 		if (snapname == NULL)
 			/* Create from currently booted BE */

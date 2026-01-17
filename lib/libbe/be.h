@@ -65,6 +65,7 @@ bool be_is_auto_snapshot_name(libbe_handle_t *, const char *);
 /* Bootenv creation functions */
 int be_create(libbe_handle_t *, const char *);
 int be_create_depth(libbe_handle_t *, const char *, const char *, int);
+int be_create_empty(libbe_handle_t *, const char *);
 int be_create_from_existing(libbe_handle_t *, const char *, const char *);
 int be_create_from_existing_snap(libbe_handle_t *, const char *, const char *);
 int be_snapshot(libbe_handle_t *, const char *, const char *, bool, char *);

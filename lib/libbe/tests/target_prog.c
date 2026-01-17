@@ -27,6 +27,7 @@
 
 #include <sys/cdefs.h>
 #include <be.h>
+#include <string.h>
 
 /*
  * argv[1] = root boot environment (e.g. zroot/ROOT),
@@ -46,5 +47,7 @@ int main(int argc, char *argv[]) {
 
 	libbe_print_on_error(lbh, true);
 
+        if (strcmp(argv[2], "empty") == 0)
+                return (be_create_empty(lbh, argv[2]));
 	return (be_create_depth(lbh, argv[2], argv[3], atoi(argv[4])));
 }

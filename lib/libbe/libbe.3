@@ -69,6 +69,9 @@
 .Fn be_create_depth "libbe_handle_t *hdl" "const char *be_name" "const char *snap" "int depth"
 .Pp
 .Ft int
+.Fn be_create_empty "libbe_handle_t *hdl" "const char *be_name"
+.Pp
+.Ft int
 .Fn be_create_from_existing "libbe_handle_t *hdl" "const char *be_name" "const char *be_origin"
 .Pp
 .Ft int
@@ -280,6 +283,10 @@ The depth parameter specifies the depth of recursion that will be cloned from
 the existing snapshot.
 A depth of '0' is no recursion and '-1' is unlimited (i.e., a recursive boot
 environment).
+.Pp
+The
+.Fn be_create_empty
+function creates an empty boot environment with the given name.
 .Pp
 The
 .Fn be_create_from_existing

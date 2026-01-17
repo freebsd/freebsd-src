@@ -893,6 +893,26 @@ be_create_from_existing(libbe_handle_t *lbh, const char *bename, const char *old
 
 
 /*
+ * Create an empty boot environment.
+ */
+int
+be_create_empty(libbe_handle_t *lbh, const char *bename)
+{
+	char buf[BE_MAXPATHLEN];
+	int err;
+
+	if ((err = be_validate_name(lbh, bename)) != 0)
+		return (set_error(lbh, err));
+
+	if ((err = be_root_concat(lbh, bename, buf)) != 0)
+		return (set_error(lbh, err));
+
+	err = zfs_create(lbh->lzh, buf, ZFS_TYPE_FILESYSTEM, NULL);
+	return (set_error(lbh, err));
+}
+
+
+/*
  * Verifies that a snapshot has a valid name, exists, and has a mountpoint of
  * '/'. Returns BE_ERR_SUCCESS (0), upon success, or the relevant BE_ERR_* upon
  * failure. Does not set the internal library error state.
