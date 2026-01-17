@@ -337,7 +337,7 @@ unspecified_v6_cleanup()
 }
 
 atf_test_case "rdr_action" "cleanup"
-rdr_head()
+rdr_action_head()
 {
 	atf_set descr 'Ensure that NAT rule actions are logged correctly'
 	atf_set require.user root
