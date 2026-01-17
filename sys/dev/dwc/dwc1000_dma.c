@@ -276,7 +276,7 @@ dma1000_setup_txbuf(struct dwc_softc *sc, int idx, struct mbuf **mp)
 
 	m = *mp;
 
-	if ((m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) != 0)
+	if ((m->m_pkthdr.csum_flags & (CSUM_DELAY_DATA | CSUM_DELAY_DATA_IPV6)) != 0)
 		flags = sc->dma_ext_desc ? ETDESC0_CIC_SEG : NTDESC1_CIC_SEG;
 	else if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0)
 		flags = sc->dma_ext_desc ? ETDESC0_CIC_HDR : NTDESC1_CIC_HDR;
