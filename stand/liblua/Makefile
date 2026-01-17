@@ -14,6 +14,13 @@ SRCS=	lapi.c lcode.c lctype.c ldebug.c ldo.c ldump.c lfunc.c lgc.c llex.c \
         ltm.c lundump.c lvm.c lzio.c
 SRCS+=	lauxlib.c lbaselib.c lstrlib.c loadlib.c
 
+.if defined(EFI)
+CFLAGS+=	-I${EFISRC}/include
+CFLAGS+=	-I${EFISRC}/include/${MACHINE}
+.PATH: ${LIBLUASRC}/efi
+SRCS+= lefi.c lefi_handles.c lefi_protocols.c lefi_console.c lefi_guid.c lefi_utils.c
+.endif
+
 # These aren't yet included, but link now, omitting them saves 15k
 #SRCS+=	lcorolib.c ldblib.c lutf8lib.c
 
