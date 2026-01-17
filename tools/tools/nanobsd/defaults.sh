@@ -107,6 +107,7 @@ NANO_LATE_CUSTOMIZE=""
 
 # Newfs parameters to use
 NANO_NEWFS="-b 4096 -f 512 -i 8192 -U"
+NANO_MAKEFS="-o bsize=4096,density=8192,fsize=512,softupdates=1,version=2"
 
 # The drive name of the media at runtime
 NANO_DRIVE=ada0
@@ -688,6 +689,18 @@ newfs_part() {
 	mount -o async ${dev} ${mnt}
 }
 
+nano_makefs() {
+	local dir image metalog options size
+	options=$1
+	metalog=$2
+	size=$3
+	image=$4
+	dir=$5
+
+	makefs ${options} -F "${metalog}" -N "${NANO_WORLDDIR}/etc" \
+	    -s "${size}b" -T "${NANO_TIMESTAMP}" -t ffs "${image}" "${dir}"
+}
+
 # Convenient spot to work around any umount issues that your build environment
 # hits by overriding this method.
 nano_umount() {
@@ -1002,6 +1015,7 @@ set_defaults_and_export() {
 	export_var NANO_IMGNAME
 	export_var NANO_IMG1NAME
 	export_var NANO_MAKE
+	export_var NANO_MAKEFS
 	export_var NANO_MAKE_CONF_BUILD
 	export_var NANO_MAKE_CONF_INSTALL
 	export_var NANO_MEDIASIZE

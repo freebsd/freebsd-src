@@ -92,6 +92,17 @@ calculate_partitioning() {
 	' > ${NANO_LOG}/_.partitioning
 }
 
+_xxx_adjust_code_size()
+{
+	# XXX adjust the CODE_SIZE value by rounding it up to
+	# a bsize of 32768 (DFL_BLKSIZE).
+	# Otherwise makefs -s will fail because of the guard
+	# introduced in 5ad283b3c60d.
+	codesize=$1
+	bsize=32768
+	echo $(( ((codesize + (bsize - 1)) / bsize) * bsize ))
+}
+
 create_code_slice() {
 	pprint 2 "build code slice"
 	pprint 3 "log: ${NANO_OBJ}/_.cs"
