@@ -65,6 +65,16 @@ CWARNFLAGS.main.c+=	-Wno-format
 .PATH: ${.CURDIR}/../loader/arch/${__arch}
 .include "${.CURDIR}/../loader/arch/${__arch}/Makefile.inc"
 
+.if ${LOADER_INTERP} == "lua"
+.PATH: ${BOOTSRC}/liblua/efi
+SRCS+=	lefi.c \
+	lefi_handles.c \
+	lefi_protocols.c \
+	lefi_console.c \
+	lefi_guid.c \
+	lefi_utils.c
+.endif
+
 CFLAGS+=	-Wall
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/arch/${__arch}
