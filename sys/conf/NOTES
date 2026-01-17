@@ -1863,7 +1863,6 @@ device		xmphy		# XaQti XMAC II
 #       L1 PCI express gigabit ethernet controllers.
 # alc:  Support for Atheros AR8131/AR8132 PCIe ethernet controllers.
 # ale:  Support for Atheros AR8121/AR8113/AR8114 PCIe ethernet controllers.
-# aq:   Aquantia / Marvell AQC1xx PCIe Ethernet adapter.
 # ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 # bce:	Broadcom NetXtreme II (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet
 #       adapters.
@@ -2005,7 +2004,6 @@ device		ix		# Intel Pro/10GbE PCIE Ethernet
 device		ixv		# Intel Pro/10GbE PCIE Ethernet VF
 
 # PCI Ethernet NICs.
-device		aq		# Aquantia / Marvell AQC1xx
 device		cxgb		# Chelsio T3 10 Gigabit Ethernet
 device		cxgb_t3fw	# Chelsio T3 10 Gigabit Ethernet firmware
 device		cxgbe		# Chelsio T4-T6 1/10/25/40/100 Gigabit Ethernet
