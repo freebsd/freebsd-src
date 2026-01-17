@@ -567,7 +567,7 @@ setup_nanobsd() {
 	echo "mount -o ro /dev/${NANO_DRIVE}${NANO_SLICE_CFG}" > conf/default/etc/remount
 
 	# Put /tmp on the /var ramdisk (could be symlink already)
-	tgt_dir2symlink tmp var/tmp
+	tgt_dir2symlink tmp var/tmp 1777
 
 	) > ${NANO_LOG}/_.dl 2>&1
 }
