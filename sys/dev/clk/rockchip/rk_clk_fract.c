@@ -80,7 +80,7 @@ DEFINE_CLASS_1(rk_clk_fract, rk_clk_fract_class, rk_clk_fract_methods,
  * http://en.wikipedia.org/wiki/Continued_fraction
  *
  * - n_input, d_input	Given input fraction
- * - n_max, d_max	Maximum vaues of divider registers
+ * - n_max, d_max	Maximum values of divider registers
  * - n_out, d_out	Computed approximation
  */
 
