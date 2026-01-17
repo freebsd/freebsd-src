@@ -174,7 +174,7 @@ NANO_PARTITION_ALTROOT=a
 NANO_ROOT=s1a
 NANO_ALTROOT=s2a
 
-# Default ownwership for nopriv build
+# Default ownership for nopriv build
 NANO_DEF_UNAME=root
 NANO_DEF_GNAME=wheel
 
