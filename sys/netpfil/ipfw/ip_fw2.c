@@ -3741,11 +3741,8 @@ vnet_ipfw_uninit(const void *unused)
 	last = IS_DEFAULT_VNET(curvnet) ? 1 : 0;
 
 	IPFW_UH_WLOCK(chain);
-	IPFW_UH_WUNLOCK(chain);
 
 	ipfw_dyn_uninit(0);	/* run the callout_drain */
-
-	IPFW_UH_WLOCK(chain);
 
 	reap = NULL;
 	IPFW_WLOCK(chain);

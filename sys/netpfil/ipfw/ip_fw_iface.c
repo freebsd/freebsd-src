@@ -320,9 +320,7 @@ ipfw_iface_ref(struct ip_fw_chain *ch, char *name,
 		 * First request to subsystem.
 		 * Let's perform init.
 		 */
-		IPFW_UH_WUNLOCK(ch);
 		vnet_ipfw_iface_init(ch);
-		IPFW_UH_WLOCK(ch);
 		ii = CHAIN_TO_II(ch);
 	}
 
@@ -334,8 +332,6 @@ ipfw_iface_ref(struct ip_fw_chain *ch, char *name,
 		IPFW_UH_WUNLOCK(ch);
 		return (0);
 	}
-
-	IPFW_UH_WUNLOCK(ch);
 
 	/* Not found. Let's create one */
 	iif = malloc(sizeof(struct ipfw_iface), M_IPFW, M_WAITOK | M_ZERO);
@@ -350,7 +346,6 @@ ipfw_iface_ref(struct ip_fw_chain *ch, char *name,
 	 * are not holding any locks.
 	 */
 	iif->no.refcnt = 1;
-	IPFW_UH_WLOCK(ch);
 
 	tmp = (struct ipfw_iface *)ipfw_objhash_lookup_name(ii, 0, name);
 	if (tmp != NULL) {

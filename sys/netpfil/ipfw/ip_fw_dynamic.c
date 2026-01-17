@@ -663,6 +663,8 @@ dyn_create(struct ip_fw_chain *ch, struct tid_info *ti,
 	ipfw_obj_ntlv *ntlv;
 	char *name;
 
+	IPFW_UH_WLOCK_ASSERT(ch);
+
 	DYN_DEBUG("uidx %u", ti->uidx);
 	if (ti->uidx != 0) {
 		if (ti->tlvs == NULL)
@@ -681,7 +683,6 @@ dyn_create(struct ip_fw_chain *ch, struct tid_info *ti,
 	obj->no.etlv = IPFW_TLV_STATE_NAME;
 	strlcpy(obj->name, name, sizeof(obj->name));
 
-	IPFW_UH_WLOCK(ch);
 	no = ipfw_objhash_lookup_name_type(ni, 0,
 	    IPFW_TLV_STATE_NAME, name);
 	if (no != NULL) {
@@ -691,14 +692,12 @@ dyn_create(struct ip_fw_chain *ch, struct tid_info *ti,
 		 */
 		*pkidx = no->kidx;
 		no->refcnt++;
-		IPFW_UH_WUNLOCK(ch);
 		free(obj, M_IPFW);
 		DYN_DEBUG("\tfound kidx %u for name '%s'", *pkidx, no->name);
 		return (0);
 	}
 	if (ipfw_objhash_alloc_idx(ni, &obj->no.kidx) != 0) {
 		DYN_DEBUG("\talloc_idx failed for %s", name);
-		IPFW_UH_WUNLOCK(ch);
 		free(obj, M_IPFW);
 		return (ENOSPC);
 	}
@@ -706,7 +705,6 @@ dyn_create(struct ip_fw_chain *ch, struct tid_info *ti,
 	SRV_OBJECT(ch, obj->no.kidx) = obj;
 	obj->no.refcnt++;
 	*pkidx = obj->no.kidx;
-	IPFW_UH_WUNLOCK(ch);
 	DYN_DEBUG("\tcreated kidx %u for name '%s'", *pkidx, name);
 	return (0);
 }
@@ -2145,9 +2143,6 @@ dyn_free_states(struct ip_fw_chain *chain)
 	 * Userland can invoke ipfw_expire_dyn_states() to delete
 	 * specific states, this will lead to modification of expired
 	 * lists.
-	 *
-	 * XXXAE: do we need DYN_EXPIRED_LOCK? We can just use
-	 *	  IPFW_UH_WLOCK to protect access to these lists.
 	 */
 	DYN_EXPIRED_LOCK();
 	DYN_FREE_STATES(s4, s4n, ipv4);
@@ -2305,8 +2300,6 @@ dyn_expire_states(struct ip_fw_chain *ch, ipfw_range_tlv *rt)
 	struct dyn_ipv4_state *s4, *s4n, *s4p;
 	void *rule;
 	int bucket, removed, length, max_length;
-
-	IPFW_UH_WLOCK_ASSERT(ch);
 
 	/*
 	 * Unlink expired states from each bucket.
@@ -2734,10 +2727,6 @@ dyn_grow_hashtable(struct ip_fw_chain *chain, uint32_t new, int flags)
 	}								\
 } while (0)
 	/*
-	 * Prevent rules changing from userland.
-	 */
-	IPFW_UH_WLOCK(chain);
-	/*
 	 * Hold traffic processing until we finish resize to
 	 * prevent access to states lists.
 	 */
@@ -2780,7 +2769,6 @@ dyn_grow_hashtable(struct ip_fw_chain *chain, uint32_t new, int flags)
 	V_curr_dyn_buckets = new;
 
 	IPFW_WUNLOCK(chain);
-	IPFW_UH_WUNLOCK(chain);
 
 	/* Release old resources */
 	while (bucket-- != 0)
@@ -2818,15 +2806,8 @@ dyn_tick(void *vnetx)
 	 * First free states unlinked in previous passes.
 	 */
 	dyn_free_states(&V_layer3_chain);
-	/*
-	 * Now unlink others expired states.
-	 * We use IPFW_UH_WLOCK to avoid concurrent call of
-	 * dyn_expire_states(). It is the only function that does
-	 * deletion of state entries from states lists.
-	 */
-	IPFW_UH_WLOCK(&V_layer3_chain);
 	dyn_expire_states(&V_layer3_chain, NULL);
-	IPFW_UH_WUNLOCK(&V_layer3_chain);
+
 	/*
 	 * Send keepalives if they are enabled and the time has come.
 	 */
@@ -2863,14 +2844,24 @@ dyn_tick(void *vnetx)
 void
 ipfw_expire_dyn_states(struct ip_fw_chain *chain, ipfw_range_tlv *rt)
 {
+	IPFW_RLOCK_TRACKER;
+
 	/*
 	 * Do not perform any checks if we currently have no dynamic states
 	 */
 	if (V_dyn_count == 0)
 		return;
 
-	IPFW_UH_WLOCK_ASSERT(chain);
+	/*
+	 * Acquire read lock to prevent race with dyn_grow_hashtable() called
+	 * via dyn_tick().  Note that dyn_tick() also calls dyn_expire_states(),
+	 * but doesn't acquire the chain lock.  A race between dyn_tick() and
+	 * this function should be safe, as dyn_expire_states() does all proper
+	 * locking of buckets and expire lists.
+	 */
+	IPFW_RLOCK(chain);
 	dyn_expire_states(chain, rt);
+	IPFW_RUNLOCK(chain);
 }
 
 /*

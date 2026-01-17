@@ -277,7 +277,6 @@ create_table_compat(struct ip_fw_chain *ch, struct tid_info *ti,
  * creating new one.
  *
  * Saves found table config into @ptc.
- * Note function may drop/acquire UH_WLOCK.
  * Returns 0 if table was found/created and referenced
  * or non-zero return code.
  */
@@ -321,9 +320,7 @@ find_ref_table(struct ip_fw_chain *ch, struct tid_info *ti,
 	if ((tei->flags & TEI_FLAGS_COMPAT) == 0)
 		return (ESRCH);
 
-	IPFW_UH_WUNLOCK(ch);
 	error = create_table_compat(ch, ti, &kidx);
-	IPFW_UH_WLOCK(ch);
 
 	if (error != 0)
 		return (error);
@@ -560,12 +557,10 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	 */
 restart:
 	if (ts.modified != 0) {
-		IPFW_UH_WUNLOCK(ch);
 		flush_batch_buffer(ch, ta, tei, count, rollback,
 		    ta_buf_m, ta_buf);
 		memset(&ts, 0, sizeof(ts));
 		ta = NULL;
-		IPFW_UH_WLOCK(ch);
 	}
 
 	error = find_ref_table(ch, ti, tei, count, OP_ADD, &tc);
@@ -586,14 +581,12 @@ restart:
 	ts.count = count;
 	rollback = 0;
 	add_toperation_state(ch, &ts);
-	IPFW_UH_WUNLOCK(ch);
 
 	/* Allocate memory and prepare record(s) */
 	/* Pass stack buffer by default */
 	ta_buf_m = ta_buf;
 	error = prepare_batch_buffer(ch, ta, tei, count, OP_ADD, &ta_buf_m);
 
-	IPFW_UH_WLOCK(ch);
 	del_toperation_state(ch, &ts);
 	/* Drop reference we've used in first search */
 	tc->no.refcnt--;
@@ -612,8 +605,6 @@ restart:
 
 	/*
 	 * Link all values values to shared/per-table value array.
-	 *
-	 * May release/reacquire UH_WLOCK.
 	 */
 	error = ipfw_link_table_values(ch, &ts, flags);
 	if (error != 0)
@@ -623,7 +614,7 @@ restart:
 
 	/*
 	 * Ensure we are able to add all entries without additional
-	 * memory allocations. May release/reacquire UH_WLOCK.
+	 * memory allocations.
 	 */
 	kidx = tc->no.kidx;
 	error = check_table_space(ch, &ts, tc, KIDX_TO_TI(ch, kidx), count);
@@ -730,7 +721,6 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		return (error);
 	}
 	ta = tc->ta;
-	IPFW_UH_WUNLOCK(ch);
 
 	/* Allocate memory and prepare record(s) */
 	/* Pass stack buffer by default */
@@ -738,8 +728,6 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	error = prepare_batch_buffer(ch, ta, tei, count, OP_DEL, &ta_buf_m);
 	if (error != 0)
 		goto cleanup;
-
-	IPFW_UH_WLOCK(ch);
 
 	/* Drop reference we've used in first search */
 	tc->no.refcnt--;
@@ -841,12 +829,10 @@ check_table_space(struct ip_fw_chain *ch, struct tableop_state *ts,
 		/* We have to shrink/grow table */
 		if (ts != NULL)
 			add_toperation_state(ch, ts);
-		IPFW_UH_WUNLOCK(ch);
 
 		memset(&ta_buf, 0, sizeof(ta_buf));
 		error = ta->prepare_mod(ta_buf, &pflags);
 
-		IPFW_UH_WLOCK(ch);
 		if (ts != NULL)
 			del_toperation_state(ch, ts);
 
@@ -866,8 +852,6 @@ check_table_space(struct ip_fw_chain *ch, struct tableop_state *ts,
 		/* Check if we still need to alter table */
 		ti = KIDX_TO_TI(ch, tc->no.kidx);
 		if (ta->need_modify(tc->astate, ti, count, &pflags) == 0) {
-			IPFW_UH_WUNLOCK(ch);
-
 			/*
 			 * Other thread has already performed resize.
 			 * Flush our state and return.
@@ -1185,7 +1169,6 @@ restart:
 	tflags = tc->tflags;
 	tc->no.refcnt++;
 	add_toperation_state(ch, &ts);
-	IPFW_UH_WUNLOCK(ch);
 
 	/*
 	 * Stage 1.5: if this is not the first attempt, destroy previous state
@@ -1205,7 +1188,6 @@ restart:
 	 * Stage 3: swap old state pointers with newly-allocated ones.
 	 * Decrease refcount.
 	 */
-	IPFW_UH_WLOCK(ch);
 	tc->no.refcnt--;
 	del_toperation_state(ch, &ts);
 
@@ -1742,6 +1724,7 @@ create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	char *tname, *aname;
 	struct tid_info ti;
 	struct namedobj_instance *ni;
+	int rv;
 
 	if (sd->valsize != sizeof(*oh) + sizeof(ipfw_xtable_info))
 		return (EINVAL);
@@ -1769,14 +1752,15 @@ create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 
 	ni = CHAIN_TO_NI(ch);
 
-	IPFW_UH_RLOCK(ch);
+	IPFW_UH_WLOCK(ch);
 	if (find_table(ni, &ti) != NULL) {
-		IPFW_UH_RUNLOCK(ch);
+		IPFW_UH_WUNLOCK(ch);
 		return (EEXIST);
 	}
-	IPFW_UH_RUNLOCK(ch);
+	rv = create_table_internal(ch, &ti, aname, i, NULL, 0);
+	IPFW_UH_WUNLOCK(ch);
 
-	return (create_table_internal(ch, &ti, aname, i, NULL, 0));
+	return (rv);
 }
 
 /*
@@ -1797,6 +1781,8 @@ create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
 	struct table_algo *ta;
 	uint32_t kidx;
 
+	IPFW_UH_WLOCK_ASSERT(ch);
+
 	ni = CHAIN_TO_NI(ch);
 
 	ta = find_table_algo(CHAIN_TO_TCFG(ch), ti, aname);
@@ -1814,8 +1800,6 @@ create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
 	else
 		tc->locked = (i->flags & IPFW_TGFLAGS_LOCKED) != 0;
 
-	IPFW_UH_WLOCK(ch);
-
 	/* Check if table has been already created */
 	tc_new = find_table(ni, ti);
 	if (tc_new != NULL) {
@@ -1825,7 +1809,6 @@ create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
 		 * which has the same type
 		 */
 		if (compat == 0 || tc_new->no.subtype != tc->no.subtype) {
-			IPFW_UH_WUNLOCK(ch);
 			free_table_config(ni, tc);
 			return (EEXIST);
 		}
@@ -1837,7 +1820,6 @@ create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
 	} else {
 		/* New table */
 		if (ipfw_objhash_alloc_idx(ni, &kidx) != 0) {
-			IPFW_UH_WUNLOCK(ch);
 			printf("Unable to allocate table index."
 			    " Consider increasing net.inet.ip.fw.tables_max");
 			free_table_config(ni, tc);
@@ -1853,8 +1835,6 @@ create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
 		tc->no.refcnt++;
 	if (pkidx != NULL)
 		*pkidx = tc->no.kidx;
-
-	IPFW_UH_WUNLOCK(ch);
 
 	if (tc_new != NULL)
 		free_table_config(ni, tc_new);

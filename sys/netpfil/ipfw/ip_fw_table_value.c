@@ -167,7 +167,6 @@ update_tvalue(struct namedobj_instance *ni, struct named_object *no, void *arg)
 
 /*
  * Grows value storage shared among all tables.
- * Drops/reacquires UH locks.
  * Notifies other running adds on @ch shared storage resize.
  * Note function does not guarantee that free space
  * will be available after invocation, so one caller needs
@@ -200,14 +199,10 @@ resize_shared_value_storage(struct ip_fw_chain *ch)
 	if (val_size == (1 << 30))
 		return (ENOSPC);
 
-	IPFW_UH_WUNLOCK(ch);
-
 	valuestate = malloc(sizeof(struct table_value) * val_size, M_IPFW,
 	    M_WAITOK | M_ZERO);
 	ipfw_objhash_bitmap_alloc(val_size, (void *)&new_idx,
 	    &new_blocks);
-
-	IPFW_UH_WLOCK(ch);
 
 	/*
 	 * Check if we still need to resize
@@ -359,7 +354,6 @@ rollback_table_values(struct tableop_state *ts)
 
 /*
  * Allocate new value index in either shared or per-table array.
- * Function may drop/reacquire UH lock.
  *
  * Returns 0 on success.
  */
@@ -375,9 +369,7 @@ alloc_table_vidx(struct ip_fw_chain *ch, struct tableop_state *ts,
 	error = ipfw_objhash_alloc_idx(vi, &vidx);
 	if (error != 0) {
 		/*
-		 * We need to resize array. This involves
-		 * lock/unlock, so we need to check "modified"
-		 * state.
+		 * We need to resize array.
 		 */
 		ts->opstate.func(ts->tc, &ts->opstate);
 		error = resize_shared_value_storage(ch);
@@ -525,7 +517,6 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts,
 	add_toperation_state(ch, ts);
 	/* Ensure table won't disappear */
 	tc_ref(tc);
-	IPFW_UH_WUNLOCK(ch);
 
 	/*
 	 * Stage 2: allocate objects for non-existing values.
@@ -544,7 +535,6 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts,
 	 * Stage 3: allocate index numbers for new values
 	 * and link them to index.
 	 */
-	IPFW_UH_WLOCK(ch);
 	tc_unref(tc);
 	del_toperation_state(ch, ts);
 	if (ts->modified != 0) {
@@ -572,7 +562,6 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts,
 			continue;
 		}
 
-		/* May perform UH unlock/lock */
 		error = alloc_table_vidx(ch, ts, vi, &vidx, flags);
 		if (error != 0) {
 			ts->opstate.func(ts->tc, &ts->opstate);
