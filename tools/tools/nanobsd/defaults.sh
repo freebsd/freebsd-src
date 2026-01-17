@@ -257,7 +257,11 @@ tgt_touch() (
 	cd "${NANO_WORLDDIR}"
 	for i; do
 		touch $i
-		echo "./${i} type=file" >> ${NANO_METALOG}
+		if [ -n "$NANO_METALOG" ]; then
+			echo "./${i} type=file" \
+			    "uname=${NANO_DEF_UNAME} gname=${NANO_DEF_GNAME}" \
+			    "mode=0644" >> "${NANO_METALOG}"
+		fi
 	done
 )
 
@@ -275,7 +279,9 @@ tgt_dir2symlink() (
 	rm -xrf "$dir"
 	ln -s "$symlink" "$dir"
 	if [ -n "$NANO_METALOG" ]; then
-		echo "./${dir} type=link mode=0777 link=${symlink}" >> ${NANO_METALOG}
+		echo "./${dir} type=link" \
+		    "uname=${NANO_DEF_UNAME} gname=${NANO_DEF_GNAME}" \
+		    "mode=0777 link=${symlink}" >> ${NANO_METALOG}
 	fi
 )
 
