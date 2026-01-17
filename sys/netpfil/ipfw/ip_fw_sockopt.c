@@ -210,8 +210,6 @@ ipfw_free_rule(struct ip_fw *rule)
 	 */
 	if (rule->refcnt > 1)
 		return;
-	if (ACTION_PTR(rule)->opcode == O_LOG)
-		ipfw_tap_free(rule->rulenum);
 	uma_zfree_pcpu(V_ipfw_cntr_zone, rule->cntr);
 	free(rule, M_IPFW);
 }
@@ -505,6 +503,8 @@ ipfw_commit_rules(struct ip_fw_chain *chain, struct rule_check_info *rci,
 			memcpy((char *)ci->urule + ci->urule_numoff, &rulenum,
 			    sizeof(rulenum));
 		}
+		if (ACTION_PTR(krule)->opcode == O_LOG)
+			ipfw_tap_alloc(chain, krule->rulenum);
 	}
 
 	/* duplicate the remaining part, we always have the default rule */
@@ -2102,6 +2102,8 @@ unref_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule)
 		else
 			no->refcnt--;
 	}
+	if (ACTION_PTR(rule)->opcode == O_LOG)
+		ipfw_tap_free(ch, rule->rulenum);
 }
 
 /*
@@ -2459,9 +2461,6 @@ import_rule_v1(struct ip_fw_chain *chain, struct rule_check_info *ci)
 
 	/* Copy opcodes */
 	memcpy(krule->cmd, urule->cmd, krule->cmd_len * sizeof(uint32_t));
-
-	if (ACTION_PTR(krule)->opcode == O_LOG)
-		ipfw_tap_alloc(krule->rulenum);
 }
 
 /*

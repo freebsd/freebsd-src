@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2016 Yandex LLC
  * Copyright (c) 2016 Andrey V. Elsukov <ae@FreeBSD.org>
- * Copyright (c) 2025 Gleb Smirnoff <glebius@FreeBSD.org>
+ * Copyright (c) 2025-2026 Gleb Smirnoff <glebius@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -68,20 +68,20 @@ tap_compare(const struct ipfw_tap *a, const struct ipfw_tap *b)
 {
 	return (a->rule != b->rule ? (a->rule < b->rule ? -1 : 1) : 0);
 }
-RB_HEAD(tap_tree, ipfw_tap);
-VNET_DEFINE_STATIC(struct tap_tree, tap_tree);
-#define	V_tap_tree	VNET(tap_tree)
 RB_GENERATE_STATIC(tap_tree, ipfw_tap, entry, tap_compare);
-VNET_DEFINE_STATIC(struct ipfw_tap *, default_tap);
+VNET_DEFINE_STATIC(struct ipfw_tap, default_tap) = { .name = "ipfw0" };
 #define	V_default_tap	VNET(default_tap)
 
 void
-ipfw_tap_alloc(uint32_t rule)
+ipfw_tap_alloc(struct ip_fw_chain *ch, uint32_t rule)
 {
 	struct ipfw_tap	*tap, key = { .rule = rule };
 	int n __diagused;
 
-	tap = RB_FIND(tap_tree, &V_tap_tree, &key);
+	MPASS(rule > 0 && rule < IPFW_DEFAULT_RULE);
+	IPFW_UH_WLOCK_ASSERT(ch);
+
+	tap = RB_FIND(tap_tree, &ch->taps, &key);
 	if (tap != NULL) {
 		MPASS(tap->rule == rule);
 		tap->refs++;
@@ -90,43 +90,51 @@ ipfw_tap_alloc(uint32_t rule)
 	tap = malloc(sizeof(*tap), M_IPFW, M_WAITOK);
 	tap->rule = rule;
 	tap->refs = 1;
-	/* Note: the default rule logs to "ipfw0". */
-	if (__predict_false(rule == IPFW_DEFAULT_RULE)) {
-		V_default_tap = tap;
-		rule = 0;
-	}
 	n = snprintf(tap->name, sizeof(tap->name), "ipfw%u", rule);
 	MPASS(n > 4 && n < sizeof("ipfw4294967295"));
 	tap->bpf = bpf_attach(tap->name, DLT_EN10MB, PFLOG_HDRLEN,
 	    &bpf_ipfw_methods, NULL);
-	tap = RB_INSERT(tap_tree, &V_tap_tree, tap);
+	tap = RB_INSERT(tap_tree, &ch->taps, tap);
 	MPASS(tap == NULL);
 }
 
 void
-ipfw_tap_free(uint32_t rule)
+ipfw_tap_free(struct ip_fw_chain *ch, uint32_t rule)
 {
-
 	struct ipfw_tap	*tap, key = { .rule = rule };
 
-	tap = RB_FIND(tap_tree, &V_tap_tree, &key);
+	MPASS(rule > 0 && rule < IPFW_DEFAULT_RULE);
+	IPFW_UH_WLOCK_ASSERT(ch);
+
+	tap = RB_FIND(tap_tree, &ch->taps, &key);
 	MPASS(tap != NULL);
 	if (--tap->refs == 0) {
 		bpf_detach(tap->bpf);
-		RB_REMOVE(tap_tree, &V_tap_tree, tap);
+		RB_REMOVE(tap_tree, &ch->taps, tap);
 		free(tap, M_IPFW);
 	}
 }
 
 void
-ipfw_bpf_tap(struct ip_fw_args *args, struct ip *ip, uint32_t rulenum)
+ipfw_bpf_tap(struct ip_fw_chain *ch, struct ip_fw_args *args,
+    struct ip *ip, uint32_t rulenum)
 {
-	struct ipfw_tap *tap, key = { .rule = rulenum };
+	struct ipfw_tap *tap;
 
-	tap = RB_FIND(tap_tree, &V_tap_tree, &key);
-	MPASS(tap != NULL);
-	if (!bpf_peers_present(tap->bpf))
-		tap = V_default_tap;
+	if (rulenum == IPFW_DEFAULT_RULE) {
+		tap = &V_default_tap;
+	} else {
+		struct ipfw_tap key = { .rule = rulenum };
+
+		tap = RB_FIND(tap_tree, &ch->taps, &key);
+		MPASS(tap != NULL);
+		/*
+		 * Compatibility: if user is not using per-rule taps, fallback
+		 * to the default tap.
+		 */
+		if (!bpf_peers_present(tap->bpf))
+			tap = &V_default_tap;
+	}
 	if (args->flags & IPFW_ARGS_LENMASK) {
 		bpf_tap(tap->bpf, args->mem, IPFW_ARGS_LENGTH(args->flags));
 	} else if (args->flags & IPFW_ARGS_ETHER) {
@@ -161,7 +169,8 @@ ipfw_pflog_tap(void *data, struct mbuf *m)
 void
 ipfw_bpf_init(int first __unused)
 {
-	ipfw_tap_alloc(IPFW_DEFAULT_RULE);
+	V_default_tap.bpf = bpf_attach(V_default_tap.name, DLT_EN10MB,
+	    PFLOG_HDRLEN, &bpf_ipfw_methods, NULL);
 	V_bpf_pflog = bpf_attach("ipfwlog0", DLT_PFLOG, PFLOG_HDRLEN,
 	    &bpf_ipfw_methods, NULL);
 }
@@ -169,7 +178,6 @@ ipfw_bpf_init(int first __unused)
 void
 ipfw_bpf_uninit(int last __unused)
 {
-
-	ipfw_tap_free(IPFW_DEFAULT_RULE);
+	bpf_detach(V_default_tap.bpf);
 	bpf_detach(V_bpf_pflog);
 }
