@@ -61,34 +61,6 @@
 #include <netpfil/ipfw/ip_fw_private.h>
 #include <netpfil/ipfw/ip_fw_table.h>
 
- /*
- * Table has the following `type` concepts:
- *
- * `no.type` represents lookup key type (addr, ifp, uid, etc..)
- * vmask represents bitmask of table values which are present at the moment.
- * Special IPFW_VTYPE_LEGACY ( (uint32_t)-1 ) represents old
- * single-value-for-all approach.
- */
-struct table_config {
-	struct named_object	no;
-	uint8_t		tflags;		/* type flags */
-	uint8_t		locked;		/* 1 if locked from changes */
-	uint8_t		linked;		/* 1 if already linked */
-	uint8_t		ochanged;	/* used by set swapping */
-	uint8_t		vshared;	/* 1 if using shared value array */
-	uint8_t		spare[3];
-	uint32_t	count;		/* Number of records */
-	uint32_t	limit;		/* Max number of records */
-	uint32_t	vmask;		/* bitmask with supported values */
-	uint32_t	ocount;		/* used by set swapping */
-	uint64_t	gencnt;		/* generation count */
-	char		tablename[64];	/* table name */
-	struct table_algo	*ta;	/* Callbacks for given algo */
-	void		*astate;	/* algorithm state */
-	struct table_info	ti_copy;	/* data to put to table_info */
-	struct namedobj_instance	*vi;
-};
-
 static int find_table_err(struct namedobj_instance *ni, struct tid_info *ti,
     struct table_config **tc);
 static struct table_config *find_table(struct namedobj_instance *ni,
@@ -115,8 +87,8 @@ static int swap_tables(struct ip_fw_chain *ch, struct tid_info *a,
     struct tid_info *b);
 
 static int check_table_name(const char *name);
-static int check_table_space(struct ip_fw_chain *ch, struct tableop_state *ts,
-    struct table_config *tc, struct table_info *ti, uint32_t count);
+static int check_table_space(struct ip_fw_chain *ch, struct table_config *tc,
+    struct table_info *ti, uint32_t count);
 static int destroy_table(struct ip_fw_chain *ch, struct tid_info *ti);
 
 static struct table_algo *find_table_algo(struct tables_config *tableconf,
@@ -129,49 +101,6 @@ static void ntlv_to_ti(struct _ipfw_obj_ntlv *ntlv, struct tid_info *ti);
 #define	KIDX_TO_TI(ch, k)	(&(((struct table_info *)(ch)->tablestate)[k]))
 
 #define	TA_BUF_SZ	128	/* On-stack buffer for add/delete state */
-
-void
-rollback_toperation_state(struct ip_fw_chain *ch, void *object)
-{
-	struct tables_config *tcfg;
-	struct op_state *os;
-
-	tcfg = CHAIN_TO_TCFG(ch);
-	TAILQ_FOREACH(os, &tcfg->state_list, next)
-		os->func(object, os);
-}
-
-void
-add_toperation_state(struct ip_fw_chain *ch, struct tableop_state *ts)
-{
-	struct tables_config *tcfg;
-
-	tcfg = CHAIN_TO_TCFG(ch);
-	TAILQ_INSERT_HEAD(&tcfg->state_list, &ts->opstate, next);
-}
-
-void
-del_toperation_state(struct ip_fw_chain *ch, struct tableop_state *ts)
-{
-	struct tables_config *tcfg;
-
-	tcfg = CHAIN_TO_TCFG(ch);
-	TAILQ_REMOVE(&tcfg->state_list, &ts->opstate, next);
-}
-
-void
-tc_ref(struct table_config *tc)
-{
-
-	tc->no.refcnt++;
-}
-
-void
-tc_unref(struct table_config *tc)
-{
-
-	tc->no.refcnt--;
-}
 
 static struct table_value *
 get_table_value(struct ip_fw_chain *ch, struct table_config *tc, uint32_t kidx)
@@ -473,56 +402,8 @@ flush_batch_buffer(struct ip_fw_chain *ch, struct table_algo *ta,
 		free(ta_buf_m, M_TEMP);
 }
 
-static void
-rollback_add_entry(void *object, struct op_state *_state)
-{
-	struct ip_fw_chain *ch __diagused;
-	struct tableop_state *ts;
-
-	ts = (struct tableop_state *)_state;
-
-	if (ts->tc != object && ts->ch != object)
-		return;
-
-	ch = ts->ch;
-
-	IPFW_UH_WLOCK_ASSERT(ch);
-
-	/* Call specifid unlockers */
-	rollback_table_values(ts);
-
-	/* Indicate we've called */
-	ts->modified = 1;
-}
-
 /*
  * Adds/updates one or more entries in table @ti.
- *
- * Function may drop/reacquire UH wlock multiple times due to
- * items alloc, algorithm callbacks (check_space), value linkage
- * (new values, value storage realloc), etc..
- * Other processes like other adds (which may involve storage resize),
- * table swaps (which changes table data and may change algo type),
- * table modify (which may change value mask) may be executed
- * simultaneously so we need to deal with it.
- *
- * The following approach was implemented:
- * we have per-chain linked list, protected with UH lock.
- * add_table_entry prepares special on-stack structure wthich is passed
- * to its descendants. Users add this structure to this list before unlock.
- * After performing needed operations and acquiring UH lock back, each user
- * checks if structure has changed. If true, it rolls local state back and
- * returns without error to the caller.
- * add_table_entry() on its own checks if structure has changed and restarts
- * its operation from the beginning (goto restart).
- *
- * Functions which are modifying fields of interest (currently
- *   resize_shared_value_storage() and swap_tables() )
- * traverses given list while holding UH lock immediately before
- * performing their operations calling function provided be list entry
- * ( currently rollback_add_entry  ) which performs rollback for all necessary
- * state and sets appropriate values in structure indicating rollback
- * has happened.
  *
  * Algo interaction:
  * Function references @ti first to ensure table won't
@@ -542,86 +423,47 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	struct table_config *tc;
 	struct table_algo *ta;
 	struct tentry_info *ptei;
-	struct tableop_state ts;
 	char ta_buf[TA_BUF_SZ];
 	caddr_t ta_buf_m, v;
 	uint32_t kidx, num, numadd;
-	int error, first_error, i, rollback;
+	int error, first_error, i, rollback = 0;
 
-	memset(&ts, 0, sizeof(ts));
-	ta = NULL;
 	IPFW_UH_WLOCK(ch);
 
 	/*
 	 * Find and reference existing table.
 	 */
-restart:
-	if (ts.modified != 0) {
-		flush_batch_buffer(ch, ta, tei, count, rollback,
-		    ta_buf_m, ta_buf);
-		memset(&ts, 0, sizeof(ts));
-		ta = NULL;
-	}
-
 	error = find_ref_table(ch, ti, tei, count, OP_ADD, &tc);
 	if (error != 0) {
 		IPFW_UH_WUNLOCK(ch);
 		return (error);
 	}
+	/* Drop reference we've used in first search */
+	tc->no.refcnt--;
 	ta = tc->ta;
-
-	/* Fill in tablestate */
-	ts.ch = ch;
-	ts.opstate.func = rollback_add_entry;
-	ts.tc = tc;
-	ts.vshared = tc->vshared;
-	ts.vmask = tc->vmask;
-	ts.ta = ta;
-	ts.tei = tei;
-	ts.count = count;
-	rollback = 0;
-	add_toperation_state(ch, &ts);
 
 	/* Allocate memory and prepare record(s) */
 	/* Pass stack buffer by default */
 	ta_buf_m = ta_buf;
 	error = prepare_batch_buffer(ch, ta, tei, count, OP_ADD, &ta_buf_m);
-
-	del_toperation_state(ch, &ts);
-	/* Drop reference we've used in first search */
-	tc->no.refcnt--;
-
-	/* Check prepare_batch_buffer() error */
 	if (error != 0)
 		goto cleanup;
-
-	/*
-	 * Check if table swap has happened.
-	 * (so table algo might be changed).
-	 * Restart operation to achieve consistent behavior.
-	 */
-	if (ts.modified != 0)
-		goto restart;
 
 	/*
 	 * Link all values values to shared/per-table value array.
 	 */
-	error = ipfw_link_table_values(ch, &ts, flags);
+	error = ipfw_link_table_values(ch, tc, tei, count, flags);
 	if (error != 0)
 		goto cleanup;
-	if (ts.modified != 0)
-		goto restart;
 
 	/*
 	 * Ensure we are able to add all entries without additional
 	 * memory allocations.
 	 */
 	kidx = tc->no.kidx;
-	error = check_table_space(ch, &ts, tc, KIDX_TO_TI(ch, kidx), count);
+	error = check_table_space(ch, tc, KIDX_TO_TI(ch, kidx), count);
 	if (error != 0)
 		goto cleanup;
-	if (ts.modified != 0)
-		goto restart;
 
 	/* We've got valid table in @tc. Let's try to add data */
 	kidx = tc->no.kidx;
@@ -681,7 +523,7 @@ restart:
 
 	/* Permit post-add algorithm grow/rehash. */
 	if (numadd != 0)
-		check_table_space(ch, NULL, tc, KIDX_TO_TI(ch, kidx), 0);
+		check_table_space(ch, tc, KIDX_TO_TI(ch, kidx), 0);
 
 	/* Return first error to user, if any */
 	error = first_error;
@@ -767,7 +609,7 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 
 	if (numdel != 0) {
 		/* Run post-del hook to permit shrinking */
-		check_table_space(ch, NULL, tc, KIDX_TO_TI(ch, kidx), 0);
+		check_table_space(ch, tc, KIDX_TO_TI(ch, kidx), 0);
 	}
 
 	IPFW_UH_WUNLOCK(ch);
@@ -796,8 +638,8 @@ cleanup:
  * Returns 0 on success.
  */
 static int
-check_table_space(struct ip_fw_chain *ch, struct tableop_state *ts,
-    struct table_config *tc, struct table_info *ti, uint32_t count)
+check_table_space(struct ip_fw_chain *ch, struct table_config *tc,
+    struct table_info *ti, uint32_t count)
 {
 	struct table_algo *ta;
 	uint64_t pflags;
@@ -826,28 +668,10 @@ check_table_space(struct ip_fw_chain *ch, struct tableop_state *ts,
 			break;
 		}
 
-		/* We have to shrink/grow table */
-		if (ts != NULL)
-			add_toperation_state(ch, ts);
-
 		memset(&ta_buf, 0, sizeof(ta_buf));
 		error = ta->prepare_mod(ta_buf, &pflags);
-
-		if (ts != NULL)
-			del_toperation_state(ch, ts);
-
 		if (error != 0)
 			break;
-
-		if (ts != NULL && ts->modified != 0) {
-			/*
-			 * Swap operation has happened
-			 * so we're currently operating on other
-			 * table data. Stop doing this.
-			 */
-			ta->flush_mod(ta_buf);
-			break;
-		}
 
 		/* Check if we still need to alter table */
 		ti = KIDX_TO_TI(ch, tc->no.kidx);
@@ -1097,20 +921,6 @@ flush_table_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	return (error);
 }
 
-static void
-restart_flush(void *object, struct op_state *_state)
-{
-	struct tableop_state *ts;
-
-	ts = (struct tableop_state *)_state;
-
-	if (ts->tc != object)
-		return;
-
-	/* Indicate we've called */
-	ts->modified = 1;
-}
-
 /*
  * Flushes given table.
  *
@@ -1129,8 +939,7 @@ flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 	struct table_info ti_old, ti_new, *tablestate;
 	void *astate_old, *astate_new;
 	char algostate[64], *pstate;
-	struct tableop_state ts;
-	int error, need_gc;
+	int error;
 	uint32_t kidx;
 	uint8_t tflags;
 
@@ -1144,15 +953,8 @@ flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 		IPFW_UH_WUNLOCK(ch);
 		return (ESRCH);
 	}
-	need_gc = 0;
 	astate_new = NULL;
 	memset(&ti_new, 0, sizeof(ti_new));
-restart:
-	/* Set up swap handler */
-	memset(&ts, 0, sizeof(ts));
-	ts.opstate.func = restart_flush;
-	ts.tc = tc;
-
 	ta = tc->ta;
 	/* Do not flush readonly tables */
 	if ((ta->flags & TA_FLAG_READONLY) != 0) {
@@ -1167,16 +969,6 @@ restart:
 	} else
 		pstate = NULL;
 	tflags = tc->tflags;
-	tc->no.refcnt++;
-	add_toperation_state(ch, &ts);
-
-	/*
-	 * Stage 1.5: if this is not the first attempt, destroy previous state
-	 */
-	if (need_gc != 0) {
-		ta->destroy(astate_new, &ti_new);
-		need_gc = 0;
-	}
 
 	/*
 	 * Stage 2: allocate new table instance using same algo.
@@ -1188,24 +980,9 @@ restart:
 	 * Stage 3: swap old state pointers with newly-allocated ones.
 	 * Decrease refcount.
 	 */
-	tc->no.refcnt--;
-	del_toperation_state(ch, &ts);
-
 	if (error != 0) {
 		IPFW_UH_WUNLOCK(ch);
 		return (error);
-	}
-
-	/*
-	 * Restart operation if table swap has happened:
-	 * even if algo may be the same, algo init parameters
-	 * may change. Restart operation instead of doing
-	 * complex checks.
-	 */
-	if (ts.modified != 0) {
-		/* Delay destroying data since we're holding UH lock */
-		need_gc = 1;
-		goto restart;
 	}
 
 	ni = CHAIN_TO_NI(ch);
@@ -1346,10 +1123,6 @@ swap_tables(struct ip_fw_chain *ch, struct tid_info *a,
 		IPFW_UH_WUNLOCK(ch);
 		return (EACCES);
 	}
-
-	/* Notify we're going to swap */
-	rollback_toperation_state(ch, tc_a);
-	rollback_toperation_state(ch, tc_b);
 
 	/* Everything is fine, prepare to swap */
 	tablestate = (struct table_info *)ch->tablestate;
@@ -1541,7 +1314,7 @@ ipfw_ref_table(struct ip_fw_chain *ch, ipfw_obj_ntlv *ntlv, uint32_t *kidx)
 	if (tc == NULL)
 		return (ESRCH);
 
-	tc_ref(tc);
+	tc->no.refcnt++;
 	*kidx = tc->no.kidx;
 
 	return (0);
