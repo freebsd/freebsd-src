@@ -390,8 +390,8 @@ dwc_rxfinish_one(struct dwc_softc *sc, struct dwc_hwdesc *desc,
 	m->m_len = len;
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
-	if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0 &&
-	  (rdesc0 & RDESC0_FT) != 0) {
+	if ((if_getcapenable(ifp) & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) != 0 &&
+	    (rdesc0 & RDESC0_FT) != 0) {
 		m->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
 		if ((rdesc0 & RDESC0_ICE) == 0)
 			m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
