@@ -286,6 +286,25 @@ tgt_dir2symlink() (
 	fi
 )
 
+#
+# Create directories in the target tree, and record the fact.  All paths
+# are relative to NANO_WORLDDIR.
+#
+tgt_dir() {
+	for i; do
+		mkdir -p "${NANO_WORLDDIR}/${i}"
+
+		if [ -n "$NANO_METALOG" ]; then
+			path=""
+			for dir in $(echo "$i" | tr "/" " "); do
+				path="${path}/${dir}"
+				echo ".${path} type=dir uname=${NANO_DEF_UNAME}" \
+				    "gname=${NANO_DEF_GNAME} mode=0755" >> "${NANO_METALOG}"
+			done
+		fi
+	done
+}
+
 # run in the world chroot, errors fatal
 CR() {
 	chroot "${NANO_WORLDDIR}" /bin/sh -exc "$*"
