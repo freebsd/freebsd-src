@@ -780,6 +780,10 @@ populate_data_slice() {
 	populate_slice "$1" "$2" "$3" "$4"
 }
 
+_populate_data_part() {
+	_populate_part "data" "$1" "$2" "$3" "$4" "$5"
+}
+
 last_orders() {
 	# Redefine this function with any last orders you may have
 	# after the build completed, for instance to copy the finished
