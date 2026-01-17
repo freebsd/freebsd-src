@@ -56,6 +56,9 @@ NANO_PKG_META_BASE=/var/db
 # directory located in Files.
 #NANO_CUST_FILES_MTREE=""
 
+# Use the time of the last commit as a timestamp when doing a NO_PRIV build.
+NANO_TIMESTAMP=$(git log -1 --format=%ct || true)
+
 # Object tree directory
 # default is subdir of /usr/obj
 #NANO_OBJ=""
@@ -969,6 +972,7 @@ set_defaults_and_export() {
 		NANO_METALOG=${NANO_OBJ}/_.metalog || true
 
 	NANO_STARTTIME=`date +%s`
+	: ${NANO_TIMESTAMP:=${NANO_STARTTIME}}
 	pprint 3 "Exporting NanoBSD variables"
 	export_var MAKEOBJDIRPREFIX
 	export_var NANO_ARCH
@@ -992,6 +996,7 @@ set_defaults_and_export() {
 	export_var NANO_PMAKE
 	export_var NANO_SECTS
 	export_var NANO_SRC
+	export_var NANO_TIMESTAMP
 	export_var NANO_TOOLS
 	export_var NANO_WORLDDIR
 	export_var NANO_BOOT0CFG
