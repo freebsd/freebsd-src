@@ -147,7 +147,7 @@ get_value_ptrs(struct ip_fw_chain *ch, struct table_config *tc,
 }
 
 /*
- * Update pointers to real vaues after @pval change.
+ * Update pointers to real values after @pval change.
  */
 static int
 update_tvalue(struct namedobj_instance *ni, struct named_object *no, void *arg)
