@@ -308,6 +308,22 @@ tgt_dir() {
 	done
 }
 
+#
+# Switch the current root partition in the target file system tab.
+# Takes two arguments: the current, and the new partition.
+#
+tgt_switch_root_fstab()
+{
+	local current new
+	current="$1"
+	new="$2"
+
+	for f in ${NANO_WORLDDIR}/etc/fstab ${NANO_WORLDDIR}/conf/base/etc/fstab
+	do
+		sed -i "" "s=${NANO_DRIVE}${current}=${NANO_DRIVE}${new}=g" "${f}"
+	done
+}
+
 # run in the world chroot, errors fatal
 CR() {
 	chroot "${NANO_WORLDDIR}" /bin/sh -exc "$*"
