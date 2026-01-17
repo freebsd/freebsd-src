@@ -1370,7 +1370,7 @@ swap_pager_getpages_locked(struct pctrie_iter *blks, vm_object_t object,
 
 	KASSERT((object->flags & OBJ_SWAP) != 0,
 	    ("%s: object not swappable", __func__));
-	for (i = 0; i < count; i++) {
+	for (pindex = 0, i = 0; i < count; i++) {
 		m = ma[i];
 		if (m != bogus_page) {
 			pindex = m->pindex - i;
