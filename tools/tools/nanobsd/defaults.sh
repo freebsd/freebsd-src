@@ -772,6 +772,10 @@ populate_cfg_slice() {
 	populate_slice "$1" "$2" "$3" "$4"
 }
 
+_populate_cfg_part() {
+	_populate_part "cfg" "$1" "$2" "$3" "$4" "$5"
+}
+
 populate_data_slice() {
 	populate_slice "$1" "$2" "$3" "$4"
 }
