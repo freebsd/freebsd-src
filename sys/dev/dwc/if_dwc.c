@@ -263,8 +263,8 @@ dwc_ioctl(if_t ifp, u_long cmd, caddr_t data)
 			/* No work to do except acknowledge the change took */
 			if_togglecapenable(ifp, IFCAP_VLAN_MTU);
 		}
-		if (mask & IFCAP_RXCSUM)
-			if_togglecapenable(ifp, IFCAP_RXCSUM);
+		if (mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
+			if_togglecapenable(ifp, IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
 		if (mask & IFCAP_TXCSUM)
 			if_togglecapenable(ifp, IFCAP_TXCSUM);
 		if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
@@ -614,7 +614,7 @@ dwc_attach(device_t dev)
 	if_setsendqlen(ifp, TX_MAP_COUNT - 1);
 	if_setsendqready(sc->ifp);
 	if_sethwassist(sc->ifp, CSUM_IP | CSUM_DELAY_DATA | CSUM_DELAY_DATA_IPV6);
-	if_setcapabilities(sc->ifp, IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_TXCSUM_IPV6);
+	if_setcapabilities(sc->ifp, IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6);
 	if_setcapenable(sc->ifp, if_getcapabilities(sc->ifp));
 
 	/* Attach the mii driver. */
