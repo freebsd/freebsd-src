@@ -35,6 +35,7 @@
 .Nm pthread_join ,
 .Nm pthread_peekjoin_np ,
 .Nm pthread_timedjoin_np
+.Nm pthread_tryjoin_np
 .Nd inspect thread termination state
 .Sh LIBRARY
 .Lb libpthread
@@ -54,6 +55,8 @@
 .Fa "void **value_ptr"
 .Fa "const struct timespec *abstime"
 .Fc
+.Ft int
+.Fn pthread_tryjoin_np "pthread_t thread" "void **value_ptr"
 .Sh DESCRIPTION
 The
 .Fn pthread_join
@@ -104,6 +107,13 @@ the
 .Fn pthread_join
 family of functions again.
 .Pp
+The
+.Fn pthread_tryjoin_np
+function joins the thread if it is already terminated, same as
+.Fn pthread_join .
+If the thread has not yet terminated, the function returns
+.Er EBUSY .
+.Pp
 A thread that has exited but remains unjoined counts against
 [_POSIX_THREAD_THREADS_MAX].
 .Sh RETURN VALUES
@@ -147,7 +157,9 @@ waited for thread exit.
 .Pp
 The
 .Fn pthread_peekjoin_np
-function will also fail if:
+and
+.Fn pthread_tryjoin_np
+functions will also fail if:
 .Bl -tag -width Er
 .It Bq Er EBUSY
 The specified thread has not yet exited.
@@ -168,7 +180,15 @@ function is a
 .Fx
 extension which first appeared in
 .Fx 6.1 .
-Another extension, the
+The
 .Fn pthread_peekjoin_np
-function, first appearead in
+function is a
+.Fx
+extension which first appearead in
 .Fx 13.0 .
+The
+.Fn pthread_tryjoin_np
+function is a
+.Fx
+extension which first appearead in
+.Fx 16.0 .
