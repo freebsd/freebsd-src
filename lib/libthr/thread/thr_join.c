@@ -43,14 +43,21 @@ __weak_reference(_thr_join, _pthread_join);
 __weak_reference(_pthread_timedjoin_np, pthread_timedjoin_np);
 __weak_reference(_pthread_peekjoin_np, pthread_peekjoin_np);
 
-static void backout_join(void *arg)
+static void
+backout_join(struct pthread *pthread, struct pthread *curthread)
+{
+	THR_THREAD_LOCK(curthread, pthread);
+	pthread->joiner = NULL;
+	THR_THREAD_UNLOCK(curthread, pthread);
+}
+
+static void
+backout_join_pop(void *arg)
 {
 	struct pthread *pthread = (struct pthread *)arg;
 	struct pthread *curthread = _get_curthread();
 
-	THR_THREAD_LOCK(curthread, pthread);
-	pthread->joiner = NULL;
-	THR_THREAD_UNLOCK(curthread, pthread);
+	backout_join(pthread, curthread);
 }
 
 int
@@ -149,10 +156,8 @@ join_common(pthread_t pthread, void **thread_return,
 	_thr_cancel_leave(curthread, 0);
 	THR_CLEANUP_POP(curthread, 0);
 
-	if (ret == ETIMEDOUT) {
-		THR_THREAD_LOCK(curthread, pthread);
-		pthread->joiner = NULL;
-		THR_THREAD_UNLOCK(curthread, pthread);
+	if (ret == ETIMEDOUT || ret == EBUSY) {
+		backout_join(pthread, curthread);
 	} else {
 		ret = 0;
 		tmp = pthread->ret;
