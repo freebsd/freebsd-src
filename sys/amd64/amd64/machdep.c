@@ -1518,13 +1518,11 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	/*
 	 * We initialize the PCB pointer early so that exception
-	 * handlers will work.  Also set up td_critnest to short-cut
-	 * the page fault handler.
+	 * handlers will work.
 	 */
 	cpu_max_ext_state_size = sizeof(struct savefpu);
 	set_top_of_stack_td(&thread0);
 	thread0.td_pcb = get_pcb_td(&thread0);
-	thread0.td_critnest = 1;
 
 	/*
 	 * The console and kdb should be initialized even earlier than here,
@@ -1615,7 +1613,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 #ifdef FDT
 	x86_init_fdt();
 #endif
-	thread0.td_critnest = 0;
 
 	kasan_init();
 	kmsan_init();
