@@ -65,6 +65,7 @@ int pthread_single_np(void);
 void pthread_suspend_all_np(void);
 int pthread_suspend_np(pthread_t);
 int pthread_timedjoin_np(pthread_t, void **, const struct timespec *);
+int pthread_tryjoin_np(pthread_t, void **);
 __END_DECLS
 
 #endif

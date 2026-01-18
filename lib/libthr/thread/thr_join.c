@@ -34,14 +34,17 @@
 #include "thr_private.h"
 
 int	_pthread_peekjoin_np(pthread_t pthread, void **thread_return);
+int	_pthread_tryjoin_np(pthread_t pthread, void **thread_return);
 int	_pthread_timedjoin_np(pthread_t pthread, void **thread_return,
 	    const struct timespec *abstime);
-static int join_common(pthread_t, void **, const struct timespec *, bool peek);
+static int join_common(pthread_t, void **, const struct timespec *, bool peek,
+	    bool try);
 
 __weak_reference(_thr_join, pthread_join);
 __weak_reference(_thr_join, _pthread_join);
 __weak_reference(_pthread_timedjoin_np, pthread_timedjoin_np);
 __weak_reference(_pthread_peekjoin_np, pthread_peekjoin_np);
+__weak_reference(_pthread_tryjoin_np, pthread_tryjoin_np);
 
 static void
 backout_join(struct pthread *pthread, struct pthread *curthread)
@@ -63,7 +66,7 @@ backout_join_pop(void *arg)
 int
 _thr_join(pthread_t pthread, void **thread_return)
 {
-	return (join_common(pthread, thread_return, NULL, false));
+	return (join_common(pthread, thread_return, NULL, false, false));
 }
 
 int
@@ -74,13 +77,34 @@ _pthread_timedjoin_np(pthread_t pthread, void **thread_return,
 	    abstime->tv_nsec >= 1000000000)
 		return (EINVAL);
 
-	return (join_common(pthread, thread_return, abstime, false));
+	return (join_common(pthread, thread_return, abstime, false, false));
 }
 
 int
 _pthread_peekjoin_np(pthread_t pthread, void **thread_return)
 {
-	return (join_common(pthread, thread_return, NULL, true));
+	return (join_common(pthread, thread_return, NULL, true, false));
+}
+
+int
+_pthread_tryjoin_np(pthread_t pthread, void **thread_return)
+{
+	return (join_common(pthread, thread_return, NULL, false, true));
+}
+
+static void
+join_common_joined(struct pthread *pthread, struct pthread *curthread,
+    void **thread_return)
+{
+	void *tmp;
+
+	tmp = pthread->ret;
+	pthread->flags |= THR_FLAGS_DETACHED;
+	pthread->joiner = NULL;
+	_thr_try_gc(curthread, pthread); /* thread lock released */
+
+	if (thread_return != NULL)
+		*thread_return = tmp;
 }
 
 /*
@@ -89,11 +113,10 @@ _pthread_peekjoin_np(pthread_t pthread, void **thread_return)
  */
 static int
 join_common(pthread_t pthread, void **thread_return,
-    const struct timespec *abstime, bool peek)
+    const struct timespec *abstime, bool peek, bool try)
 {
 	struct pthread *curthread = _get_curthread();
 	struct timespec ts, ts2, *tsp;
-	void *tmp;
 	long tid;
 	int ret;
 
@@ -127,12 +150,22 @@ join_common(pthread_t pthread, void **thread_return,
 		return (ret);
 	}
 
+	/* Only try to join. */
+	if (try) {
+		if (pthread->tid != TID_TERMINATED) {
+			THR_THREAD_UNLOCK(curthread, pthread);
+			return (EBUSY);
+		}
+		join_common_joined(pthread, curthread, thread_return);
+		return (0);
+	}
+
 	/* Set the running thread to be the joiner: */
 	pthread->joiner = curthread;
 
 	THR_THREAD_UNLOCK(curthread, pthread);
 
-	THR_CLEANUP_PUSH(curthread, backout_join, pthread);
+	THR_CLEANUP_PUSH(curthread, backout_join_pop, pthread);
 	_thr_cancel_enter(curthread);
 
 	tid = pthread->tid;
@@ -160,14 +193,8 @@ join_common(pthread_t pthread, void **thread_return,
 		backout_join(pthread, curthread);
 	} else {
 		ret = 0;
-		tmp = pthread->ret;
 		THR_THREAD_LOCK(curthread, pthread);
-		pthread->flags |= THR_FLAGS_DETACHED;
-		pthread->joiner = NULL;
-		_thr_try_gc(curthread, pthread); /* thread lock released */
-
-		if (thread_return != NULL)
-			*thread_return = tmp;
+		join_common_joined(pthread, curthread, thread_return);
 	}
 	return (ret);
 }
