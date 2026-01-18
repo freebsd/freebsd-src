@@ -129,7 +129,8 @@ RTA_TABLE	fib number or RT_TABLE_UNSPEC to return all fibs
 .It Dv RTA_METRICS
 (nested) Container attribute, listing route properties.
 The only supported sub-attribute is
-.Dv RTAX_MTU , which stores path MTU as  uint32_t.
+.Dv RTAX_MTU ,
+which stores path MTU as uint32_t.
 .It Dv RTA_MULTIPATH
 This attribute contains multipath route nexthops with their weights.
 These nexthops are represented as a sequence of
@@ -293,7 +294,8 @@ IFLA_IFNAME		(string) created interface name
 Deletes the interface specified by
 .Dv IFLA_IFNAME .
 .Ss RTM_GETLINK
-Fetches a single interface or all interfaces in the current VNET, depending on the
+Fetches a single interface or all interfaces in the current VNET,
+depending on the
 .Dv NLM_F_DUMP
 flag.
 Each interface is reported as a
@@ -524,6 +526,7 @@ The following groups are defined:
 RTNLGRP_NEIGH	Notifies on ARP/NDP neighbor  arrival/removal/change
 .Ed
 .Sh SEE ALSO
+.Xr snl 3 ,
 .Xr netlink 4 ,
 .Xr route 4
 .Sh HISTORY
