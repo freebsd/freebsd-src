@@ -30,7 +30,7 @@
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/rwlock.h>
+#include <sys/sx.h>
 #include <sys/socket.h>
 #include <sys/tree.h>
 #include <net/ethernet.h>
