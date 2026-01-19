@@ -3645,8 +3645,8 @@ acpi_EnterSleepState(struct acpi_softc *sc, enum power_stype stype)
 		AcpiFormatException(status));
 	    goto backout;
 	}
+	slp_state |= ACPI_SS_SLP_PREP;
     }
-    slp_state |= ACPI_SS_SLP_PREP;
 
     if (sc->acpi_sleep_delay > 0)
 	DELAY(sc->acpi_sleep_delay * 1000000);
@@ -3672,16 +3672,13 @@ acpi_EnterSleepState(struct acpi_softc *sc, enum power_stype stype)
     case POWER_STYPE_UNKNOWN:
 	__unreachable();
     }
+    resumeclock();
 
     /*
      * Back out state according to how far along we got in the suspend
      * process.  This handles both the error and success cases.
      */
 backout:
-    if ((slp_state & ACPI_SS_SLP_PREP) != 0) {
-	resumeclock();
-	slp_state &= ~ACPI_SS_SLP_PREP;
-    }
     if ((slp_state & ACPI_SS_GPE_SET) != 0) {
 	acpi_wake_prep_walk(sc, stype);
 	sc->acpi_stype = POWER_STYPE_AWAKE;
@@ -3691,7 +3688,7 @@ backout:
 	DEVICE_RESUME(root_bus);
 	slp_state &= ~ACPI_SS_DEV_SUSPEND;
     }
-    if (stype != POWER_STYPE_SUSPEND_TO_IDLE && (slp_state & ACPI_SS_SLP_PREP) != 0) {
+    if ((slp_state & ACPI_SS_SLP_PREP) != 0) {
 	AcpiLeaveSleepState(acpi_sstate);
 	slp_state &= ~ACPI_SS_SLP_PREP;
     }
