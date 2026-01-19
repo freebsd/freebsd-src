@@ -70,6 +70,7 @@ class FuseTest : public ::testing::Test {
 	bool m_noclusterr;
 	bool m_nointr;
 	bool m_no_auto_init;
+	bool m_auto_unmount;
 	unsigned m_time_gran;
 	MockFS *m_mock = NULL;
 	const static uint64_t FH = 0xdeadbeef1a7ebabe;
@@ -97,6 +98,7 @@ class FuseTest : public ::testing::Test {
 		m_noclusterr(false),
 		m_nointr(false),
 		m_no_auto_init(false),
+		m_auto_unmount(false),
 		m_time_gran(1),
 		m_fsname(""),
 		m_subtype(""),
@@ -233,6 +235,9 @@ class FuseTest : public ::testing::Test {
 	/* Protocol 7.8 version of expect_write */
 	void expect_write_7_8(uint64_t ino, uint64_t offset, uint64_t isize,
 		uint64_t osize, const void *contents);
+
+	/* Duplicate the /dev/fuse file descriptor, and return the duplicate */
+	int dup_dev_fuse();
 
 	/*
 	 * Helper that runs code in a child process.

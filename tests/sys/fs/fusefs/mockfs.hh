@@ -372,9 +372,12 @@ class MockFS {
 		uint32_t kernel_minor_version, uint32_t max_write, bool async,
 		bool no_clusterr, unsigned time_gran, bool nointr,
 		bool noatime, const char *fsname, const char *subtype,
-		bool no_auto_init);
+		bool no_auto_init, bool auto_unmount);
 
 	virtual ~MockFS();
+
+	/* Duplicate the /dev/fuse file descriptor, and return the duplicate */
+	int dup_dev_fuse();
 
 	/* Kill the filesystem daemon without unmounting the filesystem */
 	void kill_daemon();
