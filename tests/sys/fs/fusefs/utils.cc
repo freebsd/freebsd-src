@@ -152,7 +152,7 @@ void FuseTest::SetUp() {
 			m_pm, m_init_flags, m_kernel_minor_version,
 			m_maxwrite, m_async, m_noclusterr, m_time_gran,
 			m_nointr, m_noatime, m_fsname, m_subtype,
-			m_no_auto_init);
+			m_no_auto_init, m_auto_unmount);
 		/* 
 		 * FUSE_ACCESS is called almost universally.  Expecting it in
 		 * each test case would be super-annoying.  Instead, set a
@@ -569,6 +569,12 @@ get_unprivileged_id(uid_t *uid, gid_t *gid)
 		GTEST_SKIP() << "Test requires an unprivileged group";
 	*uid = pw->pw_uid;
 	*gid = gr->gr_gid;
+}
+
+int
+FuseTest::dup_dev_fuse()
+{
+	return (m_mock->dup_dev_fuse());
 }
 
 void
