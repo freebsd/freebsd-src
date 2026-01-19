@@ -51,6 +51,15 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+
+# 20260120: remove obsolete MIT KRB5 plugin files
+OLD_LIBS+=usr/lib/krb5/plugins/kdb/db2.so.121
+OLD_LIBS+=usr/lib/krb5/plugins/preauth/otp.so.121
+OLD_LIBS+=usr/lib/krb5/plugins/preauth/pkinit.so.121
+OLD_LIBS+=usr/lib/krb5/plugins/preauth/spake.so.121
+OLD_LIBS+=usr/lib/krb5/plugins/preauth/test.so.121
+OLD_LIBS+=usr/lib/krb5/plugins/tls/k5tls.so.121
+
 # 20260120: Made libkrb5profile INTERNALLIB
 OLD_LIBS+=usr/lib/libkrb5profile.so.122
 OLD_FILES+=usr/lib/libkrb5profile.so
