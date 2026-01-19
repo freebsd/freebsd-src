@@ -204,26 +204,6 @@ VMM_STAT(VMEXIT_USERSPACE, "number of vm exits handled in userspace");
 VMM_STAT(VMEXIT_RENDEZVOUS, "number of times rendezvous pending at exit");
 VMM_STAT(VMEXIT_EXCEPTION, "number of vm exits due to exceptions");
 
-#ifdef KTR
-static const char *
-vcpu_state2str(enum vcpu_state state)
-{
-
-	switch (state) {
-	case VCPU_IDLE:
-		return ("idle");
-	case VCPU_FROZEN:
-		return ("frozen");
-	case VCPU_RUNNING:
-		return ("running");
-	case VCPU_SLEEPING:
-		return ("sleeping");
-	default:
-		return ("unknown");
-	}
-}
-#endif
-
 static void
 vcpu_cleanup(struct vcpu *vcpu, bool destroy)
 {
