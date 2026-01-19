@@ -1228,9 +1228,11 @@ vmm_handler(module_t mod, int what, void *arg)
 		if (error == 0)
 			vmm_initialized = true;
 		else {
-			error = vmmdev_cleanup();
-			KASSERT(error == 0,
-			    ("%s: vmmdev_cleanup failed: %d", __func__, error));
+			int error1 __diagused;
+
+			error1 = vmmdev_cleanup();
+			KASSERT(error1 == 0,
+			    ("%s: vmmdev_cleanup failed: %d", __func__, error1));
 		}
 		break;
 	case MOD_UNLOAD:
