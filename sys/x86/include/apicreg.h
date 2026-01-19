@@ -439,7 +439,12 @@ typedef struct IOAPIC ioapic_t;
 #define	APIC_EXTF_SEIO_CAP	0x00000002
 #define	APIC_EXTF_IER_CAP	0x00000001
 
-/* LVT table indices */
+/*
+ * LVT table indices.
+ * Must be ordered following the appearance of the LVT entries in
+ * series the LAPIC versions, which is reported by LAPIC_VERSION
+ * MAXLVT field.
+ */
 #define	APIC_LVT_LINT0		0
 #define	APIC_LVT_LINT1		1
 #define	APIC_LVT_TIMER		2

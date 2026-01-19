@@ -819,9 +819,12 @@ lapic_early_mask_vec(const struct lvt *l)
 static void
 lapic_early_mask_vecs(void)
 {
-	int elvt_count, i;
+	int elvt_count, lvts_count, i;
+	uint32_t version;
 
-	for (i = 0; i < APIC_LVT_MAX; i++)
+	version = lapic_read32(LAPIC_VERSION);
+	lvts_count = min(nitems(lvts), lapic_maxlvt(version) + 1);
+	for (i = 0; i < lvts_count; i++)
 		lapic_early_mask_vec(&lvts[i]);
 
 	elvt_count = amd_read_elvt_count();
