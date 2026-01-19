@@ -993,7 +993,7 @@ fdt_copy(vm_offset_t va)
 	debugf("fdt_copy va 0x%08jx\n", (uintmax_t)va);
 	if (fdtp == NULL) {
 		err = fdt_setup_fdtp();
-		if (err) {
+		if (err && (getenv("acpi.revision") == NULL)) {
 			printf("No valid device tree blob found!\n");
 			return (0);
 		}
