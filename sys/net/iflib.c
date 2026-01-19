@@ -2084,6 +2084,7 @@ iflib_txsd_free(if_ctx_t ctx, iflib_txq_t txq, int i)
 		bus_dmamap_unload(txq->ift_tso_buf_tag,
 		    txq->ift_sds.ifsd_tso_map[i]);
 	}
+	txq->ift_sds.ifsd_m[i] = NULL;
 	m_freem(m);
 	DBG_COUNTER_INC(tx_frees);
 }
