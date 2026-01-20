@@ -7,3 +7,8 @@ deps {
 		version = "${VERSION}"
 	}
 }
+
+shlibs_required_ignore: [
+	"libc.so.7:32",
+	"libgcc_s.so.1:32",
+]
