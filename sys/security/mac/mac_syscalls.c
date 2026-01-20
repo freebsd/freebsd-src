@@ -331,18 +331,14 @@ mac_get_prison(struct thread *const td, struct prison *pr,
 		goto out_nomac;
 	}
 
-	if (!(mac_labeled & MPC_OBJECT_PRISON)) {
-		error = EINVAL;
-		goto out;
-	}
-
 	intlabel = mac_prison_label_alloc(M_NOWAIT);
 	if (intlabel == NULL) {
 		error = ENOMEM;
 		goto out;
 	}
 
-	mac_prison_copy_label(pr->pr_label, intlabel);
+	if ((mac_labeled & MPC_OBJECT_PRISON) != 0)
+		mac_prison_copy_label(pr->pr_label, intlabel);
 
 	/*
 	 * Externalization may want to acquire an rmlock.  We already tapped out
