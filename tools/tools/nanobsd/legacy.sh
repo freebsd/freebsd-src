@@ -155,7 +155,7 @@ create_code_slice() {
 	) > ${NANO_OBJ}/_.cs 2>&1
 }
 
-_create_code_slice ( ) (
+_create_code_slice() {
 	pprint 2 "build code slice"
 	pprint 3 "log: ${NANO_OBJ}/_.cs"
 
@@ -181,7 +181,7 @@ _create_code_slice ( ) (
 	rm -f "${NANO_OBJ}/_.disk.part"
 
 	) > ${NANO_OBJ}/_.cs 2>&1
-)
+}
 
 create_diskimage() {
 	pprint 2 "build diskimage"
