@@ -780,8 +780,8 @@ _populate_part() (
 				cd "${dir}"
 				mtree -bc -k flags,gid,gname,link,mode,uid,uname |
 				    mtree -C | tail -n +2 |
-				    sed 's/uid=[[:digit:]]*/uname=root/g' |
-				    sed 's/gid=[[:digit:]]*/gname=wheel/g' >> "${metalog}"
+				    sed "s/uid=[[:digit:]]*/uname=${NANO_DEF_UNAME}/g" |
+				    sed "s/gid=[[:digit:]]*/gname=${NANO_DEF_GNAME}/g" >> "${metalog}"
 			)
 		fi
 
