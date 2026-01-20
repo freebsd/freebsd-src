@@ -8039,9 +8039,11 @@ lkpi_wiphy_band_annotate(struct wiphy *wiphy)
 		case NL80211_BAND_5GHZ:
 			break;
 		default:
+#ifdef LINUXKPI_DEBUG_80211
 			IMPROVE("band %d(%s) not yet supported",
 			    band, lkpi_nl80211_band_name(band));
 			/* For bands added here, also check lkpi_lsta_alloc(). */
+#endif
 			continue;
 		}
 
