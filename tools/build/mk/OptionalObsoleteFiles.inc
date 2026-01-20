@@ -3833,7 +3833,7 @@ OLD_DIRS+=usr/share/moused
 .for LIBCOMPAT libcompat in ${_ALL_LIBCOMPATS_libcompats}
 .  if ${MK_LIB${LIBCOMPAT}} == no
 OLD_FILES+=etc/mtree/BSD.lib${libcompat}.dist
-OLD_FILES+=libexec/ld-elf${libcompat}.so.1
+OLD_LIBS+=libexec/ld-elf${libcompat}.so.1
 .    if exists(${DESTDIR}/usr/lib${libcompat})
 LIB${LIBCOMPAT}_DIRS!=find ${DESTDIR}/usr/lib${libcompat} -type d \
     | sed -e 's,^${DESTDIR}/,,'; echo
