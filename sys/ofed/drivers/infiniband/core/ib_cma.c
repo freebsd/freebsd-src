@@ -3219,12 +3219,10 @@ static int cma_alloc_any_port(enum rdma_port_space ps,
 	int low, high, remaining;
 	unsigned int rover;
 	struct vnet *net = id_priv->id.route.addr.dev_addr.net;
-	u32 rand;
 
 	inet_get_local_port_range(net, &low, &high);
 	remaining = (high - low) + 1;
-	get_random_bytes(&rand, sizeof(rand));
-	rover = rand % remaining + low;
+	rover = prandom_u32() % remaining + low;
 retry:
 	if (last_used_port != rover &&
 	    !cma_ps_find(net, ps, (unsigned short)rover)) {
