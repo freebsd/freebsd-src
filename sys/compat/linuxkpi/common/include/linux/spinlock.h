@@ -36,6 +36,7 @@
 #include <sys/mutex.h>
 #include <sys/kdb.h>
 
+#include <linux/cleanup.h>
 #include <linux/compiler.h>
 #include <linux/rwlock.h>
 #include <linux/bottom_half.h>
@@ -177,5 +178,14 @@ _atomic_dec_and_lock_irqsave(atomic_t *cnt, spinlock_t *lock,
 	spin_unlock_irqrestore(lock, *flags);
 	return (0);
 }
+
+/*
+ * cleanup.h related pre-defined cases.
+ */
+DEFINE_LOCK_GUARD_1(spinlock_irqsave,
+    spinlock_t,
+    spin_lock_irqsave(_T->lock, _T->flags),
+    spin_unlock_irqrestore(_T->lock, _T->flags),
+    unsigned long flags)
 
 #endif					/* _LINUXKPI_LINUX_SPINLOCK_H_ */
