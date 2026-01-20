@@ -30,24 +30,36 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 14, 2018
+.Dd January 20, 2026
 .Dt PDFORK 2
 .Os
 .Sh NAME
 .Nm pdfork ,
+.Nm pdrfork ,
 .Nm pdgetpid ,
-.Nm pdkill
+.Nm pdkill ,
+.Nm pdwait
 .Nd System calls to manage process descriptors
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In sys/procdesc.h
 .Ft pid_t
-.Fn pdfork "int *fdp" "int flags"
+.Fn pdfork "int *fdp" "int pdflags"
+.Ft pid_t
+.Fn pdrfork "int *fdp" "int pdflags" "int rfflags"
 .Ft int
 .Fn pdgetpid "int fd" "pid_t *pidp"
 .Ft int
 .Fn pdkill "int fd" "int signum"
+.Ft int
+.Fo pdwait
+.Fa "int fd"
+.Fa "int *status"
+.Fa "int options"
+.Fa "struct __wrusage *wrusage"
+.Fa "struct __siginfo *info"
+.Fc
 .Sh DESCRIPTION
 Process descriptors are special file descriptors that represent processes,
 and are created using
@@ -63,8 +75,9 @@ will not cause
 .Dv SIGCHLD
 on termination.
 .Fn pdfork
-can accept the flags:
-.Bl -tag -width ".Dv PD_DAEMON"
+can accept the
+.Fa pdflags:
+.Bl -tag -width PD_CLOEXEC
 .It Dv PD_DAEMON
 Instead of the default terminate-on-close behaviour, allow the process to
 live until it is explicitly killed with
@@ -80,6 +93,33 @@ capability mode (see
 Set close-on-exec on process descriptor.
 .El
 .Pp
+The
+.Fn pdrfork
+system call is a variant of
+.Fn pdfork
+that also takes the
+.Fa rfflags
+argument to control sharing of process resources between the caller
+and the new process.
+Like
+.Fn pdfork ,
+the function writes the process descriptor referencing the created
+process into the location pointed to by the
+.Fa fdp
+argument.
+See
+.Xr rfork 2
+for a description of the possible
+.Fa rfflag
+flags.
+The
+.Fn pdrfork
+system call requires that the
+.Va RFPROC
+or
+.Va RFSPAWN
+flag is specified.
+.Pp
 .Fn pdgetpid
 queries the process ID (PID) in the process descriptor
 .Fa fd .
@@ -90,6 +130,16 @@ is functionally identical to
 except that it accepts a process descriptor,
 .Fa fd ,
 rather than a PID.
+.Pp
+The
+.Fn pdwait
+system call allows the calling thread to wait and retrieve
+the status information on the process referenced by the
+.Fa fd
+process descriptor.
+See the description of the
+.Xr wait6
+system call for the behavior specification.
 .Pp
 The following system calls also have effects specific to process descriptors:
 .Pp
@@ -126,15 +176,24 @@ is set; if the process is still alive and this is
 the last reference to the process descriptor, the process will be terminated
 with the signal
 .Dv SIGKILL .
+The PID of the referenced process is not reused until the process
+descriptor is closed,
+whether or not the zombie process is reaped by
+.Fn pdwait ,
+.Xr wait6 ,
+or similar system calls.
 .Sh RETURN VALUES
 .Fn pdfork
-returns a PID, 0 or -1, as
+and
+.Fn pdrfork
+return a PID, 0 or -1, as
 .Xr fork 2
 does.
 .Pp
-.Fn pdgetpid
+.Fn pdgetpid ,
+.Fn pdkill ,
 and
-.Fn pdkill
+.Fn pdwait
 return 0 on success and -1 on failure.
 .Sh ERRORS
 These functions may return the same error numbers as their PID-based equivalents
@@ -172,6 +231,12 @@ and
 .Fn pdkill
 system calls first appeared in
 .Fx 9.0 .
+The
+.Fn pdrfork
+and
+.Fn pdwait
+system calls first appeared in
+.Fx 16.0 .
 .Pp
 Support for process descriptors mode was developed as part of the
 .Tn TrustedBSD
@@ -184,3 +249,11 @@ and
 .An Jonathan Anderson Aq Mt jonathan@FreeBSD.org
 at the University of Cambridge Computer Laboratory with support from a grant
 from Google, Inc.
+The
+.Fn pdrfork
+and
+.Fn pdwait
+functions were developed by
+.An Konstantin Belousov Aq Mt kib@FreeBSD.org
+with input from
+.An Alan Somers Aq Mt asomers@FreeBSD.org .
