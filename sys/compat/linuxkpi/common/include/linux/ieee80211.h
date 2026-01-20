@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2025 The FreeBSD Foundation
+ * Copyright (c) 2020-2026 The FreeBSD Foundation
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -51,8 +51,16 @@ extern int linuxkpi_debug_80211;
 #define	IMPROVE(fmt, ...)	if (linuxkpi_debug_80211 & D80211_IMPROVE) \
     printf("%s:%d: XXX LKPI80211 IMPROVE " fmt "\n", __func__, __LINE__, ##__VA_ARGS__)
 
-
-/* 9.4.2.55 Management MIC element (CMAC-256, GMAC-128, and GMAC-256). */
+/* 802.11-2024, 9.4.2.53 MME. */
+/* BIP-CMAC-128 */
+struct ieee80211_mmie {
+	uint8_t		element_id;
+	uint8_t		length;
+	uint16_t	key_id;
+	uint8_t		ipn[6];
+	uint8_t		mic[8];
+};
+/* BIP-CMAC-256, BIP-GMAC-128, BIP-GMAC-256 */
 struct ieee80211_mmie_16 {
 	uint8_t		element_id;
 	uint8_t		length;
