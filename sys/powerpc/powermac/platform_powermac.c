@@ -405,21 +405,88 @@ powermac_register_timebase(device_t dev, powermac_tb_disable_t cb)
 	freeze_timebase = cb;
 }
 
+/**
+ * @brief Implement a default platform AP/BSP SMP timebase synchronisation
+ *
+ * Some powermac platforms don't have a freeze/unfreeze method.
+ * Here just try our best to force synchronisation.
+ */
 static void
-powermac_smp_timebase_sync(platform_t plat, u_long tb, int ap)
+powermac_smp_timebase_sync_fallback(platform_t plat, u_long tb, int ap)
 {
-	static volatile bool tb_ready;
+	static volatile bool tb_ready = false;
 	static volatile int cpu_done;
 
+	if (bootverbose)
+		printf("[%d] %s: called, AP tb=0x%lx tb=0x%lx\n",
+		    ap, __func__, tb, mftb());
+
+	/* Do initial timebase sync */
+	mttb(tb);
+
+	if (ap) {
+		/*
+		 * APs - wait until the BSP signals its ready to sync,
+		 * then wait for all CPUs to be ready.
+		 */
+		critical_enter();
+		while (!tb_ready)
+			atomic_thread_fence_seq_cst();
+		atomic_add_int(&cpu_done, 1);
+		do {
+			atomic_thread_fence_seq_cst();
+		} while (cpu_done < mp_ncpus);
+		mttb(tb);
+		critical_exit();
+	} else {
+		/*
+		 * BSP - signify that the timebase sync is about to start,
+		 * then wait for other CPUs to be ready.
+		 */
+		critical_enter();
+		/* Ensure cpu_done is zeroed so we can resync at runtime */
+		atomic_store_int(&cpu_done, 0);
+		tb_ready = true;
+		atomic_add_int(&cpu_done, 1);
+		do {
+			atomic_thread_fence_seq_cst();
+		} while (cpu_done < mp_ncpus);
+		mttb(tb);
+		/* Reset tb_ready so we can resync at runtime */
+		tb_ready = false;
+		critical_exit();
+	}
+	if (bootverbose)
+		printf("[%d] %s: finished; AP tb=0x%lx called tb=0x%lx\n",
+		    ap, __func__, tb, mftb());
+}
+
+/**
+ * @brief Implement freeze/unfreeze AP/BSP SMP timebase synchronisation
+ *
+ * This implements SMP timebase synchronisation for hardware that
+ * implements freezing a shared timebase clock source.
+ *
+ * The BSP will freeze the timebase and signal the APs to program their
+ * local timebase with the shared timebase value.  The BSP will then
+ * unfreeze the timebase clock, allowing all CPUs to march forward
+ * from the same base timebase value.
+ */
+static void
+powermac_smp_timebase_sync_freeze(platform_t plat, u_long tb, int ap)
+{
+	static volatile bool tb_ready = false;
+	static volatile int cpu_done;
+
+	if (bootverbose)
+		printf("[%d] %s: called, AP tb=0x%lx tb=0x%lx\n",
+		    ap, __func__, tb, mftb());
+
 	/*
-	 * XXX Temporary fallback for platforms we don't know how to freeze.
-	 *
 	 * This needs to be replaced with a cpu-to-cpu software sync
 	 * protocol, because this is not a consistent way to sync timebase.
 	 */
 	mttb(tb);
-	if (freeze_timebase == dummy_timebase)
-		return;
 
 	if (ap) {
 		/* APs.  Hold off until we get a stable timebase. */
@@ -428,25 +495,39 @@ powermac_smp_timebase_sync(platform_t plat, u_long tb, int ap)
 			atomic_thread_fence_seq_cst();
 		mttb(tb);
 		atomic_add_int(&cpu_done, 1);
-		while (cpu_done < mp_ncpus)
+		do {
 			atomic_thread_fence_seq_cst();
+		} while (cpu_done < mp_ncpus);
 		critical_exit();
 	} else {
 		/* BSP */
 		critical_enter();
 		/* Ensure cpu_done is zeroed so we can resync at runtime */
-		atomic_set_int(&cpu_done, 0);
+		atomic_store_int(&cpu_done, 0);
 		freeze_timebase(powermac_tb_dev, true);
 		tb_ready = true;
 		mttb(tb);
 		atomic_add_int(&cpu_done, 1);
-		while (cpu_done < mp_ncpus)
+		do {
 			atomic_thread_fence_seq_cst();
+		} while (cpu_done < mp_ncpus);
 		freeze_timebase(powermac_tb_dev, false);
 		/* Reset tb_ready so we can resync at runtime */
 		tb_ready = false;
 		critical_exit();
 	}
+	if (bootverbose)
+		printf("[%d] %s: finished; AP tb=0x%lx called tb=0x%lx\n",
+		    ap, __func__, tb, mftb());
+}
+
+static void
+powermac_smp_timebase_sync(platform_t plat, u_long tb, int ap)
+{
+	if (freeze_timebase == dummy_timebase)
+		powermac_smp_timebase_sync_fallback(plat, tb, ap);
+	else
+		powermac_smp_timebase_sync_freeze(plat, tb, ap);
 }
 
 /* Fallback freeze. In case no real handler is found in the device tree. */
