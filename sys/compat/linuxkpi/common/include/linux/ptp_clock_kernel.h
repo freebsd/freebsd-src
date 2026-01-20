@@ -49,6 +49,7 @@ struct ptp_clock_info {
 	int (*adjtime)(struct ptp_clock_info *, s64);
 	int (*getcrosststamp)(struct ptp_clock_info *, struct system_device_crosststamp *);
 	int (*gettime64)(struct ptp_clock_info *, struct timespec *);
+	int (*settime64)(struct ptp_clock_info *, const struct timespec *);
 };
 
 static inline struct ptp_clock *
