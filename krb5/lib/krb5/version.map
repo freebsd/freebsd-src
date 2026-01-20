@@ -1741,8 +1741,6 @@ krb5_3_MIT {
 		localauth_rule_initvt;
 		profile_abandon;
 		profile_add_node;
-		profile_add_relation;
-		profile_clear_relation;
 		profile_close_file;
 		profile_copy;
 		profile_copy_file;
@@ -1798,7 +1796,6 @@ krb5_3_MIT {
 		profile_release_string;
 		profile_remove_node;
 		profile_rename_node;
-		profile_rename_section;
 		profile_ser_externalize;
 		profile_ser_internalize;
 		profile_ser_size;
@@ -1806,7 +1803,6 @@ krb5_3_MIT {
 		profile_unlock_global;
 		profile_update_file_data;
 		profile_update_file_data_locked;
-		profile_update_relation;
 		profile_verify_node;
 		profile_write_tree_file;
 		profile_write_tree_to_buffer;
