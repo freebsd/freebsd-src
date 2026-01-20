@@ -265,18 +265,14 @@ dwc_ioctl(if_t ifp, u_long cmd, caddr_t data)
 		}
 		if (mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
 			if_togglecapenable(ifp, IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
-		if (mask & IFCAP_TXCSUM)
+		if (mask & IFCAP_TXCSUM) {
 			if_togglecapenable(ifp, IFCAP_TXCSUM);
-		if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
-			if_sethwassistbits(ifp, CSUM_IP | CSUM_DELAY_DATA, 0);
-		else
-			if_sethwassistbits(ifp, 0, CSUM_IP | CSUM_DELAY_DATA);
-		if (mask & IFCAP_TXCSUM_IPV6)
+			if_togglehwassist(ifp, CSUM_IP | CSUM_DELAY_DATA);
+		}
+		if (mask & IFCAP_TXCSUM_IPV6) {
 			if_togglecapenable(ifp, IFCAP_TXCSUM_IPV6);
-		if ((if_getcapenable(ifp) & IFCAP_TXCSUM_IPV6) != 0)
-			if_sethwassistbits(ifp, CSUM_DELAY_DATA_IPV6, 0);
-		else
-			if_sethwassistbits(ifp, 0, CSUM_DELAY_DATA_IPV6);
+			if_togglehwassist(ifp, CSUM_DELAY_DATA_IPV6);
+		}
 
 		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 			DWC_LOCK(sc);
