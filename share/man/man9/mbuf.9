@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 1, 2025
+.Dd January 20, 2026
 .Dt MBUF 9
 .Os
 .\"
@@ -1216,13 +1216,14 @@ in
 is not set, since SCTP does not use a pseudo header checksum.
 .Pp
 If IP delivers a packet with the flags
+.Dv CSUM_IP ,
 .Dv CSUM_SCTP ,
 .Dv CSUM_TCP ,
 or
 .Dv CSUM_UDP
 set in
 .Va csum_flags
-to a local SCTP, TCP, or UDP stack, the packet will be processed without
+to a local IP, SCTP, TCP, or UDP stack, the packet will be processed without
 computing or validating the checksum, since the packet has not been on the
 wire.
 This can happen if the packet was handled by a virtual interface such as
