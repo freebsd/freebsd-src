@@ -1230,6 +1230,7 @@ struct cfg80211_ops {
 
 struct wiphy *linuxkpi_wiphy_new(const struct cfg80211_ops *, size_t);
 void linuxkpi_wiphy_free(struct wiphy *wiphy);
+int linuxkpi_80211_wiphy_register(struct wiphy *);
 
 void linuxkpi_wiphy_work_queue(struct wiphy *, struct wiphy_work *);
 void linuxkpi_wiphy_work_cancel(struct wiphy *, struct wiphy_work *);
@@ -1749,8 +1750,7 @@ wiphy_net(struct wiphy *wiphy)
 static __inline int
 wiphy_register(struct wiphy *wiphy)
 {
-	TODO();
-	return (0);
+	return (linuxkpi_80211_wiphy_register(wiphy));
 }
 
 static __inline void
