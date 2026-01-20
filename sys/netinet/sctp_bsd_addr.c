@@ -174,6 +174,7 @@ sctp_is_desired_interface_type(struct ifnet *ifn)
 	case IFT_IPOVERCLAW:
 	case IFT_PROPVIRTUAL:	/* NetGraph Virtual too */
 	case IFT_VIRTUALIPADDRESS:
+	case IFT_BRIDGE:
 		result = 1;
 		break;
 	default:
