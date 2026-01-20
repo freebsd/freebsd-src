@@ -532,6 +532,12 @@ ip_input(struct mbuf *m)
 
 	if (m->m_pkthdr.csum_flags & CSUM_IP_CHECKED) {
 		sum = !(m->m_pkthdr.csum_flags & CSUM_IP_VALID);
+	} else if (m->m_pkthdr.csum_flags & CSUM_IP) {
+		/*
+		 * Packet from local host that offloaded checksum computation.
+		 * Checksum not required since the packet wasn't on the wire.
+		 */
+		sum = 0;
 	} else {
 		if (hlen == sizeof(struct ip)) {
 			sum = in_cksum_hdr(ip);
