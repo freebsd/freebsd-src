@@ -108,7 +108,18 @@ struct ieee80211_mmie_16 {
 #define	IEEE80211_QOS_CTL_MESH_CONTROL_PRESENT	0x0100
 
 enum ieee80211_rate_flags {
-	IEEE80211_RATE_SHORT_PREAMBLE		= BIT(0),
+	IEEE80211_RATE_SHORT_PREAMBLE		= BIT(0),	/* 2.4Ghz, CCK */
+	IEEE80211_RATE_SUPPORTS_5MHZ		= BIT(1),
+	IEEE80211_RATE_SUPPORTS_10MHZ		= BIT(2),
+	IEEE80211_RATE_ERP_G			= BIT(3),
+
+	/*
+	 * According to documentation these are flags initialized internally.
+	 * See lkpi_wiphy_band_annotate().
+	 */
+	IEEE80211_RATE_MANDATORY_A		= BIT(4),
+	IEEE80211_RATE_MANDATORY_G		= BIT(5),
+	IEEE80211_RATE_MANDATORY_B		= BIT(6),
 };
 
 enum ieee80211_rate_control_changed_flags {

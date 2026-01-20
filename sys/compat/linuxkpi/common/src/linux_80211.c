@@ -896,41 +896,34 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 	/* Deflink information. */
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		struct ieee80211_supported_band *supband;
+		uint32_t rate_mandatory;;
 
 		supband = hw->wiphy->bands[band];
 		if (supband == NULL)
 			continue;
 
+		switch (band) {
+		case NL80211_BAND_2GHZ:
+			/* We have to assume 11g support here. */
+			rate_mandatory = IEEE80211_RATE_MANDATORY_G |
+			    IEEE80211_RATE_MANDATORY_B;
+			break;
+		case NL80211_BAND_5GHZ:
+			rate_mandatory = IEEE80211_RATE_MANDATORY_A;
+			break;
+		default:
+			continue;
+		}
+
 		for (i = 0; i < supband->n_bitrates; i++) {
-			switch (band) {
-			case NL80211_BAND_2GHZ:
-				switch (supband->bitrates[i].bitrate) {
-				case 240:	/* 11g only */
-				case 120:	/* 11g only */
-				case 110:
-				case 60:	/* 11g only */
-				case 55:
-				case 20:
-				case 10:
-					sta->deflink.supp_rates[band] |= BIT(i);
-					break;
-				}
-				break;
-			case NL80211_BAND_5GHZ:
-				switch (supband->bitrates[i].bitrate) {
-				case 240:
-				case 120:
-				case 60:
-					sta->deflink.supp_rates[band] |= BIT(i);
-					break;
-				}
-				break;
-			}
+			if ((supband->bitrates[i].flags & rate_mandatory) != 0)
+				sta->deflink.supp_rates[band] |= BIT(i);
 		}
 	}
 
 	sta->deflink.smps_mode = IEEE80211_SMPS_OFF;
 	sta->deflink.bandwidth = IEEE80211_STA_RX_BW_20;
+	sta->deflink.agg.max_rc_amsdu_len = IEEE80211_MAX_MPDU_LEN_HT_BA;
 	sta->deflink.rx_nss = 1;
 	sta->deflink.sta = sta;
 
@@ -8026,6 +8019,77 @@ linuxkpi_wiphy_free(struct wiphy *wiphy)
 	LKPI_80211_LWIPHY_WORK_LOCK_DESTROY(lwiphy);
 
 	kfree(lwiphy);
+}
+
+static void
+lkpi_wiphy_band_annotate(struct wiphy *wiphy)
+{
+	int band;
+
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+		struct ieee80211_supported_band *supband;
+		int i;
+
+		supband = wiphy->bands[band];
+		if (supband == NULL)
+			continue;
+
+		switch (band) {
+		case NL80211_BAND_2GHZ:
+		case NL80211_BAND_5GHZ:
+			break;
+		default:
+#ifdef LINUXKPI_DEBUG_80211
+			IMPROVE("band %d(%s) not yet supported",
+			    band, lkpi_nl80211_band_name(band));
+			/* For bands added here, also check lkpi_lsta_alloc(). */
+#endif
+			continue;
+		}
+
+		for (i = 0; i < supband->n_bitrates; i++) {
+			switch (band) {
+			case NL80211_BAND_2GHZ:
+				switch (supband->bitrates[i].bitrate) {
+				case 110:
+				case 55:
+				case 20:
+				case 10:
+					supband->bitrates[i].flags |=
+					    IEEE80211_RATE_MANDATORY_B;
+					/* FALLTHROUGH */
+				/* 11g only */
+				case 240:
+				case 120:
+				case 60:
+					supband->bitrates[i].flags |=
+					    IEEE80211_RATE_MANDATORY_G;
+					break;
+				}
+				break;
+			case NL80211_BAND_5GHZ:
+				switch (supband->bitrates[i].bitrate) {
+				case 240:
+				case 120:
+				case 60:
+					supband->bitrates[i].flags |=
+					    IEEE80211_RATE_MANDATORY_A;
+					break;
+				}
+				break;
+			}
+		}
+	}
+}
+
+int
+linuxkpi_80211_wiphy_register(struct wiphy *wiphy)
+{
+	TODO("Lots of checks and initialization");
+
+	lkpi_wiphy_band_annotate(wiphy);
+
+	return (0);
 }
 
 static uint32_t
