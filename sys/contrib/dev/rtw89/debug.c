@@ -505,11 +505,7 @@ static const struct txpwr_ent __txpwr_ent_byr_ax[] = {
 	__GEN_TXPWR_ENT4("HEDCM_2NSS", "MCS0 ", "MCS1 ", "MCS3 ", "MCS4 "),
 };
 
-#if defined(__linux__)
 static_assert((ARRAY_SIZE(__txpwr_ent_byr_ax) * 4) ==
-#elif defined(__FreeBSD__)
-rtw89_static_assert((ARRAY_SIZE(__txpwr_ent_byr_ax) * 4) ==
-#endif
 	(R_AX_PWR_BY_RATE_MAX - R_AX_PWR_BY_RATE + 4));
 
 static const struct txpwr_map __txpwr_map_byr_ax = {
@@ -565,11 +561,7 @@ static const struct txpwr_ent __txpwr_ent_lmt_ax[] = {
 	__GEN_TXPWR_ENT2("MCS_2TX_40M_2p5", "NON_BF", "BF"),
 };
 
-#if defined(__linux__)
 static_assert((ARRAY_SIZE(__txpwr_ent_lmt_ax) * 2) ==
-#elif defined(__FreeBSD__)
-rtw89_static_assert((ARRAY_SIZE(__txpwr_ent_lmt_ax) * 2) ==
-#endif
 	(R_AX_PWR_LMT_MAX - R_AX_PWR_LMT + 4));
 
 static const struct txpwr_map __txpwr_map_lmt_ax = {
@@ -597,11 +589,7 @@ static const struct txpwr_ent __txpwr_ent_lmt_ru_ax[] = {
 			 "RU106_4", "RU106_5", "RU106_6", "RU106_7"),
 };
 
-#if defined(__linux__)
 static_assert((ARRAY_SIZE(__txpwr_ent_lmt_ru_ax) * 8) ==
-#elif defined(__FreeBSD__)
-rtw89_static_assert((ARRAY_SIZE(__txpwr_ent_lmt_ru_ax) * 8) ==
-#endif
 	(R_AX_PWR_RU_LMT_MAX - R_AX_PWR_RU_LMT + 4));
 
 static const struct txpwr_map __txpwr_map_lmt_ru_ax = {

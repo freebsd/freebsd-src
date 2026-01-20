@@ -2704,11 +2704,7 @@ static void _dpk_cal_select(struct rtw89_dev *rtwdev, bool force,
 	u8 path;
 	bool is_fail = true, reloaded[RTW8852C_DPK_RF_PATH] = {false};
 
-#if defined(__linux__)
 	static_assert(ARRAY_SIZE(kip_reg) == RTW8852C_DPK_KIP_REG_NUM);
-#elif defined(__FreeBSD__)
-	rtw89_static_assert(ARRAY_SIZE(kip_reg) == RTW8852C_DPK_KIP_REG_NUM);
-#endif
 
 	if (dpk->is_dpk_reload_en) {
 		for (path = 0; path < RTW8852C_DPK_RF_PATH; path++) {

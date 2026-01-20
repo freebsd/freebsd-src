@@ -3608,11 +3608,7 @@ struct rtw89_fw_c2h_attr {
 
 static inline struct rtw89_fw_c2h_attr *RTW89_SKB_C2H_CB(struct sk_buff *skb)
 {
-#if defined(__linux__)
 	static_assert(sizeof(skb->cb) >= sizeof(struct rtw89_fw_c2h_attr));
-#elif defined(__FreeBSD__)
-	rtw89_static_assert(sizeof(skb->cb) >= sizeof(struct rtw89_fw_c2h_attr));
-#endif
 
 	return (struct rtw89_fw_c2h_attr *)skb->cb;
 }
@@ -3818,11 +3814,7 @@ struct rtw89_mac_mcc_tsf_rpt {
 	u32 tsf_y_high;
 };
 
-#if defined(__linux__)
 static_assert(sizeof(struct rtw89_mac_mcc_tsf_rpt) <= RTW89_COMPLETION_BUF_SIZE);
-#elif defined(__FreeBSD__)
-rtw89_static_assert(sizeof(struct rtw89_mac_mcc_tsf_rpt) <= RTW89_COMPLETION_BUF_SIZE);
-#endif
 
 #define RTW89_GET_MAC_C2H_MCC_TSF_RPT_MACID_X(c2h) \
 	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(7, 0))

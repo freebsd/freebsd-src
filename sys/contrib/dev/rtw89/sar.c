@@ -406,11 +406,7 @@ static const struct cfg80211_sar_freq_ranges rtw89_common_sar_freq_ranges[] = {
 	{ .start_freq = 6875, .end_freq = 7115, },
 };
 
-#if defined(__linux__)
 static_assert(RTW89_SAR_SUBBAND_NR ==
-#elif defined(__FreeBSD__)
-rtw89_static_assert(RTW89_SAR_SUBBAND_NR ==
-#endif
 	      ARRAY_SIZE(rtw89_common_sar_freq_ranges));
 
 const struct cfg80211_sar_capa rtw89_sar_capa = {

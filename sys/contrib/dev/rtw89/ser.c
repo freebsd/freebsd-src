@@ -620,11 +620,7 @@ struct __fw_backtrace_info {
 	u32 sp;
 } __packed;
 
-#if defined(__linux__)
 static_assert(RTW89_FW_BACKTRACE_INFO_SIZE ==
-#elif defined(__FreeBSD__)
-rtw89_static_assert(RTW89_FW_BACKTRACE_INFO_SIZE ==
-#endif
 	      sizeof(struct __fw_backtrace_info));
 
 static u32 convert_addr_from_wcpu(u32 wcpu_addr)

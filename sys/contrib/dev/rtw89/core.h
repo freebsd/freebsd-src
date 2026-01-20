@@ -7703,10 +7703,4 @@ void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev, enum rtw89_btc_hmsg eve
 int rtw89_core_mlsr_switch(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			   unsigned int link_id);
 
-#if defined(__linux__)
-#define	rtw89_static_assert(_x)		static_assert(_x)
-#elif defined(__FreeBSD__)
-#define	rtw89_static_assert(_x)		_Static_assert(_x, "bad array size")
-#endif
-
 #endif
