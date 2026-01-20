@@ -152,6 +152,8 @@ struct linuxkpi_ieee80211_channel {
 	int					orig_mpwr;
 };
 
+#define	NL80211_EHT_NSS_MAX			16
+
 struct cfg80211_bitrate_mask {
 	/* TODO FIXME */
 	struct {
@@ -159,6 +161,7 @@ struct cfg80211_bitrate_mask {
 		uint8_t				ht_mcs[IEEE80211_HT_MCS_MASK_LEN];
 		uint16_t			vht_mcs[8];
 		uint16_t			he_mcs[8];
+		uint16_t			eht_mcs[NL80211_EHT_NSS_MAX];
 		enum nl80211_txrate_gi		gi;
 		enum nl80211_he_gi		he_gi;
 		uint8_t				he_ltf;		/* XXX enum? */
