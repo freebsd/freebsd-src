@@ -373,11 +373,17 @@ ktr_getrequest(int type)
 static void
 ktr_enqueuerequest(struct thread *td, struct ktr_request *req)
 {
+	bool sched_ast;
 
 	mtx_lock(&ktrace_mtx);
-	STAILQ_INSERT_TAIL(&td->td_proc->p_ktr, req, ktr_list);
+	sched_ast = td->td_proc->p_ktrioparms != NULL;
+	if (sched_ast)
+		STAILQ_INSERT_TAIL(&td->td_proc->p_ktr, req, ktr_list);
+	else
+		ktr_freerequest_locked(req);
 	mtx_unlock(&ktrace_mtx);
-	ast_sched(td, TDA_KTRACE);
+	if (sched_ast)
+		ast_sched(td, TDA_KTRACE);
 }
 
 /*
