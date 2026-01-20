@@ -1825,15 +1825,9 @@ static void rtw8851b_bb_set_tx_shape_dfir(struct rtw89_dev *rtwdev,
 #define __DFIR_CFG_ADDR(i) (R_TXFIR0 + ((i) << 2))
 #define __DFIR_CFG_MASK 0xffffffff
 #define __DFIR_CFG_NR 8
-#if defined(__linux__)
 #define __DECL_DFIR_PARAM(_name, _val...) \
 	static const u32 param_ ## _name[] = {_val}; \
 	static_assert(ARRAY_SIZE(param_ ## _name) == __DFIR_CFG_NR)
-#elif defined(__FreeBSD__)
-#define __DECL_DFIR_PARAM(_name, _val...) \
-	static const u32 param_ ## _name[] = {_val}; \
-	rtw89_static_assert(ARRAY_SIZE(param_ ## _name) == __DFIR_CFG_NR)
-#endif
 
 	__DECL_DFIR_PARAM(flat,
 			  0x023D23FF, 0x0029B354, 0x000FC1C8, 0x00FDB053,

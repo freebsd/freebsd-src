@@ -2856,11 +2856,7 @@ rtw89_phy_fill_txpwr_limit_ru_160m_ax(struct rtw89_dev *rtwdev,
 	static const int ofst[] = { -14, -10, -6, -2, 2, 6, 10, 14 };
 	int i;
 
-#if defined(__linux__)
 	static_assert(ARRAY_SIZE(ofst) == RTW89_RU_SEC_NUM_AX);
-#elif defined(__FreeBSD__)
-	rtw89_static_assert(ARRAY_SIZE(ofst) == RTW89_RU_SEC_NUM_AX);
-#endif
 	for (i = 0; i < RTW89_RU_SEC_NUM_AX; i++) {
 		lmt_ru->ru26[i] = rtw89_phy_read_txpwr_limit_ru(rtwdev, band,
 								RTW89_RU26,
@@ -7556,11 +7552,7 @@ static void
 	[RTW89_RFK_F_DELAY] = _rfk_delay,
 };
 
-#if defined(__linux__)
 static_assert(ARRAY_SIZE(_rfk_handler) == RTW89_RFK_F_NUM);
-#elif defined(__FreeBSD__)
-rtw89_static_assert(ARRAY_SIZE(_rfk_handler) == RTW89_RFK_F_NUM);
-#endif
 
 void
 rtw89_rfk_parser(struct rtw89_dev *rtwdev, const struct rtw89_rfk_tbl *tbl)
