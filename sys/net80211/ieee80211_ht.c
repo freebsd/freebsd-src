@@ -2766,10 +2766,15 @@ ieee80211_ampdu_enable(struct ieee80211_node *ni,
 	return 1;
 }
 
-/*
- * Request A-MPDU tx aggregation.  Setup local state and
- * issue an ADDBA request.  BA use will only happen after
+/**
+ * @brief Request A-MPDU tx aggregation.
+ *
+ * Setup local state and issue an ADDBA request.  BA use will only happen after
  * the other end replies with ADDBA response.
+ *
+ * @param ni ieee80211_node update
+ * @param tap tx_ampdu state
+ * @returns 1 on success and 0 on error
  */
 int
 ieee80211_ampdu_request(struct ieee80211_node *ni,
@@ -2777,7 +2782,7 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	uint16_t args[5];
-	int tid, dialogtoken;
+	int tid, dialogtoken, error;
 	static int tokens = 0;	/* XXX */
 
 	/* XXX locking */
@@ -2828,8 +2833,11 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 	args[4] = _IEEE80211_SHIFTMASK(tap->txa_start, IEEE80211_BASEQ_START)
 		| _IEEE80211_SHIFTMASK(0, IEEE80211_BASEQ_FRAG)
 		;
-	return ic->ic_send_action(ni, IEEE80211_ACTION_CAT_BA,
+
+	error = ic->ic_send_action(ni, IEEE80211_ACTION_CAT_BA,
 		IEEE80211_ACTION_BA_ADDBA_REQUEST, args);
+	/* Silly return of 1 for success here. */
+	return (error == 0);
 }
 
 /*
