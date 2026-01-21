@@ -1143,9 +1143,15 @@ get_prefix(struct rainfo *rai)
 		    "<%s> add %s/%d to prefix list on %s",
 		    __func__, ntopbuf, pfx->pfx_prefixlen, ifi->ifi_ifname);
 
-		/* set other fields with protocol defaults */
-		pfx->pfx_validlifetime = DEF_ADVVALIDLIFETIME;
-		pfx->pfx_preflifetime = DEF_ADVPREFERREDLIFETIME;
+		/* set other fields with protocol defaults and honor pltime/vltime declarations for interface */
+		int64_t val64;
+        MAYHAVE(val64, "vltime", DEF_ADVVALIDLIFETIME);
+        pfx->pfx_validlifetime = val64;
+        pfx->pfx_validlifetime = DEF_ADVVALIDLIFETIME;
+        MAYHAVE(val64, "pltime", DEF_ADVPREFERREDLIFETIME);
+        pfx->pfx_preflifetime = val64;
+        pfx->pfx_preflifetime = DEF_ADVPREFERREDLIFETIME;
+
 		pfx->pfx_onlinkflg = 1;
 		pfx->pfx_autoconfflg = 1;
 		pfx->pfx_origin = PREFIX_FROM_KERNEL;
