@@ -48,7 +48,7 @@
 /contrib/one-true-awk/		@bsdimp
 /contrib/openpam/lib/libpam/		@dag-erling
 /contrib/pjdfstest	@ngie-eign @asomers
-/crypto/openssh	@dag-erling
+/crypto/openssh	@dag-erling @emaste
 /crypto/openssl/	@juikim
 /etc/mail	@gshapiro
 /etc/sendmail	@gshapiro
@@ -130,3 +130,4 @@
 /usr.sbin/blocklistctl	@jlduran
 /usr.sbin/blocklistd	@jlduran
 /usr.sbin/lpr	@gbergling
+/usr.sbin/makefs	@emaste
