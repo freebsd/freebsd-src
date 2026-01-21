@@ -97,7 +97,11 @@
 #define LLVM_HAS_LANAI_TARGET 0
 
 /* Define if the LoongArch target is built in */
+#ifdef LLVM_TARGET_ENABLE_LOONGARCH
+#define LLVM_HAS_LOONGARCH_TARGET 1
+#else
 #define LLVM_HAS_LOONGARCH_TARGET 0
+#endif
 
 /* Define if the M68k target is built in */
 #define LLVM_HAS_M68K_TARGET 0
