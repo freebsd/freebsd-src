@@ -61,10 +61,10 @@ Enhanced functions are present for the following architectures:
 .It    memchr            Ta    A       Ta        Ta    S1     Ta         Ta          Ta    S
 .It    memcmp            Ta    A       Ta    S   Ta    S1     Ta    S
 .It    memccpy           Ta    A       Ta        Ta    S1
-.It    memcpy            Ta    A       Ta    S   Ta    S      Ta    S    Ta    SV    Ta    S
-.It    memmove           Ta    A       Ta    S   Ta    S      Ta    S    Ta    SV
+.It    memcpy            Ta    AM      Ta    S   Ta    S      Ta    S    Ta    SV    Ta    S
+.It    memmove           Ta    AM      Ta    S   Ta    S      Ta    S    Ta    SV
 .It    memrchr           Ta    A       Ta        Ta    S1
-.It    memset            Ta    A       Ta    S   Ta    S      Ta    S    Ta          Ta    S
+.It    memset            Ta    AM      Ta    S   Ta    S      Ta    S    Ta          Ta    S
 .It    rindex            Ta    A       Ta        Ta    S1     Ta    S    Ta          Ta    S
 .It    stpcpy            Ta    A       Ta        Ta    S1
 .It    stpncpy           Ta            Ta        Ta    S1
@@ -101,7 +101,8 @@ or PowerPC\ 2.05,
 .Sy 3 Ns :\ x86-64-v3,
 .Sy 4 Ns :\ x86-64-v4,
 .Sy V Ns :\ PowerPC\ VSX,
-.Sy A Ns :\ Arm\ ASIMD (NEON).
+.Sy A Ns :\ Arm\ ASIMD (NEON),
+.Sy M Ns :\ Arm\ MOPS.
 .
 .Sh ENVIRONMENT
 .Bl -tag
