@@ -264,16 +264,6 @@ fuse_extattr_check_cred(struct vnode *vp, int ns, struct ucred *cred,
 	}
 }
 
-/* Get a filehandle for a directory */
-static int
-fuse_filehandle_get_dir(struct vnode *vp, struct fuse_filehandle **fufhp,
-	struct ucred *cred, pid_t pid)
-{
-	if (fuse_filehandle_get(vp, FREAD, fufhp, cred, pid) == 0)
-		return 0;
-	return fuse_filehandle_get(vp, FEXEC, fufhp, cred, pid);
-}
-
 /* Send FUSE_FLUSH for this vnode */
 static int
 fuse_flush(struct vnode *vp, struct ucred *cred, pid_t pid, int fflag)
@@ -2041,7 +2031,7 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 		return (EXTERROR(EINVAL, "Buffer is too small"));
 
 	tresid = uio->uio_resid;
-	err = fuse_filehandle_get_dir(vp, &fufh, cred, pid);
+	err = fuse_filehandle_get(vp, FREAD, &fufh, cred, pid);
 	if (err == EBADF && mp->mnt_flag & MNT_EXPORTED) {
 		KASSERT(!fsess_is_impl(mp, FUSE_OPENDIR),
 			("FUSE file systems that implement "
