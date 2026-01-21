@@ -1,0 +1,120 @@
+.\" Copyright (c) 2026 pkgconf authors (see AUTHORS).
+.\"
+.\" Permission to use, copy, modify, and/or distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" This software is provided 'as is' and without any warranty, express or
+.\" implied.  In no event shall the authors be liable for any damages arising
+.\" from the use of this software.
+.Dd January 22, 2026
+.Dt SPDXTOOL 1
+.Os
+.Sh NAME
+.Nm spdxtool
+.Nd a tool for generating SPDX Lite 3.0.1 profile software bills of material document
+.Sh SYNOPSIS
+.Nm
+.Op Ar options
+.Ar module ...
+.Sh DESCRIPTION
+.Nm
+is a program which generates a JSON-LD formated SPDX Lite 3.0.1 software bill of
+materials (SBOM) for a given set of pkg-config modules.
+The output of this tool can then be translated into other SBOM
+formats as necessary.
+
+More documention about SDPX 3.0.1 can be found from:
+.Lk https://spdx.github.io/spdx-spec/v3.0.1/
+.Pp
+The
+.Ar options
+are as follows:
+.Bl -tag -width indent
+.It Fl -about
+Print the version number, the Copyright notice, and the license of the
+.Nm
+program to standard output and exit.
+Most other options and all command line arguments are ignored.
+.It Fl -version
+Print the version number of the
+.Nm
+program to standard output and exit.
+Most other options and all command line arguments are ignored.
+.It Fl -agent-name
+Set agent name-property
+in /Core/Agent-class. Default is 'Default'
+.It Fl -creation-time
+Set create-property time in /Core/CreationInfo-class.
+SPDX documentation recomends using ISO 8601-formated time which is: YYYY-MM-DDThh:mm:ssZ.
+Default is document creation time.
+.It Fl -creation-id
+Set creation ID in /Core/CreationInfoc-class.
+As ID in creation info mainly have special format and it's
+default is '_:creationinfo_1'.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width indent
+.It Ev PKG_CONFIG_DEBUG_SPEW
+If set, print debugging messages to stderr.
+.It Ev PKG_CONFIG_IGNORE_CONFLICTS
+If set, ignore
+.Ic Conflicts
+rules in modules.
+Has the same effect as the
+.Fl -ignore-conflicts
+option in
+.Xr pkgconf 1
+.
+.It Ev PKG_CONFIG_LIBDIR
+A colon-separated list of low-priority directories where
+.Xr pc 5
+files are looked up.
+The module search path is constructed by appending this list to
+.Ev PKG_CONFIG_PATH ,
+which enjoys higher priority.
+If
+.Ev PKG_CONFIG_LIBDIR
+is not defined, the default list compiled into the
+.Nm
+program from the
+.Dv PKG_DEFAULT_PATH
+preprocessor macro is appended instead.
+If
+.Ev PKG_CONFIG_LIBDIR
+is defined but empty, nothing is appended.
+.It Ev PKG_CONFIG_MAXIMUM_TRAVERSE_DEPTH
+Impose a limit on the allowed depth in the dependency graph.
+.It Ev PKG_CONFIG_PATH
+A colon-separated list of high-priority directories where
+.Xr pc 5
+files are looked up.
+.It Ev PKG_CONFIG_PRELOADED_FILES
+Colon-separated list of
+.Xr pc 5
+files which are loaded before any other pkg-config files.
+These packages are given highest priority over any other
+.Xr pc 5
+files that would otherwise provide a given package.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Generating an SBOM for the package named foo:
+.Dl $ spdxtool foo
+.Dl {
+.Dl    "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+.Dl    "@graph": [
+.Dl        {
+.Dl            "@type": "Agent",
+.Dl            "creationInfo": "_:creationinfo_1",
+.Dl            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/default",
+.Dl            "name": "Default"
+.Dl        },
+.Dl        {
+.Dl            "@type": "CreationInfo",
+.Dl            "@id": "_:creationinfo_1",
+.Dl [...]
+.Sh SEE ALSO
+.Xr pc 5 ,
+.Xr pkgconf 1

@@ -240,6 +240,7 @@ SUBDIR.${MK_NIS}+=	ypwhich
 SUBDIR.${MK_OPENSSH}+=	ssh-copy-id
 SUBDIR.${MK_PKGCONF}+=	bomtool
 SUBDIR.${MK_PKGCONF}+=	pkgconf
+SUBDIR.${MK_PKGCONF}+=	spdxtool
 SUBDIR.${MK_QUOTAS}+=	quota
 SUBDIR.${MK_SENDMAIL}+=	vacation
 SUBDIR.${MK_TALK}+=	talk

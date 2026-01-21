@@ -12,6 +12,7 @@
 #include <string.h>
 #include "util.h"
 #include "core.h"
+#include "serialize.h"
 
 static inline void
 serialize_add_indent(pkgconf_buffer_t *buffer, unsigned int level)

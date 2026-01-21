@@ -14,6 +14,7 @@
 #include "serialize.h"
 #include "software.h"
 #include "core.h"
+#include "simplelicensing.h"
 
 /*
  * !doc
