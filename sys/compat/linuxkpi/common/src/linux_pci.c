@@ -1796,6 +1796,42 @@ lkpi_dmam_free_coherent(struct device *dev, void *p)
 	dma_free_coherent(dev, dr->size, dr->mem, *dr->handle);
 }
 
+static int
+lkpi_dmam_coherent_match(struct device *dev, void *dr, void *mp)
+{
+	struct lkpi_devres_dmam_coherent *a, *b;
+
+	a = dr;
+	b = mp;
+
+	if (a->mem != b->mem)
+		return (0);
+	if (a->size != b->size || a->handle != b->handle)
+		dev_WARN(dev, "for mem %p: size %zu != %zu || handle %#jx != %#jx\n",
+		    a->mem, a->size, b->size,
+		    (uintmax_t)a->handle, (uintmax_t)b->handle);
+	return (1);
+}
+
+void
+linuxkpi_dmam_free_coherent(struct device *dev, size_t size,
+    void *addr, dma_addr_t dma_handle)
+{
+	struct lkpi_devres_dmam_coherent match = {
+		.size		= size,
+		.handle		= &dma_handle,
+		.mem		= addr
+	};
+	int error;
+
+	error = devres_destroy(dev, lkpi_dmam_free_coherent,
+	    lkpi_dmam_coherent_match, &match);
+	if (error != 0)
+		dev_WARN(dev, "devres_destroy returned %d, size %zu addr %p "
+		    "dma_handle %#jx\n", error, size, addr, (uintmax_t)dma_handle);
+	dma_free_coherent(dev, size, addr, dma_handle);
+}
+
 void *
 linuxkpi_dmam_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
     gfp_t flag)

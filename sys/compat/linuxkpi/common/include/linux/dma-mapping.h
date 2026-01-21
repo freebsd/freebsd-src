@@ -96,6 +96,8 @@ void *linux_dma_alloc_coherent(struct device *dev, size_t size,
     dma_addr_t *dma_handle, gfp_t flag);
 void *linuxkpi_dmam_alloc_coherent(struct device *dev, size_t size,
     dma_addr_t *dma_handle, gfp_t flag);
+void linuxkpi_dmam_free_coherent(struct device *dev, size_t size,
+    void *addr, dma_addr_t dma_handle);
 dma_addr_t linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len);	/* backward compat */
 dma_addr_t lkpi_dma_map_phys(struct device *, vm_paddr_t, size_t,
     enum dma_data_direction, unsigned long);
@@ -179,6 +181,13 @@ dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
 
 	lkpi_dma_unmap(dev, dma_addr, size, DMA_BIDIRECTIONAL, 0);
 	kmem_free(cpu_addr, size);
+}
+
+static inline void
+dmam_free_coherent(struct device *dev, size_t size, void *addr,
+    dma_addr_t dma_handle)
+{
+	linuxkpi_dmam_free_coherent(dev, size, addr, dma_handle);
 }
 
 static inline dma_addr_t
