@@ -55,6 +55,8 @@
 #include <sys/terminal.h>
 
 #include <dev/kbd/kbdreg.h>
+
+#include "opt_vt.h"
 #include <dev/vt/vt.h>
 
 #if defined(__i386__) || defined(__amd64__)
@@ -3144,6 +3146,18 @@ vt_allocate_window(struct vt_device *vd, unsigned int window)
 
 	return (vw);
 }
+
+#ifdef VT_OVERRIDE_STARTING_VT
+SYSINIT(vt_override_cons, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, vt_override_cons,
+    &vt_consdev);
+
+void
+vt_override_cons(struct vt_device *vd)
+{
+	printf("vt: Honoring VT_OVERRIDE_STARTING_VT [%d] as starting tty\n", VT_OVERRIDE_STARTING_VT);
+	vd->vd_curwindow = vd->vd_windows[VT_OVERRIDE_STARTING_VT];
+}
+#endif
 
 void
 vt_upgrade(struct vt_device *vd)
