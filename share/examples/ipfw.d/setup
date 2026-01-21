@@ -1,0 +1,47 @@
+#
+# PROVIDE: setup blocked bogons
+# BEFORE: services routing outbound final
+#
+
+# remove all existing tables
+table all destroy
+table blocked create
+
+# standard (non-service specific) tables
+table bogons create
+table bogons add 0.0.0.0/8
+table bogons add 10.0.0.0/8
+table bogons add 172.12.0.0/12
+table bogons add 192.168.0.0/16
+table bogons add 169.254.0.0/16
+table bogons add 240.0.0.0/4
+
+# permit existing TCP sessions
+add allow tcp from any to any established
+
+# permit internal loopback traffic
+add allow ip from any to any via lo0
+add allow ip from any to any via lo1
+
+# deny directed loopback traffic
+add deny ip from any to 127.0.0.0/8 in
+add deny ip from any to ::/64 in
+
+# deny unexpected sources
+add deny ip from table(bogons) to me in // unexpected sources
+
+# deny explicitly disabled (non-persistent) sources
+add deny ip from table(blocked) to me in // emergency (non-persistent) blocklist
+
+# allow bsd-standard-port traceroutes
+add allow udp from me to any 33434-33600 // traceroute in
+add allow udp from any to me 33434-33600 // traceroute out
+
+# moderately permissive ICMPv4
+add allow icmp from any to any icmptypes 0,3,8,11,13,14 // safe ICMPv4
+
+# link-local ICMPv6 (RS, RA, NS, NA) - per FreeBSD standard rules
+add allow ipv6-icmp from :: to fe80::/10 // ICMPv6 DAD
+add allow ipv6-icmp from fe80::/10 to fe80::/10 // ICMPv6 NDP
+add allow ipv6-icmp from fe80::/10 to ff02::/16 // ICMPv6 NDP
+add allow ipv6-icmp from any to any icmp6types 1,2,3,128,129,135,136 // safe ICMPv6
