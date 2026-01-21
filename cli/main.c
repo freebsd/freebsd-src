@@ -1031,6 +1031,47 @@ deduce_personality(char *argv[])
 }
 #endif
 
+static void
+unveil_handler(const pkgconf_client_t *client, const char *path, const char *permissions)
+{
+	(void) client;
+
+	if (pkgconf_unveil(path, permissions) == -1)
+	{
+		fprintf(stderr, "pkgconf: unveil failed: %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+}
+
+static bool
+unveil_search_paths(const pkgconf_client_t *client, const pkgconf_cross_personality_t *personality)
+{
+	pkgconf_node_t *n;
+
+	if (pkgconf_unveil("/dev/null", "rwc") == -1)
+		return false;
+
+	PKGCONF_FOREACH_LIST_ENTRY(client->dir_list.head, n)
+	{
+		pkgconf_path_t *pn = n->data;
+
+		if (pkgconf_unveil(pn->path, "r") == -1)
+			return false;
+	}
+
+	PKGCONF_FOREACH_LIST_ENTRY(personality->dir_list.head, n)
+	{
+		pkgconf_path_t *pn = n->data;
+
+		if (pkgconf_unveil(pn->path, "r") == -1)
+			return false;
+	}
+
+	pkgconf_client_set_unveil_handler(&pkg_client, unveil_handler);
+
+	return true;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -1054,6 +1095,12 @@ main(int argc, char *argv[])
 		.realname = "virtual world package",
 		.flags = PKGCONF_PKG_PROPF_STATIC | PKGCONF_PKG_PROPF_VIRTUAL,
 	};
+
+	if (pkgconf_pledge("stdio rpath wpath cpath unveil", NULL) == -1)
+	{
+		fprintf(stderr, "pkgconf: pledge failed: %s\n", strerror(errno));
+		return EXIT_FAILURE;
+	}
 
 	want_flags = 0;
 
@@ -1218,9 +1265,6 @@ main(int argc, char *argv[])
 #endif
 	}
 
-	pkgconf_path_copy_list(&personality->dir_list, &dir_list);
-	pkgconf_path_free(&dir_list);
-
 #ifndef PKGCONF_LITE
 	if ((want_flags & PKG_DUMP_PERSONALITY) == PKG_DUMP_PERSONALITY)
 	{
@@ -1231,6 +1275,13 @@ main(int argc, char *argv[])
 
 	/* now, bring up the client.  settings are preserved since the client is prealloced */
 	pkgconf_client_init(&pkg_client, error_handler, NULL, personality);
+
+	/* unveil the entire search path now that we have loaded the personality data. */
+	if (!unveil_search_paths(&pkg_client, personality))
+	{
+		fprintf(stderr, "pkgconf: unveil failed: %s\n", strerror(errno));
+		return EXIT_FAILURE;
+	}
 
 #ifndef PKGCONF_LITE
 	if ((want_flags & PKG_MSVC_SYNTAX) == PKG_MSVC_SYNTAX || getenv("PKG_CONFIG_MSVC_SYNTAX") != NULL)
@@ -1258,6 +1309,9 @@ main(int argc, char *argv[])
 	if ((want_flags & PKG_DEBUG) == PKG_DEBUG)
 		pkgconf_client_set_trace_handler(&pkg_client, error_handler, NULL);
 #endif
+
+	pkgconf_path_prepend_list(&pkg_client.dir_list, &dir_list);
+	pkgconf_path_free(&dir_list);
 
 	if ((want_flags & PKG_ABOUT) == PKG_ABOUT)
 	{
@@ -1398,6 +1452,9 @@ main(int argc, char *argv[])
 	/* at this point, want_client_flags should be set, so build the dir list */
 	pkgconf_client_dir_list_build(&pkg_client, personality);
 
+	/* preload any files in PKG_CONFIG_PRELOADED_FILES */
+	pkgconf_client_preload_from_environ(&pkg_client, "PKG_CONFIG_PRELOADED_FILES");
+
 	if (required_pkgconfig_version != NULL)
 	{
 		if (pkgconf_compare_version(PACKAGE_VERSION, required_pkgconfig_version) >= 0)
@@ -1427,6 +1484,12 @@ main(int argc, char *argv[])
 
 	if (logfile_arg != NULL)
 	{
+		if (pkgconf_unveil(logfile_arg, "rwc") == -1)
+		{
+			fprintf(stderr, "pkgconf: unveil failed: %s\n", strerror(errno));
+			return EXIT_FAILURE;
+		}
+
 		logfile_out = fopen(logfile_arg, "w");
 		pkgconf_audit_set_log(&pkg_client, logfile_out);
 	}
@@ -1617,6 +1680,13 @@ cleanup3:
 	{
 		ret = EXIT_FAILURE;
 		goto out;
+	}
+
+	/* we shouldn't need to unveil any more filesystem accesses from this point, so lock it down */
+	if (pkgconf_unveil(NULL, NULL) == -1)
+	{
+		fprintf(stderr, "pkgconf: unveil lockdown failed: %s\n", strerror(errno));
+		return EXIT_FAILURE;
 	}
 
 #ifndef PKGCONF_LITE

@@ -37,15 +37,6 @@ static unsigned default_personality_init = 0;
 
 static pkgconf_cross_personality_t default_personality = {
 	.name = "default",
-#ifdef _WIN32
-	/* PE/COFF uses a different linking model than ELF and Mach-O, where
-	 * all transitive dependency references must be processed by the linker
-	 * when linking the final executable image, even if those dependencies
-	 * are pulled in as DLLs.
-	 * This translates to always using --static on Windows targets.
-	 */
-	.want_default_static = true,
-#endif
 };
 
 static inline void
@@ -130,7 +121,8 @@ pkgconf_cross_personality_default(void)
  *
  * .. c:function:: void pkgconf_cross_personality_deinit(pkgconf_cross_personality_t *)
  *
- *    Decrements the count of default cross personality instances.
+ *    Destroys a cross personality object and/or decreases the reference count on the
+ *    default cross personality object.
  *
  *    Not thread safe.
  *
@@ -139,11 +131,28 @@ pkgconf_cross_personality_default(void)
 void
 pkgconf_cross_personality_deinit(pkgconf_cross_personality_t *personality)
 {
-    if (--default_personality_init == 0) {
-        pkgconf_path_free(&personality->dir_list);
-        pkgconf_path_free(&personality->filter_libdirs);
-        pkgconf_path_free(&personality->filter_includedirs);
-    }
+	/* allow NULL parameter for API backwards compatibility */
+	if (personality == NULL)
+		return;
+
+	/* XXX: this hack is rather ugly, but it works for now... */
+	if (personality == &default_personality && --default_personality_init > 0)
+		return;
+
+	pkgconf_path_free(&personality->dir_list);
+	pkgconf_path_free(&personality->filter_libdirs);
+	pkgconf_path_free(&personality->filter_includedirs);
+
+	if (personality->sysroot_dir != NULL)
+		free(personality->sysroot_dir);
+
+	if (personality == &default_personality)
+		return;
+
+	if (personality->name != NULL)
+		free(personality->name);
+
+	free(personality);
 }
 
 #ifndef PKGCONF_LITE
@@ -260,13 +269,19 @@ load_personality_with_path(const char *path, const char *triplet, bool datadir)
 	else
 		snprintf(pathbuf, sizeof pathbuf, "%s/%s.personality", path, triplet);
 
-	f = fopen(pathbuf, "r");
-	if (f == NULL)
+	p = calloc(1, sizeof(pkgconf_cross_personality_t));
+	if (p == NULL)
 		return NULL;
 
-	p = calloc(1, sizeof(pkgconf_cross_personality_t));
 	if (triplet != NULL)
 		p->name = strdup(triplet);
+
+	f = fopen(pathbuf, "r");
+	if (f == NULL) {
+		pkgconf_cross_personality_deinit(p);
+		return NULL;
+	}
+
 	pkgconf_parser_parse(f, p, personality_parser_ops, personality_warn_func, pathbuf);
 
 	return p;

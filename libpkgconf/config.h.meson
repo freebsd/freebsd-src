@@ -24,6 +24,12 @@
 /* Define to 1 if you have the `reallocarray' function. */
 #mesondefine HAVE_DECL_REALLOCARRAY
 
+/* Define to 1 if you have the `pledge' function. */
+#mesondefine HAVE_DECL_PLEDGE
+
+/* Define to 1 if you have the `unveil' function. */
+#mesondefine HAVE_DECL_UNVEIL
+
 /* Name of package */
 #mesondefine PACKAGE
 
