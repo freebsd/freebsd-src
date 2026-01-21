@@ -438,6 +438,53 @@ rounddown_zero_body()
 	[ ${st_size} -eq 0 ] || atf_fail "new file should now be 0 bytes"
 }
 
+atf_test_case deallocate
+deallocate_head()
+{
+	atf_set "descr" "Verifies that -d punches a hole in the file"
+	atf_set "require.user" "root"
+}
+deallocate_body()
+{
+	blocksz=$(stat -h . | cut -f1 -d' ')
+	atf_check test -n "$blocksz"
+
+	# We use /dev/random here to defeat ZFS compression, which would
+	# collapse ranges of zeroes into holes without us deallocating it.  This
+	# isn't a concern below because those are specificially for creating our
+	# reference files -- we expect the deallocate operation to result in
+	# ranges of zeroes, whether they end up creating a hole or not.
+	filesz=$((blocksz * 3))
+	atf_check -e not-empty dd if=/dev/random of=sparse \
+	    bs=${filesz} count=1 conv=notrunc
+
+	atf_check cp sparse sparse.orig
+	atf_check cp sparse sparse.orig.orig
+
+	# Punch a hole in the middle, ensure that bit is zeroed out.
+	atf_check -e not-empty dd if=/dev/zero of=sparse.orig \
+	    bs=${blocksz} oseek=1 count=1 conv=notrunc
+	atf_check truncate -d -o ${blocksz} -l ${blocksz} sparse
+	atf_check cmp -s sparse sparse.orig
+
+	# Clobber the end part of the original file and punch a hole in
+	# the same spot on the new file, ensure that it has zeroed out that
+	# portion.
+	atf_check -e not-empty dd if=/dev/zero of=sparse.orig \
+	    bs=${blocksz} oseek=2 count=1 conv=notrunc
+	atf_check truncate -d -o $((blocksz * 2)) -l ${blocksz} sparse
+	atf_check cmp -s sparse sparse.orig
+
+	# Now bring the original file back and make sure that punching a hole
+	# in data at the beginning doesn't disturb the data at the end.
+	atf_check cp sparse.orig.orig sparse.orig
+	atf_check cp sparse.orig.orig sparse
+	atf_check -e not-empty dd if=/dev/zero of=sparse.orig \
+	    bs=${blocksz} oseek=0 count=1 conv=notrunc
+	atf_check truncate -d -l ${blocksz} sparse
+	atf_check cmp -s sparse sparse.orig
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case illegal_option
@@ -459,4 +506,5 @@ atf_init_test_cases()
 	atf_add_test_case roundup
 	atf_add_test_case rounddown
 	atf_add_test_case rounddown_zero
+	atf_add_test_case deallocate
 }
