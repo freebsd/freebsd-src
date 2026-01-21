@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <ctype.h>
+#include "util.h"
 
 /*
  * !doc
@@ -213,14 +214,14 @@ spdxtool_util_get_iso8601_time(time_t *wanted_time)
 /*
  * !doc
  *
- * .. c:function:: char *spdxtool_util_get_current_iso8601_time()
+ * .. c:function:: char *spdxtool_util_get_current_iso8601_time(void)
  *
  *    Get ISO8601 current timestamp
  *
  *    :return: Time string in ISO8601 format
  */
 char *
-spdxtool_util_get_current_iso8601_time()
+spdxtool_util_get_current_iso8601_time(void)
 {
 	time_t now;
 	time(&now);
