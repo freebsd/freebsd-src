@@ -2598,26 +2598,10 @@ dpaa2_ni_ioctl(if_t ifp, u_long c, caddr_t data)
 		break;
 	case SIOCSIFCAP:
 		changed = if_getcapenable(ifp) ^ ifr->ifr_reqcap;
-		if (changed & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
-			if ((ifr->ifr_reqcap & changed) &
-			    (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
-				if_setcapenablebit(ifp,
-				    IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6, 0);
-			} else {
-				if_setcapenablebit(ifp, 0,
-				    IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
-			}
-		}
-		if (changed & (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6)) {
-			if ((ifr->ifr_reqcap & changed) &
-			    (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6)) {
-				if_setcapenablebit(ifp,
-				    IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6, 0);
-			} else {
-				if_setcapenablebit(ifp, 0,
-				    IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
-			}
-		}
+		if ((changed & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) != 0)
+			if_togglecapenable(ifp, IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
+		if ((changed & (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6)) != 0)
+                        if_togglecapenable(ifp, IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
 
 		rc = dpaa2_ni_setup_if_caps(sc);
 		if (rc) {
